@@ -1,42 +1,38 @@
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { ListItem } from '@/components/ui/ListItem';
 import { keyboardService } from '@/core/services/keyboard';
+import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 export function TastaturTab(): React.ReactElement {
   const shortcuts = keyboardService.getAll();
-  const grouped = new Map<string, typeof shortcuts>();
-  for (const s of shortcuts) {
-    const list = grouped.get(s.category) ?? [];
-    list.push(s);
-    grouped.set(s.category, list);
-  }
 
   const isMac = navigator.platform.includes('Mac');
   const formatCombo = (combo: string): string => {
     return combo
-      .replace('mod', isMac ? '⌘' : 'Ctrl')
-      .replace('shift', isMac ? '⇧' : 'Shift')
+      .replace('mod', isMac ? '⌘' : 'Strg')
+      .replace('shift', isMac ? '⇧' : 'Umschalt')
       .replace('alt', isMac ? '⌥' : 'Alt')
-      .split('+').join(isMac ? '' : '+');
+      .split('+').join(isMac ? '' : ' + ');
   };
 
   return (
-    <div className="space-y-4">
-      {Array.from(grouped.entries()).map(([category, items]) => (
-        <div key={category}>
-          <SectionHeader label={category} />
-          {items.map((s, i) => (
-            <ListItem key={s.combo}
-              title={s.description}
-              meta={<span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] bg-[var(--tf-bg-secondary)] px-2 py-0.5 rounded">{formatCombo(s.combo)}</span>}
-              last={i === items.length - 1}
-            />
+    <section id="sec-tastatur" className="scroll-mt-20">
+      <SettingsSectionHeader label="Tastatur" />
+      {shortcuts.length === 0 ? (
+        <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Shortcuts registriert</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
+          {shortcuts.map(s => (
+            <div
+              key={s.combo}
+              className="flex items-center justify-between py-2.5 border-b border-[var(--tf-border)]"
+            >
+              <span className="text-[13px] text-[var(--tf-text-secondary)]">{s.description}</span>
+              <span className="font-mono text-[11px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] rounded-[5px] px-1.5 py-[3px] whitespace-nowrap" style={{ border: '0.5px solid var(--tf-border)' }}>
+                {formatCombo(s.combo)}
+              </span>
+            </div>
           ))}
         </div>
-      ))}
-      {shortcuts.length === 0 && (
-        <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Shortcuts registriert</p>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,127 +1,70 @@
-import { useState, useEffect } from 'react';
-import { Check, Sun, Moon } from 'lucide-react';
-import { Tabs } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/components/ui/theme';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
-import { ProfilTab } from './ProfilTab';
-import { TagsTab } from './TagsTab';
-import { TastaturTab } from './TastaturTab';
-import { AIProviderTab } from './AIProviderTab';
-import { SpeicherTab } from './SpeicherTab';
-import { DokumentenquellenTab } from './DokumentenquellenTab';
-import { MeineTechnologienTab } from './MeineTechnologienTab';
-import { OnlineTab } from './OnlineTab';
-import { isDevContext, isOnlineStatusTabEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
+import { useKeyboardShortcut } from '@/core/hooks/useKeyboard';
+import { SettingsNav } from './SettingsNav';
+import { getSettingsPanels, buildSearchIndex } from './settingsPanels';
 import type { AIProviderConfig } from '@/core/types/config';
-
-const TABS: Array<{ id: string; label: string }> = [
-  { id: 'profil', label: 'Profil' },
-  { id: 'meine-technologien', label: 'Meine Technologien' },
-  { id: 'darstellung', label: 'Darstellung' },
-  { id: 'speicher', label: 'Speicher' },
-  { id: 'dokumentenquellen', label: 'Dokumentenquellen' },
-  { id: 'tags', label: 'Tags' },
-  { id: 'tastatur', label: 'Tastatur' },
-];
-// KI-Assistent-Tab: im Entwickler-Kontext (voller Provider-Switcher) ODER wo die
-// LLM-Skill-Generierung läuft (dev + pl) — dort nur das Kontextlänge-Feld, da der
-// LLM-Endpoint via `ki.localLlama.endpoint` in der Build-Config fix verdrahtet ist.
-if (isDevContext() || isLlmKontextSettingEnabled() || isStreamlitBridgeEnabled()) {
-  TABS.push({ id: 'ai', label: 'KI-Assistent' });
-}
-// v2.59: „Online"-Tab nur in pl (+ dev) — zeigt zuletzt aktive Team-User aus den
-// eingesammelten Heartbeats. Andere Varianten schreiben Heartbeats, sehen den
-// Tab aber nicht.
-if (isOnlineStatusTabEnabled()) {
-  TABS.push({ id: 'online', label: 'Online' });
-}
 
 export function EinstellungenPage(): React.ReactElement {
   const storage = useStorage();
-  const { profile, updateProfile } = useProfile();
-  const [activeTab, setActiveTab] = useState('profil');
-  const [dark, setDark] = useState(isDarkMode());
+  const [activePanel, setActivePanel] = useState('profil');
   const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'https://gpt.vdivde-it.de/', model: '', apiKey: '' });
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Nach einem Such-Sprung: Panel wird erst umgeschaltet, das Ziel ist danach
+  // (frisch gemountet) im DOM → Scroll+Flash erst im useEffect (rAF).
+  const pendingSection = useRef<string | null>(null);
 
   useEffect(() => {
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => { if (c) setAiConfig(c); });
   }, [storage]);
 
-  const handleColorChange = (h: number, s: string, l: string): void => {
-    applyThemeColor(h, s, l);
-    updateProfile({ theme: { ...profile!.theme, hue: h } });
+  const panels = useMemo(() => getSettingsPanels({ aiConfig, setAiConfig }), [aiConfig]);
+  const searchIndex = useMemo(() => buildSearchIndex(panels), [panels]);
+
+  // Aktives Panel darf nach Flag-/Sichtbarkeitswechsel nicht ins Leere zeigen.
+  // panels ist nie leer (Profil wird immer eingehängt).
+  const active = panels.find(p => p.id === activePanel) ?? panels[0]!;
+
+  // Strg+, fokussiert die Einstellungs-Suche (erscheint dadurch in der Tastatur-Liste).
+  useKeyboardShortcut('mod+,', () => searchInputRef.current?.focus(), { description: 'Einstellungen durchsuchen', category: 'Einstellungen' });
+
+  const goToSection = (panelId: string, sectionId: string): void => {
+    setActivePanel(panelId);
+    pendingSection.current = sectionId;
   };
 
-  const handleDarkToggle = (): void => {
-    const next = !dark;
-    setDark(next);
-    setDarkMode(next);
-    updateProfile({ theme: { ...profile!.theme, dark: next } });
-  };
+  useEffect(() => {
+    const id = pendingSection.current;
+    if (!id) return;
+    pendingSection.current = null;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.remove('tf-settings-flash');
+      void el.offsetWidth; // Reflow → Animation startet auch bei erneutem Sprung neu
+      el.classList.add('tf-settings-flash');
+      window.setTimeout(() => el.classList.remove('tf-settings-flash'), 1900);
+    });
+  }, [activePanel]);
 
   return (
     <div className="px-8 pt-4 pb-6 max-w-5xl">
       <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Einstellungen</h1>
-      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-      <div className="mt-6">
-        {activeTab === 'profil' && <ProfilTab />}
-
-        {activeTab === 'darstellung' && (
-          <div className="space-y-6">
-            <div>
-              <SectionHeader label="Primärfarbe" />
-              <div className="flex gap-2.5 mt-3">
-                {PRESET_COLORS.map(c => (
-                  <button key={c.name} onClick={() => handleColorChange(c.h, c.s, c.l)}
-                    className="w-[44px] h-[44px] rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
-                    style={{ backgroundColor: `hsl(${c.h}, ${c.s}, ${c.l})`, border: (profile?.theme.hue ?? 215) === c.h ? '2px solid var(--tf-text)' : '2px solid transparent' }}
-                    title={c.name}>
-                    {(profile?.theme.hue ?? 215) === c.h && <Check size={18} className="text-white" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <SectionHeader label="Erscheinungsbild" />
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-[13px] text-[var(--tf-text)]">Dark Mode</span>
-                <button onClick={handleDarkToggle}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-                  style={{ border: '0.5px solid var(--tf-border)' }}>
-                  {dark ? <Moon size={14} /> : <Sun size={14} />}
-                  {dark ? 'Dark' : 'Light'}
-                </button>
-              </div>
-            </div>
-            <div>
-              <SectionHeader label="Vorschau" />
-              <div className="mt-3 space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] bg-[var(--tf-primary)] text-white">Akzent-Farbe</span>
-                  <span className="px-3 py-1.5 rounded-[var(--tf-radius)] text-[13px] bg-[var(--tf-primary-light)] text-[var(--tf-primary)]">Akzent Light</span>
-                  <Badge variant="info">Info</Badge>
-                  <Badge variant="success">Success</Badge>
-                  <Badge variant="warning">Warning</Badge>
-                  <Badge variant="error">Error</Badge>
-                </div>
-                <p className="text-[13px]"><a href="#" className="text-[var(--tf-primary)] hover:underline" onClick={e => e.preventDefault()}>Link in Primärfarbe</a> — so sehen Links aus</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'ai' && <AIProviderTab aiConfig={aiConfig} setAiConfig={setAiConfig} />}
-
-        {activeTab === 'speicher' && <SpeicherTab />}
-        {activeTab === 'dokumentenquellen' && <DokumentenquellenTab />}
-        {activeTab === 'tags' && <TagsTab />}
-        {activeTab === 'tastatur' && <TastaturTab />}
-        {activeTab === 'meine-technologien' && <MeineTechnologienTab />}
-        {activeTab === 'online' && <OnlineTab />}
+      <div className="grid grid-cols-[224px_1fr] items-start gap-0">
+        <SettingsNav
+          panels={panels}
+          activePanel={active.id}
+          onSelectPanel={setActivePanel}
+          searchIndex={searchIndex}
+          onGoToSection={goToSection}
+          searchInputRef={searchInputRef}
+        />
+        <div className="pl-7 min-w-0">
+          {active.render()}
+        </div>
       </div>
     </div>
   );

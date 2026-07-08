@@ -10,7 +10,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -21,6 +20,7 @@ import {
 } from '@/core/services/infrastructure/smb-handle';
 import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
 import { formatRelativeTime } from '@/components/feedback';
+import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 const REFRESH_INTERVAL_MS = 45_000;
 
@@ -119,20 +119,21 @@ export function OnlineTab(): React.ReactElement {
   const onlineCount = users.filter(u => u.online).length;
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <SectionHeader label="Online" />
-          <p className="text-[13px] text-[var(--tf-text-secondary)] mt-1 max-w-prose">
-            Wer die App zuletzt genutzt hat. „Online" = in den letzten 5&nbsp;Minuten
-            aktiv. Aktualisiert sich automatisch alle 45&nbsp;Sekunden.
-          </p>
-        </div>
-        <Button variant="secondary" size="sm" icon={RefreshCw} loading={load.busy}
-          onClick={() => load.run()}>
-          Aktualisieren
-        </Button>
-      </div>
+    <section id="sec-team" className="scroll-mt-20 space-y-5">
+      <SettingsSectionHeader
+        label="Team-Status"
+        hint={'„Online" = in den letzten 5 Minuten aktiv. Aktualisiert sich alle 45 Sekunden. Liest nur den übergeordneten Ordner der persönlichen Ordner (Lesezugriff, einmalig).'}
+        action={
+          <Button variant="secondary" size="sm" icon={RefreshCw} loading={load.busy}
+            onClick={() => load.run()}>
+            Aktualisieren
+          </Button>
+        }
+      />
+      <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-prose">
+        Wer die App zuletzt genutzt hat. „Online" = in den letzten 5&nbsp;Minuten
+        aktiv. Aktualisiert sich automatisch alle 45&nbsp;Sekunden.
+      </p>
 
       {load.error && (
         <div className="text-[13px] rounded-[var(--tf-radius)] px-3 py-2 bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]"
@@ -214,6 +215,6 @@ export function OnlineTab(): React.ReactElement {
           </ul>
         </div>
       )}
-    </div>
+    </section>
   );
 }

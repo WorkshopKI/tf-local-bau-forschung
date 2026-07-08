@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Trash2, FileText, Database, Pencil, Check, FlaskConical, FolderHeart, FolderOpen, RefreshCw, FolderInput, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ListItem } from '@/components/ui/ListItem';
+import { SettingsSectionHeader, SettingsFileRow } from './_shared/settings-primitives';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';
@@ -343,131 +343,103 @@ export function SpeicherTab(): React.ReactElement {
   };
 
   return (
-    <div className="space-y-6">
-      <SectionHeader label="Datenordner" />
-      <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-        Geteilter Ordner auf dem Netzlaufwerk mit Anträgen, Suchindex und Sync-Stand.
-        {dsHandleExists && !dsConnected && ' Aktuell offline — Verbindung kann neu hergestellt werden.'}
-      </p>
-      <div className="flex items-center justify-between gap-3 mt-1">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Database size={16} className="text-[var(--tf-primary)] shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[13px] text-[var(--tf-text)] truncate">
-              {dsHandleExists ? (dsFolderName ?? 'Verbunden') : 'Noch nicht verbunden'}
-            </p>
-            {dsHandleExists && (
-              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-                {dsConnected ? 'Online' : 'Offline'}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {dsHandleExists ? (
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={handleReconnectDatenShare}
-              disabled={dsBusy}
-            >
-              {dsBusy ? 'Aktualisiere...' : 'Aktualisieren'}
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              icon={FolderOpen}
-              onClick={handlePickDatenShare}
-              disabled={dsBusy}
-            >
-              Verbinden
-            </Button>
-          )}
-          {dsHandleExists && (
-            <button
-              onClick={handleDisconnectDatenShare}
-              className="p-1 text-[var(--tf-danger-text)] cursor-pointer"
-              title="Trennen"
-              disabled={dsBusy}
-            >
-              <Trash2 size={12} />
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-8">
+      {/* Speicherorte — Datenordner (inkl. gefalteter Datenaktualisierung),
+          Persönlicher Ordner, CSV-Quellen als frow-Datei-Zeilen. */}
+      <section id="sec-speicher" className="scroll-mt-20">
+        <SettingsSectionHeader label="Speicherorte" />
 
-      {dsHandleExists && (
-        <>
-          <SectionHeader label="Datenaktualisierung" />
-          <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-            Prüft den Datenbestand und – sofern verknüpfte CSV-Exporte neuer sind –
-            importiert diese sofort. Läuft sonst automatisch beim Start.
-          </p>
-          {lastCsvImport && (
-            <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug mt-1">
-              Letzter CSV-Import: <span className="font-medium text-[var(--tf-text)]">{lastCsvImport}</span>
-            </p>
-          )}
-          <div className="flex items-center justify-between gap-3 mt-1">
-            <p className="min-w-0 text-[12px] text-[var(--tf-text-secondary)] truncate">
-              {updateMsg ?? ' '}
-            </p>
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={handleRunDataUpdate}
-              disabled={updateBusy || !dsConnected}
-            >
-              {updateBusy ? 'Aktualisiere…' : 'Jetzt aktualisieren'}
-            </Button>
-          </div>
-        </>
-      )}
+        <SettingsFileRow
+          first
+          icon={<Database size={15} strokeWidth={1.5} />}
+          name="Datenordner"
+          value={dsHandleExists ? (dsFolderName ?? 'Verbunden') : undefined}
+          connected={dsHandleExists && dsConnected}
+          hint="Geteilter Ordner auf dem Netzlaufwerk mit Anträgen, Suchindex und Sync-Stand."
+          meta={dsHandleExists ? (
+            <>
+              {lastCsvImport
+                ? <>Letzter CSV-Import: <span className="font-medium text-[var(--tf-text-secondary)]">{lastCsvImport}</span> · prüft beim Start automatisch auf neuere Exporte</>
+                : <>Prüft beim Start automatisch auf neuere Exporte</>}
+              {!dsConnected && ' · offline'}
+              {updateMsg && <> · {updateMsg}</>}
+            </>
+          ) : 'Noch nicht verbunden — Ordner auf dem Netzlaufwerk wählen'}
+          actions={
+            <>
+              {dsHandleExists ? (
+                dsConnected ? (
+                  <Button variant="secondary" size="sm" icon={RefreshCw} onClick={handleRunDataUpdate} disabled={updateBusy}>
+                    {updateBusy ? 'Aktualisiere…' : 'Jetzt aktualisieren'}
+                  </Button>
+                ) : (
+                  <Button variant="secondary" size="sm" icon={RefreshCw} onClick={handleReconnectDatenShare} disabled={dsBusy}>
+                    {dsBusy ? 'Aktualisiere...' : 'Erneut verbinden'}
+                  </Button>
+                )
+              ) : (
+                <Button variant="secondary" size="sm" icon={FolderOpen} onClick={handlePickDatenShare} disabled={dsBusy}>
+                  Verbinden
+                </Button>
+              )}
+              {dsHandleExists && (
+                <button onClick={handleDisconnectDatenShare} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer" title="Trennen" disabled={dsBusy}>
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </>
+          }
+        />
 
-      <SectionHeader label="Persönlicher Ordner" />
-      <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-        Speichert Profil, Filter-Presets und Feedback-Outbox dort. Bleibt über
-        Browser-Wechsel und Citrix-Sessions hinweg erhalten.
-      </p>
-      <div className="flex items-center justify-between gap-3 mt-1">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <FolderHeart size={16} className="text-[var(--tf-primary)] shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[13px] text-[var(--tf-text)] truncate">
-              {persConnected ? (persFolderName ?? 'Verbunden') : 'Noch nicht verbunden'}
-            </p>
-            {persConnected && (
-              <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-                {persoenlichAvailable ? 'Online' : 'Offline'}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="secondary"
-            icon={FolderOpen}
-            onClick={handleConnectPers}
-            disabled={persBusy}
-          >
-            {persConnected ? 'Ändern' : 'Verbinden'}
-          </Button>
-          {persConnected && (
-            <button
-              onClick={handleDisconnectPers}
-              className="p-1 text-[var(--tf-danger-text)] cursor-pointer"
-              title="Trennen"
-              disabled={persBusy}
-            >
-              <Trash2 size={12} />
-            </button>
-          )}
-        </div>
-      </div>
+
+        <SettingsFileRow
+          icon={<FolderHeart size={15} strokeWidth={1.5} />}
+          name="Persönlicher Ordner"
+          value={persConnected ? (persFolderName ?? 'Verbunden') : undefined}
+          connected={persConnected && persoenlichAvailable}
+          hint="Speichert Profil, Filter-Presets und Feedback-Outbox. Bleibt über Browser-Wechsel und Citrix-Sessions hinweg erhalten."
+          meta={!persConnected ? 'Noch nicht verbunden' : (!persoenlichAvailable ? 'Offline' : undefined)}
+          actions={
+            <>
+              <Button variant="secondary" size="sm" icon={FolderOpen} onClick={handleConnectPers} disabled={persBusy}>
+                {persConnected ? 'Ändern' : 'Verbinden'}
+              </Button>
+              {persConnected && (
+                <button onClick={handleDisconnectPers} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer" title="Trennen" disabled={persBusy}>
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </>
+          }
+        />
+
+        {showCsvFolder && (
+          <SettingsFileRow
+            icon={<FolderInput size={15} strokeWidth={1.5} />}
+            name="CSV-Quellen"
+            value={csvDirExists ? (csvDirName ?? 'Verknüpft') : undefined}
+            connected={csvDirExists && csvDirOnline}
+            hint={'Ordner mit den CSV-Quelldateien für die automatische Aktualisierung. Eine Freigabe deckt alle Dateien darin ab — nach einem Neustart genügt ein „Zulassen".'}
+            meta={!csvDirExists ? 'Noch nicht verknüpft' : (!csvDirOnline ? 'Offline' : undefined)}
+            actions={
+              <>
+                <Button variant="secondary" size="sm" icon={FolderOpen} onClick={handlePickCsvFolder} disabled={csvBusy}>
+                  {csvBusy ? 'Wähle...' : (csvDirExists ? 'Ändern' : 'Verknüpfen')}
+                </Button>
+                {csvDirExists && (
+                  <button onClick={handleDisconnectCsv} className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer" title="Trennen" disabled={csvBusy}>
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </>
+            }
+          />
+        )}
+      </section>
 
       {verlauf.length > 0 && (
-        <>
-          <SectionHeader label="Arbeitsverlauf" />
+        <section className="scroll-mt-20 space-y-3">
+          <SettingsSectionHeader label="Arbeitsverlauf" />
           <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
             Zuletzt bearbeitete Gutachten, Nachforderungen und Kurzfassungen — Quelle der
             „Weitermachen"-Karte auf der Startseite.{' '}
@@ -490,57 +462,13 @@ export function SpeicherTab(): React.ReactElement {
               {verlaufBusy ? 'Lösche…' : 'Verlauf löschen'}
             </Button>
           </div>
-        </>
+        </section>
       )}
 
-      {showCsvFolder && (
-        <>
-          <SectionHeader label="CSV-Quellen-Ordner" />
-          <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-            Ordner mit den CSV-Quelldateien für die automatische Aktualisierung. Eine
-            Freigabe deckt alle Dateien darin ab — nach einem Neustart genügt ein
-            „Zulassen", kein erneutes Verknüpfen je Datei.
-          </p>
-          <div className="flex items-center justify-between gap-3 mt-1">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <FolderInput size={16} className="text-[var(--tf-primary)] shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[13px] text-[var(--tf-text)] truncate">
-                  {csvDirExists ? (csvDirName ?? 'Verknüpft') : 'Noch nicht verknüpft'}
-                </p>
-                {csvDirExists && (
-                  <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-                    {csvDirOnline ? 'Online' : 'Offline'}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="secondary"
-                icon={FolderOpen}
-                onClick={handlePickCsvFolder}
-                disabled={csvBusy}
-              >
-                {csvBusy ? 'Wähle...' : (csvDirExists ? 'Ändern' : 'Verknüpfen')}
-              </Button>
-              {csvDirExists && (
-                <button
-                  onClick={handleDisconnectCsv}
-                  className="p-1 text-[var(--tf-danger-text)] cursor-pointer"
-                  title="Trennen"
-                  disabled={csvBusy}
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
+      <section className="scroll-mt-20 space-y-4">
       {(directories.length > 0 || isKuratorMenusEnabled()) && (
-        <SectionHeader label="Verbundene Verzeichnisse" />
+        <SettingsSectionHeader label="Verbundene Verzeichnisse" />
       )}
 
       {directories.length === 0 ? (
@@ -595,7 +523,7 @@ export function SpeicherTab(): React.ReactElement {
           isKuratorMenusEnabled() — matched präzise dev + kurator. */}
       {isKuratorMenusEnabled() && (
         <>
-          <SectionHeader label="Verzeichnis hinzufügen" />
+          <SettingsSectionHeader label="Verzeichnis hinzufügen" />
 
           <div className="flex gap-3 flex-wrap">
             <Button variant="secondary" icon={FileText} onClick={() => handleAdd('documents')}>
@@ -623,6 +551,8 @@ export function SpeicherTab(): React.ReactElement {
           )}
         </>
       )}
+
+      </section>
 
       {error && <p className="text-[12px] text-[var(--tf-danger-text)]">{error}</p>}
     </div>

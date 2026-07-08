@@ -326,6 +326,19 @@ body {
   100% { background-color: transparent; }
 }
 
+/* Einstellungen-Suche: kurzer Highlight nach Sprung zum Abschnitt (~1,8 s). */
+@keyframes tf-settings-flash {
+  0%, 60% { box-shadow: 0 0 0 6px var(--tf-primary-light); background: var(--tf-primary-light); }
+  100%    { box-shadow: 0 0 0 6px transparent; background: transparent; }
+}
+.tf-settings-flash {
+  animation: tf-settings-flash 1.8s var(--tf-ease);
+  border-radius: var(--tf-radius);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tf-settings-flash { animation: none; }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

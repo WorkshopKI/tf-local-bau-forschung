@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
+import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
@@ -65,8 +65,8 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
   };
 
   return (
-    <div className="space-y-4">
-      <SectionHeader label="Interne KI" />
+    <section id="sec-internki" className="scroll-mt-20 space-y-4">
+      <SettingsSectionHeader label="Interne KI" hint="Zugang über einen parallelen Browser-Tab; das Lesezeichen aktiviert die Verbindung dort." />
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] max-w-2xl">
         Zugang zur internen KI über einen parallelen Browser-Tab. Diese App öffnet den Tab und tauscht
         die Daten aus; das Lesezeichen aktiviert die Verbindung im Tab der internen KI.
@@ -100,33 +100,38 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
       {save.error && <p className="text-[12px] text-[var(--tf-danger-text)]">Fehler: {save.error}</p>}
       {test.error && <p className="text-[12px] text-[var(--tf-danger-text)]">Fehler: {test.error}</p>}
 
-      {/* Bookmarklet */}
-      <SectionHeader label="Lesezeichen installieren" />
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button asChild variant="primary" className="cursor-grab select-none">
-          {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
-          <a
-            ref={linkRef}
-            draggable
-            onClick={e => e.preventDefault()}
-            title="In die Lesezeichenleiste ziehen"
-          >
-            Interne KI
-          </a>
-        </Button>
-      </div>
-
-      {/* Anleitung */}
-      <ol className="text-[12px] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1 max-w-2xl">
-        <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
-        <li>Den Button <strong>„Interne KI"</strong> einmalig in die Lesezeichenleiste ziehen.</li>
-        <li><strong>Interne KI öffnen</strong> klicken (der Tab muss <em>aus der App</em> geöffnet werden).</li>
-        <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheinen ein grünes Badge und der Button <strong>„ZAH-App testen"</strong> (zeigt „ZAH App erreichbar").</li>
-        <li>Zurück hier: <strong>Verbindung testen</strong> → „Interne KI erreichbar". Danach läuft der KI-Chat über die Verbindung.</li>
-      </ol>
-      <p className="text-[11.5px] text-[var(--tf-text-tertiary)] max-w-2xl">
-        Hinweis: Das Lesezeichen muss pro KI-Tab einmal angeklickt werden (nach jedem Neuladen erneut).
-      </p>
-    </div>
+      {/* Lesezeichen einrichten — Anleitung (aufklappbar wie im Design-Handoff) */}
+      <details className="max-w-2xl">
+        <summary className="text-[12.5px] font-medium text-[var(--tf-primary)] cursor-pointer">
+          Lesezeichen einrichten — Anleitung
+        </summary>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button asChild variant="primary" className="cursor-grab select-none">
+              {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
+              <a
+                ref={linkRef}
+                draggable
+                onClick={e => e.preventDefault()}
+                title="In die Lesezeichenleiste ziehen"
+              >
+                Interne KI
+              </a>
+            </Button>
+            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">In die Lesezeichenleiste ziehen</span>
+          </div>
+          <ol className="text-[12px] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1">
+            <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
+            <li>Den Button <strong>„Interne KI"</strong> einmalig in die Lesezeichenleiste ziehen.</li>
+            <li><strong>Interne KI öffnen</strong> klicken (der Tab muss <em>aus der App</em> geöffnet werden).</li>
+            <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheinen ein grünes Badge und der Button <strong>„ZAH-App testen"</strong> (zeigt „ZAH App erreichbar").</li>
+            <li>Zurück hier: <strong>Verbindung testen</strong> → „Interne KI erreichbar". Danach läuft der KI-Chat über die Verbindung.</li>
+          </ol>
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Hinweis: Das Lesezeichen muss pro KI-Tab einmal angeklickt werden (nach jedem Neuladen erneut).
+          </p>
+        </div>
+      </details>
+    </section>
   );
 }

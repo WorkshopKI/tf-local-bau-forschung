@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.200 — 2026-07
+
+### Neu
+- Die **Einstellungen** haben ein neues, aufgeräumtes Layout: statt einer langen Reiter-Leiste gibt es jetzt links eine **Navigation** mit den Gruppen **Persönlich** (Profil, Meine Technologien) und **System** (Darstellung & Bedienung, KI-Assistent, Daten & Verbindungen).
+- **Einstellungs-Suche:** Oben in der Navigation nach jeder Einstellung suchen (oder **Strg + Komma** drücken) — die App springt direkt zum passenden Abschnitt und hebt ihn kurz hervor. Auch die alten Reiter-Namen („Speicher", „Online", „Tastatur" …) werden gefunden.
+
+### Verbesserungen
+- Verwandte Einstellungen sind zusammengelegt: **Tastatur-Kürzel** stehen jetzt bei „Darstellung & Bedienung", und **Speicher, Dokumentenquellen, Tags und Team-Status** (früher „Online") unter „Daten & Verbindungen".
+- Beim **Datenordner** sitzen „Letzter Import" und **„Jetzt aktualisieren"** direkt in der Zeile — kein separater Abschnitt mehr.
+- Lange Erklärtexte stecken jetzt hinter kleinen **ⓘ-Symbolen**, sodass die Seite ruhiger wirkt.
+
 ## v2.199 — 2026-07
 
 ### Neu

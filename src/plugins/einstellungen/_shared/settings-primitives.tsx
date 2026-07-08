@@ -68,12 +68,19 @@ export function SettingsSectionHeader({
   count,
   hint,
   right,
+  action,
 }: {
   label: string;
   count?: number;
   hint?: string;
-  /** Optionaler rechtsbündiger Zusatz nach der Hairline (z.B. „6 gewählt"). */
+  /** Optionaler rechtsbündiger Zusatz nach der Hairline (z.B. „6 gewählt"). Tertiär. */
   right?: React.ReactNode;
+  /**
+   * Optionale primär-farbige Aktion nach der Hairline (z.B. „Neu zählen").
+   * Handoff `.sh-action` — für klickbare Zusätze, während `right` tertiäre
+   * Zustandstexte trägt.
+   */
+  action?: React.ReactNode;
 }): React.ReactElement {
   return (
     <div className="flex items-center gap-3 mb-3.5">
@@ -90,6 +97,91 @@ export function SettingsSectionHeader({
       {right != null && (
         <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">{right}</span>
       )}
+      {action != null && <span className="shrink-0">{action}</span>}
+    </div>
+  );
+}
+
+/**
+ * Datei-/Ordner-Zeile gemäß Design-Handoff `.frow`: Icon-Kachel + Name·Wert
+ * (+ optional grüner Status-Punkt + Info) + optionale Meta-Zeile darunter +
+ * rechtsbündige Aktionen. Aufeinanderfolgende Rows tragen eine Trenn-Hairline
+ * oben (`first={false}`).
+ */
+export function SettingsFileRow({
+  icon,
+  name,
+  value,
+  connected,
+  hint,
+  meta,
+  actions,
+  first = false,
+}: {
+  icon: React.ReactNode;
+  name: string;
+  value?: string;
+  /** Zeigt den grünen „verbunden"-Punkt hinter Name/Wert. */
+  connected?: boolean;
+  hint?: string;
+  /** Optionale zweite Zeile unter dem Namen (z.B. „Letzter CSV-Import: …"). */
+  meta?: React.ReactNode;
+  /** Rechtsbündige Aktionen (Buttons). */
+  actions?: React.ReactNode;
+  first?: boolean;
+}): React.ReactElement {
+  return (
+    <div
+      className={`flex items-center gap-3 py-3 ${first ? '' : 'border-t border-[var(--tf-border)]'}`}
+    >
+      <span className="w-[30px] h-[30px] rounded-lg bg-[var(--tf-bg-secondary)] inline-flex items-center justify-center text-[var(--tf-text-secondary)] shrink-0">
+        {icon}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13.5px] font-medium text-[var(--tf-text)] flex items-center gap-[7px] flex-wrap leading-tight">
+          <span>{name}</span>
+          {value && (
+            <>
+              <span className="text-[var(--tf-text-tertiary)] font-normal">·</span>
+              <span className="font-normal text-[var(--tf-text-secondary)]">{value}</span>
+            </>
+          )}
+          {connected && (
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-[var(--tf-success-text)] inline-block"
+              aria-hidden
+            />
+          )}
+          {hint && <InfoHint text={hint} />}
+        </p>
+        {meta && <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-0.5 leading-snug">{meta}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    </div>
+  );
+}
+
+/**
+ * Gestrichelte Hinweis-Karte gemäß Design-Handoff `.notecard`: Badge + Text +
+ * optionaler Info-Hint (z.B. „Persönliche Dokumentenquellen · In Vorbereitung").
+ */
+export function SettingsNoteCard({
+  badge,
+  children,
+  hint,
+}: {
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+  hint?: string;
+}): React.ReactElement {
+  return (
+    <div
+      className="rounded-[var(--tf-radius-lg)] bg-[var(--tf-bg-secondary)] px-3.5 py-3 flex items-center gap-3 text-[12.5px] leading-relaxed text-[var(--tf-text-secondary)]"
+      style={{ border: '0.5px dashed var(--tf-border-hover)' }}
+    >
+      {badge}
+      <span className="flex-1">{children}</span>
+      {hint && <InfoHint text={hint} />}
     </div>
   );
 }

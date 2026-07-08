@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, Minus, Plus } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
@@ -15,6 +14,7 @@ import {
   SettingsRow,
   SettingsRowGroup,
   SettingsRowSeparator,
+  SettingsSectionHeader,
   Avatar,
   InfoHint,
 } from './_shared/settings-primitives';
@@ -51,8 +51,8 @@ export function ProfilTab(): React.ReactElement {
   return (
     <div className="space-y-8">
       {/* Section 1 — Account */}
-      <section>
-        <SectionHeader label="Account" />
+      <section id="sec-account" className="scroll-mt-20">
+        <SettingsSectionHeader label="Account" />
         <SettingsRow>
           <SettingsRowGroup>
             <Avatar initials={initials} />
@@ -62,8 +62,8 @@ export function ProfilTab(): React.ReactElement {
       </section>
 
       {/* Section 2 — Bearbeiter-Filter */}
-      <section>
-        <SectionHeader label="Bearbeiter-Filter" />
+      <section id="sec-filter" className="scroll-mt-20">
+        <SettingsSectionHeader label="Bearbeiter-Filter" />
         <SettingsRow>
           <SettingsRowGroup>
             {maLoginActive ? (
@@ -96,8 +96,8 @@ export function ProfilTab(): React.ReactElement {
       </section>
 
       {/* Section 3 — Home-Dashboard */}
-      <section>
-        <SectionHeader label="Home-Dashboard" />
+      <section id="sec-home" className="scroll-mt-20">
+        <SettingsSectionHeader label="Home-Dashboard" />
         <SettingsRow>
           <SettingsRowGroup>
             <FieldLabel
@@ -117,8 +117,8 @@ export function ProfilTab(): React.ReactElement {
 
       {/* Section 4 — Kurator-Bereich (nur in kurator-Variante) */}
       {isKuratorMenusEnabled() && (
-        <section>
-          <SectionHeader label="Kurator-Bereich" />
+        <section id="sec-kurator" className="scroll-mt-20">
+          <SettingsSectionHeader label="Kurator-Bereich" />
           <SettingsRow>
             <SettingsRowGroup>
               <Switch

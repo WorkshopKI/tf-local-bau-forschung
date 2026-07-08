@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ListItem } from '@/components/ui/ListItem';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useTags } from '@/core/hooks/useTags';
+import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 export function TagsTab(): React.ReactElement {
   const { allTags, removeTag, renameTag, recountTags } = useTags();
@@ -29,10 +29,13 @@ export function TagsTab(): React.ReactElement {
   };
 
   return (
-    <div className="space-y-4">
-      <SectionHeader label="Tag-Verwaltung" action={<Button variant="ghost" size="sm" onClick={handleRecount}>Neu zählen</Button>} />
+    <section id="sec-tags" className="scroll-mt-20 space-y-4">
+      <SettingsSectionHeader
+        label="Tags"
+        action={<button type="button" onClick={handleRecount} className="text-[12px] font-medium text-[var(--tf-primary)] hover:underline cursor-pointer">Neu zählen</button>}
+      />
       {allTags.length === 0 ? (
-        <p className="text-[13px] text-[var(--tf-text-secondary)]">Noch keine Tags vorhanden</p>
+        <p className="text-[13px] text-[var(--tf-text-tertiary)]">Noch keine Tags vorhanden — Tags entstehen beim Arbeiten an Anträgen.</p>
       ) : (
         allTags.map((tag, i) => (
           <ListItem key={tag.name}
@@ -57,6 +60,6 @@ export function TagsTab(): React.ReactElement {
           />
         ))
       )}
-    </div>
+    </section>
   );
 }

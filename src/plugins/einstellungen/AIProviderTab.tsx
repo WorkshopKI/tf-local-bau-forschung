@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Switch } from '@/components/ui/switch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -17,6 +16,7 @@ import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai
 import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled, isDevContext, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
 import { StreamlitBridgeSection } from './StreamlitBridgeSection';
+import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
@@ -167,8 +167,8 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           der Tab nur wegen der Streamlit-Bridge erscheint) ausgeblendet. Daraus wird
           der VB-Schwellwert abgeleitet: zu lange VBs werden vor dem Senden gekürzt. */}
       {isLlmKontextSettingEnabled() && (
-      <>
-      <SectionHeader label="LLM-Kontextlänge" />
+      <section id="sec-kontext" className="scroll-mt-20 space-y-5">
+      <SettingsSectionHeader label="LLM & Reasoning" />
       <div className="flex flex-col gap-1.5 max-w-sm">
         <label className="text-[13px] font-medium text-[var(--tf-text)]">Kontextfenster (Tokens)</label>
         <input
@@ -221,8 +221,8 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       </div>
 
       {/* Reasoning/Thinking — steuert die KI-Skill-Generierung (z.B. die
-          Gutachten-Kurzfassung). Wirkt nur bei Modellen mit Reasoning. */}
-      <SectionHeader label="Reasoning / Thinking" />
+          Gutachten-Kurzfassung). Wirkt nur bei Modellen mit Reasoning. Ohne
+          eigenen Header — teilt sich mit der Kontextlänge den Abschnitt „LLM & Reasoning". */}
       <div className="flex items-start gap-3 max-w-sm">
         <Switch
           checked={thinkingEnabled}
@@ -238,7 +238,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           </p>
         </div>
       </div>
-      </>
+      </section>
       )}
 
       {/* Streamlit-Bridge-Installer — sichtbar dev + prod + kurator + pl.
@@ -250,9 +250,9 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       {/* Provider-Switcher nur im Entwickler-Kontext — in Produktiv-Varianten ist
           der Endpoint via Build-Config fix verdrahtet. */}
       {isDevContext() && (
-      <>
+      <section id="sec-provider" className="scroll-mt-20 space-y-5">
       {/* Provider-Auswahl als 2x2 Grid */}
-      <SectionHeader label="Provider" />
+      <SettingsSectionHeader label="Provider" />
       <div className="grid grid-cols-2 gap-2">
         {PROVIDERS.map(p => (
           <button key={p.type} onClick={() => handleTypeChange(p.type)}
@@ -271,7 +271,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       </div>
 
       {/* Konfiguration */}
-      <SectionHeader label="Konfiguration" />
+      <SettingsSectionHeader label="Konfiguration" />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <label className="text-[13px] font-medium text-[var(--tf-text)]">Endpoint</label>
@@ -333,7 +333,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
         <Button onClick={handleSave}>Speichern & Aktivieren</Button>
         {saved && <Badge variant="success">Provider aktiviert</Badge>}
       </div>
-      </>
+      </section>
       )}
     </div>
   );

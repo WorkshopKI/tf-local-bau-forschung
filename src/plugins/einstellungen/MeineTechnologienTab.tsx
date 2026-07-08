@@ -238,7 +238,7 @@ export function MeineTechnologienTab(): React.ReactElement {
       </div>
 
       {/* Section 1 — Programmkennung */}
-      <section>
+      <section id="sec-programm" className="scroll-mt-20">
         <SettingsSectionHeader label="Programmkennung" />
         <SettingsRow gap="lg">
           <SettingsRowGroup>
@@ -263,7 +263,7 @@ export function MeineTechnologienTab(): React.ReactElement {
       </section>
 
       {/* Section 2 — Meine Kategorien (1.17) */}
-      <section className="mt-8">
+      <section id="sec-kategorien" className="mt-8 scroll-mt-20">
         <SettingsSectionHeader label="Meine Kategorien" hint={TOOLTIP_HAUPT} />
         {myAnonId ? (
           <KategorienSection
@@ -282,7 +282,7 @@ export function MeineTechnologienTab(): React.ReactElement {
 
       {/* Section 3 — Antragstyp-Praeferenz (v2.2) */}
       {myAnonId && (
-        <section className="mt-8">
+        <section id="sec-antragstypen" className="mt-8 scroll-mt-20">
           <SettingsSectionHeader label="Welche Antragstypen bearbeite ich?" hint={TOOLTIP_ANTRAGSTYP} />
           <AntragstypSection
             currentMa={data.mitarbeiter[myAnonId]}
@@ -293,7 +293,7 @@ export function MeineTechnologienTab(): React.ReactElement {
       )}
 
       {/* Section 4 — Auto-Tags */}
-      <section className="mt-8">
+      <section id="sec-themen" className="mt-8 scroll-mt-20">
         <SettingsSectionHeader
           label="Aus deinen bisherigen Anträgen"
           count={automatic.length}
@@ -318,7 +318,7 @@ export function MeineTechnologienTab(): React.ReactElement {
       </section>
 
       {/* Section 5 — Manuelle Chips */}
-      <section className="mt-8">
+      <section id="sec-kompetenzen" className="mt-8 scroll-mt-20">
         <SettingsSectionHeader label="Zusätzliche Kompetenzen" hint={TOOLTIP_MANUAL} />
         <TechChipInput
           tags={manualTags}
