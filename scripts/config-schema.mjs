@@ -175,6 +175,11 @@ export const DEFAULT_CONFIG = {
      *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur
      *  dev (Testballon). Optional, default false (kein requiredFlags-Eintrag). */
     nfNachforderungen: true,
+    /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-
+     *  Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Paket 1 rein
+     *  deterministisch (kein LLM). Nur dev. Optional, default false
+     *  (kein requiredFlags-Eintrag). */
+    antragAufbereitung: true,
     /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry mit Sandbox-
      *  Testlauf. Sichtbar in dev + kurator + pl (Schreiben in pl über
      *  `datenShareSchreibrecht`, sonst Kurator-Session). Optional, default false

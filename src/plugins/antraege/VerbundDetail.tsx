@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { X, LayoutTemplate } from 'lucide-react';
 import { dominantStatus } from './groupAggregates';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
@@ -26,7 +26,8 @@ import { GutachtenSection } from './gutachten/GutachtenSection';
 import { NachforderungenSection } from './nachforderungen/NachforderungenSection';
 import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
-import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled } from '@/config/feature-flags';
+import { Button } from '@/components/ui/button';
+import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -72,6 +73,7 @@ export function VerbundDetail({
   // zur Sektion, `abschnitt` (nur GA) springt den Schritt (an GutachtenSection
   // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation.
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const zielParam = searchParams.get('ziel');
   const abschnittParam = searchParams.get('abschnitt') ?? undefined;
   // In-Memory-Slim-Liste des Programms — Quelle für die Vorgänger-Suche.
@@ -256,6 +258,20 @@ export function VerbundDetail({
           onWeiterNachforderung={() => scrollTo('nf')}
         />
       </div>
+
+      {/* ANTRAG-AUFBEREITUNG — Vollbild-Aufbereitung der VB (flag-gated, nur dev). */}
+      {isAntragAufbereitungEnabled() ? (
+        <div className={READ_COL}>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={LayoutTemplate}
+            onClick={() => navigate(`/antraege/${encodeURIComponent(kurzfassungCtx.key)}/aufbereitung`)}
+          >
+            Antrag-Aufbereitung öffnen
+          </Button>
+        </div>
+      ) : null}
 
       {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Nach oben gezogen (ersetzt
           die frühere Übersichts-Karte): Fortschritt + „Weiter bei X" leben jetzt im

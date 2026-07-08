@@ -38,6 +38,7 @@
     "gutachtenKurzfassung": false,
     "gutachtenWorkflow": false,
     "nfNachforderungen": false,
+    "antragAufbereitung": false,
     "skillVerwaltung": false,
     "anfragen": false,
     "streamlitBridge": true,

@@ -118,6 +118,10 @@ export interface TeamflowFeatures {
   /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwuerfe auf der Verbund-
    *  Detailseite. Nur dev (Testballon). Optional, default false. */
   nfNachforderungen?: boolean;
+  /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-
+   *  Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilitaet). Paket 1 rein
+   *  deterministisch (kein LLM). Nur dev. Optional, default false. */
+  antragAufbereitung?: boolean;
   /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry + Sandbox-Testlauf.
    *  Sichtbar dev + kurator + pl. Optional, default false. */
   skillVerwaltung?: boolean;

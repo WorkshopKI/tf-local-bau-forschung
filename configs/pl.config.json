@@ -39,6 +39,7 @@
     "gutachtenKurzfassung": true,
     "gutachtenWorkflow": true,
     "nfNachforderungen": false,
+    "antragAufbereitung": false,
     "skillVerwaltung": true,
     "anfragen": true,
     "streamlitBridge": true,

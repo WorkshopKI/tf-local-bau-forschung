@@ -31,6 +31,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
 | Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
 | Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |
+| Antrag-Aufbereitung (Vollbild-Seite: VB-Gliederung + Tabellen-Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilität; Paket 1 deterministisch, dev) | [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) |
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [Skill-Eval-GUI (dev)](#skill-eval-gui-dev) (CLAUDE.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [Strukturierte Skill-Ausgabe (teilStruktur)](#strukturierte-skill-ausgabe-teilstruktur) (CLAUDE.md) |
 | Streamlit-Bridge (Bookmarklet-Installer + postMessage-Transport zum internen LLM) | [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md) |

@@ -158,6 +158,12 @@ export function isGutachtenWorkflowEnabled(): boolean {
 export function isNfNachforderungenEnabled(): boolean {
   return features.nfNachforderungen === true;
 }
+/** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-Ernte,
+ *  Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Paket 1 rein deterministisch
+ *  (kein LLM). Nur dev. Default false (`=== true`, Backward-Kompat). */
+export function isAntragAufbereitungEnabled(): boolean {
+  return features.antragAufbereitung === true;
+}
 /** Aufrufer-seitige Ableitung: dürfen Workflow-Entwürfe (`freigabe:'entwurf'`)
  *  sichtbar/ausführbar sein? Explizites Flag gewinnt; fehlt es, gilt es in
  *  `development`-Builds als an (dev sieht Entwürfe, prod-artige Configs nicht).

@@ -115,6 +115,9 @@
     // Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf).
     // Optional, fehlt = aus. Nur dev (Testballon).
     "nfNachforderungen": false,
+    // Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung/Tabellen-Ernte,
+    // Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Optional, fehlt = aus. Nur dev.
+    "antragAufbereitung": false,
     // Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne KI-Anonymisierung →
     // Export in den externen ZIM FAQ-Assistenten (Zwischenablage) → deterministische
     // Wiedereinsetzung → mail-fertige Antwort. Plugin-Flag. Optional, fehlt = aus.

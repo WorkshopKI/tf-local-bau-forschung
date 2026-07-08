@@ -16,6 +16,8 @@ import type { NavigationParams } from '@/core/hooks/useNavigation';
 import { legacyRedirectTarget, pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { FLAT_ROUTE_PLUGIN_IDS } from '@/plugins.config';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { AufbereitungPage } from '@/plugins/antraege/aufbereitung/AufbereitungPage';
+import { isAntragAufbereitungEnabled } from '@/config/feature-flags';
 
 /**
  * Kompatibilitäts-Wrapper: Bietet den bestehenden NavigationContext
@@ -67,6 +69,11 @@ function VerbundRoute({ plugin }: { plugin: TeamFlowPlugin }): React.ReactElemen
   return <Component />;
 }
 
+function AufbereitungRoute(): React.ReactElement {
+  const { aktenzeichen } = useParams<{ aktenzeichen: string }>();
+  return <AufbereitungPage antragKey={aktenzeichen ?? ''} />;
+}
+
 function RootLayout({ plugins }: { plugins: TeamFlowPlugin[] }): React.ReactElement {
   return (
     <NavigationBridge>
@@ -115,6 +122,10 @@ export function buildRouter(
   if (antraege) {
     children.push({ path: 'antraege', element: <AntraegeRoute plugin={antraege} /> });
     children.push({ path: 'antraege/verbund/:verbundId', element: <VerbundRoute plugin={antraege} /> });
+    // Antrag-Aufbereitung (flag-gated) — Vollbild-Kind unter demselben Shell.
+    if (isAntragAufbereitungEnabled()) {
+      children.push({ path: 'antraege/:aktenzeichen/aufbereitung', element: <AufbereitungRoute /> });
+    }
     children.push({ path: 'antraege/:aktenzeichen', element: <AntraegeRoute plugin={antraege} /> });
   }
 
