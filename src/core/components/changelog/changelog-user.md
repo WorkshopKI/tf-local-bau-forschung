@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.207 — 2026-07
+
+### Verbesserungen
+- Im Modul **Auslastung** heißt der letzte Tab jetzt **„Verwaltung"** (vorher „Einstellungen" — das ließ sich leicht mit deinen persönlichen App-Einstellungen verwechseln).
+- Der Knopf **„Passwörter für alle aktiven MAs"** sitzt jetzt in der **Verwaltung** direkt bei der zugehörigen E-Mail-Vorlage — Passwörter erzeugen/versenden und die Vorlage anpassen liegen damit an einem Ort.
+
 ## v2.206 — 2026-07
 
 ### Verbesserungen

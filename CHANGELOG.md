@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.207.0 — Auslastung: Tab „Einstellungen" → „Verwaltung" + Passwort-Verwaltung dorthin (Juli 2026)
+
+MINOR — Der letzte Tab des Auslastungs-Moduls heißt jetzt **„Verwaltung"** (bis v2.205 „Einstellungen" — wurde mit den **persönlichen** App-Einstellungen in der Sidebar verwechselt). Die interne `TabId` bleibt `einstellungen` (kein Persistenz-Bruch, keine Migration). Zusätzlich wandert der Button **„Passwörter für alle aktiven MAs"** aus dem Kopf des Tabs „Auslastung MA" in die Sektion „Zugangspasswort-E-Mail-Vorlage" der Verwaltung, damit Erzeugen/Versenden und die zugehörige Vorlage beieinander liegen. Rein UI-Reorg, additiv, keine Daten-/Schema-Änderung.
+
+- **Tab-Umbenennung** ([AuslastungView.tsx](src/plugins/auslastung/views/AuslastungView.tsx)): nur `label` + Tooltip + Doc-Kommentar; die `TabId`-Union und die Render-Zweige bleiben unverändert (`einstellungen`).
+- **Passwort-Verwaltung verschoben**: identische Logik (`openZugangVerwaltung` + [ZugangVerwaltungDialog](src/plugins/auslastung/components/ZugangVerwaltungDialog.tsx)) liegt jetzt in [KonfigurationSection.tsx](src/plugins/auslastung/views/admin/KonfigurationSection.tsx) unter der E-Mail-Vorlagen-Überschrift (weiterhin per `isMaVerwaltungPasswortEnabled()` + aktive De-Anon-Session gegated). Aus [MaListSection.tsx](src/plugins/auslastung/views/uebersicht/MaListSection.tsx) entfernt (Button/State/Dialog + ungenutzte Imports; `useDeAnonResolver`/`resolveName` bleiben für die MA-Tabelle).
+- Der UI-Reorg selbst ist bereits als eigener Commit gemergt; dieser Eintrag trägt Version + Changelog nach (beim Reorg lag der v2.206.0-Feedback-Commit noch nicht vor → keine Kollision mit-committen). Verifiziert per `tsc --build` + `npx vitest run` (screen-context-Guard grün) + `build:dev`/`build:pl`. Screen-Kontext-Doc [auslastung.md](docs/feedback-kontext/auslastung.md) nachgezogen.
+
 ### v2.206.0 — Feedback „mit KI verbessern": verschmolzener geführter Ablauf + interne-KI-Fix (Juli 2026)
 
 MINOR — Reaktion auf Thomas' eigenes Feedback („die KI-Verbesserung hat nicht funktioniert, obwohl über die interne KI eine Antwort kam"; „Details mit KI ergänzen" verlangte OpenRouter). Die zwei getrennten KI-Funktionen des Feedback-Panels sind zu **einem geführten Ablauf** über die interne KI verschmolzen, dabei wurden **zwei Transport-Bugs** behoben. Additiv — nur ein optionales Feld (`FeedbackItem.original_text?`), alte Shared-Files bleiben lesbar, keine Migration. Detail: [feedback-system.md](docs/architecture/feedback-system.md), [transport-policy.md](docs/architecture/transport-policy.md).
