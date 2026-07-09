@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.205 — 2026-07
+
+### Neu
+- In der Tabelle **Auslastung MA** zeigt der **Rückstands-Balken** jetzt beim Überfahren mit der Maus eine kleine Liste der konkreten Anträge dieses Zeitraums (Akronym, Status, Datum, TVs) — so sieht man auf einen Blick, welche Altanträge hinter dem Balken stecken, ohne die Zeile aufzuklappen.
+
 ## v2.204 — 2026-07
 
 ### Bugfixes

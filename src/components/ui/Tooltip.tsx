@@ -2,11 +2,27 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
-  text: string;
+  /** Einfacher Text-Inhalt. Wird ignoriert, wenn `content` gesetzt ist. */
+  text?: string;
+  /** Reicher Inhalt (z.B. eine Mini-Tabelle) — hat Vorrang vor `text`. */
+  content?: React.ReactNode;
   children: React.ReactNode;
+  /** Max. Breite des Popups in px (Default 300). Reicher `content` braucht oft mehr. */
+  maxWidth?: number;
+  /** Override der Trigger-Hülle (Default `inline-block`) — z.B. `flex` für Flex-Items. */
+  wrapperClassName?: string;
+  /** Inline-Styles der Trigger-Hülle — z.B. `flexGrow` für proportionale Flex-Items. */
+  wrapperStyle?: React.CSSProperties;
 }
 
-export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
+export function Tooltip({
+  text,
+  content,
+  children,
+  maxWidth = 300,
+  wrapperClassName = 'inline-block',
+  wrapperStyle,
+}: TooltipProps): React.ReactElement {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0, above: true });
   const wrapperRef = useRef<HTMLSpanElement>(null);
@@ -52,7 +68,8 @@ export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
   return (
     <span
       ref={wrapperRef}
-      className="inline-block"
+      className={wrapperClassName}
+      style={wrapperStyle}
       onMouseEnter={show}
       onMouseLeave={hide}
       onFocus={show}
@@ -62,10 +79,11 @@ export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
       {visible && createPortal(
         <div
           ref={popupRef}
-          className="fixed z-[9999] px-3 py-2 rounded text-[12px] leading-[1.4] max-w-[300px] pointer-events-none"
+          className="fixed z-[9999] px-3 py-2 rounded text-[12px] leading-[1.4] pointer-events-none"
           style={{
             left: `${pos.x}px`,
             top: `${pos.y}px`,
+            maxWidth: `${maxWidth}px`,
             transform: pos.above ? 'translate(-50%, -100%)' : 'translateX(-50%)',
             backgroundColor: 'var(--tf-bg-secondary)',
             color: 'var(--tf-text)',
@@ -73,7 +91,7 @@ export function Tooltip({ text, children }: TooltipProps): React.ReactElement {
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           }}
         >
-          {text}
+          {content ?? text}
         </div>,
         document.body,
       )}

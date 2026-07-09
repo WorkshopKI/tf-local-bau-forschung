@@ -23,11 +23,15 @@ import type { MaQuartalsAuslastung } from '../../services/kapazitaet';
 import type { MaAltlastBucket } from '../../services/kapazitaet';
 import type { KapazitaetsView } from '../../services/kapazitaet';
 import type { KapazitaetProTypView } from '../../services/kapazitaet';
+import type { AuslastungVerbund } from '../../services/kapazitaet';
 import { dotColor } from './kategorie-colors';
 import { TypKapazitaetBars } from './TypKapazitaetBars';
 import { AltlastColBar, AktuellColBar } from './ColBars';
 
 const CELL_PAD = '7px 8px';
+
+/** Stabile Leer-Referenz (memo-freundlich: kein neues `[]` je Render). */
+const NO_VERBUENDE: readonly AuslastungVerbund[] = [];
 
 interface Props {
   ma: AnonymerMitarbeiter;
@@ -100,7 +104,7 @@ function MaCompactRowImpl({
           wie der Aktuell-Balken rechts, dessen Zelle durch die TypKapazitaetBars
           darunter höher ist (beide Zellen 7px oberes Padding → Balken bündig). */}
       <td className="align-top" style={{ padding: CELL_PAD, overflow: 'hidden' }}>
-        <AltlastColBar bandTvs={bandTvs} maxBl={maxBl} />
+        <AltlastColBar bandTvs={bandTvs} maxBl={maxBl} verbuende={altlast?.verbuende ?? NO_VERBUENDE} />
       </td>
 
       {/* Aktuelles Quartal — Kapazitäts-Auslastung %, per-Typ darunter, Zonentrenner links */}

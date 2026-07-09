@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.205.0 — Auslastung MA: Altlasten-Balken mit Antrags-Tooltip je Segment (Juli 2026)
+
+MINOR — Hover über ein Segment des **Altlasten-Balkens** (Tab „Auslastung MA") zeigt jetzt eine **kompakte Mini-Tabelle der konkreten offenen Anträge** dieses Dringlichkeits-Bands — so sieht die PL sofort, WELCHE Anträge zum Rückstand gehören, ohne die Zeile aufklappen zu müssen. Additiv, keine Daten-/Schema-Änderung.
+
+- **Segment-Tooltip** ([ColBars.tsx](src/plugins/auslastung/views/uebersicht/ColBars.tsx), `AltlastSegmentTooltip`): pro Band (Q-1 · Q-2 · Q-3–7) die zugehörigen `MaAltlastBucket.verbuende` gefiltert nach `altlastBand`, als Grid FKZ · Akronym · Status · Datum · TVs — gekappt bei 10 Zeilen mit „+N weitere". Spiegelt die Detail-Liste [AltlastInlineList](src/plugins/auslastung/views/AltlastInlineList.tsx) (gleiche Felder/Formatierung: `getStatusLabel`, `formatGermanDate`), nur auf ein Band verdichtet.
+- **Geteilte `Tooltip`-Komponente erweitert** ([Tooltip.tsx](src/components/ui/Tooltip.tsx)): additive optionale Props `content` (reicher ReactNode statt nur `text`), `maxWidth`, `wrapperClassName`/`wrapperStyle` — Letztere erlauben, den Trigger als **Flex-Item** (`flexGrow` proportional zu den TVs) zu betreiben, sodass das Balken-Layout erhalten bleibt. Default-Verhalten unverändert (Text, `max-w` 300, `inline-block`); Bestandsaufrufer bleiben byte-gleich.
+- `MaCompactRow` reicht `altlast.verbuende` (stabile Leer-Referenz als memo-freundlicher Fallback) an `AltlastColBar` durch. Der frühere native `title` je Segment entfällt (vom Rich-Tooltip abgelöst).
+- Verifiziert per `tsc --build` + `npx vitest run` (3201 grün, inkl. Convention-Guards) + `build:dev`/`build:pl`. Screen-Kontext-Doc [auslastung.md](docs/feedback-kontext/auslastung.md) nachgezogen (inkl. Korrektur der Rampen-Richtung auf „dunkel→hell = alt→neu" nach dem v2.197.2-Flip).
+
 ### v2.204.1 — Auslastung MA: vertikale Bündigkeit der beiden Balken (Juli 2026)
 
 PATCH — Reiner Optik-Schliff im Tab „Auslastung MA": der **Altlasten-Balken** sitzt jetzt exakt auf gleicher Höhe wie der **Aktuelles-Quartal-Balken** rechts daneben.
