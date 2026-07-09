@@ -22,6 +22,16 @@ export { FeedbackKanban } from './FeedbackKanban';
 export { FeedbackTypeChips, type TypeChipItem } from './FeedbackTypeChips';
 export { FeedbackVotePill } from './FeedbackVotePill';
 export { FeedbackCommentThread } from './FeedbackCommentThread';
+// Redesign v2.208 (feedback-optimiert)
+export { FeedbackStepper } from './FeedbackStepper';
+export { FeedbackMiniStepper } from './FeedbackMiniStepper';
+export { FeedbackSponsorBar } from './FeedbackSponsorBar';
+export { FeedbackSponsorPanel } from './FeedbackSponsorPanel';
+export { NotificationBell } from './NotificationBell';
+export { MyProgressBar } from './MyProgressBar';
+export { FeedbackSortSelect, type FeedbackSort } from './FeedbackSortSelect';
+export { FeedbackStatusSelect, type FeedbackStatusFilter } from './FeedbackStatusSelect';
+export { useUnreadReplies, type UnreadReplies } from './useUnreadReplies';
 export { FeedbackFileInput } from './FeedbackFileInput';
 export { FeedbackFiles } from './FeedbackFiles';
 export { FileTypeIcon } from './FileTypeIcon';

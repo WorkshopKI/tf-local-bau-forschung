@@ -16,6 +16,7 @@ export * from './feedbackComments';
 export * from './feedbackCommentOutbox';
 export * from './mergeFeedbackComments';
 export * from './feedback-status';
+export * from './feedbackStepper';
 export * from './feedbackClassification';
 export * from './promptGenerator';
 export * from './budgetService';

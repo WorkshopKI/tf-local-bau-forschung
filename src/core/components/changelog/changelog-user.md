@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.210 — 2026-07
+
+### Neu
+- **Sponsoring direkt auf den Feedback-Karten:** Bei Ideen und Verbesserungen siehst du jetzt schon in der Liste, wie viele Punkte gesammelt sind und wie nah ein Vorschlag am Ziel ist („X/Y Pkt · N Sponsoren", grün bei „Ziel erreicht"). Sponsern selbst geht wie gewohnt im Detail — dort mit großer Anzeige, +/−-Knöpfen und deinem Rest-Budget.
+- **Fortschritt auf einen Blick:** Jedes Feedback zeigt jetzt seinen Stand als kleine Schritt-Anzeige (Neu → Geplant → In Bearbeitung → Umgesetzt); im Detail als voller Fortschritts-Balken. Bei deinen eigenen Beiträgen ist die Schritt-Anzeige direkt in der Liste.
+- **Du wirst benachrichtigt, wenn das Team antwortet:** Oben erscheint eine Glocke mit der Zahl neuer Antworten auf deine Feedbacks — ein Klick bringt dich direkt zu „Von mir". Beantwortete Beiträge sind mit „Antwort" markiert, und in der Sicht „Von mir" siehst du eine kleine Fortschritts-Übersicht deiner Beiträge.
+
+### Verbesserungen
+- **Übersichtlichere Karten:** Statt vieler Textzeilen zeigt jede Karte nur noch Titel und eine kurze Vorschau — schneller zu überfliegen. Details stehen weiterhin im aufklappbaren Bereich rechts.
+- **Bessere Filter und Sortierung:** Neue Sortierungen (u. a. „Meiste Punkte" und „Kurz vor dem Ziel") und ein Status-Filter. Die Sichten „Alle / Von mir / Vom Team" sind jetzt deutlicher als Umschalter gestaltet.
+- **Aufgeräumtes Board (Kanban):** eigene „Lob"-Spalte, und leere Spalten schrumpfen platzsparend zu einer schmalen Leiste.
+
 ## v2.209 — 2026-07
 
 ### Neu

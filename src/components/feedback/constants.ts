@@ -68,6 +68,9 @@ export const STATUS_LABELS: Record<FeedbackStatus, string> = {
  * Status-Badges — Theme-Vars (dark-on-light, Dark-Mode-kompatibel via --tf-*).
  * Light: z.B. text-red-800 auf bg-red-50 Äquivalent.
  * Dark: --tf-*-bg/text passen sich automatisch an.
+ *
+ * Verwendet von den Kurator-Bausteinen (FeedbackTicketRow etc.). Das öffentliche
+ * Board (Redesign v2.208) nutzt die handoff-treue `STATUS_TINT`/`STATUS_DOT`.
  */
 export const STATUS_COLORS: Record<FeedbackStatus, string> = {
   neu: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',
@@ -79,15 +82,59 @@ export const STATUS_COLORS: Record<FeedbackStatus, string> = {
 };
 
 /**
- * Kategorie-Badges — eindeutige Farben pro Typ:
- * Problem=rot, Idee=blau, UX=violett, Lob=grün, Frage=amber.
+ * Status-Pill-Farben des öffentlichen Boards (Handoff feedback-optimiert):
+ * Neu=blau-grau, Geplant=amber(Frage), In Bearbeitung=violett(UX), Umgesetzt=grün(Lob),
+ * Abgelehnt=grau. Bewusst NICHT identisch mit STATUS_COLORS (dort abgelehnt=rot) —
+ * das Board deckt sich mit dem Stepper (STATUS_DOT).
+ */
+export const STATUS_TINT: Record<FeedbackStatus, string> = {
+  neu: 'bg-[var(--tf-fb-status-neu-bg)] text-[var(--tf-fb-status-neu-text)]',
+  geplant: 'bg-[var(--tf-fb-frage-bg)] text-[var(--tf-fb-frage)]',
+  in_bearbeitung: 'bg-[var(--tf-fb-ux-bg)] text-[var(--tf-fb-ux)]',
+  umgesetzt: 'bg-[var(--tf-fb-lob-bg)] text-[var(--tf-fb-lob)]',
+  abgelehnt: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',
+  archiviert: 'bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)]',
+};
+
+/** Weicher Tint je Status (`-bg`-Token) — Ring der aktiven Stepper-Station. */
+export const STATUS_SOFT: Record<FeedbackStatus, string> = {
+  neu: 'var(--tf-fb-status-neu-bg)',
+  geplant: 'var(--tf-fb-frage-bg)',
+  in_bearbeitung: 'var(--tf-fb-ux-bg)',
+  umgesetzt: 'var(--tf-fb-lob-bg)',
+  abgelehnt: 'var(--tf-bg-secondary)',
+  archiviert: 'var(--tf-hover)',
+};
+
+/** Farb-Dot je Status (Stepper-Punkte + Status-Pill-Dot, Board-Spaltenkopf). */
+export const STATUS_DOT: Record<FeedbackStatus, string> = {
+  neu: 'var(--tf-fb-status-neu-text)',
+  geplant: 'var(--tf-fb-frage)',
+  in_bearbeitung: 'var(--tf-fb-ux)',
+  umgesetzt: 'var(--tf-fb-lob)',
+  abgelehnt: 'var(--tf-text-tertiary)',
+  archiviert: 'var(--tf-text-tertiary)',
+};
+
+/**
+ * Kategorie-Badges — eindeutige, gesättigte Farben pro Typ (Handoff-Palette
+ * `--tf-fb-*`, v2.208): Problem=rot, Idee=blau, UX=violett, Lob=grün, Frage=amber.
  */
 export const CATEGORY_COLORS: Record<FeedbackCategory, string> = {
-  problem: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
-  idea: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
-  ux: 'bg-[var(--tf-accent-bg)] text-[var(--tf-accent-text)]',
-  praise: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',
-  question: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
+  problem: 'bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]',
+  idea: 'bg-[var(--tf-fb-idee-bg)] text-[var(--tf-fb-idee)]',
+  ux: 'bg-[var(--tf-fb-ux-bg)] text-[var(--tf-fb-ux)]',
+  praise: 'bg-[var(--tf-fb-lob-bg)] text-[var(--tf-fb-lob)]',
+  question: 'bg-[var(--tf-fb-frage-bg)] text-[var(--tf-fb-frage)]',
+};
+
+/** Reine Textfarbe (`var(--tf-fb-*)`) je Kategorie — Icon-Tint / Chip-Dot. */
+export const CATEGORY_TEXT_VAR: Record<FeedbackCategory, string> = {
+  problem: 'var(--tf-fb-problem)',
+  idea: 'var(--tf-fb-idee)',
+  ux: 'var(--tf-fb-ux)',
+  praise: 'var(--tf-fb-lob)',
+  question: 'var(--tf-fb-frage)',
 };
 
 /** Mapping LLM-Klassifikation → Feedback-Kategorie (für ConfirmCard). */
@@ -216,14 +263,8 @@ export const EFFORT_SIZE_LABELS: Record<EffortEstimate, string> = {
 };
 
 /**
- * Kräftige Punkt-Farbe je Kategorie (Redesign v2.199) — für den Farb-Dot der
- * Typ-Filter-Chips. Nutzt die vorhandenen semantischen `-text`-Tokens (dark-aware),
- * KEINE Hex-Werte (theme-token-contract). Deckungsgleich mit CATEGORY_COLORS.
+ * Kräftige Punkt-Farbe je Kategorie — für den Farb-Dot der Typ-Filter-Chips.
+ * Handoff-Palette `--tf-fb-*` (v2.208, dark-aware), KEINE Hex-Werte
+ * (theme-token-contract). Deckungsgleich mit CATEGORY_COLORS / CATEGORY_TEXT_VAR.
  */
-export const CATEGORY_DOT: Record<FeedbackCategory, string> = {
-  problem: 'var(--tf-danger-text)',
-  idea: 'var(--tf-info-text)',
-  ux: 'var(--tf-accent-text)',
-  praise: 'var(--tf-success-text)',
-  question: 'var(--tf-warning-text)',
-};
+export const CATEGORY_DOT: Record<FeedbackCategory, string> = CATEGORY_TEXT_VAR;

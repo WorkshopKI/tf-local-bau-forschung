@@ -16,8 +16,10 @@ export interface ScopeTabsProps {
   activeKey: string;
   onChange: (key: string) => void;
   /** 'tabs' = breit/unterstrichen (Default — Förderanträge-Scope-Tabs);
-   *  'pills' = kompakt (Chat-Historie-Filter). EIN Bauteil, zwei Darstellungen. */
-  variant?: 'tabs' | 'pills';
+   *  'pills' = kompakt (Chat-Historie-Filter);
+   *  'segmented' = gefülltes Segmented-Control (aktiv = --tf-primary, Feedback-Board).
+   *  EIN Bauteil, drei Darstellungen. */
+  variant?: 'tabs' | 'pills' | 'segmented';
   className?: string;
   'aria-label'?: string;
 }
@@ -42,6 +44,57 @@ export function ScopeTabs({
   className,
   'aria-label': ariaLabel,
 }: ScopeTabsProps): React.ReactElement {
+  if (variant === 'segmented') {
+    // Gefülltes Segmented-Control: grauer Track, aktives Segment = --tf-primary-Fill.
+    // Kein Unterstrich-Signatur (no-parallel-scope-tabs) und kein hover:opacity
+    // (no-raw-cta-fill) → beide Guards bleiben grün.
+    return (
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        className={cn(
+          'inline-flex gap-0.5 p-[3px] rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)]',
+          className,
+        )}
+      >
+        {items.map(it => {
+          const active = it.key === activeKey;
+          return (
+            <button
+              key={it.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-disabled={it.disabled || undefined}
+              title={it.title}
+              onClick={() => { if (!it.disabled) onChange(it.key); }}
+              className={cn(
+                'h-8 px-4 rounded-[var(--tf-radius-sm)] inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors',
+                it.disabled
+                  ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                  : active
+                    ? 'bg-[var(--tf-primary)] text-[var(--tf-on-primary)] shadow-sm cursor-pointer'
+                    : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
+              )}
+            >
+              {it.label}
+              {it.count != null && (
+                <span
+                  className={cn(
+                    'text-[11px] [font-family:var(--tf-font-mono)]',
+                    active ? 'text-[var(--tf-on-primary)] opacity-75' : 'text-[var(--tf-text-tertiary)]',
+                  )}
+                >
+                  {fmtCount(it.count)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (variant === 'pills') {
     return (
       <div role="tablist" aria-label={ariaLabel} className={cn('flex gap-1', className)}>

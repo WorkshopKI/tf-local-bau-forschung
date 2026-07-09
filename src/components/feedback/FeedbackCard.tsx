@@ -1,40 +1,55 @@
-// Scannbare Feedback-Kartenzeile (Redesign v2.199) für die Board-Liste.
-// [Typ-Icon] [Body: Titel+Datum · Q&A-Kurzzeilen · Meta] [Anhang-Thumbnail].
-// Eigene Einträge tragen einen feinen Akzentstrich links. Ersetzt für das
-// öffentliche Board die alte FeedbackTicketRow.
+// Scannbare Feedback-Kartenzeile (Redesign v2.208, feedback-optimiert).
+// [Typ-Icon] [Body: Titel(+„Antwort")+Datum · EINE Vorschauzeile · Meta+Mini-Stepper]
+// [Rechte Spalte: Anhang-Thumbnail + Sponsor-Leiste]. Eigene Einträge tragen einen
+// feinen Akzentstrich links. Hybrid: Sponsor-Leiste bei sponsorbaren Ideen/UX,
+// Vote-Pill sonst (Problem/Frage/Lob).
 
 import { MessageSquare, Paperclip } from 'lucide-react';
-import type { FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import { EFFORT_LABELS } from '@/core/types/feedback';
+import { getSponsoringProgress, isSponsorableCategory } from '@/core/services/feedback';
 import { istUmgesetzt } from '@/core/services/feedback/feedback-status';
-import { CATEGORY_COLORS, CATEGORY_ICONS, STATUS_COLORS, STATUS_LABELS } from './constants';
+import { CATEGORY_COLORS, CATEGORY_ICONS, EFFORT_SIZE_LABELS, STATUS_DOT, STATUS_LABELS, STATUS_TINT } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, feedbackQaSegments, formatShortDate, getLucideIcon } from './feedbackUi';
 import { FeedbackAvatar } from './FeedbackAvatar';
 import { FeedbackVotePill } from './FeedbackVotePill';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
+import { FeedbackMiniStepper } from './FeedbackMiniStepper';
+import { FeedbackSponsorBar } from './FeedbackSponsorBar';
 
 interface Props {
   ticket: FeedbackItem;
+  config: FeedbackConfig;
   selected: boolean;
   mine: boolean;
   meId?: string;
   meName?: string;
+  /** Ungelesene Team-Antwort auf dieses (eigene) Feedback → „Antwort"-Marker. */
+  unread?: boolean;
   onSelect: (ticket: FeedbackItem) => void;
   onChanged: () => void;
   /** Schmale Variante bei offenem Detail (weniger Beiwerk). */
   narrow?: boolean;
 }
 
-export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, onChanged, narrow }: Props): React.ReactElement {
+export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unread, onSelect, onChanged, narrow }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const title = feedbackTitle(ticket);
-  const segments = feedbackQaSegments(ticket);
-  const author = mine ? 'Du' : (feedbackAuthorLabel(ticket) ?? '—');
+  const lead = feedbackQaSegments(ticket)[0]?.antwort;
+  const author = feedbackAuthorLabel(ticket) ?? '—';
   const date = formatShortDate(ticket.created_at);
   const done = istUmgesetzt(ticket.kurator_status);
+  const isPraise = ticket.category === 'praise';
   const commentCount = ticket.comments?.length ?? 0;
   const hasShot = (ticket.attachments ?? []).some(a => a.kind !== 'file');
   const fileCount = (ticket.attachments ?? []).filter(a => a.kind === 'file').length;
+  const effort = ticket.effort_estimate;
   const iconTint = ticket.category ? CATEGORY_COLORS[ticket.category] : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]';
+
+  // Hybrid: Sponsor-Leiste nur bei sponsorbaren Kategorien mit Schwelle (Aufwand);
+  // sonst die budgetfreie Vote-Pill als „ich auch"-Signal.
+  const showBar = isSponsorableCategory(ticket.category) && getSponsoringProgress(ticket, config).threshold > 0;
+  const showRightCol = !narrow && (hasShot || showBar);
 
   return (
     <div
@@ -57,41 +72,44 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
         {/* Body */}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <span className={`flex-1 min-w-0 truncate text-[14px] font-medium ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
-            <span className="shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
+            <span className={`min-w-0 truncate text-[14px] font-medium ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
+            {mine && unread && (
+              <span className="shrink-0 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]" title="Neue Antwort vom Team">
+                Antwort
+              </span>
+            )}
+            <span className="ml-auto shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
           </div>
 
-          {!narrow && segments.length > 0 && (
-            <div className={`mt-1 grid gap-x-6 gap-y-0.5 ${segments.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-              {segments.slice(0, 4).map((seg, i) => (
-                <p key={i} className="min-w-0 truncate text-[12.5px] text-[var(--tf-text-secondary)]">
-                  {(seg.shortFrage || seg.frage) && (
-                    <span className="uppercase tracking-[0.04em] text-[10.5px] text-[var(--tf-text-tertiary)] mr-1.5">
-                      {seg.shortFrage || seg.frage}
-                    </span>
-                  )}
-                  {seg.antwort}
-                </p>
-              ))}
-            </div>
+          {!narrow && lead && (
+            <p className="mt-1.5 text-[12.5px] text-[var(--tf-text-secondary)] leading-normal line-clamp-2">{lead}</p>
           )}
 
           {/* Meta */}
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
-            {ticket.category !== 'praise' && (
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium ${STATUS_COLORS[ticket.kurator_status]}`}>
+          <div className="mt-2 flex items-center gap-2.5 flex-wrap">
+            {!isPraise && (
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_TINT[ticket.kurator_status]}`}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_DOT[ticket.kurator_status] }} />
                 {STATUS_LABELS[ticket.kurator_status]}
               </span>
             )}
+            {mine && !isPraise && <FeedbackMiniStepper status={ticket.kurator_status} />}
             {ticket.context?.page && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] bg-[var(--tf-card-surface)] text-[var(--tf-text-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
                 {ticket.context.page}
               </span>
             )}
-            <span className="inline-flex items-center gap-1.5 min-w-0">
-              <FeedbackAvatar name={author} size={20} />
-              <span className="truncate text-[12px] text-[var(--tf-text-secondary)]">{author}</span>
-            </span>
+            {!mine && (
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <FeedbackAvatar name={author} size={20} />
+                <span className="truncate text-[12px] text-[var(--tf-text-secondary)]">{author.split(' ')[0]}</span>
+              </span>
+            )}
+            {effort && (
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums">
+                {EFFORT_SIZE_LABELS[effort]} · {EFFORT_LABELS[effort]}
+              </span>
+            )}
             <span className="ml-auto flex items-center gap-2.5 shrink-0">
               {fileCount > 0 && (
                 <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)]" title={`${fileCount} Datei${fileCount > 1 ? 'en' : ''} angehängt`}>
@@ -103,16 +121,22 @@ export function FeedbackCard({ ticket, selected, mine, meId, meName, onSelect, o
                   <MessageSquare size={13} /> {commentCount}
                 </span>
               )}
-              <FeedbackVotePill ticket={ticket} meId={meId} meName={meName} onChanged={onChanged} />
+              {!showBar && <FeedbackVotePill ticket={ticket} meId={meId} meName={meName} onChanged={onChanged} />}
             </span>
           </div>
         </div>
       </button>
 
-      {/* Anhang-Thumbnail (stoppt Bubbling → öffnet Lightbox, nicht das Detail) */}
-      {!narrow && hasShot && (
-        <div className="shrink-0 self-center pr-3 py-3" onClick={e => e.stopPropagation()}>
-          <FeedbackScreenshots attachments={ticket.attachments!} compact />
+      {/* Rechte Spalte: Thumbnail + Sponsor-Leiste (klick öffnet Detail; Thumbnail
+          stoppt Bubbling → Lightbox). */}
+      {showRightCol && (
+        <div className="shrink-0 self-center pr-3 py-3 w-[172px] flex flex-col gap-2" onClick={() => onSelect(ticket)}>
+          {hasShot && (
+            <div onClick={e => e.stopPropagation()}>
+              <FeedbackScreenshots attachments={ticket.attachments!} compact />
+            </div>
+          )}
+          {showBar && <FeedbackSponsorBar ticket={ticket} config={config} meId={meId} variant="card" />}
         </div>
       )}
     </div>

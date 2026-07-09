@@ -93,6 +93,27 @@
   --tf-altlast-band-2-text: hsl(var(--tf-primary-h), 20%, 32%);
   --tf-altlast-band-3-text: #ffffff;
 
+  /* ── Feedback-Board (v2.210, Design-Handoff feedback-optimiert) — gesättigte
+     Typ-Farben + Status- und Sponsoring-Palette. Bewusst eigene Familie statt der
+     gedämpften semantischen Tokens: das Board ist ein farbcodierter Überblick, in
+     dem Problem/Idee/UX/Lob/Frage klar auseinanderfallen sollen. Werte 1:1 aus dem
+     Handoff. Dark = Lightness spiegeln, Sättigung dämpfen wie beim Accent-Token. ── */
+  --tf-fb-problem: hsl(2, 62%, 50%);
+  --tf-fb-problem-bg: hsl(2, 62%, 96%);
+  --tf-fb-idee: hsl(215, 55%, 47%);
+  --tf-fb-idee-bg: hsl(215, 60%, 96%);
+  --tf-fb-ux: hsl(265, 40%, 54%);
+  --tf-fb-ux-bg: hsl(265, 45%, 96.5%);
+  --tf-fb-lob: hsl(145, 45%, 40%);
+  --tf-fb-lob-bg: hsl(145, 45%, 95.5%);
+  --tf-fb-frage: hsl(38, 68%, 46%);
+  --tf-fb-frage-bg: hsl(38, 70%, 95.5%);
+  --tf-fb-status-neu-bg: hsl(215, 30%, 95%);
+  --tf-fb-status-neu-text: hsl(215, 30%, 42%);
+  /* aktiver Sponsor-Rahmen (Karte mit eigenen Punkten) + Budget-Track */
+  --tf-fb-lob-border: hsl(145, 40%, 75%);
+  --tf-fb-sponsor-track: var(--tf-border-hover);
+
   /* ════════════════════════════════════════════════════════════════════════
      Design-Handoff-Token-Vertrag (v2.119) — Skala + Soft/Border-Familie.
      Diese Tokens lebten vorher nur als lokale Lückenfüller in chat.css/
@@ -273,6 +294,21 @@
   --tf-altlast-band-1-text: hsl(var(--tf-primary-h), 18%, 82%);
   --tf-altlast-band-2-text: hsl(var(--tf-primary-h), 18%, 82%);
   --tf-altlast-band-3-text: #ffffff;
+
+  /* Feedback-Board (Dark): Lightness geflippt, Sättigung gedämpft (wie --tf-accent). */
+  --tf-fb-problem: hsl(2, 55%, 66%);
+  --tf-fb-problem-bg: hsl(2, 30%, 24%);
+  --tf-fb-idee: hsl(215, 45%, 68%);
+  --tf-fb-idee-bg: hsl(215, 28%, 24%);
+  --tf-fb-ux: hsl(265, 38%, 70%);
+  --tf-fb-ux-bg: hsl(265, 25%, 25%);
+  --tf-fb-lob: hsl(145, 35%, 60%);
+  --tf-fb-lob-bg: hsl(145, 20%, 22%);
+  --tf-fb-frage: hsl(38, 55%, 62%);
+  --tf-fb-frage-bg: hsl(38, 30%, 24%);
+  --tf-fb-status-neu-bg: hsl(215, 18%, 24%);
+  --tf-fb-status-neu-text: hsl(215, 30%, 70%);
+  --tf-fb-lob-border: hsl(145, 25%, 40%);
 
   /* ── Design-Handoff-Token-Vertrag (v2.119) — Dark: nur die theme-abhängigen
      Werte überschreiben. Die Skala-Tokens (Typo/Spacing/Radius/Motion) sind
