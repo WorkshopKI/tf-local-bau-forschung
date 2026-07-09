@@ -12,12 +12,14 @@
  * Anträge-Plugin — keine eigene Gruppierungs-Semantik.
  */
 import type { AntragOderSlim, Verbund } from '@/core/services/csv/types';
-import { CANONICAL_TITEL, type Klassifizierung } from '@/plugins/auslastung/types';
+import { CANONICAL_TITEL, type Klassifizierung, type AnonymerMitarbeiter } from '@/plugins/auslastung/types';
 import {
   verbundKeyOf,
   resolveVerbundMeta,
 } from '@/plugins/auslastung/services/verbund';
+import { matchesAntragstyp } from '@/plugins/auslastung/services/kapazitaet';
 import { formatFkzRange } from '@/plugins/antraege/antragGroups';
+import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 
 /** Ein offener (freigegebener, für den User passender) Teilvorhaben-Eintrag.
  *  Früher inline in NeueAntraegeFuerDich.tsx — hierher gezogen, damit die
@@ -91,6 +93,73 @@ export function isClaimed(
 
 function byFkz(a: { aktenzeichen: string }, b: { aktenzeichen: string }): number {
   return a.aktenzeichen.localeCompare(b.aktenzeichen, 'de');
+}
+
+/** Kontext für {@link buildOffeneEintraege} — die vom User abhängigen Maps/Sets. */
+export interface OffeneEintraegeCtx {
+  /** MA-Record des Users — nur für den Antragstyp-Filter (`matchesAntragstyp`). */
+  myMa: AnonymerMitarbeiter;
+  /** Aktenzeichen → Antrag (Slim reicht). */
+  antraegeById: ReadonlyMap<string, AntragOderSlim>;
+  /** `config.selbsteintragungFristTage`. */
+  fristTage: number;
+  /** Bereits fest gebuchte (CSV) Aktenzeichen — werden nicht mehr angeboten. */
+  festAktenzeichen: ReadonlySet<string> | undefined;
+  pendingAktenzeichen: ReadonlySet<string>;
+  claimedSet: ReadonlySet<string>;
+  retractedSet: ReadonlySet<string>;
+  /** Rohes eigenes Kürzel (ggf. kommagetrennt) für den T_XSW-Bump. */
+  ownKuerzelRaw: string | null;
+  /** `Date.now()` — als Parameter für Determinismus/Testbarkeit übergeben. */
+  now: number;
+}
+
+/**
+ * Baut die per-TV-Liste offener, für den User passender Anträge — der gemeinsame
+ * Filter hinter Tier 1 („Neue Anträge für dich" = Hauptkategorie) UND Tier 2
+ * („Weitere Anträge" = Nebenkategorien). Nur der Kategorie-Test unterscheidet die
+ * beiden Tiers und wird deshalb als Prädikat übergeben; alle übrigen Filter
+ * (Freigabe, fest gebucht, Antragstyp-Präferenz, Frist) sind identisch.
+ *
+ * Sortierung wie zuvor inline: vorgemerkte ans Ende; unter den offenen eigene
+ * Wiedereinreicher (T_XSW) zuerst, dann Frist aufsteigend, Tiebreak Akronym.
+ */
+export function buildOffeneEintraege(
+  klassifizierungen: readonly Klassifizierung[],
+  kategoriePasst: (freigegebenePrimaer: string) => boolean,
+  ctx: OffeneEintraegeCtx,
+): OffenerAntrag[] {
+  const items: OffenerAntrag[] = [];
+  for (const k of klassifizierungen) {
+    if (k.status !== 'freigegeben') continue;
+    if (!kategoriePasst(k.freigegebenePrimaer)) continue;
+    // Fest gebucht (CSV) — nicht mehr anbieten.
+    if (ctx.festAktenzeichen?.has(k.antragId)) continue;
+    const antrag = ctx.antraegeById.get(k.antragId);
+    if (!antrag) continue;
+    // Antragstyp-Präferenz (FuE/DS/DL/NW). Ohne Präferenz: passt alles durch.
+    if (!matchesAntragstyp(antrag, ctx.myMa)) continue;
+    const claimed = isClaimed(k.antragId, ctx.claimedSet, ctx.pendingAktenzeichen, ctx.retractedSet);
+    const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
+    const deadline = freigegebenAm != null ? freigegebenAm + ctx.fristTage * 86400000 : null;
+    const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - ctx.now) / 86400000)) : ctx.fristTage;
+    // Frist gilt nur für noch nicht vorgemerkte Anträge — vorgemerkte bleiben sichtbar.
+    if (!claimed && deadline != null && daysLeft <= 0) continue;
+    // Wiedereinreicher-Bump: T_XSW enthält das eigene Kürzel → „mein alter Antrag".
+    const xswMine = xswMatchesOwnKuerzel(readXsw(antrag), ctx.ownKuerzelRaw);
+    items.push({ antrag, klassifizierung: k, daysLeft, xswMine, claimed });
+  }
+  items.sort((a, b) => {
+    if (a.claimed !== b.claimed) return a.claimed ? 1 : -1;
+    if (!a.claimed) {
+      if (a.xswMine !== b.xswMine) return a.xswMine ? -1 : 1;
+      if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
+    }
+    const akA = (a.antrag.akronym as string | undefined) ?? a.antrag.aktenzeichen;
+    const akB = (b.antrag.akronym as string | undefined) ?? b.antrag.aktenzeichen;
+    return akA.localeCompare(akB);
+  });
+  return items;
 }
 
 /**

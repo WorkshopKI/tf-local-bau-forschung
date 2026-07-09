@@ -20,11 +20,11 @@
  * ("4 von 16 Antraegen frei in Q2-2026").
  */
 import { useEffect, useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
-import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
@@ -32,19 +32,18 @@ import { useBenachrichtigung } from '@/plugins/auslastung/hooks/useBenachrichtig
 import { useMyAuslastungProfil } from '@/plugins/auslastung/hooks/useMyAuslastungProfil';
 import { useMyUebernahmeWuensche } from '@/plugins/auslastung/hooks/useMyUebernahmeWuensche';
 import { computeKapazitaet } from '@/plugins/auslastung/services/kapazitaet';
-import { matchesAntragstyp } from '@/plugins/auslastung/services/kapazitaet';
 import {
   computeQuartalsAuslastung,
   getTVCount,
 } from '@/plugins/auslastung/services/kapazitaet';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import {
+  buildOffeneEintraege,
   groupEintraegeByVerbund,
-  isClaimed,
   type OffenerAntrag,
 } from './neueAntraegeVerbund';
 import { NeueAntraegeVerbundRow } from './NeueAntraegeVerbundRow';
-import { NeueAntraegeAlleModal } from './NeueAntraegeAlleModal';
+import { useWeitereAntraege } from './useWeitereAntraege';
 
 /** Stabile leere Menge — vermeidet Render-Churn beim Hook-Param/Deps. */
 const EMPTY_AKTENZEICHEN: ReadonlySet<string> = new Set();
@@ -61,7 +60,10 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   // Rohes eigenes Kürzel (ggf. kommagetrennt) für den T_XSW-Wiedereinreicher-Bump.
   // Aus dem MA-Login (sonst Profilfeld) via zentralem Getter.
   const ownKuerzelRaw = useMeinKuerzel() ?? null;
-  const [showAlleModal, setShowAlleModal] = useState(false);
+  // In-Page-Aufklappen wie „Meine Anträge": 5 initial, +10 pro Klick.
+  const [visibleCount, setVisibleCount] = useState(5);
+  // Eigenes Fenster für den Tier-2-Block „Weitere Anträge".
+  const [weitereVisibleCount, setWeitereVisibleCount] = useState(5);
   const [open, toggleOpen] = useCollapsedSection('home_neue_antraege_collapsed');
 
   // Idempotent: triggert Initial-Load auch wenn der User noch nie im
@@ -130,48 +132,21 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     undo,
   } = useMyUebernahmeWuensche(loaded ? (myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN) : undefined);
 
+  // Gemeinsamer Filter-Kontext für Tier 1 (Hauptkategorie) + Tier 2 (Neben).
+  // `now` wird im jeweiligen Memo-Body ausgewertet (kein Render-Dep-Churn).
   const eintraege = useMemo((): OffenerAntrag[] => {
     if (!myMa || !myHauptKategorie) return [];
-    const fristTage = config.selbsteintragungFristTage;
-    const items: OffenerAntrag[] = [];
-    for (const k of klassifizierungen) {
-      if (k.status !== 'freigegeben') continue;
-      if (k.freigegebenePrimaer !== myHauptKategorie) continue;
-      // Fest gebucht (CSV) — nicht mehr anbieten
-      if (myFestAktenzeichen?.has(k.antragId)) continue;
-      const antrag = antraegeById.get(k.antragId);
-      if (!antrag) continue;
-      // v2.2: Antragstyp-Filter (FuE/DS/DL/NW). Ohne Praeferenz: passt alles
-      // durch (Backwards-Kompat). PL-Override hat Vorrang.
-      if (!matchesAntragstyp(antrag, myMa)) continue;
-      // v2.9: vorgemerkt = lokaler Wunsch ODER bereits eingesammelte
-      // Selbst-Zuweisung (Pending) — abzueglich lokal zurueckgenommener
-      // (retractedSet, Optimistic-Overlay). Bleibt sichtbar statt zu verschwinden.
-      const claimed = isClaimed(k.antragId, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet);
-      // Frist berechnen
-      const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
-      const deadline = freigegebenAm != null ? freigegebenAm + fristTage * 86400000 : null;
-      const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - Date.now()) / 86400000)) : fristTage;
-      // Frist gilt nur fuer noch nicht vorgemerkte Antraege — vorgemerkte bleiben
-      // sichtbar (der User hat schon gehandelt, „Rückgängig" moeglich).
-      if (!claimed && deadline != null && daysLeft <= 0) continue;
-      // Wiedereinreicher-Bump: T_XSW enthält das eigene Kürzel → „mein alter Antrag".
-      const xswMine = xswMatchesOwnKuerzel(readXsw(antrag), ownKuerzelRaw);
-      items.push({ antrag, klassifizierung: k, daysLeft, xswMine, claimed });
-    }
-    // Sortierung: vorgemerkte ans Ende (weniger prominent); unter den offenen
-    // eigene Wiedereinreicher zuerst, dann Frist asc; Tiebreak Akronym asc.
-    items.sort((a, b) => {
-      if (a.claimed !== b.claimed) return a.claimed ? 1 : -1;
-      if (!a.claimed) {
-        if (a.xswMine !== b.xswMine) return a.xswMine ? -1 : 1;
-        if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
-      }
-      const akA = (a.antrag.akronym as string | undefined) ?? a.antrag.aktenzeichen;
-      const akB = (b.antrag.akronym as string | undefined) ?? b.antrag.aktenzeichen;
-      return akA.localeCompare(akB);
+    return buildOffeneEintraege(klassifizierungen, (p) => p === myHauptKategorie, {
+      myMa,
+      antraegeById,
+      fristTage: config.selbsteintragungFristTage,
+      festAktenzeichen: myFestAktenzeichen,
+      pendingAktenzeichen: myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN,
+      claimedSet,
+      retractedSet,
+      ownKuerzelRaw,
+      now: Date.now(),
     });
-    return items;
   }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
 
   // Verbund-Gruppierung: Bearbeiter übernehmen den ganzen Verbund, nicht
@@ -184,6 +159,45 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   );
   const offene = useMemo(() => verbundEintraege.filter(v => !v.claimed), [verbundEintraege]);
   const vorgemerkt = useMemo(() => verbundEintraege.filter(v => v.claimed), [verbundEintraege]);
+
+  // ── Tier 2: „Weitere Anträge" (Nebenkategorien, nicht Platz 1) ──────────────
+  // Eager + günstig: dieselben Filter wie Tier 1, aber Kategorie ∈ Nebenkategorien
+  // (die Hauptkategorie steht schon in Tier 1). Erst der Klick auf „Weitere
+  // passende Anträge suchen" lässt die Matching-Engine darüber laufen (Hook).
+  const nebenSet = useMemo(() => {
+    const s = new Set(myMa?.nebenKategorien ?? []);
+    s.delete(myHauptKategorie);
+    return s;
+  }, [myMa, myHauptKategorie]);
+
+  const weitereEintraege = useMemo((): OffenerAntrag[] => {
+    if (!myMa || !myHauptKategorie || nebenSet.size === 0) return [];
+    return buildOffeneEintraege(klassifizierungen, (p) => nebenSet.has(p), {
+      myMa,
+      antraegeById,
+      fristTage: config.selbsteintragungFristTage,
+      festAktenzeichen: myFestAktenzeichen,
+      pendingAktenzeichen: myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN,
+      claimedSet,
+      retractedSet,
+      ownKuerzelRaw,
+      now: Date.now(),
+    });
+  }, [klassifizierungen, myMa, myHauptKategorie, nebenSet, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
+
+  const weitereVerbuende = useMemo(
+    () => groupEintraegeByVerbund(weitereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet),
+    [weitereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen, retractedSet],
+  );
+  // Tier-1-Verbünde ausschließen (ein Verbund mit gemischten TV-Kategorien darf
+  // nicht doppelt erscheinen); nur offene Kandidaten scoren.
+  const tier1Ids = useMemo(() => new Set(verbundEintraege.map(v => v.verbundId)), [verbundEintraege]);
+  const weitereKandidaten = useMemo(
+    () => weitereVerbuende.filter(v => !v.claimed && !tier1Ids.has(v.verbundId)),
+    [weitereVerbuende, tier1Ids],
+  );
+
+  const weitere = useWeitereAntraege({ kandidaten: weitereKandidaten, myAnonId, auslastungByAnon });
 
   // Lokale Wünsche, die noch nicht in auslastung.json (Pending) stehen, in die
   // Pending-Anzeige einrechnen — sonst sieht der prod-User nach dem Klick keine
@@ -231,11 +245,15 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       </div>
     );
   }
-  // Nichts Offenes UND nichts Vorgemerktes → Sektion ausblenden.
-  if (eintraege.length === 0) return null;
+  // Nichts in der Hauptkategorie offen/vorgemerkt UND keine Neben-Kandidaten →
+  // Sektion ausblenden. Neben-Kandidaten allein halten sie sichtbar, damit der
+  // User „gerade nichts 100%-Passendes frei" per Suche überbrücken kann.
+  if (eintraege.length === 0 && weitereKandidaten.length === 0) return null;
 
-  const visible = offene.slice(0, 5);
-  const hasMore = offene.length > 5;
+  const visible = offene.slice(0, visibleCount);
+  const hasMore = offene.length > visibleCount;
+  const remaining = offene.length - visibleCount;
+  const nextChunk = Math.min(10, remaining);
 
   return (
     <div className="mb-6" data-auslastung="neue-antraege">
@@ -245,28 +263,18 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
         collapsed={!open}
         onToggleCollapsed={toggleOpen}
         action={
-          <div className="flex items-center gap-2">
-            {neueAnzahl > 0 && (
-              <span
-                className="text-[10.5px] font-medium px-1.5 py-0.5 rounded"
-                style={{
-                  background: 'var(--tf-primary-soft, var(--tf-bg-secondary))',
-                  color: 'var(--tf-primary)',
-                }}
-                title={`${neueAnzahl} neu seit deinem letzten Besuch`}
-              >
-                {neueAnzahl} neu
-              </span>
-            )}
-            {hasMore && (
-              <button
-                onClick={() => setShowAlleModal(true)}
-                className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-              >
-                Alle ({offene.length}) →
-              </button>
-            )}
-          </div>
+          neueAnzahl > 0 ? (
+            <span
+              className="text-[10.5px] font-medium px-1.5 py-0.5 rounded"
+              style={{
+                background: 'var(--tf-primary-soft, var(--tf-bg-secondary))',
+                color: 'var(--tf-primary)',
+              }}
+              title={`${neueAnzahl} neu seit deinem letzten Besuch`}
+            >
+              {neueAnzahl} neu
+            </span>
+          ) : undefined
         }
       />
       <div
@@ -296,6 +304,83 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           />
         ))}
       </div>
+      {/* Tier 1 „mehr anzeigen" — wie in „Meine Anträge" (in-page, +10 pro Klick). */}
+      {hasMore && (
+        <div className="mt-2 flex items-center justify-between">
+          <button
+            onClick={() => setVisibleCount(c => Math.min(offene.length, c + 10))}
+            className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+          >
+            +{nextChunk} mehr anzeigen
+          </button>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {visibleCount} von {offene.length}
+          </span>
+        </div>
+      )}
+      {/* Tier 2 „Weitere Anträge" — abgesetzter Block, on-demand engine-gescort. */}
+      {weitereKandidaten.length > 0 && (
+        <div className="mt-4 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          {weitere.status === 'idle' && (
+            <button
+              type="button"
+              onClick={() => weitere.suchen()}
+              className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+            >
+              Weitere passende Anträge suchen ({weitereKandidaten.length}) →
+            </button>
+          )}
+          {weitere.status === 'loading' && (
+            <div className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
+              <Loader2 size={13} className="animate-spin" aria-hidden />
+              Suche weitere passende Anträge für Dich …
+            </div>
+          )}
+          {weitere.status === 'ready' && (
+            weitere.ergebnisse.length === 0 ? (
+              <p className="text-[12px] text-[var(--tf-text-tertiary)]">
+                Keine weiteren passenden Anträge gefunden.
+              </p>
+            ) : (
+              <>
+                <div className="mb-2 text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+                  Weitere Anträge · niedrigere Passung
+                </div>
+                <div className="flex flex-col gap-2">
+                  {weitere.ergebnisse.slice(0, weitereVisibleCount).map(e => (
+                    <NeueAntraegeVerbundRow
+                      key={e.verbund.verbundId}
+                      verbund={e.verbund}
+                      passung={e.passung}
+                      onUebernehmen={() => handleClaim(e.verbund.leadAktenzeichen)}
+                      onUndo={() => e.verbund.claimedAktenzeichen.forEach(az => void undo(az))}
+                      disabled={wuenscheBusy}
+                    />
+                  ))}
+                </div>
+                {weitere.ergebnisse.length > weitereVisibleCount && (
+                  <div className="mt-2 flex items-center justify-between">
+                    <button
+                      onClick={() => setWeitereVisibleCount(c => Math.min(weitere.ergebnisse.length, c + 10))}
+                      className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                    >
+                      +{Math.min(10, weitere.ergebnisse.length - weitereVisibleCount)} mehr anzeigen
+                    </button>
+                    <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                      {Math.min(weitereVisibleCount, weitere.ergebnisse.length)} von {weitere.ergebnisse.length}
+                    </span>
+                  </div>
+                )}
+              </>
+            )
+          )}
+          {weitere.error && (
+            <div className="mt-2 text-[11.5px] text-[var(--tf-danger-text)]">
+              Fehler: {weitere.error}
+            </div>
+          )}
+        </div>
+      )}
       {kapView && (
         <p className="mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
           Festgebucht: {kapView.fest.antraege} {kapView.fest.antraege === 1 ? 'Antrag' : 'Anträge'} ({kapView.fest.tvs} TVs)
@@ -319,14 +404,6 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       )}
         </div>
       </div>
-      {showAlleModal && (
-        <NeueAntraegeAlleModal
-          alle={offene}
-          onClose={() => setShowAlleModal(false)}
-          onUebernehmen={(leadAktenzeichen) => handleClaim(leadAktenzeichen)}
-          busy={wuenscheBusy}
-        />
-      )}
     </div>
   );
 }

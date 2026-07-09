@@ -5,8 +5,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { Antrag } from '@/core/services/csv/types';
-import type { Klassifizierung } from '@/plugins/auslastung/types';
-import { groupEintraegeByVerbund, isClaimed, type OffenerAntrag } from '../neueAntraegeVerbund';
+import type { Klassifizierung, AnonymerMitarbeiter } from '@/plugins/auslastung/types';
+import {
+  buildOffeneEintraege,
+  groupEintraegeByVerbund,
+  isClaimed,
+  type OffeneEintraegeCtx,
+  type OffenerAntrag,
+} from '../neueAntraegeVerbund';
 
 function makeAntrag(
   aktenzeichen: string,
@@ -186,6 +192,87 @@ describe('groupEintraegeByVerbund', () => {
       new Set(),
     );
     expect(out[0]!.claimedAktenzeichen).toEqual(['16KN126325', '16KN126326']);
+  });
+});
+
+describe('buildOffeneEintraege', () => {
+  const NOW = new Date('2026-05-10T00:00:00Z').getTime();
+
+  // Minimal-MA ohne Antragstyp-Restriktion (kein Override/Bevorzugt/Kontingent
+  // → matchesAntragstyp lässt alles durch).
+  function makeMa(): AnonymerMitarbeiter {
+    return {
+      antragstypBevorzugt: [],
+      antragstypUeberschreibung: [],
+      jahresKapazitaetProTyp: {},
+    } as unknown as AnonymerMitarbeiter;
+  }
+
+  function makeKlKat(antragId: string, primaer: string, freigegebenAm = '2026-05-08'): Klassifizierung {
+    return {
+      antragId,
+      vorgeschlagenePrimaer: null,
+      vorgeschlageneAspekte: [],
+      freigegebenePrimaer: primaer,
+      freigegebeneAspekte: [],
+      status: 'freigegeben',
+      freigegebenAm,
+    };
+  }
+
+  function baseCtx(antraege: Antrag[]): OffeneEintraegeCtx {
+    return {
+      myMa: makeMa(),
+      antraegeById: new Map(antraege.map(a => [a.aktenzeichen, a])),
+      fristTage: 7,
+      festAktenzeichen: undefined,
+      pendingAktenzeichen: new Set(),
+      claimedSet: new Set(),
+      retractedSet: new Set(),
+      ownKuerzelRaw: null,
+      now: NOW,
+    };
+  }
+
+  it('Kategorie-Prädikat trennt Tier 1 (Hauptkategorie) von Tier 2 (Nebenkategorie)', () => {
+    const itA = makeAntrag('16IT000001', undefined, 'ItProj', 'A');
+    const dtA = makeAntrag('16DT000001', undefined, 'DtProj', 'B');
+    const kls = [makeKlKat('16IT000001', 'IT'), makeKlKat('16DT000001', 'DT')];
+    const ctx = baseCtx([itA, dtA]);
+
+    const haupt = buildOffeneEintraege(kls, p => p === 'IT', ctx);
+    expect(haupt.map(e => e.antrag.aktenzeichen)).toEqual(['16IT000001']);
+
+    const nebenSet = new Set(['DT']);
+    const neben = buildOffeneEintraege(kls, p => nebenSet.has(p), ctx);
+    expect(neben.map(e => e.antrag.aktenzeichen)).toEqual(['16DT000001']);
+  });
+
+  it('überspringt nicht-freigegebene Klassifizierungen', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const kl: Klassifizierung = { ...makeKlKat('16IT000001', 'IT'), status: 'vorgeschlagen' };
+    const out = buildOffeneEintraege([kl], () => true, baseCtx([a]));
+    expect(out).toHaveLength(0);
+  });
+
+  it('überspringt fest gebuchte Anträge', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const ctx: OffeneEintraegeCtx = { ...baseCtx([a]), festAktenzeichen: new Set(['16IT000001']) };
+    const out = buildOffeneEintraege([makeKlKat('16IT000001', 'IT')], () => true, ctx);
+    expect(out).toHaveLength(0);
+  });
+
+  it('abgelaufene Frist entfernt nur nicht vorgemerkte Anträge', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const kl = makeKlKat('16IT000001', 'IT', '2026-01-01'); // Frist (7 T) längst abgelaufen
+
+    const offen = buildOffeneEintraege([kl], () => true, baseCtx([a]));
+    expect(offen).toHaveLength(0);
+
+    const claimedCtx: OffeneEintraegeCtx = { ...baseCtx([a]), claimedSet: new Set(['16IT000001']) };
+    const claimed = buildOffeneEintraege([kl], () => true, claimedCtx);
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0]!.claimed).toBe(true);
   });
 });
 

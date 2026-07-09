@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.209.0 — Home „Neue Anträge für dich": mehr anzeigen + weitere (nicht-Platz-1) Anträge + Hover-Tooltip (Juli 2026)
+
+MINOR — Die Homepage-Sektion „Neue Anträge für dich" ([NeueAntraegeFuerDich.tsx](src/plugins/home/NeueAntraegeFuerDich.tsx)) bekommt drei additive Erweiterungen für die MA-Selbsteintragung (nur wo `auslastungSelbstEintragung` aktiv, pl/dev). Keine Daten-/Schema-Änderung, keine Migration; Claim-Pfad unverändert (Wunsch → persönlicher Ordner, PL sammelt ein).
+
+- **In-Page „+N mehr anzeigen"** statt „Alle"-Modal: die Liste wächst jetzt inkrementell wie „Meine Anträge" (`visibleCount`, +10/Klick, „X von Y"-Zähler) — der bisherige `NeueAntraegeAlleModal` entfällt.
+- **Tier 2 „Weitere Anträge · niedrigere Passung"** (neuer Hook [useWeitereAntraege.ts](src/plugins/home/useWeitereAntraege.ts)): Ein Button „Weitere passende Anträge suchen (N)" blendet auf Wunsch die Anträge ein, für die der User **nicht der Primär-Pick** ist — fachlich die Anträge, deren freigegebene Primärkategorie in seinen **Nebenkategorien** liegt. Genau der Fall „in meiner Hauptkategorie ist gerade nichts frei". Die Reihenfolge liefert das echte Matching: pro Kandidat-Verbund läuft `runMatchingWithContext` (BM25-only, kein Query-Embedding) einmal, die **eigene** Passung (`kompetenzScore`) sortiert absteigend und erscheint als „Passung X %"-Pill. Asynchron mit Spinner „Suche weitere passende Anträge für Dich …" (Point-Read + Engine je Kandidat, gedeckelt auf 50, geyieldet). Datenschutz: nur die eigene Passung, nie andere MAs/Rang. Die Sektion bleibt jetzt auch sichtbar, wenn Tier 1 leer ist, aber Neben-Kandidaten existieren.
+- **Hover-Tooltip pro Zeile** ([NeueAntraegeVerbundRow.tsx](src/plugins/home/NeueAntraegeVerbundRow.tsx)): voller Verbund-Titel + Antragsteller + Eingangsdatum + alle TV-Titel (reuse `Tooltip` `content`-Prop; Daten aus dem bestehenden `VerbundEintrag`-View-Model) — löst den bisherigen nativen `title`-Tooltip am „N TV"-Badge ab.
+- **Refactor**: der per-TV-Filter hinter Tier 1 + Tier 2 lebt jetzt gemeinsam in `buildOffeneEintraege` ([neueAntraegeVerbund.ts](src/plugins/home/neueAntraegeVerbund.ts), Kategorie-Test als Prädikat) — Tier 1 byte-identisch zu vorher, mit Unit-Test.
+- Verifiziert per `tsc --noEmit` (grün) + `npx vitest run src/plugins/home src/__tests__/codebase-conventions.test.ts` (70/70 grün) + `build:dev`/`build:pl`. Offen: `file://`-Abnahme durch Thomas (Dev-Server zeigt die Sektion mangels SMB-Onboarding nicht).
+
 ### v2.208.0 — Sidebar-Feinschliff: Feedback-Nav zurück, Reihenfolge, Icons, kompakte Rail-Ampeln (Juli 2026)
 
 MINOR — Mehrere gezielte Verbesserungen an der linken Sidebar (`ShellLayout`). Rein visuell/Nav-strukturell, keine Daten-/Schema-Änderung, keine Migration.

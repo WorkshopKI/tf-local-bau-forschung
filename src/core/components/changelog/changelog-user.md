@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.209 — 2026-07
+
+### Neu
+- **„Weitere passende Anträge" auf der Startseite:** In „Neue Anträge für dich" gibt es jetzt einen Knopf, der dir auch Anträge zeigt, bei denen du nicht der erste Vorschlag bist — praktisch, wenn in deinem Hauptgebiet gerade nichts frei ist. Jeder dieser Anträge zeigt deine persönliche „Passung", damit du siehst, wie gut er zu dir passt.
+
+### Verbesserungen
+- **Mehr Anträge direkt einblenden:** „Neue Anträge für dich" lässt sich jetzt Schritt für Schritt („+10 mehr anzeigen") aufklappen, statt in einem separaten Fenster — genau wie „Meine Anträge" darüber.
+- **Details beim Darüberfahren:** Fahre mit der Maus über einen Antrag, um den vollen Verbund- und Teilvorhaben-Titel, den Antragsteller und das Eingangsdatum zu sehen — so kannst du besser einschätzen, ob er für dich passt.
+
 ## v2.208 — 2026-07
 
 ### Verbesserungen

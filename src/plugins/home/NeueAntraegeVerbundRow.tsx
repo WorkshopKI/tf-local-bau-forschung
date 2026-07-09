@@ -1,16 +1,22 @@
 /**
  * NeueAntraegeVerbundRow — eine Zeile pro Verbund in „Neue Anträge für dich".
  *
- * Ersetzt die frühere per-TV-Row: Bearbeiter übernehmen immer den ganzen
- * Verbund. Zeigt Akronym (fett) + Verbund-Titel, FKZ-Range, bei >1 TV ein
- * „N TV"-Badge, dessen Tooltip die einzelnen Teilvorhaben-Titel auflistet —
- * so sieht der User Details, bevor er den Verbund übernimmt.
+ * Bearbeiter übernehmen immer den GANZEN Verbund, nie einzelne Teilvorhaben.
+ * Zeigt Akronym (fett) + Verbund-Titel, FKZ-Range, Kategorie-Pills und (bei >1
+ * TV) ein „N TV"-Badge. Ein Hover-Tooltip auf der Info-Spalte listet den vollen
+ * Verbund-Titel, Antragsteller, Eingangsdatum und die einzelnen TV-Titel — so
+ * kann der User vor der Übernahme einschätzen, ob der Antrag zu ihm passt.
  *
- * Voll-Variante (erste 5 Zeilen) + kompakte Variante (im „Alle"-Modal).
+ * Optionale `passung` (Tier 2 „Weitere Anträge") rendert einen „Passung X %"-Pill
+ * + eine Tooltip-Zeile: die eigene fachliche Passung zu einem schwächer
+ * passenden Antrag (Nebenkategorie).
  */
+import { Tooltip } from '@/components/ui/Tooltip';
+import { formatGermanDate } from '@/core/services/csv';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { KategoriePill } from '@/plugins/auslastung/components/KategoriePill';
 import { XswSuffix } from '@/plugins/antraege/XswSuffix';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import type { VerbundEintrag } from './neueAntraegeVerbund';
 
 interface Props {
@@ -19,15 +25,58 @@ interface Props {
   /** „Rückgängig" — Vormerkung zurücknehmen (nur für claimed-Zeilen). */
   onUndo?: () => void;
   disabled?: boolean;
-  /** Kompakte Layout-Variante fürs „Alle"-Modal. */
-  compact?: boolean;
+  /** Tier 2: eigene fachliche Passung (0..1) → „Passung X %"-Pill + Tooltip-Zeile. */
+  passung?: number;
 }
 
-/** Tooltip-Text für den „N TV"-Badge: ein TV pro Zeile („FKZ — Titel"). */
-function tvTooltip(verbund: VerbundEintrag): string {
-  return verbund.alleTvs
-    .map(tv => (tv.titel ? `${tv.aktenzeichen} — ${tv.titel}` : tv.aktenzeichen))
-    .join('\n');
+/** Liest ein String-Feld defensiv aus dem (Slim-)Antrag; leer → undefined. */
+function readStringField(a: AntragOderSlim, feld: string): string | undefined {
+  const v = (a as Record<string, unknown>)[feld];
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
+
+/** Reicher Hover-Inhalt: voller Verbund-Titel + Antragsteller/Datum + TV-Titel. */
+function AntragTooltipCard({ verbund, passung }: { verbund: VerbundEintrag; passung?: number }): React.ReactElement {
+  const antragsteller = readStringField(verbund.leadAntrag, 'antragsteller');
+  const datumRaw = readStringField(verbund.leadAntrag, 'antragsdatum');
+  const datum = datumRaw ? formatGermanDate(datumRaw) : '';
+  return (
+    <div className="text-left">
+      <div className="text-[12px] font-medium text-[var(--tf-text)] mb-1 whitespace-normal">
+        {verbund.verbundTitel || '—'}
+      </div>
+      <div className="flex flex-col gap-0.5 text-[11px]">
+        {antragsteller && (
+          <div>
+            <span className="text-[var(--tf-text-tertiary)]">Antragsteller: </span>
+            <span className="text-[var(--tf-text-secondary)]">{antragsteller}</span>
+          </div>
+        )}
+        {datum && (
+          <div>
+            <span className="text-[var(--tf-text-tertiary)]">Eingang: </span>
+            <span className="text-[var(--tf-text-secondary)]">{datum}</span>
+          </div>
+        )}
+        {passung != null && (
+          <div>
+            <span className="text-[var(--tf-text-tertiary)]">Passung: </span>
+            <span className="text-[var(--tf-text-secondary)]">{Math.round(passung * 100)} %</span>
+          </div>
+        )}
+      </div>
+      {verbund.alleTvs.length > 0 && (
+        <div className="mt-1.5 pt-1.5 flex flex-col gap-0.5" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          {verbund.alleTvs.map(tv => (
+            <div key={tv.aktenzeichen} className="flex gap-1.5 text-[11px]">
+              <span className="font-mono text-[var(--tf-text-tertiary)] shrink-0">{tv.aktenzeichen}</span>
+              <span className="text-[var(--tf-text-secondary)] whitespace-normal">{tv.titel || '—'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function NeueAntraegeVerbundRow({
@@ -35,7 +84,7 @@ export function NeueAntraegeVerbundRow({
   onUebernehmen,
   onUndo,
   disabled,
-  compact,
+  passung,
 }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
   const { akronym, verbundTitel, fkzRange, klassifizierung, daysLeft, claimed, tvCount, leadAntrag } = verbund;
@@ -61,84 +110,58 @@ export function NeueAntraegeVerbundRow({
   const onAction = claimed ? onUndo : onUebernehmen;
   const actionAria = `${actionLabel} — ${akronym || fkzRange}`;
 
-  // „N TV"-Badge nur bei echtem Verbund (>1 TV). Tooltip listet die TV-Titel,
-  // damit der User vor der Übernahme sieht, was im Verbund steckt.
+  // „N TV"-Badge nur bei echtem Verbund (>1 TV). Die TV-Titel stehen im
+  // Hover-Tooltip der Info-Spalte (nicht mehr im nativen title-Attribut).
   const tvBadge = tvCount > 1 ? (
     <span
-      className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-secondary)] cursor-help shrink-0"
+      className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-secondary)] shrink-0"
       style={{ border: '0.5px solid var(--tf-border)' }}
-      title={tvTooltip(verbund)}
     >
       {tvCount} TV
     </span>
   ) : null;
 
-  if (compact) {
-    return (
-      <div className="rounded-[8px] px-2.5 py-1.5 flex items-center gap-3" style={rowStyle}>
-        <span
-          className="font-mono text-[10.5px] text-[var(--tf-text-secondary)] shrink-0 w-[124px] truncate"
-          title={fkzRange}
-        >
-          {fkzRange}
-        </span>
-        {primaerKat && (
-          <div className="shrink-0"><KategoriePill kategorie={primaerKat} active /></div>
-        )}
-        {tvBadge}
-        <div className="flex-1 min-w-0 text-[12px] text-[var(--tf-text)] truncate">
-          {akronym && <span className="font-medium">{akronym}</span>}
-          {akronym && <span className="text-[var(--tf-text-tertiary)]"> · </span>}
-          <span className="text-[var(--tf-text-secondary)]">{titel}</span>
-        </div>
-        <XswSuffix value={leadAntrag} className="shrink-0 max-w-[35%] truncate text-[12px]" />
-        {claimed ? (
-          <span className="text-[10.5px] shrink-0 text-[var(--tf-text-tertiary)]">Vorgemerkt</span>
-        ) : (
-          <span className={`text-[10.5px] tabular-nums shrink-0 ${fristTone}`} title="Verbleibende Frist">
-            Noch {daysLeft}d
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={onAction}
-          disabled={disabled}
-          className={`${buttonClasses} px-2.5 py-1 shrink-0`}
-          style={buttonStyle}
-          aria-label={actionAria}
-        >
-          {actionLabel}
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="rounded-[12px] p-3 flex items-center gap-4" style={rowStyle}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{fkzRange}</span>
-          {primaerKat && <KategoriePill kategorie={primaerKat} active />}
-          {aspektKats.map(k => (
-            <KategoriePill key={k.id} kategorie={k} active={false} />
-          ))}
-          {tvBadge}
-          {claimed && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-tertiary)]"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              Vorgemerkt
-            </span>
-          )}
+      <Tooltip
+        maxWidth={420}
+        wrapperClassName="flex-1 min-w-0"
+        content={<AntragTooltipCard verbund={verbund} passung={passung} />}
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-mono text-[11px] text-[var(--tf-text-secondary)]">{fkzRange}</span>
+            {primaerKat && <KategoriePill kategorie={primaerKat} active />}
+            {aspektKats.map(k => (
+              <KategoriePill key={k.id} kategorie={k} active={false} />
+            ))}
+            {tvBadge}
+            {passung != null && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-secondary)] shrink-0"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+                title="Deine fachliche Passung zu diesem Antrag (aus ähnlichen früheren Anträgen + Kompetenztabelle). Kein Maß persönlicher Kompetenz."
+              >
+                Passung {Math.round(passung * 100)} %
+              </span>
+            )}
+            {claimed && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-tertiary)]"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                Vorgemerkt
+              </span>
+            )}
+          </div>
+          <div className="flex items-baseline gap-1 min-w-0">
+            {akronym && <span className="text-[12.5px] font-medium text-[var(--tf-text)] shrink-0">{akronym}</span>}
+            {akronym && <span className="text-[12.5px] text-[var(--tf-text-tertiary)] shrink-0">·</span>}
+            <span className="text-[12.5px] text-[var(--tf-text)] truncate">{titel}</span>
+            <XswSuffix value={leadAntrag} className="shrink-0 max-w-[50%] truncate text-[12.5px]" />
+          </div>
         </div>
-        <div className="flex items-baseline gap-1 min-w-0">
-          {akronym && <span className="text-[12.5px] font-medium text-[var(--tf-text)] shrink-0">{akronym}</span>}
-          {akronym && <span className="text-[12.5px] text-[var(--tf-text-tertiary)] shrink-0">·</span>}
-          <span className="text-[12.5px] text-[var(--tf-text)] truncate">{titel}</span>
-          <XswSuffix value={leadAntrag} className="shrink-0 max-w-[50%] truncate text-[12.5px]" />
-        </div>
-      </div>
+      </Tooltip>
       <div className="text-right flex flex-col items-end gap-1 shrink-0">
         {!claimed && (
           <span className={`text-[10.5px] ${fristTone}`}>
