@@ -92,6 +92,10 @@
   --tf-altlast-band-1-text: hsl(var(--tf-primary-h), 20%, 32%);
   --tf-altlast-band-2-text: hsl(var(--tf-primary-h), 20%, 32%);
   --tf-altlast-band-3-text: #ffffff;
+  /* „Aktuelles Quartal" als 4. Rampen-Stufe (Home-Rückstands-Balken, v2.210):
+     heller/zurücktretender als Band-1 — im Gegensatz zum kräftigen --tf-akt-bar. */
+  --tf-altlast-band-akt: hsl(var(--tf-primary-h), 10%, 90%);
+  --tf-altlast-band-akt-text: hsl(var(--tf-primary-h), 20%, 32%);
 
   /* ── Feedback-Board (v2.210, Design-Handoff feedback-optimiert) — gesättigte
      Typ-Farben + Status- und Sponsoring-Palette. Bewusst eigene Familie statt der
@@ -294,6 +298,9 @@
   --tf-altlast-band-1-text: hsl(var(--tf-primary-h), 18%, 82%);
   --tf-altlast-band-2-text: hsl(var(--tf-primary-h), 18%, 82%);
   --tf-altlast-band-3-text: #ffffff;
+  /* „Aktuelles Quartal" (Dark): noch dunkler/zurücktretender als Band-1, heller Text. */
+  --tf-altlast-band-akt: hsl(var(--tf-primary-h), 10%, 28%);
+  --tf-altlast-band-akt-text: hsl(var(--tf-primary-h), 18%, 82%);
 
   /* Feedback-Board (Dark): Lightness geflippt, Sättigung gedämpft (wie --tf-accent). */
   --tf-fb-problem: hsl(2, 55%, 66%);

@@ -12,6 +12,7 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { MeineAntraegeSection } from './MeineAntraegeSection';
+import { MeineAntraegeBalken } from './MeineAntraegeBalken';
 import { WeitermachenSection } from './WeitermachenSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
@@ -254,12 +255,17 @@ export function HomePage(): React.ReactElement {
 
             const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 5));
             return (
-              <MeineAntraegeSection
-                antraege={data.meineAntraege}
-                initialCount={initialCount}
-                bearbeiterTokens={data.bearbeiterTokens}
-                alleMode={alleMode}
-              />
+              <>
+                {/* Rückstands-Balken: eigene offene Anträge nach Quartals-Alter
+                    (Ab Q-3 · Q-2 · Q-1 · akt. Quartal) mit Hover-Detail. */}
+                <MeineAntraegeBalken antraege={data.meineAntraege} />
+                <MeineAntraegeSection
+                  antraege={data.meineAntraege}
+                  initialCount={initialCount}
+                  bearbeiterTokens={data.bearbeiterTokens}
+                  alleMode={alleMode}
+                />
+              </>
             );
           })()}
 
