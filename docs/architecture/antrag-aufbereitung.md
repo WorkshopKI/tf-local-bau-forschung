@@ -1,6 +1,6 @@
 # Antrag-Aufbereitung (Fundament, Zeitplan, LLM-Bausteine)
 
-Eine **Vollbild-Seite pro Förderantrag**, die die Vorhabensbeschreibung (VB, 30–60 Seiten) strukturiert aufbereitet — nicht durch Zusammenfassungen, sondern durch **im Original verankerte** Sichten. Route `/antraege/:aktenzeichen/aufbereitung`, hinter Feature-Flag `antragAufbereitung` (**nur dev**). Paket 1 (v2.201.0) = Fundament + Zeitplan; Paket 2 (v2.202.0) = die ersten **LLM-Bausteine** (Steckbrief + Abdeckung) + ein deterministischer Kapazitäts-Befund.
+Eine **Vollbild-Seite pro Förderantrag**, die die Vorhabensbeschreibung (VB, 30–60 Seiten) strukturiert aufbereitet — nicht durch Zusammenfassungen, sondern durch **im Original verankerte** Sichten. Route `/antraege/:aktenzeichen/aufbereitung`, hinter Feature-Flag `antragAufbereitung` (**nur dev**). Paket 1 (v2.201.0) = Fundament + Zeitplan; Paket 2 (v2.202.0) = die ersten **LLM-Bausteine** (Steckbrief + Abdeckung) + ein deterministischer Kapazitäts-Befund; Paket 3 (v2.204.0) = drei **rein deterministische** Visualisierungen (Silhouette · Schwimmbahnen · Risiko-Punkte).
 
 **Leitprinzip: alles Deterministische bleibt deterministisch.** Substanz-Anteile, Prozente, Stammdaten und Prüf-Befunde rechnet der Code; das LLM liefert nur die **Zuordnung** (Sektion → Aspekt) und die **wortnah extrahierten** Kernaussagen — jede mit Sektions-IDs als Fundstelle. Kein LLM-Baustein darf den deterministischen Teil (Zeitplan) mitreißen: jeder Fehlerpfad degradiert.
 
@@ -11,7 +11,11 @@ Alles unter [src/plugins/antraege/aufbereitung/](../../src/plugins/antraege/aufb
 | Datei | Verantwortung |
 |---|---|
 | [gliederung.ts](../../src/plugins/antraege/aufbereitung/gliederung.ts) | `parseVbGliederung(md)` → `VbSektion[]` (stabile IDs `k-3.1`/`s<i>`/`s-intro`/`s-toc`) |
-| [tabellen.ts](../../src/plugins/antraege/aufbereitung/tabellen.ts) | Pipe-Parser, Klassifikation, Zeitplan-Normalisierung, `verglichZeitplaene`, **`pruefeKapazitaet`** |
+| [tabellen.ts](../../src/plugins/antraege/aufbereitung/tabellen.ts) | Pipe-Parser, Klassifikation, Zeitplan-Normalisierung (inkl. fraktionaler `posStart`/`posEnde`), `verglichZeitplaene`, **`pruefeKapazitaet`** + geteilte **`kapazitaetProMaMonat`** |
+| [risiken.ts](../../src/plugins/antraege/aufbereitung/risiken.ts) | Risiko-Ernte (`ernteRisiken`, im `baueRun`) + Lösungsweg-Zuordnung (`zuordneRisiken`, im UI) + `risikoFehltKandidaten` (Paket 3) |
+| [GanttAchse.tsx](../../src/plugins/antraege/aufbereitung/GanttAchse.tsx) | Geteilte X-Achsen-Geometrie (`macheAchse`, `GanttGrid`, `GanttLeerAnnotation`) für „Nach AP" + „Nach Person" |
+| [PersonenZeitplan.tsx](../../src/plugins/antraege/aufbereitung/PersonenZeitplan.tsx) | Schwimmbahnen (eine Bahn je MA, tagesgenaue Balken, Bahn-Kapazitäts-Warndot) |
+| [SilhouetteAnsicht.tsx](../../src/plugins/antraege/aufbereitung/SilhouetteAnsicht.tsx) | Proportionale Flächen-Silhouette der Gliederung (dritte Abdeckungs-Ansicht) |
 | [quellen.ts](../../src/plugins/antraege/aufbereitung/quellen.ts) | VB (`resolveVb`) + Anlage 5 (`resolveAnlage5`) |
 | [types.ts](../../src/plugins/antraege/aufbereitung/types.ts) | `QuelleRef`, `RunTabelle`, `AufbereitungRun` |
 | [store.ts](../../src/plugins/antraege/aufbereitung/store.ts) | `baueRun` (pur), `computeAufbereitung`, `uebernehmeOffenePunkte`, `befundKey`, … |
@@ -83,6 +87,30 @@ Die Bausteine laufen **sequentiell** (Aspekte → Steckbrief), weil der interne 
 
 Route `/antraege/:aktenzeichen/aufbereitung` als flag-gated **Child** unter `ShellLayout` ([Router.tsx](../../src/core/Router.tsx)). Kontext aus dem Route-Key über `useVerbundDetailData` + `buildKurzfassungContext` (deep-link-/refresh-fest). Einstieg: flag-gated Button „Antrag-Aufbereitung öffnen" auf [VerbundDetail.tsx](../../src/plugins/antraege/VerbundDetail.tsx).
 
-## Ausblick Paket 3
+## Paket 3 — Visualisierungen (Silhouette · Schwimmbahnen · Risiko-Punkte)
 
-Silhouette-Ansicht + Schwimmbahnen der Karte, **Risiko-Punkte** an den 3.x-Knoten (technische Risiken je Lösungsweg-Abschnitt), Zahlen-Inventar, Recherche-/Glossar-Tabs. Die Karten-/Popover-Infrastruktur (`FundstellePopover`, `baueLayout`, Baustein-Rahmen) ist darauf ausgelegt, additiv erweitert zu werden.
+Drei **rein deterministische** Sichten auf den bestehenden Daten (kein LLM, keine Skills/Seeds, keine Transport-Fragen). Alle Datenmodell-Erweiterungen sind **optionale Felder** — alte persistierte Runs (`version: 1`) bleiben ladbar, fehlende Felder degradieren die neue Ansicht, brechen nichts.
+
+- **Fraktionale Positionen** ([tabellen.ts](../../src/plugins/antraege/aufbereitung/tabellen.ts)): `ApZeile.posStart?/posEnde?` sind tagesgenaue, 1-basierte Monatspositionen (`posStart = ganzerMonat + (Tag−1)/Monatslänge`, `posEnde = ganzerMonat + Tag/Monatslänge`; Monatslänge via `new Date(y,m,0).getDate()`). **Nur** aus echten Anlage-5-Datumswerten (`normalisiereAnlage5`) befüllt; VB-Text-Zeitpläne lassen sie leer. Die ganzzahligen `monatStart`/`monatEnde` und der Gantt „Nach AP" sind unverändert (Falle F1).
+- **Silhouette** (dritte Abdeckungs-Ansicht, [SilhouetteAnsicht.tsx](../../src/plugins/antraege/aufbereitung/SilhouetteAnsicht.tsx)): ein Block je Ebene-1-Kapitel, Höhe ∝ **kontinuierlicher** Zeichenmasse (bis zum nächsten Ebene-1-Kapitel, inkl. Unterabschnitte — nicht nur die eigene Überschrift-Sektion). `s-toc` aus, `s-intro` nur > 1 %, eingebettete `Anlage …`-Kapitel zu einer tertiären Sammelzeile gebündelt, eine **separate** Anlage-5-Datei als Fußzeile (nicht als Proportionsblock). Badges: Aspekt-Kürzel (`sektionZuAspekte`), „ohne Aspekt", „dünn" (+ Warndot) wenn **alle** zugeordneten Aspekte dünn, „Detail in Anlage 5" bei Aspekt H + separater Anlage 5. Monochrom; Mindest-Blockhöhe 22px (angehoben von 12px für Label-Lesbarkeit).
+- **Schwimmbahnen** („Nach Person", [PersonenZeitplan.tsx](../../src/plugins/antraege/aufbereitung/PersonenZeitplan.tsx)): eine Bahn je `maNr`, Balken tagesgenau aus `posStart`/`posEnde` (Fallback ganze Monate: `posStart ?? monatStart`, `posEnde ?? monatEnde+1`). Achse/Gridlines/Leerflächen-Annotation kommen aus dem **geteilten** [GanttAchse.tsx](../../src/plugins/antraege/aufbereitung/GanttAchse.tsx) (`macheAchse`/`GanttGrid`/`GanttLeerAnnotation`) — „Nach AP" wurde dabei behavior-preserving darauf umgestellt. Bahn-Kapazitäts-Warndot aus der geteilten `kapazitaetProMaMonat`-Aggregation (**nie** aus Befund-Texten geparst, Falle F2). Umschalter über `ScopeTabs`; ohne `maNr` ist der „Nach Person"-Pill deaktiviert (`ScopeTabItem.disabled?/title?`).
+- **Risiko-Zuordnung** ([risiken.ts](../../src/plugins/antraege/aufbereitung/risiken.ts)): `ernteRisiken` liest je `klasse:'risiko'`-Tabellenzeile `{titel, beschreibung, sektionId}` (tiefste Herkunftssektion; separate Anlage-5-Datei → `sektionId` undefined) und legt sie **im `baueRun`** als `AufbereitungRun.risiken?` ab. `zuordneRisiken` heftet jedes Risiko an einen Lösungsweg-Abschnitt (Aspekt C, Ebene ≥ 2; sonst die C-Sektionen selbst) — Match-Text = **Risiko-Titel + Herkunftssektions-Titel**, Stamm-Token-Overlap (Stoppwörter `und/der/die/des/durch/von`, Präfix-Stämme ≥ 5 Zeichen) gegen die Ziel-Titel, bestes Match ab Schwelle **0,35**, sonst **unzugeordnet** (ehrlich sichtbar, nie „irgendwo" angeheftet). Ziel-Sektionen ohne Risiko → `risiko-fehlt:<sektionId>`-Kandidaten (Aspekt D) in der Offene-Punkte-Liste.
+  - **Warum die Zuordnung im UI, nicht in `baueRun` (Falle F3):** `zuordneRisiken` braucht das Aspekt-C-Mapping — das ist ein **LLM-Baustein**, den `baueRun` (rein/synchron) nicht kennt. Daher erntet `baueRun` nur; die Zuordnung läuft memoized im Abdeckungs-Tab, wo das Mapping vorliegt (wie `berechneSubstanz`/`sektionZuAspekte`).
+  - **Grenzen + Ausbaupfad:** die Heuristik ist bewusst konservativ. Sitzt die Risiko-Tabelle direkt unter einem Ebene-1-Kapitel (statt unter einem thematischen Unterabschnitt) oder überlappen die Titel zu wenig, landen Risiken ehrlich unter „ohne Zuordnung". Geht das in der Praxis zu oft leer aus, ist der nächste Schritt, die Zuordnung **in den Aspekte-LLM-Lauf zu falten** (statt der reinen Titel-Heuristik) — additiv möglich, da `RisikoZuordnung` ein reines View-Model ist.
+
+**Degradations-Matrix der Ansichten:**
+
+| Ansicht | ohne Anlage 5 (nur VB-Text) | ohne Aspekt-Mapping (LLM nicht gelaufen) |
+|---|---|---|
+| Silhouette | Blöcke ohne „Detail in Anlage 5"-Meta; kein Anlage-5-Fußzeilen-Hinweis | keine Aspekt-/„dünn"-Badges (nur „ohne Aspekt") |
+| Schwimmbahnen | „Nach Person" deaktiviert (kein `maNr`) → nur „Nach AP" | unberührt (Zeitplan ist LLM-frei) |
+| Risiko-Punkte | Risiken ohne `sektionId` (falls aus separater Datei) → eher unzugeordnet | keine Ziel-Sektionen → alle Risiken unzugeordnet, keine `risiko-fehlt`-Kandidaten |
+
+**Fallen (modul-lokal):**
+- **F1** — Der Gantt „Nach AP" bleibt visuell unangetastet: er nutzt weiter die ganzen `monatStart`/`monatEnde`; `posStart`/`posEnde` sind der Schwimmbahnen-Ansicht vorbehalten und nur aus Anlage-5-Datumswerten befüllt.
+- **F2** — Bahn-Kapazitäts-Warnungen kommen aus `kapazitaetProMaMonat` (geteilt mit `pruefeKapazitaet`), nie aus dem Parsen von Befund-Texten.
+- **F3** — Risiko-**Ernte** im `baueRun` (deterministisch), Risiko-**Zuordnung** im UI (`zuordneRisiken`, braucht das Aspekt-Mapping). Getoggelte `risiko-fehlt:*`-Kandidaten überleben „Neu aufbereiten" nur, weil `uebernehmeOffenePunkte` das Prefix whitelistet.
+
+## Ausblick Paket 4
+
+Zahlen-Inventar + Fragen-Tab (bzw. Recherche/Glossar). Die vorhandene Fundstellen-/Popover-Infrastruktur (`FundstellePopover`, `baueLayout`, Baustein-Rahmen) sowie das Risiko/Positions-Substrat aus Paket 3 sind darauf ausgelegt, additiv erweitert zu werden.

@@ -16,10 +16,12 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { FundstelleChip } from './FundstelleChip';
 import { StrukturKarte } from './StrukturKarte';
+import { SilhouetteAnsicht } from './SilhouetteAnsicht';
 import {
   PRUEF_ASPEKTE, berechneSubstanz, ermittleOhneAspekt, fehlendeAlsKandidaten,
   type AspektMapping, type AspektSubstanz,
 } from './aspekte';
+import { zuordneRisiken, risikoFehltKandidaten } from './risiken';
 import { befundKey } from './store';
 import type { BausteinUiState } from './useAufbereitung';
 import type { AufbereitungRun } from './types';
@@ -27,13 +29,16 @@ import type { VbSektion } from './gliederung';
 
 const WARN = '#f59e0b';
 
+/** Ansichts-Umschalter der Abdeckung (Liste · Karte · Silhouette). */
+export type AbdeckungAnsicht = 'liste' | 'karte' | 'silhouette';
+
 interface Props {
   run: AufbereitungRun | null;
   aspekte: BausteinUiState<AspektMapping>;
   vbMarkdown: string | null;
   wurzel: string;
-  ansicht: 'liste' | 'karte';
-  onAnsicht: (a: 'liste' | 'karte') => void;
+  ansicht: AbdeckungAnsicht;
+  onAnsicht: (a: AbdeckungAnsicht) => void;
   bausteine: UseAsyncActionResult<[]>;
   bausteineNeu: UseAsyncActionResult<[]>;
   toggle: UseAsyncActionResult<[string]>;
@@ -106,8 +111,8 @@ function AbdeckungInhalt({
   aspekte: BausteinUiState<AspektMapping>;
   vbMarkdown: string | null;
   wurzel: string;
-  ansicht: 'liste' | 'karte';
-  onAnsicht: (a: 'liste' | 'karte') => void;
+  ansicht: AbdeckungAnsicht;
+  onAnsicht: (a: AbdeckungAnsicht) => void;
   bausteineNeu: UseAsyncActionResult<[]>;
   toggle: UseAsyncActionResult<[string]>;
 }): React.ReactElement {
@@ -116,7 +121,15 @@ function AbdeckungInhalt({
   const substanz = useMemo(() => berechneSubstanz(mapping, run.gliederung), [mapping, run.gliederung]);
   const maxAnteil = useMemo(() => substanz.reduce((m, s) => Math.max(m, s.anteil), 0), [substanz]);
   const ohneAspekt = useMemo(() => ermittleOhneAspekt(mapping, run.gliederung), [mapping, run.gliederung]);
-  const kandidaten = useMemo(() => fehlendeAlsKandidaten(mapping), [mapping]);
+  // Risiko-Zuordnung hier (nicht in `baueRun`) — sie braucht das LLM-Aspekt-Mapping.
+  const risikoZuordnung = useMemo(
+    () => zuordneRisiken(run.risiken ?? [], mapping, run.gliederung),
+    [run.risiken, mapping, run.gliederung],
+  );
+  const kandidaten = useMemo(
+    () => [...fehlendeAlsKandidaten(mapping), ...risikoFehltKandidaten(risikoZuordnung.ohneRisiko)],
+    [mapping, risikoZuordnung.ohneRisiko],
+  );
   // Zeitplan-Widersprüche (Warnungs-Befunde) — Zusatz-Badge bei Aspekt H (Projektplan).
   const widersprueche = useMemo(() => run.befunde.filter(b => b.schwere === 'warnung').length, [run.befunde]);
   // Bereits als offen markierte Zeitplan-Befunde (im OFFENE-PUNKTE-Abschnitt konsolidiert).
@@ -135,10 +148,10 @@ function AbdeckungInhalt({
         <SectionHeader label="PRÜFASPEKTE A–J" />
         <ScopeTabs
           variant="pills"
-          items={[{ key: 'liste', label: 'Liste' }, { key: 'karte', label: 'Karte' }]}
+          items={[{ key: 'liste', label: 'Liste' }, { key: 'karte', label: 'Karte' }, { key: 'silhouette', label: 'Silhouette' }]}
           activeKey={ansicht}
-          onChange={(k) => onAnsicht(k === 'karte' ? 'karte' : 'liste')}
-          aria-label="Ansicht: Liste oder Karte"
+          onChange={(k) => onAnsicht(k as AbdeckungAnsicht)}
+          aria-label="Ansicht: Liste, Karte oder Silhouette"
         />
       </div>
 
@@ -149,6 +162,15 @@ function AbdeckungInhalt({
           substanz={substanz}
           vbMarkdown={vbMarkdown}
           wurzel={wurzel}
+          risiken={risikoZuordnung}
+        />
+      ) : ansicht === 'silhouette' ? (
+        <SilhouetteAnsicht
+          gliederung={run.gliederung}
+          mapping={mapping}
+          substanz={substanz}
+          vbMarkdown={vbMarkdown}
+          hatAnlage5Datei={run.quellen.some(q => q.rolle === 'anlage5')}
         />
       ) : (
         <div>

@@ -21,6 +21,19 @@ export interface QuelleRef {
 /** Klassifizierte Tabelle mit ihrer Quelle-Rolle (für die Ansicht). */
 export type RunTabelle = KlassifizierteTabelle & { rolle: 'vb' | 'anlage5' };
 
+/**
+ * Ein aus einer `klasse:'risiko'`-Tabelle geerntetes technisches Risiko (Paket 3,
+ * deterministisch). `sektionId` = die VB-Sektion, in deren Zeichen-Span die
+ * Herkunfts-Tabelle beginnt (tiefste Ebene) — fehlt bei Risiken aus einer separaten
+ * Anlage-5-Datei. Die Zuordnung zum Lösungsweg (Aspekt C) passiert erst im UI
+ * (`zuordneRisiken`), weil sie das LLM-Aspekt-Mapping braucht.
+ */
+export interface RisikoEintrag {
+  titel: string;
+  beschreibung: string;
+  sektionId?: string;
+}
+
 export interface AufbereitungRun {
   version: 1;
   antragKey: string;
@@ -37,6 +50,12 @@ export interface AufbereitungRun {
   befunde: Befund[];
   /** Vom Nutzer als offen markierte Befunde (stabile `befundKey`-Referenzen). */
   offenePunkte: string[];
+  /**
+   * Deterministisch geerntete technische Risiken (Paket 3, optional — alte Runs ohne
+   * das Feld bleiben ladbar, `version` bleibt 1). NUR die Ernte; die Zuordnung zum
+   * Lösungsweg rechnet das UI (`zuordneRisiken`, braucht das Aspekt-Mapping).
+   */
+  risiken?: RisikoEintrag[];
   /** Gesetzt, wenn keine VB auffindbar war (definierter Zustand statt Fehler). */
   hinweis?: string;
 }

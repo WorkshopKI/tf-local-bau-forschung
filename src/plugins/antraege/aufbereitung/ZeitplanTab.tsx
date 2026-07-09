@@ -3,11 +3,14 @@
  * mit Lade-/Fehler-/Empty-States (async-error-pattern). Reine Präsentation über
  * den geladenen Run — keine eigene IO (die liegt in `useAufbereitung`).
  */
+import { useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { StatusDot } from '@/components/ui/StatusBadge';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { GanttZeitplan } from './GanttZeitplan';
+import { PersonenZeitplan } from './PersonenZeitplan';
 import { befundKey } from './store';
 import type { AufbereitungRun } from './types';
 import type { ApZeile, Befund } from './tabellen';
@@ -81,6 +84,7 @@ function ZeitplanInhalt({
   toggle: UseAsyncActionResult<[string]>;
 }): React.ReactElement {
   const { zeilen, herkunft, achseMax } = zeitplan;
+  const [ansicht, setAnsicht] = useState<'ap' | 'person'>('ap');
 
   // AP-Nummern mit Zeitraum-Abweichung (Warning-Dot im Gantt).
   const abweichungsNummern = new Set<string>();
@@ -92,13 +96,31 @@ function ZeitplanInhalt({
   }
 
   const quelleName = herkunft === 'vb' ? 'Text-Projektplan (VB)' : 'Anlage 5';
+  const hatMaNr = zeilen.some(z => !!z.maNr?.trim());
+  const aktiveAnsicht = hatMaNr ? ansicht : 'ap';
 
   return (
     <>
-      <SectionHeader label={`PROJEKTPLAN — ${HERKUNFT_LABEL[herkunft]}`} />
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <SectionHeader label={`PROJEKTPLAN — ${HERKUNFT_LABEL[herkunft]}`} />
+        <ScopeTabs
+          variant="pills"
+          items={[
+            { key: 'ap', label: 'Nach AP' },
+            { key: 'person', label: 'Nach Person', disabled: !hatMaNr, title: hatMaNr ? undefined : 'nur mit Anlage 5 / MA-Zuordnung verfügbar' },
+          ]}
+          activeKey={aktiveAnsicht}
+          onChange={(k) => setAnsicht(k === 'person' ? 'person' : 'ap')}
+          aria-label="Zeitplan-Ansicht: Nach AP oder Nach Person"
+        />
+      </div>
       <div className="flex gap-6 items-start flex-wrap">
         <div className="flex-1 min-w-[420px]">
-          <GanttZeitplan zeilen={zeilen} achseMax={achseMax} abweichungsNummern={abweichungsNummern} quelleLabel={quelleName} />
+          {aktiveAnsicht === 'person' ? (
+            <PersonenZeitplan zeilen={zeilen} achseMax={achseMax} quelleLabel={quelleName} />
+          ) : (
+            <GanttZeitplan zeilen={zeilen} achseMax={achseMax} abweichungsNummern={abweichungsNummern} quelleLabel={quelleName} />
+          )}
         </div>
         <KennzahlenKarte zeilen={zeilen} run={run} herkunft={herkunft} />
       </div>

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parsePipeTabellen, klassifiziereTabelle, ernteTabellen,
   normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, parseMonatRange,
-  pruefeKapazitaet,
+  pruefeKapazitaet, kapazitaetProMaMonat,
   type ApZeile,
 } from '../tabellen';
 
@@ -74,6 +74,23 @@ describe('normalisiereAnlage5', () => {
     expect(z[2]).toMatchObject({ nummer: '3.1', istUnterAp: true, monatStart: 4, monatEnde: 4, pm: 4 });
   });
 
+  it('fraktionale Positionen: Halbmonats-Paare (3.1/3.2) ergeben nicht überlappende pos-Spannen', () => {
+    const z = normalisiereAnlage5(t);
+    const byNr = Object.fromEntries(z.map(x => [x.nummer, x]));
+    // Ganzer-Monat-Start = ganzzahlige Position (Konzept 01.01. → posStart 1,0).
+    expect(byNr['1']!.posStart).toBeCloseTo(1.0, 5);
+    expect(byNr['1']!.posEnde).toBeCloseTo(3.0, 5);  // 28.02. → 2 + 28/28
+    // 3.1 (01.–15.04.): [4,0 … 4,5) ; 3.2 (16.–30.04.): [4,5 … 5,0) — Kante bei 4,5, keine Überlappung.
+    expect(byNr['3.1']!.posStart).toBeCloseTo(4.0, 5);
+    expect(byNr['3.1']!.posEnde).toBeCloseTo(4.5, 5);   // 15.04. → 4 + 15/30
+    expect(byNr['3.2']!.posStart).toBeCloseTo(4.5, 5);  // 16.04. → 4 + 15/30
+    expect(byNr['3.2']!.posEnde).toBeCloseTo(5.0, 5);   // 30.04. → 4 + 30/30
+    expect(byNr['3.1']!.posEnde! <= byNr['3.2']!.posStart!).toBe(true);
+    // Ober-AP-Gruppenzeile ohne Daten trägt keine Positionen (wie monatStart/-Ende).
+    expect(byNr['3']!.posStart).toBeUndefined();
+    expect(byNr['3']!.posEnde).toBeUndefined();
+  });
+
   it('Doppelbesetzung: gleiche AP-Nr, verschiedene MA bleiben getrennte Zeilen (kein Dedup/Merge)', () => {
     const dopp = parsePipeTabellen([
       '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
@@ -131,6 +148,22 @@ describe('pruefeKapazitaet', () => {
       { nummer: '3', bezeichnung: 'Ohne Monat', istUnterAp: false, pm: 9, maNr: 'MA02' },
     ];
     expect(pruefeKapazitaet(zeilen)).toEqual([]);
+  });
+});
+
+describe('kapazitaetProMaMonat', () => {
+  it('verteilt PM gleichmäßig über die Monatsspanne, trennt MAs, sammelt beteiligte APs', () => {
+    const zeilen: ApZeile[] = [
+      { nummer: '3.1', bezeichnung: 'Kern', istUnterAp: true, monatStart: 4, monatEnde: 4, pm: 4, maNr: 'MA02' },
+      { nummer: '3.2', bezeichnung: 'Erw', istUnterAp: true, monatStart: 4, monatEnde: 4, pm: 3, maNr: 'MA02' },
+      { nummer: '1', bezeichnung: 'Konzept', istUnterAp: false, monatStart: 1, monatEnde: 4, pm: 4, maNr: 'MA01' },
+    ];
+    const map = kapazitaetProMaMonat(zeilen);
+    expect(map.get('MA02')!.get(4)!.pm).toBeCloseTo(7, 5);            // 4 + 3 im selben Monat
+    expect(map.get('MA02')!.get(4)!.aps.map(a => a.nummer)).toEqual(['3.1', '3.2']);
+    expect(map.get('MA01')!.get(1)!.pm).toBeCloseTo(1, 5);            // 4 PM über 4 Monate
+    expect(map.get('MA01')!.get(4)!.pm).toBeCloseTo(1, 5);
+    expect([...map.keys()].sort()).toEqual(['MA01', 'MA02']);          // MAs getrennt
   });
 });
 

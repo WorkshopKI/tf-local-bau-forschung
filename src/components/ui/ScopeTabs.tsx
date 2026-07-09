@@ -5,6 +5,10 @@ export interface ScopeTabItem {
   label: string;
   /** Optionaler Zähler hinter dem Label. */
   count?: number;
+  /** Deaktiviert den Tab: nicht klickbar, gedimmt (Auswahl bleibt möglich per Tooltip-Hinweis). */
+  disabled?: boolean;
+  /** Nativer title-Tooltip (z.B. Grund der Deaktivierung). */
+  title?: string;
 }
 
 export interface ScopeTabsProps {
@@ -49,12 +53,16 @@ export function ScopeTabs({
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => onChange(it.key)}
+              aria-disabled={it.disabled || undefined}
+              title={it.title}
+              onClick={() => { if (!it.disabled) onChange(it.key); }}
               className={cn(
-                'h-[26px] px-[11px] rounded-full inline-flex items-center gap-[5px] text-[12px] cursor-pointer transition-colors border-[0.5px]',
-                active
-                  ? 'bg-[var(--tf-primary-light)] border-transparent text-[var(--tf-primary)] font-medium'
-                  : 'bg-[var(--tf-bg)] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]',
+                'h-[26px] px-[11px] rounded-full inline-flex items-center gap-[5px] text-[12px] transition-colors border-[0.5px]',
+                it.disabled
+                  ? 'bg-[var(--tf-bg)] border-[var(--tf-border)] text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                  : active
+                    ? 'bg-[var(--tf-primary-light)] border-transparent text-[var(--tf-primary)] font-medium cursor-pointer'
+                    : 'bg-[var(--tf-bg)] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer',
               )}
             >
               {it.label}
@@ -90,12 +98,16 @@ export function ScopeTabs({
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(it.key)}
+            aria-disabled={it.disabled || undefined}
+            title={it.title}
+            onClick={() => { if (!it.disabled) onChange(it.key); }}
             className={cn(
-              'pb-2.5 text-[14px] whitespace-nowrap cursor-pointer transition-colors',
-              active
-                ? 'text-[var(--tf-primary)] font-medium border-b-2 border-[var(--tf-primary)] -mb-px'
-                : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]',
+              'pb-2.5 text-[14px] whitespace-nowrap transition-colors',
+              it.disabled
+                ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                : active
+                  ? 'text-[var(--tf-primary)] font-medium border-b-2 border-[var(--tf-primary)] -mb-px cursor-pointer'
+                  : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
             )}
           >
             {it.label}

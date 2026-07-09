@@ -34,6 +34,15 @@ export interface ApZeile {
   istUnterAp: boolean;
   monatStart?: number;
   monatEnde?: number;
+  /**
+   * Tagesgenaue, fraktionale Monatsposition (1-basiert, wie `monatStart`, aber mit
+   * Tagesanteil). NUR aus echten Anlage-5-Datumswerten befüllt; VB-Text-Zeitpläne
+   * (nur Monatszahlen) lassen sie leer → die Schwimmbahnen fallen dann auf die
+   * ganzen Monate zurück. Der Gantt „Nach AP" nutzt sie NICHT. Herleitung: siehe
+   * `zuPos` in `normalisiereAnlage5`.
+   */
+  posStart?: number;
+  posEnde?: number;
   pm?: number;
   maNr?: string;
 }
@@ -149,11 +158,13 @@ function spaltenIndex(header: string[], pred: (h: string) => boolean): number {
   return header.map(normZelle).findIndex(pred);
 }
 
-function parseDeDatum(s: string): { y: number; m: number } | null {
+function parseDeDatum(s: string): { y: number; m: number; d: number } | null {
   const m = /(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(s);
-  return m ? { y: +m[3]!, m: +m[2]! } : null;
+  return m ? { y: +m[3]!, m: +m[2]!, d: +m[1]! } : null;
 }
 const datumAbsolut = (d: { y: number; m: number }): number => d.y * 12 + (d.m - 1);
+/** Tage im Kalendermonat von `d` (respektiert Feb 28/29, 30-/31-Tage-Monate). */
+const monatslaenge = (d: { y: number; m: number }): number => new Date(d.y, d.m, 0).getDate();
 
 /**
  * Laufzeit-/Monats-Range aus Freitext lesen: `Monat 1–4`, `M1-4`, `1 – 4`,
@@ -200,12 +211,24 @@ export function normalisiereAnlage5(t: RohTabelle): ApZeile[] {
     maNr: maIdx >= 0 ? (r[maIdx] ?? '').trim() || undefined : undefined,
   }));
 
-  const beginnDaten = daten.map(d => d.beginn).filter((d): d is { y: number; m: number } => d !== null);
+  const beginnDaten = daten.map(d => d.beginn).filter((d): d is { y: number; m: number; d: number } => d !== null);
   const basis = beginnDaten.reduce<{ y: number; m: number } | null>(
     (min, d) => (min === null || datumAbsolut(d) < datumAbsolut(min) ? d : min), null,
   );
   const zuMonat = (d: { y: number; m: number } | null): number | undefined =>
     d && basis ? datumAbsolut(d) - datumAbsolut(basis) + 1 : undefined;
+  // Fraktionale (tagesgenaue) Position, 1-basiert wie `zuMonat`, plus Tagesanteil:
+  //   posStart = <ganzer Monat> + (Tag − 1) / Monatslänge   (Monatsanfang = Kante)
+  //   posEnde  = <ganzer Monat> +  Tag      / Monatslänge   (Monatsende  = nächste Kante)
+  // Beleg: 01.04.→4,0 · 15.04.(Start)→4,467 · 30.04.(Ende)→5,0. Konsistent zur
+  // Gantt-Achse (Balken M[s…e] = [x(s) … x(e+1))): ein voller April-Balken
+  // (01.–30.04.) spannt posStart 4,0 … posEnde 5,0 = genau eine Monatsspalte.
+  const zuPos = (d: { y: number; m: number; d: number } | null, istEnde: boolean): number | undefined => {
+    if (!d || !basis) return undefined;
+    const ganz = datumAbsolut(d) - datumAbsolut(basis) + 1;
+    const tagAnteil = istEnde ? d.d / monatslaenge(d) : (d.d - 1) / monatslaenge(d);
+    return ganz + tagAnteil;
+  };
 
   return daten
     .filter(d => d.nummer || d.bezeichnung)
@@ -215,6 +238,8 @@ export function normalisiereAnlage5(t: RohTabelle): ApZeile[] {
       istUnterAp: istUnterApNummer(d.nummer),
       monatStart: zuMonat(d.beginn),
       monatEnde: zuMonat(d.ende),
+      posStart: zuPos(d.beginn, false),
+      posEnde: zuPos(d.ende, true),
       pm: d.pm,
       maNr: d.maNr,
     }));
@@ -391,21 +416,23 @@ function fmtPm(n: number): string {
   return n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 }
 
-/**
- * Kapazitäts-Befund: bündelt die anteiligen Personenmonate je (MA-Nr,
- * Kalendermonat) und warnt, wenn eine Person in einem Monat über
- * `KAPAZITAET_GRENZE_PM` liegt (physisch nicht leistbar). Die PM eines Eintrags
- * werden **gleichmäßig über seine Monatsspanne** verteilt; ein Eintrag ohne
- * `monatEnde` (bzw. Halbmonats-Eintrag mit `monatStart == monatEnde`) zählt im
- * jeweiligen Monat **voll**. Nur Zeilen mit MA-Nr + PM + Monat gehen ein;
- * **verschiedene MAs werden NIE zusammengezählt** (jede Person ein eigenes Konto —
- * Doppelbesetzung eines APs durch zwei MAs ist zulässig). Reine Funktion.
- */
-export function pruefeKapazitaet(zeilen: ApZeile[]): Befund[] {
-  interface MonatsLast { pm: number; aps: Array<{ nummer: string; bezeichnung: string; pm: number }> }
-  // maNr → Monat → aufsummierte Last + beteiligte APs.
-  const proMa = new Map<string, Map<number, MonatsLast>>();
+/** Last einer (MA, Monat)-Zelle: aufsummierte anteilige PM + beteiligte APs. */
+export interface MaMonatsLast {
+  pm: number;
+  aps: Array<{ nummer: string; bezeichnung: string; pm: number }>;
+}
 
+/**
+ * Bündelt die anteiligen Personenmonate je (MA-Nr, Kalendermonat): `maNr → Monat →
+ * Last`. Die PM eines Eintrags werden **gleichmäßig über seine Monatsspanne**
+ * verteilt; ein Eintrag ohne `monatEnde` (bzw. Halbmonats-Eintrag mit
+ * `monatStart == monatEnde`) zählt im jeweiligen Monat **voll**. Nur Zeilen mit
+ * MA-Nr + PM + Monat gehen ein; **verschiedene MAs werden NIE zusammengezählt**
+ * (jede Person ein eigenes Konto). Reine Funktion — geteilt von `pruefeKapazitaet`
+ * (Befunde) und der Schwimmbahnen-Ansicht (Bahn-Warnungen, Default #5).
+ */
+export function kapazitaetProMaMonat(zeilen: ApZeile[]): Map<string, Map<number, MaMonatsLast>> {
+  const proMa = new Map<string, Map<number, MaMonatsLast>>();
   for (const z of zeilen) {
     const ma = z.maNr?.trim();
     if (!ma || z.pm == null || z.pm <= 0 || z.monatStart == null) continue;
@@ -413,7 +440,7 @@ export function pruefeKapazitaet(zeilen: ApZeile[]): Befund[] {
     const bis = z.monatEnde ?? z.monatStart;
     const anzahlMonate = Math.max(1, bis - von + 1);
     const anteil = z.pm / anzahlMonate;
-    const monate = proMa.get(ma) ?? new Map<number, MonatsLast>();
+    const monate = proMa.get(ma) ?? new Map<number, MaMonatsLast>();
     for (let m = von; m <= bis; m++) {
       const last = monate.get(m) ?? { pm: 0, aps: [] };
       last.pm += anteil;
@@ -422,6 +449,16 @@ export function pruefeKapazitaet(zeilen: ApZeile[]): Befund[] {
     }
     proMa.set(ma, monate);
   }
+  return proMa;
+}
+
+/**
+ * Kapazitäts-Befund: warnt, wenn eine Person in einem Monat über
+ * `KAPAZITAET_GRENZE_PM` liegt (physisch nicht leistbar). Aggregation über
+ * `kapazitaetProMaMonat`. Reine Funktion.
+ */
+export function pruefeKapazitaet(zeilen: ApZeile[]): Befund[] {
+  const proMa = kapazitaetProMaMonat(zeilen);
 
   const befunde: Befund[] = [];
   // Deterministische Reihenfolge: MA aufsteigend, dann Monat aufsteigend.

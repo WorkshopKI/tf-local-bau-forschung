@@ -3,7 +3,8 @@ export { parseVbGliederung } from './gliederung';
 export {
   parsePipeTabellen, ernteTabellen, klassifiziereTabelle,
   normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, parseMonatRange,
-  pruefeKapazitaet, KAPAZITAET_GRENZE_PM,
+  pruefeKapazitaet, kapazitaetProMaMonat, KAPAZITAET_GRENZE_PM,
+  type MaMonatsLast,
 } from './tabellen';
 export { resolveVb, resolveAnlage5 } from './quellen';
 export {
@@ -23,6 +24,10 @@ export {
   type PruefAspekt, type AspektMapping, type AspektSubstanz, type OffenerPunktKandidat,
 } from './aspekte';
 export {
+  ernteRisiken, zuordneRisiken, risikoFehltKandidaten, RISIKO_MATCH_SCHWELLE,
+  type RisikoZuordnung,
+} from './risiken';
+export {
   buildSteckbriefPrompt, parseSteckbrief, extractLastJsonObject, computeSteckbriefBaustein,
   type SteckbriefDaten, type Belegt, type Zielmarkt, type Person,
 } from './steckbrief';
@@ -33,5 +38,5 @@ export {
 export { AufbereitungPage } from './AufbereitungPage';
 export type {
   VbSektion, ApZeile, Befund, KlassifizierteTabelle, RohTabelle, TabellenKlasse,
-  QuelleRef, RunTabelle, AufbereitungRun,
+  QuelleRef, RunTabelle, AufbereitungRun, RisikoEintrag,
 } from './types';

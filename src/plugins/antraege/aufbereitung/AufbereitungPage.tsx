@@ -23,7 +23,7 @@ import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
 import { useAufbereitung } from './useAufbereitung';
 import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { ZeitplanTab } from './ZeitplanTab';
-import { AbdeckungTab } from './AbdeckungTab';
+import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 
 const kurzHash = (h: string): string => (h.length > 6 ? `${h.slice(0, 4)}…${h.slice(-2)}` : h);
@@ -43,7 +43,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   );
   const aufb = useAufbereitung(ctx ? { key: ctx.key, knownIds: ctx.knownIds } : null);
   const [tab, setTab] = useState<AufbereitungTabId>('zeitplan');
-  const [ansicht, setAnsicht] = useState<'liste' | 'karte'>('liste');
+  const [ansicht, setAnsicht] = useState<AbdeckungAnsicht>('liste');
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
 
   // Defense-in-depth: die Route ist bereits flag-gated registriert.

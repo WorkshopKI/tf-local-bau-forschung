@@ -1,13 +1,19 @@
 /**
- * Handgebauter SVG-Gantt für den Zeitplan-Tab (pure — Props = `ApZeile[]` +
- * Befund-Markierungen). BEWUSST ohne Chart-Library. Monochrom; einzige Farbe ist
- * der Warning-Dot bei Zeitraum-Abweichungen.
+ * Handgebauter SVG-Gantt für den Zeitplan-Tab „Nach AP" (pure — Props = `ApZeile[]`
+ * + Befund-Markierungen). BEWUSST ohne Chart-Library. Monochrom; einzige Farbe ist
+ * der Warning-Dot bei Zeitraum-Abweichungen. Achsen-/Gridline-/Leerflächen-Geometrie
+ * kommt aus dem geteilten `GanttAchse` (identische Achse wie die Schwimmbahnen).
  *
  * Ursprung exakt: linke Plot-Kante = Beginn M1 = erste Gridline; ein AP mit
- * `monatStart = 1` beginnt AUF dieser Linie. Monat m → Gridline bei
- * `plotLeft + (m − 1) · monatBreite`; ein Balken M[s…e] belegt `[x(s) … x(e+1))`.
+ * `monatStart = 1` beginnt AUF dieser Linie. Ein Balken M[s…e] belegt `[x(s) … x(e+1))`.
+ * Diese Ansicht nutzt bewusst die **ganzen** Monate (`monatStart`/`monatEnde`) — die
+ * tagesgenauen `posStart`/`posEnde` sind der Schwimmbahnen-Ansicht vorbehalten.
  */
 import type { ApZeile } from './tabellen';
+import {
+  GANTT_W, GANTT_ROW_H, GANTT_KOPF_H, GANTT_PLOT_LEFT,
+  macheAchse, GanttGrid, GanttLeerAnnotation,
+} from './GanttAchse';
 
 interface GanttProps {
   zeilen: ApZeile[];
@@ -19,64 +25,32 @@ interface GanttProps {
   quelleLabel: string;
 }
 
-const W = 1000;
-const ROW_H = 30;
-const KOPF_H = 26;
-const LABEL_W = 210;
-const PM_W = 48;
-const PLOT_LEFT = LABEL_W + PM_W + 16;
-const PLOT_RIGHT = W - 16;
-const PLOT_W = PLOT_RIGHT - PLOT_LEFT;
 const WARN = '#f59e0b'; // amber-500 — semantische Ausnahme (DESIGN_GUIDE: Dots dürfen Farbe tragen)
 
 const kuerze = (s: string, n = 32): string => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
 export function GanttZeitplan({ zeilen, achseMax, abweichungsNummern, quelleLabel }: GanttProps): React.ReactElement {
-  const monate = Math.max(1, achseMax);
-  const mw = PLOT_W / monate;
-  const x = (monat: number): number => PLOT_LEFT + (monat - 1) * mw;
+  const achse = macheAchse(achseMax);
+  const { mw, x } = achse;
 
   const kinderVon = (nummer: string): ApZeile[] =>
     zeilen.filter(z => z.istUnterAp && z.nummer.trim().startsWith(nummer.trim() + '.'));
 
-  const H = KOPF_H + zeilen.length * ROW_H + 8;
-
-  // Gridlines + Labels alle 3 Monate (M1, M4, …).
-  const gridMonate: number[] = [];
-  for (let m = 1; m <= monate; m += 3) gridMonate.push(m);
+  const H = GANTT_KOPF_H + zeilen.length * GANTT_ROW_H + 8;
 
   // Leerflächen-Annotation: ≥ 3 Monate nach dem letzten Balken frei?
   const letzterMonat = zeilen.reduce((max, z) => Math.max(max, z.monatEnde ?? z.monatStart ?? 0), 0);
-  const zeigeLeerAnnotation = letzterMonat > 0 && monate >= letzterMonat + 3;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Gantt-Diagramm des Projektplans"
+    <svg viewBox={`0 0 ${GANTT_W} ${H}`} width="100%" role="img" aria-label="Gantt-Diagramm des Projektplans"
       style={{ display: 'block', maxWidth: '100%' }}>
-      {/* Gridlines + Monats-Labels */}
-      {gridMonate.map(m => (
-        <g key={`grid-${m}`}>
-          <line x1={x(m)} y1={KOPF_H - 6} x2={x(m)} y2={H - 4} stroke="var(--tf-border)" strokeWidth={0.5} />
-          <text x={x(m)} y={14} fill="var(--tf-text-tertiary)" fontSize={11}>M{m}</text>
-        </g>
-      ))}
-
-      {/* Leerflächen-Annotation */}
-      {zeigeLeerAnnotation ? (
-        <text
-          x={(x(letzterMonat + 1) + PLOT_RIGHT) / 2}
-          y={KOPF_H + (zeilen.length * ROW_H) / 2}
-          textAnchor="middle"
-          fill="var(--tf-text-tertiary)"
-          fontSize={12}
-        >
-          ab M{letzterMonat + 1} keine APs in {quelleLabel} terminiert
-        </text>
-      ) : null}
+      <GanttGrid achse={achse} hoehe={H} />
+      <GanttLeerAnnotation achse={achse} letzterMonat={letzterMonat} anzahlZeilen={zeilen.length} quelleLabel={quelleLabel} />
 
       {/* Zeilen */}
       {zeilen.map((z, i) => {
-        const y = KOPF_H + i * ROW_H;
-        const mid = y + ROW_H / 2;
+        const y = GANTT_KOPF_H + i * GANTT_ROW_H;
+        const mid = y + GANTT_ROW_H / 2;
         const kinder = z.istUnterAp ? [] : kinderVon(z.nummer);
         const hatKinder = kinder.length > 0;
         const warn = abweichungsNummern.has(z.nummer.trim());
@@ -108,7 +82,7 @@ export function GanttZeitplan({ zeilen, achseMax, abweichungsNummern, quelleLabe
               {kuerze(z.bezeichnung, z.istUnterAp ? 24 : 26)}
             </text>
             {pmWert != null && pmWert > 0 ? (
-              <text x={PLOT_LEFT - 14} y={mid + 3.5} fontSize={11} textAnchor="end" fill="var(--tf-text-tertiary)">
+              <text x={GANTT_PLOT_LEFT - 14} y={mid + 3.5} fontSize={11} textAnchor="end" fill="var(--tf-text-tertiary)">
                 {pmWert} PM
               </text>
             ) : null}
