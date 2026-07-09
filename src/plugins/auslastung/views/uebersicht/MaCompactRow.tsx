@@ -95,13 +95,16 @@ function MaCompactRowImpl({
       </td>
 
       {/* Altlasten (Rückstand) — eigener Balken, relativ zum Kohorten-Max.
-          Spaltenbreite kommt aus dem <colgroup> (resizable, --altlast-w). */}
-      <td className="align-middle" style={{ padding: CELL_PAD, overflow: 'hidden' }}>
+          Spaltenbreite kommt aus dem <colgroup> (resizable, --altlast-w).
+          align-top (nicht -middle): der Balken muss auf derselben Höhe sitzen
+          wie der Aktuell-Balken rechts, dessen Zelle durch die TypKapazitaetBars
+          darunter höher ist (beide Zellen 7px oberes Padding → Balken bündig). */}
+      <td className="align-top" style={{ padding: CELL_PAD, overflow: 'hidden' }}>
         <AltlastColBar bandTvs={bandTvs} maxBl={maxBl} />
       </td>
 
       {/* Aktuelles Quartal — Kapazitäts-Auslastung %, per-Typ darunter, Zonentrenner links */}
-      <td className="align-middle" style={{ padding: CELL_PAD, borderLeft: '0.5px solid var(--tf-border)' }}>
+      <td className="align-top" style={{ padding: CELL_PAD, borderLeft: '0.5px solid var(--tf-border)' }}>
         <div className="flex flex-col gap-1.5">
           <AktuellColBar belegtPct={belegtPct} freiTVs={kapView.restTVs} quartal={quartal} />
           {kapTyp?.hatKontingent && <TypKapazitaetBars view={kapTyp} variant="row" />}

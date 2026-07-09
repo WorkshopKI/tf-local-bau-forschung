@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.204.1 — Auslastung MA: vertikale Bündigkeit der beiden Balken (Juli 2026)
+
+PATCH — Reiner Optik-Schliff im Tab „Auslastung MA": der **Altlasten-Balken** sitzt jetzt exakt auf gleicher Höhe wie der **Aktuelles-Quartal-Balken** rechts daneben.
+
+- Ursache: Die Aktuell-Zelle ist durch die per-Typ-Balken (`TypKapazitaetBars`) darunter höher; bei `align-middle` zentrierte sich der einzelne 13px-Altlasten-Balken tiefer als der oben verankerte Aktuell-Balken. Fix: beide Balken-Zellen ([MaCompactRow.tsx](src/plugins/auslastung/views/uebersicht/MaCompactRow.tsx)) auf `align-top` — bei identischem oberem Zell-Padding (7px) starten beide Balken bündig, unabhängig davon ob per-Typ-Balken vorhanden sind.
+- Nur CSS-Vertikalausrichtung, keine Logik-/Daten-/Token-Änderung. Verifiziert per `tsc --build` + `npx vitest run` (grün) + `build:dev`/`build:pl`.
+
 ### v2.204.0 — Antrag-Aufbereitung Paket 3: Silhouette · Schwimmbahnen · Risiko-Punkte (Juli 2026)
 
 MINOR — Drei **rein deterministische** Visualisierungen auf den vorhandenen Aufbereitungs-Daten (kein LLM, keine Skills/Seeds, keine Transport-Fragen). Route `/antraege/:aktenzeichen/aufbereitung`, weiterhin **nur dev** hinter `antragAufbereitung`. Additiv — nur optionale Feld-Erweiterungen (`ApZeile.posStart/posEnde`, `AufbereitungRun.risiken?`), `version: 1` unverändert, alte persistierte Runs bleiben ladbar, **kein neuer Object-Store, keine Migration**. Detail: [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.204 — 2026-07
+
+### Bugfixes
+- In der Tabelle **Auslastung MA** sitzen die beiden Balken (Rückstand und aktuelles Quartal) jetzt exakt auf gleicher Höhe nebeneinander.
+
 ## v2.203 — 2026-07
 
 ### Neu
