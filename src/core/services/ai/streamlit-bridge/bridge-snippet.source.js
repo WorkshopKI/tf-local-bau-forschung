@@ -20,7 +20,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-09-robust2';
+  var BRIDGE_REV = '2026-07-09-robust3';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -307,6 +307,14 @@
   // (lastContentChange in runRequest), NICHT an globaler DOM-Aktivitaet — sonst
   // verschleppt generierungs-unabhaengige DOM-Churn der KI-Seite das Ende.
   function isRunning() {
+    // Primaer (v2.203.2): Streamlit stempelt den Skript-Zustand als Attribut auf
+    // den App-Root — UI-unabhaengig. Noetig, weil AitisiGPT das Status-Widget
+    // per CSS ausblendet (Prod-Dump 2026-07-09: WAEHREND der Generierung war
+    // KEIN Lauf-Indikator sichtbar → lange Agent-Reasoning-Pausen haetten
+    // verfrueht finalisiert). Fehlt das Attribut (andere Streamlit-Version),
+    // greifen die sichtbaren Indikatoren unten wie bisher; Stuck-true-Backstop
+    // bleibt HARD_MAX_MS.
+    if (document.querySelector('[data-testid="stApp"][data-test-script-state="running"]')) return true;
     for (var i = 0; i < SEL.running.length; i++) {
       var els = document.querySelectorAll(SEL.running[i]);
       for (var j = 0; j < els.length; j++) {

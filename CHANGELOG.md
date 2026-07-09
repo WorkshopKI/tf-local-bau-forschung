@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.203.2 — Bridge: Lauf-Erkennung über Streamlit-Skript-Zustand (Agent-Reasoning-Pausen) (Juli 2026)
+
+PATCH — Zweiter Prod-Dump (Agentischer Tab, **während** der Generierung): AitisiGPT blendet ALLE sichtbaren Lauf-Indikatoren aus (`stStatusWidget`/Stop-Button/Spinner = 0) → `isRunning()` war auf dieser Oberfläche blind. Folge: lange Reasoning-Pausen des Agenten (> 5–10 s ohne Textausgabe, vom Nutzer real beobachtet) hätten **verfrüht mit einem Teilstand finalisiert**. **Bookmarklet-Änderung ⇒ Lesezeichen erneut einmal neu installieren** (`BRIDGE_REV 2026-07-09-robust3`).
+
+- `isRunning()` prüft jetzt **primär** das UI-unabhängige Streamlit-Attribut `stApp[data-test-script-state="running"]` (semantisch dasselbe Signal wie das ausgeblendete Status-Widget, aber nicht per CSS versteckbar); die sichtbaren Indikatoren bleiben als Fallback für andere Streamlit-Versionen. Fail-safe: fehlt das Attribut, verhält sich alles wie zuvor; Stuck-true-Backstop bleibt `HARD_MAX_MS` (600 s).
+- Dump-Validierung im Übrigen positiv: Panel-Sichtbarkeit kippt sauber, `role="tabpanel"`-Container vorhanden (Panel-Scoping greift), User-Avatar `user avatar` auch im agentischen Tab (Echo-Stufe 1 intakt).
+- Verifiziert per `tsc --build` + `npx vitest run` (grün) + `build:dev`/`build:pl`. Offen: Bestätigung des Attribut-Werts während einer echten Generierung (Konsolen-Einzeiler) + Agentisch-Rundlauf durch Thomas.
+
 ### v2.203.1 — Bridge: Tab-Panel-Scoping nach Prod-Dump-Kalibrierung (Juli 2026)
 
 PATCH — Kalibrierung des v2.203.0-Ziel-Routings anhand des Konsolen-Dumps vom echten AitisiGPT (Thomas): die Oberfläche hält **beide Chat-Panels dauerhaft gemountet** (bestätigt), Tabs sind echte `role="tab"`-Buttons mit `aria-selected` (Tab-Matching bestätigt), der agentische Reset-Button heißt real „🗑️ Chat zuruecksetzen" (ue-Variante bestätigt), „Login (setzt Chat zurück!)" matcht kein Reset-Muster (sicher). **Bookmarklet-Änderung ⇒ Lesezeichen erneut einmal neu installieren** (`BRIDGE_REV 2026-07-09-robust2`).
