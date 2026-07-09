@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.206 — 2026-07
+
+### Verbesserungen
+- **Feedback mit KI verbessern — jetzt ein geführter Ablauf mit der internen KI:** Wenn du „Feedback speichern & verbessern" wählst, stellt die interne KI dir 1–3 kurze Rückfragen, formt daraus eine klare, vollständige Fassung samt umsetzbarer Anforderung und zeigt sie dir zum Anpassen. Du bearbeitest sie und speicherst — dein ursprünglicher Text bleibt erhalten. Die früheren zwei getrennten Funktionen („verbessern" und „Details ergänzen") sind damit zu einem Schritt zusammengefasst.
+
+### Bugfixes
+- Die **KI-Verbesserung von Feedback** funktioniert jetzt zuverlässig mit der **internen KI** (vorher kam oft eine Antwort, aber kein Ergebnis).
+- „Details ergänzen" verlangt **nicht mehr OpenRouter** — es läuft jetzt über die interne KI wie erwartet.
+
 ## v2.205 — 2026-07
 
 ### Neu

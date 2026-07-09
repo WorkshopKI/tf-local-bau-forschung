@@ -1,6 +1,6 @@
 # Wiederkehrende Bug-Klassen
 
-Zehn Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
+Elf Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
 
 > Diese Datei ist die **Single Source of Truth** für diese Muster. CLAUDE.md → Decision-Tree und einige Pitfalls verweisen hierher.
 
@@ -168,3 +168,17 @@ Zehn Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an d
 - Bei Black-Box-DOM **nicht raten** → einen Diagnose-Roster-Dump loggen und die echte Struktur ansehen; einen `BRIDGE_REV`-Marker mitführen, damit ein veraltetes Bookmarklet erkennbar ist (Bookmarklet-Änderung = Re-Install).
 
 **Beleg:** v2.157.1 → v2.159.1 → v2.159.3 → v2.159.4. Detail: [streamlit-bridge.md](streamlit-bridge.md) („Antwort-Auswahl (Echo-Anker)").
+
+---
+
+## 11. Streamlit-Bridge `submitMessage` verwirft den `systemPrompt`-Arg
+
+**Symptom:** Ein KI-Aufruf, der (auch) über die interne Bridge läuft, „antwortet zwar, aber das Ergebnis stimmt nicht" — freie Prosa statt des geforderten JSON, ignorierte Format-/Rollen-/Kontext-Vorgaben, leere Parse. Auf DirectLLM/OpenRouter fällt es nicht auf. (v2.206: die Feedback-Verbesserung meldete „eine Antwort kam über die interne KI, aber die Verbesserung lief nicht".)
+
+**Root-Cause:** `StreamlitBridgeTransport.submitMessage(message, _systemPrompt, options)` **ignoriert** den 2. Parameter — nur `message` wird als `tf-request` an die Bridge gepostet. Ein Aufruf `submitMessage(userPrompt, systemPrompt)` schickt der internen KI also NUR den User-Text; der ganze System-Prompt (Format-Schema, Kontext, Rollenanweisung) fällt weg. `DirectLLMTransport.submitMessage` nutzt den Arg dagegen als System-Rolle → dieselbe Zeile verhält sich je Transport anders.
+
+**Fix-Pattern / Regel:** Wer `submitMessage` transport-agnostisch oder Streamlit-only nutzt, **inlined den System-Prompt in die Message**: `submitMessage(\`${systemPrompt}\n\n${userPrompt}\`, systemPrompt, opts)` — der 2. Arg bleibt für DirectLLM gesetzt, die Bridge liest die Message. Bewährtes Muster im Code: [run-skill.ts](../../src/core/services/skills/run/run-skill.ts), [llm-client.ts](../../src/plugins/suche/analyse/llm-client.ts) („Streamlit-Pfad: System + User in eine kombinierte Message"), [relevanz-map.ts](../../src/plugins/antraege/gutachten/relevanz-map.ts), [bausteine.ts](../../src/plugins/antraege/aufbereitung/bausteine.ts), [feedbackImprove.ts](../../src/core/services/feedback/feedbackImprove.ts) (`submitInline`). Für echte Multi-Turn-Konversation gilt dasselbe: die Bridge ist single-turn (`streamConversation` flacht auf letzte-User-Message + System-Prefix ab, `submitConversation` fehlt ganz).
+
+**Warnsignal beim Entwickeln:** Ein `submitMessage(userPrompt, systemPrompt)`-Aufruf, der (auch) auf `transport.name === 'Streamlit'` landet, OHNE dass der System-Prompt Teil des **ersten** Arguments ist.
+
+**Kanonische Dateien:** [streamlit.ts](../../src/core/services/ai/transports/streamlit.ts) (`submitMessage`, `_systemPrompt` ungenutzt), [feedbackImprove.ts](../../src/core/services/feedback/feedbackImprove.ts) (`submitInline`).

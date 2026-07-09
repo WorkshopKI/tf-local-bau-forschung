@@ -4,7 +4,7 @@
 // autoClassifyFeedback() verfeinert nur noch summary/details im Hintergrund.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, Loader2, X } from 'lucide-react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -16,23 +16,17 @@ import { enabledPlugins } from '@/plugins.config';
 import {
   autoClassifyFeedback,
   captureFeedbackContext,
-  improveFeedback,
   submitFeedback,
   updateFeedback,
+  type FeedbackImprovePayload,
 } from '@/core/services/feedback';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { canWriteDatenShare } from '@/config/feature-flags';
-import type { FeedbackContext, FeedbackItem, LLMClassification } from '@/core/types/feedback';
+import type { FeedbackContext, FeedbackItem } from '@/core/types/feedback';
 import { TEAMFLOW_AREAS } from './constants';
 import { FeedbackInputStep, type FeedbackSubmitPayload } from './FeedbackInputStep';
-import { FeedbackImproveResult } from './FeedbackImproveResult';
 import { MyFeedbackList } from './MyFeedbackList';
-import { FeedbackChatbot } from './FeedbackChatbot';
-
-type Verbesserung =
-  | { status: 'laeuft' }
-  | { status: 'fertig'; ergebnis: LLMClassification }
-  | { status: 'fehlgeschlagen' };
+import { FeedbackVerbessernFlow } from './FeedbackVerbessernFlow';
 
 interface Props {
   open: boolean;
@@ -41,7 +35,7 @@ interface Props {
   focusScreenshot?: boolean;
 }
 
-type View = 'input' | 'confirm' | 'chatbot' | 'my-feedback';
+type View = 'input' | 'confirm' | 'verbessern' | 'my-feedback';
 
 // Panel-Breite: per Drag-Handle am linken Rand resizable + in localStorage
 // persistiert (Pattern gespiegelt von AntraegeMain). Default seit v2.45 breiter
@@ -72,7 +66,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
   const [showContext, setShowContext] = useState(false);
   const [submitting, setSubmitting] = useState<'speichern' | 'verbessern' | null>(null);
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
-  const [verbesserung, setVerbesserung] = useState<Verbesserung | null>(null);
+  const [improvePayload, setImprovePayload] = useState<FeedbackImprovePayload | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
   const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -124,7 +118,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
       setAreaRef('');
       setShowContext(false);
       setSubmittedItem(null);
-      setVerbesserung(null);
+      setImprovePayload(null);
       setContext(captureFeedbackContext(activeId, activePluginName));
     }
   }, [open, activeId, activePluginName]);
@@ -163,29 +157,19 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
         kuerzel: meinKuerzel,
       }, payload.attachments);
       setSubmittedItem(item);
-      setView('confirm');
 
-      const transport = bridge.getActiveTransport();
       if (payload.verbessern) {
-        // Fire-and-forget KI-Verbesserung (blockiert UI nicht, laeuft auch nach
-        // Panel-Schliessen weiter — FeedbackPanel unmounted bei !open nicht,
-        // siehe `if (!open) return null` unten).
-        setVerbesserung({ status: 'laeuft' });
-        void improveFeedback(transport, payload, fullContext, activeId)
-          .then(async (classification) => {
-            if (!classification) {
-              setVerbesserung({ status: 'fehlgeschlagen' });
-              return;
-            }
-            await updateFeedback(storage, item.id, {
-              llm_classification: classification,
-              llm_summary: classification.summary,
-            });
-            setVerbesserung({ status: 'fertig', ergebnis: classification });
-          });
+        // Geführter Verbessern-Ablauf: Roh-Feedback ist bereits gespeichert (nie
+        // verlieren), jetzt in den interaktiven Wizard (Rückfragen → generieren →
+        // editieren/speichern). Die KI-Calls laufen intern-only in FeedbackVerbessernFlow.
+        setImprovePayload({ text: payload.text, structured: payload.structured, category: payload.category });
+        setView('verbessern');
       } else {
+        setView('confirm');
         // Fire-and-forget Hintergrund-Verfeinerung (blockiert UI nicht). Überschreibt
         // die per Typ-Wahl gesetzte category NICHT — nur summary/Klassifikations-Meta.
+        // Läuft NIE auf Streamlit → in prod (interne Bridge only) faktisch nie.
+        const transport = bridge.getActiveTransport();
         void autoClassifyFeedback(transport, payload.text, fullContext, areaRef || undefined, payload.llmHint)
           .then((classification) => {
             if (!classification) return;
@@ -266,18 +250,15 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
         )}
 
         {view === 'confirm' && submittedItem && (
-          <ConfirmStep
-            verbesserung={verbesserung}
-            onChatbot={() => setView('chatbot')}
-            onDone={onClose}
-          />
+          <ConfirmStep onDone={onClose} />
         )}
 
-        {view === 'chatbot' && submittedItem && context && (
-          <FeedbackChatbot
+        {view === 'verbessern' && submittedItem && improvePayload && context && (
+          <FeedbackVerbessernFlow
             feedbackId={submittedItem.id}
-            initialText={submittedItem.text}
+            payload={improvePayload}
             context={{ ...context, screenRef: areaRef || undefined }}
+            pluginId={activeId}
             onClose={onClose}
           />
         )}
@@ -310,43 +291,19 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
 
 // ── Sub-Komponenten ──────────────────────────────────────────────────────────
 
-function ConfirmStep({ verbesserung, onChatbot, onDone }: {
-  verbesserung: Verbesserung | null;
-  onChatbot: () => void;
-  onDone: () => void;
-}): React.ReactElement {
+function ConfirmStep({ onDone }: { onDone: () => void }): React.ReactElement {
   return (
     <div className="p-4 text-center space-y-3">
       <div className="w-12 h-12 mx-auto rounded-full bg-[var(--tf-success-bg)] flex items-center justify-center">
         <Check size={22} className="text-[var(--tf-success-text)]" />
       </div>
       <p className="text-[14px] font-medium text-[var(--tf-text)]">Danke für dein Feedback!</p>
-      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">Möchtest du Details ergänzen?</p>
-      <div className="flex gap-2 justify-center pt-1">
-        <Button type="button" onClick={onChatbot} variant="primary">
-          Details ergänzen
-        </Button>
-        <Button type="button" onClick={onDone} variant="secondary">
-          Fertig
-        </Button>
+      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+        Es ist gespeichert und sichtbar unter „Mein Feedback".
+      </p>
+      <div className="pt-1">
+        <Button type="button" onClick={onDone} variant="primary">Fertig</Button>
       </div>
-
-      {verbesserung?.status === 'laeuft' && (
-        <div className="flex items-center justify-center gap-2 pt-2 text-[12px] text-[var(--tf-text-secondary)]">
-          <Loader2 size={14} className="animate-spin" />
-          KI verbessert dein Feedback … (kann bis zu einer Minute dauern — du kannst das Fenster schließen)
-        </div>
-      )}
-      {verbesserung?.status === 'fertig' && (
-        <div className="pt-2">
-          <FeedbackImproveResult classification={verbesserung.ergebnis} />
-        </div>
-      )}
-      {verbesserung?.status === 'fehlgeschlagen' && (
-        <p className="pt-2 text-[12px] text-[var(--tf-text-tertiary)]">
-          Gespeichert — die Verbesserung ist diesmal nicht gelungen.
-        </p>
-      )}
     </div>
   );
 }

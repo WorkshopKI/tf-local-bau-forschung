@@ -51,16 +51,17 @@ später einen In-App-Judge über **reale** Daten (intern-only) frei.
     extern, wird nicht initialisiert → `extractMetadata` fällt auf `FALLBACK_METADATA`
     zurück. Prod unverändert (OpenRouter aus → nie extern).
 
-## Feedback-Verbesserung (eigenständige Aufrufstelle, v2.165)
+## Feedback-Verbesserung (eigenständige Aufrufstelle, v2.206)
 
-`improveFeedback()` (`src/core/services/feedback/feedbackImprove.ts`) ist eine
-**weitere, eigenständige** Aufrufstelle für Nutzertext-Transport — aber **kein**
-Skill-Run im Registry-Sinn, daher kein `getTransportForSkillRun`-Umweg. Das Gate
-sitzt direkt im Code: `if (transport.name !== 'Streamlit') return null;` — läuft
-**nur** über die interne Bridge, weil Feedback-Text in Produktion Echt-Nutzertext
-ist (potenziell FKZ, Namen, interne Details). Bewusst **umgekehrte Polarität** zu
-`autoClassifyFeedback` (das läuft NIE auf Streamlit) — beide Pfade zusammen decken
-die volle Transport-Matrix ab, keine Inkonsistenz. Detail:
+Der geführte „verbessern"-Ablauf (`feedbackImprove.ts`: `askClarifyingQuestions` +
+`improveFeedbackGuided`, orchestriert von `FeedbackVerbessernFlow`) ist eine
+**eigenständige** Aufrufstelle für Nutzertext-Transport — aber **kein** Skill-Run
+im Registry-Sinn, daher kein `getTransportForSkillRun`-Umweg. Das Gate sitzt direkt
+im Code: beide Funktionen brechen bei `transport.name !== 'Streamlit'` sofort ab
+(`[]`/`null`) — sie laufen **nur** über die interne Bridge, weil Feedback-Text in
+Produktion Echt-Nutzertext ist (potenziell FKZ, Namen, interne Details). Bewusst
+**umgekehrte Polarität** zu `autoClassifyFeedback` (das läuft NIE auf Streamlit) —
+beide Pfade zusammen decken die volle Transport-Matrix ab. Detail:
 [feedback-system.md](feedback-system.md).
 
 ## Erzwingung gegen Regression

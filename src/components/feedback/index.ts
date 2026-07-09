@@ -5,8 +5,6 @@ export { FeedbackInputStep, type FeedbackSubmitPayload } from './FeedbackInputSt
 export { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
 export { FeedbackAnnotator } from './FeedbackAnnotator';
 export * from './feedbackAttachments';
-export { FeedbackChatbot } from './FeedbackChatbot';
-export { FeedbackConfirmCard } from './FeedbackConfirmCard';
 export { FaqSuggestions } from './FaqSuggestions';
 export { MyFeedbackList } from './MyFeedbackList';
 export { BudgetBadge } from './BudgetBadge';

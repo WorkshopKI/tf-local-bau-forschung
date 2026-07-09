@@ -261,7 +261,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         </Button>
         {kiVerfuegbar && (
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-            Verbessern: die interne KI formt dein Feedback in eine umsetzbare Anforderung um.
+            Verbessern: die interne KI stellt kurze Rückfragen und formt dein Feedback in eine klare, umsetzbare Fassung — die du noch anpassen kannst.
           </p>
         )}
       </div>

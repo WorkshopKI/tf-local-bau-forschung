@@ -226,6 +226,9 @@ export async function updateFeedback(
     FeedbackItem,
     'kurator_status' | 'kurator_notes' | 'kurator_response' | 'kurator_priority' | 'generated_prompt'
     | 'category' | 'structured' | 'attachments' | 'title'
+    // `text`/`original_text` (v2.206): der geführte „verbessern"-Ablauf ersetzt
+    // `text` durch die polierte Fassung und bewahrt das Original in `original_text`.
+    | 'text' | 'original_text'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
     | 'effort_estimate' | 'effort_hours' | 'votes' | 'comments'

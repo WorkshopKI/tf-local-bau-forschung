@@ -179,6 +179,11 @@ export interface FeedbackItem {
   attachments?: FeedbackAttachment[];
   stars?: number;
   text: string;
+  /** Roh-Feedback des Nutzers VOR der KI-Verbesserung (v2.206). Additiv/optional:
+   *  gesetzt, wenn der geführte „verbessern"-Ablauf `text` durch die polierte
+   *  Fassung ersetzt hat — bewahrt das Original für den Kurator. Alte Shared-Files
+   *  ohne dieses Feld bleiben lesbar. */
+  original_text?: string;
   context: FeedbackContext;
   llm_summary?: string;
   llm_classification?: LLMClassification;

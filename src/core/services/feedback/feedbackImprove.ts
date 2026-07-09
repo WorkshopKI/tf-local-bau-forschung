@@ -1,27 +1,53 @@
-// Feedback-Verbesserung: formt Roh-Feedback via interne KI in eine umsetzbare
-// Anforderung für Claude Code um (Ist/Soll, Akzeptanzkriterien). Eigene Datei
-// getrennt von feedbackLlm.ts (andere Verantwortung: dort Auto-Klassifikation +
-// Chatbot-Prompts, hier die explizite Nutzer-Verbesserung).
+// Feedback-Verbesserung (geführt): formt Roh-Feedback via interne KI in einen
+// zweistufigen Ablauf um — (1) 1–3 gezielte Rückfragen, (2) eine klare
+// Feedback-Fassung PLUS umsetzbare Anforderung (Ist/Soll + Akzeptanzkriterien).
+// Ersetzt den früheren Einschuss-Verbesserer + den Multi-Turn-Chatbot (beide
+// zusammengeführt), siehe docs/architecture/feedback-system.md.
 //
 // DSGVO: Feedback-Text ist in Produktion Echt-Nutzertext → läuft AUSSCHLIESSLICH
 // über die interne Bridge (Streamlit), nie OpenRouter — siehe
-// docs/architecture/transport-policy.md. Bewusst umgekehrte Transport-Polarität
-// zu autoClassifyFeedback (die läuft NIE auf Streamlit, s. feedbackLlm.ts).
-// Kein getTransportForSkillRun-Umweg: Feedback ist kein Skill-Run im
-// Registry-Sinn, das Gate hier ist die harte transport.name-Prüfung unten.
+// docs/architecture/transport-policy.md. Kein getTransportForSkillRun-Umweg:
+// Feedback ist kein Skill-Run im Registry-Sinn, das Gate hier ist die harte
+// transport.name-Prüfung.
+//
+// WICHTIG (Transport-Bug-Klasse): StreamlitBridgeTransport.submitMessage
+// IGNORIERT den systemPrompt-Arg (2. Param `_systemPrompt`, ungenutzt). Der
+// System-Prompt MUSS in die Message inlined werden (Codebase-Konvention:
+// run-skill.ts, suche/analyse/llm-client.ts, gutachten/relevanz-map.ts). Der
+// 2. Arg bleibt gesetzt, damit DirectLLM-Transporte (Eval-CLI) ihn trotzdem
+// als System-Rolle nutzen.
 
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
-import type { FeedbackContext, LLMClassification } from '@/core/types/feedback';
-import { TEAMFLOW_AREAS } from '@/components/feedback/constants';
-import { buildFeedbackSystemPrompt, buildKategorieAbgrenzung, parseFeedbackSummary } from './feedbackLlm';
+import type { AITransport, SubmitMessageOptions } from '@/core/services/ai/transports/streamlit';
+import type { FeedbackCategory, FeedbackContext, LLMClassification } from '@/core/types/feedback';
+import { FEEDBACK_TYPES, TEAMFLOW_AREAS } from '@/components/feedback/constants';
+import { buildFeedbackSystemPrompt, buildKategorieAbgrenzung } from './feedbackLlm';
 import { getAppOverview, getScreenContext } from './screenContext';
+
+/** Interner Logik-Name des Bridge-Transports (Capability-/Domain-Gate). */
+const INTERNE_KI = 'Streamlit';
 
 export interface FeedbackImprovePayload {
   text: string;
   structured?: Record<string, string>;
+  /** Deterministische Typ-Kategorie aus der Typ-Wahl — steuert die Rückfrage-Dimensionen. */
+  category?: FeedbackCategory;
 }
 
-/** Platzhalter-Template für den Automatisch-erfasster-Kontext-Block — Substitution über buildFeedbackSystemPrompt. */
+/** Eine beantwortete (ggf. übersprungene) Rückfrage aus Phase 1. */
+export interface FeedbackQA {
+  frage: string;
+  antwort: string;
+}
+
+/** Ergebnis der Verbesserung: klarer Feedback-Text + strukturierte Anforderung. */
+export interface GuidedImproveResult {
+  /** Klar umformulierter Feedback-Text (Nutzer-Perspektive) — wird als `item.text` gespeichert. */
+  verbesserterText: string;
+  /** Strukturierte Anforderung (Ist/Soll + Kriterien) — wird in `llm_classification` gespeichert. */
+  classification: LLMClassification;
+}
+
+/** Platzhalter-Template für den Automatisch-erfasster-Kontext-Block. */
 const KONTEXT_TEMPLATE = `AUTOMATISCH ERFASSTER KONTEXT:
 - Seite: {{PAGE}} ({{ROUTE}})
 - Gerät: {{DEVICE}} ({{VIEWPORT}})
@@ -30,21 +56,154 @@ const KONTEXT_TEMPLATE = `AUTOMATISCH ERFASSTER KONTEXT:
 - Fehler: {{ERRORS}}`;
 
 /**
- * Baut System- + User-Prompt für die Feedback-Verbesserung. `pluginId` steuert,
- * welches Bildschirmseiten-Kontext-Doc (docs/feedback-kontext/) beigelegt wird —
- * fehlt ein Doc, fällt der Prompt implizit auf den reinen App-Overview zurück.
+ * Single-Turn-Call, der auf JEDEM Transport funktioniert: der System-Prompt wird
+ * in die Message inlined (Streamlit verwirft sonst den 2. Arg), bleibt aber als
+ * 2. Arg für DirectLLM erhalten.
  */
-export function buildFeedbackImprovePrompt(
+function submitInline(
+  transport: AITransport,
+  systemPrompt: string,
+  userPrompt: string,
+  options?: SubmitMessageOptions,
+): Promise<string> {
+  return transport.submitMessage(`${systemPrompt}\n\n${userPrompt}`, systemPrompt, options);
+}
+
+/** Baut die geteilten Kontext-Bausteine (App-Overview + Bildschirmseiten-Doc + erfasster Kontext). */
+function buildKontextBloecke(
+  context: FeedbackContext,
+  pluginId: string,
+): { overview: string; screenDoc: string | null; kontextBlock: string } {
+  return {
+    overview: getAppOverview(),
+    screenDoc: getScreenContext(pluginId),
+    kontextBlock: buildFeedbackSystemPrompt(KONTEXT_TEMPLATE, context),
+  };
+}
+
+/** Baut den User-Prompt (Feedback-Text + optionaler Bereich + optionale Rückfrage-Antworten). */
+function buildUserPrompt(payload: FeedbackImprovePayload, context: FeedbackContext, answers?: FeedbackQA[]): string {
+  let s = `Feedback-Text:\n"""\n${payload.text}\n"""`;
+  if (context.screenRefLabel) s += `\nGewählter Bereich: ${context.screenRefLabel}`;
+  const beantwortet = (answers ?? []).filter(qa => qa.antwort.trim().length > 0);
+  if (beantwortet.length > 0) {
+    s += `\n\nRückfragen & Antworten des Nutzers:\n${beantwortet
+      .map(qa => `- ${qa.frage}\n  → ${qa.antwort.trim()}`)
+      .join('\n')}`;
+  }
+  return s;
+}
+
+/** Extrahiert das erste balancierte JSON-Objekt (tolerant gegen Fences/Prosa drumherum). */
+function extractJsonObject(raw: string): string | null {
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  return raw.slice(start, end + 1);
+}
+
+// ── Phase 1: Rückfragen ──────────────────────────────────────────────────────
+
+/**
+ * Baut System- + User-Prompt für die Rückfragen-Phase. `pluginId` steuert das
+ * Bildschirmseiten-Kontext-Doc; `payload.category` steuert die aus `FEEDBACK_TYPES`
+ * abgeleiteten Rückfrage-Dimensionen ("welche Fragen man stellen kann").
+ */
+export function buildClarifyPrompt(
   payload: FeedbackImprovePayload,
   context: FeedbackContext,
   pluginId: string,
 ): { systemPrompt: string; userPrompt: string } {
-  const overview = getAppOverview();
-  const screenDoc = getScreenContext(pluginId);
-  const kontextBlock = buildFeedbackSystemPrompt(KONTEXT_TEMPLATE, context);
+  const { overview, screenDoc, kontextBlock } = buildKontextBloecke(context, pluginId);
+  const typeDef = payload.category ? FEEDBACK_TYPES.find(t => t.category === payload.category) : undefined;
+  const dimensionen = typeDef
+    ? typeDef.fields
+        .map(f => `- ${f.label}${(payload.structured?.[f.key] ?? '').trim() ? ' (bereits beantwortet)' : ' (offen)'}`)
+        .join('\n')
+    : '';
+
+  const systemPrompt = `Du hilfst, gerade abgeschicktes Nutzer-Feedback zur App TeamFlow Local zu schärfen, bevor es ein Coding-Agent (Claude Code) umsetzt.
+
+${overview}
+${screenDoc ? `\n${screenDoc}\n` : ''}
+${kontextBlock}
+
+${buildKategorieAbgrenzung()}
+${dimensionen ? `\nRELEVANTE DIMENSIONEN für diesen Feedback-Typ:\n${dimensionen}\n` : ''}
+AUFGABE: Stelle 1–3 kurze, gezielte Rückfragen zu den für die Umsetzung WICHTIGSTEN noch fehlenden Informationen.
+
+REGELN:
+- Frage NUR zu Dingen, die für die Umsetzung fehlen oder unklar sind — niemals nach bereits Beantwortetem.
+- Max. 3 Fragen, jede ein einzelner konkreter deutscher Satz.
+- Bleibe strikt beim Thema des Feedbacks — erfinde keinen zusätzlichen Scope.
+- Ist das Feedback bereits klar genug, gib ein leeres Array zurück.
+
+Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze:
+
+\`\`\`json
+{ "fragen": ["…"] }
+\`\`\``;
+
+  return { systemPrompt, userPrompt: buildUserPrompt(payload, context) };
+}
+
+/** Parst `{ "fragen": [...] }` tolerant; max. 3 nichtleere Strings, sonst `[]`. */
+function parseFragen(raw: string): string[] {
+  const body = extractJsonObject(raw);
+  if (!body) return [];
+  try {
+    const parsed = JSON.parse(body) as { fragen?: unknown };
+    const fragen = Array.isArray(parsed.fragen) ? parsed.fragen : [];
+    return fragen
+      .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+      .map(f => f.trim())
+      .slice(0, 3);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Phase 1: lässt die interne KI 0–3 gezielte Rückfragen stellen. Intern-only
+ * (bei jedem anderen Transport `[]`), tolerant, wirft nie — bei Fehler `[]`
+ * (der Aufrufer überspringt dann die Rückfragen und geht direkt zur Verbesserung).
+ */
+export async function askClarifyingQuestions(
+  transport: AITransport,
+  payload: FeedbackImprovePayload,
+  context: FeedbackContext,
+  pluginId: string,
+): Promise<string[]> {
+  if (typeof transport.submitMessage !== 'function') return [];
+  if (transport.name !== INTERNE_KI) return [];
+
+  const { systemPrompt, userPrompt } = buildClarifyPrompt(payload, context, pluginId);
+  try {
+    const raw = await submitInline(transport, systemPrompt, userPrompt, { thinkingBudget: 'low' });
+    return parseFragen(raw);
+  } catch (err) {
+    console.warn('[askClarifyingQuestions] LLM call failed:', err);
+    return [];
+  }
+}
+
+// ── Phase 2: Verbesserung ────────────────────────────────────────────────────
+
+/**
+ * Baut System- + User-Prompt für die Verbesserungs-Phase (klare Feedback-Fassung
+ * PLUS Anforderung Ist/Soll + Kriterien). `answers` sind die Rückfrage-Antworten
+ * aus Phase 1 (können leer sein → einstufige Verbesserung).
+ */
+export function buildGuidedImprovePrompt(
+  payload: FeedbackImprovePayload,
+  answers: FeedbackQA[],
+  context: FeedbackContext,
+  pluginId: string,
+): { systemPrompt: string; userPrompt: string } {
+  const { overview, screenDoc, kontextBlock } = buildKontextBloecke(context, pluginId);
   const areaRefs = TEAMFLOW_AREAS.map(a => a.ref).join(', ');
 
-  const systemPrompt = `Du verfeinerst Nutzer-Feedback zur App TeamFlow Local zu einem Arbeitsauftrag, den ein Coding-Agent (Claude Code) direkt umsetzen kann.
+  const systemPrompt = `Du verfeinerst Nutzer-Feedback zur App TeamFlow Local zu (1) einer klaren, vollständigen Feedback-Fassung UND (2) einem Arbeitsauftrag, den ein Coding-Agent (Claude Code) direkt umsetzen kann.
 
 ${overview}
 ${screenDoc ? `\n${screenDoc}\n` : ''}
@@ -53,8 +212,9 @@ ${kontextBlock}
 ${buildKategorieAbgrenzung()}
 
 REGELN:
-- Bleibe der Intention des Nutzers treu — erfinde KEINEN zusätzlichen Scope über das Feedback hinaus.
-- Fehlt eine für die Umsetzung wichtige Information, formuliere sie als offene Frage in "details" statt zu raten.
+- Bleibe der Intention des Nutzers treu — erfinde KEINEN zusätzlichen Scope über das Feedback (inkl. seiner Rückfrage-Antworten) hinaus.
+- "verbesserterText": das Feedback klar und vollständig umformuliert, in der Perspektive des Nutzers ("Ich…"), 2–5 Sätze, deutsch. Beziehe die Rückfrage-Antworten ein. KEINE Meta-Kommentare, kein "Der Nutzer…".
+- Fehlt trotz Rückfragen eine wichtige Information, benenne sie in "details" als offene Frage statt zu raten.
 - "affectedArea" NUR aus dieser Liste wählen: ${areaRefs}.
 - "relevant_files" nur nennen, wenn aus dem Code-Kontext oben klar ableitbar — sonst leeres Array.
 
@@ -62,6 +222,7 @@ Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärung
 
 \`\`\`json
 {
+  "verbesserterText": "Feedback klar umformuliert, 2-5 Sätze, Ich-Perspektive",
   "category": "bug | feature | ux | praise | question",
   "summary": "1-2 Sätze Zusammenfassung",
   "details": "Ausführliche Beschreibung, ggf. offene Fragen",
@@ -73,45 +234,63 @@ Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärung
 }
 \`\`\``;
 
-  const userPrompt = `Feedback-Text:\n"""\n${payload.text}\n"""${
-    context.screenRefLabel ? `\nGewählter Bereich: ${context.screenRefLabel}` : ''
-  }`;
+  return { systemPrompt, userPrompt: buildUserPrompt(payload, context, answers) };
+}
 
-  return { systemPrompt, userPrompt };
+/** Parst die Verbesserungs-Antwort tolerant (kein Verlass auf ```json-Fence). */
+function parseGuidedImprove(raw: string, fallbackText: string): GuidedImproveResult | null {
+  const body = extractJsonObject(raw);
+  if (!body) return null;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(body) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+  if (typeof parsed.category !== 'string' || typeof parsed.summary !== 'string') return null;
+
+  const classification: LLMClassification = {
+    category: parsed.category as LLMClassification['category'],
+    summary: parsed.summary,
+    details: typeof parsed.details === 'string' ? parsed.details : '',
+    affectedArea: typeof parsed.affectedArea === 'string' ? parsed.affectedArea : '',
+    priority_suggestion: typeof parsed.priority_suggestion === 'number' ? parsed.priority_suggestion : 3,
+    relevant_files: Array.isArray(parsed.relevant_files) ? (parsed.relevant_files as string[]) : undefined,
+    anforderung: typeof parsed.anforderung === 'string' ? parsed.anforderung : undefined,
+    akzeptanzkriterien: Array.isArray(parsed.akzeptanzkriterien) ? (parsed.akzeptanzkriterien as string[]) : undefined,
+    verbessert: true,
+  };
+  const vt = typeof parsed.verbesserterText === 'string' ? parsed.verbesserterText.trim() : '';
+  return { verbesserterText: vt || classification.summary.trim() || fallbackText, classification };
 }
 
 /**
- * Verfeinert Roh-Feedback via interne KI zu einer umsetzbaren Anforderung.
- * Läuft AUSSCHLIESSLICH über den internen Streamlit-Transport (DSGVO — s.o.),
- * bei jedem anderen Transport sofort `null`, KEIN OpenRouter-Fallback (auch
- * nicht in dev). Wirft nie — Fehler landen als `console.warn` + `null`.
+ * Phase 2: verfeinert das Feedback (mit den Rückfrage-Antworten) via interne KI
+ * zu `{ verbesserterText, classification }`. Intern-only (sonst `null`), ein
+ * Retry mit verschärfter Formatanweisung, wirft nie — Fehler → `console.warn`
+ * + `null`. `verbesserterText` fällt auf Zusammenfassung bzw. Roh-Text zurück.
  */
-export async function improveFeedback(
+export async function improveFeedbackGuided(
   transport: AITransport,
   payload: FeedbackImprovePayload,
+  answers: FeedbackQA[],
   context: FeedbackContext,
   pluginId: string,
-): Promise<LLMClassification | null> {
+): Promise<GuidedImproveResult | null> {
   if (typeof transport.submitMessage !== 'function') return null;
-  if (transport.name !== 'Streamlit') return null;
+  if (transport.name !== INTERNE_KI) return null;
 
-  const { systemPrompt, userPrompt } = buildFeedbackImprovePrompt(payload, context, pluginId);
-
+  const { systemPrompt, userPrompt } = buildGuidedImprovePrompt(payload, answers, context, pluginId);
   try {
-    const raw = await transport.submitMessage(userPrompt, systemPrompt, { thinkingBudget: 'low' });
-    const parsed = parseFeedbackSummary(raw);
-    if (parsed) return { ...parsed, verbessert: true };
+    const raw = await submitInline(transport, systemPrompt, userPrompt, { thinkingBudget: 'low' });
+    const parsed = parseGuidedImprove(raw, payload.text);
+    if (parsed) return parsed;
 
-    // Ein Retry mit verschärfter Formatanweisung, bevor wir aufgeben.
-    const retryRaw = await transport.submitMessage(
-      userPrompt,
-      `${systemPrompt}\n\nAntworte NUR mit dem \`\`\`json-Block, ohne weitere Sätze.`,
-      { thinkingBudget: 'low' },
-    );
-    const retryParsed = parseFeedbackSummary(retryRaw);
-    return retryParsed ? { ...retryParsed, verbessert: true } : null;
+    const retrySystem = `${systemPrompt}\n\nAntworte NUR mit dem \`\`\`json-Block, ohne weitere Sätze.`;
+    const retryRaw = await submitInline(transport, retrySystem, userPrompt, { thinkingBudget: 'low' });
+    return parseGuidedImprove(retryRaw, payload.text);
   } catch (err) {
-    console.warn('[improveFeedback] LLM call failed:', err);
+    console.warn('[improveFeedbackGuided] LLM call failed:', err);
     return null;
   }
 }

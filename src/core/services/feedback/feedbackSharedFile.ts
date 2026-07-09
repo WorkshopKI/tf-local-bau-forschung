@@ -218,6 +218,7 @@ export function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): Feedb
       // User-fields override (User edits these locally first)
       title: local_item.title ?? sharedItem.title,
       text: local_item.text,
+      original_text: local_item.original_text ?? sharedItem.original_text,
       stars: local_item.stars,
       context: local_item.context,
       llm_summary: local_item.llm_summary ?? sharedItem.llm_summary,
