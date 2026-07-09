@@ -31,7 +31,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
 | Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
 | Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |
-| Antrag-Aufbereitung (Vollbild-Seite: VB-Gliederung + Tabellen-Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilität; Paket 1 deterministisch, dev) | [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) |
+| Antrag-Aufbereitung (Vollbild-Seite: VB-Gliederung + Tabellen-Ernte, Zeitplan-Gantt + Plausibilität inkl. Kapazität; Steckbrief + Abdeckung als interne LLM-Bausteine mit Fundstellen; getrennte Baustein-Caches, dev) | [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) |
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [Skill-Eval-GUI (dev)](#skill-eval-gui-dev) (CLAUDE.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [Strukturierte Skill-Ausgabe (teilStruktur)](#strukturierte-skill-ausgabe-teilstruktur) (CLAUDE.md) |
 | Streamlit-Bridge (Bookmarklet-Installer + postMessage-Transport zum internen LLM) | [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md) |
@@ -348,7 +348,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **Auslastungs-Modul (Store/Matching/Anonymisierung)**: #14 Pill-Breite, #16 + #20 ein setState+persist, #17 + #18 AnonymMap, #19 Embedding-Modell-Wechsel, #22 NFC-Kürzel
 - **Seeds**: #13 Förderantrag-Seeds aus CSV
 - **Gutachten-Kurzfassung (Testballon)**: #29 Verbund-Ebene + kv-Tag-Relation
-- **DSGVO-Transport-Policy**: #30 dokument-tragende Läufe nur intern (`getTransportForSkillRun`)
+- **DSGVO-Transport-Policy**: #30 dokument-tragende Läufe nur intern (`getTransportForSkillRun`), #35 Policy-Ableitung scannt den Template-Text (`{{vbMarkdown}}`), nicht das `slots`-Array
 - **Artefakt-Achse (Substrat artefaktTyp/ebene/pruefart)**: #31 Kategorie-Einzelquelle (`effektiveKategorie`), #33 Vorlage frisch + Audit-Hash, #34 NF-Baustein wortgetreu
 - **Snapshot-/Store-Konsistenz**: #32 Snapshot = Voll-Store (verbuende heilen) ≠ Slim-List-View
 
@@ -386,3 +386,4 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 32. **Snapshot serialisiert den VOLL-Store ≠ Slim-`ANTRAEGE_LIST_VIEW`-Projektion; vor dem Schreiben `verbuende` heilen (`healMissingVerbuende`, heal-before-serialize), beim Voll-Write die List-View mitziehen.** → [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
 33. **DOCX-Vorlage je Run FRISCH lesen (nie gecacht) + SHA-256 in `WorkflowRun.vorlageRef` stempeln (Audit/Reproduzierbarkeit); fehlende/kaputte Vorlage → `FillResult.fehler` statt throw.** → [artefakt-engine.md](docs/architecture/artefakt-engine.md)
 34. **NF-Bausteine sind kuratierte App-Daten und werden wortgetreu verwendet — der Skill-Pfad (Template/System-Prompt/Modifier) formuliert den Baustein-Text nie um, füllt nur Platzhalter.** `[test: nf-skill.test.ts]` → [artefakt-engine.md](docs/architecture/artefakt-engine.md)
+35. **Die DSGVO-Ableitung (`skillEnthaeltDokumentInhalte`) scannt den `promptTemplate`-TEXT literal nach `{{vbMarkdown}}` (o.a. `INHALTS_SLOTS`), NICHT das deklarative `slots`-Array — ein neuer dokument-tragender Skill muss den Slot-Platzhalter im Template tragen, auch wenn das eigentliche Prompt zur Laufzeit ein Builder erzeugt (Skill-Record = Policy-Subjekt).** → [transport-policy.md](docs/architecture/transport-policy.md)

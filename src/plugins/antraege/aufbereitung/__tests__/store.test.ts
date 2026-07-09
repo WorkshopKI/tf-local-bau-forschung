@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { baueRun, istVeraltet, toggleOffenerPunkt, befundKey } from '../store';
+import { baueRun, istVeraltet, toggleOffenerPunkt, befundKey, uebernehmeOffenePunkte } from '../store';
 
 const NOW = '2026-07-09T00:00:00.000Z';
 
@@ -59,6 +59,44 @@ describe('baueRun', () => {
     expect(leer.zeitplan).toBeNull();
     expect(leer.quellen).toEqual([]);
     expect(leer.hinweis).toBeTruthy();
+  });
+
+  it('Kapazitäts-Befunde werden an die Zeitplan-Befunde angehängt (schwere=warnung)', () => {
+    // Im Standard-ANLAGE_MD liegen 3.1 (4 PM) und 3.2 (3 PM) je in EINEM Monat →
+    // beide MAs über der Grenze; die Kapazitäts-Befunde folgen den Vergleichs-Befunden.
+    const kap = run.befunde.filter(b => b.typ === 'kapazitaet');
+    expect(kap.length).toBeGreaterThan(0);
+    expect(kap.every(b => b.schwere === 'warnung')).toBe(true);
+  });
+
+  it('Kapazitäts-Befund erscheint, wenn eine MA in einem Monat überplant ist', () => {
+    const anlage = [
+      '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| 3.1 | Kernfunktionen | 01.04.2023 | 15.04.2023 | MA02 | 4 |',
+      '| 3.2 | Erweiterte Funktionen | 16.04.2023 | 30.04.2023 | MA02 | 3 |',
+    ].join('\n');
+    const r = baueRun('K', { markdown: VB_MD, name: 'p.docx' }, { markdown: anlage, name: 'a.docx' }, NOW);
+    const kap = r.befunde.find(b => b.typ === 'kapazitaet');
+    expect(kap).toBeDefined();
+    expect(kap!.schwere).toBe('warnung');
+    expect(kap!.text).toContain('MA02');
+  });
+});
+
+describe('uebernehmeOffenePunkte', () => {
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
+
+  it('erhält gültige Befund-Keys + aspekt-fehlt-Keys, verwirft verwaiste', () => {
+    const gueltig = befundKey(run.befunde[0]!);
+    const merged = uebernehmeOffenePunkte(run, [gueltig, 'aspekt-fehlt:I:preise', 'zeitraum-abweichung::gibt-es-nicht']);
+    expect(merged.offenePunkte).toContain(gueltig);
+    expect(merged.offenePunkte).toContain('aspekt-fehlt:I:preise');
+    expect(merged.offenePunkte).not.toContain('zeitraum-abweichung::gibt-es-nicht');
+  });
+
+  it('leere Vorgabe → Run unverändert (offenePunkte bleibt [])', () => {
+    expect(uebernehmeOffenePunkte(run, []).offenePunkte).toEqual([]);
   });
 });
 

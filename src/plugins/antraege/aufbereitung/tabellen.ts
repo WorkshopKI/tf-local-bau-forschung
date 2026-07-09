@@ -38,9 +38,13 @@ export interface ApZeile {
   maNr?: string;
 }
 
-/** Ein Plausibilitäts-Befund aus dem Text↔Anlage-5-Abgleich. */
+/**
+ * Ein Plausibilitäts-Befund. `zeitraum-abweichung`/`nur-im-text`/`nur-in-anlage`/
+ * `horizont` kommen aus dem Text↔Anlage-5-Abgleich; `kapazitaet` aus der
+ * MA-Auslastungs-Prüfung (Paket 2, deterministisch).
+ */
 export interface Befund {
-  typ: 'zeitraum-abweichung' | 'nur-im-text' | 'nur-in-anlage' | 'horizont';
+  typ: 'zeitraum-abweichung' | 'nur-im-text' | 'nur-in-anlage' | 'horizont' | 'kapazitaet';
   schwere: 'warnung' | 'info';
   text: string;
   quellen: Array<{ rolle: 'vb' | 'anlage5'; sektionId?: string }>;
@@ -368,5 +372,72 @@ export function verglichZeitplaene(text: ApZeile[], anlage: ApZeile[]): Befund[]
     });
   }
 
+  return befunde;
+}
+
+// ---------------------------------------------------------------------------
+// 5) Kapazitäts-Prüfung (MA-Auslastung je Kalendermonat, deterministisch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Kapazitätsgrenze pro MA und Kalendermonat. 1,0 PM = eine Person voll im Monat;
+ * `1,2` lässt 20 % Rundungs-/Terminierungs-Toleranz zu (Default — konservativ, da
+ * Anlage-5-Halbmonatsangaben oft auf ganze Monate gerundet werden).
+ */
+export const KAPAZITAET_GRENZE_PM = 1.2;
+
+/** PM deutsch formatieren (Komma-Dezimal, keine Nachkommastelle bei ganzen Zahlen). */
+function fmtPm(n: number): string {
+  return n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+}
+
+/**
+ * Kapazitäts-Befund: bündelt die anteiligen Personenmonate je (MA-Nr,
+ * Kalendermonat) und warnt, wenn eine Person in einem Monat über
+ * `KAPAZITAET_GRENZE_PM` liegt (physisch nicht leistbar). Die PM eines Eintrags
+ * werden **gleichmäßig über seine Monatsspanne** verteilt; ein Eintrag ohne
+ * `monatEnde` (bzw. Halbmonats-Eintrag mit `monatStart == monatEnde`) zählt im
+ * jeweiligen Monat **voll**. Nur Zeilen mit MA-Nr + PM + Monat gehen ein;
+ * **verschiedene MAs werden NIE zusammengezählt** (jede Person ein eigenes Konto —
+ * Doppelbesetzung eines APs durch zwei MAs ist zulässig). Reine Funktion.
+ */
+export function pruefeKapazitaet(zeilen: ApZeile[]): Befund[] {
+  interface MonatsLast { pm: number; aps: Array<{ nummer: string; bezeichnung: string; pm: number }> }
+  // maNr → Monat → aufsummierte Last + beteiligte APs.
+  const proMa = new Map<string, Map<number, MonatsLast>>();
+
+  for (const z of zeilen) {
+    const ma = z.maNr?.trim();
+    if (!ma || z.pm == null || z.pm <= 0 || z.monatStart == null) continue;
+    const von = z.monatStart;
+    const bis = z.monatEnde ?? z.monatStart;
+    const anzahlMonate = Math.max(1, bis - von + 1);
+    const anteil = z.pm / anzahlMonate;
+    const monate = proMa.get(ma) ?? new Map<number, MonatsLast>();
+    for (let m = von; m <= bis; m++) {
+      const last = monate.get(m) ?? { pm: 0, aps: [] };
+      last.pm += anteil;
+      last.aps.push({ nummer: z.nummer.trim(), bezeichnung: z.bezeichnung, pm: anteil });
+      monate.set(m, last);
+    }
+    proMa.set(ma, monate);
+  }
+
+  const befunde: Befund[] = [];
+  // Deterministische Reihenfolge: MA aufsteigend, dann Monat aufsteigend.
+  for (const ma of [...proMa.keys()].sort((a, b) => a.localeCompare(b, 'de'))) {
+    const monate = proMa.get(ma)!;
+    for (const m of [...monate.keys()].sort((a, b) => a - b)) {
+      const last = monate.get(m)!;
+      // Float-Rauschen tolerieren (z.B. 3 × 0.4 = 1.2000000000002).
+      if (last.pm <= KAPAZITAET_GRENZE_PM + 1e-9) continue;
+      const apListe = last.aps.map(a => `AP ${a.nummer} (${fmtPm(a.pm)} PM)`).join(', ');
+      befunde.push({
+        typ: 'kapazitaet', schwere: 'warnung',
+        text: `MA ${ma} ist in M${m} mit ${fmtPm(last.pm)} PM überplant (Kapazität ${fmtPm(KAPAZITAET_GRENZE_PM)} PM/Monat): ${apListe}.`,
+        quellen: [{ rolle: 'anlage5' }],
+      });
+    }
+  }
   return befunde;
 }

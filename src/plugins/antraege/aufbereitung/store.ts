@@ -9,7 +9,7 @@ import type { IDBStore } from '@/core/services/storage';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 import { parseVbGliederung, type VbSektion } from './gliederung';
 import {
-  ernteTabellen, normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene,
+  ernteTabellen, normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, pruefeKapazitaet,
   type ApZeile, type Befund,
 } from './tabellen';
 import { resolveVb, resolveAnlage5 } from './quellen';
@@ -32,6 +32,21 @@ export interface QuellEingang {
 /** Stabiler Schlüssel eines Befunds (für `offenePunkte` — Befunde haben keine ID). */
 export function befundKey(b: Befund): string {
   return `${b.typ}::${b.text}`;
+}
+
+/**
+ * Übernimmt die vom Nutzer markierten offenen Punkte in einen frisch berechneten
+ * Run und verwirft verwaiste Keys. Behalten wird ein Key, wenn er (a) einem Befund
+ * des neuen Runs entspricht (deterministische Zeitplan-Befunde) ODER (b) ein
+ * LLM-`aspekt-fehlt:`-Key ist — Letztere hängen am separaten Baustein-Cache (nicht
+ * am deterministischen Run) und werden erst beim Rendern gegen den Baustein
+ * validiert. Alles andere (Befund existiert nicht mehr) wird verworfen.
+ */
+export function uebernehmeOffenePunkte(run: AufbereitungRun, vorher: readonly string[]): AufbereitungRun {
+  if (vorher.length === 0) return run;
+  const gueltigeBefunde = new Set(run.befunde.map(befundKey));
+  const behalten = vorher.filter(k => gueltigeBefunde.has(k) || k.startsWith('aspekt-fehlt:'));
+  return behalten.length ? { ...run, offenePunkte: behalten } : run;
 }
 
 /** Nummer/Label der Gliederungs-Sektion, in der `offset` liegt (für „§ x"-Chips). */
@@ -80,7 +95,7 @@ export function baueRun(
       ? { zeilen: textZeilen, herkunft: 'vb' as const, achseMax }
       : null;
 
-  // Befunde nur, wenn beide Quellen einen Zeitplan tragen (sonst wäre eine Seite leer).
+  // Text↔Anlage-5-Abgleich nur, wenn beide Quellen einen Zeitplan tragen.
   let befunde: Befund[] = [];
   if (hatAnlage && hatText) {
     const vbSektionId = ersteTextTabelle ? sektionAnOffset(gliederung, ersteTextTabelle.start) : undefined;
@@ -89,6 +104,10 @@ export function baueRun(
       quellen: b.quellen.map(q => (q.rolle === 'vb' && vbSektionId ? { ...q, sektionId: vbSektionId } : q)),
     }));
   }
+  // Kapazitäts-Befund unabhängig vom Text-Vergleich: MA-Auslastung liegt allein in
+  // den Anlage-5-Zeilen (nur die tragen MA-Nr + PM). Bei reinem Text-Zeitplan (keine
+  // MA-Nr) liefert `pruefeKapazitaet` ohnehin nichts.
+  if (zeitplan) befunde = [...befunde, ...pruefeKapazitaet(zeitplan.zeilen)];
 
   return {
     version: 1,
@@ -108,9 +127,12 @@ export function baueRun(
  * Löst VB + Anlage 5 auf, baut den Run und persistiert ihn. IO-Fehler
  * propagieren (der Aufrufer fängt sie via `useAsyncAction` → Banner); eine
  * fehlende VB ist KEIN Fehler, sondern führt zu einem definierten leeren Run.
+ * Die vom Nutzer markierten offenen Punkte des Vorlaufs werden übernommen
+ * (verwaiste Keys verworfen) — „Neu aufbereiten" löscht sie NICHT.
  */
 export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContext): Promise<AufbereitungRun> {
   const now = new Date().toISOString();
+  const vorher = await loadAufbereitung(idb, ctx.key);
   const vbA = await resolveVb(idb, ctx);
   const anlageA = await resolveAnlage5(idb, ctx).catch(() => null);
 
@@ -119,7 +141,7 @@ export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContex
     : null;
   const anlage: QuellEingang | null = anlageA ? { markdown: anlageA.markdown, name: anlageA.quelleName } : null;
 
-  const run = baueRun(ctx.key, vb, anlage, now);
+  const run = uebernehmeOffenePunkte(baueRun(ctx.key, vb, anlage, now), vorher?.offenePunkte ?? []);
   await idb.set(aufbereitungKey(ctx.key), run);
   return run;
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parsePipeTabellen, klassifiziereTabelle, ernteTabellen,
   normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, parseMonatRange,
+  pruefeKapazitaet,
   type ApZeile,
 } from '../tabellen';
 
@@ -71,6 +72,65 @@ describe('normalisiereAnlage5', () => {
     expect(z[0]).toMatchObject({ monatStart: 1, monatEnde: 2, pm: 2, maNr: 'MA01', istUnterAp: false });
     expect(z[1]).toMatchObject({ nummer: '3', istUnterAp: false, monatStart: undefined, monatEnde: undefined });
     expect(z[2]).toMatchObject({ nummer: '3.1', istUnterAp: true, monatStart: 4, monatEnde: 4, pm: 4 });
+  });
+
+  it('Doppelbesetzung: gleiche AP-Nr, verschiedene MA bleiben getrennte Zeilen (kein Dedup/Merge)', () => {
+    const dopp = parsePipeTabellen([
+      '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| 7 | Durchführung Pilotprojekt | 01.08.2023 | 31.08.2023 | 1 | 1,5 |',
+      '| 7 | Durchführung Pilotprojekt | 01.08.2023 | 31.08.2023 | 2 | 1,5 |',
+    ].join('\n'))[0]!;
+    const z = normalisiereAnlage5(dopp);
+    expect(z).toHaveLength(2);
+    expect(z.map(x => x.maNr)).toEqual(['1', '2']);
+    expect(z.every(x => x.nummer === '7')).toBe(true);
+  });
+});
+
+describe('pruefeKapazitaet', () => {
+  it('eine MA in einem Monat über der Grenze → Warnung mit MA, Monat, Summe, APs', () => {
+    // Realer Fixture-Fall: MA02 macht 3.1 (4 PM) + 3.2 (3 PM), beide im selben Monat.
+    const zeilen: ApZeile[] = [
+      { nummer: '3.1', bezeichnung: 'Kernfunktionen', istUnterAp: true, monatStart: 4, monatEnde: 4, pm: 4, maNr: 'MA02' },
+      { nummer: '3.2', bezeichnung: 'Erweiterte Funktionen', istUnterAp: true, monatStart: 4, monatEnde: 4, pm: 3, maNr: 'MA02' },
+    ];
+    const b = pruefeKapazitaet(zeilen);
+    expect(b).toHaveLength(1);
+    expect(b[0]).toMatchObject({ typ: 'kapazitaet', schwere: 'warnung' });
+    expect(b[0]!.text).toContain('MA02');
+    expect(b[0]!.text).toContain('M4');
+    expect(b[0]!.text).toContain('7 PM'); // 4 + 3 = 7 PM
+    expect(b[0]!.text).toContain('AP 3.1');
+    expect(b[0]!.text).toContain('AP 3.2');
+    expect(b[0]!.quellen.map(q => q.rolle)).toEqual(['anlage5']);
+  });
+
+  it('verschiedene MA im selben Monat werden NICHT zusammengezählt (kein Befund)', () => {
+    // Doppelbesetzung: 2 verschiedene MA je 1 PM im selben Monat → jede Person für
+    // sich unter der Grenze. Würde man fälschlich über MAs summieren (2 PM), gäbe es
+    // eine Falschwarnung. Verschiedene MAs = getrennte Konten.
+    const zeilen: ApZeile[] = [
+      { nummer: '7', bezeichnung: 'Pilot', istUnterAp: false, monatStart: 8, monatEnde: 8, pm: 1, maNr: 'MA01' },
+      { nummer: '7', bezeichnung: 'Pilot', istUnterAp: false, monatStart: 8, monatEnde: 8, pm: 1, maNr: 'MA02' },
+    ];
+    expect(pruefeKapazitaet(zeilen)).toEqual([]);
+  });
+
+  it('PM werden gleichmäßig über die Monatsspanne verteilt (4 PM über 4 Monate = 1 PM/Monat, keine Warnung)', () => {
+    const zeilen: ApZeile[] = [
+      { nummer: '1', bezeichnung: 'Konzept', istUnterAp: false, monatStart: 1, monatEnde: 4, pm: 4, maNr: 'MA01' },
+    ];
+    expect(pruefeKapazitaet(zeilen)).toEqual([]);
+  });
+
+  it('ignoriert Zeilen ohne MA-Nr, ohne PM oder ohne Monat', () => {
+    const zeilen: ApZeile[] = [
+      { nummer: '1', bezeichnung: 'Ohne MA', istUnterAp: false, monatStart: 4, monatEnde: 4, pm: 9 },
+      { nummer: '2', bezeichnung: 'Ohne PM', istUnterAp: false, monatStart: 4, monatEnde: 4, maNr: 'MA01' },
+      { nummer: '3', bezeichnung: 'Ohne Monat', istUnterAp: false, pm: 9, maNr: 'MA02' },
+    ];
+    expect(pruefeKapazitaet(zeilen)).toEqual([]);
   });
 });
 

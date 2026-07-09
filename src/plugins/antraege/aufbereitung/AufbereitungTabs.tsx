@@ -19,8 +19,8 @@ interface TabDef {
 }
 
 export const AUFBEREITUNG_TABS: TabDef[] = [
-  { id: 'steckbrief', label: 'Steckbrief', zustand: 'platzhalter' },
-  { id: 'abdeckung', label: 'Abdeckung', zustand: 'platzhalter' },
+  { id: 'steckbrief', label: 'Steckbrief', zustand: 'aktiv' },
+  { id: 'abdeckung', label: 'Abdeckung', zustand: 'aktiv' },
   { id: 'zeitplan', label: 'Zeitplan', zustand: 'aktiv' },
   { id: 'zahlen', label: 'Zahlen', zustand: 'inaktiv' },
   { id: 'glossar', label: 'Glossar', zustand: 'inaktiv' },

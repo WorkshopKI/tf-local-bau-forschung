@@ -1,0 +1,47 @@
+{
+  "beschreibung": "Handkuratiertes Goldset für die Aspekt-Mapping-Mini-Eval (Paket 2). Partielles Goldset: annotiert die unstrittigen Ebene-1-Kapitel der drei fiktiven ZIM-Fixtures mit ihrem kanonischen Prüfaspekt A-J. Kapitel 5 (Wirtschaftliche Risiken) und 10 (Wirkung) sind bewusst NICHT annotiert = 'ohne Aspekt / nicht im Prüfraster'. Precision/Recall werden nur über die annotierten Sektionen gemessen (Zuordnungen zu nicht annotierten Sektionen zählen nicht als Fehler). Sektions-IDs stammen aus parseVbGliederung (npm run eval:aufbereitung -- --dump).",
+  "fixtures": [
+    {
+      "vbFile": "ZIM_Antrag_API_003_Perfekte Produktbeschreibungen auf Knopfdruck.md",
+      "erwartung": {
+        "k-1": ["A"],
+        "k-2": ["B"],
+        "k-3": ["C"],
+        "k-4": ["D"],
+        "k-6": ["E"],
+        "k-7": ["F"],
+        "k-8": ["G"],
+        "k-9": ["H"],
+        "k-11": ["I", "J"]
+      }
+    },
+    {
+      "vbFile": "ZIM_Antrag_API_006_Integrierte Prüftechnik für Leistungshalbleiter.md",
+      "erwartung": {
+        "k-1": ["A"],
+        "k-2": ["B"],
+        "k-3": ["C"],
+        "k-4": ["D"],
+        "k-6": ["E"],
+        "k-7": ["F"],
+        "k-8": ["G"],
+        "k-9": ["H"],
+        "k-11": ["I", "J"]
+      }
+    },
+    {
+      "vbFile": "ZIM_Antrag_API_017_Multitouch-Tisch mit interaktiver Objekterkennung.md",
+      "erwartung": {
+        "k-1": ["A"],
+        "k-2": ["B"],
+        "k-3": ["C"],
+        "k-4": ["D"],
+        "k-6": ["E"],
+        "k-7": ["F"],
+        "k-8": ["G"],
+        "k-9": ["H"],
+        "k-11": ["I", "J"]
+      }
+    }
+  ]
+}

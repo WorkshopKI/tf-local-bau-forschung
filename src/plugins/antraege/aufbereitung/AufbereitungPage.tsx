@@ -23,6 +23,8 @@ import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
 import { useAufbereitung } from './useAufbereitung';
 import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { ZeitplanTab } from './ZeitplanTab';
+import { AbdeckungTab } from './AbdeckungTab';
+import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 
 const kurzHash = (h: string): string => (h.length > 6 ? `${h.slice(0, 4)}…${h.slice(-2)}` : h);
 function kurzDatum(iso: string): string {
@@ -41,6 +43,8 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   );
   const aufb = useAufbereitung(ctx ? { key: ctx.key, knownIds: ctx.knownIds } : null);
   const [tab, setTab] = useState<AufbereitungTabId>('zeitplan');
+  const [ansicht, setAnsicht] = useState<'liste' | 'karte'>('liste');
+  const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
 
   // Defense-in-depth: die Route ist bereits flag-gated registriert.
   if (!isAntragAufbereitungEnabled()) return <Navigate to="/antraege" replace />;
@@ -52,6 +56,11 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const titel = ctx?.akronym ?? antragKey;
   const metaTeile = [ctx?.foerderkennzeichen ? `FKZ ${ctx.foerderkennzeichen}` : null, ctx?.antragsteller ?? null]
     .filter((s): s is string => !!s);
+  const stammdaten: SteckbriefStammdaten = {
+    antragsteller: ctx?.antragsteller ?? null,
+    foerderkennzeichen: ctx?.foerderkennzeichen ?? null,
+    projektform: ctx ? (istVerbund ? `ZIM-Kooperationsprojekt · ${tvs.length} Teilvorhaben` : 'ZIM-Einzelprojekt · 1 Teilvorhaben') : null,
+  };
   const vbQuelle = aufb.run?.quellen.find(q => q.rolle === 'vb');
   const hatAnlage5 = !!aufb.run?.quellen.find(q => q.rolle === 'anlage5');
 
@@ -74,6 +83,12 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
               </span>
             ) : null}
             <StatusBadge label={hatAnlage5 ? 'Anlage 5 ✓' : 'Anlage 5 –'} />
+            {bausteineGelaufen ? (
+              <Button variant="ghost" size="sm" loading={aufb.bausteineNeu.busy} onClick={() => aufb.bausteineNeu.run()}
+                title="Verwirft die KI-Baustein-Caches und rechnet Aspekte/Steckbrief neu">
+                KI-Bausteine neu berechnen
+              </Button>
+            ) : null}
             <Button variant="secondary" size="sm" loading={aufb.neu.busy} onClick={() => aufb.neu.run()}>
               {aufb.neu.busy ? 'Aufbereiten …' : 'Neu aufbereiten'}
             </Button>
@@ -98,6 +113,27 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       <div className="mt-6">
         {tab === 'zeitplan' ? (
           <ZeitplanTab run={aufb.run} loading={aufb.loading} neu={aufb.neu} toggle={aufb.toggle} />
+        ) : tab === 'steckbrief' ? (
+          <SteckbriefTab
+            run={aufb.run}
+            steckbrief={aufb.steckbrief}
+            vbMarkdown={aufb.vbMarkdown}
+            stammdaten={stammdaten}
+            bausteine={aufb.bausteine}
+            bausteineNeu={aufb.bausteineNeu}
+          />
+        ) : tab === 'abdeckung' ? (
+          <AbdeckungTab
+            run={aufb.run}
+            aspekte={aufb.aspekte}
+            vbMarkdown={aufb.vbMarkdown}
+            wurzel={titel}
+            ansicht={ansicht}
+            onAnsicht={setAnsicht}
+            bausteine={aufb.bausteine}
+            bausteineNeu={aufb.bausteineNeu}
+            toggle={aufb.toggle}
+          />
         ) : (
           <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">In Vorbereitung (Paket 2)</div>
         )}

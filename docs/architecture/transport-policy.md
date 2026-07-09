@@ -27,7 +27,12 @@ später einen In-App-Judge über **reale** Daten (intern-only) frei.
     egal was der explizite `enthaeltDokumentInhalte`-Flag sagt. Ohne Inhalts-Slot
     greift der Flag; fehlt er, gilt der fail-safe Default `true`.
   - `templateReferenziertInhaltsSlot(promptTemplate)` — die Slot-Basis der Ableitung
-    (für die Editor-UI: Override als inert kennzeichnen).
+    (für die Editor-UI: Override als inert kennzeichnen). **Achtung (Pitfall #35):** die
+    Ableitung scannt den `promptTemplate`-**Text** literal nach `{{slot}}`, NICHT das
+    deklarative `SkillRecord.slots`-Array. Ein dokument-tragender Skill, dessen Prompt
+    erst zur Laufzeit ein Builder erzeugt (z.B. die Aufbereitungs-Bausteine
+    `aufbereitung-aspekte`/`-steckbrief`), muss den `{{vbMarkdown}}`-Platzhalter trotzdem
+    im gespeicherten Template tragen — der Record ist Policy-Subjekt.
 
 - **`AIBridge`** (`src/core/services/ai/bridge.ts`) — führt die **aktive Klasse**:
   `switchProvider` setzt `activeKlasse = classifyProvider(config)`. Die **gegatete**
