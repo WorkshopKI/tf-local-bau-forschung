@@ -4,7 +4,10 @@
  */
 import { useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
+import { isMaVerwaltungPasswortEnabled } from '@/config/feature-flags';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
+import { useDeAnonResolver } from '../../components/AnonymIdBadge';
+import { ZugangVerwaltungDialog, type MaZugangItem } from '../../components/ZugangVerwaltungDialog';
 import {
   ALL_ANTRAGSTYP_BUCKETS,
   DEFAULT_ZUGANG_EMAIL_BETREFF,
@@ -18,8 +21,26 @@ interface Props {
 
 export function KonfigurationSection({ storage }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
+  const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
   const updateConfig = useAuslastungData(s => s.updateConfig);
   const [busy, setBusy] = useState(false);
+
+  // Zugangspasswort-Verwaltung (Übersicht ALLER aktiven MAs + erzeugen/neu
+  // erzeugen + E-Mail-Versand). Lag bis v2.205 im Header des Tabs „Auslastung MA"
+  // (MaListSection); jetzt hier bei der zugehörigen E-Mail-Vorlage. Die Liste wird
+  // EINMALIG beim Klick gebaut (stabile Referenz für den Dialog-Mount-Effekt). Nur
+  // maVerwaltungs-Passwort-Flag + aktive De-Anon-Session (braucht das Klartext-
+  // Kürzel pro anonId).
+  const resolveName = useDeAnonResolver();
+  const [zugangListe, setZugangListe] = useState<MaZugangItem[] | null>(null);
+
+  function openZugangVerwaltung(): void {
+    const liste: MaZugangItem[] = Object.values(mitarbeiter)
+      .filter(m => m.aktiv)
+      .map(m => ({ anonId: m.anonId, kuerzel: resolveName(m.anonId) ?? '' }))
+      .filter(x => x.kuerzel);
+    setZugangListe(liste);
+  }
 
   async function update(partial: Parameters<typeof updateConfig>[1]): Promise<void> {
     setBusy(true);
@@ -138,6 +159,22 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
           Zugangspasswort-E-Mail-Vorlage
           {emailSaved ? <span className="text-[11px] font-normal text-emerald-600">✓ gespeichert</span> : null}
         </h4>
+        {isMaVerwaltungPasswortEnabled() && (
+          <div className="mb-3 flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={openZugangVerwaltung}
+              className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap"
+              style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
+              title="Übersicht aller aktiven MAs: Passwörter erzeugen/neu erzeugen + per E-Mail versenden."
+            >
+              Passwörter für alle aktiven MAs
+            </button>
+            <span className="text-[10.5px] text-[var(--tf-text-tertiary)] leading-snug">
+              Erzeugt/erneuert Zugangspasswörter und versendet sie per E-Mail — mit der Vorlage unten.
+            </span>
+          </div>
+        )}
         <div className="flex flex-col gap-3">
           <Field label="Betreff">
             <input
@@ -166,6 +203,10 @@ export function KonfigurationSection({ storage }: Props): React.ReactElement {
           </p>
         </div>
       </div>
+
+      {zugangListe && (
+        <ZugangVerwaltungDialog maListe={zugangListe} onClose={() => setZugangListe(null)} />
+      )}
     </div>
   );
 }

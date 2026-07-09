@@ -6,8 +6,10 @@
  *  - Zuweisung        — PL-Cockpit mit Top-3 Vorschlaegen
  *  - Auslastung MA    — Statistik + MA-Liste/Kapazitaet
  *  - Kompetenzen      — PL-Kompetenz-Matrix (v2.15)
- *  - Einstellungen    — Kategorien/Import-Export/Konfig/Themen-Vektoren
- *                       (bis v2.20 im „Erweitert"-Aufklapper der Uebersicht)
+ *  - Verwaltung       — Kategorien/Import-Export/Konfig (inkl. Zugangs-
+ *                       passwort-Verwaltung)/Themen-Vektoren. Der Tab hiess bis
+ *                       v2.205 „Einstellungen" (Verwechslung mit den persoenlichen
+ *                       Einstellungen); interne TabId bleibt `einstellungen`.
  *
  * Die ehemalige Selbsteintragung wandert auf die Homepage
  * (NeueAntraegeFuerDich-Sektion). Sichtbarkeit "PL-only" ist bereits ueber
@@ -204,8 +206,8 @@ function AuslastungFullView(): React.ReactElement {
       },
       {
         id: 'einstellungen' as const,
-        label: 'Einstellungen',
-        tooltip: 'Kategorien, CSV-Import/Export, Konfiguration und Themen-Vektoren (Embedding-Korpus) — bis v2.20 im „Erweitert"-Aufklapper versteckt.',
+        label: 'Verwaltung',
+        tooltip: 'Kategorien, CSV-Import/Export, Konfiguration (inkl. Zugangspasswort-Verwaltung & E-Mail-Vorlage) und Themen-Vektoren (Embedding-Korpus).',
       },
     ];
   }, [data.klassifizierungen, data.config.aktuellesQuartal]);

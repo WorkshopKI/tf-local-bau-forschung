@@ -39,8 +39,6 @@ import { MaListFilterBar, type ViewMode } from './MaListFilterBar';
 import { readMaListeFilters, persistMaListeFilters } from '../filterPersistence';
 import { MaTable, type SortColumn, type SortDir } from './MaTable';
 import { MaTileGrid } from './MaTileGrid';
-import { isMaVerwaltungPasswortEnabled } from '@/config/feature-flags';
-import { ZugangVerwaltungDialog, type MaZugangItem } from '../../components/ZugangVerwaltungDialog';
 
 export type WarningFilter = null | 'no-bookings' | 'overbooked';
 
@@ -82,7 +80,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
 
   const resolveName = useDeAnonResolver();
-  const [zugangListe, setZugangListe] = useState<MaZugangItem[] | null>(null);
   // Filter aus localStorage vorbelegen (überleben Reload/Session); ein
   // useEffect schreibt Änderungen zurück. Nicht-Standard-Kategorie/Antragstyp
   // klappen ihr CollapsibleSeg automatisch auf.
@@ -188,18 +185,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
     if (unzuordenbar.length > 0) teile.push(`${unzuordenbar.length} nicht zuordenbar (${unzuordenbar.join(', ')})`);
     setEinsammelnMsg(teile.join(' · '));
   });
-
-  // v2.12: Öffnet die Zugangspasswort-Verwaltung (Übersicht ALLER aktiven MAs +
-  // erzeugen/neu erzeugen + E-Mail-Versand). Die Liste wird EINMALIG beim Klick
-  // gebaut (stabile Referenz für den Dialog-Mount-Effekt). Nur maVerwaltungs-
-  // Passwort + aktive De-Anon-Session (braucht das Klartext-Kuerzel pro anonId).
-  function openZugangVerwaltung(): void {
-    const liste: MaZugangItem[] = Object.values(mitarbeiter)
-      .filter(m => m.aktiv)
-      .map(m => ({ anonId: m.anonId, kuerzel: resolveName(m.anonId) ?? '' }))
-      .filter(x => x.kuerzel);
-    setZugangListe(liste);
-  }
 
   async function uebernehmenVorschlag(): Promise<void> {
     if (!vorschlag) return;
@@ -398,17 +383,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           <span aria-hidden className="flex-1" style={{ height: '0.5px', background: 'var(--tf-border)' }} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {isMaVerwaltungPasswortEnabled() && (
-            <button
-              type="button"
-              onClick={openZugangVerwaltung}
-              className="h-7 px-3 rounded-md text-[12px] font-medium cursor-pointer transition-opacity hover:opacity-90 whitespace-nowrap"
-              style={{ border: '0.5px solid var(--tf-border)', color: 'var(--tf-text-secondary)' }}
-              title="Übersicht aller aktiven MAs: Passwörter erzeugen/neu erzeugen + per E-Mail versenden."
-            >
-              Passwörter für alle aktiven MAs
-            </button>
-          )}
           <button
             type="button"
             onClick={() => einsammelnAction.run()}
@@ -548,10 +522,6 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
         </p>
       )}
         </>
-      )}
-
-      {zugangListe && (
-        <ZugangVerwaltungDialog maListe={zugangListe} onClose={() => setZugangListe(null)} />
       )}
     </section>
   );
