@@ -8,6 +8,8 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import { isDevContext } from '@/config/feature-flags';
 import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
@@ -63,6 +65,23 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
     // öffnet SYNCHRON den geteilten Tab `teamflow-streamlit` (kein Popup-Blocker).
     connectInternalKi(aiBridge, url);
   };
+
+  // Zweit-LLM-Erprobung (nur dev): Rundlauf gezielt gegen einen Tab der
+  // KI-Oberfläche — validiert Tab-Umschaltung + Scrape + Reset (`ziel`-Feld im
+  // Bridge-Protokoll), BEVOR irgendein Produktiv-Pfad darauf aufsetzt.
+  const [zweitLlm, setZweitLlm] = useState<{ ziel: BridgeZiel; ok: boolean; text: string } | null>(null);
+  const zielTest = useAsyncAction(async (ziel: BridgeZiel) => {
+    setZweitLlm(null);
+    const a = 10 + Math.floor(Math.random() * 80);
+    const b = 10 + Math.floor(Math.random() * 80);
+    const frage = `Was ist ${a} + ${b}?`;
+    const transport = aiBridge.getStreamlitTransport(url);
+    const antwort = await transport.submitMessage(frage, undefined, { ziel });
+    const ok = antwort.replace(/\s+/g, ' ').includes(String(a + b));
+    setZweitLlm({ ziel, ok, text: antwort.slice(0, 200) });
+    // Test-Chat aufräumen (best-effort, resetChat rejected nie)
+    void transport.resetChat(ziel);
+  });
 
   return (
     <section id="sec-internki" className="scroll-mt-20 space-y-4">
@@ -124,7 +143,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
             <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
             <li>Den Button <strong>„Interne KI"</strong> einmalig in die Lesezeichenleiste ziehen.</li>
             <li><strong>Interne KI öffnen</strong> klicken (der Tab muss <em>aus der App</em> geöffnet werden).</li>
-            <li>Im Tab der internen KI das Lesezeichen anklicken — oben rechts erscheinen ein grünes Badge und der Button <strong>„ZAH-App testen"</strong> (zeigt „ZAH App erreichbar").</li>
+            <li>Im Tab der internen KI das Lesezeichen anklicken — unten rechts erscheinen ein grünes Badge und der Button <strong>„ZAH-App testen"</strong> (zeigt „ZAH App erreichbar").</li>
             <li>Zurück hier: <strong>Verbindung testen</strong> → „Interne KI erreichbar". Danach läuft der KI-Chat über die Verbindung.</li>
           </ol>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -132,6 +151,36 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
           </p>
         </div>
       </details>
+
+      {/* Zweit-LLM-Erprobung (nur dev): Ziel-Routing gegen „Chat" vs. „Agentischer Chat" testen */}
+      {isDevContext() && (
+        <div className="space-y-2 max-w-2xl border-t border-[var(--tf-border)] pt-3">
+          <p className="text-[12.5px] font-medium text-[var(--tf-text)]">Zweit-LLM (Erprobung, dev)</p>
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Rundlauf gezielt gegen einen Tab der internen KI („Chat" bzw. „Agentischer Chat"/Qwen):
+            Rechenfrage senden, Antwort auslesen, Chat zurücksetzen. Voraussetzung: KI-Tab offen und
+            Lesezeichen dort aktiviert.
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button variant="secondary" onClick={() => zielTest.run('standard')} disabled={zielTest.busy || !url}>
+              Standard testen
+            </Button>
+            <Button variant="secondary" onClick={() => zielTest.run('agentisch')} disabled={zielTest.busy || !url}>
+              Agentisch testen
+            </Button>
+            {zielTest.busy && <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Läuft… (kann bei Last mehrere Minuten dauern)</span>}
+          </div>
+          {zweitLlm && (
+            <div className="space-y-1">
+              <Badge variant={zweitLlm.ok ? 'success' : 'error'}>
+                {zweitLlm.ziel === 'agentisch' ? 'Agentisch' : 'Standard'}: {zweitLlm.ok ? 'OK' : 'prüfen'}
+              </Badge>
+              <p className="text-[12px] text-[var(--tf-text-secondary)] break-words">{zweitLlm.text}</p>
+            </div>
+          )}
+          {zielTest.error && <p className="text-[12px] text-[var(--tf-danger-text)]">Fehler: {zielTest.error}</p>}
+        </div>
+      )}
     </section>
   );
 }

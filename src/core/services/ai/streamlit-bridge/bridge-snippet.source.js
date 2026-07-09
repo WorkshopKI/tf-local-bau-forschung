@@ -5,7 +5,11 @@
 // Spricht via postMessage mit dem StreamlitBridgeTransport unserer App:
 //   tf-ping     -> tf-pong
 //   tf-app-ping <- (App antwortet tf-app-pong; Gegenrichtungs-Test)
-//   tf-request {id, message} -> tf-stream {id, content}* -> tf-response {id, result, reasoning?}
+//   tf-request {id, message, ziel?} -> tf-progress {id}* + tf-stream {id, content}*
+//                                   -> tf-response {id, result, reasoning?}
+// `ziel` ('standard'|'agentisch') schaltet optional den Streamlit-Tab um
+// (Zweit-LLM „Agentischer Chat"); ohne `ziel` bleibt der aktive Tab.
+// tf-progress ist ein ~10-s-Heartbeat waehrend des Laufs (App-Idle-Timeout).
 // Antwort wird per DOM-Scrape als MARKDOWN aus der Chat-UI geholt (htmlToMd),
 // live gestreamt und erst finalisiert, wenn das Streamlit-Skript idle ist.
 (function () {
@@ -16,7 +20,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-03-selftest';
+  var BRIDGE_REV = '2026-07-09-robust';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -40,7 +44,11 @@
       '.stMarkdown',
     ],
     appRoot: ['[data-testid="stAppViewContainer"]', 'section.main', '.main'],
-    running: ['[data-testid="stStatusWidget"]', 'button[data-testid="stChatInputStopButton"]'],
+    // Spinner-Fallbacks (v2.203): stStatusWidget verschwindet in manchen
+    // Embed-/Toolbar-Modi — der Chat-„Denk"-Spinner deckt diese Faelle. Nicht
+    // generischer werden (stuck-true-Risiko; HARD_MAX_MS ist der Backstop).
+    running: ['[data-testid="stStatusWidget"]', 'button[data-testid="stChatInputStopButton"]',
+      '[data-testid="stSpinner"]', '.stSpinner'],
   };
 
   function q1(list) {
@@ -57,9 +65,59 @@
     }
     return [];
   }
+  function isVisible(el) {
+    if (!el) return false;
+    if (el.offsetParent !== null) return true;
+    // position:fixed-Elemente haben offsetParent null → ueber Client-Rects
+    // pruefen (display:none liefert keine Rects).
+    return !!(el.getClientRects && el.getClientRects().length > 0);
+  }
+  // Sichtbarkeits-bevorzugte Varianten von q1/qa (v2.203): Streamlit-Tabs halten
+  // ggf. BEIDE Chat-Panels im DOM — globale Queries wuerden ins versteckte Panel
+  // greifen (Cross-Tab-Bleed). q1v sucht erst ALLE Selektoren nach einem
+  // sichtbaren Treffer ab (ein sichtbarer generischer Treffer schlaegt einen
+  // versteckten spezifischen); findet sich keiner, faellt es auf den ersten
+  // Treffer ueberhaupt zurueck (Regression-Guard: degradiert schlimmstenfalls
+  // aufs alte Verhalten, nie auf „nichts gefunden").
+  function q1v(list) {
+    var fallback = null;
+    for (var i = 0; i < list.length; i++) {
+      var els = document.querySelectorAll(list[i]);
+      for (var j = 0; j < els.length; j++) {
+        if (isVisible(els[j])) return els[j];
+        if (!fallback) fallback = els[j];
+      }
+    }
+    return fallback;
+  }
+  function qav(list) {
+    for (var i = 0; i < list.length; i++) {
+      var els = document.querySelectorAll(list[i]);
+      if (!els.length) continue;
+      var vis = [];
+      for (var j = 0; j < els.length; j++) { if (isVisible(els[j])) vis.push(els[j]); }
+      return vis.length ? vis : Array.prototype.slice.call(els);
+    }
+    return [];
+  }
   function isUser(m) {
     return !!m.querySelector('img[alt*="user"]');
   }
+  // Inhaltsbasierte Echo-Erkennung — Stufe-2-Fallback in findAnswerMsg, wenn die
+  // Avatar-Heuristik (isUser) nach einem UI-Umbau KEIN Prompt-Echo mehr findet.
+  // WORTGLEICH gespiegelt in echo-match.ts (Drift-Test: echo-match.test.ts).
+  // <echo-match-core> keep in sync with echo-match.ts
+  function normForEcho(s) {
+    return String(s || '').normalize('NFC').toLowerCase().replace(/[^a-z0-9äöüß]/g, '').slice(0, 64);
+  }
+  function isEchoText(msgText, promptText) {
+    var np = normForEcho(promptText);
+    if (!np) return false;
+    var nm = normForEcho(msgText);
+    if (np.length < 12) return nm === np;
+    return nm.indexOf(np) === 0;
+  }
+  // </echo-match-core>
   function setValue(ta, val) {
     // React/Streamlit hoert auf den nativen value-Setter + input-Event.
     var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
@@ -67,7 +125,13 @@
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
   function submit(ta) {
-    var b = q1(SEL.submit);
+    // Submit-Button zuerst im EIGENEN Chat-Input-Container der textarea suchen —
+    // bei zwei gemounteten Chat-Panels (Tabs) traefe eine globale Suche sonst den
+    // Button des falschen Panels. Global-sichtbar nur als Fallback.
+    var scope = (ta.closest && (ta.closest('[data-testid="stChatInput"]') || ta.closest('.stChatInput'))) || document;
+    var b = null;
+    for (var i = 0; i < SEL.submit.length && !b; i++) b = scope.querySelector(SEL.submit[i]);
+    if (!b) b = q1v(SEL.submit);
     if (b) { b.click(); return; }
     // st.chat_input sendet auch via Enter.
     ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
@@ -227,8 +291,10 @@
   // verschleppt generierungs-unabhaengige DOM-Churn der KI-Seite das Ende.
   function isRunning() {
     for (var i = 0; i < SEL.running.length; i++) {
-      var el = document.querySelector(SEL.running[i]);
-      if (el && el.offsetParent !== null) return true;
+      var els = document.querySelectorAll(SEL.running[i]);
+      for (var j = 0; j < els.length; j++) {
+        if (isVisible(els[j])) return true;
+      }
     }
     return false;
   }
@@ -295,7 +361,7 @@
       .observe(appRoot, { childList: true, subtree: true, characterData: true });
   } catch (e) { /* ignore */ }
 
-  // ── Status-Badge (oben rechts) ────────────────────────────────────────────
+  // ── Status-Badge (unten rechts) ───────────────────────────────────────────
   // Toene aus dem TeamFlow-Design-System (badge.tsx / theme.css). Werte als
   // Literale, weil die fremde KI-Seite die CSS-Variablen nicht kennt.
   var TONES = {
@@ -303,14 +369,30 @@
     working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
     error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
   };
-  // Fixierte Leiste oben rechts: Badge + Test-Button in EINER Zeile.
-  // z-index am Maximum (2147483647): die fremde KI-Seite hat eine volle-Breite-
-  // Streamlit-Tab-Leiste mit hohem eigenem Stacking-Context, die `z-index:99999`
-  // ueberdeckt haette (Leiste war im DOM + funktional, aber unsichtbar).
+  // Fixierte Leiste UNTEN rechts: Badge + Test-Buttons in EINER Zeile.
+  // Unten statt oben (v2.203): oben rechts sitzt der Streamlit-Header-/Status-
+  // Bereich der fremden KI-Seite — dort wurde die Leiste wiederholt ueberdeckt.
+  // z-index am Maximum (2147483647): die fremde KI-Seite hat Container mit hohem
+  // eigenem Stacking-Context, die `z-index:99999` ueberdeckt haetten (Leiste war
+  // im DOM + funktional, aber unsichtbar).
+  var BAR_CSS = 'position:fixed;bottom:12px;right:12px;z-index:2147483647;display:flex;gap:6px;align-items:center;';
   var bar = document.createElement('div');
   bar.id = 'tf-bridge-bar';
-  bar.style.cssText = 'position:fixed;top:8px;right:8px;z-index:2147483647;display:flex;gap:6px;align-items:center;';
+  bar.style.cssText = BAR_CSS;
   document.body.appendChild(bar);
+  // Watchdog (v2.203): haelt die Leiste sichtbar, egal was die KI-Seite umbaut —
+  // (a) re-append, wenn ein Umbau sie entfernt hat; (b) ans body-ENDE ruecken,
+  // damit sie bei z-index-Gleichstand die Paint-Order gewinnt; (c) Inline-Styles
+  // re-asserten. Verglichen wird gegen die BROWSER-normalisierte cssText-Fassung
+  // (nie gegen das Literal — der Browser formatiert Inline-Styles um).
+  var BAR_CSS_NORM = bar.style.cssText;
+  setInterval(function () {
+    try {
+      if (!bar.isConnected) { document.body.appendChild(bar); return; }
+      if (document.body.lastElementChild !== bar) document.body.appendChild(bar);
+      if (bar.style.cssText !== BAR_CSS_NORM) bar.style.cssText = BAR_CSS;
+    } catch (e) { /* ignore */ }
+  }, 4000);
 
   var badge = document.createElement('div');
   badge.id = 'tf-bridge-badge';
@@ -389,8 +471,7 @@
   // in answer-selection.ts gespiegelt (das Bookmarklet muss standalone bleiben:
   // ?raw-Inlining → kein Import). Der Drift-Test (answer-selection.test.ts) extrahiert
   // `selectAnswerIndex` zwischen den Markern und laesst sie gegen dieselben Fixtures wie
-  // die TS-Fassung laufen. Aenderung hier = Aenderung dort. Rein interner Refactor
-  // (DOM-Auswahl byte-identisch zu v2.159.4) → BRIDGE_REV bewusst NICHT gebumpt.
+  // die TS-Fassung laufen. Aenderung hier = Aenderung dort.
   // <answer-selection-core> keep in sync with answer-selection.ts
   function selectAnswerIndex(flags) {
     var lastUser = -1;
@@ -404,94 +485,181 @@
     return -1;
   }
   // </answer-selection-core>
-  function findAnswerMsg() {
-    var msgs = qa(SEL.msg), flags = [];
-    for (var k = 0; k < msgs.length; k++) flags.push(isUser(msgs[k]));
+  // Zweistufig (v2.203): Stufe 1 = bewaehrte Avatar-Heuristik (unveraendert).
+  // NUR wenn sie GAR KEIN Prompt-Echo findet (UI-Drift am Avatar-Markup — die
+  // Fehlerklasse hinter „Ende der Response nicht erkannt"), markiert Stufe 2 das
+  // Echo ueber den gesendeten Text selbst (isEchoText) und waehlt erneut.
+  // Bewusst NICHT inhalts-primaer: eine Antwort, die mit einem Prompt-Zitat
+  // beginnt, wuerde sonst faelschlich zum Anker.
+  function findAnswerMsg(message) {
+    var msgs = qav(SEL.msg), flags = [], k;
+    for (k = 0; k < msgs.length; k++) flags.push(isUser(msgs[k]));
     var idx = selectAnswerIndex(flags);
+    if (idx < 0 && message) {
+      for (k = 0; k < msgs.length; k++) {
+        if (!flags[k] && isEchoText(msgs[k].textContent || '', message)) flags[k] = true;
+      }
+      idx = selectAnswerIndex(flags);
+    }
     return idx < 0 ? null : msgs[idx];
   }
 
-  // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
-  function runRequest(source, id, message) {
-    setBadge('working', 'Arbeitet…');
-    var ta = q1(SEL.textarea);
-    if (!ta) {
-      setBadge('error', 'Fehler');
-      source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
+  // ── Ziel-Routing (Zweit-LLM „Agentischer Chat", Erprobung) ────────────────
+  // tf-request/tf-reset koennen ein optionales `ziel` tragen:
+  //   'standard'  → Tab „Chat" (klassisches AitisiGPT)
+  //   'agentisch' → Tab „Agentischer Chat" (Qwen-Agent, groesserer Kontext)
+  // Ohne `ziel` bleibt ALLES beim bisherigen Verhalten (aktiver Tab) — alte
+  // App-Builds funktionieren gegen dieses Snippet und umgekehrt. Tab-lose
+  // Oberflaechen: 'standard' laeuft ohne Tab weiter, 'agentisch' meldet Fehler.
+  var TAB_SELECTOR = 'button[role="tab"], [data-baseweb="tab"]';
+  var TAB_SWITCH_TIMEOUT_MS = 10000;
+  function tabMatches(ziel, text) {
+    if (ziel === 'agentisch') return /agentisch/i.test(text);
+    // 'standard': ein Chat-Tab, der NICHT der agentische ist (Labels real:
+    // „Chat" vs. „Agentischer Chat"; Anker/Wortgrenzen waeren gegen Icons bruechig).
+    if (ziel === 'standard') return /chat/i.test(text) && !/agentisch/i.test(text);
+    return false;
+  }
+  function findTabButton(ziel) {
+    var tabs = document.querySelectorAll(TAB_SELECTOR);
+    for (var i = 0; i < tabs.length; i++) {
+      var t = (tabs[i].textContent || '').replace(/\s+/g, ' ').trim();
+      if (tabMatches(ziel, t)) return tabs[i];
+    }
+    return null;
+  }
+  function ensureZiel(ziel, cb) {
+    if (!ziel) { cb(null); return; }
+    var tab = findTabButton(ziel);
+    if (!tab) {
+      // Kein Tab-UI: 'standard' = bisheriges Verhalten; 'agentisch' braucht den Tab.
+      cb(ziel === 'agentisch'
+        ? 'Tab "Agentischer Chat" nicht gefunden — Oberflaeche der internen KI geaendert?'
+        : null);
       return;
     }
-    setValue(ta, message);
+    if (tab.getAttribute('aria-selected') !== 'true') tab.click();
+    var t0 = Date.now();
+    (function waitInput() {
+      var ta = q1v(SEL.textarea);
+      if (ta && isVisible(ta)) { cb(null); return; }
+      if (Date.now() - t0 >= TAB_SWITCH_TIMEOUT_MS) {
+        cb('Eingabefeld fuer Ziel "' + ziel + '" nicht gefunden');
+        return;
+      }
+      setTimeout(waitInput, 400);
+    })();
+  }
 
-    setTimeout(function () {
-      submit(ta);
-      // SETTLE_MS = Idle-Fenster vor dem Finalisieren. Grosszuegig (5 s), damit
-      // Thinking-Modelle (Reasoning immer an) eine Denk-Pause zwischen erstem Token
-      // und der eigentlichen Antwort ueberleben — sonst finalisiert die Bridge zu
-      // frueh mit einem kurzen Partial (z. B. "Starte…"). MIN_LEN: solange die
-      // Antwort verdaechtig kurz ist, ein doppelt so langes Fenster verlangen.
-      var POLL_MS = 400, MAX_MS = 180000, SETTLE_MS = 5000, MIN_LEN = 40;
-      var started = Date.now(), lastMd = '', finished = false;
-      // Finalisierungs-Timer haengt an der INHALTS-Stabilitaet der Assistenten-
-      // Antwort, nicht an globaler DOM-Aktivitaet: die fremde KI-Seite mutiert
-      // ihren DOM auch generierungs-unabhaengig (Status-Widget, Reruns) — das
-      // verhinderte (seit SETTLE_MS 2500->5000) das Finalisieren, obwohl die
-      // Antwort laengst vollstaendig war. `lastContentChange` wird nur von echten
-      // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
-      var lastContentChange = Date.now();
+  // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
+  function runRequest(source, id, message, ziel) {
+    setBadge('working', 'Arbeitet…');
+    ensureZiel(ziel, function (zielErr) {
+      if (zielErr) {
+        setBadge('error', 'Fehler');
+        source.postMessage({ type: 'tf-response', id: id, result: zielErr }, '*');
+        return;
+      }
+      var ta = q1v(SEL.textarea);
+      if (!ta) {
+        setBadge('error', 'Fehler');
+        source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
+        return;
+      }
+      setValue(ta, message);
 
-      var iv = setInterval(function () {
-        if (finished) return;
-        var cand = findAnswerMsg();
-        var md = cand ? contentOf(cand) : '';
-        if (md && md !== message && md !== lastMd) {
-          lastMd = md;
-          lastContentChange = Date.now();
-          source.postMessage({ type: 'tf-stream', id: id, content: md }, '*'); // live
-        }
-        // Solange sichtbar laeuft, KEINE Idle-Zeit aufbauen (deckt serverseitige
-        // Denk-/Stream-Pausen, in denen der Inhalt kurz stillsteht).
-        if (isRunning()) lastContentChange = Date.now();
+      setTimeout(function () {
+        submit(ta);
+        // SETTLE_MS = Idle-Fenster vor dem Finalisieren. Grosszuegig (5 s), damit
+        // Thinking-Modelle (Reasoning immer an) eine Denk-Pause zwischen erstem Token
+        // und der eigentlichen Antwort ueberleben — sonst finalisiert die Bridge zu
+        // frueh mit einem kurzen Partial (z. B. "Starte…"). MIN_LEN: solange die
+        // Antwort verdaechtig kurz ist, ein doppelt so langes Fenster verlangen.
+        //
+        // Deadlines PROGRESS-bewusst statt absolut (v2.203): der alte 180-s-Deckel
+        // kappte unter Server-Last auch noch WACHSENDE Antworten. NO_PROGRESS_MS
+        // greift nur, wenn sich weder Inhalt noch sichtbarer Lauf-Indikator ruehren
+        // (beide resetten lastContentChange); HARD_MAX_MS ist der absolute Backstop
+        // gegen einen stuck-true isRunning()-Indikator.
+        var POLL_MS = 400, SETTLE_MS = 5000, MIN_LEN = 40;
+        var NO_PROGRESS_MS = 150000, HARD_MAX_MS = 600000;
+        var PROGRESS_EVERY_TICKS = 25; // 25 × 400 ms ≈ 10 s Heartbeat an die App
+        var started = Date.now(), lastMd = '', finished = false, tick = 0;
+        // Finalisierungs-Timer haengt an der INHALTS-Stabilitaet der Assistenten-
+        // Antwort, nicht an globaler DOM-Aktivitaet: die fremde KI-Seite mutiert
+        // ihren DOM auch generierungs-unabhaengig (Status-Widget, Reruns) — das
+        // verhinderte (seit SETTLE_MS 2500->5000) das Finalisieren, obwohl die
+        // Antwort laengst vollstaendig war. `lastContentChange` wird nur von echten
+        // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
+        var lastContentChange = Date.now();
 
-        var idle = Date.now() - lastContentChange;
-        // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und genug
-        // Idle-Zeit verstrich. Bei leerer Antwort (Thinking-Phase vor dem ersten
-        // Token) NIE finalisieren. Kurz-Inhalt-Schutz: ein verdaechtig kurzes
-        // lastMd (z. B. "Starte…") bekommt das doppelte Fenster, damit das echte
-        // (laengere) Resultat nach einer Denk-Pause noch nachkommen kann.
-        var settle = lastMd.length < MIN_LEN ? SETTLE_MS * 2 : SETTLE_MS;
-        if (lastMd && !isRunning() && idle >= settle) {
-          finished = true;
-          clearInterval(iv);
-          setBadge('ready', 'Verbunden');
-          // Diagnose-Netz: beim Finalisieren das Nachrichten-Roster loggen (Anzahl,
-          // je User/Assistant + erste 30 Zeichen) + was gewaehlt wurde. Falls doch
-          // das Falsche zurueckkommt, zeigt die Konsole (F12) die echte Struktur —
-          // kein Blind-Patchen mehr (z. B. ob `isUser` das Prompt-Echo erkennt).
+        // Diagnose-Netz: Nachrichten-Roster loggen (Anzahl, je User/Assistant +
+        // Echo-Flag `~E` + erste 30 Zeichen) + was gewaehlt wurde. Laeuft beim
+        // Finalisieren UND beim Timeout — gerade dort braucht man die echte
+        // DOM-Struktur in der Konsole (F12), statt blind zu patchen.
+        function logRoster(tag, chosen) {
           try {
-            var dbgMsgs = qa(SEL.msg), roster = [];
+            var dbgMsgs = qav(SEL.msg), roster = [];
             for (var dk = 0; dk < dbgMsgs.length; dk++) {
-              roster.push((isUser(dbgMsgs[dk]) ? 'U' : 'A') + '#' + dk + ':'
+              var fl = isUser(dbgMsgs[dk]) ? 'U' : 'A';
+              if (isEchoText(dbgMsgs[dk].textContent || '', message)) fl += '~E';
+              roster.push(fl + '#' + dk + ':'
                 + (contentOf(dbgMsgs[dk]) || '').slice(0, 30).replace(/\s+/g, ' '));
             }
-            console.log('[TeamFlow-Bridge] finalize — ' + dbgMsgs.length + ' msgs:', roster,
-              '| gewaehlt:', (lastMd || '').slice(0, 60));
+            console.log('[TeamFlow-Bridge] ' + tag + ' — ' + dbgMsgs.length + ' msgs:', roster,
+              '| gewaehlt:', (chosen || '').slice(0, 60));
           } catch (e) { /* ignore */ }
-          extractThinking(cand, function (reasoning) {
-            var msg = { type: 'tf-response', id: id, result: lastMd };
-            if (reasoning) msg.reasoning = reasoning;
-            source.postMessage(msg, '*');
-          });
-          return;
         }
-        if (Date.now() - started >= MAX_MS) {
-          finished = true;
-          clearInterval(iv);
-          setBadge(lastMd ? 'ready' : 'error', lastMd ? 'Verbunden' : 'Zeitüberschreitung');
-          source.postMessage({ type: 'tf-response', id: id,
-            result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
-        }
-      }, POLL_MS);
-    }, 200);
+
+        var iv = setInterval(function () {
+          if (finished) return;
+          tick++;
+          // Heartbeat: auch OHNE Inhalt (Server-Queue vor dem ersten Token) weiss
+          // die App, dass der Lauf lebt — ihr Idle-Timeout resettet auf tf-progress.
+          if (tick % PROGRESS_EVERY_TICKS === 0) {
+            source.postMessage({ type: 'tf-progress', id: id }, '*');
+          }
+          var cand = findAnswerMsg(message);
+          var md = cand ? contentOf(cand) : '';
+          if (md && md !== message && md !== lastMd) {
+            lastMd = md;
+            lastContentChange = Date.now();
+            source.postMessage({ type: 'tf-stream', id: id, content: md }, '*'); // live
+          }
+          // Solange sichtbar laeuft, KEINE Idle-Zeit aufbauen (deckt serverseitige
+          // Denk-/Stream-Pausen, in denen der Inhalt kurz stillsteht).
+          if (isRunning()) lastContentChange = Date.now();
+
+          var idle = Date.now() - lastContentChange;
+          // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und genug
+          // Idle-Zeit verstrich. Bei leerer Antwort (Thinking-Phase vor dem ersten
+          // Token) NIE finalisieren. Kurz-Inhalt-Schutz: ein verdaechtig kurzes
+          // lastMd (z. B. "Starte…") bekommt das doppelte Fenster, damit das echte
+          // (laengere) Resultat nach einer Denk-Pause noch nachkommen kann.
+          var settle = lastMd.length < MIN_LEN ? SETTLE_MS * 2 : SETTLE_MS;
+          if (lastMd && !isRunning() && idle >= settle) {
+            finished = true;
+            clearInterval(iv);
+            setBadge('ready', 'Verbunden');
+            logRoster('finalize', lastMd);
+            extractThinking(cand, function (reasoning) {
+              var msg = { type: 'tf-response', id: id, result: lastMd };
+              if (reasoning) msg.reasoning = reasoning;
+              source.postMessage(msg, '*');
+            });
+            return;
+          }
+          if (idle >= NO_PROGRESS_MS || Date.now() - started >= HARD_MAX_MS) {
+            finished = true;
+            clearInterval(iv);
+            logRoster('timeout', lastMd);
+            setBadge(lastMd ? 'ready' : 'error', lastMd ? 'Verbunden' : 'Zeitüberschreitung');
+            source.postMessage({ type: 'tf-response', id: id,
+              result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
+          }
+        }, POLL_MS);
+      }, 200);
+    });
   }
 
   // ── Chat-Selbsttest (Start-Rundlauf + „Chat-Test"-Knopf) ─────────────────
@@ -504,7 +672,7 @@
   var selfTestRunning = false;
   function runSelfTest() {
     if (selfTestRunning) return;
-    var ta = q1(SEL.textarea);
+    var ta = q1v(SEL.textarea);
     if (!ta) { setBadge('error', 'Chat-Test: kein Eingabefeld'); return; }
     selfTestRunning = true;
     var a = 10 + Math.floor(Math.random() * 80);
@@ -518,7 +686,7 @@
       var started = Date.now(), lastMd = '', lastChange = Date.now(), done = false;
       var iv = setInterval(function () {
         if (done) return;
-        var cand = findAnswerMsg();
+        var cand = findAnswerMsg(frage);
         var md = cand ? contentOf(cand) : '';
         if (md && md !== frage && md !== lastMd) { lastMd = md; lastChange = Date.now(); }
         if (isRunning()) lastChange = Date.now();
@@ -557,16 +725,21 @@
   function resetChat() {
     var bar = document.getElementById('tf-bridge-bar');
     var allBtns = document.querySelectorAll('button');
-    // Strategie 1: Button mit Reset-Symbol.
+    // Strategie 1: Button mit Reset-Symbol. Unsichtbare Buttons (verstecktes
+    // Tab-Panel) ueberspringen — sonst reseten wir den falschen Chat.
     for (var i = 0; i < allBtns.length; i++) {
       if (bar && bar.contains(allBtns[i])) continue;
+      if (!isVisible(allBtns[i])) continue;
       var t = (allBtns[i].textContent || '').trim();
       if (t === '⟳' || t === '↻' || t === '🔄') { allBtns[i].click(); return true; }
     }
-    // Strategie 2: Button mit Reset-Text.
-    var texts = ['zurücksetzen', 'reset', 'clear', 'neu starten', 'neuer chat', 'new chat'];
+    // Strategie 2: Button mit Reset-Text. 'zuruecksetzen' (ue) zusaetzlich zur
+    // Umlaut-Form — der Button des Agentischer-Chat-Tabs heisst real
+    // „Chat zuruecksetzen" (ue-Schreibweise, matcht das ü-Muster NICHT).
+    var texts = ['zurücksetzen', 'zuruecksetzen', 'reset', 'clear', 'neu starten', 'neuer chat', 'new chat'];
     for (var k = 0; k < allBtns.length; k++) {
       if (bar && bar.contains(allBtns[k])) continue;
+      if (!isVisible(allBtns[k])) continue;
       var lt = (allBtns[k].textContent || '').toLowerCase();
       for (var j = 0; j < texts.length; j++) {
         if (lt.indexOf(texts[j]) !== -1) { allBtns[k].click(); return true; }
@@ -585,17 +758,24 @@
       return;
     }
     if (data.type === 'tf-reset') {
-      var found = false;
-      try { found = resetChat(); } catch (e) { found = false; }
-      setBadge(found ? 'ready' : 'working', found ? 'Chat zurückgesetzt' : 'Kein Reset-Button');
-      // Kurz auf den Streamlit-Rerun warten, dann bestätigen.
-      setTimeout(function () {
-        event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: found }, '*');
-      }, 500);
+      // Optionales `ziel` (Zweit-LLM): erst den passenden Tab aktivieren, dann
+      // den (sichtbaren) Reset-Button klicken.
+      ensureZiel(typeof data.ziel === 'string' ? data.ziel : null, function (zielErr) {
+        var found = false;
+        if (!zielErr) {
+          try { found = resetChat(); } catch (e) { found = false; }
+        }
+        setBadge(found ? 'ready' : 'working', found ? 'Chat zurückgesetzt' : 'Kein Reset-Button');
+        // Kurz auf den Streamlit-Rerun warten, dann bestätigen.
+        setTimeout(function () {
+          event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: found }, '*');
+        }, 500);
+      });
       return;
     }
     if (data.type === 'tf-request') {
-      runRequest(event.source, data.id, String(data.message || ''));
+      runRequest(event.source, data.id, String(data.message || ''),
+        typeof data.ziel === 'string' ? data.ziel : null);
       return;
     }
   });

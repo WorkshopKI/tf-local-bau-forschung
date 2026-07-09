@@ -1,5 +1,21 @@
 import type { GenerationStats } from '../generation-stats';
 import { useBridgeStatus } from '../bridge-status';
+import { createActivityDeadline } from './deadline';
+
+/** Ziel-Chat in der Streamlit-App (Zweit-LLM-Erprobung, v2.203):
+ *  'standard' = Tab „Chat" (klassisches AitisiGPT), 'agentisch' = Tab
+ *  „Agentischer Chat" (Qwen-Agent). Ohne Angabe: aktiver Tab (bisheriges
+ *  Verhalten; alte Bookmarklets ignorieren das Feld). */
+export type BridgeZiel = 'standard' | 'agentisch';
+
+/** Antwort-Timeouts (v2.203, aktivitätsbasiert statt starr):
+ *  - IDLE: feuert nur nach so viel Zeit OHNE Aktivität (tf-stream/tf-progress).
+ *    200 s = der alte Fix-Wert — ALTE Bookmarklets ohne tf-progress-Heartbeat
+ *    werden nicht strenger behandelt als bisher; neue melden alle ~10 s
+ *    Aktivität, solange der Lauf lebt → Idle-Expiry heißt „Tab tot".
+ *  - HARD: absoluter Deckel, 60 s über dem Bookmarklet-Hard-Cap (600 s). */
+const RESPONSE_IDLE_TIMEOUT_MS = 200_000;
+const RESPONSE_HARD_TIMEOUT_MS = 660_000;
 
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
@@ -21,6 +37,10 @@ export interface SubmitMessageOptions {
   responseFormat?: Record<string, unknown>;
   /** Siehe `ConversationOptions.signal`. */
   signal?: AbortSignal;
+  /** Nur Streamlit-Bridge: Ziel-Chat (Tab) in der KI-Oberfläche. DirectLLM
+   *  ignoriert die Option. Bewusst NUR hier (nicht in `ConversationOptions`) —
+   *  die produktive Zweit-LLM-Verdrahtung (Streaming/QS) ist ein späteres Paket. */
+  ziel?: BridgeZiel;
 }
 
 export interface StreamCallbacks {
@@ -65,8 +85,9 @@ export interface AITransport {
    *  Nur die Streamlit-Bridge implementiert das (klickt den „Neuer Chat"-Button
    *  via Bookmarklet); stateless-API-Transports (DirectLLM) brauchen es nicht.
    *  Best-effort — resolved `true`, wenn ein Reset-Button gefunden+geklickt
-   *  wurde, sonst `false` (auch bei Timeout / fehlendem Fenster). */
-  resetChat?(): Promise<boolean>;
+   *  wurde, sonst `false` (auch bei Timeout / fehlendem Fenster).
+   *  `ziel` (nur Streamlit): Reset im benannten Tab (Zweit-LLM-Erprobung). */
+  resetChat?(ziel?: BridgeZiel): Promise<boolean>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
   submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;
@@ -83,10 +104,14 @@ export class StreamlitBridgeTransport implements AITransport {
   name = 'Streamlit';
   displayName = 'Interne KI';
   private streamlitWindow: Window | null = null;
+  /** `cancel` beendet die Antwort-Deadline (Erfolgs-/Cleanup-Pfad); `touch`
+   *  (nur bei aktivitätsbasierter Deadline gesetzt) meldet Lauf-Aktivität
+   *  (tf-stream/tf-progress) und schiebt das Idle-Timeout. */
   private pending = new Map<string, {
     resolve: (value: string) => void;
     reject: (error: Error) => void;
-    timeout: ReturnType<typeof setTimeout>;
+    cancel: () => void;
+    touch?: () => void;
   }>();
   /** Aktive Streaming-Anfragen (streamConversation). Getrennt von `pending`,
    *  da hier inkrementell `onDelta` läuft und auf `StreamResult` aufgelöst wird. */
@@ -96,6 +121,7 @@ export class StreamlitBridgeTransport implements AITransport {
     onReasoningDelta?: (text: string) => void;
     resolve: (r: StreamResult) => void;
     cleanup: () => void;
+    touch?: () => void;
   }>();
 
   constructor(private streamlitUrl = 'https://gpt.vdivde-it.de/') {
@@ -108,6 +134,7 @@ export class StreamlitBridgeTransport implements AITransport {
       const data = event.data as Record<string, unknown>;
       const type = data?.type;
       if (type !== 'tf-pong' && type !== 'tf-response' && type !== 'tf-stream'
+        && type !== 'tf-progress'
         && type !== 'tf-bridge-ready' && type !== 'tf-app-ping' && type !== 'tf-reset-done') return;
 
       // Lebendes Fenster-Handle aus der eingehenden Nachricht übernehmen — das
@@ -129,20 +156,32 @@ export class StreamlitBridgeTransport implements AITransport {
       }
       if (type === 'tf-pong') {
         const p = this.pending.get('ping');
-        if (p) { clearTimeout(p.timeout); p.resolve('pong'); this.pending.delete('ping'); }
+        if (p) { p.cancel(); p.resolve('pong'); this.pending.delete('ping'); }
         return;
       }
       if (type === 'tf-reset-done' && typeof data.id === 'string') {
         const p = this.pending.get(data.id);
-        if (p) { clearTimeout(p.timeout); p.resolve(data.found ? 'true' : 'false'); this.pending.delete(data.id); }
+        if (p) { p.cancel(); p.resolve(data.found ? 'true' : 'false'); this.pending.delete(data.id); }
+        return;
+      }
+      if (type === 'tf-progress' && typeof data.id === 'string') {
+        // ~10-s-Heartbeat des Bookmarklets während eines Laufs (auch VOR dem
+        // ersten Token, wenn es noch keine tf-stream-Snapshots gibt) → das
+        // Idle-Timeout der zugehörigen Anfrage schieben.
+        this.pending.get(data.id)?.touch?.();
+        this.streams.get(data.id)?.touch?.();
         return;
       }
       if (type === 'tf-stream' && typeof data.id === 'string') {
         // Inkrementeller Voll-Snapshot des bisherigen Antwort-Markdowns →
         // Delta-Suffix emittieren (nur bei sauberem Append; Reformat ignoriert,
         // der finale `tf-response` korrigiert via StreamResult.content).
+        // Zählt zusätzlich als Aktivität für das Idle-Timeout — auch für
+        // Single-Shot-Anfragen (`pending`), die keine Deltas konsumieren.
+        this.pending.get(data.id)?.touch?.();
         const s = this.streams.get(data.id);
         if (s) {
+          s.touch?.();
           const content = String(data.content ?? '');
           if (content.startsWith(s.prev)) {
             const suffix = content.slice(s.prev.length);
@@ -164,7 +203,7 @@ export class StreamlitBridgeTransport implements AITransport {
           return;
         }
         const p = this.pending.get(data.id);
-        if (p) { clearTimeout(p.timeout); p.resolve(data.result as string); this.pending.delete(data.id); }
+        if (p) { p.cancel(); p.resolve(data.result as string); this.pending.delete(data.id); }
       }
       // tf-bridge-ready: nur das Handle übernehmen (oben bereits geschehen).
     });
@@ -217,7 +256,7 @@ export class StreamlitBridgeTransport implements AITransport {
       }
       return await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => { this.pending.delete('ping'); reject(new Error('Ping timeout')); }, 5000);
-        this.pending.set('ping', { resolve: () => resolve(true), reject, timeout });
+        this.pending.set('ping', { resolve: () => resolve(true), reject, cancel: () => clearTimeout(timeout) });
         this.streamlitWindow?.postMessage({ type: 'tf-ping' }, '*');
       });
     } catch {
@@ -239,45 +278,54 @@ export class StreamlitBridgeTransport implements AITransport {
     await this.ensureConnection();
     const id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return new Promise((resolve, reject) => {
-      // 200s — das Bookmarklet sammelt streamende Antworten bis ~180s (lange
-      // Generierung / Thinking / Last); 60s würde lange Antworten abschneiden.
-      // Timeout (kein Abort!) deutet auf einen toten/geschlossenen Tab → getrennt.
-      const timeout = setTimeout(() => {
-        this.pending.delete(id);
-        useBridgeStatus.getState().setConnected(false);
-        reject(new Error('Response timeout'));
-      }, 200000);
-      this.pending.set(id, { resolve, reject, timeout });
+      // Aktivitätsbasiert (v2.203): tf-stream/tf-progress schieben das
+      // Idle-Timeout — lange Läufe unter Server-Last (1–2 min+) laufen durch,
+      // solange der Lauf lebt. Idle-Expiry OHNE Aktivität (kein Abort!) deutet
+      // auf einen toten/geschlossenen Tab → getrennt.
+      const deadline = createActivityDeadline({
+        idleMs: RESPONSE_IDLE_TIMEOUT_MS,
+        hardMs: RESPONSE_HARD_TIMEOUT_MS,
+        onExpire: () => {
+          this.pending.delete(id);
+          useBridgeStatus.getState().setConnected(false);
+          reject(new Error('Response timeout'));
+        },
+      });
+      this.pending.set(id, { resolve, reject, cancel: deadline.cancel, touch: deadline.touch });
       // Abort-Listener: cleanup pending + reject. Der Streamlit-Backend-Run
       // laeuft serverseitig fertig, aber der Caller bekommt sofort den
       // AbortError und kann das UI freigeben.
       const onAbort = (): void => {
         const p = this.pending.get(id);
         if (!p) return;
-        clearTimeout(p.timeout);
+        p.cancel();
         this.pending.delete(id);
         reject(new DOMException('Aborted', 'AbortError'));
       };
       options?.signal?.addEventListener('abort', onAbort, { once: true });
-      this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');
+      this.streamlitWindow?.postMessage({
+        type: 'tf-request', id, message,
+        ...(options?.ziel ? { ziel: options.ziel } : {}),
+      }, '*');
     });
   }
 
   /** Setzt den Streamlit-Chat zurück (frischer Kontext): schickt `tf-reset`, das
    *  Bookmarklet klickt den „Neuer Chat"/„Zurücksetzen"-Button und antwortet mit
    *  `tf-reset-done {found}`. KEIN `window.open` (das würde das Bookmarklet
-   *  löschen) — ohne lebendes Bridge-Fenster sofort `false`. Timeout 6 s. */
-  async resetChat(): Promise<boolean> {
+   *  löschen) — ohne lebendes Bridge-Fenster sofort `false`. Timeout 15 s
+   *  (`ziel`-Routing braucht ggf. einen Tab-Wechsel + Eingabefeld-Wartezeit). */
+  async resetChat(ziel?: BridgeZiel): Promise<boolean> {
     if (!this.streamlitWindow || this.streamlitWindow.closed) return false;
     const id = `reset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return new Promise<boolean>((resolve) => {
-      const timeout = setTimeout(() => { this.pending.delete(id); resolve(false); }, 6000);
+      const timeout = setTimeout(() => { this.pending.delete(id); resolve(false); }, 15000);
       this.pending.set(id, {
         resolve: (v: string) => resolve(v === 'true'),
         reject: () => resolve(false),
-        timeout,
+        cancel: () => clearTimeout(timeout),
       });
-      this.streamlitWindow?.postMessage({ type: 'tf-reset', id }, '*');
+      this.streamlitWindow?.postMessage({ type: 'tf-reset', id, ...(ziel ? { ziel } : {}) }, '*');
     });
   }
 
@@ -302,15 +350,20 @@ export class StreamlitBridgeTransport implements AITransport {
     const id = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     return new Promise<StreamResult>((resolve) => {
-      // Safety-Cap über dem Bookmarklet-Hard-Cap (180s) — greift nur, wenn das
-      // Bookmarklet gar nicht antwortet (Tab zu): liefert den Partial.
-      const timeout = setTimeout(() => {
-        const s = this.streams.get(id);
-        if (!s) return;
-        s.cleanup();
-        this.streams.delete(id);
-        resolve({ content: s.prev, aborted: false });
-      }, 200000);
+      // Aktivitätsbasierter Safety-Cap (v2.203) über den Bookmarklet-Deadlines
+      // (NO_PROGRESS 150 s / hard 600 s) — Idle-Expiry greift nur, wenn das
+      // Bookmarklet gar nicht (mehr) antwortet (Tab zu): liefert den Partial.
+      const deadline = createActivityDeadline({
+        idleMs: RESPONSE_IDLE_TIMEOUT_MS,
+        hardMs: RESPONSE_HARD_TIMEOUT_MS,
+        onExpire: () => {
+          const s = this.streams.get(id);
+          if (!s) return;
+          s.cleanup();
+          this.streams.delete(id);
+          resolve({ content: s.prev, aborted: false });
+        },
+      });
 
       const onAbort = (): void => {
         const s = this.streams.get(id);
@@ -320,7 +373,7 @@ export class StreamlitBridgeTransport implements AITransport {
         resolve({ content: s.prev, aborted: true }); // kein throw (mirror DirectLLM)
       };
       const cleanup = (): void => {
-        clearTimeout(timeout);
+        deadline.cancel();
         options?.signal?.removeEventListener('abort', onAbort);
       };
 
@@ -330,6 +383,7 @@ export class StreamlitBridgeTransport implements AITransport {
         ...(callbacks.onReasoningDelta ? { onReasoningDelta: callbacks.onReasoningDelta } : {}),
         resolve,
         cleanup,
+        touch: deadline.touch,
       });
       options?.signal?.addEventListener('abort', onAbort, { once: true });
       this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');

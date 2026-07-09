@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.203 — 2026-07
+
+### Neu
+- **Zweites internes KI-Modell (Erprobung):** Die interne KI hat einen neuen Reiter „Agentischer Chat" mit einem anderen Modell. Die Verbindung kann jetzt gezielt einen der beiden Chats ansprechen — zunächst als Test-Funktion für Entwickler, später z. B. für Qualitätssicherung oder eine Zweitmeinung.
+
+### Verbesserungen
+- **Interne KI hält jetzt auch lange Antworten durch:** Wenn der KI-Server stark ausgelastet ist und eine Antwort mehrere Minuten dauert, wartet die App mit, solange die KI erkennbar arbeitet — statt vorzeitig mit „Zeitüberschreitung" abzubrechen.
+- Die kleine **Status-Leiste im KI-Tab** sitzt jetzt **unten rechts** (dort verdeckt sie nichts und wird nicht mehr von der KI-Oberfläche überlagert) und stellt sich selbst wieder her, wenn die KI-Seite sich umbaut.
+- Die Antwort-Erkennung übersteht jetzt auch Oberflächen-Änderungen der KI-Seite besser (zweites Erkennungs-Verfahren als Reserve).
+
+### Wichtig
+- **Bitte das Lesezeichen „Interne KI" einmal neu einrichten** (Einstellungen → KI-Assistent → Interne KI): das alte Lesezeichen kennt die Verbesserungen noch nicht.
+
 ## v2.200 — 2026-07
 
 ### Neu
