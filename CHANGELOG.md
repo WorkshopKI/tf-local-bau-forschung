@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.203.1 — Bridge: Tab-Panel-Scoping nach Prod-Dump-Kalibrierung (Juli 2026)
+
+PATCH — Kalibrierung des v2.203.0-Ziel-Routings anhand des Konsolen-Dumps vom echten AitisiGPT (Thomas): die Oberfläche hält **beide Chat-Panels dauerhaft gemountet** (bestätigt), Tabs sind echte `role="tab"`-Buttons mit `aria-selected` (Tab-Matching bestätigt), der agentische Reset-Button heißt real „🗑️ Chat zuruecksetzen" (ue-Variante bestätigt), „Login (setzt Chat zurück!)" matcht kein Reset-Muster (sicher). **Bookmarklet-Änderung ⇒ Lesezeichen erneut einmal neu installieren** (`BRIDGE_REV 2026-07-09-robust2`).
+
+- **Panel-Scoping** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js), `panelScopeOf` + `qav(list, root)`): `runRequest`/`runSelfTest` binden das Nachrichten-Roster ans Tab-Panel der Ziel-textarea — ein manueller Tab-Wechsel **mitten im Lauf** kippt den Scrape nicht mehr aufs andere Panel (unsichtbares Panel → qav-Fallback liefert die Panel-eigenen Nachrichten).
+- **Submit-Fallback**: ohne gefundenen Chat-Input-Container kein dokumentweiter Erst-Treffer mehr (wäre in DOM-Ordnung der ggf. versteckte Standard-Button), sondern direkt der sichtbarkeits-bevorzugte `q1v`-Pfad.
+- Verifiziert per `tsc --build` + `npx vitest run` (grün; Drift-Tests answer-selection/echo-match unverändert grün) + `build:dev`/`build:pl`. Agentisch-Rundlauf am echten System durch Thomas weiterhin offen.
+
 ### v2.203.0 — Streamlit-Bridge-Härtung (Leiste, lastfeste Ende-Erkennung) + Zweit-LLM-Erprobung „Agentischer Chat" (Juli 2026)
 
 MINOR — Härtung der Streamlit-Bridge gegen die zwei realen Vorfälle (Leiste unsichtbar nach UI-Umbau; „Ende der Response nicht erkannt" bei 1–2-min-Antworten unter Server-Last) + Protokoll-Naht für das Zweit-LLM im neuen AitisiGPT-Tab „Agentischer Chat" (Qwen). **Bookmarklet-Änderung ⇒ Lesezeichen „Interne KI" einmal neu installieren** (`BRIDGE_REV 2026-07-09-robust`; Prüfung: Badge-Tooltip / `window.__teamflowBridgeRev`). Detail: [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md).

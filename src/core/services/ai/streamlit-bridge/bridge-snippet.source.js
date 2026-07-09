@@ -20,7 +20,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-09-robust';
+  var BRIDGE_REV = '2026-07-09-robust2';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -90,15 +90,28 @@
     }
     return fallback;
   }
-  function qav(list) {
+  // Optionales `root` scoped die Suche (z. B. aufs Tab-Panel des Ziel-Chats) —
+  // ohne root wie bisher dokumentweit.
+  function qav(list, root) {
+    var r = root || document;
     for (var i = 0; i < list.length; i++) {
-      var els = document.querySelectorAll(list[i]);
+      var els = r.querySelectorAll(list[i]);
       if (!els.length) continue;
       var vis = [];
       for (var j = 0; j < els.length; j++) { if (isVisible(els[j])) vis.push(els[j]); }
       return vis.length ? vis : Array.prototype.slice.call(els);
     }
     return [];
+  }
+  // Tab-Panel-Scope einer textarea (Prod-Dump 2026-07-09: BEIDE Chat-Panels
+  // bleiben gemountet). Nachrichten-Queries werden darauf gescoped, damit der
+  // Scrape auch beim manuellen Tab-Wechsel MITTEN im Lauf am richtigen Chat
+  // bleibt: Panel unsichtbar → qav-Sichtbarkeits-Fallback liefert trotzdem die
+  // Panel-EIGENEN Nachrichten, nie die des anderen Chats. Kein Panel gefunden
+  // → document (bisheriges Verhalten).
+  function panelScopeOf(ta) {
+    if (!ta || !ta.closest) return document;
+    return ta.closest('[data-testid="stTabPanel"]') || ta.closest('[role="tabpanel"]') || document;
   }
   function isUser(m) {
     return !!m.querySelector('img[alt*="user"]');
@@ -127,10 +140,14 @@
   function submit(ta) {
     // Submit-Button zuerst im EIGENEN Chat-Input-Container der textarea suchen —
     // bei zwei gemounteten Chat-Panels (Tabs) traefe eine globale Suche sonst den
-    // Button des falschen Panels. Global-sichtbar nur als Fallback.
-    var scope = (ta.closest && (ta.closest('[data-testid="stChatInput"]') || ta.closest('.stChatInput'))) || document;
+    // Button des falschen Panels. OHNE Container KEIN dokumentweiter Erst-Treffer
+    // (waere in DOM-Ordnung der ggf. versteckte Standard-Button), sondern direkt
+    // der sichtbarkeits-bevorzugte q1v-Fallback.
+    var scope = (ta.closest && (ta.closest('[data-testid="stChatInput"]') || ta.closest('.stChatInput'))) || null;
     var b = null;
-    for (var i = 0; i < SEL.submit.length && !b; i++) b = scope.querySelector(SEL.submit[i]);
+    if (scope) {
+      for (var i = 0; i < SEL.submit.length && !b; i++) b = scope.querySelector(SEL.submit[i]);
+    }
     if (!b) b = q1v(SEL.submit);
     if (b) { b.click(); return; }
     // st.chat_input sendet auch via Enter.
@@ -491,8 +508,8 @@
   // Echo ueber den gesendeten Text selbst (isEchoText) und waehlt erneut.
   // Bewusst NICHT inhalts-primaer: eine Antwort, die mit einem Prompt-Zitat
   // beginnt, wuerde sonst faelschlich zum Anker.
-  function findAnswerMsg(message) {
-    var msgs = qav(SEL.msg), flags = [], k;
+  function findAnswerMsg(message, root) {
+    var msgs = qav(SEL.msg, root), flags = [], k;
     for (k = 0; k < msgs.length; k++) flags.push(isUser(msgs[k]));
     var idx = selectAnswerIndex(flags);
     if (idx < 0 && message) {
@@ -566,6 +583,8 @@
         source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
         return;
       }
+      // Nachrichten-Roster ans Tab-Panel der Ziel-textarea binden (s. panelScopeOf).
+      var msgScope = panelScopeOf(ta);
       setValue(ta, message);
 
       setTimeout(function () {
@@ -599,7 +618,7 @@
         // DOM-Struktur in der Konsole (F12), statt blind zu patchen.
         function logRoster(tag, chosen) {
           try {
-            var dbgMsgs = qav(SEL.msg), roster = [];
+            var dbgMsgs = qav(SEL.msg, msgScope), roster = [];
             for (var dk = 0; dk < dbgMsgs.length; dk++) {
               var fl = isUser(dbgMsgs[dk]) ? 'U' : 'A';
               if (isEchoText(dbgMsgs[dk].textContent || '', message)) fl += '~E';
@@ -619,7 +638,7 @@
           if (tick % PROGRESS_EVERY_TICKS === 0) {
             source.postMessage({ type: 'tf-progress', id: id }, '*');
           }
-          var cand = findAnswerMsg(message);
+          var cand = findAnswerMsg(message, msgScope);
           var md = cand ? contentOf(cand) : '';
           if (md && md !== message && md !== lastMd) {
             lastMd = md;
@@ -674,6 +693,7 @@
     if (selfTestRunning) return;
     var ta = q1v(SEL.textarea);
     if (!ta) { setBadge('error', 'Chat-Test: kein Eingabefeld'); return; }
+    var msgScope = panelScopeOf(ta);
     selfTestRunning = true;
     var a = 10 + Math.floor(Math.random() * 80);
     var b = 10 + Math.floor(Math.random() * 80);
@@ -686,7 +706,7 @@
       var started = Date.now(), lastMd = '', lastChange = Date.now(), done = false;
       var iv = setInterval(function () {
         if (done) return;
-        var cand = findAnswerMsg(frage);
+        var cand = findAnswerMsg(frage, msgScope);
         var md = cand ? contentOf(cand) : '';
         if (md && md !== frage && md !== lastMd) { lastMd = md; lastChange = Date.now(); }
         if (isRunning()) lastChange = Date.now();
