@@ -192,6 +192,45 @@ export async function submitFeedback(
   return full;
 }
 
+/**
+ * Schreibt ein bereits abgeschicktes, noch NICHT eingesammeltes Outbox-Item neu
+ * (v2.207.1). Genutzt vom geführten „Feedback verbessern"-Ablauf auf read-only
+ * prod-Clients: dort landet das Roh-Feedback in der Outbox, die verbesserte
+ * Fassung muss die Outbox-Datei überschreiben, sonst sammelt der Kurator den
+ * Roh-Text ein (Parität zum Shared-Write-Pfad `updateFeedback`).
+ *
+ * Idempotent + sicher: rewritet **nur**, solange das Item noch `status:'pending'`
+ * ist (nicht eingesammelt). Ist es bereits `approved`/`rejected` oder ganz weg
+ * (Kurator hat schon eingesammelt + gelöscht), passiert NICHTS (`false`) — kein
+ * Wieder-Auferstehen eines geschlossenen Eintrags. `submitted_at`/`attachments`/
+ * `context`/`status` bleiben unverändert (gleicher Dateiname → Overwrite). Best-
+ * effort: wirft nicht, gibt bei jedem IO-Fehler `false` zurück.
+ */
+export async function updateOutboxFeedback(
+  persHandle: FileSystemDirectoryHandle,
+  id: string,
+  patch: Partial<Pick<
+    FeedbackOutboxItem,
+    'text' | 'title' | 'original_text' | 'structured' | 'category' | 'llm_summary' | 'llm_classification'
+  >>,
+): Promise<boolean> {
+  try {
+    const items = await listOutboxItems(persHandle);
+    const target = items.find(i => i.id === id);
+    if (!target || target.status !== 'pending') return false;
+    const updated: FeedbackOutboxItem = { ...target, ...patch };
+    await atomicWrite(persHandle, outboxItemPath(updated), JSON.stringify(updated, null, 2));
+    // meine-feedbacks.json mitziehen (Kopie der eigenen Feedbacks)
+    const mine = await loadMyFeedback(persHandle);
+    const next = mine.map(m => (m.id === id ? updated : m));
+    await atomicWrite(persHandle, PERSOENLICH_MEINE_FEEDBACKS_FILE, JSON.stringify(next, null, 2));
+    return true;
+  } catch (err) {
+    console.warn('[personal-storage] updateOutboxFeedback failed', err);
+    return false;
+  }
+}
+
 export async function loadMyFeedback(
   persHandle: FileSystemDirectoryHandle,
 ): Promise<FeedbackOutboxItem[]> {

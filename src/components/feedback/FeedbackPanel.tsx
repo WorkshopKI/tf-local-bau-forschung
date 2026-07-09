@@ -67,6 +67,11 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
   const [submitting, setSubmitting] = useState<'speichern' | 'verbessern' | null>(null);
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
   const [improvePayload, setImprovePayload] = useState<FeedbackImprovePayload | null>(null);
+  // Read-only prod-Client: der persoenliche Handle, in dessen Outbox das Roh-Feedback
+  // landete (v2.207.1). Nicht-null nur ohne Daten-Share-Schreibrecht → der Verbessern-
+  // Ablauf schreibt die polierte Fassung in die Outbox zurück (sonst sammelt der Kurator
+  // den Roh-Text ein). Bei Schreibrecht (Kurator/PL/dev) bleibt es null (Shared-Write greift).
+  const [outboxHandle, setOutboxHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
   const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -119,6 +124,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
       setShowContext(false);
       setSubmittedItem(null);
       setImprovePayload(null);
+      setOutboxHandle(null);
       setContext(captureFeedbackContext(activeId, activePluginName));
     }
   }, [open, activeId, activePluginName]);
@@ -162,6 +168,9 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
         // Geführter Verbessern-Ablauf: Roh-Feedback ist bereits gespeichert (nie
         // verlieren), jetzt in den interaktiven Wizard (Rückfragen → generieren →
         // editieren/speichern). Die KI-Calls laufen intern-only in FeedbackVerbessernFlow.
+        // Ohne Schreibrecht landete das Roh-Feedback in der pers. Outbox → der Handle
+        // wird durchgereicht, damit die Verbesserung sie überschreibt (Kurator-Parität).
+        setOutboxHandle(canWriteShared ? null : persHandle);
         setImprovePayload({ text: payload.text, structured: payload.structured, category: payload.category });
         setView('verbessern');
       } else {
@@ -259,6 +268,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
             payload={improvePayload}
             context={{ ...context, screenRef: areaRef || undefined }}
             pluginId={activeId}
+            outboxHandle={outboxHandle}
             onClose={onClose}
           />
         )}

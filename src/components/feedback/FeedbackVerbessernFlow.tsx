@@ -22,6 +22,7 @@ import {
   type FeedbackQA,
   type GuidedImproveResult,
 } from '@/core/services/feedback';
+import { updateOutboxFeedback } from '@/core/services/personal-storage';
 import type { FeedbackContext, LLMClassification } from '@/core/types/feedback';
 import { FeedbackImproveEditor, type FeedbackImproveEdits } from './FeedbackImproveEditor';
 
@@ -32,6 +33,13 @@ interface Props {
   context: FeedbackContext;
   /** Aktives Plugin (für das Bildschirmseiten-Kontext-Doc im Prompt). */
   pluginId: string;
+  /**
+   * Read-only prod-Client (v2.207.1): der pers. Handle, in dessen Outbox das
+   * Roh-Feedback landete. Nicht-null nur ohne Daten-Share-Schreibrecht → die
+   * verbesserte Fassung überschreibt die Outbox-Datei, sonst sammelt der Kurator
+   * den Roh-Text ein. Bei Schreibrecht (Kurator/PL/dev) `null` (Shared-Write greift).
+   */
+  outboxHandle: FileSystemDirectoryHandle | null;
   onClose: () => void;
 }
 
@@ -42,7 +50,7 @@ type Step =
   | { k: 'bearbeiten'; result: GuidedImproveResult }
   | { k: 'fehler' };
 
-export function FeedbackVerbessernFlow({ feedbackId, payload, context, pluginId, onClose }: Props): React.ReactElement {
+export function FeedbackVerbessernFlow({ feedbackId, payload, context, pluginId, outboxHandle, onClose }: Props): React.ReactElement {
   const bridge = useAIBridge();
   const storage = useStorage();
   const [step, setStep] = useState<Step>({ k: 'fragen-laeuft' });
@@ -92,12 +100,26 @@ export function FeedbackVerbessernFlow({ feedbackId, payload, context, pluginId,
       akzeptanzkriterien: edits.akzeptanzkriterien.length > 0 ? edits.akzeptanzkriterien : undefined,
       verbessert: true,
     };
+    const verbesserterText = edits.verbesserterText.trim() || payload.text;
     await updateFeedback(storage, feedbackId, {
-      text: edits.verbesserterText.trim() || payload.text,
+      text: verbesserterText,
       original_text: payload.text,
       llm_summary: classification.summary,
       llm_classification: classification,
     });
+    // Read-only prod-Client: das Roh-Feedback liegt in der pers. Outbox — die polierte
+    // Fassung dort überschreiben, sonst sammelt der Kurator den Roh-Text ein
+    // (updateFeedback schreibt bei fehlendem Schreibrecht nur lokal + no-op ins Shared).
+    // Best-effort: `updateOutboxFeedback` wirft nie; ein fehlgeschlagener Rewrite
+    // verliert die lokal gespeicherte Verbesserung nicht.
+    if (outboxHandle) {
+      await updateOutboxFeedback(outboxHandle, feedbackId, {
+        text: verbesserterText,
+        original_text: payload.text,
+        llm_summary: classification.summary,
+        llm_classification: classification,
+      });
+    }
     onClose();
   });
 

@@ -67,6 +67,11 @@ function toFeedbackItem(ob: FeedbackOutboxItem): FeedbackItem {
     structured: ob.structured,
     attachments: ob.attachments,
     text: ob.text,
+    // KI-Verbesserung (v2.207.1): read-only prod-Enduser haben die polierte Fassung
+    // in `text`; Roh-Text + Klassifikation durchreichen (Parität zum Shared-Write-Pfad).
+    ...(ob.original_text ? { original_text: ob.original_text } : {}),
+    ...(ob.llm_summary ? { llm_summary: ob.llm_summary } : {}),
+    ...(ob.llm_classification ? { llm_classification: ob.llm_classification } : {}),
     context: (ob.context as FeedbackContext | undefined) ?? fallbackContext(ob),
     kurator_status: 'neu',
   };

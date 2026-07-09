@@ -25,6 +25,9 @@
 - Im Modul **Auslastung** heißt der letzte Tab jetzt **„Verwaltung"** (vorher „Einstellungen" — das ließ sich leicht mit deinen persönlichen App-Einstellungen verwechseln).
 - Der Knopf **„Passwörter für alle aktiven MAs"** sitzt jetzt in der **Verwaltung** direkt bei der zugehörigen E-Mail-Vorlage — Passwörter erzeugen/versenden und die Vorlage anpassen liegen damit an einem Ort.
 
+### Bugfixes
+- Wenn du dein Feedback **per KI verbessern** lässt, kommt jetzt auch wirklich die verbesserte Fassung beim Team an — vorher wurde in manchen Fällen noch dein ursprünglicher Text übermittelt.
+
 ## v2.206 — 2026-07
 
 ### Verbesserungen

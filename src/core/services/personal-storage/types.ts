@@ -11,7 +11,7 @@
  */
 
 import type { UserProfile } from '@/core/types/config';
-import type { FeedbackAttachment } from '@/core/types/feedback';
+import type { FeedbackAttachment, LLMClassification } from '@/core/types/feedback';
 
 export interface FilterPreset {
   id: string;
@@ -57,6 +57,16 @@ export interface FeedbackOutboxItem {
   /** Strukturierte Formular-Felder (key → wert) aus dem Typ-Formular. Wird beim
    *  Kurator-Einsammeln ins FeedbackItem.structured übernommen (Quelle für promptGenerator). */
   structured?: Record<string, string>;
+  /** Roh-Feedback vor der KI-Verbesserung (v2.207.1). Gesetzt, wenn der geführte
+   *  „verbessern"-Ablauf `text` durch die polierte Fassung ersetzt hat; beim
+   *  Kurator-Einsammeln → FeedbackItem.original_text. Parität zum Shared-Write-Pfad
+   *  (updateFeedback) für read-only prod-Enduser. */
+  original_text?: string;
+  /** KI-Kurzfassung der Verbesserung (v2.207.1) → FeedbackItem.llm_summary. */
+  llm_summary?: string;
+  /** KI-Klassifikation der Verbesserung (Anforderung Ist/Soll + Kriterien, v2.207.1)
+   *  → FeedbackItem.llm_classification. */
+  llm_classification?: LLMClassification;
   /** Beigefügte Screenshots (Referenz + Caption). Die Bilddateien liegen neben
    *  der JSON in der Outbox und werden beim Einsammeln ins Shared kopiert. */
   attachments?: FeedbackAttachment[];

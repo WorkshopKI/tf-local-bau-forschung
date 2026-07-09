@@ -121,6 +121,28 @@ describe('autoCollectFeedbackOutboxes', () => {
     expect(writeOutboxStatus).not.toHaveBeenCalled();
   });
 
+  it('reicht die KI-Verbesserung durch (original_text + llm_summary + llm_classification)', async () => {
+    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(listOutboxItems).mockResolvedValue([
+      {
+        id: 'V', kuerzel: 'AAA', submitted_at: '2026-07-09T10:00:00.000Z',
+        text: 'Die Suche sollte Tippfehler tolerieren.', status: 'pending',
+        original_text: 'suche kaputt bei vertipper',
+        llm_summary: 'Fuzzy-Suche gewünscht',
+        llm_classification: { category: 'feature', summary: 'Fuzzy-Suche gewünscht', anforderung: 'Ist: exakt. Soll: fuzzy.', verbessert: true },
+      },
+    ] as never);
+
+    await autoCollectFeedbackOutboxes(storage, rootWithOneUser(), 'KUR');
+
+    const written = vi.mocked(writeSharedFile).mock.calls[0]![1];
+    const v = written.find(i => i.id === 'V')!;
+    expect(v.text).toBe('Die Suche sollte Tippfehler tolerieren.');
+    expect(v.original_text).toBe('suche kaputt bei vertipper');
+    expect(v.llm_summary).toBe('Fuzzy-Suche gewünscht');
+    expect(v.llm_classification?.anforderung).toBe('Ist: exakt. Soll: fuzzy.');
+  });
+
   it('loescht NICHT, wenn der Shared-Write fehlschlaegt (approved-Fallback)', async () => {
     vi.mocked(readSharedFile).mockResolvedValue(null);
     vi.mocked(writeSharedFile).mockResolvedValue(false);
