@@ -21,7 +21,7 @@
  * Datenschutz: zurückgegeben wird ausschließlich die eigene Passung, nie andere
  * MAs oder deren Rang.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getAntrag } from '@/core/services/csv/idb-csv';
@@ -31,8 +31,15 @@ import { runMatchingWithContext } from '@/plugins/auslastung/services/matching';
 import type { MaQuartalsAuslastung } from '@/plugins/auslastung/services/kapazitaet';
 import type { VerbundEintrag } from './neueAntraegeVerbund';
 
-export interface WeitereErgebnis {
-  verbund: VerbundEintrag;
+/**
+ * Ein Ranking-Eintrag: verbundId + eigene Passung — bewusst NUR die IDs, nicht
+ * das ganze `VerbundEintrag`-Objekt. Das Ranking ist ein stabiler Schnappschuss
+ * der letzten Suche; die AKTUELLE Verbund-Sicht (offen/vorgemerkt) löst der
+ * Aufrufer beim Rendern frisch auf. So spiegelt ein „Kann ich übernehmen"-Klick
+ * sofort auf die Zeile, ohne das Ranking zu verwerfen.
+ */
+export interface WeitereRanking {
+  verbundId: string;
   /** Eigene fachliche Passung (kompetenzScore 0..1) für diesen Antrag. */
   passung: number;
 }
@@ -40,8 +47,8 @@ export interface WeitereErgebnis {
 export interface UseWeitereAntraege {
   /** 'idle' = noch nicht gesucht, 'loading' = Engine läuft, 'ready' = Ergebnis da. */
   status: 'idle' | 'loading' | 'ready';
-  /** Nach Passung absteigend sortierte Treffer (leer bis `suchen()` lief). */
-  ergebnisse: WeitereErgebnis[];
+  /** Nach Passung absteigend sortiertes Ranking (leer bis `suchen()` lief). */
+  ranking: readonly WeitereRanking[];
   /** Startet die Suche (idempotent während sie läuft). */
   suchen: () => void;
   error: string | null;
@@ -49,6 +56,9 @@ export interface UseWeitereAntraege {
 
 /** Obergrenze der pro Suche gescorten Verbünde — Engine-Läufe sind teuer. */
 const MAX_KANDIDATEN = 50;
+
+/** Stabile leere Referenz — vermeidet Render-Churn, wenn noch nicht gesucht wurde. */
+const EMPTY_RANKING: readonly WeitereRanking[] = [];
 
 export function useWeitereAntraege(input: {
   kandidaten: readonly VerbundEintrag[];
@@ -62,22 +72,29 @@ export function useWeitereAntraege(input: {
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const cache = useAntraegeCache();
 
-  const [ergebnisse, setErgebnisse] = useState<WeitereErgebnis[] | null>(null);
+  const [ranking, setRanking] = useState<WeitereRanking[] | null>(null);
 
-  // Signatur der Kandidatenmenge: ändert sie sich (Daten-Refresh), verwerfen wir
-  // ein evtl. altes Ergebnis — „Passung" soll nie zu veralteten Anträgen gehören.
-  const sig = useMemo(() => kandidaten.map(k => k.verbundId).join('|'), [kandidaten]);
-  const prevSig = useRef(sig);
+  // Ranking NUR bei echtem Daten-Refresh verwerfen — also wenn NEUE Kandidaten
+  // auftauchen (dann könnte „Passung" zu veralteten Anträgen gehören). Ein reines
+  // SCHRUMPFEN der Menge (der User hat gerade einen Antrag vorgemerkt → er fällt
+  // aus `kandidaten`) darf das Ranking NICHT verwerfen — sonst klappte der Block
+  // bei jedem „Kann ich übernehmen" auf idle zurück. `seen` wächst deshalb nur;
+  // Vormerken/Rückgängig fügen keine neuen IDs hinzu und lösen keinen Reset aus.
+  const seen = useRef<Set<string>>(new Set(kandidaten.map(k => k.verbundId)));
   useEffect(() => {
-    if (prevSig.current !== sig) {
-      prevSig.current = sig;
-      setErgebnisse(null);
+    let neu = false;
+    for (const k of kandidaten) {
+      if (!seen.current.has(k.verbundId)) {
+        seen.current.add(k.verbundId);
+        neu = true;
+      }
     }
-  }, [sig]);
+    if (neu) setRanking(null);
+  }, [kandidaten]);
 
   const action = useAsyncAction(async () => {
     const capped = kandidaten.slice(0, MAX_KANDIDATEN);
-    const out: WeitereErgebnis[] = [];
+    const out: WeitereRanking[] = [];
     for (const v of capped) {
       // Volle Projektbeschreibung per Point-Read (Slim-Cache hält sie nicht) —
       // BM25-Query-Text braucht sie. N Point-Reads in einer Async-Action sind ok.
@@ -107,23 +124,23 @@ export function useWeitereAntraege(input: {
       // Kein Treffer = Engine schließt uns aus (Onboarding/Stunden/abgemeldet) →
       // nicht anbieten.
       if (!mine) continue;
-      out.push({ verbund: v, passung: mine.kompetenzScore });
+      out.push({ verbundId: v.verbundId, passung: mine.kompetenzScore });
       // An den Event-Loop yielden, damit der Spinner flüssig bleibt.
       await new Promise<void>(r => setTimeout(r, 0));
     }
     out.sort((a, b) => b.passung - a.passung);
-    setErgebnisse(out);
+    setRanking(out);
   });
 
   const status: UseWeitereAntraege['status'] = action.busy
     ? 'loading'
-    : ergebnisse !== null
+    : ranking !== null
       ? 'ready'
       : 'idle';
 
   return {
     status,
-    ergebnisse: ergebnisse ?? [],
+    ranking: ranking ?? EMPTY_RANKING,
     suchen: () => void action.run(),
     error: action.error,
   };

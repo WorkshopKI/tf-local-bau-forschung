@@ -41,6 +41,7 @@ import {
   buildOffeneEintraege,
   groupEintraegeByVerbund,
   type OffenerAntrag,
+  type VerbundEintrag,
 } from './neueAntraegeVerbund';
 import { NeueAntraegeVerbundRow } from './NeueAntraegeVerbundRow';
 import { useWeitereAntraege } from './useWeitereAntraege';
@@ -190,14 +191,43 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
     [weitereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen, retractedSet],
   );
   // Tier-1-Verbünde ausschließen (ein Verbund mit gemischten TV-Kategorien darf
-  // nicht doppelt erscheinen); nur offene Kandidaten scoren.
+  // nicht doppelt erscheinen). `weitereAlle` behält vorgemerkte Neben-Verbünde
+  // bewusst (Anzeige als „Vorgemerkt/Rückgängig"); gescort werden nur die offenen.
   const tier1Ids = useMemo(() => new Set(verbundEintraege.map(v => v.verbundId)), [verbundEintraege]);
-  const weitereKandidaten = useMemo(
-    () => weitereVerbuende.filter(v => !v.claimed && !tier1Ids.has(v.verbundId)),
+  const weitereAlle = useMemo(
+    () => weitereVerbuende.filter(v => !tier1Ids.has(v.verbundId)),
     [weitereVerbuende, tier1Ids],
+  );
+  const weitereById = useMemo(() => {
+    const m = new Map<string, VerbundEintrag>();
+    for (const v of weitereAlle) m.set(v.verbundId, v);
+    return m;
+  }, [weitereAlle]);
+  // Nur offene Neben-Verbünde werden gescort/angeboten (vorgemerkte nicht mehr).
+  const weitereKandidaten = useMemo(
+    () => weitereAlle.filter(v => !v.claimed),
+    [weitereAlle],
   );
 
   const weitere = useWeitereAntraege({ kandidaten: weitereKandidaten, myAnonId, auslastungByAnon });
+
+  // Anzeige-Zeilen: das (stabile) Ranking der letzten Suche gegen die AKTUELLE
+  // Verbund-Sicht joinen. Ein „Kann ich übernehmen"-Klick lässt den Verbund aus
+  // `weitereKandidaten` fallen, aber NICHT aus `weitereById` — die Zeile flippt
+  // in-place auf „Vorgemerkt", statt das Ranking zu verwerfen und zuzuklappen.
+  // Verbünde, die es nach einem Daten-Refresh nicht mehr gibt, fallen still raus.
+  const weitereRows = useMemo(() => {
+    const rows: { verbund: VerbundEintrag; passung: number }[] = [];
+    for (const r of weitere.ranking) {
+      const v = weitereById.get(r.verbundId);
+      if (v) rows.push({ verbund: v, passung: r.passung });
+    }
+    return rows;
+  }, [weitere.ranking, weitereById]);
+
+  // Block sichtbar, solange es etwas zu suchen ODER schon ein Ergebnis zu zeigen
+  // gibt (auch reine „vorgemerkt"-Zeilen nach dem letzten Claim).
+  const hatWeitereBlock = weitereKandidaten.length > 0 || weitereRows.length > 0;
 
   // Lokale Wünsche, die noch nicht in auslastung.json (Pending) stehen, in die
   // Pending-Anzeige einrechnen — sonst sieht der prod-User nach dem Klick keine
@@ -245,10 +275,11 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
       </div>
     );
   }
-  // Nichts in der Hauptkategorie offen/vorgemerkt UND keine Neben-Kandidaten →
-  // Sektion ausblenden. Neben-Kandidaten allein halten sie sichtbar, damit der
-  // User „gerade nichts 100%-Passendes frei" per Suche überbrücken kann.
-  if (eintraege.length === 0 && weitereKandidaten.length === 0) return null;
+  // Nichts in der Hauptkategorie offen/vorgemerkt UND kein Neben-Block →
+  // Sektion ausblenden. Neben-Kandidaten (oder bereits gezeigte Ergebnisse)
+  // halten sie sichtbar, damit der User „gerade nichts 100%-Passendes frei" per
+  // Suche überbrücken kann.
+  if (eintraege.length === 0 && !hatWeitereBlock) return null;
 
   const visible = offene.slice(0, visibleCount);
   const hasMore = offene.length > visibleCount;
@@ -319,9 +350,9 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
         </div>
       )}
       {/* Tier 2 „Weitere Anträge" — abgesetzter Block, on-demand engine-gescort. */}
-      {weitereKandidaten.length > 0 && (
+      {hatWeitereBlock && (
         <div className="mt-4 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          {weitere.status === 'idle' && (
+          {weitere.status === 'idle' && weitereKandidaten.length > 0 && (
             <button
               type="button"
               onClick={() => weitere.suchen()}
@@ -337,7 +368,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
             </div>
           )}
           {weitere.status === 'ready' && (
-            weitere.ergebnisse.length === 0 ? (
+            weitereRows.length === 0 ? (
               <p className="text-[12px] text-[var(--tf-text-tertiary)]">
                 Keine weiteren passenden Anträge gefunden.
               </p>
@@ -347,7 +378,7 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
                   Weitere Anträge · niedrigere Passung
                 </div>
                 <div className="flex flex-col gap-2">
-                  {weitere.ergebnisse.slice(0, weitereVisibleCount).map(e => (
+                  {weitereRows.slice(0, weitereVisibleCount).map(e => (
                     <NeueAntraegeVerbundRow
                       key={e.verbund.verbundId}
                       verbund={e.verbund}
@@ -358,16 +389,16 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
                     />
                   ))}
                 </div>
-                {weitere.ergebnisse.length > weitereVisibleCount && (
+                {weitereRows.length > weitereVisibleCount && (
                   <div className="mt-2 flex items-center justify-between">
                     <button
-                      onClick={() => setWeitereVisibleCount(c => Math.min(weitere.ergebnisse.length, c + 10))}
+                      onClick={() => setWeitereVisibleCount(c => Math.min(weitereRows.length, c + 10))}
                       className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
                     >
-                      +{Math.min(10, weitere.ergebnisse.length - weitereVisibleCount)} mehr anzeigen
+                      +{Math.min(10, weitereRows.length - weitereVisibleCount)} mehr anzeigen
                     </button>
                     <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-                      {Math.min(weitereVisibleCount, weitere.ergebnisse.length)} von {weitere.ergebnisse.length}
+                      {Math.min(weitereVisibleCount, weitereRows.length)} von {weitereRows.length}
                     </span>
                   </div>
                 )}

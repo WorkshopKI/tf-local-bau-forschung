@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.209.1 — Fix: „Weitere Anträge" klappte bei jedem „Kann ich übernehmen" zu (Juli 2026)
+
+PATCH — In der Home-Sektion „Neue Anträge für dich" ([NeueAntraegeFuerDich.tsx](src/plugins/home/NeueAntraegeFuerDich.tsx)) klappte der Tier-2-Block „Weitere Anträge · niedrigere Passung" nach **jedem** Klick auf „Kann ich übernehmen" komplett auf den Such-Button zurück — der User musste die Suche jedes Mal neu starten.
+
+- **Ursache**: Ein Claim wächst optimistisch in `claimedSet` → der vorgemerkte Verbund fällt aus `weitereKandidaten` → die Kandidaten-Signatur in [useWeitereAntraege.ts](src/plugins/home/useWeitereAntraege.ts) änderte sich → der „bei Daten-Refresh verwerfen"-Effekt setzte das Ergebnis auf `null` → `status` zurück auf `idle`.
+- **Fix**: Das Ranking wird jetzt nur noch bei **echtem** Daten-Refresh verworfen (wenn NEUE Kandidaten-IDs auftauchen — `seen`-Ref wächst nur), nicht mehr beim reinen Schrumpfen durch einen Claim. Der Hook liefert statt voller Verbund-Objekte ein stabiles `ranking` (verbundId + Passung); die Anzeige-Zeilen joinen es beim Rendern gegen die **aktuelle** Verbund-Sicht ([`weitereRows`]). Ein Claim lässt die Zeile damit in-place auf „Vorgemerkt / Rückgängig" flippen (konsistent mit Tier 1), statt das Ergebnis wegzuwerfen. Die Sektion bleibt außerdem sichtbar, solange es Ergebnisse zu zeigen gibt (auch nach dem Claim des letzten Kandidaten).
+- Verifiziert per `tsc --noEmit` (grün) + `npx vitest run src/plugins/home src/__tests__/codebase-conventions.test.ts` (Home 4/4 + Conventions grün; einziger roter Punkt = paralleler Feedback-Board-Redesign, nicht Teil dieses Changes) + `build:dev`/`build:pl`.
+
 ### v2.209.0 — Home „Neue Anträge für dich": mehr anzeigen + weitere (nicht-Platz-1) Anträge + Hover-Tooltip (Juli 2026)
 
 MINOR — Die Homepage-Sektion „Neue Anträge für dich" ([NeueAntraegeFuerDich.tsx](src/plugins/home/NeueAntraegeFuerDich.tsx)) bekommt drei additive Erweiterungen für die MA-Selbsteintragung (nur wo `auslastungSelbstEintragung` aktiv, pl/dev). Keine Daten-/Schema-Änderung, keine Migration; Claim-Pfad unverändert (Wunsch → persönlicher Ordner, PL sammelt ein).

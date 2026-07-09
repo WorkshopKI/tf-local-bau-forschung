@@ -28,6 +28,9 @@
 - **Mehr Anträge direkt einblenden:** „Neue Anträge für dich" lässt sich jetzt Schritt für Schritt („+10 mehr anzeigen") aufklappen, statt in einem separaten Fenster — genau wie „Meine Anträge" darüber.
 - **Details beim Darüberfahren:** Fahre mit der Maus über einen Antrag, um den vollen Verbund- und Teilvorhaben-Titel, den Antragsteller und das Eingangsdatum zu sehen — so kannst du besser einschätzen, ob er für dich passt.
 
+### Bugfixes
+- **„Weitere passende Anträge" klappt nicht mehr zu:** Wenn du bei den weiteren Anträgen auf „Kann ich übernehmen" geklickt hast, klappte die Liste bisher jedes Mal zusammen und musste neu geöffnet werden. Jetzt bleibt sie offen, und der übernommene Antrag wird direkt als „Vorgemerkt" markiert.
+
 ## v2.208 — 2026-07
 
 ### Verbesserungen
