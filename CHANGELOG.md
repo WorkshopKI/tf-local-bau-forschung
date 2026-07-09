@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.208.0 — Sidebar-Feinschliff: Feedback-Nav zurück, Reihenfolge, Icons, kompakte Rail-Ampeln (Juli 2026)
+
+MINOR — Mehrere gezielte Verbesserungen an der linken Sidebar (`ShellLayout`). Rein visuell/Nav-strukturell, keine Daten-/Schema-Änderung, keine Migration.
+
+- **Feedback wieder als Menüpunkt** ([feedback-board/index.ts](src/plugins/feedback-board/index.ts)): `hideFromNav` entfernt + `featureFlag: 'feedback'` ergänzt → „Feedback" erscheint im oberen Arbeits-Block (tools-Gruppe, `order: 75`, nach den workflow-Items), sichtbar wo `features.feedback` aktiv ist (dev + pl true). Das redundante Chat-Bubble-Icon im Sidebar-Footer (öffnete das Board via `navigate('/feedback-board')`) ist aus [ShellLayout.tsx](src/core/ShellLayout.tsx) entfernt; „Feedback geben" bleibt auf dem globalen FAB unten rechts.
+- **Nav-Reihenfolge** ([auslastung/index.tsx](src/plugins/auslastung/index.tsx)): Auslastung `order: 25` → `order: 4` → sitzt jetzt direkt nach Förderanträge (order 2) und vor E-Mail Anfragen (order 6).
+- **Schreibweise** ([anfragen/index.ts](src/plugins/anfragen/index.ts)): Menüpunkt „E-Mail-Anfragen" → „E-Mail Anfragen" (ohne Bindestrich vor „Anfragen"); beide Vorkommen (Modul + Kuration). `id`/`route` (`anfragen`/`/anfragen`) unverändert.
+- **Globus entfernt** ([skill-verwaltung-kuration/index.ts](src/plugins/skill-verwaltung-kuration/index.ts)): `navHint: 'global'` entfernt → kein Globus-Icon mehr neben „Skill-Verwaltung". Der generische `navHint`-Render-Pfad in `ShellLayout` bleibt (dokumentierte Plugin-API, aktuell ohne Nutzer).
+- **Einklapp-Icon zustandsabhängig** ([ShellLayout.tsx](src/core/ShellLayout.tsx)): statt statischem `PanelLeft` jetzt `PanelLeftClose` (ausgeklappt) / `PanelLeftOpen` (eingeklappt) — das Icon zeigt die Klick-Aktion.
+- **Kompakte Rail-Ampeln**: im eingeklappten Zustand sitzen die Status-Punkte (Sync/CSV/KI) enger — Container `gap-1.5` → `gap-0.5` und `compact`-abhängiges `px-0.5` statt `px-1.5` in den drei Ampel-Buttons ([SyncStatusIndicator](src/components/ui/SyncStatusIndicator.tsx) · [CsvFreshnessIndicator](src/components/ui/CsvFreshnessIndicator.tsx) · [BridgeStatusIndicator](src/components/ui/BridgeStatusIndicator.tsx)). Die nativen Hover-Tooltips (`title`/`aria-label`) bleiben erhalten.
+- Verifiziert per `tsc --build` (grün) + `npx vitest run src/__tests__/codebase-conventions.test.ts` (30/30 grün) + `build:dev`/`build:pl`. Offen: visuelle/`file://`-Abnahme durch Thomas.
+
 ### v2.207.1 — Feedback-Verbesserung erreicht auch read-only-Enduser (Outbox-Rewrite) (Juli 2026)
 
 PATCH — Schließt die in v2.206.0 offen gebliebene Grenze: bei **read-only prod-Endusern** (ohne Daten-Share-Schreibrecht) sammelte der Kurator bislang den **Roh-Text** ein, obwohl der Nutzer sein Feedback per KI verbessert hatte. Ursache: das Roh-Feedback landet beim Absenden in der persönlichen Outbox, und der Speichern-Schritt der Verbesserung (`updateFeedback`) ist share-self-gated → schrieb nur lokal, ließ die Outbox-Datei unberührt. Jetzt überschreibt der Verbessern-Ablauf zusätzlich die noch offene Outbox-Datei mit der polierten Fassung. Additiv (nur optionale Felder auf `FeedbackOutboxItem`), keine Migration, alte Outbox-Dateien bleiben lesbar. Detail: [feedback-system.md](docs/architecture/feedback-system.md).

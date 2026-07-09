@@ -79,7 +79,7 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean } =
       <button onClick={() => setShowDetail(true)}
         title={triggerTooltip}
         aria-label={triggerTooltip}
-        className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0">
+        className={`inline-flex items-center gap-[5px] ${compact ? 'px-0.5' : 'px-1.5'} py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] cursor-pointer hover:bg-[var(--tf-hover)] shrink-0`}>
         <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
         {!compact && 'Sync'}
       </button>

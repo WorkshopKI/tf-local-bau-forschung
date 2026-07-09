@@ -7,8 +7,7 @@ import { SkillVerwaltungPage } from './SkillVerwaltungPage';
  * `category: 'system'` statt `'kuration'` + KEIN `kuratorOnly`: für alle sichtbar
  * (pl hat weder `kuratorMenus` noch `is_kurator`), aber unten in der System-Gruppe
  * gruppiert. Der Schutz sitzt IN der Seite über `canEditSkillRegistry` (Kurator-
- * Session bzw. pl-Schreibrecht). `navHint: 'global'` markiert, dass Änderungen
- * team-weit wirken (Globus-Icon mit Tooltip in der Nav).
+ * Session bzw. pl-Schreibrecht).
  */
 export const skillVerwaltungPlugin: TeamFlowPlugin = {
   id: 'skill-verwaltung-kuration',
@@ -18,6 +17,5 @@ export const skillVerwaltungPlugin: TeamFlowPlugin = {
   icon: 'Wrench',
   category: 'system',
   order: 10,
-  navHint: 'global',
   component: SkillVerwaltungPage,
 };

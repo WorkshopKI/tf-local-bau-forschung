@@ -32,7 +32,8 @@ export const auslastungPlugin: TeamFlowPlugin = {
   name: nurKorpus ? 'Themen-Vektoren' : 'Auslastung',
   icon: nurKorpus ? 'Boxes' : 'Users',
   category: 'workflow',
-  order: 25,
+  // Direkt nach Förderanträge (order 2), vor E-Mail Anfragen (order 6).
+  order: 4,
   component: AuslastungView,
   onInit: async ({ storage }) => {
     // SMB-Sidecars parallel laden — beide Stores haben Idempotenz-Guards,

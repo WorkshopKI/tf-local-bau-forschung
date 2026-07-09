@@ -346,7 +346,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             <button onClick={toggleSidebar}
               title={sidebarMode === 'expanded' ? 'Sidebar einklappen' : 'Sidebar ausklappen'}
               className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
-              <Icons.PanelLeft size={18} />
+              {sidebarMode === 'expanded'
+                ? <Icons.PanelLeftClose size={18} />
+                : <Icons.PanelLeftOpen size={18} />}
             </button>
           </div>
 
@@ -391,25 +393,12 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {sidebarMode === 'expanded' ? (
               <>
-                {/* Zeile 1: „Zeig es mir" (links) + Feedback-Übersicht-Icon + Version
-                    (rechts). Das Icon öffnet direkt das Feedback-Board (Übersicht);
-                    Feedback *geben* liegt auf dem globalen FAB unten rechts. */}
+                {/* Zeile 1: „Zeig es mir" (links) + Version (rechts). Die Feedback-
+                    Übersicht ist jetzt ein eigener Nav-Eintrag; Feedback *geben*
+                    liegt auf dem globalen FAB unten rechts. */}
                 <div className="flex items-center justify-between gap-1">
                   <FooterShowcaseButton activeId={activeId} pageName={pageName} />
-                  <div className="flex items-center gap-1.5">
-                    {isFeedbackEnabled() && (
-                      <button
-                        type="button"
-                        onClick={() => navigate('/feedback-board')}
-                        title="Feedback-Übersicht"
-                        aria-label="Feedback-Übersicht öffnen"
-                        className="p-1 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-                      >
-                        <Icons.MessagesSquare size={15} />
-                      </button>
-                    )}
-                    <BuildInfo />
-                  </div>
+                  <BuildInfo />
                 </div>
                 {/* Dünne Trennlinie zwischen den beiden Zeilen — volle Breite wie
                     die obere Fußzeilen-Kante (`-mx-2` hebt das Container-Padding auf). */}
@@ -427,8 +416,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                 </div>
               </>
             ) : (
-              /* Rail (52 px): nur die Ampeln als reine Punkte, zentriert. */
-              <div className="flex items-center justify-center gap-1.5">
+              /* Rail (52 px): nur die Ampeln als reine Punkte, eng zentriert.
+                 Kompakter Innenabstand kommt aus den Ampeln selbst (`compact`). */
+              <div className="flex items-center justify-center gap-0.5">
                 <SyncStatusIndicator compact />
                 {(isCsvAutoRefreshEnabled() || isKuratorMenusEnabled()) && <CsvFreshnessIndicator compact />}
                 <BridgeStatusIndicator compact />

@@ -238,7 +238,7 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
         onClick={() => setOpen(true)}
         title={tip}
         aria-label={tip}
-        className="inline-flex items-center gap-[5px] px-1.5 py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0"
+        className={`inline-flex items-center gap-[5px] ${compact ? 'px-0.5' : 'px-1.5'} py-[3px] rounded-[var(--tf-radius-sm)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer shrink-0`}
       >
         <span className={`inline-block w-[7px] h-[7px] rounded-full shrink-0 ${dotColor}`} />
         {!compact && 'CSV'}

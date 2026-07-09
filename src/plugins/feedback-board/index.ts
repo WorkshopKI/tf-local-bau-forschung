@@ -4,13 +4,12 @@ import { FeedbackBoardPage } from './FeedbackBoardPage';
 export const feedbackBoardPlugin: TeamFlowPlugin = {
   id: 'feedback-board',
   route: '/feedback-board',
+  featureFlag: 'feedback',
   name: 'Feedback',
   icon: 'TrendingUp',
   category: 'tools',
   order: 75,
-  // Kein Nav-Eintrag mehr (Journey-Paket 1): das Board wird über den Feedback-
-  // Dialog (Footer-Icon → „Feedback-Board →") erreicht. Route bleibt registriert,
-  // damit bestehende Bookmarks/Deep-Links weiter auflösen.
-  hideFromNav: true,
+  // Nav-Eintrag „Feedback" im oberen Arbeits-Block (tools-Gruppe, nach den
+  // workflow-Items). Nur sichtbar wo `features.feedback` aktiv ist.
   component: FeedbackBoardPage,
 };

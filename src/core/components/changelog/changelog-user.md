@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.208 — 2026-07
+
+### Verbesserungen
+- **Feedback wieder direkt in der Seitenleiste:** „Feedback" ist wieder ein eigener Menüpunkt (oben im Arbeitsbereich); das kleine Sprechblasen-Symbol unten in der Leiste ist dafür entfallen. Feedback geben geht weiterhin über den Knopf unten rechts.
+- **Auslastung an neuer Stelle:** steht jetzt direkt unter „Förderanträge" (vor „E-Mail Anfragen").
+- **Klarere Schreibweise:** der Menüpunkt heißt jetzt **„E-Mail Anfragen"**.
+- **Aufgeräumte Seitenleiste:** das Globus-Symbol bei „Skill-Verwaltung" ist entfernt, und das Ein-/Ausklapp-Symbol zeigt jetzt eindeutig, in welche Richtung es klappt.
+- **Eingeklappte Leiste:** die farbigen Status-Punkte (Sync / CSV / KI) sitzen enger beieinander; der Tooltip beim Darüberfahren bleibt.
+
 ## v2.207 — 2026-07
 
 ### Verbesserungen
