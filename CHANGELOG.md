@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.217.0 — Antrag-Aufbereitung Paket 4/Phase 2: Fragen-Tab (Juli 2026)
+
+MINOR — Ein neuer dev-only **Fragen-Tab** bündelt alle offenen Punkte eines Aufbereitungs-Runs an einem Ort — rein deterministisch aus dem vorhandenen Run + den gelaufenen Bausteinen, **kein** neuer LLM-Aufruf. Vorstufe der späteren Nachforderungs-Anbindung (in diesem Paket ohne NF-Integration). Additiv, ein optionales Run-Feld, keine Migration.
+
+- **Aggregation** `sammleFragen` ([fragen.ts](src/plugins/antraege/aufbereitung/fragen.ts), rein): Zeitplan-/Kapazitäts-Befunde (→ Aspekt H), fehlende Pflichtangaben (`aspekt-fehlt`) + unabgedeckte Prüfaspekte (`aspekt-leer:<id>`), Lösungswege ohne Risiko (`risiko-fehlt`) + unzuordenbare Risiken (`risiko-unzugeordnet:<slug>`, neuer Key), Zahlen-Widersprüche (`zahl-widerspruch`). Je Eintrag ein deterministisch generierter Fragetext + Quell-Baustein + `FundstelleChip` wo ein Sektionsbezug existiert. Gruppierung nach Aspekt A–J (+ „Allgemein"), Zuordnung deterministisch herleitbar — **nie geraten**. Degradierte/nicht gelaufene Frage-Bausteine als Meta-Hinweis.
+- **„Erledigt" als eigene Achse:** neues optionales `AufbereitungRun.erledigtePunkte?` (additiv → alte Runs laden), **getrennt** von `offenePunkte` (sonst würde ein in der Abdeckung als offen übernommener Punkt hier fälschlich „erledigt" erscheinen). Persistenz + Survival über „Neu aufbereiten" spiegeln `offenePunkte` (`uebernehmeErledigtePunkte` + geteilte Prefix-Whitelist).
+- **UI** ([FragenTab.tsx](src/plugins/antraege/aufbereitung/FragenTab.tsx)): einklappbare Aspekt-Gruppen (`SectionHeader`), Zähler offen/gesamt, erledigte Einträge dezent (durchgestrichen), ehrliche Leerzustände („keine offenen Punkte" vs. „Bausteine nicht/teilweise gelaufen"), Export „Als Markdown kopieren" (`formatFragenMarkdown`, `[x]`/`[ ]` + Sektions-IDs). Monochrom, keine neuen Tokens.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `fragen.test.ts` Aggregations-/Gruppierungs-/Export-Tests + `erledigtePunkte`-Survival + `build:dev`) + `build:pl`. Damit ist Paket 4 (Phasen 0–2) abgeschlossen; Live-Eval + `file://`-Abnahme macht Thomas auf prod.
+
 ### v2.216.0 — Antrag-Aufbereitung Paket 4/Phase 1: Zahlen-Inventar (3. LLM-Baustein) (Juli 2026)
 
 MINOR — Ein dritter dev-only LLM-Baustein `aufbereitung-zahlen` (Seed `aktiv:false`) sammelt die Claims mit Zahlenwerten der VB — jeder wörtlich ausgewählt und per Sektions-ID verankert; die deterministischen Quervergleiche rechnet der Code. Additiv, keine Run-Schema-Änderung, keine Migration.

@@ -19,7 +19,7 @@ import {
 } from '@/core/services/skills';
 import { resolveVb, resolveAnlage5 } from './quellen';
 import {
-  aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt,
+  aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
 } from './store';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
@@ -53,6 +53,8 @@ export interface UseAufbereitungResult {
   veraltet: boolean;
   neu: UseAsyncActionResult<[]>;
   toggle: UseAsyncActionResult<[string]>;
+  /** „Erledigt"-Achse des Fragen-Tabs (getrennt von `toggle`/`offenePunkte`). */
+  toggleErledigt: UseAsyncActionResult<[string]>;
   /** Aspekt-Mapping-Baustein (Paket 2). */
   aspekte: BausteinUiState<AspektMapping>;
   /** Steckbrief-Baustein (Paket 2). */
@@ -207,5 +209,12 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, toggle, aspekte, steckbrief, zahlen, vbMarkdown, bausteine, bausteineNeu };
+  const toggleErledigt = useAsyncAction(async (key: string) => {
+    if (!run) return;
+    const next = toggleErledigterPunkt(run, key);
+    setRun(next);
+    await storage.idb.set(aufbereitungKey(next.antragKey), next);
+  });
+
+  return { run, loading, veraltet, neu, toggle, toggleErledigt, aspekte, steckbrief, zahlen, vbMarkdown, bausteine, bausteineNeu };
 }

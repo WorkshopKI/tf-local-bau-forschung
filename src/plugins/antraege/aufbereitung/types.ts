@@ -51,6 +51,12 @@ export interface AufbereitungRun {
   /** Vom Nutzer als offen markierte Befunde (stabile `befundKey`-Referenzen). */
   offenePunkte: string[];
   /**
+   * Im Fragen-Tab (Paket 4) als erledigt abgehakte Punkte (dieselben stabilen
+   * Keys wie `offenePunkte`, aber eigene Achse — „übernommen/offen" ≠ „erledigt").
+   * Optional → alte Runs ohne das Feld bleiben ladbar (`version` bleibt 1).
+   */
+  erledigtePunkte?: string[];
+  /**
    * Deterministisch geerntete technische Risiken (Paket 3, optional — alte Runs ohne
    * das Feld bleiben ladbar, `version` bleibt 1). NUR die Ernte; die Zuordnung zum
    * Lösungsweg rechnet das UI (`zuordneRisiken`, braucht das Aspekt-Mapping).

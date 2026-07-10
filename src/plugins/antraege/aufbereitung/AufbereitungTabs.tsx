@@ -24,7 +24,7 @@ export const AUFBEREITUNG_TABS: TabDef[] = [
   { id: 'zeitplan', label: 'Zeitplan', zustand: 'aktiv' },
   { id: 'zahlen', label: 'Zahlen', zustand: 'aktiv' },
   { id: 'glossar', label: 'Glossar', zustand: 'inaktiv' },
-  { id: 'fragen', label: 'Fragen', zustand: 'inaktiv' },
+  { id: 'fragen', label: 'Fragen', zustand: 'aktiv' },
   { id: 'recherche', label: 'Recherche', zustand: 'inaktiv' },
   { id: 'lesemodus', label: 'Lesemodus', zustand: 'inaktiv' },
 ];

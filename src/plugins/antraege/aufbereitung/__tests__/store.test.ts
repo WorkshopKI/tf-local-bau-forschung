@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { baueRun, istVeraltet, toggleOffenerPunkt, befundKey, uebernehmeOffenePunkte } from '../store';
+import {
+  baueRun, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt, befundKey,
+  uebernehmeOffenePunkte, uebernehmeErledigtePunkte,
+} from '../store';
 
 const NOW = '2026-07-09T00:00:00.000Z';
 
@@ -129,5 +132,28 @@ describe('toggleOffenerPunkt', () => {
     expect(r2.offenePunkte).toContain(key);
     const r3 = toggleOffenerPunkt(r2, key);
     expect(r3.offenePunkte).not.toContain(key);
+  });
+});
+
+describe('uebernehmeErledigtePunkte + toggleErledigterPunkt (Fragen-Achse)', () => {
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
+
+  it('erhält gültige Befund-/Kandidaten-Keys über „Neu aufbereiten", verwirft verwaiste', () => {
+    const gueltig = befundKey(run.befunde[0]!);
+    const merged = uebernehmeErledigtePunkte(run, [gueltig, 'aspekt-leer:H', 'risiko-unzugeordnet:x', 'zeitraum-abweichung::weg']);
+    expect(merged.erledigtePunkte).toContain(gueltig);
+    expect(merged.erledigtePunkte).toContain('aspekt-leer:H');
+    expect(merged.erledigtePunkte).toContain('risiko-unzugeordnet:x');
+    expect(merged.erledigtePunkte).not.toContain('zeitraum-abweichung::weg');
+  });
+
+  it('erledigt ist von offen getrennt (unabhängige Achse)', () => {
+    const key = befundKey(run.befunde[0]!);
+    const r2 = toggleErledigterPunkt(toggleOffenerPunkt(run, key), key);
+    expect(r2.offenePunkte).toContain(key);
+    expect(r2.erledigtePunkte).toContain(key);
+    const r3 = toggleErledigterPunkt(r2, key);
+    expect(r3.erledigtePunkte).not.toContain(key);
+    expect(r3.offenePunkte).toContain(key); // offen bleibt unberührt
   });
 });

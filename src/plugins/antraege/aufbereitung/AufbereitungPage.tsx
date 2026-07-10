@@ -27,6 +27,7 @@ import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 import { ZahlenTab } from './ZahlenTab';
+import { FragenTab } from './FragenTab';
 
 const kurzHash = (h: string): string => (h.length > 6 ? `${h.slice(0, 4)}…${h.slice(-2)}` : h);
 function kurzDatum(iso: string): string {
@@ -153,6 +154,15 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
             toggle={aufb.toggle}
+          />
+        ) : tab === 'fragen' ? (
+          <FragenTab
+            run={aufb.run}
+            aspekte={aufb.aspekte}
+            zahlen={aufb.zahlen}
+            vbMarkdown={aufb.vbMarkdown}
+            toggleErledigt={aufb.toggleErledigt}
+            bausteine={aufb.bausteine}
           />
         ) : (
           <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">In Vorbereitung (Paket 2)</div>

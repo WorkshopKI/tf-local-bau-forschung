@@ -44,15 +44,31 @@ export function befundKey(b: Befund): string {
  * nicht am deterministischen Run, und werden erst beim Rendern validiert. Alles andere
  * (Befund existiert nicht mehr) wird verworfen.
  */
-const KANDIDAT_PRAEFIXE = ['aspekt-fehlt:', 'risiko-fehlt:', 'zahl-widerspruch:'] as const;
+const KANDIDAT_PRAEFIXE = [
+  'aspekt-fehlt:', 'risiko-fehlt:', 'risiko-unzugeordnet:', 'zahl-widerspruch:', 'aspekt-leer:',
+] as const;
+
+/** Behält Keys, die einem aktuellen `befundKey` entsprechen ODER ein Render-Kandidat sind. */
+function behaltePunkte(run: AufbereitungRun, vorher: readonly string[]): string[] {
+  const gueltigeBefunde = new Set(run.befunde.map(befundKey));
+  return vorher.filter(k => gueltigeBefunde.has(k) || KANDIDAT_PRAEFIXE.some(p => k.startsWith(p)));
+}
 
 export function uebernehmeOffenePunkte(run: AufbereitungRun, vorher: readonly string[]): AufbereitungRun {
   if (vorher.length === 0) return run;
-  const gueltigeBefunde = new Set(run.befunde.map(befundKey));
-  const behalten = vorher.filter(
-    k => gueltigeBefunde.has(k) || KANDIDAT_PRAEFIXE.some(p => k.startsWith(p)),
-  );
+  const behalten = behaltePunkte(run, vorher);
   return behalten.length ? { ...run, offenePunkte: behalten } : run;
+}
+
+/**
+ * Spiegel von `uebernehmeOffenePunkte` für die „erledigt"-Achse des Fragen-Tabs
+ * (Paket 4). Gleiches Persist-&-Survive-Muster (befundKey-basiert), eigenes Feld —
+ * so kollidiert ein in der Abdeckung als offen markierter Punkt nicht mit „erledigt".
+ */
+export function uebernehmeErledigtePunkte(run: AufbereitungRun, vorher: readonly string[]): AufbereitungRun {
+  if (vorher.length === 0) return run;
+  const behalten = behaltePunkte(run, vorher);
+  return behalten.length ? { ...run, erledigtePunkte: behalten } : run;
 }
 
 /** Nummer/Label der Gliederungs-Sektion, in der `offset` liegt (für „§ x"-Chips). */
@@ -152,7 +168,8 @@ export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContex
     : null;
   const anlage: QuellEingang | null = anlageA ? { markdown: anlageA.markdown, name: anlageA.quelleName } : null;
 
-  const run = uebernehmeOffenePunkte(baueRun(ctx.key, vb, anlage, now), vorher?.offenePunkte ?? []);
+  const mitOffen = uebernehmeOffenePunkte(baueRun(ctx.key, vb, anlage, now), vorher?.offenePunkte ?? []);
+  const run = uebernehmeErledigtePunkte(mitOffen, vorher?.erledigtePunkte ?? []);
   await idb.set(aufbereitungKey(ctx.key), run);
   return run;
 }
@@ -177,5 +194,15 @@ export function toggleOffenerPunkt(run: AufbereitungRun, key: string): Aufbereit
   return {
     ...run,
     offenePunkte: drin ? run.offenePunkte.filter(k => k !== key) : [...run.offenePunkte, key],
+  };
+}
+
+/** Eine Prüffrage im Fragen-Tab als erledigt an-/abhaken (persistierbarer neuer Run). */
+export function toggleErledigterPunkt(run: AufbereitungRun, key: string): AufbereitungRun {
+  const aktuell = run.erledigtePunkte ?? [];
+  const drin = aktuell.includes(key);
+  return {
+    ...run,
+    erledigtePunkte: drin ? aktuell.filter(k => k !== key) : [...aktuell, key],
   };
 }
