@@ -86,10 +86,23 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
     }
   }
 
+  if (f.glossar) {
+    const g = f.glossar;
+    if (g.status === 'ok') {
+      zeilen.push(`- Glossar (Smoke): ok — ${g.begriffAnzahl ?? 0} Begriffe, schemaVersion ${g.schemaVersion ?? '?'}`);
+    } else if (g.status === 'degradiert') {
+      zeilen.push('- Glossar (Smoke): degradiert (nicht parsebar)');
+      zeilen.push('```', (g.rohtext ?? '').slice(0, ROHTEXT_AUSZUG), '```');
+    } else {
+      zeilen.push(`- Glossar (Smoke): fehler — ${g.fehler ?? 'unbekannt'}`);
+    }
+  }
+
   const resetTeile: string[] = [];
   if (a?.chatResetStatus) resetTeile.push(`Aspekte=${a.chatResetStatus}`);
   if (f.steckbrief?.chatResetStatus) resetTeile.push(`Steckbrief=${f.steckbrief.chatResetStatus}`);
   if (f.zahlen?.chatResetStatus) resetTeile.push(`Zahlen=${f.zahlen.chatResetStatus}`);
+  if (f.glossar?.chatResetStatus) resetTeile.push(`Glossar=${f.glossar.chatResetStatus}`);
   if (resetTeile.length) zeilen.push(`- Chat-Reset: ${resetTeile.join(', ')}`);
 
   if (f.dauerMs != null) zeilen.push(`- Dauer: ${(f.dauerMs / 1000).toFixed(1)}s`);

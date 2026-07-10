@@ -26,6 +26,7 @@ import { parseVbGliederung } from '../gliederung';
 import { buildAspektePrompt, parseAspektMapping, sektionZuAspekte, aspekteVerdaechtig, type AspektMapping } from '../aspekte';
 import { buildSteckbriefPrompt, parseSteckbrief, type SteckbriefDaten } from '../steckbrief';
 import { buildZahlenPrompt, parseZahlen, zahlenAntwortDiagnose } from '../zahlen';
+import { buildGlossarPrompt, parseGlossar } from '../glossar';
 import { runBaustein, ROHTEXT_MAX } from '../bausteine';
 
 /** Minimal-Sicht auf ein Fixture (was der Runner braucht — `loadEvalFixtures()` erfüllt das strukturell). */
@@ -83,6 +84,18 @@ export interface ZahlenSmokeErgebnis {
   chatResetStatus?: ChatResetStatus;
 }
 
+export interface GlossarSmokeErgebnis {
+  status: BausteinParseStatus;
+  /** Nur bei `ok`: Anzahl Begriffe (KEINE Qualitätsmetrik). */
+  begriffAnzahl?: number;
+  /** Nur bei `ok`: aus dem JSON gelesene Schema-Version. */
+  schemaVersion?: number;
+  rohtext?: string;
+  fehler?: string;
+  /** Chat-Reset-Status vor dem Glossar-Lauf (nur bei ok/degradiert). */
+  chatResetStatus?: ChatResetStatus;
+}
+
 /** Wiederholungs-Kennzahlen eines Fixtures (nur bei n > 1 gesetzt). */
 export interface AspekteWiederholungen {
   /** Alle n Aspekte-Läufe (in Laufreihenfolge). */
@@ -104,6 +117,7 @@ export interface FixtureErgebnis {
   aspekte?: AspekteFixtureErgebnis;
   steckbrief?: SteckbriefSmokeErgebnis;
   zahlen?: ZahlenSmokeErgebnis;
+  glossar?: GlossarSmokeErgebnis;
   /** Nur bei n > 1: Einzelwerte + Median/Worst über die Wiederholungen. */
   aspekteWdh?: AspekteWiederholungen;
 }
@@ -124,6 +138,8 @@ export interface EvalDeps {
   steckbriefSkill: SkillRecord;
   /** Optional (Paket 4): fehlt er, läuft kein Zahlen-Smoke. */
   zahlenSkill?: SkillRecord;
+  /** Optional (v2.219): fehlt er, läuft kein Glossar-Smoke. */
+  glossarSkill?: SkillRecord;
   transport: AITransport;
   fixtures: EvalFixtureQuelle[];
   goldset: Goldset;
@@ -136,6 +152,8 @@ export interface EvalOpts {
   includeSteckbrief?: boolean;
   /** Zahlen-Smoke einschließen (Default an; wirkt nur mit `deps.zahlenSkill`). */
   includeZahlen?: boolean;
+  /** Glossar-Smoke einschließen (Default an; wirkt nur mit `deps.glossarSkill`). */
+  includeGlossar?: boolean;
   /** Wiederholungen pro Fixture (1…5, Default 1). Aspekte wird n× gefahren (Varianz),
    *  der Steckbrief-Smoke bleibt EIN Lauf pro Fixture. Reset-Invariante gilt pro Einzellauf. */
   wiederholungen?: number;
@@ -270,6 +288,26 @@ async function laufZahlen(
   };
 }
 
+async function laufGlossar(
+  transport: AITransport, skill: SkillRecord,
+  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: BridgeZiel,
+): Promise<GlossarSmokeErgebnis> {
+  let raw: string;
+  let chatResetStatus: ChatResetStatus;
+  try {
+    const r = await runBaustein(transport, skill, buildGlossarPrompt(gliederung, vbMarkdown), ziel);
+    raw = r.text;
+    chatResetStatus = r.chatResetStatus;
+  } catch (e) {
+    return { status: 'fehler', fehler: fehlerText(e) };
+  }
+  const daten = parseGlossar(raw, sektionIds);
+  if (daten == null) return { status: 'degradiert', rohtext: raw.slice(0, ROHTEXT_MAX), chatResetStatus };
+  // Smoke: parse ok, schemaVersion + Begriffe-Array vorhanden; `parseGlossar` garantiert
+  // bereits Begriff+Definition je Eintrag + validierte sektionIds.
+  return { status: 'ok', begriffAnzahl: daten.begriffe.length, schemaVersion: daten.schemaVersion, chatResetStatus };
+}
+
 /**
  * Fährt den Eval-Batch. Strikt sequentiell (die Bridge ist ein einzelnes
  * postMessage-Fenster, keine parallele API). `signal.aborted` wird zwischen den
@@ -277,9 +315,10 @@ async function laufZahlen(
  * laufenden Bridge-Call).
  */
 export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): Promise<AufbereitungEvalErgebnis> {
-  const { aspekteSkill, steckbriefSkill, zahlenSkill, transport, fixtures, goldset } = deps;
+  const { aspekteSkill, steckbriefSkill, zahlenSkill, glossarSkill, transport, fixtures, goldset } = deps;
   const includeSteckbrief = opts.includeSteckbrief ?? true;
   const includeZahlen = (opts.includeZahlen ?? true) && !!zahlenSkill;
+  const includeGlossar = (opts.includeGlossar ?? true) && !!glossarSkill;
   const n = Math.max(1, Math.min(opts.wiederholungen ?? 1, WIEDERHOLUNGEN_MAX));
   const goldFixtures = goldset.fixtures.slice(0, opts.limit);
   const total = goldFixtures.length;
@@ -335,9 +374,15 @@ export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): 
       zahlen = await laufZahlen(transport, zahlenSkill, gliederung, fx.vbMarkdown, sektionIds, opts.ziel);
     }
 
+    let glossar: GlossarSmokeErgebnis | undefined;
+    // Glossar EIN Smoke-Lauf je Fixture (analog Zahlen). Nach Abbruch nicht mehr starten.
+    if (includeGlossar && glossarSkill && !opts.signal?.aborted) {
+      glossar = await laufGlossar(transport, glossarSkill, gliederung, fx.vbMarkdown, sektionIds, opts.ziel);
+    }
+
     const erg: FixtureErgebnis = {
       vbFile: gf.vbFile, gefunden: true, dauerMs: Date.now() - start,
-      aspekte: median, steckbrief, ...(zahlen ? { zahlen } : {}), ...(aspekteWdh ? { aspekteWdh } : {}),
+      aspekte: median, steckbrief, ...(zahlen ? { zahlen } : {}), ...(glossar ? { glossar } : {}), ...(aspekteWdh ? { aspekteWdh } : {}),
     };
     ergebnisse.push(erg);
     opts.onFixtureDone?.(erg, i, total);

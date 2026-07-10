@@ -15,6 +15,14 @@ MINOR — Fundament für den späteren persönlichen Assistenten: ein **rein det
 - **Einstellungen** „Assistent & Gedächtnis" ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), gegated, System-Gruppe): Opt-in-Toggle mit Klartext-Erklärung, „Meine Daten" (Zusammenfassung + letzte 100 Ereignisse + JSON-Export), vollständige Löschung mit Bestätigung.
 - Health-Baseline bewusst angehoben: `MAX_FEATURE_FLAGS` 30→31, `MAX_SERVICE_DIRS` 22→23 (neue `assistent/`-Domäne). Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. 6 Recorder-Tests: Opt-out/Opt-in/Retention/Löschen/Schema-Guard/Snapshot-Ausschluss + `build:dev`) + `build:pl`. Detail: [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md).
 
+### v2.221.1 — Antrag-Aufbereitung: Glossar-Eval-Smoke (dev) (Juli 2026)
+
+PATCH — Der In-App-Eval deckt jetzt auch den Glossar-Baustein ab (analog Zahlen/Steckbrief): pro Fixture ein Smoke-Lauf (Parse ok, `schemaVersion` + Begriffe-Array vorhanden — `parseGlossar` garantiert Begriff+Definition je Eintrag). Damit sind alle vier LLM-Bausteine der Aufbereitung eval-abgedeckt (Grundlage für die Aktivierungs-Baseline). Rein additiv, dev-only.
+
+- Runner ([runner.ts](src/plugins/antraege/aufbereitung/eval-panel/runner.ts)): `GlossarSmokeErgebnis` + `laufGlossar`, `deps.glossarSkill?` + `opts.includeGlossar`, `ziel`-Durchreichung wie die übrigen Läufe.
+- Report ([report.ts](src/plugins/antraege/aufbereitung/eval-panel/report.ts)): „Glossar (Smoke): ok — N Begriffe" + Roh-Auszug bei degradiert; Chat-Reset-Zeile ergänzt. Panel ([AufbereitungEvalPanel.tsx](src/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel.tsx)): Schalter „Glossar einschließen", Fortschritts-Zeile, Rohtext-Karte bei degradiert.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. Runner-Glossar-Smoke-Tests + `build:dev`) + `build:pl`.
+
 ### v2.221.0 — Antrag-Aufbereitung: Recherche-Tab (Suchanfragen-Hilfen, deterministisch) (dev) (Juli 2026)
 
 MINOR — Der **Recherche-Tab** leitet aus den bereits vom Steckbrief-Baustein extrahierten Angaben (Zielmärkte, FuE-Gegenstand, Kern-Zielwert) + den Stammdaten **fertige Suchanfragen zum Kopieren** ab — Startpunkte für die externe Recherche des Prüfers, gruppiert nach Marktzahlen / Wettbewerb / Stand der Technik. Rein deterministisch (KEIN neuer LLM-Lauf — nutzt den Steckbrief), keine Live-Links (bleibt `file://`-/DSGVO-konform). Additiv, dev-only, keine Migration. **Damit sind alle acht Aufbereitungs-Tabs funktional.**

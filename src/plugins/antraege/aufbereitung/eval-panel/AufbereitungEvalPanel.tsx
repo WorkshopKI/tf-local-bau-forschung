@@ -31,6 +31,9 @@ import {
 import {
   AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID,
 } from '@/core/services/skills/registry/aufbereitung-zahlen.seed';
+import {
+  AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
+} from '@/core/services/skills/registry/aufbereitung-glossar.seed';
 import { loadEvalFixtures } from '@/core/services/skill-eval/fixtures/bundle';
 import { loadAspekteGoldset } from '@/core/services/skill-eval/fixtures/aspekte-goldset';
 import { SettingsSectionHeader } from '@/plugins/einstellungen/_shared/settings-primitives';
@@ -80,6 +83,10 @@ function kurzVon(e: FixtureErgebnis): string {
   if (z?.status === 'ok') teile.push(`Zahlen ${z.claimAnzahl ?? 0}${z.hatTabelle || z.abgeschnitten ? ' ⚠' : ''}`);
   else if (z?.status === 'degradiert') teile.push('Zahlen degr.');
   else if (z?.status === 'fehler') teile.push('Zahlen-Fehler');
+  const gl = e.glossar;
+  if (gl?.status === 'ok') teile.push(`Glossar ${gl.begriffAnzahl ?? 0}`);
+  else if (gl?.status === 'degradiert') teile.push('Glossar degr.');
+  else if (gl?.status === 'fehler') teile.push('Glossar-Fehler');
   if ([a?.chatResetStatus, s?.chatResetStatus, z?.chatResetStatus].some(x => x != null && resetHatVerlaufsrisiko(x))) teile.push('⚠ Reset');
   return teile.join(' · ');
 }
@@ -115,6 +122,9 @@ function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
         ? `${f.vbFile} · Zahlen (degradiert)`
         : `${f.vbFile} · Zahlen (ok — ${zahlenAuffaelligkeit(z) || 'auffällig'})`;
       out.push({ key: `${f.vbFile}:zahlen`, titel, text: z.rohtext });
+    }
+    if (f.glossar?.status === 'degradiert' && f.glossar.rohtext) {
+      out.push({ key: `${f.vbFile}:glossar`, titel: `${f.vbFile} · Glossar (degradiert)`, text: f.glossar.rohtext });
     }
   }
   return out;
@@ -156,10 +166,12 @@ export function AufbereitungEvalPanel(): React.ReactElement {
   const [aspekteSkill, setAspekteSkill] = useState<SkillRecord | null>(null);
   const [steckbriefSkill, setSteckbriefSkill] = useState<SkillRecord | null>(null);
   const [zahlenSkill, setZahlenSkill] = useState<SkillRecord | null>(null);
+  const [glossarSkill, setGlossarSkill] = useState<SkillRecord | null>(null);
   const [anzahl, setAnzahl] = useState(3);
   const [wiederholungen, setWiederholungen] = useState(1);
   const [mitSteckbrief, setMitSteckbrief] = useState(true);
   const [mitZahlen, setMitZahlen] = useState(true);
+  const [mitGlossar, setMitGlossar] = useState(true);
   // Zweit-LLM-A/B: aus = Standard-Chat (gpt-oss), an = agentischer Qwen-Tab (260k).
   const [agentisch, setAgentisch] = useState(false);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
@@ -176,6 +188,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
       setAspekteSkill(getSkillById(loaded.file, AUFBEREITUNG_ASPEKTE_SKILL_ID) ?? AUFBEREITUNG_ASPEKTE_SKILL);
       setSteckbriefSkill(getSkillById(loaded.file, AUFBEREITUNG_STECKBRIEF_SKILL_ID) ?? AUFBEREITUNG_STECKBRIEF_SKILL);
       setZahlenSkill(getSkillById(loaded.file, AUFBEREITUNG_ZAHLEN_SKILL_ID) ?? AUFBEREITUNG_ZAHLEN_SKILL);
+      setGlossarSkill(getSkillById(loaded.file, AUFBEREITUNG_GLOSSAR_SKILL_ID) ?? AUFBEREITUNG_GLOSSAR_SKILL);
     })();
     return () => { cancelled = true; };
   }, [storage]);
@@ -200,11 +213,12 @@ export function AufbereitungEvalPanel(): React.ReactElement {
     setVerlauf(goldset.fixtures.slice(0, grenze).map(g => ({ vbFile: g.vbFile, status: 'pending' as const })));
     try {
       const erg = await runAufbereitungEval(
-        { aspekteSkill, steckbriefSkill, zahlenSkill: zahlenSkill ?? undefined, transport, fixtures, goldset },
+        { aspekteSkill, steckbriefSkill, zahlenSkill: zahlenSkill ?? undefined, glossarSkill: glossarSkill ?? undefined, transport, fixtures, goldset },
         {
           limit: grenze,
           includeSteckbrief: mitSteckbrief,
           includeZahlen: mitZahlen,
+          includeGlossar: mitGlossar,
           wiederholungen,
           ziel: agentisch ? 'agentisch' : undefined,
           signal: ctrl.signal,
@@ -306,6 +320,10 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
                 <Switch checked={mitZahlen} onCheckedChange={setMitZahlen} />
                 Zahlen einschließen
+              </label>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
+                <Switch checked={mitGlossar} onCheckedChange={setMitGlossar} />
+                Glossar einschließen
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"

@@ -5,6 +5,7 @@ import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import { AUFBEREITUNG_ASPEKTE_SKILL } from '@/core/services/skills/registry/aufbereitung-aspekte.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL } from '@/core/services/skills/registry/aufbereitung-steckbrief.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL } from '@/core/services/skills/registry/aufbereitung-zahlen.seed';
+import { AUFBEREITUNG_GLOSSAR_SKILL } from '@/core/services/skills/registry/aufbereitung-glossar.seed';
 
 // Zwei minimale, unterscheidbare VBs (parseVbGliederung → Sektionen k-1 + k-7).
 const VB1 = '# 1 Ausgangssituation\n\nInhalt A eins.\n\n# 7 Realisierbarkeit\n\nInhalt F eins.\n';
@@ -90,6 +91,21 @@ const ZAHLEN_TABELLE_TRUNC = [
   '  { "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "kontext": "Laufzeit", "sektionIds": ["k-7"] },',
   '  { "wert": "5 %", "kategorie": "kosten", "kontext": "Quote", "sekti', // abgeschnitten
 ].join('\n');
+
+const GLOSSAR_OK = '```json\n{"schemaVersion":1,"begriffe":[{"begriff":"TRL","definition":"Technology Readiness Level","sektionIds":["k-7"]}]}\n```';
+
+/** Stub, der Aspekte/Steckbrief/Glossar nach Prompt-Inhalt bedient. */
+function stubMitGlossar(): AITransport {
+  return {
+    name: 'Stub',
+    submitConversation: async (messages: Array<{ role: string; content: string }>) => {
+      const prompt = messages[messages.length - 1]!.content;
+      if (prompt.includes('Prüfaspekte')) return 'A: k-1\nF: k-7';
+      if (prompt.includes('Glossar')) return GLOSSAR_OK;
+      return STECKBRIEF_OK;
+    },
+  } as unknown as AITransport;
+}
 
 /** Wie `stubMitZahlen`, aber die Zahlen-Antwort trägt Tabelle + Truncation. */
 function stubZahlenTabelleTrunc(): AITransport {
@@ -260,6 +276,22 @@ describe('runAufbereitungEval', () => {
   it('ohne zahlenSkill läuft kein Zahlen-Smoke', async () => {
     const erg = await runAufbereitungEval(deps(stub()), { limit: 1 });
     expect(erg.fixtures[0]?.zahlen).toBeUndefined();
+  });
+
+  it('Glossar-Smoke: parse ok mit Begriffen + schemaVersion, wenn glossarSkill gesetzt', async () => {
+    const erg = await runAufbereitungEval(
+      { ...deps(stubMitGlossar()), glossarSkill: AUFBEREITUNG_GLOSSAR_SKILL },
+      { limit: 1, includeSteckbrief: false, includeZahlen: false },
+    );
+    const g = erg.fixtures[0]?.glossar;
+    expect(g?.status).toBe('ok');
+    expect(g?.begriffAnzahl).toBe(1);
+    expect(g?.schemaVersion).toBe(1);
+  });
+
+  it('ohne glossarSkill läuft kein Glossar-Smoke', async () => {
+    const erg = await runAufbereitungEval(deps(stub()), { limit: 1 });
+    expect(erg.fixtures[0]?.glossar).toBeUndefined();
   });
 
   it('reicht ziel „agentisch" an Reset UND Submit jedes Laufs durch (Streamlit-Pfad)', async () => {
