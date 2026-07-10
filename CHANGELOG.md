@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.216.0 — Antrag-Aufbereitung Paket 4/Phase 1: Zahlen-Inventar (3. LLM-Baustein) (Juli 2026)
+
+MINOR — Ein dritter dev-only LLM-Baustein `aufbereitung-zahlen` (Seed `aktiv:false`) sammelt die Claims mit Zahlenwerten der VB — jeder wörtlich ausgewählt und per Sektions-ID verankert; die deterministischen Quervergleiche rechnet der Code. Additiv, keine Run-Schema-Änderung, keine Migration.
+
+- **Auswählen, nicht rechnen:** `buildZahlenPrompt` + `parseZahlen` ([zahlen.ts](src/plugins/antraege/aufbereitung/zahlen.ts)) — `ZahlClaim{wert (wörtlich), einheit?, kategorie, kontext, sektionIds}`, JSON mit `schemaVersion`. Parser nutzt die **geteilte** `extractLastJsonObject` (aus `steckbrief.ts`, kein zweiter Parser), verwirft Claims ohne Wert/gültige Fundstelle. Kategorien-Katalog `leistung|zeit|personal|kosten|markt|sonstig` als Code-Konstante. Transport intern-pflichtig (`{{vbMarkdown}}`, Pitfall #30); `computeZahlenBaustein` mit 0-Claims-Guard + Retry aus Phase 0.
+- **Deterministische Quervergleiche** (`pruefeZahlWidersprueche`, reine Funktion): Laufzeit-Claim vs. Zeitplan-Horizont, PM-Claim vs. Anlage-5-Summe (geteilte `summePm`, aus `ZeitplanTab` extrahiert). Nur **sicher parsebare** Werte erzeugen einen Befund — kein Fuzzy-Matching. Abweichung → `zahl-widerspruch:*`-Kandidat, reiht sich in die `offenePunkte`-Mechanik ein (überlebt „Neu aufbereiten").
+- **Zahlen-Tab** ([ZahlenTab.tsx](src/plugins/antraege/aufbereitung/ZahlenTab.tsx)): nach Kategorie gruppiert, je Claim Wert/Einheit/Kontext/Fundstellen-Chip + Widerspruch-`StatusDot`; Zustände nicht-gelaufen/lädt/degradiert/leer/gefüllt. Monochrom, keine neuen Tokens.
+- **In-App-Eval** um einen **Zahlen-Smoke** erweitert (analog Steckbrief: Parse ok, `schemaVersion` + Claims + katalog-valide sektionIds), inkl. „Zahlen einschließen"-Schalter. Kein eigenes Zahlen-Goldset in diesem Paket (Fixtures bleiben fiktiv).
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `zahlen.test.ts` Parser-/Quervergleichs-Tests + Runner-Smoke + `offenePunkte`-Survival + Seed-Inventar-Tests + `build:dev`) + `build:pl`.
+
 ### v2.215.0 — Antrag-Aufbereitung Paket 4/Phase 0: Eval-Härtung & Mehrfach-Aspekt-Fix (Juli 2026)
 
 MINOR — Härtet die dev-only Aufbereitungs-Bausteine + In-App-Eval anhand der ersten Live-Baseline (zwei stabile Befunde: Mehrfach-Aspekt-Sektionen bekamen nur einen Aspekt; ein Lauf lieferte R=0.00 bei Status `ok`, Rohantwort nicht rekonstruierbar). Additiv, kein Skill `aktiv:true`, keine Migration; alle neuen Result-Felder sind optional (alte Runs/Ergebnisse bleiben lesbar).

@@ -26,6 +26,7 @@ import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
+import { ZahlenTab } from './ZahlenTab';
 
 const kurzHash = (h: string): string => (h.length > 6 ? `${h.slice(0, 4)}…${h.slice(-2)}` : h);
 function kurzDatum(iso: string): string {
@@ -140,6 +141,15 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             wurzel={titel}
             ansicht={ansicht}
             onAnsicht={setAnsicht}
+            bausteine={aufb.bausteine}
+            bausteineNeu={aufb.bausteineNeu}
+            toggle={aufb.toggle}
+          />
+        ) : tab === 'zahlen' ? (
+          <ZahlenTab
+            run={aufb.run}
+            zahlen={aufb.zahlen}
+            vbMarkdown={aufb.vbMarkdown}
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
             toggle={aufb.toggle}

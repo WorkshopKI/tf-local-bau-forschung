@@ -87,11 +87,16 @@ describe('baueRun', () => {
 describe('uebernehmeOffenePunkte', () => {
   const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
 
-  it('erhält gültige Befund-Keys + aspekt-fehlt-Keys, verwirft verwaiste', () => {
+  it('erhält gültige Befund-Keys + aspekt-fehlt-/risiko-fehlt-/zahl-widerspruch-Keys, verwirft verwaiste', () => {
     const gueltig = befundKey(run.befunde[0]!);
-    const merged = uebernehmeOffenePunkte(run, [gueltig, 'aspekt-fehlt:I:preise', 'zeitraum-abweichung::gibt-es-nicht']);
+    const merged = uebernehmeOffenePunkte(run, [
+      gueltig, 'aspekt-fehlt:I:preise', 'risiko-fehlt:k-3.1', 'zahl-widerspruch:pm:48-pm',
+      'zeitraum-abweichung::gibt-es-nicht',
+    ]);
     expect(merged.offenePunkte).toContain(gueltig);
     expect(merged.offenePunkte).toContain('aspekt-fehlt:I:preise');
+    expect(merged.offenePunkte).toContain('risiko-fehlt:k-3.1');
+    expect(merged.offenePunkte).toContain('zahl-widerspruch:pm:48-pm');
     expect(merged.offenePunkte).not.toContain('zeitraum-abweichung::gibt-es-nicht');
   });
 

@@ -59,9 +59,22 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
     }
   }
 
+  if (f.zahlen) {
+    const z = f.zahlen;
+    if (z.status === 'ok') {
+      zeilen.push(`- Zahlen (Smoke): ok — ${z.claimAnzahl ?? 0} Claims, schemaVersion ${z.schemaVersion ?? '?'}`);
+    } else if (z.status === 'degradiert') {
+      zeilen.push('- Zahlen (Smoke): degradiert (nicht parsebar)');
+      zeilen.push('```', (z.rohtext ?? '').slice(0, ROHTEXT_AUSZUG), '```');
+    } else {
+      zeilen.push(`- Zahlen (Smoke): fehler — ${z.fehler ?? 'unbekannt'}`);
+    }
+  }
+
   const resetTeile: string[] = [];
   if (a?.chatResetStatus) resetTeile.push(`Aspekte=${a.chatResetStatus}`);
   if (f.steckbrief?.chatResetStatus) resetTeile.push(`Steckbrief=${f.steckbrief.chatResetStatus}`);
+  if (f.zahlen?.chatResetStatus) resetTeile.push(`Zahlen=${f.zahlen.chatResetStatus}`);
   if (resetTeile.length) zeilen.push(`- Chat-Reset: ${resetTeile.join(', ')}`);
 
   if (f.dauerMs != null) zeilen.push(`- Dauer: ${(f.dauerMs / 1000).toFixed(1)}s`);

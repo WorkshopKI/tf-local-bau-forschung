@@ -28,6 +28,9 @@ import {
 import {
   AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID,
 } from '@/core/services/skills/registry/aufbereitung-steckbrief.seed';
+import {
+  AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID,
+} from '@/core/services/skills/registry/aufbereitung-zahlen.seed';
 import { loadEvalFixtures } from '@/core/services/skill-eval/fixtures/bundle';
 import { loadAspekteGoldset } from '@/core/services/skill-eval/fixtures/aspekte-goldset';
 import { SettingsSectionHeader } from '@/plugins/einstellungen/_shared/settings-primitives';
@@ -73,7 +76,11 @@ function kurzVon(e: FixtureErgebnis): string {
   if (s?.status === 'ok') teile.push(`SB ${s.gefuellteFelder ?? 0}/${STECKBRIEF_FELDER}`);
   else if (s?.status === 'degradiert') teile.push('SB degr.');
   else if (s?.status === 'fehler') teile.push('SB-Fehler');
-  if ([a?.chatResetStatus, s?.chatResetStatus].some(x => x != null && resetHatVerlaufsrisiko(x))) teile.push('⚠ Reset');
+  const z = e.zahlen;
+  if (z?.status === 'ok') teile.push(`Zahlen ${z.claimAnzahl ?? 0}`);
+  else if (z?.status === 'degradiert') teile.push('Zahlen degr.');
+  else if (z?.status === 'fehler') teile.push('Zahlen-Fehler');
+  if ([a?.chatResetStatus, s?.chatResetStatus, z?.chatResetStatus].some(x => x != null && resetHatVerlaufsrisiko(x))) teile.push('⚠ Reset');
   return teile.join(' · ');
 }
 
@@ -91,6 +98,9 @@ function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
     }
     if (f.steckbrief?.status === 'degradiert' && f.steckbrief.rohtext) {
       out.push({ key: `${f.vbFile}:steckbrief`, titel: `${f.vbFile} · Steckbrief (degradiert)`, text: f.steckbrief.rohtext });
+    }
+    if (f.zahlen?.status === 'degradiert' && f.zahlen.rohtext) {
+      out.push({ key: `${f.vbFile}:zahlen`, titel: `${f.vbFile} · Zahlen (degradiert)`, text: f.zahlen.rohtext });
     }
   }
   return out;
@@ -131,9 +141,11 @@ export function AufbereitungEvalPanel(): React.ReactElement {
 
   const [aspekteSkill, setAspekteSkill] = useState<SkillRecord | null>(null);
   const [steckbriefSkill, setSteckbriefSkill] = useState<SkillRecord | null>(null);
+  const [zahlenSkill, setZahlenSkill] = useState<SkillRecord | null>(null);
   const [anzahl, setAnzahl] = useState(3);
   const [wiederholungen, setWiederholungen] = useState(1);
   const [mitSteckbrief, setMitSteckbrief] = useState(true);
+  const [mitZahlen, setMitZahlen] = useState(true);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
   const [ergebnis, setErgebnis] = useState<AufbereitungEvalErgebnis | null>(null);
   const [report, setReport] = useState<string | null>(null);
@@ -147,6 +159,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
       if (cancelled) return;
       setAspekteSkill(getSkillById(loaded.file, AUFBEREITUNG_ASPEKTE_SKILL_ID) ?? AUFBEREITUNG_ASPEKTE_SKILL);
       setSteckbriefSkill(getSkillById(loaded.file, AUFBEREITUNG_STECKBRIEF_SKILL_ID) ?? AUFBEREITUNG_STECKBRIEF_SKILL);
+      setZahlenSkill(getSkillById(loaded.file, AUFBEREITUNG_ZAHLEN_SKILL_ID) ?? AUFBEREITUNG_ZAHLEN_SKILL);
     })();
     return () => { cancelled = true; };
   }, [storage]);
@@ -171,10 +184,11 @@ export function AufbereitungEvalPanel(): React.ReactElement {
     setVerlauf(goldset.fixtures.slice(0, grenze).map(g => ({ vbFile: g.vbFile, status: 'pending' as const })));
     try {
       const erg = await runAufbereitungEval(
-        { aspekteSkill, steckbriefSkill, transport, fixtures, goldset },
+        { aspekteSkill, steckbriefSkill, zahlenSkill: zahlenSkill ?? undefined, transport, fixtures, goldset },
         {
           limit: grenze,
           includeSteckbrief: mitSteckbrief,
+          includeZahlen: mitZahlen,
           wiederholungen,
           signal: ctrl.signal,
           onFixtureStart: (vbFile) =>
@@ -270,6 +284,10 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
                 <Switch checked={mitSteckbrief} onCheckedChange={setMitSteckbrief} />
                 Steckbrief einschließen
+              </label>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
+                <Switch checked={mitZahlen} onCheckedChange={setMitZahlen} />
+                Zahlen einschließen
               </label>
             </div>
 

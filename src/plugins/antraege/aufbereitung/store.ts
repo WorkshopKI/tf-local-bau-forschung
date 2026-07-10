@@ -39,16 +39,18 @@ export function befundKey(b: Befund): string {
  * Übernimmt die vom Nutzer markierten offenen Punkte in einen frisch berechneten
  * Run und verwirft verwaiste Keys. Behalten wird ein Key, wenn er (a) einem Befund
  * des neuen Runs entspricht (deterministische Zeitplan-Befunde) ODER (b) ein
- * `aspekt-fehlt:`-/`risiko-fehlt:`-Kandidat ist — Letztere hängen am Aspekt-Baustein
- * bzw. an der (UI-seitigen) Risiko-Zuordnung, nicht am deterministischen Run, und
- * werden erst beim Rendern validiert. Alles andere (Befund existiert nicht mehr)
- * wird verworfen.
+ * `aspekt-fehlt:`-/`risiko-fehlt:`-/`zahl-widerspruch:`-Kandidat ist — Letztere hängen
+ * an einem LLM-Baustein (Aspekt-/Zahlen-Lauf) bzw. an der (UI-seitigen) Risiko-Zuordnung,
+ * nicht am deterministischen Run, und werden erst beim Rendern validiert. Alles andere
+ * (Befund existiert nicht mehr) wird verworfen.
  */
+const KANDIDAT_PRAEFIXE = ['aspekt-fehlt:', 'risiko-fehlt:', 'zahl-widerspruch:'] as const;
+
 export function uebernehmeOffenePunkte(run: AufbereitungRun, vorher: readonly string[]): AufbereitungRun {
   if (vorher.length === 0) return run;
   const gueltigeBefunde = new Set(run.befunde.map(befundKey));
   const behalten = vorher.filter(
-    k => gueltigeBefunde.has(k) || k.startsWith('aspekt-fehlt:') || k.startsWith('risiko-fehlt:'),
+    k => gueltigeBefunde.has(k) || KANDIDAT_PRAEFIXE.some(p => k.startsWith(p)),
   );
   return behalten.length ? { ...run, offenePunkte: behalten } : run;
 }

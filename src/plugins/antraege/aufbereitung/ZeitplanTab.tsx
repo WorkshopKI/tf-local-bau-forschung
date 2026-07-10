@@ -13,6 +13,7 @@ import { GanttZeitplan } from './GanttZeitplan';
 import { PersonenZeitplan } from './PersonenZeitplan';
 import { befundKey } from './store';
 import type { AufbereitungRun } from './types';
+import { summePm } from './tabellen';
 import type { ApZeile, Befund } from './tabellen';
 
 const WARN = '#f59e0b';
@@ -144,10 +145,8 @@ function KennzahlenKarte({
   run: AufbereitungRun;
   herkunft: 'anlage5' | 'vb' | 'beide';
 }): React.ReactElement {
-  const hatKinder = (z: ApZeile): boolean =>
-    !z.istUnterAp && zeilen.some(k => k.istUnterAp && k.nummer.trim().startsWith(z.nummer.trim() + '.'));
-  // Gesamt-PM ohne Doppelzählung: Unter-APs + Ober-APs ohne Kinder.
-  const gesamtPm = zeilen.reduce((sum, z) => (z.istUnterAp || !hatKinder(z) ? sum + (z.pm ?? 0) : sum), 0);
+  // Gesamt-PM ohne Doppelzählung (geteilte reine Funktion, auch im Zahlen-Quervergleich).
+  const gesamtPm = summePm(zeilen);
   const oberCount = zeilen.filter(z => !z.istUnterAp).length;
   const unterCount = zeilen.filter(z => z.istUnterAp).length;
   const maCount = new Set(zeilen.map(z => z.maNr).filter((m): m is string => !!m && m.trim() !== '')).size;

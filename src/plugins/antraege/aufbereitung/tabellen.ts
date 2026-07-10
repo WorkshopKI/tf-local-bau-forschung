@@ -478,3 +478,14 @@ export function pruefeKapazitaet(zeilen: ApZeile[]): Befund[] {
   }
   return befunde;
 }
+
+/**
+ * Gesamt-Personenmonate ohne Doppelzählung: Unter-APs zählen, Ober-APs nur, wenn sie
+ * KEINE (nummern-verwandten) Unter-APs haben. Reine Funktion — geteilt von der
+ * Kennzahlen-Karte (`ZeitplanTab`) und dem Zahlen-Quervergleich (Paket 4).
+ */
+export function summePm(zeilen: ApZeile[]): number {
+  const hatKinder = (z: ApZeile): boolean =>
+    !z.istUnterAp && zeilen.some(k => k.istUnterAp && k.nummer.trim().startsWith(z.nummer.trim() + '.'));
+  return zeilen.reduce((sum, z) => (z.istUnterAp || !hatKinder(z) ? sum + (z.pm ?? 0) : sum), 0);
+}

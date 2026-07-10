@@ -14,6 +14,7 @@ import {
   loadSkillRegistry,
   AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_ASPEKTE_SKILL_ID,
   AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID,
+  AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID,
   type SkillRecord,
 } from '@/core/services/skills';
 import { resolveVb, resolveAnlage5 } from './quellen';
@@ -26,6 +27,7 @@ import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, type BausteinResult } from './bausteine';
 import { computeAspekteBaustein, type AspektMapping } from './aspekte';
 import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
+import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
 import type { AufbereitungRun } from './types';
 
 /** UI-Status eines Bausteins (Compute-Status + die Vor-Zustände `fehlt`/`laeuft`). */
@@ -55,6 +57,8 @@ export interface UseAufbereitungResult {
   aspekte: BausteinUiState<AspektMapping>;
   /** Steckbrief-Baustein (Paket 2). */
   steckbrief: BausteinUiState<SteckbriefDaten>;
+  /** Zahlen-Inventar-Baustein (Paket 4). */
+  zahlen: BausteinUiState<ZahlenDaten>;
   /** VB-Volltext (für Fundstellen-Auszüge) — gesetzt sobald ein Baustein-Lauf die VB auflöst. */
   vbMarkdown: string | null;
   /** Läuft alle Bausteine sequentiell (Aspekte → Steckbrief). */
@@ -73,8 +77,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [veraltet, setVeraltet] = useState(false);
   const [aspekteSkill, setAspekteSkill] = useState<SkillRecord>(AUFBEREITUNG_ASPEKTE_SKILL);
   const [steckbriefSkill, setSteckbriefSkill] = useState<SkillRecord>(AUFBEREITUNG_STECKBRIEF_SKILL);
+  const [zahlenSkill, setZahlenSkill] = useState<SkillRecord>(AUFBEREITUNG_ZAHLEN_SKILL);
   const [aspekte, setAspekte] = useState<BausteinUiState<AspektMapping>>(FEHLT);
   const [steckbrief, setSteckbrief] = useState<BausteinUiState<SteckbriefDaten>>(FEHLT);
+  const [zahlen, setZahlen] = useState<BausteinUiState<ZahlenDaten>>(FEHLT);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
   const key = ctx?.key ?? null;
 
@@ -84,6 +90,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setLoading(true);
     setAspekte(FEHLT);
     setSteckbrief(FEHLT);
+    setZahlen(FEHLT);
     setVbMarkdown(null);
     (async () => {
       if (!key) { setRun(null); setLoading(false); return; }
@@ -101,7 +108,8 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
         const loaded = await loadSkillRegistry(storage);
         const asp = loaded.file.skills.find(x => x.id === AUFBEREITUNG_ASPEKTE_SKILL_ID) ?? AUFBEREITUNG_ASPEKTE_SKILL;
         const stb = loaded.file.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID) ?? AUFBEREITUNG_STECKBRIEF_SKILL;
-        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); }
+        const zah = loaded.file.skills.find(x => x.id === AUFBEREITUNG_ZAHLEN_SKILL_ID) ?? AUFBEREITUNG_ZAHLEN_SKILL;
+        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); setZahlenSkill(zah); }
       } catch { /* Seed-Fallback bleibt gesetzt. */ }
     })();
     return () => { cancelled = true; };
@@ -132,6 +140,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setVeraltet(false);
     setAspekte(FEHLT);    // Neuer deterministischer Stand → Bausteine erneut anfordern.
     setSteckbrief(FEHLT);
+    setZahlen(FEHLT);
   });
 
   /**
@@ -165,12 +174,14 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
    */
   const laufBausteine = async (aktRun: AufbereitungRun, aktCtx: AufbereitungContext, force: boolean): Promise<void> => {
     const vbA = await resolveVb(storage.idb, aktCtx).catch(() => null);
-    if (!vbA) { setAspekte({ status: 'fehler' }); setSteckbrief({ status: 'fehler' }); return; }
+    if (!vbA) { setAspekte({ status: 'fehler' }); setSteckbrief({ status: 'fehler' }); setZahlen({ status: 'fehler' }); return; }
     setVbMarkdown(vbA.markdown); // für Fundstellen-Auszüge im UI
     await laufEinen<AspektMapping>(aspekteSkill, setAspekte, t =>
       computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
     await laufEinen<SteckbriefDaten>(steckbriefSkill, setSteckbrief, t =>
       computeSteckbriefBaustein(storage.idb, t, steckbriefSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
+    await laufEinen<ZahlenDaten>(zahlenSkill, setZahlen, t =>
+      computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
   };
 
   const bausteine = useAsyncAction(async () => {
@@ -196,5 +207,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, toggle, aspekte, steckbrief, vbMarkdown, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, toggle, aspekte, steckbrief, zahlen, vbMarkdown, bausteine, bausteineNeu };
 }

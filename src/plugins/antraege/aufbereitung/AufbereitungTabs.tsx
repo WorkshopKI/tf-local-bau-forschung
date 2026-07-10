@@ -22,7 +22,7 @@ export const AUFBEREITUNG_TABS: TabDef[] = [
   { id: 'steckbrief', label: 'Steckbrief', zustand: 'aktiv' },
   { id: 'abdeckung', label: 'Abdeckung', zustand: 'aktiv' },
   { id: 'zeitplan', label: 'Zeitplan', zustand: 'aktiv' },
-  { id: 'zahlen', label: 'Zahlen', zustand: 'inaktiv' },
+  { id: 'zahlen', label: 'Zahlen', zustand: 'aktiv' },
   { id: 'glossar', label: 'Glossar', zustand: 'inaktiv' },
   { id: 'fragen', label: 'Fragen', zustand: 'inaktiv' },
   { id: 'recherche', label: 'Recherche', zustand: 'inaktiv' },

@@ -4,6 +4,7 @@ import type { Goldset } from '@/core/services/skill-eval/aspekte-metrik';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import { AUFBEREITUNG_ASPEKTE_SKILL } from '@/core/services/skills/registry/aufbereitung-aspekte.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL } from '@/core/services/skills/registry/aufbereitung-steckbrief.seed';
+import { AUFBEREITUNG_ZAHLEN_SKILL } from '@/core/services/skills/registry/aufbereitung-zahlen.seed';
 
 // Zwei minimale, unterscheidbare VBs (parseVbGliederung → Sektionen k-1 + k-7).
 const VB1 = '# 1 Ausgangssituation\n\nInhalt A eins.\n\n# 7 Realisierbarkeit\n\nInhalt F eins.\n';
@@ -62,6 +63,21 @@ const deps = (transport: AITransport) => ({
   fixtures: FIXTURES,
   goldset: GOLDSET,
 });
+
+const ZAHLEN_OK = '```json\n{"schemaVersion":1,"claims":[{"wert":"24 Monate","einheit":"Monate","kategorie":"zeit","kontext":"Laufzeit","sektionIds":["k-7"]}]}\n```';
+
+/** Stub, der Aspekte/Steckbrief/Zahlen nach Prompt-Inhalt bedient. */
+function stubMitZahlen(): AITransport {
+  return {
+    name: 'Stub',
+    submitConversation: async (messages: Array<{ role: string; content: string }>) => {
+      const prompt = messages[messages.length - 1]!.content;
+      if (prompt.includes('Prüfaspekte')) return 'A: k-1\nF: k-7';
+      if (prompt.includes('Zahlen-Inventar')) return ZAHLEN_OK;
+      return STECKBRIEF_OK;
+    },
+  } as unknown as AITransport;
+}
 
 describe('runAufbereitungEval', () => {
   it('happy path: Aspekte P=R=F1=1, Steckbrief-Smoke ok', async () => {
@@ -168,6 +184,22 @@ describe('runAufbereitungEval', () => {
     expect(erg.wiederholungen).toBe(1);
     expect(erg.fixtures[0]?.aspekteWdh).toBeUndefined();
     expect(erg.zusammenfassungWorst).toBeUndefined();
+  });
+
+  it('Zahlen-Smoke: parse ok mit Claims + schemaVersion, wenn zahlenSkill gesetzt', async () => {
+    const erg = await runAufbereitungEval(
+      { ...deps(stubMitZahlen()), zahlenSkill: AUFBEREITUNG_ZAHLEN_SKILL },
+      { limit: 1, includeSteckbrief: false },
+    );
+    const z = erg.fixtures[0]?.zahlen;
+    expect(z?.status).toBe('ok');
+    expect(z?.claimAnzahl).toBe(1);
+    expect(z?.schemaVersion).toBe(1);
+  });
+
+  it('ohne zahlenSkill läuft kein Zahlen-Smoke', async () => {
+    const erg = await runAufbereitungEval(deps(stub()), { limit: 1 });
+    expect(erg.fixtures[0]?.zahlen).toBeUndefined();
   });
 
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {

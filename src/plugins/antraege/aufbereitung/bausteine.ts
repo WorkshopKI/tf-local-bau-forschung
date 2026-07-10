@@ -48,6 +48,8 @@ export const aspekteCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:aspekte:${vbHash}`;
 export const steckbriefCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:steckbrief:${vbHash}`;
+export const zahlenCacheKey = (antragKey: string, vbHash: string): string =>
+  `aufbereitung:${antragKey}:zahlen:${vbHash}`;
 
 /** VB-Hash (djb2 — dieselbe Funktion wie der deterministische Run + die Relevanz-Map). */
 export const vbHashFuer = (vbMarkdown: string): string => hashText(vbMarkdown);
@@ -176,7 +178,11 @@ export async function getOrComputeBaustein<T>(
 
 /** Löscht die Baustein-Caches eines Antrags (alle VB-Hashes) — für „KI-Bausteine neu berechnen". */
 export async function loescheBausteinCaches(idb: IDBStore, antragKey: string): Promise<void> {
-  const praefixe = [`aufbereitung:${antragKey}:aspekte:`, `aufbereitung:${antragKey}:steckbrief:`];
+  const praefixe = [
+    `aufbereitung:${antragKey}:aspekte:`,
+    `aufbereitung:${antragKey}:steckbrief:`,
+    `aufbereitung:${antragKey}:zahlen:`,
+  ];
   for (const praefix of praefixe) {
     const keys = await idb.keys(praefix).catch(() => [] as string[]);
     for (const k of keys) await idb.delete(k).catch(() => {});

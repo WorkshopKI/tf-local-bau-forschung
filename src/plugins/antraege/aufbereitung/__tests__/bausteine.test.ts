@@ -4,7 +4,7 @@ import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import {
   getOrComputeBaustein, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
-  aspekteCacheKey, steckbriefCacheKey, vbHashFuer, ROHTEXT_MAX,
+  aspekteCacheKey, steckbriefCacheKey, zahlenCacheKey, vbHashFuer, ROHTEXT_MAX,
 } from '../bausteine';
 
 /** Minimaler In-Memory-IDB (nur die genutzten Methoden). */
@@ -145,17 +145,19 @@ describe('getOrComputeBaustein', () => {
 });
 
 describe('loescheBausteinCaches', () => {
-  it('löscht beide Baustein-Präfixe (alle VB-Hashes), lässt andere Keys unberührt', async () => {
+  it('löscht alle Baustein-Präfixe (aspekte/steckbrief/zahlen, alle VB-Hashes), lässt andere Keys unberührt', async () => {
     const { idb, store } = fakeIdb();
     store.set(aspekteCacheKey('A', 'h1'), 1);
     store.set(aspekteCacheKey('A', 'h2'), 1);
     store.set(steckbriefCacheKey('A', 'h1'), 1);
+    store.set(zahlenCacheKey('A', 'h1'), 1);
     store.set('aufbereitung:A', 1);            // deterministischer Run — bleibt
     store.set(aspekteCacheKey('B', 'h1'), 1);  // anderer Antrag — bleibt
     await loescheBausteinCaches(idb, 'A');
     expect(store.has(aspekteCacheKey('A', 'h1'))).toBe(false);
     expect(store.has(aspekteCacheKey('A', 'h2'))).toBe(false);
     expect(store.has(steckbriefCacheKey('A', 'h1'))).toBe(false);
+    expect(store.has(zahlenCacheKey('A', 'h1'))).toBe(false);
     expect(store.has('aufbereitung:A')).toBe(true);
     expect(store.has(aspekteCacheKey('B', 'h1'))).toBe(true);
   });

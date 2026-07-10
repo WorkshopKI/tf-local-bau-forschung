@@ -21,24 +21,26 @@ Alles unter [src/plugins/antraege/aufbereitung/](../../src/plugins/antraege/aufb
 | [store.ts](../../src/plugins/antraege/aufbereitung/store.ts) | `baueRun` (pur), `computeAufbereitung`, `uebernehmeOffenePunkte`, `befundKey`, … |
 | [bausteine.ts](../../src/plugins/antraege/aufbereitung/bausteine.ts) | Generischer LLM-Baustein-Rahmen `getOrComputeBaustein<T>` (Cache/Degradation), Cache-Keys, Dev-Gate |
 | [aspekte.ts](../../src/plugins/antraege/aufbereitung/aspekte.ts) | `PRUEF_ASPEKTE`, Prompt, Parser + deterministische Ableitungen, `computeAspekteBaustein` |
-| [steckbrief.ts](../../src/plugins/antraege/aufbereitung/steckbrief.ts) | `SteckbriefDaten`, Prompt, toleranter JSON-Parser, `computeSteckbriefBaustein` |
+| [steckbrief.ts](../../src/plugins/antraege/aufbereitung/steckbrief.ts) | `SteckbriefDaten`, Prompt, toleranter JSON-Parser (`extractLastJsonObject`, geteilt), `computeSteckbriefBaustein` |
+| [zahlen.ts](../../src/plugins/antraege/aufbereitung/zahlen.ts) | `ZAHL_KATEGORIEN`, Prompt, Parser (nutzt `extractLastJsonObject`), `computeZahlenBaustein`, **deterministische Quervergleiche** `pruefeZahlWidersprueche` (Paket 4) |
 | [useAufbereitung.ts](../../src/plugins/antraege/aufbereitung/useAufbereitung.ts) | State/IO: Run laden, „Neu aufbereiten", Bausteine sequentiell fahren, Toggle, Veraltet-Check |
 | [AufbereitungPage.tsx](../../src/plugins/antraege/aufbereitung/AufbereitungPage.tsx) | Route-Seite: Kopf + Tab-Leiste |
 | [ZeitplanTab.tsx](../../src/plugins/antraege/aufbereitung/ZeitplanTab.tsx) | Gantt + Kennzahlen + Plausibilitäts-Sektion (typ-agnostisch) |
 | [AbdeckungTab.tsx](../../src/plugins/antraege/aufbereitung/AbdeckungTab.tsx) | Prüfaspekte-Liste + „ohne Aspekt" + offene Punkte; Umschalter Liste\|Karte |
 | [StrukturKarte.tsx](../../src/plugins/antraege/aufbereitung/StrukturKarte.tsx) | Horizontaler Baum (HTML-Knoten + SVG-Verbindungen), `baueLayout` |
 | [SteckbriefTab.tsx](../../src/plugins/antraege/aufbereitung/SteckbriefTab.tsx) | Zwei-Spalten-Steckbrief (Karten links, Eckdaten/Zielmärkte/Personal rechts) |
+| [ZahlenTab.tsx](../../src/plugins/antraege/aufbereitung/ZahlenTab.tsx) | Zahlen-Claims nach Kategorie gruppiert + Fundstellen-Chip + Widerspruch-StatusDot (Paket 4) |
 | [FundstelleChip.tsx](../../src/plugins/antraege/aufbereitung/FundstelleChip.tsx) | `§ 3.1`-Chip + `FundstellePopover` (Auszug, kein Sprung — geteilt) |
 
-Skill-Seeds: [aufbereitung-aspekte.seed.ts](../../src/core/services/skills/registry/aufbereitung-aspekte.seed.ts) + [aufbereitung-steckbrief.seed.ts](../../src/core/services/skills/registry/aufbereitung-steckbrief.seed.ts). Mini-Eval: [aufbereitung-eval.ts](../../src/core/services/skill-eval/aufbereitung-eval.ts) + Goldset [eval/eval-goldset-aspekte.json](../../eval/eval-goldset-aspekte.json).
+Skill-Seeds: [aufbereitung-aspekte.seed.ts](../../src/core/services/skills/registry/aufbereitung-aspekte.seed.ts) + [aufbereitung-steckbrief.seed.ts](../../src/core/services/skills/registry/aufbereitung-steckbrief.seed.ts) + [aufbereitung-zahlen.seed.ts](../../src/core/services/skills/registry/aufbereitung-zahlen.seed.ts). Mini-Eval: [aufbereitung-eval.ts](../../src/core/services/skill-eval/aufbereitung-eval.ts) + Goldset [eval/eval-goldset-aspekte.json](../../eval/eval-goldset-aspekte.json).
 
 ## Datenmodell + Persistenz
 
 Ein `AufbereitungRun` pro Antrag im IDB-`kv`-Store unter **`aufbereitung:<antragKey>`** (raw `idb.get`/`idb.set`, Muster [relevanz-map.ts](../../src/plugins/antraege/gutachten/relevanz-map.ts)) — **KEIN neuer Object-Store** (Pitfall #29). `antragKey` = `KurzfassungContext.key`. Quell-Hashes liegen IM Objekt; Hash via `hashText` aus [runner.ts](../../src/plugins/antraege/gutachten/runner.ts) (djb2, dieselbe Funktion wie Relevanz-Map). `AufbereitungRun`: `version`, `antragKey`, `erzeugtAm`, `quellen[]`, `gliederung`, `tabellen[]`, `zeitplan{…}|null`, `befunde[]`, `offenePunkte[]`, `hinweis?`.
 
-**Getrennte Baustein-Caches** (NICHT im Run): `aufbereitung:<antragKey>:aspekte:<vbHash>` und `aufbereitung:<antragKey>:steckbrief:<vbHash>` (im selben `kv`-Store). Der deterministische Run und die LLM-Bausteine sind damit entkoppelt: „Neu aufbereiten" rechnet den deterministischen Run immer neu (LLM-Bausteine nur bei VB-Hash-Wechsel), der dev-Button „KI-Bausteine neu berechnen" löscht beide Baustein-Caches (`loescheBausteinCaches`) und rechnet sie mit `force` neu.
+**Getrennte Baustein-Caches** (NICHT im Run): `aufbereitung:<antragKey>:aspekte:<vbHash>`, `…:steckbrief:<vbHash>` und `…:zahlen:<vbHash>` (im selben `kv`-Store). Der deterministische Run und die LLM-Bausteine sind damit entkoppelt: „Neu aufbereiten" rechnet den deterministischen Run immer neu (LLM-Bausteine nur bei VB-Hash-Wechsel), der dev-Button „KI-Bausteine neu berechnen" löscht alle Baustein-Caches (`loescheBausteinCaches`) und rechnet sie mit `force` neu.
 
-**`offenePunkte`-Erhalt:** `computeAufbereitung` lädt den Vorlauf und übernimmt seine `offenePunkte` in den frisch berechneten Run (`uebernehmeOffenePunkte`) — behalten wird ein Key, wenn er einem aktuellen `befundKey` entspricht ODER mit `aspekt-fehlt:` beginnt (LLM-Kandidaten, gegen den Baustein beim Rendern validiert); verwaiste Keys werden verworfen. **Ohne diesen Schritt würde „Neu aufbereiten" die Nutzer-Markierungen löschen.**
+**`offenePunkte`-Erhalt:** `computeAufbereitung` lädt den Vorlauf und übernimmt seine `offenePunkte` in den frisch berechneten Run (`uebernehmeOffenePunkte`) — behalten wird ein Key, wenn er einem aktuellen `befundKey` entspricht ODER mit einem der Kandidaten-Präfixe `aspekt-fehlt:`/`risiko-fehlt:`/`zahl-widerspruch:` beginnt (LLM-/UI-Kandidaten, beim Rendern validiert); verwaiste Keys werden verworfen. **Ohne diesen Schritt würde „Neu aufbereiten" die Nutzer-Markierungen löschen.**
 
 ## Zeitplan: Ernte + Normalisierung + Abgleich + Kapazität
 
@@ -81,6 +83,12 @@ Die Bausteine laufen **sequentiell** (Aspekte → Steckbrief), weil der interne 
 
 `SteckbriefDaten` (einSatz, innovation[], fueGegenstand[], laufzeit, kernZielwert, zielmaerkte[], personal[], auftraegeDritte[]) — jedes Feld/Element mit `sektionIds`. **Hybrid:** Stammdaten (Antragsteller, FKZ, Projektform) kommen deterministisch aus dem Store; das LLM liefert nur die VB-abgeleiteten Felder. `buildSteckbriefPrompt` fordert einen JSON-Codeblock; `parseSteckbrief` liest den **letzten** JSON-Codeblock marker-tolerant (`extractLastJsonObject`: Fence → letztes balanciertes `{…}` → Brace-Walker/Truncation), feld-tolerant, Sektions-IDs gegen die Gliederung validiert (unbekannte verworfen, Aussage behalten). Kaputtes JSON → `null` = Degradation (Rohtext-Anzeige). Leere LLM-Felder zeigt das Tab als „[Im Antrag nicht gefunden]" (die Lücke ist Information).
 
+## Zahlen-Inventar (Paket 4)
+
+Ein **dritter LLM-Baustein** (`aufbereitung-zahlen`, Seed `aktiv:false`, dev): das Modell WÄHLT die Claims mit Zahlenwerten aus der VB aus und verankert sie per Sektions-ID — es rechnet, normalisiert und summiert **nichts**. `ZahlClaim{wert (wörtlich), einheit?, kategorie, kontext, sektionIds}`; `ZahlenDaten{schemaVersion, claims}`. Kategorien-Katalog `leistung|zeit|personal|kosten|markt|sonstig` als **Code-Konstante** `ZAHL_KATEGORIEN` (Domänen-Wissen, nicht Registry; unbekannt → `sonstig`). Der Parser liest den letzten JSON-Codeblock über die **geteilte** `extractLastJsonObject` (aus `steckbrief.ts` — kein zweiter Parser), verwirft Claims ohne wörtlichen `wert` ODER ohne gültige Sektions-ID (Fundstelle Pflicht). `computeZahlenBaustein` läuft über `getOrComputeBaustein` mit dem Verdächtig-Guard **0 Claims → Retry** (Förderanträge tragen immer Zahlen). Claims leben (wie der Steckbrief) im Baustein-kv-Cache, **nicht** im Run — keine Run-Schema-Änderung.
+
+**Deterministische Quervergleiche** (`pruefeZahlWidersprueche`, reine Funktion — nie das LLM): Startumfang klein + sicher — (1) `zeit`-Claim mit klarer Monatszahl vs. Zeitplan-Horizont (`zeitplan.achseMax`); (2) `personal`-Claim mit klarer PM-Zahl vs. Anlage-5-Summe (`summePm`, geteilt mit der Kennzahlen-Karte). Nur **sicher parsebare** Werte erzeugen einen Befund; im Zweifel kein Vergleich, **kein Fuzzy-Matching** (Float-sichere Gleichheit auf 1 Nachkommastelle). Abweichung → Kandidat `zahl-widerspruch:<art>:<claim-slug>` (Aspekt H), reiht sich in die bestehende `offenePunkte`-Mechanik ein (Prefix-Whitelist, überlebt „Neu aufbereiten"). Der **Zahlen-Tab** gruppiert nach Kategorie, zeigt je Claim Wert/Einheit/Kontext/`FundstelleChip` + einen Widerspruch-`StatusDot` am betroffenen Claim (monochrom). In-App-Eval: **Zahlen-Smoke** (analog Steckbrief — Parse ok, `schemaVersion` + Claims + katalog-valide sektionIds), kein eigenes Goldset in diesem Paket (Fixtures fiktiv).
+
 ## Mini-Eval + Baseline + Aktivierungs-Gate
 
 Die Metrik lebt IO-frei und geteilt in [aspekte-metrik.ts](../../src/core/services/skill-eval/aspekte-metrik.ts) (`paare`/`metriken`/`fasseZusammen`/`fehlzuordnungen`) — **eine** Rechnung für die Node-CLI UND das In-App-Panel (byte-vergleichbare Zahlen).
@@ -121,6 +129,6 @@ Drei **rein deterministische** Sichten auf den bestehenden Daten (kein LLM, kein
 - **F2** — Bahn-Kapazitäts-Warnungen kommen aus `kapazitaetProMaMonat` (geteilt mit `pruefeKapazitaet`), nie aus dem Parsen von Befund-Texten.
 - **F3** — Risiko-**Ernte** im `baueRun` (deterministisch), Risiko-**Zuordnung** im UI (`zuordneRisiken`, braucht das Aspekt-Mapping). Getoggelte `risiko-fehlt:*`-Kandidaten überleben „Neu aufbereiten" nur, weil `uebernehmeOffenePunkte` das Prefix whitelistet.
 
-## Ausblick Paket 4
+## Ausblick
 
-Zahlen-Inventar + Fragen-Tab (bzw. Recherche/Glossar). Die vorhandene Fundstellen-/Popover-Infrastruktur (`FundstellePopover`, `baueLayout`, Baustein-Rahmen) sowie das Risiko/Positions-Substrat aus Paket 3 sind darauf ausgelegt, additiv erweitert zu werden.
+Paket 4 liefert Eval-Härtung (Phase 0), das **Zahlen-Inventar** (oben) und den **Fragen-Tab** (Aggregation aller offenen Punkte). Offen bleiben Recherche/Glossar/Lesemodus. Die vorhandene Fundstellen-/Popover-Infrastruktur (`FundstellePopover`, `baueLayout`, Baustein-Rahmen) sowie das Risiko/Positions-Substrat aus Paket 3 sind darauf ausgelegt, additiv erweitert zu werden.
