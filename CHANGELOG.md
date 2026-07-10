@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.212.0 — Bridge-Statusleiste: drei Pills → eine dezente Status-Pill (Juli 2026)
+
+MINOR — Die vom Bookmarklet in die interne KI-Seite injizierte Statusleiste ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js)) zeigt statt **drei** Pills (Badge + „ZAH-App testen" + „Chat-Test") nur noch **eine** dezente Status-Pill. Reine UI-Änderung an der injizierten Leiste; kein React, kein Datenmodell, keine Migration. `BRIDGE_REV` gebumpt (`2026-07-09-robust3` → `2026-07-10-pill`) → einmalige Neu-Installation des Lesezeichens nötig.
+
+- **Eine Pill statt drei** (`#tf-bridge-badge`): kleiner farbiger Status-Punkt (Ton grün/amber/rot) + neutraler Text auf hellem Grund, feine Umrandung + weicher Schatten, im Ruhezustand leicht gedämpft (`opacity:.85`), beim Hover voll sichtbar. Angepasst an die Streamlit-Optik, damit die Pill unauffällig sitzen kann. Die zwei Test-**Buttons** entfallen — ihre Aufrufe wandern in die Funktionen `runAppReachTest()` (ZAH-App-Ping) und das bestehende `runSelfTest()` (Chat-Test).
+- **Statuszyklus in einer Pill**: die Pill durchläuft im Zeitverlauf alle Zustände (Interne KI → Prüfe ZAH-App… → ZAH App erreichbar → Chat-Test läuft… → Chat-Test OK → **Verbunden**; dazu Arbeitet… / Zeitüberschreitung / Fehler). Beide Selbsttests laufen wie bisher automatisch beim Aktivieren (300 ms / 1500 ms); `setBadge` färbt jetzt nur noch den Punkt (Ton) + Text, die Pill-Fläche bleibt neutral.
+- **Klick = Checks neu**: ein Klick auf die Pill löst beide Selbsttests erneut aus (ersetzt die zwei entfallenen Buttons als manuellen Fallback). Ohne `window.opener` weiterhin Hinweis „Tab aus der App öffnen".
+- **Position nach links eingerückt** (`right:12px` → `right:220px`, bottom bleibt 12px): Chrome zeichnet seine Bildschirmfreigabe-Anzeige unten rechts (außerhalb der Seite, nicht per JS messbar) — die Pill weicht ihr per festem `right`-Versatz aus und überlappt sie nicht mehr. Der 4-s-Watchdog re-asserted dieselbe `BAR_CSS`-Konstante (unverändert).
+- Docs mitgezogen: [streamlit-bridge.md](docs/architecture/streamlit-bridge.md) (Leisten-Beschreibung) + Installer-Schritt in [StreamlitBridgeSection.tsx](src/plugins/einstellungen/StreamlitBridgeSection.tsx). Echo-/Answer-Selection-Logik unberührt (`echo-match.test.ts` grün). Verifiziert per `build:dev`/`build:pl`; manuelle `file://`-Abnahme an der echten AitisiGPT-Seite offen (Thomas).
+
 ### v2.211.1 — Einstellungen: „Profil" → „Mein Profil", KI-Assistent ans Ende der System-Gruppe (Juli 2026)
 
 PATCH — Zwei kleine Feinschliffe an der Settings-Sidebar ([settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)); reine Beschriftung/Reihenfolge, kein Verhaltens-/Datenmodell-Change.

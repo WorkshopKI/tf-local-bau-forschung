@@ -143,7 +143,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
             <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
             <li>Den Button <strong>„Interne KI"</strong> einmalig in die Lesezeichenleiste ziehen.</li>
             <li><strong>Interne KI öffnen</strong> klicken (der Tab muss <em>aus der App</em> geöffnet werden).</li>
-            <li>Im Tab der internen KI das Lesezeichen anklicken — unten rechts erscheinen ein grünes Badge und der Button <strong>„ZAH-App testen"</strong> (zeigt „ZAH App erreichbar").</li>
+            <li>Im Tab der internen KI das Lesezeichen anklicken — unten rechts erscheint eine kleine Status-Pill, die kurz die Prüfungen durchläuft und dann auf grün <strong>„Verbunden"</strong> ruht (ein Klick darauf prüft die Verbindung erneut).</li>
             <li>Zurück hier: <strong>Verbindung testen</strong> → „Interne KI erreichbar". Danach läuft der KI-Chat über die Verbindung.</li>
           </ol>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">

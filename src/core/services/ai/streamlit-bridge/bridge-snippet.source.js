@@ -20,7 +20,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-09-robust3';
+  var BRIDGE_REV = '2026-07-10-pill';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -394,13 +394,16 @@
     working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
     error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
   };
-  // Fixierte Leiste UNTEN rechts: Badge + Test-Buttons in EINER Zeile.
+  // Fixierte Leiste UNTEN rechts: EINE dezente Status-Pill (v2.212).
   // Unten statt oben (v2.203): oben rechts sitzt der Streamlit-Header-/Status-
   // Bereich der fremden KI-Seite — dort wurde die Leiste wiederholt ueberdeckt.
+  // right:220px statt 12px (v2.212): Chrome zeichnet seine Bildschirmfreigabe-
+  // Anzeige unten rechts (ausserhalb der Seite, nicht messbar) — die Pill wird
+  // nach links eingerueckt, damit sie frei daneben sitzt.
   // z-index am Maximum (2147483647): die fremde KI-Seite hat Container mit hohem
   // eigenem Stacking-Context, die `z-index:99999` ueberdeckt haetten (Leiste war
   // im DOM + funktional, aber unsichtbar).
-  var BAR_CSS = 'position:fixed;bottom:12px;right:12px;z-index:2147483647;display:flex;gap:6px;align-items:center;';
+  var BAR_CSS = 'position:fixed;bottom:12px;right:220px;z-index:2147483647;display:flex;gap:6px;align-items:center;';
   var bar = document.createElement('div');
   bar.id = 'tf-bridge-bar';
   bar.style.cssText = BAR_CSS;
@@ -419,53 +422,65 @@
     } catch (e) { /* ignore */ }
   }, 4000);
 
+  // Dezente Status-Pill (v2.212): EIN Element statt Badge + zwei Test-Buttons.
+  // Farbiger Punkt (Ton) + neutraler Text auf hellem Grund — faellt in der fremden
+  // KI-Seite nicht auf, zeigt aber im Zeitverlauf alle Zustaende (Verbunden /
+  // Pruefe ZAH-App… / ZAH App erreichbar / Chat-Test laeuft… / Arbeitet… / Fehler).
+  // Klick loest beide Selbsttests erneut aus (ersetzt die frueheren Test-Buttons).
+  var PILL_CSS = 'display:inline-flex;align-items:center;gap:6px;padding:4px 11px;'
+    + 'border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;'
+    + 'background:#fff;color:hsl(0,0%,25%);border:1px solid hsl(0,0%,88%);'
+    + 'box-shadow:0 1px 3px rgba(0,0,0,.12);opacity:.85;cursor:pointer;'
+    + 'transition:opacity .15s;user-select:none;';
   var badge = document.createElement('div');
   badge.id = 'tf-bridge-badge';
-  badge.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;background:' + TONES.ready.bg + ';color:' + TONES.ready.fg + ';';
-  badge.textContent = 'Interne KI';
-  badge.title = 'TeamFlow-Bridge ' + BRIDGE_REV; // Hover → welche Bookmarklet-Version laeuft
+  badge.style.cssText = PILL_CSS;
+  badge.title = 'TeamFlow-Bridge ' + BRIDGE_REV + ' — Klicken: Verbindung neu pruefen';
+  var dot = document.createElement('span');
+  dot.style.cssText = 'width:8px;height:8px;border-radius:9999px;flex:none;background:' + TONES.ready.fg + ';';
+  var label = document.createElement('span');
+  label.textContent = 'Interne KI';
+  badge.appendChild(dot);
+  badge.appendChild(label);
   bar.appendChild(badge);
+  badge.addEventListener('mouseenter', function () { badge.style.opacity = '1'; });
+  badge.addEventListener('mouseleave', function () { badge.style.opacity = '.85'; });
+  // Setzt Punkt-Farbe (Ton) + Text; die Pill-Flaeche bleibt neutral (dezent).
   function setBadge(tone, text) {
     var t = TONES[tone] || TONES.ready;
-    badge.style.background = t.bg;
-    badge.style.color = t.fg;
-    badge.textContent = text || 'Interne KI';
+    dot.style.background = t.fg;
+    label.textContent = text || 'Interne KI';
   }
 
-  // Kleiner Test-Button (Gegenrichtung): prueft, ob das oeffnende App-Fenster
-  // (window.opener) erreichbar ist → Nutzer sieht im KI-Tab „ZAH App erreichbar".
-  var testBtn = document.createElement('button');
-  testBtn.id = 'tf-bridge-test';
-  testBtn.textContent = 'ZAH-App testen';
-  testBtn.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;border:1px solid ' + TONES.ready.fg + ';background:#fff;color:' + TONES.ready.fg + ';cursor:pointer;';
-  bar.appendChild(testBtn);
-  testBtn.addEventListener('click', function () {
-    if (!window.opener) { testBtn.textContent = 'Kein App-Fenster'; return; }
-    testBtn.textContent = 'Teste…';
+  // ZAH-App-Erreichbarkeit (Gegenrichtung): prueft, ob das oeffnende App-Fenster
+  // (window.opener) antwortet → Pill zeigt „ZAH App erreichbar".
+  function runAppReachTest() {
+    if (!window.opener) { setBadge('error', 'Kein App-Fenster'); return; }
+    setBadge('working', 'Prüfe ZAH-App…');
     var done = false;
     function onPong(e) {
       if (e.data && e.data.type === 'tf-app-pong') {
         done = true;
-        testBtn.textContent = 'ZAH App erreichbar';
+        setBadge('ready', 'ZAH App erreichbar');
         window.removeEventListener('message', onPong);
       }
     }
     window.addEventListener('message', onPong);
     window.opener.postMessage({ type: 'tf-app-ping' }, '*');
     setTimeout(function () {
-      if (!done) { testBtn.textContent = 'ZAH App nicht erreichbar'; window.removeEventListener('message', onPong); }
+      if (!done) { setBadge('error', 'ZAH App nicht erreichbar'); window.removeEventListener('message', onPong); }
     }, 3000);
-  });
+  }
 
-  // „Chat-Test": schickt eine harmlose Rechenfrage durch den ECHTEN Scrape-Pfad und
-  // meldet, ob die Antwort korrekt erkannt wird → erkennt eine geaenderte KI-Oberflaeche.
-  var chatTestBtn = document.createElement('button');
-  chatTestBtn.id = 'tf-bridge-chattest';
-  chatTestBtn.textContent = 'Chat-Test';
-  chatTestBtn.style.cssText = 'padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;border:1px solid ' + TONES.ready.fg + ';background:#fff;color:' + TONES.ready.fg + ';cursor:pointer;';
-  chatTestBtn.title = 'Sendet eine Testfrage an die interne KI und prueft, ob die Antwort korrekt erkannt wird (erkennt Oberflaechen-Aenderungen)';
-  bar.appendChild(chatTestBtn);
-  chatTestBtn.addEventListener('click', function () { runSelfTest(); });
+  // Klick auf die Pill: beide Selbsttests erneut ausloesen (manueller Fallback,
+  // ersetzt die frueheren „ZAH-App testen"/„Chat-Test"-Buttons). „Chat-Test"
+  // (runSelfTest) schickt eine harmlose Rechenfrage durch den ECHTEN Scrape-Pfad
+  // und erkennt so eine geaenderte KI-Oberflaeche.
+  badge.addEventListener('click', function () {
+    if (!window.opener) { setBadge('error', 'Tab aus der App öffnen'); return; }
+    runAppReachTest();
+    setTimeout(function () { runSelfTest(); }, 300);
+  });
 
   // Beim Aktivieren dem oeffnenden App-Fenster Bescheid geben → die App
   // uebernimmt das Fenster-Handle (event.source) und kann zuverlaessig pingen,
@@ -473,11 +488,11 @@
   // oder COOP) → klarer Hinweis.
   if (window.opener) {
     try { window.opener.postMessage({ type: 'tf-bridge-ready' }, '*'); } catch (e) { /* ignore */ }
-    // Auto-Selbsttest: triggert den vorhandenen „ZAH-App testen"-Button (DRY)
-    // direkt nach dem Aktivieren → der Nutzer sieht „ZAH App erreichbar", ohne
-    // selbst klicken zu muessen. Kleiner Versatz, damit das opener-Fenster sicher
-    // bereit ist. Der Button bleibt als manueller Fallback erhalten.
-    setTimeout(function () { testBtn.click(); }, 300);
+    // Auto-Selbsttest direkt nach dem Aktivieren → der Nutzer sieht „ZAH App
+    // erreichbar", ohne selbst klicken zu muessen. Kleiner Versatz, damit das
+    // opener-Fenster sicher bereit ist. Ein Klick auf die Pill loest beide
+    // Selbsttests manuell erneut aus.
+    setTimeout(function () { runAppReachTest(); }, 300);
     // Chat-Selbsttest: unauffaelliger Rundlauf durch den ECHTEN Scrape-Pfad, damit eine
     // geaenderte KI-Oberflaeche sofort beim Start auffaellt (raeumt danach per Reset auf).
     setTimeout(function () { runSelfTest(); }, 1500);
@@ -732,8 +747,7 @@
           console.log('[TeamFlow-Bridge] Chat-Test ' + (ok ? 'OK' : 'FEHLGESCHLAGEN')
             + ' — Frage "' + frage + '", erwartet "' + erwartet + '", gesehen: "' + seen.slice(0, 100) + '"');
         } catch (e) { /* ignore */ }
-        var ctb = document.getElementById('tf-bridge-chattest');
-        if (ctb) ctb.textContent = ok ? 'Chat-Test OK' : 'Chat-Test: prüfen';
+        setBadge(ok ? 'ready' : 'working', ok ? 'Chat-Test OK' : warnText);
         // Aufraeumen: Test-Chat zuruecksetzen (frischer Kontext fuer echte Anfragen).
         setTimeout(function () {
           try { resetChat(); } catch (e) { /* ignore */ }

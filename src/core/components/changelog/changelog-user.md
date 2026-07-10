@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.212 — 2026-07
+
+### Verbesserungen
+- **Ruhigere Statusanzeige der internen KI:** Im KI-Tab zeigt die kleine Anzeige unten rechts jetzt nur noch **eine** dezente Status-Pill statt drei nebeneinander. Sie durchläuft kurz die Prüfungen und ruht dann auf „Verbunden"; ein Klick darauf prüft die Verbindung erneut. Sie sitzt außerdem etwas weiter links, damit Chromes Bildschirmfreigabe-Hinweis sie nicht mehr überdeckt. Hinweis: Das Lesezeichen muss dafür einmal neu installiert werden (aus den Einstellungen erneut in die Lesezeichenleiste ziehen).
+
 ## v2.211 — 2026-07
 
 ### Neu
