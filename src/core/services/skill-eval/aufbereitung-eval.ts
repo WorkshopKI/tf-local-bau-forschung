@@ -25,13 +25,12 @@ import {
   buildAspektePrompt, parseAspektMapping, sektionZuAspekte, PRUEF_ASPEKTE,
 } from '@/plugins/antraege/aufbereitung/aspekte';
 import { NodeOpenAITransport } from './node-transport';
+import { metriken, fasseZusammen, type AspektMetrik, type Goldset } from './aspekte-metrik';
 
 const DEFAULT_FIXTURES = 'src/core/services/skill-eval/fixtures/eval-fixtures.data.json';
 const DEFAULT_GOLDSET = 'eval/eval-goldset-aspekte.json';
 
 interface Fixture { vbFile: string; antragstyp: string; vbMarkdown: string }
-interface GoldFixture { vbFile: string; erwartung: Record<string, string[]> }
-interface Goldset { beschreibung?: string; fixtures: GoldFixture[] }
 interface ModelConfig { id?: string; baseUrl: string; model: string; apiKeyEnv?: string }
 
 function readJson<T>(path: string): T {
@@ -48,31 +47,6 @@ function parseArgs(argv: string[]): Record<string, string | boolean> {
     if (next && !next.startsWith('--')) { out[key] = next; i++; } else { out[key] = true; }
   }
   return out;
-}
-
-/** Sektion→Aspekt-Paare als „sid|A"-Strings (für Mengen-Metriken). */
-function paare(zuAspekte: Record<string, string[]>): Set<string> {
-  const s = new Set<string>();
-  for (const [sid, aspekte] of Object.entries(zuAspekte)) for (const a of aspekte) s.add(`${sid}|${a}`);
-  return s;
-}
-
-/**
- * Precision/Recall über die vom Goldset ABGEDECKTEN Sektionen (partielles Goldset):
- * Recall = getroffene Gold-Paare ÷ Gold-Paare; Precision = getroffene Gold-Paare ÷
- * vorhergesagte Paare AUF Gold-Sektionen (Zuordnungen zu nicht annotierten Sektionen
- * zählen nicht als Fehler). F1 = harmonisches Mittel.
- */
-function metriken(gold: Record<string, string[]>, pred: Record<string, string[]>) {
-  const goldSektionen = new Set(Object.keys(gold));
-  const goldPaare = paare(gold);
-  const predPaare = paare(pred);
-  const predAufGold = new Set([...predPaare].filter(p => goldSektionen.has(p.split('|')[0]!)));
-  const treffer = [...goldPaare].filter(p => predPaare.has(p)).length;
-  const recall = goldPaare.size ? treffer / goldPaare.size : 1;
-  const precision = predAufGold.size ? treffer / predAufGold.size : 1;
-  const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
-  return { treffer, goldPaare: goldPaare.size, predAufGold: predAufGold.size, precision, recall, f1 };
 }
 
 /** Stub-Transport für `--dry-run`: „LLM" gibt exakt die Goldset-Erwartung im Zeilenformat zurück. */
@@ -127,10 +101,7 @@ async function main(): Promise<void> {
   const modelCfg = typeof args.models === 'string' ? readJson<ModelConfig>(args.models) : null;
 
   const zeilen: string[] = [];
-  const gesamt = { treffer: 0, goldPaare: 0, predAufGold: 0 };
-  let precisionSumme = 0;
-  let recallSumme = 0;
-  let n = 0;
+  const perFixture: AspektMetrik[] = [];
 
   for (const gf of goldset.fixtures.slice(0, limit)) {
     const fx = findeFixture(fixtures, gf.vbFile);
@@ -156,28 +127,18 @@ async function main(): Promise<void> {
     const pred = sektionZuAspekte(mapping);
     const m = metriken(gf.erwartung, pred);
     zeilen.push(JSON.stringify({ vbFile: gf.vbFile, ...m }));
-    gesamt.treffer += m.treffer; gesamt.goldPaare += m.goldPaare; gesamt.predAufGold += m.predAufGold;
-    precisionSumme += m.precision; recallSumme += m.recall; n++;
+    perFixture.push(m);
     // eslint-disable-next-line no-console
     console.log(`  ${gf.vbFile}: P=${m.precision.toFixed(2)} R=${m.recall.toFixed(2)} F1=${m.f1.toFixed(2)} (${m.treffer}/${m.goldPaare})`);
   }
 
-  const microP = gesamt.predAufGold ? gesamt.treffer / gesamt.predAufGold : 1;
-  const microR = gesamt.goldPaare ? gesamt.treffer / gesamt.goldPaare : 1;
-  const zusammenfassung = {
-    fixtures: n,
-    makroPrecision: n ? precisionSumme / n : 0,
-    makroRecall: n ? recallSumme / n : 0,
-    mikroPrecision: microP,
-    mikroRecall: microR,
-    mikroF1: microP + microR > 0 ? (2 * microP * microR) / (microP + microR) : 0,
-  };
+  const zusammenfassung = fasseZusammen(perFixture);
   zeilen.push(JSON.stringify({ zusammenfassung }));
   writeFileSync(jsonlPfad, zeilen.join('\n') + '\n', 'utf8');
   // eslint-disable-next-line no-console
   console.log(`\n== Baseline (${args['dry-run'] ? 'DRY-RUN / Harness-Selbsttest' : 'LIVE intern'}) ==`);
   // eslint-disable-next-line no-console
-  console.log(`  Fixtures: ${n} · Makro P=${zusammenfassung.makroPrecision.toFixed(3)} R=${zusammenfassung.makroRecall.toFixed(3)} · Mikro F1=${zusammenfassung.mikroF1.toFixed(3)}`);
+  console.log(`  Fixtures: ${zusammenfassung.fixtures} · Makro P=${zusammenfassung.makroPrecision.toFixed(3)} R=${zusammenfassung.makroRecall.toFixed(3)} · Mikro F1=${zusammenfassung.mikroF1.toFixed(3)}`);
   // eslint-disable-next-line no-console
   console.log(`  → ${jsonlPfad}`);
 }

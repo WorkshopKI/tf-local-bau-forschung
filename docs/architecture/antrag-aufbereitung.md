@@ -79,9 +79,13 @@ Die Bausteine laufen **sequentiell** (Aspekte → Steckbrief), weil der interne 
 
 ## Mini-Eval + Baseline + Aktivierungs-Gate
 
+Die Metrik lebt IO-frei und geteilt in [aspekte-metrik.ts](../../src/core/services/skill-eval/aspekte-metrik.ts) (`paare`/`metriken`/`fasseZusammen`/`fehlzuordnungen`) — **eine** Rechnung für die Node-CLI UND das In-App-Panel (byte-vergleichbare Zahlen).
+
 `npm run eval:aufbereitung` ([aufbereitung-eval.ts](../../src/core/services/skill-eval/aufbereitung-eval.ts), vite-node) misst Precision/Recall der Sektion→Aspekt-Zuordnung gegen ein handkuratiertes **partielles** Goldset ([eval/eval-goldset-aspekte.json](../../eval/eval-goldset-aspekte.json), 3 fiktive Fixtures; Metrik nur über annotierte Sektionen). Modi: `--dump` (Gliederung ausgeben, Goldset-Authoring), `--dry-run` (Stub-Transport = Harness-Selbsttest), live (interner `NodeOpenAITransport` — **nie** OpenRouter; die Fixtures sind fiktiv, der Lauf spiegelt aber den Prod-Pfad).
 
-**Baseline (Stand Paket 2):** Dry-Run/Harness-Selbsttest P=R=F1=1,000 über 3 Fixtures — verifiziert Prompt→Parse→Invert→Metrik. Eine **echte Live-Baseline** über den internen LLM steht aus (Umgebung ohne erreichbaren internen Endpoint). **Regel:** Eine Aktivierung der Bausteine jenseits dev (`aktiv:true`) setzt eine bestandene Live-Eval voraus — analog zum Recall-Gate des Anfragen-Anonymisierers.
+**In-App-Eval (dev-only, Bridge).** Weil Node (dev) und der interne gpt-oss (prod, Browser + Streamlit-Bridge) getrennte Umgebungen sind, gibt es zusätzlich ein dev-Panel in **Einstellungen → KI → „Aufbereitung: Baustein-Eval"** ([eval-panel/](../../src/plugins/antraege/aufbereitung/eval-panel/), gegated `isDevFixturesEnabled()`). Es jagt die 3 Goldset-Fixtures **sequentiell** über `bridge.getTransportForSkillRun(skill)` durch dieselben reinen Bausteine (Prompt-Bau → `runBaustein` → Parser, **OHNE** `getOrComputeBaustein` — kein Cache, kein `antragKey`, keine Runs), misst Aspekte gegen dasselbe Goldset und fährt den Steckbrief als **Smoke-Test** (nur Status + Anzahl gefüllter Felder). Ergebnis als kopierbarer Markdown-Block (für den Chat). Die ~2-MB-Fixtures bleiben über `loadEvalFixtures()` dev-only (aus prod/pl/as/kurator getreeshaked); das ~1,6-KB-Goldset (fiktive Buchstaben-Maps, kein VB-Inhalt) wird über `?raw` gebündelt.
+
+**Baseline (Stand Paket 2):** Dry-Run/Harness-Selbsttest P=R=F1=1,000 über 3 Fixtures — verifiziert Prompt→Parse→Invert→Metrik. Eine **echte Live-Baseline** über den internen LLM steht aus (Umgebung ohne erreichbaren internen Endpoint). **Regel:** Eine Aktivierung der Bausteine jenseits dev (`aktiv:true`) setzt eine **bestandene Live-Eval** voraus — über den **In-App-Eval** (Bridge, prod-Umgebung) ODER die **Node-Eval** (direkter interner Endpoint) — analog zum Recall-Gate des Anfragen-Anonymisierers.
 
 ## Route + Einstieg
 

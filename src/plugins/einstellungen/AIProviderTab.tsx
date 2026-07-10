@@ -14,7 +14,8 @@ import {
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
-import { isOpenRouterEnabled, isDevContext, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
+import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
+import { AufbereitungEvalPanel } from '@/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel';
 import { StreamlitBridgeSection } from './StreamlitBridgeSection';
 import { SettingsSectionHeader } from './_shared/settings-primitives';
 
@@ -333,6 +334,16 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
         <Button onClick={handleSave}>Speichern & Aktivieren</Button>
         {saved && <Badge variant="success">Provider aktiviert</Badge>}
       </div>
+      </section>
+      )}
+
+      {/* Antrag-Aufbereitung: In-App-Baustein-Eval — nur dev (fiktive Fixtures via
+          loadEvalFixtures). Die 2-MB-VBs bleiben über den dev-Guard aus prod/pl/as/
+          kurator raus; das Panel misst die Bausteine über die Bridge (kein Cache). */}
+      {isDevFixturesEnabled() && (
+      <section id="sec-aufbereitung-eval" className="scroll-mt-20 space-y-3">
+        <SettingsSectionHeader label="Aufbereitung: Baustein-Eval" />
+        <AufbereitungEvalPanel />
       </section>
       )}
     </div>

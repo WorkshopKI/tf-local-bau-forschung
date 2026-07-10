@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.213 — 2026-07
+
+### Verbesserungen
+- **Unter der Haube:** Ein neues internes Prüf-Werkzeug hilft dem Team, die KI-gestützte Antrag-Aufbereitung vor der Freischaltung zu testen. Für dich ändert sich sichtbar nichts.
+
 ## v2.212 — 2026-07
 
 ### Verbesserungen

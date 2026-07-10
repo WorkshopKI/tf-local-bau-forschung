@@ -11,6 +11,7 @@ import type { LucideIcon } from 'lucide-react';
 import { User, LayoutGrid, Contrast, Sparkles, Database } from 'lucide-react';
 import {
   isDevContext,
+  isDevFixturesEnabled,
   isLlmKontextSettingEnabled,
   isStreamlitBridgeEnabled,
   isOnlineStatusTabEnabled,
@@ -151,6 +152,9 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     }
     if (isDevContext()) {
       sections.push({ id: 'sec-provider', label: 'Provider', keywords: 'openrouter endpoint api key modell konfiguration' });
+    }
+    if (isDevFixturesEnabled()) {
+      sections.push({ id: 'sec-aufbereitung-eval', label: 'Aufbereitung: Baustein-Eval', keywords: 'eval fixtures goldset aspekte steckbrief precision recall aufbereitung baustein bridge messung' });
     }
     panels.push({
       id: 'ki',
