@@ -15,6 +15,14 @@ MINOR — Fundament für den späteren persönlichen Assistenten: ein **rein det
 - **Einstellungen** „Assistent & Gedächtnis" ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), gegated, System-Gruppe): Opt-in-Toggle mit Klartext-Erklärung, „Meine Daten" (Zusammenfassung + letzte 100 Ereignisse + JSON-Export), vollständige Löschung mit Bestätigung.
 - Health-Baseline bewusst angehoben: `MAX_FEATURE_FLAGS` 30→31, `MAX_SERVICE_DIRS` 22→23 (neue `assistent/`-Domäne). Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. 6 Recorder-Tests: Opt-out/Opt-in/Retention/Löschen/Schema-Guard/Snapshot-Ausschluss + `build:dev`) + `build:pl`. Detail: [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md).
 
+### v2.221.0 — Antrag-Aufbereitung: Recherche-Tab (Suchanfragen-Hilfen, deterministisch) (dev) (Juli 2026)
+
+MINOR — Der **Recherche-Tab** leitet aus den bereits vom Steckbrief-Baustein extrahierten Angaben (Zielmärkte, FuE-Gegenstand, Kern-Zielwert) + den Stammdaten **fertige Suchanfragen zum Kopieren** ab — Startpunkte für die externe Recherche des Prüfers, gruppiert nach Marktzahlen / Wettbewerb / Stand der Technik. Rein deterministisch (KEIN neuer LLM-Lauf — nutzt den Steckbrief), keine Live-Links (bleibt `file://`-/DSGVO-konform). Additiv, dev-only, keine Migration. **Damit sind alle acht Aufbereitungs-Tabs funktional.**
+
+- **Ableitung** `baueRechercheAnfragen` ([recherche.ts](src/plugins/antraege/aufbereitung/recherche.ts), rein/getestet): je Zielmarkt „Marktvolumen …" + „Marktwachstum … Prognose"; Antragsteller + FuE-Gegenstand → „… Wettbewerber" / „… Anbieter Vergleich"; FuE-Gegenstand + Kern-Zielwert → „Stand der Technik …" / „… Benchmark". Satz-Texte werden auf ≤ 10 Wörter (Kernbegriffe) gekürzt, Dubletten entfernt; fehlt eine Quelle, entfällt die Gruppe (nie geraten).
+- **UI** ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)): Gruppen-Karten, je Anfrage ein Copy-Chip + „Alle kopieren" pro Gruppe (`useAsyncAction`+Clipboard). Zustände an den Steckbrief-Baustein gekoppelt (nicht-gelaufen → KI-Aufbereitung starten; leer → „zu wenige Steckbrief-Angaben"). `recherche`-Tab `inaktiv`→`aktiv`.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `recherche.test.ts` Ableitungs-/Kürzungs-/Dedup-/Determinismus-Tests + `build:dev`) + `build:pl`.
+
 ### v2.219.0 — Antrag-Aufbereitung: Glossar-Tab (4. LLM-Baustein) (dev) (Juli 2026)
 
 MINOR — Ein vierter dev-only LLM-Baustein `aufbereitung-glossar` (Seed `aktiv:false`) sammelt die **Fachbegriffe/Abkürzungen** der VB — jeder mit einer kurzen Definition (wortnah aus dem Text) und Fundstelle. Additiv, keine Run-Schema-Änderung, keine Migration.

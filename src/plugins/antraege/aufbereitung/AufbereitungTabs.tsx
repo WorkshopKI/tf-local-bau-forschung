@@ -2,9 +2,8 @@
  * Tab-Leiste der Aufbereitungs-Seite. Kleine, handgebaute Section-Tab-Strip
  * (KEIN `ScopeTabs` — das sind Zähler-/Listen-Sichten). Aktiv = `--tf-text` +
  * 2px-`--tf-text`-Unterstrich (DESIGN_GUIDE „Tabs": Unterstrich schwarz, NICHT
- * primary). In Paket 1 ist nur Zeitplan aktiv; Steckbrief/Abdeckung zeigen einen
- * Platzhalter, die übrigen fünf sind nicht klickbar (tertiär, kein Hover, KEINE
- * Opacity).
+ * primary). Seit v2.221 sind alle acht Tabs `aktiv`; `inaktiv`-Tabs (nicht klickbar,
+ * tertiär, kein Hover, KEINE Opacity) bleiben als Zustand für künftige Ausbauten.
  */
 import { cn } from '@/lib/utils';
 
@@ -25,7 +24,7 @@ export const AUFBEREITUNG_TABS: TabDef[] = [
   { id: 'zahlen', label: 'Zahlen', zustand: 'aktiv' },
   { id: 'glossar', label: 'Glossar', zustand: 'aktiv' },
   { id: 'fragen', label: 'Fragen', zustand: 'aktiv' },
-  { id: 'recherche', label: 'Recherche', zustand: 'inaktiv' },
+  { id: 'recherche', label: 'Recherche', zustand: 'aktiv' },
   { id: 'lesemodus', label: 'Lesemodus', zustand: 'aktiv' },
 ];
 

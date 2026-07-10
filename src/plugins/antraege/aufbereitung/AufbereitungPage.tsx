@@ -28,6 +28,7 @@ import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 import { ZahlenTab } from './ZahlenTab';
 import { GlossarTab } from './GlossarTab';
+import { RechercheTab } from './RechercheTab';
 import { FragenTab } from './FragenTab';
 import { LesemodusTab } from './LesemodusTab';
 import { LesemodusSprungProvider } from './lesemodusSprung';
@@ -177,6 +178,12 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             vbMarkdown={aufb.vbMarkdown}
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
+          />
+        ) : tab === 'recherche' ? (
+          <RechercheTab
+            steckbrief={aufb.steckbrief}
+            stammdaten={stammdaten}
+            bausteine={aufb.bausteine}
           />
         ) : tab === 'fragen' ? (
           <FragenTab
