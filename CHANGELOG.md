@@ -15,6 +15,14 @@ MINOR — Fundament für den späteren persönlichen Assistenten: ein **rein det
 - **Einstellungen** „Assistent & Gedächtnis" ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), gegated, System-Gruppe): Opt-in-Toggle mit Klartext-Erklärung, „Meine Daten" (Zusammenfassung + letzte 100 Ereignisse + JSON-Export), vollständige Löschung mit Bestätigung.
 - Health-Baseline bewusst angehoben: `MAX_FEATURE_FLAGS` 30→31, `MAX_SERVICE_DIRS` 22→23 (neue `assistent/`-Domäne). Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. 6 Recorder-Tests: Opt-out/Opt-in/Retention/Löschen/Schema-Guard/Snapshot-Ausschluss + `build:dev`) + `build:pl`. Detail: [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md).
 
+### v2.221.3 — Antrag-Aufbereitung: I/J-Aspekt-Grenze geschärft (Meilensteine ≠ Marktanteile) (Juli 2026)
+
+PATCH — Der reproduzierbare Aspekte-Befund „k-11 IJ→I" war **kein Goldset-Fehler**: Kapitel 11 der Fixtures („Markteinführungskonzept") trägt echt BEIDE Aspekte — Marktanteile (11.1 → I) UND Zielkriterien/Meilensteine (11.4/11.5 → J). Das Modell liest ein „Markt…"-Kapitel als markt-only (I) und übersieht die J-Unterkapitel. Klärung (Nutzer-Ruling): ein **Ziel-Marktanteil ist I, nicht J**.
+
+- **`PRUEF_ASPEKTE`** ([aspekte.ts](src/plugins/antraege/aufbereitung/aspekte.ts)): der Fokus-Satz von **J** zeigt jetzt explizit auf das echte Signal (explizite Meilensteine + Abbruch-/Erfolgs-/Zielkriterien, oft ein eigenes Unterkapitel — AUCH in einem Markteinführungs-/Verwertungskapitel) und grenzt ab: angestrebte Marktanteile zählen NICHT zu J (die sind I). Reiner Code-Katalog (der Laufzeit-Prompt) → wirkt beim Redeploy, keine Seed-Migration. Das Goldset bleibt unverändert (k-11 = IJ ist korrekt).
+- **Eval-gegatet:** encodiert das Nutzer-Ruling; ob es die J-Erkennung auf k-11 verbessert, bestätigt die nächste In-App-Eval (n=3). Kein Aktivierungs-Blocker (Aspekte-F1 ohnehin ~0,87–0,90).
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` + `build:dev`) + `build:pl`.
+
 ### v2.221.2 — Antrag-Aufbereitung: Steckbrief-Prompt fordert KOMPAKTES JSON (Truncation-Fix) (Juli 2026)
 
 PATCH — Die Baseline-Eval (n=1, 2026-07-11) zeigte den **Steckbrief** bei Fixture 006 als „degradiert (nicht parsebar)": der Roh-Output belegte, dass das Modell die JSON **pretty-printete** (`"einSatz": {⏎ "text": …`) und die Antwort mitten in `innovation` abgeschnitten wurde — dasselbe Format-Problem wie beim Zahlen-Baustein (v2.217.5), nur trug `buildSteckbriefPrompt` die Kompakt-Instruktion noch nicht (und `parseSteckbrief` ist nicht truncation-tolerant für seine verschachtelten Array-Felder).

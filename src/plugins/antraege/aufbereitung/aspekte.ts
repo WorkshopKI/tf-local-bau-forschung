@@ -38,8 +38,8 @@ export const PRUEF_ASPEKTE: PruefAspekt[] = [
   { id: 'F', name: 'Realisierbarkeit', fokus: 'Machbarkeit: vorhandene Ausstattung, Vorarbeiten, Zeit- und Ressourcenrahmen.' },
   { id: 'G', name: 'Fachliche Eignung', fokus: 'Qualifikation und Kompetenz des Teams für dieses Vorhaben.' },
   { id: 'H', name: 'Projektplan', fokus: 'Arbeitspakete, Zeitplan und Personaleinsatz (Anlage 5).' },
-  { id: 'I', name: 'Märkte & Marktanteile', fokus: 'Zielmärkte, Marktvolumen, angestrebte Marktanteile und Preisvorstellungen.' },
-  { id: 'J', name: 'Meilensteine & Zielkriterien', fokus: 'Messbare Zielkriterien sowie Abbruch- und Erfolgskriterien.' },
+  { id: 'I', name: 'Märkte & Marktanteile', fokus: 'Zielmärkte, Marktvolumen, angestrebte Marktanteile/Absatzzahlen und Preisvorstellungen.' },
+  { id: 'J', name: 'Meilensteine & Zielkriterien', fokus: 'Explizite Meilensteine + messbare Abbruch-/Erfolgs-/Zielkriterien — oft ein eigenes Unterkapitel („Zielkriterien"/„Meilensteine"), AUCH innerhalb eines Markteinführungs-/Verwertungskapitels. Die angestrebten Marktanteile selbst zählen NICHT zu J (die sind I).' },
 ];
 
 /** Menge der gültigen Aspekt-IDs (A–J). */
