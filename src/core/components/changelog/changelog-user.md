@@ -24,6 +24,9 @@
 ### Neu
 - **Dein Rückstand auf einen Blick auf der Startseite:** Über „Meine Anträge" siehst du jetzt einen kleinen Balken, der deine offenen Anträge nach Alter aufteilt — „Ab Q-3 · Q-2 · Q-1 · aktuelles Quartal". So erkennst du sofort, wie viele Altlasten sich angesammelt haben. Wenn du mit der Maus über ein Segment fährst, klappt eine Liste der konkreten Anträge dieses Quartals auf (Förderkennzeichen, Akronym, Status, Datum, TVs) — genau wie im Auslastungs-Modul. Ein Klick auf „Zu meinen Anträgen →" bringt dich direkt in die nach Frist sortierte Liste.
 
+### Verbesserungen
+- **Einstellungen aufgeräumt:** Der Menüpunkt „Profil" heißt jetzt „Mein Profil", und der „KI-Assistent" steht im Bereich „System" nun an letzter Stelle.
+
 ## v2.210 — 2026-07
 
 ### Neu

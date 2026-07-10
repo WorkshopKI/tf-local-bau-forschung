@@ -69,7 +69,7 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
   // ── Persönlich ──
   panels.push({
     id: 'profil',
-    label: 'Profil',
+    label: 'Mein Profil',
     icon: User,
     group: 'persoenlich',
     sections: [
@@ -117,27 +117,6 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     ),
   });
 
-  if (isDevContext() || isLlmKontextSettingEnabled() || isStreamlitBridgeEnabled()) {
-    const sections: SettingsSectionRef[] = [];
-    if (isLlmKontextSettingEnabled()) {
-      sections.push({ id: 'sec-kontext', label: 'LLM & Reasoning', keywords: 'kontextfenster tokens thinking reasoning ki assistent' });
-    }
-    if (isStreamlitBridgeEnabled()) {
-      sections.push({ id: 'sec-internki', label: 'Interne KI', keywords: 'lesezeichen verbindung testen gpt bridge ki assistent' });
-    }
-    if (isDevContext()) {
-      sections.push({ id: 'sec-provider', label: 'Provider', keywords: 'openrouter endpoint api key modell konfiguration' });
-    }
-    panels.push({
-      id: 'ki',
-      label: 'KI-Assistent',
-      icon: Sparkles,
-      group: 'system',
-      sections,
-      render: () => <AIProviderTab aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
-    });
-  }
-
   panels.push({
     id: 'daten',
     label: 'Daten & Verbindungen',
@@ -160,6 +139,28 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       </div>
     ),
   });
+
+  // KI-Assistent bewusst als letztes System-Panel (Reihenfolge = Push-Reihenfolge in der Gruppe).
+  if (isDevContext() || isLlmKontextSettingEnabled() || isStreamlitBridgeEnabled()) {
+    const sections: SettingsSectionRef[] = [];
+    if (isLlmKontextSettingEnabled()) {
+      sections.push({ id: 'sec-kontext', label: 'LLM & Reasoning', keywords: 'kontextfenster tokens thinking reasoning ki assistent' });
+    }
+    if (isStreamlitBridgeEnabled()) {
+      sections.push({ id: 'sec-internki', label: 'Interne KI', keywords: 'lesezeichen verbindung testen gpt bridge ki assistent' });
+    }
+    if (isDevContext()) {
+      sections.push({ id: 'sec-provider', label: 'Provider', keywords: 'openrouter endpoint api key modell konfiguration' });
+    }
+    panels.push({
+      id: 'ki',
+      label: 'KI-Assistent',
+      icon: Sparkles,
+      group: 'system',
+      sections,
+      render: () => <AIProviderTab aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
+    });
+  }
 
   return panels;
 }

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.211.1 — Einstellungen: „Profil" → „Mein Profil", KI-Assistent ans Ende der System-Gruppe (Juli 2026)
+
+PATCH — Zwei kleine Feinschliffe an der Settings-Sidebar ([settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)); reine Beschriftung/Reihenfolge, kein Verhaltens-/Datenmodell-Change.
+
+- **Panel „Profil" heißt jetzt „Mein Profil"** (nur der Nav-Label; Panel-`id` bleibt `profil` → Deep-Links/Suche unberührt).
+- **KI-Assistent ist das letzte System-Panel**: Reihenfolge der System-Gruppe jetzt Darstellung & Bedienung → Daten & Verbindungen → KI-Assistent (die Sidebar rendert Panels in Push-Reihenfolge je Gruppe). Standard-Panel bleibt „Mein Profil".
+- Screen-Kontext-Doc [einstellungen.md](docs/feedback-kontext/einstellungen.md) mitgezogen (Ist-Zustand: Label + Gruppen-Reihenfolge).
+
 ### v2.211.0 — Home: persönlicher Rückstands-Balken (Quartals-Altlasten) mit Hover-Detail (Juli 2026)
 
 MINOR — Die Home-Page ([HomePage.tsx](src/plugins/home/HomePage.tsx)) bekommt über „Meine Anträge" den **Rückstands-Balken** aus dem PL-Auslastungsmodul — jetzt aber personalisiert auf die **eigenen** offenen Anträge, sodass jeder User (auch prod/as/kurator ohne Auslastungs-Modul) seine „Altlasten" auf einen Blick sieht. Additiv, kein neuer Store, keine Schema-Änderung, keine Migration, kein Feature-Flag. Vorlage: Design-Handoff `_design/handoff/homepage-balken` (Balken) + der Auslastungs-Altlast-Tooltip (Hover-Tabelle).
