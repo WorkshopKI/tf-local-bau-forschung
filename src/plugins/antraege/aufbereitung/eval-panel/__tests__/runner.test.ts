@@ -106,6 +106,23 @@ describe('runAufbereitungEval', () => {
     expect(erg.fixtures[0]?.vbFile).toBe('FIX1');
   });
 
+  it('resettet den Chat vor jedem Baustein-Submit und markiert den Reset-Status', async () => {
+    const calls: string[] = [];
+    const transport = {
+      name: 'Stub',
+      resetChat: async () => { calls.push('reset'); return 'nicht-gefunden' as const; },
+      submitConversation: async (messages: Array<{ role: string; content: string }>) => {
+        calls.push('submit');
+        return messages[messages.length - 1]!.content.includes('Prüfaspekte') ? 'A: k-1\nF: k-7' : STECKBRIEF_OK;
+      },
+    } as unknown as AITransport;
+    const erg = await runAufbereitungEval(deps(transport), { limit: 1 });
+    // 1 Fixture = Aspekte + Steckbrief = 2 Bausteine → je Baustein Reset VOR Submit.
+    expect(calls).toEqual(['reset', 'submit', 'reset', 'submit']);
+    expect(erg.fixtures[0]?.aspekte?.chatResetStatus).toBe('nicht-gefunden');
+    expect(erg.fixtures[0]?.steckbrief?.chatResetStatus).toBe('nicht-gefunden');
+  });
+
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {
     const goldsetMitLuecke: Goldset = {
       fixtures: [{ vbFile: 'GIBTS_NICHT', erwartung: { 'k-1': ['A'] } }, ...GOLDSET.fixtures],

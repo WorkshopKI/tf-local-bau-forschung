@@ -10,6 +10,7 @@
  */
 import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
+import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import {
   buildPromptVorgaben,
   type QualitaetsRegel,
@@ -153,6 +154,13 @@ export interface SkillRunResult {
    * das Lektor-Ergebnis. Erlaubt Eval/UI ein Vorher/Nachher.
    */
   entwurfVorLektor?: string;
+  /**
+   * Ergebnis des Chat-Resets VOR dem Lauf (Streamlit-Chat ist stateful, Pitfall
+   * #36). `'nicht-gefunden'`/`'timeout'` = Reset nicht bestätigt → das UI markiert
+   * den Lauf als möglicherweise verlaufskontaminiert; `'ok'` /
+   * `'nicht-unterstuetzt'` (stateless-API-Transport) = unkritisch.
+   */
+  chatResetStatus?: ChatResetStatus;
 }
 
 /** Kürzt zu langes VB-Markdown am letzten Absatzumbruch vor dem Cap. */
@@ -289,6 +297,13 @@ export async function runSkill(
   // er das gemeinsame max_tokens-Budget und die Antwort wird leer abgeschnitten.
   const maxTokens = (skill.maxTokens ?? DEFAULT_MAX_TOKENS) + (budget !== 'none' ? THINKING_OUTPUT_HEADROOM : 0);
 
+  // Frischer Chat-Verlauf vor JEDEM Skill-Lauf: der Streamlit-Chat ist stateful,
+  // stateless-Läufe würden sonst über den alten Verlauf kontaminieren (Kontext-
+  // Überlauf / vermischte VBs, Pitfall #36). Best-effort — Fehlschlag bricht NIE
+  // ab, wird aber über `chatResetStatus` ans UI markiert. Stateless-API-Transporte
+  // (DirectLLM) haben kein `resetChat` → `'nicht-unterstuetzt'` (keine Warnung).
+  const chatResetStatus = await starteFrischenChat(transport);
+
   let raw: string;
   let thinking: string | undefined;
   // Streamen NUR, wenn (a) der Transport es kann UND (b) jemand die Deltas
@@ -386,6 +401,7 @@ export async function runSkill(
     raw,
     parsed,
     vbGekuerzt: gekuerzt,
+    chatResetStatus,
     ...(thinking ? { thinking } : {}),
     ...(entwurfVorLektor !== undefined ? { entwurfVorLektor } : {}),
   };

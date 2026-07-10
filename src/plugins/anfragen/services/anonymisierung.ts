@@ -10,7 +10,6 @@
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { runSkill, type SkillRecord } from '@/core/services/skills';
 import { stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
-import { safeResetChat } from '@/core/services/ai/chat-reset';
 import { isDevContext } from '@/config/feature-flags';
 import type { Mapping, PiiTyp, Verallgemeinerung } from '../types';
 
@@ -176,9 +175,8 @@ export async function runAnonymisierung(
   const transport = bridge.getTransportForSkillRun(skill);
   const ok = await transport.ping();
   if (!ok) throw new Error('Interne KI nicht erreichbar — Anonymisierung derzeit nicht möglich.');
-  // Frischer Kontext vor dem Lauf: kein alter Chat-Verlauf (z. B. vorheriges
-  // Eval-Fixture) im internen Modell. Best-effort — bricht NIE ab.
-  await safeResetChat(transport);
+  // Frischer Chat-Kontext macht jetzt runSkill selbst — pro Lauf (auch pro Retry),
+  // Pitfall #36. Kein separater Reset hier mehr.
   const maxVersuche = Math.max(1, opts?.versuche ?? 3);
   const pauseMs = opts?.pauseMs ?? RETRY_PAUSE_MS;
   let letzterFehler: unknown;

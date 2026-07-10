@@ -12,6 +12,7 @@
  * Pitfall #29).
  */
 import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
+import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
 /**
@@ -90,6 +91,12 @@ export interface StepRun {
   skillVersion?: number;
   vbGekuerzt?: boolean;
   warnung?: string;
+  /**
+   * Chat-Reset-Status DIESES Laufs — nur gesetzt, wenn der Reset FEHLSCHLUG
+   * (`'nicht-gefunden'`/`'timeout'`, Pitfall #36); dann kann der Text durch alten
+   * Chat-Verlauf beeinflusst sein → Warn-Banner. Additiv, Round-Trip-sicher.
+   */
+  chatResetStatus?: ChatResetStatus;
   /** Modifier, der zur AKTUELLEN Fassung führte (für die Verlaufs-Anzeige). */
   modifier?: SkillModifierKey;
   /**

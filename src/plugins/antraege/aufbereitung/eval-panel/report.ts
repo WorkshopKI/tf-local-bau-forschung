@@ -51,6 +51,11 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
     }
   }
 
+  const resetTeile: string[] = [];
+  if (a?.chatResetStatus) resetTeile.push(`Aspekte=${a.chatResetStatus}`);
+  if (f.steckbrief?.chatResetStatus) resetTeile.push(`Steckbrief=${f.steckbrief.chatResetStatus}`);
+  if (resetTeile.length) zeilen.push(`- Chat-Reset: ${resetTeile.join(', ')}`);
+
   if (f.dauerMs != null) zeilen.push(`- Dauer: ${(f.dauerMs / 1000).toFixed(1)}s`);
   return zeilen;
 }

@@ -324,6 +324,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       skillVersion: sc.skill.version,
       vbGekuerzt: result.vbGekuerzt,
       ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
+      ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
       ...(o.modifier ? { modifier: o.modifier } : {}),
       ...(o.korrekturRegelId ? { korrekturRegelId: o.korrekturRegelId } : {}),
       ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),

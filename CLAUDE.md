@@ -351,6 +351,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **DSGVO-Transport-Policy**: #30 dokument-tragende Läufe nur intern (`getTransportForSkillRun`), #35 Policy-Ableitung scannt den Template-Text (`{{vbMarkdown}}`), nicht das `slots`-Array
 - **Artefakt-Achse (Substrat artefaktTyp/ebene/pruefart)**: #31 Kategorie-Einzelquelle (`effektiveKategorie`), #33 Vorlage frisch + Audit-Hash, #34 NF-Baustein wortgetreu
 - **Snapshot-/Store-Konsistenz**: #32 Snapshot = Voll-Store (verbuende heilen) ≠ Slim-List-View
+- **Streamlit-Bridge (stateful Chat)**: #36 jeder Einzel-Skill-Lauf resettet zuerst (`starteFrischenChat`)
 
 1. **Don't use `import()` for lazy loading** — dynamic imports break under `file://` in single-file builds
 2. **Don't use `fetch()` for local assets** — everything must be inlined or from IndexedDB/FSAPI
@@ -387,3 +388,4 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 33. **DOCX-Vorlage je Run FRISCH lesen (nie gecacht) + SHA-256 in `WorkflowRun.vorlageRef` stempeln (Audit/Reproduzierbarkeit); fehlende/kaputte Vorlage → `FillResult.fehler` statt throw.** → [artefakt-engine.md](docs/architecture/artefakt-engine.md)
 34. **NF-Bausteine sind kuratierte App-Daten und werden wortgetreu verwendet — der Skill-Pfad (Template/System-Prompt/Modifier) formuliert den Baustein-Text nie um, füllt nur Platzhalter.** `[test: nf-skill.test.ts]` → [artefakt-engine.md](docs/architecture/artefakt-engine.md)
 35. **Die DSGVO-Ableitung (`skillEnthaeltDokumentInhalte`) scannt den `promptTemplate`-TEXT literal nach `{{vbMarkdown}}` (o.a. `INHALTS_SLOTS`), NICHT das deklarative `slots`-Array — ein neuer dokument-tragender Skill muss den Slot-Platzhalter im Template tragen, auch wenn das eigentliche Prompt zur Laufzeit ein Builder erzeugt (Skill-Record = Policy-Subjekt).** → [transport-policy.md](docs/architecture/transport-policy.md)
+36. **Der Streamlit-Chat ist stateful — jeder Einzel-Skill-Lauf über einen Streamlit-Transport resettet zuerst (`starteFrischenChat` VOR dem Submit: `runSkill` / `runBaustein` / `runRelevanzMap` / Eval-Runner); Läufe ohne bestätigten Reset (`'nicht-gefunden'`/`'timeout'`) laufen best-effort weiter, sind aber markiert (Warn-Banner / Eval-Report-Zeile). Chat-Panel + `begruendung.ts` (adaptiv) sind ausgenommen; `'nicht-unterstuetzt'` (stateless-API-Transport) erzeugt keine Warnung.** → [streamlit-bridge.md](docs/architecture/streamlit-bridge.md)

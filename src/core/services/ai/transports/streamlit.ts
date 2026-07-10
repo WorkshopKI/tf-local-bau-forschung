@@ -8,6 +8,13 @@ import { createActivityDeadline } from './deadline';
  *  Verhalten; alte Bookmarklets ignorieren das Feld). */
 export type BridgeZiel = 'standard' | 'agentisch';
 
+/** Ergebnis eines `resetChat` (nur Streamlit): `'ok'` = Reset-Button gefunden +
+ *  geklickt, `'nicht-gefunden'` = kein Button im DOM, `'timeout'` = kein Bridge-
+ *  Fenster oder keine Bestätigung in 15 s. Alle drei sind best-effort — der Lauf
+ *  startet in jedem Fall; `'nicht-gefunden'`/`'timeout'` werden dem Nutzer als
+ *  mögliche Verlaufskontamination markiert (Pitfall #36). */
+export type ResetErgebnis = 'ok' | 'nicht-gefunden' | 'timeout';
+
 /** Antwort-Timeouts (v2.203, aktivitätsbasiert statt starr):
  *  - IDLE: feuert nur nach so viel Zeit OHNE Aktivität (tf-stream/tf-progress).
  *    200 s = der alte Fix-Wert — ALTE Bookmarklets ohne tf-progress-Heartbeat
@@ -84,10 +91,11 @@ export interface AITransport {
   /** Optional: setzt den Chat-Verlauf des Transports zurück (frischer Kontext).
    *  Nur die Streamlit-Bridge implementiert das (klickt den „Neuer Chat"-Button
    *  via Bookmarklet); stateless-API-Transports (DirectLLM) brauchen es nicht.
-   *  Best-effort — resolved `true`, wenn ein Reset-Button gefunden+geklickt
-   *  wurde, sonst `false` (auch bei Timeout / fehlendem Fenster).
+   *  Best-effort — `'ok'`, wenn ein Reset-Button gefunden+geklickt wurde,
+   *  `'nicht-gefunden'` (kein Button) bzw. `'timeout'` (kein Fenster / keine
+   *  Antwort in 15 s) sonst; der Lauf startet in jedem Fall.
    *  `ziel` (nur Streamlit): Reset im benannten Tab (Zweit-LLM-Erprobung). */
-  resetChat?(ziel?: BridgeZiel): Promise<boolean>;
+  resetChat?(ziel?: BridgeZiel): Promise<ResetErgebnis>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
   submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;
@@ -161,7 +169,7 @@ export class StreamlitBridgeTransport implements AITransport {
       }
       if (type === 'tf-reset-done' && typeof data.id === 'string') {
         const p = this.pending.get(data.id);
-        if (p) { p.cancel(); p.resolve(data.found ? 'true' : 'false'); this.pending.delete(data.id); }
+        if (p) { p.cancel(); p.resolve(data.found ? 'gefunden' : 'nicht-gefunden'); this.pending.delete(data.id); }
         return;
       }
       if (type === 'tf-progress' && typeof data.id === 'string') {
@@ -313,16 +321,16 @@ export class StreamlitBridgeTransport implements AITransport {
   /** Setzt den Streamlit-Chat zurück (frischer Kontext): schickt `tf-reset`, das
    *  Bookmarklet klickt den „Neuer Chat"/„Zurücksetzen"-Button und antwortet mit
    *  `tf-reset-done {found}`. KEIN `window.open` (das würde das Bookmarklet
-   *  löschen) — ohne lebendes Bridge-Fenster sofort `false`. Timeout 15 s
+   *  löschen) — ohne lebendes Bridge-Fenster sofort `'timeout'`. Timeout 15 s
    *  (`ziel`-Routing braucht ggf. einen Tab-Wechsel + Eingabefeld-Wartezeit). */
-  async resetChat(ziel?: BridgeZiel): Promise<boolean> {
-    if (!this.streamlitWindow || this.streamlitWindow.closed) return false;
+  async resetChat(ziel?: BridgeZiel): Promise<ResetErgebnis> {
+    if (!this.streamlitWindow || this.streamlitWindow.closed) return 'timeout';
     const id = `reset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    return new Promise<boolean>((resolve) => {
-      const timeout = setTimeout(() => { this.pending.delete(id); resolve(false); }, 15000);
+    return new Promise<ResetErgebnis>((resolve) => {
+      const timeout = setTimeout(() => { this.pending.delete(id); resolve('timeout'); }, 15000);
       this.pending.set(id, {
-        resolve: (v: string) => resolve(v === 'true'),
-        reject: () => resolve(false),
+        resolve: (v: string) => resolve(v === 'gefunden' ? 'ok' : 'nicht-gefunden'),
+        reject: () => resolve('nicht-gefunden'),
         cancel: () => clearTimeout(timeout),
       });
       this.streamlitWindow?.postMessage({ type: 'tf-reset', id, ...(ziel ? { ziel } : {}) }, '*');

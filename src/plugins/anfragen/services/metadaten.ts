@@ -15,7 +15,6 @@
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { runSkill, type SkillRecord } from '@/core/services/skills';
 import { stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
-import { safeResetChat } from '@/core/services/ai/chat-reset';
 import { THEMENGRUPPEN } from '@/core/services/skills/registry/anfrage-metadaten.seed';
 
 export interface MetadatenErgebnis {
@@ -146,7 +145,7 @@ export async function runMetadatenExtraktion(
   const transport = bridge.getTransportForSkillRun(skill);
   const ok = await transport.ping();
   if (!ok) throw new Error('Interne KI nicht erreichbar — Tagging derzeit nicht möglich.');
-  await safeResetChat(transport);
+  // Frischer Chat-Kontext macht jetzt runSkill selbst — pro Lauf (Pitfall #36).
   const maxVersuche = Math.max(1, opts?.versuche ?? 3);
   const pauseMs = opts?.pauseMs ?? RETRY_PAUSE_MS;
   let letzterFehler: unknown;

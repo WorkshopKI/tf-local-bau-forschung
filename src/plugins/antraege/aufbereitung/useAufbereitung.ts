@@ -22,6 +22,7 @@ import {
   type AufbereitungContext,
 } from './store';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, type BausteinResult } from './bausteine';
 import { computeAspekteBaustein, type AspektMapping } from './aspekte';
 import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
@@ -35,6 +36,9 @@ export interface BausteinUiState<T> {
   daten?: T;
   /** Roh-Antwort bei `degradiert` (einsehbar im UI). */
   rohtext?: string;
+  /** Chat-Reset-Status des Laufs (Pitfall #36) — `'nicht-gefunden'`/`'timeout'` →
+   *  Warn-Banner auf der Seite. Nur bei echtem Submit gesetzt (nicht bei Cache-Hit). */
+  chatResetStatus?: ChatResetStatus;
 }
 
 export interface UseAufbereitungResult {
@@ -141,7 +145,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     try {
       const t = bridge.getTransportForSkillRun(skill);
       const res = await compute(t);
-      set({ status: res.status, daten: res.daten, rohtext: res.rohtext });
+      set({ status: res.status, daten: res.daten, rohtext: res.rohtext, chatResetStatus: res.chatResetStatus });
     } catch {
       set({ status: 'fehler' });
     }

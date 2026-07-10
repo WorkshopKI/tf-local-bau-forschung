@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.214 — 2026-07
+
+### Verbesserungen
+- **Unter der Haube — sauberer KI-Kontext:** Werkzeuge, die die interne KI nutzen (z. B. Gutachten-Entwürfe), starten den KI-Chat jetzt vor jedem Lauf automatisch frisch. So kann kein alter Gesprächsverlauf mehr das Ergebnis verfälschen; klappt das Zurücksetzen einmal nicht, weist ein Hinweis darauf hin. Für dich ändert sich im Alltag nichts.
+
 ## v2.213 — 2026-07
 
 ### Verbesserungen

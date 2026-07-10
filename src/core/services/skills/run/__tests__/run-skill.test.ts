@@ -133,3 +133,36 @@ describe('runSkill Streaming-Gate (Thinking erzwingt KEIN Streaming)', () => {
     expect(res.parsed.finalerText).toBe('STREAM');
   });
 });
+
+describe('runSkill Chat-Reset (frischer Kontext vor dem Lauf, Pitfall #36)', () => {
+  function skill(): SkillRecord {
+    return {
+      id: 's', name: 's', beschreibung: '', version: 1,
+      promptTemplate: 'VB:\n{{vbMarkdown}}',
+      modifiers: { neu: '', kuerzer: '', laenger: '' },
+      regelIds: [], slots: ['vbMarkdown'], geaendert_am: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  it('resettet den Chat VOR dem Submit und meldet den Reset-Status', async () => {
+    const calls: string[] = [];
+    const transport = {
+      name: 'Streamlit',
+      ping: async () => true,
+      resetChat: async () => { calls.push('reset'); return 'nicht-gefunden' as const; },
+      submitMessage: async () => { calls.push('submit'); return 'Text.'; },
+    } as unknown as AITransport;
+    const res = await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
+    expect(calls).toEqual(['reset', 'submit']); // Reset zuerst, dann der Lauf
+    expect(res.chatResetStatus).toBe('nicht-gefunden');
+  });
+
+  it('Transport ohne resetChat (DirectLLM) → nicht-unterstuetzt, keine Warnung, Lauf ok', async () => {
+    const transport = {
+      name: 'stub', ping: async () => true, submitMessage: async () => 'Text.',
+    } as unknown as AITransport;
+    const res = await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
+    expect(res.chatResetStatus).toBe('nicht-unterstuetzt');
+    expect(res.parsed.finalerText).toBe('Text.');
+  });
+});

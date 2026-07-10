@@ -16,6 +16,7 @@
  * Pitfall #30). Die Fixtures sind fiktiv (`loadEvalFixtures`).
  */
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import type { SkillRecord } from '@/core/services/skills';
 import {
   metriken, fehlzuordnungen, fasseZusammen,
@@ -47,6 +48,9 @@ export interface AspekteFixtureErgebnis {
   rohtext?: string;
   /** Fehlermeldung bei `fehler` (Transport-/Policy-Wurf). */
   fehler?: string;
+  /** Chat-Reset-Status vor dem Aspekte-Lauf (nur bei ok/degradiert — bei `fehler`
+   *  warf der Submit vor der Rückgabe). `'nicht-gefunden'`/`'timeout'` markiert (Pitfall #36). */
+  chatResetStatus?: ChatResetStatus;
 }
 
 export interface SteckbriefSmokeErgebnis {
@@ -55,6 +59,8 @@ export interface SteckbriefSmokeErgebnis {
   gefuellteFelder?: number;
   rohtext?: string;
   fehler?: string;
+  /** Chat-Reset-Status vor dem Steckbrief-Lauf (nur bei ok/degradiert). */
+  chatResetStatus?: ChatResetStatus;
 }
 
 export interface FixtureErgebnis {
@@ -115,16 +121,19 @@ async function laufAspekte(
   sektionIds: string[], gf: GoldFixture,
 ): Promise<AspekteFixtureErgebnis> {
   let raw: string;
+  let chatResetStatus: ChatResetStatus;
   try {
-    raw = await runBaustein(transport, skill, buildAspektePrompt(gliederung, vbMarkdown));
+    const r = await runBaustein(transport, skill, buildAspektePrompt(gliederung, vbMarkdown));
+    raw = r.text;
+    chatResetStatus = r.chatResetStatus;
   } catch (e) {
     return { status: 'fehler', fehler: fehlerText(e) };
   }
   const mapping = parseAspektMapping(raw, sektionIds);
   const leer = Object.keys(mapping.zuordnung).length === 0 && Object.keys(mapping.fehlend).length === 0;
-  if (leer) return { status: 'degradiert', rohtext: raw };
+  if (leer) return { status: 'degradiert', rohtext: raw, chatResetStatus };
   const pred = sektionZuAspekte(mapping);
-  return { status: 'ok', metrik: metriken(gf.erwartung, pred), fehlzuordnungen: fehlzuordnungen(gf.erwartung, pred) };
+  return { status: 'ok', metrik: metriken(gf.erwartung, pred), fehlzuordnungen: fehlzuordnungen(gf.erwartung, pred), chatResetStatus };
 }
 
 async function laufSteckbrief(
@@ -132,14 +141,17 @@ async function laufSteckbrief(
   gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[],
 ): Promise<SteckbriefSmokeErgebnis> {
   let raw: string;
+  let chatResetStatus: ChatResetStatus;
   try {
-    raw = await runBaustein(transport, skill, buildSteckbriefPrompt(gliederung, vbMarkdown));
+    const r = await runBaustein(transport, skill, buildSteckbriefPrompt(gliederung, vbMarkdown));
+    raw = r.text;
+    chatResetStatus = r.chatResetStatus;
   } catch (e) {
     return { status: 'fehler', fehler: fehlerText(e) };
   }
   const daten = parseSteckbrief(raw, sektionIds);
-  if (daten == null) return { status: 'degradiert', rohtext: raw };
-  return { status: 'ok', gefuellteFelder: zaehleGefuellteFelder(daten) };
+  if (daten == null) return { status: 'degradiert', rohtext: raw, chatResetStatus };
+  return { status: 'ok', gefuellteFelder: zaehleGefuellteFelder(daten), chatResetStatus };
 }
 
 /**

@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { isAntragAufbereitungEnabled } from '@/config/feature-flags';
+import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
 import { useAntraegeStore } from '../store';
 import { useVerbundDetailData } from '../useVerbundDetailData';
 import { buildKurzfassungContext } from '../kurzfassung/context-builder';
@@ -45,6 +46,8 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const [tab, setTab] = useState<AufbereitungTabId>('zeitplan');
   const [ansicht, setAnsicht] = useState<AbdeckungAnsicht>('liste');
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
+  const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus]
+    .some(s => s != null && resetHatVerlaufsrisiko(s));
 
   // Defense-in-depth: die Route ist bereits flag-gated registriert.
   if (!isAntragAufbereitungEnabled()) return <Navigate to="/antraege" replace />;
@@ -99,6 +102,13 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       {aufb.veraltet ? (
         <div className="mt-2 text-[12px] text-[var(--tf-text-tertiary)]">
           ● Quellen haben sich seit der Aufbereitung geändert — „Neu aufbereiten" für den aktuellen Stand.
+        </div>
+      ) : null}
+
+      {resetRisiko ? (
+        <div className="mt-2 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
+          ⚠ Chat-Reset fehlgeschlagen — ein KI-Baustein lief evtl. auf altem Chat-Verlauf der internen KI.
+          In AitisiGPT einen neuen Chat starten und „KI-Bausteine neu berechnen".
         </div>
       ) : null}
 

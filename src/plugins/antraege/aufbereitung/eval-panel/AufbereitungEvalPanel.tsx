@@ -36,6 +36,7 @@ import {
   type EvalFixtureQuelle, type FixtureErgebnis, type AufbereitungEvalErgebnis,
 } from './runner';
 import { formatEvalReport } from './report';
+import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
 
 type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler' | 'fehlt';
 
@@ -72,6 +73,7 @@ function kurzVon(e: FixtureErgebnis): string {
   if (s?.status === 'ok') teile.push(`SB ${s.gefuellteFelder ?? 0}/${STECKBRIEF_FELDER}`);
   else if (s?.status === 'degradiert') teile.push('SB degr.');
   else if (s?.status === 'fehler') teile.push('SB-Fehler');
+  if ([a?.chatResetStatus, s?.chatResetStatus].some(x => x != null && resetHatVerlaufsrisiko(x))) teile.push('⚠ Reset');
   return teile.join(' · ');
 }
 

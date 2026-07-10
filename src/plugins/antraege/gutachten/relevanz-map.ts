@@ -25,6 +25,7 @@
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { hashText } from './runner';
 
 /** Eine VB-Sektion: stabile ID + Überschrift + Zeichen-Span in `vbMarkdown`. */
@@ -212,6 +213,11 @@ export async function runRelevanzMap(
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
 ): Promise<string> {
+  // Frischer Chat-Verlauf vor dem Relevanz-Lauf (stateful Streamlit-Chat, Pitfall
+  // #36): die Map ist der Workflow-Einstieg — ohne Reset trüge sie den Verlauf
+  // eines früheren Vorgangs. Best-effort; Status nicht durchgereicht (die
+  // per-Sektion runSkill-Reset-Status sind das sichtbare Signal).
+  await starteFrischenChat(transport);
   const prompt = buildRelevanzPrompt(headings, vbMarkdown, abschnitte);
   const system = relevanzSkill.systemPrompt ?? '';
   const maxTokens = relevanzSkill.maxTokens ?? RELEVANZ_MAP_MAX_TOKENS;

@@ -6,6 +6,7 @@
  * des Streams). KEINE LLM-Entscheidung über Ablauf/Gates, KEIN Auto-Retry.
  */
 import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
+import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
 import {
   STEP_ORDER, type QsBefund, type StepId, type StepRun, type VorlageRef, type WorkflowRun,
@@ -82,6 +83,8 @@ export interface GenerationInput {
   skillVersion: number;
   vbGekuerzt?: boolean;
   warnung?: string;
+  /** Chat-Reset-Status des Laufs (Pitfall #36); nur bei Verlaufsrisiko persistiert. */
+  chatResetStatus?: ChatResetStatus;
   modifier?: SkillModifierKey;
   /** Regel-ID, deren Verletzung diesen Korrektur-Lauf ausgelöst hat (nur Anzeige). */
   korrekturRegelId?: string;
@@ -125,6 +128,7 @@ export function applyGeneration(
     verlauf: appendVerlauf(prev),
     ...(gen.vbGekuerzt ? { vbGekuerzt: gen.vbGekuerzt } : {}),
     ...(gen.warnung ? { warnung: gen.warnung } : {}),
+    ...(gen.chatResetStatus && resetHatVerlaufsrisiko(gen.chatResetStatus) ? { chatResetStatus: gen.chatResetStatus } : {}),
     ...(gen.modifier ? { modifier: gen.modifier } : {}),
     ...(gen.korrekturRegelId ? { korrekturRegelId: gen.korrekturRegelId } : {}),
     ...(gen.mitTweak ? { mitTweak: gen.mitTweak } : {}),

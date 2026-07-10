@@ -15,6 +15,7 @@
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { isDevContext } from '@/config/feature-flags';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 
@@ -29,6 +30,9 @@ export interface BausteinResult<T> {
   daten?: T;
   /** Roh-Antwort bei `degradiert` (nicht parsebar) — zur Einsicht im UI. */
   rohtext?: string;
+  /** Chat-Reset-Status des Laufs — nur bei echtem Submit gesetzt (nicht bei
+   *  Cache-Hit / `fehler`). `'nicht-gefunden'`/`'timeout'` markiert das UI (Pitfall #36). */
+  chatResetStatus?: ChatResetStatus;
 }
 
 /** kv-Cache-Keys je Baustein (pro Antrag + VB-Hash → Neuberechnung nur bei VB-Änderung). */
@@ -55,13 +59,22 @@ export function istAufbereitungBausteinFreigeschaltet(
   return !!skill && skill.aktiv !== false;
 }
 
+/** Ergebnis eines Baustein-Laufs: Roh-Antwort + der Chat-Reset-Status, der VOR
+ *  dem Submit erhoben wurde (frischer Kontext, Pitfall #36). */
+export interface RunBausteinErgebnis {
+  text: string;
+  chatResetStatus: ChatResetStatus;
+}
+
 /**
- * Fährt EINEN Baustein-Lauf über den (injizierten, internen) Transport. Bevorzugt
- * `submitConversation` (DirectLLM), Fallback `submitMessage` (Streamlit-Bridge,
- * single-turn) — exakt wie `runRelevanzMap`. System-Rolle + Token-Budget aus dem
- * Skill-Record; das eigentliche Prompt baut der Caller (`buildPrompt`).
+ * Fährt EINEN Baustein-Lauf über den (injizierten, internen) Transport. Startet
+ * ZUERST einen frischen Chat (best-effort, Pitfall #36 — der Streamlit-Chat ist
+ * stateful), dann der Lauf: bevorzugt `submitConversation` (DirectLLM), Fallback
+ * `submitMessage` (Streamlit-Bridge, single-turn) — exakt wie `runRelevanzMap`.
+ * System-Rolle + Token-Budget aus dem Skill-Record; das Prompt baut der Caller.
  */
-export async function runBaustein(transport: AITransport, skill: SkillRecord, prompt: string): Promise<string> {
+export async function runBaustein(transport: AITransport, skill: SkillRecord, prompt: string): Promise<RunBausteinErgebnis> {
+  const chatResetStatus = await starteFrischenChat(transport);
   const system = skill.systemPrompt ?? '';
   const maxTokens = skill.maxTokens ?? BAUSTEIN_MAX_TOKENS_DEFAULT;
   if (typeof transport.submitConversation === 'function') {
@@ -69,9 +82,9 @@ export async function runBaustein(transport: AITransport, skill: SkillRecord, pr
       ...(system ? [{ role: 'system', content: system } as ConversationMessage] : []),
       { role: 'user', content: prompt },
     ];
-    return transport.submitConversation(messages, { maxTokens });
+    return { text: await transport.submitConversation(messages, { maxTokens }), chatResetStatus };
   }
-  return transport.submitMessage(system ? `${system}\n\n${prompt}` : prompt, system || undefined);
+  return { text: await transport.submitMessage(system ? `${system}\n\n${prompt}` : prompt, system || undefined), chatResetStatus };
 }
 
 /**
@@ -103,8 +116,11 @@ export async function getOrComputeBaustein<T>(
     }
   }
   let raw: string;
+  let chatResetStatus: ChatResetStatus;
   try {
-    raw = await runBaustein(transport, skill, buildPrompt());
+    const r = await runBaustein(transport, skill, buildPrompt());
+    raw = r.text;
+    chatResetStatus = r.chatResetStatus;
   } catch {
     return { status: 'fehler' };
   }
@@ -114,9 +130,9 @@ export async function getOrComputeBaustein<T>(
   } catch {
     daten = null;
   }
-  if (daten == null) return { status: 'degradiert', rohtext: raw };
+  if (daten == null) return { status: 'degradiert', rohtext: raw, chatResetStatus };
   try { await idb.set(cacheKey, { vbHash, daten }); } catch { /* Cache-Schreibfehler nicht eskalieren */ }
-  return { status: 'ok', daten };
+  return { status: 'ok', daten, chatResetStatus };
 }
 
 /** Löscht die Baustein-Caches eines Antrags (alle VB-Hashes) — für „KI-Bausteine neu berechnen". */

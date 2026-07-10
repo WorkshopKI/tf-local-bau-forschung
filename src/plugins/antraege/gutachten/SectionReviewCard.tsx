@@ -191,6 +191,12 @@ export function SectionReviewCard({
           {run.warnung}
         </div>
       )}
+      {run.chatResetStatus && (
+        <div className="mb-3 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
+          ⚠ Chat-Reset fehlgeschlagen — dieser Abschnitt kann durch alten Chat-Verlauf der internen KI
+          beeinflusst sein. In AitisiGPT einen neuen Chat starten und den Abschnitt neu generieren.
+        </div>
+      )}
       {run.vbGekuerzt && (
         <div
           className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]"
