@@ -137,17 +137,49 @@ describe('parseZahlen', () => {
     expect(d.claims[0]!.wert).toBe('24 Monate');
   });
 
-  // Prod-Eval 2026-07-10: ein Fixture lieferte eine Markdown-Tabelle statt JSON. Kein
-  // deterministisch bergbares Format → ehrliche Degradation (die Prompt-Härtung soll das
-  // künftig verhindern; hier wird das Fallback-Verhalten festgeschrieben).
-  it('Markdown-Tabelle statt JSON → null (Degradation, keine stille Fehlinterpretation)', () => {
+  // Prod-Eval 2026-07-10 (Fixture 017): das Modell stellt der JSON-Ausgabe eine
+  // Markdown-Tabelle mit denselben Claims VORAN („Tabelle DANN JSON-Export"), und der
+  // JSON-Teil ist zusätzlich am Token-Limit abgeschnitten (endet mitten in einer
+  // sektionIds-Zeichenkette + Bridge-Trailing `:help[]`). Der Salvage keyt auf `"claims"`
+  // (die Tabelle trägt das nicht) → die vollständigen JSON-Claims werden geborgen, die
+  // Tabelle leckt NICHT als Pseudo-Claims ein, das angeschnittene letzte Objekt fällt raus.
+  it('rettet die JSON-Claims aus „Tabelle DANN abgeschnittener JSON-Export" (Fixture 017)', () => {
+    const raw = [
+      'Extrahierte Zahlen-Claims (Wort-für-Wort, ungeändert aus dem Text)',
+      '',
+      'Wert (wörtlich)\tEinheit\tKategorie\tKontext\tSektion-ID(s)',
+      '01.03.2025 - 28.02.2027\t-\tzeit\tFörderzeitraum\t[k-9]',
+      '375.000 €\t€\tkosten\tBeantragte Fördersumme\t[k-9]',
+      '>95 %\t%\tleistung\tErkennungsgenauigkeit\t[k-3.1]',
+      '',
+      'JSON-Export (wie gefordert)',
+      '',
+      '{',
+      '  "schemaVersion": 1,',
+      '  "claims": [',
+      '    { "wert": "01.03.2025 - 28.02.2027", "einheit": "", "kategorie": "zeit", "kontext": "Förderzeitraum", "sektionIds": ["k-9"] },',
+      '    { "wert": "375.000 €", "einheit": "€", "kategorie": "kosten", "kontext": "Beantragte Fördersumme", "sektionIds": ["k-9"] },',
+      '    { "wert": ">95 %", "einheit": "%", "kategorie": "leistung", "kontext": "Erkennungsgenauigkeit", "sektionIds": ["k-3.1"] },',
+      '    { "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "kontext": "Projektlaufzeit", "sektionIds": ["k-3. :help[]',
+    ].join('\n');
+    const d = parseZahlen(raw, SEKTION_IDS)!;
+    expect(d).not.toBeNull();
+    expect(d.schemaVersion).toBe(1);
+    // 3 vollständige JSON-Claims; das abgeschnittene 4. Objekt fällt raus.
+    expect(d.claims.map(c => c.wert)).toEqual(['01.03.2025 - 28.02.2027', '375.000 €', '>95 %']);
+    // Die Tabelle hat KEINE zusätzlichen Claims erzeugt (jeder Wert genau 1×).
+    expect(d.claims.filter(c => c.wert === '375.000 €')).toHaveLength(1);
+  });
+
+  // Reiner Text/Tabelle OHNE jeglichen JSON-Teil (kein `"claims"`, kein `{`) → es gibt
+  // nichts deterministisch zu bergen → ehrliche Degradation (keine stille Fehldeutung).
+  it('reine Prosa/Tabelle ohne JSON-Teil → null (Degradation)', () => {
     const raw = [
       '**Extrahierte Zahlen-Claims**',
       '',
       '| Wert | Einheit | Kategorie | Kontext | Sektion-ID(s) |',
       '| --- | --- | --- | --- | --- |',
       '| 24 Monate | Monate | zeit | Laufzeit | [k-9] |',
-      '| 375.000 € | € | kosten | Fördersumme | [k-9] |',
     ].join('\n');
     expect(parseZahlen(raw, SEKTION_IDS)).toBeNull();
   });
