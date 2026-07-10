@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.217.5 — Antrag-Aufbereitung: Zahlen-Prompt fordert KOMPAKTES JSON (Claim-Ausbeute ~4×) (Juli 2026)
+
+PATCH — Der Eval-Lauf mit `maxTokens = 4096` bestätigte, dass `skill.maxTokens` auf dem Bridge-Pfad wirkungslos ist (Claims **sanken** sogar: 003 33→4, 006 19→5), und deckte die tatsächliche Ursache auf: **das Antwort-Format**. Bei Pretty-Print (jedes Feld eigene eingerückte Zeile, ~8 Zeilen/Claim) passen im fixen Server-Budget nur 4–5 Claims; bei kompakter Ausgabe (ein Claim pro Zeile) im selben Budget ~17. Das Modell wählte das Format nichtdeterministisch → stark schwankende Claim-Zahlen.
+
+- **`buildZahlenPrompt`** ([zahlen.ts](src/plugins/antraege/aufbereitung/zahlen.ts)) fordert jetzt explizit **kompaktes JSON** (ein Claim in genau EINER Zeile, kein Pretty-Print/keine Einrückung — „nur so passen ALLE Zahlen ins Antwort-Limit") UND das **Beispiel selbst ist kompakt** (das Modell mimt das Ausgabeformat). Reine Code-Änderung → wirkt beim Redeploy, keine Migration. Der Parser (`extractLastJsonObject`/`parseJsonArrayTolerant`) ist whitespace-agnostisch — kein Parser-Umbau.
+- **Grenze bleibt server-seitig:** kompaktes JSON hebt die Ausbeute im fixen Budget (~4×), löst aber sehr zahlenreiche Anträge (~78 Werte) nicht vollständig — dafür braucht es ein größeres Server-Budget (via Qwen-Tab-A/B, v2.217.4) oder Output-Chunking.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `buildZahlenPrompt`-Kompakt-Assertion + `build:dev`) + `build:pl`.
+
 ### v2.217.4 — Antrag-Aufbereitung: Eval-A/B gegen den agentischen Qwen-Tab (dev) + maxTokens-Klarstellung (Juli 2026)
 
 PATCH — Ein dev-only Schalter im Eval-Panel schickt die Aufbereitungs-Bausteine wahlweise an den **agentischen Qwen-Tab (260k Kontext)** statt an den Standard-Chat (gpt-oss), damit sich Vollständigkeit/Truncation/Zuverlässigkeit des Zweit-LLM **messen** lassen (nicht adoptieren — nur A/B). Reine Erprobung, dev-only, keine Prod-/Verhaltensänderung im Standardpfad.

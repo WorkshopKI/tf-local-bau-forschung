@@ -89,17 +89,14 @@ ${vbMarkdown}
 ## Aufgabe
 Sammle jeden Claim, der einen Zahlenwert trägt (Leistungswerte, Laufzeiten, Personenmonate, Kosten, Marktzahlen …). Gib den Wert WÖRTLICH wie im Text an (z.B. ">95 %", "24 Monate", "3,5 PM"). Rechne nichts aus, rechne nichts um, fasse nichts zusammen, erfinde keine Werte. Ordne jeden Claim einer Kategorie aus dem Katalog zu und gib die Sektions-IDs an, aus denen er stammt (mindestens eine, ausschließlich aus der obigen Liste).
 
-Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach:
+Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach. Gib das JSON **kompakt** aus: jeden Claim in GENAU EINER Zeile wie im Beispiel, KEINE mehrzeilig eingerückten Objekte, kein Pretty-Print — nur so passen ALLE Zahlen ins Antwort-Limit (eingerückte Objekte verbrauchen ein Vielfaches an Platz und schneiden die Liste ab):
 \`\`\`json
-{
-  "schemaVersion": 1,
-  "claims": [
-    { "wert": ">95 %", "einheit": "%", "kategorie": "leistung", "kontext": "Erkennungsrate von über 95 %", "sektionIds": ["k-3.1"] },
-    { "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "kontext": "Projektlaufzeit von 24 Monaten", "sektionIds": ["k-9"] }
-  ]
-}
+{ "schemaVersion": 1, "claims": [
+{ "wert": ">95 %", "einheit": "%", "kategorie": "leistung", "kontext": "Erkennungsrate von über 95 %", "sektionIds": ["k-3.1"] },
+{ "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "kontext": "Projektlaufzeit von 24 Monaten", "sektionIds": ["k-9"] }
+] }
 \`\`\`
-Nutze ausschließlich die oben vergebenen Sektions-IDs und die Kategorie-IDs.`;
+Nutze ausschließlich die oben vergebenen Sektions-IDs und die Kategorie-IDs. Ein Claim = eine Zeile, keine Zeilenumbrüche innerhalb eines Claims.`;
 }
 
 // ---------------------------------------------------------------------------

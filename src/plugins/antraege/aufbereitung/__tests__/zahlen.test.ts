@@ -37,6 +37,8 @@ describe('buildZahlenPrompt', () => {
     expect(p).toContain('rechne nichts');
     // Härtung gegen die beobachtete Markdown-Tabelle statt JSON (Prod-Eval 2026-07-10).
     expect(p).toContain('keine Tabelle');
+    // Kompakt-Ausgabe: Pretty-Print halbierte die Claim-Zahl im fixen Server-Budget.
+    expect(p).toContain('kompakt');
   });
 });
 
