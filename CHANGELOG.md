@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.213.1 — Einstellungen: „Interne KI"-Lesezeichen als ziehbares Objekt statt CTA-Button (Juli 2026)
+
+PATCH — Reiner UI-Feinschliff im **Einstellungen → KI**-Installer für die interne KI. Der „Interne KI"-Knopf, den man **in die Lesezeichenleiste ziehen** soll, trug bisher `variant="primary"` und sah damit identisch zum CTA „Speichern & Aktivieren" darüber aus — er las sich als klickbar, obwohl ein Klick nichts tut (der `javascript:`-Bookmarklet-href wird per `onClick`-`preventDefault` geblockt). Keine Verhaltens-, Bridge- oder Datenmodell-Änderung; **kein `BRIDGE_REV`-Bump, keine Neu-Installation** nötig (das Bookmarklet selbst ist unverändert).
+
+- **Affordanz statt CTA** ([StreamlitBridgeSection.tsx](src/plugins/einstellungen/StreamlitBridgeSection.tsx)): das Element ist jetzt eine neutrale (`variant="secondary"` = outline) Fläche mit führenden Greif-Punkten (`GripVertical`) + Lesezeichen-Icon (`Bookmark`, in der Profil-Akzentfarbe `--tf-primary`) und `cursor-grab` — es liest sich als ziehbares Objekt, nicht als Knopf, und kollidiert optisch nicht mehr mit dem primären CTA.
+- **Anleitung nachgezogen**: Schritt 2 zeigt eine Mini-Repräsentation desselben Chips inline und formuliert „… in die Lesezeichenleiste **ziehen** (nicht anklicken)"; der Zieh-Hinweis neben dem Element ebenso.
+- Kein Guard-Konflikt: `no-raw-cta-fill` bleibt grün (kein hand-gebauter Fill, kanonische `<Button>`-Komponente). Verifiziert per `build:dev`/`build:pl`.
+
 ### v2.213.0 — Antrag-Aufbereitung: In-App-Baustein-Eval (dev-only, Bridge-Baseline per Knopfdruck) (Juli 2026)
 
 MINOR — Ein dev-only Eval-Panel in **Einstellungen → KI → „Aufbereitung: Baustein-Eval"** ([eval-panel/](src/plugins/antraege/aufbereitung/eval-panel/)) macht die bislang fehlende **Live-Baseline** der Aufbereitungs-Bausteine dort produzierbar, wo sie gebraucht wird: Node (dev) hat keinen gpt-oss-Zugang, der interne gpt-oss (prod) läuft nur im Browser über die Streamlit-Bridge — die Node-CLI `eval:aufbereitung` kann in Thomas' Umgebung nicht laufen. Additiv, kein neuer Skill, keine Registry-/Seed-/Slot-Änderung, keine Migration; nur die bestehenden Bausteine (`aufbereitung-aspekte`, `aufbereitung-steckbrief`) werden über den bestehenden Policy-Pfad gemessen.

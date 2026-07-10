@@ -22,6 +22,7 @@
 ## v2.213 — 2026-07
 
 ### Verbesserungen
+- **Lesezeichen leichter erkennbar:** In den Einstellungen (KI-Tab) sieht der „Interne KI"-Knopf, den man in die Lesezeichenleiste zieht, jetzt wie ein ziehbares Lesezeichen aus (mit Greif-Punkten) statt wie ein normaler Klick-Knopf — so ist klarer, dass man ihn hinaufziehen und nicht anklicken soll.
 - **Unter der Haube:** Ein neues internes Prüf-Werkzeug hilft dem Team, die KI-gestützte Antrag-Aufbereitung vor der Freischaltung zu testen. Für dich ändert sich sichtbar nichts.
 
 ## v2.212 — 2026-07

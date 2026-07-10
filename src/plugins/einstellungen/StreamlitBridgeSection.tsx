@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, GripVertical, Bookmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -126,7 +126,10 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
         </summary>
         <div className="mt-3 space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <Button asChild variant="primary" className="cursor-grab select-none">
+            {/* Kein CTA: ein ZIEHBARES Lesezeichen. Greif-Punkte + Lesezeichen-Icon +
+                Grab-Cursor + neutrale (outline) Fläche signalisieren „zieh mich in die
+                Leiste", nicht „klick mich" (der javascript:-href tut beim Klick nichts). */}
+            <Button asChild variant="secondary" className="cursor-grab select-none">
               {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
               <a
                 ref={linkRef}
@@ -134,14 +137,24 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
                 onClick={e => e.preventDefault()}
                 title="In die Lesezeichenleiste ziehen"
               >
+                <GripVertical className="text-[var(--tf-text-tertiary)]" aria-hidden />
+                <Bookmark className="text-[var(--tf-primary)]" aria-hidden />
                 Interne KI
               </a>
             </Button>
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">In die Lesezeichenleiste ziehen</span>
+            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">In die Lesezeichenleiste ziehen (nicht anklicken)</span>
           </div>
           <ol className="text-[12px] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1">
             <li>Adresse der internen KI eintragen und <strong>Speichern &amp; Aktivieren</strong>.</li>
-            <li>Den Button <strong>„Interne KI"</strong> einmalig in die Lesezeichenleiste ziehen.</li>
+            <li>
+              Das ziehbare Lesezeichen{' '}
+              <span className="inline-flex items-center gap-1 rounded border border-[var(--tf-border)] px-1.5 py-px align-middle text-[var(--tf-text-secondary)]">
+                <GripVertical size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />
+                <Bookmark size={11} className="text-[var(--tf-primary)]" aria-hidden />
+                <strong className="font-medium">Interne KI</strong>
+              </span>{' '}
+              einmalig in die Lesezeichenleiste <strong>ziehen</strong> (nicht anklicken).
+            </li>
             <li><strong>Interne KI öffnen</strong> klicken (der Tab muss <em>aus der App</em> geöffnet werden).</li>
             <li>Im Tab der internen KI das Lesezeichen anklicken — unten rechts erscheint eine kleine Status-Pill, die kurz die Prüfungen durchläuft und dann auf grün <strong>„Verbunden"</strong> ruht (ein Klick darauf prüft die Verbindung erneut).</li>
             <li>Zurück hier: <strong>Verbindung testen</strong> → „Interne KI erreichbar". Danach läuft der KI-Chat über die Verbindung.</li>
