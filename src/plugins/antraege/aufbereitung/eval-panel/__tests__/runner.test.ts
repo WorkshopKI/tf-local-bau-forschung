@@ -104,6 +104,24 @@ function stubZahlenTabelleTrunc(): AITransport {
   } as unknown as AITransport;
 }
 
+/**
+ * Streamlit-artiger Stub (KEIN submitConversation → runBaustein nutzt submitMessage) mit
+ * resetChat — erfasst das je Lauf durchgereichte `ziel` (Reset + Submit).
+ */
+function stubZielErfassung(): { transport: AITransport; submitZiele: (string | undefined)[]; resetZiele: (string | undefined)[] } {
+  const submitZiele: (string | undefined)[] = [];
+  const resetZiele: (string | undefined)[] = [];
+  const transport = {
+    name: 'Streamlit',
+    resetChat: async (ziel?: string) => { resetZiele.push(ziel); return 'ok'; },
+    submitMessage: async (_message: string, _system?: string, options?: { ziel?: string }) => {
+      submitZiele.push(options?.ziel);
+      return 'A: k-1\nF: k-7'; // valides Aspekte-Ergebnis (FIX1-Goldset)
+    },
+  } as unknown as AITransport;
+  return { transport, submitZiele, resetZiele };
+}
+
 describe('runAufbereitungEval', () => {
   it('happy path: Aspekte P=R=F1=1, Steckbrief-Smoke ok', async () => {
     const erg = await runAufbereitungEval(deps(stub()));
@@ -242,6 +260,20 @@ describe('runAufbereitungEval', () => {
   it('ohne zahlenSkill läuft kein Zahlen-Smoke', async () => {
     const erg = await runAufbereitungEval(deps(stub()), { limit: 1 });
     expect(erg.fixtures[0]?.zahlen).toBeUndefined();
+  });
+
+  it('reicht ziel „agentisch" an Reset UND Submit jedes Laufs durch (Streamlit-Pfad)', async () => {
+    const { transport, submitZiele, resetZiele } = stubZielErfassung();
+    await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false, ziel: 'agentisch' });
+    expect(submitZiele).toEqual(['agentisch']);
+    expect(resetZiele).toEqual(['agentisch']);
+  });
+
+  it('ohne ziel bleibt der Standard-Tab (undefined durchgereicht, unverändertes Verhalten)', async () => {
+    const { transport, submitZiele, resetZiele } = stubZielErfassung();
+    await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false });
+    expect(submitZiele).toEqual([undefined]);
+    expect(resetZiele).toEqual([undefined]);
   });
 
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {

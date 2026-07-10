@@ -14,7 +14,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { isDevContext } from '@/config/feature-flags';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
@@ -81,10 +81,21 @@ export interface RunBausteinErgebnis {
  * ZUERST einen frischen Chat (best-effort, Pitfall #36 — der Streamlit-Chat ist
  * stateful), dann der Lauf: bevorzugt `submitConversation` (DirectLLM), Fallback
  * `submitMessage` (Streamlit-Bridge, single-turn) — exakt wie `runRelevanzMap`.
- * System-Rolle + Token-Budget aus dem Skill-Record; das Prompt baut der Caller.
+ * System-Rolle aus dem Skill-Record; das Prompt baut der Caller.
+ *
+ * `ziel` (optional, nur Streamlit) routet den Ziel-Tab: ohne `ziel` = aktiver/
+ * Standard-Chat (gpt-oss); `'agentisch'` = der agentische Qwen-Tab (260k, Zweit-LLM-
+ * Erprobung — dev-Eval-A/B). Reset UND Submit treffen denselben Tab.
+ *
+ * ACHTUNG `maxTokens`: greift NUR auf dem `submitConversation`-Pfad (DirectLLM,
+ * per-Request). Die Streamlit-Bridge trägt KEIN per-Request-Token-Budget → dort ist
+ * die Ausgabelänge SERVER-seitig (Backend-Config des KI-Tabs), `skill.maxTokens`
+ * wirkt dort NICHT (relevant für die Truncation-Analyse der Bausteine).
  */
-export async function runBaustein(transport: AITransport, skill: SkillRecord, prompt: string): Promise<RunBausteinErgebnis> {
-  const chatResetStatus = await starteFrischenChat(transport);
+export async function runBaustein(
+  transport: AITransport, skill: SkillRecord, prompt: string, ziel?: BridgeZiel,
+): Promise<RunBausteinErgebnis> {
+  const chatResetStatus = await starteFrischenChat(transport, ziel);
   const system = skill.systemPrompt ?? '';
   const maxTokens = skill.maxTokens ?? BAUSTEIN_MAX_TOKENS_DEFAULT;
   if (typeof transport.submitConversation === 'function') {
@@ -94,7 +105,14 @@ export async function runBaustein(transport: AITransport, skill: SkillRecord, pr
     ];
     return { text: await transport.submitConversation(messages, { maxTokens }), chatResetStatus };
   }
-  return { text: await transport.submitMessage(system ? `${system}\n\n${prompt}` : prompt, system || undefined), chatResetStatus };
+  return {
+    text: await transport.submitMessage(
+      system ? `${system}\n\n${prompt}` : prompt,
+      system || undefined,
+      ziel ? { ziel } : undefined,
+    ),
+    chatResetStatus,
+  };
 }
 
 /**

@@ -160,6 +160,8 @@ export function AufbereitungEvalPanel(): React.ReactElement {
   const [wiederholungen, setWiederholungen] = useState(1);
   const [mitSteckbrief, setMitSteckbrief] = useState(true);
   const [mitZahlen, setMitZahlen] = useState(true);
+  // Zweit-LLM-A/B: aus = Standard-Chat (gpt-oss), an = agentischer Qwen-Tab (260k).
+  const [agentisch, setAgentisch] = useState(false);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
   const [ergebnis, setErgebnis] = useState<AufbereitungEvalErgebnis | null>(null);
   const [report, setReport] = useState<string | null>(null);
@@ -204,6 +206,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
           includeSteckbrief: mitSteckbrief,
           includeZahlen: mitZahlen,
           wiederholungen,
+          ziel: agentisch ? 'agentisch' : undefined,
           signal: ctrl.signal,
           onFixtureStart: (vbFile) =>
             setVerlauf(v => v.map(x => (x.vbFile === vbFile ? { ...x, status: 'running' } : x))),
@@ -218,6 +221,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
         zeitpunkt: new Date().toLocaleString('de-DE'),
         transportName: transport.displayName ?? transport.name,
         steckbriefEingeschlossen: mitSteckbrief,
+        ziel: agentisch ? 'agentisch' : undefined,
       }));
     } finally {
       abortRef.current = null;
@@ -302,6 +306,13 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
                 <Switch checked={mitZahlen} onCheckedChange={setMitZahlen} />
                 Zahlen einschließen
+              </label>
+              <label
+                className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
+                title="A/B: Läufe an den agentischen Qwen-Tab (260k Kontext) statt den Standard-Chat (gpt-oss) senden. Voraussetzung: der Qwen-Tab ist offen und das Lesezeichen dort aktiviert."
+              >
+                <Switch checked={agentisch} onCheckedChange={setAgentisch} />
+                Agentisch (Qwen, 260k)
               </label>
             </div>
 

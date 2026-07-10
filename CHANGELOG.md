@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.217.4 — Antrag-Aufbereitung: Eval-A/B gegen den agentischen Qwen-Tab (dev) + maxTokens-Klarstellung (Juli 2026)
+
+PATCH — Ein dev-only Schalter im Eval-Panel schickt die Aufbereitungs-Bausteine wahlweise an den **agentischen Qwen-Tab (260k Kontext)** statt an den Standard-Chat (gpt-oss), damit sich Vollständigkeit/Truncation/Zuverlässigkeit des Zweit-LLM **messen** lassen (nicht adoptieren — nur A/B). Reine Erprobung, dev-only, keine Prod-/Verhaltensänderung im Standardpfad.
+
+- **Ziel-Durchreichung** ([bausteine.ts](src/plugins/antraege/aufbereitung/bausteine.ts)): `runBaustein(…, ziel?)` gibt das `BridgeZiel` an `starteFrischenChat` UND `submitMessage` weiter (Reset + Submit treffen denselben Tab). Ohne `ziel` = unverändert der Standard-Tab (Produktivpfad rührt sich nicht). Runner ([runner.ts](src/plugins/antraege/aufbereitung/eval-panel/runner.ts)) reicht `opts.ziel` an alle drei Läufe durch; Panel-Schalter „Agentisch (Qwen, 260k)"; der Report-Kopf nennt den Ziel-Tab.
+- **maxTokens-Klarstellung (Befund):** Die Streamlit-Bridge implementiert kein `submitConversation` → `runBaustein` läuft über `submitMessage`, und weder `submitMessage` noch die `tf-request`-Nachricht tragen ein Token-Budget. **Die Ausgabelänge ist auf dem Bridge-Pfad SERVER-seitig (Backend-Config des KI-Tabs) — `skill.maxTokens` greift dort NICHT** (nur auf dem DirectLLM-`submitConversation`-Pfad). Die maxTokens-Anhebung aus v2.217.1/v2.217.3 bleibt als korrekter Wert für DirectLLM bestehen, ist aber NICHT der Hebel gegen die Bridge-Truncation. Der Weg zu mehr Ausgabe auf der Bridge ist ein größeres Server-Budget — genau das lässt sich mit dem Qwen-Tab jetzt A/B-testen.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. Runner-`ziel`-Durchreichungstests: „agentisch"→Reset+Submit, ohne→undefined + `build:dev`) + `build:pl`.
+
 ### v2.217.3 — Antrag-Aufbereitung: Zahlen-maxTokens 2048→4096 auf Bestands-Shares (Migration) (Juli 2026)
 
 PATCH — Die Diagnose (v2.217.2) belegte per Prod-Eval: die Prompt-Härtung entfernte die Tabellen-Präambel (alle Fixtures nur noch `JSON abgeschnitten`, kein `Tabellen-Präambel`), aber der JSON-Teil trunkierte weiter am persistierten `maxTokens = 2048` (Claim-Zahl sprang durch den Wegfall der Tabelle bereits von 3 auf 20–33). Der Seed steht seit v2.217.1 auf 4096, greift via `mergeMissingSeeds` aber nur für Fresh-Seeds — ein Bestands-Share behält den persistierten Wert. Diese marker-gesicherte Migration holt die Anhebung einmalig nach.

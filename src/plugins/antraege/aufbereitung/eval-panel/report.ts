@@ -5,6 +5,7 @@
  * bei Degradation ODER auffälligem `ok` (Zahlen: Tabellen-Präambel/Truncation) die
  * ersten ~400 Zeichen der Rohantwort).
  */
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { STECKBRIEF_FELDER, type AufbereitungEvalErgebnis, type FixtureErgebnis } from './runner';
 
 export interface ReportMeta {
@@ -13,6 +14,13 @@ export interface ReportMeta {
   /** `transport.displayName ?? transport.name`. */
   transportName: string;
   steckbriefEingeschlossen: boolean;
+  /** Ziel-Tab (Zweit-LLM-A/B): `'agentisch'` = Qwen-Tab, sonst Standard-Chat (gpt-oss). */
+  ziel?: BridgeZiel;
+}
+
+/** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
+function zielLabel(ziel?: BridgeZiel): string {
+  return ziel === 'agentisch' ? 'agentisch (Qwen, 260k)' : 'Standard-Chat (gpt-oss)';
 }
 
 /** Länge des Rohtext-Auszugs bei Degradation. */
@@ -96,7 +104,7 @@ export function formatEvalReport(erg: AufbereitungEvalErgebnis, meta: ReportMeta
     '# Aufbereitung — Baustein-Eval (In-App, Bridge)',
     '',
     `- Datum: ${meta.zeitpunkt}`,
-    `- Transport: ${meta.transportName}`,
+    `- Transport: ${meta.transportName} · ${zielLabel(meta.ziel)}`,
     `- Steckbrief-Smoke: ${meta.steckbriefEingeschlossen ? 'ja' : 'nein'}`,
     `- Fixtures: ${erg.fixtures.length} (Aspekte gemessen: ${gemessen})`,
     ...(erg.wiederholungen > 1 ? [`- Wiederholungen je Fixture: ${erg.wiederholungen} (Gesamt = Median-Lauf; Worst-Case separat)`] : []),

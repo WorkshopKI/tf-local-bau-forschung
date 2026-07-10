@@ -15,7 +15,7 @@
  * `bridge.getTransportForSkillRun(skill)` (Policy wirft bei externem Provider,
  * Pitfall #30). Die Fixtures sind fiktiv (`loadEvalFixtures`).
  */
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import type { SkillRecord } from '@/core/services/skills';
 import {
@@ -139,6 +139,9 @@ export interface EvalOpts {
   /** Wiederholungen pro Fixture (1…5, Default 1). Aspekte wird n× gefahren (Varianz),
    *  der Steckbrief-Smoke bleibt EIN Lauf pro Fixture. Reset-Invariante gilt pro Einzellauf. */
   wiederholungen?: number;
+  /** Ziel-Tab der Streamlit-Bridge (Zweit-LLM-A/B): ohne = Standard-Chat (gpt-oss),
+   *  `'agentisch'` = Qwen-Tab (260k). Wird an Reset + Submit jedes Laufs durchgereicht. */
+  ziel?: BridgeZiel;
   signal?: AbortSignal;
   onFixtureStart?: (vbFile: string, index: number, total: number) => void;
   onFixtureDone?: (ergebnis: FixtureErgebnis, index: number, total: number) => void;
@@ -178,7 +181,7 @@ export function zaehleGefuellteFelder(d: SteckbriefDaten): number {
 async function laufAspekte(
   transport: AITransport, skill: SkillRecord,
   gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string,
-  sektionIds: string[], gf: GoldFixture,
+  sektionIds: string[], gf: GoldFixture, ziel?: BridgeZiel,
 ): Promise<AspekteFixtureErgebnis> {
   // Spiegelt `getOrComputeBaustein`: leeres Parse-Ergebnis ODER 0 Zuordnungen bei
   // ≥1 Sektion → auffällig → EIN Retry mit frischem Chat (Mess-Parität zum App-Pfad).
@@ -186,7 +189,7 @@ async function laufAspekte(
     let raw: string;
     let reset: ChatResetStatus;
     try {
-      const r = await runBaustein(transport, skill, buildAspektePrompt(gliederung, vbMarkdown));
+      const r = await runBaustein(transport, skill, buildAspektePrompt(gliederung, vbMarkdown), ziel);
       raw = r.text;
       reset = r.chatResetStatus;
     } catch (e) {
@@ -222,12 +225,12 @@ async function laufAspekte(
 
 async function laufSteckbrief(
   transport: AITransport, skill: SkillRecord,
-  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[],
+  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: BridgeZiel,
 ): Promise<SteckbriefSmokeErgebnis> {
   let raw: string;
   let chatResetStatus: ChatResetStatus;
   try {
-    const r = await runBaustein(transport, skill, buildSteckbriefPrompt(gliederung, vbMarkdown));
+    const r = await runBaustein(transport, skill, buildSteckbriefPrompt(gliederung, vbMarkdown), ziel);
     raw = r.text;
     chatResetStatus = r.chatResetStatus;
   } catch (e) {
@@ -240,12 +243,12 @@ async function laufSteckbrief(
 
 async function laufZahlen(
   transport: AITransport, skill: SkillRecord,
-  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[],
+  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: BridgeZiel,
 ): Promise<ZahlenSmokeErgebnis> {
   let raw: string;
   let chatResetStatus: ChatResetStatus;
   try {
-    const r = await runBaustein(transport, skill, buildZahlenPrompt(gliederung, vbMarkdown));
+    const r = await runBaustein(transport, skill, buildZahlenPrompt(gliederung, vbMarkdown), ziel);
     raw = r.text;
     chatResetStatus = r.chatResetStatus;
   } catch (e) {
@@ -307,7 +310,7 @@ export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): 
     const laeufe: AspekteFixtureErgebnis[] = [];
     for (let r = 0; r < n; r++) {
       if (r > 0 && opts.signal?.aborted) break;
-      laeufe.push(await laufAspekte(transport, aspekteSkill, gliederung, fx.vbMarkdown, sektionIds, gf));
+      laeufe.push(await laufAspekte(transport, aspekteSkill, gliederung, fx.vbMarkdown, sektionIds, gf, opts.ziel));
     }
 
     // Median-/Worst-Lauf nach F1 wählen (nicht-ok zählt als 0).
@@ -323,13 +326,13 @@ export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): 
     let steckbrief: SteckbriefSmokeErgebnis | undefined;
     // Steckbrief EIN Smoke-Lauf je Fixture (unabhängig von n). Nach Abbruch nicht mehr starten.
     if (includeSteckbrief && !opts.signal?.aborted) {
-      steckbrief = await laufSteckbrief(transport, steckbriefSkill, gliederung, fx.vbMarkdown, sektionIds);
+      steckbrief = await laufSteckbrief(transport, steckbriefSkill, gliederung, fx.vbMarkdown, sektionIds, opts.ziel);
     }
 
     let zahlen: ZahlenSmokeErgebnis | undefined;
     // Zahlen EIN Smoke-Lauf je Fixture (analog Steckbrief). Nach Abbruch nicht mehr starten.
     if (includeZahlen && zahlenSkill && !opts.signal?.aborted) {
-      zahlen = await laufZahlen(transport, zahlenSkill, gliederung, fx.vbMarkdown, sektionIds);
+      zahlen = await laufZahlen(transport, zahlenSkill, gliederung, fx.vbMarkdown, sektionIds, opts.ziel);
     }
 
     const erg: FixtureErgebnis = {
