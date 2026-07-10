@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.217.2 — Antrag-Aufbereitung: Eval-Diagnose für „ok, aber wenige Claims" (dev) (Juli 2026)
+
+PATCH — Nach dem Truncation-Fix (v2.217.1) parsen alle Zahlen-Fixtures wieder (`ok`), aber ein Fixture lieferte auffällig **wenige** Claims (3 statt Dutzende). Das In-App-Eval zeigte für `ok`-Läufe bisher keinen Rohtext → man konnte die Ursache (Tabellen-Präambel frisst Budget / JSON abgeschnitten) nicht sehen. Diese dev-only Diagnose macht sie sichtbar. Rein additiv, keine Prod-/Verhaltensänderung.
+
+- **Diagnose-Funktion** `zahlenAntwortDiagnose` ([zahlen.ts](src/plugins/antraege/aufbereitung/zahlen.ts), rein): `abgeschnitten` (der Happy-Path-Objekt-Parser fand kein vollständiges claims-Objekt, obwohl `"claims"` da ist → Salvage lief, Claims sind Teilstand) + `hatTabelle` (≥ 2 Tabellen-Zeilen im Vorspann vor `"claims"`).
+- **Eval-Runner** ([runner.ts](src/plugins/antraege/aufbereitung/eval-panel/runner.ts)): `ZahlenSmokeErgebnis` trägt `hatTabelle?`/`abgeschnitten?` (auch bei `ok`); bei auffälligem `ok` wird die Roh-Antwort (gekappt) mitgegeben.
+- **Report** ([report.ts](src/plugins/antraege/aufbereitung/eval-panel/report.ts)): `ok`-Zahlen-Zeile mit Suffix „⚠ Tabellen-Präambel + JSON abgeschnitten" + 400-Zeichen-Roh-Auszug — direkt im kopierbaren Block sichtbar. Saubere Läufe bleiben unverändert.
+- **Panel** ([AufbereitungEvalPanel.tsx](src/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel.tsx)): einklappbare „Rohantworten (auffällige Läufe)" jetzt auch für `ok`-Zahlen mit Tabelle/Truncation; Fortschritts-Zeile markiert sie mit „⚠".
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `zahlenAntwortDiagnose`-Tests + Runner-Diagnose-Test + `build:dev`) + `build:pl`.
+
 ### v2.217.1 — Antrag-Aufbereitung: Zahlen-Inventar truncation-tolerant (Prod-Eval-Fix) (Juli 2026)
 
 PATCH — Die erste Prod-Eval des Zahlen-Inventars (In-App, interne KI, 3 Fixtures) zeigte den Baustein bei **allen 3** als „degradiert (nicht parsebar)", während Aspekt-Mapping (F1 = 0,935) und Steckbrief-Smoke (7–8/8) sauber liefen. Ursachenanalyse der Rohantworten ergab zwei Fehlerbilder — der dominante ist jetzt deterministisch behoben.

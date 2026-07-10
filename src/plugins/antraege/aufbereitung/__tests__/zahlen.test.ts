@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildZahlenPrompt, parseZahlen, pruefeZahlWidersprueche, ZAHL_KATEGORIEN,
+  buildZahlenPrompt, parseZahlen, pruefeZahlWidersprueche, zahlenAntwortDiagnose, ZAHL_KATEGORIEN,
   type ZahlClaim,
 } from '../zahlen';
 import type { VbSektion } from '../gliederung';
@@ -182,6 +182,45 @@ describe('parseZahlen', () => {
       '| 24 Monate | Monate | zeit | Laufzeit | [k-9] |',
     ].join('\n');
     expect(parseZahlen(raw, SEKTION_IDS)).toBeNull();
+  });
+});
+
+describe('zahlenAntwortDiagnose', () => {
+  it('sauberer JSON-Lauf → keine Auffälligkeit', () => {
+    const raw = '```json\n{"schemaVersion":1,"claims":[{"wert":"24 Monate","kategorie":"zeit","sektionIds":["k-9"]}]}\n```';
+    expect(zahlenAntwortDiagnose(raw)).toEqual({ hatTabelle: false, abgeschnitten: false });
+  });
+
+  it('vollständiger JSON MIT Tabellen-Präambel → hatTabelle, nicht abgeschnitten', () => {
+    const raw = [
+      'Wert\tEinheit\tKategorie\tKontext\tSektion',
+      '24 Monate\tMonate\tzeit\tLaufzeit\t[k-9]',
+      '375.000 €\t€\tkosten\tSumme\t[k-9]',
+      '',
+      '{ "schemaVersion": 1, "claims": [ { "wert": "24 Monate", "kategorie": "zeit", "sektionIds": ["k-9"] } ] }',
+    ].join('\n');
+    expect(zahlenAntwortDiagnose(raw)).toEqual({ hatTabelle: true, abgeschnitten: false });
+  });
+
+  it('Tabelle DANN abgeschnittener JSON → beide Flags', () => {
+    const raw = [
+      'Wert\tEinheit\tKategorie\tKontext\tSektion',
+      '24 Monate\tMonate\tzeit\tLaufzeit\t[k-9]',
+      '',
+      '{ "schemaVersion": 1, "claims": [',
+      '  { "wert": "24 Monate", "kategorie": "zeit", "sektionIds": ["k-9"] },',
+      '  { "wert": "375.000 €", "kategorie": "kosten", "sekti', // abgeschnitten
+    ].join('\n');
+    expect(zahlenAntwortDiagnose(raw)).toEqual({ hatTabelle: true, abgeschnitten: true });
+  });
+
+  it('reiner JSON, aber abgeschnitten (ohne Tabelle) → nur abgeschnitten', () => {
+    const raw = '{ "schemaVersion": 1, "claims": [ { "wert": "24 Monate", "kategorie": "zeit", "sektionIds": ["k-9"] },';
+    expect(zahlenAntwortDiagnose(raw)).toEqual({ hatTabelle: false, abgeschnitten: true });
+  });
+
+  it('gar kein JSON (kein „claims") → nicht abgeschnitten (nichts zu bergen)', () => {
+    expect(zahlenAntwortDiagnose('nur Prosa, keine Zahlen als JSON')).toEqual({ hatTabelle: false, abgeschnitten: false });
   });
 });
 

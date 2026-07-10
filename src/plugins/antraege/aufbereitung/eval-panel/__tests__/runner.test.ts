@@ -79,6 +79,31 @@ function stubMitZahlen(): AITransport {
   } as unknown as AITransport;
 }
 
+/** Zahlen-Antwort mit Tabellen-Präambel + abgeschnittenem JSON (ein Claim bleibt bergbar). */
+const ZAHLEN_TABELLE_TRUNC = [
+  'Wert\tEinheit\tKategorie\tKontext\tSektion',
+  '24 Monate\tMonate\tzeit\tLaufzeit\t[k-7]',
+  '5 %\t%\tkosten\tQuote\t[k-1]',
+  '',
+  'JSON-Export (wie gefordert)',
+  '{ "schemaVersion": 1, "claims": [',
+  '  { "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "kontext": "Laufzeit", "sektionIds": ["k-7"] },',
+  '  { "wert": "5 %", "kategorie": "kosten", "kontext": "Quote", "sekti', // abgeschnitten
+].join('\n');
+
+/** Wie `stubMitZahlen`, aber die Zahlen-Antwort trägt Tabelle + Truncation. */
+function stubZahlenTabelleTrunc(): AITransport {
+  return {
+    name: 'Stub',
+    submitConversation: async (messages: Array<{ role: string; content: string }>) => {
+      const prompt = messages[messages.length - 1]!.content;
+      if (prompt.includes('Prüfaspekte')) return 'A: k-1\nF: k-7';
+      if (prompt.includes('Zahlen-Inventar')) return ZAHLEN_TABELLE_TRUNC;
+      return STECKBRIEF_OK;
+    },
+  } as unknown as AITransport;
+}
+
 describe('runAufbereitungEval', () => {
   it('happy path: Aspekte P=R=F1=1, Steckbrief-Smoke ok', async () => {
     const erg = await runAufbereitungEval(deps(stub()));
@@ -195,6 +220,23 @@ describe('runAufbereitungEval', () => {
     expect(z?.status).toBe('ok');
     expect(z?.claimAnzahl).toBe(1);
     expect(z?.schemaVersion).toBe(1);
+    // Sauberer Lauf → keine Diagnose-Flags, kein Rohtext (nur bei Auffälligkeit).
+    expect(z?.hatTabelle).toBeUndefined();
+    expect(z?.abgeschnitten).toBeUndefined();
+    expect(z?.rohtext).toBeUndefined();
+  });
+
+  it('Zahlen-Smoke: ok, aber Tabellen-Präambel + Truncation → Diagnose-Flags + Rohtext', async () => {
+    const erg = await runAufbereitungEval(
+      { ...deps(stubZahlenTabelleTrunc()), zahlenSkill: AUFBEREITUNG_ZAHLEN_SKILL },
+      { limit: 1, includeSteckbrief: false },
+    );
+    const z = erg.fixtures[0]?.zahlen;
+    expect(z?.status).toBe('ok');            // der eine vollständige Claim wurde geborgen
+    expect(z?.claimAnzahl).toBe(1);
+    expect(z?.hatTabelle).toBe(true);        // Tabelle vor dem JSON erkannt
+    expect(z?.abgeschnitten).toBe(true);     // JSON war truncated (Salvage lief)
+    expect(z?.rohtext).toContain('JSON-Export'); // Roh-Antwort zur Inspektion mitgegeben
   });
 
   it('ohne zahlenSkill läuft kein Zahlen-Smoke', async () => {

@@ -25,7 +25,7 @@ import {
 import { parseVbGliederung } from '../gliederung';
 import { buildAspektePrompt, parseAspektMapping, sektionZuAspekte, aspekteVerdaechtig, type AspektMapping } from '../aspekte';
 import { buildSteckbriefPrompt, parseSteckbrief, type SteckbriefDaten } from '../steckbrief';
-import { buildZahlenPrompt, parseZahlen } from '../zahlen';
+import { buildZahlenPrompt, parseZahlen, zahlenAntwortDiagnose } from '../zahlen';
 import { runBaustein, ROHTEXT_MAX } from '../bausteine';
 
 /** Minimal-Sicht auf ein Fixture (was der Runner braucht — `loadEvalFixtures()` erfüllt das strukturell). */
@@ -72,8 +72,13 @@ export interface ZahlenSmokeErgebnis {
   claimAnzahl?: number;
   /** Nur bei `ok`: aus dem JSON gelesene Schema-Version. */
   schemaVersion?: number;
+  /** Roh-Antwort bei `degradiert` ODER bei auffälligem `ok` (Tabelle/Truncation) — Diagnose. */
   rohtext?: string;
   fehler?: string;
+  /** Diagnose (auch bei `ok`): der JSON-Teil war truncated → Salvage lieferte Teilstand. */
+  abgeschnitten?: boolean;
+  /** Diagnose (auch bei `ok`): dem JSON ging eine Tabellen-Präambel voraus (frisst Budget). */
+  hatTabelle?: boolean;
   /** Chat-Reset-Status vor dem Zahlen-Lauf (nur bei ok/degradiert). */
   chatResetStatus?: ChatResetStatus;
 }
@@ -247,10 +252,19 @@ async function laufZahlen(
     return { status: 'fehler', fehler: fehlerText(e) };
   }
   const daten = parseZahlen(raw, sektionIds);
-  if (daten == null) return { status: 'degradiert', rohtext: raw.slice(0, ROHTEXT_MAX), chatResetStatus };
+  // Diagnose (auch bei ok): Tabellen-Präambel + Truncation erklären dünne/fehlende Claims.
+  const { hatTabelle, abgeschnitten } = zahlenAntwortDiagnose(raw);
+  const diag = { ...(hatTabelle ? { hatTabelle } : {}), ...(abgeschnitten ? { abgeschnitten } : {}) };
+  if (daten == null) return { status: 'degradiert', rohtext: raw.slice(0, ROHTEXT_MAX), chatResetStatus, ...diag };
   // Smoke: parse ok, schemaVersion vorhanden, Claims-Array vorhanden; `parseZahlen`
-  // garantiert bereits nicht-leere, katalog-valide sektionIds je Claim.
-  return { status: 'ok', claimAnzahl: daten.claims.length, schemaVersion: daten.schemaVersion, chatResetStatus };
+  // garantiert bereits nicht-leere, katalog-valide sektionIds je Claim. Bei auffälligem ok
+  // (Tabelle/Truncation) die Roh-Antwort mitgeben, damit das Panel sie zeigen kann.
+  const auffaellig = hatTabelle || abgeschnitten;
+  return {
+    status: 'ok', claimAnzahl: daten.claims.length, schemaVersion: daten.schemaVersion, chatResetStatus,
+    ...diag,
+    ...(auffaellig ? { rohtext: raw.slice(0, ROHTEXT_MAX) } : {}),
+  };
 }
 
 /**

@@ -181,6 +181,33 @@ export function parseZahlen(raw: string, sektionIds: string[]): ZahlenDaten | nu
   return { schemaVersion: geborgen.schemaVersion, claims };
 }
 
+/**
+ * Diagnose der Roh-Antwort (dev-Eval — beantwortet „warum wenige/keine Claims?"):
+ *
+ * - `abgeschnitten`: der Happy-Path-Objekt-Extraktor (`extractLastJsonObject`) fand KEIN
+ *   vollständiges claims-tragendes Objekt, obwohl `"claims"` im Text steht → die Antwort
+ *   war truncated und lief über den Salvage (die geretteten Claims sind ein Teilstand).
+ * - `hatTabelle`: dem JSON-Teil geht eine **Tabelle** voraus (≥ 2 Zeilen mit ≥ 2
+ *   Spaltentrennern `|`/Tab im Vorspann vor `"claims"`). Diese Präambel frisst
+ *   Token-Budget und begünstigt genau die Truncation — die Prompt-Härtung zielt darauf.
+ *
+ * Reine Funktion, wirft nie. Beide Flags sind unabhängig; ein sauberer JSON-Lauf ergibt
+ * `{ hatTabelle: false, abgeschnitten: false }`.
+ */
+export function zahlenAntwortDiagnose(raw: string): { hatTabelle: boolean; abgeschnitten: boolean } {
+  const obj = extractLastJsonObject(raw);
+  const vollstaendig = !!(obj && Array.isArray(obj.claims));
+  const claimsIdx = raw.indexOf('"claims"');
+  const abgeschnitten = !vollstaendig && claimsIdx >= 0;
+  const vorspann = claimsIdx >= 0 ? raw.slice(0, claimsIdx) : raw;
+  const tabellenZeilen = vorspann.split('\n').filter(z => {
+    const pipes = (z.match(/\|/g) ?? []).length;
+    const tabs = (z.match(/\t/g) ?? []).length;
+    return pipes >= 2 || tabs >= 2;
+  }).length;
+  return { hatTabelle: tabellenZeilen >= 2, abgeschnitten };
+}
+
 // ---------------------------------------------------------------------------
 // Deterministische Quervergleiche (Code, NICHT LLM)
 // ---------------------------------------------------------------------------

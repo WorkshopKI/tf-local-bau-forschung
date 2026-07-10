@@ -77,17 +77,27 @@ function kurzVon(e: FixtureErgebnis): string {
   else if (s?.status === 'degradiert') teile.push('SB degr.');
   else if (s?.status === 'fehler') teile.push('SB-Fehler');
   const z = e.zahlen;
-  if (z?.status === 'ok') teile.push(`Zahlen ${z.claimAnzahl ?? 0}`);
+  if (z?.status === 'ok') teile.push(`Zahlen ${z.claimAnzahl ?? 0}${z.hatTabelle || z.abgeschnitten ? ' ⚠' : ''}`);
   else if (z?.status === 'degradiert') teile.push('Zahlen degr.');
   else if (z?.status === 'fehler') teile.push('Zahlen-Fehler');
   if ([a?.chatResetStatus, s?.chatResetStatus, z?.chatResetStatus].some(x => x != null && resetHatVerlaufsrisiko(x))) teile.push('⚠ Reset');
   return teile.join(' · ');
 }
 
-/** Ein persistierter Rohtext eines auffälligen Laufs (degradiert). */
+/** Ein persistierter Rohtext eines auffälligen Laufs (degradiert oder ok-mit-Auffälligkeit). */
 interface RohBefund { key: string; titel: string; text: string }
 
-/** Sammelt die Rohantworten degradierter Aspekte-/Steckbrief-Läufe (0.3 — Diagnose). */
+/** Kurz-Etikett der Zahlen-Auffälligkeit für die Rohtext-Karte. */
+function zahlenAuffaelligkeit(z: FixtureErgebnis['zahlen']): string {
+  const flags = [z?.hatTabelle ? 'Tabellen-Präambel' : null, z?.abgeschnitten ? 'JSON abgeschnitten' : null].filter(Boolean);
+  return flags.join(', ');
+}
+
+/**
+ * Sammelt die Rohantworten auffälliger Läufe (Diagnose): degradierte Aspekte/Steckbrief/Zahlen
+ * UND `ok`-Zahlen-Läufe, die eine Tabellen-Präambel trugen oder truncated waren (dann liefert
+ * der Runner die Roh-Antwort trotz `ok` mit — damit sichtbar wird, WARUM wenige Claims kamen).
+ */
 function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
   if (!erg) return [];
   const out: RohBefund[] = [];
@@ -99,8 +109,12 @@ function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
     if (f.steckbrief?.status === 'degradiert' && f.steckbrief.rohtext) {
       out.push({ key: `${f.vbFile}:steckbrief`, titel: `${f.vbFile} · Steckbrief (degradiert)`, text: f.steckbrief.rohtext });
     }
-    if (f.zahlen?.status === 'degradiert' && f.zahlen.rohtext) {
-      out.push({ key: `${f.vbFile}:zahlen`, titel: `${f.vbFile} · Zahlen (degradiert)`, text: f.zahlen.rohtext });
+    const z = f.zahlen;
+    if (z?.rohtext) {
+      const titel = z.status === 'degradiert'
+        ? `${f.vbFile} · Zahlen (degradiert)`
+        : `${f.vbFile} · Zahlen (ok — ${zahlenAuffaelligkeit(z) || 'auffällig'})`;
+      out.push({ key: `${f.vbFile}:zahlen`, titel, text: z.rohtext });
     }
   }
   return out;
@@ -364,10 +378,10 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               </div>
             )}
 
-            {/* Rohantworten degradierter Läufe (0.3): einklappbar + kopierbar */}
+            {/* Rohantworten auffälliger Läufe (Diagnose): degradiert + ok-mit-Tabelle/Truncation */}
             {ergebnis && rohBefunde(ergebnis).length > 0 && (
               <div className="space-y-2">
-                <SettingsSectionHeader label="Rohantworten (degradierte Läufe)" />
+                <SettingsSectionHeader label="Rohantworten (auffällige Läufe)" />
                 <div className="space-y-1.5">
                   {rohBefunde(ergebnis).map(b => <RohtextKarte key={b.key} titel={b.titel} text={b.text} />)}
                 </div>

@@ -2,7 +2,8 @@
  * Rein: formt ein `AufbereitungEvalErgebnis` zu einem kopierbaren Markdown-Block.
  * Der Block ist das, was Thomas aus dem dev-Panel in den Chat einfügt — er muss
  * OHNE App-Kontext lesbar sein (Datum, Transport, Fixture-Zeilen, Gesamtmetrik,
- * bei Degradation die ersten ~400 Zeichen der Rohantwort).
+ * bei Degradation ODER auffälligem `ok` (Zahlen: Tabellen-Präambel/Truncation) die
+ * ersten ~400 Zeichen der Rohantwort).
  */
 import { STECKBRIEF_FELDER, type AufbereitungEvalErgebnis, type FixtureErgebnis } from './runner';
 
@@ -62,7 +63,13 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
   if (f.zahlen) {
     const z = f.zahlen;
     if (z.status === 'ok') {
-      zeilen.push(`- Zahlen (Smoke): ok — ${z.claimAnzahl ?? 0} Claims, schemaVersion ${z.schemaVersion ?? '?'}`);
+      const hinweise: string[] = [];
+      if (z.hatTabelle) hinweise.push('Tabellen-Präambel');
+      if (z.abgeschnitten) hinweise.push('JSON abgeschnitten');
+      const suffix = hinweise.length ? ` · ⚠ ${hinweise.join(' + ')}` : '';
+      zeilen.push(`- Zahlen (Smoke): ok — ${z.claimAnzahl ?? 0} Claims, schemaVersion ${z.schemaVersion ?? '?'}${suffix}`);
+      // Bei auffälligem ok den Roh-Auszug mitgeben (zeigt die Tabelle / die Truncation-Stelle).
+      if (z.rohtext) zeilen.push('```', z.rohtext.slice(0, ROHTEXT_AUSZUG), '```');
     } else if (z.status === 'degradiert') {
       zeilen.push('- Zahlen (Smoke): degradiert (nicht parsebar)');
       zeilen.push('```', (z.rohtext ?? '').slice(0, ROHTEXT_AUSZUG), '```');
