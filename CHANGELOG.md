@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.218.0 — Antrag-Aufbereitung: Lesemodus-Tab + „Im Antrag öffnen"-Sprung (dev) (Juli 2026)
+
+MINOR — Der **Lesemodus** liest die Vorhabensbeschreibung als navigierbares Dokument (Gliederung links, Lesepane rechts) und schaltet den seit Paket 2 vorbereiteten **Fundstellen-Sprung** frei: ein Klick auf einen `§`-Chip in Steckbrief / Abdeckung / Zahlen / Fragen wechselt in den Lesemodus und scrollt zur Sektion (kurz hervorgehoben). Additiv, dev-only (`antragAufbereitung`), keine Migration.
+
+- **Lesemodus** ([LesemodusTab.tsx](src/plugins/antraege/aufbereitung/LesemodusTab.tsx)): rendert die VB abschnittsweise über den geteilten `MarkdownRenderer` (sanitized, Tabellen-Support); jeder Abschnitt trägt seine `sektionId` als `data-sek`-Anker. Slicing = reine, getestete `sliceLesemodus` ([lesemodus.ts](src/plugins/antraege/aufbereitung/lesemodus.ts)) entlang der Gliederungs-Offsets (`s-toc` aus, robust gegen veraltete Offsets). Gliederungs-Navigation scrollt zum Abschnitt.
+- **„Im Antrag öffnen" ohne Prop-Drilling:** der geteilte `FundstelleChip` wird über einen kleinen Context ([lesemodusSprung.ts](src/plugins/antraege/aufbereitung/lesemodusSprung.ts)) klickbar, statt einen Callback durch sechs Konsumenten zu reichen. Ist ein Lesemodus verfügbar (VB vorhanden), springt der Chip; sonst bleibt er ein reiner Hover-Chip. Das Popover ersetzt den „Sprung folgt"-Hinweis durch „Klick öffnet die Stelle im Lesemodus".
+- Tab `lesemodus` von `inaktiv` → `aktiv` ([AufbereitungTabs.tsx](src/plugins/antraege/aufbereitung/AufbereitungTabs.tsx)); Verdrahtung in [AufbereitungPage.tsx](src/plugins/antraege/aufbereitung/AufbereitungPage.tsx) (Provider + Sprungziel-State). Offen bleiben die Tabs Recherche/Glossar.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `lesemodus.test.ts` Slice-Tests + `build:dev`) + `build:pl`.
+
 ### v2.217.5 — Antrag-Aufbereitung: Zahlen-Prompt fordert KOMPAKTES JSON (Claim-Ausbeute ~4×) (Juli 2026)
 
 PATCH — Der Eval-Lauf mit `maxTokens = 4096` bestätigte, dass `skill.maxTokens` auf dem Bridge-Pfad wirkungslos ist (Claims **sanken** sogar: 003 33→4, 006 19→5), und deckte die tatsächliche Ursache auf: **das Antwort-Format**. Bei Pretty-Print (jedes Feld eigene eingerückte Zeile, ~8 Zeilen/Claim) passen im fixen Server-Budget nur 4–5 Claims; bei kompakter Ausgabe (ein Claim pro Zeile) im selben Budget ~17. Das Modell wählte das Format nichtdeterministisch → stark schwankende Claim-Zahlen.

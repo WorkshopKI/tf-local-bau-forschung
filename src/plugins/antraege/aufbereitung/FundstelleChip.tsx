@@ -1,13 +1,14 @@
 /**
  * Fundstellen-Chip mit Auszug-Popover (Paket 2). Monochromer `§ 3.1`-Chip; auf
  * Hover/Fokus erscheint ein leichtes Popover mit Kapiteltitel + ~300-Zeichen-Auszug
- * ab Span-Beginn (aus `VbSektion.start` gegen das VB-Markdown geschnitten). BEWUSST
- * kein Dialog/Modal und KEIN Sprung-Link — „Im Antrag öffnen" kommt erst mit dem
- * Lesemodus. Wird von Abdeckung UND Steckbrief genutzt (bei dritter Verwendung in
- * die Layout-Schicht heben).
+ * ab Span-Beginn (aus `VbSektion.start` gegen das VB-Markdown geschnitten). Ist ein
+ * Lesemodus verfügbar (Context `useLesemodusSprung`), wird der Chip KLICKBAR und
+ * springt „Im Antrag öffnen" zur Sektion; sonst bleibt er ein reiner Hover-Chip.
+ * Wird von Abdeckung/Steckbrief/Zahlen/Fragen genutzt (in der Layout-Schicht).
  */
 import { useMemo } from 'react';
 import type { VbSektion } from './gliederung';
+import { useLesemodusSprung } from './lesemodusSprung';
 
 const AUSZUG_LEN = 300;
 
@@ -28,6 +29,7 @@ export function FundstellePopover({
   sektion: VbSektion;
   vbMarkdown: string | null;
 }): React.ReactElement {
+  const sprungbar = !!useLesemodusSprung();
   const kapitel = `${sektion.nummer ? `${sektion.nummer} ` : ''}${sektion.titel}`.trim();
   const auszug = useMemo(() => {
     if (!vbMarkdown) return null;
@@ -48,7 +50,9 @@ export function FundstellePopover({
       ) : (
         <span className="block text-[11.5px] text-[var(--tf-text-tertiary)]">Auszug derzeit nicht verfügbar.</span>
       )}
-      <span className="mt-2 block text-[10.5px] text-[var(--tf-text-tertiary)]">Sprung ins Original folgt mit dem Lesemodus.</span>
+      <span className="mt-2 block text-[10.5px] text-[var(--tf-text-tertiary)]">
+        {sprungbar ? 'Klick öffnet die Stelle im Lesemodus.' : 'Sprung ins Original folgt mit dem Lesemodus.'}
+      </span>
     </span>
   );
 }
@@ -59,15 +63,30 @@ export function FundstelleChip({
   sektion: VbSektion;
   vbMarkdown: string | null;
 }): React.ReactElement {
+  const springeZu = useLesemodusSprung();
+  const chipKlassen =
+    'rounded px-1 py-0.5 text-[11px] whitespace-nowrap text-[var(--tf-text-secondary)] outline-none hover:bg-[var(--tf-hover)] focus:bg-[var(--tf-hover)]';
   return (
     <span className="relative inline-flex group">
-      <span
-        tabIndex={0}
-        className="cursor-help rounded px-1 py-0.5 text-[11px] whitespace-nowrap text-[var(--tf-text-secondary)] outline-none hover:bg-[var(--tf-hover)] focus:bg-[var(--tf-hover)]"
-        style={{ border: '0.5px solid var(--tf-border)' }}
-      >
-        {fundstelleLabel(sektion)}
-      </span>
+      {springeZu ? (
+        <button
+          type="button"
+          onClick={() => springeZu(sektion.id)}
+          className={`${chipKlassen} cursor-pointer`}
+          style={{ border: '0.5px solid var(--tf-border)' }}
+          title="Im Antrag öffnen"
+        >
+          {fundstelleLabel(sektion)}
+        </button>
+      ) : (
+        <span
+          tabIndex={0}
+          className={`${chipKlassen} cursor-help`}
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          {fundstelleLabel(sektion)}
+        </span>
+      )}
       <FundstellePopover sektion={sektion} vbMarkdown={vbMarkdown} />
     </span>
   );

@@ -26,7 +26,7 @@ export const AUFBEREITUNG_TABS: TabDef[] = [
   { id: 'glossar', label: 'Glossar', zustand: 'inaktiv' },
   { id: 'fragen', label: 'Fragen', zustand: 'aktiv' },
   { id: 'recherche', label: 'Recherche', zustand: 'inaktiv' },
-  { id: 'lesemodus', label: 'Lesemodus', zustand: 'inaktiv' },
+  { id: 'lesemodus', label: 'Lesemodus', zustand: 'aktiv' },
 ];
 
 export function AufbereitungTabs({

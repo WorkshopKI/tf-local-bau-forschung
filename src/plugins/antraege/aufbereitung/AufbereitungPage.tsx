@@ -9,7 +9,7 @@
  * refresh-fest. `key` ist ein echtes Verbund-Az oder ein Aktenzeichen (nie ein
  * Pseudo-Id), daher direkt als Route-Segment nutzbar.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -28,6 +28,8 @@ import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 import { ZahlenTab } from './ZahlenTab';
 import { FragenTab } from './FragenTab';
+import { LesemodusTab } from './LesemodusTab';
+import { LesemodusSprungProvider } from './lesemodusSprung';
 
 const kurzHash = (h: string): string => (h.length > 6 ? `${h.slice(0, 4)}…${h.slice(-2)}` : h);
 function kurzDatum(iso: string): string {
@@ -47,6 +49,17 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const aufb = useAufbereitung(ctx ? { key: ctx.key, knownIds: ctx.knownIds } : null);
   const [tab, setTab] = useState<AufbereitungTabId>('zeitplan');
   const [ansicht, setAnsicht] = useState<AbdeckungAnsicht>('liste');
+  // „Im Antrag öffnen": Fundstelle → Lesemodus-Tab + Sprung zur Sektion (Context, kein Drilling).
+  const [sprungZiel, setSprungZiel] = useState<string | null>(null);
+  const springeZuFundstelle = useCallback((sektionId: string) => {
+    setSprungZiel(sektionId);
+    setTab('lesemodus');
+  }, []);
+  const verbraucheSprung = useCallback(() => setSprungZiel(null), []);
+  const sprung = useMemo(
+    () => (aufb.vbMarkdown ? springeZuFundstelle : null),
+    [aufb.vbMarkdown, springeZuFundstelle],
+  );
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
   const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus]
     .some(s => s != null && resetHatVerlaufsrisiko(s));
@@ -123,6 +136,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       </div>
 
       <div className="mt-6">
+        <LesemodusSprungProvider value={sprung}>
         {tab === 'zeitplan' ? (
           <ZeitplanTab run={aufb.run} loading={aufb.loading} neu={aufb.neu} toggle={aufb.toggle} />
         ) : tab === 'steckbrief' ? (
@@ -164,9 +178,17 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             toggleErledigt={aufb.toggleErledigt}
             bausteine={aufb.bausteine}
           />
+        ) : tab === 'lesemodus' ? (
+          <LesemodusTab
+            run={aufb.run}
+            vbMarkdown={aufb.vbMarkdown}
+            sprungZiel={sprungZiel}
+            onVerbraucht={verbraucheSprung}
+          />
         ) : (
           <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">In Vorbereitung (Paket 2)</div>
         )}
+        </LesemodusSprungProvider>
       </div>
     </div>
   );
