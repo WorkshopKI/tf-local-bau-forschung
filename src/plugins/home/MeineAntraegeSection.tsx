@@ -95,7 +95,11 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens,
         className="grid transition-[grid-template-rows] ease-out"
         style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: 'var(--tf-duration-med)' }}
       >
-        <div className="overflow-hidden">
+        {/* pl-[18px] rückt den Inhalt (Caption + Zeilen + Footer) unter das
+            Label „MEINE ANTRÄGE" ein — der Section-Header-Button setzt das Label
+            um Chevron (12px) + gap-1.5 (6px) = 18px vom linken Rand ab, sodass
+            die Zeilen bündig mit dem „M" beginnen. */}
+        <div className="overflow-hidden pl-[18px]">
       <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2 -mt-1">
         {alleMode ? (
           'Offene Anträge aller aktiven MAs, sortiert nach Frist · Verbünde als ein Eintrag'
