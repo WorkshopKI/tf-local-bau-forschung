@@ -27,6 +27,7 @@ import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 import { ZahlenTab } from './ZahlenTab';
+import { GlossarTab } from './GlossarTab';
 import { FragenTab } from './FragenTab';
 import { LesemodusTab } from './LesemodusTab';
 import { LesemodusSprungProvider } from './lesemodusSprung';
@@ -168,6 +169,14 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
             toggle={aufb.toggle}
+          />
+        ) : tab === 'glossar' ? (
+          <GlossarTab
+            run={aufb.run}
+            glossar={aufb.glossar}
+            vbMarkdown={aufb.vbMarkdown}
+            bausteine={aufb.bausteine}
+            bausteineNeu={aufb.bausteineNeu}
           />
         ) : tab === 'fragen' ? (
           <FragenTab

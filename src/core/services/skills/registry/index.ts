@@ -58,6 +58,7 @@ export { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF, NF_SKILL_ID } from './nf-skill.s
 export { AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_ASPEKTE_SKILL_ID } from './aufbereitung-aspekte.seed';
 export { AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';
 export { AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbereitung-zahlen.seed';
+export { AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID } from './aufbereitung-glossar.seed';
 export {
   GA_QS_REGELN, GA_QS_REGEL_IDS, ABSCHNITTSZUORDNUNG, type AbschnittsZuordnung,
 } from './ga-qs.seed';

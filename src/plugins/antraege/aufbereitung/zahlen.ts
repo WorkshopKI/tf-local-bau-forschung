@@ -18,8 +18,8 @@ import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, zahlenCacheKey, vbHashFuer, type BausteinResult,
 } from './bausteine';
-import { parseJsonArrayTolerant } from '@/core/services/ai/json-tolerant';
 import { extractLastJsonObject } from './steckbrief';
+import { birgtRohArray } from './json-salvage';
 import { summePm } from './tabellen';
 import type { AufbereitungRun } from './types';
 
@@ -118,48 +118,19 @@ function normalisiereKategorie(v: unknown): string {
 }
 
 /**
- * Birgt die Roh-Claims + `schemaVersion` aus der Antwort — TRUNCATION-TOLERANT.
- *
- * Happy Path: das letzte vollständige JSON-Objekt (`extractLastJsonObject`); sein
- * `claims`-Feld (oder `[]`, falls valide, aber ohne Claims). Bricht die Antwort mitten
- * im langen `claims`-Array ab (Token-Limit → äußeres `{` schließt nie → der
- * Objekt-Extraktor liefert `null`), bergen wir das Array DIREKT: ab dem `[` nach dem
- * `"claims"`-Schlüssel über den geteilten `parseJsonArrayTolerant`, der jedes
- * balancierte `{…}` sammelt und das angeschnittene letzte Objekt verwirft. So werden
- * die vollständig übertragenen Claims gerettet, statt den ganzen Lauf zu verlieren.
- *
- * `null` NUR, wenn WEDER ein Objekt NOCH ein `claims`-Array auffindbar ist (echte
- * Degradation, z.B. Prosa oder eine Markdown-Tabelle statt JSON).
- */
-function birgtRohClaims(raw: string): { claims: unknown[]; schemaVersion: number } | null {
-  const obj = extractLastJsonObject(raw);
-  if (obj) {
-    const claims = Array.isArray(obj.claims) ? obj.claims : [];
-    return { claims, schemaVersion: typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 1 };
-  }
-  // Abgeschnittenes äußeres Objekt → das (evtl. angeschnittene) claims-Array bergen.
-  const key = raw.indexOf('"claims"');
-  if (key < 0) return null;
-  const arrStart = raw.indexOf('[', key);
-  if (arrStart < 0) return null;
-  const claims = parseJsonArrayTolerant(raw.slice(arrStart));
-  if (claims.length === 0) return null;
-  const sv = /"schemaVersion"\s*:\s*(\d+)/.exec(raw);
-  return { claims, schemaVersion: sv ? parseInt(sv[1]!, 10) : 1 };
-}
-
-/**
- * Mappt das rohe JSON auf `ZahlenDaten` — feld-tolerant. Ein Claim ohne wörtlichen
- * `wert` ODER ohne gültige Sektions-ID wird verworfen (Fundstelle ist Pflicht).
- * `null` NUR, wenn weder ein JSON-Objekt noch ein `claims`-Array bergbar war
- * (Degradation — inkl. abgeschnittener Antworten wird bestmöglich gerettet).
+ * Mappt das rohe JSON auf `ZahlenDaten` — feld-tolerant + TRUNCATION-TOLERANT über den
+ * geteilten `birgtRohArray` (Objekt-Happy-Path, sonst Array-Salvage ab `"claims"`; rettet
+ * die vollständig übertragenen Claims aus abgeschnittenen Antworten). Ein Claim ohne
+ * wörtlichen `wert` ODER ohne gültige Sektions-ID wird verworfen (Fundstelle Pflicht).
+ * `null` NUR, wenn weder ein JSON-Objekt noch ein `claims`-Array bergbar war (Degradation,
+ * z.B. Prosa oder eine Markdown-Tabelle statt JSON).
  */
 export function parseZahlen(raw: string, sektionIds: string[]): ZahlenDaten | null {
-  const geborgen = birgtRohClaims(raw);
+  const geborgen = birgtRohArray(raw, 'claims');
   if (!geborgen) return null;
   const known = new Set(sektionIds);
   const claims: ZahlClaim[] = [];
-  for (const c of geborgen.claims) {
+  for (const c of geborgen.items) {
     if (!c || typeof c !== 'object') continue;
     const o = c as Record<string, unknown>;
     const wert = alsString(o.wert);

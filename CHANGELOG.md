@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.219.0 — Antrag-Aufbereitung: Glossar-Tab (4. LLM-Baustein) (dev) (Juli 2026)
+
+MINOR — Ein vierter dev-only LLM-Baustein `aufbereitung-glossar` (Seed `aktiv:false`) sammelt die **Fachbegriffe/Abkürzungen** der VB — jeder mit einer kurzen Definition (wortnah aus dem Text) und Fundstelle. Additiv, keine Run-Schema-Änderung, keine Migration.
+
+- **Auswählen, nicht erklären:** `buildGlossarPrompt` + `parseGlossar` ([glossar.ts](src/plugins/antraege/aufbereitung/glossar.ts)) — `GlossarBegriff{begriff, definition, sektionIds}`, JSON mit `schemaVersion`. Verwirft Einträge ohne Begriff/Definition, führt Dubletten (case-insensitiv) zusammen, sortiert alphabetisch. Transport intern-pflichtig (`{{vbMarkdown}}`, Pitfall #30); `computeGlossarBaustein` mit 0-Begriffe-Guard + Retry.
+- **Lehren direkt eingebaut:** Prompt fordert **kompaktes JSON** (ein Begriff pro Zeile — sonst halbiert Pretty-Print die Ausbeute im fixen Server-Budget, v2.217.5); Parser nutzt den neuen **geteilten** truncation-toleranten `birgtRohArray` ([json-salvage.ts](src/plugins/antraege/aufbereitung/json-salvage.ts)) — dieselbe Salvage-Logik wie der Zahlen-Baustein (dorthin refaktoriert, kein zweiter Parser).
+- **Glossar-Tab** ([GlossarTab.tsx](src/plugins/antraege/aufbereitung/GlossarTab.tsx)): alphabetische Begriff-Liste, je Begriff Definition + Fundstellen-Chip (mit Lesemodus-Sprung); Zustände nicht-gelaufen/lädt/degradiert/leer/gefüllt. `glossar`-Tab `inaktiv`→`aktiv`. Verdrahtet in `useAufbereitung` (4. sequentieller Lauf) + `AufbereitungPage`.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `glossar.test.ts` Parse-/Salvage-/Dublett-/Sortier-Tests + refaktorierte `zahlen.test.ts` + Seed-Inventar 15→16 + `build:dev`) + `build:pl`. Offen bleibt der Tab **Recherche**; Glossar-Eval-Smoke als Folge-Schritt.
+
 ### v2.218.0 — Antrag-Aufbereitung: Lesemodus-Tab + „Im Antrag öffnen"-Sprung (dev) (Juli 2026)
 
 MINOR — Der **Lesemodus** liest die Vorhabensbeschreibung als navigierbares Dokument (Gliederung links, Lesepane rechts) und schaltet den seit Paket 2 vorbereiteten **Fundstellen-Sprung** frei: ein Klick auf einen `§`-Chip in Steckbrief / Abdeckung / Zahlen / Fragen wechselt in den Lesemodus und scrollt zur Sektion (kurz hervorgehoben). Additiv, dev-only (`antragAufbereitung`), keine Migration.
