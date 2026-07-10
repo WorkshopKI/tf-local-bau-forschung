@@ -15,6 +15,13 @@ MINOR — Fundament für den späteren persönlichen Assistenten: ein **rein det
 - **Einstellungen** „Assistent & Gedächtnis" ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), gegated, System-Gruppe): Opt-in-Toggle mit Klartext-Erklärung, „Meine Daten" (Zusammenfassung + letzte 100 Ereignisse + JSON-Export), vollständige Löschung mit Bestätigung.
 - Health-Baseline bewusst angehoben: `MAX_FEATURE_FLAGS` 30→31, `MAX_SERVICE_DIRS` 22→23 (neue `assistent/`-Domäne). Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. 6 Recorder-Tests: Opt-out/Opt-in/Retention/Löschen/Schema-Guard/Snapshot-Ausschluss + `build:dev`) + `build:pl`. Detail: [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md).
 
+### v2.221.2 — Antrag-Aufbereitung: Steckbrief-Prompt fordert KOMPAKTES JSON (Truncation-Fix) (Juli 2026)
+
+PATCH — Die Baseline-Eval (n=1, 2026-07-11) zeigte den **Steckbrief** bei Fixture 006 als „degradiert (nicht parsebar)": der Roh-Output belegte, dass das Modell die JSON **pretty-printete** (`"einSatz": {⏎ "text": …`) und die Antwort mitten in `innovation` abgeschnitten wurde — dasselbe Format-Problem wie beim Zahlen-Baustein (v2.217.5), nur trug `buildSteckbriefPrompt` die Kompakt-Instruktion noch nicht (und `parseSteckbrief` ist nicht truncation-tolerant für seine verschachtelten Array-Felder).
+
+- **`buildSteckbriefPrompt`** ([steckbrief.ts](src/plugins/antraege/aufbereitung/steckbrief.ts)) fordert jetzt explizit **kompaktes JSON** (jedes Feld/Objekt in EINER Zeile, kein Pretty-Print — „sonst wird die Antwort am Limit abgeschnitten"). Reine Code-Änderung → wirkt beim Redeploy, keine Migration. Der Steckbrief ist klein (8 Felder) → kompakt passt zuverlässig ins Server-Budget, damit entfällt die Truncation an der Wurzel.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `steckbrief.test.ts` Kompakt-Assertion + `build:dev`) + `build:pl`.
+
 ### v2.221.1 — Antrag-Aufbereitung: Glossar-Eval-Smoke (dev) (Juli 2026)
 
 PATCH — Der In-App-Eval deckt jetzt auch den Glossar-Baustein ab (analog Zahlen/Steckbrief): pro Fixture ein Smoke-Lauf (Parse ok, `schemaVersion` + Begriffe-Array vorhanden — `parseGlossar` garantiert Begriff+Definition je Eintrag). Damit sind alle vier LLM-Bausteine der Aufbereitung eval-abgedeckt (Grundlage für die Aktivierungs-Baseline). Rein additiv, dev-only.

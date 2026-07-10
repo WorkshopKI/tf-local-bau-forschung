@@ -59,7 +59,7 @@ ${vbMarkdown}
 ## Aufgabe
 Extrahiere die folgenden Kernaussagen WORTNAH aus der VB. Gib zu JEDER Aussage die Sektions-IDs an, aus denen sie stammt. Erfinde nichts — findest du eine Angabe nicht, lässt du das Feld leer ([] bzw. null). Antragsteller, Förderkennzeichen und Projektform NICHT ausgeben (die kennt die App bereits).
 
-Gib als LETZTES einen JSON-Codeblock in genau dieser Form aus:
+Antworte **kompakt**: jedes Feld/Objekt in EINER Zeile wie im Beispiel, KEINE mehrzeilig eingerückten Objekte/Arrays, kein Pretty-Print — sonst wird die Antwort am Limit abgeschnitten und unbrauchbar. Gib als LETZTES einen JSON-Codeblock in genau dieser Form aus:
 \`\`\`json
 {
   "einSatz": { "text": "Das Vorhaben in einem Satz", "sektionIds": ["k-2"] },
@@ -72,7 +72,7 @@ Gib als LETZTES einen JSON-Codeblock in genau dieser Form aus:
   "auftraegeDritte": [ { "text": "Auftrag an Dritte", "sektionIds": ["k-9"] } ]
 }
 \`\`\`
-Nutze ausschließlich die oben vergebenen Sektions-IDs.`;
+Nutze ausschließlich die oben vergebenen Sektions-IDs. Jedes Feld = eine Zeile, keine Zeilenumbrüche innerhalb eines Objekts.`;
 }
 
 // ---------------------------------------------------------------------------

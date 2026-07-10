@@ -16,6 +16,8 @@ describe('buildSteckbriefPrompt', () => {
     expect(p).toContain('```json');
     expect(p).toContain('"einSatz"');
     expect(p).toContain('NICHT ausgeben'); // Stammdaten deterministisch
+    // Pretty-Print truncierte den Steckbrief im Prod-Eval (Fixture 006) → kompakt fordern.
+    expect(p).toContain('kompakt');
   });
 });
 
