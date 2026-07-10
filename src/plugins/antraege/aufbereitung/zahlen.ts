@@ -18,6 +18,7 @@ import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, zahlenCacheKey, vbHashFuer, type BausteinResult,
 } from './bausteine';
+import { parseJsonArrayTolerant } from '@/core/services/ai/json-tolerant';
 import { extractLastJsonObject } from './steckbrief';
 import { summePm } from './tabellen';
 import type { AufbereitungRun } from './types';
@@ -88,7 +89,7 @@ ${vbMarkdown}
 ## Aufgabe
 Sammle jeden Claim, der einen Zahlenwert trägt (Leistungswerte, Laufzeiten, Personenmonate, Kosten, Marktzahlen …). Gib den Wert WÖRTLICH wie im Text an (z.B. ">95 %", "24 Monate", "3,5 PM"). Rechne nichts aus, rechne nichts um, fasse nichts zusammen, erfinde keine Werte. Ordne jeden Claim einer Kategorie aus dem Katalog zu und gib die Sektions-IDs an, aus denen er stammt (mindestens eine, ausschließlich aus der obigen Liste).
 
-Gib als LETZTES einen JSON-Codeblock in genau dieser Form aus:
+Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach:
 \`\`\`json
 {
   "schemaVersion": 1,
@@ -120,17 +121,48 @@ function normalisiereKategorie(v: unknown): string {
 }
 
 /**
+ * Birgt die Roh-Claims + `schemaVersion` aus der Antwort — TRUNCATION-TOLERANT.
+ *
+ * Happy Path: das letzte vollständige JSON-Objekt (`extractLastJsonObject`); sein
+ * `claims`-Feld (oder `[]`, falls valide, aber ohne Claims). Bricht die Antwort mitten
+ * im langen `claims`-Array ab (Token-Limit → äußeres `{` schließt nie → der
+ * Objekt-Extraktor liefert `null`), bergen wir das Array DIREKT: ab dem `[` nach dem
+ * `"claims"`-Schlüssel über den geteilten `parseJsonArrayTolerant`, der jedes
+ * balancierte `{…}` sammelt und das angeschnittene letzte Objekt verwirft. So werden
+ * die vollständig übertragenen Claims gerettet, statt den ganzen Lauf zu verlieren.
+ *
+ * `null` NUR, wenn WEDER ein Objekt NOCH ein `claims`-Array auffindbar ist (echte
+ * Degradation, z.B. Prosa oder eine Markdown-Tabelle statt JSON).
+ */
+function birgtRohClaims(raw: string): { claims: unknown[]; schemaVersion: number } | null {
+  const obj = extractLastJsonObject(raw);
+  if (obj) {
+    const claims = Array.isArray(obj.claims) ? obj.claims : [];
+    return { claims, schemaVersion: typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 1 };
+  }
+  // Abgeschnittenes äußeres Objekt → das (evtl. angeschnittene) claims-Array bergen.
+  const key = raw.indexOf('"claims"');
+  if (key < 0) return null;
+  const arrStart = raw.indexOf('[', key);
+  if (arrStart < 0) return null;
+  const claims = parseJsonArrayTolerant(raw.slice(arrStart));
+  if (claims.length === 0) return null;
+  const sv = /"schemaVersion"\s*:\s*(\d+)/.exec(raw);
+  return { claims, schemaVersion: sv ? parseInt(sv[1]!, 10) : 1 };
+}
+
+/**
  * Mappt das rohe JSON auf `ZahlenDaten` — feld-tolerant. Ein Claim ohne wörtlichen
  * `wert` ODER ohne gültige Sektions-ID wird verworfen (Fundstelle ist Pflicht).
- * `null` NUR, wenn kein JSON-Objekt extrahierbar war (Degradation).
+ * `null` NUR, wenn weder ein JSON-Objekt noch ein `claims`-Array bergbar war
+ * (Degradation — inkl. abgeschnittener Antworten wird bestmöglich gerettet).
  */
 export function parseZahlen(raw: string, sektionIds: string[]): ZahlenDaten | null {
-  const obj = extractLastJsonObject(raw);
-  if (!obj) return null;
+  const geborgen = birgtRohClaims(raw);
+  if (!geborgen) return null;
   const known = new Set(sektionIds);
-  const rohClaims = Array.isArray(obj.claims) ? obj.claims : [];
   const claims: ZahlClaim[] = [];
-  for (const c of rohClaims) {
+  for (const c of geborgen.claims) {
     if (!c || typeof c !== 'object') continue;
     const o = c as Record<string, unknown>;
     const wert = alsString(o.wert);
@@ -146,8 +178,7 @@ export function parseZahlen(raw: string, sektionIds: string[]): ZahlenDaten | nu
       sektionIds: ids,
     });
   }
-  const schemaVersion = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 1;
-  return { schemaVersion, claims };
+  return { schemaVersion: geborgen.schemaVersion, claims };
 }
 
 // ---------------------------------------------------------------------------

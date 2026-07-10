@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.217.1 — Antrag-Aufbereitung: Zahlen-Inventar truncation-tolerant (Prod-Eval-Fix) (Juli 2026)
+
+PATCH — Die erste Prod-Eval des Zahlen-Inventars (In-App, interne KI, 3 Fixtures) zeigte den Baustein bei **allen 3** als „degradiert (nicht parsebar)", während Aspekt-Mapping (F1 = 0,935) und Steckbrief-Smoke (7–8/8) sauber liefen. Ursachenanalyse der Rohantworten ergab zwei Fehlerbilder — der dominante ist jetzt deterministisch behoben.
+
+- **Truncation-Salvage (Hauptursache, 2/3 Fixtures):** das `claims`-Array wuchs über das Token-Limit (`maxTokens: 2048`) und wurde mitten drin abgeschnitten — das äußere `{` schloss nie, also lieferte `extractLastJsonObject` `null` und der ganze Lauf ging verloren, **obwohl die ersten Claims vollständig übertragen waren**. `parseZahlen` ([zahlen.ts](src/plugins/antraege/aufbereitung/zahlen.ts)) bergt das Array jetzt truncation-tolerant über den **bereits vorhandenen, geteilten** `parseJsonArrayTolerant` ([json-tolerant.ts](src/core/services/ai/json-tolerant.ts)): schlägt der Objekt-Extraktor fehl, wird ab dem `[` hinter `"claims"` jedes balancierte `{…}` gesammelt und das angeschnittene letzte verworfen. **Reine Code-Änderung → wirkt auf prod beim Redeploy, keine Seed-Migration.**
+- **Format-Härtung (2. Fehlerbild, 1/3 Fixtures):** ein Fixture lieferte eine **Markdown-Tabelle** statt JSON — kein deterministisch bergbares Format → ehrliche Degradation (statt stiller Fehldeutung). `buildZahlenPrompt` + System-Prompt fordern jetzt explizit „ausschließlich JSON-Codeblock — keine Tabelle/Aufzählung/Fließtext". `maxTokens` 2048→4096 (Seed v1→v2) senkt zusätzlich die Truncation-Rate (greift für Fresh-Seeds; auf bereits geseedeten Shares zählt der persistierte Registry-Wert — der Salvage macht die Erhöhung aber nicht load-bearing).
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. `zahlen.test.ts` mit den exakten abgeschnittenen Roh-Antworten der Prod-Eval als Regressions-Fixtures + Tabelle→Degradation + `build:dev`) + `build:pl`. Erwartung nächste Prod-Eval: 003/006 → `ok`, 017 abhängig von der Prompt-Befolgung (gpt-oss).
+
 ### v2.217.0 — Antrag-Aufbereitung Paket 4/Phase 2: Fragen-Tab (Juli 2026)
 
 MINOR — Ein neuer dev-only **Fragen-Tab** bündelt alle offenen Punkte eines Aufbereitungs-Runs an einem Ort — rein deterministisch aus dem vorhandenen Run + den gelaufenen Bausteinen, **kein** neuer LLM-Aufruf. Vorstufe der späteren Nachforderungs-Anbindung (in diesem Paket ohne NF-Integration). Additiv, ein optionales Run-Feld, keine Migration.

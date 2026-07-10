@@ -35,6 +35,8 @@ describe('buildZahlenPrompt', () => {
     expect(p).toContain('```json');
     expect(p).toContain('"claims"');
     expect(p).toContain('rechne nichts');
+    // Härtung gegen die beobachtete Markdown-Tabelle statt JSON (Prod-Eval 2026-07-10).
+    expect(p).toContain('keine Tabelle');
   });
 });
 
@@ -87,6 +89,67 @@ describe('parseZahlen', () => {
     const d = parseZahlen(raw, SEKTION_IDS)!;
     expect(d.claims).toHaveLength(1);
     expect(d.claims[0]!.wert).toBe('24 Monate');
+  });
+
+  // Prod-Eval 2026-07-10: das claims-Array wurde am Token-Limit abgeschnitten (äußeres
+  // `{` schließt nie, Fence bleibt offen) → früher Total-Degradation. Jetzt bergen wir
+  // die vollständig übertragenen Claims (Truncation-Salvage).
+  it('rettet vollständige Claims aus abgeschnittener Antwort (offenes Array, offener Fence)', () => {
+    const raw = [
+      '```json',
+      '{',
+      '  "schemaVersion": 1,',
+      '  "claims": [',
+      '    {',
+      '      "wert": "01.07.2024 - 30.06.2026",',
+      '      "einheit": "Zeitraum",',
+      '      "kategorie": "zeit",',
+      '      "kontext": "Förderzeitraum des Projekts",',
+      '      "sektionIds": ["k-9"]',
+      '    },',
+      '    {',
+      '      "wert": "263.000 €",',
+      '      "einheit": "€",',
+      '      "kategorie": "kosten",',
+      '      "kontext": "Beantragte Fördersumme",',
+      '      "sektionIds": ["k-9"]',
+      '    },',
+      '  ', // abgeschnitten: kein weiteres Objekt, kein ], kein }, kein Fence-Ende
+    ].join('\n');
+    const d = parseZahlen(raw, SEKTION_IDS)!;
+    expect(d).not.toBeNull();
+    expect(d.schemaVersion).toBe(1);
+    expect(d.claims).toHaveLength(2);
+    expect(d.claims[0]!.wert).toBe('01.07.2024 - 30.06.2026');
+    expect(d.claims[0]!.kategorie).toBe('zeit');
+    expect(d.claims[1]!.wert).toBe('263.000 €');
+    expect(d.claims[1]!.kategorie).toBe('kosten');
+  });
+
+  it('verwirft das angeschnittene letzte Objekt, behält das vollständige erste', () => {
+    const raw = [
+      '{ "schemaVersion": 1, "claims": [',
+      '  { "wert": "24 Monate", "kategorie": "zeit", "sektionIds": ["k-9"] },',
+      '  { "wert": "3,5 PM", "kategorie": "personal", "sekti', // mitten im Objekt abgeschnitten
+    ].join('\n');
+    const d = parseZahlen(raw, SEKTION_IDS)!;
+    expect(d.claims).toHaveLength(1);
+    expect(d.claims[0]!.wert).toBe('24 Monate');
+  });
+
+  // Prod-Eval 2026-07-10: ein Fixture lieferte eine Markdown-Tabelle statt JSON. Kein
+  // deterministisch bergbares Format → ehrliche Degradation (die Prompt-Härtung soll das
+  // künftig verhindern; hier wird das Fallback-Verhalten festgeschrieben).
+  it('Markdown-Tabelle statt JSON → null (Degradation, keine stille Fehlinterpretation)', () => {
+    const raw = [
+      '**Extrahierte Zahlen-Claims**',
+      '',
+      '| Wert | Einheit | Kategorie | Kontext | Sektion-ID(s) |',
+      '| --- | --- | --- | --- | --- |',
+      '| 24 Monate | Monate | zeit | Laufzeit | [k-9] |',
+      '| 375.000 € | € | kosten | Fördersumme | [k-9] |',
+    ].join('\n');
+    expect(parseZahlen(raw, SEKTION_IDS)).toBeNull();
   });
 });
 
