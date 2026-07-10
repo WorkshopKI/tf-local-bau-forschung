@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.217.3 — Antrag-Aufbereitung: Zahlen-maxTokens 2048→4096 auf Bestands-Shares (Migration) (Juli 2026)
+
+PATCH — Die Diagnose (v2.217.2) belegte per Prod-Eval: die Prompt-Härtung entfernte die Tabellen-Präambel (alle Fixtures nur noch `JSON abgeschnitten`, kein `Tabellen-Präambel`), aber der JSON-Teil trunkierte weiter am persistierten `maxTokens = 2048` (Claim-Zahl sprang durch den Wegfall der Tabelle bereits von 3 auf 20–33). Der Seed steht seit v2.217.1 auf 4096, greift via `mergeMissingSeeds` aber nur für Fresh-Seeds — ein Bestands-Share behält den persistierten Wert. Diese marker-gesicherte Migration holt die Anhebung einmalig nach.
+
+- **Migration** `AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION` ([migrations.ts](src/core/services/skills/registry/migrations.ts)): hebt `aufbereitung-zahlen` von `maxTokens: 2048` auf `4096` (+ version ≥ 2) — **pristine-only** (nur wenn der Wert exakt der Alt-Seed 2048 ist; ein bewusst anders gesetzter Kurator-Wert bleibt UNBERÜHRT). Läuft team-weit genau einmal (Marker in `angewandteMigrationen`), respektiert spätere Änderungen.
+- **Wirkung** ([useAnfrageAnonAktivierung.ts](src/plugins/anfragen/useAnfrageAnonAktivierung.ts)): das Reconcile-Gate deckt jetzt auch Aufbereitungs-Varianten ab (`isAntragAufbereitungEnabled()`), sodass die Migration nach Share-Grant auf schreibberechtigten Clients automatisch greift.
+- Rein additiv, dev-only Skill, kein Store-Umbau/keine Nutzeraktion. Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. Migrations-Tests: pristine→4096, Kurator-Wert unberührt, Fresh-4096 unberührt, idempotent, Skill-abwesend + „alle drei Migrationen zusammen" + `build:dev`) + `build:pl`.
+
 ### v2.217.2 — Antrag-Aufbereitung: Eval-Diagnose für „ok, aber wenige Claims" (dev) (Juli 2026)
 
 PATCH — Nach dem Truncation-Fix (v2.217.1) parsen alle Zahlen-Fixtures wieder (`ok`), aber ein Fixture lieferte auffällig **wenige** Claims (3 statt Dutzende). Das In-App-Eval zeigte für `ok`-Läufe bisher keinen Rohtext → man konnte die Ursache (Tabellen-Präambel frisst Budget / JSON abgeschnitten) nicht sehen. Diese dev-only Diagnose macht sie sichtbar. Rein additiv, keine Prod-/Verhaltensänderung.

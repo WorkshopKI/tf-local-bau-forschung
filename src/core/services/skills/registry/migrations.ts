@@ -13,6 +13,7 @@
  * gegen den bekannten Alt-Seed-Stand als Guard).
  */
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from './anfrage-anonymisieren.seed';
+import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbereitung-zahlen.seed';
 import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
@@ -27,6 +28,9 @@ export const ANFRAGE_ANON_AKTIV_MIGRATION = 'anfrage-anon-aktiv-2026-07';
 
 /** ID des Beleg→Satz-Kontrakt-Rollouts für A + B (Journey-Paket 4, Eval-Gate akzeptiert). */
 export const GA_BELEG_KONTRAKT_MIGRATION = 'ga-beleg-kontrakt-2026-07';
+
+/** ID der maxTokens-Anhebung des Zahlen-Inventar-Skills (2048 → 4096, Prod-Eval-Truncation). */
+export const AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION = 'aufbereitung-zahlen-maxtokens-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -65,6 +69,21 @@ function applyBelegKontrakt(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Zahlen-Inventar-Skill von `maxTokens: 2048` → `4096` heben — ABER NUR, wenn der
+ * Share-Stand exakt den Alt-Seed-Wert (2048) trägt. Ein Kurator, der den Wert bewusst
+ * anders gesetzt hat, bleibt UNBERÜHRT. Hintergrund: der Prod-Eval zeigte den JSON-Teil
+ * bei allen Fixtures am 2048er-Limit abgeschnitten (`abgeschnitten`-Diagnose) — das
+ * größere Budget hebt den Recall. Version wird auf mind. 2 gehoben (Parität zum Seed).
+ */
+function applyZahlenMaxTokens(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s =>
+    s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID && s.maxTokens === 2048
+      ? { ...s, maxTokens: 4096, version: Math.max(s.version, 2) }
+      : s,
+  );
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -74,6 +93,7 @@ interface EinzelMigration {
 const MIGRATIONEN: EinzelMigration[] = [
   { marker: ANFRAGE_ANON_AKTIV_MIGRATION, apply: applyAnonAktiv },
   { marker: GA_BELEG_KONTRAKT_MIGRATION, apply: applyBelegKontrakt },
+  { marker: AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, apply: applyZahlenMaxTokens },
 ];
 
 /**

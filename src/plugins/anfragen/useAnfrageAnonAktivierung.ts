@@ -3,7 +3,8 @@
  *
  * `mergeMissingSeeds` überschreibt bestehende Registry-Einträge nie (schützt
  * kuratierte Edits) — geänderte Seed-Voreinstellungen (Anonymisierer-Freischaltung,
- * Journey-Paket-4-Beleg-Kontrakt für A + B, …) greifen daher NICHT von selbst auf
+ * Journey-Paket-4-Beleg-Kontrakt für A + B, Zahlen-Inventar-maxTokens 2048→4096, …)
+ * greifen daher NICHT von selbst auf
  * einem Share, der die Skills bereits trägt. Dieser Hook holt alle ausstehenden
  * marker-gesicherten Migrationen einmalig nach: sobald der Share online ist und der
  * Client schreibberechtigt (pl direkt, kurator nach Login, dev), lädt er die Registry,
@@ -23,6 +24,7 @@ import {
   isAnfragenEnabled,
   isGutachtenKurzfassungEnabled,
   isGutachtenWorkflowEnabled,
+  isAntragAufbereitungEnabled,
 } from '@/config/feature-flags';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import {
@@ -39,8 +41,9 @@ export function useAnfrageAnonAktivierung(): void {
   const doneRef = useRef(false);
 
   useEffect(() => {
-    // Varianten, die eine der aktuellen Registry-Migrationen tragen können.
-    if (!isAnfragenEnabled() && !isGutachtenKurzfassungEnabled() && !isGutachtenWorkflowEnabled()) return;
+    // Varianten, die eine der aktuellen Registry-Migrationen tragen können
+    // (Anfragen/Gutachten + die Aufbereitungs-Zahlen-maxTokens-Migration).
+    if (!isAnfragenEnabled() && !isGutachtenKurzfassungEnabled() && !isGutachtenWorkflowEnabled() && !isAntragAufbereitungEnabled()) return;
     if (!canEdit) return;                  // nur schreibberechtigte Clients reconcilen
     if (smbStatus.status !== 'online') return;
     if (doneRef.current) return;

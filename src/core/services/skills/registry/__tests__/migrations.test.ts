@@ -8,8 +8,10 @@ import {
   reconcileEinmaligeAktivierungen,
   ANFRAGE_ANON_AKTIV_MIGRATION,
   GA_BELEG_KONTRAKT_MIGRATION,
+  AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION,
 } from '../migrations';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
+import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from '../aufbereitung-zahlen.seed';
 import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
@@ -32,9 +34,11 @@ function file(skills: SkillRecord[], marker?: string[]): SkillRegistryFile {
 const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
-// Beleg-Marker vorbelegen, um NUR die Anon-Migration zu isolieren (und umgekehrt).
-const NUR_ANON = [GA_BELEG_KONTRAKT_MIGRATION];
-const NUR_BELEG = [ANFRAGE_ANON_AKTIV_MIGRATION];
+// Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION];
+const NUR_ANON = [GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION];
+const NUR_BELEG = [ANFRAGE_ANON_AKTIV_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION];
+const NUR_ZAHLEN = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION];
 
 const OLD_A = buildKurzfassungPrompt(false);
 const NEW_A = buildKurzfassungPrompt(true);
@@ -51,7 +55,7 @@ describe('reconcile — Anonymisierer-Freischaltung', () => {
 
   it('respektiert spätere Deaktivierung: Marker gesetzt → bleibt false', () => {
     const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
-      file([anon(false)], [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION]),
+      file([anon(false)], ALLE_MARKER),
     );
     expect(geaendert).toBe(false);
     expect(out.skills[0]?.aktiv).toBe(false);
@@ -111,21 +115,63 @@ describe('reconcile — Beleg-Kontrakt-Rollout A + B (Journey-Paket 4)', () => {
   });
 });
 
-describe('reconcile — beide Migrationen zusammen', () => {
-  it('frischer Share: beide Marker gesetzt, geaendert', () => {
-    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(
-      file([anon(false), skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A })]),
-    );
+describe('reconcile — Zahlen-Inventar maxTokens 2048 → 4096', () => {
+  const zahlen = (over: Partial<SkillRecord> = {}): SkillRecord =>
+    skill(AUFBEREITUNG_ZAHLEN_SKILL_ID, { maxTokens: 2048, version: 1, aktiv: false, ...over });
+
+  it('pristine (maxTokens 2048) → 4096 + version ≥ 2, Marker gesetzt', () => {
+    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(file([zahlen()], NUR_ZAHLEN));
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION]);
-    expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
-    expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(NEW_A);
+    expect(angewandt).toContain(AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION);
+    const z = out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)!;
+    expect(z.maxTokens).toBe(4096);
+    expect(z.version).toBe(2);
   });
 
-  it('beide Marker gesetzt → No-op', () => {
-    const { geaendert } = reconcileEinmaligeAktivierungen(
-      file([anon(false)], [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION]),
+  it('kurator-geänderter Wert (≠ 2048) bleibt UNBERÜHRT', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([zahlen({ maxTokens: 8192, version: 3 })], NUR_ZAHLEN));
+    const z = out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)!;
+    expect(z.maxTokens).toBe(8192);
+    expect(z.version).toBe(3);
+  });
+
+  it('frische Installation (bereits 4096) bleibt unberührt', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([zahlen({ maxTokens: 4096, version: 2 })], NUR_ZAHLEN));
+    expect(out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)?.maxTokens).toBe(4096);
+  });
+
+  it('idempotent: zweiter Lauf ist No-op (Marker gesetzt)', () => {
+    const erst = reconcileEinmaligeAktivierungen(file([zahlen()], NUR_ZAHLEN));
+    const zweit = reconcileEinmaligeAktivierungen(erst.file);
+    expect(zweit.geaendert).toBe(false);
+    expect(zweit.file.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)?.maxTokens).toBe(4096);
+  });
+
+  it('Skill abwesend → nur Marker, kein Fehler', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(file([skill('x')], NUR_ZAHLEN));
+    expect(geaendert).toBe(true);
+    expect(out.angewandteMigrationen).toContain(AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION);
+  });
+});
+
+describe('reconcile — alle Migrationen zusammen', () => {
+  it('frischer Share: alle drei Marker gesetzt (in Reihenfolge), geaendert', () => {
+    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(
+      file([
+        anon(false),
+        skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A }),
+        skill(AUFBEREITUNG_ZAHLEN_SKILL_ID, { maxTokens: 2048, version: 1 }),
+      ]),
     );
+    expect(geaendert).toBe(true);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION]);
+    expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
+    expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(NEW_A);
+    expect(out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)?.maxTokens).toBe(4096);
+  });
+
+  it('alle Marker gesetzt → No-op', () => {
+    const { geaendert } = reconcileEinmaligeAktivierungen(file([anon(false)], ALLE_MARKER));
     expect(geaendert).toBe(false);
   });
 });
