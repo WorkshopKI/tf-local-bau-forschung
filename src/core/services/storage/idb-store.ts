@@ -28,6 +28,13 @@ export const PHASE2_STORES = {
 /** v1.15: Multi-Source-DMS-Konfigurations-Store. */
 export const DMS_SOURCES_STORE = 'dms_sources';
 
+/** v9 (Assistent Phase 0): Gerätelokales Ereignisprotokoll. Append-orientiert,
+ *  Index auf `zeitstempel`. STRIKT LOKAL — steht in KEINER Snapshot-Allowlist,
+ *  wird nie auf den Share gespiegelt (Invariante 1, Pitfall #37). Der Store-Name
+ *  lebt in der Assistent-Domäne (src/core/services/assistent/protokoll/types.ts),
+ *  hier bewusst gespiegelt, damit die Migration ohne Cross-Import auskommt. */
+export const ASSISTENT_EREIGNISPROTOKOLL_STORE = 'assistent_ereignisprotokoll';
+
 export type CsvStoreName =
   | (typeof CSV_STORES)[keyof typeof CSV_STORES]
   | typeof FILTER_STORE_NAME
@@ -38,7 +45,7 @@ export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName: string;
   private readonly storeName = 'kv';
-  private readonly version = 8;
+  private readonly version = 9;
 
   /**
    * @param dbName Variantenspezifischer DB-Name (`teamflow-<outputFilename>`).
@@ -176,6 +183,17 @@ export class IDBStore {
               keyPath: 'aktenzeichen',
             });
             s.createIndex('programm_id', 'programm_id', { unique: false });
+          }
+        }
+        if (oldVersion < 9) {
+          // Assistent Phase 0: gerätelokales Ereignisprotokoll. Append-orientiert,
+          // Index auf zeitstempel (Retention + „letzte 100"-Ansicht). Existiert
+          // schema-seitig in ALLEN Varianten (wie die Phase-2-Stores); geschrieben
+          // wird nur hinter Feature-Flag + Opt-in (Gate im Recorder). STRIKT LOKAL —
+          // niemals in einer Snapshot-Allowlist (Pitfall #37).
+          if (!db.objectStoreNames.contains(ASSISTENT_EREIGNISPROTOKOLL_STORE)) {
+            const s = db.createObjectStore(ASSISTENT_EREIGNISPROTOKOLL_STORE, { keyPath: 'id' });
+            s.createIndex('zeitstempel', 'zeitstempel', { unique: false });
           }
         }
       };

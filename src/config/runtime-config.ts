@@ -139,6 +139,10 @@ export interface TeamflowFeatures {
    *  versteht Deltas immer (kein Flag). Optional, default false. ERST aktivieren,
    *  wenn der Delta-Leser (v2.97) flächig ausgerollt ist (2-Phasen-Rollout). */
   deltaSnapshotWrite?: boolean;
+  /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll (Fundament für
+   *  den späteren persönlichen Assistenten). Gated Aufzeichnung + Einstellungs-
+   *  Sektion. Nur dev. Optional, default false. */
+  assistentProtokoll?: boolean;
 }
 
 export interface TeamflowMenuLabels {

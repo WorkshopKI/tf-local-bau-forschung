@@ -1,5 +1,6 @@
 import { DistributionBar, type DistributionSegment } from '@/components/ui/DistributionBar';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getStatusLabel } from '@/core/utils/status-mappings';
 import { formatGermanDate } from '@/core/services/csv';
@@ -118,6 +119,10 @@ export function MeineAntraegeBalken({ antraege }: Props): React.ReactElement | n
 
   // Gleiche Navigation wie „Alle →" in MeineAntraegeSection: View „Offen" + Frist-Sort.
   const handleZuAntraegen = (): void => {
+    void protokolliereEreignis({
+      typ: 'frist_angesehen',
+      detail: { quelle: 'home-rueckstands-balken', view: 'meine_offenen', sort: 'frist_asc' },
+    });
     const store = useAntraegeStore.getState();
     store.setActiveView('meine_offenen');
     store.setSortForView('meine_offenen', 'frist_asc');

@@ -45,7 +45,8 @@
     "skillVerwaltung": true,
     "anfragen": true,
     "streamlitBridge": true,
-    "deltaSnapshotWrite": true
+    "deltaSnapshotWrite": true,
+    "assistentProtokoll": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

@@ -18,8 +18,9 @@
  *  - Antrags-DMS-Match → orama-Score 0..1 / hybrid
  *  - Dokumente-Treffer → orama-Score 0..1 / method wie von Orama
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from './useStorage';
+import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import { useActiveProgramm } from './useActiveProgramm';
 import { useSearch } from './useSearch';
 import { useSemanticSearchMode } from './useSemanticSearchMode';
@@ -209,6 +210,9 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   const [antraegeGeladen, setAntraegeGeladen] = useState(0);
   const [searchPhase, setSearchPhase] = useState<SearchPhase>('idle');
   const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>(null);
+  // Assistent-Protokoll: dedupe je abgeschlossener Query (der Effekt läuft pro
+  // Tastendruck, aber nur der zuletzt fertige Lauf soll ein Ereignis erzeugen).
+  const zuletztProtokollierteSuche = useRef<string | null>(null);
 
   const programmNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -380,6 +384,13 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           setSearchPhase('done');
           setLoading(false);
           pipelineLog.info('Suche', `Pipeline gesamt: ${Math.round(performance.now() - tStart)}ms, ${merged.size} Treffer`);
+          if (zuletztProtokollierteSuche.current !== q) {
+            zuletztProtokollierteSuche.current = q;
+            void protokolliereEreignis({
+              typ: 'suche_ausgefuehrt',
+              detail: { query: q, trefferanzahl: merged.size },
+            });
+          }
         } catch (err) {
           if (isCancelled()) return;
           if ((err as Error).name === 'AbortError') return;

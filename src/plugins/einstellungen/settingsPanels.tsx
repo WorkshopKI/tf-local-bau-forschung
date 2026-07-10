@@ -8,7 +8,7 @@
  * abgeleitet (respektiert die Flags automatisch).
  */
 import type { LucideIcon } from 'lucide-react';
-import { User, LayoutGrid, Contrast, Sparkles, Database } from 'lucide-react';
+import { User, LayoutGrid, Contrast, Sparkles, Database, Brain } from 'lucide-react';
 import {
   isDevContext,
   isDevFixturesEnabled,
@@ -16,6 +16,7 @@ import {
   isStreamlitBridgeEnabled,
   isOnlineStatusTabEnabled,
   isKuratorMenusEnabled,
+  isAssistentProtokollEnabled,
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilTab } from './ProfilTab';
@@ -27,6 +28,7 @@ import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { TagsTab } from './TagsTab';
 import { OnlineTab } from './OnlineTab';
+import { AssistentTab } from './AssistentTab';
 
 export type SettingsGroup = 'persoenlich' | 'system';
 
@@ -163,6 +165,22 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       group: 'system',
       sections,
       render: () => <AIProviderTab aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
+    });
+  }
+
+  // Assistent & Gedächtnis (Assistent Phase 0, nur dev) — gerätelokales,
+  // opt-in Arbeitsprotokoll. Bewusst als letztes System-Panel.
+  if (isAssistentProtokollEnabled()) {
+    panels.push({
+      id: 'assistent',
+      label: 'Assistent & Gedächtnis',
+      icon: Brain,
+      group: 'system',
+      sections: [
+        { id: 'sec-assistent-protokoll', label: 'Arbeitsprotokoll', keywords: 'assistent gedächtnis protokoll aufzeichnung opt-in datenschutz lokal ereignisse' },
+        { id: 'sec-assistent-daten', label: 'Meine Daten', keywords: 'assistent daten export löschen transparenz ereignisse protokoll' },
+      ],
+      render: () => <AssistentTab />,
     });
   }
 

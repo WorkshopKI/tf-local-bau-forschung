@@ -226,6 +226,14 @@ export function canEditSkillRegistry(sessionActive: boolean): boolean {
   return sessionActive;
 }
 
+/** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll (Recorder + „Assistent
+ *  & Gedächtnis"-Einstellungssektion). Fundament für den späteren persönlichen
+ *  Assistenten — in Phase 0 KEIN LLM/Chat/UI-Assistent. Nur dev. Default false
+ *  (`=== true`, Backward-Kompat). */
+export function isAssistentProtokollEnabled(): boolean {
+  return features.assistentProtokoll === true;
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

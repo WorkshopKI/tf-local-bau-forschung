@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.220.0 — Assistent Phase 0: gerätelokales Ereignisprotokoll + Opt-in (dev) (Juli 2026)
+
+MINOR — Fundament für den späteren persönlichen Assistenten: ein **rein deterministisches, strikt gerätelokales, opt-in** Protokoll app-semantischer Aktionen (welche Entität geöffnet, welche Suche, welcher Skill gestartet). **Kein LLM, kein Chat, keine Assistenz-UI** — nur die Datengrundlage. Additiv, dev-only (`features.assistentProtokoll`), neuer IDB-Store — bestehende Stores unberührt, keine Nutzeraktion.
+
+- **Modul** [src/core/services/assistent/protokoll/](src/core/services/assistent/protokoll/): dedizierter Store `assistent_ereignisprotokoll` (IDBStore v8→**v9**, keyPath `id`, Index `zeitstempel`; additive Migration, `contains()`-Guards, bestehende Stores unangetastet). `store.ts` (CRUD + Zeit-Cursor-Retention, Vorbild `manifest-store.ts`), `recorder.ts` (die **EINZIGE** Schreib-Gate-Stelle: Flag **und** Opt-in; In-Memory-Cache; best-effort, nie werfend), `types.ts` (Schema v1 + abschließender ~8-Typen-Katalog).
+- **Strikt lokal (Pitfall #37):** Ereignisse + Opt-in-Flag (kv `assistent-protokoll-optin`) nur in der Varianten-IndexedDB — **nie** auf den Share/Snapshot/Export. Der Store steht in **keiner** Snapshot-Allowlist (Guard `recorder.test.ts` „Snapshot-Ausschluss"). Retention: 90 Tage + max. 50 000 Ereignisse (ältester zuerst). Schema-Guard: `detail` nur Primitive, Strings ≤ 500 Zeichen, keine verschachtelten Objekte (kein Dokumenttext-Abkippen).
+- **Instrumentierung** minimal-invasiv (ein Aufruf je Stelle, keine Logikänderung): Router (Antrag/Verbund-Öffnung), Dokument-Öffnen, Suche-`done`, `runSkill`-Hülle (Start/Ende), Gutachten-`bearbeitenStep` (entprellt, **nie** Textinhalt), Home-Fristen-Balken. Init einmalig in [App.tsx](src/core/App.tsx) über `initProtokoll`.
+- **Einstellungen** „Assistent & Gedächtnis" ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), gegated, System-Gruppe): Opt-in-Toggle mit Klartext-Erklärung, „Meine Daten" (Zusammenfassung + letzte 100 Ereignisse + JSON-Export), vollständige Löschung mit Bestätigung.
+- Health-Baseline bewusst angehoben: `MAX_FEATURE_FLAGS` 30→31, `MAX_SERVICE_DIRS` 22→23 (neue `assistent/`-Domäne). Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. 6 Recorder-Tests: Opt-out/Opt-in/Retention/Löschen/Schema-Guard/Snapshot-Ausschluss + `build:dev`) + `build:pl`. Detail: [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md).
+
 ### v2.219.0 — Antrag-Aufbereitung: Glossar-Tab (4. LLM-Baustein) (dev) (Juli 2026)
 
 MINOR — Ein vierter dev-only LLM-Baustein `aufbereitung-glossar` (Seed `aktiv:false`) sammelt die **Fachbegriffe/Abkürzungen** der VB — jeder mit einer kurzen Definition (wortnah aus dem Text) und Fundstelle. Additiv, keine Run-Schema-Änderung, keine Migration.

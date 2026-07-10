@@ -13,6 +13,7 @@ import { ExternalLink, FileText, FileType2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useStorage } from '@/core/hooks/useStorage';
+import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import { getDmsSourceHandle } from '@/core/services/infrastructure/smb-handle';
 import { DEFAULT_DMS_SOURCE_ID } from '@/core/services/dms-sources';
 import {
@@ -203,6 +204,11 @@ function DokumentRow({ entry }: RowProps): React.ReactElement {
       }
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
+      void protokolliereEreignis({
+        typ: 'dokument_geoeffnet',
+        entitaet: { art: 'dokument', id: entry.filename },
+        detail: { dokumentArt: entry.doc_type, antrag: entry.matched_antrag_id },
+      });
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
       setError((err as Error).message);

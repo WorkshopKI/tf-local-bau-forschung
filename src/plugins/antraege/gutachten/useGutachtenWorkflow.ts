@@ -48,6 +48,7 @@ import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt }
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
 import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
+import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import {
   applyGeneration, applyBearbeitung, applyZuruecksetzen, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben, leereSchritte, setVorlageRef,
@@ -164,6 +165,10 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [bulkRunning, setBulkRunning] = useState(false);
   const stream = useStreamingBuffer();
   const abortRef = useRef<AbortController | null>(null);
+  // Assistent-Protokoll: pro Abschnitt max. 1 „editiert"-Ereignis je Zeitfenster
+  // (bearbeitenStep ist bereits ein Save, kein Tastendruck — hier nur gegen
+  // wiederholtes „Übernehmen" desselben Abschnitts entprellt).
+  const editiertZuletzt = useRef<Map<StepId, number>>(new Map());
   // dev-Test-Workflowwahl: nur lokal (resettet pro Reload). `regFile` hält die
   // geladene Registry für die Dropdown-Optionen. `erlaubeEntwuerfe` ist ein
   // Build-Konstant (dev → true), daher render-stabil.
@@ -467,6 +472,16 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     if (!run || !sc) return;
     const checks = runRegelChecks(text, sc.regeln);
     await reduce((r, now) => applyBearbeitung(r, stepId, text, checks, now));
+    // Nur die Tatsache „Abschnitt bearbeitet" protokollieren — NIE den Textinhalt.
+    const jetzt = Date.now();
+    if (jetzt - (editiertZuletzt.current.get(stepId) ?? 0) > 60_000) {
+      editiertZuletzt.current.set(stepId, jetzt);
+      void protokolliereEreignis({
+        typ: 'gutachten_abschnitt_editiert',
+        entitaet: { art: 'workflowSchritt', id: stepId },
+        detail: { abschnittId: stepId },
+      });
+    }
   };
 
   /** Manuelle Bearbeitung verwerfen → ursprünglich generierten Text wiederherstellen (Checks neu). */

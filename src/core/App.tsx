@@ -26,6 +26,7 @@ import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/t
 import { listProgramme } from '@/core/services/csv';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
+import { initProtokoll } from '@/core/services/assistent/protokoll';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate, type DataUpdatePhase, type DataUpdateResult } from '@/plugins/csv-sources-kuration/services/data-update';
@@ -342,6 +343,15 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         await migrateLegacyDmsSource(storage.idb);
       } catch (e) {
         console.warn('[App] migrateLegacyDmsSource fehlgeschlagen', e);
+      }
+
+      // Assistent Phase 0: gerätelokales Ereignisprotokoll initialisieren
+      // (Opt-in-Cache hydratisieren + Retention einmalig). Best-effort,
+      // blockiert den App-Start nicht; No-op ohne Feature-Flag/Opt-in.
+      try {
+        await initProtokoll(storage.idb);
+      } catch (e) {
+        console.warn('[App] initProtokoll fehlgeschlagen', e);
       }
 
       // Phase 2 (v8): Slim-List-View-Bulk-Migration. Idempotent — fuellt

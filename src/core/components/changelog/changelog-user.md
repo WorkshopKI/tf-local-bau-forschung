@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.220 — 2026-07
+
+### Verbesserungen
+- **Unter der Haube — Grundstein für einen persönlichen Assistenten:** In der Entwicklungsversion kann jetzt optional ein rein lokales Arbeitsprotokoll geführt werden (welche Anträge und Dokumente geöffnet, was gesucht wurde) — als Basis für einen späteren persönlichen Assistenten. Standardmäßig aus, jederzeit ein- und ausschaltbar und vollständig löschbar; die Daten bleiben ausschließlich auf dem eigenen Gerät und gehen nie an eine KI oder aufs Laufwerk. Für dich ändert sich im Alltag nichts.
+
 ## v2.214 — 2026-07
 
 ### Verbesserungen

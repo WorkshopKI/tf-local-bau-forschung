@@ -201,6 +201,12 @@ export const DEFAULT_CONFIG = {
      *  vollen v1-Write); in pl/kurator-Configs auf true. Der Leser versteht
      *  Deltas immer. Optional, kein requiredFlags-Eintrag. */
     deltaSnapshotWrite: false,
+    /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll über
+     *  app-semantische Aktionen (Fundament für den späteren persönlichen
+     *  Assistenten — noch KEIN LLM/Chat/UI-Assistent). Gated den gesamten
+     *  Phase-0-Umfang (Aufzeichnung + Einstellungs-Sektion). Nur dev. Optional,
+     *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    assistentProtokoll: false,
   },
 
   menuLabels: {

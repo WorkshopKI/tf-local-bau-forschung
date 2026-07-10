@@ -19,6 +19,7 @@ import {
   type TeilDeklaration,
 } from '../registry';
 import { parseSkillOutput } from './parse';
+import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import type { ParsedSkillOutput } from './types';
 
 /** Reasoning-/Thinking-Budget (durchgereicht an die Transport-Ladder). */
@@ -284,6 +285,40 @@ export function composeSkillPrompt(
 }
 
 export async function runSkill(
+  transport: AITransport,
+  skill: SkillRecord,
+  regeln: QualitaetsRegel[],
+  input: SkillRunInput,
+): Promise<SkillRunResult> {
+  // Assistent-Protokoll (fire-and-forget, gated): Start/Ende des Skill-Laufs.
+  // Der eigentliche Runner (runSkillInner) bleibt unangetastet — nur Telemetrie
+  // umhüllt ihn. Abbruch (User-Stop, AbortError) ist kein Fehlschlag.
+  void protokolliereEreignis({
+    typ: 'skill_gestartet',
+    entitaet: { art: 'skill', id: skill.id },
+    detail: { skillId: skill.id },
+  });
+  try {
+    const ergebnis = await runSkillInner(transport, skill, regeln, input);
+    void protokolliereEreignis({
+      typ: 'skill_abgeschlossen',
+      entitaet: { art: 'skill', id: skill.id },
+      detail: { skillId: skill.id, erfolg: true },
+    });
+    return ergebnis;
+  } catch (e) {
+    if ((e as Error)?.name !== 'AbortError') {
+      void protokolliereEreignis({
+        typ: 'skill_abgeschlossen',
+        entitaet: { art: 'skill', id: skill.id },
+        detail: { skillId: skill.id, erfolg: false },
+      });
+    }
+    throw e;
+  }
+}
+
+async function runSkillInner(
   transport: AITransport,
   skill: SkillRecord,
   regeln: QualitaetsRegel[],
