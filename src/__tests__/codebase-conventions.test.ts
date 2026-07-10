@@ -673,11 +673,14 @@ describe('no-raw-active-transport (CLAUDE.md Pitfall #30, DSGVO-Transport-Policy
   // Scope: die Gutachten-/Batch-Domaene, wo der inhalts-tragende Aufruf sitzt.
   // Bewusst inkl. des Batch-PLUGIN-Ordners (gutachten-batch/) — dort liegt der
   // eigentliche getActiveTransport()-Aufruf (useBatchJob), nicht nur in gutachten/.
+  // Plus der Assistenten-Pfad (chat/assistent/): dokument-tragend → nur intern,
+  // die gegatete Wahl ist bridge.getTransportForAssistent().
   const SCOPE_FRAGMENTS = [
     `${sep}plugins${sep}antraege${sep}gutachten${sep}`,
     `${sep}plugins${sep}antraege${sep}gutachten-batch${sep}`,
     `${sep}core${sep}services${sep}gutachten-batch${sep}`,
     `${sep}plugins${sep}antraege${sep}nachforderungen${sep}`,
+    `${sep}plugins${sep}chat${sep}assistent${sep}`,
   ];
   const isInScope = (file: string): boolean =>
     SCOPE_FRAGMENTS.some(frag => file.includes(frag))
@@ -756,7 +759,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // Schlaegt eine Assertion fehl, ist die erste Frage „ist der Zuwachs gewollt?" —
   // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
   // ist eine Drift-Warnung, kein Verbot.
-  const MAX_FEATURE_FLAGS = 31;    // Ist 31; +1 'assistentProtokoll' (Assistent Phase 0 Ereignisprotokoll, dev); davor 30 (+1 'antragAufbereitung')
+  const MAX_FEATURE_FLAGS = 32;    // Ist 32; +1 'assistentPanel' (Assistent Phase 1 Assistenz-Panel, dev); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
   const MAX_FILE_LOC = 1310;       // Ist ~1306 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.

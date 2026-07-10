@@ -24,6 +24,7 @@ import { AUFBEREITUNG_ASPEKTE_SKILL } from './aufbereitung-aspekte.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL } from './aufbereitung-steckbrief.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL } from './aufbereitung-zahlen.seed';
 import { AUFBEREITUNG_GLOSSAR_SKILL } from './aufbereitung-glossar.seed';
+import { GRUNDSATZ_REGELN } from './grundsatz';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
 const SEED_TS = '2026-06-11T00:00:00.000Z';
@@ -74,10 +75,7 @@ Fasse die VB zu einer Kurzfassung von ca. 10 Sätzen zusammen (Toleranz 8–12 S
 4. Erwartetes Ergebnis (1–2 Sätze)
 5. Anwendungsbereich (1 Satz)
 
-Regeln:
-- **Streng quellenbasiert:** Nutze ausschließlich Inhalte der VB. Erfinde nichts.
-- Fehlende Angaben kennzeichne wörtlich mit „[Im Antrag nicht genannt]".
-- **Aktiver Stil:** Formuliere „Das Vorhaben…" statt „Der Antragsteller plant…". Keine Arbeitspaket-Verweise („AP1").
+${GRUNDSATZ_REGELN}
 - **Fließtext** im finalen Teil — KEINE Aufzählungen, keine Zwischenüberschriften.
 
 ## Ausgabeformat (genau diese drei Abschnitte, jeweils mit der ###-Überschrift)
@@ -228,10 +226,7 @@ export function abschnittTemplate(opts: {
 ## Aufgabe & Kontrakt
 ${opts.aufgabe}
 
-Regeln:
-- **Streng quellenbasiert:** Nutze ausschließlich Inhalte der VB. Erfinde nichts.
-- Fehlende Angaben kennzeichne wörtlich mit „[Im Antrag nicht genannt]".
-- **Aktiver Stil:** Formuliere „Das Vorhaben…" statt „Der Antragsteller plant…". Keine Arbeitspaket-Verweise („AP1").
+${GRUNDSATZ_REGELN}
 ${extra}
 
 ## Ausgabeformat (genau diese zwei Abschnitte, jeweils mit der ###-Überschrift)

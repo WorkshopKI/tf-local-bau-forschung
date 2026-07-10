@@ -2,7 +2,9 @@ import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'reac
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { isKuratorMenusEnabled, isDokumentenscanEnabled } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, isDokumentenscanEnabled, isAssistentPanelEnabled } from '@/config/feature-flags';
+import { useStore } from 'zustand';
+import { assistentPanelUiStore } from '@/plugins/chat/assistent/panelUiStore';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -68,6 +70,11 @@ export function SuchSeite(): React.ReactElement {
   // Förderanträge-Suchfeld). Default „Ohne" — Modell lädt erst nach Umschalten.
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
   const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
+  // Assistent-Panel Phase 1: ist das shell-weite Dock aktiv, übernimmt es die
+  // Andockung — der „Assistent"-Button togglet das globale Dock statt des lokalen
+  // ChatPanelHost (kein Doppel-Panel). Ohne Flag: unverändertes Legacy-Verhalten.
+  const assistentPanelFlag = isAssistentPanelEnabled();
+  const globalAssistentOpen = useStore(assistentPanelUiStore, s => s.open);
 
   const [query, setQuery] = useState('');
   // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
@@ -98,12 +105,16 @@ export function SuchSeite(): React.ReactElement {
   // Schließen nicht rückgängig gemacht wird.
   useEffect(() => {
     if (searchParams.get('assistent') !== '1') return;
-    setAssistentOpen(true);
-    try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(true)); } catch { /* ignore */ }
+    if (assistentPanelFlag) {
+      assistentPanelUiStore.getState().setOpen(true);
+    } else {
+      setAssistentOpen(true);
+      try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(true)); } catch { /* ignore */ }
+    }
     const next = new URLSearchParams(searchParams);
     next.delete('assistent');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, assistentPanelFlag]);
 
   useEffect(() => {
     try { localStorage.setItem(ASSISTENT_WIDTH_KEY, String(assistentWidth)); } catch { /* ignore */ }
@@ -298,11 +309,11 @@ export function SuchSeite(): React.ReactElement {
           />
           <button
             type="button"
-            onClick={toggleAssistent}
-            aria-pressed={assistentOpen}
+            onClick={() => (assistentPanelFlag ? assistentPanelUiStore.getState().toggle() : toggleAssistent())}
+            aria-pressed={assistentPanelFlag ? globalAssistentOpen : assistentOpen}
             title="Assistent öffnen"
             className={`flex items-center gap-1.5 h-10 px-3 text-[13px] rounded shrink-0 ${
-              assistentOpen
+              (assistentPanelFlag ? globalAssistentOpen : assistentOpen)
                 ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
                 : 'text-[var(--tf-text)] hover:bg-[var(--tf-hover)]'
             }`}
@@ -470,7 +481,7 @@ export function SuchSeite(): React.ReactElement {
       />
         </div>
       </div>
-      {assistentOpen && (
+      {!assistentPanelFlag && assistentOpen && (
         <aside className="shrink-0 h-full min-h-0 overflow-hidden flex" style={{ width: effectiveAssistentWidth(assistentWidth, viewportWidth) }}>
           <div
             role="separator"

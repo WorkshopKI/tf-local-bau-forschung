@@ -91,6 +91,29 @@ export class AIBridge {
     return this.getActiveTransport();
   }
 
+  /**
+   * Transport für einen Assistenten-Turn — die **gegatete** Wahl des Assistenz-
+   * Panels (Phase 1). Der Assistenten-Kontext enthält regelmäßig Dokumentinhalte
+   * (Orama-Auszüge aus VBs), daher gilt jeder Aufruf pauschal als dokument-tragend:
+   * `enthaeltDokumentInhalte` ist hier **hart `true`**. Ist der aktive Provider
+   * extern, **wirft** diese Methode — OpenRouter/extern ist strukturell unerreichbar,
+   * auch nicht als Fallback.
+   *
+   * TODO(assistent-transport-policy): sobald eine zentrale Assistenten-Policy
+   * existiert (spätere Phase), hierüber ableiten statt hart `true` zu setzen.
+   */
+  getTransportForAssistent(): AITransport {
+    const erlaubt = erlaubteTransportKlassen({ enthaeltDokumentInhalte: true });
+    if (!erlaubt.includes(this.activeKlasse)) {
+      throw new Error(
+        'DSGVO-Transport-Policy: Der Assistent verarbeitet Dokumentinhalte und darf nur über '
+        + `einen internen Transport laufen — aktiver Provider „${this.getActiveProviderName()}" `
+        + 'ist extern. Bitte auf die interne KI wechseln.',
+      );
+    }
+    return this.getActiveTransport();
+  }
+
   /** Verfügbarkeits-Check auf dem aktiven Transport (sauberer als rohes
    *  `getActiveTransport().ping()` — trägt keinen Inhalt, Convention-konform).
    *  `opts.openIfNeeded: false` → passiver Check (öffnet kein Bridge-Fenster). */

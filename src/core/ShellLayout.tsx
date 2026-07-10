@@ -44,8 +44,11 @@ import {
   isDataShareEnabled,
   isGutachtenWorkflowEnabled,
   isGutachtenKurzfassungEnabled,
+  isAssistentPanelEnabled,
   menuLabel,
 } from '@/config/feature-flags';
+import { AssistentPanelHost } from '@/plugins/chat/assistent/AssistentPanelHost';
+import { assistentPanelUiStore } from '@/plugins/chat/assistent/panelUiStore';
 import { backupGutachtenStateToPersonal } from '@/core/services/personal-storage/gutachten-backup';
 import { BuildInfo } from '@/core/components/BuildInfo';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
@@ -264,9 +267,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     sortedPlugins.forEach((p, i) => {
       items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: i < 7 ? `${mod}${i + 1}` : undefined, action: () => goToPlugin(p.id) });
     });
-    // Chat ist seit Phase 4 `hideFromNav` (kein Auto-Nav-Command mehr) — der
-    // Assistent wird als Panel der Suche geöffnet. Nur wenn die Suche im Build ist.
-    if (plugins.some(p => p.id === 'suche')) {
+    // Assistent öffnen: mit `assistentPanel` das shell-weite Dock (überall),
+    // sonst das angedockte Chat-Panel der Suche (Legacy, Phase-4-Redirect).
+    if (isAssistentPanelEnabled()) {
+      items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: () => assistentPanelUiStore.getState().setOpen(true) });
+    } else if (plugins.some(p => p.id === 'suche')) {
       items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: () => navigate('/suche?assistent=1') });
     }
     items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
@@ -480,6 +485,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
         );
       })()}
       {!tour.isActive && isFeedbackEnabled() && <FeedbackButton />}
+      {isAssistentPanelEnabled() && <AssistentPanelHost />}
     </>
   );
 }

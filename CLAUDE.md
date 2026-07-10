@@ -33,6 +33,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |
 | Antrag-Aufbereitung (Vollbild-Seite: VB-Gliederung + Tabellen-Ernte, Zeitplan-Gantt + Plausibilität inkl. Kapazität; Steckbrief + Abdeckung + Zahlen-Inventar als interne LLM-Bausteine mit Fundstellen + deterministischen Quervergleichen; Fragen-Tab aggregiert alle offenen Punkte; getrennte Baustein-Caches, Verdächtig-Guard/Retry, dev) | [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) |
 | Assistent-Ereignisprotokoll (Phase 0: gerätelokales, opt-in Protokoll app-semantischer Aktionen; kein LLM/Chat/UI; Fundament für den späteren persönlichen Assistenten) | [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md) |
+| Assistent-Panel (Phase 1: kontextbewusstes Frage-Antwort-Panel; deterministisch assemblierter Kontext + intern-only Transport + resetChat/Turn; shell-weites Dock, session-only, dev) | [docs/architecture/assistent-panel.md](docs/architecture/assistent-panel.md) |
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [Skill-Eval-GUI (dev)](#skill-eval-gui-dev) (CLAUDE.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [Strukturierte Skill-Ausgabe (teilStruktur)](#strukturierte-skill-ausgabe-teilstruktur) (CLAUDE.md) |
 | Streamlit-Bridge (Bookmarklet-Installer + postMessage-Transport zum internen LLM) | [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md) |
@@ -203,6 +204,19 @@ In-App-Panel zur Evaluation eines Gutachten-Abschnitts (A–G) gegen 1–25 **fi
 Fundament für den späteren persönlichen Assistenten: ein **rein deterministisches, strikt gerätelokales, opt-in** Protokoll app-semantischer Aktionen (welche Entität geöffnet, welche Suche, welcher Skill gestartet). **Phase 0 enthält kein LLM, keinen Chat, keine Assistenz-UI** — nur die Datengrundlage. Feature-Flag `features.assistentProtokoll` (`isAssistentProtokollEnabled()`, nur dev) gated Aufzeichnung + Einstellungs-Sektion „Assistent & Gedächtnis".
 
 Modul [src/core/services/assistent/protokoll/](src/core/services/assistent/protokoll/): dedizierter IDB-Store `assistent_ereignisprotokoll` (IDBStore **v9**, keyPath `id`, Index `zeitstempel`) — **kein** kv-Prefix, weil Append-Log mit Retention + Zeit-Queries. Die **einzige** Schreib-Gate-Stelle ist `protokolliereEreignis` (Flag **und** Opt-in). Init einmalig in [App.tsx](src/core/App.tsx) über `initProtokoll(storage.idb)`. Katalog v1 ist **abschließend** (~8 Typen). Instrumentierung minimal-invasiv (ein Aufruf je Stelle: Router, Dokument-Öffnen, Suche-`done`, `runSkill`-Hülle, `bearbeitenStep`, Home-Fristen-Balken). Die harten Invarianten 1–5 (strikt lokal / strikt Opt-in / keine Verhaltensmetrik / kein LLM+Netzwerk / additiv) und der Katalog: [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md) (siehe **Pitfall #37**).
+
+### Assistent-Panel (Phase 1)
+
+Erster sichtbarer Nutzen auf Phase 0: ein **kontextbewusstes Frage-Antwort-Panel**. Die App assembliert den Kontext (Route, selektierte Entität, `naechsterSchritt()`, Fristen, Orama-Retrieval) **rein deterministisch** und schickt **genau einen** Prompt an das **interne** Modell — das LLM formuliert nur. Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, nur dev). **Read-only** (kein Tool-Use, kein Memory, kein Zugriff aufs Phase-0-Protokoll); Historie **session-only**.
+
+Harte Invarianten (Detail + Bausteine: [docs/architecture/assistent-panel.md](docs/architecture/assistent-panel.md)):
+
+- **Immer dokumentinhaltig → nur intern.** Transportwahl **ausschließlich** über `bridge.getTransportForAssistent()` (reused `erlaubteTransportKlassen({ enthaeltDokumentInhalte: true })`, Flag hart `true`; wirft bei externem Provider). Der Guard `no-raw-active-transport` (Pitfall #30) deckt jetzt auch `plugins/chat/assistent/`.
+- **resetChat pro Turn** (Pitfall #36, `starteFrischenChat` VOR dem Submit; Warnung bei unbestätigtem Reset). Bridge-Statefulness nie als Gedächtnis — Historie app-seitig, im Prompt mitgeschickt.
+- **Deterministische Fakten injiziert, nie vom LLM** — nur bestehende reine Funktionen (`naechsterSchritt`, `fristAnzeige`, `getStatusLabel`/`getStatusCategory`, `getVbPhaseLabel`); keine neue Ableitung erfinden.
+- **Ein Aufruf pro Turn** (kein Auto-Retry/Schleife); Fehler → Panel-Meldung, Frage bleibt, Historie unverändert.
+- **Basis-Grundsatz-Block geteilt** (`GRUNDSATZ_REGELN` in [grundsatz.ts](src/core/services/skills/registry/grundsatz.ts), byte-identisch mit den `seed.ts`-Buildern — Guard `grundsatz.test.ts`), nicht per Copy-Paste dupliziert.
+- **Fundstellen = Orama + bestehendes Chat-Zitatsystem** (`buildChatSources` → `ChatSource`, `CitationAnswer`/`SourcePanel`), kein VB-Sektions-Popover. Panel shell-weit gemountet ([ShellLayout](src/core/ShellLayout.tsx)); bei aktivem Flag ersetzt es die Suche-Chat-Andockung.
 
 ### Legacy: Vorgang-Typ
 

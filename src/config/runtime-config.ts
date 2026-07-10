@@ -143,6 +143,10 @@ export interface TeamflowFeatures {
    *  den späteren persönlichen Assistenten). Gated Aufzeichnung + Einstellungs-
    *  Sektion. Nur dev. Optional, default false. */
   assistentProtokoll?: boolean;
+  /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
+   *  assemblierter Kontext, intern-only Transport, session-only Historie). Shell-
+   *  weites Dock. Nur dev. Optional, default false. */
+  assistentPanel?: boolean;
 }
 
 export interface TeamflowMenuLabels {

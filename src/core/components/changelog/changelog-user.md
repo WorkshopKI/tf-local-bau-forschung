@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.222 — 2026-07
+
+### Neu
+- **Assistent-Panel (Vorschau, nur Entwicklungsversion):** Ein neues Panel rechts beantwortet Fragen zu deiner aktuellen Arbeit — „Was ist mein nächster Schritt?", „Welche Fristen stehen an?", „Was steht im Antrag zu Thema X?". Es sieht nur die gerade geöffnete Ansicht und die zugehörigen Dokumente (oben transparent als Kontext angezeigt) und antwortet ausschließlich über die **interne** KI — Antragsinhalte verlassen das Haus nie. Es merkt sich nichts über die Sitzung hinaus. Kommt als Probelauf zunächst nur in der Entwicklungsversion.
+
 ## v2.220 — 2026-07
 
 ### Verbesserungen

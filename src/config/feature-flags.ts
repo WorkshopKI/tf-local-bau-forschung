@@ -234,6 +234,14 @@ export function isAssistentProtokollEnabled(): boolean {
   return features.assistentProtokoll === true;
 }
 
+/** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
+ *  assemblierter Kontext, intern-only Transport, session-only Historie). Nur dev.
+ *  Default false (`=== true`, Backward-Kompat). Baut auf [[assistent-protokoll]]
+ *  (Phase 0) NICHT auf — Phase 1 liest das Protokoll bewusst nicht. */
+export function isAssistentPanelEnabled(): boolean {
+  return features.assistentPanel === true;
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

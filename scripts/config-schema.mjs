@@ -207,6 +207,10 @@ export const DEFAULT_CONFIG = {
      *  Phase-0-Umfang (Aufzeichnung + Einstellungs-Sektion). Nur dev. Optional,
      *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     assistentProtokoll: false,
+    /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
+     *  assemblierter Kontext + intern-only Transport, session-only Historie).
+     *  Nur dev. Optional, default false (`=== true` Backward-Kompat). */
+    assistentPanel: false,
   },
 
   menuLabels: {
