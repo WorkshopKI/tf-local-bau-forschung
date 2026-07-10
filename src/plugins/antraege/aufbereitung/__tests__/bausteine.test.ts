@@ -4,7 +4,7 @@ import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import {
   getOrComputeBaustein, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
-  aspekteCacheKey, steckbriefCacheKey, vbHashFuer,
+  aspekteCacheKey, steckbriefCacheKey, vbHashFuer, ROHTEXT_MAX,
 } from '../bausteine';
 
 /** Minimaler In-Memory-IDB (nur die genutzten Methoden). */
@@ -25,6 +25,14 @@ const transportMit = (antwort: string): AITransport =>
   ({ submitConversation: async () => antwort } as unknown as AITransport);
 const transportWirft = (): AITransport =>
   ({ submitConversation: async () => { throw new Error('down'); } } as unknown as AITransport);
+/** Gibt je Submit die nächste Antwort der Sequenz zurück (letzte wird wiederholt); zählt die Läufe. */
+function transportSequenz(antworten: string[]): { transport: AITransport; laeufe: () => number } {
+  let i = 0;
+  const transport = {
+    submitConversation: async (): Promise<string> => antworten[Math.min(i++, antworten.length - 1)]!,
+  } as unknown as AITransport;
+  return { transport, laeufe: () => i };
+}
 
 describe('getOrComputeBaustein', () => {
   const key = aspekteCacheKey('A', 'h1');
@@ -77,6 +85,62 @@ describe('getOrComputeBaustein', () => {
     const { idb } = fakeIdb();
     const res = await getOrComputeBaustein<unknown>(idb, transportMit('x'), skill, key, 'h1', () => 'p', () => { throw new Error('parse'); });
     expect(res.status).toBe('degradiert');
+  });
+
+  it('ohne verdaechtig: null → sofort degradiert, KEIN Retry (nur ein Lauf)', async () => {
+    const { idb } = fakeIdb();
+    const seq = transportSequenz(['leer', 'leer']);
+    const res = await getOrComputeBaustein<unknown>(idb, seq.transport, skill, key, 'h1', () => 'p', () => null);
+    expect(res.status).toBe('degradiert');
+    expect(seq.laeufe()).toBe(1);       // kein Retry ohne opts.verdaechtig
+    expect(res.retryAnzahl).toBeUndefined();
+  });
+
+  it('verdaechtig: auffälliges Erstergebnis → Retry → zweiter Lauf ok → ok + retryAnzahl, gecacht', async () => {
+    const { idb, store } = fakeIdb();
+    const seq = transportSequenz(['leer', 'voll']);
+    const res = await getOrComputeBaustein<{ n: number }>(
+      idb, seq.transport, skill, key, 'h1', () => 'p',
+      (raw) => (raw === 'leer' ? { n: 0 } : { n: 1 }),
+      { verdaechtig: { pruefe: (d) => d.n === 0, grund: 'keine Zuordnung' } },
+    );
+    expect(res.status).toBe('ok');
+    expect(res.daten).toEqual({ n: 1 });
+    expect(res.retryAnzahl).toBe(1);
+    expect(seq.laeufe()).toBe(2);
+    expect(store.get(key)).toEqual({ vbHash: 'h1', daten: { n: 1 } });
+  });
+
+  it('verdaechtig: beide Läufe verdächtig → degradiert mit Begründung + retryAnzahl, NICHT gecacht', async () => {
+    const { idb, store } = fakeIdb();
+    const seq = transportSequenz(['leer', 'leer']);
+    const res = await getOrComputeBaustein<{ n: number }>(
+      idb, seq.transport, skill, key, 'h1', () => 'p', () => ({ n: 0 }),
+      { verdaechtig: { pruefe: (d) => d.n === 0, grund: 'Modell hat keine Sektion zugeordnet' } },
+    );
+    expect(res.status).toBe('degradiert');
+    expect(res.begruendung).toBe('Modell hat keine Sektion zugeordnet');
+    expect(res.retryAnzahl).toBe(1);
+    expect(res.rohtext).toBe('leer');
+    expect(store.has(key)).toBe(false);
+  });
+
+  it('verdaechtig: null-Parse in beiden Läufen → degradiert „Antwort nicht parsebar"', async () => {
+    const { idb } = fakeIdb();
+    const res = await getOrComputeBaustein<{ n: number }>(
+      idb, transportMit('kaputt'), skill, key, 'h1', () => 'p', () => null,
+      { verdaechtig: { pruefe: () => false, grund: 'egal' } },
+    );
+    expect(res.status).toBe('degradiert');
+    expect(res.begruendung).toBe('Antwort nicht parsebar');
+    expect(res.retryAnzahl).toBe(1);
+  });
+
+  it('kappt den mitgespeicherten Rohtext auf ROHTEXT_MAX', async () => {
+    const { idb } = fakeIdb();
+    const riesig = 'x'.repeat(ROHTEXT_MAX + 100);
+    const res = await getOrComputeBaustein<unknown>(idb, transportMit(riesig), skill, key, 'h1', () => 'p', () => null);
+    expect(res.rohtext?.length).toBe(ROHTEXT_MAX);
   });
 });
 

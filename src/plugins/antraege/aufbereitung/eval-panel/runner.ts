@@ -23,9 +23,9 @@ import {
   type AspektMetrik, type AspektZusammenfassung, type Goldset, type GoldFixture,
 } from '@/core/services/skill-eval/aspekte-metrik';
 import { parseVbGliederung } from '../gliederung';
-import { buildAspektePrompt, parseAspektMapping, sektionZuAspekte } from '../aspekte';
+import { buildAspektePrompt, parseAspektMapping, sektionZuAspekte, aspekteVerdaechtig, type AspektMapping } from '../aspekte';
 import { buildSteckbriefPrompt, parseSteckbrief, type SteckbriefDaten } from '../steckbrief';
-import { runBaustein } from '../bausteine';
+import { runBaustein, ROHTEXT_MAX } from '../bausteine';
 
 /** Minimal-Sicht auf ein Fixture (was der Runner braucht — `loadEvalFixtures()` erfüllt das strukturell). */
 export interface EvalFixtureQuelle {
@@ -48,6 +48,8 @@ export interface AspekteFixtureErgebnis {
   rohtext?: string;
   /** Fehlermeldung bei `fehler` (Transport-/Policy-Wurf). */
   fehler?: string;
+  /** Anzahl automatischer Retries (0/undefined = keiner) — Parität zum App-Pfad. */
+  retryAnzahl?: number;
   /** Chat-Reset-Status vor dem Aspekte-Lauf (nur bei ok/degradiert — bei `fehler`
    *  warf der Submit vor der Rückgabe). `'nicht-gefunden'`/`'timeout'` markiert (Pitfall #36). */
   chatResetStatus?: ChatResetStatus;
@@ -63,19 +65,38 @@ export interface SteckbriefSmokeErgebnis {
   chatResetStatus?: ChatResetStatus;
 }
 
+/** Wiederholungs-Kennzahlen eines Fixtures (nur bei n > 1 gesetzt). */
+export interface AspekteWiederholungen {
+  /** Alle n Aspekte-Läufe (in Laufreihenfolge). */
+  laeufe: AspekteFixtureErgebnis[];
+  /** Median-F1 über die Läufe (nicht-ok-Läufe zählen als F1 = 0). */
+  medianF1: number;
+  /** Worst-Case-F1 über die Läufe (Minimum; nicht-ok = 0). */
+  worstF1: number;
+  /** Wie viele der n Läufe `ok` waren. */
+  okAnzahl: number;
+}
+
 export interface FixtureErgebnis {
   vbFile: string;
   /** false, wenn kein Fixture zur Goldset-Datei existiert (übersprungen, kein Abbruch). */
   gefunden: boolean;
   dauerMs?: number;
+  /** Repräsentativer (Median-)Aspekte-Lauf — bei n = 1 der einzige Lauf. */
   aspekte?: AspekteFixtureErgebnis;
   steckbrief?: SteckbriefSmokeErgebnis;
+  /** Nur bei n > 1: Einzelwerte + Median/Worst über die Wiederholungen. */
+  aspekteWdh?: AspekteWiederholungen;
 }
 
 export interface AufbereitungEvalErgebnis {
   fixtures: FixtureErgebnis[];
-  /** Aggregat NUR über erfolgreich gemessene Aspekte-Läufe. */
+  /** Aggregat über die repräsentativen (Median-)Aspekte-Läufe (n = 1: die einzigen). */
   zusammenfassung: AspektZusammenfassung;
+  /** Aggregat über die Worst-Case-Aspekte-Läufe — nur bei n > 1 gesetzt. */
+  zusammenfassungWorst?: AspektZusammenfassung;
+  /** Wiederholungen pro Fixture (n, Default 1). */
+  wiederholungen: number;
   abgebrochen: boolean;
 }
 
@@ -92,9 +113,25 @@ export interface EvalOpts {
   limit?: number;
   /** Steckbrief-Smoke einschließen (Default an). */
   includeSteckbrief?: boolean;
+  /** Wiederholungen pro Fixture (1…5, Default 1). Aspekte wird n× gefahren (Varianz),
+   *  der Steckbrief-Smoke bleibt EIN Lauf pro Fixture. Reset-Invariante gilt pro Einzellauf. */
+  wiederholungen?: number;
   signal?: AbortSignal;
   onFixtureStart?: (vbFile: string, index: number, total: number) => void;
   onFixtureDone?: (ergebnis: FixtureErgebnis, index: number, total: number) => void;
+}
+
+/** Obergrenze der Wiederholungen (Bridge-Zeit begrenzen). */
+export const WIEDERHOLUNGEN_MAX = 5;
+
+/** F1 eines Aspekte-Laufs für Median/Worst — nicht-ok zählt als 0. */
+function aspekteF1(e: AspekteFixtureErgebnis): number {
+  return e.status === 'ok' && e.metrik ? e.metrik.f1 : 0;
+}
+
+/** Lower-Median-Index einer nach Wert aufsteigend sortierten Liste der Länge k. */
+function medianIndex(k: number): number {
+  return Math.floor((k - 1) / 2);
 }
 
 function fehlerText(e: unknown): string {
@@ -120,20 +157,44 @@ async function laufAspekte(
   gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string,
   sektionIds: string[], gf: GoldFixture,
 ): Promise<AspekteFixtureErgebnis> {
-  let raw: string;
-  let chatResetStatus: ChatResetStatus;
-  try {
-    const r = await runBaustein(transport, skill, buildAspektePrompt(gliederung, vbMarkdown));
-    raw = r.text;
-    chatResetStatus = r.chatResetStatus;
-  } catch (e) {
-    return { status: 'fehler', fehler: fehlerText(e) };
+  // Spiegelt `getOrComputeBaustein`: leeres Parse-Ergebnis ODER 0 Zuordnungen bei
+  // ≥1 Sektion → auffällig → EIN Retry mit frischem Chat (Mess-Parität zum App-Pfad).
+  const einLauf = async (): Promise<{ mapping: AspektMapping | null; raw: string; reset: ChatResetStatus } | { fehler: string }> => {
+    let raw: string;
+    let reset: ChatResetStatus;
+    try {
+      const r = await runBaustein(transport, skill, buildAspektePrompt(gliederung, vbMarkdown));
+      raw = r.text;
+      reset = r.chatResetStatus;
+    } catch (e) {
+      return { fehler: fehlerText(e) };
+    }
+    const mapping = parseAspektMapping(raw, sektionIds);
+    const leer = Object.keys(mapping.zuordnung).length === 0 && Object.keys(mapping.fehlend).length === 0;
+    return { mapping: leer ? null : mapping, raw, reset };
+  };
+  const istSchlecht = (m: AspektMapping | null): boolean => m == null || aspekteVerdaechtig(m, sektionIds);
+
+  const erster = await einLauf();
+  if ('fehler' in erster) return { status: 'fehler', fehler: erster.fehler };
+  let { mapping, raw, reset } = erster;
+  let retryAnzahl = 0;
+  if (istSchlecht(mapping)) {
+    retryAnzahl = 1;
+    const zweiter = await einLauf();
+    if (!('fehler' in zweiter)) ({ mapping, raw, reset } = zweiter);
   }
-  const mapping = parseAspektMapping(raw, sektionIds);
-  const leer = Object.keys(mapping.zuordnung).length === 0 && Object.keys(mapping.fehlend).length === 0;
-  if (leer) return { status: 'degradiert', rohtext: raw, chatResetStatus };
-  const pred = sektionZuAspekte(mapping);
-  return { status: 'ok', metrik: metriken(gf.erwartung, pred), fehlzuordnungen: fehlzuordnungen(gf.erwartung, pred), chatResetStatus };
+  if (istSchlecht(mapping)) {
+    return { status: 'degradiert', rohtext: raw.slice(0, ROHTEXT_MAX), chatResetStatus: reset, ...(retryAnzahl ? { retryAnzahl } : {}) };
+  }
+  const pred = sektionZuAspekte(mapping!);
+  return {
+    status: 'ok',
+    metrik: metriken(gf.erwartung, pred),
+    fehlzuordnungen: fehlzuordnungen(gf.erwartung, pred),
+    chatResetStatus: reset,
+    ...(retryAnzahl ? { retryAnzahl } : {}),
+  };
 }
 
 async function laufSteckbrief(
@@ -150,7 +211,7 @@ async function laufSteckbrief(
     return { status: 'fehler', fehler: fehlerText(e) };
   }
   const daten = parseSteckbrief(raw, sektionIds);
-  if (daten == null) return { status: 'degradiert', rohtext: raw, chatResetStatus };
+  if (daten == null) return { status: 'degradiert', rohtext: raw.slice(0, ROHTEXT_MAX), chatResetStatus };
   return { status: 'ok', gefuellteFelder: zaehleGefuellteFelder(daten), chatResetStatus };
 }
 
@@ -163,11 +224,13 @@ async function laufSteckbrief(
 export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): Promise<AufbereitungEvalErgebnis> {
   const { aspekteSkill, steckbriefSkill, transport, fixtures, goldset } = deps;
   const includeSteckbrief = opts.includeSteckbrief ?? true;
+  const n = Math.max(1, Math.min(opts.wiederholungen ?? 1, WIEDERHOLUNGEN_MAX));
   const goldFixtures = goldset.fixtures.slice(0, opts.limit);
   const total = goldFixtures.length;
 
   const ergebnisse: FixtureErgebnis[] = [];
-  const aspektMetriken: AspektMetrik[] = [];
+  const medianMetriken: AspektMetrik[] = [];   // repräsentativer Lauf je Fixture
+  const worstMetriken: AspektMetrik[] = [];     // Worst-Case-Lauf je Fixture (nur n>1 relevant)
   let abgebrochen = false;
 
   for (let i = 0; i < total; i++) {
@@ -187,19 +250,42 @@ export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): 
     const gliederung = parseVbGliederung(fx.vbMarkdown);
     const sektionIds = gliederung.map(s => s.id);
 
-    const aspekte = await laufAspekte(transport, aspekteSkill, gliederung, fx.vbMarkdown, sektionIds, gf);
-    if (aspekte.status === 'ok' && aspekte.metrik) aspektMetriken.push(aspekte.metrik);
+    // Aspekte n× (Varianz-Messung) — jeder Einzellauf resettet den Chat (Pitfall #36).
+    const laeufe: AspekteFixtureErgebnis[] = [];
+    for (let r = 0; r < n; r++) {
+      if (r > 0 && opts.signal?.aborted) break;
+      laeufe.push(await laufAspekte(transport, aspekteSkill, gliederung, fx.vbMarkdown, sektionIds, gf));
+    }
+
+    // Median-/Worst-Lauf nach F1 wählen (nicht-ok zählt als 0).
+    const sortiert = laeufe.map(e => ({ e, f1: aspekteF1(e) })).sort((a, b) => a.f1 - b.f1);
+    const median = sortiert[medianIndex(sortiert.length)]!.e;
+    const worst = sortiert[0]!.e;
+    if (median.status === 'ok' && median.metrik) medianMetriken.push(median.metrik);
+    if (n > 1 && worst.status === 'ok' && worst.metrik) worstMetriken.push(worst.metrik);
+    const aspekteWdh: AspekteWiederholungen | undefined = laeufe.length > 1
+      ? { laeufe, medianF1: aspekteF1(median), worstF1: aspekteF1(worst), okAnzahl: laeufe.filter(e => e.status === 'ok').length }
+      : undefined;
 
     let steckbrief: SteckbriefSmokeErgebnis | undefined;
-    // Nach dem ersten Bridge-Call erneut prüfen: kein zweiter Call nach Abbruch.
+    // Steckbrief EIN Smoke-Lauf je Fixture (unabhängig von n). Nach Abbruch nicht mehr starten.
     if (includeSteckbrief && !opts.signal?.aborted) {
       steckbrief = await laufSteckbrief(transport, steckbriefSkill, gliederung, fx.vbMarkdown, sektionIds);
     }
 
-    const erg: FixtureErgebnis = { vbFile: gf.vbFile, gefunden: true, dauerMs: Date.now() - start, aspekte, steckbrief };
+    const erg: FixtureErgebnis = {
+      vbFile: gf.vbFile, gefunden: true, dauerMs: Date.now() - start,
+      aspekte: median, steckbrief, ...(aspekteWdh ? { aspekteWdh } : {}),
+    };
     ergebnisse.push(erg);
     opts.onFixtureDone?.(erg, i, total);
   }
 
-  return { fixtures: ergebnisse, zusammenfassung: fasseZusammen(aspektMetriken), abgebrochen };
+  return {
+    fixtures: ergebnisse,
+    zusammenfassung: fasseZusammen(medianMetriken),
+    ...(n > 1 ? { zusammenfassungWorst: fasseZusammen(worstMetriken) } : {}),
+    wiederholungen: n,
+    abgebrochen,
+  };
 }

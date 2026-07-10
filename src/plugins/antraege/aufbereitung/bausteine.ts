@@ -28,12 +28,20 @@ export interface BausteinResult<T> {
   status: BausteinStatus;
   /** Nur bei `ok` gesetzt (erfolgreich geparste Daten). */
   daten?: T;
-  /** Roh-Antwort bei `degradiert` (nicht parsebar) — zur Einsicht im UI. */
+  /** Roh-Antwort bei `degradiert` (nicht parsebar / verdächtig) — zur Einsicht im UI
+   *  (gekappt auf `ROHTEXT_MAX`). Bei sauberen Läufen NICHT gesetzt (kv nicht aufblähen). */
   rohtext?: string;
   /** Chat-Reset-Status des Laufs — nur bei echtem Submit gesetzt (nicht bei
    *  Cache-Hit / `fehler`). `'nicht-gefunden'`/`'timeout'` markiert das UI (Pitfall #36). */
   chatResetStatus?: ChatResetStatus;
+  /** Anzahl automatischer Retries (0/undefined = keiner) — additiv, nur bei Retry gesetzt. */
+  retryAnzahl?: number;
+  /** Menschenlesbare Begründung der Degradation (z.B. „Modell hat keine Sektion zugeordnet"). */
+  begruendung?: string;
 }
+
+/** Obergrenze für den mitgespeicherten Rohtext bei Auffälligkeiten (Default 64 kB). */
+export const ROHTEXT_MAX = 64 * 1024;
 
 /** kv-Cache-Keys je Baustein (pro Antrag + VB-Hash → Neuberechnung nur bei VB-Änderung). */
 export const aspekteCacheKey = (antragKey: string, vbHash: string): string =>
@@ -90,9 +98,15 @@ export async function runBaustein(transport: AITransport, skill: SkillRecord, pr
 /**
  * Generischer Cache-/Compute-/Degradations-Rahmen (Muster `getOrComputeRelevanzMap`):
  *  - Cache-Hit nur bei passendem VB-Hash → `{ status:'ok', daten }`.
- *  - Miss: EIN Lauf → `parse(raw)`. Non-null → cachen + `ok`. Null (unparsebar /
- *    leer) → `{ status:'degradiert', rohtext }` (NICHT cachen — nächster Versuch neu).
+ *  - Miss: EIN Lauf → `parse(raw)`. Non-null (und nicht verdächtig) → cachen + `ok`.
+ *    Null (unparsebar/leer) oder als `opts.verdaechtig` deklariertes Ergebnis →
+ *    `{ status:'degradiert', rohtext, begruendung }` (NICHT cachen — nächster Versuch neu).
  *  - Transport-/Lauf-Fehler → `{ status:'fehler' }` (NICHT cachen).
+ * `opts.verdaechtig` (opt-in): erkennt ein parsebar-aber-unplausibles Ergebnis (z.B.
+ *    0 Zuordnungen bei ≥1 Sektion). Ist es gesetzt UND das Erstergebnis auffällig
+ *    (null ODER verdächtig), läuft EIN automatischer Retry mit frischem Chat
+ *    (`runBaustein` resettet vor dem Submit, Pitfall #36). Ohne `verdaechtig` bleibt das
+ *    Verhalten exakt wie bisher (null → sofort degradiert, kein Retry).
  * Wirft NIE. `opts.force` überspringt den Cache-Read (für „KI-Bausteine neu berechnen").
  */
 export async function getOrComputeBaustein<T>(
@@ -103,7 +117,7 @@ export async function getOrComputeBaustein<T>(
   vbHash: string,
   buildPrompt: () => string,
   parse: (raw: string) => T | null,
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; verdaechtig?: { pruefe: (daten: T) => boolean; grund: string } } = {},
 ): Promise<BausteinResult<T>> {
   if (!opts.force) {
     try {
@@ -115,24 +129,49 @@ export async function getOrComputeBaustein<T>(
       // Cache-Lesefehler ignorieren → frisch berechnen.
     }
   }
-  let raw: string;
-  let chatResetStatus: ChatResetStatus;
-  try {
-    const r = await runBaustein(transport, skill, buildPrompt());
-    raw = r.text;
-    chatResetStatus = r.chatResetStatus;
-  } catch {
-    return { status: 'fehler' };
+
+  /** EIN Lauf: Transport-Fehler → null (= 'fehler' außen), sonst Roh + geparst (parse wirft nie nach außen). */
+  const einLauf = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
+    let raw: string;
+    let reset: ChatResetStatus;
+    try {
+      const r = await runBaustein(transport, skill, buildPrompt());
+      raw = r.text;
+      reset = r.chatResetStatus;
+    } catch {
+      return null;
+    }
+    let daten: T | null;
+    try { daten = parse(raw); } catch { daten = null; }
+    return { daten, raw, reset };
+  };
+
+  const istSchlecht = (d: T | null): boolean => d == null || (!!opts.verdaechtig && opts.verdaechtig.pruefe(d));
+
+  const erster = await einLauf();
+  if (!erster) return { status: 'fehler' };
+  let { daten, raw, reset } = erster;
+  let retryAnzahl = 0;
+
+  // Auffälliges Erstergebnis + deklarierte Verdächtig-Regel → EIN Retry (frischer Chat).
+  if (opts.verdaechtig && istSchlecht(daten)) {
+    retryAnzahl = 1;
+    const zweiter = await einLauf();
+    if (zweiter) ({ daten, raw, reset } = zweiter);
   }
-  let daten: T | null;
-  try {
-    daten = parse(raw);
-  } catch {
-    daten = null;
+
+  if (istSchlecht(daten)) {
+    const begruendung = daten == null ? 'Antwort nicht parsebar' : opts.verdaechtig?.grund;
+    return {
+      status: 'degradiert',
+      rohtext: raw.slice(0, ROHTEXT_MAX),
+      chatResetStatus: reset,
+      ...(retryAnzahl ? { retryAnzahl } : {}),
+      ...(begruendung ? { begruendung } : {}),
+    };
   }
-  if (daten == null) return { status: 'degradiert', rohtext: raw, chatResetStatus };
-  try { await idb.set(cacheKey, { vbHash, daten }); } catch { /* Cache-Schreibfehler nicht eskalieren */ }
-  return { status: 'ok', daten, chatResetStatus };
+  try { await idb.set(cacheKey, { vbHash, daten: daten as T }); } catch { /* Cache-Schreibfehler nicht eskalieren */ }
+  return { status: 'ok', daten: daten as T, chatResetStatus: reset, ...(retryAnzahl ? { retryAnzahl } : {}) };
 }
 
 /** Löscht die Baustein-Caches eines Antrags (alle VB-Hashes) — für „KI-Bausteine neu berechnen". */

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { VbSektion } from '../gliederung';
 import {
   PRUEF_ASPEKTE, buildAspektePrompt, parseAspektMapping, berechneSubstanz,
-  sektionZuAspekte, ermittleOhneAspekt, fehlendeAlsKandidaten, type AspektMapping,
+  sektionZuAspekte, ermittleOhneAspekt, fehlendeAlsKandidaten, aspekteVerdaechtig, type AspektMapping,
 } from '../aspekte';
 
 function sektion(id: string, nummer: string | undefined, titel: string, ebene: 1 | 2 | 3, start: number, end: number): VbSektion {
@@ -68,6 +68,41 @@ describe('parseAspektMapping', () => {
     const m = parseAspektMapping('nur Prosa ohne Struktur', SEKTION_IDS);
     expect(m.zuordnung).toEqual({});
     expect(m.fehlend).toEqual({});
+  });
+
+  it('Mehrfach-Aspekt: „I, J", „I J", „IJ" und zwei Zeilen ergeben dieselbe Zuordnung', () => {
+    const erwartet = { I: ['k-5'], J: ['k-5'] };
+    expect(parseAspektMapping('I, J: k-5', SEKTION_IDS).zuordnung).toEqual(erwartet);
+    expect(parseAspektMapping('I J: k-5', SEKTION_IDS).zuordnung).toEqual(erwartet);
+    expect(parseAspektMapping('IJ: k-5', SEKTION_IDS).zuordnung).toEqual(erwartet); // zusammengeklebtes Token
+    expect(parseAspektMapping('I: k-5\nJ: k-5', SEKTION_IDS).zuordnung).toEqual(erwartet);
+  });
+
+  it('Bridge-Trailing-Artefakt (` :help[]` / ``` :help[]``) wird ignoriert', () => {
+    const raw = ['A: k-1', 'C: k-3', '``` :help[]', ' :help[]'].join('\n');
+    const m = parseAspektMapping(raw, SEKTION_IDS);
+    expect(m.zuordnung['A']).toEqual(['k-1']);
+    expect(m.zuordnung['C']).toEqual(['k-3']);
+    // die :help[]-Zeilen erzeugen keine Aspekt-Zuordnung
+    expect(Object.keys(m.zuordnung).sort()).toEqual(['A', 'C']);
+  });
+
+  it('generischer unparsbarer Trailing-Text nach gültigen Zeilen kippt den Parser nicht', () => {
+    const raw = ['A: k-1', 'völlig freier Fließtext ohne Doppelpunkt-Struktur am Ende'].join('\n');
+    expect(parseAspektMapping(raw, SEKTION_IDS).zuordnung['A']).toEqual(['k-1']);
+  });
+});
+
+describe('aspekteVerdaechtig', () => {
+  it('0 Zuordnungen bei ≥1 angebotener Sektion → verdächtig', () => {
+    expect(aspekteVerdaechtig({ zuordnung: {}, fehlend: { A: ['x'] } }, SEKTION_IDS)).toBe(true);
+    expect(aspekteVerdaechtig({ zuordnung: {}, fehlend: {} }, SEKTION_IDS)).toBe(true);
+  });
+  it('mindestens eine Zuordnung → nicht verdächtig', () => {
+    expect(aspekteVerdaechtig({ zuordnung: { A: ['k-1'] }, fehlend: {} }, SEKTION_IDS)).toBe(false);
+  });
+  it('nur s-toc angeboten (keine echte Sektion) → nicht verdächtig', () => {
+    expect(aspekteVerdaechtig({ zuordnung: {}, fehlend: {} }, ['s-toc'])).toBe(false);
   });
 });
 

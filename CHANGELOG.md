@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.215.0 — Antrag-Aufbereitung Paket 4/Phase 0: Eval-Härtung & Mehrfach-Aspekt-Fix (Juli 2026)
+
+MINOR — Härtet die dev-only Aufbereitungs-Bausteine + In-App-Eval anhand der ersten Live-Baseline (zwei stabile Befunde: Mehrfach-Aspekt-Sektionen bekamen nur einen Aspekt; ein Lauf lieferte R=0.00 bei Status `ok`, Rohantwort nicht rekonstruierbar). Additiv, kein Skill `aktiv:true`, keine Migration; alle neuen Result-Felder sind optional (alte Runs/Ergebnisse bleiben lesbar).
+
+- **Mehrfach-Aspekt-Instruktion:** `buildAspektePrompt` ([aspekte.ts](src/plugins/antraege/aufbereitung/aspekte.ts)) fordert jetzt explizit ALLE zutreffenden Aspekte je Sektion (nicht nur den dominantesten) + ein Zwei-Zeilen-Beispiel (`I: k-11.1` / `J: k-11.1`). Der **wirksame** Prompt ist Code → erreicht prod beim Redeploy, **keine** Seed-Migration nötig; der Seed-`promptTemplate` ([aufbereitung-aspekte.seed.ts](src/core/services/skills/registry/aufbereitung-aspekte.seed.ts)) ist nur Policy-Subjekt und wurde für Konsistenz nachgezogen (`version` 1→2). Parser-Robustheit: `parseAspektMapping` splittet zusätzlich zusammengeklebte Tokens (`IJ:` → I, J) defense-in-depth.
+- **Null-Zuordnungs-Guard + einmaliger Retry:** `getOrComputeBaustein` nimmt optional `verdaechtig={pruefe,grund}` ([bausteine.ts](src/plugins/antraege/aufbereitung/bausteine.ts)). Für Aspekte = **0 Zuordnungen bei ≥1 Sektion** (`aspekteVerdaechtig`, geteilt mit dem Eval-Runner) → **ein** automatischer Retry mit frischem Chat (Pitfall #36), sonst `degradiert` (statt fälschlich `ok`) mit `retryAnzahl` + `begruendung`. Ohne `verdaechtig` unverändert.
+- **Roh-Response-Persistenz:** bei Auffälligkeit wird die Rohantwort am Ergebnis mitgeführt (gekappt auf `ROHTEXT_MAX` = 64 kB); im Eval-Panel je betroffenem Fixture **einklappbar + kopierbar**.
+- **Trailing-Artefakt-Härtung:** die bekannte Bridge-Endung (`` ``` :help[] `` / ` :help[]`) ist jetzt für beide Parser regressionsgetestet (beide schlucken sie strukturell) + in [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) als bekannter prod-Streamlit-Suffix dokumentiert.
+- **Wiederholungs-Parameter `n`** (1…5, Default 1) im Eval-Panel: fährt Aspekte je Fixture n× (Varianz), weist Einzel-/Median-/Worst-F1 aus; Gesamt = Median-Lauf, Worst-Case separat. Bei `n=1` bleibt das Markdown-Format byte-identisch.
+- Verifiziert per `npm run check` (typecheck + `npx vitest run` inkl. neuer Parser-/Guard-/Retry-/Wiederholungs-Tests + `build:dev`) + `build:pl`. Live-Eval (`n=3` über die Bridge) + `file://`-Abnahme macht Thomas auf prod.
+
 ### v2.214.0 — Bridge: frischer Chat pro Skill-Lauf (Kontext-Überlauf-/Kontaminations-Fix) (Juli 2026)
 
 MINOR — Skill-Läufe sind stateless designt (voller Kontext im Prompt), die Streamlit-Bridge schreibt sie aber in eine **stateful** Chat-UI (AitisiGPT). Ohne Reset akkumuliert der Verlauf: beobachtet als Kontext-Überlauf beim In-App-Eval (mehrere komplette VBs in einem Chat) und als Kontamination beim Gutachten-„Neu" (die VB des vorherigen Laufs lag noch im Chat). Ab sofort beginnt **jeder Einzel-Skill-Lauf** über einen Streamlit-Transport mit einem Chat-Reset. **Rein app-seitig — kein Bookmarklet-/`BRIDGE_REV`-Change, keine Neu-Installation.** Additiv, keine Migration.

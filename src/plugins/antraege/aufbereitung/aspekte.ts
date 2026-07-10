@@ -57,6 +57,18 @@ export interface AspektMapping {
   fehlend: Record<string, string[]>;
 }
 
+/**
+ * „Verdächtig": das Modell hat KEINE Sektion einem Aspekt zugeordnet, obwohl
+ * mindestens eine (Nicht-`s-toc`) Sektion angeboten wurde — der stabile Fehlermodus
+ * (Lauf mit R=0.00, Status trotzdem `ok`). `fehlend` allein zählt NICHT als
+ * Zuordnung. Löst den einmaligen Retry in `getOrComputeBaustein` aus. Geteilt von
+ * `computeAspekteBaustein` UND dem In-App-Eval-Runner (Mess-Parität).
+ */
+export function aspekteVerdaechtig(mapping: AspektMapping, sektionIds: string[]): boolean {
+  const angeboten = sektionIds.some(id => id !== 's-toc');
+  return angeboten && Object.keys(mapping.zuordnung).length === 0;
+}
+
 // ---------------------------------------------------------------------------
 // Prompt
 // ---------------------------------------------------------------------------
@@ -84,14 +96,16 @@ ${aspektListe}
 ${vbMarkdown}
 
 ## Aufgabe
-1. Ordne jeder Sektion die inhaltlich passenden Prüfaspekte zu. Eine Sektion darf zu mehreren Aspekten gehören, ein Aspekt zu mehreren Sektionen. Erzwinge KEINE Zuordnung für Sektionen, die zu keinem Aspekt passen.
+1. Ordne jeder Sektion ALLE inhaltlich passenden Prüfaspekte zu — nicht nur den dominantesten. Eine Sektion trägt oft MEHRERE Aspekte (z.B. beschreibt ein Marktkapitel zugleich die Zielmärkte (I) UND die Meilenstein-/Zielkriterien (J)); dann gib beide an. Ein Aspekt darf zu mehreren Sektionen gehören. Erzwinge KEINE Zuordnung für Sektionen, die zu keinem Aspekt passen.
 2. Benenne je Aspekt fehlende Pflichtangaben (z.B. fehlende Preisvorstellungen, fehlende Angaben zur vorhandenen Ausstattung).
 
 ## Ausgabeformat
 Zuerst je Aspekt eine Zeile mit den zugeordneten Sektions-IDs:
 A: <sektion-id>, <sektion-id>
 B: <sektion-id>
-(Gehört eine Sektion zu I UND J, schreibe zwei Zeilen — je eine für I und J.)
+Trägt eine Sektion mehrere Aspekte, taucht ihre ID in JEDER betroffenen Aspekt-Zeile auf — schreibe je Aspekt eine eigene Zeile. Beispiel für eine Sektion \`k-11.1\`, die zu I UND J gehört:
+I: k-11.1
+J: k-11.1
 
 Danach je fehlender Pflichtangabe eine Zeile:
 A-fehlt: <kurzer Text der fehlenden Angabe>
@@ -130,8 +144,12 @@ export function parseAspektMapping(raw: string, sektionIds: string[]): AspektMap
       continue;
     }
 
-    // „A: <ids>" bzw. „I/J: <ids>" (Block 1) — alle allein stehenden A–J-Buchstaben links.
-    const buchstaben = [...new Set((links.match(/\b[A-J]\b/g) ?? []).map(s => s.toUpperCase()))].filter(a => ASPEKT_IDS.has(a));
+    // „A: <ids>" bzw. „I/J: <ids>" (Block 1) — alle A–J-Buchstaben links, einzeln
+    // (`I, J`) ODER zusammengeklebt (`IJ`, defense-in-depth: das Modell soll je Aspekt
+    // eine eigene Zeile schreiben, ein geklebtes Token darf aber nicht verloren gehen).
+    const einzel = links.match(/\b[A-J]\b/g) ?? [];
+    const geklebt = (links.match(/\b[A-J]{2,}\b/g) ?? []).flatMap(t => t.split(''));
+    const buchstaben = [...new Set([...einzel, ...geklebt].map(s => s.toUpperCase()))].filter(a => ASPEKT_IDS.has(a));
     if (buchstaben.length === 0) continue;
     const ids = rechts.split(/[\s,]+/).map(t => t.trim()).filter(t => known.has(t));
     if (ids.length === 0) continue;
@@ -267,6 +285,11 @@ export async function computeAspekteBaustein(
       const leer = Object.keys(mapping.zuordnung).length === 0 && Object.keys(mapping.fehlend).length === 0;
       return leer ? null : mapping;
     },
-    opts,
+    {
+      ...opts,
+      // 0 Zuordnungen bei ≥1 Sektion → verdächtig → EIN Retry, sonst degradiert
+      // (statt fälschlich `ok`). `fehlend`-only-Antworten fängt genau dieser Pfad.
+      verdaechtig: { pruefe: (m) => aspekteVerdaechtig(m, sektionIds), grund: 'Modell hat keine Sektion zugeordnet' },
+    },
   );
 }

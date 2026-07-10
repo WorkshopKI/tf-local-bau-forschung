@@ -29,20 +29,20 @@ export const AUFBEREITUNG_ASPEKTE_SKILL: SkillRecord = {
   id: AUFBEREITUNG_ASPEKTE_SKILL_ID,
   name: 'Aufbereitung — Aspekt-Mapping',
   beschreibung: 'Interner Auswahl-Lauf: ordnet VB-Sektionen den Prüfaspekten A–J zu und benennt fehlende Pflichtangaben (dev).',
-  version: 1,
-  promptTemplate: `Ordne die Sektionen der Vorhabensbeschreibung den Prüfaspekten A–J zu. Wähle aus, fasse NICHTS zusammen.
+  version: 2,
+  promptTemplate: `Ordne die Sektionen der Vorhabensbeschreibung den Prüfaspekten A–J zu. Wähle aus, fasse NICHTS zusammen. Eine Sektion kann MEHRERE Aspekte tragen — gib alle zutreffenden an, nicht nur den dominantesten.
 
 ## Vorhabensbeschreibung (Quelle)
 {{vbMarkdown}}
 
-Gib je Aspekt eine Zeile „<Aspekt>: <sektion-id>, …" aus, danach je fehlender Pflichtangabe eine Zeile „<Aspekt>-fehlt: <Text>".`,
+Gib je Aspekt eine Zeile „<Aspekt>: <sektion-id>, …" aus (eine Sektion, die zu mehreren Aspekten gehört, erscheint in jeder betroffenen Aspekt-Zeile), danach je fehlender Pflichtangabe eine Zeile „<Aspekt>-fehlt: <Text>".`,
   systemPrompt: SYSTEM_PROMPT,
   maxTokens: 1024,
   // Re-Invocation spielt keine Rolle — neutrale Pflichtwerte.
   modifiers: { neu: '', kuerzer: '', laenger: '' },
   regelIds: [],
   slots: ['vbMarkdown'],
-  geaendert_am: '2026-07-09T00:00:00.000Z',
+  geaendert_am: '2026-07-10T00:00:00.000Z',
   // Noch nicht per Eval abgesichert → gesperrt geseedet; dev läuft über den Runtime-Override.
   aktiv: false,
   // Redundant zur Slot-Ableitung, aber explizit: trägt VB-Volltext (intern-pflichtig).

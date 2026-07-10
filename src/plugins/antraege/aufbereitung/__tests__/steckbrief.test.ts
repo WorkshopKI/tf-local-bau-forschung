@@ -30,6 +30,13 @@ describe('extractLastJsonObject', () => {
   it('kaputt/Prosa → null', () => {
     expect(extractLastJsonObject('nur Prosa, kein JSON')).toBeNull();
   });
+  it('ignoriert das Bridge-Trailing-Artefakt nach dem Fence (``` :help[]``)', () => {
+    const raw = '```json\n{"a":1}\n```\n``` :help[]';
+    expect(extractLastJsonObject(raw)).toEqual({ a: 1 });
+  });
+  it('ignoriert generischen unparsbaren Trailing-Text nach dem Objekt', () => {
+    expect(extractLastJsonObject('{"x":"y"}\n :help[]  freier Rest')).toEqual({ x: 'y' });
+  });
 });
 
 describe('parseSteckbrief', () => {

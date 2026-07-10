@@ -39,6 +39,10 @@ export interface BausteinUiState<T> {
   /** Chat-Reset-Status des Laufs (Pitfall #36) — `'nicht-gefunden'`/`'timeout'` →
    *  Warn-Banner auf der Seite. Nur bei echtem Submit gesetzt (nicht bei Cache-Hit). */
   chatResetStatus?: ChatResetStatus;
+  /** Anzahl automatischer Retries (nur bei Auffälligkeit gesetzt). */
+  retryAnzahl?: number;
+  /** Begründung der Degradation (z.B. „Modell hat keine Sektion zugeordnet"). */
+  begruendung?: string;
 }
 
 export interface UseAufbereitungResult {
@@ -145,7 +149,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     try {
       const t = bridge.getTransportForSkillRun(skill);
       const res = await compute(t);
-      set({ status: res.status, daten: res.daten, rohtext: res.rohtext, chatResetStatus: res.chatResetStatus });
+      set({
+        status: res.status, daten: res.daten, rohtext: res.rohtext, chatResetStatus: res.chatResetStatus,
+        retryAnzahl: res.retryAnzahl, begruendung: res.begruendung,
+      });
     } catch {
       set({ status: 'fehler' });
     }

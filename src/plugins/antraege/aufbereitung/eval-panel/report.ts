@@ -33,10 +33,18 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
     zeilen.push(`- Aspekte: ok — P=${p2(m.precision)} R=${p2(m.recall)} F1=${p2(m.f1)} (${m.treffer}/${m.goldPaare})`);
     zeilen.push(`- Fehlzuordnungen: ${a.fehlzuordnungen && a.fehlzuordnungen.length ? a.fehlzuordnungen.join('; ') : 'keine'}`);
   } else if (a?.status === 'degradiert') {
-    zeilen.push('- Aspekte: degradiert (nicht parsebar)');
+    zeilen.push(`- Aspekte: degradiert${a.retryAnzahl ? ` (auch nach ${a.retryAnzahl}× Retry)` : ''}`);
     zeilen.push('```', (a.rohtext ?? '').slice(0, ROHTEXT_AUSZUG), '```');
   } else if (a?.status === 'fehler') {
     zeilen.push(`- Aspekte: fehler — ${a.fehler ?? 'unbekannt'}`);
+  }
+  // Retry-Hinweis bei sonst gutem Lauf (verdächtiges Erstergebnis wurde einmal wiederholt).
+  if (a?.status === 'ok' && a.retryAnzahl) zeilen.push(`- Retry: ${a.retryAnzahl}× (verdächtiges Erstergebnis)`);
+  // Wiederholungs-Streuung (nur n > 1): Einzel-F1 + Median + Worst.
+  if (f.aspekteWdh) {
+    const w = f.aspekteWdh;
+    const einzel = w.laeufe.map(l => (l.status === 'ok' && l.metrik ? p2(l.metrik.f1) : '—')).join(', ');
+    zeilen.push(`- Wiederholungen (F1): [${einzel}] · Median ${p2(w.medianF1)} · Worst ${p2(w.worstF1)} (${w.okAnzahl}/${w.laeufe.length} ok)`);
   }
 
   if (f.steckbrief) {
@@ -63,6 +71,7 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
 export function formatEvalReport(erg: AufbereitungEvalErgebnis, meta: ReportMeta): string {
   const z = erg.zusammenfassung;
   const gemessen = erg.fixtures.filter(f => f.aspekte?.status === 'ok').length;
+  const w = erg.zusammenfassungWorst;
   const kopf = [
     '# Aufbereitung — Baustein-Eval (In-App, Bridge)',
     '',
@@ -70,11 +79,13 @@ export function formatEvalReport(erg: AufbereitungEvalErgebnis, meta: ReportMeta
     `- Transport: ${meta.transportName}`,
     `- Steckbrief-Smoke: ${meta.steckbriefEingeschlossen ? 'ja' : 'nein'}`,
     `- Fixtures: ${erg.fixtures.length} (Aspekte gemessen: ${gemessen})`,
+    ...(erg.wiederholungen > 1 ? [`- Wiederholungen je Fixture: ${erg.wiederholungen} (Gesamt = Median-Lauf; Worst-Case separat)`] : []),
     ...(erg.abgebrochen ? ['- ⚠ Lauf abgebrochen (Teilergebnis)'] : []),
     '',
     '## Gesamt (Aspekt-Mapping)',
     `- Makro: P=${p3(z.makroPrecision)} R=${p3(z.makroRecall)}`,
     `- Mikro: P=${p3(z.mikroPrecision)} R=${p3(z.mikroRecall)} F1=${p3(z.mikroF1)}`,
+    ...(w ? ['', '## Gesamt — Worst-Case (Aspekt-Mapping)', `- Mikro: P=${p3(w.mikroPrecision)} R=${p3(w.mikroRecall)} F1=${p3(w.mikroF1)}`] : []),
     '',
     '## Fixtures',
   ];

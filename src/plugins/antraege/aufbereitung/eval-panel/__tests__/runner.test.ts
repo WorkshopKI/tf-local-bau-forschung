@@ -42,6 +42,19 @@ function stub(opts: { aspekteAntwort?: string; failAspekteFuerFix2?: boolean } =
   } as unknown as AITransport;
 }
 
+/** Stub mit scriptbarer Aspekte-Antwort-Sequenz (Steckbrief immer ok). Für Retry-/Wiederholungs-Tests. */
+function stubAspekteSequenz(aspekteAntworten: string[]): AITransport {
+  let i = 0;
+  return {
+    name: 'Stub',
+    submitConversation: async (messages: Array<{ role: string; content: string }>) => {
+      const prompt = messages[messages.length - 1]!.content;
+      if (!prompt.includes('Prüfaspekte')) return STECKBRIEF_OK;
+      return aspekteAntworten[Math.min(i++, aspekteAntworten.length - 1)]!;
+    },
+  } as unknown as AITransport;
+}
+
 const deps = (transport: AITransport) => ({
   aspekteSkill: AUFBEREITUNG_ASPEKTE_SKILL,
   steckbriefSkill: AUFBEREITUNG_STECKBRIEF_SKILL,
@@ -121,6 +134,40 @@ describe('runAufbereitungEval', () => {
     expect(calls).toEqual(['reset', 'submit', 'reset', 'submit']);
     expect(erg.fixtures[0]?.aspekte?.chatResetStatus).toBe('nicht-gefunden');
     expect(erg.fixtures[0]?.steckbrief?.chatResetStatus).toBe('nicht-gefunden');
+  });
+
+  it('Aspekte-Retry: verdächtiges (leeres) Erstergebnis wird einmal wiederholt und dann ok', async () => {
+    const erg = await runAufbereitungEval(
+      deps(stubAspekteSequenz(['', 'A: k-1\nF: k-7'])),
+      { limit: 1, includeSteckbrief: false },
+    );
+    const a = erg.fixtures[0]?.aspekte;
+    expect(a?.status).toBe('ok');
+    expect(a?.retryAnzahl).toBe(1);
+    expect(a?.metrik?.f1).toBe(1);
+  });
+
+  it('Wiederholungen n=3: Einzelwerte + Median/Worst pro Fixture', async () => {
+    // Lauf 1+2 ok (F1=1), Lauf 3 degradiert (beide Versuche leer → F1=0).
+    const erg = await runAufbereitungEval(
+      deps(stubAspekteSequenz(['A: k-1\nF: k-7', 'A: k-1\nF: k-7', '', ''])),
+      { limit: 1, includeSteckbrief: false, wiederholungen: 3 },
+    );
+    expect(erg.wiederholungen).toBe(3);
+    const w = erg.fixtures[0]?.aspekteWdh;
+    expect(w?.laeufe).toHaveLength(3);
+    expect(w?.okAnzahl).toBe(2);
+    expect(w?.medianF1).toBe(1);
+    expect(w?.worstF1).toBe(0);
+    expect(erg.fixtures[0]?.aspekte?.status).toBe('ok'); // repräsentativer (Median-)Lauf
+    expect(erg.zusammenfassungWorst).toBeDefined();
+  });
+
+  it('n=1 lässt aspekteWdh + zusammenfassungWorst weg (rückwärtskompatibel)', async () => {
+    const erg = await runAufbereitungEval(deps(stub()), { limit: 1 });
+    expect(erg.wiederholungen).toBe(1);
+    expect(erg.fixtures[0]?.aspekteWdh).toBeUndefined();
+    expect(erg.zusammenfassungWorst).toBeUndefined();
   });
 
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {

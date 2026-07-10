@@ -32,7 +32,7 @@ import { loadEvalFixtures } from '@/core/services/skill-eval/fixtures/bundle';
 import { loadAspekteGoldset } from '@/core/services/skill-eval/fixtures/aspekte-goldset';
 import { SettingsSectionHeader } from '@/plugins/einstellungen/_shared/settings-primitives';
 import {
-  runAufbereitungEval, STECKBRIEF_FELDER,
+  runAufbereitungEval, STECKBRIEF_FELDER, WIEDERHOLUNGEN_MAX,
   type EvalFixtureQuelle, type FixtureErgebnis, type AufbereitungEvalErgebnis,
 } from './runner';
 import { formatEvalReport } from './report';
@@ -77,6 +77,47 @@ function kurzVon(e: FixtureErgebnis): string {
   return teile.join(' · ');
 }
 
+/** Ein persistierter Rohtext eines auffälligen Laufs (degradiert). */
+interface RohBefund { key: string; titel: string; text: string }
+
+/** Sammelt die Rohantworten degradierter Aspekte-/Steckbrief-Läufe (0.3 — Diagnose). */
+function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
+  if (!erg) return [];
+  const out: RohBefund[] = [];
+  for (const f of erg.fixtures) {
+    const a = f.aspekte;
+    if (a?.status === 'degradiert' && a.rohtext) {
+      out.push({ key: `${f.vbFile}:aspekte`, titel: `${f.vbFile} · Aspekte (degradiert${a.retryAnzahl ? `, nach ${a.retryAnzahl}× Retry` : ''})`, text: a.rohtext });
+    }
+    if (f.steckbrief?.status === 'degradiert' && f.steckbrief.rohtext) {
+      out.push({ key: `${f.vbFile}:steckbrief`, titel: `${f.vbFile} · Steckbrief (degradiert)`, text: f.steckbrief.rohtext });
+    }
+  }
+  return out;
+}
+
+/** Einklappbarer Rohtext-Block mit Kopier-Knopf (je auffälligem Fixture-Lauf). */
+function RohtextKarte({ titel, text }: { titel: string; text: string }): React.ReactElement {
+  const kopieren = useAsyncAction(async () => { await navigator.clipboard.writeText(text); });
+  return (
+    <details className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
+      <summary className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
+        <span className="truncate">{titel}</span>
+        <button
+          type="button"
+          onClick={e => { e.preventDefault(); kopieren.run(); }}
+          className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-primary)] hover:underline shrink-0"
+        >
+          <Copy size={11} /> {kopieren.error ? 'Fehler' : 'Rohtext kopieren'}
+        </button>
+      </summary>
+      <pre className="text-[10.5px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[30vh] overflow-y-auto px-2.5 py-2 border-t border-[var(--tf-border)]">
+        {text}
+      </pre>
+    </details>
+  );
+}
+
 export function AufbereitungEvalPanel(): React.ReactElement {
   const storage = useStorage();
   const bridge = useAIBridge();
@@ -91,6 +132,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
   const [aspekteSkill, setAspekteSkill] = useState<SkillRecord | null>(null);
   const [steckbriefSkill, setSteckbriefSkill] = useState<SkillRecord | null>(null);
   const [anzahl, setAnzahl] = useState(3);
+  const [wiederholungen, setWiederholungen] = useState(1);
   const [mitSteckbrief, setMitSteckbrief] = useState(true);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
   const [ergebnis, setErgebnis] = useState<AufbereitungEvalErgebnis | null>(null);
@@ -133,6 +175,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
         {
           limit: grenze,
           includeSteckbrief: mitSteckbrief,
+          wiederholungen,
           signal: ctrl.signal,
           onFixtureStart: (vbFile) =>
             setVerlauf(v => v.map(x => (x.vbFile === vbFile ? { ...x, status: 'running' } : x))),
@@ -211,6 +254,19 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                 />
                 <span className="text-[var(--tf-text-tertiary)]">/ {maxAnzahl}</span>
               </label>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]" title="Aspekte je Fixture n× fahren (Varianz-Messung). Steckbrief-Smoke bleibt 1 Lauf.">
+                Wiederholungen
+                <input
+                  type="number"
+                  min={1}
+                  max={WIEDERHOLUNGEN_MAX}
+                  value={wiederholungen}
+                  onChange={e => setWiederholungen(Math.max(1, Math.min(parseInt(e.target.value, 10) || 1, WIEDERHOLUNGEN_MAX)))}
+                  className="w-16 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                />
+                <span className="text-[var(--tf-text-tertiary)]">/ {WIEDERHOLUNGEN_MAX}</span>
+              </label>
               <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]">
                 <Switch checked={mitSteckbrief} onCheckedChange={setMitSteckbrief} />
                 Steckbrief einschließen
@@ -287,6 +343,16 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                 <pre className="text-[11px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[40vh] overflow-y-auto">
                   {report}
                 </pre>
+              </div>
+            )}
+
+            {/* Rohantworten degradierter Läufe (0.3): einklappbar + kopierbar */}
+            {ergebnis && rohBefunde(ergebnis).length > 0 && (
+              <div className="space-y-2">
+                <SettingsSectionHeader label="Rohantworten (degradierte Läufe)" />
+                <div className="space-y-1.5">
+                  {rohBefunde(ergebnis).map(b => <RohtextKarte key={b.key} titel={b.titel} text={b.text} />)}
+                </div>
               </div>
             )}
           </div>
