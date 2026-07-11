@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.224 — 2026-07
+
+### Neu
+- **Persönliches Gedächtnis für den Assistenten (Vorschau, nur Entwicklungsversion):** Der Assistent kann sich jetzt — wenn du es aktivierst — wenige, knappe Notizen über deine Arbeit merken (woran du gerade arbeitest, bevorzugte Abläufe, offene Fäden). Ein Hintergrundlauf fasst dein Arbeitsprotokoll gelegentlich zusammen; die Notizen sind in den Einstellungen einsehbar, einzeln oder komplett löschbar, und fließen als „Hintergrundwissen" in die Antworten des Assistenten ein. Die Auswertung läuft ausschließlich über die **interne** KI vor Ort — nichts verlässt dein Gerät ins Internet. Doppelte Zustimmung nötig (erst Arbeitsprotokoll, dann Gedächtnis), jederzeit abschaltbar. Zunächst nur in der Entwicklungsversion.
+
 ## v2.223 — 2026-07
 
 ### Verbesserungen
