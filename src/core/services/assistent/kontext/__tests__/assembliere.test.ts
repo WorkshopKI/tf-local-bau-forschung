@@ -129,3 +129,52 @@ describe('assembliereAssistentKontext', () => {
     expect(assembliereAssistentKontext(base()).kontextBeschreibung).toBe('Verbund Musterbau · FuE-Phase · 2 Fristen');
   });
 });
+
+describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
+  it('ohne Gedächtnis: kein Block, gedaechtnisAnzahl 0', () => {
+    const { promptText, gedaechtnisAnzahl } = assembliereAssistentKontext(base());
+    expect(promptText).not.toContain('Hintergrundwissen');
+    expect(gedaechtnisAnzahl).toBe(0);
+  });
+
+  it('fügt den Gedächtnis-Block NACH System und VOR Fakten ein; gedaechtnisAnzahl = Anzahl', () => {
+    const { promptText, gedaechtnisAnzahl } = assembliereAssistentKontext(base({
+      gedaechtnis: [{ text: 'Arbeitet an Verbund V1.' }, { text: 'Nutzt den Skill Kurzfassung.' }],
+    }));
+    const iSystem = promptText.indexOf('Du bist der Assistent in TeamFlow Local');
+    const iGed = promptText.indexOf('=== Hintergrundwissen');
+    const iFakten = promptText.indexOf('=== Kontext (deterministisch');
+    expect(iSystem).toBeLessThan(iGed);
+    expect(iGed).toBeLessThan(iFakten);
+    expect(promptText).toContain('kann veraltet sein');
+    expect(promptText).toContain('Arbeitet an Verbund V1.');
+    expect(gedaechtnisAnzahl).toBe(2);
+  });
+
+  it('kürzt das Gedächtnis ZUERST (vor Historie/Retrieval), Fakten bleiben', () => {
+    const grosseStammdaten = Array.from({ length: 31 }, (_, i) => ({ label: `Feld ${i}`, wert: 'x'.repeat(600) }));
+    const gedaechtnis = Array.from({ length: 12 }, (_, i) => ({ text: `MEM_${i} ${'g'.repeat(300)}` }));
+    const turns = [
+      { rolle: 'nutzer' as const, text: `TURN_0 ${'y'.repeat(800)}` },
+      { rolle: 'assistent' as const, text: `TURN_1 ${'z'.repeat(800)}` },
+    ];
+    const { promptText, gedaechtnisAnzahl, verwendeteTreffer } = assembliereAssistentKontext(base({
+      entitaet: { ...entitaet, stammdaten: grosseStammdaten },
+      gedaechtnis,
+      turns,
+      treffer: [treffer('a', 0.9)],
+    }));
+    // Gedächtnis wird TEILWEISE gekürzt (von hinten). Dass noch Einträge übrig
+    // sind (>0) BEWEIST, dass die Kaskade in der Gedächtnis-Phase gestoppt hat —
+    // Historie + Retrieval + Fakten wurden also nie angetastet.
+    expect(gedaechtnisAnzahl).toBeGreaterThan(0);
+    expect(gedaechtnisAnzahl).toBeLessThan(12);
+    expect(promptText).not.toContain('MEM_11'); // letzter Eintrag zuerst gekürzt
+    expect(promptText).toContain('MEM_0');       // erster Eintrag bleibt
+    expect(promptText).toContain('TURN_0');      // Historie unangetastet
+    expect(promptText).toContain('TURN_1');
+    expect(verwendeteTreffer).toHaveLength(1);   // Retrieval unangetastet
+    expect(promptText).toContain('Feld 30:');    // Fakten unangetastet
+    expect(promptText.length).toBeLessThanOrEqual(GESAMT_MAX_CHARS);
+  });
+});

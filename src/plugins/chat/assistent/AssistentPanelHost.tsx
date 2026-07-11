@@ -11,13 +11,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore } from 'zustand';
-import { AlertTriangle, Loader2, MessageSquare, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
+import { AlertTriangle, Brain, Loader2, MessageSquare, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getOramaDB } from '@/core/services/search/orama-store';
 import { beschreibeKontext } from '@/core/services/assistent/kontext';
 import { MessageList, type ActivePanel } from '../components/MessageList';
 import { SourcePanel } from '../components/SourcePanel';
-import { useAssistentController } from './useAssistentController';
+import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistentController';
 import { baueKontextSnapshot } from './kontextSnapshot';
 import { assistentPanelUiStore, clampPanelWidth } from './panelUiStore';
 import '../chat.css';
@@ -36,6 +36,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
   const [input, setInput] = useState('');
+  // Live-Zähler aktiver Gedächtnis-Einträge (Phase 2) für den Kontext-Chip.
+  // Aktualisiert bei Öffnen/Navigation und nach jedem Turn (Konsolidierung kann
+  // zwischenzeitlich Einträge geändert haben).
+  const [gedAnzahl, setGedAnzahl] = useState(0);
 
   const snapshot = useMemo(() => baueKontextSnapshot(), [location.key, sel, open]);
   const chips = beschreibeKontext(snapshot.entitaet, snapshot.routeBeschreibung);
@@ -45,6 +49,14 @@ export function AssistentPanelHost(): React.ReactElement | null {
       ? [...BASIS_BEISPIELE, 'Was steht im Antrag zur Marktreife?']
       : BASIS_BEISPIELE;
   }, [snapshot.entitaet]);
+
+  // Gedächtnis-Zähler laden (nur bei aktivem Flag + beiden Opt-ins → sonst 0).
+  useEffect(() => {
+    if (!open) return;
+    let abbruch = false;
+    void ladeAssistentGedaechtnis().then(es => { if (!abbruch) setGedAnzahl(es.length); });
+    return () => { abbruch = true; };
+  }, [open, location.key, sel, c.messages.length]);
 
   // Fehler → die betroffene Frage zurück ins Eingabefeld (Historie bleibt leer).
   useEffect(() => { if (c.letzteFehlerFrage) setInput(c.letzteFehlerFrage); }, [c.letzteFehlerFrage]);
@@ -153,6 +165,16 @@ export function AssistentPanelHost(): React.ReactElement | null {
             <div className="assistant-ctxchip" title="Nur dieser Kontext geht ins Modell.">
               <Sparkles size={12} />
               <span>{chips}</span>
+              {gedAnzahl > 0 && (
+                <span
+                  className="inline-flex items-center gap-1 ml-1 pl-2"
+                  style={{ borderLeft: '0.5px solid var(--tf-border)' }}
+                  title="Hintergrundwissen aus deinem Arbeitsgedächtnis (kann veraltet sein)."
+                >
+                  <Brain size={12} />
+                  Gedächtnis: {gedAnzahl} {gedAnzahl === 1 ? 'Eintrag' : 'Einträge'}
+                </span>
+              )}
             </div>
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

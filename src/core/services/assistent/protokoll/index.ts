@@ -20,6 +20,7 @@ export {
   exportiereProtokoll,
   initProtokoll,
   istProtokollAktiv,
+  ladeAlleEreignisse,
   ladeEreignisseSeit,
   ladeLetzteEreignisse,
   ladeStatistik,

@@ -9,10 +9,23 @@ import { useStore } from 'zustand';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useSearch } from '@/core/hooks/useSearch';
 import { getOramaDB } from '@/core/services/search/orama-store';
+import { isAssistentGedaechtnisEnabled } from '@/config/feature-flags';
+import { istProtokollAktiv } from '@/core/services/assistent/protokoll';
+import { istGedaechtnisAktiv, ladeAktiveEintraege } from '@/core/services/assistent/gedaechtnis';
 import type { ChatMessage } from '../types';
 import { assistentSessionStore } from './sessionStore';
 import { baueKontextSnapshot } from './kontextSnapshot';
 import type { AssistentTurnDeps } from './turn';
+
+/** Aktive Gedächtnis-Einträge nur bei Flag + BEIDEN Opt-ins (sonst leer). */
+export async function ladeAssistentGedaechtnis(): Promise<ReadonlyArray<{ text: string }>> {
+  if (!isAssistentGedaechtnisEnabled() || !istProtokollAktiv() || !istGedaechtnisAktiv()) return [];
+  try {
+    return (await ladeAktiveEintraege()).map(e => ({ text: e.text }));
+  } catch {
+    return [];
+  }
+}
 
 export interface AssistentController {
   messages: ChatMessage[];
@@ -44,6 +57,7 @@ export function useAssistentController(): AssistentController {
           return null; // Retrieval-Fehler degradiert zu „kein Auszug", nicht zum Turn-Fehler
         }
       },
+      getGedaechtnis: ladeAssistentGedaechtnis,
     };
     await assistentSessionStore.getState().send(frage, deps);
   }, [bridge, search]);

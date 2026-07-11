@@ -17,6 +17,7 @@ import {
   isOnlineStatusTabEnabled,
   isKuratorMenusEnabled,
   isAssistentProtokollEnabled,
+  isAssistentGedaechtnisEnabled,
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilTab } from './ProfilTab';
@@ -179,6 +180,10 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       sections: [
         { id: 'sec-assistent-protokoll', label: 'Arbeitsprotokoll', keywords: 'assistent gedächtnis protokoll aufzeichnung opt-in datenschutz lokal ereignisse' },
         { id: 'sec-assistent-daten', label: 'Meine Daten', keywords: 'assistent daten export löschen transparenz ereignisse protokoll' },
+        // Assistent Phase 2 — persönliches Gedächtnis (nur dev)
+        ...(isAssistentGedaechtnisEnabled()
+          ? [{ id: 'sec-assistent-gedaechtnis', label: 'Persönliches Gedächtnis', keywords: 'gedächtnis memory konsolidierung notizen arbeitskontext präferenzen offene fäden vergessen' }]
+          : []),
       ],
       render: () => <AssistentTab />,
     });

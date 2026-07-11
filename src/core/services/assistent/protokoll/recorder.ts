@@ -159,6 +159,15 @@ export async function ladeEreignisseSeit(wasserzeichen: number | null): Promise<
   return ladeSeit(idbRef, wasserzeichen);
 }
 
+/**
+ * Alle Ereignisse (aufsteigend) — für die Beleg-Auflösung in der Gedächtnis-
+ * Ansicht (Ereignis-ID → Typ/Zeit). Leeres Array, wenn nicht initialisiert.
+ */
+export async function ladeAlleEreignisse(): Promise<AssistentEreignis[]> {
+  if (!idbRef) return [];
+  return listeNachZeit(idbRef, undefined, 'next');
+}
+
 /** Löscht alle Protokolldaten. Liefert die Anzahl gelöschter Einträge. */
 export async function loescheProtokollVollstaendig(): Promise<number> {
   if (!idbRef) return 0;

@@ -33,6 +33,12 @@ export interface AssistentTurnDeps {
   getKontext: () => AssistentTurnKontext | Promise<AssistentTurnKontext>;
   /** Orama-Retrieval (unrein). `null`/`[]` = kein Retrieval für diesen Turn. */
   retrieve: (frage: string) => Promise<ReadonlyArray<OramaSearchResult> | null>;
+  /**
+   * Aktive Gedächtnis-Einträge (Assistent Phase 2, unrein — liest IDB). Optional:
+   * fehlt der Dep oder wirft er, läuft der Turn ohne Gedächtnis-Block. Nur bei
+   * Flag + beiden Opt-ins liefert der Controller Einträge.
+   */
+  getGedaechtnis?: () => Promise<ReadonlyArray<{ text: string }>>;
 }
 
 export type AssistentTurnErgebnis =
@@ -69,9 +75,12 @@ export async function fuehreAssistentTurnAus(
   const erreichbar = await transport.ping().catch(() => false);
   if (!erreichbar) return { ok: false, fehler: DEGRADATION_MELDUNG };
 
-  // 3. Kontext-Snapshot + optionales Retrieval.
+  // 3. Kontext-Snapshot + optionales Retrieval + optionales Gedächtnis.
   const kontext = await deps.getKontext();
   const treffer = await deps.retrieve(frage).catch(() => null);
+  const gedaechtnis = deps.getGedaechtnis
+    ? await deps.getGedaechtnis().catch(() => [] as ReadonlyArray<{ text: string }>)
+    : [];
 
   // 4. Deterministisch assemblieren (das LLM formuliert nur).
   const prompt = assembliereAssistentKontext({
@@ -80,6 +89,7 @@ export async function fuehreAssistentTurnAus(
     frage,
     turns,
     treffer: treffer ?? null,
+    gedaechtnis,
   });
 
   // 5. resetChat VOR dem Senden (Pitfall #36) — best-effort, Kontaminations-Warnung.

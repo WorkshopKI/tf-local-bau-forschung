@@ -67,6 +67,14 @@ export interface AssistentKontextEingabe {
   turns: ReadonlyArray<AssistentTurn>;
   /** Bereits ausgeführtes Orama-Retrieval (roh, score-sortiert). `null`/`[]` = kein Retrieval. */
   treffer: ReadonlyArray<OramaSearchResult> | null;
+  /**
+   * Aktive Gedächtnis-Einträge (Assistent Phase 2) — deterministisch vom Controller
+   * geladen (nur bei Flag + beiden Opt-ins). Nur der `text` je Eintrag; als
+   * „Hintergrundwissen"-Block NACH dem System- und VOR dem Faktenblock eingefügt.
+   * `undefined`/`[]` = kein Gedächtnis-Block. Wird bei Budget-Überschreitung
+   * ZUERST gekürzt (Hintergrundwissen kann veraltet sein).
+   */
+  gedaechtnis?: ReadonlyArray<{ text: string }>;
 }
 
 export interface AssistentPrompt {
@@ -80,4 +88,7 @@ export interface AssistentPrompt {
   verwendeteTreffer: OramaSearchResult[];
   /** Kurzbeschreibung für die Kontext-Chips („Verbund X · Begutachtung · 2 Fristen"). */
   kontextBeschreibung: string;
+  /** Anzahl der TATSÄCHLICH eingebundenen Gedächtnis-Einträge (nach Budget-Kürzung)
+   *  — für den Kontext-Chip „Gedächtnis: N Einträge". */
+  gedaechtnisAnzahl: number;
 }

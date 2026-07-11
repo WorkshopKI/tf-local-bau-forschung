@@ -28,34 +28,10 @@ import {
   type AssistentEreignis,
   type ProtokollStatistik,
 } from '@/core/services/assistent/protokoll';
+import { isAssistentGedaechtnisEnabled } from '@/config/feature-flags';
 import { SettingsSectionHeader } from './_shared/settings-primitives';
-
-const TYP_LABEL: Record<string, string> = {
-  antrag_geoeffnet: 'Antrag geöffnet',
-  dokument_geoeffnet: 'Dokument geöffnet',
-  suche_ausgefuehrt: 'Suche',
-  skill_gestartet: 'KI-Lauf gestartet',
-  skill_abgeschlossen: 'KI-Lauf beendet',
-  gutachten_abschnitt_editiert: 'Abschnitt bearbeitet',
-  frist_angesehen: 'Fristen angesehen',
-  einstellung_geaendert: 'Einstellung geändert',
-};
-
-function typLabel(typ: string): string {
-  return TYP_LABEL[typ] ?? typ;
-}
-
-function fmtDatum(ts: number | null): string {
-  return ts == null
-    ? '–'
-    : new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function fmtZeit(ts: number): string {
-  return new Date(ts).toLocaleString('de-DE', {
-    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
-}
+import { fmtDatum, fmtZeit, typLabel } from './_shared/assistent-format';
+import { GedaechtnisSektion } from './GedaechtnisSektion';
 
 export function AssistentTab(): React.ReactElement {
   const [aktiv, setAktiv] = useState<boolean>(istProtokollAktiv());
@@ -122,9 +98,15 @@ export function AssistentTab(): React.ReactElement {
               einen späteren persönlichen Assistenten. Die Daten bleiben{' '}
               <span className="text-[var(--tf-text)]">ausschließlich auf diesem Gerät in
               diesem Browser</span>. Niemand sonst — auch keine Administratorin und kein
-              Kurator — kann sie einsehen; sie werden nie auf das Laufwerk oder an
-              KI-Dienste übertragen (in dieser Version gar nicht an eine KI). Du kannst sie
-              jederzeit vollständig löschen; ältere Einträge werden nach {RETENTION_TAGE}{' '}
+              Kurator — kann sie einsehen; sie werden nie über das Internet übertragen.{' '}
+              {isAssistentGedaechtnisEnabled() ? (
+                <>Solange das <span className="text-[var(--tf-text)]">persönliche Gedächtnis</span> (unten)
+                aus ist, werden sie gar nicht an eine KI übertragen; ist es an, wertet sie
+                ausschließlich das interne Modell vor Ort aus — nie ein externer Dienst.</>
+              ) : (
+                <>In dieser Version werden sie gar nicht an eine KI übertragen.</>
+              )}{' '}
+              Du kannst sie jederzeit vollständig löschen; ältere Einträge werden nach {RETENTION_TAGE}{' '}
               Tagen automatisch entfernt.
             </p>
           </div>
@@ -266,6 +248,9 @@ export function AssistentTab(): React.ReactElement {
           </p>
         )}
       </section>
+
+      {/* ── Persönliches Gedächtnis (Phase 2, nur dev) ── */}
+      {isAssistentGedaechtnisEnabled() && <GedaechtnisSektion protokollAktiv={aktiv} />}
     </div>
   );
 }

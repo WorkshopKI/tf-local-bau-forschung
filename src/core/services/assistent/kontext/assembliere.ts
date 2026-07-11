@@ -58,6 +58,20 @@ const SYSTEM_BLOCK = [
 
 /** Menschliches Ampel-/Frist-Wording liegt beim Controller (Plugin-Helfer). */
 
+// ── Block 1b: Gedächtnis (optional, Assistent Phase 2, ZUERST reduzierbar) ───
+/**
+ * Hintergrundwissen aus den konsolidierten Memory-Blocks. Klar als „kann veraltet
+ * sein" markiert und deutlich vom deterministischen Faktenblock getrennt. Leer =
+ * kein Block (self-omittet über `.filter`).
+ */
+function gedaechtnisBlock(eintraege: ReadonlyArray<{ text: string }>): string {
+  if (eintraege.length === 0) return '';
+  const zeilen = ['=== Hintergrundwissen über die Arbeit des Nutzers (kann veraltet sein) ==='];
+  for (const e of eintraege) zeilen.push(`- ${collapse(e.text)}`);
+  zeilen.push('=== Ende Hintergrundwissen ===');
+  return zeilen.join('\n');
+}
+
 // ── Block 2: Faktenblock (deterministisch, wird NIE gekürzt) ─────────────────
 function entitaetZeilen(e: KontextEntitaet): string[] {
   const zeilen: string[] = [];
@@ -164,17 +178,31 @@ export function beschreibeKontext(entitaet: KontextEntitaet | null, routeBeschre
 export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): AssistentPrompt {
   const fakten = faktenBlock(eingabe);
 
+  let gedEintraege: ReadonlyArray<{ text: string }> = eingabe.gedaechtnis ?? [];
   let chunks = retrievalKandidaten(eingabe.treffer);
   let histZeilen = kappeHistorieAufBudget(historieZeilen(eingabe.turns));
 
   const baue = (): string =>
-    [SYSTEM_BLOCK, fakten, retrievalBlock(chunks), historieBlock(histZeilen), frageBlock(eingabe.frage, chunks.length > 0)]
+    [
+      SYSTEM_BLOCK,
+      gedaechtnisBlock(gedEintraege),
+      fakten,
+      retrievalBlock(chunks),
+      historieBlock(histZeilen),
+      frageBlock(eingabe.frage, chunks.length > 0),
+    ]
       .filter(b => b.length > 0)
       .join('\n\n');
 
-  // Gesamt-Budget: erst Historie (älteste zuerst), dann Retrieval (schwächste zuerst).
-  while (baue().length > GESAMT_MAX_CHARS && (histZeilen.length > 0 || chunks.length > 0)) {
-    if (histZeilen.length > 0) histZeilen = histZeilen.slice(1);
+  // Gesamt-Budget: ZUERST Gedächtnis (Hintergrundwissen, kann veraltet sein),
+  // dann Historie (älteste zuerst), dann Retrieval (schwächste zuerst). Fakten
+  // + Frage bleiben unangetastet.
+  while (
+    baue().length > GESAMT_MAX_CHARS
+    && (gedEintraege.length > 0 || histZeilen.length > 0 || chunks.length > 0)
+  ) {
+    if (gedEintraege.length > 0) gedEintraege = gedEintraege.slice(0, -1);
+    else if (histZeilen.length > 0) histZeilen = histZeilen.slice(1);
     else chunks = chunks.slice(0, -1);
   }
 
@@ -182,5 +210,6 @@ export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): A
     promptText: baue(),
     verwendeteTreffer: chunks,
     kontextBeschreibung: beschreibeKontext(eingabe.entitaet, eingabe.routeBeschreibung),
+    gedaechtnisAnzahl: gedEintraege.length,
   };
 }
