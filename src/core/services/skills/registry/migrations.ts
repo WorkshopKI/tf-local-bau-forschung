@@ -14,6 +14,7 @@
  */
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from './anfrage-anonymisieren.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbereitung-zahlen.seed';
+import { AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';
 import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
@@ -31,6 +32,9 @@ export const GA_BELEG_KONTRAKT_MIGRATION = 'ga-beleg-kontrakt-2026-07';
 
 /** ID der maxTokens-Anhebung des Zahlen-Inventar-Skills (2048 → 4096, Prod-Eval-Truncation). */
 export const AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION = 'aufbereitung-zahlen-maxtokens-2026-07';
+
+/** ID der maxTokens-Anhebung des Steckbrief-Skills (2048 → 4096, Sonnet-Referenzlauf-Truncation). */
+export const AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION = 'aufbereitung-steckbrief-maxtokens-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -84,6 +88,22 @@ function applyZahlenMaxTokens(skills: SkillRecord[]): SkillRecord[] {
   );
 }
 
+/**
+ * Steckbrief-Skill von `maxTokens: 2048` → `4096` heben — ABER NUR beim exakten
+ * Alt-Seed-Wert (2048); bewusst gesetzte Kurator-Werte bleiben UNBERÜHRT.
+ * Hintergrund: auf dem Streamlit-Bridge-Pfad ist `maxTokens` inert (Server-Budget),
+ * auf dem DirectLLM-Pfad (Eval-OpenRouter-Modus) bindet es aber wirklich — der
+ * Sonnet-Referenzlauf (2026-07-11) zeigte den Steckbrief 3/3 am 2048er-Limit
+ * abgeschnitten (`parseSteckbrief` → degradiert). Version auf mind. 2 (Seed-Parität).
+ */
+function applySteckbriefMaxTokens(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s =>
+    s.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID && s.maxTokens === 2048
+      ? { ...s, maxTokens: 4096, version: Math.max(s.version, 2) }
+      : s,
+  );
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -94,6 +114,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: ANFRAGE_ANON_AKTIV_MIGRATION, apply: applyAnonAktiv },
   { marker: GA_BELEG_KONTRAKT_MIGRATION, apply: applyBelegKontrakt },
   { marker: AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, apply: applyZahlenMaxTokens },
+  { marker: AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, apply: applySteckbriefMaxTokens },
 ];
 
 /**

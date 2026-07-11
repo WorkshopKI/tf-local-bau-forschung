@@ -9,9 +9,11 @@ import {
   ANFRAGE_ANON_AKTIV_MIGRATION,
   GA_BELEG_KONTRAKT_MIGRATION,
   AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION,
+  AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION,
 } from '../migrations';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from '../aufbereitung-zahlen.seed';
+import { AUFBEREITUNG_STECKBRIEF_SKILL_ID } from '../aufbereitung-steckbrief.seed';
 import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
@@ -35,10 +37,11 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION];
-const NUR_ANON = [GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION];
-const NUR_BELEG = [ANFRAGE_ANON_AKTIV_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION];
-const NUR_ZAHLEN = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION];
+const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
+const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
+const NUR_ZAHLEN = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION);
+const NUR_STECKBRIEF = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION);
 
 const OLD_A = buildKurzfassungPrompt(false);
 const NEW_A = buildKurzfassungPrompt(true);
@@ -154,20 +157,55 @@ describe('reconcile — Zahlen-Inventar maxTokens 2048 → 4096', () => {
   });
 });
 
+describe('reconcile — Steckbrief maxTokens 2048 → 4096', () => {
+  const steckbrief = (over: Partial<SkillRecord> = {}): SkillRecord =>
+    skill(AUFBEREITUNG_STECKBRIEF_SKILL_ID, { maxTokens: 2048, version: 1, aktiv: false, ...over });
+
+  it('pristine (maxTokens 2048) → 4096 + version ≥ 2, Marker gesetzt', () => {
+    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(file([steckbrief()], NUR_STECKBRIEF));
+    expect(geaendert).toBe(true);
+    expect(angewandt).toContain(AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION);
+    const s = out.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID)!;
+    expect(s.maxTokens).toBe(4096);
+    expect(s.version).toBe(2);
+  });
+
+  it('kurator-geänderter Wert (≠ 2048) bleibt UNBERÜHRT', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([steckbrief({ maxTokens: 8192, version: 3 })], NUR_STECKBRIEF));
+    const s = out.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID)!;
+    expect(s.maxTokens).toBe(8192);
+    expect(s.version).toBe(3);
+  });
+
+  it('frische Installation (bereits 4096) bleibt unberührt', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([steckbrief({ maxTokens: 4096, version: 2 })], NUR_STECKBRIEF));
+    expect(out.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID)?.maxTokens).toBe(4096);
+  });
+
+  it('idempotent: zweiter Lauf ist No-op (Marker gesetzt)', () => {
+    const erst = reconcileEinmaligeAktivierungen(file([steckbrief()], NUR_STECKBRIEF));
+    const zweit = reconcileEinmaligeAktivierungen(erst.file);
+    expect(zweit.geaendert).toBe(false);
+    expect(zweit.file.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID)?.maxTokens).toBe(4096);
+  });
+});
+
 describe('reconcile — alle Migrationen zusammen', () => {
-  it('frischer Share: alle drei Marker gesetzt (in Reihenfolge), geaendert', () => {
+  it('frischer Share: alle vier Marker gesetzt (in Reihenfolge), geaendert', () => {
     const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(
       file([
         anon(false),
         skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A }),
         skill(AUFBEREITUNG_ZAHLEN_SKILL_ID, { maxTokens: 2048, version: 1 }),
+        skill(AUFBEREITUNG_STECKBRIEF_SKILL_ID, { maxTokens: 2048, version: 1 }),
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(NEW_A);
     expect(out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)?.maxTokens).toBe(4096);
+    expect(out.skills.find(s => s.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID)?.maxTokens).toBe(4096);
   });
 
   it('alle Marker gesetzt → No-op', () => {

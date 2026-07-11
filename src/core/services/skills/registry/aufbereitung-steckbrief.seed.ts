@@ -25,7 +25,7 @@ export const AUFBEREITUNG_STECKBRIEF_SKILL: SkillRecord = {
   id: AUFBEREITUNG_STECKBRIEF_SKILL_ID,
   name: 'Aufbereitung — Steckbrief',
   beschreibung: 'Interner Extraktions-Lauf: liest die VB-abgeleiteten Kernaussagen eines Antrags als strukturiertes JSON mit Fundstellen (dev).',
-  version: 1,
+  version: 2,
   promptTemplate: `Extrahiere die Kernaussagen der Vorhabensbeschreibung als JSON. Jede Aussage trägt ihre Sektions-IDs. Erfinde nichts.
 
 ## Vorhabensbeschreibung (Quelle)
@@ -33,7 +33,10 @@ export const AUFBEREITUNG_STECKBRIEF_SKILL: SkillRecord = {
 
 Gib ausschließlich das geforderte JSON-Objekt zurück.`,
   systemPrompt: SYSTEM_PROMPT,
-  maxTokens: 2048,
+  // 2048 → 4096 (v2.224.1): bindet nur auf dem DirectLLM-Pfad (Eval-OpenRouter) —
+  // dort schnitt 2048 den Steckbrief 3/3 ab; Bestands-Shares via
+  // AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION (pristine-only).
+  maxTokens: 4096,
   // Re-Invocation spielt keine Rolle — neutrale Pflichtwerte.
   modifiers: { neu: '', kuerzer: '', laenger: '' },
   regelIds: [],

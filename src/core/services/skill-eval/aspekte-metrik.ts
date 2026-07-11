@@ -103,6 +103,13 @@ export function fasseZusammen(einzel: AspektMetrik[]): AspektZusammenfassung {
  * Menschenlesbare Fehlzuordnungen je annotierter Gold-Sektion (für den Report-Block):
  * `k-7: erwartet F, erhalten E`. Nur Sektionen, deren erwartete Buchstaben von den
  * erhaltenen abweichen; leere Seite als „–". Vergleich mengen-basiert (dedupe + sortiert).
+ *
+ * Untersektions-Diagnose: fehlt ein Gold-Aspekt auf der Kapitel-Ebene, trägt ihn aber
+ * eine UNTERSEKTION (Gold `k-11` → pred `k-11.4`), wird das angehängt
+ * (`; J auf Untersektion k-11.4`). Das partielle Goldset annotiert nur Ebene-1-Kapitel —
+ * eine präzisere Zuordnung aufs Unterkapitel ist fachlich korrekt, für die Metrik aber
+ * unsichtbar (Mess-Artefakt, keine Modell-Fehlleistung). Die Metrik selbst bleibt
+ * UNVERÄNDERT (kein Roll-up — sonst wären alte Baselines nicht mehr vergleichbar).
  */
 export function fehlzuordnungen(gold: Record<string, string[]>, pred: Record<string, string[]>): string[] {
   const out: string[] = [];
@@ -110,7 +117,15 @@ export function fehlzuordnungen(gold: Record<string, string[]>, pred: Record<str
     const erwartet = [...new Set(gold[sid] ?? [])].sort();
     const erhalten = [...new Set(pred[sid] ?? [])].sort();
     if (erwartet.join(',') !== erhalten.join(',')) {
-      out.push(`${sid}: erwartet ${erwartet.join('') || '–'}, erhalten ${erhalten.join('') || '–'}`);
+      const hinweise: string[] = [];
+      for (const a of erwartet.filter(x => !erhalten.includes(x))) {
+        const kinder = Object.keys(pred)
+          .filter(k => k.startsWith(`${sid}.`) && (pred[k] ?? []).includes(a))
+          .sort();
+        if (kinder.length) hinweise.push(`${a} auf Untersektion ${kinder.join('+')}`);
+      }
+      const suffix = hinweise.length ? `; ${hinweise.join('; ')}` : '';
+      out.push(`${sid}: erwartet ${erwartet.join('') || '–'}, erhalten ${erhalten.join('') || '–'}${suffix}`);
     }
   }
   return out;

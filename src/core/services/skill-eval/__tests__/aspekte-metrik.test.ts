@@ -60,6 +60,26 @@ describe('aspekte-metrik', () => {
     it('fehlende Prediction → „erhalten –"', () => {
       expect(fehlzuordnungen({ 'k-1': ['A'] }, {})).toEqual(['k-1: erwartet A, erhalten –']);
     });
+
+    it('Untersektions-Diagnose: fehlender Gold-Aspekt auf Kind-Sektion wird ausgewiesen', () => {
+      const gold = { 'k-11': ['I', 'J'] };
+      const pred = { 'k-11': ['I'], 'k-11.4': ['J'], 'k-11.5': ['J'] };
+      expect(fehlzuordnungen(gold, pred)).toEqual([
+        'k-11: erwartet IJ, erhalten I; J auf Untersektion k-11.4+k-11.5',
+      ]);
+    });
+
+    it('Untersektions-Diagnose: kein Hinweis, wenn keine Kind-Sektion den Aspekt trägt', () => {
+      const gold = { 'k-11': ['I', 'J'] };
+      const pred = { 'k-11': ['I'], 'k-9.1': ['J'] }; // fremder Ast — kein Kind von k-11
+      expect(fehlzuordnungen(gold, pred)).toEqual(['k-11: erwartet IJ, erhalten I']);
+    });
+
+    it('Untersektions-Diagnose: nur FEHLENDE Aspekte prüfen (Über-Zuordnung ohne Hinweis)', () => {
+      const gold = { 'k-2': ['B'] };
+      const pred = { 'k-2': ['B', 'C'], 'k-2.1': ['C'] }; // C ist überzählig, nicht fehlend
+      expect(fehlzuordnungen(gold, pred)).toEqual(['k-2: erwartet B, erhalten BC']);
+    });
   });
 
   it('paare bildet sid|A-Strings', () => {

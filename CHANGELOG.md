@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.224.1 — Aufbereitung: Sonnet-Referenzlauf-Befunde — Steckbrief-maxTokens 4096 + Untersektions-Diagnose (Juli 2026)
+
+PATCH — Der erste OpenRouter-Referenzlauf (Sonnet 4.6, 2026-07-11) tat genau seinen Job: Zahlen/Glossar-Smoke 3/3 `ok` (~60 Claims / ~50 Begriffe), aber **Steckbrief 3/3 degradiert** — ein echter Code-Bug bei uns: `maxTokens: 2048` ist auf der Bridge inert (Server-Budget), **bindet aber auf dem DirectLLM-Pfad wirklich**; Sonnets ausführlichere Texte liefen ins Limit → Truncation → nicht parsebar.
+
+- **Steckbrief-Budget 2048 → 4096:** Seed ([aufbereitung-steckbrief.seed.ts](src/core/services/skills/registry/aufbereitung-steckbrief.seed.ts), version 2) + pristine-only Migration `AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION` ([migrations.ts](src/core/services/skills/registry/migrations.ts), Muster Zahlen-Migration: hebt NUR den exakten Alt-Wert 2048, kuratierte Werte unberührt). Auf der Bridge verhaltensneutral.
+- **Untersektions-Diagnose in `fehlzuordnungen`** ([aspekte-metrik.ts](src/core/services/skill-eval/aspekte-metrik.ts)): Sonnet zeigte **exakt dieselben** Aspekte-„Fehler" wie gpt-oss (k-2 +C, k-9 +J, k-11 J fehlt) → Konvergenz zweier Modelle deutet auf Goldset-/Mess-Artefakt. Verdacht: das Modell ordnet J dem Unterkapitel (`k-11.4` Zielkriterien / `k-11.5` Meilensteine) zu — fachlich korrekt, aber das partielle Goldset annotiert nur Ebene 1 → Miss. Der Report weist das jetzt aus (`; J auf Untersektion k-11.4`). Metrik selbst UNVERÄNDERT (kein Roll-up — alte Baselines bleiben vergleichbar); Entscheidung nach dem nächsten Lauf.
+- Tests: 4 Steckbrief-Migrations-Tests (Isolations-Helfer auf 4 Marker erweitert), 3 Untersektions-Diagnose-Tests. Verifiziert per `npm run check` + `build:pl`.
+
 ### v2.224.0 — Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time, dev) (Juli 2026)
 
 MINOR — Der persönliche Assistent bekommt ein **Gedächtnis**: ein Hintergrundlauf destilliert das [Ereignisprotokoll](docs/architecture/assistent-protokoll.md) (Phase 0) per **internem** Modell in wenige benannte, größenbegrenzte **Memory-Blocks** (`arbeitskontext`/`praeferenzen`/`offene_faeden`), die transparent einsehbar/löschbar sind und als Block in den [Panel-Kontext](docs/architecture/assistent-panel.md) (Phase 1) einfließen. Additiv, dev-only (`features.assistentGedaechtnis`), neuer IDB-Store `assistent_gedaechtnis` (v10) — bestehende Stores unberührt. Leitprinzip: **das rohe Protokoll ist die Wahrheit, jeder Eintrag ist Cache** mit Belegen. Detail: [docs/architecture/assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md), Invarianten Pitfall #38.
