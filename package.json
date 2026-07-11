@@ -38,6 +38,7 @@
     "test:phase2": "vitest run src/phase2",
     "eval:skills": "vite-node --config vitest.config.mts src/core/services/skill-eval/cli.ts --",
     "eval:aufbereitung": "vite-node --config vitest.config.mts src/core/services/skill-eval/aufbereitung-eval.ts --",
+    "eval:gedaechtnis": "vite-node --config vitest.config.mts src/core/services/skill-eval/gedaechtnis-eval.ts --",
     "check": "npm run typecheck && npm run test && npm run build:dev"
   },
   "dependencies": {
