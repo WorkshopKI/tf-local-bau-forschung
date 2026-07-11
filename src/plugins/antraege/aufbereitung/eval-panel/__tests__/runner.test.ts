@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { runAufbereitungEval, type EvalFixtureQuelle } from '../runner';
 import type { Goldset } from '@/core/services/skill-eval/aspekte-metrik';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
 import { AUFBEREITUNG_ASPEKTE_SKILL } from '@/core/services/skills/registry/aufbereitung-aspekte.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL } from '@/core/services/skills/registry/aufbereitung-steckbrief.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL } from '@/core/services/skills/registry/aufbereitung-zahlen.seed';
@@ -209,6 +210,17 @@ describe('runAufbereitungEval', () => {
     expect(calls).toEqual(['reset', 'submit', 'reset', 'submit']);
     expect(erg.fixtures[0]?.aspekte?.chatResetStatus).toBe('nicht-gefunden');
     expect(erg.fixtures[0]?.steckbrief?.chatResetStatus).toBe('nicht-gefunden');
+  });
+
+  it('DirectLLM-Form (OpenRouter-Modus): kein resetChat → nicht-unterstuetzt, KEIN Verlaufsrisiko', async () => {
+    // Der Standard-Stub hat submitConversation ohne resetChat — exakt die Form des
+    // externen DirectLLMTransport (stateless API, Reset gegenstandslos, Pitfall #36).
+    const erg = await runAufbereitungEval(deps(stub()), { limit: 1 });
+    const a = erg.fixtures[0]?.aspekte;
+    expect(a?.status).toBe('ok');
+    expect(a?.chatResetStatus).toBe('nicht-unterstuetzt');
+    expect(resetHatVerlaufsrisiko(a!.chatResetStatus!)).toBe(false);
+    expect(erg.fixtures[0]?.steckbrief?.chatResetStatus).toBe('nicht-unterstuetzt');
   });
 
   it('Aspekte-Retry: verdächtiges (leeres) Erstergebnis wird einmal wiederholt und dann ok', async () => {

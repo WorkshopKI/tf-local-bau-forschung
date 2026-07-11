@@ -27,16 +27,11 @@ import { JUDGE_DIMENSIONS, type JudgeDimension, type JudgeResult } from '@/core/
 import {
   runEvalBatch,
   EVAL_MAX_ANZAHL,
+  JUDGE_IDB_KEY,
+  JUDGE_DEFAULTS,
   type EvalJudgeConfig,
   type EvalBatchResult,
 } from '@/core/services/skill-eval/eval-batch';
-
-const JUDGE_IDB_KEY = 'dev-eval-judge';
-const JUDGE_DEFAULTS: EvalJudgeConfig = {
-  endpoint: 'https://openrouter.ai/api/v1',
-  model: 'anthropic/claude-sonnet-4.6',
-  apiKey: '',
-};
 
 const DIM_LABEL: Record<JudgeDimension, string> = {
   fachliche_korrektheit: 'Fachl.',

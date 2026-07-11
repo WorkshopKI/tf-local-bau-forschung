@@ -40,6 +40,17 @@ export interface EvalJudgeConfig {
   apiKey: string;
 }
 
+/** IDB-kv-Key der geteilten Dev-Eval-OpenRouter-Config. Genutzt vom Skill-Eval-Judge
+ *  UND vom OpenRouter-Generierungs-Modus der Aufbereitung-Eval (ein Key, eine Config —
+ *  bewusst KEIN Rename, Bestandsdaten unter diesem Schlüssel). */
+export const JUDGE_IDB_KEY = 'dev-eval-judge';
+
+export const JUDGE_DEFAULTS: EvalJudgeConfig = {
+  endpoint: 'https://openrouter.ai/api/v1',
+  model: 'anthropic/claude-sonnet-4.6',
+  apiKey: '',
+};
+
 export interface RunEvalBatchArgs {
   /** Zu evaluierender Abschnitt A–G. */
   abschnitt: StepId;

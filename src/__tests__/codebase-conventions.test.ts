@@ -47,6 +47,10 @@
  *     runEvalBatch importieren KEINE Real-Antrag-Pfade (listAllAntraegeListView,
  *     findVorhabensbeschreibung, doc:-Scan) — Fixtures nur via loadEvalFixtures();
  *     Scoring nur ueber das geteilte runJudge/aggregate (kein dup. Judge-Call).
+ *   - aufbereitung-eval-fictional-only   → Aufbereitung-Eval (dev): eval-panel/
+ *     importiert KEINE Real-Antrag-Pfade (gleicher Verbots-Katalog) — seit dem
+ *     OpenRouter-Generierungs-Modus duerfen NUR gebrandete fiktive Fixtures
+ *     (loadEvalFixtures + isFromEvalBundle) in einen externen Call gelangen.
  *   - no-raw-cta-fill                   → CTA-Buttons tragen die Profil-Primaerfarbe
  *     ueber die kanonische <Button>-Komponente (@/components/ui/button, variant=
  *     'primary' = --tf-primary); kein hand-gebauter Fill — weder als Klasse
@@ -761,7 +765,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 32;    // Ist 32; +1 'assistentPanel' (Assistent Phase 1 Assistenz-Panel, dev); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1310;       // Ist ~1306 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1360;       // Ist ~1350 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -973,6 +977,44 @@ describe('eval-gui-fictional-only (Skill-Eval-GUI dev: nur fiktive Fixtures)', (
       expect.fail(
         `Die Eval-GUI baut den Judge-Call nach (json_object) statt runJudge() zu nutzen.\n` +
         `Scoring NUR ueber runJudge/aggregate aus skill-eval/.\n\nTreffer:\n${fmt(guiFindings)}`,
+      );
+    }
+  });
+});
+
+describe('aufbereitung-eval-fictional-only (Aufbereitung-Eval dev: nur fiktive Fixtures)', () => {
+  // DSGVO-Hardlock (Schwester von eval-gui-fictional-only): seit die Aufbereitung-Eval
+  // einen OpenRouter-Generierungs-Modus hat (externer DirectLLMTransport), darf in
+  // eval-panel/ NIE ein Real-Antrag-Datenpfad auftauchen — Fixtures ausschliesslich
+  // aus dem gebrandeten Bundle (loadEvalFixtures + isFromEvalBundle-Assert im Panel).
+  // Die runJudge/aggregate-Pflicht der Skill-Eval-GUI gilt hier NICHT (kein Judge —
+  // Metriken sind deterministisch).
+  const SCOPE = 'plugins/antraege/aufbereitung/eval-panel/';
+  const isAufbereitungEval = (file: string): boolean => {
+    const rel = relPath(file);
+    return rel.includes(SCOPE) && !rel.includes('__tests__') && !rel.endsWith('.test.ts');
+  };
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+  const FORBIDDEN = ['listAllAntraegeListView', 'findVorhabensbeschreibung', "entries('doc:", 'entries("doc:'];
+
+  it('keine Real-Antrag-Pfade im Aufbereitung-Eval-Panel', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!isAufbereitungEval(file)) continue;
+      findings.push(...findInFile(
+        file,
+        l => !isComment(l) && FORBIDDEN.some(p => l.includes(p)),
+        'allow-eval-gui-real-antrag',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Real-Antrag-Pfade im Aufbereitung-Eval-Panel verboten (DSGVO: der OpenRouter-Modus\n` +
+        `darf nur fiktive Fixtures sehen). Fixtures ausschliesslich ueber loadEvalFixtures() beziehen.\n` +
+        `Echte Ausnahme: '// allow-eval-gui-real-antrag: <grund>'.\n\nTreffer:\n${fmt(findings)}`,
       );
     }
   });

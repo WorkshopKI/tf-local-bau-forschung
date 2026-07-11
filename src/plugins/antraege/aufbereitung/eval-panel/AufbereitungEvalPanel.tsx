@@ -8,12 +8,16 @@
  * uns nur dann). Muster: `anfragen/AnfrageRecallEval` (Recall-Eval-Karte) + der
  * dev-Testlauf-Block in `StreamlitBridgeSection`. Nur MESSEN — keine Skill-Aktivierung.
  *
- * Der Transport kommt AUSSCHLIESSLICH über `bridge.getTransportForSkillRun(skill)`
- * (Policy wirft bei externem Provider → Banner, kein Lauf; Pitfall #30). Läufe strikt
- * sequentiell (die Bridge ist ein einzelnes postMessage-Fenster).
+ * Transport: intern über `bridge.getTransportForSkillRun(skill)` (Policy wirft bei
+ * externem Provider → Banner, kein Lauf; Pitfall #30) — ODER dev-only der explizite
+ * OpenRouter-Modus (Muster Skill-Eval-Judge, geteilte `dev-eval-judge`-Config):
+ * zulässig, weil die Fixtures FIKTIV + gebrandet sind (`isFromEvalBundle`-Assert vor
+ * jedem externen Call) und `isOpenRouterEnabled()` nur in dev-Builds true ist. Ein
+ * starkes Referenz-Modell trennt Code-/Prompt-Fehler von gpt-oss-Limitationen.
+ * Läufe strikt sequentiell (die Bridge ist ein einzelnes postMessage-Fenster).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlaskConical, ChevronRight, Copy } from 'lucide-react';
+import { FlaskConical, ChevronDown, ChevronRight, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { StatusDot } from '@/components/ui/StatusBadge';
@@ -34,8 +38,14 @@ import {
 import {
   AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
 } from '@/core/services/skills/registry/aufbereitung-glossar.seed';
-import { loadEvalFixtures } from '@/core/services/skill-eval/fixtures/bundle';
+import { loadEvalFixtures, isFromEvalBundle } from '@/core/services/skill-eval/fixtures/bundle';
 import { loadAspekteGoldset } from '@/core/services/skill-eval/fixtures/aspekte-goldset';
+import {
+  JUDGE_IDB_KEY, JUDGE_DEFAULTS, type EvalJudgeConfig,
+} from '@/core/services/skill-eval/eval-batch';
+import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
+import { isOpenRouterEnabled } from '@/config/feature-flags';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { SettingsSectionHeader } from '@/plugins/einstellungen/_shared/settings-primitives';
 import {
   runAufbereitungEval, STECKBRIEF_FELDER, WIEDERHOLUNGEN_MAX,
@@ -45,6 +55,10 @@ import { formatEvalReport } from './report';
 import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
 
 type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler' | 'fehlt';
+
+/** Generierungs-Transport des Eval-Laufs: intern (Standard-Chat gpt-oss), intern-agentisch
+ *  (Qwen-Tab, Zweit-LLM-A/B) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
+type TransportModus = 'intern' | 'agentisch' | 'openrouter';
 
 interface VerlaufZeile {
   vbFile: string;
@@ -172,8 +186,12 @@ export function AufbereitungEvalPanel(): React.ReactElement {
   const [mitSteckbrief, setMitSteckbrief] = useState(true);
   const [mitZahlen, setMitZahlen] = useState(true);
   const [mitGlossar, setMitGlossar] = useState(true);
-  // Zweit-LLM-A/B: aus = Standard-Chat (gpt-oss), an = agentischer Qwen-Tab (260k).
-  const [agentisch, setAgentisch] = useState(false);
+  // Generierungs-Transport: intern (gpt-oss) · intern-agentisch (Qwen) · OpenRouter (extern).
+  const [transportModus, setTransportModus] = useState<TransportModus>('intern');
+  // Geteilte Dev-Eval-OpenRouter-Config (derselbe IDB-Key wie der Skill-Eval-Judge).
+  const openRouterVerfuegbar = isOpenRouterEnabled();
+  const [orConfig, setOrConfig] = useState<EvalJudgeConfig>(JUDGE_DEFAULTS);
+  const [orOpen, setOrOpen] = useState(false);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
   const [ergebnis, setErgebnis] = useState<AufbereitungEvalErgebnis | null>(null);
   const [report, setReport] = useState<string | null>(null);
@@ -193,17 +211,50 @@ export function AufbereitungEvalPanel(): React.ReactElement {
     return () => { cancelled = true; };
   }, [storage]);
 
-  const bereit = verbunden && !!aspekteSkill && !!steckbriefSkill && !!goldset && maxAnzahl > 0;
+  // Gespeicherte OpenRouter-Config laden (dev-eval-eigener Key, NICHT `ai-provider`).
+  useEffect(() => {
+    if (!openRouterVerfuegbar) return;
+    let cancelled = false;
+    void (async () => {
+      const saved = await storage.idb.get<EvalJudgeConfig>(JUDGE_IDB_KEY);
+      if (!cancelled && saved) setOrConfig({ ...JUDGE_DEFAULTS, ...saved });
+    })();
+    return () => { cancelled = true; };
+  }, [storage.idb, openRouterVerfuegbar]);
+
+  // OpenRouter-Modus braucht keinen Bridge-Kontakt, dafür einen API-Key.
+  const transportBereit = transportModus === 'openrouter' ? orConfig.apiKey.trim() !== '' : verbunden;
+  const bereit = transportBereit && !!aspekteSkill && !!steckbriefSkill && !!goldset && maxAnzahl > 0;
 
   const start = useAsyncAction(async () => {
     if (!aspekteSkill || !steckbriefSkill || !goldset) return;
-    // Policy-Pfad: wirft bei externem Provider (dann kein Lauf, Banner unten).
-    const transport = bridge.getTransportForSkillRun(aspekteSkill);
     let fixtures: EvalFixtureQuelle[];
     try {
       fixtures = loadEvalFixtures();
     } catch (e) {
       throw new Error(`Fixtures nicht verfügbar (nur dev): ${e instanceof Error ? e.message : String(e)}`);
+    }
+    let transport: AITransport;
+    let ziel: BridgeZiel | undefined;
+    let modell: string | undefined;
+    if (transportModus === 'openrouter') {
+      // Externer Pfad NUR für gebrandete (= fiktive) Fixtures: Assert auf dem
+      // ORIGINAL-Array von loadEvalFixtures (slice/map verlieren das Brand-Symbol) —
+      // VOR jedem externen Call (Muster runEvalBatch).
+      if (!isFromEvalBundle(fixtures)) {
+        throw new Error('Provenienz-Guard: Fixtures stammen nicht aus dem Eval-Bundle.');
+      }
+      if (!isOpenRouterEnabled()) {
+        throw new Error('OpenRouter ist in dieser Build-Variante deaktiviert.');
+      }
+      // Config best-effort persistieren (geteilter dev-eval-Key).
+      await storage.idb.set(JUDGE_IDB_KEY, orConfig);
+      transport = new DirectLLMTransport(orConfig.endpoint, orConfig.model, orConfig.apiKey);
+      modell = orConfig.model;
+    } else {
+      // Policy-Pfad: wirft bei externem Provider (dann kein Lauf, Banner unten).
+      transport = bridge.getTransportForSkillRun(aspekteSkill);
+      ziel = transportModus === 'agentisch' ? 'agentisch' : undefined;
     }
     const grenze = Math.max(1, Math.min(anzahl, maxAnzahl));
     const ctrl = new AbortController();
@@ -220,7 +271,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
           includeZahlen: mitZahlen,
           includeGlossar: mitGlossar,
           wiederholungen,
-          ziel: agentisch ? 'agentisch' : undefined,
+          ziel,
           signal: ctrl.signal,
           onFixtureStart: (vbFile) =>
             setVerlauf(v => v.map(x => (x.vbFile === vbFile ? { ...x, status: 'running' } : x))),
@@ -235,7 +286,8 @@ export function AufbereitungEvalPanel(): React.ReactElement {
         zeitpunkt: new Date().toLocaleString('de-DE'),
         transportName: transport.displayName ?? transport.name,
         steckbriefEingeschlossen: mitSteckbrief,
-        ziel: agentisch ? 'agentisch' : undefined,
+        ziel,
+        modell,
       }));
     } finally {
       abortRef.current = null;
@@ -259,7 +311,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
           className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
           style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
         />
-        <FlaskConical size={13} className="shrink-0" /> Eval öffnen (fiktive Fixtures · interne KI · nur Messung)
+        <FlaskConical size={13} className="shrink-0" /> Eval öffnen (fiktive Fixtures · nur Messung)
       </button>
       <div
         className="grid transition-[grid-template-rows] duration-200 ease-out"
@@ -268,22 +320,33 @@ export function AufbereitungEvalPanel(): React.ReactElement {
         <div className="overflow-hidden">
           <div className="px-3 pb-3 space-y-3">
             <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-              Fährt die drei fiktiven Goldset-VBs sequentiell über die interne KI durch den
-              Aspekt-Mapping-Baustein (Precision/Recall/F1 gegen das partielle Goldset) und den
-              Steckbrief-Baustein (Smoke-Test: nur Status + Anzahl gefüllter Felder). Je Lauf grob
-              0,5–2&nbsp;Min über die Bridge. Es werden nur die bestehenden Bausteine gemessen — keine
-              Skill-Aktivierung.
+              Fährt die drei fiktiven Goldset-VBs sequentiell durch den Aspekt-Mapping-Baustein
+              (Precision/Recall/F1 gegen das partielle Goldset) und den Steckbrief-Baustein
+              (Smoke-Test: nur Status + Anzahl gefüllter Felder). Je Lauf grob 0,5–2&nbsp;Min über
+              die Bridge (OpenRouter deutlich schneller). Es werden nur die bestehenden Bausteine
+              gemessen — keine Skill-Aktivierung.
             </p>
 
-            {/* Bridge-Bereitschaft */}
-            <div className="flex items-center gap-2 text-[11.5px]">
-              <StatusDot color={verbunden ? 'var(--tf-success-text)' : 'var(--tf-warning-text)'} />
-              <span className="text-[var(--tf-text-secondary)]">
-                {verbunden
-                  ? 'Interne KI verbunden'
-                  : 'Interne KI nicht verbunden — im Abschnitt „Interne KI" verbinden.'}
-              </span>
-            </div>
+            {/* Transport-Bereitschaft (intern: Bridge verbunden · OpenRouter: Key vorhanden) */}
+            {transportModus === 'openrouter' ? (
+              <div className="flex items-center gap-2 text-[11.5px]">
+                <StatusDot color={transportBereit ? 'var(--tf-success-text)' : 'var(--tf-warning-text)'} />
+                <span className="text-[var(--tf-text-secondary)]">
+                  {transportBereit
+                    ? 'OpenRouter (extern) — es verlassen ausschließlich fiktive Fixtures die App.'
+                    : 'OpenRouter: kein API-Key — unten in der Konfiguration eintragen.'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-[11.5px]">
+                <StatusDot color={verbunden ? 'var(--tf-success-text)' : 'var(--tf-warning-text)'} />
+                <span className="text-[var(--tf-text-secondary)]">
+                  {verbunden
+                    ? 'Interne KI verbunden'
+                    : 'Interne KI nicht verbunden — im Abschnitt „Interne KI" verbinden.'}
+                </span>
+              </div>
+            )}
 
             {/* Steuerung */}
             <div className="flex items-center gap-4 flex-wrap">
@@ -327,12 +390,75 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
-                title="A/B: Läufe an den agentischen Qwen-Tab (260k Kontext) statt den Standard-Chat (gpt-oss) senden. Voraussetzung: der Qwen-Tab ist offen und das Lesezeichen dort aktiviert."
+                title="Generierungs-Transport: Intern = Standard-Chat (gpt-oss) · Intern agentisch = Qwen-Tab (260k, Tab muss offen + Lesezeichen aktiv sein) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
               >
-                <Switch checked={agentisch} onCheckedChange={setAgentisch} />
-                Agentisch (Qwen, 260k)
+                Transport
+                <select
+                  value={transportModus}
+                  onChange={e => setTransportModus(e.target.value as TransportModus)}
+                  disabled={start.busy}
+                  className="px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                >
+                  <option value="intern">Intern (gpt-oss)</option>
+                  <option value="agentisch">Intern agentisch (Qwen, 260k)</option>
+                  {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
+                </select>
               </label>
             </div>
+
+            {/* OpenRouter-Konfiguration (geteilter dev-eval-Key, Muster SkillEvalPanel) */}
+            {transportModus === 'openrouter' && (
+              <div className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
+                <button
+                  type="button"
+                  onClick={() => setOrOpen(o => !o)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]"
+                >
+                  {orOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  OpenRouter-Konfiguration
+                  <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)] truncate">{orConfig.model}</span>
+                  {orConfig.apiKey.trim() === '' && (
+                    <span className="text-[10.5px] px-2 py-0.5 rounded-[99px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)] shrink-0">kein Key</span>
+                  )}
+                </button>
+                {orOpen && (
+                  <div className="px-3 pb-3 flex flex-col gap-2.5">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">Endpoint</span>
+                      <input
+                        value={orConfig.endpoint}
+                        onChange={e => setOrConfig(c => ({ ...c, endpoint: e.target.value }))}
+                        className="text-[12.5px] px-2.5 py-1.5 rounded-[7px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">Modell</span>
+                      <input
+                        value={orConfig.model}
+                        onChange={e => setOrConfig(c => ({ ...c, model: e.target.value }))}
+                        className="text-[12.5px] px-2.5 py-1.5 rounded-[7px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)]">API-Key (OpenRouter)</span>
+                      <input
+                        type="password"
+                        value={orConfig.apiKey}
+                        onChange={e => setOrConfig(c => ({ ...c, apiKey: e.target.value }))}
+                        placeholder="sk-or-…"
+                        autoComplete="off"
+                        className="text-[12.5px] px-2.5 py-1.5 rounded-[7px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)] font-mono"
+                      />
+                    </label>
+                    <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+                      Wird beim Start gespeichert — dieselbe Config wie der Skill-Eval-Judge
+                      (dev-eval-eigener Schlüssel, getrennt vom KI-Assistent-Provider).
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Aktionen */}
             <div className="flex items-center gap-2">

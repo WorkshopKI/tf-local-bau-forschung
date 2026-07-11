@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.223 — 2026-07
+
+### Verbesserungen
+- **Unter der Haube — bessere Qualitätsprüfung der KI-Bausteine (nur Entwicklungsversion):** Das interne Test-Werkzeug für die Antrag-Aufbereitung kann seine Übungsläufe jetzt zusätzlich gegen ein starkes Vergleichs-Modell fahren. So lässt sich sauber unterscheiden, ob ein schwaches Ergebnis an unserer Software liegt oder an den Grenzen des internen KI-Modells. Dabei werden ausschließlich fiktive Übungs-Anträge verwendet — echte Antragsdaten sind technisch ausgeschlossen. Für dich ändert sich im Alltag nichts.
+
 ## v2.222 — 2026-07
 
 ### Neu

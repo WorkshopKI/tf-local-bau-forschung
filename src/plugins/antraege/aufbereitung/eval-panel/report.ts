@@ -14,8 +14,13 @@ export interface ReportMeta {
   /** `transport.displayName ?? transport.name`. */
   transportName: string;
   steckbriefEingeschlossen: boolean;
-  /** Ziel-Tab (Zweit-LLM-A/B): `'agentisch'` = Qwen-Tab, sonst Standard-Chat (gpt-oss). */
+  /** Ziel-Tab (Zweit-LLM-A/B): `'agentisch'` = Qwen-Tab, sonst Standard-Chat (gpt-oss).
+   *  Irrelevant (und ignoriert), wenn `modell` gesetzt ist. */
   ziel?: BridgeZiel;
+  /** Nur OpenRouter-Modus (extern, fiktive Fixtures): Modell-Slug (z.B.
+   *  `anthropic/claude-sonnet-4.6`). Ohne Wert bleibt der Report byte-identisch
+   *  zu den internen Läufen (Vergleichbarkeit alter Reports). */
+  modell?: string;
 }
 
 /** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
@@ -117,7 +122,11 @@ export function formatEvalReport(erg: AufbereitungEvalErgebnis, meta: ReportMeta
     '# Aufbereitung — Baustein-Eval (In-App, Bridge)',
     '',
     `- Datum: ${meta.zeitpunkt}`,
-    `- Transport: ${meta.transportName} · ${zielLabel(meta.ziel)}`,
+    // OpenRouter-Modus zeigt das Modell + die extern-Kennzeichnung; intern bleibt die
+    // Zeile byte-identisch zu bisherigen Reports (Ziel-Tab-Etikett).
+    meta.modell != null
+      ? `- Transport: ${meta.transportName} · ${meta.modell} (extern, fiktive Fixtures)`
+      : `- Transport: ${meta.transportName} · ${zielLabel(meta.ziel)}`,
     `- Steckbrief-Smoke: ${meta.steckbriefEingeschlossen ? 'ja' : 'nein'}`,
     `- Fixtures: ${erg.fixtures.length} (Aspekte gemessen: ${gemessen})`,
     ...(erg.wiederholungen > 1 ? [`- Wiederholungen je Fixture: ${erg.wiederholungen} (Gesamt = Median-Lauf; Worst-Case separat)`] : []),
