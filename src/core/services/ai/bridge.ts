@@ -5,6 +5,8 @@ import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled } from '@/config/feature-flags';
 import type { TransportKlasse } from './transport-policy';
 import { classifyProvider, erlaubteTransportKlassen, skillEnthaeltDokumentInhalte } from './transport-policy';
+import { BridgeMutex } from './bridge-vordergrund';
+import type { TransportLease } from './bridge-vordergrund';
 
 export class AIBridge {
   private transports = new Map<string, AITransport>();
@@ -15,6 +17,13 @@ export class AIBridge {
    * DSGVO-Transport-Policy in `getTransportForSkillRun`.
    */
   private activeKlasse: TransportKlasse = 'intern';
+
+  /**
+   * Bridge-Mutex (Assistent Phase 2): serialisiert die Gedächtnis-Konsolidierung
+   * gegen Vordergrund-I/O (Skill-Läufe + Panel-Turns). Vordergrund hat Vorrang.
+   * Eigene Klasse (unabhängig testbar), siehe bridge-vordergrund.ts.
+   */
+  private mutex = new BridgeMutex();
 
   constructor() {
     this.transports.set('streamlit', new StreamlitBridgeTransport());
@@ -88,7 +97,8 @@ export class AIBridge {
         + 'ist extern. Bitte auf die interne KI wechseln.',
       );
     }
-    return this.getActiveTransport();
+    // Vordergrund-Lease: markiert die Bridge als belegt (Mutex ggü. Konsolidierung).
+    return this.mutex.wrapVordergrund(this.getActiveTransport());
   }
 
   /**
@@ -111,7 +121,33 @@ export class AIBridge {
         + 'ist extern. Bitte auf die interne KI wechseln.',
       );
     }
-    return this.getActiveTransport();
+    // Vordergrund-Lease: markiert die Bridge als belegt (Mutex ggü. Konsolidierung).
+    return this.mutex.wrapVordergrund(this.getActiveTransport());
+  }
+
+  /**
+   * Transport-Lease für die Gedächtnis-Konsolidierung (Assistent Phase 2) — die
+   * **gegatete** Wahl des Hintergrundlaufs. Wie der Assistent gilt der Lauf pauschal
+   * als dokument-tragend (Ereignisse enthalten Suchanfragen/Entitätsbezüge):
+   * `enthaeltDokumentInhalte` ist hart `true`, externer Provider **wirft**.
+   *
+   * Bridge-Mutex: liefert **nur** einen Lease, wenn KEIN Vordergrund-I/O aktiv ist
+   * (`vordergrundAktiv === 0`) und nicht bereits ein Konsolidierungs-Lease läuft;
+   * sonst `null` (der Lauf wartet auf den nächsten Trigger). Der zurückgegebene
+   * `signal` feuert, sobald ein Skill/Panel-Turn die Bridge belegt → der Lauf
+   * bricht ab (Vordergrund hat Vorrang). Der Transport ist der ROHE aktive Transport
+   * (zählt selbst nicht als Vordergrund); `freigeben()` im finally aufrufen.
+   */
+  getTransportForKonsolidierung(): TransportLease | null {
+    const erlaubt = erlaubteTransportKlassen({ enthaeltDokumentInhalte: true });
+    if (!erlaubt.includes(this.activeKlasse)) {
+      throw new Error(
+        'DSGVO-Transport-Policy: Die Gedächtnis-Konsolidierung verarbeitet Protokolldaten und '
+        + `darf nur über einen internen Transport laufen — aktiver Provider „${this.getActiveProviderName()}" `
+        + 'ist extern.',
+      );
+    }
+    return this.mutex.versucheKonsolidierungsLease(() => this.getActiveTransport());
   }
 
   /** Verfügbarkeits-Check auf dem aktiven Transport (sauberer als rohes

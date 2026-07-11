@@ -27,6 +27,7 @@ import { listProgramme } from '@/core/services/csv';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { initProtokoll } from '@/core/services/assistent/protokoll';
+import { initGedaechtnis, starteKonsolidierungWennFaellig } from '@/core/services/assistent/gedaechtnis';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate, type DataUpdatePhase, type DataUpdateResult } from '@/plugins/csv-sources-kuration/services/data-update';
@@ -353,6 +354,20 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       } catch (e) {
         console.warn('[App] initProtokoll fehlgeschlagen', e);
       }
+
+      // Assistent Phase 2: Gedächtnis-Store initialisieren (Opt-in-Cache +
+      // Retention invalidierter Einträge). Best-effort; No-op ohne Flag/Opt-in.
+      try {
+        await initGedaechtnis(storage.idb);
+      } catch (e) {
+        console.warn('[App] initGedaechtnis fehlgeschlagen', e);
+      }
+      // Fällige Konsolidierung (letzter Lauf > 12 h) fire-and-forget anstoßen —
+      // NICHT awaiten (blockiert den App-Start nicht) und ohne KI-Fenster zu
+      // erzwingen. No-op ohne Flag/beide Opt-ins/Fälligkeit.
+      void starteKonsolidierungWennFaellig(aiBridge).catch((e) => {
+        console.warn('[App] Gedächtnis-Konsolidierung (Start) fehlgeschlagen', e);
+      });
 
       // Phase 2 (v8): Slim-List-View-Bulk-Migration. Idempotent — fuellt
       // nur, wenn der Listen-Store fuer ein Programm noch leer/unvollstaendig

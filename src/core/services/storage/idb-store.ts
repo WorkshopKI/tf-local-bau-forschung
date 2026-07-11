@@ -35,6 +35,13 @@ export const DMS_SOURCES_STORE = 'dms_sources';
  *  hier bewusst gespiegelt, damit die Migration ohne Cross-Import auskommt. */
 export const ASSISTENT_EREIGNISPROTOKOLL_STORE = 'assistent_ereignisprotokoll';
 
+/** v10 (Assistent Phase 2): Gerätelokaler Gedächtnis-Store (konsolidierte Memory-
+ *  Blocks). KeyPath `id`, Indexe `block` + `aktualisiert`. STRIKT LOKAL — steht in
+ *  KEINER Snapshot-Allowlist, wird nie auf den Share gespiegelt (Invariante 1).
+ *  Der Store-Name lebt in der Assistent-Domäne (src/core/services/assistent/
+ *  gedaechtnis/types.ts), hier bewusst gespiegelt (Migration ohne Cross-Import). */
+export const ASSISTENT_GEDAECHTNIS_STORE = 'assistent_gedaechtnis';
+
 export type CsvStoreName =
   | (typeof CSV_STORES)[keyof typeof CSV_STORES]
   | typeof FILTER_STORE_NAME
@@ -45,7 +52,7 @@ export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName: string;
   private readonly storeName = 'kv';
-  private readonly version = 9;
+  private readonly version = 10;
 
   /**
    * @param dbName Variantenspezifischer DB-Name (`teamflow-<outputFilename>`).
@@ -194,6 +201,18 @@ export class IDBStore {
           if (!db.objectStoreNames.contains(ASSISTENT_EREIGNISPROTOKOLL_STORE)) {
             const s = db.createObjectStore(ASSISTENT_EREIGNISPROTOKOLL_STORE, { keyPath: 'id' });
             s.createIndex('zeitstempel', 'zeitstempel', { unique: false });
+          }
+        }
+        if (oldVersion < 10) {
+          // Assistent Phase 2: gerätelokaler Gedächtnis-Store (konsolidierte
+          // Memory-Blocks). Existiert schema-seitig in ALLEN Varianten (wie die
+          // Phase-0/Phase-2-Stores); geschrieben wird nur hinter Feature-Flag +
+          // doppeltem Opt-in (Gate in gedaechtnis/recorder.ts + konsolidierung.ts).
+          // STRIKT LOKAL — niemals in einer Snapshot-Allowlist (Invariante 1).
+          if (!db.objectStoreNames.contains(ASSISTENT_GEDAECHTNIS_STORE)) {
+            const s = db.createObjectStore(ASSISTENT_GEDAECHTNIS_STORE, { keyPath: 'id' });
+            s.createIndex('block', 'block', { unique: false });
+            s.createIndex('aktualisiert', 'aktualisiert', { unique: false });
           }
         }
       };

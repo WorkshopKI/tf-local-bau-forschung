@@ -147,6 +147,10 @@ export interface TeamflowFeatures {
    *  assemblierter Kontext, intern-only Transport, session-only Historie). Shell-
    *  weites Dock. Nur dev. Optional, default false. */
   assistentPanel?: boolean;
+  /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Hintergrundlauf
+   *  destilliert das Ereignisprotokoll per INTERNEM Modell in Memory-Blocks;
+   *  doppeltes Opt-in. Nur dev. Optional, default false. */
+  assistentGedaechtnis?: boolean;
 }
 
 export interface TeamflowMenuLabels {

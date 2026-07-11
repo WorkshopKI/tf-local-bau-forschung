@@ -242,6 +242,14 @@ export function isAssistentPanelEnabled(): boolean {
   return features.assistentPanel === true;
 }
 
+/** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Hintergrundlauf
+ *  destilliert das [[assistent-protokoll]] per INTERNEM Modell in Memory-Blocks;
+ *  doppeltes Opt-in (setzt das Protokoll-Opt-in voraus). Nur dev. Default false
+ *  (`=== true`, Backward-Kompat). */
+export function isAssistentGedaechtnisEnabled(): boolean {
+  return features.assistentGedaechtnis === true;
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

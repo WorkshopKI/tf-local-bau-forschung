@@ -56,6 +56,31 @@ export async function listeNachZeit(
   });
 }
 
+/**
+ * Ereignisse mit `zeitstempel > ab` (aufsteigend). `ab = null` → alle.
+ * Für die Gedächtnis-Konsolidierung (Phase 2): neue Ereignisse seit Wasserzeichen.
+ */
+export async function ladeSeit(idb: IDBStore, ab: number | null): Promise<AssistentEreignis[]> {
+  const db = idb.getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(EREIGNISPROTOKOLL_STORE, 'readonly');
+    const idx = tx.objectStore(EREIGNISPROTOKOLL_STORE).index(ZEIT_INDEX);
+    const range = ab == null ? null : IDBKeyRange.lowerBound(ab, true);
+    const req = idx.openCursor(range, 'next');
+    const out: AssistentEreignis[] = [];
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (cursor) {
+        out.push(cursor.value as AssistentEreignis);
+        cursor.continue();
+      } else {
+        resolve(out);
+      }
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 /** Gesamtzahl der Ereignisse. */
 export async function zaehle(idb: IDBStore): Promise<number> {
   const db = idb.getDb();

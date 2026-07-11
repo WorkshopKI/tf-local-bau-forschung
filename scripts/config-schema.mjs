@@ -211,6 +211,12 @@ export const DEFAULT_CONFIG = {
      *  assemblierter Kontext + intern-only Transport, session-only Historie).
      *  Nur dev. Optional, default false (`=== true` Backward-Kompat). */
     assistentPanel: false,
+    /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Ein Hintergrund-
+     *  lauf destilliert das Ereignisprotokoll per INTERNEM Modell in benannte
+     *  Memory-Blocks, die transparent einsehbar/löschbar sind und in den Panel-
+     *  Kontext einfließen. Doppeltes Opt-in (setzt Protokoll-Opt-in voraus). Nur
+     *  dev. Optional, default false (`=== true` Backward-Kompat). */
+    assistentGedaechtnis: false,
   },
 
   menuLabels: {

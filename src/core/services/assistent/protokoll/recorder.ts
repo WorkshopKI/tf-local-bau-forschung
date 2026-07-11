@@ -32,6 +32,7 @@ import type {
 import {
   appendEreignis,
   kapazitaetKappen,
+  ladeSeit,
   listeNachZeit,
   loescheAelterAls,
   loescheAlle,
@@ -147,6 +148,15 @@ export async function ladeStatistik(): Promise<ProtokollStatistik> {
 export async function ladeLetzteEreignisse(limit = 100): Promise<AssistentEreignis[]> {
   if (!idbRef) return [];
   return listeNachZeit(idbRef, limit, 'prev');
+}
+
+/**
+ * Neue Ereignisse seit Wasserzeichen (aufsteigend) — für die Gedächtnis-
+ * Konsolidierung (Phase 2). Leeres Array, wenn nicht initialisiert.
+ */
+export async function ladeEreignisseSeit(wasserzeichen: number | null): Promise<AssistentEreignis[]> {
+  if (!idbRef) return [];
+  return ladeSeit(idbRef, wasserzeichen);
 }
 
 /** Löscht alle Protokolldaten. Liefert die Anzahl gelöschter Einträge. */
