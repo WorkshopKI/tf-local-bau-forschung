@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.224.2 — Aufbereitung: Aspekte-Goldset korrigiert (k-2 → BC, k-9 → HJ; Zwei-Modell-Evidenz) (Juli 2026)
+
+PATCH — Der zweite Sonnet-Referenzlauf (nach v2.224.1) bestand den Smoke zu 100 % (Steckbrief 3/3 mit 8/8 Feldern — der maxTokens-Fix wirkt) und die neue Untersektions-Diagnose lieferte den Beweis: `k-11: … J auf Untersektion k-11.4+k-11.5` bei allen drei Fixtures (Mess-Artefakt bestätigt). Die zwei verbliebenen Abweichungen waren **Goldset-Fehler**, am Fixture-Text verifiziert und von beiden Modellen (Sonnet + gpt-oss) übereinstimmend „falsch" beantwortet:
+
+- **k-2 → ["B","C"]:** Kapitel 2 („Projektgegenstand") beschreibt in allen drei Fixtures explizit die technischen Funktionalitäten des Ergebnisses (003: „Die technische Funktionalität umfasst folgende Kernschritte…", 017: „folgende Kernfunktionalitäten integriert: (1)–(5)") = Aspekt C zusätzlich zu B.
+- **k-9 → ["H","J"]:** Kapitel 9 („Projektplan") enthält je einen expliziten Meilenstein-Absatz („Kritische Meilensteine sind: M4-Ende…", „Der Meilenstein-Plan sieht folgende kritischen Gates vor…", „Die wichtigsten Meilensteine im gesamten Projekt sind: M1–M5") — nach dem I/J-Ruling (Meilensteine = J) zusätzlich J. Die Annotation stammte von vor dem Ruling.
+- k-11 bleibt ["I","J"] (korrekt); das Untersektions-Artefakt ist per Diagnose-Zeile dokumentiert, die Metrik bleibt unverändert (kein Roll-up). Erwartung nach Korrektur: Sonnet ≈ P 1,0 / R 0,91 / F1 0,95 (einziger Rest = k-11-J-Artefakt); die interne n=3-Baseline misst damit echte Modellfehler statt bekannter Goldset-Artefakte. Nur Eval-Asset ([eval/eval-goldset-aspekte.json](eval/eval-goldset-aspekte.json)) + Beschreibung — kein Code. Verifiziert per `npm run check` + `build:pl`.
+
 ### v2.224.1 — Aufbereitung: Sonnet-Referenzlauf-Befunde — Steckbrief-maxTokens 4096 + Untersektions-Diagnose (Juli 2026)
 
 PATCH — Der erste OpenRouter-Referenzlauf (Sonnet 4.6, 2026-07-11) tat genau seinen Job: Zahlen/Glossar-Smoke 3/3 `ok` (~60 Claims / ~50 Begriffe), aber **Steckbrief 3/3 degradiert** — ein echter Code-Bug bei uns: `maxTokens: 2048` ist auf der Bridge inert (Server-Budget), **bindet aber auf dem DirectLLM-Pfad wirklich**; Sonnets ausführlichere Texte liefen ins Limit → Truncation → nicht parsebar.

@@ -1,17 +1,17 @@
 {
-  "beschreibung": "Handkuratiertes Goldset für die Aspekt-Mapping-Mini-Eval (Paket 2). Partielles Goldset: annotiert die unstrittigen Ebene-1-Kapitel der drei fiktiven ZIM-Fixtures mit ihrem kanonischen Prüfaspekt A-J. Kapitel 5 (Wirtschaftliche Risiken) und 10 (Wirkung) sind bewusst NICHT annotiert = 'ohne Aspekt / nicht im Prüfraster'. Precision/Recall werden nur über die annotierten Sektionen gemessen (Zuordnungen zu nicht annotierten Sektionen zählen nicht als Fehler). Sektions-IDs stammen aus parseVbGliederung (npm run eval:aufbereitung -- --dump).",
+  "beschreibung": "Handkuratiertes Goldset für die Aspekt-Mapping-Mini-Eval (Paket 2). Partielles Goldset: annotiert die unstrittigen Ebene-1-Kapitel der drei fiktiven ZIM-Fixtures mit ihrem kanonischen Prüfaspekt A-J. Kapitel 5 (Wirtschaftliche Risiken) und 10 (Wirkung) sind bewusst NICHT annotiert = 'ohne Aspekt / nicht im Prüfraster'. Precision/Recall werden nur über die annotierten Sektionen gemessen (Zuordnungen zu nicht annotierten Sektionen zählen nicht als Fehler). Sektions-IDs stammen aus parseVbGliederung (npm run eval:aufbereitung -- --dump). Korrektur 2026-07-11 (Zwei-Modell-Evidenz Sonnet+gpt-oss, am Fixture-Text verifiziert): k-2 trägt B UND C (Kapitel 2 beschreibt in allen drei Fixtures explizit die technischen Funktionalitäten des Ergebnisses), k-9 trägt H UND J (Kapitel 9 enthält je einen expliziten Meilenstein-Absatz; Ruling: Meilensteine = J). Bekanntes Mess-Artefakt bleibt: k-11-J ordnen die Modelle den Untersektionen k-11.4/11.5 zu (fachlich präziser, zählt aber nicht auf Ebene 1) — die Untersektions-Diagnose in fehlzuordnungen weist das aus.",
   "fixtures": [
     {
       "vbFile": "ZIM_Antrag_API_003_Perfekte Produktbeschreibungen auf Knopfdruck.md",
       "erwartung": {
         "k-1": ["A"],
-        "k-2": ["B"],
+        "k-2": ["B", "C"],
         "k-3": ["C"],
         "k-4": ["D"],
         "k-6": ["E"],
         "k-7": ["F"],
         "k-8": ["G"],
-        "k-9": ["H"],
+        "k-9": ["H", "J"],
         "k-11": ["I", "J"]
       }
     },
@@ -19,13 +19,13 @@
       "vbFile": "ZIM_Antrag_API_006_Integrierte Prüftechnik für Leistungshalbleiter.md",
       "erwartung": {
         "k-1": ["A"],
-        "k-2": ["B"],
+        "k-2": ["B", "C"],
         "k-3": ["C"],
         "k-4": ["D"],
         "k-6": ["E"],
         "k-7": ["F"],
         "k-8": ["G"],
-        "k-9": ["H"],
+        "k-9": ["H", "J"],
         "k-11": ["I", "J"]
       }
     },
@@ -33,13 +33,13 @@
       "vbFile": "ZIM_Antrag_API_017_Multitouch-Tisch mit interaktiver Objekterkennung.md",
       "erwartung": {
         "k-1": ["A"],
-        "k-2": ["B"],
+        "k-2": ["B", "C"],
         "k-3": ["C"],
         "k-4": ["D"],
         "k-6": ["E"],
         "k-7": ["F"],
         "k-8": ["G"],
-        "k-9": ["H"],
+        "k-9": ["H", "J"],
         "k-11": ["I", "J"]
       }
     }
