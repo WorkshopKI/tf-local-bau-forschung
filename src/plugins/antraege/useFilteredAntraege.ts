@@ -20,6 +20,7 @@ import {
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
 import { applyPrecheckBucket } from './filter/precheckQuickfilter';
+import { filtereAmpelQuickfilter } from './eingangAmpel';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
@@ -68,6 +69,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const precheckBucket = useAntraegeStore(s => s.precheckBucket);
+  const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   const { profile } = useProfile();
@@ -118,7 +120,11 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // den Sidebar-Filtern — analog Status/Antragstyp; `countBase` (= byInaktive)
     // bleibt bewusst davor, damit die PreCheck-Pillen-Counts stabil sind.
     const byPrecheck = applyPrecheckBucket(byInaktive, precheckBucket);
-    const filteredBase = applyFilters(byPrecheck, active, definitions);
+    // Ampel-Quickfilter (v2.229, Klick auf eine Antragseingang-Widget-Zeile):
+    // transient wie PreCheck, VOR den Sidebar-Filtern; nutzt die konfigurierten
+    // Schwellen aus dem Widget → Liste zählt identisch zum Widget.
+    const byAmpel = filtereAmpelQuickfilter(byPrecheck, ampelQuickfilter);
+    const filteredBase = applyFilters(byAmpel, active, definitions);
     // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
     // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
     // Treffern aus drei weiteren Quellen — Substring auf den CSV-Volltext-
@@ -154,5 +160,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterKuerzelMissing,
       countBase: byInaktive,
     };
-  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
+  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
 }

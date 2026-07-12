@@ -23,6 +23,7 @@ import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilTab } from './ProfilTab';
 import { MeineTechnologienTab } from './MeineTechnologienTab';
 import { DarstellungTab } from './DarstellungTab';
+import { WidgetsSettingsSection } from './WidgetsSettingsSection';
 import { TastaturTab } from './TastaturTab';
 import { AIProviderTab } from './AIProviderTab';
 import { SpeicherTab } from './SpeicherTab';
@@ -111,11 +112,13 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     sections: [
       { id: 'sec-farbe', label: 'Primärfarbe', keywords: 'akzent farbe darstellung' },
       { id: 'sec-erscheinung', label: 'Erscheinungsbild', keywords: 'dark light theme darstellung modus' },
+      { id: 'sec-widgets', label: 'Widgets auf der Startseite', keywords: 'widgets startseite home kanban notizen reihenfolge sichtbarkeit ampel antragseingang' },
       { id: 'sec-tastatur', label: 'Tastatur-Kürzel', keywords: 'shortcuts command palette tastatur bedienung' },
     ],
     render: () => (
       <div className="space-y-8">
         <DarstellungTab />
+        <WidgetsSettingsSection />
         <TastaturTab />
       </div>
     ),

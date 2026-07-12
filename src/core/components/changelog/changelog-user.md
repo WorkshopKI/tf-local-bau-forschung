@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.229 — 2026-07
+
+### Neu
+- **Startseite anpassen:** Über den Stift am Widget-Kopf oder die neue Einstellungs-Sektion „Widgets auf der Startseite" (Darstellung & Bedienung) kannst du Widgets umsortieren, ein-/ausblenden und einstellen — z.B. das neue Kanban einschalten, seine Spalten und Farben wählen. Alles gilt nur für dein Gerät.
+- **Notizen-Widget:** Ein einfacher Notizzettel für die Startseite — nur lokal auf deinem Gerät, landet nie im geteilten Datenordner.
+
+### Verbesserungen
+- **Antragseingang-Ampel:** Die Warn- und Kritisch-Schwellen (bisher fest 30/90 Tage) sind jetzt einstellbar, und ein Klick auf eine Ampel-Zeile öffnet direkt die passend gefilterte Antragsliste (mit sichtbarem, entfernbarem Filter-Chip). Die farbigen Punkte in den Listenzeilen behalten ihre gewohnten Stufen.
+
 ## v2.228 — 2026-07
 
 ### Neu

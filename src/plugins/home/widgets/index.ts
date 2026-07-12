@@ -7,3 +7,7 @@ export * from './WidgetShell';
 export * from './HomeWidgetStack';
 export * from './kanbanLanes';
 export * from './AntragKanbanWidget';
+export * from './notizenStore';
+export * from './NotizenWidget';
+export * from './WidgetConfigForm';
+export * from './WidgetQuickEdit';

@@ -16,6 +16,8 @@ import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { useEingangAmpelCounts } from './useEingangAmpelCounts';
 import { formatHomeSubtitle } from './homeSubtitle';
 import { HomeWidgetStack } from './widgets/HomeWidgetStack';
+import { ampelSchwellenAusConfig } from './widgets/homeWidgetsStore';
+import { useHomeWidgetsStore } from './widgets/useHomeWidgets';
 import type { HomeWidgetContext } from './widgets/widgetProps';
 import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
@@ -66,10 +68,18 @@ export function HomePage(): React.ReactElement {
   const data = useDashboardData();
   const name = profile?.name ?? '';
 
-  // Kopfzeilen-Subtitle aus denselben Ampel-Aggregaten wie die Sidebar-Karte
-  // (EingangAmpelCard) — garantiert identische Zahlen (kein Drift). Hook muss
+  // Kopfzeilen-Subtitle aus denselben Ampel-Aggregaten wie das Antragseingang-
+  // Widget — GLEICHE Schwellen-Quelle (ampelSchwellenAusConfig auf derselben
+  // Widget-Config) → garantiert identische Zahlen (kein Drift). Hook muss
   // vor den Early-Returns stehen (React-Regel).
-  const ampelCounts = useEingangAmpelCounts();
+  const homeWidgetConfig = useHomeWidgetsStore(s => s.config);
+  const ladeWidgetConfig = useHomeWidgetsStore(s => s.laden);
+  useEffect(() => {
+    // Config früh laden (nicht erst im Stack-Mount) — die Kopfzeile braucht
+    // die Ampel-Schwellen schon im ersten sichtbaren Frame.
+    ladeWidgetConfig(storage.idb).catch(() => {});
+  }, [ladeWidgetConfig, storage.idb]);
+  const ampelCounts = useEingangAmpelCounts(ampelSchwellenAusConfig(homeWidgetConfig));
   const subtitleParts = formatHomeSubtitle({
     offen: ampelCounts.total,
     kritisch: ampelCounts.kritisch,

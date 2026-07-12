@@ -11,6 +11,8 @@
  */
 import { ChevronRight, Pencil } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { WidgetQuickEdit } from './WidgetQuickEdit';
+import type { WidgetInstanz } from './types';
 
 export interface WidgetShellProps {
   titel: string;
@@ -24,9 +26,10 @@ export interface WidgetShellProps {
   variante: 'haupt' | 'seite';
   eingeklappt: boolean;
   onToggleEingeklappt: () => Promise<void>;
-  /** Stift-Klick (Phase 3: Quick-Edit-Popover). Ohne Handler ist der Button
-   *  inaktiv sichtbar — der Platz im Kopf ist Teil des Widget-Vertrags. */
-  onStift?: () => void;
+  /** Widget-Instanz für das Stift-Popover (WidgetQuickEdit, Phase 3). Ohne
+   *  Instanz bleibt der Stift inaktiv sichtbar — der Platz im Kopf ist Teil
+   *  des Widget-Vertrags. */
+  instanz?: WidgetInstanz;
   children: React.ReactNode;
 }
 
@@ -38,7 +41,7 @@ export function WidgetShell({
   variante,
   eingeklappt,
   onToggleEingeklappt,
-  onStift,
+  instanz,
   children,
 }: WidgetShellProps): React.ReactElement {
   const toggle = useAsyncAction(onToggleEingeklappt);
@@ -89,20 +92,19 @@ export function WidgetShell({
         <div className="flex-1 min-w-0" />
         {!eingeklappt && aktion ? <div className="shrink-0">{aktion}</div> : null}
         {zaehler ? <div className="shrink-0 flex items-center gap-1.5">{zaehler}</div> : null}
-        <button
-          type="button"
-          onClick={onStift}
-          disabled={!onStift}
-          aria-label="Widget anpassen"
-          title={onStift ? 'Widget anpassen' : 'Anpassen — folgt in einer späteren Version'}
-          className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-[var(--tf-radius-sm)] text-[var(--tf-text-tertiary)] ${
-            onStift
-              ? 'cursor-pointer hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)]'
-              : 'opacity-40 cursor-default'
-          }`}
-        >
-          <Pencil size={13} />
-        </button>
+        {instanz ? (
+          <WidgetQuickEdit instanz={instanz} />
+        ) : (
+          <button
+            type="button"
+            disabled
+            aria-label="Widget anpassen"
+            title="Anpassen — folgt in einer späteren Version"
+            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-[var(--tf-radius-sm)] text-[var(--tf-text-tertiary)] opacity-40 cursor-default"
+          >
+            <Pencil size={13} />
+          </button>
+        )}
       </div>
       {/* Lazy: Body existiert im DOM NUR ausgeklappt. */}
       {!eingeklappt ? (

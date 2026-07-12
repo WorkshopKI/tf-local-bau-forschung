@@ -5,6 +5,8 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
+import { FilterChip } from '@/components/ui/FilterChip';
+import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
 import { GruppierenDropdown } from './filter/GruppierenDropdown';
 import { getPhaseFromActive, STATUS_FILTER_ID } from './filter/phaseQuickfilter';
@@ -92,6 +94,10 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
   const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
+  // Ampel-Quickfilter (v2.229): sichtbarer, entfernbarer Chip — sonst filtert
+  // der Widget-Klick unsichtbar weiter.
+  const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
+  const setAmpelQuickfilter = useAntraegeStore(s => s.setAmpelQuickfilter);
   // Im „alle"-/Übersichtsmodus (pl/dev) wird je Antrag das MA-Kürzel angezeigt,
   // damit sichtbar ist, welcher Bearbeiter zuständig ist.
   const showMa = isAuslastungEnabled() && !bearbeiterFilter.active;
@@ -265,9 +271,22 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               ) : null}
             </div>
           </div>
-          {(chipActive.length > 0 || displayCount > 0) ? (
+          {(chipActive.length > 0 || ampelQuickfilter !== null || displayCount > 0) ? (
             <div className="mt-2 mb-3 flex items-center justify-between gap-3 flex-wrap">
-              <div className="min-w-0">
+              <div className="min-w-0 flex items-center flex-wrap gap-1.5">
+                {ampelQuickfilter !== null ? (
+                  <FilterChip
+                    label="Antragseingang"
+                    value={`${AMPEL_BUCKET_LABEL[ampelQuickfilter.bucket]} (${
+                      ampelQuickfilter.bucket === 'frisch'
+                        ? `≤ ${ampelQuickfilter.schwellen.warnschwelleTage} T`
+                        : ampelQuickfilter.bucket === 'warnung'
+                          ? `${ampelQuickfilter.schwellen.warnschwelleTage + 1}–${ampelQuickfilter.schwellen.kritischSchwelleTage} T`
+                          : `> ${ampelQuickfilter.schwellen.kritischSchwelleTage} T`
+                    })`}
+                    onRemove={() => setAmpelQuickfilter(null)}
+                  />
+                ) : null}
                 {chipActive.length > 0 ? (
                   <ActiveFilterChips
                     active={chipActive}

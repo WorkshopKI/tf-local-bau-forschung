@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKeyboardShortcut } from '@/core/hooks/useKeyboard';
 import { SettingsNav } from './SettingsNav';
@@ -33,6 +34,28 @@ export function EinstellungenPage(): React.ReactElement {
     setActivePanel(panelId);
     pendingSection.current = sectionId;
   };
+
+  // Deep-Link von außerhalb (v2.229, z.B. Widget-Popover „Alle Einstellungen →"):
+  // `/einstellungen?sektion=sec-widgets` springt Panel + Anker an. Einmal pro
+  // Wert behandeln (Ref), damit spätere Panel-Wechsel nicht zurückgezogen werden.
+  const [searchParams] = useSearchParams();
+  const behandelteSektion = useRef<string | null>(null);
+  useEffect(() => {
+    const ziel = searchParams.get('sektion');
+    if (!ziel || behandelteSektion.current === ziel) return;
+    const panel = panels.find(p => p.sections.some(s => s.id === ziel));
+    if (!panel) return;
+    behandelteSektion.current = ziel;
+    if (panel.id === activePanel) {
+      // Scroll-Effekt unten feuert nur bei Panel-WECHSEL — hier direkt scrollen.
+      requestAnimationFrame(() => {
+        document.getElementById(ziel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } else {
+      setActivePanel(panel.id);
+      pendingSection.current = ziel;
+    }
+  }, [searchParams, panels, activePanel]);
 
   useEffect(() => {
     const id = pendingSection.current;

@@ -773,7 +773,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 33;    // Ist 33; +1 'assistentGedaechtnis' (Assistent Phase 2 Gedächtnis-Konsolidierung, dev); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1430;       // Ist ~1410 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1460;       // Ist ~1441 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1336,6 +1336,35 @@ describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)
         + `(kv-Store, strukturell ausserhalb von SNAPSHOT_FILES).`,
       ).toBe(false);
     }
+  });
+
+  it('notizenStore.ts bleibt strikt IDB-only (auch KEIN Personal-Mirror)', () => {
+    // Der Notiz-TEXT ist strenger als die Widget-Config: wie arbeitskontext-log
+    // NIE in den persoenlichen Ordner — daher zusaetzlich savePersonalSettings +
+    // getPersoenlichHandle verboten.
+    const file = join(ROOT, 'plugins', 'home', 'widgets', 'notizenStore.ts');
+    const content = readFileSync(file, 'utf-8');
+    const verboten = [
+      'savePersonalSettings',
+      'getPersoenlichHandle',
+      'mirrorJsonToPersonal',
+      'atomicWrite',
+      'appendToFile',
+      'writeEinstellungenToShare',
+    ];
+    const lines = content.split(/\r?\n/);
+    const treffer = verboten.filter(v =>
+      lines.some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        return l.includes(v);
+      }),
+    );
+    expect(
+      treffer,
+      `notizenStore.ts muss strikt geraetelokal bleiben (nur idb.get/set/delete).\n`
+      + `Verbotene Referenz(en): ${treffer.join(', ')}`,
+    ).toEqual([]);
   });
 });
 

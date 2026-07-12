@@ -95,6 +95,7 @@ export function WeitermachenWidget({ instanz, onToggleEingeklappt }: WidgetProps
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
+      instanz={instanz}
       zaehler={
         <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">{rows.length}</span>
       }

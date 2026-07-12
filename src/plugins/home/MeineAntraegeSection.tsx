@@ -70,6 +70,7 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
+      instanz={instanz}
       aktion={
         zeigtListe ? (
           <button

@@ -9,19 +9,21 @@ import { AntragseingangWidget } from '../EingangAmpelCard';
 import { MeineAntraegeWidget } from '../MeineAntraegeSection';
 import { WeitermachenWidget } from '../WeitermachenSection';
 import { AntragKanbanWidget } from './AntragKanbanWidget';
+import { NotizenWidget } from './NotizenWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
 
-/** notizen folgt in Phase 3; Zukunfts-Typen sind im Katalog `verfuegbar: false`
- *  und erreichen den Stack nie — null als Sicherheitsnetz. */
+/** Zukunfts-Typen (qs-freigaben/feedback-news/registry-aenderungen) sind im
+ *  Katalog `verfuegbar: false` und erreichen den Stack nie — null als
+ *  Sicherheitsnetz. */
 const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   weitermachen: WeitermachenWidget,
   'meine-antraege': MeineAntraegeWidget,
   kanban: AntragKanbanWidget,
   antragseingang: AntragseingangWidget,
   'ai-assistent': AiAssistentWidget,
-  notizen: null,
+  notizen: NotizenWidget,
   'qs-freigaben': null,
   'feedback-news': null,
   'registry-aenderungen': null,

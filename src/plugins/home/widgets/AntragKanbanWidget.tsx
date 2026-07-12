@@ -145,6 +145,7 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
+      instanz={instanz}
       zaehler={
         instanz.eingeklappt
           ? <LanePills lanes={lanes} farbmodus={cfg.farbmodus} />

@@ -37,6 +37,7 @@ export function AiAssistentWidget({ instanz, onToggleEingeklappt }: WidgetProps)
       variante="seite"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
+      instanz={instanz}
       zaehler={
         <span
           className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-text-tertiary)]'}`}

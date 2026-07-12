@@ -16,6 +16,10 @@ import {
   PERSONAL_EINSTELLUNGEN_IDB_KEY,
   type PersonalEinstellungen,
 } from '@/core/services/personal-storage/types';
+import {
+  AMPEL_SCHWELLEN_DEFAULT,
+  type AmpelSchwellen,
+} from '@/plugins/antraege/eingangAmpel';
 import type { HomeWidgetConfig, WidgetInstanz, WidgetTyp } from './types';
 import { WIDGET_KATALOG, type WidgetKatalogEintrag } from './widgetCatalog';
 
@@ -167,6 +171,25 @@ export function sichtbareWidgets(
     const eintrag = katalog[w.typ];
     return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
   });
+}
+
+/**
+ * Ampel-Schwellen aus der Widget-Config (erste `antragseingang`-Instanz).
+ * GEMEINSAME Quelle für Home-Kopfzeile (formatHomeSubtitle-Pfad) UND
+ * Ampel-Widget — kein Zahlen-Drift. Ohne (geladene) Config: Defaults 30/90.
+ */
+export function ampelSchwellenAusConfig(cfg: HomeWidgetConfig | null): AmpelSchwellen {
+  const instanz = cfg?.widgets.find(w => w.typ === 'antragseingang');
+  if (instanz && instanz.config.art === 'ampel') {
+    const { warnschwelleTage, kritischSchwelleTage } = instanz.config;
+    if (
+      Number.isFinite(warnschwelleTage) && Number.isFinite(kritischSchwelleTage)
+      && warnschwelleTage > 0 && kritischSchwelleTage > warnschwelleTage
+    ) {
+      return { warnschwelleTage, kritischSchwelleTage };
+    }
+  }
+  return AMPEL_SCHWELLEN_DEFAULT;
 }
 
 /**

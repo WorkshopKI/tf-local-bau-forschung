@@ -21,6 +21,7 @@ import {
 import type { GroupingMode } from './antragGroups';
 import type { TableGroupingMode } from './tableGrouping';
 import type { PrecheckBucket } from './filter/precheckQuickfilter';
+import type { AmpelQuickfilter } from './eingangAmpel';
 import {
   DEFAULT_VIEW_MODE,
   loadViewModeByTab,
@@ -169,6 +170,11 @@ interface AntraegeState {
    *  Klassifikation ist und keinen Filter-Chip erzeugen soll (siehe
    *  `precheckQuickfilter.ts`). */
   precheckBucket: PrecheckBucket;
+  /** Ampel-Quickfilter (v2.229): Klick auf eine Zeile des Antragseingang-
+   *  Widgets. Transient (in-memory, wie precheckBucket) und trägt die
+   *  konfigurierten Schwellen mit, damit die Liste identisch zum Widget
+   *  zählt. Wird bei manuellem View-Wechsel (`setActiveView`) zurückgesetzt. */
+  ampelQuickfilter: AmpelQuickfilter | null;
   activeView: ViewKey;
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
@@ -203,6 +209,8 @@ interface AntraegeState {
   setSearch: (s: string) => void;
   setSearchIgnoreBearbeiterFilter: (v: boolean) => void;
   setPrecheckBucket: (bucket: PrecheckBucket) => void;
+  /** `null` = Filter entfernen. NACH `setActiveView` aufrufen (das resettet). */
+  setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => void;
   /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
    *  Rest unangetastet. Erlaubt z.B. `setHybridSearch({ downloadingCorpus: true })`
    *  ohne das laufende `matchedAkz`/`loading`-State versehentlich zu nullen. */
@@ -272,6 +280,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   searchIgnoreBearbeiterFilter: false,
   hybridSearch: { matchedAkz: null, loading: false, unavailable: [], downloadingCorpus: false },
   precheckBucket: 'Alle',
+  ampelQuickfilter: null,
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
@@ -367,13 +376,18 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
 
   setPrecheckBucket: (bucket: PrecheckBucket) => set({ precheckBucket: bucket }),
 
+  setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => set({ ampelQuickfilter: quick }),
+
   setHybridSearch: (state: Partial<HybridSearchState>) => set(s => ({
     hybridSearch: { ...s.hybridSearch, ...state },
   })),
 
   setActiveView: (view: ViewKey) => {
     try { localStorage.setItem(ACTIVE_VIEW_KEY, view); } catch { /* ignore */ }
-    set({ activeView: view });
+    // Manueller View-Wechsel beendet den transienten Ampel-Quickfilter —
+    // sonst filtert ein unsichtbar gewordener Zustand heimlich weiter.
+    // (Der Widget-Klick setzt den Filter bewusst NACH setActiveView.)
+    set({ activeView: view, ampelQuickfilter: null });
   },
 
   setSortForView: (view: ViewKey, key: SortKey) => {
