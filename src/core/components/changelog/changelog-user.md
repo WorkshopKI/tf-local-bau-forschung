@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.225 — 2026-07
+
+### Neu
+- **Kompakte Ansicht im Feedback-Board:** Ein neuer Knopf rechts neben dem Listen-/Board-Umschalter schaltet auf eine dichtere Darstellung — mehr Einträge auf einen Blick, in der Liste wie im Board. Die Wahl merkt sich die App auf deinem Gerät.
+
+### Verbesserungen
+- **Feedback-Board mit farbigen Spalten:** Die Board-Spalten haben jetzt eigene Farben und Symbole (Neu · Abgelehnt · Geplant · In Bearbeitung · Umgesetzt) — der Stand eines Beitrags ist auf einen Blick erkennbar. Die Karten sind aufgeräumter: Typ-Farbkante, Titel, optionales Vorschaubild und unten Autor, Kommentare und Punkte.
+- **Lob hat einen festen Platz in der Liste:** Lob durchläuft keinen Bearbeitungs-Workflow und taucht deshalb nicht mehr als eigene Board-Spalte auf — du findest es weiterhin in der Listenansicht (Typ-Filter „Lob").
+
 ## v2.224 — 2026-07
 
 ### Neu

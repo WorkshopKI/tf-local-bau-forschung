@@ -6,7 +6,7 @@ import * as Icons from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_TYPES } from './constants';
 
-export type IconComponent = React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+export type IconComponent = React.ComponentType<{ size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
 
 /** Lucide-Icon per Namen auflösen; Fallback auf HelpCircle bei unbekanntem Namen. */
 export function getLucideIcon(name: string): IconComponent {

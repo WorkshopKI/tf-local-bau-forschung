@@ -117,6 +117,31 @@ export const STATUS_DOT: Record<FeedbackStatus, string> = {
 };
 
 /**
+ * Lane-Akzent je Status — Kanban-Spaltenfarben (v2.225, Handoff feedback-kanban).
+ * Kräftiger als STATUS_DOT: „Neu" + „Abgelehnt" haben eigene Lane-Tokens, die
+ * Pipeline-Status teilen sich die Typ-Akzente (frage/ux/lob). Tönungen (Kopf,
+ * Rand, Badge) mischt FeedbackKanban per color-mix aus diesem Akzent.
+ */
+export const STATUS_LANE_ACCENT: Record<FeedbackStatus, string> = {
+  neu: 'var(--tf-fb-lane-neu)',
+  geplant: 'var(--tf-fb-frage)',
+  in_bearbeitung: 'var(--tf-fb-ux)',
+  umgesetzt: 'var(--tf-fb-lob)',
+  abgelehnt: 'var(--tf-fb-lane-abgelehnt)',
+  archiviert: 'var(--tf-text-tertiary)', // nie als Spalte gerendert
+};
+
+/** Status-Glyphe je Kanban-Spaltenkopf (lucide-Namen, Auflösung via getLucideIcon). */
+export const STATUS_COLUMN_ICONS: Record<FeedbackStatus, string> = {
+  neu: 'CirclePlus',
+  geplant: 'Calendar',
+  in_bearbeitung: 'Clock',
+  umgesetzt: 'CircleCheck',
+  abgelehnt: 'CircleX',
+  archiviert: 'Archive', // nie als Spalte gerendert
+};
+
+/**
  * Kategorie-Badges — eindeutige, gesättigte Farben pro Typ (Handoff-Palette
  * `--tf-fb-*`, v2.208): Problem=rot, Idee=blau, UX=violett, Lob=grün, Frage=amber.
  */

@@ -30,9 +30,12 @@ interface Props {
   onChanged: () => void;
   /** Schmale Variante bei offenem Detail (weniger Beiwerk). */
   narrow?: boolean;
+  /** Kompakte Dichte (v2.225, Dichte-Umschalter): engere Zeile, 1-zeilige
+   *  Vorschau, schmale rechte Spalte mit entkleideter Sponsor-Leiste. */
+  dense?: boolean;
 }
 
-export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unread, onSelect, onChanged, narrow }: Props): React.ReactElement {
+export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unread, onSelect, onChanged, narrow, dense }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const title = feedbackTitle(ticket);
   const lead = feedbackQaSegments(ticket)[0]?.antwort;
@@ -62,7 +65,7 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
       <button
         type="button"
         onClick={() => onSelect(ticket)}
-        className="flex-1 min-w-0 text-left flex items-start gap-3 px-3 py-2.5 cursor-pointer"
+        className={`flex-1 min-w-0 text-left flex items-start gap-3 cursor-pointer ${dense ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}
       >
         {/* Typ-Icon-Quadrat */}
         <span className={`inline-flex items-center justify-center w-[30px] h-[30px] rounded-[8px] shrink-0 ${iconTint}`}>
@@ -72,7 +75,7 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
         {/* Body */}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <span className={`min-w-0 truncate text-[14px] font-medium ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
+            <span className={`min-w-0 truncate font-medium ${dense ? 'text-[13.5px]' : 'text-[14px]'} ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
             {mine && unread && (
               <span className="shrink-0 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]" title="Neue Antwort vom Team">
                 Antwort
@@ -82,11 +85,11 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
           </div>
 
           {!narrow && lead && (
-            <p className="mt-1.5 text-[12.5px] text-[var(--tf-text-secondary)] leading-normal line-clamp-2">{lead}</p>
+            <p className={`text-[12.5px] text-[var(--tf-text-secondary)] leading-normal ${dense ? 'mt-1 line-clamp-1' : 'mt-1.5 line-clamp-2'}`}>{lead}</p>
           )}
 
           {/* Meta */}
-          <div className="mt-2 flex items-center gap-2.5 flex-wrap">
+          <div className={`flex items-center flex-wrap ${dense ? 'mt-1.5 gap-2' : 'mt-2 gap-2.5'}`}>
             {!isPraise && (
               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${STATUS_TINT[ticket.kurator_status]}`}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_DOT[ticket.kurator_status] }} />
@@ -128,15 +131,18 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
       </button>
 
       {/* Rechte Spalte: Thumbnail + Sponsor-Leiste (klick öffnet Detail; Thumbnail
-          stoppt Bubbling → Lightbox). */}
+          stoppt Bubbling → Lightbox). Dense: schmale 44px-Spalte, entkleidete Leiste. */}
       {showRightCol && (
-        <div className="shrink-0 self-center pr-3 py-3 w-[172px] flex flex-col gap-2" onClick={() => onSelect(ticket)}>
+        <div
+          className={`shrink-0 self-center py-3 flex flex-col ${dense ? 'pr-2.5 w-[56px] gap-1.5 items-center' : 'pr-3 w-[172px] gap-2'}`}
+          onClick={() => onSelect(ticket)}
+        >
           {hasShot && (
             <div onClick={e => e.stopPropagation()}>
-              <FeedbackScreenshots attachments={ticket.attachments!} compact />
+              <FeedbackScreenshots attachments={ticket.attachments!} compact variant={dense ? 'thumb44' : undefined} />
             </div>
           )}
-          {showBar && <FeedbackSponsorBar ticket={ticket} config={config} meId={meId} variant="card" />}
+          {showBar && <FeedbackSponsorBar ticket={ticket} config={config} meId={meId} dense={dense} />}
         </div>
       )}
     </div>

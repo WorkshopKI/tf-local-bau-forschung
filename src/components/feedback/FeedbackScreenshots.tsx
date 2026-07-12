@@ -16,18 +16,23 @@ import type { FeedbackAttachment } from '@/core/types/feedback';
 interface Props {
   attachments: FeedbackAttachment[];
   /** Kompakte Variante (kleinere Thumbnails, keine Überschrift/Caption) für die
-   *  Board-Card und die Listen-Zelle. Default false = Kurator-Detail-Optik. */
+   *  Listen-Zelle. Default false = Kurator-Detail-Optik. */
   compact?: boolean;
+  /** Größen-Variante (v2.225, überstimmt `compact`):
+   *  'board'   = nur das ERSTE Bild, volle Breite × 56px (Kanban-Karte);
+   *  'thumb44' = 44×44-Thumbnails (kompakte Listen-Spalte). */
+  variant?: 'board' | 'thumb44';
 }
 
-export function FeedbackScreenshots({ attachments, compact = false }: Props): React.ReactElement | null {
+export function FeedbackScreenshots({ attachments, compact = false, variant }: Props): React.ReactElement | null {
   const storage = useStorage();
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<FeedbackAttachment | null>(null);
 
   // Nur Bilder (v2.199.1) — beigefügte Dateien rendert FeedbackFiles. Alt-Anhänge
   // ohne `kind` gelten als Bild.
-  const images = attachments.filter(a => a.kind !== 'file');
+  const allImages = attachments.filter(a => a.kind !== 'file');
+  const images = variant === 'board' ? allImages.slice(0, 1) : allImages;
 
   useEffect(() => {
     let cancelled = false;
@@ -49,18 +54,28 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
 
   if (images.length === 0) return null;
 
-  // Compact (Card/Liste): kleine, gecroppte Thumbnails. Non-compact (Detail-
-  // Panel/Kurator-Detail): großes Vorschaubild, das auf die Panel-Breite skaliert
-  // und das GANZE Bild zeigt (object-contain) — Inhalt ohne Klick erkennbar.
-  const wrapCls = compact ? '' : 'w-full max-w-[440px]';
-  const imgCls = compact
-    ? 'w-[68px] h-[44px] object-cover'
-    : 'w-full h-auto max-h-[360px] object-contain bg-[var(--tf-bg-secondary)]';
-  const boxCls = compact ? 'w-[68px] h-[44px]' : 'w-full h-[200px]';
+  // Größen: 'board' = ein breites Karten-Thumbnail; 'thumb44' = quadratisch für
+  // die kompakte Listen-Spalte; compact = kleine, gecroppte Thumbnails (Liste).
+  // Default (Detail-Panel/Kurator-Detail): großes Vorschaubild, das auf die
+  // Panel-Breite skaliert und das GANZE Bild zeigt (object-contain).
+  const size: 'board' | 'thumb44' | 'compact' | 'detail' = variant ?? (compact ? 'compact' : 'detail');
+  const wrapCls = { board: 'w-full', thumb44: '', compact: '', detail: 'w-full max-w-[440px]' }[size];
+  const imgCls = {
+    board: 'w-full h-14 object-cover object-left-top',
+    thumb44: 'w-[44px] h-[44px] object-cover object-left-top',
+    compact: 'w-[68px] h-[44px] object-cover',
+    detail: 'w-full h-auto max-h-[360px] object-contain bg-[var(--tf-bg-secondary)]',
+  }[size];
+  const boxCls = {
+    board: 'w-full h-14',
+    thumb44: 'w-[44px] h-[44px]',
+    compact: 'w-[68px] h-[44px]',
+    detail: 'w-full h-[200px]',
+  }[size];
 
   return (
     <div>
-      {!compact && (
+      {size === 'detail' && (
         <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] font-medium mb-1">
           Screenshots ({images.length})
         </p>
@@ -81,7 +96,7 @@ export function FeedbackScreenshots({ attachments, compact = false }: Props): Re
                 Lädt…
               </div>
             )}
-            {!compact && att.caption && <p className="text-[10px] text-[var(--tf-text-secondary)] leading-snug" title={att.caption}>{att.caption}</p>}
+            {size === 'detail' && att.caption && <p className="text-[10px] text-[var(--tf-text-secondary)] leading-snug" title={att.caption}>{att.caption}</p>}
           </div>
         ))}
       </div>

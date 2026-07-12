@@ -117,6 +117,11 @@
   /* aktiver Sponsor-Rahmen (Karte mit eigenen Punkten) + Budget-Track */
   --tf-fb-lob-border: hsl(145, 40%, 75%);
   --tf-fb-sponsor-track: var(--tf-border-hover);
+  /* Kanban-Lane-Akzente (v2.225, Handoff feedback-kanban) — Spalten „Neu" +
+     „Abgelehnt" haben keine Typ-Farbe; geplant/arbeit/umgesetzt nutzen frage/ux/lob.
+     Tönungen entstehen per color-mix mit --tf-bg/--tf-text/--tf-border (dark-aware). */
+  --tf-fb-lane-neu: hsl(215, 42%, 52%);
+  --tf-fb-lane-abgelehnt: hsl(0, 0%, 55%);
 
   /* ════════════════════════════════════════════════════════════════════════
      Design-Handoff-Token-Vertrag (v2.119) — Skala + Soft/Border-Familie.
@@ -316,6 +321,8 @@
   --tf-fb-status-neu-bg: hsl(215, 18%, 24%);
   --tf-fb-status-neu-text: hsl(215, 30%, 70%);
   --tf-fb-lob-border: hsl(145, 25%, 40%);
+  --tf-fb-lane-neu: hsl(215, 36%, 68%);
+  --tf-fb-lane-abgelehnt: hsl(0, 0%, 62%);
 
   /* ── Design-Handoff-Token-Vertrag (v2.119) — Dark: nur die theme-abhängigen
      Werte überschreiben. Die Skala-Tokens (Typo/Spacing/Radius/Motion) sind

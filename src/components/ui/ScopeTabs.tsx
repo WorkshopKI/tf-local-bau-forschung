@@ -69,7 +69,7 @@ export function ScopeTabs({
               title={it.title}
               onClick={() => { if (!it.disabled) onChange(it.key); }}
               className={cn(
-                'h-8 px-4 rounded-[var(--tf-radius-sm)] inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors',
+                'h-7 px-4 rounded-[var(--tf-radius-sm)] inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors',
                 it.disabled
                   ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
                   : active

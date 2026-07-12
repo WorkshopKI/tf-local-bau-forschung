@@ -1,11 +1,12 @@
-// Öffentliches Feedback-Board (Redesign v2.208, feedback-optimiert): scannbare
-// Karten-Liste + Kanban (mit Lob-Spalte), gefüllte Scope-Segmente, Typ-Filter-
-// Chips, Suche, 5-fach-Sortierung + Status-Filter, Benachrichtigungs-Glocke,
-// „Dein Fortschritt"-Leiste und ein Detail-Panel (Master-Detail-Split) mit
-// Fortschritts-Stepper, Sponsoring-Panel, Votes + Kommentaren.
+// Öffentliches Feedback-Board (Redesign v2.208 feedback-optimiert, Lanes +
+// Dichte v2.225 feedback-kanban): scannbare Karten-Liste + farbiges Kanban
+// (Lob nur in der Liste), gefüllte Scope-Segmente, Typ-Filter-Chips, Suche,
+// 5-fach-Sortierung + Status-Filter, Dichte-Umschalter (Komfort/Kompakt),
+// Benachrichtigungs-Glocke, „Dein Fortschritt"-Leiste und ein Detail-Panel
+// (Master-Detail-Split) mit Stepper, Sponsoring-Panel, Votes + Kommentaren.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { List, Columns3, Search } from 'lucide-react';
+import { List, Columns3, Rows3, Search } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -46,6 +47,7 @@ type Scope = 'alle' | 'mir' | 'team';
 
 const VIEW_MODE_KEY = 'tf-feedback-board-view-v2';
 const SORT_KEY = 'tf-feedback-board-sort-v3';
+const DENSITY_KEY = 'tf-feedback-board-density-v1';
 const SORT_VALUES: readonly FeedbackSort[] = ['neu', 'pkt', 'naht', 'sup', 'kmt'];
 
 function loadViewMode(): ViewMode {
@@ -58,6 +60,10 @@ function loadSort(): FeedbackSort {
     if (r && (SORT_VALUES as readonly string[]).includes(r)) return r as FeedbackSort;
   } catch { /* ignore */ }
   return 'neu';
+}
+function loadDense(): boolean {
+  try { return localStorage.getItem(DENSITY_KEY) === 'dense'; } catch { /* ignore */ }
+  return false;
 }
 
 const CATEGORY_CHIPS: Array<{ key: FeedbackCategory; label: string }> = [
@@ -84,6 +90,7 @@ export function FeedbackBoardPage(): React.ReactElement {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<FeedbackSort>(loadSort);
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+  const [dense, setDense] = useState<boolean>(loadDense);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -95,6 +102,13 @@ export function FeedbackBoardPage(): React.ReactElement {
   const changeSort = useCallback((s: FeedbackSort): void => {
     setSort(s);
     try { localStorage.setItem(SORT_KEY, s); } catch { /* ignore */ }
+  }, []);
+  const toggleDense = useCallback((): void => {
+    setDense(d => {
+      const next = !d;
+      try { localStorage.setItem(DENSITY_KEY, next ? 'dense' : 'comfort'); } catch { /* ignore */ }
+      return next;
+    });
   }, []);
 
   const reload = useCallback(async (silent = false): Promise<void> => {
@@ -137,7 +151,6 @@ export function FeedbackBoardPage(): React.ReactElement {
   const counts = useMemo(() => ({
     probleme: base.filter(isBug).length,
     ideen: base.filter(isFeature).length,
-    lob: base.filter(t => t.category === 'praise').length,
   }), [base, isBug]);
 
   const ownItems = useMemo(() => (meId ? base.filter(t => t.user_id === meId) : []), [base, meId]);
@@ -228,6 +241,7 @@ export function FeedbackBoardPage(): React.ReactElement {
           isUnread={isUnread}
           onSelect={t => setSelectedId(t.id)}
           onChanged={handleChanged}
+          dense={dense}
         />
       );
     }
@@ -246,6 +260,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             onSelect={x => setSelectedId(x.id)}
             onChanged={handleChanged}
             narrow={narrow}
+            dense={dense}
           />
         ))}
       </div>
@@ -261,8 +276,7 @@ export function FeedbackBoardPage(): React.ReactElement {
           subtitle={
             <>
               <b className="text-[var(--tf-text-secondary)]">{counts.probleme}</b> Probleme{'  ·  '}
-              <b className="text-[var(--tf-text-secondary)]">{counts.ideen}</b> Ideen{'  ·  '}
-              <b className="text-[var(--tf-text-secondary)]">{counts.lob}</b> Lob
+              <b className="text-[var(--tf-text-secondary)]">{counts.ideen}</b> Ideen
             </>
           }
           actions={
@@ -309,6 +323,21 @@ export function FeedbackBoardPage(): React.ReactElement {
                 </button>
               ))}
             </div>
+            {/* Dichte-Umschalter (v2.225): Komfort ↔ Kompakt, gerätelokal persistiert. */}
+            <button
+              type="button"
+              onClick={toggleDense}
+              aria-pressed={dense}
+              title={dense ? 'Komfortable Ansicht' : 'Kompakte Ansicht — mehr auf einen Blick'}
+              className={`h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+                dense
+                  ? 'bg-[var(--tf-primary)] text-[var(--tf-on-primary)] shadow-sm'
+                  : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]'
+              }`}
+              style={dense ? undefined : { border: '0.5px solid var(--tf-border-hover)' }}
+            >
+              <Rows3 size={15} />
+            </button>
           </div>
         </div>
 
