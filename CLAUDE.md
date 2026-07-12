@@ -35,6 +35,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Assistent-Ereignisprotokoll (Phase 0: gerätelokales, opt-in Protokoll app-semantischer Aktionen; kein LLM/Chat/UI; Fundament für den späteren persönlichen Assistenten) | [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md) |
 | Assistent-Panel (Phase 1: kontextbewusstes Frage-Antwort-Panel; deterministisch assemblierter Kontext + intern-only Transport + resetChat/Turn; shell-weites Dock, session-only, dev) | [docs/architecture/assistent-panel.md](docs/architecture/assistent-panel.md) |
 | Assistent-Gedächtnis (Phase 2: Sleep-time-Konsolidierung des Protokolls in Memory-Blocks via internem Modell; Operationen statt Neuschrieb, invalidieren statt löschen, Belege-Pflicht, Bridge-Mutex, doppeltes Opt-in, Store nie im Snapshot; dev) | [docs/architecture/assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md) |
+| Home-Widget-System (Katalog, persönliche Config, Kanban-Widget, Settings-Sektion) | [Home-Widget-System](#home-widget-system) (CLAUDE.md) |
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [Skill-Eval-GUI (dev)](#skill-eval-gui-dev) (CLAUDE.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [Strukturierte Skill-Ausgabe (teilStruktur)](#strukturierte-skill-ausgabe-teilstruktur) (CLAUDE.md) |
 | Streamlit-Bridge (Bookmarklet-Installer + postMessage-Transport zum internen LLM) | [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md) |
@@ -232,6 +233,16 @@ Harte Invarianten (Detail + Bausteine: [docs/architecture/assistent-gedaechtnis.
 - **Doppeltes Opt-in + strikt lokal.** Gedächtnis nur aktivierbar bei aktivem Protokoll-Opt-in; Store/Opt-ins/Lauf-Meta leben nur in der Varianten-IDB (KEINE Snapshot-Allowlist). Phase-0-Erklärtext angepasst (bei aktivem Gedächtnis: interne KI-Auswertung).
 - **Assembler-Block + Kaskade.** Gedächtnis-Block an Index 1 (nach System, vor Fakten), als „Hintergrundwissen (kann veraltet sein)" markiert; Budget-Kaskade kürzt ZUERST Gedächtnis, dann Historie, dann Retrieval (Fakten/Frage unantastbar).
 - **Eval statt Zwischentesten.** `npm run eval:gedaechtnis` (5 fiktive Fixtures, deterministische Assertions = Gate + optionaler Judge, n=3); `--dry-run` = Harness-Selbsttest.
+
+### Home-Widget-System
+
+Die Homepage rendert seit v2.227 **Widget-Instanzen** aus einer persönlichen Config statt hart verdrahteter Sektionen ([src/plugins/home/widgets/](src/plugins/home/widgets/)). Kernregeln:
+
+- **Widget-Katalog ist Code** ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts) — bewusst NICHT „Registry", Kollisionsgefahr mit dem registry.json-Begriff): je `WidgetTyp` Label/Icon/Bereich/`verfuegbar`/`sichtbarWenn`/Default-Config. Zukunfts-Typen (`qs-freigaben`/`feedback-news`/`registry-aenderungen`) sind angelegt, aber `verfuegbar: false` (nur ausgegraut in den Einstellungen).
+- **Persistenz-Invariante (HART):** Config = persönliche Darstellung — IDB primär (kv `home-widgets-config`), Mirror NUR über den PersonalEinstellungen-Sync (`savePersonalSettings`, LWW via `updatedAt`); NIE registry.json, NIE Daten-Share, NIE SMB-Snapshot. Notizen (kv `home-notizen`) noch strenger: strikt IDB-only, auch KEIN Personal-Mirror. Guard `home-widgets-local-only` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
+- **Kanban-Lanes binden an `StatusCategory`** (`getStatusCategory`, Pitfall #12 — nie Roh-Status). Generische Board-Shell [src/components/kanban/KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx) (geteilt mit dem Feedback-Board, Layouts `fest`/`fluid`); Lane-Farben nur über `--tf-kanban-*`-Tokens (bunt je Kategorie / monochrom an `--tf-primary-h` gekoppelt).
+- **Ein Collapse-Zustand, eine Quelle:** `eingeklappt` lebt in der Widget-Config (`useCollapsedSection` wird für Widgets NICHT verwendet); eingeklappt wird der Body NICHT gemountet (Lazy-Zusage, nur Kopfzeile + Zähler-Slot). Konfigurierbare Ampel-Schwellen wirken NUR über den Aggregations-Pfad (`useEingangAmpelCounts` + `ampelSchwellenAusConfig` — Kopfzeile und Widget teilen die Quelle); die 4-Stufen-Logik `getEingangAmpel` der Listenzeilen bleibt fix (30/60/90).
+- Detail-Config-UI: Stift-Popover ([WidgetQuickEdit.tsx](src/plugins/home/widgets/WidgetQuickEdit.tsx)) + Einstellungs-Sektion `sec-widgets` ([WidgetsSettingsSection.tsx](src/plugins/einstellungen/WidgetsSettingsSection.tsx)) teilen EINE [WidgetConfigForm](src/plugins/home/widgets/WidgetConfigForm.tsx). Offene Folge-Pakete (NICHT jetzt bauen): Feedback-Quelle freischalten (Schloss „ab v1.1"), QS-Freigaben-, Feedback-News-, Registry-Änderungen-Widget, Auslastungs-Mini-Widget.
 
 ### Legacy: Vorgang-Typ
 
