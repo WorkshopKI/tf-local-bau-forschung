@@ -6,16 +6,18 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi, DEFAULT_KI_URL } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
+import { WidgetShell } from './widgets/WidgetShell';
+import type { WidgetProps } from './widgets/widgetProps';
 
 /**
- * AI-Assistent-Karte auf dem Home-Dashboard. Zeigt den LIVE-Verbindungsstatus der
+ * AI-Assistent-Widget (Home, Seitenspalte). Zeigt den LIVE-Verbindungsstatus der
  * internen KI (aus `useBridgeStatus`) — kein hartkodiertes „Nicht verbunden" mehr —
  * und erlaubt das Verbinden direkt von der Startseite (frueher nur via Einstellungen).
  *
  * Endpoint wird beim Mount in den State geladen, damit der „Verbinden"-onClick bis
  * `window.open` SYNCHRON bleibt (kein `await` im Gesture → kein Popup-Blocker).
  */
-export function AiAssistantCard(): React.ReactElement {
+export function AiAssistentWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const { navigate } = useNavigation();
   const storage = useStorage();
   const aiBridge = useAIBridge();
@@ -30,8 +32,19 @@ export function AiAssistantCard(): React.ReactElement {
   }, [storage]);
 
   return (
-    <div className="bg-[var(--tf-card-surface)] rounded-[var(--tf-radius)] p-4">
-      <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">AI-Assistent</p>
+    <WidgetShell
+      titel="AI-Assistent"
+      variante="seite"
+      eingeklappt={instanz.eingeklappt}
+      onToggleEingeklappt={onToggleEingeklappt}
+      zaehler={
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-text-tertiary)]'}`}
+          title={connected ? 'Verbunden' : 'Nicht verbunden'}
+          aria-hidden="true"
+        />
+      }
+    >
       <div className="flex items-center gap-2 mb-2">
         <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />
         <span className="text-[13px] text-[var(--tf-text-secondary)]">{connected ? 'Verbunden' : 'Nicht verbunden'}</span>
@@ -44,6 +57,6 @@ export function AiAssistantCard(): React.ReactElement {
       <button onClick={() => navigate('chat')} className="block text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer">
         Chat öffnen →
       </button>
-    </div>
+    </WidgetShell>
   );
 }

@@ -1,9 +1,11 @@
-import { useEingangAmpelCounts } from './useEingangAmpelCounts';
+import { useEingangAmpelCounts, type EingangAmpelCounts } from './useEingangAmpelCounts';
+import { WidgetShell } from './widgets/WidgetShell';
+import type { WidgetProps } from './widgets/widgetProps';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
 /**
- * Antragseingang-Ampel als Home-Sidebar-Karte. Zählt offene Anträge
+ * Antragseingang-Ampel als Home-Widget (Seitenspalte). Zählt offene Anträge
  * (= `bewilligung_datum` leer) in drei Buckets:
  * - Frisch (≤ 30 Tage)        → grün
  * - Warnung (31–90 Tage)      → gelb/orange
@@ -15,21 +17,26 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  *
  * Reine Info-Anzeige: nicht klickbar — die Ampel-Information ist über
  * den farbigen Punkt + Tagezahl in jeder Listenzeile direkt verfügbar.
+ * (Klickbare Zeilen kommen in Phase 3 über die Widget-Config.)
  *
  * Counts berücksichtigen den Profil-Bearbeiter-Filter (`bearbeiterFilter`
  * aus useFilteredAntraege) — sonst zeigt die Home andere Zahlen als die
- * Header-Tabs auf /antraege.
+ * Header-Tabs auf /antraege. Eingeklappt zeigt der Zähler-Slot die drei
+ * Zahlen als farbige Punkte-Pills.
  */
-export function EingangAmpelCard(): React.ReactElement | null {
+export function AntragseingangWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement | null {
   const counts = useEingangAmpelCounts();
 
   if (counts.total === 0) return null;
 
   return (
-    <div className="bg-[var(--tf-card-surface)] rounded-[var(--tf-radius)] p-4">
-      <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3 uppercase tracking-[0.08em]">
-        Antragseingang
-      </p>
+    <WidgetShell
+      titel="Antragseingang"
+      variante="seite"
+      eingeklappt={instanz.eingeklappt}
+      onToggleEingeklappt={onToggleEingeklappt}
+      zaehler={<AmpelZaehlerPills counts={counts} />}
+    >
       <div className="flex flex-col gap-0.5">
         <AmpelRow
           color="var(--tf-success-text)"
@@ -50,7 +57,27 @@ export function EingangAmpelCard(): React.ReactElement | null {
           count={counts.kritisch}
         />
       </div>
-    </div>
+    </WidgetShell>
+  );
+}
+
+/** Drei-Zahlen-Zähler für den Shell-Kopf (eingeklappt die einzige Anzeige). */
+function AmpelZaehlerPills({ counts }: { counts: EingangAmpelCounts }): React.ReactElement {
+  const pill = (color: string, count: number, label: string): React.ReactElement => (
+    <span
+      title={label}
+      className="inline-flex items-center gap-1 text-[11px] tabular-nums text-[var(--tf-text-secondary)]"
+    >
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} aria-hidden="true" />
+      {fmt(count)}
+    </span>
+  );
+  return (
+    <>
+      {pill('var(--tf-success-text)', counts.frisch, 'Frisch (≤ 30 Tage)')}
+      {pill('var(--tf-warning-text)', counts.warnung, 'Warnung (31–90 Tage)')}
+      {pill('var(--tf-danger-text)', counts.kritisch, 'Kritisch (> 90 Tage)')}
+    </>
   );
 }
 

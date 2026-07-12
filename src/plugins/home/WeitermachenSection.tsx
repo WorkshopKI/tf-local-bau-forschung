@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getWorkflowRun } from '@/plugins/antraege/gutachten/workflow-store';
@@ -11,6 +10,8 @@ import {
 import {
   beschreibeArbeitskontext, relativeZeit, type ArbeitskontextAnzeige,
 } from './arbeitskontext-anzeige';
+import { WidgetShell } from './widgets/WidgetShell';
+import type { WidgetProps } from './widgets/widgetProps';
 
 const LIMIT = 3;
 
@@ -38,13 +39,9 @@ function buildTarget(eintrag: ArbeitskontextEintrag, istEchterVerbund: boolean):
   return `${base}?${params.toString()}`;
 }
 
-/**
- * „Weitermachen"-Karte (Home, oberste Section): die drei jüngsten Arbeitskontexte
- * (Gutachten/Nachforderungen/Kurzfassung) mit Deep-Link zurück in die Werkstatt.
- * Quelle ist das REIN LOKALE Arbeitskontext-Log (IDB, nie auf dem Share) —
- * siehe arbeitskontext-log.ts. Leer ⇒ rendert nichts.
- */
-export function WeitermachenSection(): React.ReactElement | null {
+/** Lädt die jüngsten Arbeitskontexte und reichert sie zu Anzeige-Zeilen an
+ *  (rein lokales IDB-Log — siehe arbeitskontext-log.ts). */
+function useWeitermachenRows(): WeitermachenRow[] {
   const storage = useStorage();
   const antraege = useAntraegeStore(s => s.antraege);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -80,11 +77,28 @@ export function WeitermachenSection(): React.ReactElement | null {
     return () => { cancelled = true; };
   }, [storage.idb, antraege, verbundById]);
 
+  return rows;
+}
+
+/**
+ * „Weitermachen"-Widget (Home, Hauptbereich): die drei jüngsten Arbeitskontexte
+ * (Gutachten/Nachforderungen/Kurzfassung) mit Deep-Link zurück in die Werkstatt.
+ * Leer ⇒ rendert nichts (Selbst-Verstecken wie die frühere Sektion).
+ */
+export function WeitermachenWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement | null {
+  const rows = useWeitermachenRows();
   if (rows.length === 0) return null;
 
   return (
-    <div className="mb-6">
-      <SectionHeader label="Weitermachen" />
+    <WidgetShell
+      titel="Weitermachen"
+      variante="haupt"
+      eingeklappt={instanz.eingeklappt}
+      onToggleEingeklappt={onToggleEingeklappt}
+      zaehler={
+        <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">{rows.length}</span>
+      }
+    >
       <div
         className="rounded-[var(--tf-radius)] overflow-hidden"
         style={{ border: '0.5px solid var(--tf-border)' }}
@@ -100,7 +114,7 @@ export function WeitermachenSection(): React.ReactElement | null {
           <Link to="/einstellungen" className="underline hover:no-underline">verwalten</Link>
         </span>
       </p>
-    </div>
+    </WidgetShell>
   );
 }
 

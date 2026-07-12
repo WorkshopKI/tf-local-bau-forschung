@@ -11,16 +11,13 @@ import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
-import { MeineAntraegeSection } from './MeineAntraegeSection';
-import { MeineAntraegeBalken } from './MeineAntraegeBalken';
-import { WeitermachenSection } from './WeitermachenSection';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
-import { EingangAmpelCard } from './EingangAmpelCard';
 import { useEingangAmpelCounts } from './useEingangAmpelCounts';
 import { formatHomeSubtitle } from './homeSubtitle';
-import { AiAssistantCard } from './AiAssistantCard';
-import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant, isKuerzelDropdownEnabled } from '@/config/feature-flags';
+import { HomeWidgetStack } from './widgets/HomeWidgetStack';
+import type { HomeWidgetContext } from './widgets/widgetProps';
+import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -78,6 +75,11 @@ export function HomePage(): React.ReactElement {
     kritisch: ampelCounts.kritisch,
     warnung: ampelCounts.warnung,
   });
+
+  // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation
+  // (useDashboardData) läuft EINMAL hier, nicht je Widget.
+  const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 5));
+  const widgetCtx: HomeWidgetContext = { data, initialCount };
 
   // Auto-Start der Tour beim ersten Besuch (nur wenn Daten vorhanden)
   const tourHasCompleted = tour.hasCompleted;
@@ -189,103 +191,28 @@ export function HomePage(): React.ReactElement {
       {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
       <ProgrammeOverviewCards />
 
-      {/* Two-column grid */}
+      {/* Two-column grid — beide Spalten rendern Widget-Instanzen aus der
+          persönlichen Config (Reihenfolge/Sichtbarkeit/Collapse). Die
+          Sonderfälle (Begrüßung, Alert, ProgrammeOverviewCards,
+          NeueAntraegeFuerDich, Early-Returns/Tour) bleiben bewusst KEINE
+          Widgets. */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
         {/* Main */}
         <div data-tour="document-list" className="min-w-0">
-          {/* „Weitermachen" — jüngste Arbeitskontexte (rein lokales IDB-Log).
-              Rendert nichts, wenn kein Verlauf vorhanden ist. */}
-          <WeitermachenSection />
-          {(() => {
-            // Förderanträge-Pfad: zeigt „Meine Anträge" — inkl. Onboarding-Karte
-            // (kein Kürzel) und Empty-State (Kürzel aktiv aber 0 Treffer).
-
-            // „alle"-Modus = kein aktiver Kürzel-Filter. Überall, wo der Kürzel-
-            // Dropdown aktiv ist (pl/dev/kurator via Auslastungs-Modul, AS via
-            // `kuerzelDropdown`-Flag), ist „Alle" eine bewusste Auswahl → Home
-            // zeigt die Übersicht aller (aktiven) MAs (mit MA-Kürzel je Zeile)
-            // statt des „Kürzel setzen"-Hinweises. Varianten OHNE Dropdown (prod
-            // via MA-Login/Freitext, leeres Kürzel) behalten den Hinweis.
-            const alleMode = !data.bearbeiterFilterActive;
-
-            if (alleMode && !isKuerzelDropdownEnabled()) {
-              return (
-                <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
-                  <div className="flex items-start gap-3">
-                    <Settings size={18} className="mt-0.5 text-[var(--tf-text-secondary)] shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
-                        Ihr Bearbeiter-Kürzel ist noch nicht gesetzt
-                      </p>
-                      <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
-                        Tragen Sie in den Einstellungen Ihr Namenskürzel ein
-                        (z.B. <span className="font-mono">MUE</span>), damit hier automatisch
-                        Ihre offenen Anträge erscheinen.
-                      </p>
-                      <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('einstellungen')}>
-                        Zu den Einstellungen
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            if (data.meineAntraege.length === 0) {
-              return (
-                <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
-                  <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
-                    {alleMode ? (
-                      'Keine offenen Anträge'
-                    ) : (
-                      <>Keine offenen Anträge für Kürzel{' '}<span className="font-mono">{data.bearbeiterTokens.join(', ')}</span></>
-                    )}
-                  </p>
-                  <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
-                    {alleMode
-                      ? 'Aktuell sind keine offenen Förderanträge erfasst. In der Förderanträge-Liste können Sie alle Vorgänge einsehen.'
-                      : 'Aktuell sind keine offenen Förderanträge auf Sie zugeordnet. In der Förderanträge-Liste können Sie alle Vorgänge einsehen.'}
-                  </p>
-                  <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('antraege')}>
-                    Alle Förderanträge öffnen
-                  </Button>
-                </div>
-              );
-            }
-
-            const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 5));
-            return (
-              <>
-                {/* Rückstands-Balken: eigene offene Anträge nach Quartals-Alter
-                    (Ab Q-3 · Q-2 · Q-1 · akt. Quartal) mit Hover-Detail. */}
-                <MeineAntraegeBalken antraege={data.meineAntraege} />
-                <MeineAntraegeSection
-                  antraege={data.meineAntraege}
-                  initialCount={initialCount}
-                  bearbeiterTokens={data.bearbeiterTokens}
-                  alleMode={alleMode}
-                />
-              </>
-            );
-          })()}
+          <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-6 mb-6" />
 
           {/* "Neue Antraege fuer dich" — Selbsteintragung aus Auslastung
               (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
               wenn features.auslastung aktiv ist und der User Foerderantraege
-              im Profil hat. */}
+              im Profil hat. KEIN Widget: keine Kopplung an Weitermachen
+              (eigene Auslastungs-Domäne), bleibt flag-gebunden verdrahtet. */}
           {isAuslastungSelbstEintragungEnabled() && (
             <NeueAntraegeFuerDich />
           )}
         </div>
 
-        {/* Sidebar cards */}
-        <div className="space-y-4">
-          {/* Antragseingang-Ampel */}
-          <EingangAmpelCard />
-
-          {/* AI Status — LIVE-Verbindungsstatus der internen KI + Verbinden von hier */}
-          <AiAssistantCard />
-        </div>
+        {/* Sidebar — Widget-Instanzen des Bereichs `seite` */}
+        <HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-4" />
       </div>
     </div>
   );

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.227 — 2026-07
+
+### Neu
+- **Startseite als Widgets:** Die Bereiche der Startseite (Weitermachen, Meine Anträge, Antragseingang, AI-Assistent) sind jetzt eigenständige Karten mit einheitlichem Kopf — jede lässt sich per Klick auf den Pfeil ein- und ausklappen. Eingeklappt bleibt eine kompakte Zeile mit den wichtigsten Zahlen sichtbar (z.B. die drei Ampel-Werte beim Antragseingang).
+
+### Verbesserungen
+- Inhalte und Reihenfolge der Startseite bleiben unverändert — nur der Rahmen ist neu. Das Umsortieren und Ein-/Ausblenden der Widgets folgt in einer der nächsten Versionen.
+
 ## v2.226 — 2026-07
 
 ### Verbesserungen

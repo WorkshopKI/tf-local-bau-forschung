@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ArrowRight, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ListItem } from '@/components/ui/ListItem';
 import { useNavigation } from '@/core/hooks/useNavigation';
-import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import type { AntragVorgang } from './useDashboardData';
+import { MeineAntraegeBalken } from './MeineAntraegeBalken';
+import { WidgetShell } from './widgets/WidgetShell';
+import type { WidgetProps } from './widgets/widgetProps';
 
 /**
  * Spaltet den Title-String in Akronym-Prefix (falls vorhanden + im Title) und
@@ -27,42 +31,25 @@ function splitTitle(title: string, acronym: string | undefined): { acronym: stri
   return { acronym: null, rest: title };
 }
 
-interface Props {
-  /** Alle offenen eigenen Förderanträge, bereits sortiert (Frist asc → VB-Phase asc). */
-  antraege: AntragVorgang[];
-  /** Initiale Anzahl angezeigter Anträge (aus Profil, gelampt 5–15). */
-  initialCount: number;
-  /** Aktive Bearbeiter-Filter-Tokens (uppercase). Für den Help-Text. */
-  bearbeiterTokens: string[];
-  /** „alle"-/Übersichtsmodus (pl/dev): Titel „Alle Anträge" + MA-Kürzel je Zeile. */
-  alleMode?: boolean;
-}
-
 /**
- * Eigene Sektion auf der Home-Page, die ausschließlich die offenen Förderanträge
- * des Profils zeigt — als Handlungs-Zeile „Phase → nächster Schritt".
- *
- * Sichtbarkeit:
- * - Wird durch HomePage nur eingebunden, wenn der Bearbeiter-Filter aktiv ist
- *   und mindestens ein Antrag matched.
+ * „Meine Anträge"-Widget (Home, Hauptbereich): offene eigene Förderanträge als
+ * Handlungs-Zeile „Phase → nächster Schritt". Trägt seine drei Zustände selbst
+ * (früher eine IIFE in HomePage): Kürzel-Onboarding-Karte, Empty-State,
+ * Rückstands-Balken + Liste. Collapse lebt in der Widget-Config (Shell);
+ * `visibleCount` lebt HIER (überlebt Ein-/Ausklappen, Body ist lazy).
  */
-export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens, alleMode = false }: Props): React.ReactElement | null {
+export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const { navigate } = useNavigation();
+  const { data, initialCount } = ctx;
+  const antraege = data.meineAntraege;
+  const alleMode = !data.bearbeiterFilterActive;
   const [visibleCount, setVisibleCount] = useState(initialCount);
-  const [open, toggleOpen] = useCollapsedSection('home_meine_antraege_collapsed');
 
   // Wenn der Profil-Wert ändert (User passt im Einstellungs-Tab an), setzen
   // wir die in-page-Expansion zurück auf den neuen Initialwert.
   useEffect(() => {
     setVisibleCount(initialCount);
   }, [initialCount]);
-
-  if (antraege.length === 0) return null;
-
-  const visible = antraege.slice(0, visibleCount);
-  const hasMore = antraege.length > visibleCount;
-  const remaining = antraege.length - visibleCount;
-  const nextChunk = Math.min(10, remaining);
 
   // v2.3: "Alle →" springt zu /antraege mit View "Offen" + Sort nach Frist
   // — sonst zeigt die Foerderantraege-Seite eine andere View/Sortierung als
@@ -75,32 +62,128 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens,
     navigate('antraege');
   };
 
+  const zeigtListe = !(alleMode && !isKuerzelDropdownEnabled()) && antraege.length > 0;
+
   return (
-    <div className="mb-6">
-      <SectionHeader
-        label={alleMode ? 'Alle Anträge' : 'Meine Anträge'}
-        collapsible
-        collapsed={!open}
-        onToggleCollapsed={toggleOpen}
-        action={
+    <WidgetShell
+      titel={alleMode ? 'Alle Anträge' : 'Meine Anträge'}
+      variante="haupt"
+      eingeklappt={instanz.eingeklappt}
+      onToggleEingeklappt={onToggleEingeklappt}
+      aktion={
+        zeigtListe ? (
           <button
             onClick={handleAlle}
             className="text-[11px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
           >
             Alle →
           </button>
-        }
-      />
-      <div
-        className="grid transition-[grid-template-rows] ease-out"
-        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: 'var(--tf-duration-med)' }}
-      >
-        {/* pl-[18px] rückt den Inhalt (Caption + Zeilen + Footer) unter das
-            Label „MEINE ANTRÄGE" ein — der Section-Header-Button setzt das Label
-            um Chevron (12px) + gap-1.5 (6px) = 18px vom linken Rand ab, sodass
-            die Zeilen bündig mit dem „M" beginnen. */}
-        <div className="overflow-hidden pl-[18px]">
-      <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2 -mt-1">
+        ) : undefined
+      }
+      zaehler={
+        zeigtListe ? (
+          <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
+            {Math.min(visibleCount, antraege.length)} von {antraege.length}
+          </span>
+        ) : undefined
+      }
+    >
+      {alleMode && !isKuerzelDropdownEnabled() ? (
+        <KuerzelOnboardingKarte />
+      ) : antraege.length === 0 ? (
+        <EmptyKarte alleMode={alleMode} bearbeiterTokens={data.bearbeiterTokens} />
+      ) : (
+        <>
+          {/* Rückstands-Balken: eigene offene Anträge nach Quartals-Alter
+              (Ab Q-3 · Q-2 · Q-1 · akt. Quartal) mit Hover-Detail. */}
+          <MeineAntraegeBalken antraege={antraege} />
+          <MeineAntraegeListe
+            antraege={antraege}
+            visibleCount={visibleCount}
+            setVisibleCount={setVisibleCount}
+            bearbeiterTokens={data.bearbeiterTokens}
+            alleMode={alleMode}
+          />
+        </>
+      )}
+    </WidgetShell>
+  );
+}
+
+/** Onboarding-Karte: Bearbeiter-Kürzel noch nicht gesetzt (Varianten ohne
+ *  Kürzel-Dropdown). Früher direkt in HomePage. */
+function KuerzelOnboardingKarte(): React.ReactElement {
+  const { navigate } = useNavigation();
+  return (
+    <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
+      <div className="flex items-start gap-3">
+        <Settings size={18} className="mt-0.5 text-[var(--tf-text-secondary)] shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
+            Ihr Bearbeiter-Kürzel ist noch nicht gesetzt
+          </p>
+          <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
+            Tragen Sie in den Einstellungen Ihr Namenskürzel ein
+            (z.B. <span className="font-mono">MUE</span>), damit hier automatisch
+            Ihre offenen Anträge erscheinen.
+          </p>
+          <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('einstellungen')}>
+            Zu den Einstellungen
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Empty-State: Kürzel aktiv (oder „alle"-Übersicht), aber 0 offene Treffer.
+ *  Früher direkt in HomePage. */
+function EmptyKarte({ alleMode, bearbeiterTokens }: { alleMode: boolean; bearbeiterTokens: string[] }): React.ReactElement {
+  const { navigate } = useNavigation();
+  return (
+    <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
+      <p className="text-[14px] font-medium text-[var(--tf-text)] mb-1">
+        {alleMode ? (
+          'Keine offenen Anträge'
+        ) : (
+          <>Keine offenen Anträge für Kürzel{' '}<span className="font-mono">{bearbeiterTokens.join(', ')}</span></>
+        )}
+      </p>
+      <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mb-3">
+        {alleMode
+          ? 'Aktuell sind keine offenen Förderanträge erfasst. In der Förderanträge-Liste können Sie alle Vorgänge einsehen.'
+          : 'Aktuell sind keine offenen Förderanträge auf Sie zugeordnet. In der Förderanträge-Liste können Sie alle Vorgänge einsehen.'}
+      </p>
+      <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('antraege')}>
+        Alle Förderanträge öffnen
+      </Button>
+    </div>
+  );
+}
+
+interface ListeProps {
+  /** Alle offenen eigenen Förderanträge, bereits sortiert (Frist asc → VB-Phase asc). */
+  antraege: AntragVorgang[];
+  visibleCount: number;
+  setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
+  /** Aktive Bearbeiter-Filter-Tokens (uppercase). Für den Help-Text. */
+  bearbeiterTokens: string[];
+  /** „alle"-/Übersichtsmodus (pl/dev): MA-Kürzel je Zeile. */
+  alleMode: boolean;
+}
+
+/** Listen-Body (Inhalte pixel-identisch zur früheren Sektion; Header/Collapse
+ *  liegen jetzt in der WidgetShell). */
+function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeiterTokens, alleMode }: ListeProps): React.ReactElement {
+  const { navigate } = useNavigation();
+  const visible = antraege.slice(0, visibleCount);
+  const hasMore = antraege.length > visibleCount;
+  const remaining = antraege.length - visibleCount;
+  const nextChunk = Math.min(10, remaining);
+
+  return (
+    <div>
+      <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
         {alleMode ? (
           'Offene Anträge aller aktiven MAs, sortiert nach Frist · Verbünde als ein Eintrag'
         ) : (
@@ -176,8 +259,6 @@ export function MeineAntraegeSection({ antraege, initialCount, bearbeiterTokens,
           </span>
         </div>
       ) : null}
-        </div>
-      </div>
     </div>
   );
 }
