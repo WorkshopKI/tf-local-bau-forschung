@@ -12,6 +12,9 @@
 
 import type { UserProfile } from '@/core/types/config';
 import type { FeedbackAttachment, LLMClassification } from '@/core/types/feedback';
+// Type-only Import aus der Home-Domäne (kein Runtime-Zyklus): das Widget-Schema
+// lebt beim Plugin, der Einstellungen-Slot hier ist nur der Sync-Träger.
+import type { HomeWidgetConfig } from '@/plugins/home/widgets/types';
 
 export interface FilterPreset {
   id: string;
@@ -39,6 +42,12 @@ export interface PersonalEinstellungen {
   viewPreferences: ViewPreferences;
   /** Wann zuletzt der CSV-Snapshot gezogen wurde — fuer "Daten alt"-Banner. */
   lastSyncTimestamp: string | null;
+  /** Home-Widget-Config-Mirror (v2.226): IDB (kv `home-widgets-config`) ist
+   *  primaer; dieser Slot spiegelt sie in den bestehenden Sync-Fluss
+   *  (LWW ueber die INNERE `homeWidgets.updatedAt`). Optional + tolerant —
+   *  Bestandsdateien ohne das Feld bleiben gueltig (Parser prueft nur
+   *  version === 1, unbekannte Felder ueberleben den Roundtrip). */
+  homeWidgets?: HomeWidgetConfig;
 }
 
 export interface PersonalStorage {

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.226 — 2026-07
+
+### Verbesserungen
+- **Unter der Haube:** Vorbereitung für die anpassbare Startseite — künftig lassen sich die Startseiten-Bereiche (Widgets) umsortieren, ein- und ausblenden. Sichtbar wird das in den nächsten Versionen; an der Startseite ändert sich in dieser Version noch nichts.
+
 ## v2.225 — 2026-07
 
 ### Neu

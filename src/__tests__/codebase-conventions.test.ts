@@ -51,6 +51,10 @@
  *     importiert KEINE Real-Antrag-Pfade (gleicher Verbots-Katalog) — seit dem
  *     OpenRouter-Generierungs-Modus duerfen NUR gebrandete fiktive Fixtures
  *     (loadEvalFixtures + isFromEvalBundle) in einen externen Call gelangen.
+ *   - home-widgets-local-only           → Home-Widget-Config + Notizen sind
+ *     persoenliche Darstellungs-Daten: IDB primaer, Mirror NUR ueber
+ *     savePersonalSettings; keine Share-/Snapshot-Writer unter
+ *     src/plugins/home/widgets/, kein Widget-Key in SNAPSHOT_FILES.
  *   - no-raw-cta-fill                   → CTA-Buttons tragen die Profil-Primaerfarbe
  *     ueber die kanonische <Button>-Komponente (@/components/ui/button, variant=
  *     'primary' = --tf-primary); kein hand-gebauter Fill — weder als Klasse
@@ -769,7 +773,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 33;    // Ist 33; +1 'assistentGedaechtnis' (Assistent Phase 2 Gedächtnis-Konsolidierung, dev); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1360;       // Ist ~1350 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1430;       // Ist ~1410 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1278,6 +1282,60 @@ describe('arbeitskontext-log-idb-only (Journey Phase 2 — rein lokales Log)', (
       `arbeitskontext-log.ts muss IDB-only bleiben (kein Share-/Mirror-Write).\n`
       + `Verbotene Referenz(en) gefunden: ${treffer.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)', () => {
+  // Die Home-Widget-Config (+ Notizen) ist persoenliche DARSTELLUNGS-Config:
+  // IDB primaer (kv-Keys `home-widgets-config` / `home-notizen`), optional
+  // gespiegelt AUSSCHLIESSLICH ueber den sanktionierten PersonalEinstellungen-
+  // Pfad (savePersonalSettings, persoenliches Laufwerk). Sie darf NIE auf den
+  // geteilten Daten-Share, in registry.json oder in den SMB-Snapshot gelangen
+  // (Vorbild: Assistent-Stores, Pitfall #37). Zwei strukturelle Checks:
+  it('widgets/-Module referenzieren keine Share-/Snapshot-Writer', () => {
+    const widgetFiles = ALL_TS_FILES.filter(f => {
+      const p = relPath(f);
+      return p.startsWith('src/plugins/home/widgets/') && !p.includes('__tests__');
+    });
+    // atomicWrite/appendToFile = rohe Share-Writes; writeProgrammSnapshot* =
+    // SMB-Snapshot; getSmbHandle = Daten-Share-Handle; mirrorJsonToPersonal
+    // bewusst mit verboten — der Personal-Mirror laeuft ueber genau EINEN
+    // Mechanismus (savePersonalSettings), nicht ueber zwei.
+    const verboten = [
+      'atomicWrite',
+      'appendToFile',
+      'writeProgrammSnapshot',
+      'getSmbHandle',
+      'mirrorJsonToPersonal',
+    ];
+    const treffer: string[] = [];
+    for (const file of widgetFiles) {
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      for (const v of verboten) {
+        const hit = lines.some(l => {
+          const t = l.trim();
+          if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+          return l.includes(v);
+        });
+        if (hit) treffer.push(`${relPath(file)} → ${v}`);
+      }
+    }
+    expect(
+      treffer,
+      `Home-Widget-Module muessen lokal bleiben (IDB + savePersonalSettings-Mirror).\n`
+      + `Verbotene Referenz(en): ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('Snapshot-Allowlist (snapshot.ts) kennt keine Widget-/Notizen-Keys', () => {
+    const snapshot = readFileSync(join(ROOT, 'core', 'services', 'csv', 'snapshot.ts'), 'utf-8');
+    for (const key of ['home-widgets', 'home-notizen']) {
+      expect(
+        snapshot.includes(key),
+        `snapshot.ts darf '${key}' nicht kennen — die Widget-Config ist geraetelokal `
+        + `(kv-Store, strukturell ausserhalb von SNAPSHOT_FILES).`,
+      ).toBe(false);
+    }
   });
 });
 
