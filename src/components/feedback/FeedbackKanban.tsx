@@ -2,10 +2,12 @@
 // Status-Lanes (Akzent + color-mix-Tönungen) in fester Design-Reihenfolge
 // Neu → Abgelehnt → Geplant → In Bearbeitung → Umgesetzt (Status kommt aus dem
 // Feld, Konstanten aus FEEDBACK_STATUS, nie UI-Literale — Pitfall #21). Lob hat
-// keinen Workflow und erscheint nur in der Liste (keine Lob-Spalte mehr). Leere
-// Spalten klappen auf eine schmale 46px-Schiene mit vertikalem Label zusammen.
-// Karten im „Akzent"-Stil: Typ-farbige Linkskante, Typ-Label, Footer mit
-// Avatar + Metriken (Datei/Kommentare/Punkte bzw. interaktive Vote-Pill).
+// keinen Workflow und erscheint nur in der Liste (keine Lob-Spalte mehr).
+// Das Lane-Layout (getönte Köpfe, 46px-Schmalschiene, Dichte) lebt seit v2.228
+// in der generischen Shell @/components/kanban/KanbanBoard — hier bleiben nur
+// die Feedback-Spezifika: Spalten-Ableitung (buildBoardColumns) + MiniCard
+// („Akzent"-Stil: Typ-farbige Linkskante, Typ-Label, Footer mit Avatar +
+// Metriken Datei/Kommentare/Punkte bzw. interaktive Vote-Pill).
 
 import { useMemo } from 'react';
 import { ArrowUp, FileText, MessageSquare } from 'lucide-react';
@@ -15,6 +17,7 @@ import {
   getSponsoringProgress,
   isSponsorableCategory,
 } from '@/core/services/feedback';
+import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
 import {
   CATEGORY_LABELS,
   CATEGORY_TEXT_VAR,
@@ -53,10 +56,6 @@ export function buildBoardColumns(tickets: FeedbackItem[]): BoardColumn[] {
   return BOARD_ORDER.map(s => ({ status: s, items: byStatus.get(s) ?? [] }));
 }
 
-/** Lane-Tönung: Akzent (--lane-c, per Spalte gesetzt) in eine Theme-Basis mischen. */
-const mix = (pct: number, base: string): string =>
-  `color-mix(in srgb, var(--lane-c) ${pct}%, ${base})`;
-
 interface Props {
   tickets: FeedbackItem[];
   config: FeedbackConfig;
@@ -84,66 +83,34 @@ export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isU
     );
   }
 
+  const boardColumns: KanbanBoardColumn<FeedbackItem>[] = columns.map(col => ({
+    key: col.status,
+    label: STATUS_LABELS[col.status],
+    icon: getLucideIcon(STATUS_COLUMN_ICONS[col.status]),
+    accent: STATUS_LANE_ACCENT[col.status],
+    items: col.items,
+  }));
+
   return (
-    <div className="flex gap-3.5 overflow-x-auto pb-3 items-start">
-      {columns.map(col => {
-        const accent = STATUS_LANE_ACCENT[col.status];
-        const Icon = getLucideIcon(STATUS_COLUMN_ICONS[col.status]);
-        const label = STATUS_LABELS[col.status];
-        if (col.items.length === 0) {
-          return (
-            <div
-              key={col.status}
-              className="shrink-0 w-[46px] py-2.5 flex items-start justify-center rounded-[15px]"
-              style={{ ['--lane-c' as string]: accent, border: `1px dashed ${mix(30, 'var(--tf-border)')}` }}
-              title={`${label} — leer`}
-            >
-              <span className="inline-flex items-center gap-2 py-1 text-[10.5px] font-medium uppercase tracking-[0.05em] text-[var(--tf-text-tertiary)] [writing-mode:vertical-rl] rotate-180">
-                <Icon size={14} strokeWidth={1.5} style={{ color: 'var(--lane-c)' }} className="shrink-0" />
-                {label}
-                <span className="opacity-70 tabular-nums">0</span>
-              </span>
-            </div>
-          );
-        }
-        return (
-          <div
-            key={col.status}
-            className={`shrink-0 w-[250px] rounded-[15px] overflow-hidden bg-[var(--tf-bg)] px-3 pb-3 flex flex-col ${dense ? 'gap-1.5' : 'gap-[9px]'}`}
-            style={{ ['--lane-c' as string]: accent, border: `0.5px solid ${mix(60, 'var(--tf-border)')}` }}
-          >
-            {/* Vollbreite getönte Kopfzeile (style-head) */}
-            <div
-              className="-mx-3 px-3 py-[11px] flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.07em]"
-              style={{ background: mix(9, 'var(--tf-bg)'), borderBottom: `0.5px solid ${mix(15, 'var(--tf-border)')}` }}
-            >
-              <Icon size={18} strokeWidth={1.5} style={{ color: 'var(--lane-c)' }} className="shrink-0" />
-              <span style={{ color: mix(58, 'var(--tf-text)') }}>{label}</span>
-              <span
-                className="ml-auto min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-semibold tabular-nums bg-[var(--tf-bg)]"
-                style={{ color: mix(62, 'var(--tf-text)'), border: `0.5px solid ${mix(22, 'var(--tf-border)')}` }}
-              >
-                {col.items.length}
-              </span>
-            </div>
-            {col.items.map(t => (
-              <MiniCard
-                key={t.id}
-                ticket={t}
-                config={config}
-                mine={!!meineUserId && t.user_id === meineUserId}
-                unread={!!isUnread?.(t)}
-                meId={meId}
-                meName={meName}
-                onSelect={onSelect}
-                onChanged={onChanged}
-                dense={!!dense}
-              />
-            ))}
-          </div>
-        );
-      })}
-    </div>
+    <KanbanBoard
+      columns={boardColumns}
+      dense={dense}
+      layout="fest"
+      renderCard={t => (
+        <MiniCard
+          key={t.id}
+          ticket={t}
+          config={config}
+          mine={!!meineUserId && t.user_id === meineUserId}
+          unread={!!isUnread?.(t)}
+          meId={meId}
+          meName={meName}
+          onSelect={onSelect}
+          onChanged={onChanged}
+          dense={!!dense}
+        />
+      )}
+    />
   );
 }
 

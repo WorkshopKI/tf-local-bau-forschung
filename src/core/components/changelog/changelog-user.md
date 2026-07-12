@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.228 — 2026-07
+
+### Neu
+- **Kanban-Ansicht für Anträge auf der Startseite (Vorschau):** Ein neues Widget zeigt deine Förderanträge als Board mit farbigen Spalten je Bearbeitungsphase — mit kompakten Karten (Akronym, nächster Schritt, Eingangsalter) und Klick direkt in den Antrag. Wahlweise bunt oder in Abstufungen deiner Akzentfarbe, als Datenbasis auch ein gespeicherter Filter. Das Widget ist zunächst ausgeblendet; einschalten lässt es sich mit der Einstellungs-Seite der nächsten Version.
+
 ## v2.227 — 2026-07
 
 ### Neu

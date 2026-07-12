@@ -123,6 +123,24 @@
   --tf-fb-lane-neu: hsl(215, 42%, 52%);
   --tf-fb-lane-abgelehnt: hsl(0, 0%, 55%);
 
+  /* ── Home-Kanban-Widget (v2.228) — Lane-Kopf-Palette je Status-Kategorie.
+     Bunt: feste Zuordnung Kategorie→Token (Hues an der fb-Familie orientiert);
+     Monochrom: 3 Abstufungen der PRIMÄR-Hue (an --tf-primary-h gekoppelt →
+     die wählbare Primärfarbe schlägt durch). Tönungen entstehen wie beim
+     Feedback-Kanban per color-mix (dark-aware, keine vorgemischten Tokens). ── */
+  --tf-kanban-offen: hsl(215, 45%, 52%);
+  --tf-kanban-in-pruefung: hsl(245, 38%, 56%);
+  --tf-kanban-nachforderung: hsl(38, 65%, 46%);
+  --tf-kanban-entscheidung: hsl(290, 32%, 52%);
+  --tf-kanban-bewilligt: hsl(145, 45%, 40%);
+  --tf-kanban-begleitung: hsl(180, 38%, 38%);
+  --tf-kanban-abgelehnt: hsl(2, 55%, 52%);
+  --tf-kanban-abgeschlossen: hsl(0, 0%, 55%);
+  --tf-kanban-sonstige: hsl(30, 10%, 55%);
+  --tf-kanban-mono-1: hsl(var(--tf-primary-h), 40%, 42%);
+  --tf-kanban-mono-2: hsl(var(--tf-primary-h), 34%, 58%);
+  --tf-kanban-mono-3: hsl(var(--tf-primary-h), 26%, 72%);
+
   /* ════════════════════════════════════════════════════════════════════════
      Design-Handoff-Token-Vertrag (v2.119) — Skala + Soft/Border-Familie.
      Diese Tokens lebten vorher nur als lokale Lückenfüller in chat.css/
@@ -323,6 +341,20 @@
   --tf-fb-lob-border: hsl(145, 25%, 40%);
   --tf-fb-lane-neu: hsl(215, 36%, 68%);
   --tf-fb-lane-abgelehnt: hsl(0, 0%, 62%);
+
+  /* Home-Kanban-Widget (Dark): Lightness geflippt, Sättigung gedämpft (wie fb-Familie). */
+  --tf-kanban-offen: hsl(215, 38%, 68%);
+  --tf-kanban-in-pruefung: hsl(245, 32%, 70%);
+  --tf-kanban-nachforderung: hsl(38, 52%, 62%);
+  --tf-kanban-entscheidung: hsl(290, 28%, 68%);
+  --tf-kanban-bewilligt: hsl(145, 35%, 60%);
+  --tf-kanban-begleitung: hsl(180, 30%, 58%);
+  --tf-kanban-abgelehnt: hsl(2, 48%, 66%);
+  --tf-kanban-abgeschlossen: hsl(0, 0%, 62%);
+  --tf-kanban-sonstige: hsl(30, 8%, 62%);
+  --tf-kanban-mono-1: hsl(var(--tf-primary-h), 34%, 70%);
+  --tf-kanban-mono-2: hsl(var(--tf-primary-h), 28%, 58%);
+  --tf-kanban-mono-3: hsl(var(--tf-primary-h), 22%, 46%);
 
   /* ── Design-Handoff-Token-Vertrag (v2.119) — Dark: nur die theme-abhängigen
      Werte überschreiben. Die Skala-Tokens (Typo/Spacing/Radius/Motion) sind

@@ -1,0 +1,250 @@
+/**
+ * Anträge-Kanban-Widget (Home, Hauptbereich — Phase 2).
+ *
+ * Read-only + Navigation: Karten öffnen die Detailansicht, „+ N weitere →"
+ * die gefilterte Liste — KEIN Karten-Drag, kein Detail-Editing (bewusste
+ * v1-Scope-Entscheidung). Datenbasis: Bearbeiter-gefilterte Grundmenge
+ * (identische Semantik wie useEingangAmpelCounts) oder ein gespeicherter
+ * Filter (UserPreset über die bestehende Filter-Engine). Lanes = konfigurierte
+ * Status-KATEGORIEN (Pitfall #12). Quelle 'feedback' ist im Schema vorbereitet,
+ * in v1 ohne Adapter (Config-UI zeigt ein Schloss).
+ */
+import { useEffect, useMemo, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  Archive,
+  CheckCircle2,
+  FileQuestion,
+  Handshake,
+  HelpCircle,
+  Inbox,
+  Scale,
+  Search,
+  XCircle,
+} from 'lucide-react';
+import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
+import { useNavigation } from '@/core/hooks/useNavigation';
+import { useProfile } from '@/core/hooks/useProfile';
+import { useStorage } from '@/core/hooks/useStorage';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
+import { listFiltersByProgramm } from '@/core/services/csv/filter/idb-filter';
+import { applyFilters } from '@/core/services/csv/filter/engine';
+import type { FilterDefinition, UserPreset } from '@/core/services/csv/filter/types';
+import type { StatusCategory } from '@/core/utils/status-canonical';
+import { useAntraegeStore } from '@/plugins/antraege/store';
+import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import { getStatusCategoryLabel } from '@/plugins/antraege/groupAggregates';
+import { WIDGET_KATALOG } from './widgetCatalog';
+import {
+  buildAntragKanbanLanes,
+  filtereKanbanGrundmenge,
+  laneAccent,
+  type KanbanKarte,
+  type KanbanLaneDaten,
+} from './kanbanLanes';
+import type { KanbanWidgetConfig } from './types';
+import { WidgetShell } from './WidgetShell';
+import type { WidgetProps } from './widgetProps';
+
+/** Lane-Kopf-Glyphen je Status-Kategorie (analog STATUS_COLUMN_ICONS im Feedback-Board). */
+const KATEGORIE_ICON: Record<StatusCategory, LucideIcon> = {
+  offen: Inbox,
+  in_pruefung: Search,
+  nachforderung: FileQuestion,
+  entscheidung: Scale,
+  bewilligt: CheckCircle2,
+  begleitung: Handshake,
+  abgelehnt: XCircle,
+  abgeschlossen: Archive,
+  sonstige: HelpCircle,
+};
+
+interface PresetZustand {
+  preset: UserPreset | null;
+  /** presetId gesetzt, aber Preset (inzwischen) gelöscht → Hinweiszeile + Fallback. */
+  fehlt: boolean;
+  definitions: FilterDefinition[];
+}
+
+const OHNE_PRESET: PresetZustand = { preset: null, fehlt: false, definitions: [] };
+
+export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
+  const storage = useStorage();
+  const { navigate } = useNavigation();
+  const antraege = useAntraegeStore(s => s.antraege);
+  const { profile } = useProfile();
+  const meinKuerzel = useMeinKuerzel();
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+
+  // Defensive: fremde/alte Config-Stände fallen auf die Katalog-Defaults zurück.
+  const cfg: KanbanWidgetConfig = instanz.config.art === 'kanban'
+    ? instanz.config
+    : (WIDGET_KATALOG.kanban.defaultConfig() as KanbanWidgetConfig);
+
+  const [presetZustand, setPresetZustand] = useState<PresetZustand>(OHNE_PRESET);
+  useEffect(() => {
+    let cancelled = false;
+    if (!cfg.presetId || !activeProgrammId) {
+      setPresetZustand(OHNE_PRESET);
+      return;
+    }
+    void (async () => {
+      try {
+        const [presets, definitions] = await Promise.all([
+          getUserPresets(storage.idb, activeProgrammId),
+          listFiltersByProgramm(storage.idb, activeProgrammId),
+        ]);
+        if (cancelled) return;
+        const preset = presets.find(p => p.id === cfg.presetId) ?? null;
+        setPresetZustand({ preset, fehlt: !preset, definitions });
+      } catch {
+        if (!cancelled) setPresetZustand(OHNE_PRESET);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [cfg.presetId, activeProgrammId, storage.idb]);
+
+  const grundmenge = useMemo(
+    () => filtereKanbanGrundmenge(
+      antraege,
+      parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
+    ),
+    [antraege, meinKuerzel, profile?.bearbeiter_inkl_begleitung],
+  );
+
+  const basis = useMemo(
+    () => (presetZustand.preset
+      ? applyFilters(grundmenge, presetZustand.preset.snapshot, presetZustand.definitions)
+      : grundmenge),
+    [grundmenge, presetZustand],
+  );
+
+  const { lanes, gesamt } = useMemo(
+    () => buildAntragKanbanLanes(basis, cfg.lanes, cfg.maxKartenProLane),
+    [basis, cfg.lanes, cfg.maxKartenProLane],
+  );
+
+  // „+ N weitere →" / „Alle" — bestehendes store-getriebenes Muster (kein
+  // eigener Routen-Mechanismus): mit Preset in die Voll-Liste, sonst in die
+  // „Meine offenen"-View (deckungsgleiche Grundmengen-Semantik).
+  const openListe = (): void => {
+    useAntraegeStore.getState().setActiveView(presetZustand.preset ? 'alle' : 'meine_offenen');
+    navigate('antraege');
+  };
+
+  const meta = cfg.quelle === 'feedback'
+    ? 'Quelle: Feedback'
+    : `Quelle: Förderanträge${presetZustand.preset ? ` · Filter „${presetZustand.preset.name}"` : ''}`;
+
+  return (
+    <WidgetShell
+      titel="Anträge — Kanban"
+      meta={meta}
+      variante="haupt"
+      eingeklappt={instanz.eingeklappt}
+      onToggleEingeklappt={onToggleEingeklappt}
+      zaehler={
+        instanz.eingeklappt
+          ? <LanePills lanes={lanes} farbmodus={cfg.farbmodus} />
+          : (
+            <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
+              {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Vorgang' : 'Vorgänge'}
+            </span>
+          )
+      }
+    >
+      {cfg.quelle === 'feedback' ? (
+        <p className="text-[12.5px] text-[var(--tf-text-tertiary)] py-6 text-center">
+          Die Feedback-Quelle folgt in einer späteren Version (v1.1).
+        </p>
+      ) : (
+        <>
+          {presetZustand.fehlt ? (
+            <p className="text-[12px] text-[var(--tf-warning-text)] mb-2">
+              Gespeicherter Filter nicht mehr vorhanden — es wird die ungefilterte
+              Grundmenge angezeigt.
+            </p>
+          ) : null}
+          <KanbanBoard
+            layout="fluid"
+            columns={lanes.map((lane, i): KanbanBoardColumn<KanbanKarte> => ({
+              key: lane.kategorie,
+              label: getStatusCategoryLabel(lane.kategorie),
+              icon: KATEGORIE_ICON[lane.kategorie],
+              accent: laneAccent(cfg.farbmodus, lane.kategorie, i),
+              items: lane.karten,
+              count: lane.gesamt,
+              spalten: lane.spalten,
+              footer: lane.gesamt > lane.karten.length ? (
+                <button
+                  type="button"
+                  onClick={openListe}
+                  className="rounded-[10px] py-2.5 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                  style={{ border: '1px dashed var(--tf-border)' }}
+                >
+                  + {lane.gesamt - lane.karten.length} weitere →
+                </button>
+              ) : undefined,
+            }))}
+            renderCard={k => (
+              <KanbanKarteView key={k.aktenzeichen} karte={k} onOpen={() => navigate('antraege', { selectedId: k.aktenzeichen })} />
+            )}
+          />
+        </>
+      )}
+    </WidgetShell>
+  );
+}
+
+/** Eingeklappter Zähler: je Lane eine getönte Pill (Label + Zahl im Lane-Akzent). */
+function LanePills({ lanes, farbmodus }: { lanes: KanbanLaneDaten[]; farbmodus: KanbanWidgetConfig['farbmodus'] }): React.ReactElement {
+  return (
+    <>
+      {lanes.map((lane, i) => {
+        const accent = laneAccent(farbmodus, lane.kategorie, i);
+        return (
+          <span
+            key={lane.kategorie}
+            title={getStatusCategoryLabel(lane.kategorie)}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[6px] text-[11px] tabular-nums max-w-[110px]"
+            style={{
+              color: `color-mix(in srgb, ${accent} 70%, var(--tf-text))`,
+              background: `color-mix(in srgb, ${accent} 12%, var(--tf-bg))`,
+            }}
+          >
+            <span className="truncate">{getStatusCategoryLabel(lane.kategorie)}</span>
+            {lane.gesamt}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+/** Kompakt-Karte: Akronym, nächster Schritt, Meta (TV-Zahl bzw. FKZ · Alter). */
+function KanbanKarteView({ karte, onOpen }: { karte: KanbanKarte; onOpen: () => void }): React.ReactElement {
+  const alter = karte.alterTage !== null && karte.alterTage >= 0 ? `vor ${karte.alterTage} T` : null;
+  const herkunft = karte.tvCount > 1 ? `${karte.tvCount} TV` : karte.aktenzeichen;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="block w-full text-left rounded-[10px] bg-[var(--tf-bg)] shadow-sm hover:shadow-md hover:-translate-y-px transition cursor-pointer px-3 py-2.5"
+      style={{ border: '0.5px solid var(--tf-border)', borderLeft: '3px solid var(--lane-c)' }}
+    >
+      <p className="text-[13px] font-semibold text-[var(--tf-text)] truncate" title={karte.label}>
+        {karte.label}
+      </p>
+      {karte.schrittText ? (
+        <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2">
+          {karte.schrittText}
+        </p>
+      ) : null}
+      <p className="mt-1.5 text-[11px] tabular-nums text-[var(--tf-text-tertiary)] truncate">
+        {herkunft}{alter ? ` · ${alter}` : ''}
+      </p>
+    </button>
+  );
+}

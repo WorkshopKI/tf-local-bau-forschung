@@ -5,3 +5,5 @@ export * from './useHomeWidgets';
 export * from './widgetProps';
 export * from './WidgetShell';
 export * from './HomeWidgetStack';
+export * from './kanbanLanes';
+export * from './AntragKanbanWidget';

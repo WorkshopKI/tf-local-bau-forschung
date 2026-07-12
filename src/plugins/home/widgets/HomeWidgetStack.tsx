@@ -8,16 +8,17 @@ import { AiAssistentWidget } from '../AiAssistantCard';
 import { AntragseingangWidget } from '../EingangAmpelCard';
 import { MeineAntraegeWidget } from '../MeineAntraegeSection';
 import { WeitermachenWidget } from '../WeitermachenSection';
+import { AntragKanbanWidget } from './AntragKanbanWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
 
-/** Phase 1: kanban/notizen folgen in Phase 2/3; Zukunfts-Typen sind im Katalog
- *  `verfuegbar: false` und erreichen den Stack nie — null als Sicherheitsnetz. */
+/** notizen folgt in Phase 3; Zukunfts-Typen sind im Katalog `verfuegbar: false`
+ *  und erreichen den Stack nie — null als Sicherheitsnetz. */
 const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   weitermachen: WeitermachenWidget,
   'meine-antraege': MeineAntraegeWidget,
-  kanban: null,
+  kanban: AntragKanbanWidget,
   antragseingang: AntragseingangWidget,
   'ai-assistent': AiAssistentWidget,
   notizen: null,
