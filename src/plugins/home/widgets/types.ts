@@ -130,6 +130,13 @@ export interface AuslastungWidgetConfig {
   vergleichAnzeigen: boolean;
 }
 
+/** QS-Freigaben-Widget (v1.1): Kappung der angezeigten Entwurf-Zeilen. */
+export interface QsFreigabenWidgetConfig {
+  art: 'qs-freigaben';
+  /** Max. angezeigte Zeilen, danach „+ N weitere →". Default 4. */
+  maxZeilen: number;
+}
+
 /** Widgets ohne Detail-Config (Weitermachen, Meine Anträge, AI-Assistent, …). */
 export interface LeereWidgetConfig {
   art: 'keine';
@@ -141,4 +148,5 @@ export type WidgetSpezifischeConfig =
   | NotizenWidgetConfig
   | FeedbackNewsWidgetConfig
   | AuslastungWidgetConfig
+  | QsFreigabenWidgetConfig
   | LeereWidgetConfig;

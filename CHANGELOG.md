@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.233.0 — Home-Widgets v1.1 Phase 3: QS-Freigaben-Widget (Juli 2026)
+
+MINOR — Neues Haupt-Widget, das lokale Artefakt-Entwürfe bündelt, die noch auf Freigabe warten (Opt-in, Default `sichtbar: false`).
+
+- **QS-Freigaben offen** ([QsFreigabenWidget.tsx](src/plugins/home/widgets/QsFreigabenWidget.tsx) + purer Selektor [qsFreigaben.ts](src/plugins/home/widgets/qsFreigaben.ts)): liest die lokalen Artefakt-Workflow-Runs (`idb.entries('workflow-run:')` **+** Legacy `gutachten-workflow:`, dedupliziert) und bildet je Run die **Abschnitte mit `status === 'entwurf'`** (generiert, nicht freigegeben) auf Zeilen ab — Typ-Badge (GA/NF/ABL/RNE über bestehende semantische Tokens), Akronym + Artefakt (bei GA „· Abschnitt X", Join gegen den Anträge-Store/Verbund), „Entwurf seit N T". **Offene Regeln** = fehlgeschlagene mechanische `CheckResult` (`level !== 'ok'`), NICHT die beratenden `qsHinweise`. **Ehrliches Aktions-Label:** alle Regeln grün → „Freigeben →", sonst „Prüfen →" — **beide navigieren nur** in die Artefakt-Oberfläche; das Widget gibt NIE frei (Invariante).
+- **Bearbeiter-Filter** identisch zu Kanban/Ampel (`parseBearbeiterFilter` + `antragMatchesBearbeiter` als Join gegen die Antragsliste; „alle" = alle lokalen Runs), Kopfzeile mit `bearbeiterScopeLabel`. **Pflichtfreigabe** (ABL/RNE) als Anzeige-Konvention im Selektor — real existieren heute nur GA/NF-Runs, die Rampe (Sortierung Pflichtfreigabe zuerst, dann Alter) greift erst mit ABL/RNE-Artefakten. Kappung `maxZeilen` (Default 4) + „+ N weitere →"; Zähler-Pills je Typ. **Lazy:** der `entries`-Bulk-Read (eine Prefix-Range-Transaktion) läuft erst ausgeklappt; eingeklappt zeigt der Zähler-Slot nichts.
+- Katalog: `qs-freigaben` → `verfuegbar: true` (nicht flag-gegated — self-empties, wo keine Runs existieren). Tests: 7 neue ([qsFreigaben.test.ts](src/plugins/home/widgets/__tests__/qsFreigaben.test.ts): Entwurf-Filter, offene-Regeln-Label, Bearbeiter-Filter, Pflichtfreigabe-Sortierung, NF-Untertitel, Typ-Zähler, Leerzustand). Verifiziert per `npm run check` (3525 Tests grün).
+
 ### v2.232.0 — Home-Widgets v1.1 Phase 2: Auslastungs-Mini-Widget (Juli 2026)
 
 MINOR — Neues Seiten-Widget für die Quartals-Auslastung (nur wo das Auslastungs-Modul aktiv ist, `isAuslastungEnabled`; Opt-in, Default `sichtbar: false`).

@@ -115,9 +115,9 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     label: 'QS-Freigaben offen',
     icon: ClipboardCheck,
     bereich: 'haupt',
-    verfuegbar: false,
+    verfuegbar: true,
     sichtbarWenn: () => true,
-    defaultConfig: KEINE,
+    defaultConfig: () => ({ art: 'qs-freigaben', maxZeilen: 4 }),
   },
   'feedback-news': {
     typ: 'feedback-news',

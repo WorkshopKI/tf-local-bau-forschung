@@ -12,6 +12,7 @@ import { KanbanWidget } from './KanbanWidget';
 import { NotizenWidget } from './NotizenWidget';
 import { FeedbackNewsWidget } from './FeedbackNewsWidget';
 import { AuslastungWidget } from './AuslastungWidget';
+import { QsFreigabenWidget } from './QsFreigabenWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
@@ -28,7 +29,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   notizen: NotizenWidget,
   'feedback-news': FeedbackNewsWidget,
   auslastung: AuslastungWidget,
-  'qs-freigaben': null,
+  'qs-freigaben': QsFreigabenWidget,
   'registry-aenderungen': null,
 };
 

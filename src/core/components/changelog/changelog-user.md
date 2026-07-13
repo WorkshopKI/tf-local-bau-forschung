@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.233 — 2026-07
+
+### Neu
+- **QS-Freigaben auf der Startseite:** Ein neues Widget sammelt alle Gutachten-/Artefakt-Entwürfe, die fertig generiert sind, aber noch auf deine Freigabe warten — mit „Entwurf seit N Tagen" und dem Regel-Status. Steht alles auf grün, führt „Freigeben →" direkt zum Artefakt; sonst „Prüfen →". Freigegeben wird weiterhin nur im Artefakt selbst, nie im Widget.
+
 ## v2.232 — 2026-07
 
 ### Neu
