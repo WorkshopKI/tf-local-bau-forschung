@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.237.2 — Startseite: Widget-Karten vertikal kompakter (Juli 2026)
+
+PATCH — Die Home-Widget-Karten hatten oben/unten etwas zu viel Luft. Das vertikale Innen-Padding im gemeinsamen [WidgetShell](src/plugins/home/widgets/WidgetShell.tsx) wurde moderat gestrafft — Haupt-Karten (Kopf `py-3 → py-2.5`, Body `pb-4 → pb-3`) wie Seiten-Karten (Kopf `pt-16 → pt-12`, Body `pt-12 → pt-10` / `pb-16 → pb-12`, eingeklappt-Abstand `pb-3 → pb-2.5`). Wirkt einheitlich auf alle Widgets (auch die AI-Assistent-Karte, die dieselbe Shell nutzt); horizontale Ränder + Inhalte unverändert. Reiner Style-Feinschliff, keine Logikänderung.
+
 ### v2.237.1 — Antragseingang-Widget: Kopf-Pills nicht doppelt (Juli 2026)
 
 PATCH — Das Antragseingang-Widget zeigte die drei Zähler-Pills (● Frisch / ● Warnung / ● Kritisch) auch **ausgeklappt** im Kopf — dort stehen dieselben Zahlen aber direkt darunter als Zeilen. Die Kopf-Pills erscheinen jetzt **nur noch eingeklappt** (wo sie die einzige sichtbare Anzeige sind); ausgeklappt tragen die Zeilen die Zahlen ([EingangAmpelCard.tsx](src/plugins/home/EingangAmpelCard.tsx)). Reiner Anzeige-Feinschliff, keine Logikänderung.
