@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.237.0 — Startseite: Stift nur bei konfigurierbaren Widgets + ziehbare Spaltenbreite (Juli 2026)
+
+MINOR — Drei Feinschliffe an den Home-Widgets aus Nutzer-Feedback. Additiv/lokal, kein Schema-/Flag-Bump.
+
+- **Stift nur, wo es etwas einzustellen gibt:** Widgets ohne eigene Einstellungen (Weitermachen, Meine Anträge, AI-Assistent, Notizen, Feedback-Neuigkeiten, Auslastung, QS-Freigaben, Registry-Änderungen) zeigen keinen Bearbeiten-Stift mehr im Kopf — der öffnete bisher nur ein „keine weiteren Einstellungen"-Popover. Der Stift bleibt bei **Kanban** und **Antragseingang** (Schwellen). Steuernde Wahrheit ist die neue reine Funktion [`hatWidgetDetailConfig`](src/plugins/home/widgets/types.ts) — dieselbe Quelle für den Kopf-Stift ([WidgetShell.tsx](src/plugins/home/widgets/WidgetShell.tsx)) **und** die aufklappbare Zeile in den Einstellungen ([WidgetsSettingsSection.tsx](src/plugins/einstellungen/WidgetsSettingsSection.tsx), ersetzt die dortige Inline-Kopie).
+- **Kein Stift-Überhang über den Kartenrand:** In der schmalen Seitenspalte (260 px) konnten Titel + Zähler + Stift die Kopfzeile überlaufen, sodass der Stift über den rechten Kartenrand hinausragte (Flex-Overflow, alle Kopf-Elemente `shrink-0`). Der Titel darf jetzt kürzen (`truncate`), statt Zähler/Stift hinauszudrücken ([WidgetShell.tsx](src/plugins/home/widgets/WidgetShell.tsx)).
+- **Hauptspalte per Zieh-Griff verbreiterbar:** Zwischen Haupt- und Seitenspalte sitzt ein ziehbarer Trenn-Griff — nach rechts ziehen macht die Seitenspalte schmaler und die **Hauptspalte breiter**, damit der Kanban mehr Lanes zeigt (statt „+ N weitere →"). Die Breite (200–480 px) bleibt gerätelokal in localStorage gespeichert (reine Darstellungs-Präferenz, kein Share/Snapshot); Doppelklick setzt zurück, Pfeiltasten justieren, `role="separator"` für Screenreader. Neue Komponente [HomeZweiSpalten.tsx](src/plugins/home/HomeZweiSpalten.tsx); die 1024-px-Breitengrenze der Startseite wurde auf 1600 px angehoben, damit auf breiten Monitoren tatsächlich Platz entsteht ([HomePage.tsx](src/plugins/home/HomePage.tsx)).
+
 ### v2.236.0 — Darstellung: aufklappbare „Tastatur Shortcuts" + kompaktere Widgets (Juli 2026)
 
 MINOR — Das Panel „Darstellung & Bedienung" wurde entschlackt, damit man ohne Scrollen an die wichtigen Stellen kommt. Additiv/lokal, kein Schema-/Flag-Bump.

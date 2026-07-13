@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.237 — 2026-07
+
+### Verbesserungen
+- **Startseite: mehr Platz für den Kanban.** Zwischen der breiten Hauptspalte und der schmalen rechten Spalte gibt es jetzt einen Zieh-Griff: einfach nach rechts ziehen, dann wird die Hauptspalte breiter und der Kanban zeigt mehr Spalten statt „+ N weitere". Die eingestellte Breite bleibt auf diesem Gerät gemerkt; Doppelklick setzt sie zurück.
+- **Aufgeräumte Widget-Köpfe.** Der Bearbeiten-Stift erscheint nur noch bei Widgets, die sich wirklich einstellen lassen (Kanban und Antragseingang) — bei allen anderen ist er weg, statt ein leeres „keine Einstellungen"-Fenster zu öffnen. Außerdem ragt der Stift in der schmalen rechten Spalte nicht mehr über den Kartenrand hinaus.
+
 ## v2.236 — 2026-07
 
 ### Verbesserungen

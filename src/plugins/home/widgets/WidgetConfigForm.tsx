@@ -45,6 +45,10 @@ export interface WidgetConfigFormProps {
   onUpdateConfig: (config: WidgetSpezifischeConfig) => Promise<void>;
 }
 
+// Prädikat „hat Detail-Formular?" lebt in ./types (hatWidgetDetailConfig) —
+// dort pur + node-testbar, ohne die schweren UI-/Feedback-Imports dieses Moduls.
+// Muss zu den Branches unten (kanban/ampel) passen.
+
 export function WidgetConfigForm({ instanz, kontext, onUpdateConfig }: WidgetConfigFormProps): React.ReactElement {
   const cfg = instanz.config;
   if (cfg.art === 'kanban') {

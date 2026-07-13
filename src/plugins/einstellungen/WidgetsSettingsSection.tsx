@@ -12,7 +12,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useHomeWidgets } from '@/plugins/home/widgets/useHomeWidgets';
 import { WIDGET_KATALOG, listeKatalog } from '@/plugins/home/widgets/widgetCatalog';
 import { WidgetConfigForm } from '@/plugins/home/widgets/WidgetConfigForm';
-import type { WidgetInstanz } from '@/plugins/home/widgets/types';
+import { hatWidgetDetailConfig, type WidgetInstanz } from '@/plugins/home/widgets/types';
 import { CollapsibleSettingsSection } from './_shared/settings-primitives';
 
 export function WidgetsSettingsSection(): React.ReactElement {
@@ -109,8 +109,9 @@ function WidgetZeile({
 }): React.ReactElement {
   const eintrag = WIDGET_KATALOG[instanz.typ];
   const Icon = eintrag.icon;
-  // Detail-Config nur für Typen mit eigenem Formular (kanban/ampel).
-  const hatDetail = instanz.config.art === 'kanban' || instanz.config.art === 'ampel';
+  // Detail-Config nur für Typen mit eigenem Formular (kanban/ampel) — dieselbe
+  // Wahrheit, die auch den Widget-Kopf-Stift steuert (WidgetShell).
+  const hatDetail = hatWidgetDetailConfig(instanz.config);
 
   const pfeil = (richtung: 'hoch' | 'runter', moeglich: boolean): React.ReactElement => (
     <button

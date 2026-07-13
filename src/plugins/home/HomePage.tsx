@@ -11,6 +11,7 @@ import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
+import { HomeZweiSpalten } from './HomeZweiSpalten';
 import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { useEingangAmpelCounts } from './useEingangAmpelCounts';
@@ -128,7 +129,7 @@ export function HomePage(): React.ReactElement {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Tag' : 'Guten Abend';
     return (
-      <div className="px-8 pt-4 pb-6 max-w-5xl">
+      <div className="px-8 pt-4 pb-6 max-w-[1600px]">
         <div className="mb-6">
           <h1 className="text-[22px] font-medium text-[var(--tf-text)]">
             {greeting}{name ? `, ${name}` : ''}
@@ -181,7 +182,7 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div className="px-8 pt-4 pb-6 max-w-5xl">
+    <div className="px-8 pt-4 pb-6 max-w-[1600px]">
       {/* Header */}
       <div data-tour="home-dashboard" className="mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
@@ -202,28 +203,28 @@ export function HomePage(): React.ReactElement {
       <ProgrammeOverviewCards />
 
       {/* Two-column grid — beide Spalten rendern Widget-Instanzen aus der
-          persönlichen Config (Reihenfolge/Sichtbarkeit/Collapse). Die
-          Sonderfälle (Begrüßung, Alert, ProgrammeOverviewCards,
+          persönlichen Config (Reihenfolge/Sichtbarkeit/Collapse). Der ziehbare
+          Trenn-Griff (HomeZweiSpalten) verbreitert die Hauptspalte für den
+          Kanban. Die Sonderfälle (Begrüßung, Alert, ProgrammeOverviewCards,
           NeueAntraegeFuerDich, Early-Returns/Tour) bleiben bewusst KEINE
           Widgets. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
-        {/* Main */}
-        <div data-tour="document-list" className="min-w-0">
-          <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-6 mb-6" />
+      <HomeZweiSpalten
+        main={
+          <div data-tour="document-list" className="min-w-0">
+            <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-6 mb-6" />
 
-          {/* "Neue Antraege fuer dich" — Selbsteintragung aus Auslastung
-              (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
-              wenn features.auslastung aktiv ist und der User Foerderantraege
-              im Profil hat. KEIN Widget: keine Kopplung an Weitermachen
-              (eigene Auslastungs-Domäne), bleibt flag-gebunden verdrahtet. */}
-          {isAuslastungSelbstEintragungEnabled() && (
-            <NeueAntraegeFuerDich />
-          )}
-        </div>
-
-        {/* Sidebar — Widget-Instanzen des Bereichs `seite` */}
-        <HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-4" />
-      </div>
+            {/* "Neue Antraege fuer dich" — Selbsteintragung aus Auslastung
+                (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
+                wenn features.auslastung aktiv ist und der User Foerderantraege
+                im Profil hat. KEIN Widget: keine Kopplung an Weitermachen
+                (eigene Auslastungs-Domäne), bleibt flag-gebunden verdrahtet. */}
+            {isAuslastungSelbstEintragungEnabled() && (
+              <NeueAntraegeFuerDich />
+            )}
+          </div>
+        }
+        seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-4" />}
+      />
     </div>
   );
 }

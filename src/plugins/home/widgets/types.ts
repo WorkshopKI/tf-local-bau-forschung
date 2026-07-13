@@ -158,3 +158,17 @@ export type WidgetSpezifischeConfig =
   | QsFreigabenWidgetConfig
   | RegistryAenderungenWidgetConfig
   | LeereWidgetConfig;
+
+/**
+ * EINZIGE Wahrheit: Hat dieses Widget ein Detail-Formular? Nur Typen mit echten
+ * Reglern — Kanban (Lanes/Farbe/Quelle) und Ampel (Schwellen). Alle anderen
+ * (Weitermachen, Meine Anträge, AI-Assistent, Notizen, Feedback-Neuigkeiten,
+ * Auslastung, QS-Freigaben, Registry-Änderungen) haben keine Einstellungen.
+ *
+ * Steuert BEIDES aus einer Quelle: den Stift im Widget-Kopf (WidgetShell — kein
+ * Stift ohne Einstellungen) und die aufklappbare Zeile in den Einstellungen
+ * (WidgetsSettingsSection). Muss zu den Branches in WidgetConfigForm passen.
+ */
+export function hatWidgetDetailConfig(config: WidgetSpezifischeConfig): boolean {
+  return config.art === 'kanban' || config.art === 'ampel';
+}

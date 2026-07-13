@@ -2,17 +2,17 @@
  * Präsentations-Rahmen eines Home-Widgets (Phase 1).
  *
  * Kopfzeile: Chevron (Collapse-Toggle) + Titel + optionaler Meta-Text +
- * Aktions-Slot + Zähler-Slot + Stift-Button (Popover folgt in Phase 3).
+ * Aktions-Slot + Zähler-Slot + (nur bei konfigurierbaren Widgets) Stift-Popover.
  *
  * LAZY-ZUSAGE (hart): Eingeklappt wird NUR die Kopfzeile inkl. Zähler-Slot
  * gerendert — der Body wird nicht gemountet (kein verstecktes Grid-Rows-
  * Animations-DOM; file://+IDB-Performance). Der Collapse-Zustand kommt aus
  * der Widget-Config (einzige Quelle), nicht aus useCollapsedSection.
  */
-import { ChevronRight, Pencil } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { WidgetQuickEdit } from './WidgetQuickEdit';
-import type { WidgetInstanz } from './types';
+import { hatWidgetDetailConfig, type WidgetInstanz } from './types';
 
 export interface WidgetShellProps {
   titel: string;
@@ -26,9 +26,9 @@ export interface WidgetShellProps {
   variante: 'haupt' | 'seite';
   eingeklappt: boolean;
   onToggleEingeklappt: () => Promise<void>;
-  /** Widget-Instanz für das Stift-Popover (WidgetQuickEdit, Phase 3). Ohne
-   *  Instanz bleibt der Stift inaktiv sichtbar — der Platz im Kopf ist Teil
-   *  des Widget-Vertrags. */
+  /** Widget-Instanz für das Stift-Popover (WidgetQuickEdit). Der Stift wird nur
+   *  gerendert, wenn das Widget ein Detail-Formular hat (hatWidgetDetailConfig,
+   *  d.h. Kanban/Ampel) — Widgets ohne Einstellungen zeigen keinen Stift. */
   instanz?: WidgetInstanz;
   children: React.ReactNode;
 }
@@ -62,7 +62,7 @@ export function WidgetShell({
           onClick={() => toggle.run()}
           aria-expanded={!eingeklappt}
           aria-label={eingeklappt ? `${titel} ausklappen` : `${titel} einklappen`}
-          className="flex items-center gap-1.5 cursor-pointer select-none text-left min-w-0 shrink-0"
+          className="flex items-center gap-1.5 cursor-pointer select-none text-left min-w-0"
         >
           <ChevronRight
             size={haupt ? 14 : 12}
@@ -72,7 +72,10 @@ export function WidgetShell({
               transition: 'transform var(--tf-duration-med) var(--tf-ease)',
             }}
           />
-          <span className={titelKlasse}>{titel}</span>
+          {/* truncate + min-w-0: bei schmalen Karten (260px Seitenspalte) darf
+              der Titel kürzen, statt Zähler/Stift über den Kartenrand zu
+              drücken (Flex-Overflow). */}
+          <span className={`${titelKlasse} truncate min-w-0`}>{titel}</span>
         </button>
         {eingeklappt ? (
           haupt ? (
@@ -92,19 +95,11 @@ export function WidgetShell({
         <div className="flex-1 min-w-0" />
         {!eingeklappt && aktion ? <div className="shrink-0">{aktion}</div> : null}
         {zaehler ? <div className="shrink-0 flex items-center gap-1.5">{zaehler}</div> : null}
-        {instanz ? (
+        {/* Stift nur bei Widgets mit echtem Detail-Formular (Kanban/Ampel) —
+            sonst kein Knopf, der ein „keine Einstellungen"-Popover öffnet. */}
+        {instanz && hatWidgetDetailConfig(instanz.config) ? (
           <WidgetQuickEdit instanz={instanz} />
-        ) : (
-          <button
-            type="button"
-            disabled
-            aria-label="Widget anpassen"
-            title="Anpassen — folgt in einer späteren Version"
-            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-[var(--tf-radius-sm)] text-[var(--tf-text-tertiary)] opacity-40 cursor-default"
-          >
-            <Pencil size={13} />
-          </button>
-        )}
+        ) : null}
       </div>
       {/* Lazy: Body existiert im DOM NUR ausgeklappt. */}
       {!eingeklappt ? (
