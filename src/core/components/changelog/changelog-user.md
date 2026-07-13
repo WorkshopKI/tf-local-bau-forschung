@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.243 — 2026-07
+
+### Neu
+- **Neuer Tab „Verwertung/Markt" in der Antrag-Aufbereitung.** Er fasst die Aussagen zu Zielmärkten, Wettbewerb, Verwertungswegen, geplantem Markteintritt und erwarteten Umsätzen zusammen — jeweils mit Fundstelle im Antrag. Ob diese Angaben in einem eigenen Marketing-/Verwertungskonzept oder schon in der Vorhabensbeschreibung stehen, spielt keine Rolle.
+
 ## v2.242 — 2026-07
 
 ### Neu

@@ -153,10 +153,10 @@ describe('Seed', () => {
   it('enthält die Gutachten-Skills A–G + QS-Basis + zusammenpassende Regeln', () => {
     // A (Kurzfassung) + B–G = 7 Skills + qs-basis + relevanz-map + nf-auswahl-fuellung +
     // anfrage-anonymisieren + anfrage-metadaten + aufbereitung-aspekte + aufbereitung-steckbrief +
-    // aufbereitung-zahlen + aufbereitung-glossar = 16; 5 A-Regeln + 9 B–G-Regeln + 3 NF-Regeln +
-    // 5 GA-QS-Regeln = 22 Regeln (QS + Relevanz-Map + Anfrage-Skills + Aufbereitungs-Skills haben keine).
+    // aufbereitung-zahlen + aufbereitung-glossar + aufbereitung-verwertung = 17; 5 A-Regeln + 9 B–G-Regeln +
+    // 3 NF-Regeln + 5 GA-QS-Regeln = 22 Regeln (QS + Relevanz-Map + Anfrage-Skills + Aufbereitungs-Skills haben keine).
     // B–G: B(3) + C(3: seed-c-wortanzahl[Waise] + seed-c-umfang + seed-c-keine-aufzaehlungen) + D(2) + G(1).
-    expect(SEED_REGISTRY.skills).toHaveLength(16);
+    expect(SEED_REGISTRY.skills).toHaveLength(17);
     expect(SEED_REGISTRY.regeln).toHaveLength(22);
     expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung

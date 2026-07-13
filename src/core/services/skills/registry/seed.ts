@@ -24,6 +24,7 @@ import { AUFBEREITUNG_ASPEKTE_SKILL } from './aufbereitung-aspekte.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL } from './aufbereitung-steckbrief.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL } from './aufbereitung-zahlen.seed';
 import { AUFBEREITUNG_GLOSSAR_SKILL } from './aufbereitung-glossar.seed';
+import { AUFBEREITUNG_VERWERTUNG_SKILL } from './aufbereitung-verwertung.seed';
 import { GRUNDSATZ_REGELN } from './grundsatz';
 
 /** Fester Seed-Zeitstempel — deterministisch (kein `new Date()` zur Seed-Zeit). */
@@ -645,7 +646,7 @@ export const SEED_REGISTRY: SkillRegistryFile = {
     SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_NF_SKILL,
     ANFRAGE_ANONYMISIEREN_SKILL, ANFRAGE_METADATEN_SKILL,
     AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_ZAHLEN_SKILL,
-    AUFBEREITUNG_GLOSSAR_SKILL,
+    AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL,
   ],
   regeln: [...SEED_REGELN, ...SEED_REGELN_BG, ...SEED_NF_REGELN, ...GA_QS_REGELN],
   workflows: SEED_WORKFLOWS,

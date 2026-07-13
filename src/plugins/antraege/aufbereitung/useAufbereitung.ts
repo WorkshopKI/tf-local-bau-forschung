@@ -16,6 +16,7 @@ import {
   AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID,
   AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID,
   AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
+  AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID,
   type SkillRecord,
 } from '@/core/services/skills';
 import { resolveKorpus, resolveAnlage5 } from './quellen';
@@ -30,6 +31,7 @@ import { computeAspekteBaustein, type AspektMapping } from './aspekte';
 import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
 import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
 import { computeGlossarBaustein, type GlossarDaten } from './glossar';
+import { computeVerwertungBaustein, type VerwertungDaten } from './verwertung';
 import type { AufbereitungRun } from './types';
 
 /** UI-Status eines Bausteins (Compute-Status + die Vor-Zustände `fehlt`/`laeuft`). */
@@ -67,6 +69,8 @@ export interface UseAufbereitungResult {
   zahlen: BausteinUiState<ZahlenDaten>;
   /** Glossar-Baustein (v2.219). */
   glossar: BausteinUiState<GlossarDaten>;
+  /** Verwertung/Markt-Baustein (Stufe 2) — läuft über den Korpus (dokumentgrenzen-unabhängig). */
+  verwertung: BausteinUiState<VerwertungDaten>;
   /** Korpus-Volltext (VB + narrative Zusatzdokumente) für Fundstellen-Auszüge +
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
@@ -89,10 +93,12 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [steckbriefSkill, setSteckbriefSkill] = useState<SkillRecord>(AUFBEREITUNG_STECKBRIEF_SKILL);
   const [zahlenSkill, setZahlenSkill] = useState<SkillRecord>(AUFBEREITUNG_ZAHLEN_SKILL);
   const [glossarSkill, setGlossarSkill] = useState<SkillRecord>(AUFBEREITUNG_GLOSSAR_SKILL);
+  const [verwertungSkill, setVerwertungSkill] = useState<SkillRecord>(AUFBEREITUNG_VERWERTUNG_SKILL);
   const [aspekte, setAspekte] = useState<BausteinUiState<AspektMapping>>(FEHLT);
   const [steckbrief, setSteckbrief] = useState<BausteinUiState<SteckbriefDaten>>(FEHLT);
   const [zahlen, setZahlen] = useState<BausteinUiState<ZahlenDaten>>(FEHLT);
   const [glossar, setGlossar] = useState<BausteinUiState<GlossarDaten>>(FEHLT);
+  const [verwertung, setVerwertung] = useState<BausteinUiState<VerwertungDaten>>(FEHLT);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
   const key = ctx?.key ?? null;
 
@@ -104,6 +110,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setSteckbrief(FEHLT);
     setZahlen(FEHLT);
     setGlossar(FEHLT);
+    setVerwertung(FEHLT);
     setVbMarkdown(null);
     (async () => {
       if (!key) { setRun(null); setLoading(false); return; }
@@ -123,7 +130,8 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
         const stb = loaded.file.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID) ?? AUFBEREITUNG_STECKBRIEF_SKILL;
         const zah = loaded.file.skills.find(x => x.id === AUFBEREITUNG_ZAHLEN_SKILL_ID) ?? AUFBEREITUNG_ZAHLEN_SKILL;
         const glo = loaded.file.skills.find(x => x.id === AUFBEREITUNG_GLOSSAR_SKILL_ID) ?? AUFBEREITUNG_GLOSSAR_SKILL;
-        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); setZahlenSkill(zah); setGlossarSkill(glo); }
+        const vw = loaded.file.skills.find(x => x.id === AUFBEREITUNG_VERWERTUNG_SKILL_ID) ?? AUFBEREITUNG_VERWERTUNG_SKILL;
+        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); setZahlenSkill(zah); setGlossarSkill(glo); setVerwertungSkill(vw); }
       } catch { /* Seed-Fallback bleibt gesetzt. */ }
     })();
     return () => { cancelled = true; };
@@ -157,6 +165,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setSteckbrief(FEHLT);
     setZahlen(FEHLT);
     setGlossar(FEHLT);
+    setVerwertung(FEHLT);
   });
 
   // Nach einem Dokument-Upload neu aufbereiten. Mehrere Dateien feuern `onIngested`
@@ -223,6 +232,8 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
     await laufEinen<GlossarDaten>(glossarSkill, setGlossar, t =>
       computeGlossarBaustein(storage.idb, t, glossarSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
+    await laufEinen<VerwertungDaten>(verwertungSkill, setVerwertung, t =>
+      computeVerwertungBaustein(storage.idb, t, verwertungSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
   };
 
   const bausteine = useAsyncAction(async () => {
@@ -255,5 +266,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, aspekte, steckbrief, zahlen, glossar, vbMarkdown, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, aspekte, steckbrief, zahlen, glossar, verwertung, vbMarkdown, bausteine, bausteineNeu };
 }

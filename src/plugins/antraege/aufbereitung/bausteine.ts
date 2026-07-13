@@ -52,6 +52,8 @@ export const zahlenCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:zahlen:${vbHash}`;
 export const glossarCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:glossar:${vbHash}`;
+export const verwertungCacheKey = (antragKey: string, vbHash: string): string =>
+  `aufbereitung:${antragKey}:verwertung:${vbHash}`;
 
 /** VB-Hash (djb2 — dieselbe Funktion wie der deterministische Run + die Relevanz-Map). */
 export const vbHashFuer = (vbMarkdown: string): string => hashText(vbMarkdown);
@@ -203,6 +205,7 @@ export async function loescheBausteinCaches(idb: IDBStore, antragKey: string): P
     `aufbereitung:${antragKey}:steckbrief:`,
     `aufbereitung:${antragKey}:zahlen:`,
     `aufbereitung:${antragKey}:glossar:`,
+    `aufbereitung:${antragKey}:verwertung:`,
   ];
   for (const praefix of praefixe) {
     const keys = await idb.keys(praefix).catch(() => [] as string[]);

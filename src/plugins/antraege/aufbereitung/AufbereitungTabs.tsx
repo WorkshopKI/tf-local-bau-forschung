@@ -8,7 +8,7 @@
 import { cn } from '@/lib/utils';
 
 export type AufbereitungTabId =
-  | 'steckbrief' | 'abdeckung' | 'zeitplan' | 'zahlen' | 'glossar' | 'fragen' | 'recherche' | 'lesemodus';
+  | 'steckbrief' | 'abdeckung' | 'zeitplan' | 'zahlen' | 'verwertung' | 'glossar' | 'fragen' | 'recherche' | 'lesemodus';
 
 interface TabDef {
   id: AufbereitungTabId;
@@ -22,6 +22,7 @@ export const AUFBEREITUNG_TABS: TabDef[] = [
   { id: 'abdeckung', label: 'Abdeckung', zustand: 'aktiv' },
   { id: 'zeitplan', label: 'Zeitplan', zustand: 'aktiv' },
   { id: 'zahlen', label: 'Zahlen', zustand: 'aktiv' },
+  { id: 'verwertung', label: 'Verwertung/Markt', zustand: 'aktiv' },
   { id: 'glossar', label: 'Glossar', zustand: 'aktiv' },
   { id: 'fragen', label: 'Fragen', zustand: 'aktiv' },
   { id: 'recherche', label: 'Recherche', zustand: 'aktiv' },

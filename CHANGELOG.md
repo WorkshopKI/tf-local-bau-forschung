@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.243.0 — Antrag-Aufbereitung: Tab „Verwertung/Markt" (dokumentgrenzen-unabhängig) (Juli 2026)
+
+MINOR — Stufe 2 zu v2.242.0: neuer Tab **„Verwertung/Markt"** in der Antrag-Aufbereitung (dev-Flag `antragAufbereitung`). Ein interner LLM-Baustein extrahiert die Verwertungs-/Markt-Aussagen (Zielmärkte, Wettbewerb, Verwertungswege, Zeithorizont, Umsatz-/Marktpotenzial) aus dem **Korpus** — kategorisiert, wortnah, mit Fundstellen ([verwertung.ts](src/plugins/antraege/aufbereitung/verwertung.ts), [VerwertungTab.tsx](src/plugins/antraege/aufbereitung/VerwertungTab.tsx)).
+
+- **Dokumentgrenzen-unabhängig**: der Baustein läuft über den zusammengeführten Korpus (VB + narrative Zusatzdokumente), nie über ein separates Marketing-Dokument. Ob das Verwertungskonzept in der VB steht oder in einem Extra-Dokument, ändert Inhalt + Fundstellen nicht. Die Fundstellen zeigen in dieselbe Korpus-Gliederung wie alle Tabs (Lesemodus-Sprung landet auch bei Marketing-Sektionen korrekt — kein Sonderpfad).
+- **Inhaltsbasierter Leer-Zustand**: bewusst KEIN „verdächtig"-Retry — 0 Aussagen ist ein legitimer Zustand („kein Verwertungs-/Markt-Inhalt im Material"), keine Degradations-Warnung.
+- Neuer Skill-Seed `aufbereitung-verwertung` ([aufbereitung-verwertung.seed.ts](src/core/services/skills/registry/aufbereitung-verwertung.seed.ts), `aktiv:false`, intern-pflichtig via literalem `{{vbMarkdown}}`, Pitfall #30/#35); tolerant-JSON-Parser über den geteilten `birgtRohArray` (Truncation-Salvage, kompakt-JSON, Muster Glossar). Neuer Seed → `mergeMissingSeeds` zieht ihn auf Bestands-Shares nach (keine Migration).
+- **Noch offen**: file://-Abnahme (Thomas) + ein Eval-Durchlauf für den neuen Baustein (bleibt `aktiv:false` bis dahin).
+
 ### v2.242.0 — Antrag-Aufbereitung: „Dokumente zum Vorhaben" — Inline-Upload + dokumentgrenzen-unabhängiger Korpus (Juli 2026)
 
 MINOR — Die Antrag-Aufbereitung (dev-Flag `antragAufbereitung`) behandelt **alle Vorhabens-Dokumente als eine Einheit**. Neues Panel „Dokumente zum Vorhaben" ([QuellenPanel.tsx](src/plugins/antraege/aufbereitung/QuellenPanel.tsx)) zeigt VB / Arbeitsplan-Anlage 5 / Marketing-Verwertungskonzept und bietet eine **Inline-Drop-Zone**, mit der der Gutachter fehlende Dokumente (z.B. eine vergessene Anlage 5) direkt auf der Aufbereitungs-Seite nachreicht — statt die Seite zu verlassen (die gemeldete Blockade). Nach der Aufnahme wird automatisch neu aufbereitet.

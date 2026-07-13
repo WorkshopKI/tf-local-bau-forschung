@@ -27,6 +27,7 @@ import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
 import { ZahlenTab } from './ZahlenTab';
+import { VerwertungTab } from './VerwertungTab';
 import { GlossarTab } from './GlossarTab';
 import { RechercheTab } from './RechercheTab';
 import { FragenTab } from './FragenTab';
@@ -62,7 +63,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     [aufb.vbMarkdown, springeZuFundstelle],
   );
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
-  const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus]
+  const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus, aufb.verwertung.chatResetStatus]
     .some(s => s != null && resetHatVerlaufsrisiko(s));
 
   // Defense-in-depth: die Route ist bereits flag-gated registriert.
@@ -173,6 +174,14 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
             toggle={aufb.toggle}
+          />
+        ) : tab === 'verwertung' ? (
+          <VerwertungTab
+            run={aufb.run}
+            verwertung={aufb.verwertung}
+            vbMarkdown={aufb.vbMarkdown}
+            bausteine={aufb.bausteine}
+            bausteineNeu={aufb.bausteineNeu}
           />
         ) : tab === 'glossar' ? (
           <GlossarTab
