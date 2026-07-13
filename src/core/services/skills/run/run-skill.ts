@@ -140,6 +140,14 @@ export interface SkillRunInput {
   onContentDelta?: (text: string) => void;
   onThinkingDelta?: (text: string) => void;
   /**
+   * Teil-Generierung (opt-in): Scoping-Anweisung für einen von mehreren Teil-Läufen
+   * eines langen Abschnitts („schreibe in DIESEM Lauf nur …" + ggf. der bereits
+   * generierte Vorlauf-Text). Wird als eigener Block ans Prompt-Ende gehängt, überstimmt
+   * die Gesamt-Abschnitts-Beschreibung. Fehlt sie → No-op (Bestandsläufe byte-identisch).
+   * Siehe gutachten/teilGenerierung.ts.
+   */
+  teilAufgabe?: string;
+  /**
    * Nur Streamlit-Bridge: Abschluss-Marker für die Bridge-Finalisierung. Die Bridge
    * finalisiert die Antwort NICHT auf dem kurzen Idle-Fenster, solange sie diesen Text
    * nicht enthält — verhindert, dass ein langer, zweiteiliger Lauf (großer erster
@@ -289,6 +297,12 @@ export function composeSkillPrompt(
   // einer konkreten Korrektur-Vorgabe (Zielwert/Ist-Wert). No-op ohne Wert.
   if (input.zusatzAnweisung && input.zusatzAnweisung.trim()) {
     content += `\n\nZusätzliche Vorgabe: ${input.zusatzAnweisung.trim()}`;
+  }
+  // Teil-Generierung (opt-in): scopet einen von mehreren Teil-Läufen. Bewusst GANZ am
+  // Ende, damit die „schreibe nur diesen Teil"-Vorgabe die Gesamt-Abschnitts-Beschreibung
+  // im Template überstimmt. No-op ohne Wert (Bestandsläufe byte-identisch).
+  if (input.teilAufgabe && input.teilAufgabe.trim()) {
+    content += `\n\n## Teil-Vorgabe (überstimmt Umfang/Struktur oben)\n${input.teilAufgabe.trim()}`;
   }
   return content;
 }

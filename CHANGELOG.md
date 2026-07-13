@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.9 — Gutachten-Werkstatt: Abschnitt B in zwei Läufen erzeugen (Output-Limit) (Juli 2026)
+
+PATCH — Ergänzung zu v2.241.8: Auch nach dem Bridge-Fix wurde Abschnitt B („Hintergrund, Stand der Technik, Lösungsweg", ≥ 750 Wörter) am Ende abgeschnitten — die Ursache liegt **serverseitig** im festen Output-Token-Budget des internen LLM (Reasoning + langer Fließtext teilen sich ein hartes Limit; auf dem Streamlit-Pfad kann die App es nicht beeinflussen, `maxTokens` ist dort inert). Dasselbe Prompt bricht auch in einem separaten Streamlit-Chat mittendrin ab.
+
+- **Fix — unsichtbare Teil-Generierung**: B wird jetzt in **zwei kürzeren Läufen** erzeugt — Lauf 1 „Hintergrund + Stand der Technik", Lauf 2 „Lösungsweg" (mit Lauf 1 als Anschluss-Kontext) — und deterministisch zu **einem** Abschnitt zusammengeführt ([teilGenerierung.ts](src/plugins/antraege/gutachten/teilGenerierung.ts)). Für den Nutzer bleibt es ein Abschnitt B; jeder Teil-Lauf ist kurz genug, um unter dem Budget zu bleiben.
+- **Sauberes Zusammenführen**: Da die Beleg-Zuordnung seit v2.241.5 rein anzeige-seitig aus dem flachen Text abgeleitet wird, ist der Merge einfache Verkettung (keine Satz-Index-Verschiebung). Die Größen-Regeln (≥ 750 Wörter, ≥ 4 Absätze) fallen im Teil-Prompt weg und werden erst gegen den **gemergten** Text geprüft.
+- Neues, generisches `teilAufgabe`-Feld im Skill-Runner ([run-skill.ts](src/core/services/skills/run/run-skill.ts)) scopet einen Teil-Lauf („schreibe in DIESEM Lauf nur …"); nur B ist gesplittet ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)), alle anderen Abschnitte (A, C–G) laufen unverändert in einem Zug. Split greift nur bei frischer Generierung, nicht bei Korrektur-/Modifier-Läufen. Kein Schema-/Datenmodell-/Flag-Bump.
+- **Noch zu prüfen**: file://-Abnahme (Thomas) — kommt B jetzt vollständig? — plus ein Eval-Durchlauf, da sich B's Generierung ändert.
+
 ### v2.241.8 — Gutachten-Werkstatt: langer Abschnitt bricht nicht mehr vor dem „Finaler Text" ab (Juli 2026)
 
 PATCH — Bei langen KI-Abschnitten (Kurzfassung A, Ausgangslage B) brach die Generierung ab: Das Modell produzierte den vollständigen `### Quellenanalyse`-Block, und das anschließende Schreiben des `### Finaler Text` wurde abgeschnitten — gespeichert wurde nur ein leerer finaler Text mit Warnung „bitte erneut generieren". Dasselbe Prompt lief in einem separaten Streamlit-Chat komplett durch — der Abbruch war also bridge-seitig, nicht am Prompt (das Entfernen des Beleg-Marker-Kontrakts in v2.241.5 half deshalb nicht).

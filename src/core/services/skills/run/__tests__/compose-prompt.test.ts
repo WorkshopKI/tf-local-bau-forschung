@@ -147,6 +147,27 @@ describe('composeSkillPrompt — regel-gebundene Zusatz-Anweisung (Journey-Paket
   });
 });
 
+describe('composeSkillPrompt — teilAufgabe (Teil-Generierung)', () => {
+  const TEIL = 'In DIESEM Lauf schreibst du ausschließlich den Lösungsweg.';
+
+  it('ohne teilAufgabe: byte-identisch zum Lauf ohne (Regressionsschutz)', () => {
+    const base = compose(baseInput);
+    expect(base).not.toContain('## Teil-Vorgabe');
+  });
+
+  it('mit teilAufgabe: eigener Block am ENDE, nach den Formalen Vorgaben', () => {
+    const out = compose({ ...baseInput, teilAufgabe: TEIL });
+    expect(out).toContain('## Teil-Vorgabe (überstimmt Umfang/Struktur oben)');
+    expect(out).toContain(TEIL);
+    expect(out.indexOf('## Teil-Vorgabe')).toBeGreaterThan(out.indexOf(VORGABEN_HEADING));
+  });
+
+  it('leere/whitespace teilAufgabe ist No-op', () => {
+    const base = compose(baseInput);
+    expect(compose({ ...baseInput, teilAufgabe: '   ' })).toBe(base);
+  });
+});
+
 describe('composeSkillPrompt — {{vorherigeAbschnitte}}-Slot (Gutachten-Workflow)', () => {
   it('A bleibt byte-identisch: kein Platzhalter im Template → vorherigeAbschnitte wirkungslos', () => {
     const base = compose(baseInput);

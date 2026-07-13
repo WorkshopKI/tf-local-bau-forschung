@@ -45,6 +45,7 @@ import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { resolveWorkflowSteps, verfuegbareWorkflows } from './active-workflow';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
+import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { putWorkflowRun } from './workflow-store';
@@ -323,6 +324,65 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
       }
     }
+    // Teil-Generierung (unsichtbar): B (Hintergrund/Stand der Technik/Lösungsweg,
+    // ≥ 750 Wörter) sprengt das feste Output-Budget des internen LLM → der finale Text
+    // wird abgeschnitten. Daher B in mehreren kürzeren Läufen erzeugen und zu EINEM
+    // Abschnitt zusammenführen. Nur bei frischer Generierung (kein Modifier/Korrektur-
+    // Lauf); im Teil-Prompt fallen die Gesamt-Größen-Regeln weg, der finale Check läuft
+    // mit dem VOLLEN Regelsatz gegen den gemergten Text.
+    const teilPlan = getTeilPlan(sc.skill.id);
+    if (teilPlan && !o.modifier) {
+      const vorherige = buildVorherigeAbschnitte(base, stepId, steps, 2000, o.quelle);
+      const teilRegelSatz = teilRegeln(sc.regeln);
+      const teilErgebnisse: TeilErgebnis[] = [];
+      let letztesResult: Awaited<ReturnType<typeof runSkill>> | null = null;
+      let vorText = '';
+      for (const teil of teilPlan) {
+        const r = await runSkill(transport, sc.skill, teilRegelSatz, {
+          stammdaten: buildStammdaten(ctx),
+          vbMarkdown: vb.markdown,
+          vbCharCap: getVbCharCap(),
+          thinkingBudget,
+          erwarteAbschluss: 'Finaler Text',
+          onContentDelta: stream.onContentDelta,
+          onThinkingDelta: stream.onThinkingDelta,
+          vorherigeAbschnitte: vorherige,
+          teilAufgabe: teilAufgabe(teil, vorText),
+          ...(vbRelevant ? { vbRelevant } : {}),
+          ...(tweakWirksam ? { tweak: tw } : {}),
+          ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
+          signal: o.signal,
+        });
+        teilErgebnisse.push({
+          quellenanalyse: r.parsed.quellenanalyse,
+          finalerText: r.parsed.finalerText,
+          ...(r.thinking ? { thinking: r.thinking } : {}),
+          vbGekuerzt: r.vbGekuerzt,
+          ...(r.parsed.warnung ? { warnung: r.parsed.warnung } : {}),
+        });
+        letztesResult = r;
+        vorText = [vorText, r.parsed.finalerText].map(t => t.trim()).filter(Boolean).join('\n\n');
+      }
+      const merged = mergeTeile(teilErgebnisse);
+      const checks = runRegelChecks(merged.finalerText, sc.regeln);
+      const gen: GenerationInput = {
+        quellenanalyse: merged.quellenanalyse,
+        entwurf: merged.entwurf,
+        finalerText: merged.finalerText,
+        checks,
+        modell: transport.displayName ?? transport.name,
+        skillId: sc.skill.id,
+        skillVersion: sc.skill.version,
+        vbGekuerzt: merged.vbGekuerzt,
+        ...(merged.warnung ? { warnung: merged.warnung } : {}),
+        ...(letztesResult?.chatResetStatus ? { chatResetStatus: letztesResult.chatResetStatus } : {}),
+        ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
+        ...(merged.thinking ? { denkprozess: merged.thinking } : {}),
+        ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
+      };
+      return { next: applyGeneration(base, stepId, gen, new Date().toISOString()), checks };
+    }
+
     const result = await runSkill(transport, sc.skill, sc.regeln, {
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: vb.markdown,
