@@ -107,6 +107,7 @@ export {
   reconcileEinmaligeAktivierungen,
   ANFRAGE_ANON_AKTIV_MIGRATION,
   GA_BELEG_KONTRAKT_MIGRATION,
+  GA_BELEG_KONTRAKT_REVERT_MIGRATION,
   type ReconcileResult,
 } from './migrations';
 export {

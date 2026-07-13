@@ -8,6 +8,7 @@ import {
   reconcileEinmaligeAktivierungen,
   ANFRAGE_ANON_AKTIV_MIGRATION,
   GA_BELEG_KONTRAKT_MIGRATION,
+  GA_BELEG_KONTRAKT_REVERT_MIGRATION,
   AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION,
   AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION,
 } from '../migrations';
@@ -37,9 +38,10 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
+const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
 const NUR_ZAHLEN = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION);
 const NUR_STECKBRIEF = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION);
 
@@ -71,50 +73,57 @@ describe('reconcile — Anonymisierer-Freischaltung', () => {
   });
 });
 
-describe('reconcile — Beleg-Kontrakt-Rollout A + B (Journey-Paket 4)', () => {
-  const pristineA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A, version: 1 });
-  const pristineB = skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: OLD_B, version: 1 });
+describe('reconcile — Beleg-Kontrakt-Rückbau A + B (Reasoning-Loop, 2026-07)', () => {
+  const kontraktA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: NEW_A, version: 2 });
+  const kontraktB = skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: NEW_B, version: 2 });
 
-  it('pristine A + B (Alt-Template) → auf Neu-Template + version 2', () => {
+  it('Kontrakt-Template A + B → zurück auf Alt-Template, version ≥ 2, Marker gesetzt', () => {
     const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(
-      file([pristineA, pristineB], NUR_BELEG),
+      file([kontraktA, kontraktB], NUR_BELEG_REVERT),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toContain(GA_BELEG_KONTRAKT_MIGRATION);
+    expect(angewandt).toContain(GA_BELEG_KONTRAKT_REVERT_MIGRATION);
     const a = out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)!;
     const b = out.skills.find(s => s.id === AUSGANGSLAGE_SKILL_ID)!;
-    expect(a.promptTemplate).toBe(NEW_A);
+    expect(a.promptTemplate).toBe(OLD_A);
     expect(a.version).toBe(2);
-    expect(b.promptTemplate).toBe(NEW_B);
+    expect(b.promptTemplate).toBe(OLD_B);
     expect(b.version).toBe(2);
   });
 
-  it('KURATIERT editiertes A wird NIEMALS überschrieben', () => {
-    const editedA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A + '\nKurator-Zusatz', version: 3 });
-    const { file: out } = reconcileEinmaligeAktivierungen(file([editedA], NUR_BELEG));
+  it('KURATIERT editiertes Kontrakt-A wird NIEMALS überschrieben', () => {
+    const editedA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: NEW_A + '\nKurator-Zusatz', version: 3 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([editedA], NUR_BELEG_REVERT));
     const a = out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)!;
-    expect(a.promptTemplate).toBe(OLD_A + '\nKurator-Zusatz'); // unverändert
+    expect(a.promptTemplate).toBe(NEW_A + '\nKurator-Zusatz'); // unverändert
     expect(a.version).toBe(3);
   });
 
-  it('bereits neuer Stand (frische Installation) bleibt unberührt', () => {
-    const newA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: NEW_A, version: 2 });
-    const { file: out } = reconcileEinmaligeAktivierungen(file([newA], NUR_BELEG));
-    expect(out.skills[0]?.promptTemplate).toBe(NEW_A);
+  it('bereits zurückgebaut (Alt-Template) bleibt unberührt', () => {
+    const altA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A, version: 2 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([altA], NUR_BELEG_REVERT));
+    expect(out.skills[0]?.promptTemplate).toBe(OLD_A);
     expect(out.skills[0]?.version).toBe(2);
   });
 
+  it('Vorwärts-Rollout ist inert (No-op): pristine Alt-Template bleibt Alt-Template', () => {
+    // Nur der Vorwärts-Marker fehlt → allein applyBelegKontrakt (No-op) läuft.
+    const altA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: OLD_A, version: 1 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([altA], NUR_BELEG));
+    expect(out.skills[0]?.promptTemplate).toBe(OLD_A); // NICHT auf NEW_A gehoben
+  });
+
   it('idempotent: zweiter Lauf ist No-op', () => {
-    const erst = reconcileEinmaligeAktivierungen(file([pristineA], NUR_BELEG));
+    const erst = reconcileEinmaligeAktivierungen(file([kontraktA], NUR_BELEG_REVERT));
     const zweit = reconcileEinmaligeAktivierungen(erst.file);
     expect(zweit.geaendert).toBe(false);
-    expect(zweit.file.skills[0]?.promptTemplate).toBe(NEW_A);
+    expect(zweit.file.skills[0]?.promptTemplate).toBe(OLD_A);
   });
 
   it('fremde Skills unangetastet; Marker einmalig gesetzt', () => {
-    const { file: out } = reconcileEinmaligeAktivierungen(file([skill('x', { promptTemplate: 'Y' })], NUR_BELEG));
+    const { file: out } = reconcileEinmaligeAktivierungen(file([skill('x', { promptTemplate: 'Y' })], NUR_BELEG_REVERT));
     expect(out.skills.find(s => s.id === 'x')?.promptTemplate).toBe('Y');
-    expect(out.angewandteMigrationen).toContain(GA_BELEG_KONTRAKT_MIGRATION);
+    expect(out.angewandteMigrationen).toContain(GA_BELEG_KONTRAKT_REVERT_MIGRATION);
   });
 });
 
@@ -201,9 +210,10 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
-    expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(NEW_A);
+    // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
+    expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);
     expect(out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)?.maxTokens).toBe(4096);
     expect(out.skills.find(s => s.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID)?.maxTokens).toBe(4096);
   });

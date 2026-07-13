@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.6 — Verbund-Detail: TV-Titel-Zeile nur zeigen, wenn sie Neues sagt (Juli 2026)
+
+PATCH — Nachschärfung zu v2.241.4: Trugen (wie in manchen Datenbeständen üblich) alle Teilvorhaben eines Verbundes denselben `titel` (den Gesamt-Projekttitel), wiederholte die neue TV-Titel-Zeile diesen Text in jeder Zeile — und obendrein den bereits im Verbund-Kopf stehenden Titel.
+
+- `TeilvorhabenListe` bekommt den Verbund-Titel (`verbundTitel`, aus [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) — dieselbe Kopf-Quelle) und blendet die TV-Titel-Zeile jetzt auch dann aus, wenn der TV-Titel (normalisiert) nur diesen Verbund-Titel wiederholt (zusätzlich zum bestehenden Antragsteller-Duplikat-Check). So erscheint der TV-Titel nur, wenn er gegenüber Kopf + Antragsteller **echten Mehrwert** bringt.
+- Reine Anzeige-Logik; kein Schema-/Datenmodell-/Flag-Bump.
+
+### v2.241.5 — Gutachten-Kurzfassung: Beleg→Satz-Marker-Kontrakt zurückgebaut (Juli 2026)
+
+PATCH — Der in Journey-Paket 4 eingeführte **Beleg→Satz-Marker-Kontrakt** (das Modell sollte jede Quellenanalyse-Zitat-Zeile mit `→ stützt Satz N` abschließen) brachte die interne KI in einen langen Reasoning-Loop — sie lieferte für die Kurzfassung (A) und den Abschnitt B keine verwertbare Ausgabe mehr. Der Kontrakt ist zurückgebaut; die Satz↔Quelle-Zuordnung läuft jetzt **rein deterministisch** (Wortüberlappung, [belegAbleitung.ts](src/plugins/antraege/gutachten/belegAbleitung.ts), seit v2.241.0 bereits als Fallback vorhanden).
+
+- **Prompt-Rückbau**: A ([seed.ts](src/core/services/skills/registry/seed.ts), `buildKurzfassungPrompt(false)`) und B (`abschnittTemplate(B_ABSCHNITT_OPTS)`) tragen die Marker-Instruktion nicht mehr — byte-identisch zum Vor-Paket-4-Stand; die Skill-Ausgabe ist wieder das schlanke, verlässliche Format.
+- **Bestands-Shares**: Der ursprüngliche Rollout `GA_BELEG_KONTRAKT_MIGRATION` ist neutralisiert (No-op); eine neue marker-gesicherte Migration `GA_BELEG_KONTRAKT_REVERT_MIGRATION` ([migrations.ts](src/core/services/skills/registry/migrations.ts)) setzt A/B auf einem Share **nur dann** zurück, wenn ihr Template exakt dem Kontrakt-Stand gleicht — **kuratierte Edits bleiben unberührt**.
+- **Anzeige unverändert**: Der „Antragsbezug" rechts hebt beim Hover über einen Satz weiterhin die passende Quelle hervor — jetzt durchgehend deterministisch abgeleitet und sichtbar als „automatisch zugeordnet" gekennzeichnet ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)). Der Marker-Parser bleibt für etwaige Alt-Läufe erhalten (nie regressiv). Kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.4 — Verbund-Detail: Teilvorhaben-Titel prominent je TV anzeigen (Juli 2026)
 
 PATCH — In der Teilvorhaben-Liste eines Verbundes ([TeilvorhabenListe.tsx](src/plugins/antraege/TeilvorhabenListe.tsx)) stand pro Zeile nur der Antragsteller (Firma/Institut) prominent, Rolle + Aktenzeichen darunter fein. Der **TV-Titel** — der aussagt, was der jeweilige Partner im Projekt macht — war erst nach dem Aufklappen sichtbar.

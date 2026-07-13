@@ -9,17 +9,22 @@ import {
 
 const MARKE = '→ stützt Satz';
 
-describe('Beleg-Kontrakt in Seed A + B (Journey-Paket 4, Phase 4)', () => {
-  it('A (Kurzfassung) trägt die Satz-Referenz-Instruktion + version 2', () => {
+// Rückbau (2026-07): der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4) ist aus den live
+// A/B-Skills entfernt — das interne Modell lief damit in einen Reasoning-Loop. Der
+// Quellenbezug wird jetzt rein deterministisch abgeleitet (belegAbleitung.ts). Der
+// `buildKurzfassungPrompt(true)`-Zweig bleibt NUR für die Rückbau-Migrations-Erkennung.
+describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
+  it('A (Kurzfassung) trägt die Satz-Referenz-Instruktion NICHT mehr; = Alt-Template', () => {
     expect(SEED_SKILL.id).toBe(KURZFASSUNG_SKILL_ID);
-    expect(SEED_SKILL.promptTemplate).toContain(MARKE);
+    expect(SEED_SKILL.promptTemplate).not.toContain('stützt');
+    expect(SEED_SKILL.promptTemplate).toBe(buildKurzfassungPrompt(false));
     expect(SEED_SKILL.version).toBe(2);
   });
 
-  it('B (Ausgangslage) trägt die Instruktion + version 2', () => {
+  it('B (Ausgangslage) trägt die Instruktion NICHT mehr', () => {
     const b = SEED_SKILLS_BG.find(s => s.id === AUSGANGSLAGE_SKILL_ID);
     expect(b).toBeDefined();
-    expect(b!.promptTemplate).toContain(MARKE);
+    expect(b!.promptTemplate).not.toContain('stützt');
     expect(b!.version).toBe(2);
   });
 
@@ -32,13 +37,14 @@ describe('Beleg-Kontrakt in Seed A + B (Journey-Paket 4, Phase 4)', () => {
     }
   });
 
-  it('buildKurzfassungPrompt: false ohne, true mit Instruktion (Migrations-Alt/Neu)', () => {
+  it('buildKurzfassungPrompt: false ohne, true mit Instruktion (nur noch Migrations-Erkennung)', () => {
     const alt = buildKurzfassungPrompt(false);
     const neu = buildKurzfassungPrompt(true);
     expect(alt).not.toContain('stützt');
     expect(neu).toContain(MARKE);
-    // Der Neu-Stand ist der Alt-Stand PLUS Zusatz (kein anderer Umbau).
+    // Der Kontrakt-Stand ist der Alt-Stand PLUS Zusatz (kein anderer Umbau).
     expect(neu.length).toBeGreaterThan(alt.length);
-    expect(SEED_SKILL.promptTemplate).toBe(neu);
+    // Live-Skill nutzt den Alt-Stand (Rückbau), NICHT den Kontrakt-Stand.
+    expect(SEED_SKILL.promptTemplate).toBe(alt);
   });
 });

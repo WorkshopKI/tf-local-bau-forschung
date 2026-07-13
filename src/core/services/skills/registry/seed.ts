@@ -40,8 +40,11 @@ const QUELLENANALYSE_KONTRAKT =
 
 /**
  * Zusatz-Instruktion (Journey-Paket 4): jede Zitat-Zeile mit der gestützten
- * Satz-Referenz abschließen. Knapp gehalten (Templates sind bereits lang).
- * Wird beim Parsen als ` → stützt Satz {n}` erkannt (1-basiert). Nur A + B.
+ * Satz-Referenz abschließen. ZURÜCKGEBAUT (2026-07): die live A/B-Skills tragen den
+ * Kontrakt NICHT mehr (`buildKurzfassungPrompt(false)`), weil das interne Modell damit
+ * in einen Reasoning-Loop lief. Der `true`-Zweig bleibt NUR erhalten, damit die
+ * Rückbau-Migration (`applyBelegKontraktRevert`) das Kontrakt-Template byte-genau
+ * erkennen und auf den Alt-Stand zurücksetzen kann.
  */
 const BELEG_KONTRAKT_SUFFIX =
   ' Schließe jede Zitat-Zeile mit einem Verweis auf die gestützten Sätze deines finalen Textes ab: '
@@ -132,9 +135,12 @@ export const SEED_SKILL: SkillRecord = {
   id: KURZFASSUNG_SKILL_ID,
   name: 'Kurzfassung (Gutachten)',
   beschreibung: 'Erstellt die Kurzfassung eines ZIM-Gutachtens aus der Vorhabensbeschreibung.',
-  // v2 (Journey-Paket 4): Quellenanalyse-Zitate tragen jetzt Satz-Referenzen.
+  // v2: Der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4) ist zurückgebaut — das interne
+  // Modell lief mit dem Kontrakt in einen langen Reasoning-Loop und lieferte keine
+  // verwertbare Ausgabe mehr. Der Quellenbezug wird jetzt rein deterministisch aus der
+  // Wortüberlappung abgeleitet (belegAbleitung.ts), NICHT vom Modell erfragt.
   version: 2,
-  promptTemplate: buildKurzfassungPrompt(true),
+  promptTemplate: buildKurzfassungPrompt(false),
   systemPrompt: SEED_SYSTEM_PROMPT,
   maxTokens: 2048,
   modifiers: {
@@ -284,9 +290,10 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     id: AUSGANGSLAGE_SKILL_ID,
     name: 'Hintergrund, Stand der Technik, Lösungsweg (B)',
     beschreibung: 'Abschnitt B des ZIM-Gutachtens: Hintergrund, Stand der Technik und Lösungsweg.',
-    // v2 (Journey-Paket 4): Quellenanalyse-Zitate tragen jetzt Satz-Referenzen.
+    // v2: Beleg→Satz-Marker-Kontrakt zurückgebaut (wie A) — Quellenbezug rein
+    // deterministisch (belegAbleitung.ts), nicht vom Modell erfragt.
     version: 2,
-    promptTemplate: abschnittTemplate({ ...B_ABSCHNITT_OPTS, belegKontrakt: true }),
+    promptTemplate: abschnittTemplate({ ...B_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,

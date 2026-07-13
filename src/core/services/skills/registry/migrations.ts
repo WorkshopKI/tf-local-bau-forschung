@@ -27,8 +27,14 @@ import type { SkillRecord, SkillRegistryFile } from './types';
 /** ID der einmaligen Anonymisierer-Freischaltung (Recall-Gate bestanden 2026-07-03). */
 export const ANFRAGE_ANON_AKTIV_MIGRATION = 'anfrage-anon-aktiv-2026-07';
 
-/** ID des Beleg→Satz-Kontrakt-Rollouts für A + B (Journey-Paket 4, Eval-Gate akzeptiert). */
+/**
+ * ID des Beleg→Satz-Kontrakt-Rollouts für A + B (Journey-Paket 4). NEUTRALISIERT
+ * (2026-07): der Rollout ist jetzt ein No-op — siehe `GA_BELEG_KONTRAKT_REVERT_MIGRATION`.
+ */
 export const GA_BELEG_KONTRAKT_MIGRATION = 'ga-beleg-kontrakt-2026-07';
+
+/** ID des Beleg→Satz-Kontrakt-Rückbaus für A + B (Reasoning-Loop, deterministischer Ersatz). */
+export const GA_BELEG_KONTRAKT_REVERT_MIGRATION = 'ga-beleg-kontrakt-revert-2026-07';
 
 /** ID der maxTokens-Anhebung des Zahlen-Inventar-Skills (2048 → 4096, Prod-Eval-Truncation). */
 export const AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION = 'aufbereitung-zahlen-maxtokens-2026-07';
@@ -52,22 +58,36 @@ function applyAnonAktiv(skills: SkillRecord[]): SkillRecord[] {
 }
 
 /**
- * Beleg→Satz-Kontrakt für A + B nachziehen — ABER NUR, wenn der Share-Stand exakt
- * das Vor-Paket-4-Template trägt (`buildKurzfassungPrompt(false)` / `abschnittTemplate(
- * B_ABSCHNITT_OPTS)`). Weicht der Template-Text ab (= kuratiert editiert), bleibt der
- * Skill UNBERÜHRT. Version wird auf mind. 2 gehoben.
+ * NEUTRALISIERT (2026-07): der Beleg→Satz-Kontrakt wird NICHT mehr in A/B geschoben —
+ * das interne Modell lief mit dem Kontrakt in einen langen Reasoning-Loop und lieferte
+ * keine verwertbare Ausgabe mehr. Der Quellenbezug wird jetzt rein deterministisch aus
+ * der Wortüberlappung abgeleitet (belegAbleitung.ts). Der Marker bleibt append-only im
+ * Katalog (Audit); den Kontrakt auf Shares, die ihn bereits tragen, entfernt
+ * `applyBelegKontraktRevert`. No-op statt Entfernen: auf frischen Shares muss der Marker
+ * weiter gesetzt werden, damit der ursprüngliche Rollout nie nachträglich greift.
  */
 function applyBelegKontrakt(skills: SkillRecord[]): SkillRecord[] {
+  return skills;
+}
+
+/**
+ * Beleg→Satz-Kontrakt-Rückbau: trägt ein A/B-Skill EXAKT das Kontrakt-Template
+ * (`buildKurzfassungPrompt(true)` / `abschnittTemplate(..., belegKontrakt: true)`), wird
+ * es auf den Vor-Paket-4-Stand zurückgesetzt (`false`-Variante). Weicht der Text ab
+ * (= kuratiert editiert oder schon zurückgebaut), bleibt der Skill UNBERÜHRT. Version
+ * wird nicht gesenkt (`Math.max(s.version, 2)`).
+ */
+function applyBelegKontraktRevert(skills: SkillRecord[]): SkillRecord[] {
   const altA = buildKurzfassungPrompt(false);
   const neuA = buildKurzfassungPrompt(true);
   const altB = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
   const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS, belegKontrakt: true });
   return skills.map(s => {
-    if (s.id === KURZFASSUNG_SKILL_ID && s.promptTemplate === altA) {
-      return { ...s, promptTemplate: neuA, version: Math.max(s.version, 2) };
+    if (s.id === KURZFASSUNG_SKILL_ID && s.promptTemplate === neuA) {
+      return { ...s, promptTemplate: altA, version: Math.max(s.version, 2) };
     }
-    if (s.id === AUSGANGSLAGE_SKILL_ID && s.promptTemplate === altB) {
-      return { ...s, promptTemplate: neuB, version: Math.max(s.version, 2) };
+    if (s.id === AUSGANGSLAGE_SKILL_ID && s.promptTemplate === neuB) {
+      return { ...s, promptTemplate: altB, version: Math.max(s.version, 2) };
     }
     return s;
   });
@@ -115,6 +135,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_BELEG_KONTRAKT_MIGRATION, apply: applyBelegKontrakt },
   { marker: AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, apply: applyZahlenMaxTokens },
   { marker: AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, apply: applySteckbriefMaxTokens },
+  { marker: GA_BELEG_KONTRAKT_REVERT_MIGRATION, apply: applyBelegKontraktRevert },
 ];
 
 /**
