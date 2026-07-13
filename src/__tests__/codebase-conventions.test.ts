@@ -773,7 +773,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 33;    // Ist 33; +1 'assistentGedaechtnis' (Assistent Phase 2 Gedächtnis-Konsolidierung, dev); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1460;       // Ist ~1441 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1480;       // Ist ~1469 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1365,6 +1365,34 @@ describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)
       `notizenStore.ts muss strikt geraetelokal bleiben (nur idb.get/set/delete).\n`
       + `Verbotene Referenz(en): ${treffer.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+describe('djb2-single-source (Feedback-Signatur nicht duplizieren)', () => {
+  // Die Feedback-Antwort-Signatur (djb2 → base36) lebt genau EINMAL in
+  // useUnreadReplies.signatureOf; das Feedback-Neuigkeiten-Widget
+  // (feedbackNews.ts) importiert sie wieder, statt djb2 zu kopieren. Scope
+  // bewusst auf Feedback + Home-Widgets begrenzt — die gutachten-Domaene hat
+  // ihren eigenen, unabhaengigen freigabeHash-djb2 (runner.hashText).
+  it('die djb2-Konstante 5381 kommt im Feedback-/Widget-Scope nur in useUnreadReplies vor', () => {
+    const treffer = ALL_TS_FILES.filter(f => {
+      const p = relPath(f);
+      const imScope = p.startsWith('src/components/feedback/')
+        || p.startsWith('src/plugins/home/widgets/')
+        || p.startsWith('src/plugins/feedback');
+      if (!imScope) return false;
+      return readFileSync(f, 'utf-8').split(/\r?\n/).some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        return /\b5381\b/.test(l);
+      });
+    }).map(relPath);
+    expect(
+      treffer,
+      `djb2 (h = 5381) darf im Feedback-/Widget-Scope nur EINMAL existieren `
+      + `(useUnreadReplies.signatureOf); Konsumenten importieren die Funktion. `
+      + `Gefunden in: ${treffer.join(', ')}`,
+    ).toEqual(['src/components/feedback/useUnreadReplies.ts']);
   });
 });
 

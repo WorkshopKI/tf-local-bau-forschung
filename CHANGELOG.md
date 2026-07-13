@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.231.0 — Home-Widgets v1.1 Phase 1: Feedback-Neuigkeiten-Widget (Juli 2026)
+
+MINOR — Neues Seiten-Widget, das seit dem letzten Besuch Bewegung im Team-Feedback zeigt (Opt-in, Default `sichtbar: false`).
+
+- **Feedback-Neuigkeiten** ([FeedbackNewsWidget.tsx](src/plugins/home/widgets/FeedbackNewsWidget.tsx) + purer Selektor [feedbackNews.ts](src/plugins/home/widgets/feedbackNews.ts)): drei Ereignisarten, neueste zuerst, gekappt auf `maxEintraege` (Default 3) — **Antwort** aufs eigene Ticket (inkl. Statuswort), **Neu vom Team** (fremdes Ticket nach dem Anker), **Stimmen**-Zuwachs auf eigene Tickets. Read-only: Karten/Fußzeile navigieren ins Feedback-Board (`navigate('feedback-board')`), Typ-Badges in der Board-Farbwelt (Tokens, kein Hex). „Alles gelesen" im Kopf setzt den Anker; Zähler-Pill im eingeklappten Zustand. **Leerzustand versteckt sich NICHT** (Startseiten-Stabilität), sondern zeigt „Keine Neuigkeiten seit …".
+- **Anker gerätelokal** ([useFeedbackNewsAnchor.ts](src/plugins/home/widgets/useFeedbackNewsAnchor.ts)): per-User-localStorage `teamflow_feedback_news_anchor_v1_<meId>` (Zeitpunkt + gemerkte Stimmen-/Antwort-Stände in EINEM Datensatz) — Muster von `useUnreadReplies`, **kein** IDB-Store/Schema/Share-Write. Erst-Anker wird beim ersten Item-Load aus den aktuellen Ständen gesetzt (nichts ist rückwirkend „neu"); bewusst unabhängig vom Glocken-Seen-Map. **Datenmodell-Grenze**: Antworten/Stimmen tragen kein Ereignis-Datum → kein fabriziertes „vor N T" (die Kopfzeile „seit …" trägt die Aktualität; Sortier-Proxy = `created_at`).
+- **djb2 wiederverwendet, nicht dupliziert**: `signatureOf` aus [useUnreadReplies.ts](src/components/feedback/useUnreadReplies.ts) exportiert und importiert; neuer Guard **`djb2-single-source`** (Feedback-/Widget-Scope — die gutachten-Domäne behält ihren eigenen `freigabeHash`-djb2). `MAX_FILE_LOC` 1460→1480.
+- **Katalog + Reconcile**: `feedback-news` → `verfuegbar: true`, `sichtbarWenn: isFeedbackEnabled` ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts)); neue **`reconcileVerfuegbareWidgets`** ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)) ergänzt neu verfügbar gewordene Katalog-Widgets in Bestands-Configs (sonst tauchte das Widget für Bestands-Nutzer nie in den Einstellungen auf) — rein, idempotent, Opt-in-Instanz hinten angehängt, `updatedAt` unberührt.
+- Tests: 11 neue ([feedbackNews.test.ts](src/plugins/home/widgets/__tests__/feedbackNews.test.ts): drei Ereignisarten, Anker/Schnappschuss, Kappung/Sortierung, Leerzustand, mit + ohne Identität). Verifiziert per `npm run check` (3510 Tests grün).
+
 ### v2.230.0 — Home-Widgets v1.1 Phase 0: Kanban-Feedback-Quelle freigeschaltet + Modus-Anzeige (Juli 2026)
 
 MINOR — Erste Phase des Folge-Pakets, das den Widget-Katalog füllt: die im Schema vorbereitete **Feedback-Quelle** des Kanban-Widgets ist freigeschaltet, und die Bearbeiter-gebundenen Widgets machen ihren Modus (Kürzel vs. „Alle Bearbeiter") sichtbar.

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.231 — 2026-07
+
+### Neu
+- **Feedback-Neuigkeiten auf der Startseite:** Ein neues Widget zeigt auf einen Blick, was sich seit deinem letzten Besuch im Feedback getan hat — Antworten des Teams auf deine Tickets, neue Ideen/Probleme von Kolleg:innen und wenn deine Vorschläge Stimmen bekommen. „Alles gelesen" setzt den Zähler zurück; ein Klick führt zum Feedback-Board. Einschalten in den Widget-Einstellungen.
+
 ## v2.230 — 2026-07
 
 ### Neu

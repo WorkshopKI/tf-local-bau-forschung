@@ -18,8 +18,12 @@ function keyFor(meId: string): string {
   return `${SEEN_KEY_PREFIX}_${meId}`;
 }
 
-/** Stabile Kurz-Signatur (djb2 → base36) des Antworttexts. */
-function signatureOf(text: string): string {
+/**
+ * Stabile Kurz-Signatur (djb2 → base36) eines Textes. EINZIGE djb2-Quelle im
+ * Baum (Guard `djb2-single-source`) — das Feedback-Neuigkeiten-Widget
+ * (feedbackNews.ts) importiert diese Funktion wieder, statt sie zu duplizieren.
+ */
+export function signatureOf(text: string): string {
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);

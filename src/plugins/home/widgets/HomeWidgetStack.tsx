@@ -10,11 +10,12 @@ import { MeineAntraegeWidget } from '../MeineAntraegeSection';
 import { WeitermachenWidget } from '../WeitermachenSection';
 import { KanbanWidget } from './KanbanWidget';
 import { NotizenWidget } from './NotizenWidget';
+import { FeedbackNewsWidget } from './FeedbackNewsWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
 
-/** Zukunfts-Typen (qs-freigaben/feedback-news/registry-aenderungen) sind im
+/** Noch nicht gebaute Zukunfts-Typen (qs-freigaben/registry-aenderungen) sind im
  *  Katalog `verfuegbar: false` und erreichen den Stack nie — null als
  *  Sicherheitsnetz. */
 const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
@@ -24,8 +25,8 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   antragseingang: AntragseingangWidget,
   'ai-assistent': AiAssistentWidget,
   notizen: NotizenWidget,
+  'feedback-news': FeedbackNewsWidget,
   'qs-freigaben': null,
-  'feedback-news': null,
   'registry-aenderungen': null,
 };
 

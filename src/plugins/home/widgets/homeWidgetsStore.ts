@@ -119,16 +119,48 @@ function liesLegacyMeineAntraegeCollapse(): boolean {
 }
 
 /**
+ * Ergänzt Instanzen für neu verfügbar gewordene Katalog-Widgets, die im
+ * (älteren) Config-Stand fehlen — sonst tauchten sie für Bestands-Nutzer nie in
+ * der Einstellungs-Liste auf (die Liste rendert Instanzen, nicht den Katalog).
+ * Rein + flag-frei (Gate nur auf statischem `verfuegbar`); die Sichtbarkeits-
+ * Flags (`sichtbarWenn`) wirken erst beim Rendern (`sichtbareWidgets` / Settings).
+ * Neue Instanzen sind Opt-in (`sichtbar: false`) und hängen hinten an; `updatedAt`
+ * bleibt unberührt (kein künstlicher LWW-Gewinn). Idempotent.
+ */
+export function reconcileVerfuegbareWidgets(
+  cfg: HomeWidgetConfig,
+  katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+): HomeWidgetConfig {
+  const vorhanden = new Set(cfg.widgets.map(w => w.typ));
+  const fehlend = (Object.keys(katalog) as WidgetTyp[])
+    .filter(typ => katalog[typ]!.verfuegbar && !vorhanden.has(typ));
+  if (fehlend.length === 0) return cfg;
+  let pos = cfg.widgets.reduce((m, w) => Math.max(m, w.position), -1);
+  const neue: WidgetInstanz[] = fehlend.map(typ => ({
+    id: `w-${typ}`,
+    typ,
+    position: ++pos,
+    bereich: katalog[typ]!.bereich,
+    sichtbar: false,
+    eingeklappt: false,
+    config: katalog[typ]!.defaultConfig(),
+  }));
+  return { ...cfg, widgets: [...cfg.widgets, ...neue] };
+}
+
+/**
  * Lädt die Config: kv-Key vs. PersonalEinstellungen-Mirror per LWW
- * (`updatedAt`), sonst Default (mit Legacy-Collapse-Seed).
+ * (`updatedAt`), sonst Default (mit Legacy-Collapse-Seed); fehlende verfügbare
+ * Katalog-Widgets werden ergänzt (reconcileVerfuegbareWidgets).
  */
 export async function loadHomeWidgets(idb: IDBStore): Promise<HomeWidgetConfig> {
   const kv = leseHomeWidgetConfig(await idb.get<unknown>(HOME_WIDGETS_IDB_KEY));
   const einstellungen = await idb.get<PersonalEinstellungen>(PERSONAL_EINSTELLUNGEN_IDB_KEY);
   const gespiegelt = leseHomeWidgetConfig(einstellungen?.homeWidgets);
   const gewaehlt = isNewer(gespiegelt?.updatedAt, kv?.updatedAt) ? gespiegelt : (kv ?? gespiegelt);
-  if (gewaehlt) return gewaehlt;
-  return defaultHomeWidgetConfig({ meineAntraegeEingeklappt: liesLegacyMeineAntraegeCollapse() });
+  const basis = gewaehlt
+    ?? defaultHomeWidgetConfig({ meineAntraegeEingeklappt: liesLegacyMeineAntraegeCollapse() });
+  return reconcileVerfuegbareWidgets(basis);
 }
 
 /**

@@ -17,7 +17,7 @@ import {
   Play,
   StickyNote,
 } from 'lucide-react';
-import { isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isFeedbackEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
 
@@ -123,9 +123,9 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     label: 'Feedback-Neuigkeiten',
     icon: Megaphone,
     bereich: 'seite',
-    verfuegbar: false,
-    sichtbarWenn: () => true,
-    defaultConfig: KEINE,
+    verfuegbar: true,
+    sichtbarWenn: () => isFeedbackEnabled(),
+    defaultConfig: () => ({ art: 'feedback-news', maxEintraege: 3 }),
   },
   'registry-aenderungen': {
     typ: 'registry-aenderungen',

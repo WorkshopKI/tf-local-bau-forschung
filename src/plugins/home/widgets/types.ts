@@ -112,6 +112,13 @@ export interface NotizenWidgetConfig {
   art: 'notizen';
 }
 
+/** Feedback-Neuigkeiten-Widget (v1.1): Kappung der angezeigten Ereignisse. */
+export interface FeedbackNewsWidgetConfig {
+  art: 'feedback-news';
+  /** Max. angezeigte Neuigkeiten. Default 3. */
+  maxEintraege: number;
+}
+
 /** Widgets ohne Detail-Config (Weitermachen, Meine Anträge, AI-Assistent, …). */
 export interface LeereWidgetConfig {
   art: 'keine';
@@ -121,4 +128,5 @@ export type WidgetSpezifischeConfig =
   | KanbanWidgetConfig
   | AmpelWidgetConfig
   | NotizenWidgetConfig
+  | FeedbackNewsWidgetConfig
   | LeereWidgetConfig;
