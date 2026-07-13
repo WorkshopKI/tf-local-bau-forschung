@@ -27,6 +27,7 @@ import {
   NotificationBell,
   MyProgressBar,
   useUnreadReplies,
+  useFeedbackNavStore,
   type TypeChipItem,
   CATEGORY_DOT,
   feedbackTitle,
@@ -123,6 +124,13 @@ export function FeedbackBoardPage(): React.ReactElement {
   }, [storage]);
 
   useEffect(() => { void reload(); }, [reload]);
+  // Deep-Link von einem read-only Widget (z.B. Feedback-Kanban der Startseite):
+  // einmalig beim Mount das vorgemerkte Ticket öffnen (selectedTicket löst sich
+  // reaktiv auf, sobald die Tickets geladen sind).
+  useEffect(() => {
+    const pending = useFeedbackNavStore.getState().consumePendingTicket();
+    if (pending) setSelectedId(pending);
+  }, []);
   useEffect(() => {
     const handler = (): void => { void reload(true); };
     window.addEventListener('feedback-updated', handler);

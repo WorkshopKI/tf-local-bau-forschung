@@ -8,7 +8,7 @@ import { AiAssistentWidget } from '../AiAssistantCard';
 import { AntragseingangWidget } from '../EingangAmpelCard';
 import { MeineAntraegeWidget } from '../MeineAntraegeSection';
 import { WeitermachenWidget } from '../WeitermachenSection';
-import { AntragKanbanWidget } from './AntragKanbanWidget';
+import { KanbanWidget } from './KanbanWidget';
 import { NotizenWidget } from './NotizenWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
@@ -20,7 +20,7 @@ import type { HomeWidgetContext, WidgetProps } from './widgetProps';
 const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   weitermachen: WeitermachenWidget,
   'meine-antraege': MeineAntraegeWidget,
-  kanban: AntragKanbanWidget,
+  kanban: KanbanWidget,
   antragseingang: AntragseingangWidget,
   'ai-assistent': AiAssistentWidget,
   notizen: NotizenWidget,

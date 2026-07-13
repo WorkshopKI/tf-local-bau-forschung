@@ -6,7 +6,6 @@
  * Schwellen), die Einstellungen zusätzlich Quelle + Datenbasis.
  */
 import { useEffect, useState } from 'react';
-import { Lock } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -23,8 +22,12 @@ import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
 import type { UserPreset } from '@/core/services/csv/filter/types';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 import { getStatusCategoryLabel } from '@/plugins/antraege/groupAggregates';
+import { STATUS_LABELS } from '@/components/feedback';
+import { FEEDBACK_LANE_STATUS, wechsleKanbanQuelle } from './feedbackKanbanLanes';
 import type {
   AmpelWidgetConfig,
+  AntragKanbanWidgetConfig,
+  FeedbackKanbanWidgetConfig,
   KanbanWidgetConfig,
   WidgetInstanz,
   WidgetSpezifischeConfig,
@@ -76,30 +79,21 @@ function KanbanConfigForm({
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [presets, setPresets] = useState<UserPreset[]>([]);
 
-  // Presets nur im Settings-Kontext laden (Datenbasis-Select).
+  // Presets nur im Settings-Kontext + Anträge-Quelle laden (Datenbasis-Select).
   useEffect(() => {
-    if (kontext !== 'settings' || !activeProgrammId) return;
+    if (kontext !== 'settings' || cfg.quelle !== 'antraege' || !activeProgrammId) return;
     let cancelled = false;
     getUserPresets(storage.idb, activeProgrammId)
       .then(p => { if (!cancelled) setPresets(p); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [kontext, activeProgrammId, storage.idb]);
+  }, [kontext, cfg.quelle, activeProgrammId, storage.idb]);
 
-  const selectedLanes = new Set(cfg.lanes.map(l => l.kategorie as string));
-
-  const toggleLane = (key: string): void => {
-    const kategorie = key as StatusCategory;
-    const lanes = selectedLanes.has(key)
-      ? cfg.lanes.filter(l => l.kategorie !== kategorie)
-      : [...cfg.lanes, { kategorie, spalten: 1 as const }];
-    void onUpdate({ ...cfg, lanes });
-  };
-
-  const toggleSpalten = (key: string): void => {
-    const lanes = cfg.lanes.map(l =>
-      l.kategorie === key ? { ...l, spalten: (l.spalten === 2 ? 1 : 2) as 1 | 2 } : l);
-    void onUpdate({ ...cfg, lanes });
+  // Quellenwechsel setzt die Lanes STILL auf den Quell-Default zurück (pure
+  // wechsleKanbanQuelle) — no-op-Guard vermeidet unnötige Persist-Writes.
+  const wechsle = (quelle: 'antraege' | 'feedback'): void => {
+    const next = wechsleKanbanQuelle(cfg, quelle);
+    if (next !== cfg) void onUpdate(next);
   };
 
   return (
@@ -108,30 +102,16 @@ function KanbanConfigForm({
         <div>
           <FeldLabel>Quelle</FeldLabel>
           <div className="inline-flex rounded-[var(--tf-radius)] overflow-hidden" style={{ border: '0.5px solid var(--tf-border-hover)' }}>
-            <button
-              type="button"
-              aria-pressed={cfg.quelle === 'antraege'}
-              onClick={() => { if (cfg.quelle !== 'antraege') void onUpdate({ ...cfg, quelle: 'antraege' }); }}
-              className={`px-3 py-1.5 text-[12px] cursor-pointer ${cfg.quelle === 'antraege' ? 'bg-[var(--tf-bg-secondary)] font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}`}
-            >
-              Förderanträge
-            </button>
-            {/* v1: Feedback-Quelle im Schema vorbereitet, UI gesperrt (Schloss). */}
-            <button
-              type="button"
-              disabled
-              title="Feedback-Quelle folgt ab v1.1"
-              className="px-3 py-1.5 text-[12px] text-[var(--tf-text-tertiary)] cursor-not-allowed inline-flex items-center gap-1.5"
-              style={{ borderLeft: '0.5px solid var(--tf-border)' }}
-            >
-              <Lock size={11} aria-hidden />
-              Feedback
-            </button>
+            <QuelleOption aktiv={cfg.quelle === 'antraege'} label="Förderanträge" onClick={() => wechsle('antraege')} />
+            <QuelleOption aktiv={cfg.quelle === 'feedback'} label="Feedback" trennlinie onClick={() => wechsle('feedback')} />
           </div>
+          <p className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
+            Beim Wechsel werden die Lanes auf den Standard der Quelle gesetzt.
+          </p>
         </div>
       ) : null}
 
-      {kontext === 'settings' ? (
+      {kontext === 'settings' && cfg.quelle === 'antraege' ? (
         <div>
           <FeldLabel>Datenbasis</FeldLabel>
           <Select
@@ -157,22 +137,9 @@ function KanbanConfigForm({
         </div>
       ) : null}
 
-      <div>
-        <FeldLabel>Lanes (aus Status-Kategorien)</FeldLabel>
-        <SettingsChipToggle
-          options={LANE_KATEGORIEN.map(k => ({
-            key: k,
-            label: getStatusCategoryLabel(k),
-            suffix: `· ${cfg.lanes.find(l => l.kategorie === k)?.spalten ?? 1} Sp.`,
-          }))}
-          selectedKeys={selectedLanes}
-          onToggle={toggleLane}
-          onSuffixClick={toggleSpalten}
-        />
-        <p className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
-          Klick auf „· N Sp." schaltet die Kartenspalten (1/2) der Lane um.
-        </p>
-      </div>
+      {cfg.quelle === 'antraege'
+        ? <AntragLaneChips cfg={cfg} onUpdate={onUpdate} />
+        : <FeedbackLaneChips cfg={cfg} onUpdate={onUpdate} />}
 
       <div>
         <FeldLabel>Farben der Köpfe</FeldLabel>
@@ -193,6 +160,114 @@ function KanbanConfigForm({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Segment-Knopf der Quellen-Umschaltung (Text-only, analog FarbmodusOption). */
+function QuelleOption({ aktiv, label, onClick, trennlinie }: {
+  aktiv: boolean; label: string; onClick: () => void; trennlinie?: boolean;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      aria-pressed={aktiv}
+      onClick={onClick}
+      className={`px-3 py-1.5 text-[12px] cursor-pointer ${aktiv ? 'bg-[var(--tf-bg-secondary)] font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}`}
+      style={trennlinie ? { borderLeft: '0.5px solid var(--tf-border)' } : undefined}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** Lane-Chips-Rahmen (Label + Chip-Toggle + Spalten-Hinweis) — geteilt von
+ *  Anträge- und Feedback-Lanes. */
+function LaneChips({ label, options, selectedKeys, onToggle, onSuffixClick }: {
+  label: string;
+  options: Array<{ key: string; label: string; suffix: string }>;
+  selectedKeys: Set<string>;
+  onToggle: (key: string) => void;
+  onSuffixClick: (key: string) => void;
+}): React.ReactElement {
+  return (
+    <div>
+      <FeldLabel>{label}</FeldLabel>
+      <SettingsChipToggle
+        options={options}
+        selectedKeys={selectedKeys}
+        onToggle={onToggle}
+        onSuffixClick={onSuffixClick}
+      />
+      <p className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
+        Klick auf „· N Sp." schaltet die Kartenspalten (1/2) der Lane um.
+      </p>
+    </div>
+  );
+}
+
+/** Lane-Auswahl für die Anträge-Quelle (Status-Kategorien). */
+function AntragLaneChips({ cfg, onUpdate }: {
+  cfg: AntragKanbanWidgetConfig;
+  onUpdate: (config: WidgetSpezifischeConfig) => Promise<void>;
+}): React.ReactElement {
+  const selectedKeys = new Set(cfg.lanes.map(l => l.kategorie as string));
+  const toggleLane = (key: string): void => {
+    const kategorie = key as StatusCategory;
+    const lanes = selectedKeys.has(key)
+      ? cfg.lanes.filter(l => l.kategorie !== kategorie)
+      : [...cfg.lanes, { kategorie, spalten: 1 as const }];
+    void onUpdate({ ...cfg, lanes });
+  };
+  const toggleSpalten = (key: string): void => {
+    const lanes = cfg.lanes.map(l =>
+      l.kategorie === key ? { ...l, spalten: (l.spalten === 2 ? 1 : 2) as 1 | 2 } : l);
+    void onUpdate({ ...cfg, lanes });
+  };
+  return (
+    <LaneChips
+      label="Lanes (aus Status-Kategorien)"
+      options={LANE_KATEGORIEN.map(k => ({
+        key: k,
+        label: getStatusCategoryLabel(k),
+        suffix: `· ${cfg.lanes.find(l => l.kategorie === k)?.spalten ?? 1} Sp.`,
+      }))}
+      selectedKeys={selectedKeys}
+      onToggle={toggleLane}
+      onSuffixClick={toggleSpalten}
+    />
+  );
+}
+
+/** Lane-Auswahl für die Feedback-Quelle (Feedback-Status, FEEDBACK_LANE_STATUS). */
+function FeedbackLaneChips({ cfg, onUpdate }: {
+  cfg: FeedbackKanbanWidgetConfig;
+  onUpdate: (config: WidgetSpezifischeConfig) => Promise<void>;
+}): React.ReactElement {
+  const selectedKeys = new Set(cfg.lanes.map(l => l.status as string));
+  const toggleLane = (key: string): void => {
+    const status = key as FeedbackKanbanWidgetConfig['lanes'][number]['status'];
+    const lanes = selectedKeys.has(key)
+      ? cfg.lanes.filter(l => l.status !== status)
+      : [...cfg.lanes, { status, spalten: 1 as const }];
+    void onUpdate({ ...cfg, lanes });
+  };
+  const toggleSpalten = (key: string): void => {
+    const lanes = cfg.lanes.map(l =>
+      l.status === key ? { ...l, spalten: (l.spalten === 2 ? 1 : 2) as 1 | 2 } : l);
+    void onUpdate({ ...cfg, lanes });
+  };
+  return (
+    <LaneChips
+      label="Lanes (aus Feedback-Status)"
+      options={FEEDBACK_LANE_STATUS.map(s => ({
+        key: s,
+        label: STATUS_LABELS[s],
+        suffix: `· ${cfg.lanes.find(l => l.status === s)?.spalten ?? 1} Sp.`,
+      }))}
+      selectedKeys={selectedKeys}
+      onToggle={toggleLane}
+      onSuffixClick={toggleSpalten}
+    />
   );
 }
 

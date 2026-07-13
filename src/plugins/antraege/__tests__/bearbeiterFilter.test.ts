@@ -7,6 +7,7 @@ import {
   applyInaktiveExclusion,
   isAlleMode,
   hasAnyKuerzelData,
+  bearbeiterScopeLabel,
 } from '../bearbeiterFilter';
 
 function makeAntrag(extra: Record<string, unknown>): AntragListItem {
@@ -17,6 +18,18 @@ function makeAntrag(extra: Record<string, unknown>): AntragListItem {
     ...extra,
   } as AntragListItem;
 }
+
+describe('bearbeiterScopeLabel (v1.1 — Modus sichtbar)', () => {
+  it('gibt „Alle Bearbeiter" im inaktiven/„alle"-Modus', () => {
+    expect(bearbeiterScopeLabel(parseBearbeiterFilter('alle', false))).toBe('Alle Bearbeiter');
+    expect(bearbeiterScopeLabel(parseBearbeiterFilter(undefined, false))).toBe('Alle Bearbeiter');
+  });
+
+  it('gibt „Kürzel …" bei gesetztem Kürzel (Vertretung mit „/")', () => {
+    expect(bearbeiterScopeLabel(parseBearbeiterFilter('thu', false))).toBe('Kürzel THU');
+    expect(bearbeiterScopeLabel(parseBearbeiterFilter('MUE, SCH', false))).toBe('Kürzel MUE/SCH');
+  });
+});
 
 describe('parseBearbeiterFilter', () => {
   it('treats empty / undefined as inactive', () => {

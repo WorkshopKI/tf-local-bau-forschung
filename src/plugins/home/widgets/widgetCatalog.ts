@@ -18,6 +18,7 @@ import {
   StickyNote,
 } from 'lucide-react';
 import { isKuratorMenusEnabled } from '@/config/feature-flags';
+import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
 
 export interface WidgetKatalogEintrag {
@@ -61,7 +62,9 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
   },
   kanban: {
     typ: 'kanban',
-    label: 'Anträge — Kanban',
+    // Quellen-neutral (v1.1: Anträge ODER Feedback wählbar) — die Widget-
+    // Kopfzeile trägt die quellen-spezifische Bezeichnung.
+    label: 'Kanban',
     icon: Columns3,
     bereich: 'haupt',
     verfuegbar: true,
@@ -69,12 +72,7 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     defaultConfig: () => ({
       art: 'kanban',
       quelle: 'antraege',
-      lanes: [
-        { kategorie: 'offen', spalten: 1 },
-        { kategorie: 'in_pruefung', spalten: 2 },
-        { kategorie: 'nachforderung', spalten: 1 },
-        { kategorie: 'entscheidung', spalten: 1 },
-      ],
+      lanes: defaultAntragKanbanLanes(),
       farbmodus: 'bunt',
       maxKartenProLane: 4,
     }),

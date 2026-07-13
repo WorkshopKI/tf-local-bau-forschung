@@ -5,6 +5,7 @@ import { ListItem } from '@/components/ui/ListItem';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import type { AntragVorgang } from './useDashboardData';
@@ -64,9 +65,18 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
 
   const zeigtListe = !(alleMode && !isKuerzelDropdownEnabled()) && antraege.length > 0;
 
+  // Modus sichtbar in der Meta-Zeile (v1.1): „Kürzel THU" vs. „Alle Bearbeiter"
+  // — ersetzt den früheren Titel-Swap; der Titel bleibt fix „Meine Anträge".
+  const scopeLabel = bearbeiterScopeLabel({
+    active: data.bearbeiterFilterActive,
+    tokens: data.bearbeiterTokens,
+    includeBegleitung: false,
+  });
+
   return (
     <WidgetShell
-      titel={alleMode ? 'Alle Anträge' : 'Meine Anträge'}
+      titel="Meine Anträge"
+      meta={zeigtListe ? `${scopeLabel} · Sortierung: Frist · ${Math.min(visibleCount, antraege.length)} sichtbar` : undefined}
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}

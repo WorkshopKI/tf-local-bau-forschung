@@ -32,6 +32,7 @@ export { MyProgressBar } from './MyProgressBar';
 export { FeedbackSortSelect, type FeedbackSort } from './FeedbackSortSelect';
 export { FeedbackStatusSelect, type FeedbackStatusFilter } from './FeedbackStatusSelect';
 export { useUnreadReplies, type UnreadReplies } from './useUnreadReplies';
+export { useFeedbackNavStore } from './feedbackNavStore';
 export { FeedbackFileInput } from './FeedbackFileInput';
 export { FeedbackFiles } from './FeedbackFiles';
 export { FileTypeIcon } from './FileTypeIcon';

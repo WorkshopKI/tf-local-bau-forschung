@@ -39,13 +39,29 @@ const MONO_ACCENTS = [
   'var(--tf-kanban-mono-3)',
 ] as const;
 
+/** Monochrom-Akzent zyklisch nach Lane-Index — geteilt von Anträge- und
+ *  Feedback-Kanban (feedbackKanbanLanes), damit die Mono-Rampe eine Quelle hat. */
+export function monoLaneAccent(laneIndex: number): string {
+  return MONO_ACCENTS[laneIndex % MONO_ACCENTS.length]!;
+}
+
 export function laneAccent(
   farbmodus: KanbanWidgetConfig['farbmodus'],
   kategorie: StatusCategory,
   laneIndex: number,
 ): string {
-  if (farbmodus === 'monochrom') return MONO_ACCENTS[laneIndex % MONO_ACCENTS.length]!;
+  if (farbmodus === 'monochrom') return monoLaneAccent(laneIndex);
   return KANBAN_LANE_ACCENT[kategorie];
+}
+
+/** Default-Lanes eines Anträge-Kanbans (Katalog-Default + Quellenwechsel-Reset). */
+export function defaultAntragKanbanLanes(): KanbanLane[] {
+  return [
+    { kategorie: 'offen', spalten: 1 },
+    { kategorie: 'in_pruefung', spalten: 2 },
+    { kategorie: 'nachforderung', spalten: 1 },
+    { kategorie: 'entscheidung', spalten: 1 },
+  ];
 }
 
 export interface KanbanKarte {

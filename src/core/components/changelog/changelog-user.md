@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.230 — 2026-07
+
+### Neu
+- **Feedback als Kanban auf der Startseite:** Das Kanban-Widget kann jetzt statt der Förderanträge auch das Team-Feedback anzeigen — bunte Spalten nach Status (Neu, In Bearbeitung, Geplant, Umgesetzt …). Ein Klick auf eine Karte öffnet das passende Ticket direkt im Feedback-Board. Umschalten in den Widget-Einstellungen unter „Quelle".
+
+### Verbesserungen
+- **Wessen Zahlen sind das?** Die Widgets „Anträge — Kanban", „Meine Anträge" und „Antragseingang" zeigen jetzt in der Kopfzeile, ob sie deine eigenen Anträge („Kürzel THU") oder alle Bearbeiter zusammen zeigen — so liest man Team-Zahlen nicht mehr versehentlich als die eigenen.
+
 ## v2.229 — 2026-07
 
 ### Neu

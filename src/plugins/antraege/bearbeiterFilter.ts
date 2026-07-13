@@ -219,6 +219,17 @@ export function isAlleMode(raw: string | undefined): boolean {
   return !parseBearbeiterFilter(raw, false).active;
 }
 
+/**
+ * Geteiltes Kopfzeilen-Label, das den Bearbeiter-Modus SICHTBAR macht (v1.1):
+ * „Alle Bearbeiter" im PL-/Übersichtsmodus (`active: false`) vs. „Kürzel THU"
+ * (bzw. „Kürzel MUE/SCH" bei Vertretung) sonst. Ohne das liest eine PL
+ * Team-Zahlen als ihre eigenen. Genutzt in den Meta-Zeilen von Anträge-Kanban,
+ * Meine Anträge und Antragseingang.
+ */
+export function bearbeiterScopeLabel(mode: BearbeiterFilterMode): string {
+  return mode.active ? `Kürzel ${mode.tokens.join('/')}` : 'Alle Bearbeiter';
+}
+
 /** NFC+uppercase-Normalisierung eines tib_kuerz-Rohwerts für den Vergleich
  *  gegen die (bereits NFC+upper) Inaktiv-Menge. Inline gehalten, damit dieses
  *  Hot-Path-Modul keine auslastung-Abhängigkeit bekommt. */

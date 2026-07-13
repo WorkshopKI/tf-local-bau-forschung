@@ -11,6 +11,7 @@
  * Snapshot-Allowlist (SNAPSHOT_FILES). Guard: `home-widgets-local-only`
  * (src/__tests__/codebase-conventions.test.ts).
  */
+import type { FeedbackStatus } from '@/core/types/feedback';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 export interface HomeWidgetConfig {
@@ -52,23 +53,45 @@ export interface WidgetInstanz {
   config: WidgetSpezifischeConfig;
 }
 
-/** Eine Kanban-Lane = eine Status-Kategorie (Pitfall #12: nie Roh-Status). */
+/** Eine Anträge-Kanban-Lane = eine Status-Kategorie (Pitfall #12: nie Roh-Status). */
 export interface KanbanLane {
   kategorie: StatusCategory;
   spalten: 1 | 2;
 }
 
-export interface KanbanWidgetConfig {
+/** Eine Feedback-Kanban-Lane = ein Feedback-Status (Pitfall #21: nie Roh-Literal). */
+export interface FeedbackKanbanLane {
+  status: FeedbackStatus;
+  spalten: 1 | 2;
+}
+
+interface KanbanWidgetConfigBasis {
   art: 'kanban';
-  /** v1: 'feedback' ist im Schema vorbereitet, im UI gesperrt (Schloss, „ab v1.1"). */
-  quelle: 'antraege' | 'feedback';
-  /** UserPreset.id aus idb-filter; bei gelöschtem Preset Fallback auf Grundmenge. */
-  presetId?: string;
-  lanes: KanbanLane[];
   farbmodus: 'bunt' | 'monochrom';
   /** Kappung je Lane, danach „+ N weitere →". Default 4. */
   maxKartenProLane: number;
 }
+
+/** Kanban aus Förderanträgen: Lanes = Status-Kategorien, optional ein Filter-Preset. */
+export interface AntragKanbanWidgetConfig extends KanbanWidgetConfigBasis {
+  quelle: 'antraege';
+  /** UserPreset.id aus idb-filter; bei gelöschtem Preset Fallback auf Grundmenge. */
+  presetId?: string;
+  lanes: KanbanLane[];
+}
+
+/** Kanban aus Feedback-Tickets: Lanes = Feedback-Status (kein Antrags-Preset). */
+export interface FeedbackKanbanWidgetConfig extends KanbanWidgetConfigBasis {
+  quelle: 'feedback';
+  lanes: FeedbackKanbanLane[];
+}
+
+/**
+ * Quellenabhängig typisiert (diskriminiert auf `quelle`, v1.1): Anträge →
+ * StatusCategory-Lanes (+ optionales Preset), Feedback → FeedbackStatus-Lanes.
+ * So können Lanes nie „ins Leere" der falschen Quelle zeigen.
+ */
+export type KanbanWidgetConfig = AntragKanbanWidgetConfig | FeedbackKanbanWidgetConfig;
 
 export interface AmpelWidgetConfig {
   art: 'ampel';
