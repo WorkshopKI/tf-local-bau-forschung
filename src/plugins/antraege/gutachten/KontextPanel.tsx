@@ -168,6 +168,14 @@ export function KontextPanel({
         </div>
       )}
 
+      {step.entwurf ? (
+        <div className="g-ctx-block">
+          <CollapsibleSection label="Entwurf — alle genannten Risiken" defaultOpen={false}>
+            <div className="g-ctx-text"><MarkdownRenderer content={step.entwurf} /></div>
+          </CollapsibleSection>
+        </div>
+      ) : null}
+
       {step.denkprozess ? (
         <div className="g-ctx-block">
           <CollapsibleSection label="Denkprozess" defaultOpen={false}>

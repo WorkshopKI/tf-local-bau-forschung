@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.10 — Gutachten-Werkstatt: „Technische Risiken" als Entwurf → gefilterter Fließtext (Juli 2026)
+
+PATCH — Der Abschnitt C („Technische Risiken", Skill `gutachten-risiken`) gab bisher eine **Liste** aller im Antrag genannten Risiken aus (je Risiko fett gesetzter Kurztitel + 2–3 Sätze). Diese Liste wird jetzt zum **Entwurfszwischenschritt**; der finale Text ist ein **Fließtext ohne Kurztitel**, beschränkt auf die zentralen, auf dem **Lösungsweg** liegenden und vom Vorhaben **beeinflussbaren** Risiken (bei mehr als drei die höchstens drei zentralen). Externe / nicht beeinflussbare Risiken (Marktlage, Regulatorik, Verhalten Dritter) fließen nicht in den finalen Text.
+
+- **Dreistufige Skill-Ausgabe** (wie der Kurzfassungs-Skill A): `### Quellenanalyse` / `### Entwurf` / `### Finaler Text`. Der gemeinsame Abschnitts-Builder `abschnittTemplate` trägt jetzt einen optionalen `entwurf`-Abschnitt ([seed.ts](src/core/services/skills/registry/seed.ts)); ohne ihn bleibt die Ausgabe **byte-identisch** zur bisherigen 2-Abschnitt-Form (schützt die B-Rollout-Migration + `grundsatz.test`). C ist auf **v2** gehoben, `maxTokens` 2048 → 4096 (die längere 3-Abschnitt-Ausgabe würde auf dem Eval-/DirectLLM-Pfad sonst abgeschnitten).
+- **Entwurf sichtbar**: Das „Quelle & Prüfung"-Panel zeigt den Entwurf (alle genannten Risiken) als **einklappbaren Block** — nachvollziehbar, welche Risiken der finale Text aussortiert ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)). In Word-Export/Freigabe/Eval geht unverändert **nur** der finale Text (`finalerText`-only-Kontrakt).
+- **Regeln**: Die Wortanzahl-Prüfung (300–350 Wörter) ist für C jetzt ein **Hinweis** statt eines blockierenden Fehlers (`seed-c-umfang`); neu ein Aufzählungs-Guard (`seed-c-keine-aufzaehlungen`, wie Abschnitt D), der den finalen Fließtext gegen Rückfall in Listenform schützt.
+- **Rollout auf Bestands-Shares**: marker-gesicherte Registry-Migration `ga-risiken-entwurf-2026-07` ([migrations.ts](src/core/services/skills/registry/migrations.ts)) hebt C nur, wenn das Share-Template **exakt** einem der zwei bekannten Alt-Stände entspricht (Seed-Default mit Stilbeispiel bzw. kuratierter Snapshot ohne); kuratierte C-Edits bleiben **unberührt**.
+- **Noch zu prüfen**: file://-Abnahme (Thomas) + ein Eval-Durchlauf für Abschnitt C (C's Generierung ändert sich). Kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.9 — Gutachten-Werkstatt: Abschnitt B in zwei Läufen erzeugen (Output-Limit) (Juli 2026)
 
 PATCH — Ergänzung zu v2.241.8: Auch nach dem Bridge-Fix wurde Abschnitt B („Hintergrund, Stand der Technik, Lösungsweg", ≥ 750 Wörter) am Ende abgeschnitten — die Ursache liegt **serverseitig** im festen Output-Token-Budget des internen LLM (Reasoning + langer Fließtext teilen sich ein hartes Limit; auf dem Streamlit-Pfad kann die App es nicht beeinflussen, `maxTokens` ist dort inert). Dasselbe Prompt bricht auch in einem separaten Streamlit-Chat mittendrin ab.

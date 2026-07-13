@@ -4,6 +4,7 @@ import {
   SEED_SKILLS_BG,
   AUSGANGSLAGE_SKILL_ID,
   KURZFASSUNG_SKILL_ID,
+  RISIKEN_SKILL_ID,
   buildKurzfassungPrompt,
 } from '../seed';
 
@@ -28,13 +29,18 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
     expect(b!.version).toBe(2);
   });
 
-  it('C–G bleiben ohne Instruktion + version 1 (byte-identisch)', () => {
+  it('C–G tragen die Beleg→Satz-Instruktion NICHT; D–G bleiben version 1, C ist v2', () => {
     const uebrige = SEED_SKILLS_BG.filter(s => s.id !== AUSGANGSLAGE_SKILL_ID);
     expect(uebrige.length).toBeGreaterThan(0);
     for (const s of uebrige) {
       expect(s.promptTemplate, s.id).not.toContain('stützt');
+    }
+    // D–G unverändert bei version 1; C ist bewusst v2 (Entwurf → gefilterter Fließtext —
+    // eigener Umbau, NICHT der Beleg-Kontrakt).
+    for (const s of uebrige.filter(s => s.id !== RISIKEN_SKILL_ID)) {
       expect(s.version, s.id).toBe(1);
     }
+    expect(SEED_SKILLS_BG.find(s => s.id === RISIKEN_SKILL_ID)?.version).toBe(2);
   });
 
   it('buildKurzfassungPrompt: false ohne, true mit Instruktion (nur noch Migrations-Erkennung)', () => {

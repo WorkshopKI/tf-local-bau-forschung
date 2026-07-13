@@ -18,9 +18,12 @@ import { AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed
 import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
+  RISIKEN_SKILL_ID,
   buildKurzfassungPrompt,
   abschnittTemplate,
   B_ABSCHNITT_OPTS,
+  C_ABSCHNITT_OPTS_ALT,
+  C_ABSCHNITT_OPTS_NEU,
 } from './seed';
 import type { SkillRecord, SkillRegistryFile } from './types';
 
@@ -41,6 +44,9 @@ export const AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION = 'aufbereitung-zahlen-maxt
 
 /** ID der maxTokens-Anhebung des Steckbrief-Skills (2048 → 4096, Sonnet-Referenzlauf-Truncation). */
 export const AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION = 'aufbereitung-steckbrief-maxtokens-2026-07';
+
+/** ID des C-Umbaus „Technische Risiken" auf Entwurf → gefilterter Fließtext. */
+export const GA_RISIKEN_ENTWURF_MIGRATION = 'ga-risiken-entwurf-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -124,6 +130,38 @@ function applySteckbriefMaxTokens(skills: SkillRecord[]): SkillRecord[] {
   );
 }
 
+/**
+ * C-Skill „Technische Risiken" (Abschnitt C): Umbau auf **Entwurf → gefilterter Fließtext**.
+ * Trägt der Share-Stand EXAKT einen der zwei bekannten Alt-Stände (2-Abschnitt-Liste), wird er
+ * auf den Neu-Stand gehoben (3-Abschnitt: Entwurf listet alle Risiken, Finaler Text ist
+ * gefilterter Fließtext) — inkl. neuer regelIds (Wortanzahl weich, Aufzählungs-Guard) und
+ * maxTokens 4096 (nur, wenn der Alt-Wert 2048 unverändert ist).
+ *
+ * ZWEI Alt-Stände: der Seed-Default trägt ein Stilbeispiel; der kuratierte Share-Snapshot
+ * (`registry.live.json`, Reifegrad „entwurf") trägt KEINES. Beide gelten als pristine → beide
+ * werden gehoben. Weicht das Template von BEIDEN ab (kuratiert editiert oder schon migriert),
+ * bleibt der Skill UNBERÜHRT. Version wird nicht gesenkt (`Math.max(s.version, 2)`).
+ */
+function applyRisikenEntwurf(skills: SkillRecord[]): SkillRecord[] {
+  const alteStaende = new Set([
+    abschnittTemplate({ ...C_ABSCHNITT_OPTS_ALT }),
+    abschnittTemplate({ ...C_ABSCHNITT_OPTS_ALT, stilbeispiel: undefined }),
+  ]);
+  const neuC = abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU });
+  return skills.map(s => {
+    if (s.id === RISIKEN_SKILL_ID && alteStaende.has(s.promptTemplate)) {
+      return {
+        ...s,
+        promptTemplate: neuC,
+        version: Math.max(s.version, 2),
+        maxTokens: s.maxTokens === 2048 ? 4096 : s.maxTokens,
+        regelIds: ['seed-c-umfang', 'seed-c-keine-aufzaehlungen', 'seed-passiv-stil'],
+      };
+    }
+    return s;
+  });
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -136,6 +174,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, apply: applyZahlenMaxTokens },
   { marker: AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, apply: applySteckbriefMaxTokens },
   { marker: GA_BELEG_KONTRAKT_REVERT_MIGRATION, apply: applyBelegKontraktRevert },
+  { marker: GA_RISIKEN_ENTWURF_MIGRATION, apply: applyRisikenEntwurf },
 ];
 
 /**

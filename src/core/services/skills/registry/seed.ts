@@ -205,6 +205,13 @@ export function abschnittTemplate(opts: {
   aufgabe: string;
   formatRegeln: readonly string[];
   finalText: string;
+  /**
+   * Optionaler Entwurfs-Abschnitt (Zwischenschritt vor dem finalen Text). Ist er gesetzt,
+   * fordert das Template DREI Ausgabe-Abschnitte (Quellenanalyse / Entwurf / Finaler Text,
+   * wie der Kurzfassungs-Skill A). Undefined reproduziert das Template BYTE-IDENTISCH zur
+   * bisherigen 2-Abschnitt-Form (kritisch für die B-Rollout-Migration + grundsatz.test).
+   */
+  entwurf?: string;
   /** Optionales Stilbeispiel (nur Schreibstil; wird klar markiert angehängt). */
   stilbeispiel?: string;
   /**
@@ -218,6 +225,8 @@ export function abschnittTemplate(opts: {
   const stil = opts.stilbeispiel
     ? `\n\n## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)\n${opts.stilbeispiel}`
     : '';
+  const anzahlWort = opts.entwurf ? 'drei' : 'zwei';
+  const entwurfBlock = opts.entwurf ? `\n\n### Entwurf\n${opts.entwurf}` : '';
   return `Erstelle den Abschnitt **${opts.name}** eines ZIM-Gutachtens aus der folgenden Vorhabensbeschreibung (VB).
 
 ## Stammdaten des Antrags
@@ -235,9 +244,9 @@ ${opts.aufgabe}
 ${GRUNDSATZ_REGELN}
 ${extra}
 
-## Ausgabeformat (genau diese zwei Abschnitte, jeweils mit der ###-Überschrift)
+## Ausgabeformat (genau diese ${anzahlWort} Abschnitte, jeweils mit der ###-Überschrift)
 ### Quellenanalyse
-${quellenanalyseKontrakt(opts.belegKontrakt ?? false)}
+${quellenanalyseKontrakt(opts.belegKontrakt ?? false)}${entwurfBlock}
 
 ### Finaler Text
 ${opts.finalText}${stil}`;
@@ -249,8 +258,12 @@ export const SEED_REGELN_BG: QualitaetsRegel[] = [
   regel('seed-b-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 750 }, 'fehler'),
   regel('seed-b-absatz-min', 'Absätze', 'absatz_min', { min: 4 }, 'fehler'),
   regel('seed-b-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
-  // C
+  // C — v2: Wortanzahl weich (Hinweis), Aufzählungs-Guard für den finalen Fließtext.
+  // `seed-c-wortanzahl` (fehler) bleibt definiert für Bestands-Shares/Referenzen, wird aber
+  // vom C-Skill nicht mehr referenziert (Waise; ersetzt durch `seed-c-umfang` als Hinweis).
   regel('seed-c-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 300, max: 350 }, 'fehler'),
+  regel('seed-c-umfang', 'Umfang (Richtwert)', 'wortanzahl', { min: 300, max: 350 }, 'hinweis'),
+  regel('seed-c-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
   // D
   regel('seed-d-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 300, max: 350 }, 'fehler'),
   regel('seed-d-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
@@ -284,6 +297,71 @@ export const B_ABSCHNITT_OPTS = {
     + 'Technik und Lösungsweg in dieser Reihenfolge, ohne Aufzählungen.',
 } as const;
 
+/** Skill-ID des Abschnitts C (Konstante für Lookups + Rollout-Migration). */
+export const RISIKEN_SKILL_ID = 'gutachten-risiken';
+
+/**
+ * Alt-Stand der C-Optionen (2-Abschnitt-Liste, je Risiko fett gesetzter Kurztitel). Wird
+ * NICHT mehr aktiv geseedet — dient nur dem BYTE-genauen Vergleich der
+ * `ga-risiken-entwurf`-Migration, damit kuratierte C-Edits unberührt bleiben.
+ */
+export const C_ABSCHNITT_OPTS_ALT = {
+  name: 'Technische Risiken',
+  aufgabe:
+    'Beschreibe die technischen Risiken des Vorhabens. Nenne ausschließlich Risiken, die im Antrag '
+    + 'explizit benannt sind. Stelle je Risiko einen kurzen Kurztitel voran und erläutere es in 2–3 Sätzen.',
+  formatRegeln: [
+    'Format je Risiko: „**Kurztitel:** 2–3 Sätze" (Kurztitel fett, danach Fließtext — KEINE Spiegelstrich-Liste).',
+    'Gesamtumfang **300–350 Wörter**.',
+  ],
+  finalText:
+    'Der finale Text (300–350 Wörter): je technisches Risiko ein fett gesetzter Kurztitel, gefolgt '
+    + 'von 2–3 erläuternden Sätzen.',
+  stilbeispiel:
+    'Im Vorhaben werden mehrere technische Risiken explizit benannt. Die Feinabstimmung der '
+    + 'Drucktechnologie stellt eine Kernherausforderung dar, weil die Druckkopftechnologie hochpräzise '
+    + 'mechanische Komponenten erfordert.',
+} as const;
+
+/**
+ * Neu-Stand der C-Optionen: **Entwurf → gefilterter Fließtext**. Der `### Entwurf` listet
+ * ALLE genannten technischen Risiken (Zwischenschritt, im KontextPanel sichtbar); der
+ * `### Finaler Text` ist Fließtext ohne Kurztitel, beschränkt auf ≤3 Risiken auf dem
+ * Lösungsweg (externe / nicht beeinflussbare Risiken fallen weg). Geteilt von Seed + Migration.
+ */
+export const C_ABSCHNITT_OPTS_NEU = {
+  name: 'Technische Risiken',
+  aufgabe:
+    'Ermittle die im Antrag explizit benannten technischen Risiken des Vorhabens und leite daraus '
+    + 'einen finalen Fließtext ab. Erstelle zunächst einen Entwurf mit ALLEN genannten technischen '
+    + 'Risiken. Beschränke den finalen Text anschließend auf die zentralen Risiken, die auf dem '
+    + 'Lösungsweg des Vorhabens liegen und vom Vorhaben beeinflussbar sind.',
+  formatRegeln: [
+    'Entwurf: je im Antrag genanntem technischem Risiko ein fett gesetzter Kurztitel, gefolgt von '
+      + '2–3 Sätzen (vollständige Liste).',
+    'Finaler Text: durchgehender **Fließtext ohne Kurztitel und ohne Aufzählung**.',
+    'Nur Risiken, die auf dem **Lösungsweg des Vorhabens** liegen und vom Vorhaben **beeinflussbar** '
+      + 'sind, gehören in den finalen Text. Externe, nicht beeinflussbare Risiken (z. B. Marktlage, '
+      + 'Regulatorik, Verhalten Dritter) werden im finalen Text weggelassen.',
+    'Enthält der Entwurf mehr als drei Risiken, beschränke den finalen Text auf **höchstens drei** '
+      + 'zentrale Risiken des Lösungswegs.',
+    'Umfang des finalen Textes: Richtwert 300–350 Wörter.',
+  ],
+  entwurf:
+    'Ein Entwurf mit ALLEN im Antrag genannten technischen Risiken: je Risiko ein fett gesetzter '
+    + 'Kurztitel, gefolgt von 2–3 erläuternden Sätzen (auch externe / nicht beeinflussbare Risiken '
+    + 'hier aufführen).',
+  finalText:
+    'Der finale Fließtext (Richtwert 300–350 Wörter, KEINE Kurztitel, KEINE Aufzählung): die '
+    + 'höchstens drei zentralen, auf dem Lösungsweg liegenden und vom Vorhaben beeinflussbaren '
+    + 'technischen Risiken als zusammenhängender Fließtext.',
+  stilbeispiel:
+    'Ein zentrales technisches Risiko betrifft die Feinabstimmung der Drucktechnologie. Da die '
+    + 'Druckkopftechnologie hochpräzise mechanische Komponenten erfordert, kann eine unzureichende '
+    + 'Kalibrierung die Tröpfchenpositionierung beeinträchtigen und den angestrebten '
+    + 'Automatisierungsgrad senken.',
+} as const;
+
 /** Die Abschnitts-Skills B–G (Schritt A = SEED_SKILL bleibt unverändert). */
 export const SEED_SKILLS_BG: SkillRecord[] = [
   {
@@ -302,31 +380,20 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     geaendert_am: SEED_TS,
   },
   {
-    id: 'gutachten-risiken',
+    id: RISIKEN_SKILL_ID,
     name: 'Technische Risiken (C)',
     beschreibung: 'Abschnitt C des ZIM-Gutachtens: technische Risiken des Vorhabens.',
-    version: 1,
-    promptTemplate: abschnittTemplate({
-      name: 'Technische Risiken',
-      aufgabe:
-        'Beschreibe die technischen Risiken des Vorhabens. Nenne ausschließlich Risiken, die im Antrag '
-        + 'explizit benannt sind. Stelle je Risiko einen kurzen Kurztitel voran und erläutere es in 2–3 Sätzen.',
-      formatRegeln: [
-        'Format je Risiko: „**Kurztitel:** 2–3 Sätze" (Kurztitel fett, danach Fließtext — KEINE Spiegelstrich-Liste).',
-        'Gesamtumfang **300–350 Wörter**.',
-      ],
-      finalText:
-        'Der finale Text (300–350 Wörter): je technisches Risiko ein fett gesetzter Kurztitel, gefolgt '
-        + 'von 2–3 erläuternden Sätzen.',
-      stilbeispiel:
-        'Im Vorhaben werden mehrere technische Risiken explizit benannt. Die Feinabstimmung der '
-        + 'Drucktechnologie stellt eine Kernherausforderung dar, weil die Druckkopftechnologie hochpräzise '
-        + 'mechanische Komponenten erfordert.',
-    }),
+    // v2: Entwurf → gefilterter Fließtext. `### Entwurf` = vollständige Risiko-Liste
+    // (Zwischenschritt, im KontextPanel sichtbar); `### Finaler Text` = Fließtext ohne
+    // Kurztitel, ≤3 Risiken auf dem Lösungsweg (externe/nicht beeinflussbare Risiken weg).
+    // maxTokens 2048 → 4096: 3-Abschnitt-Ausgabe (Liste + Fließtext + Quellenanalyse) würde
+    // sonst auf dem DirectLLM-/Eval-Pfad abgeschnitten. Rollout: `applyRisikenEntwurf`.
+    version: 2,
+    promptTemplate: abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
-    maxTokens: 2048,
+    maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-c-wortanzahl', 'seed-passiv-stil'],
+    regelIds: ['seed-c-umfang', 'seed-c-keine-aufzaehlungen', 'seed-passiv-stil'],
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
