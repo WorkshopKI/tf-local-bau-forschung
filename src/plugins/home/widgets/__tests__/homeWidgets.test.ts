@@ -21,6 +21,7 @@ import {
   leseHomeWidgetConfig,
   loadHomeWidgets,
   moveInstanz,
+  reconcileVerfuegbareWidgets,
   saveHomeWidgets,
   sichtbareWidgets,
   sortiereInstanzen,
@@ -209,6 +210,37 @@ describe('sichtbareWidgets — Katalog- + Flag-Filter', () => {
       ],
     };
     expect(sichtbareWidgets(mitFremdem, 'haupt').some(w => w.id === 'w-fremd')).toBe(false);
+  });
+
+  it('pinnt Notizen ans Ende der Seitenspalte (unabhängig von der Position)', () => {
+    const base = defaultHomeWidgetConfig();
+    const cfg: HomeWidgetConfig = {
+      ...base,
+      widgets: base.widgets.map(w => {
+        if (w.bereich !== 'seite') return w;
+        // alle Seiten-Widgets sichtbar; Notizen bewusst ganz nach vorne (Pos 0)
+        return w.typ === 'notizen' ? { ...w, sichtbar: true, position: 0 } : { ...w, sichtbar: true };
+      }),
+    };
+    const seite = sichtbareWidgets(cfg, 'seite').map(w => w.typ);
+    // Notizen trotz Position 0 hinten, restliche Reihenfolge stabil nach Position
+    expect(seite).toEqual(['antragseingang', 'ai-assistent', 'notizen']);
+  });
+});
+
+describe('reconcileVerfuegbareWidgets — Opt-in + defaultEingeklappt', () => {
+  it('zieht fehlende verfügbare Typen als sichtbar:false nach', () => {
+    const auslast = reconcileVerfuegbareWidgets(defaultHomeWidgetConfig())
+      .widgets.find(w => w.typ === 'auslastung');
+    expect(auslast).toBeDefined();
+    expect(auslast!.sichtbar).toBe(false);
+  });
+
+  it('Auslastung startet eingeklappt (defaultEingeklappt), Default-Widgets ausgeklappt', () => {
+    const cfg = reconcileVerfuegbareWidgets(defaultHomeWidgetConfig());
+    expect(cfg.widgets.find(w => w.typ === 'auslastung')!.eingeklappt).toBe(true);
+    // kanban steht im Default (ohne defaultEingeklappt) → bleibt ausgeklappt
+    expect(cfg.widgets.find(w => w.typ === 'kanban')!.eingeklappt).toBe(false);
   });
 });
 

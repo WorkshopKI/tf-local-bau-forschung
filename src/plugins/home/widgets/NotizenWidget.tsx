@@ -66,7 +66,7 @@ export function NotizenWidget({ instanz, onToggleEingeklappt }: WidgetProps): Re
       />
       <p className="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-[var(--tf-text-tertiary)]">
         <Lock size={10} className="shrink-0" aria-hidden />
-        Nur lokal · nie im Snapshot
+        Nur lokal gespeichert, nie im Team Bereich
       </p>
     </WidgetShell>
   );

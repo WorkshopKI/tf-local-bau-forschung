@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.239 — 2026-07
+
+### Verbesserungen
+- **Notizen immer griffbereit unten rechts.** Das Notizen-Feld sitzt jetzt fest am unteren Ende der rechten Spalte, egal wie die Widgets sonst angeordnet sind — so kannst du schnell etwas festhalten. Der Hinweis heißt jetzt klarer „Nur lokal gespeichert, nie im Team Bereich".
+- **Auslastungs-Widget aufgeräumt.** Es startet eingeklappt (klappt bei Bedarf auf) und zeigt die Zahlen zu den Altanträgen jetzt direkt in den farbigen Balken, wie im Auslastungs-Modul.
+- **AI-Assistent kompakter.** Status und „Verbinden" stehen auf einer Zeile; der „Chat öffnen"-Link ist weg — den Assistenten öffnest du jetzt über das Symbol rechts am Bildschirmrand.
+- Ein- und ausgeklappte Widgets bleiben pro Gerät gemerkt.
+
 ## v2.238 — 2026-07
 
 ### Verbesserungen

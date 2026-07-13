@@ -17,7 +17,7 @@
  * (Altanträge).
  */
 import { memo } from 'react';
-import { altlastBandColor, ALTLAST_BAND_LABELS } from './altlast-colors';
+import { altlastBandColor, altlastBandTextColor, ALTLAST_BAND_LABELS } from './altlast-colors';
 
 interface Props {
   /** Belegt-% (aktuelles Quartal). Kann > 100 sein (überbucht). */
@@ -36,10 +36,15 @@ interface Props {
   height?: number;
   /** Abstand zwischen den beiden Balken in px (default 3). */
   gap?: number;
+  /** Zeigt die TVs je Altlast-Band IM Balken-Segment (wie die MA-Tabelle,
+   *  `ColBars`) — nur wo das Segment breit genug ist. Default `false` (die
+   *  Karten-/Tabellen-Nutzer bleiben unverändert). Braucht sinnvoll `height ≥ 12`
+   *  + `altlastBandTvs`. */
+  altlastZahlen?: boolean;
 }
 
 export const GesamtauslastungBar = memo(function GesamtauslastungBar({
-  belegtPct, altlastBandPct, freiTVs, altlastTvs, altlastBandTvs, quartal, height = 5, gap = 3,
+  belegtPct, altlastBandPct, freiTVs, altlastTvs, altlastBandTvs, quartal, height = 5, gap = 3, altlastZahlen = false,
 }: Props): React.ReactElement {
   const ueberbucht = belegtPct > 100;
   const belegtWidth = Math.min(100, Math.max(0, belegtPct));
@@ -115,15 +120,28 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
         style={trackStyle}
         title={altlastTitle}
       >
-        {totalWidth > 0 && segments.map((s, i) =>
-          s.width > 0 ? (
+        {totalWidth > 0 && segments.map((s, i) => {
+          if (s.width <= 0) return null;
+          const tvs = bandTvs[s.band - 1] ?? 0;
+          // Zahl nur, wenn das Segment breit genug ist (sonst überläuft/clippt sie).
+          const zeigeZahl = altlastZahlen && tvs > 0 && s.width >= 9;
+          return (
             <div
               key={i}
-              className="absolute top-0 bottom-0"
+              className="absolute top-0 bottom-0 flex items-center justify-center overflow-hidden"
               style={{ left: `${s.left}%`, width: `${s.width}%`, background: s.color }}
-            />
-          ) : null,
-        )}
+            >
+              {zeigeZahl && (
+                <span
+                  className="font-mono"
+                  style={{ fontSize: 9.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: altlastBandTextColor(s.band) }}
+                >
+                  {tvs}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

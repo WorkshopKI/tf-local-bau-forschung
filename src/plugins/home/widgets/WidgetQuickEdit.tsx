@@ -26,7 +26,7 @@ export function WidgetQuickEdit({ instanz }: { instanz: WidgetInstanz }): React.
           title="Widget anpassen"
           className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-[var(--tf-radius-sm)] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)]"
         >
-          <Pencil size={13} />
+          <Pencil size={12} />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[360px] p-4">

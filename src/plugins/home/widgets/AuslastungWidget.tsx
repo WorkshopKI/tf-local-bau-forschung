@@ -160,7 +160,8 @@ function AuslastungInhalt({ view, quartal, vorQuartal, onCockpit }: {
         altlastTvs={m.altlastTvs}
         altlastBandTvs={m.altlastBandTvs}
         quartal={quartal}
-        height={6}
+        height={13}
+        altlastZahlen
       />
       <p className="text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)]">
         {m.belegteTVs} von {m.gesamtTVs} TVs · {m.freiTVs} frei
@@ -169,12 +170,14 @@ function AuslastungInhalt({ view, quartal, vorQuartal, onCockpit }: {
           : ''}
       </p>
       {m.altlastTvs > 0 ? (
+        // Die TVs je Band stehen jetzt IM Balken (altlastZahlen) — hier nur noch
+        // die Farb-Legende + Gesamtsumme, keine doppelten Zahlen.
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
           <span className="text-[var(--tf-text-secondary)]">Altanträge: {m.altlastTvs} TVs</span>
           {ALTLAST_BAND_SHORT.map((label, i) => (
             <span key={label} className="inline-flex items-center gap-1">
               <span className="w-2 h-2 rounded-[2px]" style={{ background: ALTLAST_BAND_COLORS[i] }} aria-hidden />
-              {label} · {m.altlastBandTvs[i]}
+              {label}
             </span>
           ))}
         </div>

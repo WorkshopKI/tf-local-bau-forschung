@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.239.0 — Startseite: Widget-Feinschliff (Notizen unten, Auslastung kompakt, AI-Assistent schlanker) (Juli 2026)
+
+MINOR — Bündel aus Nutzer-Feedback an den Home-Widgets. Additiv/lokal, kein Schema-/Flag-Bump.
+
+- **Notizen immer unten rechts:** Das Notizen-Widget wird jetzt ans **Ende der Seitenspalte** gepinnt (unabhängig von der konfigurierten Position), damit die Schnell-Eingabe verlässlich unten sitzt — der Pin lebt in der reinen `sichtbareWidgets` ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)), die Einstellungs-Positionsliste bleibt unberührt.
+- **Auslastung standardmäßig eingeklappt + Zahlen im Balken:** Neues Katalog-Feld `defaultEingeklappt` ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts), nur bei Erst-Anlage/Reconcile, nie retroaktiv) → das Auslastungs-Widget startet eingeklappt (spart die schwere Aggregation, bis man es aufklappt). Der Altanträge-Balken zeigt die TVs je Band **im Segment** (wie die MA-Tabelle) — dazu ist der Balken höher (6 → 13 px); die Text-Legende trägt nur noch die Farb-Zuordnung, keine doppelten Zahlen ([GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx) neues Opt-in-Prop `altlastZahlen`, andere Nutzer unverändert; [AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx)).
+- **AI-Assistent-Widget schlanker:** Status und „Verbinden" sitzen jetzt auf **einer Zeile**; der „Chat öffnen →"-Link entfällt — der Assistent ist über das Dock-Icon rechts auf jeder Seite erreichbar ([AiAssistantCard.tsx](src/plugins/home/AiAssistantCard.tsx)).
+- **Notizen-Hinweis verständlicher:** „Nur lokal · nie im Snapshot" → **„Nur lokal gespeichert, nie im Team Bereich"** ([NotizenWidget.tsx](src/plugins/home/widgets/NotizenWidget.tsx)).
+- **Stift-Icon 1 px kleiner** auf den Karten (13 → 12 px, [WidgetQuickEdit.tsx](src/plugins/home/widgets/WidgetQuickEdit.tsx)).
+- Ein-/Ausklapp-Zustände werden weiterhin **gerätelokal im Browser** gespeichert (IDB-Config, `setEingeklappt` → `saveHomeWidgets`) und best-effort ins persönliche Laufwerk gespiegelt — unverändert, hier nur bestätigt.
+
 ### v2.238.0 — Startseite: „Neue Anträge für dich" ist jetzt ein Widget (Juli 2026)
 
 MINOR — Die bisher hart verdrahtete Home-Sektion „Neue Anträge für dich" (MA-Selbsteintragung aus der Auslastung) ist jetzt ein vollwertiges Katalog-Widget: gleicher Karten-Look wie die übrigen Widgets (Rahmen, Ein-/Ausklappen, „N neu"-Zähler im Kopf) und in Einstellungen › Widgets an-/ausschaltbar + verschiebbar. Additiv/lokal, kein Schema-/Flag-Bump.

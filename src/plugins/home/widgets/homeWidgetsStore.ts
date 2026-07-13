@@ -142,7 +142,7 @@ export function reconcileVerfuegbareWidgets(
     position: ++pos,
     bereich: katalog[typ]!.bereich,
     sichtbar: false,
-    eingeklappt: false,
+    eingeklappt: katalog[typ]!.defaultEingeklappt ?? false,
     config: katalog[typ]!.defaultConfig(),
   }));
   return { ...cfg, widgets: [...cfg.widgets, ...neue] };
@@ -198,11 +198,16 @@ export function sichtbareWidgets(
   bereich: WidgetInstanz['bereich'],
   katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
 ): WidgetInstanz[] {
-  return sortiereInstanzen(cfg.widgets).filter(w => {
+  const gefiltert = sortiereInstanzen(cfg.widgets).filter(w => {
     if (w.bereich !== bereich || !w.sichtbar) return false;
     const eintrag = katalog[w.typ];
     return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
   });
+  // Notizen bewusst ans Spaltenende pinnen (Schnell-Eingabe unten, v2.239) —
+  // unabhängig von der konfigurierten Position. Stabile Sortierung erhält die
+  // übrige Reihenfolge; die Einstellungs-Positionsliste (alleInstanzen) bleibt
+  // davon unberührt.
+  return gefiltert.sort((a, b) => Number(a.typ === 'notizen') - Number(b.typ === 'notizen'));
 }
 
 /**

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
@@ -18,7 +17,6 @@ import type { WidgetProps } from './widgets/widgetProps';
  * `window.open` SYNCHRON bleibt (kein `await` im Gesture → kein Popup-Blocker).
  */
 export function AiAssistentWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
-  const { navigate } = useNavigation();
   const storage = useStorage();
   const aiBridge = useAIBridge();
   const status = useBridgeStatus(s => s.status);
@@ -46,18 +44,20 @@ export function AiAssistentWidget({ instanz, onToggleEingeklappt }: WidgetProps)
         />
       }
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />
-        <span className="text-[13px] text-[var(--tf-text-secondary)]">{connected ? 'Verbunden' : 'Nicht verbunden'}</span>
+      {/* Status + „Verbinden" auf EINER Zeile (v2.239, kompakter). Der „Chat
+          öffnen"-Link entfällt — der Assistent ist jetzt über das Dock-Icon
+          rechts auf jeder Seite erreichbar. */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 min-w-0">
+          <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${connected ? 'bg-[var(--tf-success-text)]' : 'bg-[var(--tf-text-tertiary)]'}`} />
+          <span className="text-[13px] text-[var(--tf-text-secondary)] truncate">{connected ? 'Verbunden' : 'Nicht verbunden'}</span>
+        </span>
+        {!connected && (
+          <Button variant="secondary" size="sm" className="shrink-0" onClick={() => connectInternalKi(aiBridge, endpoint)}>
+            Verbinden
+          </Button>
+        )}
       </div>
-      {!connected && (
-        <Button variant="secondary" size="sm" className="mb-2" onClick={() => connectInternalKi(aiBridge, endpoint)}>
-          Verbinden
-        </Button>
-      )}
-      <button onClick={() => navigate('chat')} className="block text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer">
-        Chat öffnen →
-      </button>
     </WidgetShell>
   );
 }

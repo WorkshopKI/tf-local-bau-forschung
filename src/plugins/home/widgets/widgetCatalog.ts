@@ -39,6 +39,10 @@ export interface WidgetKatalogEintrag {
   verfuegbar: boolean;
   /** Badge-Text für die Einstellungs-Liste (z.B. Rollen-Bindung). */
   hinweisBadge?: string;
+  /** Start-Collapse-Zustand neuer Instanzen (Default `false` = ausgeklappt).
+   *  Für schwere Widgets (Auslastung: 13k-Anträge-Aggregation) sinnvoll `true`
+   *  — greift nur bei der Erst-Anlage (Default/Reconcile), nie retroaktiv. */
+  defaultEingeklappt?: boolean;
   /** Build-/Flag-Sichtbarkeit — false blendet den Typ überall aus (Homepage UND
    *  Einstellungen). ai-assistent ist bewusst immer sichtbar (wie die heutige
    *  Karte; eine spätere Opt-in-Bindung wäre hier ein Einzeiler). */
@@ -140,6 +144,9 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     icon: Gauge,
     bereich: 'seite',
     verfuegbar: true,
+    // Schwere Aggregation (13k Anträge) → standardmäßig eingeklappt; der Body
+    // rechnet erst beim Ausklappen (Lazy-Guard `aktiv` im Widget).
+    defaultEingeklappt: true,
     sichtbarWenn: () => isAuslastungEnabled(),
     defaultConfig: () => ({ art: 'auslastung', sicht: 'auto', vergleichAnzeigen: true }),
   },
