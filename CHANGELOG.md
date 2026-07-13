@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.239.1 — Startseite: Notizen bleibt verschiebbar (Default unten statt Pin) (Juli 2026)
+
+PATCH — Nachschärfung zu v2.239.0: Das Notizen-Widget war ans Spaltenende **gepinnt** — das machte das Verschieben in den Einstellungen wirkungslos. Jetzt ist „unten" nur noch der **Default**, das Widget bleibt per Pfeilen frei verschiebbar. Der harte Pin in der reinen `sichtbareWidgets` entfällt (Reihenfolge folgt wieder der konfigurierten Position); stattdessen hebt `reconcileVerfuegbareWidgets` eine vorhandene Notizen-Instanz beim Erst-Anlegen/Nachziehen **über** die neu angehängten Seiten-Widgets, damit ein später aktiviertes Widget (z. B. Auslastung) nicht darunter rutscht ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)). Nur die Erst-Anlage/Reconcile ordnet um — spätere Pfeil-Bewegungen bleiben erhalten. Kein Schema-/Flag-Bump.
+
 ### v2.239.0 — Startseite: Widget-Feinschliff (Notizen unten, Auslastung kompakt, AI-Assistent schlanker) (Juli 2026)
 
 MINOR — Bündel aus Nutzer-Feedback an den Home-Widgets. Additiv/lokal, kein Schema-/Flag-Bump.

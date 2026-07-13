@@ -126,6 +126,13 @@ function liesLegacyMeineAntraegeCollapse(): boolean {
  * Flags (`sichtbarWenn`) wirken erst beim Rendern (`sichtbareWidgets` / Settings).
  * Neue Instanzen sind Opt-in (`sichtbar: false`) und hängen hinten an; `updatedAt`
  * bleibt unberührt (kein künstlicher LWW-Gewinn). Idempotent.
+ *
+ * Notizen bleibt dabei per Default am Spaltenende (Schnell-Eingabe unten,
+ * v2.239.1): eine vorhandene Notizen-Instanz wird ÜBER alle — auch die eben
+ * angehängten — Positionen gehoben, damit ein später aktiviertes Seiten-Widget
+ * (z.B. Auslastung) NICHT unter die Notizen rutscht. Kein harter Pin: nur die
+ * Erst-Anlage/Reconcile ordnet um; per Pfeilen (`moveInstanz`) bleibt Notizen
+ * frei verschiebbar.
  */
 export function reconcileVerfuegbareWidgets(
   cfg: HomeWidgetConfig,
@@ -145,7 +152,11 @@ export function reconcileVerfuegbareWidgets(
     eingeklappt: katalog[typ]!.defaultEingeklappt ?? false,
     config: katalog[typ]!.defaultConfig(),
   }));
-  return { ...cfg, widgets: [...cfg.widgets, ...neue] };
+  const notizenUnten = pos + 1;
+  const widgets = [...cfg.widgets, ...neue].map(w =>
+    w.typ === 'notizen' ? { ...w, position: notizenUnten } : w,
+  );
+  return { ...cfg, widgets };
 }
 
 /**
@@ -198,16 +209,14 @@ export function sichtbareWidgets(
   bereich: WidgetInstanz['bereich'],
   katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
 ): WidgetInstanz[] {
-  const gefiltert = sortiereInstanzen(cfg.widgets).filter(w => {
+  // Reine Positions-Reihenfolge — kein Sonder-Pin (Notizen ist per Default unten,
+  // wird aber im Reconcile positioniert, s. reconcileVerfuegbareWidgets, und
+  // bleibt per Pfeilen frei verschiebbar).
+  return sortiereInstanzen(cfg.widgets).filter(w => {
     if (w.bereich !== bereich || !w.sichtbar) return false;
     const eintrag = katalog[w.typ];
     return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
   });
-  // Notizen bewusst ans Spaltenende pinnen (Schnell-Eingabe unten, v2.239) —
-  // unabhängig von der konfigurierten Position. Stabile Sortierung erhält die
-  // übrige Reihenfolge; die Einstellungs-Positionsliste (alleInstanzen) bleibt
-  // davon unberührt.
-  return gefiltert.sort((a, b) => Number(a.typ === 'notizen') - Number(b.typ === 'notizen'));
 }
 
 /**

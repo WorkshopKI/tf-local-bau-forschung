@@ -212,7 +212,7 @@ describe('sichtbareWidgets — Katalog- + Flag-Filter', () => {
     expect(sichtbareWidgets(mitFremdem, 'haupt').some(w => w.id === 'w-fremd')).toBe(false);
   });
 
-  it('pinnt Notizen ans Ende der Seitenspalte (unabhängig von der Position)', () => {
+  it('respektiert die konfigurierte Position (kein Notizen-Pin mehr, v2.239.1)', () => {
     const base = defaultHomeWidgetConfig();
     const cfg: HomeWidgetConfig = {
       ...base,
@@ -223,8 +223,8 @@ describe('sichtbareWidgets — Katalog- + Flag-Filter', () => {
       }),
     };
     const seite = sichtbareWidgets(cfg, 'seite').map(w => w.typ);
-    // Notizen trotz Position 0 hinten, restliche Reihenfolge stabil nach Position
-    expect(seite).toEqual(['antragseingang', 'ai-assistent', 'notizen']);
+    // Position 0 → Notizen jetzt VORNE (Pin entfernt: verschiebbar statt fixiert)
+    expect(seite).toEqual(['notizen', 'antragseingang', 'ai-assistent']);
   });
 });
 
@@ -241,6 +241,19 @@ describe('reconcileVerfuegbareWidgets — Opt-in + defaultEingeklappt', () => {
     expect(cfg.widgets.find(w => w.typ === 'auslastung')!.eingeklappt).toBe(true);
     // kanban steht im Default (ohne defaultEingeklappt) → bleibt ausgeklappt
     expect(cfg.widgets.find(w => w.typ === 'kanban')!.eingeklappt).toBe(false);
+  });
+
+  it('hebt Notizen ans Spaltenende (Default unten, v2.239.1) — über die neu angehängten Seiten-Widgets', () => {
+    // Default hat notizen an Pos 5; reconcile hängt weitere Seiten-Widgets
+    // (auslastung, feedback-news …) an — notizen muss danach die höchste
+    // Position behalten, sonst rutschte ein aktiviertes Widget darunter.
+    const cfg = reconcileVerfuegbareWidgets(defaultHomeWidgetConfig());
+    const maxPos = Math.max(...cfg.widgets.map(w => w.position));
+    const notizen = cfg.widgets.find(w => w.typ === 'notizen')!;
+    expect(notizen.position).toBe(maxPos);
+    // konkret: ein (später aktiviertes) Auslastungs-Widget landet ÜBER Notizen
+    const auslast = cfg.widgets.find(w => w.typ === 'auslastung')!;
+    expect(auslast.position).toBeLessThan(notizen.position);
   });
 });
 
