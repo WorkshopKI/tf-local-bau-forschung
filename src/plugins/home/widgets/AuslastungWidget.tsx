@@ -101,11 +101,10 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
       instanz={instanz}
-      zaehler={
-        view?.modell ? (
-          <span className="text-[12px] tabular-nums font-medium text-[var(--tf-text)]">{view.modell.belegtPct} %</span>
-        ) : undefined
-      }
+      /* Kein Zähler-Slot: die Belegung wird eingeklappt nicht berechnet
+         (Lazy-Guard über ~13k Anträge), stünde also nur ausgeklappt — dort
+         aber schon als „Belegt im Quartal … %"-Zeile im Body. Ein Zähler wäre
+         eingeklappt tot und ausgeklappt doppelt (v2.239.3). */
     >
       {!view ? (
         <p className="text-[12px] text-[var(--tf-text-tertiary)] py-1">Lade Auslastung …</p>

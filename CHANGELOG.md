@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.239.3 — Auslastungs-Widget: doppelte Prozentzahl im Kopf entfernt (Juli 2026)
+
+PATCH — Im ausgeklappten Auslastungs-Widget stand die Belegungs-Prozentzahl doppelt: einmal im Zähler-Slot des Kopfes und einmal als „Belegt im Quartal … %"-Zeile im Body. Der Zähler-Slot war als Eingeklappt-Anzeige gedacht, blieb aber wegen des Lazy-Guards (eingeklappt wird über ~13k Anträge nichts berechnet) im eingeklappten Zustand leer und erschien nur ausgeklappt — dort doppelt. Der Zähler-Slot entfällt jetzt; die prominente, beschriftete Body-Zeile bleibt die einzige Quelle ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx)). Reiner Anzeige-Fix, keine Logikänderung.
+
 ### v2.239.2 — Auslastungs-Widget: lesbare Balken-Zahlen + Fußzeile entfernt (Juli 2026)
 
 PATCH — zwei Feinschliffe am Auslastungs-Widget aus Nutzer-Feedback.
