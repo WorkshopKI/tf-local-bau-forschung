@@ -257,26 +257,39 @@ describe('reconcileVerfuegbareWidgets — Opt-in + defaultEingeklappt', () => {
   });
 });
 
-describe('moveInstanz — globale Positionsliste', () => {
-  it('tauscht mit dem Nachbarn und nummeriert 0..n-1 neu', () => {
+describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
+  const bereichOrder = (cfg: ReturnType<typeof defaultHomeWidgetConfig>, bereich: 'haupt' | 'seite') =>
+    sortiereInstanzen(cfg.widgets).filter(w => w.bereich === bereich).map(w => w.typ);
+
+  it('tauscht mit dem Nachbarn derselben Spalte (haupt)', () => {
     const cfg = defaultHomeWidgetConfig();
     const bewegt = moveInstanz(cfg, 'w-meine-antraege', 'hoch');
-    expect(sortiereInstanzen(bewegt.widgets).map(w => w.id).slice(0, 2))
-      .toEqual(['w-meine-antraege', 'w-weitermachen']);
-    expect(sortiereInstanzen(bewegt.widgets).map(w => w.position))
-      .toEqual([0, 1, 2, 3, 4, 5]);
+    expect(bereichOrder(bewegt, 'haupt')).toEqual(['meine-antraege', 'weitermachen', 'kanban']);
+    // Seiten-Spalte unberührt.
+    expect(bereichOrder(bewegt, 'seite')).toEqual(bereichOrder(cfg, 'seite'));
   });
 
-  it('am Rand und bei unbekannter ID ein No-op', () => {
+  it('überspringt Widgets der anderen Spalte (Nachbar-Bereich bleibt)', () => {
+    // ai-assistent (seite, global hinter kanban) tauscht mit antragseingang
+    // (seite), NICHT mit kanban (haupt) — die andere Spalte ändert sich nicht.
     const cfg = defaultHomeWidgetConfig();
-    expect(moveInstanz(cfg, 'w-weitermachen', 'hoch')).toBe(cfg);
-    expect(moveInstanz(cfg, 'w-notizen', 'runter')).toBe(cfg);
+    const bewegt = moveInstanz(cfg, 'w-ai-assistent', 'hoch');
+    expect(bereichOrder(bewegt, 'seite')).toEqual(['ai-assistent', 'antragseingang', 'notizen']);
+    expect(bereichOrder(bewegt, 'haupt')).toEqual(['weitermachen', 'meine-antraege', 'kanban']);
+  });
+
+  it('am Spalten-Anfang/-Ende ein No-op — auch wenn global nicht Rand', () => {
+    const cfg = defaultHomeWidgetConfig();
+    // antragseingang ist erstes seite-Widget (global aber an Position 3).
+    expect(moveInstanz(cfg, 'w-antragseingang', 'hoch')).toBe(cfg);
+    // kanban ist letztes haupt-Widget (global aber an Position 2).
+    expect(moveInstanz(cfg, 'w-kanban', 'runter')).toBe(cfg);
     expect(moveInstanz(cfg, 'gibt-es-nicht', 'hoch')).toBe(cfg);
   });
 
   it('bereich bleibt beim Verschieben unveraendert', () => {
     const cfg = defaultHomeWidgetConfig();
-    const bewegt = moveInstanz(cfg, 'w-antragseingang', 'hoch');
-    expect(bewegt.widgets.find(w => w.id === 'w-antragseingang')!.bereich).toBe('seite');
+    const bewegt = moveInstanz(cfg, 'w-ai-assistent', 'hoch');
+    expect(bewegt.widgets.find(w => w.id === 'w-ai-assistent')!.bereich).toBe('seite');
   });
 });

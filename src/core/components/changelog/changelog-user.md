@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.240 — 2026-07
+
+### Verbesserungen
+- **Widget-Einstellungen zeigen jetzt beide Spalten.** In Einstellungen › Darstellung ist die Liste der Startseiten-Widgets jetzt in „Hauptspalte" und „Seitenspalte" unterteilt — genau wie die Startseite selbst. So ist auf einen Blick klar, welches Widget in welcher Spalte steht, und die Hoch/Runter-Pfeile sortieren jede Spalte für sich (kein wirkungsloses Verschieben mehr über die Spaltengrenze hinweg).
+
 ## v2.239 — 2026-07
 
 ### Verbesserungen

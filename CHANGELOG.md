@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.240.0 — Einstellungen: Startseiten-Widgets nach Spalte gruppiert (Juli 2026)
+
+MINOR — Die Widget-Liste in Einstellungen › Darstellung bildete die **zwei Spalten** der Startseite bisher nicht ab: alle Widgets standen in einer flachen Liste, obwohl Haupt- und Seitenspalte je eine **eigene, unabhängige** Reihenfolge haben. Ein Hoch/Runter, das dabei über die Spaltengrenze sprang, war auf der Startseite folgenlos (die Homepage sortiert je Spalte) — verwirrend.
+
+- **Zwei Gruppen:** Die Einstellungs-Liste ist jetzt in „Hauptspalte (breit, links)" und „Seitenspalte (schmal, rechts)" unterteilt — jede Gruppe eine eigene Positionsliste, die die tatsächliche Startseiten-Anordnung spiegelt ([WidgetsSettingsSection.tsx](src/plugins/einstellungen/WidgetsSettingsSection.tsx)).
+- **Pfeile spaltengebunden:** `moveInstanz` tauscht die Position jetzt nur noch mit dem Nachbarn **derselben** Spalte (die andere Spalte bleibt unberührt); am Spalten-Anfang/-Ende ist der Pfeil deaktiviert ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)). Datenmodell unverändert (globale `position` je Instanz + `bereich`), kein Schema-/Flag-Bump; bestehende Configs bleiben unverändert lesbar.
+
 ### v2.239.3 — Auslastungs-Widget: doppelte Prozentzahl im Kopf entfernt (Juli 2026)
 
 PATCH — Im ausgeklappten Auslastungs-Widget stand die Belegungs-Prozentzahl doppelt: einmal im Zähler-Slot des Kopfes und einmal als „Belegt im Quartal … %"-Zeile im Body. Der Zähler-Slot war als Eingeklappt-Anzeige gedacht, blieb aber wegen des Lazy-Guards (eingeklappt wird über ~13k Anträge nichts berechnet) im eingeklappten Zustand leer und erschien nur ausgeklappt — dort doppelt. Der Zähler-Slot entfällt jetzt; die prominente, beschriftete Body-Zeile bleibt die einzige Quelle ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx)). Reiner Anzeige-Fix, keine Logikänderung.

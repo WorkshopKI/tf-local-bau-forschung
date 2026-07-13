@@ -27,6 +27,14 @@ export function WidgetsSettingsSection(): React.ReactElement {
   const zukunft = listeKatalog().filter(e => !e.verfuegbar && e.sichtbarWenn());
   const sichtbareAnzahl = instanzen.filter(w => w.sichtbar).length;
 
+  // Zwei Spalten wie auf der Startseite — je Bereich eine EIGENE Reihenfolge.
+  // Die Pfeile bewegen nur innerhalb der Spalte (moveInstanz ist bereich-
+  // begrenzt), darum ist jede Gruppe ihre eigene Positionsliste.
+  const gruppen: { bereich: 'haupt' | 'seite'; label: string; hinweis: string; items: WidgetInstanz[] }[] = [
+    { bereich: 'haupt', label: 'Hauptspalte', hinweis: 'breit, links', items: instanzen.filter(w => w.bereich === 'haupt') },
+    { bereich: 'seite', label: 'Seitenspalte', hinweis: 'schmal, rechts', items: instanzen.filter(w => w.bereich === 'seite') },
+  ];
+
   return (
     <CollapsibleSettingsSection
       id="sec-widgets"
@@ -36,46 +44,69 @@ export function WidgetsSettingsSection(): React.ReactElement {
       right={`${sichtbareAnzahl} sichtbar`}
     >
       <p className="text-[12px] text-[var(--tf-text-tertiary)] -mt-1 mb-2.5">
-        Reihenfolge, Sichtbarkeit und Inhalt der Startseiten-Widgets. Gilt nur für dieses Gerät.
+        Reihenfolge, Sichtbarkeit und Inhalt der Startseiten-Widgets. Die Startseite hat zwei
+        Spalten mit jeweils eigener Reihenfolge — die Pfeile verschieben nur innerhalb der Spalte.
+        Gilt nur für dieses Gerät.
       </p>
-      <div
-        className="rounded-[var(--tf-radius-lg)] overflow-hidden"
-        style={{ border: '0.5px solid var(--tf-border)' }}
-      >
-        {instanzen.map((w, i) => (
-          <WidgetZeile
-            key={w.id}
-            instanz={w}
-            erste={i === 0}
-            hochMoeglich={i > 0}
-            runterMoeglich={i < instanzen.length - 1}
-            busy={aktion.busy}
-            onMove={richtung => aktion.run(() => api.move(w.id, richtung))}
-            onToggleSichtbar={() => aktion.run(() => api.setSichtbar(w.id, !w.sichtbar))}
-            aufgeklappt={aufgeklappt === w.id}
-            onToggleAufklappen={() => setAufgeklappt(a => (a === w.id ? null : w.id))}
-            onUpdateConfig={cfg => api.updateConfig(w.id, cfg)}
-          />
+      <div className="flex flex-col gap-3">
+        {gruppen.map(g => (
+          g.items.length === 0 ? null : (
+            <div key={g.bereich}>
+              <div className="flex items-baseline gap-1.5 mb-1.5">
+                <span className="text-[11px] uppercase tracking-[0.06em] font-medium text-[var(--tf-text-secondary)]">
+                  {g.label}
+                </span>
+                <span className="text-[11px] text-[var(--tf-text-tertiary)]">· {g.hinweis}</span>
+              </div>
+              <div
+                className="rounded-[var(--tf-radius-lg)] overflow-hidden"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                {g.items.map((w, i) => (
+                  <WidgetZeile
+                    key={w.id}
+                    instanz={w}
+                    erste={i === 0}
+                    hochMoeglich={i > 0}
+                    runterMoeglich={i < g.items.length - 1}
+                    busy={aktion.busy}
+                    onMove={richtung => aktion.run(() => api.move(w.id, richtung))}
+                    onToggleSichtbar={() => aktion.run(() => api.setSichtbar(w.id, !w.sichtbar))}
+                    aufgeklappt={aufgeklappt === w.id}
+                    onToggleAufklappen={() => setAufgeklappt(a => (a === w.id ? null : w.id))}
+                    onUpdateConfig={cfg => api.updateConfig(w.id, cfg)}
+                  />
+                ))}
+              </div>
+            </div>
+          )
         ))}
-        {zukunft.map(e => (
+        {zukunft.length > 0 ? (
           <div
-            key={e.typ}
-            className="flex items-center gap-3 px-3 py-1.5"
-            style={{ borderTop: '0.5px solid var(--tf-border)' }}
-            title="Folgt in einer späteren Version"
+            className="rounded-[var(--tf-radius-lg)] overflow-hidden"
+            style={{ border: '0.5px solid var(--tf-border)' }}
           >
-            <span className="w-[44px]" aria-hidden />
-            <e.icon size={15} className="shrink-0 text-[var(--tf-text-tertiary)]" />
-            <span className="flex-1 min-w-0 text-[13px] text-[var(--tf-text-tertiary)] truncate">{e.label}</span>
-            {e.hinweisBadge ? <Badge variant="info">{e.hinweisBadge}</Badge> : null}
-            <span
-              className="shrink-0 text-[11px] px-2 py-0.5 rounded-full text-[var(--tf-text-tertiary)]"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              Bald verfügbar
-            </span>
+            {zukunft.map((e, i) => (
+              <div
+                key={e.typ}
+                className="flex items-center gap-3 px-3 py-1.5"
+                style={i === 0 ? undefined : { borderTop: '0.5px solid var(--tf-border)' }}
+                title="Folgt in einer späteren Version"
+              >
+                <span className="w-[44px]" aria-hidden />
+                <e.icon size={15} className="shrink-0 text-[var(--tf-text-tertiary)]" />
+                <span className="flex-1 min-w-0 text-[13px] text-[var(--tf-text-tertiary)] truncate">{e.label}</span>
+                {e.hinweisBadge ? <Badge variant="info">{e.hinweisBadge}</Badge> : null}
+                <span
+                  className="shrink-0 text-[11px] px-2 py-0.5 rounded-full text-[var(--tf-text-tertiary)]"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                >
+                  Bald verfügbar
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
+        ) : null}
       </div>
       {aktion.error ? (
         <p className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler beim Speichern: {aktion.error}</p>

@@ -239,27 +239,32 @@ export function ampelSchwellenAusConfig(cfg: HomeWidgetConfig | null): AmpelSchw
 }
 
 /**
- * Verschiebt eine Instanz in der GLOBALEN Reihenfolge um eine Position
- * (Einstellungs-Positionsliste). Tauscht mit dem Nachbarn und nummeriert
- * 0..n-1 neu; am Rand ein No-op. Der `bereich` bleibt unverändert (v1:
- * kein Spalten-Wechsel über die Pfeile).
+ * Verschiebt eine Instanz um eine Position INNERHALB IHRER SPALTE (`bereich`) —
+ * die beiden Spalten der Startseite haben je eine unabhängige Reihenfolge
+ * (die Homepage filtert je Bereich und sortiert nach `position`; ein Tausch
+ * über die Spaltengrenze wäre für die Homepage folgenlos). Tauscht die
+ * `position` mit dem nächsten Nachbarn DESSELBEN Bereichs; die andere Spalte
+ * bleibt unberührt. Am Spaltenrand / bei unbekannter ID ein No-op (Referenz-
+ * gleich). Der `bereich` bleibt unverändert (Pfeile wechseln nie die Spalte).
  */
 export function moveInstanz(
   cfg: HomeWidgetConfig,
   id: string,
   richtung: 'hoch' | 'runter',
 ): HomeWidgetConfig {
-  const sortiert = sortiereInstanzen(cfg.widgets);
-  const idx = sortiert.findIndex(w => w.id === id);
-  if (idx < 0) return cfg;
+  const el = cfg.widgets.find(w => w.id === id);
+  if (!el) return cfg;
+  const geschwister = sortiereInstanzen(cfg.widgets).filter(w => w.bereich === el.bereich);
+  const idx = geschwister.findIndex(w => w.id === id);
   const ziel = richtung === 'hoch' ? idx - 1 : idx + 1;
-  if (ziel < 0 || ziel >= sortiert.length) return cfg;
-  const neu = [...sortiert];
-  const el = neu[idx]!;
-  neu[idx] = neu[ziel]!;
-  neu[ziel] = el;
+  if (ziel < 0 || ziel >= geschwister.length) return cfg;
+  const nachbar = geschwister[ziel]!;
   return {
     ...cfg,
-    widgets: neu.map((w, i) => ({ ...w, position: i })),
+    widgets: cfg.widgets.map(w => {
+      if (w.id === el.id) return { ...w, position: nachbar.position };
+      if (w.id === nachbar.id) return { ...w, position: el.position };
+      return w;
+    }),
   };
 }
