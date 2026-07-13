@@ -13,7 +13,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Info } from 'lucide-react';
+import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Copy, Info } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -21,9 +21,7 @@ import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
-import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { satzSegmente } from './satzSegmente';
@@ -94,9 +92,6 @@ interface Props {
   onOpenSkill?: () => void;
   /** Ein-Klick-Feedback zum Entwurf (→ S1). Fehlt → Feedback-Zeile entfällt. */
   onFeedback?: (rating: 'up' | 'down', notiz?: string) => void;
-  /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
-  thinkingBudget: ThinkingBudget;
-  onSetThinkingBudget: (budget: ThinkingBudget) => void;
   /** Live-Streaming-Vorschau während `busy`. */
   streamContent: string;
   streamThinking: string;
@@ -115,7 +110,7 @@ interface Props {
 }
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -183,6 +178,26 @@ export function SectionReviewCard({
     if (!downActive) { setDownActive(true); return; } // erst Notizfeld zeigen, dann bestätigen
     submitFeedback('down');
   };
+
+  // Entwurf in die Zwischenablage — kopiert den kanonischen `finalerText` (ohne Teil-Badge).
+  // Rein lokale Aktion (kein Netz/Transport); kurzes Häkchen-Feedback wie beim Chat-CopyButton.
+  const [copied, setCopied] = useState(false);
+  const copy = useAsyncAction(async () => {
+    await navigator.clipboard.writeText(run.finalerText);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  });
+  const copyBtn = (
+    <button
+      type="button"
+      className="g-vbtn"
+      title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : 'Text kopieren'}
+      aria-label="Text in Zwischenablage kopieren"
+      onClick={() => copy.run()}
+    >
+      {copied ? <Check className="g-vi" /> : <Copy className="g-vi" />}
+    </button>
+  );
 
   return (
     <>
@@ -287,7 +302,7 @@ export function SectionReviewCard({
         })()}
       </div>
 
-      {/* Anpassen direkt am Text (dezent): Neu/Kürzer/Länger · Thinking · Prüfen · KI-QS.
+      {/* Anpassen direkt am Text (dezent): Neu/Kürzer/Länger · Prüfen · KI-QS.
           Nur im bearbeitbaren Zustand (Entwurf, nicht generierend). */}
       {!busy && !freigegeben && (
         <>
@@ -298,7 +313,6 @@ export function SectionReviewCard({
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
             </span>
-            <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
             <button type="button" className="g-btn ghost sm" onClick={onPruefen}>Prüfen</button>
             {onQs && (
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
@@ -330,6 +344,7 @@ export function SectionReviewCard({
         <div className="g-actionbar">
           <div className="g-ab-row compact">
             <span className="g-freigabe-tag"><Check className="g-vi" /> Freigegeben</span>
+            {copyBtn}
             <button type="button" className="g-btn sm" onClick={onErneutOeffnen}><Undo2 size={14} /> Erneut öffnen</button>
             {onQs && (
               <button type="button" className="g-btn sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
@@ -344,6 +359,7 @@ export function SectionReviewCard({
               Die Anpassen/Prüfen-Tools sitzen dezent oben direkt am Text (g-refine-row). */}
           <div className="g-ab-row compact">
             <button type="button" className="g-vbtn" title="Bearbeiten" aria-label="Bearbeiten" onClick={startEdit}><Pencil className="g-vi" /></button>
+            {copyBtn}
             {onFeedback && (
               fbDone ? (
                 <span className="g-fb-done">Danke — Rückmeldung gespeichert.</span>

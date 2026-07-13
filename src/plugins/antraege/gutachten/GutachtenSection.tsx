@@ -26,7 +26,6 @@ import {
 } from '@/core/services/gutachten-vorlagen';
 import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import { TweakEditor } from '../kurzfassung/TweakEditor';
-import { ThinkingControl } from '../kurzfassung/ThinkingControl';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
@@ -572,7 +571,6 @@ function ActiveAbschnitt({
               <button type="button" className="g-btn primary" disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
                 {def.label} generieren
               </button>
-              <ThinkingControl budget={ctrl.thinkingBudget} onChange={ctrl.setThinkingBudget} disabled={ctrl.busy} />
               {ctrl.kontextRelevant && (
                 <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none" title="Ignoriert die Relevanz-Map und übergibt die vollständige Vorhabensbeschreibung.">
                   <input
@@ -612,8 +610,6 @@ function ActiveAbschnitt({
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}
           onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}
-          thinkingBudget={ctrl.thinkingBudget}
-          onSetThinkingBudget={ctrl.setThinkingBudget}
           streamContent={ctrl.streamContent}
           streamThinking={ctrl.streamThinking}
         />
