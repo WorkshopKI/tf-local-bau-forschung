@@ -48,6 +48,12 @@ export interface SubmitMessageOptions {
    *  ignoriert die Option. Bewusst NUR hier (nicht in `ConversationOptions`) —
    *  die produktive Zweit-LLM-Verdrahtung (Streaming/QS) ist ein späteres Paket. */
   ziel?: BridgeZiel;
+  /** Nur Streamlit-Bridge: Abschluss-Marker. Das Bookmarklet finalisiert die Antwort
+   *  NICHT auf dem kurzen Idle-Fenster, solange sie diesen Text nicht enthält — Schutz
+   *  gegen zu frühen Abbruch langer, zweiteiliger Antworten (z. B. „Finaler Text" bei
+   *  Gutachten-Abschnitten, wenn `isRunning()` in der Pause vor dem Schluss-Abschnitt
+   *  fälschlich false liest). Fehlt der Marker dauerhaft, greift der 150-s-Backstop. */
+  erwarteAbschluss?: string;
 }
 
 export interface StreamCallbacks {
@@ -314,6 +320,7 @@ export class StreamlitBridgeTransport implements AITransport {
       this.streamlitWindow?.postMessage({
         type: 'tf-request', id, message,
         ...(options?.ziel ? { ziel: options.ziel } : {}),
+        ...(options?.erwarteAbschluss ? { erwarte: options.erwarteAbschluss } : {}),
       }, '*');
     });
   }

@@ -131,3 +131,27 @@ describe('StreamlitBridgeTransport — aktivitätsbasierte Antwort-Deadline', ()
     await expect(promise).resolves.toBe('Fertig');
   });
 });
+
+describe('StreamlitBridgeTransport — Abschluss-Marker (erwarteAbschluss)', () => {
+  /** Letzte gesendete tf-request-Payload (roh). */
+  function lastRequest(h: Harness): Record<string, unknown> {
+    const req = [...h.tab.postMessage.mock.calls].reverse()
+      .find(c => (c[0] as { type?: string }).type === 'tf-request');
+    if (!req) throw new Error('kein tf-request gesendet');
+    return req[0] as Record<string, unknown>;
+  }
+
+  it('reicht erwarteAbschluss als `erwarte` in die tf-request weiter', async () => {
+    const h = makeHarness();
+    h.transport.submitMessage('Frage', undefined, { erwarteAbschluss: 'Finaler Text' }).catch(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lastRequest(h).erwarte).toBe('Finaler Text');
+  });
+
+  it('ohne Option trägt die tf-request kein `erwarte`-Feld', async () => {
+    const h = makeHarness();
+    h.transport.submitMessage('Frage').catch(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect('erwarte' in lastRequest(h)).toBe(false);
+  });
+});

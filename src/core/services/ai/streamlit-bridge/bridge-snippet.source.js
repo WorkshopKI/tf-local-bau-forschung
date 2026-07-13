@@ -5,8 +5,11 @@
 // Spricht via postMessage mit dem StreamlitBridgeTransport unserer App:
 //   tf-ping     -> tf-pong
 //   tf-app-ping <- (App antwortet tf-app-pong; Gegenrichtungs-Test)
-//   tf-request {id, message, ziel?} -> tf-progress {id}* + tf-stream {id, content}*
+//   tf-request {id, message, ziel?, erwarte?} -> tf-progress {id}* + tf-stream {id, content}*
 //                                   -> tf-response {id, result, reasoning?}
+// `erwarte` (optional): Abschluss-Marker — finalisiert nicht auf dem kurzen SETTLE-
+// Fenster, solange die Antwort diesen Text nicht enthaelt (Schutz gegen zu fruehen
+// Abbruch langer, zweiteiliger Antworten).
 // `ziel` ('standard'|'agentisch') schaltet optional den Streamlit-Tab um
 // (Zweit-LLM „Agentischer Chat"); ohne `ziel` bleibt der aktive Tab.
 // tf-progress ist ein ~10-s-Heartbeat waehrend des Laufs (App-Idle-Timeout).
@@ -20,7 +23,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-10-pill';
+  var BRIDGE_REV = '2026-07-13-tail';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -592,7 +595,7 @@
   }
 
   // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
-  function runRequest(source, id, message, ziel) {
+  function runRequest(source, id, message, ziel, erwarte) {
     setBadge('working', 'Arbeitet…');
     ensureZiel(ziel, function (zielErr) {
       if (zielErr) {
@@ -625,6 +628,14 @@
         // gegen einen stuck-true isRunning()-Indikator.
         var POLL_MS = 400, SETTLE_MS = 5000, MIN_LEN = 40;
         var NO_PROGRESS_MS = 150000, HARD_MAX_MS = 600000;
+        // Abschluss-Marker-Schutz: Gibt die App einen `erwarte`-Marker mit (die Antwort
+        // ist erst vollstaendig, wenn sie diesen Text enthaelt, z. B. "Finaler Text"),
+        // finalisieren wir NICHT auf dem kurzen SETTLE-Fenster, solange der Marker fehlt —
+        // sonst schneidet ein langer, zweiteiliger Lauf (grosser erster Abschnitt, Pause,
+        // dann der Schluss-Abschnitt) den Schluss ab, wenn isRunning() in der Pause faelsch-
+        // lich false liest. Bis MISSING_TAIL_MS Idle-Zeit warten, dann mit dem Stand
+        // finalisieren (fail-open); die 150-/600-s-Backstops bleiben unveraendert.
+        var MISSING_TAIL_MS = 45000;
         var PROGRESS_EVERY_TICKS = 25; // 25 × 400 ms ≈ 10 s Heartbeat an die App
         var started = Date.now(), lastMd = '', finished = false, tick = 0;
         // Finalisierungs-Timer haengt an der INHALTS-Stabilitaet der Assistenten-
@@ -679,11 +690,20 @@
           // lastMd (z. B. "Starte…") bekommt das doppelte Fenster, damit das echte
           // (laengere) Resultat nach einer Denk-Pause noch nachkommen kann.
           var settle = lastMd.length < MIN_LEN ? SETTLE_MS * 2 : SETTLE_MS;
-          if (lastMd && !isRunning() && idle >= settle) {
+          // Erwarteter Schluss-Abschnitt (erwarte) noch nicht in der Antwort → nicht auf
+          // dem kurzen Fenster finalisieren; dem Rest bis MISSING_TAIL_MS Zeit geben.
+          // Kommt der Text, erfasst ihn der naechste Tick → Marker vorhanden → normales
+          // settle → voller Text. Fail-open: erscheint der Marker nie, finalisieren wir
+          // nach MISSING_TAIL_MS mit dem Stand (nie schlechter als ohne Marker).
+          var unvollstaendig = !!erwarte && !!lastMd
+            && lastMd.toLowerCase().indexOf(erwarte.toLowerCase()) === -1;
+          var reif = idle >= settle && (!unvollstaendig || idle >= MISSING_TAIL_MS);
+          if (lastMd && !isRunning() && reif) {
             finished = true;
             clearInterval(iv);
             setBadge('ready', 'Verbunden');
-            logRoster('finalize', lastMd);
+            logRoster('finalize idle=' + idle + ' settle=' + settle
+              + (erwarte ? ' erwarte=' + (unvollstaendig ? 'FEHLT' : 'ok') : ''), lastMd);
             extractThinking(cand, function (reasoning) {
               var msg = { type: 'tf-response', id: id, result: lastMd };
               if (reasoning) msg.reasoning = reasoning;
@@ -694,7 +714,8 @@
           if (idle >= NO_PROGRESS_MS || Date.now() - started >= HARD_MAX_MS) {
             finished = true;
             clearInterval(iv);
-            logRoster('timeout', lastMd);
+            logRoster('timeout ' + (idle >= NO_PROGRESS_MS ? 'no-progress' : 'hard-max')
+              + ' idle=' + idle + (erwarte ? ' erwarte=' + (lastMd && lastMd.toLowerCase().indexOf(erwarte.toLowerCase()) === -1 ? 'FEHLT' : 'ok') : ''), lastMd);
             setBadge(lastMd ? 'ready' : 'error', lastMd ? 'Verbunden' : 'Zeitüberschreitung');
             source.postMessage({ type: 'tf-response', id: id,
               result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
@@ -817,7 +838,8 @@
     }
     if (data.type === 'tf-request') {
       runRequest(event.source, data.id, String(data.message || ''),
-        typeof data.ziel === 'string' ? data.ziel : null);
+        typeof data.ziel === 'string' ? data.ziel : null,
+        typeof data.erwarte === 'string' ? data.erwarte : null);
       return;
     }
   });

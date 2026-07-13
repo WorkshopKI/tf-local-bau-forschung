@@ -139,6 +139,15 @@ export interface SkillRunInput {
    */
   onContentDelta?: (text: string) => void;
   onThinkingDelta?: (text: string) => void;
+  /**
+   * Nur Streamlit-Bridge: Abschluss-Marker für die Bridge-Finalisierung. Die Bridge
+   * finalisiert die Antwort NICHT auf dem kurzen Idle-Fenster, solange sie diesen Text
+   * nicht enthält — verhindert, dass ein langer, zweiteiliger Lauf (großer erster
+   * Abschnitt, Pause, dann Schluss-Abschnitt) vor dem Schluss abgeschnitten wird. Nur
+   * der Gutachten-Abschnitts-Pfad setzt ihn (`'Finaler Text'`); sonst No-op. Auf
+   * Nicht-Streamlit-Transporten wirkungslos (Option wird ignoriert).
+   */
+  erwarteAbschluss?: string;
   signal?: AbortSignal;
 }
 
@@ -383,10 +392,16 @@ async function runSkillInner(
     }
   } else {
     // Streamlit-Bridge: Single-Turn — System-Rolle als Prefix in die Message.
+    // `erwarteAbschluss` schützt lange, zweiteilige Antworten vor zu früher Bridge-
+    // Finalisierung (Abschluss-Marker-Schutz); auf DirectLLM ignoriert.
+    const streamlitOpts = {
+      ...(input.signal ? { signal: input.signal } : {}),
+      ...(input.erwarteAbschluss ? { erwarteAbschluss: input.erwarteAbschluss } : {}),
+    };
     raw = await transport.submitMessage(
       systemPrompt ? `${systemPrompt}\n\n${userContent}` : userContent,
       systemPrompt || undefined,
-      input.signal ? { signal: input.signal } : undefined,
+      Object.keys(streamlitOpts).length > 0 ? streamlitOpts : undefined,
     );
   }
 

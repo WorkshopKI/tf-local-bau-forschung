@@ -166,3 +166,37 @@ describe('runSkill Chat-Reset (frischer Kontext vor dem Lauf, Pitfall #36)', () 
     expect(res.parsed.finalerText).toBe('Text.');
   });
 });
+
+describe('runSkill Abschluss-Marker (erwarteAbschluss → submitMessage)', () => {
+  function skill(): SkillRecord {
+    return {
+      id: 's', name: 's', beschreibung: '', version: 1,
+      promptTemplate: 'VB:\n{{vbMarkdown}}',
+      modifiers: { neu: '', kuerzer: '', laenger: '' },
+      regelIds: [], slots: ['vbMarkdown'], geaendert_am: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  /** Streamlit-artiger Transport (nur submitMessage → else-Zweig); fängt die Options. */
+  function capturingTransport(): { transport: AITransport; opts: () => unknown } {
+    let captured: unknown = 'unset';
+    const transport = {
+      name: 'Streamlit',
+      ping: async () => true,
+      submitMessage: async (_m: string, _s?: string, options?: unknown) => { captured = options; return 'Text.'; },
+    } as unknown as AITransport;
+    return { transport, opts: () => captured };
+  }
+
+  it('reicht erwarteAbschluss in die submitMessage-Optionen durch', async () => {
+    const { transport, opts } = capturingTransport();
+    await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x', erwarteAbschluss: 'Finaler Text' });
+    expect((opts() as { erwarteAbschluss?: string }).erwarteAbschluss).toBe('Finaler Text');
+  });
+
+  it('ohne erwarteAbschluss/signal bleibt die Options-Übergabe undefined (Bestandsverhalten)', async () => {
+    const { transport, opts } = capturingTransport();
+    await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
+    expect(opts()).toBeUndefined();
+  });
+});

@@ -328,6 +328,10 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       vbMarkdown: vb.markdown,
       vbCharCap: getVbCharCap(),
       thinkingBudget,
+      // Abschluss-Marker-Schutz: A–G liefern alle „### Finaler Text" als Schluss-
+      // Abschnitt. Verhindert, dass die Streamlit-Bridge einen langen Lauf schon nach
+      // dem Quellenanalyse-Block finalisiert (auf DirectLLM wirkungslos).
+      erwarteAbschluss: 'Finaler Text',
       onContentDelta: stream.onContentDelta,
       onThinkingDelta: stream.onThinkingDelta,
       vorherigeAbschnitte: buildVorherigeAbschnitte(base, stepId, steps, 2000, o.quelle),

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.8 — Gutachten-Werkstatt: langer Abschnitt bricht nicht mehr vor dem „Finaler Text" ab (Juli 2026)
+
+PATCH — Bei langen KI-Abschnitten (Kurzfassung A, Ausgangslage B) brach die Generierung ab: Das Modell produzierte den vollständigen `### Quellenanalyse`-Block, und das anschließende Schreiben des `### Finaler Text` wurde abgeschnitten — gespeichert wurde nur ein leerer finaler Text mit Warnung „bitte erneut generieren". Dasselbe Prompt lief in einem separaten Streamlit-Chat komplett durch — der Abbruch war also bridge-seitig, nicht am Prompt (das Entfernen des Beleg-Marker-Kontrakts in v2.241.5 half deshalb nicht).
+
+- **Ursache** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js)): Sobald der (lange) Quellenanalyse-Block erfasst war, finalisierte das Bookmarklet schon nach 5 s „Idle", wenn `isRunning()` in der Pause vor dem Schluss-Abschnitt fälschlich „nicht mehr aktiv" las (AitisiGPT blendet den Lauf-Indikator per CSS aus). Ergebnis: nur die Quellenanalyse zurückgegeben, `parseSkillOutput` degradierte zu leerem finalen Text.
+- **Fix — Abschluss-Marker-Schutz**: Die App reicht der Bridge pro Anfrage einen Abschluss-Marker mit (`erwarteAbschluss: 'Finaler Text'`, [run-skill.ts](src/core/services/skills/run/run-skill.ts) → [streamlit.ts](src/core/services/ai/transports/streamlit.ts) → `tf-request.erwarte`). Enthält die Antwort diesen Text noch nicht, finalisiert das Bookmarklet NICHT auf dem 5-s-Fenster, sondern gibt dem Schluss-Abschnitt bis zu 45 s Zeit (Konstante `MISSING_TAIL_MS`); die 150-s/600-s-Backstops bleiben. Robust unabhängig von der isRunning-Zuverlässigkeit; rendert die KI alles auf einmal, ist der Marker sofort da (keine Verzögerung). Fail-open: erscheint der Marker nie, finalisiert die Bridge nach 45 s mit dem vorhandenen Stand — nie schlechter als zuvor.
+- Nur der Gutachten-Abschnitts-Pfad ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)) setzt den Marker; andere KI-Läufe unverändert. Diagnose: das Bookmarklet loggt beim Finalisieren jetzt den Grund (idle/settle/erwarte-Status).
+- **Wichtig — Bookmarklet neu installieren**: `BRIDGE_REV` ist auf `2026-07-13-tail` gebumpt; das Team muss das Lesezeichen 1× neu installieren (KI-Tab → Einstellungen → Streamlit-Bridge), bis dahin läuft das alte Verhalten weiter. Kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.7 — Verbund-Detail: alle TV-Titel per Icon in die Zwischenablage (Juli 2026)
 
 PATCH — Die Teilvorhaben-Titel werden häufig als Textliste in andere Dokumente übernommen. Der Sektionskopf „Verbundpartner und Teilvorhaben" trägt dafür jetzt ein kleines Kopier-Icon (Tooltip „Alle Teilvorhaben-Titel kopieren").
