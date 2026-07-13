@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.240.2 — Suche behält ihren vollen Assistenten (neben dem shell-weiten Panel) (Juli 2026)
+
+PATCH — Seit das shell-weite **Assistent-Panel** (dev-Flag `assistentPanel`) den Assistenten auf jeder Seite anbietet, **ersetzte** es auf der Suchseite den bisherigen vollen Chat — samit dessen „+"-Menü (Datei-Anhänge, Antragsarchiv-Suche, Denkprozess-Toggle, System-Prompt) und dem Konversations-Verlauf. Auf Nutzer-Wunsch (Thomas) behält die **Suche jetzt wieder ihren vollen `ChatPanelHost`**; das schlanke Panel bleibt auf allen anderen Seiten.
+
+- **Genau ein Panel pro Seite:** Das schlanke Dock wird in [ShellLayout.tsx](src/core/ShellLayout.tsx) nur noch gemountet, wenn die aktive Route **nicht** die Suche ist (`activeId !== 'suche'`) — kein Doppel-Panel. Die Suchseite ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)) nutzt wieder unbedingt ihren lokalen `ChatPanelHost` (Button/Deep-Link/`?assistent=1` togglen den Voll-Chat, nicht das globale Dock).
+- **Routen-bewusste Einstiegspunkte:** Command-Palette „Assistent öffnen" und `Strg+Umschalt+K` öffnen über den neuen `openAssistent`-Helfer auf der Suche den Voll-Chat (via `?assistent=1`), auf allen anderen Routen das schlanke Dock. Kein Schema-/Datenmodell-/Flag-Bump; der alte Chat-Code war nie entfernt, nur seitenspezifisch deaktiviert.
+
 ### v2.240.1 — Auslastungs-Widget: ein kombinierter Balken (aktuelles Quartal + Altanträge) (Juli 2026)
 
 PATCH — Das Auslastungs-Widget zeigte zwei getrennte Balken (Belegung des Quartals + Altanträge). Auf Nutzer-Wunsch (Thomas) sind sie jetzt **ein** Balken, links→rechts nach Alter gestaffelt: ganz links die ältesten offenen Anträge (Q-3 bis 7, **dunkelste** Farbe), dann Q-2, dann Q-1, ganz rechts das **aktuelle Quartal** (**hellste** Farbe); der ungefüllte Rest rechts = frei. Die Zahl je Abschnitt (TVs) steht wie bisher im Segment, die Legende führt die vier Stufen (Aktuell · Q-1 · Q-2 · Q-3–7).

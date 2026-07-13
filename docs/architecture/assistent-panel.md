@@ -45,7 +45,7 @@ Bewusste Entscheidung (statt der `[3.2]`-VB-Sektions-Popover): der Orama-Index t
 
 ## Panel-Ort
 
-Shell-weit: EINMAL in [ShellLayout](../../src/core/ShellLayout.tsx) hinter `isAssistentPanelEnabled()` gemountet, auf JEDER Route verfügbar (Suche wie Antrag-/Verbund-Detail) — damit der Entitätskontext direkt ist. Der `panelUiStore` teilt den Offen-Zustand; bei aktivem Flag togglet der Suche-„Assistent"-Button und der Command-Palette-Befehl „Assistent öffnen" dieses Dock (die Suche rendert dann NICHT mehr den alten `ChatPanelHost` → kein Doppel-Panel).
+Shell-weit: EINMAL in [ShellLayout](../../src/core/ShellLayout.tsx) hinter `isAssistentPanelEnabled()` gemountet — auf JEDER Route **außer der Suche** (`activeId !== 'suche'`), damit der Entitätskontext direkt ist. Die **Suche behält bewusst ihren eigenen vollen `ChatPanelHost`** (mit „+"-Menü/Verlauf/Anhängen); das schlanke Dock ist dort nicht gemountet → kein Doppel-Panel. Der `panelUiStore` teilt den Offen-Zustand. Die globalen Einstiegspunkte sind routen-bewusst (`openAssistent` in ShellLayout): auf der Suche öffnen der Command-Palette-Befehl „Assistent öffnen" und `mod+shift+k` den Voll-Chat via `navigate('/suche?assistent=1')`, auf allen anderen Routen das schlanke Dock (`assistentPanelUiStore.setOpen(true)`). Der Suche-„Assistent"-Button togglet immer den lokalen `ChatPanelHost`.
 
 ## Abgrenzung / offen
 

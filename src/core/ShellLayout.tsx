@@ -260,6 +260,23 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   // raus, damit sie keinen Nav-Command erzeugen; ihre Routen bleiben erreichbar.
   const sortedPlugins = useMemo(() => navVisiblePlugins(visiblePlugins), [visiblePlugins]);
 
+  // Assistent öffnen: shell-weites Dock überall — AUSSER auf der Suche, die
+  // ihren eigenen Voll-Chat (`ChatPanelHost`) besitzt. Dort (und ohne Flag)
+  // öffnet der `?assistent=1`-Deep-Link das angedockte Suche-Panel. So bleibt es
+  // bei genau einem Panel pro Seite (das schlanke Dock ist auf `/suche` nicht
+  // gemountet, siehe Render unten).
+  const hasSuchePlugin = plugins.some(p => p.id === 'suche');
+  const assistentEntryAvailable = isAssistentPanelEnabled() || hasSuchePlugin;
+  const openAssistent = useCallback((): void => {
+    if (isAssistentPanelEnabled() && activeId !== 'suche') {
+      assistentPanelUiStore.getState().setOpen(true);
+    } else if (hasSuchePlugin) {
+      navigate('/suche?assistent=1');
+    } else if (isAssistentPanelEnabled()) {
+      assistentPanelUiStore.getState().setOpen(true);
+    }
+  }, [activeId, navigate, hasSuchePlugin]);
+
   const commandItems = useMemo((): CommandItem[] => {
     const isMac = navigator.platform.includes('Mac');
     const mod = isMac ? '⌘' : 'Ctrl+';
@@ -270,17 +287,15 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     sortedPlugins.forEach((p) => {
       items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: navShortcutLabel[p.id], action: () => goToPlugin(p.id) });
     });
-    // Assistent öffnen: mit `assistentPanel` das shell-weite Dock (überall),
-    // sonst das angedockte Chat-Panel der Suche (Legacy, Phase-4-Redirect).
-    if (isAssistentPanelEnabled()) {
-      items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: () => assistentPanelUiStore.getState().setOpen(true) });
-    } else if (plugins.some(p => p.id === 'suche')) {
-      items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: () => navigate('/suche?assistent=1') });
+    // Assistent öffnen: routen-bewusst (shell-weites Dock überall außer Suche;
+    // dort/ohne Flag der `?assistent=1`-Deep-Link) — siehe `openAssistent`.
+    if (assistentEntryAvailable) {
+      items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: openAssistent });
     }
     items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
     items.push({ id: 'act-sidebar', label: 'Sidebar ein-/einklappen', category: 'Einstellungen', shortcut: `${mod}/`, action: toggleSidebar });
     return items;
-  }, [sortedPlugins, plugins, goToPlugin, toggleSidebar, navigate]);
+  }, [sortedPlugins, goToPlugin, toggleSidebar, assistentEntryAvailable, openAssistent]);
 
   useEffect(() => {
     keyboardService.init();
@@ -310,11 +325,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       registered.push(s.combo);
     }
     if (isAssistentPanelEnabled()) {
-      keyboardService.register('mod+shift+k', () => assistentPanelUiStore.getState().setOpen(true), { description: 'Assistent-Panel öffnen', category: 'Navigation' });
+      keyboardService.register('mod+shift+k', openAssistent, { description: 'Assistent-Panel öffnen', category: 'Navigation' });
       registered.push('mod+shift+k');
     }
     return () => { for (const combo of registered) keyboardService.unregister(combo); };
-  }, [visiblePlugins, goToPlugin]);
+  }, [visiblePlugins, goToPlugin, openAssistent]);
 
   useEffect(() => {
     const check = (): void => {
@@ -513,7 +528,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
         );
       })()}
       {!tour.isActive && isFeedbackEnabled() && <FeedbackButton />}
-      {isAssistentPanelEnabled() && <AssistentPanelHost />}
+      {/* Schlankes Dock shell-weit — außer auf der Suche, die ihren eigenen
+          Voll-Chat (ChatPanelHost) besitzt (kein Doppel-Panel). */}
+      {isAssistentPanelEnabled() && activeId !== 'suche' && <AssistentPanelHost />}
     </>
   );
 }
