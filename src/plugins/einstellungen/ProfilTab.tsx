@@ -9,6 +9,7 @@ import {
   isKuratorMenusEnabled,
   isMaLoginEnabled,
   isAuslastungEnabled,
+  isAssistentProtokollEnabled,
 } from '@/config/feature-flags';
 import {
   SettingsRow,
@@ -19,6 +20,7 @@ import {
   InfoHint,
 } from './_shared/settings-primitives';
 import { KuratorSessionPanel } from './KuratorSessionPanel';
+import { AssistentTab } from './AssistentTab';
 
 const NAME_INPUT_CLASS =
   'h-7 px-2 text-[13px] font-medium text-[var(--tf-text)] bg-[var(--tf-bg)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]';
@@ -135,6 +137,11 @@ export function ProfilTab(): React.ReactElement {
           <KuratorSessionPanel />
         </section>
       )}
+
+      {/* Assistent & Gedächtnis (Assistent Phase 0, nur dev) — seit v2.235 hier
+          gefaltet statt als eigener Menüpunkt. Bringt eigene `sec-assistent-…`-
+          Anker mit (Deep-Link/Suche/Scroll unverändert). */}
+      {isAssistentProtokollEnabled() && <AssistentTab />}
     </div>
   );
 }

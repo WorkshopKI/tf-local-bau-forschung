@@ -96,8 +96,11 @@ transparent gemacht.
 
 ## Einstellungen-UI
 
-Sektion „Assistent & Gedächtnis" ([AssistentTab.tsx](../../src/plugins/einstellungen/AssistentTab.tsx),
-registriert in [settingsPanels.tsx](../../src/plugins/einstellungen/settingsPanels.tsx),
+Sektion „Assistent & Gedächtnis" — seit v2.235 **kein eigener Menüpunkt mehr**, sondern
+in „Mein Profil" gefaltet ([AssistentTab.tsx](../../src/plugins/einstellungen/AssistentTab.tsx)
+wird von [ProfilTab.tsx](../../src/plugins/einstellungen/ProfilTab.tsx) gerendert; die
+Abschnitts-Metadaten `sec-assistent-*` liegen am `profil`-Panel in
+[settingsPanels.tsx](../../src/plugins/einstellungen/settingsPanels.tsx),
 gegated `isAssistentProtokollEnabled()`): Opt-in-Toggle mit Klartext-Erklärung,
 „Meine Daten"-Ansicht (Zusammenfassung + letzte 100 Ereignisse + JSON-Export) und
 vollständige Löschung mit Bestätigung. Der Tab liest/löscht/exportiert nur — die

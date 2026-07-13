@@ -8,7 +8,7 @@
  * abgeleitet (respektiert die Flags automatisch).
  */
 import type { LucideIcon } from 'lucide-react';
-import { User, LayoutGrid, Contrast, Sparkles, Database, Brain } from 'lucide-react';
+import { User, LayoutGrid, Contrast, Sparkles, Database } from 'lucide-react';
 import {
   isDevContext,
   isDevFixturesEnabled,
@@ -30,7 +30,6 @@ import { SpeicherTab } from './SpeicherTab';
 import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { TagsTab } from './TagsTab';
 import { OnlineTab } from './OnlineTab';
-import { AssistentTab } from './AssistentTab';
 
 export type SettingsGroup = 'persoenlich' | 'system';
 
@@ -84,6 +83,19 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       ...(isKuratorMenusEnabled()
         ? [{ id: 'sec-kurator', label: 'Kurator-Bereich', keywords: 'anmelden menüs ttl session kuration' }]
         : []),
+      // Assistent & Gedächtnis (Assistent Phase 0, nur dev) — gerätelokales, opt-in
+      // Arbeitsprotokoll. Seit v2.235 nicht mehr als eigener Menüpunkt, sondern in
+      // „Mein Profil" gefaltet (persönliche, gerätelokale Daten).
+      ...(isAssistentProtokollEnabled()
+        ? [
+            { id: 'sec-assistent-protokoll', label: 'Arbeitsprotokoll', keywords: 'assistent gedächtnis protokoll aufzeichnung opt-in datenschutz lokal ereignisse' },
+            { id: 'sec-assistent-daten', label: 'Meine Daten', keywords: 'assistent daten export löschen transparenz ereignisse protokoll' },
+            // Assistent Phase 2 — persönliches Gedächtnis (nur dev)
+            ...(isAssistentGedaechtnisEnabled()
+              ? [{ id: 'sec-assistent-gedaechtnis', label: 'Persönliches Gedächtnis', keywords: 'gedächtnis memory konsolidierung notizen arbeitskontext präferenzen offene fäden vergessen' }]
+              : []),
+          ]
+        : []),
     ],
     render: () => <ProfilTab />,
   });
@@ -116,10 +128,13 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       { id: 'sec-tastatur', label: 'Tastatur-Kürzel', keywords: 'shortcuts command palette tastatur bedienung' },
     ],
     render: () => (
-      <div className="space-y-8">
+      // Kein uniformes space-y: die Widgets-Sektion wird bewusst weiter von
+      // „Erscheinungsbild" abgerückt (mt-12), damit die Trennung klarer wird;
+      // Tastatur folgt mit normalem Abstand (mt-8).
+      <div>
         <DarstellungTab />
-        <WidgetsSettingsSection />
-        <TastaturTab />
+        <div className="mt-12"><WidgetsSettingsSection /></div>
+        <div className="mt-8"><TastaturTab /></div>
       </div>
     ),
   });
@@ -164,31 +179,11 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     }
     panels.push({
       id: 'ki',
-      label: 'KI-Assistent',
+      label: 'Interne KI',
       icon: Sparkles,
       group: 'system',
       sections,
       render: () => <AIProviderTab aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
-    });
-  }
-
-  // Assistent & Gedächtnis (Assistent Phase 0, nur dev) — gerätelokales,
-  // opt-in Arbeitsprotokoll. Bewusst als letztes System-Panel.
-  if (isAssistentProtokollEnabled()) {
-    panels.push({
-      id: 'assistent',
-      label: 'Assistent & Gedächtnis',
-      icon: Brain,
-      group: 'system',
-      sections: [
-        { id: 'sec-assistent-protokoll', label: 'Arbeitsprotokoll', keywords: 'assistent gedächtnis protokoll aufzeichnung opt-in datenschutz lokal ereignisse' },
-        { id: 'sec-assistent-daten', label: 'Meine Daten', keywords: 'assistent daten export löschen transparenz ereignisse protokoll' },
-        // Assistent Phase 2 — persönliches Gedächtnis (nur dev)
-        ...(isAssistentGedaechtnisEnabled()
-          ? [{ id: 'sec-assistent-gedaechtnis', label: 'Persönliches Gedächtnis', keywords: 'gedächtnis memory konsolidierung notizen arbeitskontext präferenzen offene fäden vergessen' }]
-          : []),
-      ],
-      render: () => <AssistentTab />,
     });
   }
 

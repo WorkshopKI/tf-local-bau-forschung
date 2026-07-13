@@ -33,6 +33,10 @@ class KeyboardService {
     if (this.initialized) return;
     this.initialized = true;
     document.addEventListener('keydown', (e) => {
+      // Auto-Repeat (gehaltene Taste) ignorieren — sonst feuert ein Toggle-Shortcut
+      // (z.B. mod+k) mehrfach und das Panel flackert auf/zu. Kein registrierter
+      // Shortcut braucht Wiederholung.
+      if (e.repeat) return;
       for (const entry of this.shortcuts.values()) {
         const parsed = parseCombo(entry.combo);
         if (matchesCombo(e, parsed)) {

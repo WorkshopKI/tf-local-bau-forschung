@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.235.0 — Einstellungen: Aufräumen, Command-Palette-Fix & mehr Tastatur-Kürzel (Juli 2026)
+
+MINOR — Bündel aus einem Bugfix, zwei Umstrukturierungen der Settings-Navigation, browser-sicheren Nav-Kürzeln und Feinschliff am Vertikalrhythmus. Additiv/lokal, kein Schema-/Flag-Bump.
+
+- **Command-Palette-Bug „öffnet und schließt sofort" behoben:** `mod+k` war ein Toggle, und der globale Keydown-Listener ignorierte `e.repeat` nicht — OS-Auto-Repeat (gehaltene Taste) flackerte das Panel auf/zu und ließ es zu. Fix zweifach: `if (e.repeat) return;` im Listener ([keyboard.ts](src/core/services/keyboard.ts)) + `mod+k` von Toggle auf **öffnen-only** (`setCmdPaletteOpen(true)`, [ShellLayout.tsx](src/core/ShellLayout.tsx)); Schließen weiter über Escape/Backdrop/Auswahl.
+- **„Assistent & Gedächtnis" (dev) in „Mein Profil" gefaltet** — ein Menüpunkt weniger. Das dev-only Panel entfällt; sein Inhalt (`<AssistentTab />`) rendert jetzt am Ende von [ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx), die `sec-assistent-*`-Abschnittsmetadaten hängen am `profil`-Panel ([settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx), gekapselt in `isAssistentProtokollEnabled()` → Suche/Deep-Links unverändert). Kein Verhalten in prod/pl/as/kurator (war dort nie sichtbar).
+- **„KI-Assistent" → „Interne KI"** umbenannt (Panel-Label; Nav + Suche ziehen nach).
+- **Neue Navigations-Kürzel (`Strg+Umschalt+…`):** `H` = Home, `F` = Förderanträge, `E` = Einstellungen (+ `K` = Assistent-Panel, nur dev). Buchstaben auf Chrome **und** Edge frei (vermieden: N/T/W/J/I/C/O/A/U/S/B). Nur für sichtbare Ziele registriert; die Tastatur-Kürzel-Liste zeigt sie automatisch. Die **toten `Strg+1…7`-Labels** in der Command Palette (nie registriert **und** vom Browser für Tab-Wechsel reserviert) entfernt und durch die echten Kürzel ersetzt.
+- **Textdiät „Interne KI":** die langen Erklär-Absätze zu „Thinking" und „Kontextfenster" auf je einen Satz gekürzt; Detail hinter das bestehende Info-Icon (`InfoHint`) gelegt ([AIProviderTab.tsx](src/plugins/einstellungen/AIProviderTab.tsx)).
+- **Vertikalrhythmus:** „Speicherorte"-Zeilen luftiger (opt-in `spacious`-Prop an `SettingsFileRow`, `py-3→py-4`, kein globaler Drift); „Widgets auf der Startseite" klarer von „Erscheinungsbild" abgesetzt (gezieltes `mt-12` statt uniformem `space-y-8` im Darstellung-Panel).
+
 ### v2.234.0 — Home-Widgets v1.1 Phase 4: Registry-Änderungen-Widget (Kurator) (Juli 2026)
 
 MINOR — Neues Kurator-Seiten-Widget, das die jüngsten Skill-/Regel-Änderungen der Registry zeigt (Opt-in; `sichtbarWenn: isKuratorMenusEnabled`, Badge „Nur Kurator").

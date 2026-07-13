@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.235 — 2026-07
+
+### Bugfixes
+- **Befehlspalette bleibt jetzt offen:** Mit Strg+K öffnest du die Schnellsuche für Aktionen — bisher klappte sie manchmal sofort wieder zu. Das ist behoben; geschlossen wird über Esc, einen Klick daneben oder eine Auswahl.
+
+### Verbesserungen
+- **Aufgeräumte Einstellungen:** „KI-Assistent" heißt jetzt „Interne KI". Der Entwickler-Bereich „Assistent & Gedächtnis" ist in „Mein Profil" umgezogen — ein Menüpunkt weniger.
+- **Mehr Tastatur-Kürzel:** Strg+Umschalt+H springt zur Startseite, +F zu den Förderanträgen, +E zu den Einstellungen. Die anzeigten Kürzel in der Befehlspalette stimmen jetzt mit der Wirklichkeit überein.
+- **Klarere Texte & mehr Ruhe:** Die langen Erklärungen zu „Thinking" und „Kontextfenster" sind kurz gefasst — das Detail steckt hinter dem kleinen „i". Die Speicherorte stehen luftiger, und die Startseiten-Widgets sind deutlicher vom Erscheinungsbild abgesetzt.
+
 ## v2.234 — 2026-07
 
 ### Neu

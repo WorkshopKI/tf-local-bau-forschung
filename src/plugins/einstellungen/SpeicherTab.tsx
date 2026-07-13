@@ -351,6 +351,7 @@ export function SpeicherTab(): React.ReactElement {
 
         <SettingsFileRow
           first
+          spacious
           icon={<Database size={15} strokeWidth={1.5} />}
           name="Datenordner"
           value={dsHandleExists ? (dsFolderName ?? 'Verbunden') : undefined}
@@ -393,6 +394,7 @@ export function SpeicherTab(): React.ReactElement {
 
 
         <SettingsFileRow
+          spacious
           icon={<FolderHeart size={15} strokeWidth={1.5} />}
           name="Persönlicher Ordner"
           value={persConnected ? (persFolderName ?? 'Verbunden') : undefined}
@@ -415,6 +417,7 @@ export function SpeicherTab(): React.ReactElement {
 
         {showCsvFolder && (
           <SettingsFileRow
+            spacious
             icon={<FolderInput size={15} strokeWidth={1.5} />}
             name="CSV-Quellen"
             value={csvDirExists ? (csvDirName ?? 'Verknüpft') : undefined}

@@ -17,10 +17,16 @@ import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
 import { AufbereitungEvalPanel } from '@/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel';
 import { StreamlitBridgeSection } from './StreamlitBridgeSection';
-import { SettingsSectionHeader } from './_shared/settings-primitives';
+import { SettingsSectionHeader, InfoHint } from './_shared/settings-primitives';
 
 const inputClass = 'w-full px-3 py-2 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
+
+// Detail-Texte hinter dem Info-Icon (kurze Sichtbar-Zeile + Tooltip-Detail).
+const KONTEXT_HINT =
+  'Standard ist der interne llama.cpp-Wert; „Vom Server erkennen" liest ihn direkt aus dem laufenden Server. Längere Vorhabensbeschreibungen werden vor der Analyse automatisch gekürzt.';
+const THINKING_HINT =
+  'Der Denkprozess wird pro Fassung aufklappbar angezeigt. Nur die Voreinstellung — bei jeder Generierung („Neu"/„Kürzer"/„Länger") direkt per Schalter umschaltbar.';
 
 const ALL_PROVIDERS: Array<{
   type: AIProviderConfig['type']; label: string; description: string;
@@ -171,7 +177,10 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       <section id="sec-kontext" className="scroll-mt-20 space-y-5">
       <SettingsSectionHeader label="LLM & Reasoning" />
       <div className="flex flex-col gap-1.5 max-w-sm">
-        <label className="text-[13px] font-medium text-[var(--tf-text)]">Kontextfenster (Tokens)</label>
+        <div className="flex items-center gap-1.5">
+          <label className="text-[13px] font-medium text-[var(--tf-text)]">Kontextfenster (Tokens)</label>
+          <InfoHint text={KONTEXT_HINT} />
+        </div>
         <input
           type="number"
           min={MIN_LLM_CONTEXT_TOKENS}
@@ -214,10 +223,8 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           </p>
         )}
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          Wie viele Tokens kann das genutzte LLM verarbeiten? Standard ist der interne llama.cpp-Wert;
-          „Vom Server erkennen" liest ihn direkt aus dem laufenden Server. Daraus wird die maximale VB-Länge
-          abgeleitet — aktuell <strong>~{computeVbCharCap(liveContextTokens).toLocaleString('de-DE')} Zeichen</strong>.
-          Längere Vorhabensbeschreibungen werden vor der Analyse gekürzt.
+          Max. Tokens des LLM. Daraus folgt die VB-Länge — aktuell{' '}
+          <strong>~{computeVbCharCap(liveContextTokens).toLocaleString('de-DE')} Zeichen</strong>.
         </p>
       </div>
 
@@ -230,12 +237,12 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           onCheckedChange={v => { setThinkingEnabled(v); setLlmThinkingEnabled(v); }}
         />
         <div className="flex flex-col gap-1">
-          <label className="text-[13px] font-medium text-[var(--tf-text)]">Thinking nutzen (Standard)</label>
+          <div className="flex items-center gap-1.5">
+            <label className="text-[13px] font-medium text-[var(--tf-text)]">Thinking nutzen (Standard)</label>
+            <InfoHint text={THINKING_HINT} />
+          </div>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            Lässt das LLM vor der Antwort „nachdenken" (Reasoning). Liefert oft bessere Ergebnisse,
-            macht die Generierung aber langsamer. Der Denkprozess wird pro Fassung aufklappbar angezeigt.
-            Dies ist die <strong>Voreinstellung</strong> — direkt bei jeder Generierung („Neu" / „Kürzer" / „Länger")
-            lässt sich Thinking per Schalter ein- oder ausschalten.
+            Lässt das LLM vor der Antwort „nachdenken" — oft bessere Ergebnisse, aber langsamer.
           </p>
         </div>
       </div>

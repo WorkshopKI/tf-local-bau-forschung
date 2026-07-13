@@ -263,9 +263,12 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const commandItems = useMemo((): CommandItem[] => {
     const isMac = navigator.platform.includes('Mac');
     const mod = isMac ? '⌘' : 'Ctrl+';
+    // Echte, registrierte Nav-Kürzel (siehe Registrierungs-Effekt). Nur diese
+    // Ziele tragen ein Label — keine erfundenen Strg+1…7 (browser-reserviert).
+    const navShortcutLabel: Record<string, string> = { home: `${mod}⇧H`, antraege: `${mod}⇧F`, einstellungen: `${mod}⇧E` };
     const items: CommandItem[] = [];
-    sortedPlugins.forEach((p, i) => {
-      items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: i < 7 ? `${mod}${i + 1}` : undefined, action: () => goToPlugin(p.id) });
+    sortedPlugins.forEach((p) => {
+      items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: navShortcutLabel[p.id], action: () => goToPlugin(p.id) });
     });
     // Assistent öffnen: mit `assistentPanel` das shell-weite Dock (überall),
     // sonst das angedockte Chat-Panel der Suche (Legacy, Phase-4-Redirect).
@@ -281,12 +284,37 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
 
   useEffect(() => {
     keyboardService.init();
-    keyboardService.register('mod+k', () => setCmdPaletteOpen(prev => !prev), { description: 'Command Palette', category: 'Global' });
+    // mod+k öffnet die Command Palette (bewusst öffnen-only statt Toggle — ein
+    // wiederholter Keydown darf sie nie wieder zuklappen; Schließen via escape /
+    // Backdrop / Auswahl).
+    keyboardService.register('mod+k', () => setCmdPaletteOpen(true), { description: 'Command Palette', category: 'Global' });
     keyboardService.register('mod+/', () => setSidebarMode(prev => prev === 'expanded' ? 'rail' : 'expanded'), { description: 'Sidebar toggle', category: 'Global' });
     keyboardService.register('mod+shift+d', () => setDarkMode(!isDarkMode()), { description: 'Dark Mode toggle', category: 'Global' });
     keyboardService.register('escape', () => setCmdPaletteOpen(false), { description: 'Schließen', category: 'Global' });
     return () => { keyboardService.unregister('mod+k'); keyboardService.unregister('mod+/'); keyboardService.unregister('mod+shift+d'); keyboardService.unregister('escape'); };
   }, []);
+
+  // Navigations-Kürzel (Strg+Umschalt+…) — nur für sichtbare Ziele registriert,
+  // browser-sicher gewählt (H/F/E/K sind auf Chrome + Edge nicht reserviert).
+  // Weitere Ziele bleiben über die Command Palette (Strg+K) erreichbar.
+  useEffect(() => {
+    const navShortcuts: Array<{ combo: string; pluginId: string; description: string }> = [
+      { combo: 'mod+shift+h', pluginId: 'home', description: 'Home öffnen' },
+      { combo: 'mod+shift+f', pluginId: 'antraege', description: 'Förderanträge öffnen' },
+      { combo: 'mod+shift+e', pluginId: 'einstellungen', description: 'Einstellungen öffnen' },
+    ];
+    const registered: string[] = [];
+    for (const s of navShortcuts) {
+      if (!visiblePlugins.some(p => p.id === s.pluginId)) continue;
+      keyboardService.register(s.combo, () => goToPlugin(s.pluginId), { description: s.description, category: 'Navigation' });
+      registered.push(s.combo);
+    }
+    if (isAssistentPanelEnabled()) {
+      keyboardService.register('mod+shift+k', () => assistentPanelUiStore.getState().setOpen(true), { description: 'Assistent-Panel öffnen', category: 'Navigation' });
+      registered.push('mod+shift+k');
+    }
+    return () => { for (const combo of registered) keyboardService.unregister(combo); };
+  }, [visiblePlugins, goToPlugin]);
 
   useEffect(() => {
     const check = (): void => {

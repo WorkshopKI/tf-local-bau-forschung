@@ -118,6 +118,7 @@ export function SettingsFileRow({
   meta,
   actions,
   first = false,
+  spacious = false,
 }: {
   icon: React.ReactNode;
   name: string;
@@ -130,10 +131,13 @@ export function SettingsFileRow({
   /** Rechtsbündige Aktionen (Buttons). */
   actions?: React.ReactNode;
   first?: boolean;
+  /** Größerer vertikaler Innenabstand (py-4 statt py-3) — opt-in, damit nur
+   *  gezielte Abschnitte (z.B. Speicherorte) luftiger werden, kein globaler Drift. */
+  spacious?: boolean;
 }): React.ReactElement {
   return (
     <div
-      className={`flex items-center gap-3 py-3 ${first ? '' : 'border-t border-[var(--tf-border)]'}`}
+      className={`flex items-center gap-3 ${spacious ? 'py-4' : 'py-3'} ${first ? '' : 'border-t border-[var(--tf-border)]'}`}
     >
       <span className="w-[30px] h-[30px] rounded-lg bg-[var(--tf-bg-secondary)] inline-flex items-center justify-center text-[var(--tf-text-secondary)] shrink-0">
         {icon}
