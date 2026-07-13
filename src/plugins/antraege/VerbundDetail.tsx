@@ -10,6 +10,7 @@ import { VerbundKopf } from './VerbundKopf';
 import { KurzbeschreibungCard } from './KurzbeschreibungCard';
 import { CollapsibleDataSection } from './CollapsibleDataSection';
 import { TeilvorhabenListe } from './TeilvorhabenListe';
+import { TvTitelCopyButton } from './TvTitelCopyButton';
 import { VerbundHistorie } from './VerbundHistorie';
 import { ArtefaktLeiste } from './artefakte/ArtefaktLeiste';
 import { TvDetailBlock } from './TvDetailBlock';
@@ -212,6 +213,24 @@ export function VerbundDetail({
   const antragsdatenPreview = [antragsteller, antraege.length > 1 ? `${antraege.length - 1} weitere` : null]
     .filter(Boolean).join(' · ');
 
+  // TV-Titel als Text (eine Zeile je Teilvorhaben) für die Kopier-Aktion im
+  // Sektionskopf — oft in andere Dokumente übernommen. Reihenfolge = TV-Liste
+  // (Lead zuerst); leere übersprungen, wortgleiche (normalisiert) Titel nur
+  // einmal (bei geteiltem Verbund-Titel sonst N identische Zeilen).
+  const tvTitelZeilen = useMemo<string[]>(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const a of antraege) {
+      const t = strOrNull(a.titel);
+      if (!t) continue;
+      const key = t.trim().replace(/\s+/g, ' ').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+    }
+    return out;
+  }, [antraege]);
+
   // Sprung in die NF-Werkstatt (Artefakt-Leiste-Karte).
   const scrollTo = (id: string): void => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
@@ -304,6 +323,7 @@ export function VerbundDetail({
             title="Verbundpartner und Teilvorhaben"
             storageKey="verbund_teilvorhaben_collapsed"
             preview={antraege.length}
+            headerAction={<TvTitelCopyButton titel={tvTitelZeilen} />}
           >
             <TeilvorhabenListe
               tvs={antraege}

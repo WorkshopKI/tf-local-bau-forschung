@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.7 — Verbund-Detail: alle TV-Titel per Icon in die Zwischenablage (Juli 2026)
+
+PATCH — Die Teilvorhaben-Titel werden häufig als Textliste in andere Dokumente übernommen. Der Sektionskopf „Verbundpartner und Teilvorhaben" trägt dafür jetzt ein kleines Kopier-Icon (Tooltip „Alle Teilvorhaben-Titel kopieren").
+
+- Neuer Icon-Button [TvTitelCopyButton.tsx](src/plugins/antraege/TvTitelCopyButton.tsx) legt alle TV-Titel (eine Zeile je Teilvorhaben, Reihenfolge = TV-Liste, Lead zuerst) als reinen Text in die Zwischenablage; kurzes Häkchen-Feedback nach dem Kopieren. Wortgleiche Titel (normalisiert) werden zusammengefasst — trägt ein Verbund an allen TVs denselben Titel, landet er nur einmal statt N-fach. `navigator.clipboard` läuft unter `file://` (Secure Context); Async über `useAsyncAction` (Pitfall #15).
+- [CollapsibleDataSection.tsx](src/plugins/antraege/CollapsibleDataSection.tsx) bekommt einen optionalen `headerAction`-Slot rechts im Kopf, gerendert als **Geschwister** des Auf-/Zuklapp-Buttons (kein verschachteltes `<button>`) — ein Klick auf das Icon kopiert, ohne die Sektion umzuschalten; der übrige Kopf bleibt voll klickbar. Andere Sektionen (Antragsdaten, Alle Felder, Historie) unverändert.
+- Reine Anzeige-/Komfort-Funktion; kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.6 — Verbund-Detail: TV-Titel-Zeile nur zeigen, wenn sie Neues sagt (Juli 2026)
 
 PATCH — Nachschärfung zu v2.241.4: Trugen (wie in manchen Datenbeständen üblich) alle Teilvorhaben eines Verbundes denselben `titel` (den Gesamt-Projekttitel), wiederholte die neue TV-Titel-Zeile diesen Text in jeder Zeile — und obendrein den bereits im Verbund-Kopf stehenden Titel.
