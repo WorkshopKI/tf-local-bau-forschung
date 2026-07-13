@@ -1,5 +1,5 @@
 import { keyboardService } from '@/core/services/keyboard';
-import { SettingsSectionHeader } from './_shared/settings-primitives';
+import { CollapsibleSettingsSection } from './_shared/settings-primitives';
 
 export function TastaturTab(): React.ReactElement {
   const shortcuts = keyboardService.getAll();
@@ -14,8 +14,13 @@ export function TastaturTab(): React.ReactElement {
   };
 
   return (
-    <section id="sec-tastatur" className="scroll-mt-20">
-      <SettingsSectionHeader label="Tastatur" />
+    <CollapsibleSettingsSection
+      id="sec-tastatur"
+      label="Tastatur Shortcuts"
+      storageKey="teamflow_settings_tastatur_collapsed"
+      defaultOpen={false}
+      count={shortcuts.length}
+    >
       {shortcuts.length === 0 ? (
         <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Shortcuts registriert</p>
       ) : (
@@ -33,6 +38,6 @@ export function TastaturTab(): React.ReactElement {
           ))}
         </div>
       )}
-    </section>
+    </CollapsibleSettingsSection>
   );
 }

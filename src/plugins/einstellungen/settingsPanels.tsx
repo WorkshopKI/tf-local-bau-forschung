@@ -124,17 +124,17 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     sections: [
       { id: 'sec-farbe', label: 'Primärfarbe', keywords: 'akzent farbe darstellung' },
       { id: 'sec-erscheinung', label: 'Erscheinungsbild', keywords: 'dark light theme darstellung modus' },
+      { id: 'sec-tastatur', label: 'Tastatur Shortcuts', keywords: 'shortcuts command palette tastatur bedienung kürzel' },
       { id: 'sec-widgets', label: 'Widgets auf der Startseite', keywords: 'widgets startseite home kanban notizen reihenfolge sichtbarkeit ampel antragseingang' },
-      { id: 'sec-tastatur', label: 'Tastatur-Kürzel', keywords: 'shortcuts command palette tastatur bedienung' },
     ],
     render: () => (
-      // Kein uniformes space-y: die Widgets-Sektion wird bewusst weiter von
-      // „Erscheinungsbild" abgerückt (mt-12), damit die Trennung klarer wird;
-      // Tastatur folgt mit normalem Abstand (mt-8).
+      // „Tastatur Shortcuts" (Standard eingeklappt) steht bewusst VOR den Widgets
+      // und wird von „Erscheinungsbild" etwas abgerückt (mt-10); die Widgets
+      // folgen mit normalem Abstand (mt-8). Beide Sektionen sind aufklappbar.
       <div>
         <DarstellungTab />
-        <div className="mt-12"><WidgetsSettingsSection /></div>
-        <div className="mt-8"><TastaturTab /></div>
+        <div className="mt-10"><TastaturTab /></div>
+        <div className="mt-8"><WidgetsSettingsSection /></div>
       </div>
     ),
   });

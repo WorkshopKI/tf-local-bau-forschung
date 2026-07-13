@@ -13,7 +13,7 @@ import { useHomeWidgets } from '@/plugins/home/widgets/useHomeWidgets';
 import { WIDGET_KATALOG, listeKatalog } from '@/plugins/home/widgets/widgetCatalog';
 import { WidgetConfigForm } from '@/plugins/home/widgets/WidgetConfigForm';
 import type { WidgetInstanz } from '@/plugins/home/widgets/types';
-import { SettingsSectionHeader } from './_shared/settings-primitives';
+import { CollapsibleSettingsSection } from './_shared/settings-primitives';
 
 export function WidgetsSettingsSection(): React.ReactElement {
   const api = useHomeWidgets();
@@ -25,11 +25,17 @@ export function WidgetsSettingsSection(): React.ReactElement {
     return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
   });
   const zukunft = listeKatalog().filter(e => !e.verfuegbar && e.sichtbarWenn());
+  const sichtbareAnzahl = instanzen.filter(w => w.sichtbar).length;
 
   return (
-    <section id="sec-widgets" className="scroll-mt-20">
-      <SettingsSectionHeader label="Widgets auf der Startseite" />
-      <p className="text-[12px] text-[var(--tf-text-tertiary)] -mt-2 mb-3">
+    <CollapsibleSettingsSection
+      id="sec-widgets"
+      label="Widgets auf der Startseite"
+      storageKey="teamflow_settings_widgets_collapsed"
+      defaultOpen
+      right={`${sichtbareAnzahl} sichtbar`}
+    >
+      <p className="text-[12px] text-[var(--tf-text-tertiary)] -mt-1 mb-2.5">
         Reihenfolge, Sichtbarkeit und Inhalt der Startseiten-Widgets. Gilt nur für dieses Gerät.
       </p>
       <div
@@ -54,7 +60,7 @@ export function WidgetsSettingsSection(): React.ReactElement {
         {zukunft.map(e => (
           <div
             key={e.typ}
-            className="flex items-center gap-3 px-3 py-2.5"
+            className="flex items-center gap-3 px-3 py-1.5"
             style={{ borderTop: '0.5px solid var(--tf-border)' }}
             title="Folgt in einer späteren Version"
           >
@@ -74,7 +80,7 @@ export function WidgetsSettingsSection(): React.ReactElement {
       {aktion.error ? (
         <p className="mt-2 text-[12px] text-[var(--tf-danger-text)]">Fehler beim Speichern: {aktion.error}</p>
       ) : null}
-    </section>
+    </CollapsibleSettingsSection>
   );
 }
 
@@ -124,7 +130,7 @@ function WidgetZeile({
 
   return (
     <div style={erste ? undefined : { borderTop: '0.5px solid var(--tf-border)' }}>
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="flex items-center gap-3 px-3 py-1.5">
         <span className="flex flex-col shrink-0 w-[44px] items-start">
           <span className="flex flex-col">
             {pfeil('hoch', hochMoeglich)}

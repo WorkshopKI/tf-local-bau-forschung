@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.236 — 2026-07
+
+### Verbesserungen
+- **Einstellungen ohne Scrollen:** Unter „Darstellung & Bedienung" lassen sich „Tastatur Shortcuts" und „Widgets auf der Startseite" jetzt auf- und zuklappen. Die lange Shortcut-Liste ist standardmäßig eingeklappt und steht direkt unter dem Erscheinungsbild, sodass die Widgets sofort im Blick sind — und die Widget-Liste selbst ist kompakter. Der aufgeklappte/zugeklappte Zustand bleibt gemerkt.
+
 ## v2.235 — 2026-07
 
 ### Bugfixes

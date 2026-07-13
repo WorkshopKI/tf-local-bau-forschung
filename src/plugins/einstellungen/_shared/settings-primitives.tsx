@@ -3,8 +3,10 @@
  * Technologien, …). Inline-Row-Layout aus dem Design-Handoff
  * `_design/handoff/einstellungen-*` ("Variante-B-Stil").
  */
+import { ChevronRight } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 
 export function SettingsRow({
   children,
@@ -100,6 +102,72 @@ export function SettingsSectionHeader({
       )}
       {action != null && <span className="shrink-0">{action}</span>}
     </div>
+  );
+}
+
+/**
+ * Aufklappbarer Einstellungs-Abschnitt im `SettingsSectionHeader`-Look
+ * (uppercase 10.5px-Label + Hairline), erweitert um einen führenden Chevron und
+ * einen klickbaren Kopf. Auf-/Zu-Zustand persistiert pro `storageKey`
+ * (localStorage, unter `file://` verfügbar) über `useCollapsedSection`.
+ *
+ * Eingeklappt wird der Body NICHT gemountet (leichtgewichtig, spart Scrollhöhe);
+ * der `<section id>`-Anker bleibt aber immer erhalten, damit die Einstellungs-
+ * Suche + Deep-Links (`?sektion=…`) weiter zum Kopf springen können.
+ */
+export function CollapsibleSettingsSection({
+  id,
+  label,
+  storageKey,
+  defaultOpen = true,
+  count,
+  right,
+  children,
+}: {
+  id: string;
+  label: string;
+  /** localStorage-Key für den persistenten Auf-/Zu-Zustand. */
+  storageKey: string;
+  /** Startzustand, falls noch kein Wert gespeichert ist (Default: offen). */
+  defaultOpen?: boolean;
+  count?: number;
+  /** Rechtsbündiger Zusatz nach der Hairline (z.B. „6 sichtbar") — auch sichtbar
+   *  wenn eingeklappt, als Kurz-Zusammenfassung. */
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}): React.ReactElement {
+  const [open, toggle] = useCollapsedSection(storageKey, { defaultOpen });
+  return (
+    <section id={id} className="scroll-mt-20">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className={`group flex items-center gap-2.5 w-full text-left ${open ? 'mb-3.5' : ''}`}
+      >
+        <ChevronRight
+          size={13}
+          className="shrink-0 text-[var(--tf-text-tertiary)] group-hover:text-[var(--tf-text-secondary)]"
+          style={{
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform var(--tf-duration-med) var(--tf-ease)',
+          }}
+        />
+        <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] shrink-0 group-hover:text-[var(--tf-text-secondary)]">
+          {label}
+        </span>
+        {count != null && (
+          <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">
+            {count}
+          </span>
+        )}
+        <div className="flex-1 h-px bg-[var(--tf-border)]" aria-hidden />
+        {right != null && (
+          <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0 tabular-nums">{right}</span>
+        )}
+      </button>
+      {open && children}
+    </section>
   );
 }
 

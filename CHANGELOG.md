@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.236.0 — Darstellung: aufklappbare „Tastatur Shortcuts" + kompaktere Widgets (Juli 2026)
+
+MINOR — Das Panel „Darstellung & Bedienung" wurde entschlackt, damit man ohne Scrollen an die wichtigen Stellen kommt. Additiv/lokal, kein Schema-/Flag-Bump.
+
+- **Neues Primitive `CollapsibleSettingsSection`** ([_shared/settings-primitives.tsx](src/plugins/einstellungen/_shared/settings-primitives.tsx)): Einstellungs-Abschnitt im gewohnten `SettingsSectionHeader`-Look (uppercase-Label + Hairline), erweitert um führenden Chevron + klickbaren Kopf. Auf-/Zu-Zustand persistiert pro `storageKey` in localStorage über den bestehenden [useCollapsedSection](src/core/hooks/useCollapsedSection.ts)-Hook; eingeklappt wird der Body nicht gemountet, der `<section id>`-Anker bleibt aber für Suche/Deep-Links erhalten.
+- **„Tastatur" → „Tastatur Shortcuts"**, jetzt **aufklappbar (Standard eingeklappt)** und **vor** die Widgets-Sektion einsortiert ([TastaturTab.tsx](src/plugins/einstellungen/TastaturTab.tsx), [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)). Die lange Shortcut-Liste liegt damit standardmäßig zusammengeklappt direkt unter „Erscheinungsbild" — die Widgets rutschen nach oben ins Sichtfeld. Kopf zeigt die Shortcut-Anzahl.
+- **„Widgets auf der Startseite" kompakter + aufklappbar (Standard offen):** Zeilenhöhe reduziert (`py-2.5 → py-1.5`) und Intro-Abstand gestrafft, damit die Liste ohne Scrollen passt ([WidgetsSettingsSection.tsx](src/plugins/einstellungen/WidgetsSettingsSection.tsx)); der Kopf zeigt rechts „N sichtbar" als Kurz-Zusammenfassung (auch im eingeklappten Zustand).
+- Such-Registry mitgezogen: Abschnitts-Reihenfolge (Tastatur vor Widgets) + neues Label „Tastatur Shortcuts" (Stichwort „kürzel" ergänzt).
+
 ### v2.235.2 — Arbeitsprotokoll-Erklärung gekürzt & verbreitert (Juli 2026)
 
 PATCH — Der Erklärtext der „Arbeitsprotokoll"-Sektion ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), dev) war ein schmaler, hoher Textblock. Jetzt breiter (`max-w-prose` → `max-w-3xl`) und deutlich kürzer; das nutzerfremde „und kein Kurator" entfernt, die Datenschutz-Zusage („ausschließlich auf diesem Gerät, für niemanden sonst einsehbar, nie übers Internet") auf einen Satz verdichtet. Inhalt unverändert.
