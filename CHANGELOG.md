@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.235.1 — „Interne KI": Abschnitts-Label entzerrt (Juli 2026)
+
+PATCH — Im Panel „Interne KI" hieß der Streamlit-Bridge-Abschnitt ebenfalls „Interne KI" (Namensdopplung Panel↔Abschnitt). Der **Abschnitt** heißt jetzt **„Browser-KI-Verbindung"** ([StreamlitBridgeSection.tsx](src/plugins/einstellungen/StreamlitBridgeSection.tsx) + Such-Label in [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)). Nur Anzeige-Label + Suchstichwort — die Bridge-Funktion und die „Interne KI"-Terminologie in Buttons/Badges/Lesezeichen bleiben unverändert.
+
 ### v2.235.0 — Einstellungen: Aufräumen, Command-Palette-Fix & mehr Tastatur-Kürzel (Juli 2026)
 
 MINOR — Bündel aus einem Bugfix, zwei Umstrukturierungen der Settings-Navigation, browser-sicheren Nav-Kürzeln und Feinschliff am Vertikalrhythmus. Additiv/lokal, kein Schema-/Flag-Bump.

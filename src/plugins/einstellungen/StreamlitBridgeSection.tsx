@@ -85,7 +85,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
 
   return (
     <section id="sec-internki" className="scroll-mt-20 space-y-4">
-      <SettingsSectionHeader label="Interne KI" hint="Zugang über einen parallelen Browser-Tab; das Lesezeichen aktiviert die Verbindung dort." />
+      <SettingsSectionHeader label="Browser-KI-Verbindung" hint="Zugang über einen parallelen Browser-Tab; das Lesezeichen aktiviert die Verbindung dort." />
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] max-w-2xl">
         Zugang zur internen KI über einen parallelen Browser-Tab. Diese App öffnet den Tab und tauscht
         die Daten aus; das Lesezeichen aktiviert die Verbindung im Tab der internen KI.

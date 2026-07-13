@@ -169,7 +169,7 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       sections.push({ id: 'sec-kontext', label: 'LLM & Reasoning', keywords: 'kontextfenster tokens thinking reasoning ki assistent' });
     }
     if (isStreamlitBridgeEnabled()) {
-      sections.push({ id: 'sec-internki', label: 'Interne KI', keywords: 'lesezeichen verbindung testen gpt bridge ki assistent' });
+      sections.push({ id: 'sec-internki', label: 'Browser-KI-Verbindung', keywords: 'browser interne ki lesezeichen verbindung testen gpt bridge ki assistent' });
     }
     if (isDevContext()) {
       sections.push({ id: 'sec-provider', label: 'Provider', keywords: 'openrouter endpoint api key modell konfiguration' });
