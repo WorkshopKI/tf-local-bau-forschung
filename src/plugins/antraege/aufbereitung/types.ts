@@ -15,7 +15,9 @@ export interface QuelleRef {
   hash: string;
   /** ISO-Zeitstempel des Lesens/Stempelns. */
   gelesenAm: string;
-  rolle: 'vb' | 'anlage5';
+  /** `'verwertung'` = narratives Zusatzdokument (Marketing-/Verwertungskonzept),
+   *  das in den Korpus einfließt (additiv; alte Runs kennen nur `'vb'|'anlage5'`). */
+  rolle: 'vb' | 'anlage5' | 'verwertung';
 }
 
 /** Klassifizierte Tabelle mit ihrer Quelle-Rolle (für die Ansicht). */

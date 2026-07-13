@@ -26,7 +26,7 @@ const ANLAGE_MD = [
 ].join('\n');
 
 describe('baueRun', () => {
-  const run = baueRun('VB-1', { markdown: VB_MD, name: 'projekt.docx' }, { markdown: ANLAGE_MD, name: 'Anlage 5.docx' }, NOW);
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'projekt.docx' }, { markdown: ANLAGE_MD, name: 'Anlage 5.docx' }, [], NOW);
 
   it('stempelt beide Quellen mit Hash + Zeitstempel', () => {
     expect(run.version).toBe(1);
@@ -51,13 +51,13 @@ describe('baueRun', () => {
   });
 
   it('nur VB (ohne Anlage 5): herkunft=vb, keine Befunde', () => {
-    const nurText = baueRun('Y', { markdown: VB_MD, name: 'p.docx' }, null, NOW);
+    const nurText = baueRun('Y', { markdown: VB_MD, name: 'p.docx' }, null, [], NOW);
     expect(nurText.zeitplan?.herkunft).toBe('vb');
     expect(nurText.befunde).toEqual([]);
   });
 
   it('keine VB → definierter leerer Run mit Hinweis (nie Fehler)', () => {
-    const leer = baueRun('X', null, null, NOW);
+    const leer = baueRun('X', null, null, [], NOW);
     expect(leer.gliederung).toEqual([]);
     expect(leer.zeitplan).toBeNull();
     expect(leer.quellen).toEqual([]);
@@ -79,7 +79,7 @@ describe('baueRun', () => {
       '| 3.1 | Kernfunktionen | 01.04.2023 | 15.04.2023 | MA02 | 4 |',
       '| 3.2 | Erweiterte Funktionen | 16.04.2023 | 30.04.2023 | MA02 | 3 |',
     ].join('\n');
-    const r = baueRun('K', { markdown: VB_MD, name: 'p.docx' }, { markdown: anlage, name: 'a.docx' }, NOW);
+    const r = baueRun('K', { markdown: VB_MD, name: 'p.docx' }, { markdown: anlage, name: 'a.docx' }, [], NOW);
     const kap = r.befunde.find(b => b.typ === 'kapazitaet');
     expect(kap).toBeDefined();
     expect(kap!.schwere).toBe('warnung');
@@ -87,8 +87,44 @@ describe('baueRun', () => {
   });
 });
 
+describe('baueRun — Korpus (narrative Zusatzdokumente, dokumentgrenzen-neutral)', () => {
+  const MARKETING_MD = ['# Marktanalyse', 'Zielmarkt ist der Mittelstand mit hohem Effizienzdruck.', ''].join('\n');
+
+  it('ohne narrative Docs: Gliederung identisch zum VB-only-Run', () => {
+    const a = baueRun('N1', { markdown: VB_MD, name: 'p.docx' }, null, [], NOW);
+    const b = baueRun('N2', { markdown: VB_MD, name: 'p.docx' }, null, [], NOW);
+    expect(b.gliederung).toEqual(a.gliederung);
+    expect(b.quellen.some(q => q.rolle === 'verwertung')).toBe(false);
+  });
+
+  it('narratives Dokument: eigene Quelle gestempelt, VB-Sektions-Offsets stabil, Marketing fundstellen-fähig', () => {
+    const nurVb = baueRun('C1', { markdown: VB_MD, name: 'p.docx' }, null, [], NOW);
+    const mit = baueRun('C2', { markdown: VB_MD, name: 'p.docx' }, null, [{ markdown: MARKETING_MD, name: 'Marketing.pdf' }], NOW);
+    // Marketing als eigene Quelle (rolle 'verwertung') gestempelt.
+    expect(mit.quellen.filter(q => q.rolle === 'verwertung').map(q => q.name)).toEqual(['Marketing.pdf']);
+    // VB-Sektion k-9 bleibt an identischer Start-Position (VB ist Präfix des Korpus).
+    expect(mit.gliederung.find(s => s.id === 'k-9')!.start).toBe(nurVb.gliederung.find(s => s.id === 'k-9')!.start);
+    // Der Marketing-Abschnitt taucht als zusätzliche, fundstellen-fähige Sektion auf.
+    expect(mit.gliederung.some(s => s.titel.includes('Marketing.pdf'))).toBe(true);
+    expect(mit.gliederung.length).toBeGreaterThan(nurVb.gliederung.length);
+    // Deterministischer Zeitplan bleibt VB/Anlage-5-spezifisch (kein Marketing-Rauschen).
+    expect(mit.tabellen.every(t => t.rolle === 'vb' || t.rolle === 'anlage5')).toBe(true);
+  });
+
+  it('istVeraltet reagiert auf hinzugefügte/geänderte/entfernte narrative Docs', () => {
+    const mit = baueRun('V', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' },
+      [{ markdown: MARKETING_MD, name: 'Marketing.pdf' }], NOW);
+    const vbH = mit.quellen.find(q => q.rolle === 'vb')!.hash;
+    const anlH = mit.quellen.find(q => q.rolle === 'anlage5')!.hash;
+    const vwH = mit.quellen.find(q => q.rolle === 'verwertung')!.hash;
+    expect(istVeraltet(mit, { vbHash: vbH, anlage5Hash: anlH, verwertungHashes: [vwH] })).toBe(false);
+    expect(istVeraltet(mit, { vbHash: vbH, anlage5Hash: anlH, verwertungHashes: [] })).toBe(true);
+    expect(istVeraltet(mit, { vbHash: vbH, anlage5Hash: anlH, verwertungHashes: ['anders'] })).toBe(true);
+  });
+});
+
 describe('uebernehmeOffenePunkte', () => {
-  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
 
   it('erhält gültige Befund-Keys + aspekt-fehlt-/risiko-fehlt-/zahl-widerspruch-Keys, verwirft verwaiste', () => {
     const gueltig = befundKey(run.befunde[0]!);
@@ -109,7 +145,7 @@ describe('uebernehmeOffenePunkte', () => {
 });
 
 describe('istVeraltet', () => {
-  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
   const vbH = run.quellen.find(q => q.rolle === 'vb')!.hash;
   const anlH = run.quellen.find(q => q.rolle === 'anlage5')!.hash;
 
@@ -126,7 +162,7 @@ describe('istVeraltet', () => {
 
 describe('toggleOffenerPunkt', () => {
   it('setzt und entfernt einen Befund-Key', () => {
-    const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
+    const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
     const key = befundKey(run.befunde[0]!);
     const r2 = toggleOffenerPunkt(run, key);
     expect(r2.offenePunkte).toContain(key);
@@ -136,7 +172,7 @@ describe('toggleOffenerPunkt', () => {
 });
 
 describe('uebernehmeErledigtePunkte + toggleErledigterPunkt (Fragen-Achse)', () => {
-  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, NOW);
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
 
   it('erhält gültige Befund-/Kandidaten-Keys über „Neu aufbereiten", verwirft verwaiste', () => {
     const gueltig = befundKey(run.befunde[0]!);

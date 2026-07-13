@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.242 — 2026-07
+
+### Neu
+- **Dokumente direkt in der Antrag-Aufbereitung nachreichen.** Fehlt beim Aufbereiten ein Dokument — etwa die Anlage 5 mit dem Arbeits-/Zeitplan —, kannst du es jetzt direkt auf der Seite ablegen: im neuen Bereich „Dokumente zum Vorhaben" per Drag & Drop, und beim Ablegen wählst du, was drinsteht (Vorhabensbeschreibung, Arbeitsplan/Anlage 5, Marketing-/Verwertungskonzept …). Danach wird automatisch neu aufbereitet — kein Umweg mehr über eine andere Seite.
+- **Egal, wie die Unterlagen aufgeteilt sind.** Ob das Marketing-/Verwertungskonzept in einem eigenen Dokument liegt oder schon in der Vorhabensbeschreibung steht, macht für die Aufbereitung keinen Unterschied mehr — Inhalt und Fundstellen sind in beiden Fällen gleich.
+
 ## v2.241 — 2026-07
 
 ### Verbesserungen

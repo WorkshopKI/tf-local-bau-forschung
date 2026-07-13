@@ -75,6 +75,12 @@ export type AntragDokumentTyp =
   | 'vorhabensbeschreibung'
   | 'teilvorhabensbeschreibung'
   | 'stellungnahme'
+  // Antrag-Aufbereitung (additiv): der Uploader klassifiziert „was drinsteht".
+  // `arbeitsplan` = Anlage 5 / Arbeits-Zeitplan (per Typ-Tag statt/zusätzlich zum
+  // Dateinamen erkannt); `marketingkonzept` = Marketing-/Verwertungskonzept
+  // (fließt in den narrativen Aufbereitungs-Korpus). Reine Tag-Strings.
+  | 'arbeitsplan'
+  | 'marketingkonzept'
   | 'sonstiges';
 
 export interface AntragDokumentRef {

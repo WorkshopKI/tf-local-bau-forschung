@@ -13,7 +13,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { isAntragAufbereitungEnabled } from '@/config/feature-flags';
 import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
@@ -22,6 +21,7 @@ import { useVerbundDetailData } from '../useVerbundDetailData';
 import { buildKurzfassungContext } from '../kurzfassung/context-builder';
 import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
 import { useAufbereitung } from './useAufbereitung';
+import { QuellenPanel } from './QuellenPanel';
 import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
@@ -33,7 +33,6 @@ import { FragenTab } from './FragenTab';
 import { LesemodusTab } from './LesemodusTab';
 import { LesemodusSprungProvider } from './lesemodusSprung';
 
-const kurzHash = (h: string): string => (h.length > 6 ? `${h.slice(0, 4)}…${h.slice(-2)}` : h);
 function kurzDatum(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString('de-DE');
@@ -81,9 +80,6 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     foerderkennzeichen: ctx?.foerderkennzeichen ?? null,
     projektform: ctx ? (istVerbund ? `ZIM-Kooperationsprojekt · ${tvs.length} Teilvorhaben` : 'ZIM-Einzelprojekt · 1 Teilvorhaben') : null,
   };
-  const vbQuelle = aufb.run?.quellen.find(q => q.rolle === 'vb');
-  const hatAnlage5 = !!aufb.run?.quellen.find(q => q.rolle === 'anlage5');
-
   return (
     <div className="px-8 py-6">
       <Link to={backHref}
@@ -97,12 +93,11 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
         meta={metaTeile.length ? <span className="text-[12px] text-[var(--tf-text-tertiary)]">{metaTeile.join(' · ')}</span> : undefined}
         actions={
           <div className="flex items-center gap-2.5 flex-wrap justify-end">
-            {vbQuelle && aufb.run ? (
+            {aufb.run ? (
               <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                ✓ VB: {vbQuelle.name} · Hash {kurzHash(vbQuelle.hash)} · aufbereitet {kurzDatum(aufb.run.erzeugtAm)}
+                aufbereitet {kurzDatum(aufb.run.erzeugtAm)}
               </span>
             ) : null}
-            <StatusBadge label={hatAnlage5 ? 'Anlage 5 ✓' : 'Anlage 5 –'} />
             {bausteineGelaufen ? (
               <Button variant="ghost" size="sm" loading={aufb.bausteineNeu.busy} onClick={() => aufb.bausteineNeu.run()}
                 title="Verwirft die KI-Baustein-Caches und rechnet Aspekte/Steckbrief neu">
@@ -132,6 +127,14 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       <p className="mt-2 text-[12px] text-[var(--tf-text-tertiary)]">
         KI-gestützte Aufbereitung — jede Angabe ist per Fundstelle im Original prüfbar. Kein Ersatz für die Prüfung des Antrags.
       </p>
+
+      {ctx ? (
+        <QuellenPanel
+          ctx={{ key: ctx.key, knownIds: ctx.knownIds }}
+          run={aufb.run}
+          onIngested={aufb.requestRecompute}
+        />
+      ) : null}
 
       <div className="mt-4">
         <AufbereitungTabs active={tab} onChange={setTab} />

@@ -12,7 +12,7 @@ import {
   ernteTabellen, normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, pruefeKapazitaet,
   type ApZeile, type Befund,
 } from './tabellen';
-import { resolveVb, resolveAnlage5 } from './quellen';
+import { resolveAnlage5, resolveKorpus, baueKorpus } from './quellen';
 import { ernteRisiken } from './risiken';
 import type { AufbereitungRun, QuelleRef, RunTabelle } from './types';
 
@@ -83,13 +83,21 @@ function sektionAnOffset(gliederung: VbSektion[], offset: number): string | unde
  * Vergleichsquelle für die Befunde. Kein IO.
  */
 export function baueRun(
-  antragKey: string, vb: QuellEingang | null, anlage: QuellEingang | null, now: string,
+  antragKey: string, vb: QuellEingang | null, anlage: QuellEingang | null,
+  narrativeDocs: QuellEingang[], now: string,
 ): AufbereitungRun {
   const quellen: QuelleRef[] = [];
   if (vb) quellen.push({ name: vb.name, hash: hashText(vb.markdown), gelesenAm: now, rolle: 'vb' });
   if (anlage) quellen.push({ name: anlage.name, hash: hashText(anlage.markdown), gelesenAm: now, rolle: 'anlage5' });
+  for (const d of narrativeDocs) quellen.push({ name: d.name, hash: hashText(d.markdown), gelesenAm: now, rolle: 'verwertung' });
 
-  const gliederung = vb ? parseVbGliederung(vb.markdown) : [];
+  // Gliederung + Fundstellen + Lesemodus arbeiten auf dem KORPUS (VB-Präfix +
+  // narrative Zusatzdokumente) — dadurch ist die Aufbereitung unabhängig davon, ob
+  // ein Inhalt in der VB oder in einem Extra-Dokument steht. Weil die VB der Präfix
+  // ist, bleiben alle VB-Sektions-Offsets/-IDs identisch (deterministische Tabellen/
+  // Zeitplan/Risiken unten bleiben VB/Anlage-5-spezifisch und gültig).
+  const korpus = vb ? baueKorpus(vb, narrativeDocs) : '';
+  const gliederung = korpus ? parseVbGliederung(korpus) : [];
 
   const vbTabellen: RunTabelle[] = vb ? ernteTabellen(vb.markdown).map(t => ({ ...t, rolle: 'vb' as const })) : [];
   const anlageTabellen: RunTabelle[] = anlage
@@ -160,15 +168,15 @@ export function baueRun(
 export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContext): Promise<AufbereitungRun> {
   const now = new Date().toISOString();
   const vorher = await loadAufbereitung(idb, ctx.key);
-  const vbA = await resolveVb(idb, ctx);
+  const korpus = await resolveKorpus(idb, ctx);
   const anlageA = await resolveAnlage5(idb, ctx).catch(() => null);
 
-  const vb: QuellEingang | null = vbA
-    ? { markdown: vbA.markdown, name: vbA.quelleName ?? vbA.dokument?.filename ?? 'Vorhabensbeschreibung' }
-    : null;
+  // `KorpusDok` (name+markdown) ist strukturell `QuellEingang`.
+  const vb: QuellEingang | null = korpus?.vb ?? null;
+  const narrative: QuellEingang[] = korpus?.narrative ?? [];
   const anlage: QuellEingang | null = anlageA ? { markdown: anlageA.markdown, name: anlageA.quelleName } : null;
 
-  const mitOffen = uebernehmeOffenePunkte(baueRun(ctx.key, vb, anlage, now), vorher?.offenePunkte ?? []);
+  const mitOffen = uebernehmeOffenePunkte(baueRun(ctx.key, vb, anlage, narrative, now), vorher?.offenePunkte ?? []);
   const run = uebernehmeErledigtePunkte(mitOffen, vorher?.erledigtePunkte ?? []);
   await idb.set(aufbereitungKey(ctx.key), run);
   return run;
@@ -183,9 +191,17 @@ export async function loadAufbereitung(idb: IDBStore, antragKey: string): Promis
  * Sind die gestempelten Quell-Hashes gegenüber dem aktuellen Stand veraltet?
  * Nur UI-Hinweis — KEINE Auto-Neuberechnung.
  */
-export function istVeraltet(run: AufbereitungRun, aktuell: { vbHash?: string; anlage5Hash?: string }): boolean {
+export function istVeraltet(
+  run: AufbereitungRun,
+  aktuell: { vbHash?: string; anlage5Hash?: string; verwertungHashes?: string[] },
+): boolean {
   const gestempelt = (rolle: 'vb' | 'anlage5'): string | undefined => run.quellen.find(q => q.rolle === rolle)?.hash;
-  return gestempelt('vb') !== aktuell.vbHash || gestempelt('anlage5') !== aktuell.anlage5Hash;
+  if (gestempelt('vb') !== aktuell.vbHash || gestempelt('anlage5') !== aktuell.anlage5Hash) return true;
+  // Narrative Zusatzdokumente: veraltet, sobald sich die Menge der Hashes ändert
+  // (neu/geändert/entfernt). Reihenfolge-unabhängig verglichen.
+  const gestempelteVw = run.quellen.filter(q => q.rolle === 'verwertung').map(q => q.hash).sort();
+  const aktuelleVw = (aktuell.verwertungHashes ?? []).slice().sort();
+  return gestempelteVw.length !== aktuelleVw.length || gestempelteVw.some((h, i) => h !== aktuelleVw[i]);
 }
 
 /** Einen Befund als offenen Punkt an-/abwählen (persistierbarer neuer Run). */

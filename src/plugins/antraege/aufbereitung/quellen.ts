@@ -8,6 +8,7 @@ import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle'
 import { readText, listFilesWithBackupInfo } from '@/core/services/infrastructure/atomic-write';
 import { dokumenteDir } from '@/core/services/personal-storage/personal-layout';
 import { parseFrontmatter } from '@/plugins/antraege/aufnahme-einfach/frontmatter';
+import { resolveVb } from '@/plugins/antraege/kurzfassung/vbDokument';
 
 export { resolveVb, type VbAufloesung } from '@/plugins/antraege/kurzfassung/vbDokument';
 
@@ -20,7 +21,14 @@ export interface AnlageAufloesung {
   quelleName: string;
 }
 
-/** IDB: Dokumente mit FKZ-Tag, deren `filename` auf Anlage 5 matcht (jüngstes gewinnt). */
+/** Tag, mit dem der Uploader ein Marketing-/Verwertungskonzept klassifiziert. */
+const MARKETING_TAG = 'marketingkonzept';
+
+/**
+ * IDB: Dokumente mit FKZ-Tag, die als Anlage 5 zählen — per Typ-Tag `'arbeitsplan'`
+ * (vom Uploader klassifiziert) ODER per Dateiname-Muster (Fallback für unklassifizierte
+ * Uploads); jüngstes gewinnt.
+ */
 async function findeAnlage5Idb(idb: IDBStore, fkz: string): Promise<DocumentFull | null> {
   const keys = await idb.keys('doc:');
   const treffer: DocumentFull[] = [];
@@ -28,7 +36,7 @@ async function findeAnlage5Idb(idb: IDBStore, fkz: string): Promise<DocumentFull
     const doc = await idb.get<DocumentFull>(key);
     if (!doc) continue;
     const tags = Array.isArray(doc.tags) ? doc.tags : [];
-    if (tags.includes(fkz) && ANLAGE5_RE.test(doc.filename ?? '')) treffer.push(doc);
+    if (tags.includes(fkz) && (tags.includes('arbeitsplan') || ANLAGE5_RE.test(doc.filename ?? ''))) treffer.push(doc);
   }
   treffer.sort((a, b) => (b.created ?? '').localeCompare(a.created ?? ''));
   return treffer[0] ?? null;
@@ -64,4 +72,69 @@ export async function resolveAnlage5(
   const ordner = root ? await leseAnlage5AusOrdner(root, ctx.knownIds) : null;
   if (ordner) return { markdown: ordner.markdown, herkunft: 'ordner', quelleName: ordner.quelle };
   return null;
+}
+
+/** Ein Dokument im narrativen Aufbereitungs-Korpus (Name + Volltext). */
+export interface KorpusDok {
+  name: string;
+  markdown: string;
+}
+
+/** Aufgelöster Korpus: VB (Präfix) + narrative Zusatzdokumente + der zusammengeführte Text. */
+export interface KorpusAufloesung {
+  vb: KorpusDok;
+  narrative: KorpusDok[];
+  /** VB-Markdown, gefolgt von quellenmarkierten narrativen Abschnitten. */
+  markdown: string;
+}
+
+/**
+ * IDB: alle FKZ-getaggten Dokumente, die der Uploader als Marketing-/Verwertungs-
+ * konzept (`'marketingkonzept'`) klassifiziert hat — chronologisch (stabiler Korpus).
+ */
+export async function resolveNarrativeDocs(
+  idb: IDBStore, ctx: { key: string },
+): Promise<KorpusDok[]> {
+  const keys = await idb.keys('doc:');
+  const treffer: DocumentFull[] = [];
+  for (const key of keys) {
+    const doc = await idb.get<DocumentFull>(key);
+    if (!doc) continue;
+    const tags = Array.isArray(doc.tags) ? doc.tags : [];
+    if (tags.includes(ctx.key) && tags.includes(MARKETING_TAG)) treffer.push(doc);
+  }
+  treffer.sort((a, b) =>
+    (a.created ?? '').localeCompare(b.created ?? '') || (a.filename ?? '').localeCompare(b.filename ?? ''));
+  return treffer.map(d => ({ name: d.filename, markdown: d.markdown }));
+}
+
+/**
+ * Reine Zusammenführung: VB (Präfix — dadurch bleiben alle VB-Sektions-Offsets/-IDs
+ * identisch) + je narrativem Dokument ein quellenmarkierter, per `---` getrennter
+ * Abschnitt. Ohne narrative Dokumente byte-identisch zum VB-Markdown.
+ */
+export function baueKorpus(vb: KorpusDok, narrative: KorpusDok[]): string {
+  if (narrative.length === 0) return vb.markdown;
+  let out = vb.markdown;
+  for (const d of narrative) out += `\n\n---\n\n## [Quelle: ${d.name}]\n\n${d.markdown}`;
+  return out;
+}
+
+/**
+ * Korpus auflösen: VB (Pflicht — ohne VB null, wie `resolveVb`) + narrative
+ * Zusatzdokumente. Die freitextlichen LLM-Bausteine + der Lesemodus arbeiten auf
+ * `markdown` (VB + Marketing als EINE Einheit) — so ist das Ergebnis unabhängig
+ * davon, ob ein Inhalt in der VB oder in einem Extra-Dokument steht.
+ */
+export async function resolveKorpus(
+  idb: IDBStore, ctx: { key: string; knownIds: string[] },
+): Promise<KorpusAufloesung | null> {
+  const vbA = await resolveVb(idb, ctx);
+  if (!vbA) return null;
+  const vb: KorpusDok = {
+    name: vbA.quelleName ?? vbA.dokument?.filename ?? 'Vorhabensbeschreibung',
+    markdown: vbA.markdown,
+  };
+  const narrative = await resolveNarrativeDocs(idb, ctx);
+  return { vb, narrative, markdown: baueKorpus(vb, narrative) };
 }

@@ -5,7 +5,7 @@
  * die LLM-Bausteine (Paket 2) — sequentiell, tolerant, ohne den deterministischen
  * Teil je zu blockieren.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
@@ -18,7 +18,7 @@ import {
   AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
   type SkillRecord,
 } from '@/core/services/skills';
-import { resolveVb, resolveAnlage5 } from './quellen';
+import { resolveKorpus, resolveAnlage5 } from './quellen';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
@@ -54,6 +54,8 @@ export interface UseAufbereitungResult {
   loading: boolean;
   veraltet: boolean;
   neu: UseAsyncActionResult<[]>;
+  /** Coalesced „nach Dokument-Upload neu aufbereiten" (verkraftet nebenläufige Multi-File-Ingests). */
+  requestRecompute: () => void;
   toggle: UseAsyncActionResult<[string]>;
   /** „Erledigt"-Achse des Fragen-Tabs (getrennt von `toggle`/`offenePunkte`). */
   toggleErledigt: UseAsyncActionResult<[string]>;
@@ -65,7 +67,9 @@ export interface UseAufbereitungResult {
   zahlen: BausteinUiState<ZahlenDaten>;
   /** Glossar-Baustein (v2.219). */
   glossar: BausteinUiState<GlossarDaten>;
-  /** VB-Volltext (für Fundstellen-Auszüge) — gesetzt sobald ein Baustein-Lauf die VB auflöst. */
+  /** Korpus-Volltext (VB + narrative Zusatzdokumente) für Fundstellen-Auszüge +
+   *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
+   *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
   /** Läuft alle Bausteine sequentiell (Aspekte → Steckbrief → Zahlen → Glossar). */
   bausteine: UseAsyncActionResult<[]>;
@@ -131,11 +135,12 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     (async () => {
       if (!ctx || !run) { setVeraltet(false); return; }
       try {
-        const vbA = await resolveVb(storage.idb, ctx);
+        const korpus = await resolveKorpus(storage.idb, ctx);
         const anlageA = await resolveAnlage5(storage.idb, ctx).catch(() => null);
         const aktuell = {
-          vbHash: vbA ? hashText(vbA.markdown) : undefined,
+          vbHash: korpus ? hashText(korpus.vb.markdown) : undefined,
           anlage5Hash: anlageA ? hashText(anlageA.markdown) : undefined,
+          verwertungHashes: korpus ? korpus.narrative.map(n => hashText(n.markdown)) : [],
         };
         if (!cancelled) setVeraltet(istVeraltet(run, aktuell));
       } catch { /* Veraltet-Hinweis ist optional — Fehler still schlucken. */ }
@@ -153,6 +158,22 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setZahlen(FEHLT);
     setGlossar(FEHLT);
   });
+
+  // Nach einem Dokument-Upload neu aufbereiten. Mehrere Dateien feuern `onIngested`
+  // nebenläufig, `useAsyncAction.run()` verwirft aber Aufrufe während `busy` — daher
+  // ausstehende Anfragen bündeln und nach Abschluss EINMAL nachziehen (die letzte
+  // gewinnt, weil `computeAufbereitung` den IDB-Stand frisch liest).
+  const pendingRecomputeRef = useRef(false);
+  const requestRecompute = useCallback(() => {
+    if (neu.busy) { pendingRecomputeRef.current = true; return; }
+    void neu.run();
+  }, [neu.busy, neu.run]);
+  useEffect(() => {
+    if (!neu.busy && pendingRecomputeRef.current) {
+      pendingRecomputeRef.current = false;
+      void neu.run();
+    }
+  }, [neu.busy, neu.run]);
 
   /**
    * Fährt EINEN Baustein-Lauf, fängt ALLES intern und bildet es auf den
@@ -184,21 +205,24 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
    * ein einzelnes postMessage-Fenster ist. VB einmal auflösen.
    */
   const laufBausteine = async (aktRun: AufbereitungRun, aktCtx: AufbereitungContext, force: boolean): Promise<void> => {
-    const vbA = await resolveVb(storage.idb, aktCtx).catch(() => null);
-    if (!vbA) {
+    // Bausteine laufen auf dem KORPUS (VB + narrative Zusatzdokumente) — deckungsgleich
+    // mit `aktRun.gliederung` (in `baueRun` ebenfalls aus dem Korpus). So ist die
+    // Auswertung dokumentgrenzen-unabhängig und Marketing-Inhalt wird fundstellen-fähig.
+    const korpus = await resolveKorpus(storage.idb, aktCtx).catch(() => null);
+    if (!korpus) {
       setAspekte({ status: 'fehler' }); setSteckbrief({ status: 'fehler' });
       setZahlen({ status: 'fehler' }); setGlossar({ status: 'fehler' });
       return;
     }
-    setVbMarkdown(vbA.markdown); // für Fundstellen-Auszüge im UI
+    setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge)
     await laufEinen<AspektMapping>(aspekteSkill, setAspekte, t =>
-      computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
+      computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
     await laufEinen<SteckbriefDaten>(steckbriefSkill, setSteckbrief, t =>
-      computeSteckbriefBaustein(storage.idb, t, steckbriefSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
+      computeSteckbriefBaustein(storage.idb, t, steckbriefSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
     await laufEinen<ZahlenDaten>(zahlenSkill, setZahlen, t =>
-      computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
+      computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
     await laufEinen<GlossarDaten>(glossarSkill, setGlossar, t =>
-      computeGlossarBaustein(storage.idb, t, glossarSkill, aktCtx.key, aktRun.gliederung, vbA.markdown, { force }));
+      computeGlossarBaustein(storage.idb, t, glossarSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
   };
 
   const bausteine = useAsyncAction(async () => {
@@ -231,5 +255,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, toggle, toggleErledigt, aspekte, steckbrief, zahlen, glossar, vbMarkdown, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, aspekte, steckbrief, zahlen, glossar, vbMarkdown, bausteine, bausteineNeu };
 }

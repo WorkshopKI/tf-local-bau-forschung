@@ -61,9 +61,20 @@ interface Props {
   knownIds: string[];
   /** Callback nach erfolgreicher Aufnahme (z.B. zum Aktualisieren des VB-Status). */
   onIngested?: (typ: AntragDokumentTyp) => void;
+  /** Vorbelegter Typ für neu abgelegte Dateien (Default `'vorhabensbeschreibung'`).
+   *  WICHTIG: eine per FKZ-Dateiname sofort aufgenommene Datei (`fkzCase==='match'`)
+   *  wird mit diesem Typ getaggt — Caller außerhalb des VB-Flusses (z.B. die
+   *  Aufbereitungs-Quellen) übergeben `'sonstiges'`, damit eine abgelegte Anlage 5 /
+   *  ein Marketingkonzept die VB-Auflösung (`resolveVb` = neuestes VB-Doc) NICHT
+   *  überschreibt. */
+  defaultTyp?: AntragDokumentTyp;
+  /** Wählbare Typ-Pills (Default = `TYP_OPTIONS`, die 4 Standard-Typen). */
+  typOptionen?: ReadonlyArray<{ value: AntragDokumentTyp; label: string }>;
 }
 
-export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): React.ReactElement {
+export function DokumentAufnahme({
+  relationTag, knownIds, onIngested, defaultTyp = 'vorhabensbeschreibung', typOptionen = TYP_OPTIONS,
+}: Props): React.ReactElement {
   const storage = useStorage();
   const { indexDocument } = useSearch();
   const add = useDokumenteStore(s => s.add);
@@ -112,7 +123,7 @@ export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): 
         detectedFkz,
         matchedId,
         fkzCase,
-        typ: 'vorhabensbeschreibung',
+        typ: defaultTyp,
         status: 'wartet',
       };
       setItems(prev => [...prev, item]);
@@ -147,6 +158,7 @@ export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): 
         <IntakeRow
           key={item.localId}
           item={item}
+          typOptionen={typOptionen}
           onSetTyp={setTyp}
           onAssign={() => void ingest(item, item.typ)}
           onDiscard={() => patch(item.localId, { status: 'verworfen' })}
@@ -158,12 +170,13 @@ export function DokumentAufnahme({ relationTag, knownIds, onIngested }: Props): 
 
 interface RowProps {
   item: IntakeItem;
+  typOptionen: ReadonlyArray<{ value: AntragDokumentTyp; label: string }>;
   onSetTyp: (item: IntakeItem, typ: AntragDokumentTyp) => void;
   onAssign: () => void;
   onDiscard: () => void;
 }
 
-function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.ReactElement {
+function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard }: RowProps): React.ReactElement {
   const assigned = item.status === 'konvertiert' || item.status === 'indexiert';
   const showPills = item.fkzCase === 'match' || assigned;
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -196,7 +209,7 @@ function IntakeRow({ item, onSetTyp, onAssign, onDiscard }: RowProps): React.Rea
 
           {showPills && (
             <div className="inline-flex gap-1.5 flex-wrap">
-              {TYP_OPTIONS.map(opt => (
+              {typOptionen.map(opt => (
                 <button
                   key={opt.value}
                   type="button"
