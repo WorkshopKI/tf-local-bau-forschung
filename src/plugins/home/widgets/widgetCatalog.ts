@@ -148,7 +148,7 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // rechnet erst beim Ausklappen (Lazy-Guard `aktiv` im Widget).
     defaultEingeklappt: true,
     sichtbarWenn: () => isAuslastungEnabled(),
-    defaultConfig: () => ({ art: 'auslastung', sicht: 'auto', vergleichAnzeigen: true }),
+    defaultConfig: () => ({ art: 'auslastung', sicht: 'auto' }),
   },
   'registry-aenderungen': {
     typ: 'registry-aenderungen',

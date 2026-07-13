@@ -131,8 +131,6 @@ export interface AuslastungWidgetConfig {
   /** 'auto' leitet aus dem Kürzel-Modus ab (Kürzel → ich, „alle"/leer → team);
    *  'ich'/'team' erzwingen die Sicht (z.B. PL mit eigenem Kürzel, will Team). */
   sicht: 'auto' | 'ich' | 'team';
-  /** Default true: Zeile „ggü. Vorquartal: Belegung ±N %". */
-  vergleichAnzeigen: boolean;
 }
 
 /** QS-Freigaben-Widget (v1.1): Kappung der angezeigten Entwurf-Zeilen. */

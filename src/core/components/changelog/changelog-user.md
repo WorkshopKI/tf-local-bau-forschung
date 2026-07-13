@@ -23,7 +23,7 @@
 
 ### Verbesserungen
 - **Notizen griffbereit unten rechts.** Das Notizen-Feld steht standardmäßig am unteren Ende der rechten Spalte, damit du schnell etwas festhalten kannst — du kannst es bei Bedarf aber weiterhin in den Einstellungen verschieben. Der Hinweis heißt jetzt klarer „Nur lokal gespeichert, nie im Team Bereich".
-- **Auslastungs-Widget aufgeräumt.** Es startet eingeklappt (klappt bei Bedarf auf) und zeigt die Zahlen zu den Altanträgen jetzt direkt in den farbigen Balken, wie im Auslastungs-Modul.
+- **Auslastungs-Widget aufgeräumt.** Es startet eingeklappt (klappt bei Bedarf auf) und zeigt die Zahlen zu den Altanträgen jetzt direkt in den farbigen Balken, wie im Auslastungs-Modul — jetzt mit besser lesbarem Kontrast. Die Fußzeile mit dem Vorquartals-Vergleich und dem „Zum Cockpit"-Link ist weggefallen; das Widget ist damit kompakter.
 - **AI-Assistent kompakter.** Status und „Verbinden" stehen auf einer Zeile; der „Chat öffnen"-Link ist weg — den Assistenten öffnest du jetzt über das Symbol rechts am Bildschirmrand.
 - Ein- und ausgeklappte Widgets bleiben pro Gerät gemerkt.
 

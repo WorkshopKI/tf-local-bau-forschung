@@ -34,19 +34,19 @@ const BUCKET_META: Record<QuartalBucketIndex, {
   },
   1: {
     color: 'var(--tf-altlast-band-1, hsl(215, 12%, 83%))',
-    textColor: 'var(--tf-altlast-band-1-text, hsl(215, 20%, 32%))',
+    textColor: 'var(--tf-altlast-band-1-text, hsl(215, 32%, 20%))',
     legendLabel: 'Q-1',
     fullLabel: 'letztes Quartal (Q-1)',
   },
   2: {
     color: 'var(--tf-altlast-band-2, hsl(215, 14%, 74%))',
-    textColor: 'var(--tf-altlast-band-2-text, hsl(215, 20%, 32%))',
+    textColor: 'var(--tf-altlast-band-2-text, hsl(215, 32%, 20%))',
     legendLabel: 'Q-2',
     fullLabel: 'vorletztes Quartal (Q-2)',
   },
   3: {
     color: 'var(--tf-altlast-band-3, hsl(215, 18%, 64%))',
-    textColor: 'var(--tf-altlast-band-3-text, #ffffff)',
+    textColor: 'var(--tf-altlast-band-3-text, hsl(215, 32%, 20%))',
     legendLabel: 'Ab Q-3',
     fullLabel: 'älter (ab Q-3)',
   },

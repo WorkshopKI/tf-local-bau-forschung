@@ -115,10 +115,10 @@ describe('teamAggregat', () => {
 });
 
 describe('Katalog-Verankerung des Auslastungs-Widgets', () => {
-  it('ist ein Seiten-Widget mit Auto-Sicht + Vergleich als Default', () => {
+  it('ist ein Seiten-Widget mit Auto-Sicht als Default', () => {
     const eintrag = WIDGET_KATALOG.auslastung;
     expect(eintrag.bereich).toBe('seite');
     expect(eintrag.verfuegbar).toBe(true);
-    expect(eintrag.defaultConfig()).toEqual({ art: 'auslastung', sicht: 'auto', vergleichAnzeigen: true });
+    expect(eintrag.defaultConfig()).toEqual({ art: 'auslastung', sicht: 'auto' });
   });
 });

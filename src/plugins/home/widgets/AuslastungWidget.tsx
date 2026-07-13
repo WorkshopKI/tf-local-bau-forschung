@@ -1,15 +1,14 @@
 /**
  * Auslastungs-Mini-Widget (Home, Seitenspalte — Phase 2 v1.1).
  *
- * Read-only + Navigation: zeigt die Quartals-Belegung + Altanträge, entweder als
- * Ich-Sicht (ein MA) oder als Team-Aggregat (Summen über alle aktiven MAs — nie
- * eine MA-Rangliste). Rechnet den Einzel-MA selbst (Muster NeueAntraegeFuerDich,
+ * Read-only: zeigt die Quartals-Belegung + Altanträge, entweder als Ich-Sicht
+ * (ein MA) oder als Team-Aggregat (Summen über alle aktiven MAs — nie eine
+ * MA-Rangliste). Rechnet den Einzel-MA selbst (Muster NeueAntraegeFuerDich,
  * NICHT den AuslastungIndexProvider auf die Home ziehen); die geteilte
  * `GesamtauslastungBar` rendert beide Balken. Schwere Aggregation nur ausgeklappt
- * (Lazy-Guard `aktiv`). Fußzeile → Auslastungs-Cockpit.
+ * (Lazy-Guard `aktiv`).
  */
 import { useEffect, useMemo } from 'react';
-import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
@@ -28,14 +27,13 @@ import {
   ermittleSicht,
   ichBalkenModell,
   teamAggregat,
-  vorherigesQuartal,
   type AuslastungBalkenModell,
 } from './auslastungWidgetModel';
 import { WidgetShell } from './WidgetShell';
 import type { AuslastungWidgetConfig } from './types';
 import type { WidgetProps } from './widgetProps';
 
-const DEFAULT_CFG: AuslastungWidgetConfig = { art: 'auslastung', sicht: 'auto', vergleichAnzeigen: true };
+const DEFAULT_CFG: AuslastungWidgetConfig = { art: 'auslastung', sicht: 'auto' };
 
 interface WidgetView {
   sicht: 'ich' | 'team';
@@ -43,12 +41,10 @@ interface WidgetView {
   modell?: AuslastungBalkenModell;
   ueberMaCount?: number;
   aktivMaCount?: number;
-  vergleichDelta?: number | null;
 }
 
 export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const storage = useStorage();
-  const { navigate } = useNavigation();
   const meinKuerzel = useMeinKuerzel();
   const config = useAuslastungData(s => s.data.config);
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
@@ -70,7 +66,6 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
   const sicht = ermittleSicht(cfg.sicht, myAnonId);
   const quartal = config.aktuellesQuartal;
   const stundenProTV = config.stundenProTV ?? 9;
-  const vorQuartal = vorherigesQuartal(quartal);
 
   const auslastungByAnon = useMemo(
     () => (bereit
@@ -82,12 +77,6 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
     () => (bereit ? computeAltlasten(cache.antraege, cache.anonymMap.toAnon, quartal, stundenProTV) : null),
     [bereit, cache.antraege, cache.anonymMap, quartal, stundenProTV],
   );
-  const vorAuslastungByAnon = useMemo(
-    () => (bereit && cfg.vergleichAnzeigen && vorQuartal
-      ? computeQuartalsAuslastung(cache.antraege, zuweisungen, cache.anonymMap.toAnon, vorQuartal, stundenProTV, config.stundenProTVProTyp)
-      : null),
-    [bereit, cfg.vergleichAnzeigen, vorQuartal, cache.antraege, cache.anonymMap, zuweisungen, stundenProTV, config.stundenProTVProTyp],
-  );
 
   const view = useMemo((): WidgetView | null => {
     if (!bereit || !auslastungByAnon || !altlastByAnon) return null;
@@ -95,23 +84,12 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
       if (!myAnonId || !myMa) return { sicht: 'ich', kuerzelFehlt: true };
       const kapView = computeKapazitaet(myMa, auslastungByAnon.get(myAnonId), config);
       const modell = ichBalkenModell(kapView, altlastByAnon.get(myAnonId), stundenProTV);
-      let vergleichDelta: number | null = null;
-      if (vorAuslastungByAnon) {
-        const vor = computeKapazitaet(myMa, vorAuslastungByAnon.get(myAnonId), config);
-        if (vor.effektivStunden > 0) {
-          vergleichDelta = modell.belegtPct - Math.round((vor.verbrauchteStunden / vor.effektivStunden) * 100);
-        }
-      }
-      return { sicht: 'ich', modell, vergleichDelta };
+      return { sicht: 'ich', modell };
     }
     const stat = computeQuartalsStatistik(mitarbeiter, auslastungByAnon, config, quartal);
     const agg = teamAggregat(stat, altlastByAnon, mitarbeiter, stundenProTV);
-    let vergleichDelta: number | null = null;
-    if (vorAuslastungByAnon && vorQuartal) {
-      vergleichDelta = agg.belegtPct - computeQuartalsStatistik(mitarbeiter, vorAuslastungByAnon, config, vorQuartal).kapazitaet.prozent;
-    }
-    return { sicht: 'team', modell: agg, ueberMaCount: agg.ueberMaCount, aktivMaCount: agg.aktivMaCount, vergleichDelta };
-  }, [bereit, auslastungByAnon, altlastByAnon, vorAuslastungByAnon, sicht, myAnonId, myMa, mitarbeiter, config, quartal, stundenProTV, vorQuartal]);
+    return { sicht: 'team', modell: agg, ueberMaCount: agg.ueberMaCount, aktivMaCount: agg.aktivMaCount };
+  }, [bereit, auslastungByAnon, altlastByAnon, sicht, myAnonId, myMa, mitarbeiter, config, quartal, stundenProTV]);
 
   const scopeLabel = sicht === 'team' ? 'Alle Bearbeiter' : `Kürzel ${(meinKuerzel ?? '').toUpperCase() || '—'}`;
 
@@ -136,17 +114,16 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
           Kein Kürzel hinterlegt — lege es im Profil fest oder wähle in den Widget-Einstellungen die Team-Sicht.
         </p>
       ) : (
-        <AuslastungInhalt view={view} quartal={quartal} vorQuartal={vorQuartal} onCockpit={() => navigate('auslastung')} />
+        <AuslastungInhalt view={view} quartal={quartal} />
       )}
     </WidgetShell>
   );
 }
 
-function AuslastungInhalt({ view, quartal, vorQuartal, onCockpit }: {
-  view: WidgetView; quartal: string; vorQuartal: string | null; onCockpit: () => void;
+function AuslastungInhalt({ view, quartal }: {
+  view: WidgetView; quartal: string;
 }): React.ReactElement {
   const m = view.modell!;
-  const vorLabel = vorQuartal ? vorQuartal.split('-')[1] : '';
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
@@ -182,20 +159,6 @@ function AuslastungInhalt({ view, quartal, vorQuartal, onCockpit }: {
           ))}
         </div>
       ) : null}
-      <div className="flex items-center justify-between pt-1.5 mt-0.5" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-        <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          {view.vergleichDelta !== null && view.vergleichDelta !== undefined
-            ? `ggü. ${vorLabel}: Belegung ${view.vergleichDelta >= 0 ? '+' : '−'}${Math.abs(view.vergleichDelta)} %`
-            : ''}
-        </span>
-        <button
-          type="button"
-          onClick={onCockpit}
-          className="text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer"
-        >
-          Zum Cockpit →
-        </button>
-      </div>
     </div>
   );
 }

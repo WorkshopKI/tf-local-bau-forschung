@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.239.2 — Auslastungs-Widget: lesbare Balken-Zahlen + Fußzeile entfernt (Juli 2026)
+
+PATCH — zwei Feinschliffe am Auslastungs-Widget aus Nutzer-Feedback.
+
+- **Zahlen in den Balken lesbar:** Die TVs je Altanträge-Band standen im Balken mit zu wenig Kontrast (v. a. weiße Zahl auf dem nur mittelhellen ältesten Band, ~2,5:1). Die Zahl-Farben der Bänder sind jetzt kontrastsicher (Light: durchgehend dunkle Zahl statt Weiß auf dem dunkelsten Band → ~5:1; Dark: hellere Zahl auf den dunklen Bändern, das hellste Band leicht abgedunkelt → ~4,6:1) — über die geteilten `--tf-altlast-band-*-text`-Tokens ([theme.css](src/theme.css), Fallbacks in [altlast-colors.ts](src/plugins/auslastung/views/uebersicht/altlast-colors.ts) + [MeineAntraegeBalken.tsx](src/plugins/home/MeineAntraegeBalken.tsx) mitgezogen; wirkt einheitlich in Widget-Balken, MA-Tabelle und Home-Rückstands-Balken).
+- **Fußzeile entfernt:** Die untere Zeile mit „ggü. Vorquartal: Belegung ±N %" und dem „Zum Cockpit →"-Link ist entfallen — das Widget endet jetzt mit der Altanträge-Legende. Die damit obsolete Vergleichs-Berechnung (`vorherigesQuartal`-Vorquartalslauf) und das nur dafür genutzte, UI-lose Config-Feld `vergleichAnzeigen` wurden mit entfernt ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx), [types.ts](src/plugins/home/widgets/types.ts)). Bestehende gespeicherte Configs mit dem Alt-Feld bleiben lesbar (Feld wird ignoriert, keine Migration).
+
 ### v2.239.1 — Startseite: Notizen bleibt verschiebbar (Default unten statt Pin) (Juli 2026)
 
 PATCH — Nachschärfung zu v2.239.0: Das Notizen-Widget war ans Spaltenende **gepinnt** — das machte das Verschieben in den Einstellungen wirkungslos. Jetzt ist „unten" nur noch der **Default**, das Widget bleibt per Pfeilen frei verschiebbar. Der harte Pin in der reinen `sichtbareWidgets` entfällt (Reihenfolge folgt wieder der konfigurierten Position); stattdessen hebt `reconcileVerfuegbareWidgets` eine vorhandene Notizen-Instanz beim Erst-Anlegen/Nachziehen **über** die neu angehängten Seiten-Widgets, damit ein später aktiviertes Widget (z. B. Auslastung) nicht darunter rutscht ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)). Nur die Erst-Anlage/Reconcile ordnet um — spätere Pfeil-Bewegungen bleiben erhalten. Kein Schema-/Flag-Bump.

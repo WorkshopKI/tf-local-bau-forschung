@@ -21,9 +21,9 @@ export const ALTLAST_BAND_COLORS: readonly [string, string, string] = [
 
 /** Text-/Zahl-Farbe auf dem jeweiligen Band (kontrastsicher, Light + Dark). */
 export const ALTLAST_BAND_TEXT_COLORS: readonly [string, string, string] = [
-  'var(--tf-altlast-band-1-text, hsl(215, 20%, 32%))',
-  'var(--tf-altlast-band-2-text, hsl(215, 20%, 32%))',
-  'var(--tf-altlast-band-3-text, #ffffff)',
+  'var(--tf-altlast-band-1-text, hsl(215, 32%, 20%))',
+  'var(--tf-altlast-band-2-text, hsl(215, 32%, 20%))',
+  'var(--tf-altlast-band-3-text, hsl(215, 32%, 20%))',
 ];
 
 export const ALTLAST_BAND_LABELS: readonly [string, string, string] = [

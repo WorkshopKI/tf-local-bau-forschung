@@ -24,7 +24,7 @@ const AMPEL: WidgetSpezifischeConfig = {
 const OHNE: WidgetSpezifischeConfig[] = [
   { art: 'notizen' },
   { art: 'feedback-news', maxEintraege: 3 },
-  { art: 'auslastung', sicht: 'auto', vergleichAnzeigen: true },
+  { art: 'auslastung', sicht: 'auto' },
   { art: 'qs-freigaben', maxZeilen: 4 },
   { art: 'registry-aenderungen', maxEintraege: 3 },
   { art: 'keine' },
