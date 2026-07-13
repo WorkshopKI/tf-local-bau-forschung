@@ -12,12 +12,13 @@ import {
   Bot,
   ClipboardCheck,
   Columns3,
+  Gauge,
   ListChecks,
   Megaphone,
   Play,
   StickyNote,
 } from 'lucide-react';
-import { isFeedbackEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isAuslastungEnabled, isFeedbackEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
 
@@ -126,6 +127,15 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     verfuegbar: true,
     sichtbarWenn: () => isFeedbackEnabled(),
     defaultConfig: () => ({ art: 'feedback-news', maxEintraege: 3 }),
+  },
+  auslastung: {
+    typ: 'auslastung',
+    label: 'Auslastung',
+    icon: Gauge,
+    bereich: 'seite',
+    verfuegbar: true,
+    sichtbarWenn: () => isAuslastungEnabled(),
+    defaultConfig: () => ({ art: 'auslastung', sicht: 'auto', vergleichAnzeigen: true }),
   },
   'registry-aenderungen': {
     typ: 'registry-aenderungen',

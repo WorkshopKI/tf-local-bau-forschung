@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.232 — 2026-07
+
+### Neu
+- **Auslastung auf der Startseite:** Ein neues Widget zeigt deine Quartals-Belegung auf einen Blick — belegt/frei in TVs, offene Altanträge nach Alter und der Vergleich zum Vorquartal. Führst du ein eigenes Kürzel, siehst du deine Zahlen; als Projektleitung („alle") das Team-Aggregat inkl. „N von M über 100 %". Nur dort verfügbar, wo das Auslastungs-Modul aktiv ist.
+
 ## v2.231 — 2026-07
 
 ### Neu

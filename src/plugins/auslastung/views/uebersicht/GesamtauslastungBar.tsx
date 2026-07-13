@@ -7,8 +7,9 @@
  *  - Balken 2 „Altanträge": offene Anträge der Vorquartale, **alters-gestaffelt
  *    segmentiert** (siehe `altlast-colors`), als Anteil der Quartalskapazität.
  *    Ein pill-geclippter Track mit bis zu 3 farbigen Segmenten nebeneinander,
- *    **neuestes zuerst** (konsistent mit der Tabelle): links = Q-1 (dunkelstes) →
- *    Q-2 → Q-3..Q-7 (hellstes) rechts. Gedämpfte Blau-Rampe (keine Severity-Farbe).
+ *    **ältestes zuerst** (chronologisch links→rechts, konsistent mit der Tabelle):
+ *    links = Q-3..Q-7 (dunkelstes) → Q-2 → Q-1 (hellstes) rechts — je älter, desto
+ *    dunkler (Rampe gedreht v2.197.2). Gedämpfte Blau-Rampe (keine Severity-Farbe).
  *
  * Beide Balken werden immer gerendert (kein Layout-Shift; leerer Track = nichts
  * offen). Jeder Balken trägt einen `title`-Tooltip (file://-kompatibel). Farben
@@ -44,9 +45,9 @@ export const GesamtauslastungBar = memo(function GesamtauslastungBar({
   const belegtWidth = Math.min(100, Math.max(0, belegtPct));
 
   // Segmente proportional in die (auf 100 gekappte) Gesamtbreite einpassen.
-  const b0 = Math.max(0, altlastBandPct[0]); // Band 1 · Q-1 · Gelb
-  const b1 = Math.max(0, altlastBandPct[1]); // Band 2 · Q-2 · Orange
-  const b2 = Math.max(0, altlastBandPct[2]); // Band 3 · Q-3..Q-7 · Rot
+  const b0 = Math.max(0, altlastBandPct[0]); // Band 1 · Q-1 · neuestes (hell)
+  const b1 = Math.max(0, altlastBandPct[1]); // Band 2 · Q-2
+  const b2 = Math.max(0, altlastBandPct[2]); // Band 3 · Q-3..Q-7 · ältestes (dunkel)
   const rawSum = b0 + b1 + b2;
   const totalWidth = Math.min(100, rawSum);
   const scale = rawSum > 100 ? 100 / rawSum : 1;

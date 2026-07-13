@@ -33,8 +33,9 @@ export type WidgetTyp =
   | 'antragseingang'
   | 'ai-assistent'
   | 'notizen'
-  | 'qs-freigaben'
   | 'feedback-news'
+  | 'auslastung'
+  | 'qs-freigaben'
   | 'registry-aenderungen';
 
 export interface WidgetInstanz {
@@ -119,6 +120,16 @@ export interface FeedbackNewsWidgetConfig {
   maxEintraege: number;
 }
 
+/** Auslastungs-Mini-Widget (v1.1): Ich- vs. Team-Aggregat-Sicht. */
+export interface AuslastungWidgetConfig {
+  art: 'auslastung';
+  /** 'auto' leitet aus dem Kürzel-Modus ab (Kürzel → ich, „alle"/leer → team);
+   *  'ich'/'team' erzwingen die Sicht (z.B. PL mit eigenem Kürzel, will Team). */
+  sicht: 'auto' | 'ich' | 'team';
+  /** Default true: Zeile „ggü. Vorquartal: Belegung ±N %". */
+  vergleichAnzeigen: boolean;
+}
+
 /** Widgets ohne Detail-Config (Weitermachen, Meine Anträge, AI-Assistent, …). */
 export interface LeereWidgetConfig {
   art: 'keine';
@@ -129,4 +140,5 @@ export type WidgetSpezifischeConfig =
   | AmpelWidgetConfig
   | NotizenWidgetConfig
   | FeedbackNewsWidgetConfig
+  | AuslastungWidgetConfig
   | LeereWidgetConfig;

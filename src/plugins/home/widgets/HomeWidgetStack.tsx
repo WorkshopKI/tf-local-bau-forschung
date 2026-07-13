@@ -11,6 +11,7 @@ import { WeitermachenWidget } from '../WeitermachenSection';
 import { KanbanWidget } from './KanbanWidget';
 import { NotizenWidget } from './NotizenWidget';
 import { FeedbackNewsWidget } from './FeedbackNewsWidget';
+import { AuslastungWidget } from './AuslastungWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
@@ -26,6 +27,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   'ai-assistent': AiAssistentWidget,
   notizen: NotizenWidget,
   'feedback-news': FeedbackNewsWidget,
+  auslastung: AuslastungWidget,
   'qs-freigaben': null,
   'registry-aenderungen': null,
 };

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.232.0 — Home-Widgets v1.1 Phase 2: Auslastungs-Mini-Widget (Juli 2026)
+
+MINOR — Neues Seiten-Widget für die Quartals-Auslastung (nur wo das Auslastungs-Modul aktiv ist, `isAuslastungEnabled`; Opt-in, Default `sichtbar: false`).
+
+- **AuslastungWidget** ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx) + pure [auslastungWidgetModel.ts](src/plugins/home/widgets/auslastungWidgetModel.ts)) mit zwei Sichten, aus dem Kürzel-Modus abgeleitet (Config `sicht: 'auto'|'ich'|'team'`, Default `auto`): **Ich** (Kürzel → `computeKapazitaet` des einen MAs) vs. **Team** (Aggregat über alle aktiven MAs via `computeQuartalsStatistik` — Summen, **nie eine MA-Rangliste**; Zusatzzeile „N von M MAs über 100 %", nur die Anzahl). Kopfzeile macht den Modus sichtbar („2026-Q3 · Kürzel THU" bzw. „· Alle Bearbeiter"); `'ich'` ohne auflösbares Kürzel → ruhiger Hinweis statt `null` (das `NeueAntraegeFuerDich`-`return null`-Muster wird bewusst NICHT kopiert).
+- **`GesamtauslastungBar` wiederverwendet** (beide Balken, Band-Rampe, Tooltips — nicht dupliziert); Überbuchung > 100 % zeigt die Danger-Farbe der Vollansicht (Widget übergibt den **ungekappten** Belegt-Prozentwert). Darunter „N von M TVs · K frei" + Altanträge-Legende (Q-1 / Q-2 / Q-3–7 mit Zahlen), optional „ggü. Vorquartal: Belegung ±N %" (`vergleichAnzeigen`, Default true; zweiter Quartals-Lauf). Einzel-MA wird selbst gerechnet (nicht den `AuslastungIndexProvider` auf die Home gezogen); schwere Aggregation nur ausgeklappt (Lazy-Guard). Fußzeile „Zum Cockpit →".
+- **Doku-Drift korrigiert** (nur Kommentar, kein Code): [GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx) behauptete noch „links = Q-1 (dunkelstes)" — seit der Rampen-Drehung (v2.197.2) ist Q-1 das **hellste** (rechts), das Älteste (Q-3..Q-7) links/dunkel.
+- Tests: 8 neue ([auslastungWidgetModel.test.ts](src/plugins/home/widgets/__tests__/auslastungWidgetModel.test.ts): Sicht-Ableitung + Override, Vorquartal, Ich-Modell inkl. Überbuchung, Team-Aggregat gegen manuelle Summe, „N von M über 100 %", leerer MA, Bänder-Summe, Katalog-Verankerung). Verifiziert per `npm run check` (3518 Tests grün).
+
 ### v2.231.0 — Home-Widgets v1.1 Phase 1: Feedback-Neuigkeiten-Widget (Juli 2026)
 
 MINOR — Neues Seiten-Widget, das seit dem letzten Besuch Bewegung im Team-Feedback zeigt (Opt-in, Default `sichtbar: false`).
