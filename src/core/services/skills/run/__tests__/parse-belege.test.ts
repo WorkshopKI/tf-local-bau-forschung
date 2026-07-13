@@ -27,6 +27,23 @@ describe('parseSkillOutput — Quellen-Belege (Journey-Paket 4)', () => {
     expect(out.belege![0]!.satzIndizes).toEqual([1, 2]);
   });
 
+  it('toleriert nachgestellten Punkt (Form aus dem Template-Beispiel)', () => {
+    const out = build('„Zitat A." (Abschn. 1.1) → stützt Satz 2.');
+    expect(out.belege).toHaveLength(1);
+    expect(out.belege![0]!.satzIndizes).toEqual([1]);
+    expect(out.belege![0]!.abschnittRef).toBe('1.1');
+  });
+
+  it('toleriert Punkt hinter Plural-Referenz', () => {
+    const out = build('„Zitat B." → stützt Sätze 1, 3.');
+    expect(out.belege![0]!.satzIndizes).toEqual([0, 2]);
+  });
+
+  it('toleriert schließendes Anführungszeichen/Klammer nach der Satznummer', () => {
+    const out = build('„Zitat C." → stützt Satz 3”');
+    expect(out.belege![0]!.satzIndizes).toEqual([2]);
+  });
+
   it('gemischte Zeilen: mit + ohne Suffix (ohne = „ohne Zuordnung")', () => {
     const out = build([
       '„Zitat A." (Abschn. 1.1) → stützt Satz 2',

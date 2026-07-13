@@ -19,10 +19,12 @@ import { Quote, ChevronRight } from 'lucide-react';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences } from '@/core/services/skills';
+import type { QuellenBeleg } from '@/core/services/skills';
 import { CheckList, type CheckListAktion } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import { AmpelGruppe } from './AmpelGruppe';
 import { BelegKarten } from './BelegKarten';
+import { extrahiereZitate, ordneSaetzeZu } from './belegAbleitung';
 import { groupChecksByKategorie } from './checkGruppen';
 import { pruefSummary } from './pruefSummary';
 import { qsRollup } from './qs';
@@ -59,7 +61,15 @@ export function KontextPanel({
   const qs = step.qsHinweise ?? [];
   const qsR = qs.length > 0 ? qsRollup(qs) : null;
   const satzAnzahl = useMemo(() => splitSentences(step.finalerText).length, [step.finalerText]);
-  const zeigeBelege = !!(step.belege?.length && onHoverSaetze && onPinSatz);
+  // Marker bevorzugt; fehlen sie, die Satz↔Zitat-Zuordnung deterministisch ableiten
+  // (reine Anzeige, nicht persistiert — wirkt auch rückwirkend für Alt-Läufe).
+  const anzeigeBelege = useMemo<QuellenBeleg[]>(() => {
+    if (step.belege?.length) return step.belege;
+    if (!step.quellenanalyse?.trim()) return [];
+    return ordneSaetzeZu(extrahiereZitate(step.quellenanalyse), step.finalerText);
+  }, [step.belege, step.quellenanalyse, step.finalerText]);
+  const belegeAbgeleitet = anzeigeBelege.length > 0 && !step.belege?.length;
+  const zeigeBelege = !!(anzeigeBelege.length && onHoverSaetze && onPinSatz);
 
   return (
     <aside className={`g-context${variant === 'block' ? ' block' : ''}`}>
@@ -84,9 +94,19 @@ export function KontextPanel({
 
       {zeigeBelege ? (
         <div className="g-ctx-block">
-          <div className="g-ctx-cap">Antragsbezug</div>
+          <div className="g-ctx-cap">
+            Antragsbezug
+            {belegeAbgeleitet && (
+              <span
+                className="g-ctx-auto"
+                title="Automatisch aus Wortüberlappung zugeordnet — kein Modell-Beleg."
+              >
+                · automatisch zugeordnet
+              </span>
+            )}
+          </div>
           <BelegKarten
-            belege={step.belege!}
+            belege={anzeigeBelege}
             satzAnzahl={satzAnzahl}
             hoverSaetze={hoverSaetze ?? null}
             onHover={onHoverSaetze!}

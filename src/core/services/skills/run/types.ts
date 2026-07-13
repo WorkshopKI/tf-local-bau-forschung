@@ -21,6 +21,14 @@ export interface QuellenBeleg {
   abschnittRef?: string;
   /** 0-basierte, gegen `splitSentences(finalerText)` validierte Satz-Indizes. */
   satzIndizes: number[];
+  /**
+   * `true`, wenn die Satz-Zuordnung NICHT aus einer Modell-Marke stammt, sondern
+   * deterministisch aus Wortüberlappung abgeleitet wurde (Fallback, wenn das Modell
+   * keine `→ stützt Satz N`-Marker geliefert hat). Rein additiv; `parseSkillOutput`
+   * setzt es NIE (Marker-Belege ⇒ `abgeleitet` fehlt/false). Die UI kennzeichnet
+   * abgeleitete Belege sichtbar als „automatisch zugeordnet".
+   */
+  abgeleitet?: boolean;
 }
 
 /** Geparste Skill-Ausgabe (drei `###`-Abschnitte). */

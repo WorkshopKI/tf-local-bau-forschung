@@ -41,10 +41,13 @@ function parseBelege(quellenanalyse: string, finalerText: string): QuellenBeleg[
     // Führenden Listen-Marker entfernen (-, *, •, "1.", "1)").
     line = line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/u, '');
 
-    // Satz-Referenz-Suffix am Zeilenende (1-basiert → 0-basiert, validiert).
+    // Satz-Referenz-Suffix am Zeilenende (1-basiert → 0-basiert, validiert). Ein
+    // nachgestelltes Satzzeichen/Anführungszeichen (`→ stützt Satz 2.` — genau die
+    // Form aus dem Template-Beispiel) wird toleriert, sonst gingen folgsame Modelle
+    // still leer aus (kein `hatReferenz` ⇒ flaches Rendering trotz vorhandener Marker).
     let satzIndizes: number[] = [];
     const refMatch = line.match(
-      /\s*(?:→|->)\s*st(?:ü|ue)tzt\s+S(?:a|ä|ae)tz(?:e)?\s+([\d,\s]+?)\s*$/iu,
+      /\s*(?:→|->)\s*st(?:ü|ue)tzt\s+S(?:a|ä|ae)tz(?:e)?\s+([\d,\s]+?)\s*[.;:)\]»“”"']*\s*$/iu,
     );
     if (refMatch) {
       hatReferenz = true;

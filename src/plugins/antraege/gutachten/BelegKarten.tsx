@@ -22,11 +22,16 @@ interface Props {
   onPin: (satzIndex: number) => void;
 }
 
-/** „stützt Satz 2" / „stützt Sätze 2, 5" (1-basiert) bzw. „ohne Zuordnung". */
-function satzLabel(liveIdx: number[]): string {
+/**
+ * „stützt Satz 2" / „stützt Sätze 2, 5" (1-basiert) bzw. „ohne Zuordnung".
+ * Abgeleitete (heuristische) Belege tragen ein `≈` und die weichere Formulierung
+ * „möglicher Bezug", damit sie klar vom präzisen Modell-Beleg unterscheidbar sind.
+ */
+function satzLabel(liveIdx: number[], abgeleitet: boolean): string {
   if (liveIdx.length === 0) return 'ohne Zuordnung';
   const n = liveIdx.map(i => i + 1);
-  return n.length === 1 ? `stützt Satz ${n[0]}` : `stützt Sätze ${n.join(', ')}`;
+  const kern = n.length === 1 ? `Satz ${n[0]}` : `Sätze ${n.join(', ')}`;
+  return abgeleitet ? `≈ möglicher Bezug: ${kern}` : `stützt ${kern}`;
 }
 
 export function BelegKarten({ belege, satzAnzahl, hoverSaetze, onHover, onPin }: Props): React.ReactElement {
@@ -37,6 +42,7 @@ export function BelegKarten({ belege, satzAnzahl, hoverSaetze, onHover, onPin }:
       {belege.map((b, i) => {
         const live = liveGueltigeIndizes(b, satzAnzahl);
         const ohne = live.length === 0;
+        const auto = b.abgeleitet === true;
         const hl = hoverSaetze != null && belegBetrifftSaetze(b, hoverSaetze, satzAnzahl);
         const pin = (): void => {
           if (ohne) return;
@@ -47,7 +53,7 @@ export function BelegKarten({ belege, satzAnzahl, hoverSaetze, onHover, onPin }:
         return (
           <div
             key={i}
-            className={`g-beleg${hl ? ' hl' : ''}${ohne ? ' none' : ''}`}
+            className={`g-beleg${hl ? ' hl' : ''}${ohne ? ' none' : ''}${auto ? ' auto' : ''}`}
             onMouseEnter={() => onHover(live)}
             onMouseLeave={() => onHover(null)}
             {...(ohne ? {} : {
@@ -59,15 +65,19 @@ export function BelegKarten({ belege, satzAnzahl, hoverSaetze, onHover, onPin }:
               },
             })}
             title={ohne
-              ? 'Aus einem älteren Lauf — keine Satz-Zuordnung vorhanden'
-              : 'Klick springt zum gestützten Satz'}
+              ? (auto
+                ? 'Automatisch geprüft — kein hinreichend passender Satz gefunden'
+                : 'Aus einem älteren Lauf — keine Satz-Zuordnung vorhanden')
+              : (auto
+                ? 'Automatisch aus Wortüberlappung zugeordnet (kein Modell-Beleg) — Klick springt zum Satz'
+                : 'Klick springt zum gestützten Satz')}
           >
             <div className="g-beleg-quote"><Quote className="g-qci" />{b.zitat}</div>
             <div className="g-beleg-foot">
               <span className="g-beleg-ref">{b.abschnittRef ? `Abschn. ${b.abschnittRef}` : ''}</span>
               <span className={`g-beleg-satz${ohne ? ' none' : ''}`}>
                 {!ohne && <CornerDownRight size={11} aria-hidden />}
-                {satzLabel(live)}
+                {satzLabel(live, auto)}
               </span>
             </div>
           </div>
