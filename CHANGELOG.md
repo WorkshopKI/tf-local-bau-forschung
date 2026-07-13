@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.235.2 — Arbeitsprotokoll-Erklärung gekürzt & verbreitert (Juli 2026)
+
+PATCH — Der Erklärtext der „Arbeitsprotokoll"-Sektion ([AssistentTab.tsx](src/plugins/einstellungen/AssistentTab.tsx), dev) war ein schmaler, hoher Textblock. Jetzt breiter (`max-w-prose` → `max-w-3xl`) und deutlich kürzer; das nutzerfremde „und kein Kurator" entfernt, die Datenschutz-Zusage („ausschließlich auf diesem Gerät, für niemanden sonst einsehbar, nie übers Internet") auf einen Satz verdichtet. Inhalt unverändert.
+
 ### v2.235.1 — „Interne KI": Abschnitts-Label entzerrt (Juli 2026)
 
 PATCH — Im Panel „Interne KI" hieß der Streamlit-Bridge-Abschnitt ebenfalls „Interne KI" (Namensdopplung Panel↔Abschnitt). Der **Abschnitt** heißt jetzt **„Browser-KI-Verbindung"** ([StreamlitBridgeSection.tsx](src/plugins/einstellungen/StreamlitBridgeSection.tsx) + Such-Label in [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)). Nur Anzeige-Label + Suchstichwort — die Bridge-Funktion und die „Interne KI"-Terminologie in Buttons/Badges/Lesezeichen bleiben unverändert.

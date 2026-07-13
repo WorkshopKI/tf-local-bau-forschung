@@ -92,22 +92,19 @@ export function AssistentTab(): React.ReactElement {
             <p className="text-[13.5px] font-medium text-[var(--tf-text)]">
               Arbeitsprotokoll für den persönlichen Assistenten
             </p>
-            <p className="text-[12.5px] leading-relaxed text-[var(--tf-text-secondary)] max-w-prose">
-              Zeichnet auf, was du in der App tust (welche Anträge und Dokumente du
-              öffnest, was du suchst, welche KI-Läufe du startest) — als Grundlage für
-              einen späteren persönlichen Assistenten. Die Daten bleiben{' '}
-              <span className="text-[var(--tf-text)]">ausschließlich auf diesem Gerät in
-              diesem Browser</span>. Niemand sonst — auch keine Administratorin und kein
-              Kurator — kann sie einsehen; sie werden nie über das Internet übertragen.{' '}
+            <p className="text-[12.5px] leading-relaxed text-[var(--tf-text-secondary)] max-w-3xl">
+              Zeichnet auf, was du in der App tust (geöffnete Anträge und Dokumente, deine
+              Suchen, gestartete KI-Läufe) — als Grundlage für einen späteren persönlichen
+              Assistenten. Die Daten bleiben{' '}
+              <span className="text-[var(--tf-text)]">ausschließlich auf diesem Gerät</span>,
+              sind für niemanden sonst einsehbar und gehen nie übers Internet.{' '}
               {isAssistentGedaechtnisEnabled() ? (
                 <>Solange das <span className="text-[var(--tf-text)]">persönliche Gedächtnis</span> (unten)
-                aus ist, werden sie gar nicht an eine KI übertragen; ist es an, wertet sie
-                ausschließlich das interne Modell vor Ort aus — nie ein externer Dienst.</>
+                aus ist, gehen sie an keine KI; ist es an, wertet sie nur das interne Modell vor Ort aus.</>
               ) : (
-                <>In dieser Version werden sie gar nicht an eine KI übertragen.</>
+                <>Aktuell werden sie an keine KI übergeben.</>
               )}{' '}
-              Du kannst sie jederzeit vollständig löschen; ältere Einträge werden nach {RETENTION_TAGE}{' '}
-              Tagen automatisch entfernt.
+              Löschen kannst du jederzeit; ältere Einträge verschwinden nach {RETENTION_TAGE} Tagen automatisch.
             </p>
           </div>
         </div>
