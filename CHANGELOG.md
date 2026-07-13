@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.4 — Verbund-Detail: Teilvorhaben-Titel prominent je TV anzeigen (Juli 2026)
+
+PATCH — In der Teilvorhaben-Liste eines Verbundes ([TeilvorhabenListe.tsx](src/plugins/antraege/TeilvorhabenListe.tsx)) stand pro Zeile nur der Antragsteller (Firma/Institut) prominent, Rolle + Aktenzeichen darunter fein. Der **TV-Titel** — der aussagt, was der jeweilige Partner im Projekt macht — war erst nach dem Aufklappen sichtbar.
+
+- Der TV-Titel (`Antrag.titel`) wird jetzt direkt in der (auch eingeklappten) TV-Zeile als kräftige zweite Zeile unter dem Antragsteller gerendert (`--tf-text-secondary`, auf 2 Zeilen begrenzt, voller Text im Tooltip). Fehlt der Titel oder dupliziert er (normalisiert) nur den Antragsteller-Namen, wird die Zeile weggelassen.
+- Reine Anzeige aus dem bereits geladenen vollen `Antrag`-Record; kein neuer Datenpfad, kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.3 — Gutachten-Werkstatt: KI-Erreichbarkeit beim Schrittwechsel neu prüfen (Juli 2026)
 
 PATCH — War die interne KI zwischenzeitlich getrennt und dann wieder verbunden, blieb beim nächsten Abschnitt der Generieren-Button gesperrt und „KI nicht erreichbar — Generierung derzeit nicht möglich." stehen — obwohl der Verbindungsstatus schon wieder „Verbunden" zeigte. Ursache ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): Die Erreichbarkeit (`llmAvailable`) wurde **nur einmal beim Mount** passiv geprobt; `refreshVb` prüfte nur nach, solange der Wert noch `null` war — ein einmal gesetztes `false` erholte sich nie.

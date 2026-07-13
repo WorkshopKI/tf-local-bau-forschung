@@ -20,6 +20,12 @@ function strOrNull(v: unknown): string | null {
   return t.length === 0 ? null : t;
 }
 
+/** Normalisiert für den Duplikat-Vergleich Titel↔Antragsteller (Whitespace/Case). */
+function sameText(a: string, b: string): boolean {
+  const n = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  return n(a) === n(b);
+}
+
 /** TV-Rolle für die Anzeige. Heuristik: Netzwerk-Lead (Suffix 01/02 + vb_phase
  *  1/2) oder — ohne expliziten Lead — der erste TV → Konsortialführer; sonst
  *  Verbundpartner. */
@@ -42,6 +48,10 @@ export function TeilvorhabenListe({ tvs, expandedTvAz, onToggle, onOpenAntrag }:
     <div className="flex flex-col gap-1.5">
       {tvs.map((tv, idx) => {
         const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
+        // TV-Titel = was dieser Partner im Verbund macht. Prominent unter dem
+        // Antragsteller; nur unterdrückt, wenn er (rein) den Namen dupliziert.
+        const tvTitelRaw = strOrNull(tv.titel);
+        const tvTitel = tvTitelRaw && !sameText(tvTitelRaw, tvAntragsteller) ? tvTitelRaw : null;
         const tvStatus = strOrNull(tv.status);
         const rolle = tvRolle(tv, idx, tvs);
         const isExpanded = expandedTvAz === tv.aktenzeichen;
@@ -68,6 +78,14 @@ export function TeilvorhabenListe({ tvs, expandedTvAz, onToggle, onOpenAntrag }:
                   <div className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={tvAntragsteller}>
                     {tvAntragsteller}
                   </div>
+                  {tvTitel ? (
+                    <div
+                      className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mt-0.5 line-clamp-2"
+                      title={tvTitel}
+                    >
+                      {tvTitel}
+                    </div>
+                  ) : null}
                   <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
                     {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
                     {' '}· Zuwendung: {ZUWENDUNG_PLACEHOLDER}

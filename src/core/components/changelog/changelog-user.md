@@ -22,6 +22,7 @@
 ## v2.241 — 2026-07
 
 ### Verbesserungen
+- **Teilvorhaben-Titel auf einen Blick.** In der Verbund-Ansicht steht bei jedem Teilvorhaben jetzt direkt der Titel des Teilvorhabens unter dem Partner-Namen — man sieht sofort, was der jeweilige Partner im Projekt macht, ohne die Zeile erst aufklappen zu müssen.
 - **Sortierung und Filter bleiben in den Förderanträgen gemerkt.** Wie du die Liste sortierst (Klick auf eine Spaltenüberschrift) und welche Filter du gesetzt hast (Status, Antragstyp, PreCheck und die Filter in der Seitenleiste), bleibt jetzt beim nächsten Aufruf der Seite erhalten — auch nach einem Neuladen. Die Sicht-Tabs oben, die Gruppierung und die Spaltenbreiten wurden schon vorher gemerkt. (Der freie Suchtext startet weiterhin bewusst leer.)
 
 ## v2.240 — 2026-07
