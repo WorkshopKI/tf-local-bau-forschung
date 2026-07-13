@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.241 — 2026-07
+
+### Verbesserungen
+- **Sortierung und Filter bleiben in den Förderanträgen gemerkt.** Wie du die Liste sortierst (Klick auf eine Spaltenüberschrift) und welche Filter du gesetzt hast (Status, Antragstyp, PreCheck und die Filter in der Seitenleiste), bleibt jetzt beim nächsten Aufruf der Seite erhalten — auch nach einem Neuladen. Die Sicht-Tabs oben, die Gruppierung und die Spaltenbreiten wurden schon vorher gemerkt. (Der freie Suchtext startet weiterhin bewusst leer.)
+
 ## v2.240 — 2026-07
 
 ### Verbesserungen

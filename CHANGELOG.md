@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.0 — Förderanträge: Sortierung + Filter überleben den Seitenwechsel (Juli 2026)
+
+MINOR — Auf der Förderanträge-Seite blieben Sortier-Reihenfolge und gesetzte Filter zwar innerhalb einer Sitzung erhalten, gingen aber beim Reload/Neu-Aufruf der Seite verloren. Auf Nutzer-Wunsch (Thomas) werden sie jetzt **im Browser gespeichert** und beim nächsten Aufruf wieder angewandt. (Sicht-Tab, Dropdown-Sortierung, Gruppierung, Ansichtsmodus und Spaltenbreiten wurden schon vorher persistiert — dies schließt die verbliebenen Lücken.)
+
+- **Tabellen-Sortierung (Klick auf Spaltenkopf):** `useTableSort` ([useTableSort.ts](src/components/data-table/useTableSort.ts)) bekommt einen optionalen `storageKey`; die Antrags-Tabelle ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)) übergibt `teamflow_antraege_table_sort`. Spalte + Richtung (inkl. Reset auf unsortiert) landen in localStorage. Bestands-Aufrufer ohne `storageKey` bleiben unverändert in-memory. Eine stale Spalte (Key existiert nicht mehr) ist harmlos — der bestehende `columns.find`-Guard fällt auf die unsortierte Reihenfolge zurück.
+- **Filter (Status/Antragstyp + Sidebar-Facetten):** `useFilterState.active` wird jetzt **pro Programm** in localStorage gespiegelt (neuer Helfer [activeFilterPersistence.ts](src/plugins/antraege/filter/activeFilterPersistence.ts), Key `teamflow_antraege_active_filters`). `init` stellt beim Laden nur `filterId`s wieder her, die noch eine Definition haben (stale IDs nach CSV-/Filter-Umbau fallen still weg); `setActiveValue`/`clearFilter`/`clearAll`/`loadPreset` schreiben synchron durch.
+- **PreCheck-Quickfilter:** der Store-Slot `precheckBucket` ([store.ts](src/plugins/antraege/store.ts)) persistiert nun ebenfalls (Key `teamflow_antraege_precheck_bucket`, validiert über `asPrecheckBucket`).
+- Bewusst **nicht** persistiert (transient): der freie Suchtext (ein alter Suchstring beim Wiederkommen wäre überraschend), der Spaltenkopf-Werte-Filter der Tabelle (Drilldown innerhalb einer bereits gefilterten Sicht) und der Ampel-Quickfilter (kommt aus einem Widget-Klick, setzt sich beim Sicht-Wechsel bewusst zurück). Kein Schema-/Datenmodell-/Flag-Bump; alle Keys origin-weit, kein Share-/Snapshot-Write.
+
 ### v2.240.2 — Suche behält ihren vollen Assistenten (neben dem shell-weiten Panel) (Juli 2026)
 
 PATCH — Seit das shell-weite **Assistent-Panel** (dev-Flag `assistentPanel`) den Assistenten auf jeder Seite anbietet, **ersetzte** es auf der Suchseite den bisherigen vollen Chat — samit dessen „+"-Menü (Datei-Anhänge, Antragsarchiv-Suche, Denkprozess-Toggle, System-Prompt) und dem Konversations-Verlauf. Auf Nutzer-Wunsch (Thomas) behält die **Suche jetzt wieder ihren vollen `ChatPanelHost`**; das schlanke Panel bleibt auf allen anderen Seiten.

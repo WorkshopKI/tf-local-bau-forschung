@@ -11,6 +11,7 @@ import {
   listUnterprogrammeByProgramm,
 } from '@/core/services/csv';
 import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
+import { loadActiveFilters, saveActiveFilters } from './activeFilterPersistence';
 
 export type FieldValueLabels = Record<string, Record<string, string>>; // feldKey → code → label
 
@@ -75,9 +76,13 @@ export const useFilterState = create<FilterStateStore>((set, get) => ({
       for (const up of ups) {
         if (up.name) upLabels[up.code] = up.name;
       }
+      // Persistierte Filter wiederherstellen — nur `filterId`s, die noch eine
+      // Definition haben (stale IDs nach CSV-/Filter-Umbau fallen still weg).
+      const restored = loadActiveFilters(programmId, new Set(defs.map(d => d.id)));
       set({
         definitions: defs,
         presets,
+        active: restored,
         valueLabels: { ...STATIC_VALUE_LABELS, unterprogramm_id: upLabels },
         loading: false,
       });
@@ -112,17 +117,20 @@ export const useFilterState = create<FilterStateStore>((set, get) => ({
     if (!isEmpty && value !== null) {
       next.push({ filterId, value });
     }
+    if (state.programmId) saveActiveFilters(state.programmId, next);
     set({ active: next, activePresetId: null });
   },
 
   clearFilter: (filterId) => {
-    set({
-      active: get().active.filter(af => af.filterId !== filterId),
-      activePresetId: null,
-    });
+    const state = get();
+    const next = state.active.filter(af => af.filterId !== filterId);
+    if (state.programmId) saveActiveFilters(state.programmId, next);
+    set({ active: next, activePresetId: null });
   },
 
   clearAll: () => {
+    const pid = get().programmId;
+    if (pid) saveActiveFilters(pid, []);
     set({ active: [], activePresetId: null });
   },
 
@@ -146,10 +154,13 @@ export const useFilterState = create<FilterStateStore>((set, get) => ({
   },
 
   loadPreset: (presetId) => {
-    const preset = get().presets.find(p => p.id === presetId);
+    const state = get();
+    const preset = state.presets.find(p => p.id === presetId);
     if (!preset) return;
+    const next = preset.snapshot.map(af => ({ ...af }));
+    if (state.programmId) saveActiveFilters(state.programmId, next);
     set({
-      active: preset.snapshot.map(af => ({ ...af })),
+      active: next,
       activePresetId: presetId,
     });
   },

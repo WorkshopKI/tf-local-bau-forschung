@@ -9,8 +9,13 @@
  * Default-Sort wird beim Init gesetzt; danach steuert ausschliesslich
  * `toggleSort(key)` den State. Bei Wechsel der Spalte startet der Zyklus
  * neu bei `asc`.
+ *
+ * Optionaler `storageKey`: ist er gesetzt, wird der Sort-State (Spalte +
+ * Richtung) in localStorage gespiegelt — die Klick-Sortierung überlebt so
+ * einen Reload/Seitenwechsel. Ohne `storageKey` bleibt der State rein
+ * in-memory (unveraendertes Verhalten für alle Bestands-Aufrufer).
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { compareValues } from './compareValues';
 import type { SortDirection, SortableColumn } from './types';
 
@@ -23,14 +28,52 @@ export interface UseTableSortResult<T> {
   sortedRows: T[];
 }
 
+/** Persistierten Sort-State lesen; fehlt/kaputt → Defaults. Eine stale Spalte
+ *  (Key existiert nicht mehr) ist harmlos: `sortedRows` fällt über den
+ *  `columns.find`-Guard auf die unsortierte Reihenfolge zurück. */
+function loadPersistedSort(
+  storageKey: string | undefined,
+  defaultKey: string | null,
+  defaultDirection: SortDirection,
+): { key: string | null; dir: SortDirection } {
+  if (!storageKey) return { key: defaultKey, dir: defaultDirection };
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        const o = parsed as Record<string, unknown>;
+        const key = o.key === null || typeof o.key === 'string' ? (o.key as string | null) : defaultKey;
+        const dir = o.dir === 'asc' || o.dir === 'desc' ? o.dir : defaultDirection;
+        return { key, dir };
+      }
+    }
+  } catch { /* ignore */ }
+  return { key: defaultKey, dir: defaultDirection };
+}
+
 export function useTableSort<T>(
   rows: T[],
   columns: SortableColumn<T>[],
   defaultKey: string | null = null,
   defaultDirection: SortDirection = 'desc',
+  storageKey?: string,
 ): UseTableSortResult<T> {
-  const [sortKey, setSortKey] = useState<string | null>(defaultKey);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(defaultDirection);
+  const [sortKey, setSortKey] = useState<string | null>(
+    () => loadPersistedSort(storageKey, defaultKey, defaultDirection).key,
+  );
+  const [sortDirection, setSortDirection] = useState<SortDirection>(
+    () => loadPersistedSort(storageKey, defaultKey, defaultDirection).dir,
+  );
+
+  // Spiegel-Schreiben nur wenn ein storageKey gesetzt ist. Deckt alle
+  // toggleSort-Übergänge inkl. Reset auf `null` ab (idempotenter Mount-Write).
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ key: sortKey, dir: sortDirection }));
+    } catch { /* ignore */ }
+  }, [storageKey, sortKey, sortDirection]);
 
   const toggleSort = useCallback((key: string): void => {
     if (sortKey !== key) {

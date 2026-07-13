@@ -20,7 +20,7 @@ import {
 } from './sort';
 import type { GroupingMode } from './antragGroups';
 import type { TableGroupingMode } from './tableGrouping';
-import type { PrecheckBucket } from './filter/precheckQuickfilter';
+import { asPrecheckBucket, type PrecheckBucket } from './filter/precheckQuickfilter';
 import type { AmpelQuickfilter } from './eingangAmpel';
 import {
   DEFAULT_VIEW_MODE,
@@ -30,6 +30,7 @@ import {
 } from './viewModes';
 
 const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
+const PRECHECK_BUCKET_KEY = 'teamflow_antraege_precheck_bucket';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
 const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
 const TABLE_GROUPING_BY_VIEW_KEY = 'teamflow_antraege_table_grouping_by_view';
@@ -44,6 +45,15 @@ function loadActiveView(): ViewKey {
     }
   } catch { /* ignore */ }
   return 'meine_offenen';
+}
+
+/** PreCheck-Quickfilter aus localStorage (persistierte UI-Preference). */
+function loadPrecheckBucket(): PrecheckBucket {
+  try {
+    return asPrecheckBucket(localStorage.getItem(PRECHECK_BUCKET_KEY));
+  } catch {
+    return 'Alle';
+  }
 }
 
 const VALID_SORT_KEYS = new Set<SortKey>(SORT_OPTIONS.map(o => o.key));
@@ -164,11 +174,11 @@ interface AntraegeState {
    *  Banner). */
   hybridSearch: HybridSearchState;
   /** PreCheck-Quickfilter-Bucket (Alle/positiv/negativ/offen). Global (nicht
-   *  per-View), in-memory — konsistent mit den anderen Quickfiltern in
-   *  `useFilterState.active`, die auch nicht über Reload persistieren. Eigener
-   *  Store-Slot statt `useFilterState`, weil PreCheck eine abgeleitete
-   *  Klassifikation ist und keinen Filter-Chip erzeugen soll (siehe
-   *  `precheckQuickfilter.ts`). */
+   *  per-View), in localStorage persistiert (`teamflow_antraege_precheck_bucket`)
+   *  — überlebt Reload/Seitenwechsel, konsistent mit den nun ebenfalls
+   *  persistierten `useFilterState.active`-Filtern. Eigener Store-Slot statt
+   *  `useFilterState`, weil PreCheck eine abgeleitete Klassifikation ist und
+   *  keinen Filter-Chip erzeugen soll (siehe `precheckQuickfilter.ts`). */
   precheckBucket: PrecheckBucket;
   /** Ampel-Quickfilter (v2.229): Klick auf eine Zeile des Antragseingang-
    *  Widgets. Transient (in-memory, wie precheckBucket) und trägt die
@@ -279,7 +289,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   search: '',
   searchIgnoreBearbeiterFilter: false,
   hybridSearch: { matchedAkz: null, loading: false, unavailable: [], downloadingCorpus: false },
-  precheckBucket: 'Alle',
+  precheckBucket: loadPrecheckBucket(),
   ampelQuickfilter: null,
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
@@ -374,7 +384,10 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
 
   setSearchIgnoreBearbeiterFilter: (v: boolean) => set({ searchIgnoreBearbeiterFilter: v }),
 
-  setPrecheckBucket: (bucket: PrecheckBucket) => set({ precheckBucket: bucket }),
+  setPrecheckBucket: (bucket: PrecheckBucket) => {
+    try { localStorage.setItem(PRECHECK_BUCKET_KEY, bucket); } catch { /* ignore */ }
+    set({ precheckBucket: bucket });
+  },
 
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => set({ ampelQuickfilter: quick }),
 

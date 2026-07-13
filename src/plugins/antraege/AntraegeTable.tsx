@@ -183,7 +183,11 @@ export function AntraegeTable({
     return { allRows: filteredRows, sectionOf: null, archivMeta: null };
   }, [grouping, arbeitsvorratEnabled, filteredRows, verbundById, archivPersistedCollapsed, searchActive]);
 
-  const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(allRows, columns);
+  // storageKey → die Klick-auf-Spaltenkopf-Sortierung überlebt Reload/Seiten-
+  // wechsel (Nutzer-Wunsch). Global (nicht per-View), konsistent mit den
+  // ebenfalls global persistierten Spaltenbreiten oben.
+  const { sortKey, sortDirection, toggleSort, sortedRows } =
+    useTableSort(allRows, columns, null, 'desc', 'teamflow_antraege_table_sort');
 
   // Sektionierte Modi (Status-Gruppierung ODER Arbeitsvorrat/Archiv): section-
   // stabile Sortierung — Section-Reihenfolge bleibt, nur INNERHALB jeder Section
