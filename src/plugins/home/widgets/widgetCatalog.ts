@@ -142,10 +142,10 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     label: 'Registry-Änderungen',
     icon: BookMarked,
     bereich: 'seite',
-    verfuegbar: false,
+    verfuegbar: true,
     hinweisBadge: 'Nur Kurator',
     sichtbarWenn: () => isKuratorMenusEnabled(),
-    defaultConfig: KEINE,
+    defaultConfig: () => ({ art: 'registry-aenderungen', maxEintraege: 3 }),
   },
 };
 

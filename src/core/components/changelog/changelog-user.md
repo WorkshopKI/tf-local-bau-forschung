@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.234 — 2026-07
+
+### Neu
+- **Registry-Änderungen auf der Startseite (nur Kurator):** Ein neues Widget zeigt Kurator:innen die jüngsten Änderungen an Skills und Regeln — neu, geändert, aktiviert oder deaktiviert, jeweils mit Zeitpunkt. Eine feste Erinnerung im Fuß hält den wichtigsten Grundsatz vor Augen: Aktivierungen wirken sofort für alle Varianten.
+
 ## v2.233 — 2026-07
 
 ### Neu

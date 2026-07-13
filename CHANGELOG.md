@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.234.0 — Home-Widgets v1.1 Phase 4: Registry-Änderungen-Widget (Kurator) (Juli 2026)
+
+MINOR — Neues Kurator-Seiten-Widget, das die jüngsten Skill-/Regel-Änderungen der Registry zeigt (Opt-in; `sichtbarWenn: isKuratorMenusEnabled`, Badge „Nur Kurator").
+
+- **Registry-Änderungen** ([RegistryAenderungenWidget.tsx](src/plugins/home/widgets/RegistryAenderungenWidget.tsx) + purer Selektor [registryAenderungen.ts](src/plugins/home/widgets/registryAenderungen.ts)): liest die cache-gelesene Registry (`readCachedSkillRegistry`), sortiert Skills + Regeln nach `geaendert_am` absteigend, gekappt (Default 3). **Änderungsart deterministisch** — der Snapshot trägt kein `aktiv`, also wird die Aktivierung inferiert: `version === 1`/keine Vorgänger-Historie → **neu**; sonst `diffSkillVersions(historie[1], historie[0])` — leerer Diff = reiner Zustandswechsel → **aktiviert** bzw. **deaktiviert** (nach aktuellem `aktiv`), nicht-leerer Diff → **geändert**. Regeln (ohne Historie) → reduziert (neu, wenn `erstellt_am === geaendert_am`; sonst deaktiviert/geändert nach `aktiv`). **Kein neues Journal** — nur vorhandene Felder.
+- Zeilen mit Änderungsart-Icon, Monospace-Skill-ID (bzw. „Regel-Name"), Zeitangabe + Zustand; Klick → Skill-Verwaltung. **Permanente Warn-Fußzeile** „Aktivierungen wirken sofort für alle Varianten." (der wichtigste Betriebs-Invariant, dem Kurator täglich vor Augen).
+- **Abschluss des Pakets:** alle fünf Katalog-Einträge (feedback-news, auslastung, qs-freigaben, registry-aenderungen + entsperrte Kanban-Feedback-Quelle) auf `verfuegbar: true`. Tests: 10 neue ([registryAenderungen.test.ts](src/plugins/home/widgets/__tests__/registryAenderungen.test.ts): alle vier Änderungsart-Fälle, Regel-Reduktion, Sortierung/Kappung, Nur-Kurator-Verankerung). Verifiziert per `npm run check` (3535 Tests grün).
+
 ### v2.233.0 — Home-Widgets v1.1 Phase 3: QS-Freigaben-Widget (Juli 2026)
 
 MINOR — Neues Haupt-Widget, das lokale Artefakt-Entwürfe bündelt, die noch auf Freigabe warten (Opt-in, Default `sichtbar: false`).

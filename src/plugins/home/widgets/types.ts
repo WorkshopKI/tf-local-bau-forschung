@@ -137,6 +137,13 @@ export interface QsFreigabenWidgetConfig {
   maxZeilen: number;
 }
 
+/** Registry-Änderungen-Widget (v1.1, Kurator-only): Kappung der Einträge. */
+export interface RegistryAenderungenWidgetConfig {
+  art: 'registry-aenderungen';
+  /** Max. angezeigte Änderungen. Default 3. */
+  maxEintraege: number;
+}
+
 /** Widgets ohne Detail-Config (Weitermachen, Meine Anträge, AI-Assistent, …). */
 export interface LeereWidgetConfig {
   art: 'keine';
@@ -149,4 +156,5 @@ export type WidgetSpezifischeConfig =
   | FeedbackNewsWidgetConfig
   | AuslastungWidgetConfig
   | QsFreigabenWidgetConfig
+  | RegistryAenderungenWidgetConfig
   | LeereWidgetConfig;

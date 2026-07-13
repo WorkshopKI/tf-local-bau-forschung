@@ -13,13 +13,13 @@ import { NotizenWidget } from './NotizenWidget';
 import { FeedbackNewsWidget } from './FeedbackNewsWidget';
 import { AuslastungWidget } from './AuslastungWidget';
 import { QsFreigabenWidget } from './QsFreigabenWidget';
+import { RegistryAenderungenWidget } from './RegistryAenderungenWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
 
-/** Noch nicht gebaute Zukunfts-Typen (qs-freigaben/registry-aenderungen) sind im
- *  Katalog `verfuegbar: false` und erreichen den Stack nie — null als
- *  Sicherheitsnetz. */
+/** Jeder Katalog-Typ hat einen Renderer (v1.1 komplett). Neue Zukunfts-Typen
+ *  kämen hier zunächst als `null` rein (Katalog `verfuegbar: false`). */
 const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   weitermachen: WeitermachenWidget,
   'meine-antraege': MeineAntraegeWidget,
@@ -30,7 +30,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   'feedback-news': FeedbackNewsWidget,
   auslastung: AuslastungWidget,
   'qs-freigaben': QsFreigabenWidget,
-  'registry-aenderungen': null,
+  'registry-aenderungen': RegistryAenderungenWidget,
 };
 
 interface Props {
