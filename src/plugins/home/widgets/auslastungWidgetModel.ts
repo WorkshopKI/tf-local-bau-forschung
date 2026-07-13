@@ -87,6 +87,37 @@ export function ichBalkenModell(
   };
 }
 
+/** Ein Segment des kombinierten Auslastungs-Balkens (geometrie + Daten, farbfrei). */
+export interface StapelSegment {
+  /** Stabiler Schlüssel; bestimmt im View die Farbe. */
+  key: 'q3' | 'q2' | 'q1' | 'akt';
+  /** Kurzlabel (Legende/Tooltip). */
+  label: string;
+  /** Segmentbreite in % der Quartalskapazität (auf Gesamt-100 skaliert). */
+  pct: number;
+  /** TVs im Segment (Zahl im Balken). */
+  tvs: number;
+}
+
+/**
+ * Segmente des kombinierten Home-Widget-Balkens, links→rechts nach ALTER:
+ * ältestes (Q-3..Q-7) links → aktuelles Quartal rechts. Breiten = % der
+ * Quartalskapazität; übersteigt die Summe 100 % (inkl. Überbuchung), wird
+ * proportional auf 100 gekappt (der freie Rest = ungefüllter Track rechts).
+ * Farbfrei — das View mappt `key` → Rampe (`altlast-colors`).
+ */
+export function stapelSegmente(m: AuslastungBalkenModell): StapelSegment[] {
+  const roh: StapelSegment[] = [
+    { key: 'q3', label: 'Q-3–7', pct: Math.max(0, m.altlastBandPct[2]), tvs: m.altlastBandTvs[2] },
+    { key: 'q2', label: 'Q-2', pct: Math.max(0, m.altlastBandPct[1]), tvs: m.altlastBandTvs[1] },
+    { key: 'q1', label: 'Q-1', pct: Math.max(0, m.altlastBandPct[0]), tvs: m.altlastBandTvs[0] },
+    { key: 'akt', label: 'Aktuell', pct: Math.max(0, m.belegtPct), tvs: m.belegteTVs },
+  ];
+  const summe = roh.reduce((s, x) => s + x.pct, 0);
+  const scale = summe > 100 ? 100 / summe : 1;
+  return roh.map(x => ({ ...x, pct: x.pct * scale }));
+}
+
 export interface TeamAggregat extends AuslastungBalkenModell {
   /** Aktive MAs mit Belegung > 100 % (nur Anzahl — keine Namen!). */
   ueberMaCount: number;

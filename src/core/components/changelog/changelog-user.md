@@ -22,6 +22,7 @@
 ## v2.240 — 2026-07
 
 ### Verbesserungen
+- **Auslastungs-Widget: ein Balken statt zwei.** Aktuelles Quartal und Altanträge stehen jetzt in einem gemeinsamen Balken, von links nach rechts nach Alter sortiert: links die ältesten offenen Anträge (Q-3 bis 7, dunkelste Farbe), rechts das aktuelle Quartal (hellste Farbe). Das ist kompakter und liest sich als Zeitachse.
 - **Widget-Einstellungen zeigen jetzt beide Spalten.** In Einstellungen › Darstellung ist die Liste der Startseiten-Widgets jetzt in „Hauptspalte" und „Seitenspalte" unterteilt — genau wie die Startseite selbst. So ist auf einen Blick klar, welches Widget in welcher Spalte steht, und die Hoch/Runter-Pfeile sortieren jede Spalte für sich (kein wirkungsloses Verschieben mehr über die Spaltengrenze hinweg).
 
 ## v2.239 — 2026-07

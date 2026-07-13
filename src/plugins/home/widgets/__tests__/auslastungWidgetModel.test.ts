@@ -14,8 +14,10 @@ import type {
 import {
   ermittleSicht,
   ichBalkenModell,
+  stapelSegmente,
   teamAggregat,
   vorherigesQuartal,
+  type AuslastungBalkenModell,
 } from '../auslastungWidgetModel';
 import { WIDGET_KATALOG } from '../widgetCatalog';
 
@@ -111,6 +113,46 @@ describe('teamAggregat', () => {
     expect(agg.gesamtTVs).toBe(50);    // 41 + 9
     expect(agg.ueberMaCount).toBe(2);
     expect(agg.aktivMaCount).toBe(3);
+  });
+});
+
+describe('stapelSegmente (kombinierter Balken)', () => {
+  const modell = (
+    belegtPct: number,
+    band: [number, number, number],
+    bandTvs: [number, number, number],
+    belegteTVs: number,
+  ): AuslastungBalkenModell => ({
+    belegtPct,
+    altlastBandPct: band,
+    altlastBandTvs: bandTvs,
+    belegteTVs,
+    freiTVs: 0,
+    altlastTvs: bandTvs[0] + bandTvs[1] + bandTvs[2],
+    gesamtTVs: 0,
+  });
+
+  it('ordnet ältestes→aktuell (q3,q2,q1,akt) mit TV-Zahlen; Summe ≤ 100 unskaliert', () => {
+    const seg = stapelSegmente(modell(20, [10, 8, 6], [2, 3, 4], 5));
+    expect(seg.map(s => s.key)).toEqual(['q3', 'q2', 'q1', 'akt']);
+    expect(seg[3]!.label).toBe('Aktuell');
+    // q3=bandTvs[2], q2=bandTvs[1], q1=bandTvs[0], akt=belegteTVs
+    expect(seg.map(s => s.tvs)).toEqual([4, 3, 2, 5]);
+    // q3=band[2], q2=band[1], q1=band[0], akt=belegtPct — Summe 44 ≤ 100
+    expect(seg.map(s => s.pct)).toEqual([6, 8, 10, 20]);
+  });
+
+  it('skaliert proportional auf 100, wenn die Summe > 100 (inkl. Altlast)', () => {
+    const seg = stapelSegmente(modell(60, [30, 20, 10], [3, 2, 1], 6));
+    // roh q3=10,q2=20,q1=30,akt=60 → Summe 120 → scale 100/120
+    expect(Math.round(seg.reduce((a, s) => a + s.pct, 0))).toBe(100);
+    expect(seg.map(s => Math.round(s.pct))).toEqual([8, 17, 25, 50]);
+  });
+
+  it('leere Belegung → akt-Segment pct 0 (fällt im View weg)', () => {
+    const seg = stapelSegmente(modell(0, [0, 0, 12], [0, 0, 1], 0));
+    expect(seg.find(s => s.key === 'akt')!.pct).toBe(0);
+    expect(seg.find(s => s.key === 'q3')!.pct).toBe(12); // band[2] = Q-3–7
   });
 });
 

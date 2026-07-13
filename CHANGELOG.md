@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.240.1 — Auslastungs-Widget: ein kombinierter Balken (aktuelles Quartal + Altanträge) (Juli 2026)
+
+PATCH — Das Auslastungs-Widget zeigte zwei getrennte Balken (Belegung des Quartals + Altanträge). Auf Nutzer-Wunsch (Thomas) sind sie jetzt **ein** Balken, links→rechts nach Alter gestaffelt: ganz links die ältesten offenen Anträge (Q-3 bis 7, **dunkelste** Farbe), dann Q-2, dann Q-1, ganz rechts das **aktuelle Quartal** (**hellste** Farbe); der ungefüllte Rest rechts = frei. Die Zahl je Abschnitt (TVs) steht wie bisher im Segment, die Legende führt die vier Stufen (Aktuell · Q-1 · Q-2 · Q-3–7).
+
+- Nur das Home-Widget ändert sich ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx), neuer lokaler `StapelBalken` über die reine Geometrie-Funktion `stapelSegmente` in [auslastungWidgetModel.ts](src/plugins/home/widgets/auslastungWidgetModel.ts)). Die zweigeteilte Cockpit-`GesamtauslastungBar` (MA-Tabelle/-Karte) bleibt unverändert.
+- Die hellste „aktuelles Quartal"-Stufe nutzt die bereits in [theme.css](src/theme.css) definierten Tokens `--tf-altlast-band-akt(-text)` (Light + Dark, in Dark invertiert wie die übrigen Alters-Bänder). Kein Schema-/Datenmodell-Bump.
+
 ### v2.240.0 — Einstellungen: Startseiten-Widgets nach Spalte gruppiert (Juli 2026)
 
 MINOR — Die Widget-Liste in Einstellungen › Darstellung bildete die **zwei Spalten** der Startseite bisher nicht ab: alle Widgets standen in einer flachen Liste, obwohl Haupt- und Seitenspalte je eine **eigene, unabhängige** Reihenfolge haben. Ein Hoch/Runter, das dabei über die Spaltengrenze sprang, war auf der Startseite folgenlos (die Homepage sortiert je Spalte) — verwirrend.

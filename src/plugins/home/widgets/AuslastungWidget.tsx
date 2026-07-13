@@ -4,9 +4,10 @@
  * Read-only: zeigt die Quartals-Belegung + Altanträge, entweder als Ich-Sicht
  * (ein MA) oder als Team-Aggregat (Summen über alle aktiven MAs — nie eine
  * MA-Rangliste). Rechnet den Einzel-MA selbst (Muster NeueAntraegeFuerDich,
- * NICHT den AuslastungIndexProvider auf die Home ziehen); die geteilte
- * `GesamtauslastungBar` rendert beide Balken. Schwere Aggregation nur ausgeklappt
- * (Lazy-Guard `aktiv`).
+ * NICHT den AuslastungIndexProvider auf die Home ziehen). EIN kombinierter
+ * Balken (`StapelBalken`), links→rechts nach Alter: ältestes (Q-3..Q-7, dunkel)
+ * → aktuelles Quartal (hell) rechts — NICHT die zweigeteilte Cockpit-
+ * `GesamtauslastungBar`. Schwere Aggregation nur ausgeklappt (Lazy-Guard `aktiv`).
  */
 import { useEffect, useMemo } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -21,13 +22,19 @@ import {
   computeQuartalsAuslastung,
   computeQuartalsStatistik,
 } from '@/plugins/auslastung/services/kapazitaet';
-import { GesamtauslastungBar } from '@/plugins/auslastung/views/uebersicht/GesamtauslastungBar';
-import { ALTLAST_BAND_COLORS, ALTLAST_BAND_SHORT } from '@/plugins/auslastung/views/uebersicht/altlast-colors';
+import {
+  altlastBandColor,
+  altlastBandTextColor,
+  ALTLAST_AKTUELL_COLOR,
+  ALTLAST_AKTUELL_TEXT_COLOR,
+} from '@/plugins/auslastung/views/uebersicht/altlast-colors';
 import {
   ermittleSicht,
   ichBalkenModell,
+  stapelSegmente,
   teamAggregat,
   type AuslastungBalkenModell,
+  type StapelSegment,
 } from './auslastungWidgetModel';
 import { WidgetShell } from './WidgetShell';
 import type { AuslastungWidgetConfig } from './types';
@@ -113,51 +120,100 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
           Kein Kürzel hinterlegt — lege es im Profil fest oder wähle in den Widget-Einstellungen die Team-Sicht.
         </p>
       ) : (
-        <AuslastungInhalt view={view} quartal={quartal} />
+        <AuslastungInhalt view={view} />
       )}
     </WidgetShell>
   );
 }
 
-function AuslastungInhalt({ view, quartal }: {
-  view: WidgetView; quartal: string;
-}): React.ReactElement {
+// Farbe/Text je Segment-Schlüssel: die Altanträge-Rampe (altlast-colors) plus die
+// hellste „aktuell"-Stufe. Ein Balken, links (ältestes/dunkel) → rechts
+// (aktuelles Quartal/hell).
+const SEG_FARBE: Record<StapelSegment['key'], string> = {
+  q3: altlastBandColor(3),
+  q2: altlastBandColor(2),
+  q1: altlastBandColor(1),
+  akt: ALTLAST_AKTUELL_COLOR,
+};
+const SEG_TEXTFARBE: Record<StapelSegment['key'], string> = {
+  q3: altlastBandTextColor(3),
+  q2: altlastBandTextColor(2),
+  q1: altlastBandTextColor(1),
+  akt: ALTLAST_AKTUELL_TEXT_COLOR,
+};
+// Legende neuestes-zuerst (aktuelles Quartal → Q-3–7), passend zur Nutzer-Sicht.
+const LEGENDE: readonly { key: StapelSegment['key']; label: string }[] = [
+  { key: 'akt', label: 'Aktuell' },
+  { key: 'q1', label: 'Q-1' },
+  { key: 'q2', label: 'Q-2' },
+  { key: 'q3', label: 'Q-3–7' },
+];
+
+function AuslastungInhalt({ view }: { view: WidgetView }): React.ReactElement {
   const m = view.modell!;
+  const ueberbucht = m.belegtPct > 100;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
         <span className="text-[12.5px] text-[var(--tf-text-secondary)]">Belegt im Quartal</span>
         <span className="text-[15px] font-semibold tabular-nums text-[var(--tf-text)]">{m.belegtPct} %</span>
       </div>
-      <GesamtauslastungBar
-        belegtPct={m.belegtPct}
-        altlastBandPct={m.altlastBandPct}
-        freiTVs={m.freiTVs}
-        altlastTvs={m.altlastTvs}
-        altlastBandTvs={m.altlastBandTvs}
-        quartal={quartal}
-        height={13}
-        altlastZahlen
-      />
+      <StapelBalken segmente={stapelSegmente(m)} />
       <p className="text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)]">
-        {m.belegteTVs} von {m.gesamtTVs} TVs · {m.freiTVs} frei
+        {m.belegteTVs} von {m.gesamtTVs} TVs · {ueberbucht ? 'überbucht' : `${m.freiTVs} frei`}
+        {m.altlastTvs > 0 ? ` · ${m.altlastTvs} TVs Altanträge` : ''}
         {view.sicht === 'team' && view.ueberMaCount !== undefined && view.aktivMaCount !== undefined
           ? ` · ${view.ueberMaCount} von ${view.aktivMaCount} MAs über 100 %`
           : ''}
       </p>
-      {m.altlastTvs > 0 ? (
-        // Die TVs je Band stehen jetzt IM Balken (altlastZahlen) — hier nur noch
-        // die Farb-Legende + Gesamtsumme, keine doppelten Zahlen.
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
-          <span className="text-[var(--tf-text-secondary)]">Altanträge: {m.altlastTvs} TVs</span>
-          {ALTLAST_BAND_SHORT.map((label, i) => (
-            <span key={label} className="inline-flex items-center gap-1">
-              <span className="w-2 h-2 rounded-[2px]" style={{ background: ALTLAST_BAND_COLORS[i] }} aria-hidden />
-              {label}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--tf-text-tertiary)]">
+        {LEGENDE.map(({ key, label }) => (
+          <span key={key} className="inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-[2px]" style={{ background: SEG_FARBE[key] }} aria-hidden />
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Kombinierter Auslastungs-Balken (nur Home-Widget): EIN pill-geclippter Track,
+ * Segmente links→rechts nach Alter — ältestes (Q-3..Q-7, dunkel) links, aktuelles
+ * Quartal (hell) rechts; der ungefüllte Rest rechts = frei. Zahl je Segment nur,
+ * wenn es breit genug ist. file://-kompatibler `title`-Tooltip je Segment.
+ */
+function StapelBalken({ segmente }: { segmente: StapelSegment[] }): React.ReactElement {
+  let offset = 0;
+  return (
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ height: 13, background: 'var(--tf-bg-secondary)', borderRadius: 'var(--tf-radius-pill)' }}
+    >
+      {segmente.map(s => {
+        if (s.pct <= 0) return null;
+        const left = offset;
+        offset += s.pct;
+        const zeigeZahl = s.tvs > 0 && s.pct >= 9;
+        return (
+          <div
+            key={s.key}
+            className="absolute top-0 bottom-0 flex items-center justify-center overflow-hidden"
+            style={{ left: `${left}%`, width: `${s.pct}%`, background: SEG_FARBE[s.key] }}
+            title={`${s.label}: ${s.tvs} ${s.tvs === 1 ? 'TV' : 'TVs'}`}
+          >
+            {zeigeZahl && (
+              <span
+                className="font-mono"
+                style={{ fontSize: 9.5, lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: SEG_TEXTFARBE[s.key] }}
+              >
+                {s.tvs}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

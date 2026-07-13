@@ -26,6 +26,16 @@ export const ALTLAST_BAND_TEXT_COLORS: readonly [string, string, string] = [
   'var(--tf-altlast-band-3-text, hsl(215, 32%, 20%))',
 ];
 
+/**
+ * Farbe des „aktuelles Quartal"-Segments (die heutige Belegung) — die HELLSTE
+ * Stufe der Rampe (Light) bzw. die dunkelste (Dark-Inversion, wie die Bänder),
+ * noch eine Stufe jenseits von Band 1 (Q-1). Nur der kombinierte Home-Widget-
+ * Balken (aktuelles Quartal + Altanträge in EINEM Balken) nutzt sie; die
+ * Cockpit-Balken bleiben zweigeteilt und rühren sie nicht an.
+ */
+export const ALTLAST_AKTUELL_COLOR = 'var(--tf-altlast-band-akt, hsl(215, 10%, 90%))';
+export const ALTLAST_AKTUELL_TEXT_COLOR = 'var(--tf-altlast-band-akt-text, hsl(215, 20%, 32%))';
+
 export const ALTLAST_BAND_LABELS: readonly [string, string, string] = [
   'letztes Quartal',
   'vorletztes Quartal',
