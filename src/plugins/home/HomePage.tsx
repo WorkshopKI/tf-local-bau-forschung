@@ -12,7 +12,6 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { HomeZweiSpalten } from './HomeZweiSpalten';
-import { NeueAntraegeFuerDich } from './NeueAntraegeFuerDich';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { useEingangAmpelCounts } from './useEingangAmpelCounts';
 import { formatHomeSubtitle } from './homeSubtitle';
@@ -20,7 +19,7 @@ import { HomeWidgetStack } from './widgets/HomeWidgetStack';
 import { ampelSchwellenAusConfig } from './widgets/homeWidgetsStore';
 import { useHomeWidgetsStore } from './widgets/useHomeWidgets';
 import type { HomeWidgetContext } from './widgets/widgetProps';
-import { isDataShareEnabled, isAuslastungSelbstEintragungEnabled, isEndUserProdVariant } from '@/config/feature-flags';
+import { isDataShareEnabled, isEndUserProdVariant } from '@/config/feature-flags';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -206,21 +205,13 @@ export function HomePage(): React.ReactElement {
           persönlichen Config (Reihenfolge/Sichtbarkeit/Collapse). Der ziehbare
           Trenn-Griff (HomeZweiSpalten) verbreitert die Hauptspalte für den
           Kanban. Die Sonderfälle (Begrüßung, Alert, ProgrammeOverviewCards,
-          NeueAntraegeFuerDich, Early-Returns/Tour) bleiben bewusst KEINE
-          Widgets. */}
+          Early-Returns/Tour) bleiben bewusst KEINE Widgets. „Neue Anträge für
+          dich" (MA-Selbsteintragung) ist seit v2.238 ein echtes Katalog-Widget
+          (flag-gebunden über sichtbarWenn) und wird vom haupt-Stack gerendert. */}
       <HomeZweiSpalten
         main={
           <div data-tour="document-list" className="min-w-0">
-            <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-6 mb-6" />
-
-            {/* "Neue Antraege fuer dich" — Selbsteintragung aus Auslastung
-                (1.17 ersetzt den frueheren Tab "Selbsteintragung"). Nur sichtbar
-                wenn features.auslastung aktiv ist und der User Foerderantraege
-                im Profil hat. KEIN Widget: keine Kopplung an Weitermachen
-                (eigene Auslastungs-Domäne), bleibt flag-gebunden verdrahtet. */}
-            {isAuslastungSelbstEintragungEnabled() && (
-              <NeueAntraegeFuerDich />
-            )}
+            <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-6" />
           </div>
         }
         seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-4" />}

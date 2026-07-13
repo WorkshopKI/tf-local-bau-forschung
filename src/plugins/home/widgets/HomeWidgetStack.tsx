@@ -7,6 +7,7 @@
 import { AiAssistentWidget } from '../AiAssistantCard';
 import { AntragseingangWidget } from '../EingangAmpelCard';
 import { MeineAntraegeWidget } from '../MeineAntraegeSection';
+import { NeueAntraegeWidget } from '../NeueAntraegeFuerDich';
 import { WeitermachenWidget } from '../WeitermachenSection';
 import { KanbanWidget } from './KanbanWidget';
 import { NotizenWidget } from './NotizenWidget';
@@ -31,6 +32,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   auslastung: AuslastungWidget,
   'qs-freigaben': QsFreigabenWidget,
   'registry-aenderungen': RegistryAenderungenWidget,
+  'neue-antraege': NeueAntraegeWidget,
 };
 
 interface Props {

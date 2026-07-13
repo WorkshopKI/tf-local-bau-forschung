@@ -13,12 +13,18 @@ import {
   ClipboardCheck,
   Columns3,
   Gauge,
+  Inbox,
   ListChecks,
   Megaphone,
   Play,
   StickyNote,
 } from 'lucide-react';
-import { isAuslastungEnabled, isFeedbackEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
+import {
+  isAuslastungEnabled,
+  isAuslastungSelbstEintragungEnabled,
+  isFeedbackEnabled,
+  isKuratorMenusEnabled,
+} from '@/config/feature-flags';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
 
@@ -146,6 +152,18 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     hinweisBadge: 'Nur Kurator',
     sichtbarWenn: () => isKuratorMenusEnabled(),
     defaultConfig: () => ({ art: 'registry-aenderungen', maxEintraege: 3 }),
+  },
+  'neue-antraege': {
+    typ: 'neue-antraege',
+    label: 'Neue Anträge für dich',
+    icon: Inbox,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // Flag-gebunden wie die frühere hart verdrahtete Home-Sektion (MA-
+    // Selbsteintragung aus der Auslastung); die Komponente versteckt sich
+    // zusätzlich selbst, wenn keine passenden Anträge offen sind.
+    sichtbarWenn: () => isAuslastungSelbstEintragungEnabled(),
+    defaultConfig: KEINE,
   },
 };
 

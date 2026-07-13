@@ -22,9 +22,13 @@ export interface HomeWidgetConfig {
 }
 
 /**
- * Abschließende Typ-Liste v1. `qs-freigaben` / `feedback-news` /
- * `registry-aenderungen` sind im Katalog angelegt, aber `verfuegbar: false`
- * (Folge-Pakete v1.1/v1.2) — sie erscheinen nur ausgegraut in den Einstellungen.
+ * Abschließende Typ-Liste. Alle Typen sind im Katalog `verfuegbar: true`; die
+ * Homepage-Sichtbarkeit steuert je Instanz `sichtbar` + katalogseitig
+ * `sichtbarWenn()` (Flags). Die v1.1-Widgets (`qs-freigaben`, `feedback-news`,
+ * `auslastung`, `registry-aenderungen`, `neue-antraege`) sind Opt-in — sie
+ * stehen NICHT im Default, sondern werden per `reconcileVerfuegbareWidgets`
+ * als `sichtbar: false` nachgezogen. `neue-antraege` = MA-Selbsteintragung
+ * (ehem. eigene Home-Sektion, flag-gebunden via `sichtbarWenn`).
  */
 export type WidgetTyp =
   | 'weitermachen'
@@ -36,7 +40,8 @@ export type WidgetTyp =
   | 'feedback-news'
   | 'auslastung'
   | 'qs-freigaben'
-  | 'registry-aenderungen';
+  | 'registry-aenderungen'
+  | 'neue-antraege';
 
 export interface WidgetInstanz {
   /** Instanz-ID — mehrere Instanzen desselben Typs sind möglich (z.B. 2 Kanbans). */
@@ -163,7 +168,8 @@ export type WidgetSpezifischeConfig =
  * EINZIGE Wahrheit: Hat dieses Widget ein Detail-Formular? Nur Typen mit echten
  * Reglern — Kanban (Lanes/Farbe/Quelle) und Ampel (Schwellen). Alle anderen
  * (Weitermachen, Meine Anträge, AI-Assistent, Notizen, Feedback-Neuigkeiten,
- * Auslastung, QS-Freigaben, Registry-Änderungen) haben keine Einstellungen.
+ * Auslastung, QS-Freigaben, Registry-Änderungen, Neue Anträge für dich) haben
+ * keine Einstellungen.
  *
  * Steuert BEIDES aus einer Quelle: den Stift im Widget-Kopf (WidgetShell — kein
  * Stift ohne Einstellungen) und die aufklappbare Zeile in den Einstellungen

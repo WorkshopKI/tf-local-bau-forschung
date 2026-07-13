@@ -1,5 +1,6 @@
 /**
- * NeueAntraegeFuerDich — Homepage-Sektion fuer MA-Selbsteintragung (1.17).
+ * NeueAntraegeWidget — Homepage-Widget fuer MA-Selbsteintragung (1.17; seit
+ * v2.238 echtes Katalog-Widget statt hart verdrahteter Sonder-Sektion).
  *
  * Loest den eigenen Tab "Selbsteintragung" im Auslastungs-Modul ab.
  * MAs sehen offene Antraege ihrer **Hauptkategorie** direkt auf der Home-
@@ -21,10 +22,8 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
@@ -45,11 +44,13 @@ import {
 } from './neueAntraegeVerbund';
 import { NeueAntraegeVerbundRow } from './NeueAntraegeVerbundRow';
 import { useWeitereAntraege } from './useWeitereAntraege';
+import { WidgetShell } from './widgets/WidgetShell';
+import type { WidgetProps } from './widgets/widgetProps';
 
 /** Stabile leere Menge — vermeidet Render-Churn beim Hook-Param/Deps. */
 const EMPTY_AKTENZEICHEN: ReadonlySet<string> = new Set();
 
-export function NeueAntraegeFuerDich(): React.ReactElement | null {
+export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement | null {
   const storage = useStorage();
   const config = useAuslastungData(s => s.data.config);
   const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
@@ -65,7 +66,8 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const [visibleCount, setVisibleCount] = useState(5);
   // Eigenes Fenster für den Tier-2-Block „Weitere Anträge".
   const [weitereVisibleCount, setWeitereVisibleCount] = useState(5);
-  const [open, toggleOpen] = useCollapsedSection('home_neue_antraege_collapsed');
+  // Collapse liegt seit v2.238 in der Widget-Config (Shell), nicht mehr in
+  // useCollapsedSection — eine Quelle, wie bei allen anderen Widgets.
 
   // Idempotent: triggert Initial-Load auch wenn der User noch nie im
   // Auslastungs-Tab war. Store ignoriert Doppel-Aufrufe via loading-Lock.
@@ -267,12 +269,17 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   if (!myAnonId) return null;  // User hat kein Kuerzel oder nicht im Auslastungs-Modul
   if (!myHauptKategorie) {
     return (
-      <div className="mb-6">
-        <SectionHeader label="Neue Anträge für dich" />
+      <WidgetShell
+        titel="Neue Anträge für dich"
+        variante="haupt"
+        eingeklappt={instanz.eingeklappt}
+        onToggleEingeklappt={onToggleEingeklappt}
+        instanz={instanz}
+      >
         <div className="rounded-[var(--tf-radius)] p-4 bg-[var(--tf-bg-secondary)] text-[12.5px] text-[var(--tf-text-secondary)]">
           Lege deine Hauptkategorie im Profil fest, damit hier passende Anträge erscheinen.
         </div>
-      </div>
+      </WidgetShell>
     );
   }
   // Nichts in der Hauptkategorie offen/vorgemerkt UND kein Neben-Block →
@@ -287,32 +294,28 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
   const nextChunk = Math.min(10, remaining);
 
   return (
-    <div className="mb-6" data-auslastung="neue-antraege">
-      <SectionHeader
-        label="Neue Anträge für dich"
-        collapsible
-        collapsed={!open}
-        onToggleCollapsed={toggleOpen}
-        action={
-          neueAnzahl > 0 ? (
-            <span
-              className="text-[10.5px] font-medium px-1.5 py-0.5 rounded"
-              style={{
-                background: 'var(--tf-primary-soft, var(--tf-bg-secondary))',
-                color: 'var(--tf-primary)',
-              }}
-              title={`${neueAnzahl} neu seit deinem letzten Besuch`}
-            >
-              {neueAnzahl} neu
-            </span>
-          ) : undefined
-        }
-      />
-      <div
-        className="grid transition-[grid-template-rows] ease-out"
-        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: 'var(--tf-duration-med)' }}
-      >
-        <div className="overflow-hidden">
+    <WidgetShell
+      titel="Neue Anträge für dich"
+      variante="haupt"
+      eingeklappt={instanz.eingeklappt}
+      onToggleEingeklappt={onToggleEingeklappt}
+      instanz={instanz}
+      zaehler={
+        neueAnzahl > 0 ? (
+          <span
+            className="text-[10.5px] font-medium px-1.5 py-0.5 rounded"
+            style={{
+              background: 'var(--tf-primary-soft, var(--tf-bg-secondary))',
+              color: 'var(--tf-primary)',
+            }}
+            title={`${neueAnzahl} neu seit deinem letzten Besuch`}
+          >
+            {neueAnzahl} neu
+          </span>
+        ) : undefined
+      }
+    >
+      <div data-auslastung="neue-antraege">
       <div className="flex flex-col gap-2">
         {visible.map(v => (
           <NeueAntraegeVerbundRow
@@ -433,9 +436,8 @@ export function NeueAntraegeFuerDich(): React.ReactElement | null {
           Fehler: {wuenscheError}
         </div>
       )}
-        </div>
       </div>
-    </div>
+    </WidgetShell>
   );
 }
 

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.238.0 — Startseite: „Neue Anträge für dich" ist jetzt ein Widget (Juli 2026)
+
+MINOR — Die bisher hart verdrahtete Home-Sektion „Neue Anträge für dich" (MA-Selbsteintragung aus der Auslastung) ist jetzt ein vollwertiges Katalog-Widget: gleicher Karten-Look wie die übrigen Widgets (Rahmen, Ein-/Ausklappen, „N neu"-Zähler im Kopf) und in Einstellungen › Widgets an-/ausschaltbar + verschiebbar. Additiv/lokal, kein Schema-/Flag-Bump.
+
+- **Konsistente Karte:** Die Sektion nutzt jetzt dieselbe `WidgetShell` wie alle anderen Widgets ([NeueAntraegeFuerDich.tsx](src/plugins/home/NeueAntraegeFuerDich.tsx), Export `NeueAntraegeWidget`); der Collapse-Zustand lebt in der Widget-Config statt in einem eigenen localStorage-Schlüssel, der „N neu"-Hinweis sitzt im Zähler-Slot des Kopfes. Das Selbsteintragungs-Verhalten (self-hide ohne passende Anträge, „Kann ich übernehmen" → persönlicher Ordner, Pitfall #26) bleibt unverändert.
+- **Katalog-Anbindung:** Neuer `WidgetTyp 'neue-antraege'` ([types.ts](src/plugins/home/widgets/types.ts)), Katalog-Eintrag `bereich: 'haupt'` + `sichtbarWenn: isAuslastungSelbstEintragungEnabled` ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts)), Renderer im [HomeWidgetStack.tsx](src/plugins/home/widgets/HomeWidgetStack.tsx). Kein Detail-Formular (keine Regler) → kein Stift; die hart verdrahtete Sektion + ihr `isAuslastungSelbstEintragungEnabled`-Gate in [HomePage.tsx](src/plugins/home/HomePage.tsx) entfallen.
+- **Opt-in wie die übrigen v1.1-Widgets:** Das Widget steht nicht im Default, sondern wird per `reconcileVerfuegbareWidgets` als `sichtbar: false` nachgezogen. **Migrationshinweis:** Bestehende Nutzer sehen die Sektion nach dem Update zunächst nicht mehr auf der Startseite — einmal in Einstellungen › Widgets auf „Sichtbar" schalten (bewusst so; die App wird aktuell nur im kleinen Beta-Kreis genutzt).
+
 ### v2.237.2 — Startseite: Widget-Karten vertikal kompakter (Juli 2026)
 
 PATCH — Die Home-Widget-Karten hatten oben/unten etwas zu viel Luft. Das vertikale Innen-Padding im gemeinsamen [WidgetShell](src/plugins/home/widgets/WidgetShell.tsx) wurde moderat gestrafft — Haupt-Karten (Kopf `py-3 → py-2.5`, Body `pb-4 → pb-3`) wie Seiten-Karten (Kopf `pt-16 → pt-12`, Body `pt-12 → pt-10` / `pb-16 → pb-12`, eingeklappt-Abstand `pb-3 → pb-2.5`). Wirkt einheitlich auf alle Widgets (auch die AI-Assistent-Karte, die dieselbe Shell nutzt); horizontale Ränder + Inhalte unverändert. Reiner Style-Feinschliff, keine Logikänderung.

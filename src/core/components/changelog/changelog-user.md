@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.238 — 2026-07
+
+### Verbesserungen
+- **„Neue Anträge für dich" ist jetzt ein Widget.** Der Bereich mit passenden offenen Anträgen zum Selbst-Übernehmen sieht jetzt aus wie die anderen Startseiten-Karten (Rahmen, Ein-/Ausklappen) und lässt sich in Einstellungen › Widgets ein-/ausblenden und verschieben. Hinweis: Nach diesem Update ist er zunächst ausgeblendet — einmal in den Einstellungen auf „Sichtbar" stellen, dann ist er wieder da.
+
 ## v2.237 — 2026-07
 
 ### Verbesserungen
