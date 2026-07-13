@@ -34,6 +34,7 @@ import {
 } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
+import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { buildStammdaten, buildSkillMap, type SkillCtx } from './skill-context';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import type { DocumentFull } from '@/plugins/dokumente/store';
@@ -139,6 +140,9 @@ export interface GutachtenWorkflowController {
 export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflowController {
   const storage = useStorage();
   const bridge = useAIBridge();
+  // Live-Verbindungsstatus der internen KI (Heartbeat-Store, treibt auch „● KI"-Anzeige):
+  // Übergang → 'connected' triggert unten eine erneute Erreichbarkeits-Probe.
+  const bridgeStatus = useBridgeStatus(s => s.status);
   const meinKuerzel = useMeinKuerzel();
   const key = ctx.key;
 
@@ -215,18 +219,36 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       setRun(r);
       setVb(vbRes);
       setLoading(false);
-      // LLM-Probe nur, wenn Generierung relevant ist (VB da, aktiver Schritt nicht freigegeben).
-      // PASSIV (`openIfNeeded: false`): öffnet beim Mount keinen KI-Tab (sonst poppt das
-      // Öffnen der Verbund-Detailseite ungefragt die Bridge auf, Bug). Pingt nur ein
-      // bereits offenes Bridge-Fenster; sonst false (= Button disabled), wie der bisherige Timeout.
-      if (vbRes && r.schritte[r.aktiverSchritt]?.status !== 'freigegeben') {
-        try { if (!cancelled) setLlmAvailable(await bridge.getActiveTransport().ping({ openIfNeeded: false })); }
-        catch { if (!cancelled) setLlmAvailable(false); }
-      }
+      // Die Erreichbarkeits-Probe der internen KI läuft in einem eigenen Effekt (unten),
+      // damit sie nicht nur einmal beim Mount, sondern auch bei jedem Schrittwechsel greift.
     })();
     return () => { cancelled = true; };
     // testWorkflowId in den Deps: Wechsel lädt Run/Steps/SkillMap des gewählten Workflows neu.
-  }, [key, storage.idb, bridge, testWorkflowId, erlaubeEntwuerfe]);
+  }, [key, storage.idb, testWorkflowId, erlaubeEntwuerfe]);
+
+  // Erreichbarkeit der internen KI (neu) proben. War die KI zwischenzeitlich getrennt
+  // und ist wieder verbunden, muss der nächste Schritt generierbar sein — sonst bliebe
+  // `llmAvailable` auf einem veralteten `false` stehen und „KI nicht erreichbar" bliebe
+  // trotz bestehender Verbindung sichtbar (Bug). Trigger:
+  //  • initial, sobald die VB geladen ist,
+  //  • Wechsel des aktiven Abschnitts (der vom Nutzer genannte „nächste Workflow-Schritt"),
+  //  • Reconnect der Bridge (`bridgeStatus` → 'connected', auch ohne Schrittwechsel),
+  //  • Ende einer Generierung (`busy` → false, u.a. nach Abbruch durch Trennung).
+  // PASSIV (`openIfNeeded: false`): kein ungefragter KI-Tab, pingt nur ein bereits offenes
+  // Bridge-Fenster. Nicht während einer Generierung (single-window-Bridge, Pitfall #36) und
+  // nicht bei bereits freigegebenem aktivem Schritt (dort ist Generierung nicht relevant).
+  const vbVorhanden = vb != null;
+  useEffect(() => {
+    if (busy || !vbVorhanden || run?.schritte[aktiverSchritt]?.status === 'freigegeben') return undefined;
+    let cancelled = false;
+    (async () => {
+      try { const ok = await bridge.getActiveTransport().ping({ openIfNeeded: false }); if (!cancelled) setLlmAvailable(ok); }
+      catch { if (!cancelled) setLlmAvailable(false); }
+    })();
+    return () => { cancelled = true; };
+    // `run` bewusst NICHT in den Deps (sonst Re-Probe nach jedem persist/Bearbeiten) — beim
+    // Schrittwechsel ist es im Closure ohnehin frisch (aktiverSchritt leitet sich daraus ab).
+  }, [aktiverSchritt, vbVorhanden, bridgeStatus, busy, bridge]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tweak des AKTIVEN Skills laden (wechselt mit dem aktiven Schritt).
   useEffect(() => {

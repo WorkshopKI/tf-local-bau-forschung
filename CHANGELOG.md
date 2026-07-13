@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.3 — Gutachten-Werkstatt: KI-Erreichbarkeit beim Schrittwechsel neu prüfen (Juli 2026)
+
+PATCH — War die interne KI zwischenzeitlich getrennt und dann wieder verbunden, blieb beim nächsten Abschnitt der Generieren-Button gesperrt und „KI nicht erreichbar — Generierung derzeit nicht möglich." stehen — obwohl der Verbindungsstatus schon wieder „Verbunden" zeigte. Ursache ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): Die Erreichbarkeit (`llmAvailable`) wurde **nur einmal beim Mount** passiv geprobt; `refreshVb` prüfte nur nach, solange der Wert noch `null` war — ein einmal gesetztes `false` erholte sich nie.
+
+- Die Probe läuft jetzt in einem eigenen Effekt und greift erneut bei: **Wechsel des aktiven Abschnitts** (der vom Nutzer genannte „nächste Workflow-Schritt"), **Reconnect der Bridge** (`bridgeStatus` → verbunden, über den bestehenden Heartbeat-Store [bridge-status.ts](src/core/services/ai/bridge-status.ts) — erholt sich also auch **ohne** Navigieren, sobald „● KI" wieder grün ist) und **Ende einer Generierung** (u. a. nach Abbruch durch Trennung).
+- Weiterhin **passiv** (`openIfNeeded: false`): kein ungefragtes Öffnen des KI-Tabs beim Navigieren, es wird nur ein bereits offenes Bridge-Fenster gepingt. Nicht während einer laufenden Generierung (single-window-Bridge, Pitfall #36) und nicht bei bereits freigegebenem Abschnitt. Die einmalige Mount-Probe entfällt (der neue Effekt deckt den Initialfall mit ab). Kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.2 — „Thinking"-Schalter auch aus dem Alt-Kurzfassung-Pfad (Juli 2026)
 
 PATCH — Folge-Aufräumen zu v2.241.1: Der `ThinkingControl`-Toggle war noch im **alten** Kurzfassung-Pfad ([ReviewCard.tsx](src/plugins/antraege/kurzfassung/ReviewCard.tsx) Anpassen-Zeile + [KurzfassungSection.tsx](src/plugins/antraege/kurzfassung/KurzfassungSection.tsx) Generieren-Panel) vorhanden. Dieser Pfad rendert nur bei `gutachtenWorkflow: false` (also in keinem Build mit aktiver Gutachten-Funktion — dev/pl/as haben den A–G-Workflow), war aber der Vollständigkeit halber auf Nutzer-Wunsch (Thomas) noch zu bereinigen.
