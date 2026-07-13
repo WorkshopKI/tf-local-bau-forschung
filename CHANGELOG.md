@@ -5,11 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.241.2 — „Thinking"-Schalter auch aus dem Alt-Kurzfassung-Pfad (Juli 2026)
+
+PATCH — Folge-Aufräumen zu v2.241.1: Der `ThinkingControl`-Toggle war noch im **alten** Kurzfassung-Pfad ([ReviewCard.tsx](src/plugins/antraege/kurzfassung/ReviewCard.tsx) Anpassen-Zeile + [KurzfassungSection.tsx](src/plugins/antraege/kurzfassung/KurzfassungSection.tsx) Generieren-Panel) vorhanden. Dieser Pfad rendert nur bei `gutachtenWorkflow: false` (also in keinem Build mit aktiver Gutachten-Funktion — dev/pl/as haben den A–G-Workflow), war aber der Vollständigkeit halber auf Nutzer-Wunsch (Thomas) noch zu bereinigen.
+
+- Toggle + jetzt ungenutzte `thinkingBudget`/`onSetThinkingBudget`-Props aus `ReviewCard`/`KurzfassungSection` entfernt (analog v2.241.1); die Generierung liest das Budget weiter aus der globalen Einstellung ([useKurzfassung.ts](src/plugins/antraege/kurzfassung/useKurzfassung.ts) unverändert).
+- Die `ThinkingControl`-Komponente hat damit keinen Aufrufer mehr und ist gelöscht (`kurzfassung/ThinkingControl.tsx`). Kein Schema-/Datenmodell-/Flag-Bump.
+
 ### v2.241.1 — Gutachten-Werkstatt: „Thinking"-Schalter raus, „Kopieren" rein (Juli 2026)
 
 PATCH — Zwei kleine UI-Anpassungen am Abschnitts-Review der Gutachten-Werkstatt (dev-Flag, [SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx) + [GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)):
 
-- **„Thinking"-Schalter entfernt.** Der Toggle neben Neu/Kürzer/Länger (und im „…generieren"-Panel vor dem ersten Entwurf) hatte über die aktuell genutzte, Streamlit-basierte interne KI keine Wirkung — das Reasoning-Budget ist dort nicht per Request steuerbar. Der Schalter ist raus (samt jetzt ungenutzter `thinkingBudget`/`onSetThinkingBudget`-Props). Der `ThinkingControl`-Baustein selbst bleibt bestehen (noch von der Alt-Kurzfassung genutzt); das Budget speist die Generierung weiterhin aus der globalen KI-Assistent-Einstellung ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) unverändert), nur der Pro-Lauf-Übersteuerungs-Knopf entfällt.
+- **„Thinking"-Schalter entfernt.** Der Toggle neben Neu/Kürzer/Länger (und im „…generieren"-Panel vor dem ersten Entwurf) hatte über die aktuell genutzte, Streamlit-basierte interne KI keine Wirkung — das Reasoning-Budget ist dort nicht per Request steuerbar. Der Schalter ist raus (samt jetzt ungenutzter `thinkingBudget`/`onSetThinkingBudget`-Props). Der `ThinkingControl`-Baustein blieb zunächst noch für die Alt-Kurzfassung bestehen (in v2.241.2 ebenfalls entfernt); das Budget speist die Generierung weiterhin aus der globalen KI-Assistent-Einstellung ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) unverändert), nur der Pro-Lauf-Übersteuerungs-Knopf entfällt.
 - **„Kopieren"-Icon ergänzt.** In der Aktionsleiste (Entwurf **und** freigegeben) kopiert ein Copy-Icon den Abschnitts-Text in die Zwischenablage — kopiert wird der kanonische `finalerText` (ohne Teil-Badge), rein lokal über `navigator.clipboard.writeText` (kein Netz/Transport). Kurzes Häkchen-Feedback wie beim Chat-`CopyButton`.
 
 Kein Schema-/Datenmodell-/Flag-Bump; nur Anzeige/lokale Aktion.

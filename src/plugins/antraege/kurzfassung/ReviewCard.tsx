@@ -9,10 +9,8 @@ import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
-import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { CheckList } from './CheckList';
 import { VersionVerlauf } from './VersionVerlauf';
-import { ThinkingControl } from './ThinkingControl';
 import { StreamingVorschau } from './StreamingVorschau';
 import { formatDate } from './kurzfassung-verlauf';
 import type { KurzfassungRecord } from './types';
@@ -30,9 +28,6 @@ interface Props {
   onUebernehmen: (index: number) => void;
   /** Öffnet den Tweak-Editor (User-Tweaks v2) — Einstieg in der Aktionsleiste. */
   onOpenTweak: () => void;
-  /** Thinking-/Reasoning-Budget für die nächste Generierung (Default aus der Einstellung, hier übersteuerbar). */
-  thinkingBudget: ThinkingBudget;
-  onSetThinkingBudget: (budget: ThinkingBudget) => void;
   /** Live-Streaming-Vorschau während `busy`. */
   streamContent: string;
   streamThinking: string;
@@ -41,7 +36,7 @@ interface Props {
 const TWEAK_LINK = 'inline-flex items-center gap-1 text-[12.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]';
 
 export function ReviewCard({
-  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak, thinkingBudget, onSetThinkingBudget, streamContent, streamThinking,
+  record, busy, llmAvailable, onModify, onPruefen, onFreigeben, onVerwerfen, onStop, onCreateVorlage, onUebernehmen, onOpenTweak, streamContent, streamThinking,
 }: Props): React.ReactElement {
   const freigegeben = record.status === 'freigegeben';
   const satzanzahl = splitSentences(record.finalerText).length;
@@ -138,7 +133,6 @@ export function ReviewCard({
               <Button variant="secondary" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</Button>
               <Button variant="secondary" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</Button>
               <Button variant="secondary" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</Button>
-              <ThinkingControl budget={thinkingBudget} onChange={onSetThinkingBudget} disabled={busy} />
               <Button variant="secondary" onClick={onPruefen}>Prüfen</Button>
               <span className="flex-1" />
               <button type="button" className={TWEAK_LINK} onClick={onOpenTweak}>

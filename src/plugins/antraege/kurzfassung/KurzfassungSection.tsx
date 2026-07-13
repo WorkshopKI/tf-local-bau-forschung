@@ -22,7 +22,6 @@ import { ANKER_EP } from '@/core/services/gutachten-vorlagen';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
 import { ReviewCard } from './ReviewCard';
-import { ThinkingControl } from './ThinkingControl';
 import { StreamingVorschau } from './StreamingVorschau';
 import { TweakEditor } from './TweakEditor';
 import { VorlageDialog } from './VorlageDialog';
@@ -133,8 +132,6 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
             onCreateVorlage={() => setDialogOpen(true)}
             onUebernehmen={ctrl.uebernehmen}
             onOpenTweak={() => setTweakOpen(true)}
-            thinkingBudget={ctrl.thinkingBudget}
-            onSetThinkingBudget={ctrl.setThinkingBudget}
             streamContent={ctrl.streamContent}
             streamThinking={ctrl.streamThinking}
           />
@@ -204,7 +201,6 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
                   >
                     Kurzfassung erstellen
                   </Button>
-                  <ThinkingControl budget={ctrl.thinkingBudget} onChange={ctrl.setThinkingBudget} disabled={ctrl.busy} />
                 </div>
                 {ctrl.llmAvailable === false && (
                   <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">
