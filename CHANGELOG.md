@@ -5,6 +5,10 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.237.1 — Antragseingang-Widget: Kopf-Pills nicht doppelt (Juli 2026)
+
+PATCH — Das Antragseingang-Widget zeigte die drei Zähler-Pills (● Frisch / ● Warnung / ● Kritisch) auch **ausgeklappt** im Kopf — dort stehen dieselben Zahlen aber direkt darunter als Zeilen. Die Kopf-Pills erscheinen jetzt **nur noch eingeklappt** (wo sie die einzige sichtbare Anzeige sind); ausgeklappt tragen die Zeilen die Zahlen ([EingangAmpelCard.tsx](src/plugins/home/EingangAmpelCard.tsx)). Reiner Anzeige-Feinschliff, keine Logikänderung.
+
 ### v2.237.0 — Startseite: Stift nur bei konfigurierbaren Widgets + ziehbare Spaltenbreite (Juli 2026)
 
 MINOR — Drei Feinschliffe an den Home-Widgets aus Nutzer-Feedback. Additiv/lokal, kein Schema-/Flag-Bump.

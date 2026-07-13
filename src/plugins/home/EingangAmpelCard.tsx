@@ -60,6 +60,13 @@ export function AntragseingangWidget({ instanz, onToggleEingeklappt }: WidgetPro
   const angepasst = schwellen.warnschwelleTage !== AMPEL_SCHWELLEN_DEFAULT.warnschwelleTage
     || schwellen.kritischSchwelleTage !== AMPEL_SCHWELLEN_DEFAULT.kritischSchwelleTage;
 
+  // Zähler-Pills NUR eingeklappt — ausgeklappt stehen dieselben drei Zahlen als
+  // Zeilen (Frisch/Warnung/Kritisch) direkt darunter, die Kopf-Pills wären
+  // doppelt. Eingeklappt sind sie die einzige sichtbare Anzeige.
+  const zaehlerPills = instanz.eingeklappt
+    ? <AmpelZaehlerPills counts={counts} schwellen={schwellen} />
+    : undefined;
+
   return (
     <WidgetShell
       titel="Antragseingang"
@@ -68,7 +75,7 @@ export function AntragseingangWidget({ instanz, onToggleEingeklappt }: WidgetPro
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
       instanz={instanz}
-      zaehler={<AmpelZaehlerPills counts={counts} schwellen={schwellen} />}
+      zaehler={zaehlerPills}
     >
       <div className="flex flex-col gap-0.5">
         <AmpelRow
