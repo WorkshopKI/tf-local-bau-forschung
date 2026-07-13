@@ -38,20 +38,29 @@ function tvRolle(tv: Antrag, idx: number, sorted: Antrag[]): string {
 
 interface Props {
   tvs: Antrag[];
+  /** Verbund-Titel (Kopfzeile). TV-Titel, die ihn nur wiederholen, werden
+   *  in der Zeile unterdrückt. */
+  verbundTitel: string | null;
   expandedTvAz: string | null;
   onToggle: (aktenzeichen: string) => void;
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
-export function TeilvorhabenListe({ tvs, expandedTvAz, onToggle, onOpenAntrag }: Props): React.ReactElement {
+export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, onOpenAntrag }: Props): React.ReactElement {
   return (
     <div className="flex flex-col gap-1.5">
       {tvs.map((tv, idx) => {
         const tvAntragsteller = strOrNull(tv.antragsteller) ?? '—';
         // TV-Titel = was dieser Partner im Verbund macht. Prominent unter dem
-        // Antragsteller; nur unterdrückt, wenn er (rein) den Namen dupliziert.
+        // Antragsteller; unterdrückt, wenn er (normalisiert) nur den Antragsteller-
+        // Namen oder den bereits im Kopf stehenden Verbund-Titel wiederholt.
         const tvTitelRaw = strOrNull(tv.titel);
-        const tvTitel = tvTitelRaw && !sameText(tvTitelRaw, tvAntragsteller) ? tvTitelRaw : null;
+        const tvTitel =
+          tvTitelRaw &&
+          !sameText(tvTitelRaw, tvAntragsteller) &&
+          (!verbundTitel || !sameText(tvTitelRaw, verbundTitel))
+            ? tvTitelRaw
+            : null;
         const tvStatus = strOrNull(tv.status);
         const rolle = tvRolle(tv, idx, tvs);
         const isExpanded = expandedTvAz === tv.aktenzeichen;
