@@ -48,7 +48,18 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     () => (verbund ? buildKurzfassungContext(verbund, tvs, antragKey, verbund.verbund_id) : null),
     [verbund, tvs, antragKey],
   );
-  const aufb = useAufbereitung(ctx ? { key: ctx.key, knownIds: ctx.knownIds } : null);
+  const aufb = useAufbereitung(
+    ctx ? {
+      key: ctx.key,
+      knownIds: ctx.knownIds,
+      teilvorhaben: tvs.map((tv, i) => ({
+        nr: i + 1,
+        tvAz: tv.aktenzeichen,
+        akronym: typeof tv.akronym === 'string' && tv.akronym.trim() ? tv.akronym.trim() : null,
+        titel: typeof tv.titel === 'string' && tv.titel.trim() ? tv.titel.trim() : null,
+      })),
+    } : null,
+  );
   const [tab, setTab] = useState<AufbereitungTabId>('zeitplan');
   const [ansicht, setAnsicht] = useState<AbdeckungAnsicht>('liste');
   // „Im Antrag öffnen": Fundstelle → Lesemodus-Tab + Sprung zur Sektion (Context, kein Drilling).
@@ -144,7 +155,14 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       <div className="mt-6">
         <LesemodusSprungProvider value={sprung}>
         {tab === 'zeitplan' ? (
-          <ZeitplanTab run={aufb.run} loading={aufb.loading} neu={aufb.neu} toggle={aufb.toggle} />
+          <ZeitplanTab
+            run={aufb.run}
+            loading={aufb.loading}
+            neu={aufb.neu}
+            toggle={aufb.toggle}
+            ctx={ctx ? { key: ctx.key, knownIds: ctx.knownIds } : { key: '', knownIds: [] }}
+            onIngested={aufb.requestRecompute}
+          />
         ) : tab === 'steckbrief' ? (
           <SteckbriefTab
             run={aufb.run}

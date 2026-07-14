@@ -11,6 +11,7 @@ import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { GanttZeitplan } from './GanttZeitplan';
 import { PersonenZeitplan } from './PersonenZeitplan';
 import { KennzahlenKarte, BefundZeile } from './zeitplanBausteine';
+import { VerbundZeitplan } from './VerbundZeitplan';
 import { befundKey } from './store';
 import type { AufbereitungRun } from './types';
 
@@ -19,6 +20,9 @@ interface Props {
   loading: boolean;
   neu: UseAsyncActionResult<[]>;
   toggle: UseAsyncActionResult<[string]>;
+  /** Für die Nachreich-Drop-Zone der fehlenden TV-Anlagen (Verbund). */
+  ctx: { key: string; knownIds: string[] };
+  onIngested: () => void;
 }
 
 const HERKUNFT_LABEL: Record<'anlage5' | 'vb' | 'beide', string> = {
@@ -27,9 +31,24 @@ const HERKUNFT_LABEL: Record<'anlage5' | 'vb' | 'beide', string> = {
   vb: 'TEXT-PROJEKTPLAN (VB)',
 };
 
-export function ZeitplanTab({ run, loading, neu, toggle }: Props): React.ReactElement {
+export function ZeitplanTab({ run, loading, neu, toggle, ctx, onIngested }: Props): React.ReactElement {
   if (loading) {
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">Aufbereitung wird geladen …</div>;
+  }
+
+  // Verbund (≥2 TV): pro-TV-Sektionen statt eines Single-Zeitplans.
+  if (run?.teilplaene) {
+    return (
+      <div>
+        {neu.error ? (
+          <div className="mb-4 rounded-lg px-3 py-2 text-[13px] text-[var(--tf-danger-text)]"
+            style={{ border: '0.5px solid var(--tf-border)' }}>
+            Fehler bei der Aufbereitung: {neu.error}
+          </div>
+        ) : null}
+        <VerbundZeitplan run={run} teilplaene={run.teilplaene} toggle={toggle} ctx={ctx} onIngested={onIngested} />
+      </div>
+    );
   }
 
   return (
