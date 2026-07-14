@@ -57,6 +57,8 @@ export interface Befund {
   schwere: 'warnung' | 'info';
   text: string;
   quellen: Array<{ rolle: 'vb' | 'anlage5'; sektionId?: string }>;
+  /** Bei Verbund-Kapazitätsbefunden: das Teilvorhaben, aus dessen Anlage 5 der Befund stammt. */
+  tvAz?: string;
 }
 
 // ---------------------------------------------------------------------------

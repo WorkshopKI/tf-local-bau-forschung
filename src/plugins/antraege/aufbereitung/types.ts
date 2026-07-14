@@ -18,6 +18,21 @@ export interface QuelleRef {
   /** `'verwertung'` = narratives Zusatzdokument (Marketing-/Verwertungskonzept),
    *  das in den Korpus einfließt (additiv; alte Runs kennen nur `'vb'|'anlage5'`). */
   rolle: 'vb' | 'anlage5' | 'verwertung';
+  /** Bei `rolle:'anlage5'` im Verbund: das Teilvorhaben, zu dem diese Anlage 5 gehört. */
+  tvAz?: string;
+}
+
+/**
+ * Ein Teilvorhaben-Plan im Verbund: die Anlage-5-Ernte EINES TV. Nur im echten
+ * Verbund (≥2 TV) gesetzt; `anlage`/`zeitplan` null = Anlage 5 für dieses TV fehlt.
+ */
+export interface TvPlan {
+  nr: number;
+  tvAz: string;
+  tvAkronym: string | null;
+  tvTitel: string | null;
+  anlage: QuelleRef | null;
+  zeitplan: { zeilen: ApZeile[]; achseMax: number } | null;
 }
 
 /** Klassifizierte Tabelle mit ihrer Quelle-Rolle (für die Ansicht). */
@@ -64,6 +79,14 @@ export interface AufbereitungRun {
    * Lösungsweg rechnet das UI (`zuordneRisiken`, braucht das Aspekt-Mapping).
    */
   risiken?: RisikoEintrag[];
+  /**
+   * Pro-TV-Zeitpläne im echten Verbund (≥2 TV, Paket „Anlage 5 pro TV"). Gesetzt NUR
+   * im Verbund; im Solo-Fall `undefined` → heutiges Single-`zeitplan`-Rendering. Additiv,
+   * `version` bleibt 1.
+   */
+  teilplaene?: TvPlan[];
+  /** Dateinamen von Anlage-5-Dokumenten, die keinem TV zugeordnet werden konnten. */
+  anlagenOhneTv?: string[];
   /** Gesetzt, wenn keine VB auffindbar war (definierter Zustand statt Fehler). */
   hinweis?: string;
 }
