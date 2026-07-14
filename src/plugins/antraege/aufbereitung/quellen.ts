@@ -91,6 +91,45 @@ export async function resolveAnlage5(
   return null;
 }
 
+/** Ergebnis der Multi-Auflösung: Anlage 5 je TV + nicht zuordenbare Dokumente. */
+export interface AnlagenProTvErgebnis {
+  proTv: Map<string, AnlageAufloesung>;
+  /** Dateinamen von Anlage-5-Dokumenten ohne erkennbares TV-FKZ. */
+  unzugeordnet: string[];
+}
+
+/**
+ * Löst pro Teilvorhaben die (jüngste) Anlage 5 aus dem IDB-Dokumentenspeicher auf.
+ * Ein `doc:`-Scan; Kandidat = mit `verbundKey` getaggt UND (Tag `'arbeitsplan'` ODER
+ * Dateiname matcht `ANLAGE5_RE`); Zuordnung per `matchTvAusDateiname`. IDB-only
+ * (Verbund-Intake läuft über die Inline-Aufnahme); der persönliche Ordner-Fallback
+ * bleibt dem Solo-`resolveAnlage5` vorbehalten.
+ */
+export async function resolveAnlagenProTv(
+  idb: IDBStore, verbundKey: string, tvAzListe: string[],
+): Promise<AnlagenProTvErgebnis> {
+  const keys = await idb.keys('doc:');
+  const juengste = new Map<string, DocumentFull>();
+  const unzugeordnet: string[] = [];
+  for (const key of keys) {
+    const doc = await idb.get<DocumentFull>(key);
+    if (!doc) continue;
+    const tags = Array.isArray(doc.tags) ? doc.tags : [];
+    if (!tags.includes(verbundKey)) continue;
+    const istAnlage = tags.includes('arbeitsplan') || ANLAGE5_RE.test(doc.filename ?? '');
+    if (!istAnlage) continue;
+    const tv = matchTvAusDateiname(doc.filename ?? '', tvAzListe);
+    if (!tv) { unzugeordnet.push(doc.filename); continue; }
+    const bisher = juengste.get(tv);
+    if (!bisher || (doc.created ?? '').localeCompare(bisher.created ?? '') > 0) juengste.set(tv, doc);
+  }
+  const proTv = new Map<string, AnlageAufloesung>();
+  for (const [tv, doc] of juengste) {
+    proTv.set(tv, { markdown: doc.markdown, herkunft: 'idb', quelleName: doc.filename });
+  }
+  return { proTv, unzugeordnet };
+}
+
 /** Ein Dokument im narrativen Aufbereitungs-Korpus (Name + Volltext). */
 export interface KorpusDok {
   name: string;
