@@ -24,6 +24,9 @@
 ### Neu
 - **„Neue Anträge für dich": auch ältere Anträge im Blick.** Das Startseiten-Widget zeigte bisher nur ganz frisch freigegebene Anträge (ein 7-Tage-Fenster). Anträge, die dir in der Auslastung weiterhin zuweisbar sind, deren Fenster auf der Startseite aber schon abgelaufen war, tauchten dort nicht mehr auf. Neu: darunter ein Abschnitt **„Weitere zuweisbare Anträge"**, der alle weiter für dich offenen Anträge (Haupt- und Nebenkategorie) auflistet — ohne Ablauf-Countdown, mit „Kann ich übernehmen". So verschwindet nichts mehr aus dem Blick.
 
+### Verbesserungen
+- **Qualitätsregeln im Skill-Editor übersichtlicher.** Die Liste der zuordenbaren Qualitätsregeln war eine lange Scroll-Wand. Sie ist jetzt nach Kategorie gruppiert (Umfang, Sprache, Struktur, Inhalt & Quellen, Vollständigkeit & Form) und je Gruppe einklappbar. Beim Öffnen eines Skills sind genau die Gruppen aufgeklappt, die bereits eine zugeordnete Regel enthalten; jeder Gruppenkopf zeigt, wie viele seiner Regeln zugeordnet sind (z. B. 2/4).
+
 ## v2.245 — 2026-07
 
 ### Neu

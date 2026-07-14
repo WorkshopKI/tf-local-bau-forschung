@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.246.1 — Skill-Editor: zugeordnete Qualitätsregeln nach Kategorie gruppiert + einklappbar (Juli 2026)
+
+PATCH — Die Sektion „Zugeordnete Qualitätsregeln" im Skill-Editor ([SkillEditor.tsx](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx)) listete alle ~19–22 Bibliotheks-Regeln als eine flache Checkbox-Wand — eine Scrollwüste, in der man den Überblick über die tatsächlich zugeordneten Regeln verlor. Die Liste ist jetzt nach Kategorie/„Art" gruppiert und je Gruppe einklappbar.
+
+- **Gruppierung nach `effektiveKategorie`** (Umfang · Sprache · Struktur · Inhalt & Quellen · Vollständigkeit & Form) — dieselbe Achse wie die Regel-Facetten-Filter ([useRegelFilters.ts](src/plugins/skill-verwaltung-kuration/useRegelFilters.ts)) und die gruppierte Ampel-Prüfung ([checkGruppen.ts](src/plugins/antraege/gutachten/checkGruppen.ts)). Neuer reiner Bucket-Helfer [regelGruppen.ts](src/plugins/skill-verwaltung-kuration/regelGruppen.ts) (`groupRegelnByKategorie`, gespiegelt von `groupChecksByKategorie`: nur nicht-leere Gruppen, stabile `KATEGORIE_ORDER`, unbekannte Kategorien ans Ende), Unit-Test [regelGruppen.test.ts](src/plugins/skill-verwaltung-kuration/__tests__/regelGruppen.test.ts).
+- **Auto-Aufklappen**: Gruppen mit mindestens einer zugeordneten (angehakten) Regel öffnen beim Editor-Öffnen automatisch, die übrigen bleiben zu. Jeder Gruppenkopf trägt einen Zähler „zugeordnet/gesamt" (z. B. `2/4`), auch im eingeklappten Zustand sichtbar.
+- **Reuse, kein neues Primitive**: nutzt die bestehende [CollapsibleSection](src/components/ui/CollapsibleSection.tsx) (`defaultOpen` **ohne** `storageKey` → in-memory, pro Skill neu berechnet statt global gecacht; stabiler `key` je Kategorie → Checkbox-Toggle lässt die Sektionen nicht auf-/zuschnappen). Checkbox-Zeilen, „Regeln verwalten →" und der „Formale Vorgaben (automatisch)"-Block unverändert.
+- Kein Datenmodell/Schema/Flag berührt. **Noch offen**: file://-Abnahme (Thomas).
+
 ### v2.246.0 — „Neue Anträge für dich": auch ältere noch zuweisbare Anträge sichtbar (Juli 2026)
 
 MINOR — Das Home-Widget „Neue Anträge für dich" ist eine **7-Tage-Frische-Inbox** (Anträge ab Freigabe, `selbsteintragungFristTage`, Default 7), die Auslastung „Anträge zuweisen" dagegen ein **6-Monats-Backlog** — deshalb fehlten dem angemeldeten MA (z. B. THÜ) auf der Startseite Anträge, für die er in der Auslastung noch als Vorschlag geführt wird (Freigabe > 7 Tage her, oder Nebenkategorie). Ein neuer, **nicht frist-limitierter** Abschnitt schließt die Lücke, ohne die frische Liste oben zu verwässern.

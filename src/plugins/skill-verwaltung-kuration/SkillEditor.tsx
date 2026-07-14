@@ -18,7 +18,9 @@ import {
 } from '@/core/services/skills';
 import { suggestReifegrad, type SkillAggregat, type SkillAggregatMap } from '@/core/services/skill-feedback';
 import { skillEnthaeltDokumentInhalte, templateReferenziertInhaltsSlot } from '@/core/services/ai/transport-policy';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { SkillVersionen } from './SkillVersionen';
+import { groupRegelnByKategorie } from './regelGruppen';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
 
 const SLOT_EXPL: Record<string, string> = {
@@ -241,22 +243,37 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           </div>
         </div>
 
-        {/* Zugeordnete Qualitätsregeln */}
+        {/* Zugeordnete Qualitätsregeln — nach Kategorie gruppiert, collapsible;
+            Gruppen mit zugeordneter (angehakter) Regel klappen automatisch auf. */}
         <div className="mt-7">
           <Section>Zugeordnete Qualitätsregeln</Section>
-          <div className="flex flex-col">
-            {file.regeln.map(r => {
-              const checked = draft.regelIds.includes(r.id);
-              return (
-                <label key={r.id} className="flex items-center gap-3 py-[11px] border-t-[0.5px] border-[var(--tf-border)] first:border-t-0 cursor-pointer">
-                  <input type="checkbox" checked={checked} disabled={ro} onChange={() => toggleRegel(r.id)} />
-                  <span className="text-[13px] text-[var(--tf-text)]">{r.name}</span>
-                  <span className="ml-auto font-mono text-[12px] text-[var(--tf-text-tertiary)]">{describeRegelParams(r)}</span>
-                </label>
-              );
-            })}
-            {file.regeln.length === 0 && <p className="text-[12.5px] text-[var(--tf-text-tertiary)] py-2">Noch keine Regeln in der Bibliothek.</p>}
-          </div>
+          {file.regeln.length === 0 ? (
+            <p className="text-[12.5px] text-[var(--tf-text-tertiary)] py-2">Noch keine Regeln in der Bibliothek.</p>
+          ) : (
+            <div className="border-t-[0.5px] border-[var(--tf-border)]">
+              {groupRegelnByKategorie(file.regeln, draft.regelIds).map(gruppe => (
+                <CollapsibleSection
+                  key={gruppe.kategorie}
+                  label={gruppe.label}
+                  subtitle={`${gruppe.zugeordnet}/${gruppe.gesamt}`}
+                  defaultOpen={gruppe.zugeordnet > 0}
+                >
+                  <div className="flex flex-col">
+                    {gruppe.regeln.map(r => {
+                      const checked = draft.regelIds.includes(r.id);
+                      return (
+                        <label key={r.id} className="flex items-center gap-3 py-[9px] border-t-[0.5px] border-[var(--tf-border)] first:border-t-0 cursor-pointer">
+                          <input type="checkbox" checked={checked} disabled={ro} onChange={() => toggleRegel(r.id)} className="accent-[var(--tf-primary)]" />
+                          <span className="text-[13px] text-[var(--tf-text)]">{r.name}</span>
+                          <span className="ml-auto font-mono text-[12px] text-[var(--tf-text-tertiary)]">{describeRegelParams(r)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </CollapsibleSection>
+              ))}
+            </div>
+          )}
           <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline mt-3.5">Regeln verwalten →</button>
         </div>
 
