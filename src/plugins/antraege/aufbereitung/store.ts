@@ -301,15 +301,27 @@ export async function loadAufbereitung(idb: IDBStore, antragKey: string): Promis
  */
 export function istVeraltet(
   run: AufbereitungRun,
-  aktuell: { vbHash?: string; anlage5Hash?: string; verwertungHashes?: string[] },
+  aktuell: { vbHash?: string; anlage5Hash?: string; anlage5Hashes?: string[]; verwertungHashes?: string[] },
 ): boolean {
   const gestempelt = (rolle: 'vb' | 'anlage5'): string | undefined => run.quellen.find(q => q.rolle === rolle)?.hash;
-  if (gestempelt('vb') !== aktuell.vbHash || gestempelt('anlage5') !== aktuell.anlage5Hash) return true;
-  // Narrative Zusatzdokumente: veraltet, sobald sich die Menge der Hashes ändert
-  // (neu/geändert/entfernt). Reihenfolge-unabhängig verglichen.
-  const gestempelteVw = run.quellen.filter(q => q.rolle === 'verwertung').map(q => q.hash).sort();
-  const aktuelleVw = (aktuell.verwertungHashes ?? []).slice().sort();
-  return gestempelteVw.length !== aktuelleVw.length || gestempelteVw.some((h, i) => h !== aktuelleVw[i]);
+  if (gestempelt('vb') !== aktuell.vbHash) return true;
+
+  // Anlage 5: im Verbund ein Multiset (pro TV), im Solo ein Einzel-Hash.
+  const gleichMultiset = (a: string[], b: string[]): boolean => {
+    const x = a.slice().sort();
+    const y = b.slice().sort();
+    return x.length === y.length && x.every((h, i) => h === y[i]);
+  };
+  if (run.teilplaene) {
+    const gestempelteAnlagen = run.quellen.filter(q => q.rolle === 'anlage5').map(q => q.hash);
+    if (!gleichMultiset(gestempelteAnlagen, aktuell.anlage5Hashes ?? [])) return true;
+  } else if (gestempelt('anlage5') !== aktuell.anlage5Hash) {
+    return true;
+  }
+
+  // Narrative Zusatzdokumente: veraltet, sobald sich die Menge der Hashes ändert.
+  const gestempelteVw = run.quellen.filter(q => q.rolle === 'verwertung').map(q => q.hash);
+  return !gleichMultiset(gestempelteVw, aktuell.verwertungHashes ?? []);
 }
 
 /** Einen Befund als offenen Punkt an-/abwählen (persistierbarer neuer Run). */

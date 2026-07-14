@@ -215,6 +215,35 @@ describe('verbundZeitplanSummary', () => {
   });
 });
 
+describe('istVeraltet — Verbund (Anlage-5-Multiset)', () => {
+  const anlage = (pm: string) => [
+    '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
+    '| --- | --- | --- | --- | --- | --- |',
+    `| 1 | X | 01.01.2023 | 31.01.2023 | MA01 | ${pm} |`,
+  ].join('\n');
+  const run = baueRun('VBND', { markdown: VB_MD, name: 'p.docx' }, null, [], NOW, {
+    teilvorhaben: [
+      { nr: 1, tvAz: '16KN0001', akronym: 'A', titel: null },
+      { nr: 2, tvAz: '16KN0002', akronym: 'B', titel: null },
+    ],
+    anlagenProTv: new Map([
+      ['16KN0001', { markdown: anlage('1'), name: 'a1.docx' }],
+      ['16KN0002', { markdown: anlage('2'), name: 'a2.docx' }],
+    ]),
+    unzugeordnet: [],
+  });
+  const vbH = run.quellen.find(q => q.rolle === 'vb')!.hash;
+  const anlagenHashes = run.quellen.filter(q => q.rolle === 'anlage5').map(q => q.hash);
+
+  it('gleiches Multiset → nicht veraltet', () => {
+    expect(istVeraltet(run, { vbHash: vbH, anlage5Hashes: anlagenHashes })).toBe(false);
+  });
+  it('eine Anlage 5 entfernt/geändert → veraltet', () => {
+    expect(istVeraltet(run, { vbHash: vbH, anlage5Hashes: [anlagenHashes[0]!] })).toBe(true);
+    expect(istVeraltet(run, { vbHash: vbH, anlage5Hashes: [anlagenHashes[0]!, 'anders'] })).toBe(true);
+  });
+});
+
 describe('uebernehmeOffenePunkte', () => {
   const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
 
