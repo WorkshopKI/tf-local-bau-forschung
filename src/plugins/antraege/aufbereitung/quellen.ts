@@ -9,11 +9,28 @@ import { readText, listFilesWithBackupInfo } from '@/core/services/infrastructur
 import { dokumenteDir } from '@/core/services/personal-storage/personal-layout';
 import { parseFrontmatter } from '@/plugins/antraege/aufnahme-einfach/frontmatter';
 import { resolveVb } from '@/plugins/antraege/kurzfassung/vbDokument';
+import { normId } from '@/core/components/dokumentAufnahmeFkz';
 
 export { resolveVb, type VbAufloesung } from '@/plugins/antraege/kurzfassung/vbDokument';
 
 /** Dateiname/Titel matcht „Anlage 5" (Varianten mit Space/Underscore/Punkt/Bindestrich). */
 const ANLAGE5_RE = /anlage[\s_.-]*5(?!\d)/i;
+
+/**
+ * Ordnet einen Dateinamen dem Teilvorhaben zu, dessen Aktenzeichen (normalisiert)
+ * als Substring im Dateinamen steckt. Matcht NUR gegen TV-Aktenzeichen (nicht gegen
+ * die Verbund-ID) — so gewinnt bei „Verbund- UND TV-FKZ im Namen" das TV. Bei
+ * Präfix-Kollision (ein Az ist Präfix eines anderen) gewinnt das längste. Rein.
+ */
+export function matchTvAusDateiname(filename: string, tvAzListe: string[]): string | null {
+  const hay = normId(filename);
+  let best: string | null = null;
+  for (const az of tvAzListe) {
+    const n = normId(az);
+    if (n.length > 0 && hay.includes(n) && (best === null || n.length > normId(best).length)) best = az;
+  }
+  return best;
+}
 
 export interface AnlageAufloesung {
   markdown: string;
