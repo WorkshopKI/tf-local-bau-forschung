@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.246.0 — „Neue Anträge für dich": auch ältere noch zuweisbare Anträge sichtbar (Juli 2026)
+
+MINOR — Das Home-Widget „Neue Anträge für dich" ist eine **7-Tage-Frische-Inbox** (Anträge ab Freigabe, `selbsteintragungFristTage`, Default 7), die Auslastung „Anträge zuweisen" dagegen ein **6-Monats-Backlog** — deshalb fehlten dem angemeldeten MA (z. B. THÜ) auf der Startseite Anträge, für die er in der Auslastung noch als Vorschlag geführt wird (Freigabe > 7 Tage her, oder Nebenkategorie). Ein neuer, **nicht frist-limitierter** Abschnitt schließt die Lücke, ohne die frische Liste oben zu verwässern.
+
+- **Neuer Block „Weitere zuweisbare Anträge"** unter der frischen Liste: alle noch zuweisbaren Anträge der **Haupt- oder Nebenkategorie**, die im Auslastungs-Verteil-Pool stehen (`istZuVerteilen` in [verbund-aggregation.ts](src/plugins/auslastung/services/verbund/verbund-aggregation.ts): Lookback-Fenster + ohne TIB-Kürzel + Status-Filter — deckungsgleich mit „Anträge zuweisen"), deren 7-Tage-Home-Frist aber abgelaufen ist. Ohne „Noch X Tage"-Countdown, mit funktionierendem „Kann ich übernehmen".
+- **Disjunkt zu den frischen Sektionen**: der Block behält nur Verbünde mit abgelaufener Frist (`daysLeft <= 0`) und **nicht** bereits in Tier 1. Deterministisch (keine Matching-Engine, keine Passung %) — Vollständigkeit ohne Engine-Last; die bestehende on-demand-Sektion „Weitere Anträge · niedrigere Passung" (frische Nebenkategorie, engine-gescort) bleibt **unverändert**.
+- **Additiv, reuse-first**: `buildOffeneEintraege` ([neueAntraegeVerbund.ts](src/plugins/home/neueAntraegeVerbund.ts)) bekommt zwei **optionale** Schalter `ignoriereFrist` + `poolFilter` (Defaults = heutiges Verhalten, bit-identisch); `NeueAntraegeVerbundRow` ([NeueAntraegeVerbundRow.tsx](src/plugins/home/NeueAntraegeVerbundRow.tsx)) ein optionales `zeigeFrist` (Default `true`). Kein neues Layout, kein neuer Store, kein Schema-Bump. Reuse von `verteilCutoffDatum`/`istZuVerteilen`/`groupEintraegeByVerbund`.
+- **Bewusste Grenzen**: in der Auslastung **manuell** hinzugefügte Zuweisungen und eine Divergenz zwischen persönlichem Profil und Store-Kategorie (Home liest `useMyAuslastungProfil`, Engine den Store-Record) bleiben unberührt — separate Fälle.
+- **Noch offen**: file://-Abnahme (Thomas).
+
 ### v2.245.0 — Antrag-Aufbereitung: Anlage 5 (Arbeitsplan) pro Teilvorhaben (Juli 2026)
 
 MINOR — Die Anlage 5 (Arbeitsplan) ist teilvorhaben-spezifisch: ein Verbund mit 3 TVs bringt 3× eine Anlage 5 mit. Die Aufbereitung war als „ein Arbeitsplan pro Vorhaben" gebaut (`resolveAnlage5` → `treffer[0]`, ein einziger Zeitplan) — lud der Gutachter alle drei hoch, wertete der Zeitplan-Tab **nur eine** aus (die anderen verschwanden still). Der Zeitplan-Tab ist jetzt verbund-fähig. Dev-Flag `antragAufbereitung`.

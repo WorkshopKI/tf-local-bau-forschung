@@ -27,6 +27,9 @@ interface Props {
   disabled?: boolean;
   /** Tier 2: eigene fachliche Passung (0..1) → „Passung X %"-Pill + Tooltip-Zeile. */
   passung?: number;
+  /** „Noch X Tage"-Countdown zeigen. Default `true`. Der Block „Weitere
+   *  zuweisbare Anträge" setzt `false` (abgelaufene Items → kein Countdown). */
+  zeigeFrist?: boolean;
 }
 
 /** Liest ein String-Feld defensiv aus dem (Slim-)Antrag; leer → undefined. */
@@ -85,6 +88,7 @@ export function NeueAntraegeVerbundRow({
   onUndo,
   disabled,
   passung,
+  zeigeFrist = true,
 }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
   const { akronym, verbundTitel, fkzRange, klassifizierung, daysLeft, claimed, tvCount, leadAntrag } = verbund;
@@ -163,7 +167,7 @@ export function NeueAntraegeVerbundRow({
         </div>
       </Tooltip>
       <div className="text-right flex flex-col items-end gap-1 shrink-0">
-        {!claimed && (
+        {zeigeFrist && !claimed && (
           <span className={`text-[10.5px] ${fristTone}`}>
             Noch {daysLeft} Tag{daysLeft === 1 ? '' : 'e'}
           </span>

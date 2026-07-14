@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.246 — 2026-07
+
+### Neu
+- **„Neue Anträge für dich": auch ältere Anträge im Blick.** Das Startseiten-Widget zeigte bisher nur ganz frisch freigegebene Anträge (ein 7-Tage-Fenster). Anträge, die dir in der Auslastung weiterhin zuweisbar sind, deren Fenster auf der Startseite aber schon abgelaufen war, tauchten dort nicht mehr auf. Neu: darunter ein Abschnitt **„Weitere zuweisbare Anträge"**, der alle weiter für dich offenen Anträge (Haupt- und Nebenkategorie) auflistet — ohne Ablauf-Countdown, mit „Kann ich übernehmen". So verschwindet nichts mehr aus dem Blick.
+
 ## v2.245 — 2026-07
 
 ### Neu

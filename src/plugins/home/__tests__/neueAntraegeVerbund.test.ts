@@ -274,6 +274,78 @@ describe('buildOffeneEintraege', () => {
     expect(claimed).toHaveLength(1);
     expect(claimed[0]!.claimed).toBe(true);
   });
+
+  // Neuer „Weitere zuweisbare Anträge"-Block: derselbe Filter, aber ohne
+  // Frist-Drop — abgelaufene, noch offene Anträge bleiben sichtbar.
+  it('ignoriereFrist behält abgelaufene, nicht vorgemerkte Anträge (daysLeft geklemmt auf 0)', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const kl = makeKlKat('16IT000001', 'IT', '2026-01-01'); // Frist längst abgelaufen
+    const ctx: OffeneEintraegeCtx = { ...baseCtx([a]), ignoriereFrist: true };
+    const out = buildOffeneEintraege([kl], () => true, ctx);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.daysLeft).toBe(0);
+  });
+
+  it('ignoriereFrist lässt frische Anträge unverändert durch', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const kl = makeKlKat('16IT000001', 'IT', '2026-05-08'); // frisch, innerhalb Frist
+    const ctx: OffeneEintraegeCtx = { ...baseCtx([a]), ignoriereFrist: true };
+    const out = buildOffeneEintraege([kl], () => true, ctx);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.daysLeft).toBeGreaterThan(0);
+  });
+
+  it('poolFilter schließt Anträge außerhalb des Pools aus', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const b = makeAntrag('16IT000002', undefined, 'Q', 'B');
+    const kls = [makeKlKat('16IT000001', 'IT'), makeKlKat('16IT000002', 'IT')];
+    const ctx: OffeneEintraegeCtx = {
+      ...baseCtx([a, b]),
+      poolFilter: (antrag) => antrag.aktenzeichen === '16IT000001',
+    };
+    const out = buildOffeneEintraege(kls, () => true, ctx);
+    expect(out.map(e => e.antrag.aktenzeichen)).toEqual(['16IT000001']);
+  });
+
+  it('poolFilter undefiniert = kein Zusatz-Filter (Default-Verhalten)', () => {
+    const a = makeAntrag('16IT000001', undefined, 'P', 'A');
+    const out = buildOffeneEintraege([makeKlKat('16IT000001', 'IT')], () => true, baseCtx([a]));
+    expect(out).toHaveLength(1);
+  });
+
+  // Komposition wie im Widget: Tier 1 (frische Hauptkategorie) vs. neuer Block
+  // „Weitere zuweisbare Anträge" (ältere Haupt ODER Neben, Frist ignoriert,
+  // disjunkt via daysLeft<=0 && nicht in Tier 1).
+  it('Szenario: frische bleiben in Tier 1, abgelaufene Haupt+Neben landen im älteren Block', () => {
+    const frischHaupt = makeAntrag('16IT000001', undefined, 'Frisch', 'A');
+    const altHaupt = makeAntrag('16IT000002', undefined, 'AltHaupt', 'B');
+    const altNeben = makeAntrag('16DT000003', undefined, 'AltNeben', 'C');
+    const kls = [
+      makeKlKat('16IT000001', 'IT', '2026-05-08'), // frisch (innerhalb Frist)
+      makeKlKat('16IT000002', 'IT', '2026-01-01'), // abgelaufen, Hauptkategorie
+      makeKlKat('16DT000003', 'DT', '2026-01-01'), // abgelaufen, Nebenkategorie
+    ];
+    const antraege = [frischHaupt, altHaupt, altNeben];
+    const ctx = baseCtx(antraege);
+    const nebenSet = new Set(['DT']);
+
+    // Tier 1: nur Hauptkategorie, Frist aktiv → nur der frische Antrag.
+    const tier1 = groupEintraegeByVerbund(
+      buildOffeneEintraege(kls, p => p === 'IT', ctx),
+      antraege, EMPTY_VERBUENDE, new Set(),
+    );
+    expect(tier1.map(v => v.verbundId)).toEqual(['16IT000001']);
+
+    // Neuer Block: Haupt ∪ Neben, Frist ignoriert → dann nur abgelaufene, die
+    // nicht schon in Tier 1 stehen.
+    const tier1Ids = new Set(tier1.map(v => v.verbundId));
+    const aeltereVerbuende = groupEintraegeByVerbund(
+      buildOffeneEintraege(kls, p => p === 'IT' || nebenSet.has(p), { ...ctx, ignoriereFrist: true }),
+      antraege, EMPTY_VERBUENDE, new Set(),
+    );
+    const aeltere = aeltereVerbuende.filter(v => v.daysLeft <= 0 && !tier1Ids.has(v.verbundId));
+    expect(aeltere.map(v => v.verbundId).sort()).toEqual(['16DT000003', '16IT000002']);
+  });
 });
 
 describe('isClaimed', () => {

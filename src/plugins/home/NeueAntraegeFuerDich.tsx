@@ -35,6 +35,7 @@ import {
   computeQuartalsAuslastung,
   getTVCount,
 } from '@/plugins/auslastung/services/kapazitaet';
+import { verteilCutoffDatum, istZuVerteilen } from '@/plugins/auslastung/services/verbund';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import {
   buildOffeneEintraege,
@@ -66,6 +67,8 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
   const [visibleCount, setVisibleCount] = useState(5);
   // Eigenes Fenster für den Tier-2-Block „Weitere Anträge".
   const [weitereVisibleCount, setWeitereVisibleCount] = useState(5);
+  // Eigenes Fenster für den Block „Weitere zuweisbare Anträge" (ältere).
+  const [aeltereVisibleCount, setAeltereVisibleCount] = useState(5);
   // Collapse liegt seit v2.238 in der Widget-Config (Shell), nicht mehr in
   // useCollapsedSection — eine Quelle, wie bei allen anderen Widgets.
 
@@ -231,6 +234,47 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // gibt (auch reine „vorgemerkt"-Zeilen nach dem letzten Claim).
   const hatWeitereBlock = weitereKandidaten.length > 0 || weitereRows.length > 0;
 
+  // ── Block „Weitere zuweisbare Anträge" (außerhalb des Frist-Fensters) ────────
+  // Deterministisch (keine Engine): alle noch zuweisbaren Anträge der Haupt- ODER
+  // Nebenkategorie, die im Auslastungs-Verteil-Pool stehen (Lookback-Fenster +
+  // ohne TIB-Kürzel), deren 7-Tage-Home-Frist aber abgelaufen ist. Schließt die
+  // Lücke zur Auslastung, ohne die frische Inbox oben zu verwässern.
+  const verteilCutoff = useMemo(
+    () => verteilCutoffDatum(config.aktuellesQuartal, config.verteilLookbackMonate ?? 6),
+    [config.aktuellesQuartal, config.verteilLookbackMonate],
+  );
+  const aeltereEintraege = useMemo((): OffenerAntrag[] => {
+    if (!myMa || !myHauptKategorie || !verteilCutoff) return [];
+    return buildOffeneEintraege(
+      klassifizierungen,
+      (p) => p === myHauptKategorie || nebenSet.has(p),
+      {
+        myMa,
+        antraegeById,
+        fristTage: config.selbsteintragungFristTage,
+        festAktenzeichen: myFestAktenzeichen,
+        pendingAktenzeichen: myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN,
+        claimedSet,
+        retractedSet,
+        ownKuerzelRaw,
+        now: Date.now(),
+        ignoriereFrist: true,
+        poolFilter: (a) => istZuVerteilen(a, verteilCutoff),
+      },
+    );
+  }, [klassifizierungen, myMa, myHauptKategorie, nebenSet, verteilCutoff, antraegeById, config.selbsteintragungFristTage, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, ownKuerzelRaw]);
+
+  const aeltereVerbuende = useMemo(
+    () => groupEintraegeByVerbund(aeltereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet),
+    [aeltereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen, retractedSet],
+  );
+  // Nur ABGELAUFENE (daysLeft<=0) und nicht bereits in Tier 1 → disjunkt zu den
+  // frischen Sektionen 1/2 (die haben daysLeft>0 bzw. stehen schon in tier1Ids).
+  const aeltere = useMemo(
+    () => aeltereVerbuende.filter(v => v.daysLeft <= 0 && !tier1Ids.has(v.verbundId)),
+    [aeltereVerbuende, tier1Ids],
+  );
+
   // Lokale Wünsche, die noch nicht in auslastung.json (Pending) stehen, in die
   // Pending-Anzeige einrechnen — sonst sieht der prod-User nach dem Klick keine
   // Veraenderung (Wunsch ist erst nach PL-Einsammeln im Store).
@@ -286,7 +330,7 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // Sektion ausblenden. Neben-Kandidaten (oder bereits gezeigte Ergebnisse)
   // halten sie sichtbar, damit der User „gerade nichts 100%-Passendes frei" per
   // Suche überbrücken kann.
-  if (eintraege.length === 0 && !hatWeitereBlock) return null;
+  if (eintraege.length === 0 && !hatWeitereBlock && aeltere.length === 0) return null;
 
   const visible = offene.slice(0, visibleCount);
   const hasMore = offene.length > visibleCount;
@@ -411,6 +455,44 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
           {weitere.error && (
             <div className="mt-2 text-[11.5px] text-[var(--tf-danger-text)]">
               Fehler: {weitere.error}
+            </div>
+          )}
+        </div>
+      )}
+      {/* Block „Weitere zuweisbare Anträge" — ältere, außerhalb des Frist-
+          Fensters, deterministisch (keine Engine, kein „Noch X Tage"). Schließt
+          die Lücke zur Auslastung „Anträge zuweisen". */}
+      {aeltere.length > 0 && (
+        <div className="mt-4 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <div className="mb-1 text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
+            Weitere zuweisbare Anträge
+          </div>
+          <p className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+            Außerhalb des Frist-Fensters, aber weiter in der Auslastung zur Verteilung.
+          </p>
+          <div className="flex flex-col gap-2">
+            {aeltere.slice(0, aeltereVisibleCount).map(v => (
+              <NeueAntraegeVerbundRow
+                key={v.verbundId}
+                verbund={v}
+                zeigeFrist={false}
+                onUebernehmen={() => handleClaim(v.leadAktenzeichen)}
+                onUndo={() => v.claimedAktenzeichen.forEach(az => void undo(az))}
+                disabled={wuenscheBusy}
+              />
+            ))}
+          </div>
+          {aeltere.length > aeltereVisibleCount && (
+            <div className="mt-2 flex items-center justify-between">
+              <button
+                onClick={() => setAeltereVisibleCount(c => Math.min(aeltere.length, c + 10))}
+                className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+              >
+                +{Math.min(10, aeltere.length - aeltereVisibleCount)} mehr anzeigen
+              </button>
+              <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                {Math.min(aeltereVisibleCount, aeltere.length)} von {aeltere.length}
+              </span>
             </div>
           )}
         </div>

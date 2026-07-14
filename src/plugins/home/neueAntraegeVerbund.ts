@@ -112,6 +112,19 @@ export interface OffeneEintraegeCtx {
   ownKuerzelRaw: string | null;
   /** `Date.now()` — als Parameter für Determinismus/Testbarkeit übergeben. */
   now: number;
+  /**
+   * Frist-Drop überspringen. Default `false` (heutiges Verhalten). Der Block
+   * „Weitere zuweisbare Anträge" zeigt bewusst auch abgelaufene, noch offene
+   * Anträge (`daysLeft` bleibt geklemmt auf 0). Vorgemerkte umgehen die Frist
+   * ohnehin — dieser Schalter betrifft nur nicht vorgemerkte.
+   */
+  ignoriereFrist?: boolean;
+  /**
+   * Optionales Zusatz-Prädikat auf den (Slim-)Antrag — z. B. der Auslastungs-
+   * Verteil-Pool (`istZuVerteilen`), damit der „Weitere zuweisbare Anträge"-Block
+   * deckungsgleich mit der Auslastung ist. Default: alles durch.
+   */
+  poolFilter?: (antrag: AntragOderSlim) => boolean;
 }
 
 /**
@@ -137,14 +150,18 @@ export function buildOffeneEintraege(
     if (ctx.festAktenzeichen?.has(k.antragId)) continue;
     const antrag = ctx.antraegeById.get(k.antragId);
     if (!antrag) continue;
+    // Optionaler Pool-Filter (z. B. Auslastungs-Verteil-Pool) — nur für den
+    // „Weitere zuweisbare Anträge"-Block gesetzt, sonst alles durch.
+    if (ctx.poolFilter && !ctx.poolFilter(antrag)) continue;
     // Antragstyp-Präferenz (FuE/DS/DL/NW). Ohne Präferenz: passt alles durch.
     if (!matchesAntragstyp(antrag, ctx.myMa)) continue;
     const claimed = isClaimed(k.antragId, ctx.claimedSet, ctx.pendingAktenzeichen, ctx.retractedSet);
     const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
     const deadline = freigegebenAm != null ? freigegebenAm + ctx.fristTage * 86400000 : null;
     const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - ctx.now) / 86400000)) : ctx.fristTage;
-    // Frist gilt nur für noch nicht vorgemerkte Anträge — vorgemerkte bleiben sichtbar.
-    if (!claimed && deadline != null && daysLeft <= 0) continue;
+    // Frist gilt nur für noch nicht vorgemerkte Anträge — vorgemerkte bleiben
+    // sichtbar. `ignoriereFrist` behält auch abgelaufene (neuer Block).
+    if (!ctx.ignoriereFrist && !claimed && deadline != null && daysLeft <= 0) continue;
     // Wiedereinreicher-Bump: T_XSW enthält das eigene Kürzel → „mein alter Antrag".
     const xswMine = xswMatchesOwnKuerzel(readXsw(antrag), ctx.ownKuerzelRaw);
     items.push({ antrag, klassifizierung: k, daysLeft, xswMine, claimed });
