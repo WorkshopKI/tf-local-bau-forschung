@@ -19,7 +19,7 @@ import {
   AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID,
   type SkillRecord,
 } from '@/core/services/skills';
-import { resolveKorpus, resolveAnlage5 } from './quellen';
+import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv } from './quellen';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
@@ -144,10 +144,20 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       if (!ctx || !run) { setVeraltet(false); return; }
       try {
         const korpus = await resolveKorpus(storage.idb, ctx);
-        const anlageA = await resolveAnlage5(storage.idb, ctx).catch(() => null);
+        const tvs = ctx.teilvorhaben ?? [];
+        let anlage5Hash: string | undefined;
+        let anlage5Hashes: string[] | undefined;
+        if (tvs.length >= 2) {
+          const { proTv } = await resolveAnlagenProTv(storage.idb, ctx.key, tvs.map(t => t.tvAz));
+          anlage5Hashes = [...proTv.values()].map(a => hashText(a.markdown));
+        } else {
+          const anlageA = await resolveAnlage5(storage.idb, ctx).catch(() => null);
+          anlage5Hash = anlageA ? hashText(anlageA.markdown) : undefined;
+        }
         const aktuell = {
           vbHash: korpus ? hashText(korpus.vb.markdown) : undefined,
-          anlage5Hash: anlageA ? hashText(anlageA.markdown) : undefined,
+          anlage5Hash,
+          anlage5Hashes,
           verwertungHashes: korpus ? korpus.narrative.map(n => hashText(n.markdown)) : [],
         };
         if (!cancelled) setVeraltet(istVeraltet(run, aktuell));
