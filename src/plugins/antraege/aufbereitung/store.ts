@@ -10,11 +10,11 @@ import { hashText } from '@/plugins/antraege/gutachten/runner';
 import { parseVbGliederung, type VbSektion } from './gliederung';
 import {
   ernteTabellen, normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, pruefeKapazitaet,
-  type ApZeile, type Befund,
+  summePm, type ApZeile, type Befund,
 } from './tabellen';
 import { resolveAnlage5, resolveKorpus, baueKorpus } from './quellen';
 import { ernteRisiken } from './risiken';
-import type { AufbereitungRun, QuelleRef, RunTabelle } from './types';
+import type { AufbereitungRun, QuelleRef, RunTabelle, TvPlan } from './types';
 
 export const aufbereitungKey = (antragKey: string): string => `aufbereitung:${antragKey}`;
 
@@ -33,6 +33,31 @@ export interface QuellEingang {
 /** Stabiler Schlüssel eines Befunds (für `offenePunkte` — Befunde haben keine ID). */
 export function befundKey(b: Befund): string {
   return `${b.typ}::${b.text}`;
+}
+
+/** Aggregierte Verbund-Kennzahlen über alle TV-Pläne (rein, für die Summenzeile). */
+export interface VerbundSummary {
+  summePm: number;
+  /** Summe der TV-LOKALEN Distinct-MA-Zahlen (MA-Nummern sind je TV eigen, kein globales Dedup). */
+  maAnzahl: number;
+  horizont: number;
+  tvMitAnlage: number;
+  tvGesamt: number;
+}
+
+export function verbundZeitplanSummary(teilplaene: TvPlan[]): VerbundSummary {
+  let pm = 0;
+  let ma = 0;
+  let horizont = 0;
+  let mitAnlage = 0;
+  for (const tp of teilplaene) {
+    if (!tp.zeitplan) continue;
+    mitAnlage += 1;
+    pm += summePm(tp.zeitplan.zeilen);
+    ma += new Set(tp.zeitplan.zeilen.map(z => z.maNr?.trim()).filter((m): m is string => !!m)).size;
+    horizont = Math.max(horizont, tp.zeitplan.achseMax);
+  }
+  return { summePm: pm, maAnzahl: ma, horizont, tvMitAnlage: mitAnlage, tvGesamt: teilplaene.length };
 }
 
 /**

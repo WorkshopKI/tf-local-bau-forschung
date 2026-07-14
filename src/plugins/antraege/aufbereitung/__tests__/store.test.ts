@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   baueRun, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt, befundKey,
-  uebernehmeOffenePunkte, uebernehmeErledigtePunkte,
+  uebernehmeOffenePunkte, uebernehmeErledigtePunkte, verbundZeitplanSummary,
 } from '../store';
+import type { TvPlan } from '../types';
 
 const NOW = '2026-07-09T00:00:00.000Z';
 
@@ -120,6 +121,33 @@ describe('baueRun — Korpus (narrative Zusatzdokumente, dokumentgrenzen-neutral
     expect(istVeraltet(mit, { vbHash: vbH, anlage5Hash: anlH, verwertungHashes: [vwH] })).toBe(false);
     expect(istVeraltet(mit, { vbHash: vbH, anlage5Hash: anlH, verwertungHashes: [] })).toBe(true);
     expect(istVeraltet(mit, { vbHash: vbH, anlage5Hash: anlH, verwertungHashes: ['anders'] })).toBe(true);
+  });
+});
+
+describe('verbundZeitplanSummary', () => {
+  const tp = (nr: number, tvAz: string, zeilen: unknown, achseMax: number): TvPlan => ({
+    nr, tvAz, tvAkronym: `TV${nr}`, tvTitel: null,
+    anlage: { name: `a${nr}.docx`, hash: 'h', gelesenAm: NOW, rolle: 'anlage5', tvAz },
+    zeitplan: zeilen ? { zeilen: zeilen as never, achseMax } : null,
+  });
+
+  it('summiert PM, MA-Zahl (pro TV distinct) und längsten Horizont; fehlende TVs zählen 0', () => {
+    const tps: TvPlan[] = [
+      tp(1, 'A', [
+        { nummer: '1', bezeichnung: 'x', istUnterAp: false, monatStart: 1, monatEnde: 3, pm: 4, maNr: 'MA01' },
+        { nummer: '2', bezeichnung: 'y', istUnterAp: false, monatStart: 2, monatEnde: 4, pm: 2, maNr: 'MA02' },
+      ], 4),
+      tp(2, 'B', [
+        { nummer: '1', bezeichnung: 'z', istUnterAp: false, monatStart: 1, monatEnde: 6, pm: 5, maNr: 'MA01' },
+      ], 6),
+      tp(3, 'C', null, 1), // Anlage 5 fehlt
+    ];
+    const s = verbundZeitplanSummary(tps);
+    expect(s.summePm).toBe(11);      // 4+2 (TV A) + 5 (TV B)
+    expect(s.maAnzahl).toBe(3);      // 2 (A: MA01,MA02) + 1 (B: MA01) — TV-lokal, nicht global dedupliziert
+    expect(s.horizont).toBe(6);
+    expect(s.tvMitAnlage).toBe(2);
+    expect(s.tvGesamt).toBe(3);
   });
 });
 
