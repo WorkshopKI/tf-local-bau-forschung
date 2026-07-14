@@ -40,8 +40,10 @@ export function QuellenPanel({ ctx, run, onIngested }: Props): React.ReactElemen
   const vbQuelle = run?.quellen.find(q => q.rolle === 'vb') ?? null;
   const anlageQuelle = run?.quellen.find(q => q.rolle === 'anlage5') ?? null;
   const marketingNamen = (run?.quellen.filter(q => q.rolle === 'verwertung') ?? []).map(q => q.name);
-  // Nur nach einer Aufbereitung wissen wir sicher, dass Anlage 5 fehlt.
-  const anlageFehlt = !!run && !anlageQuelle;
+  // Im Verbund (≥2 TV) trägt der Run pro-TV-Zeitpläne — dann pro TV eine Anlage-5-Zeile.
+  const teilplaene = run?.teilplaene ?? null;
+  // Nur nach einer Aufbereitung wissen wir sicher, dass Anlage 5 fehlt (Solo-Fall).
+  const anlageFehlt = !!run && !teilplaene && !anlageQuelle;
 
   const [offen, setOffen] = useState(true);
   const [aufnahmeManuell, setAufnahmeManuell] = useState(false);
@@ -59,7 +61,10 @@ export function QuellenPanel({ ctx, run, onIngested }: Props): React.ReactElemen
         <span className={CAPS_LABEL}>Dokumente zum Vorhaben</span>
         {!offen && (
           <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)]">
-            VB {vbQuelle ? '✓' : '–'} · Anlage 5 {anlageQuelle ? '✓' : '–'}
+            VB {vbQuelle ? '✓' : '–'}
+            {teilplaene
+              ? ` · Anlage 5 ${teilplaene.filter(t => t.anlage).length}/${teilplaene.length} TV`
+              : ` · Anlage 5 ${anlageQuelle ? '✓' : '–'}`}
             {marketingNamen.length ? ` · Marketing ✓` : ''}
           </span>
         )}
@@ -68,12 +73,32 @@ export function QuellenPanel({ ctx, run, onIngested }: Props): React.ReactElemen
       {offen && (
         <div className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-1">
           <QuelleZeile label="Vorhabensbeschreibung" name={vbQuelle?.name ?? null} />
-          <QuelleZeile
-            label="Arbeitsplan / Anlage 5"
-            name={anlageQuelle?.name ?? null}
-            fehltHinweis="fehlt — ohne sie kein Zeitplan / keine Kapazitätsprüfung"
-            warnen={anlageFehlt}
-          />
+          {teilplaene ? (
+            <>
+              {teilplaene.map(tp => (
+                <QuelleZeile
+                  key={tp.tvAz}
+                  label={`Anlage 5 — TV ${tp.nr} (${tp.tvAkronym ?? tp.tvAz})`}
+                  name={tp.anlage?.name ?? null}
+                  fehltHinweis="fehlt — ohne sie kein Zeitplan für dieses TV"
+                  warnen={!tp.anlage}
+                />
+              ))}
+              {run?.anlagenOhneTv?.length ? (
+                <QuelleZeile
+                  label="Anlage 5 — ohne TV-Zuordnung"
+                  name={run.anlagenOhneTv.join(', ')}
+                />
+              ) : null}
+            </>
+          ) : (
+            <QuelleZeile
+              label="Arbeitsplan / Anlage 5"
+              name={anlageQuelle?.name ?? null}
+              fehltHinweis="fehlt — ohne sie kein Zeitplan / keine Kapazitätsprüfung"
+              warnen={anlageFehlt}
+            />
+          )}
           <QuelleZeile
             label="Marketing-/Verwertungskonzept"
             name={marketingNamen.length ? marketingNamen.join(', ') : null}
