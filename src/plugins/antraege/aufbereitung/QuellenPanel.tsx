@@ -20,7 +20,7 @@ import type { AufbereitungRun } from './types';
 const CAPS_LABEL = 'text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text)]';
 
 /** Typ-Pills der Aufbereitungs-Aufnahme (Standard-4 + Arbeitsplan + Marketing). */
-const AUFBEREITUNG_TYP_OPTIONEN: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
+export const AUFBEREITUNG_TYP_OPTIONEN: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
   { value: 'vorhabensbeschreibung', label: 'Vorhabensbeschreibung' },
   { value: 'teilvorhabensbeschreibung', label: 'Teilvorhabensbeschreibung' },
   { value: 'arbeitsplan', label: 'Arbeitsplan (Anlage 5)' },
