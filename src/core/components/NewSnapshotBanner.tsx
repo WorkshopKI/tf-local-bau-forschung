@@ -14,6 +14,7 @@
 
 import { Download, X, AlertTriangle } from 'lucide-react';
 import type { SnapshotWatcherState } from '@/core/hooks/useSnapshotWatcher';
+import { useDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 
 interface Props {
@@ -33,6 +34,9 @@ function formatDate(iso: string): string {
 }
 
 export function NewSnapshotBanner({ state }: Props): React.ReactElement | null {
+  // Busy = ein FREMDER Daten-Mutations-Flow läuft (z.B. Sidebar/Einstellungen);
+  // der eigene Lauf ist über `state.applying` abgedeckt.
+  const busy = useDataMutationBusy();
   if (state.availableUpdates.length === 0 && !state.applying && !state.applyError) return null;
   if (state.dismissed && !state.applying && !state.applyError) return null;
 
@@ -83,7 +87,8 @@ export function NewSnapshotBanner({ state }: Props): React.ReactElement | null {
         <button
           type="button"
           onClick={() => { void state.applyNow(); }}
-          disabled={state.applying}
+          disabled={state.applying || busy}
+          title={busy ? 'Andere Aktualisierung läuft…' : undefined}
           className="shrink-0 px-2.5 py-1 rounded text-[11.5px] cursor-pointer disabled:opacity-50 disabled:cursor-wait"
           style={{
             background: 'var(--tf-info-text, #1e3a8a)',

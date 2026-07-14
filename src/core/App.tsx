@@ -30,7 +30,8 @@ import { initProtokoll } from '@/core/services/assistent/protokoll';
 import { initGedaechtnis, starteKonsolidierungWennFaellig } from '@/core/services/assistent/gedaechtnis';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
-import { runDataUpdate, type DataUpdatePhase, type DataUpdateResult } from '@/plugins/csv-sources-kuration/services/data-update';
+import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
+import { phaseToastLabel, completionToast } from '@/plugins/csv-sources-kuration/services/data-update-toast';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig, isMaLoginEnabled, canWriteDatenShare } from '@/config/feature-flags';
@@ -40,34 +41,6 @@ import { seedTestData } from '@/core/services/seed/seed-data';
 import { useConnectionState } from '@/core/services/connection-status';
 import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
 import type { UserProfile, AIProviderConfig } from '@/core/types/config';
-
-/** Stabiles, phasen-basiertes Label fürs Start-Daten-Update. Die Fraction kommt
- *  separat aus `p.fraction` in den Fortschrittsbalken (im onPhase-Callback
- *  gedrosselt in den Store geschrieben — kein Re-Render-Sturm). */
-function phaseToastLabel(p: DataUpdatePhase): string {
-  switch (p.phase) {
-    case 'snapshot':   return 'Datenbestand wird aktualisiert…';
-    case 'csv-check':  return 'Neue CSV-Exporte werden geprüft…';
-    case 'csv-import': return p.label ? `CSV-Import: ${p.label}…` : 'CSV-Daten werden importiert…';
-    case 'publishing': return 'Daten lokal aktuell — Datenbestand wird für das Team veröffentlicht…';
-  }
-}
-
-/** Abschluss-Toast: Snapshot-Stand bevorzugt, sonst CSV-Import-Hinweis; null =
- *  nichts aktualisiert (Toast wird dann ausgeblendet). */
-function completionToast(r: DataUpdateResult): string | null {
-  const info = r.snapshotInfo[0];
-  if (info) {
-    const stamp = new Date(info.createdAt).toLocaleString('de-DE', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-    return `${info.programmName}: Antragsdaten aktualisiert (Stand: ${stamp})`;
-  }
-  if (r.csvReport && r.csvReport.processed.some(p => !p.skipped)) {
-    return 'Antragsdaten aus CSV aktualisiert';
-  }
-  return null;
-}
 
 function AppProviders({
   storage, aiBridge,

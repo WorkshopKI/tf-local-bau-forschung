@@ -30,6 +30,7 @@ import {
   pickAndLinkCsvFolder,
 } from '../csv-source-handle';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import {
@@ -197,6 +198,10 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
   const doRefresh = useCallback(async (force: boolean) => {
     if (refreshing) return;
     if (candidates.length === 0) return;
+    // Geteiltes In-Tab-Gate: nie parallel zu einem anderen Daten-Mutations-Flow
+    // (Snapshot-Watcher „Jetzt laden", Start-Sync, Sidebar/Einstellungen) — sonst
+    // kollidieren clear()/put() + atomicWrite-Renames („2 Quellen … 1 Fehler").
+    if (!acquireDataMutation()) return;
     setRefreshing(true);
     setRefreshError(null);
     setLockConflict(null);
@@ -239,6 +244,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
         setRefreshError((err as Error).message);
       }
     } finally {
+      releaseDataMutation();
       if (mountedRef.current) {
         setRefreshing(false);
         setRefreshProgress(null);

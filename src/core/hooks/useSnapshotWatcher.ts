@@ -29,6 +29,7 @@ import { readText } from '@/core/services/infrastructure/atomic-write';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useAntraegeStore } from '@/plugins/antraege/store';
@@ -199,6 +200,10 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
   const applyNow = useCallback(async () => {
     if (applying) return;
     if (availableUpdates.length === 0) return;
+    // Geteiltes In-Tab-Gate: nie parallel zu einem anderen Daten-Mutations-Flow
+    // (CSV-Banner „Jetzt aktualisieren", Start-Sync, Sidebar/Einstellungen) — sonst
+    // rennt clear()/put() gegen einen laufenden CSV-Merge („2 Quellen … 1 Fehler").
+    if (!acquireDataMutation()) return;
     setApplying(true);
     setApplyError(null);
     setProgress(null);
@@ -247,6 +252,7 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
     } catch (err) {
       if (mountedRef.current) setApplyError((err as Error).message);
     } finally {
+      releaseDataMutation();
       if (mountedRef.current) {
         setApplying(false);
         setProgress(null);

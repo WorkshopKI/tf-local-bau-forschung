@@ -24,13 +24,11 @@ import { ensureDefaultProgramm } from '@/core/services/csv';
 import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
-import { NewSnapshotBanner } from '@/core/components/NewSnapshotBanner';
 import { StartupDataUpdateBanner } from '@/core/components/StartupDataUpdateBanner';
-import { useSnapshotWatcher } from '@/core/hooks/useSnapshotWatcher';
 import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAutoload';
 import { useHeartbeat } from '@/core/services/presence';
 import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
-import { CsvAutoRefreshBanner } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner';
+import { DataUpdateBanners } from '@/plugins/csv-sources-kuration/components/DataUpdateBanners';
 import { useAnfrageAnonAktivierung } from '@/plugins/anfragen/useAnfrageAnonAktivierung';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { FooterShowcaseButton } from '@/core/components/FooterShowcaseButton';
@@ -179,10 +177,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   // bestehende registry.json nie). Läuft nach Share-Grant für schreibberechtigte Clients.
   useAnfrageAnonAktivierung();
 
-  // Snapshot-Watcher: alle 15 Min Manifest checken, ob ein anderer Kurator
-  // einen neueren Datenbestand geschrieben hat. Banner wird im <main>-
-  // Bereich gerendert. Im Demo-Build deaktiviert (kein Daten-Share).
-  const snapshotWatcher = useSnapshotWatcher({ enabled: isDataShareEnabled() });
+  // Die Daten-Update-Banner (neuer Datenbestand + neue CSV-Quellen) + der
+  // zugehörige Snapshot-Watcher leben jetzt im `DataUpdateBanners`-Koordinator
+  // (siehe <main> unten) — er hält beide Hooks und fasst konkurrierende CTAs zu
+  // EINER Aktion zusammen.
 
   // v2.29: Auslastungs-Embedding-Korpus beim Start vom Daten-Share laden
   // (Cold-Start-Selbstheilung), nicht erst beim Navigieren ins Modul. Self-gated
@@ -504,8 +502,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             <SmbBanner status={smbStatus.status} lastCheck={smbStatus.lastCheck} idb={storage.idb} />
           )}
           {isDataShareEnabled() && <StartupDataUpdateBanner />}
-          {(isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) && <CsvAutoRefreshBanner />}
-          {isDataShareEnabled() && <NewSnapshotBanner state={snapshotWatcher} />}
+          {(isDataShareEnabled() || isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) && <DataUpdateBanners />}
           <div className="flex-1 overflow-y-auto relative">
             {children}
           </div>

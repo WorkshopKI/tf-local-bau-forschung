@@ -1,10 +1,11 @@
 /**
- * Auto-Refresh-Banner.
+ * Auto-Refresh-Banner (präsentational).
  *
- * Globaler Sticky-Banner im ShellLayout (oberhalb Content), sichtbar wenn
- * `useCsvAutoRefreshCheck()` Quellen mit neuerem `lastModified` findet.
- * Klick "Aktualisieren" laeuft die Pipeline durch — Quellen ohne Drift
- * silent, Quellen mit Drift kommen in den Sammel-Report.
+ * Globaler Sticky-Banner im ShellLayout (oberhalb Content), sichtbar wenn der
+ * State (aus `useCsvAutoRefreshCheck()`, gehalten vom `DataUpdateBanners`-
+ * Koordinator und als `state`-Prop hereingereicht) Quellen mit neuerem
+ * `lastModified` meldet. Klick "Aktualisieren" laeuft die Pipeline durch —
+ * Quellen ohne Drift silent, Quellen mit Drift kommen in den Sammel-Report.
  *
  * Rollen-bewusst (v2.18): Im Kurator-Build (`kuratorMenus`) verweisen Quellen
  * mit fehlender Berechtigung auf das CSV-Sources-Plugin. Im pl-Build
@@ -18,11 +19,12 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, X, AlertTriangle, CheckCircle2, Link2 } from 'lucide-react';
-import { useCsvAutoRefreshCheck } from '../hooks/useCsvAutoRefreshCheck';
+import { X, AlertTriangle, CheckCircle2, Link2 } from 'lucide-react';
+import type { AutoRefreshCheckState } from '../hooks/useCsvAutoRefreshCheck';
 import { CsvAutoRefreshDriftDialog } from './CsvAutoRefreshDriftDialog';
 import { CsvSourceLinkDialog } from './CsvSourceLinkDialog';
 import { isCsvAutoRefreshEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
+import { useDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
 import { pluginIdToRoute } from '@/core/routes';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import type { RefreshProgress } from '../services/auto-refresh';
@@ -53,9 +55,11 @@ function refreshFraction(p: RefreshProgress): number {
   return (p.index + (PHASE_FRACTION[p.phase] ?? 0)) / Math.max(1, p.total);
 }
 
-export function CsvAutoRefreshBanner(): React.ReactElement | null {
-  const state = useCsvAutoRefreshCheck();
+export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }): React.ReactElement | null {
   const navigate = useNavigate();
+  // Busy = ein FREMDER Daten-Mutations-Flow läuft (z.B. Sidebar/Einstellungen).
+  // Der eigene Lauf ist über `state.refreshing` abgedeckt.
+  const busy = useDataMutationBusy();
   const [driftDialogOpen, setDriftDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
@@ -103,8 +107,6 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
         role="status"
         aria-live="polite"
       >
-        <Sparkles size={14} className="shrink-0" style={{ color: 'var(--tf-primary)' }} />
-
         {state.refreshing ? (
           state.refreshProgress ? (
             <div className="flex-1 flex items-center gap-3 min-w-0">
@@ -159,7 +161,8 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
           <button
             type="button"
             onClick={() => { void state.runRefresh(); }}
-            disabled={state.refreshing}
+            disabled={state.refreshing || busy}
+            title={busy ? 'Andere Aktualisierung läuft…' : undefined}
             className="shrink-0 px-2.5 py-1 rounded text-[11.5px] cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             style={{
               background: 'var(--tf-primary)',
@@ -184,7 +187,9 @@ export function CsvAutoRefreshBanner(): React.ReactElement | null {
               );
               if (ok) { void state.forceRefresh(); }
             }}
-            className="shrink-0 px-2.5 py-1 rounded text-[11.5px] cursor-pointer"
+            disabled={busy}
+            title={busy ? 'Andere Aktualisierung läuft…' : undefined}
+            className="shrink-0 px-2.5 py-1 rounded text-[11.5px] cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             style={{
               background: 'var(--tf-primary)',
               color: 'white',

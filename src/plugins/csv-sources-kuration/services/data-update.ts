@@ -26,6 +26,7 @@ import { rematchOnSnapshotReload } from '@/phase2';
 import { resolveSnapshotAuthor } from '@/core/services/infrastructure/update-author';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 import { invalidateAggregateCache } from '@/core/services/skill-feedback/cache';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { runAutoRefresh, collectCandidates, BuildLockBusyError, type RefreshReport } from './auto-refresh';
 
 const LAST_TIMING_KEY = 'teamflow_last_data_update_timing';
@@ -70,11 +71,6 @@ export interface RunDataUpdateOptions {
   /** Abbruch-Signal (App-Unmount / Gate öffnet wieder). */
   signal?: { cancelled: boolean };
 }
-
-// Modul-weiter In-Flight-Guard: Start-Sync + Watcher + Button dürfen sich
-// nicht überlappen (paralleles clear()/put() auf denselben Stores). Der zweite
-// Aufruf wird zum No-Op (liefert ein leeres Result).
-let running = false;
 
 function round(ms: number): number {
   return Math.round(ms);
@@ -151,8 +147,12 @@ export async function runDataUpdate(
 ): Promise<DataUpdateResult> {
   const { onPhase, includeCsv = true, forceRecheck = false, signal } = opts;
   const result: DataUpdateResult = { snapshotSynced: false, snapshotInfo: [], totalMs: 0 };
-  if (running) return result;
-  running = true;
+  // Geteiltes In-Tab-Gate: Start-Sync + Watcher-Banner + CSV-Banner + Sidebar/
+  // Einstellungen dürfen sich nicht überlappen (paralleles clear()/put() +
+  // atomicWrite-Rennen auf denselben Stores/Share-Dateien). Der zweite Aufruf
+  // wird zum No-Op (leeres Result). Ersetzt die frühere modulweite `running`-Flag,
+  // die NUR runDataUpdate schützte — die Banner-CTAs liefen daran vorbei.
+  if (!acquireDataMutation()) return result;
 
   const tTotal = performance.now();
   const snapAgg: SnapshotTimings = {
@@ -291,6 +291,6 @@ export async function runDataUpdate(
     logTiming(result, snapAgg, { checkMs: csvCheckMs, enabled: csvEnabled, ...csvSkips });
     return result;
   } finally {
-    running = false;
+    releaseDataMutation();
   }
 }

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.244 — 2026-07
+
+### Bugfixes
+- **Kein Fehler mehr, wenn „neuer Datenbestand" und „neue CSV-Quellen" gleichzeitig anstehen.** Bisher konnten oben zwei Aktualisierungs-Hinweise gleichzeitig erscheinen; klickte man beide, liefen sie parallel und einer meldete einen Fehler („… — 1 Fehler"). Jetzt fasst die App beides zu **einem** Knopf „Datenbestand aktualisieren" zusammen, der alles in der richtigen Reihenfolge und in einem Durchlauf erledigt. Steht nur eines an, erscheint wie gewohnt der einzelne Hinweis — und solange eine Aktualisierung läuft, sind die anderen Knöpfe gesperrt, damit sich nichts überschneidet.
+
 ## v2.243 — 2026-07
 
 ### Bugfixes
