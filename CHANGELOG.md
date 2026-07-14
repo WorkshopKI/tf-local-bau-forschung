@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.243.2 — Gutachten-Werkstatt: „Quelle & Prüfung"-Panel beliebig breit ziehbar (Juli 2026)
+
+PATCH — In der Gutachten-Werkstatt (dev-Flag `gutachtenWorkflow`) ließ sich die Ziehleiste an der linken Kante des „Quelle & Prüfung"-Panels nur bis **620 px** nach links ziehen; für die neuen Beleg-/Quellen-Karten (Journey-Paket 4) war das zu schmal. Der feste Hardcap ist raus — das Panel darf jetzt beliebig breit gezogen werden ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)).
+
+- **Obergrenze rechnet der Container statt eines Literals**: `startCtxResize` reserviert der mittleren Entwurf-Karte nur noch eine lesbare Restbreite (`CARD_MIN_WIDTH = 260`, vorher 360) und lässt das Panel bis `bodyWidth − Rail − 260 − Gaps` wachsen. Bei eingeklappter Rail zählt die schmale Kreis-Breite (`RAIL_COLLAPSED_W`) mit → mehr Raum fürs Panel.
+- **Persistenz-Clamp angehoben** (`teamflow_gutachten_ctx_w`, localStorage): Sanity-Cap 620 → 2400, damit eine breit gezogene Einstellung den Reload überlebt.
+- **Robust gegen Monitor-Wechsel**: ein neuer Clamp-Effekt klemmt eine (auf großem Monitor gespeicherte) zu breite Panel-Breite nach der Container-Messung auf den verfügbaren Raum, sodass die mittlere Karte via `minmax(0,1fr)` nie bis auf 0 schrumpft.
+- Reiner Layout-/UI-Tweak — keine Datenmodell-/Schema-/Flag-Änderung, kein Bookmarklet-Rebuild.
+
 ### v2.243.1 — Fix: Absturz beim Öffnen einer Verbund-Detailseite (React #310) + Hook-Lint-Guard (Juli 2026)
 
 PATCH — Beim Öffnen einer Verbund-Detailseite (z.B. über „Weiter" in der Home-Sektion „Weitermachen") stürzte die App mit einem React-Fehler ab (#310, „Rendered more hooks than during the previous render"; react-router zeigte die „Unexpected Application Error"-Boundary). Ursache: der in **v2.241.7** ergänzte `tvTitelZeilen`-`useMemo` in [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) stand **unterhalb** des `if (!verbund) return`-Early-Returns. Da [useVerbundDetailData](src/plugins/antraege/useVerbundDetailData.ts) `verbund` erst **asynchron** lädt, lief der erste Render (`verbund === null`) in den Early-Return (ein Hook weniger) und der Render nach dem Laden in den vollen Body (ein Hook mehr) → inkonsistente Hook-Reihenfolge → Absturz. Betroffen war **jeder** Verbund-Detail-Aufruf in v2.241.7–v2.243.0, nicht nur der „Weitermachen"-Deep-Link — dort fiel es nur zuerst auf.

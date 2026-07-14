@@ -50,6 +50,16 @@ const CTX_W_KEY = 'teamflow_gutachten_ctx_w';
 const RAIL_COLLAPSED_KEY = 'teamflow_gutachten_rail_collapsed';
 /** Breite der eingeklappten Rail (nur Kreise, kein Label) — analog Handoff-Icons-Modus. */
 const RAIL_COLLAPSED_W = 56;
+/**
+ * Kleinstmögliche Breite der mittleren Entwurf-Karte beim Verbreitern des Panels.
+ * Bewusst niedrig — der Nutzer darf die Quelle-Karte dominant ziehen; nur diese
+ * lesbare Restbreite bleibt der Entwurf-Spalte reserviert (kein 620px-Hardcap mehr).
+ */
+const CARD_MIN_WIDTH = 260;
+/** Panel-Mindestbreite (Kontext-Panel rechts). */
+const CTX_MIN_W = 280;
+/** Obergrenze fürs Persistieren — nur ein Sanity-Cap; die echte Grenze rechnet der Container. */
+const CTX_PERSIST_MAX = 2400;
 function readPersistedWidth(key: string, fallback: number, min: number, max: number): number {
   try {
     const raw = window.localStorage.getItem(key);
@@ -98,7 +108,7 @@ export function GutachtenSection({
   // Initial aus localStorage (persistiert über Reload), Default 190/340 (Handoff
   // `workflow-stepper-neu`: angedockte Rail ~190px). Bestehende Werte werden geklemmt.
   const [railWidth, setRailWidth] = useState(() => readPersistedWidth(RAIL_W_KEY, 190, 150, 320));
-  const [ctxWidth, setCtxWidth] = useState(() => readPersistedWidth(CTX_W_KEY, 340, 280, 620));
+  const [ctxWidth, setCtxWidth] = useState(() => readPersistedWidth(CTX_W_KEY, 340, CTX_MIN_W, CTX_PERSIST_MAX));
   // Rail eingeklappt = nur Kreis-Badges (horizontal platzsparend), per Toggle, persistiert.
   const [railCollapsed, setRailCollapsed] = useState(() => readPersistedFlag(RAIL_COLLAPSED_KEY, false));
   useEffect(() => {
@@ -167,6 +177,15 @@ export function GutachtenSection({
 
   // Layout-Entscheidung: einspaltig unterhalb der Schwelle.
   const solo = bodyWidth < WERK_MIN_WIDTH;
+  // Eine aus localStorage geladene (auf größerem Monitor gesetzte) Panel-Breite auf den
+  // aktuell verfügbaren Raum klemmen — sonst schrumpft die mittlere Karte per `minmax(0,1fr)`
+  // bis auf 0. Nur außerhalb des aktiven Ziehens und im Mehrspalten-Layout.
+  useEffect(() => {
+    if (resizing || solo) return;
+    const railW = railCollapsed ? RAIL_COLLAPSED_W : railWidth;
+    const maxW = Math.max(CTX_MIN_W, bodyWidth - railW - CARD_MIN_WIDTH - 48);
+    setCtxWidth(w => (w > maxW ? maxW : w));
+  }, [bodyWidth, solo, railCollapsed, railWidth, resizing]);
   // Panel nur zeigen, wenn der aktive Abschnitt einen Stand hat (sonst nichts zum Gegenlesen).
   const showPanel = !!activeStep;
   // Prüfpanel-Aktionen (Journey-Paket 3): je Fehler-Check ein regel-gebundener
@@ -208,11 +227,14 @@ export function GutachtenSection({
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
-  // Rechtes Panel: nach links ziehen = breiter; Obergrenze hält die Entwurf-Karte ≳ 360px.
+  // Rechtes Panel: nach links ziehen = breiter. Kein fester Hardcap mehr — der
+  // Nutzer darf die Quelle-Karte beliebig breit ziehen; einzige Obergrenze ist der
+  // Container (Rail + reservierte Rest-Kartenbreite CARD_MIN_WIDTH + Gaps).
   const startCtxResize = (e: React.PointerEvent): void => {
     const startW = ctxWidth;
-    const maxW = Math.max(360, Math.min(620, bodyWidth - railWidth - 360 - 48));
-    beginResize(e, dx => setCtxWidth(Math.min(maxW, Math.max(280, startW - dx))));
+    const railW = railCollapsed ? RAIL_COLLAPSED_W : railWidth;
+    const maxW = Math.max(CTX_MIN_W, bodyWidth - railW - CARD_MIN_WIDTH - 48);
+    beginResize(e, dx => setCtxWidth(Math.min(maxW, Math.max(CTX_MIN_W, startW - dx))));
   };
   // Linke Rail: nach rechts ziehen = breiter (angedockt, Labels brauchen ≳150px).
   const startRailResize = (e: React.PointerEvent): void => {
