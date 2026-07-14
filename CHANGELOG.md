@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.243.1 — Fix: Absturz beim Öffnen einer Verbund-Detailseite (React #310) + Hook-Lint-Guard (Juli 2026)
+
+PATCH — Beim Öffnen einer Verbund-Detailseite (z.B. über „Weiter" in der Home-Sektion „Weitermachen") stürzte die App mit einem React-Fehler ab (#310, „Rendered more hooks than during the previous render"; react-router zeigte die „Unexpected Application Error"-Boundary). Ursache: der in **v2.241.7** ergänzte `tvTitelZeilen`-`useMemo` in [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) stand **unterhalb** des `if (!verbund) return`-Early-Returns. Da [useVerbundDetailData](src/plugins/antraege/useVerbundDetailData.ts) `verbund` erst **asynchron** lädt, lief der erste Render (`verbund === null`) in den Early-Return (ein Hook weniger) und der Render nach dem Laden in den vollen Body (ein Hook mehr) → inkonsistente Hook-Reihenfolge → Absturz. Betroffen war **jeder** Verbund-Detail-Aufruf in v2.241.7–v2.243.0, nicht nur der „Weitermachen"-Deep-Link — dort fiel es nur zuerst auf.
+
+- **Fix**: den `useMemo` über den Early-Return gezogen (neben die anderen bewusst dort gehaltenen Pre-Return-Hooks). Reines Verschieben — der Memo hängt ausschließlich an `antraege` (vor dem Return verfügbar), keine Dependency-Änderung. Hook-Reihenfolge jetzt in jedem Render identisch.
+- **Guard gegen Wiederkehr**: erstmals **ESLint** im Repo ([eslint.config.js](eslint.config.js)) — bewusst minimal, nur `react-hooks/rules-of-hooks: error` (fängt genau diese Bug-Klasse, die `tsc` nicht sieht). Neues Script `npm run lint`, in die `check`-Kette aufgenommen. Das `@typescript-eslint`-Plugin wird nur registriert (keine Regel aktiv), damit im Bestand verstreute Alt-`eslint-disable`-Direktiven auflösen; `reportUnusedDisableDirectives` aus; `exhaustive-deps` bewusst aus (kein Style-/Type-Flood). Der einzelne stale `jsx-a11y`-Kommentar in [StreamlitBridgeSection.tsx](src/plugins/einstellungen/StreamlitBridgeSection.tsx) entfernt.
+- Keine Datenmodell-/Schema-/Flag-Änderung.
+
 ### v2.243.0 — Antrag-Aufbereitung: Tab „Verwertung/Markt" (dokumentgrenzen-unabhängig) (Juli 2026)
 
 MINOR — Stufe 2 zu v2.242.0: neuer Tab **„Verwertung/Markt"** in der Antrag-Aufbereitung (dev-Flag `antragAufbereitung`). Ein interner LLM-Baustein extrahiert die Verwertungs-/Markt-Aussagen (Zielmärkte, Wettbewerb, Verwertungswege, Zeithorizont, Umsatz-/Marktpotenzial) aus dem **Korpus** — kategorisiert, wortnah, mit Fundstellen ([verwertung.ts](src/plugins/antraege/aufbereitung/verwertung.ts), [VerwertungTab.tsx](src/plugins/antraege/aufbereitung/VerwertungTab.tsx)).

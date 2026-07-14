@@ -130,7 +130,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
                 Grab-Cursor + neutrale (outline) Fläche signalisieren „zieh mich in die
                 Leiste", nicht „klick mich" (der javascript:-href tut beim Klick nichts). */}
             <Button asChild variant="secondary" className="cursor-grab select-none">
-              {/* eslint-disable-next-line jsx-a11y/anchor-is-valid -- href wird imperativ gesetzt (javascript:-Bookmarklet) */}
+              {/* href wird imperativ gesetzt (javascript:-Bookmarklet), kein echtes Anker-Ziel — a11y-Anchor-Regel bewusst nicht anwendbar */}
               <a
                 ref={linkRef}
                 draggable

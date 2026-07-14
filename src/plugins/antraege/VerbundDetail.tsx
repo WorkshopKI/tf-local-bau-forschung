@@ -150,6 +150,26 @@ export function VerbundDetail({
     });
   }, [verbund, antraege, allAntraege]);
 
+  // TV-Titel als Text (eine Zeile je Teilvorhaben) für die Kopier-Aktion im
+  // Sektionskopf — oft in andere Dokumente übernommen. Reihenfolge = TV-Liste
+  // (Lead zuerst); leere übersprungen, wortgleiche (normalisiert) Titel nur
+  // einmal (bei geteiltem Verbund-Titel sonst N identische Zeilen). Hook läuft
+  // unbedingt (vor dem Early-Return) — sonst zählt React beim null→geladen-
+  // Übergang unterschiedlich viele Hooks (React #310).
+  const tvTitelZeilen = useMemo<string[]>(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const a of antraege) {
+      const t = strOrNull(a.titel);
+      if (!t) continue;
+      const key = t.trim().replace(/\s+/g, ' ').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+    }
+    return out;
+  }, [antraege]);
+
   if (!verbund) {
     return (
       <PanelShell onClose={onClose}>
@@ -212,24 +232,6 @@ export function VerbundDetail({
   // Kontext-Vorschau der kollabierten „Antragsdaten"-Sektion: Koordinator + weitere.
   const antragsdatenPreview = [antragsteller, antraege.length > 1 ? `${antraege.length - 1} weitere` : null]
     .filter(Boolean).join(' · ');
-
-  // TV-Titel als Text (eine Zeile je Teilvorhaben) für die Kopier-Aktion im
-  // Sektionskopf — oft in andere Dokumente übernommen. Reihenfolge = TV-Liste
-  // (Lead zuerst); leere übersprungen, wortgleiche (normalisiert) Titel nur
-  // einmal (bei geteiltem Verbund-Titel sonst N identische Zeilen).
-  const tvTitelZeilen = useMemo<string[]>(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const a of antraege) {
-      const t = strOrNull(a.titel);
-      if (!t) continue;
-      const key = t.trim().replace(/\s+/g, ' ').toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(t);
-    }
-    return out;
-  }, [antraege]);
 
   // Sprung in die NF-Werkstatt (Artefakt-Leiste-Karte).
   const scrollTo = (id: string): void => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };

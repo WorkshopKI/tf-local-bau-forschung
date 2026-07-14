@@ -21,6 +21,9 @@
 
 ## v2.243 — 2026-07
 
+### Bugfixes
+- **Absturz beim Öffnen einer Antrags-/Verbund-Detailseite behoben.** Zuvor konnte das Öffnen einer Detailseite — etwa über „Weiter" im Startseiten-Bereich „Weitermachen" — statt der Seite eine Fehlermeldung zeigen. Detailseiten öffnen jetzt wieder zuverlässig.
+
 ### Neu
 - **Neuer Tab „Verwertung/Markt" in der Antrag-Aufbereitung.** Er fasst die Aussagen zu Zielmärkten, Wettbewerb, Verwertungswegen, geplantem Markteintritt und erwarteten Umsätzen zusammen — jeweils mit Fundstelle im Antrag. Ob diese Angaben in einem eigenen Marketing-/Verwertungskonzept oder schon in der Vorhabensbeschreibung stehen, spielt keine Rolle.
 
