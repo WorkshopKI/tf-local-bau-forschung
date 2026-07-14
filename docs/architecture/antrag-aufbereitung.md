@@ -64,6 +64,16 @@ Ein `AufbereitungRun` pro Antrag im IDB-`kv`-Store unter **`aufbereitung:<antrag
 
 Die Plausibilitäts-Liste im Zeitplan-Tab rendert **typ-agnostisch** (Farbe nur aus `schwere`) → der `kapazitaet`-Befund erscheint ohne UI-Änderung.
 
+## Anlage 5 pro Teilvorhaben (Verbund, v2.245)
+
+Die Anlage 5 (Arbeitsplan) ist **teilvorhaben-spezifisch** — ein Verbund mit N TVs bringt N Anlagen mit. Der Zeitplan-Tab ist deshalb verbund-fähig, **rein additiv** (Solo-Pfad unverändert):
+
+- **Verzweigung nach TV-Zahl** in `baueRun` ([store.ts](../../src/plugins/antraege/aufbereitung/store.ts)): bei **1 TV** (Solo/Pseudo-Verbund) unverändert ein `zeitplan` + Text-vs-Anlage-5-Abgleich; bei **≥2 TV** übernimmt `baueVerbundRun` und füllt `AufbereitungRun.teilplaene: TvPlan[]` (pro TV die reine Anlage-5-Ernte via `ernteAnlagePlan` → `{zeilen, achseMax}`), Top-Level `zeitplan = null`, **kein** Text-Abgleich (die gemeinsame VB trägt keine TV-genauen Textpläne).
+- **`run.befunde` bleibt die einzige Befund-Liste**: die Kapazitäts-Befunde aller TVs werden geflacht, je mit `Befund.tvAz` + TV-Kürzel im Text (→ eindeutiger `befundKey`, Fragen-Tab/offene Punkte unverändert). Die TV-Sektionen filtern `run.befunde` nach `tvAz`.
+- **TV-Zuordnung deterministisch aus dem Dateinamen** ([quellen.ts](../../src/plugins/antraege/aufbereitung/quellen.ts)): `resolveAnlagenProTv(idb, verbundKey, tvAzListe)` scannt `doc:` einmal (Kandidat = mit Verbund-Key getaggt UND Tag `arbeitsplan`/`ANLAGE5_RE`), ordnet per `matchTvAusDateiname` (längster TV-FKZ-Treffer gewinnt, nur gegen TV-Azs) zu, newest-wins pro TV; nicht zuordenbare → `unzugeordnet[]` → `run.anlagenOhneTv`. **IDB-only** (der persönliche Ordner-Fallback bleibt dem Solo-`resolveAnlage5` vorbehalten); kein Tagging-Umbau, keine Migration (wirkt auf bereits hochgeladene Dateien). Der `AufbereitungContext` trägt dafür `teilvorhaben` (aus `buildKurzfassungContext`, Lead-TV zuerst).
+- **UI** ([VerbundZeitplan.tsx](../../src/plugins/antraege/aufbereitung/VerbundZeitplan.tsx)): Verbund-Summenzeile (`verbundZeitplanSummary` — Σ PM, Σ TV-lokale MA-Distinct-Zahlen, längster Horizont, TV-Abdeckung) + je TV eine Sektion (Gantt „Nach AP/Person" + `KennzahlenKarte`; fehlt die Anlage 5 → Platzhalter mit `DokumentAufnahme`-Drop-Zone, `defaultTyp='arbeitsplan'` → Auto-Recompute). Geteilte Bausteine (`KennzahlenKarte`/`BefundZeile`/`Stat`) liegen in [zeitplanBausteine.tsx](../../src/plugins/antraege/aufbereitung/zeitplanBausteine.tsx) (kein Import-Zyklus). `istVeraltet` vergleicht im Verbund das Anlage-5-Hash-**Multiset**.
+- **Additiv**: `teilplaene`/`anlagenOhneTv`/`QuelleRef.tvAz`/`Befund.tvAz` optional, `AufbereitungRun.version` bleibt `1`. LLM-Bausteine unberührt (weiter VB-+-Marketing-Korpus). Spec/Plan: [docs/superpowers/](../superpowers/specs/2026-07-14-aufbereitung-anlage5-pro-tv-design.md).
+
 ## LLM-Bausteine (Cache/Degradation/DSGVO)
 
 Beide Bausteine folgen dem **Relevanz-Map-Muster** (`gutachten/relevanz-map.ts`): auswählen + referenzieren statt frei formulieren, EIN interner Lauf, per VB-Hash gecacht. Der generische Rahmen `getOrComputeBaustein<T>` ([bausteine.ts](../../src/plugins/antraege/aufbereitung/bausteine.ts)):

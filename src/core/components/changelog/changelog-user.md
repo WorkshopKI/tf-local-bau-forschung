@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.245 — 2026-07
+
+### Neu
+- **Verbundprojekte: eigener Zeitplan je Teilvorhaben.** Die Anlage 5 (Arbeitsplan) gehört zu einem einzelnen Teilvorhaben — ein Verbund mit mehreren Teilvorhaben hat also mehrere. Die Antrags-Aufbereitung zeigt jetzt für **jedes Teilvorhaben** seinen eigenen Zeitplan und seine eigene Kapazitätsprüfung aus der jeweiligen Anlage 5, mit einer Gesamtübersicht oben (Personenmonate, eingesetzte Mitarbeitende, längster Zeithorizont). Du kannst einfach alle Anlagen 5 hochladen — sie werden automatisch am Förderkennzeichen im Dateinamen dem richtigen Teilvorhaben zugeordnet.
+- **Fehlende Anlage 5 direkt nachreichbar.** Fehlt für ein Teilvorhaben die Anlage 5, siehst du das an dessen Stelle und kannst die Datei gleich dort ablegen — der Zeitplan aktualisiert sich automatisch.
+
+(Einzelanträge sind unverändert.)
+
 ## v2.244 — 2026-07
 
 ### Bugfixes
