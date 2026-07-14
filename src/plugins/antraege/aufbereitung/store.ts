@@ -12,7 +12,7 @@ import {
   ernteTabellen, normalisiereAnlage5, normalisiereZeitplanText, verglichZeitplaene, pruefeKapazitaet,
   summePm, type ApZeile, type Befund,
 } from './tabellen';
-import { resolveAnlage5, resolveKorpus, baueKorpus } from './quellen';
+import { resolveAnlage5, resolveKorpus, baueKorpus, resolveAnlagenProTv } from './quellen';
 import { ernteRisiken } from './risiken';
 import type { AufbereitungRun, QuelleRef, RunTabelle, TvPlan } from './types';
 
@@ -22,6 +22,8 @@ export const aufbereitungKey = (antragKey: string): string => `aufbereitung:${an
 export interface AufbereitungContext {
   key: string;
   knownIds: string[];
+  /** Teilvorhaben des Verbundes (Lead-TV zuerst) — Labels + TV-Liste für die Anlage-5-Zuordnung. */
+  teilvorhaben?: TvEingang[];
 }
 
 /** Eine aufgelöste Quelle als Eingang für die reine Assemblierung. */
@@ -277,14 +279,26 @@ export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContex
   const now = new Date().toISOString();
   const vorher = await loadAufbereitung(idb, ctx.key);
   const korpus = await resolveKorpus(idb, ctx);
-  const anlageA = await resolveAnlage5(idb, ctx).catch(() => null);
 
   // `KorpusDok` (name+markdown) ist strukturell `QuellEingang`.
   const vb: QuellEingang | null = korpus?.vb ?? null;
   const narrative: QuellEingang[] = korpus?.narrative ?? [];
-  const anlage: QuellEingang | null = anlageA ? { markdown: anlageA.markdown, name: anlageA.quelleName } : null;
 
-  const mitOffen = uebernehmeOffenePunkte(baueRun(ctx.key, vb, anlage, narrative, now), vorher?.offenePunkte ?? []);
+  const tvs = ctx.teilvorhaben ?? [];
+  let roh: AufbereitungRun;
+  if (tvs.length >= 2) {
+    // Verbund: Anlage 5 pro TV auflösen und an den Verbund-Zweig von baueRun reichen.
+    const { proTv, unzugeordnet } = await resolveAnlagenProTv(idb, ctx.key, tvs.map(t => t.tvAz));
+    const anlagenProTv = new Map<string, QuellEingang>();
+    for (const [tvAz, a] of proTv) anlagenProTv.set(tvAz, { markdown: a.markdown, name: a.quelleName });
+    roh = baueRun(ctx.key, vb, null, narrative, now, { teilvorhaben: tvs, anlagenProTv, unzugeordnet });
+  } else {
+    const anlageA = await resolveAnlage5(idb, ctx).catch(() => null);
+    const anlage: QuellEingang | null = anlageA ? { markdown: anlageA.markdown, name: anlageA.quelleName } : null;
+    roh = baueRun(ctx.key, vb, anlage, narrative, now);
+  }
+
+  const mitOffen = uebernehmeOffenePunkte(roh, vorher?.offenePunkte ?? []);
   const run = uebernehmeErledigtePunkte(mitOffen, vorher?.erledigtePunkte ?? []);
   await idb.set(aufbereitungKey(ctx.key), run);
   return run;
