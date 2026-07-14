@@ -102,15 +102,46 @@ function sektionAnOffset(gliederung: VbSektion[], offset: number): string | unde
   return s?.nummer ?? s?.id;
 }
 
+/** Ein Teilvorhaben als Eingang der Verbund-Assemblierung. */
+export interface TvEingang {
+  nr: number;
+  tvAz: string;
+  akronym: string | null;
+  titel: string | null;
+}
+
+/** Verbund-Eingang von `computeAufbereitung` an `baueRun` (nur bei ≥2 TV wirksam). */
+export interface VerbundEingang {
+  teilvorhaben: TvEingang[];
+  anlagenProTv: Map<string, QuellEingang>;
+  unzugeordnet: string[];
+}
+
+/** Anlage-5-Markdown → reiner Zeitplan (nur `klasse:'anlage5'`), oder null. Geteilt. */
+function ernteAnlagePlan(markdown: string): { zeilen: ApZeile[]; achseMax: number } | null {
+  const zeilen = ernteTabellen(markdown)
+    .filter(t => t.klasse === 'anlage5')
+    .flatMap(t => normalisiereAnlage5(t));
+  if (zeilen.length === 0) return null;
+  const achseMax = Math.max(zeilen.reduce((m, z) => Math.max(m, z.monatEnde ?? z.monatStart ?? 0), 0), 1);
+  return { zeilen, achseMax };
+}
+
 /**
  * Reine, deterministische Assemblierung eines Runs aus den aufgelösten Quellen.
  * Anlage 5 gewinnt für den angezeigten Zeitplan; die VB-Text-Tabelle dient als
- * Vergleichsquelle für die Befunde. Kein IO.
+ * Vergleichsquelle für die Befunde. Kein IO. Im echten Verbund (≥2 TV) übernimmt
+ * `baueVerbundRun` (pro TV eine Anlage-5-Ernte, kein Text-Abgleich).
  */
 export function baueRun(
   antragKey: string, vb: QuellEingang | null, anlage: QuellEingang | null,
-  narrativeDocs: QuellEingang[], now: string,
+  narrativeDocs: QuellEingang[], now: string, verbund?: VerbundEingang,
 ): AufbereitungRun {
+  // ── Verbund-Zweig (≥2 TV): pro TV eine Anlage-5-Ernte, kein Text-Abgleich. ──
+  if (verbund && verbund.teilvorhaben.length >= 2) {
+    return baueVerbundRun(antragKey, vb, narrativeDocs, verbund, now);
+  }
+  // ── Solo-Pfad (1 TV / kein verbund-Arg): heutiger Code unverändert darunter. ──
   const quellen: QuelleRef[] = [];
   if (vb) quellen.push({ name: vb.name, hash: hashText(vb.markdown), gelesenAm: now, rolle: 'vb' });
   if (anlage) quellen.push({ name: anlage.name, hash: hashText(anlage.markdown), gelesenAm: now, rolle: 'anlage5' });
@@ -178,6 +209,58 @@ export function baueRun(
     zeitplan,
     befunde,
     offenePunkte: [],
+    ...(risiken.length ? { risiken } : {}),
+    ...(vb ? {} : { hinweis: 'Keine Vorhabensbeschreibung gefunden — bitte VB zum Antrag aufnehmen, dann neu aufbereiten.' }),
+  };
+}
+
+/**
+ * Verbund-Assemblierung (≥2 TV): pro TV eine Anlage-5-Ernte (`teilplaene`), Kapazitäts-
+ * Befunde je TV in `run.befunde` geflacht (mit `tvAz` + TV-Kürzel im Text → eindeutiger
+ * `befundKey`). Kein Text↔Anlage-5-Abgleich (die gemeinsame VB trägt keine TV-genauen
+ * Textpläne). Gliederung/Tabellen/Risiken bleiben VB-basiert. Rein.
+ */
+function baueVerbundRun(
+  antragKey: string, vb: QuellEingang | null, narrativeDocs: QuellEingang[],
+  verbund: VerbundEingang, now: string,
+): AufbereitungRun {
+  const quellen: QuelleRef[] = [];
+  if (vb) quellen.push({ name: vb.name, hash: hashText(vb.markdown), gelesenAm: now, rolle: 'vb' });
+  for (const d of narrativeDocs) quellen.push({ name: d.name, hash: hashText(d.markdown), gelesenAm: now, rolle: 'verwertung' });
+
+  const korpus = vb ? baueKorpus(vb, narrativeDocs) : '';
+  const gliederung = korpus ? parseVbGliederung(korpus) : [];
+  const vbTabellen: RunTabelle[] = vb ? ernteTabellen(vb.markdown).map(t => ({ ...t, rolle: 'vb' as const })) : [];
+  const risiken = ernteRisiken(vbTabellen, gliederung);
+
+  const teilplaene: TvPlan[] = verbund.teilvorhaben.map(tv => {
+    const a = verbund.anlagenProTv.get(tv.tvAz) ?? null;
+    return {
+      nr: tv.nr, tvAz: tv.tvAz, tvAkronym: tv.akronym, tvTitel: tv.titel,
+      anlage: a ? { name: a.name, hash: hashText(a.markdown), gelesenAm: now, rolle: 'anlage5' as const, tvAz: tv.tvAz } : null,
+      zeitplan: a ? ernteAnlagePlan(a.markdown) : null,
+    };
+  });
+  for (const tp of teilplaene) if (tp.anlage) quellen.push(tp.anlage);
+
+  const befunde: Befund[] = teilplaene.flatMap(tp => {
+    if (!tp.zeitplan) return [];
+    const label = tp.tvAkronym ?? tp.tvAz;
+    return pruefeKapazitaet(tp.zeitplan.zeilen).map(b => ({ ...b, tvAz: tp.tvAz, text: `${label}: ${b.text}` }));
+  });
+
+  return {
+    version: 1,
+    antragKey,
+    erzeugtAm: now,
+    quellen,
+    gliederung,
+    tabellen: vbTabellen,
+    zeitplan: null,
+    befunde,
+    offenePunkte: [],
+    teilplaene,
+    ...(verbund.unzugeordnet.length ? { anlagenOhneTv: verbund.unzugeordnet } : {}),
     ...(risiken.length ? { risiken } : {}),
     ...(vb ? {} : { hinweis: 'Keine Vorhabensbeschreibung gefunden — bitte VB zum Antrag aufnehmen, dann neu aufbereiten.' }),
   };

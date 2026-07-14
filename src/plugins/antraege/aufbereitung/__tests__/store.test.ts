@@ -124,6 +124,70 @@ describe('baueRun — Korpus (narrative Zusatzdokumente, dokumentgrenzen-neutral
   });
 });
 
+describe('baueRun — Verbund (Anlage 5 pro TV)', () => {
+  const anlageTvA = [
+    '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
+    '| --- | --- | --- | --- | --- | --- |',
+    '| 1 | Konzept A | 01.01.2023 | 28.02.2023 | MA01 | 2 |',
+  ].join('\n');
+  const anlageTvB = [
+    '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
+    '| --- | --- | --- | --- | --- | --- |',
+    '| 1 | Kern B | 01.04.2023 | 15.04.2023 | MA02 | 4 |',
+    '| 2 | Erweiterung B | 16.04.2023 | 30.04.2023 | MA02 | 3 |',
+  ].join('\n');
+
+  const teilvorhaben = [
+    { nr: 1, tvAz: '16KN0001', akronym: 'ALPHA', titel: 'TV Alpha' },
+    { nr: 2, tvAz: '16KN0002', akronym: 'BETA', titel: 'TV Beta' },
+    { nr: 3, tvAz: '16KN0003', akronym: 'GAMMA', titel: 'TV Gamma' },
+  ];
+  const anlagenProTv = new Map([
+    ['16KN0001', { markdown: anlageTvA, name: 'AP_16KN0001.docx' }],
+    ['16KN0002', { markdown: anlageTvB, name: 'AP_16KN0002.docx' }],
+  ]);
+  const run = baueRun('VBND', { markdown: VB_MD, name: 'p.docx' }, null, [], NOW,
+    { teilvorhaben, anlagenProTv, unzugeordnet: ['fremd.pdf'] });
+
+  it('baut ein teilplaene-Array mit einem Eintrag je TV (fehlende TV = anlage null)', () => {
+    expect(run.teilplaene?.map(t => t.tvAz)).toEqual(['16KN0001', '16KN0002', '16KN0003']);
+    expect(run.teilplaene?.map(t => t.tvAkronym)).toEqual(['ALPHA', 'BETA', 'GAMMA']);
+    expect(run.teilplaene?.[0]?.zeitplan?.zeilen.length).toBe(1);
+    expect(run.teilplaene?.[2]?.anlage).toBeNull();       // GAMMA ohne Anlage 5
+    expect(run.teilplaene?.[2]?.zeitplan).toBeNull();
+  });
+
+  it('Top-Level zeitplan ist null; quellen tragen VB + je TV eine anlage5-Quelle mit tvAz', () => {
+    expect(run.zeitplan).toBeNull();
+    const anlageQ = run.quellen.filter(q => q.rolle === 'anlage5');
+    expect(anlageQ.map(q => q.tvAz)).toEqual(['16KN0001', '16KN0002']);
+    expect(run.quellen.find(q => q.rolle === 'vb')).toBeDefined();
+  });
+
+  it('Kapazitäts-Befunde sind pro TV geflacht (mit tvAz + TV-Kürzel im Text)', () => {
+    const kap = run.befunde.filter(b => b.typ === 'kapazitaet');
+    expect(kap.length).toBeGreaterThan(0);
+    expect(kap.every(b => b.tvAz === '16KN0002')).toBe(true); // nur BETA ist überplant
+    expect(kap[0]!.text.startsWith('BETA:')).toBe(true);
+  });
+
+  it('unzuordenbare Anlagen landen in anlagenOhneTv', () => {
+    expect(run.anlagenOhneTv).toEqual(['fremd.pdf']);
+  });
+
+  it('Regression: 1 TV bzw. kein verbund-Arg → Solo-Pfad unverändert (kein teilplaene)', () => {
+    const solo = baueRun('S', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
+    expect(solo.teilplaene).toBeUndefined();
+    expect(solo.zeitplan?.herkunft).toBe('beide');
+    // Auch mit verbund-Arg, aber nur 1 TV → Solo-Pfad.
+    const einTv = baueRun('S1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW,
+      { teilvorhaben: [{ nr: 1, tvAz: '16KN0001', akronym: 'ALPHA', titel: null }],
+        anlagenProTv: new Map(), unzugeordnet: [] });
+    expect(einTv.teilplaene).toBeUndefined();
+    expect(einTv.zeitplan?.herkunft).toBe('beide');
+  });
+});
+
 describe('verbundZeitplanSummary', () => {
   const tp = (nr: number, tvAz: string, zeilen: unknown, achseMax: number): TvPlan => ({
     nr, tvAz, tvAkronym: `TV${nr}`, tvTitel: null,
