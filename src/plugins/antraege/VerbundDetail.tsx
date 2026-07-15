@@ -208,11 +208,12 @@ export function VerbundDetail({
   // Kopf-Stepper: Verbund-Ebene (amtliches Aggregat), unabhängig vom expandierten TV.
   const stepperStatus = displayStatus;
 
-  // Kurzbeschreibungs-Karte unter dem Kopf: bevorzugt die ausführliche VB_INHALT-
-  // Kurzzusammenfassung; fehlt sie ganz, tritt der Projekt-Titel als Karteninhalt
-  // ein — so erscheint IMMER eine Karte, solange es überhaupt Beschreibungstext
-  // gibt (statt nur einer dünnen Untertitel-Zeile).
-  const kurzbeschreibung = vorhabenInhalt ?? titel;
+  // Kurzbeschreibungs-Karte unter dem Kopf: die VB_INHALT-Kurzzusammenfassung. KEIN
+  // Titel-Fallback mehr — fehlt VB_INHALT (wird oft erst nach Abschluss des Gutachtens
+  // erstellt), bleibt die Karte leer (dezenter Hinweis in KurzbeschreibungCard); der
+  // Titel erscheint dann wieder als Untertitel im Kopf (siehe `untertitel`), statt als
+  // vermeintlicher Karteninhalt aufzutreten.
+  const kurzbeschreibung = vorhabenInhalt;
 
   // Untertitel im Kopf nur, wenn er nicht ohnehin (wortgleich) in der Karte steht
   // — sonst stünde der Titel doppelt (dünne Zeile + Karte).
@@ -251,16 +252,31 @@ export function VerbundDetail({
         />
       </div>
 
-      {/* KURZBESCHREIBUNG — Kurzzusammenfassung (VB_INHALT) als eigene Karte oben. */}
-      {kurzbeschreibung ? (
+      {/* ANTRAG-AUFBEREITUNG — erster Schritt (erst den Antrag verstehen, dann NF/Gutachten):
+          direkt unter dem Kopf, VOR der Kurzbeschreibung. Vollbild-Aufbereitung der VB
+          (flag-gated, nur dev). */}
+      {isAntragAufbereitungEnabled() ? (
         <div className={READ_COL}>
-          <KurzbeschreibungCard
-            text={kurzbeschreibung}
-            open={kbOpen}
-            onToggle={() => setKbOpen(o => !o)}
-          />
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={LayoutTemplate}
+            onClick={() => navigate(`/antraege/${encodeURIComponent(kurzfassungCtx.key)}/aufbereitung`)}
+          >
+            Antrag-Aufbereitung öffnen
+          </Button>
         </div>
       ) : null}
+
+      {/* KURZBESCHREIBUNG — Kurzzusammenfassung (VB_INHALT) als eigene Karte. Immer sichtbar;
+          fehlt VB_INHALT, zeigt die Karte einen dezenten „noch nicht erstellt"-Hinweis. */}
+      <div className={READ_COL}>
+        <KurzbeschreibungCard
+          text={kurzbeschreibung}
+          open={kbOpen}
+          onToggle={() => setKbOpen(o => !o)}
+        />
+      </div>
 
       {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen. */}
       {vorgaenger.length > 0 ? (
@@ -279,20 +295,6 @@ export function VerbundDetail({
           onWeiterNachforderung={() => scrollTo('nf')}
         />
       </div>
-
-      {/* ANTRAG-AUFBEREITUNG — Vollbild-Aufbereitung der VB (flag-gated, nur dev). */}
-      {isAntragAufbereitungEnabled() ? (
-        <div className={READ_COL}>
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={LayoutTemplate}
-            onClick={() => navigate(`/antraege/${encodeURIComponent(kurzfassungCtx.key)}/aufbereitung`)}
-          >
-            Antrag-Aufbereitung öffnen
-          </Button>
-        </div>
-      ) : null}
 
       {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Nach oben gezogen (ersetzt
           die frühere Übersichts-Karte): Fortschritt + „Weiter bei X" leben jetzt im

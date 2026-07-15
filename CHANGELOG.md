@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.252.0 — Aufbereitung-Einstieg zuerst + gesamte KI-Aufbereitung auf einen Klick; Kurzbeschreibung ohne Titel-Fallback (Juli 2026)
+
+MINOR — Der Antrag-Verstehen-Schritt (Aufbereitung) gehört an den Anfang, und die KI-Abschnitte der Aufbereitung sollen auf einen Klick laufen statt einzeln pro Tab. Zudem soll eine fehlende Kurzbeschreibung nicht durch den Projekt-Titel vorgetäuscht werden. Additiv, dev-only, keine Datenmigration.
+
+- **„Antrag-Aufbereitung öffnen" nach oben** ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)): direkt unter dem Kopf, VOR der Kurzbeschreibung — erst den Antrag verstehen, dann NF/Gutachten.
+- **Kurzbeschreibung ohne Titel-Fallback** ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) + [KurzbeschreibungCard.tsx](src/plugins/antraege/KurzbeschreibungCard.tsx)): fehlt VB_INHALT, bleibt die Karte sichtbar mit dezentem „wird nach Abschluss des Gutachtens erstellt"-Hinweis statt des Projekt-Titels; der Titel erscheint wieder als Untertitel im Kopf.
+- **„Mit KI aufbereiten" (ein Klick)** ([AufbereitungPage.tsx](src/plugins/antraege/aufbereitung/AufbereitungPage.tsx)): neuer primärer Seitenkopf-Button fährt alle 5 KI-Bausteine sequenziell (bestehende `bausteine`-Aktion) mit Live-Fortschritt „(n/5)"; „Neu aufbereiten" bleibt der schnelle KI-freie Refresh.
+
 ### v2.251.1 — Kurzfassung/Gutachten: echten Projekt-Titel statt generischem VB_TITEL ans LLM (Juli 2026)
 
 PATCH — Beim Erstellen der Kurzfassung/Gutachten-Stammdaten wurde als „Verbund-Titel" das Feld `verbund_titel` (CSV `VB_TITEL`) ans LLM gesendet — in Verbünden ohne Projektbeschreibungs-Enrichment oft ein generischer Platzhalter („Muster VB Titel N"). Der aussagekräftige Titel steckt im Lead-TV-Thema (`THEMA_AD`).

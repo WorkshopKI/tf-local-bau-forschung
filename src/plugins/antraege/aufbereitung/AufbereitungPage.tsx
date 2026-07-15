@@ -74,6 +74,10 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     [aufb.vbMarkdown, springeZuFundstelle],
   );
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
+  // Fortschritt für „Mit KI aufbereiten": wie viele der 5 KI-Bausteine sind fertig
+  // (ok/degradiert/fehler) — speist das Live-Label des Buttons während des Laufs.
+  const kiBausteine = [aufb.aspekte, aufb.steckbrief, aufb.zahlen, aufb.glossar, aufb.verwertung];
+  const kiFertig = kiBausteine.filter(b => b.status === 'ok' || b.status === 'degradiert' || b.status === 'fehler').length;
   const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus, aufb.verwertung.chatResetStatus]
     .some(s => s != null && resetHatVerlaufsrisiko(s));
 
@@ -118,6 +122,15 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             ) : null}
             <Button variant="secondary" size="sm" loading={aufb.neu.busy} onClick={() => aufb.neu.run()}>
               {aufb.neu.busy ? 'Aufbereiten …' : 'Neu aufbereiten'}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={aufb.bausteine.busy}
+              onClick={() => aufb.bausteine.run()}
+              title="Erzeugt alle KI-Abschnitte der Aufbereitung (Steckbrief, Abdeckung, Zahlen, Glossar, Verwertung) auf einmal — kein Abschnitt muss einzeln gestartet werden"
+            >
+              {aufb.bausteine.busy ? `KI-Aufbereitung läuft … (${kiFertig}/5)` : 'Mit KI aufbereiten'}
             </Button>
           </div>
         }

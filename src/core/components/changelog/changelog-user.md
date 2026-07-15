@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.252 — 2026-07
+
+### Neu
+- In der Antrag-Aufbereitung gibt es jetzt oben den Knopf **„Mit KI aufbereiten"** — er erzeugt alle KI-Abschnitte (Steckbrief, Abdeckung, Zahlen, Glossar, Verwertung) auf einmal, mit Fortschrittsanzeige. Man muss nicht mehr jeden Abschnitt einzeln starten. „Neu aufbereiten" bleibt der schnelle Refresh ohne KI.
+### Verbesserungen
+- Der Knopf **„Antrag-Aufbereitung öffnen"** steht jetzt gleich oben unter dem Kopf (vor der Kurzbeschreibung) — passend zum Ablauf: erst den Antrag verstehen, dann Nachforderung/Gutachten.
+- Fehlt die Kurzbeschreibung eines Vorhabens (wird oft erst nach dem Gutachten erstellt), erscheint jetzt ein dezenter Hinweis statt ersatzweise des Projekt-Titels.
+### Bugfixes
+<!-- - … -->
+
 ## v2.251 — 2026-07
 
 ### Neu
