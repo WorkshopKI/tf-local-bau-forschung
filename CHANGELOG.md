@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.254.0 — Umfang single-source: Regel statt doppelter Prompt-Prosa (A/B) (Juli 2026)
+
+MINOR — Regel-Edits im Workflow-Werkstatt/Skill-Editor (z. B. Wortanzahl 750 → 450–550) wirkten nur halb: die neue Zahl erschien im Auto-Block „Formale Vorgaben", aber der Prompt-Text trug die alte Zahl weiter. Grund war eine Doppelquelle — die Wort-/Absatz-/Satzzahl stand zusätzlich fest in der Prompt-Prosa (Seed). Jetzt ist die Regel die EINZIGE numerische Quelle. Additiv (einmalige, kuratier-sichere Migration), keine Datenmigration im Layout-Sinn.
+
+- **Feste Umfangs-Zahlen aus der Prompt-Prosa entfernt (A + B)** ([seed.ts](src/core/services/skills/registry/seed.ts)): „Gesamtumfang mindestens 750 Wörter"/„vier Absätze" (B) und „ca. 10 Sätze" (A/Kurzfassung) fallen weg; Umfang kommt allein aus den Regeln. Weiche Teil-Richtwerte (≥150/≥150/≥450) bleiben.
+- **Byte-genaue Reconcile-Migration `ga-umfang-dedup-2026-07`** ([migrations.ts](src/core/services/skills/registry/migrations.ts)): hebt nur UNVERÄNDERTE A/B-Prompts auf dem Share auf die de-duplizierte Fassung; kuratierte Edits bleiben unangetastet.
+- **Skill-Editor warnt bei Prosa↔Regel-Konflikt** ([SkillEditor.tsx](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx) + `findeUmfangKonflikte` in [check-engine.ts](src/core/services/skills/registry/check-engine.ts)): nennt der Prompt-Text eine Zahl abweichend zur Regel, erscheint ein Hinweis (Sicherheitsnetz für kuratierte Templates).
+
 ### v2.253.0 — Bundle-Diaet: ONNX-WASM gzip-inline + Dependency-Hygiene (Juli 2026)
 
 MINOR — Die Single-File-HTML war ~73 MB (dev) und wird bei jedem Start komplett vom SMB-Share geladen; dominiert von der ~21-MB-ONNX-WASM, die zweimal byte-identisch als base64-`data:`-URL im Bundle lag. Zusätzlich tote Pakete + offene npm-audit-Findings bereinigt.

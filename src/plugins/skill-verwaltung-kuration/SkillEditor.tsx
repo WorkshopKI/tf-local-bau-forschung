@@ -11,6 +11,7 @@ import {
   appendHistorie,
   rollbackSkill,
   buildPromptVorgaben,
+  findeUmfangKonflikte,
   resolveRegeln,
   describeRegelParams,
   type QualitaetsRegel,
@@ -73,6 +74,9 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
 
   const assignedRegeln = resolveRegeln(file, draft);
   const vorgaben = buildPromptVorgaben(assignedRegeln);
+  // Doppelquellen-Guard: nennt der Prompt-TEXT eine Umfangs-Zahl, die von der zugeordneten
+  // Regel abweicht, lief bisher der Prompt mit dem alten Wert weiter. Reiner Hinweis.
+  const umfangKonflikte = findeUmfangKonflikte(draft.promptTemplate, assignedRegeln);
   const reifegrad: Reifegrad = draft.reifegrad ?? 'entwurf';
   const reifegradVorschlag = suggestReifegrad(agg?.get(skill.id) ?? LEER_AGG, reifegrad);
   const historieCount = skill.historie?.length ?? 0;
@@ -235,6 +239,14 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
                 ))
               : <div className="text-[12.5px] text-[var(--tf-text-tertiary)]">Keine aktiven Regeln zugeordnet.</div>}
           </div>
+          {umfangKonflikte.length > 0 && (
+            <div className="mt-2.5 rounded-[8px] border-[0.5px] border-[var(--tf-warning-border)] bg-[var(--tf-warning-soft)] p-3">
+              <p className="text-[12px] font-medium text-[var(--tf-warning-text)] mb-1.5">⚠ Prompt-Text nennt eine andere Zahl als die Regel</p>
+              {umfangKonflikte.map((msg, i) => (
+                <p key={i} className="text-[11.5px] leading-[1.5] text-[var(--tf-warning-text)] mb-1 last:mb-0">{msg}</p>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Modifikatoren */}

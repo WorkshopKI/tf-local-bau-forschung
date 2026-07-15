@@ -507,3 +507,82 @@ export function buildPromptVorgaben(regeln: QualitaetsRegel[]): string {
   if (hinweise.length === 0) return '';
   return `## Formale Vorgaben\n${hinweise.map(h => `- ${h}`).join('\n')}`;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Prosa↔Regel-Umfangs-Konflikt (Editor-Warnhinweis)                          */
+/* -------------------------------------------------------------------------- */
+
+const ABSATZ_ZAHLWORT: Record<string, number> = {
+  zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6, sieben: 7, acht: 8, neun: 9, zehn: 10,
+};
+
+function umfangBandText(min: number | undefined, max: number | undefined, einheit: string): string {
+  if (min !== undefined && max !== undefined) return `${min}–${max} ${einheit}`;
+  if (min !== undefined) return `mindestens ${min} ${einheit}`;
+  if (max !== undefined) return `höchstens ${max} ${einheit}`;
+  return '(keine Zahl gesetzt)';
+}
+
+function umfangKonflikt(regelName: string, prosa: string, regel: string): string {
+  return `Der Prompt-Text nennt „${prosa}", die Regel „${regelName}" fordert ${regel}. `
+    + 'Passe den Prompt-Text an oder entferne die Zahl — der Umfang kommt aus der Regel.';
+}
+
+/**
+ * Findet Widersprüche zwischen fest in der Prompt-PROSA genannten Umfangs-Zahlen und der
+ * zugeordneten Umfangs-Regel (Wortanzahl/Satzanzahl/Absätze). Genau diese Doppelquelle ließ
+ * Regel-Edits ins Leere laufen — der Prompt trug den alten Wert weiter. Der Auto-Block
+ * `## Formale Vorgaben` leitet den Wert bereits aus der Regel ab; diese Prüfung deckt den
+ * Fall ab, dass ein (kuratiert editiertes) Template DENSELBEN Wert zusätzlich fest im Text
+ * nennt und dieser von der Regel abweicht.
+ *
+ * Konservativ + heuristisch: matcht nur „harte" Total-Formulierungen (mindestens/höchstens/
+ * „N bis M"/„Toleranz N–M"/„ca. N"), NICHT die weichen Teil-Richtwerte („Richtwert ≥ 150
+ * Wörter", „(1–2 Sätze)"). Ein Prosa-Wert, der einen Regel-Wert nur restated, ist KEIN
+ * Konflikt — nur echte Abweichung wird gemeldet. Render-only; blockt nichts.
+ */
+export function findeUmfangKonflikte(promptTemplate: string, regeln: QualitaetsRegel[]): string[] {
+  const meldungen: string[] = [];
+  for (const r of regeln) {
+    if (!r.aktiv) continue;
+    const min = optNumParam(r.params, 'min');
+    const max = optNumParam(r.params, 'max');
+
+    if (r.typ === 'wortanzahl') {
+      for (const m of promptTemplate.matchAll(/(\d+)\s*(?:bis|–|-)\s*(\d+)\s*Wörter/g)) {
+        const a = Number(m[1]);
+        const b = Number(m[2]);
+        if (a !== min || b !== max) meldungen.push(umfangKonflikt(r.name, `${a}–${b} Wörter`, umfangBandText(min, max, 'Wörter')));
+      }
+      for (const m of promptTemplate.matchAll(/mindestens\s*(\d+)\s*Wörter/g)) {
+        const n = Number(m[1]);
+        if (min === undefined || n !== min) meldungen.push(umfangKonflikt(r.name, `mindestens ${n} Wörter`, umfangBandText(min, max, 'Wörter')));
+      }
+      for (const m of promptTemplate.matchAll(/höchstens\s*(\d+)\s*Wörter/g)) {
+        const n = Number(m[1]);
+        if (max === undefined || n !== max) meldungen.push(umfangKonflikt(r.name, `höchstens ${n} Wörter`, umfangBandText(min, max, 'Wörter')));
+      }
+    } else if (r.typ === 'satzanzahl') {
+      for (const m of promptTemplate.matchAll(/ca\.\s*(\d+)\s*Sätze[n]?/g)) {
+        const n = Number(m[1]);
+        if ((min !== undefined && n < min) || (max !== undefined && n > max)) {
+          meldungen.push(umfangKonflikt(r.name, `ca. ${n} Sätze`, umfangBandText(min, max, 'Sätze')));
+        }
+      }
+      for (const m of promptTemplate.matchAll(/Toleranz\s*(\d+)\s*(?:bis|–|-)\s*(\d+)\s*Sätze[n]?/g)) {
+        const a = Number(m[1]);
+        const b = Number(m[2]);
+        if (a !== min || b !== max) meldungen.push(umfangKonflikt(r.name, `Toleranz ${a}–${b} Sätze`, umfangBandText(min, max, 'Sätze')));
+      }
+    } else if (r.typ === 'absatz_min') {
+      for (const m of promptTemplate.matchAll(/mindestens\s*(\d+|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)\s*Absätze[n]?/g)) {
+        const raw = m[1]!;
+        const n = /^\d+$/.test(raw) ? Number(raw) : ABSATZ_ZAHLWORT[raw];
+        if (n !== undefined && (min === undefined || n !== min)) {
+          meldungen.push(umfangKonflikt(r.name, `mindestens ${raw} Absätze`, min !== undefined ? `mindestens ${min} Absätze` : '(keine Zahl gesetzt)'));
+        }
+      }
+    }
+  }
+  return meldungen;
+}

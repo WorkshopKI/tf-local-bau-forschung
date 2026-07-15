@@ -43,10 +43,18 @@ describe('Abschnittszuordnung A–G (QS v2)', () => {
 });
 
 describe('GA-Skill-Abgleich (v20) — additive Stärken, GA-Verhalten unverändert', () => {
-  it('B trägt weiterhin die 3-teilige Struktur + 750-Wörter-Selbstprüfung', () => {
+  it('B nennt die Wortzahl NICHT mehr fest im Prompt (single-source über die Regel)', () => {
     const b = getSkillById(SEED_REGISTRY, 'gutachten-ausgangslage')!;
-    expect(b.promptTemplate).toContain('mindestens 750 Wörter');
+    // Umfang single-source (2026-07): der Prompt-Text trägt keine feste Total-Zahl mehr —
+    // die stand doppelt (Prosa + regel-abgeleiteter Block) und lief bei Regel-Edits auseinander.
+    expect(b.promptTemplate).not.toContain('750 Wörter');
+    expect(b.promptTemplate).not.toContain('Gesamtumfang');
+    expect(b.promptTemplate).not.toContain('mindestens vier Absätze');
+    // Die 3-teilige Struktur (Hintergrund / Stand der Technik / Lösungsweg) bleibt.
+    expect(b.promptTemplate).toContain('Lösungsweg');
+    // Der Wert lebt jetzt allein in der Regel:
     expect(b.regelIds).toContain('seed-b-wortanzahl');
+    expect(SEED_REGISTRY.regeln.find(r => r.id === 'seed-b-wortanzahl')?.params.min).toBe(750);
   });
 
   it('L=+50%-Modifier ist vorhanden (B–G)', () => {

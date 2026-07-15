@@ -62,7 +62,18 @@ function quellenanalyseKontrakt(belegKontrakt: boolean): string {
  * IDENTISCH zum Vor-Paket-4-Stand (kritisch: die Rollout-Migration vergleicht den
  * Share-Stand gegen `buildKurzfassungPrompt(false)`, um kuratierte Edits zu schützen).
  */
-export function buildKurzfassungPrompt(belegKontrakt: boolean): string {
+export function buildKurzfassungPrompt(belegKontrakt: boolean, umfangAlt = false): string {
+  // Umfang single-source (2026-07): die feste Satzzahl in der Prosa dupliziert die
+  // `satzanzahl`-Regel (8–12) und lief bei Regel-Edits auseinander. Der Live-Seed nennt
+  // die Zahl daher NICHT mehr — sie kommt allein aus der Regel (`## Formale Vorgaben`).
+  // `umfangAlt: true` reproduziert den Vor-Dedup-Wortlaut („ca. 10 Sätze") BYTE-GENAU —
+  // ausschließlich für die `applyUmfangDedup`-Migrations-Erkennung.
+  const aufgabeZeile = umfangAlt
+    ? 'Fasse die VB zu einer Kurzfassung von ca. 10 Sätzen zusammen (Toleranz 8–12 Sätze). Struktur, soweit im Antrag vorhanden:'
+    : 'Fasse die VB zu einer Kurzfassung zusammen. Struktur, soweit im Antrag vorhanden:';
+  const finalZeile = umfangAlt
+    ? 'Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenformat).'
+    : 'Der finale, geschliffene Fließtext der Kurzfassung (KEIN Listenformat).';
   return `Erstelle die **Kurzfassung** der folgenden Vorhabensbeschreibung (VB) für ein ZIM-Gutachten.
 
 ## Stammdaten des Antrags
@@ -72,7 +83,7 @@ export function buildKurzfassungPrompt(belegKontrakt: boolean): string {
 {{vbMarkdown}}
 
 ## Aufgabe & Kontrakt
-Fasse die VB zu einer Kurzfassung von ca. 10 Sätzen zusammen (Toleranz 8–12 Sätze). Struktur, soweit im Antrag vorhanden:
+${aufgabeZeile}
 1. Ausgangsproblem (1–2 Sätze)
 2. Projektziel (2–3 Sätze)
 3. Technischer Ansatz (3–4 Sätze)
@@ -90,7 +101,7 @@ ${quellenanalyseKontrakt(belegKontrakt)}
 Ein erster, noch ungeschliffener Entwurf der Kurzfassung.
 
 ### Finaler Text
-Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenformat).
+${finalZeile}
 
 ## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)
 Das Vorhaben beschreibt die Entwicklung eines Bio-Inkjet-Drucksystems, das durch eine begleitende Diagnose-App individuelle Hautpflegeprodukte direkt auf die Haut des Nutzers aufbringt. Das System kombiniert Mikrofluidik, biokompatible Tinten und präzise Düsentechnologie, um Tintentröpfchen im Mikrometer-Bereich exakt zu positionieren.`;
@@ -276,11 +287,11 @@ export const SEED_REGELN_BG: QualitaetsRegel[] = [
 export const AUSGANGSLAGE_SKILL_ID = 'gutachten-ausgangslage';
 
 /**
- * `abschnittTemplate`-Optionen für Abschnitt B — als Konstante herausgezogen, damit
- * die Rollout-Migration (Journey-Paket 4) den Alt-Stand (`belegKontrakt` weg) gegen
- * den Neu-Stand (`belegKontrakt: true`) byte-genau bilden kann.
+ * Vor-Dedup-Wortlaut von Abschnitt B (feste „mindestens 750 Wörter" / „vier Absätze" in
+ * der Prosa), eingefroren für die BYTE-genaue `applyUmfangDedup`-Migrations-Erkennung.
+ * NICHT mehr live geseedet — Muster wie `C_ABSCHNITT_OPTS_ALT`.
  */
-export const B_ABSCHNITT_OPTS = {
+export const B_ABSCHNITT_OPTS_UMFANG_ALT = {
   name: 'Hintergrund, Stand der Technik, Lösungsweg',
   aufgabe:
     'Stelle Hintergrund, Stand der Technik und Lösungsweg des Vorhabens in drei gedanklichen Teilen dar:\n'
@@ -296,6 +307,25 @@ export const B_ABSCHNITT_OPTS = {
   finalText:
     'Der finale Fließtext (mindestens 750 Wörter, mindestens vier Absätze): Hintergrund, Stand der '
     + 'Technik und Lösungsweg in dieser Reihenfolge, ohne Aufzählungen.',
+} as const;
+
+/**
+ * Live-Seed-Optionen für Abschnitt B — **Umfang single-source**: die Prosa nennt KEINE
+ * Total-Wort-/Absatzzahl mehr. Die stand bisher doppelt (hier UND im regel-abgeleiteten
+ * `## Formale Vorgaben`-Block) und lief bei Regel-Edits auseinander (der Prompt trug den
+ * alten Wert weiter). Wort-/Absatzzahl kommen jetzt allein aus den Regeln
+ * (`seed-b-wortanzahl` / `seed-b-absatz-min`). Die Teil-Richtwerte (≥150/≥150/≥450) bleiben
+ * als weiche Struktur-Hinweise erhalten. `aufgabe`/`name` byte-identisch zum Alt-Stand.
+ */
+export const B_ABSCHNITT_OPTS = {
+  name: B_ABSCHNITT_OPTS_UMFANG_ALT.name,
+  aufgabe: B_ABSCHNITT_OPTS_UMFANG_ALT.aufgabe,
+  formatRegeln: [
+    '**Fließtext** — keine Aufzählungen, keine Zwischenüberschriften.',
+  ],
+  finalText:
+    'Der finale Fließtext: Hintergrund, Stand der Technik und Lösungsweg in dieser '
+    + 'Reihenfolge, ohne Aufzählungen.',
 } as const;
 
 /** Skill-ID des Abschnitts C (Konstante für Lookups + Rollout-Migration). */

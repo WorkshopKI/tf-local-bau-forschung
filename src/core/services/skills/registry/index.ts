@@ -8,6 +8,7 @@ export {
   runRegelChecks,
   buildPromptHinweis,
   buildPromptVorgaben,
+  findeUmfangKonflikte,
   eingabeModusOf,
   kompiliereGruppe,
   erkennungsEintraege,

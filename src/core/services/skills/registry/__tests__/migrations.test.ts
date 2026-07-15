@@ -12,6 +12,7 @@ import {
   AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION,
   AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION,
   GA_RISIKEN_ENTWURF_MIGRATION,
+  GA_UMFANG_DEDUP_MIGRATION,
 } from '../migrations';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from '../aufbereitung-zahlen.seed';
@@ -23,6 +24,7 @@ import {
   buildKurzfassungPrompt,
   abschnittTemplate,
   B_ABSCHNITT_OPTS,
+  B_ABSCHNITT_OPTS_UMFANG_ALT,
   C_ABSCHNITT_OPTS_ALT,
   C_ABSCHNITT_OPTS_NEU,
 } from '../seed';
@@ -42,18 +44,24 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
 const NUR_ZAHLEN = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION);
 const NUR_STECKBRIEF = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION);
 const NUR_RISIKEN = ALLE_MARKER.filter(m => m !== GA_RISIKEN_ENTWURF_MIGRATION);
+const NUR_UMFANG = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_MIGRATION);
 
 const OLD_A = buildKurzfassungPrompt(false);
 const NEW_A = buildKurzfassungPrompt(true);
 const OLD_B = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
 const NEW_B = abschnittTemplate({ ...B_ABSCHNITT_OPTS, belegKontrakt: true });
+// Umfang single-source: Vor-Dedup-Wortlaut (feste Zahl) vs. de-dupliziert (= Live-Seed).
+const ALT_A_UMFANG = buildKurzfassungPrompt(false, true);
+const DEDUP_A = buildKurzfassungPrompt(false);
+const ALT_B_UMFANG = abschnittTemplate({ ...B_ABSCHNITT_OPTS_UMFANG_ALT });
+const DEDUP_B = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
 const OLD_C = abschnittTemplate({ ...C_ABSCHNITT_OPTS_ALT });
 const OLD_C_OHNE_STIL = abschnittTemplate({ ...C_ABSCHNITT_OPTS_ALT, stilbeispiel: undefined });
 const NEW_C = abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU });
@@ -278,6 +286,59 @@ describe('reconcile — C „Technische Risiken" Entwurf → Fließtext', () => 
   });
 });
 
+describe('reconcile — Umfang single-source A + B (feste Zahl aus der Prosa)', () => {
+  it('Alt- vs. de-dupliziertes Template unterscheiden sich wirklich (kein No-op-by-accident)', () => {
+    expect(ALT_A_UMFANG).not.toBe(DEDUP_A);
+    expect(ALT_A_UMFANG).toContain('ca. 10 Sätze');
+    expect(DEDUP_A).not.toContain('ca. 10 Sätze');
+    expect(ALT_B_UMFANG).not.toBe(DEDUP_B);
+    expect(ALT_B_UMFANG).toContain('mindestens 750 Wörter');
+    expect(DEDUP_B).not.toContain('750 Wörter');
+  });
+
+  it('pristine Alt-A/-B (feste Zahl) → de-dupliziert, Marker gesetzt', () => {
+    const altA = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: ALT_A_UMFANG, version: 2 });
+    const altB = skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: ALT_B_UMFANG, version: 2 });
+    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(file([altA, altB], NUR_UMFANG));
+    expect(geaendert).toBe(true);
+    expect(angewandt).toContain(GA_UMFANG_DEDUP_MIGRATION);
+    const a = out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)!;
+    const b = out.skills.find(s => s.id === AUSGANGSLAGE_SKILL_ID)!;
+    expect(a.promptTemplate).toBe(DEDUP_A);
+    expect(b.promptTemplate).toBe(DEDUP_B);
+    expect(a.version).toBe(2);
+    expect(b.version).toBe(2);
+  });
+
+  it('bereits de-dupliziert bleibt unberührt (No-op)', () => {
+    const a = skill(KURZFASSUNG_SKILL_ID, { promptTemplate: DEDUP_A, version: 2 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([a], NUR_UMFANG));
+    expect(out.skills[0]?.promptTemplate).toBe(DEDUP_A);
+  });
+
+  it('KURATIERT editiertes B (≠ Alt-Wortlaut) wird NIEMALS überschrieben', () => {
+    const edited = skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: ALT_B_UMFANG + '\nKurator-Zusatz', version: 3 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([edited], NUR_UMFANG));
+    const b = out.skills.find(s => s.id === AUSGANGSLAGE_SKILL_ID)!;
+    expect(b.promptTemplate).toBe(ALT_B_UMFANG + '\nKurator-Zusatz');
+    expect(b.version).toBe(3);
+  });
+
+  it('idempotent: zweiter Lauf ist No-op', () => {
+    const altB = skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: ALT_B_UMFANG, version: 2 });
+    const erst = reconcileEinmaligeAktivierungen(file([altB], NUR_UMFANG));
+    const zweit = reconcileEinmaligeAktivierungen(erst.file);
+    expect(zweit.geaendert).toBe(false);
+    expect(zweit.file.skills.find(s => s.id === AUSGANGSLAGE_SKILL_ID)?.promptTemplate).toBe(DEDUP_B);
+  });
+
+  it('Skill abwesend → nur Marker, kein Fehler', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(file([skill('x')], NUR_UMFANG));
+    expect(geaendert).toBe(true);
+    expect(out.angewandteMigrationen).toContain(GA_UMFANG_DEDUP_MIGRATION);
+  });
+});
+
 describe('reconcile — alle Migrationen zusammen', () => {
   it('frischer Share: alle Marker gesetzt (in Reihenfolge), geaendert', () => {
     const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(
@@ -290,7 +351,7 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);

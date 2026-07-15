@@ -22,6 +22,7 @@ import {
   buildKurzfassungPrompt,
   abschnittTemplate,
   B_ABSCHNITT_OPTS,
+  B_ABSCHNITT_OPTS_UMFANG_ALT,
   C_ABSCHNITT_OPTS_ALT,
   C_ABSCHNITT_OPTS_NEU,
 } from './seed';
@@ -47,6 +48,9 @@ export const AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION = 'aufbereitung-steckbr
 
 /** ID des C-Umbaus „Technische Risiken" auf Entwurf → gefilterter Fließtext. */
 export const GA_RISIKEN_ENTWURF_MIGRATION = 'ga-risiken-entwurf-2026-07';
+
+/** ID der Umfang-Single-Source-Entkopplung für A + B (feste Zahl aus der Prompt-Prosa entfernt). */
+export const GA_UMFANG_DEDUP_MIGRATION = 'ga-umfang-dedup-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -162,6 +166,32 @@ function applyRisikenEntwurf(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Umfang single-source A + B: die feste Wort-/Satz-/Absatzzahl in der Prompt-Prosa wird
+ * entfernt, sodass die zugeordnete Regel die EINZIGE numerische Quelle ist (der Auto-Block
+ * `## Formale Vorgaben` leitete den Wert ohnehin aus der Regel ab — bei Regel-Edits lief die
+ * Prosa auseinander und der Prompt trug den alten Wert weiter). Trägt ein A/B-Skill EXAKT
+ * den Vor-Dedup-Wortlaut, wird sein `promptTemplate` auf die de-duplizierte Fassung gehoben.
+ * Weicht der Text ab (kuratiert editiert oder schon migriert), bleibt der Skill UNBERÜHRT
+ * (der Skill-Editor markiert einen verbliebenen Prosa↔Regel-Konflikt zusätzlich per Hinweis).
+ * Version wird nicht gesenkt (`Math.max(s.version, 2)`, Parität zum Seed).
+ */
+function applyUmfangDedup(skills: SkillRecord[]): SkillRecord[] {
+  const altA = buildKurzfassungPrompt(false, true); // Vor-Dedup-Wortlaut („ca. 10 Sätze")
+  const neuA = buildKurzfassungPrompt(false); // de-dupliziert (Live-Seed)
+  const altB = abschnittTemplate({ ...B_ABSCHNITT_OPTS_UMFANG_ALT });
+  const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
+  return skills.map(s => {
+    if (s.id === KURZFASSUNG_SKILL_ID && s.promptTemplate === altA) {
+      return { ...s, promptTemplate: neuA, version: Math.max(s.version, 2) };
+    }
+    if (s.id === AUSGANGSLAGE_SKILL_ID && s.promptTemplate === altB) {
+      return { ...s, promptTemplate: neuB, version: Math.max(s.version, 2) };
+    }
+    return s;
+  });
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -175,6 +205,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, apply: applySteckbriefMaxTokens },
   { marker: GA_BELEG_KONTRAKT_REVERT_MIGRATION, apply: applyBelegKontraktRevert },
   { marker: GA_RISIKEN_ENTWURF_MIGRATION, apply: applyRisikenEntwurf },
+  { marker: GA_UMFANG_DEDUP_MIGRATION, apply: applyUmfangDedup },
 ];
 
 /**
