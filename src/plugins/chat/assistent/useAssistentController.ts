@@ -8,10 +8,15 @@ import { useCallback } from 'react';
 import { useStore } from 'zustand';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useSearch } from '@/core/hooks/useSearch';
+import { useStorage } from '@/core/hooks/useStorage';
 import { getOramaDB } from '@/core/services/search/orama-store';
 import { isAssistentGedaechtnisEnabled } from '@/config/feature-flags';
 import { istProtokollAktiv } from '@/core/services/assistent/protokoll';
 import { istGedaechtnisAktiv, ladeAktiveEintraege } from '@/core/services/assistent/gedaechtnis';
+import { baueVorhabenDokumente, type RohDokument } from '@/core/services/assistent/vorhaben-dokumente';
+import type { KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
+import type { IDBStore } from '@/core/services/storage';
+import type { DocumentFull } from '@/plugins/dokumente/store';
 import type { ChatMessage } from '../types';
 import { assistentSessionStore } from './sessionStore';
 import { baueKontextSnapshot } from './kontextSnapshot';
@@ -22,6 +27,31 @@ export async function ladeAssistentGedaechtnis(): Promise<ReadonlyArray<{ text: 
   if (!isAssistentGedaechtnisEnabled() || !istProtokollAktiv() || !istGedaechtnisAktiv()) return [];
   try {
     return (await ladeAktiveEintraege()).map(e => ({ text: e.text }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Dem aktuellen Vorhaben (Verbund) zugeordnete Dokumente über die Tag-Relation
+ * (Verbund-ID = `entitaet.id`) laden: `doc:*`-Scan → nur passende → newest-first →
+ * deterministisch formatiert (`baueVorhabenDokumente`). Wirft NIE (Turn läuft sonst
+ * ohne Dokument-Block). Der Assistent-Transport ist ohnehin intern-only (DSGVO ok).
+ */
+export async function ladeVorhabenDokumente(
+  idb: IDBStore, entitaet: KontextEntitaet | null,
+): Promise<ReadonlyArray<VorhabenDokument>> {
+  if (!entitaet) return [];
+  try {
+    const keys = await idb.keys('doc:');
+    const roh: Array<RohDokument & { created: string }> = [];
+    for (const key of keys) {
+      const doc = await idb.get<DocumentFull>(key);
+      if (!doc || !Array.isArray(doc.tags) || !doc.tags.includes(entitaet.id)) continue;
+      roh.push({ filename: doc.filename, markdown: doc.markdown, tags: doc.tags, created: doc.created ?? '' });
+    }
+    roh.sort((a, b) => b.created.localeCompare(a.created)); // neueste zuerst (Kappung behält die frischesten)
+    return baueVorhabenDokumente(roh, entitaet.id);
   } catch {
     return [];
   }
@@ -42,6 +72,7 @@ export interface AssistentController {
 export function useAssistentController(): AssistentController {
   const bridge = useAIBridge();
   const { search } = useSearch();
+  const storage = useStorage();
   const state = useStore(assistentSessionStore);
 
   const send = useCallback(async (frage: string): Promise<void> => {
@@ -58,9 +89,10 @@ export function useAssistentController(): AssistentController {
         }
       },
       getGedaechtnis: ladeAssistentGedaechtnis,
+      getVorhabenDokumente: (entitaet) => ladeVorhabenDokumente(storage.idb, entitaet),
     };
     await assistentSessionStore.getState().send(frage, deps);
-  }, [bridge, search]);
+  }, [bridge, search, storage]);
 
   return {
     messages: state.messages,

@@ -13,7 +13,7 @@ import { getStatusLabel } from '@/core/utils/status-mappings';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { GRUNDSATZ_REGELN } from '@/core/services/skills/registry/grundsatz';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
-import type { AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet } from './types';
+import type { AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet, VorhabenDokument } from './types';
 
 // ── Deterministische Budget-Konstanten (mit Begründung, keine Magie) ─────────
 /** Top-k Retrieval-Chunks im Prompt (bevorzugt die stärksten Treffer). */
@@ -24,6 +24,8 @@ export const RETRIEVAL_K = 5;
 export const RETRIEVAL_MIN_SCORE = 0.2;
 /** Zeichen-Cap je Chunk-Auszug (Prompt-Explosion vermeiden). */
 export const RETRIEVAL_CHUNK_MAX_CHARS = 600;
+/** Zeichen-Cap je Vorhaben-Dokument-Auszug im „Dokumente zum Vorhaben"-Block. */
+export const VORHABEN_DOK_AUSZUG_MAX_CHARS = 500;
 /** Zeichen-Cap je Historien-Turn. */
 export const HISTORIE_TURN_MAX_CHARS = 1200;
 /** Gesamt-Zeichen-Budget der Historie (ältester Turn zuerst gekürzt). */
@@ -108,6 +110,23 @@ function faktenBlock(eingabe: AssistentKontextEingabe): string {
   return zeilen.join('\n');
 }
 
+// ── Block 2b: Dokumente zum Vorhaben (entitäts-scoped, deterministisch) ───────
+/**
+ * Liste der dem Vorhaben zugeordneten Dokumente (VB/Anlage 5/Marketing/…), jeweils
+ * Typ-Label + Name + gekappter Auszug. Entitäts-scoped (Tag-Relation) — anders als
+ * das globale Volltext-Retrieval. Leer = kein Block (self-omittet über `.filter`).
+ */
+function vorhabenDokumenteBlock(docs: ReadonlyArray<VorhabenDokument>): string {
+  if (docs.length === 0) return '';
+  const zeilen = ['=== Dokumente zum Vorhaben (dem Vorhaben zugeordnet) ==='];
+  docs.forEach((d, i) => {
+    const auszug = d.auszug ? ` — ${trimTo(d.auszug, VORHABEN_DOK_AUSZUG_MAX_CHARS)}` : '';
+    zeilen.push(`[D${i + 1}] ${d.typLabel}: ${d.name}${auszug}`);
+  });
+  zeilen.push('=== Ende Dokumente ===');
+  return zeilen.join('\n');
+}
+
 // ── Block 3: Retrieval (optional, reduzierbar) ───────────────────────────────
 function retrievalKandidaten(treffer: ReadonlyArray<OramaSearchResult> | null): OramaSearchResult[] {
   if (!treffer || treffer.length === 0) return [];
@@ -179,6 +198,7 @@ export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): A
   const fakten = faktenBlock(eingabe);
 
   let gedEintraege: ReadonlyArray<{ text: string }> = eingabe.gedaechtnis ?? [];
+  let doks: ReadonlyArray<VorhabenDokument> = eingabe.vorhabenDokumente ?? [];
   let chunks = retrievalKandidaten(eingabe.treffer);
   let histZeilen = kappeHistorieAufBudget(historieZeilen(eingabe.turns));
 
@@ -187,6 +207,7 @@ export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): A
       SYSTEM_BLOCK,
       gedaechtnisBlock(gedEintraege),
       fakten,
+      vorhabenDokumenteBlock(doks),
       retrievalBlock(chunks),
       historieBlock(histZeilen),
       frageBlock(eingabe.frage, chunks.length > 0),
@@ -194,16 +215,18 @@ export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): A
       .filter(b => b.length > 0)
       .join('\n\n');
 
-  // Gesamt-Budget: ZUERST Gedächtnis (Hintergrundwissen, kann veraltet sein),
-  // dann Historie (älteste zuerst), dann Retrieval (schwächste zuerst). Fakten
-  // + Frage bleiben unangetastet.
+  // Gesamt-Budget in fester Reihenfolge kürzen: ZUERST Gedächtnis (Hintergrundwissen,
+  // kann veraltet sein), dann Historie (älteste zuerst), dann Retrieval (schwächste
+  // zuerst), ZULETZT die Vorhaben-Dokumente (entitäts-scoped = am wertvollsten). Fakten
+  // + Frage bleiben IMMER unangetastet.
   while (
     baue().length > GESAMT_MAX_CHARS
-    && (gedEintraege.length > 0 || histZeilen.length > 0 || chunks.length > 0)
+    && (gedEintraege.length > 0 || histZeilen.length > 0 || chunks.length > 0 || doks.length > 0)
   ) {
     if (gedEintraege.length > 0) gedEintraege = gedEintraege.slice(0, -1);
     else if (histZeilen.length > 0) histZeilen = histZeilen.slice(1);
-    else chunks = chunks.slice(0, -1);
+    else if (chunks.length > 0) chunks = chunks.slice(0, -1);
+    else doks = doks.slice(0, -1);
   }
 
   return {

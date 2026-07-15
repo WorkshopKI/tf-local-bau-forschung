@@ -26,23 +26,13 @@ import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
 import { KonvertierungReviewDialog } from './KonvertierungReviewDialog';
-import { classifyFkz, typAusDateiname, type FkzCase } from './dokumentAufnahmeFkz';
+import { classifyFkz, typAusDateiname, DOKUMENT_TYP_OPTIONEN, type FkzCase } from './dokumentAufnahmeFkz';
 
 const converter = new DocConverter();
 
-/**
- * Vollständiges Dokumenttyp-Vokabular — GETEILT über alle Aufnahmeflächen (Gutachten,
- * Kurzfassung, Nachforderungen, Aufbereitung), damit eine einmal hochgeladene Datei
- * überall korrekt taggbar ist. `AUFBEREITUNG_TYP_OPTIONEN` re-exportiert diese Liste.
- */
-export const DOKUMENT_TYP_OPTIONEN: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
-  { value: 'vorhabensbeschreibung', label: 'Vorhabensbeschreibung' },
-  { value: 'teilvorhabensbeschreibung', label: 'Teilvorhabensbeschreibung' },
-  { value: 'arbeitsplan', label: 'Arbeitsplan (Anlage 5)' },
-  { value: 'marketingkonzept', label: 'Marketing-/Verwertungskonzept' },
-  { value: 'stellungnahme', label: 'Stellungnahme' },
-  { value: 'sonstiges', label: 'Sonstiges' },
-];
+// Volles Dokumenttyp-Vokabular lebt jetzt in `dokumentAufnahmeFkz` (pure, geteilt mit
+// der Typ-Label-Ableitung des Assistenten). Re-Export für bestehende Importe.
+export { DOKUMENT_TYP_OPTIONEN } from './dokumentAufnahmeFkz';
 
 type ItemStatus = 'wartet' | 'konvertiert' | 'indexiert' | 'fehler' | 'verworfen';
 

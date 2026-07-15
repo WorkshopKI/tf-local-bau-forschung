@@ -178,3 +178,44 @@ describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
     expect(promptText.length).toBeLessThanOrEqual(GESAMT_MAX_CHARS);
   });
 });
+
+describe('assembliereAssistentKontext — Vorhaben-Dokumente (entitäts-scoped)', () => {
+  it('fügt einen „Dokumente zum Vorhaben"-Block NACH den Fakten und VOR dem Retrieval ein', () => {
+    const { promptText } = assembliereAssistentKontext(base({
+      treffer: [treffer('a', 0.8)],
+      vorhabenDokumente: [
+        { typLabel: 'Vorhabensbeschreibung', name: 'vb.pdf', auszug: 'VB-Text' },
+        { typLabel: 'Arbeitsplan (Anlage 5)', name: 'anlage5.pdf', auszug: 'AP-Tabelle' },
+      ],
+    }));
+    const iFakten = promptText.indexOf('=== Kontext (deterministisch');
+    const iDoks = promptText.indexOf('=== Dokumente zum Vorhaben');
+    const iRetrieval = promptText.indexOf('=== Auszüge aus den Dokumenten');
+    expect(iFakten).toBeLessThan(iDoks);
+    expect(iDoks).toBeLessThan(iRetrieval);
+    expect(promptText).toContain('Vorhabensbeschreibung: vb.pdf');
+    expect(promptText).toContain('Arbeitsplan (Anlage 5): anlage5.pdf');
+  });
+
+  it('kein Dokument → kein Block (self-omittet)', () => {
+    const { promptText } = assembliereAssistentKontext(base({ vorhabenDokumente: [] }));
+    expect(promptText).not.toContain('=== Dokumente zum Vorhaben');
+  });
+
+  it('wird im Budget ZULETZT gekürzt (nach Historie + Retrieval) — entitäts-scoped = am wertvollsten', () => {
+    // Großer Faktenblock drückt über das Budget → Historie + Retrieval werden geopfert,
+    // der Vorhaben-Dokumente-Block überlebt (wird als Letztes gekürzt).
+    const grosseStammdaten = Array.from({ length: 35 }, (_, i) => ({ label: `Feld ${i}`, wert: 'x'.repeat(600) }));
+    const turns = Array.from({ length: 10 }, (_, i) => ({ rolle: 'nutzer' as const, text: `TURN_${i} ${'y'.repeat(1200)}` }));
+    const { promptText, verwendeteTreffer } = assembliereAssistentKontext(base({
+      entitaet: { ...entitaet, stammdaten: grosseStammdaten },
+      treffer: Array.from({ length: RETRIEVAL_K }, (_, i) => treffer(`t${i}`, 0.9, 'z'.repeat(600))),
+      turns,
+      vorhabenDokumente: [{ typLabel: 'Vorhabensbeschreibung', name: 'vb.pdf', auszug: 'wichtiger VB-Auszug' }],
+    }));
+    expect(promptText).toContain('vb.pdf');                      // Dokument-Block überlebt
+    expect(verwendeteTreffer.length).toBeLessThan(RETRIEVAL_K);   // Retrieval wurde (teils) geopfert
+    expect(promptText).not.toContain('TURN_0');                  // älteste Historie geopfert
+    expect(promptText.length).toBeLessThanOrEqual(GESAMT_MAX_CHARS);
+  });
+});

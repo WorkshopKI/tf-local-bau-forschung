@@ -12,7 +12,7 @@ import type { OramaSearchResult } from '@/core/services/search/orama-store';
 import { resetHatVerlaufsrisiko, starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { assembliereAssistentKontext } from '@/core/services/assistent/kontext';
-import type { AssistentTurn, KontextEntitaet } from '@/core/services/assistent/kontext';
+import type { AssistentTurn, KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
 import { buildChatSources } from '../services/rag-sources';
 import type { ChatSource } from '../types';
 
@@ -39,6 +39,12 @@ export interface AssistentTurnDeps {
    * Flag + beiden Opt-ins liefert der Controller Einträge.
    */
   getGedaechtnis?: () => Promise<ReadonlyArray<{ text: string }>>;
+  /**
+   * Dem aktuellen Vorhaben zugeordnete Dokumente (unrein — IDB-Scan über die Tag-
+   * Relation). Optional: fehlt der Dep oder wirft er, läuft der Turn ohne Dokument-
+   * Block. Entitäts-scoped (Verbund-ID) — anders als das globale Volltext-Retrieval.
+   */
+  getVorhabenDokumente?: (entitaet: KontextEntitaet | null) => Promise<ReadonlyArray<VorhabenDokument>>;
 }
 
 export type AssistentTurnErgebnis =
@@ -75,11 +81,14 @@ export async function fuehreAssistentTurnAus(
   const erreichbar = await transport.ping().catch(() => false);
   if (!erreichbar) return { ok: false, fehler: DEGRADATION_MELDUNG };
 
-  // 3. Kontext-Snapshot + optionales Retrieval + optionales Gedächtnis.
+  // 3. Kontext-Snapshot + optionales Retrieval + optionales Gedächtnis + Vorhaben-Doks.
   const kontext = await deps.getKontext();
   const treffer = await deps.retrieve(frage).catch(() => null);
   const gedaechtnis = deps.getGedaechtnis
     ? await deps.getGedaechtnis().catch(() => [] as ReadonlyArray<{ text: string }>)
+    : [];
+  const vorhabenDokumente = deps.getVorhabenDokumente
+    ? await deps.getVorhabenDokumente(kontext.entitaet).catch(() => [] as ReadonlyArray<VorhabenDokument>)
     : [];
 
   // 4. Deterministisch assemblieren (das LLM formuliert nur).
@@ -90,6 +99,7 @@ export async function fuehreAssistentTurnAus(
     turns,
     treffer: treffer ?? null,
     gedaechtnis,
+    vorhabenDokumente,
   });
 
   // 5. resetChat VOR dem Senden (Pitfall #36) — best-effort, Kontaminations-Warnung.

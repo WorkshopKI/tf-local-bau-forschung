@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.249 — 2026-07
+
+### Neu
+- **Agentische interne KI wählbar.** Überall, wo du die interne KI verbindest (Einstellungen, Sidebar, Startseite), kannst du jetzt zwischen der klassischen und der agentischen internen KI wählen. Standard bleibt die klassische — die Wahl gilt dann für alle KI-Aktionen.
+- **Der Assistent kennt die Dokumente deines Vorhabens.** Er berücksichtigt jetzt gezielt die zu deinem Verbund hochgeladenen Dokumente (Vorhabensbeschreibung, Anlage 5, …), nicht nur zufällige Suchtreffer.
+
+### Verbesserungen
+- **Dokumente einmal hochladen — überall verfügbar.** Lädst du Dokumente beim Gutachten hoch, stehen sie jetzt auch in der KI-gestützten Aufbereitung bereit (z. B. die Anlage 5 im Zeitplan) — du musst sie nicht mehr doppelt hochladen. Ordnest du einer Datei nachträglich einen Typ zu, wird das sofort übernommen.
+- **PDF-Tabellen werden erkannt.** Tabellen aus PDFs (z. B. die Anlage 5) werden jetzt als echte Tabelle eingelesen — sichtbar in der Vorschau und nutzbar für den Zeitplan. Klappt das bei einem PDF nicht, sagt die App das klar und empfiehlt DOCX (statt die Anlage fälschlich als „fehlt" zu melden).
+
+### Bugfixes
+- **Kein stilles Hängen mehr ohne verbundene KI.** Startest du eine KI-Aktion, ohne dass die interne KI verbunden ist, weist die App dich jetzt darauf hin und bietet „Jetzt verbinden" an — statt im Hintergrund einen Tab zu öffnen und lange zu warten.
+
 ## v2.248 — 2026-07
 
 ### Verbesserungen

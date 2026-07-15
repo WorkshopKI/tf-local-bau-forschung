@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.249.0 — Dokumente einmal hochladen → überall verfügbar; PDF-Tabellen; KI-Guard + agentische KI; Assistent-Dokumente (Juli 2026)
+
+MINOR — Sammel-Folge aus der file://-Abnahme (v2.248.1): Antragsdokumente sollen EINMAL hochgeladen überall verfügbar sein, PDF-Anlagen als Tabelle nutzbar, und die interne KI überall bewusst verbunden/gewählt werden. Additiv, keine Datenmigration.
+
+- **Einmal hochladen → überall**: DokumentAufnahme bietet das VOLLE Typ-Vokabular (inkl. Arbeitsplan/Marketing, [DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx)/[dokumentAufnahmeFkz.ts](src/core/components/dokumentAufnahmeFkz.ts)); Dateiname-Heuristik `typAusDateiname` tagt Anlage 5 automatisch; Re-Tag (`setTyp`) rechnet die Aufbereitung sofort neu (kein „Übernehmen"-Klick). In Gutachten getaggte Anlage 5 erscheint jetzt in der Aufbereitung.
+- **Zeitplan „hinterlegt ≠ fehlt"** ([VerbundZeitplan.tsx](src/plugins/antraege/aufbereitung/VerbundZeitplan.tsx)/[store.ts](src/plugins/antraege/aufbereitung/store.ts)): eine erkannte, aber nicht auslesbare Anlage 5 zeigt „hinterlegt, Tabelle nicht auslesbar → DOCX" statt „fehlt"; „X/Y mit Anlage 5" zählt vorhandene Dokumente.
+- **PDF-Tabellen-Rekonstruktion** ([pdf-tables.ts](src/core/services/converter/pdf-tables.ts) → [converter/index.ts](src/core/services/converter/index.ts)): PDF-Tabellen werden zu Markdown-Pipe-Tabellen rekonstruiert (Vorschau + Zeitplan-Ernte) statt Flattext; konservativ, sonst Fließtext-Fallback.
+- **KI-CTA-Preflight** ([ki-guard.ts](src/core/services/ai/ki-guard.ts) + [KiConnectPromptDialog.tsx](src/core/components/KiConnectPromptDialog.tsx)): CTA ohne verbundene KI warnt + bietet „Jetzt verbinden" (kein stiller Tab + Retry-Loop); an Aufbereitung/Gutachten/Kurzfassung/Chat.
+- **Agentische interne KI wählbar** ([ki-ziel.ts](src/core/services/ai/ki-ziel.ts) + [KiVariantSelector.tsx](src/core/components/KiVariantSelector.tsx)): globale Präferenz „Standard | Agentisch" (Default Standard = byte-identisch), durchgereicht in alle Skill-Läufe + Chat, wählbar an allen Verbindungs-Stellen. **Assistent** kennt jetzt die Verbund-Dokumente deterministisch ([assembliere.ts](src/core/services/assistent/kontext/assembliere.ts)/[vorhaben-dokumente.ts](src/core/services/assistent/vorhaben-dokumente.ts)).
+
 ### v2.248.1 — Dokumenten-Aufnahme bleibt offen — Konvertierung pro Datei prüfbar (Gutachten/Kurzfassung/NF) (Juli 2026)
 
 PATCH — Bei der Gutachten-Erstellung legt der Bearbeiter mehrere Dokumente ab. Die Fläche mit der Pro-Datei-Erkennung (FKZ/Zuordnung) und dem „Konvertierung prüfen"-Link verschwand aber sofort wieder, sobald die erste VB erkannt war — die übrigen Datei-Ergebnisse waren nicht mehr einsehbar. Die Aufnahmefläche bleibt jetzt offen, bis der Bearbeiter explizit übernimmt.

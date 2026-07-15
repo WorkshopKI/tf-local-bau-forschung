@@ -58,6 +58,20 @@ export interface AssistentTurn {
   text: string;
 }
 
+/**
+ * Ein dem aktuellen Vorhaben (Verbund) zugeordnetes Dokument — deterministisch vom
+ * Controller über die Tag-Relation (Verbund-ID) aufgelöst. So „kennt" der Assistent
+ * die Antragsdokumente entitäts-scoped (nicht nur per zufälligem Volltext-Treffer).
+ */
+export interface VorhabenDokument {
+  /** Menschliches Typ-Label (z. B. „Vorhabensbeschreibung", „Arbeitsplan (Anlage 5)"). */
+  typLabel: string;
+  /** Dateiname des Dokuments. */
+  name: string;
+  /** Frontmatter-freier, gekappter Auszug (Prompt-Explosion vermeiden). */
+  auszug: string;
+}
+
 export interface AssistentKontextEingabe {
   /** Menschliche Beschreibung der aktuellen Ansicht, z. B. „Detailseite Verbund". */
   routeBeschreibung: string;
@@ -75,6 +89,14 @@ export interface AssistentKontextEingabe {
    * ZUERST gekürzt (Hintergrundwissen kann veraltet sein).
    */
   gedaechtnis?: ReadonlyArray<{ text: string }>;
+  /**
+   * Dem aktuellen Vorhaben (Verbund) zugeordnete Dokumente — deterministisch vom
+   * Controller über die Tag-Relation aufgelöst (VB/Anlage 5/Marketing/…). Als
+   * „Dokumente zum Vorhaben"-Block eingefügt (NACH den Fakten, VOR dem globalen
+   * Retrieval). Im Budget nach Gedächtnis/Historie/Retrieval gekürzt (entitäts-
+   * scoped → am wertvollsten). `undefined`/`[]` = kein Block.
+   */
+  vorhabenDokumente?: ReadonlyArray<VorhabenDokument>;
 }
 
 export interface AssistentPrompt {

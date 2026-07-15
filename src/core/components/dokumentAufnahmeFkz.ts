@@ -59,3 +59,31 @@ export function typAusDateiname(filename: string, fallback: AntragDokumentTyp): 
   if (MARKETING_RE.test(filename)) return 'marketingkonzept';
   return fallback;
 }
+
+/**
+ * Vollständiges Dokumenttyp-Vokabular — GETEILT über alle Aufnahmeflächen (Gutachten,
+ * Kurzfassung, Nachforderungen, Aufbereitung) UND die Typ-Label-Ableitung (Assistent).
+ * Hier (pure, node-testbar), damit Konsumenten die Labels ohne React-Import nutzen.
+ * `DokumentAufnahme` re-exportiert die Liste; `AUFBEREITUNG_TYP_OPTIONEN` ebenfalls.
+ */
+export const DOKUMENT_TYP_OPTIONEN: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
+  { value: 'vorhabensbeschreibung', label: 'Vorhabensbeschreibung' },
+  { value: 'teilvorhabensbeschreibung', label: 'Teilvorhabensbeschreibung' },
+  { value: 'arbeitsplan', label: 'Arbeitsplan (Anlage 5)' },
+  { value: 'marketingkonzept', label: 'Marketing-/Verwertungskonzept' },
+  { value: 'stellungnahme', label: 'Stellungnahme' },
+  { value: 'sonstiges', label: 'Sonstiges' },
+];
+
+const TYP_LABEL = new Map<string, string>(DOKUMENT_TYP_OPTIONEN.map(o => [o.value, o.label]));
+
+/** Menschliches Label eines Dokumenttyps (Fallback „Dokument"). */
+export function typLabelFuerDokument(typ: string): string {
+  return TYP_LABEL.get(typ) ?? 'Dokument';
+}
+
+/** Erster bekannte Dokumenttyp in den Tags eines Dokuments (sonst `'sonstiges'`). */
+export function typAusTags(tags: ReadonlyArray<string>): AntragDokumentTyp {
+  for (const t of tags) if (TYP_LABEL.has(t)) return t as AntragDokumentTyp;
+  return 'sonstiges';
+}

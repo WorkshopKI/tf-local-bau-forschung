@@ -17,4 +17,5 @@ export type {
   AssistentPrompt,
   AssistentTurn,
   KontextEntitaet,
+  VorhabenDokument,
 } from './types';
