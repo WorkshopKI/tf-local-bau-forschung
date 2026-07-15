@@ -4,6 +4,7 @@ import { tables } from 'turndown-plugin-gfm';
 import * as pdfjsLib from 'pdfjs-dist';
 import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
 import { buildConversionReport, type ConversionReport } from './conversion-report';
+import { pdfPageToMarkdown, type PdfTextFragment } from './pdf-tables';
 
 export type { ConversionReport, ConversionWarning, ConversionLevel } from './conversion-report';
 export { maxConversionLevel } from './conversion-report';
@@ -64,19 +65,16 @@ async function convertPdf(arrayBuffer: ArrayBuffer): Promise<{ text: string; pag
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    let lastY: number | null = null;
-    let pageText = '';
-
+    // Positionierte Fragmente einsammeln; pdfPageToMarkdown rekonstruiert Zeilen +
+    // Tabellen daraus (Flattext-Fallback, wo keine Tabelle erkennbar ist).
+    const frags: PdfTextFragment[] = [];
     for (const item of content.items) {
       if (!('str' in item)) continue;
-      const textItem = item as { str: string; transform: number[] };
-      const y = textItem.transform[5] ?? 0;
-      if (lastY !== null && Math.abs(y - lastY) > 5) pageText += '\n\n';
-      else if (lastY !== null) pageText += ' ';
-      pageText += textItem.str;
-      lastY = y;
+      const t = item as { str: string; transform: number[]; width?: number };
+      if (!t.str) continue;
+      frags.push({ str: t.str, x: t.transform[4] ?? 0, y: t.transform[5] ?? 0, width: t.width ?? 0 });
     }
-    pageTexts.push(pageText.trim());
+    pageTexts.push(pdfPageToMarkdown(frags).trim());
   }
 
   return { text: pageTexts.join('\n\n---\n\n'), pages: doc.numPages };
