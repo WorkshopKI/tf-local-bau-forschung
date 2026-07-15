@@ -19,10 +19,16 @@ import {
 } from '@/core/services/skills';
 import { findVorhabensbeschreibung } from '@/plugins/antraege/kurzfassung/vbDokument';
 import { listAllAntraegeListView } from '@/core/services/csv/idb-csv';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { getKategorieItems, getKategorieLabel, type KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { AntragListItem } from '@/core/services/csv/types';
 
 const nn = '[Im Antrag nicht genannt]';
+
+/** Obergrenze der gerenderten Zeilen. Nicht still — Überhang wird als Fußzeile
+ *  ausgewiesen (Repo-Regel „keine silent caps"). Über Typ-Filter/Suche eingrenzen. */
+const LISTE_CAP = 80;
 
 function buildStammdaten(item: AntragListItem): string {
   return [
@@ -70,6 +76,7 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
   const [antraege, setAntraege] = useState<AntragListItem[]>([]);
   const [vbSet, setVbSet] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
+  const [kategorie, setKategorie] = useState<KategorieLabel>('Alle');
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,12 +95,27 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
     return () => { cancelled = true; };
   }, [storage.idb]);
 
+  const kategorieItems = useMemo(
+    () => getKategorieItems(antraege).map(i => ({ key: i.label, label: i.label, count: i.count })),
+    [antraege],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const match = (a: AntragListItem): boolean =>
+    const matchText = (a: AntragListItem): boolean =>
       !q || [a.aktenzeichen, a.akronym, a.titel, a.antragsteller].some(v => (v ?? '').toLowerCase().includes(q));
-    return antraege.filter(match).slice(0, 40);
-  }, [antraege, query]);
+    const matchKat = (a: AntragListItem): boolean =>
+      kategorie === 'Alle' || getKategorieLabel(a.vb_phase) === kategorie;
+    const rows = antraege.filter(a => matchText(a) && matchKat(a));
+    // VB-Träger zuerst (die einzig testbaren), dann FKZ aufsteigend (stabil).
+    rows.sort((a, b) => {
+      const va = vbSet.has(a.aktenzeichen) ? 0 : 1;
+      const vb = vbSet.has(b.aktenzeichen) ? 0 : 1;
+      if (va !== vb) return va - vb;
+      return a.aktenzeichen.localeCompare(b.aktenzeichen);
+    });
+    return { rows: rows.slice(0, LISTE_CAP), total: rows.length };
+  }, [antraege, query, kategorie, vbSet]);
 
   const run = async (): Promise<void> => {
     const item = antraege.find(a => a.aktenzeichen === selected);
@@ -161,8 +183,16 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
           placeholder="Antrag suchen (FKZ, Akronym, Firma)…"
           className="w-full text-[13px] px-3 py-2 mb-2.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
         />
+        <ScopeTabs
+          items={kategorieItems}
+          activeKey={kategorie}
+          onChange={k => setKategorie(k as KategorieLabel)}
+          variant="pills"
+          aria-label="Antragstyp filtern"
+          className="mb-2.5 flex-wrap"
+        />
         <div className="max-h-[180px] overflow-auto -mx-1 px-1">
-          {filtered.map(a => {
+          {filtered.rows.map(a => {
             const hasVb = vbSet.has(a.aktenzeichen);
             const isSel = selected === a.aktenzeichen;
             return (
@@ -186,7 +216,12 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
               </button>
             );
           })}
-          {filtered.length === 0 && <p className="text-[12.5px] text-[var(--tf-text-tertiary)] px-3 py-2">Keine Anträge gefunden.</p>}
+          {filtered.rows.length === 0 && <p className="text-[12.5px] text-[var(--tf-text-tertiary)] px-3 py-2">Keine Anträge gefunden.</p>}
+          {filtered.total > filtered.rows.length && (
+            <p className="text-[11.5px] text-[var(--tf-text-tertiary)] px-3 py-2">
+              … {(filtered.total - filtered.rows.length).toLocaleString('de-DE')} weitere ausgeblendet — über Typ oder Suche eingrenzen.
+            </p>
+          )}
         </div>
 
         {error && (

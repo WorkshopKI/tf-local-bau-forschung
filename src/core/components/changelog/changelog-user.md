@@ -28,6 +28,7 @@
 - **Qualitätsregeln im Skill-Editor übersichtlicher.** Die Liste der zuordenbaren Qualitätsregeln war eine lange Scroll-Wand. Sie ist jetzt nach Kategorie gruppiert (Umfang, Sprache, Struktur, Inhalt & Quellen, Vollständigkeit & Form) und je Gruppe einklappbar. Beim Öffnen eines Skills sind genau die Gruppen aufgeklappt, die bereits eine zugeordnete Regel enthalten; jeder Gruppenkopf zeigt, wie viele seiner Regeln zugeordnet sind (z. B. 2/4).
 
 ### Bugfixes
+- **Skill-Testlauf: alle Antragstypen auswählbar.** Beim Testen eines Skills zeigte die Antrags-Auswahl nur Anträge einer einzigen Förderlinie (die mit `16DL` beginnenden) — FuE-, DS-, DL- und NW-Anträge fehlten. Jetzt sind alle Typen da: darüber gibt es eine Filterleiste (Alle / FuE / DS / DL / NW) mit Anzahl, und die Anträge mit vorliegender Vorhabensbeschreibung — die einzigen, gegen die getestet werden kann — stehen oben. Sind es sehr viele Treffer, weist eine Fußzeile darauf hin, dass du über Typ oder Suche eingrenzen kannst.
 - **Verständliche Abschnitts-Überschrift in der Gutachten-Werkstatt.** Bei selbst erstellten Workflow-Schritten stand über dem Abschnitt eine kryptische Zeichenkette statt eines Titels. Jetzt erscheint dort das gewohnte Abschnitts-Kürzel (z. B. „B2") samt Namen und eine Versionsnummer des verwendeten Skills. Auch der Titel des Stil-Dialogs und die „Weiter bei …"-Zeile zeigen jetzt das Kürzel statt der kryptischen Kennung.
 
 ## v2.245 — 2026-07
