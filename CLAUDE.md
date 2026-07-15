@@ -260,6 +260,8 @@ Bump-Regeln (semver-pragmatisch für diese App):
 
 Beim MAJOR-Bump zusätzlich: Migrations-Notiz in [CHANGELOG.md](CHANGELOG.md) ergänzen (analog v1.9-Block in [docs/architecture/infrastructure-layer.md](docs/architecture/infrastructure-layer.md)), und sicherstellen dass `migrateLegacyStructure()` (oder Pendant) die alte Struktur erkennt.
 
+**Bump + Changelog-Skeleton** laufen über `npm run version:bump -- <major|minor|patch> "<Titel>" [--user]`: das Script bumpt `package.json#version`, fügt oben in CHANGELOG.md ein Kompakt-Skeleton ein (bei `--user` zusätzlich in `changelog-user.md`) und rotiert übergroße CHANGELOG.md-Blöcke ins Archiv (> 100 KB → ≤ 80 KB, ≥ 30 neueste bleiben). CHANGELOG.md wird **nie manuell am Kopf editiert** — nur das Skeleton ausfüllen.
+
 Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, ältere in **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)** (beide append-only, chronologisch absteigend). Migrationsnotizen stehen beim jeweiligen MAJOR-Block.
 
 ## Doku-Konventionen
@@ -269,6 +271,8 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 3. Pitfall-Nummern sind **append-only** (Code/Commits/`describe`-Strings referenzieren sie); überholte behalten ihre Nummer + Ein-Zeiler „(überholt, siehe …)".
 4. Neue Lesson Learned: **grep-bar → Convention-Test** ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)); sonst [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md); ein nummerierter Pitfall nur bei projektweiter Geltung.
 5. Bildschirmseiten-Kontext-Docs (`docs/feedback-kontext/`) folgen derselben Ist-Zustand-Regel — bei UI-/Datenmodell-Änderungen an einem Plugin das zugehörige Doc mitziehen (siehe [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md)); Guard `screen-context-coverage` erzwingt Vollständigkeit, nicht Aktualität.
+6. Changelog-Kompaktformat: pro Version max. 3 Zeilen Motivation + max. 5 Bullets à 1 Zeile (WAS + Datei-Link, **kein** WIE); Architektur-Detail lebt genau einmal im Themen-Doc, der Changelog verlinkt nur.
+7. `changelog-user.md` (geglättete Fassung) nur bei **nutzersichtbaren** Änderungen pflegen (`--user`-Flag von `npm run version:bump`), nicht pro Version.
 
 ## Common Pitfalls
 
