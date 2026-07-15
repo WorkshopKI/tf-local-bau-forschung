@@ -10,6 +10,7 @@ import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
 import { BridgeStatusIndicator } from '@/components/ui/BridgeStatusIndicator';
 import { CsvFreshnessIndicator } from '@/components/ui/CsvFreshnessIndicator';
 import { BridgeDisconnectHint } from '@/components/ui/BridgeDisconnectHint';
+import { KiConnectPromptDialog } from '@/core/components/KiConnectPromptDialog';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useProfile } from '@/core/hooks/useProfile';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
@@ -376,6 +377,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     <>
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
       <BridgeDisconnectHint />
+      <KiConnectPromptDialog />
       <div className="flex h-screen flex-col overflow-hidden bg-[var(--tf-desk)]">
       <div className="flex flex-1 overflow-hidden">
         <aside

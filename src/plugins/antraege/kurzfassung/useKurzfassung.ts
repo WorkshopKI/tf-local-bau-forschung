@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
 import {
   runSkill,
   loadSkillRegistry,
@@ -173,6 +174,8 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
 
   const runGeneration = async (modifier?: SkillModifierKey): Promise<void> => {
     if (!vbDokument || busy || !skillCtx) return;
+    // KI-Preflight: nicht verbunden → Verbinden-Prompt statt stiller Tab-Öffnung (ping).
+    if (!kiVerbindungBereit(bridge)) return;
     setBusy(true);
     setError(null);
     stream.reset();

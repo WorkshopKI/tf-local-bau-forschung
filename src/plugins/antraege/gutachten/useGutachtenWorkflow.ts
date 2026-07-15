@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { appendFeedback, getUserId, resolveInstallId, type Rating } from '@/core/services/skill-feedback';
 import {
@@ -324,6 +325,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   ): Promise<{ next: WorkflowRun; checks: CheckResult[] } | null> => {
     const sc = skillMap.get(stepId);
     if (!sc || !vb) return null;
+    // KI-Preflight: nicht verbunden → Verbinden-Prompt statt stiller Tab-Öffnung (ping).
+    if (!kiVerbindungBereit(bridge)) return null;
     stream.reset();
     const transport = bridge.getTransportForSkillRun(sc.skill);
     const ok = await transport.ping();

@@ -15,6 +15,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -270,6 +271,9 @@ export function useChatController(options?: UseChatControllerOptions): ChatContr
 
   const sendAction = useAsyncAction(
     useCallback(async (text: string, attachments?: ChatAttachment[]): Promise<void> => {
+      // KI-Preflight VOR dem Anhängen der Nachricht: nicht verbunden → Verbinden-Prompt
+      // statt stiller Tab-Öffnung + hängende Nutzer-Nachricht ohne Antwort.
+      if (!kiVerbindungBereit(bridge)) return;
       const store = useChatStore.getState();
       if (!store.activeId) store.newConversation();
       const userMsg: ChatMessage = {
@@ -283,7 +287,7 @@ export function useChatController(options?: UseChatControllerOptions): ChatContr
       // Persist VOR der Generierung: Crash mittendrin behält die Frage
       await useChatStore.getState().persistActive(storage);
       await generateAssistant();
-    }, [generateAssistant, storage]),
+    }, [generateAssistant, storage, bridge]),
   );
 
   const retryAction = useAsyncAction(generateAssistant);

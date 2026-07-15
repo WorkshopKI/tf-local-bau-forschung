@@ -93,6 +93,9 @@ export interface AITransport {
    *  Wording geändert werden kann, ohne Vergleiche zu brechen. */
   displayName?: string;
   ping(opts?: PingOptions): Promise<boolean>;
+  /** Optional (nur Streamlit-Bridge): true, wenn aktuell ein KI-Tab offen ist. Synchron —
+   *  taugt für Preflight-Guards vor KI-CTAs (ohne `window.open`-Seiteneffekt). */
+  hasLiveBridgeWindow?(): boolean;
   submitMessage(message: string, systemPrompt?: string, options?: SubmitMessageOptions): Promise<string>;
   /** Optional: setzt den Chat-Verlauf des Transports zurück (frischer Kontext).
    *  Nur die Streamlit-Bridge implementiert das (klickt den „Neuer Chat"-Button

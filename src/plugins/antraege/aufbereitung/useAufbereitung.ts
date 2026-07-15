@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 import {
@@ -248,6 +249,8 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
 
   const bausteine = useAsyncAction(async () => {
     if (!ctx) return;
+    // KI-Preflight: nicht verbunden → Verbinden-Prompt statt stiller Tab-Öffnung + Loop.
+    if (!kiVerbindungBereit(bridge)) return;
     // Sicherstellen, dass ein Run (mit Gliederung) existiert.
     const aktRun = run ?? await computeAufbereitung(storage.idb, ctx);
     if (!run) setRun(aktRun);
@@ -256,6 +259,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
 
   const bausteineNeu = useAsyncAction(async () => {
     if (!ctx) return;
+    if (!kiVerbindungBereit(bridge)) return;
     const aktRun = run ?? await computeAufbereitung(storage.idb, ctx);
     if (!run) setRun(aktRun);
     await loescheBausteinCaches(storage.idb, ctx.key);
