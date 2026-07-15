@@ -1,9 +1,13 @@
 /**
- * Baut den `KurzfassungContext` aus Verbund + lead-first sortierten TVs. EXAKT
- * die Logik aus VerbundDetail (eine Quelle → kein zweiter Prompt-Pfad zwischen
- * Einzellauf und Batch). `headerId` = Verbund-ID bzw. echtes Aktenzeichen bei
- * Solo/pseudo. Strukturelle Param-Typen, damit sowohl `Antrag` als auch
- * `AntragListItem` (beide haben `aktenzeichen` + die Display-Felder) passen.
+ * Baut den `KurzfassungContext` aus Verbund + lead-first sortierten TVs — EINE
+ * Quelle → kein zweiter Prompt-Pfad zwischen Einzellauf und Batch. `headerId` =
+ * Verbund-ID bzw. echtes Aktenzeichen bei Solo/pseudo. Strukturelle Param-Typen,
+ * damit sowohl `Antrag` als auch `AntragListItem` (beide haben `aktenzeichen` +
+ * die Display-Felder) passen.
+ *
+ * Hinweis: Der Projekt-`titel` bevorzugt hier bewusst das Lead-TV-Thema (THEMA_AD)
+ * vor `verbund_titel` (Begründung unten) — das weicht von der reinen Header-Anzeige
+ * in VerbundDetail ab, die den Verbund-Titel zuerst nimmt.
  */
 import type { KurzfassungContext } from './types';
 
@@ -32,7 +36,13 @@ export function buildKurzfassungContext(
 ): KurzfassungContext {
   const lead = antraege[0];
   const akronym = strOrNull(verbund?.akronym) ?? strOrNull(lead?.akronym) ?? akronymFallback;
-  const titel = strOrNull(verbund?.titel) ?? strOrNull(lead?.titel);
+  // Projekt-Titel: das Lead-TV-Thema (THEMA_AD → tv.titel) hat Vorrang vor dem
+  // Verbund-Titel (VB_TITEL). VB_TITEL ist in Verbünden ohne Projektbeschreibungs-
+  // Enrichment oft ein generischer Platzhalter („Muster VB Titel N"), während THEMA_AD
+  // das echte Vorhaben-Thema trägt — so bekommt das LLM (Kurzfassung/Gutachten-Stammdaten)
+  // den aussagekräftigen Titel. `verbund.titel` bleibt Fallback, wenn der Lead-TV keinen
+  // Titel führt. Das Akronym behält bewusst Verbund-Vorrang (stabiler Kurzname).
+  const titel = strOrNull(lead?.titel) ?? strOrNull(verbund?.titel);
   const antragsteller = strOrNull(lead?.antragsteller);
   return {
     key: headerId,

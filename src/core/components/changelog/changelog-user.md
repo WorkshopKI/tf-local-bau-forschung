@@ -26,7 +26,7 @@
 ### Verbesserungen
 <!-- - … -->
 ### Bugfixes
-<!-- - … -->
+- Beim automatisch erzeugten Kurzfassungs-/Gutachten-Entwurf bekommt die KI jetzt den echten Projekt-Titel (Thema des Vorhabens) statt eines generischen Platzhalter-Titels.
 
 ## v2.250 — 2026-07
 

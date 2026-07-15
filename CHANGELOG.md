@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.251.1 — Kurzfassung/Gutachten: echten Projekt-Titel statt generischem VB_TITEL ans LLM (Juli 2026)
+
+PATCH — Beim Erstellen der Kurzfassung/Gutachten-Stammdaten wurde als „Verbund-Titel" das Feld `verbund_titel` (CSV `VB_TITEL`) ans LLM gesendet — in Verbünden ohne Projektbeschreibungs-Enrichment oft ein generischer Platzhalter („Muster VB Titel N"). Der aussagekräftige Titel steckt im Lead-TV-Thema (`THEMA_AD`).
+
+- **Projekt-Titel bevorzugt Lead-TV-Thema** ([context-builder.ts](src/plugins/antraege/kurzfassung/context-builder.ts)): `ctx.titel = lead.titel (THEMA_AD) ?? verbund.titel (VB_TITEL)` (Priorität getauscht); `akronym` behält bewusst Verbund-Vorrang. Wirkt auf beide Prompt-Pfade ([skill-context.ts](src/plugins/antraege/gutachten/skill-context.ts) + [useKurzfassung.ts](src/plugins/antraege/kurzfassung/useKurzfassung.ts)).
+- Header-Anzeige in [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) unverändert (Verbund-Titel zuerst) — Divergenz im Docstring dokumentiert.
+
 ### v2.251.0 — Frisch hochgeladene Dokumente wieder entfernen (Juli 2026)
 
 MINOR — Frisch hochgeladene Antragsdokumente ließen sich nicht wieder entfernen. Nötig, wenn eine PDF-Konvertierung schlecht ist (als DOCX neu ablegen) oder man die falsche Datei erwischt hat. Additiv, keine Datenmigration.
