@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.248.1 — Dokumenten-Aufnahme bleibt offen — Konvertierung pro Datei prüfbar (Gutachten/Kurzfassung/NF) (Juli 2026)
+
+PATCH — Bei der Gutachten-Erstellung legt der Bearbeiter mehrere Dokumente ab. Die Fläche mit der Pro-Datei-Erkennung (FKZ/Zuordnung) und dem „Konvertierung prüfen"-Link verschwand aber sofort wieder, sobald die erste VB erkannt war — die übrigen Datei-Ergebnisse waren nicht mehr einsehbar. Die Aufnahmefläche bleibt jetzt offen, bis der Bearbeiter explizit übernimmt.
+
+- **Aufnahmefläche bleibt offen**: neuer opt-in Prop `offenHalten` an [DokumentAufnahme](src/core/components/DokumentAufnahme.tsx) — das die Sektion umschaltende `onIngested` feuert erst beim expliziten „Fertig", nicht mehr sofort nach der ersten Aufnahme.
+- **Pro Datei prüfbar**: die bereits vorhandene „Konvertierung prüfen"-Schaltfläche je `IntakeRow` (read-only Markdown-Vorschau via [KonvertierungReviewDialog](src/core/components/KonvertierungReviewDialog.tsx) → `MarkdownRenderer`) bleibt jetzt für **jede** abgelegte Datei erreichbar.
+- **In drei Flüssen aktiv** (je VB-fehlt- und „VB ersetzen"-Mount): Gutachten ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)), Kurzfassung ([KurzfassungSection.tsx](src/plugins/antraege/kurzfassung/KurzfassungSection.tsx)), Nachforderungen ([NachforderungenSection.tsx](src/plugins/antraege/nachforderungen/NachforderungenSection.tsx)).
+- **Andere Aufrufer unverändert**: die Aufbereitungs-Quellen (`QuellenPanel`/`VerbundZeitplan`) übergeben den Prop nicht → Default = bisheriges Sofort-Verhalten (byte-gleich).
+- Reine UI-Änderung, keine neuen Abhängigkeiten, kein Datenmodell-/Persistenz-Touch. Typecheck + Lint + volle Test-Suite + `build:dev`/`build:pl` grün. **Noch offen**: file://-Abnahme (Thomas).
+
 ### v2.248.0 — Workflow-Beschleunigung: Zwei-Stufen-Gate, Vitest-Split, Code-Map, CLAUDE.md-Diät, Changelog-Tooling (Juli 2026)
 
 MINOR — Der `npm run check`-Loop war spürbar langsam geworden; Ziel: Sekunden im inneren Loop, ~1 min am Phasen-Gate, plus schlankere, jede Session geladene Kontext-Docs.

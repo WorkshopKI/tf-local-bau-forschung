@@ -87,7 +87,7 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
             Für die Nachforderungen wird die Vorhabensbeschreibung (VB) des Verbundes benötigt. Legen Sie sie hier ab —
             das Förderkennzeichen wird aus dem Dateinamen erkannt.
           </p>
-          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} />
+          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} offenHalten />
         </div>
       ) : ctrl.entwuerfe.length === 0 ? (
         <p className="text-[13px] text-[var(--tf-text-secondary)]">

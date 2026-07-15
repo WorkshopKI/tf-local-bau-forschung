@@ -361,7 +361,7 @@ export function GutachtenSection({
             Für das Gutachten wird die Vorhabensbeschreibung (VB) des Verbundes benötigt. Legen Sie sie hier ab —
             das Förderkennzeichen wird aus dem Dateinamen erkannt.
           </p>
-          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} />
+          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} offenHalten />
         </div>
       ) : (
         <>
@@ -371,7 +371,7 @@ export function GutachtenSection({
               <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
                 Neue Vorhabensbeschreibung hochladen — die neueste ersetzt die bisherige für das Gutachten.
               </p>
-              <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={() => { ctrl.refreshVb(); setErsetzen(false); }} />
+              <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={() => { ctrl.refreshVb(); setErsetzen(false); }} offenHalten />
               <button type="button" onClick={() => setErsetzen(false)} className="mt-2 text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]">Abbrechen</button>
             </div>
           ) : vbDok && (

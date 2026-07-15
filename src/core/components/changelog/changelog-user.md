@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.248 — 2026-07
+
+### Verbesserungen
+- **Beim Hochladen von Dokumenten bleibt die Übersicht offen.** Wenn du für ein Gutachten (oder eine Kurzfassung/Nachforderung) Dateien ablegst, siehst du jetzt in Ruhe für **jede** Datei, ob sie erkannt wurde (Förderkennzeichen/Zuordnung) — die Übersicht schließt sich nicht mehr sofort. Über „Konvertierung prüfen" kannst du pro Datei den umgewandelten Text als Vorschau ansehen. Erst mit „Fertig" geht es weiter.
+
 ## v2.247 — 2026-07
 
 ### Neu

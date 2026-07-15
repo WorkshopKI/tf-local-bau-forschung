@@ -15,6 +15,7 @@
  */
 import { useState } from 'react';
 import { FileText, Loader2, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
@@ -70,10 +71,18 @@ interface Props {
   defaultTyp?: AntragDokumentTyp;
   /** Wählbare Typ-Pills (Default = `TYP_OPTIONS`, die 4 Standard-Typen). */
   typOptionen?: ReadonlyArray<{ value: AntragDokumentTyp; label: string }>;
+  /** Wenn true: Aufnahmefläche bleibt nach der Aufnahme offen — die Pro-Datei-Erkennung
+   *  + „Konvertierung prüfen" bleibt sichtbar; `onIngested` feuert erst beim expliziten
+   *  „Fertig"-Klick. Default false = bisheriges Sofort-Verhalten (andere Aufrufer, z.B. die
+   *  Aufbereitungs-Quellen, bleiben unverändert). */
+  offenHalten?: boolean;
+  /** Optionales Label für den Abschluss-Button (nur bei `offenHalten`; Default „Fertig"). */
+  abschlussLabel?: string;
 }
 
 export function DokumentAufnahme({
   relationTag, knownIds, onIngested, defaultTyp = 'vorhabensbeschreibung', typOptionen = TYP_OPTIONS,
+  offenHalten = false, abschlussLabel = 'Fertig',
 }: Props): React.ReactElement {
   const storage = useStorage();
   const { indexDocument } = useSearch();
@@ -108,7 +117,9 @@ export function DokumentAufnahme({
         type: 'dokument',
       });
       patch(item.localId, { status: 'indexiert', docId, typ, converted });
-      onIngested?.(typ);
+      // Bei `offenHalten` bleibt die Fläche offen (Pro-Datei-Erkennung + „Konvertierung
+      // prüfen"); die Sektion wird erst beim expliziten „Fertig"-Klick benachrichtigt.
+      if (!offenHalten) onIngested?.(typ);
     } catch (err) {
       patch(item.localId, { status: 'fehler', error: err instanceof Error ? err.message : String(err) });
     }
@@ -164,6 +175,19 @@ export function DokumentAufnahme({
           onDiscard={() => patch(item.localId, { status: 'verworfen' })}
         />
       ))}
+
+      {/* Abschluss: Fläche offen halten, bis der Bearbeiter Erkennung + Konvertierung
+          jeder Datei geprüft hat und explizit übernimmt. Erst dann feuert `onIngested`. */}
+      {offenHalten && items.some(it => it.status === 'indexiert') && (
+        <div className="flex items-center justify-between gap-3 flex-wrap pt-3 border-t-[0.5px] border-[var(--tf-border)]">
+          <span className="text-[12px] text-[var(--tf-text-tertiary)]">
+            Prüfen Sie die Erkennung und Konvertierung jeder Datei — dann übernehmen.
+          </span>
+          <Button variant="primary" size="sm" onClick={() => onIngested?.(defaultTyp)}>
+            {abschlussLabel}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
