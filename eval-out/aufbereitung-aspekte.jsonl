@@ -1,4 +1,0 @@
-{"vbFile":"ZIM_Antrag_API_003_Perfekte Produktbeschreibungen auf Knopfdruck.md","treffer":10,"goldPaare":10,"predAufGold":10,"precision":1,"recall":1,"f1":1}
-{"vbFile":"ZIM_Antrag_API_006_Integrierte Prüftechnik für Leistungshalbleiter.md","treffer":10,"goldPaare":10,"predAufGold":10,"precision":1,"recall":1,"f1":1}
-{"vbFile":"ZIM_Antrag_API_017_Multitouch-Tisch mit interaktiver Objekterkennung.md","treffer":10,"goldPaare":10,"predAufGold":10,"precision":1,"recall":1,"f1":1}
-{"zusammenfassung":{"fixtures":3,"makroPrecision":1,"makroRecall":1,"mikroPrecision":1,"mikroRecall":1,"mikroF1":1}}

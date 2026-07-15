@@ -67,6 +67,8 @@ _design/
 # Lokale Eval-Ausgaben (CLI --out) + generierte Fixtures
 skill-eval-*/
 eval-fixtures-out/
+eval-out/
+eval/paket4-baseline-registry.json
 
 # Lokale Referenz-/Eval-Artefakte (nur Dev-Maschine, nicht Teil von TeamFlow).
 # Die bereits getrackten _reference/feedback-*-mockup*.png bleiben unberührt.
@@ -74,6 +76,10 @@ _reference/code-bookmarklet-multiple-file-codebase/
 _reference/gutachten-workflow-*.png
 _reference/persoenlicher-stil*.png
 _reference/skill-*.png
+_reference/assistent-dock-mockups/
+_reference/aufbereitung-*.png
+_reference/home-widgets/
+_reference/journey-paket-*/
 fiktive-vbs/
 eval/word-fiktive-vbs/
 eval/judge.json

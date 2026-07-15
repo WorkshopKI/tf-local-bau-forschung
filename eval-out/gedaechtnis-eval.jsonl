@@ -1,5 +1,0 @@
-{"fixture":"kaltstart-1","szenario":"kaltstart","run":0,"aktive":2,"assertionsOk":true,"assertionsFehler":[]}
-{"fixture":"fortschreibung-1","szenario":"fortschreibung","run":0,"aktive":1,"assertionsOk":true,"assertionsFehler":[]}
-{"fixture":"widerspruch-1","szenario":"widerspruch","run":0,"aktive":1,"assertionsOk":true,"assertionsFehler":[]}
-{"fixture":"poisoning-1","szenario":"poisoning","run":0,"aktive":1,"assertionsOk":true,"assertionsFehler":[]}
-{"fixture":"degradation-1","szenario":"degradation","run":0,"aktive":5,"assertionsOk":true,"assertionsFehler":[]}
