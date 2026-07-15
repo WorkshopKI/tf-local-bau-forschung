@@ -5,6 +5,33 @@ import path from 'path';
 // React- noch Tailwind- noch Singlefile-Plugins, und das Define-System
 // (__TEAMFLOW_CONFIG__ etc.) wird hier zentral gestellt damit Module, die
 // `runtimeConfig` importieren, nicht crashen.
+
+// Testdateien mit geteiltem Modul-Zustand (Module-Level-Singletons/Mocks),
+// die bei isolate:false andere Tests kontaminieren — laufen im Projekt 'isolated'
+// mit Standard-Isolation. Neue Wackelkandidaten hier ergänzen (Verfahren: CLAUDE.md).
+const ISOLATED_TESTS = [
+  'src/core/services/assistent/protokoll/__tests__/recorder.test.ts',
+  'src/core/services/csv/__tests__/importer-source-baseline.test.ts',
+  'src/core/services/csv/__tests__/merger-scoped-load.test.ts',
+  'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',
+  'src/core/services/csv/__tests__/unterprogramm-registry.test.ts',
+  'src/core/services/embedding-corpus/__tests__/storage.test.ts',
+  'src/core/services/feedback/__tests__/sponsorTicketUpsert.test.ts',
+  'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
+  'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',
+  'src/core/services/skill-feedback/__tests__/export.test.ts',
+  'src/core/services/skill-feedback/__tests__/read.test.ts',
+  'src/core/services/skill-feedback/__tests__/selfcheck.test.ts',
+  'src/plugins/auslastung/__tests__/assign-verbund.test.ts',
+  'src/plugins/auslastung/__tests__/auslastung-coldstart-guard.test.ts',
+  'src/plugins/auslastung/__tests__/auslastung-crosstab-reload.test.ts',
+  'src/plugins/auslastung/__tests__/freigeben-bulk.test.ts',
+  'src/plugins/auslastung/__tests__/kuerzelmap-coldstart-guard.test.ts',
+  'src/plugins/auslastung/__tests__/persist-debounce.test.ts',
+  'src/plugins/auslastung/__tests__/reconcile-zuweisungen.test.ts',
+  'src/plugins/auslastung/__tests__/verbund-aggregation-livecache.test.ts',
+];
+
 export default defineConfig({
   define: {
     __TEAMFLOW_CONFIG__: JSON.stringify({
@@ -41,8 +68,25 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/__tests__/*.test.ts'],
     setupFiles: ['src/phase2/__tests__/setup-pdfjs.ts'],
     testTimeout: 60000,
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'fast',
+          include: ['src/**/__tests__/*.test.ts'],
+          exclude: ISOLATED_TESTS,
+          isolate: false,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'isolated',
+          include: ISOLATED_TESTS,
+        },
+      },
+    ],
   },
 });

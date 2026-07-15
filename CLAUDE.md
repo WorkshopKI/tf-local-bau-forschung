@@ -290,6 +290,10 @@ Historische Referenz-Implementierung lag unter `_reference/lernapp/` — seit de
 - Constants: `UPPER_SNAKE_CASE` in file, `camelCase.ts` filename
 - **Reines Geschwister-Modul eines Components nie nur per Casing benennen** (`KompaktListe.tsx` + `kompaktListe.ts` = TS1149/1261-Kollision unter Windows/case-insensitive FS). Eigenen Wortstamm wählen: `KompaktListe.tsx` + `kompaktRows.ts`, `ArtefaktLeiste.tsx` + `artefaktKarten.ts`.
 
+### Tests
+
+Die Vitest-Suite läuft in **zwei Projekten** (`vitest.config.mts`): `fast` (ohne Isolation, `isolate: false` — der Großteil der Dateien) und `isolated` (Standard-Isolation, für Dateien mit geteiltem Modul-Zustand). Schlägt ein neuer Test **nur im Suite-Lauf** fehl, läuft aber einzeln grün (`npx vitest run <pfad>`) → die **Datei** in `ISOLATED_TESTS` (`vitest.config.mts`, alphabetisch) aufnehmen, **nie** den Test verbiegen. Neue Tests sollen ohne Modul-globalen Zustand auskommen.
+
 ## Entwicklungs-Gate (innerer Loop vs. Phasen-Gate)
 
 - **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + nur betroffene Tests (`vitest run --changed`). Sekunden statt Minuten.
