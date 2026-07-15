@@ -496,7 +496,7 @@ export function GutachtenSection({
       {tweakOpen && ctrl.activeSkill && activeDef && (
         <TweakEditor
           skillVersion={ctrl.activeSkill.version}
-          sektionLabel={`${activeDef.id} — ${activeDef.label}`}
+          sektionLabel={`${activeDef.kurz} — ${activeDef.label}`}
           regeln={ctrl.regeln}
           tweak={ctrl.tweak}
           onClose={() => setTweakOpen(false)}
@@ -549,7 +549,15 @@ function ActiveAbschnitt({
     // erneut und der lokale Bearbeiten-Zustand (Editor) wird sauber zurückgesetzt.
     <section className={`g-card werk${docked ? ' docked' : ''}`} key={id}>
       <div className="g-card-head">
-        <h2 className="g-card-title">{def.id} — {def.label}</h2>
+        <h2 className="g-card-title">{def.kurz} — {def.label}</h2>
+        {ctrl.activeSkill?.version != null && (
+          <span
+            className="text-[11px] text-[var(--tf-text-tertiary)] font-mono"
+            title="Version des Skills, der diesen Abschnitt erzeugt"
+          >
+            v{ctrl.activeSkill.version}
+          </span>
+        )}
         {status === 'freigegeben' ? (
           <span className="g-pill ok"><Check className="g-pi" /> Freigegeben</span>
         ) : status === 'entwurf' ? (

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.246.2 — Gutachten-Werkstatt: kryptische Abschnitts-UUID durch Kürzel + Skill-Version ersetzt (Juli 2026)
+
+PATCH — Die Abschnitts-Überschrift in der Kurzfassungs-Werkstatt zeigte bei **kurator-erstellten** Workflow-Schritten die rohe Step-UUID an (z. B. `6c1ac727-44ca-401d-9b7e-7772a65e68a6 — Hauptaufgaben pro Partner - 3 Bullet Points`). Grund: `WorkflowStep.id` ist bei per Editor angelegten Schritten eine `crypto.randomUUID()` ([workflowShared.ts](src/plugins/skill-verwaltung-kuration/workflowShared.ts) `blankStep()`), während die eingebauten ZIM-EP-Schritte Buchstaben `A`–`G` tragen — deshalb fiel die UUID nur bei selbst kuratierten Workflows durch. Die Überschrift zeigt jetzt das lesbare Kürzel plus eine echte Versionsnummer.
+
+- **Überschrift** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)): `{def.id} — {def.label}` → `{def.kurz} — {def.label}` (exakt das „B2", das schon der Stepper zeigt) plus dezenter `v{n}`-Chip mit der Skill-Version (`ctrl.activeSkill.version`, per `?.version != null` abgesichert). Anzeige-Präzedenz: die Review-Karte zeigt bereits `v{skillVersion}`.
+- **Konsistenz — dieselbe UUID-Leck-Stelle**: der Stil-/Tweak-Dialog-Titel ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx), `sektionLabel`) und die Wiederaufnahme-Zeile („Abschnitt … in Arbeit" / Button „Weiter bei …", [ResumeLine.tsx](src/plugins/antraege/gutachten/ResumeLine.tsx)) nutzen jetzt ebenfalls `def.kurz` statt der UUID (ResumeLine-Fallback um `kurz` ergänzt, damit der Randfall „aktiver Schritt nicht in `steps`" nicht bricht).
+- Reine Anzeige — kein neues Feld, keine Datenmigration, kein Persistenz-Touch. Eingebaute ZIM-EP-Abschnitte (A–G) unverändert. **Noch offen**: file://-Abnahme (Thomas).
+
 ### v2.246.1 — Skill-Editor: zugeordnete Qualitätsregeln nach Kategorie gruppiert + einklappbar (Juli 2026)
 
 PATCH — Die Sektion „Zugeordnete Qualitätsregeln" im Skill-Editor ([SkillEditor.tsx](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx)) listete alle ~19–22 Bibliotheks-Regeln als eine flache Checkbox-Wand — eine Scrollwüste, in der man den Überblick über die tatsächlich zugeordneten Regeln verlor. Die Liste ist jetzt nach Kategorie/„Art" gruppiert und je Gruppe einklappbar.

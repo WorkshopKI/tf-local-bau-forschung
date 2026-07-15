@@ -27,6 +27,9 @@
 ### Verbesserungen
 - **Qualitätsregeln im Skill-Editor übersichtlicher.** Die Liste der zuordenbaren Qualitätsregeln war eine lange Scroll-Wand. Sie ist jetzt nach Kategorie gruppiert (Umfang, Sprache, Struktur, Inhalt & Quellen, Vollständigkeit & Form) und je Gruppe einklappbar. Beim Öffnen eines Skills sind genau die Gruppen aufgeklappt, die bereits eine zugeordnete Regel enthalten; jeder Gruppenkopf zeigt, wie viele seiner Regeln zugeordnet sind (z. B. 2/4).
 
+### Bugfixes
+- **Verständliche Abschnitts-Überschrift in der Gutachten-Werkstatt.** Bei selbst erstellten Workflow-Schritten stand über dem Abschnitt eine kryptische Zeichenkette statt eines Titels. Jetzt erscheint dort das gewohnte Abschnitts-Kürzel (z. B. „B2") samt Namen und eine Versionsnummer des verwendeten Skills. Auch der Titel des Stil-Dialogs und die „Weiter bei …"-Zeile zeigen jetzt das Kürzel statt der kryptischen Kennung.
+
 ## v2.245 — 2026-07
 
 ### Neu

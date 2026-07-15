@@ -11,11 +11,11 @@ import type { StepId, WorkflowRun } from './types';
 export function ResumeLine(
   { run, steps, onWeiter }: { run: WorkflowRun; steps: WorkflowStep[]; onWeiter: (id: StepId) => void },
 ): React.ReactElement {
-  const def = steps.find(s => s.id === run.aktiverSchritt) ?? { id: run.aktiverSchritt, label: run.aktiverSchritt };
+  const def = steps.find(s => s.id === run.aktiverSchritt) ?? { id: run.aktiverSchritt, kurz: run.aktiverSchritt, label: run.aktiverSchritt };
   return (
     <div className="flex items-center gap-3.5 mb-5 pl-3.5 border-l-[3px] border-[var(--tf-border-hover)] rounded-r-[8px] bg-[var(--tf-bg)] py-3 pr-4">
       <span className="flex-1 text-[13px] text-[var(--tf-text-secondary)]">
-        Zuletzt bearbeitet am <span className="font-mono">{formatDate(run.geaendert_am)}</span> — Abschnitt {def.id} ({def.label}) in Arbeit
+        Zuletzt bearbeitet am <span className="font-mono">{formatDate(run.geaendert_am)}</span> — Abschnitt {def.kurz} ({def.label}) in Arbeit
       </span>
       <Button
         type="button"
@@ -23,7 +23,7 @@ export function ResumeLine(
         onClick={() => onWeiter(run.aktiverSchritt)}
         className="whitespace-nowrap"
       >
-        Weiter bei {def.id}
+        Weiter bei {def.kurz}
       </Button>
     </div>
   );
