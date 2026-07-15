@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   laufeGedaechtnisEval, laufeEineFixtureMitJudge,
 } from '../gedaechtnis-eval-runner';
+import { frischeIdFabrik, laufeFixture } from '../gedaechtnis-eval-lib';
 import { GEDAECHTNIS_FIXTURES } from '../gedaechtnis-fixtures';
 import type { GedaechtnisFixture } from '../gedaechtnis-assertions';
 import type {
@@ -78,6 +79,24 @@ describe('gedaechtnis-eval-runner', () => {
     await laufeEineFixtureMitJudge(KALTSTART, { n: 1, transport: stub });
     expect(stub.resetCalls).toEqual([]);
     expect(stub.submitZiele).toEqual([undefined]); // nur Generierung, kein Judge
+  });
+
+  it('AbortSignal (vorab): laufeFixture bricht vor dem ersten Submit ab', async () => {
+    const stub = new StubTransport(JSON.stringify(KALTSTART.zyklen[0]!.stubOps));
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const erg = await laufeFixture(KALTSTART, stub, frischeIdFabrik('x'), { signal: ctrl.signal });
+    expect(stub.submitZiele).toEqual([]); // kein Bridge-Call
+    expect(erg.ergebnisse).toEqual([]);
+  });
+
+  it('AbortSignal (vorab): laufeGedaechtnisEval bricht ab, kein Aggregat', async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const erg = await laufeGedaechtnisEval({ n: 1, transport: null, dryRun: true, signal: ctrl.signal });
+    expect(erg.abgebrochen).toBe(true);
+    expect(erg.aggregate).toEqual([]);
+    expect(erg.zeilen).toEqual([]);
   });
 
   it('Provenienz-Guard wirft bei nicht-fiktiver Fixture', async () => {

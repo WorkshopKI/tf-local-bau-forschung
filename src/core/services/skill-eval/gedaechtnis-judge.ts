@@ -59,11 +59,13 @@ export function buildJudgePrompt(fx: GedaechtnisFixture, active: GedaechtnisEint
 }
 
 /** Optionale Bridge-Weitergabe: `resetVorSubmit` startet einen frischen Chat vor
- *  dem Judge-Submit (Pitfall #36, nur Streamlit); `ziel` trifft den Qwen-Tab. Ohne
- *  opts byte-identisch zum node-CLI-Verhalten (kein Reset, kein ziel). */
+ *  dem Judge-Submit (Pitfall #36, nur Streamlit); `ziel` trifft den Qwen-Tab;
+ *  `signal` bricht den Judge-Submit ab. Ohne opts byte-identisch zum node-CLI-
+ *  Verhalten (kein Reset, kein ziel, kein signal). */
 export interface JudgeOptionen {
   ziel?: BridgeZiel;
   resetVorSubmit?: boolean;
+  signal?: AbortSignal;
 }
 
 export async function runJudge(
@@ -76,6 +78,7 @@ export async function runJudge(
     const raw = await transport.submitMessage(prompt, undefined, {
       responseFormat: { type: 'json_object' },
       ...(opts?.ziel ? { ziel: opts.ziel } : {}),
+      ...(opts?.signal ? { signal: opts.signal } : {}),
     });
     const start = raw.indexOf('{');
     const end = raw.lastIndexOf('}');

@@ -105,21 +105,27 @@ export async function laufeEineFixtureMitJudge(
     const lauf = await laufeFixture(fx, opts.transport, frischeIdFabrik(`${fx.id}-${run}`), {
       ziel: opts.ziel,
       resetVorZyklus: opts.reset,
+      signal: opts.signal,
     });
+    // Ein mittendrin abgebrochener (Teil-)Lauf wird NICHT gewertet (verfälscht sonst
+    // Assertions/Zähler — z.B. fehlende Stichworte durch abgeschnittene Zyklen).
+    if (opts.signal?.aborted) break;
     const assertions = pruefeAssertions(fx, lauf.active, lauf.ergebnisse);
     const fehler = assertionsFehlerListe(assertions);
-    detFehlerProLauf.push(fehler);
-    rawProLauf.push(lauf.rawAntworten);
 
     let judgeScore: JudgeScore | undefined;
     if (opts.judgeTransport && !opts.dryRun) {
       judgeScore = await runJudge(opts.judgeTransport, buildJudgePrompt(fx, lauf.active), {
         ziel: opts.ziel,
         resetVorSubmit: opts.reset,
+        signal: opts.signal,
       });
+      if (opts.signal?.aborted) break;
       judgeScores.push(judgeScore);
     }
 
+    detFehlerProLauf.push(fehler);
+    rawProLauf.push(lauf.rawAntworten);
     zeilen.push(baueEvalZeile(fx, run, lauf, fehler, judgeScore));
   }
 
@@ -184,6 +190,9 @@ export async function laufeGedaechtnisEval(
     const fx = fixtures[i]!;
     callbacks?.onFixtureStart?.(fx.id, i, total);
     const r = await laufeEineFixtureMitJudge(fx, opts);
+    // Eine mittendrin abgebrochene Fixture NICHT werten (nur voll durchgelaufene
+    // Fixtures gehen ins Aggregat/JSONL — keine halben okLaeufe/n-Zahlen).
+    if (opts.signal?.aborted) { abgebrochen = true; break; }
     zeilen.push(...r.zeilen);
     aggregate.push(r.aggregat);
     rawProFixture[fx.id] = r.rawProLauf;

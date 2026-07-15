@@ -24,11 +24,14 @@ export interface FixtureLaufErgebnis {
 
 /** Optionale Bridge-Weitergabe (nur In-App-Panel): `resetVorZyklus` startet vor
  *  jedem Zyklus-Submit einen frischen Chat (Pitfall #36, nur Streamlit); `ziel`
- *  routet in den Qwen-Tab. Ohne opts (CLI-Pfad, stateless NodeOpenAITransport)
- *  byte-identisch zum bisherigen Verhalten (kein Reset, kein ziel). */
+ *  routet in den Qwen-Tab; `signal` macht lange Multi-Zyklus-Läufe (Degradation)
+ *  abbrechbar — der Abbruch wird zwischen den Zyklen UND bei einem abgebrochenen
+ *  Submit geprüft. Ohne opts (CLI-Pfad, stateless NodeOpenAITransport)
+ *  byte-identisch zum bisherigen Verhalten (kein Reset, kein ziel, kein signal). */
 export interface LaufeFixtureOptionen {
   ziel?: BridgeZiel;
   resetVorZyklus?: boolean;
+  signal?: AbortSignal;
 }
 
 /** Deterministische ID-Fabrik (frisch pro Lauf). */
@@ -53,6 +56,8 @@ export async function laufeFixture(
   const rawAntworten: string[] = [];
 
   for (let i = 0; i < fx.zyklen.length; i++) {
+    // Abbruch zwischen Zyklen (macht den 20-Zyklen-Degradations-Lauf responsiv).
+    if (opts?.signal?.aborted) break;
     const zyklus = fx.zyklen[i]!;
     const eingabe = baueEingabe(zyklus.ereignisse, active);
 
@@ -62,7 +67,17 @@ export async function laufeFixture(
       // resetChat VOR dem Submit (Pitfall #36) — nur wenn das Panel es anfordert;
       // No-op auf stateless-Transports (NodeOpenAITransport → 'nicht-unterstuetzt').
       if (opts?.resetVorZyklus) await starteFrischenChat(transport, opts.ziel);
-      const raw = await transport.submitMessage(prompt, undefined, opts?.ziel ? { ziel: opts.ziel } : undefined);
+      const subOpts: { ziel?: BridgeZiel; signal?: AbortSignal } = {};
+      if (opts?.ziel) subOpts.ziel = opts.ziel;
+      if (opts?.signal) subOpts.signal = opts.signal;
+      let raw: string;
+      try {
+        raw = await transport.submitMessage(prompt, undefined, opts?.ziel || opts?.signal ? subOpts : undefined);
+      } catch (e) {
+        // Ein per Signal abgebrochener Submit ist ein sauberer Stopp, kein Fehler.
+        if (opts?.signal?.aborted) break;
+        throw e;
+      }
       rawAntworten.push(raw);
       ops = parseOperationsliste(raw) ?? [];
     } else {

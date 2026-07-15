@@ -165,6 +165,11 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
   const verbunden = bridgeStatus === 'connected';
 
   const [wiederholungen, setWiederholungen] = useState(3);
+  // Fixture-Auswahl: Degradation (20 Zyklen) ist der teure Lauf → Default AUS,
+  // damit die schnelle Baseline (4 Ein-Zyklus-Fixtures) in Minuten durchläuft.
+  const [ausgewaehlt, setAusgewaehlt] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(GEDAECHTNIS_FIXTURES.map(f => [f.id, f.id !== 'degradation-1'])),
+  );
   // Default agentisch (Qwen) — der interne Zweit-LLM-Tab für die Baseline.
   const [transportModus, setTransportModus] = useState<TransportModus>('agentisch');
   const openRouterVerfuegbar = isOpenRouterEnabled();
@@ -188,6 +193,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
   }, [storage.idb, openRouterVerfuegbar]);
 
   const transportBereit = transportModus === 'openrouter' ? orConfig.apiKey.trim() !== '' : verbunden;
+  const gewaehlteFixtures = GEDAECHTNIS_FIXTURES.filter(f => ausgewaehlt[f.id]);
 
   const start = useAsyncAction(async () => {
     let transport: AITransport;
@@ -215,10 +221,10 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
     abortRef.current = ctrl;
     setReport(null);
     setErgebnis(null);
-    setVerlauf(GEDAECHTNIS_FIXTURES.map(f => ({ id: f.id, status: 'pending' as const })));
+    setVerlauf(gewaehlteFixtures.map(f => ({ id: f.id, status: 'pending' as const })));
     try {
       const erg = await laufeGedaechtnisEval(
-        { n, transport, judgeTransport: transport, ziel, reset: true, signal: ctrl.signal },
+        { n, transport, judgeTransport: transport, ziel, reset: true, signal: ctrl.signal, fixtures: gewaehlteFixtures },
         {
           onFixtureStart: (id) =>
             setVerlauf(v => v.map(x => (x.id === id ? { ...x, status: 'running' } : x))),
@@ -346,6 +352,26 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
               </label>
             </div>
 
+            {/* Fixture-Auswahl — Degradation (20 Zyklen) ist der langsame Lauf, Default aus. */}
+            <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap text-[12px] text-[var(--tf-text-secondary)]">
+              <span className="text-[var(--tf-text-tertiary)]">Fixtures</span>
+              {GEDAECHTNIS_FIXTURES.map(f => (
+                <label key={f.id} className="flex items-center gap-1.5 cursor-pointer" title={f.beschreibung}>
+                  <input
+                    type="checkbox"
+                    checked={!!ausgewaehlt[f.id]}
+                    disabled={start.busy}
+                    onChange={e => setAusgewaehlt(a => ({ ...a, [f.id]: e.target.checked }))}
+                    className="accent-[var(--tf-primary)]"
+                  />
+                  {f.szenario}
+                  {f.zyklen.length > 1 && (
+                    <span className="text-[var(--tf-text-tertiary)]">({f.zyklen.length}×)</span>
+                  )}
+                </label>
+              ))}
+            </div>
+
             {/* OpenRouter-Konfiguration (geteilter dev-eval-Key) */}
             {transportModus === 'openrouter' && (
               <div className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
@@ -407,7 +433,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
                 size="sm"
                 onClick={() => start.run()}
                 loading={start.busy}
-                disabled={!transportBereit || start.busy}
+                disabled={!transportBereit || start.busy || gewaehlteFixtures.length === 0}
               >
                 Eval starten
               </Button>
