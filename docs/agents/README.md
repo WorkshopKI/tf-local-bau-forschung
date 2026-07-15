@@ -38,7 +38,7 @@ Zwei separate Eval-Mechanismen — bei Änderungen an Triage/Search beide kennen
 
 | Suite | Wo | Wie ausführen |
 |-------|-----|---------------|
-| **Phase-2 Triage** | [`src/phase2/__tests__/triage.eval.ts`](../../src/phase2/__tests__/triage.eval.ts) | `npm run test:phase2` (CI-tauglich, Vitest) — Schwelle ≥ 9/11 |
+| **Phase-2 Triage** | [`src/phase2/__tests__/triage.eval.test.ts`](../../src/phase2/__tests__/triage.eval.test.ts) | `npm run test:phase2` (CI-tauglich, Vitest) — Schwelle ≥ 9/11 |
 | **Hybrid-Search** | [`src/core/services/search/eval/`](../../src/core/services/search/eval/) | Browser-Runtime via Kurator-Plugin „Suchindex" → Tab „Eval" — siehe [eval/README.md](../../src/core/services/search/eval/README.md) |
 
 Die Search-Eval ist bewusst **nicht** im npm-Test-Lauf, weil sie WebGPU/WASM + geladenes ONNX-Modell + initialisierten Orama-Index braucht.
