@@ -5,6 +5,9 @@ dist-deploy/
 assets/
 *.tsbuildinfo
 
+# Generierte Code-Map (npm run map / precheck-Hook) — nicht versioniert, vermeidet Diff-Rauschen
+docs/architecture/code-map.md
+
 # KI-Analyseprogramm (Binaries + Modell)
 dokumentenindex-dateien/
 

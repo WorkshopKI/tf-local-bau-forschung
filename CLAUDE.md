@@ -26,6 +26,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Datei-Pfade auf SMB-Share | [docs/architecture/data-layout.md](docs/architecture/data-layout.md) |
 | CSV-Auto-Refresh (täglicher Selbst-Import, Frische-Ampel „● CSV", Projektions-Rebuild bei Mapping-Nachzug) | [docs/architecture/csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md) |
 | Source-Tree (welche Datei gehört wo?) | [docs/architecture/project-structure.md](docs/architecture/project-structure.md) |
+| Codebase-Überblick / wo liegt was (LOC-Karte, Datei-Größen) | [docs/architecture/code-map.md](docs/architecture/code-map.md) (generiert; falls fehlt: `npm run map`) |
 | Infrastructure-Layer-Internals | [docs/architecture/infrastructure-layer.md](docs/architecture/infrastructure-layer.md) |
 | Auslastungs-Modul (Klassifizierung + Matching) | [docs/architecture/auslastung.md](docs/architecture/auslastung.md) |
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
@@ -44,6 +45,8 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Phase-2 Triage + Review-Queue | [docs/architecture/phase2-triage.md](docs/architecture/phase2-triage.md) + [phase2-review-queue.md](docs/architecture/phase2-review-queue.md) |
 | v2.0 Handle-Architektur (Offline-Modus, Feedback-Outbox) | [docs/architecture/v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md) |
 | Storage / Search / Theming / Onboarding-Tour | [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md) |
+
+**Exploration beginnt hier**, nicht mit einem Blind-Scan: [docs/architecture/code-map.md](docs/architecture/code-map.md) (Datei-Inventar + LOC, generiert) für „wo liegt was & wie groß", [docs/architecture/project-structure.md](docs/architecture/project-structure.md) für den Zweck der Ordner. Erst **danach** gezielt Glob/Grep über `src/`.
 
 ## Ignorierte Verzeichnisse
 
