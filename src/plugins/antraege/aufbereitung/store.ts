@@ -53,8 +53,12 @@ export function verbundZeitplanSummary(teilplaene: TvPlan[]): VerbundSummary {
   let horizont = 0;
   let mitAnlage = 0;
   for (const tp of teilplaene) {
+    // „mit Anlage 5" = das Dokument IST hinterlegt (unabhängig davon, ob die Tabelle
+    // auslesbar war). Sonst zeigte eine vorhandene, aber nicht parsebare PDF-Anlage-5
+    // fälschlich „0/N mit Anlage 5".
+    if (tp.anlage) mitAnlage += 1;
+    // Kennzahlen (PM/MA/Horizont) nur aus tatsächlich ausgelesenen Plänen.
     if (!tp.zeitplan) continue;
-    mitAnlage += 1;
     pm += summePm(tp.zeitplan.zeilen);
     ma += new Set(tp.zeitplan.zeilen.map(z => z.maNr?.trim()).filter((m): m is string => !!m)).size;
     horizont = Math.max(horizont, tp.zeitplan.achseMax);

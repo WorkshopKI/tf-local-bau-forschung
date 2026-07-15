@@ -122,9 +122,19 @@ function TvZeitplanSektion({
         </>
       ) : (
         <div className="mt-2 rounded-[10px] px-4 py-4" style={{ border: '0.5px dashed var(--tf-border)' }}>
-          <p className="text-[13px] text-[var(--tf-warning-text)] mb-2">
-            ⚠ Anlage 5 (Arbeitsplan) für dieses Teilvorhaben fehlt — ohne sie kein Zeitplan / keine Kapazitätsprüfung.
-          </p>
+          {tp.anlage ? (
+            // Dokument IST hinterlegt, aber die Tabelle war nicht auslesbar (typisch für
+            // PDF-Tabellen, die zu Flattext zerfallen) — NICHT als „fehlt" darstellen.
+            <p className="text-[13px] text-[var(--tf-warning-text)] mb-2">
+              ⚠ Anlage 5 „{tp.anlage.name}" ist hinterlegt, aber die Tabelle konnte nicht ausgelesen werden
+              (häufig bei PDF-Tabellen, die als Flattext extrahiert werden). Bitte als <strong>DOCX</strong> neu
+              hochladen oder in „Dokumente zum Vorhaben" die Konvertierung prüfen.
+            </p>
+          ) : (
+            <p className="text-[13px] text-[var(--tf-warning-text)] mb-2">
+              ⚠ Anlage 5 (Arbeitsplan) für dieses Teilvorhaben fehlt — ohne sie kein Zeitplan / keine Kapazitätsprüfung.
+            </p>
+          )}
           <p className="text-[12.5px] text-[var(--tf-text-secondary)] mb-2">
             Datei hier ablegen — das Förderkennzeichen wird aus dem Dateinamen erkannt.
           </p>

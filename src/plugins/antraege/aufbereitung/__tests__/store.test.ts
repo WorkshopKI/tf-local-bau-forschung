@@ -189,13 +189,13 @@ describe('baueRun — Verbund (Anlage 5 pro TV)', () => {
 });
 
 describe('verbundZeitplanSummary', () => {
-  const tp = (nr: number, tvAz: string, zeilen: unknown, achseMax: number): TvPlan => ({
+  const tp = (nr: number, tvAz: string, zeilen: unknown, achseMax: number, anlageDa = true): TvPlan => ({
     nr, tvAz, tvAkronym: `TV${nr}`, tvTitel: null,
-    anlage: { name: `a${nr}.docx`, hash: 'h', gelesenAm: NOW, rolle: 'anlage5', tvAz },
+    anlage: anlageDa ? { name: `a${nr}.docx`, hash: 'h', gelesenAm: NOW, rolle: 'anlage5', tvAz } : null,
     zeitplan: zeilen ? { zeilen: zeilen as never, achseMax } : null,
   });
 
-  it('summiert PM, MA-Zahl (pro TV distinct) und längsten Horizont; fehlende TVs zählen 0', () => {
+  it('summiert PM, MA-Zahl (pro TV distinct) und längsten Horizont; „mit Anlage 5" zählt vorhandene Dokumente', () => {
     const tps: TvPlan[] = [
       tp(1, 'A', [
         { nummer: '1', bezeichnung: 'x', istUnterAp: false, monatStart: 1, monatEnde: 3, pm: 4, maNr: 'MA01' },
@@ -204,7 +204,7 @@ describe('verbundZeitplanSummary', () => {
       tp(2, 'B', [
         { nummer: '1', bezeichnung: 'z', istUnterAp: false, monatStart: 1, monatEnde: 6, pm: 5, maNr: 'MA01' },
       ], 6),
-      tp(3, 'C', null, 1), // Anlage 5 fehlt
+      tp(3, 'C', null, 1, false), // kein Anlage-5-Dokument hinterlegt
     ];
     const s = verbundZeitplanSummary(tps);
     expect(s.summePm).toBe(11);      // 4+2 (TV A) + 5 (TV B)
@@ -212,6 +212,21 @@ describe('verbundZeitplanSummary', () => {
     expect(s.horizont).toBe(6);
     expect(s.tvMitAnlage).toBe(2);
     expect(s.tvGesamt).toBe(3);
+  });
+
+  it('Dokument hinterlegt, aber Tabelle nicht auslesbar (zeitplan=null) → zählt „mit Anlage 5", trägt aber keine Kennzahlen', () => {
+    const tps: TvPlan[] = [
+      tp(1, 'A', [
+        { nummer: '1', bezeichnung: 'x', istUnterAp: false, monatStart: 1, monatEnde: 3, pm: 4, maNr: 'MA01' },
+      ], 3),
+      tp(2, 'B', null, 1, true), // Anlage 5 da, aber nicht parsebar (z. B. PDF-Flattext)
+    ];
+    const s = verbundZeitplanSummary(tps);
+    expect(s.tvMitAnlage).toBe(2);   // beide TV haben ein Anlage-5-Dokument
+    expect(s.tvGesamt).toBe(2);
+    expect(s.summePm).toBe(4);       // nur der auslesbare Plan (TV A) trägt Kennzahlen
+    expect(s.maAnzahl).toBe(1);
+    expect(s.horizont).toBe(3);
   });
 });
 
