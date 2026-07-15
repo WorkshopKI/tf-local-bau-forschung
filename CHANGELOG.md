@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.248.0 — Workflow-Beschleunigung: Zwei-Stufen-Gate, Vitest-Split, Code-Map, CLAUDE.md-Diät, Changelog-Tooling (Juli 2026)
+
+MINOR — Der `npm run check`-Loop war spürbar langsam geworden; Ziel: Sekunden im inneren Loop, ~1 min am Phasen-Gate, plus schlankere, jede Session geladene Kontext-Docs.
+
+- **Zwei-Stufen-Gate**: `check:quick` (inkrementeller Typecheck + gecachtes Lint + `--changed`-Tests) neben dem vollen `check` ([package.json](package.json), [docs/agents/README.md](docs/agents/README.md)).
+- **Vitest-Zwei-Projekte-Split** (`fast` ohne Isolation / `isolated`): Test-Dauer 34,9 s → 9,5 s ([vitest.config.mts](vitest.config.mts)).
+- **Code-Map-Generator** für Explorer-Agents ([scripts/generate-code-map.mjs](scripts/generate-code-map.mjs) → generierte `docs/architecture/code-map.md`).
+- **CLAUDE.md-Diät** 68,6 KB → 43,5 KB: Detail in Themen-Docs + verschachtelte CLAUDE.md + Link-Guard ([src/__tests__/doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+- **Changelog-Tooling** ([scripts/version-bump.mjs](scripts/version-bump.mjs)): Bump + Kompakt-Skeleton + Rotation; CHANGELOG.md von ~404 KB auf ~78 KB rotiert.
+
 ### v2.247.0 — Workflow/Skill inline in der Gutachten-Werkstatt bearbeiten (dev) + Skill-/Workflow-Export/Import (Juli 2026)
 
 MINOR — Während der Entwicklung am ZIM-Gutachten-Workflow (A–G) fallen laufend kleine Prompt-/Schritt-Änderungen an. Bisher führte der einzige Bearbeitungsweg aus der Gutachten-Werkstatt **heraus** ins Kuration-Plugin (`navigate('skill-verwaltung-kuration', …)`). Neu lässt sich der aktive Workflow — Struktur, Schritt-Konfiguration und Skill-Prompt/Regeln — **direkt in der Gutachten-Ansicht** bearbeiten (nur dev). Zusätzlich sind jetzt **Workflows** (nicht nur einzelne Skills) exportier-/importierbar — für Cross-Browser-Nutzung und Versions-Backups.
