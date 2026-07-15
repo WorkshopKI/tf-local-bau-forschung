@@ -7,6 +7,7 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
+import { KiVariantSelector } from '@/core/components/KiVariantSelector';
 import type { AIProviderConfig } from '@/core/types/config';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { isDevContext } from '@/config/feature-flags';
@@ -164,6 +165,11 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
           </p>
         </div>
       </details>
+
+      {/* KI-Variante (produktiv): Standard vs. agentische interne KI — gilt für alle Läufe. */}
+      <div className="max-w-2xl border-t border-[var(--tf-border)] pt-3">
+        <KiVariantSelector />
+      </div>
 
       {/* Zweit-LLM-Erprobung (nur dev): Ziel-Routing gegen „Chat" vs. „Agentischer Chat" testen */}
       {isDevContext() && (

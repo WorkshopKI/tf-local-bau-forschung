@@ -16,6 +16,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
+import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -245,9 +246,11 @@ export function useChatController(options?: UseChatControllerOptions): ChatContr
           throw err;
         }
       } else {
-        // StreamlitBridge: kann keine Konversation — Single-Turn wie früher
+        // StreamlitBridge: kann keine Konversation — Single-Turn wie früher.
+        // Globale KI-Varianten-Präferenz durchreichen (Standard → undefined = aktiver Tab).
         const single = apiMessages.filter(m => m.role === 'user').pop();
-        raw = await transport.submitMessage(single?.content ?? lastUser.content);
+        const ziel = aktivesZielFuerLauf();
+        raw = await transport.submitMessage(single?.content ?? lastUser.content, undefined, ziel ? { ziel } : undefined);
       }
       const { content, thinking } = extractThinking(raw);
       const stats = computeStats({ tStart, tFirstToken: null, tEnd: performance.now() });

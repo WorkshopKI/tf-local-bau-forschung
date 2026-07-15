@@ -7,6 +7,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi, DEFAULT_KI_URL } from '@/core/services/ai/connect-ki';
+import { KiVariantSelector } from '@/core/components/KiVariantSelector';
 import type { AIProviderConfig } from '@/core/types/config';
 
 /**
@@ -83,6 +84,8 @@ export function BridgeStatusIndicator({ compact = false }: { compact?: boolean }
           >
             Zu den Einstellungen
           </Button>
+
+          <KiVariantSelector />
 
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
             Die Verbindung läuft über einen parallelen KI-Tab. Nach dem Öffnen dort

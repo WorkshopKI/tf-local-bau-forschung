@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
+import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import {
   runSkill,
   loadSkillRegistry,
@@ -193,6 +194,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       // korrekt (composeSkillPrompt würde sonst keinen Block emittieren).
       const tweakWirksam = !!(tweak?.aktiv && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
       const result = await runSkill(transport, skillCtx.skill, skillCtx.regeln, {
+        ziel: aktivesZielFuerLauf(),
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
         vbCharCap: getVbCharCap(),

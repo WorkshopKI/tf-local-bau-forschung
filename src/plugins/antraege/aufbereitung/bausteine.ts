@@ -16,6 +16,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
+import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { isDevContext } from '@/config/feature-flags';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 
@@ -97,7 +98,11 @@ export interface RunBausteinErgebnis {
  * wirkt dort NICHT (relevant für die Truncation-Analyse der Bausteine).
  */
 export async function runBaustein(
-  transport: AITransport, skill: SkillRecord, prompt: string, ziel?: BridgeZiel,
+  transport: AITransport, skill: SkillRecord, prompt: string,
+  // Ohne explizites `ziel` gilt die globale KI-Varianten-Präferenz (`aktivesZielFuerLauf`):
+  // Standard → undefined (aktiver Tab, byte-identisch), Agentisch → 'agentisch'. Die
+  // dev-Eval übergibt weiterhin ein explizites `ziel` (überstimmt die Präferenz).
+  ziel: BridgeZiel | undefined = aktivesZielFuerLauf(),
 ): Promise<RunBausteinErgebnis> {
   const chatResetStatus = await starteFrischenChat(transport, ziel);
   const system = skill.systemPrompt ?? '';

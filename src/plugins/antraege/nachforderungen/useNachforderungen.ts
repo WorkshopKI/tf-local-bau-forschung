@@ -17,6 +17,7 @@ import {
   NF_SKILL_ID, type CheckResult, type SkillRecord, type QualitaetsRegel,
 } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { resolveVb } from '../kurzfassung/vbDokument';
 import { buildStammdaten } from '../gutachten/skill-context';
@@ -110,6 +111,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
 
       // 1) Verbund-Block EINMAL (G-Bausteine am Gesamtvorhaben-Kontext).
       const gRes = await runSkill(transport, skill, regeln, {
+        ziel: aktivesZielFuerLauf(),
         stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
         verbundKontext: vbCapped, tvKontext: '', nfBausteine: gKatalog,
       });
@@ -123,6 +125,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
         const tvKontext = `Teilvorhaben ${tv.nr}: ${tv.titel ?? '[ohne Titel]'} `
           + `(Antragsteller: ${tv.antragsteller ?? '[Im Antrag nicht genannt]'})\n\n${vbCapped}`;
         const tvRes = await runSkill(transport, skill, regeln, {
+          ziel: aktivesZielFuerLauf(),
           stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
           verbundKontext: '', tvKontext, nfBausteine: tvKatalog,
         });

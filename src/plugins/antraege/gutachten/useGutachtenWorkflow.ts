@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
+import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { appendFeedback, getUserId, resolveInstallId, type Rating } from '@/core/services/skill-feedback';
 import {
@@ -366,6 +367,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       let vorText = '';
       for (const teil of teilPlan) {
         const r = await runSkill(transport, sc.skill, teilRegelSatz, {
+          ziel: aktivesZielFuerLauf(),
           stammdaten: buildStammdaten(ctx),
           vbMarkdown: vb.markdown,
           vbCharCap: getVbCharCap(),
@@ -411,6 +413,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     }
 
     const result = await runSkill(transport, sc.skill, sc.regeln, {
+      ziel: aktivesZielFuerLauf(),
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: vb.markdown,
       vbCharCap: getVbCharCap(),
@@ -628,6 +631,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       if (!ok) { setError('KI nicht erreichbar — QS derzeit nicht möglich.'); return; }
       const zielDef = steps.find(s => s.id === zielStepId);
       const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
+        ziel: aktivesZielFuerLauf(),
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vb.markdown,
         vbCharCap: getVbCharCap(),

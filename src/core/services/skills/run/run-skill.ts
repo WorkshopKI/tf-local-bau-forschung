@@ -8,7 +8,7 @@
  * dieselbe Quelle, die auch die Checks erzeugt (keine Drift). Modell-Overrides
  * sind weiterhin v2; hier KEINE modell-spezifische Sonderlogik.
  */
-import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import {
@@ -156,6 +156,15 @@ export interface SkillRunInput {
    * Nicht-Streamlit-Transporten wirkungslos (Option wird ignoriert).
    */
   erwarteAbschluss?: string;
+  /**
+   * Nur Streamlit-Bridge: Ziel-Chat (Tab) in der KI-Oberfläche — `'standard'`
+   * (klassische interne KI) vs. `'agentisch'` (agentische interne KI). Wird an
+   * `starteFrischenChat` UND `submitMessage` durchgereicht (derselbe Tab). Fehlt er
+   * (Default) → aktiver/Standard-Tab, Verhalten byte-identisch. Produktive Runner
+   * setzen ihn aus der globalen KI-Varianten-Präferenz (`useKiZiel`). Auf DirectLLM
+   * wirkungslos.
+   */
+  ziel?: BridgeZiel;
   signal?: AbortSignal;
 }
 
@@ -360,7 +369,7 @@ async function runSkillInner(
   // Überlauf / vermischte VBs, Pitfall #36). Best-effort — Fehlschlag bricht NIE
   // ab, wird aber über `chatResetStatus` ans UI markiert. Stateless-API-Transporte
   // (DirectLLM) haben kein `resetChat` → `'nicht-unterstuetzt'` (keine Warnung).
-  const chatResetStatus = await starteFrischenChat(transport);
+  const chatResetStatus = await starteFrischenChat(transport, input.ziel);
 
   let raw: string;
   let thinking: string | undefined;
@@ -411,6 +420,7 @@ async function runSkillInner(
     const streamlitOpts = {
       ...(input.signal ? { signal: input.signal } : {}),
       ...(input.erwarteAbschluss ? { erwarteAbschluss: input.erwarteAbschluss } : {}),
+      ...(input.ziel ? { ziel: input.ziel } : {}),
     };
     raw = await transport.submitMessage(
       systemPrompt ? `${systemPrompt}\n\n${userContent}` : userContent,
