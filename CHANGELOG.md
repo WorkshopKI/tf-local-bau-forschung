@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.255.0 — Home-Redesign (optimiert): Hero-Band + Karten-Restyle + Assistent-Spine (Juli 2026)
+
+MINOR — Umsetzung des Design-Handoffs „Home optimiert". Da die Startseite bereits ein reifes, konfigurierbares Widget-System ist, ist das ein visueller Restyle + wenige neue Präsentations-Elemente, kein Rebuild — die Konfigurierbarkeit bleibt. Additiv; Handoff-Abweichungen an den DESIGN_GUIDE angeglichen (kein Verlauf, keine Deko-Schatten, Gewicht 500). Detail: [home-widgets.md](docs/architecture/home-widgets.md).
+
+- **Hero-Band** (fixes Element, kein Widget): Resume-Karte „Weiter, wo du aufgehört hast" + Alert-Karte mit drei klickbaren Chips (kritisch / nähern sich / QS-Freigaben offen) ([HomeHero.tsx](src/plugins/home/HomeHero.tsx)).
+- **Config v2:** `weitermachen` aus dem Default (Hero ersetzt es, bleibt Opt-in im Katalog); v1→v2-Migration blendet eine sichtbare Instanz einmalig aus ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)); geteilter [useQsFreigaben.ts](src/plugins/home/widgets/useQsFreigaben.ts)-Hook (Hero-QS-Zahl = Widget-Zahl).
+- **Widget-Karten-Restyle** ([WidgetShell.tsx](src/plugins/home/widgets/WidgetShell.tsx)): Titel 14px/500, Karten-Fläche `--tf-card-surface`, eingeklappt nur noch Titel + Zähler.
+- **Kanban** ([AntragKanbanWidget.tsx](src/plugins/home/widgets/AntragKanbanWidget.tsx) / [KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx)): neutraler grauer Karten-Streifen statt Lane-Farbe, kein Deko-Schatten, Köpfe/Karten 500 statt 600.
+- **Assistent-Dock** ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)): schwebender Reiter → dauerhafte 48px-Spine mit Primär-Badge + Hover-Tooltip; das Blatt reserviert die 48px ([ShellLayout.tsx](src/core/ShellLayout.tsx), dev-Flag `assistentPanel`).
+
 ### v2.254.1 — Umfang single-source auch für Abschnitt C + D (Folgepaket) (Juli 2026)
 
 PATCH — Zieht die Umfang-Single-Source aus v2.254.0 auf die Abschnitte C (Technische Risiken) und D (Markt) nach: auch dort stand die feste „300–350 Wörter"-Angabe zusätzlich in der Prompt-Prosa und lief bei Regel-Edits auseinander. Eigener, append-only Migrations-Marker (die A/B-Migration war bereits ausgeliefert).

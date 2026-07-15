@@ -89,13 +89,13 @@ export function KanbanBoard<T>({ columns, renderCard, dense, layout = 'fest' }: 
           >
             {/* Vollbreite getönte Kopfzeile (style-head) */}
             <div
-              className="-mx-3 px-3 py-[11px] flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.07em]"
+              className="-mx-3 px-3 py-[11px] flex items-center gap-2 text-[10.5px] font-medium uppercase tracking-[0.07em]"
               style={{ background: mix(9, 'var(--tf-bg)'), borderBottom: `0.5px solid ${mix(15, 'var(--tf-border)')}` }}
             >
               <Icon size={18} strokeWidth={1.5} style={{ color: 'var(--lane-c)' }} className="shrink-0" />
               <span style={{ color: mix(58, 'var(--tf-text)') }}>{col.label}</span>
               <span
-                className="ml-auto min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-semibold tabular-nums bg-[var(--tf-bg)]"
+                className="ml-auto min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-medium tabular-nums bg-[var(--tf-bg)]"
                 style={{ color: mix(62, 'var(--tf-text)'), border: `0.5px solid ${mix(22, 'var(--tf-border)')}` }}
               >
                 {col.count ?? col.items.length}

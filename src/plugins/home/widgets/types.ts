@@ -15,7 +15,10 @@ import type { FeedbackStatus } from '@/core/types/feedback';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 export interface HomeWidgetConfig {
-  version: 1;
+  /** Schema-Version. v2 (Home-Redesign „optimiert"): `weitermachen` ist nicht
+   *  mehr im Default (das Hero-Band zeigt es prominent); v1-Configs werden beim
+   *  Lesen migriert (sichtbare weitermachen-Instanz einmalig ausgeblendet). */
+  version: 2;
   /** ISO-Zeitstempel — Last-Writer-Wins analog PersonalEinstellungen. */
   updatedAt: string;
   widgets: WidgetInstanz[];

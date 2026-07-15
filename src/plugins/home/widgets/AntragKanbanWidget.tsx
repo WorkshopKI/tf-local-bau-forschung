@@ -228,10 +228,10 @@ function KanbanKarteView({ karte, onOpen }: { karte: KanbanKarte; onOpen: () => 
     <button
       type="button"
       onClick={onOpen}
-      className="block w-full text-left rounded-[10px] bg-[var(--tf-bg)] shadow-sm hover:shadow-md hover:-translate-y-px transition cursor-pointer px-3 py-2.5"
-      style={{ border: '0.5px solid var(--tf-border)', borderLeft: '3px solid var(--lane-c)' }}
+      className="block w-full text-left rounded-[10px] bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer px-3 py-2.5"
+      style={{ border: '0.5px solid var(--tf-border)', borderLeft: '2.5px solid var(--tf-border-hover)' }}
     >
-      <p className="text-[13px] font-semibold text-[var(--tf-text)] truncate" title={karte.label}>
+      <p className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={karte.label}>
         {karte.label}
       </p>
       {karte.schrittText ? (

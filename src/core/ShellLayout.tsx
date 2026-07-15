@@ -373,6 +373,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     );
   };
 
+  // Assistent-Dock (dev-Flag): shell-weit außer auf der Suche. Ist es aktiv,
+  // reserviert das Blatt rechts 48px für die dauerhafte Dock-Spine (sonst würde
+  // die fixe Spine Inhalt/Scrollbar überlappen). Sonst nur der 12px-Desk-Rand.
+  const dockAktiv = isAssistentPanelEnabled() && activeId !== 'suche';
+
   return (
     <>
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} items={commandItems} />
@@ -492,7 +497,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
         <main
           className="flex-1 flex flex-col min-w-0 overflow-hidden"
           style={{
-            margin: '10px 12px 10px 0',
+            margin: dockAktiv ? '10px 48px 10px 0' : '10px 12px 10px 0',
             borderRadius: '14px',
             border: '0.5px solid var(--tf-sheet-border)',
             background: 'var(--tf-sheet)',
@@ -529,7 +534,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       {!tour.isActive && isFeedbackEnabled() && <FeedbackButton />}
       {/* Schlankes Dock shell-weit — außer auf der Suche, die ihren eigenen
           Voll-Chat (ChatPanelHost) besitzt (kein Doppel-Panel). */}
-      {isAssistentPanelEnabled() && activeId !== 'suche' && <AssistentPanelHost />}
+      {dockAktiv && <AssistentPanelHost />}
     </>
   );
 }

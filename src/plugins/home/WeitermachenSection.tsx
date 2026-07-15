@@ -15,7 +15,7 @@ import type { WidgetProps } from './widgets/widgetProps';
 
 const LIMIT = 3;
 
-interface WeitermachenRow {
+export interface WeitermachenRow {
   key: string;
   anzeige: ArbeitskontextAnzeige;
   /** Voller Router-Pfad inkl. Deep-Link-Query (`?ziel=…&abschnitt=…`). */
@@ -40,8 +40,9 @@ function buildTarget(eintrag: ArbeitskontextEintrag, istEchterVerbund: boolean):
 }
 
 /** Lädt die jüngsten Arbeitskontexte und reichert sie zu Anzeige-Zeilen an
- *  (rein lokales IDB-Log — siehe arbeitskontext-log.ts). */
-function useWeitermachenRows(): WeitermachenRow[] {
+ *  (rein lokales IDB-Log — siehe arbeitskontext-log.ts). Auch vom Hero-Band
+ *  („Weiter, wo du aufgehört hast") genutzt — dort nur der jüngste Eintrag. */
+export function useWeitermachenRows(): WeitermachenRow[] {
   const storage = useStorage();
   const antraege = useAntraegeStore(s => s.antraege);
   const verbundById = useAntraegeStore(s => s.verbundById);

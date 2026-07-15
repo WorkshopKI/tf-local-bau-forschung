@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.255 — 2026-07
+
+### Neu
+- Neuer Arbeitseinstieg oben auf der Startseite: eine Karte „Weiter, wo du aufgehört hast" bringt dich direkt zurück in deine letzte Arbeit, daneben drei anklickbare Kacheln für kritische Fristen, näher rückende Fristen und offene QS-Freigaben.
+### Verbesserungen
+- Aufgefrischtes Design der Startseiten-Karten und des Kanban-Boards — ruhiger und aufgeräumter.
+- Der Assistent sitzt jetzt als schmale, dauerhaft sichtbare Leiste am rechten Rand; ein Klick öffnet ihn.
+
 ## v2.253 — 2026-07
 
 ### Neu

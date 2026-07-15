@@ -135,11 +135,11 @@ describe('laneAccent — Token-only Farbauflösung', () => {
 describe('Kanban-Aktivierung über die Config', () => {
   it('Default ist unsichtbar; sichtbar:true bringt das Widget in den Haupt-Stack', () => {
     const cfg = defaultHomeWidgetConfig();
-    expect(sichtbareWidgets(cfg, 'haupt').map(w => w.typ)).toEqual(['weitermachen', 'meine-antraege']);
+    expect(sichtbareWidgets(cfg, 'haupt').map(w => w.typ)).toEqual(['meine-antraege']);
     const aktiviert: HomeWidgetConfig = {
       ...cfg,
       widgets: cfg.widgets.map(w => (w.typ === 'kanban' ? { ...w, sichtbar: true } : w)),
     };
-    expect(sichtbareWidgets(aktiviert, 'haupt').map(w => w.typ)).toEqual(['weitermachen', 'meine-antraege', 'kanban']);
+    expect(sichtbareWidgets(aktiviert, 'haupt').map(w => w.typ)).toEqual(['meine-antraege', 'kanban']);
   });
 });

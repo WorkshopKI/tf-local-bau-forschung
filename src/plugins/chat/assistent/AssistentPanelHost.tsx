@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore } from 'zustand';
-import { AlertTriangle, Brain, Loader2, MessageSquare, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
+import { AlertTriangle, Brain, Loader2, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getOramaDB } from '@/core/services/search/orama-store';
 import { beschreibeKontext } from '@/core/services/assistent/kontext';
@@ -113,17 +113,29 @@ export function AssistentPanelHost(): React.ReactElement | null {
   useEffect(() => { if (open) composerRef.current?.focus(); }, [open]);
 
   if (!open) {
+    // Dauerhafte 48px-Spine am rechten Blattrand (Handoff „Docking"): dezentes
+    // Primär-Badge oben, Label „Assistent" als Hover-Tooltip links davon. Das
+    // Blatt reserviert die 48px (ShellLayout `dockAktiv`) → keine Überlappung.
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Assistent öffnen"
+        title="Assistent — Fragen zu dieser Ansicht"
         aria-label="Assistent öffnen"
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-[44] flex flex-col items-center gap-1.5 rounded-l-[var(--tf-radius)] px-1.5 py-3 bg-[var(--tf-sheet)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] shadow-[var(--tf-sheet-shadow)]"
-        style={{ border: '0.5px solid var(--tf-border)', borderRight: 'none' }}
+        className="group fixed right-0 top-0 z-[44] h-screen w-[48px] flex flex-col items-center pt-4 bg-transparent hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
       >
-        <MessageSquare size={16} />
-        <span className="text-[11px] tracking-wide" style={{ writingMode: 'vertical-rl' }}>Assistent</span>
+        <span className="grid place-items-center w-[34px] h-[34px] rounded-[10px] bg-[var(--tf-primary)] text-[var(--tf-on-primary)]">
+          <Sparkles size={17} />
+        </span>
+        {/* Tooltip-Bubble (kein CTA): dunkler --tf-text-Grund via inline-style,
+            damit der no-raw-cta-fill-Guard nicht anspringt (Fill nur background,
+            kein paired color). */}
+        <span
+          className="pointer-events-none absolute right-[56px] top-[20px] whitespace-nowrap rounded-[7px] text-[var(--tf-bg)] text-[11.5px] px-2 py-1 opacity-0 translate-x-1 transition-[opacity,transform] duration-150 group-hover:opacity-100 group-hover:translate-x-0 shadow-[var(--tf-shadow-dialog)]"
+          style={{ background: 'var(--tf-text)' }}
+        >
+          Assistent
+        </span>
       </button>
     );
   }

@@ -1,8 +1,9 @@
 /**
- * Tests fuer das Home-Widget-Fundament (Phase 0):
- * Default-Factory (heutige Homepage), toleranter Read + Migrations-Stub,
- * LWW-Merge (kv vs. PersonalEinstellungen-Mirror), Legacy-Collapse-Seed,
- * Sortierung/Sichtbarkeitsfilter, move-Semantik, Save-Roundtrip inkl. Mirror.
+ * Tests fuer das Home-Widget-Fundament:
+ * Default-Factory (v2, Home optimiert — ohne weitermachen), toleranter Read +
+ * v1→v2-Migration (weitermachen ausblenden), LWW-Merge (kv vs.
+ * PersonalEinstellungen-Mirror), Legacy-Collapse-Seed, Sortierung/
+ * Sichtbarkeitsfilter, move-Semantik, Save-Roundtrip inkl. Mirror.
  *
  * `fake-indexeddb` als Polyfill (vitest node env) — analog recorder.test.ts.
  */
@@ -50,23 +51,25 @@ function cfgMit(updatedAt: string, marker: string): HomeWidgetConfig {
   };
 }
 
-describe('defaultHomeWidgetConfig — heutige Homepage exakt', () => {
-  it('bildet Reihenfolge, Bereiche und Sichtbarkeit der heutigen Homepage ab', () => {
+describe('defaultHomeWidgetConfig — v2 (Home optimiert)', () => {
+  it('bildet Reihenfolge, Bereiche und Sichtbarkeit ab — OHNE weitermachen (Hero-Band)', () => {
     const cfg = defaultHomeWidgetConfig();
+    expect(cfg.version).toBe(2);
     const sortiert = sortiereInstanzen(cfg.widgets);
+    // weitermachen ist nicht mehr im Default — das Hero-Band ersetzt es.
     expect(sortiert.map(w => w.typ)).toEqual([
-      'weitermachen', 'meine-antraege', 'kanban',
+      'meine-antraege', 'kanban',
       'antragseingang', 'ai-assistent', 'notizen',
     ]);
-    // Haupt vs. Seite wie heute
+    expect(sortiert.some(w => w.typ === 'weitermachen')).toBe(false);
+    // Haupt vs. Seite
     expect(sortiert.filter(w => w.bereich === 'haupt').map(w => w.typ))
-      .toEqual(['weitermachen', 'meine-antraege', 'kanban']);
+      .toEqual(['meine-antraege', 'kanban']);
     expect(sortiert.filter(w => w.bereich === 'seite').map(w => w.typ))
       .toEqual(['antragseingang', 'ai-assistent', 'notizen']);
-    // Neue Widgets sind Opt-in — heutiges Pixel-Verhalten unveraendert
+    // Opt-in-Widgets sind sichtbar:false
     const sichtbarkeit = Object.fromEntries(sortiert.map(w => [w.typ, w.sichtbar]));
     expect(sichtbarkeit).toEqual({
-      weitermachen: true,
       'meine-antraege': true,
       kanban: false,
       antragseingang: true,
@@ -85,7 +88,7 @@ describe('defaultHomeWidgetConfig — heutige Homepage exakt', () => {
   });
 });
 
-describe('leseHomeWidgetConfig — toleranter Read + Migrations-Stub', () => {
+describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
   it('verwirft Nicht-Objekte und kaputte Shapes', () => {
     expect(leseHomeWidgetConfig(null)).toBeNull();
     expect(leseHomeWidgetConfig('quatsch')).toBeNull();
@@ -94,25 +97,65 @@ describe('leseHomeWidgetConfig — toleranter Read + Migrations-Stub', () => {
   });
 
   it('verwirft unbekannte Versionen (Migrations-Einstieg: nie raten)', () => {
-    expect(leseHomeWidgetConfig({ version: 2, updatedAt: 'x', widgets: [] })).toBeNull();
+    expect(leseHomeWidgetConfig({ version: 3, updatedAt: 'x', widgets: [] })).toBeNull();
+    expect(leseHomeWidgetConfig({ version: 0, updatedAt: 'x', widgets: [] })).toBeNull();
+  });
+
+  it('liest v2 verbatim (normalisiert version)', () => {
+    const gelesen = leseHomeWidgetConfig({ version: 2, updatedAt: 'x', widgets: [] });
+    expect(gelesen).toEqual({ version: 2, updatedAt: 'x', widgets: [] });
   });
 
   it('filtert defekte Instanzen, behaelt valide', () => {
     const valide = defaultHomeWidgetConfig().widgets[0]!;
     const gelesen = leseHomeWidgetConfig({
-      version: 1,
+      version: 2,
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [valide, { id: 'kaputt' }, 42],
     });
+    expect(gelesen?.version).toBe(2);
     expect(gelesen?.widgets).toEqual([valide]);
+  });
+
+  it('v1 → v2: blendet eine sichtbare weitermachen-Instanz einmalig aus', () => {
+    const weiter = {
+      id: 'w-weitermachen', typ: 'weitermachen', position: 0, bereich: 'haupt',
+      sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+    };
+    const meine = {
+      id: 'w-meine-antraege', typ: 'meine-antraege', position: 1, bereich: 'haupt',
+      sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+    };
+    const gelesen = leseHomeWidgetConfig({
+      version: 1, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [weiter, meine],
+    });
+    expect(gelesen?.version).toBe(2);
+    // weitermachen ausgeblendet, sonst unverändert; andere Widgets unberührt.
+    expect(gelesen?.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
+    expect(gelesen?.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
+  });
+
+  it('v1 → v2: eine bereits ausgeblendete weitermachen-Instanz bleibt (idempotent)', () => {
+    const weiter = {
+      id: 'w-weitermachen', typ: 'weitermachen', position: 0, bereich: 'haupt',
+      sichtbar: false, eingeklappt: false, config: { art: 'keine' },
+    };
+    const gelesen = leseHomeWidgetConfig({
+      version: 1, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [weiter],
+    });
+    expect(gelesen?.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
   });
 });
 
 describe('loadHomeWidgets — LWW kv vs. PersonalEinstellungen-Mirror', () => {
-  it('ohne Daten: Default', async () => {
+  it('ohne Daten: Default (v2) — weitermachen als Opt-in (sichtbar:false) nachgezogen', async () => {
     const idb = await frischeIdb();
     const cfg = await loadHomeWidgets(idb);
-    expect(cfg.widgets.map(w => w.typ)).toContain('weitermachen');
+    expect(cfg.version).toBe(2);
+    // meine-antraege ist sichtbar; weitermachen wird per reconcile als Opt-in
+    // (sichtbar:false) ergänzt — der Hero zeigt „Weitermachen" prominent.
+    expect(cfg.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
+    expect(cfg.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
     expect(cfg.updatedAt).toBe(new Date(0).toISOString());
   });
 
@@ -195,7 +238,7 @@ describe('sichtbareWidgets — Katalog- + Flag-Filter', () => {
       'ai-assistent': { ...WIDGET_KATALOG['ai-assistent'], sichtbarWenn: () => false },
     };
     expect(sichtbareWidgets(alleSichtbar, 'haupt', katalog).map(w => w.typ))
-      .toEqual(['weitermachen', 'meine-antraege']);
+      .toEqual(['meine-antraege']);
     expect(sichtbareWidgets(alleSichtbar, 'seite', katalog).map(w => w.typ))
       .toEqual(['antragseingang', 'notizen']);
   });
@@ -263,8 +306,8 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
 
   it('tauscht mit dem Nachbarn derselben Spalte (haupt)', () => {
     const cfg = defaultHomeWidgetConfig();
-    const bewegt = moveInstanz(cfg, 'w-meine-antraege', 'hoch');
-    expect(bereichOrder(bewegt, 'haupt')).toEqual(['meine-antraege', 'weitermachen', 'kanban']);
+    const bewegt = moveInstanz(cfg, 'w-kanban', 'hoch');
+    expect(bereichOrder(bewegt, 'haupt')).toEqual(['kanban', 'meine-antraege']);
     // Seiten-Spalte unberührt.
     expect(bereichOrder(bewegt, 'seite')).toEqual(bereichOrder(cfg, 'seite'));
   });
@@ -275,14 +318,16 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
     const cfg = defaultHomeWidgetConfig();
     const bewegt = moveInstanz(cfg, 'w-ai-assistent', 'hoch');
     expect(bereichOrder(bewegt, 'seite')).toEqual(['ai-assistent', 'antragseingang', 'notizen']);
-    expect(bereichOrder(bewegt, 'haupt')).toEqual(['weitermachen', 'meine-antraege', 'kanban']);
+    expect(bereichOrder(bewegt, 'haupt')).toEqual(['meine-antraege', 'kanban']);
   });
 
   it('am Spalten-Anfang/-Ende ein No-op — auch wenn global nicht Rand', () => {
     const cfg = defaultHomeWidgetConfig();
-    // antragseingang ist erstes seite-Widget (global aber an Position 3).
+    // meine-antraege ist erstes haupt-Widget.
+    expect(moveInstanz(cfg, 'w-meine-antraege', 'hoch')).toBe(cfg);
+    // antragseingang ist erstes seite-Widget (global aber an Position 2).
     expect(moveInstanz(cfg, 'w-antragseingang', 'hoch')).toBe(cfg);
-    // kanban ist letztes haupt-Widget (global aber an Position 2).
+    // kanban ist letztes haupt-Widget.
     expect(moveInstanz(cfg, 'w-kanban', 'runter')).toBe(cfg);
     expect(moveInstanz(cfg, 'gibt-es-nicht', 'hoch')).toBe(cfg);
   });

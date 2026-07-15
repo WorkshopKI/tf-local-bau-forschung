@@ -12,9 +12,11 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
 import { HomeZweiSpalten } from './HomeZweiSpalten';
+import { HomeHero } from './HomeHero';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { useEingangAmpelCounts } from './useEingangAmpelCounts';
 import { formatHomeSubtitle } from './homeSubtitle';
+import type { AmpelBucket } from '@/plugins/antraege/eingangAmpel';
 import { HomeWidgetStack } from './widgets/HomeWidgetStack';
 import { ampelSchwellenAusConfig } from './widgets/homeWidgetsStore';
 import { useHomeWidgetsStore } from './widgets/useHomeWidgets';
@@ -79,12 +81,23 @@ export function HomePage(): React.ReactElement {
     // die Ampel-Schwellen schon im ersten sichtbaren Frame.
     ladeWidgetConfig(storage.idb).catch(() => {});
   }, [ladeWidgetConfig, storage.idb]);
-  const ampelCounts = useEingangAmpelCounts(ampelSchwellenAusConfig(homeWidgetConfig));
+  const schwellen = ampelSchwellenAusConfig(homeWidgetConfig);
+  const ampelCounts = useEingangAmpelCounts(schwellen);
   const subtitleParts = formatHomeSubtitle({
     offen: ampelCounts.total,
     kritisch: ampelCounts.kritisch,
     warnung: ampelCounts.warnung,
   });
+
+  // Hero-Alert-Chips öffnen dieselbe gefilterte Liste wie das Antragseingang-
+  // Widget (setActiveView setzt zurück → danach Quickfilter setzen).
+  const openBucket = (bucket: AmpelBucket): void => {
+    const store = useAntraegeStore.getState();
+    store.setActiveView('meine_offenen');
+    store.setAmpelQuickfilter({ bucket, schwellen });
+    navigate('antraege');
+  };
+  const openQs = (): void => navigate('antraege');
 
   // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation
   // (useDashboardData) läuft EINMAL hier, nicht je Widget.
@@ -210,11 +223,16 @@ export function HomePage(): React.ReactElement {
           (flag-gebunden über sichtbarWenn) und wird vom haupt-Stack gerendert. */}
       <HomeZweiSpalten
         main={
-          <div data-tour="document-list" className="min-w-0">
-            <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-6" />
+          <div className="min-w-0 space-y-[18px]">
+            {/* Hero-Band (fixes Element, kein Widget) — Arbeitseinstieg oben in
+                der Hauptspalte, Rail top-aligned daneben (Handoff-Layout). */}
+            <HomeHero counts={ampelCounts} onOpenBucket={openBucket} onOpenQs={openQs} />
+            <div data-tour="document-list">
+              <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-[18px]" />
+            </div>
           </div>
         }
-        seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-4" />}
+        seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-3" />}
       />
     </div>
   );

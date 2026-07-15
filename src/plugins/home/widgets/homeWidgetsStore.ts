@@ -34,11 +34,13 @@ export const MEINE_ANTRAEGE_COLLAPSE_LEGACY_KEY = 'home_meine_antraege_collapsed
 const BEREICHE = new Set(['haupt', 'seite']);
 
 /**
- * Default-Config = die HEUTIGE Homepage exakt (Weitermachen + Meine Anträge in
- * der Hauptspalte; Ampel + AI-Assistent in der Seitenspalte). Kanban und
- * Notizen sind als Opt-in angelegt (`sichtbar: false`). `updatedAt` ist Epoche,
- * damit jeder echte Save die Defaults per LWW gewinnt (analog
- * DEFAULT_EINSTELLUNGEN).
+ * Default-Config (v2, Home-Redesign „optimiert"): Meine Anträge in der
+ * Hauptspalte; Ampel + AI-Assistent in der Seitenspalte. `weitermachen` ist
+ * NICHT mehr im Default — das Hero-Band (HomeHero) zeigt „Weiter, wo du
+ * aufgehört hast" prominent; das gleichnamige Widget bleibt als Opt-in im
+ * Katalog (wird per reconcileVerfuegbareWidgets als `sichtbar: false` ergänzt).
+ * Kanban und Notizen sind ebenfalls Opt-in (`sichtbar: false`). `updatedAt` ist
+ * Epoche, damit jeder echte Save die Defaults per LWW gewinnt.
  */
 export function defaultHomeWidgetConfig(
   opts?: { meineAntraegeEingeklappt?: boolean },
@@ -59,15 +61,14 @@ export function defaultHomeWidgetConfig(
     config: WIDGET_KATALOG[typ].defaultConfig(),
   });
   return {
-    version: 1,
+    version: 2,
     updatedAt: new Date(0).toISOString(),
     widgets: [
-      instanz('w-weitermachen', 'weitermachen', 0, true),
-      instanz('w-meine-antraege', 'meine-antraege', 1, true, opts?.meineAntraegeEingeklappt ?? false),
-      instanz('w-kanban', 'kanban', 2, false),
-      instanz('w-antragseingang', 'antragseingang', 3, true),
-      instanz('w-ai-assistent', 'ai-assistent', 4, true),
-      instanz('w-notizen', 'notizen', 5, false),
+      instanz('w-meine-antraege', 'meine-antraege', 0, true, opts?.meineAntraegeEingeklappt ?? false),
+      instanz('w-kanban', 'kanban', 1, false),
+      instanz('w-antragseingang', 'antragseingang', 2, true),
+      instanz('w-ai-assistent', 'ai-assistent', 3, true),
+      instanz('w-notizen', 'notizen', 4, false),
     ],
   };
 }
@@ -85,25 +86,37 @@ function isWidgetInstanz(v: unknown): v is WidgetInstanz {
 }
 
 /**
+ * v1 → v2 (Home-Redesign „optimiert"): Das Hero-Band zeigt „Weitermachen" jetzt
+ * prominent oben; eine sichtbare `weitermachen`-Widget-Instanz würde doppeln →
+ * einmalig ausblenden. Bleibt im Katalog `verfuegbar` (über die Einstellungen
+ * reaktivierbar). Rein + idempotent — jede spätere Nutzer-Mutation persistiert
+ * v2, sodass die Migration danach nie wieder greift (auch ein bewusstes
+ * Reaktivieren bleibt erhalten).
+ */
+export function migriereV1HeroWeitermachen(widgets: WidgetInstanz[]): WidgetInstanz[] {
+  return widgets.map(w =>
+    w.typ === 'weitermachen' && w.sichtbar ? { ...w, sichtbar: false } : w,
+  );
+}
+
+/**
  * Toleranter Read (analog arbeitskontext-log): kaputte/fremde Werte → null
- * (Aufrufer fällt auf Default). Der `version`-Switch ist der
- * Migrations-Einstieg — heute existiert nur v1; unbekannte Versionen werden
- * bewusst NICHT geraten.
+ * (Aufrufer fällt auf Default). Der `version`-Switch ist der Migrations-
+ * Einstieg: v1-Stände werden auf v2 gehoben (weitermachen einmalig ausgeblendet,
+ * s. migriereV1HeroWeitermachen); v2 wird verbatim gelesen. Unbekannte Versionen
+ * werden bewusst NICHT geraten.
  */
 export function leseHomeWidgetConfig(raw: unknown): HomeWidgetConfig | null {
   if (!raw || typeof raw !== 'object') return null;
   const cfg = raw as Record<string, unknown>;
-  switch (cfg.version) {
-    case 1:
-      break;
-    default:
-      return null;
-  }
+  if (cfg.version !== 1 && cfg.version !== 2) return null;
   if (typeof cfg.updatedAt !== 'string' || !Array.isArray(cfg.widgets)) return null;
+  let widgets = cfg.widgets.filter(isWidgetInstanz);
+  if (cfg.version === 1) widgets = migriereV1HeroWeitermachen(widgets);
   return {
-    version: 1,
+    version: 2,
     updatedAt: cfg.updatedAt,
-    widgets: cfg.widgets.filter(isWidgetInstanz),
+    widgets,
   };
 }
 

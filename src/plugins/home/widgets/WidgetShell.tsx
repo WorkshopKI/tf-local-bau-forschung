@@ -47,13 +47,15 @@ export function WidgetShell({
   const toggle = useAsyncAction(onToggleEingeklappt);
   const haupt = variante === 'haupt';
 
+  // Handoff „Home optimiert": Karten-Titel 14px/500 (kein 600 — DESIGN_GUIDE),
+  // rechte Leiste als kompakte 10.5px-Uppercase-Caption (`.rc-title`).
   const titelKlasse = haupt
-    ? 'text-[15px] font-semibold text-[var(--tf-text)]'
-    : 'text-[12px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]';
+    ? 'text-[14px] font-medium text-[var(--tf-text)]'
+    : 'text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-secondary)]';
 
   return (
     <section
-      className={`rounded-[var(--tf-radius-lg)] ${haupt ? 'bg-[var(--tf-bg)]' : 'bg-[var(--tf-card-surface)]'}`}
+      className="rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
       <div className={`flex items-center gap-2 min-w-0 ${haupt ? 'px-4 py-2.5' : 'px-4 pt-3 pb-0'}`}>
@@ -77,21 +79,13 @@ export function WidgetShell({
               drücken (Flex-Overflow). */}
           <span className={`${titelKlasse} truncate min-w-0`}>{titel}</span>
         </button>
-        {eingeklappt ? (
-          haupt ? (
-            <span className="text-[12.5px] text-[var(--tf-text-tertiary)] truncate">
-              eingeklappt · nur Zähler
-            </span>
-          ) : null
-        ) : (
-          <>
-            {meta ? (
-              <span className="text-[12.5px] text-[var(--tf-text-tertiary)] truncate min-w-0">
-                {meta}
-              </span>
-            ) : null}
-          </>
-        )}
+        {/* Eingeklappt: nur Titel + Zähler (Handoff `.w-sum`) — kein
+            Platzhaltertext. Ausgeklappt: grauer Meta-Text neben dem Titel. */}
+        {!eingeklappt && meta ? (
+          <span className="text-[12.5px] text-[var(--tf-text-tertiary)] truncate min-w-0">
+            {meta}
+          </span>
+        ) : null}
         <div className="flex-1 min-w-0" />
         {!eingeklappt && aktion ? <div className="shrink-0">{aktion}</div> : null}
         {zaehler ? <div className="shrink-0 flex items-center gap-1.5">{zaehler}</div> : null}
