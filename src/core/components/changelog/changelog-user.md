@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.253 — 2026-07
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- Die App startet spürbar schneller: die Programmdatei ist von rund 70 MB auf etwa 18 MB geschrumpft (−75 %), bei unveränderter Bedienung. Besonders beim Öffnen vom Netzlaufwerk macht sich das bemerkbar.
+### Bugfixes
+<!-- - … -->
+
 ## v2.252 — 2026-07
 
 ### Neu

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.253.0 — Bundle-Diaet: ONNX-WASM gzip-inline + Dependency-Hygiene (Juli 2026)
+
+MINOR — Die Single-File-HTML war ~73 MB (dev) und wird bei jedem Start komplett vom SMB-Share geladen; dominiert von der ~21-MB-ONNX-WASM, die zweimal byte-identisch als base64-`data:`-URL im Bundle lag. Zusätzlich tote Pakete + offene npm-audit-Findings bereinigt.
+
+- **ONNX-WASM als Inline-gzip + `wasmBinary`** ([ort-wasm-init.ts](src/core/services/search/ort-wasm-init.ts) + [generate-ort-wasm-module.mjs](scripts/generate-ort-wasm-module.mjs)): Post-Build-Strip leert die inlined `data:`-URLs ([strip-inline-wasm.mjs](scripts/strip-inline-wasm.mjs)) → Bundle dev 73→19,5 MB, prod 71→17,4 MB (−73/−75 %). Detail: [runtime-layers.md](docs/architecture/runtime-layers.md), Pitfall #39.
+- **4 tote Pakete entfernt** ([package.json](package.json)): `@zip.js/zip.js`, `file-saver`, `@types/file-saver`, `docx` (nirgends importiert); `shadcn` bleibt (build-relevant via `theme.css`).
+- **`xlsx` 0.18.5 → 0.20.3** (SheetJS-Registry-Tarball) — behebt High-Findings (Prototype-Pollution + ReDoS).
+- **`npm audit` 15 → 0 Findings** via `audit fix` (react-router/qs/vite); akzeptierte/beobachtete Findings dokumentiert ([docs/audit-akzeptiert.md](docs/audit-akzeptiert.md)).
+
 ### v2.252.0 — Aufbereitung-Einstieg zuerst + gesamte KI-Aufbereitung auf einen Klick; Kurzbeschreibung ohne Titel-Fallback (Juli 2026)
 
 MINOR — Der Antrag-Verstehen-Schritt (Aufbereitung) gehört an den Anfang, und die KI-Abschnitte der Aufbereitung sollen auf einen Klick laufen statt einzeln pro Tab. Zudem soll eine fehlende Kurzbeschreibung nicht durch den Projekt-Titel vorgetäuscht werden. Additiv, dev-only, keine Datenmigration.
