@@ -37,6 +37,9 @@ teamflow-src.zip
 .DS_Store
 Thumbs.db
 
+# Wegwerf-Scripts (Shell-Konventionen: mehrzeiliges node -e / python -c)
+scripts/tmp/
+
 # IDE
 .vscode/settings.json
 .idea/

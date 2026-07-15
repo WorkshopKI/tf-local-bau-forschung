@@ -33,13 +33,16 @@
     "build:devprod": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/prod.config.json",
     "config-ui": "node scripts/serve-config-ui.mjs",
     "preview": "vite preview",
-    "typecheck": "tsc --build --force",
-    "lint": "eslint .",
+    "typecheck": "tsc --build",
+    "typecheck:full": "tsc --build --force",
+    "lint": "eslint . --cache --cache-location node_modules/.cache/eslint",
     "test": "vitest run",
+    "test:changed": "vitest run --changed",
     "test:phase2": "vitest run src/phase2",
     "eval:skills": "vite-node --config vitest.config.mts src/core/services/skill-eval/cli.ts --",
     "eval:aufbereitung": "vite-node --config vitest.config.mts src/core/services/skill-eval/aufbereitung-eval.ts --",
     "eval:gedaechtnis": "vite-node --config vitest.config.mts src/core/services/skill-eval/gedaechtnis-eval.ts --",
+    "check:quick": "npm run typecheck && npm run lint && npm run test:changed",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build:dev"
   },
   "dependencies": {

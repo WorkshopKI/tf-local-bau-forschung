@@ -52,6 +52,10 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - `_archive/` — Historische Architektur-Docs, erledigte Audits, überholte Test-Daten, archivierte Eval-Reports (`_archive/eval-reports/`). Enthält die alte MVP-Architektur (postMessage-AI-Bridge, Vorgang-zentriertes Datenmodell, "Admin"-Terminologie) und führt bei aktuellem Code zu falschen Annahmen. Ein Agent, der hier sucht, bekommt mit hoher Wahrscheinlichkeit überholte Guidance.
 - `node_modules/`, `dist*/`, `.vite/` — Build-Artefakte.
 - `_reference/` — externe Referenz-Apps und Mockup-Bilder, nicht Teil von TeamFlow. Wird von Vite (`server.watch.ignored`) ignoriert.
+- `CHANGELOG.md` + `docs/CHANGELOG-ARCHIV.md` — nie am Stück lesen (~400 KB / ~330 KB); Einträge werden nur oben angefügt (ab v2.248 per Script). Zum Nachschlagen einzelner Versionen: grep nach `### vX.Y`.
+- `src/core/services/skill-eval/fixtures/eval-fixtures.data.json` — ~2 MB generierte Fixture-Daten.
+- `docs/phase-2/triage-beispiele/` — Beispiel-DOCX/-PDFs (~1 MB).
+- `docs/superpowers/` — erledigte Plan-/Spec-Dokumente vergangener Feature-Runden; für aktuellen Code irrelevant, führt Explorer in die Irre.
 
 ## Critical Constraints
 
@@ -285,6 +289,21 @@ Historische Referenz-Implementierung lag unter `_reference/lernapp/` — seit de
 - Types: `camelCase.ts` (e.g., `vorgang.ts`)
 - Constants: `UPPER_SNAKE_CASE` in file, `camelCase.ts` filename
 - **Reines Geschwister-Modul eines Components nie nur per Casing benennen** (`KompaktListe.tsx` + `kompaktListe.ts` = TS1149/1261-Kollision unter Windows/case-insensitive FS). Eigenen Wortstamm wählen: `KompaktListe.tsx` + `kompaktRows.ts`, `ArtefaktLeiste.tsx` + `artefaktKarten.ts`.
+
+## Entwicklungs-Gate (innerer Loop vs. Phasen-Gate)
+
+- **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + nur betroffene Tests (`vitest run --changed`). Sekunden statt Minuten.
+- **Phasen-Gate** (vor jedem Commit): `npm run check` — voll: Typecheck + Lint + komplette Testsuite + `build:dev`.
+- Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm run typecheck:full` (`tsc --build --force`).
+
+## Shell-Konventionen (Windows)
+
+Die Dev-Maschine ist Windows — Heredocs/Here-Strings schlagen in der Shell fehl und kosten jedes Mal einen Selbstkorrektur-Turn. Daher verbindlich:
+
+1. **Keine Heredocs/Here-Strings** (`<<EOF`, `<<<`, `@"…"@`, `"$(cat <<…)"`) in Bash-Aufrufen.
+2. **Mehrzeilige Datei-Inhalte** ausschließlich über das Write/Edit-Tool erzeugen — nie per `echo`/`cat` zusammenbauen.
+3. **Commit-Messages**: Message per Write-Tool nach `.git/COMMIT_MSG.tmp`, dann `git commit -F .git/COMMIT_MSG.tmp`. Einzeiler dürfen weiter `git commit -m "…"` nutzen.
+4. **Kein mehrzeiliges Inline-`python -c` / `node -e`** — stattdessen Wegwerf-Script unter `scripts/tmp/` anlegen (gitignored), ausführen, löschen.
 
 ## Build-Varianten (v1.10)
 

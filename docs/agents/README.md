@@ -45,19 +45,12 @@ Die Search-Eval ist bewusst **nicht** im npm-Test-Lauf, weil sie WebGPU/WASM + g
 
 ## Voraussetzungen für jeden Patch
 
-Vor jedem nicht-trivialen Patch:
+Zwei Stufen — je nach Situation:
 
-```bash
-npm run check          # typecheck + test + build:dev in einem Aufruf
-```
+- **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + nur betroffene Tests (`vitest run --changed`). Sekunden statt Minuten.
+- **Phasen-Gate** (Ende jeder Phase, vor jedem Commit): `npm run check` — voll: Typecheck + Lint + komplette Testsuite + `build:dev`.
 
-Oder einzeln:
-
-```bash
-npm run typecheck      # keine neuen Type-Fehler
-npm run test           # alle Tests grün (= vitest run)
-npm run build:dev      # Single-File-Build erfolgreich
-```
+Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm run typecheck:full` (`tsc --build --force`).
 
 Verifikation per Doppelklick auf die gebaute HTML unter `dist-single/` (z.B. `zah.html`, abhängig von `build.outputFilename` in der dev-Config) in Chrome/Edge — keine Console-Errors.
 
