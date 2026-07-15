@@ -1,6 +1,10 @@
-import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Info, Sparkles } from 'lucide-react';
+import type { EditorView } from '@codemirror/view';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
+import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import {
@@ -76,10 +80,17 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
   const slotErzwingtIntern = templateReferenziertInhaltsSlot(draft.promptTemplate);
   const inhaltsTragend = skillEnthaeltDokumentInhalte(draft);
 
+  // Prompt-Vorlage = Markdown-Live-Preview-Editor (wie Gutachten-Abschnitte).
+  // MarkdownEditor.onChange ist 300 ms debounced → beim Speichern den Live-Doc-Wert
+  // flushen, damit der letzte Tastendruck nicht verloren geht.
+  const promptViewRef = useRef<EditorView | null>(null);
+  const promptExtensions = useMemo(() => [markdownLivePreview()], []);
+
   // doSave = reiner Persist-Teil (Version-Bump + Historie, OHNE onBack) — wird vom
   // In-Editor-Button (mit Schließen) UND vom Leave-Guard (ohne Schließen) genutzt.
   const doSave = async (): Promise<void> => {
-    const base: SkillRecord = { ...draft, version: nextVersion, geaendert_am: new Date().toISOString() };
+    const promptTemplate = promptViewRef.current?.state.doc.toString() ?? draft.promptTemplate;
+    const base: SkillRecord = { ...draft, promptTemplate, version: nextVersion, geaendert_am: new Date().toISOString() };
     const updated: SkillRecord = { ...base, historie: appendHistorie(base, { userId: meinKuerzel, begruendung }) };
     await persist({ ...file, skills: upsertSkill(file.skills, updated) });
   };
@@ -151,14 +162,16 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
 
       {view === 'bearbeiten' && (
       <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] p-[24px]">
-        {/* Prompt-Vorlage */}
+        {/* Prompt-Vorlage — Markdown-Live-Preview (wie Gutachten-Abschnitte bearbeiten) */}
         <Section>Prompt-Vorlage</Section>
-        <textarea
+        <MarkdownEditor
           value={draft.promptTemplate}
-          disabled={ro}
-          rows={16}
-          onChange={e => setDraft(d => ({ ...d, promptTemplate: e.target.value }))}
-          className={`${inputCls} bg-[var(--tf-bg-secondary)] px-[18px] py-4 font-mono text-[12.5px] leading-[1.75] text-[var(--tf-text)] resize-y`}
+          onChange={v => setDraft(d => ({ ...d, promptTemplate: v }))}
+          readOnly={ro}
+          minHeight="340px"
+          extensions={promptExtensions}
+          onCreateEditor={v => { promptViewRef.current = v; }}
+          className="bg-[var(--tf-bg-secondary)]"
         />
         <div className="mt-3 flex flex-col gap-1.5">
           {draft.slots.map(slot => (
@@ -169,43 +182,43 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           ))}
         </div>
 
-        {/* DSGVO-Transport-Policy: abgeleitete Klassifizierung + optionaler Override */}
+        {/* DSGVO-Transport-Policy: abgeleitete Klassifizierung + optionaler Override.
+            Erklärprosa hinter dem Info-Icon (zustandsabhängig). */}
         <div className="mt-4 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-[14px] py-3">
-          <div className="text-[11.5px] leading-[1.5] text-[var(--tf-text-secondary)]">
-            {slotErzwingtIntern
-              ? 'Das Template referenziert einen Inhalts-Slot → der Skill verarbeitet Dokumentinhalte und läuft ausschließlich über die interne KI (DSGVO-Transport-Policy). Die Ableitung schlägt jeden Override.'
-              : 'Das Template referenziert keinen Inhalts-Slot. Fail-safe-Standard: als inhalts-tragend behandeln (nur interne KI). Nur als inhaltsfrei markieren, wenn sicher kein Dokumentinhalt verarbeitet wird — dann ist auch ein externer Provider erlaubt.'}
-          </div>
-          <label className="mt-2.5 flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
-            <input
-              type="checkbox"
-              disabled={ro || slotErzwingtIntern}
-              checked={inhaltsTragend}
-              onChange={e => setDraft(d => ({ ...d, enthaeltDokumentInhalte: e.target.checked }))}
-              className="accent-[var(--tf-primary)] disabled:opacity-60"
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
+              <input
+                type="checkbox"
+                disabled={ro || slotErzwingtIntern}
+                checked={inhaltsTragend}
+                onChange={e => setDraft(d => ({ ...d, enthaeltDokumentInhalte: e.target.checked }))}
+                className="accent-[var(--tf-primary)] disabled:opacity-60"
+              />
+              <span className={slotErzwingtIntern ? 'opacity-60' : ''}>Verarbeitet Dokumentinhalte (nur interne KI)</span>
+            </label>
+            <FeldInfo
+              text={slotErzwingtIntern
+                ? 'Das Template referenziert einen Inhalts-Slot → der Skill verarbeitet Dokumentinhalte und läuft ausschließlich über die interne KI (DSGVO-Transport-Policy). Die Ableitung schlägt jeden Override.'
+                : 'Das Template referenziert keinen Inhalts-Slot. Fail-safe-Standard: als inhalts-tragend behandeln (nur interne KI). Nur als inhaltsfrei markieren, wenn sicher kein Dokumentinhalt verarbeitet wird — dann ist auch ein externer Provider erlaubt.'}
             />
-            <span className={slotErzwingtIntern ? 'opacity-60' : ''}>Verarbeitet Dokumentinhalte (nur interne KI)</span>
-          </label>
-          {slotErzwingtIntern && (
-            <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">Override deaktiviert — durch Inhalts-Slot im Template erzwungen.</div>
-          )}
+          </div>
         </div>
 
-        {/* Aktivierungs-Gate: Skill freischalten/sperren (z.B. nach bestandener Eval). */}
+        {/* Aktivierungs-Gate: Skill freischalten/sperren (z.B. nach bestandener Eval).
+            Erklärprosa hinter dem Info-Icon. */}
         <div className="mt-4 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-[14px] py-3">
-          <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
-            <input
-              type="checkbox"
-              disabled={ro}
-              checked={draft.aktiv !== false}
-              onChange={e => setDraft(d => ({ ...d, aktiv: e.target.checked }))}
-              className="accent-[var(--tf-primary)] disabled:opacity-60"
-            />
-            <span>Skill aktiv (freigeschaltet)</span>
-          </label>
-          <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
-            Deaktiviert (Häkchen aus): Module, die das Gate respektieren (z.&nbsp;B. „Anfragen"), führen den Skill nicht aus.
-            Standard: aktiv. Ein neuer, ungeprüfter Skill startet bewusst deaktiviert, bis seine Eval besteht.
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
+              <input
+                type="checkbox"
+                disabled={ro}
+                checked={draft.aktiv !== false}
+                onChange={e => setDraft(d => ({ ...d, aktiv: e.target.checked }))}
+                className="accent-[var(--tf-primary)] disabled:opacity-60"
+              />
+              <span>Skill aktiv (freigeschaltet)</span>
+            </label>
+            <FeldInfo text={'Deaktiviert (Häkchen aus): Module, die das Gate respektieren (z. B. „Anfragen"), führen den Skill nicht aus. Standard: aktiv. Ein neuer, ungeprüfter Skill startet bewusst deaktiviert, bis seine Eval besteht.'} />
           </div>
         </div>
 
@@ -367,5 +380,20 @@ function Section({ children }: { children: React.ReactNode }): React.ReactElemen
       <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">{children}</span>
       <span className="flex-1 h-[0.5px] bg-[var(--tf-border)]" />
     </div>
+  );
+}
+
+/** Kompaktes Info-Icon neben einem Label; zeigt die Erklärprosa als Tooltip. */
+function FeldInfo({ text }: { text: string }): React.ReactElement {
+  return (
+    <Tooltip text={text} maxWidth={360}>
+      <button
+        type="button"
+        aria-label="Info"
+        className="shrink-0 inline-flex items-center justify-center text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-help outline-none focus-visible:text-[var(--tf-text)]"
+      >
+        <Info size={14} strokeWidth={1.5} />
+      </button>
+    </Tooltip>
   );
 }

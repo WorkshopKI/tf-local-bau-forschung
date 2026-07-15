@@ -26,6 +26,7 @@
 
 ### Verbesserungen
 - **Qualitätsregeln im Skill-Editor übersichtlicher.** Die Liste der zuordenbaren Qualitätsregeln war eine lange Scroll-Wand. Sie ist jetzt nach Kategorie gruppiert (Umfang, Sprache, Struktur, Inhalt & Quellen, Vollständigkeit & Form) und je Gruppe einklappbar. Beim Öffnen eines Skills sind genau die Gruppen aufgeklappt, die bereits eine zugeordnete Regel enthalten; jeder Gruppenkopf zeigt, wie viele seiner Regeln zugeordnet sind (z. B. 2/4).
+- **Skill bearbeiten: kompakter und mit Markdown-Vorschau.** Beim Bearbeiten eines Skills nahmen zwei Erklärkästen viel Platz ein. Die Erklärungen zu „Verarbeitet Dokumentinhalte" und „Skill aktiv" stecken jetzt hinter einem kleinen Info-Symbol neben dem jeweiligen Häkchen — der Text erscheint beim Darüberfahren, die Kästen sind deutlich schlanker. Zusätzlich zeigt das Prompt-Feld Markdown jetzt formatiert an (Überschriften, Fettdruck) — genauso wie beim Bearbeiten von Gutachten-Abschnitten.
 
 ### Bugfixes
 - **Skill-Testlauf: alle Antragstypen auswählbar.** Beim Testen eines Skills zeigte die Antrags-Auswahl nur Anträge einer einzigen Förderlinie (die mit `16DL` beginnenden) — FuE-, DS-, DL- und NW-Anträge fehlten. Jetzt sind alle Typen da: darüber gibt es eine Filterleiste (Alle / FuE / DS / DL / NW) mit Anzahl, und die Anträge mit vorliegender Vorhabensbeschreibung — die einzigen, gegen die getestet werden kann — stehen oben. Sind es sehr viele Treffer, weist eine Fußzeile darauf hin, dass du über Typ oder Suche eingrenzen kannst.
