@@ -22,6 +22,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Wiederkehrende Bug-Klassen (Cold-Start-Refresh, FSAPI, Parallel-Varianten, Embedding-Caches) | [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md) |
 | Welche(n) Build nach dem Patch bauen | [docs/agents/which-build-to-run.md](docs/agents/which-build-to-run.md) |
 | Build-Varianten (Configs, Sichtbarkeits-Matrix, Feature-Flags) | [docs/architecture/build-varianten.md](docs/architecture/build-varianten.md) |
+| npm audit meldet etwas | [docs/audit-akzeptiert.md](docs/audit-akzeptiert.md) |
 | Async-UI-Aktion ohne silent-fail | [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) |
 | Antrag-Status-Vergleich | Pitfall #12 + [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) |
 | Datei-Pfade auf SMB-Share | [docs/architecture/data-layout.md](docs/architecture/data-layout.md) |
@@ -84,7 +85,7 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - **Search**: Orama (BM25 + Vector Hybrid), Transformers.js v4 (EmbeddingGemma 300M), WebGPU/WASM
 - **AI Chat**: DirectLLM transport (OpenRouter / local llama.cpp) + Streamlit bridge
 - **Icons**: lucide-react (tree-shakeable)
-- **ZIP / AES-256**: `@zip.js/zip.js` (für passwortgeschützte Exports im Auslastungs-Modul). `jszip` bleibt für unverschlüsselte ZIPs in Verwendung — kann kein AES-256.
+- **ZIP**: `jszip` (DOCX-Vorlagenfüllung, ZIP-Durchläufe, Beispiel-Korpus) — unverschlüsselt. Passwort-/Zugangs-Krypto läuft über `crypto.subtle` (AES-GCM, `infrastructure/crypto.ts`), nicht über ZIP-Verschlüsselung.
 
 ## Architecture Principles
 
