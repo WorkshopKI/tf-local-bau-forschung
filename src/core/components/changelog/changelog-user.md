@@ -27,7 +27,7 @@
 - Aufgefrischtes Design der Startseiten-Karten und des Kanban-Boards — ruhiger und aufgeräumter.
 - Der Assistent sitzt jetzt als schmale, dauerhaft sichtbare Leiste am rechten Rand; ein Klick öffnet ihn.
 ### Bugfixes
-- Beim Überfahren der Assistent-Leiste erschien kurz ein zweites, schwarzes Tooltip — behoben, es bleibt nur das dezente Label.
+- Beim Überfahren der Assistent-Leiste erschienen zwei Tooltips übereinander (eines davon ein hartes schwarzes Kästchen) — behoben, es erscheint nur noch ein einzelnes, dezentes Label.
 
 ## v2.253 — 2026-07
 

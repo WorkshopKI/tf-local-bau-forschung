@@ -114,26 +114,20 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   if (!open) {
     // Dauerhafte 48px-Spine am rechten Blattrand (Handoff „Docking"): dezentes
-    // Primär-Badge oben, Label „Assistent" als Hover-Tooltip links davon. Das
-    // Blatt reserviert die 48px (ShellLayout `dockAktiv`) → keine Überlappung.
+    // Primär-Badge oben, Label „Assistent" als natives Hover-Tooltip (title) —
+    // konsistent mit den übrigen Icon-Buttons der App, kein zweites, hart
+    // schwarzes Custom-Bubble. Das Blatt reserviert die 48px (ShellLayout
+    // `dockAktiv`) → keine Überlappung.
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
+        title="Assistent — Fragen zu dieser Ansicht"
         aria-label="Assistent öffnen"
-        className="group fixed right-0 top-0 z-[44] h-screen w-[48px] flex flex-col items-center pt-4 bg-transparent hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
+        className="fixed right-0 top-0 z-[44] h-screen w-[48px] flex flex-col items-center pt-4 bg-transparent hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
       >
         <span className="grid place-items-center w-[34px] h-[34px] rounded-[10px] bg-[var(--tf-primary)] text-[var(--tf-on-primary)]">
           <Sparkles size={17} />
-        </span>
-        {/* Tooltip-Bubble (kein CTA): dunkler --tf-text-Grund via inline-style,
-            damit der no-raw-cta-fill-Guard nicht anspringt (Fill nur background,
-            kein paired color). */}
-        <span
-          className="pointer-events-none absolute right-[56px] top-[20px] whitespace-nowrap rounded-[7px] text-[var(--tf-bg)] text-[11.5px] px-2 py-1 opacity-0 translate-x-1 transition-[opacity,transform] duration-150 group-hover:opacity-100 group-hover:translate-x-0 shadow-[var(--tf-shadow-dialog)]"
-          style={{ background: 'var(--tf-text)' }}
-        >
-          Assistent
         </span>
       </button>
     );
