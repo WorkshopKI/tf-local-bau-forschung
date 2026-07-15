@@ -26,13 +26,20 @@ import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
 import { KonvertierungReviewDialog } from './KonvertierungReviewDialog';
-import { classifyFkz, type FkzCase } from './dokumentAufnahmeFkz';
+import { classifyFkz, typAusDateiname, type FkzCase } from './dokumentAufnahmeFkz';
 
 const converter = new DocConverter();
 
-const TYP_OPTIONS: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
+/**
+ * Vollständiges Dokumenttyp-Vokabular — GETEILT über alle Aufnahmeflächen (Gutachten,
+ * Kurzfassung, Nachforderungen, Aufbereitung), damit eine einmal hochgeladene Datei
+ * überall korrekt taggbar ist. `AUFBEREITUNG_TYP_OPTIONEN` re-exportiert diese Liste.
+ */
+export const DOKUMENT_TYP_OPTIONEN: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
   { value: 'vorhabensbeschreibung', label: 'Vorhabensbeschreibung' },
   { value: 'teilvorhabensbeschreibung', label: 'Teilvorhabensbeschreibung' },
+  { value: 'arbeitsplan', label: 'Arbeitsplan (Anlage 5)' },
+  { value: 'marketingkonzept', label: 'Marketing-/Verwertungskonzept' },
   { value: 'stellungnahme', label: 'Stellungnahme' },
   { value: 'sonstiges', label: 'Sonstiges' },
 ];
@@ -69,7 +76,7 @@ interface Props {
    *  ein Marketingkonzept die VB-Auflösung (`resolveVb` = neuestes VB-Doc) NICHT
    *  überschreibt. */
   defaultTyp?: AntragDokumentTyp;
-  /** Wählbare Typ-Pills (Default = `TYP_OPTIONS`, die 4 Standard-Typen). */
+  /** Wählbare Typ-Pills (Default = `DOKUMENT_TYP_OPTIONEN`, das volle Vokabular). */
   typOptionen?: ReadonlyArray<{ value: AntragDokumentTyp; label: string }>;
   /** Wenn true: Aufnahmefläche bleibt nach der Aufnahme offen — die Pro-Datei-Erkennung
    *  + „Konvertierung prüfen" bleibt sichtbar; `onIngested` feuert erst beim expliziten
@@ -81,7 +88,7 @@ interface Props {
 }
 
 export function DokumentAufnahme({
-  relationTag, knownIds, onIngested, defaultTyp = 'vorhabensbeschreibung', typOptionen = TYP_OPTIONS,
+  relationTag, knownIds, onIngested, defaultTyp = 'vorhabensbeschreibung', typOptionen = DOKUMENT_TYP_OPTIONEN,
   offenHalten = false, abschlussLabel = 'Fertig',
 }: Props): React.ReactElement {
   const storage = useStorage();
@@ -134,7 +141,10 @@ export function DokumentAufnahme({
         detectedFkz,
         matchedId,
         fkzCase,
-        typ: defaultTyp,
+        // Vorbeleg-Typ aus dem Dateinamen (Anlage 5 → arbeitsplan, Marketing → marketingkonzept),
+        // sonst der defaultTyp der Fläche — so ist eine Anlage 5 auch im Gutachten-Upload korrekt
+        // getaggt und in der Aufbereitung sofort auffindbar (keine VB-Vergiftung).
+        typ: typAusDateiname(file.name, defaultTyp),
         status: 'wartet',
       };
       setItems(prev => [...prev, item]);
@@ -143,11 +153,17 @@ export function DokumentAufnahme({
     }
   };
 
-  /** Typ-Pill geklickt: Typ setzen, bei bereits indexiertem Dokument re-taggen. */
+  /** Typ-Pill geklickt: Typ setzen, bei bereits indexiertem Dokument re-taggen und die
+   *  Sektion benachrichtigen (Auto-Übernehmen — kein separater „Übernehmen"-Button). Das
+   *  `onIngested` ist wie beim Ingest auf `!offenHalten` gegated: in der Aufbereitung rechnet
+   *  der Re-Tag sofort neu (behebt „Anlage 5 trotz Umtaggen noch als fehlend"); in der offen
+   *  gehaltenen Gutachten-Fläche bleibt die Übernahme beim expliziten „Fertig". */
   const setTyp = (item: IntakeItem, typ: AntragDokumentTyp): void => {
     patch(item.localId, { typ });
     if (item.docId) {
-      void updateTags(item.docId, [relationTag, typ].filter(Boolean), storage).catch(() => { /* re-tag best-effort */ });
+      void updateTags(item.docId, [relationTag, typ].filter(Boolean), storage)
+        .then(() => { if (!offenHalten) onIngested?.(typ); })
+        .catch(() => { /* re-tag best-effort */ });
     }
   };
 

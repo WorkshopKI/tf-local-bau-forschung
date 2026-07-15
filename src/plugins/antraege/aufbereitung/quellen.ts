@@ -9,12 +9,9 @@ import { readText, listFilesWithBackupInfo } from '@/core/services/infrastructur
 import { dokumenteDir } from '@/core/services/personal-storage/personal-layout';
 import { parseFrontmatter } from '@/plugins/antraege/aufnahme-einfach/frontmatter';
 import { resolveVb } from '@/plugins/antraege/kurzfassung/vbDokument';
-import { normId } from '@/core/components/dokumentAufnahmeFkz';
+import { normId, ANLAGE5_RE } from '@/core/components/dokumentAufnahmeFkz';
 
 export { resolveVb, type VbAufloesung } from '@/plugins/antraege/kurzfassung/vbDokument';
-
-/** Dateiname/Titel matcht „Anlage 5" (Varianten mit Space/Underscore/Punkt/Bindestrich). */
-const ANLAGE5_RE = /anlage[\s_.-]*5(?!\d)/i;
 
 /**
  * Ordnet einen Dateinamen dem Teilvorhaben zu, dessen Aktenzeichen (normalisiert)

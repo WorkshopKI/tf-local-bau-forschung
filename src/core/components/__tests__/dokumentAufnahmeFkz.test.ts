@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyFkz, normId } from '../dokumentAufnahmeFkz';
+import { classifyFkz, normId, typAusDateiname } from '../dokumentAufnahmeFkz';
 
 describe('classifyFkz — Verbund-Zuordnung der Aufnahmefläche', () => {
   // Bekannte Kennungen eines Verbundes: Verbund-ID + zwei TV-Aktenzeichen.
@@ -39,5 +39,31 @@ describe('classifyFkz — Verbund-Zuordnung der Aufnahmefläche', () => {
 
   it('normId ignoriert Trennzeichen beim Vergleich', () => {
     expect(normId('16EP_260092 v3')).toBe('16EP260092V3');
+  });
+});
+
+describe('typAusDateiname — Vorbeleg-Typ aus dem Dateinamen', () => {
+  it('„Anlage 5" (diverse Trenner) → arbeitsplan', () => {
+    expect(typAusDateiname('16EP260092_Anlage 5 =PROG=.pdf', 'vorhabensbeschreibung')).toBe('arbeitsplan');
+    expect(typAusDateiname('16EP260092_Anlage_5_NL.PDF', 'sonstiges')).toBe('arbeitsplan');
+    expect(typAusDateiname('Arbeitsplan-Anlage.5.docx', 'vorhabensbeschreibung')).toBe('arbeitsplan');
+  });
+
+  it('„Anlage 5" gewinnt vor Marketing (Anlage 5 ist nie ein Marketingkonzept)', () => {
+    expect(typAusDateiname('Anlage 5 Verwertung.pdf', 'sonstiges')).toBe('arbeitsplan');
+  });
+
+  it('Marketing/Verwertung → marketingkonzept', () => {
+    expect(typAusDateiname('16EP260092_Verwertungskonzept.pdf', 'sonstiges')).toBe('marketingkonzept');
+    expect(typAusDateiname('Marketing-Plan.docx', 'vorhabensbeschreibung')).toBe('marketingkonzept');
+  });
+
+  it('„Anlage 50" matcht NICHT (Wortgrenze wie ANLAGE5_RE)', () => {
+    expect(typAusDateiname('Anlage 50 Budget.pdf', 'sonstiges')).toBe('sonstiges');
+  });
+
+  it('kein Treffer → fallback', () => {
+    expect(typAusDateiname('16EP260092_A4_Projektbeschreibung.pdf', 'vorhabensbeschreibung')).toBe('vorhabensbeschreibung');
+    expect(typAusDateiname('Stellungnahme.pdf', 'sonstiges')).toBe('sonstiges');
   });
 });

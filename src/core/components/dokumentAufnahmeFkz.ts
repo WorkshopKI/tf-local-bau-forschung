@@ -12,8 +12,19 @@
  * (Prinzip „lieber Bearbeiter entscheiden lassen als falsch raten").
  */
 import { extractFkz } from '@/phase2/matcher/fkz-extractor';
+import type { AntragDokumentTyp } from '@/core/services/csv/types';
 
 export type FkzCase = 'match' | 'ambig';
+
+/**
+ * Dateiname/Titel matcht „Anlage 5" (Varianten mit Space/Underscore/Punkt/Bindestrich).
+ * EINZIGE Quelle — die Aufbereitungs-Auflösung (`quellen.ts`) importiert dieses Muster,
+ * damit Erkennung beim Upload und Auflösung deckungsgleich sind (kein Regex-Duplikat).
+ */
+export const ANLAGE5_RE = /anlage[\s_.-]*5(?!\d)/i;
+
+/** Dateiname deutet auf ein Marketing-/Verwertungskonzept hin. */
+export const MARKETING_RE = /(marketing|verwertung)/i;
 
 export interface FkzClassification {
   /** FKZ laut 16XX-Extraktor (nur zur Anzeige; null wenn keiner erkannt). */
@@ -34,4 +45,17 @@ export function classifyFkz(filename: string, knownIds: string[]): FkzClassifica
   const haystack = normId(filename);
   const matchedId = knownIds.find(id => id.trim().length > 0 && haystack.includes(normId(id))) ?? null;
   return { detectedFkz, matchedId, fkzCase: matchedId ? 'match' : 'ambig' };
+}
+
+/**
+ * Leitet aus dem Dateinamen einen Vorbeleg-Dokumenttyp ab, damit eine einmal
+ * abgelegte Datei überall korrekt getaggt ist (Prinzip „einmal hochladen → überall
+ * verfügbar"): „…Anlage 5…" → `arbeitsplan`, Marketing/Verwertung → `marketingkonzept`,
+ * sonst der übergebene `fallback` (= `defaultTyp` der jeweiligen Aufnahmefläche).
+ * Anlage 5 hat Vorrang (eine Anlage-5-Datei ist nie ein Marketingkonzept). Rein.
+ */
+export function typAusDateiname(filename: string, fallback: AntragDokumentTyp): AntragDokumentTyp {
+  if (ANLAGE5_RE.test(filename)) return 'arbeitsplan';
+  if (MARKETING_RE.test(filename)) return 'marketingkonzept';
+  return fallback;
 }

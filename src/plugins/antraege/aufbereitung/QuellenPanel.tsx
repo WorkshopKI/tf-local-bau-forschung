@@ -13,21 +13,13 @@
  */
 import { useState } from 'react';
 import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
-import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
-import type { AntragDokumentTyp } from '@/core/services/csv/types';
+import { DokumentAufnahme, DOKUMENT_TYP_OPTIONEN } from '@/core/components/DokumentAufnahme';
 import type { AufbereitungRun } from './types';
 
 const CAPS_LABEL = 'text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text)]';
 
-/** Typ-Pills der Aufbereitungs-Aufnahme (Standard-4 + Arbeitsplan + Marketing). */
-export const AUFBEREITUNG_TYP_OPTIONEN: ReadonlyArray<{ value: AntragDokumentTyp; label: string }> = [
-  { value: 'vorhabensbeschreibung', label: 'Vorhabensbeschreibung' },
-  { value: 'teilvorhabensbeschreibung', label: 'Teilvorhabensbeschreibung' },
-  { value: 'arbeitsplan', label: 'Arbeitsplan (Anlage 5)' },
-  { value: 'marketingkonzept', label: 'Marketing-/Verwertungskonzept' },
-  { value: 'stellungnahme', label: 'Stellungnahme' },
-  { value: 'sonstiges', label: 'Sonstiges' },
-];
+/** Typ-Pills der Aufbereitungs-Aufnahme = geteiltes volles Vokabular (eine Quelle in DokumentAufnahme). */
+export const AUFBEREITUNG_TYP_OPTIONEN = DOKUMENT_TYP_OPTIONEN;
 
 interface Props {
   ctx: { key: string; knownIds: string[] };
