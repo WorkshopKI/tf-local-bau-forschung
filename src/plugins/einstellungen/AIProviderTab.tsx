@@ -16,6 +16,7 @@ import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai
 import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
 import { AufbereitungEvalPanel } from '@/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel';
+import { GedaechtnisEvalPanel } from './GedaechtnisEvalPanel';
 import { StreamlitBridgeSection } from './StreamlitBridgeSection';
 import { SettingsSectionHeader, InfoHint } from './_shared/settings-primitives';
 
@@ -351,6 +352,16 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       <section id="sec-aufbereitung-eval" className="scroll-mt-20 space-y-3">
         <SettingsSectionHeader label="Aufbereitung: Baustein-Eval" />
         <AufbereitungEvalPanel />
+      </section>
+      )}
+
+      {/* Assistent-Gedächtnis: In-App-Eval der Konsolidierung — nur dev (fiktive
+          Fixtures, interne Bridge/Qwen). Misst über die Bridge, schreibt NICHT in
+          den Gedächtnis-Store; braucht das assistentGedaechtnis-Flag nicht. */}
+      {isDevFixturesEnabled() && (
+      <section id="sec-gedaechtnis-eval" className="scroll-mt-20 space-y-3">
+        <SettingsSectionHeader label="Assistent-Gedächtnis: Eval" />
+        <GedaechtnisEvalPanel />
       </section>
       )}
     </div>

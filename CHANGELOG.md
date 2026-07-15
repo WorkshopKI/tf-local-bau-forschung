@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.256.0 — In-App-Gedächtnis-Eval-Panel (dev) (Juli 2026)
+
+MINOR — Die Gedächtnis-Qualität (Assistent Phase 2) muss vor dem dev-Scharfschalten gemessen werden — aber der Rechner mit Zugang zur internen KI hat kein Node, das CLI `eval:gedaechtnis` läuft dort nicht. Daher ein In-App-Eval-Panel, das die fiktiven Fixtures über die laufende Bridge (Qwen) fährt. Nur Messung — keine Aktivierung. Detail: [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md).
+
+- **Gedächtnis-Eval-Panel** (Einstellungen → KI, gegated `isDevFixturesEnabled()`): 5 fiktive Fixtures über die interne Bridge (Default `agentisch`/Qwen), Generator + Judge intern, resetChat pro Submit, Report + JSONL-Download ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)).
+- **Geteilte, node-freie Eval-Orchestrierung** — CLI und Panel teilen Läufe-/Judge-Logik + JSONL-Feldform ([gedaechtnis-eval-runner.ts](src/core/services/skill-eval/gedaechtnis-eval-runner.ts), [gedaechtnis-judge.ts](src/core/services/skill-eval/gedaechtnis-judge.ts)); die CLI ist nur noch der Node-Rahmen ([gedaechtnis-eval.ts](src/core/services/skill-eval/gedaechtnis-eval.ts)).
+- **`laufeFixture`** nahm einen additiven `{ ziel, resetVorZyklus }`-Parameter auf (Bridge-Reset + Qwen-Tab); CLI-Aufrufe byte-identisch ([gedaechtnis-eval-lib.ts](src/core/services/skill-eval/gedaechtnis-eval-lib.ts)).
+- Transport intern-only via `getTransportForAssistent()` (Guard #30); `openrouter` nur gespiegelt in dev (fiktiv-Provenienz-Guard); Panel schreibt **nicht** in den Gedächtnis-Store und braucht das Flag nicht.
+
 ### v2.255.2 — Assistent-Spine: schwarzes Custom-Tooltip entfernt, natives Label behalten (Juli 2026)
 
 PATCH — Korrektur zu v2.255.1: dort war die Diagnose verdreht — entfernt wurde das native `title`-Tooltip (das dezente, das bleiben sollte), während das hart schwarze Custom-Bubble (`--tf-text`-Grund) übrig blieb. Jetzt umgekehrt richtig.

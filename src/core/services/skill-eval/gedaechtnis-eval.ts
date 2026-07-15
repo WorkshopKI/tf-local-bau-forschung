@@ -11,6 +11,12 @@
  * OpenAI-kompatibler Endpoint (kein OpenRouter für dokument-tragende Läufe —
  * gespiegelter Prod-Pfad); der Judge darf extern sein.
  *
+ * Die innere Läufe-/Judge-Logik liegt seit der In-App-Panel-Erweiterung in den
+ * node-freien Geschwister-Modulen `gedaechtnis-eval-runner.ts` (Orchestrierung +
+ * JSONL-Zeilen-Shape) und `gedaechtnis-judge.ts` (Judge-Prompt + -Auswertung);
+ * diese CLI ist nur noch der Node-Rahmen (Args, Transport-Fabriken, Console,
+ * Datei-Schreiben, Exit-Codes).
+ *
  * Aufruf (vite-node, wegen der `__TEAMFLOW_*__`-defines):
  *   npm run eval:gedaechtnis -- --dry-run                 # Harness-Selbsttest (kein LLM)
  *   npm run eval:gedaechtnis -- --models eval/gedaechtnis-gen.json --judge eval/gedaechtnis-judge.json --n 3
@@ -20,13 +26,9 @@ import { dirname } from 'node:path';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import { NodeOpenAITransport } from './node-transport';
 import { GEDAECHTNIS_FIXTURES } from './gedaechtnis-fixtures';
-import { frischeIdFabrik, laufeFixture } from './gedaechtnis-eval-lib';
-import { pruefeAssertions } from './gedaechtnis-assertions';
-import type { GedaechtnisFixture } from './gedaechtnis-assertions';
-import type { GedaechtnisEintrag } from '@/core/services/assistent/gedaechtnis/types';
+import { laufeEineFixtureMitJudge } from './gedaechtnis-eval-runner';
 
 interface ModelConfig { id?: string; baseUrl: string; model: string; apiKeyEnv?: string }
-interface JudgeScore { faktentreue: number; nuetzlichkeit: number; begruendung?: string; fehler?: boolean }
 
 /* eslint-disable no-console */
 
@@ -57,62 +59,6 @@ function generierungsTransport(cfg: ModelConfig): AITransport {
 function judgeTransport(cfg: ModelConfig): AITransport {
   const apiKey = cfg.apiKeyEnv ? process.env[cfg.apiKeyEnv] : undefined;
   return new NodeOpenAITransport({ baseUrl: cfg.baseUrl, model: cfg.model, apiKey, name: cfg.id ?? cfg.model, temperature: 0 });
-}
-
-function ereignisText(fx: GedaechtnisFixture): string {
-  const zeilen: string[] = [];
-  fx.zyklen.forEach((z, i) => {
-    if (fx.zyklen.length > 1) zeilen.push(`-- Zyklus ${i + 1} --`);
-    for (const e of z.ereignisse) {
-      const d = e.detail ? ' ' + Object.entries(e.detail).map(([k, v]) => `${k}=${String(v)}`).join(', ') : '';
-      const ent = e.entitaet ? ` [${e.entitaet.art} ${e.entitaet.id}]` : '';
-      zeilen.push(`${e.typ}${ent}${d}`);
-    }
-  });
-  return zeilen.join('\n');
-}
-
-function buildJudgePrompt(fx: GedaechtnisFixture, active: GedaechtnisEintrag[]): string {
-  const eintraege = active.length > 0
-    ? active.map(e => `- (${e.block}) ${e.text}`).join('\n')
-    : '(keine Einträge)';
-  return [
-    'Du bewertest das Ergebnis einer Gedächtnis-Konsolidierung. Gegeben sind die beobachteten',
-    'Ereignisse eines Nutzers und die daraus abgeleiteten Gedächtnis-Einträge.',
-    '',
-    'Ereignisse:',
-    ereignisText(fx),
-    '',
-    'Abgeleitete Einträge:',
-    eintraege,
-    '',
-    'Bewerte auf einer Skala von 1 (schlecht) bis 5 (sehr gut):',
-    '- faktentreue: Sind ALLE Einträge durch die Ereignisse gedeckt (nichts erfunden/widersprüchlich)?',
-    '- nuetzlichkeit: Sind die Einträge knapp, relevant und nicht redundant?',
-    '',
-    'Antworte AUSSCHLIESSLICH als JSON: {"faktentreue": <1-5>, "nuetzlichkeit": <1-5>, "begruendung": "<kurz>"}',
-  ].join('\n');
-}
-
-async function runJudge(transport: AITransport, prompt: string): Promise<JudgeScore> {
-  try {
-    const raw = await transport.submitMessage(prompt, undefined, { responseFormat: { type: 'json_object' } });
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start < 0 || end < 0) return { faktentreue: 0, nuetzlichkeit: 0, fehler: true };
-    const obj = JSON.parse(raw.slice(start, end + 1)) as JudgeScore;
-    return {
-      faktentreue: Number(obj.faktentreue) || 0,
-      nuetzlichkeit: Number(obj.nuetzlichkeit) || 0,
-      begruendung: obj.begruendung,
-    };
-  } catch {
-    return { faktentreue: 0, nuetzlichkeit: 0, fehler: true };
-  }
-}
-
-function mittel(xs: number[]): number {
-  return xs.length === 0 ? 0 : xs.reduce((s, x) => s + x, 0) / xs.length;
 }
 
 async function main(): Promise<void> {
@@ -147,39 +93,19 @@ async function main(): Promise<void> {
   let alleAssertionsOk = true;
 
   for (const fx of fixtures) {
-    const detFehlerProLauf: string[][] = [];
-    const judgeScores: JudgeScore[] = [];
+    const { zeilen: fxZeilen, aggregat } = await laufeEineFixtureMitJudge(fx, {
+      n, transport: gen, judgeTransport: judge, dryRun,
+    });
+    for (const z of fxZeilen) zeilen.push(JSON.stringify(z));
+    if (aggregat.okLaeufe < n) alleAssertionsOk = false;
 
-    for (let run = 0; run < n; run++) {
-      const lauf = await laufeFixture(fx, gen, frischeIdFabrik(`${fx.id}-${run}`));
-      const assertions = pruefeAssertions(fx, lauf.active, lauf.ergebnisse);
-      const fehler = assertions.filter(a => !a.ok).map(a => `${a.name}(${a.detail ?? ''})`);
-      detFehlerProLauf.push(fehler);
-      if (fehler.length > 0) alleAssertionsOk = false;
-
-      let judgeScore: JudgeScore | undefined;
-      if (judge && !dryRun) {
-        judgeScore = await runJudge(judge, buildJudgePrompt(fx, lauf.active));
-        judgeScores.push(judgeScore);
-      }
-
-      zeilen.push(JSON.stringify({
-        fixture: fx.id, szenario: fx.szenario, run,
-        aktive: lauf.active.length,
-        assertionsOk: fehler.length === 0, assertionsFehler: fehler,
-        judge: judgeScore,
-      }));
-    }
-
-    const okLaeufe = detFehlerProLauf.filter(f => f.length === 0).length;
-    const judgeInfo = judgeScores.length > 0
-      ? ` · Judge F=${mittel(judgeScores.map(s => s.faktentreue)).toFixed(2)} N=${mittel(judgeScores.map(s => s.nuetzlichkeit)).toFixed(2)}`
+    const judgeInfo = aggregat.judgeF != null
+      ? ` · Judge F=${aggregat.judgeF.toFixed(2)} N=${(aggregat.judgeN ?? 0).toFixed(2)}`
       : '';
-    const status = okLaeufe === n ? '✓' : '✗';
-    console.log(`  ${status} ${fx.id.padEnd(18)} Assertions ${okLaeufe}/${n}${judgeInfo}`);
-    if (okLaeufe < n) {
-      const beispiel = detFehlerProLauf.find(f => f.length > 0);
-      console.log(`      Verletzungen: ${beispiel?.join(', ')}`);
+    const status = aggregat.okLaeufe === n ? '✓' : '✗';
+    console.log(`  ${status} ${fx.id.padEnd(18)} Assertions ${aggregat.okLaeufe}/${n}${judgeInfo}`);
+    if (aggregat.okLaeufe < n) {
+      console.log(`      Verletzungen: ${aggregat.beispielVerletzung?.join(', ')}`);
     }
   }
 
