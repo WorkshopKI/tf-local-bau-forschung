@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.251 — 2026-07
+
+### Neu
+- Hochgeladene Dokumente lassen sich jetzt direkt wieder **entfernen** — praktisch, wenn eine PDF schlecht umgewandelt wurde (dann einfach als Word-Datei neu ablegen) oder die falsche Datei erwischt wurde. Das Dokument verschwindet dabei auch aus der Suche.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v2.250 — 2026-07
 
 ### Verbesserungen

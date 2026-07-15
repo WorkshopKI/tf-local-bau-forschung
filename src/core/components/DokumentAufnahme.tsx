@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DocConverter, maxConversionLevel, type ConvertedDoc } from '@/core/services/converter';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { vbUeberschreitetCap } from '@/core/services/skills';
@@ -82,9 +83,10 @@ export function DokumentAufnahme({
   offenHalten = false, abschlussLabel = 'Fertig',
 }: Props): React.ReactElement {
   const storage = useStorage();
-  const { indexDocument } = useSearch();
+  const { indexDocument, removeDocument } = useSearch();
   const add = useDokumenteStore(s => s.add);
   const updateTags = useDokumenteStore(s => s.updateTags);
+  const removeDoc = useDokumenteStore(s => s.remove);
   const [items, setItems] = useState<IntakeItem[]>([]);
 
   const patch = (localId: string, p: Partial<IntakeItem>): void =>
@@ -157,6 +159,22 @@ export function DokumentAufnahme({
     }
   };
 
+  /** Frisch aufgenommenes Dokument wieder entfernen (z.B. schlechte PDF-Konvertierung
+   *  → als DOCX neu ablegen, oder falsche Datei erwischt). Vollständige Löschung:
+   *  aus dem Such-Index (Orama) UND aus dem Dokumente-Store (IDB). Danach fliegt die
+   *  Zeile aus der Aufnahme-Liste. Ein indexiertes Doc, das der Caller schon gezählt
+   *  haben könnte, triggert ein Neu-Rechnen — gleich gegated wie Ingest/Re-Tag
+   *  (`offenHalten` verschiebt es auf „Fertig"). Fehler-Zeilen (kein `docId`) fliegen
+   *  nur aus der Liste. Wird pro Zeile über `useAsyncAction` aufgerufen (Pitfall #15). */
+  const entferne = async (item: IntakeItem): Promise<void> => {
+    if (item.docId) {
+      removeDocument(item.docId);
+      await removeDoc(item.docId, storage);
+    }
+    setItems(prev => prev.filter(it => it.localId !== item.localId));
+    if (!offenHalten && item.docId) onIngested?.(item.typ);
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <FileDropZone onFiles={handleFiles} accept=".pdf,.docx" multiple>
@@ -179,6 +197,7 @@ export function DokumentAufnahme({
           onSetTyp={setTyp}
           onAssign={() => void ingest(item, item.typ)}
           onDiscard={() => patch(item.localId, { status: 'verworfen' })}
+          onRemove={entferne}
         />
       ))}
 
@@ -204,12 +223,20 @@ interface RowProps {
   onSetTyp: (item: IntakeItem, typ: AntragDokumentTyp) => void;
   onAssign: () => void;
   onDiscard: () => void;
+  onRemove: (item: IntakeItem) => Promise<void>;
 }
 
-function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard }: RowProps): React.ReactElement {
+function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard, onRemove }: RowProps): React.ReactElement {
   const assigned = item.status === 'konvertiert' || item.status === 'indexiert';
   const showPills = item.fkzCase === 'match' || assigned;
   const [reviewOpen, setReviewOpen] = useState(false);
+  const entfernen = useAsyncAction(onRemove);
+  // Rückfrage nur bei tatsächlicher Löschung (indexiertes Doc); reine Fehler-Zeilen
+  // haben nichts persistiert und fliegen ohne Nachfrage aus der Liste.
+  const handleRemove = (): void => {
+    if (item.docId && !window.confirm(`„${item.file.name}" entfernen?`)) return;
+    void entfernen.run(item);
+  };
   const lvl = item.converted ? maxConversionLevel(item.converted.report) : null;
   const zuLang = item.converted ? vbUeberschreitetCap(item.converted.markdown, getVbCharCap()) : false;
   const rep = item.converted?.report;
@@ -270,18 +297,23 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard }: RowProp
           </div>
         )}
 
-        {item.status === 'fehler' && item.error && (
-          <div className="text-[11px] text-[var(--tf-danger-text)] mt-1.5">Fehler: {item.error}</div>
+        {item.status === 'fehler' && (
+          <div className="mt-1.5 flex items-center gap-2.5 flex-wrap text-[11px]">
+            {item.error && <span className="text-[var(--tf-danger-text)]">Fehler: {item.error}</span>}
+            <EntfernenButton busy={entfernen.busy} onClick={handleRemove} />
+          </div>
         )}
 
         {item.status === 'indexiert' && item.converted && (
           <>
-            <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[11.5px]">
+            <div className="mt-1.5 flex items-center gap-2.5 flex-wrap text-[11.5px]">
               <button type="button" onClick={() => setReviewOpen(true)} className="text-[var(--tf-primary)] hover:underline">
                 Konvertierung prüfen
               </button>
               {lvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme</span>}
               {lvl === 'hinweis' && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
+              <span className="text-[var(--tf-border)]" aria-hidden>·</span>
+              <EntfernenButton busy={entfernen.busy} onClick={handleRemove} />
             </div>
             {zuLang && (
               <div className="mt-1.5 rounded-[6px] px-2.5 py-1.5 text-[11.5px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
@@ -297,6 +329,10 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard }: RowProp
               </div>
             )}
           </>
+        )}
+
+        {entfernen.error && (
+          <div className="mt-1.5 text-[11px] text-[var(--tf-danger-text)]">Entfernen fehlgeschlagen: {entfernen.error}</div>
         )}
       </div>
 
@@ -318,6 +354,20 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard }: RowProp
         />
       )}
     </div>
+  );
+}
+
+/** Dezenter Text-Link zum Entfernen einer frisch aufgenommenen Datei (danger-getönt beim Hover). */
+function EntfernenButton({ busy, onClick }: { busy: boolean; onClick: () => void }): React.ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] disabled:opacity-50"
+    >
+      {busy ? 'Entferne…' : 'Entfernen'}
+    </button>
   );
 }
 

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.251.0 — Frisch hochgeladene Dokumente wieder entfernen (Juli 2026)
+
+MINOR — Frisch hochgeladene Antragsdokumente ließen sich nicht wieder entfernen. Nötig, wenn eine PDF-Konvertierung schlecht ist (als DOCX neu ablegen) oder man die falsche Datei erwischt hat. Additiv, keine Datenmigration.
+
+- **Pro-Zeile „Entfernen"** in der geteilten Aufnahmefläche ([DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx)): dezenter Text-Link neben „Konvertierung prüfen" (indexierte Zeilen) bzw. in Fehler-Zeilen; wirkt automatisch in allen Aufrufern (Gutachten/Kurzfassung/Nachforderungen/Aufbereitungs-Quellen/Zeitplan).
+- **Vollständige Löschung**: raus aus dem Such-Index (Orama, `removeDocument`) UND aus dem Dokumente-Store (IDB, `store.remove`) — kein Rückstand im Korpus; Rückfrage vor dem Löschen, `useAsyncAction` (Pitfall #15).
+- **Neu-Rechnen gleich gegated wie Ingest/Re-Tag**: in der Aufbereitung sofort, in `offenHalten`-Sektionen erst bei „Fertig" (kein vorzeitiger Status-Flip).
+
 ### v2.250.0 — Steckbrief ↔ Eckdaten user-resizable (geteilte Zwei-Spalten-Komponente) (Juli 2026)
 
 MINOR — Auf der Antrag-Aufbereitung (Tab Steckbrief) war die Grenze zwischen der linken Inhaltsspalte und der rechten „Eckdaten"-Sidebar fix. Sie ist jetzt per Zieh-Griff verstellbar. Die dafür schon auf der Startseite vorhandene Zieh-Logik wurde in eine geteilte Komponente gehoben (DRY, kein paralleles Layout). Additiv, keine Datenmigration.
