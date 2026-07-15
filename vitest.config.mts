@@ -19,6 +19,7 @@ const ISOLATED_TESTS = [
   'src/core/services/feedback/__tests__/sponsorTicketUpsert.test.ts',
   'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
   'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',
+  'src/core/services/search/__tests__/ort-wasm-init.test.ts',
   'src/core/services/skill-feedback/__tests__/export.test.ts',
   'src/core/services/skill-feedback/__tests__/read.test.ts',
   'src/core/services/skill-feedback/__tests__/selfcheck.test.ts',

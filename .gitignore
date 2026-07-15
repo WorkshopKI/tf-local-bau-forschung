@@ -8,6 +8,9 @@ assets/
 # Generierte Code-Map (npm run map / precheck-Hook) — nicht versioniert, vermeidet Diff-Rauschen
 docs/architecture/code-map.md
 
+# Generierter ORT-WASM-gzip-Blob (npm run generate:ort-wasm) — ~6.7 MB, aus node_modules ableitbar
+src/generated/
+
 # KI-Analyseprogramm (Binaries + Modell)
 dokumentenindex-dateien/
 

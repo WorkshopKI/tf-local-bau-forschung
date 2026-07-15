@@ -1,10 +1,10 @@
-import { pipeline, AutoModel, AutoTokenizer, env,
+import { pipeline, AutoModel, AutoTokenizer,
   type FeatureExtractionPipeline } from '@huggingface/transformers';
 import type { EmbeddingModelConfig } from './model-registry';
 import { pipelineLog } from './pipeline-logger';
+import { ensureOrtWasmBinary } from './ort-wasm-init';
 
-// Transformers.js v4 env
-env.useWasmCache = true;          // WASM-Binaries cachen fuer Offline
+// Transformers.js v4 env-Konfiguration (inkl. env.useWasmCache = false) lebt in ort-wasm-init.ts.
 
 /** Major-Version von @huggingface/transformers fuer Index-Invalidierung */
 export const TRANSFORMERS_LIB_VERSION = 4;
@@ -56,6 +56,8 @@ export class EmbeddingService {
       onProgress?.({ phase: 'loading' });
       const device = preferGPU ? 'webgpu' : 'wasm';
       pipelineLog.info('Embedding', `Lade ${modelConfig.label} (${modelConfig.downloadSize}) — ${device}`);
+      // ORT-WASM als Inline-gzip bereitstellen, BEVOR die erste Pipeline/Session entsteht.
+      await ensureOrtWasmBinary();
       const progressCb = (p: Record<string, unknown>): void => {
         onProgress?.({
           phase: 'loading',

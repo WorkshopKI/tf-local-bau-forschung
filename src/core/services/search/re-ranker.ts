@@ -5,6 +5,7 @@
 
 import type { OramaSearchResult } from './orama-store';
 import { pipelineLog } from './pipeline-logger';
+import { ensureOrtWasmBinary } from './ort-wasm-init';
 
 export interface ReRankerModelConfig {
   id: string;
@@ -89,6 +90,7 @@ export async function initReRanker(
 
   try {
     const { AutoTokenizer, AutoModelForSequenceClassification } = await import('@huggingface/transformers');
+    await ensureOrtWasmBinary(); // ORT-WASM als Inline-gzip bereitstellen (vor from_pretrained)
 
     pipelineLog.info('Re-Ranker', `Lade ${config.label} (${config.sizeHint})...`);
 

@@ -6,6 +6,7 @@
 
 import type { TextGenerationPipeline } from '@huggingface/transformers';
 import { pipelineLog } from './pipeline-logger';
+import { ensureOrtWasmBinary } from './ort-wasm-init';
 
 export async function checkWebGPU(): Promise<boolean> {
   if (!('gpu' in navigator)) return false;
@@ -45,6 +46,7 @@ export class BrowserLLM {
     try {
       onProgress?.('Transformers.js laden...');
       const { pipeline } = await import('@huggingface/transformers');
+      await ensureOrtWasmBinary(); // WebGPU-Pfad: inert/harmlos, aber konsistent zum WASM-Fallback
 
       pipelineLog.info('BrowserLLM', `Lade ${modelId} (q4, WebGPU)...`);
 
