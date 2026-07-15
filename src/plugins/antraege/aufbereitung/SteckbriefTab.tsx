@@ -8,6 +8,7 @@
  */
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { ZweiSpaltenResizable } from '@/components/zwei-spalten';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { FundstelleChip } from './FundstelleChip';
 import type { Belegt, SteckbriefDaten } from './steckbrief';
@@ -105,9 +106,16 @@ function SteckbriefInhalt({
         </details>
       ) : null}
 
-      <div className="flex flex-wrap gap-6 items-start">
-        {/* Links: Fließtext-Karten */}
-        <div className="flex-1 min-w-[380px] flex flex-col gap-4">
+      <ZweiSpaltenResizable
+        storageKey="teamflow_aufbereitung_eckdaten_breite"
+        defaultBreite={320}
+        minBreite={280}
+        maxBreite={560}
+        gapClassName="gap-6"
+        ariaLabel="Breite der Eckdaten-Spalte anpassen"
+        haupt={
+          // Links: Fließtext-Karten
+          <div className="flex min-w-0 flex-col gap-4">
           <Card titel="Das Vorhaben in einem Satz">
             {daten.einSatz ? (
               <p className="text-[15px] leading-snug text-[var(--tf-text)]">
@@ -123,10 +131,11 @@ function SteckbriefInhalt({
           <Card titel="FuE-Gegenstand (was wird tatsächlich entwickelt)">
             <BelegtListe eintraege={daten.fueGegenstand} chips={chips} />
           </Card>
-        </div>
-
-        {/* Rechts: Eckdaten / Zielmärkte / Schlüsselpersonal */}
-        <div className="w-[320px] shrink-0 flex flex-col gap-4">
+          </div>
+        }
+        seite={
+          // Rechts: Eckdaten / Zielmärkte / Schlüsselpersonal
+          <div className="flex flex-col gap-4">
           <Card titel="Eckdaten">
             <DefZeile label="Antragsteller" wert={stammdaten.antragsteller} />
             <DefZeile label="Förderkennzeichen" wert={stammdaten.foerderkennzeichen} />
@@ -173,8 +182,9 @@ function SteckbriefInhalt({
               ) : null}
             </Card>
           ) : null}
-        </div>
-      </div>
+          </div>
+        }
+      />
     </div>
   );
 }

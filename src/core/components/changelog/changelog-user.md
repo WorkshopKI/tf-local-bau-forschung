@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.250 — 2026-07
+
+### Verbesserungen
+- In der Antrag-Aufbereitung lässt sich die Breite zwischen dem Steckbrief-Inhalt und der „Eckdaten"-Spalte jetzt per Ziehen anpassen. Doppelklick auf den Griff setzt die Aufteilung zurück; die eingestellte Breite bleibt pro Gerät erhalten.
+
 ## v2.249 — 2026-07
 
 ### Neu

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.250.0 — Steckbrief ↔ Eckdaten user-resizable (geteilte Zwei-Spalten-Komponente) (Juli 2026)
+
+MINOR — Auf der Antrag-Aufbereitung (Tab Steckbrief) war die Grenze zwischen der linken Inhaltsspalte und der rechten „Eckdaten"-Sidebar fix. Sie ist jetzt per Zieh-Griff verstellbar. Die dafür schon auf der Startseite vorhandene Zieh-Logik wurde in eine geteilte Komponente gehoben (DRY, kein paralleles Layout). Additiv, keine Datenmigration.
+
+- **Steckbrief ↔ Eckdaten ziehbar** ([SteckbriefTab.tsx](src/plugins/antraege/aufbereitung/SteckbriefTab.tsx)): Griff an der linken Kante der Eckdaten-Spalte verschiebt die Aufteilung; Doppelklick setzt zurück; Breite gerätelokal in localStorage (`teamflow_aufbereitung_eckdaten_breite`), Start = bisherige 320px.
+- **Geteilte Zwei-Spalten-Komponente** ([ZweiSpaltenResizable.tsx](src/components/zwei-spalten/ZweiSpaltenResizable.tsx) + [zweiSpaltenResize-logic.ts](src/components/zwei-spalten/zweiSpaltenResize-logic.ts)): `1fr`+variable-Sidebar-Grid mit Pointer-Drag (re-render-frei), Tastatur (Pfeiltasten), Doppelklick-Reset; ab `lg` aktiv, darunter gestapelt.
+- **Home auf die geteilte Komponente umgestellt** ([HomeZweiSpalten.tsx](src/plugins/home/HomeZweiSpalten.tsx)): jetzt dünner Wrapper mit den Home-Parametern; Storage-Key/Breiten unverändert (keine verlorenen Nutzer-Breiten), `clampSeiteBreite` bleibt als Re-Export.
+
 ### v2.249.0 — Dokumente einmal hochladen → überall verfügbar; PDF-Tabellen; KI-Guard + agentische KI; Assistent-Dokumente (Juli 2026)
 
 MINOR — Sammel-Folge aus der file://-Abnahme (v2.248.1): Antragsdokumente sollen EINMAL hochgeladen überall verfügbar sein, PDF-Anlagen als Tabelle nutzbar, und die interne KI überall bewusst verbunden/gewählt werden. Additiv, keine Datenmigration.
