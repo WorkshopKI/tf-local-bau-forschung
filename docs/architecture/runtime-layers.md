@@ -21,6 +21,16 @@ Pfad-Map des SMB-Daten-Shares: [data-layout.md](data-layout.md).
 
 Modell-Wechsel ist team-weiter Bruch — siehe CLAUDE.md Pitfall #19 + [add-embedding-model.md](../agents/add-embedding-model.md).
 
+### ORT-WASM-Bereitstellung (Inline-gzip + `wasmBinary`)
+
+Die ONNX-Runtime-WASM (`ort-wasm-simd-threaded.asyncify.wasm`, ~21 MB) wird **nicht** mehr als `data:`-URL aus dem Bundle geladen, sondern zur Laufzeit direkt als `env.backends.onnx.wasm.wasmBinary` übergeben. Motiv: die WASM lag zweimal byte-identisch als base64-`data:`-URL im Single-File-Bundle (~2×30 MB) und wurde bei jedem Start komplett vom SMB-Share geladen.
+
+- **Prebuild**: [scripts/generate-ort-wasm-module.mjs](../../scripts/generate-ort-wasm-module.mjs) gzippt die WASM (22,8 → 5,5 MB) nach `src/generated/ort-wasm-gz.ts` (gitignored, idempotent per Quell-Hash; verdrahtet an `generate:test-assets` + `predev`).
+- **Laufzeit**: [ort-wasm-init.ts](../../src/core/services/search/ort-wasm-init.ts) `ensureOrtWasmBinary()` (idempotent) dekodiert base64 → `DecompressionStream('gzip')` → Magic-Byte-Check → setzt `wasmBinary` + `env.useWasmCache = false`. Aufruf VOR der ersten Pipeline/Session in `embedding-service`, `re-ranker`, `browser-llm` (der zentrale `env`-Import lebt in ort-wasm-init.ts).
+- **Post-Build-Strip**: [scripts/strip-inline-wasm.mjs](../../scripts/strip-inline-wasm.mjs) leert die beiden verbliebenen inlined `data:application/wasm;base64,`-URLs im gebauten HTML (linearer Scan; Choke-Point in `build-with-config.mjs` vor dem Varianten-Copy; Guard bricht ab bei 0 oder > 4 Fundstellen).
+
+**Wirkung**: Single-File-HTML ~73 → ~19 MB (−73 %), schnellerer App-Start über SMB. **Nie** `wasmPaths`/Asset-URLs reaktivieren (Pitfall #39) — der Strip leert die inlined `data:`-URLs.
+
 ## Theming
 
 All colors via CSS custom properties. Primary color is HSL-based — only `--tf-primary-h` (hue) changes.

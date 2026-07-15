@@ -23,6 +23,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Welche(n) Build nach dem Patch bauen | [docs/agents/which-build-to-run.md](docs/agents/which-build-to-run.md) |
 | Build-Varianten (Configs, Sichtbarkeits-Matrix, Feature-Flags) | [docs/architecture/build-varianten.md](docs/architecture/build-varianten.md) |
 | npm audit meldet etwas | [docs/audit-akzeptiert.md](docs/audit-akzeptiert.md) |
+| ONNX/Transformers-WASM, Bundle-Größe (Inline-gzip + `wasmBinary`, Post-Build-Strip) | Pitfall #39 + [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md) |
 | Async-UI-Aktion ohne silent-fail | [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) |
 | Antrag-Status-Vergleich | Pitfall #12 + [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) |
 | Datei-Pfade auf SMB-Share | [docs/architecture/data-layout.md](docs/architecture/data-layout.md) |
@@ -299,6 +300,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **Streamlit-Bridge (stateful Chat)**: #36 jeder Einzel-Skill-Lauf resettet zuerst (`starteFrischenChat`)
 - **Assistent-Ereignisprotokoll (Phase 0)**: #37 strikt gerätelokal (nie Share/Snapshot/Export), zentrale Gate-Funktion, nur additiv
 - **Assistent-Gedächtnis (Phase 2)**: #38 Operationen statt Neuschrieb (LLM liefert nur Ops+Fakten), invalidieren statt löschen, strikt lokal + doppeltes Opt-in, Bridge-Mutex (Vordergrund-Vorrang)
+- **ORT-WASM-Bereitstellung (Bundle-Diät)**: #39 nur über `ensureOrtWasmBinary()` (Inline-gzip + `wasmBinary`), nie `wasmPaths`/Asset-URLs (Post-Build-Strip leert sie)
 
 1. **Don't use `import()` for lazy loading** — dynamic imports break under `file://` in single-file builds
 2. **Don't use `fetch()` for local assets** — everything must be inlined or from IndexedDB/FSAPI
@@ -338,3 +340,4 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 36. **Der Streamlit-Chat ist stateful — jeder Einzel-Skill-Lauf resettet zuerst (`starteFrischenChat` VOR dem Submit); Läufe ohne bestätigten Reset laufen best-effort weiter, sind aber markiert (Chat-Panel + `begruendung.ts` ausgenommen).** → [streamlit-bridge.md](docs/architecture/streamlit-bridge.md)
 37. **Das Assistent-Ereignisprotokoll (Phase 0) ist strikt gerätelokal (nur Varianten-IDB, NIE Share/`registry.json`/Snapshot/Export); einzige Schreib-Gate-Stelle `protokolliereEreignis` (Flag + Opt-in); nie Verhaltens-/Zeitmetrik oder Dokumenttext; Schema nur additiv.** `[test: recorder.test.ts]` → [assistent-protokoll.md](docs/architecture/assistent-protokoll.md)
 38. **Das Assistent-Gedächtnis (Phase 2) folgt „Operationen statt Neuschrieb" (LLM liefert nur Ops ADD/UPDATE/INVALIDATE/NOOP + Faktensätze, nie IDs/Belege — der Code prüft in der reinen `wendeOperationenAn`); invalidieren statt löschen; strikt lokal + doppeltes Opt-in; Konsolidierung nur intern via `getTransportForKonsolidierung()` + `BridgeMutex` (Vordergrund-Vorrang).** `[test: operationen.test.ts / store.test.ts / bridge-vordergrund.test.ts]` → [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md)
+39. **ORT-WASM kommt ausschließlich über `ensureOrtWasmBinary()` (Inline-gzip aus `src/generated/ort-wasm-gz.ts` → `DecompressionStream` → `env.backends.onnx.wasm.wasmBinary`); nie `wasmPaths`/Asset-URLs reaktivieren — der Post-Build-Strip (`strip-inline-wasm.mjs`) leert die inlined WASM-`data:`-URLs.** → [runtime-layers.md](docs/architecture/runtime-layers.md)

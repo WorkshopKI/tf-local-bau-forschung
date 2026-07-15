@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync, mkdirSyn
 import { execSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { validateConfig, deepMerge } from './config-schema.mjs';
+import { stripInlineWasm } from './strip-inline-wasm.mjs';
 
 const SHARED_CONFIG_PATH = resolve('configs/_shared.json');
 
@@ -113,6 +114,26 @@ function main() {
   if (!existsSync(defaultOutput)) {
     console.error(`❌ Erwartetes Build-Output fehlt: ${defaultOutput}`);
     process.exit(1);
+  }
+
+  // Post-Build-Strip der inlined ORT-WASM data:-URLs (Laufzeit nutzt wasmBinary aus dem
+  // gzip-Blob, siehe ort-wasm-init.ts). Der eine Choke-Point vor dem Kopieren deckt alle Varianten.
+  {
+    const beforeHtml = readFileSync(defaultOutput, 'utf8');
+    const { html: strippedHtml, report } = stripInlineWasm(beforeHtml);
+    if (report.count === 0) {
+      console.error('❌ ORT-WASM-Strip: 0 inline-WASM-Blobs gefunden — Bundle-Layout geaendert? (Abbruch)');
+      process.exit(1);
+    }
+    if (report.count > 4) {
+      console.error(`❌ ORT-WASM-Strip: ${report.count} Blobs (>4 unerwartet) — pruefen. (Abbruch)`);
+      process.exit(1);
+    }
+    writeFileSync(defaultOutput, strippedHtml, 'utf8');
+    console.log(
+      `✓ ORT-WASM-Strip: ${report.count} Blobs geleert, ${(report.removedBytes / 1e6).toFixed(1)} MB entfernt ` +
+        `(${(report.before / 1e6).toFixed(1)} → ${(report.after / 1e6).toFixed(1)} MB)`,
+    );
   }
 
   copyFileSync(defaultOutput, targetOutput);
