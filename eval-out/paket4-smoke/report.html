@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill-Eval-Report</title>
+<style>
+:root {
+  --bg:#fafafa; --bg2:#f3f4f6; --fg:#111827; --fg2:#4b5563; --fg3:#9ca3af;
+  --border:#e5e7eb; --primary:#1e40af; --success:#16a34a; --warning:#d97706; --danger:#dc2626; --radius:10px;
+}
+* { box-sizing:border-box; }
+body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--fg); font-size:14px; line-height:1.5; }
+.container { max-width:1100px; margin:0 auto; padding:24px 20px 80px; }
+h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+h2 { font-size:16px; font-weight:600; margin:28px 0 10px; }
+h3 { font-size:13px; font-weight:600; margin:12px 0 4px; color:var(--fg2); }
+p { color:var(--fg2); margin:0 0 14px; }
+.muted { color:var(--fg3); font-size:12px; }
+table { border-collapse:collapse; width:100%; background:white; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+thead th { background:var(--bg2); font-weight:600; }
+.rowhead { background:var(--bg2); font-weight:600; width:48px; text-align:center; }
+td.empty { color:var(--fg3); text-align:center; }
+.metric { font-size:12px; }
+.metric.good b { color:var(--success); }
+.metric.warn b { color:var(--warning); }
+.metric.bad b { color:var(--danger); }
+.kontext-label { display:inline-block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--fg2); background:var(--bg2); border-radius:4px; padding:1px 5px; margin-bottom:2px; }
+hr.kontext-sep { border:0; border-top:1px dashed var(--border); margin:6px 0; }
+details { background:white; border:1px solid var(--border); border-radius:8px; margin:8px 0; padding:4px 12px; }
+summary { cursor:pointer; font-weight:500; padding:6px 0; }
+.detail-body { padding:8px 0 12px; }
+.cols { display:flex; gap:32px; flex-wrap:wrap; }
+ul.dims { margin:4px 0; padding-left:18px; }
+ul.dims li, ul li { font-size:13px; }
+pre { background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:10px; white-space:pre-wrap; word-break:break-word; font-size:12px; max-height:320px; overflow:auto; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Skill-Eval-Report</h1>
+<p class="muted">4 Läufe · 1 Modell(e) · 2 Abschnitt(e) · Kontext: voll</p>
+
+<h2>Skill × Modell-Matrix</h2>
+<p class="muted">„Checks ok" = Anteil bestandener deterministischer Checks · „Judge ⌀" = Gesamt-Mittel der LLM-Bewertung (1–5).</p>
+<table>
+<thead><tr><th class="rowhead">A–G</th><th>qwen36-35b-a3b</th></tr></thead>
+<tbody><tr><th class="rowhead">A</th><td><div class="metric good">Checks ok: <b>80%</b></div><div class="metric">Judge ⌀: <b>–</b></div><div class="muted">n=2</div></td></tr><tr><th class="rowhead">B</th><td><div class="metric warn">Checks ok: <b>50%</b></div><div class="metric">Judge ⌀: <b>–</b></div><div class="muted">n=2</div></td></tr></tbody>
+</table>
+<h2>Details je Zelle</h2>
+<details><summary>Abschnitt A · qwen36-35b-a3b <span class="muted">(n=2, Judge n=0)</span></summary><div class="detail-body"><div class="cols"><div><h3>Judge-Mittel</h3><ul class="dims"><li>fachliche_korrektheit: <b>–</b></li><li>vollstaendigkeit: <b>–</b></li><li>sprachqualitaet: <b>–</b></li><li>regeltreue: <b>–</b></li><li>Gesamt: <b>–</b></li></ul></div><div><h3>Check-Summen</h3><ul class="dims"><li>ok: <b>8</b></li><li>hinweis: <b>0</b></li><li>fehler: <b>2</b></li></ul></div></div><h3>Prompt-Verbesserungen</h3><p class="muted">keine Vorschläge</p><h3>Beispiel-Ausgaben</h3><pre>Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.</pre><pre>Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.</pre></div></details>
+<details><summary>Abschnitt B · qwen36-35b-a3b <span class="muted">(n=2, Judge n=0)</span></summary><div class="detail-body"><div class="cols"><div><h3>Judge-Mittel</h3><ul class="dims"><li>fachliche_korrektheit: <b>–</b></li><li>vollstaendigkeit: <b>–</b></li><li>sprachqualitaet: <b>–</b></li><li>regeltreue: <b>–</b></li><li>Gesamt: <b>–</b></li></ul></div><div><h3>Check-Summen</h3><ul class="dims"><li>ok: <b>4</b></li><li>hinweis: <b>0</b></li><li>fehler: <b>4</b></li></ul></div></div><h3>Prompt-Verbesserungen</h3><p class="muted">keine Vorschläge</p><h3>Beispiel-Ausgaben</h3><pre>Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.</pre><pre>Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.</pre></div></details>
+</div>
+</body>
+</html>

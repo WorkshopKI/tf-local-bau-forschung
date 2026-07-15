@@ -1,0 +1,277 @@
+{
+  "matrix": {
+    "cells": [
+      {
+        "abschnitt": "A",
+        "modellId": "qwen36-35b-a3b",
+        "kontext": "voll",
+        "n": 2,
+        "laeufeMitFehler": 0,
+        "checkOkRate": 0.8,
+        "checkHinweisRate": 0,
+        "checkFehlerRate": 0.2,
+        "checkSummen": {
+          "ok": 8,
+          "hinweis": 0,
+          "fehler": 2,
+          "total": 10
+        },
+        "judge": {
+          "fachliche_korrektheit": null,
+          "vollstaendigkeit": null,
+          "sprachqualitaet": null,
+          "regeltreue": null,
+          "gesamt": null
+        },
+        "judgeN": 0,
+        "promptVerbesserungen": []
+      },
+      {
+        "abschnitt": "B",
+        "modellId": "qwen36-35b-a3b",
+        "kontext": "voll",
+        "n": 2,
+        "laeufeMitFehler": 0,
+        "checkOkRate": 0.5,
+        "checkHinweisRate": 0,
+        "checkFehlerRate": 0.5,
+        "checkSummen": {
+          "ok": 4,
+          "hinweis": 0,
+          "fehler": 4,
+          "total": 8
+        },
+        "judge": {
+          "fachliche_korrektheit": null,
+          "vollstaendigkeit": null,
+          "sprachqualitaet": null,
+          "regeltreue": null,
+          "gesamt": null
+        },
+        "judgeN": 0,
+        "promptVerbesserungen": []
+      }
+    ],
+    "modelle": [
+      "qwen36-35b-a3b"
+    ],
+    "abschnitte": [
+      "A",
+      "B"
+    ],
+    "kontexte": [
+      "voll"
+    ]
+  },
+  "results": [
+    {
+      "vbFile": "ZIM_Antrag_API_003_Perfekte Produktbeschreibungen auf Knopfdruck.md",
+      "modellId": "qwen36-35b-a3b",
+      "abschnitt": "A",
+      "skillId": "gutachten-kurzfassung",
+      "kontext": "voll",
+      "raw": "### Quellenanalyse\n(Dry-Run — keine echte Generierung)\n\n### Entwurf\n(Dry-Run)\n\n### Finaler Text\nDry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.",
+      "parsed": {
+        "quellenanalyse": "(Dry-Run — keine echte Generierung)",
+        "entwurf": "(Dry-Run)",
+        "finalerText": "Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness."
+      },
+      "checks": [
+        {
+          "id": "seed-satzanzahl",
+          "regelId": "seed-satzanzahl",
+          "level": "fehler",
+          "label": "Satzanzahl 2 (8–12)",
+          "kategorie": "umfang",
+          "detail": "Zu kurz — erweitern.",
+          "richtung": "zu_kurz",
+          "messwert": 2
+        },
+        {
+          "id": "seed-zeichen-max",
+          "regelId": "seed-zeichen-max",
+          "level": "ok",
+          "label": "Zeichen 101 / max 1000",
+          "kategorie": "umfang",
+          "messwert": 101
+        },
+        {
+          "id": "seed-satzlaenge",
+          "regelId": "seed-satzlaenge",
+          "level": "ok",
+          "label": "Satzlänge im Limit (max 25 Wörter)",
+          "kategorie": "sprache"
+        },
+        {
+          "id": "seed-passiv-stil",
+          "regelId": "seed-passiv-stil",
+          "level": "ok",
+          "label": "Keine verbotenen Muster",
+          "kategorie": "sprache"
+        },
+        {
+          "id": "seed-keine-aufzaehlungen",
+          "regelId": "seed-keine-aufzaehlungen",
+          "level": "ok",
+          "label": "Keine Aufzählungen im Fließtext",
+          "kategorie": "struktur"
+        }
+      ],
+      "dauerMs": 3
+    },
+    {
+      "vbFile": "ZIM_Antrag_API_003_Perfekte Produktbeschreibungen auf Knopfdruck.md",
+      "modellId": "qwen36-35b-a3b",
+      "abschnitt": "B",
+      "skillId": "gutachten-ausgangslage",
+      "kontext": "voll",
+      "raw": "### Quellenanalyse\n(Dry-Run — keine echte Generierung)\n\n### Entwurf\n(Dry-Run)\n\n### Finaler Text\nDry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.",
+      "parsed": {
+        "quellenanalyse": "(Dry-Run — keine echte Generierung)",
+        "entwurf": "(Dry-Run)",
+        "finalerText": "Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness."
+      },
+      "checks": [
+        {
+          "id": "seed-b-wortanzahl",
+          "regelId": "seed-b-wortanzahl",
+          "level": "fehler",
+          "label": "Wortanzahl 9 (≥ 750)",
+          "kategorie": "umfang",
+          "detail": "Zu wenige Wörter — erweitern.",
+          "richtung": "zu_kurz",
+          "messwert": 9
+        },
+        {
+          "id": "seed-b-absatz-min",
+          "regelId": "seed-b-absatz-min",
+          "level": "fehler",
+          "label": "Absätze 1 (min 4)",
+          "kategorie": "umfang",
+          "detail": "Nur 1 Absatz — mindestens 4 erforderlich.",
+          "messwert": 1
+        },
+        {
+          "id": "seed-b-keine-aufzaehlungen",
+          "regelId": "seed-b-keine-aufzaehlungen",
+          "level": "ok",
+          "label": "Keine Aufzählungen im Fließtext",
+          "kategorie": "struktur"
+        },
+        {
+          "id": "seed-passiv-stil",
+          "regelId": "seed-passiv-stil",
+          "level": "ok",
+          "label": "Keine verbotenen Muster",
+          "kategorie": "sprache"
+        }
+      ],
+      "dauerMs": 1
+    },
+    {
+      "vbFile": "ZIM_Antrag_API_006_Integrierte Prüftechnik für Leistungshalbleiter.md",
+      "modellId": "qwen36-35b-a3b",
+      "abschnitt": "A",
+      "skillId": "gutachten-kurzfassung",
+      "kontext": "voll",
+      "raw": "### Quellenanalyse\n(Dry-Run — keine echte Generierung)\n\n### Entwurf\n(Dry-Run)\n\n### Finaler Text\nDry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.",
+      "parsed": {
+        "quellenanalyse": "(Dry-Run — keine echte Generierung)",
+        "entwurf": "(Dry-Run)",
+        "finalerText": "Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness."
+      },
+      "checks": [
+        {
+          "id": "seed-satzanzahl",
+          "regelId": "seed-satzanzahl",
+          "level": "fehler",
+          "label": "Satzanzahl 2 (8–12)",
+          "kategorie": "umfang",
+          "detail": "Zu kurz — erweitern.",
+          "richtung": "zu_kurz",
+          "messwert": 2
+        },
+        {
+          "id": "seed-zeichen-max",
+          "regelId": "seed-zeichen-max",
+          "level": "ok",
+          "label": "Zeichen 101 / max 1000",
+          "kategorie": "umfang",
+          "messwert": 101
+        },
+        {
+          "id": "seed-satzlaenge",
+          "regelId": "seed-satzlaenge",
+          "level": "ok",
+          "label": "Satzlänge im Limit (max 25 Wörter)",
+          "kategorie": "sprache"
+        },
+        {
+          "id": "seed-passiv-stil",
+          "regelId": "seed-passiv-stil",
+          "level": "ok",
+          "label": "Keine verbotenen Muster",
+          "kategorie": "sprache"
+        },
+        {
+          "id": "seed-keine-aufzaehlungen",
+          "regelId": "seed-keine-aufzaehlungen",
+          "level": "ok",
+          "label": "Keine Aufzählungen im Fließtext",
+          "kategorie": "struktur"
+        }
+      ],
+      "dauerMs": 0
+    },
+    {
+      "vbFile": "ZIM_Antrag_API_006_Integrierte Prüftechnik für Leistungshalbleiter.md",
+      "modellId": "qwen36-35b-a3b",
+      "abschnitt": "B",
+      "skillId": "gutachten-ausgangslage",
+      "kontext": "voll",
+      "raw": "### Quellenanalyse\n(Dry-Run — keine echte Generierung)\n\n### Entwurf\n(Dry-Run)\n\n### Finaler Text\nDry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness.",
+      "parsed": {
+        "quellenanalyse": "(Dry-Run — keine echte Generierung)",
+        "entwurf": "(Dry-Run)",
+        "finalerText": "Dry-Run-Ausgabe von qwen36-35b-a3b. Synthetischer Abschnittstext zur Selbst-Verifikation der Harness."
+      },
+      "checks": [
+        {
+          "id": "seed-b-wortanzahl",
+          "regelId": "seed-b-wortanzahl",
+          "level": "fehler",
+          "label": "Wortanzahl 9 (≥ 750)",
+          "kategorie": "umfang",
+          "detail": "Zu wenige Wörter — erweitern.",
+          "richtung": "zu_kurz",
+          "messwert": 9
+        },
+        {
+          "id": "seed-b-absatz-min",
+          "regelId": "seed-b-absatz-min",
+          "level": "fehler",
+          "label": "Absätze 1 (min 4)",
+          "kategorie": "umfang",
+          "detail": "Nur 1 Absatz — mindestens 4 erforderlich.",
+          "messwert": 1
+        },
+        {
+          "id": "seed-b-keine-aufzaehlungen",
+          "regelId": "seed-b-keine-aufzaehlungen",
+          "level": "ok",
+          "label": "Keine Aufzählungen im Fließtext",
+          "kategorie": "struktur"
+        },
+        {
+          "id": "seed-passiv-stil",
+          "regelId": "seed-passiv-stil",
+          "level": "ok",
+          "label": "Keine verbotenen Muster",
+          "kategorie": "sprache"
+        }
+      ],
+      "dauerMs": 0
+    }
+  ],
+  "judges": []
+}

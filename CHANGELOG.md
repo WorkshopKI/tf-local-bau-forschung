@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.255.1 — Assistent-Spine: doppelten Tooltip entfernt (Juli 2026)
+
+PATCH — Nach der v2.255.0-Abnahme: die neue Assistent-Spine zeigte beim Überfahren **zwei** Tooltips — das gestylte Label plus ein schwarzes natives Browser-Tooltip aus dem `title`-Attribut. Nur das gestylte bleibt.
+
+- **Natives `title`-Tooltip der Spine entfernt** ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)): `aria-label` (Screenreader) bleibt, nur das gestylte Hover-Label wird angezeigt.
+
 ### v2.255.0 — Home-Redesign (optimiert): Hero-Band + Karten-Restyle + Assistent-Spine (Juli 2026)
 
 MINOR — Umsetzung des Design-Handoffs „Home optimiert". Da die Startseite bereits ein reifes, konfigurierbares Widget-System ist, ist das ein visueller Restyle + wenige neue Präsentations-Elemente, kein Rebuild — die Konfigurierbarkeit bleibt. Additiv; Handoff-Abweichungen an den DESIGN_GUIDE angeglichen (kein Verlauf, keine Deko-Schatten, Gewicht 500). Detail: [home-widgets.md](docs/architecture/home-widgets.md).

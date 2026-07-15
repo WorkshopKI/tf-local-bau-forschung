@@ -120,7 +120,6 @@ export function AssistentPanelHost(): React.ReactElement | null {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Assistent — Fragen zu dieser Ansicht"
         aria-label="Assistent öffnen"
         className="group fixed right-0 top-0 z-[44] h-screen w-[48px] flex flex-col items-center pt-4 bg-transparent hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
       >
