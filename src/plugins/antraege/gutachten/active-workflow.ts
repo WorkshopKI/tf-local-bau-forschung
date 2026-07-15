@@ -52,22 +52,22 @@ export function verfuegbareWorkflows(
 }
 
 /**
- * Wählt die geordneten Schritte eines Workflows eines Typs. Eine **explizite**
- * `opts.workflowId` (dev-Test) gewinnt, wenn der Workflow existiert, den
- * Kandidaten-Test erfüllt und Schritte hat. Sonst der beste Kandidat per
- * Tie-Break (freigegeben vor Entwurf, dann höchste `version`). Kein Treffer für
- * `'ga'` (oder leere Schritte) → Seed `ZIM_EP_DEF.steps`. REIN — der Flag kommt
- * als Arg (Ableitung nur am Aufrufer-Rand).
+ * Bester Kandidat eines Typs (EINE Quelle für Schritte + ID). Eine **explizite**
+ * `workflowId` (dev-Test) gewinnt, wenn der Workflow existiert, den Kandidaten-
+ * Test erfüllt und Schritte hat. Sonst der beste Kandidat per Tie-Break
+ * (freigegeben vor Entwurf, dann höchste `version`). `undefined`, wenn es keinen
+ * kuratierten Kandidaten gibt (Aufrufer entscheidet den Seed-Fallback). REIN.
  */
-export function resolveWorkflowSteps(
+function besterKandidat(
   file: SkillRegistryFile,
   artefaktTyp: ArtefaktTyp,
-  { erlaubeEntwuerfe, workflowId }: { erlaubeEntwuerfe: boolean; workflowId?: string },
-): WorkflowStep[] {
+  erlaubeEntwuerfe: boolean,
+  workflowId?: string,
+): WorkflowDef | undefined {
   if (workflowId) {
     const gewaehlt = (file.workflows ?? []).find(w => w.id === workflowId);
     if (gewaehlt && gewaehlt.steps.length > 0 && istWorkflowKandidat(gewaehlt, artefaktTyp, erlaubeEntwuerfe)) {
-      return flattenStepsTopological(gewaehlt.steps);
+      return gewaehlt;
     }
   }
   const kandidaten = (file.workflows ?? []).filter(w => istWorkflowKandidat(w, artefaktTyp, erlaubeEntwuerfe));
@@ -77,11 +77,40 @@ export function resolveWorkflowSteps(
     if (ea !== eb) return ea - eb;              // freigegeben (0) vor Entwurf (1)
     return (b.version ?? 0) - (a.version ?? 0); // höchste Version zuerst
   });
-  const best: WorkflowDef | undefined = kandidaten[0];
+  return kandidaten[0];
+}
+
+/**
+ * Wählt die geordneten Schritte eines Workflows eines Typs (über `besterKandidat`).
+ * Kein Treffer für `'ga'` (oder leere Schritte) → Seed `ZIM_EP_DEF.steps`. REIN —
+ * der Flag kommt als Arg (Ableitung nur am Aufrufer-Rand).
+ */
+export function resolveWorkflowSteps(
+  file: SkillRegistryFile,
+  artefaktTyp: ArtefaktTyp,
+  { erlaubeEntwuerfe, workflowId }: { erlaubeEntwuerfe: boolean; workflowId?: string },
+): WorkflowStep[] {
+  const best = besterKandidat(file, artefaktTyp, erlaubeEntwuerfe, workflowId);
   const steps = best && best.steps.length > 0
     ? best.steps
     : (artefaktTyp === 'ga' ? ZIM_EP_DEF.steps : (best?.steps ?? []));
   return flattenStepsTopological(steps);
+}
+
+/**
+ * ID des aktiven Workflows (gleiche Wahl-Logik wie `resolveWorkflowSteps`) — für
+ * den dev-Inline-Editor, der die tatsächlich laufende Def bearbeiten muss. Fällt
+ * für `'ga'` auf `ACTIVE_WORKFLOW_ID` (Seed `zim-ep`) zurück, wenn kein kuratierter
+ * Kandidat mit Schritten existiert. REIN.
+ */
+export function resolveWorkflowDefId(
+  file: SkillRegistryFile,
+  artefaktTyp: ArtefaktTyp,
+  { erlaubeEntwuerfe, workflowId }: { erlaubeEntwuerfe: boolean; workflowId?: string },
+): string {
+  const best = besterKandidat(file, artefaktTyp, erlaubeEntwuerfe, workflowId);
+  if (best && best.steps.length > 0) return best.id;
+  return artefaktTyp === 'ga' ? ACTIVE_WORKFLOW_ID : (best?.id ?? ACTIVE_WORKFLOW_ID);
 }
 
 /**

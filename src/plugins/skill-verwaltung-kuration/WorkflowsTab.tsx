@@ -28,7 +28,15 @@ interface WorkflowsTabProps {
   onToggleFreigabe: (def: WorkflowDef) => void;
   onToggleAktiv: (def: WorkflowDef) => void;
   onDeleteWorkflow: (def: WorkflowDef) => void;
+  /** Exportiert den gewählten Workflow als portables .json-Bündel (read-only). */
+  onExportWorkflow: (def: WorkflowDef) => void;
+  /** Öffnet den Workflow-Bündel-Import (schreibt → nur mit `canEdit`). */
+  onImportWorkflow: () => void;
 }
+
+/** Geteilte Pillen-Button-Optik der Kopfzeilen-Aktionen. */
+const KOPF_BTN =
+  'shrink-0 text-[12.5px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]';
 
 const ARTEFAKT_OPTIONS = Object.keys(ARTEFAKT_TYP_LABEL) as ArtefaktTyp[];
 const EBENE_OPTIONS = Object.keys(EBENE_LABEL) as WorkflowEbene[];
@@ -86,6 +94,7 @@ function CreateWorkflowForm({ onCreate, onCancel }: {
 export function WorkflowsTab({
   file, canEdit, selectedId, onSelectWorkflow, onEditStep, onChangeSteps,
   onCreateWorkflow, onSaveWorkflowMeta, onToggleFreigabe, onToggleAktiv, onDeleteWorkflow,
+  onExportWorkflow, onImportWorkflow,
 }: WorkflowsTabProps): React.ReactElement {
   const def = getWorkflowById(file, selectedId) ?? getWorkflowDef(file);
   const steps = def.steps;
@@ -106,15 +115,21 @@ export function WorkflowsTab({
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <WorkflowSwitcher file={file} selectedId={def.id} onSelect={onSelectWorkflow} />
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => setCreating(c => !c)}
-            className="shrink-0 text-[12.5px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]"
-          >
-            + Neuer Workflow
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => onExportWorkflow(def)} className={KOPF_BTN}>
+            Exportieren
           </button>
-        )}
+          {canEdit && (
+            <button type="button" onClick={onImportWorkflow} className={KOPF_BTN}>
+              Importieren…
+            </button>
+          )}
+          {canEdit && (
+            <button type="button" onClick={() => setCreating(c => !c)} className={KOPF_BTN}>
+              + Neuer Workflow
+            </button>
+          )}
+        </div>
       </div>
 
       {creating && canEdit && (

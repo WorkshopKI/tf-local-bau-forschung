@@ -8,7 +8,7 @@
  *
  * Alle Aktionen sind self-catching (Pitfall #15): Fehler → `error`-State (Banner).
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -42,7 +42,7 @@ import { resolveVb, type VbAufloesung } from '../kurzfassung/vbDokument';
 import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
-import { resolveWorkflowSteps, verfuegbareWorkflows } from './active-workflow';
+import { resolveWorkflowSteps, resolveWorkflowDefId, verfuegbareWorkflows, ACTIVE_WORKFLOW_ID } from './active-workflow';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
@@ -103,6 +103,10 @@ export interface GutachtenWorkflowController {
   setTestWorkflowId: (id: string | null) => void;
   /** Wählbare GA-Workflows fürs dev-Dropdown (gefiltert/sortiert; leer außerhalb dev). */
   verfuegbareWorkflows: WorkflowDef[];
+  /** ID des tatsächlich laufenden GA-Workflows (für den dev-Inline-Editor). */
+  activeWorkflowId: string;
+  /** Registry frisch laden + Schritte/Skills neu ableiten (nach dev-Inline-Bearbeitung); Run/VB bleiben. */
+  reloadRegistry: () => void;
   aktiverSchritt: StepId;
   /** Skill des AKTIVEN Schritts (Version + Tweak-Editor). */
   activeSkill: SkillRecord | null;
@@ -194,6 +198,36 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     : rawAktiv;
   const activeCtx = skillMap.get(aktiverSchritt) ?? null;
   const activeSkillId = activeCtx?.skill.id;
+  // ID des tatsächlich laufenden GA-Workflows (dev-Inline-Editor bearbeitet genau diese Def).
+  const activeWorkflowId = useMemo(
+    () => (regFile ? resolveWorkflowDefId(regFile, 'ga', { erlaubeEntwuerfe, workflowId: testWorkflowId ?? undefined }) : ACTIVE_WORKFLOW_ID),
+    [regFile, erlaubeEntwuerfe, testWorkflowId],
+  );
+
+  // Registry-abgeleiteten Zustand (Skills/Schritte/QS/Relevanz) aus einer geladenen
+  // Datei setzen — geteilt von Mount-Effekt UND `reloadRegistry` (dev-Inline-Editor).
+  const applyRegistry = useCallback((loadedFile: SkillRegistryFile): void => {
+    const workflowId = testWorkflowId ?? undefined;
+    setRegFile(loadedFile);
+    setSkillMap(buildSkillMap(loadedFile, { workflowId }));
+    setRelevanzSkill(loadedFile.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
+    // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
+    // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
+    const allSteps = resolveWorkflowSteps(loadedFile, 'ga', { erlaubeEntwuerfe, workflowId });
+    setSteps(allSteps.filter(s => s.rolle !== 'llm_qs'));
+    const ziele = new Map<StepId, WorkflowStep>();
+    for (const s of allSteps) if (s.rolle === 'llm_qs' && s.qsZielStepId) ziele.set(s.qsZielStepId, s);
+    setQsZiele(ziele);
+  }, [testWorkflowId, erlaubeEntwuerfe]);
+
+  // dev-Inline-Editor: Registry frisch lesen und nur die registry-abgeleiteten Teile
+  // neu setzen — Run/VB (Fortschritt) bleiben unberührt (kein Neuladen des Laufs).
+  const reloadRegistry = useCallback((): void => {
+    void (async () => {
+      const loaded = await loadSkillRegistry(storage);
+      applyRegistry(loaded.file);
+    })();
+  }, [storage, applyRegistry]);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,17 +240,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         loadSkillRegistry(storage),
       ]);
       if (cancelled) return;
-      setRegFile(loaded.file);
-      const workflowId = testWorkflowId ?? undefined;
-      setSkillMap(buildSkillMap(loaded.file, { workflowId }));
-      setRelevanzSkill(loaded.file.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
-      // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
-      // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
-      const allSteps = resolveWorkflowSteps(loaded.file, 'ga', { erlaubeEntwuerfe, workflowId });
-      setSteps(allSteps.filter(s => s.rolle !== 'llm_qs'));
-      const ziele = new Map<StepId, WorkflowStep>();
-      for (const s of allSteps) if (s.rolle === 'llm_qs' && s.qsZielStepId) ziele.set(s.qsZielStepId, s);
-      setQsZiele(ziele);
+      applyRegistry(loaded.file);
       setRun(r);
       setVb(vbRes);
       setLoading(false);
@@ -697,6 +721,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     testWorkflowId,
     setTestWorkflowId,
     verfuegbareWorkflows: verfuegbar,
+    activeWorkflowId,
+    reloadRegistry,
     aktiverSchritt,
     activeSkill: activeCtx?.skill ?? null,
     regeln: activeCtx?.regeln ?? [],

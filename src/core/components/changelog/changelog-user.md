@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.247 — 2026-07
+
+### Neu
+- **Workflows sichern und übertragen.** In der Skill-Verwaltung lässt sich jetzt ein ganzer Workflow als Datei **exportieren** und wieder **importieren** — samt der Skills und Regeln, die er verwendet. So kannst du einen Stand als Backup ablegen oder in einem anderen Browser weiterverwenden. Beim Import entstehen Kopien mit eindeutigen Namen; vorhandene Skills und Regeln werden nie überschrieben. (Einzelne Skills waren schon vorher exportier-/importierbar.)
+
 ## v2.246 — 2026-07
 
 ### Neu

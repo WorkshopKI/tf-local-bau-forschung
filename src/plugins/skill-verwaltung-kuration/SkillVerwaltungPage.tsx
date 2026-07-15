@@ -10,12 +10,11 @@ import {
   resolveRegeln,
   skillsUsingRegel,
   exportSkillBundle,
-  type ArtefaktTyp,
+  exportWorkflowBundle,
   type QualitaetsRegel,
   type SkillRecord,
   type SkillRegistryFile,
   type WorkflowDef,
-  type WorkflowEbene,
   type WorkflowStep,
 } from '@/core/services/skills';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
@@ -23,6 +22,7 @@ import { useSkillRegistry } from './useSkillRegistry';
 import { useSkillAggregat } from './useSkillAggregat';
 import { SkillsTab } from './SkillsTab';
 import { SkillImportDialog } from './SkillImportDialog';
+import { WorkflowImportDialog } from './WorkflowImportDialog';
 import { RegelnTab } from './RegelnTab';
 import { WorkflowsTab } from './WorkflowsTab';
 import { SkillEditor } from './SkillEditor';
@@ -33,7 +33,8 @@ import { SkillEvalPanel } from './SkillEvalPanel';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
-import { blankStep, blankWorkflow, getWorkflowById, getWorkflowDef, upsertStep, upsertWorkflowDef, withWorkflowSteps } from './workflowShared';
+import { blankStep, getWorkflowById, getWorkflowDef } from './workflowShared';
+import { buildWorkflowMutations } from './workflowMutations';
 import { useEditorLeaveGuard } from './editorGuard';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
@@ -93,6 +94,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [selectedWorkflowIdRaw, setSelectedWorkflowId] = useState<string | null>(null);
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importingWorkflow, setImportingWorkflow] = useState(false);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
   // Leave-Guard: jede Aktion, die den offenen Editor verlässt, läuft durch
   // `guard.guardLeave`; bei ungespeicherten Änderungen erscheint die Nachfrage.
@@ -183,41 +185,22 @@ export function SkillVerwaltungPage(): React.ReactElement {
     }).then(() => setEditingRegel(null));
   };
 
-  // — Workflow-Schritt-Aktionen (Ziel-Def = `selectedWorkflowId`; Version-Bump pro Persist) —
-  const selectedWorkflowDef = (): WorkflowDef => getWorkflowById(file, selectedWorkflowId) ?? getWorkflowDef(file);
-  const saveStep = async (step: WorkflowStep): Promise<void> => {
-    const steps = upsertStep(selectedWorkflowDef().steps, step);
-    await reg.persist(withWorkflowSteps(file, selectedWorkflowId, steps));
-  };
-  const changeSteps = (steps: WorkflowStep[]): void => {
-    void save.run(withWorkflowSteps(file, selectedWorkflowId, steps));
-  };
-  const deleteStep = (step: WorkflowStep): void => {
-    void save.run(withWorkflowSteps(file, selectedWorkflowId, selectedWorkflowDef().steps.filter(s => s.id !== step.id)))
-      .then(() => setEditingStep(null));
-  };
-
-  // — Workflow-Management (Anlegen/Metadaten/Freigeben/Aktiv/Löschen) —
-  const createWorkflow = (name: string, artefaktTyp: ArtefaktTyp, ebene: WorkflowEbene): void => {
-    const w = blankWorkflow({ name: name.trim() || 'Neuer Workflow', artefaktTyp, ebene });
-    void save.run(upsertWorkflowDef(file, w)).then(() => setSelectedWorkflowId(w.id));
-  };
-  const saveWorkflowMeta = (def: WorkflowDef): void => {
-    void save.run(upsertWorkflowDef(file, { ...def, version: def.version + 1 }));
-  };
-  const toggleWorkflowAktiv = (def: WorkflowDef): void => {
-    void save.run(upsertWorkflowDef(file, { ...def, aktiv: def.aktiv === false, version: def.version + 1 }));
-  };
-  const toggleWorkflowFreigabe = (def: WorkflowDef): void => {
-    if (def.freigabe !== 'entwurf'
-      && !window.confirm(`„${def.name}" auf Entwurf zurückstellen? Der Workflow verschwindet dann in pl/prod/as — nur dev sieht Entwürfe.`)) return;
-    const freigabe = def.freigabe === 'entwurf' ? 'freigegeben' : 'entwurf';
-    void save.run(upsertWorkflowDef(file, { ...def, freigabe, version: def.version + 1 }));
-  };
-  const deleteWorkflow = (def: WorkflowDef): void => {
-    if (!window.confirm(`Workflow „${def.name}" wirklich löschen? (eigener Workflow, kein Seed)`)) return;
-    const others = (file.workflows ?? []).filter(w => w.id !== def.id);
-    void save.run({ ...file, workflows: others }).then(() => setSelectedWorkflowId(null));
+  // — Workflow-Aktionen (Schritte + Management) über die geteilte Fabrik (DRY mit
+  //   dem dev-Inline-Editor in der Gutachten-Werkstatt). Ziel-Def = `selectedWorkflowId`. —
+  const mut = buildWorkflowMutations({
+    file,
+    selectedWorkflowId,
+    persist: reg.persist,
+    run: save.run,
+    onWorkflowCreated: id => setSelectedWorkflowId(id),
+    onWorkflowDeleted: () => setSelectedWorkflowId(null),
+    onStepDeleted: () => setEditingStep(null),
+  });
+  const exportWorkflow = (def: WorkflowDef): void => {
+    const bundle = exportWorkflowBundle(file, def.id);
+    if (!bundle) return;
+    const slug = def.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'workflow';
+    downloadAsFile(JSON.stringify(bundle, null, 2), `workflow-${slug}.json`, 'application/json');
   };
 
   // — Detail-Slot (Editor) fürs Master-Detail-Split — die frühere Vollseiten-
@@ -302,11 +285,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
             step={editingStep.step}
             isNew={editingStep.isNew}
             canEdit={reg.canEdit}
-            onSave={saveStep}
+            onSave={mut.saveStep}
             onBack={requestClose}
             onSaved={closeEditor}
             onGuardStateChange={guard.reportState}
-            onDelete={editingStep.isNew ? undefined : () => deleteStep(editingStep.step)}
+            onDelete={editingStep.isNew ? undefined : () => mut.deleteStep(editingStep.step)}
           />
         </div>
       </div>
@@ -463,12 +446,14 @@ export function SkillVerwaltungPage(): React.ReactElement {
             selectedId={selectedWorkflowId}
             onSelectWorkflow={id => guard.guardLeave(() => setSelectedWorkflowId(id))}
             onEditStep={step => guard.guardLeave(() => setEditingStep({ step, isNew: false }))}
-            onChangeSteps={changeSteps}
-            onCreateWorkflow={createWorkflow}
-            onSaveWorkflowMeta={saveWorkflowMeta}
-            onToggleFreigabe={toggleWorkflowFreigabe}
-            onToggleAktiv={toggleWorkflowAktiv}
-            onDeleteWorkflow={deleteWorkflow}
+            onChangeSteps={mut.changeSteps}
+            onCreateWorkflow={mut.createWorkflow}
+            onSaveWorkflowMeta={mut.saveWorkflowMeta}
+            onToggleFreigabe={mut.toggleWorkflowFreigabe}
+            onToggleAktiv={mut.toggleWorkflowAktiv}
+            onDeleteWorkflow={mut.deleteWorkflow}
+            onExportWorkflow={exportWorkflow}
+            onImportWorkflow={() => setImportingWorkflow(true)}
           />
         )}
           </div>
@@ -479,6 +464,14 @@ export function SkillVerwaltungPage(): React.ReactElement {
           file={file}
           persist={reg.persist}
           onClose={() => setImporting(false)}
+        />
+      )}
+      {importingWorkflow && (
+        <WorkflowImportDialog
+          file={file}
+          persist={reg.persist}
+          onClose={() => setImportingWorkflow(false)}
+          onImported={id => { setImportingWorkflow(false); setTab('workflows'); setSelectedWorkflowId(id); }}
         />
       )}
       <UnsavedChangesDialog {...guard.dialog} />

@@ -17,7 +17,7 @@ import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
 import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS } from '@/core/services/skills';
-import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
+import { erlaubeWorkflowEntwuerfe, isDevContext } from '@/config/feature-flags';
 import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflowShared';
 import { getVbCharCap, getLlmContextTokens } from '@/core/services/ai/llm-context';
 import type { Antrag } from '@/core/services/csv/types';
@@ -29,6 +29,7 @@ import { TweakEditor } from '../kurzfassung/TweakEditor';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
+import { WorkflowWerkstattDialog } from './WorkflowWerkstattDialog';
 import { AbschnittNav } from './AbschnittNav';
 import { AbschnittStepper } from './AbschnittStepper';
 import { SectionReviewCard } from './SectionReviewCard';
@@ -83,6 +84,12 @@ export function GutachtenSection({
   ctx, initialAbschnittId,
 }: { ctx: KurzfassungContext; initialAbschnittId?: string }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
+  const { navigate } = useNavigation();
+  // dev-Inline-Werkstatt: Workflow/Skill direkt hier bearbeiten (nur dev). `null` = zu;
+  // `{ skillId }` öffnet direkt den Skill-Editor des aktiven Schritts (Stift-Einstieg).
+  const werkstattVerfuegbar = isDevContext();
+  const [werkstatt, setWerkstatt] = useState<{ skillId?: string } | null>(null);
+  const onOpenWerkstatt = werkstattVerfuegbar ? (skillId?: string): void => setWerkstatt({ skillId }) : undefined;
   // Einklappbar (persistiert, Default offen): beim Texten anderer Artefakte
   // (NF/Kurzfassung) wegklappbar. Body via CSS verstecken statt unmounten —
   // der aktive Markdown-Editor (SectionReviewCard) behält so seinen Buffer.
@@ -398,6 +405,20 @@ export function GutachtenSection({
             </div>
           )}
 
+          {/* dev-Inline-Werkstatt: Prompts + Schritte des aktiven Workflows direkt hier
+              bearbeiten (statt Kontextwechsel ins Kuration-Plugin). Nur dev. */}
+          {werkstattVerfuegbar && (
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setWerkstatt({})}
+                className="inline-flex items-center gap-1.5 text-[12px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]"
+              >
+                <Pencil size={12} /> Workflow bearbeiten (dev)
+              </button>
+            </div>
+          )}
+
           {vbDok && vbUeberschreitetCap(vbDok.markdown, getVbCharCap()) && (
             <div
               className="mb-4 text-[11.5px] text-[var(--tf-warning-text)]"
@@ -418,7 +439,7 @@ export function GutachtenSection({
                 <>
                   <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} />
                   )}
                 </>
               ) : (
@@ -444,7 +465,7 @@ export function GutachtenSection({
                     />
                   )}
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} docked />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} docked />
                   )}
                 </div>
               )}
@@ -504,19 +525,31 @@ export function GutachtenSection({
           onRemove={ctrl.removeTweak}
         />
       )}
+
+      {werkstatt && (
+        <WorkflowWerkstattDialog
+          aktiverWorkflowId={ctrl.activeWorkflowId}
+          initialSkillId={werkstatt.skillId}
+          onClose={() => setWerkstatt(null)}
+          onChanged={ctrl.reloadRegistry}
+          onNavigateKuration={target => navigate('skill-verwaltung-kuration', target.skillId ? { selectedId: target.skillId } : {})}
+        />
+      )}
     </div>
   );
 }
 
 /** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  def, run, ctrl, tweakEffektiv, onOpenTweak, fundstelle, hoverSaetze, onHoverSaetze, docked = false,
+  def, run, ctrl, tweakEffektiv, onOpenTweak, onOpenWerkstatt, fundstelle, hoverSaetze, onHoverSaetze, docked = false,
 }: {
   def: WorkflowStep;
   run: WorkflowRun;
   ctrl: ReturnType<typeof useGutachtenWorkflow>;
   tweakEffektiv: boolean;
   onOpenTweak: () => void;
+  /** dev-Inline-Werkstatt für den Skill dieses Schritts öffnen (nur dev; sonst undefined). */
+  onOpenWerkstatt?: (skillId?: string) => void;
   /** „Anzeigen"-Sprung (Journey-Paket 3) an die Review-Karte durchreichen. */
   fundstelle?: { satzIndex: number; nonce: number };
   /** Beleg↔Satz-Hover (Journey-Paket 4): gehoverte Sätze + Setter für die Satz-Spans. */
@@ -557,6 +590,17 @@ function ActiveAbschnitt({
           >
             v{ctrl.activeSkill.version}
           </span>
+        )}
+        {onOpenWerkstatt && skillId && (
+          <button
+            type="button"
+            className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] transition-colors"
+            title="Prompt/Workflow dieses Schritts bearbeiten (dev)"
+            aria-label="Workflow bearbeiten (dev)"
+            onClick={() => onOpenWerkstatt(skillId)}
+          >
+            <Pencil size={13} />
+          </button>
         )}
         {status === 'freigegeben' ? (
           <span className="g-pill ok"><Check className="g-pi" /> Freigegeben</span>

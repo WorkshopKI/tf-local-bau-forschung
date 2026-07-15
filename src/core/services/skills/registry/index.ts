@@ -105,6 +105,14 @@ export {
   type ImportSkillBundleResult,
 } from './skill-bundle';
 export {
+  WORKFLOW_BUNDLE_KIND,
+  exportWorkflowBundle,
+  parseWorkflowBundle,
+  importWorkflowBundle,
+  type WorkflowBundleJson,
+  type ImportWorkflowBundleResult,
+} from './workflow-bundle';
+export {
   reconcileEinmaligeAktivierungen,
   ANFRAGE_ANON_AKTIV_MIGRATION,
   GA_BELEG_KONTRAKT_MIGRATION,
