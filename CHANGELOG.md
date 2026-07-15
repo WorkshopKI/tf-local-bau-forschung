@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.254.1 — Umfang single-source auch für Abschnitt C + D (Folgepaket) (Juli 2026)
+
+PATCH — Zieht die Umfang-Single-Source aus v2.254.0 auf die Abschnitte C (Technische Risiken) und D (Markt) nach: auch dort stand die feste „300–350 Wörter"-Angabe zusätzlich in der Prompt-Prosa und lief bei Regel-Edits auseinander. Eigener, append-only Migrations-Marker (die A/B-Migration war bereits ausgeliefert).
+
+- **Feste „300–350 Wörter" aus C/D-Prosa entfernt** ([seed.ts](src/core/services/skills/registry/seed.ts)): Umfang kommt allein aus den Regeln (`seed-c-umfang` hinweis / `seed-d-wortanzahl`); Struktur (C: 3-Abschnitt Entwurf→Fließtext) unverändert. Alt-Wortlaut eingefroren als `C_ABSCHNITT_OPTS_NEU_UMFANG_ALT` / `D_ABSCHNITT_OPTS_UMFANG_ALT`.
+- **Migration `ga-umfang-dedup-cd-2026-07`** ([migrations.ts](src/core/services/skills/registry/migrations.ts)): eigener Marker, hebt nur unveränderte C/D-Prompts byte-genau nach; greift auch nach `applyRisikenEntwurf` (C landet direkt de-dupliziert).
+- Der Editor-Warnhinweis aus v2.254.0 deckt C/D bereits generisch mit ab.
+
 ### v2.254.0 — Umfang single-source: Regel statt doppelter Prompt-Prosa (A/B) (Juli 2026)
 
 MINOR — Regel-Edits im Workflow-Werkstatt/Skill-Editor (z. B. Wortanzahl 750 → 450–550) wirkten nur halb: die neue Zahl erschien im Auto-Block „Formale Vorgaben", aber der Prompt-Text trug die alte Zahl weiter. Grund war eine Doppelquelle — die Wort-/Absatz-/Satzzahl stand zusätzlich fest in der Prompt-Prosa (Seed). Jetzt ist die Regel die EINZIGE numerische Quelle. Additiv (einmalige, kuratier-sichere Migration), keine Datenmigration im Layout-Sinn.

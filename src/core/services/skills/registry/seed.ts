@@ -355,12 +355,12 @@ export const C_ABSCHNITT_OPTS_ALT = {
 } as const;
 
 /**
- * Neu-Stand der C-Optionen: **Entwurf → gefilterter Fließtext**. Der `### Entwurf` listet
- * ALLE genannten technischen Risiken (Zwischenschritt, im KontextPanel sichtbar); der
- * `### Finaler Text` ist Fließtext ohne Kurztitel, beschränkt auf ≤3 Risiken auf dem
- * Lösungsweg (externe / nicht beeinflussbare Risiken fallen weg). Geteilt von Seed + Migration.
+ * Neu-Stand der C-Optionen (3-Abschnitt: Entwurf → gefilterter Fließtext) MIT fester
+ * Umfangs-Prosa („Richtwert 300–350 Wörter"), eingefroren für die BYTE-genaue
+ * `applyUmfangDedupCD`-Migrations-Erkennung. NICHT mehr live geseedet — der Live-Seed
+ * (`C_ABSCHNITT_OPTS_NEU`) nennt die Wortzahl nicht mehr (Umfang single-source).
  */
-export const C_ABSCHNITT_OPTS_NEU = {
+export const C_ABSCHNITT_OPTS_NEU_UMFANG_ALT = {
   name: 'Technische Risiken',
   aufgabe:
     'Ermittle die im Antrag explizit benannten technischen Risiken des Vorhabens und leite daraus '
@@ -391,6 +391,59 @@ export const C_ABSCHNITT_OPTS_NEU = {
     + 'Druckkopftechnologie hochpräzise mechanische Komponenten erfordert, kann eine unzureichende '
     + 'Kalibrierung die Tröpfchenpositionierung beeinträchtigen und den angestrebten '
     + 'Automatisierungsgrad senken.',
+} as const;
+
+/**
+ * Live-Seed der C-Optionen — **Umfang single-source**: wie der eingefrorene Stand, aber OHNE
+ * feste Wortzahl in `formatRegeln`/`finalText`. Der Umfang kommt allein aus der Regel
+ * `seed-c-umfang` (300–350, hinweis). `name`/`aufgabe`/`entwurf`/`stilbeispiel` byte-identisch
+ * zum Alt-Stand; `formatRegeln` = Alt ohne die letzte (Umfangs-)Zeile.
+ */
+export const C_ABSCHNITT_OPTS_NEU = {
+  name: C_ABSCHNITT_OPTS_NEU_UMFANG_ALT.name,
+  aufgabe: C_ABSCHNITT_OPTS_NEU_UMFANG_ALT.aufgabe,
+  formatRegeln: C_ABSCHNITT_OPTS_NEU_UMFANG_ALT.formatRegeln.slice(0, -1),
+  entwurf: C_ABSCHNITT_OPTS_NEU_UMFANG_ALT.entwurf,
+  finalText:
+    'Der finale Fließtext (KEINE Kurztitel, KEINE Aufzählung): die '
+    + 'höchstens drei zentralen, auf dem Lösungsweg liegenden und vom Vorhaben beeinflussbaren '
+    + 'technischen Risiken als zusammenhängender Fließtext.',
+  stilbeispiel: C_ABSCHNITT_OPTS_NEU_UMFANG_ALT.stilbeispiel,
+} as const;
+
+/** Skill-ID des Abschnitts D (Markt) — Konstante für Lookups + Umfang-Dedup-Migration. */
+export const MARKT_SKILL_ID = 'gutachten-markt';
+
+/**
+ * Vor-Dedup-Wortlaut von Abschnitt D (feste „300–350 Wörter"), eingefroren für die
+ * BYTE-genaue `applyUmfangDedupCD`-Migrations-Erkennung. NICHT mehr live geseedet.
+ */
+export const D_ABSCHNITT_OPTS_UMFANG_ALT = {
+  name: 'Markt',
+  aufgabe:
+    'Stelle den Markt für die Projektergebnisse dar — ausschließlich auf Basis der Antragsinhalte: '
+    + 'anvisierte Märkte und Kundengruppen, Marktgröße/Marktanteile, ggf. Stückpreise/Stückzahlen sowie '
+    + 'den Wettbewerbsvergleich.',
+  formatRegeln: [
+    '**Fließtext** — keine Aufzählungen.',
+    'Gesamtumfang **300–350 Wörter**.',
+  ],
+  finalText:
+    'Der finale Fließtext (300–350 Wörter) zum Markt — nur Antragsinhalte, keine externen Marktkenntnisse.',
+} as const;
+
+/**
+ * Live-Seed der D-Optionen — Umfang single-source: OHNE feste Wortzahl. Der Umfang kommt allein
+ * aus der Regel `seed-d-wortanzahl` (300–350). `name`/`aufgabe` byte-identisch zum Alt-Stand.
+ */
+export const D_ABSCHNITT_OPTS = {
+  name: D_ABSCHNITT_OPTS_UMFANG_ALT.name,
+  aufgabe: D_ABSCHNITT_OPTS_UMFANG_ALT.aufgabe,
+  formatRegeln: [
+    '**Fließtext** — keine Aufzählungen.',
+  ],
+  finalText:
+    'Der finale Fließtext zum Markt — nur Antragsinhalte, keine externen Marktkenntnisse.',
 } as const;
 
 /** Die Abschnitts-Skills B–G (Schritt A = SEED_SKILL bleibt unverändert). */
@@ -429,23 +482,11 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     geaendert_am: SEED_TS,
   },
   {
-    id: 'gutachten-markt',
+    id: MARKT_SKILL_ID,
     name: 'Markt (D)',
     beschreibung: 'Abschnitt D des ZIM-Gutachtens: Markt für die Projektergebnisse.',
     version: 1,
-    promptTemplate: abschnittTemplate({
-      name: 'Markt',
-      aufgabe:
-        'Stelle den Markt für die Projektergebnisse dar — ausschließlich auf Basis der Antragsinhalte: '
-        + 'anvisierte Märkte und Kundengruppen, Marktgröße/Marktanteile, ggf. Stückpreise/Stückzahlen sowie '
-        + 'den Wettbewerbsvergleich.',
-      formatRegeln: [
-        '**Fließtext** — keine Aufzählungen.',
-        'Gesamtumfang **300–350 Wörter**.',
-      ],
-      finalText:
-        'Der finale Fließtext (300–350 Wörter) zum Markt — nur Antragsinhalte, keine externen Marktkenntnisse.',
-    }),
+    promptTemplate: abschnittTemplate({ ...D_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,

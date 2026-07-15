@@ -25,6 +25,10 @@ import {
   B_ABSCHNITT_OPTS_UMFANG_ALT,
   C_ABSCHNITT_OPTS_ALT,
   C_ABSCHNITT_OPTS_NEU,
+  C_ABSCHNITT_OPTS_NEU_UMFANG_ALT,
+  MARKT_SKILL_ID,
+  D_ABSCHNITT_OPTS,
+  D_ABSCHNITT_OPTS_UMFANG_ALT,
 } from './seed';
 import type { SkillRecord, SkillRegistryFile } from './types';
 
@@ -51,6 +55,9 @@ export const GA_RISIKEN_ENTWURF_MIGRATION = 'ga-risiken-entwurf-2026-07';
 
 /** ID der Umfang-Single-Source-Entkopplung für A + B (feste Zahl aus der Prompt-Prosa entfernt). */
 export const GA_UMFANG_DEDUP_MIGRATION = 'ga-umfang-dedup-2026-07';
+
+/** ID der Umfang-Single-Source-Entkopplung für C + D (Folgepaket; eigener Marker, append-only). */
+export const GA_UMFANG_DEDUP_CD_MIGRATION = 'ga-umfang-dedup-cd-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -192,6 +199,30 @@ function applyUmfangDedup(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Umfang single-source Folgepaket C + D (gleiche Logik wie `applyUmfangDedup`, eigener Marker).
+ * C = Abschnitt „Technische Risiken" (Live-Stand `C_ABSCHNITT_OPTS_NEU`, gehoben durch
+ * `applyRisikenEntwurf`); D = Abschnitt „Markt". Trägt der Skill EXAKT den Vor-Dedup-Wortlaut
+ * mit fester „300–350 Wörter"-Prosa, wird er auf die de-duplizierte Fassung gehoben; kuratierte
+ * Edits bleiben UNBERÜHRT. C-Regel `seed-c-umfang` ist ein weicher Hinweis, bleibt die Quelle.
+ * Version wird nicht gesenkt (C `Math.max(v,2)`, D `Math.max(v,1)`, Parität zum Seed).
+ */
+function applyUmfangDedupCD(skills: SkillRecord[]): SkillRecord[] {
+  const altC = abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU_UMFANG_ALT });
+  const neuC = abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU });
+  const altD = abschnittTemplate({ ...D_ABSCHNITT_OPTS_UMFANG_ALT });
+  const neuD = abschnittTemplate({ ...D_ABSCHNITT_OPTS });
+  return skills.map(s => {
+    if (s.id === RISIKEN_SKILL_ID && s.promptTemplate === altC) {
+      return { ...s, promptTemplate: neuC, version: Math.max(s.version, 2) };
+    }
+    if (s.id === MARKT_SKILL_ID && s.promptTemplate === altD) {
+      return { ...s, promptTemplate: neuD, version: Math.max(s.version, 1) };
+    }
+    return s;
+  });
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -206,6 +237,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_BELEG_KONTRAKT_REVERT_MIGRATION, apply: applyBelegKontraktRevert },
   { marker: GA_RISIKEN_ENTWURF_MIGRATION, apply: applyRisikenEntwurf },
   { marker: GA_UMFANG_DEDUP_MIGRATION, apply: applyUmfangDedup },
+  { marker: GA_UMFANG_DEDUP_CD_MIGRATION, apply: applyUmfangDedupCD },
 ];
 
 /**
