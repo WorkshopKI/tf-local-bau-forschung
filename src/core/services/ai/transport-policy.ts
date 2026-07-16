@@ -52,10 +52,13 @@ export function erlaubteTransportKlassen(p: { enthaeltDokumentInhalte: boolean }
  * mitgezählt, da NF-Läufe ohnehin intern-pflichtig sind (Pitfall #30).
  * `entwurf` (Lektor-Zweitpass) trägt den VB-abgeleiteten Entwurfstext → ein Skill
  * mit content-tragendem `lektorPromptTemplate` ist intern-pflichtig.
+ * `externText` (Aufbereitung Paket 5): der von AUSSEN importierte Deep-Research-Text,
+ * den der interne Strukturierungs-Lauf verarbeitet — bleibt intern-pflichtig (fail-safe),
+ * damit der Import-Skill nie versehentlich extern läuft.
  */
 const INHALTS_SLOTS = [
   'vbMarkdown', 'stammdaten', 'zielText', 'vorherigeAbschnitte', 'vbRelevant',
-  'tvKontext', 'verbundKontext', 'nfBausteine', 'entwurf',
+  'tvKontext', 'verbundKontext', 'nfBausteine', 'entwurf', 'externText',
 ];
 
 /**

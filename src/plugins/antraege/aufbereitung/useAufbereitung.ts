@@ -19,8 +19,10 @@ import {
   AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
   AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID,
   AUFBEREITUNG_RECHERCHE_PROMPT_SKILL, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,
+  AUFBEREITUNG_RECHERCHE_IMPORT_SKILL,
   type SkillRecord,
 } from '@/core/services/skills';
+import { DocConverter } from '@/core/services/converter';
 import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv } from './quellen';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
@@ -35,7 +37,8 @@ import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
 import { computeGlossarBaustein, type GlossarDaten } from './glossar';
 import { computeVerwertungBaustein, type VerwertungDaten } from './verwertung';
 import { computeRecherchePromptBaustein, type RecherchePromptDaten } from './recherche-prompt';
-import type { AufbereitungRun } from './types';
+import { strukturiereImport } from './recherche-import';
+import type { AufbereitungRun, ExterneRecherche } from './types';
 
 /** UI-Status eines Bausteins (Compute-Status + die Vor-Zustände `fehlt`/`laeuft`). */
 export type BausteinUiStatus = 'fehlt' | 'laeuft' | 'ok' | 'degradiert' | 'fehler';
@@ -66,6 +69,12 @@ export interface UseAufbereitungResult {
   toggleErledigt: UseAsyncActionResult<[string]>;
   /** Stempelt „Marktzugang-Template kopiert" auf den Run (Paket 5, best-effort — nur wenn ein Run existiert). */
   markiereMarktzugangKopiert: UseAsyncActionResult<[]>;
+  /** Externen DR-Text importieren (JSON-Block direkt → interner Lauf → Rohtext). */
+  importTextRecherche: UseAsyncActionResult<[string, string?]>;
+  /** Externe DR-Datei (PDF/Word) importieren — Text-Extraktion via DocConverter, dann wie Text. */
+  importDateiRecherche: UseAsyncActionResult<[File]>;
+  /** Einen externen Import wieder entfernen (Index in `run.extern`). */
+  loescheExternRecherche: UseAsyncActionResult<[number]>;
   /** Aspekt-Mapping-Baustein (Paket 2). */
   aspekte: BausteinUiState<AspektMapping>;
   /** Steckbrief-Baustein (Paket 2). */
@@ -303,5 +312,48 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, bausteine, bausteineNeu };
+  /** Toleranter Import eines externen DR-Textes → `run.extern` (NIE in den VB-Korpus). */
+  const fuegeExternHinzu = async (rohText: string, ausDatei: boolean, modellLabel?: string): Promise<void> => {
+    if (!ctx || !run || !rohText.trim()) return;
+    // Transport für den (best-effort) internen Strukturierungs-Lauf — intern-pflichtig
+    // (`{{externText}}`, Pitfall #30/#35). Fehlt/wirft er, übernimmt strukturiereImport Rohtext.
+    let deps: Parameters<typeof strukturiereImport>[1];
+    try {
+      const t = bridge.getTransportForSkillRun(AUFBEREITUNG_RECHERCHE_IMPORT_SKILL);
+      deps = { idb: storage.idb, transport: t, skill: AUFBEREITUNG_RECHERCHE_IMPORT_SKILL, antragKey: ctx.key };
+    } catch { deps = undefined; }
+    const { kern, herkunftInhalt, unstrukturiert } = await strukturiereImport(rohText, deps);
+    const eintrag: ExterneRecherche = {
+      schemaVersion: kern.schemaVersion,
+      importiertAm: new Date().toISOString(),
+      herkunft: ausDatei ? 'datei' : herkunftInhalt,
+      ...(modellLabel ? { modellLabel } : {}),
+      quellen: kern.quellen,
+      ...(kern.identifikation ? { identifikation: kern.identifikation } : {}),
+      aussagen: kern.aussagen,
+      ...(unstrukturiert ? { rohtext: rohText.slice(0, 200_000) } : {}),
+    };
+    const next: AufbereitungRun = { ...run, extern: [...(run.extern ?? []), eintrag] };
+    setRun(next);
+    await storage.idb.set(aufbereitungKey(next.antragKey), next);
+  };
+
+  const importTextRecherche = useAsyncAction(async (rohText: string, modellLabel?: string) => {
+    await fuegeExternHinzu(rohText, false, modellLabel);
+  });
+
+  const importDateiRecherche = useAsyncAction(async (file: File) => {
+    // Extrahiert NUR den Text (kein Korpus-Tag, keine Indexierung) — externe Quelle eigener Klasse.
+    const conv = await new DocConverter().convert(file);
+    await fuegeExternHinzu(conv.markdown, true, file.name);
+  });
+
+  const loescheExternRecherche = useAsyncAction(async (index: number) => {
+    if (!run) return;
+    const next: AufbereitungRun = { ...run, extern: (run.extern ?? []).filter((_, i) => i !== index) };
+    setRun(next);
+    await storage.idb.set(aufbereitungKey(next.antragKey), next);
+  });
+
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, bausteine, bausteineNeu };
 }

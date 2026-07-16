@@ -6,6 +6,7 @@
  */
 import type { VbSektion } from './gliederung';
 import type { ApZeile, Befund, KlassifizierteTabelle } from './tabellen';
+import type { ExternKategorie } from './recherche-schema';
 
 /** Gestempelte Quelle (Muster `VorlageRef`, aber mit Rolle statt Pfad-Semantik). */
 export interface QuelleRef {
@@ -92,8 +93,38 @@ export interface AufbereitungRun {
    * kurator-gated). Additiv/optional. `am` = ISO-Zeitpunkt; `ausgeloestVon` = Kürzel/Name.
    */
   marktzugangKopiert?: { am: string; ausgeloestVon?: string };
+  /**
+   * Externe Deep-Research-Ergebnisse (Paket 5, Phase 2) — dritte Wissensschicht,
+   * von AUSSEN importiert, „nicht verifiziert". Additiv/optional (`version` bleibt 1;
+   * alte Runs ohne das Feld bleiben ladbar). NIE Teil des VB-Korpus.
+   */
+  extern?: ExterneRecherche[];
   /** Gesetzt, wenn keine VB auffindbar war (definierter Zustand statt Fehler). */
   hinweis?: string;
+}
+
+/** Eine externe (importierte, nicht verifizierte) Aussage — Kategorie geteilt mit der Verwertung + `sdt`. */
+export interface ExterneAussage {
+  kategorie: ExternKategorie;
+  text: string;
+  quellenUrls?: string[];
+}
+
+/** Ein importiertes externes Recherche-Ergebnis (Report/JSON/Datei). */
+export interface ExterneRecherche {
+  schemaVersion: number;
+  /** ISO-Zeitpunkt des Imports. */
+  importiertAm: string;
+  /** Herkunft: sauberer JSON-Block / Datei-Upload / (strukturierter oder roher) Text. */
+  herkunft: 'json' | 'datei' | 'text';
+  /** Modell-Label (frei, z. B. „ChatGPT Deep Research"). */
+  modellLabel?: string;
+  quellen: { url: string; datum?: string }[];
+  /** Welche Firma/Produkte wurden untersucht (aus dem externen Report). */
+  identifikation?: string;
+  aussagen: ExterneAussage[];
+  /** Unstrukturiert übernommener Rohtext (wenn weder JSON noch interne Strukturierung griff). */
+  rohtext?: string;
 }
 
 export type { VbSektion } from './gliederung';

@@ -62,6 +62,7 @@ export { AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbe
 export { AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID } from './aufbereitung-glossar.seed';
 export { AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID } from './aufbereitung-verwertung.seed';
 export { AUFBEREITUNG_RECHERCHE_PROMPT_SKILL, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID } from './aufbereitung-recherche-prompt.seed';
+export { AUFBEREITUNG_RECHERCHE_IMPORT_SKILL, AUFBEREITUNG_RECHERCHE_IMPORT_SKILL_ID } from './aufbereitung-recherche-import.seed';
 export {
   GA_QS_REGELN, GA_QS_REGEL_IDS, ABSCHNITTSZUORDNUNG, type AbschnittsZuordnung,
 } from './ga-qs.seed';

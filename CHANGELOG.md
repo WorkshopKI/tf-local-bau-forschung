@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.261.0 — Antrag-Aufbereitung: DR-Rückweg (Import JSON/Datei/Rohtext) (dev) (Juli 2026)
+
+MINOR — Paket 5, Phase 2: Deep-Research-Ergebnisse kommen von außen zurück in die App (Report-Text, PDF oder Word — kein verlässliches JSON). Toleranter Import: enthaltener JSON-Block direkt → sonst interner Strukturierungs-Lauf → sonst Rohtext. Als dritte Wissensschicht „extern · nicht verifiziert". Externe Quellen bleiben strikt aus dem VB-Korpus. Nur dev.
+
+- **Run-Erweiterung** `extern?: ExterneRecherche[]` (additiv, alte Runs ladbar) + geteiltes DR-JSON-Schema/Parser ([types.ts](src/plugins/antraege/aufbereitung/types.ts) + [recherche-schema.ts](src/plugins/antraege/aufbereitung/recherche-schema.ts)).
+- **Import-Pfade** (Text einfügen / PDF-Word-Upload via bestehendem `DocConverter`) + toleranter Orchestrator ([recherche-import.ts](src/plugins/antraege/aufbereitung/recherche-import.ts)); Recherche-Tab „Ergebnis zurückbringen" mit Import-Liste (löschbar, SdT-Aussagen inline) ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
+- **Interner Strukturierungs-Lauf** (`aufbereitung-recherche-import`, `aktiv:false`) über den neuen intern-pflichtigen Slot `{{externText}}` ([INHALTS_SLOTS](src/core/services/ai/transport-policy.ts)); Cache über den Hash des externen Texts.
+- **Keine Korpus-Vermischung**: externe Dokumente werden NUR als Text extrahiert (kein Korpus-Tag, keine Indexierung, kein `vbHash`-Einfluss).
+- Tests: Parser-Matrix + Import-Orchestrierung + Run-Kompatibilität alt→neu.
+
 ### v2.260.0 — Antrag-Aufbereitung: Deep-Research-Prompt + Recherche-Tab-Umbau (dev) (Juli 2026)
 
 MINOR — Paket 5, Phase 1: Der Prüfer lässt sich als ALLERERSTES einen anonymen Deep-Research-Auftrag von der internen KI erzeugen und trägt ihn per Zwischenablage in ChatGPT/Claude/Mistral (5–10 Min externe Recherche parallel zur internen Aufbereitung). DSGVO: Anonymisierungs-Constraints im Skill + deterministischer Leak-Check + Pflicht-Review. Nur dev.

@@ -275,6 +275,9 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             stammdaten={stammdaten}
             bausteine={aufb.bausteine}
             onMarktzugangKopiert={() => aufb.markiereMarktzugangKopiert.run()}
+            importText={aufb.importTextRecherche}
+            importDatei={aufb.importDateiRecherche}
+            loescheImport={aufb.loescheExternRecherche}
           />
         ) : tab === 'fragen' ? (
           <FragenTab

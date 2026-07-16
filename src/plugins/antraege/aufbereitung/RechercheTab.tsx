@@ -13,14 +13,14 @@
  * geöffneter Seite — KEIN API-Call. `file://`-tauglich (Anker `target=_blank`).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, ExternalLink, Search, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Copy, ExternalLink, Search, AlertTriangle, ChevronDown, Upload, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
 import type { RecherchePromptDaten } from './recherche-prompt';
-import type { AufbereitungRun } from './types';
+import type { AufbereitungRun, ExterneRecherche } from './types';
 import type { BausteinUiState } from './useAufbereitung';
 import { baueRechercheAnfragen, baueMarktzugangText, type RechercheStammdaten } from './recherche';
 import { resolveAufbereitungSettings, type EffektiveAufbereitungSettings } from './aufbereitung-settings';
@@ -32,9 +32,12 @@ interface Props {
   stammdaten: RechercheStammdaten;
   bausteine: UseAsyncActionResult<[]>;
   onMarktzugangKopiert: () => void;
+  importText: UseAsyncActionResult<[string, string?]>;
+  importDatei: UseAsyncActionResult<[File]>;
+  loescheImport: UseAsyncActionResult<[number]>;
 }
 
-export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bausteine, onMarktzugangKopiert }: Props): React.ReactElement {
+export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bausteine, onMarktzugangKopiert, importText, importDatei, loescheImport }: Props): React.ReactElement {
   const storage = useStorage();
   const [settings, setSettings] = useState<EffektiveAufbereitungSettings>(() => ({
     drUrls: getAufbereitungDrUrls(),
@@ -55,12 +58,7 @@ export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bau
       {settings.marktzugangAktiv ? (
         <Marktzugang stammdaten={stammdaten} run={run} mistralUrl={settings.drUrls.mistral} onKopiert={onMarktzugangKopiert} />
       ) : null}
-      <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Ergebnis zurückbringen</h3>
-        <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
-          Import der externen Deep-Research-Ergebnisse (Report/JSON/PDF) — folgt in Phase 2.
-        </p>
-      </section>
+      <ErgebnisZurueckbringen run={run} importText={importText} importDatei={importDatei} loescheImport={loescheImport} />
       <EinzelSuchanfragen steckbrief={steckbrief} stammdaten={stammdaten} />
     </div>
   );
@@ -218,6 +216,146 @@ function Marktzugang({
         <p className="mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">Zuletzt kopiert: {new Date(stempel).toLocaleString('de-DE')}</p>
       ) : null}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 3 — Ergebnis zurückbringen (Import: Text / Datei; tolerant)
+// ---------------------------------------------------------------------------
+
+function ErgebnisZurueckbringen({
+  run, importText, importDatei, loescheImport,
+}: {
+  run: AufbereitungRun | null;
+  importText: UseAsyncActionResult<[string, string?]>;
+  importDatei: UseAsyncActionResult<[File]>;
+  loescheImport: UseAsyncActionResult<[number]>;
+}): React.ReactElement {
+  const [text, setText] = useState('');
+  const [label, setLabel] = useState('');
+  const importe = run?.extern ?? [];
+  const kannImportieren = !!run;
+
+  const uebernehmen = useAsyncAction(async () => {
+    await importText.run(text.trim(), label.trim() || undefined);
+    setText('');
+  });
+  const dateiWaehlen = useAsyncAction(async (file: File) => { await importDatei.run(file); });
+
+  return (
+    <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+      <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Ergebnis zurückbringen</h3>
+      <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
+        Externen Recherche-Report einfügen oder als PDF/Word hochladen. Ein enthaltener JSON-Block wird direkt übernommen, sonst strukturiert die interne KI den Text (sonst unstrukturiert als Rohtext). Externe Quellen fließen NICHT in den Antrags-Korpus.
+      </p>
+      {!kannImportieren ? (
+        <p className="mt-3 text-[12px] text-[var(--tf-text-tertiary)]">Zuerst „Neu aufbereiten" oder „Mit KI aufbereiten" — dann können Ergebnisse hinterlegt werden.</p>
+      ) : (
+        <>
+          <div className="mt-3 flex flex-col gap-2">
+            <input
+              type="text"
+              value={label}
+              onChange={e => setLabel(e.target.value)}
+              placeholder={'Modell-Label (optional, z. B. „ChatGPT Deep Research")'}
+              className="w-full px-3 py-2 text-[12px] rounded-[var(--tf-radius)] border border-[var(--tf-border)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-border-hover)]"
+            />
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              rows={5}
+              placeholder="Report-Text (mit oder ohne JSON-Block) hier einfügen …"
+              className="w-full px-3 py-2 text-[12px] rounded-[var(--tf-radius)] border border-[var(--tf-border)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-border-hover)] resize-y"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="primary" size="sm" loading={uebernehmen.busy} disabled={!text.trim()} onClick={() => uebernehmen.run()}>
+                Text übernehmen
+              </Button>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+                <Upload size={13} /> {dateiWaehlen.busy ? 'Datei wird gelesen …' : 'PDF/Word hochladen'}
+                <input
+                  type="file"
+                  accept=".pdf,.docx"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { void dateiWaehlen.run(f); } e.target.value = ''; }}
+                />
+              </label>
+              {(uebernehmen.error || dateiWaehlen.error) ? (
+                <span className="text-[11.5px] text-[var(--tf-danger-text)]">{uebernehmen.error || dateiWaehlen.error}</span>
+              ) : null}
+            </div>
+          </div>
+
+          {importe.length ? (
+            <div className="mt-4 flex flex-col gap-2">
+              {importe.map((e, i) => <ExternKarte key={`${e.importiertAm}-${i}`} eintrag={e} onLoeschen={() => loescheImport.run(i)} loeschBusy={loescheImport.busy} />)}
+            </div>
+          ) : (
+            <p className="mt-3 text-[11.5px] text-[var(--tf-text-tertiary)]">Noch nichts importiert.</p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function ExternKarte({ eintrag, onLoeschen, loeschBusy }: { eintrag: ExterneRecherche; onLoeschen: () => void; loeschBusy: boolean }): React.ReactElement {
+  const sdt = eintrag.aussagen.filter(a => a.kategorie === 'sdt');
+  const andere = eintrag.aussagen.length - sdt.length;
+  const datum = new Date(eintrag.importiertAm).toLocaleDateString('de-DE');
+  return (
+    <div className="rounded-lg p-3" style={{ border: '0.5px solid var(--tf-border)' }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
+            <FileText size={11} /> Extern · {eintrag.modellLabel || eintrag.herkunft} · {datum} · nicht verifiziert
+          </span>
+          <div className="mt-1.5 text-[12px] text-[var(--tf-text-secondary)]">
+            {eintrag.aussagen.length} Aussage(n) · {eintrag.quellen.length} Quelle(n)
+            {andere > 0 ? <span className="text-[var(--tf-text-tertiary)]"> · {andere} für die Verwertungs-Gegenüberstellung</span> : null}
+          </div>
+          {eintrag.identifikation ? (
+            <div className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)]">Untersucht: {eintrag.identifikation}</div>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={onLoeschen}
+          disabled={loeschBusy}
+          title="Import entfernen"
+          className="shrink-0 inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] disabled:opacity-50"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+
+      {sdt.length ? (
+        <div className="mt-2">
+          <div className="text-[11.5px] font-medium text-[var(--tf-text-secondary)]">Stand der Technik (extern, nicht verifiziert)</div>
+          <ul className="mt-1 flex flex-col gap-1">
+            {sdt.map((a, j) => (
+              <li key={j} className="text-[12px] text-[var(--tf-text)]">
+                {a.text}
+                {a.quellenUrls?.length ? (
+                  <span className="ml-1 inline-flex flex-wrap gap-1">
+                    {a.quellenUrls.map((u, k) => (
+                      <a key={k} href={u} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[var(--tf-primary)] hover:underline">Quelle</a>
+                    ))}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {eintrag.rohtext ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-[11.5px] text-[var(--tf-text-tertiary)]">Unstrukturiert übernommen — Rohtext anzeigen</summary>
+          <pre className="mt-1 max-h-[220px] overflow-auto whitespace-pre-wrap rounded p-2 text-[11.5px] text-[var(--tf-text)] bg-[var(--tf-bg-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>{eintrag.rohtext}</pre>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
