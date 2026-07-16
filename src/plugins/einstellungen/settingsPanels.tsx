@@ -18,6 +18,7 @@ import {
   isKuratorMenusEnabled,
   isAssistentProtokollEnabled,
   isAssistentGedaechtnisEnabled,
+  isAntragAufbereitungEnabled,
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilTab } from './ProfilTab';
@@ -176,6 +177,9 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     }
     if (isDevFixturesEnabled()) {
       sections.push({ id: 'sec-aufbereitung-eval', label: 'Aufbereitung: Baustein-Eval', keywords: 'eval fixtures goldset aspekte steckbrief precision recall aufbereitung baustein bridge messung' });
+    }
+    if (isAntragAufbereitungEnabled()) {
+      sections.push({ id: 'sec-aufbereitung-recherche', label: 'Aufbereitung: Recherche', keywords: 'deep research recherche url chatgpt claude mistral marktzugang aufbereitung kmu ziel externe' });
     }
     panels.push({
       id: 'ki',

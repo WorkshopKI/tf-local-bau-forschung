@@ -231,11 +231,23 @@ export interface TeamflowConfig {
    *  (kein Hardcode): ein einmal unpublished Artifact bekommt eine neue URL,
    *  Tausch dann an EINER Stelle. */
   anfragen?: TeamflowAnfragenConfig;
+  /** Antrag-Aufbereitung — Deep-Research-Ziel-URLs (nur dev). Konfigwert (kein
+   *  Hardcode): Ziel-Seiten der externen Recherche-Dienste, an EINER Stelle tauschbar. */
+  aufbereitung?: TeamflowAufbereitungConfig;
 }
 
 export interface TeamflowAnfragenConfig {
   /** URL des published Claude-Artifacts (FAQ-Suche + ZIM-Beratung). */
   dashboardUrl?: string;
+}
+
+export interface TeamflowAufbereitungConfig {
+  /** Ziel-URL „Kopieren & ChatGPT öffnen" (Default in feature-flags.ts). */
+  chatgptUrl?: string;
+  /** Ziel-URL „Kopieren & Claude öffnen". */
+  claudeUrl?: string;
+  /** Ziel-URL „Kopieren & Mistral öffnen". */
+  mistralUrl?: string;
 }
 
 export const runtimeConfig: TeamflowConfig = __TEAMFLOW_CONFIG__;

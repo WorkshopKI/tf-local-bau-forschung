@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.260.0 — Antrag-Aufbereitung: Deep-Research-Prompt + Recherche-Tab-Umbau (dev) (Juli 2026)
+
+MINOR — Paket 5, Phase 1: Der Prüfer lässt sich als ALLERERSTES einen anonymen Deep-Research-Auftrag von der internen KI erzeugen und trägt ihn per Zwischenablage in ChatGPT/Claude/Mistral (5–10 Min externe Recherche parallel zur internen Aufbereitung). DSGVO: Anonymisierungs-Constraints im Skill + deterministischer Leak-Check + Pflicht-Review. Nur dev.
+
+- **Neuer DR-Prompt-Baustein** (`aktiv:false`, agentische Variante + Standard-Fallback), läuft zuerst; erzeugt den anonymen Auftrag ([recherche-prompt.ts](src/plugins/antraege/aufbereitung/recherche-prompt.ts) + [aufbereitung-recherche-prompt.seed.ts](src/core/services/skills/registry/aufbereitung-recherche-prompt.seed.ts)).
+- **Deterministischer Leak-Check** vor dem Kopieren: erzeugter Prompt case-insensitiv gegen Stammdaten (Name/FKZ/Az/Titel/Namensbestandteile ≥4); Treffer → degradiert, nur einsehbar ([recherche-leak.ts](src/plugins/antraege/aufbereitung/recherche-leak.ts)).
+- **Recherche-Tab umgebaut**: „Deep Research starten" (Review-Hinweis + Kopieren-&-Öffnen), „Marktzugang des KMU" (kurator-gated, Default AUS, identifizierend/deterministisch), Import-Platzhalter, Einzel-Suchanfragen eingeklappt ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
+- **Kurator-Config** (DR-Ziel-URLs + Marktzugang-Schalter) team-weit auf dem Share ([aufbereitung-settings.ts](src/plugins/antraege/aufbereitung/aufbereitung-settings.ts) + [AufbereitungRechercheSettings.tsx](src/plugins/antraege/aufbereitung/AufbereitungRechercheSettings.tsx)); agentische Variante pro Baustein durchgereicht ([bausteine.ts](src/plugins/antraege/aufbereitung/bausteine.ts)).
+- Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) (folgt in Phase 5).
+
 ### v2.259.0 — Antrag-Aufbereitung: Übersicht-Cockpit + Tab-Gating (dev) (Juli 2026)
 
 MINOR — Start von Paket 5 (Recherche & Cockpit): Die KI-Läufe dauern Minuten, aber man sah nur `kiFertig/5` im Button. Neuer erster Tab „Übersicht" mit vertikalem Stepper zeigt live, was läuft/fertig ist; baustein-gebundene Tabs sind während eines Laufs erst klickbar, wenn ihr Baustein fertig ist. Nur dev.

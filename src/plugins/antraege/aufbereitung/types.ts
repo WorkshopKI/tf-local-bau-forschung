@@ -87,6 +87,11 @@ export interface AufbereitungRun {
   teilplaene?: TvPlan[];
   /** Dateinamen von Anlage-5-Dokumenten, die keinem TV zugeordnet werden konnten. */
   anlagenOhneTv?: string[];
+  /**
+   * Stempel „Marktzugang-Template zuletzt kopiert" (Paket 5, identifizierendes Template,
+   * kurator-gated). Additiv/optional. `am` = ISO-Zeitpunkt; `ausgeloestVon` = Kürzel/Name.
+   */
+  marktzugangKopiert?: { am: string; ausgeloestVon?: string };
   /** Gesetzt, wenn keine VB auffindbar war (definierter Zustand statt Fehler). */
   hinweis?: string;
 }

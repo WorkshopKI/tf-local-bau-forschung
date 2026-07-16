@@ -15,6 +15,7 @@ import {
 import { resolveAnlage5, resolveKorpus, baueKorpus, resolveAnlagenProTv } from './quellen';
 import { ernteRisiken } from './risiken';
 import type { AufbereitungRun, QuelleRef, RunTabelle, TvPlan } from './types';
+import type { BekannteStammwerte } from './recherche-leak';
 
 export const aufbereitungKey = (antragKey: string): string => `aufbereitung:${antragKey}`;
 
@@ -24,6 +25,9 @@ export interface AufbereitungContext {
   knownIds: string[];
   /** Teilvorhaben des Verbundes (Lead-TV zuerst) — Labels + TV-Liste für die Anlage-5-Zuordnung. */
   teilvorhaben?: TvEingang[];
+  /** Identifizierende Stammwerte für den DR-Prompt-Leak-Check (Paket 5). Nur vom
+   *  recherche-prompt-Baustein genutzt (nicht von `computeAufbereitung`). */
+  bekannteWerte?: BekannteStammwerte;
 }
 
 /** Eine aufgelöste Quelle als Eingang für die reine Assemblierung. */

@@ -18,6 +18,7 @@ import {
   AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID,
   AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
   AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID,
+  AUFBEREITUNG_RECHERCHE_PROMPT_SKILL, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,
   type SkillRecord,
 } from '@/core/services/skills';
 import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv } from './quellen';
@@ -33,6 +34,7 @@ import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
 import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
 import { computeGlossarBaustein, type GlossarDaten } from './glossar';
 import { computeVerwertungBaustein, type VerwertungDaten } from './verwertung';
+import { computeRecherchePromptBaustein, type RecherchePromptDaten } from './recherche-prompt';
 import type { AufbereitungRun } from './types';
 
 /** UI-Status eines Bausteins (Compute-Status + die Vor-Zustände `fehlt`/`laeuft`). */
@@ -62,6 +64,8 @@ export interface UseAufbereitungResult {
   toggle: UseAsyncActionResult<[string]>;
   /** „Erledigt"-Achse des Fragen-Tabs (getrennt von `toggle`/`offenePunkte`). */
   toggleErledigt: UseAsyncActionResult<[string]>;
+  /** Stempelt „Marktzugang-Template kopiert" auf den Run (Paket 5, best-effort — nur wenn ein Run existiert). */
+  markiereMarktzugangKopiert: UseAsyncActionResult<[]>;
   /** Aspekt-Mapping-Baustein (Paket 2). */
   aspekte: BausteinUiState<AspektMapping>;
   /** Steckbrief-Baustein (Paket 2). */
@@ -72,11 +76,13 @@ export interface UseAufbereitungResult {
   glossar: BausteinUiState<GlossarDaten>;
   /** Verwertung/Markt-Baustein (Stufe 2) — läuft über den Korpus (dokumentgrenzen-unabhängig). */
   verwertung: BausteinUiState<VerwertungDaten>;
+  /** Deep-Research-Prompt-Baustein (Paket 5) — läuft ZUERST; agentische Variante + Leak-Check. */
+  recherchePrompt: BausteinUiState<RecherchePromptDaten>;
   /** Korpus-Volltext (VB + narrative Zusatzdokumente) für Fundstellen-Auszüge +
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
-  /** Läuft alle Bausteine sequentiell (Aspekte → Steckbrief → Zahlen → Glossar). */
+  /** Läuft alle Bausteine sequentiell (Recherche-Prompt → Aspekte → Steckbrief → Zahlen → Glossar → Verwertung). */
   bausteine: UseAsyncActionResult<[]>;
   /** Verwirft die Baustein-Caches und rechnet neu (dev-Aktion „KI-Bausteine neu berechnen"). */
   bausteineNeu: UseAsyncActionResult<[]>;
@@ -95,11 +101,13 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [zahlenSkill, setZahlenSkill] = useState<SkillRecord>(AUFBEREITUNG_ZAHLEN_SKILL);
   const [glossarSkill, setGlossarSkill] = useState<SkillRecord>(AUFBEREITUNG_GLOSSAR_SKILL);
   const [verwertungSkill, setVerwertungSkill] = useState<SkillRecord>(AUFBEREITUNG_VERWERTUNG_SKILL);
+  const [recherchePromptSkill, setRecherchePromptSkill] = useState<SkillRecord>(AUFBEREITUNG_RECHERCHE_PROMPT_SKILL);
   const [aspekte, setAspekte] = useState<BausteinUiState<AspektMapping>>(FEHLT);
   const [steckbrief, setSteckbrief] = useState<BausteinUiState<SteckbriefDaten>>(FEHLT);
   const [zahlen, setZahlen] = useState<BausteinUiState<ZahlenDaten>>(FEHLT);
   const [glossar, setGlossar] = useState<BausteinUiState<GlossarDaten>>(FEHLT);
   const [verwertung, setVerwertung] = useState<BausteinUiState<VerwertungDaten>>(FEHLT);
+  const [recherchePrompt, setRecherchePrompt] = useState<BausteinUiState<RecherchePromptDaten>>(FEHLT);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
   const key = ctx?.key ?? null;
 
@@ -112,6 +120,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setZahlen(FEHLT);
     setGlossar(FEHLT);
     setVerwertung(FEHLT);
+    setRecherchePrompt(FEHLT);
     setVbMarkdown(null);
     (async () => {
       if (!key) { setRun(null); setLoading(false); return; }
@@ -132,7 +141,8 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
         const zah = loaded.file.skills.find(x => x.id === AUFBEREITUNG_ZAHLEN_SKILL_ID) ?? AUFBEREITUNG_ZAHLEN_SKILL;
         const glo = loaded.file.skills.find(x => x.id === AUFBEREITUNG_GLOSSAR_SKILL_ID) ?? AUFBEREITUNG_GLOSSAR_SKILL;
         const vw = loaded.file.skills.find(x => x.id === AUFBEREITUNG_VERWERTUNG_SKILL_ID) ?? AUFBEREITUNG_VERWERTUNG_SKILL;
-        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); setZahlenSkill(zah); setGlossarSkill(glo); setVerwertungSkill(vw); }
+        const rp = loaded.file.skills.find(x => x.id === AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID) ?? AUFBEREITUNG_RECHERCHE_PROMPT_SKILL;
+        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); setZahlenSkill(zah); setGlossarSkill(glo); setVerwertungSkill(vw); setRecherchePromptSkill(rp); }
       } catch { /* Seed-Fallback bleibt gesetzt. */ }
     })();
     return () => { cancelled = true; };
@@ -177,6 +187,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setZahlen(FEHLT);
     setGlossar(FEHLT);
     setVerwertung(FEHLT);
+    setRecherchePrompt(FEHLT);
   });
 
   // Nach einem Dokument-Upload neu aufbereiten. Mehrere Dateien feuern `onIngested`
@@ -230,11 +241,16 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     // Auswertung dokumentgrenzen-unabhängig und Marketing-Inhalt wird fundstellen-fähig.
     const korpus = await resolveKorpus(storage.idb, aktCtx).catch(() => null);
     if (!korpus) {
+      setRecherchePrompt({ status: 'fehler' });
       setAspekte({ status: 'fehler' }); setSteckbrief({ status: 'fehler' });
-      setZahlen({ status: 'fehler' }); setGlossar({ status: 'fehler' });
+      setZahlen({ status: 'fehler' }); setGlossar({ status: 'fehler' }); setVerwertung({ status: 'fehler' });
       return;
     }
     setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge)
+    // Recherche-Prompt ZUERST: der Prüfer kann die externe Deep Research (5–10 Min) starten,
+    // während die übrigen Bausteine weiterlaufen. Agentische Variante + Leak-Check im Compute.
+    await laufEinen<RecherchePromptDaten>(recherchePromptSkill, setRecherchePrompt, t =>
+      computeRecherchePromptBaustein(storage.idb, t, recherchePromptSkill, aktCtx.key, korpus.markdown, aktCtx.bekannteWerte ?? {}, { force }));
     await laufEinen<AspektMapping>(aspekteSkill, setAspekte, t =>
       computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
     await laufEinen<SteckbriefDaten>(steckbriefSkill, setSteckbrief, t =>
@@ -280,5 +296,12 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, aspekte, steckbrief, zahlen, glossar, verwertung, vbMarkdown, bausteine, bausteineNeu };
+  const markiereMarktzugangKopiert = useAsyncAction(async () => {
+    if (!run) return; // best-effort: ohne Run kein Stempel (Kopieren funktioniert trotzdem im Tab).
+    const next: AufbereitungRun = { ...run, marktzugangKopiert: { am: new Date().toISOString() } };
+    setRun(next);
+    await storage.idb.set(aufbereitungKey(next.antragKey), next);
+  });
+
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, bausteine, bausteineNeu };
 }

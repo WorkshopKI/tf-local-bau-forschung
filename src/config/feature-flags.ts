@@ -204,6 +204,30 @@ export const DEFAULT_ANFRAGEN_DASHBOARD_URL =
 export function getAnfragenDashboardUrl(): string {
   return runtimeConfig.anfragen?.dashboardUrl || DEFAULT_ANFRAGEN_DASHBOARD_URL;
 }
+
+/** Kanonische Code-Defaults der Deep-Research-Ziel-URLs (Antrag-Aufbereitung, nur dev)
+ *  — die EINZIGE Quelle im Code (config-schema.mjs trägt nur optionale Override-Slots).
+ *  Team-weite Laufzeit-Änderung läuft über den Sidecar `_intern/aufbereitung-settings.json`. */
+export const DEFAULT_AUFBEREITUNG_CHATGPT_URL = 'https://chatgpt.com/';
+export const DEFAULT_AUFBEREITUNG_CLAUDE_URL = 'https://claude.ai/new';
+export const DEFAULT_AUFBEREITUNG_MISTRAL_URL = 'https://chat.mistral.ai/chat';
+
+export interface AufbereitungDrUrls {
+  chatgpt: string;
+  claude: string;
+  mistral: string;
+}
+
+/** Build-Config-Werte ODER Code-Defaults der DR-Ziel-URLs. (Laufzeit-Override aus dem
+ *  Share wird in `resolveAufbereitungSettings` davorgeschaltet.) */
+export function getAufbereitungDrUrls(): AufbereitungDrUrls {
+  const c = runtimeConfig.aufbereitung;
+  return {
+    chatgpt: c?.chatgptUrl || DEFAULT_AUFBEREITUNG_CHATGPT_URL,
+    claude: c?.claudeUrl || DEFAULT_AUFBEREITUNG_CLAUDE_URL,
+    mistral: c?.mistralUrl || DEFAULT_AUFBEREITUNG_MISTRAL_URL,
+  };
+}
 /** In-App Streamlit-Bridge-Installer im KI-Assistent-Tab (Streamlit-URL +
  *  Bookmarklet + Verbindungstest). Zugang zum internen gpt-oss ohne API.
  *  Sichtbar in dev + prod + kurator + pl. Default false. */

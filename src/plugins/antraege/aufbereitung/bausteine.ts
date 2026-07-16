@@ -15,7 +15,7 @@
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
-import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
+import { starteFrischenChat, resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { isDevContext } from '@/config/feature-flags';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
@@ -55,6 +55,11 @@ export const glossarCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:glossar:${vbHash}`;
 export const verwertungCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:verwertung:${vbHash}`;
+export const recherchePromptCacheKey = (antragKey: string, vbHash: string): string =>
+  `aufbereitung:${antragKey}:recherche-prompt:${vbHash}`;
+/** Import-Struktur-Lauf: gekeyt über den Hash des EXTERNEN Textes (nicht `vbHash`). */
+export const rechercheImportCacheKey = (antragKey: string, externHash: string): string =>
+  `aufbereitung:${antragKey}:recherche-import:${externHash}`;
 
 /** VB-Hash (djb2 — dieselbe Funktion wie der deterministische Run + die Relevanz-Map). */
 export const vbHashFuer = (vbMarkdown: string): string => hashText(vbMarkdown);
@@ -146,7 +151,14 @@ export async function getOrComputeBaustein<T>(
   vbHash: string,
   buildPrompt: () => string,
   parse: (raw: string) => T | null,
-  opts: { force?: boolean; verdaechtig?: { pruefe: (daten: T) => boolean; grund: string } } = {},
+  opts: {
+    force?: boolean;
+    verdaechtig?: { pruefe: (daten: T) => boolean; grund: string };
+    /** KI-Varianten-Ziel für DIESEN Baustein (nur Streamlit). `'agentisch'` = agentischer
+     *  Qwen-Tab; scheitert dessen Reset (Tab nicht verbunden), fällt der Lauf einmal auf
+     *  den Standard-Chat zurück (kein Fehler). Ohne `ziel` = globale Präferenz (byte-identisch). */
+    ziel?: BridgeZiel;
+  } = {},
 ): Promise<BausteinResult<T>> {
   if (!opts.force) {
     try {
@@ -160,11 +172,11 @@ export async function getOrComputeBaustein<T>(
   }
 
   /** EIN Lauf: Transport-Fehler → null (= 'fehler' außen), sonst Roh + geparst (parse wirft nie nach außen). */
-  const einLauf = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
+  const einLauf = async (ziel?: BridgeZiel): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
     let raw: string;
     let reset: ChatResetStatus;
     try {
-      const r = await runBaustein(transport, skill, buildPrompt());
+      const r = await runBaustein(transport, skill, buildPrompt(), ziel);
       raw = r.text;
       reset = r.chatResetStatus;
     } catch {
@@ -177,7 +189,18 @@ export async function getOrComputeBaustein<T>(
 
   const istSchlecht = (d: T | null): boolean => d == null || (!!opts.verdaechtig && opts.verdaechtig.pruefe(d));
 
-  const erster = await einLauf();
+  /** EIN Lauf inkl. Agentisch-Fallback: wollte er den agentischen Tab, ist dessen Reset
+   *  aber fehlgeschlagen (Tab nicht verbunden), einmal auf den Standard-Chat zurückfallen. */
+  const laufMitFallback = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
+    const r = await einLauf(opts.ziel);
+    if (r && opts.ziel === 'agentisch' && resetHatVerlaufsrisiko(r.reset)) {
+      const standard = await einLauf(undefined);
+      if (standard) return standard;
+    }
+    return r;
+  };
+
+  const erster = await laufMitFallback();
   if (!erster) return { status: 'fehler' };
   let { daten, raw, reset } = erster;
   let retryAnzahl = 0;
@@ -185,7 +208,7 @@ export async function getOrComputeBaustein<T>(
   // Auffälliges Erstergebnis + deklarierte Verdächtig-Regel → EIN Retry (frischer Chat).
   if (opts.verdaechtig && istSchlecht(daten)) {
     retryAnzahl = 1;
-    const zweiter = await einLauf();
+    const zweiter = await laufMitFallback();
     if (zweiter) ({ daten, raw, reset } = zweiter);
   }
 
@@ -211,6 +234,8 @@ export async function loescheBausteinCaches(idb: IDBStore, antragKey: string): P
     `aufbereitung:${antragKey}:zahlen:`,
     `aufbereitung:${antragKey}:glossar:`,
     `aufbereitung:${antragKey}:verwertung:`,
+    `aufbereitung:${antragKey}:recherche-prompt:`,
+    `aufbereitung:${antragKey}:recherche-import:`,
   ];
   for (const praefix of praefixe) {
     const keys = await idb.keys(praefix).catch(() => [] as string[]);

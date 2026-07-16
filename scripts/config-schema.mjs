@@ -269,6 +269,15 @@ export const DEFAULT_CONFIG = {
   anfragen: {
     dashboardUrl: null,
   },
+
+  // Antrag-Aufbereitung (nur dev). Optionale Per-Variant-Overrides der Deep-Research-
+  // Ziel-URLs; die kanonischen Defaults leben als EINZIGE Code-Quelle in
+  // src/config/feature-flags.ts (DEFAULT_AUFBEREITUNG_*_URL). `null` = Default verwenden.
+  aufbereitung: {
+    chatgptUrl: null,
+    claudeUrl: null,
+    mistralUrl: null,
+  },
 };
 
 /**

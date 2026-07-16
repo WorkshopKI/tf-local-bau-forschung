@@ -60,6 +60,18 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
         akronym: typeof tv.akronym === 'string' && tv.akronym.trim() ? tv.akronym.trim() : null,
         titel: typeof tv.titel === 'string' && tv.titel.trim() ? tv.titel.trim() : null,
       })),
+      // Identifizierende Stammwerte für den DR-Prompt-Leak-Check (Paket 5). Personennamen
+      // aus dem Steckbrief liegen zur recherche-prompt-Laufzeit noch nicht vor (der Baustein
+      // läuft zuerst) — die TV-Antragsteller/-Titel decken den Kern deterministisch ab.
+      bekannteWerte: {
+        antragsteller: ctx.antragsteller,
+        foerderkennzeichen: ctx.foerderkennzeichen,
+        akronym: ctx.akronym,
+        titel: ctx.titel,
+        aktenzeichen: ctx.knownIds,
+        personennamen: tvs.map(tv => (typeof tv.antragsteller === 'string' ? tv.antragsteller.trim() : '')).filter(Boolean),
+        weitereTitel: tvs.map(tv => (typeof tv.titel === 'string' ? tv.titel.trim() : '')).filter(Boolean),
+      },
     } : null,
   );
   const [tab, setTab] = useState<AufbereitungTabId>('uebersicht');
@@ -76,9 +88,9 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     [aufb.vbMarkdown, springeZuFundstelle],
   );
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
-  // Fortschritt für „Mit KI aufbereiten": wie viele der 5 KI-Bausteine sind fertig
+  // Fortschritt für „Mit KI aufbereiten": wie viele der KI-Bausteine sind fertig
   // (ok/degradiert/fehler) — speist das Live-Label des Buttons während des Laufs.
-  const kiBausteine = [aufb.aspekte, aufb.steckbrief, aufb.zahlen, aufb.glossar, aufb.verwertung];
+  const kiBausteine = [aufb.recherchePrompt, aufb.aspekte, aufb.steckbrief, aufb.zahlen, aufb.glossar, aufb.verwertung];
   const kiFertig = kiBausteine.filter(b => b.status === 'ok' || b.status === 'degradiert' || b.status === 'fehler').length;
   const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus, aufb.verwertung.chatResetStatus]
     .some(s => s != null && resetHatVerlaufsrisiko(s));
@@ -132,7 +144,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
               onClick={() => aufb.bausteine.run()}
               title="Erzeugt alle KI-Abschnitte der Aufbereitung (Steckbrief, Abdeckung, Zahlen, Glossar, Verwertung) auf einmal — kein Abschnitt muss einzeln gestartet werden"
             >
-              {aufb.bausteine.busy ? `KI-Aufbereitung läuft … (${kiFertig}/5)` : 'Mit KI aufbereiten'}
+              {aufb.bausteine.busy ? `KI-Aufbereitung läuft … (${kiFertig}/${kiBausteine.length})` : 'Mit KI aufbereiten'}
             </Button>
           </div>
         }
@@ -175,6 +187,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
               glossar: aufb.glossar.status,
               verwertung: aufb.verwertung.status,
             },
+            weitereStatus: [aufb.recherchePrompt.status],
             activeTab: tab,
           })}
         />
@@ -188,6 +201,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             loading={aufb.loading}
             veraltet={aufb.veraltet}
             stepper={{
+              recherchePrompt: aufb.recherchePrompt,
               aspekte: aufb.aspekte,
               steckbrief: aufb.steckbrief,
               zahlen: aufb.zahlen,
@@ -255,9 +269,12 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
           />
         ) : tab === 'recherche' ? (
           <RechercheTab
+            recherchePrompt={aufb.recherchePrompt}
+            run={aufb.run}
             steckbrief={aufb.steckbrief}
             stammdaten={stammdaten}
             bausteine={aufb.bausteine}
+            onMarktzugangKopiert={() => aufb.markiereMarktzugangKopiert.run()}
           />
         ) : tab === 'fragen' ? (
           <FragenTab

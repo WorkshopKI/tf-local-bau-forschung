@@ -82,3 +82,32 @@ export function baueRechercheAnfragen(
 
   return gruppen;
 }
+
+/** Stammdaten für das (bewusst identifizierende) Marktzugang-Template. */
+export interface MarktzugangStammdaten {
+  firmenname: string | null;
+  website?: string | null;
+}
+
+/**
+ * Baut den (bewusst IDENTIFIZIERENDEN) Marktzugang-Recherche-Text — rein deterministisch,
+ * KEIN LLM, ausschließlich aus Stammdaten (Firmenname + ggf. Website), NIE VB-Inhalt.
+ * `null`, wenn kein Firmenname vorliegt (dann bietet das UI den Abschnitt nicht an).
+ * Getrennt vom anonymen DR-Prompt (kein kombinierter Prompt).
+ */
+export function baueMarktzugangText(s: MarktzugangStammdaten): string | null {
+  const firma = s.firmenname?.trim();
+  if (!firma) return null;
+  const zeilen = [
+    `Recherchiere den Marktzugang des Unternehmens „${firma}".`,
+    '',
+    'Bitte analysiere:',
+    '- In welchen Märkten und Branchen ist das Unternehmen aktiv?',
+    '- Über welche Vertriebskanäle und Partnerschaften erreicht es seine Kunden?',
+    '- Wer sind typische Abnehmer oder Referenzkunden?',
+    '- Wie positioniert es sich gegenüber Wettbewerbern?',
+  ];
+  const web = s.website?.trim();
+  if (web) zeilen.push(`- Website als Ausgangspunkt: ${web}`);
+  return zeilen.join('\n');
+}

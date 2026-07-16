@@ -14,8 +14,9 @@ import {
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
-import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled } from '@/config/feature-flags';
+import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled, isAntragAufbereitungEnabled } from '@/config/feature-flags';
 import { AufbereitungEvalPanel } from '@/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel';
+import { AufbereitungRechercheSettings } from '@/plugins/antraege/aufbereitung/AufbereitungRechercheSettings';
 import { GedaechtnisEvalPanel } from './GedaechtnisEvalPanel';
 import { StreamlitBridgeSection } from './StreamlitBridgeSection';
 import { SettingsSectionHeader, InfoHint } from './_shared/settings-primitives';
@@ -352,6 +353,15 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       <section id="sec-aufbereitung-eval" className="scroll-mt-20 space-y-3">
         <SettingsSectionHeader label="Aufbereitung: Baustein-Eval" />
         <AufbereitungEvalPanel />
+      </section>
+      )}
+
+      {/* Antrag-Aufbereitung: Recherche-Einstellungen (Deep-Research-Ziel-URLs +
+          Marktzugang-Schalter) — team-weit auf dem Share, kurator-gated. Nur dev. */}
+      {isAntragAufbereitungEnabled() && (
+      <section id="sec-aufbereitung-recherche" className="scroll-mt-20 space-y-3">
+        <SettingsSectionHeader label="Aufbereitung: Recherche" />
+        <AufbereitungRechercheSettings />
       </section>
       )}
 
