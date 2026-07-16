@@ -52,17 +52,21 @@ export const GEDAECHTNIS_FIXTURES: GedaechtnisFixture[] = [
     id: 'kaltstart-1',
     fiktiv: true,
     szenario: 'kaltstart',
-    beschreibung: 'Leerer Bestand, klares Arbeitsmuster: Verbund V1 + Skill Kurzfassung.',
+    beschreibung: 'Leerer Bestand, klares Arbeitsmuster: Verbund V1 + wiederholt Skill Kurzfassung.',
     zyklen: [{
       ereignisse: [
         ev('k1', 1000, 'antrag_geoeffnet', { entitaet: { art: 'verbund', id: 'V1' }, detail: { status: 'in_pruefung' } }),
         ev('k2', 2000, 'antrag_geoeffnet', { entitaet: { art: 'verbund', id: 'V1' } }),
         ev('k3', 3000, 'suche_ausgefuehrt', { detail: { query: 'Waermepumpe Effizienz', trefferanzahl: 4 } }),
+        // Skill 3× gestartet → echtes wiederkehrendes Muster (nicht ein Einmal-
+        // Signal), damit die Präferenz-Erwartung berechtigt ist.
         ev('k4', 4000, 'skill_gestartet', { entitaet: { art: 'skill', id: 'kurzfassung' }, detail: { skillId: 'kurzfassung' } }),
+        ev('k5', 5000, 'skill_gestartet', { entitaet: { art: 'skill', id: 'kurzfassung' }, detail: { skillId: 'kurzfassung' } }),
+        ev('k6', 6000, 'skill_gestartet', { entitaet: { art: 'skill', id: 'kurzfassung' }, detail: { skillId: 'kurzfassung' } }),
       ],
       stubOps: [
         { op: 'ADD', block: 'arbeitskontext', text: 'Arbeitet aktuell an Verbund V1.', belege: ['k1', 'k2'] },
-        { op: 'ADD', block: 'praeferenzen', text: 'Nutzt den Skill Kurzfassung.', belege: ['k4'] },
+        { op: 'ADD', block: 'praeferenzen', text: 'Nutzt wiederholt den Skill Kurzfassung.', belege: ['k4', 'k5', 'k6'] },
       ],
     }],
     erwartung: {
