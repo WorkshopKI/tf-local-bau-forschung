@@ -258,6 +258,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             vbMarkdown={aufb.vbMarkdown}
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
+            onGotoRecherche={() => setTab('recherche')}
           />
         ) : tab === 'glossar' ? (
           <GlossarTab

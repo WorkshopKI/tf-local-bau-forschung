@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.262.0 — Antrag-Aufbereitung: Verwertung/Markt gegen externe Schicht spiegeln (dev) (Juli 2026)
+
+MINOR — Paket 5, Phase 3: Der Verwertung/Markt-Tab stellt je Kategorie „Laut Antrag" den importierten externen Aussagen („Extern · nicht verifiziert") gegenüber. Zuordnung ausschließlich über die geteilte Kategorie — KEIN Fuzzy-Matching, KEINE automatische Widerspruchs-Wertung; der Prüfer vergleicht selbst. Nur dev.
+
+- **Reine Gegenüberstellung** `gruppiereVergleich` (Kategorie-Gruppierung; `sdt` bleibt draußen) ([verwertung-vergleich.ts](src/plugins/antraege/aufbereitung/verwertung-vergleich.ts)).
+- **VerwertungTab zwei Spalten** je Kategorie (Antrag mit Fundstelle · extern mit Quellen-Link + „nicht verifiziert"); Leer-Hinweis mit Link auf den Recherche-Tab ([VerwertungTab.tsx](src/plugins/antraege/aufbereitung/VerwertungTab.tsx)).
+- Tests: Kategorie-Gruppierung, leere Schicht, nur-extern-Kategorie, mehrere Importe, `sdt`-Ausschluss.
+
 ### v2.261.0 — Antrag-Aufbereitung: DR-Rückweg (Import JSON/Datei/Rohtext) (dev) (Juli 2026)
 
 MINOR — Paket 5, Phase 2: Deep-Research-Ergebnisse kommen von außen zurück in die App (Report-Text, PDF oder Word — kein verlässliches JSON). Toleranter Import: enthaltener JSON-Block direkt → sonst interner Strukturierungs-Lauf → sonst Rohtext. Als dritte Wissensschicht „extern · nicht verifiziert". Externe Quellen bleiben strikt aus dem VB-Korpus. Nur dev.

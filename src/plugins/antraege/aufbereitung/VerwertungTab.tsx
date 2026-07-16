@@ -10,13 +10,15 @@
  * Sprung landet korrekt, auch bei Marketing-Sektionen).
  */
 import { useMemo } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { FundstelleChip } from './FundstelleChip';
 import {
-  VERWERTUNG_KATEGORIEN, VERWERTUNG_KATEGORIE_LABEL,
-  type VerwertungAussage, type VerwertungDaten, type VerwertungKategorie,
+  VERWERTUNG_KATEGORIE_LABEL,
+  type VerwertungDaten,
 } from './verwertung';
+import { gruppiereVergleich, hatExterneVerwertung, type ExterneAussageMitHerkunft } from './verwertung-vergleich';
 import type { BausteinUiState } from './useAufbereitung';
 import type { AufbereitungRun } from './types';
 import type { VbSektion } from './gliederung';
@@ -27,11 +29,12 @@ interface Props {
   vbMarkdown: string | null;
   bausteine: UseAsyncActionResult<[]>;
   bausteineNeu: UseAsyncActionResult<[]>;
+  onGotoRecherche?: () => void;
 }
 
 const LEER: VerwertungDaten = { schemaVersion: 1, aussagen: [] };
 
-export function VerwertungTab({ run, verwertung, vbMarkdown, bausteine, bausteineNeu }: Props): React.ReactElement {
+export function VerwertungTab({ run, verwertung, vbMarkdown, bausteine, bausteineNeu, onGotoRecherche }: Props): React.ReactElement {
   if (verwertung.status === 'fehlt' || (!run && verwertung.status !== 'laeuft')) {
     return (
       <div className="py-16 flex flex-col items-center gap-3 text-center">
@@ -70,12 +73,13 @@ export function VerwertungTab({ run, verwertung, vbMarkdown, bausteine, baustein
       begruendung={verwertung.begruendung}
       vbMarkdown={vbMarkdown}
       bausteineNeu={bausteineNeu}
+      onGotoRecherche={onGotoRecherche}
     />
   );
 }
 
 function VerwertungInhalt({
-  run, daten, degradiert, rohtext, begruendung, vbMarkdown, bausteineNeu,
+  run, daten, degradiert, rohtext, begruendung, vbMarkdown, bausteineNeu, onGotoRecherche,
 }: {
   run: AufbereitungRun;
   daten: VerwertungDaten;
@@ -84,23 +88,15 @@ function VerwertungInhalt({
   begruendung?: string;
   vbMarkdown: string | null;
   bausteineNeu: UseAsyncActionResult<[]>;
+  onGotoRecherche?: () => void;
 }): React.ReactElement {
   const byId = useMemo(() => new Map(run.gliederung.map(s => [s.id, s])), [run.gliederung]);
   const chips = (ids: string[]): React.ReactElement[] =>
     ids.map(id => byId.get(id)).filter((s): s is VbSektion => !!s).map(s => <FundstelleChip key={s.id} sektion={s} vbMarkdown={vbMarkdown} />);
 
-  // Nach Kategorie gruppieren, in der kanonischen Reihenfolge der Kategorie-Liste.
-  const gruppen = useMemo(() => {
-    const proKat = new Map<VerwertungKategorie, VerwertungAussage[]>();
-    for (const a of daten.aussagen) {
-      const liste = proKat.get(a.kategorie) ?? [];
-      liste.push(a);
-      proKat.set(a.kategorie, liste);
-    }
-    return VERWERTUNG_KATEGORIEN
-      .map(kat => ({ kat, aussagen: proKat.get(kat) ?? [] }))
-      .filter(g => g.aussagen.length > 0);
-  }, [daten.aussagen]);
+  // Gegenüberstellung „Laut Antrag" ↔ „Extern" je Kategorie (rein, geteilte Funktion).
+  const gruppen = useMemo(() => gruppiereVergleich(daten.aussagen, run.extern), [daten.aussagen, run.extern]);
+  const hatExtern = hatExterneVerwertung(run.extern);
 
   return (
     <div>
@@ -114,6 +110,21 @@ function VerwertungInhalt({
         </details>
       ) : null}
 
+      {!hatExtern ? (
+        <div className="mb-4 text-[12px] text-[var(--tf-text-tertiary)]">
+          Externe Recherche importieren, um die Antrags-Aussagen zu spiegeln
+          {onGotoRecherche ? (
+            <>
+              {' '}—{' '}
+              <button type="button" onClick={onGotoRecherche} className="inline-flex items-center gap-1 text-[var(--tf-primary)] hover:underline">
+                zum Recherche-Tab
+              </button>
+            </>
+          ) : null}
+          .
+        </div>
+      ) : null}
+
       {gruppen.length === 0 ? (
         <div className="py-14 text-center text-[13px] text-[var(--tf-text-tertiary)]">
           Im Antragsmaterial wurde kein Verwertungs-/Markt-Inhalt gefunden.
@@ -122,24 +133,52 @@ function VerwertungInhalt({
         <div className="flex flex-col gap-4">
           {gruppen.map(g => (
             <div key={g.kat} className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-              <div className="mb-2 flex items-baseline gap-2">
-                <span className="text-[13px] font-medium text-[var(--tf-text)]">{VERWERTUNG_KATEGORIE_LABEL[g.kat]}</span>
-                <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{g.aussagen.length}</span>
-              </div>
-              {g.aussagen.map((a, i) => (
-                <div
-                  key={`${g.kat}:${i}`}
-                  className="flex items-start gap-2.5 py-2"
-                  style={{ borderBottom: i === g.aussagen.length - 1 ? undefined : '0.5px solid var(--tf-border)' }}
-                >
-                  <div className="min-w-0 flex-1 text-[12.5px] leading-snug text-[var(--tf-text-secondary)]">{a.text}</div>
-                  {a.sektionIds.length > 0 ? <div className="shrink-0 flex items-center gap-1.5">{chips(a.sektionIds)}</div> : null}
+              <div className="mb-2.5 text-[13px] font-medium text-[var(--tf-text)]">{VERWERTUNG_KATEGORIE_LABEL[g.kat]}</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Laut Antrag */}
+                <div>
+                  <div className="mb-1.5 text-[11.5px] font-medium uppercase tracking-wide text-[var(--tf-text-tertiary)]">Laut Antrag ({g.antrag.length})</div>
+                  {g.antrag.length === 0 ? (
+                    <div className="text-[12px] text-[var(--tf-text-tertiary)]">—</div>
+                  ) : (
+                    g.antrag.map((a, i) => (
+                      <div key={i} className="flex items-start gap-2 py-1.5">
+                        <div className="min-w-0 flex-1 text-[12.5px] leading-snug text-[var(--tf-text-secondary)]">{a.text}</div>
+                        {a.sektionIds.length > 0 ? <div className="shrink-0 flex items-center gap-1.5">{chips(a.sektionIds)}</div> : null}
+                      </div>
+                    ))
+                  )}
                 </div>
-              ))}
+                {/* Extern (nicht verifiziert) */}
+                <div>
+                  <div className="mb-1.5 text-[11.5px] font-medium uppercase tracking-wide text-[var(--tf-text-tertiary)]">Extern · nicht verifiziert ({g.extern.length})</div>
+                  {g.extern.length === 0 ? (
+                    <div className="text-[12px] text-[var(--tf-text-tertiary)]">—</div>
+                  ) : (
+                    g.extern.map((a, i) => <ExternZeile key={i} aussage={a} />)
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ExternZeile({ aussage }: { aussage: ExterneAussageMitHerkunft }): React.ReactElement {
+  return (
+    <div className="py-1.5">
+      <div className="text-[12.5px] leading-snug text-[var(--tf-text-secondary)]">{aussage.text}</div>
+      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-[var(--tf-text-tertiary)]">
+        {aussage.modellLabel ? <span>{aussage.modellLabel}</span> : null}
+        {(aussage.quellenUrls ?? []).map((u, k) => (
+          <a key={k} href={u} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-[var(--tf-primary)] hover:underline">
+            <ExternalLink size={10} /> Quelle
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
