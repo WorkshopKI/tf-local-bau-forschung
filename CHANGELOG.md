@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.265.0 — In-App-Eval: Kontext-Achse (Relevanz-Map A/B) + interner Judge (Juli 2026)
+
+MINOR — Die Relevanz-Map (kuratierter VB-Kontext statt Volltext) war produktiv verdrahtet, aber schlafend und nur in der Node-CLI messbar. Der Bridge-Rechner (gpt-oss) hat kein Node → das A/B (hält „relevant" die Gutachten-Qualität?) braucht ein In-App-Vehikel. Phase 0: nur das Mess-Panel; die kuratierte Umstellung folgt separat nach dem Nutzer-A/B. Nur dev.
+
+- **Kontext-Achse** `voll · relevant · beide` im Skill-Eval-Panel: der `relevant`-Arm rechnet die Relevanz-Map je Fixture (Reuse `computeRelevanzMap`/`assembleVbRelevant`, kein Fork) + Schwellen-Override (nur Eval) ([eval-batch.ts](src/core/services/skill-eval/eval-batch.ts), [SkillEvalPanel.tsx](src/plugins/skill-verwaltung-kuration/SkillEvalPanel.tsx)).
+- **Ehrlichkeits-Pflicht**: „Map angewandt: n/m" + Kontextgröße voll→relevant je Fixture; 0/m wird als „beide Arme identisch, kein A/B" markiert (`relevanzInfos`).
+- **Judge Default intern-agentisch (Qwen)** über einen Adapter (frischer Chat + `ziel:'agentisch'` + Thinking-Strip, hält `runJudge` unangetastet); OpenRouter nur noch als gespiegelte Alternative hinter `isOpenRouterEnabled()`; „Judge einschließen"-Schalter (Default aus), `judgeModellId`-Tag.
+- **JSONL-Export** (CLI-feldkompatibel, `kontext`-Tag) + Ergebnis-Matrix mit Kontext-Spalte + Δ (relevant − voll).
+- Tests: `both`-Arme, Schwellen-No-op, Map angewandt (< Volltext), Map-Fehler → Volltext-Degradation, Adapter (Reset + `ziel` + `<think>`-Strip). Doku: [skill-eval-gui.md](docs/architecture/skill-eval-gui.md).
+
 ### v2.264.0 — Antrag-Aufbereitung: Lesemodus-Silhouette-Nav + Fundstellen-Overlay + Doku (dev) (Juli 2026)
 
 MINOR — Paket 5, Phase 5 (Abschluss): Der Lesemodus wird von „Gliederung + Text" zu einer echten Navigation — schmale Silhouette als Scroll-Navigation (aktueller Abschnitt hervorgehoben) + Marginalien-Marker, die je Abschnitt zeigen, welche Bausteine ihn referenzieren. Nur dev.
