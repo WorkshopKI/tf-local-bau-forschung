@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.257.1 — Gedächtnis-Eval: Transport-Default auf Intern (gpt-oss) (Juli 2026)
+
+PATCH — Die Baseline zeigte: der agentische Qwen-Tab liefert für die strukturierte JSON-Konsolidierung teils Reasoning-Prosa statt JSON + Loop-Detector-Abbruch. Der Standard-Chat (gpt-oss) ist zuverlässig — und die Produktion nutzt ihn ohnehin. Also der passendere Panel-Default.
+
+- **Panel-Transport-Default `agentisch` → `intern`** (gpt-oss / Standard-Chat) ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)); `agentisch`/`openrouter` bleiben wählbar.
+
 ### v2.257.0 — KI-Assistent inkl. Gedächtnis in dev aktiviert (Juli 2026)
 
 MINOR — Abschluss der KI-Assistent-dev-Aktivierung: nachdem die In-App-Gedächtnis-Eval (interne gpt-oss-Baseline, n=3) die Schwelle erreichte — fortschreibung/widerspruch/poisoning 3/3, kaltstart 2/3 — wird die Gedächtnis-Konsolidierung (Phase 2) in **dev** scharfgeschaltet. Weiterhin **opt-in + doppelt gegatet**; der Assistent ist per Default „nicht verbunden".

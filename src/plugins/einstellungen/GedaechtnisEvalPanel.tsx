@@ -183,8 +183,10 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
   // Die deterministischen Assertions sind das harte Gate; der Judge ist die
   // qualitative Zusatz-Sicht — bei Bedarf zuschalten.
   const [mitJudge, setMitJudge] = useState(false);
-  // Default agentisch (Qwen) — der interne Zweit-LLM-Tab für die Baseline.
-  const [transportModus, setTransportModus] = useState<TransportModus>('agentisch');
+  // Default intern (gpt-oss / Standard-Chat) — zuverlässig für die strukturierte
+  // JSON-Konsolidierung; der agentische Qwen-Tab liefert teils Reasoning-Prosa statt
+  // JSON + Loop-Detector-Abbruch. (Die Produktion trifft ohnehin den Standard-Chat.)
+  const [transportModus, setTransportModus] = useState<TransportModus>('intern');
   const openRouterVerfuegbar = isOpenRouterEnabled();
   const [orConfig, setOrConfig] = useState<EvalJudgeConfig>(JUDGE_DEFAULTS);
   const [orOpen, setOrOpen] = useState(false);
