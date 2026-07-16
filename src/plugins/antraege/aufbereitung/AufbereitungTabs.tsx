@@ -2,46 +2,51 @@
  * Tab-Leiste der Aufbereitungs-Seite. Kleine, handgebaute Section-Tab-Strip
  * (KEIN `ScopeTabs` — das sind Zähler-/Listen-Sichten). Aktiv = `--tf-text` +
  * 2px-`--tf-text`-Unterstrich (DESIGN_GUIDE „Tabs": Unterstrich schwarz, NICHT
- * primary). Seit v2.221 sind alle acht Tabs `aktiv`; `inaktiv`-Tabs (nicht klickbar,
- * tertiär, kein Hover, KEINE Opacity) bleiben als Zustand für künftige Ausbauten.
+ * primary). `inaktiv`-Tabs (nicht klickbar, tertiär, kein Hover, KEINE Opacity)
+ * werden seit Paket 5 dynamisch aus dem Baustein-Status abgeleitet (Tab-Gating,
+ * `deriveTabZustaende`): während eines Laufs bleibt ein baustein-gebundener Tab
+ * gesperrt, bis sein Baustein fertig ist. Ohne `zustaende`-Prop ist alles klickbar.
  */
 import { cn } from '@/lib/utils';
+import type { TabZustandInfo } from './tab-gating';
 
 export type AufbereitungTabId =
-  | 'steckbrief' | 'abdeckung' | 'zeitplan' | 'zahlen' | 'verwertung' | 'glossar' | 'fragen' | 'recherche' | 'lesemodus';
+  | 'uebersicht' | 'steckbrief' | 'abdeckung' | 'zeitplan' | 'zahlen' | 'verwertung' | 'glossar' | 'fragen' | 'recherche' | 'lesemodus';
 
 interface TabDef {
   id: AufbereitungTabId;
   label: string;
-  /** aktiv = voll funktional · platzhalter = klickbar, „In Vorbereitung" · inaktiv = nicht klickbar. */
-  zustand: 'aktiv' | 'platzhalter' | 'inaktiv';
 }
 
 export const AUFBEREITUNG_TABS: TabDef[] = [
-  { id: 'steckbrief', label: 'Steckbrief', zustand: 'aktiv' },
-  { id: 'abdeckung', label: 'Abdeckung', zustand: 'aktiv' },
-  { id: 'zeitplan', label: 'Zeitplan', zustand: 'aktiv' },
-  { id: 'zahlen', label: 'Zahlen', zustand: 'aktiv' },
-  { id: 'verwertung', label: 'Verwertung/Markt', zustand: 'aktiv' },
-  { id: 'glossar', label: 'Glossar', zustand: 'aktiv' },
-  { id: 'fragen', label: 'Fragen', zustand: 'aktiv' },
-  { id: 'recherche', label: 'Recherche', zustand: 'aktiv' },
-  { id: 'lesemodus', label: 'Lesemodus', zustand: 'aktiv' },
+  { id: 'uebersicht', label: 'Übersicht' },
+  { id: 'steckbrief', label: 'Steckbrief' },
+  { id: 'abdeckung', label: 'Abdeckung' },
+  { id: 'zeitplan', label: 'Zeitplan' },
+  { id: 'zahlen', label: 'Zahlen' },
+  { id: 'verwertung', label: 'Verwertung/Markt' },
+  { id: 'glossar', label: 'Glossar' },
+  { id: 'fragen', label: 'Fragen' },
+  { id: 'recherche', label: 'Recherche' },
+  { id: 'lesemodus', label: 'Lesemodus' },
 ];
 
 export function AufbereitungTabs({
-  active, onChange,
+  active, onChange, zustaende,
 }: {
   active: AufbereitungTabId;
   onChange: (id: AufbereitungTabId) => void;
+  /** Klick-Zustand je Tab (aus `deriveTabZustaende`); fehlt er, ist der Tab klickbar. */
+  zustaende?: Record<AufbereitungTabId, TabZustandInfo>;
 }): React.ReactElement {
   return (
     <div className="flex items-end gap-6 overflow-x-auto" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
       {AUFBEREITUNG_TABS.map(t => {
-        if (t.zustand === 'inaktiv') {
+        const info = zustaende?.[t.id];
+        if (info?.zustand === 'inaktiv') {
           return (
             <span key={t.id} className="pb-2.5 text-[13.5px] whitespace-nowrap text-[var(--tf-text-tertiary)] cursor-default select-none"
-              title="In Vorbereitung">
+              title={info.title ?? 'noch nicht aufbereitet'}>
               {t.label}
             </span>
           );

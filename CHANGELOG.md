@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.259.0 — Antrag-Aufbereitung: Übersicht-Cockpit + Tab-Gating (dev) (Juli 2026)
+
+MINOR — Start von Paket 5 (Recherche & Cockpit): Die KI-Läufe dauern Minuten, aber man sah nur `kiFertig/5` im Button. Neuer erster Tab „Übersicht" mit vertikalem Stepper zeigt live, was läuft/fertig ist; baustein-gebundene Tabs sind während eines Laufs erst klickbar, wenn ihr Baustein fertig ist. Nur dev.
+
+- **Neuer Default-Tab „Übersicht"** (Cockpit): Stepper über die KI-Bausteine + deterministischer Zeitplan-/Quellen-Status, dieselben Start-Actions ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx) + reines [uebersicht.ts](src/plugins/antraege/aufbereitung/uebersicht.ts)).
+- **Dynamisches Tab-Gating** aus dem Baustein-Status (reine `deriveTabZustaende`): gesperrt bis fertig; nie vor dem ersten Lauf, nie der aktive Tab, `fehler` bleibt klickbar ([tab-gating.ts](src/plugins/antraege/aufbereitung/tab-gating.ts) + [AufbereitungTabs.tsx](src/plugins/antraege/aufbereitung/AufbereitungTabs.tsx)).
+- Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) (folgt in Phase 5).
+
 ### v2.258.0 — Assistent-Panel: routen-sensitive Quick-Action-Leiste (Topf 1) (Juli 2026)
 
 MINOR — Die statischen Beispielfragen des Assistent-Panels werden zu routen-sensitiven Quick Actions: vorgefertigte Fragen über dem ohnehin assemblierten Kontext, je nach Ansicht/Entität. Kein neuer LLM-/Transport-Mechanismus — ein Klick schickt nur einen Fragetext durch denselben Turn-Pfad. Nur dev.

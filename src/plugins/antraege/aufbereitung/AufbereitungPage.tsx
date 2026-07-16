@@ -23,6 +23,8 @@ import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
 import { useAufbereitung } from './useAufbereitung';
 import { QuellenPanel } from './QuellenPanel';
 import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
+import { deriveTabZustaende } from './tab-gating';
+import { UebersichtTab } from './UebersichtTab';
 import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
@@ -60,7 +62,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       })),
     } : null,
   );
-  const [tab, setTab] = useState<AufbereitungTabId>('zeitplan');
+  const [tab, setTab] = useState<AufbereitungTabId>('uebersicht');
   const [ansicht, setAnsicht] = useState<AbdeckungAnsicht>('liste');
   // „Im Antrag öffnen": Fundstelle → Lesemodus-Tab + Sprung zur Sektion (Context, kein Drilling).
   const [sprungZiel, setSprungZiel] = useState<string | null>(null);
@@ -162,12 +164,41 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
       ) : null}
 
       <div className="mt-4">
-        <AufbereitungTabs active={tab} onChange={setTab} />
+        <AufbereitungTabs
+          active={tab}
+          onChange={setTab}
+          zustaende={deriveTabZustaende({
+            gebundeneTabs: {
+              steckbrief: aufb.steckbrief.status,
+              abdeckung: aufb.aspekte.status,
+              zahlen: aufb.zahlen.status,
+              glossar: aufb.glossar.status,
+              verwertung: aufb.verwertung.status,
+            },
+            activeTab: tab,
+          })}
+        />
       </div>
 
       <div className="mt-6">
         <LesemodusSprungProvider value={sprung}>
-        {tab === 'zeitplan' ? (
+        {tab === 'uebersicht' ? (
+          <UebersichtTab
+            run={aufb.run}
+            loading={aufb.loading}
+            veraltet={aufb.veraltet}
+            stepper={{
+              aspekte: aufb.aspekte,
+              steckbrief: aufb.steckbrief,
+              zahlen: aufb.zahlen,
+              glossar: aufb.glossar,
+              verwertung: aufb.verwertung,
+            }}
+            onTab={setTab}
+            bausteine={aufb.bausteine}
+            neu={aufb.neu}
+          />
+        ) : tab === 'zeitplan' ? (
           <ZeitplanTab
             run={aufb.run}
             loading={aufb.loading}
