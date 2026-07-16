@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FlaskConical, ChevronDown, ChevronRight, Copy, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -178,6 +179,10 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
   const [ausgewaehlt, setAusgewaehlt] = useState<Record<string, boolean>>(
     () => Object.fromEntries(GEDAECHTNIS_FIXTURES.map(f => [f.id, f.id !== 'degradation-1'])),
   );
+  // Judge Default AUS: er verdoppelt die Bridge-Runden (reset + submit je Lauf).
+  // Die deterministischen Assertions sind das harte Gate; der Judge ist die
+  // qualitative Zusatz-Sicht — bei Bedarf zuschalten.
+  const [mitJudge, setMitJudge] = useState(false);
   // Default agentisch (Qwen) — der interne Zweit-LLM-Tab für die Baseline.
   const [transportModus, setTransportModus] = useState<TransportModus>('agentisch');
   const openRouterVerfuegbar = isOpenRouterEnabled();
@@ -232,7 +237,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
     setVerlauf(gewaehlteFixtures.map(f => ({ id: f.id, status: 'pending' as const })));
     try {
       const erg = await laufeGedaechtnisEval(
-        { n, transport, judgeTransport: transport, ziel, reset: true, signal: ctrl.signal, fixtures: gewaehlteFixtures },
+        { n, transport, judgeTransport: mitJudge ? transport : null, ziel, reset: true, signal: ctrl.signal, fixtures: gewaehlteFixtures },
         {
           onFixtureStart: (id) =>
             setVerlauf(v => v.map(x => (x.id === id ? { ...x, status: 'running' } : x))),
@@ -357,6 +362,13 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
                   <option value="agentisch">Intern agentisch (Qwen)</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
+              </label>
+              <label
+                className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
+                title="Zusätzlicher LLM-Judge (Faktentreue/Nützlichkeit). Verdoppelt die Bridge-Runden (reset + submit je Lauf) — für einen schnellen Assertions-Lauf aus lassen."
+              >
+                <Switch checked={mitJudge} onCheckedChange={setMitJudge} disabled={start.busy} />
+                Judge einschließen
               </label>
             </div>
 

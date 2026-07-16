@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.256.3 — Gedächtnis-Eval: Judge-einschließen-Schalter (Default aus, schnellerer Lauf) (Juli 2026)
+
+PATCH — Der Baseline-Lauf dauerte über die Bridge sehr lang: jeder Fixture-Lauf machte reset + Generierung + reset + Judge, der Judge verdoppelte die Bridge-Runden. Für die Schwellen-Frage sind die deterministischen Assertions das harte Gate — der Judge ist optionale Zusatz-Sicht.
+
+- **„Judge einschließen"-Schalter** im Panel (Default **aus**): ohne Judge ist ein Lauf nur reset + Generierung je Fixture → grob halbe Bridge-Last; Judge bei Bedarf zuschaltbar ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)).
+
 ### v2.256.2 — Gedächtnis-Eval: Harness-Recalibrierung + Kontext-Wechsel-Prompt (dev) (Juli 2026)
 
 PATCH — Konsequenzen der ersten Qwen-Baseline (v2.256.0/.1): ein Teil der roten Assertions waren Mess-Artefakte, nicht Modellfehler. Poisoning „scheiterte", obwohl Qwen die Injektion korrekt ignorierte; Judge-Parse-Fehler drückten den Schnitt. Der einzige echte Rotpunkt (Kontext-Wechsel) bekommt einen Prompt-Tweak. Flag-Flip in dev folgt erst nach zufriedenstellender Re-Baseline.
