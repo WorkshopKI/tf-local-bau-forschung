@@ -12,6 +12,7 @@ import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { GanttZeitplan } from './GanttZeitplan';
 import { PersonenZeitplan } from './PersonenZeitplan';
 import { KennzahlenKarte, BefundZeile } from './zeitplanBausteine';
+import { zeitplanUnsicher } from './zeitplan-qualitaet';
 import { AUFBEREITUNG_TYP_OPTIONEN } from './QuellenPanel';
 import { verbundZeitplanSummary, befundKey } from './store';
 import type { AufbereitungRun, TvPlan } from './types';
@@ -80,12 +81,15 @@ function TvZeitplanSektion({
 }): React.ReactElement {
   const [ansicht, setAnsicht] = useState<'ap' | 'person'>('ap');
   const titel = `TV ${tp.nr} — ${tp.tvAkronym ?? tp.tvAz}${tp.tvAkronym ? ` · ${tp.tvAz}` : ''}`;
+  // Extraktion unsicher (Tabelle zerfallen) → kein Gantt, ehrlicher Hinweis (wie Solo).
+  const unsicher = !!tp.zeitplan && zeitplanUnsicher(tp.zeitplan.zeilen);
+  const zeigeGantt = !!tp.zeitplan && !unsicher;
 
   return (
     <section className="mt-8 first:mt-0">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <SectionHeader label={titel} />
-        {tp.zeitplan ? (
+        {zeigeGantt ? (
           <ScopeTabs
             variant="pills"
             items={[
@@ -99,7 +103,7 @@ function TvZeitplanSektion({
         ) : null}
       </div>
 
-      {tp.zeitplan ? (
+      {zeigeGantt && tp.zeitplan ? (
         <>
           <div className="flex gap-6 items-start flex-wrap">
             <div className="flex-1 min-w-[420px]">
@@ -122,7 +126,14 @@ function TvZeitplanSektion({
         </>
       ) : (
         <div className="mt-2 rounded-[10px] px-4 py-4" style={{ border: '0.5px dashed var(--tf-border)' }}>
-          {tp.anlage ? (
+          {unsicher ? (
+            // Anlage 5 hinterlegt UND geparst, aber die Extraktion ist unsicher (> 50 % der
+            // Zeilen ohne Laufzeit-Spanne) → kein Gantt (täuscht Vollständigkeit vor).
+            <p className="text-[13px] text-[var(--tf-warning-text)] mb-2">
+              ⚠ Anlage 5 {tp.anlage ? `„${tp.anlage.name}" ` : ''}ist hinterlegt, aber nicht zuverlässig auslesbar —
+              die Tabelle zerfiel bei der Extraktion. Kein Gantt-Diagramm. Bitte als <strong>DOCX</strong> neu hochladen.
+            </p>
+          ) : tp.anlage ? (
             // Dokument IST hinterlegt, aber die Tabelle war nicht auslesbar (typisch für
             // PDF-Tabellen, die zu Flattext zerfallen) — NICHT als „fehlt" darstellen.
             <p className="text-[13px] text-[var(--tf-warning-text)] mb-2">

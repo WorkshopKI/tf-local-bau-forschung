@@ -60,7 +60,7 @@ describe('parseZahlen', () => {
     const d = parseZahlen(raw, SEKTION_IDS)!;
     expect(d.schemaVersion).toBe(1);
     expect(d.claims).toHaveLength(2);
-    expect(d.claims[0]).toEqual({ wert: '>95 %', einheit: '%', kategorie: 'leistung', kontext: 'Erkennungsrate', sektionIds: ['k-3.1'] });
+    expect(d.claims[0]).toEqual({ wert: '>95 %', einheit: '%', kategorie: 'leistung', relevanz: 'detail', kontext: 'Erkennungsrate', sektionIds: ['k-3.1'] });
     expect(d.claims[1]!.kategorie).toBe('sonstig');
   });
 

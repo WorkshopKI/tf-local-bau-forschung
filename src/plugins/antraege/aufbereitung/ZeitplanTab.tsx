@@ -12,6 +12,8 @@ import { GanttZeitplan } from './GanttZeitplan';
 import { PersonenZeitplan } from './PersonenZeitplan';
 import { KennzahlenKarte, BefundZeile } from './zeitplanBausteine';
 import { VerbundZeitplan } from './VerbundZeitplan';
+import { Rohtabellen } from './Rohtabellen';
+import { zeitplanUnsicher } from './zeitplan-qualitaet';
 import { befundKey } from './store';
 import type { AufbereitungRun } from './types';
 
@@ -100,6 +102,7 @@ function ZeitplanInhalt({
 }): React.ReactElement {
   const { zeilen, herkunft, achseMax } = zeitplan;
   const [ansicht, setAnsicht] = useState<'ap' | 'person'>('ap');
+  const [rohManuell, setRohManuell] = useState(false);
 
   // AP-Nummern mit Zeitraum-Abweichung (Warning-Dot im Gantt).
   const abweichungsNummern = new Set<string>();
@@ -113,6 +116,31 @@ function ZeitplanInhalt({
   const quelleName = herkunft === 'vb' ? 'Text-Projektplan (VB)' : 'Anlage 5';
   const hatMaNr = zeilen.some(z => !!z.maNr?.trim());
   const aktiveAnsicht = hatMaNr ? ansicht : 'ap';
+  const unsicher = zeitplanUnsicher(zeilen);
+
+  // Extraktion unsicher (PDF-Tabelle zerfallen) → KEIN Gantt (täuscht Vollständigkeit vor),
+  // stattdessen ehrlicher Hinweis + die geernteten Roh-Tabellen zum Selbstlesen.
+  if (unsicher) {
+    return (
+      <>
+        <SectionHeader label={`PROJEKTPLAN — ${HERKUNFT_LABEL[herkunft]}`} />
+        <div className="mt-2 rounded-[10px] px-4 py-3 text-[13px] text-[var(--tf-warning-text)]" style={{ border: '0.5px solid var(--tf-warning-border)', background: 'var(--tf-warning-soft)' }}>
+          ⚠ Arbeitsplan hinterlegt, aber nicht zuverlässig auslesbar — die Tabelle zerfiel bei der Extraktion
+          (häufig bei PDF-Tabellen). Kein Gantt-Diagramm, da es sonst Vollständigkeit vortäuscht. Bitte die
+          geernteten Roh-Tabellen unten selbst prüfen (oder die Anlage 5 als <strong>DOCX</strong> neu hochladen).
+        </div>
+        <Rohtabellen tabellen={run.tabellen} className="mt-4" />
+        {run.befunde.length > 0 ? (
+          <div className="mt-8">
+            <SectionHeader label="PLAUSIBILITÄT — TEXT VS. ANLAGE 5" />
+            {run.befunde.map((b, i) => (
+              <BefundZeile key={i} befund={b} offen={run.offenePunkte.includes(befundKey(b))} toggle={toggle} />
+            ))}
+          </div>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <>
@@ -143,6 +171,16 @@ function ZeitplanInhalt({
           quelleHash={run.quellen.find(q => q.rolle === (herkunft === 'vb' ? 'vb' : 'anlage5'))?.hash ?? null}
         />
       </div>
+
+      {/* Manuelle Übersteuerung: Roh-Tabellen auch bei gelungener Extraktion (Vergleich). */}
+      {run.tabellen.length > 0 ? (
+        <div className="mt-4">
+          <Button variant="ghost" size="sm" onClick={() => setRohManuell(v => !v)}>
+            {rohManuell ? 'Rohtabellen ausblenden' : 'Rohtabellen anzeigen'}
+          </Button>
+          {rohManuell ? <Rohtabellen tabellen={run.tabellen} className="mt-2" /> : null}
+        </div>
+      ) : null}
 
       {run.befunde.length > 0 ? (
         <div className="mt-8">

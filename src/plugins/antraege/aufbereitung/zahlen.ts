@@ -45,6 +45,9 @@ export const ZAHL_KATEGORIE_IDS: ReadonlySet<string> = new Set(ZAHL_KATEGORIEN.m
 /** Fallback-Kategorie für unbekannte/fehlende Werte (tolerant, wie `effektiveKategorie`). */
 const KATEGORIE_FALLBACK = 'sonstig';
 
+/** Prüfrelevanz eines Claims — Auswahl des Modells (keine Wertung der Richtigkeit). */
+export type ZahlRelevanz = 'kern' | 'detail';
+
 /** Ein ausgewählter Zahlen-Claim: wörtlicher Wert + Kategorie + Kontext + Fundstellen. */
 export interface ZahlClaim {
   /** Wert WÖRTLICH wie im Text (z.B. ">95 %", "24 Monate", "3,5 PM"). */
@@ -53,6 +56,13 @@ export interface ZahlClaim {
   einheit?: string;
   /** Kategorie aus `ZAHL_KATEGORIEN` (Fallback `sonstig`). */
   kategorie: string;
+  /**
+   * Prüfrelevanz (Modell-Auswahl, keine Berechnung): `kern` = zentrale Prüfwerte,
+   * `detail` = Nebenwerte. Der Parser setzt es immer; OPTIONAL, damit alte Cache-Einträge
+   * ohne das Feld gültige `ZahlClaim[]` bleiben (die Anzeige behandelt fehlend als `detail`).
+   * Reine Selektion, Deterministik-Grenze unverletzt.
+   */
+  relevanz?: ZahlRelevanz;
   /** Kurzes wörtliches Umfeld (≤ ~20 Wörter). */
   kontext: string;
   /** Sektions-IDs als Fundstelle (Pflicht, ≥ 1 — validiert gegen die Gliederung). */
@@ -87,13 +97,18 @@ ${kategorieListe}
 ${vbMarkdown}
 
 ## Aufgabe
-Sammle jeden Claim, der einen Zahlenwert trägt (Leistungswerte, Laufzeiten, Personenmonate, Kosten, Marktzahlen …). Gib den Wert WÖRTLICH wie im Text an (z.B. ">95 %", "24 Monate", "3,5 PM"). Rechne nichts aus, rechne nichts um, fasse nichts zusammen, erfinde keine Werte. Ordne jeden Claim einer Kategorie aus dem Katalog zu und gib die Sektions-IDs an, aus denen er stammt (mindestens eine, ausschließlich aus der obigen Liste).
+Sammle die **prüfrelevanten** Claims mit Zahlenwert. Gib den Wert WÖRTLICH wie im Text an (z.B. ">95 %", "24 Monate", "3,5 PM"). Rechne nichts aus, rechne nichts um, fasse nichts zusammen, erfinde keine Werte. Ordne jeden Claim einer Kategorie aus dem Katalog zu und gib die Sektions-IDs an, aus denen er stammt (mindestens eine, ausschließlich aus der obigen Liste).
+
+**Erwünscht** (aufnehmen): Leistungs-/Zielwerte des Vorhabens, Laufzeit- und Meilenstein-Termine, Personenmonate/Kapazitäten, Kosten-Eckwerte, Marktzahlen (Volumen, Wachstum, Anteile).
+**Nicht erwünscht** (weglassen): beiläufige Zahlen ohne Prüfrelevanz — Seitenzahlen, Kapitel-/Abbildungsnummern, historische Jahreszahlen im Fließtext, generische Prozentangaben ohne konkreten Bezug zum Vorhaben.
+
+Markiere je Claim das Feld \`relevanz\`: \`kern\` für die zentralen Prüfwerte (Leistungs-/Zielwerte, Laufzeit, PM/Kapazität, Kosten-Eckwerte, Marktvolumen), \`detail\` für unterstützende Nebenwerte. Das ist eine Auswahl, keine Bewertung der Richtigkeit.
 
 Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach. Gib das JSON **kompakt** aus: jeden Claim in GENAU EINER Zeile wie im Beispiel, KEINE mehrzeilig eingerückten Objekte, kein Pretty-Print — nur so passen ALLE Zahlen ins Antwort-Limit (eingerückte Objekte verbrauchen ein Vielfaches an Platz und schneiden die Liste ab):
 \`\`\`json
 { "schemaVersion": 1, "claims": [
-{ "wert": ">95 %", "einheit": "%", "kategorie": "leistung", "kontext": "Erkennungsrate von über 95 %", "sektionIds": ["k-3.1"] },
-{ "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "kontext": "Projektlaufzeit von 24 Monaten", "sektionIds": ["k-9"] }
+{ "wert": ">95 %", "einheit": "%", "kategorie": "leistung", "relevanz": "kern", "kontext": "Erkennungsrate von über 95 %", "sektionIds": ["k-3.1"] },
+{ "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "relevanz": "kern", "kontext": "Projektlaufzeit von 24 Monaten", "sektionIds": ["k-9"] }
 ] }
 \`\`\`
 Nutze ausschließlich die oben vergebenen Sektions-IDs und die Kategorie-IDs. Ein Claim = eine Zeile, keine Zeilenumbrüche innerhalb eines Claims.`;
@@ -115,6 +130,11 @@ function valideIds(v: unknown, known: Set<string>): string[] {
 function normalisiereKategorie(v: unknown): string {
   const s = alsString(v)?.toLowerCase();
   return s && ZAHL_KATEGORIE_IDS.has(s) ? s : KATEGORIE_FALLBACK;
+}
+
+/** Tolerante Relevanz: nur `kern` schaltet auf Kern; alles andere/fehlend → `detail`. */
+function normalisiereRelevanz(v: unknown): ZahlRelevanz {
+  return alsString(v)?.toLowerCase() === 'kern' ? 'kern' : 'detail';
 }
 
 /**
@@ -142,6 +162,7 @@ export function parseZahlen(raw: string, sektionIds: string[]): ZahlenDaten | nu
       wert,
       ...(einheit ? { einheit } : {}),
       kategorie: normalisiereKategorie(o.kategorie),
+      relevanz: normalisiereRelevanz(o.relevanz),
       kontext: alsString(o.kontext) ?? '',
       sektionIds: ids,
     });

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.263.0 — Antrag-Aufbereitung: Zahlen straffen + Zeitplan ehrlich degradieren (dev) (Juli 2026)
+
+MINOR — Paket 5, Phase 4. Prüfer-Feedback „zu viele Zahlen": Prompt auf prüfrelevante Auswahl geschärft + neues Claim-Feld `relevanz` (kern/detail) → UI-Filter „Kernzahlen" (Default). Zeitplan: eine unsicher ausgelesene Anlage 5 (PDF-Tabelle zerfallen) täuschte per Gantt Vollständigkeit vor — jetzt ehrlich „nicht auslesbar" + Roh-Tabellen statt Diagramm. Nur dev.
+
+- **Zahlen-Prompt geschärft** (erwünscht/unerwünscht) + optionales `relevanz` (Parser tolerant, fehlend→`detail`, alte Caches gültig) ([zahlen.ts](src/plugins/antraege/aufbereitung/zahlen.ts)).
+- **ZahlenTab-Filter** „Kernzahlen"/„Alle" (ScopeTabs) + Zähler „X von Y angezeigt" + Kategorie-Gruppen bei >8 eingeklappt ([ZahlenTab.tsx](src/plugins/antraege/aufbereitung/ZahlenTab.tsx)).
+- **Zeitplan-Degradation**: `zeitplanUnsicher` (0 AP-Zeilen ODER >50 % ohne Laufzeit-Spanne) → kein Gantt, Hinweis + Roh-Tabellen ([Rohtabellen.tsx](src/plugins/antraege/aufbereitung/Rohtabellen.tsx) via `MarkdownRenderer`); Ghost-Toggle „Rohtabellen anzeigen" auch bei gelungener Extraktion ([zeitplan-qualitaet.ts](src/plugins/antraege/aufbereitung/zeitplan-qualitaet.ts), Solo + Verbund).
+- **Keine Seed-Migration nötig**: der Zahlen-Prompt lebt in `buildZahlenPrompt` (Code), nicht im Seed-`promptTemplate` — die Änderung deployt mit dem Build.
+- Tests: `zeitplanUnsicher`/`tabelleAlsMarkdown`, `relevanz`-Parse (fehlend→detail).
+
 ### v2.262.0 — Antrag-Aufbereitung: Verwertung/Markt gegen externe Schicht spiegeln (dev) (Juli 2026)
 
 MINOR — Paket 5, Phase 3: Der Verwertung/Markt-Tab stellt je Kategorie „Laut Antrag" den importierten externen Aussagen („Extern · nicht verifiziert") gegenüber. Zuordnung ausschließlich über die geteilte Kategorie — KEIN Fuzzy-Matching, KEINE automatische Widerspruchs-Wertung; der Prüfer vergleicht selbst. Nur dev.

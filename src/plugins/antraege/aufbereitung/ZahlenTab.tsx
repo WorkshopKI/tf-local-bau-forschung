@@ -6,8 +6,9 @@
  * betroffenen Claim und speisen die bestehende `offenePunkte`-Mechanik. Monochrom,
  * Farbe nur über StatusDot/Badges.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { FundstelleChip } from './FundstelleChip';
@@ -99,9 +100,14 @@ function ZahlenInhalt({
     return m;
   }, [befunde]);
 
+  // Filter „Kernzahlen" (Default) vs. „Alle anzeigen" — reine Anzeige-Selektion.
+  const [nurKern, setNurKern] = useState(true);
+  const kernAnzahl = useMemo(() => daten.claims.filter(c => c.relevanz === 'kern').length, [daten.claims]);
+  const sichtbar = useMemo(() => (nurKern ? daten.claims.filter(c => c.relevanz === 'kern') : daten.claims), [daten.claims, nurKern]);
+
   const gruppen = useMemo(
-    () => ZAHL_KATEGORIEN.map(k => ({ kat: k, claims: daten.claims.filter(c => c.kategorie === k.id) })).filter(g => g.claims.length > 0),
-    [daten.claims],
+    () => ZAHL_KATEGORIEN.map(k => ({ kat: k, claims: sichtbar.filter(c => c.kategorie === k.id) })).filter(g => g.claims.length > 0),
+    [sichtbar],
   );
 
   return (
@@ -120,34 +126,91 @@ function ZahlenInhalt({
         <div className="py-14 text-center text-[13px] text-[var(--tf-text-tertiary)]">Keine Zahlen-Claims gefunden.</div>
       ) : (
         <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <ScopeTabs
+              variant="pills"
+              items={[
+                { key: 'kern', label: 'Kernzahlen', count: kernAnzahl },
+                { key: 'alle', label: 'Alle anzeigen', count: daten.claims.length },
+              ]}
+              activeKey={nurKern ? 'kern' : 'alle'}
+              onChange={(k) => setNurKern(k === 'kern')}
+              aria-label="Zahlen-Filter: Kernzahlen oder alle"
+            />
+            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{sichtbar.length} von {daten.claims.length} angezeigt</span>
+          </div>
           {befunde.length > 0 ? (
             <div className="text-[12px] text-[var(--tf-warning-text)]">
               {befunde.length} {befunde.length === 1 ? 'Zahlen-Widerspruch' : 'Zahlen-Widersprüche'} zum Zeitplan / zur Anlage 5.
             </div>
           ) : null}
-          {gruppen.map(g => (
-            <div key={g.kat.id} className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-              <div className="mb-2 flex items-baseline gap-2">
-                <span className="text-[13px] font-medium text-[var(--tf-text)]">{g.kat.name}</span>
-                <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{g.claims.length}</span>
-              </div>
-              {g.claims.map((c, i) => (
-                <ClaimZeile
-                  key={`${c.wert}:${i}`}
-                  claim={c}
-                  befunde={befundeProWert.get(c.wert) ?? []}
-                  offenePunkte={run.offenePunkte}
-                  toggleBusy={toggle.busy}
-                  onToggle={(key) => toggle.run(key)}
-                  chips={chips}
-                  letzte={i === g.claims.length - 1}
-                />
-              ))}
+          {gruppen.length === 0 ? (
+            <div className="py-8 text-center text-[12.5px] text-[var(--tf-text-tertiary)]">
+              Keine Kernzahlen markiert — auf „Alle anzeigen" umschalten.
             </div>
+          ) : gruppen.map(g => (
+            <KategorieGruppe
+              key={g.kat.id}
+              name={g.kat.name}
+              claims={g.claims}
+              befundeProWert={befundeProWert}
+              offenePunkte={run.offenePunkte}
+              toggleBusy={toggle.busy}
+              onToggle={(key) => toggle.run(key)}
+              chips={chips}
+            />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+/** Eine Kategorie-Gruppe; bei > 8 Claims standardmäßig eingeklappt (nichts still verstecken — der Zähler bleibt sichtbar). */
+function KategorieGruppe({
+  name, claims, befundeProWert, offenePunkte, toggleBusy, onToggle, chips,
+}: {
+  name: string;
+  claims: ZahlClaim[];
+  befundeProWert: Map<string, ZahlBefund[]>;
+  offenePunkte: string[];
+  toggleBusy: boolean;
+  onToggle: (key: string) => void;
+  chips: (ids: string[]) => React.ReactElement[];
+}): React.ReactElement {
+  const einklappbar = claims.length > 8;
+  const zeilen = claims.map((c, i) => (
+    <ClaimZeile
+      key={`${c.wert}:${i}`}
+      claim={c}
+      befunde={befundeProWert.get(c.wert) ?? []}
+      offenePunkte={offenePunkte}
+      toggleBusy={toggleBusy}
+      onToggle={onToggle}
+      chips={chips}
+      letzte={i === claims.length - 1}
+    />
+  ));
+  if (!einklappbar) {
+    return (
+      <div className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <div className="mb-2 flex items-baseline gap-2">
+          <span className="text-[13px] font-medium text-[var(--tf-text)]">{name}</span>
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{claims.length}</span>
+        </div>
+        {zeilen}
+      </div>
+    );
+  }
+  return (
+    <details className="rounded-xl p-4 group" style={{ border: '0.5px solid var(--tf-border)' }}>
+      <summary className="mb-2 flex cursor-pointer items-baseline gap-2 list-none">
+        <span className="text-[13px] font-medium text-[var(--tf-text)]">{name}</span>
+        <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{claims.length}</span>
+        <span className="text-[11px] text-[var(--tf-text-tertiary)] group-open:hidden">— aufklappen</span>
+      </summary>
+      {zeilen}
+    </details>
   );
 }
 
