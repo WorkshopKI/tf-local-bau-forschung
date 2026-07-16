@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import type { VbSektion } from './gliederung';
 import { sektionZuAspekte, type AspektMapping, type AspektSubstanz } from './aspekte';
+import { baueSilhouetteBloecke } from './silhouette-core';
 import { FundstellePopover } from './FundstelleChip';
 
 const WARN = 'var(--tf-warning-text)'; // Warning-Dot/Badge — Token statt Hex (Default #4)
@@ -56,12 +57,10 @@ function baueSilhouette(
 ): SilhouetteZeile[] {
   const s2a = sektionZuAspekte(mapping);
   const duennAspekte = new Set(substanz.filter(x => x.duenn).map(x => x.aspektId));
-  const docLen = gliederung.reduce((m, s) => Math.max(m, s.end), 0);
-  const alleL1 = gliederung.filter(s => s.ebene === 1).sort((a, b) => a.start - b.start);
-  const bloecke = alleL1
-    .map((s, i) => ({ s, masse: (alleL1[i + 1]?.start ?? docLen) - s.start }))
-    .filter(b => b.s.id !== 's-toc' && b.masse > 0);
-  const gesamt = bloecke.reduce((sum, b) => sum + b.masse, 0) || 1;
+  // Geteilter Massen-/Anteils-Kern (identisch zur Lesemodus-Scroll-Nav).
+  const kern = baueSilhouetteBloecke(gliederung);
+  const bloecke = kern.map(b => ({ s: b.sektion, masse: b.masse }));
+  const gesamt = kern.reduce((sum, b) => sum + b.masse, 0) || 1;
   const anteilVon = (masse: number): number => masse / gesamt;
 
   const kinderVon = (s: VbSektion): VbSektion[] =>

@@ -24,6 +24,7 @@ import { useAufbereitung } from './useAufbereitung';
 import { QuellenPanel } from './QuellenPanel';
 import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { deriveTabZustaende } from './tab-gating';
+import { aggregiereFundstellen } from './lesemodus-fundstellen';
 import { UebersichtTab } from './UebersichtTab';
 import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
@@ -86,6 +87,19 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const sprung = useMemo(
     () => (aufb.vbMarkdown ? springeZuFundstelle : null),
     [aufb.vbMarkdown, springeZuFundstelle],
+  );
+  // Fundstellen-Overlay des Lesemodus: welche Baustein-Ergebnisse referenzieren je Sektion
+  // (nur vorhandene Daten; deterministische Aggregation). Vor dem Early-Return (Hook-Order).
+  const fundstellen = useMemo(
+    () => aggregiereFundstellen({
+      gliederung: aufb.run?.gliederung ?? [],
+      aspekte: aufb.aspekte.daten ?? null,
+      steckbrief: aufb.steckbrief.daten ?? null,
+      zahlen: aufb.zahlen.daten ?? null,
+      verwertung: aufb.verwertung.daten ?? null,
+      glossar: aufb.glossar.daten ?? null,
+    }),
+    [aufb.run, aufb.aspekte.daten, aufb.steckbrief.daten, aufb.zahlen.daten, aufb.verwertung.daten, aufb.glossar.daten],
   );
   const bausteineGelaufen = aufb.aspekte.status === 'ok' || aufb.aspekte.status === 'degradiert';
   // Fortschritt für „Mit KI aufbereiten": wie viele der KI-Bausteine sind fertig
@@ -295,6 +309,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             vbMarkdown={aufb.vbMarkdown}
             sprungZiel={sprungZiel}
             onVerbraucht={verbraucheSprung}
+            fundstellen={fundstellen}
           />
         ) : (
           <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">In Vorbereitung (Paket 2)</div>

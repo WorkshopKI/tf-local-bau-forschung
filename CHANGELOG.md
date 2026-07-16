@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.264.0 — Antrag-Aufbereitung: Lesemodus-Silhouette-Nav + Fundstellen-Overlay + Doku (dev) (Juli 2026)
+
+MINOR — Paket 5, Phase 5 (Abschluss): Der Lesemodus wird von „Gliederung + Text" zu einer echten Navigation — schmale Silhouette als Scroll-Navigation (aktueller Abschnitt hervorgehoben) + Marginalien-Marker, die je Abschnitt zeigen, welche Bausteine ihn referenzieren. Nur dev.
+
+- **Silhouette-Scroll-Nav** im Lesemodus: proportionale Ebene-1-Blöcke, aktueller Viewport-Abschnitt via `IntersectionObserver` hervorgehoben, Klick scrollt hin ([LesemodusSilhouette.tsx](src/plugins/antraege/aufbereitung/LesemodusSilhouette.tsx)); Massen-Kern geteilt mit der Abdeckungs-Silhouette ([silhouette-core.ts](src/plugins/antraege/aufbereitung/silhouette-core.ts), behavior-preserving refaktoriert).
+- **Fundstellen-Overlay**: deterministische Aggregation (Abdeckung/Steckbrief/Zahlen/Verwertung/Glossar je Sektion) → Zähler-Marker + Popover ([lesemodus-fundstellen.ts](src/plugins/antraege/aufbereitung/lesemodus-fundstellen.ts) + [LesemodusTab.tsx](src/plugins/antraege/aufbereitung/LesemodusTab.tsx)).
+- **Doku**: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) um Paket 5 (Cockpit, DR-Fluss + DSGVO, externe Schicht, Zahlen-Relevanz, Zeitplan-Degradation, Lesemodus) erweitert.
+- Tests: Fundstellen-Aggregation (mehrere Bausteine, fremde IDs, leer, Kürzung).
+
 ### v2.263.0 — Antrag-Aufbereitung: Zahlen straffen + Zeitplan ehrlich degradieren (dev) (Juli 2026)
 
 MINOR — Paket 5, Phase 4. Prüfer-Feedback „zu viele Zahlen": Prompt auf prüfrelevante Auswahl geschärft + neues Claim-Feld `relevanz` (kern/detail) → UI-Filter „Kernzahlen" (Default). Zeitplan: eine unsicher ausgelesene Anlage 5 (PDF-Tabelle zerfallen) täuschte per Gantt Vollständigkeit vor — jetzt ehrlich „nicht auslesbar" + Roh-Tabellen statt Diagramm. Nur dev.
