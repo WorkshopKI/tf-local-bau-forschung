@@ -68,7 +68,11 @@ function statusVon(a: FixtureAggregat): VerlaufStatus {
 
 function kurzVon(a: FixtureAggregat): string {
   const teile = [`Assertions ${a.okLaeufe}/${a.n}`];
-  if (a.judgeF != null) teile.push(`Judge F${a.judgeF.toFixed(2)} N${(a.judgeN ?? 0).toFixed(2)}`);
+  if (a.judgeF != null) {
+    teile.push(`Judge F${a.judgeF.toFixed(2)} N${(a.judgeN ?? 0).toFixed(2)}${a.judgeFehler ? ` (${a.judgeFehler} Parse-Fehler)` : ''}`);
+  } else if (a.judgeFehler) {
+    teile.push(`Judge: ${a.judgeFehler} Parse-Fehler`);
+  }
   if (a.beispielVerletzung?.length) teile.push(a.beispielVerletzung.join(', '));
   return teile.join(' · ');
 }
@@ -103,7 +107,11 @@ function formatGedaechtnisReport(erg: GedaechtnisEvalErgebnis, meta: ReportMeta)
   ];
   const koerper = erg.aggregate.flatMap(a => {
     const zeilen = [`### ${a.id} (${a.szenario})`, `- Assertions: ${a.okLaeufe}/${a.n} ok`];
-    if (a.judgeF != null) zeilen.push(`- Judge: F=${a.judgeF.toFixed(2)} N=${(a.judgeN ?? 0).toFixed(2)}`);
+    if (a.judgeF != null) {
+      zeilen.push(`- Judge: F=${a.judgeF.toFixed(2)} N=${(a.judgeN ?? 0).toFixed(2)}${a.judgeFehler ? ` (${a.judgeFehler} Parse-Fehler ausgenommen)` : ''}`);
+    } else if (a.judgeFehler) {
+      zeilen.push(`- Judge: nur Parse-Fehler (${a.judgeFehler})`);
+    }
     if (a.okLaeufe < a.n) zeilen.push(`- Verletzungen: ${a.beispielVerletzung?.join(', ') ?? 'unbekannt'}`);
     return [...zeilen, ''];
   });

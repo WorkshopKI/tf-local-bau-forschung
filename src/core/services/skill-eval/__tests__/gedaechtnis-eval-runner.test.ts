@@ -34,6 +34,23 @@ class StubTransport implements AITransport {
   }
 }
 
+/** Liefert Ops für die Generierung und eine Warteschlange von Judge-Antworten
+ *  (zum Testen von Parse-Fehlern im Judge). */
+class JudgeFehlerStub implements AITransport {
+  name = 'JF';
+  private judgeCall = 0;
+  constructor(private readonly opsJson: string, private readonly judgeAntworten: string[]) {}
+  async ping(): Promise<boolean> { return true; }
+  async submitMessage(message: string): Promise<string> {
+    if (message.includes('bewertest')) {
+      const a = this.judgeAntworten[this.judgeCall] ?? '{"faktentreue":3,"nuetzlichkeit":3}';
+      this.judgeCall++;
+      return a;
+    }
+    return this.opsJson;
+  }
+}
+
 const KALTSTART = GEDAECHTNIS_FIXTURES.find(f => f.id === 'kaltstart-1')!;
 
 describe('gedaechtnis-eval-runner', () => {
@@ -79,6 +96,20 @@ describe('gedaechtnis-eval-runner', () => {
     await laufeEineFixtureMitJudge(KALTSTART, { n: 1, transport: stub });
     expect(stub.resetCalls).toEqual([]);
     expect(stub.submitZiele).toEqual([undefined]); // nur Generierung, kein Judge
+  });
+
+  it('Judge-Parse-Fehler fließen NICHT ins Mittel (nur gute Judges zählen)', async () => {
+    const stub = new JudgeFehlerStub(
+      JSON.stringify(KALTSTART.zyklen[0]!.stubOps),
+      ['{"faktentreue":5,"nuetzlichkeit":5}', 'kaputt-kein-json'], // run 1 = Parse-Fehler
+    );
+    const { aggregat } = await laufeEineFixtureMitJudge(KALTSTART, {
+      n: 2, transport: stub, judgeTransport: stub,
+    });
+    expect(aggregat.okLaeufe).toBe(2);
+    expect(aggregat.judgeF).toBe(5); // nur der gute Judge (nicht der 0er-Parse-Fehler)
+    expect(aggregat.judgeN).toBe(5);
+    expect(aggregat.judgeFehler).toBe(1);
   });
 
   it('AbortSignal (vorab): laufeFixture bricht vor dem ersten Submit ab', async () => {

@@ -36,6 +36,9 @@ export interface FixtureAggregat {
   n: number;
   judgeF?: number;
   judgeN?: number;
+  /** Läufe, deren Judge-Antwort nicht als JSON parsebar war — aus dem Mittel genommen
+   *  (sonst zögen Parse-Fehler-Nullen den Schnitt künstlich nach unten). */
+  judgeFehler?: number;
   /** Verletzungen des ersten fehlgeschlagenen Laufs (Beispiel für den Report). */
   beispielVerletzung?: string[];
 }
@@ -130,13 +133,17 @@ export async function laufeEineFixtureMitJudge(
   }
 
   const okLaeufe = detFehlerProLauf.filter(f => f.length === 0).length;
+  // Parse-Fehler-Judges (fehler:true → 0/0) NICHT ins Mittel — sonst drücken sie den
+  // Schnitt künstlich (Bridge liefert gelegentlich nicht-JSON, das der Judge nicht parst).
+  const guteJudges = judgeScores.filter(s => !s.fehler);
   const aggregat: FixtureAggregat = {
     id: fx.id,
     szenario: fx.szenario,
     okLaeufe,
     n: opts.n,
-    judgeF: judgeScores.length > 0 ? mittel(judgeScores.map(s => s.faktentreue)) : undefined,
-    judgeN: judgeScores.length > 0 ? mittel(judgeScores.map(s => s.nuetzlichkeit)) : undefined,
+    judgeF: guteJudges.length > 0 ? mittel(guteJudges.map(s => s.faktentreue)) : undefined,
+    judgeN: guteJudges.length > 0 ? mittel(guteJudges.map(s => s.nuetzlichkeit)) : undefined,
+    judgeFehler: judgeScores.length - guteJudges.length,
     beispielVerletzung: detFehlerProLauf.find(f => f.length > 0),
   };
   return { zeilen, aggregat, rawProLauf };
