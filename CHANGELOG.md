@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.257.0 — KI-Assistent inkl. Gedächtnis in dev aktiviert (Juli 2026)
+
+MINOR — Abschluss der KI-Assistent-dev-Aktivierung: nachdem die In-App-Gedächtnis-Eval (interne gpt-oss-Baseline, n=3) die Schwelle erreichte — fortschreibung/widerspruch/poisoning 3/3, kaltstart 2/3 — wird die Gedächtnis-Konsolidierung (Phase 2) in **dev** scharfgeschaltet. Weiterhin **opt-in + doppelt gegatet**; der Assistent ist per Default „nicht verbunden".
+
+- **`assistentGedaechtnis: true`** in [configs/dev.config.json](configs/dev.config.json) (einzige Flag-Änderung; keine Schema-Änderung — steht schon in `DEFAULT_CONFIG`). Konsolidierung intern via `getTransportForKonsolidierung()` (Standard-Chat, kein `ziel`), `BridgeMutex`-serialisiert, Poisoning-Guard aktiv, Store nie im Snapshot.
+- **Nur dev.** `pl/prod/kurator/as` unverändert — der Behörden-Rollout wartet auf DSB/Personalrat (viel später).
+- Vorausgegangen: In-App-Eval-Panel (v2.256.0) + Baseline-Korrekturen (v2.256.2 Harness-Recalibrierung + Kontext-Wechsel-Prompt, v2.256.4 realistischere kaltstart-Fixture). Detail: [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md).
+
 ### v2.256.4 — Gedächtnis-Eval: kaltstart-Fixture realistischer (Skill 3× gestartet) (Juli 2026)
 
 PATCH — Der gpt-oss-Baseline-Lauf (n=3) war 3/4 rock-solid; kaltstart scheiterte 2/3 nur an `praeferenzen:Kurzfassung`. Ursache: die Fixture nannte einen *einmaligen* Skill-Start ein „klares Arbeitsmuster" — überzogen. Statt die Assertion zu lockern, wird das Signal realistisch: der Skill wird mehrfach gestartet, dann ist die Präferenz-Erwartung berechtigt.

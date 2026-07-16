@@ -47,7 +47,8 @@
     "streamlitBridge": true,
     "deltaSnapshotWrite": true,
     "assistentProtokoll": true,
-    "assistentPanel": true
+    "assistentPanel": true,
+    "assistentGedaechtnis": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",
