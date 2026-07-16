@@ -58,6 +58,34 @@ export interface AssistentTurn {
   text: string;
 }
 
+/** Eine einzelne Frist-Zeile der Arbeitsvorrat-Übersicht (schon prompt-fertig). */
+export interface ArbeitsvorratFrist {
+  /** Anzeige-Titel (Akronym/Kurztitel/FKZ). */
+  titel: string;
+  /** Vorformatierter Frist-Hinweis, z. B. „in 3 T (dringend)". */
+  hinweis: string;
+  /** Nächster Handlungsschritt (`naechsterSchritt().aktion`), falls gemappt. */
+  aktion?: string;
+}
+
+/**
+ * Kompakte, deterministische Übersicht des Arbeitsvorrats — vom Controller aus dem
+ * Antraege-Store aufbereitet und NUR im Kein-Entität-Fall (Liste/Startseite) in den
+ * Faktenblock injiziert. So tragen die Quick Actions „Fristen"/„Was ist heute dran?"
+ * auch ohne selektierte Entität deterministische Fakten (statt einer geratenen
+ * LLM-Antwort). Der Assembler rendert sie nur, er berechnet nichts.
+ */
+export interface ArbeitsvorratUebersicht {
+  /** Anzahl nicht-terminaler Anträge („In Arbeit"). */
+  gesamtInArbeit: number;
+  /** Davon überfällig (Frist-Ampel rot). */
+  ueberfaellig: number;
+  /** Davon dringend (Frist-Ampel orange/gelb). */
+  dringend: number;
+  /** Die dringlichsten Anträge (nächste Frist zuerst), gekappt. */
+  naechsteFristen: ReadonlyArray<ArbeitsvorratFrist>;
+}
+
 /**
  * Ein dem aktuellen Vorhaben (Verbund) zugeordnetes Dokument — deterministisch vom
  * Controller über die Tag-Relation (Verbund-ID) aufgelöst. So „kennt" der Assistent
@@ -97,6 +125,14 @@ export interface AssistentKontextEingabe {
    * scoped → am wertvollsten). `undefined`/`[]` = kein Block.
    */
   vorhabenDokumente?: ReadonlyArray<VorhabenDokument>;
+  /**
+   * Deterministische Arbeitsvorrat-Übersicht — nur im Kein-Entität-Fall (Liste/
+   * Startseite) vom Controller gefüllt, damit „Fristen"/„Was ist heute dran?" auch
+   * ohne selektierte Entität faktengestützt sind. Als eigener Block NACH den Fakten
+   * eingefügt; deterministisch → wird im Budget NIE gekürzt. `undefined`/`null` =
+   * kein Block (bei selektierter Entität trägt deren eigener Faktenblock).
+   */
+  arbeitsvorratUebersicht?: ArbeitsvorratUebersicht | null;
 }
 
 export interface AssistentPrompt {

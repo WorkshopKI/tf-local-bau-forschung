@@ -15,6 +15,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import type { EingangAmpel } from '@/plugins/antraege/eingangAmpel';
 import { fristAnzeigeFromDays } from '@/plugins/antraege/fristAnzeige';
 import type { KontextEntitaet } from '@/core/services/assistent/kontext';
+import { baueArbeitsvorratUebersicht } from './arbeitsvorratUebersicht';
 import type { AssistentTurnKontext } from './turn';
 
 const AMPEL_WORT: Record<EingangAmpel, string> = {
@@ -123,5 +124,11 @@ export function baueKontextSnapshot(now: number = Date.now()): AssistentTurnKont
         : { art: 'antrag', id: st.selectedAktenzeichen, titel: st.selectedAktenzeichen },
     };
   }
-  return { routeBeschreibung: rb, entitaet: null };
+  // Kein-Entität-Fall (Liste/Startseite): deterministische Arbeitsvorrat-Übersicht
+  // beilegen, damit „Fristen"/„Was ist heute dran?" faktengestützt sind.
+  return {
+    routeBeschreibung: rb,
+    entitaet: null,
+    arbeitsvorratUebersicht: baueArbeitsvorratUebersicht(st.antraege, now),
+  };
 }

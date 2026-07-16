@@ -30,6 +30,8 @@ Die Mockups stammen aus der frühen Konzeptphase (Bau-Genehmigungs-Domäne, „B
 
 **Invarianten:** unverändert — ein Aufruf pro Turn, resetChat, nur interne Transports, deterministische Fakten injiziert.
 
+**Umgesetzt in v2.258.0.** Endstand: 5 Aktionen live — „Nächster Schritt", „Wo stehe ich?", „Fristen" (immer sichtbar), „Was ist heute dran?" (Liste/Startseite ohne Entität) und „Zusammenfassen" (nur mit Orama-Index). Reiner, node-testbarer Katalog ([quickActions.ts](../src/plugins/chat/assistent/quickActions.ts)); Sichtbarkeit rein deterministisch (Entität/Route/Index), ausblenden statt ausgrauen. „**Plan bis Bewilligung**" bewusst **weggelassen** — es existiert keine Spine-Restschritt-Ableitung als reiner Helfer (nur der grobe `station < 4`-Gate), und statt einer neuen Statusmaschine bleibt sie außen vor (STOPP-Bedingung des Umsetzungs-Prompts). Der Kein-Entität-Fall bekommt zusätzlich einen deterministischen Arbeitsvorrat-Übersichtsblock in den Faktenblock ([arbeitsvorratUebersicht.ts](../src/plugins/chat/assistent/arbeitsvorratUebersicht.ts)), damit „Fristen"/„Was ist heute dran?" nicht faktenlos raten. Leisten-Position: wie bisher im Erststart-Zustand über dem Chat (kein persistenter Streifen über dem Eingabefeld). Detail: [assistent-panel.md](architecture/assistent-panel.md).
+
 ---
 
 ## Topf 2 — Phase-3/4-Kandidaten (nach Pilot-Empirie schneiden)
@@ -83,6 +85,6 @@ Sequenzielle Warteschlange hinter dem BridgeMutex (Infrastruktur existiert seit 
 
 Nicht abgelegt: Agenten-Verwaltungs-Dashboard und der dreistufige Template-/Workspace-Wizard (Topf 3.1, keine Übernahme — Ablage würde nur falsche Fährten legen).
 
-## Reihenfolge (unverändert)
+## Reihenfolge
 
-Live-Eval → Testplan → **Korrektur-Lauf (inkl. Topf 1 + NFC-Härtung)** → pl-Rollout + PL-Briefing → Pilot-Empirie → Phase-3-Prompt (Topf 2a, geschnitten nach Empirie) → Phase 4 (2b, dann 2c) → Prod-Gate: DSB/Personalrats-Notiz.
+Live-Eval → Testplan → **Korrektur-Lauf** (Topf 1 ✓ umgesetzt v2.258.0; NFC-Härtung offen) → pl-Rollout + PL-Briefing → Pilot-Empirie → Phase-3-Prompt (Topf 2a, geschnitten nach Empirie) → Phase 4 (2b, dann 2c) → Prod-Gate: DSB/Personalrats-Notiz.

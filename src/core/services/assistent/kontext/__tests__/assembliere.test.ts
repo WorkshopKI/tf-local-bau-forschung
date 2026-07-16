@@ -179,6 +179,56 @@ describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
   });
 });
 
+describe('assembliereAssistentKontext — Arbeitsvorrat-Übersicht (Kein-Entität-Fall)', () => {
+  const uebersicht = {
+    gesamtInArbeit: 12,
+    ueberfaellig: 2,
+    dringend: 3,
+    naechsteFristen: [
+      { titel: 'ROT', hinweis: 'seit 4 T (überfällig)', aktion: 'Gutachten beginnen' },
+      { titel: 'ORANGE', hinweis: 'in 6 T (dringend)' },
+    ],
+  };
+
+  it('rendert den Block NACH den Fakten und VOR dem Retrieval', () => {
+    const { promptText } = assembliereAssistentKontext(base({
+      entitaet: null,
+      treffer: [treffer('a', 0.8)],
+      arbeitsvorratUebersicht: uebersicht,
+    }));
+    const iFakten = promptText.indexOf('=== Kontext (deterministisch');
+    const iAv = promptText.indexOf('=== Arbeitsvorrat (Übersicht');
+    const iRetrieval = promptText.indexOf('=== Auszüge aus den Dokumenten');
+    expect(iFakten).toBeLessThan(iAv);
+    expect(iAv).toBeLessThan(iRetrieval);
+    expect(promptText).toContain('In Arbeit: 12 Anträge (2 überfällig, 3 dringend).');
+    expect(promptText).toContain('- ROT: seit 4 T (überfällig) — nächster Schritt: Gutachten beginnen');
+    expect(promptText).toContain('- ORANGE: in 6 T (dringend)');
+  });
+
+  it('kein/leerer Arbeitsvorrat → kein Block (self-omittet)', () => {
+    expect(assembliereAssistentKontext(base({ entitaet: null })).promptText)
+      .not.toContain('=== Arbeitsvorrat');
+    expect(assembliereAssistentKontext(base({
+      entitaet: null,
+      arbeitsvorratUebersicht: { gesamtInArbeit: 0, ueberfaellig: 0, dringend: 0, naechsteFristen: [] },
+    })).promptText).not.toContain('=== Arbeitsvorrat');
+  });
+
+  it('bleibt bei Budget-Überschreitung erhalten (deterministisch, nie gekürzt)', () => {
+    const turns = Array.from({ length: 12 }, (_, i) => ({ rolle: 'nutzer' as const, text: `TURN_${i} ${'y'.repeat(1500)}` }));
+    const { promptText } = assembliereAssistentKontext(base({
+      entitaet: null,
+      turns,
+      treffer: Array.from({ length: RETRIEVAL_K }, (_, i) => treffer(`t${i}`, 0.9, 'z'.repeat(600))),
+      arbeitsvorratUebersicht: uebersicht,
+    }));
+    expect(promptText).toContain('=== Arbeitsvorrat (Übersicht');
+    expect(promptText).toContain('In Arbeit: 12 Anträge');
+    expect(promptText.length).toBeLessThanOrEqual(GESAMT_MAX_CHARS);
+  });
+});
+
 describe('assembliereAssistentKontext — Vorhaben-Dokumente (entitäts-scoped)', () => {
   it('fügt einen „Dokumente zum Vorhaben"-Block NACH den Fakten und VOR dem Retrieval ein', () => {
     const { promptText } = assembliereAssistentKontext(base({

@@ -19,10 +19,9 @@ import { MessageList, type ActivePanel } from '../components/MessageList';
 import { SourcePanel } from '../components/SourcePanel';
 import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistentController';
 import { baueKontextSnapshot } from './kontextSnapshot';
+import { quickActionsFuer } from './quickActions';
 import { assistentPanelUiStore, clampPanelWidth } from './panelUiStore';
 import '../chat.css';
-
-const BASIS_BEISPIELE = ['Was ist mein nächster Schritt?', 'Welche Fristen stehen an?'];
 
 export function AssistentPanelHost(): React.ReactElement | null {
   const open = useStore(assistentPanelUiStore, s => s.open);
@@ -43,12 +42,15 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const snapshot = useMemo(() => baueKontextSnapshot(), [location.key, sel, open]);
   const chips = beschreibeKontext(snapshot.entitaet, snapshot.routeBeschreibung);
-  const beispiele = useMemo(() => {
-    const hatIndex = getOramaDB() !== null;
-    return snapshot.entitaet && hatIndex
-      ? [...BASIS_BEISPIELE, 'Was steht im Antrag zur Marktreife?']
-      : BASIS_BEISPIELE;
-  }, [snapshot.entitaet]);
+  // Routen-sensitive Quick Actions (Topf 1) statt statischer Beispielfragen: reiner
+  // Katalog, die (unreine) Orama-Index-Präsenz wird hereingereicht. Index-Präsenz ist
+  // wie bisher unreaktiv (kein Memo-Dep) — „Zusammenfassen" kann nach Index-Load leicht
+  // verzögert erscheinen; Verhalten bewusst identisch zum bisherigen Beispiel-Memo. Die
+  // Leiste ist nie leer (Katalog hält „Fristen" überall sichtbar).
+  const aktionen = useMemo(
+    () => quickActionsFuer({ ...snapshot, hatIndex: getOramaDB() !== null }),
+    [snapshot],
+  );
 
   // Gedächtnis-Zähler laden (nur bei aktivem Flag + beiden Opt-ins → sonst 0).
   useEffect(() => {
@@ -191,8 +193,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
                     Ich kenne die aktuelle Ansicht und die dazugehörigen Dokumente — aber keine früheren Sitzungen.
                   </div>
                   <div className="suggest-row">
-                    {beispiele.map(b => (
-                      <button key={b} className="suggest" onClick={() => absenden(b)}>{b}</button>
+                    {aktionen.map(a => (
+                      <button key={a.id} className="suggest" title={a.frage} onClick={() => absenden(a.frage)}>
+                        {a.label}
+                      </button>
                     ))}
                   </div>
                 </div>

@@ -22,7 +22,9 @@ Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, nur dev). *
 | Transport-Gate | [bridge.ts](../../src/core/services/ai/bridge.ts) `getTransportForAssistent()` | intern-only, wirft bei extern |
 | Turn-Orchestrator (rein) | [turn.ts](../../src/plugins/chat/assistent/turn.ts) | `fuehreAssistentTurnAus(frage, turns, deps)`; Transport→ping→Kontext→Retrieval→assemble→resetChat→submit; nie werfend |
 | Session-Store (vanilla) | [sessionStore.ts](../../src/plugins/chat/assistent/sessionStore.ts) | session-only Historie, optimistischer Append + Rollback bei Fehler |
-| Kontext-Snapshot (unrein) | [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) | Route + selektierte Entität (Antraege-Store) → `KontextEntitaet` |
+| Kontext-Snapshot (unrein) | [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) | Route + selektierte Entität (Antraege-Store) → `KontextEntitaet`; im Kein-Entität-Fall zusätzlich die Arbeitsvorrat-Übersicht |
+| Quick-Action-Katalog (rein) | [quickActions.ts](../../src/plugins/chat/assistent/quickActions.ts) | `quickActionsFuer(snapshot + hatIndex) → QuickAction[]`; routen-sensitive Presets (v1.1) |
+| Arbeitsvorrat-Übersicht (rein) | [arbeitsvorratUebersicht.ts](../../src/plugins/chat/assistent/arbeitsvorratUebersicht.ts) | `baueArbeitsvorratUebersicht(antraege, now)`; frist-sortierte Übersicht für den Kein-Entität-Faktenblock |
 | UI-Dock-Zustand | [panelUiStore.ts](../../src/plugins/chat/assistent/panelUiStore.ts) | offen/Breite (localStorage) — geteilt zwischen Shell-Mount, Suche-Button, Command-Palette |
 | Controller (Hook) | [useAssistentController.ts](../../src/plugins/chat/assistent/useAssistentController.ts) | verdrahtet Transport/Kontext/Retrieval, exponiert schlanken Controller |
 | Panel-UI | [AssistentPanelHost.tsx](../../src/plugins/chat/assistent/AssistentPanelHost.tsx) | shell-weites Dock; Wiederverwendung `MessageList`/`SourcePanel`/chat.css |
@@ -33,6 +35,7 @@ Analog zur fixen Skill-Komposition: **System → Fakten → Retrieval → Histor
 
 1. **System** — Rolle, Grenzen (nur bereitgestellte Fakten; fehlt Info → sagen statt raten; keine Rechts-/Förderentscheidungen), Deutsch, kurz. Bindet `GRUNDSATZ_REGELN` ein.
 2. **Fakten (deterministisch, wird NIE gekürzt)** — Route in Worten, Entität + Stammdaten, Status-Label + Kategorie, `naechsterSchritt()`, Frist-Hinweis (vom Controller aus `fristAnzeige`/`daysUntilFristAware` vorformatiert; hält den Assembler frei von Plugin-Importen).
+   - **2a. Arbeitsvorrat-Übersicht (nur Kein-Entität-Fall, deterministisch, wird NIE gekürzt)** — auf Liste/Startseite ohne selektierte Entität hängt der Assembler direkt nach den Fakten einen kompakten Übersichtsblock an (In-Arbeit-Zahl, überfällig/dringend, die nächsten Fristen mit nächstem Schritt). So tragen die Quick Actions „Fristen"/„Was ist heute dran?" auch ohne Entität echte Fakten. Der Controller füllt `arbeitsvorratUebersicht` (aus `partitionArbeitsvorrat` + `daysUntilFristAware`); bei selektierter Entität `null` (deren eigener Faktenblock trägt).
 3. **Retrieval (optional)** — Top-k Orama-Chunks (k=5), Treffer **unter `RETRIEVAL_MIN_SCORE` verworfen** → dann KEIN Block (statt schlechtem Block); als `[n] Titel: Auszug`. Das Retrieval selbst läuft im Controller (`useSearch().search`, unrein) und wird als `treffer` hereingereicht → Assembler bleibt byte-deterministisch.
 4. **Historie** — bisherige Turns dieser Sitzung.
 5. **Frage** + Ausgabeanweisung: auf Auszüge gestützte Aussagen referenzieren `[n]` (mappt auf `ChatSource.n`).
@@ -46,6 +49,20 @@ Bewusste Entscheidung (statt der `[3.2]`-VB-Sektions-Popover): der Orama-Index t
 ## Panel-Ort
 
 Shell-weit: EINMAL in [ShellLayout](../../src/core/ShellLayout.tsx) hinter `isAssistentPanelEnabled()` gemountet — auf JEDER Route **außer der Suche** (`activeId !== 'suche'`), damit der Entitätskontext direkt ist. Die **Suche behält bewusst ihren eigenen vollen `ChatPanelHost`** (mit „+"-Menü/Verlauf/Anhängen); das schlanke Dock ist dort nicht gemountet → kein Doppel-Panel. Der `panelUiStore` teilt den Offen-Zustand. Die globalen Einstiegspunkte sind routen-bewusst (`openAssistent` in ShellLayout): auf der Suche öffnen der Command-Palette-Befehl „Assistent öffnen" und `mod+shift+k` den Voll-Chat via `navigate('/suche?assistent=1')`, auf allen anderen Routen das schlanke Dock (`assistentPanelUiStore.setOpen(true)`). Der Suche-„Assistent"-Button togglet immer den lokalen `ChatPanelHost`.
+
+## Quick-Action-Leiste (v1.1, Topf 1)
+
+Statt statischer Beispielfragen zeigt die Erststart-Leiste **routen-sensitive Quick Actions** — vorgefertigte Fragen, die den Turn-Pfad **nicht** ändern: ein Klick schickt `action.frage` durch denselben `c.send()` wie eine getippte Frage (ein Aufruf pro Turn, resetChat, intern, deterministische Fakten). Der Katalog ist **rein** ([quickActions.ts](../../src/plugins/chat/assistent/quickActions.ts), Guard: kein LLM entscheidet die Sichtbarkeit), die Sichtbarkeit rein deterministisch aus `snapshot.entitaet`/`routeBeschreibung` + der (unrein ermittelten, hereingereichten) Orama-Index-Präsenz. **Voraussetzung nicht erfüllt → ausblenden, nicht ausgrauen.**
+
+| id | sichtbar wenn | Träger |
+|---|---|---|
+| `naechster-schritt` | Entität selektiert | `naechsterSchritt()` im Faktenblock |
+| `wo-stehe-ich` | Entität selektiert | Status/Kategorie + nächster Schritt im Faktenblock |
+| `fristen` | immer (Leiste nie leer) | Entitäts-Frist bzw. Arbeitsvorrat-Übersichtsblock |
+| `heute-dran` | keine Entität (Liste/Startseite) | Arbeitsvorrat-Übersichtsblock (2a) |
+| `zusammenfassen` | Entität selektiert **und** Orama-Index vorhanden | echter Retrieval-/LLM-Fall (mit Fundstellen) |
+
+**„Plan bis Bewilligung" bewusst weggelassen:** bräuchte eine Spine-Restschritt-Ableitung (verbleibende Workflow-Stationen bis zur Bewilligung), die es als reinen Helfer nicht gibt (nur der grobe `statusZuStepperPosition(status).station < 4`-Gate). Statt einer neuen Statusmaschine bleibt die Aktion außen vor. Leisten-Position: im Erststart-`empty`-Zustand über dem Chat (kein persistenter Streifen über dem Eingabefeld).
 
 ## Abgrenzung / offen
 

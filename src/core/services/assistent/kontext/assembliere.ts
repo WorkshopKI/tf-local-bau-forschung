@@ -13,7 +13,7 @@ import { getStatusLabel } from '@/core/utils/status-mappings';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { GRUNDSATZ_REGELN } from '@/core/services/skills/registry/grundsatz';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
-import type { AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet, VorhabenDokument } from './types';
+import type { ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet, VorhabenDokument } from './types';
 
 // ── Deterministische Budget-Konstanten (mit Begründung, keine Magie) ─────────
 /** Top-k Retrieval-Chunks im Prompt (bevorzugt die stärksten Treffer). */
@@ -107,6 +107,31 @@ function faktenBlock(eingabe: AssistentKontextEingabe): string {
     zeilen.push('Keine Entität ausgewählt — es liegen nur die Ansicht und ggf. Suchtreffer vor.');
   }
   zeilen.push('=== Ende Kontext ===');
+  return zeilen.join('\n');
+}
+
+// ── Block 2a: Arbeitsvorrat-Übersicht (Kein-Entität-Fall, deterministisch) ────
+/**
+ * Kompakte Übersicht des Arbeitsvorrats für Liste/Startseite ohne selektierte
+ * Entität — trägt „Fristen"/„Was ist heute dran?". Self-omittet bei fehlender
+ * Übersicht oder leerem Arbeitsvorrat. Deterministisch (gecappt) → wird im
+ * Budget NIE gekürzt, analog zum Faktenblock.
+ */
+function arbeitsvorratBlock(u: ArbeitsvorratUebersicht | null | undefined): string {
+  if (!u || u.gesamtInArbeit === 0) return '';
+  const zeilen = ['=== Arbeitsvorrat (Übersicht, deterministisch) ==='];
+  const detail: string[] = [];
+  if (u.ueberfaellig > 0) detail.push(`${u.ueberfaellig} überfällig`);
+  if (u.dringend > 0) detail.push(`${u.dringend} dringend`);
+  const suffix = detail.length > 0 ? ` (${detail.join(', ')})` : '';
+  zeilen.push(`In Arbeit: ${u.gesamtInArbeit} ${u.gesamtInArbeit === 1 ? 'Antrag' : 'Anträge'}${suffix}.`);
+  if (u.naechsteFristen.length > 0) {
+    zeilen.push('Nächste Fristen:');
+    for (const f of u.naechsteFristen) {
+      zeilen.push(`- ${f.titel}: ${f.hinweis}${f.aktion ? ` — nächster Schritt: ${f.aktion}` : ''}`);
+    }
+  }
+  zeilen.push('=== Ende Arbeitsvorrat ===');
   return zeilen.join('\n');
 }
 
@@ -207,6 +232,7 @@ export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): A
       SYSTEM_BLOCK,
       gedaechtnisBlock(gedEintraege),
       fakten,
+      arbeitsvorratBlock(eingabe.arbeitsvorratUebersicht),
       vorhabenDokumenteBlock(doks),
       retrievalBlock(chunks),
       historieBlock(histZeilen),

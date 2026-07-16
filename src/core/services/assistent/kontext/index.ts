@@ -12,6 +12,8 @@ export {
   RETRIEVAL_MIN_SCORE,
 } from './assembliere';
 export type {
+  ArbeitsvorratFrist,
+  ArbeitsvorratUebersicht,
   AssistentEntitaetArt,
   AssistentKontextEingabe,
   AssistentPrompt,

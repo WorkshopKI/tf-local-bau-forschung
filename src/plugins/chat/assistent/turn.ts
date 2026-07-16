@@ -12,7 +12,7 @@ import type { OramaSearchResult } from '@/core/services/search/orama-store';
 import { resetHatVerlaufsrisiko, starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { assembliereAssistentKontext } from '@/core/services/assistent/kontext';
-import type { AssistentTurn, KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
+import type { ArbeitsvorratUebersicht, AssistentTurn, KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
 import { buildChatSources } from '../services/rag-sources';
 import type { ChatSource } from '../types';
 
@@ -24,6 +24,12 @@ const ABGEBROCHEN_MELDUNG = 'Anfrage abgebrochen.';
 export interface AssistentTurnKontext {
   routeBeschreibung: string;
   entitaet: KontextEntitaet | null;
+  /**
+   * Deterministische Arbeitsvorrat-Übersicht — nur im Kein-Entität-Fall (Liste/
+   * Startseite) gefüllt (Snapshot), sonst `null`/weggelassen. Trägt „Fristen"/
+   * „Was ist heute dran?" ohne selektierte Entität.
+   */
+  arbeitsvorratUebersicht?: ArbeitsvorratUebersicht | null;
 }
 
 export interface AssistentTurnDeps {
@@ -100,6 +106,7 @@ export async function fuehreAssistentTurnAus(
     treffer: treffer ?? null,
     gedaechtnis,
     vorhabenDokumente,
+    arbeitsvorratUebersicht: kontext.arbeitsvorratUebersicht ?? null,
   });
 
   // 5. resetChat VOR dem Senden (Pitfall #36) — best-effort, Kontaminations-Warnung.
