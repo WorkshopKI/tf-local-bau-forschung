@@ -20,7 +20,7 @@ import { SourcePanel } from '../components/SourcePanel';
 import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistentController';
 import { baueKontextSnapshot } from './kontextSnapshot';
 import { quickActionsFuer } from './quickActions';
-import { assistentPanelUiStore, clampPanelWidth } from './panelUiStore';
+import { assistentPanelUiStore, clampPanelWidth, SPINE_WIDTH } from './panelUiStore';
 import '../chat.css';
 
 export function AssistentPanelHost(): React.ReactElement | null {
@@ -93,13 +93,15 @@ export function AssistentPanelHost(): React.ReactElement | null {
     if (lastUser) void c.send(lastUser.content);
   }, [c]);
 
-  // Breite per Drag am linken Rand (rechts angedockt → width = Fensterbreite − x).
+  // Breite per Drag am linken Rand. Das Panel öffnet als Overlay LINKS neben der
+  // Spine (Rechtskante bei innerWidth − SPINE_WIDTH), daher die Spine-Breite
+  // abziehen — sonst driftet die gezogene Breite um SPINE_WIDTH.
   const onResize = useCallback((e: React.MouseEvent): void => {
     e.preventDefault();
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     const onMove = (ev: MouseEvent): void => {
-      assistentPanelUiStore.getState().setWidth(clampPanelWidth(window.innerWidth - ev.clientX));
+      assistentPanelUiStore.getState().setWidth(clampPanelWidth(window.innerWidth - SPINE_WIDTH - ev.clientX));
     };
     const onUp = (): void => {
       document.body.style.cursor = '';
@@ -114,31 +116,32 @@ export function AssistentPanelHost(): React.ReactElement | null {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (open) composerRef.current?.focus(); }, [open]);
 
-  if (!open) {
-    // Dauerhafte 48px-Spine am rechten Blattrand (Handoff „Docking"): dezentes
-    // Primär-Badge oben, Label „Assistent" als natives Hover-Tooltip (title) —
-    // konsistent mit den übrigen Icon-Buttons der App, kein zweites, hart
-    // schwarzes Custom-Bubble. Das Blatt reserviert die 48px (ShellLayout
-    // `dockAktiv`) → keine Überlappung.
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="Assistent — Fragen zu dieser Ansicht"
-        aria-label="Assistent öffnen"
-        className="fixed right-0 top-0 z-[44] h-screen w-[48px] flex flex-col items-center pt-4 bg-transparent hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
-      >
-        <span className="grid place-items-center w-[34px] h-[34px] rounded-[10px] bg-[var(--tf-primary)] text-[var(--tf-on-primary)]">
-          <Sparkles size={17} />
-        </span>
-      </button>
-    );
-  }
-
   const empty = c.messages.length === 0 && !c.busy;
 
+  // Dauerhafte 28px-Spine am rechten Blattrand (Handoff „Docking", schmal):
+  // Mini-Primär-Badge oben + dauerhaft sichtbares, vertikales Label „ASSISTENT"
+  // (kein Tooltip, das Label ist ohnehin sichtbar → kein Doppel-Tooltip, vgl.
+  // v2.255.2). Die Spine bleibt auch bei offenem Panel stehen; das Panel legt
+  // sich als Overlay LINKS daneben (right: SPINE_WIDTH). Das Blatt reserviert die
+  // SPINE_WIDTH (ShellLayout `dockAktiv`) → keine Überlappung. Klick togglet.
   return (
-    <div className="fixed top-0 right-0 z-[45] h-screen flex" style={{ width }}>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-label={open ? 'Assistent schließen' : 'Assistent öffnen'}
+        aria-expanded={open}
+        className={`group fixed right-0 top-0 z-[44] h-screen w-[28px] flex flex-col items-center pt-[14px] px-[2px] gap-[10px] transition-colors cursor-pointer ${open ? 'bg-[var(--tf-sheet)]' : 'bg-transparent hover:bg-[var(--tf-hover)]'}`}
+      >
+        <span className="grid place-items-center w-[20px] h-[20px] rounded-[6px] bg-[var(--tf-primary)] text-[var(--tf-on-primary)]">
+          <Sparkles size={12} />
+        </span>
+        <span className="[writing-mode:vertical-rl] uppercase text-[10.5px] tracking-[0.14em] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)] transition-colors select-none">
+          Assistent
+        </span>
+      </button>
+      {open && (
+      <div className="fixed top-0 z-[45] h-screen flex" style={{ width, right: SPINE_WIDTH }}>
       <div
         role="separator"
         aria-orientation="vertical"
@@ -270,5 +273,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
         </div>
       </div>
     </div>
+      )}
+    </>
   );
 }

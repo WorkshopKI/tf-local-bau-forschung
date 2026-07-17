@@ -14,6 +14,14 @@ export const PANEL_DEFAULT_WIDTH = 400;
 export const PANEL_MIN_WIDTH = 320;
 export const PANEL_MAX_WIDTH = 640;
 
+/**
+ * Breite der dauerhaften Dock-Spine am rechten Blattrand. Single Source für
+ * beide Verbraucher: den reservierten `<main>`-Rand (ShellLayout) und den
+ * Overlay-Offset des geöffneten Panels (AssistentPanelHost) — dürfen nie
+ * auseinanderlaufen, sonst überlappt die Spine den Inhalt bzw. lässt eine Lücke.
+ */
+export const SPINE_WIDTH = 28;
+
 export function clampPanelWidth(w: number): number {
   return Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, Math.round(w)));
 }

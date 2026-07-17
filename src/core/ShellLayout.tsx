@@ -47,7 +47,7 @@ import {
   menuLabel,
 } from '@/config/feature-flags';
 import { AssistentPanelHost } from '@/plugins/chat/assistent/AssistentPanelHost';
-import { assistentPanelUiStore } from '@/plugins/chat/assistent/panelUiStore';
+import { assistentPanelUiStore, SPINE_WIDTH } from '@/plugins/chat/assistent/panelUiStore';
 import { backupGutachtenStateToPersonal } from '@/core/services/personal-storage/gutachten-backup';
 import { BuildInfo } from '@/core/components/BuildInfo';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
@@ -374,8 +374,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   };
 
   // Assistent-Dock (dev-Flag): shell-weit außer auf der Suche. Ist es aktiv,
-  // reserviert das Blatt rechts 48px für die dauerhafte Dock-Spine (sonst würde
-  // die fixe Spine Inhalt/Scrollbar überlappen). Sonst nur der 12px-Desk-Rand.
+  // reserviert das Blatt rechts SPINE_WIDTH (28px) für die dauerhafte Dock-Spine
+  // (sonst würde die fixe Spine Inhalt/Scrollbar überlappen). Sonst nur der
+  // 12px-Desk-Rand.
   const dockAktiv = isAssistentPanelEnabled() && activeId !== 'suche';
 
   return (
@@ -497,7 +498,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
         <main
           className="flex-1 flex flex-col min-w-0 overflow-hidden"
           style={{
-            margin: dockAktiv ? '10px 48px 10px 0' : '10px 12px 10px 0',
+            margin: dockAktiv ? `10px ${SPINE_WIDTH}px 10px 0` : '10px 12px 10px 0',
             borderRadius: '14px',
             border: '0.5px solid var(--tf-sheet-border)',
             background: 'var(--tf-sheet)',

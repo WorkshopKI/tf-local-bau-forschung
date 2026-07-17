@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.265.1 — Assistenten-Spine schmal (28px) + sichtbar bei offenem Panel (Juli 2026)
+
+PATCH — Nachgezogener Design-Handoff für die rechte Assistenten-Spalte: die dauerhafte Dock-Spine wird von 48px auf 28px verschlankt und trägt statt eines Hover-Tooltips ein dauerhaft sichtbares vertikales „ASSISTENT"-Label. Zusätzlich bleibt die Spine jetzt bei offenem Panel stehen (Panel als Overlay daneben). Nur dev (`assistentPanel`).
+
+- **Schmale 28px-Spine** mit Mini-Primär-Badge + vertikalem Label (kein Tooltip); Breite als Single-Source `SPINE_WIDTH` ([panelUiStore.ts](src/plugins/chat/assistent/panelUiStore.ts), [AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)).
+- **Spine bleibt bei offenem Panel sichtbar** und togglet; das Panel öffnet als Overlay links daneben (`right: SPINE_WIDTH`) statt bündig-rechts — breite Tabellen behalten ihre Breite ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)).
+- **Reservierter `<main>`-Rand** zieht auf `SPINE_WIDTH` nach ([ShellLayout.tsx](src/core/ShellLayout.tsx)); Doku: [assistent-panel.md](docs/architecture/assistent-panel.md) (Dock-Form).
+
 ### v2.265.0 — In-App-Eval: Kontext-Achse (Relevanz-Map A/B) + interner Judge (Juli 2026)
 
 MINOR — Die Relevanz-Map (kuratierter VB-Kontext statt Volltext) war produktiv verdrahtet, aber schlafend und nur in der Node-CLI messbar. Der Bridge-Rechner (gpt-oss) hat kein Node → das A/B (hält „relevant" die Gutachten-Qualität?) braucht ein In-App-Vehikel. Phase 0: nur das Mess-Panel; die kuratierte Umstellung folgt separat nach dem Nutzer-A/B. Nur dev.
