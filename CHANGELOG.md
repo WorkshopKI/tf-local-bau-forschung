@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.266.0 — Aufbereitung: Zeitplan pausiert, Zahlen auf prüfrelevante Bereiche fokussiert (Juli 2026)
+
+MINOR — Der Zeitplan liest die Arbeitspakete aus den PDF-Quellen zu unzuverlässig; er wird pausiert, bis der Antrag als JSON vorliegt. Das Zahlen-Inventar liefert außerhalb von „Leistung & Technik" + „Markt & Absatz" sehr viele nicht prüfrelevante Werte. Beides ist ein reines Anzeige-Gate (keine Migration, kein Cache-Verlust), nur dev (`antragAufbereitung`). Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
+
+- **Pause an einer Stelle**: `ZEITPLAN_PAUSIERT` + `ZAHL_KATEGORIEN_PRUEFRELEVANT` als einzige Rücknahme-Stelle, import-frei ([pausierte-module.ts](src/plugins/antraege/aufbereitung/pausierte-module.ts)).
+- **Zeitplan-Tab dauerhaft inaktiv** mit Grund im Tooltip — Check vor der activeTab-Ausnahme ([tab-gating.ts](src/plugins/antraege/aufbereitung/tab-gating.ts)).
+- **Übersicht ohne „Zeitplan öffnen"**: der Einstieg wäre sonst ein Umgehungsweg an der gesperrten Tab-Leiste vorbei ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx)).
+- **Zahlen-Tab**: nicht prüfrelevante Kategorien ausgegraut + zugeklappt (Zähler sichtbar, Claims aufklappbar) ([ZahlenTab.tsx](src/plugins/antraege/aufbereitung/ZahlenTab.tsx)).
+- **Zahlen-Widersprüche pausiert** (Gate an den Konsumenten, reine `pruefeZahlWidersprueche` bleibt intakt + getestet) ([ZahlenTab.tsx](src/plugins/antraege/aufbereitung/ZahlenTab.tsx), [fragen.ts](src/plugins/antraege/aufbereitung/fragen.ts)).
+
 ### v2.265.3 — Assistenten-Spine: Icon monochrom & dezent (Juli 2026)
 
 PATCH — Feinschliff nach v2.265.2: die türkise Primär-Kachel war für den ruhigen Spine-Streifen zu präsent. Nur dev (`assistentPanel`).

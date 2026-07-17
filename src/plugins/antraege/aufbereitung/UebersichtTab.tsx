@@ -3,7 +3,8 @@
  * während der minutenlangen KI-Läufe, was läuft und was fertig ist. Drei Blöcke:
  *  1. Externe Recherche (Deep-Research-Auftrag) — Platzhalter bis Phase 1.
  *  2. Interne Aufbereitung — vertikaler Stepper über die KI-Bausteine.
- *  3. Deterministische Aufbereitung — Zeitplan-/Quellen-Status.
+ *  3. Deterministische Aufbereitung — Tabellen-/Quellen-Status (der Zeitplan-Einstieg
+ *     entfällt, solange `ZEITPLAN_PAUSIERT` gilt).
  * Monochrom; Farbe nur über den Status-Punkt. Keine eigene Logik/State — nutzt
  * dieselben Actions (`bausteine`/`neu`) wie die Seite.
  */
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import type { AufbereitungTabId } from './AufbereitungTabs';
+import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
 import type { AufbereitungRun } from './types';
 import type { BausteinUiStatus } from './useAufbereitung';
 import { baueStepper, type StepperEingang, type StepperSchritt } from './uebersicht';
@@ -82,7 +84,7 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
           ) : run ? (
             <>
               <span>
-                Zeitplan, Tabellen &amp; Plausibilität aufbereitet ({run.gliederung.length} Sektionen,{' '}
+                {ZEITPLAN_PAUSIERT ? 'Tabellen' : 'Zeitplan, Tabellen'} &amp; Plausibilität aufbereitet ({run.gliederung.length} Sektionen,{' '}
                 {run.tabellen.length} Tabellen).
               </span>
               {veraltet ? (
@@ -90,13 +92,17 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
                   ● Quellen haben sich seit der Aufbereitung geändert — „Neu aufbereiten" für den aktuellen Stand.
                 </span>
               ) : null}
-              <button
-                type="button"
-                onClick={() => onTab('zeitplan')}
-                className="mt-1 inline-flex w-fit items-center gap-1 text-[12px] text-[var(--tf-primary)] hover:underline"
-              >
-                Zeitplan öffnen <ArrowRight size={12} />
-              </button>
+              {ZEITPLAN_PAUSIERT ? (
+                <span className="mt-1 text-[var(--tf-text-tertiary)]">{ZEITPLAN_PAUSE_HINWEIS}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onTab('zeitplan')}
+                  className="mt-1 inline-flex w-fit items-center gap-1 text-[12px] text-[var(--tf-primary)] hover:underline"
+                >
+                  Zeitplan öffnen <ArrowRight size={12} />
+                </button>
+              )}
             </>
           ) : (
             <span className="text-[var(--tf-text-tertiary)]">Noch nicht aufbereitet — „Neu aufbereiten" oder „Mit KI aufbereiten".</span>

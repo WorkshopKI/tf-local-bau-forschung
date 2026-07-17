@@ -5,13 +5,20 @@
  * Zeitplan-Horizont, PM vs. Anlage 5) erscheinen als StatusDot + Befundzeile am
  * betroffenen Claim und speisen die bestehende `offenePunkte`-Mechanik. Monochrom,
  * Farbe nur über StatusDot/Badges.
+ *
+ * Nicht prüfrelevante Kategorien (`pausierte-module`) erscheinen als ausgegraute,
+ * zugeklappte Gruppe — Zähler sichtbar, Claims aufklappbar (reines Anzeige-Gate: der
+ * Katalog, der Prompt und der Parser bleiben vollständig). Solange der Zeitplan pausiert
+ * ist, entfallen die Quervergleiche — sie vergleichen ausschließlich gegen ihn.
  */
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
+import { cn } from '@/lib/utils';
 import { FundstelleChip } from './FundstelleChip';
+import { ZAHL_KATEGORIE_PAUSE_HINWEIS, ZEITPLAN_PAUSIERT, istZahlKategorieGesperrt } from './pausierte-module';
 import { ZAHL_KATEGORIEN, pruefeZahlWidersprueche, type ZahlClaim, type ZahlBefund, type ZahlenDaten } from './zahlen';
 import type { BausteinUiState } from './useAufbereitung';
 import type { AufbereitungRun } from './types';
@@ -90,7 +97,12 @@ function ZahlenInhalt({
   const chips = (ids: string[]): React.ReactElement[] =>
     ids.map(id => byId.get(id)).filter((s): s is VbSektion => !!s).map(s => <FundstelleChip key={s.id} sektion={s} vbMarkdown={vbMarkdown} />);
 
-  const befunde = useMemo(() => pruefeZahlWidersprueche(daten.claims, run), [daten.claims, run]);
+  // Quervergleiche vergleichen ausschließlich gegen den Zeitplan — pausiert er, schweigen sie.
+  // Gate bewusst hier (nicht in der reinen `pruefeZahlWidersprueche`): die bleibt intakt + getestet.
+  const befunde = useMemo(
+    () => (ZEITPLAN_PAUSIERT ? [] : pruefeZahlWidersprueche(daten.claims, run)),
+    [daten.claims, run],
+  );
   const befundeProWert = useMemo(() => {
     const m = new Map<string, ZahlBefund[]>();
     for (const b of befunde) {
@@ -106,7 +118,9 @@ function ZahlenInhalt({
   const sichtbar = useMemo(() => (nurKern ? daten.claims.filter(c => c.relevanz === 'kern') : daten.claims), [daten.claims, nurKern]);
 
   const gruppen = useMemo(
-    () => ZAHL_KATEGORIEN.map(k => ({ kat: k, claims: sichtbar.filter(c => c.kategorie === k.id) })).filter(g => g.claims.length > 0),
+    () => ZAHL_KATEGORIEN
+      .map(k => ({ kat: k, gesperrt: istZahlKategorieGesperrt(k.id), claims: sichtbar.filter(c => c.kategorie === k.id) }))
+      .filter(g => g.claims.length > 0),
     [sichtbar],
   );
 
@@ -152,6 +166,7 @@ function ZahlenInhalt({
             <KategorieGruppe
               key={g.kat.id}
               name={g.kat.name}
+              gesperrt={g.gesperrt}
               claims={g.claims}
               befundeProWert={befundeProWert}
               offenePunkte={run.offenePunkte}
@@ -166,11 +181,17 @@ function ZahlenInhalt({
   );
 }
 
-/** Eine Kategorie-Gruppe; bei > 8 Claims standardmäßig eingeklappt (nichts still verstecken — der Zähler bleibt sichtbar). */
+/**
+ * Eine Kategorie-Gruppe; bei > 8 Claims standardmäßig eingeklappt (nichts still
+ * verstecken — der Zähler bleibt sichtbar). `gesperrt` = derzeit nicht prüfrelevant:
+ * tertiärer Kopf + immer eingeklappt, Claims bleiben per Klick erreichbar. Ausgegraut
+ * über die Text-Farbe, NICHT über `opacity-*` (Hausstil, vgl. Tab-Gating).
+ */
 function KategorieGruppe({
-  name, claims, befundeProWert, offenePunkte, toggleBusy, onToggle, chips,
+  name, gesperrt, claims, befundeProWert, offenePunkte, toggleBusy, onToggle, chips,
 }: {
   name: string;
+  gesperrt: boolean;
   claims: ZahlClaim[];
   befundeProWert: Map<string, ZahlBefund[]>;
   offenePunkte: string[];
@@ -178,7 +199,7 @@ function KategorieGruppe({
   onToggle: (key: string) => void;
   chips: (ids: string[]) => React.ReactElement[];
 }): React.ReactElement {
-  const einklappbar = claims.length > 8;
+  const einklappbar = gesperrt || claims.length > 8;
   const zeilen = claims.map((c, i) => (
     <ClaimZeile
       key={`${c.wert}:${i}`}
@@ -203,10 +224,11 @@ function KategorieGruppe({
     );
   }
   return (
-    <details className="rounded-xl p-4 group" style={{ border: '0.5px solid var(--tf-border)' }}>
+    <details className="rounded-xl p-4 group" style={{ border: '0.5px solid var(--tf-border)' }} title={gesperrt ? ZAHL_KATEGORIE_PAUSE_HINWEIS : undefined}>
       <summary className="mb-2 flex cursor-pointer items-baseline gap-2 list-none">
-        <span className="text-[13px] font-medium text-[var(--tf-text)]">{name}</span>
+        <span className={cn('text-[13px]', gesperrt ? 'text-[var(--tf-text-tertiary)]' : 'font-medium text-[var(--tf-text)]')}>{name}</span>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{claims.length}</span>
+        {gesperrt ? <span className="text-[11px] text-[var(--tf-text-tertiary)]">— {ZAHL_KATEGORIE_PAUSE_HINWEIS}</span> : null}
         <span className="text-[11px] text-[var(--tf-text-tertiary)] group-open:hidden">— aufklappen</span>
       </summary>
       {zeilen}

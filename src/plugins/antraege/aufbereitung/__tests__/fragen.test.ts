@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { sammleFragen, formatFragenMarkdown, type SammleFragenInput } from '../fragen';
 import { PRUEF_ASPEKTE, type AspektMapping } from '../aspekte';
+import { ZEITPLAN_PAUSIERT } from '../pausierte-module';
 import type { VbSektion } from '../gliederung';
 import type { AufbereitungRun } from '../types';
 import type { Befund } from '../tabellen';
+import type { ZahlenDaten } from '../zahlen';
 
 const NOW = '2026-07-10T00:00:00.000Z';
 
@@ -81,6 +83,21 @@ describe('sammleFragen', () => {
     expect(m.gesamt).toBe(0);
     expect(m.meta).toEqual([]);
     expect(m.gruppen).toEqual([]);
+  });
+
+  it('lässt Zahlen-Widersprüche aus, solange der Zeitplan pausiert ist', () => {
+    // „18 Monate" widerspricht dem Zeitplan-Horizont (achseMax 24) → ohne Pause ein Aspekt-H-Eintrag.
+    const zahlen: ZahlenDaten = {
+      schemaVersion: 1,
+      claims: [{ wert: '18 Monate', einheit: 'Monate', kategorie: 'zeit', relevanz: 'kern', kontext: 'Laufzeit von 18 Monaten', sektionIds: ['k-7'] }],
+    };
+    const m = sammleFragen({ run: baseRun(), mapping: null, zahlen, status: { aspekte: 'ok', zahlen: 'ok' } });
+    const keys = m.gruppen.flatMap(g => g.eintraege.map(e => e.key));
+    if (ZEITPLAN_PAUSIERT) {
+      expect(keys.some(k => k.startsWith('zahl-widerspruch:'))).toBe(false);
+    } else {
+      expect(keys).toContain('zahl-widerspruch:laufzeit:18-monate');
+    }
   });
 
   it('ist deterministisch (gleiche Eingabe → gleiche Keys)', () => {

@@ -9,11 +9,15 @@
  *  - Wurde noch NIE ein Lauf gestartet (alle Bausteine `fehlt`), bleiben ALLE Tabs
  *    klickbar (jeder Tab hat seinen eigenen Leerzustand mit Start-Button).
  *  - Der gerade offene Tab (`activeTab`) wird NIE unter dem User weggesperrt.
- *  - `uebersicht`/`zeitplan`/`fragen`/`recherche`/`lesemodus` sind immer klickbar
+ *  - `uebersicht`/`fragen`/`recherche`/`lesemodus` sind immer klickbar
  *    (deterministisch bzw. mit ehrlichen Leerzuständen).
  *  - `fehler` bleibt klickbar (der Tab zeigt den Retry).
+ *  - Ein PAUSIERTES Modul (`ZEITPLAN_PAUSIERT`) schlägt alles andere: es ist dauerhaft
+ *    `inaktiv`, auch vor dem ersten Lauf und auch als `activeTab` (die activeTab-Ausnahme
+ *    schützt einen offenen Tab — ein pausierter Tab ist gar nicht erst erreichbar).
  */
 import type { AufbereitungTabId } from './AufbereitungTabs';
+import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
 import type { BausteinUiStatus } from './useAufbereitung';
 
 /** Baustein-Schlüssel (Lauf-Einheiten); `rechercheP rompt` ohne führendes Leerzeichen. */
@@ -38,7 +42,7 @@ export const TAB_BAUSTEIN_BINDUNG: Partial<Record<AufbereitungTabId, Exclude<Bau
 
 /** Immer klickbare Tabs (deterministisch oder mit ehrlichem Leerzustand). */
 export const IMMER_AKTIVE_TABS: readonly AufbereitungTabId[] = [
-  'uebersicht', 'zeitplan', 'fragen', 'recherche', 'lesemodus',
+  'uebersicht', 'fragen', 'recherche', 'lesemodus',
 ];
 
 const ALLE_TABS: readonly AufbereitungTabId[] = [
@@ -72,6 +76,11 @@ export function deriveTabZustaende(eingang: TabGatingEingang): Record<Aufbereitu
 
   const ergebnis = {} as Record<AufbereitungTabId, TabZustandInfo>;
   for (const tab of ALLE_TABS) {
+    // Pausiertes Modul zuerst — bewusst VOR der `activeTab`-Ausnahme unten.
+    if (tab === 'zeitplan' && ZEITPLAN_PAUSIERT) {
+      ergebnis[tab] = { zustand: 'inaktiv', title: ZEITPLAN_PAUSE_HINWEIS };
+      continue;
+    }
     const status = gebundeneTabs[tab];
     const istGebunden = TAB_BAUSTEIN_BINDUNG[tab] != null && status != null;
     if (!istGebunden) {

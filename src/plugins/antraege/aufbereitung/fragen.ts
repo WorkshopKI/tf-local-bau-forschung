@@ -10,6 +10,7 @@
  * (Sektion→Aspekt bzw. Domäne), nie geraten. Reine Funktionen (Node-testbar).
  */
 import { PRUEF_ASPEKTE, ASPEKT_IDS, fehlendeAlsKandidaten, type AspektMapping } from './aspekte';
+import { ZEITPLAN_PAUSIERT } from './pausierte-module';
 import { zuordneRisiken } from './risiken';
 import { pruefeZahlWidersprueche, type ZahlenDaten } from './zahlen';
 import { befundKey } from './store';
@@ -142,8 +143,9 @@ export function sammleFragen(input: SammleFragenInput): FragenModell {
     }
   }
 
-  // 5. Zahlen-Widersprüche (Aspekt H).
-  if (zahlen) {
+  // 5. Zahlen-Widersprüche (Aspekt H) — entfallen, solange der Zeitplan pausiert ist:
+  // sie vergleichen ausschließlich gegen ihn (Laufzeit-Horizont, Anlage-5-PM-Summe).
+  if (zahlen && !ZEITPLAN_PAUSIERT) {
     for (const b of pruefeZahlWidersprueche(zahlen.claims, run)) {
       eintraege.push({
         key: b.key,
