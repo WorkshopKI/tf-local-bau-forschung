@@ -22,6 +22,7 @@ import {
   type AspektMapping, type AspektSubstanz,
 } from './aspekte';
 import { zuordneRisiken, risikoFehltKandidaten } from './risiken';
+import { sichtbareZeitplanBefunde } from './pausierte-module';
 import { befundKey } from './store';
 import type { BausteinUiState } from './useAufbereitung';
 import type { AufbereitungRun } from './types';
@@ -131,10 +132,11 @@ function AbdeckungInhalt({
     [mapping, risikoZuordnung.ohneRisiko],
   );
   // Zeitplan-Widersprüche (Warnungs-Befunde) — Zusatz-Badge bei Aspekt H (Projektplan).
-  const widersprueche = useMemo(() => run.befunde.filter(b => b.schwere === 'warnung').length, [run.befunde]);
+  // Stumm, solange der Zeitplan pausiert ist (dieselbe Quelle wie im Fragen-Tab).
+  const widersprueche = useMemo(() => sichtbareZeitplanBefunde(run.befunde).filter(b => b.schwere === 'warnung').length, [run.befunde]);
   // Bereits als offen markierte Zeitplan-Befunde (im OFFENE-PUNKTE-Abschnitt konsolidiert).
   const uebernommeneBefunde = useMemo(
-    () => run.befunde.filter(b => run.offenePunkte.includes(befundKey(b))),
+    () => sichtbareZeitplanBefunde(run.befunde).filter(b => run.offenePunkte.includes(befundKey(b))),
     [run.befunde, run.offenePunkte],
   );
 

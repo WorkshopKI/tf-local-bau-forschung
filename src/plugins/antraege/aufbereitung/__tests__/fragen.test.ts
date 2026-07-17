@@ -37,13 +37,20 @@ function vollAbgedeckt(): AspektMapping {
 }
 
 describe('sammleFragen', () => {
-  it('Zeitplan-/Kapazitäts-Befunde landen in Aspekt H, Meta listet nicht-ok-Bausteine', () => {
+  it('Zeitplan-/Kapazitäts-Befunde landen in Aspekt H (solange nicht pausiert), Meta listet nicht-ok-Bausteine', () => {
     const run = baseRun({ befunde: [KAPAZITAET] });
     const m = sammleFragen({ run, mapping: null, zahlen: null, status: { aspekte: 'fehlt', zahlen: 'fehlt' } });
     const h = m.gruppen.find(g => g.aspektId === 'H');
-    expect(h?.eintraege[0]!.key).toBe('kapazitaet::MA 1 überplant');
-    expect(h?.eintraege[0]!.frage).toContain('leistbar');
-    expect(m.gesamt).toBe(1);
+    if (ZEITPLAN_PAUSIERT) {
+      // Zeitplan-Befunde stammen aus seiner PDF-Ernte → stumm, kein Aspekt-H-Eintrag.
+      expect(h).toBeUndefined();
+      expect(m.gesamt).toBe(0);
+    } else {
+      expect(h?.eintraege[0]!.key).toBe('kapazitaet::MA 1 überplant');
+      expect(h?.eintraege[0]!.frage).toContain('leistbar');
+      expect(m.gesamt).toBe(1);
+    }
+    // Meta ist unabhängig von den Befunden (nur Baustein-Status).
     expect(m.meta.map(x => x.baustein)).toEqual(['Aspekt-Mapping', 'Zahlen-Inventar']);
   });
 
@@ -101,7 +108,9 @@ describe('sammleFragen', () => {
   });
 
   it('ist deterministisch (gleiche Eingabe → gleiche Keys)', () => {
-    const input: SammleFragenInput = { run: baseRun({ befunde: [KAPAZITAET] }), mapping: null, zahlen: null, status: { aspekte: 'ok', zahlen: 'ok' } };
+    // Flag-unabhängige Quelle (aspekt-fehlt), damit der Test auch bei pausiertem Zeitplan nicht leer läuft.
+    const mapping: AspektMapping = { zuordnung: {}, fehlend: { I: ['Preisvorstellungen'] } };
+    const input: SammleFragenInput = { run: baseRun({ befunde: [KAPAZITAET] }), mapping, zahlen: null, status: { aspekte: 'ok', zahlen: 'ok' } };
     const a = sammleFragen(input).gruppen.flatMap(g => g.eintraege.map(e => e.key));
     const b = sammleFragen(input).gruppen.flatMap(g => g.eintraege.map(e => e.key));
     expect(a).toEqual(b);

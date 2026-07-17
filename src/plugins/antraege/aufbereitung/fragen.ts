@@ -5,12 +5,14 @@
  *
  * Quellen: Zeitplan-/Kapazitäts-Befunde (`run.befunde`), fehlende Pflichtangaben +
  * unabgedeckte Aspekte (Aspekt-Mapping), Lösungswege ohne Risiko + unzuordenbare
- * Risiken (`zuordneRisiken`), Zahlen-Widersprüche (`pruefeZahlWidersprueche`). Gruppiert
+ * Risiken (`zuordneRisiken`), Zahlen-Widersprüche (`pruefeZahlWidersprueche`). Die
+ * beiden Zeitplan-abhängigen Quellen (Befunde + Zahlen-Widersprüche) schweigen, solange
+ * `ZEITPLAN_PAUSIERT` gilt (siehe `pausierte-module`). Gruppiert
  * nach Prüfaspekt A–J (+ „Allgemein"); die Zuordnung ist deterministisch herleitbar
  * (Sektion→Aspekt bzw. Domäne), nie geraten. Reine Funktionen (Node-testbar).
  */
 import { PRUEF_ASPEKTE, ASPEKT_IDS, fehlendeAlsKandidaten, type AspektMapping } from './aspekte';
-import { ZEITPLAN_PAUSIERT } from './pausierte-module';
+import { ZEITPLAN_PAUSIERT, sichtbareZeitplanBefunde } from './pausierte-module';
 import { zuordneRisiken } from './risiken';
 import { pruefeZahlWidersprueche, type ZahlenDaten } from './zahlen';
 import { befundKey } from './store';
@@ -95,7 +97,8 @@ export function sammleFragen(input: SammleFragenInput): FragenModell {
   const eintraege: FrageEintrag[] = [];
 
   // 1. Deterministische Zeitplan-/Kapazitäts-Befunde → Aspekt H (Projektplan).
-  for (const b of run.befunde) {
+  //    Stumm, solange der Zeitplan pausiert ist (sie stammen alle aus seiner PDF-Ernte).
+  for (const b of sichtbareZeitplanBefunde(run.befunde)) {
     eintraege.push({ key: befundKey(b), frage: frageVonBefund(b), quelle: quelleVonBefund(b), aspektId: 'H', sektionIds: [] });
   }
 

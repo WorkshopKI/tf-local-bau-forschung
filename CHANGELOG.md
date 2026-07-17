@@ -14,6 +14,7 @@ MINOR — Der Zeitplan liest die Arbeitspakete aus den PDF-Quellen zu unzuverlä
 - **Übersicht ohne „Zeitplan öffnen"**: der Einstieg wäre sonst ein Umgehungsweg an der gesperrten Tab-Leiste vorbei ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx)).
 - **Zahlen-Tab**: nicht prüfrelevante Kategorien ausgegraut + zugeklappt (Zähler sichtbar, Claims aufklappbar) ([ZahlenTab.tsx](src/plugins/antraege/aufbereitung/ZahlenTab.tsx)).
 - **Zahlen-Widersprüche pausiert** (Gate an den Konsumenten, reine `pruefeZahlWidersprueche` bleibt intakt + getestet) ([ZahlenTab.tsx](src/plugins/antraege/aufbereitung/ZahlenTab.tsx), [fragen.ts](src/plugins/antraege/aufbereitung/fragen.ts)).
+- **Alle Zeitplan-Befunde stumm**: auch die deterministischen Zeitplan-/Kapazitäts-Befunde (`run.befunde`) schweigen im Fragen- und Abdeckungs-Tab, solange der Zeitplan pausiert ist — geteilter `sichtbareZeitplanBefunde`-Helper ([pausierte-module.ts](src/plugins/antraege/aufbereitung/pausierte-module.ts), [AbdeckungTab.tsx](src/plugins/antraege/aufbereitung/AbdeckungTab.tsx)).
 
 ### v2.265.3 — Assistenten-Spine: Icon monochrom & dezent (Juli 2026)
 

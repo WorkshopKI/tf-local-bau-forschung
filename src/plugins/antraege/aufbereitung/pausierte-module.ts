@@ -25,9 +25,10 @@
  * Arbeitspakete strukturiert eingelesen werden können.
  *
  * Sperrt den Zeitplan-Tab (`deriveTabZustaende`), den „Zeitplan öffnen"-Einstieg der
- * Übersicht (`UebersichtTab`) und — weil sie ausschließlich gegen den Zeitplan
- * vergleichen (Laufzeit-Horizont, Anlage-5-PM-Summe) und ohne ihn selbst unzuverlässig
- * wären — die Zahlen-Widersprüche in `ZahlenTab` + `fragen.ts`.
+ * Übersicht (`UebersichtTab`) und — weil sie alle aus der PDF-Zeitplan-Ernte stammen —
+ * jeden Zeitplan-abhängigen Befund: die Zahlen-Widersprüche (`pruefeZahlWidersprueche` in
+ * `ZahlenTab` + `fragen.ts`) und die `run.befunde` (Text↔Anlage-5 + Kapazität) an allen
+ * sichtbaren Stellen (`fragen.ts` Aspekt H, `AbdeckungTab` — via `sichtbareZeitplanBefunde`).
  *
  * Explizit als `boolean` typisiert (nicht als Literal `true`): sonst narrowt TS die
  * `false`-Zweige der Konsumenten zu totem Code und das Zurücknehmen zieht Folgefehler nach.
@@ -55,4 +56,17 @@ export const ZAHL_KATEGORIE_PAUSE_HINWEIS = 'derzeit nicht prüfrelevant';
 /** True, wenn die Kategorie im Zahlen-Tab ausgegraut + zugeklappt dargestellt wird. */
 export function istZahlKategorieGesperrt(kategorieId: string): boolean {
   return !ZAHL_KATEGORIEN_PRUEFRELEVANT.has(kategorieId);
+}
+
+/**
+ * Die deterministischen Zeitplan-/Kapazitäts-Befunde (`run.befunde`) stammen alle aus der
+ * PDF-Zeitplan-Ernte (Text↔Anlage-5-Abgleich, Kapazität) und schweigen daher an JEDER
+ * sichtbaren Stelle (Fragen-Tab Aspekt H, Abdeckungs-Widersprüche + übernommene Punkte),
+ * solange `ZEITPLAN_PAUSIERT` gilt. Generisch, damit diese Datei import-frei bleibt; die
+ * Daten selbst bleiben unberührt (`run.befunde` trägt weiter alle Keys → `offenePunkte`
+ * überleben, `store.ts` unverändert). Un-Pausieren macht alle drei Stellen automatisch
+ * wieder sichtbar.
+ */
+export function sichtbareZeitplanBefunde<T>(befunde: readonly T[]): readonly T[] {
+  return ZEITPLAN_PAUSIERT ? [] : befunde;
 }
