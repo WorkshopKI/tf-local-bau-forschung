@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.265.2 — Assistenten-Spine: Icon-Kachel 2px kleiner (18px) (Juli 2026)
+
+PATCH — Feinschliff nach v2.265.1: die Primär-Badge-Kachel in der schmalen Spine war einen Tick zu prominent. Nur dev (`assistentPanel`).
+
+- **Icon-Kachel 20px → 18px** in der Dock-Spine ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)); Sparkles-Glyph unverändert.
+
 ### v2.265.1 — Assistenten-Spine schmal (28px) + sichtbar bei offenem Panel (Juli 2026)
 
 PATCH — Nachgezogener Design-Handoff für die rechte Assistenten-Spalte: die dauerhafte Dock-Spine wird von 48px auf 28px verschlankt und trägt statt eines Hover-Tooltips ein dauerhaft sichtbares vertikales „ASSISTENT"-Label. Zusätzlich bleibt die Spine jetzt bei offenem Panel stehen (Panel als Overlay daneben). Nur dev (`assistentPanel`).

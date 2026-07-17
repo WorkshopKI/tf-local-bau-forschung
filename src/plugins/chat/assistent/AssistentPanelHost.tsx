@@ -133,7 +133,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
         aria-expanded={open}
         className={`group fixed right-0 top-0 z-[44] h-screen w-[28px] flex flex-col items-center pt-[14px] px-[2px] gap-[10px] transition-colors cursor-pointer ${open ? 'bg-[var(--tf-sheet)]' : 'bg-transparent hover:bg-[var(--tf-hover)]'}`}
       >
-        <span className="grid place-items-center w-[20px] h-[20px] rounded-[6px] bg-[var(--tf-primary)] text-[var(--tf-on-primary)]">
+        <span className="grid place-items-center w-[18px] h-[18px] rounded-[6px] bg-[var(--tf-primary)] text-[var(--tf-on-primary)]">
           <Sparkles size={12} />
         </span>
         <span className="[writing-mode:vertical-rl] uppercase text-[10.5px] tracking-[0.14em] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)] transition-colors select-none">
