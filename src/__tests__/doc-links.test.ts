@@ -69,6 +69,9 @@ describe('doc-links', () => {
     const bytes = statSync(resolve(ROOT, 'CLAUDE.md')).size;
     // Phase 4 „CLAUDE.md-Diät": von ~68 KB auf ~44 KB. Ceiling fängt eine
     // Rückkehr Richtung Alt-Größe; bei bewusstem Wachstum hier anheben.
-    expect(bytes).toBeLessThan(47_000);
+    // 47_000 → 47_500 (v2.271): Abschnitt „MAP-Förderfähigkeitsprüfung" + eine
+    // Zeile im Decision-Tree. Der Eintrag ist bereits auf zwei harte Regeln plus
+    // Themen-Doc-Link eingedampft — kürzer wäre er nutzloser als seine Nachbarn.
+    expect(bytes).toBeLessThan(47_500);
   });
 });

@@ -36,6 +36,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
 | Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |
 | Antrag-Aufbereitung (Vollbild-Seite: VB-Gliederung + Tabellen-Ernte, Zeitplan-Gantt + Plausibilität inkl. Kapazität; Steckbrief + Abdeckung + Zahlen-Inventar als interne LLM-Bausteine mit Fundstellen + deterministischen Quervergleichen; Fragen-Tab aggregiert alle offenen Punkte; getrennte Baustein-Caches, Verdächtig-Guard/Retry, dev) | [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) |
+| MAP-Förderfähigkeitsprüfung (Einreichungs-JSON, Rechenchecks, editierbare Checkliste, Abschluss-Entwürfe; dev) | [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md) + [map-testleitfaden.md](docs/map-testleitfaden.md) |
 | Assistent-Ereignisprotokoll (Phase 0: gerätelokales, opt-in Protokoll app-semantischer Aktionen; kein LLM/Chat/UI; Fundament für den späteren persönlichen Assistenten) | [docs/architecture/assistent-protokoll.md](docs/architecture/assistent-protokoll.md) |
 | Assistent-Panel (Phase 1: kontextbewusstes Frage-Antwort-Panel; deterministisch assemblierter Kontext + intern-only Transport + resetChat/Turn; shell-weites Dock, session-only, dev) | [docs/architecture/assistent-panel.md](docs/architecture/assistent-panel.md) |
 | Assistent-Gedächtnis (Phase 2: Sleep-time-Konsolidierung des Protokolls in Memory-Blocks via internem Modell; Operationen statt Neuschrieb, invalidieren statt löschen, Belege-Pflicht, Bridge-Mutex, doppeltes Opt-in, Store nie im Snapshot; dev) | [docs/architecture/assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md) |
@@ -181,6 +182,10 @@ Sleep-time-Konsolidierung des [[assistent-protokoll]] in wenige benannte Memory-
 ### Home-Widget-System
 
 Die Homepage rendert seit v2.227 **Widget-Instanzen** aus einer persönlichen Config statt hart verdrahteter Sektionen ([src/plugins/home/widgets/](src/plugins/home/widgets/)). Kernregeln: Widget-Katalog ist Code ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts); `reconcileVerfuegbareWidgets` zieht neue Typen als Opt-in nach); **Persistenz-Invariante HART** — Config IDB-primär + nur Personal-Mirror, NIE registry.json/Share/Snapshot (Guard `home-widgets-local-only`; Notizen strikt IDB-only); Kanban-Lanes binden an `StatusCategory`/`FeedbackStatus` (Pitfall #12, nie Roh-Status). Widget-Liste, Config-UI und „Neues Widget"-Rezept: [docs/architecture/home-widgets.md](docs/architecture/home-widgets.md).
+
+### MAP-Förderfähigkeitsprüfung (Plugin `map-foerderfaehig`, dev)
+
+Demonstrator der Fachprüfung: Einreichungs-JSON → Rechenchecks → **editierbare, versionierte** Checkliste → Abschluss-Entwurf. Flag `mapFoerderfaehig` (**nur dev**). Zwei harte Regeln: eigene `kv`-Entität, **kein `Antrag`-Record** (kein Nicht-CSV-Anlagepfad, Pitfall #13); **keine `.tsx` rechnet** (Vitest node-only) — ein modul-lokaler Convention-Test bewacht beides plus Datenschutz-Deny-Liste. Entscheidungen + Ausbaupfade: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
 
 ### Legacy: Vorgang-Typ
 

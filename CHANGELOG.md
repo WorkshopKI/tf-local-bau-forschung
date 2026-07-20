@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.271.0 — MAP: Testleitfaden, Architektur-Doku, Abnahme (Juli 2026)
+
+MINOR — Abschluss des MAP: Drehbuch für die Vorführung, Architektur-Doku mit den tragenden Entscheidungen und ihren Begründungen, Abnahme über alle Build-Varianten. Nur dev (`mapFoerderfaehig`).
+
+- **Testleitfaden** als 20-Minuten-Drehbuch mit Editor- und Schema-Moment; Ziel der Runde ist ausdrücklich Widerspruch, nicht Zustimmung ([map-testleitfaden.md](docs/map-testleitfaden.md)).
+- **Architektur-Doku** hält fest, *warum* so entschieden wurde — Marker-Erkennung, fünf Status, Fundstellen ohne Orama — samt Ausbaupfaden ([map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md)).
+- **Abnahme**: Flag nachweislich nur im dev-Bundle gesetzt, in prod/pl/as/kurator gar nicht vorhanden; `npm run check` grün, `build:dev` + `build:pl` gebaut.
+- **CLAUDE.md-Ceiling 47.000 → 47.500** bewusst angehoben, nachdem der Eintrag auf zwei harte Regeln plus Themen-Doc-Link eingedampft war ([doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+
 ### v2.270.0 — MAP: Canvas, SdT-Delta, Wirkungskette, Portfolio-Prinzipansicht (dev) (Juli 2026)
 
 MINOR — Drei Ansichten machen das Vorhaben auf einen Blick prüfbar — und zeigen dabei vor allem, wo die Vorhabensbeschreibung nichts hergibt. Dazu eine Portfolio-Prinzipansicht mit erfundenen Demo-Daten. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
