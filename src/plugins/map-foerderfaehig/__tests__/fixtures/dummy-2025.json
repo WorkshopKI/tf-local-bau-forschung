@@ -1,0 +1,785 @@
+﻿{
+  "data": {
+    "sonstigeanlagen": {
+      "werdenZusatzlicheAngabenGemacht": false
+    },
+    "projektpartner": {
+      "partner": [
+        {
+          "name": "abc GmbH"
+        }
+      ],
+      "partnerunternehmen_check": true,
+      "rechtlverb_check": true
+    },
+    "besserstellungsverbot": {
+      "ichWirBestatigeNDasMerkbalttZumBesserstellungsverbotZurKenntnisGenommenZuHaben": true,
+      "erklarungDesAntragstellersZumBesserstellungsverbot1": "nein",
+      "erklarungDesAntragstellersZumBesserstellungsverbot2": "",
+      "erklarungDesAntragstellersZumBesserstellungsverbot3": "",
+      "erklarungDesAntragstellersZumBesserstellungsverbot4": "",
+      "erklarungDesAntragstellersZumBesserstellungsverbot5": "",
+      "erklarungDesAntragstellersZumBesserstellungsverbot6": ""
+    },
+    "schwierigkeiten": {
+      "check1_check": true
+    },
+    "subv": {
+      "strafbarkeit_check3": true,
+      "einverstaendnisweitergabe_check3": true,
+      "erklarung": true,
+      "no_other_finaid": false,
+      "finanzierung_check": true,
+      "beitrag_choice": {
+        "ermoglichungOderBeschleunigungDesVorhabens": true,
+        "signifikantenErweiterungDesVorhabensgegenstandes": true,
+        "signifikantenZunahmeDerGesamtausgabenDesZuwendungsempfangersFurDasProjekt": true
+      },
+      "subventionstatsachen_check": true
+    },
+    "istVorjahr": {
+      "einnahmen": {
+        "summeEinnahmen": 2,
+        "umsatz": 2
+      },
+      "ausgaben": {
+        "summeAusgaben": 6,
+        "personal": 6
+      },
+      "gegenfinanzierung": {
+        "summeGegenfinanzierung": 5,
+        "einnahmenuberschussUbertragAusDemVorjahr": 5
+      },
+      "differenzEinnahmenAusgaben": -4,
+      "geschaftsjahr": 2024
+    },
+    "planAntragsJahr": {
+      "einnahmen": {
+        "summeEinnahmen": 40000,
+        "umsatz": 40000
+      },
+      "ausgaben": {
+        "summeAusgaben": 5,
+        "personal": 5
+      },
+      "gegenfinanzierung": {
+        "summeGegenfinanzierung": 0
+      },
+      "differenzEinnahmenAusgaben": 39995,
+      "geschaftsjahr": 2025
+    },
+    "plan1Folgejahr": {
+      "einnahmen": {
+        "summeEinnahmen": 3,
+        "umsatz": 3
+      },
+      "ausgaben": {
+        "summeAusgaben": 2,
+        "personal": 2
+      },
+      "gegenfinanzierung": {
+        "summeGegenfinanzierung": 0
+      },
+      "differenzEinnahmenAusgaben": 1,
+      "geschaftsjahr": 2026
+    },
+    "plan2Folgejahr": {
+      "einnahmen": {
+        "summeEinnahmen": 4,
+        "umsatz": 4
+      },
+      "ausgaben": {
+        "summeAusgaben": 3,
+        "personal": 3
+      },
+      "gegenfinanzierung": {
+        "summeGegenfinanzierung": 0
+      },
+      "differenzEinnahmenAusgaben": 1,
+      "geschaftsjahr": 2027
+    },
+    "plan3Folgejahr": {
+      "einnahmen": {
+        "summeEinnahmen": 5,
+        "umsatz": 5
+      },
+      "ausgaben": {
+        "summeAusgaben": 4,
+        "personal": 4
+      },
+      "gegenfinanzierung": {
+        "summeGegenfinanzierung": 0
+      },
+      "differenzEinnahmenAusgaben": 1,
+      "geschaftsjahr": 2028
+    },
+    "finanzierungsuebersicht_file": [],
+    "finanzierungsuebersicht_unterlagennachweise_file": [],
+    "werteUbertragen": false,
+    "zuwfkosten": {
+      "unternehmensgrossenat_choice": 0.45,
+      "pkma_number": 69718,
+      "uebrigekosten_number": 25000,
+      "kostendritte_number": 5012,
+      "kostenfue_number": 7000,
+      "kostentemp_number": 5000,
+      "kostengesamt_number": 111730,
+      "beantragtezuwendung_number": 50279
+    },
+    "sonstigefue": {
+      "projektkosteneinzeln_check": false,
+      "uebrigekosten_number": 25000,
+      "check_korr_projkosten": true,
+      "uebrigekosten_extranumber": 25000
+    },
+    "personalkostentemp": {
+      "personalbogen_editgrid": [
+        {
+          "qualifikation_textfield": "Quali1",
+          "verbindlich_check": true,
+          "entsendendestelle_textfield": "Entsender1",
+          "zeitraum_confirm": true,
+          "laufzeitstart_date": "2025-10-01",
+          "laufzeitend_date": "2025-12-31",
+          "aphinzufuegen_editgrid": [
+            {
+              "aphinzufuegen_editgrid_Arbeitspaket": {
+                "label": "1 AP1",
+                "value": "1-1753999200000-1769814000000"
+              },
+              "apstart_date": "2025-10-01",
+              "apend_date": "2025-12-31",
+              "personenmonate_number": 5
+            }
+          ],
+          "personalnummer_number": 1,
+          "pmgesamt_number": 5,
+          "auftragskosten_number": 5000,
+          "personalmonatskosten_number": 1000
+        }
+      ],
+      "pmep": 16,
+      "pmfp": 5.5,
+      "gesamtpersonenmonate": 5,
+      "gesamtkostensumme_number": 5000
+    },
+    "auftraegefp": {
+      "personalbogen_editgrid": [
+        {
+          "name_textfield": "FP1",
+          "kontaktadresse_adress": {
+            "mode": "manual",
+            "address": {
+              "address1": "Musterstr. 1 Stadt",
+              "city": "Stadt",
+              "state": "",
+              "country": "D",
+              "zip": "12345"
+            }
+          },
+          "auftragsgegenstand_textfield": "FA1",
+          "handeltEsSichUmEinenNationalenOderInternationalenPartner": "national",
+          "typ": 6,
+          "vertrag": [
+            {
+              "storage": "s3",
+              "name": "0314390b-2ee4-4ac8-a148-e41c34513249.pdf",
+              "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/0314390b-2ee4-4ac8-a148-e41c34513249.pdf",
+              "size": 146461,
+              "bucket": "fzd",
+              "type": "application/pdf",
+              "data": {
+                "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/0314390b-2ee4-4ac8-a148-e41c34513249.pdf"
+              },
+              "originalName": "1.pdf",
+              "hash": ""
+            }
+          ],
+          "arbeitspakete_editgrid": [
+            {
+              "zuordnungZuArbeitspaketenUA": "1 AP1",
+              "apstart": "2025-10-01",
+              "apend": "2025-12-01",
+              "personenmonate": 5.5
+            }
+          ],
+          "partner_number": 1,
+          "gesamtkostensumme_number": 7000
+        }
+      ],
+      "pmep": 16,
+      "pmtemp": 0,
+      "gesamtpersonenmonate": 5.5,
+      "gesamtkosten": 7000
+    },
+    "auftraegeDritter": {
+      "auftragnehmererklarung": true,
+      "auftragnehmer_grid": [
+        {
+          "auftragnehmer": "abc GmbH",
+          "addresseDesAuftragnehmers": {
+            "mode": "manual",
+            "address": {
+              "address1": "Musterstr. 1",
+              "city": "Musterstadt",
+              "state": "",
+              "country": "D",
+              "zip": "12345"
+            }
+          },
+          "auftrage": [
+            {
+              "auftragsgegenstand": "Gegenstand1",
+              "zuordnungZuArbeitspaketenUA": "AP1",
+              "realisierungszeitpunkt": "2025-06-05T00:00:00+02:00",
+              "angebot1_file": [
+                {
+                  "storage": "s3",
+                  "name": "0bdf8efe-5e63-4e12-b5bc-254b1b4b53a4.pdf",
+                  "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/0bdf8efe-5e63-4e12-b5bc-254b1b4b53a4.pdf",
+                  "size": 146461,
+                  "bucket": "fzd",
+                  "type": "application/pdf",
+                  "data": {
+                    "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/0bdf8efe-5e63-4e12-b5bc-254b1b4b53a4.pdf"
+                  },
+                  "originalName": "1.pdf",
+                  "hash": ""
+                }
+              ],
+              "auftrag_number": 1,
+              "auftragskosten": 5000
+            },
+            {
+              "auftragsgegenstand": "Auftrga2",
+              "zuordnungZuArbeitspaketenUA": "Ap2",
+              "realisierungszeitpunkt": "2025-12-31T00:00:00+01:00",
+              "angebot1_file": [
+                {
+                  "storage": "s3",
+                  "name": "71a150b6-6a32-4f4f-8e67-37fa32efc28a.pdf",
+                  "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/71a150b6-6a32-4f4f-8e67-37fa32efc28a.pdf",
+                  "size": 146461,
+                  "bucket": "fzd",
+                  "type": "application/pdf",
+                  "data": {
+                    "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/71a150b6-6a32-4f4f-8e67-37fa32efc28a.pdf"
+                  },
+                  "originalName": "1.pdf",
+                  "hash": ""
+                }
+              ],
+              "auftrag_number": 2,
+              "auftragskosten": 12
+            }
+          ],
+          "auftragnehmer_number": 1,
+          "gesamtkostenDesAuftragnehmers": 5012
+        }
+      ],
+      "kostenFurAuftrageAnDritte": 5012
+    },
+    "einsatzplanung": {
+      "editgrid": [
+        {
+          "arbeitspacket": "AP1",
+          "laufzeitstart_date": "2025-08-01",
+          "laufzeitend_date": "2026-01-31",
+          "mitarbeiter": [
+            {
+              "mitarbeiternummer": {
+                "label": "2 | N.N. N.N",
+                "value": 3634
+              },
+              "jahr1": 2025,
+              "personenmonateJahr1": 3,
+              "jahr2": 2026,
+              "personenmonateJahr2": 2,
+              "jahr3": 2027,
+              "personenmonateJahr3": 1,
+              "jahr4": 2028,
+              "personenmonateJahr4": 2,
+              "gesamtpersonalkostenJeMitarbeiter": 29072,
+              "gesamtpersonalmonateJeMitarbeiter": 8
+            },
+            {
+              "mitarbeiternummer": {
+                "label": "1 | Vorname 1 Name 1",
+                "value": 5563
+              },
+              "jahr1": 2025,
+              "personenmonateJahr1": 2,
+              "jahr2": 2026,
+              "personenmonateJahr2": 1,
+              "jahr3": 2027,
+              "personenmonateJahr3": 0,
+              "jahr4": 2028,
+              "personenmonateJahr4": 1,
+              "gesamtpersonalkostenJeMitarbeiter": 22252,
+              "gesamtpersonalmonateJeMitarbeiter": 4
+            }
+          ],
+          "laufnummer": 1,
+          "arbeitsaufwandAP": 12,
+          "arbeitsaufwandPM": 12,
+          "gesamtkostenAP": 51324
+        },
+        {
+          "arbeitspacket": "AP2",
+          "laufzeitstart_date": "2026-02-02",
+          "laufzeitend_date": "2026-05-01",
+          "mitarbeiter": [
+            {
+              "mitarbeiternummer": {
+                "label": "1 | Vorname 1 Name 1",
+                "value": 5563
+              },
+              "jahr1": 2025,
+              "personenmonateJahr1": 0,
+              "jahr2": 2026,
+              "personenmonateJahr2": 1,
+              "jahr3": 2027,
+              "personenmonateJahr3": 1,
+              "jahr4": 2028,
+              "personenmonateJahr4": 0,
+              "gesamtpersonalkostenJeMitarbeiter": 11126,
+              "gesamtpersonalmonateJeMitarbeiter": 2
+            },
+            {
+              "mitarbeiternummer": {
+                "label": "2 | N.N. N.N",
+                "value": 3634
+              },
+              "jahr1": 2025,
+              "personenmonateJahr1": 1,
+              "jahr2": 2026,
+              "personenmonateJahr2": 0,
+              "jahr3": 2027,
+              "personenmonateJahr3": 0,
+              "jahr4": 2028,
+              "personenmonateJahr4": 1,
+              "gesamtpersonalkostenJeMitarbeiter": 7268,
+              "gesamtpersonalmonateJeMitarbeiter": 2
+            }
+          ],
+          "laufnummer": 2,
+          "arbeitsaufwandAP": 4,
+          "arbeitsaufwandPM": 4,
+          "gesamtkostenAP": 18394
+        }
+      ],
+      "werteUbertragen": true,
+      "gesamtpersonenmonate": 16,
+      "gesamtkosten_number": 69718
+    },
+    "mitarbeiter": {
+      "personalbogen_editgrid": [
+        {
+          "madatenabfragen_choice": true,
+          "vorname_textfield": "Vorname 1",
+          "nachname_textfield": "Name 1",
+          "anrede_dropdown": "frau",
+          "geburtsdatum_date": "1900-01-01",
+          "email_email": "kontakt@fiktiv.example",
+          "qualifikation": "hochschulabschluss",
+          "fachrichtung_textfield": "Quali1",
+          "funktion_textfield": "Funktion1",
+          "einstellungsdatum_date": "2000-01-01",
+          "befristung_dropdown": "befristet",
+          "grundfinanzierung_check": false,
+          "tvodverguetung_check": false,
+          "festlohn_confirm": "nein",
+          "wganzahl_number": 1,
+          "betragug_number": 100,
+          "uganzahl_number": 2,
+          "betragvwl_number": 700,
+          "vwlanzahl_number": 4,
+          "betragav_number": 250,
+          "avanzahl_number": 5,
+          "264strafgesetzbuch_check": true,
+          "personalnummer_number": 1,
+          "mitarbeiterfixjahresbrutto_number": 60000,
+          "wggesamt_number": 2500,
+          "uggesamt_number": 200,
+          "vwlgesamt_number": 2800,
+          "avgesamt_number": 1250,
+          "fixgehaltgesamt_number": 6750,
+          "jahresbruttogesamt_number": 66750,
+          "teilzeitfaktor_number": 1,
+          "jahresbruttokorrigiert_number": 66750,
+          "jahresbruttouebertrag_number": 66750,
+          "jahresarbeitsstunden_number": 2080,
+          "stundensatz_number": 32.09,
+          "normiertemonatskosten_number": 5563,
+          "fristende_date": "2029-06-30",
+          "mitarbeiterfixmonatsbrutto_number": 5000,
+          "betragwg_number": 2500,
+          "wochenarbeitszeitma_number": 40,
+          "wochenarbeitszeitbetrieb_number": 40
+        },
+        {
+          "madatenabfragen_choice": false,
+          "vorname_textfield": "N.N.",
+          "nachname_textfield": "N.N",
+          "qualifikation": "hochschulabschluss",
+          "fachrichtung_textfield": "Quali2",
+          "funktion_textfield": "Funktion2",
+          "einstellungsdatum_date": "2025-01-01",
+          "befristung_dropdown": "unbefristet",
+          "tvodverguetung_check": true,
+          "festlohn_confirm": "nein",
+          "betragwg_number": 0,
+          "wganzahl_number": 1,
+          "betragug_number": 0,
+          "uganzahl_number": 1,
+          "betragvwl_number": 0,
+          "vwlanzahl_number": 1,
+          "betragav_number": 0,
+          "avanzahl_number": 1,
+          "264strafgesetzbuch_check": true,
+          "personalnummer_number": 2,
+          "mitarbeiterfixjahresbrutto_number": 42000,
+          "wggesamt_number": 0,
+          "uggesamt_number": 0,
+          "vwlgesamt_number": 0,
+          "avgesamt_number": 0,
+          "fixgehaltgesamt_number": 0,
+          "jahresbruttogesamt_number": 42000,
+          "teilzeitfaktor_number": 0.963,
+          "jahresbruttokorrigiert_number": 42000,
+          "jahresbruttouebertrag_number": 42000,
+          "jahresarbeitsstunden_number": 2002,
+          "stundensatz_number": 20.98,
+          "normiertemonatskosten_number": 3634,
+          "tvodgruppe_dropdown": "e12",
+          "tvodentgeltstufe_dropdown": 2,
+          "mitarbeiterfixmonatsbrutto_number": 3500,
+          "wochenarbeitszeitma_number": 38.5,
+          "wochenarbeitszeitbetrieb_number": 40
+        }
+      ],
+      "datenerhebung_check": true
+    },
+    "berater": {
+      "mitwirkung_choice": true,
+      "adresse_adress": {
+        "mode": "manual",
+        "address": {
+          "address1": "Beratungsstr. 1",
+          "city": "Musterstadt",
+          "state": "Berlin",
+          "country": "Deutschland",
+          "zip": "12345"
+        }
+      },
+      "nameberatungsunternehmen_textfield": "Beratungsunternehmen",
+      "sonstigekompensation_number": "Kompensation",
+      "honorar_number": 5000
+    },
+    "abgeschlossenefue": {
+      "aktuelllaufend_confirm": true,
+      "abgeschlossen_confirm": true,
+      "zim_confirm": true,
+      "abgeschlossen_editgrid": [
+        {
+          "zuwendungsgeber_textfield": "Muster1 GmbH",
+          "namefoerderprogramm_textfield": "Förderprogramm1",
+          "foerderkennzeichen_textfield": "FP1",
+          "titelfueprojekt_textfield": "FuE title1",
+          "fueprojektestart_date": "2021-01-01",
+          "fueprojekteend_date": "2022-06-30",
+          "verwendungsnachweis_confirm": "ja",
+          "wervertungspflicht_confirm": "ja"
+        }
+      ],
+      "separateUpload_check": {
+        "listUpload": false
+      }
+    },
+    "arbeitspakete": {
+      "editgrid": [
+        {
+          "arbeitspaket": "AP1",
+          "laufzeitstart_date": "2025-08-01",
+          "laufzeitend_date": "2026-01-31",
+          "number": 1,
+          "arbeitsaufwand": 12
+        },
+        {
+          "arbeitspaket": "AP2",
+          "laufzeitstart_date": "2026-02-02",
+          "laufzeitend_date": "2026-05-01",
+          "number": 2,
+          "arbeitsaufwand": 4
+        }
+      ],
+      "gesamtarbeitsaufwand": 16
+    },
+    "detailbeschreibung": {
+      "patentsituation_checklist": {
+        "0": false,
+        "1": true,
+        "2": true,
+        "3": false,
+        "4": false
+      },
+      "technologieneuerung": {
+        "Einstieg in ein neues Technologiegebiet": false,
+        "Neue Kombination von modernen Technologien": true
+      },
+      "projektbeschreibung_file": [
+        {
+          "storage": "s3",
+          "name": "83bb74af-cfe1-4036-8604-e9f7d9c4d075.pdf",
+          "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/83bb74af-cfe1-4036-8604-e9f7d9c4d075.pdf",
+          "size": 146461,
+          "bucket": "fzd",
+          "type": "application/pdf",
+          "data": {
+            "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/83bb74af-cfe1-4036-8604-e9f7d9c4d075.pdf"
+          },
+          "originalName": "1.pdf",
+          "hash": ""
+        }
+      ],
+      "ueberschriftauswirkungaufantragsteller": {
+        "file": [
+          {
+            "storage": "s3",
+            "name": "108b468f-fab8-476c-adab-90ced41be4ff.pdf",
+            "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/108b468f-fab8-476c-adab-90ced41be4ff.pdf",
+            "size": 146461,
+            "bucket": "fzd",
+            "type": "application/pdf",
+            "data": {
+              "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/108b468f-fab8-476c-adab-90ced41be4ff.pdf"
+            },
+            "originalName": "1.pdf",
+            "hash": ""
+          }
+        ]
+      },
+      "markteinfuerungskonzept_file": [
+        {
+          "storage": "s3",
+          "name": "2d661fe8-f809-40c8-aa5b-72856b7818e4.pdf",
+          "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/2d661fe8-f809-40c8-aa5b-72856b7818e4.pdf",
+          "size": 146461,
+          "bucket": "fzd",
+          "type": "application/pdf",
+          "data": {
+            "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/2d661fe8-f809-40c8-aa5b-72856b7818e4.pdf"
+          },
+          "originalName": "1.pdf",
+          "hash": ""
+        }
+      ],
+      "schutzrechte_file": [
+        {
+          "storage": "s3",
+          "name": "e3e46274-9fe8-4b54-9b0d-1cbdd7abad55.pdf",
+          "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/e3e46274-9fe8-4b54-9b0d-1cbdd7abad55.pdf",
+          "size": 146461,
+          "bucket": "fzd",
+          "type": "application/pdf",
+          "data": {
+            "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/e3e46274-9fe8-4b54-9b0d-1cbdd7abad55.pdf"
+          },
+          "originalName": "1.pdf",
+          "hash": ""
+        }
+      ]
+    },
+    "bankverb": {
+      "geldinstitut_textfield": "Fiktive Beispielbank",
+      "iban_textfield": "DE00 0000 0000 0000 0000 00",
+      "bic_textfield": "FIKTDE00"
+    },
+    "plansprechpartner": {
+      "anrede_dropdown": "herr",
+      "akademtitel_textfield": "Prof. Dr.",
+      "geburtsdatum_date": "1900-01-01",
+      "vorname_textfield": "Anton",
+      "nachname_textfield": "Beispiel",
+      "email_email": "a.beispiel@fiktiv.example",
+      "telefonnummer_textfield": "(+49) 000000",
+      "funktion_textfield": "Entwicklungsleiter"
+    },
+    "bevollmaechtigter": {
+      "anrede_dropdown": "frau",
+      "akademtitel_textfield": "Dr.",
+      "geburtsdatum_date": "1900-01-01",
+      "vorname_textfield": "Berta",
+      "nachname_textfield": "Musterfrau",
+      "email_email": "b.beispiel@fiktiv.example",
+      "telefonnummer_textfield": "(+49) 000000",
+      "funktion_textfield": "Geschäftsführerin"
+    },
+    "antragsteller": {
+      "identifizierung_textfield": "Test GmbH",
+      "rechtsform_dropdown": "gmbH",
+      "adresse_address": {
+        "mode": "manual",
+        "address": {
+          "address1": "Kaiserin-Augusta-Allee 10",
+          "city": "Berlin",
+          "state": "Berlin",
+          "country": "Deutschland",
+          "zip": "10553"
+        }
+      },
+      "webseite_url": "www.website.de",
+      "postfach_confirm": true,
+      "niederlassung_radio": "ja",
+      "institution_dropdown1": "",
+      "institutionname_textfield1": "",
+      "registereintrag_textfield3": "",
+      "jahrdesletztenjahresabschlusses_number1": "",
+      "amtlregeintrag_file": [],
+      "gruendung_date": "2020-01-01",
+      "registrierungsdatumantragsteller_date": "2020-01-01",
+      "handelsregisterauszug_file": [
+        {
+          "storage": "s3",
+          "name": "1e692b15-21e3-44ae-bb39-e657be3cec93.pdf",
+          "url": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/1e692b15-21e3-44ae-bb39-e657be3cec93.pdf",
+          "size": 146461,
+          "bucket": "fzd",
+          "type": "application/pdf",
+          "data": {
+            "fileUrl": "https://s3stack-fundingprojectsbucket67ff9930-h3bfqiu3vncg.s3.eu-central-1.amazonaws.com/vorgang/d03f3214-2fc1-4869-b3c2-86b784505116/form/12e68d8e-7315-4dd1-a51d-ad298052b602/attachment/1e692b15-21e3-44ae-bb39-e657be3cec93.pdf"
+          },
+          "originalName": "1.pdf",
+          "hash": ""
+        }
+      ],
+      "wirtschaftsidentifikationsnummer_text": "DE123456789",
+      "unternehmenstyp_choice": 1,
+      "groessenklasse_choice": 0,
+      "264strafgesetzbuch_check": true,
+      "institut_profil": "Unternehmensgeschichte Lorem ipsum",
+      "institution_dropdown": "amtsgericht",
+      "institutionname_textfield": "Charlottenburg",
+      "jahrdesletztenjahresabschlusses_number": "2024",
+      "postfachnumber_textfield": "12345",
+      "plz_number": "10553",
+      "ort_textfield": "Berlin",
+      "niederlassung_address": {
+        "mode": "manual",
+        "address": {
+          "address1": "Kaiserin-Augusta-Allee 11",
+          "city": "Berlin",
+          "state": "Berlin",
+          "country": "Deutschland",
+          "zip": "10553"
+        }
+      },
+      "niederlassungsname_textfield": "Niederlassung Test",
+      "urlniederlassung_url": "www.website.de",
+      "postfachniederlassung_check": false,
+      "registereintrag_textfield": "HRB-123456",
+      "bezugsjahrvorvorletztes_textfield": 2022,
+      "bezugsjahrvorletztes_textfield": 2023,
+      "bezugsjahrletztes_textfield": 2024,
+      "gruppebezugsjahrvorletztes_textfield": 2023,
+      "gruppebezugsjahrletztes_textfield": 2024,
+      "bezugsjahraktuelles_textfield": 2025,
+      "gruppebezugsjahraktuelles_textfield": 2025,
+      "beschaftigtenzahlaktuelles_number": 8.8,
+      "jahresumsatzaktuelles_number": 400,
+      "personenzahlaktuelles_number": 5,
+      "fuEBeschaftigteaktuelles_number": 5,
+      "beschaftigtenzahlvorvorletztes_number": 5.5,
+      "jahresumsatzvorvorletztes_number": 100,
+      "beschaftigtenzahlvorletztes_number": 6.6,
+      "jahresumsatzvorletztes_number": 200,
+      "fuEAusgabenvorvorletztes_number": 150,
+      "fuEBeschaftigtevorvorletztes_number": 5,
+      "beschaftigtenzahlletztes_number": 7.7,
+      "jahresumsatzletztes_number": 300,
+      "fuEAusgabenletztes_number": 150,
+      "fuEBeschaftigteletztes_number": 5,
+      "gruppebeschaftigtenzahlvorletztes_number": 5.5,
+      "gruppejahresumsatzvorletztes_number": 150,
+      "gruppejahresbilanzsummevorletztes_number": 150,
+      "gruppebeschaftigtenzahlletztes_number": 6.6,
+      "gruppejahresumsatzletztes_number": 150,
+      "gruppejahresbilanzsummeletztes_number": 150
+    },
+    "antragsdetails": {
+      "forschungseinrichtung_confirm": false,
+      "zim_confirm": true,
+      "studie_confirm": true,
+      "netzwerkname_textfield": "Test der Kurzbezeichnung",
+      "teilprojekt_textfield": "Test der Kurzbezeichnung des Teilprojektes FuE",
+      "akronym_textfield": "Akronym",
+      "kurzfassungbeschreibung_textarea": "Test der Kurzfassung Textarea Hier viel Platz",
+      "laufzeitstart_date": "2025-06-01",
+      "laufzeitend_date": "2027-04-30",
+      "zim_netzwerkname": "Name des Netzwerks",
+      "markt_kennzeichen": "16KN123456",
+      "zim_studiename": "Name der Studie",
+      "studie_kennzeichen": "16KN654321"
+    }
+  },
+  "metadata": {
+    "selectData": {
+      "antragsteller": {
+        "rechtsform_dropdown": {
+          "label": "GmbH"
+        },
+        "institution_dropdown": {
+          "label": "Amtsgericht"
+        }
+      },
+      "bevollmaechtigter": {
+        "anrede_dropdown": {
+          "label": "Frau"
+        }
+      },
+      "plansprechpartner": {
+        "anrede_dropdown": {
+          "label": "Herr"
+        }
+      },
+      "mitarbeiter": {
+        "personalbogen_editgrid": [
+          {
+            "anrede_dropdown": {
+              "label": "Frau"
+            },
+            "qualifikation": {
+              "label": "Mitarbeiter mit Hoch- und Fachhochschulabschluss"
+            },
+            "befristung_dropdown": {
+              "label": "befristet"
+            }
+          },
+          {
+            "qualifikation": {
+              "label": "Mitarbeiter mit Hoch- und Fachhochschulabschluss"
+            },
+            "befristung_dropdown": {
+              "label": "unbefristet"
+            },
+            "tvodgruppe_dropdown": {
+              "label": "E12"
+            },
+            "tvodentgeltstufe_dropdown": {
+              "label": "2"
+            }
+          }
+        ]
+      },
+      "auftraegefp": {
+        "personalbogen_editgrid": [
+          {
+            "typ": {
+              "label": "Fachhochschule"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

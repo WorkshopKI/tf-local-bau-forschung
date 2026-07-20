@@ -80,6 +80,13 @@ _reference/assistent-dock-mockups/
 _reference/aufbereitung-*.png
 _reference/home-widgets/
 _reference/journey-paket-*/
+_reference/canvas-zim.png
+_reference/portfolio-demo.png
+_reference/foerderfaehig-stepper.png
+_reference/pruefung-abschluss.png
+_reference/reader-lite.png
+_reference/sdt-delta-karte.png
+_reference/wirkungskette.png
 fiktive-vbs/
 eval/word-fiktive-vbs/
 eval/judge.json
@@ -97,3 +104,19 @@ registry.lektor-test.json
 # CFB-Fixtures getestet; echte Mails liegen nur lokal in fixtures-local/.
 *.msg
 src/core/services/msg/__tests__/fixtures-local/
+
+# Plattform-Einreichungen (Antrags-JSON) tragen personenbezogene Daten — Namen,
+# E-Mail, Telefonnummern, Geburtsdatum, IBAN, beim Echtfall auch Geokoordinaten.
+# Das Repo ist ÖFFENTLICH; eine einmal committete Einreichung ist nicht mehr
+# sauber zu entfernen. Deshalb bleiben ALLE Rohexporte lokal-only. Getrackt wird
+# ausschliesslich die gescrubbte, offensichtlich fiktive Test-Fixture unter
+# src/plugins/map-foerderfaehig/__tests__/fixtures/ (strukturgleich, PII ersetzt).
+test-fixtures/
+_reference/json-antrags-dummy/
+src/plugins/map-foerderfaehig/__tests__/fixtures-local/
+
+# Interne Arbeitsdokumente der Fachpruefung (Checklisten, Entscheidungshilfe,
+# Textbausteine) — Rohmaterial, gehoert nicht ins oeffentliche Repo. Die daraus
+# abgeleiteten Pruefkriterien leben als App-Daten im committeten Checklisten-Seed
+# (src/plugins/map-foerderfaehig/checkliste/checkliste.seed.ts).
+_reference/zim-richtlinie/
