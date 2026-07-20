@@ -112,7 +112,7 @@ export function EinreichungListe({
                       aria-label="Einreichung entfernen"
                       className="opacity-0 group-hover:opacity-100 transition shrink-0"
                       disabled={entfernen.busy}
-                      onClick={ev => { ev.stopPropagation(); void entfernen.run(e.id); }}
+                      onClick={ev => { ev.stopPropagation(); entfernen.run(e.id); }}
                     >
                       <Trash2 size={14} />
                     </Button>

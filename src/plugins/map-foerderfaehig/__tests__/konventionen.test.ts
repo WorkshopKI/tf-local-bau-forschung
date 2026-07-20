@@ -83,7 +83,7 @@ describe('MAP-Konventionen', () => {
     // Kohaesion vor Zeilenzahl — aber Seed-/Daten-Files ausgenommen, die
     // duerfen laut project-structure.md groesser sein.
     const zuGross = QUELLDATEIEN
-      .filter(f => !f.endsWith('.seed.ts'))
+      .filter(f => !path.basename(f).endsWith('seed.ts'))
       .map(f => ({ f, zeilen: readFileSync(f, 'utf-8').split('\n').length as number }))
       .filter(x => x.zeilen > 400)
       .map(x => `${path.relative(PLUGIN_WURZEL, x.f)}: ${x.zeilen}`);

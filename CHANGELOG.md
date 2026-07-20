@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.268.0 — MAP: editierbare Checkliste, Pruef-Stepper, Abschluss-Entwuerfe (dev) (Juli 2026)
+
+MINOR — Die Prüfung selbst kommt in die App: Kriterien aus der Papiervorlage, Bewertung durch den Menschen, Abschluss als kopierbarer Entwurf. Kern der Demo ist der Editor — ein fehlendes Kriterium lässt sich im Gespräch ergänzen, die Fassung zählt hoch. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
+
+- **Seed wörtlich aus den Papier-Checklisten** (26 Kriterien, drei Skala-Kategorien mit den Ankertexten B0–B3); Ergänzungen der App tragen `herkunft: 'app'` und sind damit unterscheidbar ([seed.ts](src/plugins/map-foerderfaehig/checkliste/seed.ts)).
+- **Fünf Status wie im Formular** (erfüllt / nicht erfüllt / n. z. / NF notw. / NF erfüllt) — bewusst abweichend vom Konzeptdokument: der Item-Verlauf macht so unterscheidbar, ob eine Nachforderung erledigt oder neu bewertet wurde ([typen.ts](src/plugins/map-foerderfaehig/checkliste/typen.ts)).
+- **Drei Regeln an einer Stelle**: eine einzige B0-Stufe setzt die Punktzahl auf 0, bedingte Blöcke entfallen vollständig, „n. z." senkt die erreichbare Punktzahl ([bewertung.ts](src/plugins/map-foerderfaehig/checkliste/bewertung.ts)).
+- **Editor mit Versions-Stempel**: jede Speicherung zählt die Fassung hoch; laufende Prüfungen bleiben auf ihrer Fassung, Bewertungen zu entfernten Kriterien bleiben erhalten ([editor.ts](src/plugins/map-foerderfaehig/checkliste/editor.ts), [verlauf.ts](src/plugins/map-foerderfaehig/checkliste/verlauf.ts)).
+- **Abschluss ohne KI**: Gutachten, Nachforderung und Ablehnung deterministisch als Markdown; NF-Bausteine wortgetreu (Pitfall #34), ohne Treffer `[TODO Baustein zuordnen]` statt Erfundenem ([markdown.ts](src/plugins/map-foerderfaehig/abschluss/markdown.ts)).
+
 ### v2.267.0 — MAP Foerderfaehigkeit: Einreichungs-Import, Rechenchecks, Kompaktansicht (dev) (Juli 2026)
 
 MINOR — Die Fachprüfung läuft heute über eine xlsx-Liste. Der MAP zieht sie in die App: Einreichungs-JSON per Drag & Drop, deterministische Rechenchecks, Kompaktansicht. Eigene kv-Entität ohne `Antrag`-Record — die CSV-/Antrags-Pipeline bleibt unberührt. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).

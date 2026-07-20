@@ -20,13 +20,18 @@
  * wird erst beim Öffnen der Detailansicht geladen.
  */
 import type { IDBStore } from '@/core/services/storage';
+import { CHECKLISTE_SEED } from './checkliste/seed';
+import type { MapChecklistenDefinition, MapPruefung } from './checkliste/typen';
 import type { MapEinreichung, MapImportReport } from './types';
 
 const EINREICHUNG_PRAEFIX = 'map-einreichung:';
 const REPORT_PRAEFIX = 'map-report:';
+const CHECKLISTE_KEY = 'map-checkliste:aktuell';
+const PRUEFUNG_PRAEFIX = 'map-pruefung:';
 
 const einreichungKey = (id: string): string => `${EINREICHUNG_PRAEFIX}${id}`;
 const reportKey = (id: string): string => `${REPORT_PRAEFIX}${id}`;
+const pruefungKey = (id: string): string => `${PRUEFUNG_PRAEFIX}${id}`;
 
 /** Alle Einreichungen, jüngste zuerst. */
 export async function listeEinreichungen(idb: IDBStore): Promise<MapEinreichung[]> {
@@ -56,6 +61,7 @@ export async function putEinreichung(
 export async function deleteEinreichung(idb: IDBStore, id: string): Promise<void> {
   await idb.delete(einreichungKey(id));
   await idb.delete(reportKey(id));
+  await idb.delete(pruefungKey(id));
 }
 
 /**
@@ -68,4 +74,42 @@ export async function findeNachQuellHash(
 ): Promise<MapEinreichung | null> {
   const alle = await listeEinreichungen(idb);
   return alle.find(e => e.quellHash === quellHash) ?? null;
+}
+
+// --- Checkliste -------------------------------------------------------------
+
+/**
+ * Aktuelle Checklisten-Fassung. Beim ersten Aufruf wird der Seed geschrieben —
+ * ab dann ist die gespeicherte Fassung massgeblich, damit Änderungen aus dem
+ * Editor einen Neustart überleben und nicht vom Seed überschrieben werden.
+ */
+export async function ladeCheckliste(idb: IDBStore): Promise<MapChecklistenDefinition> {
+  const gespeichert = await idb.get<MapChecklistenDefinition>(CHECKLISTE_KEY);
+  if (gespeichert && Array.isArray(gespeichert.items) && gespeichert.items.length > 0) {
+    return gespeichert;
+  }
+  await idb.set(CHECKLISTE_KEY, CHECKLISTE_SEED);
+  return CHECKLISTE_SEED;
+}
+
+export async function speichereCheckliste(
+  idb: IDBStore, definition: MapChecklistenDefinition,
+): Promise<void> {
+  await idb.set(CHECKLISTE_KEY, definition);
+}
+
+/** Setzt die Checkliste auf die Auslieferungsfassung zurück. */
+export async function setzeChecklisteZurueck(idb: IDBStore): Promise<MapChecklistenDefinition> {
+  await idb.set(CHECKLISTE_KEY, CHECKLISTE_SEED);
+  return CHECKLISTE_SEED;
+}
+
+// --- Prüfstand --------------------------------------------------------------
+
+export async function getPruefung(idb: IDBStore, einreichungId: string): Promise<MapPruefung | null> {
+  return idb.get<MapPruefung>(pruefungKey(einreichungId));
+}
+
+export async function putPruefung(idb: IDBStore, pruefung: MapPruefung): Promise<void> {
+  await idb.set(pruefungKey(pruefung.einreichungId), pruefung);
 }

@@ -11,9 +11,13 @@ import { baueGanttDaten } from '../ansicht/gantt-daten';
 import { baueKostenSegmente } from '../ansicht/kosten-segmente';
 import { formatDatum } from '../import/laufzeit';
 import { AP_PM_GRENZE } from '../import/rechenchecks';
+import { useMapPruefung } from '../useMapPruefung';
 import type { MapEinreichung, MapImportReport } from '../types';
+import { AbschlussPanel } from './AbschlussPanel';
 import { ApGantt } from './ApGantt';
 import { BefundAmpel, BefundListe } from './BefundListe';
+import { ChecklistePanel } from './ChecklistePanel';
+import { ChecklistenEditor } from './ChecklistenEditor';
 import { ImportReportPanel } from './ImportReportPanel';
 import { KostenBalken } from './KostenBalken';
 
@@ -61,8 +65,9 @@ export function KompaktAnsicht({
 
   const gantt = useMemo(() => baueGanttDaten(einreichung, AP_PM_GRENZE), [einreichung]);
   const segmente = useMemo(() => baueKostenSegmente(einreichung.kosten), [einreichung]);
-  const befunde = report?.befunde ?? [];
+  const befunde = useMemo(() => report?.befunde ?? [], [report]);
 
+  const pruefung = useMapPruefung(einreichung, befunde);
   const nnAnteil = einreichung.summen.nnAnteil;
 
   return (
@@ -82,6 +87,12 @@ export function KompaktAnsicht({
         items={[
           { key: 'kompakt', label: 'Vorhaben kompakt' },
           { key: 'befunde', label: 'Rechenchecks', count: befunde.length },
+          {
+            key: 'pruefung', label: 'Förderfähig',
+            count: pruefung.ergebnis?.fortschritt.gesamt,
+          },
+          { key: 'abschluss', label: 'Abschluss' },
+          { key: 'checkliste', label: 'Checkliste bearbeiten' },
           { key: 'report', label: 'Import-Report' },
         ]}
         activeKey={sicht}
@@ -150,6 +161,56 @@ export function KompaktAnsicht({
       {sicht === 'befunde' && (
         <Karte titel="Rechenchecks" kopfRechts={<BefundAmpel befunde={befunde} />}>
           <BefundListe befunde={befunde} />
+        </Karte>
+      )}
+
+      {sicht === 'pruefung' && (
+        <Karte titel="Förderfähigkeit">
+          {pruefung.definition === null || pruefung.ergebnis === null
+            ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Checkliste wird geladen …</p>
+            : (
+              <ChecklistePanel
+                definition={pruefung.definition}
+                ergebnis={pruefung.ergebnis}
+                versionVeraltet={pruefung.versionVeraltet}
+                onBewerte={(itemId, status, bemerkung) =>
+                  void pruefung.bewerteItem({ itemId, status, bemerkung })}
+                onStufe={(itemId, stufe, bemerkung) =>
+                  void pruefung.bewerteItem({ itemId, status: 'erfuellt', stufe, bemerkung })}
+                onBedingung={(itemId, wert) => void pruefung.beantworteBedingung(itemId, wert)}
+                onNachziehen={() => void pruefung.ziehePruefungNach()}
+              />
+            )}
+        </Karte>
+      )}
+
+      {sicht === 'abschluss' && (
+        <Karte titel="Abschluss">
+          {pruefung.definition === null || pruefung.ergebnis === null
+            ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Wird geladen …</p>
+            : (
+              <AbschlussPanel
+                einreichung={einreichung}
+                definition={pruefung.definition}
+                ergebnis={pruefung.ergebnis}
+              />
+            )}
+        </Karte>
+      )}
+
+      {sicht === 'checkliste' && (
+        <Karte titel="Checkliste bearbeiten">
+          {pruefung.definition === null
+            ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Wird geladen …</p>
+            : (
+              <ChecklistenEditor
+                definition={pruefung.definition}
+                onBearbeite={pruefung.bearbeiteItem}
+                onErgaenze={pruefung.ergaenzeKriterium}
+                onAktiviere={pruefung.aktiviereItem}
+                onZuruecksetzen={pruefung.setzeChecklisteZurueck}
+              />
+            )}
         </Karte>
       )}
 
