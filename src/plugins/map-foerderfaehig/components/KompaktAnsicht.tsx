@@ -12,6 +12,7 @@ import { baueKostenSegmente } from '../ansicht/kosten-segmente';
 import { formatDatum } from '../import/laufzeit';
 import { AP_PM_GRENZE } from '../import/rechenchecks';
 import { useMapPruefung } from '../useMapPruefung';
+import { useMapVb } from '../useMapVb';
 import type { MapEinreichung, MapImportReport } from '../types';
 import { AbschlussPanel } from './AbschlussPanel';
 import { ApGantt } from './ApGantt';
@@ -20,6 +21,8 @@ import { ChecklistePanel } from './ChecklistePanel';
 import { ChecklistenEditor } from './ChecklistenEditor';
 import { ImportReportPanel } from './ImportReportPanel';
 import { KostenBalken } from './KostenBalken';
+import { ReaderLite } from './ReaderLite';
+import { VbPanel } from './VbPanel';
 
 function Kpi({ label, wert, hinweis }: {
   label: string; wert: string; hinweis?: string;
@@ -68,6 +71,7 @@ export function KompaktAnsicht({
   const befunde = useMemo(() => report?.befunde ?? [], [report]);
 
   const pruefung = useMapPruefung(einreichung, befunde);
+  const vb = useMapVb(einreichung);
   const nnAnteil = einreichung.summen.nnAnteil;
 
   return (
@@ -87,6 +91,8 @@ export function KompaktAnsicht({
         items={[
           { key: 'kompakt', label: 'Vorhaben kompakt' },
           { key: 'befunde', label: 'Rechenchecks', count: befunde.length },
+          { key: 'vb', label: 'Vorhabensbeschreibung' },
+          { key: 'reader', label: 'Lesen nach Aspekt' },
           {
             key: 'pruefung', label: 'Förderfähig',
             count: pruefung.ergebnis?.fortschritt.gesamt,
@@ -164,6 +170,30 @@ export function KompaktAnsicht({
         </Karte>
       )}
 
+      {sicht === 'vb' && (
+        <Karte titel="Vorhabensbeschreibung">
+          <VbPanel vb={vb} />
+        </Karte>
+      )}
+
+      {sicht === 'reader' && (
+        <Karte titel="Lesen nach Prüfaspekt">
+          {vb.dokument === null
+            ? (
+              <p className="text-[13px] text-[var(--tf-text-secondary)]">
+                Ordnen Sie zuerst im Reiter „Vorhabensbeschreibung" ein Dokument zu.
+              </p>
+            )
+            : (
+              <ReaderLite
+                gliederung={vb.gliederung}
+                markdown={vb.dokument.markdown}
+                mapping={vb.aspektMapping}
+              />
+            )}
+        </Karte>
+      )}
+
       {sicht === 'pruefung' && (
         <Karte titel="Förderfähigkeit">
           {pruefung.definition === null || pruefung.ergebnis === null
@@ -173,6 +203,9 @@ export function KompaktAnsicht({
                 definition={pruefung.definition}
                 ergebnis={pruefung.ergebnis}
                 versionVeraltet={pruefung.versionVeraltet}
+                aspektMapping={vb.aspektMapping}
+                gliederung={vb.gliederung}
+                vbMarkdown={vb.dokument?.markdown ?? ''}
                 onBewerte={(itemId, status, bemerkung) =>
                   void pruefung.bewerteItem({ itemId, status, bemerkung })}
                 onStufe={(itemId, stufe, bemerkung) =>

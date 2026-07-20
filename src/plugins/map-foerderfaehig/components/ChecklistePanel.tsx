@@ -5,8 +5,11 @@
  * `bewerte()`.
  */
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import type { AspektMapping } from '@/plugins/antraege/aufbereitung';
+import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
 import type { MapBewertungsErgebnis } from '../checkliste/bewertung';
 import type { MapChecklistenDefinition, MapItemStatus, MapStufe } from '../checkliste/typen';
+import { fundstellenFuerItem } from '../vb/fundstellen';
 import { ItemKarte } from './ItemKarte';
 import { SkalaKarte } from './SkalaKarte';
 
@@ -59,11 +62,15 @@ function InnoScoreKarte({
 }
 
 export function ChecklistePanel({
-  definition, ergebnis, versionVeraltet, onBewerte, onStufe, onBedingung, onNachziehen,
+  definition, ergebnis, versionVeraltet, aspektMapping, gliederung, vbMarkdown,
+  onBewerte, onStufe, onBedingung, onNachziehen,
 }: {
   definition: MapChecklistenDefinition;
   ergebnis: MapBewertungsErgebnis;
   versionVeraltet: boolean;
+  aspektMapping: AspektMapping | null;
+  gliederung: readonly VbSektion[];
+  vbMarkdown: string;
   onBewerte: (itemId: string, status: MapItemStatus, bemerkung?: string) => void;
   onStufe: (itemId: string, stufe: MapStufe, bemerkung?: string) => void;
   onBedingung: (itemId: string, wert: boolean) => void;
@@ -127,6 +134,7 @@ export function ChecklistePanel({
                 <ItemKarte
                   key={z.item.id}
                   zustand={z}
+                  fundstellen={fundstellenFuerItem(z.item, aspektMapping, gliederung, vbMarkdown)}
                   onBewerte={(status, bemerkung) => onBewerte(z.item.id, status, bemerkung)}
                   onBedingung={wert => onBedingung(z.item.id, wert)}
                 />

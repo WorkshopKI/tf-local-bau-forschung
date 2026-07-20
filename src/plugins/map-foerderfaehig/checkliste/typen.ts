@@ -90,6 +90,12 @@ export interface MapChecklistenItem {
    * dort nach, wo die Vorlage andere Wörter benutzt als die Bausteine.
    */
   nfSuchbegriffe?: readonly string[];
+  /**
+   * Prüfaspekte A–J der Antrag-Aufbereitung, über die dieses Kriterium seine
+   * Fundstellen in der Vorhabensbeschreibung bezieht. Ohne Angabe zeigt das
+   * Kriterium keine Fundstellen-Vorschläge — besser als beliebige.
+   */
+  aspekte?: readonly string[];
   /** Nur bei `art: 'skala'` — genau die vier Stufen B0…B3. */
   anker?: readonly MapSkalaAnker[];
 }

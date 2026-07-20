@@ -28,6 +28,7 @@ const EINREICHUNG_PRAEFIX = 'map-einreichung:';
 const REPORT_PRAEFIX = 'map-report:';
 const CHECKLISTE_KEY = 'map-checkliste:aktuell';
 const PRUEFUNG_PRAEFIX = 'map-pruefung:';
+const VB_PRAEFIX = 'map-vb:';
 
 const einreichungKey = (id: string): string => `${EINREICHUNG_PRAEFIX}${id}`;
 const reportKey = (id: string): string => `${REPORT_PRAEFIX}${id}`;
@@ -62,6 +63,7 @@ export async function deleteEinreichung(idb: IDBStore, id: string): Promise<void
   await idb.delete(einreichungKey(id));
   await idb.delete(reportKey(id));
   await idb.delete(pruefungKey(id));
+  await idb.delete(`${VB_PRAEFIX}${id}`);
 }
 
 /**
@@ -112,4 +114,25 @@ export async function getPruefung(idb: IDBStore, einreichungId: string): Promise
 
 export async function putPruefung(idb: IDBStore, pruefung: MapPruefung): Promise<void> {
   await idb.set(pruefungKey(pruefung.einreichungId), pruefung);
+}
+
+// --- Zuordnung der Vorhabensbeschreibung -----------------------------------
+
+export interface VbZuordnung {
+  docId: string;
+  docName: string;
+}
+
+export async function getVbZuordnung(
+  idb: IDBStore, einreichungId: string,
+): Promise<VbZuordnung | null> {
+  return idb.get<VbZuordnung>(`${VB_PRAEFIX}${einreichungId}`);
+}
+
+export async function setzeVbZuordnung(
+  idb: IDBStore, einreichungId: string, zuordnung: VbZuordnung | null,
+): Promise<void> {
+  const key = `${VB_PRAEFIX}${einreichungId}`;
+  if (zuordnung === null) await idb.delete(key);
+  else await idb.set(key, zuordnung);
 }

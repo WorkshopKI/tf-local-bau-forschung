@@ -388,6 +388,38 @@ const NF_SUCHBEGRIFFE: Readonly<Record<string, readonly string[]>> = {
   'auftraege.auftragnehmer-benannt': ['Zu projektbezogenen Aufträgen an Dritte'],
 };
 
+/**
+ * Zuordnung Kriterium → Prüfaspekte A–J der Antrag-Aufbereitung.
+ *
+ * Über diese Achse bezieht ein Kriterium seine Fundstellen in der
+ * Vorhabensbeschreibung. Kriterien ohne Eintrag (etwa die rein externen
+ * Recherchen) zeigen bewusst keine Fundstellen — beliebige wären schlechter
+ * als keine.
+ *
+ * A Ausgangssituation · B Projektgegenstand · C Technische Funktionalitäten ·
+ * D Technische Risiken · E Stand der Technik · F Realisierbarkeit ·
+ * G Fachliche Eignung · H Projektplan · I Märkte · J Meilensteine
+ */
+const ASPEKTE: Readonly<Record<string, readonly string[]>> = {
+  'inno.zielstellung': ['E', 'C'],
+  'inno.loesungsansatz': ['B', 'C', 'F'],
+  'inno.risiken': ['D', 'F'],
+  'inno.eigenstaendig': ['B'],
+  'inno.risiko-beherrschbar': ['D'],
+  'inno.loesung-plausibel': ['B', 'C', 'F'],
+  'inno.zielkriterien': ['J'],
+  'wirtschaft.wirkungen-dargestellt': ['I'],
+  'wirtschaft.wirkungen-rechtfertigen': ['I', 'J'],
+  'arbeitsplan.ap-untersetzt': ['H'],
+  'arbeitsplan.inhalte-eindeutig': ['H', 'C'],
+  'arbeitsplan.relationen': ['H'],
+  'arbeitsplan.aufwand-angemessen': ['H'],
+  'arbeitsplan.ap-foerderfaehig': ['H', 'B'],
+  'eignung.qualifikation': ['G'],
+  'eignung.benanntes-personal': ['G', 'H'],
+  'eignung.darstellung': ['G', 'F'],
+};
+
 /** Startfassung der Checkliste. Version 1 — der Editor zählt ab hier hoch. */
 export const CHECKLISTE_SEED: MapChecklistenDefinition = {
   id: 'zim-fachpruefung-ep',
@@ -397,8 +429,9 @@ export const CHECKLISTE_SEED: MapChecklistenDefinition = {
   geaendertVon: null,
   quellen: ['check-KMU', 'Entscheidungshilfe Innovationsgrad'],
   innoScoreKurzpfad: INNO_SCORE_KURZPFAD,
-  items: ITEMS.map(item => {
-    const begriffe = NF_SUCHBEGRIFFE[item.id];
-    return begriffe ? { ...item, nfSuchbegriffe: begriffe } : item;
-  }),
+  items: ITEMS.map(item => ({
+    ...item,
+    ...(NF_SUCHBEGRIFFE[item.id] ? { nfSuchbegriffe: NF_SUCHBEGRIFFE[item.id] } : {}),
+    ...(ASPEKTE[item.id] ? { aspekte: ASPEKTE[item.id] } : {}),
+  })),
 };

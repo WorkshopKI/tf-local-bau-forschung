@@ -7,10 +7,12 @@
  * angezeigt, nie automatisch übernommen.
  */
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Info } from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { AlertTriangle, Info, Quote } from 'lucide-react';
 import type { MapItemZustand } from '../checkliste/bewertung';
 import { BEMERKUNG_PFLICHT } from '../checkliste/bewertung';
 import type { MapItemStatus } from '../checkliste/typen';
+import type { Fundstelle } from '../vb/fundstellen';
 
 const STATUS_LABEL: Record<Exclude<MapItemStatus, 'offen'>, string> = {
   'erfuellt': 'erfüllt',
@@ -30,10 +32,47 @@ const STATUS_FARBE: Record<Exclude<MapItemStatus, 'offen'>, string> = {
 
 const REIHENFOLGE = Object.keys(STATUS_LABEL) as Array<Exclude<MapItemStatus, 'offen'>>;
 
+/**
+ * Fundstellen als Chips. Ausdrücklich als Vorschlag gekennzeichnet — sie sind
+ * eine Lesehilfe, keine Bewertung.
+ */
+function FundstellenChips({ fundstellen }: { fundstellen: readonly Fundstelle[] }): React.ReactElement | null {
+  if (fundstellen.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+      <span className="text-[11px] text-[var(--tf-text-tertiary)] flex items-center gap-1">
+        <Quote size={11} /> Vorschlag:
+      </span>
+      {fundstellen.map(f => (
+        <Tooltip
+          key={f.sektionId}
+          content={
+            <div className="text-[12px] max-w-[360px]">
+              <p className="font-medium text-[var(--tf-text)]">{f.titel}</p>
+              <p className="text-[var(--tf-text-secondary)] mt-1 leading-relaxed">{f.auszug}</p>
+            </div>
+          }
+        >
+          <span
+            className="text-[11px] px-1.5 py-0.5 rounded cursor-default"
+            style={{
+              border: '0.5px solid var(--tf-border)',
+              color: 'var(--tf-text-secondary)',
+            }}
+          >
+            {f.nummer ?? f.sektionId} {f.titel.length > 24 ? `${f.titel.slice(0, 23)}…` : f.titel}
+          </span>
+        </Tooltip>
+      ))}
+    </div>
+  );
+}
+
 export function ItemKarte({
-  zustand, onBewerte, onBedingung,
+  zustand, fundstellen, onBewerte, onBedingung,
 }: {
   zustand: MapItemZustand;
+  fundstellen: readonly Fundstelle[];
   onBewerte: (status: MapItemStatus, bemerkung?: string) => void;
   onBedingung: (wert: boolean) => void;
 }): React.ReactElement {
@@ -87,6 +126,8 @@ export function ItemKarte({
       {item.fundstelle != null && (
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-1">Quelle: {item.fundstelle}</p>
       )}
+
+      <FundstellenChips fundstellen={fundstellen} />
 
       {befunde.length > 0 && (
         <div

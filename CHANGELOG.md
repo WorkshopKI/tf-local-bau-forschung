@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.269.0 — MAP: Vorhabensbeschreibung, Steckbrief, Fundstellen, Reader Lite (dev) (Juli 2026)
+
+MINOR — Die inhaltliche Seite der Prüfung: Vorhabensbeschreibung zuordnen, Steckbrief erzeugen, Abschnitte je Prüfaspekt lesen, Fundstellen an den Kriterien. Alle KI-Anteile sind optional und degradieren sichtbar. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
+
+- **Zuordnung statt Automatik**: Kandidaten werden nach Akronym, Dateinamensmuster und Titelwörtern vorgeschlagen, bestätigt wird von Hand — ein falsch zugeordnetes Dokument stützte die ganze Prüfung auf den falschen Antrag ([zuordnung.ts](src/plugins/map-foerderfaehig/vb/zuordnung.ts)).
+- **Steckbrief und Aspekt-Zuordnung** über die bestehenden Aufbereitungs-Bausteine, mit eigenem Cache-Präfix `map:<id>` gegen Kollisionen mit echten Anträgen ([useMapVb.ts](src/plugins/map-foerderfaehig/useMapVb.ts)).
+- **Fundstellen deterministisch** über die Achse Kriterium → Prüfaspekt → VB-Sektion; Orama liefert weder Überschriftenpfad noch Antragsbezug und wird bewusst nicht genutzt ([fundstellen.ts](src/plugins/map-foerderfaehig/vb/fundstellen.ts)).
+- **Reader Lite** mit sichtbarem „0 Fundstellen"-Zustand — ein Aspekt ohne Abschnitt ist selbst ein Befund ([ReaderLite.tsx](src/plugins/map-foerderfaehig/components/ReaderLite.tsx)).
+- **Direkt-Importe statt Aufbereitungs-Barrel**: das Barrel zieht den PDF-Stack nach, den der MAP nicht braucht ([fundstellen.ts](src/plugins/map-foerderfaehig/vb/fundstellen.ts)).
+
 ### v2.268.0 — MAP: editierbare Checkliste, Pruef-Stepper, Abschluss-Entwuerfe (dev) (Juli 2026)
 
 MINOR — Die Prüfung selbst kommt in die App: Kriterien aus der Papiervorlage, Bewertung durch den Menschen, Abschluss als kopierbarer Entwurf. Kern der Demo ist der Editor — ein fehlendes Kriterium lässt sich im Gespräch ergänzen, die Fassung zählt hoch. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
