@@ -15,13 +15,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
-  AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL,
+  AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL, MAP_INFOGRAFIK_SKILL,
 } from '@/core/services/skills';
 import {
-  computeAspekteBaustein, computeSteckbriefBaustein, parseVbGliederung,
+  computeAspekteBaustein, computeSteckbriefBaustein, getOrComputeBaustein, vbHashFuer,
   type AspektMapping, type SteckbriefDaten,
 } from '@/plugins/antraege/aufbereitung';
+import { parseVbGliederung } from '@/plugins/antraege/aufbereitung/gliederung';
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
+import {
+  buildInfografikPrompt, istInhaltsleer, parseInfografik, type InfografikDaten,
+} from './infografik/schema';
 import { useDokumenteStore, type DocumentFull, type DocumentMeta } from '@/plugins/dokumente/store';
 import { getVbZuordnung, setzeVbZuordnung } from './store';
 import type { MapEinreichung } from './types';
@@ -46,7 +50,11 @@ export interface UseMapVbResult {
   aspekteLage: BausteinLage;
   aspekteFehler: string | null;
 
-  /** Beide optionalen Bausteine anstossen. */
+  infografik: InfografikDaten | null;
+  infografikLage: BausteinLage;
+  infografikFehler: string | null;
+
+  /** Alle optionalen Bausteine anstossen. */
   starteAnalyse: () => Promise<void>;
 }
 
@@ -66,6 +74,9 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
   const [aspektMapping, setAspektMapping] = useState<AspektMapping | null>(null);
   const [aspekteLage, setAspekteLage] = useState<BausteinLage>('aus');
   const [aspekteFehler, setAspekteFehler] = useState<string | null>(null);
+  const [infografik, setInfografik] = useState<InfografikDaten | null>(null);
+  const [infografikLage, setInfografikLage] = useState<BausteinLage>('aus');
+  const [infografikFehler, setInfografikFehler] = useState<string | null>(null);
 
   const einreichungId = einreichung?.id ?? null;
 
@@ -76,8 +87,10 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       setDokument(null);
       setSteckbrief(null);
       setAspektMapping(null);
+      setInfografik(null);
       setSteckbriefLage('aus');
       setAspekteLage('aus');
+      setInfografikLage('aus');
       if (einreichungId === null) return;
 
       const zuordnung = await getVbZuordnung(storage.idb, einreichungId);
@@ -107,8 +120,10 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     // Analyse-Ergebnisse gehören zum alten Dokument — verwerfen.
     setSteckbrief(null);
     setAspektMapping(null);
+    setInfografik(null);
     setSteckbriefLage('aus');
     setAspekteLage('aus');
+    setInfografikLage('aus');
   }, [storage, einreichungId, loadDocument]);
 
   const loeseZuordnung = useCallback(async (): Promise<void> => {
@@ -117,6 +132,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     setDokument(null);
     setSteckbrief(null);
     setAspektMapping(null);
+    setInfografik(null);
   }, [storage.idb, einreichungId]);
 
   const starteAnalyse = useCallback(async (): Promise<void> => {
@@ -128,8 +144,10 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
 
     setSteckbriefLage('laeuft');
     setAspekteLage('laeuft');
+    setInfografikLage('laeuft');
     setSteckbriefFehler(null);
     setAspekteFehler(null);
+    setInfografikFehler(null);
 
     try {
       const transport = bridge.getTransportForSkillRun(AUFBEREITUNG_STECKBRIEF_SKILL);
@@ -166,6 +184,35 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       setAspekteLage('fehler');
       setAspekteFehler(fehlertext(e));
     }
+
+    try {
+      const transport = bridge.getTransportForSkillRun(MAP_INFOGRAFIK_SKILL);
+      const vbHash = vbHashFuer(dokument.markdown);
+      const ergebnis = await getOrComputeBaustein<InfografikDaten>(
+        storage.idb, transport, MAP_INFOGRAFIK_SKILL,
+        `${cacheSchluessel}:infografik:${vbHash}`, vbHash,
+        () => buildInfografikPrompt(gliederung, dokument.markdown),
+        raw => parseInfografik(raw, gliederung),
+        {
+          // Eine formal gültige, inhaltlich leere Antwort wird nicht gecacht —
+          // sonst friert ein Fehlversuch die Ansicht dauerhaft ein.
+          verdaechtig: {
+            pruefe: istInhaltsleer,
+            grund: 'Das Modell hat weder Canvas-Felder noch Delta-Zeilen belegt.',
+          },
+        },
+      );
+      if (ergebnis.status === 'ok' && ergebnis.daten !== undefined) {
+        setInfografik(ergebnis.daten);
+        setInfografikLage('ok');
+      } else {
+        setInfografikLage('fehler');
+        setInfografikFehler(ergebnis.begruendung ?? 'Die Infografik-Daten liessen sich nicht erzeugen.');
+      }
+    } catch (e) {
+      setInfografikLage('fehler');
+      setInfografikFehler(fehlertext(e));
+    }
   }, [storage.idb, bridge, dokument, gliederung, einreichungId]);
 
   return {
@@ -181,6 +228,9 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     aspektMapping,
     aspekteLage,
     aspekteFehler,
+    infografik,
+    infografikLage,
+    infografikFehler,
     starteAnalyse,
   };
 }

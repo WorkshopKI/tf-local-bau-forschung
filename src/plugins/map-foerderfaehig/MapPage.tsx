@@ -7,8 +7,11 @@
  */
 import { MasterDetailLayout } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useState } from 'react';
 import { EinreichungListe } from './components/EinreichungListe';
 import { KompaktAnsicht } from './components/KompaktAnsicht';
+import { PortfolioDemo } from './components/PortfolioDemo';
 import { useMapEinreichungen } from './useMapEinreichungen';
 
 export function MapPage(): React.ReactElement {
@@ -16,17 +19,33 @@ export function MapPage(): React.ReactElement {
     einreichungen, ausgewaehlt, report, laedt, importMeldung,
     waehle, importiere, entferne,
   } = useMapEinreichungen();
+  const [bereich, setBereich] = useState('einreichungen');
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-6 pt-5 pb-3">
+      <div className="px-6 pt-5 pb-3 flex flex-col gap-3">
         <PageHeader
           title="Förderfähigkeit"
           subtitle="Einreichung importieren, Rechenchecks prüfen, Förderfähigkeit bewerten"
         />
+        <ScopeTabs
+          items={[
+            { key: 'einreichungen', label: 'Einreichungen', count: einreichungen.length },
+            { key: 'portfolio', label: 'Portfolio (Prinzipansicht)' },
+          ]}
+          activeKey={bereich}
+          onChange={setBereich}
+          aria-label="Bereich"
+        />
       </div>
 
-      <div className="flex-1 min-h-0 px-6 pb-6">
+      {bereich === 'portfolio' && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          <PortfolioDemo />
+        </div>
+      )}
+
+      <div className="flex-1 min-h-0 px-6 pb-6" hidden={bereich !== 'einreichungen'}>
         <MasterDetailLayout
           listWidthKey="map-foerderfaehig-liste-breite"
           list={

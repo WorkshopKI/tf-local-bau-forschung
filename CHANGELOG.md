@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.270.0 — MAP: Canvas, SdT-Delta, Wirkungskette, Portfolio-Prinzipansicht (dev) (Juli 2026)
+
+MINOR — Drei Ansichten machen das Vorhaben auf einen Blick prüfbar — und zeigen dabei vor allem, wo die Vorhabensbeschreibung nichts hergibt. Dazu eine Portfolio-Prinzipansicht mit erfundenen Demo-Daten. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
+
+- **Ein Lauf für drei Ansichten** statt drei Läufen: Canvas-Texte, Delta-Zeilen und Wirkungsketten-Glieder kommen aus einem internen Extraktions-Skill, je VB-Hash gecacht ([map-infografik.seed.ts](src/core/services/skills/registry/map-infografik.seed.ts), [schema.ts](src/plugins/map-foerderfaehig/infografik/schema.ts)).
+- **Lücken zeigen, nicht füllen**: eine Aussage ohne gültige Fundstelle gilt nie als belegt, erfundene Abschnitts-IDs werden verworfen, vage Felder erscheinen amber und gestrichelt ([schema.ts](src/plugins/map-foerderfaehig/infografik/schema.ts), [ProjektCanvas.tsx](src/plugins/map-foerderfaehig/components/ProjektCanvas.tsx)).
+- **Richtwerte deterministisch** gegen die importierten Projektkosten; „nicht beziffert" wird ausdrücklich von „verfehlt" unterschieden ([richtwerte.ts](src/plugins/map-foerderfaehig/infografik/richtwerte.ts)).
+- **Verdächtig-Guard**: eine formal gültige, inhaltlich leere Antwort wird nicht gecacht — sonst friert ein Fehlversuch die Ansicht dauerhaft ein ([useMapVb.ts](src/plugins/map-foerderfaehig/useMapVb.ts)).
+- **Portfolio-Sunburst** aus fest verdrahteten Demo-Daten, hand-rolled SVG, dauerhaft gelabelt; die Ansicht liest bewusst nichts aus dem Store ([portfolio-demo.ts](src/plugins/map-foerderfaehig/infografik/portfolio-demo.ts)).
+
 ### v2.269.0 — MAP: Vorhabensbeschreibung, Steckbrief, Fundstellen, Reader Lite (dev) (Juli 2026)
 
 MINOR — Die inhaltliche Seite der Prüfung: Vorhabensbeschreibung zuordnen, Steckbrief erzeugen, Abschnitte je Prüfaspekt lesen, Fundstellen an den Kriterien. Alle KI-Anteile sind optional und degradieren sichtbar. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
@@ -433,122 +443,4 @@ PATCH — Ergänzung zu v2.241.8: Auch nach dem Bridge-Fix wurde Abschnitt B (�
 - **Sauberes Zusammenführen**: Da die Beleg-Zuordnung seit v2.241.5 rein anzeige-seitig aus dem flachen Text abgeleitet wird, ist der Merge einfache Verkettung (keine Satz-Index-Verschiebung). Die Größen-Regeln (≥ 750 Wörter, ≥ 4 Absätze) fallen im Teil-Prompt weg und werden erst gegen den **gemergten** Text geprüft.
 - Neues, generisches `teilAufgabe`-Feld im Skill-Runner ([run-skill.ts](src/core/services/skills/run/run-skill.ts)) scopet einen Teil-Lauf („schreibe in DIESEM Lauf nur …"); nur B ist gesplittet ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)), alle anderen Abschnitte (A, C–G) laufen unverändert in einem Zug. Split greift nur bei frischer Generierung, nicht bei Korrektur-/Modifier-Läufen. Kein Schema-/Datenmodell-/Flag-Bump.
 - **Noch zu prüfen**: file://-Abnahme (Thomas) — kommt B jetzt vollständig? — plus ein Eval-Durchlauf, da sich B's Generierung ändert.
-
-### v2.241.8 — Gutachten-Werkstatt: langer Abschnitt bricht nicht mehr vor dem „Finaler Text" ab (Juli 2026)
-
-PATCH — Bei langen KI-Abschnitten (Kurzfassung A, Ausgangslage B) brach die Generierung ab: Das Modell produzierte den vollständigen `### Quellenanalyse`-Block, und das anschließende Schreiben des `### Finaler Text` wurde abgeschnitten — gespeichert wurde nur ein leerer finaler Text mit Warnung „bitte erneut generieren". Dasselbe Prompt lief in einem separaten Streamlit-Chat komplett durch — der Abbruch war also bridge-seitig, nicht am Prompt (das Entfernen des Beleg-Marker-Kontrakts in v2.241.5 half deshalb nicht).
-
-- **Ursache** ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js)): Sobald der (lange) Quellenanalyse-Block erfasst war, finalisierte das Bookmarklet schon nach 5 s „Idle", wenn `isRunning()` in der Pause vor dem Schluss-Abschnitt fälschlich „nicht mehr aktiv" las (AitisiGPT blendet den Lauf-Indikator per CSS aus). Ergebnis: nur die Quellenanalyse zurückgegeben, `parseSkillOutput` degradierte zu leerem finalen Text.
-- **Fix — Abschluss-Marker-Schutz**: Die App reicht der Bridge pro Anfrage einen Abschluss-Marker mit (`erwarteAbschluss: 'Finaler Text'`, [run-skill.ts](src/core/services/skills/run/run-skill.ts) → [streamlit.ts](src/core/services/ai/transports/streamlit.ts) → `tf-request.erwarte`). Enthält die Antwort diesen Text noch nicht, finalisiert das Bookmarklet NICHT auf dem 5-s-Fenster, sondern gibt dem Schluss-Abschnitt bis zu 45 s Zeit (Konstante `MISSING_TAIL_MS`); die 150-s/600-s-Backstops bleiben. Robust unabhängig von der isRunning-Zuverlässigkeit; rendert die KI alles auf einmal, ist der Marker sofort da (keine Verzögerung). Fail-open: erscheint der Marker nie, finalisiert die Bridge nach 45 s mit dem vorhandenen Stand — nie schlechter als zuvor.
-- Nur der Gutachten-Abschnitts-Pfad ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)) setzt den Marker; andere KI-Läufe unverändert. Diagnose: das Bookmarklet loggt beim Finalisieren jetzt den Grund (idle/settle/erwarte-Status).
-- **Wichtig — Bookmarklet neu installieren**: `BRIDGE_REV` ist auf `2026-07-13-tail` gebumpt; das Team muss das Lesezeichen 1× neu installieren (KI-Tab → Einstellungen → Streamlit-Bridge), bis dahin läuft das alte Verhalten weiter. Kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.7 — Verbund-Detail: alle TV-Titel per Icon in die Zwischenablage (Juli 2026)
-
-PATCH — Die Teilvorhaben-Titel werden häufig als Textliste in andere Dokumente übernommen. Der Sektionskopf „Verbundpartner und Teilvorhaben" trägt dafür jetzt ein kleines Kopier-Icon (Tooltip „Alle Teilvorhaben-Titel kopieren").
-
-- Neuer Icon-Button [TvTitelCopyButton.tsx](src/plugins/antraege/TvTitelCopyButton.tsx) legt alle TV-Titel (eine Zeile je Teilvorhaben, Reihenfolge = TV-Liste, Lead zuerst) als reinen Text in die Zwischenablage; kurzes Häkchen-Feedback nach dem Kopieren. Wortgleiche Titel (normalisiert) werden zusammengefasst — trägt ein Verbund an allen TVs denselben Titel, landet er nur einmal statt N-fach. `navigator.clipboard` läuft unter `file://` (Secure Context); Async über `useAsyncAction` (Pitfall #15).
-- [CollapsibleDataSection.tsx](src/plugins/antraege/CollapsibleDataSection.tsx) bekommt einen optionalen `headerAction`-Slot rechts im Kopf, gerendert als **Geschwister** des Auf-/Zuklapp-Buttons (kein verschachteltes `<button>`) — ein Klick auf das Icon kopiert, ohne die Sektion umzuschalten; der übrige Kopf bleibt voll klickbar. Andere Sektionen (Antragsdaten, Alle Felder, Historie) unverändert.
-- Reine Anzeige-/Komfort-Funktion; kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.6 — Verbund-Detail: TV-Titel-Zeile nur zeigen, wenn sie Neues sagt (Juli 2026)
-
-PATCH — Nachschärfung zu v2.241.4: Trugen (wie in manchen Datenbeständen üblich) alle Teilvorhaben eines Verbundes denselben `titel` (den Gesamt-Projekttitel), wiederholte die neue TV-Titel-Zeile diesen Text in jeder Zeile — und obendrein den bereits im Verbund-Kopf stehenden Titel.
-
-- `TeilvorhabenListe` bekommt den Verbund-Titel (`verbundTitel`, aus [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) — dieselbe Kopf-Quelle) und blendet die TV-Titel-Zeile jetzt auch dann aus, wenn der TV-Titel (normalisiert) nur diesen Verbund-Titel wiederholt (zusätzlich zum bestehenden Antragsteller-Duplikat-Check). So erscheint der TV-Titel nur, wenn er gegenüber Kopf + Antragsteller **echten Mehrwert** bringt.
-- Reine Anzeige-Logik; kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.5 — Gutachten-Kurzfassung: Beleg→Satz-Marker-Kontrakt zurückgebaut (Juli 2026)
-
-PATCH — Der in Journey-Paket 4 eingeführte **Beleg→Satz-Marker-Kontrakt** (das Modell sollte jede Quellenanalyse-Zitat-Zeile mit `→ stützt Satz N` abschließen) brachte die interne KI in einen langen Reasoning-Loop — sie lieferte für die Kurzfassung (A) und den Abschnitt B keine verwertbare Ausgabe mehr. Der Kontrakt ist zurückgebaut; die Satz↔Quelle-Zuordnung läuft jetzt **rein deterministisch** (Wortüberlappung, [belegAbleitung.ts](src/plugins/antraege/gutachten/belegAbleitung.ts), seit v2.241.0 bereits als Fallback vorhanden).
-
-- **Prompt-Rückbau**: A ([seed.ts](src/core/services/skills/registry/seed.ts), `buildKurzfassungPrompt(false)`) und B (`abschnittTemplate(B_ABSCHNITT_OPTS)`) tragen die Marker-Instruktion nicht mehr — byte-identisch zum Vor-Paket-4-Stand; die Skill-Ausgabe ist wieder das schlanke, verlässliche Format.
-- **Bestands-Shares**: Der ursprüngliche Rollout `GA_BELEG_KONTRAKT_MIGRATION` ist neutralisiert (No-op); eine neue marker-gesicherte Migration `GA_BELEG_KONTRAKT_REVERT_MIGRATION` ([migrations.ts](src/core/services/skills/registry/migrations.ts)) setzt A/B auf einem Share **nur dann** zurück, wenn ihr Template exakt dem Kontrakt-Stand gleicht — **kuratierte Edits bleiben unberührt**.
-- **Anzeige unverändert**: Der „Antragsbezug" rechts hebt beim Hover über einen Satz weiterhin die passende Quelle hervor — jetzt durchgehend deterministisch abgeleitet und sichtbar als „automatisch zugeordnet" gekennzeichnet ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)). Der Marker-Parser bleibt für etwaige Alt-Läufe erhalten (nie regressiv). Kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.4 — Verbund-Detail: Teilvorhaben-Titel prominent je TV anzeigen (Juli 2026)
-
-PATCH — In der Teilvorhaben-Liste eines Verbundes ([TeilvorhabenListe.tsx](src/plugins/antraege/TeilvorhabenListe.tsx)) stand pro Zeile nur der Antragsteller (Firma/Institut) prominent, Rolle + Aktenzeichen darunter fein. Der **TV-Titel** — der aussagt, was der jeweilige Partner im Projekt macht — war erst nach dem Aufklappen sichtbar.
-
-- Der TV-Titel (`Antrag.titel`) wird jetzt direkt in der (auch eingeklappten) TV-Zeile als kräftige zweite Zeile unter dem Antragsteller gerendert (`--tf-text-secondary`, auf 2 Zeilen begrenzt, voller Text im Tooltip). Fehlt der Titel oder dupliziert er (normalisiert) nur den Antragsteller-Namen, wird die Zeile weggelassen.
-- Reine Anzeige aus dem bereits geladenen vollen `Antrag`-Record; kein neuer Datenpfad, kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.3 — Gutachten-Werkstatt: KI-Erreichbarkeit beim Schrittwechsel neu prüfen (Juli 2026)
-
-PATCH — War die interne KI zwischenzeitlich getrennt und dann wieder verbunden, blieb beim nächsten Abschnitt der Generieren-Button gesperrt und „KI nicht erreichbar — Generierung derzeit nicht möglich." stehen — obwohl der Verbindungsstatus schon wieder „Verbunden" zeigte. Ursache ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): Die Erreichbarkeit (`llmAvailable`) wurde **nur einmal beim Mount** passiv geprobt; `refreshVb` prüfte nur nach, solange der Wert noch `null` war — ein einmal gesetztes `false` erholte sich nie.
-
-- Die Probe läuft jetzt in einem eigenen Effekt und greift erneut bei: **Wechsel des aktiven Abschnitts** (der vom Nutzer genannte „nächste Workflow-Schritt"), **Reconnect der Bridge** (`bridgeStatus` → verbunden, über den bestehenden Heartbeat-Store [bridge-status.ts](src/core/services/ai/bridge-status.ts) — erholt sich also auch **ohne** Navigieren, sobald „● KI" wieder grün ist) und **Ende einer Generierung** (u. a. nach Abbruch durch Trennung).
-- Weiterhin **passiv** (`openIfNeeded: false`): kein ungefragtes Öffnen des KI-Tabs beim Navigieren, es wird nur ein bereits offenes Bridge-Fenster gepingt. Nicht während einer laufenden Generierung (single-window-Bridge, Pitfall #36) und nicht bei bereits freigegebenem Abschnitt. Die einmalige Mount-Probe entfällt (der neue Effekt deckt den Initialfall mit ab). Kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.2 — „Thinking"-Schalter auch aus dem Alt-Kurzfassung-Pfad (Juli 2026)
-
-PATCH — Folge-Aufräumen zu v2.241.1: Der `ThinkingControl`-Toggle war noch im **alten** Kurzfassung-Pfad ([ReviewCard.tsx](src/plugins/antraege/kurzfassung/ReviewCard.tsx) Anpassen-Zeile + [KurzfassungSection.tsx](src/plugins/antraege/kurzfassung/KurzfassungSection.tsx) Generieren-Panel) vorhanden. Dieser Pfad rendert nur bei `gutachtenWorkflow: false` (also in keinem Build mit aktiver Gutachten-Funktion — dev/pl/as haben den A–G-Workflow), war aber der Vollständigkeit halber auf Nutzer-Wunsch (Thomas) noch zu bereinigen.
-
-- Toggle + jetzt ungenutzte `thinkingBudget`/`onSetThinkingBudget`-Props aus `ReviewCard`/`KurzfassungSection` entfernt (analog v2.241.1); die Generierung liest das Budget weiter aus der globalen Einstellung ([useKurzfassung.ts](src/plugins/antraege/kurzfassung/useKurzfassung.ts) unverändert).
-- Die `ThinkingControl`-Komponente hat damit keinen Aufrufer mehr und ist gelöscht (`kurzfassung/ThinkingControl.tsx`). Kein Schema-/Datenmodell-/Flag-Bump.
-
-### v2.241.1 — Gutachten-Werkstatt: „Thinking"-Schalter raus, „Kopieren" rein (Juli 2026)
-
-PATCH — Zwei kleine UI-Anpassungen am Abschnitts-Review der Gutachten-Werkstatt (dev-Flag, [SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx) + [GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)):
-
-- **„Thinking"-Schalter entfernt.** Der Toggle neben Neu/Kürzer/Länger (und im „…generieren"-Panel vor dem ersten Entwurf) hatte über die aktuell genutzte, Streamlit-basierte interne KI keine Wirkung — das Reasoning-Budget ist dort nicht per Request steuerbar. Der Schalter ist raus (samt jetzt ungenutzter `thinkingBudget`/`onSetThinkingBudget`-Props). Der `ThinkingControl`-Baustein blieb zunächst noch für die Alt-Kurzfassung bestehen (in v2.241.2 ebenfalls entfernt); das Budget speist die Generierung weiterhin aus der globalen KI-Assistent-Einstellung ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) unverändert), nur der Pro-Lauf-Übersteuerungs-Knopf entfällt.
-- **„Kopieren"-Icon ergänzt.** In der Aktionsleiste (Entwurf **und** freigegeben) kopiert ein Copy-Icon den Abschnitts-Text in die Zwischenablage — kopiert wird der kanonische `finalerText` (ohne Teil-Badge), rein lokal über `navigator.clipboard.writeText` (kein Netz/Transport). Kurzes Häkchen-Feedback wie beim Chat-`CopyButton`.
-
-Kein Schema-/Datenmodell-/Flag-Bump; nur Anzeige/lokale Aktion.
-
-### v2.241.0 — Förderanträge: Sortierung + Filter überleben den Seitenwechsel (Juli 2026)
-
-MINOR — Auf der Förderanträge-Seite blieben Sortier-Reihenfolge und gesetzte Filter zwar innerhalb einer Sitzung erhalten, gingen aber beim Reload/Neu-Aufruf der Seite verloren. Auf Nutzer-Wunsch (Thomas) werden sie jetzt **im Browser gespeichert** und beim nächsten Aufruf wieder angewandt. (Sicht-Tab, Dropdown-Sortierung, Gruppierung, Ansichtsmodus und Spaltenbreiten wurden schon vorher persistiert — dies schließt die verbliebenen Lücken.)
-
-- **Tabellen-Sortierung (Klick auf Spaltenkopf):** `useTableSort` ([useTableSort.ts](src/components/data-table/useTableSort.ts)) bekommt einen optionalen `storageKey`; die Antrags-Tabelle ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)) übergibt `teamflow_antraege_table_sort`. Spalte + Richtung (inkl. Reset auf unsortiert) landen in localStorage. Bestands-Aufrufer ohne `storageKey` bleiben unverändert in-memory. Eine stale Spalte (Key existiert nicht mehr) ist harmlos — der bestehende `columns.find`-Guard fällt auf die unsortierte Reihenfolge zurück.
-- **Filter (Status/Antragstyp + Sidebar-Facetten):** `useFilterState.active` wird jetzt **pro Programm** in localStorage gespiegelt (neuer Helfer [activeFilterPersistence.ts](src/plugins/antraege/filter/activeFilterPersistence.ts), Key `teamflow_antraege_active_filters`). `init` stellt beim Laden nur `filterId`s wieder her, die noch eine Definition haben (stale IDs nach CSV-/Filter-Umbau fallen still weg); `setActiveValue`/`clearFilter`/`clearAll`/`loadPreset` schreiben synchron durch.
-- **PreCheck-Quickfilter:** der Store-Slot `precheckBucket` ([store.ts](src/plugins/antraege/store.ts)) persistiert nun ebenfalls (Key `teamflow_antraege_precheck_bucket`, validiert über `asPrecheckBucket`).
-- Bewusst **nicht** persistiert (transient): der freie Suchtext (ein alter Suchstring beim Wiederkommen wäre überraschend), der Spaltenkopf-Werte-Filter der Tabelle (Drilldown innerhalb einer bereits gefilterten Sicht) und der Ampel-Quickfilter (kommt aus einem Widget-Klick, setzt sich beim Sicht-Wechsel bewusst zurück). Kein Schema-/Datenmodell-/Flag-Bump; alle Keys origin-weit, kein Share-/Snapshot-Write.
-
-### v2.240.2 — Suche behält ihren vollen Assistenten (neben dem shell-weiten Panel) (Juli 2026)
-
-PATCH — Seit das shell-weite **Assistent-Panel** (dev-Flag `assistentPanel`) den Assistenten auf jeder Seite anbietet, **ersetzte** es auf der Suchseite den bisherigen vollen Chat — samit dessen „+"-Menü (Datei-Anhänge, Antragsarchiv-Suche, Denkprozess-Toggle, System-Prompt) und dem Konversations-Verlauf. Auf Nutzer-Wunsch (Thomas) behält die **Suche jetzt wieder ihren vollen `ChatPanelHost`**; das schlanke Panel bleibt auf allen anderen Seiten.
-
-- **Genau ein Panel pro Seite:** Das schlanke Dock wird in [ShellLayout.tsx](src/core/ShellLayout.tsx) nur noch gemountet, wenn die aktive Route **nicht** die Suche ist (`activeId !== 'suche'`) — kein Doppel-Panel. Die Suchseite ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)) nutzt wieder unbedingt ihren lokalen `ChatPanelHost` (Button/Deep-Link/`?assistent=1` togglen den Voll-Chat, nicht das globale Dock).
-- **Routen-bewusste Einstiegspunkte:** Command-Palette „Assistent öffnen" und `Strg+Umschalt+K` öffnen über den neuen `openAssistent`-Helfer auf der Suche den Voll-Chat (via `?assistent=1`), auf allen anderen Routen das schlanke Dock. Kein Schema-/Datenmodell-/Flag-Bump; der alte Chat-Code war nie entfernt, nur seitenspezifisch deaktiviert.
-
-### v2.240.1 — Auslastungs-Widget: ein kombinierter Balken (aktuelles Quartal + Altanträge) (Juli 2026)
-
-PATCH — Das Auslastungs-Widget zeigte zwei getrennte Balken (Belegung des Quartals + Altanträge). Auf Nutzer-Wunsch (Thomas) sind sie jetzt **ein** Balken, links→rechts nach Alter gestaffelt: ganz links die ältesten offenen Anträge (Q-3 bis 7, **dunkelste** Farbe), dann Q-2, dann Q-1, ganz rechts das **aktuelle Quartal** (**hellste** Farbe); der ungefüllte Rest rechts = frei. Die Zahl je Abschnitt (TVs) steht wie bisher im Segment, die Legende führt die vier Stufen (Aktuell · Q-1 · Q-2 · Q-3–7).
-
-- Nur das Home-Widget ändert sich ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx), neuer lokaler `StapelBalken` über die reine Geometrie-Funktion `stapelSegmente` in [auslastungWidgetModel.ts](src/plugins/home/widgets/auslastungWidgetModel.ts)). Die zweigeteilte Cockpit-`GesamtauslastungBar` (MA-Tabelle/-Karte) bleibt unverändert.
-- Die hellste „aktuelles Quartal"-Stufe nutzt die bereits in [theme.css](src/theme.css) definierten Tokens `--tf-altlast-band-akt(-text)` (Light + Dark, in Dark invertiert wie die übrigen Alters-Bänder). Kein Schema-/Datenmodell-Bump.
-
-### v2.240.0 — Einstellungen: Startseiten-Widgets nach Spalte gruppiert (Juli 2026)
-
-MINOR — Die Widget-Liste in Einstellungen › Darstellung bildete die **zwei Spalten** der Startseite bisher nicht ab: alle Widgets standen in einer flachen Liste, obwohl Haupt- und Seitenspalte je eine **eigene, unabhängige** Reihenfolge haben. Ein Hoch/Runter, das dabei über die Spaltengrenze sprang, war auf der Startseite folgenlos (die Homepage sortiert je Spalte) — verwirrend.
-
-- **Zwei Gruppen:** Die Einstellungs-Liste ist jetzt in „Hauptspalte (breit, links)" und „Seitenspalte (schmal, rechts)" unterteilt — jede Gruppe eine eigene Positionsliste, die die tatsächliche Startseiten-Anordnung spiegelt ([WidgetsSettingsSection.tsx](src/plugins/einstellungen/WidgetsSettingsSection.tsx)).
-- **Pfeile spaltengebunden:** `moveInstanz` tauscht die Position jetzt nur noch mit dem Nachbarn **derselben** Spalte (die andere Spalte bleibt unberührt); am Spalten-Anfang/-Ende ist der Pfeil deaktiviert ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)). Datenmodell unverändert (globale `position` je Instanz + `bereich`), kein Schema-/Flag-Bump; bestehende Configs bleiben unverändert lesbar.
-
-### v2.239.3 — Auslastungs-Widget: doppelte Prozentzahl im Kopf entfernt (Juli 2026)
-
-PATCH — Im ausgeklappten Auslastungs-Widget stand die Belegungs-Prozentzahl doppelt: einmal im Zähler-Slot des Kopfes und einmal als „Belegt im Quartal … %"-Zeile im Body. Der Zähler-Slot war als Eingeklappt-Anzeige gedacht, blieb aber wegen des Lazy-Guards (eingeklappt wird über ~13k Anträge nichts berechnet) im eingeklappten Zustand leer und erschien nur ausgeklappt — dort doppelt. Der Zähler-Slot entfällt jetzt; die prominente, beschriftete Body-Zeile bleibt die einzige Quelle ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx)). Reiner Anzeige-Fix, keine Logikänderung.
-
-### v2.239.2 — Auslastungs-Widget: lesbare Balken-Zahlen + Fußzeile entfernt (Juli 2026)
-
-PATCH — zwei Feinschliffe am Auslastungs-Widget aus Nutzer-Feedback.
-
-- **Zahlen in den Balken lesbar:** Die TVs je Altanträge-Band standen im Balken mit zu wenig Kontrast (v. a. weiße Zahl auf dem nur mittelhellen ältesten Band, ~2,5:1). Die Zahl-Farben der Bänder sind jetzt kontrastsicher (Light: durchgehend dunkle Zahl statt Weiß auf dem dunkelsten Band → ~5:1; Dark: hellere Zahl auf den dunklen Bändern, das hellste Band leicht abgedunkelt → ~4,6:1) — über die geteilten `--tf-altlast-band-*-text`-Tokens ([theme.css](src/theme.css), Fallbacks in [altlast-colors.ts](src/plugins/auslastung/views/uebersicht/altlast-colors.ts) + [MeineAntraegeBalken.tsx](src/plugins/home/MeineAntraegeBalken.tsx) mitgezogen; wirkt einheitlich in Widget-Balken, MA-Tabelle und Home-Rückstands-Balken).
-- **Fußzeile entfernt:** Die untere Zeile mit „ggü. Vorquartal: Belegung ±N %" und dem „Zum Cockpit →"-Link ist entfallen — das Widget endet jetzt mit der Altanträge-Legende. Die damit obsolete Vergleichs-Berechnung (`vorherigesQuartal`-Vorquartalslauf) und das nur dafür genutzte, UI-lose Config-Feld `vergleichAnzeigen` wurden mit entfernt ([AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx), [types.ts](src/plugins/home/widgets/types.ts)). Bestehende gespeicherte Configs mit dem Alt-Feld bleiben lesbar (Feld wird ignoriert, keine Migration).
-
-### v2.239.1 — Startseite: Notizen bleibt verschiebbar (Default unten statt Pin) (Juli 2026)
-
-PATCH — Nachschärfung zu v2.239.0: Das Notizen-Widget war ans Spaltenende **gepinnt** — das machte das Verschieben in den Einstellungen wirkungslos. Jetzt ist „unten" nur noch der **Default**, das Widget bleibt per Pfeilen frei verschiebbar. Der harte Pin in der reinen `sichtbareWidgets` entfällt (Reihenfolge folgt wieder der konfigurierten Position); stattdessen hebt `reconcileVerfuegbareWidgets` eine vorhandene Notizen-Instanz beim Erst-Anlegen/Nachziehen **über** die neu angehängten Seiten-Widgets, damit ein später aktiviertes Widget (z. B. Auslastung) nicht darunter rutscht ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)). Nur die Erst-Anlage/Reconcile ordnet um — spätere Pfeil-Bewegungen bleiben erhalten. Kein Schema-/Flag-Bump.
-
-### v2.239.0 — Startseite: Widget-Feinschliff (Notizen unten, Auslastung kompakt, AI-Assistent schlanker) (Juli 2026)
-
-MINOR — Bündel aus Nutzer-Feedback an den Home-Widgets. Additiv/lokal, kein Schema-/Flag-Bump.
-
-- **Notizen immer unten rechts:** Das Notizen-Widget wird jetzt ans **Ende der Seitenspalte** gepinnt (unabhängig von der konfigurierten Position), damit die Schnell-Eingabe verlässlich unten sitzt — der Pin lebt in der reinen `sichtbareWidgets` ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)), die Einstellungs-Positionsliste bleibt unberührt.
-- **Auslastung standardmäßig eingeklappt + Zahlen im Balken:** Neues Katalog-Feld `defaultEingeklappt` ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts), nur bei Erst-Anlage/Reconcile, nie retroaktiv) → das Auslastungs-Widget startet eingeklappt (spart die schwere Aggregation, bis man es aufklappt). Der Altanträge-Balken zeigt die TVs je Band **im Segment** (wie die MA-Tabelle) — dazu ist der Balken höher (6 → 13 px); die Text-Legende trägt nur noch die Farb-Zuordnung, keine doppelten Zahlen ([GesamtauslastungBar.tsx](src/plugins/auslastung/views/uebersicht/GesamtauslastungBar.tsx) neues Opt-in-Prop `altlastZahlen`, andere Nutzer unverändert; [AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx)).
-- **AI-Assistent-Widget schlanker:** Status und „Verbinden" sitzen jetzt auf **einer Zeile**; der „Chat öffnen →"-Link entfällt — der Assistent ist über das Dock-Icon rechts auf jeder Seite erreichbar ([AiAssistantCard.tsx](src/plugins/home/AiAssistantCard.tsx)).
-- **Notizen-Hinweis verständlicher:** „Nur lokal · nie im Snapshot" → **„Nur lokal gespeichert, nie im Team Bereich"** ([NotizenWidget.tsx](src/plugins/home/widgets/NotizenWidget.tsx)).
-- **Stift-Icon 1 px kleiner** auf den Karten (13 → 12 px, [WidgetQuickEdit.tsx](src/plugins/home/widgets/WidgetQuickEdit.tsx)).
-- Ein-/Ausklapp-Zustände werden weiterhin **gerätelokal im Browser** gespeichert (IDB-Config, `setEingeklappt` → `saveHomeWidgets`) und best-effort ins persönliche Laufwerk gespiegelt — unverändert, hier nur bestätigt.
 

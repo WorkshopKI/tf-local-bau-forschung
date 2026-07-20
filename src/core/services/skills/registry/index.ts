@@ -58,6 +58,7 @@ export {
 export { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF, NF_SKILL_ID } from './nf-skill.seed';
 export { AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_ASPEKTE_SKILL_ID } from './aufbereitung-aspekte.seed';
 export { AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';
+export { MAP_INFOGRAFIK_SKILL, MAP_INFOGRAFIK_SKILL_ID } from './map-infografik.seed';
 export { AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbereitung-zahlen.seed';
 export { AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID } from './aufbereitung-glossar.seed';
 export { AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID } from './aufbereitung-verwertung.seed';

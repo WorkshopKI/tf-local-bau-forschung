@@ -21,8 +21,12 @@ import { ChecklistePanel } from './ChecklistePanel';
 import { ChecklistenEditor } from './ChecklistenEditor';
 import { ImportReportPanel } from './ImportReportPanel';
 import { KostenBalken } from './KostenBalken';
+import { ProjektCanvas } from './ProjektCanvas';
 import { ReaderLite } from './ReaderLite';
+import { SdtDeltaKarte } from './SdtDeltaKarte';
 import { VbPanel } from './VbPanel';
+import { WirkungsketteAnsicht } from './WirkungsketteAnsicht';
+import { pruefeRichtwerte } from '../infografik/richtwerte';
 
 function Kpi({ label, wert, hinweis }: {
   label: string; wert: string; hinweis?: string;
@@ -92,6 +96,9 @@ export function KompaktAnsicht({
           { key: 'kompakt', label: 'Vorhaben kompakt' },
           { key: 'befunde', label: 'Rechenchecks', count: befunde.length },
           { key: 'vb', label: 'Vorhabensbeschreibung' },
+          { key: 'canvas', label: 'Canvas' },
+          { key: 'delta', label: 'Delta zum Stand der Technik' },
+          { key: 'wirkung', label: 'Wirkungskette' },
           { key: 'reader', label: 'Lesen nach Aspekt' },
           {
             key: 'pruefung', label: 'Förderfähig',
@@ -173,6 +180,50 @@ export function KompaktAnsicht({
       {sicht === 'vb' && (
         <Karte titel="Vorhabensbeschreibung">
           <VbPanel vb={vb} />
+        </Karte>
+      )}
+
+      {sicht === 'canvas' && (
+        <Karte
+          titel="Projekt-Canvas"
+          kopfRechts={
+            vb.infografik === null
+              ? <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Textfelder noch nicht extrahiert</span>
+              : <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Textfelder KI-generiert</span>
+          }
+        >
+          <ProjektCanvas einreichung={einreichung} texte={vb.infografik?.canvas ?? null} />
+        </Karte>
+      )}
+
+      {sicht === 'delta' && (
+        <Karte titel="Delta zum Stand der Technik">
+          {vb.infografik === null
+            ? (
+              <p className="text-[13px] text-[var(--tf-text-secondary)]">
+                Die Zielparameter entstehen im internen Analyse-Lauf über die
+                Vorhabensbeschreibung — starten Sie ihn im Reiter „Vorhabensbeschreibung".
+              </p>
+            )
+            : <SdtDeltaKarte zeilen={vb.infografik.sdtDelta} />}
+        </Karte>
+      )}
+
+      {sicht === 'wirkung' && (
+        <Karte titel="Wirkungskette">
+          {vb.infografik === null
+            ? (
+              <p className="text-[13px] text-[var(--tf-text-secondary)]">
+                Die Wirkungskette entsteht im internen Analyse-Lauf über die
+                Vorhabensbeschreibung — starten Sie ihn im Reiter „Vorhabensbeschreibung".
+              </p>
+            )
+            : (
+              <WirkungsketteAnsicht
+                kette={vb.infografik.wirkungskette}
+                richtwerte={pruefeRichtwerte(vb.infografik.wirkungskette, einreichung)}
+              />
+            )}
         </Karte>
       )}
 
