@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.267.0 — MAP Foerderfaehigkeit: Einreichungs-Import, Rechenchecks, Kompaktansicht (dev) (Juli 2026)
+
+MINOR — Die Fachprüfung läuft heute über eine xlsx-Liste. Der MAP zieht sie in die App: Einreichungs-JSON per Drag & Drop, deterministische Rechenchecks, Kompaktansicht. Eigene kv-Entität ohne `Antrag`-Record — die CSV-/Antrags-Pipeline bleibt unberührt. Nur dev (`mapFoerderfaehig`). Detail: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
+
+- **PII-Absicherung zuerst**: alle Plattform-Rohexporte, die internen Prüf-DOCX und die MAP-Screenshots ignoriert — der Echtfall war untracked, aber *nicht* ignoriert; getrackt wird nur die gescrubbte, strukturgleiche Fixture ([.gitignore](.gitignore)).
+- **Schema-Erkennung über diskriminierende Marker** statt über Pflichtfeld-Quoten: beide Generationen tragen die importrelevanten Felder auf identischen Pfaden, eine Quoten-Erkennung liefert immer Gleichstand ([schema-erkennung.ts](src/plugins/map-foerderfaehig/import/schema-erkennung.ts)).
+- **Alias-Ketten je Zielfeld** als Drift-Puffer; der Import-Report weist jeden gegriffenen Alias, jedes fehlende Pflichtfeld und jeden nicht ausgewerteten Bereich aus ([adapter.ts](src/plugins/map-foerderfaehig/import/adapter.ts)).
+- **Datenschutz als Pfad-Präfix-Deny-Liste + Nachweis-Scan** über das Ergebnis; übernommen werden nur PM-Summen und Personalnummer/N.N. ([redaktion.ts](src/plugins/map-foerderfaehig/import/redaktion.ts)).
+- **Fünf Rechenchecks** und die Kompaktansicht (Eckdaten, Gantt über die geteilte `GanttAchse`, Kostenbalken über `DistributionBar`) ([rechenchecks.ts](src/plugins/map-foerderfaehig/import/rechenchecks.ts), [KompaktAnsicht.tsx](src/plugins/map-foerderfaehig/components/KompaktAnsicht.tsx)).
+
 ### v2.266.0 — Aufbereitung: Zeitplan pausiert, Zahlen auf prüfrelevante Bereiche fokussiert (Juli 2026)
 
 MINOR — Der Zeitplan liest die Arbeitspakete aus den PDF-Quellen zu unzuverlässig; er wird pausiert, bis der Antrag als JSON vorliegt. Das Zahlen-Inventar liefert außerhalb von „Leistung & Technik" + „Markt & Absatz" sehr viele nicht prüfrelevante Werte. Beides ist ein reines Anzeige-Gate (keine Migration, kein Cache-Verlust), nur dev (`antragAufbereitung`). Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).

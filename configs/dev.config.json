@@ -48,7 +48,8 @@
     "deltaSnapshotWrite": true,
     "assistentProtokoll": true,
     "assistentPanel": true,
-    "assistentGedaechtnis": true
+    "assistentGedaechtnis": true,
+    "mapFoerderfaehig": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

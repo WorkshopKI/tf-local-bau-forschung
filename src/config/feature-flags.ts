@@ -274,6 +274,15 @@ export function isAssistentGedaechtnisEnabled(): boolean {
   return features.assistentGedaechtnis === true;
 }
 
+/** MAP „Neuer Prüf-Workflow": Einreichungs-Import per Drag & Drop, deterministische
+ *  Rechenchecks und eine im Betrieb editierbare, versionierte Förderfähigkeits-
+ *  Checkliste. Die Einreichung ist eine eigene kv-Entität — der Flag gated kein
+ *  Verhalten der Antrags-Pipeline. Nur dev. Default false (`=== true`,
+ *  Backward-Kompat). */
+export function isMapFoerderfaehigEnabled(): boolean {
+  return features.mapFoerderfaehig === true;
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

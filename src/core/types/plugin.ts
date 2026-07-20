@@ -16,6 +16,7 @@ export type PluginFeatureKey =
   | 'devFixtures'
   | 'devInfraPanel'
   | 'feedback'
+  | 'mapFoerderfaehig'
   | 'skillVerwaltung'
   | 'suche'
   | 'volltextsuche';

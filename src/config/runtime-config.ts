@@ -151,6 +151,11 @@ export interface TeamflowFeatures {
    *  destilliert das Ereignisprotokoll per INTERNEM Modell in Memory-Blocks;
    *  doppeltes Opt-in. Nur dev. Optional, default false. */
   assistentGedaechtnis?: boolean;
+  /** MAP „Neuer Prüf-Workflow": Einreichungs-Import (Drag & Drop), Rechenchecks
+   *  und editierbare, versionierte Förderfähigkeits-Checkliste. Eigene Entität
+   *  im kv-Store, kein Eingriff in die Antrags-Pipeline. Nur dev. Optional,
+   *  default false. */
+  mapFoerderfaehig?: boolean;
 }
 
 export interface TeamflowMenuLabels {

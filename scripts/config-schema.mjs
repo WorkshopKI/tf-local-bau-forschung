@@ -217,6 +217,13 @@ export const DEFAULT_CONFIG = {
      *  Kontext einfließen. Doppeltes Opt-in (setzt Protokoll-Opt-in voraus). Nur
      *  dev. Optional, default false (`=== true` Backward-Kompat). */
     assistentGedaechtnis: false,
+    /** MAP „Neuer Prüf-Workflow": Import von Plattform-Einreichungs-JSON per
+     *  Drag & Drop, deterministische Rechenchecks und eine im Betrieb
+     *  editierbare, versionierte Förderfähigkeits-Checkliste. Eigene Entität im
+     *  kv-Store — greift NICHT in die CSV-/Antrags-Pipeline ein. Nur dev.
+     *  Optional, default false (kein requiredFlags-Eintrag → `=== true`
+     *  Backward-Kompat). */
+    mapFoerderfaehig: false,
   },
 
   menuLabels: {

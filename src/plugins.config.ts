@@ -18,12 +18,14 @@ import { filterAdminPlugin } from '@/plugins/filter-kuration';
 import { dokumentenquellenKurationPlugin } from '@/plugins/dokumentenquellen-kuration';
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
+import { mapFoerderfaehigPlugin } from '@/plugins/map-foerderfaehig';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
   homePlugin,
   antraegePlugin,
   anfragenPlugin,
+  mapFoerderfaehigPlugin,
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,
