@@ -5,6 +5,7 @@ import {
   AUSGANGSLAGE_SKILL_ID,
   KURZFASSUNG_SKILL_ID,
   RISIKEN_SKILL_ID,
+  KOMPETENZ_SKILL_ID,
   buildKurzfassungPrompt,
 } from '../seed';
 
@@ -29,18 +30,21 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
     expect(b!.version).toBe(2);
   });
 
-  it('C–G tragen die Beleg→Satz-Instruktion NICHT; D–G bleiben version 1, C ist v2', () => {
+  it('C–G tragen die Beleg→Satz-Instruktion NICHT; D–F bleiben version 1, C und G sind v2', () => {
     const uebrige = SEED_SKILLS_BG.filter(s => s.id !== AUSGANGSLAGE_SKILL_ID);
     expect(uebrige.length).toBeGreaterThan(0);
     for (const s of uebrige) {
       expect(s.promptTemplate, s.id).not.toContain('stützt');
     }
-    // D–G unverändert bei version 1; C ist bewusst v2 (Entwurf → gefilterter Fließtext —
-    // eigener Umbau, NICHT der Beleg-Kontrakt).
-    for (const s of uebrige.filter(s => s.id !== RISIKEN_SKILL_ID)) {
+    // D–F unverändert bei version 1. C ist v2 (Entwurf → gefilterter Fließtext) und G
+    // ebenfalls (Pflicht-Anfang aus der zitierten Inline-Regel in den eigenen Block) —
+    // beides eigene Umbauten, NICHT der Beleg-Kontrakt.
+    const eigenerUmbau = new Set<string>([RISIKEN_SKILL_ID, KOMPETENZ_SKILL_ID]);
+    for (const s of uebrige.filter(s => !eigenerUmbau.has(s.id))) {
       expect(s.version, s.id).toBe(1);
     }
     expect(SEED_SKILLS_BG.find(s => s.id === RISIKEN_SKILL_ID)?.version).toBe(2);
+    expect(SEED_SKILLS_BG.find(s => s.id === KOMPETENZ_SKILL_ID)?.version).toBe(2);
   });
 
   it('buildKurzfassungPrompt: false ohne, true mit Instruktion (nur noch Migrations-Erkennung)', () => {

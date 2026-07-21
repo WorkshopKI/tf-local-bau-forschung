@@ -29,6 +29,9 @@ import {
   MARKT_SKILL_ID,
   D_ABSCHNITT_OPTS,
   D_ABSCHNITT_OPTS_UMFANG_ALT,
+  KOMPETENZ_SKILL_ID,
+  G_ABSCHNITT_OPTS,
+  G_ABSCHNITT_OPTS_PFLICHT_ALT,
 } from './seed';
 import type { SkillRecord, SkillRegistryFile } from './types';
 
@@ -58,6 +61,9 @@ export const GA_UMFANG_DEDUP_MIGRATION = 'ga-umfang-dedup-2026-07';
 
 /** ID der Umfang-Single-Source-Entkopplung für C + D (Folgepaket; eigener Marker, append-only). */
 export const GA_UMFANG_DEDUP_CD_MIGRATION = 'ga-umfang-dedup-cd-2026-07';
+
+/** ID der Pflicht-Anfang-Entschärfung in G (zitierte „…"-Inline-Regel → eigener Block). */
+export const GA_PFLICHT_ANFANG_KLAR_MIGRATION = 'ga-pflicht-anfang-klar-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -223,6 +229,35 @@ function applyUmfangDedupCD(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Abschnitt G: der Pflicht-Anfang stand als zitierte Inline-Regel im Prompt —
+ * eine zitierte Inline-Regel, die den Wortlaut EXAKT verlangte und ihn zugleich
+ * abgeschnitten zeigte. Diese Anweisung ist nicht erfüllbar: der Wortlaut endet mitten
+ * im Satz, und sein Ende wird zusätzlich von einem Auslassungszeichen innerhalb der
+ * Anführungszeichen verdeckt. Qwen suchte darauf im Reasoning wiederholt die
+ * String-Grenze, degenerierte in Wiederholung und verbrauchte das Ausgabebudget — der
+ * Lauf brach ohne Antwort ab (zweiter Fall dieser Klasse nach
+ * `GA_BELEG_KONTRAKT_REVERT_MIGRATION`).
+ *
+ * Neu steht der Wortlaut in einem eigenen, zeilenbegrenzten `## Pflicht-Anfang`-Block
+ * mit dem expliziten Hinweis, dass er absichtlich mitten im Satz endet.
+ *
+ * ZWEI Alt-Stände wie bei `applyRisikenEntwurf`: Seed-Default mit Stilbeispiel, kuratierter
+ * Share-Snapshot ohne. Beide gelten als pristine. Weicht das Template von BEIDEN ab
+ * (kuratiert editiert oder schon migriert), bleibt der Skill UNBERÜHRT.
+ */
+function applyPflichtAnfangKlar(skills: SkillRecord[]): SkillRecord[] {
+  const alteStaende = new Set([
+    abschnittTemplate({ ...G_ABSCHNITT_OPTS_PFLICHT_ALT }),
+    abschnittTemplate({ ...G_ABSCHNITT_OPTS_PFLICHT_ALT, stilbeispiel: undefined }),
+  ]);
+  const neuG = abschnittTemplate({ ...G_ABSCHNITT_OPTS });
+  return skills.map(s =>
+    s.id === KOMPETENZ_SKILL_ID && alteStaende.has(s.promptTemplate)
+      ? { ...s, promptTemplate: neuG, version: Math.max(s.version, 2) }
+      : s);
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -238,6 +273,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_RISIKEN_ENTWURF_MIGRATION, apply: applyRisikenEntwurf },
   { marker: GA_UMFANG_DEDUP_MIGRATION, apply: applyUmfangDedup },
   { marker: GA_UMFANG_DEDUP_CD_MIGRATION, apply: applyUmfangDedupCD },
+  { marker: GA_PFLICHT_ANFANG_KLAR_MIGRATION, apply: applyPflichtAnfangKlar },
 ];
 
 /**

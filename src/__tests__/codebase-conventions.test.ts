@@ -40,6 +40,10 @@
  *   - no-hardcoded-kategorie-mapping    → Artefakt-Achse, Kategorie-Einzelquelle:
  *     der typ→kategorie-Map-Identifier TYP_ZU_KATEGORIE nur in kategorien.ts;
  *     Regel-Kategorie sonst immer ueber effektiveKategorie() ableiten.
+ *   - keine-elidierte-wortlaut-vorgabe   → Prompt-Hygiene: eine Anweisung, die einen
+ *     Wortlaut EXAKT/woertlich verlangt, darf ihn nicht zitiert-und-abgeschnitten
+ *     ("… “") zeigen — das Modell kann die String-Grenze nicht bestimmen und
+ *     dreht in eine Reasoning-Schleife (v2.284.1; Vorlaeufer: Beleg-Kontrakt-Rueckbau).
  *   - gutachten-entwurf-kein-plain-textarea → Gutachten-Entwurf nutzt den
  *     Live-Preview-Editor (MarkdownEditor + markdownLivePreview), kein rohes
  *     <textarea> (Buffer bleibt rohes Markdown = Ground-Truth, kein Roundtrip).
@@ -829,6 +833,47 @@ describe('no-hardcoded-kategorie-mapping (Artefakt-Achse: Kategorie-Einzelquelle
   });
 });
 
+describe('keine-elidierte-wortlaut-vorgabe (Prompt-Hygiene)', () => {
+  // Bug-Klasse, zweimal zugeschlagen: eine Prompt-Anweisung verlangt einen Wortlaut
+  // EXAKT/woertlich und zeigt ihn zugleich zitiert-und-abgeschnitten („… “). Das ist
+  // nicht erfuellbar — das Modell kann nicht entscheiden, ob das Auslassungszeichen zum
+  // Wortlaut gehoert und wo er endet. Qwen suchte darauf im Reasoning wiederholt die
+  // String-Grenze, degenerierte in Wiederholung und verbrauchte das Ausgabebudget: Lauf
+  // ohne Antwort (Abschnitt G, v2.284.1). Richtig ist ein eigener, zeilenbegrenzter Block
+  // ohne Anfuehrungszeichen (siehe abschnittTemplate.pflichtAnfang).
+  //
+  // Nur die KOMBINATION ist verboten. Ein „…“ zur reinen Veranschaulichung (grundsatz.ts:
+  // „Das Vorhaben…“ statt „Der Antragsteller plant…“) fordert nichts Woertliches und
+  // bleibt erlaubt.
+  const LITERAL_WORT = /(exakt|wörtlich|wortgetreu)/i;
+  const ELIDIERTES_ZITAT = /…\s*[“”»"']/;
+
+  it('keine Wortlaut-Vorgabe zeigt den Wortlaut zitiert-und-abgeschnitten', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.includes(`${sep}skills${sep}`)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      findings.push(...findInFile(
+        file,
+        l => LITERAL_WORT.test(l) && ELIDIERTES_ZITAT.test(l),
+        'allow-elidierte-wortlaut-vorgabe',
+      ));
+    }
+    if (findings.length > 0) {
+      const msg =
+        `Prompt verlangt einen Wortlaut EXAKT und zeigt ihn zugleich abgeschnitten.\n` +
+        `Das Modell kann die String-Grenze nicht bestimmen und dreht in eine\n` +
+        `Reasoning-Schleife, bis das Ausgabebudget aufgebraucht ist (Lauf ohne Antwort).\n` +
+        `Statt zitiert-und-elidiert: eigener Block, unzitiert, auf eigener Zeile —\n` +
+        `siehe abschnittTemplate.pflichtAnfang. Endet der Wortlaut absichtlich mitten im\n` +
+        `Satz, muss der Prompt das ausdruecklich sagen. Echte Ausnahme (eingefrorener\n` +
+        `Alt-Stand fuer die Migrations-Erkennung):\n` +
+        `'// allow-elidierte-wortlaut-vorgabe: <grund>'.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
 describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // Diese Kennzahlen halten den nach P1-P6 + Skill-Dach (v2.89) erreichten
   // Struktur-Zustand fest. Schwellen mit BEWUSSTEM Puffer ueber dem Ist-Wert: sie
@@ -838,7 +883,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 34;    // Ist 34; +1 'mapFoerderfaehig' (MAP Prüf-Workflow: Einreichungs-Import + editierbare Checkliste, dev); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1545;       // Ist ~1534 (DIESE Datei; +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1590;       // Ist ~1579 (DIESE Datei; +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

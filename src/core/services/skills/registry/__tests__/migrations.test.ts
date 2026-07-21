@@ -14,6 +14,7 @@ import {
   GA_RISIKEN_ENTWURF_MIGRATION,
   GA_UMFANG_DEDUP_MIGRATION,
   GA_UMFANG_DEDUP_CD_MIGRATION,
+  GA_PFLICHT_ANFANG_KLAR_MIGRATION,
 } from '../migrations';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from '../aufbereitung-zahlen.seed';
@@ -32,6 +33,9 @@ import {
   MARKT_SKILL_ID,
   D_ABSCHNITT_OPTS,
   D_ABSCHNITT_OPTS_UMFANG_ALT,
+  KOMPETENZ_SKILL_ID,
+  G_ABSCHNITT_OPTS,
+  G_ABSCHNITT_OPTS_PFLICHT_ALT,
 } from '../seed';
 import type { SkillRecord, SkillRegistryFile } from '../types';
 
@@ -49,7 +53,7 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
@@ -58,6 +62,7 @@ const NUR_STECKBRIEF = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_STECKBRIEF_MAX
 const NUR_RISIKEN = ALLE_MARKER.filter(m => m !== GA_RISIKEN_ENTWURF_MIGRATION);
 const NUR_UMFANG = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_MIGRATION);
 const NUR_UMFANG_CD = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_CD_MIGRATION);
+const NUR_PFLICHT_ANFANG = ALLE_MARKER.filter(m => m !== GA_PFLICHT_ANFANG_KLAR_MIGRATION);
 
 const OLD_A = buildKurzfassungPrompt(false);
 const NEW_A = buildKurzfassungPrompt(true);
@@ -378,6 +383,70 @@ describe('reconcile — Umfang single-source C + D (Folgepaket)', () => {
     const { file: out } = reconcileEinmaligeAktivierungen(file([c], NUR_UMFANG_CD));
     expect(out.skills[0]?.promptTemplate).toBe(DEDUP_C);
   });
+});
+
+// Der zitierte, mit „…" abgeschnittene Pflicht-Anfang war für das Modell nicht auflösbar
+// (Reasoning-Loop bis zum Budget-Ende, Lauf ohne Antwort). Neu: eigener, zeilenbegrenzter
+// Block mit explizitem Hinweis auf das absichtliche Satz-Ende.
+describe('reconcile — Pflicht-Anfang G aus der zitierten Inline-Regel lösen', () => {
+  const ALT_G = abschnittTemplate({ ...G_ABSCHNITT_OPTS_PFLICHT_ALT });
+  const ALT_G_OHNE_STIL = abschnittTemplate({ ...G_ABSCHNITT_OPTS_PFLICHT_ALT, stilbeispiel: undefined });
+  const NEU_G = abschnittTemplate({ ...G_ABSCHNITT_OPTS });
+
+  it('der Alt-Stand trägt die unerfüllbare Anweisung, der Neu-Stand nicht', () => {
+    expect(ALT_G).toContain('**exakt** mit: „');
+    expect(ALT_G).toContain('im Bereich …"');
+    expect(NEU_G).not.toContain('**exakt** mit: „');
+    // Der Pflicht-Anfang darf nirgends mehr zitiert-und-elidiert auftauchen; andere
+    // „…"-Vorkommen (Grundsatz-Regeln) sind unbedenklich, weil sie nichts Wörtliches fordern.
+    expect(NEU_G).not.toContain('im Bereich …');
+  });
+
+  it('der Neu-Stand nennt den Wortlaut unzitiert auf eigener Zeile + löst das Satz-Ende auf', () => {
+    expect(NEU_G).toContain('## Pflicht-Anfang des finalen Textes');
+    // Der Wortlaut steht als eigene Zeile — genau das macht seine Grenze eindeutig.
+    expect(NEU_G.split('\n')).toContain(
+      'Das Vorhaben wird sehr positive Auswirkungen auf das FuE-Potenzial und Know-how der '
+      + 'Antragsteller haben. Im Unternehmen wird die Technologiekompetenz im Bereich');
+    expect(NEU_G).toContain('endet absichtlich mitten im Satz');
+  });
+
+  it('pristine Alt-G (mit Stilbeispiel) → neuer Block, Marker gesetzt, version ≥ 2', () => {
+    const altG = skill(KOMPETENZ_SKILL_ID, { promptTemplate: ALT_G, version: 1 });
+    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(file([altG], NUR_PFLICHT_ANFANG));
+    expect(geaendert).toBe(true);
+    expect(angewandt).toContain(GA_PFLICHT_ANFANG_KLAR_MIGRATION);
+    expect(out.skills[0]?.promptTemplate).toBe(NEU_G);
+    expect(out.skills[0]?.version).toBe(2);
+  });
+
+  it('pristine Alt-G OHNE Stilbeispiel (kuratierter Share-Snapshot) wird ebenfalls gehoben', () => {
+    const altG = skill(KOMPETENZ_SKILL_ID, { promptTemplate: ALT_G_OHNE_STIL, version: 1 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([altG], NUR_PFLICHT_ANFANG));
+    expect(out.skills[0]?.promptTemplate).toBe(NEU_G);
+  });
+
+  it('kuratiert editiertes G bleibt UNBERÜHRT', () => {
+    const eigen = `${ALT_G}\n\nHauseigene Ergänzung.`;
+    const g = skill(KOMPETENZ_SKILL_ID, { promptTemplate: eigen, version: 3 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([g], NUR_PFLICHT_ANFANG));
+    expect(out.skills[0]?.promptTemplate).toBe(eigen);
+    expect(out.skills[0]?.version).toBe(3);
+  });
+
+  it('bereits migriertes G bleibt unberührt (No-op) und senkt die Version nicht', () => {
+    const g = skill(KOMPETENZ_SKILL_ID, { promptTemplate: NEU_G, version: 5 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([g], NUR_PFLICHT_ANFANG));
+    expect(out.skills[0]?.promptTemplate).toBe(NEU_G);
+    expect(out.skills[0]?.version).toBe(5);
+  });
+
+  it('die Abschnitte B–F bleiben byte-identisch (pflichtAnfang undefined ändert nichts)', () => {
+    // Sonst zöge dieser Fix die Migrations-Erkennung aller anderen Abschnitte mit.
+    expect(abschnittTemplate({ ...B_ABSCHNITT_OPTS })).toBe(DEDUP_B);
+    expect(abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU })).toBe(DEDUP_C);
+    expect(abschnittTemplate({ ...D_ABSCHNITT_OPTS })).toBe(DEDUP_D);
+  });
 
   it('KURATIERT editiertes D (≠ Alt-Wortlaut) wird NIEMALS überschrieben', () => {
     const edited = skill(MARKT_SKILL_ID, { promptTemplate: ALT_D_UMFANG + '\nKurator-Zusatz', version: 2 });
@@ -406,7 +475,7 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);

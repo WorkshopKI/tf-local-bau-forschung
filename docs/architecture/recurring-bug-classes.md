@@ -204,3 +204,22 @@ Elf Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an de
 **Maschinell erzwungen (v2.277.1):** `no-blanket-idb-wipe` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts). Eine Datei, die unpräfixiert `idb.keys()` holt **und** `idb.delete(...)` aufruft, muss aus [setup-keys.ts](../../src/core/services/storage/setup-keys.ts) importieren (`istSetupKey`) — sonst schlägt der Test fehl. Rein lesende `keys()`-Nutzung (State-Dumps, Inspector) und bewusste Voll-Resets: Zeile mit `// allow-blanket-idb-wipe: <grund>` markieren. Präfix-gebundenes `idb.keys('doc:')` ist unkritisch und wird nicht erfasst — es kann die Setup-Keys gar nicht treffen.
 
 **Kanonische Dateien:** [setup-keys.ts](../../src/core/services/storage/setup-keys.ts) (`SETUP_IDB_KEYS`/`istSetupKey` — einzige Quelle), [App.tsx](../../src/core/App.tsx) (`onboarding-complete`-Gate), [Onboarding.tsx](../../src/core/Onboarding.tsx) (`restoreFromPers`), [personal-storage/service.ts](../../src/core/services/personal-storage/service.ts), [storage/index.ts](../../src/core/services/storage/index.ts).
+
+---
+
+## 13. Prompt verlangt einen Wortlaut „exakt" und zeigt ihn zugleich abgeschnitten
+
+**Symptom:** Ein Skill-Lauf dauert sehr lange und bricht ohne Antwort ab; im Reasoning-Trace sucht das Modell dutzendfach dieselbe Stelle („Wait, looking at the prompt again…") und degeneriert am Ende in Token-Wiederholung. Andere Abschnitte desselben Workflows laufen sauber durch.
+
+**Root-Cause:** Die Anweisung ist nicht erfüllbar. Sie fordert eine **exakte** Wiedergabe eines Wortlauts und zeigt ihn zugleich zitiert und per Auslassungszeichen abgeschnitten — das Modell kann weder entscheiden, ob das „…" zum Wortlaut gehört, noch wo er endet. Konkret trug Abschnitt G bis v2.284.1 die Regel `Beginne den finalen Text **exakt** mit: „… Technologiekompetenz im Bereich …"`; der Pflicht-Anfang endet zusätzlich mitten im Satz, was die Vorgabe wie ein Fragment aussehen ließ. Das Modell verbrauchte das Ausgabebudget mit der Suche nach der String-Grenze.
+
+**Fix-Pattern:**
+- **Wörtliche Vorgaben stehen unzitiert in einem eigenen, zeilenbegrenzten Block** — nicht als Zitat in einer Fließtext-Regel. Die Zeilengrenze ist die eindeutige Grenze (`abschnittTemplate.pflichtAnfang`).
+- **Endet der Wortlaut absichtlich mitten im Satz, muss der Prompt das ausdrücklich sagen** („endet absichtlich mitten im Satz, führe ihn fort"). Ohne diesen Satz sucht das Modell den fehlenden Rest.
+- **Gilt auch für Korrektur-Hinweise** aus der Check-Engine (`pflicht_anfang.hint`) — sie landen im selben Modell.
+- **Zweiter Fall dieser Klasse.** Der erste war der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4), zurückgebaut in v2.241.5 — dort trieb ein zitiertes Marker-Beispiel dasselbe Verhalten. Wenn ein Prompt-Kontrakt „schlau" wirkt, aber das Modell hängen lässt: erst den Kontrakt entfernen, nicht am Modell drehen.
+- **Auf dem Streamlit-Bridge-Pfad ist der Prompt der einzige Hebel** — `maxTokens`/`thinkingBudget` gehen nur an DirectLLM-Transporte ([run-skill.ts](../../src/core/services/skills/run/run-skill.ts)); die Bridge schiebt reinen Text in die Chat-Oberfläche.
+
+**Maschinell erzwungen (v2.284.1):** `keine-elidierte-wortlaut-vorgabe` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts). Unter `src/core/services/skills/` darf keine Zeile ein Literalitäts-Wort (`exakt`/`wörtlich`/`wortgetreu`) mit einem elidierten Zitat (`…` direkt vor einem schließenden Anführungszeichen) kombinieren. Eingefrorene Alt-Stände für die Migrations-Erkennung: Zeile mit `// allow-elidierte-wortlaut-vorgabe: <grund>` markieren. Rein veranschaulichende „…"-Zitate ohne Literalitäts-Forderung (z.B. `grundsatz.ts`) sind nicht erfasst.
+
+**Kanonische Dateien:** [seed.ts](../../src/core/services/skills/registry/seed.ts) (`abschnittTemplate.pflichtAnfang`, `G_ABSCHNITT_OPTS`), [check-engine.ts](../../src/core/services/skills/registry/check-engine.ts) (`pflicht_anfang.hint`), [migrations.ts](../../src/core/services/skills/registry/migrations.ts) (`GA_PFLICHT_ANFANG_KLAR_MIGRATION`).

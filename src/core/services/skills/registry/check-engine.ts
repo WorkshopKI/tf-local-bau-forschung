@@ -404,7 +404,15 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
         ...(ok ? {} : { detail: `Muss mit „${ziel.slice(0, 60)}…" beginnen.` }),
       };
     },
-    hint: params => `Beginne den finalen Text exakt mit: „${strParam(params, 'text').trim()}"`,
+    // Der Wortlaut steht UNZITIERT auf eigener Zeile: ein Pflicht-Anfang endet
+    // typischerweise mitten im Satz, und in Anführungszeichen gesetzt ist für das Modell
+    // nicht entscheidbar, wo er aufhört (das trieb Qwen in eine Reasoning-Schleife —
+    // siehe `abschnittTemplate.pflichtAnfang`). Darum Zeilengrenze + expliziter Hinweis.
+    hint: params =>
+      'Der finale Text muss mit genau diesem Wortlaut beginnen:\n\n'
+      + `${strParam(params, 'text').trim()}\n\n`
+      + 'Der Wortlaut endet absichtlich mitten im Satz. Übernimm ihn unverändert und führe '
+      + 'ihn zu einem vollständigen Satz fort.',
   },
 
   keine_aufzaehlungen: {

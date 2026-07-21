@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.284.1 — Pflicht-Anfang in Abschnitt G loest keinen Reasoning-Loop mehr aus (Juli 2026)
+
+PATCH — Abschnitt G verlangte den Pflicht-Satzanfang „**exakt**" und zeigte ihn zugleich zitiert und per Auslassungszeichen abgeschnitten. Diese Anweisung ist nicht erfüllbar: der Wortlaut endet mitten im Satz, sein Ende ist verdeckt. Qwen suchte im Reasoning wiederholt die String-Grenze, degenerierte in Wiederholung und verbrauchte das Ausgabebudget — Lauf ohne Antwort. Detail: [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md).
+
+- **Pflicht-Anfang steht in einem eigenen, unzitierten Block** auf eigener Zeile, mit dem expliziten Hinweis, dass er absichtlich mitten im Satz endet ([seed.ts](src/core/services/skills/registry/seed.ts), `abschnittTemplate.pflichtAnfang`).
+- **Derselbe Fix im KI-Korrektur-Pfad** — `pflicht_anfang.hint` landet im selben Modell ([check-engine.ts](src/core/services/skills/registry/check-engine.ts)).
+- **Bestands-Registries werden gehoben** (`GA_PFLICHT_ANFANG_KLAR_MIGRATION`, pristine-only, zwei Alt-Stände mit/ohne Stilbeispiel); kuratierte Edits bleiben unberührt ([migrations.ts](src/core/services/skills/registry/migrations.ts)).
+- **Abschnitte B–F bleiben byte-identisch** — `pflichtAnfang: undefined` ändert das Template nicht, sonst zöge der Fix deren Migrations-Erkennung mit.
+- **Guard `keine-elidierte-wortlaut-vorgabe`** verbietet die Kombination Literalitäts-Wort + elidiertes Zitat unter `skills/` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)); neue Bug-Klasse 13 dokumentiert.
+
 ### v2.284.0 — Erneut hochgeladene Dokumente ersetzen statt zu vervielfachen (Juli 2026)
 
 MINOR — Das Dokument-Inventar aus v2.282 zeigte für fünf hochgeladene Dateien fünfzehn Zeilen. Nicht doppelt gerendert, sondern echter Bestand: `add` vergibt pro Aufnahme eine frische UUID, jede erneut abgelegte Datei legte also einen weiteren Record an. Unsichtbar, solange der Gutachten-Pfad ohnehin nur ein Dokument las. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

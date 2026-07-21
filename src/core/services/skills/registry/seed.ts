@@ -52,7 +52,8 @@ const QUELLENANALYSE_KONTRAKT =
 const BELEG_KONTRAKT_SUFFIX =
   ' Schließe jede Zitat-Zeile mit einem Verweis auf die gestützten Sätze deines finalen Textes ab: '
   + '„ → stützt Satz N" (N = 1-basierte Satznummer; mehrere Sätze „→ stützt Sätze N, M"). '
-  + 'Beispiel: „…wörtliches Zitat…" (Abschn. 1.1) → stützt Satz 2.';
+  // eslint-disable-next-line max-len -- Alt-Stand muss byte-identisch bleiben
+  + 'Beispiel: „…wörtliches Zitat…" (Abschn. 1.1) → stützt Satz 2.'; // allow-elidierte-wortlaut-vorgabe: eingefrorener Alt-Stand des zurückgebauten Beleg-Kontrakts (nur Migrations-Erkennung, kein Live-Prompt)
 
 /** Quellenanalyse-Kontrakt-Zeile, optional mit Beleg→Satz-Zusatz (opt-in pro Skill). */
 function quellenanalyseKontrakt(belegKontrakt: boolean): string {
@@ -234,8 +235,30 @@ export function abschnittTemplate(opts: {
    * BYTE-IDENTISCH zum Vor-Paket-4-Stand (kritisch für die Rollout-Migration).
    */
   belegKontrakt?: boolean;
+  /**
+   * Optionaler Pflicht-Anfang: der Wortlaut, mit dem der finale Text beginnen MUSS.
+   *
+   * Wird als eigener, durch Zeilenumbrüche begrenzter Block gerendert — **nie** in
+   * Anführungszeichen, **nie** mit Auslassungszeichen. Der Vorgänger-Wortlaut
+   * verlangte eine EXAKTE Wiedergabe als zitierte Inline-Regel — von einem Wortlaut,
+   * der mitten im Satz endet und dessen Ende zusätzlich von einem Auslassungszeichen
+   * innerhalb der Anführungszeichen verdeckt wurde. Damit ist die Anweisung nicht
+   * erfüllbar. Qwen drehte darauf in eine Reasoning-Schleife („wo endet der String?")
+   * bis das Ausgabebudget aufgebraucht war — sichtbarer Abbruch statt Antwort. Der Block
+   * unten löst genau diese Mehrdeutigkeit explizit auf.
+   *
+   * `undefined` reproduziert das Template BYTE-IDENTISCH zur Form ohne Block (kritisch
+   * für die Migrations-Erkennung der Abschnitte B–F).
+   */
+  pflichtAnfang?: string;
 }): string {
   const extra = opts.formatRegeln.map(r => `- ${r}`).join('\n');
+  const pflicht = opts.pflichtAnfang
+    ? `\n\n## Pflicht-Anfang des finalen Textes\nDer finale Text beginnt mit genau diesem Wortlaut:\n\n`
+      + `${opts.pflichtAnfang}\n\n`
+      + 'Dieser Wortlaut endet absichtlich mitten im Satz. Übernimm ihn unverändert und führe ihn '
+      + 'zu einem vollständigen Satz fort.'
+    : '';
   const stil = opts.stilbeispiel
     ? `\n\n## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)\n${opts.stilbeispiel}`
     : '';
@@ -256,7 +279,7 @@ export function abschnittTemplate(opts: {
 ${opts.aufgabe}
 
 ${GRUNDSATZ_REGELN}
-${extra}
+${extra}${pflicht}
 
 ## Ausgabeformat (genau diese ${anzahlWort} Abschnitte, jeweils mit der ###-Überschrift)
 ### Quellenanalyse
@@ -448,6 +471,55 @@ export const D_ABSCHNITT_OPTS = {
     'Der finale Fließtext zum Markt — nur Antragsinhalte, keine externen Marktkenntnisse.',
 } as const;
 
+/** Skill-ID des Abschnitts G (Technologiekompetenz) — Konstante für Lookups + Migration. */
+export const KOMPETENZ_SKILL_ID = 'gutachten-kompetenz';
+
+const G_AUFGABE =
+  'Beschreibe die Auswirkungen des FuE-Projektes auf die Technologiekompetenz der Antragsteller. '
+  + 'Beginne mit dem vorgegebenen Pflicht-Satz und führe ihn fort, indem du das konkrete Technologiefeld '
+  + 'und den Kompetenzgewinn aus dem Antrag benennst.';
+
+const G_FINAL_TEXT =
+  'Der finale Fließtext, der mit dem Pflicht-Satz beginnt und den Kompetenzgewinn (Technologiefeld aus '
+  + 'dem Antrag) beschreibt.';
+
+const G_STILBEISPIEL =
+  'Das Vorhaben wird sehr positive Auswirkungen auf das FuE-Potenzial und Know-how der Antragsteller '
+  + 'haben. Im Unternehmen wird die Technologiekompetenz im Bereich hochpräziser Bio-Inkjet-'
+  + 'Drucktechnologie, integrierter Echtzeit-Hautanalyse-Sensorik und adaptiver Formulierungsmethoden '
+  + 'deutlich erweitert.';
+
+/**
+ * Vor-Fix-Wortlaut von Abschnitt G: der Pflicht-Anfang steckte als zitierte, mit „…"
+ * abgeschnittene Inline-Regel in `formatRegeln`. Eingefroren für die BYTE-genaue
+ * `applyPflichtAnfangKlar`-Migrations-Erkennung — NICHT mehr live geseedet.
+ */
+export const G_ABSCHNITT_OPTS_PFLICHT_ALT = {
+  name: 'Technologiekompetenz',
+  aufgabe: G_AUFGABE,
+  formatRegeln: [
+    `Beginne den finalen Text **exakt** mit: „${G_PFLICHT_ANFANG} …" und führe den Satz fort.`, // allow-elidierte-wortlaut-vorgabe: eingefrorener Vor-Fix-Wortlaut, nur Migrations-Erkennung — GENAU dieser Text löste den Reasoning-Loop aus
+  ],
+  finalText: G_FINAL_TEXT,
+  stilbeispiel: G_STILBEISPIEL,
+} as const;
+
+/**
+ * Live-Seed der G-Optionen: der Pflicht-Anfang wandert aus der zitierten Inline-Regel in
+ * den eigenen `pflichtAnfang`-Block (unzitiert, zeilenbegrenzt, mit explizitem Hinweis auf
+ * das absichtliche Satz-Ende). Siehe die Begründung an `abschnittTemplate.pflichtAnfang`.
+ */
+export const G_ABSCHNITT_OPTS = {
+  name: G_ABSCHNITT_OPTS_PFLICHT_ALT.name,
+  aufgabe: G_AUFGABE,
+  formatRegeln: [
+    'Der finale Text beginnt mit dem unten vorgegebenen Pflicht-Anfang und führt ihn fort.',
+  ],
+  pflichtAnfang: G_PFLICHT_ANFANG,
+  finalText: G_FINAL_TEXT,
+  stilbeispiel: G_STILBEISPIEL,
+} as const;
+
 /** Die Abschnitts-Skills B–G (Schritt A = SEED_SKILL bleibt unverändert). */
 export const SEED_SKILLS_BG: SkillRecord[] = [
   {
@@ -539,28 +611,11 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     geaendert_am: SEED_TS,
   },
   {
-    id: 'gutachten-kompetenz',
+    id: KOMPETENZ_SKILL_ID,
     name: 'Technologiekompetenz (G)',
     beschreibung: 'Abschnitt G des ZIM-Gutachtens: Auswirkungen auf die Technologiekompetenz.',
-    version: 1,
-    promptTemplate: abschnittTemplate({
-      name: 'Technologiekompetenz',
-      aufgabe:
-        'Beschreibe die Auswirkungen des FuE-Projektes auf die Technologiekompetenz der Antragsteller. '
-        + 'Beginne mit dem vorgegebenen Pflicht-Satz und führe ihn fort, indem du das konkrete Technologiefeld '
-        + 'und den Kompetenzgewinn aus dem Antrag benennst.',
-      formatRegeln: [
-        `Beginne den finalen Text **exakt** mit: „${G_PFLICHT_ANFANG} …" und führe den Satz fort.`,
-      ],
-      finalText:
-        'Der finale Fließtext, der mit dem Pflicht-Satz beginnt und den Kompetenzgewinn (Technologiefeld aus '
-        + 'dem Antrag) beschreibt.',
-      stilbeispiel:
-        'Das Vorhaben wird sehr positive Auswirkungen auf das FuE-Potenzial und Know-how der Antragsteller '
-        + 'haben. Im Unternehmen wird die Technologiekompetenz im Bereich hochpräziser Bio-Inkjet-'
-        + 'Drucktechnologie, integrierter Echtzeit-Hautanalyse-Sensorik und adaptiver Formulierungsmethoden '
-        + 'deutlich erweitert.',
-    }),
+    version: 2,
+    promptTemplate: abschnittTemplate({ ...G_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
