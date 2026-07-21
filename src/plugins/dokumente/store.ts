@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { StorageService } from '@/core/services/storage';
+import type { StorageService, IDBStore } from '@/core/services/storage';
 import { uuid } from '@/core/services/id-generator';
 import type { ConversionReport } from '@/core/services/converter';
 
@@ -23,6 +23,26 @@ export interface DocumentFull extends DocumentMeta {
 
 // Backward-Compat: Seed-Dateien importieren `Document`
 export type Document = DocumentFull;
+
+/**
+ * Alle Dokumente mit diesem Tag (Verbund-Relation), inklusive Markdown.
+ *
+ * Hier beheimatet, weil der Store den `doc:`-Keyspace besitzt — `listDocsByFkz`
+ * (Gutachten/Kurzfassung) und die Aufnahmefläche teilen sich diese eine Implementierung,
+ * statt den Scan zweimal zu führen. Scan über alle `doc:`-Keys ist akzeptabel: pro
+ * Verbund liegen eine Handvoll Dokumente.
+ */
+export async function listDocsByTag(idb: IDBStore, tag: string): Promise<DocumentFull[]> {
+  const keys = await idb.keys('doc:');
+  const out: DocumentFull[] = [];
+  for (const key of keys) {
+    const doc = await idb.get<DocumentFull>(key);
+    if (!doc) continue;
+    const tags = Array.isArray(doc.tags) ? doc.tags : [];
+    if (tags.includes(tag)) out.push(doc);
+  }
+  return out;
+}
 
 const PINNED_KEY = 'teamflow_dokumente_pinned';
 
@@ -55,6 +75,8 @@ interface DokumenteState {
   loadAll: (storage: StorageService) => Promise<void>;
   /** Speichert ein Dokument und gibt die generierte Doc-ID zurück (für späteres Re-Tagging). */
   add: (doc: Omit<DocumentFull, 'id' | 'created'>, storage: StorageService) => Promise<string>;
+  /** Überschreibt den Inhalt eines vorhandenen Dokuments — `id` UND `created` bleiben. */
+  ersetzeInhalt: (id: string, doc: Omit<DocumentFull, 'id' | 'created'>, storage: StorageService) => Promise<void>;
   remove: (id: string, storage: StorageService) => Promise<void>;
   updateTags: (id: string, tags: string[], storage: StorageService) => Promise<void>;
   setSelectedId: (id: string | null) => void;
@@ -113,6 +135,29 @@ export const useDokumenteStore = create<DokumenteState>((set, get) => ({
     };
     set({ documents: [meta, ...get().documents] });
     return doc.id;
+  },
+
+  /**
+   * Neu-Aufnahme derselben Datei: Inhalt ersetzen statt einen zweiten Record anlegen.
+   *
+   * `id` bleibt, damit VB-Wahl (`vb-auswahl:<key>`) und Korpus-Auswahl
+   * (`gutachten-korpus:<key>`) weiter auf dieses Dokument zeigen. `created` bleibt
+   * ebenfalls, damit das Inventar nicht bei jeder Korrektur umsortiert — die Zeile
+   * ist derselbe Platz, nur mit frischem Inhalt.
+   */
+  ersetzeInhalt: async (id, partial, storage) => {
+    const vorhanden = await storage.idb.get<DocumentFull>(`doc:${id}`);
+    if (!vorhanden) return;
+    const doc: DocumentFull = { ...partial, id, created: vorhanden.created };
+    await storage.idb.set(`doc:${id}`, doc);
+    set({
+      documents: get().documents.map(d => d.id === id
+        ? {
+          id, filename: doc.filename, format: doc.format, tags: doc.tags,
+          created: doc.created, pages: doc.pages, vorgangId: doc.vorgangId, source: doc.source,
+        }
+        : d),
+    });
   },
 
   remove: async (id, storage) => {

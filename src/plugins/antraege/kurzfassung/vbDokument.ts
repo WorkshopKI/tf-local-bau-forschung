@@ -3,12 +3,11 @@
  * im Dokumente-Store. Die VB wird von der Dokumenten-Aufnahmefläche mit
  * `tags:[fkz, 'vorhabensbeschreibung']` abgelegt.
  *
- * Scan über alle `doc:*`-Keys — akzeptabel, weil pro Antrag nur wenige Dokumente
- * vom Gutachter aufgenommen werden (kein 13k-Massendatensatz). Eine spätere
- * Generalisierung könnte einen Tag-Index ziehen.
+ * Der Tag-Scan selbst liegt im Dokumente-Store (`listDocsByTag`) — er besitzt den
+ * `doc:`-Keyspace und teilt die Implementierung mit der Aufnahmefläche.
  */
 import type { IDBStore } from '@/core/services/storage';
-import type { DocumentFull } from '@/plugins/dokumente/store';
+import { listDocsByTag, type DocumentFull } from '@/plugins/dokumente/store';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { readVbAusOrdner, type OrdnerVb } from '@/core/services/personal-storage/antraege-eingang';
 import { vbAuswahlPath } from '@/core/services/personal-storage/personal-layout';
@@ -21,15 +20,7 @@ const VB_TAG = 'vorhabensbeschreibung';
 
 /** Alle Dokumente, die über den FKZ-/Verbund-Tag zu diesem Antrag gehören. */
 export async function listDocsByFkz(idb: IDBStore, fkz: string): Promise<DocumentFull[]> {
-  const keys = await idb.keys('doc:');
-  const out: DocumentFull[] = [];
-  for (const key of keys) {
-    const doc = await idb.get<DocumentFull>(key);
-    if (!doc) continue;
-    const tags = Array.isArray(doc.tags) ? doc.tags : [];
-    if (tags.includes(fkz)) out.push(doc);
-  }
-  return out;
+  return listDocsByTag(idb, fkz);
 }
 
 /** Die VB-getaggten Dokumente des Antrags — je nach Upload-Historie mehrere. */

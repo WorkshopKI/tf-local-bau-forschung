@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { typLabelFuerDokument } from '@/core/components/dokumentAufnahmeFkz';
+import { zaehleAltfassungen } from '@/core/components/dokumentDubletten';
 import { misseKorpus } from '../dokumentKorpus';
 import { zaehleAufgenommen, type KorpusKandidat } from './korpusAuswahl';
 import type { GutachtenKorpus } from './korpusQuelle';
@@ -34,7 +35,7 @@ const zahl = (n: number): string => n.toLocaleString('de-DE');
 export function KorpusInventar({
   quellen, ctrl, vbCap, busy, onKonvertierungPruefen, onVbErsetzen,
 }: Props): React.ReactElement | null {
-  const { inventar, auswahl, vbDocId, vbMehrdeutig, sammelHinweis } = quellen;
+  const { inventar, auswahl, vbDocId, vbMehrdeutig, sammelHinweis, dubletten } = quellen;
   // Aufgeklappt, wenn eine Entscheidung ansteht — sonst wäre die Frage versteckt.
   const [offen, setOffen] = useState(sammelHinweis || vbMehrdeutig);
 
@@ -42,16 +43,27 @@ export function KorpusInventar({
   const toggle = useAsyncAction(async (docId: string, an: boolean) => { await ctrl.toggleAufnahme(docId, an); });
   const alle = useAsyncAction(async () => { await ctrl.alleAufnehmen(); });
   const ablehnen = useAsyncAction(async () => { await ctrl.hinweisAblehnen(); });
+  const aufraeumen = useAsyncAction(async () => { await ctrl.dublettenAufraeumen(); });
 
-  const gesperrt = busy || waehleVb.busy || toggle.busy || alle.busy || ablehnen.busy;
+  const gesperrt = busy || waehleVb.busy || toggle.busy || alle.busy || ablehnen.busy || aufraeumen.busy;
   const { imKorpus, gesamt } = zaehleAufgenommen(inventar, auswahl.aufgenommen, vbDocId);
   const mass = misseKorpus(quellen.markdown, vbCap);
-  const fehler = waehleVb.error ?? toggle.error ?? alle.error ?? ablehnen.error;
+  const fehler = waehleVb.error ?? toggle.error ?? alle.error ?? ablehnen.error ?? aufraeumen.error;
 
   if (inventar.length === 0) return null; // Ordner-Fallback ohne IDB-Dokumente
 
   const aufgenommen = new Set(auswahl.aufgenommen);
   const zusatzZahl = inventar.filter(k => k.docId !== vbDocId).length;
+  const altfassungen = new Set(dubletten.flatMap(g => g.entfernen));
+  const altZahl = zaehleAltfassungen(dubletten);
+
+  const aufraeumenBestaetigt = (): void => {
+    const frage = altZahl === 1
+      ? 'Die ältere Fassung eines gleichnamigen Dokuments entfernen?'
+      : `${altZahl} ältere Fassungen gleichnamiger Dokumente entfernen?`;
+    if (!window.confirm(`${frage}\n\nJe Dateiname bleibt die zuletzt hochgeladene Fassung erhalten.`)) return;
+    void aufraeumen.run();
+  };
 
   return (
     <div className="mb-4 rounded-[8px] border-[0.5px] border-[var(--tf-border)]">
@@ -99,6 +111,30 @@ export function KorpusInventar({
         </div>
       )}
 
+      {/* Dubletten-Hinweis: Bestand aus der Zeit, als eine erneute Aufnahme derselben
+          Datei einen zweiten Record anlegte. Neu aufgenommene Dateien ersetzen jetzt. */}
+      {altZahl > 0 && (
+        <div
+          className="mx-3 mb-2.5 rounded px-3 py-2 text-[12.5px]"
+          style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+        >
+          <p className="text-[var(--tf-text)]">
+            {dubletten.length === 1
+              ? 'Ein Dokument liegt mehrfach vor'
+              : `${dubletten.length} Dokumente liegen mehrfach vor`} — {altZahl}{' '}
+            {altZahl === 1 ? 'ältere Fassung' : 'ältere Fassungen'} aus wiederholtem Hochladen.
+          </p>
+          <button
+            type="button"
+            onClick={aufraeumenBestaetigt}
+            disabled={gesperrt}
+            className="mt-1.5 text-[12px] text-[var(--tf-primary)] hover:underline disabled:opacity-50"
+          >
+            {aufraeumen.busy ? 'Entferne…' : 'Ältere Fassungen entfernen'}
+          </button>
+        </div>
+      )}
+
       {/* Cap-Warnung ebenfalls immer sichtbar: ein still abgeschnittener Kontext ist
           schlimmer als eine fehlende Analyse, weil das Ergebnis vollständig aussieht. */}
       {mass.ueberCap && (
@@ -132,6 +168,7 @@ export function KorpusInventar({
               istAktiveVb={k.docId === vbDocId}
               vbWaehlbar={vbMehrdeutig}
               imKorpus={aufgenommen.has(k.docId)}
+              altfassung={altfassungen.has(k.docId)}
               gesperrt={gesperrt}
               onVbWaehlen={() => waehleVb.run(k.docId)}
               onToggle={an => toggle.run(k.docId, an)}
@@ -153,6 +190,8 @@ interface ZeileProps {
   istAktiveVb: boolean;
   vbWaehlbar: boolean;
   imKorpus: boolean;
+  /** true = ältere Fassung eines gleichnamigen Dokuments. */
+  altfassung: boolean;
   gesperrt: boolean;
   onVbWaehlen: () => void;
   onToggle: (an: boolean) => void;
@@ -161,11 +200,11 @@ interface ZeileProps {
 }
 
 function InventarZeile({
-  kandidat, istAktiveVb, vbWaehlbar, imKorpus, gesperrt,
+  kandidat, istAktiveVb, vbWaehlbar, imKorpus, altfassung, gesperrt,
   onVbWaehlen, onToggle, onKonvertierungPruefen, onVbErsetzen,
 }: ZeileProps): React.ReactElement {
   return (
-    <div className="flex items-center gap-2 flex-wrap text-[11.5px]">
+    <div className={`flex items-center gap-2 flex-wrap text-[11.5px] ${altfassung ? 'opacity-60' : ''}`}>
       {/* Radio-Spalte nur bei mehreren VB-Kandidaten — sonst wäre sie Rauschen.
           Feste Breite, damit die Dateinamen bündig stehen (Pitfall #14). */}
       {vbWaehlbar && (
@@ -193,6 +232,7 @@ function InventarZeile({
       </span>
       <span className="text-[var(--tf-text-tertiary)]">{typLabelFuerDokument(kandidat.typ)}</span>
       <span className="text-[var(--tf-text-tertiary)]">{kandidat.zeichen.toLocaleString('de-DE')} Z.</span>
+      {altfassung && <span className="text-[var(--tf-warning-text)]">ältere Fassung</span>}
 
       {istAktiveVb ? (
         <span className="ml-auto flex items-center gap-2">

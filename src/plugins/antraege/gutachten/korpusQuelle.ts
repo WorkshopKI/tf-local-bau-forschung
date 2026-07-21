@@ -17,6 +17,7 @@ import type { DocumentFull } from '@/plugins/dokumente/store';
 import { resolveVb, listDocsByFkz, type VbAufloesung } from '../kurzfassung/vbDokument';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { baueKorpus, type KorpusDok } from '../dokumentKorpus';
+import { gruppiereDubletten, type DublettenGruppe } from '@/core/components/dokumentDubletten';
 import { getKorpusAuswahl } from './korpus-store';
 import {
   baueInventar, waehleZusatzIds, zeigeSammelHinweis,
@@ -40,6 +41,8 @@ export interface GutachtenKorpus {
   volltexte: Map<string, DocumentFull>;
   /** true = der persistente Sammel-Hinweis steht an. */
   sammelHinweis: boolean;
+  /** Gleichnamige Dokumente aus mehrfacher Aufnahme (leer im Normalfall). */
+  dubletten: DublettenGruppe[];
 }
 
 /**
@@ -85,5 +88,6 @@ export async function resolveGutachtenKorpus(
     markdown: baueKorpus(vbDok, zusatz),
     volltexte,
     sammelHinweis: zeigeSammelHinweis(inventar, auswahl, vbDocId),
+    dubletten: gruppiereDubletten(inventar),
   };
 }

@@ -24,9 +24,10 @@ import { DocConverter, maxConversionLevel, type ConvertedDoc } from '@/core/serv
 import { vbUeberschreitetCap } from '@/core/services/skills';
 import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
-import { useDokumenteStore } from '@/plugins/dokumente/store';
+import { useDokumenteStore, listDocsByTag } from '@/plugins/dokumente/store';
 import { KonvertierungReviewDialog } from './KonvertierungReviewDialog';
 import { classifyFkz, typAusDateiname, DOKUMENT_TYP_OPTIONEN, type FkzCase } from './dokumentAufnahmeFkz';
+import { findeGleichnamiges } from './dokumentDubletten';
 import { useVbCharCap } from '@/core/hooks/useVbCharCap';
 
 const converter = new DocConverter();
@@ -47,6 +48,8 @@ interface IntakeItem {
   status: ItemStatus;
   docId?: string;
   error?: string;
+  /** true = hat eine vorhandene gleichnamige Fassung überschrieben (statt neu anzulegen). */
+  ersetzt?: boolean;
   /** Konvertierungsergebnis (Markdown + Report) für die „prüfen"-Vorschau. */
   converted?: ConvertedDoc;
 }
@@ -85,6 +88,7 @@ export function DokumentAufnahme({
   const storage = useStorage();
   const { indexDocument, removeDocument } = useSearch();
   const add = useDokumenteStore(s => s.add);
+  const ersetzeInhalt = useDokumenteStore(s => s.ersetzeInhalt);
   const updateTags = useDokumenteStore(s => s.updateTags);
   const removeDoc = useDokumenteStore(s => s.remove);
   const [items, setItems] = useState<IntakeItem[]>([]);
@@ -98,7 +102,7 @@ export function DokumentAufnahme({
     try {
       const converted = await converter.convert(item.file);
       const tags = [relationTag, typ].filter(Boolean);
-      const docId = await add({
+      const inhalt = {
         filename: converted.filename,
         format: converted.format,
         markdown: converted.markdown,
@@ -106,7 +110,23 @@ export function DokumentAufnahme({
         pages: converted.pages,
         source: 'upload',
         conversion: converted.report,
-      }, storage);
+      };
+
+      // Dieselbe Datei im selben Verbund erneut abgelegt = neue FASSUNG, kein zweites
+      // Dokument. Ohne das sammelt jeder Korrektur- oder Testlauf einen weiteren Record
+      // an, der im Inventar als Dublette auftaucht und den Korpus vervielfacht.
+      const vorhanden = findeGleichnamiges(
+        await listDocsByTag(storage.idb, relationTag), relationTag, converted.filename,
+      );
+      let docId: string;
+      if (vorhanden) {
+        await ersetzeInhalt(vorhanden.id, inhalt, storage);
+        docId = vorhanden.id;
+        removeDocument(docId); // Orama kennt keine Ersetzung — erst raus, dann neu rein
+      } else {
+        docId = await add(inhalt, storage);
+      }
+
       indexDocument({
         id: docId,
         text: converted.markdown,
@@ -115,7 +135,7 @@ export function DokumentAufnahme({
         tags,
         type: 'dokument',
       });
-      patch(item.localId, { status: 'indexiert', docId, typ, converted });
+      patch(item.localId, { status: 'indexiert', docId, typ, converted, ersetzt: !!vorhanden });
       // Bei `offenHalten` bleibt die Fläche offen (Pro-Datei-Erkennung + „Konvertierung
       // prüfen"); die Sektion wird erst beim expliziten „Fertig"-Klick benachrichtigt.
       if (!offenHalten) onIngested?.(typ);
@@ -313,6 +333,9 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard, onRemove 
               </button>
               {lvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme</span>}
               {lvl === 'hinweis' && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
+              {item.ersetzt && (
+                <span className="text-[var(--tf-text-tertiary)]">vorherige Fassung ersetzt</span>
+              )}
               <span className="text-[var(--tf-border)]" aria-hidden>·</span>
               <EntfernenButton busy={entfernen.busy} onClick={handleRemove} />
             </div>

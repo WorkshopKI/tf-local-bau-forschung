@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.284.0 — Erneut hochgeladene Dokumente ersetzen statt zu vervielfachen (Juli 2026)
+
+MINOR — Das Dokument-Inventar aus v2.282 zeigte für fünf hochgeladene Dateien fünfzehn Zeilen. Nicht doppelt gerendert, sondern echter Bestand: `add` vergibt pro Aufnahme eine frische UUID, jede erneut abgelegte Datei legte also einen weiteren Record an. Unsichtbar, solange der Gutachten-Pfad ohnehin nur ein Dokument las. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **Neu-Aufnahme ersetzt die vorherige Fassung** statt einen zweiten Record anzulegen — gleicher Verbund + gleicher Dateiname ([DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx), [dokumentDubletten.ts](src/core/components/dokumentDubletten.ts)).
+- **`id` und `created` bleiben beim Ersetzen** — VB-Wahl und Korpus-Auswahl zeigen weiter auf das Dokument, das Inventar sortiert nicht um ([store.ts](src/plugins/dokumente/store.ts)).
+- **Altbestand als „ältere Fassung" markiert** mit Sammel-Aktion „Ältere Fassungen entfernen"; sie zieht erst die Verweise um, löscht dann aus IDB und Suchindex ([KorpusInventar.tsx](src/plugins/antraege/gutachten/KorpusInventar.tsx), [useGutachtenQuellen.ts](src/plugins/antraege/gutachten/useGutachtenQuellen.ts)).
+- **Nie automatisch beim Laden aufgeräumt** — es sind Nutzerdaten, das Löschen bleibt ein bewusster Klick mit Rückfrage.
+- **Tag-Scan hat nur noch eine Implementierung** — `listDocsByTag` im Dokumente-Store, `listDocsByFkz` delegiert ([vbDokument.ts](src/plugins/antraege/kurzfassung/vbDokument.ts)).
+
 ### v2.283.0 — Regelprüfung unter dem Entwurf (Juli 2026)
 
 MINOR — Der Knopf „Prüfen" wirkte wie ein Blindgänger: er rechnete zwar deterministisch neu, aber die Checks entstehen ohnehin bei jeder Generierung/Bearbeitung — und das Ergebnis landete im rechten Panel, das eingeklappt sein konnte. Klick ohne sichtbare Wirkung. Zugleich saß die Prüfung getrennt von dem Text, den sie bewertet. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

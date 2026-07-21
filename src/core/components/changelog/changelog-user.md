@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.284 — 2026-07
+
+### Bugfixes
+- **Dieselbe Datei erneut hochzuladen legt keine zweite Kopie mehr an.** Bisher bekam jeder Upload einen eigenen Eintrag — wer fünf Dateien dreimal ablegte (etwa nach einer misslungenen Umwandlung), hatte fünfzehn Dokumente am Verbund hängen. Sichtbar wurde das erst mit dem neuen Dokument-Inventar; verloren gegangen war nie etwas. Jetzt ersetzt eine gleichnamige Datei die vorherige Fassung.
+- Ihre **Auswahl bleibt dabei erhalten**: Welches Dokument die maßgebliche Vorhabensbeschreibung ist und was im Gutachten-Kontext liegt, überlebt das erneute Hochladen.
+
+### Neu
+- Liegen aus früheren Uploads noch **mehrfache Fassungen** derselben Datei herum, sind sie im Inventar als *ältere Fassung* markiert. Ein Klick auf **„Ältere Fassungen entfernen"** räumt sie weg — je Dateiname bleibt die zuletzt hochgeladene erhalten. Von allein wird nichts gelöscht.
+
 ## v2.283 — 2026-07
 
 ### Verbesserungen
