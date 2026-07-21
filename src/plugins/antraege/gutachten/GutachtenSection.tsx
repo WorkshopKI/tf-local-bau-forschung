@@ -15,12 +15,11 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
+import { KorpusInventar } from './KorpusInventar';
 import { maxConversionLevel } from '@/core/services/converter';
-import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS } from '@/core/services/skills';
 import { erlaubeWorkflowEntwuerfe, isDevContext } from '@/config/feature-flags';
 import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflowShared';
-import { getLlmContextTokens } from '@/core/services/ai/llm-context';
-import { useKontextZiel, useVbCharCap } from '@/core/hooks/useVbCharCap';
+import { useVbCharCap } from '@/core/hooks/useVbCharCap';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   ankerFuer, ankerKeyGueltig, type AbschnittEinfuegung, type AbschnittAnzeige,
@@ -86,8 +85,7 @@ export function GutachtenSection({
 }: { ctx: KurzfassungContext; initialAbschnittId?: string }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
   const { navigate } = useNavigation();
-  // Cap + Kontextfenster folgen der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
-  const kontextZiel = useKontextZiel();
+  // Cap folgt der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
   const vbCap = useVbCharCap();
   // dev-Inline-Werkstatt: Workflow/Skill direkt hier bearbeiten (nur dev). `null` = zu;
   // `{ skillId }` öffnet direkt den Skill-Editor des aktiven Schritts (Stift-Einstieg).
@@ -99,7 +97,9 @@ export function GutachtenSection({
   // der aktive Markdown-Editor (SectionReviewCard) behält so seinen Buffer.
   const [open, toggleOpen] = useCollapsedSection('verbund_gutachten_collapsed');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
+  // Welches Dokument im Konvertierungs-Dialog liegt (null = zu). Pro Inventar-Zeile
+  // adressierbar — vorher gab es nur „die VB".
+  const [reviewDocId, setReviewDocId] = useState<string | null>(null);
   const [ersetzen, setErsetzen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
@@ -173,6 +173,7 @@ export function GutachtenSection({
   useEffect(() => { setFundstelle(null); setHoverSaetze(null); }, [run?.aktiverSchritt]);
 
   const order = steps.map(s => s.id);
+  const reviewDok = reviewDocId ? ctrl.quellen.quellen?.volltexte.get(reviewDocId) ?? null : null;
   const vbLvl = maxConversionLevel(vbDok?.conversion);
   const vbWarnung = vbDok?.conversion?.warnings.find(w => w.level === 'warnung')?.message ?? '';
   const tweakEffektiv = !!(ctrl.tweak?.aktiv && (ctrl.tweak.stilHinweise.trim() || ctrl.tweak.beispielFormulierungen.trim()));
@@ -365,7 +366,7 @@ export function GutachtenSection({
             Für das Gutachten wird die Vorhabensbeschreibung (VB) des Verbundes benötigt. Legen Sie sie hier ab —
             das Förderkennzeichen wird aus dem Dateinamen erkannt.
           </p>
-          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshVb} offenHalten />
+          <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={ctrl.refreshKorpus} offenHalten />
         </div>
       ) : (
         <>
@@ -375,18 +376,29 @@ export function GutachtenSection({
               <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">
                 Neue Vorhabensbeschreibung hochladen — die neueste ersetzt die bisherige für das Gutachten.
               </p>
-              <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={() => { ctrl.refreshVb(); setErsetzen(false); }} offenHalten />
+              <DokumentAufnahme relationTag={ctx.key} knownIds={ctx.knownIds} onIngested={() => { ctrl.refreshKorpus(); setErsetzen(false); }} offenHalten />
               <button type="button" onClick={() => setErsetzen(false)} className="mt-2 text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)]">Abbrechen</button>
             </div>
-          ) : vbDok && (
-            <div className="mb-4 flex items-center gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]">
-              <span className="font-mono truncate max-w-[260px]" title={vbDok.filename}>{vbDok.filename}</span>
-              <span>·</span>
-              <button type="button" onClick={() => setReviewOpen(true)} className="text-[var(--tf-primary)] hover:underline">Konvertierung prüfen</button>
-              <span>·</span>
-              <button type="button" onClick={() => setErsetzen(true)} className="hover:text-[var(--tf-text-secondary)]">VB ersetzen</button>
-              {vbLvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme{vbWarnung ? `: ${vbWarnung}` : ''}</span>}
-            </div>
+          ) : (
+            <>
+              {/* Inventar statt Einzel-Dateiname: alle Dokumente des Verbundes, welches
+                  die maßgebliche VB ist und welche im KI-Kontext liegen. */}
+              {ctrl.quellen.quellen && (
+                <KorpusInventar
+                  quellen={ctrl.quellen.quellen}
+                  ctrl={ctrl.quellen}
+                  vbCap={vbCap}
+                  busy={ctrl.busy}
+                  onKonvertierungPruefen={docId => setReviewDocId(docId)}
+                  onVbErsetzen={() => setErsetzen(true)}
+                />
+              )}
+              {vbLvl === 'warnung' && (
+                <div className="mb-4 text-[11.5px] text-[var(--tf-warning-text)]">
+                  ⚠ mögliche Konvertierungsprobleme in der Vorhabensbeschreibung{vbWarnung ? `: ${vbWarnung}` : ''}
+                </div>
+              )}
+            </>
           )}
 
           {/* dev-Test: welchen GA-Workflow der Stepper fährt. Nur wenn Entwürfe erlaubt
@@ -423,14 +435,8 @@ export function GutachtenSection({
             </div>
           )}
 
-          {vbDok && vbUeberschreitetCap(vbDok.markdown, vbCap) && (
-            <div
-              className="mb-4 text-[11.5px] text-[var(--tf-warning-text)]"
-              title={`${vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~${vbCap.toLocaleString('de-DE')} aus ${getLlmContextTokens(kontextZiel).toLocaleString('de-DE')} Tokens Kontext. ${VB_KUERZEN_HINWEIS}`}
-            >
-              ⚠ VB länger als das Kontextfenster — würde für die Analyse gekürzt. Extern kürzen und über „VB ersetzen" neu hochladen oder in Einstellungen → KI-Assistent das Kontextfenster erhöhen.
-            </div>
-          )}
+          {/* Die Kontextfenster-Warnung lebt jetzt im Inventar — sie muss den KORPUS
+              messen (VB + aufgenommene Zusatzdokumente), nicht mehr die VB allein. */}
 
           {/* Wiederaufnahme-Zeile (wenn aktiver Schritt in Arbeit) */}
           {run.schritte[run.aktiverSchritt]?.status === 'entwurf' && (
@@ -506,15 +512,16 @@ export function GutachtenSection({
         />
       )}
 
-      {vbDok && (
+      {/* „Konvertierung prüfen" gilt jetzt pro Inventar-Zeile, nicht nur für die VB. */}
+      {reviewDok && (
         <KonvertierungReviewDialog
-          open={reviewOpen}
-          filename={vbDok.filename}
-          format={vbDok.format}
-          pages={vbDok.pages}
-          markdown={vbDok.markdown}
-          report={vbDok.conversion}
-          onClose={() => setReviewOpen(false)}
+          open={reviewDocId !== null}
+          filename={reviewDok.filename}
+          format={reviewDok.format}
+          pages={reviewDok.pages}
+          markdown={reviewDok.markdown}
+          report={reviewDok.conversion}
+          onClose={() => setReviewDocId(null)}
         />
       )}
 

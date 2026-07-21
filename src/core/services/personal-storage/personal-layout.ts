@@ -45,6 +45,12 @@ export const workflowRunPath = (key: string, typ = 'ga'): string => {
   return `${antragDir(key)}/${sub}/workflow-run.json`;
 };
 export const kurzfassungPath = (key: string): string => `${gutachtenDir(key)}/kurzfassung.json`;
+// Quellen-Auswahl: welches Dokument die maßgebliche VB ist (Verbund-Ebene, von allen
+// Artefakten geteilt) und welche Zusatzdokumente in den Gutachten-Korpus gehen. Beides
+// sind „welchen Text hat die KI gesehen"-Tatsachen — ein Browser-Wechsel darf sie nicht
+// still verlieren, darum gespiegelt wie Workflow-Run/Kurzfassung.
+export const vbAuswahlPath = (key: string): string => `${antragDir(key)}/vb-auswahl.json`;
+export const korpusAuswahlPath = (key: string): string => `${gutachtenDir(key)}/korpus-auswahl.json`;
 export const batchJobPath = (): string => `${BASE}/gutachten-batch-job.json`;
 
 export const EINGANG_DIR = `${BASE}/eingang`;

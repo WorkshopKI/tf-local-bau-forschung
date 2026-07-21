@@ -10,8 +10,12 @@ import { dokumenteDir } from '@/core/services/personal-storage/personal-layout';
 import { parseFrontmatter } from '@/plugins/antraege/aufnahme-einfach/frontmatter';
 import { resolveVb } from '@/plugins/antraege/kurzfassung/vbDokument';
 import { normId, ANLAGE5_RE } from '@/core/components/dokumentAufnahmeFkz';
+import { baueKorpus, type KorpusDok } from '../dokumentKorpus';
 
 export { resolveVb, type VbAufloesung } from '@/plugins/antraege/kurzfassung/vbDokument';
+/** Korpus-Primitive leben in `antraege/dokumentKorpus.ts` (nicht dev-gegated) — hier
+ *  nur re-exportiert, damit bestehende Importeure unverändert bleiben. */
+export { baueKorpus, misseKorpus, type KorpusDok, type KorpusMass } from '../dokumentKorpus';
 
 /**
  * Ordnet einen Dateinamen dem Teilvorhaben zu, dessen Aktenzeichen (normalisiert)
@@ -127,12 +131,6 @@ export async function resolveAnlagenProTv(
   return { proTv, unzugeordnet };
 }
 
-/** Ein Dokument im narrativen Aufbereitungs-Korpus (Name + Volltext). */
-export interface KorpusDok {
-  name: string;
-  markdown: string;
-}
-
 /** Aufgelöster Korpus: VB (Präfix) + narrative Zusatzdokumente + der zusammengeführte Text. */
 export interface KorpusAufloesung {
   vb: KorpusDok;
@@ -159,47 +157,6 @@ export async function resolveNarrativeDocs(
   treffer.sort((a, b) =>
     (a.created ?? '').localeCompare(b.created ?? '') || (a.filename ?? '').localeCompare(b.filename ?? ''));
   return treffer.map(d => ({ name: d.filename, markdown: d.markdown }));
-}
-
-/**
- * Reine Zusammenführung: VB (Präfix — dadurch bleiben alle VB-Sektions-Offsets/-IDs
- * identisch) + je narrativem Dokument ein quellenmarkierter, per `---` getrennter
- * Abschnitt. Ohne narrative Dokumente byte-identisch zum VB-Markdown.
- */
-export function baueKorpus(vb: KorpusDok, narrative: KorpusDok[]): string {
-  if (narrative.length === 0) return vb.markdown;
-  let out = vb.markdown;
-  for (const d of narrative) out += `\n\n---\n\n## [Quelle: ${d.name}]\n\n${d.markdown}`;
-  return out;
-}
-
-/** Umfang des Korpus gegen das Kontextfenster des Modells. */
-export interface KorpusMass {
-  zeichen: number;
-  /** Zeichen-Obergrenze aus dem erkannten Kontextfenster (`getVbCharCap`). */
-  cap: number;
-  /** true = der Korpus passt nicht vollständig ins Kontextfenster. */
-  ueberCap: boolean;
-}
-
-/**
- * Misst den Korpus gegen die Zeichen-Obergrenze. Rein.
- *
- * Der Grund für diese Funktion ist eine echte Lücke: die Baustein-Schiene
- * (`runBaustein`) baut ihre Messages selbst und umgeht damit `runSkill` — also
- * auch `capVbMarkdown`. Sie kürzt nicht und warnt nicht. Die Upload-Warnung in
- * `DokumentAufnahme` prüft jede Datei EINZELN, nie ihre Summe. VB und
- * Marketingkonzept passieren also beide unauffällig, während ihr Korpus das
- * Kontextfenster sprengt — das Modell urteilt dann über einen Text, dessen Ende
- * es nie gesehen hat, ohne dass irgendwo ein Hinweis erscheint.
- *
- * Bewusst nur MESSEN, nicht kürzen: eine stille Kürzung wäre in einer
- * Förderprüfung der schlechtere Fehler, und sie würde bestehende Ergebnisse
- * verändern. Die Entscheidung, was mit einem zu grossen Korpus geschieht, gehört
- * dem Prüfer.
- */
-export function misseKorpus(markdown: string, cap: number): KorpusMass {
-  return { zeichen: markdown.length, cap, ueberCap: markdown.length > cap };
 }
 
 /**

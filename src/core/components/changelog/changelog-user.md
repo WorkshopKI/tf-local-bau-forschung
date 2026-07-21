@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.282 — 2026-07
+
+### Neu
+- Das Gutachten zeigt jetzt **alle Dokumente des Verbundes**, die Sie hochgeladen haben — mit Dokumenttyp, Umfang und der Kopfzeile „5 Dokumente · 1 im Gutachten-Kontext". Sie sehen damit auf einen Blick, was abgelegt ist und was die KI tatsächlich zu sehen bekommt.
+- Pro Dokument entscheiden Sie mit **„ins Gutachten aufnehmen"**, ob es in den KI-Kontext einfließt. Haben Sie mehrere Dateien hochgeladen, meldet sich ein Hinweis mit *Alle aufnehmen* — er bleibt stehen, bis Sie sich entschieden haben, und verschwindet nicht beim Neuladen.
+- Liegen mehrere Dateien als Vorhabensbeschreibung vor, **wählen Sie die maßgebliche selbst** aus. Diese Wahl gilt überall — Gutachten, Kurzfassung, Nachforderungen und Aufbereitung arbeiten danach mit demselben Dokument.
+
+### Bugfixes
+- **Hochgeladene Dokumente verschwanden nach „Fertig".** Sie waren nie verloren — gespeichert wurden sie immer, aber die Gutachten-Seite zeigte nur die Vorhabensbeschreibung an, und in die KI-Analyse floss ebenfalls nur diese eine Datei.
+- **Bei mehreren Vorhabensbeschreibungen entschied der Zufall.** Dateien, deren Namen die App nicht zuordnen konnte — etwa „Projektbeschreibung" oder „Wirkung" —, wurden automatisch als Vorhabensbeschreibung eingestuft; welche davon das Gutachten verwendete, hing daran, welche zuerst fertig eingelesen war. Jetzt entscheiden Sie.
+- Die Warnung „passt nicht ins Kontextfenster" rechnet jetzt mit **allen** aufgenommenen Dokumenten statt nur mit der Vorhabensbeschreibung.
+
 ## v2.281 — 2026-07
 
 ### Neu

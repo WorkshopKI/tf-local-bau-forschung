@@ -40,7 +40,7 @@ import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { buildStammdaten, buildSkillMap, type SkillCtx } from './skill-context';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import type { DocumentFull } from '@/plugins/dokumente/store';
-import { resolveVb, type VbAufloesung } from '../kurzfassung/vbDokument';
+import { useGutachtenQuellen, type GutachtenQuellen } from './useGutachtenQuellen';
 import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
@@ -133,7 +133,10 @@ export interface GutachtenWorkflowController {
   weiterschaltenStep: (stepId: StepId) => void;
   verwerfenStep: (stepId: StepId) => void;
   uebernehmenStep: (stepId: StepId, index: number) => void;
-  refreshVb: () => void;
+  /** Quellen (VB + Inventar + Korpus) nach Upload/Auswahl-Änderung neu auflösen. */
+  refreshKorpus: () => void;
+  /** Quellen-Zustand + Mutationen für das Dokument-Inventar. */
+  quellen: GutachtenQuellen;
   stop: () => void;
   clearError: () => void;
   saveTweak: (eingabe: TweakEingabe) => Promise<void>;
@@ -154,8 +157,13 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const key = ctx.key;
 
   const [run, setRun] = useState<WorkflowRun | null>(null);
-  // VB-Auflösung: IDB-Index (Vorrang) ODER persönlicher Ordner (Teil A, Fallback).
-  const [vb, setVb] = useState<VbAufloesung | null>(null);
+  // Quellen des Gutachtens: die maßgebliche VB (IDB-Index mit Vorrang ODER persönlicher
+  // Ordner als Fallback) PLUS das Inventar aller Verbund-Dokumente und der daraus
+  // zusammengesetzte Korpus. `quellen.vb` ist die VB wie bisher; `quellen.markdown` ist
+  // das, was tatsächlich ins Modell geht (bei leerer Auswahl beides identisch).
+  const quellenCtrl = useGutachtenQuellen(ctx);
+  const vb = quellenCtrl.quellen?.vb ?? null;
+  const korpusMd = quellenCtrl.quellen?.markdown ?? '';
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -236,15 +244,14 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     (async () => {
       setLoading(true);
       const now = new Date().toISOString();
-      const [r, vbRes, loaded] = await Promise.all([
+      // VB/Korpus lädt `useGutachtenQuellen` parallel und eigenständig.
+      const [r, loaded] = await Promise.all([
         loadOrMigrateWorkflowRun(storage.idb, key, now),
-        resolveVb(storage.idb, ctx),
         loadSkillRegistry(storage),
       ]);
       if (cancelled) return;
       applyRegistry(loaded.file);
       setRun(r);
-      setVb(vbRes);
       setLoading(false);
       // Die Erreichbarkeits-Probe der internen KI läuft in einem eigenen Effekt (unten),
       // damit sie nicht nur einmal beim Mount, sondern auch bei jedem Schrittwechsel greift.
@@ -342,11 +349,16 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     // still zu Volltext — kein `vbRelevant` → der Skill nutzt {{vbMarkdown}} wie bisher.
     let vbRelevant: string | undefined;
     const stepDef = steps.find(s => s.id === stepId);
-    if (!forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(vb.markdown)) {
+    // ACHTUNG: die drei `korpusMd`-Stellen hier MÜSSEN dieselbe Zeichenkette sehen.
+    // `getOrComputeRelevanzMap` rechnet Heading-SPANS in den übergebenen String, und
+    // `buildVbRelevant` sliced später mit genau diesen Offsets. Wer nur einen der
+    // Aufrufe umstellt, bekommt keinen Fehler — nur stillschweigend den falschen
+    // Textausschnitt im Prompt (siehe korpus-kontext.test.ts).
+    if (!forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(korpusMd)) {
       try {
         const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
-        const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, vb.markdown, abschnitte);
-        const block = buildVbRelevant(relevanz, vb.markdown, stepId, getVbCharCap(kontextZielFuerLauf(bridge)));
+        const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, korpusMd, abschnitte);
+        const block = buildVbRelevant(relevanz, korpusMd, stepId, getVbCharCap(kontextZielFuerLauf(bridge)));
         if (block) vbRelevant = block;
       } catch {
         // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
@@ -369,7 +381,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         const r = await runSkill(transport, sc.skill, teilRegelSatz, {
           ziel: aktivesZielFuerLauf(),
           stammdaten: buildStammdaten(ctx),
-          vbMarkdown: vb.markdown,
+          vbMarkdown: korpusMd,
           vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
           thinkingBudget,
           erwarteAbschluss: 'Finaler Text',
@@ -415,7 +427,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const result = await runSkill(transport, sc.skill, sc.regeln, {
       ziel: aktivesZielFuerLauf(),
       stammdaten: buildStammdaten(ctx),
-      vbMarkdown: vb.markdown,
+      vbMarkdown: korpusMd,
       vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
       thinkingBudget,
       // Abschluss-Marker-Schutz: A–G liefern alle „### Finaler Text" als Schluss-
@@ -633,7 +645,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
         ziel: aktivesZielFuerLauf(),
         stammdaten: buildStammdaten(ctx),
-        vbMarkdown: vb.markdown,
+        vbMarkdown: korpusMd,
         vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
         thinkingBudget,
         onContentDelta: stream.onContentDelta,
@@ -652,11 +664,11 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     }
   };
 
-  const refreshVb = async (): Promise<void> => {
-    const vbRes = await resolveVb(storage.idb, ctx);
-    setVb(vbRes);
-    if (vbRes && llmAvailable === null) {
-      // Passiv — wie die Mount-Probe (kein ungefragter KI-Tab beim VB-Refresh).
+  // Nach Upload/„Fertig" oder einer Änderung an der Quellen-Auswahl neu auflösen.
+  const refreshKorpus = async (): Promise<void> => {
+    await quellenCtrl.refresh();
+    if (llmAvailable === null) {
+      // Passiv — wie die Mount-Probe (kein ungefragter KI-Tab beim Quellen-Refresh).
       try { setLlmAvailable(await bridge.getActiveTransport().ping({ openIfNeeded: false })); }
       catch { setLlmAvailable(false); }
     }
@@ -711,7 +723,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     run,
     vbDokument: vb?.dokument ?? null,
     vbVorhanden: vb !== null,
-    loading,
+    quellen: quellenCtrl,
+    loading: loading || quellenCtrl.loading,
     busy,
     bulkRunning,
     error,
@@ -747,7 +760,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     weiterschaltenStep: (id) => { void reduce((r, now) => weiterschalten(r, id, now)); },
     verwerfenStep: (id) => { void reduce((r, now) => verwerfen(r, id, now)); logKontext(id); },
     uebernehmenStep: (id, index) => { void reduce((r, now) => uebernehmen(r, id, index, now)); },
-    refreshVb: () => { void refreshVb(); },
+    refreshKorpus: () => { void refreshKorpus(); },
     stop: () => abortRef.current?.abort(),
     clearError: () => setError(null),
     saveTweak,

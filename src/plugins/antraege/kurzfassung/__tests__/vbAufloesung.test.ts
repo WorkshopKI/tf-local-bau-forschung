@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickVb } from '../vbDokument';
+import { pickVb, pickAktiveVb } from '../vbDokument';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import type { OrdnerVb } from '@/core/services/personal-storage/antraege-eingang';
 
@@ -20,5 +20,58 @@ describe('pickVb — IDB hat Vorrang', () => {
   });
   it('beides leer → null', () => {
     expect(pickVb(null, null)).toBeNull();
+  });
+});
+
+/** VB-Kandidat mit steuerbarem Tag-Satz (Default: VB-getaggt). */
+const vbDoc = (id: string, created: string, filename = `${id}.pdf`, tags = ['vorhabensbeschreibung']): DocumentFull =>
+  ({ id, created, filename, tags, markdown: `INHALT ${id}` }) as unknown as DocumentFull;
+
+describe('pickAktiveVb — expliziter Pick vor „jüngstes gewinnt"', () => {
+  it('ohne Pick gewinnt das jüngste Dokument (Alt-Verhalten, byte-identisch)', () => {
+    const docs = [vbDoc('a', '2026-07-01T10:00:00.000Z'), vbDoc('b', '2026-07-03T10:00:00.000Z')];
+    expect(pickAktiveVb(docs, null)?.id).toBe('b');
+  });
+
+  it('expliziter Pick gewinnt über „jüngstes"', () => {
+    const docs = [vbDoc('a', '2026-07-01T10:00:00.000Z'), vbDoc('b', '2026-07-03T10:00:00.000Z')];
+    expect(pickAktiveVb(docs, 'a')?.id).toBe('a');
+  });
+
+  it('Pick auf ein gelöschtes Dokument → Fallback auf „jüngstes", kein Throw', () => {
+    const docs = [vbDoc('a', '2026-07-01T10:00:00.000Z'), vbDoc('b', '2026-07-03T10:00:00.000Z')];
+    expect(pickAktiveVb(docs, 'weg')?.id).toBe('b');
+  });
+
+  it('Pick auf ein nicht mehr VB-getaggtes Dokument → Fallback (Kandidatenliste ist vorgefiltert)', () => {
+    // 'a' wurde auf `arbeitsplan` umgetaggt und ist damit kein Kandidat mehr.
+    const docs = [vbDoc('b', '2026-07-03T10:00:00.000Z')];
+    expect(pickAktiveVb(docs, 'a')?.id).toBe('b');
+  });
+
+  it('gleicher created-Zeitstempel → deterministischer Tie-Break über den Dateinamen', () => {
+    const gleich = '2026-07-03T10:00:00.000Z';
+    const vorwaerts = [vbDoc('x', gleich, 'anlage.pdf'), vbDoc('y', gleich, 'beschreibung.pdf')];
+    const rueckwaerts = [vbDoc('y', gleich, 'beschreibung.pdf'), vbDoc('x', gleich, 'anlage.pdf')];
+    expect(pickAktiveVb(vorwaerts, null)?.id).toBe('x');
+    expect(pickAktiveVb(rueckwaerts, null)?.id).toBe('x'); // Eingabereihenfolge egal
+  });
+
+  it('keine Kandidaten → null', () => {
+    expect(pickAktiveVb([], null)).toBeNull();
+    expect(pickAktiveVb([], 'irgendwas')).toBeNull();
+  });
+
+  it('Bug-Reproduktion: drei VB-getaggte Dokumente, der Pick entscheidet statt des Zufalls', () => {
+    // Genau der gemeldete Fall: „Markteinführungskonzept", „Projektbeschreibung" und
+    // „Wirkung" landen alle auf dem VB-Default; ohne Pick gewinnt, wer zufällig zuletzt
+    // fertig konvertiert war.
+    const docs = [
+      vbDoc('markt', '2026-07-21T10:00:01.000Z', 'Markteinfuehrungskonzept.pdf'),
+      vbDoc('projekt', '2026-07-21T10:00:02.000Z', 'Projektbeschreibung.pdf'),
+      vbDoc('wirkung', '2026-07-21T10:00:03.000Z', 'Wirkung.pdf'),
+    ];
+    expect(pickAktiveVb(docs, null)?.id).toBe('wirkung'); // heute: willkürlich der letzte
+    expect(pickAktiveVb(docs, 'projekt')?.id).toBe('projekt'); // mit Pick: der gewollte
   });
 });
