@@ -4,8 +4,9 @@
  * Inhalt klappt per Grid-Animation auf/zu. Default-Offen-State kommt vom
  * Aufrufer (initial aus dem Roll-up: grün → zu, gelb/rot → auf).
  *
- * Wiederverwendet von der gruppierten Prüfung (`KontextPanel` Checks) UND dem
- * beratenden QS-Block. Bewusst KEINE tf-ui-Datei — eng an „Quelle & Prüfung".
+ * Wiederverwendet von der gruppierten Regelprüfung am Text (`PruefBlock`) UND dem
+ * beratenden QS-Block im `KontextPanel`. Bewusst KEINE tf-ui-Datei — eng an die
+ * Gutachten-Werkstatt gebunden.
  */
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';

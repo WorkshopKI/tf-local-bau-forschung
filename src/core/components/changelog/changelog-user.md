@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.283 — 2026-07
+
+### Verbesserungen
+- Die **Regelprüfung steht jetzt direkt unter dem Entwurf**, nicht mehr rechts in der Quellen-Spalte. Ein Klick auf „prüft 3 Regeln" in der Zeile unter dem Text klappt sie auf.
+- **Standardmäßig ist sie zugeklappt** — ist alles in Ordnung, stört sie nicht. Gibt es einen Hinweis oder Fehler, geht sie von selbst auf und zeigt genau die betroffene Regelgruppe. Schon zugeklappt sehen Sie am Text „prüft 3 Regeln · 1 Hinweis", woran Sie sind.
+- Die rechte Spalte heißt jetzt **„Quelle & KI-Hinweise"** und zeigt, wofür sie gedacht ist: die Belegstellen aus dem Antrag, beratende KI-Hinweise und den Denkprozess.
+- Der Knopf **„Prüfen" ist aus der Anpassen-Zeile verschwunden** — er tat dort nichts Sichtbares, weil die Prüfung nach jeder Generierung und jeder Bearbeitung ohnehin automatisch läuft. Als „Neu prüfen" sitzt er jetzt im aufgeklappten Prüfblock, wo sein Ergebnis auch zu sehen ist.
+
 ## v2.282 — 2026-07
 
 ### Neu

@@ -2,8 +2,8 @@
  * Gutachten-Sektion auf der Verbund-Detailseite (Feature-Flag `gutachtenWorkflow`):
  * der vollständige Workflow A–G im „Werkstatt"-Layout (Design-Handoff
  * `workflow-mit-bearbeiten`) — Antrag-Kontextkarte + Fortschrittsleiste oben, dann
- * 3-spaltiges Grid: Stepper-Rail · aktive Entwurf-Karte · einklappbares
- * „Quelle & Prüfung"-Panel. Schmaler Container → einspaltiger Fallback
+ * 3-spaltiges Grid: Stepper-Rail · aktive Entwurf-Karte (inkl. Regelprüfung am
+ * Text) · einklappbares „Quelle & KI-Hinweise"-Panel. Schmaler Container → einspaltiger Fallback
  * (horizontaler Stepper, Panel als Block). Funktioniert ohne LLM (freigegebene
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
@@ -449,7 +449,7 @@ export function GutachtenSection({
                 <>
                   <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} pruefAktion={pruefAktion} />
                   )}
                 </>
               ) : (
@@ -475,7 +475,7 @@ export function GutachtenSection({
                     />
                   )}
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} docked />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} pruefAktion={pruefAktion} docked />
                   )}
                 </div>
               )}
@@ -483,17 +483,17 @@ export function GutachtenSection({
               {/* Kontext-Panel rechts (breit) bzw. als Block (schmal) */}
               {!solo && showPanel && activeStep && (
                 ctxOpen ? (
-                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startCtxResize} aktion={pruefAktion} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} onPinSatz={pinSatz} />
+                  <KontextPanel step={activeStep} provenance={panelProvenance} variant="side" onCollapse={() => setCtxOpen(false)} onResizeStart={startCtxResize} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} onPinSatz={pinSatz} />
                 ) : (
-                  <button type="button" className="g-ctx-reopen" onClick={() => setCtxOpen(true)} title="Quelle & Prüfung einblenden">
+                  <button type="button" className="g-ctx-reopen" onClick={() => setCtxOpen(true)} title="Quelle & KI-Hinweise einblenden">
                     <ChevronLeft size={16} />
-                    <span className="g-ctx-reopen-lbl">Quelle &amp; Prüfung</span>
+                    <span className="g-ctx-reopen-lbl">Quelle &amp; KI-Hinweise</span>
                   </button>
                 )
               )}
 
               {solo && showPanel && activeStep && (
-                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" aktion={pruefAktion} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} onPinSatz={pinSatz} />
+                <KontextPanel step={activeStep} provenance={panelProvenance} variant="block" hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} onPinSatz={pinSatz} />
               )}
             </div>
           </div>
@@ -552,7 +552,7 @@ export function GutachtenSection({
 
 /** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  def, run, ctrl, tweakEffektiv, onOpenTweak, onOpenWerkstatt, fundstelle, hoverSaetze, onHoverSaetze, docked = false,
+  def, run, ctrl, tweakEffektiv, onOpenTweak, onOpenWerkstatt, fundstelle, hoverSaetze, onHoverSaetze, pruefAktion, docked = false,
 }: {
   def: WorkflowStep;
   run: WorkflowRun;
@@ -566,6 +566,8 @@ function ActiveAbschnitt({
   /** Beleg↔Satz-Hover (Journey-Paket 4): gehoverte Sätze + Setter für die Satz-Spans. */
   hoverSaetze?: number[] | null;
   onHoverSaetze?: (saetze: number[] | null) => void;
+  /** Prüf-Block-Aktionen (KI-Korrektur je Fehler-Check + Fundstellen-Sprung). */
+  pruefAktion?: CheckListAktion;
   /** Mehrspaltig: Karte ohne eigenen Rahmen, Teil der Docked-Einheit (`.g-card.docked`). */
   docked?: boolean;
 }): React.ReactElement {
@@ -682,6 +684,7 @@ function ActiveAbschnitt({
           onModify={(m) => ctrl.modify(id, m)}
           onBearbeiten={(text) => ctrl.bearbeitenStep(id, text)}
           onPruefen={() => ctrl.pruefen(id)}
+          {...(pruefAktion ? { pruefAktion } : {})}
           onFreigeben={() => ctrl.freigebenStep(id)}
           onVerwerfen={() => ctrl.verwerfenStep(id)}
           onStop={ctrl.stop}

@@ -2,9 +2,10 @@
  * Review-Body EINES Abschnitts im Werkstatt-Layout (Design-Handoff
  * `workflow-mit-bearbeiten`). Kopf (Titel/Status/„bearbeitet"-Badge/Modell) +
  * Karten-Rahmen sitzen im Container (`ActiveAbschnitt` in `GutachtenSection`),
- * Quelle/Prüfung/Denkprozess im rechten `KontextPanel`. Diese Karte zeigt den
- * finalen Text (mit **Inline-Bearbeitung**), die Meta-Zeile, den Versions-Verlauf
- * und die zweizeilige Aktionsleiste.
+ * Quelle/KI-Hinweise/Denkprozess im rechten `KontextPanel`. Diese Karte zeigt den
+ * finalen Text (mit **Inline-Bearbeitung**), die Meta-Zeile, die aufklappbare
+ * Regelprüfung (`PruefBlock` — sie gehört an den Text, den sie bewertet), den
+ * Versions-Verlauf und die zweizeilige Aktionsleiste.
  *
  * Inline-Bearbeitung als Plain-Text (passt zu Markdown-Render + DOCX-Füller +
  * deterministischen Checks); `onBearbeiten` persistiert + rechnet die Checks neu.
@@ -13,7 +14,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Copy, Info } from 'lucide-react';
+import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Copy, Info, ChevronRight } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -26,6 +27,9 @@ import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { satzSegmente } from './satzSegmente';
 import { belegAbdeckung } from './belege';
+import { pruefSummary } from './pruefSummary';
+import { PruefBlock } from './PruefBlock';
+import type { CheckListAktion } from '../kurzfassung/CheckList';
 import type { StepRun } from './types';
 
 /**
@@ -77,7 +81,13 @@ interface Props {
   onModify: (modifier: SkillModifierKey) => void;
   /** Manuelle Inline-Bearbeitung übernehmen (Plain-Text; Hook persistiert + prüft neu). */
   onBearbeiten: (text: string) => Promise<void>;
+  /** Regeln neu rechnen — sitzt im aufgeklappten Prüf-Block, nicht in der Anpassen-Zeile. */
   onPruefen: () => void;
+  /**
+   * Prüf-Block-Aktionen (Journey-Paket 3, opt-in): regel-gebundene KI-Korrektur je
+   * Fehler-Check + Fundstellen-Sprung. Fehlt → Prüfung nur als Anzeige.
+   */
+  pruefAktion?: CheckListAktion;
   onFreigeben: () => void;
   onVerwerfen: () => void;
   onStop: () => void;
@@ -110,11 +120,21 @@ interface Props {
 }
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, pruefAktion, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
   const genDisabled = busy || llmAvailable === false;
+
+  // Regelprüfung direkt am Text (aufklappbar über die Meta-Zeile): grün → zu, sonst auf.
+  // Die Karte remountet nur beim Abschnittswechsel (`key` in `ActiveAbschnitt`), darum
+  // den Default bei JEDER Änderung des Prüf-Ergebnisses neu ableiten — sonst bliebe der
+  // Block nach einer Neu-Generierung mit frischem Befund zugeklappt.
+  const { fehler, hinweis } = pruefSummary(run.checks);
+  const hatBefund = fehler + hinweis > 0;
+  const befundSig = run.checks.map(c => c.level).join('');
+  const [pruefOpen, setPruefOpen] = useState(hatBefund);
+  useEffect(() => { setPruefOpen(hatBefund); }, [befundSig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inline-Bearbeitung (Live-Preview-Markdown). `draft` lokal; Übernehmen persistiert via Hook.
   const [editing, setEditing] = useState(false);
@@ -283,13 +303,32 @@ export function SectionReviewCard({
         );
       })()}
 
-      {/* Meta-Zeile — schlank: Satzzahl/Status + Regel-Anzahl; Provenienz (Skill) hinter dem Info-Icon. */}
+      {/* Meta-Zeile — schlank: Satzzahl/Status + Prüf-Aufklapper; Provenienz (Skill) hinter dem Info-Icon. */}
       <div className="g-metaline">
         <span>
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : 'Entwurf'}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
-          {provenance ? ` · prüft ${provenance.regelCount} ${provenance.regelCount === 1 ? 'Regel' : 'Regeln'}` : ''}
         </span>
+        {/* Zahl aus `run.checks` (Stand der Prüfung), NICHT aus den live aktiven Skill-Regeln —
+            das Label muss beschreiben, was der Aufklapper zeigt. */}
+        {run.checks.length > 0 && (
+          <button
+            type="button"
+            className={`g-pruef-toggle${fehler > 0 ? ' fehler' : hinweis > 0 ? ' hinweis' : ''}`}
+            aria-expanded={pruefOpen}
+            onClick={() => setPruefOpen(o => !o)}
+            title={pruefOpen ? 'Prüfung einklappen' : 'Prüfung anzeigen'}
+          >
+            · prüft {run.checks.length} {run.checks.length === 1 ? 'Regel' : 'Regeln'}
+            {fehler > 0 && ` · ${fehler} ${fehler === 1 ? 'Fehler' : 'Fehler'}`}
+            {hinweis > 0 && ` · ${hinweis} ${hinweis === 1 ? 'Hinweis' : 'Hinweise'}`}
+            <ChevronRight
+              size={12}
+              className="shrink-0 transition-transform duration-200"
+              style={{ transform: pruefOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            />
+          </button>
+        )}
         {provenance && (() => {
           const prov = `erzeugt mit ${provenance.skillName}${run.skillVersion != null ? ` v${run.skillVersion}` : ''}`;
           return onOpenSkill ? (
@@ -302,7 +341,20 @@ export function SectionReviewCard({
         })()}
       </div>
 
-      {/* Anpassen direkt am Text (dezent): Neu/Kürzer/Länger · Prüfen · KI-QS.
+      {/* Regelprüfung am Text — Auf/Zu über den Meta-Zeilen-Trigger (Grid-Animation wie AmpelGruppe). */}
+      {run.checks.length > 0 && (
+        <div className="g-pruefblock" style={{ gridTemplateRows: pruefOpen ? '1fr' : '0fr' }}>
+          <div className="overflow-hidden">
+            <PruefBlock
+              checks={run.checks}
+              aktion={pruefAktion}
+              {...(!busy && !freigegeben ? { onPruefen } : {})}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Anpassen direkt am Text (dezent): Neu/Kürzer/Länger · KI-QS.
           Nur im bearbeitbaren Zustand (Entwurf, nicht generierend). */}
       {!busy && !freigegeben && (
         <>
@@ -313,7 +365,6 @@ export function SectionReviewCard({
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
             </span>
-            <button type="button" className="g-btn ghost sm" onClick={onPruefen}>Prüfen</button>
             {onQs && (
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
             )}

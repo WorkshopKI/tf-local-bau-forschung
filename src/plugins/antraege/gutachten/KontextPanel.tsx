@@ -1,8 +1,9 @@
 /**
- * „Quelle & Prüfung"-Panel des Werkstatt-Layouts (Design-Handoff
- * `workflow-mit-bearbeiten`): zeigt den Antragsbezug (Quellenanalyse), das
- * deterministische Prüf-Ergebnis, beratende KI-QS-Hinweise und den Denkprozess
- * des AKTIVEN Abschnitts — gegengelesen neben dem Entwurf.
+ * „Quelle & KI-Hinweise"-Panel des Werkstatt-Layouts (Design-Handoff
+ * `workflow-mit-bearbeiten`): zeigt den Antragsbezug (Quellenanalyse), beratende
+ * KI-QS-Hinweise und den Denkprozess des AKTIVEN Abschnitts — gegengelesen neben
+ * dem Entwurf. Die deterministische Regelprüfung sitzt bewusst NICHT hier, sondern
+ * links am Text (`PruefBlock` in `SectionReviewCard`).
  *
  * Zwei Ausprägungen:
  *  - `variant="side"`: rechte Spalte (sticky), per Chevron einklappbar; der
@@ -11,8 +12,7 @@
  *    einspaltiger Fallback) — nicht einklappbar.
  *
  * Reines Anzeige-Substrat aus `StepRun` — keine Prototyp-Fiktion: der
- * „Antragsbezug" ist die echte `quellenanalyse`, die Prüfung sind die echten
- * `checks`, der Denkprozess das echte Reasoning.
+ * „Antragsbezug" ist die echte `quellenanalyse`, der Denkprozess das echte Reasoning.
  */
 import { useMemo } from 'react';
 import { Quote, ChevronRight } from 'lucide-react';
@@ -20,13 +20,10 @@ import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences } from '@/core/services/skills';
 import type { QuellenBeleg } from '@/core/services/skills';
-import { CheckList, type CheckListAktion } from '../kurzfassung/CheckList';
 import { QsHinweisList } from './QsHinweisList';
 import { AmpelGruppe } from './AmpelGruppe';
 import { BelegKarten } from './BelegKarten';
 import { extrahiereZitate, ordneSaetzeZu } from './belegAbleitung';
-import { groupChecksByKategorie } from './checkGruppen';
-import { pruefSummary } from './pruefSummary';
 import { qsRollup } from './qs';
 import type { StepRun } from './types';
 
@@ -40,11 +37,6 @@ interface Props {
   /** Nur `variant="side"`: Pointer-Down auf der linken Ziehleiste (Breite anpassen). */
   onResizeStart?: (e: React.PointerEvent) => void;
   /**
-   * Prüfpanel-Aktionen (Journey-Paket 3, opt-in): regel-gebundene KI-Korrektur je
-   * Fehler-Check + (Phase 4) Fundstellen-Sprung. Fehlt → nur-Anzeige wie bisher.
-   */
-  aktion?: CheckListAktion;
-  /**
    * Beleg↔Satz-Verknüpfung (Journey-Paket 4, Phase 6): flüchtiges Hover-Highlight +
    * Klick-Pin. Sind alle drei gesetzt UND trägt der Schritt `belege`, rendert der
    * Antragsbezug als Beleg-Karten; sonst exakt das heutige flache Rendering.
@@ -55,9 +47,8 @@ interface Props {
 }
 
 export function KontextPanel({
-  step, provenance, variant, onCollapse, onResizeStart, aktion, hoverSaetze, onHoverSaetze, onPinSatz,
+  step, provenance, variant, onCollapse, onResizeStart, hoverSaetze, onHoverSaetze, onPinSatz,
 }: Props): React.ReactElement {
-  const { fehler, hinweis } = pruefSummary(step.checks);
   const qs = step.qsHinweise ?? [];
   const qsR = qs.length > 0 ? qsRollup(qs) : null;
   const satzAnzahl = useMemo(() => splitSentences(step.finalerText).length, [step.finalerText]);
@@ -84,7 +75,7 @@ export function KontextPanel({
         />
       )}
       <div className="g-ctx-head">
-        <span>Quelle &amp; Prüfung</span>
+        <span>Quelle &amp; KI-Hinweise</span>
         {variant === 'side' && onCollapse && (
           <button type="button" className="g-ctx-collapse" title="Einklappen — nur den Entwurf lesen" onClick={onCollapse}>
             <ChevronRight size={16} />
@@ -122,36 +113,6 @@ export function KontextPanel({
           </div>
         </div>
       ) : null}
-
-      {step.checks.length > 0 && (
-        <div className="g-ctx-block">
-          <div className="g-ctx-cap">
-            Prüfung · {step.checks.length} {step.checks.length === 1 ? 'Regel' : 'Regeln'}
-            {fehler > 0 && (
-              <span className="ml-auto font-medium normal-case tracking-normal text-[var(--tf-danger-text)]">{fehler} Fehler</span>
-            )}
-            {hinweis > 0 && (
-              <span className={`font-medium normal-case tracking-normal text-[var(--tf-warning-text)]${fehler === 0 ? ' ml-auto' : ''}`}>
-                {hinweis} {hinweis === 1 ? 'Hinweis' : 'Hinweise'}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col">
-            {groupChecksByKategorie(step.checks).map(g => (
-              <AmpelGruppe
-                key={g.kategorie}
-                label={g.label}
-                level={g.worst}
-                summary={g.summary}
-                count={g.checks.length}
-                defaultOpen={g.worst !== 'ok'}
-              >
-                <CheckList checks={g.checks} aktion={aktion} />
-              </AmpelGruppe>
-            ))}
-          </div>
-        </div>
-      )}
 
       {qs.length > 0 && qsR && (
         <div className="g-ctx-block">

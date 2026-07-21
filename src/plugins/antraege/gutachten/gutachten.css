@@ -152,6 +152,17 @@
 .gutachten-werkstatt .g-meta-info { display: inline-flex; align-items: center; justify-content: center; padding: 2px; border: 0; background: none; color: var(--tf-text-tertiary); border-radius: 4px; cursor: pointer; }
 .gutachten-werkstatt .g-meta-info:hover { color: var(--tf-primary); background: var(--tf-hover); }
 
+/* ---------- Regelprüfung am Text (Aufklapper in der Meta-Zeile) ---------- */
+/* Trigger erbt die Meta-Zeilen-Typografie; Befund färbt ihn amber/rot ein. */
+.gutachten-werkstatt .g-pruef-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: -3px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.gutachten-werkstatt .g-pruef-toggle:hover { color: var(--tf-text); }
+.gutachten-werkstatt .g-pruef-toggle.hinweis { color: var(--tf-warning-text); }
+.gutachten-werkstatt .g-pruef-toggle.fehler { color: var(--tf-danger-text); }
+/* Aufklapp-Container — Grid-Animation wie AmpelGruppe (0fr ↔ 1fr). */
+.gutachten-werkstatt .g-pruefblock { display: grid; transition: grid-template-rows .2s ease-out; margin: 2px 0 4px; }
+.gutachten-werkstatt .g-pruefblock-inner { padding-top: 4px; border-top: .5px solid var(--tf-border); }
+.gutachten-werkstatt .g-pruefblock-foot { display: flex; padding-top: 8px; }
+
 /* ---------- Inline-Bearbeitung ---------- */
 .gutachten-werkstatt .g-edit { margin: 14px 0; }
 .gutachten-werkstatt .g-edit-bar { display: flex; align-items: center; gap: 8px; padding: 8px 11px; background: var(--tf-primary-light); border-radius: 9px 9px 0 0; font: var(--tf-weight-medium) 12px/1 var(--tf-font-sans); color: var(--tf-primary); }
@@ -177,7 +188,7 @@
 /* Dezente Zweitzeile: Generier-Steuerungen ruhiger, etwas dichter. */
 .gutachten-werkstatt .g-ab-row.secondary { gap: 8px; }
 .gutachten-werkstatt .g-ab-anpassen { display: inline-flex; align-items: center; gap: 6px; }
-/* Anpassen/Prüfen direkt am Text — dezente Zeile zwischen Meta-Zeile und „Vorfassungen". */
+/* Anpassen direkt am Text — dezente Zeile zwischen Prüfblock und „Vorfassungen". */
 .gutachten-werkstatt .g-refine-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 2px 0 12px; }
 .gutachten-werkstatt .g-ab-anpassen-lbl { font: 11px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }
 .gutachten-werkstatt .g-vote { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px; }

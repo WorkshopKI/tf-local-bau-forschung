@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.283.0 — Regelprüfung unter dem Entwurf (Juli 2026)
+
+MINOR — Der Knopf „Prüfen" wirkte wie ein Blindgänger: er rechnete zwar deterministisch neu, aber die Checks entstehen ohnehin bei jeder Generierung/Bearbeitung — und das Ergebnis landete im rechten Panel, das eingeklappt sein konnte. Klick ohne sichtbare Wirkung. Zugleich saß die Prüfung getrennt von dem Text, den sie bewertet. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **Regelprüfung wandert unter den Entwurf** — aufklappbar über den Meta-Zeilen-Trigger „prüft N Regeln" ([PruefBlock.tsx](src/plugins/antraege/gutachten/PruefBlock.tsx), [SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)).
+- **Zu bei grüner Prüfung, offen bei Befund** — Default wird bei jeder Änderung des Prüf-Ergebnisses neu abgeleitet (`pruefSummary`), die betroffene Gruppe klappt auf.
+- **Trigger zeigt den Befund schon zugeklappt** („prüft 3 Regeln · 1 Hinweis", amber/rot) und zählt `run.checks` statt der live aktiven Skill-Regeln.
+- **„Prüfen" raus aus der Anpassen-Zeile**, als „Neu prüfen" in den aufgeklappten Block — dort, wo sein Ergebnis sichtbar ist.
+- **Rechte Spalte heißt „Quelle & KI-Hinweise"** und trägt nur noch Belege, beratende KI-QS und Denkprozess ([KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)).
+
 ### v2.282.0 — Gutachten: Dokument-Inventar + Korpus mit Auswahl (Juli 2026)
 
 MINOR — Wer im Gutachten fünf Dokumente hochlud, sah danach eines: die Seite zeigte nur den VB-Dateinamen, und `findVorhabensbeschreibung` nahm von mehreren VB-getaggten Dateien die jüngste. Weil `typAusDateiname` jeden unerkannten Dateinamen auf `vorhabensbeschreibung` zurückfallen lässt, landeten „Projektbeschreibung"/„Wirkung" ebenfalls dort — welche gewann, hing am Konvertierungstempo. Das Gutachten entstand also aus einem willkürlich gewählten von fünf Dokumenten, ohne Hinweis. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
