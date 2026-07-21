@@ -9,8 +9,8 @@ import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import type { MapImportReport, MapSchwere } from '../types';
 
 const MELDUNGS_FARBE: Record<MapSchwere, string> = {
-  fehler: 'var(--tf-danger, #dc2626)',
-  warnung: 'var(--tf-warning, #f59e0b)',
+  fehler: 'var(--tf-danger-text)',
+  warnung: 'var(--tf-warning-text)',
   hinweis: 'var(--tf-text-tertiary)',
 };
 
@@ -40,10 +40,10 @@ export function ImportReportPanel({ report }: { report: MapImportReport }): Reac
           <span
             className="text-[11.5px] px-1.5 py-0.5 rounded"
             style={{
-              color: erkennung.eindeutig ? 'var(--tf-success, #16a34a)' : 'var(--tf-warning, #f59e0b)',
+              color: erkennung.eindeutig ? 'var(--tf-success-text)' : 'var(--tf-warning-text)',
               background: erkennung.eindeutig
-                ? 'color-mix(in srgb, var(--tf-success, #16a34a) 12%, var(--tf-bg))'
-                : 'color-mix(in srgb, var(--tf-warning, #f59e0b) 12%, var(--tf-bg))',
+                ? 'color-mix(in srgb, var(--tf-success-text) 12%, var(--tf-bg))'
+                : 'color-mix(in srgb, var(--tf-warning-text) 12%, var(--tf-bg))',
             }}
           >
             {erkennung.eindeutig ? 'eindeutig' : 'unsicher'}
@@ -94,7 +94,7 @@ export function ImportReportPanel({ report }: { report: MapImportReport }): Reac
                 key={z.ziel}
                 links={z.ziel}
                 rechts={z.pflicht
-                  ? <span style={{ color: 'var(--tf-danger, #dc2626)' }}>Pflichtfeld</span>
+                  ? <span style={{ color: 'var(--tf-danger-text)' }}>Pflichtfeld</span>
                   : <span className="text-[var(--tf-text-tertiary)]">optional</span>}
               />
             ))}

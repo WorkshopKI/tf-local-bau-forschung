@@ -13,7 +13,7 @@ import type { GanttDaten } from '../ansicht/gantt-daten';
 import { letzterTerminierterMonat } from '../ansicht/gantt-daten';
 
 /** Einzige Farbe der Ansicht — markiert Arbeitspakete über der PM-Grenze. */
-const WARN = 'var(--tf-warning, #f59e0b)';
+const WARN = 'var(--tf-warning-text)';
 
 export function ApGantt({ daten }: { daten: GanttDaten }): React.ReactElement {
   const achse = macheAchse(daten.achseMax);

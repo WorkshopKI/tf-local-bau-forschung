@@ -2,9 +2,9 @@
  * Ableitungen des Substanzchecks für die Oberfläche.
  *
  * Bindeglied zwischen `useMapVb` (liefert die KI-Befunde) und `useMapPruefung`
- * (hält den Prüfstand). Eigene Datei, weil `KompaktAnsicht.tsx` ausdrücklich
- * nichts rechnet — die Zuordnung Widerspruch → Prüfkriterium und die Auswahl der
- * Zielkriterien sind Ableitungen, keine Darstellung.
+ * (hält den Prüfstand). Eigene Datei, weil die Komponenten des Moduls
+ * ausdrücklich nichts rechnen — die Zuordnung Widerspruch → Prüfkriterium und
+ * die Auswahl der Zielkriterien sind Ableitungen, keine Darstellung.
  *
  * Die eigentliche Logik liegt rein in `substanz/`; hier steht nur das
  * Zusammenstecken und das Anstossen der Schreib-Aktionen.

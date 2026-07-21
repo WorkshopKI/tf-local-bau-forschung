@@ -5,6 +5,12 @@ export interface ScopeTabItem {
   label: string;
   /** Optionaler Zähler hinter dem Label. */
   count?: number;
+  /**
+   * Optionales Vorsatz-Element vor dem Label — z.B. ein Statuspunkt bei
+   * Schritt-Tabs eines geführten Ablaufs. Bewusst ein Slot am Primitiv statt
+   * einer nachgebauten Tab-Leiste (Guard `no-parallel-scope-tabs`).
+   */
+  leading?: React.ReactNode;
   /** Deaktiviert den Tab: nicht klickbar, gedimmt (Auswahl bleibt möglich per Tooltip-Hinweis). */
   disabled?: boolean;
   /** Nativer title-Tooltip (z.B. Grund der Deaktivierung). */
@@ -77,6 +83,7 @@ export function ScopeTabs({
                     : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
               )}
             >
+              {it.leading}
               {it.label}
               {it.count != null && (
                 <span
@@ -118,6 +125,7 @@ export function ScopeTabs({
                     : 'bg-[var(--tf-bg)] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer',
               )}
             >
+              {it.leading}
               {it.label}
               {it.count != null && (
                 <span
@@ -155,7 +163,7 @@ export function ScopeTabs({
             title={it.title}
             onClick={() => { if (!it.disabled) onChange(it.key); }}
             className={cn(
-              'pb-2.5 text-[14px] whitespace-nowrap transition-colors',
+              'pb-2.5 text-[14px] whitespace-nowrap transition-colors inline-flex items-center gap-2',
               it.disabled
                 ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
                 : active
@@ -163,12 +171,10 @@ export function ScopeTabs({
                   : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
             )}
           >
+            {it.leading}
             {it.label}
             {it.count != null && (
-              <>
-                {' '}
-                <span className="text-[12px] text-[var(--tf-text-tertiary)]">{fmtCount(it.count)}</span>
-              </>
+              <span className="text-[12px] text-[var(--tf-text-tertiary)]">{fmtCount(it.count)}</span>
             )}
           </button>
         );

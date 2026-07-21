@@ -14,9 +14,9 @@ import type { SdtDeltaZeile } from '../infografik/schema';
 import { istKandidat, istUebernommen } from '../substanz/zielkriterien';
 
 const QUANT_STIL: Record<SdtDeltaZeile['quantifizierung'], { label: string; farbe: string }> = {
-  quantifiziert: { label: 'quantifiziert', farbe: 'var(--tf-success, #16a34a)' },
-  qualitativ: { label: 'nur qualitativ', farbe: 'var(--tf-warning, #f59e0b)' },
-  fehlt: { label: 'nicht beziffert', farbe: 'var(--tf-danger, #dc2626)' },
+  quantifiziert: { label: 'quantifiziert', farbe: 'var(--tf-success-text)' },
+  qualitativ: { label: 'nur qualitativ', farbe: 'var(--tf-warning-text)' },
+  fehlt: { label: 'nicht beziffert', farbe: 'var(--tf-danger-text)' },
 };
 
 export function SdtDeltaKarte({
@@ -34,7 +34,7 @@ export function SdtDeltaKarte({
     return (
       <div
         className="rounded px-3 py-2.5 text-[12.5px]"
-        style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+        style={{ background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))' }}
       >
         <p className="text-[var(--tf-text)] font-medium">Keine Zielparameter erkennbar</p>
         <p className="text-[var(--tf-text-secondary)] mt-0.5">
@@ -119,7 +119,7 @@ export function SdtDeltaKarte({
       </div>
 
       {nurQualitativ > 0 && (
-        <p className="text-[11.5px]" style={{ color: 'var(--tf-warning, #f59e0b)' }}>
+        <p className="text-[11.5px]" style={{ color: 'var(--tf-warning-text)' }}>
           {nurQualitativ} von {zeilen.length} Parametern sind nicht messbar beschrieben —
           nach der Entscheidungshilfe das Merkmal der Stufe B1 und ein Kandidat für eine
           Nachforderung.

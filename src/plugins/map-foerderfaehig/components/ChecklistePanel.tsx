@@ -7,6 +7,7 @@
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import type { AspektMapping } from '@/plugins/antraege/aufbereitung';
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
+import { baueGruppenFortschritt } from '../ansicht/gruppen';
 import type { MapBewertungsErgebnis } from '../checkliste/bewertung';
 import type { MapChecklistenDefinition, MapItemStatus, MapStufe } from '../checkliste/typen';
 import { fundstellenFuerItem } from '../vb/fundstellen';
@@ -21,24 +22,30 @@ function InnoScoreKarte({
 }): React.ReactElement {
   const { innoScore } = ergebnis;
   const farbe = innoScore.nullWegenB0
-    ? 'var(--tf-danger, #dc2626)'
-    : innoScore.vertiefungNoetig ? 'var(--tf-warning, #f59e0b)' : 'var(--tf-success, #16a34a)';
+    ? 'var(--tf-danger-text)'
+    : innoScore.vertiefungNoetig ? 'var(--tf-warning-text)' : 'var(--tf-success-text)';
+
+  // Fläche nur bei einem eindeutigen Befund einfärben; solange bewertet wird,
+  // bleibt die Karte neutral (DESIGN_GUIDE: Farbe ist ein knappes Gut).
+  const flaeche = innoScore.nullWegenB0
+    ? 'var(--tf-danger-bg)'
+    : innoScore.vollstaendig ? 'var(--tf-success-bg)' : 'var(--tf-card-surface, var(--tf-bg))';
 
   return (
     <div
-      className="rounded-[var(--tf-radius-md,8px)] px-3 py-2.5"
-      style={{ border: '0.5px solid var(--tf-border)', borderLeft: `3px solid ${farbe}` }}
+      className="rounded-[11px] px-4 py-3.5"
+      style={{ border: '0.5px solid var(--tf-border)', background: flaeche }}
     >
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[13px] font-medium text-[var(--tf-text)]">Innovationsgrad</span>
-        <span className="text-[16px] font-medium tabular-nums" style={{ color: farbe }}>
+        <span className="text-[17px] font-medium tabular-nums" style={{ color: farbe }}>
           {innoScore.vollstaendig || innoScore.rohSumme > 0 ? innoScore.punkte : '—'}
           <span className="text-[12px] text-[var(--tf-text-tertiary)]"> / {innoScore.maxPunkte}</span>
         </span>
       </div>
 
       {innoScore.nullWegenB0 && (
-        <p className="text-[11.5px] mt-1" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+        <p className="text-[11.5px] mt-1" style={{ color: 'var(--tf-danger-text)' }}>
           Mindestens eine Kategorie ist mit B0 bewertet — damit ist der Innovationsgrad
           unzureichend, unabhängig von den übrigen Kategorien. Die Einzelsumme wäre {innoScore.rohSumme}.
         </p>
@@ -76,29 +83,43 @@ export function ChecklistePanel({
   onBedingung: (itemId: string, wert: boolean) => void;
   onNachziehen: () => void;
 }): React.ReactElement {
-  const gruppen = [...new Set(ergebnis.zustaende.map(z => z.item.gruppe))];
+  const gruppen = baueGruppenFortschritt(ergebnis);
   const { erledigt, gesamt } = ergebnis.fortschritt;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
-            <span className="tabular-nums font-medium text-[var(--tf-text)]">{erledigt}</span> von{' '}
+      {/* Klebt am oberen Rand des Schritt-Inhalts: bei 20+ Kriterien bleiben
+          Fortschritt und Innovationsgrad beim Scrollen sichtbar. Das negative
+          `top` hebt das Padding des Scroll-Containers auf. */}
+      <div
+        className="sticky -top-5 z-[5] grid grid-cols-1 md:grid-cols-2 gap-3 py-1.5
+                   bg-[var(--tf-sheet)]"
+      >
+        <div
+          className="rounded-[11px] bg-[var(--tf-card-surface,var(--tf-bg))] px-4 py-3.5"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          <div className="text-[13px] text-[var(--tf-text-secondary)]">
+            <span className="text-[16px] font-medium tabular-nums text-[var(--tf-text)]">{erledigt}</span>
+            {' von '}
             <span className="tabular-nums">{gesamt}</span> Kriterien bewertet
-          </span>
-          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          </div>
+          <div className="my-2">
+            <ProgressBar value={gesamt === 0 ? 0 : erledigt / gesamt} />
+          </div>
+          <div className="text-[11px] text-[var(--tf-text-tertiary)] truncate">
             {definition.titel} · Fassung {definition.version}
-          </span>
+          </div>
         </div>
-        <ProgressBar value={gesamt === 0 ? 0 : erledigt / gesamt} />
+
+        <InnoScoreKarte ergebnis={ergebnis} definition={definition} />
       </div>
 
       {versionVeraltet && (
         <div
           className="rounded px-3 py-2 text-[12.5px]"
           style={{
-            background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))',
+            background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))',
             color: 'var(--tf-text)',
           }}
         >
@@ -114,14 +135,15 @@ export function ChecklistePanel({
         </div>
       )}
 
-      <InnoScoreKarte ergebnis={ergebnis} definition={definition} />
-
-      {gruppen.map(gruppe => {
+      {gruppen.map(({ gruppe, erledigt: gErledigt, gesamt: gGesamt }) => {
         const zustaende = ergebnis.zustaende.filter(z => z.item.gruppe === gruppe);
         return (
           <section key={gruppe} className="flex flex-col gap-2">
-            <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] uppercase tracking-wide">
+            <h3 className="flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--tf-text-secondary)] mt-1">
               {gruppe}
+              <span className="text-[10.5px] tabular-nums font-normal tracking-normal rounded-full px-2 py-px bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)]">
+                {gErledigt}/{gGesamt}
+              </span>
             </h3>
             {zustaende.map(z =>
               z.item.art === 'skala' ? (

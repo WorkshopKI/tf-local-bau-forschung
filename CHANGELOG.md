@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.281.0 — Foerderfaehigkeit: gefuehrter Pruefablauf in drei Phasen (Juli 2026)
+
+MINOR — Die Förderfähigkeitsprüfung zeigte elf gleichrangige Reiter: kein roter Faden, kein Fortschritt, keine Antwort auf „was kommt als Nächstes". Der Design-Handoff gruppiert sie in drei Phasen mit Führungsleiste. Übernommen sind Aufbau und Optik — die Zahlen bleiben die der App, denn der Prototyp zählte gegen eine Konstante und konnte nie fertig werden.
+
+- **Drei Phasen statt elf Reitern** (1 Verstehen · 7 Schritte → 2 Bewerten → 3 Abschluss); Checkliste und Import-Report stehen als Konfiguration daneben ([schritte.ts](src/plugins/map-foerderfaehig/ansicht/schritte.ts), [PhasenNav.tsx](src/plugins/map-foerderfaehig/components/PhasenNav.tsx)).
+- **Führungsleiste** mit „Schritt X von 9 · Phase N", Zurück/Weiter und dem nächsten offenen Schritt; auf den Konfigurations-Screens ohne Zähler ([GuideLeiste.tsx](src/plugins/map-foerderfaehig/components/GuideLeiste.tsx)).
+- **Statuspunkte aus echten Signalen** — zugeordnete VB, vorhandene Analyse, Fortschritt aus `bewerte()`, Rechencheck-Warnungen; Gesamtzahl kommt aus der Checklisten-Fassung, nie aus einer Konstante ([schritte.test.ts](src/plugins/map-foerderfaehig/__tests__/schritte.test.ts)).
+- **`KompaktAnsicht` zerlegt** in Prüfblatt, Phasen-Nav, Führungsleiste und „Vorhaben kompakt"; Schritte bleiben nach dem ersten Besuch montiert, Scrollstand und Eingaben überleben den Wechsel ([PruefBlatt.tsx](src/plugins/map-foerderfaehig/components/PruefBlatt.tsx)).
+- **Nicht existierende `--tf-*`-Tokens ersetzt** (`--tf-danger`/`-warning`/`-success`/`--tf-primary-fg` lebten nur von Fallbacks) und `ScopeTabs` um einen `leading`-Slot erweitert, statt eine zweite Tab-Leiste zu bauen ([ScopeTabs.tsx](src/components/ui/ScopeTabs.tsx)).
+
 ### v2.280.0 — KI-Status im Titel des Streamlit-Tabs (Juli 2026)
 
 MINOR — Das Bookmarklet zeigte seinen Zustand nur als Pill unten rechts **im** KI-Tab — also genau dort, wo man nur hinsieht, wenn man hinwechselt. Wer in der App arbeitet, sah nicht, ob die KI vorankommt. Der Tab-Titel trägt den Zustand jetzt in die Chrome-Tab-Leiste.

@@ -24,7 +24,7 @@ export function SkalaKarte({
       style={{
         border: '0.5px solid var(--tf-border)',
         borderLeft: `3px solid ${gewaehlt === null ? 'transparent' : gewaehlt === 'B0'
-          ? 'var(--tf-danger, #dc2626)' : 'var(--tf-primary)'}`,
+          ? 'var(--tf-danger-text)' : 'var(--tf-primary)'}`,
       }}
     >
       <p className="text-[13px] font-medium text-[var(--tf-text)] leading-snug">{item.kriterium}</p>

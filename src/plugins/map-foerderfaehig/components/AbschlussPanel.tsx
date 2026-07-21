@@ -37,7 +37,7 @@ export function AbschlussPanel({
       {!ergebnis.abschlussbereit && (
         <div
           className="rounded px-3 py-2 text-[12.5px]"
-          style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+          style={{ background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))' }}
         >
           <p className="text-[var(--tf-text)] font-medium">Noch nicht abschlussreif</p>
           <ul className="mt-1 flex flex-col gap-0.5 text-[var(--tf-text-secondary)]">

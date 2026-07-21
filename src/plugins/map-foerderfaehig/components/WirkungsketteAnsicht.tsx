@@ -20,9 +20,9 @@ const GLIEDER: ReadonlyArray<{ key: keyof Wirkungskette; titel: string }> = [
 ];
 
 const LAGE_STIL: Record<RichtwertLage, { label: string; farbe: string }> = {
-  erfuellt: { label: 'erfüllt', farbe: 'var(--tf-success, #16a34a)' },
-  verfehlt: { label: 'verfehlt', farbe: 'var(--tf-danger, #dc2626)' },
-  'nicht-quantifiziert': { label: 'nicht beziffert', farbe: 'var(--tf-warning, #f59e0b)' },
+  erfuellt: { label: 'erfüllt', farbe: 'var(--tf-success-text)' },
+  verfehlt: { label: 'verfehlt', farbe: 'var(--tf-danger-text)' },
+  'nicht-quantifiziert': { label: 'nicht beziffert', farbe: 'var(--tf-warning-text)' },
 };
 
 function Glied({ titel, glied }: { titel: string; glied: WirkungsGlied }): React.ReactElement {
@@ -31,12 +31,12 @@ function Glied({ titel, glied }: { titel: string; glied: WirkungsGlied }): React
     <div
       className="rounded-[var(--tf-radius-md,8px)] px-3 py-2.5 flex-1 min-w-[160px]"
       style={vage
-        ? { border: '1px dashed var(--tf-warning, #f59e0b)' }
+        ? { border: '1px dashed var(--tf-warning-text)' }
         : { border: '0.5px solid var(--tf-border)' }}
     >
       <p className="text-[11.5px] font-medium text-[var(--tf-text)] uppercase tracking-wide">{titel}</p>
       {glied.text.length === 0 ? (
-        <p className="text-[12px] mt-1" style={{ color: 'var(--tf-warning, #f59e0b)' }}>
+        <p className="text-[12px] mt-1" style={{ color: 'var(--tf-warning-text)' }}>
           <em>In der Vorhabensbeschreibung nicht belegt.</em>
         </p>
       ) : (
@@ -50,7 +50,7 @@ function Glied({ titel, glied }: { titel: string; glied: WirkungsGlied }): React
             </p>
           )}
           {vage && (
-            <p className="text-[10.5px] mt-1" style={{ color: 'var(--tf-warning, #f59e0b)' }}>
+            <p className="text-[10.5px] mt-1" style={{ color: 'var(--tf-warning-text)' }}>
               nur vage belegt
             </p>
           )}

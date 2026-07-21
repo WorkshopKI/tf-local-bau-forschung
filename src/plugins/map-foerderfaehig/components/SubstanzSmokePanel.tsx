@@ -59,7 +59,7 @@ export function SubstanzSmokePanel(): React.ReactElement {
       {fehler != null && (
         <div
           className="rounded px-3 py-2 text-[12.5px]"
-          style={{ background: 'color-mix(in srgb, var(--tf-danger, #dc2626) 10%, var(--tf-bg))' }}
+          style={{ background: 'color-mix(in srgb, var(--tf-danger-text) 10%, var(--tf-bg))' }}
         >
           <p className="text-[var(--tf-text)] font-medium">Smoke nicht gestartet</p>
           <p className="text-[var(--tf-text-secondary)] mt-0.5">{fehler}</p>
@@ -72,13 +72,13 @@ export function SubstanzSmokePanel(): React.ReactElement {
             className="rounded px-3 py-2 text-[12.5px] flex items-start gap-2"
             style={{
               background: report.falschPositivKontrolle
-                ? 'color-mix(in srgb, var(--tf-success, #16a34a) 10%, var(--tf-bg))'
-                : 'color-mix(in srgb, var(--tf-danger, #dc2626) 10%, var(--tf-bg))',
+                ? 'color-mix(in srgb, var(--tf-success-text) 10%, var(--tf-bg))'
+                : 'color-mix(in srgb, var(--tf-danger-text) 10%, var(--tf-bg))',
             }}
           >
             {report.falschPositivKontrolle
-              ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--tf-success, #16a34a)' }} />
-              : <XCircle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--tf-danger, #dc2626)' }} />}
+              ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--tf-success-text)' }} />
+              : <XCircle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--tf-danger-text)' }} />}
             <span className="text-[var(--tf-text)]">
               Falsch-Positiv-Kontrolle {report.falschPositivKontrolle ? 'bestanden' : 'NICHT bestanden'}
               {' · '}
@@ -109,7 +109,7 @@ export function SubstanzSmokePanel(): React.ReactElement {
                     <td className="py-2 pr-3 text-[var(--tf-text-secondary)] align-top">{e.erwartet}</td>
                     <td className="py-2 pr-3 align-top">
                       {e.fehler != null
-                        ? <span style={{ color: 'var(--tf-danger, #dc2626)' }}>{e.fehler}</span>
+                        ? <span style={{ color: 'var(--tf-danger-text)' }}>{e.fehler}</span>
                         : e.gefunden.length === 0
                           ? <span className="text-[var(--tf-text-secondary)]">kein Widerspruch</span>
                           : (
@@ -129,8 +129,8 @@ export function SubstanzSmokePanel(): React.ReactElement {
                     <td className="py-2 align-top">
                       <span style={{
                         color: e.bestanden
-                          ? 'var(--tf-success, #16a34a)'
-                          : 'var(--tf-danger, #dc2626)',
+                          ? 'var(--tf-success-text)'
+                          : 'var(--tf-danger-text)',
                       }}>
                         {e.bestanden ? 'bestanden' : 'abweichend'}
                       </span>

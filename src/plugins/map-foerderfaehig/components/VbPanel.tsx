@@ -21,7 +21,7 @@ function KiHinweis({ lage, fehler }: { lage: string; fehler: string | null }): R
   return (
     <div
       className="rounded px-3 py-2 text-[12.5px]"
-      style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+      style={{ background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))' }}
     >
       <p className="text-[var(--tf-text)]">Die KI-Analyse ist nicht durchgelaufen.</p>
       {fehler != null && (
@@ -114,7 +114,7 @@ function ZusatzListe({ vb }: { vb: UseMapVbResult }): React.ReactElement | null 
       )}
 
       {(hinzu.error ?? weg.error) != null && (
-        <p className="text-[12.5px]" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+        <p className="text-[12.5px]" style={{ color: 'var(--tf-danger-text)' }}>
           {hinzu.error ?? weg.error}
         </p>
       )}
@@ -133,7 +133,7 @@ function KorpusWarnung({ korpus }: { korpus: MapKorpus | null }): React.ReactEle
   return (
     <div
       className="rounded px-3 py-2 text-[12.5px]"
-      style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+      style={{ background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))' }}
     >
       <p className="text-[var(--tf-text)]">
         Der Korpus ist mit {korpus.zeichen.toLocaleString('de-DE')} Zeichen grösser als das
@@ -221,7 +221,7 @@ export function VbPanel(
         </section>
 
         {waehlen.error != null && (
-          <p className="text-[12.5px]" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+          <p className="text-[12.5px]" style={{ color: 'var(--tf-danger-text)' }}>
             {waehlen.error}
           </p>
         )}

@@ -100,7 +100,7 @@ function ItemZeile({
             </Button>
           </div>
           {speichern.error != null && (
-            <p className="text-[11.5px]" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+            <p className="text-[11.5px]" style={{ color: 'var(--tf-danger-text)' }}>
               {speichern.error}
             </p>
           )}
@@ -176,7 +176,7 @@ export function ChecklistenEditor({
             <Plus size={14} /> {ergaenzen.busy ? 'Ergänzt …' : 'Ergänzen (Fassung +1)'}
           </Button>
           {ergaenzen.error != null && (
-            <p className="text-[11.5px]" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+            <p className="text-[11.5px]" style={{ color: 'var(--tf-danger-text)' }}>
               {ergaenzen.error}
             </p>
           )}
@@ -210,7 +210,7 @@ export function ChecklistenEditor({
           <RotateCcw size={14} /> Auf Auslieferungsfassung zurücksetzen
         </Button>
         {zuruecksetzen.error != null && (
-          <p className="text-[11.5px] mt-1" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+          <p className="text-[11.5px] mt-1" style={{ color: 'var(--tf-danger-text)' }}>
             {zuruecksetzen.error}
           </p>
         )}

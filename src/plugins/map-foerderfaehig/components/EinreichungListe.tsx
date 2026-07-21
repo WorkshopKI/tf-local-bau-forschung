@@ -47,8 +47,8 @@ export function EinreichungListe({
         <div
           className="text-[12.5px] rounded px-3 py-2"
           style={{
-            color: 'var(--tf-danger, #dc2626)',
-            background: 'color-mix(in srgb, var(--tf-danger, #dc2626) 10%, var(--tf-bg))',
+            color: 'var(--tf-danger-text)',
+            background: 'color-mix(in srgb, var(--tf-danger-text) 10%, var(--tf-bg))',
           }}
         >
           Import fehlgeschlagen: {importieren.error}
@@ -67,7 +67,7 @@ export function EinreichungListe({
       )}
 
       {entfernen.error != null && (
-        <p className="text-[12.5px]" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+        <p className="text-[12.5px]" style={{ color: 'var(--tf-danger-text)' }}>
           Entfernen fehlgeschlagen: {entfernen.error}
         </p>
       )}

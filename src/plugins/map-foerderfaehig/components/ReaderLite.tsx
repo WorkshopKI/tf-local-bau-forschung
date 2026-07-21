@@ -86,7 +86,7 @@ export function ReaderLite({
         {fundstellen.length === 0 ? (
           <div
             className="rounded px-3 py-2.5 text-[12.5px]"
-            style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+            style={{ background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))' }}
           >
             <p className="text-[var(--tf-text)] font-medium">0 Fundstellen</p>
             <p className="text-[var(--tf-text-secondary)] mt-0.5">

@@ -10,8 +10,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { useState } from 'react';
 import { EinreichungListe } from './components/EinreichungListe';
-import { KompaktAnsicht } from './components/KompaktAnsicht';
 import { PortfolioDemo } from './components/PortfolioDemo';
+import { PruefBlatt } from './components/PruefBlatt';
 import { useMapEinreichungen } from './useMapEinreichungen';
 
 export function MapPage(): React.ReactElement {
@@ -60,9 +60,9 @@ export function MapPage(): React.ReactElement {
           }
           detail={
             ausgewaehlt === null ? undefined : (
-              <div className="p-5 overflow-y-auto h-full">
-                <KompaktAnsicht einreichung={ausgewaehlt} report={report} />
-              </div>
+              // Schlüssel = Einreichung: der Prüfablauf startet je Einreichung
+              // frisch bei Schritt 1, statt den Schritt der vorigen zu erben.
+              <PruefBlatt key={ausgewaehlt.id} einreichung={ausgewaehlt} report={report} />
             )
           }
           onCloseDetail={() => waehle(null)}

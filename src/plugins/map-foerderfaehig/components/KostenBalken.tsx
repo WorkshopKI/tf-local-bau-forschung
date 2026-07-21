@@ -44,7 +44,7 @@ export function KostenBalken({
     key: s.key,
     count: Math.round(s.betrag),
     color: `color-mix(in srgb, var(--tf-primary) ${Math.round(s.deckkraft * 100)}%, var(--tf-bg))`,
-    textColor: s.deckkraft > 0.6 ? 'var(--tf-primary-fg, #fff)' : 'var(--tf-text)',
+    textColor: s.deckkraft > 0.6 ? 'var(--tf-on-primary)' : 'var(--tf-text)',
     legendLabel: s.label,
     tooltip: <SegmentTooltip segment={s} />,
   }));
@@ -53,7 +53,7 @@ export function KostenBalken({
     <div className="flex flex-col gap-2">
       <DistributionBar segments={segments} />
       {abweichung !== null && (
-        <p className="text-[12px]" style={{ color: 'var(--tf-warning, #f59e0b)' }}>
+        <p className="text-[12px]" style={{ color: 'var(--tf-warning-text)' }}>
           Die Summe der Kostenarten weicht um {euro(abweichung)} € von den
           ausgewiesenen Gesamtkosten ab.
         </p>

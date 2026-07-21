@@ -34,8 +34,8 @@ export function PortfolioDemo(): React.ReactElement {
       <div
         className="rounded px-3 py-2 text-[12.5px]"
         style={{
-          background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 12%, var(--tf-bg))',
-          border: '0.5px solid var(--tf-warning, #f59e0b)',
+          background: 'color-mix(in srgb, var(--tf-warning-text) 12%, var(--tf-bg))',
+          border: '0.5px solid var(--tf-warning-text)',
         }}
       >
         <p className="font-medium text-[var(--tf-text)]">Demo-Daten · Prinzipansicht</p>

@@ -23,11 +23,11 @@ const STATUS_LABEL: Record<Exclude<MapItemStatus, 'offen'>, string> = {
 };
 
 const STATUS_FARBE: Record<Exclude<MapItemStatus, 'offen'>, string> = {
-  'erfuellt': 'var(--tf-success, #16a34a)',
-  'nicht-erfuellt': 'var(--tf-danger, #dc2626)',
+  'erfuellt': 'var(--tf-success-text)',
+  'nicht-erfuellt': 'var(--tf-danger-text)',
   'nicht-zutreffend': 'var(--tf-text-tertiary)',
-  'nf-notwendig': 'var(--tf-warning, #f59e0b)',
-  'nf-erfuellt': 'var(--tf-success, #16a34a)',
+  'nf-notwendig': 'var(--tf-warning-text)',
+  'nf-erfuellt': 'var(--tf-success-text)',
 };
 
 const REIHENFOLGE = Object.keys(STATUS_LABEL) as Array<Exclude<MapItemStatus, 'offen'>>;
@@ -132,10 +132,10 @@ export function ItemKarte({
       {befunde.length > 0 && (
         <div
           className="mt-2 rounded px-2.5 py-2"
-          style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+          style={{ background: 'color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg))' }}
         >
           <p className="text-[11.5px] font-medium flex items-center gap-1.5"
-            style={{ color: 'var(--tf-warning, #f59e0b)' }}>
+            style={{ color: 'var(--tf-warning-text)' }}>
             <AlertTriangle size={12} />
             Rechencheck-Befund
           </p>
@@ -188,11 +188,11 @@ export function ItemKarte({
             rows={2}
             className="w-full text-[12.5px] rounded px-2 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
             style={{
-              border: `0.5px solid ${bemerkungFehlt ? 'var(--tf-danger, #dc2626)' : 'var(--tf-border)'}`,
+              border: `0.5px solid ${bemerkungFehlt ? 'var(--tf-danger-text)' : 'var(--tf-border)'}`,
             }}
           />
           {bemerkungFehlt && (
-            <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+            <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--tf-danger-text)' }}>
               Dieser Status verlangt eine Bemerkung.
             </p>
           )}

@@ -13,8 +13,8 @@ import type { MapEinreichung } from '../types';
 
 const RAHMEN: Record<Belegtheit, React.CSSProperties> = {
   belegt: { border: '0.5px solid var(--tf-border)' },
-  vage: { border: '1px dashed var(--tf-warning, #f59e0b)' },
-  fehlt: { border: '1px dashed var(--tf-warning, #f59e0b)' },
+  vage: { border: '1px dashed var(--tf-warning-text)' },
+  fehlt: { border: '1px dashed var(--tf-warning-text)' },
 };
 
 const LEER_TEXT: Record<Belegtheit, string> = {
@@ -48,12 +48,12 @@ function TextZelle({ titel, frage, feld }: {
   return (
     <Zelle titel={titel} frage={frage} stil={RAHMEN[feld.belegtheit]}>
       {feld.belegtheit === 'fehlt' || feld.text.length === 0 ? (
-        <em style={{ color: 'var(--tf-warning, #f59e0b)' }}>{LEER_TEXT[feld.belegtheit] || LEER_TEXT.fehlt}</em>
+        <em style={{ color: 'var(--tf-warning-text)' }}>{LEER_TEXT[feld.belegtheit] || LEER_TEXT.fehlt}</em>
       ) : (
         <>
           {feld.text}
           {feld.belegtheit === 'vage' && (
-            <span className="block mt-1 text-[11px]" style={{ color: 'var(--tf-warning, #f59e0b)' }}>
+            <span className="block mt-1 text-[11px]" style={{ color: 'var(--tf-warning-text)' }}>
               nur vage belegt
             </span>
           )}

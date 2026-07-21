@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.281 — 2026-07
+
+### Neu
+- Die Förderfähigkeitsprüfung führt Sie jetzt durch den Ablauf, statt elf gleichrangige Reiter nebeneinanderzustellen. Die Schritte sind in drei Phasen gebündelt — **Verstehen**, **Bewerten**, **Abschluss** —, und eine Leiste am unteren Rand zeigt jederzeit, wo Sie stehen („Schritt 3 von 9"), bringt Sie mit *Zurück* und *Weiter* voran und benennt den nächsten offenen Punkt.
+- Kleine Punkte an den Schritten zeigen auf einen Blick, was erledigt ist, was angefangen wurde und wo eine Warnung aus den Rechenchecks wartet.
+
+### Verbesserungen
+- Der Bewertungs-Schritt behält Fortschritt und Innovationsgrad beim Scrollen im Blick, und jede Kriteriengruppe zeigt ihren eigenen Stand (z. B. „3/5").
+- „Checkliste bearbeiten" und „Import-Report" stehen jetzt sichtbar **neben** dem Prüfablauf statt mittendrin — sie sind Einstellungen, keine Prüfschritte.
+- Ein Schritt behält beim Wechseln seinen Scrollstand und Ihre Eingaben.
+
 ## v2.280 — 2026-07
 
 ### Neu
