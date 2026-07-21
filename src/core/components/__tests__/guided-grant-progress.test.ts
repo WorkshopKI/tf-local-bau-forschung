@@ -4,7 +4,12 @@
  * sind und ob abgeschlossen werden kann — pure Funktion, ohne React-Rendering.
  */
 import { describe, it, expect } from 'vitest';
-import { resolveAfterGrant } from '../guided-grant-progress';
+import {
+  resolveAfterGrant,
+  darfWeiterketten,
+  ketteAbgebrochenOhnePrompt,
+  AUTO_CHAIN_MIN_PROMPT_MS,
+} from '../guided-grant-progress';
 
 const PENDING = ['daten-share', 'persoenlich'];
 
@@ -47,5 +52,41 @@ describe('resolveAfterGrant', () => {
     const r = resolveAfterGrant(PENDING, { 'daten-share': 'denied' }, 'persoenlich', new Set());
     expect(r.resolved).toEqual({ 'daten-share': 'granted', persoenlich: 'granted' });
     expect(r.complete).toBe(true);
+  });
+});
+
+/**
+ * v2.275: optimistische Auto-Kette — nach einem erfolgreichen Grant den nächsten
+ * Slot ohne zusätzlichen Klick probieren, aber sauber abbrechen, sobald der
+ * Browser mangels User-Activation gar nicht mehr prompted.
+ */
+describe('darfWeiterketten', () => {
+  it('kettet nur nach echtem Erfolg weiter', () => {
+    expect(darfWeiterketten('granted')).toBe(true);
+  });
+
+  it('beendet die Kette bei denied und bei prompt', () => {
+    expect(darfWeiterketten('denied')).toBe(false);
+    expect(darfWeiterketten('prompt')).toBe(false);
+  });
+});
+
+describe('ketteAbgebrochenOhnePrompt', () => {
+  it('sofortige Rückkehr ohne Grant = Browser hat nicht gefragt (Activation verbraucht)', () => {
+    expect(ketteAbgebrochenOhnePrompt('prompt', 50)).toBe(true);
+    expect(ketteAbgebrochenOhnePrompt('denied', 12)).toBe(true);
+  });
+
+  it('langsame Ablehnung = echte User-Entscheidung, darf als denied gebucht werden', () => {
+    expect(ketteAbgebrochenOhnePrompt('denied', 4000)).toBe(false);
+  });
+
+  it('schneller Erfolg (Sammel-Box) ist kein Abbruch', () => {
+    expect(ketteAbgebrochenOhnePrompt('granted', 20)).toBe(false);
+  });
+
+  it('Schwelle ist exklusiv: genau AUTO_CHAIN_MIN_PROMPT_MS zählt als echter Prompt', () => {
+    expect(ketteAbgebrochenOhnePrompt('denied', AUTO_CHAIN_MIN_PROMPT_MS - 1)).toBe(true);
+    expect(ketteAbgebrochenOhnePrompt('denied', AUTO_CHAIN_MIN_PROMPT_MS)).toBe(false);
   });
 });

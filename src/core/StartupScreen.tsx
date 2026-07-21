@@ -174,9 +174,20 @@ export function StartupScreen({
     ? `${profile.name}${profile.bearbeiter_kuerzel ? ` (${profile.bearbeiter_kuerzel})` : ''}` // allow-direct-kuerzel: Startup laeuft VOR der MaLoginGate — Profilfeld ist hier die einzige Identitaetsquelle (Session existiert noch nicht)
     : 'Unbekannt';
 
+  // Im Stepper-Zweig erscheint das Browser-Permission-Popup OBEN am Viewport.
+  // Eine vertikal zentrierte Karte zwingt den User pro Ordner über die halbe
+  // Bildschirmhöhe hin und zurück — bei drei Ordnern sechsmal. Deshalb dort die
+  // Karte direkt unter die Popup-Zone setzen (fixer px-Wert: die Bubble ist ~200px
+  // hoch und skaliert NICHT mit der Fenstergröße). Initial-Pick/Downgrade bleiben
+  // zentriert — dort kommt kein Permission-Popup, sondern der Ordner-Picker.
+  const unterPopupZone = !needsInitialPick && !needsDowngrade && stepperPending !== null;
+
+  // `overflow-y-auto` ist Pflicht: mit dem Top-Offset ragt die Karte auf niedrigen
+  // Viewports sonst unerreichbar aus dem Bild (gleiches Muster wie WelcomeScreen).
+  const huelleClass = `fixed inset-0 flex justify-center overflow-y-auto bg-[var(--tf-bg)] z-50 ${unterPopupZone ? 'items-start pt-[210px] pb-10' : 'items-center'}`; // allow-raw-modal: Vollbild-Zustand, kein Modal
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[var(--tf-bg)] z-50" // allow-raw-modal: Vollbild-Zustand, kein Modal
-    >
+    <div className={huelleClass}>
       <div
         className="w-full max-w-[520px] mx-4 bg-[var(--tf-bg)] rounded-[16px] p-8"
         style={{ border: '0.5px solid var(--tf-border)' }}

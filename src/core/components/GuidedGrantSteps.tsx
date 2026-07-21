@@ -18,14 +18,31 @@
  * per `rescan` neu, markiert alle nun gewährten Slots als erledigt und schließt
  * ab, sobald nichts mehr aussteht — dort kollabiert er auf EINEN Klick. Wo der
  * Browser einzeln promptet (z.B. Chrome/`file://`), bleibt es Schritt-für-Schritt.
+ *
+ * v2.275 — Wege verkürzen, ohne die Gesture-Robustheit anzutasten:
+ *  - **Auto-Fokus:** nach jedem Schritt bekommt der Freigabe-Button den Fokus.
+ *    Der User klickt „Zulassen" im Browser-Popup (oben am Viewport) und drückt
+ *    danach nur noch Enter — kein Mausweg zurück zur Karte. Enter auf einem
+ *    Button ist eine vollwertige User-Geste, der Prompt kommt zuverlässig.
+ *  - **Optimistische Auto-Kette:** nach einem erfolgreichen Grant wird der
+ *    nächste Slot sofort probiert, statt auf den Klick zu warten. Zeigt der
+ *    Browser dabei keinen Prompt mehr (Activation verbraucht → Rückkehr in
+ *    <300ms), bricht die Kette ab OHNE den Slot aufzulösen; er bleibt der
+ *    nächste Klick-Schritt. In Chrome/`file://` ändert das nichts, in Browsern
+ *    mit persistenten Permissions spart es Klicks.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { grantPending, type PendingGrant } from '@/core/services/infrastructure/smb-handle';
-import { resolveAfterGrant, type GrantOutcome } from './guided-grant-progress';
+import {
+  resolveAfterGrant,
+  darfWeiterketten,
+  ketteAbgebrochenOhnePrompt,
+  type GrantOutcome,
+} from './guided-grant-progress';
 
 interface GuidedGrantStepsProps {
   /** Non-leer (der StartupScreen rendert den Stepper nur bei pending.length > 0). */
@@ -49,23 +66,60 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
       await onComplete();
       return;
     }
-    await grantPending(current);
+
     // Re-Scan: welche Slots sind JETZT noch ungranted? Eine Sammel-Box (modernes
     // Chromium) kann mehrere auf einmal gewährt haben → nicht stur weiterklicken.
-    let remainingSlots: Set<string>;
-    try {
-      remainingSlots = new Set((await rescan()).map(g => g.slot));
-    } catch {
-      remainingSlots = new Set(); // Scan-Fehler best-effort → als alles-erledigt behandeln.
+    // Definition ist synchron — die User-Activation bleibt bis grantPending live.
+    const offeneSlots = async (): Promise<Set<string>> => {
+      try {
+        return new Set((await rescan()).map(g => g.slot));
+      } catch {
+        return new Set(); // Scan-Fehler best-effort → als alles-erledigt behandeln.
+      }
+    };
+
+    // Schritt 1 = der geklickte Slot. Bewusst OHNE Dauer-Heuristik, damit der
+    // kritische Startup-Pfad sich exakt wie bisher verhält.
+    const ergebnis = await grantPending(current);
+    let stand = resolveAfterGrant(pendingSlots, resolved, current.slot, await offeneSlots());
+
+    // Auto-Kette: solange der Browser weiter prompted, die restlichen Slots ohne
+    // zusätzlichen Klick nachziehen. Obergrenze = Slot-Anzahl (kein Endlos-Lauf).
+    let weiter = darfWeiterketten(ergebnis);
+    for (let runde = 0; weiter && !stand.complete && runde < pending.length; runde++) {
+      const naechster = pending.find(g => stand.resolved[g.slot] === undefined);
+      if (!naechster) break;
+
+      const start = performance.now();
+      const kettenErgebnis = await grantPending(naechster);
+      const dauerMs = performance.now() - start;
+
+      // Kein Prompt mehr gezeigt (Activation verbraucht, z.B. Chrome/file://):
+      // Slot NICHT auflösen — sonst würde resolveAfterGrant ihn als 'denied'
+      // verbrennen. So bleibt er der nächste reguläre Klick-Schritt.
+      if (ketteAbgebrochenOhnePrompt(kettenErgebnis, dauerMs)) break;
+
+      stand = resolveAfterGrant(pendingSlots, stand.resolved, naechster.slot, await offeneSlots());
+      weiter = darfWeiterketten(kettenErgebnis);
     }
-    const next = resolveAfterGrant(pendingSlots, resolved, current.slot, remainingSlots);
-    setResolved(next.resolved);
-    if (next.complete) await onComplete();
+
+    setResolved(stand.resolved);
+    if (stand.complete) await onComplete();
   });
 
   const skipRemaining = useAsyncAction(async () => {
     await onComplete();
   });
+
+  // Auto-Fokus ab dem ZWEITEN Schritt: der User klickt „Zulassen" oben im
+  // Browser-Popup und kommt mit Enter direkt zum nächsten Ordner, ohne die Maus
+  // zur Karte zurückzuführen. Erst ab Schritt 2, damit ein noch gedrückter
+  // Enter aus dem vorgelagerten Login-Gate den ersten Schritt nicht versehentlich
+  // auslöst — der Gewinn ist derselbe, Schritt 1 wird ohnehin mit der Maus geklickt.
+  const grantButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (current && resolvedCount > 0 && !grantCurrent.busy) grantButtonRef.current?.focus();
+  }, [current, resolvedCount, grantCurrent.busy]);
 
   return (
     <>
@@ -112,6 +166,7 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
       </p>
 
       <Button
+        ref={grantButtonRef}
         icon={ArrowRight}
         onClick={() => grantCurrent.run()}
         disabled={grantCurrent.busy || !current}

@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.275 — 2026-07
+
+### Verbesserungen
+- Die Ordner-Freigabe beim Start ist jetzt deutlich bequemer: Das Fenster sitzt direkt unter der Browser-Abfrage statt in der Bildschirmmitte — kein weiter Weg mit der Maus mehr zwischen „Zulassen" und dem nächsten Schritt.
+- Nach dem ersten „Zulassen" genügt ein Druck auf die Enter-Taste für den nächsten Ordner. Wo der Browser es zulässt, werden die Ordner sogar ganz ohne weiteren Klick nacheinander abgefragt.
+
 ## v2.274 — 2026-07
 
 ### Bugfixes
