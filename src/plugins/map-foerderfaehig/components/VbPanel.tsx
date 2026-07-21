@@ -5,9 +5,11 @@
  * falsch zugeordnetes Dokument würde die gesamte inhaltliche Prüfung auf den
  * falschen Antrag stützen.
  */
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { FileText, Sparkles } from 'lucide-react';
+import { FileText, Plus, Sparkles } from 'lucide-react';
 import type { UseMapVbResult } from '../useMapVb';
 
 function KiHinweis({ lage, fehler }: { lage: string; fehler: string | null }): React.ReactElement | null {
@@ -31,10 +33,30 @@ function KiHinweis({ lage, fehler }: { lage: string; fehler: string | null }): R
   );
 }
 
-export function VbPanel({ vb }: { vb: UseMapVbResult }): React.ReactElement {
+/**
+ * Aufnahmefläche für die VB. Die Einreichung trägt kein Aktenzeichen, deshalb
+ * `knownIds: []` — jede abgelegte Datei wird als zugehörig akzeptiert, die
+ * Zuordnung bestätigt danach ohnehin der Mensch.
+ */
+function Aufnahme({ einreichungId }: { einreichungId: string }): React.ReactElement {
+  return (
+    <DokumentAufnahme
+      relationTag={`map:${einreichungId}`}
+      knownIds={[]}
+      defaultTyp="vorhabensbeschreibung"
+      offenHalten
+      abschlussLabel="Fertig — jetzt zuordnen"
+    />
+  );
+}
+
+export function VbPanel(
+  { vb, einreichungId }: { vb: UseMapVbResult; einreichungId: string },
+): React.ReactElement {
   const waehlen = useAsyncAction(async (docId: string) => { await vb.waehleDokument(docId); });
   const loesen = useAsyncAction(async () => { await vb.loeseZuordnung(); });
   const analyse = useAsyncAction(async () => { await vb.starteAnalyse(); });
+  const [nachreichen, setNachreichen] = useState(false);
 
   if (vb.dokument === null) {
     return (
@@ -43,6 +65,13 @@ export function VbPanel({ vb }: { vb: UseMapVbResult }): React.ReactElement {
           Ordnen Sie der Einreichung die Vorhabensbeschreibung zu. Sie ist die Grundlage
           für Steckbrief, Fundstellen und Lesemodus.
         </p>
+
+        <section className="flex flex-col gap-1.5">
+          <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] uppercase tracking-wide">
+            Vorhabensbeschreibung ablegen
+          </h3>
+          <Aufnahme einreichungId={einreichungId} />
+        </section>
 
         {vb.kandidaten.length > 0 && (
           <section className="flex flex-col gap-1.5">
@@ -75,7 +104,8 @@ export function VbPanel({ vb }: { vb: UseMapVbResult }): React.ReactElement {
           </h3>
           {vb.alleDokumente.length === 0 ? (
             <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
-              Es sind noch keine Dokumente aufgenommen.
+              Es sind noch keine Dokumente aufgenommen — legen Sie die
+              Vorhabensbeschreibung oben ab.
             </p>
           ) : (
             <select
@@ -113,10 +143,17 @@ export function VbPanel({ vb }: { vb: UseMapVbResult }): React.ReactElement {
             {vb.gliederung.length} Abschnitte erkannt
           </p>
         </div>
-        <Button variant="ghost" size="sm" disabled={loesen.busy} onClick={() => loesen.run()}>
-          Zuordnung lösen
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => setNachreichen(n => !n)}>
+            <Plus size={14} /> Dokument nachreichen
+          </Button>
+          <Button variant="ghost" size="sm" disabled={loesen.busy} onClick={() => loesen.run()}>
+            Zuordnung lösen
+          </Button>
+        </div>
       </div>
+
+      {nachreichen && <Aufnahme einreichungId={einreichungId} />}
 
       <div className="flex items-center gap-2 flex-wrap">
         <Button

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.271.1 — VB direkt im Reiter ablegen (MAP, dev) (Juli 2026)
+
+PATCH — Der Reiter „Vorhabensbeschreibung" konnte bisher nur aus dem globalen Dokumenten-Index wählen. Wer die VB noch nicht aufgenommen hatte, sah eine Sackgasse und musste das Plugin verlassen. Nur dev (`mapFoerderfaehig`).
+
+- **Aufnahmefläche direkt im Reiter** über die geteilte `DokumentAufnahme` — Drag & Drop, `offenHalten`, Typ vorbelegt auf „Vorhabensbeschreibung" ([VbPanel.tsx](src/plugins/map-foerderfaehig/components/VbPanel.tsx)).
+- **Nachreichen bei bereits zugeordneter VB** über einen Umschalter neben „Zuordnung lösen" ([VbPanel.tsx](src/plugins/map-foerderfaehig/components/VbPanel.tsx)).
+- Leerer Zustand verweist jetzt auf die Ablagefläche statt nur „keine Dokumente aufgenommen" zu melden.
+
 ### v2.271.0 — MAP: Testleitfaden, Architektur-Doku, Abnahme (Juli 2026)
 
 MINOR — Abschluss des MAP: Drehbuch für die Vorführung, Architektur-Doku mit den tragenden Entscheidungen und ihren Begründungen, Abnahme über alle Build-Varianten. Nur dev (`mapFoerderfaehig`).

@@ -179,7 +179,7 @@ export function KompaktAnsicht({
 
       {sicht === 'vb' && (
         <Karte titel="Vorhabensbeschreibung">
-          <VbPanel vb={vb} />
+          <VbPanel vb={vb} einreichungId={einreichung.id} />
         </Karte>
       )}
 
