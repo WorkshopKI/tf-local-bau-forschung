@@ -37,6 +37,15 @@ export interface ConversationOptions {
    *  rejected das pending-Promise; Streamlit kann den serverseitigen Run
    *  nicht stoppen — der laeuft fertig, aber das UI reagiert sofort. */
   signal?: AbortSignal;
+  /** Nur Streamlit-Bridge: Ziel-Chat (Tab) in der KI-Oberfläche. DirectLLM
+   *  ignoriert die Option.
+   *
+   *  Seit v2.274 auch hier (vorher nur in `SubmitMessageOptions`): das Feld war
+   *  ausgespart, solange die agentische Variante eine Erprobung war. Inzwischen
+   *  ist sie eine globale Nutzer-Einstellung (`useKiZiel`) und in allen
+   *  Skill-Runnern verdrahtet — dass ausgerechnet der Chat sie ignorierte, war
+   *  kein Schutz mehr, sondern ein toter Schalter. */
+  ziel?: BridgeZiel;
 }
 
 export interface SubmitMessageOptions {
@@ -45,8 +54,8 @@ export interface SubmitMessageOptions {
   /** Siehe `ConversationOptions.signal`. */
   signal?: AbortSignal;
   /** Nur Streamlit-Bridge: Ziel-Chat (Tab) in der KI-Oberfläche. DirectLLM
-   *  ignoriert die Option. Bewusst NUR hier (nicht in `ConversationOptions`) —
-   *  die produktive Zweit-LLM-Verdrahtung (Streaming/QS) ist ein späteres Paket. */
+   *  ignoriert die Option. Siehe `ConversationOptions.ziel` — seit v2.274 tragen
+   *  beide Options-Typen das Feld. */
   ziel?: BridgeZiel;
   /** Nur Streamlit-Bridge: Abschluss-Marker. Das Bookmarklet finalisiert die Antwort
    *  NICHT auf dem kurzen Idle-Fenster, solange sie diesen Text nicht enthält — Schutz
@@ -404,7 +413,14 @@ export class StreamlitBridgeTransport implements AITransport {
         touch: deadline.touch,
       });
       options?.signal?.addEventListener('abort', onAbort, { once: true });
-      this.streamlitWindow?.postMessage({ type: 'tf-request', id, message }, '*');
+      // `ziel` nur senden, wenn gesetzt — ohne das Feld bleibt das Bookmarklet
+      // im aktiven Tab (Verhalten byte-identisch zu vorher, alte Snippets
+      // ignorieren es ohnehin). Das Snippet wertet `ziel` bei JEDEM tf-request
+      // aus, Stream und Single-Turn gleichermassen: kein BRIDGE_REV nötig.
+      this.streamlitWindow?.postMessage(
+        { type: 'tf-request', id, message, ...(options?.ziel ? { ziel: options.ziel } : {}) },
+        '*',
+      );
     });
   }
 }

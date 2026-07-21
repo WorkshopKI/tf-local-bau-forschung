@@ -117,10 +117,23 @@ QS/Zweitmeinung. Das Bridge-Protokoll trägt dafür ein optionales `ziel` (`'sta
   10 s auf eine **sichtbare** textarea und fährt dann den normalen Scrape-Pfad (Echo-Anker, Settle,
   Deadlines — alles geteilt). `'standard'` ohne Tab-UI läuft wie bisher weiter; `'agentisch'` ohne
   passenden Tab liefert einen klaren Fehlertext als `tf-response`.
-- App-seitig gibt es **bewusst nur die Naht** (`SubmitMessageOptions.ziel`; `ConversationOptions`
-  hat KEIN `ziel`): validiert wird über die dev-only Testfläche „Zweit-LLM (Erprobung)" in der
-  Einstellungs-Sektion ([StreamlitBridgeSection.tsx](../../src/plugins/einstellungen/StreamlitBridgeSection.tsx),
+- App-seitig trugen zunächst **nur** `SubmitMessageOptions` das `ziel`; `ConversationOptions`
+  war bewusst ausgespart, solange die agentische Variante eine Erprobung war. Validiert wurde
+  über die dev-only Testfläche „Zweit-LLM (Erprobung)" in der Einstellungs-Sektion
+  ([StreamlitBridgeSection.tsx](../../src/plugins/einstellungen/StreamlitBridgeSection.tsx),
   gated `isDevContext()`) — Rechenfrage → Tab-Wechsel → Scrape → gezielter Reset.
+- **Seit v2.274 tragen beide Options-Typen das Feld.** Die Aussparung war überholt, seit die
+  Variante eine globale Nutzer-Einstellung (`useKiZiel`) und in allen Skill-Runnern verdrahtet
+  ist: der Chat bevorzugt `streamConversation` per Feature-Detection, genau diese Methode
+  postete kein `ziel` — der Umschalter war dort also ein **toter Schalter**, und der Zweig mit
+  `aktivesZielFuerLauf()` für die Bridge unerreichbar. Rein app-seitig behoben: das Snippet
+  wertet `ziel` bei **jedem** `tf-request` aus (`runRequest(..., data.ziel, ...)`), Stream und
+  Single-Turn gleichermassen — **kein `BRIDGE_REV`-Bump, keine Neu-Installation**. Ohne
+  gesetztes `ziel` fehlt das Feld weiterhin ganz (aktiver Tab, byte-identisch). Regressionstest:
+  [streamlit-ziel.test.ts](../../src/core/services/ai/__tests__/streamlit-ziel.test.ts).
+- **Nicht** abgedeckt: ein Variantenwechsel **mitten** in einer Unterhaltung wechselt den Tab,
+  und der neue Tab hat seinen eigenen Verlauf — der Chat resettet bewusst nicht (Ausnahme von
+  Pitfall #36, mehrturnig). Die bisherige Unterhaltung liegt dann im anderen Tab.
 - **Produktive Nutzung (QS-Verdrahtung, Auswahl-UI) ist ein späteres Paket** — erst nach Erprobung
   am echten System. Bekanntes Risiko: der Agent stellt Rückfragen; ein Single-Shot-Scrape kann eine
   Rückfrage als „Antwort" einsammeln.

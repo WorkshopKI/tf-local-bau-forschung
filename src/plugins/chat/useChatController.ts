@@ -154,10 +154,19 @@ export function useChatController(options?: UseChatControllerOptions): ChatContr
       // Thinking-Toggle: aus → 'none' (DirectLLM übersetzt das für llama.cpp in
       // chat_template_kwargs.enable_thinking=false); an → Server-Default (auto).
       const thinkingBudget = useChatStore.getState().thinkingEnabled ? undefined : 'none' as const;
+      const ziel = aktivesZielFuerLauf();
       const result = await transport.streamConversation!(apiMessages, {
         onDelta: t => { pendingContent += t; schedule(); },
         onReasoningDelta: t => { pendingThinking += t; schedule(); },
-      }, { maxTokens: CHAT_MAX_TOKENS, signal, ...(thinkingBudget ? { thinkingBudget } : {}) });
+      }, {
+        maxTokens: CHAT_MAX_TOKENS,
+        signal,
+        ...(thinkingBudget ? { thinkingBudget } : {}),
+        // Globale KI-Varianten-Präferenz auch im Streaming-Pfad — sonst wäre der
+        // Umschalter im Chat wirkungslos (der Bridge-Transport bietet
+        // `streamConversation` an, der Single-Turn-Zweig unten ist für ihn tot).
+        ...(ziel ? { ziel } : {}),
+      });
 
       flush();
       if (result.aborted && !result.content && !result.reasoning) {

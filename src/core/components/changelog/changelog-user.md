@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.274 — 2026-07
+
+### Bugfixes
+- Die Umschaltung zwischen der normalen und der agentischen KI hatte im Chat keine Wirkung — es lief immer die KI des gerade offenen Tabs, unabhängig von der Auswahl. Jetzt wechselt der Chat wie überall sonst auf die gewählte Variante. Hinweis: Wenn Sie mitten in einem Gespräch umschalten, wechselt auch der Tab — das bisherige Gespräch bleibt im anderen Tab stehen.
+- Die Stapelverarbeitung von Gutachten übergab die gewählte KI-Variante nicht und lief deshalb ebenfalls auf dem gerade offenen Tab.
+
 ## v2.273 — 2026-07
 
 ### Verbesserungen

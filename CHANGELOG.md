@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.274.0 — KI-Variante wirkt jetzt auch im Chat (Juli 2026)
+
+MINOR — Der Umschalter „Standard/Agentisch" war im Chat ein toter Schalter: der Chat bevorzugt `streamConversation`, und genau diese Methode sendete kein `ziel` — der Tab wurde nie gewechselt. Der Zweig, der die Präferenz durchreichte, war für die Bridge unerreichbar.
+
+- **`ConversationOptions.ziel`** ergänzt und in `streamConversation` gesendet; ohne gesetztes Ziel fehlt das Feld weiterhin ganz ([streamlit.ts](src/core/services/ai/transports/streamlit.ts)).
+- **Rein app-seitig**: das Snippet wertet `ziel` bei jedem `tf-request` aus — kein `BRIDGE_REV`-Bump, keine Neu-Installation des Lesezeichens.
+- **Batch-Job übergibt `ziel`** wie alle anderen Runner — sonst rechnete er mit dem Kontext des einen Tabs und sendete an den anderen ([useBatchJob.ts](src/plugins/antraege/gutachten-batch/useBatchJob.ts)).
+- Die überholte Begründung „`ConversationOptions` trägt bewusst kein `ziel`" im Bridge-Doc ersetzt statt ergänzt ([streamlit-bridge.md](docs/architecture/streamlit-bridge.md)).
+- Regressionstest an der Naht, gegen den alten Stand als fehlschlagend verifiziert ([streamlit-ziel.test.ts](src/core/services/ai/__tests__/streamlit-ziel.test.ts)).
+
 ### v2.273.1 — Agentisches Kontextfenster 262k statt 260k (Juli 2026)
 
 PATCH — Die Streamlit-Seite weist die Chatlänge selbst aus: „0k von 62k" bzw. „1k von 262k". Die im Repo verstreuten „260k" waren also gerundet bzw. falsch.
