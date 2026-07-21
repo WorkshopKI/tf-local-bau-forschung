@@ -12,7 +12,12 @@
  * so gebaut, dass sie kuratierte Edits NIEMALS überschreiben (Wert-/Template-Gleichheit
  * gegen den bekannten Alt-Seed-Stand als Guard).
  */
-import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from './anfrage-anonymisieren.seed';
+import {
+  ANFRAGE_ANONYMISIEREN_SKILL_ID,
+  ANFRAGE_ANONYMISIEREN_SKILL,
+  ANON_SYSTEM_PROMPT_ALT,
+  ANON_PROMPT_TEMPLATE_ALT,
+} from './anfrage-anonymisieren.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbereitung-zahlen.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';
 import {
@@ -64,6 +69,9 @@ export const GA_UMFANG_DEDUP_CD_MIGRATION = 'ga-umfang-dedup-cd-2026-07';
 
 /** ID der Pflicht-Anfang-Entschärfung in G (zitierte „…"-Inline-Regel → eigener Block). */
 export const GA_PFLICHT_ANFANG_KLAR_MIGRATION = 'ga-pflicht-anfang-klar-2026-07';
+
+/** ID der Anonymisierer-Prompt-Klärung (Zielkonflikt, WÖRTLICH-Scope, Echtwerte in der Schablone). */
+export const ANFRAGE_ANON_KLAR_MIGRATION = 'anfrage-anon-klar-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -258,6 +266,31 @@ function applyPflichtAnfangKlar(skills: SkillRecord[]): SkillRecord[] {
       : s);
 }
 
+/**
+ * Anonymisierer: drei Prompt-Defekte aus dem Audit 2026-07 (Zielkonflikt „AGGRESSIV"
+ * vs. „fachlicher Sinn" ohne Vorrang; pauschale WÖRTLICH-Pflicht auch für die frei
+ * formulierte Stufe-B-Passage; Feld-Schablone mit vollplausiblen Echtwerten, deren Echo
+ * über die Wiedereinsetzung einen Phantom-Namen in den finalen Text schreibt).
+ *
+ * Pristine-Guard über BEIDE Textfelder: nur wenn System-Prompt UND Template exakt dem
+ * eingefrorenen v2-Stand entsprechen, wird gehoben. Ein kuratierter Edit an auch nur
+ * einem der beiden lässt den Skill unberührt. `aktiv` wird NICHT angefasst — die
+ * Freischaltung bleibt die Entscheidung aus `applyAnonAktiv`.
+ */
+function applyAnonKlar(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s =>
+    s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID
+      && s.systemPrompt === ANON_SYSTEM_PROMPT_ALT
+      && s.promptTemplate === ANON_PROMPT_TEMPLATE_ALT
+      ? {
+        ...s,
+        systemPrompt: ANFRAGE_ANONYMISIEREN_SKILL.systemPrompt,
+        promptTemplate: ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate,
+        version: Math.max(s.version, 3),
+      }
+      : s);
+}
+
 interface EinzelMigration {
   marker: string;
   apply: (skills: SkillRecord[]) => SkillRecord[];
@@ -274,6 +307,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_UMFANG_DEDUP_MIGRATION, apply: applyUmfangDedup },
   { marker: GA_UMFANG_DEDUP_CD_MIGRATION, apply: applyUmfangDedupCD },
   { marker: GA_PFLICHT_ANFANG_KLAR_MIGRATION, apply: applyPflichtAnfangKlar },
+  { marker: ANFRAGE_ANON_KLAR_MIGRATION, apply: applyAnonKlar },
 ];
 
 /**

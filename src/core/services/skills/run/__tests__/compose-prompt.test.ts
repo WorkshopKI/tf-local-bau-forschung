@@ -157,7 +157,7 @@ describe('composeSkillPrompt — teilAufgabe (Teil-Generierung)', () => {
 
   it('mit teilAufgabe: eigener Block am ENDE, nach den Formalen Vorgaben', () => {
     const out = compose({ ...baseInput, teilAufgabe: TEIL });
-    expect(out).toContain('## Teil-Vorgabe (überstimmt Umfang/Struktur oben)');
+    expect(out).toContain('## Teil-Vorgabe (überstimmt Umfang, Struktur und Inhaltsangaben oben)');
     expect(out).toContain(TEIL);
     expect(out.indexOf('## Teil-Vorgabe')).toBeGreaterThan(out.indexOf(VORGABEN_HEADING));
   });
@@ -226,7 +226,7 @@ describe('composeSkillPrompt — LLM-QS-Slots {{zielText}} / {{abschnittszweck}}
 });
 
 describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
-  const STRUKTUR_HEADING = '## Ausgabe des „Finaler Text"-Blocks (strukturiert)';
+  const STRUKTUR_HEADING = '## Ausgabe des „Finaler Text"-Blocks (strukturiert — ersetzt die Formatangabe oben)';
 
   it('ohne teilStruktur: kein Struktur-Block (byte-identisch zu heute)', () => {
     // SEED_SKILL trägt seit der A-Aktivierung selbst teilStruktur → für diesen
@@ -250,6 +250,12 @@ describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
     expect(out).toContain('`hintergrund`: Hintergrund');
     // Der Struktur-Block steht NACH den formalen Vorgaben (Instruktions-Vorrang).
     expect(out.indexOf(STRUKTUR_HEADING)).toBeGreaterThan(out.indexOf(VORGABEN_HEADING));
+    // Prompt-Audit 2026-07: Der Vorrang muss IM PROMPT stehen, nicht nur im
+    // Code-Kommentar. Ohne ihn sieht das Modell drei Fließtext-Forderungen (Template,
+    // finalText-Zeile, `keine_aufzaehlungen`-Regel) gegen eine JSON-Forderung und muss
+    // den Widerspruch selbst auflösen.
+    expect(out).toContain('Diese Vorgabe hat Vorrang');
+    expect(out).toMatch(/Wo oben Fließtext für `### Finaler Text` gefordert wird/);
   });
 
   it('leere teilStruktur-Liste ist No-op (kein Block)', () => {

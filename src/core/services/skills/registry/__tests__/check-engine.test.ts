@@ -352,14 +352,42 @@ describe('verbotenes_muster.hint — zweiseitig + REGEXFREI', () => {
     expect(h).not.toContain('\\s');
     expect(h).not.toContain('\\b');
   });
-  it('Regex-Modus ohne `hinweisVermeiden` → generischer Satz statt Regex-Leak', () => {
+  // Prompt-Audit 2026-07: der frühere Fallback „Vermeide die hinterlegten verbotenen
+  // Formulierungen." verwies auf etwas, das im Prompt NICHT steht (roher Regex bleibt
+  // bewusst draußen). Das Modell konnte ihn weder befolgen noch verifizieren und suchte
+  // die Referenz. Ohne nennbaren Inhalt gibt es daher gar keinen Hinweis mehr — der
+  // deterministische Check läuft unberührt weiter.
+  it('Regex-Modus ohne `hinweisVermeiden` → KEIN Hinweis (statt inhaltsleerer Forderung)', () => {
     expect(buildPromptHinweis(regel('verbotenes_muster', { muster: ['\\bAP\\d+'], istRegex: true })))
-      .toBe('Vermeide die hinterlegten verbotenen Formulierungen.');
+      .toBeNull();
+  });
+  it('leere Musterliste → KEIN Hinweis', () => {
+    expect(buildPromptHinweis(regel('verbotenes_muster', { muster: [], istRegex: false })))
+      .toBeNull();
   });
   it('Legacy-Phrasen: Hinweis byte-identisch zur heutigen Ausgabe', () => {
     expect(buildPromptHinweis(regel('verbotenes_muster', { muster: ['Maßnahme', 'Synergie'], istRegex: false })))
       .toBe('Vermeide Formulierungen wie „Maßnahme", „Synergie".');
-    expect(buildPromptHinweis(regel('verbotenes_muster', { muster: [], istRegex: false })))
-      .toBe('Vermeide die hinterlegten verbotenen Formulierungen.');
+  });
+  it('inhaltsleere Regeln erzeugen keinen leeren Bullet im Vorgaben-Block', () => {
+    const nurRegex = regel('verbotenes_muster', { muster: ['\\bAP\\d+'], istRegex: true });
+    const block = buildPromptVorgaben([nurRegex, regel('keine_aufzaehlungen', {})]);
+    expect(block).not.toContain('hinterlegten');
+    expect(block).not.toMatch(/^-\s*$/m);
+    expect(block).toBe('## Formale Vorgaben\n- Der finale Text ist Fließtext ohne Aufzählungen.');
+  });
+  it('greift KEIN Hinweis, entfällt der Vorgaben-Block ganz', () => {
+    expect(buildPromptVorgaben([regel('verbotenes_muster', { muster: ['x'], istRegex: true })])).toBe('');
+  });
+  it('mehrzeiliger Hinweis steht als eigener Absatz, nicht als aufgebrochener Bullet', () => {
+    const block = buildPromptVorgaben([
+      regel('keine_aufzaehlungen', {}),
+      regel('pflicht_anfang', { text: 'Das Vorhaben wird die Kompetenz im Bereich' }),
+    ]);
+    // Der Bullet-Teil bleibt einzeilig; der Pflicht-Anfang folgt als eigener Absatz.
+    expect(block).toContain('## Formale Vorgaben\n- Der finale Text ist Fließtext ohne Aufzählungen.\n\n');
+    expect(block).not.toContain('- Der finale Text muss mit genau diesem Wortlaut beginnen');
+    // Der Wortlaut steht unzitiert auf eigener Zeile (die Zeilengrenze IST die Grenze).
+    expect(block).toContain('\n\nDas Vorhaben wird die Kompetenz im Bereich\n\n');
   });
 });

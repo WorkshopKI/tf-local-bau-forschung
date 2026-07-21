@@ -27,10 +27,23 @@ function cutAtParagraph(text: string, cap: number): string {
 }
 
 /**
+ * Ausdrückliche Auskunft, wenn es keinen Vorkontext gibt.
+ *
+ * Der Slot steht im Template unter einer Überschrift („Bereits freigegebene frühere
+ * Abschnitte — Konsistenz-Referenz …"), die UNBEDINGT gerendert wird. Ein Leerstring
+ * hinterließ dort eine Überschrift ohne Inhalt: sie verspricht eine Referenz und
+ * liefert nichts, und das Modell muss entscheiden, ob es etwas übersehen hat. Bei
+ * einem frischen Gutachten trifft das JEDEN Abschnitt. Ein entscheidbarer Satz kostet
+ * eine Zeile und nimmt die Frage weg.
+ */
+const KEIN_VORKONTEXT = 'Keine — es sind noch keine früheren Abschnitte freigegeben.';
+
+/**
  * Baut den `{{vorherigeAbschnitte}}`-Block: die Schritte VOR `currentStep` in
  * A–G-Reihenfolge, je „### Abschnitt {ID} — {Label}" + (gekürzter) finaler Text.
- * Leere Schritte werden immer ausgelassen. Leerstring, wenn keiner — so bleibt
- * Schritt A (keiner davor) byte-identisch zum bisherigen Kurzfassung-Prompt.
+ * Leere Schritte werden immer ausgelassen. Gibt es keinen Vorgänger, steht dort
+ * `KEIN_VORKONTEXT` statt einer leeren Überschrift. Schritt A bleibt davon
+ * unberührt — sein Template führt den Platzhalter gar nicht.
  *
  * `quelle` (5. Param, Default `'freigegeben'`):
  *  - `'freigegeben'` (Einzellauf): nur freigegebene Abschnitte, KEIN Marker →
@@ -62,7 +75,7 @@ export function buildVorherigeAbschnitte(
     const marker = step.status === 'entwurf' ? ' (Entwurf)' : '';
     bloecke.push(`### Abschnitt ${id} — ${label}${marker}\n${cutAtParagraph(step.finalerText, capPerSection)}`);
   }
-  return bloecke.join('\n\n');
+  return bloecke.length ? bloecke.join('\n\n') : KEIN_VORKONTEXT;
 }
 
 /**

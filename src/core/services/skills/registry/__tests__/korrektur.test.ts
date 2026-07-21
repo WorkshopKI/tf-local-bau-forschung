@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { regelKorrekturAnweisung, regelLimit } from '../korrektur';
+import { pflichtAnfangAnweisung } from '../check-engine';
 import type { CheckResult, CheckRichtung } from '../check-engine';
 import type { QualitaetsRegel, Pruefart } from '../types';
 
@@ -72,10 +73,30 @@ describe('regelKorrekturAnweisung — Modifier + Zielwert je Typ', () => {
     expect(k!.anweisung).toBe('Formuliere Sätze mit höchstens 25 Wörtern.');
   });
 
-  it('pflicht_anfang → neu mit Soll-Anfang', () => {
-    const k = regelKorrekturAnweisung(check(), regel('pflicht_anfang', { text: 'Das Vorhaben wird' }));
+  // Bug-Klasse 13, zweiter Fundort: die frühere Fassung war `Beginne exakt mit: „<Text>“`
+  // — Literalitäts-Wort neben einem zitierten Wortlaut, der mitten im Satz endet, ohne
+  // den auflösenden Satz. Genau diese Form trieb Qwen in die Reasoning-Schleife
+  // (v2.284.1 reparierte nur die Generierungs-Seite, nicht diese hier).
+  it('pflicht_anfang → neu; Wortlaut unzitiert auf eigener Zeile + auflösender Satz', () => {
+    const text = 'Das Vorhaben wird die Kompetenz im Bereich';
+    const k = regelKorrekturAnweisung(check(), regel('pflicht_anfang', { text }));
     expect(k!.modifier).toBe('neu');
-    expect(k!.anweisung).toBe('Beginne exakt mit: „Das Vorhaben wird“');
+    // Zeilengrenze IST die Wortlaut-Grenze — nicht in Anführungszeichen gesetzt.
+    expect(k!.anweisung).toContain(`\n\n${text}\n\n`);
+    expect(k!.anweisung).toContain('endet absichtlich mitten im Satz');
+    // Die defekte Alt-Form darf nicht zurückkehren.
+    expect(k!.anweisung).not.toContain('exakt');
+    expect(k!.anweisung).not.toContain(`„${text}`);
+  });
+
+  it('Korrektur und Generierung teilen EINE Formulierung (kein Drift)', () => {
+    const text = 'Das Vorhaben wird die Kompetenz im Bereich';
+    const korrektur = regelKorrekturAnweisung(check(), regel('pflicht_anfang', { text }))!.anweisung;
+    const generierung = pflichtAnfangAnweisung(text, 'generierung');
+    // Unterschiedlicher Kopf (Korrektur benennt den Verstoß), identischer Kern.
+    const kern = `\n\n${text}\n\nDieser Wortlaut endet absichtlich mitten im Satz.`;
+    expect(korrektur).toContain(kern);
+    expect(generierung).toContain(kern);
   });
 
   it('keine_aufzaehlungen → neu (Fließtext)', () => {

@@ -234,7 +234,10 @@ function buildTeilStrukturInstruktion(teile: TeilDeklaration[]): string {
   const beispiel = teile.map(t => `{"key":"${t.key}","text":"…"}`).join(', ');
   const mapping = teile.map(t => `- \`${t.key}\`: ${t.label}`).join('\n');
   return [
-    '## Ausgabe des „Finaler Text"-Blocks (strukturiert)',
+    '## Ausgabe des „Finaler Text"-Blocks (strukturiert — ersetzt die Formatangabe oben)',
+    'Diese Vorgabe hat Vorrang: Wo oben Fließtext für `### Finaler Text` gefordert wird, gilt '
+      + 'stattdessen das folgende Format. Die Fließtext-Regeln bleiben INNERHALB der einzelnen '
+      + '`text`-Werte gültig.',
     'Gib im Abschnitt `### Finaler Text` NICHT direkt Fließtext aus, sondern AUSSCHLIESSLICH '
       + 'ein JSON-Array mit GENAU diesen Schlüsseln — in dieser Reihenfolge, NUR diese Schlüssel, '
       + 'jeder `text` als zusammenhängender Fließtext (kein Markdown, keine Aufzählungszeichen, '
@@ -310,8 +313,12 @@ export function composeSkillPrompt(
   // Teil-Generierung (opt-in): scopet einen von mehreren Teil-Läufen. Bewusst GANZ am
   // Ende, damit die „schreibe nur diesen Teil"-Vorgabe die Gesamt-Abschnitts-Beschreibung
   // im Template überstimmt. No-op ohne Wert (Bestandsläufe byte-identisch).
+  //
+  // Die Überschrift nennt AUCH den Inhalt: „Umfang/Struktur" allein zwang das Modell zu
+  // subsumieren, ob der Inhaltskontrakt unter `### Finaler Text` („Hintergrund, Stand der
+  // Technik UND Lösungsweg") mitgemeint ist — genau der Teil, den dieser Lauf weglassen soll.
   if (input.teilAufgabe && input.teilAufgabe.trim()) {
-    content += `\n\n## Teil-Vorgabe (überstimmt Umfang/Struktur oben)\n${input.teilAufgabe.trim()}`;
+    content += `\n\n## Teil-Vorgabe (überstimmt Umfang, Struktur und Inhaltsangaben oben)\n${input.teilAufgabe.trim()}`;
   }
   return content;
 }

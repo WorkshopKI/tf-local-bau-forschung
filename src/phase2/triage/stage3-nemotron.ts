@@ -29,11 +29,16 @@ Verfügbare doc_types:
 - korrespondenz: Anschreiben/Mails zum Vorhaben
 - checkliste: amtliche Checklisten
 - de_minimis: De-minimis-Bescheinigungen / -Vermerke
-- sonstiges: passt in keine der obigen Kategorien
-- irrelevant: für unsere Pipeline irrelevant
+- sonstiges: gehört zum Vorhaben, passt aber in keine der obigen Kategorien
+- irrelevant: gehört gar nicht zum Vorhaben (Werbung, Privates, Systemdateien)
+
+doc_type und relevance beschreiben ZWEI verschiedene Dinge — setze immer beide:
+- doc_type sagt, WAS das Dokument ist. relevance sagt, ob es in die Pipeline gehört.
+- doc_type "irrelevant" → relevance "irrelevant". Sonst immer relevance "relevant",
+  auch bei doc_type "sonstiges".
 
 Antwortschema:
-{"doc_type": "<einer der obigen>", "relevance": "relevant" | "irrelevant", "confidence": 0.0..1.0, "reason": "<kurz>", "fkz": "<kanonisch oder null>", "akronym": "<oder null>"}`;
+{"doc_type": "<einer der obigen>", "relevance": "relevant" | "irrelevant", "confidence": 0.0..1.0, "reason": "<kurz>", "fkz": "<Format 16KN123456: 2 Ziffern, 2 Großbuchstaben, 6 Ziffern — oder null>", "akronym": "<mindestens 2 Zeichen — oder null>"}`;
 
 export interface Stage3Input {
   filename: string;
@@ -105,7 +110,11 @@ export async function runStage3(input: Stage3Input): Promise<Stage3Output> {
     '',
     'Erste Tokens des Dokuments:',
     '---',
-    input.page1_text.slice(0, 4000),
+    // Kürzung sichtbar machen: ohne Marker endet der Auszug stumm mitten im Satz und
+    // das Modell muss raten, ob das Dokument dort aufhört (Prompt-Audit 2026-07).
+    input.page1_text.length > 4000
+      ? `${input.page1_text.slice(0, 4000)}\n[…Auszug hier gekürzt, das Dokument geht weiter]`
+      : input.page1_text,
     '---',
     '',
     'Antworte mit dem JSON-Schema.',

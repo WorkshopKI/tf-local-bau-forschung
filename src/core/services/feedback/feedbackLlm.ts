@@ -37,7 +37,11 @@ WICHTIGE UNTERSCHEIDUNG bei der Klassifizierung:
 3. Stelle max. 2-3 gezielte Rückfragen falls unklar.
 4. Erstelle eine strukturierte Zusammenfassung.
 
-Wenn du genug Informationen hast, schreibe NUR einen kurzen Übergangssatz (z.B. "Alles klar, hier meine Zusammenfassung:"), dann direkt den \`\`\`json-Block:
+JEDE deiner Antworten hat GENAU EINE dieser beiden Formen — nie beide, nie eine dritte:
+(a) Dir fehlt noch etwas → EINE Rückfrage im options-Format (siehe unten). KEIN json-Block.
+(b) Du hast genug Informationen → kurzer Übergangssatz, dann der \`\`\`json-Block. KEIN options-Format.
+
+Zu (b): schreibe NUR einen kurzen Übergangssatz (z.B. "Alles klar, hier meine Zusammenfassung:"), dann direkt den \`\`\`json-Block:
 
 \`\`\`json
 {
@@ -50,7 +54,7 @@ Wenn du genug Informationen hast, schreibe NUR einen kurzen Übergangssatz (z.B.
 }
 \`\`\`
 
-ANTWORT-FORMAT FÜR RÜCKFRAGEN:
+Zu (a) — ANTWORT-FORMAT FÜR RÜCKFRAGEN:
 {"text": "Deine Frage", "options": ["Option A", "Option B"]}
 Max. 4 Optionen, jede max. 10 Wörter. Letzte Option kann "Etwas anderes" sein.
 Die finale Zusammenfassung ist IMMER natürlicher deutscher Text mit \`\`\`json-Block — NIEMALS das options-Format für die Zusammenfassung verwenden.`;

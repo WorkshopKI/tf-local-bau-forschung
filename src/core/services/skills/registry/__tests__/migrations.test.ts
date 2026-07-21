@@ -15,8 +15,14 @@ import {
   GA_UMFANG_DEDUP_MIGRATION,
   GA_UMFANG_DEDUP_CD_MIGRATION,
   GA_PFLICHT_ANFANG_KLAR_MIGRATION,
+  ANFRAGE_ANON_KLAR_MIGRATION,
 } from '../migrations';
-import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
+import {
+  ANFRAGE_ANONYMISIEREN_SKILL_ID,
+  ANFRAGE_ANONYMISIEREN_SKILL,
+  ANON_SYSTEM_PROMPT_ALT,
+  ANON_PROMPT_TEMPLATE_ALT,
+} from '../anfrage-anonymisieren.seed';
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from '../aufbereitung-zahlen.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL_ID } from '../aufbereitung-steckbrief.seed';
 import {
@@ -53,7 +59,7 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
@@ -63,6 +69,7 @@ const NUR_RISIKEN = ALLE_MARKER.filter(m => m !== GA_RISIKEN_ENTWURF_MIGRATION);
 const NUR_UMFANG = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_MIGRATION);
 const NUR_UMFANG_CD = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_CD_MIGRATION);
 const NUR_PFLICHT_ANFANG = ALLE_MARKER.filter(m => m !== GA_PFLICHT_ANFANG_KLAR_MIGRATION);
+const NUR_ANON_KLAR = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_KLAR_MIGRATION);
 
 const OLD_A = buildKurzfassungPrompt(false);
 const NEW_A = buildKurzfassungPrompt(true);
@@ -463,6 +470,59 @@ describe('reconcile — Pflicht-Anfang G aus der zitierten Inline-Regel lösen',
   });
 });
 
+// Prompt-Audit 2026-07: Zielkonflikt, WÖRTLICH-Scope und Echtwerte in der Feld-Schablone.
+describe('reconcile — Anonymisierer-Prompt klären', () => {
+  const altAnon = (extra: Partial<SkillRecord> = {}): SkillRecord => ({
+    ...skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, { version: 2 }),
+    systemPrompt: ANON_SYSTEM_PROMPT_ALT,
+    promptTemplate: ANON_PROMPT_TEMPLATE_ALT,
+    ...extra,
+  });
+
+  it('der Alt-Stand trägt die drei Defekte, der Neu-Stand keinen davon', () => {
+    expect(ANON_PROMPT_TEMPLATE_ALT).toContain('Dr. Schmidt');
+    expect(ANON_SYSTEM_PROMPT_ALT).toContain('in `mapping` wie in `verallgemeinerungen`');
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).not.toContain('Dr. Schmidt');
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.systemPrompt).not.toContain('in `mapping` wie in `verallgemeinerungen`');
+  });
+
+  it('pristine v2 → neuer Prompt, Marker gesetzt, version ≥ 3', () => {
+    const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(file([altAnon()], NUR_ANON_KLAR));
+    expect(geaendert).toBe(true);
+    expect(angewandt).toContain(ANFRAGE_ANON_KLAR_MIGRATION);
+    expect(out.skills[0]?.promptTemplate).toBe(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate);
+    expect(out.skills[0]?.systemPrompt).toBe(ANFRAGE_ANONYMISIEREN_SKILL.systemPrompt);
+    expect(out.skills[0]?.version).toBe(3);
+  });
+
+  it('kuratiert editierter System-Prompt bleibt UNBERÜHRT (Guard über BEIDE Felder)', () => {
+    const eigen = altAnon({ systemPrompt: `${ANON_SYSTEM_PROMPT_ALT}\nHauseigene Regel.` });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([eigen], NUR_ANON_KLAR));
+    expect(out.skills[0]?.systemPrompt).toBe(`${ANON_SYSTEM_PROMPT_ALT}\nHauseigene Regel.`);
+    expect(out.skills[0]?.promptTemplate).toBe(ANON_PROMPT_TEMPLATE_ALT);
+  });
+
+  it('kuratiert editiertes Template bleibt UNBERÜHRT', () => {
+    const eigen = altAnon({ promptTemplate: `${ANON_PROMPT_TEMPLATE_ALT}\nZusatz.` });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([eigen], NUR_ANON_KLAR));
+    expect(out.skills[0]?.promptTemplate).toBe(`${ANON_PROMPT_TEMPLATE_ALT}\nZusatz.`);
+  });
+
+  it('`aktiv` wird nicht angefasst — die Freischaltung bleibt eigene Entscheidung', () => {
+    const gesperrt = altAnon({ aktiv: false });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([gesperrt], NUR_ANON_KLAR));
+    expect(out.skills[0]?.aktiv).toBe(false);
+    expect(out.skills[0]?.promptTemplate).toBe(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate);
+  });
+
+  it('idempotent: zweiter Lauf ist No-op und senkt die Version nicht', () => {
+    const erst = reconcileEinmaligeAktivierungen(file([altAnon({ version: 7 })], NUR_ANON_KLAR));
+    const zweit = reconcileEinmaligeAktivierungen(erst.file);
+    expect(zweit.geaendert).toBe(false);
+    expect(zweit.file.skills[0]?.version).toBe(7);
+  });
+});
+
 describe('reconcile — alle Migrationen zusammen', () => {
   it('frischer Share: alle Marker gesetzt (in Reihenfolge), geaendert', () => {
     const { file: out, geaendert, angewandt } = reconcileEinmaligeAktivierungen(
@@ -475,7 +535,7 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);

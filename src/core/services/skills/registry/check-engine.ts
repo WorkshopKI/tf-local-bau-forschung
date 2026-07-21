@@ -259,6 +259,33 @@ export function erkennungsEintraege(params: Record<string, unknown>): Erkennungs
   });
 }
 
+/**
+ * DIE Quelle für jede Pflicht-Anfang-Anweisung ans Modell (Generierung UND
+ * KI-Korrektur) — Bug-Klasse 13, zweimal zugeschlagen.
+ *
+ * Drei Eigenschaften sind tragend und dürfen an keiner Kopie fehlen:
+ *  1. Der Wortlaut steht **unzitiert auf eigener Zeile** — die Zeilengrenze IST
+ *     die Grenze. In Anführungszeichen gesetzt ist für das Modell nicht
+ *     entscheidbar, wo der Wortlaut aufhört.
+ *  2. Der Prompt sagt **ausdrücklich**, dass er absichtlich mitten im Satz endet.
+ *     Ohne diesen Satz sucht das Modell den fehlenden Rest.
+ *  3. Kein Literalitäts-Wort (exakt/wortgetreu) unmittelbar neben einem
+ *     Zitat, das den Wortlaut abgeschnitten zeigt.
+ *
+ * Genau diese drei fehlten der früheren Korrektur-Fassung, die den Wortlaut
+ * zitiert und mitten im Satz endend zeigte. Sie hatte den v2.284.1-Fix
+ * überlebt — darum EINE Funktion statt zweier Formulierungen, die
+ * auseinanderlaufen können.
+ */
+export function pflichtAnfangAnweisung(text: string, zweck: 'generierung' | 'korrektur'): string {
+  const kopf = zweck === 'korrektur'
+    ? 'Der finale Text beginnt nicht mit dem vorgeschriebenen Wortlaut. Beginne ihn mit genau diesem Wortlaut:'
+    : 'Der finale Text muss mit genau diesem Wortlaut beginnen:';
+  return `${kopf}\n\n${text.trim()}\n\n`
+    + 'Dieser Wortlaut endet absichtlich mitten im Satz. Übernimm ihn unverändert und führe '
+    + 'ihn zu einem vollständigen Satz fort.';
+}
+
 const HANDLERS: Record<RegelTyp, RegelHandler> = {
   zeichen_max: {
     check: (text, params) => {
@@ -372,23 +399,25 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       };
     },
     // Zweiseitig (vermeiden + stattdessen) und REGEXFREI: ein gepflegter
-    // `hinweisVermeiden` gewinnt; sonst menschenlesbare Labels (Phrasen/Synonym)
-    // bzw. ein generischer Satz im Regex-Modus — nie roher Regex im Prompt.
+    // `hinweisVermeiden` gewinnt, sonst menschenlesbare Labels (Phrasen/Synonym) —
+    // nie roher Regex im Prompt.
+    //
+    // Bleibt beides leer (Regex-Modus ohne gepflegten Hinweis), gibt es KEINEN
+    // Hinweis. Der frühere Fallback „Vermeide die hinterlegten verbotenen
+    // Formulierungen." verwies auf etwas, das im Prompt gar nicht steht: das Modell
+    // konnte ihn weder befolgen noch verifizieren und fand die Referenz nicht. Der
+    // deterministische Check läuft davon unberührt weiter — verloren geht nichts.
     hint: params => {
-      const modus = eingabeModusOf(params);
       const vermeiden = strParam(params, 'hinweisVermeiden').trim();
       const stattdessen = strParam(params, 'hinweisStattdessen').trim();
-      let neg: string;
+      let neg = '';
       if (vermeiden) {
         neg = `Vermeide ${vermeiden}.`;
-      } else if (modus === 'regex') {
-        neg = 'Vermeide die hinterlegten verbotenen Formulierungen.';
-      } else {
+      } else if (eingabeModusOf(params) !== 'regex') {
         const labels = erkennungsEintraege(params).map(e => e.label).filter(Boolean);
-        neg = labels.length
-          ? `Vermeide Formulierungen wie ${labels.map(l => `„${l}"`).join(', ')}.`
-          : 'Vermeide die hinterlegten verbotenen Formulierungen.';
+        if (labels.length) neg = `Vermeide Formulierungen wie ${labels.map(l => `„${l}"`).join(', ')}.`;
       }
+      if (!neg) return '';
       return (neg + (stattdessen ? ` Formuliere stattdessen ${stattdessen}.` : '')).trim();
     },
   },
@@ -404,15 +433,10 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
         ...(ok ? {} : { detail: `Muss mit „${ziel.slice(0, 60)}…" beginnen.` }),
       };
     },
-    // Der Wortlaut steht UNZITIERT auf eigener Zeile: ein Pflicht-Anfang endet
-    // typischerweise mitten im Satz, und in Anführungszeichen gesetzt ist für das Modell
-    // nicht entscheidbar, wo er aufhört (das trieb Qwen in eine Reasoning-Schleife —
-    // siehe `abschnittTemplate.pflichtAnfang`). Darum Zeilengrenze + expliziter Hinweis.
-    hint: params =>
-      'Der finale Text muss mit genau diesem Wortlaut beginnen:\n\n'
-      + `${strParam(params, 'text').trim()}\n\n`
-      + 'Der Wortlaut endet absichtlich mitten im Satz. Übernimm ihn unverändert und führe '
-      + 'ihn zu einem vollständigen Satz fort.',
+    // Wortlaut unzitiert auf eigener Zeile + expliziter Hinweis auf das absichtliche
+    // Satz-Ende — die Begründung steht bei `pflichtAnfangAnweisung` (eine Quelle für
+    // Generierung UND KI-Korrektur, damit die beiden nicht auseinanderlaufen).
+    hint: params => pflichtAnfangAnweisung(strParam(params, 'text'), 'generierung'),
   },
 
   keine_aufzaehlungen: {
@@ -496,24 +520,38 @@ export function runRegelChecks(finalerText: string, regeln: QualitaetsRegel[]): 
   return results;
 }
 
-/** Erzeugt den deutschen Prompt-Hinweis einer einzelnen Regel (für Vorschau). */
+/**
+ * Erzeugt den deutschen Prompt-Hinweis einer einzelnen Regel (für Vorschau).
+ * `null` auch dann, wenn die Regel bewusst KEINEN Hinweis beisteuert (z.B.
+ * `verbotenes_muster` im Regex-Modus ohne gepflegten `hinweisVermeiden`).
+ */
 export function buildPromptHinweis(regel: QualitaetsRegel): string | null {
   if (!isKnownTyp(regel.typ)) return null;
-  return HANDLERS[regel.typ].hint(regel.params);
+  return HANDLERS[regel.typ].hint(regel.params).trim() || null;
 }
 
 /**
  * Baut den Block „Formale Vorgaben", der dem Skill-Prompt zur Laufzeit
  * angehängt wird (nur AKTIVE, bekannte Regeln). Leerstring, wenn keine.
+ *
+ * Mehrzeilige Hinweise (Pflicht-Anfang) stehen als eigener Absatz UNTER der
+ * Liste, nicht als Bullet: nur die erste Zeile trüge das „- ", die Folgezeilen
+ * fielen strukturell aus dem Listenpunkt heraus und brächen die Liste auf.
  */
 export function buildPromptVorgaben(regeln: QualitaetsRegel[]): string {
   const hinweise: string[] = [];
   for (const r of regeln) {
     if (!r.aktiv || !isKnownTyp(r.typ)) continue;
-    hinweise.push(HANDLERS[r.typ].hint(r.params));
+    const hinweis = HANDLERS[r.typ].hint(r.params).trim();
+    if (hinweis) hinweise.push(hinweis);
   }
   if (hinweise.length === 0) return '';
-  return `## Formale Vorgaben\n${hinweise.map(h => `- ${h}`).join('\n')}`;
+  const einzeilig = hinweise.filter(h => !h.includes('\n'));
+  const mehrzeilig = hinweise.filter(h => h.includes('\n'));
+  const kopf = einzeilig.length
+    ? `## Formale Vorgaben\n${einzeilig.map(h => `- ${h}`).join('\n')}`
+    : '## Formale Vorgaben';
+  return [kopf, ...mehrzeilig].join('\n\n');
 }
 
 /* -------------------------------------------------------------------------- */

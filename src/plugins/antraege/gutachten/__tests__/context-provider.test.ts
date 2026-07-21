@@ -25,9 +25,16 @@ function runABfreigegebenCentwurf(): WorkflowRun {
 }
 
 describe('buildVorherigeAbschnitte', () => {
-  it('ist leer für Schritt A (keiner davor) — A bleibt byte-identisch', () => {
+  // Prompt-Audit 2026-07: früher ein Leerstring — der ließ im Template eine Überschrift
+  // ohne Inhalt zurück („Bereits freigegebene frühere Abschnitte — Konsistenz-Referenz"),
+  // die eine Referenz verspricht und nichts liefert. Bei einem frischen Gutachten traf
+  // das JEDEN Abschnitt. Schritt A ist davon unberührt: sein Template führt den
+  // Platzhalter gar nicht (verankert in compose-prompt.test.ts).
+  it('ohne Vorgänger: ausdrückliche Auskunft statt Leerstring', () => {
     const run = runABfreigegebenCentwurf();
-    expect(buildVorherigeAbschnitte(run, 'A', ZIM_EP_WORKFLOW)).toBe('');
+    const block = buildVorherigeAbschnitte(run, 'A', ZIM_EP_WORKFLOW);
+    expect(block).toBe('Keine — es sind noch keine früheren Abschnitte freigegeben.');
+    expect(block).not.toBe('');
   });
 
   it('enthält nur FREIGEGEBENE frühere Abschnitte (Entwurf/leer ausgelassen)', () => {

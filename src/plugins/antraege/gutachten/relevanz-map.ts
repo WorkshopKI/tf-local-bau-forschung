@@ -130,6 +130,7 @@ Wähle für JEDEN Gutachten-Teil die VB-Abschnitte (Heading-IDs) aus, die für i
 - Wähle **großzügig** — lieber einen Abschnitt zu viel als einen tragenden Abschnitt zu verpassen.
 - **Fasse NICHTS zusammen** und gib KEINEN Fließtext aus — ausschließlich die Heading-IDs.
 - Nutze nur die oben vergebenen IDs (\`h0\`, \`h1\`, … bzw. \`h-intro\`).
+- Passt zu einem Teil wirklich kein Abschnitt, schreibe die Zeile trotzdem und lasse sie hinter dem Doppelpunkt leer. Das ist ein zulässiges Ergebnis.
 
 ## Ausgabeformat (genau eine Zeile je Gutachten-Teil)
 <teil-id>: h0, h3, h7

@@ -18,7 +18,7 @@
  * Stil-Vorbild: `kategorien.ts` (private Maps + benannte Exports, kein Default).
  */
 import type { QualitaetsRegel, SkillModifierKey } from './types';
-import type { CheckResult } from './check-engine';
+import { pflichtAnfangAnweisung, type CheckResult } from './check-engine';
 
 export interface RegelKorrektur {
   /** Bestehender Modifier, der den Korrektur-Lauf trägt. */
@@ -138,7 +138,11 @@ export function regelKorrekturAnweisung(check: CheckResult, regel: QualitaetsReg
     case 'pflicht_anfang': {
       const text = optStr(p, 'text');
       if (!text) return null;
-      return mk('neu', `Beginne exakt mit: „${text}“`);
+      // NICHT selbst formulieren: die frühere Kurzform zeigte den Wortlaut zitiert
+      // und abgeschnitten. Das ist Bug-Klasse 13 und trieb Qwen in eine
+      // Reasoning-Schleife. Der Wortlaut gehört unzitiert auf eine eigene Zeile,
+      // mit Hinweis auf das absichtliche Satz-Ende — eine Quelle für beide Pfade.
+      return mk('neu', pflichtAnfangAnweisung(text, 'korrektur'));
     }
     case 'keine_aufzaehlungen':
       return mk('neu', 'Wandle Aufzählungen in Fließtext um.');

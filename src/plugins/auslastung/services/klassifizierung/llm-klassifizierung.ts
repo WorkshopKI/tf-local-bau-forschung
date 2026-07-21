@@ -126,12 +126,20 @@ export function buildPromptText(verbuende: LLMVerbund[], kategorien: UeberKatego
     'Kategorien:',
     katBlock,
     '',
-    'Beispiel: verbundTitel "H2Select - EcoPlay", tvTitels ["Entwicklung kompatibilisierter Polymerblends...", "Greifersystem mit adaptiver Prozessregelung..."]',
-    `→ primaer: ${kategorien[0]?.id ?? 'IT'} (Materialentwicklung ist Ingenieurtechnik)`,
-    `→ aspekte: [${kategorien[1]?.id ?? 'DT'}] (Prozessregelung ist Werkzeug, nicht das Thema)`,
+    // Abgrenzung primaer/aspekte OHNE konkrete Kategorie-IDs: die frueheren Zeilen
+    // interpolierten `kategorien[0].id`, behielten aber die feste Begruendung
+    // „Materialentwicklung ist Ingenieurtechnik" — steht Ingenieurtechnik nicht an
+    // Position 0, widerlegte das Beispiel sich selbst, direkt ueber der Liste, aus der
+    // das Modell waehlen soll.
+    'Abgrenzung primaer/aspekte am Beispiel: Ein Verbund entwickelt neuartige Polymerblends',
+    'und nutzt dafuer eine adaptive Prozessregelung.',
+    '→ primaer = die Kategorie, die die Materialentwicklung abdeckt (das Kernthema).',
+    '→ aspekte = die Kategorie der Prozessregelung (nur Werkzeug, nicht das Thema).',
+    'Beide IDs stammen aus der Kategorienliste oben.',
     '',
     'Antworte NUR als JSON-Array dieser Form (id = Verbund-ID, KEINE Erklaerung davor oder danach):',
-    `[{"id":"VB-1","primaer":"${kategorien[0]?.id ?? 'IT'}","aspekte":["${kategorien[1]?.id ?? 'DT'}"],"begruendung":"kurzer Satz"}]`,
+    '[{"id":"<verbund-id>","primaer":"<kategorie-id>","aspekte":["<kategorie-id>"],"begruendung":"<kurzer Satz>"}]',
+    '(Formatbeispiel — setze die echten Verbund-IDs aus der Liste unten ein, nie diese Platzhalter.)',
     '',
     'Verbuende:',
     verbuendeJson,

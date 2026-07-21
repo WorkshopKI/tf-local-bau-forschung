@@ -167,10 +167,38 @@ describe('Anonymisierungs-Skill — Invarianten', () => {
     expect(skillEnthaeltDokumentInhalte(ANFRAGE_ANONYMISIEREN_SKILL)).toBe(true);
   });
 
-  it('Zwei-Stufen-Modell: version 2 + Prompt deckt verallgemeinerungen UND {{zielText}} ab', () => {
-    expect(ANFRAGE_ANONYMISIEREN_SKILL.version).toBe(2);
+  it('Zwei-Stufen-Modell: version 3 + Prompt deckt verallgemeinerungen UND {{zielText}} ab', () => {
+    expect(ANFRAGE_ANONYMISIEREN_SKILL.version).toBe(3);
     expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).toContain('verallgemeinerungen');
     expect(ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate).toContain('{{zielText}}');
+  });
+
+  // Prompt-Audit 2026-07: Die Feld-Schablone trug vollplausible ECHTwerte. Wiederholt das
+  // Modell sie (typisches Reasoning-Verhalten), fischt der Parser sie als Daten heraus —
+  // und `mapping` wird WÖRTLICH in den finalen Text zurückgesetzt. Ein Phantom-Name im
+  // DSGVO-Pfad. Dass hier Prompt-Inhalt geparst wird, ist schon einmal passiert (siehe
+  // den <think>-Test oben, der `extractThinking` erzwang).
+  it('Feld-Schablone enthält keine plausiblen Echtwerte', () => {
+    const t = ANFRAGE_ANONYMISIEREN_SKILL.promptTemplate;
+    expect(t).not.toContain('Dr. Schmidt');
+    expect(t).not.toContain('VW-Zulieferer');
+    // Stattdessen erkennbare Feld-Beschreibungen, die als Wert nutzlos wären.
+    expect(t).toContain('<der Wortlaut, der dort stand>');
+    expect(t).toContain('übernimm sie nicht in die Antwort');
+  });
+
+  it('WÖRTLICH-Pflicht ist auf `mapping` begrenzt (nicht auf die freie Stufe-B-Passage)', () => {
+    const sp = ANFRAGE_ANONYMISIEREN_SKILL.systemPrompt!;
+    expect(sp).toContain('`mapping[].original` muss ZEICHENGENAU');
+    expect(sp).toContain('nur protokolliert, nicht wiedereingesetzt');
+    // Die pauschale Alt-Formulierung über beide Felder darf nicht zurückkehren.
+    expect(sp).not.toContain('in `mapping` wie in `verallgemeinerungen`');
+  });
+
+  it('kein Zielkonflikt mehr zwischen „aggressiv" und „fachlicher Sinn bleibt"', () => {
+    const sp = ANFRAGE_ANONYMISIEREN_SKILL.systemPrompt!;
+    expect(sp).toContain('Aggressiv heißt NIE ersatzlos streichen');
+    expect(sp).toContain('es gibt hier keinen Zielkonflikt');
   });
 
   it('istAnonymisiererAktiv: false nur bei explizitem aktiv:false, sonst true', () => {

@@ -57,7 +57,12 @@ export function buildResultBlock(results: ReadonlyArray<UnifiedSearchResult>): s
 
 function buildOneBlock(r: UnifiedSearchResult): string {
   const typ = r.type === 'antrag' ? 'Förderantrag' : 'Dokument';
-  const snippet = (r.snippet ?? '').slice(0, MAX_SNIPPET_CHARS);
+  const roh = r.snippet ?? '';
+  // Kürzung sichtbar machen: ein stumm mitten im Satz endender Auszug zwingt das
+  // Modell zu entscheiden, ob der Text dort wirklich aufhört (Prompt-Audit 2026-07).
+  const snippet = roh.length > MAX_SNIPPET_CHARS
+    ? `${roh.slice(0, MAX_SNIPPET_CHARS)} […hier gekürzt]`
+    : roh;
   const lines = [
     `--- id: ${r.id}`,
     `Typ: ${typ}`,
@@ -73,8 +78,11 @@ function buildOneBlock(r: UnifiedSearchResult): string {
 }
 
 /** Assembliert den vollständigen Prompt: feste Frage-Einbettung + editierbare
- *  Anweisung + fester JSON-Vertrag + Treffer-Block. Der JSON-Vertrag steht
- *  IMMER drin, egal was der User in der Anweisung ändert. */
+ *  Anweisung + fester Format-Vertrag + Treffer-Block. Der Format-Vertrag steht
+ *  IMMER drin, egal was der User in der Anweisung ändert — und sagt das dem
+ *  Modell auch selbst (ein Vorrang, der nur hier im Kommentar stünde, existiert
+ *  für das Modell nicht). Er regelt NUR die Struktur; Inhalt und Länge bleiben
+ *  Sache der editierbaren Anweisung, damit es keine zweite Längen-Quelle gibt. */
 export function assembleBegruendungPrompt(query: string, instruction: string, block: string): string {
   return [
     `# Anfrage des Nutzers`,
@@ -84,14 +92,19 @@ export function assembleBegruendungPrompt(query: string, instruction: string, bl
     instruction.trim(),
     ``,
     `# Ausgabeformat (verbindlich)`,
-    `Gib für JEDEN unten gelisteten Treffer GENAU einen Block aus: zuerst eine eigene Zeile mit dem Marker ${MARKER} und der unveränderten id, danach in den Folgezeilen die Begründung (2–3 Sätze). KEIN JSON, keine Aufzählung, keine Maskierung von Anführungszeichen nötig. Nichts vor dem ersten Marker, nichts nach dem letzten Block.`,
+    // Vorrang MUSS im Prompt stehen, nicht nur im Code-Kommentar — das Modell sieht
+    // Kommentare nicht. Und: hier KEINE Satzzahl mehr nennen. Sie stand doppelt (fest
+    // hier + in der nutzer-editierbaren Anweisung) und lief bei jeder Anweisungs-
+    // Änderung auseinander; Länge gehört allein in die Anweisung, hier nur die Struktur.
+    `Diese Formatvorgabe hat Vorrang vor abweichenden Formatangaben in der Anweisung oben; Inhalt und Länge richten sich weiter nach der Anweisung.`,
+    `Gib für JEDEN unten gelisteten Treffer GENAU einen Block aus: zuerst eine eigene Zeile mit dem Marker ${MARKER} und der unveränderten id, danach in den Folgezeilen die Begründung. KEIN JSON, keine Aufzählung, keine Maskierung von Anführungszeichen nötig. Nichts vor dem ersten Marker, nichts nach dem letzten Block.`,
     ``,
     `Format pro Treffer:`,
     `${MARKER} <id>`,
-    `<Begründung in 2–3 Sätzen, Anführungszeichen erlaubt>`,
+    `<Begründung, Anführungszeichen erlaubt>`,
     ``,
-    `Beispiel:`,
-    `${MARKER} 16KN000000`,
+    `Beispiel (Platzhalter — nutze ausschließlich die echten ids aus dem Treffer-Block unten):`,
+    `${MARKER} <id-aus-dem-treffer-block>`,
     `Der Antrag entwickelt einen "Prozessstandard" und ist daher für die Anfrage relevant.`,
     ``,
     `# Treffer`,
