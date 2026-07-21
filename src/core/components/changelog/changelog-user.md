@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.285 — 2026-07
+
+### Verbesserungen
+- **Die KI bekommt klarere Aufträge.** Nachdem sich beim Abschnitt „Technologiekompetenz" gezeigt hatte, dass eine widersprüchliche Formulierung die KI minutenlang im Kreis denken lässt, wurden alle Aufträge der App daraufhin durchgesehen. Gefunden und behoben: Anweisungen, die sich auf Angaben beriefen, die gar nicht mitgeschickt wurden; Überschriften, unter denen nichts stand; und Stellen, an denen zwei Vorgaben Gegenteiliges verlangten, ohne zu sagen, welche gilt.
+- **Der Anonymisierer arbeitet zuverlässiger.** Sein Auftrag enthielt ein Beispiel mit einem erfundenen Namen — die KI konnte es für echte Daten halten und den Namen in den fertigen Text zurückschreiben. Das Beispiel ist jetzt eindeutig als Schablone erkennbar. Außerdem verlangte der Auftrag gleichzeitig „so viel wie möglich ersetzen" und „den fachlichen Sinn erhalten", ohne den Widerspruch aufzulösen.
+
+### Neu
+- **Der Assistent lässt sich abbrechen.** Denkt er ungewöhnlich lange, beendet ein Klick auf „Abbrechen" den Vorgang. Bisher gab es keine Möglichkeit, einen laufenden Vorgang zu stoppen.
+
 ## v2.284 — 2026-07
 
 ### Bugfixes

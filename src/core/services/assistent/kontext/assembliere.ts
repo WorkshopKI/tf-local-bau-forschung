@@ -11,7 +11,7 @@
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { getStatusLabel } from '@/core/utils/status-mappings';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
-import { GRUNDSATZ_REGELN } from '@/core/services/skills/registry/grundsatz';
+import { QUELLENTREUE_REGELN } from '@/core/services/skills/registry/grundsatz';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
 import type { ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet, VorhabenDokument } from './types';
 
@@ -38,9 +38,17 @@ function collapse(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Kürzt auf `max` und markiert die Kürzung ausdrücklich.
+ *
+ * Ein blosses „…" ist mehrdeutig: VB-Prosa enthält selbst Auslassungspunkte, das Modell
+ * kann also nicht entscheiden, ob der Text dort endet oder abgeschnitten wurde. Bei einem
+ * Block, der zugleich als „wörtlich" angekündigt war, wurde daraus eine nicht einlösbare
+ * Zusage (Prompt-Audit 2026-07).
+ */
 function trimTo(s: string, max: number): string {
   const c = collapse(s);
-  return c.length <= max ? c : `${c.slice(0, max - 1)}…`;
+  return c.length <= max ? c : `${c.slice(0, max)} […hier gekürzt]`;
 }
 
 // ── Block 1: Systemblock (inkl. geteiltem Grundsatz-Block) ───────────────────
@@ -50,12 +58,17 @@ const SYSTEM_BLOCK = [
   '',
   'Grenzen:',
   '- Nutze AUSSCHLIESSLICH die unten bereitgestellten Fakten und Auszüge. Kennst du etwas nicht, sage das offen — rate nicht.',
-  '- Triff keine Rechts- oder Förderentscheidungen; du unterstützt die Arbeit, entscheidest sie nicht.',
-  '- Du kennst nur die aktuelle Ansicht und die bereitgestellten Dokumente, keine früheren Sitzungen.',
-  '- Antworte auf Deutsch, kurz und konkret.',
+  // Vorher: „Triff keine Rechts- oder Förderentscheidungen" ohne erlaubte Alternative.
+  // Auf „Ist das förderfähig?" — in einer App mit einem Förderfähigkeits-Modul die
+  // naheliegendste Frage — sagte der Prompt nicht, was das Modell stattdessen TUN soll.
+  '- Triff keine Rechts- oder Förderentscheidungen. Gefragt danach, nenne die Angaben und Kriterien aus dem Kontext und überlasse die Entscheidung dem Nutzer.',
+  '- Frühere Sitzungen kennst du nicht. Steht unten ein Block „Hintergrundwissen", stammt er aus einer Zusammenfassung deiner App und ist nutzbar — er kann aber veraltet sein; der Faktenblock hat immer Vorrang.',
+  '- Antworte auf Deutsch. Halte dich kurz: in der Regel höchstens fünf Sätze, bei einer reinen Nachfrage ein bis zwei.',
   '',
-  'Für Aussagen über den Antrag / die Vorhabensbeschreibung (VB) gelten zusätzlich:',
-  GRUNDSATZ_REGELN,
+  // Quellen-agnostische Variante statt GRUNDSATZ_REGELN: hier entsteht kein
+  // Gutachtentext, und der tragende Teil des Kontexts (Status, Fristen, nächster
+  // Schritt) steht gerade NICHT in der VB — siehe die Begründung an QUELLENTREUE_REGELN.
+  QUELLENTREUE_REGELN,
 ].join('\n');
 
 /** Menschliches Ampel-/Frist-Wording liegt beim Controller (Plugin-Helfer). */
@@ -160,7 +173,13 @@ function retrievalKandidaten(treffer: ReadonlyArray<OramaSearchResult> | null): 
 
 function retrievalBlock(chunks: OramaSearchResult[]): string {
   if (chunks.length === 0) return '';
-  const zeilen = ['=== Auszüge aus den Dokumenten (wörtlich) ==='];
+  // Kein „(wörtlich)" mehr in der Überschrift: die Auszüge sind whitespace-normalisiert
+  // und ab einer Grenze gekürzt. Die Zusage war nicht einlösbar — auf „zitiere das
+  // wörtlich" konnte das Modell sie nicht halten und nicht erkennen, warum.
+  const zeilen = [
+    '=== Auszüge aus den Dokumenten ===',
+    '(sinngetreue Auszüge; Zeilenumbrüche entfernt, lange Stellen gekürzt — als Beleg nutzbar, aber nicht als wörtliches Zitat)',
+  ];
   chunks.forEach((c, i) => {
     zeilen.push(`[${i + 1}] ${c.title || c.source}: ${trimTo(c.text, RETRIEVAL_CHUNK_MAX_CHARS)}`);
   });

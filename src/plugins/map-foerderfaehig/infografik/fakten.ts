@@ -18,8 +18,13 @@
 import { formatDatum } from '../import/laufzeit';
 import type { MapEinreichung } from '../types';
 
-/** Fakten ohne Wert sind keine Vergleichsgrundlage — das Prompt sagt es explizit. */
-const OHNE_WERT = 'nicht angegeben';
+/**
+ * Fakten ohne Wert sind keine Vergleichsgrundlage — das Prompt sagt es explizit.
+ * EXPORTIERT, damit `schema.ts` den Sentinel interpoliert statt ihn zu wiederholen:
+ * die Ausnahmeregel im Prompt war auf den Literalwert verdrahtet und hätte bei einer
+ * Änderung hier stumm ins Leere gegriffen (Prompt-Audit 2026-07).
+ */
+export const OHNE_WERT = 'nicht angegeben';
 
 function euro(n: number | null): string {
   return n === null ? OHNE_WERT : `${n.toLocaleString('de-DE', { maximumFractionDigits: 0 })} €`;
@@ -32,7 +37,12 @@ function pm(n: number | null): string {
 function laufzeitZeile(e: MapEinreichung): string {
   const { start, ende, monate } = e.laufzeit;
   if (start === null && ende === null && monate === null) return `- Laufzeit: ${OHNE_WERT}`;
-  const spanne = `${formatDatum(start)} bis ${formatDatum(ende)}`;
+  // Fehlt nur EINE Grenze, lieferte `formatDatum(null)` den Geviertstrich „—" — eine
+  // reine UI-Konvention, die die Sentinel-Ausnahme des Prompts nicht abdeckt. Das Modell
+  // hätte raten müssen, ob das ein Datum, ein Platzhalter oder ein Fehler ist, und in
+  // einem Block, gegen den es Widersprüche melden soll.
+  const grenze = (d: string | null): string => (d === null ? OHNE_WERT : formatDatum(d));
+  const spanne = `${grenze(start)} bis ${grenze(ende)}`;
   return `- Laufzeit: ${spanne}`
     + (monate === null ? '' : ` (${monate} Monate)`);
 }

@@ -65,10 +65,20 @@ describe('assembliereAssistentKontext', () => {
     expect(iHistorie).toBeLessThan(iFrage);
   });
 
-  it('(2b) bindet den geteilten Grundsatz-Block ein', () => {
+  // Prompt-Audit 2026-07: hier lag GRUNDSATZ_REGELN — ein Block, der auf die Erstellung
+  // von ZIM-Gutachtentext gemünzt ist. Im Assistenten erzeugte er drei Widersprüche:
+  // „ausschließlich Inhalte der VB" schließt den tragenden Faktenblock (Status, Fristen)
+  // aus; der Token `[Im Antrag nicht genannt]` konkurriert mit zwei anderen Regeln für
+  // denselben Fall; und „keine AP-Verweise" verbietet die Antwort auf „Was steckt in
+  // AP1?" ohne Alternative. Jetzt die quellen-agnostische Variante.
+  it('(2b) bindet die quellen-agnostische Quellentreue ein, nicht die Gutachten-Regeln', () => {
     const { promptText } = assembliereAssistentKontext(base());
     expect(promptText).toContain('Streng quellenbasiert');
-    expect(promptText).toContain('Keine Arbeitspaket-Verweise');
+    expect(promptText).toContain('die oben bereitgestellten Angaben');
+    // Gutachten-spezifische Auflagen gehören hier nicht hin.
+    expect(promptText).not.toContain('Keine Arbeitspaket-Verweise');
+    expect(promptText).not.toContain('[Im Antrag nicht genannt]');
+    expect(promptText).not.toContain('Nutze ausschließlich Inhalte der VB');
   });
 
   it('(3) kürzt Historie (älteste zuerst), bevor Retrieval angetastet wird; Faktenblock bleibt', () => {
@@ -133,7 +143,10 @@ describe('assembliereAssistentKontext', () => {
 describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
   it('ohne Gedächtnis: kein Block, gedaechtnisAnzahl 0', () => {
     const { promptText, gedaechtnisAnzahl } = assembliereAssistentKontext(base());
-    expect(promptText).not.toContain('Hintergrundwissen');
+    // Auf den Block-Delimiter prüfen, nicht auf das blosse Wort: der Systemblock
+    // erwähnt „Hintergrundwissen" bewusst konditional („Steht unten ein Block …"),
+    // um den Widerspruch zu „du kennst keine früheren Sitzungen" aufzulösen.
+    expect(promptText).not.toContain('=== Hintergrundwissen');
     expect(gedaechtnisAnzahl).toBe(0);
   });
 

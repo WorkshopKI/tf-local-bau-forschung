@@ -833,6 +833,28 @@ describe('no-hardcoded-kategorie-mapping (Artefakt-Achse: Kategorie-Einzelquelle
   });
 });
 
+/**
+ * Alle Dateien, die Prompt-Text an ein LLM bauen. Der Guard hing frueher am Pfad
+ * `skills/` und war damit blind fuer die Mehrheit der Prompts im Repo — Aufbereitung,
+ * Assistent, MAP, Suche und die Gutachten-Teilgenerierung liegen alle woanders
+ * (Prompt-Audit 2026-07). Tests sind ausgenommen: sie zitieren Alt-Staende absichtlich.
+ */
+const PROMPT_VERZEICHNISSE = [
+  `${sep}skills${sep}`,
+  `${sep}assistent${sep}`,
+  `${sep}aufbereitung${sep}`,
+  `${sep}gutachten${sep}`,
+  `${sep}map-foerderfaehig${sep}`,
+  `${sep}analyse${sep}`,
+  `${sep}feedback${sep}`,
+  `${sep}triage${sep}`,
+  `${sep}klassifizierung${sep}`,
+];
+const PROMPT_DATEIEN = ALL_TS_FILES.filter(f =>
+  PROMPT_VERZEICHNISSE.some(v => f.includes(v))
+  && !f.includes(`${sep}__tests__${sep}`)
+  && !f.endsWith('.test.ts'));
+
 describe('keine-elidierte-wortlaut-vorgabe (Prompt-Hygiene)', () => {
   // Bug-Klasse, zweimal zugeschlagen: eine Prompt-Anweisung verlangt einen Wortlaut
   // EXAKT/woertlich und zeigt ihn zugleich zitiert-und-abgeschnitten („… “). Das ist
@@ -845,14 +867,12 @@ describe('keine-elidierte-wortlaut-vorgabe (Prompt-Hygiene)', () => {
   // Nur die KOMBINATION ist verboten. Ein „…“ zur reinen Veranschaulichung (grundsatz.ts:
   // „Das Vorhaben…“ statt „Der Antragsteller plant…“) fordert nichts Woertliches und
   // bleibt erlaubt.
-  const LITERAL_WORT = /(exakt|wörtlich|wortgetreu)/i;
-  const ELIDIERTES_ZITAT = /…\s*[“”»"']/;
+  const LITERAL_WORT = /(exakt|wörtlich|wortgetreu|wortwörtlich|unverändert|buchstabengetreu|\b1:1\b)/i;
+  const ELIDIERTES_ZITAT = /(…|\.\.\.)\s*[“”„»«"']/;
 
   it('keine Wortlaut-Vorgabe zeigt den Wortlaut zitiert-und-abgeschnitten', () => {
     const findings: Finding[] = [];
-    for (const file of ALL_TS_FILES) {
-      if (!file.includes(`${sep}skills${sep}`)) continue;
-      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+    for (const file of PROMPT_DATEIEN) {
       findings.push(...findInFile(
         file,
         l => LITERAL_WORT.test(l) && ELIDIERTES_ZITAT.test(l),
@@ -872,6 +892,37 @@ describe('keine-elidierte-wortlaut-vorgabe (Prompt-Hygiene)', () => {
       expect.fail(msg);
     }
   });
+
+  // Zweite Form derselben Klasse: die Anweisung verbietet Pretty-Print und zeigt als
+  // „genau diese Form" ein eingerücktes JSON-Beispiel. Beide Lesarten sind mit dem
+  // Prompt vertraeglich — das Modell muss entscheiden, ob die Anweisung oder ihr
+  // eigener Beleg gilt. Traf `steckbrief.ts` und `recherche-import.ts` (Audit 2026-07).
+  const KOMPAKT_ANWEISUNG = /(kein\s+Pretty-Print|keine\s+Einrückung|kompakt\b)/i;
+  const EINGERUECKTE_JSON_ZEILE = /^\s*(\+\s*)?['"`]?\s{2,}"[a-zA-Z_]+"\s*:/;
+
+  it('keine Kompakt-Anweisung neben einem eingerueckten JSON-Beispiel', () => {
+    const findings: Finding[] = [];
+    for (const file of PROMPT_DATEIEN) {
+      const zeilen = readFileSync(file, 'utf8').split(/\r?\n/);
+      const hatKompakt = zeilen.some(l => KOMPAKT_ANWEISUNG.test(l));
+      if (!hatKompakt) continue;
+      zeilen.forEach((l, i) => {
+        if (!EINGERUECKTE_JSON_ZEILE.test(l)) return;
+        if (l.includes('allow-kompakt-vs-pretty-print')) return;
+        findings.push({ file, line: i + 1, text: l.trim() });
+      });
+    }
+    if (findings.length > 0) {
+      const msg =
+        `Der Prompt verbietet Pretty-Print und zeigt zugleich ein eingeruecktes\n` +
+        `JSON-Beispiel als verbindliche Form. Das Modell kann nicht entscheiden, ob die\n` +
+        `Anweisung oder ihr eigener Beleg gilt — beide Lesarten sind konsistent.\n` +
+        `Beispiel und Anweisung muessen uebereinstimmen: Beispiel unindentiert schreiben\n` +
+        `(Vorbild: verwertung.ts). Ausnahme: '// allow-kompakt-vs-pretty-print: <grund>'.\n` +
+        `\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
 });
 
 describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
@@ -883,7 +934,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 34;    // Ist 34; +1 'mapFoerderfaehig' (MAP Prüf-Workflow: Einreichungs-Import + editierbare Checkliste, dev); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1590;       // Ist ~1579 (DIESE Datei; +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1660;       // Ist ~1630 (DIESE Datei; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

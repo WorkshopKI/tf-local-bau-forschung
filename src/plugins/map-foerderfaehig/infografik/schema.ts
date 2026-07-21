@@ -12,6 +12,7 @@
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
 import { extractLastJsonObject } from '@/plugins/antraege/aufbereitung/steckbrief';
 import { alsSektionIds, alsText } from './roh';
+import { OHNE_WERT } from './fakten';
 import {
   parseSubstanz, UNSCHAERFE_MAX,
   type UnschaerfeBegriff, type Widerspruch,
@@ -115,26 +116,34 @@ export function buildInfografikPrompt(
     '',
     'Regeln:',
     '- Belege JEDE Aussage mit den IDs der Abschnitte, aus denen sie stammt.',
-    '- Formuliere wortnah am Original, 2 bis 4 Sätze je Feld.',
-    '- `belegtheit`: "belegt" wenn die VB die Aussage klar trägt, "vage" wenn sie nur',
-    '  angedeutet oder rein qualitativ ist, "fehlt" wenn sie gar nicht vorkommt.',
+    '- Formuliere nah am Wortlaut des Originals, 2 bis 4 Sätze je Feld. Trägt die VB zu',
+    '  einem Feld nur einen Satz her, ist ein Satz richtig — erfinde nichts dazu.',
+    '- `belegtheit`: "belegt" wenn die VB die Aussage ausdrücklich trägt, "vage" wenn sie',
+    '  nur angedeutet oder rein qualitativ ist, "fehlt" wenn sie gar nicht vorkommt.',
     '- Bei "fehlt" bleibt `text` leer. Erfinde nichts.',
     '',
     'Regeln für `widersprueche` (Abgleich Text gegen Fakten):',
     '- Melde NUR echte Abweichungen: der Text nennt einen anderen Wert, einen anderen',
     '  Zeitraum oder eine Bezeichnung, die es in den Fakten nicht gibt.',
-    '- Bewerte nicht und vermute nicht. Keine Abweichung gefunden? Dann ist die Liste',
-    '  leer — das ist ein GUTES Ergebnis, kein Versäumnis.',
-    '- Fakten mit dem Wert "nicht angegeben" sind KEINE Vergleichsgrundlage; über sie',
+    // Wertungsfrei formuliert: „das ist ein GUTES Ergebnis" lud zur Selbstprüfung ein
+    // („war meine leere Liste wirklich gut? — nochmal durchgehen"), also genau zu der
+    // Deliberationsschleife, die vermieden werden soll (Prompt-Audit 2026-07).
+    '- Vermute nicht. Eine leere Liste ist ein zulässiges Ergebnis.',
+    `- Fakten mit dem Wert "${OHNE_WERT}" sind KEINE Vergleichsgrundlage; über sie`,
     '  lässt sich nichts widersprechen.',
-    '- `fakt` zitiert die Faktenseite, `aussageImText` die Textseite. Beides ist Pflicht.',
+    '- `fakt` ist die betroffene Faktenzeile ohne den Listenstrich, `aussageImText` der',
+    '  Satz aus dem Text, in dem die abweichende Angabe steht. Beides ist Pflicht.',
     '',
     'Regeln für `unschaerfeBegriffe` (Quantifizierungspflicht):',
     '- Sammle Formulierungen mit Anspruchscharakter, die weder Zahl noch Beleg tragen',
     '  („deutliche Effizienzsteigerung", „innovativer Ansatz", „übliche Risiken").',
-    `- Höchstens ${UNSCHAERFE_MAX} Einträge, nach Prüfrelevanz geordnet.`,
-    '- `grund`: "nicht quantifiziert" wenn eine Zahl fehlt, "nicht definiert" wenn der',
-    '  Begriff selbst unbestimmt bleibt.',
+    `- Höchstens ${UNSCHAERFE_MAX} Einträge. Stelle die nach vorn, die eine zentrale`,
+    '  Leistungs- oder Zielaussage des Vorhabens betreffen.',
+    // Beide Gründe trafen bei den prompt-eigenen Beispielen gleichzeitig zu, ohne
+    // Tiebreak — eine Entscheidung ohne Kriterium, bis zu UNSCHAERFE_MAX Mal.
+    '- `grund`: "nicht quantifiziert", sobald eine Zahl fehlt — auch wenn der Begriff',
+    '  zusätzlich unbestimmt ist. "nicht definiert" nur, wenn eine Zahl gar nicht in',
+    '  Frage kommt und allein der Begriff offen bleibt.',
     '- Reine Füllwörter ohne Anspruchscharakter gehören NICHT in die Liste.',
     '',
     '## Abschnitte',
@@ -146,28 +155,34 @@ export function buildInfografikPrompt(
     vbMarkdown,
     '',
     '## Gefordertes JSON',
+    // Feld-Beschreibungen in spitzen Klammern statt „…": ein Echo der Schablone
+    // lieferte sonst `"…"` als Wert — nicht leer, also `belegtheit: "vage"` statt
+    // "fehlt". Der Verdächtig-Guard prüft nur auf "fehlt", griff also nicht, und das
+    // Ergebnis wurde GECACHT: eine dauerhaft eingefrorene Fehlansicht.
+    'Die spitzen Klammern sind Feld-Beschreibungen, keine Werte. `belegtheit`,',
+    '`quantifizierung`, `art` und `grund` nehmen GENAU EINEN der mit | getrennten Werte.',
+    // Unindentiert — die Schlusszeile fordert „kompakt und ohne Einrückung". Ein
+    // eingerücktes Beispiel widerspräche der eigenen Anweisung, und das Modell müsste
+    // entscheiden, welche der beiden gilt (Guard: keine-kompakt-anweisung-neben-...).
     '```json',
     '{',
-    '  "canvas": {',
+    '"canvas": {',
     ...CANVAS_FELDER.map(f =>
-      `    "${f.key}": { "text": "…", "sektionIds": ["k-1"], "belegtheit": "belegt|vage|fehlt" },  // ${f.frage}`),
-    '  },',
-    '  "sdtDelta": [',
-    '    { "parameter": "…", "sdtWert": "…", "zielWert": "…",',
-    '      "quantifizierung": "quantifiziert|qualitativ|fehlt", "sektionIds": ["k-2"] }',
-    '  ],',
-    '  "wirkungskette": {',
+      `"${f.key}": { "text": "<${f.frage}>", "sektionIds": ["<sektion-id>"], "belegtheit": "belegt|vage|fehlt" },`),
+    '},',
+    '"sdtDelta": [',
+    '{ "parameter": "<Parameter>", "sdtWert": "<Wert im Stand der Technik>", "zielWert": "<Zielwert>", "quantifizierung": "quantifiziert|qualitativ|fehlt", "sektionIds": ["<sektion-id>"] }',
+    '],',
+    '"wirkungskette": {',
     ...KETTEN_GLIEDER.map(g =>
-      `    "${g.key}": { "text": "…", "zahlenziel": "…", "sektionIds": ["k-3"], "belegtheit": "belegt|vage|fehlt" },  // ${g.frage}`),
-    '  },',
-    '  "widersprueche": [',
-    '    { "fakt": "…", "aussageImText": "…", "art": "zahl|zeitraum|bezeichnung",',
-    '      "sektionIds": ["k-4"] }',
-    '  ],',
-    '  "unschaerfeBegriffe": [',
-    '    { "begriff": "…", "kontext": "…", "grund": "nicht definiert|nicht quantifiziert",',
-    '      "sektionIds": ["k-5"] }',
-    '  ]',
+      `"${g.key}": { "text": "<${g.frage}>", "zahlenziel": "<Zahlenziel oder leer>", "sektionIds": ["<sektion-id>"], "belegtheit": "belegt|vage|fehlt" },`),
+    '},',
+    '"widersprueche": [',
+    '{ "fakt": "<Faktenzeile>", "aussageImText": "<Satz aus dem Text>", "art": "zahl|zeitraum|bezeichnung", "sektionIds": ["<sektion-id>"] }',
+    '],',
+    '"unschaerfeBegriffe": [',
+    '{ "begriff": "<Formulierung>", "kontext": "<Umfeld im Text>", "grund": "nicht definiert|nicht quantifiziert", "sektionIds": ["<sektion-id>"] }',
+    ']',
     '}',
     '```',
     '',

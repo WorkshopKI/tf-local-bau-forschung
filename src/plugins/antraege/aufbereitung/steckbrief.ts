@@ -57,22 +57,22 @@ ${sektionListe}
 ${vbMarkdown}
 
 ## Aufgabe
-Extrahiere die folgenden Kernaussagen WORTNAH aus der VB. Gib zu JEDER Aussage die Sektions-IDs an, aus denen sie stammt. Erfinde nichts — findest du eine Angabe nicht, lässt du das Feld leer ([] bzw. null). Antragsteller, Förderkennzeichen und Projektform NICHT ausgeben (die kennt die App bereits).
+Extrahiere die folgenden Kernaussagen aus der VB — nah am Wortlaut, je Aussage höchstens ~30 Wörter. Gib zu JEDER Aussage die Sektions-IDs an, aus denen sie stammt. Erfinde nichts — findest du eine Angabe nicht, lässt du das Feld leer ([] bzw. null). Antragsteller, Förderkennzeichen und Projektform NICHT ausgeben (die kennt die App bereits).
 
-Antworte **kompakt**: jedes Feld/Objekt in EINER Zeile wie im Beispiel, KEINE mehrzeilig eingerückten Objekte/Arrays, kein Pretty-Print — sonst wird die Antwort am Limit abgeschnitten und unbrauchbar. Gib als LETZTES einen JSON-Codeblock in genau dieser Form aus:
+Antworte **kompakt**: ein Feld je Zeile, keine Einrückung, kein Pretty-Print. Gib als LETZTES einen JSON-Codeblock in dieser Form aus:
 \`\`\`json
 {
-  "einSatz": { "text": "Das Vorhaben in einem Satz", "sektionIds": ["k-2"] },
-  "innovation": [ { "text": "Innovationskern / Abgrenzung zum Wettbewerb", "sektionIds": ["k-2.1","k-6.3"] } ],
-  "fueGegenstand": [ { "text": "Was tatsächlich entwickelt wird", "sektionIds": ["k-3.1"] } ],
-  "laufzeit": { "text": "z.B. 18 Monate (M1–M18)", "sektionIds": ["k-9"] },
-  "kernZielwert": { "text": "zentraler messbarer Claim, z.B. bis zu 25 % Energieeinsparung", "sektionIds": ["k-11.4"] },
-  "zielmaerkte": [ { "markt": "Zielmarkt", "zielwert": "Marktanteil/Volumen (optional)", "sektionIds": ["k-11.1"] } ],
-  "personal": [ { "name": "Name", "rolle": "Rolle/Qualifikation", "sektionIds": ["k-8"] } ],
-  "auftraegeDritte": [ { "text": "Auftrag an Dritte", "sektionIds": ["k-9"] } ]
+"einSatz": { "text": "Das Vorhaben in einem Satz", "sektionIds": ["<sektion-id>"] },
+"innovation": [ { "text": "Innovationskern / Abgrenzung zum Wettbewerb", "sektionIds": ["<sektion-id>"] } ],
+"fueGegenstand": [ { "text": "Was tatsächlich entwickelt wird", "sektionIds": ["<sektion-id>"] } ],
+"laufzeit": { "text": "z.B. 18 Monate (M1–M18)", "sektionIds": ["<sektion-id>"] },
+"kernZielwert": { "text": "zentraler messbarer Claim, z.B. bis zu 25 % Energieeinsparung", "sektionIds": ["<sektion-id>"] },
+"zielmaerkte": [ { "markt": "Zielmarkt", "zielwert": "Marktanteil/Volumen (optional)", "sektionIds": ["<sektion-id>"] } ],
+"personal": [ { "name": "Name", "rolle": "Rolle/Qualifikation", "sektionIds": ["<sektion-id>"] } ],
+"auftraegeDritte": [ { "text": "Auftrag an Dritte", "sektionIds": ["<sektion-id>"] } ]
 }
 \`\`\`
-Nutze ausschließlich die oben vergebenen Sektions-IDs. Jedes Feld = eine Zeile, keine Zeilenumbrüche innerhalb eines Objekts.`;
+Die spitzen Klammern sind Feld-Beschreibungen, keine Werte — setze ausschließlich IDs aus der Sektionsliste oben ein. Jedes Feld = eine Zeile, keine Zeilenumbrüche innerhalb eines Objekts.`;
 }
 
 // ---------------------------------------------------------------------------

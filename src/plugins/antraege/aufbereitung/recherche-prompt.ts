@@ -41,20 +41,24 @@ export function buildRecherchePromptPrompt(vbMarkdown: string): string {
 ${vbMarkdown}
 
 ## Harte Anonymisierungs-Regeln (Pflicht)
-Der erzeugte Auftrag enthält NIEMALS: Antragsteller-/Firmennamen, Förderkennzeichen oder Aktenzeichen, Personennamen, konkrete Ortsangaben aus den Stammdaten, oder wörtliche VB-Passagen. KEIN Behördenkontext — die Wörter „Förderantrag", „Prüfer", „Gutachten", „ZIM", „Fördermittel" kommen NICHT vor. Formuliere als neutralen Analysten-Auftrag.
+Der erzeugte Auftrag enthält NIEMALS: Antragsteller-/Firmennamen, Förderkennzeichen oder Aktenzeichen, Personennamen, konkrete Ortsangaben (Standorte, Städte, Adressen). KEIN Behördenkontext — die Wörter „Förderantrag", „Prüfer", „Gutachten", „ZIM", „Fördermittel" kommen NICHT vor. Formuliere als neutralen Analysten-Auftrag.
+Übernimm außerdem keine ganzen Sätze aus der VB: beschreibe das Themengebiet in eigenen Worten. Einzelne Fachbegriffe darfst du übernehmen — sie sind der Gegenstand der Recherche.
 
 ## Aufbau des Auftrags (zwei Teile)
 1. **Stand der Technik** zum Themengebiet: etablierte Verfahren/Technologien, aktuelle Forschung, Kennwerte/Leistungsklassen, Lücken.
 2. **Markt & Wettbewerb**: Marktgröße/-wachstum, relevante Anbieter/Wettbewerber, vergleichbare Produkte/Lösungen, Trends.
 
-Der Auftrag fordert das externe Modell auf, seinen Report zu BELEGEN (Quellen mit URL) und am Ende ZUSÄTZLICH genau einen JSON-Codeblock dieser Form anzufügen:
-${drSchemaBlockBeschreibung()}
+Der Auftrag fordert das externe Modell auf, seinen Report zu BELEGEN (Quellen mit URL) und am Ende ZUSÄTZLICH einen JSON-Block anzufügen. Beschreibe diesen Block IM AUFTRAGSTEXT so:
+${drSchemaBlockBeschreibung(false)}
 
 ## Ausgabe
-Antworte AUSSCHLIESSLICH mit genau EINEM JSON-Codeblock in genau dieser Form — kein Fließtext davor oder danach:
+Achtung — hier gibt es zwei verschiedene JSON-Strukturen. Die oben beschriebene gehört IN deinen Auftragstext hinein (sie ist für das externe Modell bestimmt). DEINE eigene Antwort hat die Form darunter.
+
+Antworte AUSSCHLIESSLICH mit genau EINEM JSON-Codeblock in dieser Form — kein Fließtext davor oder danach:
 \`\`\`json
-{ "schemaVersion": ${RECHERCHE_SCHEMA_VERSION}, "prompt": "<der vollständige Deep-Research-Auftragstext, mehrzeilig>" }
-\`\`\``;
+{ "schemaVersion": ${RECHERCHE_SCHEMA_VERSION}, "prompt": "<der vollständige Deep-Research-Auftragstext>" }
+\`\`\`
+Der Auftragstext ist mehrzeilig. Er steht als EIN JSON-String im Feld "prompt"; schreibe Zeilenumbrüche darin als \\n, nicht als echte Umbrüche.`;
 }
 
 // ---------------------------------------------------------------------------

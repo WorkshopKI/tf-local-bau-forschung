@@ -97,17 +97,16 @@ ${vbMarkdown}
 
 ## Aufgabe
 1. Ordne jeder Sektion ALLE inhaltlich passenden Prüfaspekte zu — nicht nur den dominantesten. Eine Sektion trägt oft MEHRERE Aspekte (z.B. beschreibt ein Marktkapitel zugleich die Zielmärkte (I) UND die Meilenstein-/Zielkriterien (J)); dann gib beide an. Ein Aspekt darf zu mehreren Sektionen gehören. Erzwinge KEINE Zuordnung für Sektionen, die zu keinem Aspekt passen.
-2. Benenne je Aspekt fehlende Pflichtangaben (z.B. fehlende Preisvorstellungen, fehlende Angaben zur vorhandenen Ausstattung).
+2. Benenne je Aspekt Angaben, die der Prüfaspekt erwartet, die die VB aber nicht enthält (z.B. fehlende Preisvorstellungen, fehlende Angaben zur vorhandenen Ausstattung). Beurteile das aus der Aspekt-Beschreibung oben — es gibt hier keinen weiteren Katalog. Fällt dir zu einem Aspekt nichts auf, lasse ihn aus.
 
 ## Ausgabeformat
 Zuerst je Aspekt eine Zeile mit den zugeordneten Sektions-IDs:
 A: <sektion-id>, <sektion-id>
 B: <sektion-id>
-Trägt eine Sektion mehrere Aspekte, taucht ihre ID in JEDER betroffenen Aspekt-Zeile auf — schreibe je Aspekt eine eigene Zeile. Beispiel für eine Sektion \`k-11.1\`, die zu I UND J gehört:
-I: k-11.1
-J: k-11.1
+Passt zu einem Aspekt keine einzige Sektion, lasse seine Zeile ganz weg.
+Trägt eine Sektion mehrere Aspekte, taucht ihre ID in JEDER betroffenen Aspekt-Zeile auf — schreibe je Aspekt eine eigene Zeile. Gehört z.B. eine Sektion zu I UND J, erscheint ihre ID sowohl in der I- als auch in der J-Zeile.
 
-Danach je fehlender Pflichtangabe eine Zeile:
+Danach je fehlender Angabe eine Zeile, höchstens 12 Wörter:
 A-fehlt: <kurzer Text der fehlenden Angabe>
 
 Nutze ausschließlich die oben vergebenen Sektions-IDs und die Aspekt-Buchstaben A–J. Gib keinen Fließtext aus.`;

@@ -13,6 +13,7 @@ import {
   buildInfografikPrompt, INFOGRAFIK_SCHEMA_VERSION, istInhaltsleer, parseInfografik,
 } from '../infografik/schema';
 import { parseSubstanz, UNSCHAERFE_MAX } from '../infografik/substanz';
+import { MAP_INFOGRAFIK_SKILL } from '@/core/services/skills/registry/map-infografik.seed';
 import { KONTRAST_FIXTURES } from '../substanz/kontrast.seed';
 import { DUMMY_PFAD, leseFixture, TEST_KONTEXT } from './fixtures';
 
@@ -100,8 +101,21 @@ describe('buildInfografikPrompt', () => {
     const prompt = buildInfografikPrompt(GLIEDERUNG, 'Text.', 'FAKTEN');
     expect(prompt).toContain('"widersprueche"');
     expect(prompt).toContain('"unschaerfeBegriffe"');
-    expect(prompt).toContain('das ist ein GUTES Ergebnis');
+    // Der Leer-Fall bleibt ausdrücklich erlaubt — aber WERTUNGSFREI. „das ist ein GUTES
+    // Ergebnis" lud zur Selbstprüfung ein („war meine leere Liste wirklich gut?") und
+    // damit zu genau der Deliberationsschleife, die vermieden werden soll.
+    expect(prompt).toContain('Eine leere Liste ist ein zulässiges Ergebnis');
+    expect(prompt).not.toContain('GUTES Ergebnis');
+    expect(prompt).not.toContain('kein Versäumnis');
     expect(prompt).toContain(`Höchstens ${UNSCHAERFE_MAX} Einträge`);
+  });
+
+  // Die Systemrolle verbot unbedingt „Textqualität bewerten" — und verlangte im selben
+  // Lauf `unschaerfeBegriffe`, also genau eine Formulierungs-Beurteilung.
+  it('Systemrolle verbietet keine Beurteilung, die der Prompt als Pflichtfeld verlangt', () => {
+    const sp = MAP_INFOGRAFIK_SKILL.systemPrompt!;
+    expect(sp).not.toContain('Du bewertest die Textqualität nicht');
+    expect(sp).toContain('ob eine Aussage quantifiziert ist, stellst du aber fest');
   });
 });
 

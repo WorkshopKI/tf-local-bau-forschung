@@ -26,8 +26,12 @@ const SYSTEM_PROMPT =
   + 'analytischer Sprache. Er nennt NIEMALS: Antragsteller-/Firmennamen, Förderkennzeichen '
   + 'oder Aktenzeichen, Personennamen, konkrete Ortsangaben, oder wörtliche Passagen aus der '
   + 'Vorlage. KEIN Behördenkontext — die Wörter „Förderantrag", „Prüfer", „Gutachten", „ZIM" '
-  + 'kommen nicht vor. Du antwortest mit dem Auftragstext und schließt mit genau einem '
-  + 'JSON-Codeblock ab.';
+  + 'kommen nicht vor. Deine Antwort besteht aus GENAU EINEM JSON-Codeblock, der den '
+  // Vorher: „Du antwortest mit dem Auftragstext und schließt mit genau einem
+  // JSON-Codeblock ab." — das widersprach dem User-Prompt („kein Fließtext davor oder
+  // danach"). Auf dem Bridge-Pfad stehen beide Texte in DERSELBEN Nachricht, es gibt
+  // also nicht einmal die Rollentrennung, die sonst implizit Vorrang stiftet.
+  + 'Auftragstext als Feld enthält — kein Fließtext davor oder danach.';
 
 export const AUFBEREITUNG_RECHERCHE_PROMPT_SKILL: SkillRecord = {
   id: AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,

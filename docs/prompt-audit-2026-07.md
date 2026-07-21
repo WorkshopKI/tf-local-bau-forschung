@@ -1,8 +1,10 @@
 # Prompt-Audit — Mehrdeutigkeiten, die das Modell in lange Denkphasen treiben
 
-> **Stand:** 2026-07-21, nach v2.284.1 · Einmaliger Audit über **alle** LLM-Prompts des Repos.
+> **Stand:** 2026-07-21 · Einmaliger Audit über **alle** LLM-Prompts des Repos.
 > **Anlass:** Der G-Fix (Bug-Klasse 13) hat gewirkt — die Antwort kam „sehr schnell". Frage: wo steckt dasselbe Muster noch?
-> **Status:** reine Befundaufnahme. Es wurde **kein Code geändert**.
+> **Status: ALLE Befunde behoben** (P1–P8, D1–D8). Das Dokument bleibt als Begründungs-Archiv:
+> es erklärt, warum die Prompts heute so formuliert sind. Die Fundstellen-Zitate zeigen den
+> **Vor-Zustand**. Offene Punkte stehen unten unter „Was bewusst offen bleibt".
 
 ## Was belegt ist — und was nicht
 
@@ -203,7 +205,11 @@ Antwort-Beispiel `:134` parser-fischbar (`"id":"VB-1"`, `"begruendung":"kurzer S
 | Suche-Begründung: Vorrang nur im Code-Kommentar; stille Abschneidung ohne Marker | [begruendung.md:8](../src/plugins/suche/analyse/prompts/begruendung.md) / `stages/begruendung.ts:60,87` | 3, 1-nah |
 | Feedback-KI: zwei Ausgabeformate (JSON-Block ODER Rückfrage-Objekt) ohne eindeutige Entscheidungsregel | [feedbackLlm.ts:40,53-56](../src/core/services/feedback/feedbackLlm.ts) | 3 |
 | Triage: zwei überlappende Auffangwerte, Definition nur im Code | [stage3-nemotron.ts:32-36](../src/phase2/triage/stage3-nemotron.ts) | 10, 2 |
-| `qs-basis`: `{{abschnittszweck}}`-Überschrift bleibt bei leerem Slot stehen | `seed.ts:646-650` | 5 |
+
+**Ein Befund hat sich beim Beheben als falsch erwiesen:** `qs-basis` sollte bei leerem
+`{{abschnittszweck}}` eine leere Überschrift zeigen. Der einzige Aufrufer setzt den Slot
+aber immer (`zielDef?.label ?? zielStepId` in `useGutachtenWorkflow.ts` — der Fallback ist
+die Step-ID, nie leer). Kein Defekt, nichts geändert.
 
 ---
 
@@ -353,24 +359,35 @@ und die Teil-Vorgabe trägt ihren Vorrang **im Prompt**, nicht im Kommentar.
 
 ---
 
-# Empfehlung
+# Was bewusst offen bleibt
 
-**Zuerst — P1 bis P4.** Alle vier sind **reine Code-Änderungen**: keine Seed-Änderung, keine
-Registry-Migration, sofort wirksam auf der bestehenden kuratierten `registry.json`. Zusammen etwa
-40 Zeilen. P1 ist der einzige belegte Bug-Klasse-13-Fall.
+**Abschnitt G wurde nicht angefasst.** Er ist frisch validiert („kam sehr schnell"). Zwei echte
+Warzen bleiben: `G_STILBEISPIEL` enthält den Pflicht-Anfang unter der Überschrift „NICHT
+übernehmen", und der Pflicht-Anfang wird fünfmal erwähnt (zweimal wörtlich). Beide sind real,
+beide offenkundig nicht blockierend. Einen gerade bestätigten Prompt auf Verdacht erneut zu
+perturbieren verdirbt das einzige verlässliche Signal.
 
-**Danach — P5 und P6.** Produktiv und mit Datenintegritäts-Folgen (Phantom-Name im DSGVO-Pfad,
-divergierendes Vokabular). Beide brauchen Seed-Änderungen, also Migrationen.
+**Gedächtnis: das Wasserzeichen rückt auch bei 0 angewandten Operationen vor**
+(`konsolidierung.ts` schreibt `schreibeLaufMeta` unbedingt). Werden alle Operationen verworfen —
+etwa weil das Modell die Schablone echote —, gilt der Lauf als erfolgreich und die betroffenen
+Ereignisse werden nie wieder konsolidiert. Der Prompt-seitige Auslöser ist behoben (D6), die
+**Folgenschwere im Fehlerfall** aber nicht: das ist eine Änderung am Konsolidierungs-Kontrakt,
+nicht an einem Prompt, und gehört in eine eigene Runde.
 
-**Abschnitt G nicht anfassen.** Er ist gerade als schnell bestätigt. Es gibt dort zwei echte Warzen
-— `G_STILBEISPIEL` enthält den Pflicht-Anfang unter der Überschrift „NICHT übernehmen", und der
-Pflicht-Anfang wird fünfmal erwähnt (zweimal wörtlich). Beide sind real, beide offenkundig nicht
-blockierend. Einen frisch validierten Prompt auf Verdacht erneut zu perturbieren, verdirbt das
-einzige verlässliche Signal, das wir haben.
+**Wirkungsmessung.** Strukturelle Korrektheit ist getestet (`prompt-hygiene.test.ts` rendert
+A–G und prüft Invarianten), die Wirkung auf die Laufzeit **nicht**. Der einzige belastbare
+Nachweis bleibt ein echter Lauf gegen dieselbe VB, vorher/nachher. Sinnvollster Kandidat:
+Abschnitt B oder D — dort greifen P2 und P3 gleichzeitig.
 
-**Teil 2 zurückstellen** bis zum jeweiligen Produktivgang — Ausnahme **D1**, sobald Assistent oder
-Gedächtnis in eine Variante jenseits dev gehen.
+---
 
-**Zur Wirkungsmessung:** strukturelle Korrektheit ist testbar, Wirkung auf die Laufzeit nicht. Der
-einzige belastbare Nachweis bleibt ein echter Lauf gegen dieselbe VB, vorher/nachher. Sinnvollster
-Kandidat: Abschnitt B oder D nach P2+P3, weil beide Fixes dort gleichzeitig greifen.
+# Was die Behebung maschinell abgesichert hat
+
+| Guard | Fängt |
+|---|---|
+| `keine-elidierte-wortlaut-vorgabe` (erweitert) | Scope jetzt **alle** prompt-bauenden Verzeichnisse statt nur `skills/`; zusätzliche Literalitäts-Wörter (`unverändert`, `1:1`, `buchstabengetreu`); auch `...` als Elision |
+| `keine Kompakt-Anweisung neben eingerücktem JSON-Beispiel` (neu) | D5 zweifach — und fand beim ersten Lauf sofort eine dritte Stelle (`map/schema.ts`), die ich beim Beheben übersehen hatte |
+| [prompt-hygiene.test.ts](../src/core/services/skills/run/__tests__/prompt-hygiene.test.ts) (neu) | **Widersprüche zwischen Blöcken**, die erst im zusammengesetzten Prompt existieren: leere Überschriften, inhaltsleere Forderungen, Literalvorgaben ohne auflösenden Satz, JSON-gegen-Fließtext ohne Vorrang-Angabe |
+
+Der Quelltext-Guard allein hätte **keinen einzigen** Befund dieses Audits gefunden — die
+Kombination aus erweitertem Scope, zweiter Regel und gerendertem Prompt schon.

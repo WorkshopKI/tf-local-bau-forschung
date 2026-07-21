@@ -36,11 +36,24 @@ export interface AssistentSessionState {
   /** Nach einem Fehler die betroffene Frage (Panel füllt das Eingabefeld). */
   letzteFehlerFrage: string | null;
   send: (frage: string, deps: AssistentTurnDeps) => Promise<void>;
+  /**
+   * Bricht den laufenden Turn ab. Ohne diesen Pfad war eine lange Denkphase weder
+   * begrenzt noch abbrechbar: die Bridge kennt kein `maxTokens`, es gibt keinen
+   * Timeout, und `fuehreAssistentTurnAus` nahm zwar ein `AbortSignal` entgegen —
+   * der einzige Aufrufer setzte es nur nie (Prompt-Audit 2026-07).
+   */
+  abbrechen: () => void;
   neueUnterhaltung: () => void;
   clearError: () => void;
   /** Lokales Daumen-Feedback auf einer Nachricht (in-memory, kein Backend). */
   setFeedback: (mid: string, fb: 'up' | 'down') => void;
 }
+
+/**
+ * Controller des laufenden Turns. Modul-lokal statt im State: er ist kein
+ * Render-Input, und ein Store-Update je Turn-Start wäre nur Rauschen.
+ */
+let laufenderTurn: AbortController | null = null;
 
 export const assistentSessionStore = createStore<AssistentSessionState>((set, get) => ({
   messages: [],
@@ -61,7 +74,9 @@ export const assistentSessionStore = createStore<AssistentSessionState>((set, ge
     };
     set({ messages: [...vorher, userMsg], busy: true, error: null, resetWarnung: false, letzteFehlerFrage: null });
 
-    const res = await fuehreAssistentTurnAus(trimmed, turns, deps);
+    laufenderTurn = new AbortController();
+    const res = await fuehreAssistentTurnAus(trimmed, turns, deps, laufenderTurn.signal);
+    laufenderTurn = null;
 
     if (res.ok) {
       const asstMsg: ChatMessage = {
@@ -80,7 +95,17 @@ export const assistentSessionStore = createStore<AssistentSessionState>((set, ge
     }
   },
 
-  neueUnterhaltung: () => set({ messages: [], error: null, resetWarnung: false, letzteFehlerFrage: null }),
+  abbrechen: () => {
+    if (!get().busy) return;
+    laufenderTurn?.abort();
+    laufenderTurn = null;
+  },
+
+  neueUnterhaltung: () => {
+    laufenderTurn?.abort();
+    laufenderTurn = null;
+    set({ messages: [], error: null, resetWarnung: false, letzteFehlerFrage: null, busy: false });
+  },
   clearError: () => set({ error: null, letzteFehlerFrage: null }),
   setFeedback: (mid, fb) => set(s => ({
     messages: s.messages.map(m => (m.id === mid ? { ...m, feedback: m.feedback === fb ? undefined : fb } : m)),

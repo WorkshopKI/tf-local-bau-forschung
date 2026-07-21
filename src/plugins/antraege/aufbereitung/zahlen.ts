@@ -104,14 +104,15 @@ Sammle die **prüfrelevanten** Claims mit Zahlenwert. Gib den Wert WÖRTLICH wie
 
 Markiere je Claim das Feld \`relevanz\`: \`kern\` für die zentralen Prüfwerte (Leistungs-/Zielwerte, Laufzeit, PM/Kapazität, Kosten-Eckwerte, Marktvolumen), \`detail\` für unterstützende Nebenwerte. Das ist eine Auswahl, keine Bewertung der Richtigkeit.
 
-Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach. Gib das JSON **kompakt** aus: jeden Claim in GENAU EINER Zeile wie im Beispiel, KEINE mehrzeilig eingerückten Objekte, kein Pretty-Print — nur so passen ALLE Zahlen ins Antwort-Limit (eingerückte Objekte verbrauchen ein Vielfaches an Platz und schneiden die Liste ab):
+Zwei Felder, die oben nicht erklärt sind: \`kontext\` ist das kurze wörtliche Umfeld des Werts aus der VB, höchstens ~20 Wörter. \`einheit\` ist die Einheit des Werts ("%", "Monate", "PM", "€"); gibt es keine, lass sie leer.
+
+Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach. Gib das JSON **kompakt** aus: jeden Claim in GENAU EINER Zeile, keine Einrückung, kein Pretty-Print. Findest du keine prüfrelevanten Zahlen, gib eine leere \`claims\`-Liste zurück — das ist ein zulässiges Ergebnis:
 \`\`\`json
 { "schemaVersion": 1, "claims": [
-{ "wert": ">95 %", "einheit": "%", "kategorie": "leistung", "relevanz": "kern", "kontext": "Erkennungsrate von über 95 %", "sektionIds": ["k-3.1"] },
-{ "wert": "24 Monate", "einheit": "Monate", "kategorie": "zeit", "relevanz": "kern", "kontext": "Projektlaufzeit von 24 Monaten", "sektionIds": ["k-9"] }
+{ "wert": "<Wert wörtlich wie im Text>", "einheit": "<Einheit oder leer>", "kategorie": "<kategorie-id>", "relevanz": "kern", "kontext": "<kurzes Umfeld aus der VB>", "sektionIds": ["<sektion-id>"] }
 ] }
 \`\`\`
-Nutze ausschließlich die oben vergebenen Sektions-IDs und die Kategorie-IDs. Ein Claim = eine Zeile, keine Zeilenumbrüche innerhalb eines Claims.`;
+Die spitzen Klammern sind Feld-Beschreibungen, keine Werte — übernimm sie nicht. Nutze ausschließlich die oben vergebenen Sektions-IDs und Kategorie-IDs. Ein Claim = eine Zeile, keine Zeilenumbrüche innerhalb eines Claims.`;
 }
 
 // ---------------------------------------------------------------------------

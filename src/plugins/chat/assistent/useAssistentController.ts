@@ -64,6 +64,8 @@ export interface AssistentController {
   resetWarnung: boolean;
   letzteFehlerFrage: string | null;
   send: (frage: string) => Promise<void>;
+  /** Bricht den laufenden Turn ab (Bridge kennt kein maxTokens, es gibt keinen Timeout). */
+  abbrechen: () => void;
   neueUnterhaltung: () => void;
   clearError: () => void;
   setFeedback: (mid: string, fb: 'up' | 'down') => void;
@@ -101,6 +103,7 @@ export function useAssistentController(): AssistentController {
     resetWarnung: state.resetWarnung,
     letzteFehlerFrage: state.letzteFehlerFrage,
     send,
+    abbrechen: () => assistentSessionStore.getState().abbrechen(),
     neueUnterhaltung: () => assistentSessionStore.getState().neueUnterhaltung(),
     clearError: () => assistentSessionStore.getState().clearError(),
     setFeedback: (mid, fb) => assistentSessionStore.getState().setFeedback(mid, fb),

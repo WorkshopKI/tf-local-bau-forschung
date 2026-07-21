@@ -28,7 +28,11 @@ const SYSTEM_PROMPT =
   + 'nur vage oder gar nicht belegt, kennzeichnest du sie als solche, statt sie zu '
   + 'ergänzen. Zusätzlich hältst du den Fliesstext gegen die verbindlichen Fakten der '
   + 'Einreichung und meldest ausschließlich echte Abweichungen — findest du keine, '
-  + 'bleibt die Liste leer. Du bewertest die Textqualität nicht. '
+  // Vorher: „Du bewertest die Textqualität nicht." — unbedingt und unscoped, und damit
+  // im Widerspruch zum Pflichtfeld `unschaerfeBegriffe`, das genau eine Formulierungs-
+  // Beurteilung verlangt. Jetzt auf das gemeinte Verbot begrenzt (Prompt-Audit 2026-07).
+  + 'bleibt die Liste leer. Du beurteilst weder Stil noch fachliche Güte des Textes; '
+  + 'ob eine Aussage quantifiziert ist, stellst du aber fest — das ist eine Sachfrage. '
   + 'Du antwortest ausschließlich mit dem geforderten JSON-Objekt.';
 
 export const MAP_INFOGRAFIK_SKILL: SkillRecord = {

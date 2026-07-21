@@ -29,18 +29,28 @@ export function istExternKategorie(v: unknown): v is ExternKategorie {
  * seines Reports anfügen soll. Wird wörtlich in den erzeugten DR-Prompt eingebettet
  * (Phase 1) — der Import-Parser (Phase 2) liest dieselben Felder.
  */
-export function drSchemaBlockBeschreibung(): string {
-  const kategorien = EXTERN_KATEGORIEN.join('|');
+export function drSchemaBlockBeschreibung(mitFence = true): string {
+  const kategorien = EXTERN_KATEGORIEN.join(', ');
+  const fence = mitFence ? ['```json'] : ['(JSON-Block, beginnend mit einer Codefence-Zeile ```json)'];
+  const fenceEnde = mitFence ? ['```'] : ['(Ende des Codeblocks)'];
   return [
-    '```json',
+    // Kompakt (ein Eintrag je Zeile) — sonst widerspricht der Block der
+    // „kompakt, kein Pretty-Print"-Anweisung der beiden Prompts, die ihn einbetten.
+    ...fence,
     '{',
-    `  "schemaVersion": ${RECHERCHE_SCHEMA_VERSION},`,
-    '  "quellen": [{ "url": "https://…", "datum": "YYYY-MM-DD" }],',
-    '  "identifikation": "welche Firma / welche Produkte wurden untersucht (kurz)",',
-    `  "aussagen": [{ "kategorie": "${kategorien}", "text": "eine belegte Aussage", "quellenUrls": ["https://…"] }]`,
+    `"schemaVersion": ${RECHERCHE_SCHEMA_VERSION},`,
+    '"quellen": [{ "url": "<vollstaendige URL>", "datum": "<YYYY-MM-DD, leer wenn unbekannt>" }],',
+    '"identifikation": "<welche Firma / welche Produkte wurden untersucht, hoechstens 20 Woerter>",',
+    '"aussagen": [{ "kategorie": "<eine der Kategorien unten>", "text": "<eine belegte Aussage>", "quellenUrls": ["<URL aus quellen>"] }]',
     '}',
-    '```',
-    'Pflicht: jede Quelle mit URL und (soweit auffindbar) Datum; jede Aussage einer Kategorie zugeordnet und mit Quellen-URL(s) belegt.',
+    ...fenceEnde,
+    // Die frueher hier stehende Pipe-Alternation ("a|b|c") war selbst ein gueltiger
+    // String-Wert und nirgends als „waehle eines davon" erklaert. Uebernahm das Modell
+    // sie woertlich, verwarf `istExternKategorie` JEDE Aussage — und der Import meldete
+    // trotzdem Erfolg mit leerem Ergebnis (Prompt-Audit 2026-07).
+    `Erlaubte Werte fuer "kategorie" (genau einer je Aussage): ${kategorien}.`,
+    'Die spitzen Klammern sind Feld-Beschreibungen, keine Werte.',
+    'Jede Quelle braucht eine URL; das Datum nur, soweit auffindbar. Jede Aussage braucht eine Kategorie und mindestens eine Quellen-URL. Gibt es zu einem Feld nichts, gib eine leere Liste bzw. einen leeren String zurueck.',
   ].join('\n');
 }
 

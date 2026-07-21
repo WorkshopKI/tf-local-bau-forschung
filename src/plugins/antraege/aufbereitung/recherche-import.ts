@@ -29,7 +29,7 @@ export function buildRechercheImportPrompt(externText: string): string {
 ${externText}
 
 ## Ausgabe
-Antworte AUSSCHLIESSLICH mit genau EINEM JSON-Codeblock in dieser Form (kompakt, ein Eintrag pro Zeile):
+Antworte AUSSCHLIESSLICH mit genau EINEM JSON-Codeblock in dieser Form (kompakt, ein Eintrag pro Zeile, keine Einrückung). Findest du keine Quellen, gib auch die Quellen-Liste leer zurück:
 ${drSchemaBlockBeschreibung()}`;
 }
 

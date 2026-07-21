@@ -220,6 +220,15 @@ export function AssistentPanelHost(): React.ReactElement | null {
             {c.busy && (
               <div className="flex items-center gap-2 px-4 py-2 text-[13px] text-[var(--tf-text-tertiary)]">
                 <Loader2 size={14} className="animate-spin" />Assistent denkt …
+                {/* Auf der Bridge gibt es weder maxTokens noch Timeout — ohne diesen
+                    Knopf ist eine lange Denkphase gar nicht zu beenden. */}
+                <button
+                  type="button"
+                  className="ml-auto underline underline-offset-2 hover:text-[var(--tf-text)]"
+                  onClick={() => c.abbrechen()}
+                >
+                  Abbrechen
+                </button>
               </div>
             )}
 
