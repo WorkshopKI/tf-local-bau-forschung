@@ -7,12 +7,31 @@
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import type { AspektMapping } from '@/plugins/antraege/aufbereitung';
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
+import { signalFuerInnoScore, type Signalstufe } from '../ansicht/bewertungs-signal';
 import { baueGruppenFortschritt } from '../ansicht/gruppen';
 import type { MapBewertungsErgebnis } from '../checkliste/bewertung';
 import type { MapChecklistenDefinition, MapItemStatus, MapStufe } from '../checkliste/typen';
 import { fundstellenFuerItem } from '../vb/fundstellen';
 import { ItemKarte } from './ItemKarte';
 import { SkalaKarte } from './SkalaKarte';
+
+/**
+ * Signalstufe → Tokens. Die Einstufung liegt in `bewertungs-signal`; wichtig
+ * ist dort, dass „vollständig bewertet" allein noch kein Grün rechtfertigt.
+ */
+const INNO_TON: Record<Signalstufe, string> = {
+  kritisch: 'var(--tf-danger-text)',
+  warnung: 'var(--tf-warning-text)',
+  neutral: 'var(--tf-text-secondary)',
+  gut: 'var(--tf-success-text)',
+};
+
+const INNO_FLAECHE: Record<Signalstufe, string> = {
+  kritisch: 'var(--tf-danger-bg)',
+  warnung: 'var(--tf-warning-bg)',
+  neutral: 'var(--tf-card-surface, var(--tf-bg))',
+  gut: 'var(--tf-success-bg)',
+};
 
 function InnoScoreKarte({
   ergebnis, definition,
@@ -21,15 +40,10 @@ function InnoScoreKarte({
   definition: MapChecklistenDefinition;
 }): React.ReactElement {
   const { innoScore } = ergebnis;
-  const farbe = innoScore.nullWegenB0
-    ? 'var(--tf-danger-text)'
-    : innoScore.vertiefungNoetig ? 'var(--tf-warning-text)' : 'var(--tf-success-text)';
+  const signal = signalFuerInnoScore(innoScore);
+  const farbe = INNO_TON[signal];
 
-  // Fläche nur bei einem eindeutigen Befund einfärben; solange bewertet wird,
-  // bleibt die Karte neutral (DESIGN_GUIDE: Farbe ist ein knappes Gut).
-  const flaeche = innoScore.nullWegenB0
-    ? 'var(--tf-danger-bg)'
-    : innoScore.vollstaendig ? 'var(--tf-success-bg)' : 'var(--tf-card-surface, var(--tf-bg))';
+  const flaeche = INNO_FLAECHE[signal];
 
   return (
     <div

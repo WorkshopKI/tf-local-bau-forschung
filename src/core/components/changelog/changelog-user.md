@@ -29,6 +29,10 @@
 - Der Bewertungs-Schritt behält Fortschritt und Innovationsgrad beim Scrollen im Blick, und jede Kriteriengruppe zeigt ihren eigenen Stand (z. B. „3/5").
 - „Checkliste bearbeiten" und „Import-Report" stehen jetzt sichtbar **neben** dem Prüfablauf statt mittendrin — sie sind Einstellungen, keine Prüfschritte.
 - Ein Schritt behält beim Wechseln seinen Scrollstand und Ihre Eingaben.
+- Eine schwache Bewertung fällt jetzt auf: Kriterien auf **B0** oder **B1** färben die ganze Karte (rot bzw. amber) statt nur das angeklickte Feld — beim Scrollen durch die Kriterienliste sehen Sie die Problemstellen sofort. Dasselbe gilt für „nicht erfüllt" und „NF notwendig".
+
+### Bugfixes
+- Der Innovationsgrad wurde grün angezeigt, sobald alle drei Kategorien bewertet waren — auch bei nur 3 von 9 Punkten. Unterhalb des Kurzpfads erscheint er jetzt amber: „fertig bewertet" heißt nicht „gut".
 
 ## v2.280 — 2026-07
 

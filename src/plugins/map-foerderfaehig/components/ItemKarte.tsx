@@ -9,6 +9,7 @@
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { AlertTriangle, Info, Quote } from 'lucide-react';
+import { istAlarm, signalFuerStatus } from '../ansicht/bewertungs-signal';
 import type { MapItemZustand } from '../checkliste/bewertung';
 import { BEMERKUNG_PFLICHT } from '../checkliste/bewertung';
 import type { MapItemStatus } from '../checkliste/typen';
@@ -31,6 +32,22 @@ const STATUS_FARBE: Record<Exclude<MapItemStatus, 'offen'>, string> = {
 };
 
 const REIHENFOLGE = Object.keys(STATUS_LABEL) as Array<Exclude<MapItemStatus, 'offen'>>;
+
+/**
+ * Fläche für Status, die einen Befund tragen — der soll in einer langen Liste
+ * auffallen, ein Haken nicht. Gleiche Sprache wie die Skala-Karte bei B0/B1:
+ * sehr helle `-bg`-Fläche, Vollton nur auf Kante und Badge. Welche Status als
+ * Befund gelten, entscheidet `bewertungs-signal`, nicht diese Datei.
+ */
+const ALARM_FLAECHE: Record<'kritisch' | 'warnung', string> = {
+  kritisch: 'var(--tf-danger-bg)',
+  warnung: 'var(--tf-warning-bg)',
+};
+
+function alarmFlaeche(status: MapItemStatus): string | undefined {
+  const signal = signalFuerStatus(status);
+  return istAlarm(signal) ? ALARM_FLAECHE[signal as 'kritisch' | 'warnung'] : undefined;
+}
 
 /**
  * Fundstellen als Chips. Ausdrücklich als Vorschlag gekennzeichnet — sie sind
@@ -108,6 +125,7 @@ export function ItemKarte({
       style={{
         border: '0.5px solid var(--tf-border)',
         borderLeft: `3px solid ${status === 'offen' ? 'transparent' : STATUS_FARBE[status]}`,
+        background: alarmFlaeche(status),
       }}
     >
       <div className="flex items-start justify-between gap-3">

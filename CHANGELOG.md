@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.281.1 — Schwache Bewertungen faerben die Kriteriumskarte (Juli 2026)
+
+PATCH — Eine B0- oder B1-Bewertung war nur am gewählten Segment zu erkennen: beim Scrollen durch 23 Kriterien fiel ein Befund nicht auf. Der Design-Prototyp färbt dort die Karte; hier trägt die Farbe Akzentkante, Stufenbadge und eine sehr helle Fläche (DESIGN_GUIDE: kein satter Hintergrund).
+
+- **B0/B1 färben die ganze Kriteriumskarte** — Kante, Badge „B1 · 1" und `-bg`-Fläche; B2/B3 bleiben ruhig, ein Haken soll nicht schreien ([SkalaKarte.tsx](src/plugins/map-foerderfaehig/components/SkalaKarte.tsx)).
+- **Segmentfarbe folgt der Stufe** statt immer `--tf-primary`: B0 rot, B1 amber, B2 primär, B3 grün ([SkalaKarte.tsx](src/plugins/map-foerderfaehig/components/SkalaKarte.tsx)).
+- **Binäre Kriterien sprechen dieselbe Sprache**: „nicht erfüllt" und „NF notwendig" färben die Karte ebenso ([ItemKarte.tsx](src/plugins/map-foerderfaehig/components/ItemKarte.tsx)).
+- **Fix: „vollständig" ist nicht „gut"** — der Innovationsgrad wurde grün, sobald alle drei Kategorien bewertet waren, auch bei 3 von 9 Punkten; unterhalb des Kurzpfads ist er jetzt amber ([bewertungs-signal.ts](src/plugins/map-foerderfaehig/ansicht/bewertungs-signal.ts)).
+- **Einstufung als reine Ableitung** mit Test statt Farblogik in den Komponenten — die `.tsx` bilden nur noch Signalstufe → Token ab ([bewertungs-signal.test.ts](src/plugins/map-foerderfaehig/__tests__/bewertungs-signal.test.ts)).
+
 ### v2.281.0 — Foerderfaehigkeit: gefuehrter Pruefablauf in drei Phasen (Juli 2026)
 
 MINOR — Die Förderfähigkeitsprüfung zeigte elf gleichrangige Reiter: kein roter Faden, kein Fortschritt, keine Antwort auf „was kommt als Nächstes". Der Design-Handoff gruppiert sie in drei Phasen mit Führungsleiste. Übernommen sind Aufbau und Optik — die Zahlen bleiben die der App, denn der Prototyp zählte gegen eine Konstante und konnte nie fertig werden.
