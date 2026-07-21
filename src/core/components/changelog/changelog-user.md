@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.273 — 2026-07
+
+### Verbesserungen
+- Die agentische KI hat ein deutlich grösseres Kontextfenster als die normale. Das wusste die App bisher nicht und hat lange Vorhabensbeschreibungen auch dort gekürzt, wo es gar nicht nötig war. Jetzt richtet sich die Grenze nach der gewählten KI-Variante — bei „Agentisch" passt rund das Dreifache hinein, eine übliche VB samt Marktkonzept und Verwertung wird damit praktisch nicht mehr gekürzt.
+### Bugfixes
+- Umgekehrt kam die Warnung „zu lang für die KI" bei der normalen KI-Variante bisher zu spät, weil intern mit einem zu grossen Fenster gerechnet wurde. Auch das stimmt jetzt.
+
 ## v2.272 — 2026-07
 
 ### Bugfixes

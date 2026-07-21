@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
-import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
+import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import {
   runSkill,
   loadSkillRegistry,
@@ -197,7 +197,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         ziel: aktivesZielFuerLauf(),
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
-        vbCharCap: getVbCharCap(),
+        vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
         thinkingBudget,
         onContentDelta: stream.onContentDelta,
         onThinkingDelta: stream.onThinkingDelta,

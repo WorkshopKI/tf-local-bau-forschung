@@ -11,6 +11,7 @@ import {
   getLlmContextTokens, setLlmContextTokens, computeVbCharCap,
   setDetectedLlmContextTokens, clearManualLlmContextTokens, getLlmContextSource,
   MIN_LLM_CONTEXT_TOKENS, MAX_LLM_CONTEXT_TOKENS, type LlmContextSource,
+  BRIDGE_STANDARD_CONTEXT_TOKENS, BRIDGE_AGENTISCH_CONTEXT_TOKENS,
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
@@ -228,6 +229,16 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
           Max. Tokens des LLM. Daraus folgt die VB-Länge — aktuell{' '}
           <strong>~{computeVbCharCap(liveContextTokens).toLocaleString('de-DE')} Zeichen</strong>.
         </p>
+        {/* Bei aktiver Bridge gilt dieser Wert NICHT — sonst zeigte die Einstellung
+            eine Zahl an, gegen die nichts geprüft wird. */}
+        {aiConfig.type === 'streamlit' && contextSource !== 'manuell' && (
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Aktiv ist die Bridge — dort gilt das Kontextfenster des gewählten Tabs:{' '}
+            <strong>Standard ~{computeVbCharCap(BRIDGE_STANDARD_CONTEXT_TOKENS).toLocaleString('de-DE')}</strong>,{' '}
+            <strong>Agentisch ~{computeVbCharCap(BRIDGE_AGENTISCH_CONTEXT_TOKENS).toLocaleString('de-DE')} Zeichen</strong>.
+            Der Server lässt sich nicht abfragen; ein manuell gesetzter Wert übersteuert beide.
+          </p>
+        )}
       </div>
 
       {/* Reasoning/Thinking — steuert die KI-Skill-Generierung (z.B. die

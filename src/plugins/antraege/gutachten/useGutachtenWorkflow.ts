@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
-import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
+import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { appendFeedback, getUserId, resolveInstallId, type Rating } from '@/core/services/skill-feedback';
 import {
@@ -346,7 +346,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       try {
         const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
         const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, vb.markdown, abschnitte);
-        const block = buildVbRelevant(relevanz, vb.markdown, stepId, getVbCharCap());
+        const block = buildVbRelevant(relevanz, vb.markdown, stepId, getVbCharCap(kontextZielFuerLauf(bridge)));
         if (block) vbRelevant = block;
       } catch {
         // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
@@ -370,7 +370,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
           ziel: aktivesZielFuerLauf(),
           stammdaten: buildStammdaten(ctx),
           vbMarkdown: vb.markdown,
-          vbCharCap: getVbCharCap(),
+          vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
           thinkingBudget,
           erwarteAbschluss: 'Finaler Text',
           onContentDelta: stream.onContentDelta,
@@ -416,7 +416,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ziel: aktivesZielFuerLauf(),
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: vb.markdown,
-      vbCharCap: getVbCharCap(),
+      vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
       thinkingBudget,
       // Abschluss-Marker-Schutz: A–G liefern alle „### Finaler Text" als Schluss-
       // Abschnitt. Verhindert, dass die Streamlit-Bridge einen langen Lauf schon nach
@@ -634,7 +634,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ziel: aktivesZielFuerLauf(),
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vb.markdown,
-        vbCharCap: getVbCharCap(),
+        vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
         thinkingBudget,
         onContentDelta: stream.onContentDelta,
         onThinkingDelta: stream.onThinkingDelta,

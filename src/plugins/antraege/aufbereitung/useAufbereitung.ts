@@ -25,6 +25,7 @@ import {
 import { DocConverter } from '@/core/services/converter';
 import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv, misseKorpus, type KorpusMass } from './quellen';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
@@ -174,7 +175,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
         // Auch hier messen, nicht nur in `laufBausteine`: wer einen bereits
         // aufbereiteten Antrag oeffnet, muss sehen, dass die gecachten Bausteine
         // ueber einem abgeschnittenen Text entstanden sind.
-        if (korpus && !cancelled) setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap()));
+        if (korpus && !cancelled) setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap(kontextZielFuerLauf(bridge))));
         const tvs = ctx.teilvorhaben ?? [];
         let anlage5Hash: string | undefined;
         let anlage5Hashes: string[] | undefined;
@@ -271,7 +272,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     // `capVbMarkdown`, und der Upload-Check prüft nur je Datei. Ohne diese
     // Messung liefe ein zu grosser Korpus stillschweigend abgeschnitten ins
     // Modell. Was daraus folgt, entscheidet der Prüfer.
-    setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap()));
+    setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap(kontextZielFuerLauf(bridge))));
     // Recherche-Prompt ZUERST: der Prüfer kann die externe Deep Research (5–10 Min) starten,
     // während die übrigen Bausteine weiterlaufen. Agentische Variante + Leak-Check im Compute.
     await laufEinen<RecherchePromptDaten>(recherchePromptSkill, setRecherchePrompt, t =>

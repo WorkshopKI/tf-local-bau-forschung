@@ -21,6 +21,7 @@ import {
 } from '@/core/services/skills';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import {
   runBatch, berechneMengen, putBatchJob, getBatchJob, deleteBatchJob, spiegeleAbschnitt,
   type BatchDeps, type AbschnittErgebnis, type BatchJob, type BatchAbschnitte, type Mengen, type MengenKandidat,
@@ -147,7 +148,7 @@ export function useBatchJob(): UseBatchJob {
     const result = await runSkill(transport, sc.skill, sc.regeln, {
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: vb.markdown,
-      vbCharCap: getVbCharCap(),
+      vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
       vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, stepsRef.current, 2000, 'entwurf'),
       ...(tweakWirksam ? { tweak } : {}),
       signal,

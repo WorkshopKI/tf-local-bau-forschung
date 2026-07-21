@@ -19,6 +19,8 @@ import {
   computeVbCharCap,
   getVbCharCap,
   DEFAULT_LLM_CONTEXT_TOKENS,
+  BRIDGE_STANDARD_CONTEXT_TOKENS,
+  BRIDGE_AGENTISCH_CONTEXT_TOKENS,
   MIN_LLM_CONTEXT_TOKENS,
   MAX_LLM_CONTEXT_TOKENS,
 } from '../llm-context';
@@ -117,5 +119,47 @@ describe('Präzedenz manuell > erkannt > Default + Quelle', () => {
   it('erkannter Wert wird ebenfalls geclamped', () => {
     setDetectedLlmContextTokens(MAX_LLM_CONTEXT_TOKENS + 10_000);
     expect(getLlmContextTokens()).toBe(MAX_LLM_CONTEXT_TOKENS);
+  });
+});
+
+describe('Bridge-Tabs haben eigene, feste Kontextfenster', () => {
+  beforeEach(() => { mem.clear(); });
+
+  it('agentisch bekommt das grosse Fenster, standard das kleine', () => {
+    expect(getLlmContextTokens({ bridge: true, ziel: 'agentisch' })).toBe(BRIDGE_AGENTISCH_CONTEXT_TOKENS);
+    expect(getLlmContextTokens({ bridge: true, ziel: 'standard' })).toBe(BRIDGE_STANDARD_CONTEXT_TOKENS);
+  });
+
+  it('fehlendes ziel zaehlt wie standard', () => {
+    expect(getLlmContextTokens({ bridge: true })).toBe(BRIDGE_STANDARD_CONTEXT_TOKENS);
+  });
+
+  it('laesst den lokalen Pfad unveraendert (kein bridge-Flag)', () => {
+    setDetectedLlmContextTokens(49_152);
+    expect(getLlmContextTokens()).toBe(49_152);
+    expect(getLlmContextTokens({ bridge: false, ziel: 'agentisch' })).toBe(49_152);
+  });
+
+  it('ignoriert den ERKANNTEN Wert an der Bridge (der stammt vom lokalen Server)', () => {
+    setDetectedLlmContextTokens(49_152);
+    expect(getLlmContextTokens({ bridge: true, ziel: 'agentisch' })).toBe(BRIDGE_AGENTISCH_CONTEXT_TOKENS);
+  });
+
+  it('manuelle Uebersteuerung gewinnt auch an der Bridge', () => {
+    setLlmContextTokens(30_000);
+    expect(getLlmContextTokens({ bridge: true, ziel: 'agentisch' })).toBe(30_000);
+  });
+
+  it('der agentische Tab kuerzt eine grosse VB praktisch nicht mehr', () => {
+    // Vorher galt an der Bridge der llama.cpp-Default: 233.472 Zeichen.
+    const vorher = computeVbCharCap(DEFAULT_LLM_CONTEXT_TOKENS);
+    const jetzt = getVbCharCap({ bridge: true, ziel: 'agentisch' });
+    expect(jetzt).toBe(computeVbCharCap(BRIDGE_AGENTISCH_CONTEXT_TOKENS)); // 767.712
+    expect(jetzt).toBeGreaterThan(vorher * 3);
+  });
+
+  it('der Standard-Tab warnt jetzt frueher statt zu spaet', () => {
+    expect(getVbCharCap({ bridge: true, ziel: 'standard' }))
+      .toBeLessThan(computeVbCharCap(DEFAULT_LLM_CONTEXT_TOKENS));
   });
 });

@@ -13,6 +13,7 @@
  */
 import { create } from 'zustand';
 import type { BridgeZiel } from './transports/streamlit';
+import type { KontextZiel } from './llm-context';
 
 const LS_KEY = 'teamflow_ki_ziel';
 
@@ -45,4 +46,17 @@ export const useKiZiel = create<KiZielStore>((set) => ({
  */
 export function aktivesZielFuerLauf(): BridgeZiel | undefined {
   return useKiZiel.getState().ziel === 'agentisch' ? 'agentisch' : undefined;
+}
+
+/**
+ * Lauf-Kontext für die Kontextfenster-Ableitung: über welche Transportart und
+ * welchen Bridge-Tab geht dieser Lauf?
+ *
+ * Anders als `aktivesZielFuerLauf` wird `'standard'` hier **mitgegeben** — für die
+ * Cap-Rechnung ist der Standard-Tab eine echte Aussage (62k), nicht die Abwesenheit
+ * einer Aussage. Der Bridge-Parameter ist strukturell, damit dieses Modul den
+ * `AIBridge`-Typ nicht importieren muss (kein Zyklus).
+ */
+export function kontextZielFuerLauf(bridge: { istBridgeAktiv: () => boolean }): KontextZiel {
+  return { bridge: bridge.istBridgeAktiv(), ziel: useKiZiel.getState().ziel };
 }

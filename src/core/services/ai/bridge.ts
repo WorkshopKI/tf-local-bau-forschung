@@ -76,6 +76,15 @@ export class AIBridge {
   }
 
   /**
+   * Läuft alles über die Streamlit-Bridge? Entscheidet das wirksame
+   * Kontextfenster: die Bridge-Tabs haben feste, nicht abfragbare Grössen
+   * (`BRIDGE_*_CONTEXT_TOKENS`), lokal gilt der erkannte Wert.
+   */
+  istBridgeAktiv(): boolean {
+    return this.activeType === 'streamlit';
+  }
+
+  /**
    * Transport für einen dokument-tragenden Skill-Lauf — die **gegatete** Wahl.
    * Erzwingt die DSGVO-Transport-Policy: verarbeitet der Skill Dokumentinhalte
    * (Ableitung schlägt Flag, siehe `transport-policy.ts`), darf der aktive

@@ -17,7 +17,7 @@ import {
   NF_SKILL_ID, type CheckResult, type SkillRecord, type QualitaetsRegel,
 } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
-import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
+import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { resolveVb } from '../kurzfassung/vbDokument';
 import { buildStammdaten } from '../gutachten/skill-context';
@@ -102,7 +102,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       setLlmAvailable(reachable);
       if (!reachable) { setError('KI nicht erreichbar — NF-Generierung derzeit nicht möglich.'); return; }
 
-      const cap = getVbCharCap();
+      const cap = getVbCharCap(kontextZielFuerLauf(bridge));
       const { text: vbCapped } = capVbMarkdown(vb.markdown, cap);
       const stammdaten = buildStammdaten(ctx);
       const modell = (transport as { name?: string }).name ?? 'intern';

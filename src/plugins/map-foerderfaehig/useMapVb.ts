@@ -27,6 +27,7 @@ import {
   buildInfografikPrompt, istInhaltsleer, parseInfografik, type InfografikDaten,
 } from './infografik/schema';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useDokumenteStore, type DocumentFull, type DocumentMeta } from '@/plugins/dokumente/store';
 import { getVbZuordnung, setzeVbZuordnung, type VbDokRef } from './store';
 import type { MapEinreichung } from './types';
@@ -128,9 +129,9 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     return baueMapKorpus(
       { name: dokument.filename, markdown: dokument.markdown },
       zusatzDokumente.map(d => ({ name: d.filename, markdown: d.markdown })),
-      getVbCharCap(),
+      getVbCharCap(kontextZielFuerLauf(bridge)),
     );
-  }, [dokument, zusatzDokumente]);
+  }, [dokument, zusatzDokumente, bridge]);
 
   const gliederung = useMemo(
     () => (korpus === null ? [] : parseVbGliederung(korpus.markdown)),

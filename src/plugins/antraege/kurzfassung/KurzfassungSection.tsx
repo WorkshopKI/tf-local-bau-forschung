@@ -17,7 +17,8 @@ import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
 import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS, shouldShowVersionHint } from '@/core/services/skills';
-import { getVbCharCap, getLlmContextTokens } from '@/core/services/ai/llm-context';
+import { getLlmContextTokens } from '@/core/services/ai/llm-context';
+import { useKontextZiel, useVbCharCap } from '@/core/hooks/useVbCharCap';
 import { ANKER_EP } from '@/core/services/gutachten-vorlagen';
 import type { Antrag } from '@/core/services/csv/types';
 import { useKurzfassung } from './useKurzfassung';
@@ -29,6 +30,9 @@ import type { KurzfassungContext } from './types';
 
 export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useKurzfassung(ctx);
+  // Cap + Kontextfenster folgen der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
+  const kontextZiel = useKontextZiel();
+  const vbCap = useVbCharCap();
   // Einklappbar (persistiert, Default offen); Body via CSS verstecken statt
   // unmounten, damit ein offener Review-/Stream-Stand erhalten bleibt.
   const [open, toggleOpen] = useCollapsedSection('verbund_kurzfassung_collapsed');
@@ -182,10 +186,10 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
                 Hinweise zur Konvertierung vorhanden — siehe „Konvertierung prüfen".
               </div>
             )}
-            {vbDok && vbUeberschreitetCap(vbDok.markdown, getVbCharCap()) && (
+            {vbDok && vbUeberschreitetCap(vbDok.markdown, vbCap) && (
               <div
                 className="mb-3 text-[11.5px] text-[var(--tf-warning-text)]"
-                title={`${vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~${getVbCharCap().toLocaleString('de-DE')} aus ${getLlmContextTokens().toLocaleString('de-DE')} Tokens Kontext. ${VB_KUERZEN_HINWEIS}`}
+                title={`${vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~${vbCap.toLocaleString('de-DE')} aus ${getLlmContextTokens(kontextZiel).toLocaleString('de-DE')} Tokens Kontext. ${VB_KUERZEN_HINWEIS}`}
               >
                 ⚠ VB länger als das Kontextfenster — würde für die Analyse gekürzt. Extern kürzen und neu hochladen oder in Einstellungen → KI-Assistent das Kontextfenster erhöhen.
               </div>

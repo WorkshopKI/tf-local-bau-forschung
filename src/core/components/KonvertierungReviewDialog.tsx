@@ -7,9 +7,9 @@
 import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { parseMarkdown } from '@/plugins/dokumente/markdownMeta';
-import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { vbUeberschreitetCap } from '@/core/services/skills';
 import type { ConversionReport, ConversionWarning } from '@/core/services/converter';
+import { useVbCharCap } from '@/core/hooks/useVbCharCap';
 
 interface Props {
   open: boolean;
@@ -24,7 +24,7 @@ interface Props {
 export function KonvertierungReviewDialog({ open, filename, format, pages, markdown, report, onClose }: Props): React.ReactElement | null {
   const body = parseMarkdown(markdown).body;
   const charCount = report?.charCount ?? body.trim().length;
-  const cap = getVbCharCap();
+  const cap = useVbCharCap();
   const zuLang = vbUeberschreitetCap(markdown, cap);
 
   return (

@@ -21,13 +21,13 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DocConverter, maxConversionLevel, type ConvertedDoc } from '@/core/services/converter';
-import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { vbUeberschreitetCap } from '@/core/services/skills';
 import { uuid } from '@/core/services/id-generator';
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
 import { useDokumenteStore } from '@/plugins/dokumente/store';
 import { KonvertierungReviewDialog } from './KonvertierungReviewDialog';
 import { classifyFkz, typAusDateiname, DOKUMENT_TYP_OPTIONEN, type FkzCase } from './dokumentAufnahmeFkz';
+import { useVbCharCap } from '@/core/hooks/useVbCharCap';
 
 const converter = new DocConverter();
 
@@ -238,7 +238,8 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard, onRemove 
     void entfernen.run(item);
   };
   const lvl = item.converted ? maxConversionLevel(item.converted.report) : null;
-  const zuLang = item.converted ? vbUeberschreitetCap(item.converted.markdown, getVbCharCap()) : false;
+  const vbCap = useVbCharCap();
+  const zuLang = item.converted ? vbUeberschreitetCap(item.converted.markdown, vbCap) : false;
   const rep = item.converted?.report;
   const imgCount = rep?.imageCount ?? 0;
   const tblCount = rep?.tableCount ?? 0;
@@ -317,7 +318,7 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard, onRemove 
             </div>
             {zuLang && (
               <div className="mt-1.5 rounded-[6px] px-2.5 py-1.5 text-[11.5px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
-                ⚠ Länger als das Kontextfenster (~{getVbCharCap().toLocaleString('de-DE')} Zeichen) — die KI würde den Schluss nicht sehen.
+                ⚠ Länger als das Kontextfenster (~{vbCap.toLocaleString('de-DE')} Zeichen) — die KI würde den Schluss nicht sehen.
                 Bitte extern kürzen (Anhänge, Literaturverzeichnis, ausführliche Tabellen) und erneut hochladen.
               </div>
             )}

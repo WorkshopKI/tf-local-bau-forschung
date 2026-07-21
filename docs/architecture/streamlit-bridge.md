@@ -125,6 +125,30 @@ QS/Zweitmeinung. Das Bridge-Protokoll trägt dafür ein optionales `ziel` (`'sta
   am echten System. Bekanntes Risiko: der Agent stellt Rückfragen; ein Single-Shot-Scrape kann eine
   Rückfrage als „Antwort" einsammeln.
 
+### Kontextfenster je Tab (v2.273)
+
+Die beiden Tabs haben **unterschiedlich grossen Kontext**: Standard (gpt-oss) ~62k Tokens,
+Agentisch (Qwen) ~260k. Beide laufen serverseitig in der fremden Streamlit-App — die
+`/props`-Auto-Erkennung ([direct-llm.ts](../../src/core/services/ai/transports/direct-llm.ts))
+erreicht sie **nicht**, sie funktioniert nur beim lokalen llama.cpp. Bis v2.272 galt an der
+Bridge deshalb ersatzweise der lokale Default (81.920): agentische Läufe wurden grundlos
+gekürzt, Standard-Läufe zu spät gewarnt.
+
+Seit v2.273 sind beide Werte in [llm-context.ts](../../src/core/services/ai/llm-context.ts)
+fest verdrahtet (`BRIDGE_STANDARD_CONTEXT_TOKENS` / `BRIDGE_AGENTISCH_CONTEXT_TOKENS`) — die
+einzige Stelle für die Rechnung; die „(Qwen, 260k)"-Labels der Eval-Panels sind Prosa und
+müssen bei einer Änderung mitgezogen werden. Jeder Lauf leitet seinen Cap über
+`kontextZielFuerLauf(bridge)` ([ki-ziel.ts](../../src/core/services/ai/ki-ziel.ts)) ab,
+Anzeige-Stellen über den Hook `useVbCharCap` ([useVbCharCap.ts](../../src/core/hooks/useVbCharCap.ts)).
+
+**Präzedenz: manuell > Bridge-Tab > erkannt > Default.** Eine manuell eingetragene
+Kontextlänge gewinnt auch an der Bridge — wer sie gesetzt hat, soll sie nicht
+stillschweigend überschrieben bekommen.
+
+Anders als `aktivesZielFuerLauf` (das `'standard'` als `undefined` durchreicht, um kein
+Tab-Routing zu erzwingen) gibt `kontextZielFuerLauf` `'standard'` **mit**: für die
+Cap-Rechnung ist der Standard-Tab eine echte Aussage, nicht die Abwesenheit einer.
+
 ## Aktivierung (Nutzer-Flow)
 
 Das Bookmarklet muss **einmal pro Streamlit-Tab** angeklickt werden (nach jedem Neuladen erneut) — unter `file://` kann die App kein JS in den fremden cross-origin-Tab injizieren; das Bookmarklet ist der vom Nutzer autorisierte Weg. Ablauf siehe Installer-UI bzw. README.

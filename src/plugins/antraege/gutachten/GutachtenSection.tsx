@@ -19,7 +19,8 @@ import { maxConversionLevel } from '@/core/services/converter';
 import { vbUeberschreitetCap, VB_KUERZEN_HINWEIS } from '@/core/services/skills';
 import { erlaubeWorkflowEntwuerfe, isDevContext } from '@/config/feature-flags';
 import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflowShared';
-import { getVbCharCap, getLlmContextTokens } from '@/core/services/ai/llm-context';
+import { getLlmContextTokens } from '@/core/services/ai/llm-context';
+import { useKontextZiel, useVbCharCap } from '@/core/hooks/useVbCharCap';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   ankerFuer, ankerKeyGueltig, type AbschnittEinfuegung, type AbschnittAnzeige,
@@ -85,6 +86,9 @@ export function GutachtenSection({
 }: { ctx: KurzfassungContext; initialAbschnittId?: string }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
   const { navigate } = useNavigation();
+  // Cap + Kontextfenster folgen der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
+  const kontextZiel = useKontextZiel();
+  const vbCap = useVbCharCap();
   // dev-Inline-Werkstatt: Workflow/Skill direkt hier bearbeiten (nur dev). `null` = zu;
   // `{ skillId }` öffnet direkt den Skill-Editor des aktiven Schritts (Stift-Einstieg).
   const werkstattVerfuegbar = isDevContext();
@@ -419,10 +423,10 @@ export function GutachtenSection({
             </div>
           )}
 
-          {vbDok && vbUeberschreitetCap(vbDok.markdown, getVbCharCap()) && (
+          {vbDok && vbUeberschreitetCap(vbDok.markdown, vbCap) && (
             <div
               className="mb-4 text-[11.5px] text-[var(--tf-warning-text)]"
-              title={`${vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~${getVbCharCap().toLocaleString('de-DE')} aus ${getLlmContextTokens().toLocaleString('de-DE')} Tokens Kontext. ${VB_KUERZEN_HINWEIS}`}
+              title={`${vbDok.markdown.length.toLocaleString('de-DE')} Zeichen, Limit ~${vbCap.toLocaleString('de-DE')} aus ${getLlmContextTokens(kontextZiel).toLocaleString('de-DE')} Tokens Kontext. ${VB_KUERZEN_HINWEIS}`}
             >
               ⚠ VB länger als das Kontextfenster — würde für die Analyse gekürzt. Extern kürzen und über „VB ersetzen" neu hochladen oder in Einstellungen → KI-Assistent das Kontextfenster erhöhen.
             </div>
