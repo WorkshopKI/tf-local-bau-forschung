@@ -23,7 +23,8 @@ import {
   type SkillRecord,
 } from '@/core/services/skills';
 import { DocConverter } from '@/core/services/converter';
-import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv } from './quellen';
+import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv, misseKorpus, type KorpusMass } from './quellen';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
@@ -91,6 +92,10 @@ export interface UseAufbereitungResult {
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
+  /** Umfang des Korpus gegen das Kontextfenster — gesetzt, sobald ein
+   *  Baustein-Lauf den Korpus aufgelöst hat. `ueberCap` heisst: die Bausteine
+   *  haben das Ende des Textes nicht gesehen. */
+  korpusMass: KorpusMass | null;
   /** Läuft alle Bausteine sequentiell (Recherche-Prompt → Aspekte → Steckbrief → Zahlen → Glossar → Verwertung). */
   bausteine: UseAsyncActionResult<[]>;
   /** Verwirft die Baustein-Caches und rechnet neu (dev-Aktion „KI-Bausteine neu berechnen"). */
@@ -118,6 +123,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [verwertung, setVerwertung] = useState<BausteinUiState<VerwertungDaten>>(FEHLT);
   const [recherchePrompt, setRecherchePrompt] = useState<BausteinUiState<RecherchePromptDaten>>(FEHLT);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
+  const [korpusMass, setKorpusMass] = useState<KorpusMass | null>(null);
   const key = ctx?.key ?? null;
 
   // Gespeicherten Run laden (bei Kontext-Wechsel neu) — Baustein-Status zurücksetzen.
@@ -131,6 +137,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setVerwertung(FEHLT);
     setRecherchePrompt(FEHLT);
     setVbMarkdown(null);
+    setKorpusMass(null);
     (async () => {
       if (!key) { setRun(null); setLoading(false); return; }
       const r = await loadAufbereitung(storage.idb, key);
@@ -256,6 +263,11 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       return;
     }
     setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge)
+    // Gemessen, NICHT gekürzt: `runBaustein` umgeht `runSkill` und damit
+    // `capVbMarkdown`, und der Upload-Check prüft nur je Datei. Ohne diese
+    // Messung liefe ein zu grosser Korpus stillschweigend abgeschnitten ins
+    // Modell. Was daraus folgt, entscheidet der Prüfer.
+    setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap()));
     // Recherche-Prompt ZUERST: der Prüfer kann die externe Deep Research (5–10 Min) starten,
     // während die übrigen Bausteine weiterlaufen. Agentische Variante + Leak-Check im Compute.
     await laufEinen<RecherchePromptDaten>(recherchePromptSkill, setRecherchePrompt, t =>
@@ -355,5 +367,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, korpusMass, bausteine, bausteineNeu };
 }

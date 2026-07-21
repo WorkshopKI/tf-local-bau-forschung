@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.272 — 2026-07
+
+### Bugfixes
+- Wenn die Dokumente eines Vorhabens zusammen zu umfangreich für die KI sind, steht das jetzt sichtbar unter „Dokumente zum Vorhaben". Bisher lief die Analyse in diesem Fall stillschweigend über einen abgeschnittenen Text — das Ergebnis sah vollständig aus, obwohl die KI das Ende nie gelesen hatte. Zeitplan, Tabellen und Gliederung waren davon nie betroffen.
+
 ## v2.255 — 2026-07
 
 ### Neu

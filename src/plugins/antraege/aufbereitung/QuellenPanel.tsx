@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { DokumentAufnahme, DOKUMENT_TYP_OPTIONEN } from '@/core/components/DokumentAufnahme';
 import type { AufbereitungRun } from './types';
+import type { KorpusMass } from './quellen';
 
 const CAPS_LABEL = 'text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text)]';
 
@@ -24,11 +25,38 @@ export const AUFBEREITUNG_TYP_OPTIONEN = DOKUMENT_TYP_OPTIONEN;
 interface Props {
   ctx: { key: string; knownIds: string[] };
   run: AufbereitungRun | null;
+  /** Umfang des Korpus gegen das Kontextfenster (aus `useAufbereitung`). */
+  korpusMass?: KorpusMass | null;
   /** Coalesced Neu-Aufbereiten nach erfolgreicher Aufnahme (aus `useAufbereitung`). */
   onIngested: () => void;
 }
 
-export function QuellenPanel({ ctx, run, onIngested }: Props): React.ReactElement {
+/**
+ * Der Korpus wird auf der Baustein-Schiene weder gekürzt noch gewarnt. Sobald
+ * neben der VB weitere Dokumente einfliessen, ist das Kontextfenster real
+ * erreichbar — und ein stillschweigend abgeschnittener Text ist schlimmer als
+ * eine fehlende Analyse, weil das Ergebnis vollständig aussieht.
+ */
+function KorpusWarnung({ mass }: { mass: KorpusMass | null | undefined }): React.ReactElement | null {
+  if (!mass?.ueberCap) return null;
+  return (
+    <div
+      className="mx-3.5 mb-3 rounded px-3 py-2 text-[12.5px]"
+      style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+    >
+      <p className="text-[var(--tf-text)]">
+        Die Dokumente ergeben zusammen {mass.zeichen.toLocaleString('de-DE')} Zeichen und
+        passen damit nicht ins Kontextfenster des Modells ({mass.cap.toLocaleString('de-DE')}).
+      </p>
+      <p className="text-[var(--tf-text-secondary)] mt-0.5">
+        Die KI-Bausteine haben das Ende des Textes nicht gesehen. Deterministische
+        Auswertungen — Zeitplan, Tabellen, Gliederung — sind davon unberührt.
+      </p>
+    </div>
+  );
+}
+
+export function QuellenPanel({ ctx, run, korpusMass, onIngested }: Props): React.ReactElement {
   const vbQuelle = run?.quellen.find(q => q.rolle === 'vb') ?? null;
   const anlageQuelle = run?.quellen.find(q => q.rolle === 'anlage5') ?? null;
   const marketingNamen = (run?.quellen.filter(q => q.rolle === 'verwertung') ?? []).map(q => q.name);
@@ -61,6 +89,9 @@ export function QuellenPanel({ ctx, run, onIngested }: Props): React.ReactElemen
           </span>
         )}
       </button>
+
+      {/* Ausserhalb von `offen`: eine eingeklappte Sektion darf die Warnung nicht verstecken. */}
+      <KorpusWarnung mass={korpusMass} />
 
       {offen && (
         <div className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-1">

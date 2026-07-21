@@ -185,6 +185,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
         <QuellenPanel
           ctx={{ key: ctx.key, knownIds: ctx.knownIds }}
           run={aufb.run}
+          korpusMass={aufb.korpusMass}
           onIngested={aufb.requestRecompute}
         />
       ) : null}

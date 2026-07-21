@@ -12,24 +12,14 @@
  * Hauptdokuments stabil, und die Gliederung zeigt die Dokumentgrenze als eigene
  * Überschrift. Ein zweites Korpus-Format hier wäre stille Drift.
  *
- * Der Cap-Check ist der Grund, warum diese Datei überhaupt existiert: Die
- * Baustein-Schiene (`runBaustein`) kürzt NICHT und warnt NICHT — sie umgeht
- * `runSkill` und damit `capVbMarkdown`. Die Upload-Warnung prüft jede Datei
- * einzeln, nie ihre Summe. Bei vier Dokumenten ist das Kontextfenster real
- * erreichbar, und ein stillschweigend abgeschnittener Korpus wäre in einer
- * Förderprüfung der schlechtestmögliche Fehler: das Modell urteilt dann über
- * einen Text, dessen Ende es nie gesehen hat.
+ * Auch die Cap-Messung (`misseKorpus`) kommt von dort — die Lücke, die sie
+ * schliesst, betrifft beide Module gleichermassen.
  */
-import { baueKorpus, type KorpusDok } from '@/plugins/antraege/aufbereitung/quellen';
+import { baueKorpus, misseKorpus, type KorpusDok, type KorpusMass } from '@/plugins/antraege/aufbereitung/quellen';
 
-export interface MapKorpus {
+export interface MapKorpus extends KorpusMass {
   /** Hauptdokument, gefolgt von den quellenmarkierten Zusatzdokumenten. */
   markdown: string;
-  zeichen: number;
-  /** Zeichen-Obergrenze des internen Modells (aus dem erkannten Kontextfenster). */
-  cap: number;
-  /** true = der Korpus passt nicht vollständig ins Kontextfenster. */
-  ueberCap: boolean;
 }
 
 /**
@@ -44,10 +34,5 @@ export function baueMapKorpus(
   haupt: KorpusDok, zusatz: readonly KorpusDok[], cap: number,
 ): MapKorpus {
   const markdown = baueKorpus(haupt, [...zusatz]);
-  return {
-    markdown,
-    zeichen: markdown.length,
-    cap,
-    ueberCap: markdown.length > cap,
-  };
+  return { markdown, ...misseKorpus(markdown, cap) };
 }

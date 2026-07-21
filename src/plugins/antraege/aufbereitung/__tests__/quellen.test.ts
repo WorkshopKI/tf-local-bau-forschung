@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchTvAusDateiname, resolveAnlagenProTv } from '../quellen';
+import { baueKorpus, matchTvAusDateiname, misseKorpus, resolveAnlagenProTv } from '../quellen';
 import type { IDBStore } from '@/core/services/storage';
 
 /** Minimaler IDB-Fake: nur keys(prefix) + get(key). */
@@ -56,5 +56,27 @@ describe('resolveAnlagenProTv', () => {
     });
     const { proTv } = await resolveAnlagenProTv(idb, VERBUND, tvs);
     expect(proTv.size).toBe(0);
+  });
+});
+
+describe('misseKorpus', () => {
+  it('meldet die Ueberschreitung ueber die SUMME, nicht je Datei', () => {
+    // Genau die Luecke, die sonst niemand sieht: `DokumentAufnahme` warnt pro
+    // Datei, und `runBaustein` kuerzt nicht. Beide Dateien liegen einzeln unter
+    // der Grenze, ihr Korpus darueber.
+    const vb = { name: 'VB.pdf', markdown: 'x'.repeat(60) };
+    const markt = { name: 'Markt.pdf', markdown: 'y'.repeat(60) };
+    expect(misseKorpus(vb.markdown, 100).ueberCap).toBe(false);
+    expect(misseKorpus(markt.markdown, 100).ueberCap).toBe(false);
+
+    const korpus = baueKorpus(vb, [markt]);
+    const mass = misseKorpus(korpus, 100);
+    expect(mass.ueberCap).toBe(true);
+    expect(mass.zeichen).toBe(korpus.length);
+    expect(mass.cap).toBe(100);
+  });
+
+  it('meldet nichts, solange der Korpus passt', () => {
+    expect(misseKorpus('kurz', 100)).toEqual({ zeichen: 4, cap: 100, ueberCap: false });
   });
 });

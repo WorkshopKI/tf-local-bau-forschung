@@ -125,8 +125,13 @@ Upload-Warnung prüft jede Datei einzeln, nie ihre Summe. Bei vier Dokumenten is
 das Kontextfenster erreichbar, und ein stillschweigend abgeschnittener Korpus
 wäre in einer Förderprüfung der schlechteste denkbare Fehler: das Modell urteilte
 über einen Text, dessen Ende es nie gesehen hat. Deshalb ein sichtbarer Hinweis
-statt stiller Kürzung. **Die Lücke besteht in der Aufbereitung fort** — dort
-warnt bislang nichts.
+statt stiller Kürzung.
+
+Die Messung selbst (`misseKorpus`) liegt seit v2.272.1 neben `baueKorpus` in der
+Aufbereitung und wird von beiden Modulen genutzt — die Aufbereitung warnt im
+Quellen-Panel, der MAP im VB-Reiter. Gekürzt wird weiterhin nirgends: das würde
+bestehende Ergebnisse verändern, und was mit einem zu grossen Korpus geschieht,
+ist eine fachliche Entscheidung.
 
 ### Fundstellen über die Aufbereitung, nicht über Orama
 

@@ -173,6 +173,35 @@ export function baueKorpus(vb: KorpusDok, narrative: KorpusDok[]): string {
   return out;
 }
 
+/** Umfang des Korpus gegen das Kontextfenster des Modells. */
+export interface KorpusMass {
+  zeichen: number;
+  /** Zeichen-Obergrenze aus dem erkannten Kontextfenster (`getVbCharCap`). */
+  cap: number;
+  /** true = der Korpus passt nicht vollständig ins Kontextfenster. */
+  ueberCap: boolean;
+}
+
+/**
+ * Misst den Korpus gegen die Zeichen-Obergrenze. Rein.
+ *
+ * Der Grund für diese Funktion ist eine echte Lücke: die Baustein-Schiene
+ * (`runBaustein`) baut ihre Messages selbst und umgeht damit `runSkill` — also
+ * auch `capVbMarkdown`. Sie kürzt nicht und warnt nicht. Die Upload-Warnung in
+ * `DokumentAufnahme` prüft jede Datei EINZELN, nie ihre Summe. VB und
+ * Marketingkonzept passieren also beide unauffällig, während ihr Korpus das
+ * Kontextfenster sprengt — das Modell urteilt dann über einen Text, dessen Ende
+ * es nie gesehen hat, ohne dass irgendwo ein Hinweis erscheint.
+ *
+ * Bewusst nur MESSEN, nicht kürzen: eine stille Kürzung wäre in einer
+ * Förderprüfung der schlechtere Fehler, und sie würde bestehende Ergebnisse
+ * verändern. Die Entscheidung, was mit einem zu grossen Korpus geschieht, gehört
+ * dem Prüfer.
+ */
+export function misseKorpus(markdown: string, cap: number): KorpusMass {
+  return { zeichen: markdown.length, cap, ueberCap: markdown.length > cap };
+}
+
 /**
  * Korpus auflösen: VB (Pflicht — ohne VB null, wie `resolveVb`) + narrative
  * Zusatzdokumente. Die freitextlichen LLM-Bausteine + der Lesemodus arbeiten auf
