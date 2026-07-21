@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.275.1 — Hinweis beim Wechsel der KI-Variante im Chat (Juli 2026)
+
+PATCH — Seit v2.274 wechselt der Umschalter wirklich den Streamlit-Tab. Weil die Bridge aus App-Sicht single-turn ist (nur die letzte Nutzer-Nachricht geht raus), liegt der Gesprächsfaden in der Historie des Tabs — der neue kennt die bisherigen Züge nicht. Für den Nutzer war das nirgends sichtbar.
+
+- **Hinweis am Umschalter**, wenn mitten in einem laufenden Gespräch gewechselt wird ([KiVariantSelector.tsx](src/core/components/KiVariantSelector.tsx)).
+- **Reine `sollWechselHinweisZeigen`** entscheidet wann: nur bei aktiver Bridge, laufendem Gespräch und echtem Wechsel ([ki-ziel.ts](src/core/services/ai/ki-ziel.ts)).
+- Bewusst **nachgelagerter Hinweis statt Bestätigungsdialog** — der Wechsel ist verlustfrei umkehrbar.
+
 ### v2.275.0 — Startup-Freigabe: Wizard oben, weniger Mausweg und Klicks (Juli 2026)
 
 MINOR — Das Browser-Popup zur Ordner-Freigabe erscheint oben am Bildschirm, die Wizard-Karte stand aber mittig: bei drei Ordnern pendelte der User sechsmal über die halbe Bildschirmhöhe. Echtes Auto-Abfragen aller Ordner ist browserseitig blockiert (Chromium verbraucht die User-Activation pro `requestPermission`) — also Weg verkürzen statt Schritte streichen.
