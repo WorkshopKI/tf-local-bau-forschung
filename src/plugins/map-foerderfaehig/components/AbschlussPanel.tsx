@@ -7,23 +7,29 @@ import { CopyButton } from '@/plugins/chat/components/CopyButton';
 import { useMemo, useState } from 'react';
 import { baueAbschluss, type AbschlussArt } from '../abschluss/markdown';
 import type { MapBewertungsErgebnis } from '../checkliste/bewertung';
-import type { MapChecklistenDefinition } from '../checkliste/typen';
+import type { MapChecklistenDefinition, MapPraezisionsNf } from '../checkliste/typen';
+import type { Zielkriterium } from '../substanz/zielkriterien';
 import type { MapEinreichung } from '../types';
 
 export function AbschlussPanel({
-  einreichung, definition, ergebnis,
+  einreichung, definition, ergebnis, zielkriterien, praezisionsNf,
 }: {
   einreichung: MapEinreichung;
   definition: MapChecklistenDefinition;
   ergebnis: MapBewertungsErgebnis;
+  /** Übernommene Zielkriterien — landen als Tabelle im Gutachten-Gerüst. */
+  zielkriterien: readonly Zielkriterium[];
+  praezisionsNf: readonly MapPraezisionsNf[];
 }): React.ReactElement {
   const [art, setArt] = useState<AbschlussArt>('gutachten');
   const [titelGeprueft, setTitelGeprueft] = useState(false);
   const [hinweis, setHinweis] = useState('');
 
   const markdown = useMemo(
-    () => baueAbschluss(art, einreichung, definition, ergebnis, { titelGeprueft, hinweis }),
-    [art, einreichung, definition, ergebnis, titelGeprueft, hinweis],
+    () => baueAbschluss(art, einreichung, definition, ergebnis, {
+      titelGeprueft, hinweis, zielkriterien, praezisionsNf,
+    }),
+    [art, einreichung, definition, ergebnis, titelGeprueft, hinweis, zielkriterien, praezisionsNf],
   );
 
   return (
@@ -55,7 +61,10 @@ export function AbschlussPanel({
         variant="pills"
         items={[
           { key: 'gutachten', label: 'Gutachten' },
-          { key: 'nachforderung', label: 'Nachforderung', count: ergebnis.nfOffen.length },
+          {
+            key: 'nachforderung', label: 'Nachforderung',
+            count: ergebnis.nfOffen.length + praezisionsNf.length,
+          },
           { key: 'ablehnung', label: 'Ablehnung', count: ergebnis.nichtErfuellt.length },
         ]}
         activeKey={art}

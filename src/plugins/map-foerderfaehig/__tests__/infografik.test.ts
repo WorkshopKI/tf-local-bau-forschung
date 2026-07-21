@@ -31,6 +31,9 @@ const VB = [
 
 const GLIEDERUNG = parseVbGliederung(VB);
 
+/** Platzhalter-Faktenblock — der echte Aufbau wird in `substanz.test.ts` geprueft. */
+const FAKTEN = '## Verbindliche Fakten aus der Einreichung\n\n- Laufzeit: 23 Monate';
+
 const VOLLE_ANTWORT = JSON.stringify({
   canvas: {
     problemSdt: { text: 'Heutige Anlagen sind ineffizient.', sektionIds: ['k-1'], belegtheit: 'belegt' },
@@ -52,14 +55,14 @@ const VOLLE_ANTWORT = JSON.stringify({
 
 describe('Prompt', () => {
   it('nennt die Abschnitts-IDs, damit das Modell belegen kann', () => {
-    const p = buildInfografikPrompt(GLIEDERUNG, VB);
+    const p = buildInfografikPrompt(GLIEDERUNG, VB, FAKTEN);
     expect(p).toContain('k-1');
     expect(p).toContain('Ausgangssituation');
     expect(p).toContain(VB);
   });
 
   it('verlangt die Kennzeichnung von Vagem', () => {
-    expect(buildInfografikPrompt(GLIEDERUNG, VB)).toMatch(/belegt\|vage\|fehlt/);
+    expect(buildInfografikPrompt(GLIEDERUNG, VB, FAKTEN)).toMatch(/belegt\|vage\|fehlt/);
   });
 });
 

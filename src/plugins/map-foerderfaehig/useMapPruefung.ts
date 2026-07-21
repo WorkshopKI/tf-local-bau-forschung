@@ -14,7 +14,11 @@ import {
   aendereItem, ergaenzeItem, setzeItemAktiv,
   type ItemAenderung, type NeuesItem,
 } from './checkliste/editor';
-import type { MapChecklistenDefinition, MapPruefung } from './checkliste/typen';
+import type {
+  MapChecklistenDefinition, MapPraezisionsNf, MapPruefung,
+} from './checkliste/typen';
+import { ergaenzeNf } from './substanz/nf-praezision';
+import { schalte } from './substanz/zielkriterien';
 import {
   migrierePruefung, neuePruefung, setzeBedingung, wendeBewertungAn,
   type BewertungsAenderung,
@@ -38,6 +42,11 @@ export interface UseMapPruefungResult {
   ergaenzeKriterium: (neu: NeuesItem) => Promise<void>;
   aktiviereItem: (itemId: string, aktiv: boolean) => Promise<void>;
   setzeChecklisteZurueck: () => Promise<void>;
+  /** Präzisions-NF aufnehmen; derselbe Auslöser ersetzt statt zu verdoppeln. */
+  ergaenzePraezisionsNf: (eintrag: MapPraezisionsNf) => Promise<void>;
+  entfernePraezisionsNf: (id: string) => Promise<void>;
+  /** Zielkriterium übernehmen (`true`) oder abwählen (`false`). */
+  schalteZielkriterium: (parameter: string, uebernehmen: boolean) => Promise<void>;
 }
 
 export function useMapPruefung(
@@ -140,6 +149,36 @@ export function useMapPruefung(
     setDefinition(await setzeChecklisteZurueck(storage.idb));
   }, [storage.idb]);
 
+  // Ein setState + ein persist je Aktion (Pitfall #16/#20) — `schreibePruefung`
+  // erledigt beides, deshalb hier nie zwei Aufrufe hintereinander.
+  const ergaenzePraezisionsNf = useCallback(async (eintrag: MapPraezisionsNf): Promise<void> => {
+    if (pruefung === null) return;
+    await schreibePruefung({
+      ...pruefung,
+      praezisionsNf: ergaenzeNf(pruefung.praezisionsNf ?? [], eintrag),
+      aktualisiertAm: new Date().toISOString(),
+    });
+  }, [pruefung, schreibePruefung]);
+
+  const entfernePraezisionsNf = useCallback(async (id: string): Promise<void> => {
+    if (pruefung === null) return;
+    await schreibePruefung({
+      ...pruefung,
+      praezisionsNf: (pruefung.praezisionsNf ?? []).filter(n => n.id !== id),
+      aktualisiertAm: new Date().toISOString(),
+    });
+  }, [pruefung, schreibePruefung]);
+
+  const schalteZielkriterium = useCallback(
+    async (parameter: string, uebernehmen: boolean): Promise<void> => {
+      if (pruefung === null) return;
+      await schreibePruefung({
+        ...pruefung,
+        zielkriterienAus: schalte(pruefung.zielkriterienAus ?? [], parameter, uebernehmen),
+        aktualisiertAm: new Date().toISOString(),
+      });
+    }, [pruefung, schreibePruefung]);
+
   return {
     definition,
     pruefung,
@@ -154,5 +193,8 @@ export function useMapPruefung(
     ergaenzeKriterium,
     aktiviereItem,
     setzeChecklisteZurueck: zuruecksetzen,
+    ergaenzePraezisionsNf,
+    entfernePraezisionsNf,
+    schalteZielkriterium,
   };
 }

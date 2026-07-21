@@ -194,14 +194,62 @@ Dokument-tragende Läufe ausschliesslich über `bridge.getTransportForSkillRun`
 `getOrComputeBaustein`. Der Abschluss (Gutachten, Nachforderung, Ablehnung)
 arbeitet **ohne** LLM.
 
+## Substanzcheck (Anti-Prosa-Paket)
+
+Der Hebel gegen KI-glattgeschriebene Anträge. **Leitidee: nicht Textqualität
+bewerten, sondern Behauptungen gegen harte Daten und gegen Quantifizierungspflicht
+halten.** Die KI liest und konfrontiert, der Mensch bewertet.
+
+Vier Bausteine, alle auf dem **bestehenden** Infografik-Lauf — es kommt kein
+zusätzlicher LLM-Aufruf hinzu:
+
+| Baustein | Wo | Was |
+|---|---|---|
+| **Fakten-Block** | `infografik/fakten.ts` | Laufzeit, Σ PM, PM je AP mit Namen, Kostenarten, Fördersatz, Zuwendung — deterministisch aus dem Strukturmodell, im Prompt als „verbindliche Fakten aus der Einreichung" vor der VB. |
+| **Widersprüche** | `infografik/substanz.ts` → Reiter „Rechenchecks", Gruppe „VB ↔ Einreichungsdaten" | Abweichungen `zahl`/`zeitraum`/`bezeichnung` zwischen Fliesstext und Formular. Ein Klick hängt den Befund über `substanz/zuordnung.ts` an das passende Prüfkriterium (`nf-notwendig` + Bemerkung). |
+| **Unschärfe-Liste** | Reiter „Vorhaben kompakt" | Anspruchsformeln ohne Zahl oder Definition, max. 10. Bewusst **ohne Score** — eine Liste zum Durchgehen, keine Textnote. |
+| **Zielkriterien + Präzisions-NF** | `substanz/zielkriterien.ts`, `substanz/nf-praezision.ts` | Quantifizierte Delta-Zeilen wandern als Tabelle „Kontrollfähige Zielkriterien (RL 4.5.1)" ins Gutachten; unbezifferte werden per Klick zur Nachforderung. |
+
+Vier Entscheidungen, die man kennen muss:
+
+1. **Leere Listen sind ein gutes Ergebnis.** `istInhaltsleer` (Verdächtig-Guard)
+   ignoriert die Substanz-Felder bewusst — sonst löste ein sauberer Antrag einen
+   Retry aus und würde nie gecacht.
+2. **Formulierungs-Leitplanke im Code, nicht im Prompt.** Jede erzeugte
+   NF-Frage verlangt eine konkrete Angabe **und** Messverfahren/Bezugsgrösse;
+   „bitte näher erläutern" ist ausgeschlossen. Kein Modell-Lauf kann das
+   aufweichen. Registry-Bausteine werden dabei nie umformuliert (Pitfall #34) —
+   sie stehen wortgetreu daneben.
+3. **Zielkriterien speichern die ABWAHL**, nicht die Auswahl: quantifizierte
+   Zeilen sind per Vorgabe an, und eine Zeile aus einem späteren Lauf fällt nicht
+   still heraus.
+4. **Cache-Invalidierung über `INFOGRAFIK_SCHEMA_VERSION`** (im Key via
+   `vb/analyse-cache.ts`). Der Korpus-Hash allein genügt nicht: eine v1-Antwort
+   passt weiter zum unveränderten Korpus und lieferte dauerhaft leere Listen.
+
+**Messung: dev-Panel statt npm-Script.** Der Reiter „Substanz-Smoke" (nur bei
+`features.devFixtures`) fährt vier fiktive VB-Fassungen gegen dieselbe fiktive
+Einreichung — drei mit je einer eingebauten Abweichung, eine saubere. Die saubere
+Fassung ist die **Falsch-Positiv-Kontrolle** und der eigentliche Härtetest: ein
+Widerspruchscheck, der überall etwas findet, ist wertlos. Eine Node-CLI kann das
+nicht leisten, weil die interne KI an der browser-gebundenen Streamlit-Bridge
+hängt. `npm run check` bleibt LLM-frei; geprüft wird dort nur die deterministische
+Seite (`__tests__/substanz.test.ts`, `substanz-aktionen.test.ts`).
+
 ## Testbarkeit
 
 Die Vitest-Umgebung ist `node` ohne jsdom und sammelt nur `.test.ts` ein —
 React-Component-Tests sind nicht möglich. Daraus folgt die harte Modulregel:
 **keine `.tsx` in diesem Plugin rechnet.** Jede Ableitung liegt in einer reinen
-`.ts` daneben (`ansicht/`, `checkliste/`, `infografik/`, `vb/`), die Komponenten
-ordnen nur zu und stellen dar. Ein modul-lokaler Convention-Test bewacht das
-zusammen mit der `normiertemonatskosten`-Sperre und der Deny-Liste.
+`.ts` daneben (`ansicht/`, `checkliste/`, `infografik/`, `substanz/`, `vb/`), die
+Komponenten ordnen nur zu und stellen dar.
+
+Der modul-lokale Convention-Test (`__tests__/konventionen.test.ts`) prüft davon
+**drei** Dinge maschinell: die `normiertemonatskosten`-Sperre, die
+Datenschutz-Deny-Liste und die 400-Zeilen-Grenze — dazu seit dem Substanzcheck
+die Fixture-Herkunft des Smoke-Panels. Die Regeln „keine `.tsx` rechnet" und
+„kein `Antrag`-Record" gelten weiterhin, werden aber **nicht** vom Test erzwungen;
+sie stehen als Konvention in den Datei-Headern.
 
 Fixtures: `__tests__/fixtures/` ist committet und rein fiktiv (die Dummy-Fixture
 ist eine gescrubbte, strukturgleiche Fassung des Plattform-Exports);
@@ -223,11 +271,12 @@ ist eine gescrubbte, strukturgleiche Fassung des Plattform-Exports);
 ```
 src/plugins/map-foerderfaehig/
   MapPage.tsx  index.ts  store.ts  types.ts
-  useMapEinreichungen.ts  useMapPruefung.ts  useMapVb.ts
+  useMapEinreichungen.ts  useMapPruefung.ts  useMapVb.ts  useSubstanzAnsicht.ts
   import/       Adapter, Schema-Definitionen, Erkennung, Redaktion, Rechenchecks
   checkliste/   Typen, Seed, Bewertung, Editor, Verlauf
-  vb/           Zuordnung, Fundstellen
-  infografik/   Schema + Prompt + Parser, Richtwerte, Portfolio-Demo
+  vb/           Zuordnung, Fundstellen, Analyse-Cache
+  infografik/   Schema + Prompt + Parser, Fakten-Block, Substanz, Richtwerte
+  substanz/     Zuordnung, Präzisions-NF, Zielkriterien, Kontrast-Fixtures, Smoke
   abschluss/    NF-Suche, Markdown-Entwürfe
   ansicht/      Gantt-Daten, Kosten-Segmente
   components/   nur Darstellung

@@ -8,8 +8,10 @@
  *
  * Rein darstellend.
  */
+import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import type { SdtDeltaZeile } from '../infografik/schema';
+import { istKandidat, istUebernommen } from '../substanz/zielkriterien';
 
 const QUANT_STIL: Record<SdtDeltaZeile['quantifizierung'], { label: string; farbe: string }> = {
   quantifiziert: { label: 'quantifiziert', farbe: 'var(--tf-success, #16a34a)' },
@@ -17,7 +19,17 @@ const QUANT_STIL: Record<SdtDeltaZeile['quantifizierung'], { label: string; farb
   fehlt: { label: 'nicht beziffert', farbe: 'var(--tf-danger, #dc2626)' },
 };
 
-export function SdtDeltaKarte({ zeilen }: { zeilen: readonly SdtDeltaZeile[] }): React.ReactElement {
+export function SdtDeltaKarte({
+  zeilen, zielkriterienAus, erledigteAusloeser, onZielkriterium, onNachfordern,
+}: {
+  zeilen: readonly SdtDeltaZeile[];
+  /** Abgewählte Zielkriterien (normalisierte Parameter). */
+  zielkriterienAus: readonly string[];
+  /** Parameter, zu denen bereits eine Präzisions-NF vorliegt. */
+  erledigteAusloeser: ReadonlySet<string>;
+  onZielkriterium: (parameter: string, uebernehmen: boolean) => void;
+  onNachfordern: (zeile: SdtDeltaZeile) => void;
+}): React.ReactElement {
   if (zeilen.length === 0) {
     return (
       <div
@@ -45,11 +57,15 @@ export function SdtDeltaKarte({ zeilen }: { zeilen: readonly SdtDeltaZeile[] }):
               <th className="py-1.5 pr-3 font-medium">Stand der Technik</th>
               <th className="py-1.5 pr-3 font-medium">Ziel</th>
               <th className="py-1.5 pr-3 font-medium">Beleg</th>
+              <th className="py-1.5 font-medium">Weiterverwendung</th>
             </tr>
           </thead>
           <tbody>
             {zeilen.map((z, i) => {
               const stil = QUANT_STIL[z.quantifizierung];
+              const kandidat = istKandidat(z);
+              const uebernommen = istUebernommen(z, zielkriterienAus);
+              const erledigt = erledigteAusloeser.has(z.parameter);
               return (
                 <tr key={`${z.parameter}-${i}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
                   <td className="py-2 pr-3 text-[var(--tf-text)] align-top">{z.parameter}</td>
@@ -69,6 +85,31 @@ export function SdtDeltaKarte({ zeilen }: { zeilen: readonly SdtDeltaZeile[] }):
                         {z.sektionIds.join(', ')}
                       </span>
                     )}
+                  </td>
+                  <td className="py-2 align-top">
+                    {kandidat
+                      ? (
+                        // Messbare Zeile → Zielkriterium fürs Gutachten. Vorbelegt an:
+                        // was quantifiziert ist, gehört per Vorgabe in den Bescheid.
+                        <label className="flex items-start gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={uebernommen}
+                            onChange={e => onZielkriterium(z.parameter, e.target.checked)}
+                            className="mt-0.5 shrink-0"
+                          />
+                          als Zielkriterium übernehmen
+                        </label>
+                      )
+                      : (
+                        <Button
+                          variant="ghost" size="sm"
+                          disabled={erledigt}
+                          onClick={() => onNachfordern(z)}
+                        >
+                          {erledigt ? 'Nachforderung erzeugt' : 'Nachforderung erzeugen'}
+                        </Button>
+                      )}
                   </td>
                 </tr>
               );

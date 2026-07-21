@@ -136,6 +136,27 @@ export interface MapVerlaufEintrag {
   nach: { status: MapItemStatus; stufe?: MapStufe };
 }
 
+/**
+ * Eine per Klick erzeugte Präzisions-Nachforderung.
+ *
+ * Sie hängt nicht an einem Prüfkriterium, sondern am Auslöser im Text (eine
+ * unbezifferte Delta-Zeile, ein unscharfer Begriff). Deshalb eine eigene Liste
+ * statt einer Bemerkung am Item: der Prüfvermerk am Kriterium und die Frage an
+ * den Antragsteller sind zwei verschiedene Texte mit zwei verschiedenen Lesern.
+ */
+export interface MapPraezisionsNf {
+  /** Stabil aus Quelle + Auslöser — derselbe Auslöser erzeugt keine Dublette. */
+  id: string;
+  quelle: 'delta' | 'unschaerfe';
+  /** Delta-Parameter bzw. Unschärfe-Begriff, im Wortlaut des Laufs. */
+  ausloeser: string;
+  /** Generierte Frage nach der Formulierungs-Leitplanke. */
+  frage: string;
+  /** Passender Registry-Baustein; `null` → im Entwurf steht `[TODO Baustein zuordnen]`. */
+  bausteinId: string | null;
+  erzeugtAm: string;
+}
+
 export interface MapPruefung {
   version: 1;
   einreichungId: string;
@@ -153,4 +174,19 @@ export interface MapPruefung {
   verlauf: MapVerlaufEintrag[];
   begonnenAm: string;
   aktualisiertAm: string;
+  /**
+   * Per Klick erzeugte Präzisions-Nachforderungen. Optional und additiv — ein
+   * Prüfstand aus der Zeit vor dem Substanzcheck bleibt gültig, deshalb kein
+   * `version`-Bump.
+   */
+  praezisionsNf?: MapPraezisionsNf[];
+  /**
+   * ABGEWÄHLTE Zielkriterien (normalisierte Delta-Parameter).
+   *
+   * Bewusst die Abwahl statt der Auswahl: quantifizierte Zeilen sollen per
+   * Vorgabe im Gutachten landen. Speicherte man die Auswahl, wäre der
+   * Default-an-Zustand nur durch einen Schreibvorgang beim ersten Rendern
+   * herstellbar — und eine Zeile aus einem späteren Lauf fiele still heraus.
+   */
+  zielkriterienAus?: string[];
 }

@@ -6,6 +6,7 @@
  * Ableitungen (`ansicht/*`, `import/rechenchecks`); diese Datei rechnet nichts.
  */
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { useMemo, useState } from 'react';
 import { baueGanttDaten } from '../ansicht/gantt-daten';
 import { baueKostenSegmente } from '../ansicht/kosten-segmente';
@@ -24,9 +25,13 @@ import { KostenBalken } from './KostenBalken';
 import { ProjektCanvas } from './ProjektCanvas';
 import { ReaderLite } from './ReaderLite';
 import { SdtDeltaKarte } from './SdtDeltaKarte';
+import { SubstanzSmokePanel } from './SubstanzSmokePanel';
+import { UnschaerfeListe } from './UnschaerfeListe';
 import { VbPanel } from './VbPanel';
+import { WiderspruchListe } from './WiderspruchListe';
 import { WirkungsketteAnsicht } from './WirkungsketteAnsicht';
 import { pruefeRichtwerte } from '../infografik/richtwerte';
+import { useSubstanzAnsicht } from '../useSubstanzAnsicht';
 
 function Kpi({ label, wert, hinweis }: {
   label: string; wert: string; hinweis?: string;
@@ -78,6 +83,8 @@ export function KompaktAnsicht({
   const vb = useMapVb(einreichung);
   const nnAnteil = einreichung.summen.nnAnteil;
 
+  const substanz = useSubstanzAnsicht(vb, pruefung);
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -107,6 +114,8 @@ export function KompaktAnsicht({
           { key: 'abschluss', label: 'Abschluss' },
           { key: 'checkliste', label: 'Checkliste bearbeiten' },
           { key: 'report', label: 'Import-Report' },
+          // Messwerkzeug, keine Prüf-Ansicht — nur wo fiktive Fixtures erlaubt sind.
+          ...(isDevFixturesEnabled() ? [{ key: 'smoke', label: 'Substanz-Smoke' }] : []),
         ]}
         activeKey={sicht}
         onChange={setSicht}
@@ -168,13 +177,32 @@ export function KompaktAnsicht({
               </p>
             </Karte>
           )}
+
+          <Karte titel="Unscharfe Angaben">
+            <UnschaerfeListe
+              begriffe={substanz.unschaerfe}
+              gliederung={vb.gliederung}
+              erledigteAusloeser={substanz.erledigteAusloeser}
+              onNachfordern={substanz.nachfordernUnschaerfe}
+            />
+          </Karte>
         </div>
       )}
 
       {sicht === 'befunde' && (
-        <Karte titel="Rechenchecks" kopfRechts={<BefundAmpel befunde={befunde} />}>
-          <BefundListe befunde={befunde} />
-        </Karte>
+        <div className="flex flex-col gap-4">
+          <Karte titel="Rechenchecks" kopfRechts={<BefundAmpel befunde={befunde} />}>
+            <BefundListe befunde={befunde} />
+          </Karte>
+          <Karte titel="VB ↔ Einreichungsdaten">
+            <WiderspruchListe
+              zeilen={substanz.widerspruchZeilen}
+              gliederung={vb.gliederung}
+              lage={vb.infografikLage}
+              onUebernehmen={substanz.uebernehmeWiderspruch}
+            />
+          </Karte>
+        </div>
       )}
 
       {sicht === 'vb' && (
@@ -205,7 +233,15 @@ export function KompaktAnsicht({
                 Vorhabensbeschreibung — starten Sie ihn im Reiter „Vorhabensbeschreibung".
               </p>
             )
-            : <SdtDeltaKarte zeilen={vb.infografik.sdtDelta} />}
+            : (
+              <SdtDeltaKarte
+                zeilen={vb.infografik.sdtDelta}
+                zielkriterienAus={substanz.zielkriterienAus}
+                erledigteAusloeser={substanz.erledigteAusloeser}
+                onZielkriterium={(p, an) => void pruefung.schalteZielkriterium(p, an)}
+                onNachfordern={substanz.nachfordernDelta}
+              />
+            )}
         </Karte>
       )}
 
@@ -277,6 +313,8 @@ export function KompaktAnsicht({
                 einreichung={einreichung}
                 definition={pruefung.definition}
                 ergebnis={pruefung.ergebnis}
+                zielkriterien={substanz.zielkriterien}
+                praezisionsNf={substanz.praezisionsNf}
               />
             )}
         </Karte>
@@ -303,6 +341,12 @@ export function KompaktAnsicht({
           {report === null
             ? <p className="text-[13px] text-[var(--tf-text-secondary)]">Report wird geladen …</p>
             : <ImportReportPanel report={report} />}
+        </Karte>
+      )}
+
+      {sicht === 'smoke' && isDevFixturesEnabled() && (
+        <Karte titel="Substanz-Smoke (dev)">
+          <SubstanzSmokePanel />
         </Karte>
       )}
     </div>

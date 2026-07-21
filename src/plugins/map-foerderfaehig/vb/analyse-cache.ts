@@ -24,7 +24,7 @@ import {
 } from '@/plugins/antraege/aufbereitung/bausteine';
 import type { AspektMapping } from '@/plugins/antraege/aufbereitung/aspekte';
 import type { SteckbriefDaten } from '@/plugins/antraege/aufbereitung/steckbrief';
-import type { InfografikDaten } from '../infografik/schema';
+import { INFOGRAFIK_SCHEMA_VERSION, type InfografikDaten } from '../infografik/schema';
 
 /**
  * Cache-Präfix der Einreichung. `getOrComputeBaustein` keyt auf dem übergebenen
@@ -46,13 +46,20 @@ export interface MapBausteinKeys {
  * wird hier gebaut. Die beiden Schemata sind historisch gewachsen und bleiben
  * bewusst wie sie sind: ein umbenannter Key liesse alle vorhandenen Ergebnisse
  * verwaisen.
+ *
+ * Der Infografik-Key trägt zusätzlich die Schemaversion der Modell-Antwort. Der
+ * Korpus-Hash allein reicht dort nicht: wächst die Feldmenge (v1 → v2 mit dem
+ * Substanzcheck), passt eine alte Antwort weiterhin zum unveränderten Korpus und
+ * wäre ein gültiger Treffer — die neuen Listen blieben dauerhaft leer, ohne dass
+ * je ein Neu-Lauf ausgelöst würde. Weil Schreib- und Lesepfad denselben Bauer
+ * benutzen, verfallen Alt-Einträge hier an genau einer Stelle.
  */
 export function mapBausteinKeys(einreichungId: string, vbHash: string): MapBausteinKeys {
   const schluessel = mapCacheSchluessel(einreichungId);
   return {
     steckbrief: steckbriefCacheKey(schluessel, vbHash),
     aspekte: aspekteCacheKey(schluessel, vbHash),
-    infografik: `${schluessel}:infografik:${vbHash}`,
+    infografik: `${schluessel}:infografik:v${INFOGRAFIK_SCHEMA_VERSION}:${vbHash}`,
   };
 }
 

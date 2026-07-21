@@ -7,9 +7,11 @@
  * `[TODO Baustein zuordnen]`-Markierung statt einer erfundenen Formulierung.
  */
 import type { MapBewertungsErgebnis, MapItemZustand } from '../checkliste/bewertung';
-import type { MapChecklistenDefinition } from '../checkliste/typen';
+import type { MapChecklistenDefinition, MapPraezisionsNf } from '../checkliste/typen';
 import { formatDatum } from '../import/laufzeit';
+import type { Zielkriterium } from '../substanz/zielkriterien';
 import type { MapEinreichung } from '../types';
+import { getNfBaustein } from '@/core/services/skills';
 import { sucheNfBausteine } from './nf-suche';
 
 export type AbschlussArt = 'gutachten' | 'nachforderung' | 'ablehnung';
@@ -19,6 +21,13 @@ export interface AbschlussOptionen {
   titelGeprueft: boolean;
   /** Freitext-Hinweise für die weiterverarbeitende Rolle. */
   hinweis: string;
+  /**
+   * Übernommene Zielkriterien — fertig gefiltert vom Aufrufer, damit diese Datei
+   * rein bleibt und nichts über Delta-Zeilen wissen muss.
+   */
+  zielkriterien?: readonly Zielkriterium[];
+  /** Per Klick erzeugte Präzisions-Nachforderungen. */
+  praezisionsNf?: readonly MapPraezisionsNf[];
 }
 
 const NICHTS = '—';
@@ -78,6 +87,76 @@ function nachGruppe(zustaende: readonly MapItemZustand[]): Array<[string, MapIte
   return [...gruppen.entries()];
 }
 
+/** Pipe-Zeichen würden die Markdown-Tabelle zerreissen. */
+function zelle(text: string): string {
+  const sauber = text.trim().replace(/\|/g, '\\|');
+  return sauber.length > 0 ? sauber : NICHTS;
+}
+
+/**
+ * Kontrollfähige Zielkriterien als Tabelle.
+ *
+ * Bewusst tabellarisch statt als Fliesstext: diese Zeilen sollen später in
+ * Bescheid und Zwischenbericht wandern, und dorthin kommt man mit Copy-Paste aus
+ * einer Tabelle, nicht aus einem Absatz.
+ */
+function zielkriterienAbschnitt(zielkriterien: readonly Zielkriterium[]): string[] {
+  const zeilen = ['## Kontrollfähige Zielkriterien (RL 4.5.1)', ''];
+
+  if (zielkriterien.length === 0) {
+    zeilen.push(
+      '*Keine quantifizierten Zielparameter übernommen — entweder nennt die',
+      'Vorhabensbeschreibung keine, oder sie wurden abgewählt. Ohne kontrollfähige',
+      'Zielkriterien fehlt dem Bescheid die Messlatte.*', '',
+    );
+    return zeilen;
+  }
+
+  zeilen.push(
+    '| Parameter | Stand der Technik | Zielwert | Fundstelle |',
+    '| --- | --- | --- | --- |',
+  );
+  for (const z of zielkriterien) {
+    zeilen.push(
+      `| ${zelle(z.parameter)} | ${zelle(z.sdtWert)} | ${zelle(z.zielWert)}`
+      + ` | ${zelle(z.sektionIds.join(', '))} |`,
+    );
+  }
+  zeilen.push('');
+  return zeilen;
+}
+
+/**
+ * Präzisions-Nachforderungen. Der Baustein steht wortgetreu (Pitfall #34), die
+ * generierte Frage tritt als Konkretisierung daneben — sie nennt die verlangte
+ * Grösse und das Messverfahren, was ein allgemeiner Rechtstext nicht leisten kann.
+ */
+function praezisionsAbschnitt(
+  eintraege: readonly MapPraezisionsNf[], startNummer: number,
+): string[] {
+  if (eintraege.length === 0) return [];
+
+  const zeilen = ['## Präzisierung quantitativer Angaben', ''];
+  let nummer = startNummer;
+
+  for (const n of eintraege) {
+    nummer++;
+    zeilen.push(`### ${nummer}. ${n.ausloeser}`, '');
+
+    const baustein = n.bausteinId === null ? undefined : getNfBaustein(n.bausteinId);
+    if (baustein === undefined) {
+      zeilen.push(`[TODO Baustein zuordnen]`, '');
+    } else {
+      // Wortgetreu — Platzhalter bleiben stehen und werden von Hand gefüllt.
+      zeilen.push(baustein.text, '', `*(Baustein ${baustein.id} — ${baustein.thema})*`, '');
+    }
+
+    zeilen.push(n.frage, '');
+  }
+
+  return zeilen;
+}
+
 function fuss(optionen: AbschlussOptionen): string[] {
   const zeilen = ['## Hinweise', ''];
   zeilen.push(
@@ -120,6 +199,7 @@ export function baueGutachten(
 
   if (erfuellt.length === 0) zeilen.push('*Noch kein Kriterium als erfüllt bewertet.*', '');
 
+  zeilen.push(...zielkriterienAbschnitt(optionen.zielkriterien ?? []));
   zeilen.push(...fuss(optionen));
   return zeilen.join('\n');
 }
@@ -130,13 +210,14 @@ export function baueNachforderung(
   ergebnis: MapBewertungsErgebnis, optionen: AbschlussOptionen,
 ): string {
   const offen = ergebnis.zustaende.filter(z => z.anwendbar && z.status === 'nf-notwendig');
+  const praezision = optionen.praezisionsNf ?? [];
 
   const zeilen = [...kopf(e, definition, 'Nachforderung (Entwurf)')];
   zeilen.push(
     'Zu folgenden Punkten benötigen wir ergänzende Angaben:', '',
   );
 
-  if (offen.length === 0) {
+  if (offen.length === 0 && praezision.length === 0) {
     zeilen.push('*Kein Kriterium ist als nachforderungsbedürftig markiert.*', '');
   }
 
@@ -163,6 +244,7 @@ export function baueNachforderung(
     }
   }
 
+  zeilen.push(...praezisionsAbschnitt(praezision, nummer));
   zeilen.push(...fuss(optionen));
   return zeilen.join('\n');
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { IDBStore } from '@/core/services/storage';
+import { INFOGRAFIK_SCHEMA_VERSION } from '../infografik/schema';
 import { deleteEinreichung } from '../store';
 import {
   leseMapAnalyse, mapBausteinKeys, mapBausteinPraefixe, mapCacheSchluessel,
@@ -23,13 +24,25 @@ describe('mapBausteinKeys', () => {
    * Das Key-Schema ist der Vertrag mit allen bereits berechneten Ergebnissen im
    * Feld. Ändert es sich, verwaisen sie stillschweigend — dieser Test ist der
    * Regressionsschutz dagegen, deshalb wörtlich statt über die Bauer abgeleitet.
+   *
+   * Der Infografik-Key trägt seit dem Substanzcheck zusätzlich die Schemaversion
+   * der Modell-Antwort. Dieses Verwaisen ist hier ausnahmsweise ERWÜNSCHT: eine
+   * v1-Antwort kennt `widersprueche`/`unschaerfeBegriffe` nicht, passte aber
+   * weiterhin zum unveränderten Korpus-Hash und bliebe ein gültiger Treffer mit
+   * dauerhaft leeren Listen. Steckbrief und Aspekte sind unverändert — ihre
+   * Feldmenge ist dieselbe geblieben.
    */
   it('haelt das gewachsene Key-Schema woertlich ein', () => {
     expect(mapBausteinKeys('E1', 'h1')).toEqual({
       steckbrief: 'aufbereitung:map:E1:steckbrief:h1',
       aspekte: 'aufbereitung:map:E1:aspekte:h1',
-      infografik: 'map:E1:infografik:h1',
+      infografik: `map:E1:infografik:v${INFOGRAFIK_SCHEMA_VERSION}:h1`,
     });
+  });
+
+  it('bindet den Infografik-Key an die Schemaversion', () => {
+    // Sonst faellt die Versionierung bei einer spaeteren Umstellung still weg.
+    expect(mapBausteinKeys('E1', 'h1').infografik).toContain(`:v${INFOGRAFIK_SCHEMA_VERSION}:`);
   });
 
   it('trennt Einreichungen und Korpus-Staende', () => {

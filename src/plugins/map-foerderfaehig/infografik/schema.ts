@@ -7,10 +7,24 @@
  * nicht mit einer Sektion belegt, wird als „nicht belegt" geführt, nicht
  * stillschweigend übernommen.
  *
- * Reine Funktionen — der Cache- und Transport-Rahmen liegt in `run.ts`.
+ * Reine Funktionen — der Cache- und Transport-Rahmen liegt in `useMapVb.ts`.
  */
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
 import { extractLastJsonObject } from '@/plugins/antraege/aufbereitung/steckbrief';
+import { alsSektionIds, alsText } from './roh';
+import {
+  parseSubstanz, UNSCHAERFE_MAX,
+  type UnschaerfeBegriff, type Widerspruch,
+} from './substanz';
+
+/**
+ * Schemaversion der Modell-Antwort. Geht in den Cache-Schlüssel ein
+ * (`useMapVb.ts`), damit Einträge aus einer älteren Feldmenge sauber verfallen
+ * statt als unvollständige Antwort weiterzuleben.
+ *
+ * 1 → 2: `widersprueche` und `unschaerfeBegriffe` ergänzt (Substanzcheck).
+ */
+export const INFOGRAFIK_SCHEMA_VERSION = 2;
 
 /** Wie gut eine Angabe in der Vorhabensbeschreibung belegt ist. */
 export type Belegtheit = 'belegt' | 'vage' | 'fehlt';
@@ -57,6 +71,10 @@ export interface InfografikDaten {
   canvas: CanvasTexte;
   sdtDelta: SdtDeltaZeile[];
   wirkungskette: Wirkungskette;
+  /** Abweichungen zwischen Fliesstext und Einreichungsdaten. Leer = gutes Ergebnis. */
+  widersprueche: Widerspruch[];
+  /** Anspruchsformeln ohne Beleg oder Zahl, max. `UNSCHAERFE_MAX`. */
+  unschaerfeBegriffe: UnschaerfeBegriff[];
 }
 
 // ---------------------------------------------------------------------------
@@ -77,14 +95,23 @@ const KETTEN_GLIEDER: ReadonlyArray<{ key: keyof Wirkungskette; frage: string }>
   { key: 'wirkung', frage: 'Welche wirtschaftliche Wirkung wird erwartet (Umsatz, Arbeitsplätze)?' },
 ];
 
-/** Baut das Extraktions-Prompt. Rein. */
-export function buildInfografikPrompt(gliederung: readonly VbSektion[], vbMarkdown: string): string {
+/**
+ * Baut das Extraktions-Prompt. Rein.
+ *
+ * `faktenBlock` kommt deterministisch aus `fakten.ts` und ist die Referenzseite
+ * des Widerspruchschecks — er steht bewusst VOR der Vorhabensbeschreibung, damit
+ * das Modell die Zahlen kennt, bevor es den Fliesstext liest.
+ */
+export function buildInfografikPrompt(
+  gliederung: readonly VbSektion[], vbMarkdown: string, faktenBlock: string,
+): string {
   const sektionsListe = gliederung
     .map(s => `- ${s.id}: ${s.nummer != null ? `${s.nummer} ` : ''}${s.titel}`)
     .join('\n');
 
   return [
-    'Extrahiere aus der Vorhabensbeschreibung die Angaben für drei Prüfansichten.',
+    'Extrahiere aus der Vorhabensbeschreibung die Angaben für die Prüfansichten',
+    'und gleiche den Text gegen die verbindlichen Fakten der Einreichung ab.',
     '',
     'Regeln:',
     '- Belege JEDE Aussage mit den IDs der Abschnitte, aus denen sie stammt.',
@@ -93,8 +120,27 @@ export function buildInfografikPrompt(gliederung: readonly VbSektion[], vbMarkdo
     '  angedeutet oder rein qualitativ ist, "fehlt" wenn sie gar nicht vorkommt.',
     '- Bei "fehlt" bleibt `text` leer. Erfinde nichts.',
     '',
+    'Regeln für `widersprueche` (Abgleich Text gegen Fakten):',
+    '- Melde NUR echte Abweichungen: der Text nennt einen anderen Wert, einen anderen',
+    '  Zeitraum oder eine Bezeichnung, die es in den Fakten nicht gibt.',
+    '- Bewerte nicht und vermute nicht. Keine Abweichung gefunden? Dann ist die Liste',
+    '  leer — das ist ein GUTES Ergebnis, kein Versäumnis.',
+    '- Fakten mit dem Wert "nicht angegeben" sind KEINE Vergleichsgrundlage; über sie',
+    '  lässt sich nichts widersprechen.',
+    '- `fakt` zitiert die Faktenseite, `aussageImText` die Textseite. Beides ist Pflicht.',
+    '',
+    'Regeln für `unschaerfeBegriffe` (Quantifizierungspflicht):',
+    '- Sammle Formulierungen mit Anspruchscharakter, die weder Zahl noch Beleg tragen',
+    '  („deutliche Effizienzsteigerung", „innovativer Ansatz", „übliche Risiken").',
+    `- Höchstens ${UNSCHAERFE_MAX} Einträge, nach Prüfrelevanz geordnet.`,
+    '- `grund`: "nicht quantifiziert" wenn eine Zahl fehlt, "nicht definiert" wenn der',
+    '  Begriff selbst unbestimmt bleibt.',
+    '- Reine Füllwörter ohne Anspruchscharakter gehören NICHT in die Liste.',
+    '',
     '## Abschnitte',
     sektionsListe,
+    '',
+    faktenBlock,
     '',
     '## Vorhabensbeschreibung',
     vbMarkdown,
@@ -113,11 +159,19 @@ export function buildInfografikPrompt(gliederung: readonly VbSektion[], vbMarkdo
     '  "wirkungskette": {',
     ...KETTEN_GLIEDER.map(g =>
       `    "${g.key}": { "text": "…", "zahlenziel": "…", "sektionIds": ["k-3"], "belegtheit": "belegt|vage|fehlt" },  // ${g.frage}`),
-    '  }',
+    '  },',
+    '  "widersprueche": [',
+    '    { "fakt": "…", "aussageImText": "…", "art": "zahl|zeitraum|bezeichnung",',
+    '      "sektionIds": ["k-4"] }',
+    '  ],',
+    '  "unschaerfeBegriffe": [',
+    '    { "begriff": "…", "kontext": "…", "grund": "nicht definiert|nicht quantifiziert",',
+    '      "sektionIds": ["k-5"] }',
+    '  ]',
     '}',
     '```',
     '',
-    'Gib ausschließlich dieses JSON-Objekt zurück.',
+    'Gib ausschließlich dieses JSON-Objekt zurück, kompakt und ohne Einrückung.',
   ].join('\n');
 }
 
@@ -126,16 +180,6 @@ export function buildInfografikPrompt(gliederung: readonly VbSektion[], vbMarkdo
 // ---------------------------------------------------------------------------
 
 const LEERES_FELD: CanvasFeld = { text: '', sektionIds: [], belegtheit: 'fehlt' };
-
-function alsText(wert: unknown): string {
-  return typeof wert === 'string' ? wert.trim() : '';
-}
-
-function alsSektionIds(wert: unknown, bekannt: ReadonlySet<string>): string[] {
-  if (!Array.isArray(wert)) return [];
-  return [...new Set(wert.filter((v): v is string => typeof v === 'string'))]
-    .filter(id => bekannt.has(id));
-}
 
 /**
  * Deutet die Belegtheit. Ohne Text oder ohne gültige Fundstelle gilt eine
@@ -193,6 +237,7 @@ export function parseInfografik(
   const bekannt = new Set(gliederung.map(s => s.id));
   const canvasRoh = (objekt['canvas'] ?? {}) as Record<string, unknown>;
   const ketteRoh = (objekt['wirkungskette'] ?? {}) as Record<string, unknown>;
+  const substanz = parseSubstanz(objekt, bekannt);
 
   return {
     canvas: {
@@ -210,12 +255,18 @@ export function parseInfografik(
       verwertung: alsGlied(ketteRoh['verwertung'], bekannt),
       wirkung: alsGlied(ketteRoh['wirkung'], bekannt),
     },
+    ...substanz,
   };
 }
 
 /**
  * Erkennt eine Antwort, die zwar formal passt, aber inhaltlich nichts trägt —
  * Grundlage des Verdächtig-Guards, der einen solchen Lauf nicht cacht. Rein.
+ *
+ * Die Substanz-Listen bleiben hier bewusst AUSSEN VOR: ein sauberer Antrag
+ * liefert null Widersprüche, und diese Null ist das gewünschte Ergebnis. Sie in
+ * den Guard aufzunehmen hiesse, den Falsch-Positiv-freien Lauf als Fehlschlag zu
+ * werten und einen Retry zu erzwingen.
  */
 export function istInhaltsleer(daten: InfografikDaten): boolean {
   const canvasLeer = Object.values(daten.canvas).every(f => f.belegtheit === 'fehlt');

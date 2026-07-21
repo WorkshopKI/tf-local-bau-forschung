@@ -26,23 +26,30 @@ const SYSTEM_PROMPT =
   'Du extrahierst Aussagen wortnah aus der Vorhabensbeschreibung und gibst zu jeder '
   + 'Aussage die Sektions-IDs als Fundstelle an. Du erfindest nichts. Ist eine Angabe '
   + 'nur vage oder gar nicht belegt, kennzeichnest du sie als solche, statt sie zu '
-  + 'ergänzen. Du antwortest ausschließlich mit dem geforderten JSON-Objekt.';
+  + 'ergänzen. Zusätzlich hältst du den Fliesstext gegen die verbindlichen Fakten der '
+  + 'Einreichung und meldest ausschließlich echte Abweichungen — findest du keine, '
+  + 'bleibt die Liste leer. Du bewertest die Textqualität nicht. '
+  + 'Du antwortest ausschließlich mit dem geforderten JSON-Objekt.';
 
 export const MAP_INFOGRAFIK_SKILL: SkillRecord = {
   id: MAP_INFOGRAFIK_SKILL_ID,
   name: 'MAP — Infografik-Extraktion',
   beschreibung:
-    'Interner Extraktions-Lauf für Projekt-Canvas, Delta zum Stand der Technik und '
-    + 'Wirkungskette; ein Lauf je Einreichung, Ergebnis je VB-Hash gecacht (dev).',
-  version: 1,
-  promptTemplate: `Extrahiere aus der Vorhabensbeschreibung die Angaben für drei Ansichten als JSON. Kennzeichne Vages als vage, statt es zu ergänzen.
+    'Interner Extraktions-Lauf für Projekt-Canvas, Delta zum Stand der Technik, '
+    + 'Wirkungskette und den Substanzcheck (Widersprüche Text↔Einreichung, '
+    + 'Unschärfe-Begriffe); ein Lauf je Einreichung, Ergebnis je VB-Hash gecacht (dev).',
+  version: 2,
+  promptTemplate: `Extrahiere aus der Vorhabensbeschreibung die Angaben für die Prüfansichten als JSON und gleiche den Text gegen die verbindlichen Fakten der Einreichung ab. Kennzeichne Vages als vage, statt es zu ergänzen. Melde nur echte Abweichungen.
 
 ## Vorhabensbeschreibung (Quelle)
 {{vbMarkdown}}
 
 Gib ausschließlich das geforderte JSON-Objekt zurück.`,
   systemPrompt: SYSTEM_PROMPT,
-  maxTokens: 4096,
+  // Zwei zusätzliche Listen je Antwort — der alte Deckel schnitt die hinteren
+  // Felder ab. Wirkt nur auf dem `submitConversation`-Pfad; die Streamlit-Bridge
+  // trägt kein per-Request-Budget.
+  maxTokens: 6144,
   modifiers: { neu: '', kuerzer: '', laenger: '' },
   regelIds: [],
   slots: ['vbMarkdown'],

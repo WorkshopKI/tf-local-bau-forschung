@@ -185,7 +185,9 @@ Die Homepage rendert seit v2.227 **Widget-Instanzen** aus einer persönlichen Co
 
 ### MAP-Förderfähigkeitsprüfung (Plugin `map-foerderfaehig`, dev)
 
-Demonstrator der Fachprüfung: Einreichungs-JSON → Rechenchecks → **editierbare, versionierte** Checkliste → Abschluss-Entwurf. Flag `mapFoerderfaehig` (**nur dev**). Zwei harte Regeln: eigene `kv`-Entität, **kein `Antrag`-Record** (kein Nicht-CSV-Anlagepfad, Pitfall #13); **keine `.tsx` rechnet** (Vitest node-only) — ein modul-lokaler Convention-Test bewacht beides plus Datenschutz-Deny-Liste. Entscheidungen + Ausbaupfade: [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md).
+Demonstrator der Fachprüfung: Einreichungs-JSON → Rechenchecks → **editierbare, versionierte** Checkliste → Abschluss-Entwurf. Flag `mapFoerderfaehig` (**nur dev**). Zwei harte Regeln: eigene `kv`-Entität, **kein `Antrag`-Record** (Pitfall #13); **keine `.tsx` rechnet** (Vitest node-only) — ein modul-lokaler Convention-Test bewacht Deny-Liste, Zeilengrenze und die Fixture-Herkunft des Smoke-Panels.
+
+**Substanzcheck** (v2.279): Der Infografik-Lauf hält den Text gegen einen Fakten-Block → `widersprueche`+`unschaerfeBegriffe`, **kein zusätzlicher LLM-Aufruf**. Leere Listen = **gutes** Ergebnis; NF-Leitplanke im Code (Zahl+Messverfahren); Zielkriterien speichern die **Abwahl**.
 
 ### Legacy: Vorgang-Typ
 

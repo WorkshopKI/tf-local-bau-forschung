@@ -75,6 +75,38 @@ Danach der Reihe nach:
 **Frage:** Stören die KI-Vorschläge, oder helfen sie? Und: Ist „0 Fundstellen" bei
 einem Aspekt für Sie eine nützliche Aussage?
 
+## 4b · Substanzcheck (4 Min)
+
+Der Drehbuchmoment des Pakets. Einleiten mit der Frage, die im Raum steht:
+
+> „Was, wenn der Antrag mit KI geschrieben ist? Dann zeigt genau diese Ansicht, wo
+> Zahlen fehlen und wo der Text den eigenen Einreichungsdaten widerspricht."
+
+Drei Stationen, in dieser Reihenfolge:
+
+1. **Reiter „Rechenchecks", Gruppe „VB ↔ Einreichungsdaten".** Links steht, was im
+   Formular eingetragen wurde, rechts, was der Fliesstext behauptet. Alles als
+   *KI-Vorschlag — bitte prüfen* gekennzeichnet. Ein Klick hängt den Befund an das
+   passende Prüfkriterium und setzt es auf „NF notw.".
+   **Wichtig zu zeigen:** Bei einem sauberen Antrag steht hier „Keine Abweichung
+   gefunden". Das ist das Ergebnis, nicht ein leerer Bildschirm.
+
+2. **Reiter „Vorhaben kompakt", Karte „Unscharfe Angaben".** Die Anspruchsformeln
+   ohne Zahl — „deutliche Effizienzsteigerung", „übliche Risiken". Bewusst
+   **ohne Score**: es gibt keine Note für den Text, nur eine Liste zum Durchgehen.
+   Aus jeder Zeile wird per Klick eine Nachfrage, die eine **Zahl und ein
+   Messverfahren** verlangt — nie ein „bitte näher erläutern".
+
+3. **Reiter „Delta zum Stand der Technik".** Quantifizierte Zeilen sind als
+   Zielkriterium vorbelegt; im Reiter **Abschluss → Gutachten** erscheinen sie als
+   Tabelle „Kontrollfähige Zielkriterien (RL 4.5.1)" — die Zeilen, die später in
+   Bescheid und Zwischenbericht wandern.
+
+**Frage:** Würden euch diese Befunde die Erstlektüre verkürzen — oder stören sie?
+
+**Frage:** Bei welcher Sorte Abweichung wollt ihr, dass die App laut wird, und bei
+welcher wäre sie euch im Weg?
+
 ## 5 · Prüfen (4 Min)
 
 Reiter **Förderfähig**. Die drei Kategorien der Entscheidungshilfe bewerten.

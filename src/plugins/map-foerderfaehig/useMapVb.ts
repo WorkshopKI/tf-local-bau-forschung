@@ -23,6 +23,7 @@ import {
 } from '@/plugins/antraege/aufbereitung';
 import { parseVbGliederung } from '@/plugins/antraege/aufbereitung/gliederung';
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
+import { baueFaktenBlock } from './infografik/fakten';
 import {
   buildInfografikPrompt, istInhaltsleer, parseInfografik, type InfografikDaten,
 } from './infografik/schema';
@@ -231,7 +232,8 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
   }, [storage.idb, einreichungId, verwirfAnalyse]);
 
   const starteAnalyse = useCallback(async (): Promise<void> => {
-    if (korpus === null || einreichungId === null || gliederung.length === 0) return;
+    if (korpus === null || einreichung === null || einreichungId === null) return;
+    if (gliederung.length === 0) return;
     // Alle Bausteine arbeiten auf dem KORPUS, nie auf dem Hauptdokument allein —
     // sonst wäre eine Aussage aus dem Marktkonzept für die KI unsichtbar.
     const vbText = korpus.markdown;
@@ -291,7 +293,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       const ergebnis = await getOrComputeBaustein<InfografikDaten>(
         storage.idb, transport, MAP_INFOGRAFIK_SKILL,
         mapBausteinKeys(einreichungId, laufHash).infografik, laufHash,
-        () => buildInfografikPrompt(gliederung, vbText),
+        () => buildInfografikPrompt(gliederung, vbText, baueFaktenBlock(einreichung)),
         raw => parseInfografik(raw, gliederung),
         {
           // Eine formal gültige, inhaltlich leere Antwort wird nicht gecacht —
@@ -313,7 +315,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       setInfografikLage('fehler');
       setInfografikFehler(fehlertext(e));
     }
-  }, [storage.idb, bridge, korpus, gliederung, einreichungId]);
+  }, [storage.idb, bridge, korpus, gliederung, einreichung, einreichungId]);
 
   return {
     dokument,

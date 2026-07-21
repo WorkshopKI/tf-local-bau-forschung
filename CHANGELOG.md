@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.279.0 — Substanzcheck: Widersprueche, Unschaerfe, Zielkriterien (Juli 2026)
+
+MINOR — Ein mit KI geschriebener Antrag liest sich glatt und sagt wenig: er kann den eigenen Einreichungsdaten widersprechen und durchweg unbeziffert bleiben, ohne dass es beim Erstlesen auffällt. Der Substanzcheck bewertet keine Textqualität, sondern hält Behauptungen gegen harte Zahlen und gegen die Quantifizierungspflicht. Alles reitet auf dem bestehenden Infografik-Lauf mit — kein zusätzlicher LLM-Aufruf.
+
+- **Fakten-Block** aus dem Strukturmodell (Laufzeit, PM je AP, Kosten, Fördersatz) geht als Referenzseite ins Prompt; nur Aggregate, nichts Personenbezogenes ([fakten.ts](src/plugins/map-foerderfaehig/infografik/fakten.ts)).
+- **Widersprüche + Unschärfe-Begriffe** als neue Antwortfelder mit strengem Parser — im Zweifel verwerfen statt raten, leere Liste ist ein gutes Ergebnis ([substanz.ts](src/plugins/map-foerderfaehig/infografik/substanz.ts), [WiderspruchListe.tsx](src/plugins/map-foerderfaehig/components/WiderspruchListe.tsx), [UnschaerfeListe.tsx](src/plugins/map-foerderfaehig/components/UnschaerfeListe.tsx)).
+- **Ein-Klick-Nachforderung** mit Formulierungs-Leitplanke im Code: immer Zahl + Messverfahren, nie „näher erläutern"; Registry-Bausteine bleiben wortgetreu ([nf-praezision.ts](src/plugins/map-foerderfaehig/substanz/nf-praezision.ts)).
+- **Kontrollfähige Zielkriterien (RL 4.5.1)** als Tabelle im Gutachten-Gerüst; gespeichert wird die Abwahl, damit neue Zeilen nicht still herausfallen ([zielkriterien.ts](src/plugins/map-foerderfaehig/substanz/zielkriterien.ts), [markdown.ts](src/plugins/map-foerderfaehig/abschluss/markdown.ts)).
+- **dev-Reiter „Substanz-Smoke"** misst vier fiktive Fassungen inkl. Falsch-Positiv-Kontrolle; `npm run check` bleibt LLM-frei ([smoke-runner.ts](src/plugins/map-foerderfaehig/substanz/smoke-runner.ts), [map-testleitfaden.md](docs/map-testleitfaden.md)).
+
 ### v2.278.0 — KI-Analysen ueberleben den Seitenwechsel (Juli 2026)
 
 MINOR — Nach „Mit KI analysieren" waren Steckbrief, Canvas, Delta und Wirkungskette weg, sobald man eine andere Seite aufrief. Die Ergebnisse lagen die ganze Zeit im kv-Store — der Baustein-Cache IST ihre Persistenz —, nur las sie beim Öffnen niemand zurück. Dieselbe Lücke steckte in der Antrag-Aufbereitung.

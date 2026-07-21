@@ -79,6 +79,41 @@ describe('MAP-Konventionen', () => {
     expect(verstoesse).toEqual([]);
   });
 
+  it('faehrt den Substanz-Smoke nur gegen fiktive Fixtures', () => {
+    // Schwester-Regel zu `eval-gui-fictional-only`: ein Messlauf schickt seinen
+    // Eingang ans Modell. Zoege der Smoke einen echten Antrag heran, waere das
+    // ein unbemerkter Datenabfluss in einem Werkzeug, das wie ein Testknopf
+    // aussieht. Die Fixtures kommen ausschliesslich aus `kontrast.seed.ts`.
+    const smokePfade = [
+      `substanz${path.sep}smoke-runner.ts`,
+      `components${path.sep}SubstanzSmokePanel.tsx`,
+    ];
+    const verboten = [
+      'listAllAntraegeListView',
+      'findVorhabensbeschreibung',
+      'getEinreichung',
+      'leseMapAnalyse',
+      "'doc:",
+      'useDokumenteStore',
+    ];
+
+    const verstoesse: string[] = [];
+    for (const datei of QUELLDATEIEN.filter(f => smokePfade.some(p => f.endsWith(p)))) {
+      const inhalt = CODE.get(datei)!;
+      for (const muster of verboten) {
+        if (inhalt.includes(muster)) {
+          verstoesse.push(`${path.relative(PLUGIN_WURZEL, datei)} → ${muster}`);
+        }
+      }
+    }
+    expect(verstoesse).toEqual([]);
+
+    // Und der Gegenbeweis: die Fixture-Quelle wird tatsaechlich benutzt.
+    const runner = QUELLDATEIEN.find(f => f.endsWith(`substanz${path.sep}smoke-runner.ts`));
+    expect(runner).toBeDefined();
+    expect(CODE.get(runner!)).toContain('kontrast.seed');
+  });
+
   it('haelt jede Nicht-Daten-Quelldatei unter 400 Zeilen', () => {
     // Kohaesion vor Zeilenzahl — aber Seed-/Daten-Files ausgenommen, die
     // duerfen laut project-structure.md groesser sein.
