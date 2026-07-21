@@ -92,9 +92,9 @@ export interface UseAufbereitungResult {
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
-  /** Umfang des Korpus gegen das Kontextfenster — gesetzt, sobald ein
-   *  Baustein-Lauf den Korpus aufgelöst hat. `ueberCap` heisst: die Bausteine
-   *  haben das Ende des Textes nicht gesehen. */
+  /** Umfang des Korpus gegen das Kontextfenster — gesetzt beim Laden (Veraltet-
+   *  Prüfung) und bei jedem Baustein-Lauf. `ueberCap` heisst: die Bausteine haben
+   *  das Ende des Textes nicht gesehen; das gilt auch für gecachte Ergebnisse. */
   korpusMass: KorpusMass | null;
   /** Läuft alle Bausteine sequentiell (Recherche-Prompt → Aspekte → Steckbrief → Zahlen → Glossar → Verwertung). */
   bausteine: UseAsyncActionResult<[]>;
@@ -171,6 +171,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       if (!ctx || !run) { setVeraltet(false); return; }
       try {
         const korpus = await resolveKorpus(storage.idb, ctx);
+        // Auch hier messen, nicht nur in `laufBausteine`: wer einen bereits
+        // aufbereiteten Antrag oeffnet, muss sehen, dass die gecachten Bausteine
+        // ueber einem abgeschnittenen Text entstanden sind.
+        if (korpus && !cancelled) setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap()));
         const tvs = ctx.teilvorhaben ?? [];
         let anlage5Hash: string | undefined;
         let anlage5Hashes: string[] | undefined;
