@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.276 — 2026-07
+
+### Neu
+- Wenn die App Sie nach Name und Kürzel fragt, obwohl Sie das längst eingerichtet hatten, können Sie jetzt oben auf „Aus persönlichem Ordner wiederherstellen" klicken: Einmal den persönlichen Ordner auswählen, und Name, Kürzel, Farbe und Ihre Einstellungen sind wieder da — ohne Tippen.
+### Bugfixes
+- Ursache dieser wiederkehrenden Abfrage ist der lokale Browser-Speicher, der in Citrix-Sitzungen verloren gehen kann. Die App bittet den Browser jetzt, ihre Daten zu behalten. Das verringert das Problem, kann es aber nicht ganz ausschliessen — deshalb die Wiederherstellung oben. Tipp: Verbinden Sie beim Einrichten Ihren persönlichen Ordner, dann liegt immer eine Sicherung bereit.
+- Bei der Ordner-Freigabe konnte der „Persönliche Ordner" unter Last stillschweigend übersprungen werden, ohne dass je eine Abfrage erschien. Er wird jetzt zuverlässig als eigener Schritt angeboten.
+
 ## v2.275 — 2026-07
 
 ### Verbesserungen

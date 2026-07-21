@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Check, ArrowRight, FolderOpen, FolderHeart } from 'lucide-react';
+import { Check, ArrowRight, FolderOpen, FolderHeart, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PRESET_COLORS, applyThemeColor } from '@/components/ui/theme';
 import type { UserProfile } from '@/core/types/config';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
   isKuratorMenusEnabled,
   isMaLoginEnabled,
@@ -11,8 +12,10 @@ import {
 import { runtimeConfig } from '@/config/runtime-config';
 import {
   pickAndStorePersoenlichHandle,
+  getPersoenlichHandle,
 } from '@/core/services/infrastructure/smb-handle';
-import { savePersonalSettings } from '@/core/services/personal-storage';
+import { savePersonalSettings, loadPersonalSettings } from '@/core/services/personal-storage';
+import { readProfileFromShare } from '@/core/services/personal-storage/sync';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -41,11 +44,14 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
   const [selectedHue, setSelectedHue] = useState(221);
   const [selectedSat, setSelectedSat] = useState('25%');
   const [selectedLit, setSelectedLit] = useState('42%');
+  // Aus einem wiederhergestellten Profil uebernommen; sonst wie bisher false.
+  const [dark, setDark] = useState(false);
 
   // Persoenlich-Ordner Step (nur wenn promptPersFolder)
   const [persConnected, setPersConnected] = useState(false);
   const [persBusy, setPersBusy] = useState(false);
   const [persError, setPersError] = useState<string | null>(null);
+  const [nichtsGefunden, setNichtsGefunden] = useState(false);
 
   const showKuratorToggle = isKuratorMenusEnabled();
   // Im MA-Login-Modus (prod/dev) wird das Kuerzel aus dem Passwort abgeleitet
@@ -77,6 +83,63 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     }
   };
 
+  /**
+   * Identität aus dem persönlichen Ordner zurückholen.
+   *
+   * Hintergrund: `onboarding-complete` + `profile` liegen ausschliesslich in der
+   * varianten-eigenen IndexedDB. Wird die geräumt (Browser-Eviction, zurück-
+   * gesetztes Citrix-/Windows-Profil), landet der User wieder hier — obwohl beim
+   * ersten Einrichten längst eine Kopie nach `<pers>/ZAH/profile.json` geschrieben
+   * wurde (`handleFinish` unten). Bis v2.276.0 wurde die nie gelesen; der User
+   * tippte alles neu.
+   *
+   * Warum das eine explizite Aktion ist und nicht automatisch läuft: mit der IDB
+   * sind auch die File-System-Handles weg (die liegen dort). Der Ordner muss also
+   * ohnehin einmal neu gewählt werden, und ein Ordner-Picker braucht eine
+   * User-Geste — automatisch beim Start ginge nicht.
+   */
+  const restoreFromPers = useAsyncAction(async () => {
+    setPersError(null);
+    setNichtsGefunden(false);
+
+    const res = await pickAndStorePersoenlichHandle(storage.idb);
+    if (!res.ok) {
+      if (res.reason !== 'aborted') {
+        setPersError(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+      }
+      return;
+    }
+    // Ordner ist jetzt verbunden — unabhaengig davon, ob ein Profil drin lag.
+    // So sichert handleFinish am Ende auf jeden Fall wieder dorthin.
+    setPersConnected(true);
+
+    const persHandle = await getPersoenlichHandle(storage.idb);
+    const gefunden = persHandle ? await readProfileFromShare(persHandle) : null;
+    if (!gefunden?.name?.trim()) {
+      setNichtsGefunden(true);
+      return;
+    }
+
+    // Persoenliche Einstellungen (Home-Widgets, Presets) gleich mitziehen und
+    // die IDB-Caches fuellen — best-effort, das Profil ist der wichtige Teil.
+    try {
+      await loadPersonalSettings(storage.idb, persHandle, gefunden);
+    } catch {
+      /* best-effort */
+    }
+
+    setName(gefunden.name);
+    setKuerzel(gefunden.bearbeiter_kuerzel ? normalizeKuerzel(gefunden.bearbeiter_kuerzel) : ''); // allow-direct-kuerzel: Onboarding laeuft vor jedem Login-Gate; hier wird das gesicherte Feld nur ins Eingabefeld zurueckgeschrieben, nicht als Identitaet gelesen
+    setIsKurator(gefunden.is_kurator === true);
+    setDark(gefunden.theme?.dark === true);
+    const preset = PRESET_COLORS.find(c => c.h === gefunden.theme?.hue);
+    if (preset) handleColorSelect(preset.h, preset.s, preset.l);
+
+    // Direkt zur Zusammenfassung: es gibt nichts mehr einzutragen, der User
+    // bestaetigt nur noch.
+    setStep(totalSteps - 1);
+  });
+
   // Pitfall 16: EIN finaler persist im Submit. Sammelt alle Werte in einem
   // Profil-Object, schreibt es einmal in IDB + (best-effort) in den pers.
   // Ordner. Kein verteilter setState in mehreren Steps.
@@ -84,7 +147,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     const finalProfile: UserProfile = {
       name: name.trim(),
       department: 'antraege',
-      theme: { hue: selectedHue, dark: false },
+      theme: { hue: selectedHue, dark },
       is_kurator: isKurator,
       ...(kuerzel ? { bearbeiter_kuerzel: kuerzel } : {}),
     };
@@ -92,10 +155,11 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     await storage.idb.set('onboarding-complete', true);
     applyThemeColor(selectedHue, selectedSat, selectedLit);
 
-    // Pers. Ordner: profile.json synchron-best-effort schreiben.
+    // Pers. Ordner: profile.json synchron-best-effort schreiben. Diese Kopie ist
+    // die einzige Rettung, wenn die IndexedDB verloren geht — gelesen wird sie
+    // von `restoreFromPers` oben.
     if (persConnected) {
       try {
-        const { getPersoenlichHandle } = await import('@/core/services/infrastructure/smb-handle');
         const persHandle = await getPersoenlichHandle(storage.idb);
         await savePersonalSettings(storage.idb, persHandle, { profile: finalProfile });
       } catch {
@@ -115,6 +179,41 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
         {step === 0 && (
           <div className="space-y-6">
             <h1 className="text-[20px] font-medium text-[var(--tf-text)] text-center">Willkommen bei ZAH</h1>
+
+            {promptPersFolder && (
+              <div
+                className="p-3.5 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] space-y-2.5"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-relaxed">
+                  <span className="text-[var(--tf-text)] font-medium">Schon einmal eingerichtet?</span>{' '}
+                  Wenn Ihr persönlicher Ordner damals verbunden war, liegen Name und
+                  Einstellungen dort — Sie müssen nichts neu eintippen.
+                </p>
+                <Button
+                  icon={RotateCcw}
+                  variant="secondary"
+                  onClick={() => restoreFromPers.run()}
+                  disabled={restoreFromPers.busy}
+                  className="w-full"
+                >
+                  {restoreFromPers.busy ? 'Wird gesucht…' : 'Aus persönlichem Ordner wiederherstellen'}
+                </Button>
+                {nichtsGefunden && (
+                  <p className="text-[12px] text-[var(--tf-text-tertiary)] leading-snug">
+                    In diesem Ordner liegt noch kein gespeichertes Profil. Bitte einmal
+                    unten eintragen — beim Abschluss wird es dort gesichert.
+                  </p>
+                )}
+                {restoreFromPers.error && (
+                  <p className="text-[12px] text-[var(--tf-danger-text)]">{restoreFromPers.error}</p>
+                )}
+                {persError && (
+                  <p className="text-[12px] text-[var(--tf-danger-text)]">{persError}</p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-medium text-[var(--tf-text)]">Dein Name</label>

@@ -443,7 +443,13 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const handleOnboardingComplete = useCallback(async () => {
     setShowOnboarding(false);
     const profile = await storage.idb.get<UserProfile>('profile');
-    if (profile) setInitialProfile(profile);
+    if (profile) {
+      // Wie im Init-Pfad oben: seit der Wiederherstellung aus dem persönlichen
+      // Ordner kann das Onboarding mit dark=true enden — ohne das hier bliebe
+      // der Dark-Mode bis zum nächsten Start aus.
+      setDarkMode(profile.theme.dark);
+      setInitialProfile(profile);
+    }
     await refreshHandleGate(profile);
   }, [refreshHandleGate, storage]);
 

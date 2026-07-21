@@ -4,12 +4,7 @@
  * sind und ob abgeschlossen werden kann — pure Funktion, ohne React-Rendering.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  resolveAfterGrant,
-  darfWeiterketten,
-  ketteAbgebrochenOhnePrompt,
-  AUTO_CHAIN_MIN_PROMPT_MS,
-} from '../guided-grant-progress';
+import { resolveAfterGrant, darfWeiterketten } from '../guided-grant-progress';
 
 const PENDING = ['daten-share', 'persoenlich'];
 
@@ -71,22 +66,38 @@ describe('darfWeiterketten', () => {
   });
 });
 
-describe('ketteAbgebrochenOhnePrompt', () => {
-  it('sofortige Rückkehr ohne Grant = Browser hat nicht gefragt (Activation verbraucht)', () => {
-    expect(ketteAbgebrochenOhnePrompt('prompt', 50)).toBe(true);
-    expect(ketteAbgebrochenOhnePrompt('denied', 12)).toBe(true);
+/**
+ * v2.276.0 — die Auto-Kette laeuft ohne eigene User-Geste. Ob der Browser
+ * ueberhaupt einen Dialog gezeigt hat, ist von aussen nicht feststellbar
+ * (die frühere 300ms-Heuristik kippte unter Citrix-Last). Deshalb bucht sie
+ * ausschliesslich Erfolge: attemptedSlot = null.
+ */
+describe('resolveAfterGrant ohne Geste (Auto-Kette, attemptedSlot = null)', () => {
+  it('bucht NIE eine Ablehnung — ungewährter Slot bleibt offen statt denied', () => {
+    const r = resolveAfterGrant(PENDING, {}, null, new Set(['daten-share', 'persoenlich']));
+    expect(r.resolved).toEqual({});
+    expect(r.complete).toBe(false);
   });
 
-  it('langsame Ablehnung = echte User-Entscheidung, darf als denied gebucht werden', () => {
-    expect(ketteAbgebrochenOhnePrompt('denied', 4000)).toBe(false);
+  it('übernimmt Erfolge aus dem Re-Scan trotzdem (Sammel-Box gewährte mehrere)', () => {
+    const r = resolveAfterGrant(PENDING, {}, null, new Set(['persoenlich']));
+    expect(r.resolved).toEqual({ 'daten-share': 'granted' });
+    expect(r.complete).toBe(false);
   });
 
-  it('schneller Erfolg (Sammel-Box) ist kein Abbruch', () => {
-    expect(ketteAbgebrochenOhnePrompt('granted', 20)).toBe(false);
+  it('kann abschliessen, wenn der Re-Scan alles als gewährt meldet', () => {
+    const r = resolveAfterGrant(PENDING, {}, null, new Set());
+    expect(r.resolved).toEqual({ 'daten-share': 'granted', persoenlich: 'granted' });
+    expect(r.complete).toBe(true);
   });
 
-  it('Schwelle ist exklusiv: genau AUTO_CHAIN_MIN_PROMPT_MS zählt als echter Prompt', () => {
-    expect(ketteAbgebrochenOhnePrompt('denied', AUTO_CHAIN_MIN_PROMPT_MS - 1)).toBe(true);
-    expect(ketteAbgebrochenOhnePrompt('denied', AUTO_CHAIN_MIN_PROMPT_MS)).toBe(false);
+  it('Regression: der stille Fehlschlag der Kette darf den Persönlichen Ordner nicht verbrennen', () => {
+    // Datenordner in echter Geste gewährt, danach kettet die App auf
+    // 'persoenlich' — der Browser zeigt mangels Activation keinen Dialog.
+    // Vor v2.276.0 wurde 'persoenlich' hier faelschlich denied und
+    // uebersprungen; jetzt bleibt er offen und wird der naechste Klick-Schritt.
+    const r = resolveAfterGrant(PENDING, { 'daten-share': 'granted' }, null, new Set(['persoenlich']));
+    expect(r.resolved.persoenlich).toBeUndefined();
+    expect(r.complete).toBe(false);
   });
 });

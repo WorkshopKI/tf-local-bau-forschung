@@ -33,8 +33,32 @@ export class StorageService {
     return null;
   }
 
+  /**
+   * Bittet den Browser, die IndexedDB dieses Origins NICHT zu verwerfen.
+   *
+   * Ohne diese Anfrage ist der Speicher „best effort": Chrome darf ihn unter
+   * Platzdruck jederzeit räumen. Für diese App wiegt das schwer — Identität
+   * (`profile` + `onboarding-complete`) UND alle File-System-Handles liegen
+   * ausschliesslich hier; ein Räumen wirft den User zurück ins Onboarding.
+   *
+   * Strikt best-effort: unter `file://` lehnen Browser das oft ohne User-
+   * Engagement ab, und persistenter Speicher ersetzt kein Backup — gegen ein
+   * zurückgesetztes Windows-/Citrix-Profil hilft er nicht (dann greift die
+   * Wiederherstellung aus dem persönlichen Ordner).
+   */
+  private async requestPersistentStorage(): Promise<void> {
+    try {
+      if (!navigator.storage || typeof navigator.storage.persist !== 'function') return;
+      if (await navigator.storage.persisted()) return;
+      await navigator.storage.persist();
+    } catch {
+      /* nicht verfügbar/abgelehnt — die App funktioniert unverändert weiter. */
+    }
+  }
+
   async init(): Promise<void> {
     await this.idb.open();
+    void this.requestPersistentStorage(); // nicht awaiten: darf den Boot nicht verzögern
     await this.syncService.init();
 
     // Load all saved directories

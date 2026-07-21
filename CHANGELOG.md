@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.276.0 — Identitaet aus persoenlichem Ordner wiederherstellbar + Auto-Kette entschaerft (Juli 2026)
+
+MINOR — Citrix-Tester mussten „oft" Name und Kürzel neu eintippen. Ursache liegt ausserhalb der App (die IndexedDB wird geräumt bzw. wandert im Citrix-Profil nicht mit; `onboarding-complete` löscht die App nirgends) — aber die App schrieb ihr Profil seit jeher nach `<pers>/ZAH/profile.json` und **las es nie zurück**: `loadPersonalSettings` hatte keinen einzigen Aufrufer. Ein Backup, das niemand liest, ist keins.
+
+- **„Aus persönlichem Ordner wiederherstellen"** in Schritt 0 des Onboardings — holt Name, Kürzel, Farbe und persönliche Einstellungen zurück und springt zur Zusammenfassung ([Onboarding.tsx](src/core/Onboarding.tsx)).
+- **`navigator.storage.persist()`** beim Init angefragt (best-effort, nicht awaited) — senkt die Eviction-Wahrscheinlichkeit, ersetzt kein Backup ([storage/index.ts](src/core/services/storage/index.ts)).
+- **Auto-Kette bucht nur noch Erfolge** (`resolveAfterGrant` mit `attemptedSlot=null`); die 300ms-Dauer-Heuristik aus v2.275.0 ist entfernt ([guided-grant-progress.ts](src/core/components/guided-grant-progress.ts)).
+- Grund: Wall-Clock trennt „kein Dialog" nicht von „abgelehnt" — unter Citrix-Last kippte die Schwelle und der Persönliche Ordner wurde still als abgelehnt gebucht und übersprungen.
+- **Neue Bug-Klasse 12** „Zustand nur in der Varianten-IDB = ein Verlust, keine Wiederherstellung" ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)).
+
 ### v2.275.1 — Hinweis beim Wechsel der KI-Variante im Chat (Juli 2026)
 
 PATCH — Seit v2.274 wechselt der Umschalter wirklich den Streamlit-Tab. Weil die Bridge aus App-Sicht single-turn ist (nur die letzte Nutzer-Nachricht geht raus), liegt der Gesprächsfaden in der Historie des Tabs — der neue kennt die bisherigen Züge nicht. Für den Nutzer war das nirgends sichtbar.

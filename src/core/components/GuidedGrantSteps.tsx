@@ -25,11 +25,13 @@
  *    danach nur noch Enter — kein Mausweg zurück zur Karte. Enter auf einem
  *    Button ist eine vollwertige User-Geste, der Prompt kommt zuverlässig.
  *  - **Optimistische Auto-Kette:** nach einem erfolgreichen Grant wird der
- *    nächste Slot sofort probiert, statt auf den Klick zu warten. Zeigt der
- *    Browser dabei keinen Prompt mehr (Activation verbraucht → Rückkehr in
- *    <300ms), bricht die Kette ab OHNE den Slot aufzulösen; er bleibt der
- *    nächste Klick-Schritt. In Chrome/`file://` ändert das nichts, in Browsern
- *    mit persistenten Permissions spart es Klicks.
+ *    nächste Slot sofort probiert, statt auf den Klick zu warten. Sie bucht
+ *    ausschliesslich Erfolge — ob der Browser mangels Activation überhaupt
+ *    einen Dialog gezeigt hat, ist von aussen nicht feststellbar, also darf aus
+ *    einem Misserfolg NIE eine Ablehnung werden (v2.276.0, siehe
+ *    guided-grant-progress.ts). Bleibt ein Ordner ungewährt, ist er einfach der
+ *    nächste Klick-Schritt. In Chrome/`file://` ändert die Kette nichts, in
+ *    Browsern mit persistenten Permissions spart sie Klicks.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -37,12 +39,7 @@ import { ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { grantPending, type PendingGrant } from '@/core/services/infrastructure/smb-handle';
-import {
-  resolveAfterGrant,
-  darfWeiterketten,
-  ketteAbgebrochenOhnePrompt,
-  type GrantOutcome,
-} from './guided-grant-progress';
+import { resolveAfterGrant, darfWeiterketten, type GrantOutcome } from './guided-grant-progress';
 
 interface GuidedGrantStepsProps {
   /** Non-leer (der StartupScreen rendert den Stepper nur bei pending.length > 0). */
@@ -85,21 +82,18 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
 
     // Auto-Kette: solange der Browser weiter prompted, die restlichen Slots ohne
     // zusätzlichen Klick nachziehen. Obergrenze = Slot-Anzahl (kein Endlos-Lauf).
+    //
+    // Die Kette läuft OHNE eigene User-Geste — ob der Browser überhaupt einen
+    // Dialog zeigt, ist von aussen nicht feststellbar. Deshalb bucht sie
+    // ausschliesslich Erfolge (attemptedSlot=null → nie 'denied'). Bleibt ein
+    // Ordner ungewährt, ist er einfach der nächste reguläre Klick-Schritt.
     let weiter = darfWeiterketten(ergebnis);
     for (let runde = 0; weiter && !stand.complete && runde < pending.length; runde++) {
       const naechster = pending.find(g => stand.resolved[g.slot] === undefined);
       if (!naechster) break;
 
-      const start = performance.now();
       const kettenErgebnis = await grantPending(naechster);
-      const dauerMs = performance.now() - start;
-
-      // Kein Prompt mehr gezeigt (Activation verbraucht, z.B. Chrome/file://):
-      // Slot NICHT auflösen — sonst würde resolveAfterGrant ihn als 'denied'
-      // verbrennen. So bleibt er der nächste reguläre Klick-Schritt.
-      if (ketteAbgebrochenOhnePrompt(kettenErgebnis, dauerMs)) break;
-
-      stand = resolveAfterGrant(pendingSlots, stand.resolved, naechster.slot, await offeneSlots());
+      stand = resolveAfterGrant(pendingSlots, stand.resolved, null, await offeneSlots());
       weiter = darfWeiterketten(kettenErgebnis);
     }
 
