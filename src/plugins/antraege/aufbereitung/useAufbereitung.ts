@@ -5,7 +5,7 @@
  * die LLM-Bausteine (Paket 2) — sequentiell, tolerant, ohne den deterministischen
  * Teil je zu blockieren.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
@@ -32,7 +32,8 @@ import {
 } from './store';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
-import { istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, type BausteinResult } from './bausteine';
+import { istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, vbHashFuer, type BausteinResult } from './bausteine';
+import { leseGecachteBausteine } from './baustein-rehydrierung';
 import { computeAspekteBaustein, type AspektMapping } from './aspekte';
 import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
 import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
@@ -165,7 +166,47 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     return () => { cancelled = true; };
   }, [storage]);
 
-  // Best-effort Veraltet-Prüfung: aktuelle Quell-Hashes gegen die gestempelten.
+  /**
+   * Holt bereits berechnete Bausteine aus dem kv zurueck — ohne Transport, ohne
+   * LLM-Lauf. Der Baustein-Cache IST die Persistenz der KI-Anteile; ohne diesen
+   * Rueckweg waeren die Ergebnisse nach jedem Seitenwechsel unsichtbar, obwohl sie
+   * im Store liegen.
+   *
+   * Gefuellt werden ausschliesslich LEERE Slots (`status: 'fehlt'`): ein laufender
+   * oder bereits fertiger Baustein wird nie ueberschrieben, auch wenn die
+   * Leseantwort spaeter eintrifft. Ein Miss ist ein No-op — diese Funktion loescht
+   * nie, sonst risse ein Zwischenstand frische Ergebnisse mit.
+   */
+  const rehydriereBausteine = async (
+    antragKey: string, korpusMarkdown: string, abgebrochen: () => boolean,
+  ): Promise<void> => {
+    const gecacht = await leseGecachteBausteine(storage.idb, antragKey, vbHashFuer(korpusMarkdown));
+    if (abgebrochen()) return;
+    const fuelle = <T,>(
+      set: Dispatch<SetStateAction<BausteinUiState<T>>>, daten: T | null,
+    ): void => {
+      if (daten === null) return;
+      set(vorher => (vorher.status === 'fehlt' ? { status: 'ok', daten } : vorher));
+    };
+    fuelle(setRecherchePrompt, gecacht.recherchePrompt);
+    fuelle(setAspekte, gecacht.aspekte);
+    fuelle(setSteckbrief, gecacht.steckbrief);
+    fuelle(setZahlen, gecacht.zahlen);
+    fuelle(setGlossar, gecacht.glossar);
+    fuelle(setVerwertung, gecacht.verwertung);
+  };
+
+  // Korpus-abhaengige Arbeit beim Oeffnen: Cap-Messung, Rehydrierung der Bausteine
+  // und die best-effort Veraltet-Pruefung. Bewusst EIN Effekt — er loest den Korpus
+  // einmal auf, und alle drei brauchen genau diesen Korpus.
+  //
+  // Die Deps sind SKALAR und bewusst nicht `ctx`: der Aufrufer (`AufbereitungPage`)
+  // baut das Kontext-Objekt pro Render neu, und `misseKorpus` liefert ebenfalls jedes
+  // Mal ein frisches Objekt. Mit `ctx` in den Deps trieb sich dieser Effekt endlos
+  // selbst an — `setKorpusMass` → Render → neues `ctx` → Effekt → voller Dokument-Scan.
+  // `key`/`knownIdsKey`/`tvKey` decken alles ab, was der Effekt aus `ctx` liest.
+  const knownIdsKey = (ctx?.knownIds ?? []).join('|');
+  const tvKey = (ctx?.teilvorhaben ?? []).map(t => t.tvAz).join('|');
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -175,7 +216,13 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
         // Auch hier messen, nicht nur in `laufBausteine`: wer einen bereits
         // aufbereiteten Antrag oeffnet, muss sehen, dass die gecachten Bausteine
         // ueber einem abgeschnittenen Text entstanden sind.
-        if (korpus && !cancelled) setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap(kontextZielFuerLauf(bridge))));
+        if (korpus && !cancelled) {
+          setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap(kontextZielFuerLauf(bridge))));
+          // Der Korpus traegt Lesemodus + Fundstellen-Auszuege — unabhaengig davon,
+          // ob je ein Baustein lief.
+          setVbMarkdown(korpus.markdown);
+          await rehydriereBausteine(ctx.key, korpus.markdown, () => cancelled);
+        }
         const tvs = ctx.teilvorhaben ?? [];
         let anlage5Hash: string | undefined;
         let anlage5Hashes: string[] | undefined;
@@ -196,7 +243,8 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       } catch { /* Veraltet-Hinweis ist optional — Fehler still schlucken. */ }
     })();
     return () => { cancelled = true; };
-  }, [ctx, run, storage.idb]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- skalare Anker statt `ctx` (siehe oben)
+  }, [key, knownIdsKey, tvKey, run, storage.idb]);
 
   const neu = useAsyncAction(async () => {
     if (!ctx) return;

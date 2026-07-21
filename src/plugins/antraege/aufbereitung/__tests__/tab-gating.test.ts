@@ -71,6 +71,24 @@ describe('deriveTabZustaende', () => {
     expect(z.zeitplan.zustand).toBe('inaktiv');
   });
 
+  /**
+   * Nach dem Oeffnen einer Seite koennen einzelne Bausteine aus dem Cache
+   * zurueckkommen und andere nicht (ein degradierter Lauf wird nicht gecacht).
+   * Die nicht gefuellten Tabs muessen klickbar bleiben — ihr Leerzustand traegt
+   * den Start-Button.
+   */
+  it('rehydrierte ok-Bausteine sperren die uebrigen Tabs NICHT', () => {
+    const z = deriveTabZustaende({
+      gebundeneTabs: alleFehlt({ steckbrief: 'ok', abdeckung: 'ok' }),
+      activeTab: 'uebersicht',
+    });
+    expect(z.steckbrief.zustand).toBe('aktiv');
+    expect(z.abdeckung.zustand).toBe('aktiv');
+    expect(z.zahlen.zustand).toBe('aktiv');
+    expect(z.glossar.zustand).toBe('aktiv');
+    expect(z.verwertung.zustand).toBe('aktiv');
+  });
+
   it('zählt weitereStatus (z. B. recherche-prompt) für die „nie gelaufen"-Erkennung mit', () => {
     // gebundene alle fehlt, aber recherche-prompt läuft → Gating greift bereits
     const z = deriveTabZustaende({ gebundeneTabs: alleFehlt(), weitereStatus: ['laeuft'], activeTab: 'uebersicht' });

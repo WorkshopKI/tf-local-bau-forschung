@@ -23,6 +23,7 @@ import type { IDBStore } from '@/core/services/storage';
 import { CHECKLISTE_SEED } from './checkliste/seed';
 import type { MapChecklistenDefinition, MapPruefung } from './checkliste/typen';
 import type { MapEinreichung, MapImportReport } from './types';
+import { mapBausteinPraefixe } from './vb/analyse-cache';
 
 const EINREICHUNG_PRAEFIX = 'map-einreichung:';
 const REPORT_PRAEFIX = 'map-report:';
@@ -64,6 +65,15 @@ export async function deleteEinreichung(idb: IDBStore, id: string): Promise<void
   await idb.delete(reportKey(id));
   await idb.delete(pruefungKey(id));
   await idb.delete(`${VB_PRAEFIX}${id}`);
+  // Die KI-Analyse liegt im Baustein-Cache, und der ist zugleich ihre Persistenz.
+  // Ohne dieses Aufraeumen bliebe je Korpus-Stand ein verwaister Eintrag mit
+  // Inhalten aus der Vorhabensbeschreibung liegen, den nichts mehr findet.
+  // Praefix-gebunden, nicht pauschal (Guard `no-blanket-idb-wipe`).
+  for (const praefix of mapBausteinPraefixe(id)) {
+    for (const k of await idb.keys(praefix).catch(() => [] as string[])) {
+      await idb.delete(k).catch(() => {});
+    }
+  }
 }
 
 /**

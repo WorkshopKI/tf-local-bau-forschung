@@ -6,8 +6,10 @@
  * öffnet der Prüfer eine leere Zwischenansicht. Deterministisch, UI-frei, testbar.
  *
  * Invarianten:
- *  - Wurde noch NIE ein Lauf gestartet (alle Bausteine `fehlt`), bleiben ALLE Tabs
- *    klickbar (jeder Tab hat seinen eigenen Leerzustand mit Start-Button).
+ *  - Laeuft gerade KEIN Baustein, bleiben ALLE Tabs klickbar (jeder Tab hat seinen
+ *    eigenen Leerzustand mit Start-Button). Das gilt vor dem ersten Lauf ebenso wie
+ *    nach einer Rehydrierung aus dem Cache, bei der nur ein Teil der Bausteine
+ *    vorlag.
  *  - Der gerade offene Tab (`activeTab`) wird NIE unter dem User weggesperrt.
  *  - `uebersicht`/`fragen`/`recherche`/`lesemodus` sind immer klickbar
  *    (deterministisch bzw. mit ehrlichen Leerzuständen).
@@ -72,7 +74,14 @@ export interface TabGatingEingang {
 export function deriveTabZustaende(eingang: TabGatingEingang): Record<AufbereitungTabId, TabZustandInfo> {
   const { gebundeneTabs, weitereStatus = [], activeTab } = eingang;
   const alleStatus: BausteinUiStatus[] = [...Object.values(gebundeneTabs), ...weitereStatus];
-  const irgendeinGestartet = alleStatus.some(s => s !== 'fehlt');
+  // Gesperrt wird NUR, solange tatsaechlich ein Lauf unterwegs ist. Frueher galt
+  // „irgendein Baustein != fehlt" als Startsignal — das war ein Proxy, der hielt,
+  // solange `fehlt` ausschliesslich „noch nicht gelaufen, aber gleich dran" bedeuten
+  // konnte (die Bausteine laufen sequentiell). Seit beim Oeffnen aus dem Cache
+  // rehydriert wird, heisst `fehlt` daneben auch „fuer diesen Korpus nie berechnet":
+  // ein Teil-Treffer haette sonst genau die Tabs gesperrt, deren Leerzustand den
+  // Start-Button traegt.
+  const einLaufLaeuft = alleStatus.some(s => s === 'laeuft');
 
   const ergebnis = {} as Record<AufbereitungTabId, TabZustandInfo>;
   for (const tab of ALLE_TABS) {
@@ -87,7 +96,7 @@ export function deriveTabZustaende(eingang: TabGatingEingang): Record<Aufbereitu
       ergebnis[tab] = { zustand: 'aktiv' };
       continue;
     }
-    if (!irgendeinGestartet || istBausteinFertig(status as BausteinUiStatus) || tab === activeTab) {
+    if (!einLaufLaeuft || istBausteinFertig(status as BausteinUiStatus) || tab === activeTab) {
       ergebnis[tab] = { zustand: 'aktiv' };
       continue;
     }

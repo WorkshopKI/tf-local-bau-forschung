@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.278 — 2026-07
+
+### Bugfixes
+- Die Ergebnisse von „Mit KI analysieren" verschwinden nicht mehr, wenn Sie zwischendurch eine andere Seite aufrufen. Steckbrief, Canvas, Delta zum Stand der Technik und Wirkungskette sind beim Zurückkehren sofort wieder da — auch nach einem Neustart und beim Wechsel zwischen Einreichungen. Neu gerechnet wird erst, wenn Sie die zugrunde liegenden Dokumente ändern.
+- Dasselbe gilt für die Antrag-Aufbereitung: ein bereits aufbereiteter Antrag zeigt Steckbrief, Abdeckung und Zahlen direkt beim Öffnen, ohne dass Sie den KI-Lauf erneut starten müssen.
+
+### Verbesserungen
+- Die Aufbereitungs-Seite lädt spürbar ruhiger: sie las die Vorhabensbeschreibung im Hintergrund immer wieder neu ein, statt einmal.
+- Der Lesemodus einer Aufbereitung ist jetzt auch ohne KI-Lauf nutzbar.
+
 ## v2.276 — 2026-07
 
 ### Neu

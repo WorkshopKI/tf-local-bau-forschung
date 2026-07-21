@@ -3,7 +3,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import {
-  getOrComputeBaustein, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
+  getOrComputeBaustein, leseBausteinCache, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
   aspekteCacheKey, steckbriefCacheKey, zahlenCacheKey, vbHashFuer, ROHTEXT_MAX,
 } from '../bausteine';
 
@@ -186,5 +186,44 @@ describe('Cache-Keys + VB-Hash', () => {
     expect(steckbriefCacheKey('A', 'h1')).toBe('aufbereitung:A:steckbrief:h1');
     expect(vbHashFuer('gleich')).toBe(vbHashFuer('gleich'));
     expect(vbHashFuer('a')).not.toBe(vbHashFuer('b'));
+  });
+});
+
+/**
+ * `leseBausteinCache` ist der Rückweg zu einem bereits berechneten Ergebnis OHNE
+ * Transport — die Grundlage dafür, dass eine Seite ihre Baustein-Ergebnisse nach
+ * einem Navigationswechsel wieder anzeigen kann, statt sie neu rechnen zu lassen.
+ */
+describe('leseBausteinCache', () => {
+  const key = steckbriefCacheKey('A', 'h1');
+
+  it('Treffer bei passendem Hash', async () => {
+    const { idb, store } = fakeIdb();
+    store.set(key, { vbHash: 'h1', daten: { wert: 7 } });
+    expect(await leseBausteinCache<{ wert: number }>(idb, key, 'h1')).toEqual({ wert: 7 });
+  });
+
+  it('anderer Hash → Miss (der Korpus hat sich geaendert)', async () => {
+    const { idb, store } = fakeIdb();
+    store.set(key, { vbHash: 'h1', daten: { wert: 7 } });
+    expect(await leseBausteinCache(idb, key, 'h2')).toBeNull();
+  });
+
+  it('fehlender Key → Miss', async () => {
+    const { idb } = fakeIdb();
+    expect(await leseBausteinCache(idb, key, 'h1')).toBeNull();
+  });
+
+  it('defekter Eintrag → Miss statt Absturz', async () => {
+    const { idb, store } = fakeIdb();
+    store.set(key, { vbHash: 'h1', daten: null });
+    expect(await leseBausteinCache(idb, key, 'h1')).toBeNull();
+    store.set(key, 'kein objekt');
+    expect(await leseBausteinCache(idb, key, 'h1')).toBeNull();
+  });
+
+  it('Lesefehler des Stores → Miss statt Wurf', async () => {
+    const idb = { get: async () => { throw new Error('idb kaputt'); } } as unknown as IDBStore;
+    await expect(leseBausteinCache(idb, key, 'h1')).resolves.toBeNull();
   });
 });

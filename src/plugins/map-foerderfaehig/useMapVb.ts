@@ -31,6 +31,7 @@ import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useDokumenteStore, type DocumentFull, type DocumentMeta } from '@/plugins/dokumente/store';
 import { getVbZuordnung, setzeVbZuordnung, type VbDokRef } from './store';
 import type { MapEinreichung } from './types';
+import { leseMapAnalyse, mapBausteinKeys, mapCacheSchluessel } from './vb/analyse-cache';
 import { baueMapKorpus, type MapKorpus } from './vb/korpus';
 import { findeVbKandidaten, type VbKandidat } from './vb/zuordnung';
 
@@ -138,6 +139,39 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     [korpus],
   );
 
+  /** Korpus-Hash = Cache-Schlüssel der Bausteine. Skalar, damit der Rehydrierungs-
+   *  Effekt unten an einem Wert hängt und nicht an einer Objekt-Identität. */
+  const vbHash = useMemo(
+    () => (korpus === null ? null : vbHashFuer(korpus.markdown)),
+    [korpus],
+  );
+
+  /**
+   * Bereits berechnete Bausteine zurückholen. Der Baustein-Cache IST die Persistenz
+   * der Analyse — ohne diesen Effekt wären die Ergebnisse nach jedem Wechsel der
+   * Seite oder der Einreichung unsichtbar, obwohl sie im kv-Store liegen, und der
+   * Prüfer müsste „Mit KI analysieren" erneut drücken.
+   *
+   * Es wird ausschliesslich bei Treffern geschrieben: einen Miss lässt der Effekt
+   * unangetastet, damit eine spät eintreffende Leseantwort niemals ein frisch
+   * berechnetes Ergebnis überschreibt. Geleert wird an anderer Stelle (Zuordnungs-
+   * Effekt, `verwirfAnalyse`).
+   *
+   * Kein Transport, kein LLM-Lauf — reines Lesen.
+   */
+  useEffect(() => {
+    if (einreichungId === null || vbHash === null) return;
+    let abgebrochen = false;
+    void (async () => {
+      const analyse = await leseMapAnalyse(storage.idb, einreichungId, vbHash);
+      if (abgebrochen) return;
+      if (analyse.steckbrief !== null) { setSteckbrief(analyse.steckbrief); setSteckbriefLage('ok'); }
+      if (analyse.aspekte !== null) { setAspektMapping(analyse.aspekte); setAspekteLage('ok'); }
+      if (analyse.infografik !== null) { setInfografik(analyse.infografik); setInfografikLage('ok'); }
+    })();
+    return () => { abgebrochen = true; };
+  }, [storage.idb, einreichungId, vbHash]);
+
   const kandidaten = useMemo(
     () => (einreichung === null ? [] : findeVbKandidaten(documents, einreichung)),
     [documents, einreichung],
@@ -204,7 +238,9 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
 
     // Eigenes Cache-Präfix: `getOrComputeBaustein` keyt auf dem übergebenen
     // Schlüssel — ohne MAP-Präfix kollidierte der Cache mit echten Anträgen.
-    const cacheSchluessel = `map:${einreichungId}`;
+    // Die Keys kommen aus `analyse-cache.ts`, damit Schreiben (hier) und Lesen
+    // (Rehydrierung, Cleanup) nicht auseinanderlaufen können.
+    const cacheSchluessel = mapCacheSchluessel(einreichungId);
 
     setSteckbriefLage('laeuft');
     setAspekteLage('laeuft');
@@ -251,10 +287,10 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
 
     try {
       const transport = bridge.getTransportForSkillRun(MAP_INFOGRAFIK_SKILL);
-      const vbHash = vbHashFuer(vbText);
+      const laufHash = vbHashFuer(vbText);
       const ergebnis = await getOrComputeBaustein<InfografikDaten>(
         storage.idb, transport, MAP_INFOGRAFIK_SKILL,
-        `${cacheSchluessel}:infografik:${vbHash}`, vbHash,
+        mapBausteinKeys(einreichungId, laufHash).infografik, laufHash,
         () => buildInfografikPrompt(gliederung, vbText),
         raw => parseInfografik(raw, gliederung),
         {

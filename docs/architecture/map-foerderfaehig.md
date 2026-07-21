@@ -26,9 +26,34 @@ kein Snapshot-Risiko (Pitfall #32), kein IDB-Version-Bump.
 | `map-pruefung:<einreichungId>` | Prüfstand samt Verlauf |
 | `map-vb:<einreichungId>` | Zuordnung der Vorhabensbeschreibung |
 | `map-checkliste:aktuell` | Aktuelle Checklisten-Fassung |
+| `aufbereitung:map:<einreichungId>:steckbrief:<korpusHash>` | KI-Steckbrief |
+| `aufbereitung:map:<einreichungId>:aspekte:<korpusHash>` | KI-Aspekt-Zuordnung |
+| `map:<einreichungId>:infografik:<korpusHash>` | Canvas, SdT-Delta, Wirkungskette |
 
 Alles **gerätelokal**: kein Spiegel in den persönlichen Ordner, kein
 Snapshot-Anteil. MAP-Daten sind Prüfstände, keine geteilten Stammdaten.
+
+### Die KI-Ergebnisse überleben die Navigation
+
+Die drei KI-Bausteine haben keine eigene Entität — ihr **Baustein-Cache ist
+zugleich ihre Persistenz** (`getOrComputeBaustein` schreibt jedes erfolgreiche
+Ergebnis in den `kv`-Store). Damit sie nach einem Seitenwechsel wieder erscheinen,
+liest [`vb/analyse-cache.ts`](../../src/plugins/map-foerderfaehig/vb/analyse-cache.ts)
+sie beim Öffnen zurück (`leseMapAnalyse`, aufgerufen aus `useMapVb`) — **ohne
+Transport und ohne LLM-Lauf**. Ein Miss lässt den Zustand unangetastet; die
+Rehydrierung schreibt nur Treffer und löscht nie.
+
+Gekeyt wird auf dem **Korpus-Hash**, nicht auf dem Hash des Hauptdokuments: ein
+zugeordnetes Zusatzdokument ändert den Korpus und damit fachlich das Ergebnis. Der
+Hash ist die Invalidierung — ein geänderter Korpus liefert einen Miss, nie ein
+veraltetes Ergebnis. Wer ein Zusatzdokument wieder entfernt, bekommt die frühere
+Analyse zum alten Korpus sofort zurück.
+
+Die zwei Key-Schemata (`aufbereitung:map:…` für die von der Antrag-Aufbereitung
+geerbten Bausteine, `map:…:infografik:` für den MAP-eigenen) bleiben bewusst wie
+sie sind — ein umbenannter Key liesse alle vorhandenen Ergebnisse verwaisen. Beide
+leben nur in `analyse-cache.ts`, Schreib- und Lesepfad teilen sich dieselben Bauer.
+`deleteEinreichung` räumt beide Präfixe über alle Hash-Stände mit ab.
 
 ### Schema-Erkennung über diskriminierende Marker
 

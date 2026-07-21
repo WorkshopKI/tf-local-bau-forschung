@@ -13,7 +13,7 @@ export {
   type AufbereitungContext, type QuellEingang,
 } from './store';
 export {
-  getOrComputeBaustein, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
+  getOrComputeBaustein, leseBausteinCache, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
   aspekteCacheKey, steckbriefCacheKey, vbHashFuer,
   type BausteinResult, type BausteinStatus,
 } from './bausteine';

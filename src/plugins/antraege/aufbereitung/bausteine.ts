@@ -65,6 +65,28 @@ export const rechercheImportCacheKey = (antragKey: string, externHash: string): 
 export const vbHashFuer = (vbMarkdown: string): string => hashText(vbMarkdown);
 
 /**
+ * Liest ein gecachtes Baustein-Ergebnis — Treffer NUR bei passendem `vbHash`
+ * (anderer Korpus = fachlich anderes Ergebnis). Rechnet nie, braucht keinen
+ * Transport und wirft nie: ein Lesefehler ist ein Miss.
+ *
+ * Einzige Lesestelle der Cache-Shape `{ vbHash, daten }` — `getOrComputeBaustein`
+ * ruft sie ebenso auf wie die Rehydrierung beim Öffnen einer Seite. Ohne diese
+ * Funktion käme man an ein bereits berechnetes Ergebnis nur über einen
+ * Compute-Aufruf heran, und der braucht einen Transport.
+ */
+export async function leseBausteinCache<T>(
+  idb: IDBStore, cacheKey: string, vbHash: string,
+): Promise<T | null> {
+  try {
+    const cached = await idb.get<{ vbHash: string; daten: T }>(cacheKey);
+    if (cached && cached.vbHash === vbHash && cached.daten != null) return cached.daten;
+  } catch {
+    // Cache-Lesefehler ignorieren → wie ein Miss behandeln.
+  }
+  return null;
+}
+
+/**
  * Dev-Freischaltung eines `aktiv:false`-Bausteins (Muster
  * `istAnonymisiererFreigeschaltet`): in dev läuft jeder GELADENE Skill; prod
  * respektiert `aktiv !== false`. Die Aufbereitungs-Seite ist ohnehin
@@ -161,14 +183,8 @@ export async function getOrComputeBaustein<T>(
   } = {},
 ): Promise<BausteinResult<T>> {
   if (!opts.force) {
-    try {
-      const cached = await idb.get<{ vbHash: string; daten: T }>(cacheKey);
-      if (cached && cached.vbHash === vbHash && cached.daten != null) {
-        return { status: 'ok', daten: cached.daten };
-      }
-    } catch {
-      // Cache-Lesefehler ignorieren → frisch berechnen.
-    }
+    const cached = await leseBausteinCache<T>(idb, cacheKey, vbHash);
+    if (cached !== null) return { status: 'ok', daten: cached };
   }
 
   /** EIN Lauf: Transport-Fehler → null (= 'fehler' außen), sonst Roh + geparst (parse wirft nie nach außen). */
