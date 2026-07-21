@@ -8,6 +8,7 @@ import {
   clearAllCsvSources,
   setKuratorOn,
   setKuratorOff,
+  resetOnboarding,
   applyOfflineMode,
   exportCurrentState,
   type ScenarioKey,
@@ -65,7 +66,9 @@ export function FixturesPanel(): React.ReactElement {
     <div className="px-8 py-6 max-w-[760px]">
       <h2 className="text-[18px] font-medium text-[var(--tf-text)]">Fixtures &amp; Test-Aktionen</h2>
       <p className="text-[13px] text-[var(--tf-text-secondary)] leading-relaxed mt-1.5 mb-5 max-w-[620px]">
-        Vordefinierte Zustände in einem Klick. Achtung: jedes Szenario überschreibt die lokale IndexedDB.
+        Vordefinierte Zustände in einem Klick. Achtung: jedes Szenario überschreibt die lokale
+        IndexedDB. Das Setup bleibt dabei stehen — verbundene Ordner sowie Name und Kürzel
+        werden nicht angetastet (dafür „Onboarding zurücksetzen" unten).
       </p>
 
       <SectionCaption>Szenarien</SectionCaption>
@@ -122,6 +125,16 @@ export function FixturesPanel(): React.ReactElement {
             <Button size="sm" variant="outline" disabled={busy !== null}
               onClick={() => run('Kurator-Flag AUS', () => setKuratorOff(storage.idb))}>
               AUS
+            </Button>
+          }
+        />
+        <ActionRow
+          title="Onboarding zurücksetzen"
+          hint="Name + Kürzel neu abfragen. Szenarien lassen die Identität bewusst stehen."
+          btn={
+            <Button size="sm" variant="outline" disabled={busy !== null}
+              onClick={() => run('Onboarding zurücksetzen', () => resetOnboarding(storage.idb))}>
+              Zurücksetzen
             </Button>
           }
         />

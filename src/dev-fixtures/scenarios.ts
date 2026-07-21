@@ -26,7 +26,7 @@ export const SCENARIOS: ScenarioDescriptor[] = [
   {
     key: 'frisch',
     label: 'Frisch',
-    description: 'Alle IDB-Stores leeren (SMB-Handle bleibt). Wie erste App-Nutzung nach Setup.',
+    description: 'Alle IDB-Stores leeren (Setup bleibt: SMB-Handle, Name/Kürzel). Wie erste App-Nutzung nach Setup.',
     group: 'basis',
   },
   {

@@ -8,6 +8,13 @@
  * SMB-Handle (`smb-handles`-Key), damit der File-System-Access-API-Picker
  * nicht bei jedem Reset erneut erscheinen muss (user-bestätigte Entscheidung
  * für schnellere Iteration).
+ *
+ * v2.277: dieselbe Begründung gilt für die IDENTITÄT. Bis dahin löschte
+ * resetAll auch `profile` + `onboarding-complete` — und weil JEDES Szenario
+ * mit resetAll beginnt, landete der Tester nach jedem Szenario-Klick wieder
+ * im Onboarding und tippte Name + Kürzel neu (Ordner blieben verbunden, das
+ * verwirrte zusätzlich). Beides bleibt jetzt erhalten; wer den Erstlauf
+ * gezielt testen will, nimmt `resetOnboarding()` aus actions.ts.
  */
 
 import type { StorageService } from '@/core/services/storage';
@@ -49,8 +56,22 @@ function clearObjectStore(idb: IDBStore, storeName: string): Promise<void> {
 }
 
 /**
- * Leert alle IndexedDB-Stores bis auf den KV-Schlüssel `smb-handles`.
- * Hält die DB-Schema-Version bei.
+ * KV-Schlüssel, die ein Szenario-Reset NICHT anfassen darf — sonst müsste der
+ * Tester nach jedem Szenario-Klick den Setup-Kram neu erledigen.
+ *
+ * `smb-handles` → sonst Ordner-Picker bei jedem Reset.
+ * `profile` + `onboarding-complete` → sonst Onboarding (Name + Kürzel) bei
+ * jedem Reset. Beide gehören zum Setup, nicht zum Testzustand.
+ */
+const RESET_AUSGENOMMEN: readonly string[] = [
+  SMB_HANDLES_IDB_KEY,
+  'profile',
+  'onboarding-complete',
+];
+
+/**
+ * Leert alle IndexedDB-Stores bis auf die Setup-Schlüssel
+ * (`RESET_AUSGENOMMEN`). Hält die DB-Schema-Version bei.
  */
 export async function resetAll(idb: IDBStore): Promise<void> {
   assertDevFixtures();
@@ -62,10 +83,10 @@ export async function resetAll(idb: IDBStore): Promise<void> {
   }
   await clearObjectStore(idb, FILTER_STORE_NAME);
 
-  // KV-Store selektiv leeren (SMB-Handles bewahren).
+  // KV-Store selektiv leeren (Setup-Schlüssel bewahren).
   const allKeys = await idb.keys();
   for (const key of allKeys) {
-    if (key === SMB_HANDLES_IDB_KEY) continue;
+    if (RESET_AUSGENOMMEN.includes(key)) continue;
     await idb.delete(key);
   }
 

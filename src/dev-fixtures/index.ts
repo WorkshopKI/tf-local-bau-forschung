@@ -11,6 +11,7 @@ export {
   clearAllCsvSources,
   setKuratorOn,
   setKuratorOff,
+  resetOnboarding,
   exportCurrentState,
 } from './actions';
 export type { StateDump } from './actions';

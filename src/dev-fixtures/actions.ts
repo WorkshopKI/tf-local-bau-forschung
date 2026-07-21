@@ -62,6 +62,23 @@ export async function setKuratorOff(idb: IDBStore): Promise<void> {
   await maybeReloadAfterDestructive('Kurator-Flag deaktiviert');
 }
 
+/**
+ * Wirft NUR die Identität weg (Name/Kürzel/Farbe) — die Szenario-Resets
+ * verschonen sie seit v2.277 bewusst, damit man nicht nach jedem Klick neu
+ * tippt. Wer den Erstlauf gezielt testen will, nimmt diese Aktion.
+ *
+ * Ordner-Handles bleiben verbunden: getestet wird das Onboarding, nicht die
+ * Ordner-Auswahl. Fürs Onboarding mit leerem persönlichem Ordner zusätzlich
+ * `<pers>/ZAH/profile.json` von Hand löschen — sonst bietet Schritt 0 die
+ * Wiederherstellung an (was hier meist erwünscht ist: genau die will man testen).
+ */
+export async function resetOnboarding(idb: IDBStore): Promise<void> {
+  assertDevFixtures();
+  await idb.delete('onboarding-complete');
+  await idb.delete('profile');
+  await maybeReloadAfterDestructive('Onboarding zurückgesetzt');
+}
+
 /** Dumpt Counts aller Stores + Sample der ersten Zeilen. */
 export interface StateDump {
   generated_at: string;

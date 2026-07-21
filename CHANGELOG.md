@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.277.0 — Dev-Szenarien verschonen Name und Kuerzel (Juli 2026)
+
+MINOR — Auflösung des „ständig neue Anmeldung"-Reports aus dem Citrix-Test: weder Citrix noch der Startup-Wizard, sondern die Dev-Fixtures. **Jedes** der 6 Szenarien beginnt mit `resetAll`, und das löschte jeden kv-Schlüssel ausser `smb-handles` — also auch `profile` + `onboarding-complete`. Fingerabdruck: Name/Kürzel neu tippen, Ordner aber weiter verbunden. Dev-only (`devFixtures`), pl/prod waren nie betroffen.
+
+- **`resetAll` verschont die Setup-Schlüssel** `profile` + `onboarding-complete` — dieselbe Begründung, aus der der SMB-Handle längst verschont wurde ([helpers.ts](src/dev-fixtures/helpers.ts)).
+- **Neue Einzel-Aktion „Onboarding zurücksetzen"** für den gezielten Erstlauf-Test ([actions.ts](src/dev-fixtures/actions.ts), Knopf in [FixturesPanel.tsx](src/plugins/dev-infrastructure-test/panels/FixturesPanel.tsx)).
+- Szenario-Beschreibung + Panel-Vorspann sagten „alle Stores leeren" und stimmten nicht mehr — nachgezogen ([scenarios.ts](src/dev-fixtures/scenarios.ts)).
+- Diagnose-Reihenfolge in Bug-Klasse 12 ergänzt: im dev-Build **zuerst** nach angewendeten Fixture-Szenarien fragen ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)).
+
 ### v2.276.0 — Identitaet aus persoenlichem Ordner wiederherstellbar + Auto-Kette entschaerft (Juli 2026)
 
 MINOR — Citrix-Tester mussten „oft" Name und Kürzel neu eintippen. Ursache liegt ausserhalb der App (die IndexedDB wird geräumt bzw. wandert im Citrix-Profil nicht mit; `onboarding-complete` löscht die App nirgends) — aber die App schrieb ihr Profil seit jeher nach `<pers>/ZAH/profile.json` und **las es nie zurück**: `loadPersonalSettings` hatte keinen einzigen Aufrufer. Ein Backup, das niemand liest, ist keins.
