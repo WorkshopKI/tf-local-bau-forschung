@@ -220,6 +220,17 @@ Elf Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an de
 - **Zweiter Fall dieser Klasse.** Der erste war der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4), zurückgebaut in v2.241.5 — dort trieb ein zitiertes Marker-Beispiel dasselbe Verhalten. Wenn ein Prompt-Kontrakt „schlau" wirkt, aber das Modell hängen lässt: erst den Kontrakt entfernen, nicht am Modell drehen.
 - **Auf dem Streamlit-Bridge-Pfad ist der Prompt der einzige Hebel** — `maxTokens`/`thinkingBudget` gehen nur an DirectLLM-Transporte ([run-skill.ts](../../src/core/services/skills/run/run-skill.ts)); die Bridge schiebt reinen Text in die Chat-Oberfläche.
 
+**Verallgemeinerung (Prompt-Audit 2026-07):** Der Prompt entsteht aus bis zu acht Blöcken
+(`composeSkillPrompt`), und die häufigste Defektform ist nicht die elidierte Vorgabe, sondern
+**zwei Blöcke, die Gegenteiliges fordern, während der Vorrang nur im Code-Kommentar steht**. Der
+`teilStruktur`-Block etwa ist als „autoritativer Override" dokumentiert und sagt dem Modell nichts
+davon — es sieht drei Fließtext-Forderungen gegen eine JSON-Forderung. **Ein Vorrang, der nicht im
+Prompt steht, existiert für das Modell nicht.** Verwandt und ebenso häufig: Anweisungen, die auf
+Information verweisen, die im Prompt fehlt (`Vermeide die hinterlegten verbotenen Formulierungen.`),
+Überschriften über leeren Slots, und Beispiele, die der Antwort-Parser nicht von echten Daten
+unterscheiden kann. Vollständige Befundliste über alle Prompt-Pfade mit Fundstellen und
+Positivbeispielen: [prompt-audit-2026-07.md](../prompt-audit-2026-07.md).
+
 **Maschinell erzwungen (v2.284.1):** `keine-elidierte-wortlaut-vorgabe` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts). Unter `src/core/services/skills/` darf keine Zeile ein Literalitäts-Wort (`exakt`/`wörtlich`/`wortgetreu`) mit einem elidierten Zitat (`…` direkt vor einem schließenden Anführungszeichen) kombinieren. Eingefrorene Alt-Stände für die Migrations-Erkennung: Zeile mit `// allow-elidierte-wortlaut-vorgabe: <grund>` markieren. Rein veranschaulichende „…"-Zitate ohne Literalitäts-Forderung (z.B. `grundsatz.ts`) sind nicht erfasst.
 
 **Kanonische Dateien:** [seed.ts](../../src/core/services/skills/registry/seed.ts) (`abschnittTemplate.pflichtAnfang`, `G_ABSCHNITT_OPTS`), [check-engine.ts](../../src/core/services/skills/registry/check-engine.ts) (`pflicht_anfang.hint`), [migrations.ts](../../src/core/services/skills/registry/migrations.ts) (`GA_PFLICHT_ANFANG_KLAR_MIGRATION`).
