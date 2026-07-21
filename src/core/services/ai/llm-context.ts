@@ -27,20 +27,30 @@ const LLM_CONTEXT_DETECTED_KEY = 'teamflow_llm_context_detected';
 export const DEFAULT_LLM_CONTEXT_TOKENS = 81_920;
 
 /**
- * Kontextfenster der beiden Streamlit-Tabs — **fest verdrahtet, weil nicht
- * erkennbar**: „Standard" (gpt-oss) und „Agentisch" (Qwen) laufen serverseitig in
- * einer fremden App, die kein `/props` anbietet. Die Auto-Erkennung greift nur
- * beim lokalen llama.cpp; über die Bridge galt bisher ersatzweise der
- * llama.cpp-Default (81.920) — für den agentischen Tab viel zu klein, für den
- * Standard-Tab zu gross.
+ * Kontextfenster der beiden Streamlit-Tabs, in **Tokens** — die Werte der
+ * llama.cpp-Server, die die Streamlit-App speisen. Der Standard-Tab (gpt-oss)
+ * meldet „62k", der agentische (Qwen) „262k"; beide Zahlen stehen sichtbar in
+ * der Seite („Chatlänge [Token]: 0k von 62k").
  *
- * Ändern sich die Tabs serverseitig, sind diese beiden Zahlen die einzige Stelle
- * für die Rechnung — die Anzeigetexte „(Qwen, 260k)" in den Eval-Panels
- * (`eval-panel/report.ts`, `AufbereitungEvalPanel.tsx`, `GedaechtnisEvalPanel.tsx`)
- * sind Prosa und müssen dann mitgezogen werden.
+ * **Fest verdrahtet, weil nicht abfragbar** — nicht, weil es sie nicht gäbe: die
+ * `/props`-Auto-Erkennung spricht den lokalen llama.cpp direkt an und kommt an
+ * die Server hinter der fremden Streamlit-App nicht heran. Bis v2.272 galt über
+ * die Bridge ersatzweise der lokale Default (81.920): für den agentischen Tab
+ * viel zu klein (es wurde grundlos gekürzt), für den Standard-Tab zu gross (es
+ * wurde zu spät gewarnt).
+ *
+ * Ausbaupfad, falls die Werte häufiger wandern: Das Bookmarklet scrapt die Seite
+ * ohnehin — es könnte die angezeigte Chatlänge mitmelden, statt sie hier zu
+ * pflegen. Kostet einen Bookmarklet-Rev und damit eine Neu-Installation bei allen
+ * Nutzern, lohnt sich also erst, wenn diese Konstanten tatsächlich driften.
+ *
+ * Bis dahin sind sie die einzige Stelle für die Rechnung — die Anzeigetexte
+ * „(Qwen, 262k)" in den Eval-Panels (`eval-panel/report.ts`,
+ * `AufbereitungEvalPanel.tsx`, `GedaechtnisEvalPanel.tsx`) sind Prosa und müssen
+ * mitgezogen werden.
  */
 export const BRIDGE_STANDARD_CONTEXT_TOKENS = 62_000;
-export const BRIDGE_AGENTISCH_CONTEXT_TOKENS = 260_000;
+export const BRIDGE_AGENTISCH_CONTEXT_TOKENS = 262_000;
 export const MIN_LLM_CONTEXT_TOKENS = 2_048;
 export const MAX_LLM_CONTEXT_TOKENS = 1_000_000;
 

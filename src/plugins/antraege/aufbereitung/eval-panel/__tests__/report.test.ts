@@ -39,7 +39,7 @@ describe('formatEvalReport — Transport-Zeile (OpenRouter-Modus)', () => {
 
   it('mit ziel agentisch: Qwen-Etikett wie bisher', () => {
     const report = formatEvalReport(ERGEBNIS, { ...META_INTERN, ziel: 'agentisch' });
-    expect(report).toContain('- Transport: Streamlit · agentisch (Qwen, 260k)');
+    expect(report).toContain('- Transport: Streamlit · agentisch (Qwen, 262k)');
   });
 
   it('mit modell: OpenRouter-Zeile mit Modell-Slug + extern-Kennzeichnung', () => {
@@ -61,6 +61,6 @@ describe('formatEvalReport — Transport-Zeile (OpenRouter-Modus)', () => {
       ziel: 'agentisch',
     });
     expect(report).toContain('(extern, fiktive Fixtures)');
-    expect(report).not.toContain('agentisch (Qwen, 260k)');
+    expect(report).not.toContain('agentisch (Qwen, 262k)');
   });
 });

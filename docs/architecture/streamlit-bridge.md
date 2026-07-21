@@ -127,16 +127,23 @@ QS/Zweitmeinung. Das Bridge-Protokoll trägt dafür ein optionales `ziel` (`'sta
 
 ### Kontextfenster je Tab (v2.273)
 
-Die beiden Tabs haben **unterschiedlich grossen Kontext**: Standard (gpt-oss) ~62k Tokens,
-Agentisch (Qwen) ~260k. Beide laufen serverseitig in der fremden Streamlit-App — die
-`/props`-Auto-Erkennung ([direct-llm.ts](../../src/core/services/ai/transports/direct-llm.ts))
-erreicht sie **nicht**, sie funktioniert nur beim lokalen llama.cpp. Bis v2.272 galt an der
-Bridge deshalb ersatzweise der lokale Default (81.920): agentische Läufe wurden grundlos
+Die beiden Tabs haben **unterschiedlich grossen Kontext** — die `n_ctx`-Werte der
+llama.cpp-Server, die die Streamlit-App speisen: Standard (gpt-oss) **62k** Tokens,
+Agentisch (Qwen) **262k**. Beide stehen sichtbar in der Seite („Chatlänge [Token]: 0k von
+62k"), sind aber nicht **abfragbar**: die `/props`-Auto-Erkennung
+([direct-llm.ts](../../src/core/services/ai/transports/direct-llm.ts)) spricht den lokalen
+llama.cpp direkt an und erreicht die Server hinter der fremden App nicht. Bis v2.272 galt an
+der Bridge deshalb ersatzweise der lokale Default (81.920): agentische Läufe wurden grundlos
 gekürzt, Standard-Läufe zu spät gewarnt.
+
+**Ausbaupfad**, falls die Werte häufiger wandern: das Bookmarklet scrapt die Seite ohnehin
+und könnte die angezeigte Chatlänge mitmelden, statt sie im Code zu pflegen. Kostet einen
+`BRIDGE_REV`-Bump und damit eine Neu-Installation bei allen Nutzern — lohnt sich erst, wenn
+die Konstanten tatsächlich driften.
 
 Seit v2.273 sind beide Werte in [llm-context.ts](../../src/core/services/ai/llm-context.ts)
 fest verdrahtet (`BRIDGE_STANDARD_CONTEXT_TOKENS` / `BRIDGE_AGENTISCH_CONTEXT_TOKENS`) — die
-einzige Stelle für die Rechnung; die „(Qwen, 260k)"-Labels der Eval-Panels sind Prosa und
+einzige Stelle für die Rechnung; die „(Qwen, 262k)"-Labels der Eval-Panels sind Prosa und
 müssen bei einer Änderung mitgezogen werden. Jeder Lauf leitet seinen Cap über
 `kontextZielFuerLauf(bridge)` ([ki-ziel.ts](../../src/core/services/ai/ki-ziel.ts)) ab,
 Anzeige-Stellen über den Hook `useVbCharCap` ([useVbCharCap.ts](../../src/core/hooks/useVbCharCap.ts)).

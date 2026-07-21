@@ -158,7 +158,7 @@ export interface EvalOpts {
    *  der Steckbrief-Smoke bleibt EIN Lauf pro Fixture. Reset-Invariante gilt pro Einzellauf. */
   wiederholungen?: number;
   /** Ziel-Tab der Streamlit-Bridge (Zweit-LLM-A/B): ohne = Standard-Chat (gpt-oss),
-   *  `'agentisch'` = Qwen-Tab (260k). Wird an Reset + Submit jedes Laufs durchgereicht. */
+   *  `'agentisch'` = Qwen-Tab (262k). Wird an Reset + Submit jedes Laufs durchgereicht. */
   ziel?: BridgeZiel;
   signal?: AbortSignal;
   onFixtureStart?: (vbFile: string, index: number, total: number) => void;

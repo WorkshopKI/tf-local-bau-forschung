@@ -94,7 +94,7 @@ export interface RunBausteinErgebnis {
  * System-Rolle aus dem Skill-Record; das Prompt baut der Caller.
  *
  * `ziel` (optional, nur Streamlit) routet den Ziel-Tab: ohne `ziel` = aktiver/
- * Standard-Chat (gpt-oss); `'agentisch'` = der agentische Qwen-Tab (260k, Zweit-LLM-
+ * Standard-Chat (gpt-oss); `'agentisch'` = der agentische Qwen-Tab (262k, Zweit-LLM-
  * Erprobung — dev-Eval-A/B). Reset UND Submit treffen denselben Tab.
  *
  * ACHTUNG `maxTokens`: greift NUR auf dem `submitConversation`-Pfad (DirectLLM,

@@ -80,7 +80,7 @@ function kurzVon(a: FixtureAggregat): string {
 
 /** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
 function zielLabel(ziel?: BridgeZiel): string {
-  return ziel === 'agentisch' ? 'agentisch (Qwen, 260k)' : 'Standard-Chat (gpt-oss)';
+  return ziel === 'agentisch' ? 'agentisch (Qwen, 262k)' : 'Standard-Chat (gpt-oss)';
 }
 
 interface ReportMeta {

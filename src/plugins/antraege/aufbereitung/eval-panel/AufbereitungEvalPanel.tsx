@@ -390,7 +390,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
-                title="Generierungs-Transport: Intern = Standard-Chat (gpt-oss) · Intern agentisch = Qwen-Tab (260k, Tab muss offen + Lesezeichen aktiv sein) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
+                title="Generierungs-Transport: Intern = Standard-Chat (gpt-oss) · Intern agentisch = Qwen-Tab (262k, Tab muss offen + Lesezeichen aktiv sein) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
               >
                 Transport
                 <select
@@ -401,7 +401,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                   style={{ border: '0.5px solid var(--tf-border)' }}
                 >
                   <option value="intern">Intern (gpt-oss)</option>
-                  <option value="agentisch">Intern agentisch (Qwen, 260k)</option>
+                  <option value="agentisch">Intern agentisch (Qwen, 262k)</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>
