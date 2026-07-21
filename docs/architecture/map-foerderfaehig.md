@@ -236,6 +236,66 @@ nicht leisten, weil die interne KI an der browser-gebundenen Streamlit-Bridge
 hängt. `npm run check` bleibt LLM-frei; geprüft wird dort nur die deterministische
 Seite (`__tests__/substanz.test.ts`, `substanz-aktionen.test.ts`).
 
+## KI-Zweitmeinung („Urteil zuerst")
+
+Die drei Skala-Items des Innovationsgrads bleiben Menschenarbeit. Offen ist die
+Frage, ob eine KI-Einschätzung dem Prüfer dabei nützt oder ihn ankert — der
+Testballon beantwortet sie experimentell: **die KI stuft mit ein, aber ihre
+Meinung erscheint erst, nachdem der Mensch entschieden hat.**
+
+Es kommt **kein zusätzlicher LLM-Aufruf** hinzu; `innoZweitmeinung` fällt im
+bestehenden Infografik-Lauf mit ab.
+
+Fünf Entscheidungen, die man kennen muss:
+
+1. **Das Gate lebt im reinen Modul, nicht im JSX.** `baueVergleich`
+   ([ansicht/zweitmeinung-vergleich.ts](../../src/plugins/map-foerderfaehig/ansicht/zweitmeinung-vergleich.ts))
+   **redigiert** das Ergebnis, solange keine eigene Stufe gespeichert ist:
+   `kiStufe` ist dann `null`, `begruendung` leer. Die Komponente bekommt die
+   KI-Einstufung gar nicht erst in die Hand — ein versehentliches `{v.kiStufe}` im
+   JSX kann die Zusage also nicht brechen. Ein Flag hätte das nicht geleistet, und
+   `.tsx` ist hier ohnehin nicht testbar.
+2. **Getrennt gespeichert, deshalb kein Score-Leak.** Menschliches Urteil liegt in
+   `MapPruefung.bewertungen[itemId].stufe`, die Zweitmeinung in `InfografikDaten`.
+   `MapItemBewertung` bekommt **kein** Feld — damit ist die Zweitmeinung für
+   `abschluss/markdown.ts` und den Import-Report strukturell unerreichbar, statt
+   nur „nicht verwendet". Ein modul-lokaler Guard verbietet den Bezeichner in
+   `abschluss/`, `checkliste/`, `import/` und `useSubstanzAnsicht.ts`; aus demselben
+   Grund entstehen die Vergleiche in `PruefBlatt` und nicht in `useSubstanzAnsicht`
+   (dieser Hook speist den Abschluss).
+3. **Ankertexte kommen aus der Entität**, nie aus einer Konstante im Prompt-Modul:
+   der Kurator kann sie im Editor ändern, ein zweiter Stand driftete still ab. Der
+   Parser verwirft Item-IDs, die nicht in der übergebenen Menge stehen — so kann das
+   Modell weder eine Kategorie erfinden noch eine stillgelegte wiederbeleben.
+4. **Der Anker-Stempel steht in der NUTZLAST, nicht im Cache-Key**
+   (`zweitmeinungAnkerHash`). Im Schlüssel würde ein Anker-Edit den ganzen
+   Infografik-Lauf verwerfen — Canvas, SdT-Delta, Wirkungskette und die
+   Substanz-Listen wären nach dem nächsten Öffnen leer, obwohl sie mit den
+   Ankertexten nichts zu tun haben (`leseMapAnalyse` liest nur, es rechnet nie
+   nach). Ein Editor-Klick löschte damit sichtbar vier unbeteiligte Ansichten —
+   ausgerechnet in dem Moment, den der Testleitfaden live vorführt. Als Stempel
+   bleibt alles stehen, und die Zweitmeinung trägt lediglich den Hinweis „beruht auf
+   einer älteren Fassung". Dieselbe Haltung wie `versionVeraltet`.
+   `INFOGRAFIK_SCHEMA_VERSION` 2 → 3 ist davon unabhängig nötig: das ist der
+   Regelfall „Feldmenge gewachsen", der Anker-Hash der Sonderfall „Grundlage zur
+   Laufzeit geändert".
+5. **`istInhaltsleer` ignoriert sie** — aus einem anderen Grund als bei den
+   Substanz-Listen: die Zweitmeinung ist ausdrücklich Beiwerk. Zählte sie mit, würde
+   ein Lauf mit vollständigem Canvas verworfen und wiederholt, nur weil das Modell
+   die Einstufung ausliess; beim zweiten Fehlversuch wäre er degradiert und gar
+   nicht gecacht. Der Prüfer verlöre die ganze Analyse wegen eines Nebenprodukts.
+
+In der UI: ein Streifen unter dem Stufenraster, `<div>` statt `<button>`, **kein
+Übernehmen-Knopf**. Bei Abweichung das Wort „abweichend" und eine kräftigere Kante
+— **keine Ampelfarbe**, denn Grün hiesse „die KI bestätigt dich" und Rot „du hast
+dich geirrt", und beides darf eine unverbindliche Zweitmeinung nicht sagen.
+
+Der Smoke misst zusätzlich die **Vollständigkeit** (je Item eine Stufe mit
+Begründung und Fundstelle) und stellt optionale Gold-Werte gegenüber. Die sind eine
+Kurator-Meinung, kein Sollwert, gehen in kein Pass/Fail ein und sind für alle vier
+Fixtures gleich — damit misst der Abgleich zugleich die **Stabilität**: streut die
+Einstufung über vier fast identische Texte, ist die Zweitmeinung nicht belastbar.
+
 ## Testbarkeit
 
 Die Vitest-Umgebung ist `node` ohne jsdom und sammelt nur `.test.ts` ein —
@@ -245,9 +305,9 @@ React-Component-Tests sind nicht möglich. Daraus folgt die harte Modulregel:
 Komponenten ordnen nur zu und stellen dar.
 
 Der modul-lokale Convention-Test (`__tests__/konventionen.test.ts`) prüft davon
-**drei** Dinge maschinell: die `normiertemonatskosten`-Sperre, die
-Datenschutz-Deny-Liste und die 400-Zeilen-Grenze — dazu seit dem Substanzcheck
-die Fixture-Herkunft des Smoke-Panels. Die Regeln „keine `.tsx` rechnet" und
+**fünf** Dinge maschinell: die `normiertemonatskosten`-Sperre, die
+Datenschutz-Deny-Liste, die 400-Zeilen-Grenze, die Fixture-Herkunft des
+Smoke-Panels (seit dem Substanzcheck) und die Nicht-Aggregation der Zweitmeinung. Die Regeln „keine `.tsx` rechnet" und
 „kein `Antrag`-Record" gelten weiterhin, werden aber **nicht** vom Test erzwungen;
 sie stehen als Konvention in den Datei-Headern.
 
@@ -275,10 +335,10 @@ src/plugins/map-foerderfaehig/
   import/       Adapter, Schema-Definitionen, Erkennung, Redaktion, Rechenchecks
   checkliste/   Typen, Seed, Bewertung, Editor, Verlauf
   vb/           Zuordnung, Fundstellen, Analyse-Cache
-  infografik/   Schema + Prompt + Parser, Fakten-Block, Substanz, Richtwerte
+  infografik/   Schema + Prompt + Parser, Fakten-Block, Substanz, Zweitmeinung, Richtwerte
   substanz/     Zuordnung, Präzisions-NF, Zielkriterien, Kontrast-Fixtures, Smoke
   abschluss/    NF-Suche, Markdown-Entwürfe
-  ansicht/      Gantt-Daten, Kosten-Segmente
+  ansicht/      Gantt-Daten, Kosten-Segmente, Zweitmeinungs-Gate
   components/   nur Darstellung
 ```
 

@@ -18,9 +18,19 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { MAP_INFOGRAFIK_SKILL } from '@/core/services/skills';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useState } from 'react';
+import type { MapChecklistenItem } from '../checkliste/typen';
 import { laufeSubstanzSmoke, type SmokeReport } from '../substanz/smoke-runner';
 
-export function SubstanzSmokePanel(): React.ReactElement {
+export function SubstanzSmokePanel({
+  skalaItems,
+}: {
+  /**
+   * Bewertungsgrundlage der Zweitmeinung — als Prop von `PruefBlatt`, NICHT aus
+   * dem Store gelesen: der Smoke-Pfad darf nichts laden (Konventions-Test
+   * `faehrt den Substanz-Smoke nur gegen fiktive Fixtures`).
+   */
+  skalaItems: readonly MapChecklistenItem[];
+}): React.ReactElement {
   const bridge = useAIBridge();
   const [report, setReport] = useState<SmokeReport | null>(null);
 
@@ -31,7 +41,7 @@ export function SubstanzSmokePanel(): React.ReactElement {
     setReport(null);
     // Dokument-tragender Lauf → nur interner Transport.
     const transport = bridge.getTransportForSkillRun(MAP_INFOGRAFIK_SKILL);
-    setReport(await laufeSubstanzSmoke(transport));
+    setReport(await laufeSubstanzSmoke(transport, skalaItems));
   });
 
   const laeuft = smoke.busy;
@@ -84,6 +94,8 @@ export function SubstanzSmokePanel(): React.ReactElement {
               {' · '}
               {report.ergebnisse.filter(e => e.bestanden).length} von {report.ergebnisse.length} Fixtures
               wie erwartet
+              {' · Zweitmeinung '}
+              {report.zweitmeinungKontrolle ? 'überall vollständig' : 'nicht überall vollständig'}
             </span>
           </div>
 
@@ -94,6 +106,7 @@ export function SubstanzSmokePanel(): React.ReactElement {
                   <th className="py-1.5 pr-3 font-medium">Fixture</th>
                   <th className="py-1.5 pr-3 font-medium">Erwartet</th>
                   <th className="py-1.5 pr-3 font-medium">Gefunden</th>
+                  <th className="py-1.5 pr-3 font-medium">Zweitmeinung</th>
                   <th className="py-1.5 font-medium">Ergebnis</th>
                 </tr>
               </thead>
@@ -125,6 +138,28 @@ export function SubstanzSmokePanel(): React.ReactElement {
                       <span className="block text-[10.5px] text-[var(--tf-text-tertiary)] mt-0.5">
                         {e.unschaerfeAnzahl} Unschärfe-Begriffe
                       </span>
+                    </td>
+                    <td className="py-2 pr-3 align-top">
+                      <span className="text-[var(--tf-text-secondary)]">
+                        {e.zweitmeinung.length} von {skalaItems.length} Kategorien
+                        {e.zweitmeinungVollstaendig ? ' · vollständig' : ' · unvollständig'}
+                      </span>
+                      {/* Gold-Abgleich ist eine Kurator-Meinung, kein Sollwert —
+                          er faerbt deshalb nichts und geht in kein Ergebnis ein. */}
+                      {e.goldAbgleich.length > 0 && (
+                        <ul className="flex flex-col gap-0.5 mt-1">
+                          {e.goldAbgleich.map(g => (
+                            <li key={g.itemId} className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+                              {g.itemId}: Gold {g.gold} · KI {g.ki ?? '—'}
+                              {g.abstand === null
+                                ? ''
+                                : g.abstand === 0
+                                  ? ' · Treffer'
+                                  : g.abstand === 1 ? ' · ±1' : ` · ${g.abstand} Stufen`}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </td>
                     <td className="py-2 align-top">
                       <span style={{

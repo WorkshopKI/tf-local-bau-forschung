@@ -9,6 +9,7 @@ import type { AspektMapping } from '@/plugins/antraege/aufbereitung';
 import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
 import { signalFuerInnoScore, type Signalstufe } from '../ansicht/bewertungs-signal';
 import { baueGruppenFortschritt } from '../ansicht/gruppen';
+import type { ZweitmeinungVergleich } from '../ansicht/zweitmeinung-vergleich';
 import type { MapBewertungsErgebnis } from '../checkliste/bewertung';
 import type { MapChecklistenDefinition, MapItemStatus, MapStufe } from '../checkliste/typen';
 import { fundstellenFuerItem } from '../vb/fundstellen';
@@ -84,6 +85,7 @@ function InnoScoreKarte({
 
 export function ChecklistePanel({
   definition, ergebnis, versionVeraltet, aspektMapping, gliederung, vbMarkdown,
+  vergleiche, ankerVeraltet,
   onBewerte, onStufe, onBedingung, onNachziehen,
 }: {
   definition: MapChecklistenDefinition;
@@ -92,6 +94,10 @@ export function ChecklistePanel({
   aspektMapping: AspektMapping | null;
   gliederung: readonly VbSektion[];
   vbMarkdown: string;
+  /** Zweitmeinungs-Vergleich je Skala-Item — vor der eigenen Bewertung redigiert. */
+  vergleiche: ReadonlyMap<string, ZweitmeinungVergleich>;
+  /** Die Einstufung beruht auf einer älteren Fassung der Ankertexte. */
+  ankerVeraltet: boolean;
   onBewerte: (itemId: string, status: MapItemStatus, bemerkung?: string) => void;
   onStufe: (itemId: string, stufe: MapStufe, bemerkung?: string) => void;
   onBedingung: (itemId: string, wert: boolean) => void;
@@ -164,6 +170,8 @@ export function ChecklistePanel({
                 <SkalaKarte
                   key={z.item.id}
                   zustand={z}
+                  vergleich={vergleiche.get(z.item.id) ?? null}
+                  ankerVeraltet={ankerVeraltet}
                   onStufe={(stufe, bemerkung) => onStufe(z.item.id, stufe, bemerkung)}
                 />
               ) : (

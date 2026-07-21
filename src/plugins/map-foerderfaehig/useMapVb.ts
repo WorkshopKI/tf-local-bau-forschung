@@ -30,6 +30,7 @@ import {
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useDokumenteStore, type DocumentFull, type DocumentMeta } from '@/plugins/dokumente/store';
+import type { MapChecklistenDefinition } from './checkliste/typen';
 import { getVbZuordnung, setzeVbZuordnung, type VbDokRef } from './store';
 import type { MapEinreichung } from './types';
 import { leseMapAnalyse, mapBausteinKeys, mapCacheSchluessel } from './vb/analyse-cache';
@@ -77,10 +78,24 @@ function alsRefs(docs: readonly DocumentFull[]): VbDokRef[] {
   return docs.map(d => ({ docId: d.id, docName: d.filename }));
 }
 
-export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
+export function useMapVb(
+  einreichung: MapEinreichung | null,
+  definition: MapChecklistenDefinition | null,
+): UseMapVbResult {
   const storage = useStorage();
   const bridge = useAIBridge();
   const { documents, loadDocument } = useDokumenteStore();
+
+  /**
+   * Bewertungsgrundlage der KI-Zweitmeinung. Sie kommt aus der Checklisten-Entität
+   * und wird NICHT hier nachgeladen: `useMapPruefung` ist der einzige Besitzer der
+   * Definition, ein zweiter Ladepfad liefe auseinander, sobald der Kurator im
+   * Editor speichert.
+   */
+  const skalaItems = useMemo(
+    () => (definition?.items ?? []).filter(i => i.art === 'skala' && i.aktiv),
+    [definition],
+  );
 
   const [dokument, setDokument] = useState<DocumentFull | null>(null);
   const [zusatzDokumente, setZusatzDokumente] = useState<DocumentFull[]>([]);
@@ -293,8 +308,8 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       const ergebnis = await getOrComputeBaustein<InfografikDaten>(
         storage.idb, transport, MAP_INFOGRAFIK_SKILL,
         mapBausteinKeys(einreichungId, laufHash).infografik, laufHash,
-        () => buildInfografikPrompt(gliederung, vbText, baueFaktenBlock(einreichung)),
-        raw => parseInfografik(raw, gliederung),
+        () => buildInfografikPrompt(gliederung, vbText, baueFaktenBlock(einreichung), skalaItems),
+        raw => parseInfografik(raw, gliederung, skalaItems),
         {
           // Eine formal gültige, inhaltlich leere Antwort wird nicht gecacht —
           // sonst friert ein Fehlversuch die Ansicht dauerhaft ein.
@@ -315,7 +330,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       setInfografikLage('fehler');
       setInfografikFehler(fehlertext(e));
     }
-  }, [storage.idb, bridge, korpus, gliederung, einreichung, einreichungId]);
+  }, [storage.idb, bridge, korpus, gliederung, einreichung, einreichungId, skalaItems]);
 
   return {
     dokument,

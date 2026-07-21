@@ -33,6 +33,13 @@ const SYSTEM_PROMPT =
   // Beurteilung verlangt. Jetzt auf das gemeinte Verbot begrenzt (Prompt-Audit 2026-07).
   + 'bleibt die Liste leer. Du beurteilst weder Stil noch fachliche Güte des Textes; '
   + 'ob eine Aussage quantifiziert ist, stellst du aber fest — das ist eine Sachfrage. '
+  // Dieselbe Falle wie beim Vorgänger-Satz: eine unbedingte Verbots-Formulierung
+  // stünde im Widerspruch zum Pflichtfeld `innoZweitmeinung`, das eine Einordnung
+  // VERLANGT. Deshalb der Zusatz eng gefasst — Zuordnung zu vorgegebenen
+  // Ankertexten, ausdrücklich unverbindlich, ohne Empfehlung.
+  + 'Zusätzlich ordnest du die Kategorien des Innovationsgrads den vorgegebenen '
+  + 'Ankertexten zu. Diese Einordnung ist eine unverbindliche Zweitmeinung; sie '
+  + 'entscheidet nichts und spricht keine Förderempfehlung aus. '
   + 'Du antwortest ausschließlich mit dem geforderten JSON-Objekt.';
 
 export const MAP_INFOGRAFIK_SKILL: SkillRecord = {
@@ -40,9 +47,10 @@ export const MAP_INFOGRAFIK_SKILL: SkillRecord = {
   name: 'MAP — Infografik-Extraktion',
   beschreibung:
     'Interner Extraktions-Lauf für Projekt-Canvas, Delta zum Stand der Technik, '
-    + 'Wirkungskette und den Substanzcheck (Widersprüche Text↔Einreichung, '
-    + 'Unschärfe-Begriffe); ein Lauf je Einreichung, Ergebnis je VB-Hash gecacht (dev).',
-  version: 2,
+    + 'Wirkungskette, den Substanzcheck (Widersprüche Text↔Einreichung, '
+    + 'Unschärfe-Begriffe) und die KI-Zweitmeinung zum Innovationsgrad; '
+    + 'ein Lauf je Einreichung, Ergebnis je VB-Hash gecacht (dev).',
+  version: 3,
   promptTemplate: `Extrahiere aus der Vorhabensbeschreibung die Angaben für die Prüfansichten als JSON und gleiche den Text gegen die verbindlichen Fakten der Einreichung ab. Kennzeichne Vages als vage, statt es zu ergänzen. Melde nur echte Abweichungen.
 
 ## Vorhabensbeschreibung (Quelle)
@@ -53,7 +61,14 @@ Gib ausschließlich das geforderte JSON-Objekt zurück.`,
   // Zwei zusätzliche Listen je Antwort — der alte Deckel schnitt die hinteren
   // Felder ab. Wirkt nur auf dem `submitConversation`-Pfad; die Streamlit-Bridge
   // trägt kein per-Request-Budget.
-  maxTokens: 6144,
+  //
+  // 6144 → 8192 mit der Zweitmeinung. Die reine Nutzlast wächst nur um ~400 Token;
+  // ausschlaggebend ist, dass eine Einstufung eine KLASSIFIKATIONS-Aufgabe ist und
+  // ein Reasoning-Modell zum Abwägen zwischen zwei Nachbarstufen einlädt — Denken
+  // und Antwort teilen sich das Budget. Und `extractLastJsonObject` braucht ein
+  // VOLLSTÄNDIGES Objekt: eine abgeschnittene Antwort kostet nicht nur die
+  // Zweitmeinung, sondern macht den ganzen Lauf zu `null`.
+  maxTokens: 8192,
   modifiers: { neu: '', kuerzer: '', laenger: '' },
   regelIds: [],
   slots: ['vbMarkdown'],

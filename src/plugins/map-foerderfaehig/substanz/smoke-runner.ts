@@ -19,7 +19,18 @@ import { MAP_INFOGRAFIK_SKILL } from '@/core/services/skills';
 import { baueFaktenBlock } from '../infografik/fakten';
 import { buildInfografikPrompt, parseInfografik } from '../infografik/schema';
 import type { Widerspruch } from '../infografik/substanz';
+import { stufenAbstand, type ZweitmeinungEintrag } from '../infografik/zweitmeinung';
+import type { MapChecklistenItem, MapStufe } from '../checkliste/typen';
 import { KONTRAST_EINREICHUNG, KONTRAST_FIXTURES, type KontrastFixture } from './kontrast.seed';
+
+/** Ein Gold-Wert und was das Modell daraus gemacht hat. Rein informativ. */
+export interface GoldZeile {
+  itemId: string;
+  gold: MapStufe;
+  ki: MapStufe | null;
+  /** `null`, wenn das Modell zu diesem Item nichts geliefert hat. */
+  abstand: number | null;
+}
 
 export interface SmokeErgebnis {
   id: KontrastFixture['id'];
@@ -30,6 +41,11 @@ export interface SmokeErgebnis {
   gefunden: Widerspruch[];
   unschaerfeAnzahl: number;
   bestanden: boolean;
+  /** Einstufungen des Laufs. */
+  zweitmeinung: ZweitmeinungEintrag[];
+  /** Je Skala-Item eine gültige Stufe MIT Begründung UND mindestens einer Fundstelle. */
+  zweitmeinungVollstaendig: boolean;
+  goldAbgleich: GoldZeile[];
   /** Gesetzt, wenn der Lauf gar nicht ausgewertet werden konnte. */
   fehler: string | null;
 }
@@ -38,6 +54,8 @@ export interface SmokeReport {
   ergebnisse: SmokeErgebnis[];
   /** Die saubere Fassung hat KEINEN Widerspruch gemeldet. */
   falschPositivKontrolle: boolean;
+  /** Alle Fixtures lieferten eine vollständige Zweitmeinung. Steht NEBEN `alleBestanden`. */
+  zweitmeinungKontrolle: boolean;
   alleBestanden: boolean;
 }
 
@@ -57,26 +75,61 @@ function bewerte(f: KontrastFixture, gefunden: readonly Widerspruch[]): boolean 
   return gefunden.some(w => w.art === f.erwarteteArt);
 }
 
+/**
+ * Vollständig heisst: zu JEDEM Skala-Item eine Einstufung, die eine Begründung
+ * UND mindestens eine Fundstelle trägt. Der Parser lässt Einträge ohne Fundstelle
+ * durch — genau deshalb ist diese Prüfung hier eine Messung am Modell und nicht
+ * am Parser.
+ */
+function istVollstaendig(
+  eintraege: readonly ZweitmeinungEintrag[], skalaItems: readonly MapChecklistenItem[],
+): boolean {
+  if (skalaItems.length === 0) return false;
+  return skalaItems.every(item => {
+    const e = eintraege.find(x => x.itemId === item.id);
+    return e !== undefined && e.begruendung.length > 0 && e.sektionIds.length > 0;
+  });
+}
+
+/** Stellt die Gold-Werte den Einstufungen gegenüber. Rein informativ, nie Pass/Fail. */
+function goldAbgleichFuer(
+  f: KontrastFixture, eintraege: readonly ZweitmeinungEintrag[],
+): GoldZeile[] {
+  return Object.entries(f.goldZweitmeinung ?? {}).map(([itemId, gold]) => {
+    const ki = eintraege.find(e => e.itemId === itemId)?.stufe ?? null;
+    return {
+      itemId,
+      gold: gold as MapStufe,
+      ki,
+      abstand: ki === null ? null : stufenAbstand(gold as MapStufe, ki),
+    };
+  });
+}
+
 async function laufeFixture(
-  transport: AITransport, f: KontrastFixture, faktenBlock: string,
+  transport: AITransport,
+  f: KontrastFixture,
+  faktenBlock: string,
+  skalaItems: readonly MapChecklistenItem[],
 ): Promise<SmokeErgebnis> {
   const basis = {
     id: f.id, label: f.label, manipulation: f.manipulation, erwartet: erwartungsText(f),
   };
+  const leer = {
+    gefunden: [], unschaerfeAnzahl: 0, bestanden: false,
+    zweitmeinung: [], zweitmeinungVollstaendig: false, goldAbgleich: [],
+  };
 
   try {
     const gliederung = parseVbGliederung(f.markdown);
-    const prompt = buildInfografikPrompt(gliederung, f.markdown, faktenBlock);
+    const prompt = buildInfografikPrompt(gliederung, f.markdown, faktenBlock, skalaItems);
     // `runBaustein` setzt den Chat vor jedem Lauf zurück (Pitfall #36) — sonst
     // trüge Fixture 2 den Verlauf von Fixture 1 mit und die Messung wäre wertlos.
     const { text } = await runBaustein(transport, MAP_INFOGRAFIK_SKILL, prompt);
-    const daten = parseInfografik(text, gliederung);
+    const daten = parseInfografik(text, gliederung, skalaItems);
 
     if (daten === null) {
-      return {
-        ...basis, gefunden: [], unschaerfeAnzahl: 0, bestanden: false,
-        fehler: 'Die Antwort enthielt kein auswertbares JSON.',
-      };
+      return { ...basis, ...leer, fehler: 'Die Antwort enthielt kein auswertbares JSON.' };
     }
 
     return {
@@ -84,13 +137,13 @@ async function laufeFixture(
       gefunden: daten.widersprueche,
       unschaerfeAnzahl: daten.unschaerfeBegriffe.length,
       bestanden: bewerte(f, daten.widersprueche),
+      zweitmeinung: daten.innoZweitmeinung,
+      zweitmeinungVollstaendig: istVollstaendig(daten.innoZweitmeinung, skalaItems),
+      goldAbgleich: goldAbgleichFuer(f, daten.innoZweitmeinung),
       fehler: null,
     };
   } catch (e) {
-    return {
-      ...basis, gefunden: [], unschaerfeAnzahl: 0, bestanden: false,
-      fehler: e instanceof Error ? e.message : String(e),
-    };
+    return { ...basis, ...leer, fehler: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -99,12 +152,14 @@ async function laufeFixture(
  * ein postMessage-Fenster hat. Wirft nie — ein gescheiterter Lauf ist ein
  * Messergebnis, kein Programmfehler.
  */
-export async function laufeSubstanzSmoke(transport: AITransport): Promise<SmokeReport> {
+export async function laufeSubstanzSmoke(
+  transport: AITransport, skalaItems: readonly MapChecklistenItem[],
+): Promise<SmokeReport> {
   const faktenBlock = baueFaktenBlock(KONTRAST_EINREICHUNG);
   const ergebnisse: SmokeErgebnis[] = [];
 
   for (const f of KONTRAST_FIXTURES) {
-    ergebnisse.push(await laufeFixture(transport, f, faktenBlock));
+    ergebnisse.push(await laufeFixture(transport, f, faktenBlock, skalaItems));
   }
 
   const sauber = ergebnisse.find(e => e.id === 'sauber');
@@ -112,6 +167,9 @@ export async function laufeSubstanzSmoke(transport: AITransport): Promise<SmokeR
     ergebnisse,
     falschPositivKontrolle: sauber !== undefined && sauber.fehler === null
       && sauber.gefunden.length === 0,
+    zweitmeinungKontrolle: ergebnisse.every(e => e.zweitmeinungVollstaendig),
+    // Bewusst UNVERÄNDERT der Widerspruchs-Befund: der Gold-Abgleich ist eine
+    // Kurator-Meinung, kein Sollwert, und darf kein Pass/Fail tragen.
     alleBestanden: ergebnisse.every(e => e.bestanden),
   };
 }

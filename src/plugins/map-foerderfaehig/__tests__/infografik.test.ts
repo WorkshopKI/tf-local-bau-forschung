@@ -15,7 +15,11 @@ import { leseGeldbetrag, lesePersonenzahl, pruefeRichtwerte } from '../infografi
 import {
   buildInfografikPrompt, istInhaltsleer, parseInfografik, type Wirkungskette,
 } from '../infografik/schema';
+import { CHECKLISTE_SEED } from '../checkliste/seed';
 import { DUMMY_PFAD, TEST_KONTEXT, leseFixture } from './fixtures';
+
+/** Bewertungsgrundlage der Zweitmeinung — hier nur Beiwerk, die Tests prüfen den Rest. */
+const SKALA = CHECKLISTE_SEED.items.filter(i => i.art === 'skala' && i.aktiv);
 
 const antwort = importiereEinreichung(leseFixture(DUMMY_PFAD), TEST_KONTEXT);
 if (!antwort.ok) throw new Error(antwort.fehler);
@@ -55,20 +59,20 @@ const VOLLE_ANTWORT = JSON.stringify({
 
 describe('Prompt', () => {
   it('nennt die Abschnitts-IDs, damit das Modell belegen kann', () => {
-    const p = buildInfografikPrompt(GLIEDERUNG, VB, FAKTEN);
+    const p = buildInfografikPrompt(GLIEDERUNG, VB, FAKTEN, SKALA);
     expect(p).toContain('k-1');
     expect(p).toContain('Ausgangssituation');
     expect(p).toContain(VB);
   });
 
   it('verlangt die Kennzeichnung von Vagem', () => {
-    expect(buildInfografikPrompt(GLIEDERUNG, VB, FAKTEN)).toMatch(/belegt\|vage\|fehlt/);
+    expect(buildInfografikPrompt(GLIEDERUNG, VB, FAKTEN, SKALA)).toMatch(/belegt\|vage\|fehlt/);
   });
 });
 
 describe('Parser — Lücken zeigen, nicht füllen', () => {
   it('liest eine vollstaendige Antwort', () => {
-    const d = parseInfografik(VOLLE_ANTWORT, GLIEDERUNG)!;
+    const d = parseInfografik(VOLLE_ANTWORT, GLIEDERUNG, SKALA)!;
     expect(d.canvas.problemSdt).toMatchObject({ belegtheit: 'belegt', sektionIds: ['k-1'] });
     expect(d.sdtDelta).toHaveLength(2);
     expect(d.wirkungskette.wirkung.zahlenziel).toContain('1,2 Mio');
@@ -76,32 +80,32 @@ describe('Parser — Lücken zeigen, nicht füllen', () => {
 
   it('liest auch aus einem Markdown-Codeblock mit Nachgeplapper', () => {
     const roh = `Gerne! Hier das Ergebnis:\n\`\`\`json\n${VOLLE_ANTWORT}\n\`\`\`\nIch hoffe, das passt.`;
-    expect(parseInfografik(roh, GLIEDERUNG)?.sdtDelta).toHaveLength(2);
+    expect(parseInfografik(roh, GLIEDERUNG, SKALA)?.sdtDelta).toHaveLength(2);
   });
 
   it('stuft eine Aussage ohne Fundstelle auf „vage" herab — auch wenn sie „belegt" behauptet', () => {
     const roh = JSON.stringify({
       canvas: { innovation: { text: 'Behauptung', sektionIds: [], belegtheit: 'belegt' } },
     });
-    expect(parseInfografik(roh, GLIEDERUNG)?.canvas.innovation.belegtheit).toBe('vage');
+    expect(parseInfografik(roh, GLIEDERUNG, SKALA)?.canvas.innovation.belegtheit).toBe('vage');
   });
 
   it('verwirft erfundene Sektions-IDs', () => {
     const roh = JSON.stringify({
       canvas: { innovation: { text: 'X', sektionIds: ['k-99', 'k-1'], belegtheit: 'belegt' } },
     });
-    expect(parseInfografik(roh, GLIEDERUNG)?.canvas.innovation.sektionIds).toEqual(['k-1']);
+    expect(parseInfografik(roh, GLIEDERUNG, SKALA)?.canvas.innovation.sektionIds).toEqual(['k-1']);
   });
 
   it('fuehrt einen leeren Text als „fehlt", egal was behauptet wird', () => {
     const roh = JSON.stringify({
       canvas: { innovation: { text: '', sektionIds: ['k-1'], belegtheit: 'belegt' } },
     });
-    expect(parseInfografik(roh, GLIEDERUNG)?.canvas.innovation.belegtheit).toBe('fehlt');
+    expect(parseInfografik(roh, GLIEDERUNG, SKALA)?.canvas.innovation.belegtheit).toBe('fehlt');
   });
 
   it('faellt bei fehlenden Teilen auf „fehlt" zurueck statt abzubrechen', () => {
-    const d = parseInfografik('{"canvas":{}}', GLIEDERUNG)!;
+    const d = parseInfografik('{"canvas":{}}', GLIEDERUNG, SKALA)!;
     expect(d.canvas.problemSdt.belegtheit).toBe('fehlt');
     expect(d.sdtDelta).toEqual([]);
     expect(d.wirkungskette.problem.belegtheit).toBe('fehlt');
@@ -109,21 +113,21 @@ describe('Parser — Lücken zeigen, nicht füllen', () => {
 
   it('verwirft Delta-Zeilen ohne Parameter', () => {
     const roh = JSON.stringify({ sdtDelta: [{ sdtWert: 'x', zielWert: 'y' }, { parameter: 'Gut' }] });
-    expect(parseInfografik(roh, GLIEDERUNG)?.sdtDelta.map(z => z.parameter)).toEqual(['Gut']);
+    expect(parseInfografik(roh, GLIEDERUNG, SKALA)?.sdtDelta.map(z => z.parameter)).toEqual(['Gut']);
   });
 
   it('gibt null nur zurueck, wenn gar kein JSON erkennbar ist', () => {
-    expect(parseInfografik('Ich kann das leider nicht.', GLIEDERUNG)).toBeNull();
+    expect(parseInfografik('Ich kann das leider nicht.', GLIEDERUNG, SKALA)).toBeNull();
   });
 
   it('erkennt eine formal gueltige, inhaltlich leere Antwort', () => {
-    expect(istInhaltsleer(parseInfografik('{}', GLIEDERUNG)!)).toBe(true);
-    expect(istInhaltsleer(parseInfografik(VOLLE_ANTWORT, GLIEDERUNG)!)).toBe(false);
+    expect(istInhaltsleer(parseInfografik('{}', GLIEDERUNG, SKALA)!)).toBe(true);
+    expect(istInhaltsleer(parseInfografik(VOLLE_ANTWORT, GLIEDERUNG, SKALA)!)).toBe(false);
   });
 });
 
 describe('Richtwerte — fehlend ist nicht verfehlt', () => {
-  const kette = parseInfografik(VOLLE_ANTWORT, GLIEDERUNG)!.wirkungskette;
+  const kette = parseInfografik(VOLLE_ANTWORT, GLIEDERUNG, SKALA)!.wirkungskette;
 
   it('liest Geldbetraege in den ueblichen Schreibweisen', () => {
     expect(leseGeldbetrag('1,2 Mio. €')).toBe(1_200_000);

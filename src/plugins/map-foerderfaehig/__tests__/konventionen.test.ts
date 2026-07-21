@@ -114,6 +114,36 @@ describe('MAP-Konventionen', () => {
     expect(CODE.get(runner!)).toContain('kontrast.seed');
   });
 
+  it('aggregiert die KI-Zweitmeinung nirgends', () => {
+    // Die Zusage des Features lautet: die Zweitmeinung erscheint AM ITEM nach der
+    // eigenen Bewertung — und sonst nirgends. Kein Entwurf, kein Report, keine
+    // Summe. Strukturell ist sie heute unerreichbar (sie lebt in `InfografikDaten`,
+    // nicht in `MapItemBewertung`), aber genau das kann ein spaeterer Umbau
+    // einreissen: ein Feld an der Bewertung, und sie liefe ueber `z.bewertung`
+    // direkt in Gutachten und Ablehnung. Dieser Guard ist die Sperre dagegen.
+    const gesperrteBereiche = [
+      `abschluss${path.sep}`,
+      `checkliste${path.sep}`,
+      `import${path.sep}`,
+      `ansicht${path.sep}gruppen.ts`,
+      `ansicht${path.sep}bewertungs-signal.ts`,
+      'useSubstanzAnsicht.ts',
+    ];
+
+    const verstoesse: string[] = [];
+    for (const datei of QUELLDATEIEN) {
+      if (!gesperrteBereiche.some(b => datei.includes(b))) continue;
+      const inhalt = CODE.get(datei)!;
+      if (/zweitmeinung/i.test(inhalt)) {
+        verstoesse.push(path.relative(PLUGIN_WURZEL, datei));
+      }
+    }
+    expect(verstoesse).toEqual([]);
+
+    // Gegenbeweis: der Guard prueft ueberhaupt Dateien.
+    expect(QUELLDATEIEN.some(f => gesperrteBereiche.some(b => f.includes(b)))).toBe(true);
+  });
+
   it('haelt jede Nicht-Daten-Quelldatei unter 400 Zeilen', () => {
     // Kohaesion vor Zeilenzahl — aber Seed-/Daten-Files ausgenommen, die
     // duerfen laut project-structure.md groesser sein.

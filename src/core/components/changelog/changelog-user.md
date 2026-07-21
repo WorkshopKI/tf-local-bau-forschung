@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.286 — 2026-07
+
+### Neu
+- **Eine KI-Zweitmeinung zum Innovationsgrad — erst nach Ihrem eigenen Urteil.** Das ist ein Versuch, und er ist bewusst so gebaut: Solange Sie eine der drei Kategorien nicht selbst eingestuft haben, steht auf der Karte nichts. Erst danach erscheint daneben, wie die KI dieselbe Kategorie einordnet, mit kurzer Begründung an den Ankertexten und den Fundstellen im Text. Es gibt keinen „Übernehmen"-Knopf: die Einschätzung ändert nichts, zählt nirgends mit und taucht in keinem Gutachten-, Nachforderungs- oder Ablehnungsentwurf auf. Sie kostet auch keine zusätzliche Wartezeit — sie entsteht im selben Durchlauf wie die übrigen Analysen. Zu finden in der Förderfähigkeitsprüfung unter „Förderfähig".
+
 ## v2.285 — 2026-07
 
 ### Verbesserungen

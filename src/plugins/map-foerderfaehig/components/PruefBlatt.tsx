@@ -16,8 +16,10 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   naechsterOffenerSchritt, SCHRITT_LABEL, type AnsichtKey, type StatusSignale,
 } from '../ansicht/schritte';
+import { baueVergleiche } from '../ansicht/zweitmeinung-vergleich';
 import { formatDatum } from '../import/laufzeit';
 import { pruefeRichtwerte } from '../infografik/richtwerte';
+import { ankerHashFuer } from '../infografik/zweitmeinung';
 import type { MapEinreichung, MapImportReport } from '../types';
 import { useMapPruefung } from '../useMapPruefung';
 import { useMapVb } from '../useMapVb';
@@ -59,8 +61,34 @@ export function PruefBlatt({ einreichung, report }: {
 
   const befunde = useMemo(() => report?.befunde ?? [], [report]);
   const pruefung = useMapPruefung(einreichung, befunde);
-  const vb = useMapVb(einreichung);
+  const vb = useMapVb(einreichung, pruefung.definition);
   const substanz = useSubstanzAnsicht(vb, pruefung);
+
+  /** Skala-Items = Bewertungsgrundlage der Zweitmeinung (Prompt, Parser, Smoke). */
+  const skalaItems = useMemo(
+    () => (pruefung.definition?.items ?? []).filter(i => i.art === 'skala' && i.aktiv),
+    [pruefung.definition],
+  );
+
+  /**
+   * Die Zweitmeinungs-Vergleiche entstehen HIER und bewusst nicht in
+   * `useSubstanzAnsicht`: dieser Hook speist über Zielkriterien und Präzisions-NF
+   * den Abschluss. Bliebe die Zweitmeinung dort, wäre die Regel „sie taucht in
+   * keinem Entwurf auf" nicht mehr als Verzeichnis-Guard formulierbar.
+   *
+   * Der Anker-Stempel entscheidet nur, ob ein Veraltet-Hinweis erscheint — die
+   * Zweitmeinung wird nie ausgeblendet, sonst löschte ein Editor-Klick sichtbar
+   * Arbeit (dieselbe Haltung wie `versionVeraltet`).
+   */
+  const vergleiche = useMemo(
+    () => baueVergleiche(
+      pruefung.ergebnis?.zustaende ?? [], vb.infografik?.innoZweitmeinung ?? [],
+    ),
+    [pruefung.ergebnis, vb.infografik],
+  );
+
+  const ankerVeraltet = vb.infografik !== null
+    && vb.infografik.zweitmeinungAnkerHash !== ankerHashFuer(skalaItems);
 
   const signale: StatusSignale = useMemo(() => ({
     befunde,
@@ -193,6 +221,8 @@ export function PruefBlatt({ einreichung, report }: {
                   aspektMapping={vb.aspektMapping}
                   gliederung={vb.gliederung}
                   vbMarkdown={vb.korpus?.markdown ?? ''}
+                  vergleiche={vergleiche}
+                  ankerVeraltet={ankerVeraltet}
                   onBewerte={(itemId, status, bemerkung) =>
                     void pruefung.bewerteItem({ itemId, status, bemerkung })}
                   onStufe={(itemId, stufe, bemerkung) =>
@@ -248,7 +278,7 @@ export function PruefBlatt({ einreichung, report }: {
       case 'smoke':
         return (
           <Karte titel="Substanz-Smoke (dev)">
-            <SubstanzSmokePanel />
+            <SubstanzSmokePanel skalaItems={skalaItems} />
           </Karte>
         );
     }

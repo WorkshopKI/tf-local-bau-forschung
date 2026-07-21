@@ -17,6 +17,11 @@ import {
   parseSubstanz, UNSCHAERFE_MAX,
   type UnschaerfeBegriff, type Widerspruch,
 } from './substanz';
+import {
+  baueZweitmeinungPromptTeil, parseZweitmeinung, zweitmeinungSchemaZeilen,
+  type ZweitmeinungEintrag,
+} from './zweitmeinung';
+import type { MapChecklistenItem } from '../checkliste/typen';
 
 /**
  * Schemaversion der Modell-Antwort. Geht in den Cache-Schlüssel ein
@@ -24,8 +29,12 @@ import {
  * statt als unvollständige Antwort weiterzuleben.
  *
  * 1 → 2: `widersprueche` und `unschaerfeBegriffe` ergänzt (Substanzcheck).
+ * 2 → 3: `innoZweitmeinung` ergänzt (KI-Zweitmeinung). Ohne den Bump bliebe ein
+ *        v2-Eintrag ein gültiger Treffer zum unveränderten Korpus — die
+ *        Zweitmeinung wäre für diese Einreichung dauerhaft leer, ohne dass je ein
+ *        Neu-Lauf ausgelöst würde.
  */
-export const INFOGRAFIK_SCHEMA_VERSION = 2;
+export const INFOGRAFIK_SCHEMA_VERSION = 3;
 
 /** Wie gut eine Angabe in der Vorhabensbeschreibung belegt ist. */
 export type Belegtheit = 'belegt' | 'vage' | 'fehlt';
@@ -76,6 +85,13 @@ export interface InfografikDaten {
   widersprueche: Widerspruch[];
   /** Anspruchsformeln ohne Beleg oder Zahl, max. `UNSCHAERFE_MAX`. */
   unschaerfeBegriffe: UnschaerfeBegriff[];
+  /**
+   * Unverbindliche Einstufung der Skala-Items. Sichtbar erst nach der eigenen
+   * Bewertung (`ansicht/zweitmeinung-vergleich.ts`), nirgends aggregiert.
+   */
+  innoZweitmeinung: ZweitmeinungEintrag[];
+  /** Stempel der Ankertexte, auf denen die Einstufung beruht — NICHT im Cache-Key. */
+  zweitmeinungAnkerHash: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,13 +118,24 @@ const KETTEN_GLIEDER: ReadonlyArray<{ key: keyof Wirkungskette; frage: string }>
  * `faktenBlock` kommt deterministisch aus `fakten.ts` und ist die Referenzseite
  * des Widerspruchschecks — er steht bewusst VOR der Vorhabensbeschreibung, damit
  * das Modell die Zahlen kennt, bevor es den Fliesstext liest.
+ *
+ * `skalaItems` trägt die Ankertexte der Zweitmeinung aus der Checklisten-Entität
+ * heran. Kein Default-Wert: ein `= []` verwandelte einen Verdrahtungsfehler in
+ * eine still dauerhaft leere Zweitmeinung, ein Compile-Fehler ist billiger.
  */
 export function buildInfografikPrompt(
-  gliederung: readonly VbSektion[], vbMarkdown: string, faktenBlock: string,
+  gliederung: readonly VbSektion[],
+  vbMarkdown: string,
+  faktenBlock: string,
+  skalaItems: readonly MapChecklistenItem[],
 ): string {
   const sektionsListe = gliederung
     .map(s => `- ${s.id}: ${s.nummer != null ? `${s.nummer} ` : ''}${s.titel}`)
     .join('\n');
+
+  // Ohne Skala-Items entfallen Regelblock UND Schema-Zeile gemeinsam — das Modell
+  // wird nie nach einem Feld gefragt, dessen Bewertungsgrundlage im Prompt fehlt.
+  const zweitmeinungSchema = zweitmeinungSchemaZeilen(skalaItems);
 
   return [
     'Extrahiere aus der Vorhabensbeschreibung die Angaben für die Prüfansichten',
@@ -145,6 +172,7 @@ export function buildInfografikPrompt(
     '  zusätzlich unbestimmt ist. "nicht definiert" nur, wenn eine Zahl gar nicht in',
     '  Frage kommt und allein der Begriff offen bleibt.',
     '- Reine Füllwörter ohne Anspruchscharakter gehören NICHT in die Liste.',
+    ...baueZweitmeinungPromptTeil(skalaItems),
     '',
     '## Abschnitte',
     sektionsListe,
@@ -182,7 +210,8 @@ export function buildInfografikPrompt(
     '],',
     '"unschaerfeBegriffe": [',
     '{ "begriff": "<Formulierung>", "kontext": "<Umfeld im Text>", "grund": "nicht definiert|nicht quantifiziert", "sektionIds": ["<sektion-id>"] }',
-    ']',
+    zweitmeinungSchema.length > 0 ? '],' : ']',
+    ...zweitmeinungSchema,
     '}',
     '```',
     '',
@@ -244,7 +273,9 @@ function alsDeltaZeile(roh: unknown, bekannt: ReadonlySet<string>): SdtDeltaZeil
  * fehlende Einzelfelder werden zu „fehlt", nicht zum Abbruch. Rein.
  */
 export function parseInfografik(
-  raw: string, gliederung: readonly VbSektion[],
+  raw: string,
+  gliederung: readonly VbSektion[],
+  skalaItems: readonly MapChecklistenItem[],
 ): InfografikDaten | null {
   const objekt = extractLastJsonObject(raw);
   if (objekt === null) return null;
@@ -253,6 +284,7 @@ export function parseInfografik(
   const canvasRoh = (objekt['canvas'] ?? {}) as Record<string, unknown>;
   const ketteRoh = (objekt['wirkungskette'] ?? {}) as Record<string, unknown>;
   const substanz = parseSubstanz(objekt, bekannt);
+  const zweitmeinung = parseZweitmeinung(objekt, bekannt, skalaItems);
 
   return {
     canvas: {
@@ -271,6 +303,7 @@ export function parseInfografik(
       wirkung: alsGlied(ketteRoh['wirkung'], bekannt),
     },
     ...substanz,
+    ...zweitmeinung,
   };
 }
 
@@ -282,6 +315,14 @@ export function parseInfografik(
  * liefert null Widersprüche, und diese Null ist das gewünschte Ergebnis. Sie in
  * den Guard aufzunehmen hiesse, den Falsch-Positiv-freien Lauf als Fehlschlag zu
  * werten und einen Retry zu erzwingen.
+ *
+ * Auch `innoZweitmeinung` bleibt draussen, aus einem anderen Grund: sie ist ein
+ * ausdrücklich experimentelles Beiwerk. Zählte sie mit, würde ein Lauf mit
+ * vollständigem Canvas, sauberem Delta und belegter Wirkungskette verworfen und
+ * wiederholt, nur weil das Modell die Einstufung ausliess — und beim zweiten
+ * Fehlversuch wäre er degradiert und gar nicht gecacht. Der Prüfer verlöre die
+ * ganze Analyse wegen eines Nebenprodukts. Fehlt die Zweitmeinung, degradiert sie
+ * nur sich selbst: die Streifen erscheinen nicht, alles andere steht.
  */
 export function istInhaltsleer(daten: InfografikDaten): boolean {
   const canvasLeer = Object.values(daten.canvas).every(f => f.belegtheit === 'fehlt');

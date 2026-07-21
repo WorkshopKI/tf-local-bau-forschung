@@ -15,7 +15,11 @@ import {
 import { parseSubstanz, UNSCHAERFE_MAX } from '../infografik/substanz';
 import { MAP_INFOGRAFIK_SKILL } from '@/core/services/skills/registry/map-infografik.seed';
 import { KONTRAST_FIXTURES } from '../substanz/kontrast.seed';
+import { CHECKLISTE_SEED } from '../checkliste/seed';
 import { DUMMY_PFAD, leseFixture, TEST_KONTEXT } from './fixtures';
+
+/** Bewertungsgrundlage der Zweitmeinung — hier Beiwerk, geprüft wird sie in `zweitmeinung.test.ts`. */
+const SKALA = CHECKLISTE_SEED.items.filter(i => i.art === 'skala' && i.aktiv);
 
 const einreichung = (() => {
   const antwort = importiereEinreichung(leseFixture(DUMMY_PFAD), TEST_KONTEXT);
@@ -91,14 +95,14 @@ describe('baueFaktenBlock', () => {
 describe('buildInfografikPrompt', () => {
   it('bettet den Fakten-Block vor der Vorhabensbeschreibung ein', () => {
     const prompt = buildInfografikPrompt(
-      GLIEDERUNG, '# VB\n\nText.', baueFaktenBlock(einreichung),
+      GLIEDERUNG, '# VB\n\nText.', baueFaktenBlock(einreichung), SKALA,
     );
     expect(prompt.indexOf('## Verbindliche Fakten aus der Einreichung'))
       .toBeLessThan(prompt.indexOf('## Vorhabensbeschreibung'));
   });
 
   it('fordert die beiden Substanz-Listen an und erlaubt leere Ergebnisse', () => {
-    const prompt = buildInfografikPrompt(GLIEDERUNG, 'Text.', 'FAKTEN');
+    const prompt = buildInfografikPrompt(GLIEDERUNG, 'Text.', 'FAKTEN', SKALA);
     expect(prompt).toContain('"widersprueche"');
     expect(prompt).toContain('"unschaerfeBegriffe"');
     // Der Leer-Fall bleibt ausdrücklich erlaubt — aber WERTUNGSFREI. „das ist ein GUTES
@@ -215,14 +219,14 @@ describe('parseInfografik mit Substanz-Feldern', () => {
   });
 
   it('reicht beide Listen durch', () => {
-    const daten = parseInfografik(antwort, GLIEDERUNG);
+    const daten = parseInfografik(antwort, GLIEDERUNG, SKALA);
     expect(daten?.widersprueche).toHaveLength(1);
     expect(daten?.unschaerfeBegriffe).toHaveLength(1);
   });
 
   it('bleibt gueltig, wenn eine Alt-Antwort die Felder gar nicht kennt', () => {
     const alt = JSON.stringify({ canvas: {}, sdtDelta: [], wirkungskette: {} });
-    const daten = parseInfografik(alt, GLIEDERUNG);
+    const daten = parseInfografik(alt, GLIEDERUNG, SKALA);
     expect(daten).not.toBeNull();
     expect(daten?.widersprueche).toEqual([]);
     expect(daten?.unschaerfeBegriffe).toEqual([]);
@@ -231,7 +235,7 @@ describe('parseInfografik mit Substanz-Feldern', () => {
   it('wertet eine leere Widerspruchsliste NICHT als inhaltsleer', () => {
     // Das ist die zentrale Leitplanke: der saubere Antrag darf keinen Retry und
     // kein „degradiert" ausloesen, nur weil er nichts zu beanstanden hat.
-    const daten = parseInfografik(antwort, GLIEDERUNG)!;
+    const daten = parseInfografik(antwort, GLIEDERUNG, SKALA)!;
     const ohneBefunde = { ...daten, widersprueche: [], unschaerfeBegriffe: [] };
     expect(istInhaltsleer(ohneBefunde)).toBe(false);
   });
@@ -270,7 +274,9 @@ describe('Kontrast-Fixtures', () => {
 });
 
 describe('INFOGRAFIK_SCHEMA_VERSION', () => {
-  it('ist auf 2 gehoben, damit v1-Caches verfallen', () => {
-    expect(INFOGRAFIK_SCHEMA_VERSION).toBe(2);
+  it('ist auf 3 gehoben, damit Caches aelterer Feldmengen verfallen', () => {
+    // 1 → 2 Substanz-Listen, 2 → 3 Zweitmeinung. Ohne Bump bliebe ein Alt-Eintrag
+    // ein gueltiger Treffer zum unveraenderten Korpus — mit dauerhaft leerem Feld.
+    expect(INFOGRAFIK_SCHEMA_VERSION).toBe(3);
   });
 });

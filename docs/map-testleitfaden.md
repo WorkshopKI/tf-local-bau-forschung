@@ -118,7 +118,35 @@ Wieder zurücknehmen und unter 8 Punkte bleiben: der vertiefte Block erscheint.
 Dann ein K-Kriterium: „keine AP mit mehr als 6 PM" zeigt den Rechenbefund mit
 **Befund übernehmen**. Bewertet wird trotzdem von Hand.
 
+Gut zu wissen für die Vorführung: Eine einmal gewählte Stufe lässt sich nicht
+wieder auf „nicht bewertet" zurücksetzen — nur ändern. Der Vorher-Zustand aus
+§ 5b ist also pro Kategorie einmalig zu haben.
+
 **Frage:** Fehlt ein Kriterium? — Und genau das jetzt live:
+
+## 5b · Die Zweitmeinung (3 Min) — experimentell
+
+**Vorab ansagen, bevor irgendetwas gezeigt wird:** Das Folgende ist ein Versuch.
+Es ist bewusst so gebaut, dass die KI erst spricht, wenn ihr entschieden habt.
+
+1. **Zuerst hinsehen, wo nichts steht.** Vor der eigenen Bewertung tragen die drei
+   Kategorie-Karten keinerlei KI-Einschätzung. Das ist der Kern des Ganzen und der
+   Punkt, den man im Termin aktiv zeigen muss — man sieht eine Abwesenheit sonst
+   nicht: *„Schauen Sie jetzt auf die Karte: da steht nichts."*
+2. **Selbst bewerten.** Eine Kategorie einstufen — erst danach erscheint unter dem
+   Stufenraster der Streifen „experimentell — KI-Zweitmeinung" mit „Du: … · KI: …",
+   einer Begründung an den Ankertexten und den Fundstellen.
+3. **Eine Abweichung provozieren.** Eine zweite Kategorie bewusst anders einstufen,
+   als der Text es nahelegt. Der Streifen sagt „abweichend" — neutral, ohne Ampel.
+   Weder Grün noch Rot: die KI bestätigt hier niemanden und widerlegt niemanden.
+4. **Zeigen, was NICHT da ist.** Kein „Übernehmen"-Knopf, keine Statusänderung,
+   keine Summe. Im Reiter **Abschluss** gegenlesen: in Gutachten, Nachforderung und
+   Ablehnung taucht die Zweitmeinung nirgends auf. Sie zählt nirgends mit.
+
+**Frage:** Wollt ihr so eine Zweitmeinung — und wenn ja, vor oder nach eurem Urteil?
+
+**Frage:** Wann würde euch eine abweichende Zweitmeinung tatsächlich zum Nachdenken
+bringen — und wann wäre sie nur Lärm?
 
 ## 6 · Der Editor-Moment (2 Min)
 

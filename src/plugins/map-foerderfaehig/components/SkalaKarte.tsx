@@ -11,6 +11,7 @@
  * nicht ein satter Hintergrund (DESIGN_GUIDE).
  */
 import { istAlarm, signalFuerStufe, type Signalstufe } from '../ansicht/bewertungs-signal';
+import type { ZweitmeinungVergleich } from '../ansicht/zweitmeinung-vergleich';
 import type { MapItemZustand } from '../checkliste/bewertung';
 import type { MapStufe } from '../checkliste/typen';
 
@@ -31,10 +32,68 @@ const FLAECHE: Record<Signalstufe, string> = {
 
 const tonFuer = (stufe: MapStufe): string => TON[signalFuerStufe(stufe)];
 
+/**
+ * Zweitmeinungs-Streifen — erscheint erst, wenn `vergleich.lage !== 'verborgen'`,
+ * also nach der eigenen Bewertung. Die Regel wird nicht hier durchgesetzt: bei
+ * `verborgen` trägt der Vergleich gar keine KI-Stufe mehr
+ * (`ansicht/zweitmeinung-vergleich.ts`).
+ *
+ * Bewusst OHNE Ampelfarbe. Grün bei Übereinstimmung hiesse „die KI bestätigt
+ * dich", Rot bei Abweichung „du hast dich geirrt" — beides sind Aussagen, die
+ * eine unverbindliche Zweitmeinung nicht treffen darf. Die Abweichung trägt
+ * deshalb ein Wort und eine kräftigere Kante, keine Farbe.
+ *
+ * Und bewusst ohne Knopf: ein `<div>`, kein `<button>`. Die KI ändert hier nichts.
+ */
+function ZweitmeinungStreifen({
+  vergleich, ankerVeraltet,
+}: {
+  vergleich: ZweitmeinungVergleich;
+  ankerVeraltet: boolean;
+}): React.ReactElement {
+  const abweichend = vergleich.lage !== 'treffer';
+
+  return (
+    <div
+      className="mt-2.5 rounded px-2.5 py-2"
+      style={{
+        border: `0.5px solid var(--tf-border)`,
+        borderLeftWidth: abweichend ? '2px' : '0.5px',
+        background: 'var(--tf-hover)',
+      }}
+    >
+      <p className="text-[10.5px] uppercase tracking-wide text-[var(--tf-text-tertiary)]">
+        experimentell — KI-Zweitmeinung
+      </p>
+      <p className="mt-1 text-[12px] font-medium text-[var(--tf-text-secondary)] tabular-nums">
+        Du: {vergleich.menschStufe} · KI: {vergleich.kiStufe}
+        {abweichend && ' — abweichend'}
+      </p>
+      <p className="mt-1 text-[12px] leading-[1.5] text-[var(--tf-text-secondary)]">
+        {vergleich.begruendung}
+      </p>
+      {vergleich.sektionIds.length > 0 && (
+        <p className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+          Fundstellen: {vergleich.sektionIds.join(', ')}
+        </p>
+      )}
+      {ankerVeraltet && (
+        <p className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+          Beruht auf einer älteren Fassung der Ankertexte — für eine aktuelle
+          Einschätzung die Vorhabensbeschreibung neu analysieren.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function SkalaKarte({
-  zustand, onStufe,
+  zustand, vergleich, ankerVeraltet, onStufe,
 }: {
   zustand: MapItemZustand;
+  /** Zweitmeinung; `null` oder `lage: 'verborgen'` → es wird nichts gezeigt. */
+  vergleich: ZweitmeinungVergleich | null;
+  ankerVeraltet: boolean;
   onStufe: (stufe: MapStufe, bemerkung?: string) => void;
 }): React.ReactElement {
   const { item, bewertung } = zustand;
@@ -109,6 +168,10 @@ export function SkalaKarte({
           );
         })}
       </div>
+
+      {vergleich !== null && vergleich.lage !== 'verborgen' && (
+        <ZweitmeinungStreifen vergleich={vergleich} ankerVeraltet={ankerVeraltet} />
+      )}
 
       <textarea
         value={bewertung?.bemerkung ?? ''}

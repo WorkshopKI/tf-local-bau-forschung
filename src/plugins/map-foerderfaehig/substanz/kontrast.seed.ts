@@ -19,6 +19,7 @@
  * Reine Daten. Kein Echtfall, keine Personen, keine realen Firmen.
  */
 
+import type { MapStufe } from '../checkliste/typen';
 import type { MapEinreichung } from '../types';
 
 export type KontrastId = 'sauber' | 'pm-abweichung' | 'laufzeit-abweichung' | 'ap-erfunden';
@@ -64,6 +65,24 @@ export const KONTRAST_EINREICHUNG: MapEinreichung = {
   anlagen: [],
 };
 
+/**
+ * Erwartete Einstufung der drei Skala-Items — eine **Kurator-Einschätzung, keine
+ * Wahrheit**. Sie geht in kein Pass/Fail ein, der Smoke zeigt nur den Abstand.
+ *
+ * Für alle vier Fassungen bewusst identisch: die Manipulationen betreffen den
+ * Arbeitsplan, nicht den Innovationsgehalt. Damit misst der Abgleich zugleich die
+ * STABILITÄT der Einstufung — streut das Modell über vier fast gleiche Texte, ist
+ * die Zweitmeinung nicht belastbar, und das soll sichtbar werden dürfen.
+ *
+ * B1 begründet sich aus dem Duktus des Fixture-Texts: viel Anspruch, kaum Zahl —
+ * „Verbesserungen vorwiegend qualitativ beschrieben" ist der B1-Ankertext.
+ */
+const GOLD_B1: Readonly<Record<string, MapStufe>> = {
+  'inno.zielstellung': 'B1',
+  'inno.loesungsansatz': 'B1',
+  'inno.risiken': 'B1',
+};
+
 export interface KontrastFixture {
   id: KontrastId;
   label: string;
@@ -73,6 +92,8 @@ export interface KontrastFixture {
   erwarteteWidersprueche: number;
   /** Erwartete Art des Widerspruchs; `null` bei der sauberen Fassung. */
   erwarteteArt: 'zahl' | 'zeitraum' | 'bezeichnung' | null;
+  /** Optionale Gold-Werte der Zweitmeinung — informativ, siehe `GOLD_B1`. */
+  goldZweitmeinung?: Readonly<Record<string, MapStufe>>;
   markdown: string;
 }
 
@@ -152,6 +173,7 @@ export const KONTRAST_FIXTURES: readonly KontrastFixture[] = [
     manipulation: 'keine — Falsch-Positiv-Kontrolle',
     erwarteteWidersprueche: 0,
     erwarteteArt: null,
+    goldZweitmeinung: GOLD_B1,
     markdown: baueVb(AP_SAUBER),
   },
   {
@@ -160,6 +182,7 @@ export const KONTRAST_FIXTURES: readonly KontrastFixture[] = [
     manipulation: 'Text nennt 18 PM, Einreichung führt 16 PM',
     erwarteteWidersprueche: 1,
     erwarteteArt: 'zahl',
+    goldZweitmeinung: GOLD_B1,
     markdown: baueVb(AP_PM),
   },
   {
@@ -168,6 +191,7 @@ export const KONTRAST_FIXTURES: readonly KontrastFixture[] = [
     manipulation: 'Text nennt 30 Monate, Einreichung führt 23 Monate',
     erwarteteWidersprueche: 1,
     erwarteteArt: 'zeitraum',
+    goldZweitmeinung: GOLD_B1,
     markdown: baueVb(AP_LAUFZEIT),
   },
   {
@@ -176,6 +200,7 @@ export const KONTRAST_FIXTURES: readonly KontrastFixture[] = [
     manipulation: 'Text nennt AP3, Einreichung führt nur AP1 und AP2',
     erwarteteWidersprueche: 1,
     erwarteteArt: 'bezeichnung',
+    goldZweitmeinung: GOLD_B1,
     markdown: baueVb(AP_ERFUNDEN),
   },
 ];
