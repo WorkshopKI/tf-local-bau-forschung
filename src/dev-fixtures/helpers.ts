@@ -29,7 +29,7 @@ import {
   isKuratorConfigured,
   setupKuratorConfig,
 } from '@/core/services/infrastructure/kurator-config';
-import { SMB_HANDLES_IDB_KEY } from '@/core/services/infrastructure/types';
+import { istSetupKey } from '@/core/services/storage/setup-keys';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { features } from '@/config/feature-flags';
@@ -56,22 +56,9 @@ function clearObjectStore(idb: IDBStore, storeName: string): Promise<void> {
 }
 
 /**
- * KV-Schlüssel, die ein Szenario-Reset NICHT anfassen darf — sonst müsste der
- * Tester nach jedem Szenario-Klick den Setup-Kram neu erledigen.
- *
- * `smb-handles` → sonst Ordner-Picker bei jedem Reset.
- * `profile` + `onboarding-complete` → sonst Onboarding (Name + Kürzel) bei
- * jedem Reset. Beide gehören zum Setup, nicht zum Testzustand.
- */
-const RESET_AUSGENOMMEN: readonly string[] = [
-  SMB_HANDLES_IDB_KEY,
-  'profile',
-  'onboarding-complete',
-];
-
-/**
- * Leert alle IndexedDB-Stores bis auf die Setup-Schlüssel
- * (`RESET_AUSGENOMMEN`). Hält die DB-Schema-Version bei.
+ * Leert alle IndexedDB-Stores bis auf die Setup-Schlüssel (`SETUP_IDB_KEYS` —
+ * kanonische Liste in setup-keys.ts, siehe dort für die Begründung).
+ * Hält die DB-Schema-Version bei.
  */
 export async function resetAll(idb: IDBStore): Promise<void> {
   assertDevFixtures();
@@ -86,7 +73,7 @@ export async function resetAll(idb: IDBStore): Promise<void> {
   // KV-Store selektiv leeren (Setup-Schlüssel bewahren).
   const allKeys = await idb.keys();
   for (const key of allKeys) {
-    if (RESET_AUSGENOMMEN.includes(key)) continue;
+    if (istSetupKey(key)) continue;
     await idb.delete(key);
   }
 

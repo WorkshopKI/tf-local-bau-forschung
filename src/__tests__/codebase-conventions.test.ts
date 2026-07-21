@@ -484,6 +484,71 @@ describe('no-hardcoded-datenshare-mode (CLAUDE.md Pitfall #25)', () => {
   });
 });
 
+describe('no-blanket-idb-wipe (recurring-bug-classes Klasse 12)', () => {
+  // Identitaet (`profile` + `onboarding-complete`) und die FSAPI-Handles
+  // (`smb-handles`) leben ausschliesslich in der Varianten-IndexedDB. Wer sie
+  // in einem Reset mitloescht, wirft den Nutzer zurueck in Onboarding +
+  // Ordner-Auswahl. Konkreter Vorfall (v2.277): der Dev-Szenario-Reset nahm
+  // `profile` + `onboarding-complete` mit — der Tester tippte nach JEDEM
+  // Szenario-Klick Name und Kuerzel neu, waehrend die Ordner verbunden blieben.
+  //
+  // Erkennung dateiweit statt zeilenweise: gefaehrlich ist die KOMBINATION aus
+  // "unpraefixiert alle Keys holen" und "loeschen". Ein blosses `keys()` zum
+  // Anzeigen/Exportieren (StateInspectorPanel, exportCurrentState) ist harmlos,
+  // ein praefix-gebundenes `keys('doc:')` + delete ebenfalls (trifft die
+  // Setup-Keys gar nicht).
+  const SETUP_KEYS_MODUL = 'storage/setup-keys';
+  // Bewusst an den Receiver `idb` gebunden: `cache.keys()` auf einer Map o.ae.
+  // hat mit dem kv-Store nichts zu tun (war ein Fehlalarm beim Bau des Guards).
+  const holtAlleKeys = (line: string): boolean => /\bidb\.keys\(\s*\)/.test(line);
+  const loescht = (line: string): boolean => /\bidb\.delete\(/.test(line);
+
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    // Der IDBStore implementiert keys()/delete() selbst — er IST der Mechanismus.
+    `${sep}services${sep}storage${sep}idb-store.ts`,
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('pauschales Leeren des kv-Stores muss die Setup-Schlüssel aussparen', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      const content = readFileSync(file, 'utf-8');
+      if (content.includes(SETUP_KEYS_MODUL)) continue; // referenziert die kanonische Liste
+      if (!content.split(/\r?\n/).some(loescht)) continue; // loescht gar nicht
+
+      const lines = content.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (line.includes('allow-blanket-idb-wipe')) continue;
+        const t = line.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
+        if (holtAlleKeys(line)) {
+          findings.push({ file: relPath(file), line: i + 1, text: t });
+          break;
+        }
+      }
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Pauschales kv-Leeren ohne Setup-Schutz (recurring-bug-classes Klasse 12).\n` +
+        `Diese Datei holt ALLE kv-Keys (unpraefixiertes keys()) und loescht,\n` +
+        `referenziert aber nicht '@/core/services/storage/setup-keys'.\n` +
+        `Damit wuerde sie 'profile', 'onboarding-complete' und 'smb-handles'\n` +
+        `mitnehmen — der Nutzer landet wieder im Onboarding und muss alle\n` +
+        `Ordner neu verbinden.\n\n` +
+        `Fix: 'istSetupKey(key)' aus setup-keys.ts als Filter nutzen.\n` +
+        `Nur-lesende keys()-Nutzung oder ein bewusster Voll-Reset? Zeile mit\n` +
+        `'// allow-blanket-idb-wipe: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
 describe('no-raw-modal (recurring-bug-classes Klasse 7)', () => {
   // Hand-gerollte Modal-Huellen (`fixed inset-0`-Overlay + zentrierte Karte)
   // ohne Hoehen-Cap an der Karte sind bei langem Inhalt nicht scrollbar
@@ -773,7 +838,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 34;    // Ist 34; +1 'mapFoerderfaehig' (MAP Prüf-Workflow: Einreichungs-Import + editierbare Checkliste, dev); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1480;       // Ist ~1469 (DIESE Datei — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1545;       // Ist ~1534 (DIESE Datei; +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

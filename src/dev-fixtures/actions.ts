@@ -88,7 +88,7 @@ export interface StateDump {
 
 export async function exportCurrentState(idb: IDBStore): Promise<StateDump> {
   assertDevFixtures();
-  const kv_keys = await idb.keys();
+  const kv_keys = await idb.keys(); // allow-blanket-idb-wipe: rein lesend — die Keys landen im State-Dump, nicht in einem delete
   const stores: StateDump['stores'] = {};
   const storeNames = [...Object.values(CSV_STORES), FILTER_STORE_NAME] as string[];
   for (const name of storeNames) {

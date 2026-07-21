@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.277.1 — Guard: pauschales kv-Leeren muss Setup-Schluessel aussparen (Juli 2026)
+
+PATCH — Nachzug zu v2.277: in den anderen Varianten gibt es nichts zu verschonen (`dev-fixtures` wird dort komplett wegge-tree-shaked, geprüft am pl-Bundle; kein anderer Pfad leert den kv-Store pauschal). Statt Code zu duplizieren, sichert jetzt ein Guard die Regel für jeden künftigen Reset ab — in jeder Variante.
+
+- **Kanonische Setup-Key-Liste** `SETUP_IDB_KEYS`/`istSetupKey` als einzige Quelle ([setup-keys.ts](src/core/services/storage/setup-keys.ts)); `resetAll` nutzt sie statt einer lokalen Kopie.
+- **Convention-Test `no-blanket-idb-wipe`**: wer unpräfixiert `idb.keys()` holt UND `idb.delete(...)` ruft, muss aus setup-keys.ts importieren ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
+- Guard gegen die echte Regression verifiziert (alten Stand kurz wiederhergestellt → Test schlägt fehl), nicht nur „läuft grün".
+- Zwei Fehlalarme beim Bau geschärft: `cache.keys()` einer Map und rein lesende State-Dumps zählen nicht.
+- `MAX_FILE_LOC`-Baseline 1480 → 1545 (Guard-Aggregator wächst mit jeder Convention).
+
 ### v2.277.0 — Dev-Szenarien verschonen Name und Kuerzel (Juli 2026)
 
 MINOR — Auflösung des „ständig neue Anmeldung"-Reports aus dem Citrix-Test: weder Citrix noch der Startup-Wizard, sondern die Dev-Fixtures. **Jedes** der 6 Szenarien beginnt mit `resetAll`, und das löschte jeden kv-Schlüssel ausser `smb-handles` — also auch `profile` + `onboarding-complete`. Fingerabdruck: Name/Kürzel neu tippen, Ordner aber weiter verbunden. Dev-only (`devFixtures`), pl/prod waren nie betroffen.
