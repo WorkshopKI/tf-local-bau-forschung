@@ -26,20 +26,28 @@ import type { VbSektion } from '@/plugins/antraege/aufbereitung/gliederung';
 import {
   buildInfografikPrompt, istInhaltsleer, parseInfografik, type InfografikDaten,
 } from './infografik/schema';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { useDokumenteStore, type DocumentFull, type DocumentMeta } from '@/plugins/dokumente/store';
-import { getVbZuordnung, setzeVbZuordnung } from './store';
+import { getVbZuordnung, setzeVbZuordnung, type VbDokRef } from './store';
 import type { MapEinreichung } from './types';
+import { baueMapKorpus, type MapKorpus } from './vb/korpus';
 import { findeVbKandidaten, type VbKandidat } from './vb/zuordnung';
 
 export type BausteinLage = 'aus' | 'laeuft' | 'ok' | 'fehler';
 
 export interface UseMapVbResult {
-  /** Zugeordnetes VB-Dokument, falls gewählt. */
+  /** Hauptdokument der Vorhabensbeschreibung, falls gewählt. */
   dokument: DocumentFull | null;
+  /** Zusatzdokumente (Marktkonzept, Verwertung, Wirkung …) in Korpus-Reihenfolge. */
+  zusatzDokumente: DocumentFull[];
+  /** Haupt- und Zusatzdokumente als EIN Text — Grundlage aller Bausteine. */
+  korpus: MapKorpus | null;
   gliederung: VbSektion[];
   kandidaten: VbKandidat[];
   alleDokumente: DocumentMeta[];
   waehleDokument: (docId: string) => Promise<void>;
+  fuegeZusatzHinzu: (docId: string) => Promise<void>;
+  entferneZusatz: (docId: string) => Promise<void>;
   loeseZuordnung: () => Promise<void>;
 
   steckbrief: SteckbriefDaten | null;
@@ -62,12 +70,17 @@ function fehlertext(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+function alsRefs(docs: readonly DocumentFull[]): VbDokRef[] {
+  return docs.map(d => ({ docId: d.id, docName: d.filename }));
+}
+
 export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
   const storage = useStorage();
   const bridge = useAIBridge();
   const { documents, loadDocument } = useDokumenteStore();
 
   const [dokument, setDokument] = useState<DocumentFull | null>(null);
+  const [zusatzDokumente, setZusatzDokumente] = useState<DocumentFull[]>([]);
   const [steckbrief, setSteckbrief] = useState<SteckbriefDaten | null>(null);
   const [steckbriefLage, setSteckbriefLage] = useState<BausteinLage>('aus');
   const [steckbriefFehler, setSteckbriefFehler] = useState<string | null>(null);
@@ -85,6 +98,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     let abgebrochen = false;
     void (async () => {
       setDokument(null);
+      setZusatzDokumente([]);
       setSteckbrief(null);
       setAspektMapping(null);
       setInfografik(null);
@@ -96,14 +110,31 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       const zuordnung = await getVbZuordnung(storage.idb, einreichungId);
       if (abgebrochen || zuordnung === null) return;
       const doc = await loadDocument(zuordnung.docId, storage);
-      if (!abgebrochen) setDokument(doc);
+      // Ein nicht mehr auffindbares Zusatzdokument darf die Zuordnung nicht
+      // kippen — es fällt still aus dem Korpus, das Hauptdokument bleibt.
+      const zusatz = (await Promise.all(
+        (zuordnung.zusatz ?? []).map(r => loadDocument(r.docId, storage)),
+      )).filter((d): d is DocumentFull => d !== null);
+      if (!abgebrochen) {
+        setDokument(doc);
+        setZusatzDokumente(zusatz);
+      }
     })();
     return () => { abgebrochen = true; };
   }, [storage, einreichungId, loadDocument]);
 
+  const korpus = useMemo<MapKorpus | null>(() => {
+    if (dokument === null) return null;
+    return baueMapKorpus(
+      { name: dokument.filename, markdown: dokument.markdown },
+      zusatzDokumente.map(d => ({ name: d.filename, markdown: d.markdown })),
+      getVbCharCap(),
+    );
+  }, [dokument, zusatzDokumente]);
+
   const gliederung = useMemo(
-    () => (dokument === null ? [] : parseVbGliederung(dokument.markdown)),
-    [dokument],
+    () => (korpus === null ? [] : parseVbGliederung(korpus.markdown)),
+    [korpus],
   );
 
   const kandidaten = useMemo(
@@ -111,32 +142,64 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
     [documents, einreichung],
   );
 
-  const waehleDokument = useCallback(async (docId: string): Promise<void> => {
-    if (einreichungId === null) return;
-    const doc = await loadDocument(docId, storage);
-    if (doc === null) throw new Error('Das Dokument liess sich nicht laden.');
-    await setzeVbZuordnung(storage.idb, einreichungId, { docId, docName: doc.filename });
-    setDokument(doc);
-    // Analyse-Ergebnisse gehören zum alten Dokument — verwerfen.
+  /** Analyse-Ergebnisse gehören zum alten Korpus — jede Änderung verwirft sie. */
+  const verwirfAnalyse = useCallback((): void => {
     setSteckbrief(null);
     setAspektMapping(null);
     setInfografik(null);
     setSteckbriefLage('aus');
     setAspekteLage('aus');
     setInfografikLage('aus');
-  }, [storage, einreichungId, loadDocument]);
+  }, []);
+
+  const waehleDokument = useCallback(async (docId: string): Promise<void> => {
+    if (einreichungId === null) return;
+    const doc = await loadDocument(docId, storage);
+    if (doc === null) throw new Error('Das Dokument liess sich nicht laden.');
+    // Ein neues Hauptdokument heisst ein neuer Fall — die Zusatzdokumente des
+    // alten mitzuschleppen wäre die gefährlichere Annahme.
+    await setzeVbZuordnung(storage.idb, einreichungId, { docId, docName: doc.filename });
+    setDokument(doc);
+    setZusatzDokumente([]);
+    verwirfAnalyse();
+  }, [storage, einreichungId, loadDocument, verwirfAnalyse]);
+
+  const fuegeZusatzHinzu = useCallback(async (docId: string): Promise<void> => {
+    if (einreichungId === null || dokument === null) return;
+    if (docId === dokument.id || zusatzDokumente.some(d => d.id === docId)) return;
+    const doc = await loadDocument(docId, storage);
+    if (doc === null) throw new Error('Das Dokument liess sich nicht laden.');
+    const naechste = [...zusatzDokumente, doc];
+    await setzeVbZuordnung(storage.idb, einreichungId, {
+      docId: dokument.id, docName: dokument.filename, zusatz: alsRefs(naechste),
+    });
+    setZusatzDokumente(naechste);
+    verwirfAnalyse();
+  }, [storage, einreichungId, dokument, zusatzDokumente, loadDocument, verwirfAnalyse]);
+
+  const entferneZusatz = useCallback(async (docId: string): Promise<void> => {
+    if (einreichungId === null || dokument === null) return;
+    const naechste = zusatzDokumente.filter(d => d.id !== docId);
+    await setzeVbZuordnung(storage.idb, einreichungId, {
+      docId: dokument.id, docName: dokument.filename, zusatz: alsRefs(naechste),
+    });
+    setZusatzDokumente(naechste);
+    verwirfAnalyse();
+  }, [storage, einreichungId, dokument, zusatzDokumente, verwirfAnalyse]);
 
   const loeseZuordnung = useCallback(async (): Promise<void> => {
     if (einreichungId === null) return;
     await setzeVbZuordnung(storage.idb, einreichungId, null);
     setDokument(null);
-    setSteckbrief(null);
-    setAspektMapping(null);
-    setInfografik(null);
-  }, [storage.idb, einreichungId]);
+    setZusatzDokumente([]);
+    verwirfAnalyse();
+  }, [storage.idb, einreichungId, verwirfAnalyse]);
 
   const starteAnalyse = useCallback(async (): Promise<void> => {
-    if (dokument === null || einreichungId === null || gliederung.length === 0) return;
+    if (korpus === null || einreichungId === null || gliederung.length === 0) return;
+    // Alle Bausteine arbeiten auf dem KORPUS, nie auf dem Hauptdokument allein —
+    // sonst wäre eine Aussage aus dem Marktkonzept für die KI unsichtbar.
+    const vbText = korpus.markdown;
 
     // Eigenes Cache-Präfix: `getOrComputeBaustein` keyt auf dem übergebenen
     // Schlüssel — ohne MAP-Präfix kollidierte der Cache mit echten Anträgen.
@@ -153,7 +216,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       const transport = bridge.getTransportForSkillRun(AUFBEREITUNG_STECKBRIEF_SKILL);
       const ergebnis = await computeSteckbriefBaustein(
         storage.idb, transport, AUFBEREITUNG_STECKBRIEF_SKILL,
-        cacheSchluessel, gliederung, dokument.markdown,
+        cacheSchluessel, gliederung, vbText,
       );
       if (ergebnis.status === 'ok' && ergebnis.daten !== undefined) {
         setSteckbrief(ergebnis.daten);
@@ -171,7 +234,7 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       const transport = bridge.getTransportForSkillRun(AUFBEREITUNG_ASPEKTE_SKILL);
       const ergebnis = await computeAspekteBaustein(
         storage.idb, transport, AUFBEREITUNG_ASPEKTE_SKILL,
-        cacheSchluessel, gliederung, dokument.markdown,
+        cacheSchluessel, gliederung, vbText,
       );
       if (ergebnis.status === 'ok' && ergebnis.daten !== undefined) {
         setAspektMapping(ergebnis.daten);
@@ -187,11 +250,11 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
 
     try {
       const transport = bridge.getTransportForSkillRun(MAP_INFOGRAFIK_SKILL);
-      const vbHash = vbHashFuer(dokument.markdown);
+      const vbHash = vbHashFuer(vbText);
       const ergebnis = await getOrComputeBaustein<InfografikDaten>(
         storage.idb, transport, MAP_INFOGRAFIK_SKILL,
         `${cacheSchluessel}:infografik:${vbHash}`, vbHash,
-        () => buildInfografikPrompt(gliederung, dokument.markdown),
+        () => buildInfografikPrompt(gliederung, vbText),
         raw => parseInfografik(raw, gliederung),
         {
           // Eine formal gültige, inhaltlich leere Antwort wird nicht gecacht —
@@ -213,14 +276,18 @@ export function useMapVb(einreichung: MapEinreichung | null): UseMapVbResult {
       setInfografikLage('fehler');
       setInfografikFehler(fehlertext(e));
     }
-  }, [storage.idb, bridge, dokument, gliederung, einreichungId]);
+  }, [storage.idb, bridge, korpus, gliederung, einreichungId]);
 
   return {
     dokument,
+    zusatzDokumente,
+    korpus,
     gliederung,
     kandidaten,
     alleDokumente: documents,
     waehleDokument,
+    fuegeZusatzHinzu,
+    entferneZusatz,
     loeseZuordnung,
     steckbrief,
     steckbriefLage,

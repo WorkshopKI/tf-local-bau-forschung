@@ -100,6 +100,34 @@ implementiert:
    Prüfung aus der Punktzahl, die Doppelförderung aus einer manuellen Antwort.
 3. **„n. z." senkt die erreichbare Punktzahl**, statt als erfüllt zu zählen.
 
+### Die VB ist mehrere Dateien
+
+In der Praxis liegt die Vorhabensbeschreibung fast nie als eine Datei vor:
+Hauptdokument plus Marktkonzept, Verwertung und Wirkung als eigene PDFs sind der
+Normalfall. Für die inhaltliche Prüfung sind sie **ein** Text — ob eine Aussage
+im Hauptdokument oder im Marktkonzept steht, darf das Ergebnis nicht verändern.
+
+Die Zusammenführung kommt wörtlich aus der Antrag-Aufbereitung (`baueKorpus`):
+Hauptdokument als Präfix, jedes Zusatzdokument per `---` und
+`## [Quelle: <name>]` angehängt. Zwei Eigenschaften hängen daran: ohne
+Zusatzdokument ist der Korpus **byte-identisch** zum Hauptdokument (bereits
+berechnete Bausteine bleiben gültig, der Cache keyt auf dem Korpus-Hash), und die
+Dokumentgrenze erscheint als reguläre Überschrift in der Gliederung. Ein zweites
+Korpus-Format im MAP wäre stille Drift gewesen.
+
+Anders als die Aufbereitung löst der MAP die Zusatzdokumente **nicht** über Tags
+auf — die Einreichung trägt kein Aktenzeichen, an dem eine Tag-Relation hinge.
+Der Prüfer ordnet von Hand zu, aus denselben Gründen wie beim Hauptdokument.
+
+Der Cap-Check in `vb/korpus.ts` schliesst eine reale Lücke: `runBaustein` umgeht
+`runSkill` und damit `capVbMarkdown` — es kürzt nicht und warnt nicht. Die
+Upload-Warnung prüft jede Datei einzeln, nie ihre Summe. Bei vier Dokumenten ist
+das Kontextfenster erreichbar, und ein stillschweigend abgeschnittener Korpus
+wäre in einer Förderprüfung der schlechteste denkbare Fehler: das Modell urteilte
+über einen Text, dessen Ende es nie gesehen hat. Deshalb ein sichtbarer Hinweis
+statt stiller Kürzung. **Die Lücke besteht in der Aufbereitung fort** — dort
+warnt bislang nichts.
+
 ### Fundstellen über die Aufbereitung, nicht über Orama
 
 Orama-Chunks tragen weder Überschriftenpfad noch Seitenzahl noch Antragsbezug —

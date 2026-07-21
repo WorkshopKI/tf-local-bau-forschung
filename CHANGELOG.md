@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.272.0 — MAP: Vorhabensbeschreibung aus mehreren Dateien (Juli 2026)
+
+MINOR — Die Vorhabensbeschreibung ist bei diesen Anträgen fast nie eine Datei: Marktkonzept, Verwertung und Wirkung liegen meist als eigene PDFs bei. Der MAP hielt bisher genau ein Dokument. Nur dev (`mapFoerderfaehig`).
+
+- **Hauptdokument plus beliebig viele Zusatzdokumente**; die Zuordnung trägt `zusatz` additiv, ältere Zuordnungen laden unverändert ([store.ts](src/plugins/map-foerderfaehig/store.ts)).
+- **Korpus über die geteilte `baueKorpus`** der Aufbereitung statt eines zweiten Formats — ohne Zusatzdokument byte-identisch, Sektions-IDs des Hauptdokuments bleiben stabil ([korpus.ts](src/plugins/map-foerderfaehig/vb/korpus.ts)).
+- **Steckbrief, Aspekte, Infografik, Lesemodus und Fundstellen lesen den Korpus**, nicht mehr das Hauptdokument allein ([useMapVb.ts](src/plugins/map-foerderfaehig/useMapVb.ts)).
+- **Cap-Warnung über die Summe**: die Baustein-Schiene kürzt nicht und der Upload-Check prüft nur je Datei — ein zu grosser Korpus wird jetzt sichtbar gemeldet statt still abgeschnitten ([korpus.ts](src/plugins/map-foerderfaehig/vb/korpus.ts)).
+
 ### v2.271.1 — VB direkt im Reiter ablegen (MAP, dev) (Juli 2026)
 
 PATCH — Der Reiter „Vorhabensbeschreibung" konnte bisher nur aus dem globalen Dokumenten-Index wählen. Wer die VB noch nicht aufgenommen hatte, sah eine Sackgasse und musste das Plugin verlassen. Nur dev (`mapFoerderfaehig`).

@@ -9,8 +9,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { FileText, Plus, Sparkles } from 'lucide-react';
+import { FileText, Plus, Sparkles, X } from 'lucide-react';
 import type { UseMapVbResult } from '../useMapVb';
+import type { MapKorpus } from '../vb/korpus';
 
 function KiHinweis({ lage, fehler }: { lage: string; fehler: string | null }): React.ReactElement | null {
   if (lage === 'ok' || lage === 'aus') return null;
@@ -47,6 +48,102 @@ function Aufnahme({ einreichungId }: { einreichungId: string }): React.ReactElem
       offenHalten
       abschlussLabel="Fertig — jetzt zuordnen"
     />
+  );
+}
+
+/**
+ * Zusatzdokumente des Korpus — Marktkonzept, Verwertung, Wirkung liegen bei
+ * diesen Anträgen meist als eigene PDFs bei. Die Reihenfolge ist die
+ * Korpus-Reihenfolge und damit sichtbar, nicht implizit.
+ */
+function ZusatzListe({ vb }: { vb: UseMapVbResult }): React.ReactElement | null {
+  const hinzu = useAsyncAction(async (docId: string) => { await vb.fuegeZusatzHinzu(docId); });
+  const weg = useAsyncAction(async (docId: string) => { await vb.entferneZusatz(docId); });
+
+  const belegt = new Set([vb.dokument?.id, ...vb.zusatzDokumente.map(d => d.id)]);
+  const waehlbar = vb.alleDokumente.filter(d => !belegt.has(d.id));
+
+  return (
+    <section className="flex flex-col gap-1.5">
+      <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] uppercase tracking-wide">
+        Weitere Teile der Vorhabensbeschreibung
+      </h3>
+      {vb.zusatzDokumente.length === 0 ? (
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Marktkonzept, Verwertung und Wirkung liegen oft als eigene Dateien bei.
+          Hier zugeordnet, wertet die Prüfung sie als einen Text aus.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {vb.zusatzDokumente.map((d, i) => (
+            <li
+              key={d.id}
+              className="flex items-center gap-2 rounded px-2.5 py-1.5"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              <span className="text-[11px] text-[var(--tf-text-tertiary)] font-mono">{i + 2}</span>
+              <FileText size={13} className="text-[var(--tf-text-tertiary)] shrink-0" />
+              <span className="text-[12.5px] text-[var(--tf-text)] truncate">{d.filename}</span>
+              <button
+                type="button"
+                disabled={weg.busy}
+                onClick={() => weg.run(d.id)}
+                className="ml-auto shrink-0 text-[var(--tf-text-tertiary)] cursor-pointer"
+                aria-label={`${d.filename} aus dem Korpus entfernen`}
+              >
+                <X size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {waehlbar.length > 0 && (
+        <select
+          className="w-full text-[12.5px] rounded px-2 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+          value=""
+          disabled={hinzu.busy}
+          onChange={e => { if (e.target.value) hinzu.run(e.target.value); }}
+        >
+          <option value="">Weiteres Dokument zuordnen …</option>
+          {waehlbar.map(d => (
+            <option key={d.id} value={d.id}>{d.filename}</option>
+          ))}
+        </select>
+      )}
+
+      {(hinzu.error ?? weg.error) != null && (
+        <p className="text-[12.5px]" style={{ color: 'var(--tf-danger, #dc2626)' }}>
+          {hinzu.error ?? weg.error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Der Korpus wird auf der Baustein-Schiene weder gekürzt noch gewarnt. Bei drei
+ * bis vier Dokumenten ist das Kontextfenster real erreichbar — und ein
+ * stillschweigend abgeschnittener Text wäre in einer Förderprüfung schlimmer als
+ * gar keine Analyse. Deshalb ein sichtbarer Hinweis statt stiller Kürzung.
+ */
+function KorpusWarnung({ korpus }: { korpus: MapKorpus | null }): React.ReactElement | null {
+  if (korpus === null || !korpus.ueberCap) return null;
+  return (
+    <div
+      className="rounded px-3 py-2 text-[12.5px]"
+      style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
+    >
+      <p className="text-[var(--tf-text)]">
+        Der Korpus ist mit {korpus.zeichen.toLocaleString('de-DE')} Zeichen grösser als das
+        Kontextfenster des Modells ({korpus.cap.toLocaleString('de-DE')}).
+      </p>
+      <p className="text-[var(--tf-text-secondary)] mt-0.5">
+        Die KI-Analyse sieht das Ende nicht. Entfernen Sie ein Zusatzdokument, oder
+        werten Sie die betroffenen Teile von Hand aus.
+      </p>
+    </div>
   );
 }
 
@@ -138,9 +235,11 @@ export function VbPanel(
         <div className="min-w-0">
           <p className="text-[13px] text-[var(--tf-text)] flex items-center gap-1.5">
             <FileText size={14} /> {vb.dokument.filename}
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">Hauptdokument</span>
           </p>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
             {vb.gliederung.length} Abschnitte erkannt
+            {vb.zusatzDokumente.length > 0 && ` · ${vb.zusatzDokumente.length + 1} Dokumente im Korpus`}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -154,6 +253,9 @@ export function VbPanel(
       </div>
 
       {nachreichen && <Aufnahme einreichungId={einreichungId} />}
+
+      <ZusatzListe vb={vb} />
+      <KorpusWarnung korpus={vb.korpus} />
 
       <div className="flex items-center gap-2 flex-wrap">
         <Button

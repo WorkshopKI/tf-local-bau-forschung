@@ -238,7 +238,7 @@ export function KompaktAnsicht({
             : (
               <ReaderLite
                 gliederung={vb.gliederung}
-                markdown={vb.dokument.markdown}
+                markdown={vb.korpus?.markdown ?? vb.dokument.markdown}
                 mapping={vb.aspektMapping}
               />
             )}
@@ -256,7 +256,7 @@ export function KompaktAnsicht({
                 versionVeraltet={pruefung.versionVeraltet}
                 aspektMapping={vb.aspektMapping}
                 gliederung={vb.gliederung}
-                vbMarkdown={vb.dokument?.markdown ?? ''}
+                vbMarkdown={vb.korpus?.markdown ?? ''}
                 onBewerte={(itemId, status, bemerkung) =>
                   void pruefung.bewerteItem({ itemId, status, bemerkung })}
                 onStufe={(itemId, stufe, bemerkung) =>

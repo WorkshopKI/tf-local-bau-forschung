@@ -118,9 +118,22 @@ export async function putPruefung(idb: IDBStore, pruefung: MapPruefung): Promise
 
 // --- Zuordnung der Vorhabensbeschreibung -----------------------------------
 
-export interface VbZuordnung {
+export interface VbDokRef {
   docId: string;
   docName: string;
+}
+
+/**
+ * Die Vorhabensbeschreibung ist in der Praxis oft auf mehrere Dateien verteilt —
+ * Hauptdokument plus Marktkonzept, Verwertung, Wirkung als eigene PDFs. Deshalb
+ * ein Hauptdokument (Korpus-Präfix) und beliebig viele Zusatzdokumente.
+ *
+ * `zusatz` ist **optional**: Zuordnungen aus der Zeit vor v2.272 tragen das Feld
+ * nicht und laden unverändert als Ein-Dokument-Fall.
+ */
+export interface VbZuordnung extends VbDokRef {
+  /** Zusatzdokumente in Korpus-Reihenfolge. */
+  zusatz?: VbDokRef[];
 }
 
 export async function getVbZuordnung(

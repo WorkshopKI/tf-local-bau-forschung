@@ -52,8 +52,16 @@ Personalbögen, Bankverbindung und Ansprechpartner werden nicht importiert.
 
 ## 4 · Vorhaben verstehen (4 Min)
 
-Reiter **Vorhabensbeschreibung** — Dokument zuordnen (die App schlägt es vor,
-bestätigt wird von Hand), dann **Mit KI analysieren**.
+Reiter **Vorhabensbeschreibung** — Dateien direkt hier ablegen, Hauptdokument
+zuordnen (die App schlägt es vor, bestätigt wird von Hand), dann **Mit KI
+analysieren**.
+
+Wenn die VB auf mehrere Dateien verteilt ist — Marktkonzept, Verwertung und
+Wirkung liegen meist separat bei — unter „Weitere Teile der
+Vorhabensbeschreibung" zuordnen. Die Prüfung wertet sie als einen Text aus.
+
+**Frage:** Wie viele Dateien sind es bei Ihnen typischerweise, und gibt es eine,
+die hier nicht hineingehört?
 
 Danach der Reihe nach:
 - **Canvas** — deterministische Felder aus dem Antrag, Textfelder aus der
