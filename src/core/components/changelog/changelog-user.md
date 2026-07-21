@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.280 — 2026-07
+
+### Neu
+- Der Tab der internen KI zeigt jetzt im Tab-Titel, was gerade passiert. Sie sehen also von der App aus — ohne hinüberzuwechseln —, ob die KI arbeitet: `⏳ 0:42 · 1,4k` heißt „läuft seit 42 Sekunden, 1400 Zeichen Antwort sind schon da". Wächst die Zahl, kommt die KI voran; steht sie still, hakt es. Nach getaner Arbeit erscheint kurz `✅ Fertig`, bei einem Problem bleibt `⚠️` stehen.
+
+### Wichtig
+- Damit das funktioniert, muss das Lesezeichen („Bookmarklet") **einmalig neu installiert** werden: Einstellungen → Interne KI → Lesezeichen erneut in die Lesezeichenleiste ziehen. Ohne diesen Schritt läuft der bisherige Stand weiter.
+
 ## v2.278 — 2026-07
 
 ### Bugfixes

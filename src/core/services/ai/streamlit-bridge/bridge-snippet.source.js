@@ -23,7 +23,7 @@
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
   // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-13-tail';
+  var BRIDGE_REV = '2026-07-21-tabtitel';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
@@ -389,6 +389,75 @@
       .observe(appRoot, { childList: true, subtree: true, characterData: true });
   } catch (e) { /* ignore */ }
 
+  // ── Tab-Titel: KI-Status ohne Tab-Wechsel sichtbar (v2.280) ───────────────
+  // Die Status-Pill unten rechts sieht nur, wer IN diesem Tab ist. Wer in der App
+  // arbeitet, soll am Tab-Titel in der Chrome-Tab-Leiste ablesen koennen, ob die
+  // KI vorankommt. Laufzeit UND Umfang, weil nur der wachsende Umfang „kommt
+  // voran" belegt — eine Uhr tickt auch bei totem Server weiter. Symbol VORNE,
+  // damit es sichtbar bleibt, wenn Chrome den Tab-Text abschneidet.
+  // WORTGLEICH gespiegelt in tab-titel.ts (Drift-Test: tab-titel.test.ts).
+  // <tab-titel-core> keep in sync with tab-titel.ts
+  var TAB_SYMBOL = { laeuft: '⏳', fertig: '✅', fehler: '⚠️' };
+  function basisTitel(roh) {
+    var s = String(roh || '');
+    var praefix = /^[⏳✅⚠]️?\s(?:\d+:\d{2}(?:\s·\s\d+(?:,\d)?k?)?|[^·]*?)\s·\s+/;
+    while (praefix.test(s)) s = s.replace(praefix, '');
+    return s.trim();
+  }
+  function formatiereLaufzeit(ms) {
+    var sekGesamt = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+    var min = Math.floor(sekGesamt / 60);
+    var sek = sekGesamt % 60;
+    return min + ':' + (sek < 10 ? '0' : '') + sek;
+  }
+  function formatiereUmfang(zeichen) {
+    var n = Math.max(0, Math.floor(Number(zeichen) || 0));
+    if (n < 100) return '';
+    if (n < 1000) return String(n);
+    if (n < 10000) return String(Math.round(n / 100) / 10).replace('.', ',') + 'k';
+    return Math.round(n / 1000) + 'k';
+  }
+  function formatiereTabTitel(art, basis, opts) {
+    opts = opts || {};
+    var rein = basisTitel(basis);
+    if (art === 'ruhe') return rein;
+    var teile = [];
+    if (art === 'laeuft') {
+      if (opts.seit) {
+        teile.push(formatiereLaufzeit((opts.jetzt || 0) - opts.seit));
+        var umfang = formatiereUmfang(opts.zeichen || 0);
+        if (umfang) teile.push(umfang);
+      } else {
+        teile.push(opts.text || 'Arbeitet…');
+      }
+    } else {
+      teile.push(opts.text || (art === 'fertig' ? 'Fertig' : 'Fehler'));
+    }
+    var kopf = TAB_SYMBOL[art] + ' ' + teile.join(' · ');
+    return rein ? kopf + ' · ' + rein : kopf;
+  }
+  // </tab-titel-core>
+
+  // Originaltitel der fremden Seite EINMALIG sichern (basisTitel schuetzt gegen
+  // ein bereits vorhandenes Praefix, falls die Seite mit gesetztem Titel neu laedt).
+  var BASIS_TITEL = basisTitel(document.title);
+  // Quittung nach einem Lauf: „Fertig" verschwindet nach 60 s wieder, damit im Tab
+  // keine stundenalte Aussage stehen bleibt. FEHLER bleiben stehen (bis zum
+  // naechsten setBadge) — Probleme sollen nicht wegflackern.
+  var QUITTUNG_MS = 60000;
+  var tabZustand = { art: 'ruhe', seit: 0, zeichen: 0, text: '', quittungSeit: 0 };
+  var wunschTitel = BASIS_TITEL;
+  // Schreibt nur bei echter Aenderung — der 4-s-Watchdog ruft das im Leerlauf mit.
+  function setzeTabTitel() {
+    try {
+      wunschTitel = formatiereTabTitel(tabZustand.art, BASIS_TITEL, {
+        seit: tabZustand.seit, jetzt: Date.now(),
+        zeichen: tabZustand.zeichen, text: tabZustand.text,
+      });
+      if (document.title !== wunschTitel) document.title = wunschTitel;
+    } catch (e) { /* ignore */ }
+  }
+
   // ── Status-Badge (unten rechts) ───────────────────────────────────────────
   // Toene aus dem TeamFlow-Design-System (badge.tsx / theme.css). Werte als
   // Literale, weil die fremde KI-Seite die CSS-Variablen nicht kennt.
@@ -418,6 +487,18 @@
   // (nie gegen das Literal — der Browser formatiert Inline-Styles um).
   var BAR_CSS_NORM = bar.style.cssText;
   setInterval(function () {
+    // Tab-Titel im selben Takt mitpflegen (kein eigener Timer): Fertig-Quittung
+    // ablaufen lassen und den Titel re-asserten — die fremde Seite setzt
+    // document.title bei einem Streamlit-Rerun auf ihren eigenen zurueck.
+    try {
+      if (tabZustand.art === 'fertig' && tabZustand.quittungSeit
+        && Date.now() - tabZustand.quittungSeit >= QUITTUNG_MS) {
+        tabZustand.art = 'ruhe';
+        tabZustand.text = '';
+        tabZustand.quittungSeit = 0;
+      }
+      setzeTabTitel();
+    } catch (e) { /* ignore */ }
     try {
       if (!bar.isConnected) { document.body.appendChild(bar); return; }
       if (document.body.lastElementChild !== bar) document.body.appendChild(bar);
@@ -453,6 +534,23 @@
     var t = TONES[tone] || TONES.ready;
     dot.style.background = t.fg;
     label.textContent = text || 'Interne KI';
+    // Tab-Titel mitziehen: setBadge ist der EINZIGE Statuswechsel-Punkt im Snippet
+    // — haengt der Tab hier, kann er nicht von der Pill wegdriften, und kuenftige
+    // setBadge-Aufrufe sind automatisch abgedeckt.
+    tabZustand.art = tone === 'working' ? 'laeuft' : (tone === 'error' ? 'fehler' : 'fertig');
+    tabZustand.text = text || '';
+    // Uhr/Umfang gehoeren nur zu einem echten Lauf — runRequest setzt sie danach.
+    tabZustand.seit = 0;
+    tabZustand.zeichen = 0;
+    tabZustand.quittungSeit = tabZustand.art === 'fertig' ? Date.now() : 0;
+    setzeTabTitel();
+  }
+
+  // Nach einem echten Lauf: im Tab „Fertig" statt des Pill-Texts („Verbunden").
+  // Die Pill beschreibt die VERBINDUNG, der Tab den LAUF.
+  function tabQuittung(text) {
+    tabZustand.text = text;
+    setzeTabTitel();
   }
 
   // ZAH-App-Erreichbarkeit (Gegenrichtung): prueft, ob das oeffnende App-Fenster
@@ -637,7 +735,11 @@
         // finalisieren (fail-open); die 150-/600-s-Backstops bleiben unveraendert.
         var MISSING_TAIL_MS = 45000;
         var PROGRESS_EVERY_TICKS = 25; // 25 × 400 ms ≈ 10 s Heartbeat an die App
+        var TITEL_EVERY_TICKS = 3;     //  3 × 400 ms ≈ 1,2 s Tab-Titel-Ticker
         var started = Date.now(), lastMd = '', finished = false, tick = 0;
+        // Ab hier zeigt der Tab-Titel Uhr + Umfang statt „Arbeitet…" (setBadge oben).
+        tabZustand.seit = started;
+        tabZustand.zeichen = 0;
         // Finalisierungs-Timer haengt an der INHALTS-Stabilitaet der Assistenten-
         // Antwort, nicht an globaler DOM-Aktivitaet: die fremde KI-Seite mutiert
         // ihren DOM auch generierungs-unabhaengig (Status-Widget, Reruns) — das
@@ -672,6 +774,12 @@
           if (tick % PROGRESS_EVERY_TICKS === 0) {
             source.postMessage({ type: 'tf-progress', id: id }, '*');
           }
+          // Tab-Titel: Uhr laeuft weiter, Umfang waechst mit der Antwort — so ist
+          // aus der App heraus sichtbar, ob die KI vorankommt oder haengt.
+          if (tick % TITEL_EVERY_TICKS === 0) {
+            tabZustand.zeichen = lastMd.length;
+            setzeTabTitel();
+          }
           var cand = findAnswerMsg(message, msgScope);
           var md = cand ? contentOf(cand) : '';
           if (md && md !== message && md !== lastMd) {
@@ -702,6 +810,7 @@
             finished = true;
             clearInterval(iv);
             setBadge('ready', 'Verbunden');
+            tabQuittung('Fertig');
             logRoster('finalize idle=' + idle + ' settle=' + settle
               + (erwarte ? ' erwarte=' + (unvollstaendig ? 'FEHLT' : 'ok') : ''), lastMd);
             extractThinking(cand, function (reasoning) {
@@ -717,6 +826,9 @@
             logRoster('timeout ' + (idle >= NO_PROGRESS_MS ? 'no-progress' : 'hard-max')
               + ' idle=' + idle + (erwarte ? ' erwarte=' + (lastMd && lastMd.toLowerCase().indexOf(erwarte.toLowerCase()) === -1 ? 'FEHLT' : 'ok') : ''), lastMd);
             setBadge(lastMd ? 'ready' : 'error', lastMd ? 'Verbunden' : 'Zeitüberschreitung');
+            // Teil-Antwort ist ein Ergebnis (quittieren); ohne Antwort bleibt das
+            // Warnsymbol aus setBadge stehen, bis der naechste Lauf startet.
+            if (lastMd) tabQuittung('Fertig');
             source.postMessage({ type: 'tf-response', id: id,
               result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
           }

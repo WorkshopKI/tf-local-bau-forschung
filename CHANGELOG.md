@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.280.0 — KI-Status im Titel des Streamlit-Tabs (Juli 2026)
+
+MINOR — Das Bookmarklet zeigte seinen Zustand nur als Pill unten rechts **im** KI-Tab — also genau dort, wo man nur hinsieht, wenn man hinwechselt. Wer in der App arbeitet, sah nicht, ob die KI vorankommt. Der Tab-Titel trägt den Zustand jetzt in die Chrome-Tab-Leiste.
+
+- **Tab-Titel des KI-Tabs spiegelt den Bridge-Zustand**: `⏳ 0:42 · 1,4k` im Lauf, `✅ Fertig` für 60 s, `⚠️ …` bleibt stehen; Symbol vorne, damit es bei abgeschnittenem Tab sichtbar bleibt ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js)).
+- **Laufzeit UND Antwort-Umfang**, weil nur der wachsende Umfang „kommt voran" belegt — eine Uhr tickt auch bei totem Server weiter ([tab-titel.ts](src/core/services/ai/streamlit-bridge/tab-titel.ts)).
+- **Angehängt an `setBadge()`** — den einzigen Statuswechsel-Punkt des Snippets, damit Tab und Pill nicht auseinanderlaufen; keine neuen Timer (Ticker in der 400-ms-Poll-Schleife, Quittung + Rerun-Re-Assert im 4-s-Watchdog).
+- **Drift-Test** wie bei Echo-/Antwort-Logik: JS-Fassung zwischen den `<tab-titel-core>`-Markern läuft gegen dieselben Fixtures wie das TS-Modul ([tab-titel.test.ts](src/core/services/ai/streamlit-bridge/__tests__/tab-titel.test.ts)).
+- **`BRIDGE_REV`-Bump → Bookmarklet muss neu installiert werden** (Einstellungen → Interne KI), sonst bleibt der alte Stand ohne Tab-Titel aktiv ([streamlit-bridge.md](docs/architecture/streamlit-bridge.md)).
+
 ### v2.279.0 — Substanzcheck: Widersprueche, Unschaerfe, Zielkriterien (Juli 2026)
 
 MINOR — Ein mit KI geschriebener Antrag liest sich glatt und sagt wenig: er kann den eigenen Einreichungsdaten widersprechen und durchweg unbeziffert bleiben, ohne dass es beim Erstlesen auffällt. Der Substanzcheck bewertet keine Textqualität, sondern hält Behauptungen gegen harte Zahlen und gegen die Quantifizierungspflicht. Alles reitet auf dem bestehenden Infografik-Lauf mit — kein zusätzlicher LLM-Aufruf.
