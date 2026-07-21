@@ -60,3 +60,27 @@ export function aktivesZielFuerLauf(): BridgeZiel | undefined {
 export function kontextZielFuerLauf(bridge: { istBridgeAktiv: () => boolean }): KontextZiel {
   return { bridge: bridge.istBridgeAktiv(), ziel: useKiZiel.getState().ziel };
 }
+
+/**
+ * Soll beim Umschalten der Variante gewarnt werden?
+ *
+ * Hintergrund: Aus TeamFlow-Sicht ist die Bridge **single-turn** — gesendet wird
+ * nur die letzte Nutzer-Nachricht plus System-Prompt (`streamConversation`). Der
+ * Gesprächsfaden eines mehrturnigen Chats liegt damit ausschliesslich in der
+ * serverseitigen Historie des Streamlit-Tabs. Ein Variantenwechsel wechselt den
+ * Tab — der neue kennt die bisherigen Züge nicht.
+ *
+ * Nur warnen, wenn das auch wirklich eintritt: bei aktiver Bridge (ohne sie gibt
+ * es keine Tabs), bei laufendem Gespräch (sonst gibt es nichts zu verlieren) und
+ * bei echtem Wechsel (derselbe Knopf nochmal ist keiner). Rein.
+ */
+export function sollWechselHinweisZeigen(eingabe: {
+  bridgeAktiv: boolean;
+  gespraechLaeuft: boolean;
+  altesZiel: BridgeZiel;
+  neuesZiel: BridgeZiel;
+}): boolean {
+  return eingabe.bridgeAktiv
+    && eingabe.gespraechLaeuft
+    && eingabe.altesZiel !== eingabe.neuesZiel;
+}
