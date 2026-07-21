@@ -3,8 +3,9 @@
  *
  * Deckt alle Validierungszweige (Belege-Integrität, Textgrenzen/Poisoning,
  * Duplikat, Block-Kapazität), die UPDATE-Kette (Vorgänger invalidiert +
- * vorgaengerId), INVALIDATE, NOOP, malformte Ops und den DETERMINISMUS
- * (gleiche Ops + Bestand + Kontext ⇒ identisch; Eingabe unmutiert).
+ * vorgaengerId), INVALIDATE, NOOP, malformte Ops, den DETERMINISMUS
+ * (gleiche Ops + Bestand + Kontext ⇒ identisch; Eingabe unmutiert) und die
+ * Verwurfs-Art, an der die Wasserzeichen-Entscheidung hängt.
  */
 import { describe, expect, it } from 'vitest';
 import { wendeOperationenAn } from '../operationen';
@@ -197,5 +198,49 @@ describe('wendeOperationenAn — Determinismus + Immutabilität', () => {
     wendeOperationenAn([{ op: 'INVALIDATE', id: 'x' }], bestand, kontext());
     expect(bestand[0]!.status).toBe('aktiv');
     expect(bestand[0]!.aktualisiert).toBe(1000);
+  });
+});
+
+/**
+ * Die `art` entscheidet, ob der Lauf das Wasserzeichen fortschreiben darf
+ * (konsolidierung.ts). Sie trennt „Modell hat Unbrauchbares geliefert" (defekt,
+ * Ereignisse wurden faktisch nicht verarbeitet) von „kein Platz / schon bekannt"
+ * (gesaettigt, inhaltlich erledigt). Sättigung ist ein DAUERZUSTAND — würde sie
+ * als Defekt zählen, stünde das Wasserzeichen bei vollem Block für immer.
+ */
+describe('wendeOperationenAn — Verwurfs-Art (Wasserzeichen-Entscheidung)', () => {
+  it('stuft Duplikat und Blockkapazität als „gesaettigt" ein', () => {
+    const voll = Array.from({ length: MAX_EINTRAEGE_PRO_BLOCK }, (_, i) =>
+      eintrag({ id: `a${i}`, text: `Fakt ${i}.` }),
+    );
+    const kapazitaet = wendeOperationenAn(
+      [{ op: 'ADD', block: 'arbeitskontext', text: 'Neuer Fakt.', belege: ['e1'] }],
+      voll,
+      kontext(),
+    );
+    expect(kapazitaet.verworfen[0]!.art).toBe('gesaettigt');
+
+    const duplikat = wendeOperationenAn(
+      [{ op: 'ADD', block: 'arbeitskontext', text: 'Arbeitet an Verbund A.', belege: ['e1'] }],
+      [eintrag({ id: 'a', text: 'Arbeitet an Verbund A.' })],
+      kontext(),
+    );
+    expect(duplikat.verworfen[0]!.art).toBe('gesaettigt');
+  });
+
+  it('stuft fehlende Belege, malformte Ops und unbekannte Typen als „defekt" ein', () => {
+    const r = wendeOperationenAn(
+      [
+        { op: 'ADD', block: 'arbeitskontext', text: 'Fakt.', belege: ['unbekannt'] },
+        { op: 'ADD', block: 'nichtsda', text: 'Fakt.', belege: ['e1'] },
+        { op: 'UPDATE', id: 'gibtsnicht', text: 'Fakt.', belege: ['e1'] },
+        { op: 'FOO' },
+        null,
+      ],
+      [],
+      kontext(),
+    );
+    expect(r.verworfen).toHaveLength(5);
+    expect(r.verworfen.every(v => v.art === 'defekt')).toBe(true);
   });
 });

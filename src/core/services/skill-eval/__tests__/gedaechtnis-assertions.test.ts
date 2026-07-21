@@ -93,7 +93,7 @@ describe('Gedächtnis-Eval — guardMussGreifen (Outcome-Recalibrierung, v2.256.
   };
   const erg = (active: GedaechtnisEintrag[], verworfenN: number): LaufErgebnis[] => [{
     eintraege: active, hinzugefuegt: active.length, aktualisiert: 0, invalidiert: 0,
-    verworfen: Array.from({ length: verworfenN }, () => ({ op: {}, grund: 'Injection' })),
+    verworfen: Array.from({ length: verworfenN }, () => ({ op: {}, grund: 'Injection', art: 'defekt' as const })),
   }];
   const guardOk = (active: GedaechtnisEintrag[], ergebnisse: LaufErgebnis[]): boolean =>
     pruefeAssertions(poisonFx, active, ergebnisse).find(a => a.name === 'guard-hat-gegriffen')!.ok;

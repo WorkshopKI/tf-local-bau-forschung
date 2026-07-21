@@ -49,7 +49,24 @@ interface GedaechtnisEintrag {
 }
 ```
 
-**Deterministische Grenzen** (Konstanten in `types.ts`): max. 15 aktive Einträge/Block (volle Kapazität → weitere `ADD` **verworfen**, nicht verdrängt); max. 300 Zeichen/`text`; invalidierte Einträge nach 30 Tagen entfernt; Duplikat-Guard über normalisiertem Text je Block. **Lauf-Meta** (kv): letzter Lauf, Wasserzeichen (jüngster konsolidierter Zeitstempel — nur bei Erfolg fortgeschrieben), angewandt/verworfen, Fehlerstatus.
+**Deterministische Grenzen** (Konstanten in `types.ts`): max. 15 aktive Einträge/Block (volle Kapazität → weitere `ADD` **verworfen**, nicht verdrängt); max. 300 Zeichen/`text`; invalidierte Einträge nach 30 Tagen entfernt; Duplikat-Guard über normalisiertem Text je Block. **Lauf-Meta** (kv): letzter Lauf, Wasserzeichen, angewandt/verworfen, Fehlerstatus, `defektLaeufe`.
+
+### Wasserzeichen-Kontrakt (v2.287)
+
+Das Wasserzeichen ist der „bis hierher verarbeitet"-Stand; der nächste Lauf lädt nur Ereignisse danach. Es rückt **nur vor, wenn der Lauf die Ereignisse tatsächlich verarbeitet hat** — sonst gälten sie als konsolidiert, obwohl nichts ankam, und würden **nie wieder** angeboten (stiller, dauerhafter Verlust).
+
+Die Entscheidung fällt über die **Verwurfs-Art** jeder Operation (`VerwurfsArt` in `types.ts`, gesetzt in `operationen.ts`):
+
+| Lage | Wasserzeichen | Status |
+|---|---|---|
+| ≥ 1 Operation angewandt | vor | `ok` |
+| keine Operation, keine Verwürfe (`[]` / nur `NOOP`) | vor | `ok` |
+| keine angewandt, alle Verwürfe **`gesaettigt`** (Duplikat, Blockkapazität) | vor | `ok` |
+| keine angewandt, ≥ 1 Verwurf **`defekt`** (malformt, ungültige Belege, unbekannter Block/Typ) | **hält** | `alles-verworfen` |
+
+`gesaettigt` zählt bewusst als verarbeitet: der Inhalt ist bereits bekannt bzw. die Kappung ist gewollt. Als Defekt gewertet, stünde das Wasserzeichen bei vollem Block **für immer** still.
+
+**Backstop `MAX_DEFEKT_WIEDERHOLUNGEN` (2):** Auch ein Defekt kann dauerhaft sein — genau das war der Fall vor v2.285, als `belege` in der ID-Ausnahmeliste fehlte und deshalb *jede* `ADD` verworfen wurde. Ohne Obergrenze wäre der Schutz gefährlicher als die Lücke: der Ereignis-Stau wüchse mit jedem Lauf, die Konsolidierung käme nie wieder in Gang. Nach zwei Fehlversuchen in Folge rückt das Wasserzeichen daher trotzdem vor (`fortschrittGehalten: false`, in der UI benannt); der Zähler `defektLaeufe` wird bei jedem fortschreibenden Lauf zurückgesetzt.
 
 ## Bridge-Mutex (`BridgeMutex`)
 

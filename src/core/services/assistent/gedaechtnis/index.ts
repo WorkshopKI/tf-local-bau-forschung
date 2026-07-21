@@ -13,6 +13,7 @@ export type {
   InvalidateOperation,
   NoopOperation,
   VerworfeneOperation,
+  VerwurfsArt,
   LaufErgebnis,
   LaufMeta,
 } from './types';
@@ -26,6 +27,7 @@ export {
   MAX_TEXT_LEN,
   INVALID_RETENTION_TAGE,
   MAX_EREIGNISSE_EINGABE,
+  MAX_DEFEKT_WIEDERHOLUNGEN,
 } from './types';
 export { istVerdaechtig } from './guard';
 export type { VerdachtsErgebnis } from './guard';

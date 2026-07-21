@@ -36,6 +36,7 @@ import { fmtZeit, typLabel } from './_shared/assistent-format';
 
 const STATUS_TEXT: Record<KonsolidierungsResultat['status'], string> = {
   ok: 'Konsolidierung abgeschlossen.',
+  'alles-verworfen': 'Die KI lieferte nur unbrauchbare Angaben — nichts übernommen.',
   'nichts-zu-tun': 'Keine neuen Ereignisse — nichts zu tun.',
   'bridge-belegt': 'Die interne KI ist gerade durch einen anderen Lauf belegt. Bitte später erneut.',
   'ki-nicht-erreichbar': 'Die interne KI ist nicht erreichbar. Bitte die KI-Verbindung prüfen.',
@@ -76,7 +77,13 @@ export function GedaechtnisSektion({ protokollAktiv }: { protokollAktiv: boolean
   const konsolidieren = useAsyncAction(async () => {
     setLaufMeldung(null);
     const res: KonsolidierungsResultat = await starteKonsolidierungManuell(bridge);
-    setLaufMeldung(STATUS_TEXT[res.status]);
+    // Bei „alles verworfen" ist die Folge für den Nutzer wichtiger als der Grund:
+    // kommen die Ereignisse wieder, oder sind sie übersprungen?
+    const nachsatz = res.status !== 'alles-verworfen' ? ''
+      : res.fortschrittGehalten
+        ? ' Die Ereignisse bleiben offen und werden beim nächsten Lauf erneut versucht.'
+        : ' Nach mehreren Fehlversuchen übersprungen — diese Ereignisse werden nicht erneut angeboten.';
+    setLaufMeldung(STATUS_TEXT[res.status] + nachsatz);
     await laden();
   });
 

@@ -6,7 +6,9 @@
  * nichts-zu-tun (Bridge gar nicht angefasst), bridge-belegt (Lease null),
  * Atomarität bei Parse-Fehler (Bestand + Wasserzeichen unverändert), Abbruch
  * durch Vordergrund (kein Meta-Write), Transport-Guard (Lease wirft),
- * ki-nicht-erreichbar (ping false), resetChat-vor-submit, deaktiviert.
+ * ki-nicht-erreichbar (ping false), resetChat-vor-submit, deaktiviert — sowie
+ * den WASSERZEICHEN-KONTRAKT (nur bei echtem Fortschritt vorrücken, Sättigung
+ * zählt als verarbeitet, Backstop gegen den Dauer-Freeze).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
@@ -31,6 +33,7 @@ import {
   persistiereEintraege,
   setzeGedaechtnisAktiv,
 } from '../recorder';
+import { MAX_DEFEKT_WIEDERHOLUNGEN } from '../types';
 import type { GedaechtnisEintrag } from '../types';
 
 function ereignis(id: string, zeitstempel: number, typ: AssistentEreignis['typ'] = 'antrag_geoeffnet'): AssistentEreignis {
@@ -181,6 +184,106 @@ describe('Konsolidierung — Atomarität', () => {
     expect(res.status).toBe('abgebrochen');
     expect(await ladeAktiveEintraege()).toHaveLength(0);
     expect(await ladeLaufMeta()).toBeNull();
+  });
+});
+
+/**
+ * Der Kern des Wasserzeichen-Kontrakts: ein Lauf darf den Fortschritt nur
+ * fortschreiben, wenn die Ereignisse tatsächlich verarbeitet WURDEN. Vorher galt
+ * jeder geparste Lauf als Erfolg — lieferte das Modell nur Unbrauchbares, rückte
+ * das Wasserzeichen trotzdem vor und die Ereignisse waren dauerhaft verloren.
+ */
+describe('Konsolidierung — Wasserzeichen nur bei echtem Fortschritt', () => {
+  const nurDefekteOps = () => fakeTransport({
+    submitMessage: async () => JSON.stringify([
+      { op: 'ADD', block: 'arbeitskontext', text: 'Fakt.', belege: ['gibtsnicht'] },
+    ]),
+  });
+
+  it('hält das Wasserzeichen, wenn ALLE Operationen als defekt verworfen wurden', async () => {
+    const idb = await setup();
+    await appendEreignis(idb, ereignis('ev1', 1000));
+
+    const res = await fuehreKonsolidierungAus({ holeLease: () => lease(nurDefekteOps()), ...festeDeps });
+
+    expect(res.status).toBe('alles-verworfen');
+    expect(res.fortschrittGehalten).toBe(true);
+    const meta = await ladeLaufMeta();
+    expect(meta?.wasserzeichen).toBeNull(); // NICHT fortgeschrieben — Ereignis bleibt fällig
+    expect(meta?.fehler).toBe(true);
+    expect(meta?.defektLaeufe).toBe(1);
+  });
+
+  it('schreibt fort, sobald wenigstens EINE Operation greift (kein Dauer-Retry bei Teilerfolg)', async () => {
+    const idb = await setup();
+    await appendEreignis(idb, ereignis('ev1', 1000));
+    const transport = fakeTransport({
+      submitMessage: async () => JSON.stringify([
+        { op: 'ADD', block: 'arbeitskontext', text: 'Guter Fakt.', belege: ['ev1'] },
+        { op: 'ADD', block: 'arbeitskontext', text: 'Schlechter Fakt.', belege: ['gibtsnicht'] },
+      ]),
+    });
+
+    const res = await fuehreKonsolidierungAus({ holeLease: () => lease(transport), ...festeDeps });
+
+    expect(res.status).toBe('ok');
+    expect((await ladeLaufMeta())?.wasserzeichen).toBe(1000);
+  });
+
+  it('schreibt fort, wenn nur wegen Sättigung verworfen wurde (Duplikat ⇒ inhaltlich erledigt)', async () => {
+    const idb = await setup();
+    await persistiereEintraege([{
+      id: 'pre', version: 1, block: 'arbeitskontext', text: 'Arbeitet an Verbund V1.',
+      status: 'aktiv', erstellt: 1, aktualisiert: 1, belege: ['x'],
+    }]);
+    await appendEreignis(idb, ereignis('ev1', 1000));
+    const transport = fakeTransport({
+      submitMessage: async () => JSON.stringify([
+        { op: 'ADD', block: 'arbeitskontext', text: 'Arbeitet an Verbund V1.', belege: ['ev1'] },
+      ]),
+    });
+
+    const res = await fuehreKonsolidierungAus({ holeLease: () => lease(transport), ...festeDeps });
+
+    expect(res.status).toBe('ok');
+    expect((await ladeLaufMeta())?.wasserzeichen).toBe(1000);
+  });
+
+  it('gibt nach MAX_DEFEKT_WIEDERHOLUNGEN auf und überspringt den Stau (kein Dauer-Freeze)', async () => {
+    const idb = await setup();
+    await appendEreignis(idb, ereignis('ev1', 1000));
+
+    for (let i = 1; i < MAX_DEFEKT_WIEDERHOLUNGEN; i++) {
+      const zwischen = await fuehreKonsolidierungAus({ holeLease: () => lease(nurDefekteOps()), ...festeDeps });
+      expect(zwischen.fortschrittGehalten).toBe(true);
+      expect((await ladeLaufMeta())?.wasserzeichen).toBeNull();
+    }
+
+    const letzter = await fuehreKonsolidierungAus({ holeLease: () => lease(nurDefekteOps()), ...festeDeps });
+
+    expect(letzter.status).toBe('alles-verworfen');
+    expect(letzter.fortschrittGehalten).toBe(false); // aufgegeben statt ewig zu blockieren
+    const meta = await ladeLaufMeta();
+    expect(meta?.wasserzeichen).toBe(1000);
+    expect(meta?.defektLaeufe).toBe(0); // Zähler zurückgesetzt
+  });
+
+  it('setzt den Defekt-Zähler zurück, sobald ein Lauf wieder greift', async () => {
+    const idb = await setup();
+    await appendEreignis(idb, ereignis('ev1', 1000));
+    await fuehreKonsolidierungAus({ holeLease: () => lease(nurDefekteOps()), ...festeDeps });
+    expect((await ladeLaufMeta())?.defektLaeufe).toBe(1);
+
+    const transport = fakeTransport({
+      submitMessage: async () => JSON.stringify([
+        { op: 'ADD', block: 'arbeitskontext', text: 'Guter Fakt.', belege: ['ev1'] },
+      ]),
+    });
+    await fuehreKonsolidierungAus({ holeLease: () => lease(transport), ...festeDeps });
+
+    const meta = await ladeLaufMeta();
+    expect(meta?.defektLaeufe).toBe(0);
+    expect(meta?.wasserzeichen).toBe(1000);
   });
 });
 

@@ -367,12 +367,13 @@ Warzen bleiben: `G_STILBEISPIEL` enthält den Pflicht-Anfang unter der Überschr
 beide offenkundig nicht blockierend. Einen gerade bestätigten Prompt auf Verdacht erneut zu
 perturbieren verdirbt das einzige verlässliche Signal.
 
-**Gedächtnis: das Wasserzeichen rückt auch bei 0 angewandten Operationen vor**
-(`konsolidierung.ts` schreibt `schreibeLaufMeta` unbedingt). Werden alle Operationen verworfen —
-etwa weil das Modell die Schablone echote —, gilt der Lauf als erfolgreich und die betroffenen
-Ereignisse werden nie wieder konsolidiert. Der Prompt-seitige Auslöser ist behoben (D6), die
-**Folgenschwere im Fehlerfall** aber nicht: das ist eine Änderung am Konsolidierungs-Kontrakt,
-nicht an einem Prompt, und gehört in eine eigene Runde.
+**~~Gedächtnis: das Wasserzeichen rückt auch bei 0 angewandten Operationen vor~~ — nachgezogen in
+v2.287.0.** Werden alle Operationen verworfen — etwa weil das Modell die Schablone echote —, galt
+der Lauf als erfolgreich und die betroffenen Ereignisse wurden nie wieder konsolidiert. Der
+Prompt-seitige Auslöser war mit D6 behoben, die Folgenschwere nicht. Der Lauf hält jetzt die
+Position, wenn ausnahmslos **defekte** Operationen kamen; Sättigung (Duplikat/Kapazität) zählt
+weiter als verarbeitet, und ein Backstop verhindert den Dauer-Freeze. Kontrakt + Begründung:
+[assistent-gedaechtnis.md](architecture/assistent-gedaechtnis.md#wasserzeichen-kontrakt-v2287).
 
 **Wirkungsmessung.** Strukturelle Korrektheit ist getestet (`prompt-hygiene.test.ts` rendert
 A–G und prüft Invarianten), die Wirkung auf die Laufzeit **nicht**. Der einzige belastbare

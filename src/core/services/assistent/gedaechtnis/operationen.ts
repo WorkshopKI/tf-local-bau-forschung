@@ -22,6 +22,7 @@ import type {
   GedaechtnisEintrag,
   LaufErgebnis,
   VerworfeneOperation,
+  VerwurfsArt,
 } from './types';
 
 /** Injizierter Kontext — hält den Kern rein/testbar. */
@@ -68,6 +69,10 @@ export function wendeOperationenAn(
   // Defensive Kopie — Einträge werden bei INVALIDATE/UPDATE mutiert.
   const arbeit: GedaechtnisEintrag[] = bestand.map(e => ({ ...e, belege: [...e.belege] }));
   const verworfen: VerworfeneOperation[] = [];
+  /** Verwerfen mit Art — `defekt` ist der Normalfall, Sättigung die Ausnahme. */
+  const verwirf = (op: unknown, grund: string, art: VerwurfsArt = 'defekt'): void => {
+    verworfen.push({ op, grund, art });
+  };
   let hinzugefuegt = 0;
   let aktualisiert = 0;
   let invalidiert = 0;
@@ -81,7 +86,7 @@ export function wendeOperationenAn(
 
   for (const roh of ops) {
     if (!istRecord(roh) || typeof roh.op !== 'string') {
-      verworfen.push({ op: roh, grund: 'keine gültige Operation (Objekt mit op-Feld erwartet)' });
+      verwirf(roh, 'keine gültige Operation (Objekt mit op-Feld erwartet)');
       continue;
     }
     const typ = roh.op;
@@ -92,28 +97,28 @@ export function wendeOperationenAn(
 
     if (typ === 'ADD') {
       if (!istBlock(roh.block)) {
-        verworfen.push({ op: roh, grund: 'unbekannter Block' });
+        verwirf(roh, 'unbekannter Block');
         continue;
       }
       if (typeof roh.text !== 'string') {
-        verworfen.push({ op: roh, grund: 'text fehlt' });
+        verwirf(roh, 'text fehlt');
         continue;
       }
       const verdacht = istVerdaechtig(roh.text);
       if (verdacht.verdaechtig) {
-        verworfen.push({ op: roh, grund: verdacht.grund ?? 'Textprüfung' });
+        verwirf(roh, verdacht.grund ?? 'Textprüfung');
         continue;
       }
       if (!belegeGueltig(roh.belege, belegIndex)) {
-        verworfen.push({ op: roh, grund: 'Belege fehlen oder verweisen auf unbekannte Ereignisse' });
+        verwirf(roh, 'Belege fehlen oder verweisen auf unbekannte Ereignisse');
         continue;
       }
       if (istDuplikat(roh.block, roh.text)) {
-        verworfen.push({ op: roh, grund: 'Duplikat (Text bereits aktiv im Block)' });
+        verwirf(roh, 'Duplikat (Text bereits aktiv im Block)', 'gesaettigt');
         continue;
       }
       if (aktiveImBlock(roh.block).length >= MAX_EINTRAEGE_PRO_BLOCK) {
-        verworfen.push({ op: roh, grund: 'Blockkapazität erreicht' });
+        verwirf(roh, 'Blockkapazität erreicht', 'gesaettigt');
         continue;
       }
       arbeit.push({
@@ -132,29 +137,29 @@ export function wendeOperationenAn(
 
     if (typ === 'UPDATE') {
       if (typeof roh.id !== 'string') {
-        verworfen.push({ op: roh, grund: 'id fehlt' });
+        verwirf(roh, 'id fehlt');
         continue;
       }
       const ziel = findeAktiv(roh.id);
       if (!ziel) {
-        verworfen.push({ op: roh, grund: 'Ziel-Eintrag nicht aktiv oder nicht gefunden' });
+        verwirf(roh, 'Ziel-Eintrag nicht aktiv oder nicht gefunden');
         continue;
       }
       if (typeof roh.text !== 'string') {
-        verworfen.push({ op: roh, grund: 'text fehlt' });
+        verwirf(roh, 'text fehlt');
         continue;
       }
       const verdacht = istVerdaechtig(roh.text);
       if (verdacht.verdaechtig) {
-        verworfen.push({ op: roh, grund: verdacht.grund ?? 'Textprüfung' });
+        verwirf(roh, verdacht.grund ?? 'Textprüfung');
         continue;
       }
       if (!belegeGueltig(roh.belege, belegIndex)) {
-        verworfen.push({ op: roh, grund: 'Belege fehlen oder verweisen auf unbekannte Ereignisse' });
+        verwirf(roh, 'Belege fehlen oder verweisen auf unbekannte Ereignisse');
         continue;
       }
       if (istDuplikat(ziel.block, roh.text, ziel.id)) {
-        verworfen.push({ op: roh, grund: 'Duplikat (Text bereits aktiv im Block)' });
+        verwirf(roh, 'Duplikat (Text bereits aktiv im Block)', 'gesaettigt');
         continue;
       }
       ziel.status = 'invalidiert';
@@ -176,12 +181,12 @@ export function wendeOperationenAn(
 
     if (typ === 'INVALIDATE') {
       if (typeof roh.id !== 'string') {
-        verworfen.push({ op: roh, grund: 'id fehlt' });
+        verwirf(roh, 'id fehlt');
         continue;
       }
       const ziel = findeAktiv(roh.id);
       if (!ziel) {
-        verworfen.push({ op: roh, grund: 'Ziel-Eintrag nicht aktiv oder nicht gefunden' });
+        verwirf(roh, 'Ziel-Eintrag nicht aktiv oder nicht gefunden');
         continue;
       }
       ziel.status = 'invalidiert';
@@ -190,7 +195,7 @@ export function wendeOperationenAn(
       continue;
     }
 
-    verworfen.push({ op: roh, grund: `unbekannter Operationstyp „${typ}"` });
+    verwirf(roh, `unbekannter Operationstyp „${typ}"`);
   }
 
   return { eintraege: arbeit, hinzugefuegt, aktualisiert, invalidiert, verworfen };

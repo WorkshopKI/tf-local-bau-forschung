@@ -92,11 +92,25 @@ export type GedaechtnisOperation =
   | InvalidateOperation
   | NoopOperation;
 
+/**
+ * Warum eine Operation verworfen wurde — entscheidet über das Wasserzeichen.
+ *
+ * `defekt`      — das Modell lieferte Unbrauchbares (malformt, fehlende/ungültige
+ *                 Belege, unbekannter Block/Typ, Textprüfung). Die Ereignisse sind
+ *                 faktisch NICHT verarbeitet worden.
+ * `gesaettigt`  — die Operation war wohlgeformt, hatte aber keinen Platz oder
+ *                 keinen Neuigkeitswert (Duplikat, Blockkapazität). Inhaltlich
+ *                 erledigt. Das ist ein DAUERZUSTAND: als Defekt gewertet, stünde
+ *                 das Wasserzeichen bei vollem Block für immer still.
+ */
+export type VerwurfsArt = 'defekt' | 'gesaettigt';
+
 /** Eine verworfene Operation samt Grund (Eval + „letzter Lauf"-Anzeige). */
 export interface VerworfeneOperation {
   /** Roh-Op wie vom Modell geliefert (zur Diagnose). */
   op: unknown;
   grund: string;
+  art: VerwurfsArt;
 }
 
 /** Ergebnis eines Konsolidierungslaufs (LLM-frei aus `wendeOperationenAn`). */
@@ -116,12 +130,17 @@ export interface LaufMeta {
   /** Zeitpunkt des letzten (erfolgreichen ODER fehlerhaften) Laufs. */
   letzterLauf: number;
   /** Wasserzeichen = Zeitstempel des jüngsten konsolidierten Ereignisses.
-   *  Nur bei Erfolg fortgeschrieben. */
+   *  Nur fortgeschrieben, wenn der Lauf die Ereignisse tatsächlich verarbeitet
+   *  hat (siehe `MAX_DEFEKT_WIEDERHOLUNGEN`). */
   wasserzeichen: number | null;
   angewandt: number;
   verworfen: number;
   fehler: boolean;
   fehlerMeldung?: string;
+  /** Wie viele Läufe in Folge ausschließlich Defekte lieferten. Zurückgesetzt,
+   *  sobald ein Lauf das Wasserzeichen fortschreibt. Optional: Bestands-Records
+   *  aus der Zeit vor v2.286 haben das Feld nicht (⇒ `?? 0`). */
+  defektLaeufe?: number;
 }
 
 // ── Store / Grenzwert-Konstanten (mit Begründung) ───────────────────────────
@@ -146,6 +165,19 @@ export const MAX_TEXT_LEN = 300;
 /** Invalidierte Einträge werden nach so vielen Tagen deterministisch entfernt
  *  (Retention wie Phase 0 — Historie bleibt kurzfristig prüfbar, altert dann aus). */
 export const INVALID_RETENTION_TAGE = 30;
+
+/**
+ * Nach so vielen Läufen in Folge, die NUR Defekte lieferten, rückt das
+ * Wasserzeichen trotzdem vor.
+ *
+ * Ohne diese Obergrenze wäre der Schutz gefährlicher als die Lücke, die er
+ * schließt: liefert das Modell dauerhaft unbrauchbare Operationen (so wie vor
+ * v2.285 wegen der fehlenden `belege`-Ausnahme), stünde der Fortschritt für
+ * immer still, der Ereignis-Stau wüchse mit jedem Lauf und die Konsolidierung
+ * käme nie wieder in Gang. Zwei Versuche fangen den Ausrutscher ab; ein
+ * struktureller Fehler wird sichtbar (`fehler: true`), statt alles zu blockieren.
+ */
+export const MAX_DEFEKT_WIEDERHOLUNGEN = 2;
 
 /** Max. Anzahl neuer Ereignisse, die einem Lauf als Volltext übergeben werden;
  *  der Überhang geht als deterministische Zähl-Zusammenfassung je Typ ein

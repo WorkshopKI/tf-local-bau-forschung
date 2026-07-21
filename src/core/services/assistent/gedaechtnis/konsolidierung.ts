@@ -4,7 +4,14 @@
  *
  * Ablauf: Voraussetzungen (Flag + beide Opt-ins, Bridge frei) → Eingabe rein
  * aufbereiten → resetChat → GENAU EIN submitMessage → tolerant parsen →
- * `wendeOperationenAn` (rein) → Bestand + Wasserzeichen atomar schreiben. Kein
+ * `wendeOperationenAn` (rein) → Bestand + Wasserzeichen atomar schreiben.
+ *
+ * WASSERZEICHEN-KONTRAKT: der Fortschritt rückt nur vor, wenn der Lauf die
+ * Ereignisse verarbeitet hat — angewandte Operationen ODER Sättigung (Duplikat/
+ * Kapazität). Ein Lauf, dessen Operationen ausnahmslos als DEFEKT verworfen
+ * wurden, hält die Position (`alles-verworfen`), damit dieselben Ereignisse
+ * erneut angeboten werden; nach `MAX_DEFEKT_WIEDERHOLUNGEN` greift der Backstop.
+ * Kein
  * Auto-Retry. Abbruch bei Vordergrund-Aktivität (Skill/Panel hat Vorrang) lässt
  * Bestand + Wasserzeichen unverändert (Ops erst nach vollständigem Parse
  * angewandt). Der Transport wird als LEASE injiziert (`holeLease`) — testbar mit
@@ -28,10 +35,13 @@ import {
   persistiereEintraege,
   schreibeLaufMeta,
 } from './recorder';
+import { MAX_DEFEKT_WIEDERHOLUNGEN } from './types';
 import type { GedaechtnisEintrag, LaufErgebnis } from './types';
 
 export type KonsolidierungsStatus =
   | 'ok'
+  /** Geparst, aber jede Operation war defekt — die Ereignisse wurden nicht verarbeitet. */
+  | 'alles-verworfen'
   | 'nichts-zu-tun'
   | 'bridge-belegt'
   | 'ki-nicht-erreichbar'
@@ -46,6 +56,10 @@ export interface KonsolidierungsResultat {
   meldung?: string;
   /** true, wenn der resetChat vor dem Lauf eine mögliche Verlaufskontamination hatte. */
   resetRisiko?: boolean;
+  /** Nur bei `alles-verworfen`: true = Wasserzeichen gehalten, die Ereignisse
+   *  kommen im nächsten Lauf wieder. false = Backstop hat gegriffen, der Stau
+   *  wurde übersprungen (siehe `MAX_DEFEKT_WIEDERHOLUNGEN`). */
+  fortschrittGehalten?: boolean;
 }
 
 export interface KonsolidierungsDeps {
@@ -120,14 +134,32 @@ export async function fuehreKonsolidierungAus(deps: KonsolidierungsDeps): Promis
       jetzt: jetzt(),
       neueId,
     });
+
+    // Hat der Lauf die Ereignisse tatsächlich verarbeitet? Nur dann darf das
+    // Wasserzeichen vor — sonst gälten sie als konsolidiert, obwohl nichts
+    // ankam, und würden nie wieder angeboten. Sättigung (Duplikat/Kapazität)
+    // zählt als verarbeitet: der Inhalt IST bekannt bzw. bewusst gedeckelt.
+    const angewandt = ergebnis.hinzugefuegt + ergebnis.aktualisiert + ergebnis.invalidiert;
+    const defekte = ergebnis.verworfen.filter(v => v.art === 'defekt').length;
+    const bisherigeDefektLaeufe = meta?.defektLaeufe ?? 0;
+    const defektlauf = angewandt === 0 && defekte > 0;
+    // Backstop: nach MAX_DEFEKT_WIEDERHOLUNGEN vorrücken, statt den Fortschritt
+    // dauerhaft einzufrieren (siehe Konstante).
+    const haltePosition = defektlauf && bisherigeDefektLaeufe + 1 < MAX_DEFEKT_WIEDERHOLUNGEN;
+
     await persistiereEintraege(ergebnis.eintraege);
     await schreibeLaufMeta({
       letzterLauf: jetzt(),
-      wasserzeichen: eingabe.juengsterZeitstempel ?? wasserzeichen,
-      angewandt: ergebnis.hinzugefuegt + ergebnis.aktualisiert + ergebnis.invalidiert,
+      wasserzeichen: haltePosition ? wasserzeichen : (eingabe.juengsterZeitstempel ?? wasserzeichen),
+      angewandt,
       verworfen: ergebnis.verworfen.length,
-      fehler: false,
+      fehler: defektlauf,
+      ...(defektlauf ? { fehlerMeldung: `${defekte} Operation(en) unbrauchbar, keine angewandt` } : {}),
+      defektLaeufe: haltePosition ? bisherigeDefektLaeufe + 1 : 0,
     });
+    if (defektlauf) {
+      return { status: 'alles-verworfen', ergebnis, fortschrittGehalten: haltePosition };
+    }
     return { status: 'ok', ergebnis, resetRisiko: resetHatVerlaufsrisiko(resetStatus) };
   } catch (e) {
     // Vordergrund hatte Vorrang (Skill/Panel startete) → Signal abort. KEIN Meta-
