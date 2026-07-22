@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.294.1 — Text kopieren sitzt jetzt direkt am Abschnitt (Juli 2026)
+
+PATCH — Kopieren ist der häufigste Weg, einen fertigen Abschnitt weiterzuverwenden, saß aber als kleines Icon ohne Beschriftung ganz unten in der Knopfleiste — zwischen Bearbeiten, Daumen und Stil-Einstellungen und damit leicht zu übersehen.
+
+- „Text kopieren" wandert **beschriftet in die Meta-Zeile direkt unter den Abschnitt**, neben das Info-Icon; aus der Aktionsleiste (Entwurf + freigegeben) entfernt ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)).
+- Tooltip „Text in Zwischenablage kopieren", Erfolgs-Quittung als grüne „Kopiert"-Pille ([gutachten.css](src/plugins/antraege/gutachten/gutachten.css)).
+
 ### v2.294.0 — Sprachlicher Feinschliff fuer Gutachten-Abschnitte (Juli 2026)
 
 MINOR — Ist ein Gutachten-Abschnitt inhaltlich und vom Umfang her abgenommen, gab es bisher nur „Neu / Kürzer / Länger" — und die generieren aus der Vorhabensbeschreibung neu, der mühsam abgestimmte Inhalt verschob sich also wieder. Für den letzten, rein sprachlichen Arbeitsgang fehlte ein Werkzeug.

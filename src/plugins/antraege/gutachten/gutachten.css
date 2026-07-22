@@ -151,6 +151,11 @@
 /* Info-Icon der Meta-Zeile — Provenienz („erzeugt mit …") als Tooltip, optional Skill-Link. */
 .gutachten-werkstatt .g-meta-info { display: inline-flex; align-items: center; justify-content: center; padding: 2px; border: 0; background: none; color: var(--tf-text-tertiary); border-radius: 4px; cursor: pointer; }
 .gutachten-werkstatt .g-meta-info:hover { color: var(--tf-primary); background: var(--tf-hover); }
+/* Kopieren gehört an den Text (häufigster Weiterverwendungs-Weg) — sichtbarer als das
+   Info-Icon, aber leichter als ein Aktionsleisten-Knopf: beschriftet, mit Rahmen. */
+.gutachten-werkstatt .g-meta-copy { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border: .5px solid var(--tf-border-hover); border-radius: 99px; background: var(--tf-bg); color: var(--tf-text-secondary); font: inherit; cursor: pointer; }
+.gutachten-werkstatt .g-meta-copy:hover { color: var(--tf-primary); border-color: var(--tf-primary); background: var(--tf-hover); }
+.gutachten-werkstatt .g-meta-copy.ok { color: var(--tf-success-text); border-color: transparent; background: var(--tf-success-bg); }
 
 /* ---------- Regelprüfung am Text (Aufklapper in der Meta-Zeile) ---------- */
 /* Trigger erbt die Meta-Zeilen-Typografie; Befund färbt ihn amber/rot ein. */

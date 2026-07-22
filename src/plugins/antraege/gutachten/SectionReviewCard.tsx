@@ -216,6 +216,8 @@ export function SectionReviewCard({
 
   // Entwurf in die Zwischenablage — kopiert den kanonischen `finalerText` (ohne Teil-Badge).
   // Rein lokale Aktion (kein Netz/Transport); kurzes Häkchen-Feedback wie beim Chat-CopyButton.
+  // Sitzt bewusst in der Meta-Zeile direkt unter dem Text (nicht in der Aktionsleiste):
+  // Kopieren ist der häufigste Weg, den Abschnitt weiterzuverwenden, und gehört an den Text.
   const [copied, setCopied] = useState(false);
   const copy = useAsyncAction(async () => {
     await navigator.clipboard.writeText(run.finalerText);
@@ -225,12 +227,13 @@ export function SectionReviewCard({
   const copyBtn = (
     <button
       type="button"
-      className="g-vbtn"
-      title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : 'Text kopieren'}
+      className={`g-meta-copy${copied ? ' ok' : ''}`}
+      title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : 'Text in Zwischenablage kopieren'}
       aria-label="Text in Zwischenablage kopieren"
       onClick={() => copy.run()}
     >
-      {copied ? <Check className="g-vi" /> : <Copy className="g-vi" />}
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? 'Kopiert' : 'Text kopieren'}
     </button>
   );
 
@@ -364,6 +367,7 @@ export function SectionReviewCard({
             <span className="g-meta-info" title={prov} aria-label={prov}><Info size={13} /></span>
           );
         })()}
+        {copyBtn}
       </div>
 
       {/* Regelprüfung am Text — Auf/Zu über den Meta-Zeilen-Trigger (Grid-Animation wie AmpelGruppe). */}
@@ -436,7 +440,6 @@ export function SectionReviewCard({
         <div className="g-actionbar">
           <div className="g-ab-row compact">
             <span className="g-freigabe-tag"><Check className="g-vi" /> Freigegeben</span>
-            {copyBtn}
             <button type="button" className="g-btn sm" onClick={onErneutOeffnen}><Undo2 size={14} /> Erneut öffnen</button>
             {onQs && (
               <button type="button" className="g-btn sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
@@ -451,7 +454,6 @@ export function SectionReviewCard({
               Die Anpassen/Prüfen-Tools sitzen dezent oben direkt am Text (g-refine-row). */}
           <div className="g-ab-row compact">
             <button type="button" className="g-vbtn" title="Bearbeiten" aria-label="Bearbeiten" onClick={startEdit}><Pencil className="g-vi" /></button>
-            {copyBtn}
             {onFeedback && (
               fbDone ? (
                 <span className="g-fb-done">Danke — Rückmeldung gespeichert.</span>
