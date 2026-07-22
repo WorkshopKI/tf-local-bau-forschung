@@ -238,7 +238,8 @@ Die Vitest-Suite läuft in **zwei Projekten** (`vitest.config.mts`): `fast` (ohn
 ## Entwicklungs-Gate (innerer Loop vs. Phasen-Gate)
 
 - **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + nur betroffene Tests (`vitest run --changed`). Sekunden statt Minuten.
-- **Phasen-Gate** (vor jedem Commit): `npm run check` — voll: Typecheck + Lint + komplette Testsuite + `build:dev`.
+- **Phasen-Gate** (vor jedem Commit): `npm run check` — voll: Typecheck + Lint + `cycles` + komplette Testsuite + `build:dev`.
+- **Zyklen** ([check-cycles.mjs](scripts/check-cycles.mjs), nicht in `check:quick`): Allowlist ist **leer** — neuer Laufzeit-Zyklus wird aufgelöst (Barrel-Import → Direktimport), nicht eingetragen.
 - Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm run typecheck:full` (`tsc --build --force`).
 
 ## Shell-Konventionen (Windows)

@@ -33,13 +33,16 @@ import {
   type PersoenlicheUebernahmeWuensche,
 } from '../types';
 import { nextFreeAnonId, type AnonymMap } from '../services/identitaet';
-import { mergeProfilesIntoMitarbeiter } from '../services/onboarding';
+// Direktimporte statt des `onboarding`-Barrels: dessen `export *` zieht
+// `kompetenz-import.ts` + `onboarding-import.ts` mit, und die importieren diesen
+// Store zurueck — ueber das Barrel entstuende ein Laufzeit-Zyklus.
+import { mergeProfilesIntoMitarbeiter } from '../services/onboarding/profil-einsammeln';
 import { pingAuslastungWrite } from '../services/cross-tab';
 import {
   mergeWuenscheIntoZuweisungen,
   type MergeWuenscheResult,
   type ZuweisbarkeitsPruefung,
-} from '../services/onboarding';
+} from '../services/onboarding/uebernahme-einsammeln';
 import { pickVerbundZuweisung } from '../services/verbund';
 import { deriveHauptNeben } from '../services/klassifizierung';
 

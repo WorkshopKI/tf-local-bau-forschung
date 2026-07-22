@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.302.4 — Laufzeit-Import-Zyklen aufgeloest, tote Bruecke entfernt (Juli 2026)
+
+PATCH — Erster Schritt eines Konsolidierungs-Passes: keine Verhaltensänderung, nur Struktur. Vier Module zogen ein Symbol aus einem Sammel-Import, der nebenbei die ganze Plugin-Liste mitlud — und die führt zu jedem Modul zurück. Solche Ringe sind zur Laufzeit fragil und führen beim Lesen des Codes in die Irre.
+
+- Vier Laufzeit-Importzyklen aufgelöst, jeweils per Direktimport aufs Quellmodul ([OnlineTab.tsx](src/plugins/einstellungen/OnlineTab.tsx), [FeedbackKanbanWidget.tsx](src/plugins/home/widgets/FeedbackKanbanWidget.tsx), [WidgetConfigForm.tsx](src/plugins/home/widgets/WidgetConfigForm.tsx), [FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)).
+- Auslastungs-Store hängt nicht mehr am `onboarding`-Sammel-Import, der ihn selbst zurück-importierte ([useAuslastungData.ts](src/plugins/auslastung/hooks/useAuslastungData.ts)).
+- `plugins/home/naechsterSchritt.ts` gelöscht — Weiterleitung ohne Nutzer; die Handlungs-Formel lebt in [core/utils/naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts).
+- Neuer Wächter `npm run cycles` (in `npm run check`, abhängigkeitsfrei): findet Laufzeit-Zyklen; Allowlist ist leer und soll es bleiben ([check-cycles.mjs](scripts/check-cycles.mjs)).
+
 ### v2.302.3 — Aufbereitung: echter Verbindungs-Check vor dem Lauf, ehrliche Fehlerseiten (Juli 2026)
 
 PATCH — Gemeldet: KI getrennt, Knopf klickbar, danach „Fehler" an allen sechs Abschnitten — und kein Verbinden-Dialog. Der Preflight fragte nicht die Bridge, sondern nur, ob irgendein KI-Tab offen ist (`hasLiveBridgeWindow`). Ein Tab ohne aktives Lesezeichen bestand diese Prüfung, antwortete aber nie.

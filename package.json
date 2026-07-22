@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "2.302.3",
+  "version": "2.302.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -45,9 +45,10 @@
     "eval:aufbereitung": "vite-node --config vitest.config.mts src/core/services/skill-eval/aufbereitung-eval.ts --",
     "eval:gedaechtnis": "vite-node --config vitest.config.mts src/core/services/skill-eval/gedaechtnis-eval.ts --",
     "map": "node scripts/generate-code-map.mjs",
+    "cycles": "node scripts/check-cycles.mjs",
     "precheck": "npm run map",
     "check:quick": "npm run typecheck && npm run lint && npm run test:changed",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run build:dev"
+    "check": "npm run typecheck && npm run lint && npm run cycles && npm run test && npm run build:dev"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",

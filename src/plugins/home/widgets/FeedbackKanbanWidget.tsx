@@ -13,14 +13,17 @@ import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getFeedbackList } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
+// Direktimporte statt Barrel: das Barrel zieht `FeedbackPanel` mit, und das laedt
+// `@/plugins.config` — ueber die Plugin-Kette fuehrte der Weg zurueck in die
+// Home-Widgets (Laufzeit-Zyklus). Hier werden ohnehin nur Daten/Helfer gebraucht.
 import {
   CATEGORY_LABELS,
   CATEGORY_TEXT_VAR,
   STATUS_COLUMN_ICONS,
   STATUS_LABELS,
-  getLucideIcon,
-  useFeedbackNavStore,
-} from '@/components/feedback';
+} from '@/components/feedback/constants';
+import { getLucideIcon } from '@/components/feedback/feedbackUi';
+import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
 import {
   buildFeedbackKanbanLanes,
   defaultFeedbackKanbanLanes,

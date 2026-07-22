@@ -22,7 +22,10 @@ import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
 import type { UserPreset } from '@/core/services/csv/filter/types';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 import { getStatusCategoryLabel } from '@/plugins/antraege/groupAggregates';
-import { STATUS_LABELS } from '@/components/feedback';
+// Direktimport statt Barrel (siehe `FeedbackKanbanWidget`): das Barrel zieht
+// `FeedbackPanel` mit, das `@/plugins.config` laedt — und die Plugin-Config fuehrt
+// ueber die Einstellungen zurueck hierher. `constants.ts` ist reines Datenmodul.
+import { STATUS_LABELS } from '@/components/feedback/constants';
 import { FEEDBACK_LANE_STATUS, wechsleKanbanQuelle } from './feedbackKanbanLanes';
 import type {
   AmpelWidgetConfig,

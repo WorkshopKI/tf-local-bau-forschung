@@ -19,7 +19,10 @@ import {
   refreshUserFoldersRootPermission,
 } from '@/core/services/infrastructure/smb-handle';
 import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
-import { formatRelativeTime } from '@/components/feedback';
+// Direktimport statt Barrel: `@/components/feedback` zieht `FeedbackPanel` mit, das
+// wiederum `@/plugins.config` laedt — ueber die Einstellungen-Plugin-Kette entstuende
+// ein Laufzeit-Zyklus. `feedbackUi.ts` haengt nur an lucide + Typen + `./constants`.
+import { formatRelativeTime } from '@/components/feedback/feedbackUi';
 import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 const REFRESH_INTERVAL_MS = 45_000;

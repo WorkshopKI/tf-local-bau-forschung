@@ -14,24 +14,22 @@ import { MasterDetailLayout } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Input } from '@/components/ui/input';
-import {
-  BudgetBadge,
-  FeedbackBoardDetail,
-  FeedbackCard,
-  FeedbackKanban,
-  FeedbackTypeChips,
-  FeedbackSortSelect,
-  type FeedbackSort,
-  FeedbackStatusSelect,
-  type FeedbackStatusFilter,
-  NotificationBell,
-  MyProgressBar,
-  useUnreadReplies,
-  useFeedbackNavStore,
-  type TypeChipItem,
-  CATEGORY_DOT,
-  feedbackTitle,
-} from '@/components/feedback';
+// Direkt an den Quellmodulen statt am Barrel: das Barrel zieht `FeedbackPanel` mit,
+// und das laedt `@/plugins.config` — die Plugin-Liste fuehrt zurueck auf diese Seite
+// (Laufzeit-Zyklus). Ohne die Sammel-Zeile ist der Weg jedes Symbols direkt.
+import { BudgetBadge } from '@/components/feedback/BudgetBadge';
+import { FeedbackBoardDetail } from '@/components/feedback/FeedbackBoardDetail';
+import { FeedbackCard } from '@/components/feedback/FeedbackCard';
+import { FeedbackKanban } from '@/components/feedback/FeedbackKanban';
+import { FeedbackTypeChips, type TypeChipItem } from '@/components/feedback/FeedbackTypeChips';
+import { FeedbackSortSelect, type FeedbackSort } from '@/components/feedback/FeedbackSortSelect';
+import { FeedbackStatusSelect, type FeedbackStatusFilter } from '@/components/feedback/FeedbackStatusSelect';
+import { NotificationBell } from '@/components/feedback/NotificationBell';
+import { MyProgressBar } from '@/components/feedback/MyProgressBar';
+import { useUnreadReplies } from '@/components/feedback/useUnreadReplies';
+import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
+import { CATEGORY_DOT } from '@/components/feedback/constants';
+import { feedbackTitle } from '@/components/feedback/feedbackUi';
 import {
   getFeedbackList,
   getSponsoringProgress,

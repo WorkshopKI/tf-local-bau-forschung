@@ -75,6 +75,10 @@ describe('doc-links', () => {
     // 47_500 → 47_700 (v2.296): eine Decision-Tree-Zeile für die Skill-Vorgaben
     // (wo Umfang & Form leben, seit sie nicht mehr Regel-Bibliothek sind). Bereits
     // auf Stichwort + Doc-Link gekürzt; ohne Zeile fände sie niemand.
-    expect(bytes).toBeLessThan(47_700);
+    // 47_700 → 47_900 (Konsolidierungs-Pass): der Zyklen-Wächter im Entwicklungs-
+    // Gate. Ein Gate-Schritt, den `npm run check` fährt, muss dort stehen, sonst
+    // ist er beim ersten roten Lauf unerklärlich. Auf Link + einen Satz gekürzt;
+    // das Warum lebt im Docstring von scripts/check-cycles.mjs.
+    expect(bytes).toBeLessThan(47_900);
   });
 });

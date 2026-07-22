@@ -10,7 +10,8 @@ import { getStatusCategory, isTerminalStatus } from '@/core/utils/status-canonic
  * ist — abgeleitet aus dem CSV-Roh-Status und (optional) dem PreCheck-Stand.
  *
  * Verschoben aus `src/plugins/home/naechsterSchritt.ts` (Journey-Paket 2,
- * Phase 1); dort bleibt ein `@deprecated`-Re-Export als Brücke.
+ * Phase 1); der dortige `@deprecated`-Re-Export ist im Konsolidierungs-Pass
+ * entfernt (Brücke ohne Konsumenten) — dies ist die einzige Heimat.
  */
 export interface NaechsterSchritt {
   /** Phasen-Label, z.B. „Fachprüfung". */
