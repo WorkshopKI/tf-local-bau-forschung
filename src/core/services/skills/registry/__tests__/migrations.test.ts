@@ -18,7 +18,14 @@ import {
   ANFRAGE_ANON_KLAR_MIGRATION,
   SKILL_VORGABEN_MIGRATION,
   GA_INTERPUNKTION_MIGRATION,
+  AUFBEREITUNG_DR_STICHWORTE_MIGRATION,
 } from '../migrations';
+import {
+  AUFBEREITUNG_RECHERCHE_PROMPT_SKILL,
+  AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,
+  RECHERCHE_PROMPT_SYSTEM_ALT,
+  RECHERCHE_PROMPT_TEMPLATE_ALT,
+} from '../aufbereitung-recherche-prompt.seed';
 import {
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
   ANFRAGE_ANONYMISIEREN_SKILL,
@@ -67,7 +74,7 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION, AUFBEREITUNG_DR_STICHWORTE_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
@@ -78,6 +85,7 @@ const NUR_UMFANG = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_MIGRATION);
 const NUR_UMFANG_CD = ALLE_MARKER.filter(m => m !== GA_UMFANG_DEDUP_CD_MIGRATION);
 const NUR_PFLICHT_ANFANG = ALLE_MARKER.filter(m => m !== GA_PFLICHT_ANFANG_KLAR_MIGRATION);
 const NUR_ANON_KLAR = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_KLAR_MIGRATION);
+const NUR_DR_STICHWORTE = ALLE_MARKER.filter(m => m !== AUFBEREITUNG_DR_STICHWORTE_MIGRATION);
 
 const OLD_A = buildKurzfassungPrompt(false);
 const NEW_A = buildKurzfassungPrompt(true);
@@ -543,7 +551,7 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION, AUFBEREITUNG_DR_STICHWORTE_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);
@@ -708,5 +716,49 @@ describe('reconcile — Ein-Skill-Umfangsregeln → SkillRecord.vorgaben', () =>
     const zweit = reconcileEinmaligeAktivierungen(erst.file);
     expect(zweit.geaendert).toBe(false);
     expect(zweit.file.skills[0]!.vorgaben).toEqual(erst.file.skills[0]!.vorgaben);
+  });
+});
+
+
+describe('reconcile — DR-Auftrag auf Stichworte (v2.301)', () => {
+  const alt = (over: Partial<SkillRecord> = {}): SkillRecord =>
+    skill(AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID, {
+      systemPrompt: RECHERCHE_PROMPT_SYSTEM_ALT,
+      promptTemplate: RECHERCHE_PROMPT_TEMPLATE_ALT,
+      maxTokens: 2048,
+      version: 1,
+      aktiv: false,
+      ...over,
+    });
+
+  it('pristine v1-Stand wird auf die Stichwort-Fassung gehoben', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(file([alt()], NUR_DR_STICHWORTE));
+    expect(geaendert).toBe(true);
+    const s = out.skills[0]!;
+    expect(s.promptTemplate).toBe(AUFBEREITUNG_RECHERCHE_PROMPT_SKILL.promptTemplate);
+    expect(s.systemPrompt).toBe(AUFBEREITUNG_RECHERCHE_PROMPT_SKILL.systemPrompt);
+    expect(s.maxTokens).toBe(512);
+    expect(s.version).toBe(2);
+    expect(s.aktiv).toBe(false); // Freischaltung bleibt eine eigene Entscheidung
+    expect(out.angewandteMigrationen).toContain(AUFBEREITUNG_DR_STICHWORTE_MIGRATION);
+  });
+
+  it('kuratiert editiertes Template bleibt unberührt', () => {
+    const edit = alt({ promptTemplate: RECHERCHE_PROMPT_TEMPLATE_ALT + '\nZusatz' });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([edit], NUR_DR_STICHWORTE));
+    expect(out.skills[0]!.promptTemplate).toBe(RECHERCHE_PROMPT_TEMPLATE_ALT + '\nZusatz');
+    expect(out.skills[0]!.maxTokens).toBe(2048);
+  });
+
+  it('kuratiert gesetztes maxTokens bleibt, Texte werden trotzdem gehoben', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([alt({ maxTokens: 4096 })], NUR_DR_STICHWORTE));
+    expect(out.skills[0]!.maxTokens).toBe(4096);
+    expect(out.skills[0]!.promptTemplate).toBe(AUFBEREITUNG_RECHERCHE_PROMPT_SKILL.promptTemplate);
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt den Alt-Stand stehen', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(file([alt()], ALLE_MARKER));
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.promptTemplate).toBe(RECHERCHE_PROMPT_TEMPLATE_ALT);
   });
 });

@@ -33,6 +33,7 @@ import { ZahlenTab } from './ZahlenTab';
 import { VerwertungTab } from './VerwertungTab';
 import { GlossarTab } from './GlossarTab';
 import { RechercheTab } from './RechercheTab';
+import type { BekannteStammwerte } from './recherche-leak';
 import { FragenTab } from './FragenTab';
 import { LesemodusTab } from './LesemodusTab';
 import { LesemodusSprungProvider } from './lesemodusSprung';
@@ -51,6 +52,22 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     () => (verbund ? buildKurzfassungContext(verbund, tvs, antragKey, verbund.verbund_id) : null),
     [verbund, tvs, antragKey],
   );
+  // Identifizierende Stammwerte für den DR-Leak-Check (Paket 5). Personennamen aus dem
+  // Steckbrief liegen zur recherche-prompt-Laufzeit noch nicht vor (der Baustein läuft
+  // zuerst) — die TV-Antragsteller/-Titel decken den Kern deterministisch ab. Auch der
+  // Stichwort-Editor prüft Eingaben dagegen, deshalb eigener Memo statt Inline-Objekt.
+  const bekannteWerte = useMemo<BekannteStammwerte>(
+    () => (ctx ? {
+      antragsteller: ctx.antragsteller,
+      foerderkennzeichen: ctx.foerderkennzeichen,
+      akronym: ctx.akronym,
+      titel: ctx.titel,
+      aktenzeichen: ctx.knownIds,
+      personennamen: tvs.map(tv => (typeof tv.antragsteller === 'string' ? tv.antragsteller.trim() : '')).filter(Boolean),
+      weitereTitel: tvs.map(tv => (typeof tv.titel === 'string' ? tv.titel.trim() : '')).filter(Boolean),
+    } : {}),
+    [ctx, tvs],
+  );
   const aufb = useAufbereitung(
     ctx ? {
       key: ctx.key,
@@ -61,18 +78,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
         akronym: typeof tv.akronym === 'string' && tv.akronym.trim() ? tv.akronym.trim() : null,
         titel: typeof tv.titel === 'string' && tv.titel.trim() ? tv.titel.trim() : null,
       })),
-      // Identifizierende Stammwerte für den DR-Prompt-Leak-Check (Paket 5). Personennamen
-      // aus dem Steckbrief liegen zur recherche-prompt-Laufzeit noch nicht vor (der Baustein
-      // läuft zuerst) — die TV-Antragsteller/-Titel decken den Kern deterministisch ab.
-      bekannteWerte: {
-        antragsteller: ctx.antragsteller,
-        foerderkennzeichen: ctx.foerderkennzeichen,
-        akronym: ctx.akronym,
-        titel: ctx.titel,
-        aktenzeichen: ctx.knownIds,
-        personennamen: tvs.map(tv => (typeof tv.antragsteller === 'string' ? tv.antragsteller.trim() : '')).filter(Boolean),
-        weitereTitel: tvs.map(tv => (typeof tv.titel === 'string' ? tv.titel.trim() : '')).filter(Boolean),
-      },
+      bekannteWerte,
     } : null,
   );
   const [tab, setTab] = useState<AufbereitungTabId>('uebersicht');
@@ -298,7 +304,9 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             importDatei={aufb.importDateiRecherche}
             loescheImport={aufb.loescheExternRecherche}
             speichereDrPrompt={aufb.speichereRecherchePrompt}
+            speichereDrStichworte={aufb.speichereRechercheStichworte}
             verwerfeDrPromptEdit={aufb.verwerfeRecherchePromptEdit}
+            bekannteWerte={bekannteWerte}
           />
         ) : tab === 'fragen' ? (
           <FragenTab

@@ -4,9 +4,10 @@ import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import { leseGecachteBausteine } from '../baustein-rehydrierung';
 import {
-  aspekteCacheKey, getOrComputeBaustein, glossarCacheKey, recherchePromptCacheKey,
+  aspekteCacheKey, getOrComputeBaustein, glossarCacheKey,
   steckbriefCacheKey, verwertungCacheKey, vbHashFuer, zahlenCacheKey,
 } from '../bausteine';
+import { recherchePromptCacheKey } from '../recherche-prompt';
 
 /** Minimaler In-Memory-IDB (nur die genutzten Methoden) — Muster aus `bausteine.test.ts`. */
 function fakeIdb(): { store: Map<string, unknown>; idb: IDBStore } {

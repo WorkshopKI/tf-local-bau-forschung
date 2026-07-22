@@ -21,6 +21,12 @@ import {
 import { AUFBEREITUNG_ZAHLEN_SKILL_ID } from './aufbereitung-zahlen.seed';
 import { AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';
 import {
+  AUFBEREITUNG_RECHERCHE_PROMPT_SKILL,
+  AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,
+  RECHERCHE_PROMPT_SYSTEM_ALT,
+  RECHERCHE_PROMPT_TEMPLATE_ALT,
+} from './aufbereitung-recherche-prompt.seed';
+import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
   RISIKEN_SKILL_ID,
@@ -87,6 +93,9 @@ export const SKILL_VORGABEN_MIGRATION = 'skill-vorgaben-2026-07';
 
 /** ID der Interpunktions-Vorgabe (Regel an A–G binden + Lektor-Pflichtblock). */
 export const GA_INTERPUNKTION_MIGRATION = 'ga-interpunktion-2026-07';
+
+/** ID des Umbaus „Deep-Research-Auftrag" → Stichworte + feste Vorlage im Code. */
+export const AUFBEREITUNG_DR_STICHWORTE_MIGRATION = 'aufbereitung-dr-stichworte-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -344,6 +353,39 @@ function applyInterpunktion(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Deep-Research-Baustein: der Skill formuliert nicht mehr den ganzen Auftrag, sondern
+ * liefert nur noch die STICHWORTE des Themengebiets — den Auftragstext baut seit v2.300
+ * eine feste Vorlage im Code (`aufbereitung/recherche-auftrag.ts`).
+ *
+ * Hintergrund: der frei formulierte Auftrag trug die Antworten des Antrags in sich
+ * (identifizierte Lücken, Marktzahlen, Wettbewerber, Zielkennwerte). Der externe Dienst
+ * bestätigte damit den Antrag, statt unabhängig zu recherchieren — und substanzieller
+ * Antragsinhalt verließ mit dem Kopieren den geschützten Bereich.
+ *
+ * Pristine-Guard über BEIDE Textfelder (Muster `applyAnonKlar`): nur wenn System-Prompt
+ * UND Template exakt dem eingefrorenen v1-Stand entsprechen, wird gehoben. `maxTokens`
+ * wird nur vom Alt-Seed-Wert (2048) auf 512 gesenkt; ein bewusst gesetzter Kurator-Wert
+ * bleibt. `aktiv` bleibt unangetastet (dev läuft über den Runtime-Override).
+ */
+function applyDrStichworte(skills: SkillRecord[]): SkillRecord[] {
+  const neu = AUFBEREITUNG_RECHERCHE_PROMPT_SKILL;
+  return skills.map(s =>
+    s.id === AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID
+      && s.systemPrompt === RECHERCHE_PROMPT_SYSTEM_ALT
+      && s.promptTemplate === RECHERCHE_PROMPT_TEMPLATE_ALT
+      ? {
+        ...s,
+        systemPrompt: neu.systemPrompt,
+        promptTemplate: neu.promptTemplate,
+        name: neu.name,
+        beschreibung: neu.beschreibung,
+        maxTokens: s.maxTokens === 2048 ? neu.maxTokens : s.maxTokens,
+        version: Math.max(s.version, 2),
+      }
+      : s);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Ein-Skill-Umfangsregeln → `SkillRecord.vorgaben`                            */
 /* -------------------------------------------------------------------------- */
@@ -474,6 +516,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: ANFRAGE_ANON_KLAR_MIGRATION, apply: nurSkills(applyAnonKlar) },
   { marker: SKILL_VORGABEN_MIGRATION, apply: applySkillVorgaben },
   { marker: GA_INTERPUNKTION_MIGRATION, apply: nurSkills(applyInterpunktion) },
+  { marker: AUFBEREITUNG_DR_STICHWORTE_MIGRATION, apply: nurSkills(applyDrStichworte) },
 ];
 
 /**

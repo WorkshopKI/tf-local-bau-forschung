@@ -25,28 +25,44 @@ describe('normalisiereAuftragstext', () => {
 });
 
 describe('parseRecherchePrompt', () => {
-  it('normalisiert einen doppelt escapten Auftragstext', () => {
-    // Praxis-Fall: das Modell schreibt `\\n` in den JSON-String, nach JSON.parse
-    // bleiben die zwei Zeichen `\` + `n` stehen.
-    const raw = '```json\n{ "schemaVersion": 1, "prompt": "Auftrag:\\\\n\\\\n1. Stand der Technik\\\\n- Verfahren" }\n```';
-    const d = parseRecherchePrompt(raw);
-    expect(d?.prompt).toBe('Auftrag:\n\n1. Stand der Technik\n- Verfahren');
+  const block = (inhalt: string): string => `Hier:\n\`\`\`json\n${inhalt}\n\`\`\``;
+
+  it('liest die Stichworte und baut den Auftrag daraus', () => {
+    const d = parseRecherchePrompt(block(
+      '{"schemaVersion": 1, "themenfeld": "Agentenbasierte Simulation", "technologien": ["Multi-Agenten-Systeme", "Sprachmodelle"]}',
+    ));
+    expect(d).not.toBeNull();
+    expect(d?.stichworte.themenfeld).toBe('Agentenbasierte Simulation');
+    expect(d?.stichworte.technologien).toEqual(['Multi-Agenten-Systeme', 'Sprachmodelle']);
+    // Der Auftragstext kommt aus der Vorlage, nicht aus der Modell-Antwort.
+    expect(d?.prompt).toContain('Teil 1 — Stand der Technik');
+    expect(d?.prompt).toContain('Agentenbasierte Simulation');
   });
 
-  it('liest schemaVersion + prompt aus einem sauberen JSON-Codeblock', () => {
-    const raw = 'Hier:\n```json\n{ "schemaVersion": 1, "prompt": "Recherchiere den Stand der Technik zu Sensorik." }\n```';
-    const d = parseRecherchePrompt(raw);
-    expect(d).not.toBeNull();
-    expect(d?.schemaVersion).toBe(1);
-    expect(d?.prompt).toContain('Stand der Technik');
+  it('verwirft Zahlwerte aus den Stichworten und zählt sie', () => {
+    const d = parseRecherchePrompt(block(
+      '{"themenfeld": "Agentensimulation", "leistungsdimensionen": ["Latenz", "hoechstens 10 s Antwortzeit"], "marktsegmente": ["Mittelstand"]}',
+    ));
+    expect(d?.stichworte.leistungsdimensionen).toEqual(['Latenz']);
+    expect(d?.entfernt).toBe(1);
+    expect(d?.prompt).not.toContain('10 s');
+  });
+
+  it('verwirft identifizierende Stichworte', () => {
+    const d = parseRecherchePrompt(
+      block('{"themenfeld": "Agentensimulation", "marktsegmente": ["Musterfirma GmbH", "Maschinenbau"]}'),
+      { antragsteller: 'Musterfirma GmbH' },
+    );
+    expect(d?.stichworte.marktsegmente).toEqual(['Maschinenbau']);
+    expect(d?.prompt).not.toContain('Musterfirma');
   });
 
   it('verkraftet das Bridge-Trailing-Artefakt nach dem Codeblock', () => {
-    const raw = '```json\n{ "schemaVersion": 1, "prompt": "Auftragstext." }\n```\n :help[]';
-    expect(parseRecherchePrompt(raw)?.prompt).toBe('Auftragstext.');
+    const raw = '```json\n{"themenfeld": "Sensorik"}\n```\n :help[]';
+    expect(parseRecherchePrompt(raw)?.stichworte.themenfeld).toBe('Sensorik');
   });
 
-  it('gibt null zurück, wenn kein prompt-Feld da ist', () => {
+  it('gibt null zurück, wenn kein Feld etwas hergibt', () => {
     expect(parseRecherchePrompt('```json\n{ "schemaVersion": 1 }\n```')).toBeNull();
   });
 

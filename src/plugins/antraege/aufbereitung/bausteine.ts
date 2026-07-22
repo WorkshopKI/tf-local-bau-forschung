@@ -55,8 +55,8 @@ export const glossarCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:glossar:${vbHash}`;
 export const verwertungCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:verwertung:${vbHash}`;
-export const recherchePromptCacheKey = (antragKey: string, vbHash: string): string =>
-  `aufbereitung:${antragKey}:recherche-prompt:${vbHash}`;
+// `recherchePromptCacheKey` lebt in `recherche-prompt.ts` — sein Key trägt die
+// Stichwort-Schema-Version, und die von hier zu importieren wäre ein Modul-Zyklus.
 /** Import-Struktur-Lauf: gekeyt über den Hash des EXTERNEN Textes (nicht `vbHash`). */
 export const rechercheImportCacheKey = (antragKey: string, externHash: string): string =>
   `aufbereitung:${antragKey}:recherche-import:${externHash}`;

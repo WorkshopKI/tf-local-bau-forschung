@@ -25,10 +25,11 @@ export interface RechercheStammdaten {
   antragsteller: string | null;
 }
 
-const clean = (s: string): string => s.trim().replace(/\s+/g, ' ');
+/** Normalisiert Whitespace (geteilt mit dem Stichwort-Sanitizer). */
+export const clean = (s: string): string => s.trim().replace(/\s+/g, ' ');
 
 /** Kürzt einen (Satz-)Text auf ≤ n Wörter — Suchanfragen wollen Kernbegriffe, keine Sätze. */
-function kurz(s: string, n = 10): string {
+export function kurz(s: string, n = 10): string {
   const w = clean(s).split(' ').filter(Boolean);
   return w.slice(0, n).join(' ');
 }

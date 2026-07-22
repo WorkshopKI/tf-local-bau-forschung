@@ -15,15 +15,15 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import {
-  aspekteCacheKey, glossarCacheKey, leseBausteinCache, recherchePromptCacheKey,
+  aspekteCacheKey, glossarCacheKey, leseBausteinCache,
   steckbriefCacheKey, verwertungCacheKey, zahlenCacheKey,
 } from './bausteine';
+import { recherchePromptCacheKey, type RecherchePromptDaten } from './recherche-prompt';
 import type { AspektMapping } from './aspekte';
 import type { SteckbriefDaten } from './steckbrief';
 import type { ZahlenDaten } from './zahlen';
 import type { GlossarDaten } from './glossar';
 import type { VerwertungDaten } from './verwertung';
-import type { RecherchePromptDaten } from './recherche-prompt';
 
 /** Was aus dem Cache zurückkam — je Baustein `null`, wenn nichts Passendes da war. */
 export interface GecachteBausteine {

@@ -33,7 +33,7 @@ import {
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import {
-  istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, recherchePromptCacheKey, vbHashFuer,
+  istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, vbHashFuer,
   type BausteinResult,
 } from './bausteine';
 import { leseGecachteBausteine } from './baustein-rehydrierung';
@@ -44,9 +44,12 @@ import { computeGlossarBaustein, type GlossarDaten } from './glossar';
 import { computeVerwertungBaustein, type VerwertungDaten } from './verwertung';
 import {
   computeRecherchePromptBaustein, normalisiereAuftragstext, parseRecherchePrompt, pruefeBearbeitetenPrompt,
-  type RecherchePromptDaten,
+  recherchePromptCacheKey, type RecherchePromptDaten,
 } from './recherche-prompt';
-import { RECHERCHE_SCHEMA_VERSION } from './recherche-schema';
+import { baueDeepResearchAuftrag } from './recherche-auftrag';
+import {
+  LEERE_STICHWORTE, STICHWORTE_SCHEMA_VERSION, type RechercheStichworte,
+} from './recherche-stichworte';
 import { strukturiereImport } from './recherche-import';
 import type { AufbereitungRun, ExterneRecherche } from './types';
 
@@ -99,6 +102,8 @@ export interface UseAufbereitungResult {
   recherchePrompt: BausteinUiState<RecherchePromptDaten>;
   /** Übernimmt einen von Hand bearbeiteten DR-Auftragstext (erneuter Leak-Check, siehe unten). */
   speichereRecherchePrompt: UseAsyncActionResult<[string]>;
+  /** Übernimmt geänderte Stichworte und baut den Auftrag aus der Vorlage neu. */
+  speichereRechercheStichworte: UseAsyncActionResult<[RechercheStichworte]>;
   /** Stellt die ursprüngliche KI-Fassung des DR-Auftrags wieder her (nur nach einer Bearbeitung). */
   verwerfeRecherchePromptEdit: UseAsyncActionResult<[]>;
   /** Korpus-Volltext (VB + narrative Zusatzdokumente) für Fundstellen-Auszüge +
@@ -453,8 +458,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     if (!vbMarkdown) throw new Error('Der Korpus ist noch nicht geladen — bitte die Seite neu öffnen.');
     const vorher = recherchePrompt.daten;
     await uebernimmRecherchePrompt(ctx, vbMarkdown, {
-      schemaVersion: vorher?.schemaVersion ?? RECHERCHE_SCHEMA_VERSION,
+      schemaVersion: vorher?.schemaVersion ?? STICHWORTE_SCHEMA_VERSION,
+      stichworte: vorher?.stichworte ?? LEERE_STICHWORTE,
       prompt: text,
+      ...(vorher?.entfernt ? { entfernt: vorher.entfernt } : {}),
       bearbeitet: {
         am: new Date().toISOString(),
         // Die ERSTE KI-Fassung behalten — mehrfaches Bearbeiten überschreibt sie nicht.
@@ -463,12 +470,29 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     });
   });
 
+  /**
+   * Übernimmt geänderte Stichworte und baut den Auftrag daraus NEU. Damit endet eine
+   * etwaige Handfassung: die Vorlage ist wieder die Quelle, und `bearbeitet` fällt weg —
+   * sonst stünden zwei Wahrheiten nebeneinander (Chips sagen A, Text zeigt B).
+   */
+  const speichereRechercheStichworte = useAsyncAction(async (stichworte: RechercheStichworte) => {
+    if (!ctx) return;
+    if (!vbMarkdown) throw new Error('Der Korpus ist noch nicht geladen — bitte die Seite neu öffnen.');
+    await uebernimmRecherchePrompt(ctx, vbMarkdown, {
+      schemaVersion: STICHWORTE_SCHEMA_VERSION,
+      stichworte,
+      prompt: baueDeepResearchAuftrag(stichworte),
+    });
+  });
+
   /** Stellt die ursprüngliche KI-Fassung wieder her (ohne neuen Lauf, mit Leak-Check). */
   const verwerfeRecherchePromptEdit = useAsyncAction(async () => {
-    const original = recherchePrompt.daten?.bearbeitet?.kiOriginal;
+    const vorher = recherchePrompt.daten;
+    const original = vorher?.bearbeitet?.kiOriginal;
     if (!ctx || !vbMarkdown || !original) return;
     await uebernimmRecherchePrompt(ctx, vbMarkdown, {
-      schemaVersion: recherchePrompt.daten?.schemaVersion ?? RECHERCHE_SCHEMA_VERSION,
+      schemaVersion: vorher?.schemaVersion ?? STICHWORTE_SCHEMA_VERSION,
+      stichworte: vorher?.stichworte ?? LEERE_STICHWORTE,
       prompt: original,
     });
   });
@@ -519,5 +543,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, speichereRechercheStichworte, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
 }

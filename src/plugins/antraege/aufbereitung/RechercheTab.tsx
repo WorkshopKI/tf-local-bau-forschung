@@ -27,6 +27,9 @@ import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsync
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
 import { normalisiereAuftragstext, parseRecherchePrompt, type RecherchePromptDaten } from './recherche-prompt';
+import { StichworteEditor } from './StichworteEditor';
+import type { RechercheStichworte } from './recherche-stichworte';
+import type { BekannteStammwerte } from './recherche-leak';
 import type { AufbereitungRun, ExterneRecherche } from './types';
 import type { BausteinUiState } from './useAufbereitung';
 import { baueRechercheAnfragen, baueMarktzugangText, type RechercheStammdaten } from './recherche';
@@ -43,10 +46,13 @@ interface Props {
   importDatei: UseAsyncActionResult<[File]>;
   loescheImport: UseAsyncActionResult<[number]>;
   speichereDrPrompt: UseAsyncActionResult<[string]>;
+  speichereDrStichworte: UseAsyncActionResult<[RechercheStichworte]>;
   verwerfeDrPromptEdit: UseAsyncActionResult<[]>;
+  /** Identifizierende Stammwerte — der Chip-Editor prüft Eingaben gegen dieselbe Regel. */
+  bekannteWerte: BekannteStammwerte;
 }
 
-export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bausteine, onMarktzugangKopiert, importText, importDatei, loescheImport, speichereDrPrompt, verwerfeDrPromptEdit }: Props): React.ReactElement {
+export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bausteine, onMarktzugangKopiert, importText, importDatei, loescheImport, speichereDrPrompt, speichereDrStichworte, verwerfeDrPromptEdit, bekannteWerte }: Props): React.ReactElement {
   const storage = useStorage();
   const [settings, setSettings] = useState<EffektiveAufbereitungSettings>(() => ({
     drUrls: getAufbereitungDrUrls(),
@@ -68,7 +74,9 @@ export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bau
         bausteine={bausteine}
         drUrls={settings.drUrls}
         speichern={speichereDrPrompt}
+        speichereStichworte={speichereDrStichworte}
         verwerfen={verwerfeDrPromptEdit}
+        bekannteWerte={bekannteWerte}
       />
       {settings.marktzugangAktiv ? (
         <Marktzugang stammdaten={stammdaten} run={run} mistralUrl={settings.drUrls.mistral} onKopiert={onMarktzugangKopiert} />
@@ -95,13 +103,15 @@ function auftragstextVon(z: BausteinUiState<RecherchePromptDaten>): string {
 }
 
 function DeepResearchStart({
-  recherchePrompt, bausteine, drUrls, speichern, verwerfen,
+  recherchePrompt, bausteine, drUrls, speichern, speichereStichworte, verwerfen, bekannteWerte,
 }: {
   recherchePrompt: BausteinUiState<RecherchePromptDaten>;
   bausteine: UseAsyncActionResult<[]>;
   drUrls: { chatgpt: string; claude: string; mistral: string };
   speichern: UseAsyncActionResult<[string]>;
+  speichereStichworte: UseAsyncActionResult<[RechercheStichworte]>;
   verwerfen: UseAsyncActionResult<[]>;
+  bekannteWerte: BekannteStammwerte;
 }): React.ReactElement {
   const s = recherchePrompt.status;
   const [editing, setEditing] = useState(false);
@@ -189,7 +199,21 @@ function DeepResearchStart({
     );
   }
 
-  const bearbeitet = recherchePrompt.daten?.bearbeitet;
+  const daten = recherchePrompt.daten;
+  const bearbeitet = daten?.bearbeitet;
+  // Die Stichworte sind die Quelle des Auftrags — der Prüfer korrigiert hier, nicht im
+  // Fließtext. Alt-Fassungen ohne Stichworte (Handfassung vor v2.301) zeigen den Block nicht.
+  const stichworteBlock = daten?.stichworte ? (
+    <StichworteEditor
+      stichworte={daten.stichworte}
+      bekannteWerte={bekannteWerte}
+      entfernt={daten.entfernt}
+      busy={speichereStichworte.busy}
+      fehler={speichereStichworte.error}
+      handfassung={!!bearbeitet}
+      onAendern={s => void speichereStichworte.run(s)}
+    />
+  ) : null;
   const spur = bearbeitet ? (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
       <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 bg-[var(--tf-bg-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
@@ -221,6 +245,7 @@ function DeepResearchStart({
             {' '}Entfernen Sie die Angabe über „Bearbeiten"; diese Fassung wird erst gespeichert und freigegeben, wenn sie keine identifizierende Angabe mehr enthält.
           </span>
         </div>
+        {stichworteBlock}
         {hatFassung
           ? <AuftragsVorschau text={prompt} standardOffen />
           : <TextEinsicht text={recherchePrompt.rohtext ?? ''} label="Roh-Antwort anzeigen" />}
@@ -232,6 +257,7 @@ function DeepResearchStart({
   return (
     <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       {kopf(stiftBtn)}
+      {stichworteBlock}
       <AuftragsVorschau text={prompt} standardOffen />
       {spur}
       <p className="mt-3 text-[11.5px] text-[var(--tf-text-tertiary)]">
