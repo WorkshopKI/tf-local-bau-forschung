@@ -13,7 +13,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, zahlenCacheKey, vbHashFuer, type BausteinResult,
@@ -79,6 +79,14 @@ export interface ZahlenDaten {
 // Prompt
 // ---------------------------------------------------------------------------
 
+/**
+ * NICHT wieder aufnehmen: „Findest du keine prüfrelevanten Zahlen, gib eine leere
+ * `claims`-Liste zurück — das ist ein zulässiges Ergebnis." Der `verdaechtig`-Guard in
+ * `computeZahlenBaustein` wertet genau diese Antwort als auffällig und startet EINEN
+ * zweiten Volllauf über die ganze VB. Der Prompt lud also zu der Antwort ein, die den
+ * Lauf verdoppelt (Prompt-Audit Muster 3: Widerspruch ohne Vorrang). Umgekehrt steht hier
+ * auch KEIN „die Liste darf nicht leer sein" — das stünde gegen „erfinde keine Werte".
+ */
 export function buildZahlenPrompt(gliederung: VbSektion[], vbMarkdown: string): string {
   const sektionListe = gliederung
     .filter(s => s.id !== 's-toc')
@@ -106,7 +114,7 @@ Markiere je Claim das Feld \`relevanz\`: \`kern\` für die zentralen Prüfwerte 
 
 Zwei Felder, die oben nicht erklärt sind: \`kontext\` ist das kurze wörtliche Umfeld des Werts aus der VB, höchstens ~20 Wörter. \`einheit\` ist die Einheit des Werts ("%", "Monate", "PM", "€"); gibt es keine, lass sie leer.
 
-Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach. Gib das JSON **kompakt** aus: jeden Claim in GENAU EINER Zeile, keine Einrückung, kein Pretty-Print. Findest du keine prüfrelevanten Zahlen, gib eine leere \`claims\`-Liste zurück — das ist ein zulässiges Ergebnis:
+Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in dieser Form — keine Tabelle, keine Aufzählung, kein Fließtext davor oder danach. Gib das JSON **kompakt** aus: jeden Claim in GENAU EINER Zeile, keine Einrückung, kein Pretty-Print:
 \`\`\`json
 { "schemaVersion": 1, "claims": [
 { "wert": "<Wert wörtlich wie im Text>", "einheit": "<Einheit oder leer>", "kategorie": "<kategorie-id>", "relevanz": "kern", "kontext": "<kurzes Umfeld aus der VB>", "sektionIds": ["<sektion-id>"] }
@@ -310,7 +318,7 @@ export async function computeZahlenBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<ZahlenDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

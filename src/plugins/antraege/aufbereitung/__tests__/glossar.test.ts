@@ -18,6 +18,12 @@ describe('buildGlossarPrompt', () => {
     expect(p).toContain('erfinde nichts');
     expect(p).toContain('kompakt'); // Lehre aus Zahlen: Pretty-Print halbiert die Ausbeute
   });
+
+  it('sichert das Beispiel gegen Echo ab (RFID/TRL + ihre IDs sind parser-fischbar)', () => {
+    const p = buildGlossarPrompt(gliederung(), 'DER VB TEXT');
+    expect(p).toContain('FORMAT-Beispiel');
+    expect(p).toContain('übernimm weder die Begriffe');
+  });
 });
 
 describe('parseGlossar', () => {

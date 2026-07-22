@@ -11,7 +11,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 import { getOrComputeBaustein, rechercheImportCacheKey, type BausteinResult } from './bausteine';
 import {
@@ -51,7 +51,7 @@ export async function computeRechercheImportBaustein(
   skill: SkillRecord,
   antragKey: string,
   externText: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<ExterneRechercheKern>> {
   const externHash = hashText(externText);
   return getOrComputeBaustein<ExterneRechercheKern>(
@@ -83,7 +83,13 @@ const LEERER_KERN = (): ExterneRechercheKern => ({ schemaVersion: RECHERCHE_SCHE
  */
 export async function strukturiereImport(
   rohText: string,
-  deps?: { idb: IDBStore; transport: AITransport; skill: SkillRecord; antragKey: string; force?: boolean },
+  deps?: {
+    idb: IDBStore; transport: AITransport; skill: SkillRecord; antragKey: string;
+    force?: boolean;
+    /** Ziel-KI des Strukturierungs-Laufs — wie alle Aufbereitungs-Läufe die Standard-KI
+     *  (`bestimmeLaufZiel`); ohne Angabe gilt die globale Variante. */
+    ziel?: BridgeZiel;
+  },
 ): Promise<ImportErgebnis> {
   // 1. Direkter JSON-Block im Text?
   const direkt = parseExterneRecherche(rohText);
@@ -91,7 +97,9 @@ export async function strukturiereImport(
 
   // 2. Interner Strukturierungs-Lauf.
   if (deps) {
-    const res = await computeRechercheImportBaustein(deps.idb, deps.transport, deps.skill, deps.antragKey, rohText, { force: deps.force });
+    const res = await computeRechercheImportBaustein(
+      deps.idb, deps.transport, deps.skill, deps.antragKey, rohText, { force: deps.force, ziel: deps.ziel },
+    );
     if (res.status === 'ok' && res.daten) {
       return { kern: res.daten, herkunftInhalt: 'text', unstrukturiert: false };
     }

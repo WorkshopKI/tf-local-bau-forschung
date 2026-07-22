@@ -20,6 +20,12 @@ describe('buildVerwertungPrompt', () => {
     expect(p).toContain('erfinde nichts');
     expect(p).toContain('kompakt');
   });
+
+  it('sichert das Beispiel gegen Echo ab (Aussagetexte + IDs sind parser-fischbar)', () => {
+    const p = buildVerwertungPrompt(gliederung(), 'DAS ANTRAGSMATERIAL');
+    expect(p).toContain('FORMAT-Beispiel');
+    expect(p).toContain('übernimm weder ihre Aussagetexte');
+  });
 });
 
 describe('parseVerwertung', () => {

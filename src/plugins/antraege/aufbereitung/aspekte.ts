@@ -12,7 +12,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, aspekteCacheKey, vbHashFuer, type BausteinResult,
@@ -271,7 +271,7 @@ export async function computeAspekteBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<AspektMapping>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

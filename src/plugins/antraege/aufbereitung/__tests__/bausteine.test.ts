@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import { useKiZiel } from '@/core/services/ai/ki-ziel';
 import {
   getOrComputeBaustein, leseBausteinCache, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
   aspekteCacheKey, steckbriefCacheKey, zahlenCacheKey, vbHashFuer, ROHTEXT_MAX,
@@ -141,6 +142,65 @@ describe('getOrComputeBaustein', () => {
     const riesig = 'x'.repeat(ROHTEXT_MAX + 100);
     const res = await getOrComputeBaustein<unknown>(idb, transportMit(riesig), skill, key, 'h1', () => 'p', () => null);
     expect(res.rohtext?.length).toBe(ROHTEXT_MAX);
+  });
+});
+
+/**
+ * Welcher Streamlit-Tab angesprochen wird, ist auf der Bridge ein Verhaltens-Kontrakt und
+ * kein Detail: ohne `ziel` bleibt das Bookmarklet im AKTIVEN Tab. Die Aufbereitung pinnt
+ * deshalb `'standard'` (`lauf-ziel.ts`) — dieser Block sichert, dass der Wert Reset UND
+ * Submit erreicht und auch der Agentisch-Fallback ihn ausdrücklich nennt.
+ */
+describe('getOrComputeBaustein — Ziel-Tab (Streamlit)', () => {
+  const key = aspekteCacheKey('A', 'h1');
+
+  /** Streamlit-artig: KEIN `submitConversation` → `runBaustein` nimmt `submitMessage`. */
+  function zielStub(reset: 'ok' | 'timeout' = 'ok'): {
+    transport: AITransport; submitZiele: (string | undefined)[]; resetZiele: (string | undefined)[];
+  } {
+    const submitZiele: (string | undefined)[] = [];
+    const resetZiele: (string | undefined)[] = [];
+    const transport = {
+      name: 'Streamlit',
+      resetChat: async (ziel?: string) => { resetZiele.push(ziel); return reset; },
+      submitMessage: async (_m: string, _s?: string, options?: { ziel?: string }) => {
+        submitZiele.push(options?.ziel);
+        return 'antwort';
+      },
+    } as unknown as AITransport;
+    return { transport, submitZiele, resetZiele };
+  }
+
+  it('opts.ziel erreicht Reset UND Submit', async () => {
+    const { idb } = fakeIdb();
+    const s = zielStub();
+    await getOrComputeBaustein<{ n: number }>(
+      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'standard' },
+    );
+    expect(s.resetZiele).toEqual(['standard']);
+    expect(s.submitZiele).toEqual(['standard']);
+  });
+
+  it('ohne opts.ziel gilt die globale KI-Variante (MAP nutzt denselben Rahmen)', async () => {
+    const { idb } = fakeIdb();
+    const s = zielStub();
+    useKiZiel.setState({ ziel: 'agentisch' }); // Modul-Singleton → im finally zurücksetzen
+    try {
+      await getOrComputeBaustein<{ n: number }>(idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }));
+      expect(s.submitZiele).toEqual(['agentisch']);
+    } finally {
+      useKiZiel.setState({ ziel: 'standard' });
+    }
+  });
+
+  it('Agentisch-Fallback nennt „standard" AUSDRÜCKLICH (nicht undefined = aktiver Tab)', async () => {
+    const { idb } = fakeIdb();
+    const s = zielStub('timeout'); // agentischer Tab antwortet nicht → Fallback
+    await getOrComputeBaustein<{ n: number }>(
+      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'agentisch' },
+    );
+    expect(s.resetZiele).toEqual(['agentisch', 'standard']);
+    expect(s.submitZiele).toEqual(['agentisch', 'standard']);
   });
 });
 

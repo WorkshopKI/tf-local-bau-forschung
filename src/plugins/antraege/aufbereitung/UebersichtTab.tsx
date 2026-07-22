@@ -12,8 +12,10 @@ import { useMemo } from 'react';
 import { Check, Loader2, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/StatusBadge';
+import { useKiZiel } from '@/core/services/ai/ki-ziel';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import type { AufbereitungTabId } from './AufbereitungTabs';
+import type { LaufZiel } from './lauf-ziel';
 import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
 import type { AufbereitungRun } from './types';
 import type { BausteinUiStatus } from './useAufbereitung';
@@ -27,9 +29,40 @@ interface Props {
   onTab: (id: AufbereitungTabId) => void;
   bausteine: UseAsyncActionResult<[]>;
   neu: UseAsyncActionResult<[]>;
+  /** Auf welcher internen KI die Bausteine laufen (aus `useAufbereitung`). */
+  laufZiel: LaufZiel;
 }
 
-export function UebersichtTab({ run, loading, veraltet, stepper, onTab, bausteine, neu }: Props): React.ReactElement {
+/**
+ * Welche KI die Bausteine fährt — transparent gemacht, weil die Aufbereitung fest auf
+ * der Standard-KI läuft (`lauf-ziel.ts`) und die globale KI-Variante hier NICHT gilt.
+ * Steht sie auf „Agentisch", wird das ausdrücklich erklärt; sonst wirkt die Einstellung
+ * stillschweigend ignoriert (Muster `FeedbackVerbessernFlow.LadeZeile`).
+ */
+function KiZeile({ laufZiel }: { laufZiel: LaufZiel }): React.ReactElement {
+  const agentischGewaehlt = useKiZiel(s => s.ziel) === 'agentisch';
+  if (laufZiel.ziel === 'agentisch') {
+    return (
+      <p className="mb-3 text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
+        Läuft über die agentische KI — für diesen Antrag gewählt, weil die Dokumente nicht in
+        das Kontextfenster der Standard-KI passen. Rechnen Sie mit deutlich längerer Laufzeit.
+      </p>
+    );
+  }
+  return (
+    <p className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
+      Läuft über die Standard-KI · sechs Durchgänge über den vollen Antragstext, das dauert
+      einige Minuten.
+      {agentischGewaehlt ? (
+        <> Ihre KI-Variante steht auf „Agentisch" — die Aufbereitung nutzt hier bewusst die
+        Standard-KI, weil die agentische ein Vielfaches der Zeit braucht und häufiger in einem
+        Format antwortet, das sich nicht auswerten lässt.</>
+      ) : null}
+    </p>
+  );
+}
+
+export function UebersichtTab({ run, loading, veraltet, stepper, onTab, bausteine, neu, laufZiel }: Props): React.ReactElement {
   const schritte = useMemo(() => baueStepper(stepper), [stepper]);
   const fertig = schritte.filter(s => s.status === 'ok' || s.status === 'degradiert' || s.status === 'fehler').length;
 
@@ -45,7 +78,7 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
 
       {/* Block 2 — Interne Aufbereitung (Stepper) */}
       <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="mb-2 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-baseline gap-2">
             <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Interne Aufbereitung</h3>
             {schritte.length ? (
@@ -63,6 +96,7 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
             </Button>
           </div>
         </div>
+        <KiZeile laufZiel={laufZiel} />
         {bausteine.error ? (
           <div className="mb-3 rounded-lg px-3 py-2 text-[12.5px] text-[var(--tf-danger-text)]" style={{ border: '0.5px solid var(--tf-border)' }}>
             {bausteine.error}

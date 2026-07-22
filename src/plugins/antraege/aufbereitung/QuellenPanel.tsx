@@ -16,6 +16,7 @@ import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { DokumentAufnahme, DOKUMENT_TYP_OPTIONEN } from '@/core/components/DokumentAufnahme';
 import type { AufbereitungRun } from './types';
 import type { KorpusMass } from './quellen';
+import type { LaufZiel } from './lauf-ziel';
 
 const CAPS_LABEL = 'text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text)]';
 
@@ -27,6 +28,10 @@ interface Props {
   run: AufbereitungRun | null;
   /** Umfang des Korpus gegen das Kontextfenster (aus `useAufbereitung`). */
   korpusMass?: KorpusMass | null;
+  /** Genutzte KI + ob die agentische Notausfahrt anzubieten ist (aus `useAufbereitung`). */
+  laufZiel?: LaufZiel;
+  /** Notausfahrt umlegen (agentische KI für diesen Antrag). */
+  onAgentischErzwungen?: (an: boolean) => void;
   /** Coalesced Neu-Aufbereiten nach erfolgreicher Aufnahme (aus `useAufbereitung`). */
   onIngested: () => void;
 }
@@ -36,27 +41,62 @@ interface Props {
  * neben der VB weitere Dokumente einfliessen, ist das Kontextfenster real
  * erreichbar — und ein stillschweigend abgeschnittener Text ist schlimmer als
  * eine fehlende Analyse, weil das Ergebnis vollständig aussieht.
+ *
+ * Zweiter Zweck: die **Notausfahrt**. Die Aufbereitung läuft fest auf der Standard-KI
+ * (`lauf-ziel.ts`); passt der Korpus dort nicht hinein, bietet dieser Block den Wechsel
+ * auf die agentische KI mit ihrem grösseren Kontextfenster an — vollständig statt
+ * schnell, vom Prüfer entschieden. Der Schalter bleibt sichtbar, WÄHREND er genutzt
+ * wird (`notausfahrtAnbieten` hängt am Standard-Fenster, nicht am aktuellen Ziel),
+ * sonst gäbe es keinen Weg zurück.
  */
-function KorpusWarnung({ mass }: { mass: KorpusMass | null | undefined }): React.ReactElement | null {
-  if (!mass?.ueberCap) return null;
+function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
+  mass: KorpusMass | null | undefined;
+  laufZiel?: LaufZiel;
+  onAgentischErzwungen?: (an: boolean) => void;
+}): React.ReactElement | null {
+  const agentisch = laufZiel?.ziel === 'agentisch';
+  const notausfahrt = !!laufZiel?.notausfahrtAnbieten && !!onAgentischErzwungen;
+  if (!mass?.ueberCap && !notausfahrt) return null;
   return (
     <div
       className="mx-3.5 mb-3 rounded px-3 py-2 text-[12.5px]"
       style={{ background: 'color-mix(in srgb, var(--tf-warning, #f59e0b) 10%, var(--tf-bg))' }}
     >
-      <p className="text-[var(--tf-text)]">
-        Die Dokumente ergeben zusammen {mass.zeichen.toLocaleString('de-DE')} Zeichen und
-        passen damit nicht ins Kontextfenster des Modells ({mass.cap.toLocaleString('de-DE')}).
-      </p>
-      <p className="text-[var(--tf-text-secondary)] mt-0.5">
-        Die KI-Bausteine haben das Ende des Textes nicht gesehen. Deterministische
-        Auswertungen — Zeitplan, Tabellen, Gliederung — sind davon unberührt.
-      </p>
+      {mass?.ueberCap ? (
+        <>
+          <p className="text-[var(--tf-text)]">
+            Die Dokumente ergeben zusammen {mass.zeichen.toLocaleString('de-DE')} Zeichen und
+            passen damit nicht ins Kontextfenster {agentisch ? 'der agentischen KI' : 'der Standard-KI'}
+            {' '}({mass.cap.toLocaleString('de-DE')}).
+          </p>
+          <p className="text-[var(--tf-text-secondary)] mt-0.5">
+            Die KI-Bausteine haben das Ende des Textes nicht gesehen. Deterministische
+            Auswertungen — Zeitplan, Tabellen, Gliederung — sind davon unberührt.
+          </p>
+        </>
+      ) : (
+        <p className="text-[var(--tf-text)]">
+          Die Dokumente ({mass?.zeichen.toLocaleString('de-DE')} Zeichen) passen nicht in das
+          Kontextfenster der Standard-KI. Dieser Antrag wird deshalb mit der agentischen KI
+          aufbereitet — sie sieht den ganzen Text, braucht dafür aber deutlich länger.
+        </p>
+      )}
+      {notausfahrt ? (
+        <button
+          type="button"
+          onClick={() => onAgentischErzwungen(!agentisch)}
+          className="mt-1.5 text-[12px] text-[var(--tf-primary)] hover:underline"
+        >
+          {agentisch
+            ? 'Zurück zur Standard-KI (schneller, sieht nur den Anfang)'
+            : 'Diesen Antrag mit der agentischen KI aufbereiten (sieht den ganzen Text, deutlich langsamer)'}
+        </button>
+      ) : null}
     </div>
   );
 }
 
-export function QuellenPanel({ ctx, run, korpusMass, onIngested }: Props): React.ReactElement {
+export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onAgentischErzwungen, onIngested }: Props): React.ReactElement {
   const vbQuelle = run?.quellen.find(q => q.rolle === 'vb') ?? null;
   const anlageQuelle = run?.quellen.find(q => q.rolle === 'anlage5') ?? null;
   const marketingNamen = (run?.quellen.filter(q => q.rolle === 'verwertung') ?? []).map(q => q.name);
@@ -91,7 +131,7 @@ export function QuellenPanel({ ctx, run, korpusMass, onIngested }: Props): React
       </button>
 
       {/* Ausserhalb von `offen`: eine eingeklappte Sektion darf die Warnung nicht verstecken. */}
-      <KorpusWarnung mass={korpusMass} />
+      <KorpusWarnung mass={korpusMass} laufZiel={laufZiel} onAgentischErzwungen={onAgentischErzwungen} />
 
       {offen && (
         <div className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-1">

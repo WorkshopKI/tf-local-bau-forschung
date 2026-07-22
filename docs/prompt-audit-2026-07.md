@@ -392,3 +392,36 @@ Abschnitt B oder D — dort greifen P2 und P3 gleichzeitig.
 
 Der Quelltext-Guard allein hätte **keinen einzigen** Befund dieses Audits gefunden — die
 Kombination aus erweitertem Scope, zweiter Regel und gerendertem Prompt schon.
+
+---
+
+# Nachtrag 2026-07-22 — Nachprüfung der Aufbereitungs-Prompts (v2.298.0)
+
+Anlass: ein realer Lauf der Antrag-Aufbereitung war sehr langsam und lieferte 2× `degradiert`
++ 2× `fehler`. **Hauptursache war NICHT der Prompt**, sondern das Ziel-Modell — die Bausteine
+folgten der globalen KI-Variante und liefen auf dem agentischen Tab
+([antrag-aufbereitung.md](architecture/antrag-aufbereitung.md#ziel-ki-fest-die-standard-ki-v2298)).
+Dieselbe Klasse wie v2.292 (Feedback-Verbesserer): **erst prüfen, WELCHES Modell antwortet,
+dann den Prompt lesen.**
+
+Die Nachprüfung aller sieben Aufbereitungs-Prompts + Seeds fand vier Reste derselben Muster:
+
+| Ort | Muster | Behoben durch |
+|---|---|---|
+| `zahlen.ts` | **3 (Widerspruch ohne Vorrang)** — der Prompt erklärte eine leere `claims`-Liste für „ein zulässiges Ergebnis", während der `verdaechtig`-Guard genau diese Antwort als auffällig wertet und **einen zweiten Volllauf** über die ganze VB startet. Der Prompt lud also zu der Antwort ein, die den Lauf verdoppelt | Satz gestrichen. Bewusst **kein** „die Liste darf nicht leer sein" — das stünde gegen „erfinde keine Werte" und wäre nur der nächste Widerspruch |
+| `glossar.ts` | **4 (parser-fischbares Beispiel)** — Beispielzeilen `RFID`/`TRL` mit realen ID-Formen `k-3.3`/`k-2`; ein Echo landet als echter Begriff mit gültiger Fundstelle im Glossar | Echo-Hinweis nach dem Vorbild `relevanz-map.ts` |
+| `verwertung.ts` | **4** — dito mit `k-7.1`/`k-7.3` und plausiblem Aussagetext; ein Echo würde in der Gegenüberstellung zur „Aussage laut Antrag" | dito |
+| `steckbrief.ts` | **4** — der auflösende Satz deckte nur `<…>`-Platzhalter, die Prosa-Werte („18 Monate (M1–M18)", „bis zu 25 % Energieeinsparung") sind aber vollplausible Steckbrief-Inhalte | Satz auf ALLE Beispielwerte erweitert, mit zwei davon als Beispiel |
+
+Je Befund sichert eine Prompt-Zusicherung im zugehörigen Test das Ergebnis ab (`zahlen.test.ts`,
+`glossar.test.ts`, `verwertung.test.ts`, `steckbrief.test.ts`). `verwertung.ts` war im Audit als
+Positivbeispiel geführt — sein Kompakt-Beispiel ist vorbildlich, gegen Echo abgesichert war es
+trotzdem nicht.
+
+Geprüft und unverändert: `aspekte.ts` (Platzhalter-IDs), `recherche-prompt.ts` (D7 vollständig
+behoben), `recherche-schema.ts`/`recherche-import.ts`, alle sieben Seed-System-Prompts.
+
+**Offen, bewusst nicht angefasst:** `aufbereitung-aspekte.seed.ts` trägt `maxTokens: 1024`, alle
+übrigen Aufbereitungs-Seeds 4096. Das bindet ausschließlich auf dem DirectLLM-Pfad (OpenRouter-
+Eval), nicht auf der Bridge, und eine Seed-Änderung braucht für Bestands-Shares eine
+pristine-only Migration — Aufwand ohne Wirkung auf den gemeldeten Fehler.

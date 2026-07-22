@@ -178,7 +178,11 @@ export async function getOrComputeBaustein<T>(
     verdaechtig?: { pruefe: (daten: T) => boolean; grund: string };
     /** KI-Varianten-Ziel für DIESEN Baustein (nur Streamlit). `'agentisch'` = agentischer
      *  Qwen-Tab; scheitert dessen Reset (Tab nicht verbunden), fällt der Lauf einmal auf
-     *  den Standard-Chat zurück (kein Fehler). Ohne `ziel` = globale Präferenz (byte-identisch). */
+     *  den Standard-Chat zurück (kein Fehler). Ohne `ziel` = globale Präferenz.
+     *
+     *  Die Aufbereitungs-Seite setzt es IMMER (`bestimmeLaufZiel`, `lauf-ziel.ts`) und
+     *  hängt damit nicht an der globalen Variante; das MAP-Modul nutzt denselben Rahmen
+     *  und bleibt bewusst bei der Präferenz. Deshalb wird hier NICHT vorbelegt. */
     ziel?: BridgeZiel;
   } = {},
 ): Promise<BausteinResult<T>> {
@@ -206,11 +210,14 @@ export async function getOrComputeBaustein<T>(
   const istSchlecht = (d: T | null): boolean => d == null || (!!opts.verdaechtig && opts.verdaechtig.pruefe(d));
 
   /** EIN Lauf inkl. Agentisch-Fallback: wollte er den agentischen Tab, ist dessen Reset
-   *  aber fehlgeschlagen (Tab nicht verbunden), einmal auf den Standard-Chat zurückfallen. */
+   *  aber fehlgeschlagen (Tab nicht verbunden), einmal auf den Standard-Chat zurückfallen.
+   *  Der Fallback nennt `'standard'` AUSDRÜCKLICH: ohne `ziel` bliebe das Bookmarklet im
+   *  AKTIVEN Tab — also womöglich in genau dem agentischen, der gerade nicht antwortet
+   *  (Lehre v2.292, `feedbackImprove.ts`). */
   const laufMitFallback = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
     const r = await einLauf(opts.ziel);
     if (r && opts.ziel === 'agentisch' && resetHatVerlaufsrisiko(r.reset)) {
-      const standard = await einLauf(undefined);
+      const standard = await einLauf('standard');
       if (standard) return standard;
     }
     return r;

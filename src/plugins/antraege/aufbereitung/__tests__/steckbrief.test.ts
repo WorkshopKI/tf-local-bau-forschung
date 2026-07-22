@@ -19,6 +19,12 @@ describe('buildSteckbriefPrompt', () => {
     // Pretty-Print truncierte den Steckbrief im Prod-Eval (Fixture 006) → kompakt fordern.
     expect(p).toContain('kompakt');
   });
+
+  it('erklärt ALLE Beispielwerte für Beschreibungen — nicht nur die in spitzen Klammern', () => {
+    const p = buildSteckbriefPrompt(gliederung(), 'DER VB TEXT');
+    expect(p).toContain('ALLE Werte im Beispiel');
+    expect(p).toContain('auch die ohne spitze Klammern');
+  });
 });
 
 describe('extractLastJsonObject', () => {

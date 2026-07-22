@@ -40,6 +40,12 @@ describe('buildZahlenPrompt', () => {
     // Kompakt-Ausgabe: Pretty-Print halbierte die Claim-Zahl im fixen Server-Budget.
     expect(p).toContain('kompakt');
   });
+
+  it('lädt NICHT zur leeren claims-Liste ein (der verdaechtig-Guard verdoppelt dafür den Lauf)', () => {
+    const p = buildZahlenPrompt(gliederung(), 'DER VB TEXT');
+    expect(p).not.toContain('zulässiges Ergebnis');
+    expect(p).not.toMatch(/leere\s+`?claims`?-Liste/);
+  });
 });
 
 describe('ZAHL_KATEGORIEN', () => {

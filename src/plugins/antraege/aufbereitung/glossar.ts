@@ -11,7 +11,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, glossarCacheKey, vbHashFuer, type BausteinResult,
@@ -61,7 +61,7 @@ Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form 
 { "begriff": "TRL", "definition": "Technology Readiness Level, Reifegrad einer Technologie von 1 bis 9", "sektionIds": ["k-2"] }
 ] }
 \`\`\`
-Nutze ausschließlich die oben vergebenen Sektions-IDs. Ein Begriff = eine Zeile, keine Zeilenumbrüche innerhalb eines Eintrags.`;
+Die beiden Zeilen sind ein FORMAT-Beispiel: übernimm weder die Begriffe („RFID", „TRL") noch die Sektions-IDs daraus. Nutze ausschließlich die Begriffe aus der Vorhabensbeschreibung und die oben vergebenen Sektions-IDs. Ein Begriff = eine Zeile, keine Zeilenumbrüche innerhalb eines Eintrags.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ export async function computeGlossarBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<GlossarDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

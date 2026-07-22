@@ -156,7 +156,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
               size="sm"
               loading={aufb.bausteine.busy}
               onClick={() => aufb.bausteine.run()}
-              title="Erzeugt alle KI-Abschnitte der Aufbereitung (Steckbrief, Abdeckung, Zahlen, Glossar, Verwertung) auf einmal — kein Abschnitt muss einzeln gestartet werden"
+              title={`Erzeugt alle KI-Abschnitte der Aufbereitung (Steckbrief, Abdeckung, Zahlen, Glossar, Verwertung) auf einmal — kein Abschnitt muss einzeln gestartet werden. Läuft über die ${aufb.laufZiel.ziel === 'agentisch' ? 'agentische' : 'Standard-'}KI.`}
             >
               {aufb.bausteine.busy ? `KI-Aufbereitung läuft … (${kiFertig}/${kiBausteine.length})` : 'Mit KI aufbereiten'}
             </Button>
@@ -186,6 +186,8 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
           ctx={{ key: ctx.key, knownIds: ctx.knownIds }}
           run={aufb.run}
           korpusMass={aufb.korpusMass}
+          laufZiel={aufb.laufZiel}
+          onAgentischErzwungen={aufb.setzeAgentischErzwungen}
           onIngested={aufb.requestRecompute}
         />
       ) : null}
@@ -226,6 +228,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             onTab={setTab}
             bausteine={aufb.bausteine}
             neu={aufb.neu}
+            laufZiel={aufb.laufZiel}
           />
         ) : tab === 'zeitplan' ? (
           <ZeitplanTab

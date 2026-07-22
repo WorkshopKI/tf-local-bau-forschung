@@ -13,7 +13,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
 import type { VbSektion } from './gliederung';
 import {
@@ -72,7 +72,7 @@ Antworte **kompakt**: ein Feld je Zeile, keine Einrückung, kein Pretty-Print. G
 "auftraegeDritte": [ { "text": "Auftrag an Dritte", "sektionIds": ["<sektion-id>"] } ]
 }
 \`\`\`
-Die spitzen Klammern sind Feld-Beschreibungen, keine Werte — setze ausschließlich IDs aus der Sektionsliste oben ein. Jedes Feld = eine Zeile, keine Zeilenumbrüche innerhalb eines Objekts.`;
+ALLE Werte im Beispiel sind Feld-Beschreibungen, keine Inhalte — auch die ohne spitze Klammern (z.B. „18 Monate (M1–M18)" oder „bis zu 25 % Energieeinsparung"). Übernimm keinen davon; setze ausschließlich Angaben aus der VB und IDs aus der Sektionsliste oben ein. Jedes Feld = eine Zeile, keine Zeilenumbrüche innerhalb eines Objekts.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ export async function computeSteckbriefBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<SteckbriefDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

@@ -14,7 +14,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, verwertungCacheKey, vbHashFuer, type BausteinResult,
@@ -85,7 +85,7 @@ Antworte AUSSCHLIESSLICH mit einem einzigen JSON-Codeblock in genau dieser Form 
 { "kategorie": "verwertungsweg", "text": "Verwertung über Eigenvertrieb als SaaS-Lizenz", "sektionIds": ["k-7.3"] }
 ] }
 \`\`\`
-Nutze ausschließlich die oben vergebenen Sektions-IDs und ausschließlich die fünf genannten Kategorie-Werte. Eine Aussage = eine Zeile.`;
+Die beiden Zeilen sind ein FORMAT-Beispiel: übernimm weder ihre Aussagetexte noch ihre Sektions-IDs. Nutze ausschließlich Aussagen aus dem Material oben, die dort vergebenen Sektions-IDs und ausschließlich die fünf genannten Kategorie-Werte. Eine Aussage = eine Zeile.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ export async function computeVerwertungBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<VerwertungDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

@@ -4,15 +4,18 @@
  * Prüfer per Zwischenablage in externe Dienste (ChatGPT/Claude/Mistral) trägt.
  *
  * Läuft ZUERST (vor den übrigen Bausteinen), damit die externe Recherche (5–10 Min)
- * parallel zur internen Aufbereitung starten kann. Bevorzugt den agentischen Qwen-Tab
- * (`ziel:'agentisch'`, Standard-Fallback im Rahmen). DSGVO: Constraints im Skill-Prompt
+ * parallel zur internen Aufbereitung starten kann. Das Ziel-Modell kommt wie bei allen
+ * Bausteinen vom Aufrufer (`bestimmeLaufZiel`, `lauf-ziel.ts` → Standard-KI). Bis v2.296
+ * bevorzugte dieser eine Baustein hart den agentischen Qwen-Tab; das schaltete den
+ * Streamlit-Tab mitten in der Kette um und machte ausgerechnet den ersten Schritt zum
+ * langsamsten. DSGVO: Constraints im Skill-Prompt
  * (Schicht 1) + deterministischer Leak-Check nach dem Parse (Schicht 2) — ein Treffer
  * degradiert den Baustein (Prompt wird dann nicht zum Kopieren angeboten, nur einsehbar).
  * Reine Funktionen (Node-testbar); Cache-/Transport-Rahmen in `bausteine.ts`.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import {
   getOrComputeBaustein, recherchePromptCacheKey, vbHashFuer, type BausteinResult,
 } from './bausteine';
@@ -86,7 +89,7 @@ export async function computeRecherchePromptBaustein(
   antragKey: string,
   vbMarkdown: string,
   bekannteWerte: BekannteStammwerte,
-  opts?: { force?: boolean },
+  opts?: { force?: boolean; ziel?: BridgeZiel },
 ): Promise<BausteinResult<RecherchePromptDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   // Leak-Treffer aus dem `verdaechtig`-Guard heben (der Guard läuft auf dem FINALEN
@@ -99,7 +102,6 @@ export async function computeRecherchePromptBaustein(
     (raw) => parseRecherchePrompt(raw),
     {
       ...opts,
-      ziel: 'agentisch',
       verdaechtig: {
         pruefe: (d) => {
           if (d.prompt.trim().length < RECHERCHE_PROMPT_MIN_LEN) return true;

@@ -5,7 +5,7 @@
  * die LLM-Bausteine (Paket 2) — sequentiell, tolerant, ohne den deterministischen
  * Teil je zu blockieren.
  */
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
@@ -25,7 +25,7 @@ import {
 import { DocConverter } from '@/core/services/converter';
 import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv, misseKorpus, type KorpusMass } from './quellen';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
-import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
+import { bestimmeLaufZiel, type LaufZiel } from './lauf-ziel';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
@@ -94,10 +94,15 @@ export interface UseAufbereitungResult {
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
-  /** Umfang des Korpus gegen das Kontextfenster — gesetzt beim Laden (Veraltet-
-   *  Prüfung) und bei jedem Baustein-Lauf. `ueberCap` heisst: die Bausteine haben
-   *  das Ende des Textes nicht gesehen; das gilt auch für gecachte Ergebnisse. */
+  /** Umfang des Korpus gegen das Kontextfenster DER TATSÄCHLICH GENUTZTEN KI
+   *  (`laufZiel.cap`, nicht die globale KI-Variante). `ueberCap` heisst: die Bausteine
+   *  haben das Ende des Textes nicht gesehen; das gilt auch für gecachte Ergebnisse. */
   korpusMass: KorpusMass | null;
+  /** Auf welcher internen KI die Bausteine laufen + ob die Notausfahrt anzubieten ist. */
+  laufZiel: LaufZiel;
+  /** Notausfahrt für DIESEN Antrag (Sitzung, nicht persistiert) — agentische KI wegen
+   *  eines Korpus, der nicht ins Standard-Kontextfenster passt. */
+  setzeAgentischErzwungen: (an: boolean) => void;
   /** Läuft alle Bausteine sequentiell (Recherche-Prompt → Aspekte → Steckbrief → Zahlen → Glossar → Verwertung). */
   bausteine: UseAsyncActionResult<[]>;
   /** Verwirft die Baustein-Caches und rechnet neu (dev-Aktion „KI-Bausteine neu berechnen"). */
@@ -125,8 +130,28 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [verwertung, setVerwertung] = useState<BausteinUiState<VerwertungDaten>>(FEHLT);
   const [recherchePrompt, setRecherchePrompt] = useState<BausteinUiState<RecherchePromptDaten>>(FEHLT);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
-  const [korpusMass, setKorpusMass] = useState<KorpusMass | null>(null);
+  const [agentischErzwungen, setzeAgentischErzwungen] = useState(false);
   const key = ctx?.key ?? null;
+
+  // Ziel-KI der Bausteine: fest die Standard-KI, es sei denn der Prüfer hat wegen eines
+  // zu grossen Korpus die agentische Notausfahrt gewählt (`lauf-ziel.ts`). Die globale
+  // KI-Variante (`useKiZiel`) gilt hier bewusst NICHT.
+  const bridgeAktiv = bridge.istBridgeAktiv();
+  const laufZiel = useMemo(() => bestimmeLaufZiel({
+    zeichen: vbMarkdown?.length ?? null,
+    standardCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'standard' }),
+    agentischCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'agentisch' }),
+    agentischErzwungen,
+  }), [vbMarkdown, bridgeAktiv, agentischErzwungen]);
+
+  // Gemessen, NICHT gekürzt: `runBaustein` umgeht `runSkill` und damit `capVbMarkdown`,
+  // und der Upload-Check prüft nur je Datei. Ohne diese Messung liefe ein zu grosser
+  // Korpus stillschweigend abgeschnitten ins Modell. Abgeleitet statt gespeichert, damit
+  // die Warnung dem Ziel-Wechsel (Notausfahrt) sofort folgt.
+  const korpusMass = useMemo<KorpusMass | null>(
+    () => (vbMarkdown === null ? null : misseKorpus(vbMarkdown, laufZiel.cap)),
+    [vbMarkdown, laufZiel.cap],
+  );
 
   // Gespeicherten Run laden (bei Kontext-Wechsel neu) — Baustein-Status zurücksetzen.
   useEffect(() => {
@@ -139,7 +164,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setVerwertung(FEHLT);
     setRecherchePrompt(FEHLT);
     setVbMarkdown(null);
-    setKorpusMass(null);
+    setzeAgentischErzwungen(false); // Notausfahrt gilt je Antrag, nicht global.
     (async () => {
       if (!key) { setRun(null); setLoading(false); return; }
       const r = await loadAufbereitung(storage.idb, key);
@@ -196,14 +221,14 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     fuelle(setVerwertung, gecacht.verwertung);
   };
 
-  // Korpus-abhaengige Arbeit beim Oeffnen: Cap-Messung, Rehydrierung der Bausteine
-  // und die best-effort Veraltet-Pruefung. Bewusst EIN Effekt — er loest den Korpus
-  // einmal auf, und alle drei brauchen genau diesen Korpus.
+  // Korpus-abhaengige Arbeit beim Oeffnen: Korpus-Text setzen (daraus leitet sich die
+  // Cap-Messung ab), Rehydrierung der Bausteine und die best-effort Veraltet-Pruefung.
+  // Bewusst EIN Effekt — er loest den Korpus einmal auf, und alle drei brauchen genau
+  // diesen Korpus.
   //
   // Die Deps sind SKALAR und bewusst nicht `ctx`: der Aufrufer (`AufbereitungPage`)
-  // baut das Kontext-Objekt pro Render neu, und `misseKorpus` liefert ebenfalls jedes
-  // Mal ein frisches Objekt. Mit `ctx` in den Deps trieb sich dieser Effekt endlos
-  // selbst an — `setKorpusMass` → Render → neues `ctx` → Effekt → voller Dokument-Scan.
+  // baut das Kontext-Objekt pro Render neu. Mit `ctx` in den Deps trieb sich dieser
+  // Effekt endlos selbst an — Render → neues `ctx` → Effekt → voller Dokument-Scan.
   // `key`/`knownIdsKey`/`tvKey` decken alles ab, was der Effekt aus `ctx` liest.
   const knownIdsKey = (ctx?.knownIds ?? []).join('|');
   const tvKey = (ctx?.teilvorhaben ?? []).map(t => t.tvAz).join('|');
@@ -213,11 +238,11 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       if (!ctx || !run) { setVeraltet(false); return; }
       try {
         const korpus = await resolveKorpus(storage.idb, ctx);
-        // Auch hier messen, nicht nur in `laufBausteine`: wer einen bereits
+        // Schon beim Oeffnen, nicht erst in `laufBausteine`: wer einen bereits
         // aufbereiteten Antrag oeffnet, muss sehen, dass die gecachten Bausteine
-        // ueber einem abgeschnittenen Text entstanden sind.
+        // ueber einem abgeschnittenen Text entstanden sind (`korpusMass` haengt am
+        // Korpus-Text).
         if (korpus && !cancelled) {
-          setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap(kontextZielFuerLauf(bridge))));
           // Der Korpus traegt Lesemodus + Fundstellen-Auszuege — unabhaengig davon,
           // ob je ein Baustein lief.
           setVbMarkdown(korpus.markdown);
@@ -315,26 +340,25 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       setZahlen({ status: 'fehler' }); setGlossar({ status: 'fehler' }); setVerwertung({ status: 'fehler' });
       return;
     }
-    setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge)
-    // Gemessen, NICHT gekürzt: `runBaustein` umgeht `runSkill` und damit
-    // `capVbMarkdown`, und der Upload-Check prüft nur je Datei. Ohne diese
-    // Messung liefe ein zu grosser Korpus stillschweigend abgeschnitten ins
-    // Modell. Was daraus folgt, entscheidet der Prüfer.
-    setKorpusMass(misseKorpus(korpus.markdown, getVbCharCap(kontextZielFuerLauf(bridge))));
+    setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge + Cap-Messung)
+    // EIN Options-Objekt für ALLE sechs Bausteine — insbesondere dasselbe `ziel`. Wäre es
+    // je Aufruf einzeln zu setzen, hinge ein vergessener Baustein still an der globalen
+    // KI-Variante, und der Streamlit-Tab wechselte mitten in der Kette.
+    const bausteinOpts = { force, ziel: laufZiel.ziel };
     // Recherche-Prompt ZUERST: der Prüfer kann die externe Deep Research (5–10 Min) starten,
-    // während die übrigen Bausteine weiterlaufen. Agentische Variante + Leak-Check im Compute.
+    // während die übrigen Bausteine weiterlaufen. Leak-Check im Compute.
     await laufEinen<RecherchePromptDaten>(recherchePromptSkill, setRecherchePrompt, t =>
-      computeRecherchePromptBaustein(storage.idb, t, recherchePromptSkill, aktCtx.key, korpus.markdown, aktCtx.bekannteWerte ?? {}, { force }));
+      computeRecherchePromptBaustein(storage.idb, t, recherchePromptSkill, aktCtx.key, korpus.markdown, aktCtx.bekannteWerte ?? {}, bausteinOpts));
     await laufEinen<AspektMapping>(aspekteSkill, setAspekte, t =>
-      computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
+      computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
     await laufEinen<SteckbriefDaten>(steckbriefSkill, setSteckbrief, t =>
-      computeSteckbriefBaustein(storage.idb, t, steckbriefSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
+      computeSteckbriefBaustein(storage.idb, t, steckbriefSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
     await laufEinen<ZahlenDaten>(zahlenSkill, setZahlen, t =>
-      computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
+      computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
     await laufEinen<GlossarDaten>(glossarSkill, setGlossar, t =>
-      computeGlossarBaustein(storage.idb, t, glossarSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
+      computeGlossarBaustein(storage.idb, t, glossarSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
     await laufEinen<VerwertungDaten>(verwertungSkill, setVerwertung, t =>
-      computeVerwertungBaustein(storage.idb, t, verwertungSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, { force }));
+      computeVerwertungBaustein(storage.idb, t, verwertungSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
   };
 
   const bausteine = useAsyncAction(async () => {
@@ -385,7 +409,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     let deps: Parameters<typeof strukturiereImport>[1];
     try {
       const t = bridge.getTransportForSkillRun(AUFBEREITUNG_RECHERCHE_IMPORT_SKILL);
-      deps = { idb: storage.idb, transport: t, skill: AUFBEREITUNG_RECHERCHE_IMPORT_SKILL, antragKey: ctx.key };
+      deps = {
+        idb: storage.idb, transport: t, skill: AUFBEREITUNG_RECHERCHE_IMPORT_SKILL,
+        antragKey: ctx.key, ziel: laufZiel.ziel,
+      };
     } catch { deps = undefined; }
     const { kern, herkunftInhalt, unstrukturiert } = await strukturiereImport(rohText, deps);
     const eintrag: ExterneRecherche = {
@@ -420,5 +447,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, korpusMass, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, korpusMass, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
 }

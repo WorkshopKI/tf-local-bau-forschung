@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.298 — 2026-07
+
+### Verbesserungen
+- Die KI-Aufbereitung eines Antrags nutzt jetzt immer die Standard-KI — auch wenn oben „Agentisch" eingestellt ist. Sie ist damit deutlich schneller und liefert seltener unbrauchbare Ergebnisse. Welche KI gerade arbeitet, steht in der Übersicht.
+- Sind die Dokumente eines Antrags zu umfangreich für die Standard-KI, sagt das der Hinweis über den Dokumenten — und bietet an, diesen einen Antrag mit der agentischen KI aufzubereiten (sieht alles, dauert länger).
+
+### Bugfixes
+- Der Hinweis „passt nicht ins Kontextfenster" rechnete bei eingestellter agentischer KI mit der falschen Größe und blieb deshalb manchmal aus, obwohl der Text abgeschnitten wurde.
+
 ## v2.296 — 2026-07
 
 ### Neu
