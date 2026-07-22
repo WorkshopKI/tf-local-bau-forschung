@@ -1,10 +1,10 @@
 /**
  * Lesemodus-Tab der Antrag-Aufbereitung: liest die VB als navigierbares Dokument
- * (Silhouette-Scroll-Nav + Gliederung links, Lesepane rechts). Jeder Abschnitt trägt
+ * (ziehbare Gliederungsspalte links, Lesepane rechts). Jeder Abschnitt trägt
  * seine `sektionId` als `data-sek`-Anker → eine Fundstelle aus einem anderen Tab
  * („Im Antrag öffnen") scrollt hierher und hebt die Stelle kurz hervor. Ein
- * IntersectionObserver hält den aktuellen Viewport-Abschnitt fest (Silhouette-
- * Hervorhebung). Fundstellen-Marginalien zeigen je Abschnitt, welche Bausteine ihn
+ * IntersectionObserver hält den aktuellen Viewport-Abschnitt fest (Aktiv-Zeile der
+ * Gliederung). Fundstellen-Marginalien zeigen je Abschnitt, welche Bausteine ihn
  * referenzieren (Popover). Rendering über den geteilten `MarkdownRenderer`.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import type { AufbereitungRun } from './types';
 import { sliceLesemodus } from './lesemodus';
-import { LesemodusSilhouette } from './LesemodusSilhouette';
+import { useTocBreite, TOC_DEFAULT_BREITE } from './useTocBreite';
 import type { FundstelleReferenz } from './lesemodus-fundstellen';
 
 export function LesemodusTab({
@@ -32,6 +32,7 @@ export function LesemodusTab({
     [run, vbMarkdown],
   );
   const readerRef = useRef<HTMLDivElement>(null);
+  const { breite: tocBreite, rowRef, griffProps } = useTocBreite();
   const [flashId, setFlashId] = useState<string | null>(null);
   const [aktiveSektionId, setAktiveSektionId] = useState<string | null>(null);
   const [fundstellenOffen, setFundstellenOffen] = useState<string | null>(null);
@@ -86,14 +87,17 @@ export function LesemodusTab({
   }
 
   return (
-    <div className="flex gap-4 items-start">
+    <div
+      ref={rowRef}
+      className="flex gap-2 items-start"
+      style={{ '--lm-toc-breite': `${tocBreite}px` } as React.CSSProperties}
+    >
+      {/* Gliederungs-Navigation (Breite ziehbar, gerätelokal gemerkt) */}
       {abschnitte.length > 0 ? (
-        <LesemodusSilhouette gliederung={run.gliederung} aktiveSektionId={aktiveSektionId} onJump={scrolleZu} />
-      ) : null}
-
-      {/* Gliederungs-Navigation */}
-      {abschnitte.length > 0 ? (
-        <nav className="hidden md:block w-52 shrink-0 sticky top-4 max-h-[74vh] overflow-y-auto pr-2">
+        <nav
+          className="hidden md:block shrink-0 sticky top-4 max-h-[74vh] overflow-y-auto pr-2"
+          style={{ width: `var(--lm-toc-breite, ${TOC_DEFAULT_BREITE}px)` }}
+        >
           <div className="mb-2 text-[10.5px] uppercase tracking-wide text-[var(--tf-text-tertiary)]">Gliederung</div>
           <ul className="space-y-0.5">
             {abschnitte.map(a => (
@@ -115,6 +119,16 @@ export function LesemodusTab({
             ))}
           </ul>
         </nav>
+      ) : null}
+
+      {/* Trenn-Griff: zieht die rechte Kante der Gliederung. */}
+      {abschnitte.length > 0 ? (
+        <div
+          {...griffProps}
+          className="group hidden md:flex self-stretch w-2 shrink-0 cursor-col-resize items-start justify-center focus:outline-none"
+        >
+          <span className="mt-8 h-10 w-[3px] rounded-full bg-[var(--tf-border)] transition-colors group-hover:bg-[var(--tf-primary)] group-focus-visible:bg-[var(--tf-primary)]" />
+        </div>
       ) : null}
 
       {/* Lesepane */}
