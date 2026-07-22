@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   baueRun, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt, befundKey,
-  uebernehmeOffenePunkte, uebernehmeErledigtePunkte, verbundZeitplanSummary,
+  uebernehmeOffenePunkte, uebernehmeErledigtePunkte, uebernehmeExterneRecherchen, verbundZeitplanSummary,
 } from '../store';
-import type { TvPlan } from '../types';
+import type { ExterneRecherche, TvPlan } from '../types';
 
 const NOW = '2026-07-09T00:00:00.000Z';
 
@@ -327,5 +327,37 @@ describe('uebernehmeErledigtePunkte + toggleErledigterPunkt (Fragen-Achse)', () 
     const r3 = toggleErledigterPunkt(r2, key);
     expect(r3.erledigtePunkte).not.toContain(key);
     expect(r3.offenePunkte).toContain(key); // offen bleibt unberührt
+  });
+});
+
+describe('uebernehmeExterneRecherchen (Import überlebt „Neu aufbereiten")', () => {
+  const run = baueRun('VB-1', { markdown: VB_MD, name: 'p.docx' }, { markdown: ANLAGE_MD, name: 'a.docx' }, [], NOW);
+  const importe: ExterneRecherche[] = [
+    {
+      schemaVersion: 1, importiertAm: '2026-07-20T10:00:00.000Z', herkunft: 'json',
+      modellLabel: 'ChatGPT Deep Research',
+      quellen: [{ url: 'https://example.org/paper', datum: '2025-11-02' }],
+      aussagen: [{ kategorie: 'sdt', text: 'Etabliert sind regelbasierte Verfahren.', quellenUrls: ['https://example.org/paper'] }],
+    },
+    {
+      schemaVersion: 1, importiertAm: '2026-07-21T08:30:00.000Z', herkunft: 'datei',
+      quellen: [], aussagen: [], rohtext: 'Unstrukturierter Report.',
+    },
+  ];
+
+  it('übernimmt alle Importe unverändert (keine Befund-/Korpus-Filterung)', () => {
+    const merged = uebernehmeExterneRecherchen(run, importe);
+    expect(merged.extern).toEqual(importe);
+  });
+
+  it('kopiert die Liste, statt die Vorlauf-Referenz zu teilen', () => {
+    const merged = uebernehmeExterneRecherchen(run, importe);
+    expect(merged.extern).not.toBe(importe);
+  });
+
+  it('ohne Vorlauf-Importe bleibt der Run unverändert (kein leeres Feld)', () => {
+    expect(uebernehmeExterneRecherchen(run, undefined)).toBe(run);
+    expect(uebernehmeExterneRecherchen(run, [])).toBe(run);
+    expect(uebernehmeExterneRecherchen(run, []).extern).toBeUndefined();
   });
 });

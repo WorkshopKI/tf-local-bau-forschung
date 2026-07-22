@@ -14,7 +14,7 @@ import {
 } from './tabellen';
 import { resolveAnlage5, resolveKorpus, baueKorpus, resolveAnlagenProTv } from './quellen';
 import { ernteRisiken } from './risiken';
-import type { AufbereitungRun, QuelleRef, RunTabelle, TvPlan } from './types';
+import type { AufbereitungRun, ExterneRecherche, QuelleRef, RunTabelle, TvPlan } from './types';
 import type { BekannteStammwerte } from './recherche-leak';
 
 export const aufbereitungKey = (antragKey: string): string => `aufbereitung:${antragKey}`;
@@ -104,6 +104,22 @@ export function uebernehmeErledigtePunkte(run: AufbereitungRun, vorher: readonly
   if (vorher.length === 0) return run;
   const behalten = behaltePunkte(run, vorher);
   return behalten.length ? { ...run, erledigtePunkte: behalten } : run;
+}
+
+/**
+ * Übernimmt die importierten externen Recherche-Ergebnisse (Paket 5, Phase 2) in den
+ * neuen Run. KEINE Gültigkeitsprüfung wie bei den Punkten: die externe Schicht hängt
+ * bewusst nicht am Korpus (eigene Wissensklasse, nie Teil des VB) — sie überlebt eine
+ * Neu-Aufbereitung also unverändert. Sonst würde „Neu aufbereiten" einen 5–10-minütigen
+ * externen Lauf samt Hin- und Rückweg wegwerfen; entfernt wird ein Import nur über den
+ * expliziten Löschen-Knopf im Recherche-Tab.
+ */
+export function uebernehmeExterneRecherchen(
+  run: AufbereitungRun,
+  vorher: readonly ExterneRecherche[] | undefined,
+): AufbereitungRun {
+  if (!vorher?.length) return run;
+  return { ...run, extern: [...vorher] };
 }
 
 /** Nummer/Label der Gliederungs-Sektion, in der `offset` liegt (für „§ x"-Chips). */
@@ -281,7 +297,8 @@ function baueVerbundRun(
  * propagieren (der Aufrufer fängt sie via `useAsyncAction` → Banner); eine
  * fehlende VB ist KEIN Fehler, sondern führt zu einem definierten leeren Run.
  * Die vom Nutzer markierten offenen Punkte des Vorlaufs werden übernommen
- * (verwaiste Keys verworfen) — „Neu aufbereiten" löscht sie NICHT.
+ * (verwaiste Keys verworfen) — „Neu aufbereiten" löscht sie NICHT. Dasselbe gilt für
+ * die importierten externen Recherche-Ergebnisse (`extern`, ohne Filterung).
  */
 export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContext): Promise<AufbereitungRun> {
   const now = new Date().toISOString();
@@ -307,7 +324,8 @@ export async function computeAufbereitung(idb: IDBStore, ctx: AufbereitungContex
   }
 
   const mitOffen = uebernehmeOffenePunkte(roh, vorher?.offenePunkte ?? []);
-  const run = uebernehmeErledigtePunkte(mitOffen, vorher?.erledigtePunkte ?? []);
+  const mitErledigt = uebernehmeErledigtePunkte(mitOffen, vorher?.erledigtePunkte ?? []);
+  const run = uebernehmeExterneRecherchen(mitErledigt, vorher?.extern);
   await idb.set(aufbereitungKey(ctx.key), run);
   return run;
 }
