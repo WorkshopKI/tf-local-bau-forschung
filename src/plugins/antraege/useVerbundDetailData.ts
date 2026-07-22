@@ -4,8 +4,17 @@
  * (bzw. den synthetischen Pseudo-Verbund für Standalone-Anträge) und liefert die
  * Lead-First-sortierten TVs. Reine IO-/State-Schicht — die Präsentation
  * (`VerbundDetail`) bleibt schlank.
+ *
+ * Die Auflösung läuft NICHT nur einmal pro Route: `lastLoadedAt` des Antrags-Stores
+ * hängt in den Effekt-Deps, damit ein Leseversuch, der ins Leere lief, sich selbst
+ * heilt, sobald der Datenbestand nachrückt (Bug-Klasse 1 „Cold-Start-Store-Refresh").
+ * Real aufgetreten: Wer die Aufbereitungs-Seite öffnete, während der Start-Sync die
+ * IDB noch füllte (oder `replaceStore` zwischen `clear()` und `put()` stand), bekam
+ * `verbund: null` — und damit eine Seite, deren Aktionen wortlos nichts taten, bis
+ * der Nutzer neu lud. `erneutVersuchen` ist der manuelle Weg für den Fall, dass gar
+ * kein Store-Reload folgt.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getAntrag,
@@ -18,6 +27,7 @@ import {
 import type { Antrag, Verbund, VerbundHistorieEntry, CsvSchema } from '@/core/services/csv/types';
 import { isNetzwerkLead } from './netzwerk';
 import { aktenzeichenFromPseudoVerbundId, buildPseudoVerbund, buildVerbundFromTeilantraege } from './pseudoVerbund';
+import { useAntraegeStore } from './store';
 
 export interface VerbundDetailData {
   verbund: Verbund | null;
@@ -25,6 +35,12 @@ export interface VerbundDetailData {
   history: VerbundHistorieEntry[];
   schemas: CsvSchema[];
   sourceNames: Record<string, string>;
+  /** `true`, solange ein Auflösungs-Lauf läuft. Trennt „wird noch geladen" von
+   *  „gibt es nicht" — ohne diese Trennung zeigt jede Seite beim Öffnen kurz
+   *  „nicht gefunden". */
+  laedt: boolean;
+  /** Auflösung von Hand neu anstoßen (CTA im „nicht gefunden"-Zustand). */
+  erneutVersuchen: () => void;
 }
 
 export function useVerbundDetailData(verbundId: string, isPseudo: boolean): VerbundDetailData {
@@ -34,9 +50,20 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
   const [history, setHistory] = useState<VerbundHistorieEntry[]>([]);
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
+  const [laedt, setLaedt] = useState(true);
+  const [versuch, setVersuch] = useState(0);
+  const erneutVersuchen = useCallback(() => setVersuch(v => v + 1), []);
+  // Datenversion des Antrags-Stores: `refreshAntraegeStoreAfterSync` ruft nach JEDEM
+  // Import/Snapshot-Sync `loadAll(force)`, das diesen Wert bumpt → die Auflösung
+  // läuft erneut, sobald die Daten da sind (siehe Kopfkommentar).
+  const datenStand = useAntraegeStore(s => s.lastLoadedAt);
 
   useEffect(() => {
     let cancelled = false;
+    setLaedt(true);
+    // `verbund` bewusst NICHT zurücksetzen: ein Re-Run bei nachrückendem Daten-
+    // stand darf eine bereits aufgelöste Seite nicht zum Flackern bringen.
+    const fertig = (): void => { if (!cancelled) setLaedt(false); };
 
     async function loadSchemasFor(tvs: Antrag[]): Promise<void> {
       if (tvs.length === 0 || cancelled) return;
@@ -63,7 +90,7 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
       setSchemas([...byId.values()]);
     }
 
-    (async () => {
+    async function aufloesen(): Promise<void> {
       if (isPseudo) {
         // Standalone-Antrag: synthetischer Verbund, einziger TV expandiert.
         const az = aktenzeichenFromPseudoVerbundId(verbundId);
@@ -107,9 +134,15 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
       setAntraege(sorted);
       setHistory(h.sort((x, y) => y.geaendert_am.localeCompare(x.geaendert_am)));
       await loadSchemasFor(sorted);
-    })();
-    return () => { cancelled = true; };
-  }, [verbundId, storage.idb, isPseudo]);
+    }
 
-  return { verbund, antraege, history, schemas, sourceNames };
+    // `laedt` MUSS auch bei einem geworfenen IDB-Fehler enden — sonst hinge die
+    // Seite dauerhaft in „wird geladen" und verschwiege den Fehlschlag.
+    void aufloesen()
+      .catch(e => console.warn('[verbund-detail] Auflösung fehlgeschlagen:', e))
+      .finally(fertig);
+    return () => { cancelled = true; };
+  }, [verbundId, storage.idb, isPseudo, datenStand, versuch]);
+
+  return { verbund, antraege, history, schemas, sourceNames, laedt, erneutVersuchen };
 }

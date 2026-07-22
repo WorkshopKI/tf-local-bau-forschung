@@ -82,7 +82,7 @@ export function VerbundDetail({
 
   const isPseudo = isPseudoVerbundId(verbundId);
   // Daten-Schicht: Verbund + TVs + Historie + Schemas (bzw. Pseudo-Verbund).
-  const { verbund, antraege, history, schemas, sourceNames } = useVerbundDetailData(verbundId, isPseudo);
+  const { verbund, antraege, history, schemas, sourceNames, laedt } = useVerbundDetailData(verbundId, isPseudo);
 
   const [historyField, setHistoryField] = useState<string | null>(null);
   // „Volltext lesen"-Zustand der Kurzbeschreibungs-Karte.
@@ -171,12 +171,17 @@ export function VerbundDetail({
   }, [antraege]);
 
   if (!verbund) {
+    // „nicht gefunden" erst behaupten, wenn die Auflösung durch ist — während des
+    // Ladens (und während eines Re-Runs bei nachrückendem Datenbestand) ist das
+    // schlicht falsch.
     return (
       <PanelShell onClose={onClose}>
         <div className="py-10 text-[13px] text-[var(--tf-text-tertiary)]">
-          {isPseudo
-            ? `Antrag ${aktenzeichenFromPseudoVerbundId(verbundId)} nicht gefunden.`
-            : `Verbund ${verbundId} nicht gefunden.`}
+          {laedt
+            ? 'Wird geladen …'
+            : isPseudo
+              ? `Antrag ${aktenzeichenFromPseudoVerbundId(verbundId)} nicht gefunden.`
+              : `Verbund ${verbundId} nicht gefunden.`}
         </div>
       </PanelShell>
     );

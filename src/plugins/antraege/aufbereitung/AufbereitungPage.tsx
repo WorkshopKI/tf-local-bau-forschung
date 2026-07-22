@@ -21,6 +21,7 @@ import { useVerbundDetailData } from '../useVerbundDetailData';
 import { buildKurzfassungContext } from '../kurzfassung/context-builder';
 import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
 import { useAufbereitung } from './useAufbereitung';
+import { kontextZustand } from './kontext-zustand';
 import { QuellenPanel } from './QuellenPanel';
 import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { deriveTabZustaende } from './tab-gating';
@@ -48,7 +49,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const antraege = useAntraegeStore(s => s.antraege);
   const istVerbund = useMemo(() => antraege.some(a => a.verbund_id === antragKey), [antraege, antragKey]);
   const verbundId = istVerbund ? antragKey : pseudoVerbundIdFor(antragKey);
-  const { verbund, antraege: tvs } = useVerbundDetailData(verbundId, isPseudoVerbundId(verbundId));
+  const { verbund, antraege: tvs, laedt: kontextLaedt, erneutVersuchen } = useVerbundDetailData(verbundId, isPseudoVerbundId(verbundId));
   const ctx = useMemo(
     () => (verbund ? buildKurzfassungContext(verbund, tvs, antragKey, verbund.verbund_id) : null),
     [verbund, tvs, antragKey],
@@ -127,6 +128,22 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
     : `/antraege/${encodeURIComponent(antragKey)}`;
 
   const titel = ctx?.akronym ?? antragKey;
+
+  // Ohne aufgelösten Antrag hat die Seite keine Grundlage: „Neu aufbereiten" und
+  // „Mit KI aufbereiten" brechen dann wortlos ab. Also gar nicht erst anbieten,
+  // sondern den Zustand benennen (siehe `kontext-zustand.ts`).
+  const zustand = kontextZustand({ ctxVorhanden: ctx !== null, laedt: kontextLaedt });
+  if (zustand !== 'bereit') {
+    return (
+      <KontextHinweis
+        zustand={zustand}
+        antragKey={antragKey}
+        backHref={backHref}
+        onErneutVersuchen={erneutVersuchen}
+      />
+    );
+  }
+
   const metaTeile = [ctx?.foerderkennzeichen ? `FKZ ${ctx.foerderkennzeichen}` : null, ctx?.antragsteller ?? null]
     .filter((s): s is string => !!s);
   const stammdaten: SteckbriefStammdaten = {
@@ -136,10 +153,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   };
   return (
     <div className="px-8 py-6">
-      <Link to={backHref}
-        className="inline-flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
-        <ArrowLeft size={14} /> Zurück zum Antrag
-      </Link>
+      <ZurueckLink href={backHref} />
 
       <PageHeader
         className="mt-2"
@@ -174,6 +188,16 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
           </div>
         }
       />
+
+      {/* Fehler der beiden Kopf-Aktionen: `bausteine.error` zeigen die Tabs selbst,
+          `neu`/`bausteineNeu` hatten bis dahin NUR im pausierten Zeitplan-Tab einen
+          Anzeigeort — ein gescheiterter Klick sah aus wie ein toter Knopf. */}
+      {aufb.neu.error || aufb.bausteineNeu.error ? (
+        <div className="mt-2 rounded-lg px-3 py-2 text-[12.5px] text-[var(--tf-danger-text)]"
+          style={{ border: '0.5px solid var(--tf-border)' }}>
+          {aufb.neu.error ?? aufb.bausteineNeu.error}
+        </div>
+      ) : null}
 
       {aufb.veraltet ? (
         <div className="mt-2 text-[12px] text-[var(--tf-text-tertiary)]">
@@ -335,6 +359,53 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
         )}
         </LesemodusSprungProvider>
       </div>
+    </div>
+  );
+}
+
+function ZurueckLink({ href }: { href: string }): React.ReactElement {
+  return (
+    <Link to={href}
+      className="inline-flex items-center gap-1 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+      <ArrowLeft size={14} /> Zurück zum Antrag
+    </Link>
+  );
+}
+
+/**
+ * Seite ohne auflösbaren Antrag. Zeigt bewusst KEINE Aktionen — ohne Kontext bricht
+ * jede von ihnen wortlos ab, und genau dieser stille Knopf war der gemeldete Fehler.
+ * Der häufigste Grund ist ein Datenbestand, der noch nachrückt (Start-Sync / laufende
+ * Aktualisierung); `useVerbundDetailData` löst dann von selbst neu auf, „Erneut
+ * versuchen" ist der Weg für alles andere.
+ */
+function KontextHinweis({ zustand, antragKey, backHref, onErneutVersuchen }: {
+  zustand: 'laedt' | 'nicht-aufloesbar';
+  antragKey: string;
+  backHref: string;
+  onErneutVersuchen: () => void;
+}): React.ReactElement {
+  return (
+    <div className="px-8 py-6">
+      <ZurueckLink href={backHref} />
+      <PageHeader className="mt-2" title={antragKey} />
+      {zustand === 'laedt' ? (
+        <p className="mt-4 text-[13px] text-[var(--tf-text-tertiary)]">Antrag wird geladen …</p>
+      ) : (
+        <div className="mt-4 max-w-[560px] rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <p className="text-[13px] text-[var(--tf-text)]">
+            Antrag {antragKey} ist im aktuellen Datenbestand nicht auffindbar.
+          </p>
+          <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)] leading-snug">
+            Möglicherweise werden die Daten gerade aktualisiert — dann erscheint der Antrag von
+            selbst, sobald die Aktualisierung durch ist. Die Aufbereitung ist bis dahin nicht
+            möglich, deshalb sind die Aktionen ausgeblendet.
+          </p>
+          <Button variant="secondary" size="sm" className="mt-3" onClick={onErneutVersuchen}>
+            Erneut versuchen
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

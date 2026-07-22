@@ -127,6 +127,15 @@ export interface UseAufbereitungResult {
 
 const FEHLT: BausteinUiState<never> = { status: 'fehlt' };
 
+/**
+ * Ohne aufgelösten Antrag brachen die drei Aufbereitungs-Aktionen wortlos ab
+ * (`if (!ctx) return`) — für den Nutzer ein Knopf, der nichts tut, ohne Ladezustand
+ * und ohne Meldung. Jetzt wird geworfen: `useAsyncAction` macht daraus einen
+ * sichtbaren Fehler (Pitfall #15). Die Seite blendet die Knöpfe in diesem Zustand
+ * ohnehin aus (`kontext-zustand.ts`) — das hier ist die zweite Verteidigungslinie.
+ */
+const KEIN_KONTEXT = 'Der Antrag ist noch nicht geladen — bitte „Erneut versuchen" oder die Seite neu laden.';
+
 export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitungResult {
   const storage = useStorage();
   const bridge = useAIBridge();
@@ -288,7 +297,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   }, [key, knownIdsKey, tvKey, run, storage.idb]);
 
   const neu = useAsyncAction(async () => {
-    if (!ctx) return;
+    if (!ctx) throw new Error(KEIN_KONTEXT);
     const r = await computeAufbereitung(storage.idb, ctx);
     setRun(r);
     setVeraltet(false);
@@ -378,7 +387,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   };
 
   const bausteine = useAsyncAction(async () => {
-    if (!ctx) return;
+    if (!ctx) throw new Error(KEIN_KONTEXT);
     // KI-Preflight: nicht verbunden → Verbinden-Prompt statt stiller Tab-Öffnung + Loop.
     if (!kiVerbindungBereit(bridge)) return;
     // Sicherstellen, dass ein Run (mit Gliederung) existiert.
@@ -388,7 +397,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   });
 
   const bausteineNeu = useAsyncAction(async () => {
-    if (!ctx) return;
+    if (!ctx) throw new Error(KEIN_KONTEXT);
     if (!kiVerbindungBereit(bridge)) return;
     const aktRun = run ?? await computeAufbereitung(storage.idb, ctx);
     if (!run) setRun(aktRun);

@@ -202,6 +202,8 @@ Die Metrik lebt IO-frei und geteilt in [aspekte-metrik.ts](../../src/core/servic
 
 Route `/antraege/:aktenzeichen/aufbereitung` als flag-gated **Child** unter `ShellLayout` ([Router.tsx](../../src/core/Router.tsx)). Kontext aus dem Route-Key über `useVerbundDetailData` + `buildKurzfassungContext` (deep-link-/refresh-fest). Einstieg: flag-gated Button „Antrag-Aufbereitung öffnen" auf [VerbundDetail.tsx](../../src/plugins/antraege/VerbundDetail.tsx).
 
+**Kontext-Zustand der Seite (v2.302.1).** Die Seite hat drei Zustände — abgeleitet in der reinen [kontext-zustand.ts](../../src/plugins/antraege/aufbereitung/kontext-zustand.ts) aus „Kontext da?" × „Auflösung läuft?": `bereit` (volles Gerüst), `laedt` („Antrag wird geladen …") und `nicht-aufloesbar` (Hinweis + „Erneut versuchen", **keine** Aktions-Knöpfe). Grund: ohne `ctx` brechen `neu`/`bausteine`/`bausteineNeu` ab — vorher rendete die Seite dabei ihr volles Gerüst, und die beiden Knöpfe taten wortlos nichts (Bug-Klasse 1, siehe [recurring-bug-classes.md](recurring-bug-classes.md)). `useVerbundDetailData` löst zusätzlich neu auf, sobald der Antrags-Store nachlädt (`lastLoadedAt` in den Effekt-Deps), sodass der Zustand sich ohne Reload heilt. Fehler aus „Neu aufbereiten"/„KI-Bausteine neu berechnen" stehen jetzt unter dem Seitenkopf — bis v2.302.0 hatten sie **nur** im pausierten Zeitplan-Tab einen Anzeigeort.
+
 ## Paket 3 — Visualisierungen (Silhouette · Schwimmbahnen · Risiko-Punkte)
 
 Drei **rein deterministische** Sichten auf den bestehenden Daten (kein LLM, keine Skills/Seeds, keine Transport-Fragen). Alle Datenmodell-Erweiterungen sind **optionale Felder** — alte persistierte Runs (`version: 1`) bleiben ladbar, fehlende Felder degradieren die neue Ansicht, brechen nichts.
