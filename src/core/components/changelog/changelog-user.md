@@ -21,12 +21,10 @@
 
 ## v2.290 — 2026-07
 
-### Neu
-<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
 ### Verbesserungen
-<!-- - … -->
-### Bugfixes
-<!-- - … -->
+- Nimmst du deinen Übernahme-Wunsch zurück, verschwindet er sofort aus der Zuweisungs-Liste der Projektleitung — ohne dass sie erst einsammeln muss.
+- Die Projektleitung sieht per Tooltip, wer welchen Wunsch zurückgezogen hat.
+- Wünsche, die erfüllt sind (der Verbund ist vergeben), räumen sich beim nächsten Besuch der Startseite von selbst weg. Die Einsammel-Meldung zeigt außerdem, wie viele der gelesenen Wünsche bereits vergeben sind.
 
 ## v2.289 — 2026-07
 

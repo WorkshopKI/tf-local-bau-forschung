@@ -18,6 +18,11 @@
  * Einsammeln umsetzt — und (b) ein browser-lokales Optimistic-Overlay
  * (`retractedSet`), das die „Vorgemerkt"-Anzeige sofort unterdrueckt, bis die PL
  * neu einsammelt (dann self-healing prune via `pendingSet`).
+ *
+ * Lebensende eines Wunsches (v2.290): entweder Ruecknahme durch den MA — oder
+ * Erledigung (Verbund vergeben / Antrag laut CSV gekuerzelt). Erledigte Wünsche
+ * raeumt der Hook beim naechsten Laden aus der persoenlichen Datei (`istErledigt`),
+ * damit die PL-Einsammel-Bilanz nicht monoton mitwaechst.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -60,9 +65,14 @@ export interface MyUebernahmeWuensche {
  *   Ruecknahme-Overlays genutzt. `undefined` = „noch nicht bereit" (Store laedt) —
  *   dann wird NICHT geprunt (ein leeres Set wuerde das Overlay sonst vorzeitig
  *   leeren).
+ * @param istErledigt — true, wenn der Wunsch entschieden ist (Verbund vergeben
+ *   oder Antrag laut CSV gekuerzelt). Solche Wünsche raeumen sich aus der
+ *   persoenlichen Datei (v2.290). `undefined` = noch nicht beurteilbar → nie
+ *   prunen; nur positive Evidenz loescht.
  */
 export function useMyUebernahmeWuensche(
   pendingSet?: ReadonlySet<string>,
+  istErledigt?: (antragId: string) => boolean,
 ): MyUebernahmeWuensche {
   const storage = useStorage();
   const meinKuerzel = useMeinKuerzel();
@@ -157,6 +167,21 @@ export function useMyUebernahmeWuensche(
     () => new Set(wuensche.map(w => w.antragId)),
     [wuensche],
   );
+
+  // v2.290: erledigte Wünsche raeumen sich selbst aus der persoenlichen Datei.
+  // Ohne das bleibt ein einmal geklickter Wunsch dort ewig stehen — die PL liest
+  // ihn bei JEDEM Einsammeln erneut mit („14 Wünsche gelesen", obwohl die
+  // Anträge längst zugewiesen sind). Der Wunsch ist entschieden, sobald der
+  // Verbund vergeben ist; die Zuweisung selbst bleibt davon unberuehrt (der
+  // PL-Merge fasst nur `status:'selbst'` an).
+  useEffect(() => {
+    if (loading || !istErledigt || wuensche.length === 0) return;
+    const next = wuensche.filter(w => !istErledigt(w.antragId));
+    if (next.length === wuensche.length) return;
+    void persistWuensche(next).catch(() => {
+      // Kein persoenlicher Ordner verbunden — der IDB-Cache ist trotzdem sauber.
+    });
+  }, [loading, istErledigt, wuensche, persistWuensche]);
 
   // Self-healing prune: eine zurueckgenommene id braucht keine Unterdrueckung
   // mehr, sobald sie nicht mehr pending ist (PL hat neu eingesammelt → die

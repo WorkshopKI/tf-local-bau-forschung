@@ -241,6 +241,56 @@ describe('mergeWuenscheIntoZuweisungen', () => {
     expect(next[0]).toMatchObject({ anonId: 'MA09', status: 'freigegeben' });
   });
 
+  it('zaehlt Wünsche fuer bereits vergebene Verbuende als „bereits vergeben" (erklaert die gelesene Zahl)', () => {
+    const existing: Zuweisung[] = [
+      { antragId: 'A1', anonId: 'MA09', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben', freigegebenAm: '2026-05-01T00:00:00.000Z' },
+    ];
+    const res = mergeWuenscheIntoZuweisungen(
+      existing,
+      [batchOf('sch', [wunsch('A2'), wunsch('C')])], // A2 im vergebenen V1, C offen
+      anonMap([['SCH', 'MA05']]),
+      Q,
+      STUNDEN_PRO_TV,
+      inV1,
+    );
+    expect(res.bereitsVergeben).toBe(1);
+    expect(res.neu).toBe(1);
+    expect(res.neueEintraege).toEqual([{ antragId: 'C', anonId: 'MA05' }]);
+  });
+
+  it('laesst eine Freigabe mit selbstEingetragen stehen, wenn der MA seine Datei aufraeumt', () => {
+    // Der MA hat den erfuellten Wunsch aus seiner Datei entfernt (v2.290
+    // Selbst-Aufraeumen). Die Freigabe darf dadurch NICHT verschwinden —
+    // `selbstEingetragen` ueberlebt die Freigabe und ist kein Wunsch-Signal.
+    const existing: Zuweisung[] = [
+      { antragId: 'A', anonId: 'MA01', quartal: Q, stunden: 9, anzahlTV: 1, status: 'freigegeben', selbstEingetragen: true, freigegebenAm: '2026-05-01T00:00:00.000Z' },
+    ];
+    const { next, entfernt } = mergeWuenscheIntoZuweisungen(
+      existing,
+      [batchOf('mue', [])], // Datei gelesen, aber leer
+      anonMap([['MUE', 'MA01']]),
+      Q,
+      STUNDEN_PRO_TV,
+    );
+    expect(entfernt).toBe(0);
+    expect(next).toHaveLength(1);
+    expect(next[0]!.status).toBe('freigegeben');
+  });
+
+  it('liefert Details zu entfernten Wünschen (PL-Tooltip „wer hat was zurueckgezogen")', () => {
+    const existing: Zuweisung[] = [
+      { antragId: 'B', anonId: 'MA01', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+    ];
+    const res = mergeWuenscheIntoZuweisungen(
+      existing,
+      [batchOf('mue', [])],
+      anonMap([['MUE', 'MA01']]),
+      Q,
+      STUNDEN_PRO_TV,
+    );
+    expect(res.entfernteEintraege).toEqual([{ antragId: 'B', anonId: 'MA01' }]);
+  });
+
   it('mehrere Interessenten VOR der Freigabe bleiben erhalten (Sperre greift erst nach Freigabe, Pitfall #26)', () => {
     const { next, neu } = mergeWuenscheIntoZuweisungen(
       [],

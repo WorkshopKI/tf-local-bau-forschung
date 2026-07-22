@@ -20,7 +20,7 @@
  * Stunden bleiben intern — Anzeige ausschliesslich in Antraegen
  * ("4 von 16 Antraegen frei in Q2-2026").
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -35,7 +35,12 @@ import {
   computeQuartalsAuslastung,
   getTVCount,
 } from '@/plugins/auslastung/services/kapazitaet';
-import { verteilCutoffDatum, istZuVerteilen } from '@/plugins/auslastung/services/verbund';
+import {
+  verteilCutoffDatum,
+  istZuVerteilen,
+  verbundKeyOf,
+  hatBearbeiterKuerzel,
+} from '@/plugins/auslastung/services/verbund';
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import {
   buildOffeneEintraege,
@@ -127,6 +132,26 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // in ZAH/auslastung-uebernahme.json, die PL sammelt ihn ein. Das pendingSet
   // (aus auslastung.json) speist das self-healing Prune des Ruecknahme-Overlays
   // — erst wenn der Store geladen ist (sonst leert ein leeres Set es vorzeitig).
+  // v2.290: Verbünde, die inzwischen vergeben sind — Grundlage dafür, dass ein
+  // erfüllter Wunsch aus der persönlichen Datei fällt (sonst liest die PL ihn
+  // bei jedem Einsammeln erneut mit).
+  const vergebeneVerbundKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const z of zuweisungen) {
+      if (z.status !== 'freigegeben') continue;
+      const a = antraegeById.get(z.antragId);
+      if (a) s.add(verbundKeyOf(a));
+    }
+    return s;
+  }, [zuweisungen, antraegeById]);
+
+  // Unbekannter Antrag → nicht beurteilbar → false (nur positive Evidenz prunt).
+  const istErledigt = useCallback((antragId: string): boolean => {
+    const a = antraegeById.get(antragId);
+    if (!a) return false;
+    return hatBearbeiterKuerzel(a) || vergebeneVerbundKeys.has(verbundKeyOf(a));
+  }, [antraegeById, vergebeneVerbundKeys]);
+
   const {
     claimedSet,
     retractedSet,
@@ -136,7 +161,10 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
     error: wuenscheError,
     claim,
     undo,
-  } = useMyUebernahmeWuensche(loaded ? (myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN) : undefined);
+  } = useMyUebernahmeWuensche(
+    loaded ? (myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN) : undefined,
+    loaded && cache.antraege.length > 0 ? istErledigt : undefined,
+  );
 
   // Gemeinsamer Filter-Kontext für Tier 1 (Hauptkategorie) + Tier 2 (Neben).
   // `now` wird im jeweiligen Memo-Body ausgewertet (kein Render-Dep-Churn).

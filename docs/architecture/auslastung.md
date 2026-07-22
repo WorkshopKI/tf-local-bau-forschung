@@ -39,6 +39,15 @@ Die Status-Pills der Verbund-Liste (`offen` · `Übernahme-Wunsch` · `zugewiese
 - Das Flag darf **nicht** an `selbstEingetragen` hängen: es überlebt die Freigabe (selbst eingetragen + freigegeben = zugewiesen, nicht offen).
 - Die Liste zeigt die Interessenten als Kürzel-Badges („will MA03 MA07", ab 4 gekürzt auf `+N`; in pl/dev echte TIB-Kürzel über `deAnonymisierung`) — wer übernehmen möchte, ist ohne Klick sichtbar. Reihenfolge = früheste Vormerkung zuerst, geteilte Logik `interessentenNachWunschzeit` (Liste + Detail-Panel). Davon getrennt bleibt das amber `⚑ N vorgemerkt` für Wünsche, die noch in den persönlichen Ordnern liegen.
 
+## Lebenszyklus eines Übernahme-Wunsches (v2.290)
+
+Ein Wunsch lebt in der persönlichen Datei `ZAH/auslastung-uebernahme.json` (Quelle der Wahrheit) und als Kopie im Store (`Zuweisung{status:'selbst'}`, entsteht erst beim PL-Einsammeln). Er endet auf genau zwei Wegen:
+
+- **Rücknahme durch den MA** — „Rückgängig" schreibt die persönliche Datei ohne den Wunsch. Das Cockpit liest die persönlichen Ordner beim Öffnen ohnehin read-only, also verschwindet der Wunsch **sofort** aus Liste, Filter und Zählern: `findeZurueckgezogeneWuensche` vergleicht die Store-`selbst`-Einträge gegen den frisch gelesenen `WunschStand` ([uebernahme-einsammeln.ts](../../src/plugins/auslastung/services/onboarding/uebernahme-einsammeln.ts)). Der Einsammel-Klick persistiert nur denselben Befund. Beurteilt werden ausschließlich anonIds mit **gelesener Datei** (sonst wäre „fehlt in der Datei" nicht von „Datei nicht gelesen" unterscheidbar) — identische Regel wie die Retraktion im Merge. Die PL sieht in der Toolbar „N zurückgezogen" mit Tooltip (wer → Akronym · Aktenzeichen).
+- **Erledigung** — sobald der Verbund vergeben ist (Freigabe im Store oder `tib_kuerz` in der CSV), räumt `useMyUebernahmeWuensche` den Wunsch beim nächsten Laden aus der persönlichen Datei (Prädikat `istErledigt`, nur positive Evidenz löscht). Ohne das wüchse die Datei monoton und die Einsammel-Bilanz meldete dauerhaft längst zugewiesene Wünsche als „gelesen".
+
+Regel dazu: Der Merge fasst **nur `status:'selbst'`** an. `selbstEingetragen` überlebt die Freigabe — würde die Retraktion daran hängen, löschte das Selbst-Aufräumen des MA die Freigabe gleich mit. Die Einsammel-Bilanz weist `bereitsVergeben` separat aus, damit die Differenz „gelesen" vs. „neu + zurückgezogen" erklärt ist.
+
 ## kurator-Korpus-Modus (`auslastungNurKorpus`, v2.56)
 
 Damit der **Kurator** den Themen-Vektoren-Embedding-Katalog aktuell halten kann, ohne MA-Auslastung zu sehen oder zuzuweisen, läuft das Modul in der **kurator**-Variante in einem reduzierten Modus (`features.auslastungNurKorpus: true`, zusätzlich zu `auslastung: true`; Helper `isAuslastungNurKorpusEnabled()`).

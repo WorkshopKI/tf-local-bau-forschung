@@ -35,7 +35,7 @@ import {
 import { nextFreeAnonId, type AnonymMap } from '../services/identitaet';
 import { mergeProfilesIntoMitarbeiter } from '../services/onboarding';
 import { pingAuslastungWrite } from '../services/cross-tab';
-import { mergeWuenscheIntoZuweisungen } from '../services/onboarding';
+import { mergeWuenscheIntoZuweisungen, type MergeWuenscheResult } from '../services/onboarding';
 import { pickVerbundZuweisung } from '../services/verbund';
 import { deriveHauptNeben } from '../services/klassifizierung';
 
@@ -143,7 +143,8 @@ interface AuslastungDataState {
    *  den persoenlichen Ordnern als `Zuweisung{status:'selbst'}` in die
    *  Zuweisungs-Liste — EIN setState + EIN persist (Pitfall #16/#20). PL-/
    *  Matching-Entscheidungen bleiben erhalten; Retraktion entfernt zurueck-
-   *  gezogene Wünsche. Liefert Anzahl neu/entfernt. */
+   *  gezogene Wünsche. Liefert die Merge-Bilanz inkl. der Details, aus denen die
+   *  PL im Tooltip ablesen kann, wer welchen Wunsch zurückgezogen hat. */
   applyUebernahmeWuensche: (
     storage: StorageService,
     batch: PersoenlicheUebernahmeWuensche[],
@@ -151,7 +152,7 @@ interface AuslastungDataState {
     /** antragId → Verbund-Key — sperrt neue Selbst-Wünsche fuer bereits
      *  freigegebene Verbünde (eine Einheit, ein Bearbeiter). */
     verbundKeyOfAntrag: (antragId: string) => string,
-  ) => Promise<{ neu: number; entfernt: number }>;
+  ) => Promise<Omit<MergeWuenscheResult, 'next'>>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
   /** Mergt mehrere Klassifizierungen in EINEM setState, OHNE persist. Caller
@@ -449,7 +450,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
 
   applyUebernahmeWuensche: async (storage, batch, anonymMap, verbundKeyOfAntrag) => {
     const cfg = get().data.config;
-    const { next, neu, entfernt } = mergeWuenscheIntoZuweisungen(
+    const { next, ...bilanz } = mergeWuenscheIntoZuweisungen(
       get().data.zuweisungen,
       batch,
       anonymMap,
@@ -457,10 +458,10 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       cfg.stundenProTV ?? 9,
       verbundKeyOfAntrag,
     );
-    if (neu === 0 && entfernt === 0) return { neu, entfernt };
+    if (bilanz.neu === 0 && bilanz.entfernt === 0) return bilanz;
     set(state => ({ data: { ...state.data, zuweisungen: next } }));
     await get().persist(storage);
-    return { neu, entfernt };
+    return bilanz;
   },
 
   removeMitarbeiter: async (storage, anonId) => {

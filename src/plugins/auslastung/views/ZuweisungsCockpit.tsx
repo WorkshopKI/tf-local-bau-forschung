@@ -23,7 +23,8 @@ import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuens
 import { usePersistedKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { getAntrag } from '@/core/services/csv/idb-csv';
 import { runMatchingWithContext } from '../services/matching';
-import { collectUebernahmeWuensche } from '../services/onboarding';
+import { collectUebernahmeWuensche, findeZurueckgezogeneWuensche, type WunschRef } from '../services/onboarding';
+import { useDeAnonResolver } from '../components/AnonymIdBadge';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
 import { SkeletonRows } from '../components/Skeleton';
@@ -82,7 +83,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const cache = useAntraegeCache();
   // v2.9: offene Übernahme-Wünsche (read-only aus den persönlichen Ordnern) —
   // markiert Anträge schon VOR dem Einsammeln als „vorgemerkt".
-  const { pendingByAntrag, reloadPending } = usePendingUebernahmeWuensche(cache.anonymMap);
+  const { pendingByAntrag, wunschStand, reloadPending } = usePendingUebernahmeWuensche(cache.anonymMap);
+  const resolveName = useDeAnonResolver();
   const { ready } = useAuslastungReady();
   const isInitialLoading = !ready;
   // v2.63: persisted-only — das Cockpit konsumiert nur freigegebene (= immer
@@ -131,6 +133,9 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [ausgeschlossen, setAusgeschlossen] = useState<AusgeschlossenerMa[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
+  // v2.290: Details des letzten Einsammelns (wer/was) — als Tooltip an der
+  // Bilanz-Zeile, damit die PL zurückgezogene Wünsche nachvollziehen kann.
+  const [einsammelnRefs, setEinsammelnRefs] = useState<{ neu: WunschRef[]; entfernt: WunschRef[] } | null>(null);
   // v2.19: von der PL manuell hinzugefuegte MAs (anonIds) fuer den selektierten
   // Antrag — Reset bei Selektionswechsel (siehe useEffect weiter unten).
   const [manualAnonIds, setManualAnonIds] = useState<string[]>([]);
@@ -147,6 +152,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // Zuweisung{status:'selbst'} in auslastung.json (EIN persist im Store).
   const einsammelnAction = useAsyncAction(async () => {
     setEinsammelnMsg(null);
+    setEinsammelnRefs(null);
     let root = await getUserFoldersRootHandle(storage.idb);
     if (!root) {
       const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
@@ -170,15 +176,21 @@ export function ZuweisungsCockpit(): React.ReactElement {
     // antragId → Verbund-Key, damit der Merge keine Selbst-Wünsche fuer bereits
     // freigegebene Verbünde anlegt (eine Einheit, ein Bearbeiter).
     const verbundKeyByAntrag = new Map(cache.antraege.map(a => [a.aktenzeichen, verbundKeyOf(a)]));
-    const { neu, entfernt } = await applyUebernahmeWuensche(
-      storage,
-      batch,
-      cache.anonymMap,
-      (id) => verbundKeyByAntrag.get(id) ?? id,
-    );
+    const { neu, entfernt, bereitsVergeben, neueEintraege, entfernteEintraege } =
+      await applyUebernahmeWuensche(
+        storage,
+        batch,
+        cache.anonymMap,
+        (id) => verbundKeyByAntrag.get(id) ?? id,
+      );
+    // „bereits vergeben" erklärt, warum die gelesene Zahl größer bleibt als die
+    // Summe aus neu/zurückgezogen: erfüllte Wünsche stehen noch in der
+    // persönlichen Datei des MA, bis er das nächste Mal auf die Startseite geht.
     setEinsammelnMsg(
-      `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`,
+      `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`
+      + (bereitsVergeben > 0 ? ` · ${bereitsVergeben} bereits vergeben` : ''),
     );
+    setEinsammelnRefs({ neu: neueEintraege, entfernt: entfernteEintraege });
     // Pending-Markierung aktualisieren (eingesammelte Wünsche sind nun im Store).
     reloadPending();
   });
@@ -214,6 +226,40 @@ export function ZuweisungsCockpit(): React.ReactElement {
     [freigegebene, cache.verbuendeById],
   );
 
+  // v2.290: Ein zurückgezogener Wunsch verschwindet SOFORT aus der Liste. Die
+  // persönlichen Ordner sind beim Öffnen des Tabs bereits gelesen — die Anzeige
+  // muss den Einsammel-Klick also nicht abwarten (der persistiert denselben
+  // Befund nur). Gilt für Filter, Zähler, Liste und Detail; die Matching-Engine
+  // rechnet bewusst weiter auf dem Store-Stand (Auslastung/Kontingente kommen
+  // ohnehin aus useAuslastungIndex).
+  const zurueckgezogene = useMemo(
+    () => findeZurueckgezogeneWuensche(zuweisungen, wunschStand),
+    [zuweisungen, wunschStand],
+  );
+  const zuweisungenAnzeige = useMemo(() => {
+    if (zurueckgezogene.length === 0) return zuweisungen;
+    const raus = new Set(zurueckgezogene.map(z => `${z.antragId}::${z.anonId}`));
+    return zuweisungen.filter(z => !raus.has(`${z.antragId}::${z.anonId}`));
+  }, [zuweisungen, zurueckgezogene]);
+
+  // Akronym je TV-Aktenzeichen — für die „wer/was"-Tooltips der Wunsch-Zeilen.
+  const akronymByAz = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const row of verbundRows) {
+      for (const az of row.tvAktenzeichen) m.set(az, row.akronym);
+    }
+    return m;
+  }, [verbundRows]);
+
+  const beschreibeWunsch = useCallback(
+    (ref: WunschRef): string => {
+      const wer = resolveName(ref.anonId) ?? ref.anonId;
+      const akronym = akronymByAz.get(ref.antragId);
+      return `${wer} → ${akronym ? `${akronym} · ` : ''}${ref.antragId}`;
+    },
+    [resolveName, akronymByAz],
+  );
+
   // Antragstyp-Filter: vb_phase pro Aktenzeichen, fuer den Lead-TV-Lookup.
   // vb_phase steht auf dem Antrag-Objekt (nicht auf der Verbund-Zeile).
   const phaseByAz = useMemo(() => {
@@ -233,14 +279,14 @@ export function ZuweisungsCockpit(): React.ReactElement {
       // → getKategorieLabel === null → matcht keinen Bucket, nur „Alle").
       if (antragstypFilter && getKategorieLabel(phaseByAz.get(row.leadAktenzeichen)) !== antragstypFilter) return false;
       if (statusFilter !== 'alle') {
-        const { offen, selbst, zug } = verbundStatusFlags(row.tvAktenzeichen, zuweisungen);
+        const { offen, selbst, zug } = verbundStatusFlags(row.tvAktenzeichen, zuweisungenAnzeige);
         if (statusFilter === 'offen' && !offen) return false;
         if (statusFilter === 'selbst' && !selbst) return false;
         if (statusFilter === 'zugewiesen' && !zug) return false;
       }
       return true;
     });
-  }, [verbundRows, kategorieFilter, antragstypFilter, phaseByAz, statusFilter, zuweisungen]);
+  }, [verbundRows, kategorieFilter, antragstypFilter, phaseByAz, statusFilter, zuweisungenAnzeige]);
 
   // Sortier-Optionen — „Kategorie" respektiert die konfigurierte Reihenfolge der
   // Überkategorien (id → Index). Wird in die reinen Comparatoren durchgereicht.
@@ -269,13 +315,13 @@ export function ZuweisungsCockpit(): React.ReactElement {
       for (const id of kats) kategorie[id] = (kategorie[id] ?? 0) + 1;
       const bucket = getKategorieLabel(phaseByAz.get(row.leadAktenzeichen));
       if (bucket) antragstyp[bucket]++;
-      const flags = verbundStatusFlags(row.tvAktenzeichen, zuweisungen);
+      const flags = verbundStatusFlags(row.tvAktenzeichen, zuweisungenAnzeige);
       if (flags.offen) offen++;
       if (flags.selbst) selbst++;
       if (flags.zug) zugewiesen++;
     }
     return { kategorie, antragstyp, offen, selbst, zugewiesen, total: verbundRows.length };
-  }, [verbundRows, phaseByAz, zuweisungen]);
+  }, [verbundRows, phaseByAz, zuweisungenAnzeige]);
 
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
@@ -391,7 +437,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
     if (!selected) return [] as string[];
     const azs = selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen];
     const storeWunsch = new Set(
-      zuweisungen
+      zuweisungenAnzeige
         .filter(z => azs.includes(z.antragId) && (z.status === 'selbst' || z.selbstEingetragen || z.status === 'freigegeben'))
         .map(z => z.anonId),
     );
@@ -581,7 +627,36 @@ export function ZuweisungsCockpit(): React.ReactElement {
             Übernahme-Wünsche einsammeln
           </Button>
           {einsammelnMsg && (
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">{einsammelnMsg}</span>
+            <span
+              className={einsammelnRefs && (einsammelnRefs.neu.length + einsammelnRefs.entfernt.length) > 0
+                ? 'text-[11px] text-[var(--tf-text-tertiary)] cursor-help underline decoration-dotted underline-offset-2'
+                : 'text-[11px] text-[var(--tf-text-tertiary)]'}
+              title={einsammelnRefs && (einsammelnRefs.neu.length + einsammelnRefs.entfernt.length) > 0
+                ? [
+                    einsammelnRefs.neu.length > 0
+                      ? `Neu:\n${einsammelnRefs.neu.map(r => `  ${beschreibeWunsch(r)}`).join('\n')}`
+                      : '',
+                    einsammelnRefs.entfernt.length > 0
+                      ? `Zurückgezogen:\n${einsammelnRefs.entfernt.map(r => `  ${beschreibeWunsch(r)}`).join('\n')}`
+                      : '',
+                  ].filter(Boolean).join('\n\n')
+                : undefined}
+            >
+              {einsammelnMsg}
+            </span>
+          )}
+          {/* Live-Rückzüge: der MA hat den Wunsch aus seinem Ordner entfernt, die
+              PL hat aber noch nicht eingesammelt. Aus der Liste sind sie bereits
+              raus — hier steht, WER WAS zurückgezogen hat. */}
+          {zurueckgezogene.length > 0 && (
+            <span
+              className="text-[11px] text-amber-700 cursor-help underline decoration-dotted underline-offset-2"
+              title={`Zurückgezogen (aus der Liste bereits entfernt, wird beim nächsten Einsammeln gespeichert):\n${
+                zurueckgezogene.map(z => `  ${beschreibeWunsch({ antragId: z.antragId, anonId: z.anonId })}`).join('\n')
+              }`}
+            >
+              {zurueckgezogene.length} zurückgezogen
+            </span>
           )}
           {einsammelnAction.error && (
             <span className="text-[11px] text-[var(--tf-danger-text)]">Fehler: {einsammelnAction.error}</span>
@@ -630,7 +705,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
           antragByAz={antragByAz}
           gate={gate}
           ueberKategorien={config.ueberKategorien}
-          zuweisungen={zuweisungen}
+          zuweisungen={zuweisungenAnzeige}
           pendingByAntrag={pendingByAntrag}
           confirmUnassignId={confirmUnassignId}
           onSetConfirmUnassign={setConfirmUnassignId}
@@ -686,7 +761,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
               nebenMatches={nebenMatches}
               ausgeschlossen={ausgeschlossen}
               matchingRunning={matchingRunning}
-              zuweisungen={zuweisungen.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
+              zuweisungen={zuweisungenAnzeige.filter(z => (selectedRow?.tvAktenzeichen ?? [selected.aktenzeichen]).includes(z.antragId))}
               mitarbeiter={mitarbeiter}
               pendingAnonIds={detailPendingAnonIds}
               unvollstaendig={istUnvollstaendigAz(selected, gate)}

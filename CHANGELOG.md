@@ -5,11 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
-### v2.290.0 — Uebernahme-Wunsch: Rueckzug wirkt sofort, erledigte raeumen sich (Juli 2026)
+### v2.290.0 — Übernahme-Wunsch: Rückzug wirkt sofort, erledigte räumen sich (Juli 2026)
 
-MINOR — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+MINOR — User-Feedback aus dem Zuweisungs-Cockpit: ein zurückgezogener Wunsch blieb bis zum nächsten Einsammeln stehen, die PL sah nirgends wer was zurückgezogen hat, und die Bilanz meldete „14 Wünsche gelesen", obwohl die meisten längst zugewiesen waren. Details: [auslastung.md](docs/architecture/auslastung.md#lebenszyklus-eines-übernahme-wunsches-v2290).
 
-- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+- **Rückzug wirkt sofort** — die Liste vergleicht die Store-Wünsche gegen die ohnehin gelesenen persönlichen Ordner; der Einsammel-Klick persistiert nur noch ([uebernahme-einsammeln.ts](src/plugins/auslastung/services/onboarding/uebernahme-einsammeln.ts), [ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx)).
+- **Wer hat was zurückgezogen** — Toolbar-Hinweis + Tooltip an der Einsammel-Bilanz, mit Kürzel, Akronym und Aktenzeichen ([ZuweisungsCockpit.tsx](src/plugins/auslastung/views/ZuweisungsCockpit.tsx)).
+- **Erledigte Wünsche räumen sich** aus der persönlichen Datei, sobald der Verbund vergeben ist ([useMyUebernahmeWuensche.ts](src/plugins/auslastung/hooks/useMyUebernahmeWuensche.ts), [NeueAntraegeFuerDich.tsx](src/plugins/home/NeueAntraegeFuerDich.tsx)).
+- **Bilanz weist „bereits vergeben" aus**, damit die gelesene Zahl erklärt ist ([useAuslastungData.ts](src/plugins/auslastung/hooks/useAuslastungData.ts)).
+- **Retraktion fasst nur `status:'selbst'` an** — sonst löschte das Selbst-Aufräumen des MA die Freigabe mit ([uebernahme-einsammeln.test.ts](src/plugins/auslastung/__tests__/uebernahme-einsammeln.test.ts)).
 
 ### v2.289.0 — Feedback: Kategorie UX entfaellt (geht in Idee auf) (Juli 2026)
 

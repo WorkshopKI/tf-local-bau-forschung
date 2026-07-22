@@ -36,20 +36,33 @@ export async function collectUebernahmeWuensche(
   return out;
 }
 
+/** Momentaufnahme der persoenlichen Wunsch-Dateien (v2.290). */
+export interface WunschStand {
+  /** antragId → anonIds mit aktuellem Wunsch. */
+  byAntrag: Map<string, string[]>;
+  /** anonIds, deren Wunsch-Datei in diesem Lauf tatsaechlich gelesen wurde. Nur
+   *  fuer diese ist die Datei-Sicht vollstaendig — jede Rueckzugs-Aussage haengt
+   *  daran (dieselbe Regel wie die Retraktion in `mergeWuenscheIntoZuweisungen`). */
+  gelesenAnonIds: Set<string>;
+}
+
 /**
- * Reine Gruppierung der eingelesenen Wünsche zu `antragId → anonIds[]` (dedupe).
- * Kürzel werden via AnonymMap aufgelöst (NFC + Split, Pitfall #22); unauflösbare
- * Kürzel übersprungen. Für die Read-only-Markierung „vorgemerkt" im Zuweisungs-
- * Cockpit VOR dem Einsammeln — schreibt NICHT in den Store.
+ * Reine Gruppierung der eingelesenen Wünsche zu `antragId → anonIds[]` (dedupe)
+ * plus der Menge gelesener anonIds. Kürzel werden via AnonymMap aufgelöst
+ * (NFC + Split, Pitfall #22); unauflösbare Kürzel übersprungen. Für die
+ * Read-only-Sicht im Zuweisungs-Cockpit VOR dem Einsammeln — schreibt NICHT in
+ * den Store.
  */
-export function buildPendingByAntrag(
+export function buildWunschStand(
   batch: readonly PersoenlicheUebernahmeWuensche[],
   anonymMap: AnonymMap,
-): Map<string, string[]> {
+): WunschStand {
   const tmp = new Map<string, Set<string>>();
+  const gelesenAnonIds = new Set<string>();
   for (const p of batch) {
     const anonId = resolveAnonIdForUser(p.kuerzel, anonymMap);
     if (!anonId) continue;
+    gelesenAnonIds.add(anonId);
     for (const w of p.wuensche) {
       if (!w || typeof w.antragId !== 'string' || !w.antragId) continue;
       let set = tmp.get(w.antragId);
@@ -57,9 +70,47 @@ export function buildPendingByAntrag(
       set.add(anonId);
     }
   }
-  const out = new Map<string, string[]>();
-  for (const [antragId, set] of tmp) out.set(antragId, [...set]);
+  const byAntrag = new Map<string, string[]>();
+  for (const [antragId, set] of tmp) byAntrag.set(antragId, [...set]);
+  return { byAntrag, gelesenAnonIds };
+}
+
+/** Nur die `antragId → anonIds`-Sicht des Wunsch-Stands (Bequemlichkeits-Wrapper). */
+export function buildPendingByAntrag(
+  batch: readonly PersoenlicheUebernahmeWuensche[],
+  anonymMap: AnonymMap,
+): Map<string, string[]> {
+  return buildWunschStand(batch, anonymMap).byAntrag;
+}
+
+/**
+ * `selbst`-Zuweisungen, die im persoenlichen Ordner ihres MA nicht mehr stehen —
+ * der MA hat den Wunsch zurueckgezogen, die PL hat aber noch nicht eingesammelt
+ * (v2.290). Erlaubt der Cockpit-Anzeige, den Rueckzug SOFORT zu beruecksichtigen;
+ * `mergeWuenscheIntoZuweisungen` persistiert dieselbe Entscheidung spaeter.
+ *
+ * Beurteilt werden nur anonIds mit gelesener Datei (sonst waere „fehlt in der
+ * Datei" nicht von „Datei nicht gelesen" unterscheidbar) und nur echte
+ * `status:'selbst'`-Eintraege — PL-Freigaben sind autoritativ.
+ */
+export function findeZurueckgezogeneWuensche(
+  zuweisungen: readonly Zuweisung[],
+  stand: WunschStand,
+): Zuweisung[] {
+  const out: Zuweisung[] = [];
+  for (const z of zuweisungen) {
+    if (z.status !== 'selbst') continue;
+    if (!stand.gelesenAnonIds.has(z.anonId)) continue;
+    if (stand.byAntrag.get(z.antragId)?.includes(z.anonId)) continue;
+    out.push(z);
+  }
   return out;
+}
+
+/** Ein Wunsch als Paar (fuer die „wer/was"-Anzeige der PL). */
+export interface WunschRef {
+  antragId: string;
+  anonId: string;
 }
 
 export interface MergeWuenscheResult {
@@ -68,6 +119,13 @@ export interface MergeWuenscheResult {
   neu: number;
   /** Anzahl entfernter `selbst`-Zuweisungen (Retraktion: Wunsch zurueckgezogen). */
   entfernt: number;
+  /** Gelesene Wünsche, deren Verbund bereits vergeben ist — erledigt, aber noch
+   *  in der persoenlichen Datei des MA. Erklaert die Differenz „gelesen" vs.
+   *  „neu" (v2.290); der MA raeumt sie beim naechsten Home-Besuch selbst weg. */
+  bereitsVergeben: number;
+  /** Details zu `neu` / `entfernt` — die PL sieht im Tooltip WER WAS. */
+  neueEintraege: WunschRef[];
+  entfernteEintraege: WunschRef[];
 }
 
 const keyOf = (antragId: string, anonId: string): string => `${antragId}::${anonId}`;
@@ -85,7 +143,9 @@ const keyOf = (antragId: string, anonId: string): string => `${antragId}::${anon
  *  - `freigegeben`/`abgelehnt`/`vorgeschlagen`-Zuweisungen bleiben UNANGETASTET
  *    (PL-Entscheidungen + Matching-Vorschlaege sind autoritativ); fuer ein
  *    bereits zugewiesenes `(antragId, anonId)` wird KEIN konkurrierender
- *    `selbst`-Eintrag erzeugt.
+ *    `selbst`-Eintrag erzeugt. Retraktion greift ausschliesslich bei
+ *    `status:'selbst'` — `selbstEingetragen` ueberlebt die Freigabe und darf
+ *    eine Freigabe nicht ausknipsen, wenn der MA seine Datei aufraeumt.
  *  - Verbund-Sperre (eine Einheit, ein Bearbeiter): ist IRGENDEIN TV des
  *    Verbundes bereits `freigegeben`, wird fuer diesen Verbund KEIN neuer
  *    `selbst`-Wunsch erzeugt — egal von welchem MA. Ein dabei bereits gelesener
@@ -120,6 +180,7 @@ export function mergeWuenscheIntoZuweisungen(
   // reconciled). + gewuenschte selbst-Zuweisungen je (antragId, anonId).
   const collectedAnonIds = new Set<string>();
   const desired = new Map<string, Zuweisung>();
+  let bereitsVergeben = 0;
 
   for (const p of batch) {
     const anonId = resolveAnonIdForUser(p.kuerzel, anonymMap);
@@ -128,7 +189,10 @@ export function mergeWuenscheIntoZuweisungen(
     for (const w of p.wuensche) {
       // Verbund schon vergeben → Wunsch ignorieren (ein bereits vorhandener
       // veralteter Selbst-Eintrag dieses MA wird unten als Retraktion entfernt).
-      if (freigegebeneVerbundKeys.has(verbundKeyOfAntrag(w.antragId))) continue;
+      if (freigegebeneVerbundKeys.has(verbundKeyOfAntrag(w.antragId))) {
+        bereitsVergeben++;
+        continue;
+      }
       const anzahlTV = w.anzahlTV > 0 ? w.anzahlTV : 1;
       desired.set(keyOf(w.antragId, anonId), {
         antragId: w.antragId,
@@ -144,13 +208,12 @@ export function mergeWuenscheIntoZuweisungen(
   }
 
   const next: Zuweisung[] = [];
-  let neu = 0;
-  let entfernt = 0;
+  const neueEintraege: WunschRef[] = [];
+  const entfernteEintraege: WunschRef[] = [];
 
   for (const z of current) {
     const key = keyOf(z.antragId, z.anonId);
-    const isSelbst = z.status === 'selbst' || z.selbstEingetragen === true;
-    if (!isSelbst) {
+    if (z.status !== 'selbst') {
       // PL-/Matching-Entscheidung — unveraendert behalten, konkurrierenden
       // Wunsch fuer dasselbe Paar verwerfen (kein Duplikat-Paar).
       next.push(z);
@@ -169,15 +232,23 @@ export function mergeWuenscheIntoZuweisungen(
       next.push(refreshed); // aktualisierte Stunden/anzahlTV uebernehmen
       desired.delete(key);
     } else {
-      entfernt++; // Retraktion: Wunsch zurueckgezogen
+      // Retraktion: Wunsch zurueckgezogen (oder Verbund inzwischen vergeben).
+      entfernteEintraege.push({ antragId: z.antragId, anonId: z.anonId });
     }
   }
 
   // Uebrige desired-Eintraege = brandneue Wünsche.
   for (const z of desired.values()) {
     next.push(z);
-    neu++;
+    neueEintraege.push({ antragId: z.antragId, anonId: z.anonId });
   }
 
-  return { next, neu, entfernt };
+  return {
+    next,
+    neu: neueEintraege.length,
+    entfernt: entfernteEintraege.length,
+    bereitsVergeben,
+    neueEintraege,
+    entfernteEintraege,
+  };
 }
