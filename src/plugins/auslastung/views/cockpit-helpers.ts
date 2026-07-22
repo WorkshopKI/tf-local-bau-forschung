@@ -6,7 +6,9 @@
  */
 import type { Zuweisung } from '../types';
 
-/** Status-Filter der Verbund-Liste. `selbst` = „Übernahme-Wunsch" (v2.9). */
+/** Status-Filter der Verbund-Liste. `selbst` = „Übernahme-Wunsch" (v2.9).
+ *  `offen` und `selbst` überlappen bewusst: ein Wunsch ist eine Bewerbung,
+ *  keine Zuweisung (siehe `verbundStatusFlags`). */
 export type StatusFilter = 'offen' | 'selbst' | 'zugewiesen' | 'alle';
 
 /** Labels der Status-Filter-Pills. `selbst` heisst nutzerseitig „Übernahme-
@@ -75,15 +77,42 @@ export function formatKlickZeit(iso: string | undefined): string | null {
 }
 
 /** Aggregierter Status eines Verbundes ueber alle seine TVs. Geteilt von der
- *  Filterung und der Count-Berechnung (eine Quelle statt Duplizierung). */
+ *  Filterung und der Count-Berechnung (eine Quelle statt Duplizierung).
+ *
+ *  `offen` heisst „niemandem zugewiesen": ein Übernahme-Wunsch (`selbst`) ist
+ *  eine Bewerbung, keine Zuweisung — der Verbund bleibt offen, bis die PL
+ *  freigibt. `offen` und `selbst` schliessen sich daher nicht aus (die
+ *  Pill-Counts überlappen bewusst). Nicht an `selbstEingetragen` festmachen:
+ *  das Flag überlebt die Freigabe. */
 export function verbundStatusFlags(
   tvAktenzeichen: string[],
   zuweisungen: Zuweisung[],
 ): { offen: boolean; selbst: boolean; zug: boolean } {
   const ze = zuweisungen.filter(z => tvAktenzeichen.includes(z.antragId));
   return {
-    offen: ze.length === 0 || ze.every(z => z.status === 'abgelehnt'),
+    offen: !ze.some(z => z.status === 'freigegeben' || z.status === 'vorgeschlagen'),
     selbst: ze.some(z => z.status === 'selbst' || z.selbstEingetragen),
     zug: ze.some(z => z.status === 'freigegeben'),
   };
+}
+
+/** Klick-Zeitpunkt einer Vormerkung als Timestamp (Fallback `freigegebenAm`
+ *  fuer Pre-v2.9-Eintraege, ohne Datum ans Ende sortiert). */
+export function wunschKlickTs(z: Zuweisung): number {
+  const iso = z.selbstEingetragenAm ?? z.freigegebenAm;
+  return iso ? Date.parse(iso) : Number.POSITIVE_INFINITY;
+}
+
+/** Interessenten (Übernahme-Wünsche) eines Verbundes: pro MA genau EIN Eintrag
+ *  (früheste Vormerkung, falls er mehrere TVs vorgemerkt hat), sortiert nach
+ *  Klick-Zeit aufsteigend → der zuerst Wollende steht vorne. Geteilt von der
+ *  Verbund-Liste (Kürzel-Badges) und dem Detail-Panel (Auswahl-Liste). */
+export function interessentenNachWunschzeit(zuweisungen: Zuweisung[]): Zuweisung[] {
+  const byAnon = new Map<string, Zuweisung>();
+  for (const z of zuweisungen) {
+    if (z.status !== 'selbst' && !z.selbstEingetragen) continue;
+    const prev = byAnon.get(z.anonId);
+    if (!prev || wunschKlickTs(z) < wunschKlickTs(prev)) byAnon.set(z.anonId, z);
+  }
+  return Array.from(byAnon.values()).sort((a, b) => wunschKlickTs(a) - wunschKlickTs(b));
 }

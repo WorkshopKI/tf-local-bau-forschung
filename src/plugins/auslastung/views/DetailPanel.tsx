@@ -25,7 +25,7 @@ import { NichtVorgeschlagenListe } from '../components/NichtVorgeschlagenListe';
 import { ZuweisungStreifen } from '../components/ZuweisungStreifen';
 import { ManuellerMaPicker } from '../components/ManuellerMaPicker';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
-import { formatKlickZeit } from './cockpit-helpers';
+import { formatKlickZeit, interessentenNachWunschzeit } from './cockpit-helpers';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 
 export function DetailPanel({
@@ -93,21 +93,8 @@ export function DetailPanel({
     .map(id => kategorien.find(k => k.id === id))
     .filter((k): k is NonNullable<typeof k> => k != null);
   // v2.9: ALLE Interessenten (selbst-Eintraege) — die PL waehlt einen aus.
-  // Pro MA nur EIN Eintrag (frueheste Vormerkung, falls mehrere TVs), sortiert
-  // nach Klick-Zeit aufsteigend → der zuerst Wollende steht oben.
-  const klickTs = (z: Zuweisung): number => {
-    const iso = z.selbstEingetragenAm ?? z.freigegebenAm; // Fallback fuer Pre-v2.9-Eintraege
-    return iso ? Date.parse(iso) : Number.POSITIVE_INFINITY;
-  };
-  const interessenten = (() => {
-    const byAnon = new Map<string, Zuweisung>();
-    for (const z of zuweisungen) {
-      if (z.status !== 'selbst' && !z.selbstEingetragen) continue;
-      const prev = byAnon.get(z.anonId);
-      if (!prev || klickTs(z) < klickTs(prev)) byAnon.set(z.anonId, z);
-    }
-    return Array.from(byAnon.values()).sort((a, b) => klickTs(a) - klickTs(b));
-  })();
+  // Dedupe + Sortierung teilt sich das Panel mit der Verbund-Liste.
+  const interessenten = interessentenNachWunschzeit(zuweisungen);
   // „Kein klares Match"-Hinweis nur über die echten Matcher-Treffer — manuelle
   // Cards (immer confidence 'low') sollen die Warnung nicht auslösen.
   const echteMatches = matches.filter(m => !m.manuell);

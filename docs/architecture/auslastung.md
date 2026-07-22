@@ -31,6 +31,14 @@ Selbsteintragung-UX auf der Home:
 - Kapazitätszeile zeigt **Anträge** ("4 von 16 Anträgen frei in Q2-2026"), keine Stunden.
 - Banner-Hint „X neue Anträge in deinen Kategorien" via `useBenachrichtigung`-Hook + localStorage pro `anonId`.
 
+## Status-Filter im Zuweisungs-Cockpit (v2.288)
+
+Die Status-Pills der Verbund-Liste (`offen` · `Übernahme-Wunsch` · `zugewiesen` · `alle`) leiten sich aus der einen Quelle `verbundStatusFlags` ab ([cockpit-helpers.ts](../../src/plugins/auslastung/views/cockpit-helpers.ts)) — Filterung und Pill-Counts lesen dieselbe Funktion.
+
+- **`offen` heißt „niemandem zugewiesen"**, nicht „ohne jeden Eintrag". Ein Übernahme-Wunsch (`Zuweisung.status: 'selbst'`) ist eine **Bewerbung**, keine Zuweisung: der Verbund bleibt offen, bis die PL freigibt. `offen` und `Übernahme-Wunsch` überlappen dadurch bewusst (Summe der Counts > `alle`) — vorher fielen eingesammelte Wünsche aus `offen` heraus, noch nicht eingesammelte (Pending) dagegen nicht, was denselben Antrag je nach Einsammel-Zeitpunkt unterschiedlich einsortierte.
+- Das Flag darf **nicht** an `selbstEingetragen` hängen: es überlebt die Freigabe (selbst eingetragen + freigegeben = zugewiesen, nicht offen).
+- Die Liste zeigt die Interessenten als Kürzel-Badges („will MA03 MA07", ab 4 gekürzt auf `+N`; in pl/dev echte TIB-Kürzel über `deAnonymisierung`) — wer übernehmen möchte, ist ohne Klick sichtbar. Reihenfolge = früheste Vormerkung zuerst, geteilte Logik `interessentenNachWunschzeit` (Liste + Detail-Panel). Davon getrennt bleibt das amber `⚑ N vorgemerkt` für Wünsche, die noch in den persönlichen Ordnern liegen.
+
 ## kurator-Korpus-Modus (`auslastungNurKorpus`, v2.56)
 
 Damit der **Kurator** den Themen-Vektoren-Embedding-Katalog aktuell halten kann, ohne MA-Auslastung zu sehen oder zuzuweisen, läuft das Modul in der **kurator**-Variante in einem reduzierten Modus (`features.auslastungNurKorpus: true`, zusätzlich zu `auslastung: true`; Helper `isAuslastungNurKorpusEnabled()`).

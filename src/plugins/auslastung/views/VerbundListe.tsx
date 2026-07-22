@@ -12,7 +12,10 @@ import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { istUnvollstaendigAz, unvollstaendigGrund, type VollstaendigkeitsGateAz, type VerbundZuweisungRow } from '../services/verbund';
 import type { UeberKategorie, Zuweisung } from '../types';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { formatAntragsdatum } from './cockpit-helpers';
+import { formatAntragsdatum, interessentenNachWunschzeit } from './cockpit-helpers';
+
+/** Ab wie vielen Interessenten die Zeile auf „+N" kürzt (Zeilen bleiben schmal). */
+const MAX_INTERESSENTEN_BADGES = 3;
 
 export function VerbundListe({
   leftPct, rows, isInitialLoading, verteilLookbackMonate,
@@ -86,10 +89,11 @@ export function VerbundListe({
           const assignedAnonIds = Array.from(new Set(
             ze.filter(z => z.status === 'freigegeben').map(z => z.anonId),
           ));
-          // v2.9: distinct Interessenten (selbst-Zuweisungen) zaehlen.
-          const interessentenCount = new Set(
-            ze.filter(z => z.status === 'selbst' || z.selbstEingetragen).map(z => z.anonId),
-          ).size;
+          // v2.9: distinct Interessenten (selbst-Zuweisungen), zuerst Wollender
+          // vorne. v2.288: die Zeile zeigt die Kürzel, nicht nur die Anzahl —
+          // in der „offen"-Liste ist sofort sichtbar, WER übernehmen möchte.
+          const interessentenAnonIds = interessentenNachWunschzeit(ze).map(z => z.anonId);
+          const interessentenNamen = interessentenAnonIds.map(a => resolveName(a) ?? a);
           // Offene (noch nicht eingesammelte) Übernahme-Wünsche — abzüglich
           // bereits im Store erfasster anonIds (sonst Doppel-Signal nach Einsammeln).
           const storeWunschAnonIds = new Set(
@@ -173,12 +177,20 @@ export function VerbundListe({
                   )}
                 </div>
               )}
-              {interessentenCount > 0 && !zug && (
+              {interessentenAnonIds.length > 0 && !zug && (
                 <span
-                  className="text-blue-700 text-[10.5px] font-medium shrink-0"
-                  title={`${interessentenCount} Übernahme-Wunsch/Wünsche`}
+                  className="flex items-center gap-1 shrink-0"
+                  title={`Übernahme-Wunsch: ${interessentenNamen.join(', ')}`}
                 >
-                  {interessentenCount} will
+                  <span className="text-blue-700 text-[10.5px] font-medium">will</span>
+                  {interessentenAnonIds.slice(0, MAX_INTERESSENTEN_BADGES).map(a => (
+                    <AnonymIdBadge key={a} anonId={a} size="sm" realName={resolveName(a)} />
+                  ))}
+                  {interessentenAnonIds.length > MAX_INTERESSENTEN_BADGES && (
+                    <span className="text-blue-700 text-[10.5px] font-medium">
+                      +{interessentenAnonIds.length - MAX_INTERESSENTEN_BADGES}
+                    </span>
+                  )}
                 </span>
               )}
               {pendingAnonIds.length > 0 && !zug && (

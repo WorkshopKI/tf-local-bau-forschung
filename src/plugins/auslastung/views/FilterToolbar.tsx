@@ -58,9 +58,17 @@ export function FilterToolbar({
     zugewiesen: filterCounts.zugewiesen,
     alle: filterCounts.total,
   };
+  // „offen" = niemandem zugewiesen; Anträge mit Übernahme-Wunsch zählen bewusst
+  // mit (der Wunsch ist eine Bewerbung, keine Zuweisung) → die Counts von
+  // „offen" und „Übernahme-Wunsch" überlappen.
+  const statusTitleByKey: Partial<Record<StatusFilter, string>> = {
+    offen: 'Noch niemandem zugewiesen — inkl. Anträge mit Übernahme-Wunsch',
+    selbst: 'Anträge, die sich mindestens ein MA gewünscht hat (noch nicht zugewiesen)',
+  };
   const statusItems: CollapsibleSegItem[] = statusKeys.map(s => ({
     label: STATUS_FILTER_LABELS[s],
     count: statusCountByKey[s],
+    title: statusTitleByKey[s],
   }));
 
   // Sortier-Chips — kompakt; „Antragsdatum"/„Sicherheit" je EIN Pfeil-Toggle

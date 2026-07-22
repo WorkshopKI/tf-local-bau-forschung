@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.288.0 — Übernahme-Wunsch bleibt in der offenen Liste (Juli 2026)
+
+MINOR — User-Feedback: Anträge mit Übernahme-Wunsch verschwanden aus der Status-Sicht „offen", sobald die PL die Wünsche eingesammelt hatte. Ein Wunsch ist aber eine Bewerbung, keine Zuweisung — der Antrag ist weiter unverteilt. Details: [auslastung.md](docs/architecture/auslastung.md#status-filter-im-zuweisungs-cockpit-v2288).
+
+- **„offen" heißt jetzt „niemandem zugewiesen"** — Wunsch-Anträge bleiben in der Liste und erscheinen zusätzlich unter „Übernahme-Wunsch" ([cockpit-helpers.ts](src/plugins/auslastung/views/cockpit-helpers.ts)).
+- **Interessenten stehen als Kürzel in der Zeile** statt nur als Zähler „2 will" (ab 4 gekürzt auf `+N`) ([VerbundListe.tsx](src/plugins/auslastung/views/VerbundListe.tsx)).
+- **Dedupe/Sortierung der Wünsche als geteilter Helfer** `interessentenNachWunschzeit` — Liste und Detail-Panel teilen eine Quelle ([DetailPanel.tsx](src/plugins/auslastung/views/DetailPanel.tsx)).
+- **Status-Chips erklären sich per Tooltip** (Überlappung „offen" ∩ „Übernahme-Wunsch" ist gewollt) ([FilterToolbar.tsx](src/plugins/auslastung/views/FilterToolbar.tsx)).
+- **Regressionsschutz** für die Status-Aggregation inkl. „freigegeben + selbstEingetragen ist nicht offen" ([cockpit-helpers.test.ts](src/plugins/auslastung/__tests__/cockpit-helpers.test.ts)).
+
 ### v2.287.2 — Zeitplan-Gantts der Aufbereitung ziehen 1:1-Zeichnung nach (Juli 2026)
 
 PATCH — „Nach AP" und „Nach Person" hatten denselben Defekt wie der Prüfblatt-Gantt: viewBox fester Breite, breites Panel, alles darin hochskaliert. v2.287.1 hat nur den Aufrufer im MAP-Modul geradegezogen; jetzt zieht die Aufbereitung nach.

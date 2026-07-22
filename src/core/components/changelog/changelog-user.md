@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.288 — 2026-07
+
+### Verbesserungen
+- In „Anträge zuweisen" zeigt die Sicht „offen" jetzt auch Anträge, die sich jemand gewünscht hat — ein Übernahme-Wunsch ist eine Bewerbung, keine Zuweisung. Der Antrag bleibt so lange offen, bis er wirklich vergeben ist.
+- In der Liste steht direkt in der Zeile, **wer** einen Antrag übernehmen möchte (Kürzel statt nur „2 will"). Bei mehr als drei Interessenten wird gekürzt; der komplette Kreis steht im Tooltip und im Detail rechts.
+
 ## v2.286 — 2026-07
 
 ### Neu
