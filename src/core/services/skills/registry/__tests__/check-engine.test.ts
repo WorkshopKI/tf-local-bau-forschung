@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitSentences,
+  countWords,
   runRegelChecks,
   buildPromptVorgaben,
   buildPromptHinweis,
@@ -54,6 +55,20 @@ describe('splitSentences — Abkürzungen sind kein Satzende', () => {
   });
   it('zählt 9 Sätze in der Beispiel-Kurzfassung', () => {
     expect(splitSentences(NEUN_SAETZE)).toHaveLength(9);
+  });
+});
+
+describe('countWords — öffentlicher Zähler für Regel UND Meta-Zeile', () => {
+  it('zählt Whitespace-getrennt und ignoriert Mehrfach-Leerzeichen/Umbrüche', () => {
+    expect(countWords('ein  zwei\n\tdrei')).toBe(3);
+  });
+  it('leerer bzw. reiner Whitespace-Text → 0', () => {
+    expect(countWords('')).toBe(0);
+    expect(countWords('   \n  ')).toBe(0);
+  });
+  it('deckt sich mit dem Messwert der wortanzahl-Regel (eine Zählung, zwei Konsumenten)', () => {
+    const check = runRegelChecks(NEUN_SAETZE, [regel('wortanzahl', { min: 1 })])[0]!;
+    expect(check.messwert).toBe(countWords(NEUN_SAETZE));
   });
 });
 

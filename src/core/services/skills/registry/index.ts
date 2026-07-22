@@ -5,6 +5,7 @@ export {
   type CheckResult,
   type CheckRichtung,
   splitSentences,
+  countWords,
   runRegelChecks,
   buildPromptHinweis,
   buildPromptVorgaben,

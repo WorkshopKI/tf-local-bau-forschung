@@ -91,8 +91,12 @@ export function splitSentences(text: string): string[] {
     .filter(s => s.length > 0 && /[A-Za-zÀ-ÿ]/.test(s));
 }
 
-/** Zählt Wörter in einem Text (Whitespace-getrennt, leere ignoriert). */
-function countWords(text: string): number {
+/**
+ * Zählt Wörter in einem Text (Whitespace-getrennt, leere ignoriert). Exportiert,
+ * damit die UI-Meta-Zeile dieselbe Zählung zeigt wie die `wortanzahl`-Regel —
+ * eine Heimat, kein zweiter Zähler.
+ */
+export function countWords(text: string): number {
   return text.split(/\s+/).filter(w => w.length > 0).length;
 }
 

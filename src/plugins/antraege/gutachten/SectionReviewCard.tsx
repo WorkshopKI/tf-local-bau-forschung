@@ -20,7 +20,7 @@ import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
 import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
-import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
+import { splitSentences, countWords, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
@@ -130,6 +130,10 @@ export function SectionReviewCard({
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
+  // Umfang wird in Wörtern beurteilt — gleiche Quelle (`finalerText`, auch bei
+  // strukturierten `teile`) und gleiche Zählung wie die `wortanzahl`-Regel im
+  // Prüf-Block darunter, damit sich Meta-Zeile und Prüfung nie widersprechen.
+  const wortanzahl = countWords(run.finalerText);
   const genDisabled = busy || llmAvailable === false;
 
   // Wächter über dem sprachlichen Feinschliff: LIVE gegen die letzte Verlaufs-
@@ -333,7 +337,7 @@ export function SectionReviewCard({
       {/* Meta-Zeile — schlank: Satzzahl/Status + Prüf-Aufklapper; Provenienz (Skill) hinter dem Info-Icon. */}
       <div className="g-metaline">
         <span>
-          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : 'Entwurf'}
+          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {wortanzahl.toLocaleString('de-DE')} {wortanzahl === 1 ? 'Wort' : 'Wörter'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : 'Entwurf'}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
           {run.lektoriert ? ' · sprachlich überarbeitet' : ''}
         </span>

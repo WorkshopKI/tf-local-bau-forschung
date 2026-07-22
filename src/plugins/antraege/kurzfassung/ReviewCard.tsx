@@ -8,7 +8,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
-import { splitSentences, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
+import { splitSentences, countWords, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { VersionVerlauf } from './VersionVerlauf';
 import { StreamingVorschau } from './StreamingVorschau';
@@ -40,6 +40,9 @@ export function ReviewCard({
 }: Props): React.ReactElement {
   const freigegeben = record.status === 'freigegeben';
   const satzanzahl = splitSentences(record.finalerText).length;
+  // Gleiche Zählung wie die `wortanzahl`-Regel der Check-Engine (siehe Meta-Zeile
+  // im Gutachten-Abschnitt) — Anzeige und Prüfung dürfen nicht auseinanderlaufen.
+  const wortanzahl = countWords(record.finalerText);
   const genDisabled = busy || llmAvailable === false;
 
   return (
@@ -74,7 +77,7 @@ export function ReviewCard({
           <MarkdownRenderer content={record.finalerText} />
         </div>
         <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
-          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(record.freigegeben_am ?? record.erstellt_am)}` : `generiert am ${formatDate(record.erstellt_am)}`}
+          {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {wortanzahl.toLocaleString('de-DE')} {wortanzahl === 1 ? 'Wort' : 'Wörter'} · {freigegeben ? `freigegeben am ${formatDate(record.freigegeben_am ?? record.erstellt_am)}` : `generiert am ${formatDate(record.erstellt_am)}`}
           {record.mitTweak ? ' · mit persönlichem Stil' : ''}
         </div>
       </div>

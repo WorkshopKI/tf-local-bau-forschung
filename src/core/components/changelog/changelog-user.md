@@ -27,6 +27,7 @@
 
 ### Verbesserungen
 - „Text kopieren" steht jetzt beschriftet direkt unter dem Abschnitt, neben dem Info-Symbol — statt als kleines Symbol unten in der Knopfleiste. Ein Klick legt den vollständigen Abschnitt in die Zwischenablage und der Knopf bestätigt kurz mit „Kopiert".
+- Unter dem generierten Text steht neben der Satzzahl jetzt auch die Wortzahl („36 Sätze · 412 Wörter"). Sie wird genauso gezählt wie in der Umfangs-Prüfung, gilt also direkt als Abgleich mit den Vorgaben — auch in der Kurzfassung.
 
 ## v2.293 — 2026-07
 
