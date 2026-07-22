@@ -3,53 +3,33 @@
  * (`macheAchse`, `GanttGrid`, `GanttLeerAnnotation`) — dieselbe X-Achse wie die
  * dortigen Zeitplan-Ansichten, statt einer zweiten Rechnung.
  *
- * Der viewBox wächst mit dem Panel (`zeichenBreite`): 1 SVG-Einheit = 1 CSS-Pixel.
+ * Der viewBox wächst mit dem Panel (`useGanttBreite`): 1 SVG-Einheit = 1 CSS-Pixel.
  * Ein viewBox fester Breite würde im breiten Prüfblatt hochskaliert — und mit ihm
  * jede Schrift und jeder Balken. Die Maße hier sind also echte Pixel.
  *
  * Rein darstellend: alle Positionen kommen fertig aus `ansicht/gantt-daten.ts`.
  */
-import { useLayoutEffect, useRef, useState } from 'react';
 import {
-  GANTT_KOPF_H, GANTT_LABEL_W, GANTT_PM_W, GANTT_PLOT_LEFT, GANTT_ROW_H, GANTT_W,
-  GanttGrid, GanttLeerAnnotation, macheAchse,
+  GANTT_KOPF_H, GANTT_LABEL_W, GANTT_PM_W, GANTT_PLOT_LEFT, GANTT_ROW_H,
+  GanttGrid, GanttLeerAnnotation, macheAchse, useGanttBreite,
 } from '@/plugins/antraege/aufbereitung/GanttAchse';
 import type { GanttDaten } from '../ansicht/gantt-daten';
-import { letzterTerminierterMonat, zeichenBreite } from '../ansicht/gantt-daten';
+import { letzterTerminierterMonat } from '../ansicht/gantt-daten';
 
 /** Einzige Farbe der Ansicht — markiert Arbeitspakete über der PM-Grenze. */
 const WARN = 'var(--tf-warning-text)';
 /** Balkenhöhe in px — Handoff-Maß, unabhängig von der Zeilenhöhe. */
 const BALKEN_H = 12;
 
-/** Container-Breite in CSS-Pixeln; `null`, solange nicht gemessen. */
-function useContainerBreite(): [React.RefObject<HTMLDivElement | null>, number | null] {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [breite, setBreite] = useState<number | null>(null);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(([eintrag]) => {
-      setBreite(eintrag?.contentRect.width ?? null);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  return [ref, breite];
-}
-
 export function ApGantt({ daten }: { daten: GanttDaten }): React.ReactElement {
-  const [ref, gemessen] = useContainerBreite();
-  const breite = zeichenBreite(gemessen, GANTT_W);
+  const [svgRef, breite] = useGanttBreite<SVGSVGElement>();
   const achse = macheAchse(daten.achseMax, breite);
   const hoehe = GANTT_KOPF_H + daten.zeilen.length * GANTT_ROW_H + 8;
 
   return (
-    <div className="flex flex-col gap-2" ref={ref}>
+    <div className="flex flex-col gap-2">
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${breite} ${hoehe}`} width="100%" role="img" aria-label="Arbeitspakete im Zeitverlauf">
+        <svg ref={svgRef} viewBox={`0 0 ${breite} ${hoehe}`} width="100%" role="img" aria-label="Arbeitspakete im Zeitverlauf">
           <GanttGrid achse={achse} hoehe={hoehe} />
 
           {daten.zeilen.map((zeile, i) => {

@@ -80,29 +80,6 @@ export function baueGanttDaten(e: MapEinreichung, pmGrenze: number): GanttDaten 
   return { zeilen, achseMax: Math.max(1, ausLaufzeit, ausBalken), ohneTermin };
 }
 
-/**
- * Unterhalb dieser Breite wird nicht mehr 1:1 gezeichnet, sondern das Bild
- * skaliert — 210 px Namensspalte plus Plotfläche brauchen einen Sockel.
- */
-export const GANTT_MIN_BREITE = 720;
-
-/**
- * Zeichenbreite des Gantt-viewBox aus der gemessenen Container-Breite. Rein.
- *
- * Der Punkt ist die Schriftgröße: ein viewBox fester Breite wird in einem
- * breiten Panel hochskaliert, und mit ihm jede Schrift und jeder Balken (im
- * Prüfblatt ~1,3-fach). Wächst der viewBox stattdessen mit dem Container, gilt
- * 1 Einheit = 1 CSS-Pixel und `fontSize={12}` bleibt 12 px.
- *
- * `gemessen === null` = noch nicht gemessen (erster Rahmen) → `standard`.
- * `standard` kommt vom Aufrufer (`GANTT_W`), damit dieses reine Modul nichts
- * aus einer `.tsx` importieren muss.
- */
-export function zeichenBreite(gemessen: number | null, standard: number): number {
-  if (gemessen === null || !Number.isFinite(gemessen) || gemessen <= 0) return standard;
-  return Math.max(GANTT_MIN_BREITE, Math.round(gemessen));
-}
-
 /** Letzter terminierter Monat — Grundlage der Leerflächen-Annotation. Rein. */
 export function letzterTerminierterMonat(daten: GanttDaten): number {
   return daten.zeilen.reduce((max, z) => Math.max(max, Math.ceil(z.posEnde)), 0);

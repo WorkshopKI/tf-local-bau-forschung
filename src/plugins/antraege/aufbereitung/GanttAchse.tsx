@@ -8,7 +8,7 @@
  * `plotLeft + (m − 1) · monatBreite`. `x` akzeptiert auch **fraktionale**
  * Positionen (`posStart`/`posEnde`) — ein Balken belegt `[x(p1) … x(p2))`.
  */
-import type { ReactElement } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
 
 export const GANTT_W = 1000;
 export const GANTT_ROW_H = 30;
@@ -47,6 +47,58 @@ export function macheAchse(achseMax: number, gesamtBreite: number = GANTT_W): Ga
   const gridMonate: number[] = [];
   for (let m = 1; m <= monate; m += 3) gridMonate.push(m);
   return { monate, mw, x, gridMonate, plotRight };
+}
+
+/**
+ * Unterhalb dieser Breite wird nicht mehr 1:1 gezeichnet, sondern das Bild
+ * skaliert — Namensspalte plus Plotfläche brauchen einen Sockel.
+ */
+export const GANTT_MIN_BREITE = 720;
+
+/**
+ * Zeichenbreite des viewBox aus der gemessenen Container-Breite. Rein.
+ *
+ * Der Punkt ist die Schriftgröße: ein viewBox fester Breite wird in einem
+ * breiten Panel hochskaliert, und mit ihm jede Schrift und jeder Balken. Wächst
+ * der viewBox stattdessen mit dem Container, gilt 1 Einheit = 1 CSS-Pixel und
+ * `fontSize={12}` bleibt 12 px.
+ *
+ * `gemessen === null` = noch nicht gemessen (erster Rahmen) → `standard`.
+ */
+export function zeichenBreite(gemessen: number | null, standard: number = GANTT_W): number {
+  if (gemessen === null || !Number.isFinite(gemessen) || gemessen <= 0) return standard;
+  return Math.max(GANTT_MIN_BREITE, Math.round(gemessen));
+}
+
+/**
+ * Misst das Element, an dem der Ref hängt, und liefert die Zeichenbreite dazu.
+ * Der Ref gehört an das Element, dessen Breite der viewBox folgen soll —
+ * typischerweise das `<svg>` selbst (dessen Breite hängt an `width="100%"`,
+ * nicht am viewBox; es entsteht also keine Rückkopplung).
+ *
+ * `useLayoutEffect` statt `useEffect`: die Messung landet noch vor dem ersten
+ * Anstrich, sonst blitzt ein Rahmen lang die Standardbreite auf.
+ */
+export function useGanttBreite<T extends Element>(): [RefObject<T | null>, number] {
+  const ref = useRef<T | null>(null);
+  const [gemessen, setGemessen] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    // Gemessen wird über `getBoundingClientRect`, nicht über `contentRect`:
+    // bei einem `<svg>` als beobachtetem Element ist letzteres nicht überall
+    // belastbar. Eine 0-Breite (noch nicht im Layout) bleibt `null` und fällt
+    // damit auf das feste Maß zurück, statt die Zeichnung zu zerquetschen.
+    const ro = new ResizeObserver(() => {
+      const b = el.getBoundingClientRect().width;
+      setGemessen(b > 0 ? b : null);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return [ref, zeichenBreite(gemessen)];
 }
 
 /** Vertikale Gridlines + Monats-Labels (M1, M4, …). */

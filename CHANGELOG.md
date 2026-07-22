@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.287.2 — Zeitplan-Gantts der Aufbereitung ziehen 1:1-Zeichnung nach (Juli 2026)
+
+PATCH — „Nach AP" und „Nach Person" hatten denselben Defekt wie der Prüfblatt-Gantt: viewBox fester Breite, breites Panel, alles darin hochskaliert. v2.287.1 hat nur den Aufrufer im MAP-Modul geradegezogen; jetzt zieht die Aufbereitung nach.
+
+- **Beide Zeitplan-Ansichten zeichnen 1:1**: Schriftgrößen sind wieder echte Pixel ([GanttZeitplan.tsx](src/plugins/antraege/aufbereitung/GanttZeitplan.tsx), [PersonenZeitplan.tsx](src/plugins/antraege/aufbereitung/PersonenZeitplan.tsx)).
+- **Messung als geteilter Hook** `useGanttBreite` + reine `zeichenBreite` — eine Heimat statt drei Kopien; die plugin-lokale Fassung im MAP-Modul entfällt ([GanttAchse.tsx](src/plugins/antraege/aufbereitung/GanttAchse.tsx)).
+- **Hook vor dem Leer-Zweig** in „Nach Person", sonst kippt die Hook-Reihenfolge beim Wechsel auf „keine MA-Zuordnung" (React #310) ([PersonenZeitplan.tsx](src/plugins/antraege/aufbereitung/PersonenZeitplan.tsx)).
+- **Tests am Ort der Geometrie** statt im MAP-Plugin ([gantt-achse.test.ts](src/plugins/antraege/aufbereitung/__tests__/gantt-achse.test.ts)).
+
 ### v2.287.1 — Foerderfaehigkeit: Gantt zeichnet 1:1 statt hochskaliert (Juli 2026)
 
 PATCH — Der Arbeitspaket-Gantt im Prüfblatt zeichnete Schrift und Balken rund ein Drittel zu groß. Ursache war kein Stilwert, sondern ein viewBox fester Breite in einem breiten Panel: das SVG skalierte hoch und alles darin mit. Die Maße selbst entsprachen längst dem Handoff.

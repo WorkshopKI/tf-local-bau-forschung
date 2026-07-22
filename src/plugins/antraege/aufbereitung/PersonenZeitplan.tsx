@@ -9,8 +9,8 @@
 import { useMemo } from 'react';
 import { type ApZeile, kapazitaetProMaMonat, KAPAZITAET_GRENZE_PM } from './tabellen';
 import {
-  GANTT_W, GANTT_ROW_H, GANTT_KOPF_H,
-  macheAchse, GanttGrid, GanttLeerAnnotation,
+  GANTT_ROW_H, GANTT_KOPF_H,
+  macheAchse, useGanttBreite, GanttGrid, GanttLeerAnnotation,
 } from './GanttAchse';
 
 const WARN = 'var(--tf-warning-text)'; // Bahn-Warnung — Token statt Hex (Default #4)
@@ -33,6 +33,10 @@ interface Bahn {
 }
 
 export function PersonenZeitplan({ zeilen, achseMax, quelleLabel }: PersonenZeitplanProps): React.ReactElement {
+  // Vor dem Leer-Zweig: Hooks laufen unbedingt, sonst kippt die Hook-Reihenfolge
+  // beim Wechsel auf „keine MA-Zuordnung" (React #310).
+  const [svgRef, breite] = useGanttBreite<SVGSVGElement>();
+
   const bahnen = useMemo<Bahn[]>(() => {
     const proMa = new Map<string, ApZeile[]>();
     for (const z of zeilen) {
@@ -61,13 +65,13 @@ export function PersonenZeitplan({ zeilen, achseMax, quelleLabel }: PersonenZeit
     );
   }
 
-  const achse = macheAchse(achseMax);
+  const achse = macheAchse(achseMax, breite);
   const { x } = achse;
   const H = GANTT_KOPF_H + bahnen.length * GANTT_ROW_H + 8;
   const letzterMonat = zeilen.reduce((max, z) => Math.max(max, z.monatEnde ?? z.monatStart ?? 0), 0);
 
   return (
-    <svg viewBox={`0 0 ${GANTT_W} ${H}`} width="100%" role="img" aria-label="Schwimmbahnen des Projektplans nach Mitarbeiter"
+    <svg ref={svgRef} viewBox={`0 0 ${breite} ${H}`} width="100%" role="img" aria-label="Schwimmbahnen des Projektplans nach Mitarbeiter"
       style={{ display: 'block', maxWidth: '100%' }}>
       <GanttGrid achse={achse} hoehe={H} />
       <GanttLeerAnnotation achse={achse} letzterMonat={letzterMonat} anzahlZeilen={bahnen.length} quelleLabel={quelleLabel} />

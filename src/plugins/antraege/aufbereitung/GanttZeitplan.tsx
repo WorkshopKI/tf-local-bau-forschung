@@ -11,8 +11,8 @@
  */
 import type { ApZeile } from './tabellen';
 import {
-  GANTT_W, GANTT_ROW_H, GANTT_KOPF_H, GANTT_PLOT_LEFT,
-  macheAchse, GanttGrid, GanttLeerAnnotation,
+  GANTT_ROW_H, GANTT_KOPF_H, GANTT_PLOT_LEFT,
+  macheAchse, useGanttBreite, GanttGrid, GanttLeerAnnotation,
 } from './GanttAchse';
 
 interface GanttProps {
@@ -30,7 +30,8 @@ const WARN = '#f59e0b'; // amber-500 — semantische Ausnahme (DESIGN_GUIDE: Dot
 const kuerze = (s: string, n = 32): string => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
 export function GanttZeitplan({ zeilen, achseMax, abweichungsNummern, quelleLabel }: GanttProps): React.ReactElement {
-  const achse = macheAchse(achseMax);
+  const [svgRef, breite] = useGanttBreite<SVGSVGElement>();
+  const achse = macheAchse(achseMax, breite);
   const { mw, x } = achse;
 
   const kinderVon = (nummer: string): ApZeile[] =>
@@ -42,7 +43,7 @@ export function GanttZeitplan({ zeilen, achseMax, abweichungsNummern, quelleLabe
   const letzterMonat = zeilen.reduce((max, z) => Math.max(max, z.monatEnde ?? z.monatStart ?? 0), 0);
 
   return (
-    <svg viewBox={`0 0 ${GANTT_W} ${H}`} width="100%" role="img" aria-label="Gantt-Diagramm des Projektplans"
+    <svg ref={svgRef} viewBox={`0 0 ${breite} ${H}`} width="100%" role="img" aria-label="Gantt-Diagramm des Projektplans"
       style={{ display: 'block', maxWidth: '100%' }}>
       <GanttGrid achse={achse} hoehe={H} />
       <GanttLeerAnnotation achse={achse} letzterMonat={letzterMonat} anzahlZeilen={zeilen.length} quelleLabel={quelleLabel} />
