@@ -1,7 +1,9 @@
 // Feedback-System Domain-Types (Phase 1 + 2: User-Feedback + Admin-Dashboard).
 // Forward-compatible mit Phase 3 Sponsoring (optionale Felder bleiben undefined).
 
-export type FeedbackCategory = 'praise' | 'problem' | 'idea' | 'ux' | 'question';
+// 'ux' ist mit v2.289 entfallen (ging in 'idea' auf — zu viele Auswahl-Optionen).
+// Bestands-Tickets werden beim Lesen in normalizeLegacyFields() auf 'idea' normalisiert.
+export type FeedbackCategory = 'praise' | 'problem' | 'idea' | 'question';
 
 export type FeedbackStatus =
   | 'neu'
@@ -11,6 +13,9 @@ export type FeedbackStatus =
   | 'abgelehnt'
   | 'archiviert';
 
+// Ausgabe-Sprache des LLM (NICHT die App-Kategorie): 'ux' bleibt bewusst erhalten,
+// weil alte system-prompt.md-Dateien auf dem Share den Code weiter nennen können —
+// LLM_CATEGORY_MAP bildet ihn auf 'idea' ab.
 export type LLMCategoryCode = 'bug' | 'feature' | 'ux' | 'praise' | 'question';
 
 // ── Phase 3: Aufwand + Sponsoring ───────────────────────────────────────────

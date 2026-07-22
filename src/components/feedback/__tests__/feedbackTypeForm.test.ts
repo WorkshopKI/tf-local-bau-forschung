@@ -23,7 +23,7 @@ describe('FEEDBACK_TYPES', () => {
 
   it('deckt die sponsorbaren + Freitext-Kategorien ab', () => {
     const cats = FEEDBACK_TYPES.map(t => t.category).sort();
-    expect(cats).toEqual(['idea', 'praise', 'problem', 'question', 'ux']);
+    expect(cats).toEqual(['idea', 'praise', 'problem', 'question']);
   });
 });
 
@@ -46,13 +46,15 @@ describe('composeFeedbackText', () => {
     expect(text).toBe('Was möchtest du tun können?\nPDF exportieren');
   });
 
-  it('UX: pain + better', () => {
-    const text = composeFeedbackText(typeFor('ux'), {
-      pain: 'Zu viele Klicks',
-      better: 'Direkt-Button',
+  it('Feature: alle drei Felder mit Label-Präfix', () => {
+    const text = composeFeedbackText(typeFor('idea'), {
+      goal: 'Direkt-Button',
+      reason: 'Zu viele Klicks',
+      idea: 'Oben rechts platzieren',
     });
-    expect(text).toContain('Was ist gerade umständlich?\nZu viele Klicks');
-    expect(text).toContain('Was würde es leichter machen?\nDirekt-Button');
+    expect(text).toContain('Was möchtest du tun können?\nDirekt-Button');
+    expect(text).toContain('Warum / in welcher Situation brauchst du das?\nZu viele Klicks');
+    expect(text).toContain('Wie stellst du es dir vor? (optional)\nOben rechts platzieren');
   });
 
   it('Ein-Feld-Typen (Lob/Frage): reiner Feldwert ohne Label-Präfix', () => {

@@ -223,7 +223,7 @@ Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärung
 \`\`\`json
 {
   "verbesserterText": "Feedback klar umformuliert, 2-5 Sätze, Ich-Perspektive",
-  "category": "bug | feature | ux | praise | question",
+  "category": "bug | feature | praise | question",
   "summary": "1-2 Sätze Zusammenfassung",
   "details": "Ausführliche Beschreibung, ggf. offene Fragen",
   "anforderung": "IST: <aktueller Zustand> SOLL: <gewünschter Zustand>",

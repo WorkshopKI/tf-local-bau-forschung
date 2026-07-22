@@ -14,9 +14,9 @@ import { makeFeedback, makeSponsor } from './fixtures';
 const baseConfig: FeedbackConfig = { ...DEFAULT_FEEDBACK_CONFIG };
 
 describe('isSponsorableCategory', () => {
-  it('idea + ux sind sponsorbar', () => {
+  // 'ux' ist mit v2.289 entfallen und geht in 'idea' auf (normalizeLegacyFields).
+  it('idea ist sponsorbar', () => {
     expect(isSponsorableCategory('idea')).toBe(true);
-    expect(isSponsorableCategory('ux')).toBe(true);
   });
 
   it('problem, praise, question, undefined sind nicht sponsorbar', () => {
@@ -28,8 +28,8 @@ describe('isSponsorableCategory', () => {
 });
 
 describe('isSponsoringOpen — sponsorbare Kategorien', () => {
-  it('öffnet für UX-Tickets mit Aufwand + offenem Status (wie Features)', () => {
-    expect(isSponsoringOpen(makeFeedback({ category: 'ux', effort_estimate: 'M', kurator_status: 'neu' }))).toBe(true);
+  it('öffnet für Ideen mit Aufwand + offenem Status', () => {
+    expect(isSponsoringOpen(makeFeedback({ category: 'idea', effort_estimate: 'M', kurator_status: 'neu' }))).toBe(true);
     expect(isSponsoringOpen(makeFeedback({ category: 'idea', effort_estimate: 'M', kurator_status: 'geplant' }))).toBe(true);
   });
 

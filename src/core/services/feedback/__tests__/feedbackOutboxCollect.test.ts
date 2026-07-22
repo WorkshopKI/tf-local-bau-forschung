@@ -29,7 +29,12 @@ vi.mock('../feedbackSharedFile', async (importActual) => {
     writeSharedAttachment: vi.fn(async () => true),
   };
 });
-vi.mock('../feedbackStorage', () => ({ emitFeedbackUpdated: vi.fn() }));
+// Nur emitFeedbackUpdated wird gemockt (DOM-Event); normalizeLegacyFields bleibt
+// echt — der Import heilt damit auch die entfallene Kategorie 'ux' (v2.289).
+vi.mock('../feedbackStorage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../feedbackStorage')>()),
+  emitFeedbackUpdated: vi.fn(),
+}));
 
 import { autoCollectFeedbackOutboxes } from '../feedbackOutboxCollect';
 import { listOutboxItems, writeOutboxStatus, deleteOutboxItem } from '@/core/services/personal-storage';
@@ -96,7 +101,9 @@ describe('autoCollectFeedbackOutboxes', () => {
     expect(writeOutboxStatus).not.toHaveBeenCalled();
   });
 
-  it('reicht category + structured + attachments durch und kopiert Bytes vor dem Loeschen', async () => {
+  // Alt-Clients koennen weiterhin die entfallene Kategorie 'ux' liefern — der
+  // Import heilt sie auf 'idea' (normalizeLegacyFields, v2.289).
+  it('reicht category + structured + attachments durch (ux wird migriert) und kopiert Bytes vor dem Loeschen', async () => {
     vi.mocked(readSharedFile).mockResolvedValue(null);
     vi.mocked(listOutboxItems).mockResolvedValue([
       {
@@ -111,8 +118,8 @@ describe('autoCollectFeedbackOutboxes', () => {
 
     const written = vi.mocked(writeSharedFile).mock.calls[0]![1];
     const x = written.find(i => i.id === 'X')!;
-    expect(x.category).toBe('ux');
-    expect(x.structured).toEqual({ pain: 'umständlich' });
+    expect(x.category).toBe('idea');
+    expect(x.structured).toEqual({ goal: 'umständlich' });
     expect(x.attachments).toEqual([{ id: 'a1', filename: 'X-a1.png', mime: 'image/png', width: 800, height: 600, bytes: 99 }]);
 
     // Bytes ins Shared kopiert + danach am Ursprung geloescht.

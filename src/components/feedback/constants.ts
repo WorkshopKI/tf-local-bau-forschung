@@ -30,19 +30,17 @@ export const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   praise: 'Lob',
   problem: 'Problem',
   idea: 'Idee',
-  ux: 'UX',
   question: 'Frage',
 };
 
 /**
  * Anzeige-Reihenfolge der Kategorien für die gruppierte Board-Ansicht
- * (Bug → Idee → UX → Lob → Frage). Unklassifizierte Tickets hängt die Page
+ * (Bug → Idee → Lob → Frage). Unklassifizierte Tickets hängt die Page
  * separat hinten an. Single Source of Truth für die Gruppen-Reihenfolge.
  */
 export const CATEGORY_ORDER: readonly FeedbackCategory[] = [
   'problem',
   'idea',
-  'ux',
   'praise',
   'question',
 ];
@@ -51,7 +49,6 @@ export const CATEGORY_ICONS: Record<FeedbackCategory, string> = {
   praise: 'Sparkles',
   problem: 'Zap',
   idea: 'Diamond',
-  ux: 'Wand2',
   question: 'HelpCircle',
 };
 
@@ -83,7 +80,7 @@ export const STATUS_COLORS: Record<FeedbackStatus, string> = {
 
 /**
  * Status-Pill-Farben des öffentlichen Boards (Handoff feedback-optimiert):
- * Neu=blau-grau, Geplant=amber(Frage), In Bearbeitung=violett(UX), Umgesetzt=grün(Lob),
+ * Neu=blau-grau, Geplant=amber(Frage), In Bearbeitung=violett, Umgesetzt=grün(Lob),
  * Abgelehnt=grau. Bewusst NICHT identisch mit STATUS_COLORS (dort abgelehnt=rot) —
  * das Board deckt sich mit dem Stepper (STATUS_DOT).
  */
@@ -119,7 +116,8 @@ export const STATUS_DOT: Record<FeedbackStatus, string> = {
 /**
  * Lane-Akzent je Status — Kanban-Spaltenfarben (v2.225, Handoff feedback-kanban).
  * Kräftiger als STATUS_DOT: „Neu" + „Abgelehnt" haben eigene Lane-Tokens, die
- * Pipeline-Status teilen sich die Typ-Akzente (frage/ux/lob). Tönungen (Kopf,
+ * Pipeline-Status teilen sich die übrigen Akzent-Tokens (frage/ux/lob — `--tf-fb-ux`
+ * ist seit v2.289 reine Status-Farbe, die Kategorie gibt es nicht mehr). Tönungen (Kopf,
  * Rand, Badge) mischt FeedbackKanban per color-mix aus diesem Akzent.
  */
 export const STATUS_LANE_ACCENT: Record<FeedbackStatus, string> = {
@@ -143,12 +141,11 @@ export const STATUS_COLUMN_ICONS: Record<FeedbackStatus, string> = {
 
 /**
  * Kategorie-Badges — eindeutige, gesättigte Farben pro Typ (Handoff-Palette
- * `--tf-fb-*`, v2.208): Problem=rot, Idee=blau, UX=violett, Lob=grün, Frage=amber.
+ * `--tf-fb-*`, v2.208): Problem=rot, Idee=blau, Lob=grün, Frage=amber.
  */
 export const CATEGORY_COLORS: Record<FeedbackCategory, string> = {
   problem: 'bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]',
   idea: 'bg-[var(--tf-fb-idee-bg)] text-[var(--tf-fb-idee)]',
-  ux: 'bg-[var(--tf-fb-ux-bg)] text-[var(--tf-fb-ux)]',
   praise: 'bg-[var(--tf-fb-lob-bg)] text-[var(--tf-fb-lob)]',
   question: 'bg-[var(--tf-fb-frage-bg)] text-[var(--tf-fb-frage)]',
 };
@@ -157,16 +154,19 @@ export const CATEGORY_COLORS: Record<FeedbackCategory, string> = {
 export const CATEGORY_TEXT_VAR: Record<FeedbackCategory, string> = {
   problem: 'var(--tf-fb-problem)',
   idea: 'var(--tf-fb-idee)',
-  ux: 'var(--tf-fb-ux)',
   praise: 'var(--tf-fb-lob)',
   question: 'var(--tf-fb-frage)',
 };
 
-/** Mapping LLM-Klassifikation → Feedback-Kategorie (für ConfirmCard). */
+/**
+ * Mapping LLM-Klassifikation → Feedback-Kategorie (für ConfirmCard). Der
+ * LLM-Code `ux` bleibt gültig (alte system-prompt.md-Dateien auf dem Share
+ * nennen ihn weiter) und landet seit v2.289 auf `idea`.
+ */
 export const LLM_CATEGORY_MAP: Record<string, FeedbackCategory> = {
   bug: 'problem',
   feature: 'idea',
-  ux: 'ux',
+  ux: 'idea',
   praise: 'praise',
   question: 'question',
 };
@@ -201,8 +201,8 @@ export interface FeedbackTypeDef {
   /** Feldsatz; bei Lob/Frage ein einzelnes `text`-Feld. */
   fields: FeedbackFieldDef[];
   /** Optionaler Hint an autoClassifyFeedback (LLM-Code), wenn doch ein LLM läuft. */
-  llmHint?: 'bug' | 'feature' | 'ux' | 'praise' | 'question';
-  /** true = prominenter Button (Bug/Feature/UX), false = dezenter (Frage/Lob). */
+  llmHint?: 'bug' | 'feature' | 'praise' | 'question';
+  /** true = prominenter Button (Bug/Feature), false = dezenter (Frage/Lob). */
   primary?: boolean;
 }
 
@@ -221,13 +221,6 @@ export const FEEDBACK_TYPES: readonly FeedbackTypeDef[] = [
       { key: 'goal', label: 'Was möchtest du tun können?', shortLabel: 'Möchte', multiline: true, required: true },
       { key: 'reason', label: 'Warum / in welcher Situation brauchst du das?', shortLabel: 'Wofür', multiline: true },
       { key: 'idea', label: 'Wie stellst du es dir vor? (optional)', shortLabel: 'Idee', multiline: true },
-    ],
-  },
-  {
-    category: 'ux', label: 'Etwas ist umständlich', icon: 'Wand2', llmHint: 'ux', primary: true,
-    fields: [
-      { key: 'pain', label: 'Was ist gerade umständlich?', shortLabel: 'Umständlich', multiline: true, required: true },
-      { key: 'better', label: 'Was würde es leichter machen?', shortLabel: 'Leichter', multiline: true },
     ],
   },
   {

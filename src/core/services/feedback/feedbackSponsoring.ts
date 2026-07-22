@@ -79,14 +79,14 @@ export function getSponsoringProgress(
 
 /**
  * Single Source of Truth: welche Kategorien sind sponsorbar (Aufwand schätzbar,
- * Punkte setzbar)? Aktuell Features (`idea`) + UX-Verbesserungen (`ux`) — beide
- * sind Arbeit am bestehenden System. Bugs/Lob/Fragen sind es nicht.
+ * Punkte setzbar)? Aktuell nur Wünsche (`idea`) — inklusive der früheren
+ * UX-Verbesserungen, die seit v2.289 dort aufgehen. Bugs/Lob/Fragen sind es nicht.
  *
  * Statt verstreuter `=== 'idea'`-Vergleiche überall diesen Helper nutzen, damit
  * eine künftige sponsorbare Kategorie an EINER Stelle ergänzt wird.
  */
 export function isSponsorableCategory(category: FeedbackCategory | undefined): boolean {
-  return category === 'idea' || category === 'ux';
+  return category === 'idea';
 }
 
 /** Sponsoring ist nur für sponsorbare Kategorien mit gesetztem Aufwand + offenem Status möglich. */

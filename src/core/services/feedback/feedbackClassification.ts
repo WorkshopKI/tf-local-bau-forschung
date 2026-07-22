@@ -74,20 +74,15 @@ const KEYWORD_CUES: { category: FeedbackCategory; cues: string[] }[] = [
     ],
   },
   {
-    // Vor 'idea' geprüft (Reihenfolge bug → ux → idea → frage → lob), sonst
-    // schluckt 'idea' UX-Wünsche.
-    category: 'ux',
-    cues: [
-      'umständlich', 'unübersichtlich', 'verwirrend', 'kompliziert',
-      'zu viele klicks', 'unintuitiv', 'nicht intuitiv', 'mühsam', 'fummelig',
-    ],
-  },
-  {
+    // 'idea' deckt seit v2.289 auch die ehemaligen UX-Cues ab (Kategorie 'ux'
+    // ist entfallen) — Wunsch nach Neuem und „ist umständlich" landen beide hier.
     category: 'idea',
     cues: [
       'wünsche mir', 'wäre toll', 'wäre gut', 'wäre schön', 'könnte man',
       'sollte man', 'fehlt', 'bräuchte', 'vorschlag', 'einbauen', 'hinzufügen',
       'ergänzen', 'feature', 'wäre praktisch', 'sortieren', 'filter',
+      'umständlich', 'unübersichtlich', 'verwirrend', 'kompliziert',
+      'zu viele klicks', 'unintuitiv', 'nicht intuitiv', 'mühsam', 'fummelig',
     ],
   },
   {
@@ -104,9 +99,8 @@ const KEYWORD_CUES: { category: FeedbackCategory; cues: string[] }[] = [
  * kein LLM-Transport läuft (z.B. prod/pl-Builds) — sonst bliebe alles
  * „Unklassifiziert" und unsichtbar im Bugs/Features-Board.
  *
- * Reihenfolge: Defekt-Signale (bug) > Umständlich-Signale (ux) > Wunsch-Signale
- * (feature/idea) > Frage (endet auf „?") > Lob. UX vor idea, sonst schluckt idea
- * die UX-Wünsche. Kein Treffer → undefined (bleibt unklassifiziert,
+ * Reihenfolge: Defekt-Signale (bug) > Wunsch-/Umständlich-Signale (feature/idea)
+ * > Frage (endet auf „?") > Lob. Kein Treffer → undefined (bleibt unklassifiziert,
  * erscheint aber unter „Sonstige" im Board). Bewusst simpel + konservativ;
  * ein laufendes LLM verfeinert anschließend via autoClassifyFeedback.
  */

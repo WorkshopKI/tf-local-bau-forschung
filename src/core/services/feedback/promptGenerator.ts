@@ -4,14 +4,16 @@
 
 import type { FeedbackCategory, FeedbackItem } from '@/core/types/feedback';
 
+// App-Kategorien + LLM-Codes (`cls.category`) in einer Map. `ux` ist als
+// App-Kategorie entfallen (v2.289), bleibt aber als LLM-Code möglich.
 const CATEGORY_LABELS_DE: Record<string, string> = {
   praise: 'Lob',
   problem: 'Problem',
   idea: 'Feature-Wunsch',
-  ux: 'UX-Feedback',
   question: 'Frage',
   bug: 'Bug',
   feature: 'Feature-Wunsch',
+  ux: 'Feature-Wunsch',
 };
 
 /** Typspezifische Markdown-Abschnitte für FeedbackItem.structured (key → Überschrift). */
@@ -25,10 +27,6 @@ const STRUCTURED_SECTIONS: Partial<Record<FeedbackCategory, Array<{ key: string;
     { key: 'goal', heading: 'Ziel' },
     { key: 'reason', heading: 'Begründung / Kontext' },
     { key: 'idea', heading: 'Lösungsidee' },
-  ],
-  ux: [
-    { key: 'pain', heading: 'Aktuelles Problem' },
-    { key: 'better', heading: 'Gewünschte Verbesserung' },
   ],
 };
 

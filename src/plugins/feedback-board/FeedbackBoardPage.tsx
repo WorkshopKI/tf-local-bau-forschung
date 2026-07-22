@@ -70,7 +70,6 @@ function loadDense(): boolean {
 const CATEGORY_CHIPS: Array<{ key: FeedbackCategory; label: string }> = [
   { key: 'problem', label: 'Problem' },
   { key: 'idea', label: 'Idee' },
-  { key: 'ux', label: 'UX' },
   { key: 'praise', label: 'Lob' },
   { key: 'question', label: 'Frage' },
 ];

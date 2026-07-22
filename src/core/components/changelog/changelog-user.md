@@ -19,6 +19,21 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.290 — 2026-07
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
+## v2.289 — 2026-07
+
+### Verbesserungen
+- Feedback melden ist einfacher: Die Auswahl „Etwas ist umständlich" gibt es nicht mehr — solche Rückmeldungen gehören ab jetzt zu „Ich wünsche mir etwas". Damit stehen nur noch vier klar unterscheidbare Typen zur Wahl.
+- Bereits gemeldete UX-Tickets erscheinen automatisch als „Idee" — mit allen Inhalten, Stimmen und Sponsoring-Punkten wie bisher.
+
 ## v2.288 — 2026-07
 
 ### Verbesserungen

@@ -40,6 +40,39 @@ describe('normalizeLegacyFields', () => {
     expect(out.kurator_notes).toBe('alter Notizen-Text');
   });
 
+  // ── Entfallene Kategorie 'ux' → 'idea' (v2.289) ────────────────────────────
+
+  it('migriert die entfallene Kategorie ux → idea', () => {
+    const item = { ...makeFeedback({ kurator_status: 'neu' }), category: 'ux' as never };
+    const out = normalizeLegacyFields(item);
+    expect(out.category).toBe('idea');
+  });
+
+  it('schlüsselt die structured-Felder des UX-Typs um (pain→goal, better→idea)', () => {
+    const item = {
+      ...makeFeedback({ kurator_status: 'neu' }),
+      category: 'ux' as never,
+      structured: { pain: 'Zu viele Klicks', better: 'Direkt-Button' },
+    };
+    const out = normalizeLegacyFields(item);
+    expect(out.structured).toEqual({ goal: 'Zu viele Klicks', idea: 'Direkt-Button' });
+  });
+
+  it('überschreibt vorhandene goal/idea-Werte nicht', () => {
+    const item = {
+      ...makeFeedback({ kurator_status: 'neu' }),
+      category: 'ux' as never,
+      structured: { goal: 'bereits gesetzt', pain: 'Zu viele Klicks' },
+    };
+    const out = normalizeLegacyFields(item);
+    expect(out.structured).toEqual({ goal: 'bereits gesetzt' });
+  });
+
+  it('lässt Tickets ohne ux-Kategorie referenzgleich', () => {
+    const item = makeFeedback({ kurator_status: 'neu', category: 'idea' });
+    expect(normalizeLegacyFields(item)).toBe(item);
+  });
+
   it('kurator-Felder gewinnen über admin-Felder bei Mischbestand', () => {
     const item = makeFeedback();
     const mixed = {

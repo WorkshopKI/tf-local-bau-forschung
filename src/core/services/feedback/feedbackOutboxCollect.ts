@@ -28,7 +28,7 @@ import {
   type FeedbackOutboxItem,
 } from '@/core/services/personal-storage';
 import { readSharedFile, writeSharedFile, writeSharedAttachment, mergeItems } from './feedbackSharedFile';
-import { emitFeedbackUpdated } from './feedbackStorage';
+import { emitFeedbackUpdated, normalizeLegacyFields } from './feedbackStorage';
 import { readSponsorVotesFromDir, type SponsorVoteFile } from './feedbackSponsorOutbox';
 import { mergeSponsorVotesIntoItems } from './mergeSponsorVotes';
 import { readFeedbackVotesFromDir, type VoteFile } from './feedbackVoteOutbox';
@@ -54,7 +54,9 @@ function fallbackContext(item: FeedbackOutboxItem): FeedbackContext {
 }
 
 function toFeedbackItem(ob: FeedbackOutboxItem): FeedbackItem {
-  return {
+  // normalizeLegacyFields: Outboxen aelterer Clients koennen noch die entfallene
+  // Kategorie 'ux' liefern → beim Import auf 'idea' heilen (statt erst beim Lesen).
+  return normalizeLegacyFields({
     id: ob.id, // Outbox-id beibehalten → zuverlaessige Dedup ueber mergeItems
     created_at: ob.submitted_at,
     user_id: ob.kuerzel,
@@ -74,7 +76,7 @@ function toFeedbackItem(ob: FeedbackOutboxItem): FeedbackItem {
     ...(ob.llm_classification ? { llm_classification: ob.llm_classification } : {}),
     context: (ob.context as FeedbackContext | undefined) ?? fallbackContext(ob),
     kurator_status: 'neu',
-  };
+  });
 }
 
 /**

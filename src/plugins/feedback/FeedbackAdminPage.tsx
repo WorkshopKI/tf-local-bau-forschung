@@ -30,10 +30,10 @@ const LABEL_TO_STATUS: Record<string, FeedbackStatus | ''> = {
   Umgesetzt: 'umgesetzt', Abgelehnt: 'abgelehnt', Archiviert: 'archiviert',
 };
 const KAT_TO_LABEL: Record<FeedbackCategory | '', string> = {
-  '': 'Alle', problem: 'Bug', idea: 'Idee', ux: 'UX', praise: 'Lob', question: 'Frage',
+  '': 'Alle', problem: 'Bug', idea: 'Idee', praise: 'Lob', question: 'Frage',
 };
 const LABEL_TO_KAT: Record<string, FeedbackCategory | ''> = {
-  Alle: '', Bug: 'problem', Idee: 'idea', UX: 'ux', Lob: 'praise', Frage: 'question',
+  Alle: '', Bug: 'problem', Idee: 'idea', Lob: 'praise', Frage: 'question',
 };
 
 export function FeedbackAdminPage(): React.ReactElement {
@@ -125,7 +125,6 @@ export function FeedbackAdminPage(): React.ReactElement {
     { label: 'Alle', count: countForCategory(tickets, filterState, '') },
     { label: 'Bug', count: countForCategory(tickets, filterState, 'problem') },
     { label: 'Idee', count: countForCategory(tickets, filterState, 'idea') },
-    { label: 'UX', count: countForCategory(tickets, filterState, 'ux') },
     { label: 'Lob', count: countForCategory(tickets, filterState, 'praise') },
     { label: 'Frage', count: countForCategory(tickets, filterState, 'question') },
   ], [tickets, filterState]);

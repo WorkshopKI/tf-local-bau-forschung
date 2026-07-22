@@ -58,13 +58,24 @@ export interface FeedbackQaSegment {
   antwort: string;
 }
 
+// Labels des mit v2.289 entfallenen UX-Typs — nur noch für den Text-Fallback bei
+// Alt-Tickets ohne `structured` (der Typ selbst ist aus FEEDBACK_TYPES entfernt).
+const LEGACY_UX_LABELS: ReadonlyArray<readonly [string, string]> = [
+  ['Was ist gerade umständlich?', 'Umständlich'],
+  ['Was würde es leichter machen?', 'Leichter'],
+];
+
 // Alle bekannten Formular-Labels (= Fragen) für den Text-Fallback bei Alt-Tickets
 // ohne `structured`. composeFeedbackText joint `Label\nWert` mit `\n\n`.
-const KNOWN_FEEDBACK_LABELS = new Set(FEEDBACK_TYPES.flatMap(t => t.fields.map(f => f.label)));
+const KNOWN_FEEDBACK_LABELS = new Set([
+  ...FEEDBACK_TYPES.flatMap(t => t.fields.map(f => f.label)),
+  ...LEGACY_UX_LABELS.map(([label]) => label),
+]);
 // Volles Label → Kurz-Label (für den Text-Fallback bei Alt-Tickets).
-const LABEL_TO_SHORT = new Map(
-  FEEDBACK_TYPES.flatMap(t => t.fields.map(f => [f.label, f.shortLabel] as const)),
-);
+const LABEL_TO_SHORT = new Map<string, string | undefined>([
+  ...FEEDBACK_TYPES.flatMap(t => t.fields.map(f => [f.label, f.shortLabel] as const)),
+  ...LEGACY_UX_LABELS,
+]);
 
 /**
  * Zerlegt ein Feedback in Frage-/Antwort-Paare für die kompakte Listen-Vorschau
@@ -99,7 +110,7 @@ export function feedbackQaSegments(ticket: FeedbackItem): FeedbackQaSegment[] {
 
 // Primäres Antwort-Feld je Kategorie — Quelle für die Titel-Ableitung.
 const PRIMARY_FIELD_KEY: Record<string, string> = {
-  problem: 'actual', idea: 'goal', ux: 'pain', question: 'text', praise: 'text',
+  problem: 'actual', idea: 'goal', question: 'text', praise: 'text',
 };
 
 /**

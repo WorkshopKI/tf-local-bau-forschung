@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.290.0 — Uebernahme-Wunsch: Rueckzug wirkt sofort, erledigte raeumen sich (Juli 2026)
+
+MINOR — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+
+- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+
+### v2.289.0 — Feedback: Kategorie UX entfaellt (geht in Idee auf) (Juli 2026)
+
+MINOR — User-Feedback: „Etwas ist umständlich" (UX) und „Ich wünsche mir etwas" (Idee) sind für Melder nicht unterscheidbar — zu viele Auswahl-Optionen, niemand weiß, was er nehmen soll. Beide sind ohnehin Verbesserungswünsche am Bestand (beide sponsorbar). Details: [feedback-system.md](docs/architecture/feedback-system.md), Entfernungs-Rezept: [add-feedback-category.md](docs/agents/add-feedback-category.md).
+
+- **Vier statt fünf Feedback-Typen** — der UX-Typ ist aus Eingabe, Filter-Chips, Kurator-Dropdown und Badges raus ([constants.ts](src/components/feedback/constants.ts), [FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx), [FeedbackAdminPage.tsx](src/plugins/feedback/FeedbackAdminPage.tsx)).
+- **Bestands-Tickets migrieren beim Lesen** auf „Idee" inkl. Feld-Umschlüsselung (pain→goal, better→idea) — nicht-destruktiv, kein Share-Write nötig ([feedbackStorage.ts](src/core/services/feedback/feedbackStorage.ts)).
+- **Outbox-Import heilt mit**, damit Alt-Clients keine tote Kategorie nachliefern ([feedbackOutboxCollect.ts](src/core/services/feedback/feedbackOutboxCollect.ts)).
+- **Umständlich-Signale klassifizieren jetzt als Idee** statt unklassifiziert zu bleiben; die LLM-Kategorien kennen nur noch bug/feature/praise/question ([feedbackClassification.ts](src/core/services/feedback/feedbackClassification.ts), [feedbackLlm.ts](src/core/services/feedback/feedbackLlm.ts)).
+- **Sponsorbarkeit auf `idea` reduziert** — der Helper bleibt die einzige Quelle ([feedbackSponsoring.ts](src/core/services/feedback/feedbackSponsoring.ts)).
+
 ### v2.288.0 — Übernahme-Wunsch bleibt in der offenen Liste (Juli 2026)
 
 MINOR — User-Feedback: Anträge mit Übernahme-Wunsch verschwanden aus der Status-Sicht „offen", sobald die PL die Wünsche eingesammelt hatte. Ein Wunsch ist aber eine Bewerbung, keine Zuweisung — der Antrag ist weiter unverteilt. Details: [auslastung.md](docs/architecture/auslastung.md#status-filter-im-zuweisungs-cockpit-v2288).

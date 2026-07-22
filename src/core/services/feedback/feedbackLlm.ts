@@ -30,10 +30,10 @@ DEINE AUFGABE:
 WICHTIGE UNTERSCHEIDUNG bei der Klassifizierung:
 - "Funktion X funktioniert nicht" → Bug (existiert, ist kaputt)
 - "Ich wünsche mir Funktion X" / "Es fehlt X" → Feature-Wunsch (existiert nicht)
-- "Funktion X ist umständlich" → UX-Feedback (existiert, aber schlecht bedienbar)
+- "Funktion X ist umständlich" → Feature-Wunsch (existiert, soll besser werden)
 
 1. Verstehe was der Nutzer mitteilen möchte.
-2. Klassifiziere: Bug | Feature-Wunsch | UX-Feedback | Lob | Frage.
+2. Klassifiziere: Bug | Feature-Wunsch | Lob | Frage.
 3. Stelle max. 2-3 gezielte Rückfragen falls unklar.
 4. Erstelle eine strukturierte Zusammenfassung.
 
@@ -45,7 +45,7 @@ Zu (b): schreibe NUR einen kurzen Übergangssatz (z.B. "Alles klar, hier meine Z
 
 \`\`\`json
 {
-  "category": "bug | feature | ux | praise | question",
+  "category": "bug | feature | praise | question",
   "summary": "1-2 Sätze Zusammenfassung",
   "details": "Ausführliche Beschreibung",
   "affectedArea": "App-Bereich (z.B. bauantraege, dokumente, suche, chat)",
@@ -180,23 +180,23 @@ export function renderSimpleMarkdown(text: string): React.ReactNode[] {
 // ── Auto-Klassifikation (Single-Turn, fire-and-forget) ───────────────────────
 
 /**
- * Kategorie-Abgrenzung Bug/Feature/UX — EINE Quelle, genutzt von
+ * Kategorie-Abgrenzung Bug/Feature — EINE Quelle, genutzt von
  * buildClassificationPrompt (Auto-Klassifikation) UND buildFeedbackImprovePrompt
  * (feedbackImprove.ts, explizite Nutzer-Verbesserung), damit der Wortlaut nicht
- * an zwei Stellen auseinanderdriftet.
+ * an zwei Stellen auseinanderdriftet. Die frühere Kategorie "ux" ist mit v2.289
+ * in "feature" aufgegangen.
  */
 export function buildKategorieAbgrenzung(): string {
   return `KATEGORIEN:
 - "bug": Etwas BESTEHENDES funktioniert nicht, ist kaputt, zeigt Fehler, stürzt ab, verhält sich falsch.
-- "feature": User WÜNSCHT sich etwas Neues, das es noch nicht gibt. Schlüsselwörter: "wünsche mir", "wäre toll", "könnte man", "fehlt mir", "bräuchte", "Vorschlag".
-- "ux": Etwas funktioniert zwar, ist aber umständlich, unübersichtlich, verwirrend oder hässlich.
+- "feature": User WÜNSCHT sich eine Verbesserung — etwas Neues, das es noch nicht gibt, ODER etwas Bestehendes, das zwar funktioniert, aber umständlich, unübersichtlich oder verwirrend ist. Schlüsselwörter: "wünsche mir", "wäre toll", "könnte man", "fehlt mir", "bräuchte", "Vorschlag", "umständlich", "unübersichtlich".
 - "praise": Lob, positive Rückmeldung. Schlüsselwörter: "gut", "toll", "super", "gefällt mir", "danke".
 - "question": Eine Frage zur Bedienung oder Funktion der App.
 
 WICHTIGE UNTERSCHEIDUNG:
 - "Funktion X funktioniert nicht" → bug (existiert, ist kaputt)
 - "Ich wünsche mir Funktion X" / "Es fehlt Funktion X" / "Könnte man X einbauen?" → feature (existiert nicht, wird gewünscht)
-- "Funktion X ist umständlich zu bedienen" → ux (existiert, funktioniert, ist aber schlecht)`;
+- "Funktion X ist umständlich zu bedienen" → feature (existiert und funktioniert, soll aber besser werden)`;
 }
 
 /**
@@ -216,7 +216,7 @@ Antworte NUR mit einem \`\`\`json-Block, keine weiteren Sätze, keine Erklärung
 
 \`\`\`json
 {
-  "category": "bug | feature | ux | praise | question",
+  "category": "bug | feature | praise | question",
   "summary": "1-2 Sätze Zusammenfassung, ggf. präziser als der Originaltext",
   "details": "kurze Ausführung oder leer",
   "affectedArea": "App-Bereich (z.B. suche, bauantraege, dashboard)",

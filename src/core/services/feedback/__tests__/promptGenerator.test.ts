@@ -31,14 +31,16 @@ describe('generateClaudeCodePrompt — structured', () => {
     expect(prompt).toContain('### Lösungsidee\n\nButton oben rechts');
   });
 
-  it('UX: rendert Aktuelles Problem/Gewünschte Verbesserung', () => {
+  // Ehemalige UX-Tickets werden beim Lesen auf 'idea' + goal/idea normalisiert
+  // (normalizeLegacyFields, v2.289) — der Prompt rendert sie als Feature-Wunsch.
+  it('migriertes UX-Ticket: rendert Ziel/Lösungsidee', () => {
     const ticket = makeFeedback({
-      category: 'ux',
-      structured: { pain: 'Zu viele Klicks', better: 'Direkt-Button' },
+      category: 'idea',
+      structured: { goal: 'Zu viele Klicks', idea: 'Direkt-Button' },
     });
     const prompt = generateClaudeCodePrompt(ticket);
-    expect(prompt).toContain('### Aktuelles Problem\n\nZu viele Klicks');
-    expect(prompt).toContain('### Gewünschte Verbesserung\n\nDirekt-Button');
+    expect(prompt).toContain('### Ziel\n\nZu viele Klicks');
+    expect(prompt).toContain('### Lösungsidee\n\nDirekt-Button');
   });
 
   it('stellt eine vorhandene LLM-Summary voran, ersetzt die Felder aber nicht', () => {
