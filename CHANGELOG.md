@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.295.0 — Skill-Liste: Kategorien, Badges als Spalte, Tabelle als Standard (Juli 2026)
+
+MINOR — 21 Skills standen flach und ohne fachliche Ordnung untereinander — Gutachten-Abschnitte, Aufbereitungs-Läufe, Anfragen-Skills und QS-Hilfsläufe gemischt. Zugleich zeigte ausgerechnet die dichteste Ansicht (Tabelle) die Reifegrad-/„inaktiv"-Badges gar nicht.
+
+- Neue Kategorie-Achse für Skills (Gutachten · Nachforderungen · Aufbereitung · Anfragen · Qualitätssicherung · Sonstige), abgeleitet aus id/Name, Kurator-Override möglich ([skill-kategorien.ts](src/core/services/skills/registry/skill-kategorien.ts), `SkillRecord.kategorie`).
+- Skill-Liste sortiert standardmäßig nach Kategorie, neue Kategorie-Facette mit Zähler; Sortier-Auswahl gilt jetzt in allen drei Ansichten ([skill-browse.ts](src/plugins/skill-verwaltung-kuration/skill-browse.ts), [SkillsTab.tsx](src/plugins/skill-verwaltung-kuration/SkillsTab.tsx)).
+- Tabelle bekommt die Spalten „Kategorie" + „Status" (Reifegrad + inaktiv) sichtbar und „Transport" (nur intern / extern möglich) zuschaltbar ([skillTableColumns.tsx](src/plugins/skill-verwaltung-kuration/skillTableColumns.tsx), [skillBadges.tsx](src/plugins/skill-verwaltung-kuration/skillBadges.tsx)).
+- Tabelle ist die Standard-Ansicht für Skills und Regeln — Storage-Keys `teamflow_skillreg_view_mode_v2` / `teamflow_skills_table_columns_v2` gebumpt, sonst hätten Alt-Einstellungen gewonnen ([SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx)).
+- Kategorie im Skill-Editor setzbar (leer = abgeleitet, nur ein gesetzter Wert persistiert); `normalizeSkill` trägt das Feld durch Laden und Bundle-Import ([SkillEditor.tsx](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx), [storage.ts](src/core/services/skills/registry/storage.ts)).
+
 ### v2.294.2 — Wortanzahl in der Meta-Zeile unter dem generierten Text (Juli 2026)
 
 PATCH — Der Umfang eines Abschnitts wird in Wörtern beurteilt (die `wortanzahl`-Regel prüft genau das), die Meta-Zeile unter dem Text nannte aber nur die Satzzahl. Wer die Wortzahl wissen wollte, musste den Prüf-Block aufklappen oder den Text herauskopieren.

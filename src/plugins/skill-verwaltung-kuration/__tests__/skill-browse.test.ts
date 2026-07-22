@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterSkills, sortSkills, DEFAULT_FACETS } from '../skill-browse';
+import { filterSkills, sortSkills, skillKategorieKandidaten, DEFAULT_FACETS } from '../skill-browse';
 import type { SkillRecord } from '@/core/services/skills';
 import type { SkillAggregat, SkillAggregatMap } from '@/core/services/skill-feedback';
 
@@ -25,15 +25,48 @@ const map: SkillAggregatMap = new Map([
   ['c', agg({ nutzung: 5, up: 3, down: 1 })],
 ]);
 
+/** Mischung aus id-Ableitung, Namens-Fallback, explizitem Override und Auffang. */
+const kategorieSkills: SkillRecord[] = [
+  skill({ id: 'aufbereitung-zahlen', name: 'Zahlen-Inventar' }),          // → aufbereitung
+  skill({ id: 'gutachten-markt', name: 'Markt (D)' }),                    // → gutachten
+  skill({ id: 'uuid-1', name: 'Irgendwas' }),                             // → sonstige
+  skill({ id: 'kuratiert', name: 'Gutachten - Bullet Points' }),          // → gutachten (Name)
+  skill({ id: 'override', name: 'Markt (D)', kategorie: 'anfrage' }),     // → explizit
+];
+
 describe('filterSkills', () => {
   it('Default lässt alle durch', () => {
     expect(filterSkills(skills, DEFAULT_FACETS)).toHaveLength(3);
   });
   it('filtert nach Reifegrad', () => {
-    expect(filterSkills(skills, { reifegrad: 'erprobt', regelId: null }).map(s => s.id)).toEqual(['c']);
+    expect(filterSkills(skills, { ...DEFAULT_FACETS, reifegrad: 'erprobt' }).map(s => s.id)).toEqual(['c']);
   });
   it('filtert nach „nutzt Regel X"', () => {
-    expect(filterSkills(skills, { reifegrad: 'alle', regelId: 'r1' }).map(s => s.id)).toEqual(['a', 'c']);
+    expect(filterSkills(skills, { ...DEFAULT_FACETS, regelId: 'r1' }).map(s => s.id)).toEqual(['a', 'c']);
+  });
+  it('filtert nach effektiver Kategorie (abgeleitet + explizit)', () => {
+    expect(filterSkills(kategorieSkills, { ...DEFAULT_FACETS, kategorie: 'gutachten' }).map(s => s.id))
+      .toEqual(['gutachten-markt', 'kuratiert']);
+    expect(filterSkills(kategorieSkills, { ...DEFAULT_FACETS, kategorie: 'anfrage' }).map(s => s.id))
+      .toEqual(['override']);
+  });
+});
+
+describe('Kategorie-Achse', () => {
+  it('sortiert fachlich (SKILL_KATEGORIE_ORDER), innerhalb nach Name', () => {
+    expect(sortSkills(kategorieSkills, null, 'kategorie').map(s => s.id))
+      .toEqual(['kuratiert', 'gutachten-markt', 'aufbereitung-zahlen', 'override', 'uuid-1']);
+  });
+  it('Kandidaten nur für belegte Kategorien, in stabiler Reihenfolge, mit Zähler', () => {
+    expect(skillKategorieKandidaten(kategorieSkills)).toEqual([
+      { key: 'gutachten', label: 'Gutachten', count: 2 },
+      { key: 'aufbereitung', label: 'Aufbereitung', count: 1 },
+      { key: 'anfrage', label: 'Anfragen', count: 1 },
+      { key: 'sonstige', label: 'Sonstige', count: 1 },
+    ]);
+  });
+  it('leere Liste → keine Kandidaten', () => {
+    expect(skillKategorieKandidaten([])).toEqual([]);
   });
 });
 

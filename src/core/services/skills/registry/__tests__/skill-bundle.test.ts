@@ -41,6 +41,16 @@ describe('parseSkillBundle', () => {
     expect(parsed.skill.id).toBe('s1');
     expect(parsed.regeln.map(r => r.id)).toEqual(['r1', 'r2']);
   });
+  it('erhält die explizite Kurator-Kategorie (normalizeSkill baut feldweise neu)', () => {
+    const f = file();
+    f.skills[0]!.kategorie = 'anfrage';
+    const b = exportSkillBundle(f, 's1')!;
+    expect(parseSkillBundle(JSON.parse(JSON.stringify(b)))!.skill.kategorie).toBe('anfrage');
+  });
+  it('ohne gesetzte Kategorie bleibt das Feld weg (kein abgeleiteter Default in den Daten)', () => {
+    const b = exportSkillBundle(file(), 's1')!;
+    expect(parseSkillBundle(JSON.parse(JSON.stringify(b)))!.skill.kategorie).toBeUndefined();
+  });
   it('verwirft falsche Struktur', () => {
     expect(parseSkillBundle({ kind: 'andere' })).toBeNull();
     expect(parseSkillBundle({ kind: SKILL_BUNDLE_KIND, skill: null, regeln: [] })).toBeNull();

@@ -25,6 +25,14 @@ export {
   type AmpelLevel,
 } from './kategorien';
 export {
+  effektiveSkillKategorie,
+  skillKategorieLabel,
+  skillKategorieRang,
+  SKILL_KATEGORIE_LABEL,
+  SKILL_KATEGORIE_ORDER,
+  type SkillKategorieQuelle,
+} from './skill-kategorien';
+export {
   regelKorrekturAnweisung,
   regelLimit,
   type RegelKorrektur,

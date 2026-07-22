@@ -22,7 +22,15 @@ import { ListItem } from '@/components/ui/ListItem';
 import { RowAction } from '@/components/ui/RowAction';
 import { formatDate, promptAnriss } from './registryFormat';
 import { buildSkillColumns } from './skillTableColumns';
-import { filterSkills, sortSkills, DEFAULT_FACETS, type SkillFacets, type SkillSortKey } from './skill-browse';
+import {
+  filterSkills,
+  sortSkills,
+  skillKategorieKandidaten,
+  DEFAULT_FACETS,
+  type SkillFacets,
+  type SkillSortKey,
+} from './skill-browse';
+import { InaktivBadge, KategoriePill, ReifegradBadge, REIFEGRAD_LABEL, reifegradOf } from './skillBadges';
 import type { RegistryViewMode } from './RegistryViewModeToggle';
 
 interface SkillsTabProps {
@@ -39,13 +47,8 @@ interface SkillsTabProps {
   onExport: (skill: SkillRecord) => void;
 }
 
-const REIFEGRAD_LABEL: Record<Reifegrad, string> = { entwurf: 'Entwurf', erprobt: 'Erprobt', empfohlen: 'Empfohlen' };
-const REIFEGRAD_STYLE: Record<Reifegrad, string> = {
-  entwurf: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]',
-  erprobt: 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]',
-  empfohlen: 'bg-[var(--tf-primary)] text-white',
-};
 const SORT_LABEL: Record<SkillSortKey, string> = {
+  kategorie: 'Kategorie',
   datum: 'Zuletzt geändert',
   nutzung: 'Meistgenutzt',
   feedback: 'Feedback',
@@ -53,24 +56,8 @@ const SORT_LABEL: Record<SkillSortKey, string> = {
 };
 const LEER_AGG: SkillAggregat = { nutzung: 0, up: 0, down: 0, letzteNutzung: null, kommentare: [] };
 
-function reifegradOf(s: SkillRecord): Reifegrad {
-  return s.reifegrad ?? 'entwurf';
-}
 function aggOf(map: SkillAggregatMap | null, id: string): SkillAggregat {
   return map?.get(id) ?? LEER_AGG;
-}
-
-function ReifegradBadge({ r }: { r: Reifegrad }): React.ReactElement {
-  return <span className={`text-[10.5px] px-1.5 py-0.5 rounded-[5px] whitespace-nowrap ${REIFEGRAD_STYLE[r]}`}>{REIFEGRAD_LABEL[r]}</span>;
-}
-
-/** Sichtbarer Hinweis, dass ein Skill deaktiviert ist (Module mit Gate führen ihn nicht aus). */
-function InaktivBadge(): React.ReactElement {
-  return (
-    <span className="text-[10.5px] px-1.5 py-0.5 rounded-[5px] whitespace-nowrap bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]">
-      inaktiv
-    </span>
-  );
 }
 
 /** Kompakte S1-Signal-Zeile (Nutzung, 👍/👎, Kommentare) + dezenter Reifegrad-Vorschlag. */
@@ -101,7 +88,9 @@ export function SkillsTab({
   file, canEdit, search, viewMode, agg, onEdit, onTestlauf, onDuplicate, onDelete, onExport,
 }: SkillsTabProps): React.ReactElement {
   const [facets, setFacets] = useState<SkillFacets>(DEFAULT_FACETS);
-  const [sortKey, setSortKey] = useState<SkillSortKey>('datum');
+  // Standard-Ordnung ist die fachliche Kategorie — bei >20 Skills findet man sonst
+  // nichts wieder. In der Tabelle übersteuert ein Klick auf einen Spaltenkopf.
+  const [sortKey, setSortKey] = useState<SkillSortKey>('kategorie');
 
   const searchFiltered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -126,9 +115,9 @@ export function SkillsTab({
   const facetBar = (
     <FacetBar
       file={file}
+      skills={searchFiltered}
       facets={facets}
       sortKey={sortKey}
-      showSort={viewMode !== 'table'}
       onFacets={setFacets}
       onSort={setSortKey}
     />
@@ -143,7 +132,7 @@ export function SkillsTab({
         <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-6">Keine Treffer.</p>
       ) : viewMode === 'table' ? (
         <SkillsTableView
-          skills={facetFiltered}
+          skills={sorted}
           canEdit={canEdit}
           onEdit={onEdit}
           onTestlauf={onTestlauf}
@@ -162,6 +151,7 @@ export function SkillsTab({
               title={(
                 <>
                   <span className="text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap">{skill.name}</span>
+                  <KategoriePill skill={skill} />
                   <ReifegradBadge r={reifegradOf(skill)} />
                   {skill.aktiv === false && <InaktivBadge />}
                 </>
@@ -210,17 +200,20 @@ export function SkillsTab({
 
 interface FacetBarProps {
   file: SkillRegistryFile;
+  /** Basis der Kategorie-Kandidaten: nach Suche, aber VOR den Facetten gefiltert
+   *  (sonst hätte die aktive Kategorie-Auswahl alle Alternativen weggeblendet). */
+  skills: SkillRecord[];
   facets: SkillFacets;
   sortKey: SkillSortKey;
-  showSort: boolean;
   onFacets: (f: SkillFacets) => void;
   onSort: (k: SkillSortKey) => void;
 }
 
 const SELECT_CLS = 'text-[12px] rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 py-1 text-[var(--tf-text-secondary)] outline-none focus:border-[var(--tf-primary)]';
 
-function FacetBar({ file, facets, sortKey, showSort, onFacets, onSort }: FacetBarProps): React.ReactElement {
+function FacetBar({ file, skills, facets, sortKey, onFacets, onSort }: FacetBarProps): React.ReactElement {
   const reifegrade: Array<Reifegrad | 'alle'> = ['alle', 'entwurf', 'erprobt', 'empfohlen'];
+  const kategorien = useMemo(() => skillKategorieKandidaten(skills), [skills]);
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <div className="inline-flex items-center gap-1">
@@ -243,6 +236,17 @@ function FacetBar({ file, facets, sortKey, showSort, onFacets, onSort }: FacetBa
         })}
       </div>
       <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)]">
+        Kategorie
+        <select
+          value={facets.kategorie ?? ''}
+          onChange={e => onFacets({ ...facets, kategorie: e.target.value || null })}
+          className={SELECT_CLS}
+        >
+          <option value="">— alle —</option>
+          {kategorien.map(k => <option key={k.key} value={k.key}>{k.label} ({k.count})</option>)}
+        </select>
+      </label>
+      <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)]">
         nutzt Regel
         <select
           value={facets.regelId ?? ''}
@@ -253,16 +257,16 @@ function FacetBar({ file, facets, sortKey, showSort, onFacets, onSort }: FacetBa
           {file.regeln.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </label>
-      {showSort && (
-        <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] ml-auto">
-          Sortieren
-          <select value={sortKey} onChange={e => onSort(e.target.value as SkillSortKey)} className={SELECT_CLS}>
-            {(['datum', 'nutzung', 'feedback', 'name'] as SkillSortKey[]).map(k => (
-              <option key={k} value={k}>{SORT_LABEL[k]}</option>
-            ))}
-          </select>
-        </label>
-      )}
+      {/* Sortierung gilt in ALLEN Ansichten — in der Tabelle liefert sie die
+          Grundordnung, die ein Klick auf einen Spaltenkopf übersteuert. */}
+      <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] ml-auto">
+        Sortieren
+        <select value={sortKey} onChange={e => onSort(e.target.value as SkillSortKey)} className={SELECT_CLS}>
+          {(['kategorie', 'datum', 'nutzung', 'feedback', 'name'] as SkillSortKey[]).map(k => (
+            <option key={k} value={k}>{SORT_LABEL[k]}</option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }
@@ -286,6 +290,7 @@ function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, o
     <div className="rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] p-[20px]">
       <div className="flex items-center gap-2.5 flex-wrap">
         <h2 className="text-[15px] font-medium text-[var(--tf-text)] m-0">{skill.name}</h2>
+        <KategoriePill skill={skill} />
         <ReifegradBadge r={reifegradOf(skill)} />
         {skill.aktiv === false && <InaktivBadge />}
         {fundstellen.length > 0 && (
@@ -357,7 +362,10 @@ function SkillsTableView({
     () => buildSkillColumns({ canEdit, onTestlauf, onDuplicate, onDelete }),
     [canEdit, onTestlauf, onDuplicate, onDelete],
   );
-  const { visibleKeys, toggleColumn } = useColumnVisibility('teamflow_skills_table_columns', columns);
+  // Key-Bump `_v2`: `useColumnVisibility` liest bei vorhandenem Eintrag NUR die
+  // gespeicherte Liste — ohne Bump blieben die neuen Default-Spalten (Kategorie,
+  // Status) für jeden unsichtbar, der die Tabelle schon einmal geöffnet hatte.
+  const { visibleKeys, toggleColumn } = useColumnVisibility('teamflow_skills_table_columns_v2', columns);
   const { widths, setWidth } = useColumnWidths('teamflow_skills_table_col_widths', {});
   const visibleColumns = useMemo(
     () => columns.filter(c => visibleKeys.includes(c.key)),

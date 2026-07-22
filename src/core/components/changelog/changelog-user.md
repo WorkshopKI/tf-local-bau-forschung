@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.295 — 2026-07
+
+### Neu
+- Skills haben jetzt eine Kategorie — Gutachten, Nachforderungen, Aufbereitung, Anfragen, Qualitätssicherung. Die Liste ist standardmäßig danach sortiert, und über die neue Auswahl „Kategorie" lässt sich auf eine davon einschränken. Die Zuordnung passiert automatisch; im Skill-Editor kann man sie überschreiben.
+
+### Verbesserungen
+- Die Skill-Verwaltung öffnet jetzt in der Tabellen-Ansicht, weil dort am meisten auf einen Blick zu sehen ist.
+- Die Tabelle zeigt endlich auch Kategorie und Status (Entwurf/Erprobt/Empfohlen, bei gesperrten Skills zusätzlich „inaktiv") — bisher gab es diese Markierungen nur in der Listen- und Karten-Ansicht. Über „Spalten" lässt sich zusätzlich einblenden, ob ein Skill nur mit der internen KI laufen darf.
+
 ## v2.294 — 2026-07
 
 ### Neu

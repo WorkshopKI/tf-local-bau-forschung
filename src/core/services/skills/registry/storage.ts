@@ -156,6 +156,12 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
     geaendert_am: asString(s.geaendert_am, SEED_REGISTRY.updated_at),
     reifegrad: asReifegrad(s.reifegrad),
   };
+  // Explizite Kurator-Kategorie tolerant durchlassen (nur nicht-leerer String);
+  // die Ableitung (id-/name-Präfix) bleibt Laufzeit-Logik und wird NIE in die
+  // Daten geschrieben. Ohne diese Zeile ginge die gesetzte Kategorie beim Laden
+  // UND beim Bundle-Import lautlos verloren (normalizeSkill baut feldweise neu).
+  const kategorie = asString(s.kategorie).trim();
+  if (kategorie) skill.kategorie = kategorie;
   skill.historie = normalizeHistorie(s.historie, skill);
   if (typeof s.systemPrompt === 'string') skill.systemPrompt = s.systemPrompt;
   if (typeof s.maxTokens === 'number' && Number.isFinite(s.maxTokens)) skill.maxTokens = s.maxTokens;

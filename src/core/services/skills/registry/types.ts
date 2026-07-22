@@ -154,6 +154,14 @@ export interface SkillRecord {
    */
   reifegrad?: Reifegrad;
   /**
+   * Explizit gesetzte fachliche Kategorie (additiv, Kurator-override). Fehlt →
+   * die Kategorie wird zur Laufzeit aus `id`- bzw. `name`-Präfix abgeleitet
+   * (`effektiveSkillKategorie`, siehe `skill-kategorien.ts`). Der abgeleitete
+   * Default wird NIE in die Daten geschrieben — nur ein explizit gesetzter Wert
+   * persistiert (gleiches Modell wie `QualitaetsRegel.kategorie`).
+   */
+  kategorie?: string;
+  /**
    * Bounded Versions-Historie (additiv, neueste zuerst, max `MAX_HISTORIE`).
    * Fehlt in Alt-Records → `normalize` defaultet einen Eintrag aus dem aktuellen
    * Stand (verlustfreie Migration). Pflege ausschließlich über `appendHistorie`.

@@ -40,7 +40,9 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
 type TabId = 'skills' | 'regeln' | 'workflows' | 'eval';
 
-const VIEW_MODE_KEY = 'teamflow_skillreg_view_mode';
+// Key-Bump `_v2`: der Default steht auf „Tabelle" (informationsdichteste Ansicht),
+// gewonnen hätte sonst der alte, in localStorage gespeicherte 'list'-Eintrag.
+const VIEW_MODE_KEY = 'teamflow_skillreg_view_mode_v2';
 const VIEW_MODES: RegistryViewMode[] = ['list', 'table', 'cards'];
 
 /** Kurz-Hilfe je Tab — als Info-Icon neben der Suchleiste statt als Intro-Absatz

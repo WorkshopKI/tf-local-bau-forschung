@@ -14,6 +14,8 @@ import {
   findeUmfangKonflikte,
   resolveRegeln,
   describeRegelParams,
+  skillKategorieLabel,
+  SKILL_KATEGORIE_LABEL,
   type QualitaetsRegel,
   type Reifegrad,
   type SkillModifierKey,
@@ -34,6 +36,8 @@ const SLOT_EXPL: Record<string, string> = {
 };
 const MOD_LABEL: Record<SkillModifierKey, string> = { neu: 'Neu', kuerzer: 'Kürzer', laenger: 'Länger' };
 const REIFEGRAD_LABEL: Record<Reifegrad, string> = { entwurf: 'Entwurf', erprobt: 'Erprobt', empfohlen: 'Empfohlen' };
+/** Vorschlagswerte des Kategorie-Setzers — ohne `sonstige` (das ist der Auffang-Default). */
+const SKILL_KATEGORIE_KEYS = Object.keys(SKILL_KATEGORIE_LABEL).filter(k => k !== 'sonstige');
 const LEER_AGG: SkillAggregat = { nutzung: 0, up: 0, down: 0, letzteNutzung: null, kommentare: [] };
 
 function upsertSkill(skills: SkillRecord[], s: SkillRecord): SkillRecord[] {
@@ -78,6 +82,9 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
   // Regel abweicht, lief bisher der Prompt mit dem alten Wert weiter. Reiner Hinweis.
   const umfangKonflikte = findeUmfangKonflikte(draft.promptTemplate, assignedRegeln);
   const reifegrad: Reifegrad = draft.reifegrad ?? 'entwurf';
+  // Placeholder des Kategorie-Setzers: was ohne expliziten Wert gälte (Ableitung
+  // aus id/Name) — daher bewusst OHNE `draft.kategorie`.
+  const abgeleiteteKategorie = skillKategorieLabel({ id: draft.id, name: draft.name });
   const reifegradVorschlag = suggestReifegrad(agg?.get(skill.id) ?? LEER_AGG, reifegrad);
   const historieCount = skill.historie?.length ?? 0;
   // DSGVO-Transport-Policy: abgeleitete Klassifizierung (Ableitung schlägt Flag).
@@ -300,6 +307,37 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
             </div>
           )}
           <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline mt-3.5">Regeln verwalten →</button>
+        </div>
+
+        {/* Kategorie — ordnet den Skill fachlich ein (Liste/Tabelle gruppieren
+            danach). Leer = aus id/Name abgeleitet; nur ein gesetzter Wert
+            persistiert (der abgeleitete Default landet NIE in den Daten). */}
+        <div className="mt-7">
+          <Section>Kategorie</Section>
+          <input
+            list="skill-kategorie-optionen"
+            value={draft.kategorie ?? ''}
+            disabled={ro}
+            placeholder={`${abgeleiteteKategorie} (abgeleitet)`}
+            onChange={e => {
+              const v = e.target.value.trim();
+              setDraft(d => {
+                const next = { ...d };
+                if (v) next.kategorie = v;
+                else delete next.kategorie;
+                return next;
+              });
+            }}
+            className={`${inputCls} w-[220px] px-[11px] py-2 text-[12.5px] text-[var(--tf-text)]`}
+          />
+          <datalist id="skill-kategorie-optionen">
+            {SKILL_KATEGORIE_KEYS.map(k => (
+              <option key={k} value={k}>{SKILL_KATEGORIE_LABEL[k]}</option>
+            ))}
+          </datalist>
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-2">
+            Leer lassen = automatisch aus Skill-Kennung und Name abgeleitet. Ein eigener Wert schlägt die Ableitung.
+          </p>
         </div>
 
         {/* Reifegrad (Kurator setzt; S1-Vorschlag beratend) */}
