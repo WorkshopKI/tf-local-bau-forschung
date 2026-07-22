@@ -19,7 +19,7 @@ import type { LaufZiel } from './lauf-ziel';
 import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
 import type { AufbereitungRun } from './types';
 import type { BausteinUiStatus } from './useAufbereitung';
-import { baueStepper, type StepperEingang, type StepperSchritt } from './uebersicht';
+import { baueKiCta, baueStepper, NEU_AUFBEREITEN_TITEL, type StepperEingang, type StepperSchritt } from './uebersicht';
 
 interface Props {
   run: AufbereitungRun | null;
@@ -65,6 +65,10 @@ function KiZeile({ laufZiel }: { laufZiel: LaufZiel }): React.ReactElement {
 export function UebersichtTab({ run, loading, veraltet, stepper, onTab, bausteine, neu, laufZiel }: Props): React.ReactElement {
   const schritte = useMemo(() => baueStepper(stepper), [stepper]);
   const fertig = schritte.filter(s => s.status === 'ok' || s.status === 'degradiert' || s.status === 'fehler').length;
+  const kiCta = useMemo(
+    () => baueKiCta(schritte.map(s => s.status), { agentisch: laufZiel.ziel === 'agentisch' }),
+    [schritte, laufZiel.ziel],
+  );
 
   return (
     <div className="flex flex-col gap-5 max-w-[860px]">
@@ -88,15 +92,24 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" loading={neu.busy} onClick={() => neu.run()}>
-              {neu.busy ? 'Aufbereiten …' : 'Neu aufbereiten'}
+            <Button variant="secondary" size="sm" loading={neu.busy} onClick={() => neu.run()} title={NEU_AUFBEREITEN_TITEL}>
+              {neu.busy ? 'Aufbereiten …' : 'Neu aufbereiten (ohne KI)'}
             </Button>
-            <Button variant="primary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()}>
-              {bausteine.busy ? 'KI-Aufbereitung läuft …' : 'Mit KI aufbereiten'}
+            <Button variant="primary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()} title={kiCta.titel}>
+              {bausteine.busy ? 'KI-Aufbereitung läuft …' : kiCta.label}
             </Button>
           </div>
         </div>
         <KiZeile laufZiel={laufZiel} />
+        {/* „Neu aufbereiten" rührt die KI nicht an — bei teilweise gefüllten Caches ist das
+            der Knopf, den man vergeblich drückt. Deshalb hier ausdrücklich der richtige. */}
+        {!bausteine.busy && kiCta.offen > 0 && kiCta.offen < schritte.length ? (
+          <p className="mb-3 text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
+            {kiCta.offen === 1 ? 'Ein Abschnitt ist' : `${kiCta.offen} Abschnitte sind`} noch nicht gelaufen —
+            „{kiCta.label}" holt {kiCta.offen === 1 ? 'ihn' : 'sie'} nach; die fertigen kommen aus dem
+            Zwischenspeicher. „Neu aufbereiten" rechnet nur den deterministischen Teil und startet keinen KI-Abschnitt.
+          </p>
+        ) : null}
         {bausteine.error ? (
           <div className="mb-3 rounded-lg px-3 py-2 text-[12.5px] text-[var(--tf-danger-text)]" style={{ border: '0.5px solid var(--tf-border)' }}>
             {bausteine.error}

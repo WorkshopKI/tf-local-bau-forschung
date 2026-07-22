@@ -26,6 +26,7 @@ import { AufbereitungTabs, type AufbereitungTabId } from './AufbereitungTabs';
 import { deriveTabZustaende } from './tab-gating';
 import { aggregiereFundstellen } from './lesemodus-fundstellen';
 import { UebersichtTab } from './UebersichtTab';
+import { baueKiCta, NEU_AUFBEREITEN_TITEL } from './uebersicht';
 import { ZeitplanTab } from './ZeitplanTab';
 import { AbdeckungTab, type AbdeckungAnsicht } from './AbdeckungTab';
 import { SteckbriefTab, type SteckbriefStammdaten } from './SteckbriefTab';
@@ -112,6 +113,9 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   // (ok/degradiert/fehler) — speist das Live-Label des Buttons während des Laufs.
   const kiBausteine = [aufb.recherchePrompt, aufb.aspekte, aufb.steckbrief, aufb.zahlen, aufb.glossar, aufb.verwertung];
   const kiFertig = kiBausteine.filter(b => b.status === 'ok' || b.status === 'degradiert' || b.status === 'fehler').length;
+  // Beschriftung/Tooltip aus demselben reinen Helfer wie das Cockpit — sonst driften
+  // die beiden Kopfleisten auseinander (und eine von beiden lügt).
+  const kiCta = baueKiCta(kiBausteine.map(b => b.status), { agentisch: aufb.laufZiel.ziel === 'agentisch' });
   const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus, aufb.verwertung.chatResetStatus]
     .some(s => s != null && resetHatVerlaufsrisiko(s));
 
@@ -154,17 +158,18 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
                 KI-Bausteine neu berechnen
               </Button>
             ) : null}
-            <Button variant="secondary" size="sm" loading={aufb.neu.busy} onClick={() => aufb.neu.run()}>
-              {aufb.neu.busy ? 'Aufbereiten …' : 'Neu aufbereiten'}
+            <Button variant="secondary" size="sm" loading={aufb.neu.busy} onClick={() => aufb.neu.run()}
+              title={NEU_AUFBEREITEN_TITEL}>
+              {aufb.neu.busy ? 'Aufbereiten …' : 'Neu aufbereiten (ohne KI)'}
             </Button>
             <Button
               variant="primary"
               size="sm"
               loading={aufb.bausteine.busy}
               onClick={() => aufb.bausteine.run()}
-              title={`Erzeugt alle KI-Abschnitte der Aufbereitung (Steckbrief, Abdeckung, Zahlen, Glossar, Verwertung) auf einmal — kein Abschnitt muss einzeln gestartet werden. Läuft über die ${aufb.laufZiel.ziel === 'agentisch' ? 'agentische' : 'Standard-'}KI.`}
+              title={kiCta.titel}
             >
-              {aufb.bausteine.busy ? `KI-Aufbereitung läuft … (${kiFertig}/${kiBausteine.length})` : 'Mit KI aufbereiten'}
+              {aufb.bausteine.busy ? `KI-Aufbereitung läuft … (${kiFertig}/${kiBausteine.length})` : kiCta.label}
             </Button>
           </div>
         }

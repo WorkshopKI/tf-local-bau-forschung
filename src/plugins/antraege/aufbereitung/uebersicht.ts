@@ -45,6 +45,49 @@ const SCHRITT_DEFS: SchrittDef[] = [
   { key: 'verwertung', label: 'Verwertung / Markt', tabId: 'verwertung' },
 ];
 
+/** Beschriftung + Tooltip des KI-CTA (Kopfleiste + Cockpit — eine Quelle). */
+export interface KiCta {
+  label: string;
+  titel: string;
+  /** Anzahl noch nicht gelaufener Bausteine (Status `fehlt`). */
+  offen: number;
+}
+
+/**
+ * Was der KI-Knopf tut, hängt am Zustand: mit gefüllten Caches läuft nur der REST.
+ * Ohne diese Beschriftung liest sich „Mit KI aufbereiten" bei 5/6 fertigen Bausteinen
+ * wie ein minutenlanger Komplettlauf — und der eine fehlende bleibt liegen, weil
+ * niemand den Knopf noch einmal drückt. „Neu aufbereiten" hilft dort nicht: es rechnet
+ * nur den deterministischen Teil.
+ */
+export function baueKiCta(status: readonly BausteinUiStatus[], opts: { agentisch: boolean }): KiCta {
+  const kiName = opts.agentisch ? 'agentische KI' : 'Standard-KI';
+  const offen = status.filter(s => s === 'fehlt').length;
+  if (offen > 0 && offen < status.length) {
+    return {
+      offen,
+      label: `Fehlende KI-Abschnitte starten (${offen})`,
+      titel: `Startet nur die ${offen} noch nicht gelaufenen Abschnitte über die ${kiName}. Fertige Abschnitte kommen aus dem Zwischenspeicher und laufen NICHT erneut.`,
+    };
+  }
+  if (offen === 0 && status.length > 0) {
+    return {
+      offen,
+      label: 'Mit KI aufbereiten',
+      titel: 'Alle KI-Abschnitte liegen vor — ein erneuter Lauf nutzt den Zwischenspeicher. Zum echten Neuberechnen „KI-Bausteine neu berechnen".',
+    };
+  }
+  return {
+    offen,
+    label: 'Mit KI aufbereiten',
+    titel: `Erzeugt alle KI-Abschnitte der Aufbereitung (Recherche-Auftrag, Abdeckung, Steckbrief, Zahlen, Glossar, Verwertung) auf einmal — kein Abschnitt muss einzeln gestartet werden. Läuft über die ${kiName}.`,
+  };
+}
+
+/** Tooltip des deterministischen Knopfs — er ruft ausdrücklich KEINE KI. */
+export const NEU_AUFBEREITEN_TITEL =
+  'Liest die Dokumente neu ein und rechnet den deterministischen Teil neu (Gliederung, Tabellen, Plausibilität) — ohne KI. Startet keinen KI-Abschnitt und keinen Recherche-Auftrag.';
+
 export function baueStepper(eingang: StepperEingang): StepperSchritt[] {
   const states: Partial<Record<BausteinKey, Pick<BausteinUiState<unknown>, 'status' | 'begruendung'>>> = {
     recherchePrompt: eingang.recherchePrompt,
