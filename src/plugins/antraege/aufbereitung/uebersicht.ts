@@ -84,6 +84,24 @@ export function baueKiCta(status: readonly BausteinUiStatus[], opts: { agentisch
   };
 }
 
+/**
+ * Hinweis auf den Verbindungszustand der internen KI — **vor** dem Klick.
+ *
+ * Der KI-Knopf bleibt bewusst klickbar, auch wenn die interne KI getrennt ist: der
+ * Klick ist der Weg zum Verbinden (`kiVerbindungBereit` öffnet den Verbinden-Dialog).
+ * Ein deaktivierter Knopf wäre eine Sackgasse — er sagt „geht nicht" und bietet
+ * nichts an. Was fehlte, ist die Ansage VOR dem Klick; nur der Sidebar-Punkt trug
+ * die Information. `null` = nichts anzeigen (verbunden, oder der Lauf geht gar nicht
+ * über die Bridge, dann ist ihr Zustand belanglos).
+ */
+export function kiVerbindungsHinweis(
+  eingabe: { status: 'connected' | 'disconnected' | 'unknown'; bridgeAktiv: boolean },
+): string | null {
+  if (!eingabe.bridgeAktiv || eingabe.status === 'connected') return null;
+  const lage = eingabe.status === 'disconnected' ? 'ist getrennt' : 'ist noch nicht verbunden';
+  return `● Interne KI ${lage} — der Klick auf „Mit KI aufbereiten" bietet zuerst das Verbinden an.`;
+}
+
 /** Tooltip des deterministischen Knopfs — er ruft ausdrücklich KEINE KI. */
 export const NEU_AUFBEREITEN_TITEL =
   'Liest die Dokumente neu ein und rechnet den deterministischen Teil neu (Gliederung, Tabellen, Plausibilität) — ohne KI. Startet keinen KI-Abschnitt und keinen Recherche-Auftrag.';

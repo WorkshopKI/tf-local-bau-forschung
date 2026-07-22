@@ -335,7 +335,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     set: (s: BausteinUiState<T>) => void,
     compute: (t: AITransport) => Promise<BausteinResult<T>>,
   ): Promise<void> => {
-    if (!istAufbereitungBausteinFreigeschaltet(skill)) { set({ status: 'fehler' }); return; }
+    if (!istAufbereitungBausteinFreigeschaltet(skill)) {
+      set({ status: 'fehler', begruendung: 'Dieser KI-Abschnitt ist in dieser Build-Variante nicht freigeschaltet.' });
+      return;
+    }
     set({ status: 'laeuft' });
     try {
       const t = bridge.getTransportForSkillRun(skill);
@@ -344,8 +347,11 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
         status: res.status, daten: res.daten, rohtext: res.rohtext, chatResetStatus: res.chatResetStatus,
         retryAnzahl: res.retryAnzahl, begruendung: res.begruendung,
       });
-    } catch {
-      set({ status: 'fehler' });
+    } catch (e) {
+      // Grund mitnehmen statt ihn zu verschlucken: hier landet u.a. die
+      // DSGVO-Transport-Policy („aktiver Provider ist extern") — ohne Text stand
+      // im Stepper nur „Fehler", und niemand konnte wissen, was zu tun ist.
+      set({ status: 'fehler', begruendung: e instanceof Error ? e.message : String(e) });
     }
   };
 

@@ -13,13 +13,18 @@ import { Check, Loader2, AlertTriangle, XCircle, ArrowRight } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import { useKiZiel } from '@/core/services/ai/ki-ziel';
+import { useBridgeStatus } from '@/core/services/ai/bridge-status';
+import { useAIBridge } from '@/core/hooks/useAIBridge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import type { AufbereitungTabId } from './AufbereitungTabs';
 import type { LaufZiel } from './lauf-ziel';
 import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
 import type { AufbereitungRun } from './types';
 import type { BausteinUiStatus } from './useAufbereitung';
-import { baueKiCta, baueStepper, NEU_AUFBEREITEN_TITEL, type StepperEingang, type StepperSchritt } from './uebersicht';
+import {
+  baueKiCta, baueStepper, kiVerbindungsHinweis, NEU_AUFBEREITEN_TITEL,
+  type StepperEingang, type StepperSchritt,
+} from './uebersicht';
 
 interface Props {
   run: AufbereitungRun | null;
@@ -63,6 +68,9 @@ function KiZeile({ laufZiel }: { laufZiel: LaufZiel }): React.ReactElement {
 }
 
 export function UebersichtTab({ run, loading, veraltet, stepper, onTab, bausteine, neu, laufZiel }: Props): React.ReactElement {
+  const bridge = useAIBridge();
+  const kiStatus = useBridgeStatus(s => s.status);
+  const kiHinweis = kiVerbindungsHinweis({ status: kiStatus, bridgeAktiv: bridge.istBridgeAktiv() });
   const schritte = useMemo(() => baueStepper(stepper), [stepper]);
   const fertig = schritte.filter(s => s.status === 'ok' || s.status === 'degradiert' || s.status === 'fehler').length;
   const kiCta = useMemo(
@@ -101,6 +109,9 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
           </div>
         </div>
         <KiZeile laufZiel={laufZiel} />
+        {kiHinweis && !bausteine.busy ? (
+          <p className="mt-1 mb-2 text-[11.5px] text-[var(--tf-warning-text)] leading-snug">{kiHinweis}</p>
+        ) : null}
         {/* „Neu aufbereiten" rührt die KI nicht an — bei teilweise gefüllten Caches ist das
             der Knopf, den man vergeblich drückt. Deshalb hier ausdrücklich der richtige. */}
         {!bausteine.busy && kiCta.offen > 0 && kiCta.offen < schritte.length ? (
@@ -175,7 +186,9 @@ function StepperZeile({ schritt, letzte, onTab }: { schritt: StepperSchritt; let
           <span className="text-[13px] text-[var(--tf-text)]">{schritt.label}</span>
           <span className="text-[11.5px] shrink-0" style={{ color: v.farbe }}>{v.text}</span>
         </div>
-        {schritt.status === 'degradiert' && schritt.begruendung ? (
+        {/* Auch bei `fehler`: der Grund ist genau das, was der Prüfer braucht
+            (z.B. „aktiver Provider ist extern" → interne KI wählen). */}
+        {(schritt.status === 'degradiert' || schritt.status === 'fehler') && schritt.begruendung ? (
           <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-tertiary)]">{schritt.begruendung}</div>
         ) : null}
         {fertig && schritt.tabId ? (

@@ -22,6 +22,8 @@
 ## v2.302 — 2026-07
 
 ### Verbesserungen
+- In der Antrag-Aufbereitung steht jetzt schon vor dem Klick da, wenn die interne KI getrennt oder noch nicht verbunden ist. Der Knopf „Mit KI aufbereiten" bleibt bewusst klickbar — er bietet dann zuerst das Verbinden an, statt nur „geht nicht" zu sagen.
+- Scheitert ein KI-Abschnitt, steht der Grund direkt beim Abschnitt statt nur „Fehler" — zum Beispiel der Hinweis, dass für Antragsinhalte die interne KI gewählt sein muss.
 - Die Zahlen an den Filter-Knöpfen im Auslastungs-Modul zeigen jetzt genau das, was die Liste nach dem Klick anzeigt. Sind bereits andere Filter gesetzt, sind die eingerechnet. Gezählt werden Verbünde, nicht einzelne Teilvorhaben.
 - Der Filter „Übernahme-Wunsch" findet auch Vormerkungen, die noch nicht eingesammelt sind — also genau die Anträge, die in der Liste mit „vorgemerkt" markiert sind.
 

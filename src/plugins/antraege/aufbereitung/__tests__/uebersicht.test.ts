@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { baueKiCta, baueStepper, NEU_AUFBEREITEN_TITEL } from '../uebersicht';
+import { baueKiCta, baueStepper, kiVerbindungsHinweis, NEU_AUFBEREITEN_TITEL } from '../uebersicht';
 import type { BausteinUiStatus } from '../useAufbereitung';
 
 const st = (status: BausteinUiStatus) => ({ status });
@@ -67,5 +67,25 @@ describe('baueStepper', () => {
     });
     expect(schritte).toHaveLength(5);
     expect(schritte.some(s => s.key === 'recherchePrompt')).toBe(false);
+  });
+});
+
+describe('kiVerbindungsHinweis', () => {
+  it('verbunden → kein Hinweis', () => {
+    expect(kiVerbindungsHinweis({ status: 'connected', bridgeAktiv: true })).toBeNull();
+  });
+
+  it('getrennt → benennt den Zustand VOR dem Klick und verspricht das Verbinden', () => {
+    const h = kiVerbindungsHinweis({ status: 'disconnected', bridgeAktiv: true });
+    expect(h).toContain('getrennt');
+    expect(h).toContain('Verbinden');
+  });
+
+  it('noch nie verbunden → eigener Wortlaut (kein falsches „getrennt")', () => {
+    expect(kiVerbindungsHinweis({ status: 'unknown', bridgeAktiv: true })).toContain('noch nicht verbunden');
+  });
+
+  it('Lauf geht nicht über die Bridge → Bridge-Zustand ist belanglos', () => {
+    expect(kiVerbindungsHinweis({ status: 'disconnected', bridgeAktiv: false })).toBeNull();
   });
 });
