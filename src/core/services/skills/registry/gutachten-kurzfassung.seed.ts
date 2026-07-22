@@ -1,0 +1,182 @@
+/**
+ * Seed des Kurzfassungs-Skills A + der geteilten Gutachten-Regelbibliothek.
+ *
+ * Das `promptTemplate` ist der bestehende Testballon-Prompt UNVERÄNDERT — die
+ * formalen Vorgaben kommen zusätzlich aus den Regeln (siehe `buildPromptVorgaben`),
+ * damit das Gutachter-Verhalten gleich bleibt.
+ *
+ * Bis zum Konsolidierungs-Pass lag dieser Inhalt in `seed.ts`; dort blieb nur noch
+ * der Registry-Zusammenbau. Reine Verschiebung — jedes Byte der Prompts, Regel-IDs
+ * und `version`-Zahlen ist unverändert (mehrere Migrationen vergleichen byte-genau).
+ */
+import { GRUNDSATZ_REGELN } from './grundsatz';
+import { SEED_TS, quellenanalyseKontrakt, regel } from './ga-seed-basis';
+import type { QualitaetsRegel, SkillRecord, SkillVorgaben } from './types';
+
+const SEED_SYSTEM_PROMPT =
+  'Du bist ein erfahrener Textassistent für ZIM-Gutachten. Du erstellst streng '
+  + 'quellenbasierte Kurzfassungen von Vorhabensbeschreibungen. Antworte ausschließlich '
+  + 'auf Deutsch und halte dich exakt an das vorgegebene Ausgabeformat.';
+
+/**
+ * A-Prompt (Kurzfassung). `belegKontrakt=false` reproduziert das Template BYTE-
+ * IDENTISCH zum Vor-Paket-4-Stand (kritisch: die Rollout-Migration vergleicht den
+ * Share-Stand gegen `buildKurzfassungPrompt(false)`, um kuratierte Edits zu schützen).
+ */
+export function buildKurzfassungPrompt(belegKontrakt: boolean, umfangAlt = false): string {
+  // Umfang single-source (2026-07): die feste Satzzahl in der Prosa dupliziert die
+  // `satzanzahl`-Regel (8–12) und lief bei Regel-Edits auseinander. Der Live-Seed nennt
+  // die Zahl daher NICHT mehr — sie kommt allein aus der Regel (`## Formale Vorgaben`).
+  // `umfangAlt: true` reproduziert den Vor-Dedup-Wortlaut („ca. 10 Sätze") BYTE-GENAU —
+  // ausschließlich für die `applyUmfangDedup`-Migrations-Erkennung.
+  const aufgabeZeile = umfangAlt
+    ? 'Fasse die VB zu einer Kurzfassung von ca. 10 Sätzen zusammen (Toleranz 8–12 Sätze). Struktur, soweit im Antrag vorhanden:'
+    : 'Fasse die VB zu einer Kurzfassung zusammen. Struktur, soweit im Antrag vorhanden:';
+  const finalZeile = umfangAlt
+    ? 'Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenformat).'
+    : 'Der finale, geschliffene Fließtext der Kurzfassung (KEIN Listenformat).';
+  return `Erstelle die **Kurzfassung** der folgenden Vorhabensbeschreibung (VB) für ein ZIM-Gutachten.
+
+## Stammdaten des Antrags
+{{stammdaten}}
+
+## Vorhabensbeschreibung (Quelle)
+{{vbMarkdown}}
+
+## Aufgabe & Kontrakt
+${aufgabeZeile}
+1. Ausgangsproblem (1–2 Sätze)
+2. Projektziel (2–3 Sätze)
+3. Technischer Ansatz (3–4 Sätze)
+4. Erwartetes Ergebnis (1–2 Sätze)
+5. Anwendungsbereich (1 Satz)
+
+${GRUNDSATZ_REGELN}
+- **Fließtext** im finalen Teil — KEINE Aufzählungen, keine Zwischenüberschriften.
+
+## Ausgabeformat (genau diese drei Abschnitte, jeweils mit der ###-Überschrift)
+### Quellenanalyse
+${quellenanalyseKontrakt(belegKontrakt)}
+
+### Entwurf
+Ein erster, noch ungeschliffener Entwurf der Kurzfassung.
+
+### Finaler Text
+${finalZeile}
+
+## Stilbeispiel (nur Schreibstil — Inhalt stammt aus einem anderen Antrag, NICHT übernehmen)
+Das Vorhaben beschreibt die Entwicklung eines Bio-Inkjet-Drucksystems, das durch eine begleitende Diagnose-App individuelle Hautpflegeprodukte direkt auf die Haut des Nutzers aufbringt. Das System kombiniert Mikrofluidik, biokompatible Tinten und präzise Düsentechnologie, um Tintentröpfchen im Mikrometer-Bereich exakt zu positionieren.`;
+}
+
+/** Skill-ID des Kurzfassung-Skills — Konstante für Lookups (Antragsdetail). */
+export const KURZFASSUNG_SKILL_ID = 'gutachten-kurzfassung';
+
+/**
+ * ID der Interpunktions-Regel („kein Semikolon, kein Gedankenstrich"). Konstante,
+ * weil sie an allen generativen Gutachten-Skills hängt und von der einmaligen
+ * Migration (`applyInterpunktion`) referenziert wird.
+ */
+export const INTERPUNKTION_REGEL_ID = 'seed-keine-semikolon-gedankenstrich';
+
+/**
+ * Bibliotheks-Regeln des Gutachten-Stamms.
+ *
+ * Bis v2.295 standen hier zusätzlich Satzanzahl/Zeichenlimit/Satzlänge/Keine
+ * Aufzählungen — je Skill ein eigener Record. Diese Ein-Skill-Werte leben seit
+ * v2.296 als `SkillRecord.vorgaben` am Skill (siehe `vorgaben.ts`); die Bibliothek
+ * führt nur noch, was mehrere Skills teilen.
+ */
+export const SEED_REGELN: QualitaetsRegel[] = [
+  regel(
+    'seed-passiv-stil',
+    'Passiv-Floskel',
+    'verbotenes_muster',
+    {
+      muster: [
+        'Der Antragsteller plant',
+        'Der Antragsteller (?:beabsichtigt|möchte|will|wird|hat)',
+        'Der Antrag\\b',
+        '\\bAP\\s?\\d+',
+      ],
+      istRegex: true,
+    },
+    'hinweis',
+  ),
+  // Generelle Vorgabe für JEDEN generierten Gutachten-Fließtext (v2.297): weder
+  // Semikolon noch Gedankenstrich im Satz — beides ist typische LLM-Manier und im
+  // ZIM-Gutachten unerwünscht (eigenständige Hauptsätze).
+  //
+  // Die Muster sind bewusst eng gefasst: ein nacktes `[–—]` träfe auch Zahlen-
+  // bereiche („2024–2026"), ein nacktes `-` jede Wortverbindung („KI-gestützt",
+  // „Know-how"). Der gemeinte Gebrauch als Gedankenstrich steht IMMER zwischen
+  // Leerzeichen — genau darauf zielen die drei Dash-Muster.
+  //
+  // Regex-Modus ⇒ der Prompt-Hinweis kommt AUSSCHLIESSLICH aus `hinweisVermeiden`/
+  // `hinweisStattdessen` (`check-engine.ts`), nie aus den Mustern selbst.
+  regel(
+    INTERPUNKTION_REGEL_ID,
+    'Semikolon & Gedankenstrich',
+    'verbotenes_muster',
+    {
+      muster: [';', '\\s[–—]\\s', '\\s-\\s', '--'],
+      eingabeModus: 'regex',
+      hinweisVermeiden: 'Semikolons und Gedankenstriche im Satz',
+      hinweisStattdessen:
+        'eigenständige Hauptsätze oder eine Verbindung mit „und", „aber", „dabei", „dadurch". '
+        + 'Bindestriche in Wortverbindungen wie „KI-gestützt" bleiben unverändert',
+    },
+    'fehler',
+  ),
+];
+
+/**
+ * Umfangs-/Form-Vorgaben des Kurzfassung-Skills A (vormals die Regel-Records
+ * `seed-satzanzahl` / `seed-zeichen-max` / `seed-satzlaenge` /
+ * `seed-keine-aufzaehlungen` — Werte unverändert übernommen).
+ */
+const SEED_VORGABEN_A: SkillVorgaben = {
+  satzanzahl: { schweregrad: 'fehler', min: 8, max: 12, persoenlichAnpassbar: true },
+  zeichenMax: { schweregrad: 'fehler', max: 1000 },
+  satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
+export const SEED_SKILL: SkillRecord = {
+  id: KURZFASSUNG_SKILL_ID,
+  name: 'Kurzfassung (Gutachten)',
+  beschreibung: 'Erstellt die Kurzfassung eines ZIM-Gutachtens aus der Vorhabensbeschreibung.',
+  // v2: Der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4) ist zurückgebaut — das interne
+  // Modell lief mit dem Kontrakt in einen langen Reasoning-Loop und lieferte keine
+  // verwertbare Ausgabe mehr. Der Quellenbezug wird jetzt rein deterministisch aus der
+  // Wortüberlappung abgeleitet (belegAbleitung.ts), NICHT vom Modell erfragt.
+  version: 2,
+  promptTemplate: buildKurzfassungPrompt(false),
+  systemPrompt: SEED_SYSTEM_PROMPT,
+  maxTokens: 2048,
+  modifiers: {
+    neu: 'Erstelle eine **vollständig neue** Variante der Kurzfassung mit anderer Formulierung und '
+      + 'anderer Schwerpunktsetzung — gleiche Faktenbasis, gleicher Kontrakt.',
+    kuerzer: 'Kürze die Kurzfassung spürbar (Richtung 8 Sätze). Streiche Redundanzen und Nebenaspekte; '
+      + 'behalte Ausgangsproblem, Projektziel und den Kern des technischen Ansatzes.',
+    laenger: 'Erweitere die Kurzfassung systematisch um etwa 50 % (Richtung 12 Sätze), indem du zusätzliche '
+      + 'im Antrag genannte Details zu technischem Ansatz und erwartetem Ergebnis aufnimmst. Erfinde nichts — '
+      + 'nutze ausschließlich Inhalte der VB.',
+  },
+  regelIds: SEED_REGELN.map(r => r.id),
+  vorgaben: SEED_VORGABEN_A,
+  slots: ['stammdaten', 'vbMarkdown'],
+  // Strukturierte Ausgabe (Mess-Gate 2026-06 für A bestätigt: 5/5 robustes Parsen,
+  // flüssiger ~10-Satz-Block unter teilJoin '\n', keine deterministische Regression).
+  // B bewusst NICHT strukturiert (Absatz-Regel-Konflikt). Der `### Finaler Text`-Block
+  // wird als JSON-Array dieser Keys geliefert; finalerText bleibt die flache Quelle der
+  // Wahrheit (Teile per '\n' verbunden), Badges sind render-only.
+  teilStruktur: [
+    { key: 'ausgangsproblem', label: 'Ausgangsproblem' },
+    { key: 'projektziel', label: 'Projektziel' },
+    { key: 'technischer_ansatz', label: 'Technischer Ansatz' },
+    { key: 'erwartetes_ergebnis', label: 'Erwartetes Ergebnis' },
+    { key: 'anwendungsbereich', label: 'Anwendungsbereich' },
+  ],
+  teilJoin: '\n',
+  geaendert_am: SEED_TS,
+};

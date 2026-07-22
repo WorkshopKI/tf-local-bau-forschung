@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.304.0 — Seed-Split abgeschlossen, seed.ts ist nur noch die Sammelstelle (Juli 2026)
+
+MINOR — 14 Skills lagen schon in eigenen Dateien, vier Gruppen noch inline in `seed.ts` (868 Zeilen, die mit jedem Skill weiterwuchsen). Reine Verschiebung: die Skills liegen live auf dem geteilten Share, jede inhaltliche Änderung wäre sofort produktiv wirksam.
+
+- Kurzfassung, die vier Abschnitts-Skills B–G, QS-Basis und Relevanz-Map haben eigene Dateien ([gutachten-kurzfassung.seed.ts](src/core/services/skills/registry/gutachten-kurzfassung.seed.ts), [gutachten-bg.seed.ts](src/core/services/skills/registry/gutachten-bg.seed.ts), [qs-basis.seed.ts](src/core/services/skills/registry/qs-basis.seed.ts), [relevanz-map.seed.ts](src/core/services/skills/registry/relevanz-map.seed.ts)).
+- Geteilte Template-Hülle und Zeitstempel liegen in [ga-seed-basis.ts](src/core/services/skills/registry/ga-seed-basis.ts) — sonst wäre es eine Kopie oder ein Ringschluss geworden.
+- [seed.ts](src/core/services/skills/registry/seed.ts) ist von 868 auf 110 Zeilen geschrumpft und nur noch Sammelstelle; kein einziger Importpfad eines Konsumenten hat sich geändert.
+- Byte-Identität des gesamten Seed-Bestands (Skills, Prompts, Regeln, Workflows) gegen den Vor-Split-Stand nachgewiesen; alle 28 Skill-Testdateien unverändert grün.
+
 ### v2.303.0 — Baustein-Zustand als eine Karte statt zwoelf Staende (Juli 2026)
 
 MINOR — Der Aufbereitungs-Hook hielt je KI-Baustein zwei getrennte Zustände, macht zwölf insgesamt. Jede Änderung musste sechs bis zwölf Stellen synchron treffen — es genügte, eine zu vergessen, und genau daran hingen mehrere Fixes der letzten Releases. Keine Verhaltensänderung, die Oberfläche des Hooks bleibt unverändert.

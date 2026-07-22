@@ -63,6 +63,16 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     onUpdated();
   });
 
+  // Kopier-Fehler wurde bisher verschluckt — der Knopf sah aus wie erledigt, in der
+  // Zwischenablage lag der alte Inhalt. `useAsyncAction` traegt den Grund an den Titel.
+  // Steht bewusst HIER oben bei den uebrigen Hooks: unterhalb des `if (!ticket)`-Returns
+  // waere es ein bedingter Hook (rules-of-hooks / React #310).
+  const copy = useAsyncAction(async () => {
+    await kopiereText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  });
+
   useEffect(() => { void loadFeedbackConfig(storage).then(setConfig); }, [storage]);
 
   useEffect(() => {
@@ -103,14 +113,6 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
       onUpdated();
     } finally { setSaving(false); }
   };
-
-  // Kopier-Fehler wurde bisher verschluckt — der Knopf sah aus wie erledigt, in der
-  // Zwischenablage lag der alte Inhalt. `useAsyncAction` traegt den Grund an den Titel.
-  const copy = useAsyncAction(async () => {
-    await kopiereText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  });
 
   const handleExport = (): void => {
     const blob = new Blob([prompt], { type: 'text/markdown' });
