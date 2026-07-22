@@ -249,19 +249,6 @@ export async function getOrComputeBaustein<T>(
   return { status: 'ok', daten: daten as T, chatResetStatus: reset, ...(retryAnzahl ? { retryAnzahl } : {}) };
 }
 
-/** Löscht die Baustein-Caches eines Antrags (alle VB-Hashes) — für „KI-Bausteine neu berechnen". */
-export async function loescheBausteinCaches(idb: IDBStore, antragKey: string): Promise<void> {
-  const praefixe = [
-    `aufbereitung:${antragKey}:aspekte:`,
-    `aufbereitung:${antragKey}:steckbrief:`,
-    `aufbereitung:${antragKey}:zahlen:`,
-    `aufbereitung:${antragKey}:glossar:`,
-    `aufbereitung:${antragKey}:verwertung:`,
-    `aufbereitung:${antragKey}:recherche-prompt:`,
-    `aufbereitung:${antragKey}:recherche-import:`,
-  ];
-  for (const praefix of praefixe) {
-    const keys = await idb.keys(praefix).catch(() => [] as string[]);
-    for (const k of keys) await idb.delete(k).catch(() => {});
-  }
-}
+// `loescheBausteinCaches` lebt in `baustein-katalog.ts`: es leitet seine Präfixe aus
+// den Katalog-Einträgen ab, und der Katalog importiert die Cache-Keys von hier — die
+// umgekehrte Richtung wäre ein Modul-Zyklus.

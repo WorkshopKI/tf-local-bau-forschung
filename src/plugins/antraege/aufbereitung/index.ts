@@ -13,10 +13,14 @@ export {
   type AufbereitungContext, type QuellEingang,
 } from './store';
 export {
-  getOrComputeBaustein, leseBausteinCache, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
+  getOrComputeBaustein, leseBausteinCache, istAufbereitungBausteinFreigeschaltet,
   aspekteCacheKey, steckbriefCacheKey, vbHashFuer,
   type BausteinResult, type BausteinStatus,
 } from './bausteine';
+export {
+  BAUSTEIN_KATALOG, BAUSTEIN_IDS, bausteinCachePraefixe, loescheBausteinCaches,
+  type AufbereitungBausteinId, type BausteinDatenMap,
+} from './baustein-katalog';
 export {
   PRUEF_ASPEKTE, ASPEKT_IDS, buildAspektePrompt, parseAspektMapping,
   berechneSubstanz, sektionZuAspekte, ermittleOhneAspekt, fehlendeAlsKandidaten,

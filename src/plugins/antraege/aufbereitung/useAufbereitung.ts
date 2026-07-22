@@ -5,7 +5,7 @@
  * die LLM-Bausteine (Paket 2) — sequentiell, tolerant, ohne den deterministischen
  * Teil je zu blockieren.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
@@ -13,14 +13,7 @@ import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsync
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 import {
   loadSkillRegistry,
-  AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_ASPEKTE_SKILL_ID,
-  AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID,
-  AUFBEREITUNG_ZAHLEN_SKILL, AUFBEREITUNG_ZAHLEN_SKILL_ID,
-  AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_GLOSSAR_SKILL_ID,
-  AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID,
-  AUFBEREITUNG_RECHERCHE_PROMPT_SKILL, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,
   AUFBEREITUNG_RECHERCHE_IMPORT_SKILL,
-  type SkillRecord,
 } from '@/core/services/skills';
 import { DocConverter } from '@/core/services/converter';
 import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv, misseKorpus, type KorpusMass } from './quellen';
@@ -30,20 +23,23 @@ import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
 } from './store';
-import type { AITransport } from '@/core/services/ai/transports/streamlit';
-import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
+import { istAufbereitungBausteinFreigeschaltet, vbHashFuer } from './bausteine';
 import {
-  istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, vbHashFuer,
-  type BausteinResult,
-} from './bausteine';
+  BAUSTEIN_IDS, BAUSTEIN_KATALOG, loescheBausteinCaches,
+  type AufbereitungBausteinId, type BausteinLaufDeps,
+} from './baustein-katalog';
+import {
+  FEHLT, alsFelder, fuelleAusCache, initialerZustand, setzeAlleUi, setzeSkill, setzeUi,
+  type BausteinUiState,
+} from './baustein-zustand';
 import { leseGecachteBausteine } from './baustein-rehydrierung';
-import { computeAspekteBaustein, type AspektMapping } from './aspekte';
-import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
-import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
-import { computeGlossarBaustein, type GlossarDaten } from './glossar';
-import { computeVerwertungBaustein, type VerwertungDaten } from './verwertung';
+import type { AspektMapping } from './aspekte';
+import type { SteckbriefDaten } from './steckbrief';
+import type { ZahlenDaten } from './zahlen';
+import type { GlossarDaten } from './glossar';
+import type { VerwertungDaten } from './verwertung';
 import {
-  computeRecherchePromptBaustein, normalisiereAuftragstext, parseRecherchePrompt, pruefeBearbeitetenPrompt,
+  normalisiereAuftragstext, parseRecherchePrompt, pruefeBearbeitetenPrompt,
   recherchePromptCacheKey, type RecherchePromptDaten,
 } from './recherche-prompt';
 import { baueDeepResearchAuftrag } from './recherche-auftrag';
@@ -53,22 +49,10 @@ import {
 import { strukturiereImport } from './recherche-import';
 import type { AufbereitungRun, ExterneRecherche } from './types';
 
-/** UI-Status eines Bausteins (Compute-Status + die Vor-Zustände `fehlt`/`laeuft`). */
-export type BausteinUiStatus = 'fehlt' | 'laeuft' | 'ok' | 'degradiert' | 'fehler';
-
-export interface BausteinUiState<T> {
-  status: BausteinUiStatus;
-  daten?: T;
-  /** Roh-Antwort bei `degradiert` (einsehbar im UI). */
-  rohtext?: string;
-  /** Chat-Reset-Status des Laufs (Pitfall #36) — `'nicht-gefunden'`/`'timeout'` →
-   *  Warn-Banner auf der Seite. Nur bei echtem Submit gesetzt (nicht bei Cache-Hit). */
-  chatResetStatus?: ChatResetStatus;
-  /** Anzahl automatischer Retries (nur bei Auffälligkeit gesetzt). */
-  retryAnzahl?: number;
-  /** Begründung der Degradation (z.B. „Modell hat keine Sektion zugeordnet"). */
-  begruendung?: string;
-}
+// Der Baustein-Zustandstyp lebt seit dem Konsolidierungs-Pass in `baustein-zustand.ts`
+// (zusammen mit den reinen Übergängen). Hier bleibt er als Re-Export: er ist Teil der
+// öffentlichen Oberfläche dieses Hooks, und alle Tabs importieren ihn von hier.
+export type { BausteinUiStatus, BausteinUiState } from './baustein-zustand';
 
 export interface UseAufbereitungResult {
   run: AufbereitungRun | null;
@@ -125,8 +109,6 @@ export interface UseAufbereitungResult {
   bausteineNeu: UseAsyncActionResult<[]>;
 }
 
-const FEHLT: BausteinUiState<never> = { status: 'fehlt' };
-
 /**
  * Ohne aufgelösten Antrag brachen die drei Aufbereitungs-Aktionen wortlos ab
  * (`if (!ctx) return`) — für den Nutzer ein Knopf, der nichts tut, ohne Ladezustand
@@ -142,18 +124,22 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [run, setRun] = useState<AufbereitungRun | null>(null);
   const [loading, setLoading] = useState(true);
   const [veraltet, setVeraltet] = useState(false);
-  const [aspekteSkill, setAspekteSkill] = useState<SkillRecord>(AUFBEREITUNG_ASPEKTE_SKILL);
-  const [steckbriefSkill, setSteckbriefSkill] = useState<SkillRecord>(AUFBEREITUNG_STECKBRIEF_SKILL);
-  const [zahlenSkill, setZahlenSkill] = useState<SkillRecord>(AUFBEREITUNG_ZAHLEN_SKILL);
-  const [glossarSkill, setGlossarSkill] = useState<SkillRecord>(AUFBEREITUNG_GLOSSAR_SKILL);
-  const [verwertungSkill, setVerwertungSkill] = useState<SkillRecord>(AUFBEREITUNG_VERWERTUNG_SKILL);
-  const [recherchePromptSkill, setRecherchePromptSkill] = useState<SkillRecord>(AUFBEREITUNG_RECHERCHE_PROMPT_SKILL);
-  const [aspekte, setAspekte] = useState<BausteinUiState<AspektMapping>>(FEHLT);
-  const [steckbrief, setSteckbrief] = useState<BausteinUiState<SteckbriefDaten>>(FEHLT);
-  const [zahlen, setZahlen] = useState<BausteinUiState<ZahlenDaten>>(FEHLT);
-  const [glossar, setGlossar] = useState<BausteinUiState<GlossarDaten>>(FEHLT);
-  const [verwertung, setVerwertung] = useState<BausteinUiState<VerwertungDaten>>(FEHLT);
-  const [recherchePrompt, setRecherchePrompt] = useState<BausteinUiState<RecherchePromptDaten>>(FEHLT);
+  // EINE Karte statt zwölf `useState`: je Baustein der aufgelöste Skill + der
+  // UI-Zustand seines letzten Laufs. Welche Bausteine es gibt, sagt `BAUSTEIN_KATALOG`;
+  // die reinen Übergänge liegen in `baustein-zustand.ts`.
+  const [bausteinZustand, setBausteinZustand] = useState(initialerZustand);
+  // Ein laufender Lauf schreibt nacheinander in mehrere Bausteine. Über den
+  // funktionalen Updater sieht jeder Schritt den frischen Stand — sonst überschriebe
+  // der zweite Baustein den ersten mit einem veralteten Closure-Wert.
+  const setzeBaustein = useCallback((id: AufbereitungBausteinId, ui: BausteinUiState<unknown>): void => {
+    setBausteinZustand(vorher => setzeUi(vorher, id, ui));
+  }, []);
+  // Spiegel des Zustands für die Lauf-Kette: die läuft minutenlang sequentiell, und der
+  // Registry-Effekt kann den Skill eines noch nicht gestarteten Bausteins zwischendurch
+  // nachziehen. Aus der Closure gelesen wäre er dann veraltet.
+  const bausteinZustandRef = useRef(bausteinZustand);
+  bausteinZustandRef.current = bausteinZustand;
+  const { aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt } = alsFelder(bausteinZustand);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
   const [agentischErzwungen, setzeAgentischErzwungen] = useState(false);
   const key = ctx?.key ?? null;
@@ -182,12 +168,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setAspekte(FEHLT);
-    setSteckbrief(FEHLT);
-    setZahlen(FEHLT);
-    setGlossar(FEHLT);
-    setVerwertung(FEHLT);
-    setRecherchePrompt(FEHLT);
+    setBausteinZustand(vorher => setzeAlleUi(vorher, FEHLT));
     setVbMarkdown(null);
     setzeAgentischErzwungen(false); // Notausfahrt gilt je Antrag, nicht global.
     (async () => {
@@ -204,13 +185,12 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     (async () => {
       try {
         const loaded = await loadSkillRegistry(storage);
-        const asp = loaded.file.skills.find(x => x.id === AUFBEREITUNG_ASPEKTE_SKILL_ID) ?? AUFBEREITUNG_ASPEKTE_SKILL;
-        const stb = loaded.file.skills.find(x => x.id === AUFBEREITUNG_STECKBRIEF_SKILL_ID) ?? AUFBEREITUNG_STECKBRIEF_SKILL;
-        const zah = loaded.file.skills.find(x => x.id === AUFBEREITUNG_ZAHLEN_SKILL_ID) ?? AUFBEREITUNG_ZAHLEN_SKILL;
-        const glo = loaded.file.skills.find(x => x.id === AUFBEREITUNG_GLOSSAR_SKILL_ID) ?? AUFBEREITUNG_GLOSSAR_SKILL;
-        const vw = loaded.file.skills.find(x => x.id === AUFBEREITUNG_VERWERTUNG_SKILL_ID) ?? AUFBEREITUNG_VERWERTUNG_SKILL;
-        const rp = loaded.file.skills.find(x => x.id === AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID) ?? AUFBEREITUNG_RECHERCHE_PROMPT_SKILL;
-        if (!cancelled) { setAspekteSkill(asp); setSteckbriefSkill(stb); setZahlenSkill(zah); setGlossarSkill(glo); setVerwertungSkill(vw); setRecherchePromptSkill(rp); }
+        if (cancelled) return;
+        setBausteinZustand(vorher => BAUSTEIN_IDS.reduce((z, id) => {
+          const eintrag = BAUSTEIN_KATALOG[id];
+          const geladen = loaded.file.skills.find(x => x.id === eintrag.skillId);
+          return geladen ? setzeSkill(z, id, geladen) : z; // ohne Treffer bleibt der Seed
+        }, vorher));
       } catch { /* Seed-Fallback bleibt gesetzt. */ }
     })();
     return () => { cancelled = true; };
@@ -232,18 +212,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   ): Promise<void> => {
     const gecacht = await leseGecachteBausteine(storage.idb, antragKey, vbHashFuer(korpusMarkdown));
     if (abgebrochen()) return;
-    const fuelle = <T,>(
-      set: Dispatch<SetStateAction<BausteinUiState<T>>>, daten: T | null,
-    ): void => {
-      if (daten === null) return;
-      set(vorher => (vorher.status === 'fehlt' ? { status: 'ok', daten } : vorher));
-    };
-    fuelle(setRecherchePrompt, gecacht.recherchePrompt);
-    fuelle(setAspekte, gecacht.aspekte);
-    fuelle(setSteckbrief, gecacht.steckbrief);
-    fuelle(setZahlen, gecacht.zahlen);
-    fuelle(setGlossar, gecacht.glossar);
-    fuelle(setVerwertung, gecacht.verwertung);
+    setBausteinZustand(vorher => fuelleAusCache(vorher, gecacht));
   };
 
   // Korpus-abhaengige Arbeit beim Oeffnen: Korpus-Text setzen (daraus leitet sich die
@@ -301,12 +270,11 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     const r = await computeAufbereitung(storage.idb, ctx);
     setRun(r);
     setVeraltet(false);
-    setAspekte(FEHLT);    // Neuer deterministischer Stand → Bausteine erneut anfordern.
-    setSteckbrief(FEHLT);
-    setZahlen(FEHLT);
-    setGlossar(FEHLT);
-    setVerwertung(FEHLT);
-    setRecherchePrompt(FEHLT);
+    // Neuer deterministischer Stand → alle Bausteine erneut anfordern. Die importierten
+    // externen Recherchen bleiben davon unberührt: sie hängen am Run (`run.extern`,
+    // `uebernehmeExterneRecherchen` in store.ts), nicht am Baustein-Zustand — die Lehre
+    // aus v2.301.1, dass ein „Neu aufbereiten" einen externen Lauf nicht wegwerfen darf.
+    setBausteinZustand(vorher => setzeAlleUi(vorher, FEHLT));
   });
 
   // Nach einem Dokument-Upload neu aufbereiten. Mehrere Dateien feuern `onIngested`
@@ -330,20 +298,20 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
    * Baustein-Status ab (getTransportForSkillRun kann bei externem Provider werfen).
    * Der deterministische Teil bleibt unberührt; nie throw. Setzt zuvor `laeuft`.
    */
-  const laufEinen = async <T>(
-    skill: SkillRecord,
-    set: (s: BausteinUiState<T>) => void,
-    compute: (t: AITransport) => Promise<BausteinResult<T>>,
+  const laufEinen = async (
+    id: AufbereitungBausteinId,
+    deps: Omit<BausteinLaufDeps, 'transport' | 'skill'>,
   ): Promise<void> => {
+    const skill = bausteinZustandRef.current[id].skill;
     if (!istAufbereitungBausteinFreigeschaltet(skill)) {
-      set({ status: 'fehler', begruendung: 'Dieser KI-Abschnitt ist in dieser Build-Variante nicht freigeschaltet.' });
+      setzeBaustein(id, { status: 'fehler', begruendung: 'Dieser KI-Abschnitt ist in dieser Build-Variante nicht freigeschaltet.' });
       return;
     }
-    set({ status: 'laeuft' });
+    setzeBaustein(id, { status: 'laeuft' });
     try {
-      const t = bridge.getTransportForSkillRun(skill);
-      const res = await compute(t);
-      set({
+      const transport = bridge.getTransportForSkillRun(skill);
+      const res = await BAUSTEIN_KATALOG[id].lauf({ ...deps, transport, skill } as BausteinLaufDeps);
+      setzeBaustein(id, {
         status: res.status, daten: res.daten, rohtext: res.rohtext, chatResetStatus: res.chatResetStatus,
         retryAnzahl: res.retryAnzahl, begruendung: res.begruendung,
       });
@@ -351,7 +319,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       // Grund mitnehmen statt ihn zu verschlucken: hier landet u.a. die
       // DSGVO-Transport-Policy („aktiver Provider ist extern") — ohne Text stand
       // im Stepper nur „Fehler", und niemand konnte wissen, was zu tun ist.
-      set({ status: 'fehler', begruendung: e instanceof Error ? e.message : String(e) });
+      setzeBaustein(id, { status: 'fehler', begruendung: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -366,30 +334,25 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     // Auswertung dokumentgrenzen-unabhängig und Marketing-Inhalt wird fundstellen-fähig.
     const korpus = await resolveKorpus(storage.idb, aktCtx).catch(() => null);
     if (!korpus) {
-      setRecherchePrompt({ status: 'fehler' });
-      setAspekte({ status: 'fehler' }); setSteckbrief({ status: 'fehler' });
-      setZahlen({ status: 'fehler' }); setGlossar({ status: 'fehler' }); setVerwertung({ status: 'fehler' });
+      setBausteinZustand(vorher => setzeAlleUi(vorher, { status: 'fehler' }));
       return;
     }
     setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge + Cap-Messung)
-    // EIN Options-Objekt für ALLE sechs Bausteine — insbesondere dasselbe `ziel`. Wäre es
-    // je Aufruf einzeln zu setzen, hinge ein vergessener Baustein still an der globalen
+    // EIN Deps-Objekt für ALLE Bausteine — insbesondere dasselbe `ziel`. Wäre es je
+    // Aufruf einzeln zu setzen, hinge ein vergessener Baustein still an der globalen
     // KI-Variante, und der Streamlit-Tab wechselte mitten in der Kette.
-    const bausteinOpts = { force, ziel: laufZiel.ziel };
-    // Recherche-Prompt ZUERST: der Prüfer kann die externe Deep Research (5–10 Min) starten,
-    // während die übrigen Bausteine weiterlaufen. Leak-Check im Compute.
-    await laufEinen<RecherchePromptDaten>(recherchePromptSkill, setRecherchePrompt, t =>
-      computeRecherchePromptBaustein(storage.idb, t, recherchePromptSkill, aktCtx.key, korpus.markdown, aktCtx.bekannteWerte ?? {}, bausteinOpts));
-    await laufEinen<AspektMapping>(aspekteSkill, setAspekte, t =>
-      computeAspekteBaustein(storage.idb, t, aspekteSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
-    await laufEinen<SteckbriefDaten>(steckbriefSkill, setSteckbrief, t =>
-      computeSteckbriefBaustein(storage.idb, t, steckbriefSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
-    await laufEinen<ZahlenDaten>(zahlenSkill, setZahlen, t =>
-      computeZahlenBaustein(storage.idb, t, zahlenSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
-    await laufEinen<GlossarDaten>(glossarSkill, setGlossar, t =>
-      computeGlossarBaustein(storage.idb, t, glossarSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
-    await laufEinen<VerwertungDaten>(verwertungSkill, setVerwertung, t =>
-      computeVerwertungBaustein(storage.idb, t, verwertungSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
+    const deps = {
+      idb: storage.idb,
+      antragKey: aktCtx.key,
+      gliederung: aktRun.gliederung,
+      korpus: korpus.markdown,
+      bekannteWerte: aktCtx.bekannteWerte ?? {},
+      opts: { force, ziel: laufZiel.ziel },
+    };
+    // Sequentiell in Katalog-Reihenfolge (`recherchePrompt` zuerst, damit der Prüfer die
+    // externe Deep Research starten kann, während die übrigen weiterlaufen). Sequentiell,
+    // weil der interne Transport ein einzelnes postMessage-Fenster ist.
+    for (const id of BAUSTEIN_IDS) await laufEinen(id, deps);
   };
 
   /**
@@ -402,7 +365,9 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
    * `false` = abgebrochen, der Verbinden-Dialog steht offen.
    */
   const kiBereitFuerLauf = async (): Promise<boolean> => {
-    const t = bridge.getTransportForSkillRun(recherchePromptSkill);
+    // Stellvertretend der erste Baustein der Kette: alle sechs tragen VB-Volltext und
+    // damit dieselbe Transport-Klasse (intern-pflichtig, Pitfall #30/#35).
+    const t = bridge.getTransportForSkillRun(bausteinZustand[BAUSTEIN_IDS[0]!].skill);
     return kiVerbindungGeprueft(bridge, t.name);
   };
 
@@ -468,7 +433,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   ): Promise<void> => {
     const { leaks } = pruefeBearbeitetenPrompt(daten.prompt, aktCtx.bekannteWerte ?? {});
     if (leaks.length > 0) {
-      setRecherchePrompt({
+      setzeBaustein('recherchePrompt', {
         status: 'degradiert', daten,
         begruendung: `Identifizierende Angabe im Recherche-Prompt: ${leaks.join(', ')}`,
       });
@@ -476,7 +441,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     }
     const vbHash = vbHashFuer(korpus);
     await storage.idb.set(recherchePromptCacheKey(aktCtx.key, vbHash), { vbHash, daten });
-    setRecherchePrompt({ status: 'ok', daten });
+    setzeBaustein('recherchePrompt', { status: 'ok', daten });
   };
 
   const speichereRecherchePrompt = useAsyncAction(async (neuerText: string) => {

@@ -4,9 +4,12 @@ import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import { useKiZiel } from '@/core/services/ai/ki-ziel';
 import {
-  getOrComputeBaustein, leseBausteinCache, loescheBausteinCaches, istAufbereitungBausteinFreigeschaltet,
+  getOrComputeBaustein, leseBausteinCache, istAufbereitungBausteinFreigeschaltet,
   aspekteCacheKey, steckbriefCacheKey, zahlenCacheKey, vbHashFuer, ROHTEXT_MAX,
 } from '../bausteine';
+// `loescheBausteinCaches` zog in den Katalog um (es leitet seine Praefixe aus den
+// Katalog-Eintraegen ab). Nur der Importpfad aendert sich; die Erwartungen unten nicht.
+import { loescheBausteinCaches } from '../baustein-katalog';
 
 /** Minimaler In-Memory-IDB (nur die genutzten Methoden). */
 function fakeIdb(): { store: Map<string, unknown>; idb: IDBStore } {

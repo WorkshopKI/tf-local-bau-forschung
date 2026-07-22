@@ -11,45 +11,31 @@
  * beim Schreiben in `laufBausteine`. Nicht auf `korpus.vb.markdown` — das ist der
  * Hash der Veraltet-Prüfung, mit ihm griffe kein einziger Cache-Eintrag.
  *
- * Kein IO ausser den kv-Lesezugriffen, kein React, kein Transport.
+ * Welche Bausteine es gibt und wo ihr Cache liegt, sagt `BAUSTEIN_KATALOG` — diese
+ * Datei zählt sie nicht mehr selbst auf. Kein IO ausser den kv-Lesezugriffen, kein
+ * React, kein Transport.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { leseBausteinCache } from './bausteine';
 import {
-  aspekteCacheKey, glossarCacheKey, leseBausteinCache,
-  steckbriefCacheKey, verwertungCacheKey, zahlenCacheKey,
-} from './bausteine';
-import { recherchePromptCacheKey, type RecherchePromptDaten } from './recherche-prompt';
-import type { AspektMapping } from './aspekte';
-import type { SteckbriefDaten } from './steckbrief';
-import type { ZahlenDaten } from './zahlen';
-import type { GlossarDaten } from './glossar';
-import type { VerwertungDaten } from './verwertung';
+  BAUSTEIN_IDS, BAUSTEIN_KATALOG,
+  type AufbereitungBausteinId, type BausteinDatenMap,
+} from './baustein-katalog';
 
 /** Was aus dem Cache zurückkam — je Baustein `null`, wenn nichts Passendes da war. */
-export interface GecachteBausteine {
-  aspekte: AspektMapping | null;
-  steckbrief: SteckbriefDaten | null;
-  zahlen: ZahlenDaten | null;
-  glossar: GlossarDaten | null;
-  verwertung: VerwertungDaten | null;
-  recherchePrompt: RecherchePromptDaten | null;
-}
+export type GecachteBausteine = { [K in AufbereitungBausteinId]: BausteinDatenMap[K] | null };
 
 /**
- * Liest alle sechs Bausteine des Antrags zum gegebenen Korpus-Hash. Jeder steht für
- * sich: ein Teil-Treffer ist ein gültiger Zustand, weil die Läufe einzeln bewertet
- * werden und einzelne degradiert (und damit ungecacht) sein können. Wirft nie.
+ * Liest alle Bausteine des Antrags zum gegebenen Korpus-Hash. Jeder steht für sich:
+ * ein Teil-Treffer ist ein gültiger Zustand, weil die Läufe einzeln bewertet werden
+ * und einzelne degradiert (und damit ungecacht) sein können. Wirft nie.
  */
 export async function leseGecachteBausteine(
   idb: IDBStore, antragKey: string, vbHash: string,
 ): Promise<GecachteBausteine> {
-  const [aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt] = await Promise.all([
-    leseBausteinCache<AspektMapping>(idb, aspekteCacheKey(antragKey, vbHash), vbHash),
-    leseBausteinCache<SteckbriefDaten>(idb, steckbriefCacheKey(antragKey, vbHash), vbHash),
-    leseBausteinCache<ZahlenDaten>(idb, zahlenCacheKey(antragKey, vbHash), vbHash),
-    leseBausteinCache<GlossarDaten>(idb, glossarCacheKey(antragKey, vbHash), vbHash),
-    leseBausteinCache<VerwertungDaten>(idb, verwertungCacheKey(antragKey, vbHash), vbHash),
-    leseBausteinCache<RecherchePromptDaten>(idb, recherchePromptCacheKey(antragKey, vbHash), vbHash),
-  ]);
-  return { aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt };
+  const paare = await Promise.all(BAUSTEIN_IDS.map(async id => [
+    id,
+    await leseBausteinCache(idb, BAUSTEIN_KATALOG[id].cacheKey(antragKey, vbHash), vbHash),
+  ] as const));
+  return Object.fromEntries(paare) as GecachteBausteine;
 }
