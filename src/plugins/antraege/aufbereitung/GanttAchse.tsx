@@ -28,16 +28,25 @@ export interface GanttAchse {
   x: (monat: number) => number;
   /** Monate mit Gridline/Label (M1, M4, …). */
   gridMonate: number[];
+  /** Rechte Plot-Kante — folgt der Zeichenbreite, nicht der Konstanten. */
+  plotRight: number;
 }
 
-/** Baut die X-Achse aus dem Monats-Horizont (`achseMax`). */
-export function macheAchse(achseMax: number): GanttAchse {
+/**
+ * Baut die X-Achse aus dem Monats-Horizont (`achseMax`).
+ *
+ * `gesamtBreite` ist die Breite des viewBox in SVG-Einheiten. Wer sie mitgibt,
+ * zeichnet 1 Einheit = 1 CSS-Pixel und hält damit Schriftgrößen unabhängig von
+ * der Panel-Breite; ohne Angabe bleibt es beim festen `GANTT_W`.
+ */
+export function macheAchse(achseMax: number, gesamtBreite: number = GANTT_W): GanttAchse {
   const monate = Math.max(1, achseMax);
-  const mw = GANTT_PLOT_W / monate;
+  const plotRight = gesamtBreite - 16;
+  const mw = (plotRight - GANTT_PLOT_LEFT) / monate;
   const x = (monat: number): number => GANTT_PLOT_LEFT + (monat - 1) * mw;
   const gridMonate: number[] = [];
   for (let m = 1; m <= monate; m += 3) gridMonate.push(m);
-  return { monate, mw, x, gridMonate };
+  return { monate, mw, x, gridMonate, plotRight };
 }
 
 /** Vertikale Gridlines + Monats-Labels (M1, M4, …). */
@@ -70,7 +79,7 @@ export function GanttLeerAnnotation({
   if (!(letzterMonat > 0 && achse.monate >= letzterMonat + 3)) return null;
   return (
     <text
-      x={(achse.x(letzterMonat + 1) + GANTT_PLOT_RIGHT) / 2}
+      x={(achse.x(letzterMonat + 1) + achse.plotRight) / 2}
       y={GANTT_KOPF_H + (anzahlZeilen * GANTT_ROW_H) / 2}
       textAnchor="middle"
       fill="var(--tf-text-tertiary)"

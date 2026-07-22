@@ -6,7 +6,10 @@
  * die Regel: keine `.tsx` in diesem Plugin rechnet.
  */
 import { describe, expect, it } from 'vitest';
-import { baueGanttDaten, letzterTerminierterMonat, monatsPosition } from '../ansicht/gantt-daten';
+import { GANTT_W, macheAchse } from '@/plugins/antraege/aufbereitung/GanttAchse';
+import {
+  GANTT_MIN_BREITE, baueGanttDaten, letzterTerminierterMonat, monatsPosition, zeichenBreite,
+} from '../ansicht/gantt-daten';
 import { baueKostenSegmente, summenAbweichung } from '../ansicht/kosten-segmente';
 import { importiereEinreichung } from '../import/adapter';
 import { AP_PM_GRENZE } from '../import/rechenchecks';
@@ -89,6 +92,43 @@ describe('Gantt-Geometrie', () => {
     };
     const zeile = baueGanttDaten(eintaegig, AP_PM_GRENZE).zeilen[0]!;
     expect(zeile.posEnde).toBeGreaterThan(zeile.posStart);
+  });
+});
+
+/**
+ * Der viewBox muss der gemessenen Breite folgen. Bliebe er fest, skalierte das
+ * breite Prüfblatt die Zeichnung hoch — samt Schrift und Balken.
+ */
+describe('Zeichenbreite', () => {
+  it('nimmt die gemessene Breite, damit 1 Einheit 1 Pixel bleibt', () => {
+    expect(zeichenBreite(1290, 1000)).toBe(1290);
+  });
+
+  it('rundet auf ganze Pixel', () => {
+    expect(zeichenBreite(1289.6, 1000)).toBe(1290);
+  });
+
+  it('faellt vor der ersten Messung auf das feste Mass zurueck', () => {
+    expect(zeichenBreite(null, 1000)).toBe(1000);
+    expect(zeichenBreite(0, 1000)).toBe(1000);
+    expect(zeichenBreite(Number.NaN, 1000)).toBe(1000);
+  });
+
+  it('haelt einen Sockel, statt in schmalen Panels unlesbar zu werden', () => {
+    expect(zeichenBreite(320, 1000)).toBe(GANTT_MIN_BREITE);
+  });
+
+  it('laesst die Achse mit der Zeichenbreite wachsen', () => {
+    const schmal = macheAchse(12, 1000);
+    const breit = macheAchse(12, 1400);
+    expect(breit.mw).toBeGreaterThan(schmal.mw);
+    expect(breit.plotRight).toBe(1400 - 16);
+    // Der Ursprung bleibt fix: M1 liegt in beiden Fällen auf derselben Kante.
+    expect(breit.x(1)).toBe(schmal.x(1));
+  });
+
+  it('bleibt ohne Breitenangabe beim festen Mass', () => {
+    expect(macheAchse(12).plotRight).toBe(macheAchse(12, GANTT_W).plotRight);
   });
 });
 
