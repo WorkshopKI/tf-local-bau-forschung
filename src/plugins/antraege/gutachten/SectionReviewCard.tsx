@@ -14,7 +14,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Copy, Info, ChevronRight } from 'lucide-react';
+import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Copy, Info, ChevronRight, SpellCheck } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -27,6 +27,7 @@ import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { satzSegmente } from './satzSegmente';
 import { belegAbdeckung } from './belege';
+import { pruefeLektorat, befundText } from './lektorat';
 import { pruefSummary } from './pruefSummary';
 import { PruefBlock } from './PruefBlock';
 import type { CheckListAktion } from '../kurzfassung/CheckList';
@@ -96,6 +97,11 @@ interface Props {
   onOpenTweak: () => void;
   /** Beratende KI-QS über diesen Abschnitt fahren — fehlt, wenn kein QS-Schritt ihn adressiert. */
   onQs?: () => void;
+  /**
+   * Sprachlichen Feinschliff (Lektor-Skill) über den Abschnitt fahren. Fehlt,
+   * wenn der Kurator den Lektor-Skill deaktiviert hat → Knopf entfällt.
+   */
+  onLektorat?: () => void;
   /** Provenienz: Name des erzeugenden Skills + Anzahl zugeordneter Regeln. */
   provenance?: { skillName: string; regelCount: number };
   /** Öffnet den erzeugenden Skill in der Skill-Verwaltung (Provenienz-Link). */
@@ -120,11 +126,20 @@ interface Props {
 }
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, pruefAktion, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, pruefAktion, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, onLektorat, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
   const genDisabled = busy || llmAvailable === false;
+
+  // Wächter über dem sprachlichen Feinschliff: LIVE gegen die letzte Verlaufs-
+  // Fassung gerechnet (das ist der Stand vor dem Lektor-Lauf) — nichts
+  // Zusätzliches persistiert, und ein späterer manueller Edit fließt mit ein.
+  const lektoratBefund = useMemo(() => {
+    if (!run.lektoriert) return '';
+    const vorher = run.verlauf?.[run.verlauf.length - 1]?.finalerText;
+    return vorher ? befundText(pruefeLektorat(vorher, run.finalerText)) : '';
+  }, [run.lektoriert, run.verlauf, run.finalerText]);
 
   // Regelprüfung direkt am Text (aufklappbar über die Meta-Zeile): grün → zu, sonst auf.
   // Die Karte remountet nur beim Abschnittswechsel (`key` in `ActiveAbschnitt`), darum
@@ -303,11 +318,21 @@ export function SectionReviewCard({
         );
       })()}
 
+      {/* Wächter-Hinweis nach dem Feinschliff: rein beratend. Er meldet nur, was
+          deterministisch messbar ist (Zahlen-Inventar + Umfang) — die Beurteilung
+          bleibt beim Gutachter, der Vergleich steht im Versionsverlauf unten. */}
+      {!editing && lektoratBefund && (
+        <div className="g-lektor-hinweis">
+          ⚠ Gegenüber dem Stand vor dem Feinschliff: {lektoratBefund} — bitte im Versionsvergleich unten prüfen.
+        </div>
+      )}
+
       {/* Meta-Zeile — schlank: Satzzahl/Status + Prüf-Aufklapper; Provenienz (Skill) hinter dem Info-Icon. */}
       <div className="g-metaline">
         <span>
           {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {freigegeben ? `freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}` : 'Entwurf'}
           {run.mitTweak ? ' · mit persönlichem Stil' : ''}
+          {run.lektoriert ? ' · sprachlich überarbeitet' : ''}
         </span>
         {/* Zahl aus `run.checks` (Stand der Prüfung), NICHT aus den live aktiven Skill-Regeln —
             das Label muss beschreiben, was der Aufklapper zeigt. */}
@@ -365,6 +390,22 @@ export function SectionReviewCard({
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
             </span>
+            {/* Abgesetzt, weil anderer Charakter: Neu/Kürzer/Länger generieren aus der
+                Vorhabensbeschreibung NEU, der Feinschliff fasst nur die Sprache an. */}
+            {onLektorat && (
+              <>
+                <span className="g-refine-sep" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="g-btn ghost sm"
+                  disabled={genDisabled || !run.finalerText.trim()}
+                  onClick={onLektorat}
+                  title="Überarbeitet den Abschnitt nur sprachlich — Inhalt und Umfang bleiben unverändert. Die bisherige Fassung bleibt im Versionsverlauf."
+                >
+                  <SpellCheck size={13} /> Sprachlicher Feinschliff
+                </button>
+              </>
+            )}
             {onQs && (
               <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={onQs}>KI-QS prüfen</button>
             )}

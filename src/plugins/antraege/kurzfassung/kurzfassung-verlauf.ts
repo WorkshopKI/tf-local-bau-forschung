@@ -26,6 +26,8 @@ export interface VerlaufContent {
   erstellt_am: string;
   modell: string;
   modifier?: SkillModifierKey;
+  /** True, wenn über dieser Fassung der sprachliche Feinschliff lief (Lektor-Skill). */
+  lektoriert?: boolean;
   vbGekuerzt?: boolean;
   warnung?: string;
   denkprozess?: string;
@@ -38,8 +40,13 @@ const MODIFIER_LABEL: Record<SkillModifierKey, string> = {
   laenger: 'Verlängert',
 };
 
-/** Anzeige-Label einer Fassung (Erstfassung = ohne Modifier). */
-export function versionLabel(v: { modifier?: SkillModifierKey }): string {
+/**
+ * Anzeige-Label einer Fassung (Erstfassung = ohne Modifier). Der sprachliche
+ * Feinschliff hat Vorrang vor dem Modifier: er ist der jüngere Arbeitsgang über
+ * derselben Generierung, „Gekürzt" wäre danach irreführend.
+ */
+export function versionLabel(v: { modifier?: SkillModifierKey; lektoriert?: boolean }): string {
+  if (v.lektoriert) return 'Sprachlich überarbeitet';
   return v.modifier ? MODIFIER_LABEL[v.modifier] : 'Erstfassung';
 }
 
@@ -53,6 +60,7 @@ export function snapshotOf(record: VerlaufContent): KurzfassungVersion {
     erstellt_am: record.erstellt_am,
     modell: record.modell,
     ...(record.modifier ? { modifier: record.modifier } : {}),
+    ...(record.lektoriert ? { lektoriert: record.lektoriert } : {}),
     ...(record.vbGekuerzt ? { vbGekuerzt: record.vbGekuerzt } : {}),
     ...(record.warnung ? { warnung: record.warnung } : {}),
     ...(record.denkprozess ? { denkprozess: record.denkprozess } : {}),
@@ -91,6 +99,7 @@ export function restoreVersion<T extends VerlaufContent>(record: T, index: numbe
     status: 'entwurf',
     verlauf: nextVerlauf,
     ...(chosen.modifier ? { modifier: chosen.modifier } : { modifier: undefined }),
+    ...(chosen.lektoriert ? { lektoriert: chosen.lektoriert } : { lektoriert: undefined }),
     ...(chosen.vbGekuerzt ? { vbGekuerzt: chosen.vbGekuerzt } : { vbGekuerzt: undefined }),
     ...(chosen.warnung ? { warnung: chosen.warnung } : { warnung: undefined }),
     ...(chosen.denkprozess ? { denkprozess: chosen.denkprozess } : { denkprozess: undefined }),

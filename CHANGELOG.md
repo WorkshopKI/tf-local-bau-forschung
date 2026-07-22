@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.294.0 — Sprachlicher Feinschliff fuer Gutachten-Abschnitte (Juli 2026)
+
+MINOR — Ist ein Gutachten-Abschnitt inhaltlich und vom Umfang her abgenommen, gab es bisher nur „Neu / Kürzer / Länger" — und die generieren aus der Vorhabensbeschreibung neu, der mühsam abgestimmte Inhalt verschob sich also wieder. Für den letzten, rein sprachlichen Arbeitsgang fehlte ein Werkzeug.
+
+- **„Sprachlicher Feinschliff"** in der Anpassen-Zeile der Abschnitts-Karte, abgesetzt von Neu/Kürzer/Länger; nur bei Entwürfen ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)).
+- **Lektor-Skill** als kurator-pflegbare Registry-Daten; sein Prompt trägt **nur** den Abschnittstext, keine Vorhabensbeschreibung → intern-pflichtig (Pitfall #30) ([ga-lektor.seed.ts](src/core/services/skills/registry/ga-lektor.seed.ts)).
+- **Deterministischer Wächter**: Zahlen-Inventar + Längen-Delta vorher/nachher, beratender Hinweis an der Karte ([lektorat.ts](src/plugins/antraege/gutachten/lektorat.ts)).
+- Abgeschnittene oder leere Lektor-Antworten werden **verworfen** statt geschrieben ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)).
+- Vorfassung landet im Versionsverlauf → Diff + „Diese Fassung übernehmen" wie gewohnt ([runner.ts](src/plugins/antraege/gutachten/runner.ts)); Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
 ### v2.293.0 — Teilvorhaben-Zeile: Eckdaten und Klassifikation raus, Titel kopierbar (Juli 2026)
 
 MINOR — Der aufgeklappte Teilvorhaben-Block zeigte eine Eckdaten-Karte, deren Werte (Antragsteller, VB-Phase, Unterprogramm, Antragsdatum) schon im Verbund-Kopf und in „Antragsdaten" stehen, plus Klassifikations-Pills, die per Feldnamen-Heuristik auf echten Daten nichtssagende Ein-Buchstaben-Tags produzierten. Gleichzeitig war der TV-Titel — der oft in andere Dokumente übernommen wird — weder markierbar noch einzeln kopierbar, weil die ganze Zeile ein `<button>` war.

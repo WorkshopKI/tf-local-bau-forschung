@@ -87,6 +87,15 @@ Der Original-Skill gehört dem Kurator; der Nutzer (Gutachter) ergänzt einen **
 - **Persistenz-Spur**: `KurzfassungRecord` += optional `mitTweak` / `tweakGeaendertAm` (alte Läufe ohne diese Felder bleiben ladbar).
 - Mockups: `_design/handoff/persoenlicher-stil/mockup-tweak-{editor,zustaende}.html`. Tests: [compose-prompt.test.ts](../../src/core/services/skills/run/__tests__/compose-prompt.test.ts) (Rangfolge + byte-Identität), [tweaks/__tests__/store.test.ts](../../src/core/services/skills/tweaks/__tests__/store.test.ts) (Round-trip, LWW, Versions-Hinweis).
 
+## Sprachlicher Feinschliff — Lektor-Skill (v2.294)
+
+Der letzte, **rein sprachliche** Arbeitsgang vor der Freigabe: „Anpassen: Neu · Kürzer · Länger" generiert aus der Vorhabensbeschreibung NEU (Inhalt kann sich verschieben), der Feinschliff fasst nur die Formulierung an. Knopf in der Anpassen-Zeile der Review-Karte, durch einen Trenner abgesetzt; nur bei Abschnitten im Status `entwurf`, kein eigener Feature-Flag (lebt mit dem GA-Workflow).
+
+- **Prompt ohne VB** ([ga-lektor.seed.ts](../../src/core/services/skills/registry/ga-lektor.seed.ts), Skill-ID `ga-lektor`, kurator-editierbar wie jeder Registry-Skill): das Template trägt **nur** `{{zielText}}` (den abgenommenen Abschnitt) + `{{abschnittszweck}}`. Der Lauf kann strukturell nichts aus der VB nachziehen — das ist die eigentliche Zusicherung, nicht die Prompt-Prosa. `maxTokens: 4096` (der redigierte Abschnitt muss VOLLSTÄNDIG zurückkommen); `regelIds: []` — geprüft wird mit den Regeln **des Abschnitts**. DSGVO: `zielText` ist Inhalts-Slot → `skillEnthaeltDokumentInhalte` = true → intern-pflichtig (Pitfall #30/#35). `aktiv: false` = Kurator-Kill-Switch, dann entfällt der Knopf.
+- **Zwei Tore VOR dem Schreiben** (`runLektorat` in [useGutachtenWorkflow.ts](../../src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): leeres Ergebnis und `istVerdaechtigGekuerzt` (< 60 % der Ausgangslänge = abgeschnittene Antwort) → Fehlermeldung, **kein** Write, Abschnitt bleibt unverändert.
+- **Deterministischer Wächter** ([lektorat.ts](../../src/plugins/antraege/gutachten/lektorat.ts), rein + node-testbar): vergleicht Zahlen-Inventar (Multiset, deutsche Formate inkl. Tausenderpunkt/Dezimalkomma/Einheiten-Suffix) und Längen-Delta zwischen Vor- und Nachfassung. Über 10 % Längen-Drift oder bei verschwundenen/neuen Zahlen erscheint eine **beratende** Hinweiszeile an der Karte (`befundText`) — sie blockiert nie und wird **live** gegen den letzten Verlaufs-Eintrag gerechnet (nichts zusätzlich persistiert).
+- **Persistenz** (`applyLektorat` in [runner.ts](../../src/plugins/antraege/gutachten/runner.ts)): kein frischer `StepRun` — Status, Belege, QS-Hinweise, `originalText` und Denkprozess bleiben; ersetzt werden Text, Checks, Modell, Zeitstempel. `teile` werden verworfen (der flache Text ist danach maßgeblich, gleiche Regel wie bei `applyBearbeitung`). Die Vorfassung wandert per `appendVerlauf` in den Verlauf ⇒ **Diff + „Diese Fassung übernehmen"** im [VersionVerlauf](../../src/plugins/antraege/kurzfassung/VersionVerlauf.tsx) gelten unverändert; additives Flag `lektoriert` treibt Badge („· sprachlich überarbeitet") und `versionLabel` → „Sprachlich überarbeitet" (Vorrang vor dem Modifier-Label).
+
 ## Baustein 4 — Vorlagen-Verzeichnis + DOCX-Füller
 
 [src/core/services/gutachten-vorlagen/](../../src/core/services/gutachten-vorlagen/) — **keine neue Dependency** (vorhandenes `jszip`).
@@ -148,7 +157,7 @@ Zwei optionale, komponierbare Erweiterungen des Workflows — beide **additiv** 
 ## Tests
 
 - `src/core/services/skills/run/__tests__/` — `parse-skill-output.test.ts`, `compose-prompt.test.ts` (inkl. QS-Slot-Byte-Identität), `run-skill.test.ts`; `registry/__tests__/` — `check-engine.test.ts` (inkl. Abkürzungs-Fälle + `richtung`), `registry.test.ts`, `seed-merge.test.ts`, `workflows.test.ts` (inkl. `normalizeStepRolle`/`clampMaxRetries`).
-- `src/plugins/antraege/gutachten/__tests__/` — `runner.test.ts` (inkl. `applyQsHinweise`), `qs-parse.test.ts` (toleranter QS-Parser), `retry-policy.test.ts` (`chooseRetryModifier` + Loop-Terminierung).
+- `src/plugins/antraege/gutachten/__tests__/` — `runner.test.ts` (inkl. `applyQsHinweise` + `applyLektorat`), `qs-parse.test.ts` (toleranter QS-Parser), `retry-policy.test.ts` (`chooseRetryModifier` + Loop-Terminierung), `lektorat.test.ts` (Zahlen-Inventar, Längen-Drift, Kapp-Verdacht).
 - `src/core/components/__tests__/dokumentAufnahmeFkz.test.ts` — FKZ-Zuordnung (Verbund-/TV-FKZ-Match, `ZEP…`-Fall, ambig).
 - `src/core/services/gutachten-vorlagen/__tests__/fill-template.test.ts` — Run-Splitting, `&amp;`-Form, XML-Escaping, Anker vorhanden/fehlend.
 - Lokale Test-Vorlage (DOCX mit Platzhaltern + Anker, dev-only Helfer): `_design/handoff/gutachten-kurzfassung/make-test-vorlage.mjs`.

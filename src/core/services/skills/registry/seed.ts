@@ -18,6 +18,7 @@ import type {
 } from './types';
 import { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF } from './nf-skill.seed';
 import { GA_QS_REGELN } from './ga-qs.seed';
+import { SEED_GA_LEKTOR_SKILL } from './ga-lektor.seed';
 import { ANFRAGE_ANONYMISIEREN_SKILL } from './anfrage-anonymisieren.seed';
 import { ANFRAGE_METADATEN_SKILL } from './anfrage-metadaten.seed';
 import { AUFBEREITUNG_ASPEKTE_SKILL } from './aufbereitung-aspekte.seed';
@@ -771,7 +772,8 @@ export const SEED_REGISTRY: SkillRegistryFile = {
   version: 1,
   updated_at: SEED_TS,
   skills: [
-    SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_NF_SKILL,
+    SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_GA_LEKTOR_SKILL,
+    SEED_NF_SKILL,
     ANFRAGE_ANONYMISIEREN_SKILL, ANFRAGE_METADATEN_SKILL,
     AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_ZAHLEN_SKILL,
     AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL,

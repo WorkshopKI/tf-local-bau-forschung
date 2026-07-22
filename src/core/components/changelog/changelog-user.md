@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.294 — 2026-07
+
+### Neu
+- Ist ein Gutachten-Abschnitt inhaltlich und von der Länge her in Ordnung, gibt es jetzt den Knopf „Sprachlicher Feinschliff": Die KI überarbeitet den Abschnitt nur sprachlich — Satzbau, Wortwiederholungen, Grammatik — und lässt Inhalt und Umfang unangetastet. Anders als „Neu/Kürzer/Länger" wird dabei nicht neu aus der Vorhabensbeschreibung geschrieben.
+- Nach dem Feinschliff vergleicht die App die Fassungen selbst: Verschwinden oder erscheinen Zahlen, oder ändert sich die Länge spürbar, erscheint ein Hinweis an der Karte. Die vorherige Fassung steht wie gewohnt im Versionsvergleich und lässt sich mit einem Klick zurückholen.
+
 ## v2.293 — 2026-07
 
 ### Verbesserungen

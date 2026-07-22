@@ -17,6 +17,12 @@ export interface KurzfassungVersion {
   modell: string;
   /** Modifier, der zu DIESER Fassung führte (undefined = Erstfassung). */
   modifier?: SkillModifierKey;
+  /**
+   * True, wenn DIESE Fassung aus dem sprachlichen Feinschliff (Lektor-Skill)
+   * hervorging. Additiv; hat im `versionLabel` Vorrang vor dem Modifier, weil
+   * der Feinschliff der jüngere Arbeitsgang über derselben Generierung ist.
+   */
+  lektoriert?: boolean;
   vbGekuerzt?: boolean;
   warnung?: string;
   /** Reasoning-/Thinking-Text dieses Laufs, falls Thinking aktiv war (sonst undefined). */

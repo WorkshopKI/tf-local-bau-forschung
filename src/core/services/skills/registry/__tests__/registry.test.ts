@@ -5,6 +5,8 @@ import {
   artefaktTypOf, ebeneOf, pruefartOf,
 } from '../selectors';
 import { SEED_REGISTRY, SEED_SKILL, KURZFASSUNG_SKILL_ID, ZIM_EP_DEF } from '../seed';
+import { SEED_GA_LEKTOR_SKILL, GA_LEKTOR_SKILL_ID } from '../ga-lektor.seed';
+import { skillEnthaeltDokumentInhalte } from '@/core/services/ai/transport-policy';
 import { runRegelChecks } from '../check-engine';
 import type { QualitaetsRegel, SkillRegistryFile } from '../types';
 
@@ -151,13 +153,14 @@ describe('Artefakt-Engine — additive Felder + Default-Resolver', () => {
 
 describe('Seed', () => {
   it('enthält die Gutachten-Skills A–G + QS-Basis + zusammenpassende Regeln', () => {
-    // A (Kurzfassung) + B–G = 7 Skills + qs-basis + relevanz-map + nf-auswahl-fuellung +
-    // anfrage-anonymisieren + anfrage-metadaten + aufbereitung-aspekte + aufbereitung-steckbrief +
-    // aufbereitung-zahlen + aufbereitung-glossar + aufbereitung-verwertung + aufbereitung-recherche-prompt +
-    // aufbereitung-recherche-import = 19; 5 A-Regeln + 9 B–G-Regeln + 3 NF-Regeln + 5 GA-QS-Regeln = 22 Regeln
-    // (QS + Relevanz-Map + Anfrage-Skills + Aufbereitungs-Skills haben keine).
+    // A (Kurzfassung) + B–G = 7 Skills + qs-basis + relevanz-map + ga-lektor +
+    // nf-auswahl-fuellung + anfrage-anonymisieren + anfrage-metadaten + aufbereitung-aspekte +
+    // aufbereitung-steckbrief + aufbereitung-zahlen + aufbereitung-glossar + aufbereitung-verwertung +
+    // aufbereitung-recherche-prompt + aufbereitung-recherche-import = 20;
+    // 5 A-Regeln + 9 B–G-Regeln + 3 NF-Regeln + 5 GA-QS-Regeln = 22 Regeln
+    // (QS + Relevanz-Map + Lektor + Anfrage-Skills + Aufbereitungs-Skills haben keine).
     // B–G: B(3) + C(3: seed-c-wortanzahl[Waise] + seed-c-umfang + seed-c-keine-aufzaehlungen) + D(2) + G(1).
-    expect(SEED_REGISTRY.skills).toHaveLength(19);
+    expect(SEED_REGISTRY.skills).toHaveLength(20);
     expect(SEED_REGISTRY.regeln).toHaveLength(22);
     expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung
@@ -170,6 +173,22 @@ describe('Seed', () => {
     }
     expect(skill.systemPrompt).toBeTruthy();
     expect(skill.slots).toContain('vbMarkdown');
+  });
+
+  it('der Lektor-Skill sieht nur den Abschnitt (kein VB) und ist intern-pflichtig', () => {
+    expect(getSkillById(SEED_REGISTRY, GA_LEKTOR_SKILL_ID)).toBeDefined();
+    // Kein VB-Slot: der Lektor kann strukturell nichts aus der Vorhabensbeschreibung
+    // nachziehen — das ist die eigentliche Zusicherung „ändert nichts inhaltlich".
+    expect(SEED_GA_LEKTOR_SKILL.promptTemplate).not.toContain('{{vbMarkdown}}');
+    expect(SEED_GA_LEKTOR_SKILL.promptTemplate).not.toContain('{{vbRelevant}}');
+    expect(SEED_GA_LEKTOR_SKILL.promptTemplate).toContain('{{zielText}}');
+    expect(SEED_GA_LEKTOR_SKILL.slots).toEqual(['abschnittszweck', 'zielText']);
+    // DSGVO (Pitfall #30/#35): `zielText` ist ein Inhalts-Slot → nur interner Transport.
+    expect(skillEnthaeltDokumentInhalte(SEED_GA_LEKTOR_SKILL)).toBe(true);
+    // Der redigierte Abschnitt muss vollständig zurückkommen → Budget über dem Default.
+    expect(SEED_GA_LEKTOR_SKILL.maxTokens ?? 0).toBeGreaterThan(2048);
+    // Geprüft wird mit den Regeln DES ABSCHNITTS, nicht mit eigenen.
+    expect(SEED_GA_LEKTOR_SKILL.regelIds).toEqual([]);
   });
 
   it('die Seed-Regeln laufen sauber über einen Beispieltext', () => {

@@ -100,6 +100,13 @@ export interface StepRun {
   /** Modifier, der zur AKTUELLEN Fassung führte (für die Verlaufs-Anzeige). */
   modifier?: SkillModifierKey;
   /**
+   * True, wenn über der aktuellen Fassung der sprachliche Feinschliff
+   * (Lektor-Skill) lief — treibt das Badge an der Karte und den Vergleich gegen
+   * die letzte Verlaufs-Fassung (Zahlen-/Längen-Wächter, `lektorat.ts`). Additiv;
+   * eine Re-Generierung baut einen frischen `StepRun` ohne dieses Feld.
+   */
+  lektoriert?: boolean;
+  /**
    * Regel-ID, deren verletzter Check diesen Korrektur-Lauf ausgelöst hat (Journey-
    * Paket 3, additiv). Nur Anzeige/Nachvollziehbarkeit — kein Verhalten. Fehlt bei
    * regulären Läufen und in Alt-Runs (optional, Round-Trip-sicher).

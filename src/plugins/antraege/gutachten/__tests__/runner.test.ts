@@ -6,6 +6,7 @@ import {
   leereSchritte,
   applyGeneration,
   applyBearbeitung,
+  applyLektorat,
   applyZuruecksetzen,
   applyPruefen,
   applyQsHinweise,
@@ -131,6 +132,51 @@ describe('applyBearbeitung', () => {
 
   it('no-op bei leerem Schritt', () => {
     const run = applyBearbeitung(emptyRun('AZ', NOW), 'B', 'x', chk, NOW);
+    expect(run.schritte.B).toBeUndefined();
+  });
+});
+
+describe('applyLektorat (sprachlicher Feinschliff)', () => {
+  const chk = [{ id: 'r', level: 'ok' as const, label: 'L' }];
+  const lektorat = { finalerText: 'Redigiert', checks: chk, modell: 'qwen' };
+
+  it('ersetzt Text/Checks/Modell, markiert lektoriert und schiebt die Vorfassung in den Verlauf', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert'), NOW);
+    run = applyLektorat(run, 'A', lektorat, LATER);
+    const a = run.schritte.A!;
+    expect(a.finalerText).toBe('Redigiert');
+    expect(a.checks).toEqual(chk);
+    expect(a.modell).toBe('qwen');
+    expect(a.lektoriert).toBe(true);
+    expect(a.erstellt_am).toBe(LATER);
+    expect(a.verlauf?.map(v => v.finalerText)).toEqual(['Generiert']); // Rückgriff möglich
+    expect(run.geaendert_am).toBe(LATER);
+  });
+
+  it('lässt Status, Belege, QS-Hinweise und den Bearbeitet-Snapshot unangetastet', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Generiert', {
+      belege: [{ zitat: 'Z', satzIndizes: [0] }],
+    }), NOW);
+    run = applyBearbeitung(run, 'A', 'Editiert', chk, LATER);
+    run = applyQsHinweise(run, 'A', [{ dimension: 'Ton', bewertung: 'hinweis', text: 't' }], LATER);
+    run = applyLektorat(run, 'A', lektorat, LATER);
+    const a = run.schritte.A!;
+    expect(a.status).toBe('entwurf');
+    expect(a.belege).toEqual([{ zitat: 'Z', satzIndizes: [0] }]);
+    expect(a.qsHinweise).toHaveLength(1);
+    expect(a.originalText).toBe('Generiert'); // „Zurücksetzen" bleibt möglich
+  });
+
+  it('verwirft strukturierte Teile (der flache Text ist danach maßgeblich)', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('T1\n\nT2', {
+      teile: [{ key: 'a', label: 'A', text: 'T1' }, { key: 'b', label: 'B', text: 'T2' }],
+    }), NOW);
+    run = applyLektorat(run, 'A', lektorat, LATER);
+    expect(run.schritte.A?.teile).toBeUndefined();
+  });
+
+  it('no-op bei leerem Schritt', () => {
+    const run = applyLektorat(emptyRun('AZ', NOW), 'B', lektorat, NOW);
     expect(run.schritte.B).toBeUndefined();
   });
 });

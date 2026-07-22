@@ -171,6 +171,53 @@ export function applyBearbeitung(
   return setStep(run, stepId, next, now);
 }
 
+/** Ergebnis eines Lektor-Laufs (der Hook reicht Text + frische Checks + Meta herein). */
+export interface LektoratInput {
+  finalerText: string;
+  checks: CheckResult[];
+  /** Transport-/Provider-Name des Lektor-Laufs. */
+  modell: string;
+  /** Chat-Reset-Status des Laufs (Pitfall #36); nur bei Verlaufsrisiko persistiert. */
+  chatResetStatus?: ChatResetStatus;
+}
+
+/**
+ * Sprachlichen Feinschliff (Lektor-Skill) auf einen Abschnitt anwenden. Anders
+ * als eine Re-Generierung entsteht KEIN frischer `StepRun`: der Abschnitt behält
+ * Status, Belege, QS-Hinweise, `originalText` und Denkprozess — nur der Text
+ * (plus Checks/Modell/Zeitstempel) wird ersetzt. Die bisherige Fassung wandert in
+ * den Verlauf ⇒ Versionsvergleich + Rückgriff gelten unverändert.
+ *
+ * `teile` werden verworfen: der Lektor schreibt den FLACHEN Text neu, die
+ * strukturierten Teilfelder würden gegen ihn divergieren (gleiche Regel wie im
+ * Lektor-Zweitpass in `run-skill.ts` und bei `applyBearbeitung`).
+ *
+ * No-op bei leerem Schritt.
+ */
+export function applyLektorat(
+  run: WorkflowRun,
+  stepId: StepId,
+  input: LektoratInput,
+  now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  const next: StepRun = {
+    ...step,
+    finalerText: input.finalerText,
+    teile: undefined,
+    checks: input.checks,
+    erstellt_am: now,
+    modell: input.modell,
+    lektoriert: true,
+    verlauf: appendVerlauf(step),
+    ...(input.chatResetStatus && resetHatVerlaufsrisiko(input.chatResetStatus)
+      ? { chatResetStatus: input.chatResetStatus }
+      : {}),
+  };
+  return setStep(run, stepId, next, now);
+}
+
 /**
  * Manuelle Bearbeitung verwerfen (Aktion „Zurücksetzen" am bearbeitet-Badge):
  * stellt den gespeicherten `originalText` wieder her, löscht den Snapshot. `checks`

@@ -695,6 +695,7 @@ function ActiveAbschnitt({
           hoverSaetze={hoverSaetze ?? null}
           {...(onHoverSaetze ? { onHoverSaetze } : {})}
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
+          onLektorat={ctrl.lektorVerfuegbar ? () => ctrl.lektorieren(id) : undefined}
           provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
           onOpenSkill={openSkill}
           onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}

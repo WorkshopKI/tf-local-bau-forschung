@@ -55,6 +55,7 @@ export {
   QS_BASIS_SKILL_ID,
   RELEVANZ_MAP_SKILL_ID,
 } from './seed';
+export { SEED_GA_LEKTOR_SKILL, GA_LEKTOR_SKILL_ID } from './ga-lektor.seed';
 export { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF, NF_SKILL_ID } from './nf-skill.seed';
 export { AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_ASPEKTE_SKILL_ID } from './aufbereitung-aspekte.seed';
 export { AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';

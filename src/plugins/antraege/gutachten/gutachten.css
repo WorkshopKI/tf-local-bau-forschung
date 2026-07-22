@@ -191,6 +191,11 @@
 /* Anpassen direkt am Text — dezente Zeile zwischen Prüfblock und „Vorfassungen". */
 .gutachten-werkstatt .g-refine-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 2px 0 12px; }
 .gutachten-werkstatt .g-ab-anpassen-lbl { font: 11px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+/* Trenner in der Anpassen-Zeile: der sprachliche Feinschliff steht abgesetzt neben
+   Neu/Kürzer/Länger (die aus der VB neu generieren, er nicht). */
+.gutachten-werkstatt .g-refine-sep { width: 1px; height: 16px; background: var(--tf-border); margin: 0 2px; }
+/* Beratender Wächter-Hinweis nach dem Feinschliff (Zahlen-/Umfangs-Abweichung). */
+.gutachten-werkstatt .g-lektor-hinweis { margin: 10px 0 0; padding: 7px 11px; border-radius: 8px; font: 11.5px/1.45 var(--tf-font-sans); color: var(--tf-warning-text); background: var(--tf-warning-bg); }
 .gutachten-werkstatt .g-vote { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px; }
 .gutachten-werkstatt .g-vote-q { font: 12px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); white-space: nowrap; }
 .gutachten-werkstatt .g-vbtn { width: 30px; height: 30px; border-radius: 8px; border: .5px solid var(--tf-border-hover); background: var(--tf-bg); color: var(--tf-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }

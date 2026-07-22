@@ -25,6 +25,8 @@ import {
   clampMaxRetries,
   RELEVANZ_MAP_SKILL_ID,
   SEED_RELEVANZ_MAP_SKILL,
+  GA_LEKTOR_SKILL_ID,
+  SEED_GA_LEKTOR_SKILL,
   type CheckResult,
   type SkillModifierKey,
   type QualitaetsRegel,
@@ -54,10 +56,11 @@ import { putWorkflowRun } from './workflow-store';
 import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import {
-  applyGeneration, applyBearbeitung, applyZuruecksetzen, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
+  applyGeneration, applyBearbeitung, applyLektorat, applyZuruecksetzen, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben, leereSchritte, setVorlageRef,
   type GenerationInput,
 } from './runner';
+import { istVerdaechtigGekuerzt } from './lektorat';
 import { parseQsBefunde } from './qs';
 import { chooseRetryModifier } from './retry-policy';
 import type { StepId, WorkflowRun } from './types';
@@ -124,6 +127,14 @@ export interface GutachtenWorkflowController {
   /** Manuelle Bearbeitung verwerfen → ursprünglich generierten Text wiederherstellen. */
   zuruecksetzenStep: (stepId: StepId) => Promise<void>;
   pruefen: (stepId: StepId) => void;
+  /**
+   * Sprachlicher Feinschliff (Lektor-Skill) über den finalen Text eines Entwurfs:
+   * EIN Lauf ohne Vorhabensbeschreibung, danach die Regeln DES ABSCHNITTS neu.
+   * Ein abgeschnittenes/leeres Ergebnis wird verworfen (Abschnitt bleibt unverändert).
+   */
+  lektorieren: (stepId: StepId) => void;
+  /** False, wenn der Kurator den Lektor-Skill deaktiviert hat (`aktiv: false`) → Knopf entfällt. */
+  lektorVerfuegbar: boolean;
   /** Liefert den `llm_qs`-Schritt, der diesen Generierungs-Schritt bewertet (oder null). */
   qsFor: (stepId: StepId) => WorkflowStep | null;
   /** Beratende LLM-QS über den Zielabschnitt fahren (Befunde an den Ziel-Schritt). */
@@ -176,6 +187,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [tweak, setTweak] = useState<SkillTweak | null>(null);
   // Relevanz-Map-Skill aus der geladenen Registry (Kurator-pflegbar), Seed als Fallback.
   const [relevanzSkill, setRelevanzSkill] = useState<SkillRecord>(SEED_RELEVANZ_MAP_SKILL);
+  // Lektor-Skill (sprachlicher Feinschliff) — ebenfalls kurator-pflegbar, Seed als Fallback.
+  const [lektorSkill, setLektorSkill] = useState<SkillRecord>(SEED_GA_LEKTOR_SKILL);
   // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   // Pro-Lauf-Override: vollständigen VB-Kontext erzwingen (Relevanz-Map ignorieren). Nicht persistiert.
@@ -221,6 +234,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     setRegFile(loadedFile);
     setSkillMap(buildSkillMap(loadedFile, { workflowId }));
     setRelevanzSkill(loadedFile.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
+    setLektorSkill(loadedFile.skills.find(s => s.id === GA_LEKTOR_SKILL_ID) ?? SEED_GA_LEKTOR_SKILL);
     // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
     // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
     const allSteps = resolveWorkflowSteps(loadedFile, 'ga', { erlaubeEntwuerfe, workflowId });
@@ -664,6 +678,72 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     }
   };
 
+  /**
+   * Sprachlicher Feinschliff eines Entwurfs (Lektor-Skill). Bewusst KEIN
+   * Generierungs-Lauf: der Prompt trägt nur den Abschnittstext (`zielText`) +
+   * den Abschnittszweck — die Vorhabensbeschreibung bleibt draußen, damit der
+   * Lauf strukturell nichts hinzuerfinden kann. Geprüft wird danach mit den
+   * Regeln DES ABSCHNITTS (Umfang bleibt die maßgebliche Instanz).
+   *
+   * Zwei Abbruch-Tore VOR dem Schreiben: leeres Ergebnis und
+   * `istVerdaechtigGekuerzt` (abgeschnittene Antwort) → Fehlermeldung, Abschnitt
+   * bleibt unverändert. Transport intern-pflichtig über `getTransportForSkillRun`
+   * (Pitfall #30); ein `setState` + ein `persist` (Pitfall #16/#20).
+   */
+  const runLektorat = async (stepId: StepId): Promise<void> => {
+    const sc = skillMap.get(stepId);
+    const step = run?.schritte[stepId];
+    if (busy || !run || !sc || !step || step.status !== 'entwurf' || !step.finalerText.trim()) return;
+    if (!kiVerbindungBereit(bridge)) return;
+    setBusy(true);
+    setError(null);
+    setRetryNote(null);
+    stream.reset();
+    const abort = new AbortController();
+    abortRef.current = abort;
+    try {
+      const transport = bridge.getTransportForSkillRun(lektorSkill);
+      const ok = await transport.ping();
+      setLlmAvailable(ok);
+      if (!ok) { setError('KI nicht erreichbar — Feinschliff derzeit nicht möglich.'); return; }
+      const zielDef = steps.find(s => s.id === stepId);
+      const result = await runSkill(transport, lektorSkill, [], {
+        ziel: aktivesZielFuerLauf(),
+        stammdaten: '',
+        vbMarkdown: '',
+        thinkingBudget,
+        erwarteAbschluss: 'Finaler Text',
+        onContentDelta: stream.onContentDelta,
+        onThinkingDelta: stream.onThinkingDelta,
+        zielText: step.finalerText,
+        abschnittszweck: zielDef?.label ?? stepId,
+        signal: abort.signal,
+      });
+      const text = result.parsed.finalerText.trim();
+      if (!text) {
+        setError('Der Feinschliff lieferte keinen Text — der Abschnitt bleibt unverändert.');
+        return;
+      }
+      if (istVerdaechtigGekuerzt(step.finalerText, text)) {
+        setError('Der Feinschliff wirkt abgeschnitten (deutlich kürzer als der Abschnitt) — der Abschnitt bleibt unverändert. Bitte erneut versuchen.');
+        return;
+      }
+      await persist(applyLektorat(run, stepId, {
+        finalerText: text,
+        checks: runRegelChecks(text, sc.regeln),
+        modell: transport.displayName ?? transport.name,
+        ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
+      }, new Date().toISOString()));
+      logKontext(stepId);
+    } catch (err) {
+      if (abort.signal.aborted) return;
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      abortRef.current = null;
+      setBusy(false);
+    }
+  };
+
   // Nach Upload/„Fertig" oder einer Änderung an der Quellen-Auswahl neu auflösen.
   const refreshKorpus = async (): Promise<void> => {
     await quellenCtrl.refresh();
@@ -753,6 +833,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     bearbeitenStep,
     zuruecksetzenStep,
     pruefen: (id) => { void pruefenStep(id); },
+    lektorieren: (id) => { void runLektorat(id); },
+    lektorVerfuegbar: lektorSkill.aktiv !== false,
     qsFor: (id) => qsZiele.get(id) ?? null,
     runQs: (id) => { void runQs(id); },
     freigebenStep: (id) => { void reduce((r, now) => freigeben(r, id, now, order)); logKontext(id); },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { appendVerlauf, restoreVersion, snapshotOf, versionLabel, MAX_VERLAUF } from '../kurzfassung-verlauf';
+import { appendVerlauf, restoreVersion, snapshotOf, versionLabel, MAX_VERLAUF, type VerlaufContent } from '../kurzfassung-verlauf';
 import type { KurzfassungRecord } from '../types';
 
 function makeRecord(over: Partial<KurzfassungRecord> = {}): KurzfassungRecord {
@@ -24,6 +24,37 @@ describe('versionLabel', () => {
     expect(versionLabel({ modifier: 'neu' })).toBe('Neu generiert');
     expect(versionLabel({ modifier: 'kuerzer' })).toBe('Gekürzt');
     expect(versionLabel({ modifier: 'laenger' })).toBe('Verlängert');
+  });
+  it('sprachlicher Feinschliff hat Vorrang vor dem Modifier (jüngerer Arbeitsgang)', () => {
+    expect(versionLabel({ lektoriert: true })).toBe('Sprachlich überarbeitet');
+    expect(versionLabel({ modifier: 'kuerzer', lektoriert: true })).toBe('Sprachlich überarbeitet');
+  });
+});
+
+describe('lektoriert im Verlauf (sprachlicher Feinschliff)', () => {
+  function content(over: Partial<VerlaufContent> = {}): VerlaufContent {
+    return {
+      finalerText: 'Redigiert.', quellenanalyse: 'QA', entwurf: 'E',
+      checks: [], erstellt_am: '2026-07-22T10:00:00.000Z', modell: 'qwen', ...over,
+    };
+  }
+
+  it('snapshotOf führt das Flag mit — und lässt es weg, wenn nicht gesetzt', () => {
+    expect(snapshotOf(content({ lektoriert: true })).lektoriert).toBe(true);
+    expect('lektoriert' in snapshotOf(content())).toBe(false);
+  });
+
+  it('restoreVersion setzt bzw. löscht das Flag beim Rückgriff', () => {
+    const lektoriert = restoreVersion(
+      content({ lektoriert: false, verlauf: [snapshotOf(content({ lektoriert: true }))] }), 0,
+    );
+    expect(lektoriert.lektoriert).toBe(true);
+
+    const zurueck = restoreVersion(
+      content({ lektoriert: true, verlauf: [snapshotOf(content({ finalerText: 'Original.' }))] }), 0,
+    );
+    expect(zurueck.finalerText).toBe('Original.');
+    expect(zurueck.lektoriert).toBeUndefined(); // Vorfassung war nie lektoriert
   });
 });
 

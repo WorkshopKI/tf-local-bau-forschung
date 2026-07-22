@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mergeMissingSeeds } from '../storage';
 import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID } from '../seed';
+import { GA_LEKTOR_SKILL_ID } from '../ga-lektor.seed';
 import { NF_SKILL_ID, SEED_NF_REGELN } from '../nf-skill.seed';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
 import { ANFRAGE_METADATEN_SKILL_ID } from '../anfrage-metadaten.seed';
@@ -38,7 +39,7 @@ describe('mergeMissingSeeds — additiv, nie überschreibend', () => {
     for (const s of SEED_SKILLS_BG) expect(getSkillById(merged.file, s.id)).toBeDefined();
     expect(getSkillById(merged.file, QS_BASIS_SKILL_ID)).toBeDefined();
     expect(getSkillById(merged.file, RELEVANZ_MAP_SKILL_ID)).toBeDefined();
-    expect(merged.ergaenzteSkills).toEqual([...SEED_SKILLS_BG.map(s => s.id), QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, NF_SKILL_ID, ANFRAGE_ANONYMISIEREN_SKILL_ID, ANFRAGE_METADATEN_SKILL_ID, AUFBEREITUNG_ASPEKTE_SKILL_ID, AUFBEREITUNG_STECKBRIEF_SKILL_ID, AUFBEREITUNG_ZAHLEN_SKILL_ID, AUFBEREITUNG_GLOSSAR_SKILL_ID, AUFBEREITUNG_VERWERTUNG_SKILL_ID, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID, AUFBEREITUNG_RECHERCHE_IMPORT_SKILL_ID]);
+    expect(merged.ergaenzteSkills).toEqual([...SEED_SKILLS_BG.map(s => s.id), QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, GA_LEKTOR_SKILL_ID, NF_SKILL_ID, ANFRAGE_ANONYMISIEREN_SKILL_ID, ANFRAGE_METADATEN_SKILL_ID, AUFBEREITUNG_ASPEKTE_SKILL_ID, AUFBEREITUNG_STECKBRIEF_SKILL_ID, AUFBEREITUNG_ZAHLEN_SKILL_ID, AUFBEREITUNG_GLOSSAR_SKILL_ID, AUFBEREITUNG_VERWERTUNG_SKILL_ID, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID, AUFBEREITUNG_RECHERCHE_IMPORT_SKILL_ID]);
     expect(merged.file.regeln.find(r => r.id === 'seed-b-absatz-min')).toBeDefined();
     expect(merged.ergaenzteRegeln).toEqual([
       ...SEED_REGELN_BG.map(r => r.id), ...SEED_NF_REGELN.map(r => r.id), ...GA_QS_REGELN.map(r => r.id),
