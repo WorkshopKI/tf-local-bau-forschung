@@ -50,6 +50,7 @@ function makeOffen(a: Antrag, overrides?: Partial<OffenerAntrag>): OffenerAntrag
     daysLeft: 4,
     xswMine: false,
     claimed: false,
+    zugewiesen: false,
     ...overrides,
   };
 }
@@ -293,6 +294,44 @@ describe('buildOffeneEintraege', () => {
     const out = buildOffeneEintraege([kl], () => true, ctx);
     expect(out).toHaveLength(1);
     expect(out[0]!.daysLeft).toBeGreaterThan(0);
+  });
+
+  // Zugewiesen ≠ vorgemerkt: das eigentliche Zuweisen passiert im Fachsystem,
+  // die App-Freigabe wartet auf die CSV-Bestätigung (v2.291).
+  it('eigene Zuweisung erscheint als „zugewiesen", nicht als Vormerkung', () => {
+    const a = makeAntrag('16IT000001', 'V1', 'P', 'A');
+    const ctx: OffeneEintraegeCtx = { ...baseCtx([a]), zugewiesenVerbundKeys: new Set(['V1']) };
+    const out = buildOffeneEintraege([makeKlKat('16IT000001', 'IT')], () => true, ctx);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.zugewiesen).toBe(true);
+    expect(out[0]!.claimed).toBe(true); // nicht mehr „offen"
+  });
+
+  it('eine Zuweisung überlebt das Rücknahme-Overlay (MA kann sie nicht zurückgeben)', () => {
+    const a = makeAntrag('16IT000001', 'V1', 'P', 'A');
+    const ctx: OffeneEintraegeCtx = {
+      ...baseCtx([a]),
+      zugewiesenVerbundKeys: new Set(['V1']),
+      retractedSet: new Set(['16IT000001']),
+    };
+    const out = buildOffeneEintraege([makeKlKat('16IT000001', 'IT')], () => true, ctx);
+    expect(out[0]!.zugewiesen).toBe(true);
+    expect(out[0]!.claimed).toBe(true);
+  });
+
+  it('einem anderen MA zugewiesene Verbünde werden nicht mehr angeboten', () => {
+    const tv1 = makeAntrag('16IT000001', 'V1', 'P', 'A');
+    const tv2 = makeAntrag('16IT000002', 'V1', 'P', 'B'); // Freigabe liegt nur auf dem Lead
+    const ctx: OffeneEintraegeCtx = {
+      ...baseCtx([tv1, tv2]),
+      fremdVergebeneVerbundKeys: new Set(['V1']),
+    };
+    const out = buildOffeneEintraege(
+      [makeKlKat('16IT000001', 'IT'), makeKlKat('16IT000002', 'IT')],
+      () => true,
+      ctx,
+    );
+    expect(out).toHaveLength(0); // verbund-weit, nicht nur der Lead-TV
   });
 
   it('poolFilter schließt Anträge außerhalb des Pools aus', () => {

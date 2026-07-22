@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.291.0 — Zuweisung wartet sichtbar auf die CSV-Bestätigung (Juli 2026)
+
+MINOR — Das eigentliche Zuweisen passiert im Fachsystem; bestätigt wird es erst durch den CSV-Import am Folgetag. Dieses Warten war in der App unbenannt: die MA sah „Vorgemerkt" mit Rückgängig-Knopf, die PL sah nicht, wenn eine Bestätigung ausblieb. Details: [auslastung.md](docs/architecture/auslastung.md#zuweisung--vollzug-das-csv-bestätigt-v2291).
+
+- **Dritter Zeilen-Zustand „Dir zugewiesen · Bestätigung folgt"** auf der Startseite — ohne Aktion, denn die Entscheidung fällt im Fachsystem ([neueAntraegeVerbund.ts](src/plugins/home/neueAntraegeVerbund.ts), [NeueAntraegeVerbundRow.tsx](src/plugins/home/NeueAntraegeVerbundRow.tsx)).
+- **Fremd zugewiesene Verbünde verschwinden aus dem Angebot** — verbund-weit, nicht erst wenn die CSV das Kürzel bringt ([NeueAntraegeFuerDich.tsx](src/plugins/home/NeueAntraegeFuerDich.tsx)).
+- **Detail-Streifen benennt den Wartezustand** (`CSV-Bestätigung offen · N T`) ([ZuweisungStreifen.tsx](src/plugins/auslastung/components/ZuweisungStreifen.tsx)).
+- **PL-Alarm für überfällige Bestätigungen** ab 3 Tagen als amber `⧗ N T` in der Zuweisungs-Liste ([cockpit-helpers.ts](src/plugins/auslastung/views/cockpit-helpers.ts), [VerbundListe.tsx](src/plugins/auslastung/views/VerbundListe.tsx)).
+- **Tests** für Fälligkeit, Zuweisung-schlägt-Vormerkung und den verbund-weiten Ausschluss ([cockpit-helpers.test.ts](src/plugins/auslastung/__tests__/cockpit-helpers.test.ts), [neueAntraegeVerbund.test.ts](src/plugins/home/__tests__/neueAntraegeVerbund.test.ts)).
+
 ### v2.290.0 — Übernahme-Wunsch: Rückzug wirkt sofort, erledigte räumen sich (Juli 2026)
 
 MINOR — User-Feedback aus dem Zuweisungs-Cockpit: ein zurückgezogener Wunsch blieb bis zum nächsten Einsammeln stehen, die PL sah nirgends wer was zurückgezogen hat, und die Bilanz meldete „14 Wünsche gelesen", obwohl die meisten längst zugewiesen waren. Details: [auslastung.md](docs/architecture/auslastung.md#lebenszyklus-eines-übernahme-wunsches-v2290).

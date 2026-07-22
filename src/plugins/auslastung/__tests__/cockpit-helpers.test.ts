@@ -6,7 +6,14 @@
  * Bewerbung, keine Zuweisung — der Verbund bleibt „offen", bis die PL freigibt.
  */
 import { describe, it, expect } from 'vitest';
-import { verbundStatusFlags, interessentenNachWunschzeit, wunschKlickTs } from '../views/cockpit-helpers';
+import {
+  verbundStatusFlags,
+  interessentenNachWunschzeit,
+  wunschKlickTs,
+  tageSeitFreigabe,
+  unbestaetigteFreigabeTage,
+  BESTAETIGUNG_FAELLIG_TAGE,
+} from '../views/cockpit-helpers';
 import type { Zuweisung } from '../types';
 
 const z = (p: Partial<Zuweisung> & Pick<Zuweisung, 'antragId' | 'anonId' | 'status'>): Zuweisung => ({
@@ -105,5 +112,48 @@ describe('wunschKlickTs', () => {
 
   it('ohne jedes Datum: Infinity (sortiert ans Ende)', () => {
     expect(wunschKlickTs(z({ antragId: 'A1', anonId: 'MA01', status: 'selbst' }))).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+// Das eigentliche Zuweisen passiert im Fachsystem; bestätigt wird es erst durch
+// den CSV-Import (tib_kuerz). Bis dahin ist die App-Freigabe eine Absicht.
+describe('unbestaetigteFreigabeTage', () => {
+  const JETZT = Date.parse('2026-06-10T12:00:00.000Z');
+  const vorTagen = (n: number): string =>
+    new Date(JETZT - n * 86_400_000).toISOString();
+
+  it('frische Freigabe ist kein Alarm (Bestätigung kommt frühestens morgen)', () => {
+    const ze = [z({ antragId: 'A1', anonId: 'MA01', status: 'freigegeben', freigegebenAm: vorTagen(1) })];
+    expect(unbestaetigteFreigabeTage(ze, JETZT)).toBeNull();
+  });
+
+  it('ab der Fälligkeit meldet sie das Alter', () => {
+    const ze = [z({
+      antragId: 'A1', anonId: 'MA01', status: 'freigegeben',
+      freigegebenAm: vorTagen(BESTAETIGUNG_FAELLIG_TAGE),
+    })];
+    expect(unbestaetigteFreigabeTage(ze, JETZT)).toBe(BESTAETIGUNG_FAELLIG_TAGE);
+  });
+
+  it('nimmt die ÄLTESTE Freigabe des Verbundes', () => {
+    const ze = [
+      z({ antragId: 'A1', anonId: 'MA01', status: 'freigegeben', freigegebenAm: vorTagen(4) }),
+      z({ antragId: 'A2', anonId: 'MA01', status: 'freigegeben', freigegebenAm: vorTagen(9) }),
+    ];
+    expect(unbestaetigteFreigabeTage(ze, JETZT)).toBe(9);
+  });
+
+  it('ignoriert Wünsche und Ablehnungen — nur Freigaben warten auf die CSV', () => {
+    const ze = [
+      z({ antragId: 'A1', anonId: 'MA01', status: 'selbst', selbstEingetragenAm: vorTagen(30) }),
+      z({ antragId: 'A2', anonId: 'MA02', status: 'abgelehnt' }),
+    ];
+    expect(unbestaetigteFreigabeTage(ze, JETZT)).toBeNull();
+  });
+
+  it('ohne Freigabe-Datum (Altbestand) kein Alarm statt falscher Zahl', () => {
+    const ze = [z({ antragId: 'A1', anonId: 'MA01', status: 'freigegeben' })];
+    expect(tageSeitFreigabe(ze[0]!, JETZT)).toBeNull();
+    expect(unbestaetigteFreigabeTage(ze, JETZT)).toBeNull();
   });
 });

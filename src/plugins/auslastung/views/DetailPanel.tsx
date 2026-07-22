@@ -25,7 +25,12 @@ import { NichtVorgeschlagenListe } from '../components/NichtVorgeschlagenListe';
 import { ZuweisungStreifen } from '../components/ZuweisungStreifen';
 import { ManuellerMaPicker } from '../components/ManuellerMaPicker';
 import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
-import { formatKlickZeit, interessentenNachWunschzeit } from './cockpit-helpers';
+import {
+  formatKlickZeit,
+  interessentenNachWunschzeit,
+  tageSeitFreigabe,
+  unbestaetigteFreigabeTage,
+} from './cockpit-helpers';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 
 export function DetailPanel({
@@ -150,6 +155,8 @@ export function DetailPanel({
           realName={resolveName(freigegebeneZuweisung.anonId)}
           stunden={freigegebeneZuweisung.stunden}
           quartal={freigegebeneZuweisung.quartal}
+          offenSeitTagen={tageSeitFreigabe(freigegebeneZuweisung, Date.now())}
+          ueberfaellig={unbestaetigteFreigabeTage([freigegebeneZuweisung], Date.now()) !== null}
           onUnassign={onUnassign}
         />
       )}

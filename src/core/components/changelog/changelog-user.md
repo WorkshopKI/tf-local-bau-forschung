@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.291 — 2026-07
+
+### Verbesserungen
+- Hat die Projektleitung dir einen Verbund zugewiesen, steht das jetzt auch so da: „Dir zugewiesen · Bestätigung folgt" statt „Vorgemerkt". Verbindlich wird die Zuweisung im Fachsystem — sie taucht mit deinem Kürzel im nächsten CSV-Import auf.
+- Anträge, die bereits jemand anderes zugewiesen bekommen hat, werden dir nicht mehr zur Vormerkung angeboten.
+- Die Projektleitung sieht in der Zuweisungs-Liste, wenn eine Zuweisung seit mehreren Tagen nicht per CSV bestätigt wurde — Hinweis, im Fachsystem nachzusehen.
+
 ## v2.290 — 2026-07
 
 ### Verbesserungen

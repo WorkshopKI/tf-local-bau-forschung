@@ -48,6 +48,16 @@ Ein Wunsch lebt in der persönlichen Datei `ZAH/auslastung-uebernahme.json` (Que
 
 Regel dazu: Der Merge fasst **nur `status:'selbst'`** an. `selbstEingetragen` überlebt die Freigabe — würde die Retraktion daran hängen, löschte das Selbst-Aufräumen des MA die Freigabe gleich mit. Die Einsammel-Bilanz weist `bereitsVergeben` separat aus, damit die Differenz „gelesen" vs. „neu + zurückgezogen" erklärt ist.
 
+## Zuweisung ≠ Vollzug: das CSV bestätigt (v2.291)
+
+Das eigentliche Zuweisen passiert im **Fachsystem**. Die App-Freigabe (`Zuweisung{status:'freigegeben'}`) ist die Absichtserklärung; vollzogen ist sie erst, wenn der CSV-Export das `tib_kuerz` am Antrag zurückmeldet — frühestens am Folgetag, über ein Wochenende später. Das Warten ist damit der **Normalzustand**, nicht die Ausnahme, und wird benannt statt versteckt:
+
+- **MA-Sicht** (Home „Neue Anträge für dich"): drei Zeilen-Zustände statt zwei — offen · vorgemerkt · **zugewiesen** („Dir zugewiesen · Bestätigung folgt"). Die zugewiesene Zeile hat **keine Aktion**: die Entscheidung ist im Fachsystem gefallen, der MA kann sie in der App nicht zurückgeben. `zugewiesen` schlägt `claimed` und überlebt das Rücknahme-Overlay ([neueAntraegeVerbund.ts](../../src/plugins/home/neueAntraegeVerbund.ts)).
+- **Fremd vergeben**: Verbünde mit Freigabe an einen *anderen* MA fallen aus dem Angebot — verbund-weit über `verbundKeyOf`, weil `assignVerbund` die Freigabe nur auf den Lead-TV schreibt. Vorher blieben sie bis zum CSV-Nachzug vormerkbar.
+- **PL-Sicht** (Cockpit): die Zuweisungs-Liste enthält per Definition nur Anträge **ohne** `tib_kuerz` — jede Freigabe darin ist also unbestätigt. Der Detail-Streifen benennt das (`CSV-Bestätigung offen · N T`), und ab `BESTAETIGUNG_FAELLIG_TAGE` (3, deckt ein Wochenende) markiert die Liste die Zeile amber (`⧗ N T`, [cockpit-helpers.ts](../../src/plugins/auslastung/views/cockpit-helpers.ts)). Das fängt den teuren Fall: im Fachsystem wurde anders entschieden, die App-Freigabe blockiert sonst unbefristet Kapazität, weil nichts sie ausaltert.
+
+Kommt die Bestätigung an, räumt `reconcileZuweisungen` die App-seitigen Records des Antrags weg (CSV = Wahrheit) und der Verbund fällt über `istZuVerteilen` aus dem Verteil-Pool.
+
 ## kurator-Korpus-Modus (`auslastungNurKorpus`, v2.56)
 
 Damit der **Kurator** den Themen-Vektoren-Embedding-Katalog aktuell halten kann, ohne MA-Auslastung zu sehen oder zuzuweisen, läuft das Modul in der **kurator**-Variante in einem reduzierten Modus (`features.auslastungNurKorpus: true`, zusätzlich zu `auslastung: true`; Helper `isAuslastungNurKorpusEnabled()`).

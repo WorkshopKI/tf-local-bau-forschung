@@ -96,6 +96,42 @@ export function verbundStatusFlags(
   };
 }
 
+// ─── CSV-Bestätigung einer Zuweisung ────────────────────────────────────
+// Das eigentliche Zuweisen passiert im Fachsystem; die App-Freigabe ist die
+// Absichtserklärung, die CSV-Rückmeldung (`tib_kuerz`) der Vollzug. Der frühestens
+// am Folgetag eintreffende Import macht das Warten zum Normalzustand — die Liste
+// des Cockpits enthält per Definition nur Anträge OHNE `tib_kuerz`, jede Freigabe
+// darin ist also noch unbestätigt.
+
+/** Ab wann eine Freigabe ohne CSV-Bestätigung auffällig ist. Drei Tage decken ein
+ *  Wochenende ab, ohne im normalen Tagesrhythmus zu blinken. */
+export const BESTAETIGUNG_FAELLIG_TAGE = 3;
+
+/** Ganze Tage seit der Freigabe; `null` ohne (gültiges) Freigabe-Datum. */
+export function tageSeitFreigabe(z: Zuweisung, jetzt: number): number | null {
+  if (!z.freigegebenAm) return null;
+  const t = Date.parse(z.freigegebenAm);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((jetzt - t) / 86_400_000));
+}
+
+/** Alter der ältesten Freigabe eines Verbundes in Tagen — aber nur, wenn die
+ *  CSV-Bestätigung überfällig ist (sonst `null`). Signal dafür, dass im
+ *  Fachsystem etwas anderes entschieden wurde oder der Eintrag dort fehlt. */
+export function unbestaetigteFreigabeTage(
+  zuweisungen: readonly Zuweisung[],
+  jetzt: number,
+): number | null {
+  let aeltest: number | null = null;
+  for (const z of zuweisungen) {
+    if (z.status !== 'freigegeben') continue;
+    const tage = tageSeitFreigabe(z, jetzt);
+    if (tage === null) continue;
+    if (aeltest === null || tage > aeltest) aeltest = tage;
+  }
+  return aeltest !== null && aeltest >= BESTAETIGUNG_FAELLIG_TAGE ? aeltest : null;
+}
+
 /** Klick-Zeitpunkt einer Vormerkung als Timestamp (Fallback `freigegebenAm`
  *  fuer Pre-v2.9-Eintraege, ohne Datum ans Ende sortiert). */
 export function wunschKlickTs(z: Zuweisung): number {

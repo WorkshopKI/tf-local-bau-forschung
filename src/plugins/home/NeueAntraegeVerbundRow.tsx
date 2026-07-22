@@ -91,7 +91,7 @@ export function NeueAntraegeVerbundRow({
   zeigeFrist = true,
 }: Props): React.ReactElement {
   const config = useAuslastungData(s => s.data.config);
-  const { akronym, verbundTitel, fkzRange, klassifizierung, daysLeft, claimed, tvCount, leadAntrag } = verbund;
+  const { akronym, verbundTitel, fkzRange, klassifizierung, daysLeft, claimed, zugewiesen, tvCount, leadAntrag } = verbund;
   const primaerId = klassifizierung.freigegebenePrimaer;
   const aspektIds = klassifizierung.freigegebeneAspekte;
   const primaerKat = config.ueberKategorien.find(k => k.id === primaerId);
@@ -113,6 +113,9 @@ export function NeueAntraegeVerbundRow({
   const actionLabel = claimed ? 'Rückgängig' : 'Kann ich übernehmen';
   const onAction = claimed ? onUndo : onUebernehmen;
   const actionAria = `${actionLabel} — ${akronym || fkzRange}`;
+  // Zugewiesen ist keine Vormerkung: die Entscheidung ist im Fachsystem
+  // gefallen, der MA kann sie hier nicht zurückgeben (v2.291).
+  const zeigeAktion = !zugewiesen;
 
   // „N TV"-Badge nur bei echtem Verbund (>1 TV). Die TV-Titel stehen im
   // Hover-Tooltip der Info-Spalte (nicht mehr im nativen title-Attribut).
@@ -149,7 +152,15 @@ export function NeueAntraegeVerbundRow({
                 Passung {Math.round(passung * 100)} %
               </span>
             )}
-            {claimed && (
+            {zugewiesen ? (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{ background: 'var(--tf-success-bg)', color: 'var(--tf-success-text)' }}
+                title="Die Projektleitung hat dir diesen Verbund zugewiesen. Verbindlich wird die Zuweisung im Fachsystem — sie taucht dann mit deinem Kürzel im nächsten CSV-Import auf und wandert zu deinen Anträgen."
+              >
+                Dir zugewiesen
+              </span>
+            ) : claimed && (
               <span
                 className="text-[10px] px-1.5 py-0.5 rounded text-[var(--tf-text-tertiary)]"
                 style={{ border: '0.5px solid var(--tf-border)' }}
@@ -172,16 +183,23 @@ export function NeueAntraegeVerbundRow({
             Noch {daysLeft} Tag{daysLeft === 1 ? '' : 'e'}
           </span>
         )}
-        <button
-          type="button"
-          onClick={onAction}
-          disabled={disabled}
-          className={`${buttonClasses} px-3 py-1`}
-          style={buttonStyle}
-          aria-label={actionAria}
-        >
-          {actionLabel}
-        </button>
+        {zugewiesen && (
+          <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+            Bestätigung folgt
+          </span>
+        )}
+        {zeigeAktion && (
+          <button
+            type="button"
+            onClick={onAction}
+            disabled={disabled}
+            className={`${buttonClasses} px-3 py-1`}
+            style={buttonStyle}
+            aria-label={actionAria}
+          >
+            {actionLabel}
+          </button>
+        )}
       </div>
     </div>
   );

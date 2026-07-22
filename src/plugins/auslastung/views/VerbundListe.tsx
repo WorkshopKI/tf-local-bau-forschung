@@ -12,7 +12,11 @@ import { AnonymIdBadge, useDeAnonResolver } from '../components/AnonymIdBadge';
 import { istUnvollstaendigAz, unvollstaendigGrund, type VollstaendigkeitsGateAz, type VerbundZuweisungRow } from '../services/verbund';
 import type { UeberKategorie, Zuweisung } from '../types';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { formatAntragsdatum, interessentenNachWunschzeit } from './cockpit-helpers';
+import {
+  formatAntragsdatum,
+  interessentenNachWunschzeit,
+  unbestaetigteFreigabeTage,
+} from './cockpit-helpers';
 
 /** Ab wie vielen Interessenten die Zeile auf „+N" kürzt (Zeilen bleiben schmal). */
 const MAX_INTERESSENTEN_BADGES = 3;
@@ -46,6 +50,8 @@ export function VerbundListe({
   unassignBusy: boolean;
 }): React.ReactElement {
   const resolveName = useDeAnonResolver();
+  // Ein Render-Zeitpunkt für alle Zeilen (Alter der unbestätigten Freigaben).
+  const jetzt = Date.now();
   return (
     <div
       className="rounded-[12px] overflow-hidden flex flex-col min-w-0"
@@ -137,6 +143,20 @@ export function VerbundListe({
               </div>
               {zug && (
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* Die Liste führt nur Anträge OHNE tib_kuerz — eine Freigabe hier
+                      ist noch nicht aus dem Fachsystem zurückgemeldet. Nach ein paar
+                      Tagen ist das ein Prüfsignal, kein normales Warten. */}
+                  {(() => {
+                    const offenTage = unbestaetigteFreigabeTage(ze, jetzt);
+                    return offenTage === null ? null : (
+                      <span
+                        className="text-amber-700 text-[10.5px] font-medium shrink-0 cursor-help"
+                        title={`Seit ${offenTage} Tagen zugewiesen, aber noch nicht per CSV bestätigt (kein TIB-Kürzel am Antrag). Im Fachsystem prüfen — oder die Zuweisung hier zurücknehmen.`}
+                      >
+                        ⧗ {offenTage} T
+                      </span>
+                    );
+                  })()}
                   {assignedAnonIds.map(a => (
                     <AnonymIdBadge key={a} anonId={a} size="sm" realName={resolveName(a)} />
                   ))}

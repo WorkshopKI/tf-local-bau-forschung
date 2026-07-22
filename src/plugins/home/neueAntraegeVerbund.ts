@@ -30,8 +30,12 @@ export interface OffenerAntrag {
   daysLeft: number;
   /** T_XSW enthält das EIGENE Kürzel des Users → „mein alter Antrag" → nach oben. */
   xswMine: boolean;
-  /** Vom User vorgemerkt ODER bereits von der PL eingesammelt (Pending). */
+  /** Vom User vorgemerkt ODER bereits von der PL eingesammelt (Pending) ODER
+   *  ihm zugewiesen — in allen drei Fällen nicht mehr „offen". */
   claimed: boolean;
+  /** Die PL hat den Verbund DIESEM User zugewiesen; die CSV-Bestätigung aus dem
+   *  Fachsystem steht noch aus. Kein Vormerk-Zustand — nicht zurücknehmbar. */
+  zugewiesen: boolean;
 }
 
 /** Ein TV für den „N TV"-Badge-Tooltip. */
@@ -59,6 +63,8 @@ export interface VerbundEintrag {
   daysLeft: number;
   xswMine: boolean;
   claimed: boolean;
+  /** Der Verbund ist diesem User zugewiesen (CSV-Bestätigung steht aus). */
+  zugewiesen: boolean;
   /** Echte Verbund-Größe (alle TVs, nicht nur die offenen). */
   tvCount: number;
   /** Alle TVs des Verbundes (FKZ + Titel) — speist den Badge-Tooltip. */
@@ -110,6 +116,12 @@ export interface OffeneEintraegeCtx {
   retractedSet: ReadonlySet<string>;
   /** Rohes eigenes Kürzel (ggf. kommagetrennt) für den T_XSW-Bump. */
   ownKuerzelRaw: string | null;
+  /** Verbund-Keys, die die PL DIESEM User zugewiesen hat (App-Freigabe, CSV-
+   *  Bestätigung steht aus). Die Zeile bleibt sichtbar, aber als „zugewiesen". */
+  zugewiesenVerbundKeys?: ReadonlySet<string>;
+  /** Verbund-Keys, die einem ANDEREN MA zugewiesen sind — raus aus dem Angebot,
+   *  sonst merkt sich ein zweiter MA einen längst vergebenen Verbund vor. */
+  fremdVergebeneVerbundKeys?: ReadonlySet<string>;
   /** `Date.now()` — als Parameter für Determinismus/Testbarkeit übergeben. */
   now: number;
   /**
@@ -150,12 +162,20 @@ export function buildOffeneEintraege(
     if (ctx.festAktenzeichen?.has(k.antragId)) continue;
     const antrag = ctx.antraegeById.get(k.antragId);
     if (!antrag) continue;
+    // An eine(n) andere(n) vergeben — auch wenn die CSV das Kürzel noch nicht
+    // trägt. Sonst bietet die Home den Verbund weiter zur Vormerkung an.
+    const verbundKey = verbundKeyOf(antrag);
+    if (ctx.fremdVergebeneVerbundKeys?.has(verbundKey)) continue;
     // Optionaler Pool-Filter (z. B. Auslastungs-Verteil-Pool) — nur für den
     // „Weitere zuweisbare Anträge"-Block gesetzt, sonst alles durch.
     if (ctx.poolFilter && !ctx.poolFilter(antrag)) continue;
     // Antragstyp-Präferenz (FuE/DS/DL/NW). Ohne Präferenz: passt alles durch.
     if (!matchesAntragstyp(antrag, ctx.myMa)) continue;
-    const claimed = isClaimed(k.antragId, ctx.claimedSet, ctx.pendingAktenzeichen, ctx.retractedSet);
+    // Zugewiesen schlägt vorgemerkt (und überlebt das Rücknahme-Overlay): die
+    // Entscheidung ist im Fachsystem gefallen, nicht mehr Sache des MA.
+    const zugewiesen = ctx.zugewiesenVerbundKeys?.has(verbundKey) ?? false;
+    const claimed = zugewiesen
+      || isClaimed(k.antragId, ctx.claimedSet, ctx.pendingAktenzeichen, ctx.retractedSet);
     const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
     const deadline = freigegebenAm != null ? freigegebenAm + ctx.fristTage * 86400000 : null;
     const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - ctx.now) / 86400000)) : ctx.fristTage;
@@ -164,7 +184,7 @@ export function buildOffeneEintraege(
     if (!ctx.ignoriereFrist && !claimed && deadline != null && daysLeft <= 0) continue;
     // Wiedereinreicher-Bump: T_XSW enthält das eigene Kürzel → „mein alter Antrag".
     const xswMine = xswMatchesOwnKuerzel(readXsw(antrag), ctx.ownKuerzelRaw);
-    items.push({ antrag, klassifizierung: k, daysLeft, xswMine, claimed });
+    items.push({ antrag, klassifizierung: k, daysLeft, xswMine, claimed, zugewiesen });
   }
   items.sort((a, b) => {
     if (a.claimed !== b.claimed) return a.claimed ? 1 : -1;
@@ -231,6 +251,7 @@ export function groupEintraegeByVerbund(
       daysLeft: Math.min(...group.map(g => g.daysLeft)),
       xswMine: group.some(g => g.xswMine),
       claimed: group.some(g => g.claimed),
+      zugewiesen: group.some(g => g.zugewiesen),
       tvCount: fullTvs.length,
       alleTvs: fullTvs.map(a => ({ aktenzeichen: a.aktenzeichen, titel: readTitel(a) })),
       claimedAktenzeichen: group

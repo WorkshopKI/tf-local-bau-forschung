@@ -11,8 +11,13 @@
  *  - klassifizierung.freigegebenePrimaer === myMa.hauptKategorie
  *    (Fallback fuer noch nicht migrierte MAs: ma.ueberKategorien enthaelt
  *     den Primaer-Wert)
- *  - kein Eintrag in zuweisungen mit status 'freigegeben'|'selbst'
+ *  - nicht bereits fest gebucht (CSV-Kuerzel) und nicht einem ANDEREN MA
+ *    zugewiesen (PL-Freigabe im Store — auch bevor die CSV das Kuerzel bringt)
  *  - Frist nicht abgelaufen (`config.selbsteintragungFristTage`)
+ *
+ * Drei Zeilen-Zustaende: offen („Kann ich uebernehmen") · vorgemerkt
+ * („Rueckgaengig") · **zugewiesen** („Dir zugewiesen · Bestaetigung folgt", ohne
+ * Aktion — entschieden wird im Fachsystem, bestaetigt per CSV-Import).
  *
  * Sichtbar: nur wenn Bearbeiter-Kuerzel gesetzt + MA im aktuellen Programm
  * bekannt + offene Antraege vorhanden ODER hauptKategorie fehlt.
@@ -132,18 +137,29 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // in ZAH/auslastung-uebernahme.json, die PL sammelt ihn ein. Das pendingSet
   // (aus auslastung.json) speist das self-healing Prune des Ruecknahme-Overlays
   // — erst wenn der Store geladen ist (sonst leert ein leeres Set es vorzeitig).
-  // v2.290: Verbünde, die inzwischen vergeben sind — Grundlage dafür, dass ein
-  // erfüllter Wunsch aus der persönlichen Datei fällt (sonst liest die PL ihn
-  // bei jedem Einsammeln erneut mit).
-  const vergebeneVerbundKeys = useMemo(() => {
-    const s = new Set<string>();
+  // v2.290/291: Verbünde mit PL-Freigabe, getrennt nach „mir" und „anderen".
+  // Grundlage für drei Dinge: erfüllte Wünsche fallen aus der persönlichen Datei,
+  // eigene Zuweisungen zeigen sich als solche (statt als „Vorgemerkt"), fremde
+  // verschwinden aus dem Angebot — auch bevor die CSV das Kürzel nachliefert.
+  const { vergebeneVerbundKeys, zugewiesenVerbundKeys, fremdVergebeneVerbundKeys } = useMemo(() => {
+    const alle = new Set<string>();
+    const meine = new Set<string>();
+    const fremde = new Set<string>();
     for (const z of zuweisungen) {
       if (z.status !== 'freigegeben') continue;
       const a = antraegeById.get(z.antragId);
-      if (a) s.add(verbundKeyOf(a));
+      if (!a) continue;
+      const key = verbundKeyOf(a);
+      alle.add(key);
+      if (myAnonId && z.anonId === myAnonId) meine.add(key);
+      else fremde.add(key);
     }
-    return s;
-  }, [zuweisungen, antraegeById]);
+    return {
+      vergebeneVerbundKeys: alle,
+      zugewiesenVerbundKeys: meine,
+      fremdVergebeneVerbundKeys: fremde,
+    };
+  }, [zuweisungen, antraegeById, myAnonId]);
 
   // Unbekannter Antrag → nicht beurteilbar → false (nur positive Evidenz prunt).
   const istErledigt = useCallback((antragId: string): boolean => {
@@ -179,9 +195,11 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
       claimedSet,
       retractedSet,
       ownKuerzelRaw,
+      zugewiesenVerbundKeys,
+      fremdVergebeneVerbundKeys,
       now: Date.now(),
     });
-  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
+  }, [klassifizierungen, myMa, myHauptKategorie, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw, zugewiesenVerbundKeys, fremdVergebeneVerbundKeys]);
 
   // Verbund-Gruppierung: Bearbeiter übernehmen den ganzen Verbund, nicht
   // einzelne TVs. Aus den per-TV-Einträgen wird eine Zeile pro Verbund.
@@ -215,9 +233,11 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
       claimedSet,
       retractedSet,
       ownKuerzelRaw,
+      zugewiesenVerbundKeys,
+      fremdVergebeneVerbundKeys,
       now: Date.now(),
     });
-  }, [klassifizierungen, myMa, myHauptKategorie, nebenSet, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw]);
+  }, [klassifizierungen, myMa, myHauptKategorie, nebenSet, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, antraegeById, config.selbsteintragungFristTage, ownKuerzelRaw, zugewiesenVerbundKeys, fremdVergebeneVerbundKeys]);
 
   const weitereVerbuende = useMemo(
     () => groupEintraegeByVerbund(weitereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet),
@@ -285,12 +305,14 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
         claimedSet,
         retractedSet,
         ownKuerzelRaw,
+        zugewiesenVerbundKeys,
+        fremdVergebeneVerbundKeys,
         now: Date.now(),
         ignoriereFrist: true,
         poolFilter: (a) => istZuVerteilen(a, verteilCutoff),
       },
     );
-  }, [klassifizierungen, myMa, myHauptKategorie, nebenSet, verteilCutoff, antraegeById, config.selbsteintragungFristTage, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, ownKuerzelRaw]);
+  }, [klassifizierungen, myMa, myHauptKategorie, nebenSet, verteilCutoff, antraegeById, config.selbsteintragungFristTage, myFestAktenzeichen, myPendingAktenzeichen, claimedSet, retractedSet, ownKuerzelRaw, zugewiesenVerbundKeys, fremdVergebeneVerbundKeys]);
 
   const aeltereVerbuende = useMemo(
     () => groupEintraegeByVerbund(aeltereEintraege, cache.antraege, cache.verbuendeById, claimedSet, myPendingAktenzeichen ?? EMPTY_AKTENZEICHEN, retractedSet),
