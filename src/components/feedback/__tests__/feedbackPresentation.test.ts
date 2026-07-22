@@ -43,6 +43,13 @@ describe('feedbackTitle', () => {
     expect(out.endsWith('…')).toBe(true);
   });
 
+  it('kürzt mit maxLen = Infinity nie (normalisiert nur Whitespace)', () => {
+    const long = `${'Wort '.repeat(60)}Ende`;
+    const out = feedbackTitle(ticket({ title: `  ${long}  ` }), Infinity);
+    expect(out).toBe(long.trim());
+    expect(out.endsWith('…')).toBe(false);
+  });
+
   it('fällt auf llm_summary / erste Textzeile zurück', () => {
     expect(feedbackTitle(ticket({ llm_summary: 'Zusammenfassung' }))).toBe('Zusammenfassung');
     expect(feedbackTitle(ticket({ text: 'erste Zeile\nzweite' }))).toBe('erste Zeile');

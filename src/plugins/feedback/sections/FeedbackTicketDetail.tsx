@@ -172,7 +172,7 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
       </div>
 
       {/* Titel (explizit oder abgeleitet) */}
-      <h2 className="text-[15px] font-medium text-[var(--tf-text)] leading-snug">{feedbackTitle(ticket, 140)}</h2>
+      <h2 className="text-[15px] font-medium text-[var(--tf-text)] leading-snug break-words">{feedbackTitle(ticket, Infinity)}</h2>
 
       {/* Original-Feedback */}
       <div>

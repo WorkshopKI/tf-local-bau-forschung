@@ -186,7 +186,8 @@ export function FeedbackBoardPage(): React.ReactElement {
         else if (t.kurator_status !== statusFilter) return false;
       }
       if (q) {
-        const hay = `${feedbackTitle(t)} ${t.text} ${t.context?.page ?? ''}`.toLowerCase();
+        // Voller Titel (Infinity) — sonst wäre bei langen Titeln das Ende nicht suchbar.
+        const hay = `${feedbackTitle(t, Infinity)} ${t.text} ${t.context?.page ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;

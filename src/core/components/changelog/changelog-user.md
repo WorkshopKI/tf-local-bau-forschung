@@ -22,6 +22,7 @@
 ## v2.292 — 2026-07
 
 ### Verbesserungen
+- Im Feedback-Board wird der Titel eines Feedbacks nicht mehr abgeschnitten: In der Liste links bricht er über mehrere Zeilen um, im Detail rechts steht er vollständig. Gleiches gilt für die Ticket-Liste der Kuration.
 - „Feedback verbessern" ist deutlich schneller: Es läuft jetzt immer über die Standard-KI (das steht auch im Ladehinweis), startet dafür einen frischen Chat und fragt nur noch nach, wenn im Formular wirklich etwas fehlt.
 
 ## v2.291 — 2026-07

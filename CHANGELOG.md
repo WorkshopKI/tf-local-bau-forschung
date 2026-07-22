@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.292.1 — Feedback-Titel wird nicht mehr abgeschnitten (Juli 2026)
+
+PATCH — Lange Feedback-Titel waren doppelt gekürzt: in der Board-Liste einzeilig mit „…" (plus 90-Zeichen-Kappung), im Detail bei 140 Zeichen. Der Nutzer konnte seinen eigenen Titel nicht zu Ende lesen.
+
+- **Board-Liste**: Titel bricht voll um statt einzeilig zu kürzen ([FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx)).
+- **Board-Detail**: Überschrift ungekürzt ([FeedbackBoardDetail.tsx](src/components/feedback/FeedbackBoardDetail.tsx)).
+- **Kurator-Liste + -Detail** analog ([FeedbackTicketRow.tsx](src/components/feedback/FeedbackTicketRow.tsx), [FeedbackTicketDetail.tsx](src/plugins/feedback/sections/FeedbackTicketDetail.tsx)).
+- `feedbackTitle(item, Infinity)` = nicht kürzen; Kanban-Karten + Home-Widgets bleiben bewusst gekappt ([feedbackUi.ts](src/components/feedback/feedbackUi.ts)).
+- Board-Suche liest den vollen Titel statt der ersten 90 Zeichen ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)).
+
 ### v2.292.0 — Feedback verbessern: Standard-KI + ein Lauf statt zwei (Juli 2026)
 
 MINOR — „Feedback verbessern" lief minutenlang und zeigte im KI-Tab lange Reasoning-Schleifen bis zur Wiederholungs-Erkennung: der Lauf reichte als einziger kein `ziel` durch und landete damit im aktiven — also ggf. agentischen — Tab, ohne Chat-Reset und mit zwei LLM-Läufen, von denen der erste oft nichts zu fragen hatte. Details: [feedback-system.md](docs/architecture/feedback-system.md#feedback-verbesserung-geführter-ablauf-intern-only-v2206).
@@ -545,102 +555,4 @@ MINOR — Die Single-File-HTML war ~73 MB (dev) und wird bei jedem Start komplet
 - **4 tote Pakete entfernt** ([package.json](package.json)): `@zip.js/zip.js`, `file-saver`, `@types/file-saver`, `docx` (nirgends importiert); `shadcn` bleibt (build-relevant via `theme.css`).
 - **`xlsx` 0.18.5 → 0.20.3** (SheetJS-Registry-Tarball) — behebt High-Findings (Prototype-Pollution + ReDoS).
 - **`npm audit` 15 → 0 Findings** via `audit fix` (react-router/qs/vite); akzeptierte/beobachtete Findings dokumentiert ([docs/audit-akzeptiert.md](docs/audit-akzeptiert.md)).
-
-### v2.252.0 — Aufbereitung-Einstieg zuerst + gesamte KI-Aufbereitung auf einen Klick; Kurzbeschreibung ohne Titel-Fallback (Juli 2026)
-
-MINOR — Der Antrag-Verstehen-Schritt (Aufbereitung) gehört an den Anfang, und die KI-Abschnitte der Aufbereitung sollen auf einen Klick laufen statt einzeln pro Tab. Zudem soll eine fehlende Kurzbeschreibung nicht durch den Projekt-Titel vorgetäuscht werden. Additiv, dev-only, keine Datenmigration.
-
-- **„Antrag-Aufbereitung öffnen" nach oben** ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)): direkt unter dem Kopf, VOR der Kurzbeschreibung — erst den Antrag verstehen, dann NF/Gutachten.
-- **Kurzbeschreibung ohne Titel-Fallback** ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) + [KurzbeschreibungCard.tsx](src/plugins/antraege/KurzbeschreibungCard.tsx)): fehlt VB_INHALT, bleibt die Karte sichtbar mit dezentem „wird nach Abschluss des Gutachtens erstellt"-Hinweis statt des Projekt-Titels; der Titel erscheint wieder als Untertitel im Kopf.
-- **„Mit KI aufbereiten" (ein Klick)** ([AufbereitungPage.tsx](src/plugins/antraege/aufbereitung/AufbereitungPage.tsx)): neuer primärer Seitenkopf-Button fährt alle 5 KI-Bausteine sequenziell (bestehende `bausteine`-Aktion) mit Live-Fortschritt „(n/5)"; „Neu aufbereiten" bleibt der schnelle KI-freie Refresh.
-
-### v2.251.1 — Kurzfassung/Gutachten: echten Projekt-Titel statt generischem VB_TITEL ans LLM (Juli 2026)
-
-PATCH — Beim Erstellen der Kurzfassung/Gutachten-Stammdaten wurde als „Verbund-Titel" das Feld `verbund_titel` (CSV `VB_TITEL`) ans LLM gesendet — in Verbünden ohne Projektbeschreibungs-Enrichment oft ein generischer Platzhalter („Muster VB Titel N"). Der aussagekräftige Titel steckt im Lead-TV-Thema (`THEMA_AD`).
-
-- **Projekt-Titel bevorzugt Lead-TV-Thema** ([context-builder.ts](src/plugins/antraege/kurzfassung/context-builder.ts)): `ctx.titel = lead.titel (THEMA_AD) ?? verbund.titel (VB_TITEL)` (Priorität getauscht); `akronym` behält bewusst Verbund-Vorrang. Wirkt auf beide Prompt-Pfade ([skill-context.ts](src/plugins/antraege/gutachten/skill-context.ts) + [useKurzfassung.ts](src/plugins/antraege/kurzfassung/useKurzfassung.ts)).
-- Header-Anzeige in [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx) unverändert (Verbund-Titel zuerst) — Divergenz im Docstring dokumentiert.
-
-### v2.251.0 — Frisch hochgeladene Dokumente wieder entfernen (Juli 2026)
-
-MINOR — Frisch hochgeladene Antragsdokumente ließen sich nicht wieder entfernen. Nötig, wenn eine PDF-Konvertierung schlecht ist (als DOCX neu ablegen) oder man die falsche Datei erwischt hat. Additiv, keine Datenmigration.
-
-- **Pro-Zeile „Entfernen"** in der geteilten Aufnahmefläche ([DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx)): dezenter Text-Link neben „Konvertierung prüfen" (indexierte Zeilen) bzw. in Fehler-Zeilen; wirkt automatisch in allen Aufrufern (Gutachten/Kurzfassung/Nachforderungen/Aufbereitungs-Quellen/Zeitplan).
-- **Vollständige Löschung**: raus aus dem Such-Index (Orama, `removeDocument`) UND aus dem Dokumente-Store (IDB, `store.remove`) — kein Rückstand im Korpus; Rückfrage vor dem Löschen, `useAsyncAction` (Pitfall #15).
-- **Neu-Rechnen gleich gegated wie Ingest/Re-Tag**: in der Aufbereitung sofort, in `offenHalten`-Sektionen erst bei „Fertig" (kein vorzeitiger Status-Flip).
-
-### v2.250.0 — Steckbrief ↔ Eckdaten user-resizable (geteilte Zwei-Spalten-Komponente) (Juli 2026)
-
-MINOR — Auf der Antrag-Aufbereitung (Tab Steckbrief) war die Grenze zwischen der linken Inhaltsspalte und der rechten „Eckdaten"-Sidebar fix. Sie ist jetzt per Zieh-Griff verstellbar. Die dafür schon auf der Startseite vorhandene Zieh-Logik wurde in eine geteilte Komponente gehoben (DRY, kein paralleles Layout). Additiv, keine Datenmigration.
-
-- **Steckbrief ↔ Eckdaten ziehbar** ([SteckbriefTab.tsx](src/plugins/antraege/aufbereitung/SteckbriefTab.tsx)): Griff an der linken Kante der Eckdaten-Spalte verschiebt die Aufteilung; Doppelklick setzt zurück; Breite gerätelokal in localStorage (`teamflow_aufbereitung_eckdaten_breite`), Start = bisherige 320px.
-- **Geteilte Zwei-Spalten-Komponente** ([ZweiSpaltenResizable.tsx](src/components/zwei-spalten/ZweiSpaltenResizable.tsx) + [zweiSpaltenResize-logic.ts](src/components/zwei-spalten/zweiSpaltenResize-logic.ts)): `1fr`+variable-Sidebar-Grid mit Pointer-Drag (re-render-frei), Tastatur (Pfeiltasten), Doppelklick-Reset; ab `lg` aktiv, darunter gestapelt.
-- **Home auf die geteilte Komponente umgestellt** ([HomeZweiSpalten.tsx](src/plugins/home/HomeZweiSpalten.tsx)): jetzt dünner Wrapper mit den Home-Parametern; Storage-Key/Breiten unverändert (keine verlorenen Nutzer-Breiten), `clampSeiteBreite` bleibt als Re-Export.
-
-### v2.249.0 — Dokumente einmal hochladen → überall verfügbar; PDF-Tabellen; KI-Guard + agentische KI; Assistent-Dokumente (Juli 2026)
-
-MINOR — Sammel-Folge aus der file://-Abnahme (v2.248.1): Antragsdokumente sollen EINMAL hochgeladen überall verfügbar sein, PDF-Anlagen als Tabelle nutzbar, und die interne KI überall bewusst verbunden/gewählt werden. Additiv, keine Datenmigration.
-
-- **Einmal hochladen → überall**: DokumentAufnahme bietet das VOLLE Typ-Vokabular (inkl. Arbeitsplan/Marketing, [DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx)/[dokumentAufnahmeFkz.ts](src/core/components/dokumentAufnahmeFkz.ts)); Dateiname-Heuristik `typAusDateiname` tagt Anlage 5 automatisch; Re-Tag (`setTyp`) rechnet die Aufbereitung sofort neu (kein „Übernehmen"-Klick). In Gutachten getaggte Anlage 5 erscheint jetzt in der Aufbereitung.
-- **Zeitplan „hinterlegt ≠ fehlt"** ([VerbundZeitplan.tsx](src/plugins/antraege/aufbereitung/VerbundZeitplan.tsx)/[store.ts](src/plugins/antraege/aufbereitung/store.ts)): eine erkannte, aber nicht auslesbare Anlage 5 zeigt „hinterlegt, Tabelle nicht auslesbar → DOCX" statt „fehlt"; „X/Y mit Anlage 5" zählt vorhandene Dokumente.
-- **PDF-Tabellen-Rekonstruktion** ([pdf-tables.ts](src/core/services/converter/pdf-tables.ts) → [converter/index.ts](src/core/services/converter/index.ts)): PDF-Tabellen werden zu Markdown-Pipe-Tabellen rekonstruiert (Vorschau + Zeitplan-Ernte) statt Flattext; konservativ, sonst Fließtext-Fallback.
-- **KI-CTA-Preflight** ([ki-guard.ts](src/core/services/ai/ki-guard.ts) + [KiConnectPromptDialog.tsx](src/core/components/KiConnectPromptDialog.tsx)): CTA ohne verbundene KI warnt + bietet „Jetzt verbinden" (kein stiller Tab + Retry-Loop); an Aufbereitung/Gutachten/Kurzfassung/Chat.
-- **Agentische interne KI wählbar** ([ki-ziel.ts](src/core/services/ai/ki-ziel.ts) + [KiVariantSelector.tsx](src/core/components/KiVariantSelector.tsx)): globale Präferenz „Standard | Agentisch" (Default Standard = byte-identisch), durchgereicht in alle Skill-Läufe + Chat, wählbar an allen Verbindungs-Stellen. **Assistent** kennt jetzt die Verbund-Dokumente deterministisch ([assembliere.ts](src/core/services/assistent/kontext/assembliere.ts)/[vorhaben-dokumente.ts](src/core/services/assistent/vorhaben-dokumente.ts)).
-
-### v2.248.1 — Dokumenten-Aufnahme bleibt offen — Konvertierung pro Datei prüfbar (Gutachten/Kurzfassung/NF) (Juli 2026)
-
-PATCH — Bei der Gutachten-Erstellung legt der Bearbeiter mehrere Dokumente ab. Die Fläche mit der Pro-Datei-Erkennung (FKZ/Zuordnung) und dem „Konvertierung prüfen"-Link verschwand aber sofort wieder, sobald die erste VB erkannt war — die übrigen Datei-Ergebnisse waren nicht mehr einsehbar. Die Aufnahmefläche bleibt jetzt offen, bis der Bearbeiter explizit übernimmt.
-
-- **Aufnahmefläche bleibt offen**: neuer opt-in Prop `offenHalten` an [DokumentAufnahme](src/core/components/DokumentAufnahme.tsx) — das die Sektion umschaltende `onIngested` feuert erst beim expliziten „Fertig", nicht mehr sofort nach der ersten Aufnahme.
-- **Pro Datei prüfbar**: die bereits vorhandene „Konvertierung prüfen"-Schaltfläche je `IntakeRow` (read-only Markdown-Vorschau via [KonvertierungReviewDialog](src/core/components/KonvertierungReviewDialog.tsx) → `MarkdownRenderer`) bleibt jetzt für **jede** abgelegte Datei erreichbar.
-- **In drei Flüssen aktiv** (je VB-fehlt- und „VB ersetzen"-Mount): Gutachten ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)), Kurzfassung ([KurzfassungSection.tsx](src/plugins/antraege/kurzfassung/KurzfassungSection.tsx)), Nachforderungen ([NachforderungenSection.tsx](src/plugins/antraege/nachforderungen/NachforderungenSection.tsx)).
-- **Andere Aufrufer unverändert**: die Aufbereitungs-Quellen (`QuellenPanel`/`VerbundZeitplan`) übergeben den Prop nicht → Default = bisheriges Sofort-Verhalten (byte-gleich).
-- Reine UI-Änderung, keine neuen Abhängigkeiten, kein Datenmodell-/Persistenz-Touch. Typecheck + Lint + volle Test-Suite + `build:dev`/`build:pl` grün. **Noch offen**: file://-Abnahme (Thomas).
-
-### v2.248.0 — Workflow-Beschleunigung: Zwei-Stufen-Gate, Vitest-Split, Code-Map, CLAUDE.md-Diät, Changelog-Tooling (Juli 2026)
-
-MINOR — Der `npm run check`-Loop war spürbar langsam geworden; Ziel: Sekunden im inneren Loop, ~1 min am Phasen-Gate, plus schlankere, jede Session geladene Kontext-Docs.
-
-- **Zwei-Stufen-Gate**: `check:quick` (inkrementeller Typecheck + gecachtes Lint + `--changed`-Tests) neben dem vollen `check` ([package.json](package.json), [docs/agents/README.md](docs/agents/README.md)).
-- **Vitest-Zwei-Projekte-Split** (`fast` ohne Isolation / `isolated`): Test-Dauer 34,9 s → 9,5 s ([vitest.config.mts](vitest.config.mts)).
-- **Code-Map-Generator** für Explorer-Agents ([scripts/generate-code-map.mjs](scripts/generate-code-map.mjs) → generierte `docs/architecture/code-map.md`).
-- **CLAUDE.md-Diät** 68,6 KB → 43,5 KB: Detail in Themen-Docs + verschachtelte CLAUDE.md + Link-Guard ([src/__tests__/doc-links.test.ts](src/__tests__/doc-links.test.ts)).
-- **Changelog-Tooling** ([scripts/version-bump.mjs](scripts/version-bump.mjs)): Bump + Kompakt-Skeleton + Rotation; CHANGELOG.md von ~404 KB auf ~78 KB rotiert.
-
-### v2.247.0 — Workflow/Skill inline in der Gutachten-Werkstatt bearbeiten (dev) + Skill-/Workflow-Export/Import (Juli 2026)
-
-MINOR — Während der Entwicklung am ZIM-Gutachten-Workflow (A–G) fallen laufend kleine Prompt-/Schritt-Änderungen an. Bisher führte der einzige Bearbeitungsweg aus der Gutachten-Werkstatt **heraus** ins Kuration-Plugin (`navigate('skill-verwaltung-kuration', …)`). Neu lässt sich der aktive Workflow — Struktur, Schritt-Konfiguration und Skill-Prompt/Regeln — **direkt in der Gutachten-Ansicht** bearbeiten (nur dev). Zusätzlich sind jetzt **Workflows** (nicht nur einzelne Skills) exportier-/importierbar — für Cross-Browser-Nutzung und Versions-Backups.
-
-- **dev-Inline-Werkstatt** ([WorkflowWerkstattDialog.tsx](src/plugins/antraege/gutachten/WorkflowWerkstattDialog.tsx)): ein kanonischer `Dialog`, der die vorhandenen Bausteine **wiederverwendet** — [WorkflowsTab](src/plugins/skill-verwaltung-kuration/WorkflowsTab.tsx) (Schritt-Liste: hinzufügen/entfernen/sortieren + Meta), [WorkflowEditor](src/plugins/skill-verwaltung-kuration/WorkflowEditor.tsx) (Schritt-Konfiguration) und [SkillEditor](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx) (Prompt/Modifier/Regeln). Persistenz über `useSkillRegistry().persist` (in dev ohne Passwort, `canEditSkillRegistry`), inkl. Leave-Guard gegen ungespeicherte Änderungen. Einstiege: ein Button „Workflow bearbeiten (dev)" im dev-Kontrollcluster oben und ein Stift am aktiven Abschnitt (öffnet direkt den Skill-Prompt dieses Schritts). Gating am Aufrufer über `isDevContext()`.
-- **Live-Übernahme ohne Reload** ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): neue `reloadRegistry()` liest die Registry frisch und leitet nur die registry-abhängigen Teile (Skills/Schritte/QS/Relevanz) neu ab — der laufende `WorkflowRun` + die VB bleiben unangetastet (kein Fortschrittsverlust). Der Werkstatt-Dialog ruft sie nach jedem erfolgreichen Persist. Neu exponiert: `activeWorkflowId` (die tatsächlich laufende Def) via `resolveWorkflowDefId` ([active-workflow.ts](src/plugins/antraege/gutachten/active-workflow.ts), geteilter `besterKandidat`-Helfer mit `resolveWorkflowSteps` — output-erhaltend). Editierte Prompts wirken beim **nächsten** Generieren; freigegebene Abschnitte bleiben unverändert.
-- **Workflow-Bündel** ([workflow-bundle.ts](src/core/services/skills/registry/workflow-bundle.ts), Spiegel zu `skill-bundle.ts`): `exportWorkflowBundle` schnürt Workflow + **alle referenzierten Skills** (ohne Historie) + deren Regeln; `parseWorkflowBundle` validiert/normalisiert; `importWorkflowBundle` ist rein und kollisionsfest — Workflow-ID-Kollision → Kopie „(importiert)", Schritt-IDs werden **immer** neu vergeben (`parentStepId`/`qsZielStepId` umgemappt, verhindert `WorkflowRun.schritte`-Key-Kollisionen), referenzierte Skills bei ID-Kollision dupliziert + `step.skillId` umgemappt (bestehende Skills nie überschrieben — sonst gingen genau die exportierten Prompt-Tweaks verloren), Regeln additiv. Neuer Unit-Test [workflow-bundle.test.ts](src/core/services/skills/registry/__tests__/workflow-bundle.test.ts).
-- **Zwei Oberflächen** (Nutzer-Wunsch): Workflow-Export/Import ist im **Kuration-Plugin** ([WorkflowsTab.tsx](src/plugins/skill-verwaltung-kuration/WorkflowsTab.tsx): „Exportieren"/„Importieren…", neuer [WorkflowImportDialog.tsx](src/plugins/skill-verwaltung-kuration/WorkflowImportDialog.tsx)) **und** im dev-Werkstatt-Dialog verfügbar; einzelne Skills exportiert/importiert man dort ebenfalls (bestehendes `skill-bundle` + `SkillImportDialog`).
-- **DRY, kein paralleler Zweig**: die Workflow-Mutations-Aktionen (Schritte + Management) liegen jetzt in einer reinen Fabrik [workflowMutations.ts](src/plugins/skill-verwaltung-kuration/workflowMutations.ts) (`buildWorkflowMutations`), die **sowohl** die [SkillVerwaltungPage](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx) **als auch** der Werkstatt-Dialog nutzen — byte-gleiche Persists.
-- Additiv, keine Datenmigration (Bündel sind rein kuratierte Registry-Inhalte, nie Antragsdaten). Typecheck + Lint + volle Test-Suite (3635) + `build:dev`/`build:pl` grün. **Noch offen**: file://-Abnahme (Thomas).
-
-### v2.246.4 — Skill-Editor: Erklärtexte hinter Info-Icons + Markdown-Vorschau für die Prompt-Vorlage (Juli 2026)
-
-PATCH — Der **Skill-Editor** ([SkillEditor.tsx](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx), Tab „Bearbeiten") zwang den Kurator zum Scrollen: die DSGVO-/Dokumentinhalte-Karte trug einen mehrzeiligen Erklärabsatz *über* der Checkbox „Verarbeitet Dokumentinhalte (nur interne KI)" plus eine „Override deaktiviert …"-Zeile, die „Skill aktiv (freigeschaltet)"-Karte einen zweizeiligen Absatz *unter* der Checkbox. Beide Karten sind jetzt einzeilig.
-
-- **Erklärprosa hinter einem Info-Icon**: neuer lokaler `FeldInfo`-Helper (kompaktes lucide-`Info`-Icon + geteilter [Tooltip](src/components/ui/Tooltip.tsx)) sitzt rechts neben der jeweiligen Checkbox und zeigt den bisherigen Erklärtext beim Hover/Fokus. Bei der DSGVO-Karte bleibt der Text **zustandsabhängig** (Slot-erzwungen-intern vs. Fail-safe-Standard); die redundante „Override deaktiviert — durch Inhalts-Slot im Template erzwungen."-Zeile entfällt (der Zustand ist an der deaktivierten, `opacity-60`-gedimmten Checkbox weiterhin ablesbar). Das Icon liegt als Geschwister **neben** dem `<label>`, nicht darin, damit ein Klick aufs Icon die Checkbox nicht togglt. Bewusst der in-Plugin bereits genutzte `Tooltip`+`Info`-Weg (wie [SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx)), **nicht** das `InfoHint` aus dem Einstellungen-Plugin (keine Cross-Plugin-Grenze).
-- **Prompt-Vorlage rendert Markdown live**: die rohe `<textarea>` ist durch den geteilten [MarkdownEditor](src/components/ui/MarkdownEditor.tsx) mit `markdownLivePreview()` ersetzt — derselbe Live-Preview-Editor wie beim Bearbeiten von Gutachten-Abschnitten ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)). `##`-Überschriften/`**fett**` werden gerendert, Marker auf der Cursor-Zeile bleiben sichtbar, der Buffer bleibt rohes Markdown (Ground-Truth, kein Roundtrip). Die Slot-Chips (`{{stammdaten}}` …) darunter sind unverändert.
-- **Debounce-Falle behandelt**: `MarkdownEditor.onChange` ist 300 ms debounced — `doSave` liest den Prompt-Wert beim Speichern über `onCreateEditor`/`promptViewRef` frisch aus dem Live-Doc (`.state.doc.toString()`), damit der letzte Tastendruck bei sofortigem „Speichern" nicht verloren geht (greift auch auf dem Leave-Guard-Pfad, da beide `doSave` teilen).
-- Reine UI-Änderung in einer Datei, keine neuen Abhängigkeiten (CodeMirror bereits gebündelt), kein Datenmodell-/Persistenz-Touch, Labels/Terminologie unverändert. Typecheck + Lint + `codebase-conventions` (35 Guards) + `build:dev`/`build:pl` grün. **Noch offen**: file://-Abnahme (Thomas).
-
-### v2.246.3 — Skill-Testlauf: Antrags-Auswahl zeigt alle Antragstypen + Typ-Filter + VB-zuerst (Juli 2026)
-
-PATCH — Im **Testlauf-Panel** der Skill-Verwaltung ([SkillTestlauf.tsx](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx)) erschienen in der „Antrag wählen"-Liste nur Anträge mit FKZ-Präfix `16DL…` — FuE-, DS-, DL- und NW-Anträge fehlten, sodass ein Skill nur gegen einen Antragstyp testbar war. **Kein harter Filter**, sondern eine stille Kappung: `listAllAntraegeListView` liefert den Store per `getAll()` aufsteigend nach Primärschlüssel `aktenzeichen` (= FKZ), und das Panel schnitt die Liste ungeordnet auf `.slice(0, 40)` — weil `16DL…` lexikografisch vor `16DS…`/`16FuE…`/`16NW…` sortiert, füllten die `16DL`-Sätze das ganze 40er-Fenster.
-
-- **Antragstyp-Filter** ([SkillTestlauf.tsx](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx)): neue Pill-Leiste „Alle / FuE / DS / DL / NW" mit Zählern über der Liste, gerendert über das geteilte [ScopeTabs](src/components/ui/ScopeTabs.tsx) (`variant='pills'`, Guard-konform gegen `no-parallel-scope-tabs`). Klassifikation über die bestehende Single-Source `getKategorieLabel(vb_phase)` + `getKategorieItems` ([kategorieQuickfilter.ts](src/plugins/antraege/filter/kategorieQuickfilter.ts)) — **nicht** die FKZ-Buchstaben geparst (die sind der Förderlinien-Präfix, nicht der Antragstyp). Der Filter wirkt auf die volle In-Memory-Liste, nicht das gekappte Fenster; die reinen store-schreibenden Helfer (`applyKategorie`/`getKategorieFromActive`) bleiben bewusst außen vor.
-- **VB-zuerst-Sortierung**: Anträge mit vorliegender Vorhabensbeschreibung stehen oben (sekundär FKZ aufsteigend, stabil) — das sind ohnehin die einzig testbaren; Zeilen ohne VB bleiben unverändert gedimmt/`disabled`.
-- **Keine stille Kappung mehr**: die Obergrenze (`LISTE_CAP = 80`) weist einen Überhang als dezente Fußzeile aus („… N weitere ausgeblendet — über Typ oder Suche eingrenzen"), statt Treffer wortlos zu verschlucken.
-- Reine Auswahl-/Anzeige-Änderung im Testlauf — der eigentliche Run-Pfad (`findVorhabensbeschreibung`, `runSkill`) ist unberührt, kein Datenmodell-/Persistenz-Touch. Feedback-Kontext-Doc [skill-verwaltung-kuration.md](docs/feedback-kontext/skill-verwaltung-kuration.md) nachgezogen. **Noch offen**: file://-Abnahme (Thomas).
-
-### v2.246.2 — Gutachten-Werkstatt: kryptische Abschnitts-UUID durch Kürzel + Skill-Version ersetzt (Juli 2026)
-
-PATCH — Die Abschnitts-Überschrift in der Kurzfassungs-Werkstatt zeigte bei **kurator-erstellten** Workflow-Schritten die rohe Step-UUID an (z. B. `6c1ac727-44ca-401d-9b7e-7772a65e68a6 — Hauptaufgaben pro Partner - 3 Bullet Points`). Grund: `WorkflowStep.id` ist bei per Editor angelegten Schritten eine `crypto.randomUUID()` ([workflowShared.ts](src/plugins/skill-verwaltung-kuration/workflowShared.ts) `blankStep()`), während die eingebauten ZIM-EP-Schritte Buchstaben `A`–`G` tragen — deshalb fiel die UUID nur bei selbst kuratierten Workflows durch. Die Überschrift zeigt jetzt das lesbare Kürzel plus eine echte Versionsnummer.
-
-- **Überschrift** ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)): `{def.id} — {def.label}` → `{def.kurz} — {def.label}` (exakt das „B2", das schon der Stepper zeigt) plus dezenter `v{n}`-Chip mit der Skill-Version (`ctrl.activeSkill.version`, per `?.version != null` abgesichert). Anzeige-Präzedenz: die Review-Karte zeigt bereits `v{skillVersion}`.
-- **Konsistenz — dieselbe UUID-Leck-Stelle**: der Stil-/Tweak-Dialog-Titel ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx), `sektionLabel`) und die Wiederaufnahme-Zeile („Abschnitt … in Arbeit" / Button „Weiter bei …", [ResumeLine.tsx](src/plugins/antraege/gutachten/ResumeLine.tsx)) nutzen jetzt ebenfalls `def.kurz` statt der UUID (ResumeLine-Fallback um `kurz` ergänzt, damit der Randfall „aktiver Schritt nicht in `steps`" nicht bricht).
-- Reine Anzeige — kein neues Feld, keine Datenmigration, kein Persistenz-Touch. Eingebaute ZIM-EP-Abschnitte (A–G) unverändert. **Noch offen**: file://-Abnahme (Thomas).
 

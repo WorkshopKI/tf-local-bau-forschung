@@ -118,6 +118,11 @@ const PRIMARY_FIELD_KEY: Record<string, string> = {
  * `title`; fehlt er (Bestands-Feedback), wird aus der Hauptantwort abgeleitet
  * (Problem→„Was ist passiert?", Idee→„Was möchtest du tun können?", Lob/Frage→Text),
  * sonst `llm_summary` / erste Textzeile. Auf `maxLen` Zeichen gekürzt.
+ *
+ * `maxLen = Infinity` → NICHT kürzen (Whitespace wird weiterhin normalisiert).
+ * Das nutzen die Stellen, die den vollen Titel umbrechend rendern (Board-Liste +
+ * -Detail, Kurator-Liste + -Detail); die platzknappen Aufrufer (Kanban-Karten,
+ * Home-Widgets) bleiben bei einer festen Grenze.
  */
 export function feedbackTitle(item: FeedbackItem, maxLen = 90): string {
   const explicit = item.title?.trim();

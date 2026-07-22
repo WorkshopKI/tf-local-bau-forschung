@@ -97,7 +97,7 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
 
         {/* Titel + Autor */}
         <div>
-          <h2 className="text-[19px] font-medium text-[var(--tf-text)] leading-snug">{feedbackTitle(ticket, 140)}</h2>
+          <h2 className="text-[19px] font-medium text-[var(--tf-text)] leading-snug break-words">{feedbackTitle(ticket, Infinity)}</h2>
           <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-tertiary)]">
             <FeedbackAvatar name={author} size={20} />
             <span className="truncate">von <span className="text-[var(--tf-text-secondary)]">{author}</span> · {formatShortDate(ticket.created_at)}</span>

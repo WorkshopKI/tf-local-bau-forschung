@@ -29,7 +29,7 @@ interface Props {
 
 export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone, mine }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
-  const title = feedbackTitle(ticket);
+  const title = feedbackTitle(ticket, Infinity);
   const segments = feedbackQaSegments(ticket);
   const author = mine ? 'Du' : (feedbackAuthorLabel(ticket) ?? '—');
   const date = formatShortDate(ticket.created_at);
@@ -79,8 +79,9 @@ export function FeedbackTicketRow({ ticket, selected, onSelect, onToggleDone, mi
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <span className={`flex-1 min-w-0 truncate text-[14px] font-medium ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
-            <span className="shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
+            {/* Titel voll umbrechend (nie gekürzt); nur die Q&A-Vorschau darunter bleibt einzeilig. */}
+            <span className={`flex-1 min-w-0 break-words text-[14px] font-medium ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
+            <span className="shrink-0 whitespace-nowrap text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
           </div>
           {segments.length > 0 && (
             <div className="mt-1 space-y-0.5">

@@ -37,7 +37,7 @@ interface Props {
 
 export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unread, onSelect, onChanged, narrow, dense }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
-  const title = feedbackTitle(ticket);
+  const title = feedbackTitle(ticket, Infinity);
   const lead = feedbackQaSegments(ticket)[0]?.antwort;
   const author = feedbackAuthorLabel(ticket) ?? '—';
   const date = formatShortDate(ticket.created_at);
@@ -75,13 +75,15 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
         {/* Body */}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
-            <span className={`min-w-0 truncate font-medium ${dense ? 'text-[13.5px]' : 'text-[14px]'} ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
+            {/* Voll umbrechend — der Titel wird bewusst nie gekürzt (der Nutzer
+                soll ihn ganz lesen können); break-words fängt lange Wörter/URLs. */}
+            <span className={`flex-1 min-w-0 break-words font-medium ${dense ? 'text-[13.5px]' : 'text-[14px]'} ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
             {mine && unread && (
               <span className="shrink-0 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]" title="Neue Antwort vom Team">
                 Antwort
               </span>
             )}
-            <span className="ml-auto shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
+            <span className="ml-auto shrink-0 whitespace-nowrap text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
           </div>
 
           {!narrow && lead && (
