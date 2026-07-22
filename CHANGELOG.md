@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.299.0 — Semikolon und Gedankenstrich in KI-Texten verboten (Juli 2026)
+
+MINOR — In den generierten Gutachten-Abschnitten tauchten regelmäßig Semikolons und Gedankenstriche mitten im Satz auf, typische LLM-Manier und im ZIM-Gutachten unerwünscht. Dagegen gab es bisher nichts: weder eine Prompt-Vorgabe noch einen Check nach dem Lauf.
+
+- Neue geteilte Bibliotheks-Regel „Semikolon & Gedankenstrich" (`verbotenes_muster`, Schweregrad fehler) in [seed.ts](src/core/services/skills/registry/seed.ts) — sie ist zugleich Prompt-Vorgabe und deterministischer Check, Fundstellen inklusive („Anzeigen"-Sprung).
+- Die Regel hängt an ALLEN sieben generativen Schritten des `zim-ep`-Workflows und ist damit die generelle Vorgabe für jeden KI-Fließtext; ein Guard über `ZIM_EP_DEF` lässt einen künftigen Abschnitt auffallen, der sie vergisst ([interpunktion.test.ts](src/core/services/skills/registry/__tests__/interpunktion.test.ts)).
+- Muster bewusst eng: nur `;` und der Gedankenstrich zwischen Leerzeichen — Wortverbindungen („KI-gestützt") und Zahlenbereiche („2024–2026") bleiben unbeanstandet, mit Gegenproben festgeschrieben.
+- Der Lektor („Sprachlicher Feinschliff") entfernt die Zeichen jetzt verpflichtend und ist selbst gedankenstrichfrei formuliert ([ga-lektor.seed.ts](src/core/services/skills/registry/ga-lektor.seed.ts)); den Nachweis liefert der Regel-Lauf nach dem Feinschliff.
+- Rollout auf Bestands-Shares über den Marker `ga-interpunktion-2026-07` ([migrations.ts](src/core/services/skills/registry/migrations.ts)) — additiv, kuratierte Regellisten und Templates bleiben unberührt. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
 ### v2.298.0 — Aufbereitung läuft auf der Standard-KI (Juli 2026)
 
 MINOR — Ein realer Aufbereitungs-Lauf dauerte sehr lange und endete mit 2× „eingeschränkt" + 2× „Fehler". Ursache war nicht der Prompt, sondern das Ziel-Modell: alle sechs Bausteine folgten der globalen KI-Variante und liefen auf dem agentischen Tab — sechs Volldurchgänge über den Antragstext, häufig in einem Format, das der Parser nicht lesen kann, teils bis in die Transport-Deadline. Dieselbe Klasse wie v2.292.0.

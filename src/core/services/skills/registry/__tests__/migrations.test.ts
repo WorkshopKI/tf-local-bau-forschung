@@ -17,6 +17,7 @@ import {
   GA_PFLICHT_ANFANG_KLAR_MIGRATION,
   ANFRAGE_ANON_KLAR_MIGRATION,
   SKILL_VORGABEN_MIGRATION,
+  GA_INTERPUNKTION_MIGRATION,
 } from '../migrations';
 import {
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
@@ -43,7 +44,13 @@ import {
   KOMPETENZ_SKILL_ID,
   G_ABSCHNITT_OPTS,
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
+  INTERPUNKTION_REGEL_ID,
 } from '../seed';
+import {
+  GA_LEKTOR_SKILL_ID,
+  GA_LEKTOR_PROMPT_TEMPLATE_ALT,
+  SEED_GA_LEKTOR_SKILL,
+} from '../ga-lektor.seed';
 import type { QualitaetsRegel, SkillRecord, SkillRegistryFile } from '../types';
 
 function skill(id: string, over: Partial<SkillRecord> = {}): SkillRecord {
@@ -60,7 +67,7 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
@@ -536,7 +543,7 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);
@@ -548,6 +555,57 @@ describe('reconcile — alle Migrationen zusammen', () => {
   it('alle Marker gesetzt → No-op', () => {
     const { geaendert } = reconcileEinmaligeAktivierungen(file([anon(false)], ALLE_MARKER));
     expect(geaendert).toBe(false);
+  });
+});
+
+describe('reconcile — Interpunktions-Vorgabe (Semikolon & Gedankenstrich)', () => {
+  const NUR_INTERPUNKTION = ALLE_MARKER.filter(m => m !== GA_INTERPUNKTION_MIGRATION);
+  const lektor = (over: Partial<SkillRecord> = {}): SkillRecord =>
+    skill(GA_LEKTOR_SKILL_ID, { promptTemplate: GA_LEKTOR_PROMPT_TEMPLATE_ALT, ...over });
+
+  it('bindet die Regel an jeden Gutachten-Abschnitt (additiv, bestehende IDs bleiben)', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(file([
+      skill(KURZFASSUNG_SKILL_ID, { regelIds: ['seed-passiv-stil'] }),
+      skill(KOMPETENZ_SKILL_ID, { regelIds: [] }),
+    ], NUR_INTERPUNKTION));
+    expect(geaendert).toBe(true);
+    expect(out.skills[0]!.regelIds).toEqual(['seed-passiv-stil', INTERPUNKTION_REGEL_ID]);
+    expect(out.skills[1]!.regelIds).toEqual([INTERPUNKTION_REGEL_ID]);
+  });
+
+  it('lässt Nicht-Gutachten-Skills unberührt (NF-Bausteine, Aufbereitungs-JSON)', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([
+      skill(AUFBEREITUNG_ZAHLEN_SKILL_ID, { regelIds: [] }),
+    ], NUR_INTERPUNKTION));
+    expect(out.skills[0]!.regelIds).toEqual([]);
+  });
+
+  it('hebt das unveränderte Lektor-Template auf die Pflicht-Fassung, version ≥ 2', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(file([lektor()], NUR_INTERPUNKTION));
+    expect(out.skills[0]!.promptTemplate).toBe(SEED_GA_LEKTOR_SKILL.promptTemplate);
+    expect(out.skills[0]!.promptTemplate).toContain('## Pflicht bei jedem Lauf');
+    expect(out.skills[0]!.version).toBe(2);
+  });
+
+  it('lässt ein kuratiert editiertes Lektor-Template unberührt', () => {
+    const eigen = `${GA_LEKTOR_PROMPT_TEMPLATE_ALT}\n\nHausregel: knapper formulieren.`;
+    const { file: out } = reconcileEinmaligeAktivierungen(file([lektor({ promptTemplate: eigen })], NUR_INTERPUNKTION));
+    expect(out.skills[0]!.promptTemplate).toBe(eigen);
+  });
+
+  it('respektiert eine spätere bewusste Entfernung: Marker gesetzt → No-op', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(KURZFASSUNG_SKILL_ID, { regelIds: [] })], ALLE_MARKER),
+    );
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.regelIds).toEqual([]);
+  });
+
+  it('ist idempotent (zweiter Lauf hängt die ID nicht doppelt an)', () => {
+    const erst = reconcileEinmaligeAktivierungen(file([skill(KURZFASSUNG_SKILL_ID)], NUR_INTERPUNKTION));
+    const zweit = reconcileEinmaligeAktivierungen(erst.file);
+    expect(zweit.geaendert).toBe(false);
+    expect(zweit.file.skills[0]!.regelIds).toEqual([INTERPUNKTION_REGEL_ID]);
   });
 });
 

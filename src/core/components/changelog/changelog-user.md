@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.299 — 2026-07
+
+### Verbesserungen
+- Die KI setzt in Gutachten-Abschnitten keine Semikolons und keine Gedankenstriche mehr. Rutscht doch eines durch, meldet es die Prüfung unter dem Entwurf und zeigt die Stelle im Text.
+- „Sprachlicher Feinschliff" löst solche Stellen jetzt zuverlässig auf: aus einem Satz mit Semikolon werden zwei Sätze, ein Einschub in Gedankenstrichen wird zu Komma oder Klammer.
+- Bindestriche in Wörtern wie „KI-gestützt" und Zeiträume wie „2024–2026" bleiben selbstverständlich unangetastet.
+
 ## v2.298 — 2026-07
 
 ### Verbesserungen

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeMissingSeeds } from '../storage';
-import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, AUSGANGSLAGE_SKILL_ID } from '../seed';
+import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, AUSGANGSLAGE_SKILL_ID, INTERPUNKTION_REGEL_ID } from '../seed';
 import { GA_LEKTOR_SKILL_ID } from '../ga-lektor.seed';
 import { NF_SKILL_ID, SEED_NF_REGELN } from '../nf-skill.seed';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
@@ -97,8 +97,11 @@ describe('B–G-Seeds — Kohärenz', () => {
     expect(String(pflicht?.params.text)).toContain('Technologiekompetenz im Bereich');
   });
 
-  it('E + F sind reine Prompt-Abschnitte ohne maschinelle Regeln', () => {
-    expect(getSkillById(SEED_REGISTRY, 'gutachten-unternehmen')!.regelIds).toEqual([]);
-    expect(getSkillById(SEED_REGISTRY, 'gutachten-verwertung')!.regelIds).toEqual([]);
+  it('E + F tragen nur die generelle Interpunktions-Vorgabe, keine Abschnitts-Regeln', () => {
+    // E + F sind reine Prompt-Abschnitte (keine Umfangs-Vorgaben, keine Passiv-Regel).
+    // Die Interpunktions-Regel gilt seit v2.297 für JEDEN generierten Fließtext und ist
+    // damit auch hier gesetzt — siehe `interpunktion.test.ts`.
+    expect(getSkillById(SEED_REGISTRY, 'gutachten-unternehmen')!.regelIds).toEqual([INTERPUNKTION_REGEL_ID]);
+    expect(getSkillById(SEED_REGISTRY, 'gutachten-verwertung')!.regelIds).toEqual([INTERPUNKTION_REGEL_ID]);
   });
 });

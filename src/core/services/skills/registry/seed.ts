@@ -126,6 +126,13 @@ function regel(
 }
 
 /**
+ * ID der Interpunktions-Regel („kein Semikolon, kein Gedankenstrich"). Konstante,
+ * weil sie an allen generativen Gutachten-Skills hängt und von der einmaligen
+ * Migration (`applyInterpunktion`) referenziert wird.
+ */
+export const INTERPUNKTION_REGEL_ID = 'seed-keine-semikolon-gedankenstrich';
+
+/**
  * Bibliotheks-Regeln des Gutachten-Stamms.
  *
  * Bis v2.295 standen hier zusätzlich Satzanzahl/Zeichenlimit/Satzlänge/Keine
@@ -150,7 +157,39 @@ export const SEED_REGELN: QualitaetsRegel[] = [
     },
     'hinweis',
   ),
+  // Generelle Vorgabe für JEDEN generierten Gutachten-Fließtext (v2.297): weder
+  // Semikolon noch Gedankenstrich im Satz — beides ist typische LLM-Manier und im
+  // ZIM-Gutachten unerwünscht (eigenständige Hauptsätze).
+  //
+  // Die Muster sind bewusst eng gefasst: ein nacktes `[–—]` träfe auch Zahlen-
+  // bereiche („2024–2026"), ein nacktes `-` jede Wortverbindung („KI-gestützt",
+  // „Know-how"). Der gemeinte Gebrauch als Gedankenstrich steht IMMER zwischen
+  // Leerzeichen — genau darauf zielen die drei Dash-Muster.
+  //
+  // Regex-Modus ⇒ der Prompt-Hinweis kommt AUSSCHLIESSLICH aus `hinweisVermeiden`/
+  // `hinweisStattdessen` (`check-engine.ts`), nie aus den Mustern selbst.
+  regel(
+    INTERPUNKTION_REGEL_ID,
+    'Semikolon & Gedankenstrich',
+    'verbotenes_muster',
+    {
+      muster: [';', '\\s[–—]\\s', '\\s-\\s', '--'],
+      eingabeModus: 'regex',
+      hinweisVermeiden: 'Semikolons und Gedankenstriche im Satz',
+      hinweisStattdessen:
+        'eigenständige Hauptsätze oder eine Verbindung mit „und", „aber", „dabei", „dadurch". '
+        + 'Bindestriche in Wortverbindungen wie „KI-gestützt" bleiben unverändert',
+    },
+    'fehler',
+  ),
 ];
+
+/**
+ * Bibliotheks-Regeln, die JEDER generative Gutachten-Abschnitt B–G trägt. Eine
+ * Konstante statt sieben Literale, damit die nächste geteilte Regel an genau einer
+ * Stelle nachgezogen wird. (A erbt die Bibliothek ohnehin komplett.)
+ */
+const GA_ABSCHNITT_REGEL_IDS = ['seed-passiv-stil', INTERPUNKTION_REGEL_ID];
 
 /**
  * Umfangs-/Form-Vorgaben des Kurzfassung-Skills A (vormals die Regel-Records
@@ -572,7 +611,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-passiv-stil'],
+    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
     vorgaben: SEED_VORGABEN_B,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -591,7 +630,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-passiv-stil'],
+    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
     vorgaben: SEED_VORGABEN_C,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -605,7 +644,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-passiv-stil'],
+    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
     vorgaben: SEED_VORGABEN_D,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -627,7 +666,9 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: [],
+    // E + F tragen bewusst KEINE Passiv-Regel (reine Prompt-Abschnitte), die
+    // Interpunktions-Vorgabe gilt aber für jeden generierten Fließtext.
+    regelIds: [INTERPUNKTION_REGEL_ID],
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
@@ -648,7 +689,8 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: [],
+    // Siehe E: nur die Interpunktions-Vorgabe, keine Passiv-Regel.
+    regelIds: [INTERPUNKTION_REGEL_ID],
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
@@ -661,7 +703,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-passiv-stil'],
+    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
     vorgaben: SEED_VORGABEN_G,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,

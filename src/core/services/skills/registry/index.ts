@@ -74,6 +74,7 @@ export {
   KURZFASSUNG_SKILL_ID,
   QS_BASIS_SKILL_ID,
   RELEVANZ_MAP_SKILL_ID,
+  INTERPUNKTION_REGEL_ID,
 } from './seed';
 export { SEED_GA_LEKTOR_SKILL, GA_LEKTOR_SKILL_ID } from './ga-lektor.seed';
 export { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF, NF_SKILL_ID } from './nf-skill.seed';
@@ -143,6 +144,7 @@ export {
   GA_BELEG_KONTRAKT_MIGRATION,
   GA_BELEG_KONTRAKT_REVERT_MIGRATION,
   GA_PFLICHT_ANFANG_KLAR_MIGRATION,
+  GA_INTERPUNKTION_MIGRATION,
   type ReconcileResult,
 } from './migrations';
 export {

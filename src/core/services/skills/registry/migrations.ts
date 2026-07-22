@@ -37,7 +37,14 @@ import {
   KOMPETENZ_SKILL_ID,
   G_ABSCHNITT_OPTS,
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
+  INTERPUNKTION_REGEL_ID,
+  ZIM_EP_DEF,
 } from './seed';
+import {
+  GA_LEKTOR_SKILL_ID,
+  GA_LEKTOR_PROMPT_TEMPLATE_ALT,
+  SEED_GA_LEKTOR_SKILL,
+} from './ga-lektor.seed';
 import type {
   QualitaetsRegel, SkillRecord, SkillRegistryFile, SkillVorgaben, VorgabeKey,
 } from './types';
@@ -77,6 +84,9 @@ export const ANFRAGE_ANON_KLAR_MIGRATION = 'anfrage-anon-klar-2026-07';
 
 /** ID der Überführung der Ein-Skill-Umfangsregeln in `SkillRecord.vorgaben`. */
 export const SKILL_VORGABEN_MIGRATION = 'skill-vorgaben-2026-07';
+
+/** ID der Interpunktions-Vorgabe (Regel an A–G binden + Lektor-Pflichtblock). */
+export const GA_INTERPUNKTION_MIGRATION = 'ga-interpunktion-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -296,6 +306,44 @@ function applyAnonKlar(skills: SkillRecord[]): SkillRecord[] {
       : s);
 }
 
+/**
+ * Interpunktions-Vorgabe (v2.297): die geteilte Bibliotheks-Regel „Semikolon &
+ * Gedankenstrich" an JEDEN generativen Gutachten-Schritt binden und den Lektor auf
+ * die Fassung heben, die diese Zeichen ausdrücklich auflöst.
+ *
+ * Der Regel-RECORD selbst kommt schon über `mergeMissingSeeds` auf den Share
+ * (fehlende ID wird additiv ergänzt, und `loadSkillRegistry` merged, bevor dieser
+ * Reconcile läuft). Was der Merge NICHT kann, ist die Zuordnung an bestehende
+ * Skills — genau das macht diese Migration.
+ *
+ * Zwei Schutzregeln:
+ *  1. Die Zuordnung ist rein additiv (ID anhängen, wenn sie fehlt) und überschreibt
+ *     damit keine kuratierte Regelliste. Wer die Regel später bewusst entfernt,
+ *     behält das: der Marker verhindert einen zweiten Lauf.
+ *  2. Das Lektor-Template wird NUR ersetzt, wenn es exakt dem eingefrorenen v1-Stand
+ *     entspricht. Jeder kuratierte Edit bleibt unberührt.
+ *
+ * Die Schritt-Liste kommt aus `ZIM_EP_DEF` statt aus sieben Literalen — der Workflow
+ * ist die Quelle dafür, welche Skills Gutachten-Fließtext erzeugen.
+ */
+function applyInterpunktion(skills: SkillRecord[]): SkillRecord[] {
+  const gaSkillIds = new Set(ZIM_EP_DEF.steps.map(s => s.skillId));
+  return skills.map(s => {
+    if (gaSkillIds.has(s.id) && !s.regelIds.includes(INTERPUNKTION_REGEL_ID)) {
+      return { ...s, regelIds: [...s.regelIds, INTERPUNKTION_REGEL_ID] };
+    }
+    if (s.id === GA_LEKTOR_SKILL_ID && s.promptTemplate === GA_LEKTOR_PROMPT_TEMPLATE_ALT) {
+      return {
+        ...s,
+        promptTemplate: SEED_GA_LEKTOR_SKILL.promptTemplate,
+        beschreibung: SEED_GA_LEKTOR_SKILL.beschreibung,
+        version: Math.max(s.version, 2),
+      };
+    }
+    return s;
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Ein-Skill-Umfangsregeln → `SkillRecord.vorgaben`                            */
 /* -------------------------------------------------------------------------- */
@@ -425,6 +473,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_PFLICHT_ANFANG_KLAR_MIGRATION, apply: nurSkills(applyPflichtAnfangKlar) },
   { marker: ANFRAGE_ANON_KLAR_MIGRATION, apply: nurSkills(applyAnonKlar) },
   { marker: SKILL_VORGABEN_MIGRATION, apply: applySkillVorgaben },
+  { marker: GA_INTERPUNKTION_MIGRATION, apply: nurSkills(applyInterpunktion) },
 ];
 
 /**

@@ -168,11 +168,12 @@ describe('Seed', () => {
     // nf-auswahl-fuellung + anfrage-anonymisieren + anfrage-metadaten + aufbereitung-aspekte +
     // aufbereitung-steckbrief + aufbereitung-zahlen + aufbereitung-glossar + aufbereitung-verwertung +
     // aufbereitung-recherche-prompt + aufbereitung-recherche-import = 20;
-    // Regel-Bibliothek seit v2.296: 1 geteilte Gutachten-Regel (Passiv-Floskel)
-    // + 3 NF-Regeln + 5 GA-QS-Regeln = 9. Die früheren 13 Ein-Skill-Umfangsregeln
-    // (A: 4, B: 3, C: 3 inkl. Waise, D: 2, G: 1) leben als `SkillRecord.vorgaben`.
+    // Regel-Bibliothek seit v2.296: 2 geteilte Gutachten-Regeln (Passiv-Floskel,
+    // Semikolon & Gedankenstrich) + 3 NF-Regeln + 5 GA-QS-Regeln = 10. Die früheren
+    // 13 Ein-Skill-Umfangsregeln (A: 4, B: 3, C: 3 inkl. Waise, D: 2, G: 1) leben
+    // als `SkillRecord.vorgaben`.
     expect(SEED_REGISTRY.skills).toHaveLength(20);
-    expect(SEED_REGISTRY.regeln).toHaveLength(9);
+    expect(SEED_REGISTRY.regeln).toHaveLength(10);
     expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung
     expect(skill.id).toBe('gutachten-kurzfassung');
@@ -206,8 +207,9 @@ describe('Seed', () => {
     const skill = SEED_REGISTRY.skills[0]!;
     const regeln = resolveRegeln(SEED_REGISTRY, skill);
     const results = runRegelChecks('Das Vorhaben entwickelt ein Verfahren. Es überwacht Prozesse dezentral.', regeln);
-    // 5 aktive Regeln → 5 Ergebnisse, jedes mit regelId
-    expect(results).toHaveLength(5);
+    // 6 aktive Regeln (4 Vorgaben + Passiv-Floskel + Interpunktion) → 6 Ergebnisse,
+    // jedes mit regelId
+    expect(results).toHaveLength(6);
     expect(results.every(r => typeof r.regelId === 'string')).toBe(true);
   });
 });
