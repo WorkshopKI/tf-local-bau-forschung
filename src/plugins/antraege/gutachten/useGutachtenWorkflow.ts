@@ -12,11 +12,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
-import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { appendFeedback, getUserId, resolveInstallId, type Rating } from '@/core/services/skill-feedback';
 import {
-  runSkill,
   loadSkillRegistry,
   runRegelChecks,
   regelnMitOverride,
@@ -37,10 +35,9 @@ import {
   type WorkflowDef,
   type WorkflowStep,
 } from '@/core/services/skills';
-import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
-import { buildStammdaten, buildSkillMap, type SkillCtx } from './skill-context';
+import { buildSkillMap, type SkillCtx } from './skill-context';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { useGutachtenQuellen, type GutachtenQuellen } from './useGutachtenQuellen';
@@ -49,20 +46,15 @@ import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { resolveWorkflowSteps, resolveWorkflowDefId, verfuegbareWorkflows, ACTIVE_WORKFLOW_ID } from './active-workflow';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
-import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
-import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
-import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
-import { putWorkflowRun } from './workflow-store';
+import { generateInto, laufQs, laufLektorat, type GenerierungsDeps } from './workflow-generierung';
+import { makePersist, makeReduce } from './workflow-persistenz';
 import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import {
-  applyGeneration, applyBearbeitung, applyLektorat, applyZuruecksetzen, applyPruefen, applyQsHinweise, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
+  applyBearbeitung, applyZuruecksetzen, applyPruefen, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben, leereSchritte, setVorlageRef,
-  type GenerationInput,
 } from './runner';
-import { istVerdaechtigGekuerzt } from './lektorat';
-import { parseQsBefunde } from './qs';
 import { chooseRetryModifier } from './retry-policy';
 import type { StepId, WorkflowRun } from './types';
 
@@ -324,10 +316,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ? regelnMitOverride(sc.skill, sc.regeln, tw.vorgabenOverride)
       : sc.regeln;
 
-  const persist = async (next: WorkflowRun): Promise<void> => {
-    setRun(next);
-    await putWorkflowRun(storage.idb, next);
-  };
+  const persist = makePersist(storage.idb, setRun);
 
   /**
    * Arbeitskontext-Log (Home-„Weitermachen") — rein lokal (IDB), fire-and-forget.
@@ -341,160 +330,28 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   };
 
   /**
-   * Generierungs-Kern für EINEN Abschnitt — gegen einen ÜBERGEBENEN `base`-Run
-   * (kein Closure-`run`, damit der Bulk-Lauf den frischen Stand durchreichen kann).
-   * Liefert `{ next, checks }` oder `null` (Transport nicht erreichbar → `error`
-   * gesetzt). Wirft bei echten Fehlern/Abbruch — der jeweilige Orchestrator
-   * (`runGeneration` / `generiereAlle`) fängt das und besitzt busy/abort/persist.
-   * Der Tweak wird ÜBERGEBEN (nicht aus der Closure), damit der Bulk-Lauf pro
-   * Schritt den zum jeweiligen Skill gehörenden Tweak nutzen kann.
+   * Alles, was die Lauf-Funktionen aus `workflow-generierung.ts` brauchen. Bewusst je
+   * Render frisch gebaut: die Läufe lesen `steps`/`skillMap`/`korpusMd` zum Zeitpunkt
+   * des Klicks, nicht zum Zeitpunkt eines Memo-Caches.
    */
-  const generateInto = async (
-    base: WorkflowRun,
-    stepId: StepId,
-    o: {
-      modifier?: SkillModifierKey; quelle: 'freigegeben' | 'entwurf';
-      tweak: SkillTweak | null; signal: AbortSignal;
-      /** Journey-Paket 3: regel-gebundene Zusatz-Anweisung + auslösende Regel-ID. */
-      zusatzAnweisung?: string; korrekturRegelId?: string;
-    },
-  ): Promise<{ next: WorkflowRun; checks: CheckResult[] } | null> => {
-    const sc = skillMap.get(stepId);
-    if (!sc || !vb) return null;
-    // KI-Preflight: nicht verbunden → Verbinden-Prompt statt stiller Tab-Öffnung (ping).
-    if (!kiVerbindungBereit(bridge)) return null;
-    stream.reset();
-    const transport = bridge.getTransportForSkillRun(sc.skill);
-    const ok = await transport.ping();
-    setLlmAvailable(ok);
-    if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
-    const tw = o.tweak;
-    const scRegeln = regelnFuer(sc, tw);
-    const tweakWirksam = !!(tw?.aktiv && tw.skillId === sc.skill.id
-      && (tw.stilHinweise.trim() || tw.beispielFormulierungen.trim()));
-    const prevText = base.schritte[stepId]?.finalerText;
-    // Relevanz-Map: nur wenn der Schritt `kontextBedarf: 'relevant'` trägt UND die
-    // VB groß genug ist. JEDER Fehlerpfad (Map leer / Lauf gescheitert) degradiert
-    // still zu Volltext — kein `vbRelevant` → der Skill nutzt {{vbMarkdown}} wie bisher.
-    let vbRelevant: string | undefined;
-    const stepDef = steps.find(s => s.id === stepId);
-    // ACHTUNG: die drei `korpusMd`-Stellen hier MÜSSEN dieselbe Zeichenkette sehen.
-    // `getOrComputeRelevanzMap` rechnet Heading-SPANS in den übergebenen String, und
-    // `buildVbRelevant` sliced später mit genau diesen Offsets. Wer nur einen der
-    // Aufrufe umstellt, bekommt keinen Fehler — nur stillschweigend den falschen
-    // Textausschnitt im Prompt (siehe korpus-kontext.test.ts).
-    if (!forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(korpusMd)) {
-      try {
-        const abschnitte: RelevanzAbschnitt[] = steps.map(s => ({ id: s.id, label: s.label }));
-        const relevanz = await getOrComputeRelevanzMap(storage.idb, transport, relevanzSkill, key, korpusMd, abschnitte);
-        const block = buildVbRelevant(relevanz, korpusMd, stepId, getVbCharCap(kontextZielFuerLauf(bridge)));
-        if (block) vbRelevant = block;
-      } catch {
-        // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
-      }
-    }
-    // Teil-Generierung (unsichtbar): B (Hintergrund/Stand der Technik/Lösungsweg,
-    // ≥ 750 Wörter) sprengt das feste Output-Budget des internen LLM → der finale Text
-    // wird abgeschnitten. Daher B in mehreren kürzeren Läufen erzeugen und zu EINEM
-    // Abschnitt zusammenführen. Nur bei frischer Generierung (kein Modifier/Korrektur-
-    // Lauf); im Teil-Prompt fallen die Gesamt-Größen-Regeln weg, der finale Check läuft
-    // mit dem VOLLEN Regelsatz gegen den gemergten Text.
-    const teilPlan = getTeilPlan(sc.skill.id);
-    if (teilPlan && !o.modifier) {
-      const vorherige = buildVorherigeAbschnitte(base, stepId, steps, 2000, o.quelle);
-      const teilRegelSatz = teilRegeln(scRegeln);
-      const teilErgebnisse: TeilErgebnis[] = [];
-      let letztesResult: Awaited<ReturnType<typeof runSkill>> | null = null;
-      let vorText = '';
-      for (const teil of teilPlan) {
-        const r = await runSkill(transport, sc.skill, teilRegelSatz, {
-          ziel: aktivesZielFuerLauf(),
-          stammdaten: buildStammdaten(ctx),
-          vbMarkdown: korpusMd,
-          vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
-          thinkingBudget,
-          erwarteAbschluss: 'Finaler Text',
-          onContentDelta: stream.onContentDelta,
-          onThinkingDelta: stream.onThinkingDelta,
-          vorherigeAbschnitte: vorherige,
-          teilAufgabe: teilAufgabe(teil, vorText),
-          ...(vbRelevant ? { vbRelevant } : {}),
-          ...(tweakWirksam ? { tweak: tw } : {}),
-          ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
-          signal: o.signal,
-        });
-        teilErgebnisse.push({
-          quellenanalyse: r.parsed.quellenanalyse,
-          finalerText: r.parsed.finalerText,
-          ...(r.thinking ? { thinking: r.thinking } : {}),
-          vbGekuerzt: r.vbGekuerzt,
-          ...(r.parsed.warnung ? { warnung: r.parsed.warnung } : {}),
-        });
-        letztesResult = r;
-        vorText = [vorText, r.parsed.finalerText].map(t => t.trim()).filter(Boolean).join('\n\n');
-      }
-      const merged = mergeTeile(teilErgebnisse);
-      const checks = runRegelChecks(merged.finalerText, scRegeln);
-      const gen: GenerationInput = {
-        quellenanalyse: merged.quellenanalyse,
-        entwurf: merged.entwurf,
-        finalerText: merged.finalerText,
-        checks,
-        modell: transport.displayName ?? transport.name,
-        skillId: sc.skill.id,
-        skillVersion: sc.skill.version,
-        vbGekuerzt: merged.vbGekuerzt,
-        ...(merged.warnung ? { warnung: merged.warnung } : {}),
-        ...(letztesResult?.chatResetStatus ? { chatResetStatus: letztesResult.chatResetStatus } : {}),
-        ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
-        ...(merged.thinking ? { denkprozess: merged.thinking } : {}),
-        ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
-      };
-      return { next: applyGeneration(base, stepId, gen, new Date().toISOString()), checks };
-    }
-
-    const result = await runSkill(transport, sc.skill, scRegeln, {
-      ziel: aktivesZielFuerLauf(),
-      stammdaten: buildStammdaten(ctx),
-      vbMarkdown: korpusMd,
-      vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
-      thinkingBudget,
-      // Abschluss-Marker-Schutz: A–G liefern alle „### Finaler Text" als Schluss-
-      // Abschnitt. Verhindert, dass die Streamlit-Bridge einen langen Lauf schon nach
-      // dem Quellenanalyse-Block finalisiert (auf DirectLLM wirkungslos).
-      erwarteAbschluss: 'Finaler Text',
-      onContentDelta: stream.onContentDelta,
-      onThinkingDelta: stream.onThinkingDelta,
-      vorherigeAbschnitte: buildVorherigeAbschnitte(base, stepId, steps, 2000, o.quelle),
-      ...(vbRelevant ? { vbRelevant } : {}),
-      ...(tweakWirksam ? { tweak: tw } : {}),
-      ...(o.modifier ? { modifier: o.modifier } : {}),
-      ...(o.modifier && prevText ? { vorherigerText: prevText } : {}),
-      ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
-      signal: o.signal,
-    });
-    const checks = runRegelChecks(result.parsed.finalerText, scRegeln);
-    const gen: GenerationInput = {
-      quellenanalyse: result.parsed.quellenanalyse,
-      entwurf: result.parsed.entwurf,
-      finalerText: result.parsed.finalerText,
-      ...(result.parsed.teile?.length ? { teile: result.parsed.teile } : {}),
-      ...(result.parsed.belege?.length ? { belege: result.parsed.belege } : {}),
-      checks,
-      modell: transport.displayName ?? transport.name,
-      skillId: sc.skill.id,
-      skillVersion: sc.skill.version,
-      vbGekuerzt: result.vbGekuerzt,
-      ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
-      ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
-      ...(o.modifier ? { modifier: o.modifier } : {}),
-      ...(o.korrekturRegelId ? { korrekturRegelId: o.korrekturRegelId } : {}),
-      ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
-      ...(result.thinking ? { denkprozess: result.thinking } : {}),
-      ...(thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
-    };
-    return { next: applyGeneration(base, stepId, gen, new Date().toISOString()), checks };
-  };
+  const genDeps = (): GenerierungsDeps => ({
+    idb: storage.idb,
+    bridge,
+    ctx,
+    key,
+    skillMap,
+    steps,
+    korpusMd,
+    vbVorhanden: vb != null,
+    relevanzSkill,
+    lektorSkill,
+    thinkingBudget,
+    forceFullContext,
+    stream,
+    regelnFuer,
+    setLlmAvailable,
+    setError,
+  });
 
   /**
    * Eine Generierung (optional mit Modifier). Liefert die berechneten Checks zurück
@@ -514,7 +371,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ...(modifier ? { modifier } : {}),
         ...(kontext?.anweisung ? { zusatzAnweisung: kontext.anweisung } : {}),
         ...(kontext?.regelId ? { korrekturRegelId: kontext.regelId } : {}),
-      });
+      }, genDeps());
       if (!res) return null;
       await persist(res.next);
       logKontext(stepId);
@@ -560,7 +417,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         current = weiterschalten(current, stepId, new Date().toISOString());
         setRun(current);
         const stepTweak = await loadSkillTweak(storage.idb, persHandle, skillMap.get(stepId)!.skill.id).catch(() => null);
-        const res = await generateInto(current, stepId, { quelle: 'entwurf', tweak: stepTweak, signal: abort.signal });
+        const res = await generateInto(current, stepId, { quelle: 'entwurf', tweak: stepTweak, signal: abort.signal }, genDeps());
         if (!res) break; // Transport weg (error gesetzt) → STOPP, fertige Entwürfe bleiben
         current = res.next;
         await persist(current);
@@ -599,16 +456,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     }
   };
 
-  /** Hülle für reine Reducer-Aktionen (self-catching + persist). */
-  const reduce = async (fn: (r: WorkflowRun, now: string) => WorkflowRun): Promise<void> => {
-    if (!run) return;
-    try {
-      const next = fn(run, new Date().toISOString());
-      if (next !== run) await persist(next);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  };
+  /** Hülle für reine Reducer-Aktionen (self-catching + persist, siehe workflow-persistenz.ts). */
+  const reduce = makeReduce(() => run, persist, setError);
 
   const pruefenStep = async (stepId: StepId): Promise<void> => {
     const sc = skillMap.get(stepId);
@@ -666,24 +515,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const transport = bridge.getTransportForSkillRun(qsCtx.skill);
-      const ok = await transport.ping();
-      setLlmAvailable(ok);
-      if (!ok) { setError('KI nicht erreichbar — QS derzeit nicht möglich.'); return; }
-      const zielDef = steps.find(s => s.id === zielStepId);
-      const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
-        ziel: aktivesZielFuerLauf(),
-        stammdaten: buildStammdaten(ctx),
-        vbMarkdown: korpusMd,
-        vbCharCap: getVbCharCap(kontextZielFuerLauf(bridge)),
-        thinkingBudget,
-        onContentDelta: stream.onContentDelta,
-        onThinkingDelta: stream.onThinkingDelta,
-        zielText: zielStep.finalerText,
-        abschnittszweck: zielDef?.label ?? zielStepId,
-        signal: abort.signal,
-      });
-      await persist(applyQsHinweise(run, zielStepId, parseQsBefunde(result.raw), new Date().toISOString()));
+      const next = await laufQs(run, zielStepId, qsCtx, abort.signal, genDeps());
+      if (next) await persist(next);
     } catch (err) {
       if (abort.signal.aborted) return;
       setError(err instanceof Error ? err.message : String(err));
@@ -717,38 +550,9 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const transport = bridge.getTransportForSkillRun(lektorSkill);
-      const ok = await transport.ping();
-      setLlmAvailable(ok);
-      if (!ok) { setError('KI nicht erreichbar — Feinschliff derzeit nicht möglich.'); return; }
-      const zielDef = steps.find(s => s.id === stepId);
-      const result = await runSkill(transport, lektorSkill, [], {
-        ziel: aktivesZielFuerLauf(),
-        stammdaten: '',
-        vbMarkdown: '',
-        thinkingBudget,
-        erwarteAbschluss: 'Finaler Text',
-        onContentDelta: stream.onContentDelta,
-        onThinkingDelta: stream.onThinkingDelta,
-        zielText: step.finalerText,
-        abschnittszweck: zielDef?.label ?? stepId,
-        signal: abort.signal,
-      });
-      const text = result.parsed.finalerText.trim();
-      if (!text) {
-        setError('Der Feinschliff lieferte keinen Text — der Abschnitt bleibt unverändert.');
-        return;
-      }
-      if (istVerdaechtigGekuerzt(step.finalerText, text)) {
-        setError('Der Feinschliff wirkt abgeschnitten (deutlich kürzer als der Abschnitt) — der Abschnitt bleibt unverändert. Bitte erneut versuchen.');
-        return;
-      }
-      await persist(applyLektorat(run, stepId, {
-        finalerText: text,
-        checks: runRegelChecks(text, regelnFuer(sc, tweak)),
-        modell: transport.displayName ?? transport.name,
-        ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
-      }, new Date().toISOString()));
+      const next = await laufLektorat(run, stepId, sc, tweak, abort.signal, genDeps());
+      if (!next) return; // leer / verdaechtig gekuerzt / Transport weg -> Fehler ist gesetzt
+      await persist(next);
       logKontext(stepId);
     } catch (err) {
       if (abort.signal.aborted) return;

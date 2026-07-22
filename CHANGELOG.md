@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.305.0 — Workflow-Hook in seine Verantwortungen zerlegt (Juli 2026)
+
+MINOR — Der Gutachten-Workflow-Hook mischte auf 870 Zeilen vier Aufgaben: Registry laden, persistieren, generieren und die Schritt-Aktionen. Der Generierungsteil war der größte und brauchte als einziger kein React. Keine Verhaltensänderung, die Oberfläche für die Oberfläche bleibt unverändert.
+
+- Generierung, KI-Qualitätscheck und Feinschliff liegen jetzt React-frei nebenan, mit ausdrücklich übergebenen Abhängigkeiten statt stiller Zugriffe ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Speichern und die Hülle für Zustandswechsel sind eine eigene Schicht; die Regel „ein Zustandswechsel, ein Schreibvorgang" steht jetzt an einer Stelle statt in jeder Aktion ([workflow-persistenz.ts](src/plugins/antraege/gutachten/workflow-persistenz.ts), 7 neue Tests).
+- Der Hook schrumpft von 870 auf 674 Zeilen und ist nur noch Bindung: laufend/abbrechen/Fehlerbanner ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)).
+- `GutachtenWorkflowController` ist unverändert; `GutachtenSection` und alle weiteren Konsumenten wurden nicht angefasst, alle 23 Gutachten-Testdateien bleiben grün.
+
 ### v2.304.0 — Seed-Split abgeschlossen, seed.ts ist nur noch die Sammelstelle (Juli 2026)
 
 MINOR — 14 Skills lagen schon in eigenen Dateien, vier Gruppen noch inline in `seed.ts` (868 Zeilen, die mit jedem Skill weiterwuchsen). Reine Verschiebung: die Skills liegen live auf dem geteilten Share, jede inhaltliche Änderung wäre sofort produktiv wirksam.
