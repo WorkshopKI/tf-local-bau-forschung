@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.293 — 2026-07
+
+### Verbesserungen
+- Der Titel eines Teilvorhabens lässt sich jetzt mit der Maus markieren und kopieren; beim Überfahren der Zeile erscheint zusätzlich ein Kopier-Symbol, das den vollständigen Titel in die Zwischenablage legt — auch wenn er in der Anzeige gekürzt ist.
+- Ein aufgeklapptes Teilvorhaben zeigt nicht mehr die „Eckdaten"-Karte (dieselben Angaben stehen bereits oben beim Verbund) und nicht mehr den unklaren „Klassifikation"-Block. Bei Anträgen ohne Verbund bleiben die Eckdaten erhalten.
+
 ## v2.292 — 2026-07
 
 ### Verbesserungen

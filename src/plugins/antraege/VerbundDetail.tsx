@@ -92,8 +92,8 @@ export function VerbundDetail({
   const unterprogrammLabels = useUnterprogrammLabels(antraege[0]?.programm_id ?? null);
 
   // Default-Expansion: pseudo → automatisch der einzige TV (sonst waere die
-  // Detailseite leer, weil die Stammdaten bei pseudo erst im TV-EckdatenCard
-  // stecken). Echter Verbund → beim ERSTAUFRUF alle TVs collapsed (mehr
+  // Detailseite leer, weil die Stammdaten bei pseudo erst im TV-Block stecken —
+  // dort per `zeigeEckdaten`). Echter Verbund → beim ERSTAUFRUF alle TVs collapsed (mehr
   // Uebersicht beim ersten Blick); der gezielt angeklickte TV
   // (`initialExpandedTvAz`) wird nicht vorab aufgeklappt.
   const [expandedTvAz, setExpandedTvAz] = useState<string | null>(() =>
@@ -367,7 +367,7 @@ export function VerbundDetail({
         <div className={READ_COL}>
           {expandedTvAz ? (
             <div className="mb-6">
-              <TvDetailBlock aktenzeichen={expandedTvAz} onOpenAntrag={onOpenAntrag} />
+              <TvDetailBlock aktenzeichen={expandedTvAz} zeigeEckdaten onOpenAntrag={onOpenAntrag} />
             </div>
           ) : null}
         </div>

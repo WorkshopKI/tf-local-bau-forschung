@@ -1,9 +1,11 @@
 /**
- * Kopier-Icon für den Sektionskopf „Verbundpartner und Teilvorhaben": legt alle
- * Teilvorhaben-Titel (eine Zeile je TV) als Text in die Zwischenablage — die
- * Titel werden oft in andere Dokumente übernommen. `navigator.clipboard` läuft
- * unter `file://` (Secure Context, vgl. Pitfall #6/#7); Async-Aktion über
- * `useAsyncAction` (Pitfall #15). Rendert nichts, wenn kein Titel vorliegt.
+ * Kopier-Icon für Teilvorhaben-Titel — die werden oft in andere Dokumente
+ * übernommen. Zwei Einsatzorte: im Sektionskopf „Verbundpartner und
+ * Teilvorhaben" für ALLE Titel (eine Zeile je TV) und in der TV-Zeile für den
+ * EINEN Titel dieses Teilvorhabens (dort auch der visuell abgeschnittene Teil).
+ * `navigator.clipboard` läuft unter `file://` (Secure Context, vgl. Pitfall
+ * #6/#7); Async-Aktion über `useAsyncAction` (Pitfall #15). Rendert nichts,
+ * wenn kein Titel vorliegt.
  */
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
@@ -28,10 +30,13 @@ export function TvTitelCopyButton({
 
   if (titel.length === 0) return null;
 
+  // stopPropagation: in der TV-Zeile sitzt der Button INNERHALB der klickbaren
+  // Zeile — ohne das würde Kopieren zusätzlich auf-/zuklappen (Präzedenz:
+  // components/ui/RowAction.tsx). Im Sektionskopf ist es folgenlos.
   return (
     <button
       type="button"
-      onClick={() => copy.run()}
+      onClick={e => { e.stopPropagation(); copy.run(); }}
       title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : title}
       aria-label={title}
       className="shrink-0 p-1 rounded-[var(--tf-radius)] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] cursor-pointer transition-colors"

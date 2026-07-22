@@ -7,17 +7,22 @@ import { FieldHistoryModal } from './FieldHistoryModal';
 import { AntragDokumenteSection } from './AntragDokumenteSection';
 import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
 import { EckdatenCard } from './EckdatenCard';
-import { KlassifikationPills } from './KlassifikationPills';
 
 interface Props {
   aktenzeichen: string;
+  /** Eckdaten-Karte (Antragsteller + Branche/Foerdergeber + waehlbare Felder)
+   *  mitrendern. Default `false`: im Verbund-Kontext stehen dieselben Werte
+   *  bereits im Verbund-Kopf und in der Sektion „Antragsdaten" darueber. Nur
+   *  der Pseudo-Verbund (eigenstaendiger Antrag) setzt die Prop — dort gibt es
+   *  keine „Antragsdaten"-Sektion, die Karte ersetzt also nichts. */
+  zeigeEckdaten?: boolean;
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
 /**
  * Inline TV-Detail-Block fuer die zusammengefuehrte Verbund/TV-Ansicht.
- * Rendert die TV-spezifischen Sections (Eckdaten + Klassifikation + AlleFelder
- * + Netzwerk + Dokumente) ohne eigenes Panel-Frame — der Container
+ * Rendert die TV-spezifischen Sections (AlleFelder + Netzwerk + Dokumente,
+ * optional Eckdaten) ohne eigenes Panel-Frame — der Container
  * (`VerbundDetail`) stellt das Frame.
  *
  * Bewusst NICHT enthalten:
@@ -26,8 +31,12 @@ interface Props {
  *  - Titel-h1 + Verbund-Banner (gehoert zum Verbund-Header oben)
  *  - Kurzbeschreibung (`vb_inhalt`) — rendert die `VerbundDetail` ganz oben
  *    aus dem Lead-TV, um Duplikation zu vermeiden.
+ *  - Eckdaten-Karte im Verbund-Kontext (Dopplung zu Kopf + „Antragsdaten";
+ *    per `zeigeEckdaten` nur beim eigenstaendigen Antrag)
+ *  - Klassifikations-Pills (entfernt: die Feldnamen-Heuristik lieferte auf
+ *    echten Daten nichtssagende Ein-Buchstaben-Tags)
  */
-export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.ReactElement {
+export function TvDetailBlock({ aktenzeichen, zeigeEckdaten = false, onOpenAntrag }: Props): React.ReactElement {
   const storage = useStorage();
   const [antrag, setAntrag] = useState<Antrag | null>(null);
   const [historyCounts, setHistoryCounts] = useState<Record<string, number>>({});
@@ -85,13 +94,11 @@ export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.Reac
 
   return (
     <>
-      <EckdatenCard antrag={antrag} />
+      {zeigeEckdaten ? <EckdatenCard antrag={antrag} /> : null}
 
-      <SectionDivider>
-        <KlassifikationPills antrag={antrag} />
-      </SectionDivider>
-
-      <SectionDivider>
+      {/* Ohne Eckdaten-Karte ist „Alle Felder" die erste Sektion — dann keine
+          fuehrende Trennlinie (die haengt sonst am oberen Rand des Blocks). */}
+      <SectionDivider ohneTrennlinie={!zeigeEckdaten}>
         <AlleFelderSection
           groups={groups}
           schemas={schemas}
@@ -118,11 +125,15 @@ export function TvDetailBlock({ aktenzeichen, onOpenAntrag }: Props): React.Reac
   );
 }
 
-function SectionDivider({ children }: { children: React.ReactNode }): React.ReactElement {
+function SectionDivider({ children, ohneTrennlinie }: {
+  children: React.ReactNode;
+  /** Erste Sektion des Blocks: Abstand ja, Trennlinie nein. */
+  ohneTrennlinie?: boolean;
+}): React.ReactElement {
   return (
     <div
-      className="mt-6 pt-6 empty:hidden empty:mt-0 empty:pt-0"
-      style={{ borderTop: '0.5px solid var(--tf-border)' }}
+      className={`${ohneTrennlinie ? '' : 'mt-6 pt-6 '}empty:hidden empty:mt-0 empty:pt-0`}
+      style={ohneTrennlinie ? undefined : { borderTop: '0.5px solid var(--tf-border)' }}
     >
       {children}
     </div>

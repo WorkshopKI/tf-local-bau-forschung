@@ -3,6 +3,11 @@
  * Journey-Paket 2 Phase 7). Expandable Rows mit Inline-`TvDetailBlock`; Rolle
  * (Konsortialführer/Verbundpartner) per Netzwerk-Heuristik. Reiner Präsentations-
  * baustein — der offene TV + die Toggles kommen vom Aufrufer.
+ *
+ * Die Zeile ist bewusst KEIN `<button>`, sondern das im Repo etablierte
+ * `role="button"`-Div (vgl. `plugins/anfragen/AnfrageListe.tsx`): in einem
+ * Button liesse sich der TV-Titel nicht mit der Maus markieren, und der
+ * Kopier-Button daneben waere ein verschachteltes `<button>`.
  */
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +15,7 @@ import type { Antrag } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { isNetzwerkLead } from './netzwerk';
 import { TvDetailBlock } from './TvDetailBlock';
+import { TvTitelCopyButton } from './TvTitelCopyButton';
 
 /** Zuwendung-CSV-Spalten folgen später; bis dahin Placeholder. */
 const ZUWENDUNG_PLACEHOLDER = 'wird noch ergänzt';
@@ -24,6 +30,17 @@ function strOrNull(v: unknown): string | null {
 function sameText(a: string, b: string): boolean {
   const n = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ');
   return n(a) === n(b);
+}
+
+/** Läuft gerade eine Text-Markierung? Dann darf der Maus-Klick, mit dem die
+ *  Markierung endet, die Zeile NICHT auf-/zuklappen (sonst ist der Titel
+ *  praktisch nicht markierbar). */
+function hatTextMarkierung(): boolean {
+  try {
+    return (window.getSelection()?.toString() ?? '').trim().length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /** TV-Rolle für die Anzeige. Heuristik: Netzwerk-Lead (Suffix 01/02 + vb_phase
@@ -66,11 +83,18 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
         const isExpanded = expandedTvAz === tv.aktenzeichen;
         return (
           <div key={tv.aktenzeichen}>
-            <button
-              type="button"
-              onClick={() => onToggle(tv.aktenzeichen)}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { if (!hatTextMarkierung()) onToggle(tv.aktenzeichen); }}
+              onKeyDown={e => {
+                // Nur die Zeile selbst — sonst würde Space auf dem fokussierten
+                // Kopier-Button zusätzlich auf-/zuklappen.
+                if (e.target !== e.currentTarget) return;
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(tv.aktenzeichen); }
+              }}
               aria-expanded={isExpanded}
-              className={`w-full text-left rounded-[var(--tf-radius)] px-3 py-2 transition-colors ${
+              className={`group w-full text-left rounded-[var(--tf-radius)] px-3 py-2 transition-colors cursor-pointer ${
                 isExpanded ? 'bg-[var(--tf-primary)]/5' : 'hover:bg-[var(--tf-bg-secondary)]'
               }`}
               style={{
@@ -88,11 +112,19 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
                     {tvAntragsteller}
                   </div>
                   {tvTitel ? (
-                    <div
-                      className="text-[12.5px] text-[var(--tf-text-secondary)] leading-snug mt-0.5 line-clamp-2"
-                      title={tvTitel}
-                    >
-                      {tvTitel}
+                    // Titel: markierbar (Zeile ist kein Button) + Kopier-Icon
+                    // bei Hover/Fokus — kopiert den VOLLEN Titel, auch den von
+                    // `line-clamp-2` abgeschnittenen Teil.
+                    <div className="flex items-start gap-1 mt-0.5">
+                      <span
+                        className="min-w-0 text-[12.5px] text-[var(--tf-text-secondary)] leading-snug line-clamp-2"
+                        title={tvTitel}
+                      >
+                        {tvTitel}
+                      </span>
+                      <span className="shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <TvTitelCopyButton titel={[tvTitel]} title="Teilvorhaben-Titel kopieren" />
+                      </span>
                     </div>
                   ) : null}
                   <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
@@ -112,7 +144,7 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 </span>
               </div>
-            </button>
+            </div>
             {isExpanded ? (
               <div className="mt-3 mb-3 ml-3 pl-4 pb-2" style={{ borderLeft: '2px solid var(--tf-primary)' }}>
                 <TvDetailBlock aktenzeichen={tv.aktenzeichen} onOpenAntrag={onOpenAntrag} />

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.293.0 — Teilvorhaben-Zeile: Eckdaten und Klassifikation raus, Titel kopierbar (Juli 2026)
+
+MINOR — Der aufgeklappte Teilvorhaben-Block zeigte eine Eckdaten-Karte, deren Werte (Antragsteller, VB-Phase, Unterprogramm, Antragsdatum) schon im Verbund-Kopf und in „Antragsdaten" stehen, plus Klassifikations-Pills, die per Feldnamen-Heuristik auf echten Daten nichtssagende Ein-Buchstaben-Tags produzierten. Gleichzeitig war der TV-Titel — der oft in andere Dokumente übernommen wird — weder markierbar noch einzeln kopierbar, weil die ganze Zeile ein `<button>` war.
+
+- **Eckdaten-Karte** im Verbund-Kontext entfernt; nur der eigenständige Antrag ohne Verbund setzt noch `zeigeEckdaten` ([TvDetailBlock.tsx](src/plugins/antraege/TvDetailBlock.tsx), [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)).
+- **Klassifikations-Pills** ersatzlos gestrichen (`KlassifikationPills.tsx` gelöscht).
+- TV-Zeile ist jetzt das `role="button"`-Div statt `<button>` → **Titel mit der Maus markierbar**; Selektions-Guard verhindert das Zuklappen beim Loslassen ([TeilvorhabenListe.tsx](src/plugins/antraege/TeilvorhabenListe.tsx)).
+- **Kopier-Icon je TV-Zeile** (Hover/Fokus) legt den vollen Titel in die Zwischenablage — auch den von `line-clamp-2` abgeschnittenen Teil ([TvTitelCopyButton.tsx](src/plugins/antraege/TvTitelCopyButton.tsx), jetzt mit `stopPropagation`).
+- Kontext-Doc der Bildschirmseite nachgezogen ([antraege.md](docs/feedback-kontext/antraege.md)).
+
 ### v2.292.1 — Feedback-Titel wird nicht mehr abgeschnitten (Juli 2026)
 
 PATCH — Lange Feedback-Titel waren doppelt gekürzt: in der Board-Liste einzeilig mit „…" (plus 90-Zeichen-Kappung), im Detail bei 140 Zeichen. Der Nutzer konnte seinen eigenen Titel nicht zu Ende lesen.
