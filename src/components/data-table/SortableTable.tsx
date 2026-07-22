@@ -1,36 +1,42 @@
 /**
- * Sortierbare Tabelle mit optionalem Spalten-Resize + responsive-Layout.
+ * Sortierbare Tabelle mit Spalten-Resize + responsivem Layout.
  *
- * Layout-Modus: `table-layout: fixed` + `width: 100%`. Der Browser
- * verteilt die in `<col width>` gesetzten Pixel-Widths proportional auf
- * die verfuegbare Container-Breite. Folge: bei schmalerem Browser
- * schrumpfen alle Spalten anteilig und Zell-Inhalte mit
- * `whiteSpace: normal` (Default) brechen um statt weggekuerzt zu werden.
+ * `table-layout: fixed`; die `<col>` werden IMMER als Prozent ihrer Pixel-Summe
+ * gerendert (Begründung + Messung: `tableSizing.ts`). Die bevorzugten Breiten
+ * bleiben Pixel im State, nur das Rendern rechnet um. Drei Größen-Modi:
  *
- * Spalten mit `wrap: false` (explizit) zeigen weiter ellipsis statt
- * umbrechen — fuer kompakte Mono-Felder, Buttons, Indikatoren.
+ * | Modus | Wann | Tabelle |
+ * |---|---|---|
+ * | **Einpassen** (Default) | kein `fitContentWidth`, keine gepinnte Breite | Wunschbreite, schrumpft per `flex-shrink` auf den Container, Boden `floorWidth` — darunter Scroll |
+ * | **Gepinnt** | `totalWidth` gesetzt (Griff gezogen) | exakt diese Pixelbreite, Spalten skalieren proportional |
+ * | **Scroll** | `fitContentWidth` | Wunschbreite in Pixeln, horizontaler Scroll statt Stauchen |
  *
- * Resize ist opt-in: nur wenn `onColumnWidthChange` gesetzt ist, rendert
- * der Header Drag-Handles. Die Live-Mutation laeuft direkt am DOM
- * (`<col ref>.style.width`), kein React-Re-Render pro Maus-Frame. Erst
- * Mouseup commitet den finalen Wert via `onColumnWidthChange` (das in
- * `useColumnWidths` State + localStorage schreibt).
+ * Der Wrapper muss zum Modus passen: im Einpass-Modus füllt die Flex-Zeile den
+ * Container (`w-full`), in den Scroll-Modi ist sie `w-max` und darf überlaufen.
+ * `min(100%, …)` darf in der `w-max`-Zeile NICHT vorkommen — die Prozentangabe
+ * löst dort zirkulär auf (gemessen: Zeile wächst auf ~1.000.000px).
  *
- * Fuer komplexere Tabellen mit Filter-Dropdowns + horizontal-scroll
- * (Suche-Plugin) gibt es eine eigene Implementation —
- * `src/plugins/suche/SearchResultsTable.tsx`. Diese hier ist die schlanke
- * Variante.
+ * Spalten mit `wrap: false` (explizit) zeigen weiter ellipsis statt umbrechen —
+ * fuer kompakte Mono-Felder, Buttons, Indikatoren.
+ *
+ * Resize ist opt-in: nur wenn `onColumnWidthChange` gesetzt ist, rendert der
+ * Header Drag-Handles. Die Live-Mutation laeuft direkt am DOM (`<col
+ * ref>.style.width`), kein React-Re-Render pro Maus-Frame. Erst Mouseup
+ * commitet den finalen Wert via `onColumnWidthChange` (das in `useColumnWidths`
+ * State + localStorage schreibt).
+ *
+ * Fuer komplexere Tabellen mit Filter-Dropdowns + Virtualisierung (Suche-Plugin)
+ * gibt es eine eigene Implementation — `src/plugins/suche/SearchResultsTable.tsx`,
+ * das Vorbild fuer die Prozent-Spalten. Diese hier ist die schlanke Variante.
  */
 import { Fragment, useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { SortIcon } from './SortIcon';
 import { ColumnFilterDropdown } from './ColumnFilterDropdown';
+import { computeTableSizing, RESPONSIVE_MIN_WIDTH } from './tableSizing';
 import type { SortDirection, SortableColumn } from './types';
 
 const DEFAULT_MIN_COLUMN_WIDTH = 60;
-/** Fallback-Breite für Spalten ohne explizite `width`, wenn `fitContentWidth`
- *  aktiv ist (die Pixel-Summe braucht für jede Spalte einen Wert). */
-const DEFAULT_FIT_WIDTH = 120;
 /** Breite des „Gesamt-Breite"-Griffs (px). Muss mit der `w-[12px]`-Klasse des
  *  Griff-Elements übereinstimmen — im Default-Füll-Modus lässt die Tabelle per
  *  `calc(100% - Npx)` genau diesen Platz frei, sonst entstünde ein Phantom-Scroll. */
@@ -93,15 +99,9 @@ export interface SortableTableProps<T> {
   minTotalWidth?: number;
   /** Obergrenze der Gesamtbreite beim Drag. Default 6000px. */
   maxTotalWidth?: number;
-}
-
-function effectiveWidth<T>(
-  c: SortableColumn<T>,
-  overrides: Record<string, number> | undefined,
-): number | undefined {
-  const o = overrides?.[c.key];
-  if (typeof o === 'number' && Number.isFinite(o)) return o;
-  return c.width;
+  /** Untergrenze beim responsiven Stauchen (Einpass-Modus). Darunter greift der
+   *  horizontale Scrollbalken. Default `RESPONSIVE_MIN_WIDTH` (720px). */
+  responsiveMinWidth?: number;
 }
 
 export function SortableTable<T>({
@@ -127,6 +127,7 @@ export function SortableTable<T>({
   onTotalWidthChange,
   minTotalWidth = 360,
   maxTotalWidth = 6000,
+  responsiveMinWidth = RESPONSIVE_MIN_WIDTH,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   // „Gesamt-Breite"-Griff: `enabled` = Griff wird gerendert; `active` = eine
@@ -136,19 +137,13 @@ export function SortableTable<T>({
   const totalWidthActive = totalWidthEnabled
     && typeof totalWidth === 'number'
     && Number.isFinite(totalWidth);
-  // Resizbare Tabellen rendern content-width (wie `SearchResultsTable`): die
-  // Tabelle ist so breit wie die Summe der Spaltenbreiten. Sonst streckt
-  // `width:100%` die Spalten proportional, `th.offsetWidth` > `<col>`-Breite,
-  // und der Resize-Seed überschätzt → Sprung beim Greifen (Handle driftet).
-  // Proportional-Skalierung des Gesamt-Griffs braucht Pixel-Weights je Spalte
-  // (die `<col>`-Breiten wirken als Verteilungs-Gewichte) → content-width impliziert.
-  const contentWidth = fitContentWidth || resizeEnabled || totalWidthEnabled;
-  // Pixel-Gesamtbreite (Summe der effektiven Spaltenbreiten) für den
-  // content-width-Modus. Spalten ohne explizite Breite zählen mit
-  // `DEFAULT_FIT_WIDTH`.
-  const totalFitWidth = contentWidth
-    ? columns.reduce((s, c) => s + (effectiveWidth(c, columnWidths) ?? DEFAULT_FIT_WIDTH), 0)
-    : 0;
+  // Prozent-Breiten der `<col>` + Wunsch-/Bodenbreite der Tabelle (siehe
+  // `tableSizing.ts`). Die Pixel-Summe ist die Wunschbreite, nicht die
+  // erzwungene — nur so kann die Tabelle unter ihre Spaltensumme schrumpfen.
+  const sizing = useMemo(
+    () => computeTableSizing(columns, columnWidths, { responsiveMin: responsiveMinWidth }),
+    [columns, columnWidths, responsiveMinWidth],
+  );
   const filtersEnabled = onColumnFilterChange !== undefined
     && columnFilters !== undefined
     && filterCandidates !== undefined;
@@ -177,31 +172,38 @@ export function SortableTable<T>({
       const startWidth = th ? th.offsetWidth : 100;
       const startX = e.clientX;
       let latestWidth = startWidth;
+      // Im gestauchten Zustand ist die gerenderte Spalte schmaler als ihre
+      // gespeicherte Wunschbreite. Gezogen wird in GERENDERTEN Pixeln (der Griff
+      // folgt dem Cursor), committet wird zurückgerechnet — sonst würde jedes
+      // Ziehen die Wunschbreite still auf das gestauchte Maß herabsetzen und die
+      // Spalte gegenüber ihren ungezogenen Nachbarn schrumpfen.
+      const renderedWidth = tableRef.current?.offsetWidth ?? sizing.desiredWidth;
+      const scale = sizing.desiredWidth > 0 ? renderedWidth / sizing.desiredWidth : 1;
 
       function onMove(ev: MouseEvent): void {
         const next = Math.max(minColumnWidth, startWidth + (ev.clientX - startX));
         latestWidth = next;
-        const col = colRefs.current.get(key);
-        if (col) col.style.width = `${next}px`;
-        // Bei gepinnter Gesamtbreite (Griff aktiv) NICHT die Tabelle mitwachsen
-        // lassen — sie bleibt auf `totalWidth`, `table-layout:fixed` verteilt die
-        // geänderten `<col>`-Gewichte proportional darin (Spalte breiter = mehr
-        // Anteil, Nachbarn geben ab). Sonst (Default/content-width) wächst die
-        // Tabelle mit der Spalte + scrollt.
+        // Live-Vorschau: ALLE `<col>` neu als Prozent rechnen (die gezogene
+        // Spalte mit ihrer Wunschbreite). Aus den Props gerechnet, nie aus dem
+        // DOM — `parseFloat('14%')` läse 14 als Pixel.
+        const live = computeTableSizing(columns, columnWidths, {
+          responsiveMin: responsiveMinWidth,
+          draggedKey: key,
+          draggedWidth: scale > 0 ? next / scale : next,
+        });
+        for (const c of columns) {
+          const col = colRefs.current.get(c.key);
+          const pct = live.colPercent[c.key];
+          if (col && pct) col.style.width = pct;
+        }
+        // Bei gepinnter Gesamtbreite bleibt die Tabelle auf `totalWidth` — die
+        // geänderten Prozent-Gewichte verteilen sich darin (Spalte breiter =
+        // Nachbarn geben ab). Sonst wächst die Wunschbreite mit.
         if (totalWidthActive) return;
-        // Tabelle mit der Spalte mitwachsen lassen (content-width): sonst
-        // staucht `table-layout:fixed` bei fixer Tabellenbreite die Nachbar-
-        // spalten, statt horizontal zu scrollen. Summe aus den aktuellen
-        // `<col>`-Inline-Styles (Fallback: effektive Breite aus den Props).
         const table = tableRef.current;
         if (table) {
-          let sum = 0;
-          for (const c of columns) {
-            const ref = colRefs.current.get(c.key);
-            const px = ref ? parseFloat(ref.style.width) : NaN;
-            sum += Number.isFinite(px) ? px : (effectiveWidth(c, columnWidths) ?? DEFAULT_FIT_WIDTH);
-          }
-          table.style.width = `${sum}px`;
+          table.style.width = `${live.desiredWidth}px`;
+          if (!fitContentWidth) table.style.minWidth = `${live.floorWidth}px`;
         }
       }
       function onUp(): void {
@@ -209,14 +211,17 @@ export function SortableTable<T>({
         document.removeEventListener('mouseup', onUp);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        onColumnWidthChange?.(key, latestWidth);
+        onColumnWidthChange?.(key, Math.round(scale > 0 ? latestWidth / scale : latestWidth));
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [resizeEnabled, minColumnWidth, onColumnWidthChange, columns, columnWidths, totalWidthActive],
+    [
+      resizeEnabled, minColumnWidth, onColumnWidthChange, columns, columnWidths,
+      totalWidthActive, sizing, responsiveMinWidth, fitContentWidth,
+    ],
   );
 
   // Gesamt-Breite-Griff: pinnt die Tabelle live auf eine explizite Pixelbreite;
@@ -232,11 +237,13 @@ export function SortableTable<T>({
       const startWidth = table ? table.offsetWidth : minTotalWidth;
       const startX = e.clientX;
       let latestWidth = startWidth;
-      // Sofort auf explizite Breite umstellen (auch aus dem Default-Füll-Modus):
-      // minWidth:100% entfernen, sonst kann die Tabelle nicht unter die
-      // Container-Breite schrumpfen.
+      // Sofort auf explizite Breite umstellen (auch aus dem Einpass-Modus):
+      // `min-width` weg, sonst kann die Tabelle nicht unter ihren Boden
+      // schrumpfen; `flex: 0 0 auto`, sonst staucht die Flex-Zeile sie beim
+      // Verbreitern wieder auf die Container-Breite zurück.
       if (table) {
         table.style.minWidth = '0px';
+        table.style.flex = '0 0 auto';
         table.style.width = `${startWidth}px`;
       }
       function onMove(ev: MouseEvent): void {
@@ -259,27 +266,32 @@ export function SortableTable<T>({
     [onTotalWidthChange, minTotalWidth, maxTotalWidth],
   );
 
-  // Tabellen-Style je Modus:
-  // - gepinnt (Griff aktiv): explizite Pixelbreite, flex-none → die Flex-Row
-  //   lässt sie über den Container hinaus wachsen (Scroll) bzw. links stehen
-  //   (Rest-Weißraum), Spalten skalieren proportional.
-  // - Griff aktiv, aber nicht gepinnt (Default-Füllen): wie bisher füllen, aber
-  //   per `calc(100% - GRIP)` genau den Griff-Platz frei lassen (kein Phantom-
-  //   Scroll), flex-none im Flex-Row-Wrapper.
-  // - Griff nicht aktiv (andere Caller): bisheriges Verhalten unverändert.
+  // Tabellen-Style je Modus (siehe Dateikopf):
+  // - gepinnt: exakte Pixelbreite, kein Schrumpfen → wächst über den Container
+  //   hinaus (Scroll) bzw. steht links (Rest-Weißraum).
+  // - `fitContentWidth`: Wunschbreite in Pixeln, horizontaler Scroll statt
+  //   Stauchen; `min-width` füllt den Container, wenn die Spalten schmaler sind
+  //   (bei aktivem Griff per `calc` um dessen Breite reduziert, sonst entstünde
+  //   ein Phantom-Scroll).
+  // - Einpassen (Default): Wunschbreite, aber `flex-shrink` bis zum Boden.
+  const scrollMode = totalWidthActive || fitContentWidth;
   const tableStyle: CSSProperties = totalWidthActive
     ? { tableLayout: 'fixed', width: `${totalWidth}px`, flex: '0 0 auto', borderCollapse: 'collapse' }
-    : contentWidth
+    : fitContentWidth
       ? {
           tableLayout: 'fixed',
-          width: `${totalFitWidth}px`,
-          minWidth: totalWidthEnabled
-            ? `calc(100% - ${TOTAL_GRIP_WIDTH}px)`
-            : (fitContentWidth ? '100%' : undefined),
-          flex: totalWidthEnabled ? '0 0 auto' : undefined,
+          width: `${sizing.desiredWidth}px`,
+          minWidth: totalWidthEnabled ? `calc(100% - ${TOTAL_GRIP_WIDTH}px)` : '100%',
+          flex: '0 0 auto',
           borderCollapse: 'collapse',
         }
-      : { tableLayout: 'fixed', width: '100%', borderCollapse: 'collapse' };
+      : {
+          tableLayout: 'fixed',
+          width: `${sizing.desiredWidth}px`,
+          minWidth: `${sizing.floorWidth}px`,
+          flex: '0 1 auto',
+          borderCollapse: 'collapse',
+        };
 
   // Der Griff — immer ein Flex-Sibling am rechten Tabellenrand, damit er dem
   // Cursor beim Ziehen folgt (in beiden Modi). Ziehen = Gesamtbreite;
@@ -311,10 +323,9 @@ export function SortableTable<T>({
       >
         <colgroup>
           {columns.map(c => {
-            const w = effectiveWidth(c, columnWidths);
-            // Im content-width-Modus braucht jede Spalte eine px-Breite (sonst
-            // stimmt die Summe nicht mit der tatsächlichen Tabellenbreite überein).
-            const colWidth = contentWidth ? (w ?? DEFAULT_FIT_WIDTH) : w;
+            // Prozent statt Pixel — sonst ist die Spalten-Summe ein harter Boden
+            // für die Tabellenbreite (siehe `tableSizing.ts`).
+            const colWidth = sizing.colPercent[c.key];
             return (
               <col
                 key={c.key}
@@ -322,7 +333,7 @@ export function SortableTable<T>({
                   if (el) colRefs.current.set(c.key, el);
                   else colRefs.current.delete(c.key);
                 }}
-                style={{ width: colWidth !== undefined ? `${colWidth}px` : undefined }}
+                style={{ width: colWidth }}
               />
             );
           })}
@@ -486,30 +497,19 @@ export function SortableTable<T>({
       </table>
   );
 
-  // Griff deaktiviert (andere Caller): exakt bisheriges Markup.
-  if (!totalWidthEnabled) {
-    return (
-      <div
-        className="w-full overflow-x-auto rounded-[12px]"
-        style={{ border: '0.5px solid var(--tf-border)' }}
-      >
-        {tableEl}
-      </div>
-    );
-  }
-
-  // Griff aktiv: Tabelle + Griff in einer Flex-Row (`min-w-full` = mind. Container-
-  // breit). Gepinnt → Tabelle wächst über den Container hinaus (Scroll) bzw.
-  // steht links (Rest-Weißraum). Default → Tabelle füllt via `calc`-minWidth,
-  // Griff sitzt bündig am rechten Tabellenrand.
+  // Tabelle (+ optionaler Griff) in einer Flex-Zeile. Die Zeile MUSS zum Modus
+  // passen: in den Scroll-Modi `w-max` (darf über den Container hinauswachsen),
+  // im Einpass-Modus `w-full min-w-0` (die Tabelle schrumpft per `flex-shrink`
+  // hinein). Umgekehrt gilt: in einer `w-max`-Zeile darf die Tabellenbreite nie
+  // prozentual sein — das löst zirkulär auf und bläst die Zeile auf.
   return (
     <div
       className="w-full overflow-x-auto rounded-[12px]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div className="flex items-stretch w-max min-w-full">
+      <div className={`flex items-stretch ${scrollMode ? 'w-max min-w-full' : 'w-full min-w-0'}`}>
         {tableEl}
-        {renderTotalGrip()}
+        {totalWidthEnabled ? renderTotalGrip() : null}
       </div>
     </div>
   );

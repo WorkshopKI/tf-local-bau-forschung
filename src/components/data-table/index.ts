@@ -15,3 +15,11 @@ export { ColumnPicker, type ColumnPickerProps } from './ColumnPicker';
 export { SortableTable, type SortableTableProps } from './SortableTable';
 export { ColumnFilterDropdown, type ColumnFilterDropdownProps } from './ColumnFilterDropdown';
 export { useColumnFilters, type UseColumnFiltersResult } from './useColumnFilters';
+export {
+  computeTableSizing,
+  effectiveColumnWidth,
+  DEFAULT_COLUMN_WIDTH,
+  RESPONSIVE_MIN_WIDTH,
+  type TableSizing,
+  type TableSizingOptions,
+} from './tableSizing';

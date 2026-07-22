@@ -28,9 +28,11 @@
 ### Verbesserungen
 - Die Liste der Qualitätsregeln ist deutlich kürzer und enthält nur noch Regeln, die in mehreren Skills gelten. Mehrfach vorhandene Einträge („Satzanzahl" gleich dreimal) und Überbleibsel, die zu keinem Skill mehr gehörten, sind verschwunden.
 - Detailansichten schließen jetzt über das X oben rechts — wie überall sonst in der App.
+- Tabellen passen sich der Fensterbreite an, statt rechts hinauszulaufen: die Spalten werden gemeinsam schmaler, und erst wenn es wirklich zu eng wird, erscheint der Scrollbalken. Das gilt für Skills, Qualitätsregeln, Anfragen und das Feedback-Board; die Förderanträge behalten ihr gewohntes Verhalten mit vielen Spalten.
 
 ### Bugfixes
 - Beim Anwählen einer Regel blieb rechts der zuvor geöffnete Skill stehen. Jetzt wechselt die Detailansicht wie erwartet.
+- Der Breiten-Griff am rechten Tabellenrand zog die Tabelle bisher nur breiter, nie schmaler — jetzt wirkt er in beide Richtungen.
 
 ## v2.295 — 2026-07
 
