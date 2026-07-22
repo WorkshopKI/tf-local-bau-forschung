@@ -32,14 +32,21 @@ import {
 } from './store';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
-import { istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, vbHashFuer, type BausteinResult } from './bausteine';
+import {
+  istAufbereitungBausteinFreigeschaltet, loescheBausteinCaches, recherchePromptCacheKey, vbHashFuer,
+  type BausteinResult,
+} from './bausteine';
 import { leseGecachteBausteine } from './baustein-rehydrierung';
 import { computeAspekteBaustein, type AspektMapping } from './aspekte';
 import { computeSteckbriefBaustein, type SteckbriefDaten } from './steckbrief';
 import { computeZahlenBaustein, type ZahlenDaten } from './zahlen';
 import { computeGlossarBaustein, type GlossarDaten } from './glossar';
 import { computeVerwertungBaustein, type VerwertungDaten } from './verwertung';
-import { computeRecherchePromptBaustein, type RecherchePromptDaten } from './recherche-prompt';
+import {
+  computeRecherchePromptBaustein, normalisiereAuftragstext, parseRecherchePrompt, pruefeBearbeitetenPrompt,
+  type RecherchePromptDaten,
+} from './recherche-prompt';
+import { RECHERCHE_SCHEMA_VERSION } from './recherche-schema';
 import { strukturiereImport } from './recherche-import';
 import type { AufbereitungRun, ExterneRecherche } from './types';
 
@@ -90,6 +97,10 @@ export interface UseAufbereitungResult {
   verwertung: BausteinUiState<VerwertungDaten>;
   /** Deep-Research-Prompt-Baustein (Paket 5) — läuft ZUERST; agentische Variante + Leak-Check. */
   recherchePrompt: BausteinUiState<RecherchePromptDaten>;
+  /** Übernimmt einen von Hand bearbeiteten DR-Auftragstext (erneuter Leak-Check, siehe unten). */
+  speichereRecherchePrompt: UseAsyncActionResult<[string]>;
+  /** Stellt die ursprüngliche KI-Fassung des DR-Auftrags wieder her (nur nach einer Bearbeitung). */
+  verwerfeRecherchePromptEdit: UseAsyncActionResult<[]>;
   /** Korpus-Volltext (VB + narrative Zusatzdokumente) für Fundstellen-Auszüge +
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
@@ -401,6 +412,67 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
+  /**
+   * Der aktuell angezeigte DR-Auftragstext als Ausgangspunkt einer Bearbeitung: die
+   * geparsten Daten, sonst (degradiert, nicht gecacht) der Prompt aus der Roh-Antwort.
+   */
+  const recherchePromptText = (): string =>
+    recherchePrompt.daten?.prompt
+    ?? (recherchePrompt.rohtext ? parseRecherchePrompt(recherchePrompt.rohtext)?.prompt ?? '' : '');
+
+  /**
+   * Übernimmt EINE Auftrags-Fassung (bearbeitet oder zurückgeholt). Der Text verlässt
+   * beim Kopieren den geschützten Bereich, also läuft der deterministische Leak-Check
+   * (DSGVO-Schicht 2) auf JEDEM Weg, der eine Fassung setzt — und bei einem Treffer wird
+   * sie NICHT gecacht (dieselbe Invariante wie im `verdaechtig`-Guard des KI-Laufs):
+   * sie bleibt nur für diese Sitzung sichtbar und gesperrt, bis der Prüfer die Angabe
+   * entfernt. Sonst in den Baustein-Cache — der IST die Persistenz der KI-Anteile,
+   * deshalb überlebt eine Bearbeitung den Seitenwechsel über denselben
+   * Rehydrierungs-Pfad (kein zweiter Lesepfad, kein Merge).
+   */
+  const uebernimmRecherchePrompt = async (
+    aktCtx: AufbereitungContext, korpus: string, daten: RecherchePromptDaten,
+  ): Promise<void> => {
+    const { leaks } = pruefeBearbeitetenPrompt(daten.prompt, aktCtx.bekannteWerte ?? {});
+    if (leaks.length > 0) {
+      setRecherchePrompt({
+        status: 'degradiert', daten,
+        begruendung: `Identifizierende Angabe im Recherche-Prompt: ${leaks.join(', ')}`,
+      });
+      return;
+    }
+    const vbHash = vbHashFuer(korpus);
+    await storage.idb.set(recherchePromptCacheKey(aktCtx.key, vbHash), { vbHash, daten });
+    setRecherchePrompt({ status: 'ok', daten });
+  };
+
+  const speichereRecherchePrompt = useAsyncAction(async (neuerText: string) => {
+    if (!ctx) return;
+    const text = normalisiereAuftragstext(neuerText).trim();
+    if (!text) throw new Error('Der Auftragstext darf nicht leer sein.');
+    if (!vbMarkdown) throw new Error('Der Korpus ist noch nicht geladen — bitte die Seite neu öffnen.');
+    const vorher = recherchePrompt.daten;
+    await uebernimmRecherchePrompt(ctx, vbMarkdown, {
+      schemaVersion: vorher?.schemaVersion ?? RECHERCHE_SCHEMA_VERSION,
+      prompt: text,
+      bearbeitet: {
+        am: new Date().toISOString(),
+        // Die ERSTE KI-Fassung behalten — mehrfaches Bearbeiten überschreibt sie nicht.
+        kiOriginal: vorher?.bearbeitet?.kiOriginal ?? recherchePromptText(),
+      },
+    });
+  });
+
+  /** Stellt die ursprüngliche KI-Fassung wieder her (ohne neuen Lauf, mit Leak-Check). */
+  const verwerfeRecherchePromptEdit = useAsyncAction(async () => {
+    const original = recherchePrompt.daten?.bearbeitet?.kiOriginal;
+    if (!ctx || !vbMarkdown || !original) return;
+    await uebernimmRecherchePrompt(ctx, vbMarkdown, {
+      schemaVersion: recherchePrompt.daten?.schemaVersion ?? RECHERCHE_SCHEMA_VERSION,
+      prompt: original,
+    });
+  });
+
   /** Toleranter Import eines externen DR-Textes → `run.extern` (NIE in den VB-Korpus). */
   const fuegeExternHinzu = async (rohText: string, ausDatei: boolean, modellLabel?: string): Promise<void> => {
     if (!ctx || !run || !rohText.trim()) return;
@@ -447,5 +519,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, vbMarkdown, korpusMass, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
 }

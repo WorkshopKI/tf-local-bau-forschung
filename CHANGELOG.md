@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.300.0 — Deep-Research-Auftrag als Markdown-Vorschau, per Stift bearbeitbar (Juli 2026)
+
+MINOR — Der anonyme Deep-Research-Auftrag im Recherche-Tab stand als Textwand da, in der die Zeilenumbrüche als literale `\n` mitten im Satz klebten. Und obwohl die Seite zum Prüfen des Textes auffordert, war er nicht änderbar: fand der Leak-Check eine identifizierende Angabe, half nur ein kompletter KI-Neulauf mit ungewissem Ausgang.
+
+- Auftragstext erscheint als gerenderte Markdown-Vorschau (Gliederung, Listen) statt als Rohblock; kopiert wird weiterhin der Markdown-Quelltext ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
+- Neue Normalisierung `normalisiereAuftragstext` räumt doppelt escapte Umbrüche aus dem Modell-JSON — auch für bereits gecachte Aufträge ohne Neulauf ([recherche-prompt.ts](src/plugins/antraege/aufbereitung/recherche-prompt.ts)).
+- Stift-Bearbeitung des Auftrags über den geteilten Markdown-Editor mit Live-Vorschau, Strg+Enter übernimmt, Esc bricht ab.
+- Jede von Hand gesetzte Fassung läuft durch denselben Leak-Check: eine identifizierende Angabe bleibt gesperrt und ungespeichert, ein bereinigter Text ist sofort wieder kopierbar ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
+- Bearbeitete Fassungen überleben den Seitenwechsel und lassen sich per „Zurück zum KI-Text" verwerfen. Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
+
 ### v2.299.0 — Semikolon und Gedankenstrich in KI-Texten verboten (Juli 2026)
 
 MINOR — In den generierten Gutachten-Abschnitten tauchten regelmäßig Semikolons und Gedankenstriche mitten im Satz auf, typische LLM-Manier und im ZIM-Gutachten unerwünscht. Dagegen gab es bisher nichts: weder eine Prompt-Vorgabe noch einen Check nach dem Lauf.

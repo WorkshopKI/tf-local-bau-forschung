@@ -28,10 +28,40 @@ export interface RecherchePromptDaten {
   schemaVersion: number;
   /** Der vollständige Deep-Research-Auftragstext (zum Kopieren in externe Dienste). */
   prompt: string;
+  /**
+   * Gesetzt, sobald der Prüfer den Auftrag von Hand bearbeitet hat (additiv — alte
+   * Caches bleiben ladbar). `kiOriginal` trägt die ERSTE KI-Fassung, damit
+   * „Zurück zum KI-Text" ohne neuen Lauf geht; mehrfaches Bearbeiten überschreibt
+   * sie nicht.
+   */
+  bearbeitet?: { am: string; kiOriginal: string };
 }
 
 /** Ab dieser Länge gilt der erzeugte Prompt als brauchbar (sonst degradiert). */
 export const RECHERCHE_PROMPT_MIN_LEN = 300;
+
+// ---------------------------------------------------------------------------
+// Normalisierung
+// ---------------------------------------------------------------------------
+
+/**
+ * Macht literale Escape-Sequenzen im Auftragstext wieder zu echten Zeichen.
+ *
+ * Das Prompt-Template verlangt Zeilenumbrüche als `\n` IM JSON-String. Modelle
+ * escapen den Backslash dabei regelmäßig doppelt (`\\n`) — nach `JSON.parse`
+ * bleiben dann die zwei Zeichen `\` + `n` im Text stehen, und der Auftrag steht als
+ * eine Wand ohne Absätze und Listen da. Die Ersetzung läuft deshalb auf dem
+ * ANZEIGE-/Kopier-Pfad und beim Parsen.
+ *
+ * Idempotent: ein bereits normalisierter Text enthält keine solchen Sequenzen mehr
+ * und bleibt unverändert. Rein/Node-testbar.
+ */
+export function normalisiereAuftragstext(text: string): string {
+  return text
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t');
+}
 
 // ---------------------------------------------------------------------------
 // Prompt
@@ -72,10 +102,23 @@ Der Auftragstext ist mehrzeilig. Er steht als EIN JSON-String im Feld "prompt"; 
 export function parseRecherchePrompt(raw: string): RecherchePromptDaten | null {
   const obj = extractLastJsonObject(raw);
   if (!obj) return null;
-  const prompt = typeof obj.prompt === 'string' ? obj.prompt.trim() : '';
+  // Normalisieren VOR dem Leer-Check und vor dem Cachen: der gespeicherte Auftrag soll
+  // echte Umbrüche tragen (siehe `normalisiereAuftragstext`).
+  const prompt = typeof obj.prompt === 'string' ? normalisiereAuftragstext(obj.prompt).trim() : '';
   if (!prompt) return null;
   const schemaVersion = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : RECHERCHE_SCHEMA_VERSION;
   return { schemaVersion, prompt };
+}
+
+/**
+ * Prüft einen VON HAND bearbeiteten Auftragstext gegen dieselben Stammwerte wie der
+ * KI-erzeugte (dünne Hülle um `findeLeaks` — eine Quelle für die Leak-Regel). Leere
+ * Trefferliste = zum Kopieren freigegeben.
+ */
+export function pruefeBearbeitetenPrompt(
+  text: string, bekannteWerte: BekannteStammwerte,
+): { leaks: string[] } {
+  return { leaks: [...new Set(findeLeaks(text, bekannteWerte))] };
 }
 
 // ---------------------------------------------------------------------------

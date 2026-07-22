@@ -297,6 +297,8 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             importText={aufb.importTextRecherche}
             importDatei={aufb.importDateiRecherche}
             loescheImport={aufb.loescheExternRecherche}
+            speichereDrPrompt={aufb.speichereRecherchePrompt}
+            verwerfeDrPromptEdit={aufb.verwerfeRecherchePromptEdit}
           />
         ) : tab === 'fragen' ? (
           <FragenTab

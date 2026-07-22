@@ -1,8 +1,10 @@
 /**
  * Recherche-Tab (Paket 5). Vier Abschnitte:
  *  1. „Deep Research starten": der intern erzeugte, anonyme DR-Auftrag (Leak-geprüft) —
- *     Review-Hinweis + „Kopieren & ChatGPT/Claude/Mistral öffnen". Bei Leak-Degradation
- *     nur einsehbar (kein Copy).
+ *     als gerenderte Markdown-Vorschau, per Stift bearbeitbar, Review-Hinweis +
+ *     „Kopieren & ChatGPT/Claude/Mistral öffnen". Bei Leak-Degradation nur einsehbar
+ *     (kein Copy) — Bearbeiten bleibt offen, denn genau dort ist es der Rettungspfad:
+ *     Angabe entfernen → erneuter Leak-Check → wieder freigegeben.
  *  2. „Marktzugang des KMU" (kurator-gated, Default AUS): bewusst identifizierendes,
  *     deterministisches Template aus Stammdaten (kein LLM, kein VB-Inhalt) mit
  *     Bestätigung vor dem Kopieren + Run-Stempel.
@@ -12,14 +14,19 @@
  * DSGVO: externe Dienste erreicht ausschließlich der Nutzer per Zwischenablage +
  * geöffneter Seite — KEIN API-Call. `file://`-tauglich (Anker `target=_blank`).
  */
-import { useEffect, useMemo, useState } from 'react';
-import { Copy, ExternalLink, Search, AlertTriangle, ChevronDown, Upload, Trash2, FileText } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Prec } from '@codemirror/state';
+import { keymap, type EditorView } from '@codemirror/view';
+import { Copy, ExternalLink, Search, AlertTriangle, ChevronDown, Upload, Trash2, FileText, Pencil, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
+import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
-import type { RecherchePromptDaten } from './recherche-prompt';
+import { normalisiereAuftragstext, parseRecherchePrompt, type RecherchePromptDaten } from './recherche-prompt';
 import type { AufbereitungRun, ExterneRecherche } from './types';
 import type { BausteinUiState } from './useAufbereitung';
 import { baueRechercheAnfragen, baueMarktzugangText, type RechercheStammdaten } from './recherche';
@@ -35,9 +42,11 @@ interface Props {
   importText: UseAsyncActionResult<[string, string?]>;
   importDatei: UseAsyncActionResult<[File]>;
   loescheImport: UseAsyncActionResult<[number]>;
+  speichereDrPrompt: UseAsyncActionResult<[string]>;
+  verwerfeDrPromptEdit: UseAsyncActionResult<[]>;
 }
 
-export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bausteine, onMarktzugangKopiert, importText, importDatei, loescheImport }: Props): React.ReactElement {
+export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bausteine, onMarktzugangKopiert, importText, importDatei, loescheImport, speichereDrPrompt, verwerfeDrPromptEdit }: Props): React.ReactElement {
   const storage = useStorage();
   const [settings, setSettings] = useState<EffektiveAufbereitungSettings>(() => ({
     drUrls: getAufbereitungDrUrls(),
@@ -54,7 +63,13 @@ export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bau
 
   return (
     <div className="flex flex-col gap-5 max-w-[860px]">
-      <DeepResearchStart recherchePrompt={recherchePrompt} bausteine={bausteine} drUrls={settings.drUrls} />
+      <DeepResearchStart
+        recherchePrompt={recherchePrompt}
+        bausteine={bausteine}
+        drUrls={settings.drUrls}
+        speichern={speichereDrPrompt}
+        verwerfen={verwerfeDrPromptEdit}
+      />
       {settings.marktzugangAktiv ? (
         <Marktzugang stammdaten={stammdaten} run={run} mistralUrl={settings.drUrls.mistral} onKopiert={onMarktzugangKopiert} />
       ) : null}
@@ -68,28 +83,69 @@ export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bau
 // 1 — Deep Research starten
 // ---------------------------------------------------------------------------
 
+/**
+ * Der anzuzeigende Auftragstext einer Baustein-Fassung — normalisiert, damit auch
+ * VOR dem Patch gecachte Einträge mit literalen `\n` lesbar rendern (die Normalisierung
+ * in `parseRecherchePrompt` greift erst für neue Läufe).
+ */
+function auftragstextVon(z: BausteinUiState<RecherchePromptDaten>): string {
+  const roh = z.daten?.prompt
+    ?? (z.rohtext ? parseRecherchePrompt(z.rohtext)?.prompt ?? '' : '');
+  return normalisiereAuftragstext(roh);
+}
+
 function DeepResearchStart({
-  recherchePrompt, bausteine, drUrls,
+  recherchePrompt, bausteine, drUrls, speichern, verwerfen,
 }: {
   recherchePrompt: BausteinUiState<RecherchePromptDaten>;
   bausteine: UseAsyncActionResult<[]>;
   drUrls: { chatgpt: string; claude: string; mistral: string };
+  speichern: UseAsyncActionResult<[string]>;
+  verwerfen: UseAsyncActionResult<[]>;
 }): React.ReactElement {
   const s = recherchePrompt.status;
+  const [editing, setEditing] = useState(false);
+  const prompt = useMemo(() => auftragstextVon(recherchePrompt), [recherchePrompt]);
+  // Editor erst schliessen, wenn die Übernahme durch ist UND nicht gescheitert ist —
+  // `UseAsyncActionResult.run` schluckt Fehler in den `error`-State, ein `await` allein
+  // sagt also nichts über Erfolg. Der Leak-Fall gilt als Erfolg (Fassung übernommen,
+  // nur gesperrt) und schliesst den Editor bewusst: die Warnung steht darunter.
+  const wartetRef = useRef(false);
+  useEffect(() => {
+    if (!wartetRef.current || speichern.busy) return;
+    wartetRef.current = false;
+    if (!speichern.error) setEditing(false);
+  }, [speichern.busy, speichern.error]);
+  const uebernehmen = (text: string): void => { wartetRef.current = true; void speichern.run(text); };
 
-  const kopf = (
-    <div className="mb-1">
-      <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Deep Research starten</h3>
-      <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
-        Anonymer Recherche-Auftrag zum Themengebiet — für ChatGPT, Claude oder Mistral (5–10 Min externe Recherche, parallel zur internen Aufbereitung).
-      </p>
+  const kopf = (aktion?: React.ReactNode): React.ReactElement => (
+    <div className="mb-1 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Deep Research starten</h3>
+        <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
+          Anonymer Recherche-Auftrag zum Themengebiet — für ChatGPT, Claude oder Mistral (5–10 Min externe Recherche, parallel zur internen Aufbereitung).
+        </p>
+      </div>
+      {aktion ? <div className="shrink-0">{aktion}</div> : null}
     </div>
+  );
+
+  const stiftBtn = (
+    <button
+      type="button"
+      onClick={() => { speichern.clearError(); setEditing(true); }}
+      title="Auftragstext bearbeiten"
+      aria-label="Auftragstext bearbeiten"
+      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11.5px] text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]"
+    >
+      <Pencil size={13} /> Bearbeiten
+    </button>
   );
 
   if (s === 'fehlt') {
     return (
       <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        {kopf}
+        {kopf()}
         {bausteine.error ? (
           <div className="mt-2 rounded-lg px-3 py-2 text-[12.5px] text-[var(--tf-danger-text)]" style={{ border: '0.5px solid var(--tf-border)' }}>{bausteine.error}</div>
         ) : null}
@@ -103,7 +159,7 @@ function DeepResearchStart({
   if (s === 'laeuft') {
     return (
       <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        {kopf}
+        {kopf()}
         <p className="mt-3 text-[12.5px] text-[var(--tf-text-tertiary)]">Recherche-Auftrag wird erzeugt …</p>
       </section>
     );
@@ -111,31 +167,73 @@ function DeepResearchStart({
   if (s === 'fehler') {
     return (
       <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        {kopf}
+        {kopf()}
         <p className="mt-3 text-[12.5px] text-[var(--tf-text-tertiary)]">Der interne KI-Dienst ist derzeit nicht erreichbar.</p>
         <Button variant="secondary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()} className="mt-2">Erneut versuchen</Button>
       </section>
     );
   }
-  // degradiert (z. B. Leak-Check) → nur Einsicht, kein Copy.
-  if (s === 'degradiert') {
+
+  if (editing) {
     return (
       <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-        {kopf}
+        {kopf()}
+        <AuftragsEditor
+          start={prompt || recherchePrompt.rohtext || ''}
+          busy={speichern.busy}
+          fehler={speichern.error}
+          onUebernehmen={uebernehmen}
+          onAbbrechen={() => { speichern.clearError(); setEditing(false); }}
+        />
+      </section>
+    );
+  }
+
+  const bearbeitet = recherchePrompt.daten?.bearbeitet;
+  const spur = bearbeitet ? (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 bg-[var(--tf-bg-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <Pencil size={11} /> von Ihnen bearbeitet · {new Date(bearbeitet.am).toLocaleString('de-DE')}
+      </span>
+      <button
+        type="button"
+        onClick={() => verwerfen.run()}
+        disabled={verwerfen.busy}
+        className="inline-flex items-center gap-1 text-[var(--tf-primary)] hover:underline disabled:opacity-50"
+      >
+        <RotateCcw size={11} /> Zurück zum KI-Text
+      </button>
+      {verwerfen.error ? <span className="text-[var(--tf-danger-text)]">{verwerfen.error}</span> : null}
+    </div>
+  ) : null;
+
+  // degradiert (z. B. Leak-Check) → nur Einsicht, kein Copy. Bearbeiten bleibt offen:
+  // genau hier ist es der Rettungspfad (Angabe entfernen → erneuter Leak-Check).
+  if (s === 'degradiert') {
+    const hatFassung = prompt.length > 0;
+    return (
+      <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+        {kopf(stiftBtn)}
         <div className="mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-          <span>{recherchePrompt.begruendung ?? 'Der erzeugte Auftrag ist nicht zum Export freigegeben.'} — der Text wird nur zur Einsicht gezeigt und NICHT zum Kopieren angeboten.</span>
+          <span>
+            {recherchePrompt.begruendung ?? 'Der erzeugte Auftrag ist nicht zum Export freigegeben.'} — der Text wird nur zur Einsicht gezeigt und NICHT zum Kopieren angeboten.
+            {' '}Entfernen Sie die Angabe über „Bearbeiten"; diese Fassung wird erst gespeichert und freigegeben, wenn sie keine identifizierende Angabe mehr enthält.
+          </span>
         </div>
-        <PromptEinsicht text={recherchePrompt.rohtext ?? ''} />
+        {hatFassung
+          ? <AuftragsVorschau text={prompt} standardOffen />
+          : <TextEinsicht text={recherchePrompt.rohtext ?? ''} label="Roh-Antwort anzeigen" />}
+        {spur}
       </section>
     );
   }
   // ok
-  const prompt = recherchePrompt.daten?.prompt ?? '';
   return (
     <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
-      {kopf}
-      <PromptEinsicht text={prompt} standardOffen />
+      {kopf(stiftBtn)}
+      <AuftragsVorschau text={prompt} standardOffen />
+      {spur}
       <p className="mt-3 text-[11.5px] text-[var(--tf-text-tertiary)]">
         Prüfen Sie den Text — er verlässt mit dem Kopieren den geschützten Bereich.
       </p>
@@ -148,16 +246,92 @@ function DeepResearchStart({
   );
 }
 
-function PromptEinsicht({ text, standardOffen }: { text: string; standardOffen?: boolean }): React.ReactElement {
+/** Gerenderte Markdown-Vorschau des Auftrags (der Auftrag IST Markdown: Gliederung + Listen). */
+function AuftragsVorschau({ text, standardOffen }: { text: string; standardOffen?: boolean }): React.ReactElement {
   return (
     <details className="mt-3 group" open={standardOffen}>
       <summary className="cursor-pointer list-none inline-flex items-center gap-1 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
         <ChevronDown size={13} className="transition-transform group-open:rotate-180" /> Auftragstext {standardOffen ? 'einklappen' : 'anzeigen'}
       </summary>
+      <div className="mt-2 max-h-[340px] overflow-auto rounded-lg p-3 bg-[var(--tf-bg-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <MarkdownRenderer content={text} />
+      </div>
+    </details>
+  );
+}
+
+/** Unformatierte Text-Einsicht (Roh-Antwort des Modells / deterministisches Template). */
+function TextEinsicht({ text, label }: { text: string; label: string }): React.ReactElement {
+  return (
+    <details className="mt-3 group">
+      <summary className="cursor-pointer list-none inline-flex items-center gap-1 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
+        <ChevronDown size={13} className="transition-transform group-open:rotate-180" /> {label}
+      </summary>
       <pre className="mt-2 max-h-[340px] overflow-auto whitespace-pre-wrap rounded-lg p-3 text-[12px] leading-relaxed text-[var(--tf-text)] bg-[var(--tf-bg-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
         {text}
       </pre>
     </details>
+  );
+}
+
+/**
+ * Inline-Editor des Auftragstextes (Muster `SectionReviewCard`): CodeMirror mit
+ * Live-Vorschau, Mod-Enter übernimmt, Esc bricht ab. Übernehmen liest den LIVE-Doc-Wert
+ * über `onCreateEditor` — `MarkdownEditor.onChange` ist 300 ms debounced, der letzte
+ * Anschlag ginge sonst verloren.
+ */
+function AuftragsEditor({
+  start, busy, fehler, onUebernehmen, onAbbrechen,
+}: {
+  start: string;
+  busy: boolean;
+  fehler: string | null;
+  onUebernehmen: (text: string) => void;
+  onAbbrechen: () => void;
+}): React.ReactElement {
+  const [draft, setDraft] = useState(start);
+  const viewRef = useRef<EditorView | null>(null);
+  const handlersRef = useRef<{ uebernehmen: (text: string) => void; abbrechen: () => void }>({ uebernehmen: () => {}, abbrechen: () => {} });
+  handlersRef.current.uebernehmen = onUebernehmen;
+  handlersRef.current.abbrechen = onAbbrechen;
+  const extensions = useMemo(() => {
+    const km = Prec.highest(keymap.of([
+      { key: 'Mod-Enter', run: (v: EditorView) => { handlersRef.current.uebernehmen(v.state.doc.toString()); return true; } },
+      { key: 'Escape', run: () => { handlersRef.current.abbrechen(); return true; } },
+    ]));
+    return [markdownLivePreview(), km];
+  }, []);
+  const jetzt = (): string => viewRef.current?.state.doc.toString() ?? draft;
+
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Pencil size={13} className="text-[var(--tf-text-tertiary)]" />
+        <span className="text-[12px] text-[var(--tf-text-secondary)]">Auftragstext bearbeiten</span>
+        <span className="flex-1" />
+        <Button variant="ghost" size="sm" onClick={onAbbrechen}>Abbrechen</Button>
+        <Button variant="primary" size="sm" loading={busy} onClick={() => onUebernehmen(jetzt())}>
+          {busy ? 'Übernehmen …' : 'Übernehmen'}
+        </Button>
+      </div>
+      <div className="rounded-lg overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
+        <MarkdownEditor
+          value={draft}
+          onChange={setDraft}
+          frame="none"
+          minHeight="240px"
+          maxHeight="440px"
+          onCreateEditor={v => { viewRef.current = v; }}
+          extensions={extensions}
+        />
+      </div>
+      <div className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
+        ⌘/Strg + Enter übernimmt · Esc bricht ab. Der Text wird beim Übernehmen erneut auf identifizierende Angaben geprüft.
+      </div>
+      {fehler ? (
+        <div className="mt-2 rounded-lg px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">{fehler}</div>
+      ) : null}
+    </div>
   );
 }
 
@@ -198,7 +372,7 @@ function Marktzugang({
       <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
         Bewusst <strong>identifizierende</strong> Recherche (nennt den Firmennamen) — deterministisch aus Stammdaten, kein Antragsinhalt. Vor dem Kopieren bestätigen.
       </p>
-      <PromptEinsicht text={text} />
+      <TextEinsicht text={text} label="Auftragstext anzeigen" />
       {!bestaetigt ? (
         <Button variant="secondary" size="sm" onClick={() => setBestaetigt(true)} className="mt-3">Kopieren vorbereiten …</Button>
       ) : (
