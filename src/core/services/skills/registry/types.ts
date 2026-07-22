@@ -93,6 +93,63 @@ export interface QualitaetsRegel {
   kategorie?: string;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Skill-eigene Vorgaben (Umfang & Form) — additiv                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Gemeinsame Felder jeder Vorgabe. `persoenlichAnpassbar` ist die Kurator-
+ * Freigabe: nur damit markierte Vorgaben darf ein Nutzer für sich verschieben
+ * (`SkillTweak.vorgabenOverride`) — alles andere bleibt hart.
+ */
+export interface VorgabeBasis {
+  schweregrad: Schweregrad;
+  persoenlichAnpassbar?: boolean;
+}
+
+/**
+ * Umfangs- und Form-Vorgaben EINES Skills.
+ *
+ * Diese Werte lagen früher als eigene `QualitaetsRegel`-Records in der geteilten
+ * Bibliothek — je Skill einer. Damit trug ein Regel-Record ZWEI Ebenen zugleich:
+ * die Art der Prüfung (Satzanzahl) und den nur für einen Skill gültigen Wert
+ * (8–12). Die Bibliothek wuchs dadurch auf Duplikate und Waisen zu; wiederver-
+ * wendbar war fast keine dieser Regeln. Seit v2.296 gehört der WERT an den Skill,
+ * die BIBLIOTHEK nur noch das, was mehrfach verwendet wird (verbotene Muster,
+ * QS-/administrative Regeln).
+ *
+ * Zur Laufzeit werden die Vorgaben in `vorgaben.ts` als synthetische
+ * `QualitaetsRegel`-Records materialisiert (bekannte `typ`-Werte) — Check-Engine,
+ * `buildPromptVorgaben`, Kategorie-Ableitung und Eval bleiben unverändert.
+ *
+ * Alle Felder optional: fehlt eines, gibt es diese Vorgabe schlicht nicht.
+ */
+export interface SkillVorgaben {
+  wortanzahl?: VorgabeBasis & { min?: number; max?: number };
+  satzanzahl?: VorgabeBasis & { min?: number; max?: number };
+  zeichenMax?: VorgabeBasis & { max: number };
+  absatzMin?: VorgabeBasis & { min: number };
+  satzlaengeMax?: VorgabeBasis & { maxWoerter: number };
+  keineAufzaehlungen?: VorgabeBasis;
+  pflichtAnfang?: VorgabeBasis & { text: string };
+}
+
+/** Schlüssel einer Vorgabe (stabile Reihenfolge siehe `VORGABE_KEYS`). */
+export type VorgabeKey = keyof SkillVorgaben;
+
+/**
+ * Persönlicher Override der Zahlenwerte — nur Werte, KEINE Schweregrade und
+ * keine Freigabe-Flags (die gehören dem Kurator). Wird in `SkillTweak` gehalten
+ * und beim Auflösen über die Team-Vorgaben gelegt (`wendeOverrideAn`).
+ */
+export interface PersoenlicheVorgaben {
+  wortanzahl?: { min?: number; max?: number };
+  satzanzahl?: { min?: number; max?: number };
+  zeichenMax?: { max: number };
+  absatzMin?: { min: number };
+  satzlaengeMax?: { maxWoerter: number };
+}
+
 /**
  * Ein gekappter Snapshot eines Skill-Standes VOR einer Änderung (Versions-
  * Historie, additiv). Bewusst schlank — nur die kuratierbaren Inhalte, die ein
@@ -161,6 +218,13 @@ export interface SkillRecord {
    * persistiert (gleiches Modell wie `QualitaetsRegel.kategorie`).
    */
   kategorie?: string;
+  /**
+   * Skill-eigene Umfangs-/Form-Vorgaben (additiv). Fehlt das Feld, hat der Skill
+   * keine eigenen Vorgaben — dann zählen nur die zugeordneten `regelIds`, also
+   * exakt das Verhalten vor v2.296. Materialisierung + persönlicher Override:
+   * `vorgaben.ts`.
+   */
+  vorgaben?: SkillVorgaben;
   /**
    * Bounded Versions-Historie (additiv, neueste zuerst, max `MAX_HISTORIE`).
    * Fehlt in Alt-Records → `normalize` defaultet einen Eintrag aus dem aktuellen

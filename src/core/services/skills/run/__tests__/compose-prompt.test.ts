@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { composeSkillPrompt, buildTweakBlock, type SkillRunInput } from '../run-skill';
-import { SEED_SKILL, SEED_REGELN, buildPromptVorgaben } from '@/core/services/skills';
+import { SEED_SKILL, SEED_REGISTRY, resolveRegeln, buildPromptVorgaben } from '@/core/services/skills';
+
+// Regeln wie in der Laufzeit AUFGELÖST (Skill-Vorgaben + Bibliotheks-Regeln) —
+// `SEED_A_REGELN` allein trägt seit v2.296 nur noch die Passiv-Floskel-Regel.
+const SEED_A_REGELN = resolveRegeln(SEED_REGISTRY, SEED_SKILL);
 
 const VB = 'VB-MARKDOWN-INHALT';
 const baseInput: SkillRunInput = { stammdaten: 'STAMMDATEN-BLOCK', vbMarkdown: VB };
@@ -9,7 +13,7 @@ const TWEAK_HEADING = '## Persönliche Stil-Präferenzen des Bearbeiters (heben 
 const VORGABEN_HEADING = '## Formale Vorgaben';
 
 function compose(input: SkillRunInput): string {
-  return composeSkillPrompt(SEED_SKILL, SEED_REGELN, input, VB);
+  return composeSkillPrompt(SEED_SKILL, SEED_A_REGELN, input, VB);
 }
 
 describe('buildTweakBlock', () => {
@@ -107,7 +111,7 @@ describe('composeSkillPrompt', () => {
 
   it('Konsistenz: der angehängte Vorgaben-Block entspricht buildPromptVorgaben', () => {
     const out = compose(baseInput);
-    const vorgaben = buildPromptVorgaben(SEED_REGELN);
+    const vorgaben = buildPromptVorgaben(SEED_A_REGELN);
     expect(vorgaben).not.toBe('');
     expect(out).toContain(vorgaben);
   });
@@ -232,7 +236,7 @@ describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
     // SEED_SKILL trägt seit der A-Aktivierung selbst teilStruktur → für diesen
     // Pfad explizit strippen.
     const ohne = { ...SEED_SKILL, teilStruktur: undefined };
-    expect(composeSkillPrompt(ohne, SEED_REGELN, baseInput, VB)).not.toContain(STRUKTUR_HEADING);
+    expect(composeSkillPrompt(ohne, SEED_A_REGELN, baseInput, VB)).not.toContain(STRUKTUR_HEADING);
   });
 
   it('mit teilStruktur: hängt den autoritativen JSON-Override-Block mit allen Keys an', () => {
@@ -241,7 +245,7 @@ describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
       teilStruktur: [{ key: 'hintergrund', label: 'Hintergrund' }, { key: 'loesungsweg', label: 'Lösungsweg' }],
       teilJoin: '\n\n' as const,
     };
-    const out = composeSkillPrompt(skill, SEED_REGELN, baseInput, VB);
+    const out = composeSkillPrompt(skill, SEED_A_REGELN, baseInput, VB);
     expect(out).toContain(STRUKTUR_HEADING);
     // Beispiel-Array nennt GENAU die deklarierten Keys.
     expect(out).toContain('{"key":"hintergrund","text":"…"}');
@@ -260,6 +264,6 @@ describe('composeSkillPrompt — strukturierte Ausgabe (teilStruktur)', () => {
 
   it('leere teilStruktur-Liste ist No-op (kein Block)', () => {
     const skill = { ...SEED_SKILL, teilStruktur: [] };
-    expect(composeSkillPrompt(skill, SEED_REGELN, baseInput, VB)).not.toContain(STRUKTUR_HEADING);
+    expect(composeSkillPrompt(skill, SEED_A_REGELN, baseInput, VB)).not.toContain(STRUKTUR_HEADING);
   });
 });

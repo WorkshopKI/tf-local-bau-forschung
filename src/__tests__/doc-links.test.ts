@@ -72,6 +72,9 @@ describe('doc-links', () => {
     // 47_000 → 47_500 (v2.271): Abschnitt „MAP-Förderfähigkeitsprüfung" + eine
     // Zeile im Decision-Tree. Der Eintrag ist bereits auf zwei harte Regeln plus
     // Themen-Doc-Link eingedampft — kürzer wäre er nutzloser als seine Nachbarn.
-    expect(bytes).toBeLessThan(47_500);
+    // 47_500 → 47_700 (v2.296): eine Decision-Tree-Zeile für die Skill-Vorgaben
+    // (wo Umfang & Form leben, seit sie nicht mehr Regel-Bibliothek sind). Bereits
+    // auf Stichwort + Doc-Link gekürzt; ohne Zeile fände sie niemand.
+    expect(bytes).toBeLessThan(47_700);
   });
 });

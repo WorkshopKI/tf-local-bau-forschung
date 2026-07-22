@@ -66,7 +66,7 @@ export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave,
 
   return (
     <div className="max-w-[760px]">
-      <button onClick={onBack} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
+      {/* Kein Zurück-Link — das Schließen-X sitzt in der `DetailKopf`-Zeile der Seite. */}
       <div className="flex items-baseline gap-2.5">
         <input
           value={draft.label}

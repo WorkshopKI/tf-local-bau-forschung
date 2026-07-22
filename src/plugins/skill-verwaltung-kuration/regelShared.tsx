@@ -54,7 +54,16 @@ export function aktivLabel(r: QualitaetsRegel): string {
   return r.aktiv ? 'Aktiv' : 'Inaktiv';
 }
 
-export const ADD_TYPEN = Object.keys(TYP_LABEL);
+/**
+ * Regel-Typen, die in der geteilten Bibliothek NEU angelegt werden können.
+ *
+ * Bewusst NICHT `Object.keys(TYP_LABEL)`: die Umfangs-/Form-Typen (Wortanzahl,
+ * Satzanzahl, Zeichen, Absätze, Satzlänge, Keine Aufzählungen, Pflicht-Anfang)
+ * parametrisieren immer genau EINEN Skill und gehören seit v2.296 als
+ * `SkillRecord.vorgaben` an den Skill (Sektion „Umfang & Form" im Skill-Editor).
+ * `TYP_LABEL` bleibt vollständig — es beschriftet auch Bestandsdaten.
+ */
+export const ADD_TYPEN = ['verbotenes_muster'];
 
 export const DEFAULT_PARAMS: Record<string, Record<string, unknown>> = {
   zeichen_max: { max: 1000 },

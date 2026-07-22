@@ -14,7 +14,8 @@
  * damit das Gutachter-Verhalten gleich bleibt.
  */
 import type {
-  QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile, WorkflowDef, WorkflowStep,
+  QualitaetsRegel, SkillModifierKey, SkillRecord, SkillRegistryFile, SkillVorgaben, WorkflowDef,
+  WorkflowStep,
 } from './types';
 import { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF } from './nf-skill.seed';
 import { GA_QS_REGELN } from './ga-qs.seed';
@@ -124,11 +125,16 @@ function regel(
   return { id, name, typ, params, schweregrad, aktiv: true, erstellt_am: SEED_TS, geaendert_am: SEED_TS };
 }
 
-/** Die 5 Default-Regeln (Testballon-Checks + zwei Praxis-Befunde). */
+/**
+ * Bibliotheks-Regeln des Gutachten-Stamms.
+ *
+ * Bis v2.295 standen hier zusätzlich Satzanzahl/Zeichenlimit/Satzlänge/Keine
+ * Aufzählungen — je Skill ein eigener Record. Diese Ein-Skill-Werte leben seit
+ * v2.296 als `SkillRecord.vorgaben` am Skill (siehe `vorgaben.ts`); die Bibliothek
+ * führt nur noch, was mehrere Skills teilen. Bestands-Shares werden von
+ * `applySkillVorgaben` einmalig überführt.
+ */
 export const SEED_REGELN: QualitaetsRegel[] = [
-  regel('seed-satzanzahl', 'Satzanzahl', 'satzanzahl', { min: 8, max: 12 }, 'fehler'),
-  regel('seed-zeichen-max', 'Zeichenlimit', 'zeichen_max', { max: 1000 }, 'fehler'),
-  regel('seed-satzlaenge', 'Satzlänge', 'satzlaenge_max', { maxWoerter: 25 }, 'hinweis'),
   regel(
     'seed-passiv-stil',
     'Passiv-Floskel',
@@ -144,8 +150,19 @@ export const SEED_REGELN: QualitaetsRegel[] = [
     },
     'hinweis',
   ),
-  regel('seed-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
 ];
+
+/**
+ * Umfangs-/Form-Vorgaben des Kurzfassung-Skills A (vormals die Regel-Records
+ * `seed-satzanzahl` / `seed-zeichen-max` / `seed-satzlaenge` /
+ * `seed-keine-aufzaehlungen` — Werte unverändert übernommen).
+ */
+const SEED_VORGABEN_A: SkillVorgaben = {
+  satzanzahl: { schweregrad: 'fehler', min: 8, max: 12, persoenlichAnpassbar: true },
+  zeichenMax: { schweregrad: 'fehler', max: 1000 },
+  satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
 
 export const SEED_SKILL: SkillRecord = {
   id: KURZFASSUNG_SKILL_ID,
@@ -169,6 +186,7 @@ export const SEED_SKILL: SkillRecord = {
       + 'nutze ausschließlich Inhalte der VB.',
   },
   regelIds: SEED_REGELN.map(r => r.id),
+  vorgaben: SEED_VORGABEN_A,
   slots: ['stammdaten', 'vbMarkdown'],
   // Strukturierte Ausgabe (Mess-Gate 2026-06 für A bestätigt: 5/5 robustes Parsen,
   // flüssiger ~10-Satz-Block unter teilJoin '\n', keine deterministische Regression).
@@ -290,24 +308,44 @@ ${quellenanalyseKontrakt(opts.belegKontrakt ?? false)}${entwurfBlock}
 ${opts.finalText}${stil}`;
 }
 
-/** Regel-Seeds der Abschnitte B–G (nur maschinell prüfbare Kontrakte). */
-export const SEED_REGELN_BG: QualitaetsRegel[] = [
-  // B
-  regel('seed-b-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 750 }, 'fehler'),
-  regel('seed-b-absatz-min', 'Absätze', 'absatz_min', { min: 4 }, 'fehler'),
-  regel('seed-b-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
-  // C — v2: Wortanzahl weich (Hinweis), Aufzählungs-Guard für den finalen Fließtext.
-  // `seed-c-wortanzahl` (fehler) bleibt definiert für Bestands-Shares/Referenzen, wird aber
-  // vom C-Skill nicht mehr referenziert (Waise; ersetzt durch `seed-c-umfang` als Hinweis).
-  regel('seed-c-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 300, max: 350 }, 'fehler'),
-  regel('seed-c-umfang', 'Umfang (Richtwert)', 'wortanzahl', { min: 300, max: 350 }, 'hinweis'),
-  regel('seed-c-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
-  // D
-  regel('seed-d-wortanzahl', 'Wortanzahl', 'wortanzahl', { min: 300, max: 350 }, 'fehler'),
-  regel('seed-d-keine-aufzaehlungen', 'Keine Aufzählungen', 'keine_aufzaehlungen', {}, 'fehler'),
-  // G
-  regel('seed-g-pflicht-anfang', 'Pflicht-Anfang', 'pflicht_anfang', { text: G_PFLICHT_ANFANG }, 'fehler'),
-];
+/**
+ * Bibliotheks-Regeln der Abschnitte B–G — seit v2.296 LEER.
+ *
+ * Hier standen neun Ein-Skill-Records (3× Keine Aufzählungen, 3× Wortanzahl, Absätze,
+ * Pflicht-Anfang, dazu die schon damals als Waise markierte `seed-c-wortanzahl`). Sie
+ * parametrisierten jeweils GENAU einen Abschnitt und waren damit keine Bibliothek,
+ * sondern Skill-Eigenschaften. Die Werte stehen jetzt unverändert in
+ * `SEED_VORGABEN_B/C/D/G` am jeweiligen Skill.
+ *
+ * Der Export bleibt (Barrel + Merge-Tests referenzieren ihn) und ist bewusst als
+ * leeres Array erhalten statt gelöscht — `mergeMissingSeeds` ergänzt dadurch auf
+ * Bestands-Shares nichts mehr nach, was `applySkillVorgaben` gerade weggeräumt hat.
+ */
+export const SEED_REGELN_BG: QualitaetsRegel[] = [];
+
+/** Umfangs-/Form-Vorgaben des Abschnitts B (vormals `seed-b-*`). */
+const SEED_VORGABEN_B: SkillVorgaben = {
+  wortanzahl: { schweregrad: 'fehler', min: 750, persoenlichAnpassbar: true },
+  absatzMin: { schweregrad: 'fehler', min: 4 },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
+/** Umfangs-/Form-Vorgaben des Abschnitts C (vormals `seed-c-umfang`/`seed-c-keine-aufzaehlungen`). */
+const SEED_VORGABEN_C: SkillVorgaben = {
+  wortanzahl: { schweregrad: 'hinweis', min: 300, max: 350, persoenlichAnpassbar: true },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
+/** Umfangs-/Form-Vorgaben des Abschnitts D (vormals `seed-d-*`). */
+const SEED_VORGABEN_D: SkillVorgaben = {
+  wortanzahl: { schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
+/** Form-Vorgabe des Abschnitts G (vormals `seed-g-pflicht-anfang`). */
+const SEED_VORGABEN_G: SkillVorgaben = {
+  pflichtAnfang: { schweregrad: 'fehler', text: G_PFLICHT_ANFANG },
+};
 
 /** Skill-ID des Abschnitts B (Konstante für Lookups + Rollout-Migration). */
 export const AUSGANGSLAGE_SKILL_ID = 'gutachten-ausgangslage';
@@ -534,7 +572,8 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-b-wortanzahl', 'seed-b-absatz-min', 'seed-b-keine-aufzaehlungen', 'seed-passiv-stil'],
+    regelIds: ['seed-passiv-stil'],
+    vorgaben: SEED_VORGABEN_B,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
@@ -552,7 +591,8 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-c-umfang', 'seed-c-keine-aufzaehlungen', 'seed-passiv-stil'],
+    regelIds: ['seed-passiv-stil'],
+    vorgaben: SEED_VORGABEN_C,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
@@ -565,7 +605,8 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-d-wortanzahl', 'seed-d-keine-aufzaehlungen', 'seed-passiv-stil'],
+    regelIds: ['seed-passiv-stil'],
+    vorgaben: SEED_VORGABEN_D,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
@@ -620,7 +661,8 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: ['seed-g-pflicht-anfang', 'seed-passiv-stil'],
+    regelIds: ['seed-passiv-stil'],
+    vorgaben: SEED_VORGABEN_G,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },

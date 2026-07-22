@@ -3,9 +3,11 @@
  * Genutzt von der Skill-Verwaltung (UI), dem Antragsdetail-Consumer und Tests.
  */
 import {
-  KNOWN_REGEL_TYPEN, type ArtefaktTyp, type Pruefart, type QualitaetsRegel, type SkillRecord,
-  type SkillRegistryFile, type WorkflowDef, type WorkflowEbene,
+  KNOWN_REGEL_TYPEN, type ArtefaktTyp, type PersoenlicheVorgaben, type Pruefart,
+  type QualitaetsRegel, type SkillRecord, type SkillRegistryFile, type WorkflowDef,
+  type WorkflowEbene,
 } from './types';
+import { vorgabenZuRegeln, wendeOverrideAn } from './vorgaben';
 import { SEED_WORKFLOWS } from './seed';
 import { GA_QS_REGEL_IDS } from './ga-qs.seed';
 
@@ -61,12 +63,30 @@ export function workflowStepsUsingSkill(file: SkillRegistryFile, skillId: string
 }
 
 /**
- * Löst die einem Skill zugeordneten Regel-IDs auf konkrete Regeln auf
- * (Reihenfolge der `regelIds`, fehlende IDs werden ausgelassen).
+ * Die EINE Auflösung Skill → Regelliste. Zwei Quellen, in dieser Reihenfolge:
+ *  1. die skill-eigenen Vorgaben (Umfang & Form), materialisiert als synthetische
+ *     Regeln (`vorgaben.ts`),
+ *  2. die zugeordneten Bibliotheks-Regeln (Reihenfolge der `regelIds`, fehlende
+ *     IDs werden ausgelassen).
+ *
+ * Die Reihenfolge ist Prompt-Text (sie bestimmt die Zeilenfolge im Block
+ * „Formale Vorgaben") und bewusst so gewählt: vor der Umstellung standen die
+ * Umfangs-Regeln in den Seed-Skills überwiegend vorn.
+ *
+ * `opts.vorgabenOverride` legt den persönlichen Override über die freigegebenen
+ * Vorgaben — damit prüfen Prompt UND Check gegen denselben Wert.
  */
-export function resolveRegeln(file: SkillRegistryFile, skill: SkillRecord): QualitaetsRegel[] {
+export function resolveRegeln(
+  file: SkillRegistryFile,
+  skill: SkillRecord,
+  opts?: { vorgabenOverride?: PersoenlicheVorgaben },
+): QualitaetsRegel[] {
   const byId = new Map(file.regeln.map(r => [r.id, r]));
-  return skill.regelIds.map(id => byId.get(id)).filter((r): r is QualitaetsRegel => r !== undefined);
+  const vorgaben = wendeOverrideAn(skill.vorgaben, opts?.vorgabenOverride);
+  return [
+    ...vorgabenZuRegeln(skill.id, vorgaben, skill.geaendert_am),
+    ...skill.regelIds.map(id => byId.get(id)).filter((r): r is QualitaetsRegel => r !== undefined),
+  ];
 }
 
 /** Namen aller Skills, die eine bestimmte Regel verwenden („verwendet in"). */

@@ -16,6 +16,7 @@ import {
   GA_UMFANG_DEDUP_CD_MIGRATION,
   GA_PFLICHT_ANFANG_KLAR_MIGRATION,
   ANFRAGE_ANON_KLAR_MIGRATION,
+  SKILL_VORGABEN_MIGRATION,
 } from '../migrations';
 import {
   ANFRAGE_ANONYMISIEREN_SKILL_ID,
@@ -43,7 +44,7 @@ import {
   G_ABSCHNITT_OPTS,
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
 } from '../seed';
-import type { SkillRecord, SkillRegistryFile } from '../types';
+import type { QualitaetsRegel, SkillRecord, SkillRegistryFile } from '../types';
 
 function skill(id: string, over: Partial<SkillRecord> = {}): SkillRecord {
   return {
@@ -59,7 +60,7 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
@@ -535,7 +536,7 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
     // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
     expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);
@@ -547,5 +548,107 @@ describe('reconcile — alle Migrationen zusammen', () => {
   it('alle Marker gesetzt → No-op', () => {
     const { geaendert } = reconcileEinmaligeAktivierungen(file([anon(false)], ALLE_MARKER));
     expect(geaendert).toBe(false);
+  });
+});
+
+describe('reconcile — Ein-Skill-Umfangsregeln → SkillRecord.vorgaben', () => {
+  const NUR_VORGABEN = ALLE_MARKER.filter(m => m !== SKILL_VORGABEN_MIGRATION);
+
+  const regel = (id: string, typ: string, params: Record<string, unknown>, over: Partial<QualitaetsRegel> = {}): QualitaetsRegel => ({
+    id, name: id, typ, params, schweregrad: 'fehler', aktiv: true,
+    erstellt_am: 't', geaendert_am: 't', ...over,
+  });
+
+  function reg(skills: SkillRecord[], regeln: QualitaetsRegel[]): SkillRegistryFile {
+    return { version: 1, updated_at: 't', skills, regeln, angewandteMigrationen: NUR_VORGABEN };
+  }
+
+  it('überführt Werte + Schweregrad und räumt den Regel-Record weg', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(reg(
+      [skill('a', { regelIds: ['r-wort', 'r-satz', 'r-liste'] })],
+      [
+        regel('r-wort', 'wortanzahl', { min: 300, max: 350 }),
+        regel('r-satz', 'satzanzahl', { min: 8, max: 12 }, { schweregrad: 'hinweis' }),
+        regel('r-liste', 'keine_aufzaehlungen', {}),
+      ],
+    ));
+    expect(geaendert).toBe(true);
+    const a = out.skills[0]!;
+    expect(a.vorgaben).toEqual({
+      wortanzahl: { schweregrad: 'fehler', min: 300, max: 350 },
+      satzanzahl: { schweregrad: 'hinweis', min: 8, max: 12 },
+      keineAufzaehlungen: { schweregrad: 'fehler' },
+    });
+    expect(a.regelIds).toEqual([]);
+    expect(out.regeln).toEqual([]);
+  });
+
+  it('lässt eine von MEHREREN Skills genutzte Regel in der Bibliothek', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(reg(
+      [skill('a', { regelIds: ['geteilt'] }), skill('b', { regelIds: ['geteilt'] })],
+      [regel('geteilt', 'keine_aufzaehlungen', {})],
+    ));
+    expect(out.skills.every(s => s.regelIds.includes('geteilt'))).toBe(true);
+    expect(out.skills.every(s => s.vorgaben === undefined)).toBe(true);
+    expect(out.regeln.map(r => r.id)).toEqual(['geteilt']);
+  });
+
+  it('lässt eine INAKTIVE Regel unangetastet (sie wirkte nie)', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(reg(
+      [skill('a', { regelIds: ['geparkt'] })],
+      [regel('geparkt', 'satzanzahl', { min: 5, max: 7 }, { aktiv: false })],
+    ));
+    expect(out.skills[0]!.regelIds).toEqual(['geparkt']);
+    expect(out.skills[0]!.vorgaben).toBeUndefined();
+    expect(out.regeln.map(r => r.id)).toEqual(['geparkt']);
+  });
+
+  it('löscht Waisen früherer Seed-Stände (von keinem Skill referenziert)', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(reg(
+      [skill('a')],
+      [regel('waise', 'wortanzahl', { min: 450, max: 550 })],
+    ));
+    expect(out.regeln).toEqual([]);
+  });
+
+  it('fasst Regeln fremder Typen nicht an (QS-/NF-/Muster-Regeln)', () => {
+    const fremd = [
+      regel('muster', 'verbotenes_muster', { muster: ['x'] }),
+      regel('qs', 'ga_qs_konsistenz', {}, { pruefart: 'fachlich' }),
+      regel('nf', 'nf_keine_platzhalter_reste', {}, { pruefart: 'administrativ' }),
+    ];
+    const { file: out } = reconcileEinmaligeAktivierungen(reg([skill('a', { regelIds: ['muster'] })], fremd));
+    expect(out.skills[0]!.regelIds).toEqual(['muster']);
+    expect(out.skills[0]!.vorgaben).toBeUndefined();
+    expect(out.regeln.map(r => r.id)).toEqual(['muster', 'qs', 'nf']);
+  });
+
+  it('überschreibt eine bereits gesetzte Vorgabe nicht', () => {
+    const eigen = { satzanzahl: { schweregrad: 'hinweis' as const, min: 2, max: 3 } };
+    const { file: out } = reconcileEinmaligeAktivierungen(reg(
+      [skill('a', { regelIds: ['r-satz'], vorgaben: eigen })],
+      [regel('r-satz', 'satzanzahl', { min: 8, max: 12 })],
+    ));
+    expect(out.skills[0]!.vorgaben).toEqual(eigen);
+    expect(out.skills[0]!.regelIds).toEqual(['r-satz']);
+  });
+
+  it('lässt eine wertlose Regel stehen, statt eine leere Vorgabe zu erzeugen', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(reg(
+      [skill('a', { regelIds: ['leer'] })],
+      [regel('leer', 'wortanzahl', {})],
+    ));
+    expect(out.skills[0]!.regelIds).toEqual(['leer']);
+    expect(out.skills[0]!.vorgaben).toBeUndefined();
+  });
+
+  it('ist idempotent (zweiter Lauf ändert nichts)', () => {
+    const erst = reconcileEinmaligeAktivierungen(reg(
+      [skill('a', { regelIds: ['r-satz'] })],
+      [regel('r-satz', 'satzanzahl', { min: 8, max: 12 })],
+    ));
+    const zweit = reconcileEinmaligeAktivierungen(erst.file);
+    expect(zweit.geaendert).toBe(false);
+    expect(zweit.file.skills[0]!.vorgaben).toEqual(erst.file.skills[0]!.vorgaben);
   });
 });

@@ -7,6 +7,7 @@ import {
   deleteSkillTweak,
   isNewerTweak,
   shouldShowVersionHint,
+  sanitizeOverride,
   TWEAK_FELD_MAX,
   type SkillTweak,
 } from '../index';
@@ -97,5 +98,34 @@ describe('shouldShowVersionHint', () => {
   });
   it('für eine ANDERE Version weggeklickt → true', () => {
     expect(shouldShowVersionHint(makeTweak({ angelegtFuerSkillVersion: 3, hinweisAusgeblendetFuerVersion: 3 }), 4)).toBe(true);
+  });
+});
+
+describe('sanitizeOverride — der Override ist nutzer-geschriebenes JSON', () => {
+  it('behält bekannte Schlüssel mit endlichen Zahlen', () => {
+    expect(sanitizeOverride({ satzanzahl: { min: 4, max: 6 }, zeichenMax: { max: 900 } }))
+      .toEqual({ satzanzahl: { min: 4, max: 6 }, zeichenMax: { max: 900 } });
+  });
+
+  it('wirft unbekannte Schlüssel und Felder weg (nichts Fremdes in die Regel-Params)', () => {
+    expect(sanitizeOverride({
+      satzanzahl: { min: 4, boeses: 'x' },
+      keineAufzaehlungen: { schweregrad: 'hinweis' },
+      pflichtAnfang: { text: 'egal' },
+      fantasie: { a: 1 },
+    })).toEqual({ satzanzahl: { min: 4 } });
+  });
+
+  it('wirft nicht-endliche und nicht-numerische Werte weg', () => {
+    expect(sanitizeOverride({ satzanzahl: { min: NaN, max: '9' }, absatzMin: { min: Infinity } }))
+      .toBeUndefined();
+  });
+
+  it('leer/kaputt → undefined (kein leeres Objekt in den Daten)', () => {
+    expect(sanitizeOverride(undefined)).toBeUndefined();
+    expect(sanitizeOverride(null)).toBeUndefined();
+    expect(sanitizeOverride('nope')).toBeUndefined();
+    expect(sanitizeOverride({})).toBeUndefined();
+    expect(sanitizeOverride({ satzanzahl: {} })).toBeUndefined();
   });
 });

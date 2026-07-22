@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.296 — 2026-07
+
+### Neu
+- Wie lang ein Text werden soll — Wörter, Sätze, Zeichen, Absätze, Satzlänge — steht jetzt direkt beim Skill unter „Umfang & Form" und lässt sich dort mit einem Klick an- und ausschalten. Bisher brauchte jede dieser Angaben eine eigene Regel in der gemeinsamen Liste.
+- Neuer Umschalter „Team | Persönlich" bei jedem Skill: Was die Kuration ändert, gilt für alle. Was Sie unter „Persönlich" ändern, gilt nur für Sie und wird in Ihrem persönlichen Ordner gespeichert — dort liegen auch Ihre Stil-Hinweise. Die Kuration gibt vor, welche Werte Sie anpassen dürfen; gesperrte Werte sind mit einem Schloss gekennzeichnet.
+
+### Verbesserungen
+- Die Liste der Qualitätsregeln ist deutlich kürzer und enthält nur noch Regeln, die in mehreren Skills gelten. Mehrfach vorhandene Einträge („Satzanzahl" gleich dreimal) und Überbleibsel, die zu keinem Skill mehr gehörten, sind verschwunden.
+- Detailansichten schließen jetzt über das X oben rechts — wie überall sonst in der App.
+
+### Bugfixes
+- Beim Anwählen einer Regel blieb rechts der zuvor geöffnete Skill stehen. Jetzt wechselt die Detailansicht wie erwartet.
+
 ## v2.295 — 2026-07
 
 ### Neu

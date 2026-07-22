@@ -27,6 +27,7 @@ import { suggestReifegrad, type SkillAggregat, type SkillAggregatMap } from '@/c
 import { skillEnthaeltDokumentInhalte, templateReferenziertInhaltsSlot } from '@/core/services/ai/transport-policy';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { SkillVersionen } from './SkillVersionen';
+import { VorgabenEditor } from './VorgabenEditor';
 import { groupRegelnByKategorie } from './regelGruppen';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
 
@@ -122,7 +123,7 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
 
   return (
     <div className="max-w-[900px]">
-      <button onClick={onBack} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
+      {/* Kein Zurück-Link — das Schließen-X sitzt in der `DetailKopf`-Zeile der Seite. */}
       <div className="flex items-baseline gap-2.5">
         <input
           value={draft.name}
@@ -275,10 +276,28 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           </div>
         </div>
 
+        {/* Umfang & Form — die skill-eigenen Vorgaben. Sie lagen bis v2.295 als
+            Ein-Skill-Regeln in der geteilten Bibliothek und stehen jetzt hier. */}
+        <div className="mt-7">
+          <Section>Umfang &amp; Form</Section>
+          <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0 mb-2.5">
+            Gilt nur für diesen Skill. Die Werte werden geprüft und der KI als Vorgabe mitgegeben.
+          </p>
+          <VorgabenEditor
+            modus="team"
+            vorgaben={draft.vorgaben}
+            canEdit={canEdit}
+            onChangeVorgaben={v => setDraft(d => ({ ...d, vorgaben: Object.keys(v).length > 0 ? v : undefined }))}
+          />
+        </div>
+
         {/* Zugeordnete Qualitätsregeln — nach Kategorie gruppiert, collapsible;
             Gruppen mit zugeordneter (angehakter) Regel klappen automatisch auf. */}
         <div className="mt-7">
           <Section>Zugeordnete Qualitätsregeln</Section>
+          <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0 mb-2.5">
+            Wiederverwendbare Regeln aus der geteilten Bibliothek — sie gelten in mehreren Skills.
+          </p>
           {file.regeln.length === 0 ? (
             <p className="text-[12.5px] text-[var(--tf-text-tertiary)] py-2">Noch keine Regeln in der Bibliothek.</p>
           ) : (

@@ -37,8 +37,33 @@ import { blankStep, getWorkflowById, getWorkflowDef } from './workflowShared';
 import { buildWorkflowMutations } from './workflowMutations';
 import { useEditorLeaveGuard } from './editorGuard';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
+import { DetailKopf } from './DetailKopf';
+import { PersoenlichePanel } from './PersoenlichePanel';
+import { useSkillTweak } from './useSkillTweak';
 
 type TabId = 'skills' | 'regeln' | 'workflows' | 'eval';
+
+/**
+ * EIN Detail-Zustand statt dreier paralleler States. Vorher hielten
+ * `editingSkill`/`editingRegel`/`editingStep` unabhängig voneinander Werte und
+ * wurden als if/else-Kette gerendert — der Skill gewann immer, sodass das Anwählen
+ * einer Regel bei offenem Skill-Editor die Detail-Ansicht NICHT wechselte. Als
+ * diskriminierte Union ist das strukturell ausgeschlossen.
+ */
+type DetailZustand =
+  | { art: 'skill'; skill: SkillRecord; isNew: boolean; initialView?: 'bearbeiten' | 'versionen' }
+  | { art: 'regel'; regel: QualitaetsRegel | null; isNew: boolean }
+  | { art: 'step'; step: WorkflowStep; isNew: boolean };
+
+/** Kontext-Label der Detail-Kopfzeile je Detail-Art. */
+const DETAIL_LABEL: Record<DetailZustand['art'], string> = {
+  skill: 'Skill',
+  regel: 'Qualitätsregel',
+  step: 'Workflow-Schritt',
+};
+
+/** Bearbeitungs-Ebene eines Skills: geteilte Registry vs. persönlicher Ordner. */
+type SkillEbene = 'team' | 'persoenlich';
 
 // Key-Bump `_v2`: der Default steht auf „Tabelle" (informationsdichteste Ansicht),
 // gewonnen hätte sonst der alte, in localStorage gespeicherte 'list'-Eintrag.
@@ -88,9 +113,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [tab, setTab] = useState<TabId>('skills');
   const [search, setSearch] = useState('');
   const [viewModes, setViewModes] = useState<Record<TabId, RegistryViewMode>>(loadViewModes);
-  const [editingSkill, setEditingSkill] = useState<{ skill: SkillRecord; isNew: boolean; initialView?: 'bearbeiten' | 'versionen' } | null>(null);
-  const [editingRegel, setEditingRegel] = useState<{ regel: QualitaetsRegel | null; isNew: boolean } | null>(null);
-  const [editingStep, setEditingStep] = useState<{ step: WorkflowStep; isNew: boolean } | null>(null);
+  const [detailZustand, setDetail] = useState<DetailZustand | null>(null);
+  // Ebene des offenen Skill-Details: „Team" = geteilte Registry (Kurator/PL),
+  // „Persönlich" = eigener Ordner (jeder Nutzer). Beim Öffnen immer „Team".
+  const [skillEbene, setSkillEbene] = useState<SkillEbene>('team');
+  const tweakCtl = useSkillTweak(detailZustand?.art === 'skill' ? detailZustand.skill.id : null);
   // Gewählter Workflow im Workflows-Tab (null → Default-Def `zim-ep`). Nach Render
   // gegen die aktuelle Registry geklemmt (Auswahl kann nach Löschen verschwinden).
   const [selectedWorkflowIdRaw, setSelectedWorkflowId] = useState<string | null>(null);
@@ -115,7 +142,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
       deepLinkRef.current = routeSkillId;
       const initialView = searchParams.get('view') === 'versionen' ? 'versionen' : 'bearbeiten';
       setTab('skills');
-      setEditingSkill({ skill, isNew: false, initialView });
+      setDetail({ art: 'skill', skill, isNew: false, initialView });
     }
   }, [routeSkillId, reg.file, searchParams]);
 
@@ -137,14 +164,23 @@ export function SkillVerwaltungPage(): React.ReactElement {
     });
   };
 
-  const changeTab = (id: TabId): void => { setTab(id); setSearch(''); };
+  // closeEditor = roh (für interne Post-Aktions-Schließungen nach erfolgreichem
+  // Persist/Delete — dann ist nichts mehr dirty). requestClose = nutzer-initiiertes
+  // Verlassen (X/Escape) → durch die Leave-Guard-Nachfrage.
+  const closeEditor = (): void => { setDetail(null); setTestlauf(null); setSkillEbene('team'); };
+  const requestClose = (): void => guard.guardLeave(closeEditor);
+
+  // Tabwechsel schließt das Detail mit: ein Editor, der nicht zur sichtbaren Liste
+  // gehört, blockierte sonst die Auswahl in der neuen Liste (der Skill-Editor
+  // überdeckte die angewählte Regel). Aufrufer laufen bereits durch `guardLeave`.
+  const changeTab = (id: TabId): void => { setTab(id); setSearch(''); closeEditor(); };
 
   // — Skill-Aktionen —
   // Testlauf aus Liste/Karte öffnet den Skill im Editor + den Testlauf-Panel
   // daneben (Detail-Split, kein Modal).
   const openTestlaufForSaved = (skill: SkillRecord): void => {
     guard.guardLeave(() => {
-      setEditingSkill({ skill, isNew: false });
+      setDetail({ art: 'skill', skill, isNew: false });
       setTestlauf({ skill, regeln: resolveRegeln(file, skill), hinweis: `v${skill.version}` });
     });
   };
@@ -169,7 +205,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
     void save.run({ ...file, regeln: upsertRegel(file.regeln, { ...r, aktiv: !r.aktiv, geaendert_am: new Date().toISOString() }) });
   };
   const saveRegel = (r: QualitaetsRegel): void => {
-    void save.run({ ...file, regeln: upsertRegel(file.regeln, r) }).then(() => setEditingRegel(null));
+    void save.run({ ...file, regeln: upsertRegel(file.regeln, r) }).then(closeEditor);
   };
   // Roher Persist (wirft bei Fehler, schließt NICHT) — für die Leave-Guard-Nachfrage.
   const persistRegel = (r: QualitaetsRegel): Promise<void> =>
@@ -184,7 +220,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
       ...file,
       regeln: file.regeln.filter(x => x.id !== r.id),
       skills: file.skills.map(s => ({ ...s, regelIds: s.regelIds.filter(id => id !== r.id) })),
-    }).then(() => setEditingRegel(null));
+    }).then(closeEditor);
   };
 
   // — Workflow-Aktionen (Schritte + Management) über die geteilte Fabrik (DRY mit
@@ -196,7 +232,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
     run: save.run,
     onWorkflowCreated: id => setSelectedWorkflowId(id),
     onWorkflowDeleted: () => setSelectedWorkflowId(null),
-    onStepDeleted: () => setEditingStep(null),
+    onStepDeleted: closeEditor,
   });
   const exportWorkflow = (def: WorkflowDef): void => {
     const bundle = exportWorkflowBundle(file, def.id);
@@ -207,96 +243,115 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
   // — Detail-Slot (Editor) fürs Master-Detail-Split — die frühere Vollseiten-
   //   Ersetzung der Liste ist seit v2.91 durch das Split-Layout abgelöst. Der
-  //   Editor wird rechts neben der Liste gerendert; `closeEditor` (Back/Escape)
-  //   räumt die Selektion. Editor-Inhalt bringt eigenen Scroll mit (Detail-Pane
-  //   des Shells ist overflow-hidden). —
-  const hasDetail = !!(editingSkill || editingRegel || editingStep);
-  // closeEditor = roh (für interne Post-Aktions-Schließungen nach erfolgreichem
-  // Persist/Delete — dann ist nichts mehr dirty). requestClose = nutzer-initiiertes
-  // Verlassen (Zurück/Escape) → durch die Leave-Guard-Nachfrage.
-  const closeEditor = (): void => { setEditingSkill(null); setEditingRegel(null); setEditingStep(null); setTestlauf(null); };
-  const requestClose = (): void => guard.guardLeave(closeEditor);
+  //   Editor wird rechts neben der Liste gerendert. Die Kopfzeile (`DetailKopf`)
+  //   sitzt AUSSERHALB des scrollenden Bereichs — das Schließen-X bleibt damit
+  //   beim Scrollen stehen. —
+  const hasDetail = detailZustand !== null;
 
-  let detail: React.ReactNode;
-  if (editingSkill) {
-    detail = (
-      <div className="h-full overflow-y-auto">
-        <div className="px-8 py-9 flex flex-col xl:flex-row gap-8 items-start">
-          <div className="flex-1 min-w-0 w-full">
-            <SkillEditor
-              key={editingSkill.skill.id}
-              file={file}
-              skill={editingSkill.skill}
-              isNew={editingSkill.isNew}
-              canEdit={reg.canEdit}
-              agg={agg}
-              initialView={editingSkill.initialView}
-              persist={reg.persist}
-              onBack={requestClose}
-              onSaved={closeEditor}
-              onGuardStateChange={guard.reportState}
-              onManageRegeln={() => guard.guardLeave(() => { closeEditor(); changeTab('regeln'); })}
-              onTestlauf={(skill, regeln, hinweis) => setTestlauf({ skill, regeln, hinweis })}
-            />
-          </div>
-          {testlauf && (
-            <div className="flex-1 min-w-0 w-full xl:max-w-[560px]">
-              <SkillTestlaufPanel
-                skill={testlauf.skill}
-                regeln={testlauf.regeln}
-                hinweis={testlauf.hinweis}
-                onClose={() => setTestlauf(null)}
-              />
-            </div>
-          )}
-        </div>
+  let detailInhalt: React.ReactNode;
+  if (detailZustand?.art === 'skill' && skillEbene === 'persoenlich') {
+    detailInhalt = (
+      <div className="px-8 py-7 max-w-[900px]">
+        <PersoenlichePanel
+          key={detailZustand.skill.id}
+          file={file}
+          skill={detailZustand.skill}
+          tweak={tweakCtl.tweak}
+          loading={tweakCtl.loading}
+          onSave={tweakCtl.save}
+          onRemove={tweakCtl.remove}
+        />
       </div>
     );
-  } else if (editingRegel) {
-    const { regel, isNew } = editingRegel;
-    detail = (
-      <div className="h-full overflow-y-auto">
-        <div className="px-8 py-9 max-w-[900px]">
-          <button onClick={requestClose} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] mb-4">← Skill-Verwaltung</button>
-          {regel === null
-            ? <RegelTypPicker onPick={typ => setEditingRegel({ regel: blankRegel(typ), isNew: true })} />
-            : (
-              <RegelEditor
-                key={regel.id}
-                initial={regel}
-                canEdit={reg.canEdit}
-                busy={save.busy}
-                onSave={saveRegel}
-                onCancel={requestClose}
-                onDelete={isNew ? undefined : () => deleteRegel(regel)}
-                onPersist={persistRegel}
-                onGuardStateChange={guard.reportState}
-              />
-            )}
-        </div>
-      </div>
-    );
-  } else if (editingStep) {
-    detail = (
-      <div className="h-full overflow-y-auto">
-        <div className="px-8 py-9">
-          <WorkflowEditor
-            key={editingStep.step.id}
+  } else if (detailZustand?.art === 'skill') {
+    const { skill, isNew, initialView } = detailZustand;
+    detailInhalt = (
+      <div className="px-8 py-7 flex flex-col xl:flex-row gap-8 items-start">
+        <div className="flex-1 min-w-0 w-full">
+          <SkillEditor
+            key={skill.id}
             file={file}
-            workflowId={selectedWorkflowId}
-            step={editingStep.step}
-            isNew={editingStep.isNew}
+            skill={skill}
+            isNew={isNew}
             canEdit={reg.canEdit}
-            onSave={mut.saveStep}
+            agg={agg}
+            initialView={initialView}
+            persist={reg.persist}
             onBack={requestClose}
             onSaved={closeEditor}
             onGuardStateChange={guard.reportState}
-            onDelete={editingStep.isNew ? undefined : () => mut.deleteStep(editingStep.step)}
+            onManageRegeln={() => guard.guardLeave(() => changeTab('regeln'))}
+            onTestlauf={(s, regeln, hinweis) => setTestlauf({ skill: s, regeln, hinweis })}
           />
         </div>
+        {testlauf && (
+          <div className="flex-1 min-w-0 w-full xl:max-w-[560px]">
+            <SkillTestlaufPanel
+              skill={testlauf.skill}
+              regeln={testlauf.regeln}
+              hinweis={testlauf.hinweis}
+              onClose={() => setTestlauf(null)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  } else if (detailZustand?.art === 'regel') {
+    const { regel, isNew } = detailZustand;
+    detailInhalt = (
+      <div className="px-8 py-7 max-w-[900px]">
+        {regel === null
+          ? <RegelTypPicker onPick={typ => setDetail({ art: 'regel', regel: blankRegel(typ), isNew: true })} />
+          : (
+            <RegelEditor
+              key={regel.id}
+              initial={regel}
+              canEdit={reg.canEdit}
+              busy={save.busy}
+              onSave={saveRegel}
+              onCancel={requestClose}
+              onDelete={isNew ? undefined : () => deleteRegel(regel)}
+              onPersist={persistRegel}
+              onGuardStateChange={guard.reportState}
+            />
+          )}
+      </div>
+    );
+  } else if (detailZustand?.art === 'step') {
+    const { step, isNew } = detailZustand;
+    detailInhalt = (
+      <div className="px-8 py-7">
+        <WorkflowEditor
+          key={step.id}
+          file={file}
+          workflowId={selectedWorkflowId}
+          step={step}
+          isNew={isNew}
+          canEdit={reg.canEdit}
+          onSave={mut.saveStep}
+          onBack={requestClose}
+          onSaved={closeEditor}
+          onGuardStateChange={guard.reportState}
+          onDelete={isNew ? undefined : () => mut.deleteStep(step)}
+        />
       </div>
     );
   }
+
+  const detail = detailZustand && (
+    <div className="h-full flex flex-col">
+      <DetailKopf label={DETAIL_LABEL[detailZustand.art]} onClose={requestClose}>
+        {/* Team | Persönlich nur am Skill: die Team-Ebene ist der geteilte
+            Registry-Stand (Kurator/PL), die persönliche liegt im eigenen Ordner
+            und ist für JEDEN Nutzer änderbar. Ein neuer, noch ungespeicherter
+            Skill hat noch keine persönliche Ebene. */}
+        {detailZustand.art === 'skill' && !detailZustand.isNew && (
+          <EbenenWahl wert={skillEbene} onChange={e => guard.guardLeave(() => setSkillEbene(e))} />
+        )}
+      </DetailKopf>
+      <div className="flex-1 min-h-0 overflow-y-auto">{detailInhalt}</div>
+    </div>
+  );
 
   // Eval-Tab nur im dev-Build (features.devFixtures) — fiktive Skill-Eval-GUI.
   const tabDefs: Array<[TabId, string, number | null]> = [
@@ -313,9 +368,15 @@ export function SkillVerwaltungPage(): React.ReactElement {
     : 'Regeln durchsuchen (Name, Typ, Parameter)';
   const addAction = (): void => {
     guard.guardLeave(() => {
-      if (tab === 'skills') setEditingSkill({ skill: blankSkill(), isNew: true });
-      else if (tab === 'regeln') setEditingRegel({ regel: null, isNew: true });
-      else setEditingStep({ step: blankStep(), isNew: true });
+      if (tab === 'skills') setDetail({ art: 'skill', skill: blankSkill(), isNew: true });
+      // Typ-Auswahl nur zeigen, wenn es überhaupt etwas zu wählen gibt — die
+      // Umfangs-/Form-Typen sind seit v2.296 Skill-Vorgaben, nicht mehr Bibliothek.
+      else if (tab === 'regeln') {
+        setDetail(ADD_TYPEN.length === 1
+          ? { art: 'regel', regel: blankRegel(ADD_TYPEN[0]!), isNew: true }
+          : { art: 'regel', regel: null, isNew: true });
+      }
+      else setDetail({ art: 'step', step: blankStep(), isNew: true });
     });
   };
 
@@ -425,7 +486,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             search={search}
             viewMode={viewMode}
             agg={agg}
-            onEdit={skill => guard.guardLeave(() => setEditingSkill({ skill, isNew: false }))}
+            onEdit={skill => guard.guardLeave(() => setDetail({ art: 'skill', skill, isNew: false }))}
             onTestlauf={openTestlaufForSaved}
             onDuplicate={duplicateSkill}
             onDelete={removeSkill}
@@ -438,7 +499,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             busy={save.busy}
             search={search}
             viewMode={viewMode}
-            onEdit={regel => guard.guardLeave(() => setEditingRegel({ regel, isNew: false }))}
+            onEdit={regel => guard.guardLeave(() => setDetail({ art: 'regel', regel, isNew: false }))}
             onToggleAktiv={toggleAktiv}
           />
         ) : (
@@ -447,7 +508,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             canEdit={reg.canEdit}
             selectedId={selectedWorkflowId}
             onSelectWorkflow={id => guard.guardLeave(() => setSelectedWorkflowId(id))}
-            onEditStep={step => guard.guardLeave(() => setEditingStep({ step, isNew: false }))}
+            onEditStep={step => guard.guardLeave(() => setDetail({ art: 'step', step, isNew: false }))}
             onChangeSteps={mut.changeSteps}
             onCreateWorkflow={mut.createWorkflow}
             onSaveWorkflowMeta={mut.saveWorkflowMeta}
@@ -478,6 +539,39 @@ export function SkillVerwaltungPage(): React.ReactElement {
       )}
       <UnsavedChangesDialog {...guard.dialog} />
     </div>
+  );
+}
+
+/**
+ * Team- vs. persönliche Ebene eines Skills. Zwei Segmente statt Dropdown — die
+ * Wahl ist binär und soll den Speicherort sofort lesbar machen.
+ */
+function EbenenWahl({ wert, onChange }: {
+  wert: SkillEbene; onChange: (e: SkillEbene) => void;
+}): React.ReactElement {
+  const titel: Record<SkillEbene, string> = {
+    team: 'Gilt für alle Nutzer — änderbar mit Kurator-/PL-Schreibrecht.',
+    persoenlich: 'Gilt nur für Sie — gespeichert in Ihrem persönlichen Ordner.',
+  };
+  return (
+    <span className="inline-flex rounded-[7px] border-[0.5px] border-[var(--tf-border)] overflow-hidden">
+      {(['team', 'persoenlich'] as SkillEbene[]).map(e => (
+        <button
+          key={e}
+          type="button"
+          title={titel[e]}
+          aria-pressed={wert === e}
+          onClick={() => onChange(e)}
+          className={`text-[11.5px] px-2.5 py-1 transition-colors cursor-pointer ${
+            wert === e
+              ? 'bg-[var(--tf-primary)] text-white'
+              : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]'
+          }`}
+        >
+          {e === 'team' ? 'Team' : 'Persönlich'}
+        </button>
+      ))}
+    </span>
   );
 }
 

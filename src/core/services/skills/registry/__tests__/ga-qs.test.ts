@@ -52,9 +52,10 @@ describe('GA-Skill-Abgleich (v20) — additive Stärken, GA-Verhalten unverände
     expect(b.promptTemplate).not.toContain('mindestens vier Absätze');
     // Die 3-teilige Struktur (Hintergrund / Stand der Technik / Lösungsweg) bleibt.
     expect(b.promptTemplate).toContain('Lösungsweg');
-    // Der Wert lebt jetzt allein in der Regel:
-    expect(b.regelIds).toContain('seed-b-wortanzahl');
-    expect(SEED_REGISTRY.regeln.find(r => r.id === 'seed-b-wortanzahl')?.params.min).toBe(750);
+    // Der Wert lebt jetzt allein in der Skill-Vorgabe (seit v2.296; davor die
+    // Ein-Skill-Regel `seed-b-wortanzahl`).
+    expect(b.vorgaben?.wortanzahl?.min).toBe(750);
+    expect(SEED_REGISTRY.regeln.find(r => r.id === 'seed-b-wortanzahl')).toBeUndefined();
   });
 
   it('L=+50%-Modifier ist vorhanden (B–G)', () => {

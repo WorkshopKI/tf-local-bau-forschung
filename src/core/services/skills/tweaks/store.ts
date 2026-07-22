@@ -15,6 +15,7 @@
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { PERSOENLICH_SKILL_TWEAKS_FILE } from '@/core/services/infrastructure/types';
+import type { PersoenlicheVorgaben } from '../registry/types';
 import { TWEAK_FELD_MAX, type SkillTweak, type SkillTweaksFile } from './types';
 
 const keyFor = (skillId: string): string => `skill-tweaks:${skillId}`;
@@ -54,12 +55,46 @@ export function isValidTweak(raw: unknown): raw is SkillTweak {
   );
 }
 
-/** Klemmt die Freitextfelder defensiv auf die Obergrenze. */
+/**
+ * Zulässige Felder je überschreibbarer Vorgabe. Der Override ist eine
+ * nutzer-geschriebene JSON-Datei — alles Unbekannte fliegt beim Lesen UND beim
+ * Schreiben raus, damit nichts Fremdes in die Regel-`params` sickert.
+ */
+const OVERRIDE_FELDER: Record<string, string[]> = {
+  wortanzahl: ['min', 'max'],
+  satzanzahl: ['min', 'max'],
+  zeichenMax: ['max'],
+  absatzMin: ['min'],
+  satzlaengeMax: ['maxWoerter'],
+};
+
+/** Behält nur bekannte Schlüssel mit endlichen Zahlen. `undefined`, wenn nichts bleibt. */
+export function sanitizeOverride(raw: unknown): PersoenlicheVorgaben | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [key, felder] of Object.entries(OVERRIDE_FELDER)) {
+    const eintrag = src[key];
+    if (typeof eintrag !== 'object' || eintrag === null) continue;
+    const e = eintrag as Record<string, unknown>;
+    const sauber: Record<string, number> = {};
+    for (const f of felder) {
+      if (typeof e[f] === 'number' && Number.isFinite(e[f])) sauber[f] = e[f] as number;
+    }
+    if (Object.keys(sauber).length > 0) out[key] = sauber;
+  }
+  return Object.keys(out).length > 0 ? (out as PersoenlicheVorgaben) : undefined;
+}
+
+/** Klemmt die Freitextfelder auf die Obergrenze und säubert den Vorgaben-Override. */
 function clampTweak(tweak: SkillTweak): SkillTweak {
+  const override = sanitizeOverride(tweak.vorgabenOverride);
+  const { vorgabenOverride: _weg, ...rest } = tweak;
   return {
-    ...tweak,
+    ...rest,
     stilHinweise: tweak.stilHinweise.slice(0, TWEAK_FELD_MAX),
     beispielFormulierungen: tweak.beispielFormulierungen.slice(0, TWEAK_FELD_MAX),
+    ...(override ? { vorgabenOverride: override } : {}),
   };
 }
 
@@ -105,7 +140,7 @@ export async function loadSkillTweak(
   const share = fromFile && isValidTweak(fromFile) ? fromFile : null;
   if (!share) return cached;
 
-  const winner = isNewerTweak(share.geaendert_am, cached?.geaendert_am) ? share : (cached ?? share);
+  const winner = clampTweak(isNewerTweak(share.geaendert_am, cached?.geaendert_am) ? share : (cached ?? share));
   await idb.set(keyFor(skillId), winner);
   return winner;
 }

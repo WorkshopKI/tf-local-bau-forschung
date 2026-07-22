@@ -34,6 +34,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Auslastungs-Modul (Klassifizierung + Matching) | [docs/architecture/auslastung.md](docs/architecture/auslastung.md) |
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
 | Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
+| Skill-Vorgaben (Umfang & Form am Skill) + persönliche Ebene | [docs/architecture/skill-vorgaben.md](docs/architecture/skill-vorgaben.md) |
 | Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |
 | Antrag-Aufbereitung (Vollbild-Seite: VB-Gliederung + Tabellen-Ernte, Zeitplan-Gantt + Plausibilität inkl. Kapazität; Steckbrief + Abdeckung + Zahlen-Inventar als interne LLM-Bausteine mit Fundstellen + deterministischen Quervergleichen; Fragen-Tab aggregiert alle offenen Punkte; getrennte Baustein-Caches, Verdächtig-Guard/Retry, dev) | [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) |
 | MAP-Förderfähigkeitsprüfung (Einreichungs-JSON, Rechenchecks, editierbare Checkliste, Abschluss-Entwürfe; dev) | [map-foerderfaehig.md](docs/architecture/map-foerderfaehig.md) + [map-testleitfaden.md](docs/map-testleitfaden.md) |

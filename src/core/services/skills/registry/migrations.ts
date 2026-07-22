@@ -38,7 +38,9 @@ import {
   G_ABSCHNITT_OPTS,
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
 } from './seed';
-import type { SkillRecord, SkillRegistryFile } from './types';
+import type {
+  QualitaetsRegel, SkillRecord, SkillRegistryFile, SkillVorgaben, VorgabeKey,
+} from './types';
 
 /** ID der einmaligen Anonymisierer-Freischaltung (Recall-Gate bestanden 2026-07-03). */
 export const ANFRAGE_ANON_AKTIV_MIGRATION = 'anfrage-anon-aktiv-2026-07';
@@ -72,6 +74,9 @@ export const GA_PFLICHT_ANFANG_KLAR_MIGRATION = 'ga-pflicht-anfang-klar-2026-07'
 
 /** ID der Anonymisierer-Prompt-Klärung (Zielkonflikt, WÖRTLICH-Scope, Echtwerte in der Schablone). */
 export const ANFRAGE_ANON_KLAR_MIGRATION = 'anfrage-anon-klar-2026-07';
+
+/** ID der Überführung der Ein-Skill-Umfangsregeln in `SkillRecord.vorgaben`. */
+export const SKILL_VORGABEN_MIGRATION = 'skill-vorgaben-2026-07';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -291,23 +296,135 @@ function applyAnonKlar(skills: SkillRecord[]): SkillRecord[] {
       : s);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Ein-Skill-Umfangsregeln → `SkillRecord.vorgaben`                            */
+/* -------------------------------------------------------------------------- */
+
+/** Regel-`typ` → Vorgabe-Schlüssel. Nur diese Typen wandern an den Skill. */
+const TYP_ZU_VORGABE: Record<string, VorgabeKey> = {
+  wortanzahl: 'wortanzahl',
+  satzanzahl: 'satzanzahl',
+  zeichen_max: 'zeichenMax',
+  absatz_min: 'absatzMin',
+  satzlaenge_max: 'satzlaengeMax',
+  keine_aufzaehlungen: 'keineAufzaehlungen',
+  pflicht_anfang: 'pflichtAnfang',
+};
+
+function zahl(p: Record<string, unknown>, k: string): number | undefined {
+  return typeof p[k] === 'number' && Number.isFinite(p[k]) ? (p[k] as number) : undefined;
+}
+
+/**
+ * Baut aus einem Regel-Record den zugehörigen Vorgabe-Eintrag. `null`, wenn die
+ * Regel keine verwertbaren Werte trägt (dann bleibt sie unangetastet in der
+ * Bibliothek, statt als leere Vorgabe zu verschwinden).
+ */
+function regelZuVorgabe(r: QualitaetsRegel): { key: VorgabeKey; wert: SkillVorgaben[VorgabeKey] } | null {
+  const key = TYP_ZU_VORGABE[r.typ];
+  if (!key) return null;
+  const basis = { schweregrad: r.schweregrad };
+  const p = r.params;
+  switch (key) {
+    case 'wortanzahl':
+    case 'satzanzahl': {
+      const min = zahl(p, 'min');
+      const max = zahl(p, 'max');
+      if (min === undefined && max === undefined) return null;
+      return { key, wert: { ...basis, ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) } };
+    }
+    case 'zeichenMax': {
+      const max = zahl(p, 'max');
+      return max === undefined ? null : { key, wert: { ...basis, max } };
+    }
+    case 'absatzMin': {
+      const min = zahl(p, 'min');
+      return min === undefined ? null : { key, wert: { ...basis, min } };
+    }
+    case 'satzlaengeMax': {
+      const maxWoerter = zahl(p, 'maxWoerter');
+      return maxWoerter === undefined ? null : { key, wert: { ...basis, maxWoerter } };
+    }
+    case 'keineAufzaehlungen':
+      return { key, wert: basis };
+    case 'pflichtAnfang': {
+      const text = typeof p.text === 'string' ? p.text.trim() : '';
+      return text === '' ? null : { key, wert: { ...basis, text } };
+    }
+    default:
+      return null;
+  }
+}
+
+/**
+ * Überführt die Ein-Skill-Umfangs-/Form-Regeln in `SkillRecord.vorgaben` und räumt
+ * die dadurch (oder schon vorher) unreferenzierten Regel-Records weg.
+ *
+ * Hintergrund: ein Regel-Record trug zwei Ebenen zugleich — die Art der Prüfung UND
+ * den nur für einen Skill gültigen Wert. Die Bibliothek wuchs dadurch auf Duplikate
+ * (4× „Keine Aufzählungen", 3× Satzanzahl, 4× Wortanzahl) und Waisen früherer
+ * Seed-Stände zu. Seit v2.296 gehört der Wert an den Skill.
+ *
+ * Drei Schutzregeln, damit kuratierte Entscheidungen erhalten bleiben:
+ *  1. Eine Regel, die MEHRERE Skills referenzieren, bleibt Bibliotheks-Regel (der
+ *     Kurator hat sie bewusst geteilt).
+ *  2. Eine INAKTIVE Regel wird nicht überführt — sie wirkte weder im Prompt noch im
+ *     Check; ihre Zuordnung bleibt unverändert bestehen (geparkt).
+ *  3. Ein Skill, der die Vorgabe bereits trägt, wird nicht überschrieben.
+ * Gelöscht werden nur Regel-Records der migrierenden Typen, die danach KEIN Skill
+ * mehr referenziert. QS-/NF-Regeln haben keinen dieser Typen und sind unberührt.
+ */
+function applySkillVorgaben(file: SkillRegistryFile): SkillRegistryFile {
+  const byId = new Map(file.regeln.map(r => [r.id, r]));
+  const nutzerAnzahl = new Map<string, number>();
+  for (const s of file.skills) {
+    for (const id of new Set(s.regelIds)) nutzerAnzahl.set(id, (nutzerAnzahl.get(id) ?? 0) + 1);
+  }
+
+  const skills = file.skills.map(s => {
+    const vorgaben: SkillVorgaben = { ...(s.vorgaben ?? {}) };
+    const bleibende: string[] = [];
+    let geaendert = false;
+    for (const id of s.regelIds) {
+      const r = byId.get(id);
+      if (!r || !r.aktiv || (nutzerAnzahl.get(id) ?? 0) > 1) { bleibende.push(id); continue; }
+      const treffer = regelZuVorgabe(r);
+      if (!treffer || vorgaben[treffer.key]) { bleibende.push(id); continue; }
+      (vorgaben[treffer.key] as unknown) = treffer.wert;
+      geaendert = true;
+    }
+    return geaendert ? { ...s, regelIds: bleibende, vorgaben } : s;
+  });
+
+  // Aufräumen: Regel-Records der migrierenden Typen ohne jeden Nutzer entfernen.
+  const nochReferenziert = new Set(skills.flatMap(s => s.regelIds));
+  const regeln = file.regeln.filter(r => !TYP_ZU_VORGABE[r.typ] || nochReferenziert.has(r.id));
+  return { ...file, skills, regeln };
+}
+
 interface EinzelMigration {
   marker: string;
-  apply: (skills: SkillRecord[]) => SkillRecord[];
+  /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
+  apply: (file: SkillRegistryFile) => SkillRegistryFile;
 }
+
+/** Hülle für die Migrationen, die ausschließlich Skills anfassen. */
+const nurSkills = (fn: (skills: SkillRecord[]) => SkillRecord[]) =>
+  (file: SkillRegistryFile): SkillRegistryFile => ({ ...file, skills: fn(file.skills) });
 
 /** Reihenfolge = Anwendungsreihenfolge; append-only (nie umsortieren/entfernen). */
 const MIGRATIONEN: EinzelMigration[] = [
-  { marker: ANFRAGE_ANON_AKTIV_MIGRATION, apply: applyAnonAktiv },
-  { marker: GA_BELEG_KONTRAKT_MIGRATION, apply: applyBelegKontrakt },
-  { marker: AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, apply: applyZahlenMaxTokens },
-  { marker: AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, apply: applySteckbriefMaxTokens },
-  { marker: GA_BELEG_KONTRAKT_REVERT_MIGRATION, apply: applyBelegKontraktRevert },
-  { marker: GA_RISIKEN_ENTWURF_MIGRATION, apply: applyRisikenEntwurf },
-  { marker: GA_UMFANG_DEDUP_MIGRATION, apply: applyUmfangDedup },
-  { marker: GA_UMFANG_DEDUP_CD_MIGRATION, apply: applyUmfangDedupCD },
-  { marker: GA_PFLICHT_ANFANG_KLAR_MIGRATION, apply: applyPflichtAnfangKlar },
-  { marker: ANFRAGE_ANON_KLAR_MIGRATION, apply: applyAnonKlar },
+  { marker: ANFRAGE_ANON_AKTIV_MIGRATION, apply: nurSkills(applyAnonAktiv) },
+  { marker: GA_BELEG_KONTRAKT_MIGRATION, apply: nurSkills(applyBelegKontrakt) },
+  { marker: AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, apply: nurSkills(applyZahlenMaxTokens) },
+  { marker: AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, apply: nurSkills(applySteckbriefMaxTokens) },
+  { marker: GA_BELEG_KONTRAKT_REVERT_MIGRATION, apply: nurSkills(applyBelegKontraktRevert) },
+  { marker: GA_RISIKEN_ENTWURF_MIGRATION, apply: nurSkills(applyRisikenEntwurf) },
+  { marker: GA_UMFANG_DEDUP_MIGRATION, apply: nurSkills(applyUmfangDedup) },
+  { marker: GA_UMFANG_DEDUP_CD_MIGRATION, apply: nurSkills(applyUmfangDedupCD) },
+  { marker: GA_PFLICHT_ANFANG_KLAR_MIGRATION, apply: nurSkills(applyPflichtAnfangKlar) },
+  { marker: ANFRAGE_ANON_KLAR_MIGRATION, apply: nurSkills(applyAnonKlar) },
+  { marker: SKILL_VORGABEN_MIGRATION, apply: applySkillVorgaben },
 ];
 
 /**
@@ -318,16 +435,16 @@ const MIGRATIONEN: EinzelMigration[] = [
  */
 export function reconcileEinmaligeAktivierungen(file: SkillRegistryFile): ReconcileResult {
   const bereits = new Set(file.angewandteMigrationen ?? []);
-  let skills = file.skills;
+  let next = file;
   const angewandt: string[] = [];
   for (const m of MIGRATIONEN) {
     if (bereits.has(m.marker)) continue;
-    skills = m.apply(skills);
+    next = m.apply(next);
     angewandt.push(m.marker);
   }
   if (angewandt.length === 0) return { file, geaendert: false, angewandt: [] };
   return {
-    file: { ...file, skills, angewandteMigrationen: [...(file.angewandteMigrationen ?? []), ...angewandt] },
+    file: { ...next, angewandteMigrationen: [...(file.angewandteMigrationen ?? []), ...angewandt] },
     geaendert: true,
     angewandt,
   };

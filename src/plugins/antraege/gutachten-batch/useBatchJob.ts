@@ -17,7 +17,7 @@ import { uuid } from '@/core/services/id-generator';
 import { getAntrag, getVerbund, listAntraegeByVerbund } from '@/core/services/csv/idb-csv';
 import type { Antrag } from '@/core/services/csv/types';
 import {
-  runSkill, loadSkillRegistry, runRegelChecks, loadSkillTweak, ZIM_EP_DEF, type WorkflowStep,
+  runSkill, loadSkillRegistry, runRegelChecks, regelnMitOverride, loadSkillTweak, ZIM_EP_DEF, type WorkflowStep,
 } from '@/core/services/skills';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
@@ -145,7 +145,10 @@ export function useBatchJob(): UseBatchJob {
     const persHandle = persHandleRef.current;
     const tweak = await loadSkillTweak(idb, persHandle, sc.skill.id).catch(() => null);
     const tweakWirksam = !!(tweak?.aktiv && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
-    const result = await runSkill(transport, sc.skill, sc.regeln, {
+    // Persönlicher Vorgaben-Override (nur wo der Kurator ihn freigegeben hat) —
+    // dieselbe Liste für Prompt UND Check, sonst prüfte der Batch gegen den Team-Wert.
+    const scRegeln = regelnMitOverride(sc.skill, sc.regeln, tweak?.vorgabenOverride);
+    const result = await runSkill(transport, sc.skill, scRegeln, {
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: vb.markdown,
       // Ziel MIT dem Cap führen: der Cap wird aus der Varianten-Präferenz
@@ -157,7 +160,7 @@ export function useBatchJob(): UseBatchJob {
       ...(tweakWirksam ? { tweak } : {}),
       signal,
     });
-    const checks = runRegelChecks(result.parsed.finalerText, sc.regeln);
+    const checks = runRegelChecks(result.parsed.finalerText, scRegeln);
     const gen: GenerationInput = {
       quellenanalyse: result.parsed.quellenanalyse,
       entwurf: result.parsed.entwurf,

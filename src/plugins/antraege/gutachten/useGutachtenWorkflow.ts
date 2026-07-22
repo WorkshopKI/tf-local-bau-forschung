@@ -19,6 +19,7 @@ import {
   runSkill,
   loadSkillRegistry,
   runRegelChecks,
+  regelnMitOverride,
   loadSkillTweak,
   saveSkillTweak,
   deleteSkillTweak,
@@ -310,6 +311,19 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     return () => { cancelled = true; };
   }, [activeSkillId, storage.idb]);
 
+  /**
+   * Regeln eines Schritts INKL. persönlichem Vorgaben-Override. Der Override gilt
+   * nur, wenn der geladene Tweak wirklich zu diesem Skill gehört (der Tweak-State
+   * folgt dem aktiven Schritt) und der Kurator die Vorgabe freigegeben hat — die
+   * Klemmung sitzt in `regelnMitOverride`. Prompt UND Check laufen dadurch gegen
+   * denselben Wert; sonst bekäme der Nutzer einen Fehler für die Länge, die er
+   * selbst gewählt hat.
+   */
+  const regelnFuer = (sc: SkillCtx, tw: SkillTweak | null): QualitaetsRegel[] =>
+    tw && tw.skillId === sc.skill.id
+      ? regelnMitOverride(sc.skill, sc.regeln, tw.vorgabenOverride)
+      : sc.regeln;
+
   const persist = async (next: WorkflowRun): Promise<void> => {
     setRun(next);
     await putWorkflowRun(storage.idb, next);
@@ -355,6 +369,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     setLlmAvailable(ok);
     if (!ok) { setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
     const tw = o.tweak;
+    const scRegeln = regelnFuer(sc, tw);
     const tweakWirksam = !!(tw?.aktiv && tw.skillId === sc.skill.id
       && (tw.stilHinweise.trim() || tw.beispielFormulierungen.trim()));
     const prevText = base.schritte[stepId]?.finalerText;
@@ -387,7 +402,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const teilPlan = getTeilPlan(sc.skill.id);
     if (teilPlan && !o.modifier) {
       const vorherige = buildVorherigeAbschnitte(base, stepId, steps, 2000, o.quelle);
-      const teilRegelSatz = teilRegeln(sc.regeln);
+      const teilRegelSatz = teilRegeln(scRegeln);
       const teilErgebnisse: TeilErgebnis[] = [];
       let letztesResult: Awaited<ReturnType<typeof runSkill>> | null = null;
       let vorText = '';
@@ -419,7 +434,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         vorText = [vorText, r.parsed.finalerText].map(t => t.trim()).filter(Boolean).join('\n\n');
       }
       const merged = mergeTeile(teilErgebnisse);
-      const checks = runRegelChecks(merged.finalerText, sc.regeln);
+      const checks = runRegelChecks(merged.finalerText, scRegeln);
       const gen: GenerationInput = {
         quellenanalyse: merged.quellenanalyse,
         entwurf: merged.entwurf,
@@ -438,7 +453,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       return { next: applyGeneration(base, stepId, gen, new Date().toISOString()), checks };
     }
 
-    const result = await runSkill(transport, sc.skill, sc.regeln, {
+    const result = await runSkill(transport, sc.skill, scRegeln, {
       ziel: aktivesZielFuerLauf(),
       stammdaten: buildStammdaten(ctx),
       vbMarkdown: korpusMd,
@@ -458,7 +473,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
       signal: o.signal,
     });
-    const checks = runRegelChecks(result.parsed.finalerText, sc.regeln);
+    const checks = runRegelChecks(result.parsed.finalerText, scRegeln);
     const gen: GenerationInput = {
       quellenanalyse: result.parsed.quellenanalyse,
       entwurf: result.parsed.entwurf,
@@ -599,7 +614,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const sc = skillMap.get(stepId);
     const step = run?.schritte[stepId];
     if (!run || !sc || !step) return;
-    await reduce((r, now) => applyPruefen(r, stepId, runRegelChecks(step.finalerText, sc.regeln), now));
+    await reduce((r, now) => applyPruefen(r, stepId, runRegelChecks(step.finalerText, regelnFuer(sc, tweak)), now));
   };
 
   /**
@@ -612,7 +627,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const bearbeitenStep = async (stepId: StepId, text: string): Promise<void> => {
     const sc = skillMap.get(stepId);
     if (!run || !sc) return;
-    const checks = runRegelChecks(text, sc.regeln);
+    const checks = runRegelChecks(text, regelnFuer(sc, tweak));
     await reduce((r, now) => applyBearbeitung(r, stepId, text, checks, now));
     // Nur die Tatsache „Abschnitt bearbeitet" protokollieren — NIE den Textinhalt.
     const jetzt = Date.now();
@@ -631,7 +646,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const sc = skillMap.get(stepId);
     const step = run?.schritte[stepId];
     if (!run || !sc || step?.originalText == null) return;
-    const checks = runRegelChecks(step.originalText, sc.regeln);
+    const checks = runRegelChecks(step.originalText, regelnFuer(sc, tweak));
     await reduce((r, now) => applyZuruecksetzen(r, stepId, checks, now));
   };
 
@@ -730,7 +745,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       }
       await persist(applyLektorat(run, stepId, {
         finalerText: text,
-        checks: runRegelChecks(text, sc.regeln),
+        checks: runRegelChecks(text, regelnFuer(sc, tweak)),
         modell: transport.displayName ?? transport.name,
         ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
       }, new Date().toISOString()));

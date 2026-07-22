@@ -33,6 +33,17 @@ export {
   type SkillKategorieQuelle,
 } from './skill-kategorien';
 export {
+  vorgabenZuRegeln,
+  wendeOverrideAn,
+  regelnMitOverride,
+  istVorgabeRegel,
+  istUeberschreibbar,
+  VORGABE_ID_PREFIX,
+  VORGABE_KEYS,
+  VORGABE_TYP,
+  VORGABE_NAME,
+} from './vorgaben';
+export {
   regelKorrekturAnweisung,
   regelLimit,
   type RegelKorrektur,

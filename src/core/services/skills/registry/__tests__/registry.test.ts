@@ -50,20 +50,31 @@ describe('normalizeRegistryFile — tolerantes Lesen', () => {
 });
 
 describe('Selektoren', () => {
-  it('getSkillById + resolveRegeln (Reihenfolge, fehlende IDs ausgelassen)', () => {
+  it('getSkillById + resolveRegeln: Skill-Vorgaben ZUERST, dann die Bibliotheks-Regeln', () => {
     const skill = getSkillById(SEED_REGISTRY, KURZFASSUNG_SKILL_ID)!;
     expect(skill).toBeDefined();
     const regeln = resolveRegeln(SEED_REGISTRY, skill);
-    expect(regeln.map(r => r.id)).toEqual(SEED_SKILL.regelIds);
+    // Die Reihenfolge ist Prompt-Text (Zeilenfolge im Block „Formale Vorgaben").
+    expect(regeln.map(r => r.id)).toEqual([
+      'vorgabe:gutachten-kurzfassung:satzanzahl',
+      'vorgabe:gutachten-kurzfassung:zeichen_max',
+      'vorgabe:gutachten-kurzfassung:satzlaenge_max',
+      'vorgabe:gutachten-kurzfassung:keine_aufzaehlungen',
+      ...SEED_SKILL.regelIds,
+    ]);
   });
 
   it('resolveRegeln überspringt nicht vorhandene IDs', () => {
-    const file = { ...SEED_REGISTRY, skills: [{ ...SEED_SKILL, regelIds: ['seed-satzanzahl', 'gibt-es-nicht'] }] };
-    expect(resolveRegeln(file, file.skills[0]!).map(r => r.id)).toEqual(['seed-satzanzahl']);
+    const file = {
+      ...SEED_REGISTRY,
+      skills: [{ ...SEED_SKILL, vorgaben: undefined, regelIds: ['seed-passiv-stil', 'gibt-es-nicht'] }],
+    };
+    expect(resolveRegeln(file, file.skills[0]!).map(r => r.id)).toEqual(['seed-passiv-stil']);
   });
 
   it('skillsUsingRegel berechnet „verwendet in"', () => {
-    expect(skillsUsingRegel(SEED_REGISTRY, 'seed-satzanzahl')).toEqual([SEED_SKILL.name]);
+    // `seed-passiv-stil` ist die einzige geteilte Regel des Gutachten-Stamms (A + B–G).
+    expect(skillsUsingRegel(SEED_REGISTRY, 'seed-passiv-stil')).toContain(SEED_SKILL.name);
     expect(skillsUsingRegel(SEED_REGISTRY, 'unbenutzt')).toEqual([]);
   });
 
@@ -157,11 +168,11 @@ describe('Seed', () => {
     // nf-auswahl-fuellung + anfrage-anonymisieren + anfrage-metadaten + aufbereitung-aspekte +
     // aufbereitung-steckbrief + aufbereitung-zahlen + aufbereitung-glossar + aufbereitung-verwertung +
     // aufbereitung-recherche-prompt + aufbereitung-recherche-import = 20;
-    // 5 A-Regeln + 9 B–G-Regeln + 3 NF-Regeln + 5 GA-QS-Regeln = 22 Regeln
-    // (QS + Relevanz-Map + Lektor + Anfrage-Skills + Aufbereitungs-Skills haben keine).
-    // B–G: B(3) + C(3: seed-c-wortanzahl[Waise] + seed-c-umfang + seed-c-keine-aufzaehlungen) + D(2) + G(1).
+    // Regel-Bibliothek seit v2.296: 1 geteilte Gutachten-Regel (Passiv-Floskel)
+    // + 3 NF-Regeln + 5 GA-QS-Regeln = 9. Die früheren 13 Ein-Skill-Umfangsregeln
+    // (A: 4, B: 3, C: 3 inkl. Waise, D: 2, G: 1) leben als `SkillRecord.vorgaben`.
     expect(SEED_REGISTRY.skills).toHaveLength(20);
-    expect(SEED_REGISTRY.regeln).toHaveLength(22);
+    expect(SEED_REGISTRY.regeln).toHaveLength(9);
     expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung
     expect(skill.id).toBe('gutachten-kurzfassung');

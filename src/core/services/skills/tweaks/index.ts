@@ -9,4 +9,5 @@ export {
   shouldShowVersionHint,
   isNewerTweak,
   isValidTweak,
+  sanitizeOverride,
 } from './store';

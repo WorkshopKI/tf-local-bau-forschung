@@ -16,8 +16,8 @@ import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-wri
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
   ArtefaktTyp, GateExpr, Pruefart, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey,
-  SkillRecord, SkillRegistryFile, SkillVersionSnapshot, TeilDeklaration, TeilJoin, WorkflowDef,
-  WorkflowEbene, WorkflowFreigabe, WorkflowStep, WorkflowStepRolle,
+  SkillRecord, SkillRegistryFile, SkillVersionSnapshot, SkillVorgaben, TeilDeklaration, TeilJoin,
+  VorgabeBasis, WorkflowDef, WorkflowEbene, WorkflowFreigabe, WorkflowStep, WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
 import { MAX_HISTORIE } from './versioning';
@@ -179,7 +179,66 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   // beim Laden verloren und ein ungeprüfter Skill (Anfragen-Anonymisierer) wäre
   // ungewollt live. Fehlt das Feld → undefined → gilt als aktiv (Bestands-Skills).
   if (typeof s.aktiv === 'boolean') skill.aktiv = s.aktiv;
+  // Skill-eigene Vorgaben (additiv): EXPLIZIT übernehmen — gleiche Klasse wie
+  // kategorie/teilStruktur/aktiv. Ohne diese Zeile verlöre der Skill beim Laden
+  // seinen gesamten Umfangs-Kontrakt (und liefe ohne „Formale Vorgaben"-Block).
+  const vorgaben = normalizeVorgaben(s.vorgaben);
+  if (vorgaben) skill.vorgaben = vorgaben;
   return skill;
+}
+
+/**
+ * Tolerantes Lesen der Skill-Vorgaben — je Schlüssel nur übernommen, wenn die
+ * Pflichtwerte plausibel sind. Unbekannte Schlüssel und kaputte Einträge fallen
+ * still weg (der Skill läuft dann ohne diese Vorgabe weiter, statt zu brechen).
+ */
+function normalizeVorgaben(raw: unknown): SkillVorgaben | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const v = raw as Record<string, unknown>;
+  const out: SkillVorgaben = {};
+  const basis = (o: Record<string, unknown>): VorgabeBasis => ({
+    schweregrad: o.schweregrad === 'hinweis' ? 'hinweis' : 'fehler',
+    ...(o.persoenlichAnpassbar === true ? { persoenlichAnpassbar: true } : {}),
+  });
+  const obj = (key: string): Record<string, unknown> | null => {
+    const o = v[key];
+    return typeof o === 'object' && o !== null ? (o as Record<string, unknown>) : null;
+  };
+  const zahl = (o: Record<string, unknown>, k: string): number | undefined =>
+    typeof o[k] === 'number' && Number.isFinite(o[k]) ? (o[k] as number) : undefined;
+
+  for (const key of ['wortanzahl', 'satzanzahl'] as const) {
+    const o = obj(key);
+    if (!o) continue;
+    const min = zahl(o, 'min');
+    const max = zahl(o, 'max');
+    if (min === undefined && max === undefined) continue; // Band ohne Zahl = keine Vorgabe
+    out[key] = { ...basis(o), ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
+  }
+  const zeichen = obj('zeichenMax');
+  if (zeichen) {
+    const max = zahl(zeichen, 'max');
+    if (max !== undefined) out.zeichenMax = { ...basis(zeichen), max };
+  }
+  const absatz = obj('absatzMin');
+  if (absatz) {
+    const min = zahl(absatz, 'min');
+    if (min !== undefined) out.absatzMin = { ...basis(absatz), min };
+  }
+  const satzlaenge = obj('satzlaengeMax');
+  if (satzlaenge) {
+    const maxWoerter = zahl(satzlaenge, 'maxWoerter');
+    if (maxWoerter !== undefined) out.satzlaengeMax = { ...basis(satzlaenge), maxWoerter };
+  }
+
+  const keineAufz = obj('keineAufzaehlungen');
+  if (keineAufz) out.keineAufzaehlungen = basis(keineAufz);
+
+  const pflicht = obj('pflichtAnfang');
+  const text = pflicht ? asString(pflicht.text).trim() : '';
+  if (pflicht && text) out.pflichtAnfang = { ...basis(pflicht), text };
+
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /** Tolerantes Lesen der `teilStruktur` — nur Einträge mit nicht-leerem key+label. */

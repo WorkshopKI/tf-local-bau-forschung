@@ -18,6 +18,7 @@ import {
   getSkillById,
   resolveRegeln,
   runRegelChecks,
+  regelnMitOverride,
   KURZFASSUNG_SKILL_ID,
   SEED_SKILL,
   SEED_REGELN,
@@ -193,7 +194,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
       // Tweak nur einspeisen, wenn aktiv UND nicht leer — dann ist auch `mitTweak`
       // korrekt (composeSkillPrompt würde sonst keinen Block emittieren).
       const tweakWirksam = !!(tweak?.aktiv && (tweak.stilHinweise.trim() || tweak.beispielFormulierungen.trim()));
-      const result = await runSkill(transport, skillCtx.skill, skillCtx.regeln, {
+      const result = await runSkill(transport, skillCtx.skill, aktuelleRegeln(), {
         ziel: aktivesZielFuerLauf(),
         stammdaten: buildStammdaten(ctx),
         vbMarkdown: vbDokument.markdown,
@@ -211,7 +212,7 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
         quellenanalyse: result.parsed.quellenanalyse,
         entwurf: result.parsed.entwurf,
         finalerText: result.parsed.finalerText,
-        checks: runRegelChecks(result.parsed.finalerText, skillCtx.regeln),
+        checks: runRegelChecks(result.parsed.finalerText, aktuelleRegeln()),
         status: 'entwurf',
         erstellt_am: new Date().toISOString(),
         modell: transport.displayName ?? transport.name,
@@ -238,10 +239,18 @@ export function useKurzfassung(ctx: KurzfassungContext): KurzfassungController {
     }
   };
 
+  /**
+   * Regeln des Skills INKL. persönlichem Vorgaben-Override (nur wo der Kurator ihn
+   * freigegeben hat). Prompt UND Check ziehen dieselbe Liste — sonst prüfte die App
+   * gegen den Team-Wert, obwohl sie mit dem persönlichen generiert hat.
+   */
+  const aktuelleRegeln = (): QualitaetsRegel[] =>
+    skillCtx ? regelnMitOverride(skillCtx.skill, skillCtx.regeln, tweak?.vorgabenOverride) : [];
+
   const pruefen = async (): Promise<void> => {
     if (!record || !skillCtx) return;
     try {
-      const rec: KurzfassungRecord = { ...record, checks: runRegelChecks(record.finalerText, skillCtx.regeln) };
+      const rec: KurzfassungRecord = { ...record, checks: runRegelChecks(record.finalerText, aktuelleRegeln()) };
       setRecord(rec);
       await putKurzfassung(storage.idb, rec);
     } catch (err) {
