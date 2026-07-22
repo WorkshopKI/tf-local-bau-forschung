@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.302 — 2026-07
+
+### Verbesserungen
+- Die Zahlen an den Filter-Knöpfen im Auslastungs-Modul zeigen jetzt genau das, was die Liste nach dem Klick anzeigt. Sind bereits andere Filter gesetzt, sind die eingerechnet. Gezählt werden Verbünde, nicht einzelne Teilvorhaben.
+- Der Filter „Übernahme-Wunsch" findet auch Vormerkungen, die noch nicht eingesammelt sind — also genau die Anträge, die in der Liste mit „vorgemerkt" markiert sind.
+
+### Bugfixes
+- Beim Einsammeln der Übernahme-Wünsche wurden Wünsche mitgezählt, die auf Anträge zeigten, die in der Zuweisungs-Liste gar nicht mehr auftauchen (inzwischen vergeben oder außerhalb des Verteil-Fensters). Die Meldung sagte „14 neu", der Filter fand nichts. Solche Wünsche werden jetzt getrennt als „nicht mehr zuweisbar" ausgewiesen — mit Angabe, wer welchen Antrag wollte und warum er nicht mehr zur Verteilung steht.
+- Haben sich mehrere Kolleginnen oder Kollegen für denselben Verbund vorgemerkt, blieb nach einem Neustart der App nur eine Vormerkung übrig. Jetzt bleiben alle Interessenten erhalten, bis die Projektleitung zuweist.
+
 ## v2.299 — 2026-07
 
 ### Verbesserungen

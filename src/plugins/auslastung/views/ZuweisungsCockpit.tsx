@@ -23,7 +23,13 @@ import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuens
 import { usePersistedKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { getAntrag } from '@/core/services/csv/idb-csv';
 import { runMatchingWithContext } from '../services/matching';
-import { collectUebernahmeWuensche, findeZurueckgezogeneWuensche, type WunschRef } from '../services/onboarding';
+import {
+  buildZuweisbarkeitsPruefung,
+  collectUebernahmeWuensche,
+  findeZurueckgezogeneWuensche,
+  NICHT_ZUWEISBAR_TEXT,
+  type WunschRef,
+} from '../services/onboarding';
 import { useDeAnonResolver } from '../components/AnonymIdBadge';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
@@ -61,9 +67,12 @@ import {
   clampSplitPct,
   readSplitPct,
   persistSplitPct,
-  verbundStatusFlags,
+  kategorienOfRow,
+  antragstypBucketsOfRow,
+  statusBucketsOfRow,
   type StatusFilter,
 } from './cockpit-helpers';
+import { applyFacets, bucketFacet, countFacet, type Facet } from './facetCounts';
 import { DetailPanel } from './DetailPanel';
 import { VerbundListe } from './VerbundListe';
 import { FilterToolbar } from './FilterToolbar';
@@ -134,8 +143,11 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
   // v2.290: Details des letzten Einsammelns (wer/was) — als Tooltip an der
-  // Bilanz-Zeile, damit die PL zurückgezogene Wünsche nachvollziehen kann.
-  const [einsammelnRefs, setEinsammelnRefs] = useState<{ neu: WunschRef[]; entfernt: WunschRef[] } | null>(null);
+  // Bilanz-Zeile, damit die PL zurückgezogene und nicht mehr zuweisbare
+  // Wünsche nachvollziehen kann.
+  const [einsammelnRefs, setEinsammelnRefs] = useState<
+    { neu: WunschRef[]; entfernt: WunschRef[]; nichtZuweisbar: WunschRef[] } | null
+  >(null);
   // v2.19: von der PL manuell hinzugefuegte MAs (anonIds) fuer den selektierten
   // Antrag — Reset bei Selektionswechsel (siehe useEffect weiter unten).
   const [manualAnonIds, setManualAnonIds] = useState<string[]>([]);
@@ -146,6 +158,14 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const loadCorpus = useMatchingCorpus(cache.antraege, cache.embeddableAz, storage);
   const queryEmbeddingCacheRef = useRef<Map<string, number[]>>(new Map());
   const matchReqIdRef = useRef(0);
+
+  // Rollierendes Verteil-Fenster (Cutoff) — exakt wie die Klassifizierungs-Liste,
+  // damit beide denselben Pool nutzen (gleitet über den Jahreswechsel). Steht
+  // vor dem Einsammeln, weil dessen Zuweisbarkeits-Prüfung darauf aufsetzt.
+  const verteilCutoff = useMemo(
+    () => verteilCutoffDatum(config.aktuellesQuartal, config.verteilLookbackMonate ?? 6),
+    [config.aktuellesQuartal, config.verteilLookbackMonate],
+  );
 
   // v2.9: Übernahme-Wünsche aus den persoenlichen Ordnern einsammeln (read-Mode
   // ueber den User-Folders-Root, gespiegelt von MaListSection). Merged sie als
@@ -176,21 +196,26 @@ export function ZuweisungsCockpit(): React.ReactElement {
     // antragId → Verbund-Key, damit der Merge keine Selbst-Wünsche fuer bereits
     // freigegebene Verbünde anlegt (eine Einheit, ein Bearbeiter).
     const verbundKeyByAntrag = new Map(cache.antraege.map(a => [a.aktenzeichen, verbundKeyOf(a)]));
-    const { neu, entfernt, bereitsVergeben, neueEintraege, entfernteEintraege } =
+    const { neu, entfernt, bereitsVergeben, nichtZuweisbar, neueEintraege, entfernteEintraege, nichtZuweisbareEintraege } =
       await applyUebernahmeWuensche(
         storage,
         batch,
         cache.anonymMap,
         (id) => verbundKeyByAntrag.get(id) ?? id,
+        // Gleicher Pool wie die Liste — sonst entstehen Selbst-Records für
+        // Anträge, die hier gar nicht auftauchen können (Pille bliebe auf 0).
+        buildZuweisbarkeitsPruefung(cache.antraege, verteilCutoff),
       );
-    // „bereits vergeben" erklärt, warum die gelesene Zahl größer bleibt als die
-    // Summe aus neu/zurückgezogen: erfüllte Wünsche stehen noch in der
-    // persönlichen Datei des MA, bis er das nächste Mal auf die Startseite geht.
+    // „bereits vergeben" / „nicht mehr zuweisbar" erklären, warum die gelesene
+    // Zahl größer bleibt als die Summe aus neu/zurückgezogen: erledigte Wünsche
+    // stehen noch in der persönlichen Datei des MA, bis er das nächste Mal auf
+    // die Startseite geht.
     setEinsammelnMsg(
       `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`
-      + (bereitsVergeben > 0 ? ` · ${bereitsVergeben} bereits vergeben` : ''),
+      + (bereitsVergeben > 0 ? ` · ${bereitsVergeben} bereits vergeben` : '')
+      + (nichtZuweisbar > 0 ? ` · ${nichtZuweisbar} nicht mehr zuweisbar` : ''),
     );
-    setEinsammelnRefs({ neu: neueEintraege, entfernt: entfernteEintraege });
+    setEinsammelnRefs({ neu: neueEintraege, entfernt: entfernteEintraege, nichtZuweisbar: nichtZuweisbareEintraege });
     // Pending-Markierung aktualisieren (eingesammelte Wünsche sind nun im Store).
     reloadPending();
   });
@@ -201,13 +226,6 @@ export function ZuweisungsCockpit(): React.ReactElement {
   // Matching-Engine durchgereicht, damit fest+pending in den Score
   // einfliessen (statt nur Store-Zuweisungen).
   const { auslastungByAnon } = useAuslastungIndex();
-
-  // Rollierendes Verteil-Fenster (Cutoff) — exakt wie die Klassifizierungs-Liste,
-  // damit beide denselben Pool nutzen (gleitet über den Jahreswechsel).
-  const verteilCutoff = useMemo(
-    () => verteilCutoffDatum(config.aktuellesQuartal, config.verteilLookbackMonate ?? 6),
-    [config.aktuellesQuartal, config.verteilLookbackMonate],
-  );
 
   // Worklist = freigegebene Klassifizierungen ∩ derselbe „zu verteilen"-Pool wie
   // in der Klassifizierungs-Liste (`istZuVerteilen`: Antragsdatum im Fenster, KEIN
@@ -255,10 +273,28 @@ export function ZuweisungsCockpit(): React.ReactElement {
     (ref: WunschRef): string => {
       const wer = resolveName(ref.anonId) ?? ref.anonId;
       const akronym = akronymByAz.get(ref.antragId);
-      return `${wer} → ${akronym ? `${akronym} · ` : ''}${ref.antragId}`;
+      const grund = ref.grund ? ` (${NICHT_ZUWEISBAR_TEXT[ref.grund]})` : '';
+      return `${wer} → ${akronym ? `${akronym} · ` : ''}${ref.antragId}${grund}`;
     },
     [resolveName, akronymByAz],
   );
+
+  // Tooltip an der Einsammel-Bilanz: WER wollte WAS — und warum ein Wunsch
+  // nicht angekommen ist. Ohne den Grund bleibt „0 neu" bei 14 gelesenen
+  // Wünschen unerklärlich.
+  const einsammelnTooltip = useMemo(() => {
+    if (!einsammelnRefs) return undefined;
+    const blocks = [
+      ['Neu', einsammelnRefs.neu],
+      ['Zurückgezogen', einsammelnRefs.entfernt],
+      ['Nicht mehr zuweisbar — steht nicht in dieser Liste', einsammelnRefs.nichtZuweisbar],
+    ] as const;
+    const text = blocks
+      .filter(([, refs]) => refs.length > 0)
+      .map(([titel, refs]) => `${titel}:\n${refs.map(r => `  ${beschreibeWunsch(r)}`).join('\n')}`)
+      .join('\n\n');
+    return text || undefined;
+  }, [einsammelnRefs, beschreibeWunsch]);
 
   // Antragstyp-Filter: vb_phase pro Aktenzeichen, fuer den Lead-TV-Lookup.
   // vb_phase steht auf dem Antrag-Objekt (nicht auf der Verbund-Zeile).
@@ -270,23 +306,26 @@ export function ZuweisungsCockpit(): React.ReactElement {
     return m;
   }, [cache.antraege]);
 
+  // Facetten der Toolbar — EINE Definition je Facette, geteilt von Filterung
+  // (unten) und Pillen-Zählern (`filterCounts`). Die Bucket-Funktionen leben in
+  // cockpit-helpers; „alle" ist der Aus-Zustand des Status-Segments.
+  const bucketsKategorie = kategorienOfRow;
+  const bucketsAntragstyp = useCallback(
+    (row: VerbundZuweisungRow) => antragstypBucketsOfRow(row, phaseByAz),
+    [phaseByAz],
+  );
+  const bucketsStatus = useCallback(
+    (row: VerbundZuweisungRow) => statusBucketsOfRow(row, zuweisungenAnzeige, pendingByAntrag),
+    [zuweisungenAnzeige, pendingByAntrag],
+  );
+  const facets = useMemo<Facet<VerbundZuweisungRow>[]>(() => [
+    bucketFacet('kategorie', kategorieFilter, bucketsKategorie),
+    bucketFacet('antragstyp', antragstypFilter, bucketsAntragstyp),
+    bucketFacet('status', statusFilter === 'alle' ? '' : statusFilter, bucketsStatus),
+  ], [kategorieFilter, antragstypFilter, statusFilter, bucketsKategorie, bucketsAntragstyp, bucketsStatus]);
+
   // Filter anwenden — Status aggregiert ueber alle TVs des Verbundes.
-  const filtered = useMemo(() => {
-    return verbundRows.filter(row => {
-      const kats = [row.klassifizierung.freigegebenePrimaer, ...row.klassifizierung.freigegebeneAspekte].filter(Boolean);
-      if (kategorieFilter && !kats.includes(kategorieFilter)) return false;
-      // Antragstyp via Lead-TV (vb_phase ist verbund-weit gleich; Irrlaeufer/9
-      // → getKategorieLabel === null → matcht keinen Bucket, nur „Alle").
-      if (antragstypFilter && getKategorieLabel(phaseByAz.get(row.leadAktenzeichen)) !== antragstypFilter) return false;
-      if (statusFilter !== 'alle') {
-        const { offen, selbst, zug } = verbundStatusFlags(row.tvAktenzeichen, zuweisungenAnzeige);
-        if (statusFilter === 'offen' && !offen) return false;
-        if (statusFilter === 'selbst' && !selbst) return false;
-        if (statusFilter === 'zugewiesen' && !zug) return false;
-      }
-      return true;
-    });
-  }, [verbundRows, kategorieFilter, antragstypFilter, phaseByAz, statusFilter, zuweisungenAnzeige]);
+  const filtered = useMemo(() => applyFacets(verbundRows, facets), [verbundRows, facets]);
 
   // Sortier-Optionen — „Kategorie" respektiert die konfigurierte Reihenfolge der
   // Überkategorien (id → Index). Wird in die reinen Comparatoren durchgereicht.
@@ -301,27 +340,30 @@ export function ZuweisungsCockpit(): React.ReactElement {
     return compare ? [...filtered].sort(compare) : filtered;
   }, [filtered, sortKey, sortOptions]);
 
-  // Counts pro Filter-Option — ueber ALLE freigegebenen Verbunde (stabil, nicht
-  // ueber die aktuell gefilterte Teilmenge; gleiche Regel wie die Foerderantraege-
-  // Quickfilter). Werden im aufgeklappten Chip-Segment angezeigt.
+  // Counts pro Filter-Option — je Facette ueber die Zeilen, die die ANDEREN
+  // aktiven Filter bereits passiert haben (Facetten-Semantik wie in der
+  // Foerderantraege-Sidebar, `computeFacetCounts`). Damit gilt: was die Pille
+  // anzeigt, ist die Zeilenzahl nach dem Klick auf sie.
   const filterCounts = useMemo(() => {
-    const kategorie: Record<string, number> = {};
-    const antragstyp: Record<AntragstypBucket, number> = { FuE: 0, DS: 0, DL: 0, NW: 0 };
-    let offen = 0, selbst = 0, zugewiesen = 0;
-    for (const row of verbundRows) {
-      const kats = new Set(
-        [row.klassifizierung.freigegebenePrimaer, ...row.klassifizierung.freigegebeneAspekte].filter(Boolean),
-      );
-      for (const id of kats) kategorie[id] = (kategorie[id] ?? 0) + 1;
-      const bucket = getKategorieLabel(phaseByAz.get(row.leadAktenzeichen));
-      if (bucket) antragstyp[bucket]++;
-      const flags = verbundStatusFlags(row.tvAktenzeichen, zuweisungenAnzeige);
-      if (flags.offen) offen++;
-      if (flags.selbst) selbst++;
-      if (flags.zug) zugewiesen++;
-    }
-    return { kategorie, antragstyp, offen, selbst, zugewiesen, total: verbundRows.length };
-  }, [verbundRows, phaseByAz, zuweisungenAnzeige]);
+    const kat = countFacet(verbundRows, facets, 'kategorie', bucketsKategorie);
+    const typ = countFacet(verbundRows, facets, 'antragstyp', bucketsAntragstyp);
+    const status = countFacet(verbundRows, facets, 'status', bucketsStatus);
+    return {
+      kategorie: kat.byBucket,
+      kategorieTotal: kat.total,
+      antragstyp: {
+        FuE: typ.byBucket.FuE ?? 0,
+        DS: typ.byBucket.DS ?? 0,
+        DL: typ.byBucket.DL ?? 0,
+        NW: typ.byBucket.NW ?? 0,
+      } satisfies Record<AntragstypBucket, number>,
+      antragstypTotal: typ.total,
+      offen: status.byBucket.offen ?? 0,
+      selbst: status.byBucket.selbst ?? 0,
+      zugewiesen: status.byBucket.zugewiesen ?? 0,
+      statusTotal: status.total,
+    };
+  }, [verbundRows, facets, bucketsKategorie, bucketsAntragstyp, bucketsStatus]);
 
   const selected = selectedAz ? cache.antraege.find(a => a.aktenzeichen === selectedAz) : null;
   const selectedView = selectedAz ? view.find(v => v.antrag.aktenzeichen === selectedAz) : null;
@@ -628,19 +670,10 @@ export function ZuweisungsCockpit(): React.ReactElement {
           </Button>
           {einsammelnMsg && (
             <span
-              className={einsammelnRefs && (einsammelnRefs.neu.length + einsammelnRefs.entfernt.length) > 0
+              className={einsammelnTooltip
                 ? 'text-[11px] text-[var(--tf-text-tertiary)] cursor-help underline decoration-dotted underline-offset-2'
                 : 'text-[11px] text-[var(--tf-text-tertiary)]'}
-              title={einsammelnRefs && (einsammelnRefs.neu.length + einsammelnRefs.entfernt.length) > 0
-                ? [
-                    einsammelnRefs.neu.length > 0
-                      ? `Neu:\n${einsammelnRefs.neu.map(r => `  ${beschreibeWunsch(r)}`).join('\n')}`
-                      : '',
-                    einsammelnRefs.entfernt.length > 0
-                      ? `Zurückgezogen:\n${einsammelnRefs.entfernt.map(r => `  ${beschreibeWunsch(r)}`).join('\n')}`
-                      : '',
-                  ].filter(Boolean).join('\n\n')
-                : undefined}
+              title={einsammelnTooltip}
             >
               {einsammelnMsg}
             </span>

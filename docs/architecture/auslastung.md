@@ -38,6 +38,18 @@ Die Status-Pills der Verbund-Liste (`offen` · `Übernahme-Wunsch` · `zugewiese
 - **`offen` heißt „niemandem zugewiesen"**, nicht „ohne jeden Eintrag". Ein Übernahme-Wunsch (`Zuweisung.status: 'selbst'`) ist eine **Bewerbung**, keine Zuweisung: der Verbund bleibt offen, bis die PL freigibt. `offen` und `Übernahme-Wunsch` überlappen dadurch bewusst (Summe der Counts > `alle`) — vorher fielen eingesammelte Wünsche aus `offen` heraus, noch nicht eingesammelte (Pending) dagegen nicht, was denselben Antrag je nach Einsammel-Zeitpunkt unterschiedlich einsortierte.
 - Das Flag darf **nicht** an `selbstEingetragen` hängen: es überlebt die Freigabe (selbst eingetragen + freigegeben = zugewiesen, nicht offen).
 - Die Liste zeigt die Interessenten als Kürzel-Badges („will MA03 MA07", ab 4 gekürzt auf `+N`; in pl/dev echte TIB-Kürzel über `deAnonymisierung`) — wer übernehmen möchte, ist ohne Klick sichtbar. Reihenfolge = früheste Vormerkung zuerst, geteilte Logik `interessentenNachWunschzeit` (Liste + Detail-Panel). Davon getrennt bleibt das amber `⚑ N vorgemerkt` für Wünsche, die noch in den persönlichen Ordnern liegen.
+- **`Übernahme-Wunsch` zählt beide Stände**: Store-`selbst` **und** noch nicht eingesammelte Vormerkungen (`pendingByAntrag`) — genau das, was die Zeile mit `⚑ N vorgemerkt` anzeigt. Sonst markiert die Liste einen Wunsch, den der Filter nicht findet. Bucket-Funktion `statusBucketsOfRow`, siehe unten.
+
+## Filter-Zähler = Zeilenzahl (Facetten-Semantik)
+
+Die Pillen beider Tabs („Anträge klassifizieren" + „Anträge zuweisen") zählen **je Facette über die Zeilen, die die anderen aktiven Filter bereits passiert haben** — der eigene Filter wird ausgenommen ([facetCounts.ts](../../src/plugins/auslastung/views/facetCounts.ts)). Dieselbe Regel wie `computeFacetCounts` in der Förderanträge-Sidebar.
+
+- **Invariante**: *was die Pille anzeigt, ist die Zeilenzahl nach dem Klick auf sie* — abgesichert durch einen Test über alle Filter-Kombinationen ([facetCounts.test.ts](../../src/plugins/auslastung/__tests__/facetCounts.test.ts)). Vorher zählten die Pillen über den gesamten Pool: Kategorie `DT 30` + Antragstyp `FuE 16` → Liste zeigte 9.
+- `Alle` ist die „Alle"-Zahl **dieses** Segments (Filter zurückgesetzt), nicht die Pool-Größe.
+- Die Zähl-Einheit ist der **Verbund**, nicht das TV — im Auslastungs-Modul wird ein Verbund als Ganzes zugewiesen.
+- Bucket-Funktionen sind die **einzige** Quelle für Filterung *und* Zählung (`kategorienOfRow`/`antragstypBucketsOfRow`/`statusBucketsOfRow` in [cockpit-helpers.ts](../../src/plugins/auslastung/views/cockpit-helpers.ts), `viewFilterBucketsOf` in KlassifizierungsReview). Zwei getrennte Implementierungen brechen die Invariante sofort.
+- Eine Zeile darf in mehreren Werten **derselben** Facette liegen (Primär + Aspekt-Kategorien; `offen` + `Übernahme-Wunsch`). Die Bucket-Summe übersteigt dann `Alle` — kein Fehler.
+- **Bewusst pool-weit** bleiben Kennzahlen, die nicht die Ansicht beschreiben: die Zahl an „Hohe Confidences freigeben" (die Aktion wirkt auf alle Verbünde — Knopf, Bestätigungsdialog und Aktion teilen `bulkFreigabeKandidaten`) und der Centroid-Hinweis.
 
 ## Lebenszyklus eines Übernahme-Wunsches (v2.290)
 
@@ -47,6 +59,14 @@ Ein Wunsch lebt in der persönlichen Datei `ZAH/auslastung-uebernahme.json` (Que
 - **Erledigung** — sobald der Verbund vergeben ist (Freigabe im Store oder `tib_kuerz` in der CSV), räumt `useMyUebernahmeWuensche` den Wunsch beim nächsten Laden aus der persönlichen Datei (Prädikat `istErledigt`, nur positive Evidenz löscht). Ohne das wüchse die Datei monoton und die Einsammel-Bilanz meldete dauerhaft längst zugewiesene Wünsche als „gelesen".
 
 Regel dazu: Der Merge fasst **nur `status:'selbst'`** an. `selbstEingetragen` überlebt die Freigabe — würde die Retraktion daran hängen, löschte das Selbst-Aufräumen des MA die Freigabe gleich mit. Die Einsammel-Bilanz weist `bereitsVergeben` separat aus, damit die Differenz „gelesen" vs. „neu + zurückgezogen" erklärt ist.
+
+### Der Merge legt nur an, was die Liste auch zeigen kann
+
+Die MA-seitige Erledigungs-Bereinigung greift erst, wenn *dieser* MA seine Startseite öffnet. Bis dahin liest die PL Wünsche auf Anträge, die längst extern gekürzelt oder aus dem rollierenden Fenster gefallen sind. `mergeWuenscheIntoZuweisungen` prüft solche Wünsche deshalb gegen denselben Pool wie die Liste (`buildZuweisbarkeitsPruefung` → `istZuVerteilen`) und legt **keinen** Record an; die Bilanz nennt sie als `nichtZuweisbar` mit Grund im Tooltip (`unbekannt` / `gekuerzelt` / `ausserhalb-pool`).
+
+Ohne diese Prüfung entstand ein Kreislauf: der Record war unsichtbar (die Liste führt den Antrag nicht), buchte aber Pending-Stunden auf den wünschenden MA — und `reconcileZuweisungen` warf ihn beim nächsten Sessionstart weg, sodass das Einsammeln ihn ewig neu als „neu" meldete („14 gelesen · 14 neu" bei Pille `Übernahme-Wunsch 0`).
+
+Verwandt: `reconcileZuweisungen` kollabiert eine (Verbund, Quartal)-Gruppe nur noch, wenn sie eine **Freigabe** enthält. Reine Interessenten-Gruppen bleiben vollständig — mehrere Bewerbungen vor der Freigabe sind erlaubt (Pitfall #26); vorher blieb nach einem App-Neustart nur ein Interessent übrig.
 
 ## Zuweisung ≠ Vollzug: das CSV bestätigt (v2.291)
 

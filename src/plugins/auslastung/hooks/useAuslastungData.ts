@@ -35,7 +35,11 @@ import {
 import { nextFreeAnonId, type AnonymMap } from '../services/identitaet';
 import { mergeProfilesIntoMitarbeiter } from '../services/onboarding';
 import { pingAuslastungWrite } from '../services/cross-tab';
-import { mergeWuenscheIntoZuweisungen, type MergeWuenscheResult } from '../services/onboarding';
+import {
+  mergeWuenscheIntoZuweisungen,
+  type MergeWuenscheResult,
+  type ZuweisbarkeitsPruefung,
+} from '../services/onboarding';
 import { pickVerbundZuweisung } from '../services/verbund';
 import { deriveHauptNeben } from '../services/klassifizierung';
 
@@ -152,6 +156,9 @@ interface AuslastungDataState {
     /** antragId → Verbund-Key — sperrt neue Selbst-Wünsche fuer bereits
      *  freigegebene Verbünde (eine Einheit, ein Bearbeiter). */
     verbundKeyOfAntrag: (antragId: string) => string,
+    /** Steht der gewuenschte Antrag ueberhaupt in der Zuweisungs-Liste? Ohne
+     *  die Pruefung entstehen unsichtbare `selbst`-Records. */
+    pruefeZuweisbar?: ZuweisbarkeitsPruefung,
   ) => Promise<Omit<MergeWuenscheResult, 'next'>>;
   // ── Klassifizierungen ────────────────────────────────────────────────
   upsertKlassifizierung: (storage: StorageService, k: Klassifizierung) => Promise<void>;
@@ -183,8 +190,10 @@ interface AuslastungDataState {
    *  KEIN persist, wenn keine Freigabe zu entfernen ist. */
   unassignVerbund: (storage: StorageService, opts: UnassignVerbundInput) => Promise<void>;
   /** Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter):
-   *  1. pro (Verbund, Quartal) nur die hoechstrangige ACTIVE Zuweisung behalten
-   *     (freigegeben > selbst), die uebrigen ACTIVE-Dubletten verwerfen.
+   *  1. pro (Verbund, Quartal) MIT Freigabe nur die hoechstrangige ACTIVE
+   *     Zuweisung behalten (freigegeben > selbst), die uebrigen verwerfen.
+   *     Gruppen ohne Freigabe bleiben vollstaendig — mehrere Interessenten
+   *     sind vor der Freigabe erlaubt (Pitfall #26).
    *  2. `hatKuerzel(antragId)` (CSV-`tib_kuerz` gesetzt = extern zugewiesen) →
    *     der App-seitige Arbeitsstand ist obsolet: ALLE Zuweisungen + verwaiste
    *     Klassifizierungen dieses Antrags werden verworfen (Quelle der Wahrheit
@@ -448,7 +457,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     return { aktualisiert, neu, unzuordenbar };
   },
 
-  applyUebernahmeWuensche: async (storage, batch, anonymMap, verbundKeyOfAntrag) => {
+  applyUebernahmeWuensche: async (storage, batch, anonymMap, verbundKeyOfAntrag, pruefeZuweisbar) => {
     const cfg = get().data.config;
     const { next, ...bilanz } = mergeWuenscheIntoZuweisungen(
       get().data.zuweisungen,
@@ -457,6 +466,7 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
       cfg.aktuellesQuartal,
       cfg.stundenProTV ?? 9,
       verbundKeyOfAntrag,
+      pruefeZuweisbar,
     );
     if (bilanz.neu === 0 && bilanz.entfernt === 0) return bilanz;
     set(state => ({ data: { ...state.data, zuweisungen: next } }));
@@ -694,6 +704,12 @@ export const useAuslastungData = create<AuslastungDataState>((set, get) => ({
     const losers = new Set<Zuweisung>();
     for (const list of activeByGroup.values()) {
       if (list.length <= 1) continue;
+      // NUR kollabieren, wenn eine echte Freigabe im Spiel ist — das ist der
+      // Fall, gegen den der Reconciler gebaut wurde (Phantom neben Freigabe →
+      // Stunden-Doppelbuchung). Mehrere Interessenten VOR der Freigabe sind
+      // ausdruecklich erlaubt (Pitfall #26) und wuerden sonst beim naechsten
+      // App-Start auf einen reduziert („will MA01" statt „will MA01, MA02").
+      if (!list.some(z => z.status === 'freigegeben')) continue;
       const winner = pickVerbundZuweisung(list);
       for (const z of list) if (z !== winner) losers.add(z);
     }

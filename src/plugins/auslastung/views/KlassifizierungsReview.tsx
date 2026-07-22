@@ -12,7 +12,7 @@
  * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer
  * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -43,6 +43,7 @@ import {
   persistKlassifizierungFilters,
   type ViewFilter,
 } from './filterPersistence';
+import { applyFacets, bucketFacet, countFacet, type Facet } from './facetCounts';
 import { VerbundClassificationTable } from './VerbundClassificationTable';
 import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
 import { SkeletonRows } from '../components/Skeleton';
@@ -77,6 +78,52 @@ function effectiveKategorienOf(v: VerbundKlassifizierungsView): string[] {
 function antragstypOf(v: VerbundKlassifizierungsView): AntragstypBucket | null {
   const tv = v.tvs[0] as Record<string, unknown> | undefined;
   return tv ? getKategorieLabel(tv.vb_phase) : null;
+}
+
+/** Antragstyp als Bucket-Liste (leer für Irrläufer) — Form, die `countFacet`
+ *  und `bucketFacet` erwarten. Modul-Ebene, damit die Ref stabil bleibt. */
+function antragstypBucketsOf(v: VerbundKlassifizierungsView): AntragstypBucket[] {
+  const bucket = antragstypOf(v);
+  return bucket ? [bucket] : [];
+}
+
+/**
+ * Status-Buckets eines Verbundes = die `ViewFilter`-Pillen (ohne „alle"), in
+ * denen er auftaucht. Überlappend: „Unvollständig" ist orthogonal zum Status,
+ * „LLM-Vorschlag" eine Teilmenge der noch offenen Verbünde.
+ *
+ * `angeheftet` = frisch freigegeben (Grace-Period) oder gerade von Hand
+ * korrigiert; solche Zeilen bleiben in „Review nötig"/„LLM-Vorschlag" sichtbar,
+ * damit Mehrfach-Korrekturen nicht nach dem ersten Klick wegspringen. Geteilt
+ * von Filterung und Zählern — sonst zeigt die Pille eine andere Zahl als die
+ * Liste.
+ */
+function viewFilterBucketsOf(
+  v: VerbundKlassifizierungsView,
+  angeheftet: ReadonlySet<string>,
+): ViewFilter[] {
+  const sticky = angeheftet.has(v.verbundId);
+  const out: ViewFilter[] = [];
+  if (!v.vollstaendig) out.push('unvollstaendig');
+  if (v.klassifizierung.status === 'freigegeben') out.push('freigegeben');
+  if (sticky || (v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high')) out.push('review');
+  if (sticky || istLlmVorschlag(v)) out.push('llm');
+  return out;
+}
+
+/** Verbünde, die „Hohe Confidences freigeben" tatsächlich freigibt — EINE
+ *  Quelle für Knopf-Zahl, Bestätigungsdialog und Aktion (sonst nennt der Knopf
+ *  eine andere Zahl als der Dialog). */
+function bulkFreigabeKandidaten(
+  views: readonly VerbundKlassifizierungsView[],
+): VerbundKlassifizierungsView[] {
+  return views.filter(v =>
+    v.klassifizierung.status !== 'freigegeben'
+    && v.confidence === 'high'
+    && v.klassifizierung.vorgeschlagenePrimaer !== null
+    // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) nicht mit-freigeben.
+    && v.vollstaendig,
+  );
 }
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'teamflow_auslastung_klassifizierung_verbund_columns';
@@ -258,36 +305,65 @@ export function KlassifizierungsReview(): React.ReactElement {
     return () => { for (const t of timers.values()) clearTimeout(t); };
   }, []);
 
-  const counts = useMemo(() => {
-    let neu = 0, freig = 0, review = 0, llm = 0, unvollstaendig = 0;
+  // Pool-weite Kennzahlen — bewusst UNABHÄNGIG von den Filter-Pillen: die
+  // Bulk-Freigabe wirkt auf alle Verbünde, und der Centroid-Hinweis beschreibt
+  // den Datenbestand, nicht die aktuelle Ansicht.
+  const poolCounts = useMemo(() => {
+    let fueDs = 0, dlNw = 0;
     for (const v of verbundViews) {
-      // Unvollständig (D_XTEC/D_ADV fehlt) — orthogonal zum Status; freigegebene
-      // sind per Definition vollständig (v2.35 sperrt sonst die Freigabe).
-      if (!v.vollstaendig) unvollstaendig++;
-      if (v.klassifizierung.status === 'freigegeben') { freig++; continue; }
-      // LLM-Vorschlag ist eine Teilmenge der hohen Confidences (neu) — eigener
-      // Zaehler fuer den LLM-Filter-Tab, neu bleibt die Bulk-Freigabe-Basis.
-      if (istLlmVorschlag(v)) llm++;
-      if (v.confidence === 'high') neu++;
-      else review++;
+      const bucket = antragstypOf(v);
+      if (bucket === 'FuE' || bucket === 'DS') fueDs++;
+      else if (bucket === 'DL' || bucket === 'NW') dlNw++;
     }
-    return { neu, freig, review, llm, unvollstaendig, total: verbundViews.length };
+    return {
+      freigegeben: verbundViews.filter(v => v.klassifizierung.status === 'freigegeben').length,
+      bulkKandidaten: bulkFreigabeKandidaten(verbundViews).length,
+      fueDs,
+      dlNw,
+    };
   }, [verbundViews]);
 
-  // Counts pro Kategorie/Antragstyp über ALLE Verbünde (stabil, nicht über die
-  // gefilterte Teilmenge — gleiche Regel wie die Zuweisen-Quickfilter).
+  // Frisch freigegeben (Grace-Period) ODER gerade von Hand korrigiert — bleibt
+  // im aktuellen Status-Filter angeheftet sichtbar.
+  const angeheftet = useMemo(() => {
+    const s = new Set(justFreigegeben);
+    for (const id of editStickyVisible) s.add(id);
+    return s;
+  }, [justFreigegeben, editStickyVisible]);
+  const bucketsStatus = useCallback(
+    (v: VerbundKlassifizierungsView) => viewFilterBucketsOf(v, angeheftet),
+    [angeheftet],
+  );
+
+  // Facetten der Toolbar — EINE Definition je Facette, geteilt von Filterung
+  // und Pillen-Zählern. „alle" ist der Aus-Zustand des Status-Segments.
+  const facets = useMemo<Facet<VerbundKlassifizierungsView>[]>(() => [
+    bucketFacet('kategorie', kategorieFilter, effectiveKategorienOf),
+    bucketFacet('antragstyp', antragstypFilter, antragstypBucketsOf),
+    bucketFacet('status', filter === 'alle' ? '' : filter, bucketsStatus),
+  ], [kategorieFilter, antragstypFilter, filter, bucketsStatus]);
+
+  // Counts je Facette über die Zeilen, die die ANDEREN aktiven Filter bereits
+  // passiert haben (Facetten-Semantik wie in der Förderanträge-Sidebar) — was
+  // die Pille anzeigt, ist die Zeilenzahl nach dem Klick auf sie.
   const filterCounts = useMemo(() => {
-    const kategorie: Record<string, number> = {};
-    const antragstyp: Record<AntragstypBucket, number> = { FuE: 0, DS: 0, DL: 0, NW: 0 };
-    for (const v of verbundViews) {
-      for (const id of new Set(effectiveKategorienOf(v))) {
-        kategorie[id] = (kategorie[id] ?? 0) + 1;
-      }
-      const bucket = antragstypOf(v);
-      if (bucket) antragstyp[bucket]++;
-    }
-    return { kategorie, antragstyp, total: verbundViews.length };
-  }, [verbundViews]);
+    const kat = countFacet(verbundViews, facets, 'kategorie', effectiveKategorienOf);
+    const typ = countFacet(verbundViews, facets, 'antragstyp', antragstypBucketsOf);
+    const status = countFacet(verbundViews, facets, 'status', bucketsStatus);
+    return {
+      kategorie: kat.byBucket,
+      kategorieTotal: kat.total,
+      antragstyp: {
+        FuE: typ.byBucket.FuE ?? 0,
+        DS: typ.byBucket.DS ?? 0,
+        DL: typ.byBucket.DL ?? 0,
+        NW: typ.byBucket.NW ?? 0,
+      } satisfies Record<AntragstypBucket, number>,
+      antragstypTotal: typ.total,
+      status: status.byBucket,
+      statusTotal: status.total,
+    };
+  }, [verbundViews, facets, bucketsStatus]);
 
   // Selbst-Diagnose gegen STUMME Fehlkonfiguration: eine D_XTEC/D_ADV-Spalte ist
   // im Schema gemappt (Kurator WILL die Prüfung), aber das aufgelöste Feld trägt
@@ -296,8 +372,7 @@ export function KlassifizierungsReview(): React.ReactElement {
   // still ins Leere laufen lassen (vgl. der v2.40-Bug: Custom-Mapping → d_xtec leer).
   const vollstHinweise = useMemo(() => {
     const msgs: string[] = [];
-    const fueDs = filterCounts.antragstyp.FuE + filterCounts.antragstyp.DS;
-    const dlNw = filterCounts.antragstyp.DL + filterCounts.antragstyp.NW;
+    const { fueDs, dlNw } = poolCounts;
     if (fueDs > 0 && felder.xtecGefunden && !gate.dxtec) {
       msgs.push(`FuE/DS: Spalte D_XTEC ist gemappt (Feld „${felder.xtecFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
     }
@@ -305,29 +380,9 @@ export function KlassifizierungsReview(): React.ReactElement {
       msgs.push(`DL/NW: Spalte D_ADV ist gemappt (Feld „${felder.advFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
     }
     return msgs;
-  }, [filterCounts.antragstyp, felder, gate.dxtec, gate.dadv]);
+  }, [poolCounts, felder, gate.dxtec, gate.dadv]);
 
-  const filtered = useMemo(() => {
-    return verbundViews.filter(v => {
-      // Facetten: Kategorie (effektiv freigegeben ODER vorgeschlagen) + Antragstyp.
-      if (kategorieFilter && !effectiveKategorienOf(v).includes(kategorieFilter)) return false;
-      if (antragstypFilter && antragstypOf(v) !== antragstypFilter) return false;
-      // Bestehende Status-Pills (Alle/Review/LLM/Freigegeben/Unvollständig).
-      if (filter === 'unvollstaendig') return !v.vollstaendig;
-      if (filter === 'freigegeben') return v.klassifizierung.status === 'freigegeben';
-      if (filter === 'review') {
-        // Frisch freigegeben ODER gerade von Hand korrigiert → angeheftet sichtbar
-        // lassen (sonst fällt der manuelle Edit per confidence→high sofort raus).
-        if (justFreigegeben.has(v.verbundId) || editStickyVisible.has(v.verbundId)) return true;
-        return v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high';
-      }
-      if (filter === 'llm') {
-        if (justFreigegeben.has(v.verbundId) || editStickyVisible.has(v.verbundId)) return true;
-        return istLlmVorschlag(v);
-      }
-      return true;
-    });
-  }, [verbundViews, filter, justFreigegeben, editStickyVisible, kategorieFilter, antragstypFilter]);
+  const filtered = useMemo(() => applyFacets(verbundViews, facets), [verbundViews, facets]);
 
   // Default-Ordnung beim ersten Laden (kein expliziter Spalten-Sort): noch nicht
   // freigegebene Verbuende oben, damit die PL sofort die offene To-do-Liste sieht
@@ -431,13 +486,7 @@ export function KlassifizierungsReview(): React.ReactElement {
   // Pitfall #15: useAsyncAction statt hand-gerolltem void-onClick — faengt
   // Rejections (unter file:// ist die Console oft zu) und schuetzt vor Doppelklick.
   const bulkFreigebenAction = useAsyncAction(async () => {
-    const candidates = verbundViews.filter(v =>
-      v.klassifizierung.status !== 'freigegeben'
-      && v.confidence === 'high'
-      && v.klassifizierung.vorgeschlagenePrimaer !== null
-      // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) nicht mit-freigeben.
-      && v.vollstaendig
-    );
+    const candidates = bulkFreigabeKandidaten(verbundViews);
     if (candidates.length === 0) return;
     if (!confirm(`${candidates.length} Verbünde mit hoher Sicherheit freigeben?`)) return;
     // Alle TVs aller Kandidaten in EINEM persist statt N SMB-Roundtrips
@@ -494,11 +543,11 @@ export function KlassifizierungsReview(): React.ReactElement {
 
   // Filter-Chips im Stil der Förderanträge-/Zuweisen-Quickfilter (CollapsibleSeg).
   const kategorieItems: CollapsibleSegItem[] = [
-    { label: 'Alle', count: filterCounts.total },
+    { label: 'Alle', count: filterCounts.kategorieTotal },
     ...config.ueberKategorien.map(k => ({ label: k.id, count: filterCounts.kategorie[k.id] ?? 0 })),
   ];
   const antragstypItems: CollapsibleSegItem[] = [
-    { label: 'Alle', count: filterCounts.total },
+    { label: 'Alle', count: filterCounts.antragstypTotal },
     ...ALL_ANTRAGSTYP_BUCKETS.map(b => ({ label: b, count: filterCounts.antragstyp[b] })),
   ];
 
@@ -519,8 +568,8 @@ export function KlassifizierungsReview(): React.ReactElement {
           einmalig berechnet werden: Tab <strong>„Auslastung MA"</strong> →
           Abschnitt <strong>„Erweitert"</strong> aufklappen →{' '}
           <strong>„Corpus aufbauen"</strong>.
-          {counts.freig > 0
-            ? ` Die ${counts.freig} bereits freigegebenen Verbünde dienen als Grundlage (pro Kategorie gemittelt) — nichts weiter freizugeben nötig.`
+          {poolCounts.freigegeben > 0
+            ? ` Die ${poolCounts.freigegeben} bereits freigegebenen Verbünde dienen als Grundlage (pro Kategorie gemittelt) — nichts weiter freizugeben nötig.`
             : ' Vorher einige Verbünde pro Kategorie freigeben — sie sind die Grundlage für die Mittelung.'}
           {' '}Danach greifen die Vorschläge für neue Anträge automatisch.
         </div>
@@ -602,13 +651,13 @@ export function KlassifizierungsReview(): React.ReactElement {
               )}
               <button
                 type="button"
-                disabled={isInitialLoading || counts.neu === 0 || bulkFreigebenAction.busy}
+                disabled={isInitialLoading || poolCounts.bulkKandidaten === 0 || bulkFreigebenAction.busy}
                 onClick={() => bulkFreigebenAction.run()}
                 className="inline-flex items-center gap-1 h-8 px-3 rounded-[8px] text-[12.5px] font-medium cursor-pointer hover:bg-[var(--tf-hover)] disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap"
                 style={{ border: '0.5px solid var(--tf-border-hover)', background: 'var(--tf-bg)', color: 'var(--tf-text)' }}
               >
                 {bulkFreigebenAction.busy ? 'Freigeben…' : 'Hohe Confidences freigeben'}
-                <span className="font-normal text-[var(--tf-text-tertiary)]">({fmtCount(counts.neu, isInitialLoading)})</span>
+                <span className="font-normal text-[var(--tf-text-tertiary)]">({fmtCount(poolCounts.bulkKandidaten, isInitialLoading)})</span>
               </button>
             </>
           )}
@@ -644,11 +693,11 @@ export function KlassifizierungsReview(): React.ReactElement {
                   border: `0.5px solid ${active ? 'transparent' : 'var(--tf-border-hover)'}`,
                 }}
               >
-                {f === 'alle' && `Alle (${fmtCount(counts.total, isInitialLoading)})`}
-                {f === 'review' && `Review nötig (${fmtCount(counts.review, isInitialLoading)})`}
-                {f === 'llm' && `LLM-Vorschlag (${fmtCount(counts.llm, isInitialLoading)})`}
-                {f === 'freigegeben' && `Freigegeben (${fmtCount(counts.freig, isInitialLoading)})`}
-                {f === 'unvollstaendig' && `Unvollständig (${fmtCount(counts.unvollstaendig, isInitialLoading)})`}
+                {f === 'alle' && `Alle (${fmtCount(filterCounts.statusTotal, isInitialLoading)})`}
+                {f === 'review' && `Review nötig (${fmtCount(filterCounts.status.review ?? 0, isInitialLoading)})`}
+                {f === 'llm' && `LLM-Vorschlag (${fmtCount(filterCounts.status.llm ?? 0, isInitialLoading)})`}
+                {f === 'freigegeben' && `Freigegeben (${fmtCount(filterCounts.status.freigegeben ?? 0, isInitialLoading)})`}
+                {f === 'unvollstaendig' && `Unvollständig (${fmtCount(filterCounts.status.unvollstaendig ?? 0, isInitialLoading)})`}
               </button>
             );
           })}

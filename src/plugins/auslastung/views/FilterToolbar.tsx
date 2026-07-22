@@ -16,14 +16,21 @@ import {
 } from '../services/matching';
 import { STATUS_FILTER_LABELS, type StatusFilter } from './cockpit-helpers';
 
-/** Aggregierte Counts je Filter-Option (über ALLE freigegebenen Verbünde). */
+/**
+ * Counts je Filter-Option. Facetten-Semantik: jeder Wert ist die Zeilenzahl,
+ * die die Liste nach einem Klick auf ihn zeigt — die ANDEREN aktiven Filter
+ * sind eingerechnet, der eigene nicht. `*Total` ist entsprechend die
+ * „Alle"-Zahl **dieses** Segments, nicht die des gesamten Pools.
+ */
 export interface FilterCounts {
   kategorie: Record<string, number>;
+  kategorieTotal: number;
   antragstyp: Record<AntragstypBucket, number>;
+  antragstypTotal: number;
   offen: number;
   selbst: number;
   zugewiesen: number;
-  total: number;
+  statusTotal: number;
 }
 
 export function FilterToolbar({
@@ -42,12 +49,12 @@ export function FilterToolbar({
   onSortChange: (key: ZuweisungSortKey) => void;
 }): React.ReactElement {
   const kategorieItems: CollapsibleSegItem[] = [
-    { label: 'Alle', count: filterCounts.total },
+    { label: 'Alle', count: filterCounts.kategorieTotal },
     ...ueberKategorien.map(k => ({ label: k.id, count: filterCounts.kategorie[k.id] ?? 0 })),
   ];
 
   const antragstypItems: CollapsibleSegItem[] = [
-    { label: 'Alle', count: filterCounts.total },
+    { label: 'Alle', count: filterCounts.antragstypTotal },
     ...ALL_ANTRAGSTYP_BUCKETS.map(b => ({ label: b, count: filterCounts.antragstyp[b] })),
   ];
 
@@ -56,14 +63,14 @@ export function FilterToolbar({
     offen: filterCounts.offen,
     selbst: filterCounts.selbst,
     zugewiesen: filterCounts.zugewiesen,
-    alle: filterCounts.total,
+    alle: filterCounts.statusTotal,
   };
   // „offen" = niemandem zugewiesen; Anträge mit Übernahme-Wunsch zählen bewusst
   // mit (der Wunsch ist eine Bewerbung, keine Zuweisung) → die Counts von
   // „offen" und „Übernahme-Wunsch" überlappen.
   const statusTitleByKey: Partial<Record<StatusFilter, string>> = {
     offen: 'Noch niemandem zugewiesen — inkl. Anträge mit Übernahme-Wunsch',
-    selbst: 'Anträge, die sich mindestens ein MA gewünscht hat (noch nicht zugewiesen)',
+    selbst: 'Anträge, die sich mindestens ein MA gewünscht hat (noch nicht zugewiesen) — inkl. noch nicht eingesammelter Vormerkungen',
   };
   const statusItems: CollapsibleSegItem[] = statusKeys.map(s => ({
     label: STATUS_FILTER_LABELS[s],

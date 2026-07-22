@@ -4,14 +4,18 @@
  *  - mergeWuenscheIntoZuweisungen: Upsert als selbst-Zuweisung, Dedup, mehrere
  *    Interessenten, PL-/Matching-Entscheidungen unangetastet, Retraktion nur
  *    fuer im Batch vorkommende anonIds, NFC + Mehrfach-Kuerzel, unbekanntes Kuerzel.
+ *  - Zuweisbarkeit: ein Wunsch auf einen Antrag, den die Zuweisungs-Liste nicht
+ *    fuehrt, wird NICHT angelegt (sonst unsichtbarer Record + Phantom-Stunden).
  *  - collectUebernahmeWuensche: iteriert User-Ordner gegen Mock-Dir-Handles.
  */
 import { describe, it, expect } from 'vitest';
 import {
+  buildZuweisbarkeitsPruefung,
   collectUebernahmeWuensche,
   mergeWuenscheIntoZuweisungen,
 } from '../services/onboarding';
 import type { AnonymMap } from '../services/identitaet';
+import type { AntragOderSlim } from '@/core/services/csv/types';
 import type {
   PersoenlicheUebernahmeWuensche,
   UebernahmeWunsch,
@@ -302,6 +306,99 @@ describe('mergeWuenscheIntoZuweisungen', () => {
     );
     expect(neu).toBe(2);
     expect(new Set(next.map(z => z.anonId))).toEqual(new Set(['MA01', 'MA02']));
+  });
+
+  // ── Zuweisbarkeit: kein Record fuer Antraege ausserhalb der Liste ────────
+  // Regression: ohne diese Pruefung meldete das Einsammeln „14 neu", waehrend
+  // die Pille „Übernahme-Wunsch" auf 0 stand — die Records lagen auf Antraegen,
+  // die der Zuweisungs-Pool gar nicht fuehrt.
+
+  it('legt KEINEN Record fuer einen nicht zuweisbaren Antrag an und weist ihn aus', () => {
+    const res = mergeWuenscheIntoZuweisungen(
+      [],
+      [batchOf('mue', [wunsch('WEG'), wunsch('OK')])],
+      anonMap([['MUE', 'MA01']]),
+      Q,
+      STUNDEN_PRO_TV,
+      undefined,
+      (id) => (id === 'WEG' ? 'gekuerzelt' : null),
+    );
+    expect(res.neu).toBe(1);
+    expect(res.nichtZuweisbar).toBe(1);
+    expect(res.nichtZuweisbareEintraege).toEqual([
+      { antragId: 'WEG', anonId: 'MA01', grund: 'gekuerzelt' },
+    ]);
+    expect(res.next.map(z => z.antragId)).toEqual(['OK']);
+  });
+
+  it('raeumt einen bestehenden selbst-Record fuer einen nicht mehr zuweisbaren Antrag auf', () => {
+    const existing: Zuweisung[] = [
+      { antragId: 'WEG', anonId: 'MA01', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+    ];
+    const res = mergeWuenscheIntoZuweisungen(
+      existing,
+      [batchOf('mue', [wunsch('WEG')])],
+      anonMap([['MUE', 'MA01']]),
+      Q,
+      STUNDEN_PRO_TV,
+      undefined,
+      () => 'ausserhalb-pool',
+    );
+    expect(res.neu).toBe(0);
+    expect(res.nichtZuweisbar).toBe(1);
+    expect(res.next).toHaveLength(0);
+  });
+
+  it('ohne Prüfung (Default) bleibt das Verhalten unverändert', () => {
+    const res = mergeWuenscheIntoZuweisungen(
+      [],
+      [batchOf('mue', [wunsch('A')])],
+      anonMap([['MUE', 'MA01']]),
+      Q,
+      STUNDEN_PRO_TV,
+    );
+    expect(res.neu).toBe(1);
+    expect(res.nichtZuweisbar).toBe(0);
+    expect(res.nichtZuweisbareEintraege).toEqual([]);
+  });
+});
+
+// ─── buildZuweisbarkeitsPruefung ──────────────────────────────────────────
+
+describe('buildZuweisbarkeitsPruefung', () => {
+  const antrag = (aktenzeichen: string, felder: Record<string, unknown> = {}): AntragOderSlim =>
+    ({ aktenzeichen, antragsdatum: '2026-05-01', status: 'in bearbeitung', ...felder }) as unknown as AntragOderSlim;
+
+  const CUTOFF = '2026-04-01';
+
+  it('zuweisbar: im Fenster, ohne Kürzel', () => {
+    const pruefe = buildZuweisbarkeitsPruefung([antrag('A')], CUTOFF);
+    expect(pruefe('A')).toBeNull();
+  });
+
+  it('unbekannter Antrag → „unbekannt" (kein Record ins Blaue)', () => {
+    const pruefe = buildZuweisbarkeitsPruefung([antrag('A')], CUTOFF);
+    expect(pruefe('FREMD')).toBe('unbekannt');
+  });
+
+  it('CSV-Kürzel schlägt alles — der Antrag ist extern vergeben', () => {
+    const pruefe = buildZuweisbarkeitsPruefung([antrag('A', { tib_kuerz: 'MUE' })], CUTOFF);
+    expect(pruefe('A')).toBe('gekuerzelt');
+  });
+
+  it('Antragsdatum vor dem Cutoff → „ausserhalb-pool"', () => {
+    const pruefe = buildZuweisbarkeitsPruefung([antrag('A', { antragsdatum: '2025-11-30' })], CUTOFF);
+    expect(pruefe('A')).toBe('ausserhalb-pool');
+  });
+
+  it('ausgeschlossener Status → „ausserhalb-pool"', () => {
+    const pruefe = buildZuweisbarkeitsPruefung([antrag('A', { status: 'Irrläufer' })], CUTOFF);
+    expect(pruefe('A')).toBe('ausserhalb-pool');
+  });
+
+  it('ohne Cutoff (ungültiges Quartal) greift nur der Kürzel-Check — wie die Liste', () => {
+    const pruefe = buildZuweisbarkeitsPruefung([antrag('A', { antragsdatum: '2020-01-01' })], null);
+    expect(pruefe('A')).toBeNull();
   });
 });
 

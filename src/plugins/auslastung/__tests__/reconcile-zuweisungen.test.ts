@@ -1,10 +1,12 @@
 /**
  * Tests fuer `reconcileZuweisungen` im Auslastungs-Store.
  *
- * Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter): pro
- * (Verbund, Quartal) bleibt nur die hoechstrangige ACTIVE Zuweisung
- * (freigegeben > selbst) — uebrige ACTIVE-Dubletten fallen weg, abgelehnt-Marker
- * bleiben. Idempotent: kein persist, wenn nichts zu bereinigen ist.
+ * Einmal-Bereinigung von Altdaten (eine Einheit, ein Bearbeiter): in einer
+ * (Verbund, Quartal)-Gruppe MIT Freigabe bleibt nur die hoechstrangige ACTIVE
+ * Zuweisung (freigegeben > selbst) — uebrige fallen weg, abgelehnt-Marker
+ * bleiben. Gruppen OHNE Freigabe bleiben vollstaendig: mehrere Interessenten
+ * sind vor der Freigabe erlaubt (Pitfall #26).
+ * Idempotent: kein persist, wenn nichts zu bereinigen ist.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -77,6 +79,23 @@ describe('reconcileZuweisungen', () => {
     const z = useAuslastungData.getState().data.zuweisungen;
     expect(z).toHaveLength(1);
     expect(z[0]).toMatchObject({ antragId: 'A1', anonId: 'MA09', status: 'freigegeben' });
+  });
+
+  it('laesst mehrere Interessenten EINES Verbundes stehen, solange keine Freigabe existiert', async () => {
+    // Zwei Bewerbungen auf denselben Verbund V1 — erlaubt (Pitfall #26). Wer
+    // hier kollabiert, loescht beim naechsten App-Start die halbe Interessenten-
+    // Liste und die Zeile zeigt nur noch „will MA01".
+    setZuweisungen([
+      { antragId: 'A1', anonId: 'MA01', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+      { antragId: 'A2', anonId: 'MA02', quartal: Q, stunden: 9, anzahlTV: 1, status: 'selbst', selbstEingetragen: true },
+    ]);
+
+    const { entfernt } = await useAuslastungData.getState().reconcileZuweisungen(fakeStorage, inV1);
+
+    expect(entfernt).toBe(0);
+    expect(saveSpy).not.toHaveBeenCalled();
+    const z = useAuslastungData.getState().data.zuweisungen;
+    expect(new Set(z.map(x => x.anonId))).toEqual(new Set(['MA01', 'MA02']));
   });
 
   it('laesst abgelehnt-Marker unangetastet', async () => {

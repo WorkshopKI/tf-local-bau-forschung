@@ -4,7 +4,9 @@
  * Aus ZuweisungsCockpit.tsx ausgelagert (Kohäsion vor Zeilenzahl), Verhalten
  * unverändert.
  */
-import type { Zuweisung } from '../types';
+import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import type { AntragstypBucket, Zuweisung } from '../types';
+import type { VerbundZuweisungRow } from '../services/verbund';
 
 /** Status-Filter der Verbund-Liste. `selbst` = „Übernahme-Wunsch" (v2.9).
  *  `offen` und `selbst` überlappen bewusst: ein Wunsch ist eine Bewerbung,
@@ -85,8 +87,8 @@ export function formatKlickZeit(iso: string | undefined): string | null {
  *  Pill-Counts überlappen bewusst). Nicht an `selbstEingetragen` festmachen:
  *  das Flag überlebt die Freigabe. */
 export function verbundStatusFlags(
-  tvAktenzeichen: string[],
-  zuweisungen: Zuweisung[],
+  tvAktenzeichen: readonly string[],
+  zuweisungen: readonly Zuweisung[],
 ): { offen: boolean; selbst: boolean; zug: boolean } {
   const ze = zuweisungen.filter(z => tvAktenzeichen.includes(z.antragId));
   return {
@@ -94,6 +96,55 @@ export function verbundStatusFlags(
     selbst: ze.some(z => z.status === 'selbst' || z.selbstEingetragen),
     zug: ze.some(z => z.status === 'freigegeben'),
   };
+}
+
+// ─── Filter-Buckets der Zuweisungs-Liste ─────────────────────────────────
+// Eine Zeile kann in mehreren Werten derselben Facette liegen. Diese drei
+// Funktionen sind die EINZIGE Quelle sowohl für die Filterung als auch für die
+// Pillen-Zähler (`facetCounts.countFacet`) — nur so gilt „was die Pille sagt,
+// ist die Zeilenzahl nach dem Klick".
+
+/** Kategorien eines Verbundes: freigegebene Primär- + Aspekt-Kategorien.
+ *  Mehrwertig — ein Verbund zählt in jeder seiner Kategorien. */
+export function kategorienOfRow(row: VerbundZuweisungRow): string[] {
+  return [row.klassifizierung.freigegebenePrimaer, ...row.klassifizierung.freigegebeneAspekte]
+    .filter((id): id is string => !!id);
+}
+
+/** Antragstyp-Bucket des Verbundes über den Lead-TV (`vb_phase` ist
+ *  verbund-weit gleich). Irrläufer/9 → `getKategorieLabel === null` → leer,
+ *  die Zeile zählt dann nur unter „Alle". */
+export function antragstypBucketsOfRow(
+  row: VerbundZuweisungRow,
+  phaseByAz: ReadonlyMap<string, unknown>,
+): AntragstypBucket[] {
+  const bucket = getKategorieLabel(phaseByAz.get(row.leadAktenzeichen));
+  return bucket ? [bucket] : [];
+}
+
+/**
+ * Status-Buckets des Verbundes (`offen` / `selbst` / `zugewiesen`), aggregiert
+ * über alle TVs. `offen` und `selbst` überlappen bewusst (siehe
+ * {@link verbundStatusFlags}).
+ *
+ * `selbst` umfasst zusätzlich NOCH NICHT eingesammelte Vormerkungen aus den
+ * persönlichen Ordnern (`pendingByAntrag`) — genau das, was die Zeile als
+ * „⚑ N vorgemerkt" anzeigt. Sonst markiert die Liste einen Wunsch, den der
+ * Filter „Übernahme-Wunsch" nicht findet.
+ */
+export function statusBucketsOfRow(
+  row: VerbundZuweisungRow,
+  zuweisungen: readonly Zuweisung[],
+  pendingByAntrag?: ReadonlyMap<string, string[]>,
+): StatusFilter[] {
+  const { offen, selbst, zug } = verbundStatusFlags(row.tvAktenzeichen, zuweisungen);
+  const pending = pendingByAntrag != null
+    && row.tvAktenzeichen.some(az => (pendingByAntrag.get(az)?.length ?? 0) > 0);
+  const out: StatusFilter[] = [];
+  if (offen) out.push('offen');
+  if (selbst || pending) out.push('selbst');
+  if (zug) out.push('zugewiesen');
+  return out;
 }
 
 // ─── CSV-Bestätigung einer Zuweisung ────────────────────────────────────

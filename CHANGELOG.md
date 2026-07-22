@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.302.0 — Filter-Zaehler zeigen die Zeilenzahl, Uebernahme-Wuensche ohne Geister-Eintraege (Juli 2026)
+
+MINOR — Zwei Meldungen aus dem Auslastungs-Modul, beide „die Zahl passt nicht zu dem, was ich sehe": die Filter-Pillen zählten über den gesamten Pool statt über die gefilterte Ansicht (Kategorie 30 + Antragstyp 16 → Liste zeigt 9), und das Einsammeln meldete „14 neu" bei Pille `Übernahme-Wunsch 0`. Ursache im zweiten Fall: der Merge legte `selbst`-Records für Anträge an, die die Zuweisungs-Liste gar nicht führt — unsichtbar, mit Phantom-Stunden, und beim nächsten Sessionstart vom Reconciler weggeräumt (also ewig wieder „neu").
+
+- Filter-Pillen beider Auslastungs-Tabs zählen facettiert: die Zahl an einer Pille ist die Zeilenzahl nach dem Klick ([facetCounts.ts](src/plugins/auslastung/views/facetCounts.ts), Invarianten-Test über alle Filter-Kombinationen).
+- Filterung und Zählung teilen dieselben Bucket-Funktionen ([cockpit-helpers.ts](src/plugins/auslastung/views/cockpit-helpers.ts), `viewFilterBucketsOf` in [KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)); „Hohe Confidences freigeben" nennt die Zahl, die die Aktion auch freigibt.
+- Die Pille „Übernahme-Wunsch" zählt auch noch nicht eingesammelte Vormerkungen — dieselbe Definition wie das `⚑ N vorgemerkt` der Zeile.
+- Wünsche auf Anträge außerhalb der Liste werden nicht mehr angelegt, sondern als „nicht mehr zuweisbar" mit Grund ausgewiesen ([uebernahme-einsammeln.ts](src/plugins/auslastung/services/onboarding/uebernahme-einsammeln.ts)).
+- `reconcileZuweisungen` kollabiert eine Verbund-Gruppe nur noch bei vorhandener Freigabe — mehrere Interessenten überleben den App-Neustart (Pitfall #26, [useAuslastungData.ts](src/plugins/auslastung/hooks/useAuslastungData.ts)).
+
 ### v2.301.3 — Erst kopieren, dann den externen Dienst oeffnen (Juli 2026)
 
 PATCH — „Kopieren & ChatGPT öffnen" hing am Anker-Klick: die Navigation lief im selben Tick wie das Kopieren, und der Fokuswechsel ließ Chrome den Kopier-Aufruf ablehnen. Der Fehler wurde nirgends angezeigt, die Zwischenablage behielt still ihren alten Inhalt — im Chat landete ein Auftrag aus einer früheren Fassung.
