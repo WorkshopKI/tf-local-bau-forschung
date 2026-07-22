@@ -11,6 +11,7 @@ import {
   useTableSort,
   useColumnVisibility,
   useColumnWidths,
+  useTotalTableWidth,
   type SortableColumn,
 } from '@/components/data-table';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
@@ -220,6 +221,9 @@ function RegelnTableView({
   regeln, columns, visibleKeys, onEdit,
 }: TableViewProps): React.ReactElement {
   const { widths, setWidth } = useColumnWidths('teamflow_regeln_table_col_widths', {});
+  // Gesamtbreiten-Griff wie in der Skills-Tabelle — dieselbe Seite, dieselbe
+  // Ursache (Spaltensumme > Content-Box).
+  const { totalWidth, setTotalWidth } = useTotalTableWidth('teamflow_regeln_table_total_width');
   const visibleColumns = useMemo(
     () => columns.filter(c => visibleKeys.includes(c.key)),
     [columns, visibleKeys],
@@ -240,6 +244,8 @@ function RegelnTableView({
       emptyContent="Keine Regeln."
       columnWidths={widths}
       onColumnWidthChange={setWidth}
+      totalWidth={totalWidth}
+      onTotalWidthChange={setTotalWidth}
     />
   );
 }

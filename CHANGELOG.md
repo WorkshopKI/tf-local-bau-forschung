@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.295.1 — Skill- und Regel-Tabelle in der Breite ziehbar (Juli 2026)
+
+PATCH — Die Default-Spalten der Skill-Tabelle summieren sich auf ~1.280px und liefen damit horizontal aus der Content-Box; dieselbe Ursache in der Qualitätsregeln-Tabelle. Die Förderanträge-Tabelle löst das bereits über einen Gesamtbreiten-Griff am rechten Rand.
+
+- Skill-Tabelle bekommt den Gesamtbreiten-Griff (Ziehen skaliert alle Spalten proportional, Doppelklick setzt auf Fensterbreite zurück) ([SkillsTab.tsx](src/plugins/skill-verwaltung-kuration/SkillsTab.tsx)).
+- Qualitätsregeln-Tabelle ebenso — gleiche Seite, gleiche Ursache ([RegelnTab.tsx](src/plugins/skill-verwaltung-kuration/RegelnTab.tsx)).
+- Kein neuer Baustein: `useTotalTableWidth` + `SortableTable`-Griff sind unverändert übernommen ([useTotalTableWidth.ts](src/components/data-table/useTotalTableWidth.ts)).
+
 ### v2.295.0 — Skill-Liste: Kategorien, Badges als Spalte, Tabelle als Standard (Juli 2026)
 
 MINOR — 21 Skills standen flach und ohne fachliche Ordnung untereinander — Gutachten-Abschnitte, Aufbereitungs-Läufe, Anfragen-Skills und QS-Hilfsläufe gemischt. Zugleich zeigte ausgerechnet die dichteste Ansicht (Tabelle) die Reifegrad-/„inaktiv"-Badges gar nicht.
