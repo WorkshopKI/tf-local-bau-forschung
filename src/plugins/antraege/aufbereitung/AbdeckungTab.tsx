@@ -14,6 +14,7 @@ import { StatusDot } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
+import { BausteinFehler } from './BausteinFehler';
 import { FundstelleChip } from './FundstelleChip';
 import { StrukturKarte } from './StrukturKarte';
 import { SilhouetteAnsicht } from './SilhouetteAnsicht';
@@ -61,15 +62,8 @@ export function AbdeckungTab({
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">KI-Aufbereitung läuft — Prüfaspekte werden zugeordnet …</div>;
   }
   if (aspekte.status === 'fehler') {
-    return (
-      <div className="py-12 flex flex-col items-center gap-3 text-center">
-        <div className="text-[14px] text-[var(--tf-text)]">KI-Aufbereitung nicht möglich</div>
-        <div className="max-w-[420px] text-[12.5px] text-[var(--tf-text-tertiary)]">
-          Der interne KI-Dienst ist derzeit nicht erreichbar. Der Zeitplan-Tab bleibt unabhängig davon nutzbar.
-        </div>
-        <Button variant="secondary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()}>Erneut versuchen</Button>
-      </div>
-    );
+    // Der frühere Zusatz „Der Zeitplan-Tab bleibt nutzbar" ist seit `ZEITPLAN_PAUSIERT` falsch.
+    return <BausteinFehler begruendung={aspekte.begruendung} bausteine={bausteine} />;
   }
   // degradiert oder ok:
   return (

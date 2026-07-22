@@ -22,6 +22,8 @@
 ## v2.302 — 2026-07
 
 ### Verbesserungen
+- Vor dem Start der KI-Aufbereitung prüft die App kurz, ob die interne KI wirklich antwortet — bisher genügte ihr ein offener KI-Tab. Ist das Lesezeichen dort nicht aktiv, kommt jetzt sofort das Angebot zu verbinden, statt nach Minuten „Fehler" an allen sechs Abschnitten.
+- Gescheiterte Abschnitte tragen keinen „Tab öffnen"-Link mehr — dort gab es nichts zu sehen. Der Grund steht direkt beim Abschnitt.
 - In der Antrag-Aufbereitung steht jetzt schon vor dem Klick da, wenn die interne KI getrennt oder noch nicht verbunden ist. Der Knopf „Mit KI aufbereiten" bleibt bewusst klickbar — er bietet dann zuerst das Verbinden an, statt nur „geht nicht" zu sagen.
 - Scheitert ein KI-Abschnitt, steht der Grund direkt beim Abschnitt statt nur „Fehler" — zum Beispiel der Hinweis, dass für Antragsinhalte die interne KI gewählt sein muss.
 - Die Zahlen an den Filter-Knöpfen im Auslastungs-Modul zeigen jetzt genau das, was die Liste nach dem Klick anzeigt. Sind bereits andere Filter gesetzt, sind die eingerechnet. Gezählt werden Verbünde, nicht einzelne Teilvorhaben.

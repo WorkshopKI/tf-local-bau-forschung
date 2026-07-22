@@ -85,6 +85,17 @@ export function baueKiCta(status: readonly BausteinUiStatus[], opts: { agentisch
 }
 
 /**
+ * Trägt der Schritt einen „Tab öffnen"-Link? Nur wenn dort auch etwas steht.
+ *
+ * Bei `fehler` gibt es kein Ergebnis — der Tab zeigt lediglich eine Fehlerseite mit
+ * demselben Wiederholen-Knopf, den der Kopf ohnehin hat. Der Link versprach also
+ * Inhalt, wo keiner ist; die Ursache steht jetzt als `begruendung` direkt im Schritt.
+ */
+export function zeigtTabLink(status: BausteinUiStatus): boolean {
+  return status === 'ok' || status === 'degradiert';
+}
+
+/**
  * Hinweis auf den Verbindungszustand der internen KI — **vor** dem Klick.
  *
  * Der KI-Knopf bleibt bewusst klickbar, auch wenn die interne KI getrennt ist: der

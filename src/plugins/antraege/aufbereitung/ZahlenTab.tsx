@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
+import { BausteinFehler } from './BausteinFehler';
 import { cn } from '@/lib/utils';
 import { FundstelleChip } from './FundstelleChip';
 import { ZAHL_KATEGORIE_PAUSE_HINWEIS, ZEITPLAN_PAUSIERT, istZahlKategorieGesperrt } from './pausierte-module';
@@ -59,13 +60,7 @@ export function ZahlenTab({ run, zahlen, vbMarkdown, bausteine, bausteineNeu, to
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">KI-Aufbereitung läuft — Zahlen-Inventar wird erstellt …</div>;
   }
   if (zahlen.status === 'fehler') {
-    return (
-      <div className="py-12 flex flex-col items-center gap-3 text-center">
-        <div className="text-[14px] text-[var(--tf-text)]">KI-Aufbereitung nicht möglich</div>
-        <div className="max-w-[420px] text-[12.5px] text-[var(--tf-text-tertiary)]">Der interne KI-Dienst ist derzeit nicht erreichbar.</div>
-        <Button variant="secondary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()}>Erneut versuchen</Button>
-      </div>
-    );
+    return <BausteinFehler begruendung={zahlen.begruendung} bausteine={bausteine} />;
   }
   return (
     <ZahlenInhalt

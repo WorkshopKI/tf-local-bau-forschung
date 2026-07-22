@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { baueKiCta, baueStepper, kiVerbindungsHinweis, NEU_AUFBEREITEN_TITEL } from '../uebersicht';
+import { baueKiCta, baueStepper, kiVerbindungsHinweis, zeigtTabLink, NEU_AUFBEREITEN_TITEL } from '../uebersicht';
 import type { BausteinUiStatus } from '../useAufbereitung';
 
 const st = (status: BausteinUiStatus) => ({ status });
@@ -87,5 +87,21 @@ describe('kiVerbindungsHinweis', () => {
 
   it('Lauf geht nicht über die Bridge → Bridge-Zustand ist belanglos', () => {
     expect(kiVerbindungsHinweis({ status: 'disconnected', bridgeAktiv: false })).toBeNull();
+  });
+});
+
+describe('zeigtTabLink', () => {
+  it('Ergebnis vorhanden → Link zum Tab', () => {
+    expect(zeigtTabLink('ok')).toBe(true);
+    expect(zeigtTabLink('degradiert')).toBe(true);
+  });
+
+  it('Fehler → KEIN Link: dort steht kein Ergebnis, nur dieselbe Wiederholen-Seite', () => {
+    expect(zeigtTabLink('fehler')).toBe(false);
+  });
+
+  it('noch nicht gelaufen / läuft → kein Link', () => {
+    expect(zeigtTabLink('fehlt')).toBe(false);
+    expect(zeigtTabLink('laeuft')).toBe(false);
   });
 });

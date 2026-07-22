@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
+import { BausteinFehler } from './BausteinFehler';
 import { FundstelleChip } from './FundstelleChip';
 import type { GlossarBegriff, GlossarDaten } from './glossar';
 import type { BausteinUiState } from './useAufbereitung';
@@ -45,13 +46,7 @@ export function GlossarTab({ run, glossar, vbMarkdown, bausteine, bausteineNeu }
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">KI-Aufbereitung läuft — Glossar wird erstellt …</div>;
   }
   if (glossar.status === 'fehler') {
-    return (
-      <div className="py-12 flex flex-col items-center gap-3 text-center">
-        <div className="text-[14px] text-[var(--tf-text)]">KI-Aufbereitung nicht möglich</div>
-        <div className="max-w-[420px] text-[12.5px] text-[var(--tf-text-tertiary)]">Der interne KI-Dienst ist derzeit nicht erreichbar.</div>
-        <Button variant="secondary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()}>Erneut versuchen</Button>
-      </div>
-    );
+    return <BausteinFehler begruendung={glossar.begruendung} bausteine={bausteine} />;
   }
   return (
     <GlossarInhalt

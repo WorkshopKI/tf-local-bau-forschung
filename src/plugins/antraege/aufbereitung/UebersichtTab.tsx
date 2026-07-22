@@ -22,7 +22,7 @@ import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
 import type { AufbereitungRun } from './types';
 import type { BausteinUiStatus } from './useAufbereitung';
 import {
-  baueKiCta, baueStepper, kiVerbindungsHinweis, NEU_AUFBEREITEN_TITEL,
+  baueKiCta, baueStepper, kiVerbindungsHinweis, zeigtTabLink, NEU_AUFBEREITEN_TITEL,
   type StepperEingang, type StepperSchritt,
 } from './uebersicht';
 
@@ -173,7 +173,7 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
 
 function StepperZeile({ schritt, letzte, onTab }: { schritt: StepperSchritt; letzte: boolean; onTab: (id: AufbereitungTabId) => void }): React.ReactElement {
   const v = visual(schritt.status);
-  const fertig = schritt.status === 'ok' || schritt.status === 'degradiert' || schritt.status === 'fehler';
+  const fertig = zeigtTabLink(schritt.status);
   return (
     <li className="flex gap-3">
       {/* Marker-Spalte + Verbindungslinie */}

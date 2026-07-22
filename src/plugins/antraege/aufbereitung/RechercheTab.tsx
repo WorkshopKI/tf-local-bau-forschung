@@ -181,7 +181,9 @@ function DeepResearchStart({
     return (
       <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
         {kopf()}
-        <p className="mt-3 text-[12.5px] text-[var(--tf-text-tertiary)]">Der interne KI-Dienst ist derzeit nicht erreichbar.</p>
+        <p className="mt-3 text-[12.5px] text-[var(--tf-text-tertiary)] leading-snug">
+          {recherchePrompt.begruendung ?? 'Der interne KI-Dienst war nicht erreichbar.'}
+        </p>
         <Button variant="secondary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()} className="mt-2">Erneut versuchen</Button>
       </section>
     );

@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
-import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 import {
@@ -392,10 +392,23 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       computeVerwertungBaustein(storage.idb, t, verwertungSkill, aktCtx.key, aktRun.gliederung, korpus.markdown, bausteinOpts));
   };
 
+  /**
+   * Preflight VOR dem minutenlangen Lauf — auf dem Transport, der die Bausteine
+   * wirklich fährt, nicht dem pauschal aktiven:
+   *  1. `getTransportForSkillRun` WIRFT bei externem Provider (DSGVO-Policy). Ohne
+   *     diesen Vorgriff liefe der Fehler sechsmal einzeln in `laufEinen` und stünde
+   *     als sechsmal „Fehler" im Stepper, statt einmal am Knopf.
+   *  2. Danach die echte Erreichbarkeit (passiver Ping, siehe `kiVerbindungGeprueft`).
+   * `false` = abgebrochen, der Verbinden-Dialog steht offen.
+   */
+  const kiBereitFuerLauf = async (): Promise<boolean> => {
+    const t = bridge.getTransportForSkillRun(recherchePromptSkill);
+    return kiVerbindungGeprueft(bridge, t.name);
+  };
+
   const bausteine = useAsyncAction(async () => {
     if (!ctx) throw new Error(KEIN_KONTEXT);
-    // KI-Preflight: nicht verbunden → Verbinden-Prompt statt stiller Tab-Öffnung + Loop.
-    if (!kiVerbindungBereit(bridge)) return;
+    if (!await kiBereitFuerLauf()) return;
     // Sicherstellen, dass ein Run (mit Gliederung) existiert.
     const aktRun = run ?? await computeAufbereitung(storage.idb, ctx);
     if (!run) setRun(aktRun);
@@ -404,7 +417,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
 
   const bausteineNeu = useAsyncAction(async () => {
     if (!ctx) throw new Error(KEIN_KONTEXT);
-    if (!kiVerbindungBereit(bridge)) return;
+    if (!await kiBereitFuerLauf()) return;
     const aktRun = run ?? await computeAufbereitung(storage.idb, ctx);
     if (!run) setRun(aktRun);
     await loescheBausteinCaches(storage.idb, ctx.key);

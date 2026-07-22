@@ -44,3 +44,29 @@ export function kiVerbindungBereit(bridge: AIBridge): boolean {
   useKiConnectPrompt.getState().oeffnen();
   return false;
 }
+
+/**
+ * Wie `kiVerbindungBereit`, aber mit echtem **passivem Ping** statt der Annahme, ein
+ * offenes Fenster sei eine Verbindung.
+ *
+ * Grund: `hasLiveBridgeWindow()` sagt nur „irgendein KI-Tab ist offen". Ist dort das
+ * Lesezeichen nicht (mehr) aktiv oder der Tab weggenavigiert, wirkt die Verbindung
+ * bereit, antwortet aber nie — der Lauf startet trotzdem und endet nach Minuten in
+ * lauter Fehlern (genau so gemeldet: Knopf klickbar, danach „Fehler" an allen sechs
+ * Abschnitten, kein Verbinden-Dialog). `ping({ openIfNeeded: false })` fragt die
+ * Bridge tatsächlich (max. 5 s, öffnet KEINEN Tab) und pflegt nebenbei den Status.
+ *
+ * Für Läufe, die Minuten dauern, ist diese Sekunde gut investiert. `transportName`
+ * erlaubt den Check auf dem Transport, der den Lauf WIRKLICH fährt (der aktive muss
+ * das nicht sein — siehe `getTransportForSkillRun`).
+ */
+export async function kiVerbindungGeprueft(bridge: AIBridge, transportName?: string): Promise<boolean> {
+  const name = transportName ?? bridge.getActiveTransport().name;
+  if (name !== 'Streamlit') return true;
+  // Bewusst der PERSISTENTE Streamlit-Transport: nur er trägt das Fenster-Handle
+  // aus dem `tf-bridge-ready`-Announce (und der Vordergrund-Wrapper reicht
+  // `hasLiveBridgeWindow` nicht durch).
+  if (await bridge.getStreamlitTransport().ping({ openIfNeeded: false })) return true;
+  useKiConnectPrompt.getState().oeffnen();
+  return false;
+}
