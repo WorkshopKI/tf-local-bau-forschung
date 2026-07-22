@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.292.0 — Feedback verbessern: Standard-KI + ein Lauf statt zwei (Juli 2026)
+
+MINOR — „Feedback verbessern" lief minutenlang und zeigte im KI-Tab lange Reasoning-Schleifen bis zur Wiederholungs-Erkennung: der Lauf reichte als einziger kein `ziel` durch und landete damit im aktiven — also ggf. agentischen — Tab, ohne Chat-Reset und mit zwei LLM-Läufen, von denen der erste oft nichts zu fragen hatte. Details: [feedback-system.md](docs/architecture/feedback-system.md#feedback-verbesserung-geführter-ablauf-intern-only-v2206).
+
+- **Immer die Standard-KI** (`FEEDBACK_ZIEL`) statt des aktiven Tabs, und **frischer Chat vor jedem Lauf** inkl. Retry (Pitfall #36) ([feedbackImprove.ts](src/core/services/feedback/feedbackImprove.ts)).
+- **Rückfragen-Lauf entfällt deterministisch**, wenn alle nicht-optionalen Felder befüllt sind oder der Typ nur eines hat — ein statt zwei KI-Aufrufe ([feedbackImprove.ts](src/core/services/feedback/feedbackImprove.ts), [constants.ts](src/components/feedback/constants.ts)).
+- **Kategorie wird vorgegeben statt erfragt** (aus der Typ-Wahl) und im Parser erzwungen; die Kategorie-Abgrenzung fällt aus beiden Verbessern-Prompts ([feedbackImprove.ts](src/core/services/feedback/feedbackImprove.ts)).
+- **Ladezustand nennt die genutzte KI** und erklärt sie, wenn die globale Variante auf „Agentisch" steht ([FeedbackVerbessernFlow.tsx](src/components/feedback/FeedbackVerbessernFlow.tsx)).
+- **Tests** für Reset+Ziel je Lauf, den übersprungenen Rückfragen-Lauf und die erzwungene Kategorie ([feedbackImprove.test.ts](src/core/services/feedback/__tests__/feedbackImprove.test.ts)).
+
 ### v2.291.0 — Zuweisung wartet sichtbar auf die CSV-Bestätigung (Juli 2026)
 
 MINOR — Das eigentliche Zuweisen passiert im Fachsystem; bestätigt wird es erst durch den CSV-Import am Folgetag. Dieses Warten war in der App unbenannt: die MA sah „Vorgemerkt" mit Rückgängig-Knopf, die PL sah nicht, wenn eine Bestätigung ausblieb. Details: [auslastung.md](docs/architecture/auslastung.md#zuweisung--vollzug-das-csv-bestätigt-v2291).

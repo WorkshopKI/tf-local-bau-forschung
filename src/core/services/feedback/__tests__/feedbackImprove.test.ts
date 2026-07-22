@@ -1,12 +1,15 @@
 /**
- * Tests für den geführten Feedback-Verbesserer (v2.206).
+ * Tests für den geführten Feedback-Verbesserer (v2.206, erweitert v2.291).
  *
  * Prüft:
  *  - Transport-Bug-Regression: der System-Prompt wird IN die Message inlined
  *    (Streamlit-Bridge verwirft sonst den 2. submitMessage-Arg),
  *  - Prompts enthalten App-Overview + Screen-Doc + Bereichs-Liste + Rückfrage-Dimensionen,
  *  - askClarifyingQuestions: Intern-only-Gate, tolerante {fragen}-Parse, max 3, nie werfen,
- *  - improveFeedbackGuided: Intern-only-Gate, verbesserterText + Anforderung, Retry, Fallback.
+ *  - improveFeedbackGuided: Intern-only-Gate, verbesserterText + Anforderung, Retry, Fallback,
+ *  - v2.291: JEDER Lauf resettet zuerst den Chat (Pitfall #36) und geht auf den
+ *    Standard-Tab (`ziel: 'standard'`); lückenlos ausgefülltes Formular spart den
+ *    Rückfragen-Lauf; die Kategorie aus der Typ-Wahl schlägt den Modell-Vorschlag.
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -19,6 +22,7 @@ import {
   buildClarifyPrompt,
   buildGuidedImprovePrompt,
   askClarifyingQuestions,
+  brauchtRueckfragen,
   improveFeedbackGuided,
   type FeedbackQA,
 } from '../feedbackImprove';
@@ -37,8 +41,15 @@ const CONTEXT: FeedbackContext = {
 };
 
 function fakeTransport(name: string, submitMessage: AITransport['submitMessage']): AITransport {
-  return { name, submitMessage } as unknown as AITransport;
+  return { name, submitMessage, resetChat: vi.fn(async () => 'ok' as const) } as unknown as AITransport;
 }
+
+/** Ein „idea"-Feedback mit vollständig ausgefüllten nicht-optionalen Feldern. */
+const IDEA_VOLLSTAENDIG = {
+  text: 'Lektor-Feinschliff',
+  category: 'idea' as const,
+  structured: { goal: 'Text polieren', reason: 'GA schreiben' },
+};
 
 describe('buildClarifyPrompt', () => {
   it('enthält Overview + Screen-Doc + Rückfrage-Dimensionen des Typs', () => {
@@ -60,6 +71,13 @@ describe('buildClarifyPrompt', () => {
     expect(systemPrompt).not.toContain('SCREEN-DOC-MARKER');
     expect(getScreenContext).toHaveBeenCalledWith('unbekanntes-plugin');
   });
+
+  it('trägt KEINE Kategorie-Abgrenzung mehr (Phase 1 klassifiziert nicht), aber den festen Typ', () => {
+    const { systemPrompt } = buildClarifyPrompt({ text: 'x', category: 'idea' }, CONTEXT, 'antraege');
+    expect(systemPrompt).not.toContain('KATEGORIEN:');
+    expect(systemPrompt).toContain('FEEDBACK-TYP (steht fest');
+    expect(systemPrompt).toContain('Antworte in EINEM Zug');
+  });
 });
 
 describe('buildGuidedImprovePrompt', () => {
@@ -77,6 +95,37 @@ describe('buildGuidedImprovePrompt', () => {
     expect(userPrompt).toContain('Suche hängt');
     expect(userPrompt).toContain('Wie oft?');
     expect(userPrompt).toContain('Immer');
+  });
+
+  it('gibt die Kategorie aus der Typ-Wahl VOR statt sie erfragen zu lassen', () => {
+    const { systemPrompt } = buildGuidedImprovePrompt(IDEA_VOLLSTAENDIG, [], CONTEXT, 'antraege');
+    expect(systemPrompt).not.toContain('KATEGORIEN:');
+    expect(systemPrompt).toContain('"category": "feature"');
+    expect(systemPrompt).toContain('steht aus der Typ-Wahl des Nutzers fest');
+  });
+
+  it('ohne Typ bleibt die freie Kategorie-Auswahl im Contract', () => {
+    const { systemPrompt } = buildGuidedImprovePrompt({ text: 'x' }, [], CONTEXT, 'antraege');
+    expect(systemPrompt).toContain('bug | feature | praise | question');
+  });
+});
+
+describe('brauchtRueckfragen (deterministisches Gate vor Phase 1)', () => {
+  it('alle nicht-optionalen Felder gefüllt → false (optionales „idea" darf leer bleiben)', () => {
+    expect(brauchtRueckfragen(IDEA_VOLLSTAENDIG)).toBe(false);
+  });
+
+  it('Lücke in einem nicht-optionalen Feld → true', () => {
+    expect(brauchtRueckfragen({ ...IDEA_VOLLSTAENDIG, structured: { goal: 'Nur das' } })).toBe(true);
+  });
+
+  it('Ein-Feld-Typen (Lob/Frage) → false', () => {
+    expect(brauchtRueckfragen({ text: 'Toll!', category: 'praise', structured: { text: 'Toll!' } })).toBe(false);
+    expect(brauchtRueckfragen({ text: 'Wie?', category: 'question', structured: { text: 'Wie?' } })).toBe(false);
+  });
+
+  it('ohne bekannten Typ → true (altes Verhalten)', () => {
+    expect(brauchtRueckfragen({ text: 'x' })).toBe(true);
   });
 });
 
@@ -113,6 +162,23 @@ describe('askClarifyingQuestions', () => {
     await expect(
       askClarifyingQuestions(fakeTransport('Streamlit', submitMessage), { text: 'x' }, CONTEXT, 'antraege'),
     ).resolves.toEqual([]);
+  });
+
+  it('resettet den Chat und zielt auf den Standard-Tab (Pitfall #36 + Standard-KI)', async () => {
+    const submitMessage = vi.fn<AITransport['submitMessage']>(async () => '```json\n{"fragen":["Q"]}\n```');
+    const transport = fakeTransport('Streamlit', submitMessage);
+    await askClarifyingQuestions(transport, { text: 'x' }, CONTEXT, 'antraege');
+    expect(transport.resetChat).toHaveBeenCalledWith('standard');
+    expect(submitMessage.mock.calls[0]?.[2]).toMatchObject({ ziel: 'standard' });
+  });
+
+  it('lückenlos ausgefülltes Formular → [] OHNE LLM-Aufruf (spart den halben Ablauf)', async () => {
+    const submitMessage = vi.fn();
+    const transport = fakeTransport('Streamlit', submitMessage);
+    const result = await askClarifyingQuestions(transport, IDEA_VOLLSTAENDIG, CONTEXT, 'antraege');
+    expect(result).toEqual([]);
+    expect(submitMessage).not.toHaveBeenCalled();
+    expect(transport.resetChat).not.toHaveBeenCalled();
   });
 });
 
@@ -151,6 +217,27 @@ describe('improveFeedbackGuided', () => {
     const result = await improveFeedbackGuided(fakeTransport('Streamlit', submitMessage), { text: 'roh' }, [], CONTEXT, 'antraege');
     expect(submitMessage).toHaveBeenCalledTimes(2);
     expect(result?.verbesserterText).toBe('VT');
+  });
+
+  it('jeder Lauf resettet den Chat und zielt auf Standard — auch der Retry', async () => {
+    let call = 0;
+    const submitMessage = vi.fn<AITransport['submitMessage']>(async () => {
+      call++;
+      return call === 1 ? 'Kein JSON.' : '```json\n{"verbesserterText":"VT","category":"bug","summary":"S"}\n```';
+    });
+    const transport = fakeTransport('Streamlit', submitMessage);
+    await improveFeedbackGuided(transport, { text: 'roh' }, [], CONTEXT, 'antraege');
+    expect(transport.resetChat).toHaveBeenCalledTimes(2);
+    expect(transport.resetChat).toHaveBeenNthCalledWith(2, 'standard');
+    expect(submitMessage.mock.calls[1]?.[2]).toMatchObject({ ziel: 'standard' });
+  });
+
+  it('die Kategorie aus der Typ-Wahl schlägt den Modell-Vorschlag', async () => {
+    const submitMessage = vi.fn(async () => '```json\n{"verbesserterText":"VT","category":"bug","summary":"S"}\n```');
+    const result = await improveFeedbackGuided(
+      fakeTransport('Streamlit', submitMessage), IDEA_VOLLSTAENDIG, [], CONTEXT, 'antraege',
+    );
+    expect(result?.classification.category).toBe('feature');
   });
 
   it('zweimal kaputt → null; submitMessage wirft → null', async () => {

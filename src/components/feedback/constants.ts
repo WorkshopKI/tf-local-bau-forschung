@@ -187,6 +187,10 @@ export interface FeedbackFieldDef {
   placeholder?: string;
   /** Genau EIN Feld pro Typ ist required (das Kern-Feld). */
   required?: boolean;
+  /** true = der Nutzer darf das Feld guten Gewissens leer lassen. Steuert (nur)
+   *  `brauchtRueckfragen` in feedbackImprove.ts: ein leeres optionales Feld ist
+   *  KEINE Informationslücke und löst deshalb keinen KI-Rückfragen-Lauf aus. */
+  optional?: boolean;
   /** true = textarea (rows=3), false/undefined = einzeiliges input. */
   multiline?: boolean;
 }
@@ -220,7 +224,7 @@ export const FEEDBACK_TYPES: readonly FeedbackTypeDef[] = [
     fields: [
       { key: 'goal', label: 'Was möchtest du tun können?', shortLabel: 'Möchte', multiline: true, required: true },
       { key: 'reason', label: 'Warum / in welcher Situation brauchst du das?', shortLabel: 'Wofür', multiline: true },
-      { key: 'idea', label: 'Wie stellst du es dir vor? (optional)', shortLabel: 'Idee', multiline: true },
+      { key: 'idea', label: 'Wie stellst du es dir vor? (optional)', shortLabel: 'Idee', multiline: true, optional: true },
     ],
   },
   {

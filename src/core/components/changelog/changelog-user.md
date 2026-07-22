@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.292 — 2026-07
+
+### Verbesserungen
+- „Feedback verbessern" ist deutlich schneller: Es läuft jetzt immer über die Standard-KI (das steht auch im Ladehinweis), startet dafür einen frischen Chat und fragt nur noch nach, wenn im Formular wirklich etwas fehlt.
+
 ## v2.291 — 2026-07
 
 ### Verbesserungen

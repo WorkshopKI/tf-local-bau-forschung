@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { useKiZiel } from '@/core/services/ai/ki-ziel';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
@@ -201,12 +202,27 @@ export function FeedbackVerbessernFlow({ feedbackId, payload, context, pluginId,
   );
 }
 
+/**
+ * Ladezustand mit Transparenz über die genutzte KI: die Feedback-Verbesserung läuft
+ * IMMER über die Standard-KI (`FEEDBACK_ZIEL` in feedbackImprove.ts) — steht die
+ * globale KI-Variante auf „Agentisch", wird das ausdrücklich erklärt, sonst wirkt
+ * die Einstellung stillschweigend ignoriert.
+ */
 function LadeZeile({ text }: { text: string }): React.ReactElement {
+  const agentischGewaehlt = useKiZiel(s => s.ziel) === 'agentisch';
   return (
     <div className="p-6 flex flex-col items-center justify-center gap-3 text-center">
       <Loader2 size={22} className="animate-spin text-[var(--tf-primary)]" />
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{text}</p>
-      <p className="text-[11px] text-[var(--tf-text-tertiary)]">Kann bis zu einer Minute dauern.</p>
+      <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+        Läuft über die Standard-KI · kann bis zu einer Minute dauern.
+      </p>
+      {agentischGewaehlt && (
+        <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-snug max-w-[280px]">
+          Ihre KI-Variante steht auf „Agentisch" — Feedback läuft bewusst über die Standard-KI,
+          weil das hier deutlich schneller ist.
+        </p>
+      )}
     </div>
   );
 }
