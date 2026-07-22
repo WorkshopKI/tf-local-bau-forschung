@@ -13,6 +13,8 @@
 import { useMemo, useState } from 'react';
 import { KeyRound, Copy, Check, X, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { kopiereText } from '@/core/utils/kopieren';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { buildKuerzelMailMap, buildMailtoUrl } from '../services/tib-mail';
@@ -42,17 +44,16 @@ export function PasswortAnzeigeDialog({ eintraege, onClose }: Props): React.Reac
   const cache = useAntraegeCache();
   const mailMap = useMemo(() => buildKuerzelMailMap(cache.antraege), [cache.antraege]);
 
-  // Sync-Handler (keine roh-async onClick-Arrow): Clipboard-Write bewusst
-  // best-effort mit .catch — unter file:// kann der Zugriff fehlen, das
-  // Passwort bleibt dann sichtbar und manuell kopierbar.
-  const copy = (text: string, key: string): void => {
-    navigator.clipboard?.writeText(text)
-      .then(() => {
-        setCopied(key);
-        window.setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
-      })
-      .catch(() => { /* Clipboard nicht verfuegbar — Passwort ist sichtbar. */ });
-  };
+  // Der Fehlerfall ist hier besonders teuer: die Passwoerter sind EINMALIG sichtbar.
+  // Wer sie fuer kopiert haelt und den Dialog schliesst, hat sie verloren. Deshalb
+  // laeuft der Rueckfall (Textfeld + execCommand) mit, und ein echtes Scheitern steht
+  // sichtbar am Knopf, statt still verschluckt zu werden.
+  const kopieren = useAsyncAction(async (text: string, key: string) => {
+    await kopiereText(text);
+    setCopied(key);
+    window.setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
+  });
+  const copy = (text: string, key: string): void => { void kopieren.run(text, key); };
 
   const copyAll = (): void => {
     copy(eintraege.map(e => `${e.kuerzel}\t${e.passwort}`).join('\n'), '__all__');
@@ -134,6 +135,11 @@ export function PasswortAnzeigeDialog({ eintraege, onClose }: Props): React.Reac
           </div>
         </div>
 
+        {kopieren.error && (
+          <div className="px-5 py-2 text-[12px] text-[var(--tf-danger-text)] shrink-0">
+            {kopieren.error} — die Passwörter oben bleiben markierbar.
+          </div>
+        )}
         <div
           className="flex items-center justify-between gap-2 px-5 py-3 shrink-0"
           style={{ borderTop: '0.5px solid var(--tf-border)' }}

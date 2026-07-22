@@ -5,8 +5,8 @@
  *  1. "LLM-Klassifizierung starten" — ruft `klassifiziereBatch` ueber den
  *     aktiv konfigurierten AIBridge-Transport. Schreibt Ergebnisse als
  *     Bulk-Pass (EIN persist am Ende, siehe CLAUDE.md Lesson 16).
- *  2. "Prompt kopieren" — schreibt Prompt-Text via navigator.clipboard.writeText
- *     (funktioniert unter file://, secure context).
+ *  2. "Prompt kopieren" — schreibt den Prompt-Text ueber `kopiereText`
+ *     (Core-Helfer mit Rueckfall, Guard `no-raw-clipboard`).
  *  3. "LLM-Ergebnis einfuegen" — oeffnet Modal mit Textarea, parst JSON,
  *     wendet an.
  */
@@ -31,6 +31,7 @@ import {
   type UeberKategorie,
 } from '../types';
 import type { VerbundKlassifizierungsView } from '../services/verbund';
+import { kopiereText } from '@/core/utils/kopieren';
 
 interface Props {
   /** Verbund-Views aus `buildVerbundClassificationViews` — der Hook liefert
@@ -204,7 +205,7 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
     }
     const chunk = offeneVerbuende.slice(0, CLIPBOARD_CHUNK_SIZE);
     const prompt = buildPromptForClipboard(chunk.map(toLLMVerbund), kategorien);
-    await navigator.clipboard.writeText(prompt);
+    await kopiereText(prompt);
     showToast(
       chunk.length < offeneVerbuende.length
         ? `Prompt für ${chunk.length} von ${offeneVerbuende.length} Verbünden kopiert.`

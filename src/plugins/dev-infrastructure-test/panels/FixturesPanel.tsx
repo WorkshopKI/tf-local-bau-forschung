@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
+import { kopiereText } from '@/core/utils/kopieren';
 import { ActionRow, Archive, DevLog, SectionCaption } from './shared';
 import {
   SCENARIOS,
@@ -56,7 +57,7 @@ export function FixturesPanel(): React.ReactElement {
     await run('State-Dump in Clipboard', async () => {
       const dump = await exportCurrentState(storage.idb);
       const text = JSON.stringify(dump, null, 2);
-      await navigator.clipboard.writeText(text);
+      await kopiereText(text);
       const total = Object.values(dump.stores).reduce((sum, s) => sum + s.count, 0);
       push(`  ${dump.kv_keys.length} KV-Keys, ${total} Store-Items`);
     });

@@ -14,6 +14,7 @@
  */
 import { marked } from 'marked';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
+import { kopiereText } from '@/core/utils/kopieren';
 
 export async function copyAntwortReich(text: string): Promise<void> {
   const inner = sanitizeHtml(marked.parse(text, { async: false }) as string);
@@ -23,8 +24,13 @@ export async function copyAntwortReich(text: string): Promise<void> {
       'text/html': new Blob([html], { type: 'text/html' }), // allow-anfrage-export: de-anonym. Antwort an Original-Absender (kein Leak)
       'text/plain': new Blob([text], { type: 'text/plain' }),
     });
-    await navigator.clipboard.write([item]);
+    // `kopiereText` kann nur Plain-Text — Outlook/Word brauchen hier ein
+    // `text/html`-Element, und das geht ausschliesslich ueber `ClipboardItem`.
+    await navigator.clipboard.write([item]); // allow-raw-clipboard: Rich-Text (text/html) via ClipboardItem
   } catch {
-    await navigator.clipboard.writeText(text); // allow-anfrage-export: Fallback ohne ClipboardItem (de-anonym. Antwort an Original-Absender)
+    // Der Rueckfall ist reiner Text und laeuft deshalb ueber den Core-Helfer (inkl.
+    // dessen eigenem execCommand-Rueckfall). Scheitert auch der, wirft er — vorher
+    // meldete diese Funktion Erfolg, obwohl nichts in der Zwischenablage lag.
+    await kopiereText(text);
   }
 }

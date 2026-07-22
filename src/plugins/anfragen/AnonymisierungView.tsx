@@ -33,6 +33,7 @@ import { useSyncedPaneHeight } from './useSyncedPaneHeight';
 import { useAnfragenStore } from './store';
 import { statusErreicht } from './status';
 import type { Anfrage } from './types';
+import { kopiereText } from '@/core/utils/kopieren';
 
 interface Props {
   anfrage: Anfrage;
@@ -145,7 +146,7 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
   }, [anfrage.mapping]);
 
   const platzhalterKopieren = useAsyncAction(async () => {
-    await navigator.clipboard.writeText(exportPlatzhalter.join(' '));
+    await kopiereText(exportPlatzhalter.join(' '));
   });
 
   const anonymisieren = useAsyncAction(async () => {
@@ -166,17 +167,28 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
     if (!pruef.sicher) throw new Error(`Export blockiert: noch ${pruef.treffer.length} mögliche PII-Treffer im Text.`);
     // Präambel voranstellen (Anrede-Hinweis + Platzhalter-Erhalt); gespeichert wird
     // weiterhin der reine anonyme Text.
-    await navigator.clipboard.writeText(anredeFuerExport(text));
+    await kopiereText(anredeFuerExport(text));
     await upsert({ ...anfrage, anonymisiertMd: text, status: 'export_freigegeben' }, storage);
   });
 
-  const onCombinedClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
-    if (istOriginalStale(anfrage, origText)) { e.preventDefault(); return; }
+  /**
+   * „Kopieren & Assistent öffnen" — erst kopieren, dann öffnen (v2.301.3).
+   *
+   * Vorher hing das Öffnen an einem `<a target="_blank">`: die Navigation startete im
+   * selben Tick wie der Kopier-Aufruf, und verlor das Dokument dabei den Fokus, lehnte
+   * Chrome `writeText` ab. Der Fehler war zusätzlich per `.catch(() => undefined)`
+   * verschluckt — im Assistenten landete dann der ALTE Inhalt der Zwischenablage, also
+   * womöglich eine fremde Anfrage. Bei einer de-anonymisierungs-geprüften Mail ist das
+   * der teuerste denkbare Fehlerfall, deshalb hier derselbe Ablauf wie im Recherche-Tab.
+   */
+  const kopierenUndOeffnen = useAsyncAction(async () => {
+    if (istOriginalStale(anfrage, origText)) throw new Error('Originaltext geändert — bitte erneut anonymisieren, bevor exportiert wird.');
     const pruef = pruefeExportSicher(text, anfrage.mapping);
-    if (!pruef.sicher) { e.preventDefault(); return; }
-    void navigator.clipboard.writeText(anredeFuerExport(text)).catch(() => undefined);
-    void upsert({ ...anfrage, anonymisiertMd: text, status: 'export_freigegeben' }, storage);
-  };
+    if (!pruef.sicher) throw new Error(`Export blockiert: noch ${pruef.treffer.length} mögliche PII-Treffer im Text.`);
+    await kopiereText(anredeFuerExport(text));
+    await upsert({ ...anfrage, anonymisiertMd: text, status: 'export_freigegeben' }, storage);
+    window.open(dashboardUrl, '_blank', 'noopener,noreferrer');
+  });
 
   const persistEdit = (): void => {
     if (text !== anfrage.anonymisiertMd) void upsert({ ...anfrage, anonymisiertMd: text }, storage);
@@ -369,9 +381,9 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
           </div>
         )}
 
-        {(anonymisieren.error || kopieren.error) && (
+        {(anonymisieren.error || kopieren.error || kopierenUndOeffnen.error) && (
           <p className="px-[var(--awd-px)] pt-2 text-[11.5px] text-[var(--tf-danger-text)]">
-            Fehler: {anonymisieren.error ?? kopieren.error}
+            Fehler: {anonymisieren.error ?? kopieren.error ?? kopierenUndOeffnen.error}
           </p>
         )}
       </div>
@@ -382,18 +394,15 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
             <Button variant="secondary" icon={Copy} loading={kopieren.busy} disabled={!exportFrei} onClick={() => kopieren.run()}>
               In Zwischenablage kopieren
             </Button>
-            <Button asChild variant="primary" className={!exportFrei ? 'pointer-events-none opacity-50' : undefined}>
-              <a
-                href={dashboardUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onCombinedClick}
-                aria-disabled={!exportFrei}
-                tabIndex={exportFrei ? 0 : -1}
-                title="Öffnet den ZIM FAQ-Assistenten in einem neuen Tab. Voraussetzung: Internetzugang + eingeloggter Account."
-              >
-                <ExternalLink /> Kopieren &amp; ZIM FAQ-Assistent öffnen
-              </a>
+            <Button
+              variant="primary"
+              icon={ExternalLink}
+              loading={kopierenUndOeffnen.busy}
+              disabled={!exportFrei}
+              onClick={() => kopierenUndOeffnen.run()}
+              title="Kopiert den Text und öffnet den ZIM FAQ-Assistenten in einem neuen Tab. Voraussetzung: Internetzugang + eingeloggter Account."
+            >
+              Kopieren &amp; ZIM FAQ-Assistent öffnen
             </Button>
           </>
         )}

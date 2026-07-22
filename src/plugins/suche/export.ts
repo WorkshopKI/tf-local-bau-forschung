@@ -14,6 +14,7 @@
 import * as XLSX from 'xlsx';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SearchColumn } from './columns';
+import { kopiereText } from '@/core/utils/kopieren';
 
 export interface ExportRows {
   headers: string[];
@@ -94,7 +95,7 @@ export async function exportClipboard(
     headers.join('\t'),
     ...rows.map(row => row.map(v => String(v).replace(/\t|\r|\n/g, ' ')).join('\t')),
   ].join('\r\n');
-  await navigator.clipboard.writeText(tsv);
+  await kopiereText(tsv);
 }
 
 export function exportXLSX(

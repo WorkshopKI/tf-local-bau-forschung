@@ -30,6 +30,8 @@
 - Der Filter „Übernahme-Wunsch" findet auch Vormerkungen, die noch nicht eingesammelt sind — also genau die Anträge, die in der Liste mit „vorgemerkt" markiert sind.
 
 ### Bugfixes
+- Kopier-Knöpfe melden jetzt, wenn das Kopieren nicht geklappt hat. Bisher schlossen manche still fehl: der Knopf zeigte „Kopiert", in der Zwischenablage lag aber noch der alte Inhalt. Besonders heikel war das bei den Zugangspasswörtern, die nur einmal anzeigbar sind, und beim Pfad im Startbildschirm.
+- „Kopieren & ZIM FAQ-Assistent öffnen" kopiert jetzt nachweislich, bevor der neue Tab aufgeht. Vorher konnten beide gleichzeitig starten — mit dem Ergebnis, dass im Assistenten der vorherige Inhalt der Zwischenablage landete.
 - Beim Einsammeln der Übernahme-Wünsche wurden Wünsche mitgezählt, die auf Anträge zeigten, die in der Zuweisungs-Liste gar nicht mehr auftauchen (inzwischen vergeben oder außerhalb des Verteil-Fensters). Die Meldung sagte „14 neu", der Filter fand nichts. Solche Wünsche werden jetzt getrennt als „nicht mehr zuweisbar" ausgewiesen — mit Angabe, wer welchen Antrag wollte und warum er nicht mehr zur Verteilung steht.
 - Haben sich mehrere Kolleginnen oder Kollegen für denselben Verbund vorgemerkt, blieb nach einem Neustart der App nur eine Vormerkung übrig. Jetzt bleiben alle Interessenten erhalten, bis die Projektleitung zuweist.
 - „Mit KI aufbereiten" und „Neu aufbereiten" taten gelegentlich gar nichts — kein Hinweis, keine Meldung; erst ein Neuladen der Seite half. Ursache war ein Antrag, der beim Öffnen der Seite noch nicht aus dem Datenbestand geladen war (etwa während einer laufenden Datenaktualisierung). Die Seite sagt das jetzt und bietet „Erneut versuchen" an — und sobald die Daten da sind, lädt sie den Antrag von selbst nach.

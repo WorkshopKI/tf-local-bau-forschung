@@ -32,6 +32,7 @@ import { pruefSummary } from './pruefSummary';
 import { PruefBlock } from './PruefBlock';
 import type { CheckListAktion } from '../kurzfassung/CheckList';
 import type { StepRun } from './types';
+import { kopiereText } from '@/core/utils/kopieren';
 
 /**
  * Satzweise adressierbarer Text (Journey-Paket 3): jeder Satz als `data-satz-index`-
@@ -224,7 +225,7 @@ export function SectionReviewCard({
   // Kopieren ist der häufigste Weg, den Abschnitt weiterzuverwenden, und gehört an den Text.
   const [copied, setCopied] = useState(false);
   const copy = useAsyncAction(async () => {
-    await navigator.clipboard.writeText(run.finalerText);
+    await kopiereText(run.finalerText);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
   });

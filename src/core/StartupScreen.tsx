@@ -28,6 +28,7 @@ import { useConnectionState } from '@/core/services/connection-status';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
 import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
 import type { UserProfile } from '@/core/types/config';
+import { kopiereText } from '@/core/utils/kopieren';
 
 interface StartupScreenProps {
   profile: UserProfile | null;
@@ -102,11 +103,13 @@ export function StartupScreen({
   const copyPath = async (): Promise<void> => {
     if (!fixedPath) return;
     try {
-      await navigator.clipboard.writeText(fixedPath);
+      await kopiereText(fixedPath);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard failure ignored */
+    } catch (e) {
+      // Vorher still verschluckt — der Nutzer hielt den Pfad fuer kopiert und fand
+      // beim Einfuegen den alten Inhalt der Zwischenablage vor.
+      setError(e instanceof Error ? e.message : 'Kopieren fehlgeschlagen.');
     }
   };
 

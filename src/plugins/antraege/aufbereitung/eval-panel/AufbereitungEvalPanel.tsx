@@ -53,6 +53,7 @@ import {
 } from './runner';
 import { formatEvalReport } from './report';
 import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
+import { kopiereText } from '@/core/utils/kopieren';
 
 type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler' | 'fehlt';
 
@@ -146,7 +147,7 @@ function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
 
 /** Einklappbarer Rohtext-Block mit Kopier-Knopf (je auffälligem Fixture-Lauf). */
 function RohtextKarte({ titel, text }: { titel: string; text: string }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await navigator.clipboard.writeText(text); });
+  const kopieren = useAsyncAction(async () => { await kopiereText(text); });
   return (
     <details className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
       <summary className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
@@ -296,7 +297,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
 
   const kopieren = useAsyncAction(async () => {
     if (!report) return;
-    await navigator.clipboard.writeText(report);
+    await kopiereText(report);
   });
 
   return (

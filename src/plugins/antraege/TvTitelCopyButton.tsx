@@ -3,13 +3,14 @@
  * übernommen. Zwei Einsatzorte: im Sektionskopf „Verbundpartner und
  * Teilvorhaben" für ALLE Titel (eine Zeile je TV) und in der TV-Zeile für den
  * EINEN Titel dieses Teilvorhabens (dort auch der visuell abgeschnittene Teil).
- * `navigator.clipboard` läuft unter `file://` (Secure Context, vgl. Pitfall
- * #6/#7); Async-Aktion über `useAsyncAction` (Pitfall #15). Rendert nichts,
- * wenn kein Titel vorliegt.
+ * Kopiert über `kopiereText` (Core-Helfer mit Rückfall, Guard `no-raw-clipboard`);
+ * Async-Aktion über `useAsyncAction` (Pitfall #15). Rendert nichts, wenn kein
+ * Titel vorliegt.
  */
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { kopiereText } from '@/core/utils/kopieren';
 
 interface Props {
   /** Titel-Zeilen (leere bereits ausgefiltert, Reihenfolge = TV-Liste). */
@@ -23,7 +24,7 @@ export function TvTitelCopyButton({
 }: Props): React.ReactElement | null {
   const [copied, setCopied] = useState(false);
   const copy = useAsyncAction(async () => {
-    await navigator.clipboard.writeText(titel.join('\n'));
+    await kopiereText(titel.join('\n'));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   });

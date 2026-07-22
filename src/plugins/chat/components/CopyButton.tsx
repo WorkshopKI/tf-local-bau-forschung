@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { kopiereText } from '@/core/utils/kopieren';
 
 interface CopyButtonProps {
   /** Roh-Markdown der Antwort. */
@@ -13,7 +14,7 @@ interface CopyButtonProps {
 export function CopyButton({ text, size = 15, title = 'Kopieren' }: CopyButtonProps): React.ReactElement {
   const [copied, setCopied] = useState(false);
   const copy = useAsyncAction(async () => {
-    await navigator.clipboard.writeText(text);
+    await kopiereText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   });

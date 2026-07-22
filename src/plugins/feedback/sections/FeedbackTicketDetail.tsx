@@ -15,6 +15,7 @@ import {
 } from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { kopiereText } from '@/core/utils/kopieren';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { isFeedbackDeleteEnabled } from '@/config/feature-flags';
 import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS, EFFORT_ORDER } from '@/core/types/feedback';
@@ -103,9 +104,13 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
     } finally { setSaving(false); }
   };
 
-  const handleCopy = async (): Promise<void> => {
-    try { await navigator.clipboard.writeText(prompt); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
-  };
+  // Kopier-Fehler wurde bisher verschluckt — der Knopf sah aus wie erledigt, in der
+  // Zwischenablage lag der alte Inhalt. `useAsyncAction` traegt den Grund an den Titel.
+  const copy = useAsyncAction(async () => {
+    await kopiereText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  });
 
   const handleExport = (): void => {
     const blob = new Blob([prompt], { type: 'text/markdown' });
@@ -122,7 +127,14 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
         <button type="button" onClick={() => setShowPrompt(false)} className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] inline-flex items-center gap-1 cursor-pointer">← Zurück</button>
         <pre className="p-3 rounded-[var(--tf-radius)] bg-[#1a1a2e] text-[#d4d4f0] text-[11px] font-mono whitespace-pre-wrap max-h-[60vh] overflow-y-auto">{prompt}</pre>
         <div className="flex gap-2">
-          <Button type="button" onClick={handleCopy} variant="primary" icon={copied ? Check : Copy}>
+          <Button
+            type="button"
+            onClick={() => copy.run()}
+            loading={copy.busy}
+            variant="primary"
+            icon={copied ? Check : Copy}
+            title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : undefined}
+          >
             {copied ? 'Kopiert' : 'Kopieren'}
           </Button>
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>

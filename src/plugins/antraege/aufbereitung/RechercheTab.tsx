@@ -29,7 +29,7 @@ import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsync
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
 import { normalisiereAuftragstext, parseRecherchePrompt, type RecherchePromptDaten } from './recherche-prompt';
-import { kopiereText } from './kopieren';
+import { kopiereText } from '@/core/utils/kopieren';
 import { StichworteEditor } from './StichworteEditor';
 import type { RechercheStichworte } from './recherche-stichworte';
 import type { BekannteStammwerte } from './recherche-leak';
@@ -624,7 +624,7 @@ function EinzelSuchanfragen({ steckbrief, stammdaten }: { steckbrief: BausteinUi
 }
 
 function KopierAnfrage({ text }: { text: string }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await navigator.clipboard.writeText(text); });
+  const kopieren = useAsyncAction(async () => { await kopiereText(text); });
   return (
     <button
       type="button"
@@ -643,7 +643,7 @@ function KopierAnfrage({ text }: { text: string }): React.ReactElement {
 }
 
 function KopierAlle({ texte }: { texte: string[] }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await navigator.clipboard.writeText(texte.join('\n')); });
+  const kopieren = useAsyncAction(async () => { await kopiereText(texte.join('\n')); });
   return (
     <button
       type="button"

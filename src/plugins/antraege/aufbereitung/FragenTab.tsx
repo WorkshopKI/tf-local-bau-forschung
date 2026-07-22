@@ -18,6 +18,7 @@ import type { AufbereitungRun } from './types';
 import type { AspektMapping } from './aspekte';
 import type { ZahlenDaten } from './zahlen';
 import type { VbSektion } from './gliederung';
+import { kopiereText } from '@/core/utils/kopieren';
 
 const WARN = 'var(--tf-warning-text)';
 const OK = 'var(--tf-success-text)';
@@ -49,7 +50,7 @@ export function FragenTab({ run, aspekte, zahlen, vbMarkdown, toggleErledigt, ba
     ids.map(id => byId.get(id)).filter((s): s is VbSektion => !!s).map(s => <FundstelleChip key={s.id} sektion={s} vbMarkdown={vbMarkdown} />);
 
   const kopieren = useAsyncAction(async () => {
-    if (modell) await navigator.clipboard.writeText(formatFragenMarkdown(modell, erledigt));
+    if (modell) await kopiereText(formatFragenMarkdown(modell, erledigt));
   });
 
   if (!run || !modell) {

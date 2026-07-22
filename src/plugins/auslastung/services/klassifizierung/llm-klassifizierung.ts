@@ -19,7 +19,7 @@
  * 'medium' herabgestuft + Begruendung enthaelt Plausibilitaets-Warnung.
  *
  * Fallback "Copy/Paste via Streamlit": exportiert `buildPromptForClipboard()`
- * und `parseClipboardResponse()`, das die UI an `navigator.clipboard.writeText`
+ * und `parseClipboardResponse()`, die die UI an den Kopier-Helfer `kopiereText`
  * bzw. einen Textarea-Paste-Dialog koppelt.
  */
 import type { AIBridge } from '@/core/services/ai/bridge';

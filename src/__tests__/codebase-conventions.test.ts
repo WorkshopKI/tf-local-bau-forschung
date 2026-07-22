@@ -19,6 +19,9 @@
  *   - no-raw-async-onclick              → Pitfall #15, useAsyncAction-Hook.
  *   - no-raw-worker                     → Pitfall #5, Worker als
  *     `?worker&inline`-Import einbinden (file://-Kompat).
+ *   - no-raw-clipboard                  → v2.301.3, Zwischenablage nur ueber
+ *     kopiereText() aus src/core/utils/kopieren.ts (execCommand-Rueckfall +
+ *     wirft statt still zu scheitern); "kopieren und oeffnen" erst kopieren.
  *   - no-hardcoded-datenshare-mode      → Pitfall #25, Daten-Share-Modus
  *     ('read'/'readwrite') ausschliesslich via canWriteDatenShare() entscheiden,
  *     nicht `isKurator ? 'readwrite' : 'read'` hart kodieren.
@@ -322,6 +325,38 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
         `Cheatsheet: docs/agents/async-error-pattern.md.\n` +
         `Wenn wirklich noetig: '// allow-raw-async-onclick: <grund>' inline.\n\n` +
         `Treffer:\n${fmt(newFindings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-raw-clipboard (v2.301.3 — „Document is not focused")', () => {
+  // Chrome lehnt `navigator.clipboard.writeText` ab, wenn das Dokument im selben
+  // Tick den Fokus verliert (Kopier-Knopf neben einem Link, Dialog-Schluss,
+  // window.open). Ohne Rueckfall + geworfenen Fehler behaelt die Zwischenablage
+  // still ihren ALTEN Inhalt, und der Nutzer fuegt etwas Fremdes ein.
+  // Einziger Schreibweg: kopiereText() aus src/core/utils/kopieren.ts.
+  const pattern = /\bnavigator\s*\.\s*clipboard\b/;
+  const HEIMAT = `${sep}core${sep}utils${sep}kopieren.ts`;
+
+  it('kein direkter `navigator.clipboard`-Zugriff ausserhalb von core/utils/kopieren.ts', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.endsWith(HEIMAT)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-raw-clipboard'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Direkter Zwischenablage-Zugriff verboten (v2.301.3).\n` +
+        `Stattdessen:\n` +
+        `  import { kopiereText } from '@/core/utils/kopieren';\n` +
+        `  await kopiereText(text);   // faehrt den execCommand-Rueckfall und WIRFT,\n` +
+        `                             // wenn beide Wege scheitern\n` +
+        `Bei "kopieren und oeffnen": erst await kopiereText(...), DANN window.open().\n` +
+        `Braucht die Stelle wirklich die rohe API (z.B. ClipboardItem fuer text/html),\n` +
+        `Zeile mit '// allow-raw-clipboard: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });
@@ -934,7 +969,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 34;    // Ist 34; +1 'mapFoerderfaehig' (MAP Prüf-Workflow: Einreichungs-Import + editierbare Checkliste, dev); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1660;       // Ist ~1630 (DIESE Datei; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1700;       // Ist ~1665 (DIESE Datei; +no-raw-clipboard Konsolidierungs-Pass — faellt in Phase 6a wieder, wenn die Scan-Infrastruktur in conventions-lib.ts zieht; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

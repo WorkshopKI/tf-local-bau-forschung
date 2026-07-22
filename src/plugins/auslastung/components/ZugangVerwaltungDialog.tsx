@@ -15,6 +15,7 @@ import { KeyRound, Copy, Check, X, Mail, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { kopiereText } from '@/core/utils/kopieren';
 import {
   addOrReplaceEintrag,
   addOrReplaceManyEintraege,
@@ -72,14 +73,14 @@ export function ZugangVerwaltungDialog({ maListe, onClose }: Props): React.React
     return () => { cancelled = true; };
   }, [storage]);
 
-  const copy = (text: string, key: string): void => {
-    navigator.clipboard?.writeText(text)
-      .then(() => {
-        setCopied(key);
-        window.setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
-      })
-      .catch(() => { /* Clipboard nicht verfuegbar — Wert ist sichtbar. */ });
-  };
+  // Wie im PasswortAnzeigeDialog: ein still verschluckter Kopier-Fehler kostet hier
+  // ein einmalig sichtbares Passwort. Rueckfall laeuft mit, Scheitern wird angezeigt.
+  const kopieren = useAsyncAction(async (text: string, key: string) => {
+    await kopiereText(text);
+    setCopied(key);
+    window.setTimeout(() => setCopied(c => (c === key ? null : c)), 1500);
+  });
+  const copy = (text: string, key: string): void => { void kopieren.run(text, key); };
 
   const missing = useMemo(
     () => maListe.filter(m => !entrySet.has(m.anonId) && !generated[m.anonId]),
@@ -116,7 +117,7 @@ export function ZugangVerwaltungDialog({ maListe, onClose }: Props): React.React
   });
 
   const anyBusy = genMissing.busy || regenOne.busy || regenAll.busy;
-  const actionError = genMissing.error ?? regenOne.error ?? regenAll.error;
+  const actionError = genMissing.error ?? regenOne.error ?? regenAll.error ?? kopieren.error;
   const generatedCount = Object.keys(generated).length;
 
   const copyAll = (): void => {

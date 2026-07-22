@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.302.5 — eine Zwischenablage fuer alle, Kopier-Fehler werden sichtbar (Juli 2026)
+
+PATCH — Der v2.301.3-Fix („erst kopieren, dann öffnen") schuf einen gehärteten Kopier-Helfer, ließ ihn aber im Aufbereitung-Modul liegen. Die übrigen 26 Kopier-Stellen trugen dieselbe Race weiter, und etliche verschluckten den Fehler still — der Knopf sah aus wie erledigt, in der Zwischenablage lag der alte Inhalt.
+
+- Ein Kopier-Weg für die ganze App: `kopiereText` liegt jetzt im Core und fährt überall den Rückfall ([kopieren.ts](src/core/utils/kopieren.ts)); alle 16 Aufrufer-Dateien umgestellt.
+- Gescheitertes Kopieren wird sichtbar statt still verschluckt — u.a. beim Pfad im Startbildschirm, beim Feedback-Prompt und bei den Zugangspasswörtern, die nur EINMAL anzeigbar sind ([PasswortAnzeigeDialog.tsx](src/plugins/auslastung/components/PasswortAnzeigeDialog.tsx)).
+- „Kopieren & ZIM FAQ-Assistent öffnen" kopiert jetzt nachweislich, bevor der Tab aufgeht — vorher konnte der Assistent eine fremde Anfrage aus der Zwischenablage bekommen ([AnonymisierungView.tsx](src/plugins/anfragen/AnonymisierungView.tsx)).
+- Neuer Guard `no-raw-clipboard` hält den Weg eindeutig; eine begründete Ausnahme bleibt (Rich-Text nach Outlook, [clipboard.ts](src/plugins/anfragen/services/clipboard.ts)).
+
 ### v2.302.4 — Laufzeit-Import-Zyklen aufgeloest, tote Bruecke entfernt (Juli 2026)
 
 PATCH — Erster Schritt eines Konsolidierungs-Passes: keine Verhaltensänderung, nur Struktur. Vier Module zogen ein Symbol aus einem Sammel-Import, der nebenbei die ganze Plugin-Liste mitlud — und die führt zu jedem Modul zurück. Solche Ringe sind zur Laufzeit fragil und führen beim Lesen des Codes in die Irre.

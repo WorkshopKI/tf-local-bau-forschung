@@ -16,6 +16,7 @@ import {
 import { validateSelectedFolder, migrateLegacyStructure } from '@/core/services/infrastructure/migration';
 import type { FolderValidationResult } from '@/core/services/infrastructure/types';
 import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
+import { kopiereText } from '@/core/utils/kopieren';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -62,11 +63,11 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
 
   const copyPath = async (): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(examplePath);
+      await kopiereText(examplePath);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setError('Kopieren fehlgeschlagen. Bitte manuell markieren und kopieren.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Kopieren fehlgeschlagen. Bitte manuell markieren und kopieren.');
     }
   };
 
