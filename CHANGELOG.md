@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.305.1 — Scan-Helfer ausgelagert, toten Code kuratiert abgebaut (Juli 2026)
+
+PATCH — Abschluss des Konsolidierungs-Passes. Die Guard-Datei wuchs mit jeder neuen Konvention zugleich in ihrer Infrastruktur; und aus der MVP-Zeit lagen zwei komplette Bausteine im Baum, die nie an die App angeschlossen wurden.
+
+- Datei-Suche und Fund-Formatierung der Konventions-Prüfungen liegen jetzt daneben; die Regeln selbst bleiben vollständig in einer Datei ([conventions-lib.ts](src/__tests__/conventions-lib.ts), Guard-Datei 1665 → 1566 Zeilen).
+- Peer-Review-Panel und Versionshistorie samt ihrer Dienste und Typen entfernt — Stand März 2026, ohne einen einzigen Nutzer im Code (7 Dateien, zwei Dienst-Verzeichnisse).
+- Vier Konstanten für Datei-Pfade aus der Zeit vor v1.9 entfernt, die niemand mehr las ([feedback.ts](src/core/types/feedback.ts), [constants.ts](src/core/services/csv/constants.ts)).
+- Die Drift-Schwellen für Dateigröße und Dienst-Verzeichnisse auf den neuen Ist-Stand gesenkt statt sie stehen zu lassen.
+
 ### v2.305.0 — Workflow-Hook in seine Verantwortungen zerlegt (Juli 2026)
 
 MINOR — Der Gutachten-Workflow-Hook mischte auf 870 Zeilen vier Aufgaben: Registry laden, persistieren, generieren und die Schritt-Aktionen. Der Generierungsteil war der größte und brauchte als einziger kein React. Keine Verhaltensänderung, die Oberfläche für die Oberfläche bleibt unverändert.

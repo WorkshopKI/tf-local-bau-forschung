@@ -265,9 +265,6 @@ export const FEEDBACK_HINT_DISMISSED_KEY = 'teamflow_feedback_shared_hint_dismis
 export const FEEDBACK_DATA_DIR = '_intern/feedback';
 export const FEEDBACK_SHARED_FILE = '_intern/feedback/feedback.json';
 export const FEEDBACK_PROMPT_FILE = '_intern/feedback/system-prompt.md';
-/** @deprecated Legacy-Pfade vor v1.9. Migration-Helper prüft auf diese. */
-export const LEGACY_FEEDBACK_SHARED_FILE = 'feedback/feedback.json';
-export const LEGACY_FEEDBACK_PROMPT_FILE = 'feedback/system-prompt.md';
 
 export const DEFAULT_SPONSORING_THRESHOLDS: Record<EffortEstimate, number> = {
   XS: 3, S: 5, M: 15, L: 30, XL: 50, XXL: 70, Epic: 100,

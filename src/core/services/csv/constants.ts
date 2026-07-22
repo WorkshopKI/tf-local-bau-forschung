@@ -159,7 +159,3 @@ export const DEFAULT_SMB_HANDLE_KEY = 'daten-share';
 // v1.9: Schemas liegen unter programm/schemas/, Imports unter programm/antraege/imports/.
 export const CSV_SCHEMAS_SUBDIR = 'schemas';
 export const CSV_SOURCES_SUBDIR = 'antraege/imports';
-
-/** @deprecated Legacy-Subdirs vor v1.9 — Migration-Helper prüft auf diese Namen. */
-export const LEGACY_CSV_SCHEMAS_SUBDIR = 'csv-schemas';
-export const LEGACY_CSV_SOURCES_SUBDIR = 'csv-sources';

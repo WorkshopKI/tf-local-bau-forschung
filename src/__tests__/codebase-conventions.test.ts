@@ -84,112 +84,14 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
 import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
+// Datei-Walk + Such-Primitive liegen in der Lib; die REGELN bleiben hier
+// (CLAUDE.md Doku-Konvention 4: alle Konventionen in EINER Datei).
+import {
+  ROOT, ALL_TS_FILES, ALL_SOURCE_FILES,
+  relPath, findInFile, fmt, findFilesViolating,
+  type Finding,
+} from './conventions-lib';
 
-const ROOT = join(__dirname, '..');
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const p = join(dir, entry);
-    const s = statSync(p);
-    if (s.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist' || entry === '.vite') continue;
-      walk(p, out);
-    } else if (s.isFile() && (entry.endsWith('.ts') || entry.endsWith('.tsx'))) {
-      out.push(p);
-    }
-  }
-  return out;
-}
-
-const ALL_TS_FILES = walk(ROOT);
-
-// Wie walk(), aber fuer .css — der theme-token-contract-Guard muss auch CSS
-// scannen (chat/gutachten/felder nutzen die Tokens dort). ALL_TS_FILES bleibt
-// bewusst unberuehrt, damit die uebrigen Guards unveraendert nur .ts/.tsx scopen.
-function walkCss(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const p = join(dir, entry);
-    const s = statSync(p);
-    if (s.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist' || entry === '.vite') continue;
-      walkCss(p, out);
-    } else if (s.isFile() && entry.endsWith('.css')) {
-      out.push(p);
-    }
-  }
-  return out;
-}
-
-const ALL_SOURCE_FILES = [...ALL_TS_FILES, ...walkCss(ROOT)];
-
-interface Finding {
-  file: string;
-  line: number;
-  text: string;
-}
-
-function relPath(abs: string): string {
-  const rel = abs.slice(ROOT.length + 1);
-  return `src${sep}${rel}`.replace(/\\/g, '/');
-}
-
-function findInFile(
-  file: string,
-  predicate: (line: string) => boolean,
-  whitelistMarker: string,
-): Finding[] {
-  const content = readFileSync(file, 'utf-8');
-  const lines = content.split(/\r?\n/);
-  const out: Finding[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (line.includes(whitelistMarker)) continue;
-    if (predicate(line)) {
-      out.push({ file: relPath(file), line: i + 1, text: line.trim() });
-    }
-  }
-  return out;
-}
-
-function fmt(findings: Finding[]): string {
-  return findings.map(f => `  ${f.file}:${f.line}\n    ${f.text}`).join('\n');
-}
-
-/**
- * Dateiweiter Check (fuer Regeln, die nicht zeilen-lokal entscheidbar sind):
- * Eine Datei verstoesst, wenn sie irgendwo eine `trigger`-Zeile enthaelt (z.B.
- * einen bestimmten Funktionsaufruf), aber NIRGENDWO `requiredRef` referenziert.
- * Markierte Trigger-Zeilen (`marker`) werden uebersprungen; enthaelt die Datei
- * `requiredRef` an beliebiger Stelle, gilt sie als konform. Pro Datei max. ein
- * Treffer (die erste unmarkierte Trigger-Zeile genuegt als Beleg).
- */
-function findFilesViolating(
-  trigger: (line: string) => boolean,
-  requiredRef: string,
-  marker: string,
-  isAllowed: (file: string) => boolean,
-): Finding[] {
-  const out: Finding[] = [];
-  for (const file of ALL_TS_FILES) {
-    if (isAllowed(file)) continue;
-    const content = readFileSync(file, 'utf-8');
-    if (content.includes(requiredRef)) continue;
-    const lines = content.split(/\r?\n/);
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      if (line.includes(marker)) continue;
-      // Kommentar-Zeilen (JSDoc-Erwaehnungen wie `importCsvSource()`) sind keine
-      // echten Aufrufe — ueberspringen, sonst False-Positives in der Doku.
-      const t = line.trim();
-      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
-      if (trigger(line)) {
-        out.push({ file: relPath(file), line: i + 1, text: line.trim() });
-        break;
-      }
-    }
-  }
-  return out;
-}
 
 describe('no-direct-status-compare (CLAUDE.md Pitfall #12)', () => {
   // Antrag-Status-Werte die im gesamten Projekt EINDEUTIG zur Antrag-/Vorgang-
@@ -968,8 +870,8 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 34;    // Ist 34; +1 'mapFoerderfaehig' (MAP Prüf-Workflow: Einreichungs-Import + editierbare Checkliste, dev); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
-  const MAX_SERVICE_DIRS = 23;     // Ist 23; +1 'assistent' (Assistent-Domäne, Phase 0 protokoll/); davor 22 (+ msg: .msg-Parser fuers Anfragen-Modul)
-  const MAX_FILE_LOC = 1700;       // Ist ~1665 (DIESE Datei; +no-raw-clipboard Konsolidierungs-Pass — faellt in Phase 6a wieder, wenn die Scan-Infrastruktur in conventions-lib.ts zieht; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
+  const MAX_FILE_LOC = 1600;       // Ist ~1566 (DIESE Datei; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
