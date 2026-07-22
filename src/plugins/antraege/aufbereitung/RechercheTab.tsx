@@ -12,7 +12,9 @@
  *  4. „Einzel-Suchanfragen": die bisherigen deterministischen Suchanfragen (eingeklappt).
  *
  * DSGVO: externe Dienste erreicht ausschließlich der Nutzer per Zwischenablage +
- * geöffneter Seite — KEIN API-Call. `file://`-tauglich (Anker `target=_blank`).
+ * geöffneter Seite — KEIN API-Call. Reihenfolge dabei zwingend erst kopieren, dann
+ * öffnen (`kopieren.ts`) — sonst kann der Fokuswechsel den Kopier-Aufruf still
+ * verwerfen und im Chat landet der alte Inhalt der Zwischenablage.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Prec } from '@codemirror/state';
@@ -27,6 +29,7 @@ import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsync
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
 import { normalisiereAuftragstext, parseRecherchePrompt, type RecherchePromptDaten } from './recherche-prompt';
+import { kopiereText } from './kopieren';
 import { StichworteEditor } from './StichworteEditor';
 import type { RechercheStichworte } from './recherche-stichworte';
 import type { BekannteStammwerte } from './recherche-leak';
@@ -361,14 +364,36 @@ function AuftragsEditor({
   );
 }
 
-function KopierUndOeffnen({ prompt, url, label }: { prompt: string; url: string; label: string }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await navigator.clipboard.writeText(prompt); });
+/**
+ * „Kopieren & <Dienst> öffnen" — erst kopieren, DANN öffnen (siehe `kopieren.ts`).
+ * Bewusst ein Button statt eines `<a target="_blank">`: dessen Navigation lief im selben
+ * Tick wie der Kopier-Aufruf und konnte ihn still scheitern lassen; im Chat landete dann
+ * der ALTE Inhalt der Zwischenablage. Erfolg und Fehler stehen jetzt sichtbar am Knopf.
+ */
+function KopierUndOeffnen({ prompt, url, label, onKopiert }: {
+  prompt: string; url: string; label: string; onKopiert?: () => void;
+}): React.ReactElement {
+  const [kopiert, setKopiert] = useState(false);
+  const kopieren = useAsyncAction(async () => {
+    await kopiereText(prompt);
+    setKopiert(true);
+    onKopiert?.();
+    // Popup-Blocker: der Auftrag liegt bereits in der Zwischenablage — das ist der
+    // wichtigere Teil, deshalb nur ein Hinweis statt eines Fehlers.
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+  // Jede neue Fassung entwertet die Bestätigung — sonst behauptet der Knopf „kopiert",
+  // während in der Zwischenablage der Text von vorhin liegt.
+  useEffect(() => { setKopiert(false); }, [prompt]);
   return (
-    <Button asChild variant="secondary" size="sm">
-      <a href={url} target="_blank" rel="noopener noreferrer" onClick={() => kopieren.run()}>
+    <span className="inline-flex items-center gap-1.5">
+      <Button variant="secondary" size="sm" loading={kopieren.busy} onClick={() => kopieren.run()}>
         <ExternalLink size={13} /> Kopieren &amp; {label} öffnen
-      </a>
-    </Button>
+      </Button>
+      {kopieren.error
+        ? <span className="text-[11.5px] text-[var(--tf-danger-text)]">{kopieren.error}</span>
+        : kopiert ? <span className="text-[11.5px] text-[var(--tf-success-text)]">kopiert</span> : null}
+    </span>
   );
 }
 
@@ -386,9 +411,6 @@ function Marktzugang({
 }): React.ReactElement | null {
   const text = useMemo(() => baueMarktzugangText({ firmenname: stammdaten.antragsteller }), [stammdaten.antragsteller]);
   const [bestaetigt, setBestaetigt] = useState(false);
-  const kopieren = useAsyncAction(async () => { await navigator.clipboard.writeText(text ?? ''); }, {
-    onSuccess: () => { onKopiert(); setBestaetigt(false); },
-  });
   if (!text) return null;
   const stempel = run?.marktzugangKopiert?.am;
 
@@ -404,11 +426,12 @@ function Marktzugang({
       ) : (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-[12px] text-[var(--tf-warning-text)]">Firmenname wird mitkopiert — fortfahren?</span>
-          <Button asChild variant="secondary" size="sm">
-            <a href={mistralUrl} target="_blank" rel="noopener noreferrer" onClick={() => kopieren.run()}>
-              <ExternalLink size={13} /> Kopieren &amp; Mistral öffnen
-            </a>
-          </Button>
+          <KopierUndOeffnen
+            prompt={text}
+            url={mistralUrl}
+            label="Mistral"
+            onKopiert={() => { onKopiert(); setBestaetigt(false); }}
+          />
           <Button variant="ghost" size="sm" onClick={() => setBestaetigt(false)}>Abbrechen</Button>
         </div>
       )}

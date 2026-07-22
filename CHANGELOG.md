@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.301.3 — Erst kopieren, dann den externen Dienst oeffnen (Juli 2026)
+
+PATCH — „Kopieren & ChatGPT öffnen" hing am Anker-Klick: die Navigation lief im selben Tick wie das Kopieren, und der Fokuswechsel ließ Chrome den Kopier-Aufruf ablehnen. Der Fehler wurde nirgends angezeigt, die Zwischenablage behielt still ihren alten Inhalt — im Chat landete ein Auftrag aus einer früheren Fassung.
+
+- Erst kopieren, dann den Dienst öffnen; scheitert das Kopieren, wird der Dienst nicht geöffnet ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
+- Neuer `kopiereText`-Helfer mit `execCommand`-Rückfall, der bei Misserfolg wirft statt still zu scheitern ([kopieren.ts](src/plugins/antraege/aufbereitung/kopieren.ts)).
+- Der Knopf zeigt „kopiert" bzw. den Fehler an und entwertet die Bestätigung, sobald sich der Auftragstext ändert.
+
 ### v2.301.2 — KI-Knopf sagt, was er startet (Juli 2026)
 
 PATCH — Stand ein einzelner KI-Abschnitt auf „ausstehend" (etwa der Recherche-Auftrag nach dem Cache-Key-Bump aus v2.301), griff man zu „Neu aufbereiten" — und der Knopf wirkte kaputt: er rechnet nur den deterministischen Teil und startet keinen KI-Abschnitt. Was fehlte, war nicht die Funktion, sondern die Beschriftung.
@@ -548,148 +556,4 @@ MINOR — Paket 5, Phase 4. Prüfer-Feedback „zu viele Zahlen": Prompt auf pr�
 - **Zeitplan-Degradation**: `zeitplanUnsicher` (0 AP-Zeilen ODER >50 % ohne Laufzeit-Spanne) → kein Gantt, Hinweis + Roh-Tabellen ([Rohtabellen.tsx](src/plugins/antraege/aufbereitung/Rohtabellen.tsx) via `MarkdownRenderer`); Ghost-Toggle „Rohtabellen anzeigen" auch bei gelungener Extraktion ([zeitplan-qualitaet.ts](src/plugins/antraege/aufbereitung/zeitplan-qualitaet.ts), Solo + Verbund).
 - **Keine Seed-Migration nötig**: der Zahlen-Prompt lebt in `buildZahlenPrompt` (Code), nicht im Seed-`promptTemplate` — die Änderung deployt mit dem Build.
 - Tests: `zeitplanUnsicher`/`tabelleAlsMarkdown`, `relevanz`-Parse (fehlend→detail).
-
-### v2.262.0 — Antrag-Aufbereitung: Verwertung/Markt gegen externe Schicht spiegeln (dev) (Juli 2026)
-
-MINOR — Paket 5, Phase 3: Der Verwertung/Markt-Tab stellt je Kategorie „Laut Antrag" den importierten externen Aussagen („Extern · nicht verifiziert") gegenüber. Zuordnung ausschließlich über die geteilte Kategorie — KEIN Fuzzy-Matching, KEINE automatische Widerspruchs-Wertung; der Prüfer vergleicht selbst. Nur dev.
-
-- **Reine Gegenüberstellung** `gruppiereVergleich` (Kategorie-Gruppierung; `sdt` bleibt draußen) ([verwertung-vergleich.ts](src/plugins/antraege/aufbereitung/verwertung-vergleich.ts)).
-- **VerwertungTab zwei Spalten** je Kategorie (Antrag mit Fundstelle · extern mit Quellen-Link + „nicht verifiziert"); Leer-Hinweis mit Link auf den Recherche-Tab ([VerwertungTab.tsx](src/plugins/antraege/aufbereitung/VerwertungTab.tsx)).
-- Tests: Kategorie-Gruppierung, leere Schicht, nur-extern-Kategorie, mehrere Importe, `sdt`-Ausschluss.
-
-### v2.261.0 — Antrag-Aufbereitung: DR-Rückweg (Import JSON/Datei/Rohtext) (dev) (Juli 2026)
-
-MINOR — Paket 5, Phase 2: Deep-Research-Ergebnisse kommen von außen zurück in die App (Report-Text, PDF oder Word — kein verlässliches JSON). Toleranter Import: enthaltener JSON-Block direkt → sonst interner Strukturierungs-Lauf → sonst Rohtext. Als dritte Wissensschicht „extern · nicht verifiziert". Externe Quellen bleiben strikt aus dem VB-Korpus. Nur dev.
-
-- **Run-Erweiterung** `extern?: ExterneRecherche[]` (additiv, alte Runs ladbar) + geteiltes DR-JSON-Schema/Parser ([types.ts](src/plugins/antraege/aufbereitung/types.ts) + [recherche-schema.ts](src/plugins/antraege/aufbereitung/recherche-schema.ts)).
-- **Import-Pfade** (Text einfügen / PDF-Word-Upload via bestehendem `DocConverter`) + toleranter Orchestrator ([recherche-import.ts](src/plugins/antraege/aufbereitung/recherche-import.ts)); Recherche-Tab „Ergebnis zurückbringen" mit Import-Liste (löschbar, SdT-Aussagen inline) ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
-- **Interner Strukturierungs-Lauf** (`aufbereitung-recherche-import`, `aktiv:false`) über den neuen intern-pflichtigen Slot `{{externText}}` ([INHALTS_SLOTS](src/core/services/ai/transport-policy.ts)); Cache über den Hash des externen Texts.
-- **Keine Korpus-Vermischung**: externe Dokumente werden NUR als Text extrahiert (kein Korpus-Tag, keine Indexierung, kein `vbHash`-Einfluss).
-- Tests: Parser-Matrix + Import-Orchestrierung + Run-Kompatibilität alt→neu.
-
-### v2.260.0 — Antrag-Aufbereitung: Deep-Research-Prompt + Recherche-Tab-Umbau (dev) (Juli 2026)
-
-MINOR — Paket 5, Phase 1: Der Prüfer lässt sich als ALLERERSTES einen anonymen Deep-Research-Auftrag von der internen KI erzeugen und trägt ihn per Zwischenablage in ChatGPT/Claude/Mistral (5–10 Min externe Recherche parallel zur internen Aufbereitung). DSGVO: Anonymisierungs-Constraints im Skill + deterministischer Leak-Check + Pflicht-Review. Nur dev.
-
-- **Neuer DR-Prompt-Baustein** (`aktiv:false`, agentische Variante + Standard-Fallback), läuft zuerst; erzeugt den anonymen Auftrag ([recherche-prompt.ts](src/plugins/antraege/aufbereitung/recherche-prompt.ts) + [aufbereitung-recherche-prompt.seed.ts](src/core/services/skills/registry/aufbereitung-recherche-prompt.seed.ts)).
-- **Deterministischer Leak-Check** vor dem Kopieren: erzeugter Prompt case-insensitiv gegen Stammdaten (Name/FKZ/Az/Titel/Namensbestandteile ≥4); Treffer → degradiert, nur einsehbar ([recherche-leak.ts](src/plugins/antraege/aufbereitung/recherche-leak.ts)).
-- **Recherche-Tab umgebaut**: „Deep Research starten" (Review-Hinweis + Kopieren-&-Öffnen), „Marktzugang des KMU" (kurator-gated, Default AUS, identifizierend/deterministisch), Import-Platzhalter, Einzel-Suchanfragen eingeklappt ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
-- **Kurator-Config** (DR-Ziel-URLs + Marktzugang-Schalter) team-weit auf dem Share ([aufbereitung-settings.ts](src/plugins/antraege/aufbereitung/aufbereitung-settings.ts) + [AufbereitungRechercheSettings.tsx](src/plugins/antraege/aufbereitung/AufbereitungRechercheSettings.tsx)); agentische Variante pro Baustein durchgereicht ([bausteine.ts](src/plugins/antraege/aufbereitung/bausteine.ts)).
-- Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) (folgt in Phase 5).
-
-### v2.259.0 — Antrag-Aufbereitung: Übersicht-Cockpit + Tab-Gating (dev) (Juli 2026)
-
-MINOR — Start von Paket 5 (Recherche & Cockpit): Die KI-Läufe dauern Minuten, aber man sah nur `kiFertig/5` im Button. Neuer erster Tab „Übersicht" mit vertikalem Stepper zeigt live, was läuft/fertig ist; baustein-gebundene Tabs sind während eines Laufs erst klickbar, wenn ihr Baustein fertig ist. Nur dev.
-
-- **Neuer Default-Tab „Übersicht"** (Cockpit): Stepper über die KI-Bausteine + deterministischer Zeitplan-/Quellen-Status, dieselben Start-Actions ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx) + reines [uebersicht.ts](src/plugins/antraege/aufbereitung/uebersicht.ts)).
-- **Dynamisches Tab-Gating** aus dem Baustein-Status (reine `deriveTabZustaende`): gesperrt bis fertig; nie vor dem ersten Lauf, nie der aktive Tab, `fehler` bleibt klickbar ([tab-gating.ts](src/plugins/antraege/aufbereitung/tab-gating.ts) + [AufbereitungTabs.tsx](src/plugins/antraege/aufbereitung/AufbereitungTabs.tsx)).
-- Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) (folgt in Phase 5).
-
-### v2.258.0 — Assistent-Panel: routen-sensitive Quick-Action-Leiste (Topf 1) (Juli 2026)
-
-MINOR — Die statischen Beispielfragen des Assistent-Panels werden zu routen-sensitiven Quick Actions: vorgefertigte Fragen über dem ohnehin assemblierten Kontext, je nach Ansicht/Entität. Kein neuer LLM-/Transport-Mechanismus — ein Klick schickt nur einen Fragetext durch denselben Turn-Pfad. Nur dev.
-
-- **Reiner Quick-Action-Katalog** (5 Aktionen, ausblenden statt ausgrauen) statt `BASIS_BEISPIELE` ([quickActions.ts](src/plugins/chat/assistent/quickActions.ts), verdrahtet in [AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)).
-- **Deterministischer Arbeitsvorrat-Übersichtsblock** für den Kein-Entität-Fall (Liste/Startseite), damit „Fristen"/„Was ist heute dran?" faktengestützt sind ([arbeitsvorratUebersicht.ts](src/plugins/chat/assistent/arbeitsvorratUebersicht.ts) + [assembliere.ts](src/core/services/assistent/kontext/assembliere.ts)).
-- **„Plan bis Bewilligung" bewusst weggelassen** — keine Spine-Restschritt-Ableitung vorhanden (STOPP-Bedingung, keine neue Statusmaschine). Detail: [assistent-panel.md](docs/architecture/assistent-panel.md).
-
-### v2.257.1 — Gedächtnis-Eval: Transport-Default auf Intern (gpt-oss) (Juli 2026)
-
-PATCH — Die Baseline zeigte: der agentische Qwen-Tab liefert für die strukturierte JSON-Konsolidierung teils Reasoning-Prosa statt JSON + Loop-Detector-Abbruch. Der Standard-Chat (gpt-oss) ist zuverlässig — und die Produktion nutzt ihn ohnehin. Also der passendere Panel-Default.
-
-- **Panel-Transport-Default `agentisch` → `intern`** (gpt-oss / Standard-Chat) ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)); `agentisch`/`openrouter` bleiben wählbar.
-
-### v2.257.0 — KI-Assistent inkl. Gedächtnis in dev aktiviert (Juli 2026)
-
-MINOR — Abschluss der KI-Assistent-dev-Aktivierung: nachdem die In-App-Gedächtnis-Eval (interne gpt-oss-Baseline, n=3) die Schwelle erreichte — fortschreibung/widerspruch/poisoning 3/3, kaltstart 2/3 — wird die Gedächtnis-Konsolidierung (Phase 2) in **dev** scharfgeschaltet. Weiterhin **opt-in + doppelt gegatet**; der Assistent ist per Default „nicht verbunden".
-
-- **`assistentGedaechtnis: true`** in [configs/dev.config.json](configs/dev.config.json) (einzige Flag-Änderung; keine Schema-Änderung — steht schon in `DEFAULT_CONFIG`). Konsolidierung intern via `getTransportForKonsolidierung()` (Standard-Chat, kein `ziel`), `BridgeMutex`-serialisiert, Poisoning-Guard aktiv, Store nie im Snapshot.
-- **Nur dev.** `pl/prod/kurator/as` unverändert — der Behörden-Rollout wartet auf DSB/Personalrat (viel später).
-- Vorausgegangen: In-App-Eval-Panel (v2.256.0) + Baseline-Korrekturen (v2.256.2 Harness-Recalibrierung + Kontext-Wechsel-Prompt, v2.256.4 realistischere kaltstart-Fixture). Detail: [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md).
-
-### v2.256.4 — Gedächtnis-Eval: kaltstart-Fixture realistischer (Skill 3× gestartet) (Juli 2026)
-
-PATCH — Der gpt-oss-Baseline-Lauf (n=3) war 3/4 rock-solid; kaltstart scheiterte 2/3 nur an `praeferenzen:Kurzfassung`. Ursache: die Fixture nannte einen *einmaligen* Skill-Start ein „klares Arbeitsmuster" — überzogen. Statt die Assertion zu lockern, wird das Signal realistisch: der Skill wird mehrfach gestartet, dann ist die Präferenz-Erwartung berechtigt.
-
-- **kaltstart-Fixture**: Skill „kurzfassung" jetzt **3× gestartet** (k4/k5/k6) statt 1× → echtes wiederkehrendes Muster; stubOps-Belege + Text angepasst; Erwartung + `maxHinzugefuegt` unverändert ([gedaechtnis-fixtures.ts](src/core/services/skill-eval/gedaechtnis-fixtures.ts)).
-- Dry-Run bleibt 100 %, voller Gate grün (3713 Tests). Flag-Flip (`assistentGedaechtnis` in dev) folgt nach dem Nutzer-Re-Run (gpt-oss, n=3).
-
-### v2.256.3 — Gedächtnis-Eval: Judge-einschließen-Schalter (Default aus, schnellerer Lauf) (Juli 2026)
-
-PATCH — Der Baseline-Lauf dauerte über die Bridge sehr lang: jeder Fixture-Lauf machte reset + Generierung + reset + Judge, der Judge verdoppelte die Bridge-Runden. Für die Schwellen-Frage sind die deterministischen Assertions das harte Gate — der Judge ist optionale Zusatz-Sicht.
-
-- **„Judge einschließen"-Schalter** im Panel (Default **aus**): ohne Judge ist ein Lauf nur reset + Generierung je Fixture → grob halbe Bridge-Last; Judge bei Bedarf zuschaltbar ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)).
-
-### v2.256.2 — Gedächtnis-Eval: Harness-Recalibrierung + Kontext-Wechsel-Prompt (dev) (Juli 2026)
-
-PATCH — Konsequenzen der ersten Qwen-Baseline (v2.256.0/.1): ein Teil der roten Assertions waren Mess-Artefakte, nicht Modellfehler. Poisoning „scheiterte", obwohl Qwen die Injektion korrekt ignorierte; Judge-Parse-Fehler drückten den Schnitt. Der einzige echte Rotpunkt (Kontext-Wechsel) bekommt einen Prompt-Tweak. Flag-Flip in dev folgt erst nach zufriedenstellender Re-Baseline.
-
-- **`guardMussGreifen` outcome-basiert**: gilt als bestanden, wenn der Guard verwarf ODER kein instruktiver Eintrag aktiv wurde — ein resistentes Live-Modell (0 verworfen, sauberer Bestand) ist nicht mehr fälschlich rot; nur durchgerutschte Injektion fällt durch ([gedaechtnis-assertions.ts](src/core/services/skill-eval/gedaechtnis-assertions.ts)).
-- **Judge-Parse-Fehler** (nicht-JSON-Antwort → 0/0) fließen nicht mehr ins Judge-Mittel, sondern werden separat gezählt/angezeigt ([gedaechtnis-eval-runner.ts](src/core/services/skill-eval/gedaechtnis-eval-runner.ts), [GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)).
-- **Prompt-Tweak Kontext-Wechsel**: bei Wechsel des Arbeitsfokus (andere Entität als der Bestands-Eintrag) UPDATE/INVALIDATE auf den alten Eintrag — kein Nebeneinander von altem und neuem Fokus ([prompt.ts](src/core/services/assistent/gedaechtnis/prompt.ts)).
-- Tests: Guard-Recalibrierung (resistent/dry-run/durchgerutscht) + Judge-Parse-Fehler-Exklusion; CLI-Dry-Run bleibt 100 % ([gedaechtnis-assertions.test.ts](src/core/services/skill-eval/__tests__/gedaechtnis-assertions.test.ts), [gedaechtnis-eval-runner.test.ts](src/core/services/skill-eval/__tests__/gedaechtnis-eval-runner.test.ts)).
-
-### v2.256.1 — Gedächtnis-Eval: responsives Abbrechen + Fixture-Auswahl (dev) (Juli 2026)
-
-PATCH — Beim ersten Baseline-Lauf klebte der Eval an `degradation-1` (20 Zyklen × n=3 = bis zu 60 Bridge-Runden); „Abbrechen" wirkte erst nach dem laufenden Durchgang, weil das AbortSignal nicht in die Innenschleife durchgereicht war.
-
-- **Responsives Abbrechen**: AbortSignal fließt in `laufeFixture` → `submitMessage` + Prüfung zwischen den Zyklen; ein abgebrochener (Teil-)Lauf/Fixture wird verworfen, nicht gewertet ([gedaechtnis-eval-lib.ts](src/core/services/skill-eval/gedaechtnis-eval-lib.ts), [gedaechtnis-eval-runner.ts](src/core/services/skill-eval/gedaechtnis-eval-runner.ts), [gedaechtnis-judge.ts](src/core/services/skill-eval/gedaechtnis-judge.ts)).
-- **Fixture-Auswahl** im Panel (Checkboxen je Szenario, `degradation` Default AUS) — schnelle Baseline aus den 4 Ein-Zyklus-Fixtures, Degradation optional ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)).
-- Tests: Vorab-Abort bricht `laufeFixture` vor dem ersten Submit ab und `laufeGedaechtnisEval` ohne Aggregat ([gedaechtnis-eval-runner.test.ts](src/core/services/skill-eval/__tests__/gedaechtnis-eval-runner.test.ts)); CLI-Dry-Run byte-identisch.
-
-### v2.256.0 — In-App-Gedächtnis-Eval-Panel (dev) (Juli 2026)
-
-MINOR — Die Gedächtnis-Qualität (Assistent Phase 2) muss vor dem dev-Scharfschalten gemessen werden — aber der Rechner mit Zugang zur internen KI hat kein Node, das CLI `eval:gedaechtnis` läuft dort nicht. Daher ein In-App-Eval-Panel, das die fiktiven Fixtures über die laufende Bridge (Qwen) fährt. Nur Messung — keine Aktivierung. Detail: [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md).
-
-- **Gedächtnis-Eval-Panel** (Einstellungen → KI, gegated `isDevFixturesEnabled()`): 5 fiktive Fixtures über die interne Bridge (Default `agentisch`/Qwen), Generator + Judge intern, resetChat pro Submit, Report + JSONL-Download ([GedaechtnisEvalPanel.tsx](src/plugins/einstellungen/GedaechtnisEvalPanel.tsx)).
-- **Geteilte, node-freie Eval-Orchestrierung** — CLI und Panel teilen Läufe-/Judge-Logik + JSONL-Feldform ([gedaechtnis-eval-runner.ts](src/core/services/skill-eval/gedaechtnis-eval-runner.ts), [gedaechtnis-judge.ts](src/core/services/skill-eval/gedaechtnis-judge.ts)); die CLI ist nur noch der Node-Rahmen ([gedaechtnis-eval.ts](src/core/services/skill-eval/gedaechtnis-eval.ts)).
-- **`laufeFixture`** nahm einen additiven `{ ziel, resetVorZyklus }`-Parameter auf (Bridge-Reset + Qwen-Tab); CLI-Aufrufe byte-identisch ([gedaechtnis-eval-lib.ts](src/core/services/skill-eval/gedaechtnis-eval-lib.ts)).
-- Transport intern-only via `getTransportForAssistent()` (Guard #30); `openrouter` nur gespiegelt in dev (fiktiv-Provenienz-Guard); Panel schreibt **nicht** in den Gedächtnis-Store und braucht das Flag nicht.
-
-### v2.255.2 — Assistent-Spine: schwarzes Custom-Tooltip entfernt, natives Label behalten (Juli 2026)
-
-PATCH — Korrektur zu v2.255.1: dort war die Diagnose verdreht — entfernt wurde das native `title`-Tooltip (das dezente, das bleiben sollte), während das hart schwarze Custom-Bubble (`--tf-text`-Grund) übrig blieb. Jetzt umgekehrt richtig.
-
-- **Schwarzes Custom-Tooltip-Bubble entfernt, natives `title` wiederhergestellt** ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)): beim Überfahren der Spine erscheint nur noch **ein** Label — nativ wie bei allen anderen Icon-Buttons der App (kein zweites, hart schwarzes Bubble).
-
-### v2.255.1 — Assistent-Spine: doppelten Tooltip entfernt (Juli 2026)
-
-PATCH — *(Diagnose verdreht — korrigiert durch v2.255.2)* Nach der v2.255.0-Abnahme zeigte die neue Assistent-Spine beim Überfahren **zwei** Tooltips. Dieser Patch entfernte fälschlich das native `title` statt des schwarzen Custom-Bubbles.
-
-- **Natives `title`-Tooltip der Spine entfernt** ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)): war die falsche Hälfte — in v2.255.2 rückgängig gemacht, stattdessen das schwarze Custom-Bubble entfernt.
-
-### v2.255.0 — Home-Redesign (optimiert): Hero-Band + Karten-Restyle + Assistent-Spine (Juli 2026)
-
-MINOR — Umsetzung des Design-Handoffs „Home optimiert". Da die Startseite bereits ein reifes, konfigurierbares Widget-System ist, ist das ein visueller Restyle + wenige neue Präsentations-Elemente, kein Rebuild — die Konfigurierbarkeit bleibt. Additiv; Handoff-Abweichungen an den DESIGN_GUIDE angeglichen (kein Verlauf, keine Deko-Schatten, Gewicht 500). Detail: [home-widgets.md](docs/architecture/home-widgets.md).
-
-- **Hero-Band** (fixes Element, kein Widget): Resume-Karte „Weiter, wo du aufgehört hast" + Alert-Karte mit drei klickbaren Chips (kritisch / nähern sich / QS-Freigaben offen) ([HomeHero.tsx](src/plugins/home/HomeHero.tsx)).
-- **Config v2:** `weitermachen` aus dem Default (Hero ersetzt es, bleibt Opt-in im Katalog); v1→v2-Migration blendet eine sichtbare Instanz einmalig aus ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)); geteilter [useQsFreigaben.ts](src/plugins/home/widgets/useQsFreigaben.ts)-Hook (Hero-QS-Zahl = Widget-Zahl).
-- **Widget-Karten-Restyle** ([WidgetShell.tsx](src/plugins/home/widgets/WidgetShell.tsx)): Titel 14px/500, Karten-Fläche `--tf-card-surface`, eingeklappt nur noch Titel + Zähler.
-- **Kanban** ([AntragKanbanWidget.tsx](src/plugins/home/widgets/AntragKanbanWidget.tsx) / [KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx)): neutraler grauer Karten-Streifen statt Lane-Farbe, kein Deko-Schatten, Köpfe/Karten 500 statt 600.
-- **Assistent-Dock** ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)): schwebender Reiter → dauerhafte 48px-Spine mit Primär-Badge + Hover-Tooltip; das Blatt reserviert die 48px ([ShellLayout.tsx](src/core/ShellLayout.tsx), dev-Flag `assistentPanel`).
-
-### v2.254.1 — Umfang single-source auch für Abschnitt C + D (Folgepaket) (Juli 2026)
-
-PATCH — Zieht die Umfang-Single-Source aus v2.254.0 auf die Abschnitte C (Technische Risiken) und D (Markt) nach: auch dort stand die feste „300–350 Wörter"-Angabe zusätzlich in der Prompt-Prosa und lief bei Regel-Edits auseinander. Eigener, append-only Migrations-Marker (die A/B-Migration war bereits ausgeliefert).
-
-- **Feste „300–350 Wörter" aus C/D-Prosa entfernt** ([seed.ts](src/core/services/skills/registry/seed.ts)): Umfang kommt allein aus den Regeln (`seed-c-umfang` hinweis / `seed-d-wortanzahl`); Struktur (C: 3-Abschnitt Entwurf→Fließtext) unverändert. Alt-Wortlaut eingefroren als `C_ABSCHNITT_OPTS_NEU_UMFANG_ALT` / `D_ABSCHNITT_OPTS_UMFANG_ALT`.
-- **Migration `ga-umfang-dedup-cd-2026-07`** ([migrations.ts](src/core/services/skills/registry/migrations.ts)): eigener Marker, hebt nur unveränderte C/D-Prompts byte-genau nach; greift auch nach `applyRisikenEntwurf` (C landet direkt de-dupliziert).
-- Der Editor-Warnhinweis aus v2.254.0 deckt C/D bereits generisch mit ab.
-
-### v2.254.0 — Umfang single-source: Regel statt doppelter Prompt-Prosa (A/B) (Juli 2026)
-
-MINOR — Regel-Edits im Workflow-Werkstatt/Skill-Editor (z. B. Wortanzahl 750 → 450–550) wirkten nur halb: die neue Zahl erschien im Auto-Block „Formale Vorgaben", aber der Prompt-Text trug die alte Zahl weiter. Grund war eine Doppelquelle — die Wort-/Absatz-/Satzzahl stand zusätzlich fest in der Prompt-Prosa (Seed). Jetzt ist die Regel die EINZIGE numerische Quelle. Additiv (einmalige, kuratier-sichere Migration), keine Datenmigration im Layout-Sinn.
-
-- **Feste Umfangs-Zahlen aus der Prompt-Prosa entfernt (A + B)** ([seed.ts](src/core/services/skills/registry/seed.ts)): „Gesamtumfang mindestens 750 Wörter"/„vier Absätze" (B) und „ca. 10 Sätze" (A/Kurzfassung) fallen weg; Umfang kommt allein aus den Regeln. Weiche Teil-Richtwerte (≥150/≥150/≥450) bleiben.
-- **Byte-genaue Reconcile-Migration `ga-umfang-dedup-2026-07`** ([migrations.ts](src/core/services/skills/registry/migrations.ts)): hebt nur UNVERÄNDERTE A/B-Prompts auf dem Share auf die de-duplizierte Fassung; kuratierte Edits bleiben unangetastet.
-- **Skill-Editor warnt bei Prosa↔Regel-Konflikt** ([SkillEditor.tsx](src/plugins/skill-verwaltung-kuration/SkillEditor.tsx) + `findeUmfangKonflikte` in [check-engine.ts](src/core/services/skills/registry/check-engine.ts)): nennt der Prompt-Text eine Zahl abweichend zur Regel, erscheint ein Hinweis (Sicherheitsnetz für kuratierte Templates).
-
-### v2.253.0 — Bundle-Diaet: ONNX-WASM gzip-inline + Dependency-Hygiene (Juli 2026)
-
-MINOR — Die Single-File-HTML war ~73 MB (dev) und wird bei jedem Start komplett vom SMB-Share geladen; dominiert von der ~21-MB-ONNX-WASM, die zweimal byte-identisch als base64-`data:`-URL im Bundle lag. Zusätzlich tote Pakete + offene npm-audit-Findings bereinigt.
-
-- **ONNX-WASM als Inline-gzip + `wasmBinary`** ([ort-wasm-init.ts](src/core/services/search/ort-wasm-init.ts) + [generate-ort-wasm-module.mjs](scripts/generate-ort-wasm-module.mjs)): Post-Build-Strip leert die inlined `data:`-URLs ([strip-inline-wasm.mjs](scripts/strip-inline-wasm.mjs)) → Bundle dev 73→19,5 MB, prod 71→17,4 MB (−73/−75 %). Detail: [runtime-layers.md](docs/architecture/runtime-layers.md), Pitfall #39.
-- **4 tote Pakete entfernt** ([package.json](package.json)): `@zip.js/zip.js`, `file-saver`, `@types/file-saver`, `docx` (nirgends importiert); `shadcn` bleibt (build-relevant via `theme.css`).
-- **`xlsx` 0.18.5 → 0.20.3** (SheetJS-Registry-Tarball) — behebt High-Findings (Prototype-Pollution + ReDoS).
-- **`npm audit` 15 → 0 Findings** via `audit fix` (react-router/qs/vite); akzeptierte/beobachtete Findings dokumentiert ([docs/audit-akzeptiert.md](docs/audit-akzeptiert.md)).
 
