@@ -15,6 +15,8 @@ import { VerbundZeitplan } from './VerbundZeitplan';
 import { Rohtabellen } from './Rohtabellen';
 import { zeitplanUnsicher } from './zeitplan-qualitaet';
 import { befundKey } from './store';
+import { EinreichungsPlan } from './EinreichungsPlan';
+import type { EinreichungsBezug } from './map-verknuepfung';
 import type { AufbereitungRun } from './types';
 
 interface Props {
@@ -25,6 +27,12 @@ interface Props {
   /** Für die Nachreich-Drop-Zone der fehlenden TV-Anlagen (Verbund). */
   ctx: { key: string; knownIds: string[] };
   onIngested: () => void;
+  /**
+   * Zum Vorgang gefundene Einreichungs-JSON. Trägt sie einen Plan, ist sie die
+   * EINZIGE angezeigte Quelle — genau sie hebt die Zeitplan-Pause auf; die
+   * PDF-geernteten Zeilen bleiben gesperrt und werden nicht danebengestellt.
+   */
+  einreichung?: EinreichungsBezug | null;
 }
 
 const HERKUNFT_LABEL: Record<'anlage5' | 'vb' | 'beide', string> = {
@@ -33,9 +41,16 @@ const HERKUNFT_LABEL: Record<'anlage5' | 'vb' | 'beide', string> = {
   vb: 'TEXT-PROJEKTPLAN (VB)',
 };
 
-export function ZeitplanTab({ run, loading, neu, toggle, ctx, onIngested }: Props): React.ReactElement {
+export function ZeitplanTab({ run, loading, neu, toggle, ctx, onIngested, einreichung }: Props): React.ReactElement {
   if (loading) {
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">Aufbereitung wird geladen …</div>;
+  }
+
+  // Einreichungs-JSON schlägt alles: sie ist der Grund, aus dem dieser Tab überhaupt
+  // erreichbar ist (`zeitplanVerfuegbar`). Die PDF-Zeilen daneben zu zeigen würde die
+  // Pause unterlaufen.
+  if (einreichung?.zeitplan) {
+    return <div><EinreichungsPlan bezug={einreichung} /></div>;
   }
 
   // Verbund (≥2 TV): pro-TV-Sektionen statt eines Single-Zeitplans.

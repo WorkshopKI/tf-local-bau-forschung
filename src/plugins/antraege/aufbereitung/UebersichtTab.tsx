@@ -3,8 +3,9 @@
  * während der minutenlangen KI-Läufe, was läuft und was fertig ist. Drei Blöcke:
  *  1. Externe Recherche (Deep-Research-Auftrag) — Platzhalter bis Phase 1.
  *  2. Interne Aufbereitung — vertikaler Stepper über die KI-Bausteine.
- *  3. Deterministische Aufbereitung — Tabellen-/Quellen-Status (der Zeitplan-Einstieg
- *     entfällt, solange `ZEITPLAN_PAUSIERT` gilt).
+ *  3. Deterministische Aufbereitung — Tabellen-/Quellen-Status. Der Zeitplan-Einstieg
+ *     erscheint nur, wenn `zeitplanVerfuegbar` gilt (Einreichungs-JSON hinterlegt);
+ *     die Pausen von Zeitplan und Fragen stehen sonst als Hinweis da.
  * Monochrom; Farbe nur über den Status-Punkt. Keine eigene Logik/State — nutzt
  * dieselben Actions (`bausteine`/`neu`) wie die Seite.
  */
@@ -18,7 +19,7 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import type { AufbereitungTabId } from './AufbereitungTabs';
 import type { LaufZiel } from './lauf-ziel';
-import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
+import { FRAGEN_PAUSE_HINWEIS, FRAGEN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS, zeitplanVerfuegbar } from './pausierte-module';
 import type { AufbereitungRun } from './types';
 import type { BausteinUiStatus } from './useAufbereitung';
 import {
@@ -36,6 +37,8 @@ interface Props {
   neu: UseAsyncActionResult<[]>;
   /** Auf welcher internen KI die Bausteine laufen (aus `useAufbereitung`). */
   laufZiel: LaufZiel;
+  /** Liegt eine Einreichungs-JSON vor? Hebt allein die Zeitplan-Pause auf. */
+  hatEinreichungsJson: boolean;
 }
 
 /**
@@ -67,7 +70,8 @@ function KiZeile({ laufZiel }: { laufZiel: LaufZiel }): React.ReactElement {
   );
 }
 
-export function UebersichtTab({ run, loading, veraltet, stepper, onTab, bausteine, neu, laufZiel }: Props): React.ReactElement {
+export function UebersichtTab({ run, loading, veraltet, stepper, onTab, bausteine, neu, laufZiel, hatEinreichungsJson }: Props): React.ReactElement {
+  const zeitplanOffen = zeitplanVerfuegbar(hatEinreichungsJson);
   const bridge = useAIBridge();
   const kiStatus = useBridgeStatus(s => s.status);
   const kiHinweis = kiVerbindungsHinweis({ status: kiStatus, bridgeAktiv: bridge.istBridgeAktiv() });
@@ -142,7 +146,7 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
           ) : run ? (
             <>
               <span>
-                {ZEITPLAN_PAUSIERT ? 'Tabellen' : 'Zeitplan, Tabellen'} &amp; Plausibilität aufbereitet ({run.gliederung.length} Sektionen,{' '}
+                {zeitplanOffen ? 'Zeitplan, Tabellen' : 'Tabellen'} &amp; Plausibilität aufbereitet ({run.gliederung.length} Sektionen,{' '}
                 {run.tabellen.length} Tabellen).
               </span>
               {veraltet ? (
@@ -150,17 +154,20 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
                   ● Quellen haben sich seit der Aufbereitung geändert — „Neu aufbereiten" für den aktuellen Stand.
                 </span>
               ) : null}
-              {ZEITPLAN_PAUSIERT ? (
-                <span className="mt-1 text-[var(--tf-text-tertiary)]">{ZEITPLAN_PAUSE_HINWEIS}</span>
-              ) : (
+              {zeitplanOffen ? (
                 <button
                   type="button"
                   onClick={() => onTab('zeitplan')}
                   className="mt-1 inline-flex w-fit items-center gap-1 text-[12px] text-[var(--tf-primary)] hover:underline"
                 >
-                  Zeitplan öffnen <ArrowRight size={12} />
+                  {hatEinreichungsJson ? 'Zeitplan öffnen (Einreichungs-JSON)' : 'Zeitplan öffnen'} <ArrowRight size={12} />
                 </button>
+              ) : (
+                <span className="mt-1 text-[var(--tf-text-tertiary)]">{ZEITPLAN_PAUSE_HINWEIS}</span>
               )}
+              {FRAGEN_PAUSIERT ? (
+                <span className="text-[var(--tf-text-tertiary)]">{FRAGEN_PAUSE_HINWEIS}</span>
+              ) : null}
             </>
           ) : (
             <span className="text-[var(--tf-text-tertiary)]">Noch nicht aufbereitet — „Neu aufbereiten" oder „Mit KI aufbereiten".</span>
@@ -190,6 +197,9 @@ function StepperZeile({ schritt, letzte, onTab }: { schritt: StepperSchritt; let
             (z.B. „aktiver Provider ist extern" → interne KI wählen). */}
         {(schritt.status === 'degradiert' || schritt.status === 'fehler') && schritt.begruendung ? (
           <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-tertiary)]">{schritt.begruendung}</div>
+        ) : null}
+        {schritt.pausiert ? (
+          <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-tertiary)]">{schritt.pausiert}</div>
         ) : null}
         {fertig && schritt.tabId ? (
           <button

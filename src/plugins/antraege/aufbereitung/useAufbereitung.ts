@@ -33,6 +33,7 @@ import {
   type BausteinUiState,
 } from './baustein-zustand';
 import { leseGecachteBausteine } from './baustein-rehydrierung';
+import { ladeEinreichungsBezug, type EinreichungsBezug } from './map-verknuepfung';
 import type { AspektMapping } from './aspekte';
 import type { SteckbriefDaten } from './steckbrief';
 import type { ZahlenDaten } from './zahlen';
@@ -99,6 +100,12 @@ export interface UseAufbereitungResult {
    *  (`laufZiel.cap`, nicht die globale KI-Variante). `ueberCap` heisst: die Bausteine
    *  haben das Ende des Textes nicht gesehen; das gilt auch für gecachte Ergebnisse. */
   korpusMass: KorpusMass | null;
+  /**
+   * Zum Vorgang gefundene MAP-Einreichung (über die zugeordnete VB-Datei) samt dem
+   * daraus abgeleiteten Projektplan — `null`, solange keine Einreichungs-JSON
+   * hinterlegt ist. Hebt allein die Zeitplan-Pause auf (`pausierte-module.ts`).
+   */
+  einreichungsBezug: EinreichungsBezug | null;
   /** Auf welcher internen KI die Bausteine laufen + ob die Notausfahrt anzubieten ist. */
   laufZiel: LaufZiel;
   /** Notausfahrt für DIESEN Antrag (Sitzung, nicht persistiert) — agentische KI wegen
@@ -142,6 +149,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   bausteinZustandRef.current = bausteinZustand;
   const { aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt } = alsFelder(bausteinZustand);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
+  const [einreichungsBezug, setEinreichungsBezug] = useState<EinreichungsBezug | null>(null);
   const [agentischErzwungen, setzeAgentischErzwungen] = useState(false);
   const key = ctx?.key ?? null;
 
@@ -265,6 +273,22 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- skalare Anker statt `ctx` (siehe oben)
   }, [key, knownIdsKey, tvKey, run, storage.idb]);
+
+  // Einreichungs-Bezug (MAP) — eigener Effekt, weil er weder am `run` noch an den
+  // Teilvorhaben hängt: er sucht nur die Einreichung, der DIESELBE VB-Datei zugeordnet
+  // ist. Schlägt er fehl, bleibt der Zeitplan pausiert — kein sichtbarer Fehler, weil
+  // „keine Einreichung hinterlegt" der Normalfall ist.
+  useEffect(() => {
+    let cancelled = false;
+    setEinreichungsBezug(null);
+    (async () => {
+      if (!key) return;
+      const bezug = await ladeEinreichungsBezug(storage.idb, { key, knownIds: knownIdsKey ? knownIdsKey.split('|') : [] })
+        .catch(() => null);
+      if (!cancelled) setEinreichungsBezug(bezug);
+    })();
+    return () => { cancelled = true; };
+  }, [key, knownIdsKey, storage.idb]);
 
   const neu = useAsyncAction(async () => {
     if (!ctx) throw new Error(KEIN_KONTEXT);
@@ -575,5 +599,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, speichereRechercheStichworte, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, speichereRechercheStichworte, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, einreichungsBezug, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
 }

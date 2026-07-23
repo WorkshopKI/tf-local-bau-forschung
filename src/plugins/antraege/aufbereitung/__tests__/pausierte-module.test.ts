@@ -8,9 +8,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  ABDECKUNG_PAUSIERT,
+  FRAGEN_PAUSIERT,
   ZAHL_KATEGORIEN_PRUEFRELEVANT,
   ZEITPLAN_PAUSIERT,
   istZahlKategorieGesperrt,
+  zeitplanVerfuegbar,
 } from '../pausierte-module';
 import { ZAHL_KATEGORIE_IDS } from '../zahlen';
 
@@ -33,7 +36,14 @@ describe('pausierte-module', () => {
     expect(istZahlKategorieGesperrt('markt')).toBe(false);
   });
 
-  it('hat den Zeitplan pausiert (Stand heute)', () => {
+  it('hat Zeitplan, Fragen und Abdeckung pausiert (Stand heute)', () => {
     expect(ZEITPLAN_PAUSIERT).toBe(true);
+    expect(FRAGEN_PAUSIERT).toBe(true);
+    expect(ABDECKUNG_PAUSIERT).toBe(true);
+  });
+
+  it('hebt die Zeitplan-Pause NUR mit Einreichungs-JSON auf', () => {
+    expect(zeitplanVerfuegbar(false)).toBe(false);
+    expect(zeitplanVerfuegbar(true)).toBe(true);
   });
 });

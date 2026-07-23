@@ -1,13 +1,13 @@
 /**
- * Pausierte Teile der Antrag-Aufbereitung — die EINZIGE Stelle, an der die Pause
+ * Pausierte Teile der Antrag-Aufbereitung — die EINZIGE Stelle, an der eine Pause
  * später zurückgenommen wird.
  *
- * Beides hier ist ein reines ANZEIGE-/ZUGANGS-Gate: Prompt (`buildZahlenPrompt`),
- * Parser (`normalisiereKategorie`), Kategorien-Katalog (`ZAHL_KATEGORIEN`), die reine
- * Prüffunktion (`pruefeZahlWidersprueche`) und der komplette Zeitplan-Code bleiben
- * unangetastet. Dadurch bleiben bestehende Baustein-Caches gültig, es entfällt jede
- * Migration, und bereits gesetzte `zahl-widerspruch:*`-`offenePunkte` überleben im
- * Store (sie sind nur unsichtbar und leben beim Zurücknehmen wieder auf).
+ * Alles hier ist ein reines ANZEIGE-/ZUGANGS-Gate: Prompts, Parser, Kategorien-Katalog,
+ * die reinen Prüffunktionen sowie der komplette Zeitplan-, Fragen- und Abdeckungs-Code
+ * bleiben unangetastet. Dadurch bleiben bestehende Baustein-Caches gültig, es entfällt
+ * jede Migration, und bereits gesetzte `offenePunkte` (Zahlen-Widersprüche, Befunde,
+ * Aspekt-Kandidaten) überleben im Store — sie sind nur unsichtbar und leben beim
+ * Zurücknehmen wieder auf.
  *
  * Zurücknehmen = Konstante umlegen; mitzuziehen sind dann die Invarianten im Docblock
  * von `tab-gating.ts`, die Pause-Tests (`__tests__/tab-gating.test.ts`,
@@ -16,7 +16,8 @@
  *
  * Bewusst IMPORT-FREI: die Datei wird u. a. von der reinen `tab-gating.ts` gelesen; ein
  * Import von `zahlen.ts` zöge deren Transport-/IDB-Kette dorthin (Zyklus-Risiko). Die
- * Kopplung der IDs an `ZAHL_KATEGORIEN` prüft stattdessen der Test.
+ * Kopplung der IDs an `ZAHL_KATEGORIEN` prüft stattdessen der Test. Aus demselben Grund
+ * ERMITTELT `zeitplanVerfuegbar` nichts selbst, sondern nimmt das Ergebnis als Boolean.
  */
 
 /**
@@ -38,6 +39,46 @@ export const ZEITPLAN_PAUSIERT: boolean = true;
 /** Grund der Zeitplan-Pause (Tab-Tooltip + Übersichts-Hinweis). */
 export const ZEITPLAN_PAUSE_HINWEIS =
   'Zeitplan-Modul pausiert — die Arbeitspakete lassen sich aus den PDF-Quellen nicht verlässlich lesen. Kommt zurück, sobald der Antrag als JSON vorliegt.';
+
+/**
+ * Gesperrt ist die PDF-Ernte, nicht der Zeitplan als solcher: liegt zum Vorgang eine
+ * **Einreichungs-JSON** vor (MAP-Einreichung, derselben Vorhabensbeschreibung
+ * zugeordnet), stammen die Arbeitspakete aus strukturierten Feldern statt aus einer
+ * zerfallenen PDF-Tabelle — dann ist der Tab wieder ehrlich benutzbar und zeigt
+ * ausschliesslich die JSON-Zeilen (`map-verknuepfung.ts`).
+ *
+ * Nimmt das Ergebnis als Boolean entgegen, statt es selbst zu ermitteln: die Datei
+ * bleibt import-frei (s. Docblock oben).
+ */
+export function zeitplanVerfuegbar(hatEinreichungsJson: boolean): boolean {
+  return !ZEITPLAN_PAUSIERT || hatEinreichungsJson;
+}
+
+/**
+ * Fragen-Modul pausiert: die automatische Fragen-Ableitung mischt zu viele nicht
+ * prüfrelevante Punkte unter die echten Lücken. Sperrt den Fragen-Tab; `fragen.ts`,
+ * die Aspekt-Kandidaten und die gesetzten `offenePunkte` bleiben unberührt.
+ *
+ * Explizit als `boolean` typisiert (nicht als Literal `true`) — sonst narrowt TS die
+ * `false`-Zweige der Konsumenten zu totem Code und das Zurücknehmen zieht Folgefehler nach.
+ */
+export const FRAGEN_PAUSIERT: boolean = true;
+
+/** Grund der Fragen-Pause (Tab-Tooltip + Übersichts-Hinweis). */
+export const FRAGEN_PAUSE_HINWEIS =
+  'Fragen-Modul pausiert — die automatische Fragen-Ableitung ist noch nicht verlässlich genug. Umsetzung folgt.';
+
+/**
+ * Abdeckungs-Modul pausiert: die Zuordnung Sektion↔Prüfaspekt trägt noch nicht.
+ * Sperrt den Abdeckungs-Tab und den „Tab öffnen"-Einstieg des Aspekte-Schritts im
+ * Übersichts-Stepper. Der `aspekte`-Baustein LÄUFT bewusst weiter (er füttert Caches
+ * und den Steckbrief-Kontext) — Un-Pausieren ist dadurch eine reine Anzeige-Änderung.
+ */
+export const ABDECKUNG_PAUSIERT: boolean = true;
+
+/** Grund der Abdeckungs-Pause (Tab-Tooltip + Übersichts-Hinweis). */
+export const ABDECKUNG_PAUSE_HINWEIS =
+  'Abdeckungs-Modul pausiert — die Aspekt-Abdeckung ist noch nicht verlässlich genug. Umsetzung folgt.';
 
 /**
  * Derzeit prüfrelevante Zahlen-Kategorien. Die übrigen Kategorien des Katalogs

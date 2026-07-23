@@ -164,9 +164,10 @@ function parseDeDatum(s: string): { y: number; m: number; d: number } | null {
   const m = /(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(s);
   return m ? { y: +m[3]!, m: +m[2]!, d: +m[1]! } : null;
 }
-const datumAbsolut = (d: { y: number; m: number }): number => d.y * 12 + (d.m - 1);
+/** Fortlaufender Monatsindex — erlaubt Differenzen über Jahresgrenzen. */
+export const datumAbsolut = (d: { y: number; m: number }): number => d.y * 12 + (d.m - 1);
 /** Tage im Kalendermonat von `d` (respektiert Feb 28/29, 30-/31-Tage-Monate). */
-const monatslaenge = (d: { y: number; m: number }): number => new Date(d.y, d.m, 0).getDate();
+export const monatslaenge = (d: { y: number; m: number }): number => new Date(d.y, d.m, 0).getDate();
 
 /**
  * Laufzeit-/Monats-Range aus Freitext lesen: `Monat 1–4`, `M1-4`, `1 – 4`,

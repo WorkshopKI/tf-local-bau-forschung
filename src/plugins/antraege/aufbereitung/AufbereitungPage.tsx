@@ -241,6 +241,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             },
             weitereStatus: [aufb.recherchePrompt.status],
             activeTab: tab,
+            hatEinreichungsJson: aufb.einreichungsBezug?.zeitplan != null,
           })}
         />
       </div>
@@ -264,6 +265,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             bausteine={aufb.bausteine}
             neu={aufb.neu}
             laufZiel={aufb.laufZiel}
+            hatEinreichungsJson={aufb.einreichungsBezug?.zeitplan != null}
           />
         ) : tab === 'zeitplan' ? (
           <ZeitplanTab
@@ -273,6 +275,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             toggle={aufb.toggle}
             ctx={ctx ? { key: ctx.key, knownIds: ctx.knownIds } : { key: '', knownIds: [] }}
             onIngested={aufb.requestRecompute}
+            einreichung={aufb.einreichungsBezug}
           />
         ) : tab === 'steckbrief' ? (
           <SteckbriefTab

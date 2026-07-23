@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.308 — 2026-07
+
+### Neu
+- Der Zeitplan der Antrag-Aufbereitung ist wieder nutzbar, sobald zum Vorhaben eine Einreichung als JSON hinterlegt ist. Er zeigt dann die Arbeitspakete aus dieser Einreichung — nicht mehr die unzuverlässig aus PDF-Tabellen gelesenen.
+
+### Verbesserungen
+- Die Reiter „Fragen" und „Abdeckung" sind vorerst gesperrt und sagen auch, warum: die automatische Fragen-Ableitung und die Aspekt-Abdeckung sind noch nicht verlässlich genug. Ihre bereits markierten offenen Punkte bleiben gespeichert und tauchen wieder auf, sobald die Reiter zurückkommen.
+- In der Übersicht steht bei jedem pausierten Teil der Grund, statt eines Verweises, der ins Leere führt.
+
 ## v2.307 — 2026-07
 
 ### Neu

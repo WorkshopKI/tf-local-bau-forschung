@@ -7,16 +7,23 @@
  * Zahlen → Glossar → Verwertung).
  */
 import type { AufbereitungTabId } from './AufbereitungTabs';
+import { ABDECKUNG_PAUSE_HINWEIS, ABDECKUNG_PAUSIERT } from './pausierte-module';
 import type { BausteinKey } from './tab-gating';
 import type { BausteinUiState, BausteinUiStatus } from './useAufbereitung';
 
 export interface StepperSchritt {
   key: BausteinKey;
   label: string;
-  /** Ziel-Tab für „Tab öffnen" (null = kein eigener Tab). */
+  /** Ziel-Tab für „Tab öffnen" (null = kein eigener Tab ODER Tab pausiert). */
   tabId: AufbereitungTabId | null;
   status: BausteinUiStatus;
   begruendung?: string;
+  /**
+   * Grund, warum der Schritt zwar läuft, sein Tab aber gesperrt ist
+   * (`pausierte-module.ts`). Gesetzt statt `tabId` — ein Link ins Nichts wäre
+   * schlimmer als gar keiner, ein wortloses Fehlen aber auch.
+   */
+  pausiert?: string;
 }
 
 /** Baustein-UI-States, die das Cockpit für den Stepper braucht (nur die Statusfelder). */
@@ -130,7 +137,17 @@ export function baueStepper(eingang: StepperEingang): StepperSchritt[] {
   for (const def of SCHRITT_DEFS) {
     const st = states[def.key];
     if (!st) continue; // recherche-prompt fehlt in Phase 0 → Schritt weglassen
-    schritte.push({ key: def.key, label: def.label, tabId: def.tabId, status: st.status, begruendung: st.begruendung });
+    // Der Baustein LÄUFT weiter (Caches/Kontext bleiben gültig), nur sein Tab ist
+    // gesperrt — Un-Pausieren bleibt dadurch eine reine Anzeige-Änderung.
+    const pausiert = def.key === 'aspekte' && ABDECKUNG_PAUSIERT ? ABDECKUNG_PAUSE_HINWEIS : undefined;
+    schritte.push({
+      key: def.key,
+      label: def.label,
+      tabId: pausiert ? null : def.tabId,
+      status: st.status,
+      begruendung: st.begruendung,
+      ...(pausiert ? { pausiert } : {}),
+    });
   }
   return schritte;
 }

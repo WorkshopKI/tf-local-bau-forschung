@@ -11,15 +11,20 @@
  *    nach einer Rehydrierung aus dem Cache, bei der nur ein Teil der Bausteine
  *    vorlag.
  *  - Der gerade offene Tab (`activeTab`) wird NIE unter dem User weggesperrt.
- *  - `uebersicht`/`fragen`/`recherche`/`lesemodus` sind immer klickbar
- *    (deterministisch bzw. mit ehrlichen Leerzuständen).
+ *  - `uebersicht`/`recherche`/`lesemodus` sind immer klickbar (deterministisch bzw. mit
+ *    ehrlichen Leerzuständen).
  *  - `fehler` bleibt klickbar (der Tab zeigt den Retry).
- *  - Ein PAUSIERTES Modul (`ZEITPLAN_PAUSIERT`) schlägt alles andere: es ist dauerhaft
- *    `inaktiv`, auch vor dem ersten Lauf und auch als `activeTab` (die activeTab-Ausnahme
- *    schützt einen offenen Tab — ein pausierter Tab ist gar nicht erst erreichbar).
+ *  - Ein PAUSIERTES Modul schlägt alles andere: es ist dauerhaft `inaktiv`, auch vor dem
+ *    ersten Lauf und auch als `activeTab` (die activeTab-Ausnahme schützt einen offenen
+ *    Tab — ein pausierter Tab ist gar nicht erst erreichbar). Pausiert sind derzeit
+ *    `fragen` und `abdeckung` unbedingt, `zeitplan` nur ohne Einreichungs-JSON
+ *    (`zeitplanVerfuegbar`) — die Gründe stehen alle in `pausierte-module.ts`.
  */
 import type { AufbereitungTabId } from './AufbereitungTabs';
-import { ZEITPLAN_PAUSIERT, ZEITPLAN_PAUSE_HINWEIS } from './pausierte-module';
+import {
+  ABDECKUNG_PAUSE_HINWEIS, ABDECKUNG_PAUSIERT, FRAGEN_PAUSE_HINWEIS, FRAGEN_PAUSIERT,
+  ZEITPLAN_PAUSE_HINWEIS, zeitplanVerfuegbar,
+} from './pausierte-module';
 import type { BausteinUiStatus } from './useAufbereitung';
 
 /** Baustein-Schlüssel (Lauf-Einheiten); `rechercheP rompt` ohne führendes Leerzeichen. */
@@ -44,8 +49,20 @@ export const TAB_BAUSTEIN_BINDUNG: Partial<Record<AufbereitungTabId, Exclude<Bau
 
 /** Immer klickbare Tabs (deterministisch oder mit ehrlichem Leerzustand). */
 export const IMMER_AKTIVE_TABS: readonly AufbereitungTabId[] = [
-  'uebersicht', 'fragen', 'recherche', 'lesemodus',
+  'uebersicht', 'recherche', 'lesemodus',
 ];
+
+/**
+ * Pausierte Tabs samt Grund — eine Quelle für Tab-Zustand und Tooltip. `zeitplan`
+ * hängt am Prädikat (Einreichungs-JSON hebt die Pause auf), die anderen beiden sind
+ * unbedingt. Ein leerer Eintrag = nicht pausiert.
+ */
+function pauseHinweis(tab: AufbereitungTabId, hatEinreichungsJson: boolean): string | null {
+  if (tab === 'fragen') return FRAGEN_PAUSIERT ? FRAGEN_PAUSE_HINWEIS : null;
+  if (tab === 'abdeckung') return ABDECKUNG_PAUSIERT ? ABDECKUNG_PAUSE_HINWEIS : null;
+  if (tab === 'zeitplan') return zeitplanVerfuegbar(hatEinreichungsJson) ? null : ZEITPLAN_PAUSE_HINWEIS;
+  return null;
+}
 
 const ALLE_TABS: readonly AufbereitungTabId[] = [
   'uebersicht', 'steckbrief', 'abdeckung', 'zeitplan', 'zahlen',
@@ -65,6 +82,11 @@ export interface TabGatingEingang {
   weitereStatus?: BausteinUiStatus[];
   /** Aktuell offener Tab — nie sperren. */
   activeTab: AufbereitungTabId;
+  /**
+   * Liegt zum Vorgang eine Einreichungs-JSON vor (MAP-Einreichung derselben VB
+   * zugeordnet)? Hebt allein die Zeitplan-Pause auf. Fehlt → `false`.
+   */
+  hatEinreichungsJson?: boolean;
 }
 
 /**
@@ -72,7 +94,7 @@ export interface TabGatingEingang {
  * Vor dem ersten Lauf (alle `fehlt`) → alles klickbar; sonst greift das Gating.
  */
 export function deriveTabZustaende(eingang: TabGatingEingang): Record<AufbereitungTabId, TabZustandInfo> {
-  const { gebundeneTabs, weitereStatus = [], activeTab } = eingang;
+  const { gebundeneTabs, weitereStatus = [], activeTab, hatEinreichungsJson = false } = eingang;
   const alleStatus: BausteinUiStatus[] = [...Object.values(gebundeneTabs), ...weitereStatus];
   // Gesperrt wird NUR, solange tatsaechlich ein Lauf unterwegs ist. Frueher galt
   // „irgendein Baustein != fehlt" als Startsignal — das war ein Proxy, der hielt,
@@ -86,8 +108,9 @@ export function deriveTabZustaende(eingang: TabGatingEingang): Record<Aufbereitu
   const ergebnis = {} as Record<AufbereitungTabId, TabZustandInfo>;
   for (const tab of ALLE_TABS) {
     // Pausiertes Modul zuerst — bewusst VOR der `activeTab`-Ausnahme unten.
-    if (tab === 'zeitplan' && ZEITPLAN_PAUSIERT) {
-      ergebnis[tab] = { zustand: 'inaktiv', title: ZEITPLAN_PAUSE_HINWEIS };
+    const pause = pauseHinweis(tab, hatEinreichungsJson);
+    if (pause) {
+      ergebnis[tab] = { zustand: 'inaktiv', title: pause };
       continue;
     }
     const status = gebundeneTabs[tab];
