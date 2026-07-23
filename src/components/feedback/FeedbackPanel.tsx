@@ -12,7 +12,6 @@ import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
-import { enabledPlugins } from '@/plugins.config';
 import {
   autoClassifyFeedback,
   captureFeedbackContext,
@@ -57,7 +56,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
   const storage = useStorage();
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
-  const { activeId, navigate } = useNavigation();
+  const { activeId, activeName: activePluginName, navigate } = useNavigation();
   const bridge = useAIBridge();
   const kiVerfuegbar = useBridgeStatus(s => s.status) === 'connected';
 
@@ -75,8 +74,6 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
   const [context, setContext] = useState<FeedbackContext | null>(null);
   const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  const activePluginName = enabledPlugins.find(p => p.id === activeId)?.name ?? activeId ?? 'Unbekannt';
 
   const onResizeMouseDown = useCallback((e: React.MouseEvent): void => {
     e.preventDefault();

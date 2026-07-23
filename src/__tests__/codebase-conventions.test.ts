@@ -22,6 +22,9 @@
  *   - no-raw-clipboard                  → v2.301.3, Zwischenablage nur ueber
  *     kopiereText() aus src/core/utils/kopieren.ts (execCommand-Rueckfall +
  *     wirft statt still zu scheitern); "kopieren und oeffnen" erst kopieren.
+ *   - no-plugins-config-in-components   → Konsolidierungs-Pass, src/components/
+ *     (geteilte Blatt-Schicht) importiert nicht @/plugins.config; Plugin-Wissen
+ *     kommt als Prop oder via useNavigation().activeName herein.
  *   - no-hardcoded-datenshare-mode      → Pitfall #25, Daten-Share-Modus
  *     ('read'/'readwrite') ausschliesslich via canWriteDatenShare() entscheiden,
  *     nicht `isKurator ? 'readwrite' : 'read'` hart kodieren.
@@ -286,6 +289,39 @@ describe('no-raw-worker (CLAUDE.md Pitfall #5)', () => {
         `  import MyWorker from './worker.ts?worker&inline';\n` +
         `  const w = new MyWorker();\n` +
         `Siehe docs/agents/file-protocol-pitfalls.md.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-plugins-config-in-components (Konsolidierungs-Pass, Zyklen-Wurzel)', () => {
+  // `src/components/` ist die geteilte, domaenenfreie Blatt-Schicht (CLAUDE.md
+  // "UI-Muster / Layout-Schicht"). Wer von dort `@/plugins.config` importiert,
+  // zieht JEDES Plugin in den Modulgraphen -- und damit alles, was Plugins
+  // importieren, inklusive dieser Blatt-Schicht selbst. Genau daran hingen die
+  // vier Laufzeit-Zyklen aus v2.302.4: eine einzige Zeile in FeedbackPanel.tsx
+  // ("Anzeigename zur aktiven Plugin-ID") vergiftete das Feedback-Barrel fuer
+  // jeden Konsumenten. Plugin-Wissen kommt als Prop oder ueber den
+  // NavigationContext (`activeName`) herein, nicht per Import.
+  const pattern = /from\s+['"]@\/plugins\.config['"]/;
+
+  it('src/components/ importiert nicht @/plugins.config', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.includes(`${sep}src${sep}components${sep}`)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-plugins-config-in-components'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Import von @/plugins.config in der geteilten Komponenten-Schicht verboten.\n` +
+        `Er zieht jedes Plugin in den Modulgraphen und erzeugt Laufzeit-Zyklen\n` +
+        `(npm run cycles). Plugin-Wissen hereinreichen statt importieren:\n` +
+        `  - Anzeigename des aktiven Plugins: useNavigation().activeName\n` +
+        `  - alles andere: als Prop von der Shell/dem Plugin uebergeben.\n` +
+        `Nur mit sehr gutem Grund: Zeile mit\n` +
+        `'// allow-plugins-config-in-components: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });
@@ -871,7 +907,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 34;    // Ist 34; +1 'mapFoerderfaehig' (MAP Prüf-Workflow: Einreichungs-Import + editierbare Checkliste, dev); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 1600;       // Ist ~1566 (DIESE Datei; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1620;       // Ist ~1602 (DIESE Datei; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

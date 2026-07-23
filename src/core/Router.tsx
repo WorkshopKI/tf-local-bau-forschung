@@ -25,10 +25,16 @@ import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
  * über `useNavigate`/`useLocation`, sodass alle `useNavigation()`-Aufrufer
  * in Plugins weiterhin funktionieren, ohne dass sie React Router kennen.
  */
-function NavigationBridge({ children }: { children: React.ReactNode }): React.ReactElement {
+function NavigationBridge({
+  plugins,
+  children,
+}: { plugins: TeamFlowPlugin[]; children: React.ReactNode }): React.ReactElement {
   const navigate = useNavigate();
   const location = useLocation();
   const activeId = routeToPluginId(location.pathname) ?? 'home';
+  // Namensauflösung gehört hierher: der Router kennt die Plugin-Liste ohnehin,
+  // die Verbraucher (Feedback-Kontext) sollen sie nicht dafür laden müssen.
+  const activeName = plugins.find(p => p.id === activeId)?.name ?? activeId;
 
   const value = useMemo(
     () => ({
@@ -43,8 +49,9 @@ function NavigationBridge({ children }: { children: React.ReactNode }): React.Re
         navigate(pluginIdToRoute(pluginId));
       },
       activeId,
+      activeName,
     }),
-    [navigate, activeId],
+    [navigate, activeId, activeName],
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;
@@ -99,7 +106,7 @@ function AufbereitungRoute(): React.ReactElement {
 
 function RootLayout({ plugins }: { plugins: TeamFlowPlugin[] }): React.ReactElement {
   return (
-    <NavigationBridge>
+    <NavigationBridge plugins={plugins}>
       <ShellLayout plugins={plugins}>
         <Outlet />
       </ShellLayout>
