@@ -1,7 +1,7 @@
 // Detail-Panel: Metadaten, Admin-Felder (2×2 Grid), FAQ, Claude-Code-Prompt.
 
 import { useEffect, useState } from 'react';
-import { Check, Copy, Download, FileText, MessageSquare, Trash2, TrendingUp, Wand2, X } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Download, FileText, MessageSquare, Trash2, TrendingUp, Wand2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   deleteFeedback,
@@ -15,7 +15,7 @@ import {
 } from '@/core/services/feedback';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { kopiereText } from '@/core/utils/kopieren';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { isFeedbackDeleteEnabled } from '@/config/feature-flags';
 import { DEFAULT_FEEDBACK_CONFIG, EFFORT_LABELS, EFFORT_ORDER } from '@/core/types/feedback';
@@ -47,7 +47,6 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   const [showPrompt, setShowPrompt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
 
@@ -64,14 +63,11 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
   });
 
   // Kopier-Fehler wurde bisher verschluckt — der Knopf sah aus wie erledigt, in der
-  // Zwischenablage lag der alte Inhalt. `useAsyncAction` traegt den Grund an den Titel.
+  // Zwischenablage lag der alte Inhalt. `useKopierAktion` traegt den Grund an den Titel
+  // und laesst den Knopf im Fehlerfall nicht wie „erledigt" aussehen.
   // Steht bewusst HIER oben bei den uebrigen Hooks: unterhalb des `if (!ticket)`-Returns
   // waere es ein bedingter Hook (rules-of-hooks / React #310).
-  const copy = useAsyncAction(async () => {
-    await kopiereText(prompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  });
+  const copy = useKopierAktion(() => prompt);
 
   useEffect(() => { void loadFeedbackConfig(storage).then(setConfig); }, [storage]);
 
@@ -134,10 +130,10 @@ export function FeedbackTicketDetail({ ticket, onClose, onUpdated }: Props): Rea
             onClick={() => copy.run()}
             loading={copy.busy}
             variant="primary"
-            icon={copied ? Check : Copy}
-            title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : undefined}
+            icon={copy.fehler ? AlertTriangle : copy.kopiert ? Check : Copy}
+            title={copy.titel}
           >
-            {copied ? 'Kopiert' : 'Kopieren'}
+            {copy.fehler ? 'Kopieren fehlgeschlagen' : copy.kopiert ? 'Kopiert' : 'Kopieren'}
           </Button>
           <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer" style={inputStyle}>
             <Download size={13} /> .md Export

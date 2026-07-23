@@ -296,7 +296,11 @@ export function SuchSeite(): React.ReactElement {
                 try {
                   await exportClipboard(sorted, visibleColumnDefs);
                   setToast(`${sorted.length} Ergebnisse in Zwischenablage kopiert`);
-                } catch { setToast('Kopieren fehlgeschlagen'); }
+                  // Grund mitgeben statt verwerfen: „fehlgeschlagen" allein sagt dem
+                  // Nutzer nicht, ob er es gleich nochmal versuchen kann.
+                } catch (err) {
+                  setToast(`Kopieren fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+                }
               })();
             }}
           />

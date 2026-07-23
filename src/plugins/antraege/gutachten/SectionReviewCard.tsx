@@ -14,7 +14,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, Check, Copy, Info, ChevronRight, SpellCheck } from 'lucide-react';
+import { Pencil, SlidersHorizontal, ThumbsUp, ThumbsDown, ArrowRight, Undo2, AlertTriangle, Check, Copy, Info, ChevronRight, SpellCheck } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -22,6 +22,7 @@ import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { splitSentences, countWords, VB_KUERZEN_HINWEIS, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
@@ -32,7 +33,6 @@ import { pruefSummary } from './pruefSummary';
 import { PruefBlock } from './PruefBlock';
 import type { CheckListAktion } from '../kurzfassung/CheckList';
 import type { StepRun } from './types';
-import { kopiereText } from '@/core/utils/kopieren';
 
 /**
  * Satzweise adressierbarer Text (Journey-Paket 3): jeder Satz als `data-satz-index`-
@@ -223,22 +223,19 @@ export function SectionReviewCard({
   // Rein lokale Aktion (kein Netz/Transport); kurzes Häkchen-Feedback wie beim Chat-CopyButton.
   // Sitzt bewusst in der Meta-Zeile direkt unter dem Text (nicht in der Aktionsleiste):
   // Kopieren ist der häufigste Weg, den Abschnitt weiterzuverwenden, und gehört an den Text.
-  const [copied, setCopied] = useState(false);
-  const copy = useAsyncAction(async () => {
-    await kopiereText(run.finalerText);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  });
+  const copy = useKopierAktion(() => run.finalerText, 'Text in Zwischenablage kopieren');
   const copyBtn = (
     <button
       type="button"
-      className={`g-meta-copy${copied ? ' ok' : ''}`}
-      title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : 'Text in Zwischenablage kopieren'}
+      className={`g-meta-copy${copy.kopiert ? ' ok' : ''}`}
+      title={copy.titel}
       aria-label="Text in Zwischenablage kopieren"
       onClick={() => copy.run()}
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />}
-      {copied ? 'Kopiert' : 'Text kopieren'}
+      {copy.fehler
+        ? <AlertTriangle size={12} className="text-[var(--tf-danger-text)]" />
+        : copy.kopiert ? <Check size={12} /> : <Copy size={12} />}
+      {copy.fehler ? 'Kopieren fehlgeschlagen' : copy.kopiert ? 'Kopiert' : 'Text kopieren'}
     </button>
   );
 

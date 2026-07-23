@@ -6,7 +6,7 @@
  * Monochrom, Farbe nur über StatusDot.
  */
 import { useMemo, useState } from 'react';
-import { Copy } from 'lucide-react';
+import { AlertTriangle, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -82,9 +82,16 @@ export function FragenTab({ run, aspekte, zahlen, vbMarkdown, toggleErledigt, ba
           <button
             type="button"
             onClick={() => kopieren.run()}
-            className="inline-flex items-center gap-1 text-[12px] text-[var(--tf-primary)] hover:underline"
+            // Der Grund gehört sichtbar an den Knopf: „Fehler" allein liess offen,
+            // ob die Zwischenablage nun den alten oder den neuen Inhalt traegt.
+            title={kopieren.error ? `Kopieren fehlgeschlagen: ${kopieren.error}` : undefined}
+            className={`inline-flex items-center gap-1 text-[12px] hover:underline ${
+              kopieren.error ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-primary)]'
+            }`}
           >
-            <Copy size={12} /> {kopieren.error ? 'Fehler' : 'Als Markdown kopieren'}
+            {kopieren.error
+              ? <><AlertTriangle size={12} /> Kopieren fehlgeschlagen — nochmal versuchen</>
+              : <><Copy size={12} /> Als Markdown kopieren</>}
           </button>
         ) : null}
       </div>

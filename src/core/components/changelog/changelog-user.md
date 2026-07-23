@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.305 — 2026-07
+
+### Bugfixes
+- Kopier-Knöpfe zeigen bei einem Fehlschlag jetzt ein Warnzeichen statt eines Häkchens, und der Grund steht am Knopf. Bisher sah ein gescheitertes Kopieren an manchen Stellen genauso aus wie ein gelungenes — mit dem Ergebnis, dass beim Einfügen der alte Inhalt der Zwischenablage auftauchte.
+
 ## v2.302 — 2026-07
 
 ### Verbesserungen

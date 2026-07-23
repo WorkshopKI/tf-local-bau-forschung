@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { kopiereText } from '@/core/utils/kopieren';
+import { AlertTriangle, Check, Copy } from 'lucide-react';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 
 interface CopyButtonProps {
   /** Roh-Markdown der Antwort. */
@@ -12,16 +10,14 @@ interface CopyButtonProps {
 
 /** Kopiert Text in die Zwischenablage (.act-Stil); kurzes Check-Feedback. */
 export function CopyButton({ text, size = 15, title = 'Kopieren' }: CopyButtonProps): React.ReactElement {
-  const [copied, setCopied] = useState(false);
-  const copy = useAsyncAction(async () => {
-    await kopiereText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  });
+  const copy = useKopierAktion(text, title);
 
   return (
-    <button className="act" title={copy.error ? `Kopieren fehlgeschlagen: ${copy.error}` : title} onClick={() => copy.run()}>
-      {copied ? <Check size={size} /> : <Copy size={size} />}
+    <button className="act" title={copy.titel} onClick={() => copy.run()}>
+      {/* Fehler schlaegt Erfolg — sonst sieht ein gescheitertes Kopieren aus wie ein gelungenes. */}
+      {copy.fehler
+        ? <AlertTriangle size={size} className="text-[var(--tf-danger-text)]" />
+        : copy.kopiert ? <Check size={size} /> : <Copy size={size} />}
     </button>
   );
 }

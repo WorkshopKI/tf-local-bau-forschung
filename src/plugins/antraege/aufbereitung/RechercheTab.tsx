@@ -26,6 +26,7 @@ import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
 import { normalisiereAuftragstext, parseRecherchePrompt, type RecherchePromptDaten } from './recherche-prompt';
@@ -624,34 +625,41 @@ function EinzelSuchanfragen({ steckbrief, stammdaten }: { steckbrief: BausteinUi
 }
 
 function KopierAnfrage({ text }: { text: string }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await kopiereText(text); });
+  const kopieren = useKopierAktion(text, 'In die Zwischenablage kopieren');
   return (
     <button
       type="button"
       onClick={() => kopieren.run()}
       disabled={kopieren.busy}
-      title="In die Zwischenablage kopieren"
+      title={kopieren.titel}
       className="group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left hover:bg-[var(--tf-hover)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
       <span className="min-w-0 truncate text-[12.5px] text-[var(--tf-text)]">{text}</span>
       <span className="shrink-0 inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)] group-hover:text-[var(--tf-primary)]">
-        <Copy size={12} /> {kopieren.error ? 'Fehler' : 'kopieren'}
+        {kopieren.fehler
+          ? <><AlertTriangle size={12} className="text-[var(--tf-danger-text)]" /> fehlgeschlagen</>
+          : <><Copy size={12} /> kopieren</>}
       </span>
     </button>
   );
 }
 
 function KopierAlle({ texte }: { texte: string[] }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await kopiereText(texte.join('\n')); });
+  const kopieren = useKopierAktion(() => texte.join('\n'), 'Alle in die Zwischenablage kopieren');
   return (
     <button
       type="button"
       onClick={() => kopieren.run()}
       disabled={kopieren.busy}
-      className="inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-primary)] hover:underline disabled:opacity-50"
+      title={kopieren.titel}
+      className={`inline-flex items-center gap-1 text-[11.5px] hover:underline disabled:opacity-50 ${
+        kopieren.fehler ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-primary)]'
+      }`}
     >
-      <Copy size={12} /> {kopieren.error ? 'Fehler' : 'Alle kopieren'}
+      {kopieren.fehler
+        ? <><AlertTriangle size={12} /> Kopieren fehlgeschlagen</>
+        : <><Copy size={12} /> Alle kopieren</>}
     </button>
   );
 }

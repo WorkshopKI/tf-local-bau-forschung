@@ -17,13 +17,14 @@
  * Läufe strikt sequentiell (die Bridge ist ein einzelnes postMessage-Fenster).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlaskConical, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { FlaskConical, ChevronDown, ChevronRight, Copy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { loadSkillRegistry, getSkillById, type SkillRecord } from '@/core/services/skills';
 import {
@@ -147,7 +148,7 @@ function rohBefunde(erg: AufbereitungEvalErgebnis | null): RohBefund[] {
 
 /** Einklappbarer Rohtext-Block mit Kopier-Knopf (je auffälligem Fixture-Lauf). */
 function RohtextKarte({ titel, text }: { titel: string; text: string }): React.ReactElement {
-  const kopieren = useAsyncAction(async () => { await kopiereText(text); });
+  const kopieren = useKopierAktion(text, 'Rohtext kopieren');
   return (
     <details className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
       <summary className="flex items-center justify-between gap-2 px-2.5 py-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none">
@@ -155,9 +156,14 @@ function RohtextKarte({ titel, text }: { titel: string; text: string }): React.R
         <button
           type="button"
           onClick={e => { e.preventDefault(); kopieren.run(); }}
-          className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-primary)] hover:underline shrink-0"
+          title={kopieren.titel}
+          className={`inline-flex items-center gap-1 text-[11px] hover:underline shrink-0 ${
+            kopieren.fehler ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-primary)]'
+          }`}
         >
-          <Copy size={11} /> {kopieren.error ? 'Fehler' : 'Rohtext kopieren'}
+          {kopieren.fehler
+            ? <><AlertTriangle size={11} /> Kopieren fehlgeschlagen</>
+            : <><Copy size={11} /> Rohtext kopieren</>}
         </button>
       </summary>
       <pre className="text-[10.5px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[30vh] overflow-y-auto px-2.5 py-2 border-t border-[var(--tf-border)]">
@@ -525,7 +531,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                 />
                 {kopieren.error && (
                   <p className="text-[11.5px] text-[var(--tf-danger-text)]">
-                    Kopieren fehlgeschlagen — Text unten manuell markieren.
+                    Kopieren fehlgeschlagen ({kopieren.error}) — Text unten manuell markieren.
                   </p>
                 )}
                 <pre className="text-[11px] leading-[1.5] font-mono whitespace-pre-wrap text-[var(--tf-text)] max-h-[40vh] overflow-y-auto">
