@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.307 — 2026-07
+
+### Neu
+- Im Recherche-Tab können Sie den externen Report jetzt einfach auf die Fläche „Report-Datei hier ablegen" ziehen — oder wie bisher klicken und auswählen. Neben PDF und Word werden auch Markdown- und Textdateien gelesen; ChatGPT Deep Research bietet den Download inzwischen ebenfalls als Markdown an.
+- Sie können mehrere Dateien auf einmal ablegen. Jede wird einzeln gelesen und als eigener Import angelegt, ein Zähler zeigt den Fortschritt.
+
+### Verbesserungen
+- Lässt sich eine Datei nicht lesen (falscher Dateityp, gescanntes PDF), wird sie beim Namen genannt — die übrigen Dateien der Ablage sind trotzdem übernommen.
+- Schlägt „Text übernehmen" fehl, bleibt Ihr eingefügter Report im Feld stehen. Bisher war er weg.
+
 ## v2.305 — 2026-07
 
 ### Bugfixes

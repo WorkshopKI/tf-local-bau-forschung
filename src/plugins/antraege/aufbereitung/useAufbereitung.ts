@@ -68,8 +68,9 @@ export interface UseAufbereitungResult {
   markiereMarktzugangKopiert: UseAsyncActionResult<[]>;
   /** Externen DR-Text importieren (JSON-Block direkt → interner Lauf → Rohtext). */
   importTextRecherche: UseAsyncActionResult<[string, string?]>;
-  /** Externe DR-Datei (PDF/Word) importieren — Text-Extraktion via DocConverter, dann wie Text. */
-  importDateiRecherche: UseAsyncActionResult<[File]>;
+  /** Externe DR-Dateien (PDF/Word/Markdown/Text) importieren — Text-Extraktion via
+   *  DocConverter, dann wie Text; je Datei ein Eintrag, ein gemeinsamer Write. */
+  importDateiRecherche: UseAsyncActionResult<[File[], ((fertig: number, gesamt: number) => void)?]>;
   /** Einen externen Import wieder entfernen (Index in `run.extern`). */
   loescheExternRecherche: UseAsyncActionResult<[number]>;
   /** Aspekt-Mapping-Baustein (Paket 2). */
@@ -490,9 +491,15 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     });
   });
 
-  /** Toleranter Import eines externen DR-Textes → `run.extern` (NIE in den VB-Korpus). */
-  const fuegeExternHinzu = async (rohText: string, ausDatei: boolean, modellLabel?: string): Promise<void> => {
-    if (!ctx || !run || !rohText.trim()) return;
+  /**
+   * Baut den `ExterneRecherche`-Eintrag zu einem externen DR-Text — SCHREIBT NICHT.
+   * Getrennt vom Persistieren, damit ein Mehr-Datei-Import alle Einträge sammeln und
+   * mit EINEM `setRun` + EINEM `idb.set` ablegen kann (Pitfall #16/#20): schriebe die
+   * Schleife je Datei, bauten alle Durchläufe auf demselben `run` aus der Render-Closure
+   * auf und der letzte Eintrag überschriebe die vorherigen.
+   */
+  const baueExternEintrag = async (rohText: string, ausDatei: boolean, modellLabel?: string): Promise<ExterneRecherche | null> => {
+    if (!ctx || !rohText.trim()) return null;
     // Transport für den (best-effort) internen Strukturierungs-Lauf — intern-pflichtig
     // (`{{externText}}`, Pitfall #30/#35). Fehlt/wirft er, übernimmt strukturiereImport Rohtext.
     let deps: Parameters<typeof strukturiereImport>[1];
@@ -504,7 +511,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       };
     } catch { deps = undefined; }
     const { kern, herkunftInhalt, unstrukturiert } = await strukturiereImport(rohText, deps);
-    const eintrag: ExterneRecherche = {
+    return {
       schemaVersion: kern.schemaVersion,
       importiertAm: new Date().toISOString(),
       herkunft: ausDatei ? 'datei' : herkunftInhalt,
@@ -514,19 +521,51 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
       aussagen: kern.aussagen,
       ...(unstrukturiert ? { rohtext: rohText.slice(0, 200_000) } : {}),
     };
-    const next: AufbereitungRun = { ...run, extern: [...(run.extern ?? []), eintrag] };
+  };
+
+  /** Hängt fertige Einträge an `run.extern` an — ein `setRun`, ein `persist`. */
+  const persistiereExtern = async (eintraege: readonly ExterneRecherche[]): Promise<void> => {
+    if (!run || eintraege.length === 0) return;
+    const next: AufbereitungRun = { ...run, extern: [...(run.extern ?? []), ...eintraege] };
     setRun(next);
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   };
 
   const importTextRecherche = useAsyncAction(async (rohText: string, modellLabel?: string) => {
-    await fuegeExternHinzu(rohText, false, modellLabel);
+    if (!run) return;
+    const eintrag = await baueExternEintrag(rohText, false, modellLabel);
+    if (eintrag) await persistiereExtern([eintrag]);
   });
 
-  const importDateiRecherche = useAsyncAction(async (file: File) => {
-    // Extrahiert NUR den Text (kein Korpus-Tag, keine Indexierung) — externe Quelle eigener Klasse.
-    const conv = await new DocConverter().convert(file);
-    await fuegeExternHinzu(conv.markdown, true, file.name);
+  /**
+   * Externe DR-Dateien importieren — je Datei ein Eintrag. Extrahiert NUR den Text
+   * (kein Korpus-Tag, keine Indexierung) — externe Quelle eigener Klasse.
+   *
+   * Teilfehler sind ehrlich: gescheiterte Dateien werden gesammelt, die erfolgreichen
+   * ZUERST persistiert und der Fehler DANACH geworfen — so bleibt die geglückte Arbeit
+   * stehen und der Nutzer sieht trotzdem, was nicht gelesen werden konnte.
+   */
+  const importDateiRecherche = useAsyncAction(async (dateien: File[], onFortschritt?: (fertig: number, gesamt: number) => void) => {
+    if (!run || dateien.length === 0) return;
+    const konverter = new DocConverter();
+    const eintraege: ExterneRecherche[] = [];
+    const fehler: string[] = [];
+    for (const [i, file] of dateien.entries()) {
+      onFortschritt?.(i, dateien.length);
+      try {
+        const conv = await konverter.convert(file);
+        const eintrag = await baueExternEintrag(conv.markdown, true, file.name);
+        if (eintrag) eintraege.push(eintrag);
+        else fehler.push(`${file.name} (kein Text erkannt — evtl. ein gescanntes PDF)`);
+      } catch (err) {
+        fehler.push(`${file.name} (${err instanceof Error ? err.message : 'Lesefehler'})`);
+      }
+    }
+    onFortschritt?.(dateien.length, dateien.length);
+    await persistiereExtern(eintraege);
+    if (fehler.length) {
+      throw new Error(`${fehler.length} von ${dateien.length} Datei(en) konnten nicht gelesen werden: ${fehler.join('; ')}`);
+    }
   });
 
   const loescheExternRecherche = useAsyncAction(async (index: number) => {

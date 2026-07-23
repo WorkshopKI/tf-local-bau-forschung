@@ -8,7 +8,9 @@
  *  2. „Marktzugang des KMU" (kurator-gated, Default AUS): bewusst identifizierendes,
  *     deterministisches Template aus Stammdaten (kein LLM, kein VB-Inhalt) mit
  *     Bestätigung vor dem Kopieren + Run-Stempel.
- *  3. „Ergebnis zurückbringen": Import der externen DR-Ergebnisse (Phase 2).
+ *  3. „Ergebnis zurückbringen": Import der externen DR-Ergebnisse (Phase 2) — Text
+ *     einfügen ODER Dateien ablegen/auswählen (PDF/Word/Markdown/Text, auch mehrere;
+ *     Markdown, weil ChatGPT Deep Research den Report inzwischen so herunterlädt).
  *  4. „Einzel-Suchanfragen": die bisherigen deterministischen Suchanfragen (eingeklappt).
  *
  * DSGVO: externe Dienste erreicht ausschließlich der Nutzer per Zwischenablage +
@@ -19,8 +21,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Prec } from '@codemirror/state';
 import { keymap, type EditorView } from '@codemirror/view';
-import { Copy, ExternalLink, Search, AlertTriangle, ChevronDown, Upload, Trash2, FileText, Pencil, RotateCcw } from 'lucide-react';
+import { Copy, ExternalLink, Search, AlertTriangle, ChevronDown, Trash2, FileText, Pencil, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FileDropZone } from '@/components/ui/FileDropZone';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
@@ -30,6 +33,7 @@ import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { getAufbereitungDrUrls } from '@/config/feature-flags';
 import type { SteckbriefDaten } from './steckbrief';
 import { normalisiereAuftragstext, parseRecherchePrompt, type RecherchePromptDaten } from './recherche-prompt';
+import { IMPORT_ACCEPT, teileImportDateien } from './recherche-import';
 import { kopiereText } from '@/core/utils/kopieren';
 import { StichworteEditor } from './StichworteEditor';
 import type { RechercheStichworte } from './recherche-stichworte';
@@ -47,7 +51,7 @@ interface Props {
   bausteine: UseAsyncActionResult<[]>;
   onMarktzugangKopiert: () => void;
   importText: UseAsyncActionResult<[string, string?]>;
-  importDatei: UseAsyncActionResult<[File]>;
+  importDatei: UseAsyncActionResult<[File[], ((fertig: number, gesamt: number) => void)?]>;
   loescheImport: UseAsyncActionResult<[number]>;
   speichereDrPrompt: UseAsyncActionResult<[string]>;
   speichereDrStichworte: UseAsyncActionResult<[RechercheStichworte]>;
@@ -454,25 +458,42 @@ function ErgebnisZurueckbringen({
 }: {
   run: AufbereitungRun | null;
   importText: UseAsyncActionResult<[string, string?]>;
-  importDatei: UseAsyncActionResult<[File]>;
+  importDatei: UseAsyncActionResult<[File[], ((fertig: number, gesamt: number) => void)?]>;
   loescheImport: UseAsyncActionResult<[number]>;
 }): React.ReactElement {
   const [text, setText] = useState('');
   const [label, setLabel] = useState('');
+  /** Namen der abgelegten Dateien, die keine gelesene Endung haben (z.B. eine ZIP). */
+  const [abgelehnt, setAbgelehnt] = useState<string[]>([]);
+  const [fortschritt, setFortschritt] = useState<{ fertig: number; gesamt: number } | null>(null);
   const importe = run?.extern ?? [];
   const kannImportieren = !!run;
 
-  const uebernehmen = useAsyncAction(async () => {
-    await importText.run(text.trim(), label.trim() || undefined);
-    setText('');
-  });
-  const dateiWaehlen = useAsyncAction(async (file: File) => { await importDatei.run(file); });
+  // Eingefügten Text erst NACH erfolgreicher Übernahme leeren (Muster `DeepResearchStart`):
+  // `UseAsyncActionResult.run` schluckt Fehler in den `error`-State, ein `await` allein sagt
+  // also nichts über Erfolg — sonst wäre der Report bei einem Fehlschlag einfach weg.
+  const wartetRef = useRef(false);
+  useEffect(() => {
+    if (!wartetRef.current || importText.busy) return;
+    wartetRef.current = false;
+    if (!importText.error) setText('');
+  }, [importText.busy, importText.error]);
+  const uebernehmen = (): void => { wartetRef.current = true; void importText.run(text.trim(), label.trim() || undefined); };
+
+  useEffect(() => { if (!importDatei.busy) setFortschritt(null); }, [importDatei.busy]);
+  const dateienAblegen = (dateien: File[]): void => {
+    const { akzeptiert, abgelehnt: raus } = teileImportDateien(dateien);
+    setAbgelehnt(raus);
+    if (akzeptiert.length === 0) return;
+    setFortschritt({ fertig: 0, gesamt: akzeptiert.length });
+    void importDatei.run(akzeptiert, (fertig, gesamt) => setFortschritt({ fertig, gesamt }));
+  };
 
   return (
     <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Ergebnis zurückbringen</h3>
       <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
-        Externen Recherche-Report einfügen oder als PDF/Word hochladen. Ein enthaltener JSON-Block wird direkt übernommen, sonst strukturiert die interne KI den Text (sonst unstrukturiert als Rohtext). Externe Quellen fließen NICHT in den Antrags-Korpus.
+        Externen Recherche-Report einfügen oder als Datei ablegen (PDF, Word, Markdown, Text). Ein enthaltener JSON-Block wird direkt übernommen, sonst strukturiert die interne KI den Text (sonst unstrukturiert als Rohtext). Externe Quellen fließen NICHT in den Antrags-Korpus.
       </p>
       {!kannImportieren ? (
         <p className="mt-3 text-[12px] text-[var(--tf-text-tertiary)]">Zuerst „Neu aufbereiten" oder „Mit KI aufbereiten" — dann können Ergebnisse hinterlegt werden.</p>
@@ -494,22 +515,40 @@ function ErgebnisZurueckbringen({
               className="w-full px-3 py-2 text-[12px] rounded-[var(--tf-radius)] border border-[var(--tf-border)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-border-hover)] resize-y"
             />
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="primary" size="sm" loading={uebernehmen.busy} disabled={!text.trim()} onClick={() => uebernehmen.run()}>
+              <Button variant="primary" size="sm" loading={importText.busy} disabled={!text.trim()} onClick={uebernehmen}>
                 Text übernehmen
               </Button>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]">
-                <Upload size={13} /> {dateiWaehlen.busy ? 'Datei wird gelesen …' : 'PDF/Word hochladen'}
-                <input
-                  type="file"
-                  accept=".pdf,.docx"
-                  className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) { void dateiWaehlen.run(f); } e.target.value = ''; }}
-                />
-              </label>
-              {(uebernehmen.error || dateiWaehlen.error) ? (
-                <span className="text-[11.5px] text-[var(--tf-danger-text)]">{uebernehmen.error || dateiWaehlen.error}</span>
+              {importText.error ? (
+                <span className="text-[11.5px] text-[var(--tf-danger-text)]">{importText.error}</span>
               ) : null}
             </div>
+
+            <FileDropZone accept={IMPORT_ACCEPT} multiple padding="px-6 py-4" onFiles={dateienAblegen}>
+              {importDatei.busy ? (
+                <p className="text-[13px] text-[var(--tf-text-secondary)]">
+                  {fortschritt && fortschritt.gesamt > 1
+                    ? `Datei ${Math.min(fortschritt.fertig + 1, fortschritt.gesamt)} von ${fortschritt.gesamt} wird gelesen …`
+                    : 'Datei wird gelesen …'}
+                </p>
+              ) : (
+                <>
+                  <p className="text-[13px] text-[var(--tf-text)]">
+                    Report-Datei hier ablegen <span className="text-[var(--tf-text-secondary)]">(PDF, Word, Markdown, Text)</span>
+                  </p>
+                  <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+                    oder <span className="text-[var(--tf-primary)]">Datei auswählen</span> — mehrere ergeben je einen Import.
+                  </p>
+                </>
+              )}
+            </FileDropZone>
+            {abgelehnt.length ? (
+              <span className="text-[11.5px] text-[var(--tf-warning-text)]">
+                Nicht gelesen (Dateityp): {abgelehnt.join(', ')}
+              </span>
+            ) : null}
+            {importDatei.error ? (
+              <span className="text-[11.5px] text-[var(--tf-danger-text)]">{importDatei.error}</span>
+            ) : null}
           </div>
 
           {importe.length ? (

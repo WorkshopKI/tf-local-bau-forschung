@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { strukturiereImport } from '../recherche-import';
+import { IMPORT_ACCEPT, IMPORT_DATEI_ENDUNGEN, strukturiereImport, teileImportDateien } from '../recherche-import';
 import { AUFBEREITUNG_RECHERCHE_IMPORT_SKILL } from '@/core/services/skills';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
@@ -46,6 +46,40 @@ describe('strukturiereImport', () => {
     const r = await strukturiereImport('Nur Prosa.', deps(transportWirft()));
     expect(r.unstrukturiert).toBe(true);
     expect(r.kern.aussagen).toEqual([]);
+  });
+});
+
+describe('teileImportDateien (Drag & Drop nimmt ungeprüfte Dateien an)', () => {
+  const namen = (n: string[]): { name: string }[] => n.map(name => ({ name }));
+
+  it('nimmt PDF, Word, Markdown und Text an', () => {
+    const r = teileImportDateien(namen(['a.pdf', 'b.docx', 'c.md', 'd.txt']));
+    expect(r.akzeptiert.map(f => f.name)).toEqual(['a.pdf', 'b.docx', 'c.md', 'd.txt']);
+    expect(r.abgelehnt).toEqual([]);
+  });
+
+  it('lehnt fremde Endungen ab und lässt den Rest durch', () => {
+    const r = teileImportDateien(namen(['report.md', 'anhang.zip', 'bild.png']));
+    expect(r.akzeptiert.map(f => f.name)).toEqual(['report.md']);
+    expect(r.abgelehnt).toEqual(['anhang.zip', 'bild.png']);
+  });
+
+  it('prüft die Endung case-insensitiv, meldet aber den Originalnamen', () => {
+    const r = teileImportDateien(namen(['REPORT.MD', 'Deep Research.PDF', 'Archiv.ZIP']));
+    expect(r.akzeptiert.map(f => f.name)).toEqual(['REPORT.MD', 'Deep Research.PDF']);
+    expect(r.abgelehnt).toEqual(['Archiv.ZIP']);
+  });
+
+  it('lehnt Dateien ohne Endung ab', () => {
+    expect(teileImportDateien(namen(['README'])).abgelehnt).toEqual(['README']);
+  });
+
+  it('verkraftet eine leere Liste', () => {
+    expect(teileImportDateien([])).toEqual({ akzeptiert: [], abgelehnt: [] });
+  });
+
+  it('IMPORT_ACCEPT bleibt die einzige Quelle der Endungsliste', () => {
+    expect(IMPORT_ACCEPT.split(',')).toEqual([...IMPORT_DATEI_ENDUNGEN]);
   });
 });
 

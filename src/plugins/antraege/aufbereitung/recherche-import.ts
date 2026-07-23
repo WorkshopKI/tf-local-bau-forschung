@@ -1,6 +1,6 @@
 /**
  * Import der externen Deep-Research-Ergebnisse (Paket 5, Phase 2). Der DR liefert Report-
- * Text, PDF oder Word — KEIN verlässliches JSON. Toleranter Pfad:
+ * Text, PDF, Word oder Markdown — KEIN verlässliches JSON. Toleranter Pfad:
  *  1. Sauberer JSON-Block im Text (bestehender Salvage) → direkt strukturiert (`herkunft:'json'`).
  *  2. Sonst EIN interner Strukturierungs-Lauf (`{{externText}}`, intern-pflichtig) → `'text'`.
  *  3. Misslingt auch der → Rohtext-Übernahme (`aussagen:[]`, `rohtext` gesetzt).
@@ -17,6 +17,38 @@ import { getOrComputeBaustein, rechercheImportCacheKey, type BausteinResult } fr
 import {
   drSchemaBlockBeschreibung, parseExterneRecherche, RECHERCHE_SCHEMA_VERSION, type ExterneRechercheKern,
 } from './recherche-schema';
+
+// ---------------------------------------------------------------------------
+// Datei-Annahme (Drag & Drop + Datei-Dialog)
+// ---------------------------------------------------------------------------
+
+/**
+ * Endungen, die der Import liest — `DocConverter` deckt sie alle ab (PDF/DOCX
+ * eigener Zweig, `md`/`txt` als Klartext). ChatGPT Deep Research lädt inzwischen
+ * auch Markdown herunter, deshalb steht `.md` gleichberechtigt daneben.
+ */
+export const IMPORT_DATEI_ENDUNGEN = ['.pdf', '.docx', '.md', '.txt'] as const;
+
+/** Wert für `<input accept>` / `FileDropZone` — dieselbe Quelle wie die Prüfung unten. */
+export const IMPORT_ACCEPT = IMPORT_DATEI_ENDUNGEN.join(',');
+
+/**
+ * Teilt eine abgelegte Datei-Liste in lesbare und abgelehnte Dateien. Nötig, weil
+ * `accept` NUR den Datei-Dialog filtert: gezogene Dateien kommen ungeprüft an, und
+ * eine ZIP landete sonst über den Klartext-Zweig als Binärmüll im Import.
+ */
+export function teileImportDateien<T extends { name: string }>(
+  dateien: readonly T[],
+): { akzeptiert: T[]; abgelehnt: string[] } {
+  const akzeptiert: T[] = [];
+  const abgelehnt: string[] = [];
+  for (const d of dateien) {
+    const name = d.name.toLowerCase();
+    if (IMPORT_DATEI_ENDUNGEN.some(e => name.endsWith(e))) akzeptiert.push(d);
+    else abgelehnt.push(d.name);
+  }
+  return { akzeptiert, abgelehnt };
+}
 
 // ---------------------------------------------------------------------------
 // Prompt
