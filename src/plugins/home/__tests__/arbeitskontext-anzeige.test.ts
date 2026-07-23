@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ArbeitskontextEintrag } from '@/core/services/personal-storage/arbeitskontext-log';
-import { beschreibeArbeitskontext, relativeZeit } from '../arbeitskontext-anzeige';
+import { beschreibeArbeitskontext } from '../arbeitskontext-anzeige';
 
 function eintrag(over: Partial<ArbeitskontextEintrag> = {}): ArbeitskontextEintrag {
   return { typ: 'gutachten', verbundKey: 'FKZ01', ts: '2026-07-01T10:00:00.000Z', ...over };
@@ -47,21 +47,6 @@ describe('beschreibeArbeitskontext', () => {
   });
 });
 
-describe('relativeZeit', () => {
-  const base = Date.parse('2026-07-01T12:00:00.000Z');
-  it('gerade eben (<1 Min)', () => {
-    expect(relativeZeit('2026-07-01T11:59:30.000Z', base)).toBe('gerade eben');
-  });
-  it('Minuten', () => {
-    expect(relativeZeit('2026-07-01T11:55:00.000Z', base)).toBe('vor 5 Min');
-  });
-  it('Stunden', () => {
-    expect(relativeZeit('2026-07-01T09:00:00.000Z', base)).toBe('vor 3 Std');
-  });
-  it('Tage', () => {
-    expect(relativeZeit('2026-06-29T12:00:00.000Z', base)).toBe('vor 2 Tagen');
-  });
-  it('ungültiger Zeitstempel → leer', () => {
-    expect(relativeZeit('kaputt', base)).toBe('');
-  });
-});
+// Die Faelle fuer die relative Zeitangabe leben seit dem Konsolidierungs-Pass in
+// src/core/utils/__tests__/relativeZeit.test.ts -- dort stehen alle drei Register
+// nebeneinander (`relativeZeitKurz` ist das hier frueher gepruefte).

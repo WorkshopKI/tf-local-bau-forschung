@@ -22,7 +22,7 @@ import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
 // Direktimport statt Barrel: `@/components/feedback` zieht `FeedbackPanel` mit, das
 // wiederum `@/plugins.config` laedt — ueber die Einstellungen-Plugin-Kette entstuende
 // ein Laufzeit-Zyklus. `feedbackUi.ts` haengt nur an lucide + Typen + `./constants`.
-import { formatRelativeTime } from '@/components/feedback/feedbackUi';
+import { relativeZeitLang } from '@/core/utils/relativeZeit';
 import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 const REFRESH_INTERVAL_MS = 45_000;
@@ -211,7 +211,7 @@ export function OnlineTab(): React.ReactElement {
                   </span>
                 </div>
                 <span className={`text-[12px] shrink-0 ${u.online ? 'text-[var(--tf-success-text)]' : 'text-[var(--tf-text-secondary)]'}`}>
-                  {formatRelativeTime(u.lastActive)}
+                  {relativeZeitLang(u.lastActive)}
                 </span>
               </li>
             ))}

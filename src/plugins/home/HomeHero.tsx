@@ -17,7 +17,7 @@ import { Clock, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { AmpelBucket } from '@/plugins/antraege/eingangAmpel';
 import { useWeitermachenRows } from './WeitermachenSection';
-import { relativeZeit } from './arbeitskontext-anzeige';
+import { relativeZeitKurz } from '@/core/utils/relativeZeit';
 import { useQsFreigaben } from './widgets/useQsFreigaben';
 import type { EingangAmpelCounts } from './useEingangAmpelCounts';
 
@@ -60,7 +60,7 @@ export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): Rea
             {resume.anzeige.kontext}
           </div>
           <div className="mt-0.5 text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)] truncate">
-            {relativeZeit(resume.anzeige.ts)} · <span className="font-mono">{resume.anzeige.fkz}</span>
+            {relativeZeitKurz(resume.anzeige.ts)} · <span className="font-mono">{resume.anzeige.fkz}</span>
           </div>
           <span className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--tf-primary)]">
             Weiter <ArrowRight size={14} />

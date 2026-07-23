@@ -37,5 +37,5 @@ export { FeedbackFileInput } from './FeedbackFileInput';
 export { FeedbackFiles } from './FeedbackFiles';
 export { FileTypeIcon } from './FileTypeIcon';
 export { FeedbackAvatar, avatarInitials, avatarColor } from './FeedbackAvatar';
-export { formatRelativeTime, formatShortDate, getLucideIcon, feedbackAuthorLabel, feedbackTitle, feedbackQaSegments } from './feedbackUi';
+export { formatShortDate, getLucideIcon, feedbackAuthorLabel, feedbackTitle, feedbackQaSegments } from './feedbackUi';
 export * from './constants';

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import type { Antrag } from '@/core/services/csv/types';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useDokumentReviewStore } from '../store';
+import { relativeZeitKompakt } from '@/core/utils/relativeZeit';
 import { AntragAutocomplete } from './AntragAutocomplete';
 
 interface Props {
@@ -102,7 +103,7 @@ export function PendingList({ pending, entries, antraege, onRefresh, onReloadEnt
                   <div className="flex flex-wrap gap-3 mt-1 text-[11px]">
                     {item.akronym && <span className="text-[var(--tf-text-secondary)]">Akronym: <span className="font-mono">{item.akronym}</span></span>}
                     {item.fkz_candidate && <span className="text-[var(--tf-text-secondary)]">FKZ: <span className="font-mono">{item.fkz_candidate}</span></span>}
-                    <span className="text-[var(--tf-text-tertiary)]">in Bucket seit {formatRelative(item.enqueued_at)}</span>
+                    <span className="text-[var(--tf-text-tertiary)]">in Bucket seit {relativeZeitKompakt(item.enqueued_at)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -141,15 +142,3 @@ export function PendingList({ pending, entries, antraege, onRefresh, onReloadEnt
   );
 }
 
-function formatRelative(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const ms = Date.now() - d.getTime();
-  const minutes = Math.round(ms / 60_000);
-  if (minutes < 1) return 'gerade eben';
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h`;
-  const days = Math.round(hours / 24);
-  return `${days} Tg`;
-}

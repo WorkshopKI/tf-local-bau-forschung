@@ -8,8 +8,9 @@ import {
   listeArbeitskontext, type ArbeitskontextEintrag,
 } from '@/core/services/personal-storage/arbeitskontext-log';
 import {
-  beschreibeArbeitskontext, relativeZeit, type ArbeitskontextAnzeige,
+  beschreibeArbeitskontext, type ArbeitskontextAnzeige,
 } from './arbeitskontext-anzeige';
+import { relativeZeitKurz } from '@/core/utils/relativeZeit';
 import { WidgetShell } from './widgets/WidgetShell';
 import type { WidgetProps } from './widgets/widgetProps';
 
@@ -139,7 +140,7 @@ function WeitermachenRowView({ row, last }: { row: WeitermachenRow; last: boolea
           <span className="text-[var(--tf-text-secondary)]"> — {anzeige.kontext}</span>
         </div>
         <div className="mt-0.5 text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums truncate">
-          {relativeZeit(anzeige.ts)} · <span className="font-mono">{anzeige.fkz}</span>
+          {relativeZeitKurz(anzeige.ts)} · <span className="font-mono">{anzeige.fkz}</span>
         </div>
       </button>
       <button
