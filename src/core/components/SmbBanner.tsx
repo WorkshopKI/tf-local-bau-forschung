@@ -16,9 +16,9 @@ import { Button } from '@/components/ui/button';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SmbStatus } from '@/core/services/infrastructure/offline-check';
 import {
-  getSmbHandle,
+  getDatenShareHandle,
   refreshPermission,
-  pickAndStoreParentHandle,
+  pickAndStoreDatenShareHandle,
 } from '@/core/services/infrastructure/smb-handle';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
@@ -40,7 +40,7 @@ export function SmbBanner({ status, lastCheck, idb }: SmbBannerProps): React.Rea
     setInlineMsg(null);
     setBusy(true);
     try {
-      const handle = await getSmbHandle(idb);
+      const handle = await getDatenShareHandle(idb);
       if (!handle) {
         await handlePickFolder();
         return;
@@ -68,7 +68,7 @@ export function SmbBanner({ status, lastCheck, idb }: SmbBannerProps): React.Rea
     // (fuer audit-log `old_folder`) bewusst weggelassen — frueherer Audit-
     // Eintrag enthaelt ihn ohnehin, und ein zusaetzlicher IDB-Read davor
     // bricht den Picker.
-    const r = await pickAndStoreParentHandle(idb);
+    const r = await pickAndStoreDatenShareHandle(idb);
     setBusy(true);
     try {
       if (r.ok) {

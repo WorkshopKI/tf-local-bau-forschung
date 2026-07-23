@@ -1,8 +1,8 @@
 /**
  * Generischer Ansichts-Umschalter (Liste / Tabelle / Karten) — store-agnostisch
  * (`value`/`onChange` als Props). Kanonische Heimat des zuvor in der Skill-
- * Verwaltung beheimateten Toggles; wird von Skill-Verwaltung (Re-Export
- * `RegistryViewModeToggle`) und Anfragen genutzt. Optik 1:1 wie der
+ * Verwaltung beheimateten Toggles; wird von Skill-Verwaltung und Anfragen
+ * direkt genutzt. Optik 1:1 wie der
  * Förderanträge-`ViewModeToggle` (Primary-Underline via box-shadow, kein
  * Layout-Shift), aber ohne Store-Bindung.
  */

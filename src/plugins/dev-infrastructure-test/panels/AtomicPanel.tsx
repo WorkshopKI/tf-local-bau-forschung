@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getSmbHandle, getProgrammHandle } from '@/core/services/infrastructure/smb-handle';
+import { getDatenShareHandle, getProgrammHandle } from '@/core/services/infrastructure/smb-handle';
 import { atomicWrite, listFilesWithBackupInfo } from '@/core/services/infrastructure/atomic-write';
 import {
   createWeeklyBackup,
@@ -25,7 +25,7 @@ export function AtomicPanel(): React.ReactElement {
   const [lastMsg, setLastMsg] = useState<string>('');
 
   const refresh = useCallback(async () => {
-    const parent = await getSmbHandle(storage.idb);
+    const parent = await getDatenShareHandle(storage.idb);
     if (!parent) { setAdminFiles([]); setBackups([]); return; }
     const programm = await getProgrammHandle(parent);
     const dirPath = filename.includes('/') ? filename.split('/').slice(0, -1).join('/') : '';
@@ -36,7 +36,7 @@ export function AtomicPanel(): React.ReactElement {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const onWrite = async (): Promise<void> => {
-    const parent = await getSmbHandle(storage.idb);
+    const parent = await getDatenShareHandle(storage.idb);
     if (!parent) { setLastMsg('Kein SMB-Handle'); return; }
     const programm = await getProgrammHandle(parent);
     try {

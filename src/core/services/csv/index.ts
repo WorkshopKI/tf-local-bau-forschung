@@ -7,7 +7,6 @@ export { parseCsvPreview, parseCsvStream, parseCsvAll } from './parser';
 export type { CsvPreview, StreamOptions } from './parser';
 export {
   ensureDefaultProgramm,
-  getActiveProgramm,
   renameProgramm,
   createProgramm,
   deleteProgramm,

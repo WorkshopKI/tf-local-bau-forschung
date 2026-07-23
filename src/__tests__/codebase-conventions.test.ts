@@ -1432,14 +1432,14 @@ describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)
       return p.startsWith('src/plugins/home/widgets/') && !p.includes('__tests__');
     });
     // atomicWrite/appendToFile = rohe Share-Writes; writeProgrammSnapshot* =
-    // SMB-Snapshot; getSmbHandle = Daten-Share-Handle; mirrorJsonToPersonal
+    // SMB-Snapshot; getDatenShareHandle = Daten-Share-Handle; mirrorJsonToPersonal
     // bewusst mit verboten — der Personal-Mirror laeuft ueber genau EINEN
     // Mechanismus (savePersonalSettings), nicht ueber zwei.
     const verboten = [
       'atomicWrite',
       'appendToFile',
       'writeProgrammSnapshot',
-      'getSmbHandle',
+      'getDatenShareHandle',
       'mirrorJsonToPersonal',
     ];
     const treffer: string[] = [];

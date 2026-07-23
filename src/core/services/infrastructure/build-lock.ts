@@ -6,7 +6,7 @@
  * kann direkt übernommen werden.
  */
 
-import { getInternHandle, getSmbHandle } from './smb-handle';
+import { getInternHandle, getDatenShareHandle } from './smb-handle';
 import { atomicWrite, readText, removeFile } from './atomic-write';
 import { logAudit } from './audit-log';
 import type { IDBStore } from '@/core/services/storage/idb-store';
@@ -47,7 +47,7 @@ export function staleThresholdForStufe(stufe: string): number {
 }
 
 export async function readBuildLock(idb: IDBStore): Promise<BuildLock | null> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return null;
   const text = await readText(parent, BUILD_LOCK_PATH);
   if (!text) return null;
@@ -97,7 +97,7 @@ export async function acquireBuildLock(
   stufe: string,
   opts: { programm_id?: string } = {},
 ): Promise<AcquireResult> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) throw new Error('SMB-Handle nicht verfügbar');
   const existing = await readBuildLock(idb);
   if (existing && !isStale(existing)) {
@@ -124,7 +124,7 @@ export async function forceLock(
   stufe: string,
   opts: { programm_id?: string } = {},
 ): Promise<BuildLock> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) throw new Error('SMB-Handle nicht verfügbar');
   const previous = await readBuildLock(idb);
   const kuratorName = (await readKuratorName(idb)) ?? 'dev-user';
@@ -147,7 +147,7 @@ export async function forceLock(
 }
 
 export async function heartbeat(idb: IDBStore): Promise<void> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   const current = await readBuildLock(idb);
   if (!current) return;
@@ -157,7 +157,7 @@ export async function heartbeat(idb: IDBStore): Promise<void> {
 
 /** Dev-Helper: Setzt den Heartbeat künstlich zurück (für Stale-Test). */
 export async function setHeartbeatAge(idb: IDBStore, minutesAgo: number): Promise<void> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   const current = await readBuildLock(idb);
   if (!current) return;
@@ -169,7 +169,7 @@ export async function setHeartbeatAge(idb: IDBStore, minutesAgo: number): Promis
 }
 
 export async function releaseLock(idb: IDBStore): Promise<void> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   const existing = await readBuildLock(idb);
   await removeFile(parent, BUILD_LOCK_PATH).catch(() => undefined);

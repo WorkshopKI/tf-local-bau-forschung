@@ -1,14 +1,14 @@
 import type { IDBStore } from '../storage/idb-store';
 import { atomicWrite, readText } from '../infrastructure/atomic-write';
 import { getProgrammHandle } from '../infrastructure/smb-handle';
-import { getSmbHandle } from '../infrastructure/smb-handle';
+import { getDatenShareHandle } from '../infrastructure/smb-handle';
 import { CSV_SCHEMAS_SUBDIR, CSV_SOURCES_SUBDIR } from './constants';
 import { getSchema, listSchemasByProgramm, putSchema, deleteSchema as idbDeleteSchema } from './idb-csv';
 import type { CsvSchema } from './types';
 
 export async function saveSchema(idb: IDBStore, schema: CsvSchema): Promise<void> {
   await putSchema(idb, schema);
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   try {
     const programm = await getProgrammHandle(parent);
@@ -38,7 +38,7 @@ export async function removeSchema(idb: IDBStore, id: string): Promise<void> {
 }
 
 export async function saveCsvSourceFile(idb: IDBStore, schemaId: string, blob: Blob): Promise<void> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   try {
     const programm = await getProgrammHandle(parent);
@@ -50,7 +50,7 @@ export async function saveCsvSourceFile(idb: IDBStore, schemaId: string, blob: B
 }
 
 export async function loadCsvSourceFile(idb: IDBStore, schemaId: string): Promise<string | null> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return null;
   try {
     const programm = await getProgrammHandle(parent);

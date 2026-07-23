@@ -134,14 +134,6 @@ export async function pickAndStoreDokumentenquelleHandle(idb: IDBStore): Promise
 }
 
 /**
- * @deprecated Alter Name `pickAndStoreParentHandle`. Vor v1.9 kanonisch.
- * Delegiert auf pickAndStoreDatenShareHandle.
- */
-export async function pickAndStoreParentHandle(idb: IDBStore): Promise<PickResult> {
-  return pickAndStoreDatenShareHandle(idb);
-}
-
-/**
  * Liefert das Daten-Share-Handle. Fällt transparent auf Legacy-Slot `test-programm`
  * zurück, wenn noch keine Migration stattgefunden hat.
  */
@@ -161,11 +153,6 @@ export async function getDokumentenquelleHandle(idb: IDBStore): Promise<FileSyst
   return map[SMB_HANDLE_DOKUMENTENQUELLE] ?? null;
 }
 
-/** @deprecated Alias für getDatenShareHandle. */
-export async function getSmbHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
-  return getDatenShareHandle(idb);
-}
-
 export async function clearDatenShareHandle(idb: IDBStore): Promise<void> {
   const map = await readAll(idb);
   delete map[SMB_HANDLE_DATEN_SHARE];
@@ -182,11 +169,6 @@ export async function clearDokumentenquelleHandle(idb: IDBStore): Promise<void> 
   const map = await readAll(idb);
   delete map[SMB_HANDLE_DOKUMENTENQUELLE];
   await writeAll(idb, map);
-}
-
-/** @deprecated Alias für clearDatenShareHandle. */
-export async function clearSmbHandle(idb: IDBStore): Promise<void> {
-  return clearDatenShareHandle(idb);
 }
 
 export async function queryPermission(handle: FileSystemDirectoryHandle): Promise<PermState> {

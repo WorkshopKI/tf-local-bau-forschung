@@ -31,7 +31,7 @@ import { WorkflowEditor } from './WorkflowEditor';
 import { SkillTestlaufPanel } from './SkillTestlauf';
 import { SkillEvalPanel } from './SkillEvalPanel';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
-import { RegistryViewModeToggle, type RegistryViewMode } from './RegistryViewModeToggle';
+import { ViewModeToggle, type ViewMode as RegistryViewMode } from '@/components/ui/ViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
 import { blankStep, getWorkflowById, getWorkflowDef } from './workflowShared';
 import { buildWorkflowMutations } from './workflowMutations';
@@ -414,7 +414,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto">
-              {showSearch && <RegistryViewModeToggle value={viewMode} onChange={setViewMode} />}
+              {showSearch && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
               {tab === 'skills' && reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={() => setImporting(true)} className="h-8 whitespace-nowrap">
                   Importieren

@@ -7,7 +7,7 @@
  * Im Phase-1a-Szenario (1 Kurator = 1 Schreiber) akzeptabel.
  */
 
-import { getInternHandle, getSmbHandle } from './smb-handle';
+import { getInternHandle, getDatenShareHandle } from './smb-handle';
 import { appendToFile, readText } from './atomic-write';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { AuditEntry } from './types';
@@ -24,7 +24,7 @@ export async function logAudit(
   idb: IDBStore,
   ev: LogAuditInput,
 ): Promise<void> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   const entry: AuditEntry = {
     ts: new Date().toISOString(),
@@ -46,7 +46,7 @@ export async function getRecentAudits(
   idb: IDBStore,
   n = 20,
 ): Promise<AuditEntry[]> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return [];
   const current = await readText(parent, AUDIT_LOG_PATH);
   if (!current) return [];

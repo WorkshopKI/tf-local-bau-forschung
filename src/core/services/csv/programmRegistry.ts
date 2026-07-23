@@ -46,16 +46,6 @@ export async function ensureDefaultProgramm(idb: IDBStore): Promise<Programm> {
   return programm;
 }
 
-/**
- * @deprecated Vor Multi-Programm-Switch — liefert das erste Programm aus der
- * Liste. Lieber `useActiveProgramm()` verwenden, das auch Profile-Persistenz
- * berücksichtigt. Wird noch von Bootstrap-Pfaden genutzt.
- */
-export async function getActiveProgramm(idb: IDBStore): Promise<Programm | null> {
-  const all = await listProgramme(idb);
-  return all[0] ?? null;
-}
-
 export async function renameProgramm(idb: IDBStore, id: string, name: string): Promise<void> {
   const p = await getProgramm(idb, id);
   if (!p) return;

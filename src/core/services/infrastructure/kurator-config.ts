@@ -16,13 +16,13 @@ import {
   machineFingerprint,
 } from './crypto';
 import { atomicWrite, readBinary, readText, fileExists } from './atomic-write';
-import { getInternHandle, getProgrammHandle, getSmbHandle } from './smb-handle';
+import { getInternHandle, getProgrammHandle, getDatenShareHandle } from './smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { KURATOR_CONFIG_PATH, KURATOR_NAME_LOCAL_IDB_KEY } from './types';
 import type { KuratorConfigPlain } from './types';
 
 async function parentHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   return parent ?? null;
 }
 

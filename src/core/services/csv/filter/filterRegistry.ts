@@ -1,6 +1,6 @@
 import type { IDBStore } from '../../storage/idb-store';
 import { atomicWrite, readText } from '../../infrastructure/atomic-write';
-import { getProgrammHandle, getSmbHandle } from '../../infrastructure/smb-handle';
+import { getProgrammHandle, getDatenShareHandle } from '../../infrastructure/smb-handle';
 import { logAudit } from '../../infrastructure/audit-log';
 import type { FilterDefinition, UserPreset, FilterScope } from './types';
 import type { CsvSchema } from '../types';
@@ -151,7 +151,7 @@ export async function removeFilter(
 }
 
 async function persistAdminFiltersToSmb(idb: IDBStore, programmId: string): Promise<void> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return;
   try {
     const programm = await getProgrammHandle(parent);
@@ -167,7 +167,7 @@ async function persistAdminFiltersToSmb(idb: IDBStore, programmId: string): Prom
  * Merged mit bereits in IDB vorhandenen Admin-Filtern (SMB ist Quelle).
  */
 export async function hydrateAdminFiltersFromSmb(idb: IDBStore, programmId: string): Promise<number> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return 0;
   try {
     const programm = await getProgrammHandle(parent);

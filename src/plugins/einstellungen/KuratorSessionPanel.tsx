@@ -16,7 +16,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { isKuratorConfigured } from '@/core/services/infrastructure/kurator-config';
-import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 
 export function KuratorSessionPanel(): React.ReactElement {
   const storage = useStorage();
@@ -40,7 +40,7 @@ export function KuratorSessionPanel(): React.ReactElement {
 
   const refresh = useCallback(async () => {
     setConfigured(await isKuratorConfigured(storage.idb));
-    setHasHandle(!!(await getSmbHandle(storage.idb)));
+    setHasHandle(!!(await getDatenShareHandle(storage.idb)));
   }, [storage.idb]);
 
   useEffect(() => { void refresh(); }, [refresh, session.isActive]);

@@ -1,7 +1,7 @@
 import type { IDBStore } from '../storage/idb-store';
 import { logAudit } from '../infrastructure/audit-log';
 import { acquireBuildLock, forceLock, releaseLock, heartbeat, HEARTBEAT_INTERVAL_MS } from '../infrastructure/build-lock';
-import { getSmbHandle } from '../infrastructure/smb-handle';
+import { getDatenShareHandle } from '../infrastructure/smb-handle';
 import { resolveSnapshotAuthor } from '../infrastructure/update-author';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from './snapshot';
 import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
@@ -323,7 +323,7 @@ export async function importCsvSource(
     // User nicht im "100%-Stillstand" haengt. Ohne Deltas ist der Antraege-Stand
     // unveraendert → der vorhandene Snapshot ist bereits aktuell, Write entfaellt.
     if (hasDeltas && !opts.deferSnapshotWrite) try {
-      const handle = await getSmbHandle(idb);
+      const handle = await getDatenShareHandle(idb);
       if (handle) {
         opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
         // Urheber-Identität fürs `createdBy` (Nachname-Fallback statt „unbekannt",

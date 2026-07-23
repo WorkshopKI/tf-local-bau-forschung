@@ -22,7 +22,7 @@ import { ampelSchwellenAusConfig } from './widgets/homeWidgetsStore';
 import { useHomeWidgetsStore } from './widgets/useHomeWidgets';
 import type { HomeWidgetContext } from './widgets/widgetProps';
 import { isDataShareEnabled, isEndUserProdVariant } from '@/config/feature-flags';
-import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 
@@ -41,7 +41,7 @@ export function HomePage(): React.ReactElement {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const h = await getSmbHandle(storage.idb);
+      const h = await getDatenShareHandle(storage.idb);
       if (!cancelled) setHasHandle(!!h);
     })();
     return () => { cancelled = true; };

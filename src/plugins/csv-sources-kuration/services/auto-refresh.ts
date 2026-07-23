@@ -43,7 +43,7 @@ import {
   heartbeat,
   HEARTBEAT_INTERVAL_MS,
 } from '@/core/services/infrastructure/build-lock';
-import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from '@/core/services/csv/snapshot';
 import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE } from '@/core/services/csv/constants';
@@ -510,7 +510,7 @@ export async function runAutoRefresh(
   // (v2.96.2). Unter Build-Lock, mit Heartbeat (ein Write kann ~25 s dauern).
   if (programmeToPublish.size > 0) {
     opts.onProgress?.({ index: 0, total: programmeToPublish.size, schemaName: 'Datenbestand', phase: 'publishing' });
-    const handle = await getSmbHandle(idb);
+    const handle = await getDatenShareHandle(idb);
     if (handle) {
       const tSnap = Date.now();
       // Lock holen — die Einzel-Importe hatten ihn je gehalten+freigegeben, hier

@@ -7,7 +7,7 @@
  * Dokumentenquelle-Handle liegt (GB-Scale).
  */
 
-import { getSmbHandle, getProgrammHandle } from './smb-handle';
+import { getDatenShareHandle, getProgrammHandle } from './smb-handle';
 import { logAudit } from './audit-log';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { BackupEntry } from './types';
@@ -71,7 +71,7 @@ async function copyDirRecursive(
 }
 
 async function backupsRoot(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) return null;
   return parent.getDirectoryHandle(BACKUPS_DIR, { create: true });
 }
@@ -128,7 +128,7 @@ export interface CreateBackupResult {
  * existiert, wird er überschrieben (idempotent für Dev-Panel-Tests).
  */
 export async function createWeeklyBackup(idb: IDBStore): Promise<CreateBackupResult> {
-  const parent = await getSmbHandle(idb);
+  const parent = await getDatenShareHandle(idb);
   if (!parent) throw new Error('SMB-Handle nicht verfügbar');
   const programm = await getProgrammHandle(parent);
   const root = await backupsRoot(idb);

@@ -19,7 +19,7 @@ import { ListItem } from '@/components/ui/ListItem';
 import { TYP_LABEL, SevPill, Switch } from './regelShared';
 import { buildRegelColumns, type RegelRow } from './regelTableColumns';
 import { useRegelFilters, ALLE, type RegelFacetKey } from './useRegelFilters';
-import type { RegistryViewMode } from './RegistryViewModeToggle';
+import type { ViewMode as RegistryViewMode } from '@/components/ui/ViewModeToggle';
 
 interface RegelnTabProps {
   file: SkillRegistryFile;

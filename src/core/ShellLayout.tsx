@@ -22,7 +22,7 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { useKuratorActivityTracker } from '@/core/hooks/useKuratorActivityTracker';
 import { ensureDefaultProgramm } from '@/core/services/csv';
-import { getSmbHandle } from '@/core/services/infrastructure/smb-handle';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
 import { StartupDataUpdateBanner } from '@/core/components/StartupDataUpdateBanner';
@@ -218,7 +218,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     if (!isDataShareEnabled()) return;
     smbStatus.startPolling(storage.idb);
     void (async () => {
-      const h = await getSmbHandle(storage.idb);
+      const h = await getDatenShareHandle(storage.idb);
       if (h) {
         await ensureDefaultProgramm(storage.idb).catch(() => undefined);
       }

@@ -32,7 +32,7 @@ import {
   type SkillSortKey,
 } from './skill-browse';
 import { InaktivBadge, KategoriePill, ReifegradBadge, REIFEGRAD_LABEL, reifegradOf } from './skillBadges';
-import type { RegistryViewMode } from './RegistryViewModeToggle';
+import type { ViewMode as RegistryViewMode } from '@/components/ui/ViewModeToggle';
 
 interface SkillsTabProps {
   file: SkillRegistryFile;

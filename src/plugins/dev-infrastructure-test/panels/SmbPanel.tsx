@@ -4,14 +4,14 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import {
-  pickAndStoreParentHandle,
-  getSmbHandle,
+  pickAndStoreDatenShareHandle,
+  getDatenShareHandle,
   getDmsSourceHandle,
   ensureFolderStructure,
   refreshPermission,
   queryReadPermission,
   queryPermission,
-  clearSmbHandle,
+  clearDatenShareHandle,
 } from '@/core/services/infrastructure/smb-handle';
 import { listDmsSources } from '@/core/services/dms-sources';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
@@ -61,7 +61,7 @@ export function SmbPanel(): React.ReactElement {
   const [lastMsg, setLastMsg] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const h = await getSmbHandle(storage.idb);
+    const h = await getDatenShareHandle(storage.idb);
     setHandleName(h?.name ?? null);
     if (h) {
       try {
@@ -104,7 +104,7 @@ export function SmbPanel(): React.ReactElement {
 
   const onPick = async (): Promise<void> => {
     setLastMsg(null);
-    const r = await pickAndStoreParentHandle(storage.idb);
+    const r = await pickAndStoreDatenShareHandle(storage.idb);
     if (r.ok) {
       await logAudit(storage.idb, { action: 'smb_handle_pick', details: { folderName: r.handle.name } });
       setLastMsg(`Ordner verbunden: ${r.handle.name}`);
@@ -121,7 +121,7 @@ export function SmbPanel(): React.ReactElement {
 
   const onRefreshPermission = async (): Promise<void> => {
     setLastMsg(null);
-    const h = await getSmbHandle(storage.idb);
+    const h = await getDatenShareHandle(storage.idb);
     if (!h) { setLastMsg('Kein Handle gespeichert.'); return; }
     try {
       const p = await refreshPermission(h);
@@ -135,7 +135,7 @@ export function SmbPanel(): React.ReactElement {
 
   const onInitStructure = async (): Promise<void> => {
     setLastMsg(null);
-    const h = await getSmbHandle(storage.idb);
+    const h = await getDatenShareHandle(storage.idb);
     if (!h) { setLastMsg('Kein Handle gespeichert.'); return; }
     try {
       await ensureFolderStructure(h);
@@ -166,7 +166,7 @@ export function SmbPanel(): React.ReactElement {
   };
 
   const onClearHandle = async (): Promise<void> => {
-    await clearSmbHandle(storage.idb);
+    await clearDatenShareHandle(storage.idb);
     await logAudit(storage.idb, { action: 'smb_handle_clear' });
     await refresh();
     void smbStatus.check(storage.idb);

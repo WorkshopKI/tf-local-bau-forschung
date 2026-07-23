@@ -12,7 +12,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import {
-  getSmbHandle,
   getDatenShareHandle,
   getDmsSourceHandle,
 } from '@/core/services/infrastructure/smb-handle';
@@ -192,7 +191,7 @@ export function useTriagePanel(): UseTriagePanelResult {
     setBusy(true);
     log('Lade DMS-Index — kann bei großen CSVs (~1M Zeilen) 10–30 s dauern…');
     try {
-      const handle = await getSmbHandle(storage.idb);
+      const handle = await getDatenShareHandle(storage.idb);
       if (!handle) {
         log('Kein Daten-Share-Handle. Erst SMB-Panel verbinden.');
         return;
