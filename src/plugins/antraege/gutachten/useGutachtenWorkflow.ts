@@ -8,7 +8,7 @@
  *
  * Alle Aktionen sind self-catching (Pitfall #15): Fehler → `error`-State (Banner).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
@@ -22,32 +22,27 @@ import {
   saveSkillTweak,
   deleteSkillTweak,
   clampMaxRetries,
-  RELEVANZ_MAP_SKILL_ID,
-  SEED_RELEVANZ_MAP_SKILL,
-  GA_LEKTOR_SKILL_ID,
-  SEED_GA_LEKTOR_SKILL,
   type CheckResult,
   type SkillModifierKey,
   type QualitaetsRegel,
   type SkillRecord,
   type SkillTweak,
-  type SkillRegistryFile,
   type WorkflowDef,
   type WorkflowStep,
 } from '@/core/services/skills';
 import { getLlmThinkingEnabled, budgetForThinking, type ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
-import { buildSkillMap, type SkillCtx } from './skill-context';
+import type { SkillCtx } from './skill-context';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { useGutachtenQuellen, type GutachtenQuellen } from './useGutachtenQuellen';
 import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
-import { resolveWorkflowSteps, resolveWorkflowDefId, verfuegbareWorkflows, ACTIVE_WORKFLOW_ID } from './active-workflow';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { generateInto, laufQs, laufLektorat, type GenerierungsDeps } from './workflow-generierung';
+import { useLlmErreichbarkeit, useSkillTweak, useWorkflowRegistry } from './workflow-hooks';
 import { makePersist, makeReduce } from './workflow-persistenz';
 import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
@@ -172,16 +167,6 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryNote, setRetryNote] = useState<string | null>(null);
-  const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
-  const [skillMap, setSkillMap] = useState<Map<StepId, SkillCtx>>(new Map());
-  const [steps, setSteps] = useState<WorkflowStep[]>([]);
-  // QS-Konfiguration: Ziel-Generierungs-Schritt-ID → der bewertende llm_qs-Schritt.
-  const [qsZiele, setQsZiele] = useState<Map<StepId, WorkflowStep>>(new Map());
-  const [tweak, setTweak] = useState<SkillTweak | null>(null);
-  // Relevanz-Map-Skill aus der geladenen Registry (Kurator-pflegbar), Seed als Fallback.
-  const [relevanzSkill, setRelevanzSkill] = useState<SkillRecord>(SEED_RELEVANZ_MAP_SKILL);
-  // Lektor-Skill (sprachlicher Feinschliff) — ebenfalls kurator-pflegbar, Seed als Fallback.
-  const [lektorSkill, setLektorSkill] = useState<SkillRecord>(SEED_GA_LEKTOR_SKILL);
   // Pro-Generierung-Budget: Default aus der Einstellung (an → 'medium'), lokal übersteuerbar. Nicht persistiert.
   const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>(budgetForThinking(getLlmThinkingEnabled()));
   // Pro-Lauf-Override: vollständigen VB-Kontext erzwingen (Relevanz-Map ignorieren). Nicht persistiert.
@@ -194,16 +179,15 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   // (bearbeitenStep ist bereits ein Save, kein Tastendruck — hier nur gegen
   // wiederholtes „Übernehmen" desselben Abschnitts entprellt).
   const editiertZuletzt = useRef<Map<StepId, number>>(new Map());
-  // dev-Test-Workflowwahl: nur lokal (resettet pro Reload). `regFile` hält die
-  // geladene Registry für die Dropdown-Optionen. `erlaubeEntwuerfe` ist ein
-  // Build-Konstant (dev → true), daher render-stabil.
+  // `erlaubeEntwuerfe` ist ein Build-Konstant (dev → true), daher render-stabil.
   const erlaubeEntwuerfe = erlaubeWorkflowEntwuerfe();
-  const [testWorkflowId, setTestWorkflowId] = useState<string | null>(null);
-  const [regFile, setRegFile] = useState<SkillRegistryFile | null>(null);
-  const verfuegbar = useMemo(
-    () => (regFile ? verfuegbareWorkflows(regFile, 'ga', { erlaubeEntwuerfe }) : []),
-    [regFile, erlaubeEntwuerfe],
-  );
+  // Welche Workflow-Definition gerade gilt (Skills, Schritte, QS-Ziele, dev-Testwahl):
+  // eigener Hook, eigener Auslöser — siehe workflow-hooks.ts.
+  const registry = useWorkflowRegistry(storage, erlaubeEntwuerfe);
+  const {
+    skillMap, steps, qsZiele, relevanzSkill, lektorSkill,
+    testWorkflowId, setTestWorkflowId, verfuegbar, activeWorkflowId, applyRegistry, reloadRegistry,
+  } = registry;
 
   const order = useMemo(() => steps.map(s => s.id), [steps]);
   // Defensiver Guard: zeigt ein persistierter `aktiverSchritt` auf einen Schritt,
@@ -214,38 +198,6 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     : rawAktiv;
   const activeCtx = skillMap.get(aktiverSchritt) ?? null;
   const activeSkillId = activeCtx?.skill.id;
-  // ID des tatsächlich laufenden GA-Workflows (dev-Inline-Editor bearbeitet genau diese Def).
-  const activeWorkflowId = useMemo(
-    () => (regFile ? resolveWorkflowDefId(regFile, 'ga', { erlaubeEntwuerfe, workflowId: testWorkflowId ?? undefined }) : ACTIVE_WORKFLOW_ID),
-    [regFile, erlaubeEntwuerfe, testWorkflowId],
-  );
-
-  // Registry-abgeleiteten Zustand (Skills/Schritte/QS/Relevanz) aus einer geladenen
-  // Datei setzen — geteilt von Mount-Effekt UND `reloadRegistry` (dev-Inline-Editor).
-  const applyRegistry = useCallback((loadedFile: SkillRegistryFile): void => {
-    const workflowId = testWorkflowId ?? undefined;
-    setRegFile(loadedFile);
-    setSkillMap(buildSkillMap(loadedFile, { workflowId }));
-    setRelevanzSkill(loadedFile.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
-    setLektorSkill(loadedFile.skills.find(s => s.id === GA_LEKTOR_SKILL_ID) ?? SEED_GA_LEKTOR_SKILL);
-    // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
-    // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
-    const allSteps = resolveWorkflowSteps(loadedFile, 'ga', { erlaubeEntwuerfe, workflowId });
-    setSteps(allSteps.filter(s => s.rolle !== 'llm_qs'));
-    const ziele = new Map<StepId, WorkflowStep>();
-    for (const s of allSteps) if (s.rolle === 'llm_qs' && s.qsZielStepId) ziele.set(s.qsZielStepId, s);
-    setQsZiele(ziele);
-  }, [testWorkflowId, erlaubeEntwuerfe]);
-
-  // dev-Inline-Editor: Registry frisch lesen und nur die registry-abgeleiteten Teile
-  // neu setzen — Run/VB (Fortschritt) bleiben unberührt (kein Neuladen des Laufs).
-  const reloadRegistry = useCallback((): void => {
-    void (async () => {
-      const loaded = await loadSkillRegistry(storage);
-      applyRegistry(loaded.file);
-    })();
-  }, [storage, applyRegistry]);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -260,48 +212,25 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       applyRegistry(loaded.file);
       setRun(r);
       setLoading(false);
-      // Die Erreichbarkeits-Probe der internen KI läuft in einem eigenen Effekt (unten),
+      // Die Erreichbarkeits-Probe der internen KI läuft in einem eigenen Hook (unten),
       // damit sie nicht nur einmal beim Mount, sondern auch bei jedem Schrittwechsel greift.
     })();
     return () => { cancelled = true; };
     // testWorkflowId in den Deps: Wechsel lädt Run/Steps/SkillMap des gewählten Workflows neu.
   }, [key, storage.idb, testWorkflowId, erlaubeEntwuerfe]);
 
-  // Erreichbarkeit der internen KI (neu) proben. War die KI zwischenzeitlich getrennt
-  // und ist wieder verbunden, muss der nächste Schritt generierbar sein — sonst bliebe
-  // `llmAvailable` auf einem veralteten `false` stehen und „KI nicht erreichbar" bliebe
-  // trotz bestehender Verbindung sichtbar (Bug). Trigger:
-  //  • initial, sobald die VB geladen ist,
-  //  • Wechsel des aktiven Abschnitts (der vom Nutzer genannte „nächste Workflow-Schritt"),
-  //  • Reconnect der Bridge (`bridgeStatus` → 'connected', auch ohne Schrittwechsel),
-  //  • Ende einer Generierung (`busy` → false, u.a. nach Abbruch durch Trennung).
-  // PASSIV (`openIfNeeded: false`): kein ungefragter KI-Tab, pingt nur ein bereits offenes
-  // Bridge-Fenster. Nicht während einer Generierung (single-window-Bridge, Pitfall #36) und
-  // nicht bei bereits freigegebenem aktivem Schritt (dort ist Generierung nicht relevant).
-  const vbVorhanden = vb != null;
-  useEffect(() => {
-    if (busy || !vbVorhanden || run?.schritte[aktiverSchritt]?.status === 'freigegeben') return undefined;
-    let cancelled = false;
-    (async () => {
-      try { const ok = await bridge.getActiveTransport().ping({ openIfNeeded: false }); if (!cancelled) setLlmAvailable(ok); }
-      catch { if (!cancelled) setLlmAvailable(false); }
-    })();
-    return () => { cancelled = true; };
-    // `run` bewusst NICHT in den Deps (sonst Re-Probe nach jedem persist/Bearbeiten) — beim
-    // Schrittwechsel ist es im Closure ohnehin frisch (aktiverSchritt leitet sich daraus ab).
-  }, [aktiverSchritt, vbVorhanden, bridgeStatus, busy, bridge]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Tweak des AKTIVEN Skills laden (wechselt mit dem aktiven Schritt).
-  useEffect(() => {
-    if (!activeSkillId) return;
-    let cancelled = false;
-    (async () => {
-      const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
-      const t = await loadSkillTweak(storage.idb, persHandle, activeSkillId).catch(() => null);
-      if (!cancelled) setTweak(t);
-    })();
-    return () => { cancelled = true; };
-  }, [activeSkillId, storage.idb]);
+  // Erreichbarkeit der internen KI + Tweak des aktiven Skills: eigene Hooks
+  // (workflow-hooks.ts). Die Setter bleiben hier greifbar — die Generierungs-Läufe
+  // und `saveTweak`/`removeTweak` schreiben ebenfalls hinein.
+  const [llmAvailable, setLlmAvailable] = useLlmErreichbarkeit({
+    bridge,
+    bridgeStatus,
+    busy,
+    aktiverSchritt,
+    vbVorhanden: vb != null,
+    aktiverSchrittFreigegeben: run?.schritte[aktiverSchritt]?.status === 'freigegeben',
+  });
+  const [tweak, setTweak] = useSkillTweak(storage.idb, activeSkillId);
 
   /**
    * Regeln eines Schritts INKL. persönlichem Vorgaben-Override. Der Override gilt
