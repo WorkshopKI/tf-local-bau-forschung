@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.312.0 — CSV-Schemas beim Sync nicht mehr verlieren (Empty-Guard) + aussagekraeftige Ampel + Kurator-Autorefresh (Juli 2026)
+
+MINOR — Ein leer publiziertes `csv_schemas` (Fixture-/Fehl-Publish, Vorfall-2026-06-Klasse) hat beim Snapshot-Sync die lokalen CSV-Quellen JEDES Consumers auf 0 gewischt — still, ohne Reconnect-Prompt (● CSV grau „unbekannt"). Zwei Guards stoppen den Datenverlust an beiden Enden; die Ampel sagt jetzt konkret, was fehlt.
+
+- Consumer-Guard: ein leerer Remote-Struktur-Store (`csv_schemas`/`programme`) wischt den nicht-leeren lokalen Stand nicht mehr ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts)).
+- Publish-Guard: ein leeres `csv_schemas` überschreibt keinen nicht-leeren Bestand auf dem Share mehr ([snapshot.ts](src/core/services/csv/snapshot.ts)).
+- ● CSV-Ampel: statt grau „unbekannt" jetzt „Keine CSV-Quellen" / „CSV-Ordner verknüpfen" (mit Aktion) / „offline" ([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx), [csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts)).
+- Kurator-Build importiert die täglichen CSV-Exporte jetzt ebenfalls automatisch (`csvAutoRefresh: true`) ([kurator.config.json](configs/kurator.config.json)).
+- Regressionstests für beide Guards ([snapshot-empty-guard.test.ts](src/core/services/csv/__tests__/snapshot-empty-guard.test.ts)).
+
 ### v2.311.0 — Artefakt-Werkbank am Verbund-Detail (Punkte, Baustein-Auswahl, Entwurf) (Juli 2026)
 
 MINOR — Der bisherige Nachforderungs-Testballon ließ das LLM frei aus dem ganzen Katalog wählen. Die Werkbank dreht das um: der Prüfer benennt zuerst die offenen Punkte, bestätigt passende Bausteine und lässt dann nur noch die Platzhalter füllen. Ein Workspace in vier Schritten. Nur dev.

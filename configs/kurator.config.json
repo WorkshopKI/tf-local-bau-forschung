@@ -35,7 +35,7 @@
     "maLogin": false,
     "maVerwaltungPasswort": false,
     "suche": true,
-    "csvAutoRefresh": false,
+    "csvAutoRefresh": true,
     "gutachtenKurzfassung": false,
     "gutachtenWorkflow": false,
     "nfNachforderungen": false,

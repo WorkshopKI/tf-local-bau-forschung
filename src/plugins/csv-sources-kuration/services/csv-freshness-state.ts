@@ -8,7 +8,16 @@
  * prod (`isProd`) ein Fehlkonfigurations-Signal.
  */
 
-export type CsvFreshnessState = 'fresh' | 'stale' | 'unknown';
+/**
+ * `fresh`      = alles Verknüpfte importiert (grün)
+ * `stale`      = geänderte Exporte ODER Fehlkonfiguration (rot)
+ * `needs_link` = Schemas da, aber keine erreichbar (Permission fehlt / Ordner nicht
+ *                verknüpft) → handlungsleitend „Zugriff erneuern / Ordner verknüpfen"
+ * `no_sources` = Share erreichbar, aber 0 CSV-Quellen definiert → Datenbestand
+ *                unvollständig (z.B. leer publizierte `csv_schemas`) — NICHT grün faken
+ * `offline`    = nicht prüfbar (Share offline / kein Handle / vor dem ersten Check)
+ */
+export type CsvFreshnessState = 'fresh' | 'stale' | 'needs_link' | 'no_sources' | 'offline';
 
 export interface FreshnessInput {
   totalSchemas: number;
@@ -22,6 +31,12 @@ export interface FreshnessInput {
   fileMissing: number;
   /** `!isDevFixturesEnabled()` — nur dann zählen Fixtures als Fehlkonfiguration. */
   isProd: boolean;
+  /**
+   * Ob der Daten-Share aktuell erreichbar war (SMB online + Handle vorhanden).
+   * Ohne Erreichbarkeit lässt sich der CSV-Stand nicht beurteilen → `offline`
+   * (statt fälschlich „keine Quellen"/„verknüpfen" zu melden).
+   */
+  shareReachable: boolean;
 }
 
 export interface FreshnessDecision {
@@ -45,8 +60,18 @@ export function deriveCsvFreshnessState(input: FreshnessInput): FreshnessDecisio
     state = 'stale';
   } else if (input.totalSchemas > 0 && reachable > 0) {
     state = 'fresh';
+  } else if (!input.shareReachable) {
+    // Nicht prüfbar (offline / kein Handle) → echtes Unbekannt bleibt grau.
+    state = 'offline';
+  } else if (input.totalSchemas === 0) {
+    // Share erreichbar, aber keine CSV-Quellen definiert → der Datenbestand ist
+    // unvollständig (z.B. leer publizierte csv_schemas / Snapshot-Defekt). Nicht
+    // grün faken — auf CSV-Rollen-Builds (pl/as/kurator/dev) ist das ein Problem.
+    state = 'no_sources';
   } else {
-    state = 'unknown';
+    // Schemas da, aber keine erreichbar (Permission fehlt / Ordner nicht verknüpft)
+    // → handlungsleitend statt grau: Zugriff erneuern / Ordner verknüpfen.
+    state = 'needs_link';
   }
   return { state, misconfig };
 }

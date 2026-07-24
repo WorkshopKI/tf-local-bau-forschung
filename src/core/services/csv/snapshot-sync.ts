@@ -100,6 +100,18 @@ const STORE_TARGETS: Record<SnapshotStoreName, CsvStoreName> = {
   csv_schemas: CSV_STORES.CSV_SCHEMAS,
 };
 
+/**
+ * Struktur-Stores, die nie legitim leer sind. Ein LEERER Remote-Snapshot davon ist
+ * ein Publish-Defekt (z.B. der Fixture-Filter im Publish nullt `csv_schemas`, wenn
+ * ein fehl-seedender/Fixture-Rechner publiziert — Vorfall 2026-06). Ein solcher
+ * leerer Remote-Store darf den nicht-leeren lokalen Stand NICHT wischen
+ * (`replaceStore` ruft `clear()` bedingungslos) — sonst verliert JEDER Consumer
+ * seine CSV-Quellen (0 Schemas → ● CSV grau, kein Re-Link-Prompt). `verbuende`/
+ * `akronym_index`/`unterprogramme`/`csv_row_hashes` dürfen legitim leer sein und
+ * bleiben bewusst außen vor.
+ */
+const NEVER_EMPTY_STORES: ReadonlySet<SnapshotStoreName> = new Set(['csv_schemas', 'programme']);
+
 export interface SyncOptions {
   onProgress?: (p: SyncProgress) => void;
   /**
@@ -315,6 +327,24 @@ export async function syncProgrammSnapshot(
       continue;
     }
 
+    // Empty-Guard (Datenverlust-Schutz): Ein LEERER Remote-Struktur-Store darf den
+    // nicht-leeren lokalen Stand NICHT wischen. `replaceStore` ruft `clear()`
+    // bedingungslos → ein leer publiziertes `csv_schemas` (Fixture-Filter/Defekt)
+    // würde sonst die CSV-Quellen JEDES Consumers auf 0 setzen. Store-Hash bewusst
+    // NICHT vorschieben → ein späterer nicht-leerer Publish (neuer Hash) heilt
+    // selbst; SYNC_VERSION der übrigen Stores bleibt unberührt (keine Re-Sync-
+    // Schleife, `incompleteLoad` NICHT gesetzt — der lokale Stand ist ja intakt).
+    if (items.length === 0 && NEVER_EMPTY_STORES.has(storeKey)) {
+      const localCount = await countStore(idb, STORE_TARGETS[storeKey]);
+      if (localCount > 0) {
+        console.warn(
+          `[snapshot-sync] ${storeKey}: Remote-Snapshot LEER, lokal ${localCount} Records — Wipe übersprungen (vermutlich defekter/Fixture-Publish). Lokalen Stand behalten.`,
+        );
+        storesDone++;
+        continue;
+      }
+    }
+
     const tWrite = performance.now();
     await replaceStore(idb, STORE_TARGETS[storeKey], items, (done, total) => {
       reportStore(total > 0 ? done / total : 1);
@@ -505,6 +535,18 @@ async function syncAntraegeViaDelta(
     console.info(`[snapshot-sync] antraege delta: base=${baseReloaded} applied=${pending.length} (seq→${lastSeq})`);
   }
   return { reloaded };
+}
+
+/** Record-Anzahl im lokalen Store — für den Empty-Guard (leeres Remote darf einen
+ *  nicht-leeren lokalen Struktur-Store nicht wischen). */
+async function countStore(idb: IDBStore, storeName: CsvStoreName): Promise<number> {
+  const db = idb.getDb();
+  return new Promise<number>((resolve, reject) => {
+    const t = db.transaction(storeName, 'readonly');
+    const req = t.objectStore(storeName).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
 }
 
 /**

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.312 — 2026-07
+
+### Verbesserungen
+- Die „● CSV"-Anzeige unten sagt jetzt klar, was los ist: „Keine CSV-Quellen", „CSV-Ordner verknüpfen" (mit Knopf) oder „offline" — statt eines wenig hilfreichen „unbekannt".
+- Der Kurator-Build holt sich die täglichen CSV-Exporte jetzt automatisch, wie die PL-Version.
+### Bugfixes
+- CSV-Quellen konnten beim Daten-Abgleich still verschwinden (Anzeige wurde grau, kein Hinweis). Das ist behoben — ein fehlerhaft veröffentlichter Datenbestand löscht die verknüpften Quellen nicht mehr.
+
 ## v2.311 — 2026-07
 
 ### Neu

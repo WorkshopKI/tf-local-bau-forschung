@@ -12,6 +12,7 @@ import { useCsvSourcesSignal, bumpCsvSourcesSignal } from '@/core/services/csv/c
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
 import { deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
+import { getCsvSourceDirHandle, requestCsvSourceDirPermission, pickAndLinkCsvFolder } from '@/plugins/csv-sources-kuration/csv-source-handle';
 import { isDevFixturesEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
@@ -120,6 +121,10 @@ async function checkCsvFreshness(idb: IDBStore): Promise<CsvFreshnessResult> {
     fixtures: fixtures.length,
     fileMissing: fileMissing.length,
     isProd,
+    // Der Check läuft nur, wenn der Share online + geprüft ist (Effekt-Gate:
+    // startupPhase 'done' + smbStatus 'online'). Der 'offline'-Zustand kommt daher
+    // aus dem Initial-Result, nicht aus diesem (erreichbaren) Durchlauf.
+    shareReachable: true,
   });
 
   return { state, misconfig, pendingNames, fixtureNames, fileMissingNames, lastImport, sources };
@@ -134,7 +139,7 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
   const sourcesSignal = useCsvSourcesSignal(s => s.version);
 
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<CsvFreshnessResult>({ state: 'unknown', misconfig: false, pendingNames: [], fixtureNames: [], fileMissingNames: [], lastImport: null, sources: [] });
+  const [result, setResult] = useState<CsvFreshnessResult>({ state: 'offline', misconfig: false, pendingNames: [], fixtureNames: [], fileMissingNames: [], lastImport: null, sources: [] });
   const [importMsg, setImportMsg] = useState<string | null>(null);
 
   const runningRef = useRef(false);
@@ -197,29 +202,56 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
     bumpCsvSourcesSignal();
   });
 
-  const busy = importAction.busy || forceAction.busy;
+  // „CSV-Ordner verknüpfen / Zugriff erneuern" (state === 'needs_link'): Ordner-
+  // Handle vorhanden aber Zugriff verloren → Permission neu anfordern; sonst Ordner
+  // neu wählen + verknüpfen. Beides braucht das Klick-Gesture.
+  const linkAction = useAsyncAction(async () => {
+    setImportMsg(null);
+    const dirHandle = await getCsvSourceDirHandle(storage.idb);
+    if (dirHandle) {
+      const perm = await requestCsvSourceDirPermission(dirHandle);
+      if (perm !== 'granted') throw new Error('Ordner-Zugriff nicht erlaubt.');
+    } else {
+      const all: CsvSchema[] = [];
+      for (const p of await listProgramme(storage.idb)) all.push(...(await listSchemas(storage.idb, p.id)));
+      const r = await pickAndLinkCsvFolder(storage.idb, all);
+      if (!r.linked) return; // abgebrochen
+    }
+    if (mountedRef.current) setImportMsg('CSV-Ordner verknüpft.');
+    bumpCsvSourcesSignal();
+  });
+
+  const busy = importAction.busy || forceAction.busy || linkAction.busy;
   const state = result.state;
   const dotColor = busy
     ? 'bg-[var(--tf-warning-text)] animate-pulse'
     : state === 'fresh'
       ? 'bg-[var(--tf-success-text)]'
-      : state === 'stale'
+      : state === 'stale' || state === 'no_sources'
         ? 'bg-[var(--tf-danger-text)]'
-        : 'bg-[var(--tf-text-tertiary)]';
+        : state === 'needs_link'
+          ? 'bg-[var(--tf-warning-text)]'
+          : 'bg-[var(--tf-text-tertiary)]';
 
   const misconfig = result.misconfig;
   const statusColor = state === 'fresh'
     ? 'text-[var(--tf-success-text)]'
-    : state === 'stale'
+    : state === 'stale' || state === 'no_sources'
       ? 'text-[var(--tf-danger-text)]'
-      : 'text-[var(--tf-text-tertiary)]';
+      : state === 'needs_link'
+        ? 'text-[var(--tf-warning-text)]'
+        : 'text-[var(--tf-text-tertiary)]';
   const statusLabel = misconfig
     ? 'Achtung — Quellen ausgeschlossen'
     : state === 'fresh'
       ? 'Aktuell'
       : state === 'stale'
         ? 'Neue Exporte verfügbar'
-        : 'Status unbekannt';
+        : state === 'no_sources'
+          ? 'Keine CSV-Quellen — Datenbestand prüfen'
+          : state === 'needs_link'
+            ? 'CSV-Ordner verknüpfen'
+            : 'Status offline';
 
   const tip = misconfig
     ? 'CSV-Quellen werden nicht importiert — klicken für Details'
@@ -227,7 +259,11 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
       ? 'Neue CSV-Exporte verfügbar — klicken zum Importieren'
       : state === 'fresh'
         ? 'CSV-Exporte sind importiert'
-        : 'CSV-Import-Status unbekannt';
+        : state === 'no_sources'
+          ? 'Keine CSV-Quellen im Datenbestand — klicken für Details'
+          : state === 'needs_link'
+            ? 'CSV-Ordner nicht verknüpft — klicken zum Verknüpfen'
+            : 'CSV-Status offline / nicht prüfbar';
 
   const lastImportStr = result.lastImport ? new Date(result.lastImport).toLocaleString('de-DE') : null;
 
@@ -274,6 +310,33 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
                 Datei fehlt im verknüpften Ordner oder Zugriff verloren. Betroffen:{' '}
                 <span className="text-[var(--tf-text)]">{result.fileMissingNames.slice(0, 5).join(', ')}</span>
                 {result.fileMissingNames.length > 5 ? ` +${result.fileMissingNames.length - 5} weitere` : ''}
+              </p>
+            </div>
+          )}
+
+          {state === 'no_sources' && (
+            <div className="rounded-md border-[0.5px] border-[var(--tf-danger-border)] bg-[var(--tf-danger-bg)] px-2.5 py-2 text-[12px] leading-snug">
+              <p className="font-medium text-[var(--tf-danger-text)]">
+                Keine CSV-Quellen im Datenbestand
+              </p>
+              <p className="mt-1 text-[var(--tf-text-secondary)]">
+                Der geladene Datenbestand enthält keine CSV-Quellen-Definitionen — der
+                tägliche Import kann nicht laufen. Ursache liegt meist am veröffentlichten
+                Snapshot (leer publizierte Quellen). Kurator/PL: die CSV-Quellen neu
+                einlesen und den Datenbestand neu veröffentlichen.
+              </p>
+            </div>
+          )}
+
+          {state === 'needs_link' && (
+            <div className="rounded-md border-[0.5px] border-[var(--tf-warning-border)] bg-[var(--tf-warning-bg)] px-2.5 py-2 text-[12px] leading-snug">
+              <p className="font-medium text-[var(--tf-warning-text)]">
+                CSV-Ordner nicht verknüpft / Zugriff verloren
+              </p>
+              <p className="mt-1 text-[var(--tf-text-secondary)]">
+                Die CSV-Quellen sind da, aber der Export-Ordner ist nicht (mehr)
+                erreichbar. Verknüpfen bzw. Zugriff erneuern, damit die täglichen
+                Exporte wieder importiert werden.
               </p>
             </div>
           )}
@@ -346,6 +409,17 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
             </Button>
           )}
 
+          {state === 'needs_link' && (
+            <Button
+              variant="secondary"
+              icon={RefreshCw}
+              onClick={() => linkAction.run()}
+              disabled={busy || !dsAvailable}
+            >
+              {linkAction.busy ? 'Verknüpfe…' : 'CSV-Ordner verknüpfen'}
+            </Button>
+          )}
+
           {/* Erzwungen — umgeht die „unverändert"-Erkennung (Citrix-False-Negative).
              Nur dev + kurator (isKuratorMenusEnabled): ein Diagnose-/Kurations-Werkzeug,
              das End-User in pl/as/prod nur verwirrt. Immer verfügbar, sobald
@@ -373,8 +447,8 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
           {importMsg && (
             <p className="text-[12px] text-[var(--tf-success-text)] leading-snug">{importMsg}</p>
           )}
-          {(importAction.error || forceAction.error) && (
-            <p className="text-[12px] text-[var(--tf-danger-text)] leading-snug">Fehler: {importAction.error ?? forceAction.error}</p>
+          {(importAction.error || forceAction.error || linkAction.error) && (
+            <p className="text-[12px] text-[var(--tf-danger-text)] leading-snug">Fehler: {importAction.error ?? forceAction.error ?? linkAction.error}</p>
           )}
 
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">

@@ -47,6 +47,16 @@ const SNAPSHOT_FILES = {
   csv_schemas: 'csv_schemas.jsonl',
 } as const;
 
+/**
+ * Publish-Guard: Struktur-Stores, deren LEERE Version NICHT über einen bestehenden
+ * nicht-leeren Snapshot geschrieben werden darf. Ein Fixture-/fehl-seedender Rechner
+ * (dessen Schemas alle vom Fixture-Filter in `loadSmallStoreData` verworfen werden →
+ * 0 `csv_schemas`) würde sonst die echten Schemas des Shares nullen; jeder Consumer
+ * verlöre danach seine CSV-Quellen (Vorfall 2026-06). Spiegelbild des `NEVER_EMPTY_
+ * STORES`-Guards in snapshot-sync (Consumer-Seite).
+ */
+const PUBLISH_PRESERVE_WHEN_EMPTY: ReadonlySet<SnapshotStoreName> = new Set(['csv_schemas', 'programme']);
+
 export type SnapshotStoreName = keyof typeof SNAPSHOT_FILES;
 
 /** Ein einzelnes Delta (v2): geänderte/neue Records + entfernte Keys je Store. */
@@ -234,17 +244,43 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
 async function writeSmallStores(
   programmDir: FileSystemDirectoryHandle,
   smallData: SmallStoreData,
+  existingStores?: Partial<Record<SnapshotStoreName, { count: number; hash: string }>>,
 ): Promise<{ stores: Partial<Record<SnapshotStoreName, { count: number; hash: string }>>; written: SnapshotStoreName[] }> {
   const stores: Partial<Record<SnapshotStoreName, { count: number; hash: string }>> = {};
   const written: SnapshotStoreName[] = [];
   for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
     if (key === 'antraege') continue;
     const d = smallData[key]!;
+    // Publish-Guard: ein leeres csv_schemas NICHT über einen bestehenden nicht-
+    // leeren Snapshot schreiben — sonst nullt ein Fixture-/fehl-seedender Rechner
+    // die echten Schemas des Shares. Bestehende Datei + Manifest-Eintrag behalten.
+    if (d.count === 0 && PUBLISH_PRESERVE_WHEN_EMPTY.has(key)) {
+      const existing = existingStores?.[key];
+      if (existing && existing.count > 0) {
+        console.warn(
+          `[snapshot] ${key}: lokal 0 Records, Share hat ${existing.count} — bestehende Datei NICHT überschrieben (Publish-Guard gegen Fixture-Kontamination).`,
+        );
+        stores[key] = existing;
+        continue;
+      }
+    }
     stores[key] = { count: d.count, hash: await sha256Hex(d.jsonl) };
     await atomicWrite(programmDir, SNAPSHOT_FILES[key], d.jsonl, { skipBackup: true });
     written.push(key);
   }
   return { stores, written };
+}
+
+/** Bestehendes Manifest (best-effort) — für den Publish-Guard (Bestands-Counts). */
+async function readExistingManifest(
+  programmDir: FileSystemDirectoryHandle,
+): Promise<ProgrammSnapshotManifest | null> {
+  try {
+    const t = await readText(programmDir, 'manifest.json');
+    return t ? (JSON.parse(t) as ProgrammSnapshotManifest) : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface WriteSnapshotOptions {
@@ -270,6 +306,9 @@ export async function writeProgrammSnapshot(
 ): Promise<{ snapshotVersion: string; manifest: ProgrammSnapshotManifest }> {
   const programmDir = await navigateSnapshotDir(smbHandle, programmId, true);
   const smallData = await loadSmallStoreData(idb, programmId);
+  // Publish-Guard: bestehende Store-Counts kennen, damit ein leeres csv_schemas den
+  // nicht-leeren Bestand auf dem Share nicht überschreibt (Fixture-Kontamination).
+  const existingManifest = await readExistingManifest(programmDir);
 
   const stores: ProgrammSnapshotManifest['stores'] = {} as ProgrammSnapshotManifest['stores'];
   const written: SnapshotStoreName[] = [];
@@ -304,7 +343,7 @@ export async function writeProgrammSnapshot(
     }
 
     // 2) Restliche (kleine) Stores klassisch: Hash + atomicWrite.
-    const small = await writeSmallStores(programmDir, smallData);
+    const small = await writeSmallStores(programmDir, smallData, existingManifest?.stores);
     Object.assign(stores, small.stores);
     written.push(...small.written);
   } catch (writeErr) {
@@ -426,7 +465,9 @@ export async function writeProgrammSnapshotDelta(
 
   // Kleine Stores voll neu schreiben (ändern sich beim Import: schemas/verbuende/…).
   const smallData = await loadSmallStoreData(idb, programmId);
-  const { stores: smallStores } = await writeSmallStores(programmDir, smallData);
+  // Publish-Guard: bestehende Counts (aus `existing`) durchreichen → leeres
+  // csv_schemas überschreibt keinen nicht-leeren Bestand.
+  const { stores: smallStores } = await writeSmallStores(programmDir, smallData, existing?.stores);
 
   await atomicWrite(programmDir, changedFile, changedJsonl, { skipBackup: true });
   let removedKeysField: string[] | undefined = removedKeys;

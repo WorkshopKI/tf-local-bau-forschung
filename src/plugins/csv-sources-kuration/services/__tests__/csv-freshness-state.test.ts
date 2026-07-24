@@ -16,6 +16,7 @@ function base(over: Partial<FreshnessInput> = {}): FreshnessInput {
     fixtures: 0,
     fileMissing: 0,
     isProd: true,
+    shareReachable: true,
     ...over,
   };
 }
@@ -59,9 +60,26 @@ describe('deriveCsvFreshnessState', () => {
     expect(d.misconfig).toBe(false);
   });
 
-  it('nichts erreichbar (alles Permission/unlinked) → unknown', () => {
+  it('Schemas da, aber nichts erreichbar (Permission/unlinked) → needs_link', () => {
     const d = deriveCsvFreshnessState(base({ totalSchemas: 2, permissionNeeded: 1, unlinked: 1 }));
-    expect(d.state).toBe('unknown');
+    expect(d.state).toBe('needs_link');
     expect(d.misconfig).toBe(false);
+  });
+
+  it('0 CSV-Quellen bei erreichbarem Share → no_sources (der Snapshot-Wipe-Fall)', () => {
+    const d = deriveCsvFreshnessState(base({ totalSchemas: 0, shareReachable: true }));
+    expect(d.state).toBe('no_sources');
+    expect(d.misconfig).toBe(false);
+  });
+
+  it('Share nicht erreichbar → offline (echtes Unbekannt), auch bei 0 Quellen', () => {
+    expect(deriveCsvFreshnessState(base({ totalSchemas: 0, shareReachable: false })).state).toBe('offline');
+    expect(deriveCsvFreshnessState(base({ totalSchemas: 2, permissionNeeded: 2, shareReachable: false })).state).toBe('offline');
+  });
+
+  it('misconfig hat Vorrang vor offline/no_sources (rot bleibt rot)', () => {
+    const d = deriveCsvFreshnessState(base({ totalSchemas: 1, fileMissing: 1, shareReachable: false }));
+    expect(d.state).toBe('stale');
+    expect(d.misconfig).toBe(true);
   });
 });
