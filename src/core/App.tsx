@@ -28,6 +28,7 @@ import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { initProtokoll } from '@/core/services/assistent/protokoll';
 import { initGedaechtnis, starteKonsolidierungWennFaellig } from '@/core/services/assistent/gedaechtnis';
+import { initStatusKatalog } from '@/core/status';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
@@ -326,6 +327,15 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         await initProtokoll(storage.idb);
       } catch (e) {
         console.warn('[App] initProtokoll fehlgeschlagen', e);
+      }
+
+      // Status-System neu: Katalog laden (beim ersten Mal Seed schreiben) und den
+      // In-Memory-Snapshot setzen, aus dem getStatusCategory liest. No-op ohne
+      // `statusCockpit`-Flag; blockiert den App-Start nicht.
+      try {
+        await initStatusKatalog(storage.idb);
+      } catch (e) {
+        console.warn('[App] initStatusKatalog fehlgeschlagen', e);
       }
 
       // Assistent Phase 2: Gedächtnis-Store initialisieren (Opt-in-Cache +

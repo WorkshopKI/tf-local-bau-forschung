@@ -42,6 +42,18 @@ export const ASSISTENT_EREIGNISPROTOKOLL_STORE = 'assistent_ereignisprotokoll';
  *  gedaechtnis/types.ts), hier bewusst gespiegelt (Migration ohne Cross-Import). */
 export const ASSISTENT_GEDAECHTNIS_STORE = 'assistent_gedaechtnis';
 
+/** v11 (Status-System neu): versionierte Katalog-Fassungen (Mapping-Versionen),
+ *  KeyPath `version`. Gerätelokal — kein Snapshot-/Share-Anteil (Portabilität nur
+ *  über explizites JSON-Export/Import im Cockpit). Der Store-Name lebt in der
+ *  Status-Domäne (src/core/status/stores.ts), hier gespiegelt (Migration ohne
+ *  Cross-Import). */
+export const STATUS_KATALOG_STORE = 'status_katalog';
+
+/** v11 (Status-System neu): append-only Status-Event-Log. KeyPath `id`, Indexe
+ *  `verbundId` + `feldId`. Gerätelokal — nie in einer Snapshot-Allowlist. Der
+ *  Store-Name lebt in src/core/status/stores.ts, hier gespiegelt. */
+export const STATUS_EVENT_STORE = 'status_event';
+
 export type CsvStoreName =
   | (typeof CSV_STORES)[keyof typeof CSV_STORES]
   | typeof FILTER_STORE_NAME
@@ -52,7 +64,7 @@ export class IDBStore {
   private db: IDBDatabase | null = null;
   private readonly dbName: string;
   private readonly storeName = 'kv';
-  private readonly version = 10;
+  private readonly version = 11;
 
   /**
    * @param dbName Variantenspezifischer DB-Name (`teamflow-<outputFilename>`).
@@ -213,6 +225,20 @@ export class IDBStore {
             const s = db.createObjectStore(ASSISTENT_GEDAECHTNIS_STORE, { keyPath: 'id' });
             s.createIndex('block', 'block', { unique: false });
             s.createIndex('aktualisiert', 'aktualisiert', { unique: false });
+          }
+        }
+        if (oldVersion < 11) {
+          // Status-System neu: Katalog-Versionen + append-only Status-Event-Log.
+          // Existieren schema-seitig in ALLEN Varianten; befüllt/gelesen wird nur
+          // hinter dem `statusCockpit`-Flag. GERÄTELOKAL — nie in einer Snapshot-
+          // Allowlist (Portabilität ausschließlich über JSON-Export/Import).
+          if (!db.objectStoreNames.contains(STATUS_KATALOG_STORE)) {
+            db.createObjectStore(STATUS_KATALOG_STORE, { keyPath: 'version' });
+          }
+          if (!db.objectStoreNames.contains(STATUS_EVENT_STORE)) {
+            const s = db.createObjectStore(STATUS_EVENT_STORE, { keyPath: 'id' });
+            s.createIndex('verbundId', 'verbundId', { unique: false });
+            s.createIndex('feldId', 'feldId', { unique: false });
           }
         }
       };

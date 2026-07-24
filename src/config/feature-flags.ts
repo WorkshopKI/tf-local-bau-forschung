@@ -289,6 +289,15 @@ export function isMapFoerderfaehigEnabled(): boolean {
   return features.mapFoerderfaehig === true;
 }
 
+/** Status-System neu: kuratierbarer Status-Katalog + append-only Historie +
+ *  deterministische Ableitungs-Engine + Cockpit/Timeline/Widget. Gated die
+ *  gesamte neue Schicht (Katalog-Init, Event-Emission, Cockpit, Timeline,
+ *  Konflikt-Badges, Widget). dev/pl/kurator. Default false (`=== true`,
+ *  Backward-Kompat). */
+export function isStatusCockpitEnabled(): boolean {
+  return features.statusCockpit === true;
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

@@ -230,6 +230,11 @@ export const DEFAULT_CONFIG = {
      *  Optional, default false (kein requiredFlags-Eintrag → `=== true`
      *  Backward-Kompat). */
     mapFoerderfaehig: false,
+    /** Status-System neu: kuratierbarer Status-Katalog + append-only Historie +
+     *  Ableitungs-Engine + Cockpit/Timeline/Widget. Gated die gesamte neue
+     *  Schicht. dev/pl/kurator. Optional, default false (kein requiredFlags-
+     *  Eintrag → `=== true` Backward-Kompat). */
+    statusCockpit: false,
   },
 
   menuLabels: {

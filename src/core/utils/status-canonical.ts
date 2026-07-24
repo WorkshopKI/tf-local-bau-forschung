@@ -118,6 +118,34 @@ const CATEGORY_MAP: ReadonlyMap<string, StatusCategory> = (() => {
   return m;
 })();
 
+/**
+ * Status-System neu: optionaler Katalog-Snapshot. Ist er gesetzt, liest
+ * `getStatusCategory` / `getStatusValuesByCategory` die kollabierte
+ * `normalisiert(wert) → Kategorie`-Map aus dem kuratierten Katalog statt aus der
+ * eingebauten `CATEGORY_MAP`. Ohne Snapshot (Tests, früher Boot, Flag aus) greift
+ * die eingebaute Map — bei identischem Mapping bitweise gleiches Ergebnis.
+ *
+ * Einbahn-Abhängigkeit: NUR `src/core/status/snapshot.ts` ruft den Setter
+ * (core/status → core/utils), damit kein Laufzeit-Zyklus entsteht.
+ */
+let snapshotMap: ReadonlyMap<string, StatusCategory> | null = null;
+
+/** Setzt (oder löscht mit `null`) den Katalog-Snapshot. Siehe oben. */
+export function setStatusKatalogSnapshotMap(m: ReadonlyMap<string, StatusCategory> | null): void {
+  snapshotMap = m;
+}
+
+function effektiveMap(): ReadonlyMap<string, StatusCategory> {
+  return snapshotMap ?? CATEGORY_MAP;
+}
+
+/** Alle eingebauten (normalisiert(Rohwert) → Kategorie)-Paare — Einzelquelle für
+ *  den deterministischen Seed des Status-Katalogs. Liefert IMMER die eingebaute
+ *  `CATEGORY_MAP` (nie den Snapshot): der Seed leitet SICH aus ihr ab. */
+export function getCanonicalStatusEntries(): ReadonlyArray<readonly [string, StatusCategory]> {
+  return [...CATEGORY_MAP.entries()];
+}
+
 function normalize(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const t = raw.trim().toLowerCase();
@@ -137,7 +165,7 @@ const BEGLEITUNG_PATTERN = /^(vn|zb)[\s.]/;
  *  der Filter arbeitet auf den explizit gelisteten Status-Werten. */
 export function getStatusValuesByCategory(category: StatusCategory): string[] {
   const out: string[] = [];
-  for (const [key, cat] of CATEGORY_MAP) {
+  for (const [key, cat] of effektiveMap()) {
     if (cat === category) out.push(key);
   }
   return out;
@@ -150,7 +178,7 @@ export function getStatusValuesByCategory(category: StatusCategory): string[] {
 export function getStatusCategory(raw: unknown): StatusCategory {
   const key = normalize(raw);
   if (!key) return 'sonstige';
-  const explicit = CATEGORY_MAP.get(key);
+  const explicit = effektiveMap().get(key);
   if (explicit) return explicit;
   if (BEGLEITUNG_PATTERN.test(key)) return 'begleitung';
   return 'sonstige';

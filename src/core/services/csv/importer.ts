@@ -4,7 +4,7 @@ import { acquireBuildLock, forceLock, releaseLock, heartbeat, HEARTBEAT_INTERVAL
 import { getDatenShareHandle } from '../infrastructure/smb-handle';
 import { resolveSnapshotAuthor } from '../infrastructure/update-author';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from './snapshot';
-import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
+import { isDeltaSnapshotWriteEnabled, isStatusCockpitEnabled } from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
 import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
@@ -376,6 +376,16 @@ export async function importCsvSource(
       await rematchOnSnapshotReload(idb, schema.programm_id);
     } catch (e) {
       console.warn('[csv-import] phase2 pending re-match fehlgeschlagen:', e);
+    }
+
+    // Status-System neu: neu aufgetauchte Statuswerte als `unkuratiert` sammeln
+    // (nie automatisch mappen). Best-effort, gated hinter `statusCockpit`; ohne
+    // Deltas gibt es keine neuen Werte → ueberspringen.
+    if (hasDeltas && isStatusCockpitEnabled()) try {
+      const { entdeckeUnkuratiertNachImport } = await import('@/core/status/import-integration');
+      await entdeckeUnkuratiertNachImport(idb, schema.programm_id, new Date().toISOString());
+    } catch (e) {
+      console.warn('[csv-import] Status-Katalog Auto-Discovery fehlgeschlagen:', e);
     }
     return result;
   } finally {

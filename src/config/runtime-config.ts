@@ -160,6 +160,13 @@ export interface TeamflowFeatures {
    *  im kv-Store, kein Eingriff in die Antrags-Pipeline. Nur dev. Optional,
    *  default false. */
   mapFoerderfaehig?: boolean;
+  /** Status-System neu: kuratierbarer Status-Katalog + append-only Historie +
+   *  deterministische Ableitungs-Engine, plus Cockpit/Timeline/Widget. Gated die
+   *  GESAMTE neue Schicht (Katalog-Init, Event-Emission, Cockpit, Timeline,
+   *  Konflikt-Badges, Widget). Der `getStatusCategory`-Snapshot-Refactor ist der
+   *  einzige immer-aktive Eingriff (bei fehlendem Snapshot bitweise identisch).
+   *  dev/pl/kurator. Optional, default false. */
+  statusCockpit?: boolean;
 }
 
 export interface TeamflowMenuLabels {
