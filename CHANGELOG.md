@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.324.2 — Status-&-Verlauf-Widget: Karten einzeilig (Juli 2026)
+
+PATCH — Im Home-Widget „Status & Verlauf" belegte jede Verbund-Karte zwei Zeilen (Kopf + eigener „nächster Schritt"), sodass nur wenige Verbünde ohne Scrollen sichtbar waren. Der nächste Schritt bzw. der Leer-Hinweis wandert jetzt in dieselbe Zeile, wodurch bei gleicher Höhe mehr Verbünde passen.
+
+- Karte einzeilig: Akronym · Status-Badge · Konflikt · nächster Schritt (füllt, truncate) · Mini-Verlauf; vertikale Polsterung verschlankt ([StatusVerlaufWidget.tsx](src/plugins/home/widgets/StatusVerlaufWidget.tsx)).
+
 ### v2.324.1 — Anfragen: kein Auto-KI-Tab beim .msg-Ablegen, Verbinden-Dialog + Standard-KI (Juli 2026)
 
 PATCH — Beim Ablegen einer `.msg`-Kurzanfrage startete sofort das automatische Tagging; war die interne KI noch nicht verbunden, riss dieser Lauf ungefragt einen neuen KI-Tab auf. Jetzt kein Auto-Tab mehr — stattdessen der schon vorhandene app-weite „Interne KI nicht verbunden"-Dialog zum direkten Verbinden. Zusätzlich laufen Tagging und Anonymisierung fest auf der Standard-KI.

@@ -210,49 +210,56 @@ function StatusZeile({
 
   const naechster = ableitung?.naechsteSchritte[0]?.label ?? null;
 
+  // Einzeilig: Akronym · Status-Badge · Konflikt · (nächster Schritt, füllt) ·
+  // Mini-Verlauf. Der nächste Schritt / Leer-Hinweis wandert in dieselbe Zeile
+  // (füllt den Rest, truncate), damit vertikal mehr Verbünde sichtbar sind.
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="block w-full rounded-[10px] bg-[var(--tf-bg)] px-3 py-2 text-left transition-colors hover:bg-[var(--tf-bg-secondary)] cursor-pointer"
+      className="flex w-full items-center gap-2 min-w-0 rounded-[10px] bg-[var(--tf-bg)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--tf-bg-secondary)] cursor-pointer"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <span
+        className="shrink-0 max-w-[42%] truncate text-[13px] font-medium text-[var(--tf-text)]"
+        title={zeile.titel || zeile.akronym}
+      >
+        {zeile.akronym}
+      </span>
+      {ableitung ? (
         <span
-          className="text-[13px] font-medium text-[var(--tf-text)] truncate min-w-0"
-          title={zeile.titel || zeile.akronym}
+          className="shrink-0 inline-flex items-center rounded-[6px] px-1.5 py-0.5 text-[11px]"
+          style={{
+            color: 'color-mix(in srgb, var(--tf-primary) 75%, var(--tf-text))',
+            background: 'color-mix(in srgb, var(--tf-primary) 12%, var(--tf-bg))',
+          }}
         >
-          {zeile.akronym}
+          {SPINE_LABEL[ableitung.spinePhase]}
         </span>
-        {ableitung ? (
-          <span
-            className="shrink-0 inline-flex items-center rounded-[6px] px-1.5 py-0.5 text-[11px]"
-            style={{
-              color: 'color-mix(in srgb, var(--tf-primary) 75%, var(--tf-text))',
-              background: 'color-mix(in srgb, var(--tf-primary) 12%, var(--tf-bg))',
-            }}
-          >
-            {SPINE_LABEL[ableitung.spinePhase]}
-          </span>
-        ) : laden ? (
-          <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">…</span>
-        ) : null}
-        {ableitung ? <KonfliktBadge ableitung={ableitung} version={version} kompakt /> : null}
-        <div className="flex-1 min-w-0" />
-        {verlauf.length > 0 ? (
-          <span className="shrink-0 inline-flex items-center gap-1">
-            {verlauf.map(e => (
-              <VerlaufPunkt key={e.id} event={e} version={version} />
-            ))}
-          </span>
-        ) : null}
-      </div>
+      ) : laden ? (
+        <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">…</span>
+      ) : null}
+      {ableitung ? <KonfliktBadge ableitung={ableitung} version={version} kompakt /> : null}
       {naechster ? (
-        <p className="mt-1 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-1">
+        <span
+          className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]"
+          title={naechster}
+        >
           {naechster}
-        </p>
+        </span>
       ) : ableitung && verlauf.length === 0 ? (
-        <p className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">Noch keine Statushistorie.</p>
+        <span className="flex-1 min-w-0 truncate text-[11px] text-[var(--tf-text-tertiary)]">
+          Noch keine Statushistorie.
+        </span>
+      ) : (
+        <div className="flex-1 min-w-0" />
+      )}
+      {verlauf.length > 0 ? (
+        <span className="shrink-0 inline-flex items-center gap-1">
+          {verlauf.map(e => (
+            <VerlaufPunkt key={e.id} event={e} version={version} />
+          ))}
+        </span>
       ) : null}
     </button>
   );
