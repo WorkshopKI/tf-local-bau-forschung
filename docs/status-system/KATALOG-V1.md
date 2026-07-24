@@ -77,8 +77,32 @@ schlägt ein terminaler Wert den Max-Rang.
 
 ## Regeln (nächste Schritte)
 
-v1 seedet `regeln: []`. Die Default-Regelmenge kommt in **Phase 3** dazu (z. B.
-„Gutachten fertig ⇒ Erstentscheidung vorbereiten") und wird hier ergänzt.
+Kleine Default-Regelmenge ([seed.ts](../../src/core/status/seed.ts) `baueSeedRegeln`),
+alle aktiv. Werkzeug-Verweise sind reine Navigation, nie selbst ein Status.
+
+| id | Priorität | Bedingung (status ist …) | Schritt (→ Werkzeug) |
+|---|---|---|---|
+| `nf-offen` | 10 | `nf gestellt` | Nachforderung bearbeiten → nachforderung |
+| `ga-fertig` | 20 | `gutachten fertig` | Erstentscheidung vorbereiten → gutachten |
+| `bewilligungsreif` | 20 | `bewilligungsreif` | Bewilligung vorbereiten |
+| `ablehnungsreif` | 20 | `ablehnungsreif` | Ablehnung vorbereiten → ablehnung |
+| `eingang-vollstaendigkeit` | 40 | `beantragt` | Vollständigkeit prüfen |
+
+Alle zutreffenden aktiven Regeln steuern Schritte bei (dedupliziert nach
+Label+Werkzeug, nach Priorität aufsteigend). Bedingungen unterstützen
+`ist`/`istNicht`/`gefuellt`/`leer` und `datumVor`/`datumNach` (relativ zu heute)
+sowie verschachtelte `alle`/`einige`-Gruppen.
+
+## Ableitung (Engine)
+
+- **Hauptstatus = höchster Rang** über alle berücksichtigten Feldwerte
+  ([ableitung.ts](../../src/core/status/ableitung.ts)); unkuratierte / `rang:0` /
+  inaktive Werte tragen nicht bei (stehen aber mit Grund in `beitraege`).
+- **Terminal schlägt Rang** (Ablehnung/Widerruf/Schluss).
+- **Konflikt** wenn berücksichtigte, nicht-terminale Werte ≥ `KONFLIKT_SCHWELLE`
+  (= 2) Spine-Stufen auseinanderliegen — das Ergebnis bleibt der Max-Rang, der
+  Widerspruch wird nur ausgewiesen. (Ein 1-Stufen-Abstand wie
+  `bearbeitungsreif`↔`gutachten fertig` ist bewusst KEIN Konflikt.)
 
 ## Offene Kurations-/v2-Punkte
 

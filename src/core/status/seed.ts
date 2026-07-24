@@ -17,7 +17,7 @@ import {
   TERMINAL_STATUS_CATEGORIES,
 } from '@/core/utils/status-canonical';
 import type {
-  MappingVersion, Prominenz, SpinePhase, StatusCategory,
+  MappingVersion, NaechsterSchrittRegel, Prominenz, SpinePhase, StatusCategory,
   StatusFeldEintrag, StatusWertEintrag,
 } from './typen';
 import { wertId } from './typen';
@@ -126,6 +126,30 @@ function baueWerte(): StatusWertEintrag[] {
   return werte;
 }
 
+/**
+ * Kleine, dokumentierte Default-Regelmenge (nächste Schritte). Werkzeug-Verweise
+ * sind reine Navigation, nie selbst ein Status. Details: KATALOG-V1.md.
+ */
+function baueSeedRegeln(): NaechsterSchrittRegel[] {
+  return [
+    { id: 'nf-offen', prioritaet: 10, aktiv: true, beschreibung: 'Offene Nachforderung bearbeiten',
+      bedingung: { feldId: 'status', op: 'ist', wert: 'nf gestellt' },
+      schritte: [{ label: 'Nachforderung bearbeiten', werkzeug: 'nachforderung' }] },
+    { id: 'ga-fertig', prioritaet: 20, aktiv: true, beschreibung: 'Gutachten liegt vor → Erstentscheidung',
+      bedingung: { feldId: 'status', op: 'ist', wert: 'gutachten fertig' },
+      schritte: [{ label: 'Erstentscheidung vorbereiten', werkzeug: 'gutachten' }] },
+    { id: 'bewilligungsreif', prioritaet: 20, aktiv: true, beschreibung: 'Bewilligung vorbereiten',
+      bedingung: { feldId: 'status', op: 'ist', wert: 'bewilligungsreif' },
+      schritte: [{ label: 'Bewilligung vorbereiten' }] },
+    { id: 'ablehnungsreif', prioritaet: 20, aktiv: true, beschreibung: 'Ablehnung vorbereiten',
+      bedingung: { feldId: 'status', op: 'ist', wert: 'ablehnungsreif' },
+      schritte: [{ label: 'Ablehnung vorbereiten', werkzeug: 'ablehnung' }] },
+    { id: 'eingang-vollstaendigkeit', prioritaet: 40, aktiv: true, beschreibung: 'Neuer Antrag → Vollständigkeit prüfen',
+      bedingung: { feldId: 'status', op: 'ist', wert: 'beantragt' },
+      schritte: [{ label: 'Vollständigkeit prüfen' }] },
+  ];
+}
+
 /** Baut die deterministische Seed-Version 1. Reine Funktion. */
 export function baueSeedVersion(): MappingVersion {
   return {
@@ -135,6 +159,6 @@ export function baueSeedVersion(): MappingVersion {
     kommentar: 'Auslieferungs-Seed (aus status-canonical.ts abgeleitet)',
     felder: FELDER.map(f => ({ ...f })),
     werte: baueWerte(),
-    regeln: [], // Default-Regeln kommen in Phase 3 dazu.
+    regeln: baueSeedRegeln(),
   };
 }

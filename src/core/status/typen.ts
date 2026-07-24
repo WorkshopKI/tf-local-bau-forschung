@@ -111,6 +111,54 @@ export interface MappingVersion {
   regeln: NaechsterSchrittRegel[];
 }
 
+// --- Ableitung (Phase 3) ---
+
+/** Ein Feldwert und ob/warum er zur Positionsableitung beiträgt. Datenbasis des
+ *  „Warum?"-Popovers. */
+export interface Beitrag {
+  feldId: string;
+  wert: string;
+  /** Gesetzt bei TV-bezogenen Werten. */
+  tvId?: string;
+  kategorie: StatusCategory;
+  spinePhase: SpinePhase;
+  rang: number;
+  terminal: boolean;
+  beruecksichtigt: boolean;
+  /** Grund für Nicht-Berücksichtigung. */
+  grund?: 'unkuratiert' | 'rang-0' | 'inaktiv';
+}
+
+export interface FuehrenderWert {
+  feldId: string;
+  wert: string;
+  rang: number;
+  tvId?: string;
+}
+
+export interface KonfliktDetail {
+  feldId: string;
+  wert: string;
+  tvId?: string;
+  spinePhase: SpinePhase;
+}
+
+export interface AbgeleiteterSchritt extends NaechsterSchritt {
+  regelId: string;
+}
+
+/** Ergebnis der deterministischen Statusableitung über das Feld-Ensemble. */
+export interface AbleitungsErgebnis {
+  spinePhase: SpinePhase;
+  kategorie: StatusCategory;
+  fuehrenderWert: FuehrenderWert | null;
+  terminal: boolean;
+  konflikt: boolean;
+  konfliktDetails: KonfliktDetail[];
+  beitraege: Beitrag[];
+  naechsteSchritte: AbgeleiteterSchritt[];
+}
+
 /** Ein noch nicht kuratierter, beim Import entdeckter (Feld,Wert)-Fund. */
 export interface UnkuratierterFund {
   /** Stabil: `${feldId}::${normalisiert(wert)}`. */

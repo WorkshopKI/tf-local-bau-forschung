@@ -8,12 +8,14 @@ describe('Status-Katalog Seed', () => {
     expect(baueSeedVersion()).toEqual(baueSeedVersion());
   });
 
-  it('ist Version 1, autorlos, mit festem Zeitstempel und ohne Regeln', () => {
+  it('ist Version 1, autorlos, mit festem Zeitstempel und Default-Regeln', () => {
     const v = baueSeedVersion();
     expect(v.version).toBe(1);
     expect(v.autor).toBeNull();
     expect(v.zeitstempel).toBe('2026-07-24T00:00:00.000Z');
-    expect(v.regeln).toEqual([]);
+    expect(v.regeln.length).toBeGreaterThan(0);
+    expect(v.regeln.every(r => r.aktiv)).toBe(true);
+    expect(v.regeln.map(r => r.id)).toContain('ga-fertig');
   });
 
   it('führt jeden kanonischen Statuswert unter „status" mit identischer Kategorie', () => {

@@ -20,6 +20,7 @@ export type { StatusEvent } from './event-typen';
 export { appendEvents, getStatusEvents } from './event-store';
 export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
+export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
 
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
