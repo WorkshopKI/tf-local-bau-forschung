@@ -109,6 +109,22 @@ freien Anker + `dateiPrefix` je Typ (`ANKER_BY_TYP`/`DATEI_PREFIX_BY_TYP`).
   ⇒ sichtbarer „übersprungen"-Hinweis** (nie still).
 - **Pflicht-Checkbox** „Geprüft und zur Weiterverarbeitung freigegeben" — ohne sie kein DOCX-Export.
 
+## Widerspruch / Stellungnahme (dev, Phase 6)
+
+Sektion am Verbund-Detail ([widerspruch/](../../src/plugins/antraege/widerspruch/)), sichtbar sobald
+ein RNE/ABL-`WorkflowRun` existiert (`WiderspruchSection` gibt sonst `null` zurück). Nach dem Bescheid
+antwortet der Antragsteller; die Ansicht stellt die **tragenden Gründe** (aus `WorkflowRun.werkbankPunkte`
++ dem Werkbank-Punkte-Store aufgelöst) Punkt für Punkt der Stellungnahme gegenüber.
+
+- **Abgleich:** links je Grund drei Zustände (ausgeräumt / teilweise / nicht ausgeräumt) + Notizfeld —
+  **Entscheidung immer beim Menschen**; rechts die zugeordnete Stellungnahme (Dokument-Mechanik, Typ
+  `stellungnahme`). Persistenz `kv`-Key `widerspruch:<az>` (rein IDB-lokal). Überschrift per Typ-Label
+  (`rne`→„Stellungnahme zur Rücknahmeempfehlung", `abl`→„Widerspruch zur Ablehnung"), kein Roh-Status-Vergleich.
+- **Antwort-Entwurf:** „Antwort in der Werkbank vorbereiten" reicht die noch nicht ausgeräumten Gründe
+  als `vorbelegung` an die `WerkbankSection` (nonce-getriggert, VerbundDetail-lift) und scrollt dorthin —
+  die Werkbank öffnet mit diesen Punkten vorangekreuzt. Der Antwort-Tor (`antwortTorErfuellt`) verlangt,
+  dass jeder offene Grund adressiert ist (Reuse der Begründungs-Vollständigkeit).
+
 ## GA-QS (aus QS v2)
 
 [ga-qs.seed.ts](../../src/core/services/skills/registry/ga-qs.seed.ts): die 5 Prüfabschnitte als

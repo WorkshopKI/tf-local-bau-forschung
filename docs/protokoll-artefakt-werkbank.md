@@ -252,6 +252,41 @@ kaputtes `snapshot-empty-guard.test.ts` uncommittet im Baum — nicht mein Code,
 
 ---
 
-## Phase 6 — Widerspruch/Stellungnahme
+## Phase 6 — Widerspruch/Stellungnahme (v2.315.0)
 
-*(offen)*
+**Default-Entscheidungen**
+
+1. **Tragende Gründe aus der Provenienz** (Phase-5-Stempel `WorkflowRun.werkbankPunkte`) + dem
+   Werkbank-Punkte-Store aufgelöst — keine neue Persistenz der Grund-Texte; ein gelöschter Punkt fällt
+   auf einen Roh-Key-Platzhalter zurück (nichts verschwindet still).
+2. **Sektion nur bei RNE/ABL-Run** (`WiderspruchSection` → `null` sonst); NF löst keine aus.
+   Überschrift per Typ-Label (kein Roh-Status-Vergleich, Pitfall #12 n/a).
+3. **„Antwort vorbereiten" über einen gelifteten `vorbelegung`-State** in `VerbundDetail` (nonce-getriggert,
+   damit erneuter Klick erneut greift) + Scroll zur Werkbank. Die Werkbank bekam eine additive
+   `vorbelegung`-Prop; ohne sie unverändert.
+4. **Abgleich rein IDB-lokal** (`widerspruch:<az>`), wie die Werkbank-Punkte — Arbeitsstand eines Prüfers.
+5. **Antwort-Tor = Reuse der Begründungs-Vollständigkeit** (jeder offene Grund muss adressiert sein);
+   `ausgeraeumt` fällt aus den offenen heraus.
+
+**Vorfall (Parallel-Session):** eine parallele Session hat mit `git stash` mitten in meinem Phase-6-Bau
+kurz alle uncommitteten Dateien beiseitegelegt (Working Tree sah leer aus). Die 5 neuen `widerspruch/`-
+Dateien waren untracked und lagen im Untracked-Teil des Stash — byte-exakt aus dem dangling Tree-Objekt
+zurückgeholt (`git cat-file -p <tree>:<pfad>`); die zwei getrackten Edits kamen mit dem Stash-Pop zurück.
+Lehre: neue Phase-Dateien früher committen, wenn eine Parallel-Session aktiv stasht.
+
+**Gate:** `npm run check` grün (421 Test-Dateien, 4752 Tests, 0 Zyklen), `build:dev` grün.
+
+**Abnahme-Checkliste (offen, beim Nutzer)**
+- [ ] Nach einem RNE/ABL-Entwurf erscheint die Widerspruchs-/Stellungnahme-Sektion; ohne Bescheid nicht.
+- [ ] Drei Zustände + Notiz je tragendem Grund, persistiert.
+- [ ] Stellungnahme-PDF ablegbar, Text rechts sichtbar.
+- [ ] „Antwort in der Werkbank vorbereiten" kreuzt die offenen Gründe in der Werkbank an + scrollt hin.
+
+---
+
+## Abschluss
+
+Alle sechs Phasen umgesetzt (v2.308.0 → v2.315.0). Offene Punkte team-weit: die `file://`-Abnahmen je
+Phase (Checklisten oben), das Anlegen von RNE/ABL-Bausteinen im Katalog durch Kuratoren, und die
+verschobenen Andockpunkte (MAP-/Rechencheck-Punkt-Übernahme, Fundstellen-Assist-Skill, Ziel-Heuristik
+im Konsistenz-Tor, TV-genaue Baustein-Zuordnung, scharfe Seed-Aktivierung).

@@ -26,6 +26,7 @@ import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
 import { GutachtenSection } from './gutachten/GutachtenSection';
 import { NachforderungenSection } from './nachforderungen/NachforderungenSection';
 import { WerkbankSection } from './werkbank/WerkbankSection';
+import { WiderspruchSection } from './widerspruch/WiderspruchSection';
 import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
 import { Button } from '@/components/ui/button';
@@ -88,6 +89,9 @@ export function VerbundDetail({
   const [historyField, setHistoryField] = useState<string | null>(null);
   // „Volltext lesen"-Zustand der Kurzbeschreibungs-Karte.
   const [kbOpen, setKbOpen] = useState(false);
+  // Phase 6: „Antwort in der Werkbank vorbereiten" reicht die offenen Widerspruchs-
+  // Gründe an die Werkbank (nonce triggert die Vorbelegung auch bei erneutem Klick).
+  const [werkbankVorbelegung, setWerkbankVorbelegung] = useState<{ keys: string[]; nonce: number }>();
   // Unterprogramm-Labels (Code → Name) fuer die Stammdaten-Anzeige — statt der
   // nackten Nummer den sprechenden Namen. Hook vor dem fruehen Return halten.
   const unterprogrammLabels = useUnterprogrammLabels(antraege[0]?.programm_id ?? null);
@@ -382,9 +386,21 @@ export function VerbundDetail({
       {/* ARTEFAKT-WERKBANK / NACHFORDERUNGEN — die Werkbank (dev) ersetzt bei aktivem
           Flag die schlanke Nachforderungen-Sektion; sonst bleibt alles wie bisher. */}
       {isArtefaktWerkbankEnabled() ? (
-        <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <WerkbankSection ctx={kurzfassungCtx} />
-        </div>
+        <>
+          <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            <WerkbankSection ctx={kurzfassungCtx} vorbelegung={werkbankVorbelegung} />
+          </div>
+          {/* Widerspruch/Stellungnahme — nur sichtbar, wenn ein RNE/ABL-Bescheid existiert. */}
+          <div id="widerspruch" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+            <WiderspruchSection
+              ctx={kurzfassungCtx}
+              onAntwortVorbereiten={keys => {
+                setWerkbankVorbelegung({ keys, nonce: Date.now() });
+                document.getElementById('nf')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            />
+          </div>
+        </>
       ) : isNfNachforderungenEnabled() ? (
         <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <NachforderungenSection ctx={kurzfassungCtx} />

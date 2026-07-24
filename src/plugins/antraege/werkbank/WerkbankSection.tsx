@@ -7,7 +7,7 @@
  *
  * Entwurf ≠ Entscheidung: es wird NICHTS versendet — der Mensch öffnet/prüft/sendet.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Plus, X } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
@@ -31,13 +31,27 @@ import type { WerkbankPunkt } from './types';
 
 type ArtefaktTyp = BescheidTyp;
 
-export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
+export function WerkbankSection({ ctx, vorbelegung }: {
+  ctx: KurzfassungContext;
+  /** Von der Widerspruchs-Ansicht: Punkt-Keys vorankreuzen (nonce triggert erneut). */
+  vorbelegung?: { keys: string[]; nonce: number };
+}): React.ReactElement {
   const w = useWerkbank(ctx);
   const [open, toggleOpen] = useCollapsedSection('verbund_werkbank_collapsed');
   const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
   const [auswahl, setAuswahl] = useState<Auswahl>({});
   const [artefaktTyp, setArtefaktTyp] = useState<ArtefaktTyp>('nf');
   const [dialogTv, setDialogTv] = useState<NfEntwurf | null>(null);
+
+  // „Antwort in der Werkbank vorbereiten" (Phase 6): die offenen Gründe vorankreuzen.
+  // `nonce` in den Deps, damit dieselbe Vorbelegung erneut greift, wenn der Nutzer
+  // den Knopf zweimal drückt; der aufklappbare Body wird geöffnet.
+  useEffect(() => {
+    if (!vorbelegung || vorbelegung.keys.length === 0) return;
+    setGewaehlt(new Set(vorbelegung.keys));
+    if (!open) toggleOpen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur auf den nonce reagieren
+  }, [vorbelegung?.nonce]);
 
   const gewaehltePunkte = useMemo(() => w.punkte.filter(p => gewaehlt.has(p.key)), [w.punkte, gewaehlt]);
   const offeneTodos = todoPunkte(gewaehltePunkte, auswahl);

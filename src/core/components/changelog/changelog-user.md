@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.315 — 2026-07
+
+### Neu
+- Wenn zu einem Verbund eine Rücknahmeempfehlung oder Ablehnung entworfen wurde, gibt es jetzt eine Abgleich-Ansicht für die Antwort des Antragstellers: Links stehen die tragenden Gründe des Bescheids, rechts legen Sie die Stellungnahme ab. Zu jedem Grund halten Sie fest, ob er ausgeräumt, teilweise oder nicht ausgeräumt ist, mit einer Notiz. Ein Klick bereitet die Antwort in der Werkbank vor — mit den noch offenen Gründen schon angekreuzt.
+
 ## v2.314 — 2026-07
 
 ### Neu

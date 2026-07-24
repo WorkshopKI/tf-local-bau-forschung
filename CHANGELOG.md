@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.315.0 — Widerspruch/Stellungnahme: tragende Gruende gegen die Stellungnahme abgleichen (Juli 2026)
+
+MINOR — Nach einer Rücknahmeempfehlung oder Ablehnung antwortet der Antragsteller. Diese Ansicht stellt die tragenden Gründe des Bescheids Punkt für Punkt der Stellungnahme gegenüber und bereitet die Antwort in der Werkbank vor. Schließt den Artefakt-Werkbank-Umbau ab. Nur dev.
+
+- Neue Widerspruchs-/Stellungnahme-Sektion am Verbund-Detail, sichtbar sobald ein RNE/ABL-Bescheid existiert ([WiderspruchSection.tsx](src/plugins/antraege/widerspruch/WiderspruchSection.tsx)).
+- Je tragendem Grund drei Zustände (ausgeräumt/teilweise/nicht ausgeräumt) + Notiz — die Bewertung trifft immer der Mensch ([widerspruch.ts](src/plugins/antraege/widerspruch/widerspruch.ts)).
+- Die Gründe stammen aus der Provenienz des Bescheid-Laufs; die Stellungnahme wird über die normale Dokument-Mechanik zugeordnet ([useWiderspruch.ts](src/plugins/antraege/widerspruch/useWiderspruch.ts)).
+- „Antwort in der Werkbank vorbereiten" öffnet die Werkbank mit den offenen Gründen vorangekreuzt ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)).
+- Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
 ### v2.314.0 — RNE + ABL: Bescheid-Entwuerfe in der Werkbank mit strengem Freigabe-Tor (Juli 2026)
 
 MINOR — Die Werkbank kann jetzt neben Nachforderungen auch Rücknahmeempfehlungen und Ablehnungen entwerfen — dieselbe Maschine, dieselben Textbausteine, aber ein strengeres Freigabe-Tor, weil ein Bescheid eine Rechtsfolge trägt. Nur dev; die Bausteine dafür legen Kuratoren im Katalog an.
