@@ -15,7 +15,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { isDatenShareWritable } from '@/config/feature-flags';
+import { isDatenShareWritable, isDevContext } from '@/config/feature-flags';
 import { pickSchemaSnapshotFile } from './csv-file-picker';
 import {
   parseSchemaJsonl,
@@ -54,7 +54,9 @@ export function SchemaRecoverySection({ programmId, onRestored }: Props): React.
   });
 
   // Dev-only Reparatur-Werkzeug — nach allen Hooks prüfen (Rules-of-Hooks).
-  if (!import.meta.env.DEV) return null;
+  // WICHTIG: isDevContext() (variant==='development'/'custom'), NICHT import.meta.env.DEV
+  // — Letzteres ist in JEDEM `vite build` (auch build:dev) false → Panel würde nie rendern.
+  if (!isDevContext()) return null;
 
   // FS-API-Geste (Bug-Klasse 2): der Picker ist der erste `await` in handlePick —
   // KEIN await davor. Block-Body-Handler unten (`() => { void handlePick(); }`) statt

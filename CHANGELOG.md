@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.316.1 — Schema-Recovery-Panel-Gate korrigiert (Juli 2026)
+
+PATCH — Das v2.316.0-Recovery-Panel war in JEDEM Build unsichtbar: es hing an `import.meta.env.DEV`, das in einem `vite build` (auch `build:dev`) immer false ist. Jetzt an `isDevContext()` (variant==='development').
+
+- Panel-Gate von `import.meta.env.DEV` auf `isDevContext()` umgestellt — rendert jetzt korrekt im dev-Build ([SchemaRecoverySection.tsx](src/plugins/csv-sources-kuration/SchemaRecoverySection.tsx)).
+
 ### v2.316.0 — CSV-Schema-Recovery-Panel (dev) (Juli 2026)
 
 MINOR — Wenn ein leer publizierter Snapshot die CSV-Quellen eines Rechners gewischt hat (Anträge da, aber „0 Schemas" / ● CSV grau), gab es bisher nur „neu mappen" oder Manifest-Handchirurgie. Dieses dev-only Panel stellt die Schemas aus einer guten `csv_schemas.jsonl` wieder her — lokal und über den Share. Ergänzt den Empty-Guard aus v2.312.
