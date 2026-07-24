@@ -15,6 +15,7 @@ import { FeedbackNewsWidget } from './FeedbackNewsWidget';
 import { AuslastungWidget } from './AuslastungWidget';
 import { QsFreigabenWidget } from './QsFreigabenWidget';
 import { RegistryAenderungenWidget } from './RegistryAenderungenWidget';
+import { StatusVerlaufWidget } from './StatusVerlaufWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
@@ -33,6 +34,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   'qs-freigaben': QsFreigabenWidget,
   'registry-aenderungen': RegistryAenderungenWidget,
   'neue-antraege': NeueAntraegeWidget,
+  'status-verlauf': StatusVerlaufWidget,
 };
 
 interface Props {

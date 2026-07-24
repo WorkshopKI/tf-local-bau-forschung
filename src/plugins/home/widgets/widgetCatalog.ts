@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Columns3,
   Gauge,
+  GitBranch,
   Inbox,
   ListChecks,
   Megaphone,
@@ -24,6 +25,7 @@ import {
   isAuslastungSelbstEintragungEnabled,
   isFeedbackEnabled,
   isKuratorMenusEnabled,
+  isStatusCockpitEnabled,
 } from '@/config/feature-flags';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
@@ -170,6 +172,17 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // Selbsteintragung aus der Auslastung); die Komponente versteckt sich
     // zusätzlich selbst, wenn keine passenden Anträge offen sind.
     sichtbarWenn: () => isAuslastungSelbstEintragungEnabled(),
+    defaultConfig: KEINE,
+  },
+  'status-verlauf': {
+    typ: 'status-verlauf',
+    label: 'Status & Verlauf',
+    icon: GitBranch,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // An das Status-Cockpit gebunden (deterministischer Katalog-Snapshot); ohne
+    // Flag kein abgeleiteter Status, also überall ausgeblendet.
+    sichtbarWenn: () => isStatusCockpitEnabled(),
     defaultConfig: KEINE,
   },
 };

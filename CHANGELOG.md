@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.322.0 — Status-System Phase 6: Home-Widget + Abschluss (Juli 2026)
+
+MINOR — Letzte Phase: Home-Widget + projektweiter Abschluss (Guard, CLAUDE.md, Übersichts-Doku). Damit ist das Status-System (Katalog/Historie/Ableitung/Cockpit/Timeline/Widget) vollständig — gerätelokal, gated hinter `statusCockpit`.
+
+- Home-Widget „Status & Verlauf": pro Verbund abgeleiteter Status + Konflikt-Icon + Mini-Verlauf + erster nächster Schritt; Default unsichtbar, flag-gated ([StatusVerlaufWidget.tsx](src/plugins/home/widgets/StatusVerlaufWidget.tsx)).
+- Guard `status-system-local-only`: `src/core/status/` nie Share-/Snapshot-/Personal-Writer, Status-Stores nie in `SNAPSHOT_FILES` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
+- CLAUDE.md: Decision-Tree-Zeile + Pitfall #40 (Katalog = Einzelquelle, getStatusCategory snapshot-basiert, gerätelokal, Event-Log append-only).
+- Übersichts-Doku [docs/status-system/README.md](docs/status-system/README.md).
+
 ### v2.321.0 — Status-System Phase 5: Timeline + Detail-Status + Konflikt-Badge (Juli 2026)
 
 MINOR — Historie + abgeleiteter Status werden sichtbar: die Verbund-Detailseite bekommt einen Status-Abschnitt (Timeline + „Warum"-Erklärung + nächste Schritte), die Fördertabelle ein Konflikt-Badge. Gated hinter `statusCockpit` (dev/pl/kurator), read-only, kein LLM.

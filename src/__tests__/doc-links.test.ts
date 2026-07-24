@@ -82,6 +82,10 @@ describe('doc-links', () => {
     // 47_900 → 48_300 (v2.310): eine Decision-Tree-Zeile für den Textbaustein-
     // Katalog (NF/RNE/ABL als versionierte App-Daten). Bereits auf Stichworte +
     // Doc-Link gekürzt; ohne Zeile fände die Werkbank ihre Datengrundlage nicht.
-    expect(bytes).toBeLessThan(48_300);
+    // 48_300 → 49_000 (v2.322): eine Decision-Tree-Zeile + Pitfall #40 fürs
+    // Status-System (neu) — Katalog/Historie/Ableitung, gerätelokal, snapshot-
+    // basiertes getStatusCategory. Bereits auf Stichworte + Doc-Link + zwei harte
+    // Regeln gekürzt; das Warum lebt in docs/status-system/.
+    expect(bytes).toBeLessThan(49_000);
   });
 });

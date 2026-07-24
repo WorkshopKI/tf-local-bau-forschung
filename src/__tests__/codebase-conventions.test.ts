@@ -907,7 +907,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 36;    // Ist 36; +1 'statusCockpit' (Status-System neu: Katalog/Historie/Ableitung/Cockpit/Timeline/Widget, gated die ganze Schicht, dev/pl/kurator); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 1620;       // Ist ~1602 (DIESE Datei; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1670;       // Ist ~1648 (DIESE Datei; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1499,6 +1499,52 @@ describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)
       `notizenStore.ts muss strikt geraetelokal bleiben (nur idb.get/set/delete).\n`
       + `Verbotene Referenz(en): ${treffer.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+describe('status-system-local-only (Status-Katalog + Event-Log: nie Daten-Share/Snapshot)', () => {
+  // Status-Katalog + Status-Event-Log sind GERAETELOKALE Daten (Varianten-IDB,
+  // Stores `status_katalog`/`status_event`). Portabilitaet laeuft AUSSCHLIESSLICH
+  // ueber das JSON-Export/Import im Cockpit — nie ueber den geteilten Daten-Share,
+  // registry.json, den SMB-Snapshot oder den Personal-Mirror (Vorbild: Assistent-
+  // Stores, Pitfall #37). Zwei strukturelle Checks:
+  it('src/core/status/ referenziert keine Share-/Snapshot-/Personal-Writer', () => {
+    const statusFiles = ALL_TS_FILES.filter(f => {
+      const p = relPath(f);
+      return p.startsWith('src/core/status/') && !p.includes('__tests__');
+    });
+    const verboten = [
+      'atomicWrite', 'appendToFile', 'writeProgrammSnapshot',
+      'getDatenShareHandle', 'mirrorJsonToPersonal', 'savePersonalSettings',
+    ];
+    const treffer: string[] = [];
+    for (const file of statusFiles) {
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      for (const v of verboten) {
+        const hit = lines.some(l => {
+          const t = l.trim();
+          if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+          return l.includes(v);
+        });
+        if (hit) treffer.push(`${relPath(file)} → ${v}`);
+      }
+    }
+    expect(
+      treffer,
+      `Status-System-Module muessen geraetelokal bleiben (IDB-only; Portabilitaet nur via JSON-Export/Import).\n`
+      + `Verbotene Referenz(en): ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('Snapshot-Allowlist (snapshot.ts) kennt keine Status-Stores', () => {
+    const snapshot = readFileSync(join(ROOT, 'core', 'services', 'csv', 'snapshot.ts'), 'utf-8');
+    for (const key of ['status_katalog', 'status_event', 'status-katalog', 'status-timeline']) {
+      expect(
+        snapshot.includes(key),
+        `snapshot.ts darf '${key}' nicht kennen — Status-Katalog/Event-Log sind geraetelokal `
+        + `(strukturell ausserhalb von SNAPSHOT_FILES).`,
+      ).toBe(false);
+    }
   });
 });
 
