@@ -18,6 +18,7 @@
  */
 import type { SkillRegistryFile, WorkflowDef, WorkflowStep } from './types';
 import { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF } from './nf-skill.seed';
+import { SEED_BESCHEID_SKILLS, SEED_BESCHEID_REGELN, SEED_BESCHEID_WORKFLOWS } from './bescheid-skill.seed';
 import { GA_QS_REGELN } from './ga-qs.seed';
 import { SEED_GA_LEKTOR_SKILL } from './ga-lektor.seed';
 import { ANFRAGE_ANONYMISIEREN_SKILL } from './anfrage-anonymisieren.seed';
@@ -91,7 +92,7 @@ export const ZIM_EP_DEF: WorkflowDef = {
   ],
 };
 
-export const SEED_WORKFLOWS: WorkflowDef[] = [ZIM_EP_DEF, NF_DEF];
+export const SEED_WORKFLOWS: WorkflowDef[] = [ZIM_EP_DEF, NF_DEF, ...SEED_BESCHEID_WORKFLOWS];
 
 /** Vollständiger Seed-Registry-Stand (Startbestand / Read-only-Fallback). */
 export const SEED_REGISTRY: SkillRegistryFile = {
@@ -99,12 +100,12 @@ export const SEED_REGISTRY: SkillRegistryFile = {
   updated_at: SEED_TS,
   skills: [
     SEED_SKILL, ...SEED_SKILLS_BG, SEED_QS_SKILL, SEED_RELEVANZ_MAP_SKILL, SEED_GA_LEKTOR_SKILL,
-    SEED_NF_SKILL,
+    SEED_NF_SKILL, ...SEED_BESCHEID_SKILLS,
     ANFRAGE_ANONYMISIEREN_SKILL, ANFRAGE_METADATEN_SKILL,
     AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_ZAHLEN_SKILL,
     AUFBEREITUNG_GLOSSAR_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL,
     AUFBEREITUNG_RECHERCHE_PROMPT_SKILL, AUFBEREITUNG_RECHERCHE_IMPORT_SKILL,
   ],
-  regeln: [...SEED_REGELN, ...SEED_REGELN_BG, ...SEED_NF_REGELN, ...GA_QS_REGELN],
+  regeln: [...SEED_REGELN, ...SEED_REGELN_BG, ...SEED_NF_REGELN, ...SEED_BESCHEID_REGELN, ...GA_QS_REGELN],
   workflows: SEED_WORKFLOWS,
 };

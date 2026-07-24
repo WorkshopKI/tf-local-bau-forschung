@@ -208,9 +208,47 @@ Feature-Flag-Baseline 34 → 35, `no-raw-async-onclick`/Zyklen grün.
 
 ---
 
-## Phase 5 — RNE + ABL
+## Phase 5 — RNE + ABL (v2.314.0)
 
-*(offen)*
+*(Hinweis: v2.312.0 kam von einer Parallel-Session, CSV-Schema-Wipe-Fix — nicht Teil dieses Laufs.)*
+
+**STOPP-R freigegeben:** vier neue Registry-Seeds (Skills `zim-rne-fueller`/`zim-abl-fueller`
+`aktiv:false`, WorkflowDefs `zim-rne`/`zim-abl` `freigabe:entwurf`); Diff 7483 Bytes, gemerged beim
+nächsten Kurator-Öffnen. Freigegeben durch den Nutzer.
+
+**Default-Entscheidungen**
+
+1. **Reuse ohne Fork:** `useNachforderungen.generiere(auftrag?)` löst den Skill je Bescheid-Typ auf
+   (`SKILL_ID_BY_TYP`); der Flag-aus-NF-Pfad bleibt byte-identisch. Eine Tabelle `artefakt-typ.ts`
+   hält Skill/Dateiname/Anker/Label zusammen — kein verstreutes `=== 'rne'`.
+2. **Kein neuer `VorlagenTyp`** (Read-first-Befund): `VorlageDialog` nimmt freien Anker + `dateiPrefix`;
+   `anchor-mapping.ts` (GA A–G) unberührt.
+3. **Bescheid-Skills reusen die NF-Tore** (`nf-keine-platzhalter`/`nf-keine-meta`) — kein zweiter
+   Platzhalter-Parser, keine eigenen Regel-Records (Regel-Zahl bleibt 10).
+4. **Neue Skill-Kategorie `bescheid`** (id-Präfix `zim-rne`/`zim-abl`) — sonst landeten die Skills in
+   „Sonstige" (Guard `skill-kategorien`).
+5. **Konsistenz-Checks über die Phase-1-Rückwärtssuche** (`map-pruefung:*` lose gelesen,
+   `map-bewertung.ts`): Aspekt-Grund vs. gute MAP-Bewertung (B2/B3) ⇒ Warnung; keine Bewertung ⇒
+   ehrlicher „übersprungen"-Hinweis. Die Ziel-Heuristik („fehlende messbare Ziele" trotz quantifizierter
+   Zielkriterien) ist bewusst NICHT umgesetzt — sie braucht die MAP-Substanz-Analyse; der Tor ist
+   erweiterbar, das „u. a." des Auftrags erlaubt die Teilmenge (dokumentiert statt still).
+6. **TODO blockiert bei RNE/ABL** die Generierung (Bescheid braucht je Punkt eine tragende Begründung);
+   bei NF bleibt TODO erlaubt (→ `[TODO]`-Markierung).
+7. **Pflicht-Checkbox + Warnungs-Quittierung** gaten den DOCX-Export je Bescheid-Entwurf
+   (`BescheidFreigabe.tsx`, reines `bescheidFreigabeTor`).
+
+**Gate:** `npm run check` grün (420 Test-Dateien, 4743 Tests, 0 Zyklen), Typecheck/Lint/Cycles grün;
+`build:dev` + `build:pl` grün **mit isolierten Phase-5-Änderungen** (die Parallel-Session hatte ein
+kaputtes `snapshot-empty-guard.test.ts` uncommittet im Baum — nicht mein Code, per Stash verifiziert).
+
+**Abnahme-Checkliste (offen, beim Nutzer)**
+- [ ] Kurator legt RNE/ABL-Bausteine im Katalog an + gibt sie frei (ohne sie hat die Werkbank leere Vorschläge).
+- [ ] Werkbank-Schalter RNE/ABL erzeugt einen Bescheid-Entwurf über die NF-Maschine.
+- [ ] TODO blockiert die Generierung bei RNE/ABL; Konsistenz-Warnungen einzeln quittierbar; ohne
+      MAP-Bewertung erscheint der „übersprungen"-Hinweis; Export erst nach Pflicht-Checkbox.
+- [ ] Export nutzt die richtige Vorlage (`ZIM-Ruecknahmeempfehlung`/`ZIM-Ablehnung`, Anker „Tragende Gründe").
+
+**Verschoben:** Ziel-Heuristik im Konsistenz-Tor (braucht MAP-Substanz); scharfe Aktivierung der Seeds.
 
 ---
 

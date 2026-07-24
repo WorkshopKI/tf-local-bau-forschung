@@ -12,6 +12,7 @@ import {
 } from '@/core/services/skills';
 import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung/aspekt-katalog';
 import type { WerkbankAuftrag } from '../nachforderungen/useNachforderungen';
+import type { BescheidTyp } from '../nachforderungen/artefakt-typ';
 import type { WerkbankPunkt } from './types';
 
 /** Aspekt-Kürzel → Name (für den Punkt-Kontext-Text). */
@@ -22,9 +23,10 @@ const ASPEKT_NAME = new Map(PRUEF_ASPEKTE.map(a => [a.id, a.name]));
  * beide Scopes. Nur freigegebene Bausteine (die Selektoren garantieren das).
  */
 export function vorschlaegeFuerPunkt(
-  katalog: readonly TextbausteinRecord[], punkt: WerkbankPunkt, maxTreffer = 4,
+  katalog: readonly TextbausteinRecord[], punkt: WerkbankPunkt,
+  artefaktTyp: BescheidTyp = 'nf', maxTreffer = 4,
 ): Array<BausteinTreffer<TextbausteinRecord>> {
-  return sucheBausteine(katalog, [punkt.text], 'nf', undefined, {
+  return sucheBausteine(katalog, [punkt.text], artefaktTyp, undefined, {
     aspektId: punkt.aspektId, maxTreffer,
   });
 }
@@ -54,8 +56,9 @@ function punktZeile(p: WerkbankPunkt, bausteinIds: string[]): string {
  */
 export function baueAuftrag(
   katalog: readonly TextbausteinRecord[], gewaehlt: readonly WerkbankPunkt[], auswahl: Auswahl,
+  artefaktTyp: BescheidTyp = 'nf',
 ): WerkbankAuftrag {
-  const freigegeben = new Map(freigegebeneBausteine(katalog, 'nf').map(b => [b.id, b]));
+  const freigegeben = new Map(freigegebeneBausteine(katalog, artefaktTyp).map(b => [b.id, b]));
   const verwendet = new Map<string, TextbausteinRecord>();
   const zeilen: string[] = [];
   for (const p of gewaehlt) {
@@ -65,6 +68,7 @@ export function baueAuftrag(
   }
   const alle = [...verwendet.values()];
   return {
+    artefaktTyp,
     verbundBausteine: alle.filter(b => b.scope === 'verbund'),
     tvBausteine: alle.filter(b => b.scope !== 'verbund'),
     punktKontext: zeilen.join('\n'),

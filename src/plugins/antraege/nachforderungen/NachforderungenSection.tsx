@@ -117,7 +117,9 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
   );
 }
 
-export function NfEntwurfCard({ entwurf, onExport }: { entwurf: NfEntwurf; onExport: () => void }): React.ReactElement {
+export function NfEntwurfCard({ entwurf, onExport, exportDisabled }: {
+  entwurf: NfEntwurf; onExport: () => void; exportDisabled?: boolean;
+}): React.ReactElement {
   const fehler = entwurf.checks.filter(c => c.level === 'fehler');
   const hinweise = entwurf.checks.filter(c => c.level === 'hinweis');
   return (
@@ -140,7 +142,13 @@ export function NfEntwurfCard({ entwurf, onExport }: { entwurf: NfEntwurf; onExp
         >
           ✉ E-Mail-Entwurf
         </a>
-        <button type="button" onClick={onExport} className="text-[12px] text-[var(--tf-primary)] hover:underline">
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={exportDisabled}
+          title={exportDisabled ? 'Erst freigeben (Freigabe-Tor unten erfüllen).' : undefined}
+          className="text-[12px] text-[var(--tf-primary)] hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-default"
+        >
           In Vorlage exportieren
         </button>
       </div>

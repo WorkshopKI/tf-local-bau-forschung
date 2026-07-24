@@ -7,15 +7,17 @@
 import { useMemo } from 'react';
 import type { TextbausteinRecord } from '@/core/services/skills';
 import { vorschlaegeFuerPunkt } from './bausteinAuswahl';
+import type { BescheidTyp } from '../nachforderungen/artefakt-typ';
 import type { WerkbankPunkt } from './types';
 
-export function BausteinBestaetigung({ punkt, katalog, gewaehlteIds, onToggle }: {
+export function BausteinBestaetigung({ punkt, katalog, artefaktTyp, gewaehlteIds, onToggle }: {
   punkt: WerkbankPunkt;
   katalog: readonly TextbausteinRecord[];
+  artefaktTyp: BescheidTyp;
   gewaehlteIds: readonly string[];
   onToggle: (bausteinId: string) => void;
 }): React.ReactElement {
-  const vorschlaege = useMemo(() => vorschlaegeFuerPunkt(katalog, punkt), [katalog, punkt]);
+  const vorschlaege = useMemo(() => vorschlaegeFuerPunkt(katalog, punkt, artefaktTyp), [katalog, punkt, artefaktTyp]);
   const istTodo = gewaehlteIds.length === 0;
 
   return (

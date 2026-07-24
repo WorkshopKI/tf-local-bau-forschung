@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.314 — 2026-07
+
+### Neu
+- Die Artefakt-Werkbank kann jetzt nicht nur Nachforderungen, sondern auch Rücknahmeempfehlungen und Ablehnungen entwerfen. Der Ablauf ist derselbe (offene Punkte, Bausteine bestätigen), aber vor dem Export gibt es ein strengeres Freigabe-Tor: Jeder Punkt muss einen Baustein tragen, mögliche Widersprüche zur Fachbewertung werden angezeigt und sind einzeln zu bestätigen, und zum Schluss geben Sie den Entwurf ausdrücklich frei. Die passenden Textbausteine legen Sie vorab in der Skill-Verwaltung an.
+
 ## v2.312 — 2026-07
 
 ### Verbesserungen

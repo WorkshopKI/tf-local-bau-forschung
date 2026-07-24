@@ -20,12 +20,16 @@ import { VorlageDialog } from '../kurzfassung/VorlageDialog';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { NfEntwurfCard } from '../nachforderungen/NachforderungenSection';
 import type { NfEntwurf } from '../nachforderungen/useNachforderungen';
+import { ANKER_BY_TYP, DATEI_PREFIX_BY_TYP, LABEL_BY_TYP, type BescheidTyp } from '../nachforderungen/artefakt-typ';
+import { pruefeKonsistenz } from '../nachforderungen/bescheid-freigabe';
+import { freigegebeneBausteine } from '@/core/services/skills';
 import { useWerkbank } from './useWerkbank';
 import { BausteinBestaetigung } from './BausteinBestaetigung';
+import { BescheidFreigabe } from './BescheidFreigabe';
 import { todoPunkte, type Auswahl } from './bausteinAuswahl';
 import type { WerkbankPunkt } from './types';
 
-type ArtefaktTyp = 'nf' | 'rne' | 'abl';
+type ArtefaktTyp = BescheidTyp;
 
 export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const w = useWerkbank(ctx);
@@ -37,6 +41,20 @@ export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.Rea
 
   const gewaehltePunkte = useMemo(() => w.punkte.filter(p => gewaehlt.has(p.key)), [w.punkte, gewaehlt]);
   const offeneTodos = todoPunkte(gewaehltePunkte, auswahl);
+  const istBescheid = artefaktTyp !== 'nf';
+  // Für RNE/ABL blockiert ein unzugeordneter Punkt die Generierung (Bescheid braucht
+  // eine tragende Begründung je Punkt); bei NF ist TODO erlaubt (→ [TODO]-Markierung).
+  const generierenGesperrt = w.nf.busy || (istBescheid && offeneTodos.length > 0);
+  // Konsistenz-Warnungen aus den bestätigten Bausteinen vs. MAP-Fachbewertung (RNE/ABL).
+  const bestaetigteBausteine = useMemo(() => {
+    const ids = new Set(gewaehltePunkte.flatMap(p => auswahl[p.key] ?? []));
+    return freigegebeneBausteine(w.katalog, artefaktTyp).filter(b => ids.has(b.id));
+  }, [gewaehltePunkte, auswahl, w.katalog, artefaktTyp]);
+  const warnungen = useMemo(
+    () => (istBescheid ? pruefeKonsistenz(bestaetigteBausteine, w.mapBewertung.bewertung) : []),
+    [istBescheid, bestaetigteBausteine, w.mapBewertung],
+  );
+  const bausteineImTyp = useMemo(() => freigegebeneBausteine(w.katalog, artefaktTyp).length, [w.katalog, artefaktTyp]);
 
   const togglePunkt = (key: string): void =>
     setGewaehlt(s => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -71,9 +89,13 @@ export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.Rea
           ) : (
             <Button
               variant="primary"
-              disabled={artefaktTyp !== 'nf'}
-              onClick={() => w.generiere([...gewaehlt], auswahl)}
-              title={artefaktTyp === 'nf' ? 'Erzeugt je Teilvorhaben einen NF-Entwurf aus den bestätigten Bausteinen.' : 'RNE/ABL folgen in einer späteren Ausbaustufe.'}
+              disabled={generierenGesperrt}
+              onClick={() => w.generiere([...gewaehlt], auswahl, artefaktTyp)}
+              title={
+                istBescheid && offeneTodos.length > 0
+                  ? 'Bei einem Bescheid muss jeder gewählte Punkt einen Baustein tragen (kein TODO).'
+                  : `Erzeugt je Teilvorhaben einen ${LABEL_BY_TYP[artefaktTyp]}-Entwurf aus den bestätigten Bausteinen.`
+              }
             >
               Entwurf erzeugen ({gewaehlt.size})
             </Button>
@@ -112,6 +134,11 @@ export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.Rea
             {/* Schritt 2 — Artefakt wählen */}
             <Schritt nr={2} titel="Artefakt wählen">
               <ArtefaktSchalter wert={artefaktTyp} onChange={setArtefaktTyp} />
+              {bausteineImTyp === 0 && (
+                <p className="mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
+                  Für {LABEL_BY_TYP[artefaktTyp]} sind noch keine freigegebenen Bausteine im Katalog — in der Skill-Verwaltung (Reiter „Textbausteine") anlegen und freigeben.
+                </p>
+              )}
             </Schritt>
 
             {/* Schritt 3 — Bausteine bestätigen */}
@@ -119,12 +146,14 @@ export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.Rea
               <Schritt nr={3} titel="Bausteine bestätigen">
                 <div className="flex flex-col gap-2.5">
                   {gewaehltePunkte.map(p => (
-                    <BausteinBestaetigung key={p.key} punkt={p} katalog={w.katalog} gewaehlteIds={auswahl[p.key] ?? []} onToggle={id => toggleBaustein(p.key, id)} />
+                    <BausteinBestaetigung key={p.key} punkt={p} katalog={w.katalog} artefaktTyp={artefaktTyp} gewaehlteIds={auswahl[p.key] ?? []} onToggle={id => toggleBaustein(p.key, id)} />
                   ))}
                 </div>
                 {offeneTodos.length > 0 && (
                   <p className="mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
-                    {offeneTodos.length} Punkt(e) ohne Baustein — der Entwurf trägt dort eine „[TODO Baustein zuordnen]"-Markierung.
+                    {offeneTodos.length} Punkt(e) ohne Baustein — {istBescheid
+                      ? 'bei einem Bescheid muss jeder Punkt einen Baustein tragen (blockiert die Generierung).'
+                      : 'der Entwurf trägt dort eine „[TODO Baustein zuordnen]"-Markierung.'}
                   </p>
                 )}
               </Schritt>
@@ -135,7 +164,18 @@ export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.Rea
               <Schritt nr={4} titel="Entwürfe">
                 <div className="flex flex-col gap-3">
                   {w.nf.entwuerfe.map(e => (
-                    <NfEntwurfCard key={e.aktenzeichen} entwurf={e} onExport={() => setDialogTv(e)} />
+                    e.artefaktTyp === 'nf' ? (
+                      <NfEntwurfCard key={e.aktenzeichen} entwurf={e} onExport={() => setDialogTv(e)} />
+                    ) : (
+                      <BescheidFreigabe
+                        key={e.aktenzeichen}
+                        entwurf={e}
+                        warnungen={warnungen}
+                        offeneTodos={offeneTodos.length}
+                        bewertungGefunden={w.mapBewertung.gefunden}
+                        onExport={() => setDialogTv(e)}
+                      />
+                    )
                   ))}
                 </div>
               </Schritt>
@@ -148,8 +188,8 @@ export function WerkbankSection({ ctx }: { ctx: KurzfassungContext }): React.Rea
         <VorlageDialog
           open
           antrag={dialogAntrag}
-          sections={[{ id: 'NF', anker: 'Nachforderungen', finalerText: dialogTv.text }]}
-          dateiPrefix="ZIM-Nachforderung"
+          sections={[{ id: 'NF', anker: ANKER_BY_TYP[dialogTv.artefaktTyp], finalerText: dialogTv.text }]}
+          dateiPrefix={DATEI_PREFIX_BY_TYP[dialogTv.artefaktTyp]}
           onClose={() => setDialogTv(null)}
         />
       )}
@@ -260,12 +300,12 @@ function PunkteGruppen({ punkte, gewaehlt, onToggle, onSelectGroup, onRemove, on
   );
 }
 
-/** NF | RNE | ABL — RNE/ABL bis zur nächsten Ausbaustufe deaktiviert. */
+/** NF | RNE | ABL — RNE/ABL erzeugen einen Bescheid-Entwurf (strengeres Freigabe-Tor). */
 function ArtefaktSchalter({ wert, onChange }: { wert: ArtefaktTyp; onChange: (t: ArtefaktTyp) => void }): React.ReactElement {
-  const items: Array<{ typ: ArtefaktTyp; label: string; aktiv: boolean }> = [
-    { typ: 'nf', label: 'Nachforderung', aktiv: true },
-    { typ: 'rne', label: 'Rücknahmeempfehlung', aktiv: false },
-    { typ: 'abl', label: 'Ablehnung', aktiv: false },
+  const items: Array<{ typ: ArtefaktTyp; label: string }> = [
+    { typ: 'nf', label: LABEL_BY_TYP.nf },
+    { typ: 'rne', label: LABEL_BY_TYP.rne },
+    { typ: 'abl', label: LABEL_BY_TYP.abl },
   ];
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -273,15 +313,13 @@ function ArtefaktSchalter({ wert, onChange }: { wert: ArtefaktTyp; onChange: (t:
         <button
           key={i.typ}
           type="button"
-          disabled={!i.aktiv}
           aria-pressed={wert === i.typ}
-          onClick={() => i.aktiv && onChange(i.typ)}
-          title={i.aktiv ? undefined : 'Folgt in einer späteren Ausbaustufe.'}
-          className={`text-[12px] px-3 py-1.5 rounded-[8px] border transition-colors ${
+          onClick={() => onChange(i.typ)}
+          className={`text-[12px] px-3 py-1.5 rounded-[8px] border transition-colors cursor-pointer hover:border-[var(--tf-border-hover)] ${
             wert === i.typ ? 'border-[var(--tf-primary)] bg-[var(--tf-primary)] text-white' : 'border-[var(--tf-border)] text-[var(--tf-text-secondary)]'
-          } ${i.aktiv ? 'cursor-pointer hover:border-[var(--tf-border-hover)]' : 'opacity-50 cursor-default'}`}
+          }`}
         >
-          {i.label}{!i.aktiv && ' (bald)'}
+          {i.label}
         </button>
       ))}
     </div>

@@ -3,6 +3,7 @@ import { mergeMissingSeeds } from '../storage';
 import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, AUSGANGSLAGE_SKILL_ID, INTERPUNKTION_REGEL_ID } from '../seed';
 import { GA_LEKTOR_SKILL_ID } from '../ga-lektor.seed';
 import { NF_SKILL_ID, SEED_NF_REGELN } from '../nf-skill.seed';
+import { RNE_SKILL_ID, ABL_SKILL_ID } from '../bescheid-skill.seed';
 import { ANFRAGE_ANONYMISIEREN_SKILL_ID } from '../anfrage-anonymisieren.seed';
 import { ANFRAGE_METADATEN_SKILL_ID } from '../anfrage-metadaten.seed';
 import { AUFBEREITUNG_ASPEKTE_SKILL_ID } from '../aufbereitung-aspekte.seed';
@@ -39,7 +40,7 @@ describe('mergeMissingSeeds — additiv, nie überschreibend', () => {
     for (const s of SEED_SKILLS_BG) expect(getSkillById(merged.file, s.id)).toBeDefined();
     expect(getSkillById(merged.file, QS_BASIS_SKILL_ID)).toBeDefined();
     expect(getSkillById(merged.file, RELEVANZ_MAP_SKILL_ID)).toBeDefined();
-    expect(merged.ergaenzteSkills).toEqual([...SEED_SKILLS_BG.map(s => s.id), QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, GA_LEKTOR_SKILL_ID, NF_SKILL_ID, ANFRAGE_ANONYMISIEREN_SKILL_ID, ANFRAGE_METADATEN_SKILL_ID, AUFBEREITUNG_ASPEKTE_SKILL_ID, AUFBEREITUNG_STECKBRIEF_SKILL_ID, AUFBEREITUNG_ZAHLEN_SKILL_ID, AUFBEREITUNG_GLOSSAR_SKILL_ID, AUFBEREITUNG_VERWERTUNG_SKILL_ID, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID, AUFBEREITUNG_RECHERCHE_IMPORT_SKILL_ID]);
+    expect(merged.ergaenzteSkills).toEqual([...SEED_SKILLS_BG.map(s => s.id), QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, GA_LEKTOR_SKILL_ID, NF_SKILL_ID, RNE_SKILL_ID, ABL_SKILL_ID, ANFRAGE_ANONYMISIEREN_SKILL_ID, ANFRAGE_METADATEN_SKILL_ID, AUFBEREITUNG_ASPEKTE_SKILL_ID, AUFBEREITUNG_STECKBRIEF_SKILL_ID, AUFBEREITUNG_ZAHLEN_SKILL_ID, AUFBEREITUNG_GLOSSAR_SKILL_ID, AUFBEREITUNG_VERWERTUNG_SKILL_ID, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID, AUFBEREITUNG_RECHERCHE_IMPORT_SKILL_ID]);
     // B–G bringen seit v2.296 KEINE eigenen Regel-Records mehr mit (ihre Umfangs-
     // Vorgaben stecken im Skill); ergänzt werden nur NF- + GA-QS-Regeln.
     expect(getSkillById(merged.file, AUSGANGSLAGE_SKILL_ID)!.vorgaben?.absatzMin).toMatchObject({ min: 4 });

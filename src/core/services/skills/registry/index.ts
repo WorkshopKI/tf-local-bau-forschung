@@ -78,6 +78,10 @@ export {
 } from './seed';
 export { SEED_GA_LEKTOR_SKILL, GA_LEKTOR_SKILL_ID } from './ga-lektor.seed';
 export { SEED_NF_SKILL, SEED_NF_REGELN, NF_DEF, NF_SKILL_ID } from './nf-skill.seed';
+export {
+  SEED_RNE_SKILL, SEED_ABL_SKILL, SEED_BESCHEID_SKILLS, SEED_BESCHEID_WORKFLOWS,
+  RNE_DEF, ABL_DEF, RNE_SKILL_ID, ABL_SKILL_ID,
+} from './bescheid-skill.seed';
 export { AUFBEREITUNG_ASPEKTE_SKILL, AUFBEREITUNG_ASPEKTE_SKILL_ID } from './aufbereitung-aspekte.seed';
 export { AUFBEREITUNG_STECKBRIEF_SKILL, AUFBEREITUNG_STECKBRIEF_SKILL_ID } from './aufbereitung-steckbrief.seed';
 export { MAP_INFOGRAFIK_SKILL, MAP_INFOGRAFIK_SKILL_ID } from './map-infografik.seed';

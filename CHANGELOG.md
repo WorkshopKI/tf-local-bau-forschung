@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.314.0 — RNE + ABL: Bescheid-Entwuerfe in der Werkbank mit strengem Freigabe-Tor (Juli 2026)
+
+MINOR — Die Werkbank kann jetzt neben Nachforderungen auch Rücknahmeempfehlungen und Ablehnungen entwerfen — dieselbe Maschine, dieselben Textbausteine, aber ein strengeres Freigabe-Tor, weil ein Bescheid eine Rechtsfolge trägt. Nur dev; die Bausteine dafür legen Kuratoren im Katalog an.
+
+- RNE/ABL-Füll-Skills + Workflows als Draft-Seeds (aktiv:false, freigabe:entwurf) — gegebene Bausteine wortgetreu, nur Platzhalter füllen ([bescheid-skill.seed.ts](src/core/services/skills/registry/bescheid-skill.seed.ts)).
+- Der Artefakt-Schalter der Werkbank aktiviert RNE/ABL; die Generierung läuft über die bestehende NF-Maschine, je Typ mit eigenem Skill/Vorlage/Anker ([artefakt-typ.ts](src/plugins/antraege/nachforderungen/artefakt-typ.ts)).
+- Strengeres Freigabe-Tor: unzugeordnete Punkte blockieren die Generierung, Konsistenz-Warnungen gegen die MAP-Fachbewertung sind einzeln zu quittieren, und der DOCX-Export braucht eine Pflicht-Freigabe ([bescheid-freigabe.ts](src/plugins/antraege/nachforderungen/bescheid-freigabe.ts)).
+- Fehlt eine MAP-Bewertung, sagt der Tor das ehrlich („Konsistenz übersprungen"), statt still nichts zu prüfen ([map-bewertung.ts](src/plugins/antraege/werkbank/map-bewertung.ts)).
+- Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
+### v2.313.0 — Versionierte Backup-Historie der kleinen Struktur-Stores auf dem Share (Juli 2026)
+
+MINOR — Defense-in-depth zum Empty-Guard (v2.312): falls eine kleine Struktur-Store-Datei doch mal defekt/leer/gelöscht wird (Teil-Write, Fremd-Eingriff), liegt der letzte gute Stand griffbereit statt „weg". Nur die kleinen Stores — antraege (421 MB) bleibt außen vor.
+
+- Jeder Publish sichert `csv_schemas`/`programme`/`unterprogramme`/`verbuende`/`akronym_index` versioniert unter `<snapshot>/backups/<store>.<version>.jsonl` ([snapshot.ts](src/core/services/csv/snapshot.ts)).
+- Nur nicht-leerer + gegenüber der jüngsten Sicherung geänderter Inhalt wird gesichert (ein defekter Write wird nie die jüngste Sicherung; keine Duplikate).
+- Es werden die letzten `SMALL_STORE_BACKUP_KEEP` (5) distinkten Fassungen je Store gehalten, ältere werden gekappt.
+- Best-effort: Backup-Fehler blockieren den Publish nie (der eigentliche Snapshot steht schon).
+- Regressionstests (anlegen / Dedup / Prune) ([snapshot-empty-guard.test.ts](src/core/services/csv/__tests__/snapshot-empty-guard.test.ts)).
+
 ### v2.312.0 — CSV-Schemas beim Sync nicht mehr verlieren (Empty-Guard) + aussagekraeftige Ampel + Kurator-Autorefresh (Juli 2026)
 
 MINOR — Ein leer publiziertes `csv_schemas` (Fixture-/Fehl-Publish, Vorfall-2026-06-Klasse) hat beim Snapshot-Sync die lokalen CSV-Quellen JEDES Consumers auf 0 gewischt — still, ohne Reconnect-Prompt (● CSV grau „unbekannt"). Zwei Guards stoppen den Datenverlust an beiden Enden; die Ampel sagt jetzt konkret, was fehlt.

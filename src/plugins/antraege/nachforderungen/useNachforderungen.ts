@@ -15,9 +15,10 @@ import { useAIBridge } from '@/core/hooks/useAIBridge';
 import {
   runSkill, loadSkillRegistry, getSkillById, resolveRegeln, capVbMarkdown,
   loadTextbausteinKatalog, freigegebeneBausteine,
-  NF_SKILL_ID, type CheckResult, type SkillRecord, type QualitaetsRegel,
+  type CheckResult, type SkillRegistryFile,
   type KatalogRef, type TextbausteinRecord,
 } from '@/core/services/skills';
+import { SKILL_ID_BY_TYP, type BescheidTyp } from './artefakt-typ';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import type { DocumentFull } from '@/plugins/dokumente/store';
@@ -29,7 +30,7 @@ import type { StepRun, WorkflowRun } from '../gutachten/types';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { formatBausteinKatalog, pruefeNf, nfFreigabereif, mergeNfFuerTv, buildNfMailto } from './nf-service';
 
-/** Ein fertiger NF-Entwurf für ein Teilvorhaben. */
+/** Ein fertiger Bescheid-Entwurf für ein Teilvorhaben (NF/RNE/ABL). */
 export interface NfEntwurf {
   aktenzeichen: string;
   titel: string | null;
@@ -38,6 +39,8 @@ export interface NfEntwurf {
   checks: CheckResult[];
   freigabereif: boolean;
   mailto: string;
+  /** Bescheid-Typ dieses Entwurfs (Default `nf`) — steuert Export-Vorlage + Label. */
+  artefaktTyp: BescheidTyp;
 }
 
 /**
@@ -48,6 +51,8 @@ export interface NfEntwurf {
  * des Runs (welche Punkte adressiert wurden).
  */
 export interface WerkbankAuftrag {
+  /** Welcher Bescheid erzeugt wird (bestimmt Skill + Ausgabe-Rahmung). */
+  artefaktTyp: BescheidTyp;
   verbundBausteine: TextbausteinRecord[];
   tvBausteine: TextbausteinRecord[];
   /** Menschlich formulierte Punkt-Texte (mit Aspekt) — was adressiert werden soll. */
@@ -82,8 +87,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
   const [error, setError] = useState<string | null>(null);
   const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
   const [vb, setVb] = useState<{ dokument: DocumentFull | null; markdown: string } | null>(null);
-  const [skill, setSkill] = useState<SkillRecord | null>(null);
-  const [regeln, setRegeln] = useState<QualitaetsRegel[]>([]);
+  const [regFile, setRegFile] = useState<SkillRegistryFile | null>(null);
   const [katalog, setKatalog] = useState<{ stand: string; bausteine: TextbausteinRecord[] } | null>(null);
   const [entwuerfe, setEntwuerfe] = useState<NfEntwurf[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -98,9 +102,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
         ]);
         if (cancelled) return;
         setVb(vbRes ? { dokument: vbRes.dokument, markdown: vbRes.markdown } : null);
-        const sk = getSkillById(reg.file, NF_SKILL_ID) ?? null;
-        setSkill(sk);
-        setRegeln(sk ? resolveRegeln(reg.file, sk) : []);
+        setRegFile(reg.file);
         setKatalog({ stand: kat.katalog.updated_at, bausteine: kat.katalog.bausteine });
       } catch (e) {
         if (!cancelled) setError(errMsg(e));
@@ -120,12 +122,17 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
    * Werkbank-Bausteine + Punkt-Kontext; das LLM füllt nur noch Platzhalter.
    */
   async function generiere(auftrag?: WerkbankAuftrag): Promise<void> {
-    if (!vb || !skill || !katalog) return;
+    if (!vb || !regFile || !katalog) return;
+    const typ: BescheidTyp = auftrag?.artefaktTyp ?? 'nf';
+    // Skill je Bescheid-Typ auflösen (Default NF). Der Werkbank-Pfad kann RNE/ABL wählen.
+    const aktSkill = getSkillById(regFile, SKILL_ID_BY_TYP[typ]) ?? null;
+    if (!aktSkill) { setError('Der zugehörige Füll-Skill ist nicht verfügbar.'); return; }
+    const aktRegeln = resolveRegeln(regFile, aktSkill);
     const ac = new AbortController();
     abortRef.current = ac;
     setBusy(true); setError(null); setEntwuerfe([]);
     try {
-      const transport = bridge.getTransportForSkillRun(skill);
+      const transport = bridge.getTransportForSkillRun(aktSkill);
       const reachable = await transport.ping({ openIfNeeded: true }).catch(() => false);
       setLlmAvailable(reachable);
       if (!reachable) { setError('KI nicht erreichbar — NF-Generierung derzeit nicht möglich.'); return; }
@@ -137,8 +144,8 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       // NUR freigegebene Bausteine — Entwürfe (frisch importiert, in Arbeit) und
       // Stillgelegte dürfen nie in einen Nachforderungs-Entwurf geraten. Der Werkbank-
       // Auftrag trägt bereits eine kuratierte (freigegebene) Auswahl.
-      const gBausteine = auftrag ? auftrag.verbundBausteine : freigegebeneBausteine(katalog.bausteine, 'nf', 'verbund');
-      const tvBausteine = auftrag ? auftrag.tvBausteine : freigegebeneBausteine(katalog.bausteine, 'nf', 'tv');
+      const gBausteine = auftrag ? auftrag.verbundBausteine : freigegebeneBausteine(katalog.bausteine, typ, 'verbund');
+      const tvBausteine = auftrag ? auftrag.tvBausteine : freigegebeneBausteine(katalog.bausteine, typ, 'tv');
       const gKatalog = formatBausteinKatalog(gBausteine);
       const tvKatalog = formatBausteinKatalog(tvBausteine);
       // Punkt-Kontext der Werkbank an den VB-Kontext hängen: sagt dem Modell, WELCHE
@@ -157,7 +164,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       };
 
       // 1) Verbund-Block EINMAL (G-Bausteine am Gesamtvorhaben-Kontext).
-      const gRes = await runSkill(transport, skill, regeln, {
+      const gRes = await runSkill(transport, aktSkill, aktRegeln, {
         ziel: aktivesZielFuerLauf(),
         stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
         verbundKontext: vbCapped + punktBlock, tvKontext: '', nfBausteine: gKatalog,
@@ -172,7 +179,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
         const tvKontext = `Teilvorhaben ${tv.nr}: ${tv.titel ?? '[ohne Titel]'} `
           + `(Antragsteller: ${tv.antragsteller ?? '[Im Antrag nicht genannt]'})\n\n${vbCapped}${punktBlock}`;
         const tvBlock = tvBausteine.length > 0
-          ? (await runSkill(transport, skill, regeln, {
+          ? (await runSkill(transport, aktSkill, aktRegeln, {
             ziel: aktivesZielFuerLauf(),
             stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
             verbundKontext: '', tvKontext, nfBausteine: tvKatalog,
@@ -188,16 +195,18 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
           status: 'entwurf',
           erstellt_am: now,
           modell,
-          skillId: skill.id,
-          skillVersion: skill.version,
+          skillId: aktSkill.id,
+          skillVersion: aktSkill.version,
         };
+        // Der WorkflowRun wird je Bescheid-Typ disjunkt gekeyt (`workflow-run:<typ>:<az>`);
+        // der Schritt-Key bleibt 'NF' (ein einstufiger Bescheid-Workflow, StepId-Reuse).
         const run: WorkflowRun = {
           aktenzeichen: tv.aktenzeichen, schritte: { NF: step }, aktiverSchritt: 'NF',
           erstellt_am: now, geaendert_am: now, katalogRef,
           ...(auftrag ? { werkbankPunkte: auftrag.punktKeys } : {}),
           schemaVersion: 1,
         };
-        await putWorkflowRun(storage.idb, run, 'nf');
+        await putWorkflowRun(storage.idb, run, typ);
         ergebnisse.push({
           aktenzeichen: tv.aktenzeichen,
           titel: tv.titel,
@@ -206,6 +215,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
           checks,
           freigabereif: nfFreigabereif(merged),
           mailto: buildNfMailto({ fkz: tv.aktenzeichen, nachforderungen: merged }),
+          artefaktTyp: typ,
         });
         setEntwuerfe([...ergebnisse]); // inkrementell anzeigen
       }

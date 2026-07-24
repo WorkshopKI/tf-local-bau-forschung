@@ -27,6 +27,8 @@ const SKILL_ID_PRAEFIX_ZU_KATEGORIE: Array<[praefix: string, kategorie: string]>
   ['gutachten-', 'gutachten'],
   ['ga-', 'gutachten'],
   ['nf-', 'nachforderung'],
+  ['zim-rne', 'bescheid'],
+  ['zim-abl', 'bescheid'],
   ['aufbereitung-', 'aufbereitung'],
   ['anfrage-', 'anfrage'],
   ['qs-', 'qs'],
@@ -72,6 +74,7 @@ export function effektiveSkillKategorie(s: SkillKategorieQuelle): string {
 export const SKILL_KATEGORIE_LABEL: Record<string, string> = {
   gutachten: 'Gutachten',
   nachforderung: 'Nachforderungen',
+  bescheid: 'Bescheide',
   aufbereitung: 'Aufbereitung',
   anfrage: 'Anfragen',
   qs: 'Qualitätssicherung',
@@ -82,6 +85,7 @@ export const SKILL_KATEGORIE_LABEL: Record<string, string> = {
 export const SKILL_KATEGORIE_ORDER: string[] = [
   'gutachten',
   'nachforderung',
+  'bescheid',
   'aufbereitung',
   'anfrage',
   'qs',

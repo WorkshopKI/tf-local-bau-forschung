@@ -78,15 +78,36 @@ statt das LLM frei über den Katalog wählen zu lassen.
   Status-Automat). `quelle` `'map-kriterium'`/`'rechencheck'`/`'aufbereitung'` ist der vorbereitete
   Andockpunkt (Phase-1-Pause / Folgearbeit).
 - **Fluss** (≤ 4 sichtbare Schritte): Punkte ankreuzen (nach Aspekt gruppiert, „alle wählen") →
-  Artefakt-Schalter (NF | RNE | ABL — RNE/ABL bis zur nächsten Ausbaustufe deaktiviert) → je Punkt
-  begründete Baustein-Vorschläge aus `sucheBausteine` (nur freigegebene, `treffer[]` sichtbar; Mensch
-  bestätigt/ändert/entfernt; kein Treffer ⇒ `[TODO Baustein zuordnen]`) → **Generieren über die
-  bestehende NF-Maschine** (`useWerkbank` → `useNachforderungen.generiereWerkbank`, kein zweiter
-  Pfad). Der `WerkbankAuftrag` trägt die bestätigte Baustein-Vorauswahl (nach Scope getrennt) + den
-  Punkt-Kontext; das LLM füllt nur noch Platzhalter. Am `WorkflowRun` stehen `katalogRef` +
+  Artefakt-Schalter (NF | RNE | ABL) → je Punkt begründete Baustein-Vorschläge aus `sucheBausteine`
+  (nur freigegebene, `treffer[]` sichtbar; Mensch bestätigt/ändert/entfernt; kein Treffer ⇒
+  `[TODO Baustein zuordnen]`) → **Generieren über die bestehende NF-Maschine** (`useWerkbank` →
+  `useNachforderungen.generiereWerkbank`, kein zweiter Pfad). Der `WerkbankAuftrag` trägt den
+  Bescheid-Typ + die bestätigte Baustein-Vorauswahl (nach Scope getrennt) + den Punkt-Kontext; das
+  LLM füllt nur noch Platzhalter. Am `WorkflowRun` (disjunkt gekeyt je Typ) stehen `katalogRef` +
   `werkbankPunkte` (Provenienz für Phase 6).
 - **Reuse ohne Fork:** `generiere(auftrag?)` in `useNachforderungen` ist der gemeinsame Kern — ohne
-  `auftrag` voller Katalog (byte-identisch zu vorher), mit `auftrag` die Werkbank-Auswahl.
+  `auftrag` voller Katalog + NF (byte-identisch zu vorher), mit `auftrag` die Werkbank-Auswahl und der
+  Skill des gewählten Bescheid-Typs ([artefakt-typ.ts](../../src/plugins/antraege/nachforderungen/artefakt-typ.ts):
+  Skill/Dateiname/Anker/Label je Typ, eine Tabelle).
+
+## RNE + ABL — Bescheide (dev, Draft-Seeds)
+
+Rücknahmeempfehlung und Ablehnung folgen exakt dem NF-Muster — gegebene Bausteine (Typ `rne`/`abl`)
+**wortgetreu** füllen, nur Platzhalter setzen ([bescheid-skill.seed.ts](../../src/core/services/skills/registry/bescheid-skill.seed.ts)):
+zwei Füll-Skills (`zim-rne-fueller`/`zim-abl-fueller`, `aktiv:false`) + zwei WorkflowDefs
+(`zim-rne`/`zim-abl`, `ebene:'tv'`, `freigabe:'entwurf'`). Slots identisch (`{{nfBausteine}}` etc. →
+dokument-tragend → intern). **Vorlagen** brauchen keinen neuen `VorlagenTyp`: der `VorlageDialog` nimmt
+freien Anker + `dateiPrefix` je Typ (`ANKER_BY_TYP`/`DATEI_PREFIX_BY_TYP`).
+
+**Freigabe-Tor RNE/ABL** (strenger als NF, deterministisch, [bescheid-freigabe.ts](../../src/plugins/antraege/nachforderungen/bescheid-freigabe.ts)):
+- **Platzhalter-Tor** (kein ungefüllter Rest) + **Begründungs-Vollständigkeit**: bei RNE/ABL blockiert
+  ein unzugeordneter Punkt (TODO) schon die Generierung.
+- **Konsistenz-Checks Bewertung↔Baustein** (Warnungen, blockieren nicht — bei der Freigabe einzeln zu
+  **quittieren**): über die Phase-1-Rückwärtssuche wird `map-pruefung:*` lose gelesen
+  ([map-bewertung.ts](../../src/plugins/antraege/werkbank/map-bewertung.ts)); trägt ein Baustein einen
+  Aspekt als Grund, dessen MAP-Fachbewertung aber B2/B3 (gut) ist ⇒ Warnung. **Keine Bewertung gefunden
+  ⇒ sichtbarer „übersprungen"-Hinweis** (nie still).
+- **Pflicht-Checkbox** „Geprüft und zur Weiterverarbeitung freigegeben" — ohne sie kein DOCX-Export.
 
 ## GA-QS (aus QS v2)
 
@@ -107,9 +128,10 @@ in A/C/G additiv ergänzt (klar als Schreibstil markiert) — GA-Verhalten unver
 
 ## Grenzen / nicht im Scope
 
-ABL/RNE-Artefakte (späterer Prompt); produktive (scharfe) Aktivierung der NF-Seeds (bleiben Draft);
-automatischer Versand (Mensch versendet). Generalisierungs-Notizen + der Gutachten-Testballon-Ursprung:
-[gutachten-kurzfassung.md](gutachten-kurzfassung.md).
+Produktive (scharfe) Aktivierung der NF-/RNE-/ABL-Seeds (bleiben Draft/`aktiv:false` bis zur bewussten
+Kuratierung); automatischer Versand (Mensch versendet); RNE/ABL-Bausteine im Katalog anlegen ist
+Kuratoren-Arbeit (der Seed liefert die Skills, nicht die Bausteine). Generalisierungs-Notizen + der
+Gutachten-Testballon-Ursprung: [gutachten-kurzfassung.md](gutachten-kurzfassung.md).
 
 ## Kategorie-Modell + Journey-Paket 3/4 (Regel→Korrektur, Belege↔Satz)
 
