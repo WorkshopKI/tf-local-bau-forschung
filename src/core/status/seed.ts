@@ -90,15 +90,18 @@ function prominenzFor(normalisierterWert: string): Prominenz {
   return MEILENSTEIN_WERTE.has(normalisierterWert) ? 'meilenstein' : 'normal';
 }
 
-/** Die kuratierbaren Felder. Wert-Felder tragen ein Enum, Datumsfelder nicht. */
+/** Die kuratierbaren Felder. Wert-Felder tragen ein Enum, Datumsfelder nicht.
+ *  `ebene`/`quelleKey` steuern, aus welchem Record (Verbund vs. Antrag) und unter
+ *  welchem Key der Wert gelesen wird — insb. `verbund_status`, das der Verbund-
+ *  Record unter `status` führt (`VB_FIELD_MAP` im Merger). */
 const FELDER: StatusFeldEintrag[] = [
-  { feldId: 'status', label: 'TV-Status', typ: 'wert', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-  { feldId: 'verbund_status', label: 'Verbund-Status', typ: 'wert', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-  { feldId: 'vb_phase', label: 'Verbund-Phase (Fördervariante)', typ: 'wert', prominenzDefault: 'nebensaechlich', aktiv: true, unkuratiert: false },
-  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  { feldId: 'status', label: 'TV-Status', typ: 'wert', ebene: 'tv', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  { feldId: 'verbund_status', label: 'Verbund-Status', typ: 'wert', ebene: 'verbund', quelleKey: 'status', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  { feldId: 'vb_phase', label: 'Verbund-Phase (Fördervariante)', typ: 'wert', ebene: 'tv', prominenzDefault: 'nebensaechlich', aktiv: true, unkuratiert: false },
+  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', ebene: 'tv', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', ebene: 'tv', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', ebene: 'tv', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', ebene: 'tv', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
 ];
 
 function baueWerte(): StatusWertEintrag[] {

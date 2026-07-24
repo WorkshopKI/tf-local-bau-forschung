@@ -378,14 +378,16 @@ export async function importCsvSource(
       console.warn('[csv-import] phase2 pending re-match fehlgeschlagen:', e);
     }
 
-    // Status-System neu: neu aufgetauchte Statuswerte als `unkuratiert` sammeln
-    // (nie automatisch mappen). Best-effort, gated hinter `statusCockpit`; ohne
-    // Deltas gibt es keine neuen Werte → ueberspringen.
+    // Status-System neu: Auto-Discovery unbekannter Statuswerte + Historie-
+    // Reconcile (append-only Status-Events). Best-effort, gated hinter
+    // `statusCockpit`; ohne Deltas gibt es nichts Neues → ueberspringen.
     if (hasDeltas && isStatusCockpitEnabled()) try {
-      const { entdeckeUnkuratiertNachImport } = await import('@/core/status/import-integration');
-      await entdeckeUnkuratiertNachImport(idb, schema.programm_id, new Date().toISOString());
+      const { nachImportStatusPflege } = await import('@/core/status/import-integration');
+      await nachImportStatusPflege(
+        idb, schema.programm_id, result.changedAktenzeichen ?? [], new Date().toISOString(),
+      );
     } catch (e) {
-      console.warn('[csv-import] Status-Katalog Auto-Discovery fehlgeschlagen:', e);
+      console.warn('[csv-import] Status-System Nachpflege fehlgeschlagen:', e);
     }
     return result;
   } finally {

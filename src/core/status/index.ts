@@ -14,7 +14,12 @@ export {
   ladeUnkuratiert, speichereUnkuratiert,
 } from './katalog-store';
 export { ermittleNeueUnkuratierte, type BeobachteterWert } from './entdecke';
-export { entdeckeUnkuratiertNachImport } from './import-integration';
+export { entdeckeUnkuratiertNachImport, nachImportStatusPflege } from './import-integration';
+export { recordKey, leseFeldWert } from './feld-zugriff';
+export type { StatusEvent } from './event-typen';
+export { appendEvents, getStatusEvents } from './event-store';
+export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
+export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
 
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';

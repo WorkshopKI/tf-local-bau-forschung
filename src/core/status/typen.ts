@@ -38,6 +38,12 @@ export interface StatusFeldEintrag {
   label: string;
   /** `datum`-Felder: das Datum IST das Event (kein Wert-Enum). */
   typ: 'wert' | 'datum';
+  /** Ebene, aus der der Wert stammt: `verbund` = aus dem Verbund-Record,
+   *  `tv` = pro Teilvorhaben-Antrag. Steuert die Event-/Timeline-Zuordnung. */
+  ebene: 'verbund' | 'tv';
+  /** Tatsächlicher Record-Key, falls ≠ `feldId` (z.B. `verbund_status` → der
+   *  Verbund-Record führt ihn unter `status`). Default: `feldId`. */
+  quelleKey?: string;
   prominenzDefault: Prominenz;
   aktiv: boolean;
   unkuratiert: boolean;
