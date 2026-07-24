@@ -20,6 +20,7 @@ import {
 import { pickCsvFile } from './csv-file-picker';
 import { SourceList } from './SourceList';
 import { MaintenanceSection } from './MaintenanceSection';
+import { SchemaRecoverySection } from './SchemaRecoverySection';
 import { SourceModals, type ReimportRequest, type AddColumnsRequest } from './SourceModals';
 
 /**
@@ -205,6 +206,8 @@ export function CsvSourcesPage(): React.ReactElement {
       />
 
       <MaintenanceSection />
+
+      <SchemaRecoverySection programmId={programmId} onRestored={() => { void refresh(); }} />
 
       <SourceModals
         programmId={programmId}
