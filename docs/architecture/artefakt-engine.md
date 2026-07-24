@@ -60,6 +60,33 @@ je Typ über `opts.dateiPrefix` (Default `Gutachten_EP` → GA byte-identisch). 
   **Entwurf ≠ Entscheidung**: es wird nichts versendet; der Mensch öffnet/prüft/sendet.
 - **UI**: schlanke `NachforderungenSection` auf der Verbund-Detailseite (eigene Sektion neben Gutachten),
   gegated `isNfNachforderungenEnabled()`. Kein neues Plugin/Routing.
+- **Katalog-Quelle (seit v2.309):** die Bausteine sind versionierte App-Daten
+  ([textbaustein-katalog.md](textbaustein-katalog.md)); die NF-Generierung liest den Katalog (nur
+  `freigegebeneBausteine`) und stempelt `WorkflowRun.katalogRef` (Stand + Baustein-Fassungen). Der
+  Code-Seed `nf-bausteine.seed.ts` bleibt Migrationsquelle.
+
+## Artefakt-Werkbank (dev-Flag `artefaktWerkbank`)
+
+EIN Workspace am Verbund-Detail — bei aktivem Flag **ersetzt** die `WerkbankSection`
+([werkbank/](../../src/plugins/antraege/werkbank/)) die schlanke `NachforderungenSection`; Flag aus ⇒
+alles wie bisher. Der Unterschied zum reinen NF-Testballon: der **Mensch benennt vorab, WAS fehlt**,
+statt das LLM frei über den Katalog wählen zu lassen.
+
+- **Offene Punkte** (`WerkbankPunkt`, `kv`-Key `werkbank-punkte:<verbund-az>`, **rein IDB-lokal** —
+  kein Share/Snapshot/Mirror): manuelle Erfassung (Text + Aspekt-Chip A–J + optionale Fundstelle),
+  stabiler Key aus dem Text (`hashText`). `offen`/`erledigt` ist die einzige Zustandsachse (kein
+  Status-Automat). `quelle` `'map-kriterium'`/`'rechencheck'`/`'aufbereitung'` ist der vorbereitete
+  Andockpunkt (Phase-1-Pause / Folgearbeit).
+- **Fluss** (≤ 4 sichtbare Schritte): Punkte ankreuzen (nach Aspekt gruppiert, „alle wählen") →
+  Artefakt-Schalter (NF | RNE | ABL — RNE/ABL bis zur nächsten Ausbaustufe deaktiviert) → je Punkt
+  begründete Baustein-Vorschläge aus `sucheBausteine` (nur freigegebene, `treffer[]` sichtbar; Mensch
+  bestätigt/ändert/entfernt; kein Treffer ⇒ `[TODO Baustein zuordnen]`) → **Generieren über die
+  bestehende NF-Maschine** (`useWerkbank` → `useNachforderungen.generiereWerkbank`, kein zweiter
+  Pfad). Der `WerkbankAuftrag` trägt die bestätigte Baustein-Vorauswahl (nach Scope getrennt) + den
+  Punkt-Kontext; das LLM füllt nur noch Platzhalter. Am `WorkflowRun` stehen `katalogRef` +
+  `werkbankPunkte` (Provenienz für Phase 6).
+- **Reuse ohne Fork:** `generiere(auftrag?)` in `useNachforderungen` ist der gemeinsame Kern — ohne
+  `auftrag` voller Katalog (byte-identisch zu vorher), mit `auftrag` die Werkbank-Auswahl.
 
 ## GA-QS (aus QS v2)
 

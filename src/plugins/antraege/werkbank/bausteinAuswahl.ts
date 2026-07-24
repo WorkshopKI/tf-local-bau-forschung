@@ -1,0 +1,73 @@
+/**
+ * Reine Auswahl-Logik der Werkbank: Baustein-Vorschläge je offenem Punkt, und aus der
+ * bestätigten Auswahl der `WerkbankAuftrag` für die NF-Maschine. UI-frei + testbar.
+ *
+ * Kern-Idee: der Mensch kreuzt Punkte an und bestätigt je Punkt Bausteine (aus dem
+ * begründbaren Vorschlag). Das LLM wählt danach NICHT mehr — es bekommt genau diese
+ * Bausteine und füllt nur deren Platzhalter (Pitfall #34).
+ */
+import {
+  freigegebeneBausteine, sucheBausteine,
+  type BausteinTreffer, type TextbausteinRecord,
+} from '@/core/services/skills';
+import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung/aspekt-katalog';
+import type { WerkbankAuftrag } from '../nachforderungen/useNachforderungen';
+import type { WerkbankPunkt } from './types';
+
+/** Aspekt-Kürzel → Name (für den Punkt-Kontext-Text). */
+const ASPEKT_NAME = new Map(PRUEF_ASPEKTE.map(a => [a.id, a.name]));
+
+/**
+ * Vorschläge zu einem Punkt: Aspekt-Treffer (hoch gewichtet) + Wortstamm-Treffer über
+ * beide Scopes. Nur freigegebene Bausteine (die Selektoren garantieren das).
+ */
+export function vorschlaegeFuerPunkt(
+  katalog: readonly TextbausteinRecord[], punkt: WerkbankPunkt, maxTreffer = 4,
+): Array<BausteinTreffer<TextbausteinRecord>> {
+  return sucheBausteine(katalog, [punkt.text], 'nf', undefined, {
+    aspektId: punkt.aspektId, maxTreffer,
+  });
+}
+
+/** Die bestätigte Zuordnung: Punkt-Key → Baustein-IDs (leer = TODO). */
+export type Auswahl = Record<string, string[]>;
+
+/** Punkt-Keys, denen (noch) kein Baustein zugeordnet ist. */
+export function todoPunkte(gewaehlt: readonly WerkbankPunkt[], auswahl: Auswahl): string[] {
+  return gewaehlt.filter(p => (auswahl[p.key] ?? []).length === 0).map(p => p.key);
+}
+
+/** Ein Punkt als Kontext-Zeile für das LLM (Aspekt + Text + zugeordnete Bausteine). */
+function punktZeile(p: WerkbankPunkt, bausteinIds: string[]): string {
+  const aspekt = p.aspektId ? `[${p.aspektId} ${ASPEKT_NAME.get(p.aspektId) ?? ''}] ` : '';
+  const bs = bausteinIds.length > 0 ? ` (Bausteine: ${bausteinIds.join(', ')})` : ' (kein Baustein zugeordnet)';
+  return `- ${aspekt}${p.text}${bs}`;
+}
+
+/**
+ * Baut aus den gewählten Punkten + der bestätigten Auswahl den `WerkbankAuftrag`:
+ * die zugeordneten Bausteine (dedupliziert, nur freigegebene, nach Scope getrennt) +
+ * der Punkt-Kontext + die Punkt-Keys für den Audit-Stempel. Rein.
+ *
+ * Ein zugeordneter Baustein, der (nicht mehr) freigegeben ist, fällt still weg — die
+ * Werkbank arbeitet ausschliesslich mit freigegebenen Bausteinen.
+ */
+export function baueAuftrag(
+  katalog: readonly TextbausteinRecord[], gewaehlt: readonly WerkbankPunkt[], auswahl: Auswahl,
+): WerkbankAuftrag {
+  const freigegeben = new Map(freigegebeneBausteine(katalog, 'nf').map(b => [b.id, b]));
+  const verwendet = new Map<string, TextbausteinRecord>();
+  const zeilen: string[] = [];
+  for (const p of gewaehlt) {
+    const ids = (auswahl[p.key] ?? []).filter(id => freigegeben.has(id));
+    for (const id of ids) verwendet.set(id, freigegeben.get(id)!);
+    zeilen.push(punktZeile(p, ids));
+  }
+  const alle = [...verwendet.values()];
+  return {
+    verbundBausteine: alle.filter(b => b.scope === 'verbund'),
+    tvBausteine: alle.filter(b => b.scope !== 'verbund'),
+    punktKontext: zeilen.join('\n'),
+    punktKeys: gewaehlt.map(p => p.key),
+  };
+}

@@ -41,6 +41,7 @@
     "gutachtenWorkflow": true,
     "workflowEntwuerfe": true,
     "nfNachforderungen": true,
+    "artefaktWerkbank": true,
     "antragAufbereitung": true,
     "skillVerwaltung": true,
     "anfragen": true,

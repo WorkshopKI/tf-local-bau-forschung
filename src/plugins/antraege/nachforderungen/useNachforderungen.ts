@@ -40,6 +40,21 @@ export interface NfEntwurf {
   mailto: string;
 }
 
+/**
+ * Auftrag der Artefakt-Werkbank: die vom Menschen **bestätigte** Baustein-Vorauswahl
+ * (nach Scope getrennt) + der Kontext der adressierten offenen Punkte. Ist er gesetzt,
+ * bekommt das LLM NICHT den ganzen Katalog zur freien Wahl, sondern genau diese
+ * Bausteine — es füllt nur noch deren Platzhalter. `punktKeys` landet im Audit-Stempel
+ * des Runs (welche Punkte adressiert wurden).
+ */
+export interface WerkbankAuftrag {
+  verbundBausteine: TextbausteinRecord[];
+  tvBausteine: TextbausteinRecord[];
+  /** Menschlich formulierte Punkt-Texte (mit Aspekt) — was adressiert werden soll. */
+  punktKontext: string;
+  punktKeys: string[];
+}
+
 export interface NachforderungenController {
   loading: boolean;
   busy: boolean;
@@ -50,6 +65,8 @@ export interface NachforderungenController {
   entwuerfe: NfEntwurf[];
   /** Erzeugt für JEDES TV einen NF-Entwurf (G-Block einmal + je TV-Block). */
   generiereAlle: () => void;
+  /** Wie `generiereAlle`, aber mit bestätigter Baustein-Vorauswahl aus der Werkbank. */
+  generiereWerkbank: (auftrag: WerkbankAuftrag) => void;
   refreshVb: () => void;
   stop: () => void;
   clearError: () => void;
@@ -97,7 +114,12 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx.key]);
 
-  async function generiereAlle(): Promise<void> {
+  /**
+   * Kern der NF-Generierung. `auftrag` fehlt → voller Katalog, LLM wählt frei
+   * (bisheriges Verhalten, byte-identisch). `auftrag` gesetzt → nur die bestätigten
+   * Werkbank-Bausteine + Punkt-Kontext; das LLM füllt nur noch Platzhalter.
+   */
+  async function generiere(auftrag?: WerkbankAuftrag): Promise<void> {
     if (!vb || !skill || !katalog) return;
     const ac = new AbortController();
     abortRef.current = ac;
@@ -113,11 +135,17 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       const stammdaten = buildStammdaten(ctx);
       const modell = (transport as { name?: string }).name ?? 'intern';
       // NUR freigegebene Bausteine — Entwürfe (frisch importiert, in Arbeit) und
-      // Stillgelegte dürfen nie in einen Nachforderungs-Entwurf geraten.
-      const gBausteine = freigegebeneBausteine(katalog.bausteine, 'nf', 'verbund');
-      const tvBausteine = freigegebeneBausteine(katalog.bausteine, 'nf', 'tv');
+      // Stillgelegte dürfen nie in einen Nachforderungs-Entwurf geraten. Der Werkbank-
+      // Auftrag trägt bereits eine kuratierte (freigegebene) Auswahl.
+      const gBausteine = auftrag ? auftrag.verbundBausteine : freigegebeneBausteine(katalog.bausteine, 'nf', 'verbund');
+      const tvBausteine = auftrag ? auftrag.tvBausteine : freigegebeneBausteine(katalog.bausteine, 'nf', 'tv');
       const gKatalog = formatBausteinKatalog(gBausteine);
       const tvKatalog = formatBausteinKatalog(tvBausteine);
+      // Punkt-Kontext der Werkbank an den VB-Kontext hängen: sagt dem Modell, WELCHE
+      // Lücken die vorgegebenen Bausteine adressieren (statt sie selbst zu suchen).
+      const punktBlock = auftrag?.punktKontext.trim()
+        ? `\n\n## Zu adressierende offene Punkte\n${auftrag.punktKontext.trim()}`
+        : '';
       // Audit: mit WELCHEM Katalog-Stand und welchen Baustein-Fassungen erzeugt wurde.
       // Muster `vorlageRef` — ohne diesen Stempel liesse sich ein alter Entwurf später
       // nicht mehr gegen die dann geltenden Bausteine halten.
@@ -132,9 +160,9 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       const gRes = await runSkill(transport, skill, regeln, {
         ziel: aktivesZielFuerLauf(),
         stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
-        verbundKontext: vbCapped, tvKontext: '', nfBausteine: gKatalog,
+        verbundKontext: vbCapped + punktBlock, tvKontext: '', nfBausteine: gKatalog,
       });
-      const gBlock = gRes.parsed.finalerText;
+      const gBlock = gBausteine.length > 0 ? gRes.parsed.finalerText : '';
 
       // 2) Je TV der TV-Block (T-Bausteine), dann G-Block + TV-Block mergen.
       const ergebnisse: NfEntwurf[] = [];
@@ -142,17 +170,19 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       for (const tv of ctx.teilvorhaben) {
         if (ac.signal.aborted) break;
         const tvKontext = `Teilvorhaben ${tv.nr}: ${tv.titel ?? '[ohne Titel]'} `
-          + `(Antragsteller: ${tv.antragsteller ?? '[Im Antrag nicht genannt]'})\n\n${vbCapped}`;
-        const tvRes = await runSkill(transport, skill, regeln, {
-          ziel: aktivesZielFuerLauf(),
-          stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
-          verbundKontext: '', tvKontext, nfBausteine: tvKatalog,
-        });
-        const merged = mergeNfFuerTv(gBlock, tvRes.parsed.finalerText);
+          + `(Antragsteller: ${tv.antragsteller ?? '[Im Antrag nicht genannt]'})\n\n${vbCapped}${punktBlock}`;
+        const tvBlock = tvBausteine.length > 0
+          ? (await runSkill(transport, skill, regeln, {
+            ziel: aktivesZielFuerLauf(),
+            stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
+            verbundKontext: '', tvKontext, nfBausteine: tvKatalog,
+          })).parsed
+          : { quellenanalyse: '', entwurf: '', finalerText: '' };
+        const merged = mergeNfFuerTv(gBlock, tvBlock.finalerText);
         const checks = pruefeNf(merged);
         const step: StepRun = {
-          quellenanalyse: tvRes.parsed.quellenanalyse,
-          entwurf: tvRes.parsed.entwurf,
+          quellenanalyse: tvBlock.quellenanalyse,
+          entwurf: tvBlock.entwurf,
           finalerText: merged,
           checks,
           status: 'entwurf',
@@ -163,7 +193,9 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
         };
         const run: WorkflowRun = {
           aktenzeichen: tv.aktenzeichen, schritte: { NF: step }, aktiverSchritt: 'NF',
-          erstellt_am: now, geaendert_am: now, katalogRef, schemaVersion: 1,
+          erstellt_am: now, geaendert_am: now, katalogRef,
+          ...(auftrag ? { werkbankPunkte: auftrag.punktKeys } : {}),
+          schemaVersion: 1,
         };
         await putWorkflowRun(storage.idb, run, 'nf');
         ergebnisse.push({
@@ -205,7 +237,8 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
     vbVorhanden: vb !== null,
     vbDokument: vb?.dokument ?? null,
     entwuerfe,
-    generiereAlle: () => { void generiereAlle(); },
+    generiereAlle: () => { void generiere(); },
+    generiereWerkbank: (auftrag: WerkbankAuftrag) => { void generiere(auftrag); },
     refreshVb: () => { void refreshVb(); },
     stop: () => abortRef.current?.abort(),
     clearError: () => setError(null),

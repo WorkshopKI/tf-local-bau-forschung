@@ -18,32 +18,13 @@ import {
   getOrComputeBaustein, aspekteCacheKey, vbHashFuer, type BausteinResult,
 } from './bausteine';
 
-/** Ein fester Prüfaspekt (A–J) mit Name + knappem Fokus-Satz für den Prompt. */
-export interface PruefAspekt {
-  id: string;
-  name: string;
-  fokus: string;
-}
-
-/**
- * Prüfaspekt-Katalog A–J (Code-Konstante, NICHT Registry). Die Fokus-Sätze steuern
- * die LLM-Zuordnung; sie beschreiben knapp, was inhaltlich in den Aspekt gehört.
- */
-export const PRUEF_ASPEKTE: PruefAspekt[] = [
-  { id: 'A', name: 'Ausgangssituation & Marktbedarf', fokus: 'Warum das Vorhaben nötig ist: Problem, Ausgangslage, Bedarf im Markt.' },
-  { id: 'B', name: 'Projektgegenstand', fokus: 'Was im Kern entwickelt wird — das FuE-Vorhaben als Ganzes.' },
-  { id: 'C', name: 'Technische Funktionalitäten', fokus: 'Welche technischen Funktionen und Merkmale das Ergebnis haben soll.' },
-  { id: 'D', name: 'Technische Risiken', fokus: 'Technische Herausforderungen, Unwägbarkeiten und Entwicklungsrisiken.' },
-  { id: 'E', name: 'Stand der Technik & Konkurrenz', fokus: 'Abgrenzung zum aktuellen Stand der Technik und zu Wettbewerbern.' },
-  { id: 'F', name: 'Realisierbarkeit', fokus: 'Machbarkeit: vorhandene Ausstattung, Vorarbeiten, Zeit- und Ressourcenrahmen.' },
-  { id: 'G', name: 'Fachliche Eignung', fokus: 'Qualifikation und Kompetenz des Teams für dieses Vorhaben.' },
-  { id: 'H', name: 'Projektplan', fokus: 'Arbeitspakete, Zeitplan und Personaleinsatz (Anlage 5).' },
-  { id: 'I', name: 'Märkte & Marktanteile', fokus: 'Zielmärkte, Marktvolumen, angestrebte Marktanteile/Absatzzahlen und Preisvorstellungen.' },
-  { id: 'J', name: 'Meilensteine & Zielkriterien', fokus: 'Explizite Meilensteine + messbare Abbruch-/Erfolgs-/Zielkriterien — oft ein eigenes Unterkapitel („Zielkriterien"/„Meilensteine"), AUCH innerhalb eines Markteinführungs-/Verwertungskapitels. Die angestrebten Marktanteile selbst zählen NICHT zu J (die sind I).' },
-];
-
-/** Menge der gültigen Aspekt-IDs (A–J). */
-export const ASPEKT_IDS: ReadonlySet<string> = new Set(PRUEF_ASPEKTE.map(a => a.id));
+// Der Prüfaspekt-Katalog (PruefAspekt/PRUEF_ASPEKTE/ASPEKT_IDS) lebt im Leaf-Modul
+// `aspekt-katalog.ts` (dep-frei) und wird hier re-exportiert — Konsumenten, die NUR
+// den Katalog brauchen (Werkbank), importieren dort, ohne diese Transport-/IDB-Kette.
+// Import zusätzlich für die lokale Nutzung in den Funktionen unten (Re-Export allein
+// legt keine lokalen Bindungen an).
+import { PRUEF_ASPEKTE, ASPEKT_IDS } from './aspekt-katalog';
+export { PRUEF_ASPEKTE, ASPEKT_IDS, type PruefAspekt } from './aspekt-katalog';
 
 /** „dünn"-Schwellen (Default): Anteil < 3 % ODER absolute Zeichenzahl < 1200. */
 export const SUBSTANZ_DUENN_ANTEIL = 0.03;

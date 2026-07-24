@@ -118,6 +118,10 @@ export interface TeamflowFeatures {
   /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwuerfe auf der Verbund-
    *  Detailseite. Nur dev (Testballon). Optional, default false. */
   nfNachforderungen?: boolean;
+  /** Artefakt-Werkbank: EIN Workspace (offene Punkte -> Baustein-Auswahl -> Entwurf
+   *  NF/RNE/ABL) auf der Verbund-Detailseite. Ersetzt die NachforderungenSection.
+   *  Nur dev (Pilot). Optional, default false. */
+  artefaktWerkbank?: boolean;
   /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-
    *  Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilitaet). Paket 1 rein
    *  deterministisch (kein LLM). Nur dev. Optional, default false. */

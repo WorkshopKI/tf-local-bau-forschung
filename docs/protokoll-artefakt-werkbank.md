@@ -162,9 +162,49 @@ Fünf Befunde weichen vom Auftrags-Stand (v2.305.2) ab und haben den Zuschnitt g
 
 ---
 
-## Phase 4 — Werkbank NF
+## Phase 4 — Werkbank NF (v2.311.0)
 
-*(offen)*
+**Default-Entscheidungen**
+
+1. **Flag `artefaktWerkbank`** (dev `true`, sonst false). Aktiv ⇒ `WerkbankSection` ersetzt
+   `NachforderungenSection` in `VerbundDetail.tsx`; Flag aus ⇒ byte-identisch zu heute (die
+   NF-Section bleibt unverändert erreichbar). **pl-Aktivierung nach Pilot = die Zeile in
+   `configs/pl.config.json` von `false` auf `true` (Ein-Zeilen-Change).**
+2. **Reuse statt Fork:** `useNachforderungen.generiere(auftrag?)` ist der gemeinsame Kern.
+   Ohne `auftrag` voller Katalog + freie LLM-Wahl (unverändert); mit `auftrag` die bestätigte
+   Werkbank-Auswahl — das LLM füllt nur Platzhalter. Zweiter Pfad vermieden (Anti-Pattern).
+3. **Punkte rein IDB-lokal** (`werkbank-punkte:<az>`, kein Share/Mirror) — es ist der offene
+   Arbeitsvorrat EINES Prüfers, nicht team-weit geteilte Daten.
+4. **TV-Zuordnung der bestätigten Bausteine:** G-Bausteine einmal am Verbund (wie NF), die
+   bestätigten T-Bausteine gehen an JEDES TV (der Mensch bestätigt am Verbund, nicht pro TV).
+   Bewusste Vereinfachung des Demonstrators — im Protokoll als Grenze vermerkt.
+5. **`quelle: 'map-kriterium'`/`'rechencheck'`/`'aufbereitung'`** sind im Modell vorhanden, aber
+   nur `'manuell'` ist in Phase 4 aktiv. MAP-/Rechencheck-Übernahme = Folgearbeit (hängt an
+   derselben Phase-1-Rückwärtssuche); die Werkbank funktioniert mit manuellen Punkten voll.
+6. **Fundstellen-Assist-Skill (Plan-Punkt 4.2) verschoben:** die manuelle Erfassung + die
+   deterministischen Vorschläge tragen den Durchstich; der optionale KI-Fundstellen-Vorschlag
+   (Seed `aktiv:false` + STOPP-R) folgt zusammen mit dem Phase-6-Assist (gleicher Skill-Ansatz),
+   um nicht zweimal denselben Seed zu schreiben.
+7. **Leaf-Extraktion `aspekt-katalog.ts`:** der Prüfaspekt-Katalog wurde aus `aspekte.ts`
+   (zieht pdfjs/Transport-Kette) in ein dep-freies Leaf gelöst, sonst schleppt jeder
+   Katalog-Konsument den ganzen Aufbereitungs-Stack in den Modulgraphen (Node-Tests scheitern
+   am pdfjs-Worker). `aspekte.ts` + Barrel re-exportieren; eine Quelle bleibt.
+
+**Gate:** `npm run check` grün (418 Test-Dateien, 4726 Tests, 0 Zyklen), `build:dev` + `build:pl`.
+Feature-Flag-Baseline 34 → 35, `no-raw-async-onclick`/Zyklen grün.
+
+**Abnahme-Checkliste (offen, beim Nutzer)**
+- [ ] Verbund-Detail: Sektion „Artefakt-Werkbank" statt „Nachforderungen" (dev); ohne VB die
+      Aufnahme-Fläche.
+- [ ] Punkt erfassen (Text + Aspekt) → erscheint in der Aspekt-Gruppe; „alle wählen" greift.
+- [ ] Punkt ankreuzen → Baustein-Vorschläge mit Treffer-Begründung; bestätigen/entfernen;
+      kein Treffer ⇒ TODO-Markierung.
+- [ ] „Entwurf erzeugen" → je TV ein NF-Entwurf (bestehende Karten + Export/mailto); ≤ 4 Schritte.
+- [ ] RNE/ABL im Schalter deaktiviert mit Hinweis.
+- [ ] Flag aus (prod-artige Config) ⇒ alte `NachforderungenSection` unverändert.
+
+**Verschoben** (siehe Defaults 5/6): MAP-/Rechencheck-Punkt-Übernahme; Fundstellen-Assist-Skill
+(mit Phase 6); TV-genaue Baustein-Zuordnung.
 
 ---
 

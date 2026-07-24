@@ -22,7 +22,7 @@ import {
   type AenderungsKontext, type BausteinArtefaktTyp, type BausteinStatus,
   type TextbausteinRecord, type TextbausteinSnapshot,
 } from '@/core/services/skills';
-import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung';
+import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung/aspekt-katalog';
 import { useTextbausteinKatalog } from './useTextbausteinKatalog';
 import { findeBaustein, neuerBaustein, scopeAusId, upsertBaustein } from './textbausteinKatalogOps';
 import { filterBausteine, LEERER_FILTER, zaehleStatus, type BausteinFilter } from './textbausteinFilter';

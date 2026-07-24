@@ -175,6 +175,12 @@ export const DEFAULT_CONFIG = {
      *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur
      *  dev (Testballon). Optional, default false (kein requiredFlags-Eintrag). */
     nfNachforderungen: true,
+    /** Artefakt-Werkbank: EIN Workspace auf der Verbund-Detailseite — offene Punkte
+     *  erfassen/ankreuzen → Baustein-Vorschläge bestätigen → Entwurf (NF/RNE/ABL)
+     *  über die bestehende NF-Maschine. Ersetzt bei aktivem Flag die
+     *  NachforderungenSection. Nur dev (Pilot); pl-Aktivierung nach Abnahme ist ein
+     *  Ein-Zeilen-Change. Optional, default false (kein requiredFlags-Eintrag). */
+    artefaktWerkbank: true,
     /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-
      *  Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Paket 1 rein
      *  deterministisch (kein LLM). Nur dev. Optional, default false

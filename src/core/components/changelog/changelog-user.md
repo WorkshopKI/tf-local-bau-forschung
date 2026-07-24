@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.311 — 2026-07
+
+### Neu
+- Auf der Verbund-Seite gibt es eine neue „Artefakt-Werkbank": Sie halten die offenen Punkte eines Antrags fest, ordnen sie den Prüfaspekten zu und kreuzen an, welche in eine Nachforderung sollen. Zu jedem Punkt schlägt die App passende Textbausteine vor — Sie bestätigen die Auswahl, und der Entwurf wird daraus erzeugt. So bestimmen Sie, was nachgefordert wird, statt es der KI zu überlassen.
+
 ## v2.310 — 2026-07
 
 ### Neu

@@ -158,6 +158,12 @@ export function isGutachtenWorkflowEnabled(): boolean {
 export function isNfNachforderungenEnabled(): boolean {
   return features.nfNachforderungen === true;
 }
+/** Artefakt-Werkbank: EIN Workspace (offene Punkte → Baustein-Auswahl → Entwurf
+ *  NF/RNE/ABL) auf der Verbund-Detailseite. Ersetzt bei aktivem Flag die
+ *  NachforderungenSection. Nur dev (Pilot). Default false (`=== true`). */
+export function isArtefaktWerkbankEnabled(): boolean {
+  return features.artefaktWerkbank === true;
+}
 /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-Ernte,
  *  Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Paket 1 rein deterministisch
  *  (kein LLM). Nur dev. Default false (`=== true`, Backward-Kompat). */

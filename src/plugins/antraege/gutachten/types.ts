@@ -174,5 +174,11 @@ export interface WorkflowRun {
    * baustein-getragenen Artefakten (NF/RNE/ABL) gesetzt, nie beim Gutachten.
    */
   katalogRef?: KatalogRef;
+  /**
+   * Stabile Keys der offenen Punkte, die dieser Lauf adressiert (Artefakt-Werkbank).
+   * Additiv-optional; nur bei über die Werkbank erzeugten Läufen gesetzt. Trägt die
+   * Provenienz für die spätere Widerspruchs-Gegenüberstellung (Phase 6).
+   */
+  werkbankPunkte?: string[];
   schemaVersion: 1;
 }

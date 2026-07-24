@@ -25,10 +25,11 @@ import { AbgelehnteVorgaengerBanner } from './AbgelehnteVorgaengerBanner';
 import { KurzfassungSection } from './kurzfassung/KurzfassungSection';
 import { GutachtenSection } from './gutachten/GutachtenSection';
 import { NachforderungenSection } from './nachforderungen/NachforderungenSection';
+import { WerkbankSection } from './werkbank/WerkbankSection';
 import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
 import { Button } from '@/components/ui/button';
-import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled } from '@/config/feature-flags';
+import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -378,8 +379,13 @@ export function VerbundDetail({
         </div>
       )}
 
-      {/* NACHFORDERUNGEN-WERKSTATT — eigener Artefakt-Typ (nur dev). */}
-      {isNfNachforderungenEnabled() ? (
+      {/* ARTEFAKT-WERKBANK / NACHFORDERUNGEN — die Werkbank (dev) ersetzt bei aktivem
+          Flag die schlanke Nachforderungen-Sektion; sonst bleibt alles wie bisher. */}
+      {isArtefaktWerkbankEnabled() ? (
+        <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <WerkbankSection ctx={kurzfassungCtx} />
+        </div>
+      ) : isNfNachforderungenEnabled() ? (
         <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <NachforderungenSection ctx={kurzfassungCtx} />
         </div>

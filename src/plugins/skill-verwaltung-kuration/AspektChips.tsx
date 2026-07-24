@@ -3,7 +3,7 @@
  * Konstante Breite über `min-w`, Häkchen via Farbe/Rahmen statt Layout-Sprung
  * (DESIGN_GUIDE Kap. 5). Die Aspekt-Namen stehen im Tooltip.
  */
-import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung';
+import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung/aspekt-katalog';
 
 export function AspektChips({
   gewaehlt, onToggle, disabled,

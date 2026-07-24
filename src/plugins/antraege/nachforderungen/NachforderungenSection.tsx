@@ -117,7 +117,7 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
   );
 }
 
-function NfEntwurfCard({ entwurf, onExport }: { entwurf: NfEntwurf; onExport: () => void }): React.ReactElement {
+export function NfEntwurfCard({ entwurf, onExport }: { entwurf: NfEntwurf; onExport: () => void }): React.ReactElement {
   const fehler = entwurf.checks.filter(c => c.level === 'fehler');
   const hinweise = entwurf.checks.filter(c => c.level === 'hinweis');
   return (

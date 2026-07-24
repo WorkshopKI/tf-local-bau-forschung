@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.311.0 — Artefakt-Werkbank am Verbund-Detail (Punkte, Baustein-Auswahl, Entwurf) (Juli 2026)
+
+MINOR — Der bisherige Nachforderungs-Testballon ließ das LLM frei aus dem ganzen Katalog wählen. Die Werkbank dreht das um: der Prüfer benennt zuerst die offenen Punkte, bestätigt passende Bausteine und lässt dann nur noch die Platzhalter füllen. Ein Workspace in vier Schritten. Nur dev.
+
+- Neue „Artefakt-Werkbank" am Verbund-Detail (Flag `artefaktWerkbank`) ersetzt die Nachforderungen-Sektion: Punkte erfassen → ankreuzen → Bausteine bestätigen → Entwurf ([WerkbankSection.tsx](src/plugins/antraege/werkbank/WerkbankSection.tsx)).
+- Offene Punkte werden nach Prüfaspekt gruppiert und rein lokal gespeichert; Baustein-Vorschläge zeigen, warum sie angeschlagen haben ([bausteinAuswahl.ts](src/plugins/antraege/werkbank/bausteinAuswahl.ts)).
+- Die Generierung läuft über die bestehende NF-Maschine — kein zweiter Pfad; der Lauf stempelt die adressierten Punkte + Baustein-Fassungen ([useNachforderungen.ts](src/plugins/antraege/nachforderungen/useNachforderungen.ts)).
+- Der Prüfaspekt-Katalog wurde in ein abhängigkeitsfreies Modul gelöst, damit ihn Werkbank & Co. ohne den ganzen Aufbereitungs-Stack nutzen ([aspekt-katalog.ts](src/plugins/antraege/aufbereitung/aspekt-katalog.ts)).
+- Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
 ### v2.310.0 — Textbaustein-Verwaltung + Word-Import (Juli 2026)
 
 MINOR — Aufbauend auf dem Katalog-Datenmodell (v2.309): die Nachforderungs-Textbausteine lassen sich jetzt in der App pflegen, statt nur im Code zu leben. Neuer Reiter in der Skill-Verwaltung, mit Word-Import als Einfuhrweg.
