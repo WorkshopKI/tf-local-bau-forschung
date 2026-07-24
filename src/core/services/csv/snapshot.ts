@@ -57,6 +57,22 @@ const SNAPSHOT_FILES = {
  */
 const PUBLISH_PRESERVE_WHEN_EMPTY: ReadonlySet<SnapshotStoreName> = new Set(['csv_schemas', 'programme']);
 
+/**
+ * Struktur-Stores, für die eine versionierte Backup-Historie auf dem Share gehalten
+ * wird: klein (KB–wenige MB) UND deren Verlust NICHT aus `antraege` rekonstruierbar
+ * ist. Bewusst NICHT dabei: `antraege` (421 MB — pro Publish sichern zu teuer), die
+ * append-wachsenden Historien (`antrag_historie`/`verbund_historie`) und der
+ * rekonstruierbare `csv_row_hashes`-Cache. Defense-in-depth zum Empty-Guard — falls
+ * eine Datei doch mal defekt/leer wird (Teil-Write, Fremd-Löschung), liegt der
+ * letzte gute Stand griffbereit.
+ */
+const BACKUP_STORES: ReadonlySet<SnapshotStoreName> = new Set([
+  'csv_schemas', 'programme', 'unterprogramme', 'verbuende', 'akronym_index',
+]);
+
+/** Wie viele DISTINKTE letzte Fassungen je Store aufbewahrt werden. */
+export const SMALL_STORE_BACKUP_KEEP = 5;
+
 export type SnapshotStoreName = keyof typeof SNAPSHOT_FILES;
 
 /** Ein einzelnes Delta (v2): geänderte/neue Records + entfernte Keys je Store. */
@@ -241,6 +257,48 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
 /** Schreibt die kleinen Stores (alle außer antraege) voll + liefert Manifest-
  *  Einträge. Von Voll-Write UND Delta-Write genutzt (im Delta-Fall bleibt die
  *  antraege-Basis unangetastet, nur diese kleinen Stores werden neu geschrieben). */
+/**
+ * Versionierte Best-Effort-Sicherung eines kleinen Struktur-Stores unter
+ * `<snapshot>/backups/<store>.<version>.jsonl`. Nur NICHT-leerer Inhalt landet im
+ * Backup (ein defekter/leerer Write wird nie die jüngste Sicherung) und nur, wenn er
+ * sich von der jüngsten Sicherung unterscheidet (keine Duplikate bei unveränderten
+ * Stores — csv_schemas ändert sich selten). Hält die letzten
+ * `SMALL_STORE_BACKUP_KEEP` DISTINKTEN Fassungen. Fehler blockieren den Publish nie
+ * (der eigentliche Snapshot steht schon).
+ */
+async function backupSmallStore(
+  programmDir: FileSystemDirectoryHandle,
+  storeFile: string,
+  content: string,
+  version: string,
+): Promise<void> {
+  try {
+    const backupsDir = await programmDir.getDirectoryHandle('backups', { create: true });
+    const prefix = `${storeFile.replace(/\.jsonl$/, '')}.`;
+    const existing: string[] = [];
+    const dir = backupsDir as unknown as { keys?: () => AsyncIterable<string> };
+    if (typeof dir.keys === 'function') {
+      for await (const name of dir.keys()) {
+        if (name.startsWith(prefix) && name.endsWith('.jsonl')) existing.push(name);
+      }
+    }
+    existing.sort(); // FS-sichere ISO-Version → lexikografisch = chronologisch
+    // Unverändert gegenüber der jüngsten Sicherung? → nichts tun (keine Duplikate).
+    const newest = existing.length > 0 ? existing[existing.length - 1]! : null;
+    if (newest && (await readText(backupsDir, newest)) === content) return;
+
+    const name = `${prefix}${version}.jsonl`;
+    await atomicWrite(backupsDir, name, content, { skipBackup: true });
+    // Prune: nur die neuesten SMALL_STORE_BACKUP_KEEP behalten.
+    const after = [...new Set([...existing, name])].sort();
+    for (const old of after.slice(0, Math.max(0, after.length - SMALL_STORE_BACKUP_KEEP))) {
+      await backupsDir.removeEntry(old).catch(() => undefined);
+    }
+  } catch (e) {
+    console.warn(`[snapshot] Backup ${storeFile} fehlgeschlagen (best-effort)`, e);
+  }
+}
+
 async function writeSmallStores(
   programmDir: FileSystemDirectoryHandle,
   smallData: SmallStoreData,
@@ -248,6 +306,8 @@ async function writeSmallStores(
 ): Promise<{ stores: Partial<Record<SnapshotStoreName, { count: number; hash: string }>>; written: SnapshotStoreName[] }> {
   const stores: Partial<Record<SnapshotStoreName, { count: number; hash: string }>> = {};
   const written: SnapshotStoreName[] = [];
+  // Eine Version je Publish-Lauf (alle Stores derselben Sicherung teilen sie).
+  const backupVersion = new Date().toISOString().replace(/[:.]/g, '-');
   for (const key of Object.keys(SNAPSHOT_FILES) as SnapshotStoreName[]) {
     if (key === 'antraege') continue;
     const d = smallData[key]!;
@@ -267,6 +327,10 @@ async function writeSmallStores(
     stores[key] = { count: d.count, hash: await sha256Hex(d.jsonl) };
     await atomicWrite(programmDir, SNAPSHOT_FILES[key], d.jsonl, { skipBackup: true });
     written.push(key);
+    // Versionierte Backup-Historie der kleinen Struktur-Stores (nur nicht-leer).
+    if (d.count > 0 && BACKUP_STORES.has(key)) {
+      await backupSmallStore(programmDir, SNAPSHOT_FILES[key], d.jsonl, backupVersion);
+    }
   }
   return { stores, written };
 }
