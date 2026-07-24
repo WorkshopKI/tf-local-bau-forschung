@@ -50,7 +50,8 @@
     "assistentProtokoll": true,
     "assistentPanel": true,
     "assistentGedaechtnis": true,
-    "mapFoerderfaehig": true
+    "mapFoerderfaehig": true,
+    "statusCockpit": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

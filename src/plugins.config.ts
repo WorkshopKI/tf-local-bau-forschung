@@ -19,6 +19,7 @@ import { dokumentenquellenKurationPlugin } from '@/plugins/dokumentenquellen-kur
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
 import { mapFoerderfaehigPlugin } from '@/plugins/map-foerderfaehig';
+import { statusCockpitPlugin } from '@/plugins/status-cockpit';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -26,6 +27,7 @@ const allPlugins: TeamFlowPlugin[] = [
   antraegePlugin,
   anfragenPlugin,
   mapFoerderfaehigPlugin,
+  statusCockpitPlugin,
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,

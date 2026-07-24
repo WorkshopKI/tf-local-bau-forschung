@@ -17,10 +17,16 @@ export { ermittleNeueUnkuratierte, type BeobachteterWert } from './entdecke';
 export { entdeckeUnkuratiertNachImport, nachImportStatusPflege } from './import-integration';
 export { recordKey, leseFeldWert } from './feld-zugriff';
 export type { StatusEvent } from './event-typen';
-export { appendEvents, getStatusEvents } from './event-store';
+export { appendEvents, getStatusEvents, getAlleEvents } from './event-store';
 export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
 export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
+export {
+  baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
+  SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,
+} from './cockpit-berechnung';
+export { aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu } from './katalog-edit';
+export { exportiereVersion, validiereImport, type ImportErgebnis } from './export-import';
 
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';

@@ -1,0 +1,245 @@
+/**
+ * Status-Cockpit — Vollbild-Seite: Statuswerte kuratieren, Wirkung simulieren,
+ * versionieren.
+ *
+ * Reine Darstellung über der `useStatusCockpit`-API: Seitenkopf + Export/Import,
+ * Tab-Leiste (Katalog/Felder/Regeln), eine Simulations-Leiste (Phasenverteilung
+ * Aktiv→Entwurf + Konflikte + Phasenwechsel-Diff), eine Versions-Sektion und
+ * eine Speicher-Leiste, sobald der Entwurf von der aktiven Fassung abweicht.
+ */
+import { useState } from 'react';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { Download, Upload, History } from 'lucide-react';
+import { useStatusCockpit, type StatusCockpitApi } from './useStatusCockpit';
+import { KatalogTab } from './KatalogTab';
+import { FelderTab } from './FelderTab';
+import { RegelnTab } from './RegelnTab';
+import { SPINE_LABEL, SPINE_WERTE, feldStil, formatZeitpunkt } from './labels';
+
+type TabKey = 'katalog' | 'felder' | 'regeln';
+
+function ExportImportButtons({ api }: { api: StatusCockpitApi }): React.ReactElement {
+  const importieren = useAsyncAction(async () => { await api.importieren(); });
+  return (
+    <div className="flex items-center gap-1.5">
+      <Button variant="ghost" size="sm" icon={Download} onClick={() => api.exportieren()} disabled={!api.aktiveVersion}>
+        Exportieren
+      </Button>
+      <Button variant="ghost" size="sm" icon={Upload} disabled={importieren.busy} onClick={() => importieren.run()}>
+        {importieren.busy ? 'Importiert …' : 'Importieren'}
+      </Button>
+      {importieren.error != null && (
+        <span className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {importieren.error}</span>
+      )}
+    </div>
+  );
+}
+
+function PhasenZelle({ label, aktiv, entwurf, geaendert }: {
+  label: string; aktiv: number; entwurf: number; geaendert: boolean;
+}): React.ReactElement {
+  const abweichend = geaendert && aktiv !== entwurf;
+  return (
+    <div className="flex items-baseline gap-1.5 rounded px-2 py-1" style={feldStil}>
+      <span className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">{label}</span>
+      <span className="text-[12.5px] font-mono text-[var(--tf-text)]">{aktiv}</span>
+      {abweichend && (
+        <span className="text-[12.5px] font-mono text-[var(--tf-primary)] font-medium whitespace-nowrap">
+          → {entwurf}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function SimulationsLeiste({ api }: { api: StatusCockpitApi }): React.ReactElement {
+  const wechsel = api.phasenWechsel;
+  const sichtbar = wechsel.slice(0, 50);
+  const konfliktAbweichend = api.geaendert && api.konflikteAktiv !== api.konflikteEntwurf;
+  return (
+    <div className="px-6 py-2.5 border-b border-[var(--tf-border)] flex flex-col gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        {SPINE_WERTE.map(p => (
+          <PhasenZelle
+            key={p} label={SPINE_LABEL[p]}
+            aktiv={api.aktivVerteilung[p]} entwurf={api.entwurfVerteilung[p]} geaendert={api.geaendert}
+          />
+        ))}
+        <div className="flex items-baseline gap-1.5 rounded px-2 py-1" style={feldStil}>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">Konflikte</span>
+          <span className="text-[12.5px] font-mono text-[var(--tf-text)]">{api.konflikteAktiv}</span>
+          {konfliktAbweichend && (
+            <span className="text-[12.5px] font-mono text-[var(--tf-warning-text)] font-medium">
+              → {api.konflikteEntwurf}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {api.geaendert && wechsel.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">
+            {wechsel.length} Verbünde wechseln die Phase
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+            {sichtbar.map(w => (
+              <span key={w.verbundId} className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
+                <span className="font-mono text-[var(--tf-text-secondary)]">{w.verbundId}</span>{' '}
+                {SPINE_LABEL[w.vorher]} → {SPINE_LABEL[w.nachher]}
+              </span>
+            ))}
+            {wechsel.length > sichtbar.length && (
+              <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                +{wechsel.length - sichtbar.length} weitere
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
+  const [offen, setOffen] = useState(false);
+  const laden = useAsyncAction(async (version: number) => { await api.reaktivieren(version); });
+  const versionen = [...api.versionen].sort((a, b) => b.version - a.version);
+  const aktivNr = api.aktiveVersion?.version ?? null;
+
+  return (
+    <section className="mt-6 rounded" style={feldStil}>
+      <button
+        type="button"
+        onClick={() => setOffen(v => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+      >
+        <History size={15} />
+        Versionen ({versionen.length})
+        <span className="ml-auto text-[11px] text-[var(--tf-text-tertiary)]">{offen ? 'einklappen' : 'ausklappen'}</span>
+      </button>
+      {offen && (
+        <div className="flex flex-col divide-y divide-[var(--tf-border)] border-t border-[var(--tf-border)]">
+          {versionen.map(v => {
+            const istAktiv = v.version === aktivNr;
+            return (
+              <div key={v.version} className="flex items-center gap-2 px-3 py-2 flex-wrap">
+                <span className="text-[12.5px] font-mono text-[var(--tf-text)]">v{v.version}</span>
+                {istAktiv && <Badge variant="success">aktiv</Badge>}
+                <span className="text-[12px] text-[var(--tf-text-secondary)]">{v.autor ?? '—'}</span>
+                <span className="text-[11px] text-[var(--tf-text-tertiary)]">{formatZeitpunkt(v.zeitstempel)}</span>
+                {v.kommentar && (
+                  <span className="text-[12px] text-[var(--tf-text-secondary)] italic min-w-0 truncate">„{v.kommentar}"</span>
+                )}
+                {!istAktiv && (
+                  <Button
+                    variant="ghost" size="sm" className="ml-auto"
+                    disabled={laden.busy} onClick={() => laden.run(v.version)}
+                  >
+                    Als Entwurf laden
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+          {laden.error != null && (
+            <p className="text-[11.5px] text-[var(--tf-danger-text)] px-3 py-1.5">⚠ {laden.error}</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SaveBar({ api }: { api: StatusCockpitApi }): React.ReactElement {
+  const [kommentar, setKommentar] = useState('');
+  const speichern = useAsyncAction(async () => {
+    await api.speichern(kommentar);
+    setKommentar('');
+  });
+  const busy = speichern.busy || api.speichernBusy;
+  const fehler = api.speichernFehler ?? speichern.error;
+  return (
+    <div className="shrink-0 border-t border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-6 py-3 flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12.5px] text-[var(--tf-text-secondary)]">Entwurf weicht ab.</span>
+        <input
+          value={kommentar} placeholder="Kommentar (optional)"
+          className="flex-1 min-w-[200px] max-w-[420px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
+          style={feldStil}
+          onChange={e => setKommentar(e.target.value)}
+        />
+        <Button variant="primary" size="sm" disabled={busy} onClick={() => speichern.run()}>
+          {busy ? 'Speichert …' : 'Als neue Version speichern'}
+        </Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={() => api.verwerfen()}>
+          Verwerfen
+        </Button>
+      </div>
+      {fehler != null && <p className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {fehler}</p>}
+    </div>
+  );
+}
+
+export function StatusCockpitPage(): React.ReactElement {
+  const api = useStatusCockpit();
+  const [tab, setTab] = useState<TabKey>('katalog');
+
+  if (api.laden) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        <div className="px-6 pt-5 pb-3">
+          <PageHeader title="Status-Katalog" subtitle="Statuswerte kuratieren, simulieren, versionieren" />
+        </div>
+        <div className="flex-1 grid place-items-center text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>
+      </div>
+    );
+  }
+
+  const werteCount = api.entwurf?.werte.length ?? 0;
+  const felderCount = api.entwurf?.felder.length ?? 0;
+  const regelnCount = api.entwurf?.regeln.length ?? 0;
+
+  return (
+    <div className="flex flex-col h-full min-h-0">
+      <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
+        <PageHeader
+          title="Status-Katalog"
+          subtitle="Statuswerte kuratieren, simulieren, versionieren"
+          actions={<ExportImportButtons api={api} />}
+        />
+        <ScopeTabs
+          variant="tabs"
+          aria-label="Bereich"
+          activeKey={tab}
+          onChange={k => setTab(k as TabKey)}
+          items={[
+            { key: 'katalog', label: 'Katalog', count: werteCount },
+            { key: 'felder', label: 'Felder', count: felderCount },
+            { key: 'regeln', label: 'Regeln', count: regelnCount },
+          ]}
+        />
+      </div>
+
+      {api.fehler != null && (
+        <div className="mx-6 mt-3 rounded px-3 py-2 text-[12.5px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">
+          ⚠ {api.fehler}
+        </div>
+      )}
+
+      <SimulationsLeiste api={api} />
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+        {tab === 'katalog' && <KatalogTab api={api} />}
+        {tab === 'felder' && <FelderTab api={api} />}
+        {tab === 'regeln' && <RegelnTab api={api} />}
+        <VersionsPanel api={api} />
+      </div>
+
+      {api.geaendert && <SaveBar api={api} />}
+    </div>
+  );
+}

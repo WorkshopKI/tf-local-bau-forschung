@@ -33,3 +33,14 @@ export async function getStatusEvents(idb: IDBStore, verbundId: string): Promise
     req.onerror = () => reject(req.error);
   });
 }
+
+/** Alle Events (Cockpit: „zuletzt gesehen"). Für große Bestände sparsam nutzen. */
+export async function getAlleEvents(idb: IDBStore): Promise<StatusEvent[]> {
+  const db = idb.getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STATUS_EVENT_STORE, 'readonly');
+    const req = tx.objectStore(STATUS_EVENT_STORE).getAll();
+    req.onsuccess = () => resolve(req.result as StatusEvent[]);
+    req.onerror = () => reject(req.error);
+  });
+}

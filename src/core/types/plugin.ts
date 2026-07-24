@@ -18,6 +18,7 @@ export type PluginFeatureKey =
   | 'feedback'
   | 'mapFoerderfaehig'
   | 'skillVerwaltung'
+  | 'statusCockpit'
   | 'suche'
   | 'volltextsuche';
 
