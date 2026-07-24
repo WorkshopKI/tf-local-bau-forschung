@@ -124,9 +124,41 @@ Fünf Befunde weichen vom Auftrags-Stand (v2.305.2) ab und haben den Zuschnitt g
 
 ---
 
-## Phase 3 — Verwaltungs-Tab + Word-Import
+## Phase 3 — Verwaltungs-Tab + Word-Import (v2.310.0)
 
-*(offen)*
+**Default-Entscheidungen**
+
+1. **Tab selbst-verwaltend**, nicht in die Skill-`DetailZustand`-Union eingehängt. Der
+   Katalog hat eigene Sidecar, Persistenz und Lebenszyklus — er teilt mit Skills/Regeln nur
+   die Seite. Hält `SkillVerwaltungPage.tsx` klein (Diff: TabId + tabDef + eine Render-Zeile).
+2. **Text im Editor editierbar** (der Kurator pflegt den Wortlaut). Die Verbatim-Regel
+   (#34) bindet LLM-Pfad + Import, nicht die Kuration; im **Import** ist der Text read-only.
+3. **`useTextbausteinKatalog` seedet NICHT beim Öffnen** (anders als `useSkillRegistry`) —
+   deckt sich mit der STOPP-R-Entscheidung „Erst-Write erst beim Speichern".
+4. **Word-Import via mammoth** (bereits im Bundle, statischer Import wie `converter/index.ts`
+   — kein dynamisches `import()` unter file://, Pitfall #1). Heuristik rein/testbar
+   (`htmlZuBloecke`/`bausteinKandidatAus`); der mammoth-Aufruf ist ein dünner Mantel.
+5. **`diffLines` aus `registry/versioning.ts` exportiert** und für den Baustein-Text-Diff
+   wiederverwendet — eine Diff-Implementierung, nicht zwei.
+6. **`PRUEF_ASPEKTE` aus dem Aufbereitungs-Barrel** importiert (kein core→plugin: die
+   Aspekt-Validierung bleibt in der UI-Schicht, der core-Service akzeptiert `string[]`).
+   Kein neuer Zyklus (Wächter grün).
+7. **e2e-Word-Test ruft mammoth direkt mit Node-Buffer** (Vitest=node, dort `{ buffer }`);
+   der App-Wrapper nutzt bewusst `{ arrayBuffer }` (Browser) und wird nicht node-getestet.
+8. **Doc-Diät-Ceiling** 47_900 → 48_300 (CLAUDE.md-Decision-Tree-Zeile, sanktioniertes
+   Wachstum).
+
+**Gate:** `npm run check` grün (417 Test-Dateien, 4716 Tests, 0 Zyklen), `build:dev` + `build:pl`.
+
+**Abnahme-Checkliste (offen, beim Nutzer)**
+- [ ] Skill-Verwaltung → Reiter „Textbausteine": 78 migrierte NF-Bausteine sichtbar, alle
+      `freigegeben`; Filter (Typ/Status/Aspekt/Suche) greifen.
+- [ ] Editor: Text ändern → Speichern erzeugt neue Version + Historien-Eintrag mit Diff.
+- [ ] Freigeben/Stilllegen verlangt eine Begründung und erzeugt einen Snapshot.
+- [ ] „Aus Word importieren": Kandidaten erscheinen, Text read-only, Übernahme erzeugt nur
+      Entwürfe; ID-Kollision landet als neue Version.
+- [ ] Tab in dev + pl + kurator sichtbar; ohne Schreibrecht nur lesbar.
+- [ ] Erste Speicherung legt `_intern/skills/textbausteine.json` auf dem Share an.
 
 ---
 

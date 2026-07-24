@@ -105,6 +105,7 @@ export {
   appendHistorie,
   rollbackSkill,
   diffSkillVersions,
+  diffLines,
   type DiffZeile,
   type DiffZeilenTyp,
   type SkillVersionsDiff,

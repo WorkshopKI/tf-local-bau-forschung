@@ -108,8 +108,29 @@ Katalog-Stand und welchen Baustein-Fassungen ein Artefakt erzeugt wurde (Muster
 Gutachten. Die NF-Generierung ([useNachforderungen.ts](../../src/plugins/antraege/nachforderungen/useNachforderungen.ts))
 liest ab v2.309 den Katalog (nur `freigegebeneBausteine`) und stempelt `katalogRef`.
 
-## dev/pl/kurator-Parität
+## Verwaltungs-Tab + Word-Import (dev/pl/kurator)
 
-Die Pflege lebt im Skill-Verwaltungs-Plugin (`isSkillVerwaltungEnabled()`, aktiv in
-dev + pl + kurator) — **kein** eigenes Varianten-Gate. Wer die Verwaltung sieht, kann
-den Katalog voll pflegen. Details zum Verwaltungs-Tab und Word-Import: Phase 3 (folgt).
+Die Pflege lebt als Reiter „Textbausteine" im Skill-Verwaltungs-Plugin
+(`isSkillVerwaltungEnabled()`, aktiv in dev + pl + kurator) — **kein** eigenes
+Varianten-Gate. Der Tab ist bewusst **selbst-verwaltend** ([TextbausteineTab.tsx](../../src/plugins/skill-verwaltung-kuration/TextbausteineTab.tsx)),
+nicht in die Skill-`DetailZustand`-Union eingehängt: eigener Katalog, eigene
+Persistenz ([useTextbausteinKatalog.ts](../../src/plugins/skill-verwaltung-kuration/useTextbausteinKatalog.ts)),
+eigener Lebenszyklus.
+
+- **Liste + Editor:** Filter (Typ NF/RNE/ABL, Status, Aspekt, Freitext — reine
+  [textbausteinFilter.ts](../../src/plugins/skill-verwaltung-kuration/textbausteinFilter.ts))
+  links, Editor rechts. Im Editor ist der **Text editierbar** (der Kurator pflegt den
+  Wortlaut — die Verbatim-Regel bindet LLM + Import, nicht die Kuration); die
+  Platzhalter-Vorschau leitet live aus dem Text ab. Freigeben/Stilllegen mit
+  Pflicht-Begründung, Versions-Historie mit Text-Diff (`diffLines`) + Rollback.
+- **Word-Import** ([TextbausteinImportDialog.tsx](../../src/plugins/skill-verwaltung-kuration/TextbausteinImportDialog.tsx)):
+  `.docx` → **mammoth** → HTML → Block-Kandidaten ([wordImport.ts](../../src/plugins/skill-verwaltung-kuration/wordImport.ts),
+  rein: Überschrift = ID/Thema-Kandidat, Folgeabsätze = Text). Durchgangs-UI je
+  Kandidat: Typ, ID, Thema, Aspekte, Scope (NF aus ID-Präfix). **Text read-only**
+  (verbatim; Auffälligkeiten nur gemeldet, nie korrigiert). Übernahme erzeugt
+  **Entwürfe**; ID-Kollision → neue Version des bestehenden Bausteins statt Duplikat
+  ([textbausteinKatalogOps.ts](../../src/plugins/skill-verwaltung-kuration/textbausteinKatalogOps.ts)
+  `uebernehmeKandidat`), der bestehende Status bleibt dabei erhalten.
+- **Erst-Write:** `useTextbausteinKatalog` seedet NICHT beim Öffnen (anders als
+  `useSkillRegistry`) — der erste Share-Write ist die erste bewusste Speicherung, dann
+  geht der ganze Stand (inkl. Seed-Migration) hinaus.

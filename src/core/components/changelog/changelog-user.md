@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.310 — 2026-07
+
+### Neu
+- Die Textbausteine für Nachforderungen lassen sich jetzt in der App pflegen: In der Skill-Verwaltung gibt es den neuen Reiter „Textbausteine". Dort können Sie Bausteine durchsuchen und filtern, den Wortlaut bearbeiten, einzeln freigeben oder stilllegen und frühere Fassungen mit einem Klick zurückholen.
+- Über „Aus Word importieren" lesen Sie eine Word-Datei ein: Jeder Textblock wird als Baustein-Entwurf vorgeschlagen, den Sie noch einordnen (Typ, Thema, Prüfaspekte). Der Wortlaut bleibt dabei unverändert — importierte und neue Bausteine sind zunächst Entwürfe und werden erst nach Ihrer Freigabe verwendet.
+
 ## v2.308 — 2026-07
 
 ### Neu

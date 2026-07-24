@@ -100,7 +100,7 @@ export interface SkillVersionsDiff {
 }
 
 /** Zeilen-Diff via LCS (alt → neu). Stabil, ohne Heuristik-Rauschen. */
-function diffLines(altText: string, neuText: string): DiffZeile[] {
+export function diffLines(altText: string, neuText: string): DiffZeile[] {
   const a = altText.split('\n');
   const b = neuText.split('\n');
   const m = a.length;

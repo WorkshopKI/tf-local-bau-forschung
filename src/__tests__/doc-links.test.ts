@@ -79,6 +79,9 @@ describe('doc-links', () => {
     // Gate. Ein Gate-Schritt, den `npm run check` fährt, muss dort stehen, sonst
     // ist er beim ersten roten Lauf unerklärlich. Auf Link + einen Satz gekürzt;
     // das Warum lebt im Docstring von scripts/check-cycles.mjs.
-    expect(bytes).toBeLessThan(47_900);
+    // 47_900 → 48_300 (v2.310): eine Decision-Tree-Zeile für den Textbaustein-
+    // Katalog (NF/RNE/ABL als versionierte App-Daten). Bereits auf Stichworte +
+    // Doc-Link gekürzt; ohne Zeile fände die Werkbank ihre Datengrundlage nicht.
+    expect(bytes).toBeLessThan(48_300);
   });
 });

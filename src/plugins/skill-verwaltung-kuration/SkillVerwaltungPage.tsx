@@ -30,6 +30,7 @@ import { RegelEditor } from './RegelEditor';
 import { WorkflowEditor } from './WorkflowEditor';
 import { SkillTestlaufPanel } from './SkillTestlauf';
 import { SkillEvalPanel } from './SkillEvalPanel';
+import { TextbausteineTab } from './TextbausteineTab';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { ViewModeToggle, type ViewMode as RegistryViewMode } from '@/components/ui/ViewModeToggle';
 import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
@@ -41,7 +42,7 @@ import { DetailKopf } from './DetailKopf';
 import { PersoenlichePanel } from './PersoenlichePanel';
 import { useSkillTweak } from './useSkillTweak';
 
-type TabId = 'skills' | 'regeln' | 'workflows' | 'eval';
+type TabId = 'skills' | 'regeln' | 'workflows' | 'textbausteine' | 'eval';
 
 /**
  * EIN Detail-Zustand statt dreier paralleler States. Vorher hielten
@@ -92,14 +93,14 @@ function blankSkill(): SkillRecord {
 }
 
 function loadViewModes(): Record<TabId, RegistryViewMode> {
-  const fallback: Record<TabId, RegistryViewMode> = { skills: 'table', regeln: 'table', workflows: 'list', eval: 'list' };
+  const fallback: Record<TabId, RegistryViewMode> = { skills: 'table', regeln: 'table', workflows: 'list', textbausteine: 'list', eval: 'list' };
   try {
     const raw = localStorage.getItem(VIEW_MODE_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<Record<TabId, unknown>>;
     const pick = (v: unknown, def: RegistryViewMode): RegistryViewMode =>
       typeof v === 'string' && (VIEW_MODES as string[]).includes(v) ? (v as RegistryViewMode) : def;
-    return { skills: pick(parsed.skills, 'table'), regeln: pick(parsed.regeln, 'table'), workflows: 'list', eval: 'list' };
+    return { skills: pick(parsed.skills, 'table'), regeln: pick(parsed.regeln, 'table'), workflows: 'list', textbausteine: 'list', eval: 'list' };
   } catch {
     return fallback;
   }
@@ -358,6 +359,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
     ['skills', 'Skills', file.skills.length],
     ['regeln', 'Qualitätsregeln', file.regeln.length],
     ['workflows', 'Workflows', file.workflows?.length ?? 0],
+    ['textbausteine', 'Textbausteine', null],
   ];
   if (isDevFixturesEnabled()) tabDefs.push(['eval', 'Skill-Eval', null]);
 
@@ -420,7 +422,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
                   Importieren
                 </Button>
               )}
-              {tab !== 'eval' && reg.canEdit && (
+              {tab !== 'eval' && tab !== 'textbausteine' && reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={addAction} className="h-8 whitespace-nowrap">
                   {addLabel}
                 </Button>
@@ -479,6 +481,8 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
         {tab === 'eval' ? (
           <SkillEvalPanel registry={file} />
+        ) : tab === 'textbausteine' ? (
+          <TextbausteineTab />
         ) : tab === 'skills' ? (
           <SkillsTab
             file={file}
