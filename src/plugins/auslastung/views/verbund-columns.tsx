@@ -322,6 +322,23 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       wrap: true,
       accessor: v => topVorschlagKey(v),
       render: v => {
+        // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) werden zurueckgehalten und
+        // NICHT klassifiziert — statt (ohnehin nicht freigeb-/zuweisbarer) Pills
+        // einen ruhigen Warte-Hinweis zeigen (die Pills sind zusaetzlich in
+        // applyVerbundOverride gesperrt). Amber-Dreieck wie in der Aktz.-Spalte.
+        if (!v.vollstaendig) {
+          const grund = unvollstaendigGrund(leadAntrag(v));
+          return (
+            <span
+              className="inline-flex items-center gap-1 text-[11.5px] italic text-[var(--tf-text-tertiary)]"
+              title={grund}
+              aria-label={grund}
+            >
+              <AlertTriangle size={12} className="text-amber-600 shrink-0" aria-hidden />
+              wartet auf Vollständigkeit
+            </span>
+          );
+        }
         // 1.17: Primaer vs Aspekt unterscheiden — Primaer-Kategorie gefuellt,
         // Aspekte outline. Bei status='freigegeben' kommt das aus
         // `freigegebenePrimaer`/`freigegebeneAspekte`, sonst aus den
@@ -398,7 +415,11 @@ export function buildVerbundColumns(ctx: VerbundColumnsContext): VerbundColumn[]
       width: 70,
       wrap: false,
       accessor: v => topConfidenceScore(v),
-      render: v => <ConfidenceDot confidence={v.confidence} manuell={v.manuell} />,
+      // Zurueckgehaltene (unvollstaendige) Verbuende sind nicht klassifiziert →
+      // kein (irrefuehrender) Confidence-Punkt, nur ein neutrales „—".
+      render: v => (v.vollstaendig
+        ? <ConfidenceDot confidence={v.confidence} manuell={v.manuell} />
+        : <span className="text-[var(--tf-text-tertiary)]">—</span>),
     },
     {
       key: 'aktion',

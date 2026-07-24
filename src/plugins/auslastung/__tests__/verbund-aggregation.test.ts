@@ -447,6 +447,79 @@ describe('Vollständigkeit pro Antragstyp (D_XTEC / D_ADV)', () => {
   });
 });
 
+describe('buildVerbundClassificationViews — Klassifizierung zurückhalten bei Unvollständigkeit', () => {
+  // FuE (vb_phase 3) braucht D_XTEC. Gate aktiv, Az NICHT im xtecAzSet → unvollständig.
+  const GATE_INCOMPLETE: VollstaendigkeitsGateAz = { dxtec: true, dadv: false, xtecAzSet: new Set(), advAzSet: new Set() };
+
+  function llmKl(antragId: string): Klassifizierung {
+    return {
+      antragId,
+      vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 0.9, methode: 'llm', begruendung: 'x' },
+      vorgeschlageneAspekte: [{ kategorieId: 'NM', confidence: 0.6 }],
+      freigegebenePrimaer: '',
+      freigegebeneAspekte: [],
+      status: 'vorgeschlagen',
+    };
+  }
+
+  it('unvollständig + persistierter LLM-Vorschlag → Vorschlag wird zurückgehalten (vorgeschlagenePrimaer null)', () => {
+    // Screenshot-Fall: 16DS…, FuE ohne D_XTEC, wurde vom LLM auf IT/NM gesetzt.
+    // Der Vorschlag darf im Klassifizieren-Tab NICHT erscheinen, solange unvollständig.
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', vb_phase: 3 })];
+    const views = buildVerbundClassificationViews(antraege, null, [], [llmKl('A1')], undefined, false, [], GATE_INCOMPLETE);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.vollstaendig).toBe(false);
+    expect(views[0]?.klassifizierung.vorgeschlagenePrimaer).toBeNull();
+    expect(views[0]?.klassifizierung.vorgeschlageneAspekte).toEqual([]);
+    expect(views[0]?.manuell).toBe(false);
+  });
+
+  it('sobald vollständig (D_XTEC da) → persistierter Vorschlag taucht wieder auf (keine Arbeit verloren)', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', vb_phase: 3, d_xtec: '2026-05-01' })];
+    const gateComplete: VollstaendigkeitsGateAz = { dxtec: true, dadv: false, xtecAzSet: new Set(['A1']), advAzSet: new Set() };
+    const views = buildVerbundClassificationViews(antraege, null, [], [llmKl('A1')], undefined, false, [], gateComplete);
+    expect(views[0]?.vollstaendig).toBe(true);
+    expect(views[0]?.klassifizierung.vorgeschlagenePrimaer?.kategorieId).toBe('IT');
+    expect(views[0]?.klassifizierung.vorgeschlagenePrimaer?.methode).toBe('llm');
+  });
+
+  it('unvollständig ohne persistierten Record → kein Live-Vorschlag (zurückgehalten, nicht live klassifiziert)', () => {
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', vb_phase: 3, akronym: 'HELD' })];
+    const views = buildVerbundClassificationViews(antraege, null, [], [], undefined, false, [], GATE_INCOMPLETE);
+    expect(views[0]?.vollstaendig).toBe(false);
+    expect(views[0]?.klassifizierung.vorgeschlagenePrimaer).toBeNull();
+  });
+
+  it('Legacy-Sicherheitsventil: unvollständig + bereits FREIGEGEBEN → freigegebener Record bleibt sichtbar', () => {
+    const freigegeben: Klassifizierung = {
+      antragId: 'A1',
+      vorgeschlagenePrimaer: { kategorieId: 'IT', confidence: 0.9, methode: 'llm' },
+      vorgeschlageneAspekte: [],
+      freigegebenePrimaer: 'IT',
+      freigegebeneAspekte: ['NM'],
+      status: 'freigegeben',
+    };
+    const antraege = [makeAntrag({ aktenzeichen: 'A1', vb_phase: 3 })];
+    const views = buildVerbundClassificationViews(antraege, null, [], [freigegeben], undefined, false, [], GATE_INCOMPLETE);
+    expect(views[0]?.vollstaendig).toBe(false);
+    expect(views[0]?.klassifizierung.status).toBe('freigegeben');
+    expect(views[0]?.klassifizierung.freigegebenePrimaer).toBe('IT');
+  });
+
+  it('Verbund mit einem unvollständigen TV → gesamter Verbund zurückgehalten', () => {
+    // A1 hat D_XTEC, A2 nicht → Verbund unvollständig (every-Regel) → kein Vorschlag.
+    const gate: VollstaendigkeitsGateAz = { dxtec: true, dadv: false, xtecAzSet: new Set(['A1']), advAzSet: new Set() };
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'A1', vb_phase: 3, verbund_id: 'V1', d_xtec: '2026-05-01' }),
+      makeAntrag({ aktenzeichen: 'A2', vb_phase: 3, verbund_id: 'V1' }),
+    ];
+    const views = buildVerbundClassificationViews(antraege, null, [], [llmKl('A1')], undefined, false, [], gate);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.vollstaendig).toBe(false);
+    expect(views[0]?.klassifizierung.vorgeschlagenePrimaer).toBeNull();
+  });
+});
+
 describe('collectVerbundTHints — T_HINT verbund-weit', () => {
   it('distinkte, nicht-leere Werte über alle TVs (reihenfolgestabil)', () => {
     const tvs = [

@@ -87,12 +87,21 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
   // als klassifiziert, wenn seine Klassifizierung freigegeben ist ODER bereits
   // einen LLM-/Regel-Vorschlag mit Primaer hat. (Bei nur Stage-2-Embedding-
   // Match ist `methode === 'embedding'` — den koennen wir mit LLM ueberschreiben.)
+  // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) werden zurueckgehalten und gar
+  // nicht klassifiziert — sie fallen aus Batch, „Prompt kopieren" UND dem „offen"-
+  // Zaehler, weil eine Klassifizierung ohne Datum ohnehin nicht freigegeben/
+  // zugewiesen werden kann.
   const offeneVerbuende = verbundViews.filter(v => {
+    if (!v.vollstaendig) return false;
     const kl = v.klassifizierung;
     if (kl.status === 'freigegeben') return false;
     if (kl.vorgeschlagenePrimaer && kl.vorgeschlagenePrimaer.methode === 'llm') return false;
     return true;
   });
+
+  // Zurueckgehaltene (unvollstaendige) Verbuende — fuer den Hinweis in der Leiste,
+  // damit klar ist, warum sie nicht in der „offen"-Queue stehen.
+  const zurueckgehalten = verbundViews.filter(v => !v.vollstaendig).length;
 
   // Builder fuer LLMVerbund aus VerbundKlassifizierungsView.
   function toLLMVerbund(v: VerbundKlassifizierungsView): LLMVerbund {
@@ -119,10 +128,17 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
       tvsByVerbundId.set(view.verbundId, view.tvs.map(tv => tv.aktenzeichen));
     }
 
+    // Unvollstaendige Verbuende werden zurueckgehalten — falls doch mal eine
+    // solche ID im eingefuegten Text steht, ihr Ergebnis verwerfen (Robustheit).
+    const unvollstaendigeIds = new Set(
+      verbundViews.filter(v => !v.vollstaendig).map(v => v.verbundId),
+    );
+
     // Pro aktenzeichen das Klassifizierungs-Ergebnis (alle TVs eines Verbundes
     // bekommen dasselbe Result-Objekt).
     const resultsByAktz = new Map<string, LLMKlassifizierungEintrag>();
     for (const [verbundId, r] of resultsByVerbundId) {
+      if (unvollstaendigeIds.has(verbundId)) continue;
       const aktzs = tvsByVerbundId.get(verbundId);
       if (!aktzs) continue;
       for (const aktz of aktzs) resultsByAktz.set(aktz, r);
@@ -300,11 +316,14 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
           <span className="text-[12.5px] leading-snug text-[var(--tf-text-tertiary)] truncate">
             {noOpen ? (
               <>
-                <b className="font-medium text-[var(--tf-success-text)]">Alle {totalCount} Verbünde klassifiziert</b>
+                <b className="font-medium text-[var(--tf-success-text)]">Alle {totalCount - zurueckgehalten} Verbünde klassifiziert</b>
                 {' · 0 offen'}
               </>
             ) : (
-              <>{unklassifiziertCount} noch unklassifiziert (von {totalCount} Verbünden)</>
+              <>{unklassifiziertCount} noch unklassifiziert (von {totalCount - zurueckgehalten} Verbünden)</>
+            )}
+            {zurueckgehalten > 0 && (
+              <span className="text-[var(--tf-text-tertiary)]">{` · ${zurueckgehalten} warten auf Vollständigkeit`}</span>
             )}
           </span>
         )}

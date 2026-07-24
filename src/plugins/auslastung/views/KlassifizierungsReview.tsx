@@ -7,8 +7,12 @@
  * (alle TV-`Klassifizierung`-Records werden synchron upgesertet). Stage 2 nutzt
  * das Verbund-Titel-Embedding (siehe `verbund-embedding.ts`).
  *
- * Filter-Pills: Alle / Review nötig / Bereits freigegeben — Counts auf
- * Verbund-Ebene.
+ * Filter-Pills: Alle / Review nötig / LLM-Vorschlag / Freigegeben /
+ * Unvollständig — Counts auf Verbund-Ebene (siehe `viewFilterBucketsOf`).
+ * Vollständigkeit (D_XTEC bei FuE/DS, D_ADV bei DL/NW) gatet nicht nur Freigabe
+ * und Zuweisung, sondern auch die Klassifizierung selbst: unvollständige
+ * Verbünde werden zurückgehalten (weder live/LLM noch von Hand klassifiziert)
+ * und erscheinen ausschließlich unter „Unvollständig".
  * Pool-Filter: aktuelles Jahr, ohne TiB, ohne abgelehnt/zurückgezogen/Irrläufer
  * (TV-Ebene; ein Verbund erscheint wenn mindestens ein TV im Pool).
  */
@@ -104,7 +108,13 @@ function viewFilterBucketsOf(
 ): ViewFilter[] {
   const sticky = angeheftet.has(v.verbundId);
   const out: ViewFilter[] = [];
-  if (!v.vollstaendig) out.push('unvollstaendig');
+  // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) werden zurueckgehalten und
+  // nicht klassifiziert — sie erscheinen ausschliesslich unter „Unvollstaendig"
+  // (+ implizit „Alle"), NICHT in „Review noetig"/„LLM-Vorschlag"/„Freigegeben".
+  if (!v.vollstaendig) {
+    out.push('unvollstaendig');
+    return out;
+  }
   if (v.klassifizierung.status === 'freigegeben') out.push('freigegeben');
   if (sticky || (v.klassifizierung.status !== 'freigegeben' && v.confidence !== 'high')) out.push('review');
   if (sticky || istLlmVorschlag(v)) out.push('llm');
@@ -443,6 +453,10 @@ export function KlassifizierungsReview(): React.ReactElement {
     kategorieId: string,
     add: boolean,
   ): void {
+    // Unvollstaendige Verbuende (D_XTEC/D_ADV fehlt) werden zurueckgehalten — auch
+    // die manuelle Pill-Vergabe ist gesperrt, bis der Antrag vollstaendig erfasst
+    // ist (die Pills rendern ohnehin nicht interaktiv, s. verbund-columns.tsx).
+    if (!view.vollstaendig) return;
     const istFreigegeben = view.klassifizierung.status === 'freigegeben';
     const currentIds = istFreigegeben
       ? [view.klassifizierung.freigegebenePrimaer, ...view.klassifizierung.freigegebeneAspekte].filter(Boolean)

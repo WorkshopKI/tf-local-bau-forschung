@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.323.0 — Unvollständige Anträge nicht klassifizieren (zurückhalten bis vollständig) (Juli 2026)
+
+MINOR — Ein unvollständiger Antrag (fehlendes Sammel-Datum D_XTEC bei FuE/DS, D_ADV bei DL/NW) wurde bisher trotzdem klassifiziert, obwohl er danach weder freigegeben noch zugewiesen werden kann. Die Vollständigkeits-Schranke gatet jetzt auch die Klassifizierung — konsistent zur schon gesperrten Freigabe/Zuweisung.
+
+- Zentral in [buildVerbundClassificationViews](src/plugins/auslastung/services/verbund/verbund-aggregation.ts): unvollständige Verbünde werden zurückgehalten — kein Live-Lauf, persistierter Vorschlag ausgeblendet (taucht wieder auf, sobald vollständig).
+- LLM-Batch, „Prompt kopieren" und der „offen"-Zähler schließen sie aus; Leiste zeigt „· N warten auf Vollständigkeit" ([LLMKlassifizierungButtons.tsx](src/plugins/auslastung/components/LLMKlassifizierungButtons.tsx)).
+- Filter-Chips: unvollständige nur noch unter „Unvollständig", nicht in „Review nötig"/„LLM-Vorschlag" ([KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)).
+- Manuelle Pill-Vergabe gesperrt; Spalte „Vorgeschlagen" zeigt „⏳ wartet auf Vollständigkeit" ([verbund-columns.tsx](src/plugins/auslastung/views/verbund-columns.tsx)).
+- Detail + Invarianten: [docs/architecture/auslastung.md](docs/architecture/auslastung.md).
+
 ### v2.322.0 — Status-System Phase 6: Home-Widget + Abschluss (Juli 2026)
 
 MINOR — Letzte Phase: Home-Widget + projektweiter Abschluss (Guard, CLAUDE.md, Übersichts-Doku). Damit ist das Status-System (Katalog/Historie/Ableitung/Cockpit/Timeline/Widget) vollständig — gerätelokal, gated hinter `statusCockpit`.

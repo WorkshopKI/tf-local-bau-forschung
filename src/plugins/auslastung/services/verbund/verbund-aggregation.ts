@@ -498,6 +498,11 @@ function computeVerbundClassificationViews(
     // Antraege ohne Verbund-Objekt.
     const { akronym, verbundTitel } = resolveVerbundMeta(verbuendeById.get(key), rep);
 
+    // Verbund freigebbar/klassifizierbar nur, wenn ALLE TVs fuer ihren Antragstyp
+    // vollstaendig erfasst sind (Gate-/Transitions-bewusst). Zuerst bestimmen —
+    // die Vollstaendigkeit entscheidet, ob ueberhaupt klassifiziert wird.
+    const vollstaendig = tvs.every(tv => istVollstaendigFuerTypAz(tv, gate));
+
     // Persistierte Klassifizierung — pruefe alle TVs (sollten gleich sein,
     // nimm den ersten Treffer).
     let kl: Klassifizierung | undefined;
@@ -506,7 +511,26 @@ function computeVerbundClassificationViews(
       if (found) { kl = found; break; }
     }
 
-    if (!kl) {
+    if (!vollstaendig) {
+      // Unvollstaendig (D_XTEC/D_ADV fehlt): NICHT klassifizieren. Weder live
+      // rechnen noch einen (persistierten) Vorschlag anzeigen — die Zeile wird im
+      // Klassifizieren-Tab zurueckgehalten, bis das Sammel-Datum per CSV eintrifft
+      // (danach kann der Antrag ohnehin erst freigegeben/zugewiesen werden).
+      // Persistierte Records bleiben auf der Platte unangetastet und tauchen wieder
+      // auf, sobald der Verbund vollstaendig ist. Ein bereits FREIGEGEBENER Record
+      // bleibt als Legacy-Sicherheitsventil sichtbar (entsteht bei monotoner
+      // Vollstaendigkeit eigentlich nicht).
+      if (!kl || kl.status !== 'freigegeben') {
+        kl = {
+          antragId: rep.aktenzeichen,
+          vorgeschlagenePrimaer: null,
+          vorgeschlageneAspekte: [],
+          freigegebenePrimaer: '',
+          freigegebeneAspekte: [],
+          status: 'vorgeschlagen',
+        };
+      }
+    } else if (!kl) {
       // Live klassifizieren auf Basis des repraesentativen TVs. Stage 2 nutzt
       // das Verbund-Titel-Embedding (NICHT das pro-TV-Embedding), damit der
       // Verbund-Titel maximale Gewichtung bekommt. Ergebnis pro Verbund-Key
@@ -544,9 +568,7 @@ function computeVerbundClassificationViews(
       klassifizierung: kl,
       confidence: confidenceFor(kl),
       manuell: istManuell(kl),
-      // Verbund freigebbar nur, wenn ALLE TVs fuer ihren Antragstyp vollstaendig
-      // erfasst sind (Gate-/Transitions-bewusst).
-      vollstaendig: tvs.every(tv => istVollstaendigFuerTypAz(tv, gate)),
+      vollstaendig,
     });
   }
 

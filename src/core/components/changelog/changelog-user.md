@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.323 — 2026-07
+
+### Verbesserungen
+- Anträge im Auslastungs-Modul werden erst klassifiziert, wenn sie vollständig sind. Solange noch nicht alle Teilvorhaben eines Verbundes eingegangen sind, wird der Antrag im Reiter „Anträge klassifizieren" zurückgehalten („wartet auf Vollständigkeit") und erscheint nur unter dem Filter „Unvollständig" — so wird keine Einordnung vergeben, die sich ohnehin noch nicht zuweisen lässt.
+
 ## v2.315 — 2026-07
 
 ### Neu
