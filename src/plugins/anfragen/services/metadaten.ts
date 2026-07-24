@@ -143,7 +143,11 @@ export async function runMetadatenExtraktion(
   opts?: RunMetadatenOptions,
 ): Promise<MetadatenErgebnis> {
   const transport = bridge.getTransportForSkillRun(skill);
-  const ok = await transport.ping();
+  // Passiver Ping (öffnet KEINEN KI-Tab): der Auto-Tab beim `.msg`-Ablegen kam genau
+  // von einem `ping()` mit Default `openIfNeeded: true` → `ensureConnection` → `window.open`.
+  // Die Verbindung wird vorgelagert per `kiVerbindungGeprueft` geprüft (Verbinden-Dialog);
+  // dieser Ping ist nur noch der Fail-Fast-Fallback und darf nie einen Tab aufreißen.
+  const ok = await transport.ping({ openIfNeeded: false });
   if (!ok) throw new Error('Interne KI nicht erreichbar — Tagging derzeit nicht möglich.');
   // Frischer Chat-Kontext macht jetzt runSkill selbst — pro Lauf (Pitfall #36).
   const maxVersuche = Math.max(1, opts?.versuche ?? 3);
@@ -157,6 +161,9 @@ export async function runMetadatenExtraktion(
       // Interne KI denkt immer; thinkingBudget aktiviert das <think>-Stripping in
       // runSkill (kein Streaming, da kein Delta-Consumer). Siehe anonymisierung.ts.
       thinkingBudget: 'medium',
+      // Deterministischer Backend-Lauf → fest auf die Standard-KI pinnen (nicht die
+      // agentische Erprobung), unabhängig von der globalen KI-Präferenz.
+      ziel: 'standard',
     });
     try {
       return parseMetadaten(result.raw);

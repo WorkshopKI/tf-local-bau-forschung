@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.324.1 — Anfragen: kein Auto-KI-Tab beim .msg-Ablegen, Verbinden-Dialog + Standard-KI (Juli 2026)
+
+PATCH — Beim Ablegen einer `.msg`-Kurzanfrage startete sofort das automatische Tagging; war die interne KI noch nicht verbunden, riss dieser Lauf ungefragt einen neuen KI-Tab auf. Jetzt kein Auto-Tab mehr — stattdessen der schon vorhandene app-weite „Interne KI nicht verbunden"-Dialog zum direkten Verbinden. Zusätzlich laufen Tagging und Anonymisierung fest auf der Standard-KI.
+
+- Drop-Aufnahme prüft die interne KI vorab passiv (`kiVerbindungGeprueft`); getrennt → Verbinden-Dialog statt Auto-Tab, Anfrage bleibt „Noch nicht getaggt" ([AnfrageAufnahme.tsx](src/plugins/anfragen/AnfrageAufnahme.tsx)).
+- Gleicher Guard an „(Erneut) taggen" und „Anonymisieren" ([AnfrageMetadatenStrip.tsx](src/plugins/anfragen/AnfrageMetadatenStrip.tsx), [AnonymisierungView.tsx](src/plugins/anfragen/AnonymisierungView.tsx)).
+- Preflight-Ping der Runner passiv (`ping({ openIfNeeded: false })`) → reißt selbst ohne Guard nie mehr einen Tab auf ([metadaten.ts](src/plugins/anfragen/services/metadaten.ts), [anonymisierung.ts](src/plugins/anfragen/services/anonymisierung.ts)).
+- Tagging + Anonymisierung fest auf die Standard-KI gepinnt (`ziel: 'standard'`), unabhängig von der globalen KI-Präferenz (nicht die agentische).
+
 ### v2.324.0 — Feedback: Zusatzfelder als optional markiert + Screenshot-Hinweis bei knapper Eingabe (Juli 2026)
 
 MINOR — Beim Feedback-Formular wirkten für kleine Anfragen alle drei Textboxen verpflichtend, obwohl schon immer eine reicht (nur das mittlere Feld war nicht als optional erkennbar). Jetzt sind die Zusatzfelder klar als „(optional)" markiert; wer mit nur einer Box abschickt, wird zuvor auf die Screenshot-Option hingewiesen.

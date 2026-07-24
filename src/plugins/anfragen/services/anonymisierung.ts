@@ -173,7 +173,10 @@ export async function runAnonymisierung(
   opts?: RunAnonymisierungOptions,
 ): Promise<AnonymisierungErgebnis> {
   const transport = bridge.getTransportForSkillRun(skill);
-  const ok = await transport.ping();
+  // Passiver Ping (öffnet KEINEN KI-Tab) — s. metadaten.ts. Die Verbindung wird
+  // vorgelagert per `kiVerbindungGeprueft` geprüft (Verbinden-Dialog statt Auto-Tab);
+  // dieser Ping ist nur noch der Fail-Fast-Fallback und darf nie einen Tab aufreißen.
+  const ok = await transport.ping({ openIfNeeded: false });
   if (!ok) throw new Error('Interne KI nicht erreichbar — Anonymisierung derzeit nicht möglich.');
   // Frischer Chat-Kontext macht jetzt runSkill selbst — pro Lauf (auch pro Retry),
   // Pitfall #36. Kein separater Reset hier mehr.
@@ -192,6 +195,9 @@ export async function runAnonymisierung(
       // Bereinigung zu aktivieren; Streaming löst er NICHT aus (kein Delta-Consumer →
       // runSkill fährt den robusten non-streaming-Pfad, s. run-skill.ts wantsStream).
       thinkingBudget: 'medium',
+      // Deterministischer Backend-Lauf → fest auf die Standard-KI pinnen (nicht die
+      // agentische Erprobung), unabhängig von der globalen KI-Präferenz.
+      ziel: 'standard',
     });
     try {
       return parseAnonymisierung(result.raw);

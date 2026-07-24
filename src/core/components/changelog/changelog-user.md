@@ -22,6 +22,13 @@
 ## v2.324 — 2026-07
 
 ### Verbesserungen
+- Anonymisierung und Tagging von Anfragen nutzen jetzt fest die Standard-KI (nicht die agentische).
+### Bugfixes
+- Beim Ablegen einer Kurzanfrage öffnet sich kein KI-Tab mehr von selbst. Ist die interne KI nicht verbunden, erscheint stattdessen ein Hinweis mit „Jetzt verbinden".
+
+## v2.324 — 2026-07
+
+### Verbesserungen
 - Feedback geben ist jetzt schneller: Für kleine Anfragen reicht eine ausgefüllte Textbox — die übrigen Felder sind klar als „optional" gekennzeichnet.
 - Wenn du nur wenig ausfüllst, weist dich das Formular vor dem Senden freundlich darauf hin, dass ein Screenshot oft weiterhilft (du kannst trotzdem direkt senden).
 

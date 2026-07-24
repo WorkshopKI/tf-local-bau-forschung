@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 import { Mail } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { FileDropZone } from '@/components/ui/FileDropZone';
 import { loadSkillRegistry, getSkillById } from '@/core/services/skills';
@@ -32,6 +33,11 @@ export function AnfrageAufnahme(): React.ReactElement {
     const anfrage = createAnfrage(init);
     await upsert(anfrage, storage);
     select(anfrage.id);
+    // Interne KI nicht verbunden? Dann KEINEN KI-Tab aufreißen — stattdessen den
+    // app-weiten Verbinden-Dialog öffnen (macht `kiVerbindungGeprueft` per passivem
+    // Ping selbst) und das Auto-Tagging überspringen. Die Anfrage bleibt persistiert
+    // und „Noch nicht getaggt"; nach dem Verbinden taggt der User im Detail manuell.
+    if (!(await kiVerbindungGeprueft(bridge))) return;
     // „Anfragen zuerst taggen": interner KI-Lauf direkt nach der Aufnahme. Fail-safe
     // — schlägt die KI fehl (nicht erreichbar / externer Provider), bleibt die schon
     // persistierte Anfrage erhalten und wird als 'fehlgeschlagen' markiert (Re-Tag im

@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ShieldCheck, ShieldAlert, Lock, Copy, ExternalLink, Eye, ArrowUpDown, Rows, Table, ChevronDown, Mailbox, AlertTriangle } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
 import { getAnfragenDashboardUrl } from '@/config/feature-flags';
@@ -151,6 +152,8 @@ export function AnonymisierungView({ anfrage, highlight, onToggleHighlight }: Pr
 
   const anonymisieren = useAsyncAction(async () => {
     if (!skill) return;
+    // Interne KI nicht verbunden? Verbinden-Dialog statt Auto-Tab (s. AnfrageAufnahme).
+    if (!(await kiVerbindungGeprueft(bridge))) return;
     // Editierten Originaltext als Basis nehmen (evtl. noch nicht geblurrt) und in
     // EINEM upsert persistieren: Originaltext + Basis-Hash + anonyme Fassung.
     const basis = origText;

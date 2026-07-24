@@ -8,6 +8,7 @@
 import { Tags, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { Button } from '@/components/ui/button';
 import { loadSkillRegistry, getSkillById } from '@/core/services/skills';
@@ -39,6 +40,8 @@ export function AnfrageMetadatenStrip({ anfrage }: Props): React.ReactElement {
   const meta = anfrage.metadaten;
 
   const taggen = useAsyncAction(async () => {
+    // Interne KI nicht verbunden? Verbinden-Dialog statt Auto-Tab (s. AnfrageAufnahme).
+    if (!(await kiVerbindungGeprueft(bridge))) return;
     const loaded = await loadSkillRegistry(storage);
     const skill = getSkillById(loaded.file, ANFRAGE_METADATEN_SKILL_ID) ?? ANFRAGE_METADATEN_SKILL;
     const m = await runMetadatenExtraktion(bridge, skill, anfrage.originalMd);
