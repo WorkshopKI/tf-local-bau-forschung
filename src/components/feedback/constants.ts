@@ -224,7 +224,7 @@ export const FEEDBACK_TYPES: readonly FeedbackTypeDef[] = [
     fields: [
       { key: 'goal', label: 'Was möchtest du tun können?', shortLabel: 'Möchte', multiline: true, required: true },
       { key: 'reason', label: 'Warum / in welcher Situation brauchst du das?', shortLabel: 'Wofür', multiline: true },
-      { key: 'idea', label: 'Wie stellst du es dir vor? (optional)', shortLabel: 'Idee', multiline: true, optional: true },
+      { key: 'idea', label: 'Wie stellst du es dir vor?', shortLabel: 'Idee', multiline: true, optional: true },
     ],
   },
   {

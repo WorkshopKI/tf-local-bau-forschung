@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.324 — 2026-07
+
+### Verbesserungen
+- Feedback geben ist jetzt schneller: Für kleine Anfragen reicht eine ausgefüllte Textbox — die übrigen Felder sind klar als „optional" gekennzeichnet.
+- Wenn du nur wenig ausfüllst, weist dich das Formular vor dem Senden freundlich darauf hin, dass ein Screenshot oft weiterhilft (du kannst trotzdem direkt senden).
+
 ## v2.323 — 2026-07
 
 ### Verbesserungen

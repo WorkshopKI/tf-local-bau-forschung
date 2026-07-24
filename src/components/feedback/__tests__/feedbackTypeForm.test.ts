@@ -54,7 +54,7 @@ describe('composeFeedbackText', () => {
     });
     expect(text).toContain('Was möchtest du tun können?\nDirekt-Button');
     expect(text).toContain('Warum / in welcher Situation brauchst du das?\nZu viele Klicks');
-    expect(text).toContain('Wie stellst du es dir vor? (optional)\nOben rechts platzieren');
+    expect(text).toContain('Wie stellst du es dir vor?\nOben rechts platzieren');
   });
 
   it('Ein-Feld-Typen (Lob/Frage): reiner Feldwert ohne Label-Präfix', () => {

@@ -4,7 +4,7 @@
 
 import { useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
-import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { FeedbackCategory, FeedbackContext } from '@/core/types/feedback';
 import {
@@ -14,7 +14,7 @@ import {
   type FeedbackTypeDef,
 } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
-import { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
+import { FeedbackScreenshotInput, type FeedbackScreenshotHandle } from './FeedbackScreenshotInput';
 import { FeedbackFileInput } from './FeedbackFileInput';
 import type { PendingAttachment } from './feedbackAttachments';
 
@@ -68,6 +68,10 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileAttachments, setFileAttachments] = useState<PendingAttachment[]>([]);
   const firstFieldRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const screenshotRef = useRef<FeedbackScreenshotHandle>(null);
+  // Gesetzt = der Screenshot-Nudge ist aktiv (knappe Eingabe ohne Anhang). Merkt sich,
+  // welcher Button gedrückt wurde, damit „Trotzdem senden" korrekt weiterläuft.
+  const [nudge, setNudge] = useState<{ verbessern: boolean } | null>(null);
 
   const chooseType = (type: FeedbackTypeDef): void => {
     setSelectedType(type);
@@ -120,7 +124,15 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
     .filter(f => f.required)
     .every(f => (fieldValues[f.key] ?? '').trim().length > 0);
 
-  const handleSubmit = (verbessern: boolean): void => {
+  // Screenshot-Nudge: bei Mehrfeld-Typen ("funktioniert nicht" / "wünsche mir etwas"),
+  // wenn nur eine Box gefüllt ist UND noch kein Anhang dranhängt, vor dem Senden auf die
+  // Screenshot-Option hinweisen. Ein-Feld-Typen (Frage/Lob) sind bewusst ausgenommen.
+  const gefuellteFelder = selectedType.fields
+    .filter(f => (fieldValues[f.key] ?? '').trim().length > 0).length;
+  const hatAnhang = attachments.length + fileAttachments.length > 0;
+  const sollNudgen = selectedType.fields.length > 1 && gefuellteFelder <= 1 && !hatAnhang;
+
+  const doSubmit = (verbessern: boolean): void => {
     const isSingleText = selectedType.fields.length === 1 && selectedType.fields[0]?.key === 'text';
     const structured = isSingleText
       ? undefined
@@ -139,6 +151,16 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       attachments: attachments.length + fileAttachments.length > 0 ? [...attachments, ...fileAttachments] : undefined,
       verbessern,
     });
+  };
+
+  const handleSubmit = (verbessern: boolean): void => {
+    // Knappe Eingabe ohne Anhang → erst den Screenshot-Hinweis zeigen (ein Klick). Beim
+    // zweiten Klick ist `nudge` gesetzt, der Guard fällt durch und es wird gesendet.
+    if (sollNudgen && !nudge) {
+      setNudge({ verbessern });
+      return;
+    }
+    doSubmit(verbessern);
   };
 
   const TypeIcon = getIcon(selectedType.icon);
@@ -173,7 +195,10 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
       {selectedType.fields.map((field, idx) => (
         <div key={field.key} className="flex flex-col gap-1">
           <label className="text-[11.5px] text-[var(--tf-text-secondary)]">
-            {field.label}{field.required && <span className="text-[var(--tf-danger-text)]"> *</span>}
+            {field.label}
+            {field.required
+              ? <span className="text-[var(--tf-danger-text)]"> *</span>
+              : <span className="text-[var(--tf-text-tertiary)]"> (optional)</span>}
           </label>
           {field.multiline === false ? (
             <input
@@ -200,7 +225,12 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
 
       <FaqSuggestions input={composeFeedbackText(selectedType, fieldValues)} />
 
-      <FeedbackScreenshotInput attachments={attachments} onChange={setAttachments} autoFocus={autoFocusScreenshot} />
+      <FeedbackScreenshotInput
+        ref={screenshotRef}
+        attachments={attachments}
+        onChange={next => { setAttachments(next); setNudge(null); }}
+        autoFocus={autoFocusScreenshot}
+      />
 
       <FeedbackFileInput files={fileAttachments} onChange={setFileAttachments} />
 
@@ -233,6 +263,34 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
           <div>Gerät: {context.device} · {context.viewport}</div>
           <div>Session: {Math.round(context.sessionDuration / 60)} Min.</div>
           {context.errors.length > 0 && <div>Fehler: {context.errors.length}</div>}
+        </div>
+      )}
+
+      {nudge && (
+        <div
+          className="flex flex-col gap-2 px-3 py-2.5 rounded-[var(--tf-radius)] bg-[var(--tf-warning-bg)]"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          <div className="flex items-start gap-1.5 text-[11.5px] text-[var(--tf-warning-text)]">
+            <Camera size={13} className="shrink-0 mt-0.5" />
+            <span>Nur wenig ausgefüllt — ein Screenshot hilft uns oft, dich schneller zu verstehen.</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => { setNudge(null); screenshotRef.current?.focus(); }}
+            >
+              Screenshot hinzufügen
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => { const v = nudge.verbessern; setNudge(null); doSubmit(v); }}
+            >
+              Trotzdem senden
+            </Button>
+          </div>
         </div>
       )}
 

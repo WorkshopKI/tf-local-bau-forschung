@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.324.0 — Feedback: Zusatzfelder als optional markiert + Screenshot-Hinweis bei knapper Eingabe (Juli 2026)
+
+MINOR — Beim Feedback-Formular wirkten für kleine Anfragen alle drei Textboxen verpflichtend, obwohl schon immer eine reicht (nur das mittlere Feld war nicht als optional erkennbar). Jetzt sind die Zusatzfelder klar als „(optional)" markiert; wer mit nur einer Box abschickt, wird zuvor auf die Screenshot-Option hingewiesen.
+
+- Nicht-Pflichtfelder zeigen ein dezentes „(optional)" (aus `!required` abgeleitet); hartkodiertes „(optional)" aus dem Idee-Label entfernt ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx), [constants.ts](src/components/feedback/constants.ts)).
+- Screenshot-Hinweis vor dem Senden: nur bei Mehrfeld-Typen mit einer gefüllten Box und ohne Anhang; erster Klick zeigt den Hinweis ([Screenshot hinzufügen]/[Trotzdem senden]), zweiter sendet ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx)).
+- Paste-Fläche imperativ fokussierbar (`forwardRef`/`focus()`) für den „Screenshot hinzufügen"-Sprung ([FeedbackScreenshotInput.tsx](src/components/feedback/FeedbackScreenshotInput.tsx)).
+
 ### v2.323.0 — Unvollständige Anträge nicht klassifizieren (zurückhalten bis vollständig) (Juli 2026)
 
 MINOR — Ein unvollständiger Antrag (fehlendes Sammel-Datum D_XTEC bei FuE/DS, D_ADV bei DL/NW) wurde bisher trotzdem klassifiziert, obwohl er danach weder freigegeben noch zugewiesen werden kann. Die Vollständigkeits-Schranke gatet jetzt auch die Klassifizierung — konsistent zur schon gesperrten Freigabe/Zuweisung.

@@ -3,7 +3,7 @@
 // (scaleImageToAttachment), als Thumbnail mit „Annotieren"/„Entfernen" gezeigt.
 // Controlled: der Parent (FeedbackInputStep) hält die attachments-Liste.
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ImagePlus, Pencil, X } from 'lucide-react';
 import { scaleImageToAttachment, type PendingAttachment } from './feedbackAttachments';
 import { FeedbackAnnotator } from './FeedbackAnnotator';
@@ -14,7 +14,14 @@ interface Props {
   autoFocus?: boolean;
 }
 
-export function FeedbackScreenshotInput({ attachments, onChange, autoFocus }: Props): React.ReactElement {
+/** Imperativer Griff: erlaubt dem Parent, die Paste-Fläche gezielt zu fokussieren
+ *  (z.B. aus dem Screenshot-Nudge „Screenshot hinzufügen"). */
+export interface FeedbackScreenshotHandle {
+  focus: () => void;
+}
+
+export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Props>(
+  function FeedbackScreenshotInput({ attachments, onChange, autoFocus }, ref): React.ReactElement {
   const pasteRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -22,6 +29,13 @@ export function FeedbackScreenshotInput({ attachments, onChange, autoFocus }: Pr
   const [annotating, setAnnotating] = useState<PendingAttachment | null>(null);
 
   useEffect(() => { if (autoFocus) pasteRef.current?.focus(); }, [autoFocus]);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      pasteRef.current?.focus();
+      pasteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+  }), []);
 
   const addFiles = async (files: Blob[]): Promise<void> => {
     setBusy(true);
@@ -103,7 +117,7 @@ export function FeedbackScreenshotInput({ attachments, onChange, autoFocus }: Pr
       )}
     </div>
   );
-}
+});
 
 function Thumbnail({ att, onAnnotate, onRemove }: { att: PendingAttachment; onAnnotate: () => void; onRemove: () => void }): React.ReactElement {
   const [url, setUrl] = useState('');
