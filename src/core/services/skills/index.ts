@@ -1,8 +1,9 @@
 /**
- * Skill-Service — Dach-Barrel über drei kohäsive Submodule:
- *  - run/      Ausführung + Parsing (Skill-Runner, Prompt-Komposition)
- *  - registry/ Check-Engine, Selektoren, Seed, Storage, Typen
- *  - tweaks/   User-Overrides (Skill-Tweaks v2)
+ * Skill-Service — Dach-Barrel über vier kohäsive Submodule:
+ *  - run/           Ausführung + Parsing (Skill-Runner, Prompt-Komposition)
+ *  - registry/      Check-Engine, Selektoren, Seed, Storage, Typen
+ *  - tweaks/        User-Overrides (Skill-Tweaks v2)
+ *  - textbausteine/ Kuratierter Baustein-Katalog (NF/RNE/ABL) — Fassungen + Freigabe
  *
  * Eine Heimat pro Symbol: `splitSentences`, `CheckResult`/`CheckLevel` und
  * `SkillModifierKey` kommen ausschließlich aus `registry/` (kein Doppelpfad mehr).
@@ -11,3 +12,4 @@
 export * from './run';
 export * from './registry';
 export * from './tweaks';
+export * from './textbausteine';

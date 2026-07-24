@@ -6,9 +6,7 @@
  * Bewusst LLM-frei + ohne React (testbar). Die Generierung selbst läuft über den
  * Skill-Runner (`useNachforderungen`); diese Funktionen tragen den Rest.
  */
-import {
-  NF_BAUSTEIN_IDS, SEED_NF_REGELN, runRegelChecks, type CheckResult, type NfBaustein,
-} from '@/core/services/skills';
+import { SEED_NF_REGELN, runRegelChecks, type CheckResult } from '@/core/services/skills';
 import { buildMailtoUrl } from '@/plugins/auslastung/services/tib-mail';
 
 /** Überschriften des Verbund-/TV-Blocks in einer zusammengesetzten TV-NF. */
@@ -16,11 +14,23 @@ export const VERBUND_BLOCK_TITEL = 'Fragen, die das Gesamtvorhaben betreffen';
 export const TV_BLOCK_TITEL = 'Fragen zum Teilvorhaben';
 
 /**
+ * Was ein Baustein mitbringen muss, um in den Slot zu passen — strukturell statt an
+ * einen Typ gebunden, damit Seed-Bausteine und Katalog-Records dieselbe Formatierung
+ * durchlaufen (der Slot-Input bleibt dadurch byte-identisch zur Zeit vor dem Katalog).
+ */
+export interface KatalogEintrag {
+  id: string;
+  thema: string;
+  kategorie: string;
+  text: string;
+}
+
+/**
  * Formatiert die übergebenen Bausteine als Slot-Input für `{{nfBausteine}}`. Pro
  * Baustein: ID + Thema + Kategorie + wortgetreuer Text. Die Reihenfolge bleibt
  * erhalten (Katalog-Reihenfolge).
  */
-export function formatBausteinKatalog(bausteine: NfBaustein[]): string {
+export function formatBausteinKatalog(bausteine: readonly KatalogEintrag[]): string {
   return bausteine
     .map(b => `### ${b.id} — ${b.thema} (${b.kategorie})\n${b.text}`)
     .join('\n\n');
@@ -41,11 +51,17 @@ export function nfFreigabereif(finalerText: string): boolean {
   return pruefeNf(finalerText).every(c => c.level !== 'fehler');
 }
 
-/** Validiert vom LLM gewählte Baustein-IDs gegen den Katalog. */
-export function gueltigeBausteinIds(ids: string[]): { gueltig: string[]; unbekannt: string[] } {
+/**
+ * Validiert vom LLM gewählte Baustein-IDs gegen die Menge der bekannten IDs. Die
+ * Menge kommt vom Aufrufer (kuratierter Katalog), damit hier keine zweite Quelle
+ * darüber entsteht, welche Bausteine es gibt.
+ */
+export function gueltigeBausteinIds(
+  ids: readonly string[], bekannteIds: ReadonlySet<string>,
+): { gueltig: string[]; unbekannt: string[] } {
   const gueltig: string[] = [];
   const unbekannt: string[] = [];
-  for (const id of ids) (NF_BAUSTEIN_IDS.has(id) ? gueltig : unbekannt).push(id);
+  for (const id of ids) (bekannteIds.has(id) ? gueltig : unbekannt).push(id);
   return { gueltig, unbekannt };
 }
 

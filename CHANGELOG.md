@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.309.0 — Textbaustein-Katalog: NF-Bausteine werden versionierte, freigebbare App-Daten (Juli 2026)
+
+MINOR — Die 78 NF-Bausteine waren hartkodierter Code — pflegbar nur durch einen Entwickler. Fundament, um sie (und später RNE/ABL) in der App zu pflegen: versioniert, freigebbar, per Word-Import befüllbar. Diese Phase legt das Datenmodell, die Phasen 3+ bauen die Verwaltung darauf.
+
+- Neuer Katalog-Service mit eigener Sidecar `_intern/skills/textbausteine.json` (Storage-Profil der Skill-Registry, `kv`-Cache) ([textbausteine/](src/core/services/skills/textbausteine/)).
+- Fassungen + Freigabe-Status wie bei Skills (Historie newest-first, Rollback als neue Version, kein Löschen) ([versionierung.ts](src/core/services/skills/textbausteine/versionierung.ts)).
+- Lazy-Migration übernimmt die 78 Seed-Bausteine als freigegebene Version 1, idempotent und nie überschreibend ([migration.ts](src/core/services/skills/textbausteine/migration.ts)).
+- Der Suchkern ist jetzt geteilt; der MAP-Abschluss nutzt ihn, Verhalten unverändert ([nf-suche.ts](src/plugins/map-foerderfaehig/abschluss/nf-suche.ts)).
+- Erzeugte NF-Läufe stempeln den Katalog-Stand + verwendete Baustein-Fassungen (`katalogRef`) ([textbaustein-katalog.md](docs/architecture/textbaustein-katalog.md)).
+
 ### v2.308.0 — Fragen + Abdeckung pausiert, Zeitplan an die Einreichungs-JSON gehaengt (Juli 2026)
 
 MINOR — Fragen-Ableitung und Aspekt-Abdeckung tragen in der Praxis noch nicht, standen aber weiter nutzbar in der Tab-Leiste. Der Zeitplan war umgekehrt pausiert, obwohl es eine belastbare Quelle gibt: die Einreichungs-JSON.

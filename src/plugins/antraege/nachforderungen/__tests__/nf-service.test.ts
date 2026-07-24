@@ -3,7 +3,7 @@ import {
   formatBausteinKatalog, pruefeNf, nfFreigabereif, gueltigeBausteinIds, mergeNfFuerTv,
   buildNfMailto, VERBUND_BLOCK_TITEL, TV_BLOCK_TITEL,
 } from '../nf-service';
-import { nfBausteineByScope } from '@/core/services/skills';
+import { NF_BAUSTEIN_IDS, nfBausteineByScope } from '@/core/services/skills';
 
 describe('formatBausteinKatalog', () => {
   it('formatiert ID + Thema + Kategorie + wortgetreuen Text', () => {
@@ -35,7 +35,7 @@ describe('pruefeNf — administratives Tor (kein ungefüllter Platzhalter)', () 
 
 describe('gueltigeBausteinIds', () => {
   it('trennt bekannte von unbekannten IDs', () => {
-    const { gueltig, unbekannt } = gueltigeBausteinIds(['G1.1', 'T2.1.2', 'X9.9', 'erfunden']);
+    const { gueltig, unbekannt } = gueltigeBausteinIds(['G1.1', 'T2.1.2', 'X9.9', 'erfunden'], NF_BAUSTEIN_IDS);
     expect(gueltig).toEqual(['G1.1', 'T2.1.2']);
     expect(unbekannt).toEqual(['X9.9', 'erfunden']);
   });

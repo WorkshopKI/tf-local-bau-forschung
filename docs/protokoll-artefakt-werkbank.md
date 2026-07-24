@@ -86,9 +86,41 @@ Fünf Befunde weichen vom Auftrags-Stand (v2.305.2) ab und haben den Zuschnitt g
 
 ---
 
-## Phase 2 — Textbaustein-Katalog
+## Phase 2 — Textbaustein-Katalog (v2.309.0)
 
-*(offen)*
+**Default-Entscheidungen**
+
+1. **Eigene Sidecar `_intern/skills/textbausteine.json`** neben der Registry (nicht in ihr).
+   STOPP-R **freigegeben** (Erst-Nutzlast 78 Bausteine, ~109 KB, Rechtstext byte-identisch
+   zum Seed). Erst-Write **beim ersten Speichern** — `loadTextbausteinKatalog` füllt nur den
+   IDB-Cache, `writeTextbausteinKatalog` hat in dieser Phase noch keinen Aufrufer.
+2. **Migrierte NF-Bausteine starten `freigegeben`**, nicht `entwurf` — sie sind seit v2.283
+   im Einsatz und wären als Entwurf über Nacht aus jeder NF verschwunden. Neue Bausteine
+   (Phase 3) starten dagegen immer als `entwurf`.
+3. **`platzhalter` wird nie aus der Datei übernommen**, sondern immer aus `text` abgeleitet —
+   der verbatim-Text ist die einzige Quelle (Pitfall #34). Das gilt auch beim Laden, nicht
+   nur beim Bearbeiten.
+4. **`kategorie` ins Modell aufgenommen** (im Prompt nicht vorgesehen, aber der Slot-Input
+   `formatBausteinKatalog` trägt sie in der Baustein-Überschrift — ohne sie sähe der Katalog,
+   den das Modell liest, anders aus als vor dem Umbau).
+5. **Suchkern geteilt, MAP-Aufrufer bleiben auf dem Seed.** `bewerteBausteine` ist die eine
+   Quelle; `nf-suche.ts` ist jetzt eine Schale darum, liest aber weiter `NF_BAUSTEINE` (die
+   MAP-Aufrufer sind rein/synchron, der Katalog lädt async). Solange beide Stände identisch
+   sind, folgenlos — Paritäts-Test grün (47 Tests).
+6. **Rollback rollt den Status NICHT mit zurück** — ob ein Baustein freigegeben ist, gilt dem
+   heutigen Stand, nicht dem alten Text.
+7. **`katalogRef` am `WorkflowRun`** additiv-optional (Muster `vorlageRef`, kein Schema-Bump);
+   NF stempelt Stand + verwendete Baustein-Fassungen.
+
+**Gate:** `npm run check` grün (414 Test-Dateien, 4697 Tests, 0 Zyklen), `build:dev` + `build:pl`.
+
+**Abnahme-Checkliste (offen, beim Nutzer — greift erst mit Phase 3 sichtbar)**
+- [ ] NF-Generierung nutzt weiter die 78 Bausteine (nichts fehlt, nichts umformuliert).
+- [ ] Erzeugte NF-`WorkflowRun`s tragen `katalogRef` mit Stand + Baustein-Versionen.
+
+**Verschoben**
+- MAP-Aufrufer (`markdown.ts`, `nf-praezision.ts`) auf den kuratierten Katalog umstellen —
+  gehört in dieselbe Phase wie die Bearbeitbarkeit dort, braucht einen async-fähigen Aufrufpfad.
 
 ---
 

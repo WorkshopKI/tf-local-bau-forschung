@@ -11,7 +11,7 @@
  * bewusst KEIN dedizierter Object-Store/Version-Bump (recurring-bug-classes.md §3 /
  * Pitfall #29).
  */
-import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
+import type { CheckResult, KatalogRef, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
@@ -167,5 +167,12 @@ export interface WorkflowRun {
    * Artefakt erzeugt wurde). Kein Schema-Bump.
    */
   vorlageRef?: VorlageRef;
+  /**
+   * Audit-Stempel des Textbaustein-Katalogs: mit welchem Stand und welchen
+   * Baustein-Fassungen wurde erzeugt (Muster `vorlageRef`). Additiv-optional, kein
+   * Schema-Bump — Runs von vor v2.309 bleiben unverändert lesbar. Nur bei
+   * baustein-getragenen Artefakten (NF/RNE/ABL) gesetzt, nie beim Gutachten.
+   */
+  katalogRef?: KatalogRef;
   schemaVersion: 1;
 }

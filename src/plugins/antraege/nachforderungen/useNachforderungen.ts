@@ -13,8 +13,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import {
-  runSkill, loadSkillRegistry, getSkillById, resolveRegeln, nfBausteineByScope, capVbMarkdown,
+  runSkill, loadSkillRegistry, getSkillById, resolveRegeln, capVbMarkdown,
+  loadTextbausteinKatalog, freigegebeneBausteine,
   NF_SKILL_ID, type CheckResult, type SkillRecord, type QualitaetsRegel,
+  type KatalogRef, type TextbausteinRecord,
 } from '@/core/services/skills';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
@@ -65,6 +67,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
   const [vb, setVb] = useState<{ dokument: DocumentFull | null; markdown: string } | null>(null);
   const [skill, setSkill] = useState<SkillRecord | null>(null);
   const [regeln, setRegeln] = useState<QualitaetsRegel[]>([]);
+  const [katalog, setKatalog] = useState<{ stand: string; bausteine: TextbausteinRecord[] } | null>(null);
   const [entwuerfe, setEntwuerfe] = useState<NfEntwurf[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -73,12 +76,15 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
     (async () => {
       setLoading(true);
       try {
-        const [vbRes, reg] = await Promise.all([resolveVb(storage.idb, ctx), loadSkillRegistry(storage)]);
+        const [vbRes, reg, kat] = await Promise.all([
+          resolveVb(storage.idb, ctx), loadSkillRegistry(storage), loadTextbausteinKatalog(storage),
+        ]);
         if (cancelled) return;
         setVb(vbRes ? { dokument: vbRes.dokument, markdown: vbRes.markdown } : null);
         const sk = getSkillById(reg.file, NF_SKILL_ID) ?? null;
         setSkill(sk);
         setRegeln(sk ? resolveRegeln(reg.file, sk) : []);
+        setKatalog({ stand: kat.katalog.updated_at, bausteine: kat.katalog.bausteine });
       } catch (e) {
         if (!cancelled) setError(errMsg(e));
       } finally {
@@ -92,7 +98,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
   }, [ctx.key]);
 
   async function generiereAlle(): Promise<void> {
-    if (!vb || !skill) return;
+    if (!vb || !skill || !katalog) return;
     const ac = new AbortController();
     abortRef.current = ac;
     setBusy(true); setError(null); setEntwuerfe([]);
@@ -106,8 +112,21 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       const { text: vbCapped } = capVbMarkdown(vb.markdown, cap);
       const stammdaten = buildStammdaten(ctx);
       const modell = (transport as { name?: string }).name ?? 'intern';
-      const gKatalog = formatBausteinKatalog(nfBausteineByScope('verbund'));
-      const tvKatalog = formatBausteinKatalog(nfBausteineByScope('tv'));
+      // NUR freigegebene Bausteine — Entwürfe (frisch importiert, in Arbeit) und
+      // Stillgelegte dürfen nie in einen Nachforderungs-Entwurf geraten.
+      const gBausteine = freigegebeneBausteine(katalog.bausteine, 'nf', 'verbund');
+      const tvBausteine = freigegebeneBausteine(katalog.bausteine, 'nf', 'tv');
+      const gKatalog = formatBausteinKatalog(gBausteine);
+      const tvKatalog = formatBausteinKatalog(tvBausteine);
+      // Audit: mit WELCHEM Katalog-Stand und welchen Baustein-Fassungen erzeugt wurde.
+      // Muster `vorlageRef` — ohne diesen Stempel liesse sich ein alter Entwurf später
+      // nicht mehr gegen die dann geltenden Bausteine halten.
+      const katalogRef: KatalogRef = {
+        stand: katalog.stand,
+        bausteinVersionen: Object.fromEntries(
+          [...gBausteine, ...tvBausteine].map(b => [b.id, b.version]),
+        ),
+      };
 
       // 1) Verbund-Block EINMAL (G-Bausteine am Gesamtvorhaben-Kontext).
       const gRes = await runSkill(transport, skill, regeln, {
@@ -144,7 +163,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
         };
         const run: WorkflowRun = {
           aktenzeichen: tv.aktenzeichen, schritte: { NF: step }, aktiverSchritt: 'NF',
-          erstellt_am: now, geaendert_am: now, schemaVersion: 1,
+          erstellt_am: now, geaendert_am: now, katalogRef, schemaVersion: 1,
         };
         await putWorkflowRun(storage.idb, run, 'nf');
         ergebnisse.push({

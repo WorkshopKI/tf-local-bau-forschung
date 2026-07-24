@@ -1,14 +1,23 @@
 /**
- * Suche in den kuratierten Nachforderungs-Bausteinen.
+ * Suche in den Nachforderungs-Bausteinen für den MAP-Abschluss.
  *
- * Die Baustein-Registry hat keine Suchfunktion — nur Scope-Filter und
- * ID-Lookup. Diese Datei ergänzt eine reine Volltextsuche, ohne die Registry
- * anzufassen: sie wird ausschliesslich **gelesen**.
+ * Seit v2.309 nur noch eine dünne Schale um den geteilten Bewertungs-Kern
+ * (`textbausteine/suche.ts`) — Gewichte, Stoppwörter und Wortzerlegung liegen dort
+ * genau einmal, statt in zwei Kopien zu driften. Das Verhalten für die MAP-Aufrufer
+ * ist unverändert (Paritäts-Tests in `__tests__/checkliste.test.ts`).
  *
- * Pitfall #34 gilt unverändert: die Baustein-Texte werden wortgetreu verwendet.
- * Diese Suche wählt aus, sie formuliert nicht um und füllt keine Platzhalter.
+ * Quelle sind weiterhin die Seed-Bausteine `NF_BAUSTEINE`, nicht der kuratierte
+ * Katalog: die beiden Aufrufer (`markdown.ts`, `nf-praezision.ts`) sind rein und
+ * synchron, der Katalog lädt asynchron. Solange die Verwaltung fehlt, sind beide
+ * Stände identisch; die Umstellung gehört in dieselbe Phase wie die Bearbeitbarkeit
+ * (siehe `docs/protokoll-artefakt-werkbank.md`).
+ *
+ * Pitfall #34 gilt unverändert: die Suche **wählt aus**, sie formuliert nicht um und
+ * füllt keine Platzhalter.
  */
-import { NF_BAUSTEINE, type NfBaustein, type NfScope } from '@/core/services/skills';
+import { NF_BAUSTEINE, bewerteBausteine, type NfBaustein, type NfScope } from '@/core/services/skills';
+
+export { zerlegeBegriffe } from '@/core/services/skills';
 
 export interface NfTreffer {
   baustein: NfBaustein;
@@ -18,62 +27,15 @@ export interface NfTreffer {
   treffer: string[];
 }
 
-/** Gewicht eines Treffers im Thema gegenüber einem Treffer im Fliesstext. */
-const GEWICHT_THEMA = 3;
-const GEWICHT_TEXT = 1;
-
-/** Wortstämme, die in fast jedem Baustein vorkommen und nichts unterscheiden. */
-const STOPPWOERTER = new Set([
-  'bitte', 'ihre', 'ihrer', 'ihren', 'sich', 'dass', 'oder', 'und', 'der', 'die', 'das',
-  'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einen', 'nicht', 'sind', 'ist', 'werden',
-  'wird', 'sie', 'wie', 'bei', 'mit', 'für', 'auf', 'aus', 'von', 'zum', 'zur', 'als',
-  'auch', 'noch', 'nur', 'sowie', 'beschreiben', 'erläutern', 'geplante', 'geplanten',
-]);
-
-/** Zerlegt einen Text in normalisierte Suchwörter. Rein. */
-export function zerlegeBegriffe(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-    .split(/[^a-z0-9]+/)
-    .filter(w => w.length >= 4 && !STOPPWOERTER.has(w));
-}
-
-function normalisiere(text: string): string {
-  return text.toLowerCase()
-    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
-}
-
 /**
  * Sucht passende Bausteine zu einer Liste von Begriffen.
  *
- * Bewusst schlicht: ein Wortstamm-Vergleich, kein Ranking-Modell. Der Vorschlag
- * muss nachvollziehbar bleiben — `treffer` nennt die Wörter, die angeschlagen
- * haben, damit erkennbar ist, warum ein Baustein vorgeschlagen wird. Rein.
+ * Bewusst schlicht: ein Wortstamm-Vergleich, kein Ranking-Modell. Der Vorschlag muss
+ * nachvollziehbar bleiben — `treffer` nennt die Wörter, die angeschlagen haben,
+ * damit erkennbar ist, warum ein Baustein vorgeschlagen wird. Rein.
  */
 export function sucheNfBausteine(
   begriffe: readonly string[], scope: NfScope = 'tv', maxTreffer = 3,
 ): NfTreffer[] {
-  const gesucht = [...new Set(begriffe.flatMap(zerlegeBegriffe))];
-  if (gesucht.length === 0) return [];
-
-  const kandidaten = NF_BAUSTEINE.filter(b => b.scope === scope);
-
-  return kandidaten
-    .map(baustein => {
-      const thema = normalisiere(baustein.thema);
-      const text = normalisiere(baustein.text);
-      const treffer: string[] = [];
-      let punkte = 0;
-
-      for (const wort of gesucht) {
-        if (thema.includes(wort)) { punkte += GEWICHT_THEMA; treffer.push(wort); }
-        else if (text.includes(wort)) { punkte += GEWICHT_TEXT; treffer.push(wort); }
-      }
-
-      return { baustein, punkte, treffer };
-    })
-    .filter(t => t.punkte > 0)
-    .sort((a, b) => b.punkte - a.punkte || a.baustein.id.localeCompare(b.baustein.id))
-    .slice(0, maxTreffer);
+  return bewerteBausteine(NF_BAUSTEINE.filter(b => b.scope === scope), begriffe, { maxTreffer });
 }
