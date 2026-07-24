@@ -29,8 +29,9 @@ import { WerkbankSection } from './werkbank/WerkbankSection';
 import { WiderspruchSection } from './widerspruch/WiderspruchSection';
 import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
+import { StatusDetailSection } from './status/StatusDetailSection';
 import { Button } from '@/components/ui/button';
-import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled } from '@/config/feature-flags';
+import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -305,6 +306,14 @@ export function VerbundDetail({
           onWeiterNachforderung={() => scrollTo('nf')}
         />
       </div>
+
+      {/* STATUS & VERLAUF (Phase 5) — kuratierter Katalog + Historie + Ableitung
+          (Timeline + „Warum?" + nächste Schritte). Nur bei aktivem Status-Cockpit-Flag. */}
+      {isStatusCockpitEnabled() && (
+        <div id="status" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <StatusDetailSection verbundId={verbund.verbund_id} />
+        </div>
+      )}
 
       {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Nach oben gezogen (ersetzt
           die frühere Übersichts-Karte): Fortschritt + „Weiter bei X" leben jetzt im

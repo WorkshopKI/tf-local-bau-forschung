@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.321.0 — Status-System Phase 5: Timeline + Detail-Status + Konflikt-Badge (Juli 2026)
+
+MINOR — Historie + abgeleiteter Status werden sichtbar: die Verbund-Detailseite bekommt einen Status-Abschnitt (Timeline + „Warum"-Erklärung + nächste Schritte), die Fördertabelle ein Konflikt-Badge. Gated hinter `statusCockpit` (dev/pl/kurator), read-only, kein LLM.
+
+- Horizontale Timeline (reines React/CSS, keine Lib): Verbund-/TV-Lanes (einklappbar), Meilenstein-Marker, Dichte-Cluster, Aufzeichnungsgrenze, ehrliche Tooltips (datumFachlich vs erfasstAm) ([StatusTimeline.tsx](src/plugins/antraege/status/StatusTimeline.tsx)).
+- „Warum"-Panel (führender Wert, Beiträge + Grund, Konfliktdetails) — geteilt von Detail + Tabellen-Badge ([StatusWarum.tsx](src/plugins/antraege/status/StatusWarum.tsx)).
+- `#status`-Abschnitt in [VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx); Konflikt-Badge (nur Multi-TV-Verbund-Zeilen mit echtem Widerspruch) in [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx).
+- Reine Timeline-Logik (Prominenz/Lanes/Cluster) + gerätelokale Anzeige-Präferenzen (IDB, kein localStorage) ([timeline.ts](src/core/status/timeline.ts)); Tests.
+
 ### v2.320.0 — Status-System Phase 4: Status-Cockpit (Juli 2026)
 
 MINOR — Die Schichten 1–3 werden sichtbar: das Flag `statusCockpit` geht in dev/pl/kurator an (bis hier war alles dormant). Neues Vollbild-Cockpit zum Kuratieren, Simulieren und Versionieren des Status-Katalogs — gerätelokal, Team-Abgleich nur über JSON-Export/Import.

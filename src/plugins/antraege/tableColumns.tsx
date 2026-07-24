@@ -20,6 +20,9 @@ import { formatGermanDate } from '@/core/services/csv/dateParse';
 import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
 import { isBegleitungStatus, isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { getAktiveVersion, leiteStatusAb } from '@/core/status';
+import { isStatusCockpitEnabled } from '@/config/feature-flags';
+import { KonfliktBadge } from './status/KonfliktBadge';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
@@ -85,6 +88,21 @@ function textCell(v: string | null): ReactNode {
 
 function dateCell(v: string | null): ReactNode {
   return v ? <span className="font-mono text-[11.5px] text-[var(--tf-text)]">{v}</span> : null;
+}
+
+/**
+ * Konflikt-Badge für eine Verbund-Zeile (nur bei aktivem Status-Cockpit): leitet
+ * über den kuratierten Katalog den Status aus den TV-Status-Feldern ab und zeigt
+ * das Badge, wenn die Ableitung einen Spine-Konflikt trägt (sonst `null`).
+ * `getAktiveVersion`/`leiteStatusAb` sind reine Funktionen (keine Hooks) — Aufruf
+ * im `render` ist unbedenklich. Nur `status` liegt auf `AntragListItem` vor.
+ */
+function renderKonflikt(tvs: AntragListItem[]): ReactNode {
+  const version = getAktiveVersion();
+  if (!version) return null;
+  const tvFelder = Object.fromEntries(tvs.map(tv => [tv.aktenzeichen, { status: String(tv.status ?? '') }]));
+  const erg = leiteStatusAb(version, {}, tvFelder);
+  return <KonfliktBadge ableitung={erg} version={version} kompakt />;
 }
 
 /** Key der MA-Spalte (TIB-Bearbeiter-Kürzel) — Konstante für die Auto-Show im
@@ -252,11 +270,17 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     render: r => {
       const s = strOrNull(r.status);
       if (!s) return null;
+      // Konflikt-Badge (Status-Cockpit): nur echte Multi-TV-Verbund-Zeilen mit
+      // ausgewiesenem Spine-Konflikt; steht VOR dem nachgestellten Aktions-Text,
+      // damit das nowrap-`<td>` den Aktions-Text zuerst clippt (Badge bleibt).
+      const konflikt = isStatusCockpitEnabled() && r._verbund ? renderKonflikt(r._verbund.tvs) : null;
+      const konfliktEl = konflikt ? <span className="ml-1 inline-flex align-middle">{konflikt}</span> : null;
       // Terminal: Arbeit erledigt → kein farbiges Badge, nur ruhiger Status-Text.
       if (isTerminalStatus(s)) {
         return (
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={getStatusLabel(s)}>
             {getStatusLabel(s)}
+            {konfliktEl}
           </span>
         );
       }
@@ -276,6 +300,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
           >
             {getStatusLabel(s)}
           </Badge>
+          {konfliktEl}
           {aktion ? (
             <span className="ml-1.5 text-[var(--tf-text-secondary)]">→ {aktion}</span>
           ) : null}

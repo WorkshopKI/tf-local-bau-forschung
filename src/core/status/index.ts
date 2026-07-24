@@ -27,6 +27,10 @@ export {
 } from './cockpit-berechnung';
 export { aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu } from './katalog-edit';
 export { exportiereVersion, validiereImport, type ImportErgebnis } from './export-import';
+export {
+  eventProminenz, baueLanes, clustere,
+  type TimelineEvent, type TimelineLanes, type Cluster,
+} from './timeline';
 
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
