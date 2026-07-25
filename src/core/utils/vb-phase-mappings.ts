@@ -63,3 +63,32 @@ export function getVbPhaseVariant(raw: unknown): BadgeVariant {
 export function isIrrlaeufer(raw: unknown): boolean {
   return toVbPhaseNumber(raw) === IRRLAEUFER_PHASE;
 }
+
+/**
+ * Fachlicher Antragstyp (ZIM-Kategorie) — die Achse, entlang derer Kapazitäten
+ * geplant, Anträge gefiltert und Bearbeitungszeiten ausgewertet werden.
+ *
+ * Fasst die beiden Netzwerk-Phasen zu einem `NW`-Bucket zusammen; das ist die
+ * gröbere Schwester von `VB_PHASE_LABELS` (dort bleiben NW 1 / NW 2 getrennt).
+ * Wohnt hier und nicht im Plugin, weil inzwischen mehrere Module (Förderanträge-
+ * Quickfilter, Auslastungs-Kapazität, Bearbeitungs-Meilensteine) dieselbe
+ * Zuordnung brauchen — es darf nur EINE geben.
+ */
+export type AntragstypBucket = 'FuE' | 'DS' | 'DL' | 'NW';
+
+/** Anzeige-/Iterations-Reihenfolge der Antragstypen. */
+export const ANTRAGSTYP_BUCKETS: readonly AntragstypBucket[] = ['FuE', 'DS', 'DL', 'NW'];
+
+/**
+ * vb_phase → Antragstyp. `null` für Irrläufer (9), reservierte Phasen (6–8) und
+ * leere/unparsbare Werte — diese tragen bewusst keinen Typ.
+ */
+export function getAntragstypBucket(raw: unknown): AntragstypBucket | null {
+  const n = toVbPhaseNumber(raw);
+  if (n === null) return null;
+  if (n === 3) return 'FuE';
+  if (n === 5) return 'DS';
+  if (n === 4) return 'DL';
+  if (n === 1 || n === 2) return 'NW';
+  return null;
+}

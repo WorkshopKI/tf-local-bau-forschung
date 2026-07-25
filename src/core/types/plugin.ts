@@ -17,6 +17,7 @@ export type PluginFeatureKey =
   | 'devInfraPanel'
   | 'feedback'
   | 'mapFoerderfaehig'
+  | 'meilensteinMonitoring'
   | 'skillVerwaltung'
   | 'statusCockpit'
   | 'suche'

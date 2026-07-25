@@ -167,6 +167,13 @@ export interface TeamflowFeatures {
    *  einzige immer-aktive Eingriff (bei fehlendem Snapshot bitweise identisch).
    *  dev/pl/kurator. Optional, default false. */
   statusCockpit?: boolean;
+  /** Bearbeitungs-Meilensteine + Fristen-Monitoring: kuratierbarer Meilenstein-
+   *  Plan (Soll-Wochen nach Antragseingang), deterministische Bewertung
+   *  erreicht/fällig/gerissen + Prognose zur 3-Monats-Gesamtfrist. Gated Plugin,
+   *  Home-Widget, Detailseiten-Sektion und den Post-Import-Pass. Eigene Achse
+   *  neben dem amtlichen Status — die Anzeige-`Prominenz` des Status-Katalogs
+   *  bleibt davon unberuehrt. dev/pl/as/kurator. Optional, default false. */
+  meilensteinMonitoring?: boolean;
 }
 
 export interface TeamflowMenuLabels {

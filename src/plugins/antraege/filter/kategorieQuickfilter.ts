@@ -21,12 +21,14 @@
  */
 import type { ActiveFilter } from '@/core/services/csv';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { toVbPhaseNumber } from '@/core/utils/vb-phase-mappings';
+import { getAntragstypBucket, type AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import type { CollapsibleSegItem } from './CollapsibleSeg';
 
 export const KATEGORIE_FILTER_ID = 'system-vb-phase';
 
-export type KategorieLabel = 'Alle' | 'FuE' | 'DS' | 'DL' | 'NW';
+/** Die vier Antragstypen plus die „Alle"-Option des Quickfilters. Die
+ *  vb_phase-Zuordnung selbst lebt in `vb-phase-mappings.ts`. */
+export type KategorieLabel = 'Alle' | AntragstypBucket;
 
 const KATEGORIE_VALUES: Record<Exclude<KategorieLabel, 'Alle'>, string[]> = {
   FuE: ['3'],
@@ -66,15 +68,10 @@ export function getKategorieFromActive(active: ActiveFilter[]): KategorieLabel {
 }
 
 /** Bucket-Label für eine vb_phase (FuE/DS/DL/NW). Liefert null für
- *  Irrläufer (9), leere/unbekannte Werte, oder reservierte Phasen (6–8). */
-export function getKategorieLabel(vbPhase: unknown): Exclude<KategorieLabel, 'Alle'> | null {
-  const n = toVbPhaseNumber(vbPhase);
-  if (n === null) return null;
-  if (n === 3) return 'FuE';
-  if (n === 5) return 'DS';
-  if (n === 4) return 'DL';
-  if (n === 1 || n === 2) return 'NW';
-  return null;
+ *  Irrläufer (9), leere/unbekannte Werte, oder reservierte Phasen (6–8).
+ *  Dünne Schale um `getAntragstypBucket` — die Zuordnung lebt genau dort. */
+export function getKategorieLabel(vbPhase: unknown): AntragstypBucket | null {
+  return getAntragstypBucket(vbPhase);
 }
 
 /** Liefert die Items für `CollapsibleSeg`: Alle + 4 Kategorien mit Counts. */
@@ -87,12 +84,9 @@ export function getKategorieItems(antraege: AntragListItem[]): CollapsibleSegIte
     NW: 0,
   };
   for (const a of antraege) {
-    const phase = toVbPhaseNumber(a.vb_phase);
-    if (phase === null) continue;
-    if (phase === 3) counts.FuE++;
-    else if (phase === 5) counts.DS++;
-    else if (phase === 4) counts.DL++;
-    else if (phase === 1 || phase === 2) counts.NW++;
+    const bucket = getAntragstypBucket(a.vb_phase);
+    if (bucket === null) continue;
+    counts[bucket]++;
   }
   return KATEGORIE_ORDER.map(label => ({ label, count: counts[label] }));
 }

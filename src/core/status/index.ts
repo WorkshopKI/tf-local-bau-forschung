@@ -21,6 +21,7 @@ export { appendEvents, getStatusEvents, getAlleEvents } from './event-store';
 export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
 export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
+export { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
 export {
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
   SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,

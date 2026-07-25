@@ -235,6 +235,12 @@ export const DEFAULT_CONFIG = {
      *  Schicht. dev/pl/kurator. Optional, default false (kein requiredFlags-
      *  Eintrag → `=== true` Backward-Kompat). */
     statusCockpit: false,
+    /** Bearbeitungs-Meilensteine + Fristen-Monitoring: kuratierbarer Meilenstein-
+     *  Plan (Soll-Wochen nach Antragseingang) + deterministische Bewertung
+     *  erreicht/fällig/gerissen + Prognose zur 3-Monats-Gesamtfrist, plus Plugin,
+     *  Home-Widget und Detailseiten-Sektion. dev/pl/as/kurator. Optional,
+     *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    meilensteinMonitoring: false,
   },
 
   menuLabels: {

@@ -298,6 +298,16 @@ export function isStatusCockpitEnabled(): boolean {
   return features.statusCockpit === true;
 }
 
+/** Bearbeitungs-Meilensteine + Fristen-Monitoring: kuratierbarer Meilenstein-Plan
+ *  (Soll-Wochen nach Antragseingang) + deterministische Bewertung
+ *  erreicht/fällig/gerissen + Prognose zur 3-Monats-Gesamtfrist. Gated Plugin,
+ *  Home-Widget, Detailseiten-Sektion und den Post-Import-Pass. Eigene Achse neben
+ *  dem amtlichen Status; die Anzeige-`Prominenz` des Status-Katalogs bleibt
+ *  unberührt. dev/pl/as/kurator. Default false (`=== true`, Backward-Kompat). */
+export function isMeilensteinMonitoringEnabled(): boolean {
+  return features.meilensteinMonitoring === true;
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über

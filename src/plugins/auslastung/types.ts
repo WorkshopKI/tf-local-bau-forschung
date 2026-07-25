@@ -5,6 +5,7 @@
  * referenziert. Die De-Anonymisierung passiert nur im Export-Moment im RAM
  * (kommt in Prompt 2). `auslastung.json` enthaelt KEINE echten Kuerzel.
  */
+import { ANTRAGSTYP_BUCKETS, type AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 
 export type KategorieFarbe =
   | 'blue' | 'amber' | 'emerald' | 'rose' | 'violet' | 'sky' | 'slate';
@@ -186,19 +187,16 @@ export interface AuslastungConfig {
 }
 
 /**
- * Antragstyp-Bucket (v2.2) — spiegelt das UI-Filter-Schema der Foerderantraege-
- * Liste (`KategorieLabel` aus `kategorieQuickfilter.ts`). Mappt auf `vb_phase`:
- *  - FuE → 3
- *  - DS  → 5
- *  - DL  → 4
- *  - NW  → 1 oder 2
- *  (Irrlaeufer = vb_phase 9 → kein Bucket, wird nie matched.)
- *
- * Persistiert pro MA in `antragstypBevorzugt` + `antragstypUeberschreibung`.
+ * Antragstyp-Bucket (v2.2) — die vb_phase-Zuordnung (FuE 3 / DS 5 / DL 4 /
+ * NW 1|2, Irrläufer 9 = kein Bucket) lebt seit dem Meilenstein-Fundament als
+ * EINZIGE Quelle in [vb-phase-mappings.ts](../../core/utils/vb-phase-mappings.ts);
+ * hier nur noch der Re-Export, damit die Bestands-Importe des Moduls unverändert
+ * bleiben. Persistiert pro MA in `antragstypBevorzugt` +
+ * `antragstypUeberschreibung`.
  */
-export type AntragstypBucket = 'FuE' | 'DS' | 'DL' | 'NW';
+export type { AntragstypBucket };
 
-export const ALL_ANTRAGSTYP_BUCKETS: AntragstypBucket[] = ['FuE', 'DS', 'DL', 'NW'];
+export const ALL_ANTRAGSTYP_BUCKETS: AntragstypBucket[] = [...ANTRAGSTYP_BUCKETS];
 
 /**
  * Effektive Stunden pro Teilvorhaben fuer einen Antragstyp (v2.31). Liefert den

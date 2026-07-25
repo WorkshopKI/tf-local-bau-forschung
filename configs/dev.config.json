@@ -51,7 +51,8 @@
     "assistentPanel": true,
     "assistentGedaechtnis": true,
     "mapFoerderfaehig": true,
-    "statusCockpit": true
+    "statusCockpit": true,
+    "meilensteinMonitoring": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

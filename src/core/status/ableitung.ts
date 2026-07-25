@@ -8,12 +8,12 @@
  * aufgelöst (das Ergebnis bleibt der Max-Rang). Dazu: priorisierte
  * Nächste-Schritte-Regeln. Kein LLM.
  */
-import { parseGermanDate } from '@/core/services/csv/dateParse';
 import type {
-  AbgeleiteterSchritt, AbleitungsErgebnis, Bedingung, Beitrag, KonfliktDetail,
+  AbgeleiteterSchritt, AbleitungsErgebnis, Beitrag, KonfliktDetail,
   MappingVersion, SpinePhase, StatusCategory, StatusWertEintrag,
 } from './typen';
 import { normalisiereWert } from './typen';
+import { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
 
 /** Ordinal der Spine-Phasen für den Konflikt-Abstand. `keine` = 0 (zählt nicht). */
 const SPINE_ORDINAL: Record<SpinePhase, number> = {
@@ -22,8 +22,6 @@ const SPINE_ORDINAL: Record<SpinePhase, number> = {
 
 /** Ab dieser Spine-Phasen-Distanz gilt ein Widerspruch als Konflikt (v1 fix). */
 export const KONFLIKT_SCHWELLE = 2;
-
-const MS_TAG = 86_400_000;
 
 interface Eingang {
   feldId: string;
@@ -100,44 +98,10 @@ function fuehrender(beitraege: Beitrag[]): Beitrag | null {
 }
 
 // --- Regel-Auswertung ------------------------------------------------------
+// Der Bedingungs-Evaluator selbst wohnt in `bedingung.ts` (geteilt mit den
+// Bearbeitungs-Meilensteinen) — hier nur die Regel-Auswahl + Dedup.
 
-function baueKontext(
-  felder: Record<string, string>,
-  tvFelder?: Record<string, Record<string, string>>,
-): Map<string, string[]> {
-  const m = new Map<string, string[]>();
-  const add = (feldId: string, wert: string): void => {
-    const list = m.get(feldId);
-    if (list) list.push(wert); else m.set(feldId, [wert]);
-  };
-  for (const [f, w] of Object.entries(felder)) add(f, w);
-  if (tvFelder) for (const rec of Object.values(tvFelder)) for (const [f, w] of Object.entries(rec)) add(f, w);
-  return m;
-}
-
-function pruefeBedingung(b: Bedingung, ctx: Map<string, string[]>, heute?: string): boolean {
-  if ('alle' in b) return b.alle.every(x => pruefeBedingung(x, ctx, heute));
-  if ('einige' in b) return b.einige.some(x => pruefeBedingung(x, ctx, heute));
-  const werte = ctx.get(b.feldId) ?? [];
-  switch (b.op) {
-    case 'ist': return werte.some(v => normalisiereWert(v) === normalisiereWert(b.wert ?? ''));
-    case 'istNicht': return !werte.some(v => normalisiereWert(v) === normalisiereWert(b.wert ?? ''));
-    case 'gefuellt': return werte.some(v => v.trim() !== '');
-    case 'leer': return !werte.some(v => v.trim() !== '');
-    case 'datumVor':
-    case 'datumNach': {
-      if (!heute) return false;
-      const grenzeMs = new Date(heute).getTime() + b.tageRelativHeute * MS_TAG;
-      const datum = werte.map(v => parseGermanDate(v)).find((d): d is string => !!d);
-      if (!datum) return false;
-      const ms = new Date(datum).getTime();
-      return b.op === 'datumVor' ? ms < grenzeMs : ms > grenzeMs;
-    }
-    default: return false;
-  }
-}
-
-function leiteSchritte(version: MappingVersion, ctx: Map<string, string[]>, heute?: string): AbgeleiteterSchritt[] {
+function leiteSchritte(version: MappingVersion, ctx: BedingungsKontext, heute?: string): AbgeleiteterSchritt[] {
   const treffer = version.regeln
     .filter(r => r.aktiv && pruefeBedingung(r.bedingung, ctx, heute))
     .sort((a, b) => a.prioritaet - b.prioritaet);
