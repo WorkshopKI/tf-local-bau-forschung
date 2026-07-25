@@ -47,7 +47,8 @@ export type WidgetTyp =
   | 'qs-freigaben'
   | 'registry-aenderungen'
   | 'neue-antraege'
-  | 'status-verlauf';
+  | 'status-verlauf'
+  | 'meilensteine';
 
 export interface WidgetInstanz {
   /** Instanz-ID — mehrere Instanzen desselben Typs sind möglich (z.B. 2 Kanbans). */

@@ -30,8 +30,9 @@ import { WiderspruchSection } from './widerspruch/WiderspruchSection';
 import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
 import { StatusDetailSection } from './status/StatusDetailSection';
+import { MeilensteinSection } from './meilensteine/MeilensteinSection';
 import { Button } from '@/components/ui/button';
-import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled } from '@/config/feature-flags';
+import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled, isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 
 interface Props {
   verbundId: string;
@@ -312,6 +313,14 @@ export function VerbundDetail({
       {isStatusCockpitEnabled() && (
         <div id="status" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
           <StatusDetailSection verbundId={verbund.verbund_id} />
+        </div>
+      )}
+
+      {/* FRISTEN & MEILENSTEINE — die Soll-Achse zum Status: Zeitstrahl Soll gegen
+          Ist, Restzeit zur Gesamtfrist, Risiko-Meldung an die Projektleitung. */}
+      {isMeilensteinMonitoringEnabled() && (
+        <div id="meilensteine" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <MeilensteinSection verbundId={verbund.verbund_id} />
         </div>
       )}
 

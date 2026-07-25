@@ -1,46 +1,43 @@
 # Fristen & Meilensteine
 
 Vollbild-Seite (`/meilensteine`, Flag `meilensteinMonitoring`; dev/pl/as/kurator).
-Hier wird der **Meilenstein-Plan** gepflegt — die Soll-Achse hinter der
-Bearbeitung eines Verbunds.
 
 ## Zweck
 
-Der amtliche Status sagt, WO ein Verbund steht. Dieses Modul sagt, ob er dort
-**rechtzeitig** steht: Ziel ist die vollständige Bearbeitung binnen einer
+Der amtliche Status sagt, WO ein Verbund steht — dieses Modul, ob er dort
+**rechtzeitig** steht. Ziel ist die vollständige Bearbeitung binnen einer
 Gesamtfrist (Standard 90 Tage) ab Antragseingang, unterteilt in Meilensteine mit
-Soll-Wochen (MST 1 … 6, mit Unter-Meilensteinen).
-
-Der Anker ist das **späteste Antragsdatum** über alle Teilvorhaben — vorher kann
-der Verbund nicht vollständig bearbeitet werden. Ein Meilenstein gilt als
-erreicht, sobald seine Bedingung über die Antragsdaten zutrifft; ein
-Sammel-Meilenstein zusätzlich dann, wenn alle seine Unter-Meilensteine erreicht
-sind.
+Soll-Wochen (MST 1 … 6 mit Unter-Meilensteinen). Anker ist das **späteste**
+Antragsdatum aller Teilvorhaben.
 
 ## Bereiche
 
-- **Fassungs-Leiste** (oben): aktuelle Fassungsnummer, Freigabe-Zustand, Autor
-  und Stand. Rechts „Für das Team freigeben" bzw. „Zurück in Entwurf".
-- **Konfiguration**: der Meilenstein-Baum. Je Zeile Nummer, Bezeichnung,
-  Soll-Woche und die Schalter „aktiv" und „Frist" (zählt in die Prognose).
-  Aufgeklappt: Beschreibung, Antragstyp-Filter (FuE/DS/DL/NW) und der
-  **Bedingungs-Editor** — verschachtelte UND/ODER-Gruppen mit Feld, Operator und
-  Wert, alles per Auswahl statt Freitext. Das Feld-Angebot stammt aus den
-  gemappten CSV-Spalten aller Programme.
-- **Frühere Fassungen**: Historie mit Autor, Stand, Umfang und Kommentar; jede
-  Fassung lässt sich als Entwurf übernehmen.
+- **Übersicht**: links je offener Verbund eine Zeile (Akronym, Antragstyp,
+  laufende Woche, ein Zustands-Punkt je Haupt-Meilenstein, Restzeit), rechts der
+  Zeitstrahl — Soll als hohle Raute, Ist als gefüllter Punkt. Filter nach Typ,
+  Prognose, Suche, „nur meine"; sortiert nach Dringlichkeit.
+- **Diese Woche**: überfällige und in sieben Tagen fällige Meilensteine über alle
+  Verbünde.
+- **Auswertung**: Ø-Dauer, Median, Anteil im Soll und Abweichung — gesamt und je
+  FuE/DS/DL/NW; je Meilenstein Soll-Woche, Ø Ist-Woche, Δ und Reißquote. Die
+  Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.
+- **Konfiguration**: der Meilenstein-Baum (Nummer, Bezeichnung, Soll-Woche,
+  Schalter „aktiv" und „Frist"). Aufgeklappt: Beschreibung, Antragstyp-Filter und
+  der Bedingungs-Editor — UND/ODER-Gruppen mit Feld, Operator und Wert, alles per
+  Auswahl aus den gemappten CSV-Spalten. Darüber die Fassungs-Leiste
+  (freigeben / zurückziehen), darunter frühere Fassungen.
 
 ## Wichtig
 
-- Der Plan liegt als Team-Datei auf dem Daten-Share. **Schreiben darf nur die
-  Projektleitung** (bzw. Kurator/dev); alle anderen sehen dieselbe Seite
-  read-only.
-- **Speichern und Freigeben sind zwei Schritte.** Eine gespeicherte Fassung ist
-  zunächst ein Entwurf; ausgewertet wird immer nur die zuletzt freigegebene.
-- Meilensteine des Auslieferungs-Plans, deren CSV-Zuordnung noch nicht bestätigt
-  ist, tragen das Kennzeichen **„unbestätigt"**. Wo gar keine plausible Quelle
-  bekannt war, ist der Meilenstein zusätzlich inaktiv — inaktive Meilensteine
-  werden nie als gerissen gezählt.
+- Der Plan ist eine Team-Datei auf dem Daten-Share: **schreiben darf nur die
+  Projektleitung** (bzw. Kurator/dev), alle anderen sehen dieselbe Seite read-only.
+- **Speichern und Freigeben sind zwei Schritte** — ausgewertet wird nur die
+  zuletzt freigegebene Fassung.
+- Meilensteine mit noch unbestätigter CSV-Zuordnung tragen „unbestätigt"; wo gar
+  keine Quelle bekannt war, sind sie inaktiv. Inaktive gelten nie als gerissen.
+- Derselbe Zeitstrahl steht auf der Verbund-Detailseite; dort lässt sich auch ein
+  **Risiko melden**. Die Meldung geht in den persönlichen Ordner, die PL sammelt
+  sie ein — ohne verbundenen Ordner bleibt sie lokal (Hinweis erscheint).
+- Das Home-Widget „Meilensteine diese Woche" zeigt den Auszug für eigene Verbünde.
 - Nicht zu verwechseln mit den Projekt-Meilensteinen der Begleitphase
-  (`MS01`–`MS03` im Verwendungsnachweis) und mit der Anzeige-Prominenz
-  „Meilenstein" der Status-Timeline.
+  (`MS01`–`MS03`) und der Anzeige-Prominenz „Meilenstein" der Status-Timeline.

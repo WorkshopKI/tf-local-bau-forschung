@@ -86,6 +86,11 @@ describe('doc-links', () => {
     // Status-System (neu) — Katalog/Historie/Ableitung, gerätelokal, snapshot-
     // basiertes getStatusCategory. Bereits auf Stichworte + Doc-Link + zwei harte
     // Regeln gekürzt; das Warum lebt in docs/status-system/.
-    expect(bytes).toBeLessThan(49_000);
+    // 49_000 → 49_700 (v2.331): eine Decision-Tree-Zeile + Pitfall #41 für die
+    // Bearbeitungs-Meilensteine — die zweite Achse neben dem Status (Soll-Wochen,
+    // Frist-Prognose, Plan als TEAM-Sidecar statt gerätelokal wie der Status-
+    // Katalog). Genau dieser Unterschied ist die Stelle, an der man sich ohne
+    // Hinweis vergreift; das Detail lebt in docs/architecture/meilensteine.md.
+    expect(bytes).toBeLessThan(49_700);
   });
 });

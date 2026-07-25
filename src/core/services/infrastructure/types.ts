@@ -162,6 +162,14 @@ export const PERSOENLICH_AUSLASTUNG_UEBERNAHME_FILE = 'ZAH/auslastung-uebernahme
  */
 export const PERSOENLICH_ONLINE_STATUS_FILE = 'ZAH/online-status.json';
 /**
+ * Meilenstein-Risiken („Ich weiß, dass ich diesen Meilenstein nicht halte").
+ * Spiegelbild der Übernahme-Wünsche: der Bearbeiter kann `_intern/*` nicht
+ * schreiben, deshalb landet die Meldung im eigenen Ordner und die PL sammelt sie
+ * über den User-Folders-Root ein. Relativ zum User-Home-Root, daher in beiden
+ * Lese-Kontexten identisch nutzbar.
+ */
+export const PERSOENLICH_MEILENSTEIN_RISIKO_FILE = 'ZAH/meilenstein-risiken.json';
+/**
  * User-Tweaks v2: persönliche Stil-Schicht für Skills (eigene Stil-Hinweise +
  * Beispiel-Formulierungen pro `skillId`). Anders als die übrigen ZAH-Dateien
  * wird diese NIE eingesammelt — Tweaks sind rein privat (kein Team-Aspekt, keine

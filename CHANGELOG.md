@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.331.0 — Meilensteine: Home-Widget, Detailsektion, Risiko-Meldung (Juli 2026)
+
+MINOR — Das Monitoring kommt dorthin, wo gearbeitet wird: auf die Startseite, auf die Verbund-Detailseite und in einen Rückkanal zur Projektleitung. Wer absehbar einen Meilenstein reißt, kann das melden, statt dass es erst beim nächsten Blick in die Liste auffällt. Schließt die Ausbaustufe ab.
+
+- Home-Widget „Meilensteine diese Woche" mit den dringendsten eigenen Meilensteinen ([MeilensteineWidget.tsx](src/plugins/home/widgets/MeilensteineWidget.tsx)).
+- Abschnitt „Fristen & Meilensteine" auf der Verbund-Detailseite unter dem Status ([MeilensteinSection.tsx](src/plugins/antraege/meilensteine/MeilensteinSection.tsx)).
+- Risiko-Meldung über den persönlichen Ordner an die Projektleitung; ohne Ordner bleibt sie lokal und sagt es ([risiko-storage.ts](src/core/meilensteine/risiko-storage.ts)).
+- Architektur-Doku, CLAUDE.md-Eintrag und Pitfall #41 ([meilensteine.md](docs/architecture/meilensteine.md)).
+- Modul-lokale Guards für Team-Sidecar, persönlichen Rückkanal und die Antragstyp-Einzelquelle ([konventionen.test.ts](src/core/meilensteine/__tests__/konventionen.test.ts)).
+
 ### v2.330.0 — Meilenstein-Auswertung: Bearbeitungszeiten je Antragstyp (Juli 2026)
 
 MINOR — Die Frage „wie lange dauert es bei uns wirklich" bekommt eine Antwort: Ø-Bearbeitungszeit, Median, Anteil innerhalb der Frist und die Abweichung vom Soll — gesamt und getrennt nach FuE, DS, DL und NW. Dazu je Meilenstein die durchschnittlich erreichte Ist-Woche gegen die Soll-Woche.

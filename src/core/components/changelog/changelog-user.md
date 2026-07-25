@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.331 — 2026-07
+
+### Neu
+- Neuer Bereich „Fristen & Meilensteine": Er zeigt je Verbund, welche Bearbeitungs-Meilensteine erreicht, fällig oder gerissen sind — und ob die drei Monate ab Antragseingang noch zu halten sind.
+- Der Reiter „Diese Woche" listet alles, was überfällig ist oder in den nächsten sieben Tagen fällig wird. Dasselbe gibt es als Widget für die Startseite.
+- Die Auswertung zeigt, wie lange die Bearbeitung tatsächlich dauert — im Schnitt und getrennt nach FuE, DS, DL und NW.
+- Auf der Verbund-Seite kannst du melden, wenn du einen Meilenstein absehbar nicht hältst. Die Meldung geht über deinen persönlichen Ordner an die Projektleitung.
+- Die Projektleitung legt fest, welche Meilensteine es gibt, wann sie fällig sind und welche Einträge aus dem Fachsystem sie erfüllen — ohne dass dafür etwas programmiert werden muss.
+
 ## v2.324 — 2026-07
 
 ### Verbesserungen

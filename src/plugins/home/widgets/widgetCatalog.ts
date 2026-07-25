@@ -17,6 +17,7 @@ import {
   Inbox,
   ListChecks,
   Megaphone,
+  Milestone,
   Play,
   StickyNote,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
   isAuslastungSelbstEintragungEnabled,
   isFeedbackEnabled,
   isKuratorMenusEnabled,
+  isMeilensteinMonitoringEnabled,
   isStatusCockpitEnabled,
 } from '@/config/feature-flags';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
@@ -183,6 +185,17 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // An das Status-Cockpit gebunden (deterministischer Katalog-Snapshot); ohne
     // Flag kein abgeleiteter Status, also überall ausgeblendet.
     sichtbarWenn: () => isStatusCockpitEnabled(),
+    defaultConfig: KEINE,
+  },
+  meilensteine: {
+    typ: 'meilensteine',
+    label: 'Meilensteine diese Woche',
+    icon: Milestone,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // An den Meilenstein-Plan gebunden; ohne Flag gibt es keine Soll-Termine,
+    // also auch nichts zu warnen.
+    sichtbarWenn: () => isMeilensteinMonitoringEnabled(),
     defaultConfig: KEINE,
   },
 };

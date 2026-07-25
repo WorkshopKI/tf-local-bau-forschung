@@ -38,3 +38,7 @@ export {
   aendereKnoten, entferneKnoten, fuegeKnotenHinzu, kinderVon, naechsteKnotenId,
   nummeriereNeu, sortiereKnoten, tiefeVon, verschiebeKnoten,
 } from './knoten-edit';
+export {
+  ergaenzeRisiko, erledigeRisiko, istRisikoDatei, leseEigeneRisiken, leseRisikenAusOrdner,
+  offeneRisiken, schreibeEigeneRisiken, RISIKO_CACHE_KEY, type RisikoDatei,
+} from './risiko-storage';

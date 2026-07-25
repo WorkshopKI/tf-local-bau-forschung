@@ -16,6 +16,7 @@ import { AuslastungWidget } from './AuslastungWidget';
 import { QsFreigabenWidget } from './QsFreigabenWidget';
 import { RegistryAenderungenWidget } from './RegistryAenderungenWidget';
 import { StatusVerlaufWidget } from './StatusVerlaufWidget';
+import { MeilensteineWidget } from './MeilensteineWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
@@ -35,6 +36,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   'registry-aenderungen': RegistryAenderungenWidget,
   'neue-antraege': NeueAntraegeWidget,
   'status-verlauf': StatusVerlaufWidget,
+  meilensteine: MeilensteineWidget,
 };
 
 interface Props {
