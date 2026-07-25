@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.328.0 — Meilenstein-Plugin: Konfiguration durch die PL (Juli 2026)
+
+MINOR — Das Modul wird sichtbar: die Projektleitung legt Meilensteine an, verschiebt sie im Baum, setzt Soll-Wochen und ordnet ihnen per Auswahl die CSV-Spalten zu, die sie erfüllen — ohne Code-Änderung. Alle anderen sehen dieselbe Seite read-only.
+
+- Neues Plugin „Fristen & Meilensteine" unter `/meilensteine` ([index.ts](src/plugins/meilensteine/index.ts)).
+- Baum-Editor mit Anlegen, Löschen, Verschieben, Soll-Woche, Antragstyp-Filter und automatischer Nummerierung ([KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx), [knoten-edit.ts](src/core/meilensteine/knoten-edit.ts)).
+- Struktureller Bedingungs-Editor ohne Freitext; Feld-Angebot aus allen gemappten CSV-Spalten ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx), [spalten-katalog.ts](src/core/meilensteine/spalten-katalog.ts)).
+- Fassungen speichern, freigeben, zurückziehen und aus der Historie übernehmen ([useMeilensteinPlan.ts](src/plugins/meilensteine/useMeilensteinPlan.ts)).
+- Schreibrecht ausschließlich über `canWriteDatenShare`; unbestätigte Zuordnungen sichtbar gekennzeichnet ([MeilensteinePage.tsx](src/plugins/meilensteine/MeilensteinePage.tsx)).
+
 ### v2.327.0 — Meilenstein-Persistenz: Team-Sidecar, Fassungen, Projektion (Juli 2026)
 
 MINOR — Eine Frist-Definition, die auf jedem Rechner anders lautet, wäre wertlos: der Meilenstein-Plan liegt deshalb als kuratierte Team-Datei auf dem Daten-Share — die PL pflegt ihn, alle lesen ihn. Dazu die vorberechnete Frist-Projektion der offenen Verbünde, die sich nach jedem Import selbst erneuert.

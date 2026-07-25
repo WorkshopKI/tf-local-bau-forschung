@@ -20,6 +20,7 @@ import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
 import { mapFoerderfaehigPlugin } from '@/plugins/map-foerderfaehig';
 import { statusCockpitPlugin } from '@/plugins/status-cockpit';
+import { meilensteinePlugin } from '@/plugins/meilensteine';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -27,6 +28,7 @@ const allPlugins: TeamFlowPlugin[] = [
   antraegePlugin,
   anfragenPlugin,
   mapFoerderfaehigPlugin,
+  meilensteinePlugin,
   statusCockpitPlugin,
   auslastungPlugin,
   dokumentePlugin,

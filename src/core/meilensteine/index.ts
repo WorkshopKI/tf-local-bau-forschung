@@ -30,3 +30,11 @@ export {
   projektionsKey, type MeilensteinProjektion,
 } from './projektion';
 export { nachImportMeilensteinPflege } from './import-integration';
+export {
+  baueSpaltenKatalog, bekannteStatusWerte, STATUS_FELDER,
+  type SpaltenEintrag, type SpaltenTyp,
+} from './spalten-katalog';
+export {
+  aendereKnoten, entferneKnoten, fuegeKnotenHinzu, kinderVon, naechsteKnotenId,
+  nummeriereNeu, sortiereKnoten, tiefeVon, verschiebeKnoten,
+} from './knoten-edit';
