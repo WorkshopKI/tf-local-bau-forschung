@@ -20,10 +20,11 @@ import { useMeilensteinStand } from './useMeilensteinStand';
 import { KonfigurationTab } from './KonfigurationTab';
 import { UebersichtTab } from './UebersichtTab';
 import { DieseWocheTab } from './DieseWocheTab';
+import { AuswertungTab } from './AuswertungTab';
 import { sammleWochenPunkte } from './monitoringLogic';
 import { feldStil, formatDatum } from './labels';
 
-type TabKey = 'uebersicht' | 'woche' | 'konfiguration';
+type TabKey = 'uebersicht' | 'woche' | 'auswertung' | 'konfiguration';
 
 function StatusLeiste({ api }: { api: MeilensteinPlanApi }): React.ReactElement | null {
   // Hooks vor jedem Early-Return — sonst kippt die Hook-Reihenfolge (React #310).
@@ -207,6 +208,7 @@ export function MeilensteinePage(): React.ReactElement {
           items={[
             { key: 'uebersicht', label: 'Übersicht', count: stand.zeilen.length },
             { key: 'woche', label: 'Diese Woche', count: wochenAnzahl },
+            { key: 'auswertung', label: 'Auswertung', count: stand.abschluesse.length },
             { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
           ]}
         />
@@ -242,6 +244,20 @@ export function MeilensteinePage(): React.ReactElement {
             <DieseWocheTab
               zeilen={stand.zeilen} plan={stand.plan}
               meinKuerzel={stand.meinKuerzel} stand={stand.stand}
+            />
+          )}
+        </div>
+      )}
+
+      {tab === 'auswertung' && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {stand.laden ? (
+            <p className="pt-4 text-[13px] text-[var(--tf-text-tertiary)]">Bewertet …</p>
+          ) : stand.keinPlan || !stand.plan ? (
+            <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
+          ) : (
+            <AuswertungTab
+              zeilen={stand.zeilen} abschluesse={stand.abschluesse} plan={stand.plan}
             />
           )}
         </div>

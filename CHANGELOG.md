@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.330.0 — Meilenstein-Auswertung: Bearbeitungszeiten je Antragstyp (Juli 2026)
+
+MINOR — Die Frage „wie lange dauert es bei uns wirklich" bekommt eine Antwort: Ø-Bearbeitungszeit, Median, Anteil innerhalb der Frist und die Abweichung vom Soll — gesamt und getrennt nach FuE, DS, DL und NW. Dazu je Meilenstein die durchschnittlich erreichte Ist-Woche gegen die Soll-Woche.
+
+- Neuer Reiter „Auswertung" mit Kennzahl-Kacheln und Verteilungs-Balken je Antragstyp ([AuswertungTab.tsx](src/plugins/meilensteine/AuswertungTab.tsx)).
+- Dauer-Klassen bis 60 / 61–90 / 91–120 / über 120 Tage über den geteilten `DistributionBar`.
+- Meilenstein-Tabelle mit Soll-Woche, Ø Ist-Woche, Δ und Reißquote je Knoten.
+- Verteilung der offenen Verbünde nach Prognose als Zahlenleiste.
+- Dauer-Statistik zählt abgeschlossene Vorgänge, Meilenstein-Statistik offene — beides getrennt beschriftet statt vermischt.
+
 ### v2.329.0 — Meilenstein-Cockpit: Übersicht, Zeitstrahl, Diese Woche (Juli 2026)
 
 MINOR — Jetzt ist sichtbar, wo es klemmt: eine Zeile je offenem Verbund mit Zustands-Punkten je Meilenstein und Restzeit zur Gesamtfrist, daneben der Zeitstrahl Soll gegen Ist. Der Reiter „Diese Woche" beantwortet dieselbe Frage aus Sicht des Bearbeiters.
