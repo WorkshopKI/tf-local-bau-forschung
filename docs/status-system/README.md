@@ -1,8 +1,15 @@
 # Status-System neu — Übersicht
 
 Ersetzt die früher hartkodierte Status→Kategorie-Map durch **kuratierbare Daten +
-Historie + deterministische Ableitung**. Rein deterministisch, kein LLM,
-gerätelokal. Gated hinter dem Flag `statusCockpit` (dev/pl/kurator).
+Historie + deterministische Ableitung**. Rein deterministisch, kein LLM. Gated
+hinter dem Flag `statusCockpit` (dev/pl/kurator).
+
+**Der Katalog ist Team-Daten, die Historie ist gerätelokal.** Seit v2.332 liegt
+der kuratierte Katalog als Sidecar `_intern/status-katalog.json` auf dem
+Daten-Share — vorher wirkte eine Kuration nur auf dem Rechner, auf dem sie
+stattfand, sodass entweder niemand kuratierte oder jeder neu. Das Event-Log
+wandert bewusst NICHT mit: es hält fest, wann *diese Installation* eine Änderung
+beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
 
 ## Drei Schichten
 
@@ -31,9 +38,22 @@ gerätelokal. Gated hinter dem Flag `statusCockpit` (dev/pl/kurator).
 - **`getStatusCategory` ist snapshot-basiert** ([status-canonical.ts](../../src/core/utils/status-canonical.ts)):
   liest den aktiven Katalog-Snapshot, Fallback = eingebaute `CATEGORY_MAP`; bei
   identischem Mapping **bitweise identisch** (Test `byte-identitaet`).
-- **Katalog + Event-Log sind gerätelokal** — nie in `registry.json`, Daten-Share,
-  SMB-Snapshot oder Personal-Mirror. Portabilität nur über JSON-Export/Import
-  (Guard `status-system-local-only`).
+- **Der Katalog geht auf genau einem Weg auf den Share**: die Sidecar
+  ([katalog-share.ts](../../src/core/status/katalog-share.ts)), Profil
+  idempotent-overwrite + Backup-Rotation, self-gated über `queryPermission`.
+  Nie `registry.json`, nie SMB-Snapshot, nie Personal-Mirror (Guard
+  `status-katalog-share-only`). Der Abgleich läuft **einmal beim App-Start**
+  (`initStatusKatalog`) — `ladeAktiveVersion` bleibt IDB-only, weil sie an jedem
+  Import hängt. Vor der ersten Übernahme sichert
+  `uebernehmeKatalogVomShare` den lokalen Stand einmalig unter
+  `status-katalog:vor-share-uebernahme`; lokale Fassungen mit Nummern, die der
+  Share nicht kennt, bleiben stehen.
+- **Das Event-Log bleibt gerätelokal** — nie Share/Snapshot/Personal-Mirror
+  (Guard `status-event-log-local-only`). Ebenso der Unkuratiert-Puffer: er hält
+  fest, was *diese* Installation gesehen hat; was die PL inzwischen team-weit
+  kuratiert hat, räumt `pruneKuratierte` beim nächsten Import heraus.
+- **JSON-Export/Import im Cockpit bleibt** — nicht mehr als einziger
+  Portabilitätsweg, sondern für Sicherung und Transfer zwischen Installationen.
 - **Event-Log ist append-only** — nie mutieren/löschen (auch kein „Aufräumen"
   ignorierter Felder).
 - **Spine = amtliche Wirbelsäule** (`STEPPER_STATIONS`); die bestehende

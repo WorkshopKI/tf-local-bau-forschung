@@ -9,7 +9,7 @@
 import type { IDBStore } from '@/core/services/storage';
 import { listAntraegeByProgramm, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
 import { ladeAktiveVersion, ladeUnkuratiert, speichereUnkuratiert } from './katalog-store';
-import { ermittleNeueUnkuratierte, type BeobachteterWert } from './entdecke';
+import { ermittleNeueUnkuratierte, pruneKuratierte, type BeobachteterWert } from './entdecke';
 import { leseFeldWert } from './feld-zugriff';
 import { reconcileStatusEvents } from './reconcile';
 
@@ -36,9 +36,14 @@ export async function entdeckeUnkuratiertNachImport(
     }
   }
 
-  const bestehend = await ladeUnkuratiert(idb);
+  // Vor dem Anhängen aufräumen: was die PL inzwischen team-weit kuratiert hat,
+  // ist hier kein Fund mehr (der Katalog kommt seit v2.332 vom Daten-Share).
+  const bestehend = pruneKuratierte(version, await ladeUnkuratiert(idb));
   const neu = ermittleNeueUnkuratierte(version, bestehend, beobachtet, jetztIso);
-  if (neu.length === 0) return 0;
+  if (neu.length === 0) {
+    await speichereUnkuratiert(idb, bestehend);
+    return 0;
+  }
   await speichereUnkuratiert(idb, [...bestehend, ...neu]);
   return neu.length;
 }

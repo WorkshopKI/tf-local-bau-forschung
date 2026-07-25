@@ -907,7 +907,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 37;    // Ist 37; +1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 1670;       // Ist ~1648 (DIESE Datei; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1720;       // Ist ~1702 (DIESE Datei; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1502,37 +1502,40 @@ describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)
   });
 });
 
-describe('status-system-local-only (Status-Katalog + Event-Log: nie Daten-Share/Snapshot)', () => {
-  // Status-Katalog + Status-Event-Log sind GERAETELOKALE Daten (Varianten-IDB,
-  // Stores `status_katalog`/`status_event`). Portabilitaet laeuft AUSSCHLIESSLICH
-  // ueber das JSON-Export/Import im Cockpit — nie ueber den geteilten Daten-Share,
-  // registry.json, den SMB-Snapshot oder den Personal-Mirror (Vorbild: Assistent-
-  // Stores, Pitfall #37). Zwei strukturelle Checks:
-  it('src/core/status/ referenziert keine Share-/Snapshot-/Personal-Writer', () => {
-    const statusFiles = ALL_TS_FILES.filter(f => {
-      const p = relPath(f);
-      return p.startsWith('src/core/status/') && !p.includes('__tests__');
-    });
-    const verboten = [
-      'atomicWrite', 'appendToFile', 'writeProgrammSnapshot',
-      'getDatenShareHandle', 'mirrorJsonToPersonal', 'savePersonalSettings',
-    ];
+describe('status-event-log-local-only (Event-Log verlaesst das Geraet nie)', () => {
+  // Das Status-Event-Log haelt fest, wann DIESE Installation eine Aenderung
+  // beobachtet hat (`erfasstAm` = Importzeitpunkt auf diesem Geraet, Backfill-
+  // Marke je Programm). Zwei Rechner, die an verschiedenen Tagen importieren,
+  // schreiben fuer denselben Vorgang verschiedene Zeitstempel — zusammengefuehrt
+  // ergaebe das eine widerspruechliche Historie. Es bleibt deshalb geraetelokal,
+  // auch seit der KATALOG (v2.332) team-weit auf dem Daten-Share liegt.
+  const EVENT_LOG_MODULE = [
+    'event-store.ts', 'event-typen.ts', 'event-sort.ts', 'reconcile.ts', 'timeline.ts',
+  ];
+  const SHARE_WRITER = [
+    'atomicWrite', 'appendToFile', 'writeProgrammSnapshot',
+    'getDatenShareHandle', 'mirrorJsonToPersonal', 'savePersonalSettings',
+  ];
+  const istCode = (l: string): boolean => {
+    const t = l.trim();
+    return !(t.startsWith('//') || t.startsWith('*') || t.startsWith('/*'));
+  };
+
+  it('die Event-Log-Module referenzieren keinerlei Share-/Snapshot-/Personal-Writer', () => {
     const treffer: string[] = [];
-    for (const file of statusFiles) {
+    for (const file of ALL_TS_FILES) {
+      const p = relPath(file);
+      if (!p.startsWith('src/core/status/') || p.includes('__tests__')) continue;
+      if (!EVENT_LOG_MODULE.some(m => p.endsWith(`/${m}`))) continue;
       const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
-      for (const v of verboten) {
-        const hit = lines.some(l => {
-          const t = l.trim();
-          if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
-          return l.includes(v);
-        });
-        if (hit) treffer.push(`${relPath(file)} → ${v}`);
+      for (const v of SHARE_WRITER) {
+        if (lines.some(l => istCode(l) && l.includes(v))) treffer.push(`${p} → ${v}`);
       }
     }
     expect(
       treffer,
-      `Status-System-Module muessen geraetelokal bleiben (IDB-only; Portabilitaet nur via JSON-Export/Import).\n`
-      + `Verbotene Referenz(en): ${treffer.join(', ')}`,
+      `Das Status-Event-Log ist geraetespezifisch (Beobachtungszeitpunkte dieses Rechners) `
+      + `und darf das Geraet nie verlassen.\nVerbotene Referenz(en): ${treffer.join(', ')}`,
     ).toEqual([]);
   });
 
@@ -1541,10 +1544,60 @@ describe('status-system-local-only (Status-Katalog + Event-Log: nie Daten-Share/
     for (const key of ['status_katalog', 'status_event', 'status-katalog', 'status-timeline']) {
       expect(
         snapshot.includes(key),
-        `snapshot.ts darf '${key}' nicht kennen — Status-Katalog/Event-Log sind geraetelokal `
-        + `(strukturell ausserhalb von SNAPSHOT_FILES).`,
+        `snapshot.ts darf '${key}' nicht kennen — der Status-Katalog hat seine EIGENE Sidecar `
+        + `(katalog-share.ts), das Event-Log bleibt geraetelokal. Beides gehoert strukturell `
+        + `ausserhalb von SNAPSHOT_FILES.`,
       ).toBe(false);
     }
+  });
+});
+
+describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () => {
+  // Der Status-Katalog ist seit v2.332 Team-Daten und liegt als Sidecar
+  // `_intern/status-katalog.json`. Genau ein Modul fasst dafuer den Share an —
+  // sonst entstuende ein zweiter Schreibweg mit eigener Konflikt-Semantik.
+  // Registry, SMB-Snapshot und Personal-Mirror bleiben tabu.
+  const istCode = (l: string): boolean => {
+    const t = l.trim();
+    return !(t.startsWith('//') || t.startsWith('*') || t.startsWith('/*'));
+  };
+
+  it('nur katalog-share.ts fasst den Daten-Share an', () => {
+    const treffer: string[] = [];
+    for (const file of ALL_TS_FILES) {
+      const p = relPath(file);
+      if (!p.startsWith('src/core/status/') || p.includes('__tests__')) continue;
+      if (p.endsWith('/katalog-share.ts')) continue;
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      for (const v of ['atomicWrite', 'getDatenShareHandle']) {
+        if (lines.some(l => istCode(l) && l.includes(v))) treffer.push(`${p} → ${v}`);
+      }
+    }
+    expect(
+      treffer,
+      `Der Share-Zugriff des Status-Katalogs gehoert ausschliesslich in katalog-share.ts.\n`
+      + `Verbotene Referenz(en): ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('kein Status-Modul schreibt in registry.json oder den Personal-Mirror', () => {
+    const treffer: string[] = [];
+    for (const file of ALL_TS_FILES) {
+      const p = relPath(file);
+      if (!p.startsWith('src/core/status/') || p.includes('__tests__')) continue;
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      for (const v of ['registry.json', 'mirrorJsonToPersonal', 'savePersonalSettings', 'writeProgrammSnapshot']) {
+        if (lines.some(l => istCode(l) && l.includes(v))) treffer.push(`${p} → ${v}`);
+      }
+    }
+    expect(treffer, `Verbotene Referenz(en): ${treffer.join(', ')}`).toEqual([]);
+  });
+
+  it('der Sidecar-Pfad steht genau einmal im Code', () => {
+    const treffer = ALL_TS_FILES.filter(f =>
+      !relPath(f).includes('__tests__') && readFileSync(f, 'utf-8').includes('_intern/status-katalog.json'),
+    ).map(relPath);
+    expect(treffer).toEqual(['src/core/status/katalog-share.ts']);
   });
 });
 

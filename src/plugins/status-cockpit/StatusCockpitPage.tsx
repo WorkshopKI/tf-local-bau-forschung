@@ -39,6 +39,26 @@ function ExportImportButtons({ api }: { api: StatusCockpitApi }): React.ReactEle
   );
 }
 
+/**
+ * Der Katalog gilt team-weit — er liegt auf dem Daten-Share. Blieb eine Fassung
+ * nur lokal, sieht sie niemand sonst; das muss dastehen statt eines stillen
+ * Erfolgs (die Arbeit selbst ist gespeichert, nur eben nicht veröffentlicht).
+ */
+function NurLokalHinweis({ api }: { api: StatusCockpitApi }): React.ReactElement {
+  const erneut = useAsyncAction(async () => { await api.erneutAufShare(); });
+  return (
+    <div className="mx-6 mt-3 rounded px-3 py-2 flex items-center gap-2 flex-wrap text-[12.5px] text-[var(--tf-warning-text)]" style={feldStil}>
+      <span>
+        Nur lokal gespeichert — der Daten-Share war nicht erreichbar. Diese Fassung gilt noch
+        nicht für das Team.
+      </span>
+      <Button variant="ghost" size="sm" className="ml-auto" disabled={erneut.busy} onClick={() => erneut.run()}>
+        {erneut.busy ? 'Versucht …' : 'Erneut veröffentlichen'}
+      </Button>
+    </div>
+  );
+}
+
 function PhasenZelle({ label, aktiv, entwurf, geaendert }: {
   label: string; aktiv: number; entwurf: number; geaendert: boolean;
 }): React.ReactElement {
@@ -173,7 +193,7 @@ function SaveBar({ api }: { api: StatusCockpitApi }): React.ReactElement {
           onChange={e => setKommentar(e.target.value)}
         />
         <Button variant="primary" size="sm" disabled={busy} onClick={() => speichern.run()}>
-          {busy ? 'Speichert …' : 'Als neue Version speichern'}
+          {busy ? 'Speichert …' : 'Für das Team speichern'}
         </Button>
         <Button variant="ghost" size="sm" disabled={busy} onClick={() => api.verwerfen()}>
           Verwerfen
@@ -229,6 +249,8 @@ export function StatusCockpitPage(): React.ReactElement {
           ⚠ {api.fehler}
         </div>
       )}
+
+      {api.nurLokal && <NurLokalHinweis api={api} />}
 
       <SimulationsLeiste api={api} />
 

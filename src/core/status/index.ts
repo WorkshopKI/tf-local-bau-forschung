@@ -13,7 +13,7 @@ export {
   getAktiveVersionsnummer, setzeAktiv, ladeAktiveVersion, naechsteVersionsnummer,
   ladeUnkuratiert, speichereUnkuratiert,
 } from './katalog-store';
-export { ermittleNeueUnkuratierte, type BeobachteterWert } from './entdecke';
+export { ermittleNeueUnkuratierte, pruneKuratierte, type BeobachteterWert } from './entdecke';
 export { entdeckeUnkuratiertNachImport, nachImportStatusPflege } from './import-integration';
 export { recordKey, leseFeldWert } from './feld-zugriff';
 export type { StatusEvent } from './event-typen';
@@ -22,6 +22,11 @@ export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
 export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
 export { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
+export {
+  leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
+  uebernehmeKatalogVomShare, istKatalogDatei,
+  STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY, type StatusKatalogDatei,
+} from './katalog-share';
 export {
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
   SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,
@@ -36,16 +41,23 @@ export {
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import { ladeAktiveVersion } from './katalog-store';
+import { synchronisiereKatalogVomShare } from './katalog-share';
 import { setStatusKatalogSnapshot } from './snapshot';
 
 /**
- * Einmalige Initialisierung beim App-Start (nach `storage.init()`): lädt die
- * aktive Katalog-Version (seedet Version 1 beim ersten Mal) und setzt den
- * In-Memory-Snapshot, aus dem `getStatusCategory` liest. No-op ohne Flag.
- * Best-effort — blockiert den App-Start nicht.
+ * Einmalige Initialisierung beim App-Start (nach `storage.init()`):
+ * (1) Team-Fassung vom Daten-Share holen, falls vorhanden, (2) aktive Version
+ * laden (seedet Version 1 beim allerersten Mal), (3) In-Memory-Snapshot setzen,
+ * aus dem `getStatusCategory` liest. No-op ohne Flag.
+ *
+ * Der Share-Abgleich läuft **genau hier einmal** und nicht in `ladeAktiveVersion`:
+ * die wird bei jedem Import aufgerufen (Reconcile, Auto-Discovery) und darf
+ * nicht jedes Mal SMB anfassen. Best-effort — ohne erreichbaren Share bleibt der
+ * lokale Stand maßgeblich und die App startet wie zuvor.
  */
 export async function initStatusKatalog(idb: IDBStore): Promise<void> {
   if (!isStatusCockpitEnabled()) return;
+  await synchronisiereKatalogVomShare(idb);
   const version = await ladeAktiveVersion(idb);
   setStatusKatalogSnapshot(version);
 }

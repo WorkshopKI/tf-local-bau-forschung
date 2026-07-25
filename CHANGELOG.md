@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.332.0 — Status-Katalog wird Team-Datei auf dem Daten-Share (Juli 2026)
+
+MINOR — Der kuratierte Status-Katalog wirkte bisher nur auf dem Rechner, auf dem kuratiert wurde — praktisch kuratierte damit entweder niemand oder jeder neu. Er liegt jetzt als Team-Datei auf dem Daten-Share, wie der Meilenstein-Plan. Die Historie bleibt bewusst gerätelokal.
+
+- Katalog als Sidecar `_intern/status-katalog.json`, Abgleich einmal beim App-Start ([katalog-share.ts](src/core/status/katalog-share.ts)).
+- Speichern veröffentlicht für das Team; blieb es lokal, sagt die Seite das und bietet einen zweiten Anlauf ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx)).
+- Einmalige Sicherung des lokalen Standes vor der ersten Übernahme; lokale Fassungen mit unbekannter Nummer bleiben erhalten ([katalog-share.ts](src/core/status/katalog-share.ts)).
+- Event-Log und Unkuratiert-Puffer bleiben gerätelokal; team-weit Kuratiertes räumt sich beim nächsten Import aus dem Puffer ([entdecke.ts](src/core/status/entdecke.ts)).
+- Guard aufgeteilt: `status-katalog-share-only` (genau ein Share-Weg) und `status-event-log-local-only`; Pitfall #40 umgeschrieben.
+
 ### v2.331.0 — Meilensteine: Home-Widget, Detailsektion, Risiko-Meldung (Juli 2026)
 
 MINOR — Das Monitoring kommt dorthin, wo gearbeitet wird: auf die Startseite, auf die Verbund-Detailseite und in einen Rückkanal zur Projektleitung. Wer absehbar einen Meilenstein reißt, kann das melden, statt dass es erst beim nächsten Blick in die Liste auffällt. Schließt die Ausbaustufe ab.

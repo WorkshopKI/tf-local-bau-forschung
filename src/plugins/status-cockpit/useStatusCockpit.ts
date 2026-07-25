@@ -18,7 +18,7 @@ import {
   getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot, getAlleEvents,
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
   aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, exportiereVersion, validiereImport,
-  wertId,
+  wertId, schreibeKatalogAufShare,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
   type UnkuratierterFund, type VerbundFelder, type SimErgebnis, type PhasenWechsel, type SpinePhase,
 } from '@/core/status';
@@ -42,6 +42,14 @@ export interface StatusCockpitApi {
   geaendert: boolean;
   speichernBusy: boolean;
   speichernFehler: string | null;
+  /**
+   * Die zuletzt gespeicherte Fassung liegt nur lokal — der Daten-Share war nicht
+   * erreichbar oder der Build hat kein Schreibrecht. Sie gilt dann NICHT für das
+   * Team; die Oberfläche sagt das und bietet einen erneuten Versuch an.
+   */
+  nurLokal: boolean;
+  /** Zweiter Anlauf für den Share-Write nach `nurLokal`. */
+  erneutAufShare: () => Promise<void>;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
   setFeld: (feldId: string, patch: Partial<StatusFeldEintrag>) => void;
   setRegel: (id: string, patch: Partial<NaechsterSchrittRegel>) => void;
@@ -79,6 +87,7 @@ export function useStatusCockpit(): StatusCockpitApi {
   const [bestand, setBestand] = useState<Bestand | null>(null);
   const [speichernBusy, setSpeichernBusy] = useState(false);
   const [speichernFehler, setSpeichernFehler] = useState<string | null>(null);
+  const [nurLokal, setNurLokal] = useState(false);
 
   const ladeBestand = useCallback(async (version: MappingVersion): Promise<Bestand> => {
     const programme = await listProgramme(idb);
@@ -163,6 +172,10 @@ export function useStatusCockpit(): StatusCockpitApi {
         zeitstempel: new Date().toISOString(),
         kommentar: kommentar.trim() || undefined,
       };
+      // Erst lokal festschreiben, dann für das Team veröffentlichen. Diese
+      // Reihenfolge ist Absicht: schlägt der Share-Write fehl (offline, kein
+      // Schreibrecht), ist die Arbeit trotzdem nicht verloren — sie gilt nur
+      // noch nicht team-weit, und genau das meldet `nurLokal`.
       await speichereVersion(idb, neu);
       await setzeAktiv(idb, nr);
       setStatusKatalogSnapshot(neu);
@@ -170,6 +183,7 @@ export function useStatusCockpit(): StatusCockpitApi {
       setEntwurf(neu);
       setVersionen(await listeVersionen(idb));
       setBestand(b => (b ? { ...b, aktivSim: simuliere(neu, b.verbundFelder, heuteRef.current) } : b));
+      setNurLokal(!(await schreibeKatalogAufShare(idb)));
     } catch (e) {
       setSpeichernFehler((e as Error).message ?? 'Speichern fehlgeschlagen.');
       throw e;
@@ -177,6 +191,18 @@ export function useStatusCockpit(): StatusCockpitApi {
       setSpeichernBusy(false);
     }
   }, [entwurf, idb, kuerzel]);
+
+  const erneutAufShare = useCallback(async (): Promise<void> => {
+    setSpeichernFehler(null);
+    const ok = await schreibeKatalogAufShare(idb);
+    setNurLokal(!ok);
+    if (!ok) {
+      setSpeichernFehler(
+        'Der Katalog konnte nicht auf den Daten-Share geschrieben werden. '
+        + 'Ist der Share verbunden und besteht Schreibberechtigung?',
+      );
+    }
+  }, [idb]);
 
   const reaktivieren = useCallback(async (version: number): Promise<void> => {
     const alt = await getVersion(idb, version);
@@ -230,7 +256,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     phasenWechsel: bestand ? diffPhasen(bestand.aktivSim, entwurfSim) : [],
     konflikteAktiv: bestand ? bestand.aktivSim.filter(s => s.konflikt).length : 0,
     konflikteEntwurf: entwurfSim.filter(s => s.konflikt).length,
-    geaendert, speichernBusy, speichernFehler,
+    geaendert, speichernBusy, speichernFehler, nurLokal, erneutAufShare,
     setWert, setFeld, setRegel, uebernehmen, verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

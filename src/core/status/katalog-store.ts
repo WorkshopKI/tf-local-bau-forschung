@@ -1,5 +1,5 @@
 /**
- * Persistenz des Status-Katalogs (gerätelokal, pro Build-Variante).
+ * Lokaler Cache des Status-Katalogs (pro Build-Variante).
  *
  * - Mapping-Versionen liegen im dedizierten Store `status_katalog` (KeyPath
  *   `version`) — beliebig viele, aktivierbar, nie mutiert.
@@ -7,8 +7,13 @@
  *   `kv`-Keys (`status-katalog:aktiv`, `status-katalog:unkuratiert`) — kein
  *   Index nötig.
  *
- * GERÄTELOKAL: kein Snapshot-/Share-/Personal-Mirror-Anteil. Portabilität läuft
- * ausschließlich über das explizite JSON-Export/Import im Cockpit (Phase 4).
+ * **Quelle der Wahrheit ist seit v2.332 der Daten-Share** — die Team-Fassung
+ * liegt als Sidecar (`katalog-share.ts`) und wird beim App-Start hierher
+ * gespiegelt. Dieses Modul kennt den Share nicht; es bleibt reine IDB-Schicht,
+ * damit der heiße Import-Pfad (Reconcile, Auto-Discovery) nie SMB anfasst.
+ *
+ * Der **Unkuratiert-Puffer bleibt gerätelokal**: er hält fest, was DIESE
+ * Installation beim Import gesehen hat.
  *
  * Raw-Transaktionen über `idb.getDb()` (Vorbild: assistent/protokoll/store.ts).
  */

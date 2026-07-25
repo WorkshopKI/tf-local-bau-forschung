@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.332 — 2026-07
+
+### Verbesserungen
+- Der Status-Katalog gilt jetzt für das ganze Team: Was die Kuration einmal einsortiert, sehen alle anderen beim nächsten Start der App — bisher wirkte das nur auf dem eigenen Rechner.
+- War der Datenspeicher beim Speichern nicht erreichbar, sagt die Seite das deutlich und bietet einen zweiten Versuch an. Die Arbeit ist in dem Fall trotzdem gespeichert, nur noch nicht veröffentlicht.
+- Der Statusverlauf bleibt weiterhin auf dem eigenen Rechner — er hält fest, wann dieser Rechner eine Änderung gesehen hat.
+
 ## v2.331 — 2026-07
 
 ### Neu

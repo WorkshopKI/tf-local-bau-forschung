@@ -46,3 +46,16 @@ export function ermittleNeueUnkuratierte(
   }
   return neu;
 }
+
+/**
+ * Entfernt Funde, die im aktiven Katalog inzwischen kuratiert sind. Nötig, seit
+ * der Katalog vom Daten-Share kommt: kuratiert die PL einen Wert auf ihrem
+ * Rechner, bleibt er im Unkuratiert-Puffer aller anderen Geräte stehen und würde
+ * dort dauerhaft als „neu entdeckt" gemeldet. Rein.
+ */
+export function pruneKuratierte(
+  version: MappingVersion, bestand: readonly UnkuratierterFund[],
+): UnkuratierterFund[] {
+  const kuratiert = new Set(version.werte.map(w => w.id));
+  return bestand.filter(u => !kuratiert.has(u.id));
+}
