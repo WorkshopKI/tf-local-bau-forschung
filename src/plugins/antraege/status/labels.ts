@@ -5,7 +5,7 @@
  * Prominenz liegt im kuratierten Katalog (`@/core/status`); hier stehen nur die
  * sprechenden Texte für Timeline, „Warum?"-Panel und Konflikt-Badge.
  */
-import type { SpinePhase, StatusCategory, Werkzeug, MappingVersion } from '@/core/status';
+import type { SpinePhase, StatusCategory, Werkzeug } from '@/core/status';
 
 /** Amtliche Wirbelsäule → deutsches Label (`keine` = „—"). */
 export const SPINE_LABEL: Record<SpinePhase, string> = {
@@ -43,8 +43,3 @@ export const WERKZEUG_LABEL: Record<Werkzeug, string> = {
   nachforderung: 'Nachforderung',
   ablehnung: 'Ablehnung',
 };
-
-/** Label eines Katalog-Feldes; Fallback = die feldId selbst. */
-export function feldLabel(version: MappingVersion, feldId: string): string {
-  return version.felder.find(f => f.feldId === feldId)?.label ?? feldId;
-}

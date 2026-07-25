@@ -2,21 +2,25 @@
  * Zustand + IO des Status-Cockpits.
  *
  * Lädt die aktive Katalog-Version, den Bestand (alle Verbünde/Antraege für
- * Vorkommen + Simulation) und das Event-Log („zuletzt gesehen"). Hält einen
- * editierbaren Entwurf; Speichern legt eine neue Version an, aktiviert sie und
- * setzt den `getStatusCategory`-Snapshot neu. Katalog ist gerätelokal —
- * Portabilität nur über das JSON-Export/Import hier.
+ * Vorkommen + Simulation), die CSV-Schemas (Spalten-Herkunft je Feld) und das
+ * Event-Log („zuletzt gesehen"). Hält einen editierbaren Entwurf; Speichern legt
+ * eine neue Version an, aktiviert sie, setzt den `getStatusCategory`-Snapshot neu
+ * und veröffentlicht sie auf dem Daten-Share (der Katalog gilt team-weit).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
+import {
+  listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
+} from '@/core/services/csv/idb-csv';
+import type { CsvSchema } from '@/core/services/csv/types';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
   ladeAktiveVersion, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
   getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot, getAlleEvents,
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
+  csvSpaltenJeFeld,
   aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
@@ -34,6 +38,8 @@ export interface StatusCockpitApi {
   vorkommen: Map<string, number>;
   /** wertId → jüngstes erfasstAm (ISO). */
   zuletzt: Map<string, string>;
+  /** feldId → CSV-Spalten, aus denen das Feld gefüllt wird (Herkunft). */
+  csvSpalten: Map<string, string[]>;
   aktivVerteilung: Record<SpinePhase, number>;
   entwurfVerteilung: Record<SpinePhase, number>;
   phasenWechsel: PhasenWechsel[];
@@ -65,6 +71,7 @@ interface Bestand {
   verbundFelder: VerbundFelder[];
   vorkommen: Map<string, number>;
   zuletzt: Map<string, string>;
+  csvSpalten: Map<string, string[]>;
   aktivSim: SimErgebnis[];
 }
 
@@ -92,11 +99,14 @@ export function useStatusCockpit(): StatusCockpitApi {
   const ladeBestand = useCallback(async (version: MappingVersion): Promise<Bestand> => {
     const programme = await listProgramme(idb);
     const vf: VerbundFelder[] = [];
+    const schemas: CsvSchema[] = [];
     for (const p of programme) {
-      const [verbuende, antraege] = await Promise.all([
+      const [verbuende, antraege, programmSchemas] = await Promise.all([
         listVerbuendeByProgramm(idb, p.id),
         listAntraegeByProgramm(idb, p.id),
+        listSchemasByProgramm(idb, p.id),
       ]);
+      schemas.push(...programmSchemas);
       const byVb = new Map<string, { aktenzeichen: string; record: Record<string, unknown> }[]>();
       const einzeln: { aktenzeichen: string; record: Record<string, unknown> }[] = [];
       for (const a of antraege) {
@@ -123,6 +133,7 @@ export function useStatusCockpit(): StatusCockpitApi {
       verbundFelder: vf,
       vorkommen: zaehleVorkommen(vf),
       zuletzt: zuletztGesehen(events),
+      csvSpalten: csvSpaltenJeFeld(schemas),
       aktivSim: simuliere(version, vf, heuteRef.current),
     };
   }, [idb]);
@@ -251,6 +262,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     laden, fehler, aktiveVersion, entwurf, versionen, unkuratiert,
     vorkommen: bestand?.vorkommen ?? new Map(),
     zuletzt: bestand?.zuletzt ?? new Map(),
+    csvSpalten: bestand?.csvSpalten ?? new Map(),
     aktivVerteilung: bestand ? verteilung(bestand.aktivSim) : LEER_VERTEILUNG,
     entwurfVerteilung: bestand ? verteilung(entwurfSim) : LEER_VERTEILUNG,
     phasenWechsel: bestand ? diffPhasen(bestand.aktivSim, entwurfSim) : [],

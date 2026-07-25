@@ -2,7 +2,7 @@
 
 Vollbild-Admin-Seite (`/status-cockpit`, Flag `statusCockpit`; dev/pl/kurator). Hier
 wird der **Status-Katalog** gepflegt — die kuratierbaren Daten hinter der
-Statusanzeige der App (löst die früher hartkodierte Status→Kategorie-Map ab).
+Statusanzeige der App.
 
 ## Zweck
 
@@ -17,22 +17,24 @@ werden als **Konflikt** angezeigt, nie stillschweigend aufgelöst).
 
 - **Katalog**: Tabelle aller Statuswerte mit Inline-Bearbeitung (Label, Kategorie,
   Spine-Phase, Rang, Prominenz, terminal, aktiv), plus **Vorkommen** und
-  **zuletzt gesehen**. Filter-Pills + Suche. Beim Import neu aufgetauchte Werte
+  **zuletzt gesehen**. Je Zeile steht das Feld unter seinem kuratierten Namen
+  („TV-Status") und daneben die **CSV-Spalte** als Herkunft. Leeres Label heißt:
+  es gilt der Rohwert. Filter-Pills + Suche. Beim Import neu aufgetauchte Werte
   erscheinen als **unkuratiert** und werden per „Übernehmen" in den Katalog
   geholt — nie automatisch gemappt.
-- **Felder**: Tabelle der Statusfelder (z. B. `status`, `verbund_status`,
-  `vb_phase`, Datumsfelder). Prominenz-Default + aktiv editierbar (z. B. ein
-  „Termin"-Feld auf „ignoriert" setzen).
+- **Felder**: Tabelle der Statusfelder (`status` = TV-Status, `verbund_status`,
+  `vb_phase`, Datumsfelder) mit CSV-Spalte. Label, Prominenz-Default und aktiv
+  editierbar (z. B. ein „Termin"-Feld auf „ignoriert" setzen).
 - **Regeln**: priorisierte Nächste-Schritte-Regeln (Bedingung → Schritt, optional
   mit Werkzeug-Verweis). aktiv/Priorität/Beschreibung editierbar.
 
 ## Simulation + Versionen
 
 Über den Tabs zeigt eine **Simulations-Leiste** die abgeleitete Phasenverteilung
-(Aktiv → Entwurf), die Konfliktzahl und die Verbünde, die durch die Änderung die
-Phase wechseln. Änderungen sind ein **Entwurf**; „Als neue Version speichern"
-legt eine versionierte Fassung an und aktiviert sie. Ältere Versionen sind
-einsehbar und als Entwurf ladbar (Kopie). **Export/Import** als JSON.
+(Aktiv → Entwurf), die Konfliktzahl und die Verbünde, die dadurch die Phase
+wechseln. Änderungen sind ein **Entwurf**; „Für das Team speichern" legt eine
+versionierte Fassung an und aktiviert sie. Ältere Fassungen sind einsehbar und
+als Entwurf ladbar.
 
 ## Wichtig
 
@@ -42,6 +44,5 @@ einsehbar und als Entwurf ladbar (Kopie). **Export/Import** als JSON.
   bietet „Erneut veröffentlichen" an.
 - Die **Historie** (Statusverlauf) bleibt dagegen auf dem eigenen Rechner: sie
   hält fest, wann dieser Rechner eine Änderung gesehen hat.
-- JSON-Export/Import dient der Sicherung und dem Transfer zwischen
-  Installationen, nicht mehr dem Team-Abgleich.
+- JSON-Export/Import dient der Sicherung, nicht dem Team-Abgleich.
 - Ändert nichts am amtlichen Legacy-System — reine Anzeige-/Ableitungslogik.

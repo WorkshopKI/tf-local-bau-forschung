@@ -15,7 +15,7 @@ export {
 } from './katalog-store';
 export { ermittleNeueUnkuratierte, pruneKuratierte, type BeobachteterWert } from './entdecke';
 export { entdeckeUnkuratiertNachImport, nachImportStatusPflege } from './import-integration';
-export { recordKey, leseFeldWert } from './feld-zugriff';
+export { recordKey, leseFeldWert, feldLabel } from './feld-zugriff';
 export type { StatusEvent } from './event-typen';
 export { appendEvents, getStatusEvents, getAlleEvents } from './event-store';
 export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
@@ -29,6 +29,7 @@ export {
 } from './katalog-share';
 export {
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
+  csvSpaltenJeFeld,
   SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,
 } from './cockpit-berechnung';
 export { aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu } from './katalog-edit';

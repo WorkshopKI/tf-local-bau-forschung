@@ -10,11 +10,10 @@ import { ChevronDown, ChevronRight, Milestone } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { baueLanes, clustere, type Cluster, type TimelineEvent } from '@/core/status';
+import { baueLanes, clustere, feldLabel, type Cluster, type TimelineEvent } from '@/core/status';
 import type { MappingVersion, Prominenz, StatusEvent } from '@/core/status';
 import { formatGermanDate } from '@/core/services/csv/dateParse';
 import { useTimelinePrefs, type ZeitraumPreset } from './timelinePrefs';
-import { feldLabel } from './labels';
 
 const MS_TAG = 86_400_000;
 const LABEL_W = 132;

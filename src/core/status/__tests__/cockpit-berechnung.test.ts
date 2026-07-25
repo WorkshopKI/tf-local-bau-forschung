@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
+  csvSpaltenJeFeld,
 } from '@/core/status/cockpit-berechnung';
 import { baueSeedVersion } from '@/core/status/seed';
 import { aendereWert } from '@/core/status/katalog-edit';
 import { wertId } from '@/core/status/typen';
 import type { StatusEvent } from '@/core/status/event-typen';
+import type { ColumnMapping, CsvSchema } from '@/core/services/csv/types';
 
 const version = baueSeedVersion();
 
@@ -56,5 +58,38 @@ describe('cockpit-berechnung', () => {
       { id: '2', verbundId: 'v', feldId: 'status', wert: 'bewilligt', erfasstAm: '2026-03-01T00:00:00.000Z', importId: 'i', quelle: 'import' },
     ];
     expect(zuletztGesehen(evs).get(wertId('status', 'bewilligt'))).toBe('2026-03-01T00:00:00.000Z');
+  });
+});
+
+function schema(id: string, column_mapping: ColumnMapping): CsvSchema {
+  return {
+    id, programm_id: 'P', csv_source_name: id, is_master: true, join_key: 'aktenzeichen',
+    priority: 0, column_mapping, created_at: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+describe('csvSpaltenJeFeld — Herkunft eines Katalog-Feldes', () => {
+  it('bildet das kanonische Feld auf die CSV-Spalte ab', () => {
+    const m = csvSpaltenJeFeld([schema('s1', { STATUS: { canonical: 'status' } })]);
+    expect(m.get('status')).toEqual(['STATUS']);
+  });
+
+  it('sammelt verschieden benannte Spalten mehrerer Programme sortiert und doppelfrei', () => {
+    const m = csvSpaltenJeFeld([
+      schema('s1', { D_STAT: { canonical: 'status' } }),
+      schema('s2', { STATUS: { canonical: 'status' } }),
+      schema('s3', { STATUS: { canonical: 'status' } }),
+    ]);
+    expect(m.get('status')).toEqual(['D_STAT', 'STATUS']);
+  });
+
+  it('ignorierte Spalten zählen nicht als Herkunft', () => {
+    const m = csvSpaltenJeFeld([schema('s1', { ALT: { canonical: 'status', ignore: true } })]);
+    expect(m.has('status')).toBe(false);
+  });
+
+  it('ungemappte Spalte ist ihr eigener Key (wie im Meilenstein-Spaltenvorrat)', () => {
+    const m = csvSpaltenJeFeld([schema('s1', { D_QS: { type: 'date' } })]);
+    expect(m.get('D_QS')).toEqual(['D_QS']);
   });
 });

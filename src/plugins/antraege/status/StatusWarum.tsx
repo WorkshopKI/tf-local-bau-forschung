@@ -6,8 +6,9 @@
  */
 import { AlertTriangle } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
+import { feldLabel } from '@/core/status';
 import type { AbleitungsErgebnis, MappingVersion, SpinePhase } from '@/core/status';
-import { SPINE_LABEL, KATEGORIE_LABEL, GRUND_LABEL, feldLabel } from './labels';
+import { SPINE_LABEL, KATEGORIE_LABEL, GRUND_LABEL } from './labels';
 
 /** Badge-Variante zur abgeleiteten Spine-Phase (rein visuell). */
 function phaseVariant(p: SpinePhase): BadgeVariant {

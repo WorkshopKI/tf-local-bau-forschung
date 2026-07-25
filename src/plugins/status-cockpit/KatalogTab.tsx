@@ -6,12 +6,13 @@
  * Filter-Chips + Suche, darunter die Übernahme neu entdeckter (unkuratierter)
  * Funde. Rein darstellend — jede Änderung geht über `api.setWert` in den Entwurf.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
+import { feldLabel } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, SpinePhase, Prominenz, UnkuratierterFund } from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
@@ -28,11 +29,20 @@ function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
 
-function WertZeile({ w, api }: { w: StatusWertEintrag; api: StatusCockpitApi }): React.ReactElement {
+function WertZeile({ w, feldName, csvSpalte, api }: {
+  w: StatusWertEintrag; feldName: string; csvSpalte: string; api: StatusCockpitApi;
+}): React.ReactElement {
   const key = wertId(w.feldId, w.wert);
   return (
     <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] font-mono whitespace-nowrap`}>{w.feldId}</td>
+      {/* Der kuratierte Feldname, nicht die technische feldId („status" ist der
+          TV-Status). Die feldId bleibt im Tooltip — sie ist der Record-Key. */}
+      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] whitespace-nowrap`} title={w.feldId}>
+        {feldName}
+      </td>
+      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] font-mono whitespace-nowrap`}>
+        {csvSpalte}
+      </td>
       <td className={`${tdKlasse} text-[12px] text-[var(--tf-text)]`}>
         <div className="flex items-center gap-1.5">
           <span>{w.wert}</span>
@@ -40,8 +50,11 @@ function WertZeile({ w, api }: { w: StatusWertEintrag; api: StatusCockpitApi }):
         </div>
       </td>
       <td className={`${tdKlasse} min-w-[130px]`}>
+        {/* Leeres Label heißt: es gilt der Rohwert. Der Platzhalter sagt das,
+            statt den Rohwert zu spiegeln — sonst sehen beide Spalten gleich aus
+            und man hält das ungesetzte Label für einen gesetzten Wert. */}
         <input
-          value={w.label ?? ''} placeholder={w.wert} className={feldKlasse} style={feldStil}
+          value={w.label ?? ''} placeholder="wie Rohwert" className={feldKlasse} style={feldStil}
           onChange={e => api.setWert(w.id, { label: e.target.value })}
         />
       </td>
@@ -103,7 +116,19 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   const [promFilter, setPromFilter] = useState<ReadonlySet<Prominenz>>(() => new Set());
   const [nurUnkuratiert, setNurUnkuratiert] = useState(false);
 
-  const werte = api.entwurf?.werte ?? [];
+  const entwurf = api.entwurf;
+  const werte = entwurf?.werte ?? [];
+  /** feldId → kuratierter Feldname (eine Quelle: `feldLabel`). */
+  const feldName = useCallback(
+    (feldId: string): string => (entwurf ? feldLabel(entwurf, feldId) : feldId),
+    [entwurf],
+  );
+  /** feldId → CSV-Spalte(n); ungemappt → „—". */
+  const csvSpalte = useCallback(
+    (feldId: string): string => api.csvSpalten.get(feldId)?.join(', ') ?? '—',
+    [api.csvSpalten],
+  );
+
   const gefiltert = useMemo(() => {
     const q = suche.trim().toLowerCase();
     return werte.filter(w => {
@@ -111,14 +136,17 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       if (promFilter.size > 0 && !promFilter.has(w.prominenz)) return false;
       if (nurUnkuratiert && !w.unkuratiert) return false;
       if (q) {
-        const hay = `${w.feldId} ${w.wert} ${w.label ?? ''}`.toLowerCase();
+        // Suche greift auf alles, wonach man einen Status sucht: technischer
+        // Key, Feldname, CSV-Spalte, Rohwert, Label.
+        const hay = `${w.feldId} ${feldName(w.feldId)} ${csvSpalte(w.feldId)} ${w.wert} ${w.label ?? ''}`
+          .toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [werte, suche, katFilter, promFilter, nurUnkuratiert]);
+  }, [werte, suche, katFilter, promFilter, nurUnkuratiert, feldName, csvSpalte]);
 
-  if (!api.entwurf) return null;
+  if (!entwurf) return null;
 
   return (
     <div className="flex flex-col gap-3 pt-3">
@@ -130,7 +158,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
 
       <div className="flex flex-col gap-2">
         <input
-          value={suche} placeholder="Feld, Rohwert oder Label suchen …"
+          value={suche} placeholder="Feld, CSV-Spalte, Rohwert oder Label suchen …"
           className="w-full max-w-[360px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
           style={feldStil}
           onChange={e => setSuche(e.target.value)}
@@ -162,6 +190,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
           <thead>
             <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
               <th className={thKlasse}>Feld</th>
+              <th className={thKlasse}>CSV-Spalte</th>
               <th className={thKlasse}>Rohwert</th>
               <th className={thKlasse}>Label</th>
               <th className={thKlasse}>Kategorie</th>
@@ -175,7 +204,12 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
             </tr>
           </thead>
           <tbody>
-            {gefiltert.map(w => <WertZeile key={w.id} w={w} api={api} />)}
+            {gefiltert.map(w => (
+              <WertZeile
+                key={w.id} w={w} api={api}
+                feldName={feldName(w.feldId)} csvSpalte={csvSpalte(w.feldId)}
+              />
+            ))}
           </tbody>
         </table>
         {gefiltert.length === 0 && (
@@ -198,7 +232,12 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
             >
               <div className="min-w-0 flex items-center gap-2 flex-wrap">
                 <Badge variant="warning">unkuratiert</Badge>
-                <span className="text-[12px] font-mono text-[var(--tf-text-secondary)]">{fund.feldId}</span>
+                <span className="text-[12px] text-[var(--tf-text-secondary)]" title={fund.feldId}>
+                  {feldName(fund.feldId)}
+                </span>
+                <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">
+                  {csvSpalte(fund.feldId)}
+                </span>
                 <span className="text-[12.5px] text-[var(--tf-text)]">{fund.wert}</span>
                 <span className="text-[11px] text-[var(--tf-text-tertiary)]">
                   seit {formatDatum(fund.erstmalsGesehen)}

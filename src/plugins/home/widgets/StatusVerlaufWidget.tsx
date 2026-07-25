@@ -23,10 +23,10 @@ import { getVerbund, listAntraegeByVerbund } from '@/core/services/csv/idb-csv';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import {
   getAktiveVersion, getStatusEvents, baueVerbundFelder, leiteStatusAb,
-  sortiereEvents, eventProminenz, eventZeitMs,
+  sortiereEvents, eventProminenz, eventZeitMs, feldLabel,
   type MappingVersion, type StatusEvent, type AbleitungsErgebnis,
 } from '@/core/status';
-import { SPINE_LABEL, feldLabel } from '@/plugins/antraege/status/labels';
+import { SPINE_LABEL } from '@/plugins/antraege/status/labels';
 import { KonfliktBadge } from '@/plugins/antraege/status/KonfliktBadge';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';

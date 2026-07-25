@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.333.0 — Status-Katalog: Feldname statt feldId, CSV-Spalte als Herkunft (Juli 2026)
+
+MINOR — Die Katalog-Tabelle zeigte je Zeile die technische `feldId` (`status`), obwohl der Katalog dafür längst einen kuratierten Namen führt („TV-Status"). Es fehlte zugleich die CSV-Spalte — der Bezeichner, unter dem ein Status im Fachsystem-Export tatsächlich steht.
+
+- `feldLabel` hat jetzt EINE Heimat in `@/core/status` (vorher UI-lokal); Katalog- und Regeln-Tab zeigen den Feldnamen, die feldId bleibt im Tooltip ([feld-zugriff.ts](src/core/status/feld-zugriff.ts)).
+- Neue Spalte **CSV-Spalte** in Katalog- und Felder-Tab: Herkunft je Feld aus den Programm-Schemas, mehrere Programme sammeln ihre Spaltennamen ([cockpit-berechnung.ts](src/core/status/cockpit-berechnung.ts)).
+- Suche greift zusätzlich auf Feldname und CSV-Spalte ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)).
+- Label-Platzhalter sagt „wie Rohwert" statt den Rohwert zu spiegeln — leeres Label sah bisher aus wie ein gesetztes ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)).
+- `feldLabel` fällt auch bei leer geräumtem Label auf die feldId zurück (sonst bliebe die Spalte leer) ([feld-zugriff.test.ts](src/core/status/__tests__/feld-zugriff.test.ts)).
+
 ### v2.332.0 — Status-Katalog wird Team-Datei auf dem Daten-Share (Juli 2026)
 
 MINOR — Der kuratierte Status-Katalog wirkte bisher nur auf dem Rechner, auf dem kuratiert wurde — praktisch kuratierte damit entweder niemand oder jeder neu. Er liegt jetzt als Team-Datei auf dem Daten-Share, wie der Meilenstein-Plan. Die Historie bleibt bewusst gerätelokal.

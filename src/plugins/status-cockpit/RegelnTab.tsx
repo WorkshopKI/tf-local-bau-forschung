@@ -8,25 +8,33 @@
  */
 import { Badge } from '@/components/ui/badge';
 import type { StatusCockpitApi } from './useStatusCockpit';
-import type { Bedingung, NaechsterSchrittRegel } from '@/core/status';
+import { feldLabel } from '@/core/status';
+import type { Bedingung, MappingVersion, NaechsterSchrittRegel } from '@/core/status';
 import { WERKZEUG_LABEL, feldKlasse, feldStil } from './labels';
 
-/** Rekursiver Nur-Lese-Formatierer für eine Bedingung (Blatt / UND / ODER). */
-function formatBedingung(b: Bedingung): string {
-  if ('alle' in b) return `(${b.alle.map(formatBedingung).join(' UND ')})`;
-  if ('einige' in b) return `(${b.einige.map(formatBedingung).join(' ODER ')})`;
+/**
+ * Rekursiver Nur-Lese-Formatierer für eine Bedingung (Blatt / UND / ODER).
+ * Felder erscheinen unter ihrem kuratierten Namen — „TV-Status ist beantragt"
+ * statt „status ist beantragt".
+ */
+function formatBedingung(b: Bedingung, version: MappingVersion): string {
+  if ('alle' in b) return `(${b.alle.map(x => formatBedingung(x, version)).join(' UND ')})`;
+  if ('einige' in b) return `(${b.einige.map(x => formatBedingung(x, version)).join(' ODER ')})`;
+  const feld = feldLabel(version, b.feldId);
   switch (b.op) {
-    case 'gefuellt': return `${b.feldId} gefüllt`;
-    case 'leer': return `${b.feldId} leer`;
-    case 'ist': return `${b.feldId} ist „${b.wert ?? ''}"`;
-    case 'istNicht': return `${b.feldId} ist nicht „${b.wert ?? ''}"`;
-    case 'datumVor': return `${b.feldId} vor heute ${b.tageRelativHeute >= 0 ? '+' : ''}${b.tageRelativHeute} T`;
-    case 'datumNach': return `${b.feldId} nach heute ${b.tageRelativHeute >= 0 ? '+' : ''}${b.tageRelativHeute} T`;
+    case 'gefuellt': return `${feld} gefüllt`;
+    case 'leer': return `${feld} leer`;
+    case 'ist': return `${feld} ist „${b.wert ?? ''}"`;
+    case 'istNicht': return `${feld} ist nicht „${b.wert ?? ''}"`;
+    case 'datumVor': return `${feld} vor heute ${b.tageRelativHeute >= 0 ? '+' : ''}${b.tageRelativHeute} T`;
+    case 'datumNach': return `${feld} nach heute ${b.tageRelativHeute >= 0 ? '+' : ''}${b.tageRelativHeute} T`;
     default: return '';
   }
 }
 
-function RegelKarte({ r, api }: { r: NaechsterSchrittRegel; api: StatusCockpitApi }): React.ReactElement {
+function RegelKarte({ r, version, api }: {
+  r: NaechsterSchrittRegel; version: MappingVersion; api: StatusCockpitApi;
+}): React.ReactElement {
   return (
     <div
       className="rounded px-3 py-2.5 flex flex-col gap-2"
@@ -59,7 +67,7 @@ function RegelKarte({ r, api }: { r: NaechsterSchrittRegel; api: StatusCockpitAp
 
       <div className="text-[11px] text-[var(--tf-text-tertiary)]">
         <span className="uppercase tracking-wide">Wenn</span>{' '}
-        <span className="text-[var(--tf-text-secondary)] font-mono">{formatBedingung(r.bedingung)}</span>
+        <span className="text-[var(--tf-text-secondary)]">{formatBedingung(r.bedingung, version)}</span>
       </div>
 
       {r.schritte.length > 0 && (
@@ -94,7 +102,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
         {regeln.length} Regeln, aufsteigend nach Priorität. Alle zutreffenden aktiven Regeln liefern
         Schritte. Die Bedingungsstruktur wird hier nur angezeigt (Bearbeitung folgt).
       </p>
-      {regeln.map(r => <RegelKarte key={r.id} r={r} api={api} />)}
+      {regeln.map(r => <RegelKarte key={r.id} r={r} version={entwurf} api={api} />)}
       {regeln.length === 0 && (
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Keine Regeln im Entwurf.</p>
       )}

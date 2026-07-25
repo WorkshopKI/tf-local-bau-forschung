@@ -17,7 +17,9 @@ const tdKlasse = 'px-2 py-1.5 align-middle';
 const TYP_LABEL: Record<StatusFeldEintrag['typ'], string> = { wert: 'Wert', datum: 'Datum' };
 const EBENE_LABEL: Record<StatusFeldEintrag['ebene'], string> = { verbund: 'Verbund', tv: 'Teilvorhaben' };
 
-function FeldZeile({ f, api }: { f: StatusFeldEintrag; api: StatusCockpitApi }): React.ReactElement {
+function FeldZeile({ f, csvSpalte, api }: {
+  f: StatusFeldEintrag; csvSpalte: string; api: StatusCockpitApi;
+}): React.ReactElement {
   return (
     <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
       <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] font-mono whitespace-nowrap`}>
@@ -25,6 +27,10 @@ function FeldZeile({ f, api }: { f: StatusFeldEintrag; api: StatusCockpitApi }):
           <span>{f.feldId}</span>
           {f.unkuratiert && <Badge variant="warning">unkuratiert</Badge>}
         </div>
+      </td>
+      {/* Herkunft: aus welcher CSV-Spalte das Feld gefüllt wird. */}
+      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] font-mono whitespace-nowrap`}>
+        {csvSpalte}
       </td>
       <td className={`${tdKlasse} min-w-[180px]`}>
         <input
@@ -70,6 +76,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
           <thead>
             <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
               <th className={thKlasse}>Feld</th>
+              <th className={thKlasse}>CSV-Spalte</th>
               <th className={thKlasse}>Label</th>
               <th className={thKlasse}>Typ</th>
               <th className={thKlasse}>Ebene</th>
@@ -78,7 +85,12 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             </tr>
           </thead>
           <tbody>
-            {felder.map(f => <FeldZeile key={f.feldId} f={f} api={api} />)}
+            {felder.map(f => (
+              <FeldZeile
+                key={f.feldId} f={f} api={api}
+                csvSpalte={api.csvSpalten.get(f.feldId)?.join(', ') ?? '—'}
+              />
+            ))}
           </tbody>
         </table>
         {felder.length === 0 && (

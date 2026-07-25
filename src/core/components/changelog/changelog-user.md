@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.333 — 2026-07
+
+### Neu
+- Im Status-Katalog steht jetzt zu jedem Status die **CSV-Spalte**, aus der er stammt — der Name, unter dem er auch im Fachsystem-Export zu finden ist. Die Suche findet Stati auch darüber.
+
+### Verbesserungen
+- Die Spalte „Feld" zeigt den Klarnamen statt des technischen Kürzels: aus `status` wird „TV-Status". Das Kürzel erscheint beim Darüberfahren.
+- Ein leeres Label ist als solches erkennbar („wie Rohwert") — vorher stand dort der Rohwert und sah aus wie ein bereits gesetzter Name.
+
 ## v2.332 — 2026-07
 
 ### Verbesserungen

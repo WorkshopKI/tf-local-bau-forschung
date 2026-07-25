@@ -3,6 +3,7 @@
  * Simulation (abgeleitete Phasen-Verteilung), Vorher/Nachher-Diff, „zuletzt
  * gesehen". Alles ohne IO — die Daten reicht der Hook rein (testbar).
  */
+import type { CsvSchema } from '@/core/services/csv/types';
 import type { MappingVersion, SpinePhase } from './typen';
 import { wertId } from './typen';
 import { leseFeldWert } from './feld-zugriff';
@@ -40,6 +41,33 @@ export function baueVerbundFelder(
     if (Object.keys(rec).length > 0) tvFelder[a.aktenzeichen] = rec;
   }
   return { verbundId, felder, tvFelder };
+}
+
+/**
+ * Herkunft eines Katalog-Feldes: feldId → die CSV-Spalten, aus denen es gefüllt
+ * wird (`status` → `STATUS`). Der Spaltenname ist für die Kuration der
+ * verlässlichste Bezeichner — die feldId ist unsere Erfindung, die Spalte steht
+ * so im Export des Fachsystems.
+ *
+ * Ist eine Spalte auf ein kanonisches Feld gemappt, zählt der kanonische Key;
+ * ungemappte Spalten sind ihr eigener Key (dieselbe Regel wie im Spalten-Vorrat
+ * der Meilensteine). Mehrere Programme können dasselbe Feld aus verschieden
+ * benannten Spalten füllen — daher eine Liste, sortiert und doppelfrei. Rein.
+ */
+export function csvSpaltenJeFeld(schemas: readonly CsvSchema[]): Map<string, string[]> {
+  const roh = new Map<string, Set<string>>();
+  for (const schema of schemas) {
+    for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
+      if (!entry || entry.ignore) continue;
+      const feldId = entry.canonical?.trim() || spalte;
+      const set = roh.get(feldId);
+      if (set) set.add(spalte);
+      else roh.set(feldId, new Set([spalte]));
+    }
+  }
+  return new Map(
+    [...roh].map(([feldId, spalten]) => [feldId, [...spalten].sort((a, b) => a.localeCompare(b, 'de'))]),
+  );
 }
 
 /** Zählt, in wie vielen Verbünden ein (feldId, wert) aktuell vorkommt.
