@@ -1,0 +1,211 @@
+/**
+ * Übersicht: eine Zeile je Verbund, je Haupt-Meilenstein eine Zustands-Spalte.
+ * Links die Liste, rechts der Zeitstrahl des ausgewählten Verbunds
+ * (`MasterDetailLayout` — kein eigenes Master/Detail nachbauen).
+ *
+ * Sortierung: dringendstes zuerst. „Dringend" heißt hier Prognose vor Restzeit —
+ * ein Vorgang mit gerissener Frist gehört nach oben, auch wenn ein anderer
+ * kalendarisch knapper dran ist.
+ */
+import { useMemo, useState } from 'react';
+import { MasterDetailLayout } from '@/components/master-detail/MasterDetailLayout';
+import { ToggleChip } from '@/components/ui/ToggleChip';
+import { Button } from '@/components/ui/button';
+import { useNavigation } from '@/core/hooks/useNavigation';
+import { ExternalLink } from 'lucide-react';
+import type { MeilensteinPlan, MstZustand } from '@/core/meilensteine';
+import { kinderVon } from '@/core/meilensteine';
+import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
+import { MeilensteinLeiste } from './MeilensteinLeiste';
+import { LEERER_FILTER, filtereZeilen, type UebersichtFilter } from './monitoringLogic';
+import {
+  PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, ZUSTAND_FARBE,
+  ZUSTAND_LABEL, feldStil, formatDatum,
+} from './labels';
+import type { VerbundZeile } from './useMeilensteinStand';
+
+function ZustandsPunkt({ zustand }: { zustand: MstZustand }): React.ReactElement {
+  return (
+    <span
+      title={ZUSTAND_LABEL[zustand]}
+      aria-label={ZUSTAND_LABEL[zustand]}
+      className="inline-block rounded-full"
+      style={{
+        width: 8, height: 8,
+        background: zustand === 'offen' || zustand === 'nichtRelevant' ? 'transparent' : ZUSTAND_FARBE[zustand],
+        border: `1.5px solid ${ZUSTAND_FARBE[zustand]}`,
+      }}
+    />
+  );
+}
+
+function Zeile({ zeile, hauptKnotenIds, aktiv, onWaehlen }: {
+  zeile: VerbundZeile;
+  hauptKnotenIds: string[];
+  aktiv: boolean;
+  onWaehlen: () => void;
+}): React.ReactElement {
+  const perKnoten = new Map(zeile.ergebnisse.map(e => [e.knotenId, e]));
+  return (
+    <button
+      type="button"
+      onClick={onWaehlen}
+      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-[var(--tf-bg-secondary)] cursor-pointer"
+      style={aktiv ? { ...feldStil, background: 'var(--tf-bg-secondary)' } : feldStil}
+    >
+      <span className="shrink-0 w-[104px] truncate text-[12.5px] font-medium text-[var(--tf-text)]" title={zeile.titel || zeile.akronym}>
+        {zeile.akronym}
+      </span>
+      <span className="shrink-0 w-[30px] text-[10.5px] text-[var(--tf-text-tertiary)]">
+        {zeile.typ ? TYP_LABEL[zeile.typ] : '—'}
+      </span>
+      <span className="shrink-0 w-[46px] text-[11px] tabular-nums text-[var(--tf-text-tertiary)]" title="Laufende Bearbeitungswoche">
+        {zeile.wocheAktuell === null ? '—' : `W${zeile.wocheAktuell}`}
+      </span>
+      <span className="shrink-0 inline-flex items-center gap-1">
+        {hauptKnotenIds.map(id => (
+          <ZustandsPunkt key={id} zustand={perKnoten.get(id)?.zustand ?? 'nichtRelevant'} />
+        ))}
+      </span>
+      <span className="flex-1 min-w-0" />
+      <span
+        className="shrink-0 text-[11px] tabular-nums"
+        style={{ color: PROGNOSE_FARBE[zeile.prognose] }}
+        title={`${PROGNOSE_LABEL[zeile.prognose]} · Frist ${formatDatum(zeile.fristDatum)}`}
+      >
+        {zeile.restTage === null ? PROGNOSE_LABEL[zeile.prognose] : `${zeile.restTage} T`}
+      </span>
+    </button>
+  );
+}
+
+export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
+  zeilen: VerbundZeile[];
+  plan: MeilensteinPlan;
+  meinKuerzel: string;
+}): React.ReactElement {
+  const { navigate } = useNavigation();
+  const [filter, setFilter] = useState<UebersichtFilter>(LEERER_FILTER);
+  const [gewaehlt, setGewaehlt] = useState<string | null>(null);
+
+  const hauptKnotenIds = useMemo(
+    () => kinderVon(plan.knoten, null).map(k => k.id),
+    [plan.knoten],
+  );
+  const sichtbar = useMemo(
+    () => filtereZeilen(zeilen, filter, meinKuerzel),
+    [zeilen, filter, meinKuerzel],
+  );
+  const aktiv = sichtbar.find(z => z.verbundId === gewaehlt) ?? null;
+
+  const toggle = <T,>(liste: T[], wert: T): T[] =>
+    liste.includes(wert) ? liste.filter(x => x !== wert) : [...liste, wert];
+
+  const liste = (
+    <div className="flex flex-col gap-2 h-full min-h-0">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <input
+          value={filter.suche}
+          onChange={e => setFilter(f => ({ ...f, suche: e.target.value }))}
+          placeholder="Akronym oder Titel …"
+          aria-label="Verbünde durchsuchen"
+          className="flex-1 min-w-[140px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
+          style={feldStil}
+        />
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {ANTRAGSTYP_BUCKETS.map(t => (
+          <ToggleChip
+            key={t} label={TYP_LABEL[t]}
+            selected={filter.typen.includes(t)}
+            onToggle={() => setFilter(f => ({ ...f, typen: toggle(f.typen, t) }))}
+          />
+        ))}
+        {meinKuerzel && (
+          <ToggleChip
+            label="nur meine"
+            selected={filter.nurMeine}
+            onToggle={() => setFilter(f => ({ ...f, nurMeine: !f.nurMeine }))}
+            title={`Teilvorhaben mit Kürzel ${meinKuerzel}`}
+          />
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {PROGNOSE_REIHENFOLGE.map(p => (
+          <ToggleChip
+            key={p} label={PROGNOSE_LABEL[p]}
+            selected={filter.prognosen.includes(p)}
+            onToggle={() => setFilter(f => ({ ...f, prognosen: toggle(f.prognosen, p) }))}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+        {sichtbar.length} von {zeilen.length} offenen Verbünden
+      </p>
+
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1">
+        {sichtbar.map(z => (
+          <Zeile
+            key={z.verbundId} zeile={z} hauptKnotenIds={hauptKnotenIds}
+            aktiv={z.verbundId === gewaehlt}
+            onWaehlen={() => setGewaehlt(z.verbundId)}
+          />
+        ))}
+        {sichtbar.length === 0 && (
+          <p className="text-[12.5px] text-[var(--tf-text-tertiary)] pt-2">
+            Kein Verbund passt zu den Filtern.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const detail = aktiv === null ? undefined : (
+    <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full min-h-0">
+      <div className="flex items-start gap-2 flex-wrap">
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-medium text-[var(--tf-text)]">{aktiv.akronym}</h2>
+          {aktiv.titel && (
+            <p className="text-[12px] text-[var(--tf-text-secondary)]">{aktiv.titel}</p>
+          )}
+        </div>
+        <Button
+          variant="ghost" size="sm" icon={ExternalLink} className="ml-auto"
+          onClick={() => navigate('antraege', { selectedId: aktiv.verbundId })}
+        >
+          Zum Verbund
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap text-[12px]">
+        <span style={{ color: PROGNOSE_FARBE[aktiv.prognose] }}>{PROGNOSE_LABEL[aktiv.prognose]}</span>
+        <span className="text-[var(--tf-text-secondary)]">
+          Eingang {formatDatum(aktiv.antragsdatum)}
+        </span>
+        <span className="text-[var(--tf-text-secondary)]">
+          Frist {formatDatum(aktiv.fristDatum)}
+        </span>
+        <span className="text-[var(--tf-text-secondary)]">
+          {aktiv.restTage === null
+            ? 'Restzeit unbekannt'
+            : aktiv.restTage >= 0 ? `noch ${aktiv.restTage} Tage` : `${-aktiv.restTage} Tage überfällig`}
+        </span>
+        {aktiv.kuerzel.length > 0 && (
+          <span className="text-[var(--tf-text-tertiary)]">Bearbeitung: {aktiv.kuerzel.join(', ')}</span>
+        )}
+      </div>
+
+      <MeilensteinLeiste bewertung={aktiv} knoten={plan.knoten} />
+    </div>
+  );
+
+  return (
+    <MasterDetailLayout
+      list={liste}
+      detail={detail}
+      onCloseDetail={() => setGewaehlt(null)}
+      listWidthKey="meilensteine_uebersicht_breite"
+    />
+  );
+}

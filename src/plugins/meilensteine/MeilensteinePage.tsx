@@ -1,20 +1,29 @@
 /**
- * „Fristen & Meilensteine" — Vollbild-Seite.
+ * „Fristen & Meilensteine" — Vollbild-Seite mit drei Bereichen: die Übersicht
+ * aller offenen Verbünde, die Arbeitsliste „Diese Woche" und die Konfiguration
+ * des Plans.
  *
- * Ausbaustufe P3: der Konfigurations-Bereich. Übersicht, „Diese Woche" und
- * Auswertung kommen in den Folgephasen als weitere Tabs dazu; die Tab-Leiste
- * wird erst dann eingezogen — eine Leiste mit einem Reiter ist kein Navigations-,
- * sondern ein Ratlosigkeits-Signal.
+ * Zwei Hooks, bewusst getrennt: `useMeilensteinStand` liest den bewerteten
+ * Stand (read-only, für alle), `useMeilensteinPlan` den editierbaren Plan (nur
+ * mit Schreibrecht wirksam). Ein gemeinsamer Hook müsste beide Lebenszyklen
+ * bedienen und würde bei jedem Tastendruck im Editor die Projektion anfassen.
  */
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { History } from 'lucide-react';
 import { useMeilensteinPlan, type MeilensteinPlanApi } from './useMeilensteinPlan';
+import { useMeilensteinStand } from './useMeilensteinStand';
 import { KonfigurationTab } from './KonfigurationTab';
+import { UebersichtTab } from './UebersichtTab';
+import { DieseWocheTab } from './DieseWocheTab';
+import { sammleWochenPunkte } from './monitoringLogic';
 import { feldStil, formatDatum } from './labels';
+
+type TabKey = 'uebersicht' | 'woche' | 'konfiguration';
 
 function StatusLeiste({ api }: { api: MeilensteinPlanApi }): React.ReactElement | null {
   // Hooks vor jedem Early-Return — sonst kippt die Hook-Reihenfolge (React #310).
@@ -157,8 +166,24 @@ function SpeicherLeiste({ api }: { api: MeilensteinPlanApi }): React.ReactElemen
   );
 }
 
+/** Hinweis statt Leere, wenn noch keine Fassung freigegeben ist. */
+function KeinPlanHinweis({ onZurKonfiguration }: { onZurKonfiguration: () => void }): React.ReactElement {
+  return (
+    <div className="pt-6 flex flex-col items-start gap-2">
+      <p className="text-[13px] text-[var(--tf-text)]">Noch kein Plan freigegeben.</p>
+      <p className="text-[12.5px] text-[var(--tf-text-secondary)] max-w-[560px]">
+        Es wird nur eine freigegebene Fassung ausgewertet — solange keine vorliegt, bleibt die
+        Auswertung bewusst leer, statt Zahlen aus einem halbfertigen Entwurf zu zeigen.
+      </p>
+      <Button variant="ghost" size="sm" onClick={onZurKonfiguration}>Zur Konfiguration</Button>
+    </div>
+  );
+}
+
 export function MeilensteinePage(): React.ReactElement {
-  const api = useMeilensteinPlan();
+  const planApi = useMeilensteinPlan();
+  const stand = useMeilensteinStand();
+  const [tab, setTab] = useState<TabKey>('uebersicht');
 
   const kopf = (
     <PageHeader
@@ -167,50 +192,92 @@ export function MeilensteinePage(): React.ReactElement {
     />
   );
 
-  if (api.laden) {
-    return (
-      <div className="flex flex-col h-full min-h-0">
-        <div className="px-6 pt-5 pb-3">{kopf}</div>
-        <div className="flex-1 grid place-items-center text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>
-      </div>
-    );
-  }
-
-  const entwurf = api.entwurf;
+  const wochenAnzahl = stand.plan ? sammleWochenPunkte(stand.zeilen, stand.plan, stand.stand).length : 0;
+  const entwurf = planApi.entwurf;
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-6 pt-5 pb-3 border-b border-[var(--tf-border)]">{kopf}</div>
+      <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
+        {kopf}
+        <ScopeTabs
+          variant="tabs"
+          aria-label="Bereich"
+          activeKey={tab}
+          onChange={k => setTab(k as TabKey)}
+          items={[
+            { key: 'uebersicht', label: 'Übersicht', count: stand.zeilen.length },
+            { key: 'woche', label: 'Diese Woche', count: wochenAnzahl },
+            { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
+          ]}
+        />
+      </div>
 
-      {api.fehler != null && (
+      {(planApi.fehler ?? stand.fehler) != null && (
         <div className="mx-6 mt-3 rounded px-3 py-2 text-[12.5px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">
-          ⚠ {api.fehler}
+          ⚠ {planApi.fehler ?? stand.fehler}
         </div>
       )}
 
-      <StatusLeiste api={api} />
+      {tab === 'konfiguration' && <StatusLeiste api={planApi} />}
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
-        {!api.darfSchreiben && (
-          <p className="mt-4 text-[12.5px] text-[var(--tf-text-tertiary)]">
-            Der Meilenstein-Plan wird von der Projektleitung gepflegt. Sie sehen hier den
-            aktuellen Stand.
-          </p>
-        )}
-        {entwurf && (
-          <KonfigurationTab
-            knoten={entwurf.knoten}
-            gesamtfristTage={entwurf.gesamtfristTage}
-            spalten={api.spalten}
-            schreibgeschuetzt={!api.darfSchreiben}
-            onKnoten={api.setKnoten}
-            onGesamtfrist={api.setGesamtfrist}
-          />
-        )}
-        <FassungenPanel api={api} />
-      </div>
+      {tab === 'uebersicht' && (
+        <div className="flex-1 min-h-0 px-6 pb-4 pt-3">
+          {stand.laden ? (
+            <p className="text-[13px] text-[var(--tf-text-tertiary)]">Bewertet …</p>
+          ) : stand.keinPlan || !stand.plan ? (
+            <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
+          ) : (
+            <UebersichtTab zeilen={stand.zeilen} plan={stand.plan} meinKuerzel={stand.meinKuerzel} />
+          )}
+        </div>
+      )}
 
-      {api.geaendert && api.darfSchreiben && <SpeicherLeiste api={api} />}
+      {tab === 'woche' && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {stand.laden ? (
+            <p className="pt-4 text-[13px] text-[var(--tf-text-tertiary)]">Bewertet …</p>
+          ) : stand.keinPlan || !stand.plan ? (
+            <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
+          ) : (
+            <DieseWocheTab
+              zeilen={stand.zeilen} plan={stand.plan}
+              meinKuerzel={stand.meinKuerzel} stand={stand.stand}
+            />
+          )}
+        </div>
+      )}
+
+      {tab === 'konfiguration' && (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {planApi.laden ? (
+            <p className="pt-4 text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</p>
+          ) : (
+            <>
+              {!planApi.darfSchreiben && (
+                <p className="mt-4 text-[12.5px] text-[var(--tf-text-tertiary)]">
+                  Der Meilenstein-Plan wird von der Projektleitung gepflegt. Sie sehen hier den
+                  aktuellen Stand.
+                </p>
+              )}
+              {entwurf && (
+                <KonfigurationTab
+                  knoten={entwurf.knoten}
+                  gesamtfristTage={entwurf.gesamtfristTage}
+                  spalten={planApi.spalten}
+                  schreibgeschuetzt={!planApi.darfSchreiben}
+                  onKnoten={planApi.setKnoten}
+                  onGesamtfrist={planApi.setGesamtfrist}
+                />
+              )}
+              <FassungenPanel api={planApi} />
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === 'konfiguration' && planApi.geaendert && planApi.darfSchreiben && (
+        <SpeicherLeiste api={planApi} />
+      )}
     </div>
   );
 }

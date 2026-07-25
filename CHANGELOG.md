@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.329.0 — Meilenstein-Cockpit: Übersicht, Zeitstrahl, Diese Woche (Juli 2026)
+
+MINOR — Jetzt ist sichtbar, wo es klemmt: eine Zeile je offenem Verbund mit Zustands-Punkten je Meilenstein und Restzeit zur Gesamtfrist, daneben der Zeitstrahl Soll gegen Ist. Der Reiter „Diese Woche" beantwortet dieselbe Frage aus Sicht des Bearbeiters.
+
+- Übersicht als Master/Detail mit Filtern nach Antragstyp, Prognose, Suche und „nur meine" ([UebersichtTab.tsx](src/plugins/meilensteine/UebersichtTab.tsx)).
+- Zeitstrahl je Verbund: Soll als hohle Raute, Ist als Punkt, Verzugsstrecke dazwischen ([MeilensteinLeiste.tsx](src/plugins/meilensteine/MeilensteinLeiste.tsx)).
+- „Diese Woche": überfällige und fällige Meilensteine über alle Verbünde, dringendstes zuerst ([DieseWocheTab.tsx](src/plugins/meilensteine/DieseWocheTab.tsx)).
+- Sortierung nach Dringlichkeit — Prognose schlägt Restzeit ([monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts)).
+- Ohne freigegebene Fassung bleibt die Auswertung leer statt Zahlen aus einem Entwurf zu zeigen ([useMeilensteinStand.ts](src/plugins/meilensteine/useMeilensteinStand.ts)).
+
 ### v2.328.0 — Meilenstein-Plugin: Konfiguration durch die PL (Juli 2026)
 
 MINOR — Das Modul wird sichtbar: die Projektleitung legt Meilensteine an, verschiebt sie im Baum, setzt Soll-Wochen und ordnet ihnen per Auswahl die CSV-Spalten zu, die sie erfüllen — ohne Code-Änderung. Alle anderen sehen dieselbe Seite read-only.
