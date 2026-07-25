@@ -16,3 +16,17 @@ export {
   DAUER_BUCKETS, DAUER_BUCKET_GRENZE,
   type AbschlussFall, type DauerAuswertung, type DauerBucket, type KnotenAuswertung,
 } from './auswertung';
+export {
+  ladePlan, readPlanVomShare, schreibePlanAufShare, cachePlan, readCachedPlan,
+  freigegebeneFassung, normalisierePlan, normalisiereKnoten, normalisiereBedingung,
+  MEILENSTEIN_PLAN_PATH, MEILENSTEIN_PLAN_CACHE_KEY, type GeladenerPlan,
+} from './plan-storage';
+export {
+  neueFassung, freigeben, zurueckInEntwurf, uebernimmFassung, MAX_HISTORIE,
+  type FassungsEingabe,
+} from './versionierung';
+export {
+  baueSignatur, berechneProjektion, holeProjektion, ladeProjektion, speichereProjektion,
+  projektionsKey, type MeilensteinProjektion,
+} from './projektion';
+export { nachImportMeilensteinPflege } from './import-integration';

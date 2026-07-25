@@ -4,7 +4,9 @@ import { acquireBuildLock, forceLock, releaseLock, heartbeat, HEARTBEAT_INTERVAL
 import { getDatenShareHandle } from '../infrastructure/smb-handle';
 import { resolveSnapshotAuthor } from '../infrastructure/update-author';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from './snapshot';
-import { isDeltaSnapshotWriteEnabled, isStatusCockpitEnabled } from '@/config/feature-flags';
+import {
+  isDeltaSnapshotWriteEnabled, isMeilensteinMonitoringEnabled, isStatusCockpitEnabled,
+} from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
 import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
@@ -388,6 +390,16 @@ export async function importCsvSource(
       );
     } catch (e) {
       console.warn('[csv-import] Status-System Nachpflege fehlgeschlagen:', e);
+    }
+
+    // Bearbeitungs-Meilensteine: Frist-Projektion der offenen Verbuende neu
+    // rechnen. Best-effort, gated hinter `meilensteinMonitoring`; ohne Deltas
+    // aendert sich am Stand nichts → ueberspringen.
+    if (hasDeltas && isMeilensteinMonitoringEnabled()) try {
+      const { nachImportMeilensteinPflege } = await import('@/core/meilensteine/import-integration');
+      await nachImportMeilensteinPflege(idb, schema.programm_id, new Date().toISOString());
+    } catch (e) {
+      console.warn('[csv-import] Meilenstein-Nachpflege fehlgeschlagen:', e);
     }
     return result;
   } finally {

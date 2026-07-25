@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.327.0 — Meilenstein-Persistenz: Team-Sidecar, Fassungen, Projektion (Juli 2026)
+
+MINOR — Eine Frist-Definition, die auf jedem Rechner anders lautet, wäre wertlos: der Meilenstein-Plan liegt deshalb als kuratierte Team-Datei auf dem Daten-Share — die PL pflegt ihn, alle lesen ihn. Dazu die vorberechnete Frist-Projektion der offenen Verbünde, die sich nach jedem Import selbst erneuert.
+
+- Plan als versionierte Sidecar `_intern/meilensteine.json` mit IDB-Cache und toleranter Normalisierung ([plan-storage.ts](src/core/meilensteine/plan-storage.ts)).
+- Fassungen mit Historie, eigener Freigabe-Achse und Rollback nach vorne ([versionierung.ts](src/core/meilensteine/versionierung.ts)).
+- Nur ein freigegebener Plan wird ausgewertet; ein Entwurf verschiebt keine team-weit sichtbaren Zahlen ([plan-storage.ts](src/core/meilensteine/plan-storage.ts)).
+- Frist-Projektion der offenen Verbünde mit Signatur-Guard über Plan, Mapping, CSV-Stand und Kalendertag ([projektion.ts](src/core/meilensteine/projektion.ts)).
+- Eigener Post-Import-Pass neben der Status-Nachpflege, best-effort ([import-integration.ts](src/core/meilensteine/import-integration.ts)).
+
 ### v2.326.0 — Meilenstein-Engine: Bewertung, Feld-Auflösung, Auswertung (Juli 2026)
 
 MINOR — Die zweite Achse bekommt Rechenkraft: aus Meilenstein-Plan und Antragsdaten wird deterministisch abgeleitet, welcher Meilenstein erreicht, fällig oder gerissen ist und ob die 3-Monats-Frist noch zu halten ist. Dazu die Auswertung der tatsächlichen Bearbeitungszeiten je Antragstyp. Weiterhin ohne UI.
