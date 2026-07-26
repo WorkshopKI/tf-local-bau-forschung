@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.334 — 2026-07
+
+### Verbesserungen
+- Ist die agentische KI gerade nicht erreichbar, übernimmt beim Gutachten automatisch die Standard-KI. Statt eines Fehlers steht am Abschnitt nur ein kurzer Hinweis, welche KI ihn geschrieben hat.
+
 ## v2.333 — 2026-07
 
 ### Neu

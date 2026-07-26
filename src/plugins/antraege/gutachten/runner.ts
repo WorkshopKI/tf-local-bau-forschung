@@ -264,6 +264,19 @@ export function applyQsHinweise(
 }
 
 /**
+ * Markiert den Schritt als „über die Standard-KI entstanden, weil die agentische
+ * nicht verfügbar war" (`ziel-fallback.ts`). Wird NACH der eigentlichen Mutation
+ * gesetzt, weil der Fallback erst nach dem Lauf feststeht — und für Generierung
+ * wie Feinschliff gleichermaßen, da beide den angezeigten Text erzeugen.
+ * No-op, wenn der Schritt leer ist.
+ */
+export function applyZielFallback(run: WorkflowRun, stepId: StepId, now: string): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  return setStep(run, stepId, { ...step, zielFallback: true }, now);
+}
+
+/**
  * Audit-Stempel der zuletzt zum Befüllen genutzten Vorlage setzen (Artefakt-
  * Engine). Reiner Run-Übergang, kein Schritt-Bezug.
  */

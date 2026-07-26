@@ -100,6 +100,16 @@ export interface StepRun {
   /** Modifier, der zur AKTUELLEN Fassung führte (für die Verlaufs-Anzeige). */
   modifier?: SkillModifierKey;
   /**
+   * True, wenn ein Lauf, der den aktuellen Text erzeugte oder veränderte
+   * (Generierung ODER Feinschliff), von der agentischen auf die Standard-KI
+   * zurückfiel (`ziel-fallback.ts`). Treibt das dezente „Standard-KI
+   * (Fallback)"-Badge — `modell` trägt weiterhin den tatsächlich genutzten
+   * Transport-Namen. Additiv; eine Re-Generierung baut einen frischen `StepRun`
+   * ohne dieses Feld. Der reine QS-Lauf persistiert es NICHT (er ändert den Text
+   * nicht).
+   */
+  zielFallback?: true;
+  /**
    * True, wenn über der aktuellen Fassung der sprachliche Feinschliff
    * (Lektor-Skill) lief — treibt das Badge an der Karte und den Vergleich gegen
    * die letzte Verlaufs-Fassung (Zahlen-/Längen-Wächter, `lektorat.ts`). Additiv;

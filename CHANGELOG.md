@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.334.0 — Gutachten: Transport-Fallback agentische KI auf Standard-KI (Juli 2026)
+
+MINOR — Wer die agentische KI als Ziel gewählt hatte, verlor einen ganzen Gutachten-Lauf, sobald deren Tab nicht erreichbar war — mit rotem Fehlerbanner als erstem Kontakt. Jetzt übernimmt die Standard-KI still und der Abschnitt vermerkt es.
+
+- Wiederverwendbarer Wrapper `mitZielFallback`: genau EIN Retry agentisch→standard, nie umgekehrt, nie bei Nutzer-Abbruch ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts)).
+- Kein Retry, wenn `ziel` beim aktiven Transport gar nicht wirkt — auf DirectLLM wäre der zweite Lauf byte-identisch ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts)).
+- Generierung, QS und Feinschliff laufen über den Wrapper; Preflight + Ping bleiben einmalig in der Hülle ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- `setError`/`setLlmAvailable` sind je Versuch gepuffert — ein geretteter Lauf hinterlässt kein Fehlerbanner ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Additives `StepRun.zielFallback` + dezenter Info-Hinweis an der Karte ([types.ts](src/plugins/antraege/gutachten/types.ts), [runner.ts](src/plugins/antraege/gutachten/runner.ts)).
+
 ### v2.333.0 — Status-Katalog: Feldname statt feldId, CSV-Spalte als Herkunft (Juli 2026)
 
 MINOR — Die Katalog-Tabelle zeigte je Zeile die technische `feldId` (`status`), obwohl der Katalog dafür längst einen kuratierten Namen führt („TV-Status"). Es fehlte zugleich die CSV-Spalte — der Bezeichner, unter dem ein Status im Fachsystem-Export tatsächlich steht.

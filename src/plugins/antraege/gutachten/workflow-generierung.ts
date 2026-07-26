@@ -24,7 +24,9 @@ import {
   type CheckResult, type SkillModifierKey, type QualitaetsRegel, type SkillRecord,
   type SkillTweak, type WorkflowStep,
 } from '@/core/services/skills';
-import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
+import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
+import { mitZielFallback, zielWirktAuf } from '@/core/services/ai/ziel-fallback';
+import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
@@ -33,10 +35,10 @@ import type { KurzfassungContext } from '../kurzfassung/types';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
-import { applyGeneration, applyLektorat, applyQsHinweise, type GenerationInput } from './runner';
+import { applyGeneration, applyLektorat, applyQsHinweise, applyZielFallback, type GenerationInput } from './runner';
 import { istVerdaechtigGekuerzt } from './lektorat';
 import { parseQsBefunde } from './qs';
-import type { StepId, WorkflowRun } from './types';
+import type { QsBefund, StepId, WorkflowRun } from './types';
 
 /** Die Streaming-Senke eines Laufs (aus `useStreamingBuffer`). */
 export interface StreamSenke {
@@ -87,12 +89,61 @@ export interface GenerateIntoOptions {
 }
 
 /**
+ * Fährt einen Lauf mit Ziel-Fallback (agentisch → standard, `ziel-fallback.ts`)
+ * und PUFFERT dabei `setError`/`setLlmAvailable`: ein gescheiterter erster
+ * Versuch darf kein Fehlerbanner hinterlassen, wenn der zweite trägt. Nur die
+ * Meldungen des zuletzt gelaufenen Versuchs erreichen die UI.
+ *
+ * Der Puffer wird zu Beginn JEDES Versuchs geleert; nach dem Lauf wird einmal
+ * geflusht. Wirft der Retry, propagiert der Fehler ungeflusht — dann setzt der
+ * Orchestrator im Hook das Banner.
+ */
+async function mitFallbackLauf<R>(
+  deps: GenerierungsDeps,
+  transport: AITransport,
+  signal: AbortSignal,
+  lauf: (deps: GenerierungsDeps, ziel: BridgeZiel | undefined) => Promise<R>,
+  istUnbrauchbar?: (ergebnis: R) => boolean,
+): Promise<{ result: R; zielFallback: boolean }> {
+  let fehler: string | null = null;
+  let verfuegbar: boolean | null = null;
+  const gepuffert: GenerierungsDeps = {
+    ...deps,
+    setError: (msg) => { fehler = msg; },
+    setLlmAvailable: (ok) => { verfuegbar = ok; },
+  };
+  const ergebnis = await mitZielFallback<R>(
+    (ziel) => {
+      fehler = null;
+      verfuegbar = null;
+      return lauf(gepuffert, ziel);
+    },
+    {
+      zielWirkt: zielWirktAuf(transport),
+      signal,
+      // Der Retry ist ein FRISCHER Lauf — sonst hinge der Teil-Stream des
+      // gescheiterten Versuchs vor der neuen Antwort.
+      vorRetry: () => deps.stream.reset(),
+      ...(istUnbrauchbar ? { istUnbrauchbar } : {}),
+    },
+  );
+  if (verfuegbar !== null) deps.setLlmAvailable(verfuegbar);
+  if (fehler !== null) deps.setError(fehler);
+  return ergebnis;
+}
+
+/**
  * Generierungs-Kern für EINEN Abschnitt — gegen einen ÜBERGEBENEN `base`-Run
  * (kein Closure-Run, damit der Bulk-Lauf den frischen Stand durchreichen kann).
  * Liefert `{ next, checks }` oder `null` (Transport nicht erreichbar → `setError`
  * gerufen). Wirft bei echten Fehlern/Abbruch — der jeweilige Orchestrator im Hook
  * fängt das und besitzt busy/abort/persist. Der Tweak wird ÜBERGEBEN (nicht aus einer
  * Closure), damit der Bulk-Lauf pro Schritt den zum jeweiligen Skill gehörenden nutzt.
+ *
+ * Preflight + Ping laufen EINMAL in dieser Hülle (der Verbinden-Dialog darf sich
+ * nicht pro Fallback-Versuch öffnen, und `ping` ist ziel-agnostisch); der eigentliche
+ * Lauf steckt in `generiereEinmal` und wird bei Bedarf genau einmal mit der
+ * Standard-KI wiederholt.
  */
 export async function generateInto(
   base: WorkflowRun,
@@ -109,6 +160,28 @@ export async function generateInto(
   const ok = await transport.ping();
   deps.setLlmAvailable(ok);
   if (!ok) { deps.setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
+
+  const { result, zielFallback } = await mitFallbackLauf(
+    deps, transport, o.signal,
+    (d, ziel) => generiereEinmal(base, stepId, o, d, sc, transport, ziel),
+    // Ein leerer finaler Text ist das, was ein nicht erreichbarer agentischer Tab
+    // typischerweise liefert — für den Nutzer ein Ausfall, also fallback-würdig.
+    (r) => !r.next.schritte[stepId]?.finalerText.trim(),
+  );
+  if (!zielFallback) return result;
+  return { ...result, next: applyZielFallback(result.next, stepId, new Date().toISOString()) };
+}
+
+/** Ein einzelner Generierungs-Versuch mit festem `ziel` (siehe `generateInto`). */
+async function generiereEinmal(
+  base: WorkflowRun,
+  stepId: StepId,
+  o: GenerateIntoOptions,
+  deps: GenerierungsDeps,
+  sc: SkillCtx,
+  transport: AITransport,
+  ziel: BridgeZiel | undefined,
+): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
   const tw = o.tweak;
   const scRegeln = deps.regelnFuer(sc, tw);
   const tweakWirksam = !!(tw?.aktiv && tw.skillId === sc.skill.id
@@ -149,7 +222,7 @@ export async function generateInto(
     let vorText = '';
     for (const teil of teilPlan) {
       const r = await runSkill(transport, sc.skill, teilRegelSatz, {
-        ziel: aktivesZielFuerLauf(),
+        ...(ziel ? { ziel } : {}),
         stammdaten: buildStammdaten(deps.ctx),
         vbMarkdown: deps.korpusMd,
         vbCharCap: getVbCharCap(kontextZielFuerLauf(deps.bridge)),
@@ -195,7 +268,7 @@ export async function generateInto(
   }
 
   const result = await runSkill(transport, sc.skill, scRegeln, {
-    ziel: aktivesZielFuerLauf(),
+    ...(ziel ? { ziel } : {}),
     stammdaten: buildStammdaten(deps.ctx),
     vbMarkdown: deps.korpusMd,
     vbCharCap: getVbCharCap(kontextZielFuerLauf(deps.bridge)),
@@ -257,20 +330,40 @@ export async function laufQs(
   const ok = await transport.ping();
   deps.setLlmAvailable(ok);
   if (!ok) { deps.setError('KI nicht erreichbar — QS derzeit nicht möglich.'); return null; }
+  // Kein `zielFallback`-Stempel: die QS ändert den Text nicht, das Badge an der
+  // Karte beschreibt die Herkunft des angezeigten Textes.
+  const { result: befunde } = await mitFallbackLauf(
+    deps, transport, signal,
+    (d, ziel) => qsEinmal(zielStep.finalerText, zielStepId, qsCtx, transport, d, ziel, signal),
+    (b) => b.length === 0,
+  );
+  return applyQsHinweise(run, zielStepId, befunde, new Date().toISOString());
+}
+
+/** Ein einzelner QS-Versuch mit festem `ziel` (siehe `laufQs`). */
+async function qsEinmal(
+  zielText: string,
+  zielStepId: StepId,
+  qsCtx: SkillCtx,
+  transport: AITransport,
+  deps: GenerierungsDeps,
+  ziel: BridgeZiel | undefined,
+  signal: AbortSignal,
+): Promise<QsBefund[]> {
   const zielDef = deps.steps.find(s => s.id === zielStepId);
   const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
-    ziel: aktivesZielFuerLauf(),
+    ...(ziel ? { ziel } : {}),
     stammdaten: buildStammdaten(deps.ctx),
     vbMarkdown: deps.korpusMd,
     vbCharCap: getVbCharCap(kontextZielFuerLauf(deps.bridge)),
     thinkingBudget: deps.thinkingBudget,
     onContentDelta: deps.stream.onContentDelta,
     onThinkingDelta: deps.stream.onThinkingDelta,
-    zielText: zielStep.finalerText,
+    zielText,
     abschnittszweck: zielDef?.label ?? zielStepId,
     signal,
   });
-  return applyQsHinweise(run, zielStepId, parseQsBefunde(result.raw), new Date().toISOString());
+  return parseQsBefunde(result.raw);
 }
 
 /**
@@ -300,9 +393,33 @@ export async function laufLektorat(
   const ok = await transport.ping();
   deps.setLlmAvailable(ok);
   if (!ok) { deps.setError('KI nicht erreichbar — Feinschliff derzeit nicht möglich.'); return null; }
+  const { result, zielFallback } = await mitFallbackLauf(
+    deps, transport, signal,
+    (d, ziel) => lektoriereEinmal(run, stepId, sc, tweak, transport, d, ziel, signal),
+    // Ein gezogenes Tor (leer / verdächtig gekürzt) ist ein unbrauchbares Ergebnis —
+    // beim agentischen Tab genau der Fall, den die Standard-KI retten soll.
+    (r) => r === null,
+  );
+  if (!result) return null;
+  return zielFallback ? applyZielFallback(result, stepId, new Date().toISOString()) : result;
+}
+
+/** Ein einzelner Feinschliff-Versuch mit festem `ziel` (siehe `laufLektorat`). */
+async function lektoriereEinmal(
+  run: WorkflowRun,
+  stepId: StepId,
+  sc: SkillCtx,
+  tweak: SkillTweak | null,
+  transport: AITransport,
+  deps: GenerierungsDeps,
+  ziel: BridgeZiel | undefined,
+  signal: AbortSignal,
+): Promise<WorkflowRun | null> {
+  const step = run.schritte[stepId];
+  if (!step) return null;
   const zielDef = deps.steps.find(s => s.id === stepId);
   const result = await runSkill(transport, deps.lektorSkill, [], {
-    ziel: aktivesZielFuerLauf(),
+    ...(ziel ? { ziel } : {}),
     stammdaten: '',
     vbMarkdown: '',
     thinkingBudget: deps.thinkingBudget,

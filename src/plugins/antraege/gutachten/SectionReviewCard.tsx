@@ -260,6 +260,14 @@ export function SectionReviewCard({
           ⚠ auf gekürzter VB-Basis
         </div>
       )}
+      {/* Ziel-Fallback (ziel-fallback.ts): die agentische KI war nicht erreichbar,
+          die Standard-KI hat übernommen. Bewusst Info-Ton (kein Warn-Banner) — der
+          Lauf ist gelungen, nur eben auf dem anderen Tab. */}
+      {run.zielFallback && (
+        <div className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+          Agentische KI nicht verfügbar — Standard-KI hat übernommen.
+        </div>
+      )}
 
       {/* Entwurf / Inline-Editor */}
       {editing ? (
