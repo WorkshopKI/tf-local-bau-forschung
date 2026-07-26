@@ -210,6 +210,9 @@ export function applyLektorat(
     erstellt_am: now,
     modell: input.modell,
     lektoriert: true,
+    // Ein geglückter Feinschliff heilt einen früher übersprungenen — der
+    // angezeigte Text IST jetzt die polierte Fassung.
+    feinschliffUebersprungen: undefined,
     verlauf: appendVerlauf(step),
     ...(input.chatResetStatus && resetHatVerlaufsrisiko(input.chatResetStatus)
       ? { chatResetStatus: input.chatResetStatus }
@@ -261,6 +264,21 @@ export function applyQsHinweise(
   const step = run.schritte[stepId];
   if (!step) return run;
   return setStep(run, stepId, { ...step, qsHinweise: befunde }, now);
+}
+
+/**
+ * Markiert den Schritt als „Feinschliff lief nicht durch — der angezeigte Text
+ * ist der Rohentwurf". Gesetzt vom automatisch angehängten Feinschliff-Bein der
+ * Generierungs-Kette, wenn ein Tor griff, der Lauf warf oder abgebrochen wurde.
+ * Bewusst kein Fehlerzustand: der Rohentwurf bleibt der finale Text.
+ * No-op, wenn der Schritt leer ist.
+ */
+export function applyFeinschliffUebersprungen(
+  run: WorkflowRun, stepId: StepId, now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  return setStep(run, stepId, { ...step, feinschliffUebersprungen: true }, now);
 }
 
 /**

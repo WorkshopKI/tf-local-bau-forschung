@@ -35,7 +35,11 @@ import type { KurzfassungContext } from '../kurzfassung/types';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
-import { applyGeneration, applyLektorat, applyQsHinweise, applyZielFallback, type GenerationInput } from './runner';
+import {
+  applyGeneration, applyFeinschliffUebersprungen, applyLektorat, applyQsHinweise, applyZielFallback,
+  type GenerationInput,
+} from './runner';
+import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
 import { istVerdaechtigGekuerzt } from './lektorat';
 import { parseQsBefunde } from './qs';
 import type { QsBefund, StepId, WorkflowRun } from './types';
@@ -45,6 +49,8 @@ export interface StreamSenke {
   reset: () => void;
   onContentDelta: (text: string) => void;
   onThinkingDelta: (text: string) => void;
+  /** Welches Bein der Kette läuft gerade — treibt den Busy-Text. */
+  setPhase: (phase: LaufPhase) => void;
 }
 
 /**
@@ -168,8 +174,65 @@ export async function generateInto(
     // typischerweise liefert — für den Nutzer ein Ausfall, also fallback-würdig.
     (r) => !r.next.schritte[stepId]?.finalerText.trim(),
   );
-  if (!zielFallback) return result;
-  return { ...result, next: applyZielFallback(result.next, stepId, new Date().toISOString()) };
+  const roh = zielFallback
+    ? { ...result, next: applyZielFallback(result.next, stepId, new Date().toISOString()) }
+    : result;
+
+  // Zweites Bein derselben Busy-Phase: der Feinschliff. Der Nutzer soll als
+  // Ergebnis der Generierung direkt den polierten Text sehen — der Rohentwurf
+  // landet dabei über `applyLektorat` automatisch im Versionsverlauf.
+  // Fehler-Meldungen des Feinschliffs werden verschluckt (`stilleDeps`): ein
+  // Rohentwurf ist ein brauchbares Ergebnis, kein Fehlerfall.
+  return mitFeinschliff(
+    roh, stepId,
+    () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps)),
+  );
+}
+
+/**
+ * Hängt den Feinschliff an ein Generierungs-Ergebnis. Der Lektor-Lauf wird als
+ * Thunk hereingereicht — damit ist die Degradations-Logik ohne Transport/Bridge
+ * testbar, und sie ist der einzige Ort, an dem entschieden wird, was der Nutzer
+ * am Ende sieht.
+ *
+ * JEDES Scheitern degradiert zum Rohentwurf, keines blockiert:
+ *  - `null` (Tor gezogen: leer / verdächtig gekürzt / Transport weg)
+ *  - Wurf (Transport-Policy, Netz)
+ *  - **Abbruch** — der Rohentwurf ist bereits berechnet; ihn wegen eines Stopps
+ *    im zweiten Bein zu verwerfen, wäre Arbeitsverlust. Deshalb fängt diese
+ *    Funktion auch `AbortError` und gibt den Generierungsstand zurück.
+ *
+ * Die zurückgegebenen `checks` stammen IMMER vom final angezeigten Text (nach
+ * erfolgreichem Feinschliff also die des Lektor-Laufs) — sonst entschiede der
+ * Auto-Retry-Orchestrator über einen Text, der gar nicht mehr sichtbar ist.
+ */
+export async function mitFeinschliff(
+  gen: { next: WorkflowRun; checks: CheckResult[] },
+  stepId: StepId,
+  lektorat: () => Promise<WorkflowRun | null>,
+): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
+  let poliert: WorkflowRun | null = null;
+  try {
+    poliert = await lektorat();
+  } catch {
+    poliert = null;
+  }
+  if (!poliert) {
+    return {
+      next: applyFeinschliffUebersprungen(gen.next, stepId, new Date().toISOString()),
+      checks: gen.checks,
+    };
+  }
+  return { next: poliert, checks: poliert.schritte[stepId]?.checks ?? gen.checks };
+}
+
+/**
+ * `deps`-Derivat ohne Fehlerbanner — für Läufe, deren Scheitern der Nutzer als
+ * Degradation und nicht als Fehler erleben soll (angehängter Feinschliff).
+ * `setLlmAvailable` bleibt scharf: die Erreichbarkeit ist echte Information.
+ */
+function stilleDeps(deps: GenerierungsDeps): GenerierungsDeps {
+  return { ...deps, setError: () => {} };
 }
 
 /** Ein einzelner Generierungs-Versuch mit festem `ziel` (siehe `generateInto`). */
@@ -417,6 +480,9 @@ async function lektoriereEinmal(
 ): Promise<WorkflowRun | null> {
   const step = run.schritte[stepId];
   if (!step) return null;
+  // Je VERSUCH setzen, nicht in der Hülle: `mitFallbackLauf` resettet die Senke vor
+  // einem Retry (und `reset` fällt auf `'formulieren'` zurück).
+  deps.stream.setPhase('feinschliff');
   const zielDef = deps.steps.find(s => s.id === stepId);
   const result = await runSkill(transport, deps.lektorSkill, [], {
     ...(ziel ? { ziel } : {}),

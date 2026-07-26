@@ -9,12 +9,20 @@
 import { useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
+import type { LaufPhase } from './useStreamingBuffer';
 
 interface Props {
   /** Streamender Reasoning-Text (leer, wenn Thinking aus / kein Reasoning). */
   thinking: string;
   /** Streamende rohe Antwort. */
   content: string;
+  /**
+   * Phase der Lauf-Kette. Die Gutachten-Generierung hängt den Feinschliff
+   * automatisch an — ohne diese Angabe sähe der Nutzer bei beiden Beinen
+   * denselben Text. Fehlt sie (bzw. `'formulieren'`), gilt die bisherige
+   * Ableitung aus `content`/`thinking` unverändert.
+   */
+  phase?: LaufPhase;
   onStop: () => void;
 }
 
@@ -30,10 +38,12 @@ function useAutoScroll(dep: string): React.RefObject<HTMLDivElement | null> {
 
 const BOX = 'whitespace-pre-wrap overflow-auto rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-3';
 
-export function StreamingVorschau({ thinking, content, onStop }: Props): React.ReactElement {
+export function StreamingVorschau({ thinking, content, phase, onStop }: Props): React.ReactElement {
   const thinkingRef = useAutoScroll(thinking);
   const contentRef = useAutoScroll(content);
-  const statusText = content ? 'Generiere Antwort…' : thinking ? 'Denkt nach…' : 'Generiere…';
+  const statusText = phase === 'feinschliff'
+    ? 'Sprachlicher Feinschliff…'
+    : content ? 'Generiere Antwort…' : thinking ? 'Denkt nach…' : 'Generiere…';
 
   return (
     <div className="mt-3">

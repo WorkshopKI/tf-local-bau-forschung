@@ -25,6 +25,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
+import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { satzSegmente } from './satzSegmente';
 import { belegAbdeckung } from './belege';
@@ -112,6 +113,8 @@ interface Props {
   /** Live-Streaming-Vorschau während `busy`. */
   streamContent: string;
   streamThinking: string;
+  /** Bein der Lauf-Kette (Formulieren → Feinschliff) für den Busy-Text. */
+  streamPhase?: LaufPhase;
   /**
    * „Anzeigen"-Sprung (Journey-Paket 3): 0-basierter Satz-Index + monotone `nonce`
    * (löst das Re-Highlight auch bei gleichem Index aus). Nur im gerenderten
@@ -127,7 +130,7 @@ interface Props {
 }
 
 export function SectionReviewCard({
-  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, pruefAktion, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, onLektorat, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, fundstelle, hoverSaetze, onHoverSaetze,
+  run, busy, llmAvailable, onModify, onBearbeiten, onPruefen, pruefAktion, onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, onLektorat, provenance, onOpenSkill, onFeedback, streamContent, streamThinking, streamPhase, fundstelle, hoverSaetze, onHoverSaetze,
 }: Props): React.ReactElement {
   const freigegeben = run.status === 'freigegeben';
   const satzanzahl = splitSentences(run.finalerText).length;
@@ -266,6 +269,13 @@ export function SectionReviewCard({
       {run.zielFallback && (
         <div className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
           Agentische KI nicht verfügbar — Standard-KI hat übernommen.
+        </div>
+      )}
+      {/* Der automatisch angehängte Feinschliff griff nicht — ebenfalls Info-Ton:
+          der Rohentwurf ist ein brauchbares Ergebnis, nur eben unpoliert. */}
+      {run.feinschliffUebersprungen && (
+        <div className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+          Feinschliff übersprungen — angezeigter Text ist der Rohentwurf.
         </div>
       )}
 
@@ -444,7 +454,7 @@ export function SectionReviewCard({
       {/* Aktionsleiste */}
       {busy ? (
         <div className="g-actionbar">
-          <StreamingVorschau thinking={streamThinking} content={streamContent} onStop={onStop} />
+          <StreamingVorschau thinking={streamThinking} content={streamContent} phase={streamPhase} onStop={onStop} />
         </div>
       ) : freigegeben ? (
         <div className="g-actionbar">

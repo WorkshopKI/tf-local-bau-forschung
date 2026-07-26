@@ -117,6 +117,15 @@ export interface StepRun {
    */
   lektoriert?: boolean;
   /**
+   * True, wenn der automatisch angehängte Feinschliff (Phase 2 der Lauf-Kette)
+   * NICHT griff — leeres/verdächtig gekürztes Ergebnis, Transport-Fehler trotz
+   * Ziel-Fallback oder Abbruch. Der angezeigte Text ist dann der Rohentwurf, und
+   * der Abschnitt sagt das dezent. Bewusst KEIN Fehler: ein Rohentwurf ist ein
+   * brauchbares Ergebnis. Ein späterer (manueller) Feinschliff löscht das Feld
+   * (`applyLektorat`); eine Re-Generierung baut einen frischen `StepRun`.
+   */
+  feinschliffUebersprungen?: true;
+  /**
    * Regel-ID, deren verletzter Check diesen Korrektur-Lauf ausgelöst hat (Journey-
    * Paket 3, additiv). Nur Anzeige/Nachvollziehbarkeit — kein Verhalten. Fehlt bei
    * regulären Läufen und in Alt-Runs (optional, Round-Trip-sicher).

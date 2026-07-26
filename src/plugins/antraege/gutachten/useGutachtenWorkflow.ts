@@ -36,7 +36,7 @@ import type { SkillCtx } from './skill-context';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import { useGutachtenQuellen, type GutachtenQuellen } from './useGutachtenQuellen';
-import { useStreamingBuffer } from '../kurzfassung/useStreamingBuffer';
+import { useStreamingBuffer, type LaufPhase } from '../kurzfassung/useStreamingBuffer';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
@@ -89,6 +89,8 @@ export interface GutachtenWorkflowController {
   /** Live-Streaming-Vorschau während `busy` (rohe Antwort + Denkprozess). */
   streamContent: string;
   streamThinking: string;
+  /** Welches Bein der Lauf-Kette läuft (Generierung hängt den Feinschliff an). */
+  streamPhase: LaufPhase;
   /** Geordnete GENERIERUNGS-Schritte des aktiven Workflows (llm_qs-Schritte sind herausgefiltert). */
   steps: WorkflowStep[];
   /** dev-Test: explizit gewählter Workflow (null = Default-GA per Tie-Break). */
@@ -565,6 +567,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     setForceFullContext,
     streamContent: stream.content,
     streamThinking: stream.thinking,
+    streamPhase: stream.phase,
     steps,
     testWorkflowId,
     setTestWorkflowId,

@@ -86,6 +86,6 @@ Basis: v2.333.0, HEAD `796e8c04`.
 |---|---|---|
 | 0 — Baseline | — | `npm run check` unverändert grün; Inventur + D1–D10 festgehalten. |
 | 1 — Transport-Fallback | v2.334.0 | `mitZielFallback` + `zielWirktAuf` (`core/services/ai/ziel-fallback.ts`, 11 Tests); alle drei Gutachten-Läufe darüber; gepufferte `setError`/`setLlmAvailable`; `StepRun.zielFallback` + Info-Hinweis. `workflow-generierung.ts` 331 → 448 Z. — **bewusst nicht gesplittet** (eine Verantwortung: „wie ein Lauf gefahren wird"; ein Auslagern der Fallback-Hülle erzwänge einen strukturellen Ersatztyp für `GenerierungsDeps` samt Cast). Nach Phase 2 erneut prüfen. |
-| 2 — Auto-Feinschliff | — | |
+| 2 — Auto-Feinschliff | v2.335.0 | `mitFeinschliff` (Lektor-Lauf als Thunk ⇒ ohne Transport testbar, 7 Tests); Degradation bei Tor/Wurf/**Abbruch**; `checks` immer vom final angezeigten Text; `LaufPhase` in `useStreamingBuffer`/`StreamingVorschau`; `StepRun.feinschliffUebersprungen`. **Bestätigt:** die Rohentwurf-Sicherung leistet das vorhandene `applyLektorat` → `appendVerlauf(step)` (Abweichung 5) — kein neuer Code, nur ein Kontrakt-Test. **Nebenwirkung:** ein Generierungs-Zyklus schreibt jetzt ZWEI Verlaufs-Einträge (Vorfassung + Rohentwurf), `MAX_VERLAUF = 5` füllt sich doppelt so schnell; `slice(-5)` hält den Rohentwurf immer. |
 | 3 — Abschnitts-QS | — | |
 | 4 — Karten-Umbau | — | |

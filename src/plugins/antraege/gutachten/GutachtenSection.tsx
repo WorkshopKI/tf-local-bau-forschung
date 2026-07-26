@@ -650,7 +650,7 @@ function ActiveAbschnitt({
 
       {!step ? (
         ctrl.busy ? (
-          <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} onStop={ctrl.stop} />
+          <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} phase={ctrl.streamPhase} onStop={ctrl.stop} />
         ) : (
           <div className="mt-3">
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">Dieser Abschnitt wird KI-gestützt aus der Vorhabensbeschreibung erstellt.</p>
@@ -701,6 +701,7 @@ function ActiveAbschnitt({
           onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}
           streamContent={ctrl.streamContent}
           streamThinking={ctrl.streamThinking}
+          streamPhase={ctrl.streamPhase}
         />
       )}
     </section>

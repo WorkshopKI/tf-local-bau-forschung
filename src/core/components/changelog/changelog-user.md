@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.335 — 2026-07
+
+### Verbesserungen
+- Nach dem Generieren eines Gutachten-Abschnitts läuft der sprachliche Feinschliff automatisch mit — angezeigt wird direkt die polierte Fassung. Der Rohentwurf bleibt unter „Vorfassungen" zum Vergleich erhalten.
+- Klappt der Feinschliff einmal nicht (oder wird gestoppt), bleibt der Rohentwurf stehen und sagt das kurz an. Nichts geht verloren, nichts blockiert.
+
 ## v2.334 — 2026-07
 
 ### Verbesserungen

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.335.0 — Gutachten: Feinschliff automatisch in der Generierungs-Kette (Juli 2026)
+
+MINOR — Der erste Kontakt mit einem generierten Abschnitt war bisher der Rohentwurf; den sprachlichen Feinschliff musste der Gutachter jedes Mal von Hand nachschieben. Er hängt jetzt automatisch an derselben Busy-Phase, der Rohentwurf bleibt als Vorfassung vergleichbar.
+
+- `generateInto` kettet den Lektor-Lauf an; auch Modifier- und Bulk-Läufe gehen durch dieselbe Kette ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- `mitFeinschliff` degradiert bei Tor, Wurf UND Abbruch zum Rohentwurf — der bereits berechnete Entwurf geht nie verloren ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Zurückgegebene `checks` stammen immer vom final angezeigten Text (sonst entschiede der Auto-Retry über eine unsichtbare Fassung).
+- Busy-Anzeige wechselt sichtbar Formulieren → Feinschliff ([useStreamingBuffer.ts](src/plugins/antraege/kurzfassung/useStreamingBuffer.ts), [StreamingVorschau.tsx](src/plugins/antraege/kurzfassung/StreamingVorschau.tsx)).
+- Additives `StepRun.feinschliffUebersprungen` + dezenter Hinweis; ein späterer manueller Feinschliff löscht die Markierung ([runner.ts](src/plugins/antraege/gutachten/runner.ts)).
+
 ### v2.334.0 — Gutachten: Transport-Fallback agentische KI auf Standard-KI (Juli 2026)
 
 MINOR — Wer die agentische KI als Ziel gewählt hatte, verlor einen ganzen Gutachten-Lauf, sobald deren Tab nicht erreichbar war — mit rotem Fehlerbanner als erstem Kontakt. Jetzt übernimmt die Standard-KI still und der Abschnitt vermerkt es.
