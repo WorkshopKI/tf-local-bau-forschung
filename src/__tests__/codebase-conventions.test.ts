@@ -1043,22 +1043,31 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
 
 describe('gutachten-entwurf-kein-plain-textarea (Live-Preview statt <textarea>)', () => {
   // Der Gutachten-Entwurfs-Editor muss der Live-Preview-Editor bleiben (MarkdownEditor +
-  // markdownLivePreview) und nicht auf ein nacktes <textarea> zurueckfallen. Sicher als
-  // Single-File-Check: das Feedback-Notizfeld in der Datei ist ein <input> — es gibt sonst
-  // kein <textarea>.
-  const FILE = join(ROOT, 'plugins', 'antraege', 'gutachten', 'SectionReviewCard.tsx');
+  // markdownLivePreview) und nicht auf ein nacktes <textarea> zurueckfallen.
+  //
+  // Seit dem Vier-Ebenen-Umbau (v2.337) ist die Karte auf mehrere Dateien verteilt:
+  // der Editor blieb in SectionReviewCard, das Feedback-Notizfeld wanderte in die
+  // Fusszeile. Beide Dateien werden geprueft — sonst waere der Guard nach dem Split
+  // still wirkungslos fuer die Stelle, an der das Notizfeld heute lebt.
+  const DIR = join(ROOT, 'plugins', 'antraege', 'gutachten');
+  const EDITOR_FILE = join(DIR, 'SectionReviewCard.tsx');
+  const KARTEN_DATEIEN = [EDITOR_FILE, join(DIR, 'AbschnittFuss.tsx')];
 
-  it('SectionReviewCard nutzt markdownLivePreview und kein rohes <textarea>', () => {
-    const content = readFileSync(FILE, 'utf-8');
+  it('SectionReviewCard nutzt markdownLivePreview', () => {
     expect(
-      content.includes('markdownLivePreview'),
+      readFileSync(EDITOR_FILE, 'utf-8').includes('markdownLivePreview'),
       'SectionReviewCard.tsx muss markdownLivePreview importieren/verwenden.',
     ).toBe(true);
-    expect(
-      content.includes('<textarea'),
-      'Gutachten-Entwurf darf keinen rohen <textarea>-Editor nutzen — MarkdownEditor + ' +
-      'markdownLivePreview (Live-Preview-Source) verwenden. Buffer bleibt rohes Markdown.',
-    ).toBe(false);
+  });
+
+  it('keine Karten-Datei faellt auf ein rohes <textarea> zurueck', () => {
+    for (const datei of KARTEN_DATEIEN) {
+      expect(
+        readFileSync(datei, 'utf-8').includes('<textarea'),
+        `${datei}: Gutachten-Entwurf + Feedback-Notiz duerfen keinen rohen <textarea> nutzen — ` +
+        'MarkdownEditor + markdownLivePreview bzw. <input>. Buffer bleibt rohes Markdown.',
+      ).toBe(false);
+    }
   });
 });
 

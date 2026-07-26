@@ -8,7 +8,7 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Check, Pencil, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { FileText, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -32,7 +32,8 @@ import { useGutachtenWorkflow } from './useGutachtenWorkflow';
 import { WorkflowWerkstattDialog } from './WorkflowWerkstattDialog';
 import { AbschnittNav } from './AbschnittNav';
 import { AbschnittStepper } from './AbschnittStepper';
-import { SectionReviewCard } from './SectionReviewCard';
+import { SectionReviewCard, type KopfInfo } from './SectionReviewCard';
+import { AbschnittKopf } from './AbschnittKopf';
 import { KontextPanel } from './KontextPanel';
 import type { CheckListAktion } from '../kurzfassung/CheckList';
 import { ResumeLine } from './ResumeLine';
@@ -103,7 +104,9 @@ export function GutachtenSection({
   const [ersetzen, setErsetzen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
-  const [ctxOpen, setCtxOpen] = useState(true);
+  // Startet EINGEKLAPPT: der Entwurf soll die Bühne haben, das Panel trägt seit
+  // v2.337 nur noch Zusatzmaterial (Belege/Denkprozess) — die QS steht in der Karte.
+  const [ctxOpen, setCtxOpen] = useState(false);
   // „Anzeigen"-Sprung (Journey-Paket 3): Ziel-Satz + monotone nonce (erneut auslösbar).
   const [fundstelle, setFundstelle] = useState<{ satzIndex: number; nonce: number } | null>(null);
   // Flüchtiges Beleg↔Satz-Hover-Highlight (Journey-Paket 4): gehoverte Satz-Nummern,
@@ -590,69 +593,41 @@ function ActiveAbschnitt({
     : undefined;
   const reset = useAsyncAction(async () => { await ctrl.zuruecksetzenStep(id); });
 
+  // Kopf-Daten teilen sich beide Zustände (leerer Abschnitt + Review-Karte); die
+  // Karte rendert ihren Kopf selbst, damit ihre vier Ebenen eine Heimat haben.
+  const kopf: KopfInfo = {
+    titel: `${def.kurz} — ${def.label}`,
+    ...(ctrl.activeSkill?.version != null ? { skillVersion: ctrl.activeSkill.version } : {}),
+    ...(tweakEffektiv ? { tweakAktiv: true } : {}),
+    ...(externActive ? { externerProvider: providerName } : {}),
+    ...(onOpenWerkstatt && skillId ? { onOpenWerkstatt: () => onOpenWerkstatt(skillId) } : {}),
+    onZuruecksetzen: () => void reset.run(),
+    ...(reset.busy ? { zuruecksetzenBusy: true } : {}),
+  };
+
   return (
     // key = Abschnitts-ID: bei Abschnittswechsel remountet die Karte → Fade-in spielt
     // erneut und der lokale Bearbeiten-Zustand (Editor) wird sauber zurückgesetzt.
     <section className={`g-card werk${docked ? ' docked' : ''}`} key={id}>
-      <div className="g-card-head">
-        <h2 className="g-card-title">{def.kurz} — {def.label}</h2>
-        {ctrl.activeSkill?.version != null && (
-          <span
-            className="text-[11px] text-[var(--tf-text-tertiary)] font-mono"
-            title="Version des Skills, der diesen Abschnitt erzeugt"
-          >
-            v{ctrl.activeSkill.version}
-          </span>
-        )}
-        {onOpenWerkstatt && skillId && (
-          <button
-            type="button"
-            className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] transition-colors"
-            title="Prompt/Workflow dieses Schritts bearbeiten (dev)"
-            aria-label="Workflow bearbeiten (dev)"
-            onClick={() => onOpenWerkstatt(skillId)}
-          >
-            <Pencil size={13} />
-          </button>
-        )}
-        {status === 'freigegeben' ? (
-          <span className="g-pill ok"><Check className="g-pi" /> Freigegeben</span>
-        ) : status === 'entwurf' ? (
-          <span className="g-pill draft">Entwurf</span>
-        ) : null}
-        {step?.originalText != null && (
-          <span className="g-edited-badge">
-            <Pencil /> bearbeitet
-            <button
-              type="button"
-              className="g-edited-restore"
-              disabled={reset.busy}
-              onClick={() => reset.run()}
-              title="Ursprünglich generierten Text wiederherstellen"
-            >
-              Zurücksetzen
-            </button>
-          </span>
-        )}
-        {tweakEffektiv && <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">persönlicher Stil aktiv</span>}
-        <span className="g-ab-spacer" />
-        {/* Nur bei externer KI ein fett sichtbarer Warnhinweis; interne KI (Default) zeigt nichts. */}
-        {externActive && (
-          <span className="g-extern-warn"><AlertTriangle size={13} /> Externe KI: {providerName}</span>
-        )}
-      </div>
-
-      {ctrl.retryNote && (
-        <div className="mt-2 mb-1 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
-          {ctrl.retryNote}
-        </div>
-      )}
-
       {!step ? (
-        ctrl.busy ? (
-          <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} phase={ctrl.streamPhase} onStop={ctrl.stop} />
-        ) : (
-          <div className="mt-3">
+        <>
+          <AbschnittKopf
+            titel={kopf.titel}
+            status={status}
+            {...(kopf.skillVersion != null ? { skillVersion: kopf.skillVersion } : {})}
+            {...(kopf.tweakAktiv ? { tweakAktiv: true } : {})}
+            {...(kopf.externerProvider ? { externerProvider: kopf.externerProvider } : {})}
+            {...(kopf.onOpenWerkstatt ? { onOpenWerkstatt: kopf.onOpenWerkstatt } : {})}
+          />
+          {ctrl.retryNote && (
+            <div className="mt-2 mb-1 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
+              {ctrl.retryNote}
+            </div>
+          )}
+          {ctrl.busy ? (
+            <StreamingVorschau thinking={ctrl.streamThinking} content={ctrl.streamContent} phase={ctrl.streamPhase} onStop={ctrl.stop} />
+          ) : (
+            <div className="mt-3">
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3">Dieser Abschnitt wird KI-gestützt aus der Vorhabensbeschreibung erstellt.</p>
             <div className="flex items-center gap-2 flex-wrap">
               <button type="button" className="g-btn primary" disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
@@ -674,13 +649,16 @@ function ActiveAbschnitt({
             {ctrl.llmAvailable === false && (
               <div className="mt-2 text-[11.5px] text-[var(--tf-warning-text)]">KI nicht erreichbar — Generierung derzeit nicht möglich.</div>
             )}
-          </div>
-        )
+            </div>
+          )}
+        </>
       ) : (
         <SectionReviewCard
           run={step}
+          kopf={kopf}
           busy={ctrl.busy}
           llmAvailable={ctrl.llmAvailable}
+          retryNote={ctrl.retryNote}
           onModify={(m) => ctrl.modify(id, m)}
           onBearbeiten={(text) => ctrl.bearbeitenStep(id, text)}
           onPruefen={() => ctrl.pruefen(id)}
@@ -696,7 +674,7 @@ function ActiveAbschnitt({
           {...(onHoverSaetze ? { onHoverSaetze } : {})}
           onQs={ctrl.qsFor(id) ? () => ctrl.runQs(id) : undefined}
           onLektorat={ctrl.lektorVerfuegbar ? () => ctrl.lektorieren(id) : undefined}
-          provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—', regelCount: ctrl.regeln.length }}
+          provenance={{ skillName: ctrl.activeSkill?.name ?? step.skillId ?? '—' }}
           onOpenSkill={openSkill}
           onFeedback={(rating, notiz) => ctrl.sendFeedback(id, rating, notiz)}
           streamContent={ctrl.streamContent}

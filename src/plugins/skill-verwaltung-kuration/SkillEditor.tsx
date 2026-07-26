@@ -385,7 +385,7 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
               <button
                 type="button"
                 disabled={ableiten.busy || !draft.promptTemplate.trim()}
-                onClick={() => void ableiten.run()}
+                onClick={() => ableiten.run()}
                 className="inline-flex items-center gap-1.5 text-[12.5px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)] disabled:opacity-50"
               >
                 <Sparkles size={13} />

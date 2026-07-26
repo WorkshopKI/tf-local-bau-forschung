@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.337 — 2026-07
+
+### Verbesserungen
+- Die Gutachten-Karte ist aufgeräumt: Kopf, Text, eine Werkzeugzeile und eine ruhige Fußzeile. Die Aktionen liegen nicht mehr an drei verschiedenen Stellen, seltener Gebrauchtes steckt im ⋯-Menü.
+- Hinweise zu einem Abschnitt stehen gesammelt in einer Zeile statt in bis zu fünf Bannern übereinander.
+- Die KI-QS steht jetzt direkt unter dem Text: ein Klick auf einen Befund markiert die betroffenen Sätze. Das rechte Panel zeigt sie nicht mehr doppelt und startet eingeklappt, damit der Entwurf mehr Platz hat.
+- Am Knopf „Freigeben und weiter" ist auf einen Blick zu sehen, wie die QS ausgegangen ist.
+
 ## v2.336 — 2026-07
 
 ### Neu

@@ -269,3 +269,46 @@
 /* Einspaltiger Fallback wird über die gemessene Container-Breite (JS) gesteuert
    (`.g-werk.solo`), NICHT per @media — die Sektion ist eingebettet, die
    Viewport-Breite ist nicht ihre Inhaltsbreite (vgl. nav-layout.ts). */
+
+/* ---------------------------------------------------------------------------
+   Vier-Ebenen-Karte (v2.337): Kopf-Zusatz, Hinweis-Streifen, Bewertungs-Band,
+   Werkzeugzeile, Fußzeile. Ausschließlich --tf-*-Tokens (Guard theme-token-contract).
+   --------------------------------------------------------------------------- */
+
+/* Kopfzeile: Pipeline-Status + Fallback-Badge + ⋯-Menü */
+.gutachten-werkstatt .g-pipeline { display: inline-flex; align-items: center; gap: 5px; font: 11.5px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); white-space: nowrap; }
+.gutachten-werkstatt .g-pipeline.ok { color: var(--tf-success-text); }
+.gutachten-werkstatt .g-pipeline.hinweis { color: var(--tf-warning-text); }
+.gutachten-werkstatt .g-fallback-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 99px; font: 11px/1 var(--tf-font-sans); color: var(--tf-info-text); background: var(--tf-info-bg); white-space: nowrap; }
+.gutachten-werkstatt .g-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 12px; border: 0; background: none; text-align: left; font: 12.5px/1.3 var(--tf-font-sans); color: var(--tf-text); cursor: pointer; }
+.gutachten-werkstatt .g-menu-item:hover:not(:disabled) { background: var(--tf-hover); }
+.gutachten-werkstatt .g-menu-item:disabled { opacity: .4; cursor: not-allowed; }
+.gutachten-werkstatt .g-menu-item.trenner { border-top: .5px solid var(--tf-border); margin-top: 4px; padding-top: 10px; }
+
+/* EIN Hinweis-Streifen statt bis zu fünf Einzelbannern */
+.gutachten-werkstatt .g-hinweise { display: flex; gap: 8px; margin: 0 0 12px; padding: 8px 11px; border-radius: 8px; background: var(--tf-bg-secondary); color: var(--tf-text-tertiary); font: 11.5px/1.5 var(--tf-font-sans); }
+.gutachten-werkstatt .g-hinweise.warn { background: var(--tf-warning-bg); color: var(--tf-warning-text); }
+.gutachten-werkstatt .g-hinweise-icon { flex-shrink: 0; margin-top: 2px; }
+.gutachten-werkstatt .g-hinweise-liste { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+/* Bewertungs-Band unter dem Text: Abschnitts-QS + Regelprüfung */
+.gutachten-werkstatt .g-bewertung { margin-top: 14px; border-top: .5px solid var(--tf-border); }
+.gutachten-werkstatt .g-qsstrip { border-bottom: .5px solid var(--tf-border); }
+.gutachten-werkstatt .g-qsstrip:last-child { border-bottom: 0; }
+.gutachten-werkstatt .g-qs-veraltet { margin: 0 0 8px; font: 11.5px/1.45 var(--tf-font-sans); color: var(--tf-warning-text); }
+.gutachten-werkstatt .g-qs-satzlink { padding: 2px 8px; border-radius: 99px; border: .5px solid var(--tf-border); background: var(--tf-bg); font: 11px/1.4 var(--tf-font-sans); color: var(--tf-text-secondary); cursor: pointer; }
+.gutachten-werkstatt .g-qs-satzlink:hover { background: var(--tf-highlight); color: var(--tf-text); border-color: var(--tf-border-hover); }
+
+/* Werkzeugzeile — die einzige Aktionszeile der Karte */
+.gutachten-werkstatt .g-werkzeuge { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: .5px solid var(--tf-border); }
+.gutachten-werkstatt .g-werkzeuge-sep { width: 1px; height: 18px; background: var(--tf-border); margin: 0 4px; }
+.gutachten-werkstatt .g-qs-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 99px; font: 11px/1 var(--tf-font-sans); color: var(--tf-text-tertiary); background: var(--tf-bg-secondary); white-space: nowrap; }
+.gutachten-werkstatt .g-qs-badge.ok { color: var(--tf-success-text); background: var(--tf-success-bg); }
+.gutachten-werkstatt .g-qs-badge.hinweis { color: var(--tf-warning-text); background: var(--tf-warning-bg); }
+/* Auf dem primären CTA: der Knopf ist bereits gefüllt, das Badge bleibt dezent-transparent. */
+.gutachten-werkstatt .g-qs-badge.auf-cta { background: rgb(255 255 255 / .18); color: #fff; }
+.gutachten-werkstatt .g-offline-hinweis { display: flex; align-items: center; gap: 6px; margin-top: 8px; font: 11.5px/1.4 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+
+/* Fußzeile: gedämpfte Kennzahlen + dauerhaft sichtbares Feedback */
+.gutachten-werkstatt .g-fuss { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 12px; font: 11.5px/1.5 var(--tf-font-sans); color: var(--tf-text-tertiary); }
+.gutachten-werkstatt .g-fuss-feedback { display: inline-flex; align-items: center; gap: 6px; }

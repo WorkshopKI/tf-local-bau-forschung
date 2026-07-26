@@ -20,11 +20,8 @@ import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { splitSentences } from '@/core/services/skills';
 import type { QuellenBeleg } from '@/core/services/skills';
-import { QsHinweisList } from './QsHinweisList';
-import { AmpelGruppe } from './AmpelGruppe';
 import { BelegKarten } from './BelegKarten';
 import { extrahiereZitate, ordneSaetzeZu } from './belegAbleitung';
-import { qsRollup } from './qs';
 import type { StepRun } from './types';
 
 interface Props {
@@ -49,8 +46,6 @@ interface Props {
 export function KontextPanel({
   step, provenance, variant, onCollapse, onResizeStart, hoverSaetze, onHoverSaetze, onPinSatz,
 }: Props): React.ReactElement {
-  const qs = step.qsHinweise ?? [];
-  const qsR = qs.length > 0 ? qsRollup(qs) : null;
   const satzAnzahl = useMemo(() => splitSentences(step.finalerText).length, [step.finalerText]);
   // Marker bevorzugt; fehlen sie, die Satz↔Zitat-Zuordnung deterministisch ableiten
   // (reine Anzeige, nicht persistiert — wirkt auch rückwirkend für Alt-Läufe).
@@ -114,20 +109,10 @@ export function KontextPanel({
         </div>
       ) : null}
 
-      {qs.length > 0 && qsR && (
-        <div className="g-ctx-block">
-          <div className="g-ctx-cap">KI-Qualitätshinweis · beratend</div>
-          <AmpelGruppe
-            label="Befunde"
-            level={qsR.level}
-            summary={qsR.summary}
-            count={qs.length}
-            defaultOpen={qsR.level !== 'ok'}
-          >
-            <QsHinweisList befunde={qs} />
-          </AmpelGruppe>
-        </div>
-      )}
+      {/* Die QS-Befunde standen hier bis v2.337 ein zweites Mal. Sie leben jetzt
+          ausschließlich im QS-Strip der Karte — direkt an den Sätzen, die sie
+          betreffen, und dort auch anklickbar. Zwei Darstellungen derselben Daten
+          hätten synchron gehalten werden müssen. */}
 
       {step.entwurf ? (
         <div className="g-ctx-block">
