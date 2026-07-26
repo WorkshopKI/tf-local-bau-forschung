@@ -91,6 +91,11 @@ describe('doc-links', () => {
     // Frist-Prognose, Plan als TEAM-Sidecar statt gerätelokal wie der Status-
     // Katalog). Genau dieser Unterschied ist die Stelle, an der man sich ohne
     // Hinweis vergreift; das Detail lebt in docs/architecture/meilensteine.md.
-    expect(bytes).toBeLessThan(49_700);
+    // 49_700 → 50_200 (v2.337): EINE Zeile für die Abschnitts-Journey (Ziel-
+    // Fallback, auto-angehängter Feinschliff, Abnahme-Kriterien, Vier-Ebenen-
+    // Karte). Bereits auf Stichworte + Doc-Link gekürzt — vier Schichten, die
+    // den GA-Lauf verhaltensrelevant ändern, ganz zu verschweigen wäre teurer
+    // als die Zeile; das Warum lebt in gutachten-kurzfassung.md.
+    expect(bytes).toBeLessThan(50_200);
   });
 });

@@ -67,6 +67,20 @@ Basis: v2.333.0, HEAD `796e8c04`.
 
 ---
 
+## Abnahme durch den Nutzer offen
+
+Die beiden **visuellen** Checkpoints des Auftrags sind maschinell nicht abnehmbar (die App
+braucht das SMB-Onboarding, ein Preview-Server hilft nicht). Zu prüfen am `file://`-Build:
+
+1. **Phase 2** — Abschnitt generieren: Busy-Text wechselt sichtbar Formulieren → Feinschliff;
+   angezeigt wird die polierte Fassung; „Vorfassungen" (⋯-Menü) enthält den Rohentwurf.
+2. **Phase 4**, hell **und** dunkel — genau vier Ebenen + optionales Bewertungs-Band; alle
+   Aktionen des alten Layouts erreichbar (Werkzeugzeile, ⋯-Menü, Fußzeile); 👍/👎 sichtbar;
+   Freigeben-Badge zeigt den QS-Stand; rechtes Panel startet eingeklappt; Console fehlerfrei.
+3. **Phase 3** — in der Skill-Verwaltung zwei Kriterien an Skill A hinterlegen, speichern
+   (Versionen-Tab zeigt sie im Diff), „QS prüfen" fahren: Befund je Kriterium, Klick springt
+   an den Satz; Text ändern ⇒ Abnahme wird als veraltet markiert.
+
 ## Verschobene Punkte
 
 - **Fallback-Adoption für NF / Antrag-Aufbereitung** (D1) — der Wrapper liegt bereit.

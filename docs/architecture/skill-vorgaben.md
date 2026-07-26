@@ -95,3 +95,26 @@ Migration ist idempotent; ausgeführt wird sie vom bestehenden Shell-Hook
 `normalizeSkill` (storage.ts) trägt `vorgaben` **explizit** durch — ohne diese
 Zeile verlöre ein Skill beim Laden seinen gesamten Umfangs-Kontrakt (gleiche
 Klasse wie `kategorie`/`teilStruktur`/`aktiv`).
+
+## Abnahme-Kriterien (`qsKriterien`, v2.336)
+
+Neben „Umfang & Form" (was der Skill produzieren SOLL) trägt ein Skill optional
+**prüfbare Abnahme-Kriterien** — woran ein Mensch erkennt, ob das Ergebnis taugt
+(„Aussagen durch den Antrag belegt", „Risiken auf den Lösungsweg bezogen, nicht
+allgemein"). Sie sind bewusst getrennt von `vorgaben`: Vorgaben sind
+deterministisch messbar und gehen als „Formale Vorgaben" in den Prompt, Kriterien
+sind qualitativ und steuern die **beratende LLM-QS**.
+
+- Gepflegt im Skill-Editor (eine Zeile = ein Kriterium), nie über einen Seed
+  (Kuration ist Menschen-Arbeit, und ein Seed-Write wäre prod-wirksam).
+- Knopf „Kriterien aus Prompt ableiten" liefert nur **Vorschläge** über einen
+  einmaligen internen Lauf
+  ([qsKriterienAbleitung.ts](../../src/plugins/skill-verwaltung-kuration/qsKriterienAbleitung.ts));
+  gespeichert wird erst mit der nächsten Skill-Version.
+- Wie `vorgaben` trägt `normalizeSkill` sie **explizit** durch — und zwar VOR der
+  `historie`-Zeile, weil der Baseline-Snapshot aus dem gerade gebauten Record
+  entsteht. Snapshot, Diff und Rollback führen sie mit; ein Rollback holt die
+  Kriterien des Snapshots zurück, sonst liefe der Skill mit einer Kombination, die
+  es nie gab.
+- Wirkung + Satz-Referenzen: siehe
+  [gutachten-kurzfassung.md](gutachten-kurzfassung.md) („Abnahme-Kriterien am Skill").
