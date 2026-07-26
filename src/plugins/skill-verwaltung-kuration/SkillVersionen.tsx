@@ -142,6 +142,17 @@ function DiffView({ diff }: { diff: SkillVersionsDiff }): React.ReactElement {
           <span className="text-[var(--tf-text-tertiary)]">Modifikatoren geändert:</span> {diff.modifiers.map(k => MOD_LABEL[k]).join(', ')}
         </div>
       )}
+      {(diff.qsKriterien.hinzu.length > 0 || diff.qsKriterien.weg.length > 0) && (
+        <div className="text-[12px] text-[var(--tf-text-secondary)] flex flex-col gap-0.5">
+          <span className="text-[var(--tf-text-tertiary)]">Abnahme-Kriterien:</span>
+          {diff.qsKriterien.hinzu.map(k => (
+            <span key={`+${k}`} style={{ color: 'var(--tf-success-text)' }}>+ {k}</span>
+          ))}
+          {diff.qsKriterien.weg.map(k => (
+            <span key={`-${k}`} style={{ color: 'var(--tf-danger-text)' }}>− {k}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

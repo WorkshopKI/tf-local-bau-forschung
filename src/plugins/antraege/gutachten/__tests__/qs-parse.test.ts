@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseQsBefunde } from '../qs';
+import { parseQsBefunde, QS_DIMENSIONEN } from '../qs';
+import { SEED_QS_SKILL } from '@/core/services/skills';
 
 describe('parseQsBefunde — toleranter QS-Freitext-Parser', () => {
   it('zerlegt vier Dimensionen mit Bewertung + Text', () => {
@@ -62,5 +63,25 @@ describe('parseQsBefunde — toleranter QS-Freitext-Parser', () => {
 
   it('wirft nie — auch bei Müll-Eingabe', () => {
     expect(() => parseQsBefunde('###\n###\n@@@ {{{')).not.toThrow();
+  });
+});
+
+/**
+ * Drift-Wächter: die kanonischen Default-Dimensionen stehen als Konstante in
+ * `qs.ts`, im Prompt aber als Prosa (der `qs-basis`-Seed ist prod-wirksam und
+ * wird nicht angefasst). Ohne diesen Test könnten beide auseinanderlaufen, ohne
+ * dass irgendetwas rot wird — der Parser akzeptiert JEDE Überschrift und
+ * lieferte dann still plausible, aber falsch benannte Befunde.
+ */
+describe('QS_DIMENSIONEN ↔ qs-basis-Seed', () => {
+  it('jede kanonische Dimension kommt als ###-Block im Seed-Prompt vor', () => {
+    for (const dim of QS_DIMENSIONEN) {
+      expect(SEED_QS_SKILL.promptTemplate).toContain(`### ${dim}`);
+    }
+  });
+
+  it('der Seed fordert keine Dimensionen, die die Konstante nicht kennt', () => {
+    const imSeed = [...SEED_QS_SKILL.promptTemplate.matchAll(/^### (.+)$/gm)].map(m => m[1]!.trim());
+    expect(imSeed.sort()).toEqual([...QS_DIMENSIONEN].sort());
   });
 });

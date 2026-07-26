@@ -105,6 +105,16 @@ export interface SkillRunInput {
   /** LLM-QS: Zweck/Überschrift des bewerteten Abschnitts für den `{{abschnittszweck}}`-Slot. */
   abschnittszweck?: string;
   /**
+   * LLM-QS: fertig formatierter Block der skill-eigenen Abnahme-Kriterien
+   * (`SkillRecord.qsKriterien`, gebaut in `gutachten/qs.ts`). Wird als
+   * AUTORITATIVER Block ans Prompt-Ende gehängt und überstimmt die generischen
+   * Dimensionen im Template — bewusst als Anhang statt als `{{slot}}`, damit der
+   * kuratierte `qs-basis`-Seed unangetastet bleibt und Installationen mit und
+   * ohne Kuration nicht auseinanderlaufen. Fehlt er → No-op (Bestandsläufe
+   * byte-identisch).
+   */
+  qsKriterien?: string;
+  /**
    * NF: der wortgetreue Baustein-Katalog (relevante Bausteine, formatiert) für den
    * `{{nfBausteine}}`-Slot. Fehlt der Platzhalter im Template → keine Wirkung.
    */
@@ -319,6 +329,13 @@ export function composeSkillPrompt(
   // Technik UND Lösungsweg") mitgemeint ist — genau der Teil, den dieser Lauf weglassen soll.
   if (input.teilAufgabe && input.teilAufgabe.trim()) {
     content += `\n\n## Teil-Vorgabe (überstimmt Umfang, Struktur und Inhaltsangaben oben)\n${input.teilAufgabe.trim()}`;
+  }
+  // LLM-QS mit skill-eigenen Abnahme-Kriterien (opt-in): ganz am Ende, damit die
+  // Kriterien-Vorgabe die generischen Dimensionen des `qs-basis`-Templates
+  // überstimmt. Der Block ist bereits fertig formatiert (inkl. Ausgabeformat);
+  // hier wird nichts mehr interpretiert. No-op ohne Wert.
+  if (input.qsKriterien && input.qsKriterien.trim()) {
+    content += `\n\n${input.qsKriterien.trim()}`;
   }
   return content;
 }

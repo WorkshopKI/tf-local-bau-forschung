@@ -9,7 +9,8 @@ import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/co
 import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
 import {
-  STEP_ORDER, type QsBefund, type StepId, type StepRun, type VorlageRef, type WorkflowRun,
+  STEP_ORDER,
+  type QsAbnahme, type QsBefund, type StepId, type StepRun, type VorlageRef, type WorkflowRun,
 } from './types';
 
 /** Leerer Run für einen Verbund (vor der ersten Generierung / Migration). */
@@ -167,6 +168,8 @@ export function applyBearbeitung(
     teile: undefined,
     checks,
     originalText: zurueckAufOriginal ? undefined : original,
+    // Die QS-Abnahme galt für den Text VOR dieser Änderung — sichtbar entwerten.
+    qsAbnahme: veralteAbnahme(step),
   };
   return setStep(run, stepId, next, now);
 }
@@ -213,6 +216,8 @@ export function applyLektorat(
     // Ein geglückter Feinschliff heilt einen früher übersprungenen — der
     // angezeigte Text IST jetzt die polierte Fassung.
     feinschliffUebersprungen: undefined,
+    // Auch der Feinschliff ändert den bewerteten Text → Abnahme entwerten.
+    qsAbnahme: veralteAbnahme(step),
     verlauf: appendVerlauf(step),
     ...(input.chatResetStatus && resetHatVerlaufsrisiko(input.chatResetStatus)
       ? { chatResetStatus: input.chatResetStatus }
@@ -234,7 +239,10 @@ export function applyZuruecksetzen(
 ): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step || step.originalText == null) return run;
-  const next: StepRun = { ...step, finalerText: step.originalText, originalText: undefined, checks };
+  const next: StepRun = {
+    ...step, finalerText: step.originalText, originalText: undefined, checks,
+    qsAbnahme: veralteAbnahme(step),
+  };
   return setStep(run, stepId, next, now);
 }
 
@@ -260,10 +268,24 @@ export function applyQsHinweise(
   stepId: StepId,
   befunde: QsBefund[],
   now: string,
+  abnahme?: QsAbnahme,
 ): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step) return run;
-  return setStep(run, stepId, { ...step, qsHinweise: befunde }, now);
+  // `abnahme` fehlt (Skill ohne Kriterien) → eine ältere Abnahme wäre nach einem
+  // frischen Lauf irreführend; sie fällt mit den neuen Befunden weg.
+  return setStep(run, stepId, { ...step, qsHinweise: befunde, qsAbnahme: abnahme }, now);
+}
+
+/**
+ * Markiert eine vorhandene QS-Abnahme als veraltet — der bewertete Text hat sich
+ * seither geändert. Bewusst markieren statt löschen: „war abgenommen, ist aber
+ * nicht mehr aktuell" ist ehrlicher als „nie geprüft". No-op ohne Abnahme (und
+ * idempotent).
+ */
+function veralteAbnahme(step: StepRun): QsAbnahme | undefined {
+  if (!step.qsAbnahme || step.qsAbnahme.veraltet) return step.qsAbnahme;
+  return { ...step.qsAbnahme, veraltet: true };
 }
 
 /**

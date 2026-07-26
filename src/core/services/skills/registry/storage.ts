@@ -114,6 +114,8 @@ function normalizeSnapshot(raw: unknown): SkillVersionSnapshot | null {
   };
   if (typeof s.userId === 'string' && s.userId) snap.userId = s.userId;
   if (typeof s.begruendung === 'string' && s.begruendung) snap.begruendung = s.begruendung;
+  const qsKriterien = normalizeQsKriterien(s.qsKriterien);
+  if (qsKriterien) snap.qsKriterien = qsKriterien;
   return snap;
 }
 
@@ -136,6 +138,7 @@ function normalizeHistorie(raw: unknown, current: SkillRecord): SkillVersionSnap
     regelIds: [...current.regelIds],
     modifiers: { ...current.modifiers },
     geaendert_am: current.geaendert_am,
+    ...(current.qsKriterien?.length ? { qsKriterien: [...current.qsKriterien] } : {}),
   }];
 }
 
@@ -162,6 +165,13 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   // UND beim Bundle-Import lautlos verloren (normalizeSkill baut feldweise neu).
   const kategorie = asString(s.kategorie).trim();
   if (kategorie) skill.kategorie = kategorie;
+  // QS-Abnahme-Kriterien (additiv): gleiche Klasse wie kategorie/teilStruktur/aktiv —
+  // ohne diese Zeile verlöre der Skill seine Kriterien beim ersten Lade-/Speicher-
+  // Umlauf, und die QS fiele stillschweigend auf die Default-Dimensionen zurück.
+  // MUSS vor `normalizeHistorie` stehen: der Baseline-Eintrag wird aus `skill`
+  // gebaut, ein später gesetztes Feld fehlte dort.
+  const qsKriterien = normalizeQsKriterien(s.qsKriterien);
+  if (qsKriterien) skill.qsKriterien = qsKriterien;
   skill.historie = normalizeHistorie(s.historie, skill);
   if (typeof s.systemPrompt === 'string') skill.systemPrompt = s.systemPrompt;
   if (typeof s.maxTokens === 'number' && Number.isFinite(s.maxTokens)) skill.maxTokens = s.maxTokens;
@@ -185,6 +195,20 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   const vorgaben = normalizeVorgaben(s.vorgaben);
   if (vorgaben) skill.vorgaben = vorgaben;
   return skill;
+}
+
+/**
+ * Kriterien-Liste tolerant lesen: nur nicht-leere Strings, getrimmt. Leeres
+ * Ergebnis → `null` ⇒ das Feld wird gar nicht erst gesetzt (kein leeres Array
+ * persistieren — gleiche Konvention wie `normalizeTeilStruktur`).
+ */
+function normalizeQsKriterien(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out = raw
+    .filter((k): k is string => typeof k === 'string')
+    .map(k => k.trim())
+    .filter(Boolean);
+  return out.length > 0 ? out : null;
 }
 
 /**

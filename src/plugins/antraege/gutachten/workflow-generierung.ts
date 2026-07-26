@@ -20,7 +20,7 @@
 import type { AIBridge } from '@/core/services/ai/bridge';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import {
-  runSkill, runRegelChecks,
+  runSkill, runRegelChecks, splitSentences,
   type CheckResult, type SkillModifierKey, type QualitaetsRegel, type SkillRecord,
   type SkillTweak, type WorkflowStep,
 } from '@/core/services/skills';
@@ -41,8 +41,9 @@ import {
 } from './runner';
 import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
 import { istVerdaechtigGekuerzt } from './lektorat';
-import { parseQsBefunde } from './qs';
-import type { QsBefund, StepId, WorkflowRun } from './types';
+import { buildQsKriterienBlock, parseQsBefunde } from './qs';
+import { saetzeOhneBeleg } from './belege';
+import type { QsAbnahme, QsBefund, StepId, WorkflowRun } from './types';
 
 /** Die Streaming-Senke eines Laufs (aus `useStreamingBuffer`). */
 export interface StreamSenke {
@@ -393,14 +394,32 @@ export async function laufQs(
   const ok = await transport.ping();
   deps.setLlmAvailable(ok);
   if (!ok) { deps.setError('KI nicht erreichbar — QS derzeit nicht möglich.'); return null; }
+  // Kriterien hängen am ABSCHNITTS-Skill (A–G), der Lauf fährt weiter über
+  // `qs-basis`. Fehlen sie, bleibt alles beim Alten (Default-Dimensionen).
+  const kriterien = deps.skillMap.get(zielStepId)?.skill.qsKriterien ?? [];
+  const satzAnzahl = splitSentences(zielStep.finalerText).length;
+  const kriterienBlock = kriterien.length > 0
+    ? buildQsKriterienBlock(kriterien, saetzeOhneBeleg(zielStep.belege ?? [], satzAnzahl))
+    : '';
+
   // Kein `zielFallback`-Stempel: die QS ändert den Text nicht, das Badge an der
   // Karte beschreibt die Herkunft des angezeigten Textes.
   const { result: befunde } = await mitFallbackLauf(
     deps, transport, signal,
-    (d, ziel) => qsEinmal(zielStep.finalerText, zielStepId, qsCtx, transport, d, ziel, signal),
+    (d, ziel) => qsEinmal(zielStep.finalerText, zielStepId, qsCtx, transport, d, ziel, signal, kriterienBlock, satzAnzahl),
     (b) => b.length === 0,
   );
-  return applyQsHinweise(run, zielStepId, befunde, new Date().toISOString());
+  const now = new Date().toISOString();
+  // Abnahme nur bei kuratierten Kriterien: ohne sie bewertet die QS generische
+  // Dimensionen — daraus eine „Abnahme" abzuleiten wäre eine Überhöhung.
+  const abnahme: QsAbnahme | undefined = kriterien.length > 0
+    ? {
+        status: befunde.every(b => b.bewertung === 'ok') ? 'bestanden' : 'hinweise',
+        am: now,
+        kriterienVersion: deps.skillMap.get(zielStepId)?.skill.version ?? 0,
+      }
+    : undefined;
+  return applyQsHinweise(run, zielStepId, befunde, now, abnahme);
 }
 
 /** Ein einzelner QS-Versuch mit festem `ziel` (siehe `laufQs`). */
@@ -412,6 +431,8 @@ async function qsEinmal(
   deps: GenerierungsDeps,
   ziel: BridgeZiel | undefined,
   signal: AbortSignal,
+  kriterienBlock: string,
+  satzAnzahl: number,
 ): Promise<QsBefund[]> {
   const zielDef = deps.steps.find(s => s.id === zielStepId);
   const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
@@ -424,9 +445,10 @@ async function qsEinmal(
     onThinkingDelta: deps.stream.onThinkingDelta,
     zielText,
     abschnittszweck: zielDef?.label ?? zielStepId,
+    ...(kriterienBlock ? { qsKriterien: kriterienBlock } : {}),
     signal,
   });
-  return parseQsBefunde(result.raw);
+  return parseQsBefunde(result.raw, satzAnzahl);
 }
 
 /**

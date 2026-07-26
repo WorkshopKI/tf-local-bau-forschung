@@ -18,7 +18,7 @@ export const MAX_HISTORIE = 10;
 const MOD_KEYS: readonly SkillModifierKey[] = ['neu', 'kuerzer', 'laenger'];
 
 /** Minimaler Stand, den ein Diff vergleicht (Record ODER Snapshot erfüllen es). */
-type VersionLike = Pick<SkillRecord, 'promptTemplate' | 'regelIds' | 'modifiers'>;
+type VersionLike = Pick<SkillRecord, 'promptTemplate' | 'regelIds' | 'modifiers' | 'qsKriterien'>;
 
 function snapshotOf(rec: SkillRecord, opts: { userId?: string; begruendung?: string }): SkillVersionSnapshot {
   const snap: SkillVersionSnapshot = {
@@ -32,6 +32,9 @@ function snapshotOf(rec: SkillRecord, opts: { userId?: string; begruendung?: str
   if (uid) snap.userId = uid;
   const grund = opts.begruendung?.trim();
   if (grund) snap.begruendung = grund;
+  // Nur bei vorhandenen Kriterien setzen (Idiom wie userId/begruendung) — Snapshots
+  // von Skills ohne Kriterien bleiben feldfrei und damit unverändert zu vorher.
+  if (rec.qsKriterien?.length) snap.qsKriterien = [...rec.qsKriterien];
   return snap;
 }
 
@@ -51,9 +54,14 @@ export function appendHistorie(
 
 /**
  * Rollback: holt den Inhalt eines alten Snapshots als NEUE Version zurück (kein
- * In-Place-Reset). Template/Regeln/Modifier werden aus dem Snapshot übernommen,
- * die Version inkrementiert und ein frischer Historien-Eintrag vorangestellt
- * (Default-Begründung „Rollback auf vN"). Rein — `now` wird hereingereicht.
+ * In-Place-Reset). Template/Regeln/Modifier/Kriterien werden aus dem Snapshot
+ * übernommen, die Version inkrementiert und ein frischer Historien-Eintrag
+ * vorangestellt (Default-Begründung „Rollback auf vN"). Rein — `now` wird
+ * hereingereicht.
+ *
+ * `qsKriterien` gehören dazu: sonst behielte ein Rollback still die NEUEREN
+ * Kriterien und der Skill liefe mit einer Kombination, die es nie gab. Ein
+ * Snapshot ohne Kriterien (vor der Einführung) setzt sie folgerichtig zurück.
  */
 export function rollbackSkill(
   skill: SkillRecord,
@@ -67,6 +75,7 @@ export function rollbackSkill(
     promptTemplate: snapshot.promptTemplate,
     regelIds: [...snapshot.regelIds],
     modifiers: { ...snapshot.modifiers },
+    qsKriterien: snapshot.qsKriterien?.length ? [...snapshot.qsKriterien] : undefined,
     geaendert_am: now,
   };
   return {
@@ -95,6 +104,8 @@ export interface SkillVersionsDiff {
   regeln: { hinzu: string[]; weg: string[] };
   /** Modifier-Keys, deren Text sich geändert hat. */
   modifiers: SkillModifierKey[];
+  /** Mengen-Diff der QS-Abnahme-Kriterien (fehlend ≙ leer). */
+  qsKriterien: { hinzu: string[]; weg: string[] };
   /** True, wenn keinerlei Unterschied besteht. */
   unveraendert: boolean;
 }
@@ -139,13 +150,26 @@ export function diffLines(altText: string, neuText: string): DiffZeile[] {
   return out;
 }
 
-/** Reiner Diff zweier Skill-Stände (alt → neu): Template, Regeln, Modifikatoren. */
+/** Reiner Diff zweier Skill-Stände (alt → neu): Template, Regeln, Modifikatoren, Kriterien. */
 export function diffSkillVersions(alt: VersionLike, neu: VersionLike): SkillVersionsDiff {
   const template = diffLines(alt.promptTemplate, neu.promptTemplate);
   const hinzu = neu.regelIds.filter(id => !alt.regelIds.includes(id));
   const weg = alt.regelIds.filter(id => !neu.regelIds.includes(id));
   const modifiers = MOD_KEYS.filter(k => alt.modifiers[k] !== neu.modifiers[k]);
+  // Fehlendes Feld ≙ leere Liste — Snapshots von vor der Einführung dürfen nicht
+  // als „alle Kriterien entfernt" erscheinen, wenn auch neu keine hat.
+  const altK = alt.qsKriterien ?? [];
+  const neuK = neu.qsKriterien ?? [];
+  const kHinzu = neuK.filter(k => !altK.includes(k));
+  const kWeg = altK.filter(k => !neuK.includes(k));
   const unveraendert =
-    template.every(z => z.typ === 'gleich') && hinzu.length === 0 && weg.length === 0 && modifiers.length === 0;
-  return { template, regeln: { hinzu, weg }, modifiers, unveraendert };
+    template.every(z => z.typ === 'gleich') && hinzu.length === 0 && weg.length === 0
+    && modifiers.length === 0 && kHinzu.length === 0 && kWeg.length === 0;
+  return {
+    template,
+    regeln: { hinzu, weg },
+    modifiers,
+    qsKriterien: { hinzu: kHinzu, weg: kWeg },
+    unveraendert,
+  };
 }

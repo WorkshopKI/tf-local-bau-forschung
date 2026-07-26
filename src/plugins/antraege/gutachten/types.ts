@@ -45,6 +45,37 @@ export interface QsBefund {
   bewertung: 'ok' | 'hinweis' | 'unklar';
   /** Konkreter Befund / Belegstelle (1–2 Sätze). */
   text: string;
+  /**
+   * Betroffene Sätze im bewerteten Text (additiv, opt-in). 0-basiert gegen
+   * `splitSentences(finalerText)` — dieselbe Konvention wie `QuellenBeleg.
+   * satzIndizes` und `CheckResult.fundstellen`, damit der bestehende Sprung-/
+   * Highlight-Pfad trägt. Das Modell nennt sie 1-basiert; der Parser rechnet um
+   * und verwirft Unplausibles (kein Throw). Nur bei kriterien-basierter QS.
+   */
+  satzIndizes?: number[];
+}
+
+/**
+ * Deterministische Abnahme eines kriterien-basierten QS-Laufs (additiv, opt-in).
+ * `bestanden` ⇔ ALLE Befunde `'ok'` — abgeleitet, nicht vom Modell erklärt.
+ *
+ * Streng BERATEND: beeinflusst nur das Badge am Freigeben-Knopf, nie die
+ * Freigabe selbst. Entsteht nur, wenn der Abschnitts-Skill `qsKriterien` führt —
+ * die generischen Default-Dimensionen tragen keine Abnahme.
+ */
+export interface QsAbnahme {
+  status: 'bestanden' | 'hinweise';
+  /** ISO-Zeitstempel des QS-Laufs. */
+  am: string;
+  /** `SkillRecord.version` des Abschnitts-Skills zum Zeitpunkt der Abnahme. */
+  kriterienVersion: number;
+  /**
+   * Der Text wurde nach der Abnahme geändert (manuell, Feinschliff,
+   * Zurücksetzen) — die Abnahme beschreibt den Stand VOR der letzten Änderung.
+   * Bewusst markiert statt gelöscht: „war mal abgenommen, ist aber nicht mehr
+   * aktuell" ist die ehrlichere Aussage als „nie geprüft".
+   */
+  veraltet?: true;
 }
 
 /**
@@ -151,6 +182,12 @@ export interface StepRun {
    * weder Status noch Text (Auto-Overwrite ausgeschlossen).
    */
   qsHinweise?: QsBefund[];
+  /**
+   * Deterministische Abnahme des letzten kriterien-basierten QS-Laufs (additiv).
+   * Nur gesetzt, wenn der Abschnitts-Skill `qsKriterien` führt. Beratend — treibt
+   * ausschließlich das Badge am Freigeben-Knopf.
+   */
+  qsAbnahme?: QsAbnahme;
 }
 
 /**

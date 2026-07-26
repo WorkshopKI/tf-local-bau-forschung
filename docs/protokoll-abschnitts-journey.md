@@ -74,9 +74,9 @@ Basis: v2.333.0, HEAD `796e8c04`.
   Workflow konfigurierbar) — heute bewusst rein beratend.
 - **Erstbefüllung der GA-Kriterien (A–G) durch die Kuratoren** (D3) — Code ist bereit,
   die Inhalte sind Fachaufgabe.
-- **`QS_DIMENSIONEN` als Anzeige-Reihenfolge** ist jetzt verdrahtet; der `qs-basis`-Seed
-  trägt die Dimensionen weiterhin als Prosa. Eine spätere Vereinheitlichung (Prompt aus
-  der Konstante bauen) wäre eine Seed-Änderung an einem Live-Skill und bleibt offen.
+- **`QS_DIMENSIONEN`**: der Prompt aus der Konstante zu bauen wäre eine Seed-Änderung an
+  einem Live-Skill und bleibt offen. Die Drift-Gefahr ist seit v2.336.0 aber abgesichert
+  (Wächter-Test statt totem Konstant).
 
 ---
 
@@ -87,5 +87,5 @@ Basis: v2.333.0, HEAD `796e8c04`.
 | 0 — Baseline | — | `npm run check` unverändert grün; Inventur + D1–D10 festgehalten. |
 | 1 — Transport-Fallback | v2.334.0 | `mitZielFallback` + `zielWirktAuf` (`core/services/ai/ziel-fallback.ts`, 11 Tests); alle drei Gutachten-Läufe darüber; gepufferte `setError`/`setLlmAvailable`; `StepRun.zielFallback` + Info-Hinweis. `workflow-generierung.ts` 331 → 448 Z. — **bewusst nicht gesplittet** (eine Verantwortung: „wie ein Lauf gefahren wird"; ein Auslagern der Fallback-Hülle erzwänge einen strukturellen Ersatztyp für `GenerierungsDeps` samt Cast). Nach Phase 2 erneut prüfen. |
 | 2 — Auto-Feinschliff | v2.335.0 | `mitFeinschliff` (Lektor-Lauf als Thunk ⇒ ohne Transport testbar, 7 Tests); Degradation bei Tor/Wurf/**Abbruch**; `checks` immer vom final angezeigten Text; `LaufPhase` in `useStreamingBuffer`/`StreamingVorschau`; `StepRun.feinschliffUebersprungen`. **Bestätigt:** die Rohentwurf-Sicherung leistet das vorhandene `applyLektorat` → `appendVerlauf(step)` (Abweichung 5) — kein neuer Code, nur ein Kontrakt-Test. **Nebenwirkung:** ein Generierungs-Zyklus schreibt jetzt ZWEI Verlaufs-Einträge (Vorfassung + Rohentwurf), `MAX_VERLAUF = 5` füllt sich doppelt so schnell; `slice(-5)` hält den Rohentwurf immer. |
-| 3 — Abschnitts-QS | — | |
+| 3 — Abschnitts-QS | v2.336.0 | `SkillRecord.qsKriterien` durch alle 7 Nachzieh-Stellen + Bundle-Rundlauf (13 Tests); Kriterien-Block als **Anhang** in `composeSkillPrompt` (D7, kein Seed-Write ⇒ kein STOPP-R); `parseQsBefunde(raw, satzAnzahl)` mit 1-basierten Satz-Referenzen; `saetzeOhneBeleg` als deterministische Vorarbeit; `StepRun.qsAbnahme` + Entwertung in `applyBearbeitung`/`applyLektorat`/`applyZuruecksetzen`; Editor-Feld + registry-freie Ableitung (D8). **Bug beim Bauen gefunden:** `normalizeHistorie` baut den Baseline-Snapshot aus dem halbfertigen `skill` — `qsKriterien` muss VOR der Historien-Zeile gesetzt werden, sonst fehlt es im Baseline-Eintrag (Test hat es gefangen). **Offener Punkt aus Phase 0 geschlossen:** `QS_DIMENSIONEN` ist kein toter Konstant mehr, sondern per Drift-Wächter an den `qs-basis`-Seed gebunden (`qs-parse.test.ts`). |
 | 4 — Karten-Umbau | — | |

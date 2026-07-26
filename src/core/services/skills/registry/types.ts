@@ -168,6 +168,11 @@ export interface SkillVersionSnapshot {
   userId?: string;
   /** Optionale Kurator-Begründung der nachfolgenden Änderung. */
   begruendung?: string;
+  /**
+   * Abnahme-Kriterien dieses Standes (additiv). Fehlt bei Snapshots von vor der
+   * Einführung — Diff und Rollback behandeln „fehlt" wie „leer".
+   */
+  qsKriterien?: string[];
 }
 
 /** Join-Strategie der Teilfelder eines strukturierten `finalerText`. */
@@ -276,6 +281,18 @@ export interface SkillRecord {
    * live. Konsumenten, die das Gate respektieren müssen, prüfen `aktiv === false`.
    */
   aktiv?: boolean;
+  /**
+   * Opt-in (additiv): prüfbare Abnahme-Kriterien für die beratende LLM-QS dieses
+   * Skills — je ein Satz in der Sprache des Fachs („Aussagen durch den Antrag
+   * belegt", „Risiken auf den Lösungsweg bezogen, nicht allgemein"). Sind
+   * Kriterien gepflegt, bewertet der QS-Lauf GENAU sie (statt der vier
+   * generischen Default-Dimensionen) und darf je Befund Satz-Nummern nennen.
+   *
+   * Fehlt/leer → unverändert die Default-Dimensionen des `qs-basis`-Skills
+   * (Prompt byte-identisch zu vorher). Gepflegt wird das ausschließlich über die
+   * Skill-Verwaltung, nie über einen Seed.
+   */
+  qsKriterien?: string[];
 }
 
 /* -------------------------------------------------------------------------- */

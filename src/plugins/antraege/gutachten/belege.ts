@@ -33,6 +33,21 @@ export function belegBetrifftSaetze(beleg: QuellenBeleg, saetze: readonly number
 }
 
 /** Abdeckung: Anzahl distinkter Sätze mit ≥1 (live-gültigem) Beleg + Gesamt-Satzzahl. */
+/**
+ * Sätze OHNE (live gültigen) Beleg — 0-basiert, aufsteigend. Deterministische
+ * Vorarbeit für die kriterien-basierte LLM-QS: das Beleg-Kriterium bekommt sie
+ * als Prüfkandidaten mit, damit das Modell gezielt hinsieht statt zu raten.
+ * Bewusst nur eine Auswahl-Hilfe — „ohne Beleg" heißt NICHT „unbelegt/falsch"
+ * (die Beleg-Ableitung ist selbst nur eine Heuristik).
+ */
+export function saetzeOhneBeleg(belege: QuellenBeleg[], satzAnzahl: number): number[] {
+  const belegt = new Set<number>();
+  for (const b of belege) for (const i of liveGueltigeIndizes(b, satzAnzahl)) belegt.add(i);
+  const offen: number[] = [];
+  for (let i = 0; i < satzAnzahl; i++) if (!belegt.has(i)) offen.push(i);
+  return offen;
+}
+
 export function belegAbdeckung(belege: QuellenBeleg[], satzAnzahl: number): { abgedeckt: number; gesamt: number } {
   const covered = new Set<number>();
   for (const b of belege) for (const i of liveGueltigeIndizes(b, satzAnzahl)) covered.add(i);

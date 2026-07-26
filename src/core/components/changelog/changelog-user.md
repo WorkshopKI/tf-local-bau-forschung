@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.336 — 2026-07
+
+### Neu
+- Je Arbeitsschritt lassen sich in der Skill-Verwaltung eigene Abnahme-Kriterien hinterlegen („Aussagen durch den Antrag belegt"). Die KI-QS prüft dann genau diese Punkte und nennt die betroffenen Sätze.
+- Ein Knopf schlägt passende Kriterien aus der Prompt-Vorlage vor. Übernommen wird nur, was angeklickt wird.
+
 ## v2.335 — 2026-07
 
 ### Verbesserungen

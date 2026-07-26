@@ -30,6 +30,8 @@ import { SkillVersionen } from './SkillVersionen';
 import { VorgabenEditor } from './VorgabenEditor';
 import { groupRegelnByKategorie } from './regelGruppen';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
+import { leiteQsKriterienAb } from './qsKriterienAbleitung';
+import { useAIBridge } from '@/core/hooks/useAIBridge';
 
 const SLOT_EXPL: Record<string, string> = {
   stammdaten: 'FKZ, Firmenname, Akronym und Antragstyp aus den TeamFlow-Stammdaten.',
@@ -117,6 +119,38 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
 
   const toggleRegel = (id: string): void =>
     setDraft(d => ({ ...d, regelIds: d.regelIds.includes(id) ? d.regelIds.filter(x => x !== id) : [...d.regelIds, id] }));
+
+  // Abnahme-Kriterien: eine Zeile = ein Kriterium. Der Rohpuffer hält das
+  // Getippte (inkl. Leerzeile am Ende), der Draft die bereinigte Liste — sonst
+  // würde jede Zwischen-Eingabe beim Tippen weggeputzt.
+  const [kriterienBuf, setKriterienBuf] = useState<string>((skill.qsKriterien ?? []).join('\n'));
+  const onKriterienChange = (raw: string): void => {
+    setKriterienBuf(raw);
+    const liste = raw.split('\n').map(k => k.trim()).filter(Boolean);
+    setDraft(d => ({ ...d, qsKriterien: liste.length > 0 ? liste : undefined }));
+  };
+  const uebernimmVorschlag = (k: string): void => {
+    const vorhanden = kriterienBuf.split('\n').map(z => z.trim().toLowerCase());
+    if (vorhanden.includes(k.toLowerCase())) return;
+    onKriterienChange(kriterienBuf.trim() ? `${kriterienBuf.replace(/\s+$/, '')}\n${k}` : k);
+  };
+
+  // Ableitung liefert nur VORSCHLÄGE — gespeichert wird nichts, bis der Mensch
+  // klickt und danach regulär speichert (neue Skill-Version).
+  const [vorschlaege, setVorschlaege] = useState<string[]>([]);
+  const [vorschlaegeHinweis, setVorschlaegeHinweis] = useState('');
+  const bridge = useAIBridge();
+  const ableiten = useAsyncAction(async () => {
+    setVorschlaege([]);
+    setVorschlaegeHinweis('');
+    const vorlage = promptViewRef.current?.state.doc.toString() ?? draft.promptTemplate;
+    const gefunden = await leiteQsKriterienAb(bridge.getActiveTransport(), draft.name, vorlage);
+    if (!gefunden) {
+      setVorschlaegeHinweis('Keine Vorschläge — interne KI nicht erreichbar oder Antwort unbrauchbar.');
+      return;
+    }
+    setVorschlaege(gefunden);
+  });
 
   const ro = !canEdit;
   const inputCls = 'w-full rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)] disabled:opacity-70';
@@ -326,6 +360,64 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
             </div>
           )}
           <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline mt-3.5">Regeln verwalten →</button>
+        </div>
+
+        {/* Abnahme-Kriterien für die beratende KI-QS. Eine Zeile = ein Kriterium
+            (Rohpuffer, damit Tippen flüssig bleibt — Muster: MusterErkennungEditor).
+            Leer ⇒ die QS bewertet unverändert die generischen Default-Dimensionen. */}
+        <div className="mt-7">
+          <Section>Abnahme-Kriterien (KI-QS)</Section>
+          <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0 mb-2.5">
+            Ein prüfbarer Satz je Zeile — die KI-QS bewertet dann genau diese Punkte statt der
+            generischen Dimensionen und darf die betroffenen Sätze benennen. Keine Zeichen- oder
+            Wortzahlen (das prüfen die Regeln oben). Leer lassen = wie bisher.
+          </p>
+          <textarea
+            value={kriterienBuf}
+            disabled={ro}
+            onChange={e => onKriterienChange(e.target.value)}
+            rows={4}
+            placeholder={'Aussagen durch den Antrag belegt\nRisiken auf den Lösungsweg bezogen, nicht allgemein'}
+            className={`${inputCls} px-2.5 py-2 text-[13px] leading-[1.6] resize-y`}
+          />
+          {canEdit && (
+            <div className="flex items-center gap-2.5 mt-2">
+              <button
+                type="button"
+                disabled={ableiten.busy || !draft.promptTemplate.trim()}
+                onClick={() => void ableiten.run()}
+                className="inline-flex items-center gap-1.5 text-[12.5px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)] disabled:opacity-50"
+              >
+                <Sparkles size={13} />
+                {ableiten.busy ? 'Leite ab…' : 'Kriterien aus Prompt ableiten'}
+              </button>
+              {vorschlaegeHinweis && (
+                <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{vorschlaegeHinweis}</span>
+              )}
+            </div>
+          )}
+          {vorschlaege.length > 0 && (
+            <div className="mt-2.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-2.5">
+              <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-1.5">
+                Vorschläge der KI — noch nichts übernommen. Klick fügt ein Kriterium oben an.
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {vorschlaege.map(v => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => uebernimmVorschlag(v)}
+                    className="text-left text-[12px] px-2 py-1 rounded-[99px] bg-[var(--tf-primary-soft)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]"
+                  >
+                    + {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {ableiten.error && (
+            <div className="mt-2 text-[12px] text-[var(--tf-danger-text)]">⚠ {ableiten.error}</div>
+          )}
         </div>
 
         {/* Kategorie — ordnet den Skill fachlich ein (Liste/Tabelle gruppieren
