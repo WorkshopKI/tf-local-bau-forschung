@@ -67,9 +67,12 @@ export async function exportFilteredAntraegeXlsx(
   verbundById: ReadonlyMap<string, Verbund>,
   visibleColumnKeys: readonly string[],
   showMaColumn: boolean,
+  /** Kuratierte Ordner-Spalten — ohne sie fehlten sie im Export, obwohl sie in
+   *  der Ansicht stehen. */
+  kategorieSpalten: readonly { kategorieId: string; label: string }[] = [],
 ): Promise<{ rowCount: number; filename: string }> {
   // Sichtbare Spalten in Registry-Reihenfolge — identisch zur Tabelle.
-  const cols = resolveAntragTableColumns(visibleColumnKeys, showMaColumn);
+  const cols = resolveAntragTableColumns(visibleColumnKeys, showMaColumn, kategorieSpalten);
 
   // Text-Korpus nur laden, wenn die VB-Titel-Spalte sichtbar ist (der Cursor-
   // Walk über alle Antrags-Records ist teuer; sonst überflüssig). `includeEmpty`

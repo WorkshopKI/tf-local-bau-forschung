@@ -297,6 +297,16 @@ export interface AntragListItem {
   precheck_status_label?: string;
   /** Das jüngste PreCheck-Status-Datum (ISO YYYY-MM-DD) — Tooltip + Sortierung. */
   precheck_status_datum?: string;
+  /**
+   * Je **kuratiertem Ordner** des Statuskatalogs der jüngste Eintrag: `l` =
+   * Bezeichnung des Feldes, das ihn liefert, `d` = ISO-Datum. Speist die
+   * einblendbaren Ordner-Spalten der Fördertabelle.
+   *
+   * Anders als `fb_`/`precheck_status_*` ist die Menge der Schlüssel nicht im
+   * Code festgelegt, sondern folgt dem Katalog — deshalb eine Map und keine
+   * benannten Felder. Kurze Schlüssel, weil das je Antrag gespeichert wird.
+   */
+  kat_status?: Record<string, { l: string; d: string }>;
   // Meta
   _updated_at: string;
 }

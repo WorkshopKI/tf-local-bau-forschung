@@ -548,6 +548,32 @@ export const LOCKED_COLUMN_KEYS: string[] =
   ANTRAG_TABLE_COLUMNS.filter(c => c.locked === true).map(c => c.key);
 
 /**
+ * Präfix der Ordner-Spalten aus dem Statuskatalog. Diese Spalten stehen NICHT
+ * in `ANTRAG_TABLE_COLUMNS` — welche es gibt, entscheidet die Kuration, nicht
+ * der Code. Der Sichtbarkeits-Store muss sie deshalb am Präfix erkennen statt
+ * an einer festen Schlüsselliste.
+ */
+export const KATEGORIE_COLUMN_PREFIX = 'katstatus:';
+
+/**
+ * Eine einblendbare Spalte je kuratiertem Ordner: der jüngste Eintrag des
+ * Ordners als Badge, das Datum im Tooltip und als Sortierschlüssel. Bauart 1:1
+ * wie die fest verdrahteten FB-/PreCheck-Spalten — nur dass die Liste aus dem
+ * Katalog kommt.
+ */
+export function kategorieStatusColumns(
+  kategorien: readonly { kategorieId: string; label: string }[],
+): SortableColumn<AntragTableRow>[] {
+  return kategorien.map(k => statusDatumColumn({
+    key: `${KATEGORIE_COLUMN_PREFIX}${k.kategorieId}`,
+    label: k.label,
+    variant: 'default',
+    getLabel: r => r.kat_status?.[k.kategorieId]?.l,
+    getDatum: r => r.kat_status?.[k.kategorieId]?.d,
+  }));
+}
+
+/**
  * Sichtbare Spalten in Registry-Reihenfolge auflösen — Single Source für Tabelle
  * (`AntraegeTable`) UND XLSX-Export (`export-xlsx.ts`), damit der Export exakt die
  * Spalten der Ansicht abbildet. Die MA-Spalte (TIB-Kürzel) ist regulär im Picker
@@ -559,8 +585,12 @@ export const LOCKED_COLUMN_KEYS: string[] =
 export function resolveAntragTableColumns(
   visibleKeys: readonly string[],
   showMaColumn: boolean,
+  kategorien: readonly { kategorieId: string; label: string }[] = [],
 ): SortableColumn<AntragTableRow>[] {
   const keys = new Set(visibleKeys);
   if (showMaColumn) keys.add(MA_COLUMN_KEY);
-  return ANTRAG_TABLE_COLUMNS.filter(c => keys.has(c.key));
+  // Ordner-Spalten hinten anhängen: die Registry-Reihenfolge ist die Lesefolge
+  // der festen Spalten, die kuratierten kommen als Zusatz dazu.
+  return [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorien)]
+    .filter(c => keys.has(c.key));
 }

@@ -16,6 +16,8 @@ import { isDatenShareWritable } from '@/config/feature-flags';
 import { rebuildAntraegeListView, isListViewProjectionCurrent } from './list-view-migration';
 import { listSchemasByProgramm } from './idb-csv';
 import { resolveStatusDatumGruppen } from './status-datum-gruppen';
+import { ladeAktiveVersion } from '@/core/status/katalog-store';
+import { loeseKategorieSpalten } from '@/core/status/kategorie-projektion';
 import {
   diffAntraegeLines,
   buildAntraegeHashes,
@@ -367,8 +369,10 @@ export async function syncProgrammSnapshot(
       // Inkrementell: nur geaenderte Records projizieren + entfernte loeschen —
       // kein Voll-Re-Read+Reprojektion der ~14k (Messung v2.95: ~5 s). Nur sicher,
       // wenn die Projektion bereits auf aktueller Schema-Version liegt.
-      const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, programmId));
-      await applyListViewDiff(idb, antraegeDiff, gruppen);
+      const schemas = await listSchemasByProgramm(idb, programmId);
+      const gruppen = resolveStatusDatumGruppen(schemas);
+      const katSpalten = loeseKategorieSpalten(await ladeAktiveVersion(idb), schemas);
+      await applyListViewDiff(idb, antraegeDiff, gruppen, katSpalten);
       onProgress?.({ phase: 'finalizing', storesDone: storeKeys.length, storesTotal: storeKeys.length, fraction: 1 });
     } else {
       // Voll-Rebuild: nach Voll-Replace (Cold-Start) ODER bei Schema-Mismatch der
@@ -513,8 +517,10 @@ async function syncAntraegeViaDelta(
     const tWrite = performance.now();
     await applyAntraegeDiff(idb, diff);
     if (lvCurrent) {
-      const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, programmId));
-      await applyListViewDiff(idb, diff, gruppen);
+      const schemas = await listSchemasByProgramm(idb, programmId);
+      const gruppen = resolveStatusDatumGruppen(schemas);
+      const katSpalten = loeseKategorieSpalten(await ladeAktiveVersion(idb), schemas);
+      await applyListViewDiff(idb, diff, gruppen, katSpalten);
     }
     timings.idbWriteMs += performance.now() - tWrite;
 

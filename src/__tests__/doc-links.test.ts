@@ -96,6 +96,12 @@ describe('doc-links', () => {
     // Karte). Bereits auf Stichworte + Doc-Link gekürzt — vier Schichten, die
     // den GA-Lauf verhaltensrelevant ändern, ganz zu verschweigen wäre teurer
     // als die Zeile; das Warum lebt in gutachten-kurzfassung.md.
-    expect(bytes).toBeLessThan(50_200);
+    // 50_200 → 51_200 (v2.345): eine Decision-Tree-Zeile + Pitfall #42 für den
+    // Code-Katalog des Fachsystems. Der Katalog wächst von 7 auf ~184 Felder,
+    // und drei Regeln daraus greift man ohne Hinweis daneben: `feldId` ist der
+    // ROHE Spalten-Code (nicht der Record-Key), `ebene` und `herkunft` sind
+    // verschieden, und ein Feld ohne Rang wirkt nicht. Das Detail lebt in
+    // docs/status-system/KATALOG-CODES.md.
+    expect(bytes).toBeLessThan(51_200);
   });
 });

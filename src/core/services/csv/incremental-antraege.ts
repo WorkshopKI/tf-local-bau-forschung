@@ -25,7 +25,9 @@ import type { IDBStore } from '../storage/idb-store';
 import type { Antrag } from './types';
 import { murmurhash3 } from './hash';
 import { toAntragListItem } from './list-view';
-import type { ResolvedStatusDatumGruppe } from './status-datum-gruppen';
+import type {
+  ResolvedKategorieSpalten, ResolvedStatusDatumGruppe,
+} from './status-datum-gruppen';
 import {
   putAntraege,
   deleteAntraegeByKeys,
@@ -95,16 +97,19 @@ export async function applyAntraegeDiff(idb: IDBStore, diff: AntraegeDiff): Prom
 /** Inkrementelle Pflege der Slim-Projektion: geänderte projizieren + put,
  *  entfernte aus der List-View löschen. Nur aufrufen, wenn die Projektion
  *  bereits auf aktueller Schema-Version liegt (sonst Voll-Rebuild).
- *  `gruppen` (pro Programm aufgelöst) speist die Datums-Status-Badges in die
- *  Projektion — ohne den Param verlören geänderte Records ihre Badges bis zum
- *  nächsten Voll-Rebuild. */
+ *  `gruppen` und `kategorieSpalten` (pro Programm aufgelöst) speisen die
+ *  Datums-Status-Badges bzw. die Ordner-Spalten in die Projektion — ohne die
+ *  Params verlören geänderte Records sie bis zum nächsten Voll-Rebuild. */
 export async function applyListViewDiff(
   idb: IDBStore,
   diff: AntraegeDiff,
   gruppen?: readonly ResolvedStatusDatumGruppe[],
+  kategorieSpalten?: readonly ResolvedKategorieSpalten[],
 ): Promise<void> {
   if (diff.changed.length > 0) {
-    await putAntraegeListView(idb, diff.changed.map(a => toAntragListItem(a, gruppen)));
+    await putAntraegeListView(
+      idb, diff.changed.map(a => toAntragListItem(a, gruppen, kategorieSpalten)),
+    );
   }
   if (diff.removedKeys.length > 0) {
     await deleteAntraegeListViewByKeys(idb, diff.removedKeys);

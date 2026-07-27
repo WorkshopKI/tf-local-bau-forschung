@@ -16,11 +16,22 @@ import { create } from 'zustand';
 import {
   ANTRAG_TABLE_COLUMNS,
   DEFAULT_VISIBLE_COLUMN_KEYS,
+  KATEGORIE_COLUMN_PREFIX,
   LOCKED_COLUMN_KEYS,
 } from './tableColumns';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_antraege_table_columns';
-const VALID_KEYS: ReadonlySet<string> = new Set(ANTRAG_TABLE_COLUMNS.map(c => c.key));
+const STATISCHE_KEYS: ReadonlySet<string> = new Set(ANTRAG_TABLE_COLUMNS.map(c => c.key));
+
+/**
+ * Gültig sind die festen Spalten UND die Ordner-Spalten des Statuskatalogs.
+ * Letztere sind nicht im Code aufzählbar — welche es gibt, entscheidet die
+ * Kuration. Eine feste Schlüsselliste würde sie beim Laden herausfiltern, und
+ * die Auswahl wäre nach jedem Reload weg.
+ */
+function istGueltigerKey(key: string): boolean {
+  return STATISCHE_KEYS.has(key) || key.startsWith(KATEGORIE_COLUMN_PREFIX);
+}
 
 function loadVisibleColumns(): string[] {
   try {
@@ -28,7 +39,7 @@ function loadVisibleColumns(): string[] {
     if (!raw) return [...DEFAULT_VISIBLE_COLUMN_KEYS];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [...DEFAULT_VISIBLE_COLUMN_KEYS];
-    const keys = parsed.filter((k): k is string => typeof k === 'string' && VALID_KEYS.has(k));
+    const keys = parsed.filter((k): k is string => typeof k === 'string' && istGueltigerKey(k));
     for (const lockedKey of LOCKED_COLUMN_KEYS) {
       if (!keys.includes(lockedKey)) keys.push(lockedKey);
     }

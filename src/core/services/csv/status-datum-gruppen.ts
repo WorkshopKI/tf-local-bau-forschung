@@ -166,6 +166,22 @@ export interface ResolvedStatusDatumGruppe {
 }
 
 /**
+ * Dieselbe Mechanik, aber für die **kuratierten Ordner** des Statuskatalogs
+ * statt für die zwei fest verdrahteten Gruppen oben: je Ordner das jüngste
+ * gültige Datum seiner Felder.
+ *
+ * Der Typ wohnt hier, damit `list-view.ts` ihn konsumieren kann, ohne den
+ * Status-Katalog zu importieren — gebaut wird er in
+ * `status/kategorie-projektion.ts`, wo der Katalog zu Hause ist.
+ */
+export interface ResolvedKategorieSpalten {
+  kategorieId: string;
+  /** Anzeigename des Ordners (Spaltenkopf in der Fördertabelle). */
+  label: string;
+  felder: StatusDatumFeld[];
+}
+
+/**
  * Löst ALLE Gruppen gegen die Programm-Schemas auf — einmal pro Programm, dann
  * je Record über `computeStatusDatum` in `toAntragListItem` angewandt.
  */

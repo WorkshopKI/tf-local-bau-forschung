@@ -1,5 +1,8 @@
 import type { Antrag, AntragListItem } from './types';
-import { computeStatusDatum, type ResolvedStatusDatumGruppe } from './status-datum-gruppen';
+import {
+  computeStatusDatum,
+  type ResolvedKategorieSpalten, type ResolvedStatusDatumGruppe,
+} from './status-datum-gruppen';
 
 /**
  * Projiziert einen vollen `Antrag` auf das schmale `AntragListItem`.
@@ -20,7 +23,11 @@ import { computeStatusDatum, type ResolvedStatusDatumGruppe } from './status-dat
  * bewusst `Array.isArray`-gegated, damit ein versehentliches
  * `.map(toAntragListItem)` (Index als 2. Arg) nichts setzt statt zu crashen.
  */
-export function toAntragListItem(antrag: Antrag, gruppen?: readonly ResolvedStatusDatumGruppe[]): AntragListItem {
+export function toAntragListItem(
+  antrag: Antrag,
+  gruppen?: readonly ResolvedStatusDatumGruppe[],
+  kategorieSpalten?: readonly ResolvedKategorieSpalten[],
+): AntragListItem {
   const item: AntragListItem = {
     aktenzeichen: antrag.aktenzeichen,
     programm_id: antrag.programm_id,
@@ -73,6 +80,18 @@ export function toAntragListItem(antrag: Antrag, gruppen?: readonly ResolvedStat
         dst[g.datumKey] = res.datum;
       }
     }
+  }
+  // Ordner-Spalten (Projektion v6): dieselbe Mechanik, nur kuratiert statt im
+  // Code — die Schlüssel folgen dem Statuskatalog. Leere Ordner werden nicht
+  // geschrieben, damit das Slim-Item nicht mit leeren Objekten aufläuft.
+  if (Array.isArray(kategorieSpalten) && kategorieSpalten.length > 0) {
+    const rec = antrag as unknown as Record<string, unknown>;
+    const kat: Record<string, { l: string; d: string }> = {};
+    for (const k of kategorieSpalten) {
+      const res = computeStatusDatum(rec, k.felder);
+      if (res) kat[k.kategorieId] = { l: res.label, d: res.datum };
+    }
+    if (Object.keys(kat).length > 0) item.kat_status = kat;
   }
   return item;
 }

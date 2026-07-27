@@ -18,12 +18,19 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
    bekommt Kategorie, Spine-Phase, Rang, Prominenz, Terminal-Flag. Versioniert im
    dedizierten IDB-Store `status_katalog`. Unbekanntes wird beim Import als
    `unkuratiert` gesammelt, nie automatisch gemappt.
+   Seit v2.340 führt er die **~180 Codes des Fachsystems** in einem Ordnerbaum
+   (Verbund und Teilvorhaben getrennt), jeweils mit Zuständigkeit AB/FB —
+   Herkunft, Spalten-Konvention und Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md).
 2. **Historie** ([HISTORIE.md](HISTORIE.md)) — append-only `StatusEvent`-Log
    (`status_event`), per idempotentem Post-Import-Reconcile befüllt.
 3. **Ableitung** ([ableitung.ts](../../src/core/status/ableitung.ts)) — Hauptstatus
    = höchster Phasenrang über alle berücksichtigten Feldwerte (robust gegen
    veraltete Einzelfelder); Terminal schlägt Rang; Widerspruch ⇒ Konflikt
    (ausgewiesen, nie stillschweigend aufgelöst); priorisierte Nächste-Schritte-Regeln.
+   Seit v2.342 tragen auch **Datums- und Textfelder** bei — dort hängt die Phase
+   am Feld, und nur mit `rang > 0`. **Konflikte bleiben eine Frage der
+   Wert-Felder**: ein Datum hält fest, dass ein Punkt passiert wurde, es behauptet
+   nicht, wo der Vorgang gerade steht.
 
 ## Anzeigeflächen
 
@@ -62,6 +69,9 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
 
 ## Weitere Docs
 
+- [KATALOG-CODES.md](KATALOG-CODES.md) — die ~180 Codes des Fachsystems:
+  Spalten-Konvention (`D_`/`T_`/`X`), Ordnerbaum, AB/FB, was auf die Ableitung
+  wirkt, Ordner-Spalten in der Fördertabelle.
 - [BESTANDSAUFNAHME.md](BESTANDSAUFNAHME.md) — verifizierter Ausgangszustand.
 - [KATALOG-V1.md](KATALOG-V1.md) — Seed-Defaults (Rang/Spine/Prominenz/Terminal, Regeln).
 - [HISTORIE.md](HISTORIE.md) — Event-Modell + Reconcile.

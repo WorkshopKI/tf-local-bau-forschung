@@ -20,6 +20,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
+import { useKategorieSpalten } from './useKategorieSpalten';
 
 interface Props {
   filterOpen: boolean;
@@ -73,6 +74,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const [exportBusy, setExportBusy] = useState(false);
   const searchActive = search.trim().length > 0;
   const showMaColumn = isAuslastungEnabled() && !bearbeiterFilter.active;
+  // Der Export bildet exakt die Spalten der Ansicht ab — die kuratierten
+  // Ordner-Spalten gehören dazu.
+  const kategorieSpalten = useKategorieSpalten();
 
   const handleExport = async (): Promise<void> => {
     if (!activeProgrammId) return;
@@ -80,6 +84,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
     try {
       await exportFilteredAntraegeXlsx(
         filtered, storage.idb, activeProgrammId, verbundById, visibleColumns, showMaColumn,
+        kategorieSpalten,
       );
     } catch (err) {
       console.warn('[antraege-export] failed:', err);

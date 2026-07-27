@@ -39,7 +39,8 @@ import { CardGrid } from './CardGrid';
 import { KompaktListe } from './KompaktListe';
 import { getView } from './views';
 import { ColumnPicker } from '@/components/data-table';
-import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY } from './tableColumns';
+import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY, kategorieStatusColumns } from './tableColumns';
+import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungEnabled } from '@/config/feature-flags';
@@ -105,9 +106,17 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Übersichtsmodus, wo sie ohnehin erzwungen wird (showMa): dort raus aus dem
   // Picker, damit keine wirkungslose Checkbox erscheint. In „meine Anträge"
   // bleibt sie wählbar (Use-Case: „auch außerhalb meiner Anträge suchen").
+  // Die kuratierten Ordner-Spalten stehen nicht in der Registry — sie folgen dem
+  // Statuskatalog und kommen deshalb hier dazu.
+  const kategorieSpalten = useKategorieSpalten();
   const pickerColumns = useMemo(
-    () => (showMa ? ANTRAG_TABLE_COLUMNS.filter(c => c.key !== MA_COLUMN_KEY) : ANTRAG_TABLE_COLUMNS),
-    [showMa],
+    () => {
+      const basis = showMa
+        ? ANTRAG_TABLE_COLUMNS.filter(c => c.key !== MA_COLUMN_KEY)
+        : ANTRAG_TABLE_COLUMNS;
+      return [...basis, ...kategorieStatusColumns(kategorieSpalten)];
+    },
+    [showMa, kategorieSpalten],
   );
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   // Tabellen-Ansicht meldet ihre spaltengefilterte TV-Anzahl hierher; List/

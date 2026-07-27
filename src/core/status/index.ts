@@ -33,6 +33,9 @@ export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
 export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
 export { KATEGORIE_ZU_SPINE, SPINE_ZU_KATEGORIE, kategorieFuerFeld } from './spine-kategorie';
+export {
+  loeseKategorieSpalten, kategorienMitDatumsfeldern, kategorieSpaltenSignatur,
+} from './kategorie-projektion';
 export { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
 export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,

@@ -9,7 +9,11 @@ import {
   clearAntraegeListView,
 } from './idb-csv';
 import { toAntragListItem } from './list-view';
-import { resolveStatusDatumGruppen } from './status-datum-gruppen';
+import {
+  resolveStatusDatumGruppen, type ResolvedKategorieSpalten,
+} from './status-datum-gruppen';
+import { ladeAktiveVersion } from '@/core/status/katalog-store';
+import { kategorieSpaltenSignatur, loeseKategorieSpalten } from '@/core/status/kategorie-projektion';
 import { murmurhash3 } from './hash';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import type { Programm } from './types';
@@ -29,7 +33,7 @@ import type { Programm } from './types';
  * Voll-Rebuild beim ersten Start nach dem Update (~5 s bei 13k, bestehende
  * Boot-Statuszeile).
  */
-export const LIST_VIEW_PROJECTION_VERSION = 5;
+export const LIST_VIEW_PROJECTION_VERSION = 6;
 const LIST_VIEW_VERSION_KEY = 'list-view-projection-version';
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
@@ -53,15 +57,31 @@ async function computeStatusDatumSchemaSig(
   programme: readonly Programm[],
 ): Promise<string> {
   const sorted = [...programme].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // Der Statuskatalog geht mit in die Signatur: hängt die PL ein Feld um oder
+  // benennt einen Ordner, ändert sich kein einziger Antrag-Record — die
+  // Ordner-Spalten blieben sonst auf dem alten Stand stehen.
+  const version = await ladeAktiveVersion(idb);
   const parts: string[] = [];
   for (const p of sorted) {
-    const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, p.id));
+    const schemas = await listSchemasByProgramm(idb, p.id);
+    const gruppen = resolveStatusDatumGruppen(schemas);
     const g = gruppen
       .map(gr => `${gr.labelKey}=${gr.felder.map(f => `${f.code}>${f.feld}#${f.label}`).join('|')}`)
       .join(';');
-    parts.push(`${p.id}{${g}}`);
+    const k = kategorieSpaltenSignatur(loeseKategorieSpalten(version, schemas));
+    parts.push(`${p.id}{${g}}[${k}]`);
   }
   return murmurhash3(parts.join('~'));
+}
+
+/** Ordner-Spalten eines Programms — einmal je Programm auflösen, dann je Record anwenden. */
+async function loeseKategorieSpaltenFuer(
+  idb: IDBStore, programmId: string,
+): Promise<ResolvedKategorieSpalten[]> {
+  const [version, schemas] = await Promise.all([
+    ladeAktiveVersion(idb), listSchemasByProgramm(idb, programmId),
+  ]);
+  return loeseKategorieSpalten(version, schemas);
 }
 
 /**
@@ -101,9 +121,10 @@ async function projectProgrammStreamed(
   // Datums-Status-Gruppen einmal pro Programm aus dem Schema auflösen (Custom-/
   // Standard-Mapping-robust), dann je Record berechnen.
   const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, programmId));
+  const kategorieSpalten = await loeseKategorieSpaltenFuer(idb, programmId);
   let done = 0;
   await forEachAntragChunkByProgramm(idb, programmId, async records => {
-    await putAntraegeListView(idb, records.map(r => toAntragListItem(r, gruppen)));
+    await putAntraegeListView(idb, records.map(r => toAntragListItem(r, gruppen, kategorieSpalten)));
     done += records.length;
     onProgress?.(done, total);
   });

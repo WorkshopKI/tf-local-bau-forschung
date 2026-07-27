@@ -3,6 +3,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
+import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeStore } from './store';
 import {
   buildVerbundTableRows,
@@ -108,12 +109,14 @@ export function AntraegeTable({
   // Persistierte Gesamt-Tabellenbreite (Griff am rechten Rand). null = Default
   // (Tabelle füllt die Content-Box); Zahl = gepinnt, Spalten skalieren proportional.
   const { totalWidth, setTotalWidth } = useTotalTableWidth('teamflow_antraege_table_total_width');
+  // Einblendbare Ordner-Spalten aus dem Statuskatalog (leer ohne Flag).
+  const kategorieSpalten = useKategorieSpalten();
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
   const columns = useMemo(
-    () => resolveAntragTableColumns(visibleColumns, showMaColumn),
-    [visibleColumns, showMaColumn],
+    () => resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten),
+    [visibleColumns, showMaColumn, kategorieSpalten],
   );
 
   // VB-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld) → einmal
