@@ -13,7 +13,11 @@ import type { MeilensteinKnoten, MstErgebnis, VerbundMeilensteine } from '@/core
 import { sortiereKnoten, tiefeVon } from '@/core/meilensteine';
 import { ZUSTAND_FARBE, ZUSTAND_LABEL, feldStil, formatAbweichung, formatDatum } from './labels';
 
-const LABEL_W = 210;
+/** Label-Spalte. Breit genug für den längsten Meilenstein-Titel des Seeds
+ *  („Schriftstück abgestimmt und zur QS gesendet", eingerückt + Nummer) — der
+ *  Name ist die Information, die Wochen-Achse nur die Verortung dazu. Längere
+ *  Titel kürzt weiterhin `truncate` mit dem vollen Text im `title`. */
+const LABEL_W = 340;
 const ZEILE_H = 26;
 /** Zustands-Spalte rechts. Die Wochen-Achse im Kopf muss denselben Platz
  *  aussparen — sonst ist sie breiter als die Zeilen darunter und die Marken
@@ -60,8 +64,10 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
   const pos = (woche: number): number => Math.min(100, Math.max(0, (woche / maxWoche) * 100));
   const heuteLinks = bewertung.wocheAktuell === null ? null : pos(bewertung.wocheAktuell);
 
+  // Höchstens ~8 Beschriftungen: die Achse ist die schmalere der beiden Spalten,
+  // dichtere Marken stünden bei engem Fenster aneinander.
   const achsMarken = Array.from({ length: maxWoche + 1 }, (_, i) => i)
-    .filter(w => w % Math.max(1, Math.ceil(maxWoche / 12)) === 0);
+    .filter(w => w % Math.max(1, Math.ceil(maxWoche / 8)) === 0);
 
   return (
     <div className="flex flex-col">

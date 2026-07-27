@@ -22,6 +22,7 @@
 ## v2.337 — 2026-07
 
 ### Verbesserungen
+- Im Meilenstein-Zeitstrahl stehen die Meilenstein-Namen jetzt vollständig; die Wochen-Achse gibt dafür Breite ab und ist etwas sparsamer beschriftet.
 - Auf der Verbund-Seite starten „Status &amp; Verlauf" und „Fristen &amp; Meilensteine" jetzt eingeklappt — wie das Gutachten. Die Kopfzeile zeigt weiterhin das Wichtigste: die abgeleitete Phase bzw. Prognose, Frist und Restzeit.
 - Die Gutachten-Karte ist aufgeräumt: Kopf, Text, eine Werkzeugzeile und eine ruhige Fußzeile. Die Aktionen liegen nicht mehr an drei verschiedenen Stellen, seltener Gebrauchtes steckt im ⋯-Menü.
 - Hinweise zu einem Abschnitt stehen gesammelt in einer Zeile statt in bis zu fünf Bannern übereinander.
