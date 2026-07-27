@@ -161,29 +161,32 @@ export const DEFAULT_CONFIG = {
     kuerzelDropdown: false,
     /** Gutachten-Testballon: KI-gestuetzte Kurzfassung auf der Foerderantrags-
      *  Detailseite (Dokumenten-Aufnahme → Skill → Review/Freigabe → DOCX-Vorlage).
-     *  Erster „Mini-Agent" — nur dev (Testballon). Optional, default false
+     *  Erster „Mini-Agent" — dev + pl. Optional, default false
      *  (kein requiredFlags-Eintrag). */
     gutachtenKurzfassung: true,
     /** Gutachten-Workflow A–G: deterministischer Workflow-Runner über Registry-
-     *  Skills (loest die Kurzfassung-Sektion ab). Nur dev. Optional, default false
-     *  (kein requiredFlags-Eintrag). */
+     *  Skills (loest die Kurzfassung-Sektion ab). dev + pl + kurator. Optional,
+     *  default false (kein requiredFlags-Eintrag). */
     gutachtenWorkflow: true,
-    /** Workflow-Entwürfe sichtbar + ausführbar (freigabe:'entwurf'). Nur dev.
+    /** Workflow-Entwürfe sichtbar + ausführbar (freigabe:'entwurf'). dev + pl +
+     *  kurator — in `production`-Varianten muss der Flag EXPLIZIT gesetzt werden
+     *  (Default ist `?? variant === 'development'`).
      *  Optional, default false (kein requiredFlags-Eintrag). */
     workflowEntwuerfe: true,
     /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwürfe auf der Verbund-
-     *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur
-     *  dev (Testballon). Optional, default false (kein requiredFlags-Eintrag). */
+     *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf).
+     *  dev + pl. Optional, default false (kein requiredFlags-Eintrag). */
     nfNachforderungen: true,
     /** Artefakt-Werkbank: EIN Workspace auf der Verbund-Detailseite — offene Punkte
      *  erfassen/ankreuzen → Baustein-Vorschläge bestätigen → Entwurf (NF/RNE/ABL)
      *  über die bestehende NF-Maschine. Ersetzt bei aktivem Flag die
-     *  NachforderungenSection. Nur dev (Pilot); pl-Aktivierung nach Abnahme ist ein
-     *  Ein-Zeilen-Change. Optional, default false (kein requiredFlags-Eintrag). */
+     *  NachforderungenSection. dev + pl — immer ZUSAMMEN mit `nfNachforderungen`
+     *  setzen (sonst fehlt die NF-Karte der Artefakt-Leiste). Optional, default
+     *  false (kein requiredFlags-Eintrag). */
     artefaktWerkbank: true,
     /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-
      *  Ernte, Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Paket 1 rein
-     *  deterministisch (kein LLM). Nur dev. Optional, default false
+     *  deterministisch (kein LLM). dev + pl. Optional, default false
      *  (kein requiredFlags-Eintrag). */
     antragAufbereitung: true,
     /** Skill-Verwaltung: Kurator-pflegbare Skill-/Regel-Registry mit Sandbox-
@@ -193,7 +196,7 @@ export const DEFAULT_CONFIG = {
     skillVerwaltung: true,
     /** Modul „Anfragen": E-Mail-Kurzanfrage (.msg) → interne Anonymisierung →
      *  Export in den externen ZIM FAQ-Assistenten → deterministische Wiedereinsetzung.
-     *  Plugin-Flag, nur dev (Testballon). Optional, default false
+     *  Plugin-Flag, dev + pl + as + kurator. Optional, default false
      *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     anfragen: true,
     /** In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
@@ -210,23 +213,24 @@ export const DEFAULT_CONFIG = {
     /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll über
      *  app-semantische Aktionen (Fundament für den späteren persönlichen
      *  Assistenten — noch KEIN LLM/Chat/UI-Assistent). Gated den gesamten
-     *  Phase-0-Umfang (Aufzeichnung + Einstellungs-Sektion). Nur dev. Optional,
+     *  Phase-0-Umfang (Aufzeichnung + Einstellungs-Sektion). dev + pl + kurator;
+     *  Freischaltung ≠ Aufzeichnung (bleibt opt-in + gerätelokal). Optional,
      *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     assistentProtokoll: false,
     /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
      *  assemblierter Kontext + intern-only Transport, session-only Historie).
-     *  Nur dev. Optional, default false (`=== true` Backward-Kompat). */
+     *  dev + pl + kurator. Optional, default false (`=== true` Backward-Kompat). */
     assistentPanel: false,
     /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Ein Hintergrund-
      *  lauf destilliert das Ereignisprotokoll per INTERNEM Modell in benannte
      *  Memory-Blocks, die transparent einsehbar/löschbar sind und in den Panel-
-     *  Kontext einfließen. Doppeltes Opt-in (setzt Protokoll-Opt-in voraus). Nur
-     *  dev. Optional, default false (`=== true` Backward-Kompat). */
+     *  Kontext einfließen. Doppeltes Opt-in (setzt Protokoll-Opt-in voraus).
+     *  dev + pl + kurator. Optional, default false (`=== true` Backward-Kompat). */
     assistentGedaechtnis: false,
     /** MAP „Neuer Prüf-Workflow": Import von Plattform-Einreichungs-JSON per
      *  Drag & Drop, deterministische Rechenchecks und eine im Betrieb
      *  editierbare, versionierte Förderfähigkeits-Checkliste. Eigene Entität im
-     *  kv-Store — greift NICHT in die CSV-/Antrags-Pipeline ein. Nur dev.
+     *  kv-Store — greift NICHT in die CSV-/Antrags-Pipeline ein. dev + pl.
      *  Optional, default false (kein requiredFlags-Eintrag → `=== true`
      *  Backward-Kompat). */
     mapFoerderfaehig: false,

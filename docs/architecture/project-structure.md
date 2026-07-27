@@ -132,7 +132,7 @@ src/
 │   │   ├── views/KompetenzMatrixView.tsx <- v2.15: PL-Kompetenz-Tab (XLSX-Upload + editierbares Grid)
 │   │   ├── components/kompetenz/    <- v2.15: zerlegte Matrix-Grid-Komponenten (KompetenzMatrix + MatrixRow/Header/Toolbar/Controls/LevelCell/CapCell)
 │   │   └── services/             <- v2.85: 6 kohäsive Submodule (matching/ klassifizierung/ kapazitaet/ identitaet/ onboarding/ verbund/) je mit index.ts-Barrel + Root-Querschnitt (auslastung-store, cross-tab, export-service, default-labels, tib-mail)
-│   ├── map-foerderfaehig/       <- MAP-Förderfähigkeitsprüfung (id='map-foerderfaehig', features.mapFoerderfaehig, nur dev): Einreichungs-JSON per Drag & Drop → Rechenchecks → editierbare + versionierte Checkliste → Abschluss-Entwürfe. Eigene kv-Entität, KEIN Antrag-Record. Modulregel: keine .tsx rechnet
+│   ├── map-foerderfaehig/       <- MAP-Förderfähigkeitsprüfung (id='map-foerderfaehig', features.mapFoerderfaehig, dev + pl): Einreichungs-JSON per Drag & Drop → Rechenchecks → editierbare + versionierte Checkliste → Abschluss-Entwürfe. Eigene kv-Entität, KEIN Antrag-Record. Modulregel: keine .tsx rechnet
 │   │   ├── import/              <- Adapter + deklarative Schema-Definitionen (Marker-Erkennung, Alias-Ketten), Redaktion (Pfad-Präfix-Deny + Nachweis-Scan), 5 Rechenchecks
 │   │   ├── checkliste/          <- Typen + Seed (wörtlich aus den Papier-Checklisten), bewertung.ts (B0-Nullregel, Gates, Triage), editor.ts (Fassung +1), verlauf.ts (NF-Zeitpunkte, Migration)
 │   │   ├── vb/ infografik/ abschluss/ ansicht/ <- Fundstellen-Achse, Extraktions-Schema + Richtwerte + Portfolio-Demo, NF-Suche + Markdown, Gantt-/Kosten-Ableitung

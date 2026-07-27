@@ -38,7 +38,7 @@ gelesen (nie gecacht) und mit einem SHA-256-Stempel (`FillResult.hash`) versehen
 je Typ über `opts.dateiPrefix` (Default `Gutachten_EP` → GA byte-identisch). Fehlende/kaputte Vorlage →
 `FillResult.fehler` statt Throw (Aufrufer degradiert).
 
-## NF — ZIM-Nachforderungen (dev-Flag `nfNachforderungen`)
+## NF — ZIM-Nachforderungen (Flag `nfNachforderungen`, dev + pl)
 
 - **Baustein-Katalog** ([nf-bausteine.seed.ts](../../src/core/services/skills/registry/nf-bausteine.seed.ts)):
   72 Bausteine **wortgetreu** als kuratierte App-Daten (Quelle der Wahrheit; nicht aus Word-Dateien).
@@ -65,7 +65,7 @@ je Typ über `opts.dateiPrefix` (Default `Gutachten_EP` → GA byte-identisch). 
   `freigegebeneBausteine`) und stempelt `WorkflowRun.katalogRef` (Stand + Baustein-Fassungen). Der
   Code-Seed `nf-bausteine.seed.ts` bleibt Migrationsquelle.
 
-## Artefakt-Werkbank (dev-Flag `artefaktWerkbank`)
+## Artefakt-Werkbank (Flag `artefaktWerkbank`, dev + pl — immer zusammen mit `nfNachforderungen`)
 
 EIN Workspace am Verbund-Detail — bei aktivem Flag **ersetzt** die `WerkbankSection`
 ([werkbank/](../../src/plugins/antraege/werkbank/)) die schlanke `NachforderungenSection`; Flag aus ⇒

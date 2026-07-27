@@ -1,6 +1,6 @@
 # MAP „Neuer Prüf-Workflow" — Förderfähigkeitsprüfung
 
-Plugin `map-foerderfaehig`, Flag `mapFoerderfaehig` (**nur dev**). Bringt die
+Plugin `map-foerderfaehig`, Flag `mapFoerderfaehig` (**dev + pl**). Bringt die
 Fachprüfung von Förderanträgen in die App: Einreichungs-JSON per Drag & Drop,
 deterministische Rechenchecks, eine im Betrieb editierbare und versionierte
 Checkliste, Abschluss als kopierbarer Entwurf.

@@ -143,36 +143,41 @@ export function isMaVerwaltungPasswortEnabled(): boolean {
 }
 /** Gutachten-Testballon: KI-gestützte Kurzfassung auf der Förderantrags-
  *  Detailseite (erster „Mini-Agent" — Dokumenten-Aufnahme → Skill → Review →
- *  DOCX-Vorlage). Nur dev. Default false (`=== true`, Backward-Kompat). */
+ *  DOCX-Vorlage). dev + pl. Default false (`=== true`, Backward-Kompat). */
 export function isGutachtenKurzfassungEnabled(): boolean {
   return features.gutachtenKurzfassung === true;
 }
 /** Gutachten-Workflow A–G (deterministischer Runner über Registry-Skills) — löst
- *  die Kurzfassung-Sektion ab. Nur dev. Default false (`=== true`). */
+ *  die Kurzfassung-Sektion ab. dev + pl + kurator (der Kurator testet die von ihm
+ *  gepflegten Skills am echten Workflow). Default false (`=== true`). */
 export function isGutachtenWorkflowEnabled(): boolean {
   return features.gutachtenWorkflow === true;
 }
 /** NF-Nachforderungen (Artefakt-Engine): Pro-TV-NF-Entwürfe auf der Verbund-
- *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). Nur dev
- *  (Testballon). Default false (`=== true`, Backward-Kompat). */
+ *  Detailseite (Baustein-Auswahl/-Füllung → QS → DOCX + E-Mail-Entwurf). dev + pl.
+ *  Default false (`=== true`, Backward-Kompat). */
 export function isNfNachforderungenEnabled(): boolean {
   return features.nfNachforderungen === true;
 }
 /** Artefakt-Werkbank: EIN Workspace (offene Punkte → Baustein-Auswahl → Entwurf
  *  NF/RNE/ABL) auf der Verbund-Detailseite. Ersetzt bei aktivem Flag die
- *  NachforderungenSection. Nur dev (Pilot). Default false (`=== true`). */
+ *  NachforderungenSection. dev + pl — immer ZUSAMMEN mit `nfNachforderungen`
+ *  setzen, sonst bleibt die Artefakt-Leiste ohne NF-Karte
+ *  (`useArtefaktLeiste`). Default false (`=== true`). */
 export function isArtefaktWerkbankEnabled(): boolean {
   return features.artefaktWerkbank === true;
 }
 /** Antrag-Aufbereitung: Vollbild-Aufbereitung der VB (Gliederung + Tabellen-Ernte,
  *  Zeitplan-Gantt + Text↔Anlage-5-Plausibilität). Paket 1 rein deterministisch
- *  (kein LLM). Nur dev. Default false (`=== true`, Backward-Kompat). */
+ *  (kein LLM). dev + pl. Default false (`=== true`, Backward-Kompat). */
 export function isAntragAufbereitungEnabled(): boolean {
   return features.antragAufbereitung === true;
 }
 /** Aufrufer-seitige Ableitung: dürfen Workflow-Entwürfe (`freigabe:'entwurf'`)
  *  sichtbar/ausführbar sein? Explizites Flag gewinnt; fehlt es, gilt es in
- *  `development`-Builds als an (dev sieht Entwürfe, prod-artige Configs nicht).
+ *  `development`-Builds als an. pl + kurator sind `variant: "production"` und
+ *  müssen den Flag deshalb EXPLIZIT setzen (tun sie — der Kurator gibt Workflows
+ *  frei und muss seine eigenen Entwürfe sehen).
  *  EINE Quelle für die Gate-Ableitung (die reine `istWorkflowVerfuegbar`
  *  bekommt das Ergebnis als Arg — kein `runtimeConfig` in der Gate-Logik). */
 export function erlaubeWorkflowEntwuerfe(): boolean {
@@ -258,15 +263,16 @@ export function canEditSkillRegistry(sessionActive: boolean): boolean {
 
 /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll (Recorder + „Assistent
  *  & Gedächtnis"-Einstellungssektion). Fundament für den späteren persönlichen
- *  Assistenten — in Phase 0 KEIN LLM/Chat/UI-Assistent. Nur dev. Default false
- *  (`=== true`, Backward-Kompat). */
+ *  Assistenten — in Phase 0 KEIN LLM/Chat/UI-Assistent. dev + pl + kurator;
+ *  Freischaltung ≠ Aufzeichnung (bleibt opt-in + gerätelokal, Pitfall #37).
+ *  Default false (`=== true`, Backward-Kompat). */
 export function isAssistentProtokollEnabled(): boolean {
   return features.assistentProtokoll === true;
 }
 
 /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
- *  assemblierter Kontext, intern-only Transport, session-only Historie). Nur dev.
- *  Default false (`=== true`, Backward-Kompat). Baut auf [[assistent-protokoll]]
+ *  assemblierter Kontext, intern-only Transport, session-only Historie).
+ *  dev + pl + kurator. Default false (`=== true`, Backward-Kompat). Baut auf [[assistent-protokoll]]
  *  (Phase 0) NICHT auf — Phase 1 liest das Protokoll bewusst nicht. */
 export function isAssistentPanelEnabled(): boolean {
   return features.assistentPanel === true;
@@ -274,8 +280,8 @@ export function isAssistentPanelEnabled(): boolean {
 
 /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Hintergrundlauf
  *  destilliert das [[assistent-protokoll]] per INTERNEM Modell in Memory-Blocks;
- *  doppeltes Opt-in (setzt das Protokoll-Opt-in voraus). Nur dev. Default false
- *  (`=== true`, Backward-Kompat). */
+ *  doppeltes Opt-in (setzt das Protokoll-Opt-in voraus). dev + pl + kurator.
+ *  Default false (`=== true`, Backward-Kompat). */
 export function isAssistentGedaechtnisEnabled(): boolean {
   return features.assistentGedaechtnis === true;
 }
@@ -283,7 +289,7 @@ export function isAssistentGedaechtnisEnabled(): boolean {
 /** MAP „Neuer Prüf-Workflow": Einreichungs-Import per Drag & Drop, deterministische
  *  Rechenchecks und eine im Betrieb editierbare, versionierte Förderfähigkeits-
  *  Checkliste. Die Einreichung ist eine eigene kv-Entität — der Flag gated kein
- *  Verhalten der Antrags-Pipeline. Nur dev. Default false (`=== true`,
+ *  Verhalten der Antrags-Pipeline. dev + pl. Default false (`=== true`,
  *  Backward-Kompat). */
 export function isMapFoerderfaehigEnabled(): boolean {
   return features.mapFoerderfaehig === true;

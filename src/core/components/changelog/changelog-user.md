@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.346 — 2026-07
+
+### Neu
+- Mehrere Funktionen, die es bisher nur im Entwickler-Build gab, stehen jetzt auch in der PL- und der Kurator-Fassung: die **Antrag-Aufbereitung**, **Nachforderungen und Artefakt-Werkbank**, die **Förderfähigkeitsprüfung** und der **Assistent** in der rechten Spalte.
+- Der Kurator kann den **Gutachten-Workflow** jetzt selbst durchspielen und sieht seine eigenen, noch nicht freigegebenen Workflow-Entwürfe.
+
+### Verbesserungen
+- Der Assistent ist damit nur sichtbar, nicht eingeschaltet: Ereignisprotokoll und Gedächtnis bleiben freiwillig und verlassen den eigenen Rechner nicht.
+- In der Antrag-Aufbereitung sind zunächst die Ansichten ohne KI nutzbar; die KI-Bausteine bleiben gesperrt, bis sie ausreichend geprüft sind.
+
 ## v2.344 — 2026-07
 
 ### Neu

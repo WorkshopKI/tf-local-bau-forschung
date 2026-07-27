@@ -1,6 +1,6 @@
 # Gutachten-Kurzfassung — Testballon (erster „Mini-Agent")
 
-Auf der **Verbund**-Detailseite erstellt ein Gutachter KI-gestützt die **Kurzfassung** eines ZIM-Gutachtens — kompletter Durchstich von der Dokumenten-Aufnahme bis zur ausgefüllten Word-Vorlage. Der Durchstich validierte vier Bausteine, die inzwischen generalisiert wurden (Skill-Registry + Workflow-Runner — siehe Abschnitt „Generalisierung" unten). Hinter Feature-Flag `gutachtenKurzfassung` (**nur dev** + `npm run dev`; demo/prod/kurator/pl = false). Eingeführt v2.68.0, re-leveled auf Verbund-Ebene v2.68.2, FKZ-Erkennung v2.68.3, persönliche Stil-Schicht (User-Tweaks v2) v2.72.0.
+Auf der **Verbund**-Detailseite erstellt ein Gutachter KI-gestützt die **Kurzfassung** eines ZIM-Gutachtens — kompletter Durchstich von der Dokumenten-Aufnahme bis zur ausgefüllten Word-Vorlage. Der Durchstich validierte vier Bausteine, die inzwischen generalisiert wurden (Skill-Registry + Workflow-Runner — siehe Abschnitt „Generalisierung" unten). Hinter Feature-Flag `gutachtenKurzfassung` (**dev + pl** + `npm run dev`; demo/prod/kurator = false). Eingeführt v2.68.0, re-leveled auf Verbund-Ebene v2.68.2, FKZ-Erkennung v2.68.3, persönliche Stil-Schicht (User-Tweaks v2) v2.72.0.
 
 ## Leitprinzip: LLM ist optional
 

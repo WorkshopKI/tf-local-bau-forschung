@@ -2,7 +2,7 @@
 
 Kontextbewusstes Frage-Antwort-Panel über deterministisch bereitgestellten Fakten. Der Nutzer fragt zu seiner aktuellen Arbeit („nächster Schritt bei diesem Verbund?", „welche Fristen?", „wo steht im Antrag etwas zu X?"); die App assembliert den Kontext **rein deterministisch** und schickt **genau einen** Prompt an das **interne** Modell. Das LLM formuliert nur — Status/Phase/Frist/nächster Schritt kommen aus bestehenden reinen Funktionen, nie vom Modell.
 
-Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, nur dev). **Phase 1 ist read-only**: kein Tool-Use, kein Auto-Retry, kein Zugriff auf das Phase-0-Ereignisprotokoll, kein Memory, keine schreibenden Aktionen, **keine** Persistenz der Historie (session-only). Agentik kommt in späteren Phasen.
+Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + kurator). **Phase 1 ist read-only**: kein Tool-Use, kein Auto-Retry, kein Zugriff auf das Phase-0-Ereignisprotokoll, kein Memory, keine schreibenden Aktionen, **keine** Persistenz der Historie (session-only). Agentik kommt in späteren Phasen.
 
 ## Harte Invarianten
 

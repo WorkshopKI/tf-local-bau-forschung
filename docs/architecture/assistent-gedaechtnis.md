@@ -2,7 +2,7 @@
 
 Sleep-time-Konsolidierung des [Ereignisprotokolls](assistent-protokoll.md) (Phase 0) in wenige benannte, größenbegrenzte **Memory-Blocks**. Ein Hintergrundlauf destilliert per **internem** Modell die neuen Ereignisse zu knappen Faktensätzen, die transparent einsehbar/löschbar sind und als zusätzlicher Block in den [Panel-Kontext-Assembler](assistent-panel.md) (Phase 1) einfließen.
 
-Feature-Flag `features.assistentGedaechtnis` (`isAssistentGedaechtnisEnabled()`, nur dev). **Read-only zum Panel hin**; schreibend ist ausschließlich der Konsolidierungslauf (gegated).
+Feature-Flag `features.assistentGedaechtnis` (`isAssistentGedaechtnisEnabled()`, dev + pl + kurator). **Read-only zum Panel hin**; schreibend ist ausschließlich der Konsolidierungslauf (gegated).
 
 Kernidee (Verankerungs-Philosophie der App, auf Nutzerkontext angewandt): **das rohe Protokoll ist die Wahrheit, jeder Gedächtnis-Eintrag ist Cache** und trägt Belege (Ereignis-IDs). Das LLM liefert **nur Faktensätze + Operationstypen** — nie IDs/Zeitstempel/Belege, nie einen Block als Ganzes.
 
