@@ -8,11 +8,13 @@
  * aufgelöst (das Ergebnis bleibt der Max-Rang). Dazu: priorisierte
  * Nächste-Schritte-Regeln. Kein LLM.
  */
+import { parseGermanDate } from '@/core/services/csv/dateParse';
 import type {
   AbgeleiteterSchritt, AbleitungsErgebnis, Beitrag, KonfliktDetail,
-  MappingVersion, SpinePhase, StatusCategory, StatusWertEintrag,
+  MappingVersion, SpinePhase, StatusCategory, StatusFeldEintrag, StatusWertEintrag,
 } from './typen';
 import { normalisiereWert } from './typen';
+import { kategorieFuerFeld } from './spine-kategorie';
 import { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
 
 /** Ordinal der Spine-Phasen für den Konflikt-Abstand. `keine` = 0 (zählt nicht). */
@@ -49,21 +51,56 @@ function wertIndex(version: MappingVersion): Map<string, StatusWertEintrag> {
   return m;
 }
 
+/**
+ * Beitrag eines **Datums- oder Textfeldes**. Diese Felder haben kein Wert-Enum:
+ * die Phase hängt am Feld, nicht am Wert („Bewilligung an ZE ist gesetzt"
+ * bedeutet Bewilligung, egal welches Datum dort steht).
+ *
+ * Ein Feld ohne Rang trägt nicht bei — so ist der ganze Code-Katalog ausgeliefert.
+ * Erst wenn die PL einem Feld einen Rang gibt, wirkt es auf die Phase.
+ */
+function feldBeitrag(feld: StatusFeldEintrag, basis: Omit<Beitrag, keyof BeitragsWertung>): Beitrag {
+  const rang = feld.rang ?? 0;
+  const terminal = feld.terminal === true;
+  const spinePhase = feld.spinePhase ?? 'keine';
+  const view = {
+    ...basis,
+    kategorie: kategorieFuerFeld(spinePhase, terminal, feld.kategorie),
+    spinePhase,
+    rang,
+    terminal,
+  };
+  if (!feld.aktiv) return { ...view, beruecksichtigt: false, grund: 'inaktiv' };
+  if (rang === 0) return { ...view, beruecksichtigt: false, grund: 'rang-0' };
+  return { ...view, beruecksichtigt: true };
+}
+
+/** Die Wertungs-Felder eines `Beitrag`s — der Rest ist reine Herkunft. */
+type BeitragsWertung = Pick<
+  Beitrag, 'kategorie' | 'spinePhase' | 'rang' | 'terminal' | 'beruecksichtigt' | 'grund'
+>;
+
 function baueBeitraege(version: MappingVersion, eingaenge: Eingang[]): Beitrag[] {
   const idx = wertIndex(version);
-  const datumFelder = new Set(version.felder.filter(f => f.typ === 'datum').map(f => f.feldId));
-  const bekannteFelder = new Set(version.felder.map(f => f.feldId));
+  const felder = new Map(version.felder.map(f => [f.feldId, f]));
   const out: Beitrag[] = [];
 
   for (const e of eingaenge) {
-    // Datumsfelder + unbekannte Felder tragen nicht zur Spine-Ableitung bei.
-    if (!bekannteFelder.has(e.feldId) || datumFelder.has(e.feldId)) continue;
+    const feld = felder.get(e.feldId);
+    if (!feld) continue;                      // unbekanntes Feld trägt nicht bei
     const wert = (e.wert ?? '').trim();
     if (!wert) continue;
-
-    const eintrag = idx.get(`${e.feldId}::${normalisiereWert(wert)}`);
     const basis = { feldId: e.feldId, wert, ...(e.tvId ? { tvId: e.tvId } : {}) };
 
+    if (feld.typ !== 'wert') {
+      // Ein Datumsfeld mit unlesbarem Inhalt ist kein Ereignis, sondern ein
+      // Datenfehler — es soll die Phase nicht anheben.
+      if (feld.typ === 'datum' && parseGermanDate(wert) === null) continue;
+      out.push(feldBeitrag(feld, basis));
+      continue;
+    }
+
+    const eintrag = idx.get(`${e.feldId}::${normalisiereWert(wert)}`);
     if (!eintrag) {
       out.push({ ...basis, kategorie: 'sonstige', spinePhase: 'keine', rang: 0, terminal: false, beruecksichtigt: false, grund: 'unkuratiert' });
       continue;
@@ -136,7 +173,13 @@ export function leiteStatusAb(
   const leitend = terminale.length > 0 ? fuehrender(terminale) : fuehrender(beruecksichtigt);
 
   // Konflikt: berücksichtigte, NICHT-terminale Werte mit ≥ Schwelle Spine-Abstand.
-  const nichtTerminal = beruecksichtigt.filter(b => !b.terminal);
+  //
+  // Bewusst nur über WERT-Felder: ein Wert behauptet „hier steht der Vorgang
+  // gerade", ein Datum hält fest „dieser Punkt wurde passiert". Ein Antragseingang
+  // neben einem fertigen Gutachten ist kein Widerspruch, sondern eine Historie —
+  // zählte man Datumsfelder mit, meldete praktisch jeder Antrag einen Konflikt.
+  const wertFelder = new Set(version.felder.filter(f => f.typ === 'wert').map(f => f.feldId));
+  const nichtTerminal = beruecksichtigt.filter(b => !b.terminal && wertFelder.has(b.feldId));
   const ordinale = nichtTerminal.map(b => SPINE_ORDINAL[b.spinePhase]).filter(o => o > 0);
   let konflikt = false;
   let konfliktDetails: KonfliktDetail[] = [];

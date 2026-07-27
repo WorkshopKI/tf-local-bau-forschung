@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.342.0 — Statusableitung: Datums- und Textfelder tragen bei (Juli 2026)
+
+MINOR — Bisher leitete sich die Phase allein aus den beiden Statuswert-Feldern ab; alle Termine des Fachsystems blieben stumm. Jetzt darf ein Termin die Phase heben — aber nur, wo die Projektleitung ihm einen Rang gibt.
+
+- Datums- und Textfelder tragen mit der Phase des FELDES bei (`rang > 0` und lesbarer Wert), Wert-Felder unverändert mit der Kategorie des Werts ([ableitung.ts](src/core/status/ableitung.ts)).
+- Konflikte werden weiter nur zwischen Wert-Feldern gemeldet — ein Antragseingang neben einem fertigen Gutachten ist Historie, kein Widerspruch.
+- Kategorie ↔ Spine-Phase in beiden Richtungen an einer Stelle, terminale Felder in der Fachprüfung gelten als Ablehnung ([spine-kategorie.ts](src/core/status/spine-kategorie.ts)).
+- Wirksam wird das für Antragseingang und Bewilligungsdatum; die 177 Codes des Fachsystems bleiben ohne Rang, bis die PL sie gegen die Simulation freigibt.
+
 ### v2.341.0 — Status-Katalog: Code-Spalten auflösen und entdecken (Juli 2026)
 
 MINOR — Die Code-Felder tragen den rohen CSV-Spaltennamen; unter welchem Key die Spalte im Record landet, entscheidet erst das Programm-Mapping. Dazu die zweite Lücke: entdeckt wurden bisher nur neue Status*werte*, nie neue *Felder* — die eingeklappten Ordner des Fachsystems blieben damit unsichtbar.

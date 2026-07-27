@@ -23,6 +23,7 @@ import type {
 import { wertId } from './typen';
 import { baueSeedCodeFelder } from './seed-codes';
 import { SEED_KATEGORIEN } from './seed-kategorien';
+import { KATEGORIE_ZU_SPINE } from './spine-kategorie';
 
 const SEED_ZEITSTEMPEL = '2026-07-24T00:00:00.000Z';
 
@@ -30,20 +31,9 @@ const SEED_ZEITSTEMPEL = '2026-07-24T00:00:00.000Z';
  *  tragen dieselben Rohwerte). Die Datumsfelder haben kein Wert-Enum. */
 const WERT_FELDER = ['status', 'verbund_status'] as const;
 
-/** Kategorie → Spine-Phase (deckungsgleich mit `statusZuStepperPosition.ts`:
- *  in_pruefung/nachforderung/entscheidung = Fachprüfung; bewilligt/begleitung =
- *  Bewilligung; abgeschlossen = Schluss; abgelehnt bricht an Fachprüfung ab). */
-const KATEGORIE_ZU_SPINE: Record<StatusCategory, SpinePhase> = {
-  offen: 'eingang',
-  in_pruefung: 'fachpruefung',
-  nachforderung: 'fachpruefung',
-  entscheidung: 'fachpruefung',
-  bewilligt: 'bewilligung',
-  begleitung: 'bewilligung',
-  abgeschlossen: 'schluss',
-  abgelehnt: 'fachpruefung',
-  sonstige: 'keine',
-};
+// Die Kategorie→Spine-Abbildung wohnt in `spine-kategorie.ts`, weil die
+// Ableitung sie auch rückwärts braucht (Datumsfelder tragen die Phase, nicht
+// die Kategorie) und beide Richtungen zueinander passen müssen.
 
 /** Basisrang je Spine-Phase (Zehnerlücken). `keine` trägt nicht bei (0). */
 const SPINE_BASIS_RANG: Record<SpinePhase, number> = {

@@ -100,6 +100,10 @@ export interface StatusFeldEintrag {
   spinePhase?: SpinePhase;
   rang?: number;
   terminal?: boolean;
+  /** Überschreibt die aus `spinePhase` abgeleitete Kategorie (`spine-kategorie.ts`).
+   *  Nötig, wo eine Phase mehrere Kategorien trägt — die Fachprüfung beherbergt
+   *  Prüfung, Nachforderung, Entscheidung und Ablehnung. */
+  kategorie?: StatusCategory;
   prominenzDefault: Prominenz;
   aktiv: boolean;
   unkuratiert: boolean;

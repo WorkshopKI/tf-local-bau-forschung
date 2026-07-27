@@ -169,7 +169,9 @@ const TV_RUECKNAHMEEMPFEHLUNG: SeedCode[] = [
   { code: 'ARQ', label: 'Rücknahmeempfehlung QS erfolgt' },
   { code: 'ARZ', label: 'Rücknahmeempfehlung an ASt' },
   { code: 'ARR', label: 'Termin Rücknahmeempfehlung' },
-  { code: 'AAR', label: 'Antrag vom ASt zurückgezogen', prominenz: MST, spine: 'fachpruefung', rang: 38, terminal: true },
+  // Zurückgezogen zählt im kanonischen Vokabular als „abgeschlossen", nicht als
+  // Ablehnung („abgelehnt/zurückgezogen" → Kategorie abgeschlossen, Phase Schluss).
+  { code: 'AAR', label: 'Antrag vom ASt zurückgezogen', prominenz: MST, spine: 'schluss', rang: 50, terminal: true },
   { code: 'ARW', label: 'Stellungnahme des ASt zur Rücknahmeempfehlung' },
 ];
 
@@ -219,7 +221,9 @@ const TV_RUECKNAHME_ZUWENDUNG: SeedCode[] = [
   { code: 'RZQ', label: 'Rücknahmebescheid QS ist erfolgt' },
   { code: 'RZG', label: 'Rücknahmebescheid ans BMWK' },
   { code: 'RZG+', label: 'Rückfragen/Hinweise vom BMWK' },
-  { code: 'RZZ', label: 'Rücknahmebescheid an ZE', prominenz: MST, spine: 'bewilligung', rang: 48, terminal: true },
+  // Die Rücknahme beendet den Vorgang — Phase Schluss, nicht Bewilligung; sonst
+  // käme ein zurückgenommener Bescheid als „bewilligt" heraus.
+  { code: 'RZZ', label: 'Rücknahmebescheid an ZE', prominenz: MST, spine: 'schluss', rang: 50, terminal: true },
 ];
 
 const TV_STICHPROBE: SeedCode[] = [
