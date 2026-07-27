@@ -7,6 +7,8 @@
 export * from './typen';
 export { STATUS_KATALOG_STORE, STATUS_EVENT_STORE } from './stores';
 export { baueSeedVersion } from './seed';
+export { SEED_KATEGORIEN, LEERE_SEED_KATEGORIEN } from './seed-kategorien';
+export { baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE } from './seed-codes';
 export { setStatusKatalogSnapshot, getAktiveVersion } from './snapshot';
 export {
   listeVersionen, getVersion, speichereVersion,

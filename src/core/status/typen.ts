@@ -86,6 +86,10 @@ export interface StatusFeldEintrag {
   /** Code des Fachsystems ohne Spalten-Präfix (`XTEC` zu `D_XTEC`) — der
    *  Bezeichner, unter dem das Team den Eintrag kennt. */
   code?: string;
+  /** Begleitende Text-Spalte (`T_AAI` zu `D_AAI`). Das Fachsystem führt zu
+   *  manchen Terminen eine Notiz; sie gehört zum selben Ereignis und bekommt
+   *  deshalb keinen eigenen Katalog-Eintrag. */
+  textSpalte?: string;
   /** Referenz in den Kategoriebaum (kein Pfad — Umbenennen bricht nichts).
    *  Ohne Zuordnung erscheint das Feld unter „Nicht zugeordnet". */
   kategorieId?: string;
