@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.347.0 — Ziehbare Spaltenteilung auf der Foerderfaehigkeit-Seite (Juli 2026)
+
+MINOR — Auf der Förderfähigkeit-Seite ließ sich die Grenze zwischen Einreichungs-Liste und Detail nicht verschieben. Der Resize war im geteilten Shell längst da, aber unsichtbar — und die Seite gab dem Shell keine Höhe, sodass sie als Ganzes scrollte statt der Detailspalte.
+
+- Der Einreichungen-Bereich wird zum Flex-Spalten-Kontext: Liste und Detail scrollen je für sich, Kopf und Sicht-Tabs bleiben stehen ([MapPage.tsx](src/plugins/map-foerderfaehig/MapPage.tsx)).
+- Der Trenn-Griff im geteilten Master-Detail-Shell ist jetzt dauerhaft sichtbar und per Tastatur (←/→) sowie Doppelklick (Reset) bedienbar, Pointer- statt Maus-Events ([MasterDetailLayout.tsx](src/components/master-detail/MasterDetailLayout.tsx)) — wirkt auf alle Split-Seiten.
+- Die Einreichungs-Liste lässt sich auf eine schmale Leiste einklappen (`collapsible`-Opt-in, Zustand gemerkt) ([EinreichungListe.tsx](src/plugins/map-foerderfaehig/components/EinreichungListe.tsx)).
+- Neue reine Helfer `maxListWidth` + `keyboardWidthStep` samt Tests ([masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts)).
+- DESIGN_GUIDE hält die Fallgrube fest: `MasterDetailLayout` muss direktes Kind eines `flex flex-col`-Containers sein, Ausblenden über die Klasse statt das `hidden`-Attribut ([DESIGN_GUIDE.md](DESIGN_GUIDE.md)).
+
 ### v2.346.0 — Features fuer pl und kurator freischalten (Juli 2026)
 
 MINOR — Die App ist nicht produktiv, der Nutzerkreis sind drei Testpersonen (dev, PL, Kurator). Etliche fertige Features standen trotzdem auf „nur dev" und waren für genau die zwei Menschen unsichtbar, die sie testen sollen. Ab jetzt gilt: was der dev geprüft hat, geht direkt an pl und kurator.

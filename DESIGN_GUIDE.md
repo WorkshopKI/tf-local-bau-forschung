@@ -547,6 +547,9 @@ Dezente Warning-Farbe (nicht Primary — das wäre zu laut), max. 2 Sätze, ein 
 ```
 
 - **Kein Detail offen**: Liste füllt die volle Breite. **Detail offen**: Liste schrumpft auf eine resizable Sidebar (Drag-Handle, Breite in localStorage persistiert), Detail-Panel rechts behält `detailMinWidth` (Default 300; Liste `narrowMinWidth` 320, Start 460).
+- **`MasterDetailLayout` MUSS direktes Kind eines `flex flex-col`-Containers sein** (siehe Snippet). In einem Block-Container ist sein `flex-1 min-h-0` wirkungslos: die Panes verlieren ihre definite Höhe, das interne `overflow-y-auto` des Details greift nicht mehr, die ganze Seite scrollt und Kopf/Tabs scrollen weg. Wird ein solcher Bereich per Tab umgeschaltet, über die Klasse `hidden` ausblenden — **nicht** über das `hidden`-Attribut (`display:flex` schlägt die UA-Regel `[hidden] { display: none }`).
+- **Griff-Vokabular** (im Shell eingebaut, gleich für alle Split-Seiten): dauerhaft sichtbare Grip-Marke, Ziehen, ←/→ in 16px-Schritten, Doppelklick setzt auf `narrowDefaultWidth` zurück. Identische Sprache wie [`ZweiSpaltenResizable`](src/components/zwei-spalten/ZweiSpaltenResizable.tsx).
+- **Optional `collapsible`** (+ `listCollapsedKey`, `collapsedRailLabel`): klappt die Liste im Detail-Modus auf eine schmale Leiste ein — maximale Lesebreite. Der Einklapp-Knopf gehört in die Listen-Toolbar des Konsumenten (`list` als Render-Funktion, `api.toggleCollapsed`); das Wieder-Einblenden besorgt die Leiste.
 - **Datenagnostisch** — Resize, Breiten-Persistenz und Escape-Schließen sind eingebaut; KEIN Filter-/Such-/Domänen-Wissen im Shell.
 - **Selektion** = reiner In-Page-React-State (kein Router-Pfad pro Item). Detail-Inhalt bringt eigenes Scrollen mit (`h-full overflow-y-auto`), das Shell-Detail-Pane ist `overflow-hidden`.
 - **Master** = generische Tabelle aus `src/components/data-table/` (`SortableTable` …) oder `ListItem`-Liste; Zeilen-Klick öffnet das Detail.

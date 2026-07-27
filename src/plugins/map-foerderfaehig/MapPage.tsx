@@ -45,10 +45,20 @@ export function MapPage(): React.ReactElement {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 px-6 pb-6" hidden={bereich !== 'einreichungen'}>
+      {/* Flex-Spalten-Kontext ist Pflicht: nur so bekommt `MasterDetailLayout`
+          eine definite Höhe (Liste und Detail scrollen je für sich, Kopf und
+          Sicht-Tabs bleiben stehen). Ausgeblendet wird über die Klasse statt
+          über das `hidden`-Attribut — `display:flex` aus dem Stylesheet schlüge
+          die UA-Regel `[hidden] { display: none }`, und beide Bereiche wären
+          gleichzeitig sichtbar. Der Block bleibt montiert, der Schritt-Zustand
+          des Prüfblatts überlebt den Tab-Wechsel. */}
+      <div className={bereich === 'einreichungen' ? 'flex-1 min-h-0 flex flex-col px-6 pb-6' : 'hidden'}>
         <MasterDetailLayout
           listWidthKey="map-foerderfaehig-liste-breite"
-          list={
+          collapsible
+          listCollapsedKey="map-foerderfaehig-liste-eingeklappt"
+          collapsedRailLabel="Einreichungen einblenden"
+          list={api => (
             <EinreichungListe
               einreichungen={einreichungen}
               ausgewaehltId={ausgewaehlt?.id ?? null}
@@ -56,8 +66,9 @@ export function MapPage(): React.ReactElement {
               onWaehle={waehle}
               onImportiere={importiere}
               onEntferne={entferne}
+              onEinklappen={ausgewaehlt === null ? undefined : api.toggleCollapsed}
             />
-          }
+          )}
           detail={
             ausgewaehlt === null ? undefined : (
               // Schlüssel = Einreichung: der Prüfablauf startet je Einreichung

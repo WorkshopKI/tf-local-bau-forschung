@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.347 — 2026-07
+
+### Neu
+- In der Förderfähigkeit lässt sich die Einreichungs-Liste ganz einklappen — ein Klick, und der Prüfbogen hat die volle Breite.
+
+### Verbesserungen
+- Die Trennlinie zwischen Liste und Detail ist überall sichtbar und lässt sich ziehen; mit den Pfeiltasten geht es feiner, ein Doppelklick setzt die Breite zurück.
+- Auf der Förderfähigkeit-Seite bleiben Titel und Reiter beim Scrollen stehen; Liste und Detail scrollen getrennt.
+
 ## v2.346 — 2026-07
 
 ### Neu

@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   effectiveListWidth,
   clampDragWidth,
+  keyboardWidthStep,
   listPaneClass,
   listPaneStyle,
+  maxListWidth,
   shouldCloseOnEscape,
 } from '../masterDetailLayout-logic';
 
@@ -35,6 +37,27 @@ describe('masterDetailLayout-logic', () => {
     });
     it('lässt Werte innerhalb der Grenzen unverändert durch', () => {
       expect(clampDragWidth(500, 1440, MIN, DETAIL_MIN)).toBe(500);
+    });
+  });
+
+  describe('maxListWidth', () => {
+    it('lässt dem Detail-Panel seine Mindestbreite', () => {
+      expect(maxListWidth(1440, MIN, DETAIL_MIN)).toBe(1140);
+    });
+    it('fällt nie unter narrowMinWidth (enger Viewport)', () => {
+      expect(maxListWidth(500, MIN, DETAIL_MIN)).toBe(320);
+    });
+  });
+
+  describe('keyboardWidthStep', () => {
+    it('→ verbreitert die Liste, ← verschmälert sie (Griff an der rechten Kante)', () => {
+      expect(keyboardWidthStep('ArrowRight')).toBe(16);
+      expect(keyboardWidthStep('ArrowLeft')).toBe(-16);
+    });
+    it('gibt bei jeder anderen Taste null zurück (Event nicht abfangen)', () => {
+      expect(keyboardWidthStep('ArrowUp')).toBeNull();
+      expect(keyboardWidthStep('Enter')).toBeNull();
+      expect(keyboardWidthStep('Tab')).toBeNull();
     });
   });
 

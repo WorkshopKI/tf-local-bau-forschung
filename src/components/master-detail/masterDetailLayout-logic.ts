@@ -17,7 +17,19 @@ export function effectiveListWidth(
   narrowMinWidth: number,
   detailMinWidth: number,
 ): number {
-  return Math.min(width, Math.max(narrowMinWidth, viewportWidth - detailMinWidth));
+  return Math.min(width, maxListWidth(viewportWidth, narrowMinWidth, detailMinWidth));
+}
+
+/**
+ * Oberes Limit der Listenbreite: dem Detail-Panel bleibt immer `detailMinWidth`
+ * — außer der Viewport ist so schmal, dass schon `narrowMinWidth` mehr fordert.
+ */
+export function maxListWidth(
+  viewportWidth: number,
+  narrowMinWidth: number,
+  detailMinWidth: number,
+): number {
+  return Math.max(narrowMinWidth, viewportWidth - detailMinWidth);
 }
 
 /**
@@ -30,8 +42,22 @@ export function clampDragWidth(
   narrowMinWidth: number,
   detailMinWidth: number,
 ): number {
-  const dynMax = Math.max(narrowMinWidth, viewportWidth - detailMinWidth);
+  const dynMax = maxListWidth(viewportWidth, narrowMinWidth, detailMinWidth);
   return Math.min(dynMax, Math.max(narrowMinWidth, rawWidth));
+}
+
+/**
+ * Breiten-Schritt einer Pfeiltaste am Trenn-Griff (px), `null` für jede andere
+ * Taste (= Event nicht abfangen).
+ *
+ * Richtung beachten: der Griff sitzt an der RECHTEN Kante der Liste → `→` macht
+ * die Liste breiter, `←` schmaler. In `ZweiSpaltenResizable` ist es genau
+ * andersherum, weil der Griff dort links der Seitenspalte sitzt.
+ */
+export function keyboardWidthStep(key: string): number | null {
+  if (key === 'ArrowRight') return 16;
+  if (key === 'ArrowLeft') return -16;
+  return null;
 }
 
 /** Container-Klasse der Listen-Spalte: fixe Sidebar im Detail-Modus, sonst voll. */

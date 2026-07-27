@@ -8,12 +8,12 @@
 import { Button } from '@/components/ui/button';
 import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { FileJson, Trash2 } from 'lucide-react';
+import { FileJson, PanelLeftClose, Trash2 } from 'lucide-react';
 import { formatDatum } from '../import/laufzeit';
 import type { MapEinreichung } from '../types';
 
 export function EinreichungListe({
-  einreichungen, ausgewaehltId, importMeldung, onWaehle, onImportiere, onEntferne,
+  einreichungen, ausgewaehltId, importMeldung, onWaehle, onImportiere, onEntferne, onEinklappen,
 }: {
   einreichungen: readonly MapEinreichung[];
   ausgewaehltId: string | null;
@@ -21,12 +21,29 @@ export function EinreichungListe({
   onWaehle: (id: string) => void;
   onImportiere: (datei: File) => Promise<void>;
   onEntferne: (id: string) => Promise<void>;
+  /** Gesetzt, wenn ein Detail offen ist: klappt die Liste auf eine schmale
+   *  Leiste ein (das Wieder-Einblenden besorgt das Master-Detail-Shell). */
+  onEinklappen?: () => void;
 }): React.ReactElement {
   const importieren = useAsyncAction(async (datei: File) => { await onImportiere(datei); });
   const entfernen = useAsyncAction(async (id: string) => { await onEntferne(id); });
 
   return (
     <div className="flex flex-col gap-3 p-4">
+      {onEinklappen !== undefined && (
+        <div className="flex items-center -mb-1">
+          <button
+            type="button"
+            onClick={onEinklappen}
+            aria-label="Einreichungs-Liste einklappen"
+            title="Liste einklappen"
+            className="-ml-1 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
+          >
+            <PanelLeftClose size={16} />
+          </button>
+        </div>
+      )}
+
       <FileDropZone
         onFiles={dateien => { void importieren.run(dateien[0]!); }}
         accept=".json,application/json"

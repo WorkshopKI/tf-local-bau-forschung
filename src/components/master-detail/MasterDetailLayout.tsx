@@ -3,8 +3,10 @@ import { PanelLeftOpen } from 'lucide-react';
 import {
   effectiveListWidth,
   clampDragWidth,
+  keyboardWidthStep,
   listPaneClass,
   listPaneStyle,
+  maxListWidth,
   shouldCloseOnEscape,
   parseCollapsedFlag,
   serializeCollapsedFlag,
@@ -59,7 +61,8 @@ function loadStoredWidth(key: string | undefined, defaultWidth: number, minWidth
 /**
  * Kanonisches, datenagnostisches Master-Detail-Shell (Split-View): Liste links,
  * Detail rechts. Im Detail-Modus schrumpft die Liste auf eine resizable Sidebar
- * (Drag-Handle, Breite persistiert), das Detail-Panel behält `detailMinWidth`.
+ * (sichtbarer Griff: ziehen, ←/→, Doppelklick setzt auf `narrowDefaultWidth`
+ * zurück; Breite persistiert), das Detail-Panel behält `detailMinWidth`.
  * Erwartet einen Flex-Spalten-Höhenkontext vom Aufrufer (Header außerhalb).
  * KEIN Wissen über Anträge/Suche/Filter — destilliert aus dem Förderanträge-
  * Muster (Referenz: AntraegePage/AntraegeMain), nicht kopiert.
@@ -122,12 +125,15 @@ export function MasterDetailLayout({
     return () => window.removeEventListener('keydown', onKey);
   }, [hasDetail]);
 
+  const effectiveWidth = effectiveListWidth(listWidth, viewportWidth, narrowMinWidth, detailMinWidth);
+
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const onResizeMouseDown = useCallback((e: React.MouseEvent): void => {
+  const onResizePointerDown = useCallback((e: React.PointerEvent): void => {
+    e.preventDefault(); // kein Textselektieren/Fokus-Flackern während des Ziehens
     dragRef.current = { startX: e.clientX, startWidth: listWidth };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    const onMove = (ev: MouseEvent): void => {
+    const onMove = (ev: PointerEvent): void => {
       const drag = dragRef.current;
       if (!drag) return;
       const delta = ev.clientX - drag.startX;
@@ -137,14 +143,21 @@ export function MasterDetailLayout({
       dragRef.current = null;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   }, [listWidth, narrowMinWidth, detailMinWidth]);
 
-  const effectiveWidth = effectiveListWidth(listWidth, viewportWidth, narrowMinWidth, detailMinWidth);
+  // Tastatur-Alternative zum Ziehen: Basis ist die ANGEZEIGTE (geklemmte) Breite,
+  // sonst liefen erste Tastendrücke an einem gekappten Wert ins Leere.
+  const onResizeKeyDown = useCallback((e: React.KeyboardEvent): void => {
+    const step = keyboardWidthStep(e.key);
+    if (step === null) return;
+    e.preventDefault();
+    setListWidth(clampDragWidth(effectiveWidth + step, window.innerWidth, narrowMinWidth, detailMinWidth));
+  }, [effectiveWidth, narrowMinWidth, detailMinWidth]);
 
   const railShown = collapsible && hasDetail && !shouldShowList(hasDetail, collapsed);
   const listNode = typeof list === 'function' ? list({ collapsed, toggleCollapsed }) : list;
@@ -175,10 +188,27 @@ export function MasterDetailLayout({
               role="separator"
               aria-orientation="vertical"
               aria-label="Listenbreite ändern"
-              onMouseDown={onResizeMouseDown}
-              className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
+              aria-valuenow={effectiveWidth}
+              aria-valuemin={narrowMinWidth}
+              aria-valuemax={maxListWidth(viewportWidth, narrowMinWidth, detailMinWidth)}
+              tabIndex={0}
+              onPointerDown={onResizePointerDown}
+              onKeyDown={onResizeKeyDown}
+              onDoubleClick={() => setListWidth(narrowDefaultWidth)}
+              title="Ziehen zum Anpassen · Doppelklick setzt zurück"
+              className="group relative shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors focus:outline-none"
               style={{ borderLeft: '0.5px solid var(--tf-border)' }}
-            />
+            >
+              {/* Trefferzone greift über den 4px-Streifen hinaus, ohne den Fluss
+                  zu verschieben (absolut, daher ohne Layout-Wirkung). */}
+              <span className="absolute -inset-x-1.5 inset-y-0" />
+              {/* Dauerhaft sichtbare Griff-Marke — dieselbe Sprache wie
+                  ZweiSpaltenResizable: erst dadurch ist der Resize auffindbar. */}
+              <span
+                aria-hidden
+                className="absolute left-1/2 top-1/2 h-10 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--tf-border)] transition-colors group-hover:bg-[var(--tf-primary)] group-focus-visible:bg-[var(--tf-primary)]"
+              />
+            </div>
           )}
         </div>
       )}
