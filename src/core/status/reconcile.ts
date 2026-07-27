@@ -10,12 +10,12 @@
  * auseinander → keine neuen Events) und additiv.
  */
 import type { IDBStore } from '@/core/services/storage';
-import { listAntraegeByVerbund, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
+import { listAntraegeByVerbund, listSchemasByProgramm, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { uuid } from '@/core/services/id-generator';
-import type { MappingVersion, StatusFeldEintrag } from './typen';
+import type { MappingVersion } from './typen';
 import type { StatusEvent } from './event-typen';
-import { leseFeldWert } from './feld-zugriff';
+import { baueFeldAufloesung, sammleVorkommen, type FeldAufloesung } from './feld-aufloesung';
 import { sortiereEvents } from './event-sort';
 import { appendEvents, getStatusEvents } from './event-store';
 import { ladeAktiveVersion } from './katalog-store';
@@ -51,40 +51,35 @@ export function ermittleReconcileEvents(
   importId: string,
   jetztIso: string,
   neueId: () => string,
+  aufloesung?: FeldAufloesung,
 ): StatusEvent[] {
   const latest = baueLetzteWerte(eingabe.bestehendeEvents);
   const out: StatusEvent[] = [];
 
-  const behandle = (
-    rec: Record<string, unknown>, tvId: string | undefined, felder: readonly StatusFeldEintrag[],
-  ): void => {
-    for (const feld of felder) {
-      const wert = leseFeldWert(rec, feld);
-      if (!wert) continue;
-      const key = latestKey(feld.feldId, tvId);
-      const vorher = latest.get(key);
-      if (vorher === wert) continue;
-      const datumFachlich = feld.typ === 'datum' ? (parseGermanDate(wert) ?? wert) : undefined;
-      out.push({
-        id: neueId(),
-        verbundId: eingabe.verbundId,
-        ...(tvId ? { tvId } : {}),
-        feldId: feld.feldId,
-        wert,
-        ...(vorher !== undefined ? { wertVorher: vorher } : {}),
-        ...(datumFachlich ? { datumFachlich } : {}),
-        erfasstAm: jetztIso,
-        importId,
-        quelle: vorher === undefined ? 'initial' : 'import',
-      });
-      latest.set(key, wert);
-    }
-  };
+  // Ein auf „Ignoriert" gesetztes Feld wird nirgends gerendert — es dann trotzdem
+  // aufzuzeichnen bläht das Log ohne Gegenwert. Mit dem Code-Katalog stehen ~180
+  // Felder zur Auswahl; das Stilllegen muss auch das Schreiben stoppen.
+  const relevant = version.felder.filter(f => f.aktiv && f.prominenzDefault !== 'ignoriert');
 
-  const verbundFelder = version.felder.filter(f => f.ebene === 'verbund');
-  const tvFelder = version.felder.filter(f => f.ebene === 'tv');
-  behandle(eingabe.verbundRecord, undefined, verbundFelder);
-  for (const a of eingabe.antraege) behandle(a.record, a.aktenzeichen, tvFelder);
+  for (const v of sammleVorkommen(relevant, eingabe.verbundRecord, eingabe.antraege, aufloesung)) {
+    const key = latestKey(v.feld.feldId, v.tvId);
+    const vorher = latest.get(key);
+    if (vorher === v.wert) continue;
+    const datumFachlich = v.feld.typ === 'datum' ? (parseGermanDate(v.wert) ?? v.wert) : undefined;
+    out.push({
+      id: neueId(),
+      verbundId: eingabe.verbundId,
+      ...(v.tvId ? { tvId: v.tvId } : {}),
+      feldId: v.feld.feldId,
+      wert: v.wert,
+      ...(vorher !== undefined ? { wertVorher: vorher } : {}),
+      ...(datumFachlich ? { datumFachlich } : {}),
+      erfasstAm: jetztIso,
+      importId,
+      quelle: vorher === undefined ? 'initial' : 'import',
+    });
+    latest.set(key, v.wert);
+  }
   return out;
 }
 
@@ -98,6 +93,9 @@ export async function reconcileStatusEvents(
   idb: IDBStore, programmId: string, touchedAktenzeichen: readonly string[], jetztIso: string,
 ): Promise<number> {
   const version = await ladeAktiveVersion(idb);
+  // Die Code-Felder tragen den rohen Spalten-Code; wo die Spalte im Record
+  // landet, sagt erst das Programm-Schema. Einmal je Lauf auflösen.
+  const aufloesung = baueFeldAufloesung(await listSchemasByProgramm(idb, programmId), version.felder);
   const alleVerbuende = await listVerbuendeByProgramm(idb, programmId);
   const seededKey = `${SEEDED_PREFIX}${programmId}`;
   const seeded = (await idb.get<boolean>(seededKey)) === true;
@@ -122,7 +120,7 @@ export async function reconcileStatusEvents(
         })),
         bestehendeEvents: bestehende,
       },
-      importId, jetztIso, uuid,
+      importId, jetztIso, uuid, aufloesung,
     );
     if (neue.length > 0) {
       await appendEvents(idb, neue);

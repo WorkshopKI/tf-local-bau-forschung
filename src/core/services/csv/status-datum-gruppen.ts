@@ -71,8 +71,12 @@ export interface StatusDatumFeld {
  * Normalisierung für den Spalten-Code-Vergleich: NFC (wegen `D_ÄT`, Pitfall #22)
  * + lower + ohne `_`/`-`/Space. `+` und `?` bleiben erhalten, `-` wird gestrippt
  * ⇒ `D_PC+`/`D_PC?`/`D_PC-` (bzw. `D_XPC+`/`D_XPC?`/`D_XPC-`) kollidieren NICHT.
+ *
+ * Exportiert, weil der Status-Katalog seine Code-Felder nach derselben Regel
+ * auflöst (`status/feld-aufloesung.ts`) — zwei Normalisierungen würden
+ * auseinanderlaufen, sobald jemand eine davon anfasst.
  */
-const normCode = (s: string): string => s.normalize('NFC').toLowerCase().replace(/[\s_-]/g, '');
+export const normCode = (s: string): string => s.normalize('NFC').toLowerCase().replace(/[\s_-]/g, '');
 
 /**
  * Löst eine Liste von Spalten-`codes` gegen die Programm-Schemas auf (Master

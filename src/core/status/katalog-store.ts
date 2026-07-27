@@ -18,12 +18,13 @@
  * Raw-Transaktionen über `idb.getDb()` (Vorbild: assistent/protokoll/store.ts).
  */
 import type { IDBStore } from '@/core/services/storage';
-import type { MappingVersion, UnkuratierterFund } from './typen';
+import type { MappingVersion, StatusFeldEintrag, UnkuratierterFund } from './typen';
 import { STATUS_KATALOG_STORE } from './stores';
 import { baueSeedVersion } from './seed';
 
 const AKTIV_KEY = 'status-katalog:aktiv';
 const UNKURATIERT_KEY = 'status-katalog:unkuratiert';
+const UNKURATIERT_FELDER_KEY = 'status-katalog:unkuratierte-felder';
 
 /** Alle gespeicherten Versionen, aufsteigend nach Versionsnummer. */
 export async function listeVersionen(idb: IDBStore): Promise<MappingVersion[]> {
@@ -100,4 +101,20 @@ export async function speichereUnkuratiert(
   idb: IDBStore, funde: UnkuratierterFund[],
 ): Promise<void> {
   await idb.set(UNKURATIERT_KEY, funde);
+}
+
+/**
+ * Zweiter Puffer: Statusspalten, die in den CSV-Quellen stehen, aber im Katalog
+ * fehlen. Ebenfalls gerätelokal — er hält fest, was DIESE Installation in IHREN
+ * Programm-Schemas gesehen hat; ein anderer Rechner mit anderen Programmen
+ * findet andere Spalten.
+ */
+export async function ladeUnkuratierteFelder(idb: IDBStore): Promise<StatusFeldEintrag[]> {
+  return (await idb.get<StatusFeldEintrag[]>(UNKURATIERT_FELDER_KEY)) ?? [];
+}
+
+export async function speichereUnkuratierteFelder(
+  idb: IDBStore, felder: StatusFeldEintrag[],
+): Promise<void> {
+  await idb.set(UNKURATIERT_FELDER_KEY, felder);
 }

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.341.0 — Status-Katalog: Code-Spalten auflösen und entdecken (Juli 2026)
+
+MINOR — Die Code-Felder tragen den rohen CSV-Spaltennamen; unter welchem Key die Spalte im Record landet, entscheidet erst das Programm-Mapping. Dazu die zweite Lücke: entdeckt wurden bisher nur neue Status*werte*, nie neue *Felder* — die eingeklappten Ordner des Fachsystems blieben damit unsichtbar.
+
+- Auflösung Code → Record-Key über die Programm-Schemas, inkl. Begleit-Textspalte und Kollisionsschutz zugunsten kanonischer Felder ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts)).
+- `sammleVorkommen` ist die eine Stelle für die Ebene/Herkunft-Regel; Ableitung, Cockpit und Historie bauen darauf auf ([cockpit-berechnung.ts](src/core/status/cockpit-berechnung.ts), [reconcile.ts](src/core/status/reconcile.ts)).
+- Verbund-Codes werden aus der TV-Zeile gelesen, aber nur einmal gemeldet — sie stehen dort auf jeder Zeile gleich.
+- Gemappte `D_`/`T_`-Spalten, die der Katalog nicht kennt, landen als unkuratierte Felder im gerätelokalen Puffer ([entdecke.ts](src/core/status/entdecke.ts)).
+- Auf „Ignoriert" gesetzte oder stillgelegte Felder erzeugen keine Ereignisse mehr — bei ~180 Feldern ist das der Hebel gegen ein aufgeblähtes Log.
+
 ### v2.340.0 — Status-Katalog: 177 Codes des Fachsystems ausgeliefert (Juli 2026)
 
 MINOR — Der Katalog kannte 7 Statusfelder. Das Fachsystem führt ~200 Codes, und der Code ist zugleich der CSV-Spaltenname (`D_XTEC` zum Ordner-Eintrag `[XTEC]`, `T_` für Texteinträge, `X` für Verbund-Ebene). Diese Runde liefert den Katalog aus — Kuration und Wirkung folgen.

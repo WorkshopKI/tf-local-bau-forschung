@@ -7,9 +7,18 @@
  * `statusCockpit`-Flag im `importCsvSource`-Abschluss.
  */
 import type { IDBStore } from '@/core/services/storage';
-import { listAntraegeByProgramm, listVerbuendeByProgramm } from '@/core/services/csv/idb-csv';
-import { ladeAktiveVersion, ladeUnkuratiert, speichereUnkuratiert } from './katalog-store';
-import { ermittleNeueUnkuratierte, pruneKuratierte, type BeobachteterWert } from './entdecke';
+import {
+  listAntraegeByProgramm, listSchemasByProgramm, listVerbuendeByProgramm,
+} from '@/core/services/csv/idb-csv';
+import { baueSpaltenKatalog } from '@/core/services/csv/spalten-inventar';
+import {
+  ladeAktiveVersion, ladeUnkuratiert, speichereUnkuratiert,
+  ladeUnkuratierteFelder, speichereUnkuratierteFelder,
+} from './katalog-store';
+import {
+  ermittleNeueFelder, ermittleNeueUnkuratierte, pruneKuratierte, pruneKuratierteFelder,
+  type BeobachteterWert,
+} from './entdecke';
 import { leseFeldWert } from './feld-zugriff';
 import { reconcileStatusEvents } from './reconcile';
 
@@ -48,11 +57,32 @@ export async function entdeckeUnkuratiertNachImport(
   return neu.length;
 }
 
+/**
+ * Entdeckt Statusspalten (`D_*`/`T_*`), die in den Programm-Schemas gemappt
+ * sind, aber im Katalog fehlen — die eingeklappten Ordner des Fachsystems und
+ * alles, was nach der Auslieferung dazukommt. Hängt sie an den Feld-Puffer an.
+ */
+export async function entdeckeNeueFelderNachImport(
+  idb: IDBStore, programmId: string, jetztIso: string,
+): Promise<number> {
+  const version = await ladeAktiveVersion(idb);
+  const inventar = baueSpaltenKatalog(await listSchemasByProgramm(idb, programmId));
+
+  // Wie beim Wert-Puffer: erst herausräumen, was die PL inzwischen team-weit
+  // kuratiert hat, sonst meldet dieses Gerät es ewig als „neu entdeckt".
+  const bestehend = pruneKuratierteFelder(version, await ladeUnkuratierteFelder(idb));
+  const bekannt = new Set(bestehend.map(f => f.feldId));
+  const neu = ermittleNeueFelder(version, inventar, jetztIso).filter(f => !bekannt.has(f.feldId));
+  await speichereUnkuratierteFelder(idb, neu.length > 0 ? [...bestehend, ...neu] : bestehend);
+  return neu.length;
+}
+
 /** Ein Post-Import-Aufruf: Auto-Discovery + Historie-Reconcile. Best-effort. */
 export async function nachImportStatusPflege(
   idb: IDBStore, programmId: string, touchedAktenzeichen: readonly string[], jetztIso: string,
-): Promise<{ neueWerte: number; neueEvents: number }> {
+): Promise<{ neueWerte: number; neueFelder: number; neueEvents: number }> {
   const neueWerte = await entdeckeUnkuratiertNachImport(idb, programmId, jetztIso);
+  const neueFelder = await entdeckeNeueFelderNachImport(idb, programmId, jetztIso);
   const neueEvents = await reconcileStatusEvents(idb, programmId, touchedAktenzeichen, jetztIso);
-  return { neueWerte, neueEvents };
+  return { neueWerte, neueFelder, neueEvents };
 }

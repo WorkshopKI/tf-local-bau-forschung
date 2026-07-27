@@ -13,11 +13,20 @@ export { setStatusKatalogSnapshot, getAktiveVersion } from './snapshot';
 export {
   listeVersionen, getVersion, speichereVersion,
   getAktiveVersionsnummer, setzeAktiv, ladeAktiveVersion, naechsteVersionsnummer,
-  ladeUnkuratiert, speichereUnkuratiert,
+  ladeUnkuratiert, speichereUnkuratiert, ladeUnkuratierteFelder, speichereUnkuratierteFelder,
 } from './katalog-store';
-export { ermittleNeueUnkuratierte, pruneKuratierte, type BeobachteterWert } from './entdecke';
-export { entdeckeUnkuratiertNachImport, nachImportStatusPflege } from './import-integration';
+export {
+  ermittleNeueUnkuratierte, pruneKuratierte, ermittleNeueFelder, pruneKuratierteFelder,
+  codeAusSpalte, type BeobachteterWert,
+} from './entdecke';
+export {
+  entdeckeUnkuratiertNachImport, entdeckeNeueFelderNachImport, nachImportStatusPflege,
+} from './import-integration';
 export { recordKey, leseFeldWert, feldLabel } from './feld-zugriff';
+export {
+  baueFeldAufloesung, aufloesungFuer, sammleVorkommen, herkunftVon,
+  type FeldAufloesung, type AufgeloestesFeld, type FeldVorkommen,
+} from './feld-aufloesung';
 export type { StatusEvent } from './event-typen';
 export { appendEvents, getStatusEvents, getAlleEvents } from './event-store';
 export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';

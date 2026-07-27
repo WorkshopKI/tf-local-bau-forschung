@@ -6,7 +6,7 @@
 import type { CsvSchema } from '@/core/services/csv/types';
 import type { MappingVersion, SpinePhase } from './typen';
 import { wertId } from './typen';
-import { leseFeldWert } from './feld-zugriff';
+import { sammleVorkommen, type FeldAufloesung } from './feld-aufloesung';
 import { leiteStatusAb } from './ableitung';
 import type { StatusEvent } from './event-typen';
 
@@ -16,29 +16,30 @@ export interface VerbundFelder {
   tvFelder: Record<string, Record<string, string>>;
 }
 
-/** Baut die Engine-Eingabe eines Verbunds aus Verbund- + Antrag-Records
- *  (ebene-korrekt via `quelleKey`). Rein. */
+/**
+ * Baut die Engine-Eingabe eines Verbunds aus Verbund- + Antrag-Records.
+ *
+ * Die Ebene/Herkunft-Regel liegt in `sammleVorkommen` — hier wird sie nur in die
+ * beiden Eimer einsortiert, die die Engine erwartet. `aufloesung` optional: ohne
+ * sie gilt der Record-Key gleich der `feldId` (Verhalten wie vor dem
+ * Code-Katalog, für Aufrufer ohne Schema-Zugriff).
+ */
 export function baueVerbundFelder(
   version: MappingVersion,
   verbundId: string,
   verbundRecord: Record<string, unknown>,
   antraege: { aktenzeichen: string; record: Record<string, unknown> }[],
+  aufloesung?: FeldAufloesung,
 ): VerbundFelder {
   const felder: Record<string, string> = {};
-  for (const feld of version.felder) {
-    if (feld.ebene !== 'verbund') continue;
-    const w = leseFeldWert(verbundRecord, feld);
-    if (w) felder[feld.feldId] = w;
-  }
   const tvFelder: Record<string, Record<string, string>> = {};
-  for (const a of antraege) {
-    const rec: Record<string, string> = {};
-    for (const feld of version.felder) {
-      if (feld.ebene !== 'tv') continue;
-      const w = leseFeldWert(a.record, feld);
-      if (w) rec[feld.feldId] = w;
+  for (const v of sammleVorkommen(version.felder, verbundRecord, antraege, aufloesung)) {
+    if (v.tvId === undefined) {
+      felder[v.feld.feldId] = v.wert;
+      continue;
     }
-    if (Object.keys(rec).length > 0) tvFelder[a.aktenzeichen] = rec;
+    const rec = tvFelder[v.tvId] ?? (tvFelder[v.tvId] = {});
+    rec[v.feld.feldId] = v.wert;
   }
   return { verbundId, felder, tvFelder };
 }
