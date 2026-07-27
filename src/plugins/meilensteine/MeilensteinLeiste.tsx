@@ -15,6 +15,10 @@ import { ZUSTAND_FARBE, ZUSTAND_LABEL, feldStil, formatAbweichung, formatDatum }
 
 const LABEL_W = 210;
 const ZEILE_H = 26;
+/** Zustands-Spalte rechts. Die Wochen-Achse im Kopf muss denselben Platz
+ *  aussparen — sonst ist sie breiter als die Zeilen darunter und die Marken
+ *  stehen neben den Punkten, auf die sie sich beziehen. */
+const STATUS_W = 92;
 
 /** Ist-Woche eines Ergebnisses relativ zur Soll-Woche (nur wenn beides bekannt). */
 function istWoche(e: MstErgebnis, sollWoche: number): number | null {
@@ -61,20 +65,27 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
 
   return (
     <div className="flex flex-col">
-      {/* Wochen-Achse */}
+      {/* Wochen-Achse — Spaltenraster identisch zu den Zeilen darunter. */}
       <div className="flex items-end" style={{ height: 18 }}>
-        <div style={{ width: LABEL_W }} />
+        <div className="shrink-0" style={{ width: LABEL_W }} />
         <div className="relative flex-1">
-          {achsMarken.map(w => (
-            <span
-              key={w}
-              className="absolute text-[10px] text-[var(--tf-text-tertiary)]"
-              style={{ left: `${pos(w)}%`, transform: 'translateX(-50%)' }}
-            >
-              {w === 0 ? 'Eingang' : `W${w}`}
-            </span>
-          ))}
+          {achsMarken.map(w => {
+            const links = pos(w);
+            // Randmarken nach innen ziehen: mittig gesetzt ragt „Eingang" in die
+            // Label-Spalte und die letzte Woche in die Zustands-Spalte.
+            const versatz = links <= 0 ? '0%' : links >= 100 ? '-100%' : '-50%';
+            return (
+              <span
+                key={w}
+                className="absolute text-[10px] text-[var(--tf-text-tertiary)] whitespace-nowrap"
+                style={{ left: `${links}%`, transform: `translateX(${versatz})` }}
+              >
+                {w === 0 ? 'Eingang' : `W${w}`}
+              </span>
+            );
+          })}
         </div>
+        <div className="shrink-0" style={{ width: STATUS_W }} />
       </div>
 
       {sortiert.map(k => {
@@ -162,8 +173,8 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
             </div>
 
             <span
-              className="shrink-0 w-[92px] text-right text-[11px]"
-              style={{ color: farbe }}
+              className="shrink-0 text-right text-[11px]"
+              style={{ width: STATUS_W, color: farbe }}
               title={e.zustand === 'erreicht' ? formatAbweichung(e.abweichungTage) : undefined}
             >
               {ZUSTAND_LABEL[e.zustand]}

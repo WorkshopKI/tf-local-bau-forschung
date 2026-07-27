@@ -3,14 +3,23 @@
  * Timeline + „Warum?"-Panel + Nächste-Schritte aus dem gerätelokalen,
  * read-only `useStatusVerlauf`. Rendert nichts, solange Katalog/Ableitung fehlen
  * (Flag aus oder noch nicht initialisiert).
+ *
+ * Einklappbar mit Default ZU — im Kopf steht die abgeleitete Phase, aufgeklappt
+ * die Begründung dazu.
  */
+import { ChevronRight } from 'lucide-react';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
 import { StatusWarum } from './StatusWarum';
-import { WERKZEUG_LABEL } from './labels';
+import { WERKZEUG_LABEL, SPINE_LABEL } from './labels';
 
 export function StatusDetailSection({ verbundId }: { verbundId: string }): React.ReactElement | null {
   const v = useStatusVerlauf(verbundId);
+  // Einklappbar, Default ZU (persistierter Zustand gewinnt): die abgeleitete
+  // Phase steht als Vorschau im Kopf, Timeline und Begründung sind Nachschlagen.
+  // Hook VOR den Early Returns (Hook-Reihenfolge, React #310).
+  const [open, toggleOpen] = useCollapsedSection('verbund_status_collapsed', { defaultOpen: false });
 
   if (v.laden) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>;
@@ -21,8 +30,28 @@ export function StatusDetailSection({ verbundId }: { verbundId: string }): React
 
   return (
     <div>
-      <h2 className="text-[16px] font-medium text-[var(--tf-text)] mb-4">Status &amp; Verlauf</h2>
+      <div className="flex items-center gap-3 flex-wrap mb-4">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          className="flex items-center gap-1.5 cursor-pointer"
+        >
+          <ChevronRight
+            size={15}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <span className="text-[16px] font-medium text-[var(--tf-text)]">Status &amp; Verlauf</span>
+        </button>
+        {/* Vorschau: die abgeleitete Phase — sonst sagt die eingeklappte Zeile nichts. */}
+        <span className="text-[12px] text-[var(--tf-text-secondary)]">{SPINE_LABEL[ableitung.spinePhase]}</span>
+        {ableitung.konflikt ? (
+          <span className="text-[12px] text-[var(--tf-warning-text)]">Widersprüchliche Statussignale</span>
+        ) : null}
+      </div>
 
+      <div className={open ? undefined : 'hidden'}>
       <StatusTimeline events={v.events} version={version} grenze={v.grenze} />
 
       <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -52,6 +81,7 @@ export function StatusDetailSection({ verbundId }: { verbundId: string }): React
             </ul>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

@@ -5,10 +5,15 @@
  *
  * Rendert nichts, solange kein freigegebener Plan oder keine Bewertung vorliegt
  * — eine leere Überschrift wäre schlechter als gar keine Sektion.
+ *
+ * Einklappbar mit Default ZU; Prognose, Frist und Restzeit stehen im Kopf und
+ * bleiben damit auch eingeklappt sichtbar.
  */
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { sortiereKnoten, type MeilensteinRisiko } from '@/core/meilensteine';
 import { MeilensteinLeiste } from '@/plugins/meilensteine/MeilensteinLeiste';
@@ -37,7 +42,10 @@ function RisikoFormular({ knotenAuswahl, onMelden }: {
           value={knotenId}
           onChange={e => setKnotenId(e.target.value)}
           aria-label="Meilenstein"
-          className="text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer max-w-[280px]"
+          // Breit genug für die ausgeschriebenen Meilenstein-Titel — bei 280px
+          // brach der gewählte Eintrag mitten im Wort ab.
+          title={knotenAuswahl.find(k => k.id === knotenId)?.label}
+          className="text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer max-w-[440px]"
           style={feldStil}
         >
           {knotenAuswahl.map(k => (
@@ -103,6 +111,12 @@ function RisikoZeile({ risiko, nummer, onErledigen }: {
 
 export function MeilensteinSection({ verbundId }: { verbundId: string }): React.ReactElement | null {
   const api = useVerbundMeilensteine(verbundId);
+  // Einklappbar, Default ZU (ein bereits persistierter Zustand gewinnt): die
+  // Detailseite ist lang, der Zeitstrahl ist Nachschlagen — die Kennzahlen im
+  // Kopf bleiben sichtbar. Body via CSS verstecken statt unmounten, damit ein
+  // halb getippter Risiko-Text das Zuklappen überlebt. Hook VOR den Early
+  // Returns (Hook-Reihenfolge, React #310).
+  const [open, toggleOpen] = useCollapsedSection('verbund_meilensteine_collapsed', { defaultOpen: false });
 
   if (!isMeilensteinMonitoringEnabled()) return null;
   if (api.laden) {
@@ -119,9 +133,23 @@ export function MeilensteinSection({ verbundId }: { verbundId: string }): React.
 
   return (
     <div>
-      <h2 className="text-[16px] font-medium text-[var(--tf-text)] mb-1">Fristen &amp; Meilensteine</h2>
-
+      {/* Kopf: Titel + die Kennzahlen, die auch eingeklappt sichtbar bleiben
+          müssen — Prognose und Restzeit sind der Grund, warum es die Sektion
+          gibt; der Zeitstrahl ist die Begründung dazu. */}
       <div className="flex items-center gap-3 flex-wrap text-[12px] mb-3">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          className="flex items-center gap-1.5 cursor-pointer"
+        >
+          <ChevronRight
+            size={15}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <span className="text-[16px] font-medium text-[var(--tf-text)]">Fristen &amp; Meilensteine</span>
+        </button>
         <span style={{ color: PROGNOSE_FARBE[b.prognose] }}>{PROGNOSE_LABEL[b.prognose]}</span>
         <span className="text-[var(--tf-text-secondary)]">Eingang {formatDatum(b.antragsdatum)}</span>
         <span className="text-[var(--tf-text-secondary)]">Frist {formatDatum(b.fristDatum)}</span>
@@ -135,6 +163,7 @@ export function MeilensteinSection({ verbundId }: { verbundId: string }): React.
         )}
       </div>
 
+      <div className={open ? undefined : 'hidden'}>
       <MeilensteinLeiste bewertung={b} knoten={api.plan.knoten} />
 
       <div className="mt-4 flex flex-col gap-2">
@@ -164,6 +193,7 @@ export function MeilensteinSection({ verbundId }: { verbundId: string }): React.
             ))}
           </ul>
         )}
+      </div>
       </div>
     </div>
   );

@@ -22,10 +22,15 @@
 ## v2.337 — 2026-07
 
 ### Verbesserungen
+- Auf der Verbund-Seite starten „Status &amp; Verlauf" und „Fristen &amp; Meilensteine" jetzt eingeklappt — wie das Gutachten. Die Kopfzeile zeigt weiterhin das Wichtigste: die abgeleitete Phase bzw. Prognose, Frist und Restzeit.
 - Die Gutachten-Karte ist aufgeräumt: Kopf, Text, eine Werkzeugzeile und eine ruhige Fußzeile. Die Aktionen liegen nicht mehr an drei verschiedenen Stellen, seltener Gebrauchtes steckt im ⋯-Menü.
 - Hinweise zu einem Abschnitt stehen gesammelt in einer Zeile statt in bis zu fünf Bannern übereinander.
 - Die KI-QS steht jetzt direkt unter dem Text: ein Klick auf einen Befund markiert die betroffenen Sätze. Das rechte Panel zeigt sie nicht mehr doppelt und startet eingeklappt, damit der Entwurf mehr Platz hat.
 - Am Knopf „Freigeben und weiter" ist auf einen Blick zu sehen, wie die QS ausgegangen ist.
+
+### Bugfixes
+- Im Meilenstein-Zeitstrahl standen die Wochen-Beschriftungen neben den Punkten, auf die sie sich beziehen; „Eingang" und die letzte Woche ragten in die Nachbarspalten. Die Achse sitzt jetzt auf demselben Raster wie die Zeilen.
+- Das Auswahlfeld „Meilenstein absehbar nicht zu halten?" war zu schmal und schnitt den gewählten Meilenstein mitten im Wort ab.
 
 ## v2.336 — 2026-07
 
