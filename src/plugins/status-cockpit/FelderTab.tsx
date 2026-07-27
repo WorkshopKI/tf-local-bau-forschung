@@ -14,7 +14,7 @@ import { PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
 
-const TYP_LABEL: Record<StatusFeldEintrag['typ'], string> = { wert: 'Wert', datum: 'Datum' };
+const TYP_LABEL: Record<StatusFeldEintrag['typ'], string> = { wert: 'Wert', datum: 'Datum', text: 'Text' };
 const EBENE_LABEL: Record<StatusFeldEintrag['ebene'], string> = { verbund: 'Verbund', tv: 'Teilvorhaben' };
 
 function FeldZeile({ f, csvSpalte, api }: {

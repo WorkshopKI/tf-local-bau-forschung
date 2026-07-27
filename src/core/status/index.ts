@@ -32,7 +32,15 @@ export {
   csvSpaltenJeFeld,
   SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,
 } from './cockpit-berechnung';
-export { aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu } from './katalog-edit';
+export {
+  aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
+  fuegeKategorieHinzu, aendereKategorie, entferneKategorie,
+  ergaenzeSeedFelder, type ErgaenzungsErgebnis,
+} from './katalog-edit';
+export {
+  NICHT_ZUGEORDNET_ID, kategorieIndex, kategoriePfad, kategoriePfadLabel,
+  kinderVon, flacheBaumListe, erzeugtZyklus, findeZyklus,
+} from './kategorien';
 export { exportiereVersion, validiereImport, type ImportErgebnis } from './export-import';
 export {
   eventProminenz, baueLanes, clustere,

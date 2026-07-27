@@ -31,19 +31,71 @@ export type SpinePhase =
  *  gerendert (Events werden trotzdem vollständig erfasst). */
 export type Prominenz = 'meilenstein' | 'normal' | 'nebensaechlich' | 'ignoriert';
 
+/**
+ * Zuständigkeit für einen Statuseintrag. Das Vokabular des Fachsystems trennt
+ * durchgängig zwischen administrativer und fachlicher Bearbeitung — `[ARK]`
+ * „Rücknahmeempfehlung adm." gegen `[ART]` „… techn.", `[AK4]` „Gutachten
+ * kaufmännisch" gegen `[AT4]` „… technisch". Rein deskriptiv: filtert und
+ * sortiert die Anzeige, sperrt nichts und geht nicht in die Ableitung ein.
+ */
+export type Zustaendigkeit = 'ab' | 'fb' | 'beide';
+
+/**
+ * Ein Ordner des Statusbaums, wie ihn das Fachsystem führt (Kommunikation,
+ * Antragsbearbeitung → pre-check, Betreuung, …). Beliebig tief.
+ *
+ * Verbund- und Teilvorhaben-Baum sind **getrennt**: „Kommunikation" gibt es auf
+ * beiden Ebenen, mit verschiedenen Codes dahinter (`[XYB]` gegen `[YB]`). Die
+ * `ebene` gehört deshalb an die Kategorie, nicht nur ans Feld.
+ */
+export interface StatusKategorie {
+  /** Stabil, sprechend: `vb.antragsbearbeitung`, `tv.antragsbearbeitung.pre-check`. */
+  id: string;
+  elternId: string | null;
+  label: string;
+  ebene: 'verbund' | 'tv';
+  /** Sortierung unter demselben Elternknoten (Zehnerlücken). */
+  reihenfolge: number;
+  aktiv: boolean;
+}
+
 /** Katalog-Eintrag für ein Statusfeld (CSV-Spalte bzw. Canonical-Feld). */
 export interface StatusFeldEintrag {
-  /** Normalisierter Feldname (Canonical-Field-Key, z.B. `status`, `verbund_status`). */
+  /** Canonical-Field-Key (`status`, `verbund_status`) ODER — bei den Codes des
+   *  Fachsystems — der ROHE CSV-Spalten-Code (`D_XTEC`). Der Code ist der
+   *  einzige über Programme hinweg stabile Bezeichner; der tatsächliche
+   *  Record-Key wird zur Lesezeit über das Schema aufgelöst (`feld-aufloesung.ts`). */
   feldId: string;
   label: string;
-  /** `datum`-Felder: das Datum IST das Event (kein Wert-Enum). */
-  typ: 'wert' | 'datum';
-  /** Ebene, aus der der Wert stammt: `verbund` = aus dem Verbund-Record,
-   *  `tv` = pro Teilvorhaben-Antrag. Steuert die Event-/Timeline-Zuordnung. */
+  /** `datum`: das Datum IST das Event. `text`: freier Texteintrag (`T_*`-Spalten).
+   *  Beide haben kein Wert-Enum — ihr Ableitungs-Beitrag hängt am Feld. */
+  typ: 'wert' | 'datum' | 'text';
+  /** Fachliche Ebene des Eintrags: gilt er dem Verbund oder dem Teilvorhaben?
+   *  Steuert die Event-/Timeline-Zuordnung. */
   ebene: 'verbund' | 'tv';
   /** Tatsächlicher Record-Key, falls ≠ `feldId` (z.B. `verbund_status` → der
    *  Verbund-Record führt ihn unter `status`). Default: `feldId`. */
   quelleKey?: string;
+  /**
+   * Aus WELCHEM Record gelesen wird — unabhängig von der fachlichen `ebene`.
+   * Nötig, weil die Verbund-Codes (`X`-Präfix) nicht im Verbund-Record stehen:
+   * der führt nur `titel` und `status`. Sie stehen identisch auf jeder
+   * TV-Zeile der CSV. Default: dieselbe Herkunft wie die `ebene`.
+   */
+  herkunft?: 'verbund-record' | 'tv-record';
+  /** Code des Fachsystems ohne Spalten-Präfix (`XTEC` zu `D_XTEC`) — der
+   *  Bezeichner, unter dem das Team den Eintrag kennt. */
+  code?: string;
+  /** Referenz in den Kategoriebaum (kein Pfad — Umbenennen bricht nichts).
+   *  Ohne Zuordnung erscheint das Feld unter „Nicht zugeordnet". */
+  kategorieId?: string;
+  zustaendigkeit?: Zustaendigkeit;
+  /** Ableitungs-Beitrag für Felder OHNE Wert-Enum (`datum`/`text`): dort trägt
+   *  das FELD die Phase, weil es keinen Wert gibt, an dem sie hängen könnte.
+   *  `rang` 0/undefiniert = trägt nicht bei (Default für den ganzen Seed). */
+  spinePhase?: SpinePhase;
+  rang?: number;
+  terminal?: boolean;
   prominenzDefault: Prominenz;
   aktiv: boolean;
   unkuratiert: boolean;
@@ -109,6 +161,10 @@ export interface MappingVersion {
   felder: StatusFeldEintrag[];
   werte: StatusWertEintrag[];
   regeln: NaechsterSchrittRegel[];
+  /** Der Statusbaum. Optional, damit Fassungen aus der Zeit vor dem
+   *  Code-Inventar unverändert gültig bleiben (fehlt er, sind alle Felder
+   *  „Nicht zugeordnet"). */
+  kategorien?: StatusKategorie[];
 }
 
 // --- Ableitung (Phase 3) ---
