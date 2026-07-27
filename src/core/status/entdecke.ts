@@ -121,7 +121,9 @@ export function ermittleNeueFelder(
       // Auch die Verbund-Codes stehen auf den TV-Zeilen (siehe feld-aufloesung).
       herkunft: 'tv-record',
       code,
-      zustaendigkeit: 'beide',
+      // Wer die Spalte setzt, weiß nur die Kürzel-Zuarbeit — bis die PL das Feld
+      // einsortiert, bleibt es neutral und damit unter jeder Rollenwahl sichtbar.
+      rollen: [],
       prominenzDefault: 'normal',
       // Nicht aktiv und ohne Kategorie: ein entdecktes Feld wirkt erst, wenn die
       // PL es einsortiert hat. Sonst tauchten unbenannte Spalten unvermittelt in

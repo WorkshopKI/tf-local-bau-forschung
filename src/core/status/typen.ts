@@ -32,11 +32,27 @@ export type SpinePhase =
 export type Prominenz = 'meilenstein' | 'normal' | 'nebensaechlich' | 'ignoriert';
 
 /**
- * Zuständigkeit für einen Statuseintrag. Das Vokabular des Fachsystems trennt
- * durchgängig zwischen administrativer und fachlicher Bearbeitung — `[ARK]`
- * „Rücknahmeempfehlung adm." gegen `[ART]` „… techn.", `[AK4]` „Gutachten
- * kaufmännisch" gegen `[AT4]` „… technisch". Rein deskriptiv: filtert und
- * sortiert die Anzeige, sperrt nichts und geht nicht in die Ableitung ein.
+ * Wer einen Statuseintrag setzt. Quelle ist die Kürzel-Zuarbeit des Fachsystems
+ * (Spalte „wird gesetzt von:") — deshalb heißt es „setzt", nicht „ist zuständig
+ * für": `[AN]` „NF an ASt" setzen AB/FB/QS, betreffen tut der Eintrag alle.
+ *
+ * Rein deskriptiv: filtert und sortiert die Anzeige, sperrt nichts und geht
+ * nicht in die Ableitung ein.
+ *
+ * **Neutral wird NICHT als eigener Wert geführt**: ein Eintrag ohne Rollen darf
+ * von jedem gesetzt werden und ist damit für jede Rollenwahl sichtbar (siehe
+ * `betrifftRolle` in `rollen.ts`). Ein leeres Array bedeutet „alle", nie
+ * „niemand" — der häufigste Irrtum an dieser Stelle.
+ */
+export type Rolle = 'ab' | 'fb' | 'qs' | 'pa' | 'jur';
+
+/**
+ * Vorgänger von {@link Rolle} — kannte nur die AB/FB-Achse und hatte keinen
+ * Platz für QS, PA, Juristen und neutral. Bestandsfassungen in IDB und auf dem
+ * Share tragen ihn noch; gelesen wird ausschließlich über `rollenVonFeld`
+ * (`rollen.ts`), das ihn zur Lesezeit übersetzt.
+ *
+ * @deprecated seit v2.348 — neue Einträge tragen `rollen`.
  */
 export type Zustaendigkeit = 'ab' | 'fb' | 'beide';
 
@@ -93,6 +109,11 @@ export interface StatusFeldEintrag {
   /** Referenz in den Kategoriebaum (kein Pfad — Umbenennen bricht nichts).
    *  Ohne Zuordnung erscheint das Feld unter „Nicht zugeordnet". */
   kategorieId?: string;
+  /** Wer den Eintrag setzt. LEER oder fehlend = neutral: jeder darf, der
+   *  Eintrag ist unter jeder Rollenwahl sichtbar. Immer über `rollenVonFeld`
+   *  lesen — nur dort wird `zustaendigkeit` mit übersetzt. */
+  rollen?: Rolle[];
+  /** @deprecated seit v2.348 — `rollen`. Wird nur noch gelesen, nie geschrieben. */
   zustaendigkeit?: Zustaendigkeit;
   /** Ableitungs-Beitrag für Felder OHNE Wert-Enum (`datum`/`text`): dort trägt
    *  das FELD die Phase, weil es keinen Wert gibt, an dem sie hängen könnte.

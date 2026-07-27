@@ -1,3 +1,5 @@
+import type { Rolle as StatusRolle } from '@/core/status/typen';
+
 export interface UserProfile {
   name: string;
   /**
@@ -47,16 +49,17 @@ export interface UserProfile {
    */
   home_meine_antraege_count?: number;
   /**
-   * Eigene Rolle in der Antragsbearbeitung: administrativ (AB) oder fachlich
-   * (FB). Das Statusvokabular des Fachsystems trennt beide durchgängig
-   * (`[ARK]` adm. gegen `[ART]` techn., `[AK4]` kaufmännisch gegen `[AT4]`
-   * technisch).
+   * Eigene Rolle in der Antragsbearbeitung — die Rollen, die auch das
+   * Fachsystem führt (AB, FB, QS, PA, Juristen; siehe `status/rollen.ts`).
    *
    * Wirkung ist eine **Vorauswahl, keine Sperre**: die Statusliste der
    * Detailseite startet auf die eigene Rolle gefiltert, „alle" ist ein Klick
-   * entfernt. Unset ⇒ `beide`, damit ohne gesetzte Rolle nichts verschwindet.
+   * entfernt. Unset ⇒ `alle`, damit ohne gesetzte Rolle nichts verschwindet.
+   *
+   * `beide` ist der abgelöste Wert aus v2.344 (nur AB/FB-Achse) und wird beim
+   * Lesen wie `alle` behandelt — immer über `leseStatusRolle` (`status/rollen.ts`).
    */
-  status_rolle?: 'ab' | 'fb' | 'beide';
+  status_rolle?: StatusRolle | 'alle' | 'beide';
 }
 
 export interface AIProviderConfig {

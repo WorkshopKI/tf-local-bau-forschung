@@ -2,8 +2,9 @@
  * Felder-Tab — der Statuskatalog des Fachsystems kuratieren.
  *
  * Gezeigt wird der Ordnerbaum (Verbund und Teilvorhaben getrennt), darin je Feld
- * eine Zeile mit allem, was die PL entscheidet: Name, Ordner, Zuständigkeit
- * AB/FB, Prominenz und — der wirksame Teil — Spine-Phase, Rang und terminal.
+ * eine Zeile mit allem, was die PL entscheidet: Name, Ordner, wer den Eintrag
+ * setzt (AB/FB/QS/PA/Juristen — Mehrfachauswahl, leer = jeder), Prominenz und
+ * — der wirksame Teil — Spine-Phase, Rang und terminal.
  * **Ohne Rang trägt ein Feld nicht zur Statusableitung bei**; so ist der ganze
  * Code-Katalog ausgeliefert.
  *
@@ -17,13 +18,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import {
-  flacheBaumListe, NICHT_ZUGEORDNET_ID,
-  type Prominenz, type SpinePhase, type StatusFeldEintrag, type Zustaendigkeit,
+  flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
+  betrifftRolle, rollenVonFeld, sortiereRollen,
+  type Prominenz, type Rolle, type SpinePhase, type StatusFeldEintrag,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import {
   EBENE_LABEL, PROMINENZ_LABEL, PROMINENZ_WERTE, SPINE_LABEL, SPINE_WERTE, TYP_LABEL,
-  ZUSTAENDIGKEIT_LABEL, ZUSTAENDIGKEIT_WERTE, feldKlasse, feldStil,
+  feldKlasse, feldStil,
 } from './labels';
 import { KategorieEditor } from './KategorieEditor';
 
@@ -33,6 +35,42 @@ const tdKlasse = 'px-2 py-1.5 align-middle';
 /** Ohne Zuordnung sichtbar bleiben: Felder ohne Ordner landen im Sammelordner. */
 function ordnerVon(feld: StatusFeldEintrag): string {
   return feld.kategorieId ?? NICHT_ZUGEORDNET_ID[feld.ebene];
+}
+
+/**
+ * Wer den Eintrag setzt — Mehrfachauswahl, weil das Fachsystem Kombinationen
+ * führt (`AB/FB/QS`, `AB/QS/Juristen`). KEINE Auswahl heißt „jeder darf";
+ * das steht in der Spaltenüberschrift, damit die Zeile ohne Zusatz-Zeichen
+ * auskommt und in jeder Zeile gleich breit bleibt.
+ */
+function RollenWahl({ f, set }: {
+  f: StatusFeldEintrag;
+  set: (patch: Partial<StatusFeldEintrag>) => void;
+}): React.ReactElement {
+  const aktiv = rollenVonFeld(f);
+  const toggle = (r: Rolle): void => {
+    const next = aktiv.includes(r) ? aktiv.filter(x => x !== r) : sortiereRollen([...aktiv, r]);
+    // Den abgelösten Wert gleich mit ausbuchen: sonst bliebe er als toter
+    // Ballast in der Fassung stehen und würde beim nächsten Export mitwandern.
+    set({ rollen: next, zustaendigkeit: undefined });
+  };
+  return (
+    <div className="flex items-center gap-1">
+      {ROLLEN.map(r => {
+        const an = aktiv.includes(r);
+        return (
+          <button
+            key={r} type="button" onClick={() => toggle(r)} aria-pressed={an} title={ROLLE_LANG[r]}
+            className={`text-[11px] leading-none rounded px-1.5 py-1 cursor-pointer ${
+              an ? 'text-white' : 'text-[var(--tf-text-tertiary)]'}`}
+            style={an ? { background: 'var(--tf-primary)' } : feldStil}
+          >
+            {ROLLE_LABEL[r]}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function FeldZeile({ f, csvSpalte, api, ordnerWahl }: {
@@ -64,11 +102,8 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl }: {
           {ordnerWahl.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
       </td>
-      <td className={`${tdKlasse} min-w-[104px]`}>
-        <select value={f.zustaendigkeit ?? 'beide'} className={feldKlasse} style={feldStil}
-          onChange={e => set({ zustaendigkeit: e.target.value as Zustaendigkeit })}>
-          {ZUSTAENDIGKEIT_WERTE.map(z => <option key={z} value={z}>{ZUSTAENDIGKEIT_LABEL[z]}</option>)}
-        </select>
+      <td className={`${tdKlasse} whitespace-nowrap`}>
+        <RollenWahl f={f} set={set} />
       </td>
       <td className={`${tdKlasse} min-w-[124px]`}>
         <select value={f.prominenzDefault} className={feldKlasse} style={feldStil}
@@ -110,9 +145,10 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl }: {
 export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const [suche, setSuche] = useState('');
   const [ebeneFilter, setEbeneFilter] = useState<'alle' | 'verbund' | 'tv'>('alle');
-  const [zustFilter, setZustFilter] = useState<'alle' | Zustaendigkeit>('alle');
+  const [rolleFilter, setRolleFilter] = useState<'alle' | Rolle>('alle');
   const [nurMitRang, setNurMitRang] = useState(false);
   const [ordnerOffen, setOrdnerOffen] = useState(false);
+  const [abweichungenOffen, setAbweichungenOffen] = useState(false);
   const [zu, setZu] = useState<ReadonlySet<string>>(() => new Set());
 
   const entwurf = api.entwurf;
@@ -132,13 +168,15 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
     const q = suche.trim().toLowerCase();
     return (entwurf?.felder ?? []).filter(f => {
       if (ebeneFilter !== 'alle' && f.ebene !== ebeneFilter) return false;
-      if (zustFilter !== 'alle' && (f.zustaendigkeit ?? 'beide') !== zustFilter) return false;
+      // Neutrale Einträge (ohne Rollen) bleiben unter jeder Wahl sichtbar —
+      // „jeder darf setzen", nicht „niemand".
+      if (!betrifftRolle(f, rolleFilter)) return false;
       if (nurMitRang && (f.rang ?? 0) === 0) return false;
       if (!q) return true;
       const spalten = api.csvSpalten.get(f.feldId)?.join(' ') ?? '';
       return `${f.code ?? ''} ${f.feldId} ${f.label} ${spalten}`.toLowerCase().includes(q);
     });
-  }, [entwurf, suche, ebeneFilter, zustFilter, nurMitRang, api.csvSpalten]);
+  }, [entwurf, suche, ebeneFilter, rolleFilter, nurMitRang, api.csvSpalten]);
 
   if (!entwurf) return null;
 
@@ -166,6 +204,50 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             Fassung fehlen.
           </span>
           <Button variant="secondary" size="sm" onClick={api.seedNachziehen}>Nachziehen</Button>
+        </div>
+      )}
+
+      {api.textAbweichungen.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded px-2.5 py-2" style={feldStil}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[12.5px] text-[var(--tf-text)]">
+              Bei {api.textAbweichungen.length} Feldern weichen Bezeichnung oder Rollen von der
+              Kürzel-Zuarbeit des Fachsystems ab. Ordner, Phase und Rang bleiben unangetastet.
+            </span>
+            <Button variant="secondary" size="sm" onClick={api.texteUebernehmen}>
+              Zuarbeit übernehmen
+            </Button>
+          </div>
+          <button
+            type="button" onClick={() => setAbweichungenOffen(v => !v)} aria-expanded={abweichungenOffen}
+            className="self-start text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer underline"
+          >
+            {abweichungenOffen ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
+          </button>
+          {abweichungenOffen && (
+            <ul className="flex flex-col gap-0.5 max-h-[220px] overflow-y-auto">
+              {api.textAbweichungen.map(a => (
+                <li key={a.feldId} className="text-[11.5px] text-[var(--tf-text-secondary)] flex gap-2">
+                  <span className="font-mono text-[var(--tf-text-tertiary)] shrink-0 w-[72px] truncate">
+                    {a.code ?? a.feldId}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="line-through">{a.altesLabel}</span>
+                    {' → '}
+                    <span className="text-[var(--tf-text)]">{a.neuesLabel}</span>
+                    {a.alteRollen.join('/') !== a.neueRollen.join('/') && (
+                      <span className="text-[var(--tf-text-tertiary)]">
+                        {' · '}
+                        {a.alteRollen.length ? a.alteRollen.map(r => ROLLE_LABEL[r]).join('/') : 'alle'}
+                        {' → '}
+                        {a.neueRollen.length ? a.neueRollen.map(r => ROLLE_LABEL[r]).join('/') : 'alle'}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -207,10 +289,10 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             />
           ))}
           <span className="w-2" />
-          {(['alle', ...ZUSTAENDIGKEIT_WERTE] as const).map(z => (
+          {(['alle', ...ROLLEN] as const).map(r => (
             <ToggleChip
-              key={z} label={z === 'alle' ? 'Alle Zuständigkeiten' : ZUSTAENDIGKEIT_LABEL[z]}
-              selected={zustFilter === z} onToggle={() => setZustFilter(z)}
+              key={r} label={r === 'alle' ? 'Alle Rollen' : ROLLE_LABEL[r]}
+              selected={rolleFilter === r} onToggle={() => setRolleFilter(r)}
             />
           ))}
           <span className="w-2" />
@@ -273,7 +355,12 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
                           <th className={thKlasse}>Bezeichnung</th>
                           <th className={thKlasse}>Typ</th>
                           <th className={thKlasse}>Ordner</th>
-                          <th className={thKlasse} title="Administrative bzw. fachliche Bearbeitung">Zuständig</th>
+                          <th
+                            className={thKlasse}
+                            title="Rollen des Fachsystems: AB, FB, QS, PA, Juristen. Keine Auswahl = jeder darf setzen."
+                          >
+                            wird gesetzt von <span className="font-normal">(leer = alle)</span>
+                          </th>
                           <th className={thKlasse}>Prominenz</th>
                           <th className={thKlasse}>Spine-Phase</th>
                           <th className={thKlasse}>Rang</th>

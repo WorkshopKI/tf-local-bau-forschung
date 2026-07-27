@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   aendereKategorie, entferneKategorie, ergaenzeSeedFelder, fuegeFeldHinzu, fuegeKategorieHinzu,
+  seedTextAbweichungen, uebernimmSeedTexte,
 } from '@/core/status/katalog-edit';
 import { baueSeedVersion } from '@/core/status/seed';
 import { SEED_KATEGORIEN as SEED_KATEGORIEN_ECHT } from '@/core/status/seed-kategorien';
@@ -113,5 +114,60 @@ describe('ergaenzeSeedFelder', () => {
     const r = ergaenzeSeedFelder(teil, SEED_FELDER, SEED_KATEGORIEN);
     expect(r.neueFelder).toBe(1);
     expect(r.neueKategorien).toBe(0);
+  });
+});
+
+describe('Abgleich mit der Kürzel-Zuarbeit', () => {
+  /** Fassung mit einem Feld, das anders heißt und die abgelöste Zuständigkeit trägt. */
+  function fassungMitAltstand(): MappingVersion {
+    const basis = ergaenzeSeedFelder(altfassung(), SEED_FELDER, SEED_KATEGORIEN).version;
+    return {
+      ...basis,
+      felder: basis.felder.map(f => (f.feldId === 'D_ZZ1'
+        ? { ...f, label: 'Alte Bezeichnung', zustaendigkeit: 'beide' as const, rang: 42 }
+        : f)),
+    };
+  }
+
+  const AUSLIEFERUNG: StatusFeldEintrag[] = [
+    { ...feld('D_ZZ1', 'zz.ab'), label: 'Neue Bezeichnung', rollen: ['qs'] },
+    { ...feld('D_ZZ2', 'zz.ab'), rollen: [] },
+  ];
+
+  it('meldet abweichende Bezeichnung und Rollen', () => {
+    const a = seedTextAbweichungen(fassungMitAltstand(), AUSLIEFERUNG);
+    expect(a).toHaveLength(1);
+    expect(a[0]!.altesLabel).toBe('Alte Bezeichnung');
+    expect(a[0]!.neuesLabel).toBe('Neue Bezeichnung');
+    expect(a[0]!.alteRollen).toEqual(['ab', 'fb']); // aus `beide` übersetzt
+    expect(a[0]!.neueRollen).toEqual(['qs']);
+  });
+
+  it('meldet nichts, wenn beides übereinstimmt', () => {
+    const gleich = ergaenzeSeedFelder(altfassung(), AUSLIEFERUNG, SEED_KATEGORIEN).version;
+    expect(seedTextAbweichungen(gleich, AUSLIEFERUNG)).toEqual([]);
+  });
+
+  it('übernimmt Bezeichnung und Rollen — und lässt die Kuration in Ruhe', () => {
+    const nachher = uebernimmSeedTexte(fassungMitAltstand(), AUSLIEFERUNG);
+    const f = nachher.felder.find(x => x.feldId === 'D_ZZ1')!;
+    expect(f.label).toBe('Neue Bezeichnung');
+    expect(f.rollen).toEqual(['qs']);
+    // Der Rang ist eine Entscheidung der PL und überlebt die Übernahme.
+    expect(f.rang).toBe(42);
+    // Der abgelöste Wert wird ausgebucht, sonst widerspräche er den Rollen.
+    expect(f.zustaendigkeit).toBeUndefined();
+  });
+
+  it('ist idempotent und gibt bei Gleichstand dieselbe Referenz zurück', () => {
+    const einmal = uebernimmSeedTexte(fassungMitAltstand(), AUSLIEFERUNG);
+    expect(uebernimmSeedTexte(einmal, AUSLIEFERUNG)).toBe(einmal);
+  });
+
+  it('rührt Felder nicht an, die die Auslieferung nicht kennt', () => {
+    const v = fassungMitAltstand();
+    const nachher = uebernimmSeedTexte(v, [AUSLIEFERUNG[0]!]);
+    const unberuehrt = nachher.felder.find(x => x.feldId === 'D_ZZ2');
+    expect(unberuehrt).toEqual(v.felder.find(x => x.feldId === 'D_ZZ2'));
   });
 });

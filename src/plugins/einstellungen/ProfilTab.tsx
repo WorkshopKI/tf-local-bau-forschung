@@ -5,6 +5,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import { useKuerzelFilterOptions } from '@/plugins/auslastung/hooks/useKuerzelFilterOptions';
 import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
+import { ROLLEN, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
 import {
   isKuratorMenusEnabled,
   isMaLoginEnabled,
@@ -98,18 +99,17 @@ export function ProfilTab(): React.ReactElement {
           <SettingsRowGroup>
             <FieldLabel
               text="Meine Rolle"
-              hint="Das Statusvokabular trennt administrative und fachliche Bearbeitung. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt."
+              hint="Das Fachsystem vermerkt bei jedem Statuseintrag, wer ihn setzt. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt. Einträge, die jeder setzen darf, bleiben immer sichtbar."
             />
             <select
-              value={profile.status_rolle ?? 'beide'}
-              onChange={e => updateProfile({ status_rolle: e.target.value as 'ab' | 'fb' | 'beide' })}
+              value={leseStatusRolle(profile.status_rolle)}
+              onChange={e => updateProfile({ status_rolle: e.target.value as Rolle | 'alle' })}
               aria-label="Meine Rolle in der Antragsbearbeitung"
               className="h-8 text-[13px] rounded px-2 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer"
               style={{ border: '0.5px solid var(--tf-border)' }}
             >
-              <option value="beide">Beides</option>
-              <option value="ab">AB — administrativ</option>
-              <option value="fb">FB — fachlich</option>
+              <option value="alle">Alle Rollen</option>
+              {ROLLEN.map(r => <option key={r} value={r}>{ROLLE_LANG[r]}</option>)}
             </select>
           </SettingsRowGroup>
         </SettingsRow>

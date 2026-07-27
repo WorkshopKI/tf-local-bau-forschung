@@ -95,13 +95,17 @@ function prominenzFor(normalisierterWert: string): Prominenz {
  * und jedes Ereignis zählte doppelt.
  */
 const FELDER: StatusFeldEintrag[] = [
-  { feldId: 'status', label: 'TV-Status', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', zustaendigkeit: 'beide', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-  { feldId: 'verbund_status', label: 'Verbund-Status', typ: 'wert', ebene: 'verbund', quelleKey: 'status', herkunft: 'verbund-record', kategorieId: 'vb.antragsbearbeitung', zustaendigkeit: 'beide', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-  { feldId: 'vb_phase', label: 'Verbund-Phase (Fördervariante)', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', zustaendigkeit: 'beide', prominenzDefault: 'nebensaechlich', aktiv: true, unkuratiert: false },
-  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', ebene: 'tv', code: 'AAE', kategorieId: 'tv.antragsbearbeitung', zustaendigkeit: 'beide', spinePhase: 'eingang', rang: 10, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', ebene: 'tv', code: 'AZ1', kategorieId: 'tv.antragsbearbeitung', zustaendigkeit: 'beide', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', ebene: 'tv', code: 'ABB', kategorieId: 'tv.antragsbearbeitung', zustaendigkeit: 'beide', spinePhase: 'bewilligung', rang: 42, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', ebene: 'tv', code: 'VBE', kategorieId: 'tv.verwendungsnachweis', zustaendigkeit: 'beide', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  // `rollen: []` = neutral, also unter jeder Rollenwahl sichtbar. Die drei
+  // Wert-Felder sind unsere eigenen Projektionen und gehören niemandem; bei den
+  // Datumsfeldern steht die Rolle in der Kürzel-Zuarbeit (AAE=PA, ABB=QS,
+  // AZ1/VBE=neutral).
+  { feldId: 'status', label: 'TV-Status', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  { feldId: 'verbund_status', label: 'Verbund-Status', typ: 'wert', ebene: 'verbund', quelleKey: 'status', herkunft: 'verbund-record', kategorieId: 'vb.antragsbearbeitung', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  { feldId: 'vb_phase', label: 'Verbund-Phase (Fördervariante)', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'nebensaechlich', aktiv: true, unkuratiert: false },
+  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', ebene: 'tv', code: 'AAE', kategorieId: 'tv.antragsbearbeitung', rollen: ['pa'], spinePhase: 'eingang', rang: 10, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', ebene: 'tv', code: 'AZ1', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', ebene: 'tv', code: 'ABB', kategorieId: 'tv.antragsbearbeitung', rollen: ['qs'], spinePhase: 'bewilligung', rang: 42, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', ebene: 'tv', code: 'VBE', kategorieId: 'tv.verwendungsnachweis', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
 ];
 
 function baueWerte(): StatusWertEintrag[] {
@@ -159,6 +163,20 @@ function baueSeedRegeln(): NaechsterSchrittRegel[] {
  * sondern über `ergaenzeSeedFelder` im Cockpit, damit Handarbeit der PL nicht
  * überschrieben wird.
  */
+/**
+ * Der Code-Katalog OHNE die Codes, die schon als kanonisches Feld im Katalog
+ * stehen (`AAE` zu `antragsdatum`, `ABB` zu `bewilligung_datum`, …).
+ *
+ * Diese Spalten sind app-weit gemappt (`CANONICAL_FIELD_NAME_ALIASES`); ein
+ * zweiter Eintrag darauf zählte jedes Ereignis doppelt. Die Ausschlussliste
+ * wird aus den kanonischen Feldern ABGELEITET statt gepflegt — ein neues
+ * kanonisches Feld mit `code` wirkt hier automatisch.
+ */
+function codeFelderOhneKanonische(): StatusFeldEintrag[] {
+  const kanonisch = new Set(FELDER.map(f => f.code).filter((c): c is string => !!c));
+  return baueSeedCodeFelder().filter(f => !f.code || !kanonisch.has(f.code));
+}
+
 export function baueSeedVersion(): MappingVersion {
   return {
     version: 1,
@@ -166,7 +184,7 @@ export function baueSeedVersion(): MappingVersion {
     zeitstempel: SEED_ZEITSTEMPEL,
     kommentar: 'Auslieferungs-Seed (status-canonical.ts + Code-Katalog des Fachsystems)',
     kategorien: SEED_KATEGORIEN.map(k => ({ ...k })),
-    felder: [...FELDER.map(f => ({ ...f })), ...baueSeedCodeFelder()],
+    felder: [...FELDER.map(f => ({ ...f })), ...codeFelderOhneKanonische()],
     werte: baueWerte(),
     regeln: baueSeedRegeln(),
   };

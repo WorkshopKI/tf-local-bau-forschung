@@ -102,6 +102,12 @@ describe('doc-links', () => {
     // ROHE Spalten-Code (nicht der Record-Key), `ebene` und `herkunft` sind
     // verschieden, und ein Feld ohne Rang wirkt nicht. Das Detail lebt in
     // docs/status-system/KATALOG-CODES.md.
-    expect(bytes).toBeLessThan(51_200);
+    // 51_200 → 52_000 (v2.349): Pitfall #43 für die Kürzel-Zuarbeit. Zwei
+    // Regeln, die man ohne Hinweis garantiert falsch macht: Bezeichnung und
+    // Rolle sind GENERIERTE Fremddaten (wer sie von Hand editiert, verliert sie
+    // beim nächsten Lauf), und ein leeres Rollen-Array heißt „jeder darf",
+    // nicht „niemand" — die umgekehrte Lesart blendet 143 von 505 Codes
+    // überall aus. Das Detail lebt in docs/status-system/KATALOG-CODES.md.
+    expect(bytes).toBeLessThan(52_000);
   });
 });

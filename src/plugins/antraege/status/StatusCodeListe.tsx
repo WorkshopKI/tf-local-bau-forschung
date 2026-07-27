@@ -6,20 +6,21 @@
  * „was steht in welchem Ordner" — dieselbe Ordnung, in der das Team seine
  * Vorgänge kennt. Read-only; kuratiert wird im Status-Cockpit.
  *
- * Die eigene Rolle (Profil: AB/FB) ist eine **Vorauswahl, keine Sperre**: die
- * Liste startet gefiltert, „Alle" ist ein Klick entfernt.
+ * Die eigene Rolle (Profil) ist eine **Vorauswahl, keine Sperre**: die Liste
+ * startet gefiltert, „Alle" ist ein Klick entfernt. Neutrale Einträge — die das
+ * Fachsystem von jedem setzen lässt — bleiben unter jeder Wahl sichtbar.
  */
 import { useMemo, useState } from 'react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useProfile } from '@/core/hooks/useProfile';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import {
-  flacheBaumListe, NICHT_ZUGEORDNET_ID,
-  type FeldVorkommen, type MappingVersion, type Zustaendigkeit,
+  flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
+  betrifftRolle, istNeutral, leseStatusRolle, rollenLabel,
+  type FeldVorkommen, type MappingVersion, type Rolle,
 } from '@/core/status';
 
 const EBENE_LABEL: Record<'verbund' | 'tv', string> = { verbund: 'Verbund', tv: 'Teilvorhaben' };
-const ZUST_LABEL: Record<Zustaendigkeit, string> = { ab: 'AB', fb: 'FB', beide: 'AB + FB' };
 
 /** Datum lesbar, sonst der Rohwert (Textfelder tragen keinen Termin). */
 function anzeige(v: FeldVorkommen): string {
@@ -32,26 +33,19 @@ function anzeige(v: FeldVorkommen): string {
     : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-/** Passt der Eintrag zur gewählten Rolle? `beide` ist immer relevant. */
-function passtZuRolle(v: FeldVorkommen, rolle: Zustaendigkeit): boolean {
-  if (rolle === 'beide') return true;
-  const z = v.feld.zustaendigkeit ?? 'beide';
-  return z === 'beide' || z === rolle;
-}
-
 export function StatusCodeListe({ version, vorkommen }: {
   version: MappingVersion;
   vorkommen: readonly FeldVorkommen[];
 }): React.ReactElement | null {
   const { profile } = useProfile();
-  const [rolle, setRolle] = useState<Zustaendigkeit>(() => profile?.status_rolle ?? 'beide');
+  const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
 
   const kategorien = version.kategorien ?? [];
 
   /** Nur Einträge, die überhaupt angezeigt werden sollen — „Ignoriert" heißt hier: nirgends. */
   const sichtbar = useMemo(
     () => vorkommen.filter(v =>
-      v.feld.aktiv && v.feld.prominenzDefault !== 'ignoriert' && passtZuRolle(v, rolle)),
+      v.feld.aktiv && v.feld.prominenzDefault !== 'ignoriert' && betrifftRolle(v.feld, rolle)),
     [vorkommen, rolle],
   );
 
@@ -73,10 +67,11 @@ export function StatusCodeListe({ version, vorkommen }: {
         <h4 className="text-[13px] font-medium text-[var(--tf-text)]">Statuseinträge</h4>
         <span className="text-[12px] text-[var(--tf-text-tertiary)]">{sichtbar.length}</span>
         <span className="flex-1" />
-        {(['beide', 'ab', 'fb'] as const).map(r => (
+        {(['alle', ...ROLLEN] as const).map(r => (
           <ToggleChip
             key={r}
-            label={r === 'beide' ? 'Alle' : ZUST_LABEL[r]}
+            label={r === 'alle' ? 'Alle' : ROLLE_LABEL[r]}
+            title={r === 'alle' ? undefined : ROLLE_LANG[r]}
             selected={rolle === r}
             onToggle={() => setRolle(r)}
           />
@@ -108,9 +103,11 @@ export function StatusCodeListe({ version, vorkommen }: {
                     {v.tvId && (
                       <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)] shrink-0">{v.tvId}</span>
                     )}
-                    {(v.feld.zustaendigkeit ?? 'beide') !== 'beide' && (
+                    {/* Neutrale Einträge tragen kein Kürzel: „alle" an jeder
+                        zweiten Zeile wäre Rauschen ohne Information. */}
+                    {!istNeutral(v.feld) && (
                       <span className="text-[11px] text-[var(--tf-text-tertiary)] shrink-0">
-                        {ZUST_LABEL[v.feld.zustaendigkeit!]}
+                        {rollenLabel(v.feld)}
                       </span>
                     )}
                     <span className="text-[12px] text-[var(--tf-text-secondary)] shrink-0 tabular-nums" title={v.text}>

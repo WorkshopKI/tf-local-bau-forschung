@@ -8,7 +8,7 @@
 import {
   SPINE_REIHENFOLGE,
   type SpinePhase, type StatusCategory, type Prominenz, type Werkzeug,
-  type Zustaendigkeit, type StatusFeldEintrag,
+  type StatusFeldEintrag,
 } from '@/core/status';
 
 export const SPINE_LABEL: Record<SpinePhase, string> = {
@@ -44,16 +44,6 @@ export const WERKZEUG_LABEL: Record<Werkzeug, string> = {
   nachforderung: 'Nachforderung',
   ablehnung: 'Ablehnung',
 };
-
-/** Zuständigkeit — die Abkürzungen sind im Team eingebürgert, ausgeschrieben
- *  steht die Bedeutung im Tooltip der Spalte. */
-export const ZUSTAENDIGKEIT_LABEL: Record<Zustaendigkeit, string> = {
-  ab: 'AB',
-  fb: 'FB',
-  beide: 'AB + FB',
-};
-
-export const ZUSTAENDIGKEIT_WERTE: readonly Zustaendigkeit[] = ['ab', 'fb', 'beide'];
 
 export const EBENE_LABEL: Record<'verbund' | 'tv', string> = {
   verbund: 'Verbund',

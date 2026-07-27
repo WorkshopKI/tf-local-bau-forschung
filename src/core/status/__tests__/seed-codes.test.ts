@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE } from '@/core/status/seed-codes';
+import { ZUARBEIT_CODES } from '@/core/status/seed-codes.data';
 import { LEERE_SEED_KATEGORIEN, SEED_KATEGORIEN } from '@/core/status/seed-kategorien';
-import { findeZyklus, flacheBaumListe } from '@/core/status/kategorien';
+import { findeZyklus, flacheBaumListe, NICHT_ZUGEORDNET_ID } from '@/core/status/kategorien';
+import { ROLLEN } from '@/core/status/rollen';
 
 const FELDER = baueSeedCodeFelder();
 const KATEGORIE_IDS = new Set(SEED_KATEGORIEN.map(k => k.id));
@@ -70,10 +72,38 @@ describe('Seed-Code-Katalog', () => {
     }
   });
 
-  it('gibt jedem Code Label und Zuständigkeit', () => {
+  it('gibt jedem Code eine Bezeichnung aus der Zuarbeit', () => {
     for (const f of FELDER) {
       expect(f.label.trim().length).toBeGreaterThan(0);
-      expect(['ab', 'fb', 'beide']).toContain(f.zustaendigkeit);
+    }
+  });
+
+  it('trägt nur bekannte Rollen und schreibt die abgelöste Zuständigkeit nicht mehr', () => {
+    for (const f of FELDER) {
+      expect(f.rollen).toBeDefined();
+      for (const r of f.rollen!) expect(ROLLEN).toContain(r);
+      expect(f.zustaendigkeit).toBeUndefined();
+    }
+  });
+
+  it('kuriert ausschließlich Codes, die die Zuarbeit führt', () => {
+    // Sonst erschiene der Eintrag namenlos — bzw. würde stillschweigend
+    // verworfen. Beides ist schlechter als ein roter Test.
+    const bekannt = new Set(ZUARBEIT_CODES.map(z => z.code));
+    const unbekannt: string[] = [];
+    for (const { codes } of SEED_CODE_TABELLE) {
+      for (const c of codes) if (!bekannt.has(c)) unbekannt.push(c);
+    }
+    expect(unbekannt, `Kuration kennt Codes, die die Zuarbeit nicht führt: ${unbekannt.join(', ')}`)
+      .toEqual([]);
+  });
+
+  it('nimmt jeden Code der Zuarbeit auf — Uneinsortiertes in den Sammelordner', () => {
+    expect(FELDER.length).toBe(ZUARBEIT_CODES.length);
+    const einsortiert = new Set(SEED_CODE_TABELLE.flatMap(t => t.codes));
+    for (const f of FELDER) {
+      if (einsortiert.has(f.code!)) continue;
+      expect(f.kategorieId).toBe(NICHT_ZUGEORDNET_ID[f.ebene]);
     }
   });
 
@@ -100,7 +130,13 @@ describe('Seed-Code-Katalog', () => {
   });
 
   it('lässt die eingeklappten Ordner bewusst leer', () => {
+    // Die Sammelordner sind ausgenommen: seit die Zuarbeit alle 505 Codes
+    // liefert, landet dort alles, was die Bildschirmfotos nicht zeigten.
     const belegt = new Set(FELDER.map(f => f.kategorieId));
-    for (const id of LEERE_SEED_KATEGORIEN) expect(belegt.has(id)).toBe(false);
+    const sammel = new Set(Object.values(NICHT_ZUGEORDNET_ID));
+    for (const id of LEERE_SEED_KATEGORIEN) {
+      if (sammel.has(id)) continue;
+      expect(belegt.has(id), `${id} sollte leer ausgeliefert werden`).toBe(false);
+    }
   });
 });

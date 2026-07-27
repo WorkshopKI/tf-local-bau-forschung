@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.348 — 2026-07
+
+### Neu
+- Der Statuskatalog kennt jetzt alle Kürzel des Fachsystems mit ihrer offiziellen Bezeichnung — statt der rund 180, die aus den Ordnerbäumen abgelesen waren.
+- Zu jedem Eintrag steht, wer ihn setzt: AB, FB, QS, PA oder Juristen. Unter „Meine Rolle" im Profil wählen Sie Ihre eigene, und die Statusliste am Antrag startet darauf gefiltert.
+
+### Verbesserungen
+- Einträge, die jeder setzen darf, bleiben bei jeder Rollenwahl sichtbar — Sie verpassen nichts, wenn Sie filtern.
+- Kürzel, deren Ordner nicht bekannt ist, stehen sichtbar unter „Nicht zugeordnet", statt zu fehlen.
+- Weicht eine Bezeichnung von der Liste des Fachsystems ab, bietet der Statuskatalog die Korrektur mit Vorschau an — Ihre eigene Einsortierung bleibt dabei unangetastet.
+
 ## v2.347 — 2026-07
 
 ### Neu

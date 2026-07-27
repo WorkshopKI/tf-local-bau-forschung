@@ -34,6 +34,11 @@ export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type R
 export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
 export { KATEGORIE_ZU_SPINE, SPINE_ZU_KATEGORIE, kategorieFuerFeld } from './spine-kategorie';
 export {
+  ROLLEN, ROLLE_LABEL, ROLLE_LANG, NEUTRAL_LABEL,
+  rollenVonFeld, istNeutral, betrifftRolle, rollenLabel, sortiereRollen, parseRollenSpalte,
+  leseStatusRolle,
+} from './rollen';
+export {
   loeseKategorieSpalten, kategorienMitDatumsfeldern, kategorieSpaltenSignatur,
 } from './kategorie-projektion';
 export { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
@@ -51,6 +56,7 @@ export {
   aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie,
   ergaenzeSeedFelder, type ErgaenzungsErgebnis,
+  seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
 } from './katalog-edit';
 export {
   NICHT_ZUGEORDNET_ID, kategorieIndex, kategoriePfad, kategoriePfadLabel,

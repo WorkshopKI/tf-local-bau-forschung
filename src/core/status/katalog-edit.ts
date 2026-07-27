@@ -3,9 +3,10 @@
  * Funktion liefert eine neue Version (nie in-place); id/feldId bleiben stabil.
  */
 import type {
-  MappingVersion, NaechsterSchrittRegel, StatusFeldEintrag, StatusKategorie, StatusWertEintrag,
+  MappingVersion, NaechsterSchrittRegel, Rolle, StatusFeldEintrag, StatusKategorie, StatusWertEintrag,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
+import { rollenVonFeld } from './rollen';
 
 export function aendereWert(
   version: MappingVersion, id: string, patch: Partial<StatusWertEintrag>,
@@ -145,5 +146,77 @@ export function ergaenzeSeedFelder(
     },
     neueFelder: neueFelder.length,
     neueKategorien: neueKategorien.length,
+  };
+}
+
+// --- Abgleich mit der Kürzel-Zuarbeit ---------------------------------------
+
+/** Eine Abweichung zwischen Fassung und Auslieferung — für die Vorschau. */
+export interface TextAbweichung {
+  feldId: string;
+  code?: string;
+  altesLabel: string;
+  neuesLabel: string;
+  alteRollen: readonly Rolle[];
+  neueRollen: readonly Rolle[];
+}
+
+/**
+ * Wo weichen Bezeichnung oder Rollen einer Fassung von der Auslieferung ab?
+ *
+ * Nur diese beiden Angaben, denn nur sie sind **Fremddaten**: sie stammen aus
+ * der Kürzel-Zuarbeit des Fachsystems, nicht aus unserer Kuration. Ordner,
+ * Prominenz, Spine-Phase und Rang bleiben außen vor — das sind Entscheidungen
+ * der PL, die eine Auslieferung nicht zurücksetzen darf.
+ *
+ * Rein: liefert nur den Befund, ändert nichts.
+ */
+export function seedTextAbweichungen(
+  version: MappingVersion,
+  seedFelder: readonly StatusFeldEintrag[],
+): TextAbweichung[] {
+  const seed = new Map(seedFelder.map(f => [f.feldId, f]));
+  const treffer: TextAbweichung[] = [];
+  for (const f of version.felder) {
+    const s = seed.get(f.feldId);
+    if (!s) continue;
+    const alteRollen = rollenVonFeld(f);
+    const neueRollen = rollenVonFeld(s);
+    const labelAnders = f.label !== s.label;
+    const rollenAnders = alteRollen.join('/') !== neueRollen.join('/');
+    if (!labelAnders && !rollenAnders) continue;
+    treffer.push({
+      feldId: f.feldId,
+      ...(s.code ? { code: s.code } : {}),
+      altesLabel: f.label,
+      neuesLabel: s.label,
+      alteRollen,
+      neueRollen,
+    });
+  }
+  return treffer;
+}
+
+/**
+ * Übernimmt Bezeichnung und Rollen der Auslieferung in eine Fassung — und sonst
+ * nichts. Gibt dieselbe Referenz zurück, wenn es nichts zu tun gibt (idempotent).
+ */
+export function uebernimmSeedTexte(
+  version: MappingVersion,
+  seedFelder: readonly StatusFeldEintrag[],
+): MappingVersion {
+  const betroffen = new Set(seedTextAbweichungen(version, seedFelder).map(a => a.feldId));
+  if (betroffen.size === 0) return version;
+  const seed = new Map(seedFelder.map(f => [f.feldId, f]));
+  return {
+    ...version,
+    felder: version.felder.map(f => {
+      if (!betroffen.has(f.feldId)) return f;
+      const s = seed.get(f.feldId)!;
+      // `zustaendigkeit` fällt weg: sonst bliebe der abgelöste Wert stehen und
+      // widerspräche den frisch gesetzten Rollen im Export.
+      const { zustaendigkeit: _abgeloest, ...rest } = f;
+      return { ...rest, label: s.label, rollen: [...rollenVonFeld(s)] };
+    }),
   };
 }

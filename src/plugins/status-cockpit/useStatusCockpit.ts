@@ -24,6 +24,7 @@ import {
   csvSpaltenJeFeld, baueFeldAufloesung,
   aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
+  seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   baueSeedCodeFelder, SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare,
@@ -43,6 +44,8 @@ export interface StatusCockpitApi {
   unkuratierteFelder: StatusFeldEintrag[];
   /** Wie viele Felder/Ordner die Auslieferung führt, die dem Entwurf fehlen. */
   seedLuecke: { felder: number; kategorien: number };
+  /** Felder, deren Bezeichnung/Rollen von der Kürzel-Zuarbeit abweichen. */
+  textAbweichungen: readonly TextAbweichung[];
   /** wertId → Anzahl Verbünde mit diesem (Feld,Wert). */
   vorkommen: Map<string, number>;
   /** wertId → jüngstes erfasstAm (ISO). */
@@ -76,6 +79,8 @@ export interface StatusCockpitApi {
   uebernehmeFeld: (feld: StatusFeldEintrag, kategorieId: string) => void;
   /** Fehlende Auslieferungs-Felder und -Ordner in den Entwurf nachziehen. */
   seedNachziehen: () => void;
+  /** Bezeichnung + Rollen aus der Kürzel-Zuarbeit übernehmen (sonst nichts). */
+  texteUebernehmen: () => void;
   verwerfen: () => void;
   speichern: (kommentar: string) => Promise<void>;
   reaktivieren: (version: number) => Promise<void>;
@@ -207,6 +212,17 @@ export function useStatusCockpit(): StatusCockpitApi {
     return { felder: r.neueFelder, kategorien: r.neueKategorien };
   }, [entwurf]);
 
+  /**
+   * Wo Bezeichnung oder Rollen der Fassung von der Kürzel-Zuarbeit abweichen.
+   * Getrennt vom Nachziehen, weil es hier um **Fremddaten** geht: die Zuarbeit
+   * ist die Quelle der Wahrheit für „wie heißt der Code" und „wer setzt ihn",
+   * unsere Kuration (Ordner, Phase, Rang) bleibt unangetastet.
+   */
+  const textAbweichungen = useMemo(
+    () => (entwurf ? seedTextAbweichungen(entwurf, SEED_FELDER) : []),
+    [entwurf],
+  );
+
   const speichern = useCallback(async (kommentar: string): Promise<void> => {
     if (!entwurf) return;
     setSpeichernBusy(true);
@@ -319,10 +335,15 @@ export function useStatusCockpit(): StatusCockpitApi {
     setEntwurf(v => (v ? ergaenzeSeedFelder(v, SEED_FELDER, SEED_KATEGORIEN).version : v));
   }, []);
 
+  const texteUebernehmen = useCallback(() => {
+    setEntwurf(v => (v ? uebernimmSeedTexte(v, SEED_FELDER) : v));
+  }, []);
+
   const verwerfen = useCallback(() => setEntwurf(aktiveVersion), [aktiveVersion]);
 
   return {
-    laden, fehler, aktiveVersion, entwurf, versionen, unkuratiert, unkuratierteFelder, seedLuecke,
+    laden, fehler, aktiveVersion, entwurf, versionen, unkuratiert, unkuratierteFelder,
+    seedLuecke, textAbweichungen,
     vorkommen: bestand?.vorkommen ?? new Map(),
     zuletzt: bestand?.zuletzt ?? new Map(),
     csvSpalten: bestand?.csvSpalten ?? new Map(),
@@ -333,7 +354,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     konflikteEntwurf: entwurfSim.filter(s => s.konflikt).length,
     geaendert, speichernBusy, speichernFehler, nurLokal, erneutAufShare,
     setWert, setFeld, setRegel, setKategorie, addKategorie, removeKategorie,
-    uebernehmen, uebernehmeFeld, seedNachziehen,
+    uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

@@ -63,6 +63,11 @@ _design/
 *.csv
 !public/test-korpus/**/*.csv
 !docs/phase-2/dms-sample.csv
+# Die Kürzel-Zuarbeit ist das Prozess-Vokabular des Fachsystems (Kürzel,
+# Beschreibung, wer den Eintrag setzt) — keine Antrags-, Firmen- oder
+# Personendaten. Sie muss mit, weil `npm run gen:status-codes` sie einliest und
+# ihr Inhalt ohnehin generiert in src/core/status/seed-codes.data.ts steht.
+!docs/status-system/kuerzel-zuarbeit-*.csv
 
 # Lokale Eval-Ausgaben (CLI --out) + generierte Fixtures
 skill-eval-*/
