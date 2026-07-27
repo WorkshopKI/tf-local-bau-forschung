@@ -19,12 +19,17 @@ import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
   ladeAktiveVersion, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
   getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot, getAlleEvents,
+  ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
-  csvSpaltenJeFeld,
-  aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, exportiereVersion, validiereImport,
+  csvSpaltenJeFeld, baueFeldAufloesung,
+  aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
+  fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
+  baueSeedCodeFelder, SEED_KATEGORIEN,
+  exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
-  type UnkuratierterFund, type VerbundFelder, type SimErgebnis, type PhasenWechsel, type SpinePhase,
+  type StatusKategorie, type UnkuratierterFund, type VerbundFelder, type SimErgebnis,
+  type PhasenWechsel, type SpinePhase,
 } from '@/core/status';
 
 export interface StatusCockpitApi {
@@ -34,6 +39,10 @@ export interface StatusCockpitApi {
   entwurf: MappingVersion | null;
   versionen: MappingVersion[];
   unkuratiert: UnkuratierterFund[];
+  /** In den CSV-Quellen gefundene Statusspalten, die der Katalog nicht kennt. */
+  unkuratierteFelder: StatusFeldEintrag[];
+  /** Wie viele Felder/Ordner die Auslieferung führt, die dem Entwurf fehlen. */
+  seedLuecke: { felder: number; kategorien: number };
   /** wertId → Anzahl Verbünde mit diesem (Feld,Wert). */
   vorkommen: Map<string, number>;
   /** wertId → jüngstes erfasstAm (ISO). */
@@ -59,7 +68,14 @@ export interface StatusCockpitApi {
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
   setFeld: (feldId: string, patch: Partial<StatusFeldEintrag>) => void;
   setRegel: (id: string, patch: Partial<NaechsterSchrittRegel>) => void;
+  setKategorie: (id: string, patch: Partial<StatusKategorie>) => void;
+  addKategorie: (kategorie: StatusKategorie) => void;
+  removeKategorie: (id: string) => void;
   uebernehmen: (fund: UnkuratierterFund) => void;
+  /** Ein entdecktes Feld in den Entwurf holen (aktiv, in den Sammelordner). */
+  uebernehmeFeld: (feld: StatusFeldEintrag, kategorieId: string) => void;
+  /** Fehlende Auslieferungs-Felder und -Ordner in den Entwurf nachziehen. */
+  seedNachziehen: () => void;
   verwerfen: () => void;
   speichern: (kommentar: string) => Promise<void>;
   reaktivieren: (version: number) => Promise<void>;
@@ -79,6 +95,9 @@ const LEER_VERTEILUNG: Record<SpinePhase, number> = {
   eingang: 0, vollstaendigkeit: 0, fachpruefung: 0, bewilligung: 0, schluss: 0, keine: 0,
 };
 
+/** Der Auslieferungsstand als Vergleichsmaß — einmal gebaut, nicht je Render. */
+const SEED_FELDER = baueSeedCodeFelder();
+
 export function useStatusCockpit(): StatusCockpitApi {
   const storage = useStorage();
   const idb = storage.idb;
@@ -91,6 +110,7 @@ export function useStatusCockpit(): StatusCockpitApi {
   const [entwurf, setEntwurf] = useState<MappingVersion | null>(null);
   const [versionen, setVersionen] = useState<MappingVersion[]>([]);
   const [unkuratiert, setUnkuratiert] = useState<UnkuratierterFund[]>([]);
+  const [unkuratierteFelder, setUnkuratierteFelder] = useState<StatusFeldEintrag[]>([]);
   const [bestand, setBestand] = useState<Bestand | null>(null);
   const [speichernBusy, setSpeichernBusy] = useState(false);
   const [speichernFehler, setSpeichernFehler] = useState<string | null>(null);
@@ -107,6 +127,9 @@ export function useStatusCockpit(): StatusCockpitApi {
         listSchemasByProgramm(idb, p.id),
       ]);
       schemas.push(...programmSchemas);
+      // Je Programm auflösen: dieselbe Spalte kann in verschiedenen Programmen
+      // unter verschiedenen Record-Keys liegen.
+      const aufloesung = baueFeldAufloesung(programmSchemas, version.felder);
       const byVb = new Map<string, { aktenzeichen: string; record: Record<string, unknown> }[]>();
       const einzeln: { aktenzeichen: string; record: Record<string, unknown> }[] = [];
       for (const a of antraege) {
@@ -121,12 +144,12 @@ export function useStatusCockpit(): StatusCockpitApi {
         }
       }
       for (const v of verbuende) {
-        vf.push(baueVerbundFelder(version, v.verbund_id, v as unknown as Record<string, unknown>, byVb.get(v.verbund_id) ?? []));
+        vf.push(baueVerbundFelder(version, v.verbund_id, v as unknown as Record<string, unknown>, byVb.get(v.verbund_id) ?? [], aufloesung));
         byVb.delete(v.verbund_id);
       }
       // Verbund-IDs ohne Verbund-Record (Waisen) + antragslose Einzelantraege
-      for (const [vbid, tvs] of byVb) vf.push(baueVerbundFelder(version, vbid, {}, tvs));
-      for (const e of einzeln) vf.push(baueVerbundFelder(version, e.aktenzeichen, {}, [e]));
+      for (const [vbid, tvs] of byVb) vf.push(baueVerbundFelder(version, vbid, {}, tvs, aufloesung));
+      for (const e of einzeln) vf.push(baueVerbundFelder(version, e.aktenzeichen, {}, [e], aufloesung));
     }
     const events = await getAlleEvents(idb);
     return {
@@ -143,13 +166,16 @@ export function useStatusCockpit(): StatusCockpitApi {
     setFehler(null);
     try {
       const version = await ladeAktiveVersion(idb);
-      const [alleVersionen, unk, b] = await Promise.all([
-        listeVersionen(idb), ladeUnkuratiert(idb), ladeBestand(version),
+      const [alleVersionen, unk, unkFelder, b] = await Promise.all([
+        listeVersionen(idb), ladeUnkuratiert(idb), ladeUnkuratierteFelder(idb), ladeBestand(version),
       ]);
       setAktiveVersion(version);
       setEntwurf(version);
       setVersionen(alleVersionen);
       setUnkuratiert(unk);
+      // Was die PL inzwischen kuratiert hat, ist kein Fund mehr — sonst hinge
+      // der Puffer dieses Geräts der Team-Fassung ewig hinterher.
+      setUnkuratierteFelder(pruneKuratierteFelder(version, unkFelder));
       setBestand(b);
     } catch (e) {
       setFehler((e as Error).message ?? 'Laden fehlgeschlagen.');
@@ -169,6 +195,17 @@ export function useStatusCockpit(): StatusCockpitApi {
     () => JSON.stringify(entwurf) !== JSON.stringify(aktiveVersion),
     [entwurf, aktiveVersion],
   );
+
+  /**
+   * Was die Auslieferung führt und dem Entwurf fehlt. Bestandsinstallationen
+   * haben eine kuratierte Fassung > 1 — die bekommt den Code-Katalog nicht
+   * automatisch, sondern erst wenn die PL ihn hier nachzieht und speichert.
+   */
+  const seedLuecke = useMemo(() => {
+    if (!entwurf) return { felder: 0, kategorien: 0 };
+    const r = ergaenzeSeedFelder(entwurf, SEED_FELDER, SEED_KATEGORIEN);
+    return { felder: r.neueFelder, kategorien: r.neueKategorien };
+  }, [entwurf]);
 
   const speichern = useCallback(async (kommentar: string): Promise<void> => {
     if (!entwurf) return;
@@ -247,6 +284,16 @@ export function useStatusCockpit(): StatusCockpitApi {
   const setRegel = useCallback((id: string, patch: Partial<NaechsterSchrittRegel>) => {
     setEntwurf(v => (v ? aendereRegel(v, id, patch) : v));
   }, []);
+  const setKategorie = useCallback((id: string, patch: Partial<StatusKategorie>) => {
+    setEntwurf(v => (v ? aendereKategorie(v, id, patch) : v));
+  }, []);
+  const addKategorie = useCallback((kategorie: StatusKategorie) => {
+    setEntwurf(v => (v ? fuegeKategorieHinzu(v, kategorie) : v));
+  }, []);
+  const removeKategorie = useCallback((id: string) => {
+    setEntwurf(v => (v ? entferneKategorie(v, id) : v));
+  }, []);
+
   const uebernehmen = useCallback((fund: UnkuratierterFund) => {
     setEntwurf(v => (v ? fuegeWertHinzu(v, {
       id: fund.id, feldId: fund.feldId, wert: fund.wert,
@@ -256,10 +303,26 @@ export function useStatusCockpit(): StatusCockpitApi {
     setUnkuratiert(u => u.filter(x => x.id !== fund.id));
     void speichereUnkuratiert(idb, unkuratiert.filter(x => x.id !== fund.id)).catch(() => {});
   }, [idb, unkuratiert]);
+
+  const uebernehmeFeld = useCallback((feld: StatusFeldEintrag, kategorieId: string) => {
+    // Beim Übernehmen wird das Feld aktiv und bekommt einen Platz im Baum —
+    // ohne Rang, also zunächst ohne Wirkung auf die Ableitung.
+    setEntwurf(v => (v ? fuegeFeldHinzu(v, {
+      ...feld, kategorieId, aktiv: true, unkuratiert: false,
+    }) : v));
+    const rest = unkuratierteFelder.filter(f => f.feldId !== feld.feldId);
+    setUnkuratierteFelder(rest);
+    void speichereUnkuratierteFelder(idb, rest).catch(() => {});
+  }, [idb, unkuratierteFelder]);
+
+  const seedNachziehen = useCallback(() => {
+    setEntwurf(v => (v ? ergaenzeSeedFelder(v, SEED_FELDER, SEED_KATEGORIEN).version : v));
+  }, []);
+
   const verwerfen = useCallback(() => setEntwurf(aktiveVersion), [aktiveVersion]);
 
   return {
-    laden, fehler, aktiveVersion, entwurf, versionen, unkuratiert,
+    laden, fehler, aktiveVersion, entwurf, versionen, unkuratiert, unkuratierteFelder, seedLuecke,
     vorkommen: bestand?.vorkommen ?? new Map(),
     zuletzt: bestand?.zuletzt ?? new Map(),
     csvSpalten: bestand?.csvSpalten ?? new Map(),
@@ -269,7 +332,9 @@ export function useStatusCockpit(): StatusCockpitApi {
     konflikteAktiv: bestand ? bestand.aktivSim.filter(s => s.konflikt).length : 0,
     konflikteEntwurf: entwurfSim.filter(s => s.konflikt).length,
     geaendert, speichernBusy, speichernFehler, nurLokal, erneutAufShare,
-    setWert, setFeld, setRegel, uebernehmen, verwerfen, speichern, reaktivieren, exportieren, importieren,
+    setWert, setFeld, setRegel, setKategorie, addKategorie, removeKategorie,
+    uebernehmen, uebernehmeFeld, seedNachziehen,
+    verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }
 
