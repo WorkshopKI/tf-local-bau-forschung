@@ -242,16 +242,50 @@ export function VerbundDetail({
 
   const gutachtenSichtbar = isGutachtenWorkflowEnabled() || isGutachtenKurzfassungEnabled();
 
-  // Kontext-Vorschau der kollabierten „Antragsdaten"-Sektion: Koordinator + weitere.
-  const antragsdatenPreview = [antragsteller, antraege.length > 1 ? `${antraege.length - 1} weitere` : null]
+  // Kontext-Vorschau der kollabierten „Antragsdaten"-Sektion: Koordinator + TV-Zahl
+  // (die Sektion trägt seit v2.338 auch die Verbundpartner/Teilvorhaben-Liste).
+  const antragsdatenPreview = [antragsteller, `${antraege.length} Teilvorhaben`]
     .filter(Boolean).join(' · ');
 
   // Sprung in die NF-Werkstatt (Artefakt-Leiste-Karte).
   const scrollTo = (id: string): void => { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 
+  // ARTEFAKT-WERKBANK / NACHFORDERUNGEN — als Variable, weil der Block in BEIDEN
+  // Zweigen (echter Verbund / pseudo) an unterschiedlicher Stelle steht: beim echten
+  // Verbund zwischen „Antragsdaten" und „Alle Felder" (Arbeitsablauf vor den
+  // Feld-Sektionen), bei pseudo hinter dem TV-Detail. Reines JSX, kein Hook —
+  // keine Rules-of-Hooks-Falle. Die Zweige schliessen sich aus, `#nf`/`#widerspruch`
+  // existieren also genau einmal im DOM. Volle Panel-Breite (kein READ_COL).
+  const werkbankBlock: React.ReactNode = isArtefaktWerkbankEnabled() ? (
+    <>
+      <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <WerkbankSection ctx={kurzfassungCtx} vorbelegung={werkbankVorbelegung} />
+      </div>
+      {/* Widerspruch/Stellungnahme — nur sichtbar, wenn ein RNE/ABL-Bescheid existiert.
+          Zieht mit der Werkbank mit: „Antwort in der Werkbank vorbereiten" springt von
+          hier dorthin, ein Sprung über die Feld-Sektionen hinweg wäre unnötig weit. */}
+      <div id="widerspruch" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <WiderspruchSection
+          ctx={kurzfassungCtx}
+          onAntwortVorbereiten={keys => {
+            setWerkbankVorbelegung({ keys, nonce: Date.now() });
+            document.getElementById('nf')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        />
+      </div>
+    </>
+  ) : isNfNachforderungenEnabled() ? (
+    <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+      <NachforderungenSection ctx={kurzfassungCtx} />
+    </div>
+  ) : null;
+
   return (
     <PanelShell onClose={onClose}>
-      {/* VERBUND-KOPF (Phase 6): Identität + Eckdaten-Meta + Untertitel + amtlicher Stepper. */}
+      {/* VERBUND-KOPF (Phase 6): Identität + Eckdaten-Meta + Untertitel + amtlicher
+          Stepper. Rechts in der Titelzeile die ANTRAG-AUFBEREITUNG als Aktion am Kopf
+          (Vollbild-Aufbereitung der VB, flag-gated, nur dev) — erster Schritt im
+          Ablauf: erst den Antrag verstehen, dann NF/Gutachten. */}
       <div id="verbund-kopf" className={READ_COL}>
         <VerbundKopf
           akronym={akronym}
@@ -261,24 +295,18 @@ export function VerbundDetail({
           stepperStatus={stepperStatus}
           tvs={antraege}
           unterprogramm={unterprogramm}
+          aktion={isAntragAufbereitungEnabled() ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={LayoutTemplate}
+              onClick={() => navigate(`/antraege/${encodeURIComponent(kurzfassungCtx.key)}/aufbereitung`)}
+            >
+              Antrag-Aufbereitung öffnen
+            </Button>
+          ) : undefined}
         />
       </div>
-
-      {/* ANTRAG-AUFBEREITUNG — erster Schritt (erst den Antrag verstehen, dann NF/Gutachten):
-          direkt unter dem Kopf, VOR der Kurzbeschreibung. Vollbild-Aufbereitung der VB
-          (flag-gated, nur dev). */}
-      {isAntragAufbereitungEnabled() ? (
-        <div className={READ_COL}>
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={LayoutTemplate}
-            onClick={() => navigate(`/antraege/${encodeURIComponent(kurzfassungCtx.key)}/aufbereitung`)}
-          >
-            Antrag-Aufbereitung öffnen
-          </Button>
-        </div>
-      ) : null}
 
       {/* KURZBESCHREIBUNG — Kurzzusammenfassung (VB_INHALT) als eigene Karte. Immer sichtbar;
           fehlt VB_INHALT, zeigt die Karte einen dezenten „noch nicht erstellt"-Hinweis. */}
@@ -340,90 +368,81 @@ export function VerbundDetail({
 
       {/* DATEN-SEKTIONEN — kollabierte Zeilen mit Kontext-Vorschau (Default zu).
           Nur echte Verbuende; bei pseudo (Standalone) stecken die Stammdaten im
-          TvDetailBlock (doppelte Anzeige vermeiden). */}
+          TvDetailBlock (doppelte Anzeige vermeiden). Die Werkbank sitzt ZWISCHEN
+          „Antragsdaten" und „Alle Felder" (Arbeitsablauf vor den Feld-Sektionen) —
+          daher zwei READ_COL-Gruppen statt einer: der Werkbank-Block laeuft
+          bewusst ueber die volle Panel-Breite. */}
       {!isPseudo ? (
-        <div className={READ_COL}>
-          <CollapsibleDataSection
-            title="Antragsdaten"
-            storageKey="verbund_antragsdaten_collapsed"
-            preview={antragsdatenPreview}
-          >
-            <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
-          </CollapsibleDataSection>
-
-          <CollapsibleDataSection
-            title="Verbundpartner und Teilvorhaben"
-            storageKey="verbund_teilvorhaben_collapsed"
-            preview={antraege.length}
-            headerAction={<TvTitelCopyButton titel={tvTitelZeilen} />}
-          >
-            <TeilvorhabenListe
-              tvs={antraege}
-              verbundTitel={titel}
-              expandedTvAz={expandedTvAz}
-              onToggle={(az) => setExpandedTvAz(prev => (prev === az ? null : az))}
-              onOpenAntrag={onOpenAntrag}
-            />
-          </CollapsibleDataSection>
-
-          {antraege.length > 0 ? (
+        <>
+          <div className={READ_COL}>
             <CollapsibleDataSection
-              title="Alle Felder"
-              storageKey="verbund_allefelder_collapsed"
-              preview={`${felderStats.gesamt} · ${felderStats.mitWerten} mit Werten`}
+              title="Antragsdaten"
+              storageKey="verbund_antragsdaten_collapsed"
+              preview={antragsdatenPreview}
             >
-              <VerbundAlleFelder
+              <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
+
+              {/* Verbundpartner/Teilvorhaben leben in DIESER Sektion (v2.338) — als
+                  eigene Klappzeile waren es zwei Sektionen fuer eine Sache. Kopier-
+                  Icon steht an der Unter-Ueberschrift, nicht am Sektionskopf: es
+                  kopiert TV-Titel, nicht „Antragsdaten". */}
+              <div className="mt-5 mb-2 flex items-center gap-1.5">
+                <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
+                  Verbundpartner und Teilvorhaben
+                </span>
+                <TvTitelCopyButton titel={tvTitelZeilen} />
+              </div>
+              <TeilvorhabenListe
                 tvs={antraege}
-                schemas={schemas}
-                sourceNames={sourceNames}
-                historyCounts={historyCounts}
-                onOpenHistory={setHistoryField}
+                verbundTitel={titel}
+                expandedTvAz={expandedTvAz}
+                onToggle={(az) => setExpandedTvAz(prev => (prev === az ? null : az))}
+                onOpenAntrag={onOpenAntrag}
               />
             </CollapsibleDataSection>
-          ) : null}
-
-          <CollapsibleDataSection
-            title="Historie"
-            storageKey="verbund_historie_collapsed"
-            preview={history.length > 0 ? `zuletzt ${formatShortDate(history[0]!.geaendert_am)}` : null}
-          >
-            <VerbundHistorie history={history} />
-          </CollapsibleDataSection>
-        </div>
-      ) : (
-        // Pseudo-Verbund: TV-Detail direkt (kein Sammel-Block, keine Liste).
-        <div className={READ_COL}>
-          {expandedTvAz ? (
-            <div className="mb-6">
-              <TvDetailBlock aktenzeichen={expandedTvAz} zeigeEckdaten onOpenAntrag={onOpenAntrag} />
-            </div>
-          ) : null}
-        </div>
-      )}
-
-      {/* ARTEFAKT-WERKBANK / NACHFORDERUNGEN — die Werkbank (dev) ersetzt bei aktivem
-          Flag die schlanke Nachforderungen-Sektion; sonst bleibt alles wie bisher. */}
-      {isArtefaktWerkbankEnabled() ? (
-        <>
-          <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-            <WerkbankSection ctx={kurzfassungCtx} vorbelegung={werkbankVorbelegung} />
           </div>
-          {/* Widerspruch/Stellungnahme — nur sichtbar, wenn ein RNE/ABL-Bescheid existiert. */}
-          <div id="widerspruch" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-            <WiderspruchSection
-              ctx={kurzfassungCtx}
-              onAntwortVorbereiten={keys => {
-                setWerkbankVorbelegung({ keys, nonce: Date.now() });
-                document.getElementById('nf')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            />
+
+          {werkbankBlock}
+
+          <div className={READ_COL}>
+            {antraege.length > 0 ? (
+              <CollapsibleDataSection
+                title="Alle Felder"
+                storageKey="verbund_allefelder_collapsed"
+                preview={`${felderStats.gesamt} · ${felderStats.mitWerten} mit Werten`}
+              >
+                <VerbundAlleFelder
+                  tvs={antraege}
+                  schemas={schemas}
+                  sourceNames={sourceNames}
+                  historyCounts={historyCounts}
+                  onOpenHistory={setHistoryField}
+                />
+              </CollapsibleDataSection>
+            ) : null}
+
+            <CollapsibleDataSection
+              title="Historie"
+              storageKey="verbund_historie_collapsed"
+              preview={history.length > 0 ? `zuletzt ${formatShortDate(history[0]!.geaendert_am)}` : null}
+            >
+              <VerbundHistorie history={history} />
+            </CollapsibleDataSection>
           </div>
         </>
-      ) : isNfNachforderungenEnabled() ? (
-        <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <NachforderungenSection ctx={kurzfassungCtx} />
-        </div>
-      ) : null}
+      ) : (
+        // Pseudo-Verbund: TV-Detail direkt (kein Sammel-Block, keine Liste).
+        <>
+          <div className={READ_COL}>
+            {expandedTvAz ? (
+              <div className="mb-6">
+                <TvDetailBlock aktenzeichen={expandedTvAz} zeigeEckdaten onOpenAntrag={onOpenAntrag} />
+              </div>
+            ) : null}
+          </div>
+          {werkbankBlock}
+        </>
+      )}
 
       {/* Field-History-Modal — fuer Verbund-Felder am Lead-TV. */}
       {lead && !isPseudo ? (

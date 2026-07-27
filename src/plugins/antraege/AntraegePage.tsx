@@ -99,6 +99,12 @@ export function AntraegePage(): React.ReactElement {
     try { localStorage.setItem(FILTER_WIDTH_KEY, String(filterWidth)); } catch { /* ignore */ }
   }, [filterWidth]);
 
+  // EINE Ableitung für „Liste sichtbar?" — steuert sowohl den Render-Zweig unten
+  // als auch den Fokus-Modus im Seitenkopf: Listen-Werkzeuge (Sicht-Tabs, Suche,
+  // Export, Ansicht, Filter) wirken ausschliesslich auf die Liste und wären ohne
+  // sie tote Knöpfe. Kein zweiter Ableitungsweg (vgl. listCollapse.ts).
+  const listeSichtbar = shouldShowList(hasDetail, listCollapsed);
+
   const closeDetail = (): void => navigate('/antraege');
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
 
@@ -136,10 +142,14 @@ export function AntraegePage(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
-      <AntraegeHeader filterOpen={filterOpen} onToggleFilter={toggleFilter} />
+      <AntraegeHeader
+        filterOpen={filterOpen}
+        onToggleFilter={toggleFilter}
+        listeSichtbar={listeSichtbar}
+      />
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        {shouldShowList(hasDetail, listCollapsed) ? (
+        {listeSichtbar ? (
           <AntraegeMain narrow={hasDetail} onCollapse={hasDetail ? () => setCollapsed(true) : undefined} />
         ) : (
           // Eingeklappt (nur im Detail-Modus): schmale Leiste zum Wiedereinblenden.
@@ -196,9 +206,11 @@ export function AntraegePage(): React.ReactElement {
       </div>
 
       {/* Drawer-Variante — nur sichtbar wenn Detail offen UND Filter
-          aktiviert. Überlagert das Detail. */}
+          aktiviert. Überlagert das Detail. Im Fokus-Modus (Liste eingeklappt)
+          unterdrückt: der Filter ist ein Listen-Werkzeug. `filterOpen` bleibt
+          persistiert — der Drawer kehrt beim Wiedereinblenden zurück. */}
       <FilterDrawer
-        open={hasDetail && filterOpen}
+        open={hasDetail && filterOpen && listeSichtbar}
         onClose={toggleFilter}
         antraege={antraege}
         search={search}

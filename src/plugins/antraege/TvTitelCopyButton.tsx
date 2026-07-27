@@ -1,8 +1,9 @@
 /**
  * Kopier-Icon für Teilvorhaben-Titel — die werden oft in andere Dokumente
- * übernommen. Zwei Einsatzorte: im Sektionskopf „Verbundpartner und
- * Teilvorhaben" für ALLE Titel (eine Zeile je TV) und in der TV-Zeile für den
- * EINEN Titel dieses Teilvorhabens (dort auch der visuell abgeschnittene Teil).
+ * übernommen. Zwei Einsatzorte: an der Unter-Überschrift „Verbundpartner und
+ * Teilvorhaben" (in der Sektion „Antragsdaten") für ALLE Titel (eine Zeile je TV)
+ * und in der TV-Zeile für den EINEN Titel dieses Teilvorhabens (dort auch der
+ * visuell abgeschnittene Teil).
  * Kopier-Zustand über `useKopierAktion` (Pitfall #15 + sichtbarer Fehlschlag).
  * Rendert nichts, wenn kein Titel vorliegt.
  */
@@ -25,7 +26,7 @@ export function TvTitelCopyButton({
 
   // stopPropagation: in der TV-Zeile sitzt der Button INNERHALB der klickbaren
   // Zeile — ohne das würde Kopieren zusätzlich auf-/zuklappen (Präzedenz:
-  // components/ui/RowAction.tsx). Im Sektionskopf ist es folgenlos.
+  // components/ui/RowAction.tsx). An der Unter-Überschrift ist es folgenlos.
   return (
     <button
       type="button"

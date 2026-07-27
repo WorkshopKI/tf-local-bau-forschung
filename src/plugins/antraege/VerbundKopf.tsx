@@ -2,7 +2,8 @@
  * Verbund-Kopf (Journey-Paket 2 Phase 6): Identität + Stepper als Wirbelsäule.
  *
  * Aufbau: Titelzeile = Akronym + ZKN + Eckdaten-Meta (Programm/Typ · TV-Anzahl ·
- * Antragsdatum · Beantragt) inline hinter dem FKZ; darunter der Projekt-Titel
+ * Antragsdatum · Beantragt) inline hinter dem FKZ, rechts der optionale
+ * `aktion`-Slot (heute „Antrag-Aufbereitung öffnen"); darunter der Projekt-Titel
  * (Untertitel); dann der amtliche Stepper (ersetzt das frühere Status-Badge).
  * Die Kurzzusammenfassung (VB_INHALT) lebt bewusst NICHT hier, sondern als
  * eigene `KurzbeschreibungCard` direkt unter dem Kopf.
@@ -26,6 +27,10 @@ interface Props {
   /** TVs + Unterprogramm-Label für die Eckdaten-Meta. */
   tvs: Antrag[];
   unterprogramm: string | null;
+  /** Optionale Aktion rechts in der Titelzeile (z. B. „Antrag-Aufbereitung
+   *  öffnen"). Am Kopf verankert, damit sie als Aktion ZUM Antrag liest statt
+   *  als loses Element darunter — und ohne eigene Zeile zu kosten. */
+  aktion?: React.ReactNode;
 }
 
 export function VerbundKopf({
@@ -36,28 +41,35 @@ export function VerbundKopf({
   stepperStatus,
   tvs,
   unterprogramm,
+  aktion,
 }: Props): React.ReactElement {
   const eckdaten = buildKopfEckdaten({ tvs, unterprogramm });
 
   return (
     <div className="mb-6">
-      {/* Titelzeile: Akronym + ZKN + Eckdaten-Meta (hinter dem FKZ). */}
-      <div className="flex items-baseline gap-x-2.5 gap-y-1.5 flex-wrap">
-        <h1 className="text-[20px] font-medium text-[var(--tf-text)] leading-tight tracking-[-0.01em]">
-          {akronym}
-        </h1>
-        <span className="text-[12px] text-[var(--tf-text-tertiary)] font-mono">{headerId}</span>
-        {eckdaten.length > 0 ? (
-          <span className="inline-flex items-center gap-x-2 gap-y-0.5 flex-wrap text-[12px] text-[var(--tf-text-secondary)]">
-            <span aria-hidden="true" className="text-[var(--tf-text-tertiary)]">·</span>
-            {eckdaten.map((seg, i) => (
-              <Fragment key={i}>
-                {i > 0 ? <span aria-hidden="true" className="text-[var(--tf-text-tertiary)]">·</span> : null}
-                <span className="whitespace-nowrap">{seg}</span>
-              </Fragment>
-            ))}
-          </span>
-        ) : null}
+      {/* Titelzeile: Akronym + ZKN + Eckdaten-Meta (hinter dem FKZ), rechts die
+          optionale Aktion. Der äußere Container ist `items-start` — ein Button
+          auf der Baseline der H1 würde nach unten rutschen; der linke Block
+          behält seine `items-baseline`-Ausrichtung. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-baseline gap-x-2.5 gap-y-1.5 flex-wrap flex-1 min-w-0">
+          <h1 className="text-[20px] font-medium text-[var(--tf-text)] leading-tight tracking-[-0.01em]">
+            {akronym}
+          </h1>
+          <span className="text-[12px] text-[var(--tf-text-tertiary)] font-mono">{headerId}</span>
+          {eckdaten.length > 0 ? (
+            <span className="inline-flex items-center gap-x-2 gap-y-0.5 flex-wrap text-[12px] text-[var(--tf-text-secondary)]">
+              <span aria-hidden="true" className="text-[var(--tf-text-tertiary)]">·</span>
+              {eckdaten.map((seg, i) => (
+                <Fragment key={i}>
+                  {i > 0 ? <span aria-hidden="true" className="text-[var(--tf-text-tertiary)]">·</span> : null}
+                  <span className="whitespace-nowrap">{seg}</span>
+                </Fragment>
+              ))}
+            </span>
+          ) : null}
+        </div>
+        {aktion != null ? <div className="shrink-0">{aktion}</div> : null}
       </div>
 
       {/* Untertitel: Projekt-Titel (+ optionaler XSW-Suffix). */}

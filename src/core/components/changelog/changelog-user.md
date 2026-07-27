@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.338 — 2026-07
+
+### Verbesserungen
+- Wenn Sie die Antragsliste einklappen, räumt die Seite jetzt mit auf: Suchfeld, Sicht-Tabs, Export, Ansichts-Umschalter und Filter verschwinden, weil sie ohnehin nur die ausgeblendete Liste betreffen. Der Antrag bekommt den Platz; einmal wieder eingeblendet ist alles unverändert da — auch Ihr Suchtext und die gewählte Sicht.
+- Der Knopf „Antrag-Aufbereitung öffnen" sitzt jetzt rechts oben in der Kopfzeile des Antrags statt als lose Zeile darunter.
+- Die Kurzbeschreibung lässt sich zuklappen (standardmäßig ist sie offen) — praktisch, wenn Sie den Antrag schon kennen.
+- „Verbundpartner und Teilvorhaben" ist keine eigene Klappzeile mehr, sondern steht in „Antragsdaten": eine Sektion weniger auf der Seite, alles Übrige unverändert.
+- Die „Artefakt-Werkbank" (und darunter „Widerspruch/Stellungnahme") steht jetzt vor „Alle Felder" — in der Reihenfolge, in der Sie tatsächlich arbeiten.
+
 ## v2.337 — 2026-07
 
 ### Verbesserungen
