@@ -94,6 +94,24 @@ export function ProfilTab(): React.ReactElement {
               hint="Matcht zusätzlich auf ZTP_KUERZ und PFM_KUERZ und zeigt Anträge in VN-/ZB-Stati. Frist für VN-Anträge: D_VBE + 6 Monate."
             />
           </SettingsRowGroup>
+          <SettingsRowSeparator />
+          <SettingsRowGroup>
+            <FieldLabel
+              text="Meine Rolle"
+              hint="Das Statusvokabular trennt administrative und fachliche Bearbeitung. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt."
+            />
+            <select
+              value={profile.status_rolle ?? 'beide'}
+              onChange={e => updateProfile({ status_rolle: e.target.value as 'ab' | 'fb' | 'beide' })}
+              aria-label="Meine Rolle in der Antragsbearbeitung"
+              className="h-8 text-[13px] rounded px-2 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+            >
+              <option value="beide">Beides</option>
+              <option value="ab">AB — administrativ</option>
+              <option value="fb">FB — fachlich</option>
+            </select>
+          </SettingsRowGroup>
         </SettingsRow>
       </section>
 

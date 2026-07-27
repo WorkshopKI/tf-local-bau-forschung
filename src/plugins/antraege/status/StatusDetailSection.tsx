@@ -12,6 +12,7 @@ import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
 import { StatusWarum } from './StatusWarum';
+import { StatusCodeListe } from './StatusCodeListe';
 import { WERKZEUG_LABEL, SPINE_LABEL } from './labels';
 
 export function StatusDetailSection({ verbundId }: { verbundId: string }): React.ReactElement | null {
@@ -81,6 +82,12 @@ export function StatusDetailSection({ verbundId }: { verbundId: string }): React
             </ul>
           )}
         </div>
+      </div>
+
+      {/* Die Ordner des Fachsystems: was steht wo. Die Timeline oben beantwortet
+          „wann", diese Liste „in welchem Ordner". */}
+      <div className="mt-5">
+        <StatusCodeListe version={version} vorkommen={v.vorkommen} />
       </div>
       </div>
     </div>

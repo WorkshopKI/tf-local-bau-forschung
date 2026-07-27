@@ -4,11 +4,11 @@
  */
 import { useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getVerbund, listAntraegeByVerbund } from '@/core/services/csv/idb-csv';
+import { getVerbund, listAntraegeByVerbund, listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import {
-  getAktiveVersion, ladeAktiveVersion, getStatusEvents, baueVerbundFelder,
-  leiteStatusAb, aufzeichnungsGrenze,
-  type MappingVersion, type StatusEvent, type AbleitungsErgebnis,
+  getAktiveVersion, ladeAktiveVersion, getStatusEvents, baueVerbundFelder, baueFeldAufloesung,
+  sammleVorkommen, leiteStatusAb, aufzeichnungsGrenze,
+  type MappingVersion, type StatusEvent, type AbleitungsErgebnis, type FeldVorkommen,
 } from '@/core/status';
 
 export interface StatusVerlauf {
@@ -18,9 +18,13 @@ export interface StatusVerlauf {
   ableitung: AbleitungsErgebnis | null;
   /** „ab hier lückenlose Aufzeichnung" (ISO) oder null. */
   grenze: string | null;
+  /** Alle gesetzten Statuseinträge des Verbunds — Grundlage der Ordner-Ansicht. */
+  vorkommen: FeldVorkommen[];
 }
 
-const LEER: StatusVerlauf = { laden: true, version: null, events: [], ableitung: null, grenze: null };
+const LEER: StatusVerlauf = {
+  laden: true, version: null, events: [], ableitung: null, grenze: null, vorkommen: [],
+};
 
 export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
   const storage = useStorage();
@@ -40,13 +44,23 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
           getStatusEvents(idb, verbundId),
         ]);
         if (abgebrochen) return;
-        const vf = baueVerbundFelder(
-          version, verbundId,
-          (verbund ?? {}) as unknown as Record<string, unknown>,
-          antraege.map(a => ({ aktenzeichen: a.aktenzeichen, record: a as unknown as Record<string, unknown> })),
-        );
+        // Die Code-Felder tragen den rohen Spaltennamen; wo die Spalte im Record
+        // liegt, sagt erst das Programm-Schema.
+        const programmId = verbund?.programm_id ?? antraege[0]?.programm_id ?? null;
+        const schemas = programmId ? await listSchemasByProgramm(idb, programmId) : [];
+        if (abgebrochen) return;
+        const aufloesung = baueFeldAufloesung(schemas, version.felder);
+        const vbRecord = (verbund ?? {}) as unknown as Record<string, unknown>;
+        const tvs = antraege.map(a => ({
+          aktenzeichen: a.aktenzeichen, record: a as unknown as Record<string, unknown>,
+        }));
+        const vf = baueVerbundFelder(version, verbundId, vbRecord, tvs, aufloesung);
         const ableitung = leiteStatusAb(version, vf.felder, vf.tvFelder, new Date().toISOString());
-        setState({ laden: false, version, events, ableitung, grenze: aufzeichnungsGrenze(events) });
+        setState({
+          laden: false, version, events, ableitung,
+          grenze: aufzeichnungsGrenze(events),
+          vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
+        });
       } catch {
         if (!abgebrochen) setState({ ...LEER, laden: false });
       }

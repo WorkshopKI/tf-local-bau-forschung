@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.344 — 2026-07
+
+### Neu
+- Die Antragsseite zeigt jetzt alle Statuseinträge des Fachsystems — in denselben Ordnern wie dort (Kommunikation, Antragsbearbeitung mit pre-check, Ablehnung, Widerspruch …), getrennt nach Verbund und Teilvorhaben.
+- In den Einstellungen lässt sich unter „Meine Rolle" AB oder FB hinterlegen. Die Statusliste startet dann auf die eigene Rolle gefiltert; ein Klick auf „Alle" zeigt wieder alles.
+- Die Projektleitung kuratiert den Statuskatalog im Status-Cockpit: Ordner anlegen und umhängen, Einträge benennen, Zuständigkeit setzen und festlegen, welcher Termin die Phase eines Antrags anhebt.
+
+### Verbesserungen
+- Neue Statusspalten in den CSV-Quellen fallen nicht mehr unter den Tisch: sie werden beim Import gefunden und der Projektleitung zum Einsortieren vorgelegt.
+
 ## v2.338 — 2026-07
 
 ### Verbesserungen

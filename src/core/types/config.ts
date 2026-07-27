@@ -46,6 +46,17 @@ export interface UserProfile {
    * Listenende erweitert in-page (nicht persistent).
    */
   home_meine_antraege_count?: number;
+  /**
+   * Eigene Rolle in der Antragsbearbeitung: administrativ (AB) oder fachlich
+   * (FB). Das Statusvokabular des Fachsystems trennt beide durchgängig
+   * (`[ARK]` adm. gegen `[ART]` techn., `[AK4]` kaufmännisch gegen `[AT4]`
+   * technisch).
+   *
+   * Wirkung ist eine **Vorauswahl, keine Sperre**: die Statusliste der
+   * Detailseite startet auf die eigene Rolle gefiltert, „alle" ist ein Klick
+   * entfernt. Unset ⇒ `beide`, damit ohne gesetzte Rolle nichts verschwindet.
+   */
+  status_rolle?: 'ab' | 'fb' | 'beide';
 }
 
 export interface AIProviderConfig {
