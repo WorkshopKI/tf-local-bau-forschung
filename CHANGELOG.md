@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.351.2 — Ordnername im Baum-Editor wieder lesbar (Juli 2026)
+
+PATCH — Der Ordnername blieb auch nach v2.351.1 ein Zeichenrest. Ursache war nicht das Label, sondern sein Nachbar: `feldKlasse` bringt `w-full` mit, und Tailwind sortiert `w-full` hinter `w-[64px]` — das Zahlenfeld war 100 % breit und dank `shrink-0` unnachgiebig.
+
+- Neue Basis-Klasse `feldKlasseSchmal` ohne `w-full` für Felder, die ihre Breite selbst setzen ([labels.ts](src/plugins/status-cockpit/labels.ts)).
+- Reihenfolge-Feld und Namensfeld im Ordner-Editor nutzen sie ([KategorieEditor.tsx](src/plugins/status-cockpit/KategorieEditor.tsx)).
+- Neuer Guard `no-w-full-neben-fixer-breite` fängt die Kombination projektweit ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)); an einer Wegwerf-Probe geprüft, dass er auslöst.
+- LOC-Schwelle der Convention-Datei 1760 → 1800 (ein Guard mehr).
+
 ### v2.351.1 — Ordner zugeklappt starten und merken; Ordnername nicht mehr abgeschnitten (Juli 2026)
 
 PATCH — Der Felder-Tab öffnete beim Aufruf alle Ordner und vergaß jede Wahl beim Verlassen. Im neuen Ordner-Editor war der Name auf einen Zeichenrest zusammengeschrumpft.

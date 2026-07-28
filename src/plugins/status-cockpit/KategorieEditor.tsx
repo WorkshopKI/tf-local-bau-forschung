@@ -20,7 +20,7 @@ import { ChevronRight, Folder, FolderInput, FolderOpen, GripVertical, Plus, Tras
 import { Button } from '@/components/ui/button';
 import { baumVon, type KategorieKnoten, type StatusKategorie } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
-import { EBENE_LABEL, feldKlasse, feldStil } from './labels';
+import { EBENE_LABEL, feldKlasse, feldKlasseSchmal, feldStil } from './labels';
 import { darfAblegen, naechsteReihenfolge } from './ordnerDrag';
 
 /** Id aus dem Label ableiten: kleingeschrieben, ohne Sonderzeichen, Ebene voran. */
@@ -126,7 +126,7 @@ function OrdnerZeile({ knoten, ctx }: { knoten: KategorieKnoten; ctx: Ctx }): Re
           <input
             autoFocus
             value={k.label}
-            className={`${feldKlasse} min-w-0 flex-1 max-w-[280px]`}
+            className={`${feldKlasseSchmal} min-w-0 flex-1 max-w-[280px]`}
             style={feldStil}
             onChange={e => ctx.api.setKategorie(k.id, { label: e.target.value })}
             onBlur={() => ctx.setEditId(null)}
@@ -154,7 +154,7 @@ function OrdnerZeile({ knoten, ctx }: { knoten: KategorieKnoten; ctx: Ctx }): Re
         <input
           type="number"
           value={k.reihenfolge}
-          className={`${feldKlasse} w-[64px] shrink-0`}
+          className={`${feldKlasseSchmal} w-[64px] shrink-0`}
           style={feldStil}
           title="Reihenfolge unter demselben Ordner"
           onChange={e => ctx.api.setKategorie(k.id, {

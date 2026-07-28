@@ -70,9 +70,21 @@ export const PROMINENZ_WERTE: readonly Prominenz[] = [
 /** Spine-Phasen in amtlicher Reihenfolge (Eingang→…→Schluss, keine). */
 export const SPINE_WERTE: readonly SpinePhase[] = SPINE_REIHENFOLGE;
 
+/**
+ * Wie `feldKlasse`, aber **ohne** `w-full` — für Felder, die ihre Breite selbst
+ * setzen (`w-[64px]`, `flex-1`).
+ *
+ * Warum getrennt und nicht einfach eine Breite dahinter: `w-full` steht im
+ * erzeugten Stylesheet HINTER den Arbitrary-Values (`.w-[64px]` bei 20 202 035,
+ * `.w-full` bei 20 202 869) und gewinnt bei gleicher Spezifität. Ein
+ * `${feldKlasse} w-[64px]` ist also 100 % breit; zusammen mit `shrink-0`
+ * fordert das Feld die ganze Zeile und quetscht seine Nachbarn auf null.
+ */
+export const feldKlasseSchmal =
+  'text-[12.5px] rounded px-2 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]';
+
 /** Gemeinsame Klasse für Inline-Formularfelder (Select/Input), dicht. */
-export const feldKlasse =
-  'w-full text-[12.5px] rounded px-2 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]';
+export const feldKlasse = `w-full ${feldKlasseSchmal}`;
 
 /** Haarlinien-Rahmen für Inline-Formularfelder (einzige erlaubte Inline-Style-Ausnahme). */
 export const feldStil: React.CSSProperties = { border: '0.5px solid var(--tf-border)' };
