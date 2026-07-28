@@ -8,7 +8,7 @@
  * mit Schreibrecht wirksam). Ein gemeinsamer Hook müsste beide Lebenszyklen
  * bedienen und würde bei jedem Tastendruck im Editor die Projektion anfassen.
  *
- * Der Jahrgangs-Filter liegt hier und nicht in den Tabs: die Seite grenzt einmal
+ * Der Eingangs-Zeitraum liegt hier und nicht in den Tabs: die Seite grenzt einmal
  * ein und reicht die Ergebnisse durch. Sonst müsste ihn jeder Tab einzeln
  * anwenden, und die Zähler der Tab-Leiste würden weiter über alles rechnen.
  */
@@ -27,8 +27,8 @@ import { DieseWocheTab } from './DieseWocheTab';
 import { AuswertungTab } from './AuswertungTab';
 import { JahresFilter } from './JahresFilter';
 import {
-  antragsJahr, jahrSpanne, passtZuBereich, sammleWochenPunkte, standJahr, standardBereich,
-  type JahrBereich,
+  antragsJahr, datumSpanne, passtZuBereich, sammleWochenPunkte, standJahr, standardBereich,
+  type DatumBereich,
 } from './monitoringLogic';
 import { feldStil, formatDatum } from './labels';
 
@@ -194,11 +194,11 @@ export function MeilensteinePage(): React.ReactElement {
   const stand = useMeilensteinStand();
   const [tab, setTab] = useState<TabKey>('uebersicht');
 
-  // Jahrgang: EIN Vorfilter für den ganzen Bereich. Die Tabs bekommen bereits
-  // eingegrenzte Listen — so gelten die Kopf-Chips sichtbar überall, und die
-  // Zähler (inkl. Tab-Leiste) stimmen ohne zusätzliche Buchführung.
+  // Eingangs-Zeitraum: EIN Vorfilter für den ganzen Bereich. Die Tabs bekommen
+  // bereits eingegrenzte Listen — so gilt die Kopf-Leiste sichtbar überall, und
+  // die Zähler (inkl. Tab-Leiste) stimmen ohne zusätzliche Buchführung.
   const currentYear = standJahr(stand.stand);
-  const [bereich, setBereich] = useState<JahrBereich | null>(
+  const [bereich, setBereich] = useState<DatumBereich | null>(
     () => standardBereich(standJahr(stand.stand)),
   );
 
@@ -215,7 +215,7 @@ export function MeilensteinePage(): React.ReactElement {
     [stand.zeilen],
   );
   const spanne = useMemo(
-    () => jahrSpanne(
+    () => datumSpanne(
       [...stand.zeilen.map(z => z.antragsdatum), ...stand.abschluesse.map(a => a.antragsdatum)],
       currentYear,
     ),

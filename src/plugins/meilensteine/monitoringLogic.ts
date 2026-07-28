@@ -2,7 +2,7 @@
  * Reine Auswahl-Logik der Monitoring-Tabs — Filtern, Sortieren, Sammeln.
  * Ohne React, damit sie ohne DOM testbar ist (Muster `kanbanLanes.ts`).
  *
- * Zwei Ebenen, bewusst getrennt: der **Jahrgang** ist ein bereichsweiter
+ * Zwei Ebenen, bewusst getrennt: der **Eingangs-Zeitraum** ist ein bereichsweiter
  * Vorfilter (die Seite wendet ihn einmal an und reicht die Ergebnisse an alle
  * Tabs durch), der **Übersicht-Filter** wirkt nur innerhalb der Liste. Das
  * Bezugsjahr kommt überall als Parameter herein, damit nichts an der Uhr hängt.
@@ -25,13 +25,21 @@ const PROGNOSE_RANG: Record<Prognose, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// Jahrgang — der bereichsweite Vorfilter (Übersicht, Diese Woche, Auswertung)
+// Eingangs-Zeitraum — der bereichsweite Vorfilter (Übersicht, Woche, Auswertung)
 // ---------------------------------------------------------------------------
 
-/** Gewählter Jahrgang des Antragseingangs; als Zustand ist `null` = alle Jahre. */
-export interface JahrBereich {
-  von: number;
-  bis: number;
+/**
+ * Gewählter Zeitraum des Antragseingangs, beide Grenzen **inklusive** und als
+ * ISO `YYYY-MM-DD`. Als Zustand bedeutet `null` „alle Eingänge".
+ *
+ * Taggenau statt jahrweise, damit sich auch ein Quartal oder eine einzelne Woche
+ * herausschneiden lässt. ISO ist hier nicht nur Speicherformat, sondern der
+ * Grund, warum der Vergleich ein simpler String-Vergleich sein darf — lexikalisch
+ * = chronologisch (dasselbe Argument wie beim `date_range`-Filter der Suche).
+ */
+export interface DatumBereich {
+  von: string;
+  bis: string;
 }
 
 /** Wie viele Jahre die Chip-Leiste einzeln zur Kurzwahl anbietet. */
@@ -59,9 +67,14 @@ export function antragsJahr(antragsdatum: string | null | undefined): number | n
   return iso === null ? null : Number(iso.slice(0, 4));
 }
 
-/** Vorbelegung des Bereichs: laufendes Jahr und das Jahr davor. */
-export function standardBereich(currentYear: number): JahrBereich {
-  return { von: currentYear - 1, bis: currentYear };
+/** Ein volles Kalenderjahr als Zeitraum — die Kurzwahl hinter einem Jahres-Chip. */
+export function jahrAlsBereich(jahr: number): DatumBereich {
+  return { von: `${jahr}-01-01`, bis: `${jahr}-12-31` };
+}
+
+/** Vorbelegung des Bereichs: laufendes Jahr und das Jahr davor, ganzjährig. */
+export function standardBereich(currentYear: number): DatumBereich {
+  return { von: `${currentYear - 1}-01-01`, bis: `${currentYear}-12-31` };
 }
 
 /**
@@ -74,47 +87,48 @@ export function jahrChips(currentYear: number): number[] {
 }
 
 /**
- * Umfang der Von/Bis-Listen: alles, was in den Daten vorkommt, mindestens aber
- * das laufende Jahr (damit es auch ohne Anträge wählbar bleibt).
+ * Grenzen der Datumsfelder: alles, was in den Daten vorkommt, mindestens aber das
+ * laufende Jahr (damit es auch ohne Anträge wählbar bleibt). Dient zugleich als
+ * Anzeige-Ersatz, solange „Alle Eingänge" aktiv ist.
  */
-export function jahrSpanne(
+export function datumSpanne(
   datumsWerte: readonly (string | null | undefined)[], currentYear: number,
-): JahrBereich {
-  let von = currentYear;
-  let bis = currentYear;
+): DatumBereich {
+  let { von, bis } = jahrAlsBereich(currentYear);
   for (const d of datumsWerte) {
-    const j = antragsJahr(d);
-    if (j === null) continue;
-    if (j < von) von = j;
-    if (j > bis) bis = j;
+    const iso = d ? parseGermanDate(d) : null;
+    if (iso === null) continue;
+    if (iso < von) von = iso;
+    if (iso > bis) bis = iso;
   }
   return { von, bis };
 }
 
 /**
- * Passt der Jahrgang zur Auswahl? Ohne Bereich zählt alles.
+ * Liegt der Antragseingang im Zeitraum? Ohne Bereich zählt alles.
  *
- * Ohne verwertbares Antragsdatum gibt es keinen Jahrgang — solche Vorgänge
- * fallen bei aktivem Bereich heraus, statt jede Auswahl still zu „Jahr X oder
- * unbekannt" umzudeuten. Unter „Alle Jahre" sind sie wieder da.
+ * Ohne verwertbares Antragsdatum gibt es keinen Eingang, den man einordnen
+ * könnte — solche Vorgänge fallen bei aktivem Bereich heraus, statt jede Auswahl
+ * still zu „Zeitraum oder unbekannt" umzudeuten. Unter „Alle Eingänge" sind sie
+ * wieder da.
  */
 export function passtZuBereich(
-  antragsdatum: string | null | undefined, bereich: JahrBereich | null,
+  antragsdatum: string | null | undefined, bereich: DatumBereich | null,
 ): boolean {
   if (bereich === null) return true;
-  const j = antragsJahr(antragsdatum);
-  if (j === null) return false;
-  return j >= bereich.von && j <= bereich.bis;
+  const iso = antragsdatum ? parseGermanDate(antragsdatum) : null;
+  if (iso === null) return false;
+  return iso >= bereich.von && iso <= bereich.bis;
 }
 
 /** Untere Grenze setzen; die obere wird mitgezogen, statt den Bereich zu drehen. */
-export function setzeVon(bereich: JahrBereich, jahr: number): JahrBereich {
-  return { von: jahr, bis: Math.max(jahr, bereich.bis) };
+export function setzeVon(bereich: DatumBereich, datum: string): DatumBereich {
+  return { von: datum, bis: bereich.bis < datum ? datum : bereich.bis };
 }
 
 /** Obere Grenze setzen; die untere wird mitgezogen, statt den Bereich zu drehen. */
-export function setzeBis(bereich: JahrBereich, jahr: number): JahrBereich {
-  return { von: Math.min(jahr, bereich.von), bis: jahr };
+export function setzeBis(bereich: DatumBereich, datum: string): DatumBereich {
+  return { von: bereich.von > datum ? datum : bereich.von, bis: datum };
 }
 
 // ---------------------------------------------------------------------------

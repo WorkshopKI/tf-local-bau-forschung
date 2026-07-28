@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.350 — 2026-07
+
+### Neu
+- In „Fristen & Meilensteine" lässt sich der Eingangs-Zeitraum jetzt taggenau setzen — etwa 01.04. bis 30.06. für ein Quartal, statt nur ganze Jahre.
+
+### Verbesserungen
+- Die Jahres-Schaltflächen bleiben als Schnellwahl: ein Klick setzt das ganze Kalenderjahr, die Datumsfelder zeigen es dann als 01.01. bis 31.12.
+- Ein leer gelassenes Datumsfeld bedeutet „so weit die Daten reichen"; weiter als der älteste bzw. jüngste Antrag lässt sich ohnehin nichts wählen.
+
 ## v2.349 — 2026-07
 
 ### Neu

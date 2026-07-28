@@ -1,90 +1,98 @@
 /**
- * Jahrgangs-Leiste im Seitenkopf — der bereichsweite Vorfilter über den
+ * Eingangs-Leiste im Seitenkopf — der bereichsweite Vorfilter über den
  * Antragseingang. Gilt für Übersicht, „Diese Woche" und Auswertung samt ihrer
  * Tab-Zähler; die Konfiguration zeigt keine Zeilendaten und blendet sie aus.
  *
- * Ein Zustand, zwei Bedienwege: die Chips sind Kurzwahl auf ein einzelnes Jahr,
- * die beiden Listen die allgemeine Von-Bis-Form. Die Listen zeigen deshalb immer
- * den tatsächlichen Bereich — auch wenn er über einen Chip zustande kam.
+ * Ein Zustand, zwei Bedienwege: die Chips sind Kurzwahl auf ein ganzes Jahr, die
+ * beiden Datumsfelder die taggenaue Form. Die Felder zeigen deshalb immer den
+ * tatsächlichen Zeitraum — auch wenn er über einen Chip zustande kam.
+ *
+ * `<input type="date">` statt eigenem Kalender: liefert die Landes-Schreibweise
+ * (tt.mm.jjjj) geschenkt, gibt den Wert immer als ISO zurück und läuft unter
+ * `file://` ohne jede Abhängigkeit.
  */
 import { ToggleChip } from '@/components/ui/ToggleChip';
-import { jahrChips, setzeBis, setzeVon, type JahrBereich } from './monitoringLogic';
+import {
+  jahrAlsBereich, jahrChips, setzeBis, setzeVon, type DatumBereich,
+} from './monitoringLogic';
 import { feldStil } from './labels';
 
-const SELECT_CLS =
+const DATUM_CLS =
   'text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
 
-/** Jahre von `bis` abwärts bis `von` — neueste zuerst, wie in den Chips. */
-function jahresListe({ von, bis }: JahrBereich): number[] {
-  return Array.from({ length: bis - von + 1 }, (_, i) => bis - i);
-}
-
 export function JahresFilter({ bereich, currentYear, spanne, ohneDatum, onChange }: {
-  /** Gewählter Bereich; `null` = alle Jahrgänge. */
-  bereich: JahrBereich | null;
+  /** Gewählter Zeitraum; `null` = alle Eingänge. */
+  bereich: DatumBereich | null;
   currentYear: number;
-  /** Umfang der Auswahllisten (aus den Daten abgeleitet). */
-  spanne: JahrBereich;
+  /** Grenzen der Datumsfelder (aus den Daten abgeleitet). */
+  spanne: DatumBereich;
   /** Verbünde ohne verwertbares Antragsdatum — Hinweis nur bei aktivem Bereich. */
   ohneDatum: number;
-  onChange: (bereich: JahrBereich | null) => void;
+  onChange: (bereich: DatumBereich | null) => void;
 }): React.ReactElement {
-  const jahre = jahresListe(spanne);
-  // Bei „Alle Jahre" zeigen die Listen die volle Spanne — jede Änderung daran
-  // macht daraus einen echten Bereich.
+  // Bei „Alle Eingänge" zeigen die Felder die volle Spanne — jede Änderung daran
+  // macht daraus einen echten Zeitraum.
   const offen = bereich ?? spanne;
+
+  /** Geleertes Feld heißt „bis an den Rand der Daten", nicht „ungültig". */
+  const datumOder = (wert: string, ersatz: string): string => wert || ersatz;
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      <span className="text-[11.5px] text-[var(--tf-text-tertiary)] mr-0.5">Jahrgang</span>
+      <span className="text-[11.5px] text-[var(--tf-text-tertiary)] mr-0.5">Eingang</span>
 
-      {jahrChips(currentYear).map(j => (
-        <ToggleChip
-          key={j}
-          label={String(j)}
-          selected={bereich?.von === j && bereich.bis === j}
-          onToggle={() => onChange({ von: j, bis: j })}
-          title={`Nur Antragseingang ${j}`}
-        />
-      ))}
+      {jahrChips(currentYear).map(j => {
+        const jahr = jahrAlsBereich(j);
+        return (
+          <ToggleChip
+            key={j}
+            label={String(j)}
+            selected={bereich?.von === jahr.von && bereich.bis === jahr.bis}
+            onToggle={() => onChange(jahr)}
+            title={`Antragseingang im ganzen Jahr ${j}`}
+          />
+        );
+      })}
 
       <label className="flex items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)] ml-1.5">
         von
-        <select
+        <input
+          type="date"
           value={offen.von}
-          onChange={e => onChange(setzeVon(offen, Number(e.target.value)))}
-          aria-label="Jahrgang von"
-          className={SELECT_CLS}
+          min={spanne.von}
+          max={spanne.bis}
+          onChange={e => onChange(setzeVon(offen, datumOder(e.target.value, spanne.von)))}
+          aria-label="Antragseingang von"
+          className={DATUM_CLS}
           style={feldStil}
-        >
-          {jahre.map(j => <option key={j} value={j}>{j}</option>)}
-        </select>
+        />
       </label>
       <label className="flex items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
         bis
-        <select
+        <input
+          type="date"
           value={offen.bis}
-          onChange={e => onChange(setzeBis(offen, Number(e.target.value)))}
-          aria-label="Jahrgang bis"
-          className={SELECT_CLS}
+          min={spanne.von}
+          max={spanne.bis}
+          onChange={e => onChange(setzeBis(offen, datumOder(e.target.value, spanne.bis)))}
+          aria-label="Antragseingang bis"
+          className={DATUM_CLS}
           style={feldStil}
-        >
-          {jahre.map(j => <option key={j} value={j}>{j}</option>)}
-        </select>
+        />
       </label>
 
       <ToggleChip
-        label="Alle Jahre"
+        label="Alle Eingänge"
         selected={bereich === null}
         onToggle={() => onChange(null)}
-        title="Jahrgangs-Filter aufheben"
+        title="Zeitraum-Filter aufheben"
         className="ml-1.5"
       />
 
       {bereich !== null && ohneDatum > 0 && (
         <span
           className="text-[11.5px] text-[var(--tf-text-tertiary)]"
-          title="Ohne Antragsdatum gibt es keinen Jahrgang — unter „Alle Jahre“ sind sie wieder dabei."
+          title="Ohne Antragsdatum lässt sich kein Eingang einordnen — unter „Alle Eingänge“ sind sie wieder dabei."
         >
           · {ohneDatum} ohne Antragsdatum ausgeblendet
         </span>

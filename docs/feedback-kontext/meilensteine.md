@@ -12,10 +12,10 @@ Teilvorhaben.
 
 ## Bereiche
 
-- **Jahrgang** (Kopfzeile, gilt für Übersicht/Diese Woche/Auswertung samt Zählern):
-  Chips für die drei jüngsten Jahre, Von-Bis-Listen, „Alle Jahre" — **vorbelegt mit
-  laufendem Jahr + Vorjahr**. Bezug ist der Antragseingang; ohne Antragsdatum nur
-  unter „Alle Jahre" sichtbar.
+- **Eingang** (Kopfzeile, gilt für Übersicht/Diese Woche/Auswertung samt Zählern):
+  Jahres-Chips als Kurzwahl, taggenaue Von-Bis-Felder, „Alle Eingänge" —
+  **vorbelegt mit laufendem Jahr + Vorjahr**. Bezug ist der Antragseingang; ohne
+  Antragsdatum nur unter „Alle Eingänge" sichtbar.
 - **Übersicht**: links je offener Verbund eine Zeile (Akronym, Antragstyp,
   laufende Woche, ein Zustands-Punkt je Haupt-Meilenstein, Restzeit), rechts der
   Zeitstrahl — Soll als hohle Raute, Ist als gefüllter Punkt. Filter: Typ,

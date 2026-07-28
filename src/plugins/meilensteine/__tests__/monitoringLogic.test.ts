@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  LEERER_FILTER, antragsJahr, filtereZeilen, jahrChips, jahrSpanne, nurMeinePunkte,
-  passtZuBereich, sammleWochenPunkte, setzeBis, setzeVon, standJahr, standardBereich,
+  LEERER_FILTER, antragsJahr, datumSpanne, filtereZeilen, jahrAlsBereich, jahrChips,
+  nurMeinePunkte, passtZuBereich, sammleWochenPunkte, setzeBis, setzeVon, standJahr,
+  standardBereich,
 } from '@/plugins/meilensteine/monitoringLogic';
 import type { VerbundZeile } from '@/plugins/meilensteine/useMeilensteinStand';
 import type { MeilensteinPlan, MstErgebnis, Prognose } from '@/core/meilensteine';
@@ -39,7 +40,7 @@ const plan: MeilensteinPlan = {
  * Bezugsjahr ist überall Parameter — kein `vi.setSystemTime` nötig. Die Uhr wird
  * nicht mockbar gemacht, sondern aus den Funktionen entfernt.
  */
-describe('Jahrgang', () => {
+describe('Eingangs-Zeitraum', () => {
   it('liest das Jahr aus ISO, deutschem und zweistelligem Datum', () => {
     expect(antragsJahr('2026-01-05')).toBe(2026);
     expect(antragsJahr('05.01.2026')).toBe(2026);
@@ -58,8 +59,12 @@ describe('Jahrgang', () => {
     expect(antragsJahr('32.13.2026')).toBeNull();
   });
 
-  it('belegt mit laufendem Jahr und Vorjahr vor', () => {
-    expect(standardBereich(2026)).toEqual({ von: 2025, bis: 2026 });
+  it('belegt mit laufendem Jahr und Vorjahr vor — ganzjährig', () => {
+    expect(standardBereich(2026)).toEqual({ von: '2025-01-01', bis: '2026-12-31' });
+  });
+
+  it('legt hinter einen Jahres-Chip das volle Kalenderjahr', () => {
+    expect(jahrAlsBereich(2024)).toEqual({ von: '2024-01-01', bis: '2024-12-31' });
   });
 
   it('bietet die drei jüngsten Jahre zur Kurzwahl, neuestes zuerst', () => {
@@ -72,31 +77,50 @@ describe('Jahrgang', () => {
   });
 
   it('schließt beide Grenzen ein', () => {
-    const b = { von: 2025, bis: 2026 };
+    const b = standardBereich(2026);
     expect(passtZuBereich('2025-01-01', b)).toBe(true);
     expect(passtZuBereich('2026-12-31', b)).toBe(true);
     expect(passtZuBereich('2024-12-31', b)).toBe(false);
     expect(passtZuBereich('2027-01-01', b)).toBe(false);
   });
 
+  it('trennt taggenau, nicht nur jahrweise', () => {
+    const q2 = { von: '2026-04-01', bis: '2026-06-30' };
+    expect(passtZuBereich('2026-03-31', q2)).toBe(false);
+    expect(passtZuBereich('2026-04-01', q2)).toBe(true);
+    expect(passtZuBereich('2026-06-30', q2)).toBe(true);
+    expect(passtZuBereich('2026-07-01', q2)).toBe(false);
+  });
+
+  it('vergleicht deutsche Datumsangaben taggenau mit', () => {
+    const b = { von: '2025-08-17', bis: '2025-08-19' };
+    expect(passtZuBereich('16.08.2025', b)).toBe(false);
+    expect(passtZuBereich('17.08.2025', b)).toBe(true);
+    expect(passtZuBereich('19.08.25', b)).toBe(true);
+    expect(passtZuBereich('20.08.2025', b)).toBe(false);
+  });
+
   it('blendet Vorgänge ohne verwertbares Antragsdatum bei aktivem Bereich aus', () => {
-    const b = { von: 2026, bis: 2026 };
+    const b = jahrAlsBereich(2026);
     expect(passtZuBereich(null, b)).toBe(false);
     expect(passtZuBereich('kein Datum', b)).toBe(false);
   });
 
   it('zieht die Gegengrenze mit, statt den Bereich zu drehen', () => {
-    expect(setzeVon({ von: 2025, bis: 2026 }, 2027)).toEqual({ von: 2027, bis: 2027 });
-    expect(setzeVon({ von: 2025, bis: 2026 }, 2020)).toEqual({ von: 2020, bis: 2026 });
-    expect(setzeBis({ von: 2025, bis: 2026 }, 2024)).toEqual({ von: 2024, bis: 2024 });
-    expect(setzeBis({ von: 2025, bis: 2026 }, 2030)).toEqual({ von: 2025, bis: 2030 });
+    const b = { von: '2025-01-01', bis: '2026-12-31' };
+    expect(setzeVon(b, '2027-03-01')).toEqual({ von: '2027-03-01', bis: '2027-03-01' });
+    expect(setzeVon(b, '2020-06-15')).toEqual({ von: '2020-06-15', bis: '2026-12-31' });
+    expect(setzeBis(b, '2024-05-05')).toEqual({ von: '2024-05-05', bis: '2024-05-05' });
+    expect(setzeBis(b, '2030-01-31')).toEqual({ von: '2025-01-01', bis: '2030-01-31' });
   });
 
-  it('spannt die Auswahl über die Daten, mindestens aber über das laufende Jahr', () => {
-    expect(jahrSpanne(['2013-01-01', '2020-06-01'], 2026)).toEqual({ von: 2013, bis: 2026 });
-    expect(jahrSpanne(['2030-01-01'], 2026)).toEqual({ von: 2026, bis: 2030 });
-    expect(jahrSpanne([null, 'x'], 2026)).toEqual({ von: 2026, bis: 2026 });
-    expect(jahrSpanne([], 2026)).toEqual({ von: 2026, bis: 2026 });
+  it('spannt die Grenzen über die Daten, mindestens über das laufende Jahr', () => {
+    expect(datumSpanne(['2013-04-17', '2020-06-01'], 2026))
+      .toEqual({ von: '2013-04-17', bis: '2026-12-31' });
+    expect(datumSpanne(['2030-02-09'], 2026))
+      .toEqual({ von: '2026-01-01', bis: '2030-02-09' });
+    expect(datumSpanne([null, 'x'], 2026)).toEqual({ von: '2026-01-01', bis: '2026-12-31' });
+    expect(datumSpanne([], 2026)).toEqual({ von: '2026-01-01', bis: '2026-12-31' });
   });
 
   it('hängt an keinem fest verdrahteten Jahr', () => {
