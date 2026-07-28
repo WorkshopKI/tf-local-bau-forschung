@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  LEERER_FILTER, filtereZeilen, nurMeinePunkte, sammleWochenPunkte,
+  LEERER_FILTER, antragsJahr, filtereZeilen, jahrChips, jahrSpanne, nurMeinePunkte,
+  passtZuBereich, sammleWochenPunkte, setzeBis, setzeVon, standJahr, standardBereich,
 } from '@/plugins/meilensteine/monitoringLogic';
 import type { VerbundZeile } from '@/plugins/meilensteine/useMeilensteinStand';
 import type { MeilensteinPlan, MstErgebnis, Prognose } from '@/core/meilensteine';
@@ -33,6 +34,89 @@ const plan: MeilensteinPlan = {
   ],
   historie: [],
 };
+
+/**
+ * Bezugsjahr ist überall Parameter — kein `vi.setSystemTime` nötig. Die Uhr wird
+ * nicht mockbar gemacht, sondern aus den Funktionen entfernt.
+ */
+describe('Jahrgang', () => {
+  it('liest das Jahr aus ISO, deutschem und zweistelligem Datum', () => {
+    expect(antragsJahr('2026-01-05')).toBe(2026);
+    expect(antragsJahr('05.01.2026')).toBe(2026);
+    expect(antragsJahr('05.01.26')).toBe(2026);
+  });
+
+  it('liest das Jahr auch aus einem ISO-Zeitstempel (Bewertungs-Stand)', () => {
+    expect(antragsJahr('2026-07-28T10:00:00.000Z')).toBe(2026);
+    expect(standJahr(HEUTE)).toBe(2026);
+  });
+
+  it('liefert ohne verwertbares Datum null', () => {
+    expect(antragsJahr(null)).toBeNull();
+    expect(antragsJahr('')).toBeNull();
+    expect(antragsJahr('demnächst')).toBeNull();
+    expect(antragsJahr('32.13.2026')).toBeNull();
+  });
+
+  it('belegt mit laufendem Jahr und Vorjahr vor', () => {
+    expect(standardBereich(2026)).toEqual({ von: 2025, bis: 2026 });
+  });
+
+  it('bietet die drei jüngsten Jahre zur Kurzwahl, neuestes zuerst', () => {
+    expect(jahrChips(2026)).toEqual([2026, 2025, 2024]);
+  });
+
+  it('lässt ohne Bereich alles durch — auch Vorgänge ohne Antragsdatum', () => {
+    expect(passtZuBereich(null, null)).toBe(true);
+    expect(passtZuBereich('2013-03-03', null)).toBe(true);
+  });
+
+  it('schließt beide Grenzen ein', () => {
+    const b = { von: 2025, bis: 2026 };
+    expect(passtZuBereich('2025-01-01', b)).toBe(true);
+    expect(passtZuBereich('2026-12-31', b)).toBe(true);
+    expect(passtZuBereich('2024-12-31', b)).toBe(false);
+    expect(passtZuBereich('2027-01-01', b)).toBe(false);
+  });
+
+  it('blendet Vorgänge ohne verwertbares Antragsdatum bei aktivem Bereich aus', () => {
+    const b = { von: 2026, bis: 2026 };
+    expect(passtZuBereich(null, b)).toBe(false);
+    expect(passtZuBereich('kein Datum', b)).toBe(false);
+  });
+
+  it('zieht die Gegengrenze mit, statt den Bereich zu drehen', () => {
+    expect(setzeVon({ von: 2025, bis: 2026 }, 2027)).toEqual({ von: 2027, bis: 2027 });
+    expect(setzeVon({ von: 2025, bis: 2026 }, 2020)).toEqual({ von: 2020, bis: 2026 });
+    expect(setzeBis({ von: 2025, bis: 2026 }, 2024)).toEqual({ von: 2024, bis: 2024 });
+    expect(setzeBis({ von: 2025, bis: 2026 }, 2030)).toEqual({ von: 2025, bis: 2030 });
+  });
+
+  it('spannt die Auswahl über die Daten, mindestens aber über das laufende Jahr', () => {
+    expect(jahrSpanne(['2013-01-01', '2020-06-01'], 2026)).toEqual({ von: 2013, bis: 2026 });
+    expect(jahrSpanne(['2030-01-01'], 2026)).toEqual({ von: 2026, bis: 2030 });
+    expect(jahrSpanne([null, 'x'], 2026)).toEqual({ von: 2026, bis: 2026 });
+    expect(jahrSpanne([], 2026)).toEqual({ von: 2026, bis: 2026 });
+  });
+
+  it('hängt an keinem fest verdrahteten Jahr', () => {
+    expect(passtZuBereich('2030-02-02', standardBereich(2031))).toBe(true);
+    expect(passtZuBereich('2029-02-02', standardBereich(2031))).toBe(false);
+  });
+
+  it('grenzt eine Zeilen-Liste ein wie die Seite es tut', () => {
+    const zeilen = [
+      zeile({ verbundId: 'NEU', prognose: 'imPlan', antragsdatum: '2026-03-01' }),
+      zeile({ verbundId: 'VORJAHR', prognose: 'imPlan', antragsdatum: '17.08.2025' }),
+      zeile({ verbundId: 'ALT', prognose: 'nichtHaltbar', antragsdatum: '2014-05-05' }),
+      zeile({ verbundId: 'OHNE', prognose: 'unbekannt', antragsdatum: null }),
+    ];
+    const b = standardBereich(2026);
+    expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, b)).map(z => z.verbundId))
+      .toEqual(['NEU', 'VORJAHR']);
+    expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, null))).toHaveLength(4);
+  });
+});
 
 describe('filtereZeilen', () => {
   const zeilen = [

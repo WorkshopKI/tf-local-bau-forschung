@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.349 — 2026-07
+
+### Neu
+- „Fristen & Meilensteine" lässt sich nach Jahrgang eingrenzen: Schnellwahl für die drei jüngsten Jahre, dazu eine Von-Bis-Auswahl für alles Ältere.
+- Beim Öffnen sind das laufende Jahr und das Vorjahr eingestellt — die Seite startet damit im aktuellen Bestand statt in dreizehn Jahren Archiv.
+
+### Verbesserungen
+- Die Auswahl gilt für die ganze Seite: Übersicht, „Diese Woche" und Auswertung zeigen denselben Ausschnitt, auch in den Zählern an den Reitern.
+- Damit bezieht sich die durchschnittliche Bearbeitungsdauer künftig auf die gewählten Jahrgänge. „Alle Jahre" zeigt wieder den Gesamtwert.
+- Verbünde ohne Antragsdatum lassen sich keinem Jahrgang zuordnen; wie viele gerade ausgeblendet sind, steht neben der Auswahl.
+
 ## v2.348 — 2026-07
 
 ### Neu

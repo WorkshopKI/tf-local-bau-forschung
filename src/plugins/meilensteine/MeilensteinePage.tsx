@@ -7,8 +7,12 @@
  * Stand (read-only, für alle), `useMeilensteinPlan` den editierbaren Plan (nur
  * mit Schreibrecht wirksam). Ein gemeinsamer Hook müsste beide Lebenszyklen
  * bedienen und würde bei jedem Tastendruck im Editor die Projektion anfassen.
+ *
+ * Der Jahrgangs-Filter liegt hier und nicht in den Tabs: die Seite grenzt einmal
+ * ein und reicht die Ergebnisse durch. Sonst müsste ihn jeder Tab einzeln
+ * anwenden, und die Zähler der Tab-Leiste würden weiter über alles rechnen.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
@@ -21,7 +25,11 @@ import { KonfigurationTab } from './KonfigurationTab';
 import { UebersichtTab } from './UebersichtTab';
 import { DieseWocheTab } from './DieseWocheTab';
 import { AuswertungTab } from './AuswertungTab';
-import { sammleWochenPunkte } from './monitoringLogic';
+import { JahresFilter } from './JahresFilter';
+import {
+  antragsJahr, jahrSpanne, passtZuBereich, sammleWochenPunkte, standJahr, standardBereich,
+  type JahrBereich,
+} from './monitoringLogic';
 import { feldStil, formatDatum } from './labels';
 
 type TabKey = 'uebersicht' | 'woche' | 'auswertung' | 'konfiguration';
@@ -186,6 +194,34 @@ export function MeilensteinePage(): React.ReactElement {
   const stand = useMeilensteinStand();
   const [tab, setTab] = useState<TabKey>('uebersicht');
 
+  // Jahrgang: EIN Vorfilter für den ganzen Bereich. Die Tabs bekommen bereits
+  // eingegrenzte Listen — so gelten die Kopf-Chips sichtbar überall, und die
+  // Zähler (inkl. Tab-Leiste) stimmen ohne zusätzliche Buchführung.
+  const currentYear = standJahr(stand.stand);
+  const [bereich, setBereich] = useState<JahrBereich | null>(
+    () => standardBereich(standJahr(stand.stand)),
+  );
+
+  const zeilen = useMemo(
+    () => stand.zeilen.filter(z => passtZuBereich(z.antragsdatum, bereich)),
+    [stand.zeilen, bereich],
+  );
+  const abschluesse = useMemo(
+    () => stand.abschluesse.filter(a => passtZuBereich(a.antragsdatum, bereich)),
+    [stand.abschluesse, bereich],
+  );
+  const ohneDatum = useMemo(
+    () => stand.zeilen.filter(z => antragsJahr(z.antragsdatum) === null).length,
+    [stand.zeilen],
+  );
+  const spanne = useMemo(
+    () => jahrSpanne(
+      [...stand.zeilen.map(z => z.antragsdatum), ...stand.abschluesse.map(a => a.antragsdatum)],
+      currentYear,
+    ),
+    [stand.zeilen, stand.abschluesse, currentYear],
+  );
+
   const kopf = (
     <PageHeader
       title="Fristen & Meilensteine"
@@ -193,7 +229,7 @@ export function MeilensteinePage(): React.ReactElement {
     />
   );
 
-  const wochenAnzahl = stand.plan ? sammleWochenPunkte(stand.zeilen, stand.plan, stand.stand).length : 0;
+  const wochenAnzahl = stand.plan ? sammleWochenPunkte(zeilen, stand.plan, stand.stand).length : 0;
   const entwurf = planApi.entwurf;
 
   return (
@@ -206,12 +242,18 @@ export function MeilensteinePage(): React.ReactElement {
           activeKey={tab}
           onChange={k => setTab(k as TabKey)}
           items={[
-            { key: 'uebersicht', label: 'Übersicht', count: stand.zeilen.length },
+            { key: 'uebersicht', label: 'Übersicht', count: zeilen.length },
             { key: 'woche', label: 'Diese Woche', count: wochenAnzahl },
-            { key: 'auswertung', label: 'Auswertung', count: stand.abschluesse.length },
+            { key: 'auswertung', label: 'Auswertung', count: abschluesse.length },
             { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
           ]}
         />
+        {tab !== 'konfiguration' && (
+          <JahresFilter
+            bereich={bereich} currentYear={currentYear} spanne={spanne}
+            ohneDatum={ohneDatum} onChange={setBereich}
+          />
+        )}
       </div>
 
       {(planApi.fehler ?? stand.fehler) != null && (
@@ -229,7 +271,7 @@ export function MeilensteinePage(): React.ReactElement {
           ) : stand.keinPlan || !stand.plan ? (
             <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
           ) : (
-            <UebersichtTab zeilen={stand.zeilen} plan={stand.plan} meinKuerzel={stand.meinKuerzel} />
+            <UebersichtTab zeilen={zeilen} plan={stand.plan} meinKuerzel={stand.meinKuerzel} />
           )}
         </div>
       )}
@@ -242,7 +284,7 @@ export function MeilensteinePage(): React.ReactElement {
             <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
           ) : (
             <DieseWocheTab
-              zeilen={stand.zeilen} plan={stand.plan}
+              zeilen={zeilen} plan={stand.plan}
               meinKuerzel={stand.meinKuerzel} stand={stand.stand}
             />
           )}
@@ -257,7 +299,7 @@ export function MeilensteinePage(): React.ReactElement {
             <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
           ) : (
             <AuswertungTab
-              zeilen={stand.zeilen} abschluesse={stand.abschluesse} plan={stand.plan}
+              zeilen={zeilen} abschluesse={abschluesse} plan={stand.plan}
             />
           )}
         </div>
