@@ -11,8 +11,12 @@
  * Bei einer neuen Zuarbeit: CSV daneben legen, QUELLE unten anpassen, laufen
  * lassen, Diff prüfen. Der erzeugte Diff zeigt genau, was das Fachsystem
  * geändert hat.
+ *
+ * Die CSV selbst ist gitignoret — Zuarbeit bleibt lokal, versioniert ist nur ihr
+ * Ergebnis. Auf einem Rechner ohne die Datei bricht der Lauf mit Klartext ab;
+ * das ist gewollt, denn ohne Quelle gäbe es nichts zu generieren.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,7 +55,16 @@ function rollen(roh) {
   return REIHENFOLGE.filter(r => treffer.has(r));
 }
 
-const roh = readFileSync(resolve(ROOT, QUELLE), 'utf8').replace(/^﻿/, '');
+const quelleAbs = resolve(ROOT, QUELLE);
+if (!existsSync(quelleAbs)) {
+  console.error(`FEHLT: ${QUELLE}`);
+  console.error('Die Kürzel-Zuarbeit ist bewusst nicht im Repo (siehe .gitignore).');
+  console.error('Datei vom Fachsystem besorgen, dorthin legen, erneut laufen lassen.');
+  console.error(`Ohne Neugenerierung bleibt ${ZIEL} unverändert gültig.`);
+  process.exit(1);
+}
+
+const roh = readFileSync(quelleAbs, 'utf8').replace(/^﻿/, '');
 const zeilen = parseCsv(roh).slice(1); // Kopfzeile
 
 const gesehen = new Set();

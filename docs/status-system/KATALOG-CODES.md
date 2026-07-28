@@ -27,12 +27,15 @@ Teilvorhaben", `T_HINT` „Bemerkung") — dort ist `T_` die Primärspalte.
 | **Fremddaten** | Code, Bezeichnung, wer den Eintrag setzt | [seed-codes.data.ts](../../src/core/status/seed-codes.data.ts) — generiert aus der Zuarbeit |
 | **Unsere Kuration** | Ordner, Prominenz, Spine-Phase, Rang, terminal | [seed-codes.ts](../../src/core/status/seed-codes.ts) |
 
-Die **Kürzel-Zuarbeit** des Fachsystems
-([kuerzel-zuarbeit-20260724.csv](kuerzel-zuarbeit-20260724.csv), Spalten
-`Kürzel;Beschreibung;wird gesetzt von:`) ist die maßgebliche Quelle für
+Die **Kürzel-Zuarbeit** des Fachsystems (`kuerzel-zuarbeit-20260724.csv`,
+Spalten `Kürzel;Beschreibung;wird gesetzt von:`) ist die maßgebliche Quelle für
 Bezeichnung und Rolle. Sie wird **wortgetreu** übernommen, inklusive Abkürzungen
 und Tippfehler — jede „Verbesserung" zerstörte die Wiedererkennung gegen das
 Fachsystem.
+
+Die CSV selbst ist **nicht versioniert** (`.gitignore`): Zuarbeit bleibt lokal,
+im Repo steht nur ihr generiertes Ergebnis. Zum Neugenerieren muss sie unter
+`docs/status-system/` liegen — der Generator sagt sonst, welche Datei fehlt.
 
 Neue Zuarbeit einarbeiten: CSV nach `docs/status-system/` legen, `QUELLE` in
 [gen-status-codes.mjs](../../scripts/gen-status-codes.mjs) anpassen,
