@@ -1,8 +1,7 @@
 # Status-Katalog (Cockpit)
 
 Vollbild-Admin-Seite (`/status-cockpit`, Flag `statusCockpit`; dev/pl/kurator).
-Hier wird der **Status-Katalog** gepflegt — die kuratierbaren Daten hinter der
-Statusanzeige.
+Hier wird der **Status-Katalog** gepflegt — die Daten hinter der Statusanzeige.
 
 ## Zweck
 
@@ -18,24 +17,24 @@ werden nie stillschweigend aufgelöst.
   Spine-Phase, Rang, Prominenz, terminal, aktiv), **Vorkommen**, **zuletzt
   gesehen**, Feldname und **CSV-Spalte** als Herkunft. Leeres Label heißt:
   Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
-  „Übernehmen" geholt — nie automatisch gemappt.
+  „Übernehmen" geholt, nie automatisch.
 - **Felder**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
   Teilvorhaben getrennt. Editierbar je Eintrag: Bezeichnung, Ordner, **wird
   gesetzt von** (AB/FB/QS/PA/Juristen, Mehrfachauswahl; leer = jeder darf),
   Prominenz, Spine-Phase, **Rang**, terminal — ohne Rang wird er angezeigt, hebt
   aber keine Phase (bei Wert-Feldern hängen beide am Wert).
-  „Ordner bearbeiten" legt an, benennt um, hängt um, legt still. Drei
-  Übernahme-Blöcke: Auslieferung nachziehen, Bezeichnung/Rollen der
-  Kürzel-Zuarbeit übernehmen, gefundene CSV-Spalten einsortieren. Filter: Ebene,
-  Rolle, „nur mit Rang".
+  „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu, Ziehen hängt um,
+  Klick auf den Namen benennt um. Drei Übernahme-Blöcke: Auslieferung
+  nachziehen, Bezeichnung/Rollen der Kürzel-Zuarbeit übernehmen, gefundene
+  CSV-Spalten einsortieren. Filter: Ebene, Rolle, „nur mit Rang".
 - **Regeln**: priorisierte Nächste-Schritte-Regeln (Bedingung → Schritt, optional
   mit Werkzeug). aktiv/Priorität/Beschreibung editierbar.
 
 ## Simulation + Versionen
 
 Die **Simulations-Leiste** über den Tabs zeigt Phasenverteilung (Aktiv →
-Entwurf), Konfliktzahl und die wechselnden Verbünde — das Abnahme-Instrument vor
-jeder Rang-Änderung. Änderungen sind ein **Entwurf**; „Für das Team speichern"
+Entwurf), Konfliktzahl und die wechselnden Verbünde — das Abnahme-Instrument.
+Änderungen sind ein **Entwurf**; „Für das Team speichern"
 legt eine Fassung an. Ältere sind als Entwurf ladbar.
 
 ## Wichtig

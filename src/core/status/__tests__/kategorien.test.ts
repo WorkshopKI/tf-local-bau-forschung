@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  kategoriePfad, kategoriePfadLabel, kinderVon, flacheBaumListe,
+  kategoriePfad, kategoriePfadLabel, kinderVon, flacheBaumListe, baumVon,
   erzeugtZyklus, findeZyklus,
 } from '@/core/status/kategorien';
 import type { StatusKategorie } from '@/core/status/typen';
@@ -70,5 +70,30 @@ describe('kategorien — Baum-Mechanik', () => {
     const liste = flacheBaumListe(kaputt, 'tv');
     expect(liste.map(e => e.kategorie.id)).not.toContain('x');
     expect(liste.length).toBe(4);
+  });
+
+  it('verschachtelt denselben Baum, den die flache Liste einrückt', () => {
+    const baum = baumVon(BAUM, 'tv');
+    expect(baum.map(k => k.kategorie.id)).toEqual(['tv.komm', 'tv.ab']);
+    const ab = baum.find(k => k.kategorie.id === 'tv.ab');
+    expect(ab?.kinder.map(k => k.kategorie.id)).toEqual(['tv.ab.precheck', 'tv.ab.ablehnung']);
+    // Gleiche Menge wie flach, nur anders angeordnet.
+    const flach = flacheBaumListe(BAUM, 'tv').map(e => e.kategorie.id).sort();
+    const ausBaum = (knoten: ReturnType<typeof baumVon>): string[] =>
+      knoten.flatMap(k => [k.kategorie.id, ...ausBaum(k.kinder)]);
+    expect(ausBaum(baum).sort()).toEqual(flach);
+  });
+
+  it('trennt auch verschachtelt die Ebenen', () => {
+    expect(baumVon(BAUM, 'verbund').map(k => k.kategorie.id)).toEqual(['vb.komm']);
+  });
+
+  it('hängt sich nicht an einem Ringschluss auf', () => {
+    const kaputt: StatusKategorie[] = [...BAUM, kat('x', 'y', 'X'), kat('y', 'x', 'Y')];
+    const ids = baumVon(kaputt, 'tv').flatMap(function sammle(k): string[] {
+      return [k.kategorie.id, ...k.kinder.flatMap(sammle)];
+    });
+    expect(ids).not.toContain('x');
+    expect(ids.length).toBe(4);
   });
 });

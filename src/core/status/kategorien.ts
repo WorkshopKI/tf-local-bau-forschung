@@ -83,6 +83,37 @@ export function flacheBaumListe(
   return out;
 }
 
+/** Ein Ordner samt seiner Unterordner — die verschachtelte Sicht auf den Baum. */
+export interface KategorieKnoten {
+  kategorie: StatusKategorie;
+  kinder: KategorieKnoten[];
+}
+
+/**
+ * Derselbe Baum wie `flacheBaumListe`, nur verschachtelt statt eingerückt.
+ *
+ * Für Anzeigen, die Teilbäume **einklappen**: ein zugeklappter Ordner nimmt
+ * seine Nachfahren mit, was in der flachen Liste jeder Aufrufer selbst
+ * nachrechnen müsste. Zyklenschutz wie dort — ein Knoten erscheint höchstens
+ * einmal, kaputte Daten hängen die Anzeige nicht auf.
+ */
+export function baumVon(
+  kategorien: readonly StatusKategorie[], ebene: 'verbund' | 'tv',
+): KategorieKnoten[] {
+  const derEbene = kategorien.filter(k => k.ebene === ebene);
+  const gesehen = new Set<string>();
+  const lauf = (elternId: string | null): KategorieKnoten[] => {
+    const out: KategorieKnoten[] = [];
+    for (const k of kinderVon(derEbene, elternId)) {
+      if (gesehen.has(k.id)) continue;
+      gesehen.add(k.id);
+      out.push({ kategorie: k, kinder: lauf(k.id) });
+    }
+    return out;
+  };
+  return lauf(null);
+}
+
 /**
  * Würde `elternId` als neuer Elternknoten von `id` einen Zyklus erzeugen?
  * Prüft, ob `id` auf dem Pfad des künftigen Elternknotens liegt (und deckt

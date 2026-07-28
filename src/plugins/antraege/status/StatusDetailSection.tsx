@@ -8,11 +8,14 @@
  * die Begründung dazu.
  */
 import { ChevronRight } from 'lucide-react';
+import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
+import { StatusChronik } from './StatusChronik';
 import { StatusWarum } from './StatusWarum';
 import { StatusCodeListe } from './StatusCodeListe';
+import { useTimelinePrefs } from './timelinePrefs';
 import { WERKZEUG_LABEL, SPINE_LABEL } from './labels';
 
 export function StatusDetailSection({ verbundId }: { verbundId: string }): React.ReactElement | null {
@@ -21,6 +24,9 @@ export function StatusDetailSection({ verbundId }: { verbundId: string }): React
   // Phase steht als Vorschau im Kopf, Timeline und Begründung sind Nachschlagen.
   // Hook VOR den Early Returns (Hook-Reihenfolge, React #310).
   const [open, toggleOpen] = useCollapsedSection('verbund_status_collapsed', { defaultOpen: false });
+  // Eine Präferenz-Instanz für beide Verlaufs-Ansichten (Hook vor den Early
+  // Returns — React #310).
+  const prefsApi = useTimelinePrefs();
 
   if (v.laden) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>;
@@ -53,7 +59,31 @@ export function StatusDetailSection({ verbundId }: { verbundId: string }): React
       </div>
 
       <div className={open ? undefined : 'hidden'}>
-      <StatusTimeline events={v.events} version={version} grenze={v.grenze} />
+      {/* Zwei Sichten auf denselben Verlauf: die Chronik liest die Termine aus
+          den Datumsfeldern (immer da), der Zeitstrahl das gerätelokale
+          Ereignis-Protokoll (erst nach der ersten aufgezeichneten Änderung). */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <ToggleChip
+          label="Chronik"
+          selected={prefsApi.prefs.ansicht === 'chronik'}
+          onToggle={() => prefsApi.setAnsicht('chronik')}
+        />
+        <ToggleChip
+          label="Zeitstrahl"
+          selected={prefsApi.prefs.ansicht === 'zeitstrahl'}
+          onToggle={() => prefsApi.setAnsicht('zeitstrahl')}
+        />
+      </div>
+      {prefsApi.prefs.ansicht === 'chronik' ? (
+        <StatusChronik
+          vorkommen={v.vorkommen}
+          version={version}
+          zeigeNebensaechlich={prefsApi.prefs.zeigeNebensaechlich}
+          onToggleNebensaechlich={() => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich)}
+        />
+      ) : (
+        <StatusTimeline events={v.events} version={version} grenze={v.grenze} prefsApi={prefsApi} />
+      )}
 
       <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>

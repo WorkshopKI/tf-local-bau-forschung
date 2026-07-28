@@ -4,11 +4,35 @@
  * als Tooltip-Inhalt hinter dem Konflikt-Badge (Tabelle + Detail). Rein
  * präsentierend, kompakt genug für ein 380px-Popover.
  */
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { feldLabel } from '@/core/status';
-import type { AbleitungsErgebnis, MappingVersion, SpinePhase } from '@/core/status';
+import type { AbleitungsErgebnis, Beitrag, MappingVersion, SpinePhase } from '@/core/status';
 import { SPINE_LABEL, KATEGORIE_LABEL, GRUND_LABEL } from './labels';
+
+/** Ein zusammengefasster Beitrag: gleiche Aussage aus mehreren Teilvorhaben = eine Zeile. */
+interface BeitragsZeile {
+  key: string;
+  beitrag: Beitrag;
+  anzahl: number;
+}
+
+/**
+ * Fasst identische Beiträge zusammen. Eine Verbund-Spalte steht auf jeder
+ * TV-Zeile — ohne das wiederholt die Begründung bei vier Teilvorhaben jede
+ * Aussage viermal und die Liste liest sich nicht mehr.
+ */
+function fasseZusammen(beitraege: readonly Beitrag[]): BeitragsZeile[] {
+  const proSchluessel = new Map<string, BeitragsZeile>();
+  for (const b of beitraege) {
+    const key = `${b.feldId}|${b.wert}|${b.beruecksichtigt}|${b.spinePhase}|${b.grund ?? ''}`;
+    const vorhanden = proSchluessel.get(key);
+    if (vorhanden) vorhanden.anzahl += 1;
+    else proSchluessel.set(key, { key, beitrag: b, anzahl: 1 });
+  }
+  return [...proSchluessel.values()];
+}
 
 /** Badge-Variante zur abgeleiteten Spine-Phase (rein visuell). */
 function phaseVariant(p: SpinePhase): BadgeVariant {
@@ -23,6 +47,31 @@ function phaseVariant(p: SpinePhase): BadgeVariant {
   }
 }
 
+/** Eine Beitragszeile — gedimmt, wenn sie den Status nicht trägt. */
+function BeitragsPunkt({
+  zeile, version,
+}: {
+  zeile: BeitragsZeile;
+  version: MappingVersion;
+}): React.ReactElement {
+  const b = zeile.beitrag;
+  return (
+    <li className={`flex items-baseline gap-1.5 ${b.beruecksichtigt ? '' : 'opacity-50'}`}>
+      <span className="shrink-0 text-[var(--tf-text-secondary)]">{feldLabel(version, b.feldId)}</span>
+      <span className="truncate">{b.wert}</span>
+      {zeile.anzahl > 1 ? (
+        <span className="shrink-0 text-[var(--tf-text-tertiary)]" title={`${zeile.anzahl} Teilvorhaben`}>
+          ×{zeile.anzahl}
+        </span>
+      ) : null}
+      <span className="shrink-0 text-[var(--tf-text-tertiary)]">· {SPINE_LABEL[b.spinePhase]}</span>
+      {!b.beruecksichtigt && b.grund ? (
+        <span className="shrink-0 italic text-[var(--tf-text-tertiary)]">({GRUND_LABEL[b.grund]})</span>
+      ) : null}
+    </li>
+  );
+}
+
 export function StatusWarum({
   ableitung,
   version,
@@ -31,6 +80,10 @@ export function StatusWarum({
   version: MappingVersion;
 }): React.ReactElement {
   const { spinePhase, kategorie, terminal, konflikt, konfliktDetails, fuehrenderWert, beitraege } = ableitung;
+  const [ohneBeitragOffen, setOhneBeitragOffen] = useState(false);
+  const zeilen = fasseZusammen(beitraege);
+  const tragen = zeilen.filter(z => z.beitrag.beruecksichtigt);
+  const ohneBeitrag = zeilen.filter(z => !z.beitrag.beruecksichtigt);
   return (
     <div className="text-[12px] text-[var(--tf-text)] leading-[1.5]">
       {/* Kopf: abgeleitete Phase + Kategorie + Terminal-Tag */}
@@ -60,23 +113,32 @@ export function StatusWarum({
         </div>
       ) : null}
 
-      {/* Beiträge — berücksichtigte normal, übrige gedimmt mit Grund */}
-      {beitraege.length > 0 ? (
+      {/* Beiträge — was den Status trägt, steht oben; der große Rest ohne
+          Beitrag ist auf Wunsch nachzulesen und verstopft sonst die Liste. */}
+      {tragen.length > 0 ? (
         <ul className="mt-2 flex flex-col gap-0.5">
-          {beitraege.map((b, i) => (
-            <li
-              key={`${b.feldId}:${b.tvId ?? ''}:${b.wert}:${i}`}
-              className={`flex items-baseline gap-1.5 ${b.beruecksichtigt ? '' : 'opacity-50'}`}
-            >
-              <span className="text-[var(--tf-text-secondary)] shrink-0">{feldLabel(version, b.feldId)}</span>
-              <span className="truncate">{b.wert}</span>
-              <span className="text-[var(--tf-text-tertiary)] shrink-0">· {SPINE_LABEL[b.spinePhase]}</span>
-              {!b.beruecksichtigt && b.grund ? (
-                <span className="text-[var(--tf-text-tertiary)] shrink-0 italic">({GRUND_LABEL[b.grund]})</span>
-              ) : null}
-            </li>
-          ))}
+          {tragen.map(z => <BeitragsPunkt key={z.key} zeile={z} version={version} />)}
         </ul>
+      ) : null}
+
+      {ohneBeitrag.length > 0 ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            aria-expanded={ohneBeitragOffen}
+            className="cursor-pointer text-[11.5px] text-[var(--tf-text-tertiary)] underline"
+            onClick={() => setOhneBeitragOffen(v => !v)}
+          >
+            {ohneBeitragOffen
+              ? 'Einträge ohne Beitrag ausblenden'
+              : `${ohneBeitrag.length} weitere Einträge ohne Beitrag zur Phase`}
+          </button>
+          {ohneBeitragOffen ? (
+            <ul className="mt-1 flex max-h-[260px] flex-col gap-0.5 overflow-y-auto">
+              {ohneBeitrag.map(z => <BeitragsPunkt key={z.key} zeile={z} version={version} />)}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       {/* Konflikt-Details */}

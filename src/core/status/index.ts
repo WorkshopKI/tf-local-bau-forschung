@@ -60,13 +60,18 @@ export {
 } from './katalog-edit';
 export {
   NICHT_ZUGEORDNET_ID, kategorieIndex, kategoriePfad, kategoriePfadLabel,
-  kinderVon, flacheBaumListe, erzeugtZyklus, findeZyklus,
+  kinderVon, flacheBaumListe, baumVon, type KategorieKnoten,
+  erzeugtZyklus, findeZyklus,
 } from './kategorien';
 export { exportiereVersion, validiereImport, type ImportErgebnis } from './export-import';
 export {
   eventProminenz, baueLanes, clustere,
   type TimelineEvent, type TimelineLanes, type Cluster,
 } from './timeline';
+export {
+  baueChronik, gruppiereNachMonat,
+  type ChronikEintrag, type ChronikMonat,
+} from './chronik';
 
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';

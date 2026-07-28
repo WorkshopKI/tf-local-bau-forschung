@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { baueLanes, clustere, feldLabel, type Cluster, type TimelineEvent } from '@/core/status';
 import type { MappingVersion, Prominenz, StatusEvent } from '@/core/status';
 import { formatGermanDate } from '@/core/services/csv/dateParse';
-import { useTimelinePrefs, type ZeitraumPreset } from './timelinePrefs';
+import type { UseTimelinePrefs, ZeitraumPreset } from './timelinePrefs';
 
 const MS_TAG = 86_400_000;
 const LABEL_W = 132;
@@ -43,12 +43,16 @@ export function StatusTimeline({
   events,
   version,
   grenze,
+  prefsApi,
 }: {
   events: StatusEvent[];
   version: MappingVersion;
   grenze: string | null;
+  /** Von der Detailsektion hereingereicht — Chronik und Lanes teilen sich eine
+   *  Präferenz-Instanz, sonst liefe der Nebensächliches-Schalter auseinander. */
+  prefsApi: UseTimelinePrefs;
 }): React.ReactElement {
-  const { prefs, setNebensaechlich, setPreset, toggleLane } = useTimelinePrefs();
+  const { prefs, setNebensaechlich, setPreset, toggleLane } = prefsApi;
 
   const lanes = baueLanes(events, version, { zeigeNebensaechlich: prefs.zeigeNebensaechlich });
   const allMs = [...lanes.verbund, ...lanes.tvLanes.flatMap(l => l.events)].map(te => te.ms);

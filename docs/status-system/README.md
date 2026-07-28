@@ -18,9 +18,10 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
    bekommt Kategorie, Spine-Phase, Rang, Prominenz, Terminal-Flag. Versioniert im
    dedizierten IDB-Store `status_katalog`. Unbekanntes wird beim Import als
    `unkuratiert` gesammelt, nie automatisch gemappt.
-   Seit v2.340 führt er die **~180 Codes des Fachsystems** in einem Ordnerbaum
-   (Verbund und Teilvorhaben getrennt), jeweils mit Zuständigkeit AB/FB —
-   Herkunft, Spalten-Konvention und Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md).
+   Seit v2.348 führt er die **505 Codes des Fachsystems** aus der Kürzel-Zuarbeit
+   in einem Ordnerbaum (Verbund und Teilvorhaben getrennt), jeweils mit den
+   Rollen, die den Eintrag setzen dürfen — Herkunft, Spalten-Konvention und
+   Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md).
 2. **Historie** ([HISTORIE.md](HISTORIE.md)) — append-only `StatusEvent`-Log
    (`status_event`), per idempotentem Post-Import-Reconcile befüllt.
 3. **Ableitung** ([ableitung.ts](../../src/core/status/ableitung.ts)) — Hauptstatus
@@ -36,7 +37,18 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
 
 - **Cockpit** (Plugin `status-cockpit`, [status-cockpit.md](../feedback-kontext/status-cockpit.md)) —
   Katalog/Felder/Regeln kuratieren, Simulieren, Versionieren, JSON-Export/Import.
-- **Detailseite** — `#status`-Abschnitt (Timeline + „Warum" + nächste Schritte).
+  Der Ordnerbaum ist seit v2.351 ein **echter Baum** ([KategorieEditor.tsx](../../src/plugins/status-cockpit/KategorieEditor.tsx)):
+  Zweige klappen zu, umgehängt wird per Ziehen (Regeln rein in
+  [ordnerDrag.ts](../../src/plugins/status-cockpit/ordnerDrag.ts) — Ebenen bleiben
+  getrennt, kein Nachfahre als Elternknoten).
+- **Detailseite** — `#status`-Abschnitt (Verlauf + „Warum" + nächste Schritte).
+  Zwei Sichten auf den Verlauf: **Chronik** (Standard,
+  [chronik.ts](../../src/core/status/chronik.ts)) liest die Termine aus den
+  Datumsfeldern und steht damit nach jedem Import bereit; der **Zeitstrahl**
+  ([StatusTimeline.tsx](../../src/plugins/antraege/status/StatusTimeline.tsx))
+  zeigt das gerätelokale Ereignis-Protokoll und bleibt leer, bis diese
+  Installation die erste Änderung mitgeschrieben hat. Beide filtern
+  `ignoriert`/`nebensaechlich` nach derselben Regel.
 - **Fördertabelle** — Konflikt-Badge auf Multi-TV-Verbund-Zeilen.
 - **Home-Widget** „Status & Verlauf".
 

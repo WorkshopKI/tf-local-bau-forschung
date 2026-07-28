@@ -7,11 +7,15 @@ import { useStorage } from '@/core/hooks/useStorage';
 
 export type ZeitraumPreset = 'gesamt' | '12m' | '90t';
 
+/** Welche Verlaufs-Ansicht offen ist — Chronik (senkrecht) oder Lanes (waagerecht). */
+export type VerlaufAnsicht = 'chronik' | 'zeitstrahl';
+
 export interface TimelinePrefs {
   zeigeNebensaechlich: boolean;
   preset: ZeitraumPreset;
   /** TV-IDs, deren Lane eingeklappt ist. */
   eingeklappt: string[];
+  ansicht: VerlaufAnsicht;
 }
 
 const KEY = 'status-timeline-prefs';
@@ -20,6 +24,9 @@ export const DEFAULT_PREFS: TimelinePrefs = {
   zeigeNebensaechlich: false,
   preset: 'gesamt',
   eingeklappt: [],
+  // Chronik als Standard: sie steht in jedem Import zur Verfügung, während der
+  // Zeitstrahl das gerätelokale Ereignis-Protokoll braucht.
+  ansicht: 'chronik',
 };
 
 function normalisiere(roh: unknown): TimelinePrefs {
@@ -28,6 +35,7 @@ function normalisiere(roh: unknown): TimelinePrefs {
     zeigeNebensaechlich: p.zeigeNebensaechlich === true,
     preset: p.preset === '12m' || p.preset === '90t' ? p.preset : 'gesamt',
     eingeklappt: Array.isArray(p.eingeklappt) ? p.eingeklappt.filter(x => typeof x === 'string') : [],
+    ansicht: p.ansicht === 'zeitstrahl' ? 'zeitstrahl' : 'chronik',
   };
 }
 
@@ -36,6 +44,7 @@ export interface UseTimelinePrefs {
   setNebensaechlich: (v: boolean) => void;
   setPreset: (p: ZeitraumPreset) => void;
   toggleLane: (tvId: string) => void;
+  setAnsicht: (a: VerlaufAnsicht) => void;
 }
 
 export function useTimelinePrefs(): UseTimelinePrefs {
@@ -67,5 +76,6 @@ export function useTimelinePrefs(): UseTimelinePrefs {
         ? prefs.eingeklappt.filter(x => x !== tvId)
         : [...prefs.eingeklappt, tvId],
     }),
+    setAnsicht: a => mutiere({ ...prefs, ansicht: a }),
   };
 }

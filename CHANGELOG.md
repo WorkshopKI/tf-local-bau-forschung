@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.351.0 — Ordnerbaum als echter Baum + Verlauf als Chronik (Juli 2026)
+
+MINOR — Zwei Stellen des Status-Systems waren nach dem Zuwachs auf 505 Codes nicht mehr lesbar: der Ordner-Editor war eine Liste aus 19 Elternknoten-Auswahlen, und „Status & Verlauf" zeigte eine Wand aus 40 gleich aussehenden Zeilen — bei leerem Zeitstrahl, obwohl zwanzig Termine in den Daten stehen.
+
+- „Ordner bearbeiten" ist ein echter Baum: Zweige klappen zu, Ziehen hängt um, Klick auf den Namen benennt um ([KategorieEditor.tsx](src/plugins/status-cockpit/KategorieEditor.tsx)).
+- Die Ablege-Regeln liegen rein daneben — Ebenen bleiben getrennt, kein Nachfahre als Elternknoten ([ordnerDrag.ts](src/plugins/status-cockpit/ordnerDrag.ts)).
+- Neue Verlaufs-Ansicht **Chronik**: die Termine aus den Datumsfeldern als senkrechter Zeitstrahl, nach Monat gruppiert ([chronik.ts](src/core/status/chronik.ts), [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx)).
+- Sie steht nach jedem Import bereit; der bisherige Zeitstrahl bleibt als zweite Sicht auf das gerätelokale Ereignis-Protokoll.
+- „Warum dieser Status?" fasst gleiche Aussagen mehrerer Teilvorhaben zusammen und klappt Einträge ohne Beitrag weg ([StatusWarum.tsx](src/plugins/antraege/status/StatusWarum.tsx)).
+
 ### v2.350.0 — Eingangs-Zeitraum taggenau waehlbar (Juli 2026)
 
 MINOR — Der Jahrgangs-Filter aus v2.349 konnte nur ganze Jahre. Für „was kam im zweiten Quartal rein" oder „die Woche vor der Frist" musste man weiter durch 671 Zeilen scrollen.

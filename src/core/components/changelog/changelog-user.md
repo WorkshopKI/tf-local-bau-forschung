@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.351 — 2026-07
+
+### Neu
+- „Status & Verlauf" zeigt den Vorgang jetzt als **Chronik**: alle Termine untereinander in Zeitfolge, nach Monat gruppiert, mit Begleittext. Der bisherige Zeitstrahl bleibt als zweite Ansicht erhalten.
+
+### Verbesserungen
+- Der Ordnerbaum im Status-Katalog verhält sich wie im Datei-Explorer: Ordner auf- und zuklappen, zum Umhängen ziehen, zum Umbenennen auf den Namen klicken.
+- „Warum dieser Status?" ist kürzer: gleiche Angaben mehrerer Teilvorhaben stehen einmal mit Anzahl, und alles ohne Einfluss auf die Phase liegt hinter einem Klick.
+
 ## v2.350 — 2026-07
 
 ### Neu
