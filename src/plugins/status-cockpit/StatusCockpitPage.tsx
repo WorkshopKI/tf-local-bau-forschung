@@ -13,6 +13,7 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { Download, Upload, History } from 'lucide-react';
 import { useStatusCockpit, type StatusCockpitApi } from './useStatusCockpit';
 import { KatalogTab } from './KatalogTab';
@@ -125,7 +126,11 @@ function SimulationsLeiste({ api }: { api: StatusCockpitApi }): React.ReactEleme
 }
 
 function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
-  const [offen, setOffen] = useState(false);
+  // Zu per Default, aber gemerkt — wer die Fassungen offen lässt, findet sie
+  // beim nächsten Aufruf wieder offen.
+  const [offen, toggleOffen] = useCollapsedSection(
+    'status-cockpit:versionen', { defaultOpen: false },
+  );
   const laden = useAsyncAction(async (version: number) => { await api.reaktivieren(version); });
   const versionen = [...api.versionen].sort((a, b) => b.version - a.version);
   const aktivNr = api.aktiveVersion?.version ?? null;
@@ -134,7 +139,8 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
     <section className="mt-6 rounded" style={feldStil}>
       <button
         type="button"
-        onClick={() => setOffen(v => !v)}
+        onClick={toggleOffen}
+        aria-expanded={offen}
         className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
       >
         <History size={15} />

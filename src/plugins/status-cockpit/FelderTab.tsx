@@ -11,16 +11,21 @@
  * Darüber zwei Übernahme-Blöcke: was die Auslieferung mitbringt und was in den
  * CSV-Quellen gefunden wurde. Rein darstellend — jede Änderung geht über die
  * `api`-Setter in den Entwurf.
+ *
+ * **Alle Ordner starten zugeklappt**, und was der Nutzer öffnet, bleibt für den
+ * nächsten Seitenaufruf offen (`useCollapsedSection`, localStorage, gerätelokal).
  */
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
   betrifftRolle, rollenVonFeld, sortiereRollen,
-  type Prominenz, type Rolle, type SpinePhase, type StatusFeldEintrag,
+  type Prominenz, type Rolle, type SpinePhase,
+  type StatusFeldEintrag, type StatusKategorie,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import {
@@ -142,14 +147,94 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl }: {
   );
 }
 
+/**
+ * Ein Ordner mit seinen Feldern.
+ *
+ * Eigene Komponente, weil der Auf-/Zu-Zustand **je Ordner gemerkt** wird und
+ * `useCollapsedSection` als Hook nur am Kopf einer Komponente stehen darf.
+ * Default ZU: 512 Felder in 19 Ordnern wären aufgeklappt eine Seite, die
+ * niemand überblickt — was einmal geöffnet wurde, bleibt beim nächsten Aufruf
+ * offen.
+ *
+ * Bei aktiver Suche stehen alle Ordner offen (sonst versteckte die Seite genau
+ * die Treffer) und der Umschalter ruht, statt wirkungslos zu klicken.
+ */
+function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus }: {
+  kategorie: StatusKategorie;
+  tiefe: number;
+  felder: StatusFeldEintrag[];
+  api: StatusCockpitApi;
+  ordnerWahl: Record<'verbund' | 'tv', { id: string; label: string }[]>;
+  suchModus: boolean;
+}): React.ReactElement {
+  const [offen, toggleOffen] = useCollapsedSection(
+    `status-cockpit:felder:${kategorie.id}`, { defaultOpen: false },
+  );
+  const zeigeOffen = offen || suchModus;
+
+  return (
+    <div style={{ marginLeft: tiefe * 14 }}>
+      <button
+        type="button" aria-expanded={zeigeOffen} disabled={suchModus}
+        title={suchModus ? 'Während der Suche stehen alle Ordner offen' : undefined}
+        className="flex items-center gap-1.5 py-1 cursor-pointer disabled:cursor-default"
+        onClick={toggleOffen}
+      >
+        <ChevronRight
+          size={13} className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+          style={{ transform: zeigeOffen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+        <span className="text-[13px] font-medium text-[var(--tf-text)]">{kategorie.label}</span>
+        <span className="text-[11px] text-[var(--tf-text-tertiary)]">{felder.length}</span>
+        {!kategorie.aktiv && <Badge variant="default">stillgelegt</Badge>}
+      </button>
+      <div className={zeigeOffen ? 'overflow-x-auto rounded' : 'hidden'} style={feldStil}>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
+              <th className={thKlasse}>Code</th>
+              <th className={thKlasse}>CSV-Spalte</th>
+              <th className={thKlasse}>Bezeichnung</th>
+              <th className={thKlasse}>Typ</th>
+              <th className={thKlasse}>Ordner</th>
+              <th
+                className={thKlasse}
+                title="Rollen des Fachsystems: AB, FB, QS, PA, Juristen. Keine Auswahl = jeder darf setzen."
+              >
+                wird gesetzt von <span className="font-normal">(leer = alle)</span>
+              </th>
+              <th className={thKlasse}>Prominenz</th>
+              <th className={thKlasse}>Spine-Phase</th>
+              <th className={thKlasse}>Rang</th>
+              <th className={`${thKlasse} text-center`}>terminal</th>
+              <th className={`${thKlasse} text-center`}>aktiv</th>
+            </tr>
+          </thead>
+          <tbody>
+            {felder.map(f => (
+              <FeldZeile
+                key={f.feldId} f={f} api={api} ordnerWahl={ordnerWahl[f.ebene]}
+                csvSpalte={api.csvSpalten.get(f.feldId)?.join(', ') ?? '—'}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const [suche, setSuche] = useState('');
   const [ebeneFilter, setEbeneFilter] = useState<'alle' | 'verbund' | 'tv'>('alle');
   const [rolleFilter, setRolleFilter] = useState<'alle' | Rolle>('alle');
   const [nurMitRang, setNurMitRang] = useState(false);
-  const [ordnerOffen, setOrdnerOffen] = useState(false);
   const [abweichungenOffen, setAbweichungenOffen] = useState(false);
-  const [zu, setZu] = useState<ReadonlySet<string>>(() => new Set());
+  // Auf-/Zu bleibt über Seitenaufrufe erhalten (localStorage, gerätelokal).
+  const [ordnerOffen, toggleOrdnerOffen] = useCollapsedSection(
+    'status-cockpit:ordner-editor', { defaultOpen: false },
+  );
+  const suchModus = suche.trim() !== '';
 
   const entwurf = api.entwurf;
   const kategorien = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
@@ -302,7 +387,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
 
       <div>
         <button
-          type="button" onClick={() => setOrdnerOffen(v => !v)} aria-expanded={ordnerOffen}
+          type="button" onClick={toggleOrdnerOffen} aria-expanded={ordnerOffen}
           className="flex items-center gap-1.5 cursor-pointer"
         >
           <ChevronRight
@@ -323,64 +408,18 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] uppercase tracking-wide">
               {EBENE_LABEL[ebene]}
             </h3>
-            {flacheBaumListe(kategorien, ebene).map(({ kategorie, tiefe }) => {
-              const felder = proOrdner.get(kategorie.id) ?? [];
-              if (felder.length === 0) return null;
-              const offen = !zu.has(kategorie.id);
-              return (
-                <div key={kategorie.id} style={{ marginLeft: tiefe * 14 }}>
-                  <button
-                    type="button" aria-expanded={offen}
-                    className="flex items-center gap-1.5 py-1 cursor-pointer"
-                    onClick={() => setZu(s => {
-                      const next = new Set(s);
-                      if (next.has(kategorie.id)) next.delete(kategorie.id); else next.add(kategorie.id);
-                      return next;
-                    })}
-                  >
-                    <ChevronRight
-                      size={13} className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
-                      style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                    />
-                    <span className="text-[13px] font-medium text-[var(--tf-text)]">{kategorie.label}</span>
-                    <span className="text-[11px] text-[var(--tf-text-tertiary)]">{felder.length}</span>
-                    {!kategorie.aktiv && <Badge variant="default">stillgelegt</Badge>}
-                  </button>
-                  <div className={offen ? 'overflow-x-auto rounded' : 'hidden'} style={feldStil}>
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
-                          <th className={thKlasse}>Code</th>
-                          <th className={thKlasse}>CSV-Spalte</th>
-                          <th className={thKlasse}>Bezeichnung</th>
-                          <th className={thKlasse}>Typ</th>
-                          <th className={thKlasse}>Ordner</th>
-                          <th
-                            className={thKlasse}
-                            title="Rollen des Fachsystems: AB, FB, QS, PA, Juristen. Keine Auswahl = jeder darf setzen."
-                          >
-                            wird gesetzt von <span className="font-normal">(leer = alle)</span>
-                          </th>
-                          <th className={thKlasse}>Prominenz</th>
-                          <th className={thKlasse}>Spine-Phase</th>
-                          <th className={thKlasse}>Rang</th>
-                          <th className={`${thKlasse} text-center`}>terminal</th>
-                          <th className={`${thKlasse} text-center`}>aktiv</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {felder.map(f => (
-                          <FeldZeile
-                            key={f.feldId} f={f} api={api} ordnerWahl={ordnerWahl[f.ebene]}
-                            csvSpalte={api.csvSpalten.get(f.feldId)?.join(', ') ?? '—'}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })}
+            {flacheBaumListe(kategorien, ebene)
+              .map(({ kategorie, tiefe }) => ({
+                kategorie, tiefe, felder: proOrdner.get(kategorie.id) ?? [],
+              }))
+              .filter(g => g.felder.length > 0)
+              .map(g => (
+                <OrdnerGruppe
+                  key={g.kategorie.id}
+                  kategorie={g.kategorie} tiefe={g.tiefe} felder={g.felder}
+                  api={api} ordnerWahl={ordnerWahl} suchModus={suchModus}
+                />
+              ))}
           </section>
         ))}
 

@@ -118,11 +118,15 @@ function OrdnerZeile({ knoten, ctx }: { knoten: KategorieKnoten; ctx: Ctx }): Re
           ? <FolderOpen size={14} className="shrink-0 text-[var(--tf-text-tertiary)]" />
           : <Folder size={14} className="shrink-0 text-[var(--tf-text-tertiary)]" />}
 
+        {/* Der Name nimmt den freien Platz (`flex-1 min-w-0`): `truncate` bringt
+            `overflow:hidden` mit, und damit fällt die automatische Mindestbreite
+            eines Flex-Items auf 0 — ohne `flex-1` schrumpft der Name neben den
+            `shrink-0`-Bedienelementen auf einen Zeichenrest zusammen. */}
         {ctx.editId === k.id ? (
           <input
             autoFocus
             value={k.label}
-            className={`${feldKlasse} max-w-[280px]`}
+            className={`${feldKlasse} min-w-0 flex-1 max-w-[280px]`}
             style={feldStil}
             onChange={e => ctx.api.setKategorie(k.id, { label: e.target.value })}
             onBlur={() => ctx.setEditId(null)}
@@ -132,7 +136,7 @@ function OrdnerZeile({ knoten, ctx }: { knoten: KategorieKnoten; ctx: Ctx }): Re
           <button
             type="button"
             title="Klicken zum Umbenennen"
-            className={`text-[13px] text-left truncate rounded px-1 py-0.5 cursor-pointer
+            className={`min-w-0 flex-1 cursor-pointer truncate rounded px-1 py-0.5 text-left text-[13px]
               hover:bg-[var(--tf-hover)]
               ${k.aktiv ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'}`}
             onClick={() => ctx.setEditId(k.id)}
@@ -142,7 +146,7 @@ function OrdnerZeile({ knoten, ctx }: { knoten: KategorieKnoten; ctx: Ctx }): Re
         )}
 
         <span
-          className="ml-auto shrink-0 text-[11px] font-mono text-[var(--tf-text-tertiary)]"
+          className="shrink-0 text-[11px] font-mono text-[var(--tf-text-tertiary)]"
           title={k.id}
         >
           {belegt} Felder

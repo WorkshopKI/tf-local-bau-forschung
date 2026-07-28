@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.351.1 — Ordner zugeklappt starten und merken; Ordnername nicht mehr abgeschnitten (Juli 2026)
+
+PATCH — Der Felder-Tab öffnete beim Aufruf alle Ordner und vergaß jede Wahl beim Verlassen. Im neuen Ordner-Editor war der Name auf einen Zeichenrest zusammengeschrumpft.
+
+- Ordner im Felder-Tab starten zugeklappt; geöffnete bleiben es beim nächsten Aufruf ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx)).
+- Bei aktiver Suche stehen alle Ordner offen — sonst versteckte die Seite genau die Treffer.
+- „Ordner bearbeiten" und die Versionsliste merken sich ihren Zustand ebenfalls ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx)).
+- Ordnername im Baum-Editor nimmt wieder den freien Platz statt auf 0 zu schrumpfen ([KategorieEditor.tsx](src/plugins/status-cockpit/KategorieEditor.tsx)).
+
 ### v2.351.0 — Ordnerbaum als echter Baum + Verlauf als Chronik (Juli 2026)
 
 MINOR — Zwei Stellen des Status-Systems waren nach dem Zuwachs auf 505 Codes nicht mehr lesbar: der Ordner-Editor war eine Liste aus 19 Elternknoten-Auswahlen, und „Status & Verlauf" zeigte eine Wand aus 40 gleich aussehenden Zeilen — bei leerem Zeitstrahl, obwohl zwanzig Termine in den Daten stehen.
