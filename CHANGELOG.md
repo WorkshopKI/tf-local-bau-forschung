@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.359.0 — Tour-Ankuendigung raus, Hilfe bekommt Rueckkanal (Juli 2026)
+
+MINOR — Der Fußzeilen-Knopf „Zeig es mir" kündigte auf jeder Seite außer Home seitenspezifische Touren an („In Vorbereitung"). Die sind vertagt, bis die Seiten stabil sind und mehr als eine Handvoll Leute damit arbeiten — bis dahin ist es ein Versprechen, das bei jedem Klick unerfüllt bleibt und den Rest der Oberfläche mit entwertet.
+
+- Ankündigung raus; „Neu hier?" mit der echten Tour bleibt, aber nur noch auf Home ([FooterTourButton.tsx](src/core/components/FooterTourButton.tsx), umbenannt von `FooterShowcaseButton`).
+- Die Absicht steht jetzt dort, wo sie hingehört: Fußzeile des Hilfe-Dialogs, ein Satz plus Detail hinter dem Info-Icon ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)); Touren hängen später als zweite Tiefe unter dem Hilfetext ([runtime-layers.md](docs/architecture/runtime-layers.md)).
+- „Text stimmt nicht" im Hilfe-Dialog öffnet das Feedback-Panel mit Typ „Problem" und fertiger Überschrift — der Guard erzwingt die Existenz eines Docs, nicht seine Aktualität, also darf das Melden von Drift kein Suchspiel sein.
+- `openDialog({ vorbelegung })` als neuer, allgemeiner Weg für Auslöser, die den Anlass kennen ([useFeedbackDialog.ts](src/components/feedback/useFeedbackDialog.ts)); greift beim Mounten, „Typ ändern" bleibt frei.
+- Version in der Sidebar-Fußzeile hängt an `ml-auto` statt `justify-between` — sonst rutscht sie nach links, sobald der Tour-Knopf `null` rendert.
+
 ### v2.358.0 — Arbeitsliste nur noch letzte drei Jahrgaenge (Juli 2026)
 
 MINOR — „Diese Woche" zeigte 1771 überfällige Verbünde, die meisten aus 2013/2014 und alle mit demselben Befund „hängt seit 1.2 Antrag zugewiesen". Das ist kein Rückstand, sondern Altbestand mit unsauber gesetzten Status im Fachsystem.

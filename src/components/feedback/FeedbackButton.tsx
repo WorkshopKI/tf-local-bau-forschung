@@ -13,6 +13,7 @@ import { useFeedbackDialog } from './useFeedbackDialog';
 export function FeedbackButton(): React.ReactElement {
   const open = useFeedbackDialog(s => s.open);
   const focusScreenshot = useFeedbackDialog(s => s.focusScreenshot);
+  const vorbelegung = useFeedbackDialog(s => s.vorbelegung);
   const openDialog = useFeedbackDialog(s => s.openDialog);
   const close = useFeedbackDialog(s => s.close);
 
@@ -36,7 +37,12 @@ export function FeedbackButton(): React.ReactElement {
       >
         <MessageSquarePlus size={16} />
       </button>
-      <FeedbackPanel open={open} onClose={close} focusScreenshot={focusScreenshot} />
+      <FeedbackPanel
+        open={open}
+        onClose={close}
+        focusScreenshot={focusScreenshot}
+        vorbelegung={vorbelegung}
+      />
     </>
   );
 }

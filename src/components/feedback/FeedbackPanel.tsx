@@ -26,12 +26,15 @@ import { TEAMFLOW_AREAS } from './constants';
 import { FeedbackInputStep, type FeedbackSubmitPayload } from './FeedbackInputStep';
 import { MyFeedbackList } from './MyFeedbackList';
 import { FeedbackVerbessernFlow } from './FeedbackVerbessernFlow';
+import type { FeedbackVorbelegung } from './useFeedbackDialog';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   /** true wenn per Shortcut (Strg+Alt+S) geöffnet → Screenshot-Paste-Fläche fokussieren. */
   focusScreenshot?: boolean;
+  /** Typ/Titel vorwählen, wenn der Auslöser den Anlass kennt (z.B. „Hilfetext stimmt nicht"). */
+  vorbelegung?: FeedbackVorbelegung | null;
 }
 
 type View = 'input' | 'confirm' | 'verbessern' | 'my-feedback';
@@ -52,7 +55,7 @@ function loadPanelWidth(): number {
   return PANEL_DEFAULT_WIDTH;
 }
 
-export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.ReactElement | null {
+export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: Props): React.ReactElement | null {
   const storage = useStorage();
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
@@ -252,6 +255,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot }: Props): React.
             onSubmit={handleSubmit}
             onShowMyFeedback={() => setView('my-feedback')}
             autoFocusScreenshot={focusScreenshot}
+            vorbelegung={vorbelegung}
           />
         )}
 

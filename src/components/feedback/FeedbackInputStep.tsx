@@ -17,6 +17,7 @@ import { FaqSuggestions } from './FaqSuggestions';
 import { FeedbackScreenshotInput, type FeedbackScreenshotHandle } from './FeedbackScreenshotInput';
 import { FeedbackFileInput } from './FeedbackFileInput';
 import type { PendingAttachment } from './feedbackAttachments';
+import type { FeedbackVorbelegung } from './useFeedbackDialog';
 
 const VISIBLE_AREAS = TEAMFLOW_AREAS;
 
@@ -50,6 +51,11 @@ interface Props {
   onShowMyFeedback: () => void;
   /** true wenn das Panel per Shortcut (Strg+Alt+S) geöffnet wurde → Paste-Fläche fokussieren. */
   autoFocusScreenshot?: boolean;
+  /**
+   * Typ + Titel vorwählen, wenn der Auslöser den Anlass kennt. Greift nur beim
+   * Mounten (das Panel unmountet beim Schließen) — „Typ ändern" bleibt frei.
+   */
+  vorbelegung?: FeedbackVorbelegung | null;
 }
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
@@ -60,10 +66,12 @@ function getIcon(name: string): IconComponent {
 }
 
 export function FeedbackInputStep(props: Props): React.ReactElement {
-  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot } = props;
-  const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(null);
+  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot, vorbelegung } = props;
+  const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(
+    () => FEEDBACK_TYPES.find(t => t.category === vorbelegung?.kategorie) ?? null,
+  );
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(vorbelegung?.titel ?? '');
   // Screenshots + Dateien sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileAttachments, setFileAttachments] = useState<PendingAttachment[]>([]);

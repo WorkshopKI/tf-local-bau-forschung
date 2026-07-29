@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.359 — 2026-07
+
+### Neu
+- Im Hilfe-Fenster gibt es jetzt **„Text stimmt nicht"**: ein Klick öffnet die Rückmeldung mit passendem Typ und fertiger Überschrift. Beschreiben Sie nur noch, was nicht stimmt — den Rest füllt die App aus.
+
+### Verbesserungen
+- Der Knopf „Zeig es mir" in der Fußzeile ist verschwunden. Er hat auf jeder Seite geführte Touren angekündigt, die es noch nicht gibt. Solange die Seiten aktiv weiterentwickelt werden, wären solche Touren schneller veraltet als geschrieben — wir holen sie nach, wenn sich die Oberfläche beruhigt hat. Ein Hinweis dazu steht unten im Hilfe-Fenster.
+- Auf der Startseite bleibt **„Neu hier?"** mit der Einführungs-Tour unverändert erhalten.
+
 ## v2.358 — 2026-07
 
 ### Neu

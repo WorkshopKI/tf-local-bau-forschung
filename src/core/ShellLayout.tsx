@@ -32,7 +32,7 @@ import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
 import { DataUpdateBanners } from '@/plugins/csv-sources-kuration/components/DataUpdateBanners';
 import { useAnfrageAnonAktivierung } from '@/plugins/anfragen/useAnfrageAnonAktivierung';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
-import { FooterShowcaseButton } from '@/core/components/FooterShowcaseButton';
+import { FooterTourButton } from '@/core/components/FooterTourButton';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -118,8 +118,6 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, [plugins, isKurator]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
-  const activePlugin = visiblePlugins.find(p => p.id === activeId);
-  const pageName = activePlugin ? displayName(activePlugin) : '';
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
@@ -447,12 +445,14 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {sidebarMode === 'expanded' ? (
               <>
-                {/* Zeile 1: „Zeig es mir" (links) + Version (rechts). Die Feedback-
-                    Übersicht ist jetzt ein eigener Nav-Eintrag; Feedback *geben*
-                    liegt auf dem globalen FAB unten rechts. */}
-                <div className="flex items-center justify-between gap-1">
-                  <FooterShowcaseButton activeId={activeId} pageName={pageName} />
-                  <BuildInfo />
+                {/* Zeile 1: „Neu hier?" (links, NUR auf Home) + Version (rechts).
+                    Die Version hängt an `ml-auto` statt an `justify-between`, weil
+                    der Tour-Knopf außerhalb von Home `null` rendert und sie sonst
+                    nach links rutschen würde. Feedback *geben* liegt auf dem
+                    globalen FAB unten rechts. */}
+                <div className="flex items-center gap-1">
+                  <FooterTourButton activeId={activeId} />
+                  <div className="ml-auto"><BuildInfo /></div>
                 </div>
                 {/* Dünne Trennlinie zwischen den beiden Zeilen — volle Breite wie
                     die obere Fußzeilen-Kante (`-mx-2` hebt das Container-Padding auf). */}

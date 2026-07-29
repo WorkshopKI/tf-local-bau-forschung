@@ -38,10 +38,12 @@ Dark mode via `[data-theme="dark"]` attribute on `<html>`. See [DESIGN_GUIDE.md]
 
 ## Onboarding-Tour
 
-Geführte 5-Schritt-Tour für Erstnutzer (`src/core/components/tour/`, `src/core/hooks/useTour.ts`):
+Geführte Tour für Erstnutzer (`src/core/components/tour/`, `src/core/hooks/useTour.ts`) — Stand v2.359 vier Schritte (`ALL_STEPS` in `tourSteps.ts`, gefiltert nach Build-Features):
 
+- Bewusst nur über **Rahmen**-Elemente (Dashboard, Sidebar, Suchfeld, Vorgangsliste), nicht über Seiten-Interna: eine Tour hält die Klick-Reihenfolge fest und veraltet sonst mit jedem Seitenumbau
+- **Seitenspezifische** Touren gibt es nicht und sind vertagt, bis die Seiten stabil sind; wenn sie kommen, hängen sie als zweite Tiefe im Hilfe-Dialog der Seite (`SeitenHilfeButton`), nicht an einem eigenen Knopf. Der Dialog kündigt das in der Fußzeile an
 - Auto-Start 800ms nach Home-Seitenladen (nur wenn Daten vorhanden und Tour noch nicht abgeschlossen)
-- Manueller Trigger über Sidebar-Button "Neu hier? So geht's" (unten vor SyncStatusIndicator)
+- Manueller Trigger über den Sidebar-Fußzeilen-Knopf „Neu hier?" (`FooterTourButton`, **nur auf Home**)
 - Ziele werden via `data-tour="..."` Attribut auf bestehende Elemente markiert
 - Cross-Page: TourStep unterstützt `navigateTo: 'plugin-id'` für Auto-Navigation zur Zielseite
 - Persistenz: `localStorage["teamflow_tour_completed"]` — funktioniert unter `file://`
