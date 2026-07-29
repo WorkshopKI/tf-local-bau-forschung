@@ -52,11 +52,21 @@ export interface TeamFlowPlugin {
   name: string;
   icon: string;
   /**
-   * Sidebar-Gruppe. `workflow` + `tools` bilden die Arbeits-Gruppe oben (ohne
-   * Label), `system` die untere Gruppe (Trennlinie, ohne Label), `kuration` die
-   * Kurator-Gruppe (Trennlinie + Label, nur Kurator-Builds).
+   * Sidebar-Gruppe — seit v2.362 wieder sichtbar getrennt (Trennlinie + Label):
+   *
+   * - `workflow` — der tägliche Weg, ganz oben und bewusst OHNE Beschriftung.
+   * - `tools` — „Werkzeuge": stabil, aber seltener gebraucht.
+   * - `erprobung` — „In Erprobung": Seiten, die noch nicht ausgereift sind.
+   *   Zuklappbar. **Hier startet ein neues Plugin**, bis es sich bewährt hat.
+   * - `system` — untere Gruppe ohne Label; trägt derzeit nur `hideFromNav`-Seiten
+   *   (Einstellungen) und rendert damit nichts.
+   * - `kuration` — Kurator-Gruppe (Trennlinie + Label, nur Kurator-Builds).
+   *
+   * Bewusst NICHT aus dem `featureFlag` abgeleitet: „in Erprobung" ist eine
+   * Aussage über Reife, nicht über Sichtbarkeit — sonst wechselte eine Seite die
+   * Gruppe als Nebenwirkung einer Flag-Änderung.
    */
-  category: 'workflow' | 'tools' | 'system' | 'kuration';
+  category: 'workflow' | 'tools' | 'erprobung' | 'system' | 'kuration';
   order: number;
   component: ComponentType;
   /** Wenn true, nur sichtbar für User mit `profile.is_kurator === true`. */

@@ -16,7 +16,11 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { TourOverlay } from '@/core/components/tour/TourOverlay';
 import { FeedbackButton } from '@/components/feedback';
-import { groupNavPlugins, navVisiblePlugins } from '@/core/nav/groupNavPlugins';
+import {
+  groupNavPlugins, navVisiblePlugins, sichtbareGruppenItems,
+  NAV_GRUPPEN_LABEL, type NavGroupKey,
+} from '@/core/nav/groupNavPlugins';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
@@ -286,7 +290,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     const navShortcutLabel: Record<string, string> = { home: `${mod}⇧H`, antraege: `${mod}⇧F`, einstellungen: `${mod}⇧E` };
     const items: CommandItem[] = [];
     sortedPlugins.forEach((p) => {
-      items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: navShortcutLabel[p.id], action: () => goToPlugin(p.id) });
+      // Gruppen-Überschrift wie in der Sidebar (EINE Quelle) — die unbeschriftete
+      // Arbeits-Gruppe läuft in der Palette unter „Navigation".
+      items.push({ id: `nav-${p.id}`, label: displayName(p), category: NAV_GRUPPEN_LABEL[p.category] ?? 'Navigation', shortcut: navShortcutLabel[p.id], action: () => goToPlugin(p.id) });
     });
     // Einstellungen tragen `hideFromNav` (sie sitzen als Zahnrad in der Fußzeile)
     // und fallen damit aus `sortedPlugins` — ohne diesen Eintrag wären sie über
@@ -295,7 +301,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       items.push({
         id: 'nav-einstellungen',
         label: 'Einstellungen',
-        category: 'Navigation',
+        category: NAV_GRUPPEN_LABEL.tools ?? 'Navigation',
         shortcut: navShortcutLabel.einstellungen,
         action: () => goToPlugin('einstellungen'),
       });
@@ -356,6 +362,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, []);
 
   const grouped = useMemo(() => groupNavPlugins(visiblePlugins), [visiblePlugins]);
+  // Nur „In Erprobung" ist zuklappbar (Standard offen): die Seiten dort sollen
+  // getestet werden, wer sie nicht braucht, räumt sie einmal weg.
+  const [erprobungOffen, toggleErprobung] = useCollapsedSection('teamflow_nav_erprobung');
 
   const renderNavItem = (plugin: TeamFlowPlugin): React.ReactElement => {
     const Icon = getIcon(plugin.icon);
@@ -384,6 +393,51 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           </span>
         )}
       </button>
+    );
+  };
+
+  /**
+   * Eine Sidebar-Gruppe: Trennlinie, optionale Überschrift, Einträge. `klapp`
+   * macht die Überschrift zum Schalter (nur „In Erprobung").
+   *
+   * Im Rail (52 px) fallen Überschriften weg — und damit auch das Zuklappen,
+   * sonst wären die Ziele dort unerreichbar.
+   */
+  const renderNavGruppe = (
+    key: NavGroupKey,
+    klapp?: { offen: boolean; onToggle: () => void },
+  ): React.ReactElement | null => {
+    const items = grouped[key];
+    if (items.length === 0) return null;
+    const isRail = sidebarMode === 'rail';
+    const label = NAV_GRUPPEN_LABEL[key];
+    const offen = isRail || klapp === undefined || klapp.offen;
+    const sichtbar = sichtbareGruppenItems(items, offen, activeId);
+    return (
+      <div key={key} className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        {label !== null && !isRail && (klapp === undefined ? (
+          <div className="px-3 mb-2">
+            <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">{label}</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={klapp.onToggle}
+            aria-expanded={klapp.offen}
+            className="flex w-full items-center gap-1.5 px-3 mb-2 text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] transition-colors cursor-pointer"
+          >
+            <span>{label}</span>
+            {!klapp.offen && (
+              <span className="normal-case tracking-normal">· {items.length}</span>
+            )}
+            <Icons.ChevronDown
+              size={12}
+              className={`ml-auto shrink-0 transition-transform ${klapp.offen ? '' : '-rotate-90'}`}
+            />
+          </button>
+        ))}
+        {sichtbar.map(renderNavItem)}
+      </div>
     );
   };
 
@@ -423,39 +477,22 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           {sidebarMode === 'expanded' && <ProgrammSwitcher />}
 
           <nav className="flex-1 overflow-y-auto px-2 py-2 flex flex-col">
-            {/* Arbeits-Gruppe: workflow + tools, fortlaufend ohne Label. */}
-            {(['workflow', 'tools'] as const).map(cat => {
-              const items = grouped[cat];
-              if (items.length === 0) return null;
-              return (
-                <div key={cat} className="mb-1">
-                  {items.map(renderNavItem)}
-                </div>
-              );
-            })}
+            {/* Täglicher Weg — ganz oben und bewusst OHNE Überschrift: was hier
+                steht, braucht keine Ansage. Alles Weitere ist beschriftet. */}
+            {grouped.workflow.length > 0 && (
+              <div className="mb-1">{grouped.workflow.map(renderNavItem)}</div>
+            )}
+            {renderNavGruppe('tools')}
+            {renderNavGruppe('erprobung', { offen: erprobungOffen, onToggle: toggleErprobung })}
 
             {/* Spacer schiebt die System-/Kuration-Gruppe an den unteren Rand.
                 Kollabiert, wenn die Liste den Platz füllt → dann scrollt die nav. */}
             <div className="flex-1 min-h-[8px]" />
 
-            {/* System-Gruppe: Trennlinie OHNE Label (Skill-Verwaltung, Einstellungen). */}
-            {grouped.system.length > 0 && (
-              <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-                {grouped.system.map(renderNavItem)}
-              </div>
-            )}
-
-            {/* Kuration-Gruppe: Trennlinie + Uppercase-Label (nur Kurator-Builds). */}
-            {grouped.kuration.length > 0 && (
-              <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-                {sidebarMode === 'expanded' && (
-                  <div className="px-3 mb-2">
-                    <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">Kuration</span>
-                  </div>
-                )}
-                {grouped.kuration.map(renderNavItem)}
-              </div>
-            )}
+            {/* System-Gruppe: derzeit leer — Einstellungen sind `hideFromNav`
+                (Zahnrad in der Fußzeile). Bleibt als Ablage für System-Seiten. */}
+            {renderNavGruppe('system')}
+            {renderNavGruppe('kuration')}
           </nav>
 
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>

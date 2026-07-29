@@ -8,7 +8,7 @@ export const feedbackBoardPlugin: TeamFlowPlugin = {
   name: 'Feedback',
   icon: 'TrendingUp',
   category: 'tools',
-  order: 75,
+  order: 24,
   // Nav-Eintrag „Feedback" im oberen Arbeits-Block (tools-Gruppe, nach den
   // workflow-Items). Nur sichtbar wo `features.feedback` aktiv ist.
   component: FeedbackBoardPage,

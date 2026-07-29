@@ -17,8 +17,8 @@ automatisch generiert.
      featureFlag: 'meinFeature',  // optional, key aus PluginFeatureKey
      name: 'Mein Plugin',
      icon: 'FileText',            // Lucide-Icon-Name
-     category: 'workflow',        // 'workflow' | 'tools' | 'kuration'
-     order: 50,
+     category: 'erprobung',       // NEUE Plugins starten hier — siehe unten
+     order: 48,                   // in der Gruppe hinten anstellen
      component: MyPluginPage,
      kuratorOnly: false,          // true → nur sichtbar wenn profile.is_kurator
    };
@@ -41,10 +41,30 @@ automatisch generiert.
    in `PLUGINS_WITH_CUSTOM_ROUTE` (siehe `src/plugins.config.ts`) eintragen
    — sonst kollidiert die generierte Flat-Route mit den Detail-Routen.
 
+## Sidebar-Gruppe wählen
+
+Die Sidebar zeigt drei beschriftete Blöcke ([groupNavPlugins.ts](../../src/core/nav/groupNavPlugins.ts)):
+
+| `category` | Sidebar | wofür |
+|---|---|---|
+| `workflow` | oben, **ohne** Beschriftung | der tägliche Weg (Home, Förderanträge, Auslastung) |
+| `tools` | „Werkzeuge" | stabil, aber seltener gebraucht |
+| `erprobung` | „In Erprobung" (zuklappbar) | **Startgruppe jedes neuen Plugins** |
+| `kuration` | „Kuration" (nur Kurator-Builds) | Verwaltungs-Seiten |
+| `system` | unten, ohne Beschriftung | derzeit nur `hideFromNav`-Seiten (Einstellungen) |
+
+Ein neues Plugin gehört nach `erprobung`, bis es sich bewährt hat — dort weiß der Nutzer,
+dass er Neuland betritt. Der Umzug nach `workflow`/`tools` ist später eine Zeile im Manifest.
+Die Gruppe wird bewusst **nicht** aus dem `featureFlag` abgeleitet: „in Erprobung" ist eine
+Aussage über Reife, nicht über Sichtbarkeit.
+
+`order` staffelt gruppenweise (workflow 0–9, tools 20–29, erprobung 40–49, kuration 80–99),
+damit ein neuer Eintrag nicht versehentlich zwischen zwei Gruppen rutscht.
+
 ## Route-Konventionen
 
 - **Kurator-Plugin** (`category: 'kuration'`): `/kuration/<slug>`
-- **Nutzer-Plugin** (workflow/tools): `/<slug>`
+- **Nutzer-Plugin** (workflow/tools/erprobung): `/<slug>`
 - **Dev-Plugin**: `/<plugin-id>`
 - **Home**: `/`
 

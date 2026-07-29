@@ -17,8 +17,8 @@ export const meilensteinePlugin: TeamFlowPlugin = {
   featureFlag: 'meilensteinMonitoring',
   name: 'Fristen & Meilensteine',
   icon: 'Milestone',
-  category: 'workflow',
-  order: 5,
+  category: 'erprobung',
+  order: 40,
   component: MeilensteinePage,
 };
 

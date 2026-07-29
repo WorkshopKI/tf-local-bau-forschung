@@ -8,8 +8,8 @@ export const anfragenPlugin: TeamFlowPlugin = {
   featureFlag: 'anfragen',
   name: 'E-Mail Anfragen',
   icon: 'Mail',
-  category: 'workflow',
-  order: 6,
+  category: 'erprobung',
+  order: 42,
   component: AnfragenPage,
   kuratorOnly: false,
 };

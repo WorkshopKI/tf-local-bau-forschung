@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.362 — 2026-07
+
+### Verbesserungen
+- **Die Seitenleiste ist jetzt gegliedert.** Ganz oben und ohne Überschrift steht der tägliche Weg: Home, Förderanträge, Auslastung. Darunter **Werkzeuge** (Suche, Skill-Verwaltung, Feedback) — stabil, aber seltener gebraucht.
+- Darunter **In Erprobung**: Fristen & Meilensteine, E-Mail Anfragen, Förderfähigkeit und Status-Katalog. Diese vier sind noch nicht ausgereift — genau deshalb sind Rückmeldungen dazu besonders wertvoll.
+- Die Gruppe „In Erprobung" lässt sich **zuklappen**, wenn Sie damit nicht arbeiten; Ihre Wahl bleibt bis zum nächsten Mal erhalten. Die Seite, auf der Sie gerade stehen, bleibt auch zugeklappt sichtbar.
+- Die Befehlssuche (**Strg+K**) zeigt dieselbe Gliederung.
+
 ## v2.361 — 2026-07
 
 ### Neu

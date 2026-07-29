@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.362.0 — Sidebar-Navigation in drei Gruppen (Juli 2026)
+
+MINOR — Zehn Menüpunkte als ununterbrochener Block: nichts sagte, was der tägliche Weg ist und was Beiwerk. Die Kategorisierung von v2.170 war dabei nie weg — `workflow` und `tools` standen unverändert in den Manifesten, das ShellLayout rendert sie nur beide ohne Label und ohne Trennlinie hintereinander. Und dass vier der zehn Seiten Beta sind, stand nirgends.
+
+- Drei sichtbare Blöcke: täglicher Weg (ohne Beschriftung), „Werkzeuge", „In Erprobung" ([ShellLayout.tsx](src/core/ShellLayout.tsx)); Beschriftungen kommen aus `NAV_GRUPPEN_LABEL` ([groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts)) und gelten auch für Strg+K.
+- Neue Kategorie `erprobung` für Fristen & Meilensteine, E-Mail Anfragen, Förderfähigkeit und Status-Katalog ([plugin.ts](src/core/types/plugin.ts)) — bewusst am Manifest statt aus dem `featureFlag` abgeleitet.
+- „In Erprobung" ist zuklappbar (Standard offen, gerätelokal gemerkt über [useCollapsedSection](src/core/hooks/useCollapsedSection.ts)); zugeklappt bleibt die gerade offene Seite stehen (`sichtbareGruppenItems`).
+- Suche wandert zu den Werkzeugen; `order` gruppenweise gestaffelt (0–9 / 20–29 / 40–49 / 80–99), damit kein neuer Eintrag zwischen zwei Gruppen rutscht.
+- Dauerwirkung: **ein neues Plugin startet in `erprobung`** und wandert später weiter ([add-plugin.md](docs/agents/add-plugin.md) mit Auswahltabelle).
+
 ### v2.361.0 — Feedback-Kanban anpassbar, Lane-Auswahl aufgeraeumt (Juli 2026)
 
 MINOR — Auf dem Feedback-Board stauten sich alle Tickets in „Neu" (12 Karten = langes Scrollen), während „Abgelehnt"/„Geplant" als leere Schienen danebenstanden — das Home-Widget konnte längst Lanes wählen und zweispaltig rendern, die Seite nicht. Gleichzeitig war das Anpassungs-Popover unordentlich: die Spaltenzahl steckte als verstecktes zweites Klickziel („· 1 Sp.") in einem Chip und brauchte eine Erklär-Fußnote.

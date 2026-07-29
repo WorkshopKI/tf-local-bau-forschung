@@ -16,8 +16,8 @@ export const mapFoerderfaehigPlugin: TeamFlowPlugin = {
   featureFlag: 'mapFoerderfaehig',
   name: 'Förderfähigkeit',
   icon: 'ClipboardCheck',
-  category: 'workflow',
-  order: 7,
+  category: 'erprobung',
+  order: 44,
   component: MapPage,
 };
 

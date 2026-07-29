@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentType } from 'react';
 import type { TeamFlowPlugin } from '@/core/types/plugin';
-import { groupNavPlugins, navVisiblePlugins } from '../groupNavPlugins';
+import {
+  groupNavPlugins, navVisiblePlugins, sichtbareGruppenItems, NAV_GRUPPEN_LABEL,
+} from '../groupNavPlugins';
 
 const Dummy = (() => null) as ComponentType;
 
@@ -35,6 +37,7 @@ describe('groupNavPlugins', () => {
   it('lässt leere Gruppen leer (kein undefined)', () => {
     const groups = groupNavPlugins([plugin({ id: 'home', category: 'workflow', order: 0 })]);
     expect(groups.tools).toEqual([]);
+    expect(groups.erprobung).toEqual([]);
     expect(groups.system).toEqual([]);
     expect(groups.kuration).toEqual([]);
   });
@@ -50,20 +53,60 @@ describe('groupNavPlugins', () => {
     expect(groups.system.map(p => p.id)).toEqual(['irgendwas-system']);
   });
 
-  it('Skill-Verwaltung steht vor dem Feedback-Board, Einstellungen gar nicht (Ist-Stand)', () => {
-    // Bis v2.359 bildeten die beiden zusammen die System-Gruppe. Seit v2.360 steht
-    // Skill-Verwaltung bei den Werkzeugen (vor dem Feedback-Board, das als
-    // Rückmelde-Kanal ans Ende gehört) und Einstellungen sitzt per `hideFromNav`
-    // in der Sidebar-Fußzeile.
+  it('verteilt die Seiten auf täglich / Werkzeuge / In Erprobung (Ist-Stand)', () => {
+    // Seit v2.362 trennt die Sidebar drei sichtbare Blöcke. Die Reife-Aussage
+    // steht am Manifest, NICHT am featureFlag — sonst wechselte eine Seite die
+    // Gruppe als Nebenwirkung einer Flag-Änderung.
     const plugins = [
-      plugin({ id: 'status-cockpit', category: 'tools', order: 8 }),
-      plugin({ id: 'feedback-board', category: 'tools', order: 75 }),
-      plugin({ id: 'skill-verwaltung-kuration', category: 'tools', order: 70 }),
-      plugin({ id: 'einstellungen', category: 'system', order: 20, hideFromNav: true }),
+      plugin({ id: 'home', category: 'workflow', order: 0 }),
+      plugin({ id: 'antraege', category: 'workflow', order: 2 }),
+      plugin({ id: 'auslastung', category: 'workflow', order: 4 }),
+      plugin({ id: 'suche', category: 'tools', order: 20 }),
+      plugin({ id: 'skill-verwaltung-kuration', category: 'tools', order: 22 }),
+      plugin({ id: 'feedback-board', category: 'tools', order: 24 }),
+      plugin({ id: 'meilensteine', category: 'erprobung', order: 40 }),
+      plugin({ id: 'anfragen', category: 'erprobung', order: 42 }),
+      plugin({ id: 'map-foerderfaehig', category: 'erprobung', order: 44 }),
+      plugin({ id: 'status-cockpit', category: 'erprobung', order: 46 }),
+      plugin({ id: 'einstellungen', category: 'system', order: 60, hideFromNav: true }),
     ];
     const groups = groupNavPlugins(plugins);
-    expect(groups.tools.map(p => p.id)).toEqual(['status-cockpit', 'skill-verwaltung-kuration', 'feedback-board']);
+    expect(groups.workflow.map(p => p.id)).toEqual(['home', 'antraege', 'auslastung']);
+    expect(groups.tools.map(p => p.id)).toEqual(['suche', 'skill-verwaltung-kuration', 'feedback-board']);
+    expect(groups.erprobung.map(p => p.id)).toEqual(['meilensteine', 'anfragen', 'map-foerderfaehig', 'status-cockpit']);
     expect(groups.system).toEqual([]);
+  });
+
+  it('beschriftet nur die Gruppen, die eine Ansage brauchen', () => {
+    expect(NAV_GRUPPEN_LABEL.workflow).toBeNull();
+    expect(NAV_GRUPPEN_LABEL.system).toBeNull();
+    expect(NAV_GRUPPEN_LABEL.tools).toBe('Werkzeuge');
+    expect(NAV_GRUPPEN_LABEL.erprobung).toBe('In Erprobung');
+    expect(NAV_GRUPPEN_LABEL.kuration).toBe('Kuration');
+  });
+});
+
+describe('sichtbareGruppenItems', () => {
+  const items = [
+    plugin({ id: 'meilensteine', category: 'erprobung', order: 40 }),
+    plugin({ id: 'anfragen', category: 'erprobung', order: 42 }),
+  ];
+
+  it('zeigt aufgeklappt alles', () => {
+    expect(sichtbareGruppenItems(items, true, 'home').map(p => p.id))
+      .toEqual(['meilensteine', 'anfragen']);
+  });
+
+  it('zeigt zugeklappt nichts', () => {
+    expect(sichtbareGruppenItems(items, false, 'home')).toEqual([]);
+  });
+
+  it('lässt zugeklappt die offene Seite stehen (Ortsangabe)', () => {
+    expect(sichtbareGruppenItems(items, false, 'anfragen').map(p => p.id)).toEqual(['anfragen']);
+  });
+
+  it('kommt mit leerer Gruppe klar', () => {
+    expect(sichtbareGruppenItems([], false, 'home')).toEqual([]);
   });
 
   it('füllt die kuration-Gruppe getrennt (Kurator-Builds)', () => {

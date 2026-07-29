@@ -2,19 +2,27 @@
 
 **Was:** Serverlose Browser-App für ein Förderanträge-Team (ZIM-Förderanträge, Forschung/Entwicklung). Verwaltet Förderanträge, Fristen, Kapazitätsplanung, Dokument-Klassifizierung und KI-gestützte Hybrid-Suche — ganz ohne eigene IT-Infrastruktur oder Server.
 
-**Hauptbereiche (Seitenleiste):**
+**Hauptbereiche (Seitenleiste):** Die Liste ist in Blöcke geteilt — oben unbeschriftet der tägliche Weg, darunter „Werkzeuge", darunter „In Erprobung".
+
+Täglicher Weg:
 - **Home** — persönliches Dashboard aus konfigurierbaren Widgets (offene Anträge, Fristen, Rückstände)
 - **Förderanträge** — Kernmodul: Anträge und Verbünde/Teilvorhaben verwalten, Gutachten-Werkstatt, Artefakt-Werkbank, Antrag-Aufbereitung
 - **Auslastung** (nicht in allen Ausgaben) — Anträge in Überkategorien einsortieren, Mitarbeitenden zuweisen, Quartals-Kapazität planen
+
+Werkzeuge — stabil, aber seltener gebraucht:
+- **Suche** — Hybrid-Suche (Volltext + semantisch) über Anträge und Dokumente; der KI-Assistent dockt hier rechts an
+- **Skill-Verwaltung** — Skills und Prüfregeln der KI-Bausteine pflegen (Schreiben nur mit Kurator- bzw. PL-Recht)
+- **Feedback** — öffentliches Board: Probleme, Ideen, Bearbeitungsstand aller Rückmeldungen
+- **Dokumente** (nur Entwickler-Ausgabe) — Dokumentenverwaltung und -vorschau
+
+In Erprobung — noch nicht ausgereift, Rückmeldungen ausdrücklich erwünscht; die Gruppe lässt sich zuklappen:
 - **Fristen & Meilensteine** — Bearbeitungs-Meilensteine je Verbund, gemessen ab Antragseingang
 - **E-Mail Anfragen** — Anfragen anonymisiert an einen externen FAQ-Assistenten geben und die Antwort zurückführen
 - **Förderfähigkeit** — Einreichung prüfen: Rechenchecks, editierbare Checkliste, Abschluss-Entwurf
-- **Suche** — Hybrid-Suche (Volltext + semantisch) über Anträge und Dokumente; der KI-Assistent dockt hier rechts an
 - **Status-Katalog** — Statuswerte des Fachsystems kuratieren, ihre Wirkung simulieren, Fassungen versionieren
-- **Dokumente** (nur Entwickler-Ausgabe) — Dokumentenverwaltung und -vorschau
-- **Skill-Verwaltung** — Skills und Prüfregeln der KI-Bausteine pflegen (Schreiben nur mit Kurator- bzw. PL-Recht)
-- **Feedback** — öffentliches Board: Probleme, Ideen, Bearbeitungsstand aller Rückmeldungen
-- **Kuration** (nur für Kuratoren, nach Login) — Suchindex, Programme, CSV-Quellen, Dokumentenquellen, Anfragen-Konfiguration, Filter, Feedback-Dashboard, Dokument-Review
+
+Nur für Kuratoren nach Login:
+- **Kuration** — Suchindex, Programme, CSV-Quellen, Dokumentenquellen, Anfragen-Konfiguration, Filter, Feedback-Dashboard, Dokument-Review
 
 **Wiederkehrende Bedienelemente:** Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite. Rückmeldungen gehen über den runden Knopf unten rechts.
 

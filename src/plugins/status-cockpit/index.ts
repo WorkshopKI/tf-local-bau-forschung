@@ -16,8 +16,8 @@ export const statusCockpitPlugin: TeamFlowPlugin = {
   featureFlag: 'statusCockpit',
   name: 'Status-Katalog',
   icon: 'ListChecks',
-  category: 'tools',
-  order: 8,
+  category: 'erprobung',
+  order: 46,
   component: StatusCockpitPage,
 };
 

@@ -9,9 +9,8 @@ import { SkillVerwaltungPage } from './SkillVerwaltungPage';
  * (Kurator-Session bzw. pl-Schreibrecht).
  *
  * Seit v2.360 `category: 'tools'` statt der eigenen System-Gruppe: die trug nur
- * noch sie und die Einstellungen (jetzt in der Fußzeile) und kostete eine
- * Trennlinie plus den Leerraum darüber. In der Arbeitsliste steht sie bei den
- * übrigen Werkzeugen — vor dem Feedback-Board, das als Rückmelde-Kanal ans Ende
+ * noch sie und die Einstellungen (jetzt in der Fußzeile). Sie steht in der
+ * Gruppe „Werkzeuge" — vor dem Feedback-Board, das als Rückmelde-Kanal ans Ende
  * gehört.
  */
 export const skillVerwaltungPlugin: TeamFlowPlugin = {
@@ -21,7 +20,7 @@ export const skillVerwaltungPlugin: TeamFlowPlugin = {
   name: 'Skill-Verwaltung',
   icon: 'Wrench',
   category: 'tools',
-  // Zwischen status-cockpit (8) und feedback-board (75).
-  order: 70,
+  // Zwischen Suche (20) und Feedback-Board (24).
+  order: 22,
   component: SkillVerwaltungPage,
 };
