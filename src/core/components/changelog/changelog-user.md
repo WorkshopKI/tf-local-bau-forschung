@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.355 — 2026-07
+
+### Neu
+- **„Fristen & Meilensteine" hat jetzt einen Hilfe-Knopf** oben rechts: Er erklärt in Kurzform, wozu die Seite da ist, was die einzelnen Reiter zeigen und was hinter Begriffen wie „Soll-Woche" oder „freigegebene Fassung" steckt — zum Nachlesen, ohne jemanden fragen zu müssen.
+- Vorerst ein Muster auf dieser einen Seite. Passt der Text nicht zu dem, was Sie auf dem Bildschirm sehen, melden Sie es bitte über den Feedback-Knopf — dann ziehen wir ihn nach und statten die übrigen Seiten aus.
+
 ## v2.354 — 2026-07
 
 ### Verbesserungen

@@ -1,6 +1,8 @@
 # docs/feedback-kontext/
 
-**Zweck:** Dieses Verzeichnis liefert kompakte Bildschirmseiten-Kontext-Docs, die der internen KI bei der Feedback-Verbesserung als App-Wissen mitgegeben werden. Geladen wird per `import.meta.glob` in [src/core/services/feedback/screenContext.ts](../../src/core/services/feedback/screenContext.ts) — statisch ins Single-File-Build gebündelt (kein `fetch`/dynamischer Import, siehe Pitfalls #1/#2).
+**Zweck:** Dieses Verzeichnis liefert kompakte Bildschirmseiten-Kontext-Docs. Geladen wird per `import.meta.glob` in [src/core/services/feedback/screenContext.ts](../../src/core/services/feedback/screenContext.ts) — statisch ins Single-File-Build gebündelt (kein `fetch`/dynamischer Import, siehe Pitfalls #1/#2).
+
+**Zwei Leser, eine Datei:** die interne KI bekommt bei der Feedback-Verbesserung das **ganze** Doc als App-Wissen; die **Seiten-Hilfe** (`getSeitenHilfe` in derselben Datei) zeigt dasselbe Doc als Kurzanleitung im „Hilfe"-Dialog der Seite, **ohne** den Technik-Teil. Eine zweite, nutzer-eigene Doku-Datei wäre gegen diese hier gedriftet und hätte jede Feature-Änderung zweimal gekostet — der Preis dafür ist die Strip-Regel: **Route, Feature-Flag, Stores und Dateinamen gehören in die Zeilen `Datenmodell dahinter:` / `Code:` oder unter eine `## Technik`-Überschrift am Ende.** Alles andere sieht der Nutzer — also in seiner Sprache schreiben, nicht in Bezeichnern.
 
 **Pflege-Regel:** Bei UI- oder Datenmodell-Änderungen an einem Plugin das zugehörige `<plugin-id>.md` mit aktualisieren. Vorgehen siehe [docs/agents/update-screen-context.md](../agents/update-screen-context.md).
 

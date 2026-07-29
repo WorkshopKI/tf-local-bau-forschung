@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.355.0 — Seiten-Hilfe: Kontext-Doc als Kurzanleitung (Muster: Fristen & Meilensteine) (Juli 2026)
+
+MINOR — Die App hatte längst ein Handbuch, es sah nur niemand: 15 Seiten-Docs in `docs/feedback-kontext/` liegen in jedem Build, wurden aber ausschließlich der Feedback-KI vorgelegt. Wer nachlesen statt fragen will, hatte keinen Weg dorthin. Zweiter Effekt: bisher fiel ein veraltetes Doc nur als leicht danebenliegende KI-Antwort auf — jetzt lesen es Nutzer und melden Abweichungen.
+
+- „Hilfe"-Knopf im Seitenkopf öffnet das Kontext-Doc der Seite als Kurzanleitung; ohne Doc rendert er nichts ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)).
+- Eine Quelle für beide Leser statt zweier driftender Dateien: `entferneTechnik()` schneidet für Nutzer `## Technik` sowie die Zeilen `Datenmodell dahinter:` / `Code:` weg ([screenContext.ts](src/core/services/feedback/screenContext.ts)).
+- Muster-Einbau auf „Fristen & Meilensteine" — eine Zeile im `actions`-Slot des `PageHeader` ([MeilensteinePage.tsx](src/plugins/meilensteine/MeilensteinePage.tsx)).
+- Test prüft je Doc, dass außerhalb des Technik-Teils keine Datei-/Pfadangaben stehen ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)) — heute halten das alle 15 ein.
+- Pflege-Regel nachgezogen: technisches nach unten, alles andere sieht der Nutzer ([update-screen-context.md](docs/agents/update-screen-context.md), [README.md](docs/feedback-kontext/README.md)).
+
 ### v2.354.0 — Feedback-Board startet im Board (Juli 2026)
 
 MINOR — Das Feedback-Board öffnete in der Kartenliste; die Kanban-Ansicht mit den Status-Spalten — die einzige Sicht, die den Bearbeitungsstand aller Rückmeldungen auf einen Blick zeigt — musste jedes Mal von Hand eingeschaltet werden.

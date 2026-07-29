@@ -1,7 +1,5 @@
 # Fristen & Meilensteine
 
-Vollbild-Seite (`/meilensteine`, Flag `meilensteinMonitoring`; dev/pl/as/kurator).
-
 ## Zweck
 
 Der amtliche Status sagt, WO ein Verbund steht — dieses Modul, ob er dort
@@ -48,3 +46,12 @@ Teilvorhaben.
 - Das Home-Widget „Meilensteine diese Woche" zeigt den Auszug für eigene Verbünde.
 - Nicht zu verwechseln mit den Projekt-Meilensteinen der Begleitphase
   (`MS01`–`MS03`) und der Anzeige-Prominenz „Meilenstein" der Status-Timeline.
+
+## Technik
+
+Alles ab hier bekommt nur die KI — der Hilfe-Dialog schneidet es weg
+(`entferneTechnik` in `src/core/services/feedback/screenContext.ts`).
+
+Vollbild-Seite (`/meilensteine`, Flag `meilensteinMonitoring`; dev/pl/as/kurator).
+Plan als Team-Sidecar, Ansicht gemerkt in `ansichtPersistenz.ts`;
+Architektur: `docs/architecture/meilensteine.md`.

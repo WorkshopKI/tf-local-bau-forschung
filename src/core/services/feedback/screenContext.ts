@@ -1,6 +1,11 @@
-// Bildschirmseiten-Kontext-Substrat für die Feedback-Verbesserung: liefert der
-// internen KI kompaktes, aktuelles App-Wissen statt einer verstreuten Prompt-Kopie.
-// Docs liegen im Repo unter docs/feedback-kontext/ (Pflege: docs/agents/update-screen-context.md).
+// Bildschirmseiten-Kontext-Substrat: die Zugriffsschicht auf docs/feedback-kontext/.
+// Zwei Konsumenten, EINE Quelle je Seite:
+//   1. die Feedback-Verbesserung bekommt das GANZE Doc als App-Wissen (getScreenContext),
+//   2. die Seiten-Hilfe zeigt dasselbe Doc als Kurzanleitung im „Hilfe"-Dialog,
+//      ohne den Technik-Teil (getSeitenHilfe, siehe Strip-Regeln weiter unten).
+// Eine zweite, nutzer-eigene Doku-Datei wäre gegen diese hier gedriftet und hätte jede
+// Feature-Änderung zweimal gekostet; der Preis für die eine Quelle ist der Strip.
+// Pflege: docs/agents/update-screen-context.md.
 // Bundling per import.meta.glob(eager+raw) — Precedent: core/services/seed/fixture-loader.ts.
 // Kein fetch/dynamischer Import (Pitfalls #1/#2) — die Docs landen statisch im Single-File-Build.
 
@@ -55,4 +60,68 @@ export function getKnownScreenContextIds(): string[] {
   return Object.keys(CONTEXT_DOCS)
     .filter(name => name !== '_app.md' && name.toLowerCase() !== 'readme.md')
     .map(name => name.replace(/\.md$/, ''));
+}
+
+// ── Seiten-Hilfe: dasselbe Doc, nutzer-lesbar ──────────────────────────────────
+//
+// Weggeschnitten wird, was nur Maschine oder Entwickler brauchen:
+//   - alles ab einer `## Technik`-Überschrift bis Dateiende (expliziter Marker),
+//   - die Zeilen `**Datenmodell dahinter:**` / `**Code:**` der noch unstrukturierten
+//     Docs (Fett-Label am Zeilenanfang, je genau eine Zeile).
+//
+// Nebeneffekt, der den Aufwand trägt: die Docs werden dadurch überhaupt erst gelesen.
+// Der Coverage-Guard erzwingt ihre Existenz, nicht ihre Aktualität — ein Nutzer, der
+// die Kurzanleitung liest, meldet Abweichungen.
+
+/** Ab dieser Überschrift bis Dateiende steht nur noch Technik (Route, Flag, Stores, Dateien). */
+const TECHNIK_MARKER = /^#{2,3}\s+Technik\b/i;
+
+/**
+ * Fett-Label, die in den noch unstrukturierten Docs eine reine Technik-Zeile
+ * einleiten. Jedes steht auf GENAU einer Zeile — über alle Docs geprüft in
+ * `__tests__/seitenHilfe.test.ts`, zusammen mit der Zusage, dass außerhalb
+ * dieser Zeilen keine Code-Pfade in den Docs stehen.
+ */
+const TECHNIK_LABEL = /^\*\*(Datenmodell dahinter|Code):\*\*/i;
+
+export interface SeitenHilfe {
+  /** H1 des Docs ohne führendes `# ` — Titel des Hilfe-Dialogs. */
+  titel: string;
+  /** Rumpf ohne H1 und ohne Technik-Teile, weiterhin Markdown. */
+  markdown: string;
+}
+
+/** Schneidet die nur für Maschine/Entwickler gedachten Teile weg. Rein. */
+export function entferneTechnik(markdown: string): string {
+  const behalten: string[] = [];
+  for (const zeile of markdown.split(/\r?\n/)) {
+    const geputzt = zeile.trimStart();
+    if (TECHNIK_MARKER.test(geputzt)) break;
+    if (TECHNIK_LABEL.test(geputzt)) continue;
+    behalten.push(zeile);
+  }
+  return behalten.join('\n').trim();
+}
+
+/** Trennt die H1-Überschrift vom Rumpf. Ohne H1 bleibt `titel` leer. Rein. */
+export function teileTitel(markdown: string): { titel: string; rumpf: string } {
+  const zeilen = markdown.split(/\r?\n/);
+  const idx = zeilen.findIndex(z => /^#\s+\S/.test(z));
+  if (idx === -1) return { titel: '', rumpf: markdown.trim() };
+  return {
+    titel: (zeilen[idx] ?? '').replace(/^#\s+/, '').trim(),
+    rumpf: [...zeilen.slice(0, idx), ...zeilen.slice(idx + 1)].join('\n').trim(),
+  };
+}
+
+/**
+ * Nutzer-lesbare Kurzanleitung zu einer Bildschirmseite, oder `null` wenn es kein
+ * Doc gibt bzw. nach dem Strippen nichts übrig bleibt (dann zeigt die UI gar keinen
+ * Hilfe-Knopf statt eines leeren Dialogs).
+ */
+export function getSeitenHilfe(pluginId: string): SeitenHilfe | null {
+  const doc = getScreenContext(pluginId);
+  if (doc === null) return null;
+  const { titel, rumpf } = teileTitel(entferneTechnik(doc));
+  return rumpf === '' ? null : { titel, markdown: rumpf };
 }
