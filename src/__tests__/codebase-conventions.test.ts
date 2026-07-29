@@ -79,8 +79,8 @@
  *     jede nicht-dev Plugin-ID (Text-Scan von src/plugins/index.ts(x) je Ordner, da ein
  *     Import von plugins.config.ts unter Vitest an pdfjs-dist-Workern bricht) hat
  *     ein eigenes Kontext-Doc oder ist Mitglied von KURATION_PLUGIN_IDS (teilt
- *     kuration.md); jedes Doc <= 4000 Zeichen — Prompt-Budget-Schutz fuer die
- *     Bridge (pro Lauf gehen genau zwei Docs raus: _app.md + das Seiten-Doc).
+ *     kuration.md). KEIN Zeichen-Budget mehr, nur eine Reissleine (10000) gegen
+ *     ausufernde Docs — die Disziplin ist inhaltlich (WAS statt WIE), nicht numerisch.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -1017,23 +1017,24 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // Jede nicht-dev Plugin-ID braucht ein Kontext-Doc (direkt oder ueber das
   // gemeinsame kuration.md fuer Kuration-Plugins) — sonst arbeitet die
   // Feedback-Verbesserung (feedbackImprove.ts) mit unvollstaendigem App-Wissen.
-  // Die Zeichen-Grenze ist eine KURATIONS-Disziplin, kein Kontext-Budget — wer
-  // sie mit "sonst sprengt es den Prompt" begruendet, irrt: pro Lauf gehen genau
-  // ZWEI Docs raus (getAppOverview() + getScreenContext(pluginId), nie alle),
-  // zusammen ~8000 Zeichen bzw. ~2000 Token gegen ein Modell mit 62k-256k. Der
-  // Prompt-Anteil ist also belanglos.
+  // Es gibt KEIN Zeichen-Budget mehr, nur eine Reissleine gegen ausufernde Docs.
   //
-  // Was die Grenze WIRKLICH leistet: sie schlaegt an, wenn ein Doc von "WAS
-  // sieht und benennt der Nutzer" nach "WIE funktioniert es" driftet — das
-  // gehoert ins Architektur-Doc. Der Feedback-Lauf ist einschuessig (ein Zug,
-  // ein JSON-Block); da entscheidet Relevanzdichte, nicht Menge.
+  // Warum kein Budget: pro Feedback-Lauf gehen genau ZWEI Docs raus
+  // (getAppOverview() + getScreenContext(pluginId), nie alle) — bei den heutigen
+  // Groessen ~2000 Token gegen ein Modell mit 62k-256k Kontext. "Sonst sprengt
+  // es den Prompt" war jahrelang die Begruendung und war immer falsch. Das alte
+  // Limit von 2500 band real: 10 von 16 Docs klebten bei 2446-2499, also an der
+  // Wand — geschrieben bis zum Limit, dann anderswo weggekuerzt. Das kostete pro
+  // Feature einen Extra-Loop und machte die Docs schlechter, nicht kuerzer.
   //
-  // 2500 war zu eng: 10 von 16 Docs klebten bei 2446-2499, also an der Wand —
-  // geschrieben bis zum Limit, dann anderswo weggekuerzt. Das kostete pro
-  // Feature einen Extra-Loop und verschlechterte die Docs. Seit 2026-07-29 4000.
+  // Die eigentliche Disziplin ist inhaltlich und steht in der README: hier steht
+  // WAS der Nutzer sieht und benennt, das WIE gehoert ins Architektur-Doc. Ein
+  // Doc, das anschwillt, hat fast immer WIE drin — dagegen hilft Lesen, keine
+  // Zahl. Die Reissleine faengt nur den Unfall (Architektur-Doc reinkopiert,
+  // generierter Dump) und liegt bewusst weit ueber jeder legitimen Laenge:
+  // rund das Vierfache des heute groessten Docs.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const MAX_DOC_CHARS = 4000;
-  const MAX_APP_OVERVIEW_CHARS = 4000;
+  const REISSLEINE_DOC_CHARS = 10000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht
@@ -1072,18 +1073,21 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
     }
   });
 
-  it(`jedes Kontext-Doc <= ${MAX_DOC_CHARS} Zeichen (_app.md <= ${MAX_APP_OVERVIEW_CHARS})`, () => {
+  it(`kein Kontext-Doc ufert aus (Reissleine ${REISSLEINE_DOC_CHARS} Zeichen)`, () => {
     const findings: string[] = [];
     for (const entry of readdirSync(DOCS_DIR)) {
       if (!entry.endsWith('.md') || entry.toLowerCase() === 'readme.md') continue;
       const chars = readFileSync(join(DOCS_DIR, entry), 'utf-8').length;
-      const limit = entry === '_app.md' ? MAX_APP_OVERVIEW_CHARS : MAX_DOC_CHARS;
-      if (chars > limit) findings.push(`  ${entry}: ${chars} Zeichen (Limit ${limit})`);
+      if (chars > REISSLEINE_DOC_CHARS) findings.push(`  ${entry}: ${chars} Zeichen`);
     }
     if (findings.length > 0) {
       expect.fail(
-        `Kontext-Doc(s) ueberschreiten das Prompt-Budget:\n${findings.join('\n')}\n` +
-        `Kuerzen — die Bridge traegt den Prompt per DOM, Groesse ist teuer.`,
+        `Kontext-Doc(s) ueber der Reissleine von ${REISSLEINE_DOC_CHARS} Zeichen:\n` +
+        `${findings.join('\n')}\n` +
+        `Das ist kein knappes Budget — diese Laenge deutet auf einen Unfall hin ` +
+        `(Architektur-Doc reinkopiert, generierter Dump) oder darauf, dass WIE-Text ` +
+        `ins Doc gewandert ist. Inhaltlich pruefen statt blind kuerzen; wenn die ` +
+        `Laenge legitim ist, die Reissleine bewusst anheben.`,
       );
     }
   });

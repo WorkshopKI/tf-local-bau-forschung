@@ -64,7 +64,7 @@ Verschmilzt die früheren zwei KI-Funktionen (Einschuss-Verbesserer `improveFeed
 
 ### Bildschirmseiten-Kontext-Docs (`docs/feedback-kontext/`)
 
-Substrat für den Prompt-Kontext oben: pro nutzer-sichtbarem Plugin ein kompaktes Markdown-Doc (Budget ≤ 4000 Zeichen) + globaler `_app.md`-Überblick, statisch gebundelt via `import.meta.glob(eager+raw)` in `screenContext.ts` (`getAppOverview`/`getScreenContext`/`KURATION_PLUGIN_IDS`). Pro Lauf gehen genau **zwei** Docs raus (`_app.md` + das Seiten-Doc), nie alle. Pflege: [docs/agents/update-screen-context.md](../agents/update-screen-context.md), erzwungen durch den Convention-Guard `screen-context-coverage`.
+Substrat für den Prompt-Kontext oben: pro nutzer-sichtbarem Plugin ein Markdown-Doc + globaler `_app.md`-Überblick, statisch gebundelt via `import.meta.glob(eager+raw)` in `screenContext.ts` (`getAppOverview`/`getScreenContext`/`KURATION_PLUGIN_IDS`). Pro Lauf gehen genau **zwei** Docs raus (`_app.md` + das Seiten-Doc), nie alle — deshalb **kein Zeichen-Budget**, nur eine Reißleine bei 10000 Zeichen gegen Unfälle. Die Disziplin ist inhaltlich (WAS der Nutzer sieht, nicht WIE es funktioniert). Pflege: [docs/agents/update-screen-context.md](../agents/update-screen-context.md), erzwungen durch den Convention-Guard `screen-context-coverage`.
 
 ## Service-Layer (`src/core/services/feedback/`)
 

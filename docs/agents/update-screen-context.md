@@ -21,9 +21,11 @@ fachliche Änderung: nicht anfassen.
    teilen sich `kuration.md` — dort den passenden Unterabschnitt anfassen.
 2. **Schablone einhalten** (siehe [README.md](../feedback-kontext/README.md)):
    Zweck / UI-Elemente & Begriffe / Datenmodell dahinter / Typische Aktionen / Code.
-3. **Budget einhalten**: ≤ 4000 Zeichen pro Doc (`kuration.md` insgesamt für alle
-   8 Seiten). Der Deckel ist reichlich bemessen — **nichts Richtiges wegkürzen,
-   nur um Platz zu schaffen**; wer anstößt, hat meist WIE statt WAS im Doc.
+3. **Kein Zeichen-Budget** — schreib so lang, wie die Seite es ehrlich braucht,
+   und **kürze nie etwas Richtiges weg, nur um eine Zahl zu treffen**. Die
+   Disziplin ist inhaltlich: WAS der Nutzer sieht gehört hierher, das WIE ins
+   Architektur-Doc. Erzwungen ist nur eine Reißleine bei 10000 Zeichen (Unfall-
+   Fänger, kein Budget).
 4. **Neues Plugin**: siehe zuerst [add-plugin.md](add-plugin.md) für den vollen
    Touch-Point-Katalog — ein neues Kontext-Doc ist dort ein zusätzlicher Schritt,
    sonst schlägt der Guard fehl.
