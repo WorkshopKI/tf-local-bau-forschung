@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.362.1 — Dokumentablage legt fehlenden Suchindex selbst an (Juli 2026)
+
+PATCH — Eine per Drag-and-drop abgelegte PDF scheiterte mit rotem „Fehler: Orama not initialized". Ursache: die Orama-DB legten bisher nur der Dev-Seed und der Kurator-Vollindexlauf an — auf einer frischen Variant-IDB ohne Index vom Share blieb `db` die ganze Sitzung `null`, und in prod/pl gab es ohne Kurator-Rolle gar keinen Weg, sie je anzulegen. Der Wurf traf zudem erst NACH dem Speichern, riss also die schon gelungene Aufnahme mit (kein `docId`, kein `onIngested`).
+
+- `ensureOramaDB()` legt einen fehlenden Index an, `persistOramaSoon()` speichert nachlaufend + koaleszierend ([orama-store.ts](src/core/services/search/orama-store.ts)) — die Ablage persistierte bisher gar nicht.
+- `indexDocument` wartet auf den Init-Lauf, legt notfalls an und persistiert ([useSearch.ts](src/core/hooks/useSearch.ts)); der `?? 384`-Fallback gegen ein 768d-Schema ist weg.
+- Index-Fehler beenden die Aufnahme nicht mehr: Dokument bleibt übernommen, Hinweis statt rotem Fehler ([DokumentAufnahme.tsx](src/core/components/DokumentAufnahme.tsx), [DokumenteListe.tsx](src/plugins/dokumente/DokumenteListe.tsx)).
+- `orama-dimensions` wird jetzt überall dort mitgeschrieben, wo `orama-db` entsteht ([seed-data.ts](src/core/services/seed/seed-data.ts), [index-persistence.ts](src/core/services/search/index-persistence.ts)) — sonst rehydriert das Schema ohne `embedding`-Feld.
+- Nebenbei: die Dokumente-Liste indexierte unter `doc-${Date.now()}` statt unter der Store-uuid — solche Einträge waren nie löschbar ([DokumenteListe.tsx](src/plugins/dokumente/DokumenteListe.tsx)).
+
 ### v2.362.0 — Sidebar-Navigation in drei Gruppen (Juli 2026)
 
 MINOR — Zehn Menüpunkte als ununterbrochener Block: nichts sagte, was der tägliche Weg ist und was Beiwerk. Die Kategorisierung von v2.170 war dabei nie weg — `workflow` und `tools` standen unverändert in den Manifesten, das ShellLayout rendert sie nur beide ohne Label und ohne Trennlinie hintereinander. Und dass vier der zehn Seiten Beta sind, stand nirgends.

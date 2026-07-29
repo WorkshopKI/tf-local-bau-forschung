@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import {
   loadOramaFromDB, loadDocChunkCounts, hybridSearch, insertDoc, removeDoc, getDocCount,
+  ensureOramaDB, saveOramaDimensions, persistOramaSoon,
   type OramaSearchResult,
 } from '@/core/services/search/orama-store';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
-import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { getActiveModelId, getModelById, DEFAULT_MODEL_ID } from '@/core/services/search/model-registry';
 import { initReRanker, isReRankerReady, rerank, disposeReRanker } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 import type { EmbeddingModelConfig } from '@/core/services/search/model-registry';
 import type { StorageService } from '@/core/services/storage';
@@ -20,9 +21,12 @@ interface SearchContextValue {
   loading: boolean;
   vectorReady: boolean;
   vectorLoading: boolean;
+  /** Legt einen fehlenden Index selbst an und persistiert nachlaufend. Wirft nur,
+   *  wenn Orama den Datensatz ablehnt — der Aufrufer entscheidet dann, ob das die
+   *  Aufnahme scheitern lässt (tut es in der Dokumentablage bewusst NICHT). */
   indexDocument: (doc: {
     id: string; text: string; title: string; source: string; tags: string[]; type: string;
-  }) => void;
+  }) => Promise<void>;
   removeDocument: (id: string) => void;
   documentCount: number;
   toggleReRanker: (enable: boolean, modelId?: string) => Promise<void>;
@@ -44,12 +48,18 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
   const [vectorLoading, setVectorLoading] = useState(false);
   const modelConfigRef = useRef<EmbeddingModelConfig | null>(null);
   const initRef = useRef(false);
+  /** Promise des Init-Laufs. `indexDocument` wartet darauf: vorher steht weder die
+   *  Vektor-Dimension fest (Insert mit falscher Vektorlänge) noch ist klar, ob aus
+   *  IDB/Share ein Index nachkommt (den die Lazy-Anlage sonst verdrängen würde).
+   *  Der `catch` hält das Promise erfüllbar — ein gescheiterter Init darf die Ablage
+   *  nicht mitreißen, sie legt dann eben einen frischen Index an. */
+  const initDoneRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
-    (async () => {
+    initDoneRef.current = (async () => {
       const modelId = await getActiveModelId(storage.idb);
       const modelConfig = getModelById(modelId);
       modelConfigRef.current = modelConfig;
@@ -105,7 +115,7 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
           pipelineLog.warn('Re-Ranker', `Fehler: ${err}`);
         }
       }
-    })();
+    })().catch(err => { pipelineLog.warn('Suche', `Initialisierung fehlgeschlagen: ${err}`); });
   }, [storage]);
 
   const search = useCallback(async (query: string, filters?: { type?: string }): Promise<OramaSearchResult[]> => {
@@ -143,19 +153,27 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     finally { setLoading(false); }
   }, []);
 
-  const indexDocument = useCallback((doc: {
+  const indexDocument = useCallback(async (doc: {
     id: string; text: string; title: string; source: string; tags: string[]; type: string;
-  }) => {
-    const dims = modelConfigRef.current?.dimensions ?? 384;
+  }): Promise<void> => {
+    await initDoneRef.current;
+    const dims = modelConfigRef.current?.dimensions ?? getModelById(DEFAULT_MODEL_ID).dimensions;
+    // Fehlt der Index komplett (frische Variant-IDB, nie ein Vollindexlauf gelaufen,
+    // nichts vom Share), legt die Ablage ihn selbst an — sonst wäre in prod/pl ohne
+    // Kurator-Rolle nie ein Dokument ablegbar. Der Vektor bleibt null; echte
+    // Embeddings entstehen erst beim nächsten Vollindexlauf.
+    if (ensureOramaDB(dims)) await saveOramaDimensions(storage.idb, dims);
     const emptyVec = new Array(dims).fill(0) as number[];
     insertDoc({ ...doc, tags: doc.tags.join(','), embedding: emptyVec });
     setDocCount(getDocCount());
-  }, []);
+    persistOramaSoon(storage.idb);
+  }, [storage]);
 
   const removeDocument = useCallback((id: string) => {
     removeDoc(id);
     setDocCount(getDocCount());
-  }, []);
+    persistOramaSoon(storage.idb);
+  }, [storage]);
 
   const toggleReRanker = useCallback(async (enable: boolean, modelId?: string) => {
     if (enable) {

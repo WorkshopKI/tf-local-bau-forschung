@@ -48,6 +48,8 @@ interface IntakeItem {
   status: ItemStatus;
   docId?: string;
   error?: string;
+  /** Aufnahme hat geklappt, nur der Such-Index nicht — weiche Notiz statt rotem Fehler. */
+  indexWarnung?: string;
   /** true = hat eine vorhandene gleichnamige Fassung überschrieben (statt neu anzulegen). */
   ersetzt?: boolean;
   /** Konvertierungsergebnis (Markdown + Report) für die „prüfen"-Vorschau. */
@@ -127,15 +129,24 @@ export function DokumentAufnahme({
         docId = await add(inhalt, storage);
       }
 
-      indexDocument({
-        id: docId,
-        text: converted.markdown,
-        title: converted.filename,
-        source: converted.filename,
-        tags,
-        type: 'dokument',
-      });
-      patch(item.localId, { status: 'indexiert', docId, typ, converted, ersetzt: !!vorhanden });
+      // Ab hier ist das Dokument gespeichert. Ein Fehler im Such-Index darf die Aufnahme
+      // deshalb NICHT mehr scheitern lassen: sonst bliebe die Zeile ohne `docId` zurück
+      // (Entfernen unmöglich), `onIngested` liefe nie, und die Sektion sähe die Datei
+      // nicht — obwohl sie über den Tag längst am Verbund hängt.
+      let indexWarnung: string | undefined;
+      try {
+        await indexDocument({
+          id: docId,
+          text: converted.markdown,
+          title: converted.filename,
+          source: converted.filename,
+          tags,
+          type: 'dokument',
+        });
+      } catch (err) {
+        indexWarnung = err instanceof Error ? err.message : String(err);
+      }
+      patch(item.localId, { status: 'indexiert', docId, typ, converted, ersetzt: !!vorhanden, indexWarnung });
       // Bei `offenHalten` bleibt die Fläche offen (Pro-Datei-Erkennung + „Konvertierung
       // prüfen"); die Sektion wird erst beim expliziten „Fertig"-Klick benachrichtigt.
       if (!offenHalten) onIngested?.(typ);
@@ -339,6 +350,12 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard, onRemove 
               <span className="text-[var(--tf-border)]" aria-hidden>·</span>
               <EntfernenButton busy={entfernen.busy} onClick={handleRemove} />
             </div>
+            {item.indexWarnung && (
+              <div className="mt-1 text-[11px] text-[var(--tf-text-tertiary)]">
+                Aufgenommen, aber nicht in den Suchindex übernommen — die Suche findet das
+                Dokument erst nach einer Neuindexierung.
+              </div>
+            )}
             {zuLang && (
               <div className="mt-1.5 rounded-[6px] px-2.5 py-1.5 text-[11.5px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)]">
                 ⚠ Länger als das Kontextfenster (~{vbCap.toLocaleString('de-DE')} Zeichen) — die KI würde den Schluss nicht sehen.

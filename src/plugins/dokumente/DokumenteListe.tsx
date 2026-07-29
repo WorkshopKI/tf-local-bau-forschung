@@ -30,6 +30,8 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
   const [converting, setConverting] = useState(false);
   const [showDropZone, setShowDropZone] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  /** Datei ist importiert, nur der Such-Index hat nicht mitgespielt — kein Fehler. */
+  const [importHinweise, setImportHinweise] = useState<string[]>([]);
   const [importSuccess, setImportSuccess] = useState(0);
   const [page, setPage] = useState(0);
   const [showAllTags, setShowAllTags] = useState(false);
@@ -90,8 +92,10 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
   const handleFiles = async (files: File[]): Promise<void> => {
     setConverting(true);
     setImportErrors([]);
+    setImportHinweise([]);
     setImportSuccess(0);
     const errors: string[] = [];
+    const hinweise: string[] = [];
     let success = 0;
     for (const file of files) {
       const exists = documents.some(d => d.filename === file.name);
@@ -99,16 +103,25 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
 
       try {
         const result = await converter.convert(file);
-        await add({
+        // Die vom Store vergebene uuid ist auch die Orama-Id. Vorher stand hier
+        // `doc-${Date.now()}` — die passte zu keinem Record (removeDocument konnte
+        // solche Einträge nie löschen) und kollidierte bei Dateien in derselben ms.
+        const docId = await add({
           filename: result.filename, format: result.format,
           markdown: result.markdown, tags: [], pages: result.pages,
           source: 'upload',
         }, storage);
-        indexDocument({
-          id: `doc-${Date.now()}`, text: result.markdown,
-          title: result.filename, source: result.filename,
-          tags: [], type: 'dokument',
-        });
+        // Datei liegt bereits im Store — ein Index-Fehler ist kein Import-Fehler.
+        try {
+          await indexDocument({
+            id: docId, text: result.markdown,
+            title: result.filename, source: result.filename,
+            tags: [], type: 'dokument',
+          });
+        } catch (err) {
+          console.warn('Indexierung fehlgeschlagen:', file.name, err);
+          hinweise.push(`${file.name}: importiert, aber nicht im Suchindex`);
+        }
         success++;
       } catch (err) {
         console.error('Conversion failed:', file.name, err);
@@ -117,11 +130,12 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
     }
     setImportSuccess(success);
     setImportErrors(errors);
+    setImportHinweise(hinweise);
     setConverting(false);
     setShowDropZone(errors.length > 0);
     if (success > 0 && errors.length === 0) {
       if (dismissRef.current) clearTimeout(dismissRef.current);
-      dismissRef.current = setTimeout(() => setImportSuccess(0), 4000);
+      dismissRef.current = setTimeout(() => { setImportSuccess(0); setImportHinweise([]); }, 4000);
     }
   };
 
@@ -169,6 +183,13 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
           <div className="flex items-center gap-2 mb-4 p-2 rounded-[var(--tf-radius)] bg-[var(--tf-success-bg)]">
             <CheckCircle size={14} className="text-[var(--tf-success-text)]" />
             <p className="text-[12px] text-[var(--tf-success-text)]">{importSuccess} Datei(en) importiert</p>
+          </div>
+        )}
+        {importHinweise.length > 0 && (
+          <div className="mb-4">
+            {importHinweise.map((h, i) => (
+              <p key={i} className="text-[12px] text-[var(--tf-text-tertiary)]">{h}</p>
+            ))}
           </div>
         )}
         {importErrors.length > 0 && (

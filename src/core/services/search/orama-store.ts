@@ -86,6 +86,26 @@ export function createOramaDB(vectorDimensions: number): void {
   pipelineLog.info('Orama', `Neue DB erstellt: vector[${vectorDimensions}]`);
 }
 
+/**
+ * Stellt sicher, dass überhaupt eine DB existiert — legt sie nur an, wenn keine da ist.
+ *
+ * Ohne das kann eine Dokumentablage auf einem Rechner, auf dem nie ein Vollindexlauf
+ * lief (frische Variant-IDB, kein Index vom Share), NIE gelingen: `createOramaDB` rief
+ * bisher nur der Seed und der Kurator-Vollindexlauf, und `insertDoc` warf entsprechend
+ * „Orama not initialized". Der Ablage-Pfad legt die DB jetzt selbst an.
+ *
+ * Bewusst NICHT in `insertDoc` versteckt: der Aufrufer kennt die Vektor-Dimension und
+ * muss sie nach dem Anlegen auch persistieren (`saveOramaDimensions`) — sonst baut
+ * `loadOramaFromDB` beim nächsten Start ein Schema ohne `embedding`-Feld.
+ *
+ * @returns true, wenn in diesem Aufruf eine neue (leere) DB entstanden ist.
+ */
+export function ensureOramaDB(vectorDimensions: number): boolean {
+  if (db) return false;
+  createOramaDB(vectorDimensions);
+  return true;
+}
+
 export function getCurrentDimensions(): number | null {
   return currentDimensions;
 }
@@ -100,6 +120,44 @@ export function saveOramaToDB(
   if (!db) return Promise.resolve();
   const data = save(db);
   return idb.set('orama-db', data);
+}
+
+/** Trailing-Fenster für `persistOramaSoon` (ms). */
+const PERSIST_DEBOUNCE_MS = 1500;
+
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let persistRunning: Promise<void> = Promise.resolve();
+
+/**
+ * Speichert den Index nachlaufend und koaleszierend.
+ *
+ * `save(db)` serialisiert IMMER den kompletten Index — ein Drop von fünf Dateien würde
+ * sonst fünf Vollserialisierungen auslösen. Mehrere Aufrufe innerhalb des Fensters
+ * ergeben genau einen Schreibvorgang; überlappende Schreibläufe werden verkettet.
+ * Bewusst fire-and-forget: die Ablage darf nicht auf das Persistieren warten.
+ */
+export function persistOramaSoon(
+  idb: { set: (key: string, value: unknown) => Promise<void> },
+): void {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    persistRunning = persistRunning
+      .then(() => saveOramaToDB(idb))
+      .catch(err => { pipelineLog.warn('Orama', `Index speichern fehlgeschlagen: ${err}`); });
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+/** Wartet auf einen ausstehenden `persistOramaSoon`-Lauf (Tests, Teardown). */
+export async function flushOramaPersist(
+  idb: { set: (key: string, value: unknown) => Promise<void> },
+): Promise<void> {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+    persistRunning = persistRunning.then(() => saveOramaToDB(idb));
+  }
+  await persistRunning;
 }
 
 /**
@@ -288,5 +346,8 @@ export function getDocCount(): number {
 }
 
 export function destroyOrama(): void {
+  // Ausstehendes Persistieren verwerfen — sonst schreibt der Trailing-Timer den
+  // gerade verworfenen Stand noch in die IDB.
+  if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
   db = null;
 }

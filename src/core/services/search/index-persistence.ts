@@ -1,5 +1,6 @@
 import { save, load, create } from '@orama/orama';
-import { getOramaDB } from './orama-store';
+import { getOramaDB, saveOramaDimensions } from './orama-store';
+import { EMBEDDING_MODELS } from './model-registry';
 import type { StorageService } from '@/core/services/storage';
 
 const INDEX_DIR = 'search-index';
@@ -68,6 +69,12 @@ export async function loadIndexFromFileServer(
     load(db!, indexData as any);
 
     await storage.idb.set('orama-db', indexData);
+    // Dimensionen aus der Modell-Id des Servers ableiten und mitschreiben — ohne den
+    // Schlüssel baut `loadOramaFromDB` ein Schema ohne `embedding`-Feld, und der
+    // geladene Vektor-Index wäre stumm. Nur bei bekannter Modell-Id (kein Raten:
+    // `getModelById` würde auf das erste Modell zurückfallen).
+    const serverModel = EMBEDDING_MODELS.find(m => m.id === serverMeta.modelId);
+    if (serverModel) await saveOramaDimensions(storage.idb, serverModel.dimensions);
     await storage.idb.set('index-model-id', serverMeta.modelId);
     await storage.idb.set('index-chunk-count', serverMeta.chunkCount);
     await storage.idb.set('index-last-update', serverMeta.lastUpdate);

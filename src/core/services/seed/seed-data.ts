@@ -1,5 +1,5 @@
 import type { StorageService } from '@/core/services/storage';
-import { createOramaDB, insertDoc, saveOramaToDB } from '@/core/services/search/orama-store';
+import { createOramaDB, insertDoc, saveOramaToDB, saveOramaDimensions } from '@/core/services/search/orama-store';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { ensureDefaultProgramm } from '@/core/services/csv';
 import { listAntraegeByProgramm, deleteAntrag } from '@/core/services/csv/idb-csv';
@@ -73,6 +73,9 @@ export async function seedTestData(
   }
 
   await saveOramaToDB(storage.idb);
+  // Dimensionen gehören zum persistierten Index: ohne den Schlüssel baut
+  // `loadOramaFromDB` beim nächsten Start ein Schema OHNE `embedding`-Feld.
+  await saveOramaDimensions(storage.idb, model.dimensions);
   await storage.idb.set(SEED_COMPLETE_FLAG, true);
 
   if (fixtureResult.csvsImported === 0 && existing.length === 0) {

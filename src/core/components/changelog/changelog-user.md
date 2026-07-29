@@ -21,6 +21,9 @@
 
 ## v2.362 — 2026-07
 
+### Bugfixes
+- Beim Ablegen eines PDF (etwa einer Vorhabensbeschreibung im Gutachten) erschien auf manchen Rechnern die rote Meldung „Orama not initialized", und die Datei wurde nicht übernommen — obwohl sie längst gespeichert war. Der Suchindex, den die App dafür braucht, wird jetzt beim ersten Ablegen selbst angelegt. Sollte die Aufnahme in den Suchindex einmal nicht klappen, ist das nur noch ein grauer Hinweis: die Datei ist trotzdem da und lässt sich weiterverwenden.
+
 ### Verbesserungen
 - **Die Seitenleiste ist jetzt gegliedert.** Ganz oben und ohne Überschrift steht der tägliche Weg: Home, Förderanträge, Auslastung. Darunter **Werkzeuge** (Suche, Skill-Verwaltung, Feedback) — stabil, aber seltener gebraucht.
 - Darunter **In Erprobung**: Fristen & Meilensteine, E-Mail Anfragen, Förderfähigkeit und Status-Katalog. Diese vier sind noch nicht ausgereift — genau deshalb sind Rückmeldungen dazu besonders wertvoll.
