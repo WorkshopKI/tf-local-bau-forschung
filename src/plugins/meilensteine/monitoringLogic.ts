@@ -251,3 +251,46 @@ export function nurMeinePunkte(punkte: readonly WochenPunkt[], meinKuerzel: stri
   const k = meinKuerzel.trim().normalize('NFC');
   return k ? punkte.filter(p => p.kuerzel.includes(k)) : [...punkte];
 }
+
+/** Alle offenen Punkte EINES Verbunds, zusammengefasst zu einer Arbeitszeile. */
+export interface VerbundGruppe {
+  verbundId: string;
+  akronym: string;
+  titel: string;
+  /**
+   * Der dringendste Punkt der Gruppe. Bei Überfälligen ist das der älteste — also
+   * die Stelle, an der der Vorgang stehengeblieben ist; bei Fälligen der nächste
+   * Termin. Genau diese eine Aussage trägt die zugeklappte Zeile.
+   */
+  dringendster: WochenPunkt;
+  punkte: WochenPunkt[];
+}
+
+/**
+ * Bündelt die Punkte je Verbund. Bei einem Vorgang, der seit Jahren liegt, sind
+ * seine sechs gerissenen Meilensteine dieselbe Tatsache — sechs Zeilen behaupten
+ * sechs Probleme, wo es eines gibt.
+ *
+ * Verlässt sich auf die Sortierung von `sammleWochenPunkte` (dringendstes zuerst):
+ * dadurch ist der ERSTE Punkt je Verbund automatisch der dringendste, und die
+ * Einfüge-Reihenfolge der Map ergibt die Gruppen-Reihenfolge. Wer dort sortiert,
+ * sortiert hier mit — deshalb wird hier bewusst nicht ein zweites Mal sortiert.
+ */
+export function gruppiereNachVerbund(punkte: readonly WochenPunkt[]): VerbundGruppe[] {
+  const proVerbund = new Map<string, VerbundGruppe>();
+  for (const p of punkte) {
+    const vorhanden = proVerbund.get(p.verbundId);
+    if (vorhanden) {
+      vorhanden.punkte.push(p);
+      continue;
+    }
+    proVerbund.set(p.verbundId, {
+      verbundId: p.verbundId,
+      akronym: p.akronym,
+      titel: p.titel,
+      dringendster: p,
+      punkte: [p],
+    });
+  }
+  return [...proVerbund.values()];
+}

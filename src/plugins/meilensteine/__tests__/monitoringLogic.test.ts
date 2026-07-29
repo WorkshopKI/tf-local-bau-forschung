@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  LEERER_FILTER, antragsJahr, datumSpanne, filtereZeilen, jahrAlsBereich, jahrChips,
-  nurMeinePunkte, passtZuBereich, sammleWochenPunkte, setzeBis, setzeVon, standJahr,
-  standardBereich, standardFilter,
+  LEERER_FILTER, antragsJahr, datumSpanne, filtereZeilen, gruppiereNachVerbund,
+  jahrAlsBereich, jahrChips, nurMeinePunkte, passtZuBereich, sammleWochenPunkte,
+  setzeBis, setzeVon, standJahr, standardBereich, standardFilter,
 } from '@/plugins/meilensteine/monitoringLogic';
 import type { VerbundZeile } from '@/plugins/meilensteine/useMeilensteinStand';
 import type { MeilensteinPlan, MstErgebnis, Prognose } from '@/core/meilensteine';
@@ -260,5 +260,69 @@ describe('nurMeinePunkte', () => {
       }),
     ], plan, HEUTE);
     expect(nurMeinePunkte(punkte, '')).toHaveLength(1);
+  });
+});
+
+describe('gruppiereNachVerbund', () => {
+  /** Eigener Plan: der geteilte kennt nur k1/k2, hier braucht es einen dritten Knoten. */
+  const planMitK3: MeilensteinPlan = {
+    ...plan,
+    knoten: [
+      ...plan.knoten,
+      {
+        id: 'k3', elternId: null, nummer: '3', label: 'Bescheid', sollWoche: 12,
+        relevantFuerFrist: true, nurTypen: [], aktiv: true, bedingung: { einige: [] }, sortierung: 30,
+      },
+    ],
+  };
+
+  /** AAA mit drei gerissenen Meilensteinen (−61 / −22 / −7 Tage), BBB mit einem (−12). */
+  const punkte = sammleWochenPunkte([
+    zeile({
+      verbundId: 'AAA', prognose: 'nichtHaltbar', titel: 'Alt-Vorhaben',
+      ergebnisse: [
+        ergebnis({ knotenId: 'k2', zustand: 'gerissen', sollDatum: '2026-07-10T00:00:00.000Z' }),
+        ergebnis({ knotenId: 'k1', zustand: 'gerissen', sollDatum: '2026-06-01T00:00:00.000Z' }),
+        ergebnis({ knotenId: 'k3', zustand: 'gerissen', sollDatum: '2026-07-25T00:00:00.000Z' }),
+      ],
+    }),
+    zeile({
+      verbundId: 'BBB', prognose: 'gefaehrdet',
+      ergebnisse: [ergebnis({ knotenId: 'k1', zustand: 'gerissen', sollDatum: '2026-07-20T00:00:00.000Z' })],
+    }),
+  ], planMitK3, HEUTE);
+
+  it('macht aus mehreren Punkten eines Verbunds eine Zeile', () => {
+    const gruppen = gruppiereNachVerbund(punkte);
+    expect(gruppen.map(g => g.verbundId)).toEqual(['AAA', 'BBB']);
+    expect(gruppen[0]!.punkte).toHaveLength(3);
+    expect(gruppen[1]!.punkte).toHaveLength(1);
+  });
+
+  it('nennt als dringendsten den ältesten Punkt — die Stelle, an der es hängt', () => {
+    const gruppen = gruppiereNachVerbund(punkte);
+    expect(gruppen[0]!.dringendster.knotenId).toBe('k1');       // Soll 1.6., nicht 10.7.
+    expect(gruppen[0]!.dringendster.restTage).toBe(-61);
+  });
+
+  it('ordnet die Gruppen nach ihrem dringendsten Punkt, nicht nach ihrer Größe', () => {
+    // AAA führt mit −61, obwohl BBBs einziger Punkt (−12) dringender ist als
+    // AAAs zweit- und drittältester.
+    expect(gruppiereNachVerbund(punkte).map(g => g.verbundId)).toEqual(['AAA', 'BBB']);
+    // Bleibt AAA nur der jüngste Punkt (−7), rutscht BBB (−12) davor.
+    const nurK3 = punkte.filter(p => p.verbundId !== 'AAA' || p.knotenId === 'k3');
+    expect(gruppiereNachVerbund(nurK3).map(g => g.verbundId)).toEqual(['BBB', 'AAA']);
+  });
+
+  it('trägt Akronym und Titel des Verbunds mit', () => {
+    const [aaa] = gruppiereNachVerbund(punkte);
+    expect(aaa!.akronym).toBe('AAA');
+    expect(aaa!.titel).toBe('Alt-Vorhaben');
+  });
+
+  it('verliert keinen Punkt und kommt mit einer leeren Liste klar', () => {
+    const summe = gruppiereNachVerbund(punkte).reduce((n, g) => n + g.punkte.length, 0);
+    expect(summe).toBe(punkte.length);
+    expect(gruppiereNachVerbund([])).toEqual([]);
   });
 });

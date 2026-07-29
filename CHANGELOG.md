@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.356.0 — Diese Woche nach Verbund gebuendelt (Juli 2026)
+
+MINOR — „Diese Woche" listete 6954 überfällige Meilensteine als Einzelzeilen — ein Verbund von 2013 belegte sechs davon. Das sind aber nicht sechs Probleme, sondern eines: der Vorgang wurde nie angefasst.
+
+- Punkte werden je Verbund gebündelt, Standard an, Schalter „nach Verbund" (gemerkt) ([DieseWocheTab.tsx](src/plugins/meilensteine/DieseWocheTab.tsx)).
+- Die Sammelzeile nennt den **dringendsten** Punkt — „hängt seit 1.2 Antrag zugewiesen · Soll 23.9.2013" — plus die Zahl der offenen Meilensteine; Klick klappt sie inline auf.
+- Damit ist der Tab keine zweite Übersicht: er sagt, WO ein Vorgang stehengeblieben ist, nicht nur dass er überfällig ist.
+- Die Abschnitte Überfällig / Diese Woche fällig bleiben getrennt, der Aufklapp-Zustand je Abschnitt eigen.
+- Bündelung als reine Funktion `gruppiereNachVerbund`; sie verlässt sich auf die Sortierung von `sammleWochenPunkte` statt ein zweites Mal zu sortieren ([monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts)).
+
 ### v2.355.0 — Seiten-Hilfe: Kontext-Doc als Kurzanleitung (Muster: Fristen & Meilensteine) (Juli 2026)
 
 MINOR — Die App hatte längst ein Handbuch, es sah nur niemand: 15 Seiten-Docs in `docs/feedback-kontext/` liegen in jedem Build, wurden aber ausschließlich der Feedback-KI vorgelegt. Wer nachlesen statt fragen will, hatte keinen Weg dorthin. Zweiter Effekt: bisher fiel ein veraltetes Doc nur als leicht danebenliegende KI-Antwort auf — jetzt lesen es Nutzer und melden Abweichungen.

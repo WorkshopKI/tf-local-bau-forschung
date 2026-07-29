@@ -20,7 +20,11 @@ Teilvorhaben.
   Suche, „nur meine"; nach Dringlichkeit sortiert.
 - **Diese Woche**: überfällige und in sieben Tagen fällige Meilensteine über alle
   Verbünde — bewusst OHNE Eingangs-Zeitraum, sonst fiele ein alter überfälliger
-  Vorgang aus der Arbeitsliste.
+  Vorgang aus der Arbeitsliste. Standardmäßig **nach Verbund gebündelt** (Schalter
+  „nach Verbund"): eine Zeile je Vorhaben, die den dringendsten Punkt nennt
+  („hängt seit 1.2 Antrag zugewiesen" bzw. „nächster …") plus die Zahl der offenen
+  Meilensteine; Klick klappt sie auf, das Pfeil-Symbol rechts führt zum Verbund.
+  Die Abschnitte Überfällig / Diese Woche fällig bleiben getrennt.
 - **Auswertung**: Ø-Dauer, Median, Anteil im Soll und Abweichung — gesamt und je
   FuE/DS/DL/NW; je Meilenstein Soll-Woche, Ø Ist-Woche, Δ und Reißquote. Die
   Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.

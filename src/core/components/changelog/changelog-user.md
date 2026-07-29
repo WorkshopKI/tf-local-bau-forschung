@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.356 — 2026-07
+
+### Neu
+- „Diese Woche" fasst die Meilensteine eines Vorhabens jetzt zu einer Zeile zusammen, statt jeden einzeln aufzulisten — ein Klick klappt die Einzeltermine auf.
+- Die zusammengefasste Zeile sagt, wo es hängt: „hängt seit 1.2 Antrag zugewiesen · Soll 23.9.2013", dazu die Zahl der offenen Meilensteine.
+
+### Verbesserungen
+- Über den Schalter „nach Verbund" lässt sich wieder auf die frühere Einzelliste umstellen — etwa wenn Sie sehen wollen, wer überall denselben Meilenstein offen hat. Die Wahl bleibt bis zum nächsten Öffnen erhalten.
+- „Überfällig" und „Diese Woche fällig" bleiben getrennte Abschnitte; aufgeklappt wird jeweils nur dort, wo Sie klicken.
+
 ## v2.355 — 2026-07
 
 ### Neu

@@ -1,8 +1,8 @@
 /**
  * Merkt die Ansicht der Seite „Fristen & Meilensteine" über Reloads hinweg:
- * aktiver Tab, Eingangs-Zeitraum, die Pills der Übersicht und „nur meine" der
- * Wochen-Liste. Ohne das stellt jeder, der die Seite mehrmals am Tag öffnet,
- * dieselben Filter immer wieder von Hand ein.
+ * aktiver Tab, Eingangs-Zeitraum, die Pills der Übersicht sowie „nur meine" und
+ * die Bündelung der Wochen-Liste. Ohne das stellt jeder, der die Seite mehrmals
+ * am Tag öffnet, dieselben Filter immer wieder von Hand ein.
  *
  * Reine UI-Preference → localStorage (laut CLAUDE.md dafür erlaubt), EIN Key für
  * alles. Vorbild ist `antraege/filter/activeFilterPersistence.ts`: defensiv
@@ -47,6 +47,7 @@ interface Gespeichert {
   bereich?: DatumBereich | typeof ALLE;
   uebersicht?: Omit<UebersichtFilter, 'suche'>;
   wocheNurMeine?: boolean;
+  wocheGruppiert?: boolean;
 }
 
 function readAll(): Gespeichert {
@@ -147,4 +148,17 @@ export function ladeWocheNurMeine(hatKuerzel: boolean): boolean {
 
 export function speichereWocheNurMeine(nurMeine: boolean): void {
   writePatch({ wocheNurMeine: nurMeine });
+}
+
+/**
+ * Bündelung nach Verbund; beim ersten Besuch AN. Flach ist der Sonderfall (Blick
+ * über Verbünde hinweg auf einen Meilenstein), nicht der Normalfall.
+ */
+export function ladeWocheGruppiert(): boolean {
+  const g = readAll().wocheGruppiert;
+  return typeof g === 'boolean' ? g : true;
+}
+
+export function speichereWocheGruppiert(gruppiert: boolean): void {
+  writePatch({ wocheGruppiert: gruppiert });
 }
