@@ -240,16 +240,17 @@ export interface SettingsChipToggleOption {
   disabled?: boolean;
   /** Tooltip (Grund bei `disabled`). */
   title?: string;
-  /** Zusatz hinter dem Label, nur im gewählten Zustand (z.B. „· 2 Sp.").
-   *  Mit `onSuffixClick` wird der Zusatz selbst klickbar (stopPropagation). */
-  suffix?: React.ReactNode;
 }
 
 /**
  * Mehrfachauswahl-Chips mit Check-Icon für Einstellungs-Formulare (v2.229,
  * Home-Widget-Mockups). Dünne Komposition über den kanonischen `ToggleChip`
- * (layout-stabil, Pitfall #14) — hier kommen nur Options-Mapping und der
- * optionale klickbare Suffix dazu.
+ * (layout-stabil, Pitfall #14) — hier kommt nur das Options-Mapping dazu.
+ *
+ * Der frühere klickbare `suffix` („· 2 Sp." als verschachteltes `role="button"`
+ * IM Chip) ist entfallen: eine zweite Einstellung gehört nicht als verstecktes
+ * Klickziel in einen Auswahl-Chip. Wer Auswahl UND einen Wert je Zeile braucht,
+ * nimmt `LaneListe` (@/components/ui/LaneListe).
  *
  * Bewusst GENERISCH gehalten: das UI-Redesign-Paket 4 (Settings-Chips-Pattern)
  * setzt später auf dieses Primitive auf — keine Widget-Spezifika einbauen.
@@ -258,55 +259,23 @@ export function SettingsChipToggle({
   options,
   selectedKeys,
   onToggle,
-  onSuffixClick,
 }: {
   options: SettingsChipToggleOption[];
   selectedKeys: ReadonlySet<string>;
   onToggle: (key: string) => void;
-  /** Klick auf den Suffix eines GEWÄHLTEN Chips (z.B. Spaltenzahl umschalten). */
-  onSuffixClick?: (key: string) => void;
 }): React.ReactElement {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {options.map(opt => {
-        const selected = selectedKeys.has(opt.key);
-        return (
-          <ToggleChip
-            key={opt.key}
-            selected={selected}
-            disabled={opt.disabled}
-            title={opt.title}
-            onToggle={() => onToggle(opt.key)}
-            label={
-              <span className="inline-flex items-center gap-1">
-                {opt.label}
-                {selected && opt.suffix != null ? (
-                  onSuffixClick ? (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      title="Spaltenzahl umschalten"
-                      className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] underline decoration-dotted underline-offset-2"
-                      onClick={e => { e.stopPropagation(); onSuffixClick(opt.key); }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onSuffixClick(opt.key);
-                        }
-                      }}
-                    >
-                      {opt.suffix}
-                    </span>
-                  ) : (
-                    <span className="text-[var(--tf-text-tertiary)]">{opt.suffix}</span>
-                  )
-                ) : null}
-              </span>
-            }
-          />
-        );
-      })}
+      {options.map(opt => (
+        <ToggleChip
+          key={opt.key}
+          selected={selectedKeys.has(opt.key)}
+          disabled={opt.disabled}
+          title={opt.title}
+          onToggle={() => onToggle(opt.key)}
+          label={opt.label}
+        />
+      ))}
     </div>
   );
 }

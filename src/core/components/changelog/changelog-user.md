@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.361 — 2026-07
+
+### Neu
+- Das Feedback-Board lässt sich jetzt anpassen: Über den Regler-Knopf rechts oben wählen Sie, welche Spalten Sie sehen wollen — und ob eine Spalte ihre Karten ein- oder zweispaltig zeigt. Gerade „Neu" wird damit deutlich kürzer, statt endlos zu scrollen. Auf Wunsch werden die Spaltenköpfe einfarbig statt bunt. Die Einstellung gilt nur auf Ihrem Gerät.
+
+### Verbesserungen
+- Das Anpassen-Fenster der Startseiten-Widgets ist aufgeräumt: eine Zeile je Spalte mit Häkchen links und dem Schalter für ein oder zwei Kartenspalten rechts. Vorher versteckte sich die Spaltenzahl als kleiner Zusatz im Auswahl-Knopf und musste unten erklärt werden.
+
 ## v2.360 — 2026-07
 
 ### Neu

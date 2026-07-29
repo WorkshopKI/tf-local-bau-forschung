@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.361.0 — Feedback-Kanban anpassbar, Lane-Auswahl aufgeraeumt (Juli 2026)
+
+MINOR — Auf dem Feedback-Board stauten sich alle Tickets in „Neu" (12 Karten = langes Scrollen), während „Abgelehnt"/„Geplant" als leere Schienen danebenstanden — das Home-Widget konnte längst Lanes wählen und zweispaltig rendern, die Seite nicht. Gleichzeitig war das Anpassungs-Popover unordentlich: die Spaltenzahl steckte als verstecktes zweites Klickziel („· 1 Sp.") in einem Chip und brauchte eine Erklär-Fußnote.
+
+- Board-Kanban anpassbar: Lanes wählbar, 1/2 Kartenspalten je Lane, Farbmodus — Popover neben dem Dichte-Knopf ([FeedbackKanbanEinstellungen.tsx](src/components/feedback/FeedbackKanbanEinstellungen.tsx)), gerätelokal in localStorage ([boardKanbanConfig.ts](src/components/feedback/boardKanbanConfig.ts)); Default = bisheriges Board.
+- Lane-Auswahl neu als bündige Zeilenliste (Häkchen links, 1/2-Schalter rechts) — geteilt von Home-Popover, Einstellungen › Widgets und Board ([LaneListe.tsx](src/components/ui/LaneListe.tsx)); `SettingsChipToggle` verliert den klickbaren `suffix`.
+- `KanbanBoard` gibt einer zweispaltigen Lane im `fest`-Layout die doppelte Spurbreite — vorher hätte sie zwei Karten in 250px gequetscht ([KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx)).
+- Feedback-Lane-Katalog + Mono-Rampe nach `src/components/` gezogen, damit Board und Widget eine Quelle teilen ([feedbackLanes.ts](src/components/feedback/feedbackLanes.ts), [laneAccent.ts](src/components/kanban/laneAccent.ts)).
+- Detail: [home-widgets.md](docs/architecture/home-widgets.md); Screen-Kontext [feedback-board.md](docs/feedback-kontext/feedback-board.md) nachgezogen.
+
 ### v2.360.2 — Befehlssuche: Klick auf einen Eintrag wirkt wieder (Juli 2026)
 
 PATCH — In der Befehlssuche (Strg+K) bewirkte ein Klick auf einen Eintrag nichts: die Palette schloss sich wortlos, ohne zu navigieren. Der Fehler steckte seit v2.83 drin und fiel nicht auf, weil die Palette ein Tastatur-Werkzeug ist — Pfeiltasten und Enter liefen über das fokussierte Eingabefeld weiter.

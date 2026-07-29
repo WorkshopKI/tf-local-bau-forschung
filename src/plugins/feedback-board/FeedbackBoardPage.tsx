@@ -41,6 +41,12 @@ import {
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import { FeedbackKanbanEinstellungen } from '@/components/feedback/FeedbackKanbanEinstellungen';
+import {
+  loadBoardKanbanConfig,
+  saveBoardKanbanConfig,
+  type BoardKanbanConfig,
+} from '@/components/feedback/boardKanbanConfig';
 
 type ViewMode = 'liste' | 'board';
 type Scope = 'alle' | 'mir' | 'team';
@@ -92,6 +98,7 @@ export function FeedbackBoardPage(): React.ReactElement {
   const [sort, setSort] = useState<FeedbackSort>(loadSort);
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const [dense, setDense] = useState<boolean>(loadDense);
+  const [kanbanConfig, setKanbanConfig] = useState<BoardKanbanConfig>(loadBoardKanbanConfig);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -103,6 +110,10 @@ export function FeedbackBoardPage(): React.ReactElement {
   const changeSort = useCallback((s: FeedbackSort): void => {
     setSort(s);
     try { localStorage.setItem(SORT_KEY, s); } catch { /* ignore */ }
+  }, []);
+  const changeKanbanConfig = useCallback((cfg: BoardKanbanConfig): void => {
+    setKanbanConfig(cfg);
+    saveBoardKanbanConfig(cfg);
   }, []);
   const toggleDense = useCallback((): void => {
     setDense(d => {
@@ -251,6 +262,8 @@ export function FeedbackBoardPage(): React.ReactElement {
           onSelect={t => setSelectedId(t.id)}
           onChanged={handleChanged}
           dense={dense}
+          lanes={kanbanConfig.lanes}
+          farbmodus={kanbanConfig.farbmodus}
         />
       );
     }
@@ -348,6 +361,11 @@ export function FeedbackBoardPage(): React.ReactElement {
             >
               <Rows3 size={15} />
             </button>
+            {/* Lanes/Kartenspalten/Farben — nur relevant, solange das Board sichtbar
+                ist (analog zum Status-Select, das nur die Liste zeigt). */}
+            {viewMode === 'board' && (
+              <FeedbackKanbanEinstellungen config={kanbanConfig} onChange={changeKanbanConfig} />
+            )}
           </div>
         </div>
 

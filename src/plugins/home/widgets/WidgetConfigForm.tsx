@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { SettingsChipToggle } from '@/plugins/einstellungen/_shared/settings-primitives';
+import { LaneListe } from '@/components/ui/LaneListe';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
@@ -25,7 +25,8 @@ import { getStatusCategoryLabel } from '@/plugins/antraege/groupAggregates';
 // Direktimport statt Barrel (siehe `FeedbackKanbanWidget`): das Barrel zieht
 // `FeedbackPanel` mit, das `@/plugins.config` laedt — und die Plugin-Config fuehrt
 // ueber die Einstellungen zurueck hierher. `constants.ts` ist reines Datenmodul.
-import { STATUS_LABELS } from '@/components/feedback/constants';
+import { STATUS_LABELS, STATUS_LANE_ACCENT } from '@/components/feedback/constants';
+import { KANBAN_LANE_ACCENT } from './kanbanLanes';
 import { FEEDBACK_LANE_STATUS, wechsleKanbanQuelle } from './feedbackKanbanLanes';
 import type {
   AmpelWidgetConfig,
@@ -187,61 +188,37 @@ function QuelleOption({ aktiv, label, onClick, trennlinie }: {
   );
 }
 
-/** Lane-Chips-Rahmen (Label + Chip-Toggle + Spalten-Hinweis) — geteilt von
- *  Anträge- und Feedback-Lanes. */
-function LaneChips({ label, options, selectedKeys, onToggle, onSuffixClick }: {
-  label: string;
-  options: Array<{ key: string; label: string; suffix: string }>;
-  selectedKeys: Set<string>;
-  onToggle: (key: string) => void;
-  onSuffixClick: (key: string) => void;
-}): React.ReactElement {
-  return (
-    <div>
-      <FeldLabel>{label}</FeldLabel>
-      <SettingsChipToggle
-        options={options}
-        selectedKeys={selectedKeys}
-        onToggle={onToggle}
-        onSuffixClick={onSuffixClick}
-      />
-      <p className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
-        Klick auf „· N Sp." schaltet die Kartenspalten (1/2) der Lane um.
-      </p>
-    </div>
-  );
-}
-
 /** Lane-Auswahl für die Anträge-Quelle (Status-Kategorien). */
 function AntragLaneChips({ cfg, onUpdate }: {
   cfg: AntragKanbanWidgetConfig;
   onUpdate: (config: WidgetSpezifischeConfig) => Promise<void>;
 }): React.ReactElement {
-  const selectedKeys = new Set(cfg.lanes.map(l => l.kategorie as string));
+  const spaltenProKey = new Map<string, 1 | 2>(cfg.lanes.map(l => [l.kategorie as string, l.spalten]));
   const toggleLane = (key: string): void => {
     const kategorie = key as StatusCategory;
-    const lanes = selectedKeys.has(key)
+    const lanes = spaltenProKey.has(key)
       ? cfg.lanes.filter(l => l.kategorie !== kategorie)
       : [...cfg.lanes, { kategorie, spalten: 1 as const }];
     void onUpdate({ ...cfg, lanes });
   };
-  const toggleSpalten = (key: string): void => {
-    const lanes = cfg.lanes.map(l =>
-      l.kategorie === key ? { ...l, spalten: (l.spalten === 2 ? 1 : 2) as 1 | 2 } : l);
+  const setSpalten = (key: string, spalten: 1 | 2): void => {
+    const lanes = cfg.lanes.map(l => (l.kategorie === key ? { ...l, spalten } : l));
     void onUpdate({ ...cfg, lanes });
   };
   return (
-    <LaneChips
-      label="Lanes (aus Status-Kategorien)"
-      options={LANE_KATEGORIEN.map(k => ({
-        key: k,
-        label: getStatusCategoryLabel(k),
-        suffix: `· ${cfg.lanes.find(l => l.kategorie === k)?.spalten ?? 1} Sp.`,
-      }))}
-      selectedKeys={selectedKeys}
-      onToggle={toggleLane}
-      onSuffixClick={toggleSpalten}
-    />
+    <div>
+      <FeldLabel>Lanes (aus Status-Kategorien)</FeldLabel>
+      <LaneListe
+        options={LANE_KATEGORIEN.map(k => ({
+          key: k,
+          label: getStatusCategoryLabel(k),
+          akzent: KANBAN_LANE_ACCENT[k],
+        }))}
+        spaltenProKey={spaltenProKey}
+        onToggle={toggleLane}
+        onSpalten={setSpalten}
+      />
+    </div>
   );
 }
 
@@ -250,31 +227,32 @@ function FeedbackLaneChips({ cfg, onUpdate }: {
   cfg: FeedbackKanbanWidgetConfig;
   onUpdate: (config: WidgetSpezifischeConfig) => Promise<void>;
 }): React.ReactElement {
-  const selectedKeys = new Set(cfg.lanes.map(l => l.status as string));
+  const spaltenProKey = new Map<string, 1 | 2>(cfg.lanes.map(l => [l.status as string, l.spalten]));
   const toggleLane = (key: string): void => {
     const status = key as FeedbackKanbanWidgetConfig['lanes'][number]['status'];
-    const lanes = selectedKeys.has(key)
+    const lanes = spaltenProKey.has(key)
       ? cfg.lanes.filter(l => l.status !== status)
       : [...cfg.lanes, { status, spalten: 1 as const }];
     void onUpdate({ ...cfg, lanes });
   };
-  const toggleSpalten = (key: string): void => {
-    const lanes = cfg.lanes.map(l =>
-      l.status === key ? { ...l, spalten: (l.spalten === 2 ? 1 : 2) as 1 | 2 } : l);
+  const setSpalten = (key: string, spalten: 1 | 2): void => {
+    const lanes = cfg.lanes.map(l => (l.status === key ? { ...l, spalten } : l));
     void onUpdate({ ...cfg, lanes });
   };
   return (
-    <LaneChips
-      label="Lanes (aus Feedback-Status)"
-      options={FEEDBACK_LANE_STATUS.map(s => ({
-        key: s,
-        label: STATUS_LABELS[s],
-        suffix: `· ${cfg.lanes.find(l => l.status === s)?.spalten ?? 1} Sp.`,
-      }))}
-      selectedKeys={selectedKeys}
-      onToggle={toggleLane}
-      onSuffixClick={toggleSpalten}
-    />
+    <div>
+      <FeldLabel>Lanes (aus Feedback-Status)</FeldLabel>
+      <LaneListe
+        options={FEEDBACK_LANE_STATUS.map(s => ({
+          key: s,
+          label: STATUS_LABELS[s],
+          akzent: STATUS_LANE_ACCENT[s],
+        }))}
+        spaltenProKey={spaltenProKey}
+        onToggle={toggleLane}
+        onSpalten={setSpalten}
+      />
+    </div>
   );
 }
 

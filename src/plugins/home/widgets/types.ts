@@ -11,7 +11,7 @@
  * Snapshot-Allowlist (SNAPSHOT_FILES). Guard: `home-widgets-local-only`
  * (src/__tests__/codebase-conventions.test.ts).
  */
-import type { FeedbackStatus } from '@/core/types/feedback';
+import type { FeedbackLane } from '@/components/feedback/feedbackLanes';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 export interface HomeWidgetConfig {
@@ -72,11 +72,10 @@ export interface KanbanLane {
   spalten: 1 | 2;
 }
 
-/** Eine Feedback-Kanban-Lane = ein Feedback-Status (Pitfall #21: nie Roh-Literal). */
-export interface FeedbackKanbanLane {
-  status: FeedbackStatus;
-  spalten: 1 | 2;
-}
+/** Eine Feedback-Kanban-Lane = ein Feedback-Status (Pitfall #21: nie Roh-Literal).
+ *  Identisch zur Board-Lane — EIN Typ, damit Widget und Board dieselbe
+ *  Lane-Auswahl-UI teilen können. */
+export type FeedbackKanbanLane = FeedbackLane;
 
 interface KanbanWidgetConfigBasis {
   art: 'kanban';

@@ -7,6 +7,7 @@
  * (kritischster), `tvCount` hält die Gruppengröße für die Karten-Metazeile.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
+import { monoLaneAccent } from '@/components/kanban/laneAccent';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
@@ -30,20 +31,9 @@ export const KANBAN_LANE_ACCENT: Record<StatusCategory, string> = {
   sonstige: 'var(--tf-kanban-sonstige)',
 };
 
-/** Monochrom: 3 Abstufungen der Primär-Hue, zyklisch nach Lane-INDEX (nicht
- *  Kategorie) — so bleiben benachbarte Köpfe unterscheidbar und die wählbare
- *  Primärfarbe (--tf-primary-h) schlägt durch. */
-const MONO_ACCENTS = [
-  'var(--tf-kanban-mono-1)',
-  'var(--tf-kanban-mono-2)',
-  'var(--tf-kanban-mono-3)',
-] as const;
-
-/** Monochrom-Akzent zyklisch nach Lane-Index — geteilt von Anträge- und
- *  Feedback-Kanban (feedbackKanbanLanes), damit die Mono-Rampe eine Quelle hat. */
-export function monoLaneAccent(laneIndex: number): string {
-  return MONO_ACCENTS[laneIndex % MONO_ACCENTS.length]!;
-}
+/** Mono-Rampe lebt in @/components/kanban/laneAccent (eine Quelle für alle
+ *  Kanbans); hier nur re-exportiert, damit Bestands-Importe gültig bleiben. */
+export { monoLaneAccent };
 
 export function laneAccent(
   farbmodus: KanbanWidgetConfig['farbmodus'],

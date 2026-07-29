@@ -76,8 +76,10 @@ export function KanbanBoard<T>({ columns, renderCard, dense, layout = 'fest' }: 
           );
         }
         const zweiSpaltig = (col.spalten ?? 1) === 2;
+        // 'fest': eine 2-spaltige Lane muss doppelt so breit werden (2×250 +
+        // gap-3.5), sonst quetschen sich zwei Karten in die 250px-Spur.
         const breite = fest
-          ? 'shrink-0 w-[250px]'
+          ? (zweiSpaltig ? 'shrink-0 w-[514px]' : 'shrink-0 w-[250px]')
           : zweiSpaltig
             ? 'flex-[2] basis-0 min-w-[300px]'
             : 'flex-1 basis-0 min-w-[170px]';

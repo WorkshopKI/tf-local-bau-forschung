@@ -11,36 +11,19 @@ import type { FeedbackCategory, FeedbackItem, FeedbackStatus } from '@/core/type
 import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
 // Sub-Modul-Importe (nicht das @/components/feedback-Barrel): dieses Modul ist
 // rein + node-testbar, das Barrel zöge pdfjs u.a. schwere Deps herein.
-import { STATUS_LANE_ACCENT } from '@/components/feedback/constants';
+import { FEEDBACK_LANE_STATUS, feedbackLaneAccent } from '@/components/feedback/feedbackLanes';
 import { feedbackAuthorLabel, feedbackTitle } from '@/components/feedback/feedbackUi';
-import { defaultAntragKanbanLanes, monoLaneAccent } from './kanbanLanes';
+import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type {
   FeedbackKanbanLane,
   FeedbackKanbanWidgetConfig,
   KanbanWidgetConfig,
 } from './types';
 
-/** Board-Reihenfolge der wählbaren Feedback-Lanes (Archiviert nie als Spalte). */
-export const FEEDBACK_LANE_STATUS: readonly FeedbackStatus[] = [
-  FEEDBACK_STATUS.neu,
-  FEEDBACK_STATUS.abgelehnt,
-  FEEDBACK_STATUS.geplant,
-  FEEDBACK_STATUS.in_bearbeitung,
-  FEEDBACK_STATUS.umgesetzt,
-];
-
-const FEEDBACK_LANE_FALLBACK = 'var(--tf-text-tertiary)';
-
-/** Lane-Akzent: bunt = Status-Token (STATUS_LANE_ACCENT), monochrom = Primär-Hue
- *  zyklisch nach Index (geteilt mit dem Anträge-Kanban). Kein Hex. */
-export function feedbackLaneAccent(
-  farbmodus: KanbanWidgetConfig['farbmodus'],
-  status: FeedbackStatus,
-  laneIndex: number,
-): string {
-  if (farbmodus === 'monochrom') return monoLaneAccent(laneIndex);
-  return STATUS_LANE_ACCENT[status] ?? FEEDBACK_LANE_FALLBACK;
-}
+/** Lane-Katalog + Akzent-Ableitung leben geteilt in
+ *  @/components/feedback/feedbackLanes (Board + Widget); hier re-exportiert,
+ *  damit Bestands-Importe der Widget-Seite gültig bleiben. */
+export { FEEDBACK_LANE_STATUS, feedbackLaneAccent };
 
 export interface FeedbackKanbanKarte {
   /** Ticket-ID — Navigations-Ziel (Deep-Link ins Board). */

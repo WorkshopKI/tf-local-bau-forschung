@@ -1,8 +1,11 @@
 // Kanban-Board-Ansicht (Redesign v2.225, Handoff feedback-kanban): farbige
-// Status-Lanes (Akzent + color-mix-Tönungen) in fester Design-Reihenfolge
-// Neu → Abgelehnt → Geplant → In Bearbeitung → Umgesetzt (Status kommt aus dem
-// Feld, Konstanten aus FEEDBACK_STATUS, nie UI-Literale — Pitfall #21). Lob hat
-// keinen Workflow und erscheint nur in der Liste (keine Lob-Spalte mehr).
+// Status-Lanes (Akzent + color-mix-Tönungen). Welche Lanes in welcher
+// Spaltenbreite erscheinen, kommt seit dem Anpassbar-Paket aus der persönlichen
+// `BoardKanbanConfig` (boardKanbanConfig.ts) — Default ist die alte feste Folge
+// Neu → Abgelehnt → Geplant → In Bearbeitung → Umgesetzt, alle einspaltig.
+// Status kommt aus dem Feld, Konstanten aus FEEDBACK_STATUS/FEEDBACK_LANE_STATUS,
+// nie UI-Literale (Pitfall #21). Lob hat keinen Workflow und erscheint nur in
+// der Liste (keine Lob-Spalte mehr).
 // Das Lane-Layout (getönte Köpfe, 46px-Schmalschiene, Dichte) lebt seit v2.228
 // in der generischen Shell @/components/kanban/KanbanBoard — hier bleiben nur
 // die Feedback-Spezifika: Spalten-Ableitung (buildBoardColumns) + MiniCard
@@ -13,16 +16,16 @@ import { useMemo } from 'react';
 import { ArrowUp, FileText, MessageSquare } from 'lucide-react';
 import type { FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import {
-  FEEDBACK_STATUS,
   getSponsoringProgress,
   isSponsorableCategory,
 } from '@/core/services/feedback';
 import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
+import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
+import { feedbackLaneAccent, type FeedbackLane } from './feedbackLanes';
 import {
   CATEGORY_LABELS,
   CATEGORY_TEXT_VAR,
   STATUS_COLUMN_ICONS,
-  STATUS_LANE_ACCENT,
   STATUS_LABELS,
 } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, formatShortDate, getLucideIcon } from './feedbackUi';
@@ -30,30 +33,29 @@ import { FeedbackAvatar } from './FeedbackAvatar';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
 import { FeedbackVotePill } from './FeedbackVotePill';
 
-// Spalten in Design-Reihenfolge (Handoff feedback-kanban): Abgelehnt rückt an
-// Position 2 — daher explizit statt aus FEEDBACK_PIPELINE abgeleitet.
-const BOARD_ORDER: readonly FeedbackStatus[] = [
-  FEEDBACK_STATUS.neu,
-  FEEDBACK_STATUS.abgelehnt,
-  FEEDBACK_STATUS.geplant,
-  FEEDBACK_STATUS.in_bearbeitung,
-  FEEDBACK_STATUS.umgesetzt,
-];
-
 export interface BoardColumn {
   status: FeedbackStatus;
   items: FeedbackItem[];
+  spalten: 1 | 2;
 }
 
-/** Reine Spalten-Ableitung (testbar): feste BOARD_ORDER, Lob ausgeschlossen. */
-export function buildBoardColumns(tickets: FeedbackItem[]): BoardColumn[] {
+/**
+ * Reine Spalten-Ableitung (testbar): Reihenfolge + Spaltenzahl kommen aus den
+ * KONFIGURIERTEN Lanes (Default = FEEDBACK_LANE_STATUS, alle einspaltig).
+ * Lob bleibt ausgeschlossen — es hat keinen Workflow und lebt nur in der Liste.
+ */
+export function buildBoardColumns(tickets: FeedbackItem[], lanes: FeedbackLane[]): BoardColumn[] {
   const byStatus = new Map<FeedbackStatus, FeedbackItem[]>();
   for (const t of tickets) {
     if (t.category === 'praise') continue; // Lob hat keinen Workflow → nur Liste
     const arr = byStatus.get(t.kurator_status);
     if (arr) arr.push(t); else byStatus.set(t.kurator_status, [t]);
   }
-  return BOARD_ORDER.map(s => ({ status: s, items: byStatus.get(s) ?? [] }));
+  return lanes.map(l => ({
+    status: l.status,
+    items: byStatus.get(l.status) ?? [],
+    spalten: l.spalten,
+  }));
 }
 
 interface Props {
@@ -68,10 +70,14 @@ interface Props {
   onChanged: () => void;
   /** Kompakte Dichte (Dichte-Umschalter der Seite). */
   dense?: boolean;
+  /** Konfigurierte Lanes (Reihenfolge + Kartenspalten) — aus boardKanbanConfig. */
+  lanes: FeedbackLane[];
+  /** Farbmodus der Lane-Köpfe. */
+  farbmodus: LaneFarbmodus;
 }
 
-export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isUnread, onSelect, onChanged, dense }: Props): React.ReactElement {
-  const columns = useMemo(() => buildBoardColumns(tickets), [tickets]);
+export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isUnread, onSelect, onChanged, dense, lanes, farbmodus }: Props): React.ReactElement {
+  const columns = useMemo(() => buildBoardColumns(tickets, lanes), [tickets, lanes]);
   const boardCount = columns.reduce((n, c) => n + c.items.length, 0);
 
   // Nur Lob gefiltert (z.B. Typ-Chip „Lob") → Hinweis statt fünf leerer Schienen.
@@ -83,12 +89,13 @@ export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isU
     );
   }
 
-  const boardColumns: KanbanBoardColumn<FeedbackItem>[] = columns.map(col => ({
+  const boardColumns: KanbanBoardColumn<FeedbackItem>[] = columns.map((col, i) => ({
     key: col.status,
     label: STATUS_LABELS[col.status],
     icon: getLucideIcon(STATUS_COLUMN_ICONS[col.status]),
-    accent: STATUS_LANE_ACCENT[col.status],
+    accent: feedbackLaneAccent(farbmodus, col.status, i),
     items: col.items,
+    spalten: col.spalten,
   }));
 
   return (
