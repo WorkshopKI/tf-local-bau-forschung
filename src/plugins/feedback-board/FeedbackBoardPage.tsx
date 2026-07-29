@@ -44,14 +44,16 @@ import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 type ViewMode = 'liste' | 'board';
 type Scope = 'alle' | 'mir' | 'team';
 
-const VIEW_MODE_KEY = 'tf-feedback-board-view-v2';
+// Key-Bump `_v3`: Standard ist jetzt „Board" (Fortschritt auf einen Blick);
+// gewonnen hätte sonst der alte, in localStorage gespeicherte 'liste'-Eintrag.
+const VIEW_MODE_KEY = 'tf-feedback-board-view-v3';
 const SORT_KEY = 'tf-feedback-board-sort-v3';
 const DENSITY_KEY = 'tf-feedback-board-density-v1';
 const SORT_VALUES: readonly FeedbackSort[] = ['neu', 'pkt', 'naht', 'sup', 'kmt'];
 
 function loadViewMode(): ViewMode {
   try { const r = localStorage.getItem(VIEW_MODE_KEY); if (r === 'liste' || r === 'board') return r; } catch { /* ignore */ }
-  return 'liste';
+  return 'board';
 }
 function loadSort(): FeedbackSort {
   try {

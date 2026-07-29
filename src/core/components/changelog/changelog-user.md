@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.354 — 2026-07
+
+### Verbesserungen
+- Das Feedback öffnet jetzt direkt in der **Board-Ansicht**: Alle Rückmeldungen stehen nach Bearbeitungsstand in Spalten (Neu · Abgelehnt · Geplant · In Bearbeitung · Umgesetzt), der Fortschritt ist ohne Klick sichtbar.
+- Die Listen-Ansicht bleibt einen Klick entfernt — und wenn Sie sie wählen, merkt sich die App das wie bisher für das nächste Öffnen.
+
 ## v2.353 — 2026-07
 
 ### Verbesserungen

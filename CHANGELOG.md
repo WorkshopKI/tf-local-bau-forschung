@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.354.0 — Feedback-Board startet im Board (Juli 2026)
+
+MINOR — Das Feedback-Board öffnete in der Kartenliste; die Kanban-Ansicht mit den Status-Spalten — die einzige Sicht, die den Bearbeitungsstand aller Rückmeldungen auf einen Blick zeigt — musste jedes Mal von Hand eingeschaltet werden.
+
+- Standard-Ansicht ist jetzt „Board"; die eigene Wahl wird weiterhin gerätelokal gemerkt ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)).
+- Key-Bump `tf-feedback-board-view-v2` → `-v3`, sonst hätte der alte gespeicherte Wert den neuen Default überstimmt ([feedback-system.md](docs/architecture/feedback-system.md)).
+
 ### v2.353.0 — Fristen und Meilensteine: Ansicht bleibt erhalten (Juli 2026)
 
 MINOR — Tab, Eingangs-Zeitraum und Pills waren reiner Session-Zustand: jedes Neuladen der Seite warf sie weg. Dazu passten zwei Vorbelegungen nicht mehr — der Standard-Zeitraum (laufendes Jahr + Vorjahr) entsprach keinem Jahres-Chip und wirkte darum wie „kein Filter gesetzt", und der Einstieg lag auf der Übersicht statt auf der täglichen Arbeitsliste.
