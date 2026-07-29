@@ -11,6 +11,12 @@
  * Der Eingangs-Zeitraum liegt hier und nicht in den Tabs: die Seite grenzt einmal
  * ein und reicht die Ergebnisse durch. Sonst müsste ihn jeder Tab einzeln
  * anwenden, und die Zähler der Tab-Leiste würden weiter über alles rechnen.
+ * Ausgenommen ist „Diese Woche" — die Arbeitsliste soll einen überfälligen
+ * Meilenstein zeigen, egal aus welchem Jahr der Antrag stammt; dort ist die
+ * Zeitraum-Leiste darum weder sichtbar noch wirksam.
+ *
+ * Tab und Zeitraum werden gemerkt (`ansichtPersistenz`), damit die Seite beim
+ * nächsten Öffnen dort weitermacht, wo man aufgehört hat.
  */
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -27,12 +33,13 @@ import { DieseWocheTab } from './DieseWocheTab';
 import { AuswertungTab } from './AuswertungTab';
 import { JahresFilter } from './JahresFilter';
 import {
-  antragsJahr, datumSpanne, passtZuBereich, sammleWochenPunkte, standJahr, standardBereich,
+  antragsJahr, datumSpanne, passtZuBereich, sammleWochenPunkte, standJahr,
   type DatumBereich,
 } from './monitoringLogic';
+import {
+  ladeBereich, ladeTab, speichereBereich, speichereTab, type TabKey,
+} from './ansichtPersistenz';
 import { feldStil, formatDatum } from './labels';
-
-type TabKey = 'uebersicht' | 'woche' | 'auswertung' | 'konfiguration';
 
 function StatusLeiste({ api }: { api: MeilensteinPlanApi }): React.ReactElement | null {
   // Hooks vor jedem Early-Return — sonst kippt die Hook-Reihenfolge (React #310).
@@ -192,15 +199,26 @@ function KeinPlanHinweis({ onZurKonfiguration }: { onZurKonfiguration: () => voi
 export function MeilensteinePage(): React.ReactElement {
   const planApi = useMeilensteinPlan();
   const stand = useMeilensteinStand();
-  const [tab, setTab] = useState<TabKey>('uebersicht');
+  const [tab, setTabState] = useState<TabKey>(ladeTab);
 
-  // Eingangs-Zeitraum: EIN Vorfilter für den ganzen Bereich. Die Tabs bekommen
-  // bereits eingegrenzte Listen — so gilt die Kopf-Leiste sichtbar überall, und
-  // die Zähler (inkl. Tab-Leiste) stimmen ohne zusätzliche Buchführung.
+  // Eingangs-Zeitraum: EIN Vorfilter für Übersicht und Auswertung. Beide Tabs
+  // bekommen bereits eingegrenzte Listen — so gilt die Kopf-Leiste sichtbar für
+  // alles, was sie zeigt, ohne zusätzliche Buchführung.
   const currentYear = standJahr(stand.stand);
-  const [bereich, setBereich] = useState<DatumBereich | null>(
-    () => standardBereich(standJahr(stand.stand)),
+  const [bereich, setBereichState] = useState<DatumBereich | null>(
+    () => ladeBereich(standJahr(stand.stand)),
   );
+
+  // Setzen und Merken in einem Schritt — bewusst NICHT als Seiteneffekt im
+  // useState-Updater, der liefe unter StrictMode doppelt.
+  const waehleTab = (naechster: TabKey): void => {
+    setTabState(naechster);
+    speichereTab(naechster);
+  };
+  const waehleBereich = (naechster: DatumBereich | null): void => {
+    setBereichState(naechster);
+    speichereBereich(naechster);
+  };
 
   const zeilen = useMemo(
     () => stand.zeilen.filter(z => passtZuBereich(z.antragsdatum, bereich)),
@@ -229,7 +247,11 @@ export function MeilensteinePage(): React.ReactElement {
     />
   );
 
-  const wochenAnzahl = stand.plan ? sammleWochenPunkte(zeilen, stand.plan, stand.stand).length : 0;
+  // Über ALLE offenen Verbünde, nicht über `zeilen`: „Diese Woche" kennt den
+  // Eingangs-Zeitraum nicht, also darf ihn auch der Zähler nicht kennen.
+  const wochenAnzahl = stand.plan
+    ? sammleWochenPunkte(stand.zeilen, stand.plan, stand.stand).length
+    : 0;
   const entwurf = planApi.entwurf;
 
   return (
@@ -240,7 +262,7 @@ export function MeilensteinePage(): React.ReactElement {
           variant="tabs"
           aria-label="Bereich"
           activeKey={tab}
-          onChange={k => setTab(k as TabKey)}
+          onChange={k => waehleTab(k as TabKey)}
           items={[
             { key: 'uebersicht', label: 'Übersicht', count: zeilen.length },
             { key: 'woche', label: 'Diese Woche', count: wochenAnzahl },
@@ -248,10 +270,10 @@ export function MeilensteinePage(): React.ReactElement {
             { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
           ]}
         />
-        {tab !== 'konfiguration' && (
+        {(tab === 'uebersicht' || tab === 'auswertung') && (
           <JahresFilter
             bereich={bereich} currentYear={currentYear} spanne={spanne}
-            ohneDatum={ohneDatum} onChange={setBereich}
+            ohneDatum={ohneDatum} onChange={waehleBereich}
           />
         )}
       </div>
@@ -269,7 +291,7 @@ export function MeilensteinePage(): React.ReactElement {
           {stand.laden ? (
             <p className="text-[13px] text-[var(--tf-text-tertiary)]">Bewertet …</p>
           ) : stand.keinPlan || !stand.plan ? (
-            <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
+            <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
             <UebersichtTab zeilen={zeilen} plan={stand.plan} meinKuerzel={stand.meinKuerzel} />
           )}
@@ -281,10 +303,10 @@ export function MeilensteinePage(): React.ReactElement {
           {stand.laden ? (
             <p className="pt-4 text-[13px] text-[var(--tf-text-tertiary)]">Bewertet …</p>
           ) : stand.keinPlan || !stand.plan ? (
-            <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
+            <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
             <DieseWocheTab
-              zeilen={zeilen} plan={stand.plan}
+              zeilen={stand.zeilen} plan={stand.plan}
               meinKuerzel={stand.meinKuerzel} stand={stand.stand}
             />
           )}
@@ -296,7 +318,7 @@ export function MeilensteinePage(): React.ReactElement {
           {stand.laden ? (
             <p className="pt-4 text-[13px] text-[var(--tf-text-tertiary)]">Bewertet …</p>
           ) : stand.keinPlan || !stand.plan ? (
-            <KeinPlanHinweis onZurKonfiguration={() => setTab('konfiguration')} />
+            <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
             <AuswertungTab
               zeilen={zeilen} abschluesse={abschluesse} plan={stand.plan}

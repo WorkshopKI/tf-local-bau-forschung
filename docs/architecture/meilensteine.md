@@ -94,6 +94,34 @@ List-View). Gepflegt wird die Projektion in einem eigenen Post-Import-Pass neben
 - **Verbund-Detailseite**, Abschnitt `#meilensteine` unter `#status`: Zeitstrahl,
   Restzeit und Risiko-Meldung.
 
+### Eingangs-Zeitraum und gemerkte Ansicht
+
+Der **Eingangs-Zeitraum** (Jahres-Chips, taggenaue Von-Bis-Felder, „Alle
+Eingänge") liegt auf der Seite und nicht in den Tabs: einmal eingrenzen, Ergebnis
+durchreichen. Er gilt für **Übersicht und Auswertung** — „Diese Woche" ist
+ausgenommen und blendet die Leiste dort auch aus, weil eine Arbeitsliste einen
+überfälligen Meilenstein zeigen muss, egal aus welchem Jahr der Antrag stammt
+(entsprechend rechnet ihr Tab-Zähler über alle offenen Verbünde). Vorbelegt ist
+das laufende Jahr — deckungsgleich mit dem ersten Chip, damit die Vorauswahl
+sichtbar ist.
+
+Die **Ansicht wird gemerkt**
+([ansichtPersistenz.ts](../../src/plugins/meilensteine/ansichtPersistenz.ts)):
+aktiver Tab (Standard „Diese Woche"), Zeitraum, die Pills der Übersicht und „nur
+meine" beider Listen. Reine UI-Preference → ein localStorage-Key
+`teamflow_meilensteine_ansicht`, defensiv gelesen, unbekannte Werte fallen still
+weg. Drei Feinheiten, die den Code erklären:
+
+- **Der Suchtext wird bewusst NICHT gemerkt.** Ein Zeitraum und eine Pill sind
+  beim Öffnen als aktiv erkennbar, ein alter Suchbegriff filtert unauffällig
+  weiter. Verworfen wird er im Persistenz-Modul, nicht beim Aufrufer.
+- **„Alle Eingänge" braucht einen Sentinel** (`'alle'`): sonst wäre die bewusste
+  Wahl beim Lesen nicht von „noch nie etwas gespeichert" zu unterscheiden und
+  spränge jedes Mal auf den Jahres-Standard zurück.
+- **„nur meine" startet an, sobald ein eigenes Kürzel gesetzt ist**
+  (`standardFilter`), ohne Kürzel immer aus — sonst blendete der Filter alles aus
+  und der Schalter dazu ist gar nicht sichtbar.
+
 Der **Bedingungs-Editor**
 ([BedingungEditor.tsx](../../src/plugins/meilensteine/BedingungEditor.tsx)) ist
 domänenfrei gegenüber den Meilensteinen — er kennt nur `Bedingung` und kann

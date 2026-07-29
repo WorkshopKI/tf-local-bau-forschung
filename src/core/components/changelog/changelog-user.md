@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.353 — 2026-07
+
+### Verbesserungen
+- „Fristen & Meilensteine" merkt sich Ihre Ansicht: Beim nächsten Öffnen sind der zuletzt benutzte Reiter, der Eingangs-Zeitraum und die gesetzten Filter wieder da. Nur das Suchfeld startet absichtlich leer.
+- Die Seite öffnet jetzt mit **„Diese Woche"** — der Arbeitsliste. Wenn Ihr Kürzel hinterlegt ist, ist „nur meine" von Anfang an aktiv; ein Klick zeigt wieder alle.
+- „Diese Woche" ist bewusst nicht mehr an den Eingangs-Zeitraum gebunden: Ein überfälliger Meilenstein bleibt sichtbar, auch wenn der Antrag aus einem früheren Jahr stammt.
+- Der Eingangs-Zeitraum startet mit dem **laufenden Jahr** (vorher laufendes Jahr + Vorjahr) — der passende Jahres-Knopf ist damit sichtbar markiert. In der Übersicht räumt „Zurücksetzen" gesetzte Filter in einem Klick weg.
+
 ## v2.352 — 2026-07
 
 ### Verbesserungen

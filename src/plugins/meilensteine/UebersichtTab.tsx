@@ -12,12 +12,13 @@ import { MasterDetailLayout } from '@/components/master-detail/MasterDetailLayou
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { Button } from '@/components/ui/button';
 import { useNavigation } from '@/core/hooks/useNavigation';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, RotateCcw } from 'lucide-react';
 import type { MeilensteinPlan, MstZustand } from '@/core/meilensteine';
 import { kinderVon } from '@/core/meilensteine';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { MeilensteinLeiste } from './MeilensteinLeiste';
-import { LEERER_FILTER, filtereZeilen, type UebersichtFilter } from './monitoringLogic';
+import { filtereZeilen, standardFilter, type UebersichtFilter } from './monitoringLogic';
+import { ladeUebersichtFilter, speichereUebersichtFilter } from './ansichtPersistenz';
 import {
   PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, ZUSTAND_FARBE,
   ZUSTAND_LABEL, feldStil, formatDatum,
@@ -85,7 +86,8 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
   meinKuerzel: string;
 }): React.ReactElement {
   const { navigate } = useNavigation();
-  const [filter, setFilter] = useState<UebersichtFilter>(LEERER_FILTER);
+  const hatKuerzel = meinKuerzel !== '';
+  const [filter, setFilter] = useState<UebersichtFilter>(() => ladeUebersichtFilter(hatKuerzel));
   const [gewaehlt, setGewaehlt] = useState<string | null>(null);
 
   const hauptKnotenIds = useMemo(
@@ -101,12 +103,25 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
   const toggle = <T,>(liste: T[], wert: T): T[] =>
     liste.includes(wert) ? liste.filter(x => x !== wert) : [...liste, wert];
 
+  // Setzen und Merken in einem Schritt — bewusst NICHT als Seiteneffekt im
+  // useState-Updater, der liefe unter StrictMode doppelt. Den Suchtext verwirft
+  // erst das Persistenz-Modul, damit es hier nur EINEN Weg gibt.
+  const aendere = (patch: Partial<UebersichtFilter>): void => {
+    const naechster = { ...filter, ...patch };
+    setFilter(naechster);
+    speichereUebersichtFilter(naechster);
+  };
+
+  const standard = standardFilter(hatKuerzel);
+  const abweichend = filter.suche !== '' || filter.typen.length > 0
+    || filter.prognosen.length > 0 || filter.nurMeine !== standard.nurMeine;
+
   const liste = (
     <div className="flex flex-col gap-2 h-full min-h-0">
       <div className="flex items-center gap-1.5 flex-wrap">
         <input
           value={filter.suche}
-          onChange={e => setFilter(f => ({ ...f, suche: e.target.value }))}
+          onChange={e => aendere({ suche: e.target.value })}
           placeholder="Akronym oder Titel …"
           aria-label="Verbünde durchsuchen"
           className="flex-1 min-w-[140px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
@@ -118,14 +133,14 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
           <ToggleChip
             key={t} label={TYP_LABEL[t]}
             selected={filter.typen.includes(t)}
-            onToggle={() => setFilter(f => ({ ...f, typen: toggle(f.typen, t) }))}
+            onToggle={() => aendere({ typen: toggle(filter.typen, t) })}
           />
         ))}
         {meinKuerzel && (
           <ToggleChip
             label="nur meine"
             selected={filter.nurMeine}
-            onToggle={() => setFilter(f => ({ ...f, nurMeine: !f.nurMeine }))}
+            onToggle={() => aendere({ nurMeine: !filter.nurMeine })}
             title={`Teilvorhaben mit Kürzel ${meinKuerzel}`}
           />
         )}
@@ -135,9 +150,18 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
           <ToggleChip
             key={p} label={PROGNOSE_LABEL[p]}
             selected={filter.prognosen.includes(p)}
-            onToggle={() => setFilter(f => ({ ...f, prognosen: toggle(f.prognosen, p) }))}
+            onToggle={() => aendere({ prognosen: toggle(filter.prognosen, p) })}
           />
         ))}
+        {abweichend && (
+          <Button
+            variant="ghost" size="sm" icon={RotateCcw}
+            onClick={() => aendere(standard)}
+            title="Filter dieser Liste auf den Standard zurücksetzen"
+          >
+            Zurücksetzen
+          </Button>
+        )}
       </div>
 
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">

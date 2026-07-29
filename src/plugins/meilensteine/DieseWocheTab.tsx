@@ -3,6 +3,10 @@
  * Dringlichkeit gruppiert statt nach Verbund. Das ist die Arbeitsliste, aus der
  * das Home-Widget später seinen Auszug zieht.
  *
+ * `zeilen` sind hier ALLE offenen Verbünde — der Eingangs-Zeitraum der Seite gilt
+ * für diesen Tab bewusst nicht, sonst verschwände ein überfälliger Meilenstein
+ * nur deshalb, weil sein Antrag aus einem früheren Jahr stammt.
+ *
  * Bewusst KEIN eigener Zustandsbegriff: „überfällig" ist genau `gerissen`,
  * „diese Woche" genau `faellig` (das 7-Tage-Fenster der Engine). Eine zweite
  * Schwellen-Definition in der Oberfläche würde unweigerlich von der Engine
@@ -13,6 +17,7 @@ import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import type { MeilensteinPlan } from '@/core/meilensteine';
 import { nurMeinePunkte, sammleWochenPunkte, type WochenPunkt } from './monitoringLogic';
+import { ladeWocheNurMeine, speichereWocheNurMeine } from './ansichtPersistenz';
 import { PROGNOSE_FARBE, PROGNOSE_LABEL, ZUSTAND_FARBE, feldStil, formatDatum } from './labels';
 import type { VerbundZeile } from './useMeilensteinStand';
 
@@ -80,7 +85,12 @@ export function DieseWocheTab({ zeilen, plan, meinKuerzel, stand }: {
   stand: string;
 }): React.ReactElement {
   const { navigate } = useNavigation();
-  const [nurMeine, setNurMeine] = useState(false);
+  const [nurMeine, setNurMeine] = useState(() => ladeWocheNurMeine(meinKuerzel !== ''));
+
+  const waehleNurMeine = (naechster: boolean): void => {
+    setNurMeine(naechster);
+    speichereWocheNurMeine(naechster);
+  };
 
   const punkte = useMemo(() => {
     const alle = sammleWochenPunkte(zeilen, plan, stand);
@@ -97,7 +107,7 @@ export function DieseWocheTab({ zeilen, plan, meinKuerzel, stand }: {
           <ToggleChip
             label="nur meine"
             selected={nurMeine}
-            onToggle={() => setNurMeine(v => !v)}
+            onToggle={() => waehleNurMeine(!nurMeine)}
             title={`Teilvorhaben mit Kürzel ${meinKuerzel}`}
           />
         )}

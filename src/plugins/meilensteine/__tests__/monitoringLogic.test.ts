@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   LEERER_FILTER, antragsJahr, datumSpanne, filtereZeilen, jahrAlsBereich, jahrChips,
   nurMeinePunkte, passtZuBereich, sammleWochenPunkte, setzeBis, setzeVon, standJahr,
-  standardBereich,
+  standardBereich, standardFilter,
 } from '@/plugins/meilensteine/monitoringLogic';
 import type { VerbundZeile } from '@/plugins/meilensteine/useMeilensteinStand';
 import type { MeilensteinPlan, MstErgebnis, Prognose } from '@/core/meilensteine';
@@ -59,8 +59,9 @@ describe('Eingangs-Zeitraum', () => {
     expect(antragsJahr('32.13.2026')).toBeNull();
   });
 
-  it('belegt mit laufendem Jahr und Vorjahr vor — ganzjährig', () => {
-    expect(standardBereich(2026)).toEqual({ von: '2025-01-01', bis: '2026-12-31' });
+  it('belegt mit dem laufenden Jahr vor — deckungsgleich mit dem ersten Chip', () => {
+    expect(standardBereich(2026)).toEqual({ von: '2026-01-01', bis: '2026-12-31' });
+    expect(standardBereich(2026)).toEqual(jahrAlsBereich(2026));
   });
 
   it('legt hinter einen Jahres-Chip das volle Kalenderjahr', () => {
@@ -78,9 +79,9 @@ describe('Eingangs-Zeitraum', () => {
 
   it('schließt beide Grenzen ein', () => {
     const b = standardBereich(2026);
-    expect(passtZuBereich('2025-01-01', b)).toBe(true);
+    expect(passtZuBereich('2026-01-01', b)).toBe(true);
     expect(passtZuBereich('2026-12-31', b)).toBe(true);
-    expect(passtZuBereich('2024-12-31', b)).toBe(false);
+    expect(passtZuBereich('2025-12-31', b)).toBe(false);
     expect(passtZuBereich('2027-01-01', b)).toBe(false);
   });
 
@@ -124,8 +125,8 @@ describe('Eingangs-Zeitraum', () => {
   });
 
   it('hängt an keinem fest verdrahteten Jahr', () => {
-    expect(passtZuBereich('2030-02-02', standardBereich(2031))).toBe(true);
-    expect(passtZuBereich('2029-02-02', standardBereich(2031))).toBe(false);
+    expect(passtZuBereich('2031-02-02', standardBereich(2031))).toBe(true);
+    expect(passtZuBereich('2030-02-02', standardBereich(2031))).toBe(false);
   });
 
   it('grenzt eine Zeilen-Liste ein wie die Seite es tut', () => {
@@ -137,7 +138,9 @@ describe('Eingangs-Zeitraum', () => {
     ];
     const b = standardBereich(2026);
     expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, b)).map(z => z.verbundId))
-      .toEqual(['NEU', 'VORJAHR']);
+      .toEqual(['NEU']);
+    expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, jahrAlsBereich(2025))).map(z => z.verbundId))
+      .toEqual(['VORJAHR']);
     expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, null))).toHaveLength(4);
   });
 });
@@ -179,6 +182,13 @@ describe('filtereZeilen', () => {
 
   it('liefert bei „nur meine" ohne eigenes Kürzel nichts, statt alles', () => {
     expect(filtereZeilen(zeilen, { ...LEERER_FILTER, nurMeine: true }, '')).toEqual([]);
+  });
+
+  it('startet mit „nur meine", sobald ein eigenes Kürzel gesetzt ist — sonst ohne', () => {
+    expect(standardFilter(true)).toEqual({ ...LEERER_FILTER, nurMeine: true });
+    // Ohne Kürzel MUSS der Standard aus sein, sonst wäre die Liste leer.
+    expect(standardFilter(false)).toEqual(LEERER_FILTER);
+    expect(filtereZeilen(zeilen, standardFilter(false), '')).toHaveLength(zeilen.length);
   });
 });
 

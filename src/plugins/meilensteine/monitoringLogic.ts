@@ -2,10 +2,13 @@
  * Reine Auswahl-Logik der Monitoring-Tabs — Filtern, Sortieren, Sammeln.
  * Ohne React, damit sie ohne DOM testbar ist (Muster `kanbanLanes.ts`).
  *
- * Zwei Ebenen, bewusst getrennt: der **Eingangs-Zeitraum** ist ein bereichsweiter
- * Vorfilter (die Seite wendet ihn einmal an und reicht die Ergebnisse an alle
- * Tabs durch), der **Übersicht-Filter** wirkt nur innerhalb der Liste. Das
+ * Zwei Ebenen, bewusst getrennt: der **Eingangs-Zeitraum** ist ein Vorfilter für
+ * Übersicht und Auswertung (die Seite wendet ihn einmal an und reicht die
+ * Ergebnisse durch), der **Übersicht-Filter** wirkt nur innerhalb der Liste. Das
  * Bezugsjahr kommt überall als Parameter herein, damit nichts an der Uhr hängt.
+ *
+ * „Diese Woche" ist vom Zeitraum ausgenommen: die Arbeitsliste soll einen
+ * überfälligen Meilenstein zeigen, egal aus welchem Jahr der Antrag stammt.
  *
  * Bewusst KEIN eigener Zustandsbegriff: „überfällig" ist genau `gerissen`,
  * „diese Woche fällig" genau `faellig` (das 7-Tage-Fenster der Engine). Eine
@@ -72,9 +75,12 @@ export function jahrAlsBereich(jahr: number): DatumBereich {
   return { von: `${jahr}-01-01`, bis: `${jahr}-12-31` };
 }
 
-/** Vorbelegung des Bereichs: laufendes Jahr und das Jahr davor, ganzjährig. */
+/**
+ * Vorbelegung des Bereichs: das laufende Jahr, ganzjährig — deckungsgleich mit
+ * dem ersten Jahres-Chip, damit die Chip-Leiste die Vorauswahl auch anzeigt.
+ */
 export function standardBereich(currentYear: number): DatumBereich {
-  return { von: `${currentYear - 1}-01-01`, bis: `${currentYear}-12-31` };
+  return jahrAlsBereich(currentYear);
 }
 
 /**
@@ -142,9 +148,19 @@ export interface UebersichtFilter {
   nurMeine: boolean;
 }
 
+/** Der neutrale Filter — nichts eingegrenzt. */
 export const LEERER_FILTER: UebersichtFilter = {
   suche: '', typen: [], prognosen: [], nurMeine: false,
 };
+
+/**
+ * Vorbelegung der Übersicht: mit eigenem Kürzel startet „nur meine" an, denn die
+ * Frage an dieses Modul ist zuerst „woran bin ICH dran". Ohne Kürzel muss der
+ * Filter aus bleiben — er würde sonst alles ausblenden.
+ */
+export function standardFilter(hatKuerzel: boolean): UebersichtFilter {
+  return { ...LEERER_FILTER, nurMeine: hatKuerzel };
+}
 
 /**
  * Filtert und sortiert die Übersicht. Dringendstes zuerst — ein Vorgang mit

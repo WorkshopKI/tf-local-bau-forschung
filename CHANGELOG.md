@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.353.0 — Fristen und Meilensteine: Ansicht bleibt erhalten (Juli 2026)
+
+MINOR — Tab, Eingangs-Zeitraum und Pills waren reiner Session-Zustand: jedes Neuladen der Seite warf sie weg. Dazu passten zwei Vorbelegungen nicht mehr — der Standard-Zeitraum (laufendes Jahr + Vorjahr) entsprach keinem Jahres-Chip und wirkte darum wie „kein Filter gesetzt", und der Einstieg lag auf der Übersicht statt auf der täglichen Arbeitsliste.
+
+- Ansicht wird gemerkt (Tab, Zeitraum, Übersicht-Pills, „nur meine" beider Listen) — ein localStorage-Key, der Suchtext bewusst ausgenommen ([ansichtPersistenz.ts](src/plugins/meilensteine/ansichtPersistenz.ts)).
+- Einstieg auf „Diese Woche"; der Eingangs-Zeitraum ist dort weder sichtbar noch wirksam, damit ältere überfällige Vorgänge in der Arbeitsliste bleiben ([MeilensteinePage.tsx](src/plugins/meilensteine/MeilensteinePage.tsx)).
+- Zeitraum-Vorbelegung auf das laufende Jahr — deckungsgleich mit dem ersten Jahres-Chip, die Vorauswahl ist damit sichtbar ([monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts)).
+- „nur meine" ist mit gesetztem Kürzel vorbelegt (`standardFilter`), ohne Kürzel immer aus ([monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts)).
+- Zurücksetzen-Knopf in der Übersicht, sichtbar sobald etwas vom Standard abweicht ([UebersichtTab.tsx](src/plugins/meilensteine/UebersichtTab.tsx)); Detail: [meilensteine.md](docs/architecture/meilensteine.md).
+
 ### v2.352.0 — Auslastung: ruhiger Ladezustand statt Fehlalarm (Juli 2026)
 
 MINOR — Der erste Aufruf des Moduls zeigte drei gleichzeitige Lade-Signale (Kasten mit erfundenem Countdown, „Themen-Vektoren werden geladen …", Skeletons) und dazu ein gelbes „Vollständigkeits-Prüfung inaktiv" — ein **Fehlalarm**: die Gate-Sets entstehen erst in Phase 2 des Cache-Loads, davor liest die Diagnose sie leer und schickt den User grundlos ins CSV-Mapping. Ursache der Wartezeit selbst war die Reihenfolge, nicht das Datenvolumen: das `onInit`-Vorwärmen läuft vor dem Daten-Share-Grant und bleibt am Cold-Start wirkungslos.
