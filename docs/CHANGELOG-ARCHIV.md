@@ -2,6 +2,155 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.302.5 — eine Zwischenablage fuer alle, Kopier-Fehler werden sichtbar (Juli 2026)
+
+PATCH — Der v2.301.3-Fix („erst kopieren, dann öffnen") schuf einen gehärteten Kopier-Helfer, ließ ihn aber im Aufbereitung-Modul liegen. Die übrigen 26 Kopier-Stellen trugen dieselbe Race weiter, und etliche verschluckten den Fehler still — der Knopf sah aus wie erledigt, in der Zwischenablage lag der alte Inhalt.
+
+- Ein Kopier-Weg für die ganze App: `kopiereText` liegt jetzt im Core und fährt überall den Rückfall ([kopieren.ts](src/core/utils/kopieren.ts)); alle 16 Aufrufer-Dateien umgestellt.
+- Gescheitertes Kopieren wird sichtbar statt still verschluckt — u.a. beim Pfad im Startbildschirm, beim Feedback-Prompt und bei den Zugangspasswörtern, die nur EINMAL anzeigbar sind ([PasswortAnzeigeDialog.tsx](src/plugins/auslastung/components/PasswortAnzeigeDialog.tsx)).
+- „Kopieren & ZIM FAQ-Assistent öffnen" kopiert jetzt nachweislich, bevor der Tab aufgeht — vorher konnte der Assistent eine fremde Anfrage aus der Zwischenablage bekommen ([AnonymisierungView.tsx](src/plugins/anfragen/AnonymisierungView.tsx)).
+- Neuer Guard `no-raw-clipboard` hält den Weg eindeutig; eine begründete Ausnahme bleibt (Rich-Text nach Outlook, [clipboard.ts](src/plugins/anfragen/services/clipboard.ts)).
+
+### v2.302.4 — Laufzeit-Import-Zyklen aufgeloest, tote Bruecke entfernt (Juli 2026)
+
+PATCH — Erster Schritt eines Konsolidierungs-Passes: keine Verhaltensänderung, nur Struktur. Vier Module zogen ein Symbol aus einem Sammel-Import, der nebenbei die ganze Plugin-Liste mitlud — und die führt zu jedem Modul zurück. Solche Ringe sind zur Laufzeit fragil und führen beim Lesen des Codes in die Irre.
+
+- Vier Laufzeit-Importzyklen aufgelöst, jeweils per Direktimport aufs Quellmodul ([OnlineTab.tsx](src/plugins/einstellungen/OnlineTab.tsx), [FeedbackKanbanWidget.tsx](src/plugins/home/widgets/FeedbackKanbanWidget.tsx), [WidgetConfigForm.tsx](src/plugins/home/widgets/WidgetConfigForm.tsx), [FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)).
+- Auslastungs-Store hängt nicht mehr am `onboarding`-Sammel-Import, der ihn selbst zurück-importierte ([useAuslastungData.ts](src/plugins/auslastung/hooks/useAuslastungData.ts)).
+- `plugins/home/naechsterSchritt.ts` gelöscht — Weiterleitung ohne Nutzer; die Handlungs-Formel lebt in [core/utils/naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts).
+- Neuer Wächter `npm run cycles` (in `npm run check`, abhängigkeitsfrei): findet Laufzeit-Zyklen; Allowlist ist leer und soll es bleiben ([check-cycles.mjs](scripts/check-cycles.mjs)).
+
+### v2.302.3 — Aufbereitung: echter Verbindungs-Check vor dem Lauf, ehrliche Fehlerseiten (Juli 2026)
+
+PATCH — Gemeldet: KI getrennt, Knopf klickbar, danach „Fehler" an allen sechs Abschnitten — und kein Verbinden-Dialog. Der Preflight fragte nicht die Bridge, sondern nur, ob irgendein KI-Tab offen ist (`hasLiveBridgeWindow`). Ein Tab ohne aktives Lesezeichen bestand diese Prüfung, antwortete aber nie.
+
+- Preflight pingt die Bridge wirklich (passiv, max. 5 s, öffnet keinen Tab) statt ein offenes Fenster für eine Verbindung zu halten ([ki-guard.ts](src/core/services/ai/ki-guard.ts), `kiVerbindungGeprueft`).
+- Der Check läuft auf dem Transport, der den Lauf **fährt**: ein externer Provider bricht jetzt einmal am Knopf ab statt sechsmal im Stepper ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
+- Kein „Tab öffnen"-Link mehr an gescheiterten Abschnitten — dort steht kein Ergebnis, nur dieselbe Wiederholen-Seite ([uebersicht.ts](src/plugins/antraege/aufbereitung/uebersicht.ts), `zeigtTabLink`).
+- Sechs Kopien der Fehlerseite zu einer zusammengezogen, die den echten Grund zeigt statt fest „Der interne KI-Dienst ist nicht erreichbar" zu behaupten ([BausteinFehler.tsx](src/plugins/antraege/aufbereitung/BausteinFehler.tsx)).
+
+### v2.302.2 — Aufbereitung: KI-Verbindung steht vor dem Klick da, Fehler nennen ihren Grund (Juli 2026)
+
+PATCH — Nachtrag zu v2.302.1, aus der Rückfrage „der Knopf dürfte doch gar nicht klickbar sein, wenn die interne KI nicht verbunden ist". Der Verbindungszustand stand bisher nur am Sidebar-Punkt; die Seite selbst schwieg bis zum Klick. Der Knopf bleibt bewusst klickbar — der Klick ist der Weg zum Verbinden —, sagt seinen Zustand aber jetzt vorher an.
+
+- Das Cockpit zeigt „● Interne KI ist getrennt / noch nicht verbunden — der Klick bietet zuerst das Verbinden an" ([uebersicht.ts](src/plugins/antraege/aufbereitung/uebersicht.ts), rein + getestet).
+- Der Hinweis erscheint nur, wenn der Lauf überhaupt über die Bridge geht; bei einem anderen Provider ist ihr Zustand belanglos.
+- Ein gescheiterter KI-Abschnitt nennt seinen Grund im Stepper statt nur „Fehler" — u.a. die DSGVO-Transport-Policy „aktiver Provider ist extern" ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
+- Ein in der Build-Variante gesperrter Abschnitt sagt das ebenfalls, statt als namenloser Fehler zu erscheinen.
+
+### v2.302.1 — Aufbereitung: die Knoepfe sagen, wenn der Antrag noch nicht geladen ist (Juli 2026)
+
+PATCH — „Mit KI aufbereiten" tat nichts: kein Ladezustand, keine Meldung, und ein Reload heilte es. Beide Kopf-Aktionen brechen ohne aufgelösten Antrag wortlos ab (`if (!ctx) return`), und aufgelöst wurde er genau einmal pro Route — lief dieser Leseversuch ins Leere (Start-Sync noch nicht durch, Datenaktualisierung mittendrin), blieb die Seite dauerhaft ohne Kontext. Bug-Klasse 1, sichtbar als toter Knopf statt als Fehler.
+
+- Die Aufbereitungs-Seite kennt drei Zustände (bereit / lädt / nicht auflösbar) und zeigt ohne Antrag einen Hinweis + „Erneut versuchen" statt Knöpfe, die ins Leere klicken ([kontext-zustand.ts](src/plugins/antraege/aufbereitung/kontext-zustand.ts), [AufbereitungPage.tsx](src/plugins/antraege/aufbereitung/AufbereitungPage.tsx)).
+- `useVerbundDetailData` löst erneut auf, sobald der Antrags-Store nachlädt, und meldet `laedt` — der Zustand heilt sich ohne Reload ([useVerbundDetailData.ts](src/plugins/antraege/useVerbundDetailData.ts)).
+- Fehler aus „Neu aufbereiten" / „KI-Bausteine neu berechnen" stehen unter dem Seitenkopf; bisher hatten sie nur im pausierten Zeitplan-Tab einen Anzeigeort.
+- Ohne Kontext werfen die drei Aktionen jetzt eine lesbare Meldung, statt still zurückzukehren ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts), Pitfall #15).
+- Die Verbund-Detailseite behauptet „nicht gefunden" erst nach abgeschlossener Auflösung ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)).
+
+### v2.302.0 — Filter-Zaehler zeigen die Zeilenzahl, Uebernahme-Wuensche ohne Geister-Eintraege (Juli 2026)
+
+MINOR — Zwei Meldungen aus dem Auslastungs-Modul, beide „die Zahl passt nicht zu dem, was ich sehe": die Filter-Pillen zählten über den gesamten Pool statt über die gefilterte Ansicht (Kategorie 30 + Antragstyp 16 → Liste zeigt 9), und das Einsammeln meldete „14 neu" bei Pille `Übernahme-Wunsch 0`. Ursache im zweiten Fall: der Merge legte `selbst`-Records für Anträge an, die die Zuweisungs-Liste gar nicht führt — unsichtbar, mit Phantom-Stunden, und beim nächsten Sessionstart vom Reconciler weggeräumt (also ewig wieder „neu").
+
+- Filter-Pillen beider Auslastungs-Tabs zählen facettiert: die Zahl an einer Pille ist die Zeilenzahl nach dem Klick ([facetCounts.ts](src/plugins/auslastung/views/facetCounts.ts), Invarianten-Test über alle Filter-Kombinationen).
+- Filterung und Zählung teilen dieselben Bucket-Funktionen ([cockpit-helpers.ts](src/plugins/auslastung/views/cockpit-helpers.ts), `viewFilterBucketsOf` in [KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx)); „Hohe Confidences freigeben" nennt die Zahl, die die Aktion auch freigibt.
+- Die Pille „Übernahme-Wunsch" zählt auch noch nicht eingesammelte Vormerkungen — dieselbe Definition wie das `⚑ N vorgemerkt` der Zeile.
+- Wünsche auf Anträge außerhalb der Liste werden nicht mehr angelegt, sondern als „nicht mehr zuweisbar" mit Grund ausgewiesen ([uebernahme-einsammeln.ts](src/plugins/auslastung/services/onboarding/uebernahme-einsammeln.ts)).
+- `reconcileZuweisungen` kollabiert eine Verbund-Gruppe nur noch bei vorhandener Freigabe — mehrere Interessenten überleben den App-Neustart (Pitfall #26, [useAuslastungData.ts](src/plugins/auslastung/hooks/useAuslastungData.ts)).
+
+### v2.301.3 — Erst kopieren, dann den externen Dienst oeffnen (Juli 2026)
+
+PATCH — „Kopieren & ChatGPT öffnen" hing am Anker-Klick: die Navigation lief im selben Tick wie das Kopieren, und der Fokuswechsel ließ Chrome den Kopier-Aufruf ablehnen. Der Fehler wurde nirgends angezeigt, die Zwischenablage behielt still ihren alten Inhalt — im Chat landete ein Auftrag aus einer früheren Fassung.
+
+- Erst kopieren, dann den Dienst öffnen; scheitert das Kopieren, wird der Dienst nicht geöffnet ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
+- Neuer `kopiereText`-Helfer mit `execCommand`-Rückfall, der bei Misserfolg wirft statt still zu scheitern ([kopieren.ts](src/plugins/antraege/aufbereitung/kopieren.ts)).
+- Der Knopf zeigt „kopiert" bzw. den Fehler an und entwertet die Bestätigung, sobald sich der Auftragstext ändert.
+
+### v2.301.2 — KI-Knopf sagt, was er startet (Juli 2026)
+
+PATCH — Stand ein einzelner KI-Abschnitt auf „ausstehend" (etwa der Recherche-Auftrag nach dem Cache-Key-Bump aus v2.301), griff man zu „Neu aufbereiten" — und der Knopf wirkte kaputt: er rechnet nur den deterministischen Teil und startet keinen KI-Abschnitt. Was fehlte, war nicht die Funktion, sondern die Beschriftung.
+
+- Der KI-Knopf beschriftet sich aus dem Zustand: „Fehlende KI-Abschnitte starten (N)", wenn nur einzelne fehlen ([uebersicht.ts](src/plugins/antraege/aufbereitung/uebersicht.ts)).
+- Inline-Hinweis im Cockpit: fertige Abschnitte kommen aus dem Zwischenspeicher, „Neu aufbereiten" startet keine KI ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx)).
+- Der deterministische Knopf heißt jetzt „Neu aufbereiten (ohne KI)"; beide Kopfleisten (Seite + Cockpit) nutzen dieselbe Quelle ([AufbereitungPage.tsx](src/plugins/antraege/aufbereitung/AufbereitungPage.tsx)).
+
+### v2.301.1 — Externe Recherche-Importe ueberleben Neu aufbereiten (Juli 2026)
+
+PATCH — Ein Klick auf „Neu aufbereiten" warf die zurückgebrachten Deep-Research-Ergebnisse weg. Die kosten einen 5–10-minütigen externen Lauf plus Hin- und Rückweg über die Zwischenablage — und sie hängen gar nicht am Antrags-Korpus, der neu aufbereitet wird.
+
+- Importierte externe Recherche-Ergebnisse überleben „Neu aufbereiten"; entfernt werden sie nur über den Löschen-Knopf im Recherche-Tab ([store.ts](src/plugins/antraege/aufbereitung/store.ts)).
+
+### v2.301.0 — Deep-Research-Auftrag kommt aus einer festen Vorlage, die KI liefert nur Stichworte (Juli 2026)
+
+MINOR — Der Deep-Research-Auftrag für ChatGPT/Claude/Mistral wurde bisher vom internen Modell frei formuliert. Es fasste dabei die Vorhabensbeschreibung nach und schrieb genau das hinein, was extern erst recherchiert werden soll: die im Antrag identifizierten Lücken, seine Marktzahlen, seine Wettbewerberliste, seine Zielkennwerte. Der externe Dienst bestätigte damit den Antrag, statt unabhängig zu recherchieren — und Antragsinhalt verließ mit dem Kopieren den geschützten Bereich.
+
+- Der Auftragstext kommt jetzt aus einer festen Vorlage im Code, die nach Kennwerten, Marktgrößen und Lücken FRAGT, statt sie vorzugeben ([recherche-auftrag.ts](src/plugins/antraege/aufbereitung/recherche-auftrag.ts)).
+- Die KI liefert nur noch Stichworte (Technologiefeld, Verfahren, Leistungsdimensionen, Marktsegmente, englische Suchbegriffe) — Zahlwerte und identifizierende Angaben filtert ein deterministischer Sanitizer heraus ([recherche-stichworte.ts](src/plugins/antraege/aufbereitung/recherche-stichworte.ts)).
+- Die Stichworte sind im Recherche-Tab als Chips editierbar; jede Eingabe läuft durch dieselbe Regel und wird bei Ablehnung mit Grund gemeldet ([StichworteEditor.tsx](src/plugins/antraege/aufbereitung/StichworteEditor.tsx)).
+- Skill-Seed auf die Stichwort-Aufgabe umgestellt (maxTokens 2048 → 512); Bestands-Shares hebt die Migration `aufbereitung-dr-stichworte-2026-07` ([migrations.ts](src/core/services/skills/registry/migrations.ts)).
+- Baustein-Cache-Key trägt die Stichwort-Schema-Version, Markdown-Vorschau und Stift-Bearbeitung aus v2.300 bleiben. Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
+
+### v2.300.0 — Deep-Research-Auftrag als Markdown-Vorschau, per Stift bearbeitbar (Juli 2026)
+
+MINOR — Der anonyme Deep-Research-Auftrag im Recherche-Tab stand als Textwand da, in der die Zeilenumbrüche als literale `\n` mitten im Satz klebten. Und obwohl die Seite zum Prüfen des Textes auffordert, war er nicht änderbar: fand der Leak-Check eine identifizierende Angabe, half nur ein kompletter KI-Neulauf mit ungewissem Ausgang.
+
+- Auftragstext erscheint als gerenderte Markdown-Vorschau (Gliederung, Listen) statt als Rohblock; kopiert wird weiterhin der Markdown-Quelltext ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)).
+- Neue Normalisierung `normalisiereAuftragstext` räumt doppelt escapte Umbrüche aus dem Modell-JSON — auch für bereits gecachte Aufträge ohne Neulauf ([recherche-prompt.ts](src/plugins/antraege/aufbereitung/recherche-prompt.ts)).
+- Stift-Bearbeitung des Auftrags über den geteilten Markdown-Editor mit Live-Vorschau, Strg+Enter übernimmt, Esc bricht ab.
+- Jede von Hand gesetzte Fassung läuft durch denselben Leak-Check: eine identifizierende Angabe bleibt gesperrt und ungespeichert, ein bereinigter Text ist sofort wieder kopierbar ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
+- Bearbeitete Fassungen überleben den Seitenwechsel und lassen sich per „Zurück zum KI-Text" verwerfen. Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
+
+### v2.299.0 — Semikolon und Gedankenstrich in KI-Texten verboten (Juli 2026)
+
+MINOR — In den generierten Gutachten-Abschnitten tauchten regelmäßig Semikolons und Gedankenstriche mitten im Satz auf, typische LLM-Manier und im ZIM-Gutachten unerwünscht. Dagegen gab es bisher nichts: weder eine Prompt-Vorgabe noch einen Check nach dem Lauf.
+
+- Neue geteilte Bibliotheks-Regel „Semikolon & Gedankenstrich" (`verbotenes_muster`, Schweregrad fehler) in [seed.ts](src/core/services/skills/registry/seed.ts) — sie ist zugleich Prompt-Vorgabe und deterministischer Check, Fundstellen inklusive („Anzeigen"-Sprung).
+- Die Regel hängt an ALLEN sieben generativen Schritten des `zim-ep`-Workflows und ist damit die generelle Vorgabe für jeden KI-Fließtext; ein Guard über `ZIM_EP_DEF` lässt einen künftigen Abschnitt auffallen, der sie vergisst ([interpunktion.test.ts](src/core/services/skills/registry/__tests__/interpunktion.test.ts)).
+- Muster bewusst eng: nur `;` und der Gedankenstrich zwischen Leerzeichen — Wortverbindungen („KI-gestützt") und Zahlenbereiche („2024–2026") bleiben unbeanstandet, mit Gegenproben festgeschrieben.
+- Der Lektor („Sprachlicher Feinschliff") entfernt die Zeichen jetzt verpflichtend und ist selbst gedankenstrichfrei formuliert ([ga-lektor.seed.ts](src/core/services/skills/registry/ga-lektor.seed.ts)); den Nachweis liefert der Regel-Lauf nach dem Feinschliff.
+- Rollout auf Bestands-Shares über den Marker `ga-interpunktion-2026-07` ([migrations.ts](src/core/services/skills/registry/migrations.ts)) — additiv, kuratierte Regellisten und Templates bleiben unberührt. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+### v2.298.0 — Aufbereitung läuft auf der Standard-KI (Juli 2026)
+
+MINOR — Ein realer Aufbereitungs-Lauf dauerte sehr lange und endete mit 2× „eingeschränkt" + 2× „Fehler". Ursache war nicht der Prompt, sondern das Ziel-Modell: alle sechs Bausteine folgten der globalen KI-Variante und liefen auf dem agentischen Tab — sechs Volldurchgänge über den Antragstext, häufig in einem Format, das der Parser nicht lesen kann, teils bis in die Transport-Deadline. Dieselbe Klasse wie v2.292.0.
+
+- Ziel-KI der Bausteine fest auf Standard gepinnt, entschieden in der reinen [lauf-ziel.ts](src/plugins/antraege/aufbereitung/lauf-ziel.ts) (Muster `FEEDBACK_ZIEL`); der DR-Baustein verliert sein hartes `ziel:'agentisch'` ([recherche-prompt.ts](src/plugins/antraege/aufbereitung/recherche-prompt.ts)).
+- Agentisch-Fallback nennt `'standard'` jetzt ausdrücklich statt `undefined` = aktiver Tab ([bausteine.ts](src/plugins/antraege/aufbereitung/bausteine.ts)); MAP bleibt bewusst an der globalen Variante.
+- Korpus-Warnung rechnet gegen das Fenster der tatsächlich genutzten KI und bietet bei zu grossem Korpus die agentische Notausfahrt an ([QuellenPanel.tsx](src/plugins/antraege/aufbereitung/QuellenPanel.tsx), [useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
+- Übersicht-Tab nennt die genutzte KI und erklärt den Vorrang, wenn die globale Variante auf „Agentisch" steht ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx)).
+- Vier Prompt-Restbefunde behoben: Zahlen lud zur leeren Liste ein (die den Lauf verdoppelt), Glossar/Verwertung/Steckbrief gegen Beispiel-Echo abgesichert — Nachtrag in [docs/prompt-audit-2026-07.md](docs/prompt-audit-2026-07.md), Detail in [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
+
+### v2.297.0 — Lesemodus: Silhouette-Balken entfernt, Gliederung ziehbar (Juli 2026)
+
+MINOR — Der Lesemodus trug links zwei Navigationen: den proportionalen Silhouette-Balken (ein Block je Hauptkapitel) und daneben die beschriftete Gliederung. Der Balken war funktional redundant und kostete Breite, die der fest 208 px schmalen Gliederung fehlte — deren Punkte brachen früh ab („3.2.2 Entwicklungslinie 2: Ge…").
+
+- Silhouette-Scroll-Navigation im Lesemodus entfernt (`LesemodusSilhouette.tsx` gelöscht, `findeL1Block` in [silhouette-core.ts](src/plugins/antraege/aufbereitung/silhouette-core.ts) mit); die Abdeckungs-Silhouette bleibt unberührt.
+- Gliederungsspalte per Griff ziehbar (150–560 px, Doppelklick = zurück, Pfeiltasten ±16 px), Breite gerätelokal gemerkt ([useTocBreite.ts](src/plugins/antraege/aufbereitung/useTocBreite.ts), nutzt das geteilte `clampBreite`).
+- Ziehen setzt nur die CSS-Variable `--lm-toc-breite` — der Lesepane rendert nicht pro Frame neu ([LesemodusTab.tsx](src/plugins/antraege/aufbereitung/LesemodusTab.tsx)).
+- Detail: [docs/architecture/antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md) (Abschnitt „Lesemodus aufgewertet").
+
+### v2.296.1 — Tabellen passen sich der Fensterbreite an (Juli 2026)
+
+PATCH — Der Breiten-Griff aus v2.295.1 konnte Tabellen nur breiter ziehen, nie schmaler: bei `table-layout: fixed` ist die Summe der Pixel-`<col>` ein harter Boden für die Tabellenbreite (CSS 2.1 §17.5.2.1), eine kleinere `width` wird ignoriert. Betroffen war jede Tabelle auf `SortableTable`.
+
+- `<col>` werden als Prozent ihrer Pixel-Summe gerendert; die Tabelle passt sich damit dem Container an und scrollt erst unter 720px ([tableSizing.ts](src/components/data-table/tableSizing.ts), neu, mit der Messung im Dateikopf).
+- Drei klare Größen-Modi in [SortableTable.tsx](src/components/data-table/SortableTable.tsx): Einpassen (Default) · Gepinnt (Griff) · Scroll (`fitContentWidth`), Wrapper-Zeile passend je Modus.
+- Spalten-Drag rechnet live in Prozent und committet die Breite zurückgerechnet — im gestauchten Zustand schrumpft eine Spalte nicht mehr bei jedem Anfassen.
+- Wirkt ohne Caller-Patch auch für Anfragen und die Feedback-Board-Liste; Förderanträge behalten via `fitContentWidth` ihr Scroll-Verhalten.
+- Muster stammt 1:1 aus [SearchResultsTable.tsx](src/plugins/suche/SearchResultsTable.tsx) (Suche), wo es seit längerem läuft — kein neuer Mechanismus.
+
+### v2.296.0 — Umfangs-Vorgaben gehoeren zum Skill, nicht in die Regel-Bibliothek (Juli 2026)
+
+MINOR — Ein Regel-Record trug zwei Ebenen zugleich: die Art der Prüfung (Satzanzahl) UND den nur für einen Skill gültigen Wert (8–12). Die Bibliothek wuchs dadurch auf 25 Regeln — 16 davon Ein-Skill-Parametrisierungen, 8 verwaiste Altstände. Zugleich verdeckte der offene Skill-Editor die in der Liste angewählte Regel.
+
+- Umfang & Form (Wortanzahl, Satzanzahl, Zeichen, Absätze, Satzlänge, keine Aufzählungen, Pflicht-Anfang) sind jetzt Eigenschaften des Skills, nicht Bibliotheks-Regeln; zur Laufzeit als Regeln materialisiert, damit Checks/Prompt/Eval unverändert bleiben ([vorgaben.ts](src/core/services/skills/registry/vorgaben.ts), [skill-vorgaben.md](docs/architecture/skill-vorgaben.md)).
+- Neue Sektion „Umfang & Form" im Skill-Editor; die Regel-Bibliothek schrumpft auf 9 wiederverwendbare Regeln, `+ Neue Regel` legt direkt ein verbotenes Muster an ([VorgabenEditor.tsx](src/plugins/skill-verwaltung-kuration/VorgabenEditor.tsx), [regelShared.tsx](src/plugins/skill-verwaltung-kuration/regelShared.tsx)).
+- Umschalter „Team | Persönlich" am Skill: Kurator/PL ändert für alle, jeder Nutzer verschiebt freigegebene Werte für sich (persönlicher Ordner); Prompt und Prüfung ziehen dieselbe Liste ([PersoenlichePanel.tsx](src/plugins/skill-verwaltung-kuration/PersoenlichePanel.tsx), `SkillTweak.vorgabenOverride`).
+- Anwählen einer Regel wechselt die Detailansicht wieder — die drei parallelen Editor-States sind ein diskriminierter Zustand, Tabwechsel schließt mit ([SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx)).
+- Detail-Kopfzeile mit Schließen-X oben rechts statt drei einzeln gebauter „← Skill-Verwaltung"-Links ([DetailKopf.tsx](src/plugins/skill-verwaltung-kuration/DetailKopf.tsx)).
+
+**Migration:** `SKILL_VORGABEN_MIGRATION` überführt Bestands-Shares einmalig und marker-gesichert (mehrfach genutzte und inaktive Regeln bleiben unangetastet, Waisen werden entfernt) — kein Nutzer-Eingriff nötig ([migrations.ts](src/core/services/skills/registry/migrations.ts)).
+
 ### v2.295.1 — Skill- und Regel-Tabelle in der Breite ziehbar (Juli 2026)
 
 PATCH — Die Default-Spalten der Skill-Tabelle summieren sich auf ~1.280px und liefen damit horizontal aus der Content-Box; dieselbe Ursache in der Qualitätsregeln-Tabelle. Die Förderanträge-Tabelle löst das bereits über einen Gesamtbreiten-Griff am rechten Rand.

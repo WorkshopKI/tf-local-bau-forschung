@@ -1,15 +1,22 @@
 /**
- * Nutzer-Changelog-Modal — geöffnet per Klick auf die Versionsnummer in der
- * Sidebar (BuildInfo). Zeigt „Was ist neu?" gruppiert nach Hauptnummer (Major)
- * als ausklappbare Über-Überschrift (aktuelle Major auf, frühere zu) und darunter
- * die Minor-Versionen `x.yy` als ausklappbare Abschnitte. Jede Änderung trägt eine
- * Kategorie (Neu & geändert / Bugfix); ein Filter oben blendet nur die jeweils
- * gewünschte Kategorie ein.
+ * „Über die App" — geöffnet per Klick auf die Versionsnummer in der Sidebar
+ * (BuildInfo) ODER über den Link in der Fußzeile jedes Seiten-Hilfe-Dialogs.
+ * Beide Wege teilen sich `useUeberAppDialog`; gemountet wird genau einmal
+ * (ShellLayout), siehe Store-Docblock.
  *
- * Inhalt: bevorzugt die geglättete `changelog-user.md`, sonst aus der
- * entwickler-orientierten CHANGELOG.md (+ Archiv) abgeleitet (siehe deriveChangelog).
- * Alle Markdown-Quellen werden zur BUILD-Zeit via `?raw` inlined (file://-tauglich,
- * Pitfall #1/#2 — kein Runtime-fetch).
+ * Drei Abschnitte von oben:
+ *  1. **Überblick** — der App-Überblick aus `docs/feedback-kontext/_app.md`, ohne
+ *     Technik-Teil (`getAppUeberblick`). Bis v2.360 sah den nur die Feedback-KI.
+ *  2. **Version** — laufende Version, Build-Datum, Variante.
+ *  3. **Änderungen & Updates** — gruppiert nach Hauptnummer (Major) als
+ *     ausklappbare Über-Überschrift (aktuelle Major auf, frühere zu), darunter die
+ *     Minor-Versionen `x.yy`. Jede Änderung trägt eine Kategorie (Neu & geändert /
+ *     Bugfix); ein Filter blendet nur die jeweils gewünschte ein.
+ *
+ * Inhalt der Änderungsliste: bevorzugt die geglättete `changelog-user.md`, sonst
+ * aus der entwickler-orientierten CHANGELOG.md (+ Archiv) abgeleitet (siehe
+ * deriveChangelog). Alle Markdown-Quellen werden zur BUILD-Zeit via `?raw` inlined
+ * (file://-tauglich, Pitfall #1/#2 — kein Runtime-fetch).
  */
 
 import { useMemo, useState } from 'react';
@@ -23,7 +30,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer, sanitizeHtml } from '@/components/ui/MarkdownRenderer';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { appVersion } from '@/config/runtime-config';
+import { appVersion, buildTime, runtimeConfig } from '@/config/runtime-config';
+import { getAppUeberblick } from '@/core/services/feedback/screenContext';
 import {
   getChangelogMarkdown,
   getDisplayChangelog,
@@ -100,8 +108,17 @@ function MinorCard({
   );
 }
 
-export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
+export function UeberDieAppDialog({ open, onClose }: { open: boolean; onClose: () => void }): React.ReactElement | null {
   const [filter, setFilter] = useState<FilterKey>('all');
+  // Konstant über die Laufzeit (gebündeltes Doc + Build-Konstanten) → einmal ableiten.
+  const ueberblick = useMemo(() => getAppUeberblick(), []);
+  const buildDatum = useMemo(() => {
+    try {
+      return new Date(buildTime).toLocaleDateString('de-DE');
+    } catch {
+      return buildTime;
+    }
+  }, []);
   // „Alle aufklappen": überschreibt die Default-Offen-Logik (erste 3 + Pakete zu) und öffnet
   // alles. Steckt in den Collapsible-Keys → Toggle mountet neu (Radix `defaultOpen` ist mount-only).
   const [expandAll, setExpandAll] = useState(false);
@@ -180,13 +197,39 @@ export function ChangelogDialog({ open, onClose }: { open: boolean; onClose: () 
     <Dialog
       open={open}
       onClose={onClose}
-      title="Änderungen & Updates"
-      description="Was sich in den letzten Versionen getan hat — neueste zuerst."
+      title="Über die App"
+      description="Was die App ist, welche Fassung läuft und was sich zuletzt geändert hat."
       size="lg"
       align="center"
       resizable
-      resizeStorageKey="teamflow_changelog_dialog_size"
+      // Neuer Key: der Dialog hat seit v2.360 zwei Abschnitte mehr, eine unter
+      // dem alten Namen gemerkte Höhe wäre dafür zu knapp.
+      resizeStorageKey="teamflow_ueber_app_dialog_size"
     >
+      {/* Überblick — bis v2.360 sah dieses Doc nur die Feedback-KI. */}
+      {ueberblick !== null && (
+        <Collapsible defaultOpen className="mb-3 rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
+          <CollapsibleTrigger className={`${TRIGGER_BASE} py-2.5`}>
+            <span className="text-[13px] font-medium text-[var(--tf-text)]">Überblick</span>
+            <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-3 pb-3 pt-1">
+            <MarkdownRenderer content={ueberblick.markdown} />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* Version — was im Support-Fall gefragt wird, ohne Tooltip-Suche. */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] px-3 py-2 text-[12px] text-[var(--tf-text-secondary)]">
+        <span>Fassung <span className="font-mono text-[var(--tf-text)]">v{appVersion}</span></span>
+        <span>Stand {buildDatum}</span>
+        <span>Ausgabe {runtimeConfig.build.label}</span>
+      </div>
+
+      <p className="mb-2 text-[13px] font-medium text-[var(--tf-text)]">
+        Änderungen &amp; Updates <span className="font-normal text-[var(--tf-text-tertiary)]">— neueste zuerst</span>
+      </p>
+
       {/* Kategorie-Filter (klebt am oberen Rand des scrollbaren Inhalts) */}
       <div className="sticky top-0 z-10 -mx-6 mb-3 flex flex-wrap items-center gap-1 border-b border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 pb-2 pt-1">
         {filters.map((f) => (

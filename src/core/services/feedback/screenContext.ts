@@ -125,3 +125,15 @@ export function getSeitenHilfe(pluginId: string): SeitenHilfe | null {
   const { titel, rumpf } = teileTitel(entferneTechnik(doc));
   return rumpf === '' ? null : { titel, markdown: rumpf };
 }
+
+/**
+ * Nutzer-lesbarer App-Überblick aus `_app.md` — derselbe Strip wie bei den
+ * Seiten-Docs, für den Abschnitt „Überblick" im Dialog „Über die App".
+ * `null`, wenn `_app.md` fehlt oder nach dem Strippen leer ist.
+ */
+export function getAppUeberblick(): SeitenHilfe | null {
+  const doc = getAppOverview();
+  if (doc === '') return null;
+  const { titel, rumpf } = teileTitel(entferneTechnik(doc));
+  return rumpf === '' ? null : { titel, markdown: rumpf };
+}

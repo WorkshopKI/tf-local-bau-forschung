@@ -24,7 +24,10 @@ export function navVisiblePlugins(plugins: TeamFlowPlugin[]): TeamFlowPlugin[] {
  * (testbar) — ShellLayout rendert nur noch das Ergebnis.
  *
  * - `workflow` + `tools`: Arbeits-Gruppe oben, ohne Label.
- * - `system`: untere Gruppe (Trennlinie, ohne Label) — Skill-Verwaltung, Einstellungen.
+ * - `system`: untere Gruppe (Trennlinie, ohne Label). Seit v2.360 im Standard-Build
+ *   LEER — Skill-Verwaltung steht als letzter `tools`-Eintrag, Einstellungen sitzt
+ *   per `hideFromNav` in der Sidebar-Fußzeile. Die Gruppe bleibt als Ablage für
+ *   künftige System-Seiten; der `length > 0`-Guard im ShellLayout rendert sie weg.
  * - `kuration`: Kurator-Gruppe (Trennlinie + Label), nur in Kurator-Builds befüllt.
  *
  * `hideFromNav`-Plugins fallen raus (Route bleibt erreichbar, siehe Router).

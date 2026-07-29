@@ -43,7 +43,7 @@ Geführte Tour für Erstnutzer (`src/core/components/tour/`, `src/core/hooks/use
 - Bewusst nur über **Rahmen**-Elemente (Dashboard, Sidebar, Suchfeld, Vorgangsliste), nicht über Seiten-Interna: eine Tour hält die Klick-Reihenfolge fest und veraltet sonst mit jedem Seitenumbau
 - **Seitenspezifische** Touren gibt es nicht und sind vertagt, bis die Seiten stabil sind; wenn sie kommen, hängen sie als zweite Tiefe im Hilfe-Dialog der Seite (`SeitenHilfeButton`), nicht an einem eigenen Knopf. Der Dialog kündigt das in der Fußzeile an
 - Auto-Start 800ms nach Home-Seitenladen (nur wenn Daten vorhanden und Tour noch nicht abgeschlossen)
-- Manueller Trigger über den Sidebar-Fußzeilen-Knopf „Neu hier?" (`FooterTourButton`, **nur auf Home**)
+- Manueller Trigger in der **Fußzeile des Seiten-Hilfe-Dialogs** („Einführungs-Tour", `SeitenHilfeButton`) — von jeder Seite aus, weil Schritt 1 `navigateTo: 'home'` trägt. Der Puls-Punkt „noch nicht durchlaufen" sitzt am Hilfe-Knopf der Startseite. Bis v2.359 hing beides am eigenen Sidebar-Fußzeilen-Knopf „Neu hier?" (entfallen mit v2.360)
 - Ziele werden via `data-tour="..."` Attribut auf bestehende Elemente markiert
 - Cross-Page: TourStep unterstützt `navigateTo: 'plugin-id'` für Auto-Navigation zur Zielseite
 - Persistenz: `localStorage["teamflow_tour_completed"]` — funktioniert unter `file://`

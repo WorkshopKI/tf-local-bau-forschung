@@ -43,12 +43,26 @@ describe('groupNavPlugins', () => {
     const plugins = [
       plugin({ id: 'home', category: 'workflow', order: 0 }),
       plugin({ id: 'suche', category: 'workflow', order: 8 }),
-      plugin({ id: 'skill-verwaltung-kuration', category: 'system', order: 10 }),
-      plugin({ id: 'einstellungen', category: 'system', order: 20 }),
+      plugin({ id: 'irgendwas-system', category: 'system', order: 10 }),
     ];
     const groups = groupNavPlugins(plugins);
     expect(groups.workflow.map(p => p.id)).toEqual(['home', 'suche']);
-    expect(groups.system.map(p => p.id)).toEqual(['skill-verwaltung-kuration', 'einstellungen']);
+    expect(groups.system.map(p => p.id)).toEqual(['irgendwas-system']);
+  });
+
+  it('Skill-Verwaltung steht als letzter tools-Eintrag, Einstellungen gar nicht (Ist-Stand)', () => {
+    // Bis v2.359 bildeten die beiden zusammen die System-Gruppe. Seit v2.360 ist
+    // Skill-Verwaltung der letzte Punkt der Arbeitsliste und Einstellungen sitzt
+    // per `hideFromNav` in der Sidebar-Fußzeile.
+    const plugins = [
+      plugin({ id: 'status-cockpit', category: 'tools', order: 8 }),
+      plugin({ id: 'feedback-board', category: 'tools', order: 75 }),
+      plugin({ id: 'skill-verwaltung-kuration', category: 'tools', order: 80 }),
+      plugin({ id: 'einstellungen', category: 'system', order: 20, hideFromNav: true }),
+    ];
+    const groups = groupNavPlugins(plugins);
+    expect(groups.tools.map(p => p.id)).toEqual(['status-cockpit', 'feedback-board', 'skill-verwaltung-kuration']);
+    expect(groups.system).toEqual([]);
   });
 
   it('füllt die kuration-Gruppe getrennt (Kurator-Builds)', () => {

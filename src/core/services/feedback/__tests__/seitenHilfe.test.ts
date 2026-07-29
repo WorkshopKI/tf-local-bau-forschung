@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  entferneTechnik, getKnownScreenContextIds, getSeitenHilfe, teileTitel,
+  entferneTechnik, getAppUeberblick, getKnownScreenContextIds, getSeitenHilfe, teileTitel,
   KURATION_PLUGIN_IDS,
 } from '../screenContext';
 
@@ -95,6 +95,19 @@ describe('getSeitenHilfe', () => {
 
   it('liefert null fuer eine Seite ohne Kontext-Doc', () => {
     expect(getSeitenHilfe('gibt-es-nicht')).toBeNull();
+  });
+});
+
+describe('getAppUeberblick', () => {
+  // Speist den Abschnitt „Überblick" in „Über die App". Bis v2.360 sah `_app.md`
+  // nur die Feedback-KI — deshalb stand der Deployment-Absatz oben mitten im Text.
+  it('liefert den App-Ueberblick ohne den Technik-Teil', () => {
+    const ueberblick = getAppUeberblick();
+    expect(ueberblick).not.toBeNull();
+    expect(ueberblick?.markdown).toContain('Förderanträge');
+    expect(ueberblick?.markdown).not.toContain('Single-File-Build');
+    expect(ueberblick?.markdown).not.toContain('IndexedDB');
+    expect(ueberblick?.markdown).not.toContain('hideFromNav');
   });
 });
 

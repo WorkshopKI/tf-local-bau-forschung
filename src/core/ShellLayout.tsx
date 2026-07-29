@@ -32,7 +32,9 @@ import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
 import { DataUpdateBanners } from '@/plugins/csv-sources-kuration/components/DataUpdateBanners';
 import { useAnfrageAnonAktivierung } from '@/plugins/anfragen/useAnfrageAnonAktivierung';
 import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
-import { FooterTourButton } from '@/core/components/FooterTourButton';
+import { FooterSettingsButton } from '@/core/components/FooterSettingsButton';
+import { UeberDieAppDialog } from '@/core/components/changelog/UeberDieAppDialog';
+import { useUeberAppDialog } from '@/core/components/changelog/useUeberAppDialog';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -118,6 +120,8 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, [plugins, isKurator]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
+  const ueberAppOffen = useUeberAppDialog(s => s.open);
+  const ueberAppSchliessen = useUeberAppDialog(s => s.close);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode);
   const [isMobile, setIsMobile] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
@@ -284,6 +288,18 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     sortedPlugins.forEach((p) => {
       items.push({ id: `nav-${p.id}`, label: displayName(p), category: 'Navigation', shortcut: navShortcutLabel[p.id], action: () => goToPlugin(p.id) });
     });
+    // Einstellungen tragen `hideFromNav` (sie sitzen als Zahnrad in der Fußzeile)
+    // und fallen damit aus `sortedPlugins` — ohne diesen Eintrag wären sie über
+    // Strg+K nicht mehr auffindbar.
+    if (visiblePlugins.some(p => p.id === 'einstellungen')) {
+      items.push({
+        id: 'nav-einstellungen',
+        label: 'Einstellungen',
+        category: 'Navigation',
+        shortcut: navShortcutLabel.einstellungen,
+        action: () => goToPlugin('einstellungen'),
+      });
+    }
     // Assistent öffnen: routen-bewusst (shell-weites Dock überall außer Suche;
     // dort/ohne Flag der `?assistent=1`-Deep-Link) — siehe `openAssistent`.
     if (assistentEntryAvailable) {
@@ -292,7 +308,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
     items.push({ id: 'act-sidebar', label: 'Sidebar ein-/einklappen', category: 'Einstellungen', shortcut: `${mod}/`, action: toggleSidebar });
     return items;
-  }, [sortedPlugins, goToPlugin, toggleSidebar, assistentEntryAvailable, openAssistent]);
+  }, [sortedPlugins, visiblePlugins, goToPlugin, toggleSidebar, assistentEntryAvailable, openAssistent]);
 
   useEffect(() => {
     keyboardService.init();
@@ -445,13 +461,16 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
             {sidebarMode === 'expanded' ? (
               <>
-                {/* Zeile 1: „Neu hier?" (links, NUR auf Home) + Version (rechts).
-                    Die Version hängt an `ml-auto` statt an `justify-between`, weil
-                    der Tour-Knopf außerhalb von Home `null` rendert und sie sonst
-                    nach links rutschen würde. Feedback *geben* liegt auf dem
-                    globalen FAB unten rechts. */}
+                {/* Zeile 1: Einstellungen (links) + Version (rechts, öffnet
+                    „Über die App"). Beide Elemente stehen auf JEDER Seite gleich —
+                    der frühere Home-Sonderfall „Neu hier?" ist in die Fußzeile des
+                    Hilfe-Dialogs gewandert. Feedback *geben* liegt auf dem globalen
+                    FAB unten rechts. */}
                 <div className="flex items-center gap-1">
-                  <FooterTourButton activeId={activeId} />
+                  <FooterSettingsButton
+                    active={activeId === 'einstellungen'}
+                    onOpen={() => goToPlugin('einstellungen')}
+                  />
                   <div className="ml-auto"><BuildInfo /></div>
                 </div>
                 {/* Dünne Trennlinie zwischen den beiden Zeilen — volle Breite wie
@@ -470,12 +489,19 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                 </div>
               </>
             ) : (
-              /* Rail (52 px): nur die Ampeln als reine Punkte, eng zentriert.
-                 Kompakter Innenabstand kommt aus den Ampeln selbst (`compact`). */
-              <div className="flex items-center justify-center gap-0.5">
-                <SyncStatusIndicator compact />
-                {(isCsvAutoRefreshEnabled() || isKuratorMenusEnabled()) && <CsvFreshnessIndicator compact />}
-                <BridgeStatusIndicator compact />
+              /* Rail (52 px): Zahnrad über den Ampeln, beide als reine Icons/Punkte.
+                 Kompakter Innenabstand kommt aus den Komponenten selbst (`compact`). */
+              <div className="flex flex-col items-center gap-1">
+                <FooterSettingsButton
+                  active={activeId === 'einstellungen'}
+                  compact
+                  onOpen={() => goToPlugin('einstellungen')}
+                />
+                <div className="flex items-center justify-center gap-0.5">
+                  <SyncStatusIndicator compact />
+                  {(isCsvAutoRefreshEnabled() || isKuratorMenusEnabled()) && <CsvFreshnessIndicator compact />}
+                  <BridgeStatusIndicator compact />
+                </div>
               </div>
             )}
           </div>
@@ -532,6 +558,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           />
         );
       })()}
+      {/* „Über die App" — EIN Mount für beide Auslöser (Versionsnummer in der
+          Fußzeile, Link in jedem Seiten-Hilfe-Dialog). Siehe useUeberAppDialog. */}
+      <UeberDieAppDialog open={ueberAppOffen} onClose={ueberAppSchliessen} />
       {!tour.isActive && isFeedbackEnabled() && <FeedbackButton />}
       {/* Schlankes Dock shell-weit — außer auf der Suche, die ihren eigenen
           Voll-Chat (ChatPanelHost) besitzt (kein Doppel-Panel). */}

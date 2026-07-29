@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.360 — 2026-07
+
+### Neu
+- **„Über die App"** — ein Klick auf die Versionsnummer unten in der Seitenleiste (oder auf den Verweis im Hilfe-Fenster) zeigt jetzt drei Dinge: einen kurzen Überblick, wofür die App da ist und wie die Bereiche zusammenhängen; welche Fassung Sie gerade benutzen; und darunter wie bisher die Liste der Änderungen.
+- Die **Einführungs-Tour** starten Sie jetzt im Hilfe-Fenster — von jeder Seite aus, nicht mehr nur auf der Startseite. Haben Sie sie noch nie gemacht, pulsiert auf der Startseite ein kleiner Punkt am Hilfe-Knopf.
+
+### Verbesserungen
+- Die **Seitenleiste ist unten aufgeräumt**: „Skill-Verwaltung" steht wieder oben als letzter Menüpunkt, die **Einstellungen** sind als Zahnrad in die untere Zeile neben die Versionsnummer gerückt. Damit fallen eine Trennlinie und der große Leerraum darüber weg.
+- Die Einstellungen bleiben wie gewohnt über **Strg+Umschalt+E** und über die Befehlssuche (**Strg+K**) erreichbar.
+
 ## v2.359 — 2026-07
 
 ### Neu

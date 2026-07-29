@@ -4,15 +4,16 @@
  * User bei häufigen Versionswechseln nicht den Tooltip aufrufen muss.
  * Tooltip auf Hover liefert zusätzlich das Build-Datum für Support.
  *
- * Klick öffnet das Nutzer-Changelog-Modal (ChangelogDialog) — „Was ist neu?".
+ * Klick öffnet „Über die App" (Überblick + Version + Änderungen) über den
+ * geteilten `useUeberAppDialog`-Store; gemountet wird der Dialog einmal im
+ * ShellLayout, nicht hier.
  */
 
-import { useState } from 'react';
 import { buildTime, appVersion } from '@/config/runtime-config';
-import { ChangelogDialog } from './changelog/ChangelogDialog';
+import { useUeberAppDialog } from './changelog/useUeberAppDialog';
 
 export function BuildInfo(): React.ReactElement {
-  const [open, setOpen] = useState(false);
+  const openDialog = useUeberAppDialog(s => s.openDialog);
 
   const dateStr = (() => {
     try {
@@ -26,21 +27,18 @@ export function BuildInfo(): React.ReactElement {
     `App-Version: v${appVersion}`,
     `Build vom: ${dateStr}`,
     '',
-    'Klick: Änderungen & Updates',
+    'Klick: Über die App',
   ].join('\n');
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center text-[11px] tabular-nums text-[var(--tf-text-tertiary)] select-none shrink-0 px-2 py-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer"
-        title={tooltip}
-        aria-label={`Version v${appVersion} — Änderungen und Updates anzeigen`}
-      >
-        v{appVersion}
-      </button>
-      <ChangelogDialog open={open} onClose={() => setOpen(false)} />
-    </>
+    <button
+      type="button"
+      onClick={() => openDialog()}
+      className="inline-flex items-center text-[11px] tabular-nums text-[var(--tf-text-tertiary)] select-none shrink-0 px-2 py-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors cursor-pointer"
+      title={tooltip}
+      aria-label={`Version v${appVersion} — Über die App`}
+    >
+      v{appVersion}
+    </button>
   );
 }
