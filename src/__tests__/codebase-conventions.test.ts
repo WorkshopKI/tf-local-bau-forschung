@@ -1017,15 +1017,20 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // Jede nicht-dev Plugin-ID braucht ein Kontext-Doc (direkt oder ueber das
   // gemeinsame kuration.md fuer Kuration-Plugins) — sonst arbeitet die
   // Feedback-Verbesserung (feedbackImprove.ts) mit unvollstaendigem App-Wissen.
-  // Budget-Grenzen schuetzen das Bridge-Prompt (die Bridge traegt den Prompt
-  // per DOM, Groesse ist teuer). Gemessen wird das, was WIRKLICH pro Lauf
-  // rausgeht: feedbackImprove holt genau ZWEI Docs — getAppOverview() plus
-  // getScreenContext(pluginId) — nie alle. Das Budget je Lauf ist also
-  // MAX_APP_OVERVIEW_CHARS + MAX_DOC_CHARS, rund 8000 Zeichen (~2000 Token)
-  // gegen einen Bridge-Kontext, der anderswo 62k-80k Token traegt.
-  // Darum 4000 statt der urspruenglichen 2500: die alte Grenze zwang bei jeder
-  // Feature-Aenderung zum Wegkuerzen an anderer Stelle, was mehr Arbeit machte
-  // als es Prompt sparte. Weiter deckeln ja — aber nicht auf Kante naehen.
+  // Die Zeichen-Grenze ist eine KURATIONS-Disziplin, kein Kontext-Budget — wer
+  // sie mit "sonst sprengt es den Prompt" begruendet, irrt: pro Lauf gehen genau
+  // ZWEI Docs raus (getAppOverview() + getScreenContext(pluginId), nie alle),
+  // zusammen ~8000 Zeichen bzw. ~2000 Token gegen ein Modell mit 62k-256k. Der
+  // Prompt-Anteil ist also belanglos.
+  //
+  // Was die Grenze WIRKLICH leistet: sie schlaegt an, wenn ein Doc von "WAS
+  // sieht und benennt der Nutzer" nach "WIE funktioniert es" driftet — das
+  // gehoert ins Architektur-Doc. Der Feedback-Lauf ist einschuessig (ein Zug,
+  // ein JSON-Block); da entscheidet Relevanzdichte, nicht Menge.
+  //
+  // 2500 war zu eng: 10 von 16 Docs klebten bei 2446-2499, also an der Wand —
+  // geschrieben bis zum Limit, dann anderswo weggekuerzt. Das kostete pro
+  // Feature einen Extra-Loop und verschlechterte die Docs. Seit 2026-07-29 4000.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
   const MAX_DOC_CHARS = 4000;
   const MAX_APP_OVERVIEW_CHARS = 4000;
