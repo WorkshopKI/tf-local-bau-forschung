@@ -249,10 +249,8 @@ export function MeilensteinePage(): React.ReactElement {
     />
   );
 
-  // Über ALLE offenen Verbünde, nicht über `zeilen`: „Diese Woche" kennt den
-  // Eingangs-Zeitraum nicht, also darf ihn auch der Zähler nicht kennen.
   const wochenAnzahl = stand.plan
-    ? sammleWochenPunkte(stand.zeilen, stand.plan, stand.stand).length
+    ? sammleWochenPunkte(zeilen, stand.plan, stand.stand).length
     : 0;
   const entwurf = planApi.entwurf;
 
@@ -272,7 +270,7 @@ export function MeilensteinePage(): React.ReactElement {
             { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
           ]}
         />
-        {(tab === 'uebersicht' || tab === 'auswertung') && (
+        {tab !== 'konfiguration' && (
           <JahresFilter
             bereich={bereich} currentYear={currentYear} spanne={spanne}
             ohneDatum={ohneDatum} onChange={waehleBereich}
@@ -308,7 +306,7 @@ export function MeilensteinePage(): React.ReactElement {
             <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
             <DieseWocheTab
-              zeilen={stand.zeilen} plan={stand.plan}
+              zeilen={zeilen} plan={stand.plan}
               meinKuerzel={stand.meinKuerzel} stand={stand.stand}
             />
           )}

@@ -44,7 +44,14 @@ const ISO_TAG = /^\d{4}-\d{2}-\d{2}$/;
 
 interface Gespeichert {
   tab?: TabKey;
-  bereich?: DatumBereich | typeof ALLE;
+  /**
+   * Versioniertes Feld: mit v2.358 gilt der Zeitraum auch für „Diese Woche", und
+   * die Vorbelegung wuchs auf drei Jahre. Ein unter der alten Bedeutung
+   * gespeicherter Bereich hätte beides überstimmt — ausgerechnet bei denen, die
+   * den Filter schon benutzt haben. Der alte `bereich`-Wert wird darum ignoriert
+   * (nur dieses Feld, damit Tab, Pills und „nach Verbund" erhalten bleiben).
+   */
+  bereichV2?: DatumBereich | typeof ALLE;
   uebersicht?: Omit<UebersichtFilter, 'suche'>;
   wocheNurMeine?: boolean;
   wocheGruppiert?: boolean;
@@ -99,7 +106,7 @@ export function speichereTab(tab: TabKey): void {
 
 /** Gespeicherter Eingangs-Zeitraum; `null` = „Alle Eingänge". */
 export function ladeBereich(currentYear: number): DatumBereich | null {
-  const bereich = readAll().bereich;
+  const bereich = readAll().bereichV2;
   if (bereich === ALLE) return null;
   return istBereich(bereich)
     ? { von: bereich.von, bis: bereich.bis }
@@ -107,7 +114,7 @@ export function ladeBereich(currentYear: number): DatumBereich | null {
 }
 
 export function speichereBereich(bereich: DatumBereich | null): void {
-  writePatch({ bereich: bereich ?? ALLE });
+  writePatch({ bereichV2: bereich ?? ALLE });
 }
 
 /**

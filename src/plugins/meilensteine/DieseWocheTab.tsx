@@ -3,11 +3,14 @@
  * Dringlichkeit gruppiert statt nach Verbund. Das ist die Arbeitsliste, aus der
  * das Home-Widget später seinen Auszug zieht.
  *
- * `zeilen` sind hier ALLE offenen Verbünde — der Eingangs-Zeitraum der Seite gilt
- * für diesen Tab bewusst nicht, sonst verschwände ein überfälliger Meilenstein
- * nur deshalb, weil sein Antrag aus einem früheren Jahr stammt.
+ * `zeilen` sind durch den Eingangs-Zeitraum der Seite vorgefiltert. Das war
+ * zwischenzeitlich anders — mit der Begründung, ein alter überfälliger Vorgang
+ * dürfe nicht aus der Arbeitsliste fallen. Die Annahme dahinter stimmt für diese
+ * Daten nicht: Vorgänge von vor drei Jahren sind kein Rückstand, sondern
+ * Altbestand mit unsauber gesetzten Status im Fachsystem, und sie stellten 1771
+ * der 1836 Zeilen. Über „Alle Eingänge" bleiben sie einen Klick entfernt.
  *
- * Damit das tragbar bleibt, werden die Punkte je Verbund gebündelt (Standard):
+ * Zusätzlich werden die Punkte je Verbund gebündelt (Standard):
  * bei einem Vorgang, der seit Jahren liegt, sind seine sechs gerissenen
  * Meilensteine dieselbe Tatsache. Die zugeklappte Zeile nennt deshalb den
  * DRINGENDSTEN Punkt — bei Überfälligen die Stelle, an der es hängen blieb —

@@ -13,9 +13,13 @@
  */
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import {
-  jahrAlsBereich, jahrChips, setzeBis, setzeVon, type DatumBereich,
+  JAHR_CHIPS, jahrAlsBereich, jahrChips, setzeBis, setzeVon, standardBereich,
+  type DatumBereich,
 } from './monitoringLogic';
 import { feldStil } from './labels';
+
+const gleich = (a: DatumBereich | null, b: DatumBereich): boolean =>
+  a !== null && a.von === b.von && a.bis === b.bis;
 
 const DATUM_CLS =
   'text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
@@ -47,12 +51,21 @@ export function JahresFilter({ bereich, currentYear, spanne, ohneDatum, onChange
           <ToggleChip
             key={j}
             label={String(j)}
-            selected={bereich?.von === jahr.von && bereich.bis === jahr.bis}
+            selected={gleich(bereich, jahr)}
             onToggle={() => onChange(jahr)}
             title={`Antragseingang im ganzen Jahr ${j}`}
           />
         );
       })}
+
+      {/* Der Rückweg zur Vorbelegung — sonst käme man von einem einzelnen Jahr nur
+          über die Datumsfelder oder „Alle Eingänge" wieder heraus. */}
+      <ToggleChip
+        label={`Letzte ${JAHR_CHIPS} Jahre`}
+        selected={gleich(bereich, standardBereich(currentYear))}
+        onToggle={() => onChange(standardBereich(currentYear))}
+        title={`Antragseingang ab ${currentYear - (JAHR_CHIPS - 1)} — die Vorbelegung`}
+      />
 
       <label className="flex items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)] ml-1.5">
         von

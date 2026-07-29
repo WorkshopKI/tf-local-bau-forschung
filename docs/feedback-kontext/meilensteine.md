@@ -10,17 +10,19 @@ Teilvorhaben.
 
 ## Bereiche
 
-- **Eingang** (Kopfzeile, gilt für Übersicht und Auswertung samt deren Zählern):
-  Jahres-Chips als Kurzwahl, taggenaue Von-Bis-Felder, „Alle Eingänge" —
-  **vorbelegt mit dem laufenden Jahr**. Bezug ist der Antragseingang; Vorgänge
-  ohne Antragsdatum sind nur unter „Alle Eingänge" sichtbar.
+- **Eingang** (Kopfzeile, gilt für alle drei Listen-Bereiche samt deren Zählern):
+  Jahres-Chips als Kurzwahl auf ein einzelnes Jahr, „Letzte 3 Jahre" als Rückweg
+  zur Vorbelegung, taggenaue Von-Bis-Felder, „Alle Eingänge" — **vorbelegt mit dem
+  laufenden Jahr und den beiden davor**. Ältere Vorgänge sind kein Rückstand,
+  sondern Altbestand mit unsauber gesetzten Status im Fachsystem; über „Alle
+  Eingänge" bleiben sie erreichbar. Bezug ist der Antragseingang; Vorgänge ohne
+  Antragsdatum sind nur unter „Alle Eingänge" sichtbar.
 - **Übersicht**: links je offener Verbund eine Zeile (Akronym, Antragstyp,
   laufende Woche, ein Zustands-Punkt je Haupt-Meilenstein, Restzeit), rechts der
   Zeitstrahl — Soll hohle Raute, Ist gefüllter Punkt. Filter: Typ, Prognose,
   Suche, „nur meine"; nach Dringlichkeit sortiert.
-- **Diese Woche**: überfällige und in sieben Tagen fällige Meilensteine über alle
-  Verbünde — bewusst OHNE Eingangs-Zeitraum, sonst fiele ein alter überfälliger
-  Vorgang aus der Arbeitsliste. Standardmäßig **nach Verbund gebündelt** (Schalter
+- **Diese Woche**: überfällige und in sieben Tagen fällige Meilensteine der
+  Verbünde im gewählten Eingangs-Zeitraum. Standardmäßig **nach Verbund gebündelt** (Schalter
   „nach Verbund"): eine Zeile je Vorhaben, die den dringendsten Punkt nennt
   („hängt seit 1.2 Antrag zugewiesen" bzw. „nächster …") plus die Zahl der offenen
   Meilensteine; Klick klappt sie auf, das Pfeil-Symbol rechts führt zum Verbund.

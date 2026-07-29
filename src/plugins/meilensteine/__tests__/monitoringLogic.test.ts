@@ -59,9 +59,18 @@ describe('Eingangs-Zeitraum', () => {
     expect(antragsJahr('32.13.2026')).toBeNull();
   });
 
-  it('belegt mit dem laufenden Jahr vor — deckungsgleich mit dem ersten Chip', () => {
-    expect(standardBereich(2026)).toEqual({ von: '2026-01-01', bis: '2026-12-31' });
-    expect(standardBereich(2026)).toEqual(jahrAlsBereich(2026));
+  it('belegt mit dem laufenden Jahr und den beiden davor vor', () => {
+    expect(standardBereich(2026)).toEqual({ von: '2024-01-01', bis: '2026-12-31' });
+  });
+
+  it('deckt mit der Vorbelegung genau die Chip-Jahre ab', () => {
+    const b = standardBereich(2026);
+    for (const j of jahrChips(2026)) {
+      expect(passtZuBereich(`${j}-06-15`, b)).toBe(true);
+    }
+    // Ein Jahr älter als der letzte Chip fällt heraus — sonst liefen Vorbelegung
+    // und Chip-Leiste auseinander.
+    expect(passtZuBereich('2023-12-31', b)).toBe(false);
   });
 
   it('legt hinter einen Jahres-Chip das volle Kalenderjahr', () => {
@@ -78,7 +87,7 @@ describe('Eingangs-Zeitraum', () => {
   });
 
   it('schließt beide Grenzen ein', () => {
-    const b = standardBereich(2026);
+    const b = jahrAlsBereich(2026);   // fester Bereich, unabhängig von der Vorbelegung
     expect(passtZuBereich('2026-01-01', b)).toBe(true);
     expect(passtZuBereich('2026-12-31', b)).toBe(true);
     expect(passtZuBereich('2025-12-31', b)).toBe(false);
@@ -126,7 +135,8 @@ describe('Eingangs-Zeitraum', () => {
 
   it('hängt an keinem fest verdrahteten Jahr', () => {
     expect(passtZuBereich('2031-02-02', standardBereich(2031))).toBe(true);
-    expect(passtZuBereich('2030-02-02', standardBereich(2031))).toBe(false);
+    expect(passtZuBereich('2029-01-01', standardBereich(2031))).toBe(true);
+    expect(passtZuBereich('2028-12-31', standardBereich(2031))).toBe(false);
   });
 
   it('grenzt eine Zeilen-Liste ein wie die Seite es tut', () => {
@@ -136,9 +146,10 @@ describe('Eingangs-Zeitraum', () => {
       zeile({ verbundId: 'ALT', prognose: 'nichtHaltbar', antragsdatum: '2014-05-05' }),
       zeile({ verbundId: 'OHNE', prognose: 'unbekannt', antragsdatum: null }),
     ];
+    // Vorbelegung: die Altlast von 2014 fällt heraus, die letzten drei Jahre bleiben.
     const b = standardBereich(2026);
     expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, b)).map(z => z.verbundId))
-      .toEqual(['NEU']);
+      .toEqual(['NEU', 'VORJAHR']);
     expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, jahrAlsBereich(2025))).map(z => z.verbundId))
       .toEqual(['VORJAHR']);
     expect(zeilen.filter(z => passtZuBereich(z.antragsdatum, null))).toHaveLength(4);

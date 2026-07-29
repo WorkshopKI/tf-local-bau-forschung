@@ -76,11 +76,17 @@ export function jahrAlsBereich(jahr: number): DatumBereich {
 }
 
 /**
- * Vorbelegung des Bereichs: das laufende Jahr, ganzjährig — deckungsgleich mit
- * dem ersten Jahres-Chip, damit die Chip-Leiste die Vorauswahl auch anzeigt.
+ * Vorbelegung des Bereichs: das laufende Jahr und die beiden davor, ganzjährig.
+ *
+ * Drei Jahre, weil ältere Vorgänge im Fachsystem nur noch unsauber gesetzte
+ * Status tragen — sie sind keine Arbeit, sondern Altdaten, und würden gerade die
+ * Arbeitsliste zumüllen. Über „Alle Eingänge" bleiben sie einen Klick entfernt.
+ *
+ * Die Spanne kommt aus `JAHR_CHIPS`, damit Vorbelegung und Chip-Leiste nicht
+ * auseinanderlaufen können.
  */
 export function standardBereich(currentYear: number): DatumBereich {
-  return jahrAlsBereich(currentYear);
+  return { von: `${currentYear - (JAHR_CHIPS - 1)}-01-01`, bis: `${currentYear}-12-31` };
 }
 
 /**

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.358 — 2026-07
+
+### Neu
+- „Fristen & Meilensteine" zeigt beim Öffnen nur noch die Anträge der letzten drei Jahrgänge — auch in der Arbeitsliste „Diese Woche". Die Altfälle aus 2013/2014, deren Status im Fachsystem nie sauber gesetzt wurden, verstopfen die Liste damit nicht mehr.
+- Neue Schaltfläche „Letzte 3 Jahre" führt jederzeit zur Vorbelegung zurück, wenn Sie zwischendurch ein einzelnes Jahr angesehen haben.
+
+### Verbesserungen
+- „Alle Eingänge" zeigt weiterhin restlos alles — es ist nichts verschwunden, nur aus dem Weg geräumt.
+- Die Zahlen an den Reitern folgen jetzt überall demselben Zeitraum, auch bei „Diese Woche".
+- Ein zuvor gewählter Zeitraum wird einmalig zurückgesetzt, damit die neue Vorbelegung auch bei Ihnen ankommt; Reiter und übrige Filter bleiben erhalten.
+
 ## v2.357 — 2026-07
 
 ### Neu

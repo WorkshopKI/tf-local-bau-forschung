@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.358.0 — Arbeitsliste nur noch letzte drei Jahrgaenge (Juli 2026)
+
+MINOR — „Diese Woche" zeigte 1771 überfällige Verbünde, die meisten aus 2013/2014 und alle mit demselben Befund „hängt seit 1.2 Antrag zugewiesen". Das ist kein Rückstand, sondern Altbestand mit unsauber gesetzten Status im Fachsystem.
+
+- Der Eingangs-Zeitraum gilt wieder für **alle drei Listen-Bereiche** inklusive Tab-Zähler — die Begründung von v2.353 setzte voraus, alte Überfällige seien echte Arbeit ([MeilensteinePage.tsx](src/plugins/meilensteine/MeilensteinePage.tsx)).
+- Vorbelegung auf **drei Jahrgänge** (laufendes Jahr + die beiden davor), abgeleitet aus `JAHR_CHIPS`, damit Chip-Leiste und Standard nicht auseinanderlaufen ([monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts)).
+- Neuer Chip „Letzte 3 Jahre" als Rückweg zur Vorbelegung; „Alle Eingänge" zeigt weiterhin restlos alles ([JahresFilter.tsx](src/plugins/meilensteine/JahresFilter.tsx)).
+- Key-Bump `bereich` → `bereichV2`: ein unter der alten Bedeutung gespeicherter Zeitraum hätte den neuen Standard überstimmt; Tab, Pills und „nach Verbund" bleiben erhalten ([ansichtPersistenz.ts](src/plugins/meilensteine/ansichtPersistenz.ts)).
+
 ### v2.357.0 — Seiten-Hilfe auf allen Seiten + groesserer Lese-Dialog (Juli 2026)
 
 MINOR — Der Hilfe-Knopf aus v2.355 stand nur auf einer Seite und öffnete ein Fenster, in dem man scrollen musste, um die Seite zu verstehen — beides war als Muster gedacht, nicht als Endzustand.

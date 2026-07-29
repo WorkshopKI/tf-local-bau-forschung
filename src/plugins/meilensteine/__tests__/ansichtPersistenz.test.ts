@@ -28,8 +28,21 @@ describe('Ansicht der Meilenstein-Seite — Standard beim ersten Besuch', () => 
     expect(ladeTab()).toBe('woche');
   });
 
-  it('belegt den Zeitraum mit dem laufenden Jahr vor', () => {
+  it('belegt den Zeitraum mit den letzten drei Jahren vor', () => {
     expect(ladeBereich(2026)).toEqual(standardBereich(2026));
+    expect(ladeBereich(2026)).toEqual({ von: '2024-01-01', bis: '2026-12-31' });
+  });
+
+  it('ignoriert einen unter der alten Bedeutung gespeicherten Zeitraum', () => {
+    // Vor v2.358 galt der Zeitraum nicht für „Diese Woche" und war nur ein Jahr
+    // breit. Ein alter Wert darf die neue Vorbelegung nicht überstimmen — sonst
+    // sähen ausgerechnet die aktivsten Nutzer die Änderung nicht.
+    localStorage.setItem(
+      'teamflow_meilensteine_ansicht',
+      JSON.stringify({ tab: 'woche', bereich: { von: '2026-01-01', bis: '2026-12-31' } }),
+    );
+    expect(ladeBereich(2026)).toEqual(standardBereich(2026));
+    expect(ladeTab()).toBe('woche');   // der Rest der Ansicht bleibt erhalten
   });
 
   it('schaltet „nur meine" ein, sobald ein eigenes Kürzel gesetzt ist', () => {
