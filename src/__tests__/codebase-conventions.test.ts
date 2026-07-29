@@ -79,8 +79,8 @@
  *     jede nicht-dev Plugin-ID (Text-Scan von src/plugins/index.ts(x) je Ordner, da ein
  *     Import von plugins.config.ts unter Vitest an pdfjs-dist-Workern bricht) hat
  *     ein eigenes Kontext-Doc oder ist Mitglied von KURATION_PLUGIN_IDS (teilt
- *     kuration.md); jedes Doc <= 2500 Zeichen (_app.md <= 4000) — Prompt-Budget-
- *     Schutz fuer die Bridge.
+ *     kuration.md); jedes Doc <= 4000 Zeichen — Prompt-Budget-Schutz fuer die
+ *     Bridge (pro Lauf gehen genau zwei Docs raus: _app.md + das Seiten-Doc).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -1018,9 +1018,16 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // gemeinsame kuration.md fuer Kuration-Plugins) — sonst arbeitet die
   // Feedback-Verbesserung (feedbackImprove.ts) mit unvollstaendigem App-Wissen.
   // Budget-Grenzen schuetzen das Bridge-Prompt (die Bridge traegt den Prompt
-  // per DOM, Groesse ist teuer).
+  // per DOM, Groesse ist teuer). Gemessen wird das, was WIRKLICH pro Lauf
+  // rausgeht: feedbackImprove holt genau ZWEI Docs — getAppOverview() plus
+  // getScreenContext(pluginId) — nie alle. Das Budget je Lauf ist also
+  // MAX_APP_OVERVIEW_CHARS + MAX_DOC_CHARS, rund 8000 Zeichen (~2000 Token)
+  // gegen einen Bridge-Kontext, der anderswo 62k-80k Token traegt.
+  // Darum 4000 statt der urspruenglichen 2500: die alte Grenze zwang bei jeder
+  // Feature-Aenderung zum Wegkuerzen an anderer Stelle, was mehr Arbeit machte
+  // als es Prompt sparte. Weiter deckeln ja — aber nicht auf Kante naehen.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const MAX_DOC_CHARS = 2500;
+  const MAX_DOC_CHARS = 4000;
   const MAX_APP_OVERVIEW_CHARS = 4000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten

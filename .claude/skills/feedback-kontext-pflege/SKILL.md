@@ -11,8 +11,9 @@ Nach einer Feature-Änderung an einem Plugin:
 2. Prüfen ob `docs/feedback-kontext/<id>.md` (bzw. `kuration.md` für
    Kuration-Plugins) noch zum neuen Ist-Zustand passt — Schablone: Zweck / UI-Elemente
    & Begriffe / Datenmodell dahinter / Typische Aktionen / Code.
-3. Bei Bedarf aktualisieren, Budget einhalten (≤ 50 Zeilen / ≤ 2500 Zeichen,
-   `_app.md` ≤ 70/4000, `kuration.md` ≤ 2500 insgesamt).
+3. Bei Bedarf aktualisieren, Budget einhalten (≤ 4000 Zeichen pro Doc,
+   `kuration.md` insgesamt). Der Deckel ist reichlich — nichts Richtiges
+   wegkürzen, nur um Platz zu schaffen.
 4. `npm run test` — Guard `screen-context-coverage` muss grün bleiben.
 
 Detail + Ausnahmen: [docs/agents/update-screen-context.md](../../../docs/agents/update-screen-context.md).
