@@ -35,6 +35,8 @@ import {
   type VerbundKlassifizierungsView,
 } from '../services/verbund';
 import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
+import { useKorpusLadeStatus } from '../hooks/useKorpusLadeStatus';
+import { baueVollstaendigkeitsHinweise } from '../services/klassifizierung';
 import { getCachedVerbundEmbeddings } from '../services/matching';
 import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/matching';
 import { useAuslastungCorpusSignal } from '../services/matching';
@@ -242,6 +244,16 @@ export function KlassifizierungsReview(): React.ReactElement {
     [config.ueberKategorien],
   );
 
+  // v2.352: Korpus-Ladezustand modul-global spiegeln, damit der Seitenkopf EINEN
+  // Ladezustand zeigt statt einer eigenen Hinweiszeile hier. Ohne Centroids ist
+  // der Korpus-Load bedeutungslos (dann greift der Bootstrap-Hinweis unten) —
+  // gleiche Bedingung wie die abgeloeste Zeile. Beim Unmount zuruecksetzen.
+  const setKorpusLaden = useKorpusLadeStatus(s => s.setLaden);
+  useEffect(() => {
+    setKorpusLaden(hasCentroids && embeddingsLoading);
+    return () => { setKorpusLaden(false); };
+  }, [setKorpusLaden, hasCentroids, embeddingsLoading]);
+
   // Vollstaendigkeits-Felder ueber das CSV-Schema aufloesen (D_XTEC/D_ADV koennen
   // als Standard- ODER als Eigenes Feld gemappt sein → kein fest verdrahtetes
   // `d_xtec`/`d_adv` mehr).
@@ -375,22 +387,20 @@ export function KlassifizierungsReview(): React.ReactElement {
     };
   }, [verbundViews, facets, bucketsStatus]);
 
-  // Selbst-Diagnose gegen STUMME Fehlkonfiguration: eine D_XTEC/D_ADV-Spalte ist
-  // im Schema gemappt (Kurator WILL die Prüfung), aber das aufgelöste Feld trägt
-  // bei KEINEM Antrag ein gültiges Datum (Gate aus) → der „Unvollständig"-Filter,
-  // das Warndreieck und die Freigabe-Sperre tun nichts. Sichtbar machen statt
-  // still ins Leere laufen lassen (vgl. der v2.40-Bug: Custom-Mapping → d_xtec leer).
-  const vollstHinweise = useMemo(() => {
-    const msgs: string[] = [];
-    const { fueDs, dlNw } = poolCounts;
-    if (fueDs > 0 && felder.xtecGefunden && !gate.dxtec) {
-      msgs.push(`FuE/DS: Spalte D_XTEC ist gemappt (Feld „${felder.xtecFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
-    }
-    if (dlNw > 0 && felder.advGefunden && !gate.dadv) {
-      msgs.push(`DL/NW: Spalte D_ADV ist gemappt (Feld „${felder.advFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
-    }
-    return msgs;
-  }, [poolCounts, felder, gate.dxtec, gate.dadv]);
+  // Selbst-Diagnose gegen STUMME Fehlkonfiguration — Ableitung + Begruendung in
+  // `baueVollstaendigkeitsHinweise`. `datenBereit: ready` ist Pflicht: die Gate-
+  // Flags stammen aus den Stream-Artefakten, die waehrend des Ladens noch leer
+  // sind (sonst Fehlalarm beim ersten Modul-Aufruf, v2.352).
+  const vollstHinweise = useMemo(
+    () => baueVollstaendigkeitsHinweise({
+      datenBereit: ready,
+      fueDs: poolCounts.fueDs,
+      dlNw: poolCounts.dlNw,
+      felder,
+      gate,
+    }),
+    [ready, poolCounts.fueDs, poolCounts.dlNw, felder, gate],
+  );
 
   const filtered = useMemo(() => applyFacets(verbundViews, facets), [verbundViews, facets]);
 
@@ -588,11 +598,9 @@ export function KlassifizierungsReview(): React.ReactElement {
           {' '}Danach greifen die Vorschläge für neue Anträge automatisch.
         </div>
       )}
-      {hasCentroids && embeddingsLoading && (
-        <div className="text-[11px] text-[var(--tf-text-tertiary)]">
-          Themen-Vektoren werden geladen …
-        </div>
-      )}
+      {/* „Themen-Vektoren werden geladen …" stand bis v2.351 hier als eigene
+          Zeile — sie laeuft jetzt ueber `useKorpusLadeStatus` in den gemeinsamen
+          Lade-Streifen im Seitenkopf (ein Ladezustand statt drei). */}
       {hasCentroids && !embeddingsLoading && (verbundEmbeddings?.size ?? 0) === 0
         && (corpusSync === 'unavailable' || corpusSync === 'incompatible' || corpusSync === 'error') && (
         <div

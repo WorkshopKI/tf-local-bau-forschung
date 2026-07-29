@@ -16,6 +16,13 @@
  */
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungData } from './useAuslastungData';
+import { useKorpusLadeStatus } from './useKorpusLadeStatus';
+
+/**
+ * Was gerade laedt — EINE Quelle fuer den Ladezustand des Moduls (v2.352).
+ * `null` = nichts haengt.
+ */
+export type LadePhase = 'auslastungsdaten' | 'antraege' | 'themenvektoren';
 
 export interface AuslastungReady {
   /** True wenn beide Master-Quellen geladen sind. */
@@ -25,11 +32,30 @@ export interface AuslastungReady {
     antraege: boolean;
     auslastung: boolean;
   };
+  /** Genau eine Phase (oder null) fuer die Anzeige — siehe `bestimmeLadePhase`. */
+  phase: LadePhase | null;
+}
+
+/**
+ * Praezedenz der Lade-Phasen: die Auslastungsdaten (SMB-Sidecar) kommen zuerst,
+ * dann die Antraege (IDB + Stream-Artefakte), zuletzt der Themen-Vektor-Korpus.
+ * Rein, damit die Reihenfolge ohne React testbar bleibt.
+ */
+export function bestimmeLadePhase(input: {
+  auslastungBusy: boolean;
+  antraegeBusy: boolean;
+  korpusBusy: boolean;
+}): LadePhase | null {
+  if (input.auslastungBusy) return 'auslastungsdaten';
+  if (input.antraegeBusy) return 'antraege';
+  if (input.korpusBusy) return 'themenvektoren';
+  return null;
 }
 
 export function useAuslastungReady(): AuslastungReady {
   const cache = useAntraegeCache();
   const auslastungLoaded = useAuslastungData(s => s.loaded);
+  const korpusBusy = useKorpusLadeStatus(s => s.laden);
 
   // v2.63: zusaetzlich auf die Stream-Passage warten (aggregatesLoaded) —
   // sonst laufen Matching/Klassifizierung kurz mit leeren historische*-Maps
@@ -38,10 +64,14 @@ export function useAuslastungReady(): AuslastungReady {
   const auslastungBusy = !auslastungLoaded;
 
   return {
+    // Der Korpus geht BEWUSST nicht in `ready` ein: ein Download vom Datenspeicher
+    // kann Minuten dauern, waehrenddessen ist die Seite voll bedienbar (leere
+    // Themen-Vorschlaege statt gesperrter Oberflaeche).
     ready: !antraegeBusy && !auslastungBusy,
     loading: {
       antraege: antraegeBusy,
       auslastung: auslastungBusy,
     },
+    phase: bestimmeLadePhase({ auslastungBusy, antraegeBusy, korpusBusy }),
   };
 }

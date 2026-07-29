@@ -96,3 +96,40 @@ export function resolveVollstaendigkeitsFelder(schemas: readonly CsvSchema[]): V
     erwarteteTvsGefunden: t.gefunden,
   };
 }
+
+export interface VollstaendigkeitsHinweisInput {
+  /** Sind die Antrags-Stream-Artefakte (xtec/adv-Az-Sets) fertig geladen?
+   *  false ⇒ IMMER `[]` — siehe Doc-Kommentar der Funktion. */
+  datenBereit: boolean;
+  /** Anzahl Verbünde im FuE/DS-Bucket (nur dann ist D_XTEC relevant). */
+  fueDs: number;
+  /** Anzahl Verbünde im DL/NW-Bucket (nur dann ist D_ADV relevant). */
+  dlNw: number;
+  felder: Pick<VollstaendigkeitsFelder, 'xtecFeld' | 'advFeld' | 'xtecGefunden' | 'advGefunden'>;
+  /** Trägt IRGENDEIN Antrag ein gültiges Datum im jeweiligen Feld? */
+  gate: { dxtec: boolean; dadv: boolean };
+}
+
+/**
+ * Selbst-Diagnose gegen STUMME Fehlkonfiguration: eine D_XTEC/D_ADV-Spalte ist im
+ * Schema gemappt (der Kurator WILL die Prüfung), aber das aufgelöste Feld trägt bei
+ * KEINEM Antrag ein gültiges Datum → „Unvollständig"-Filter, Warndreieck und
+ * Freigabe-Sperre laufen still ins Leere (Bug v2.40: Custom-Mapping → `d_xtec` leer).
+ *
+ * `datenBereit: false` ⇒ leeres Ergebnis. Die Gate-Flags stammen aus den Stream-
+ * Artefakten des Antraege-Caches (Phase 2 von `useAntraegeCache.refresh`); solange die
+ * laufen, sind die Az-Sets leer und die Diagnose würde einen FEHLALARM melden — der
+ * User wird sonst beim ersten Modul-Aufruf grundlos ins CSV-Mapping geschickt.
+ */
+export function baueVollstaendigkeitsHinweise(input: VollstaendigkeitsHinweisInput): string[] {
+  if (!input.datenBereit) return [];
+  const { fueDs, dlNw, felder, gate } = input;
+  const msgs: string[] = [];
+  if (fueDs > 0 && felder.xtecGefunden && !gate.dxtec) {
+    msgs.push(`FuE/DS: Spalte D_XTEC ist gemappt (Feld „${felder.xtecFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
+  }
+  if (dlNw > 0 && felder.advGefunden && !gate.dadv) {
+    msgs.push(`DL/NW: Spalte D_ADV ist gemappt (Feld „${felder.advFeld}"), aber kein Antrag trägt dort ein gültiges Datum`);
+  }
+  return msgs;
+}

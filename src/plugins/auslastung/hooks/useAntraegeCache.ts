@@ -492,6 +492,33 @@ export function needsSnapshotRefresh(current: string | null, cached: string | nu
   return current !== cached;
 }
 
+/**
+ * Cache gegen die aktuelle IDB-Snapshot-Version abgleichen und bei Abweichung
+ * verwerfen + neu warmen. No-op waehrend eines laufenden (Erst-)Loads und wenn
+ * der Stand aktuell ist.
+ *
+ * Zwei Aufrufer (v2.352): der Mount-Hook `useAntraegeCacheSnapshotRefresh` und
+ * das Plugin-`onInit`, das nach dem Start-Datenupdate vorwarmt — eine
+ * Implementierung statt zweier Kopien derselben Frische-Regel.
+ */
+export async function refreshAntraegeCacheIfStale(
+  storage: StorageService,
+  programmId: string,
+): Promise<void> {
+  // Laeuft gerade ein (Erst-)Load, erst dessen Ergebnis abwarten statt zu
+  // verwerfen — sonst bliebe ein Warmup, der VOR dem Start-Datenupdate startete,
+  // mit der alten Snapshot-Version stehen. `refresh` faengt Fehler selbst ab.
+  const pending = useCacheStore.getState().refreshing;
+  if (pending) await pending;
+  const s = useCacheStore.getState();
+  if (!s.loaded || s.loading || s.refreshing) return;
+  const current =
+    (await storage.idb.get<string>(SYNC_VERSION_KEY(programmId)).catch(() => null)) ?? null;
+  if (!needsSnapshotRefresh(current, s.cachedSnapshotVersion)) return;
+  invalidateAntraegeCache();
+  await warmupAntraegeCache(storage, programmId);
+}
+
 const SNAPSHOT_REFRESH_INTERVAL_MS = 90_000;
 
 /**
@@ -517,16 +544,10 @@ export function useAntraegeCacheSnapshotRefresh(): void {
     let cancelled = false;
 
     const checkAndRefresh = async (): Promise<void> => {
+      // `refreshAntraegeCacheIfStale` traegt den Frische-Vergleich inkl. des
+      // „nicht waehrend laufendem (Erst-)Load"-Guards (sonst Race mit dem Warmup).
       if (cancelled || document.visibilityState !== 'visible') return;
-      const s = useCacheStore.getState();
-      // Nicht waehrend laufendem (Erst-)Load — sonst Race mit dem Warmup.
-      if (!s.loaded || s.loading || s.refreshing) return;
-      const current =
-        (await storage.idb.get<string>(SYNC_VERSION_KEY(activeProgrammId)).catch(() => null)) ?? null;
-      if (cancelled) return;
-      if (!needsSnapshotRefresh(current, s.cachedSnapshotVersion)) return;
-      invalidateAntraegeCache();
-      await warmupAntraegeCache(storage, activeProgrammId);
+      await refreshAntraegeCacheIfStale(storage, activeProgrammId);
     };
 
     void checkAndRefresh();

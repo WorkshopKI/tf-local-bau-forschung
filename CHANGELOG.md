@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.352.0 — Auslastung: ruhiger Ladezustand statt Fehlalarm (Juli 2026)
+
+MINOR — Der erste Aufruf des Moduls zeigte drei gleichzeitige Lade-Signale (Kasten mit erfundenem Countdown, „Themen-Vektoren werden geladen …", Skeletons) und dazu ein gelbes „Vollständigkeits-Prüfung inaktiv" — ein **Fehlalarm**: die Gate-Sets entstehen erst in Phase 2 des Cache-Loads, davor liest die Diagnose sie leer und schickt den User grundlos ins CSV-Mapping. Ursache der Wartezeit selbst war die Reihenfolge, nicht das Datenvolumen: das `onInit`-Vorwärmen läuft vor dem Daten-Share-Grant und bleibt am Cold-Start wirkungslos.
+
+- Diagnose-Hinweise als reine `baueVollstaendigkeitsHinweise` mit Pflicht-Argument `datenBereit` — schweigt während des Ladens ([vollstaendigkeit-felder.ts](src/plugins/auslastung/services/klassifizierung/vollstaendigkeit-felder.ts), [lade-status.test.ts](src/plugins/auslastung/__tests__/lade-status.test.ts)).
+- Ein Ladezustand statt drei: Phasentext in der Kopf-Zeile + 2 px-Leiste ([ModulLadeStreifen.tsx](src/plugins/auslastung/components/ModulLadeStreifen.tsx), `.tf-ladeleiste` in [theme.css](src/theme.css)); `ModulLoadingBanner` entfällt.
+- `useAuslastungReady` liefert zusätzlich die Phase (reine `bestimmeLadePhase`); der Themen-Vektor-Korpus meldet sich über [useKorpusLadeStatus](src/plugins/auslastung/hooks/useKorpusLadeStatus.ts), blockiert `ready` aber nicht.
+- Tab-Inhalt bis `ready` abgedimmt + nicht bedienbar, davor Seiten-Skeleton statt leerer Fläche ([AuslastungView.tsx](src/plugins/auslastung/views/AuslastungView.tsx)).
+- Zweiter Vorwärm-Anlauf nach `useStartupDataStatus.phase === 'done'` ([index.tsx](src/plugins/auslastung/index.tsx)) über das neue, mit dem Mount-Hook geteilte `refreshAntraegeCacheIfStale` ([useAntraegeCache.ts](src/plugins/auslastung/hooks/useAntraegeCache.ts)).
+
 ### v2.351.2 — Ordnername im Baum-Editor wieder lesbar (Juli 2026)
 
 PATCH — Der Ordnername blieb auch nach v2.351.1 ein Zeichenrest. Ursache war nicht das Label, sondern sein Nachbar: `feldKlasse` bringt `w-full` mit, und Tailwind sortiert `w-full` hinter `w-[64px]` — das Zahlenfeld war 100 % breit und dank `shrink-0` unnachgiebig.

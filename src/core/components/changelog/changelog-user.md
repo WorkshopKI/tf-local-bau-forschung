@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.352 — 2026-07
+
+### Verbesserungen
+- „Auslastung" zeigt beim Öffnen nur noch **eine** Ladeanzeige: eine schmale Leiste unter der Überschrift mit dem Hinweis, was gerade geladen wird. Die Seite ist so lange abgedimmt — sichtbar „gleich fertig" statt halb bedienbar.
+- Die Auslastungsdaten werden im Hintergrund vorgeladen, sobald die Datenaktualisierung beim Start durch ist. In den meisten Fällen ist beim ersten Klick nichts mehr abzuwarten.
+
+### Bugfixes
+- Beim ersten Öffnen von „Auslastung" erschien die gelbe Warnung „Vollständigkeits-Prüfung inaktiv", obwohl am Spalten-Mapping nichts falsch war — sie kam nur, weil die Daten noch luden. Die Warnung erscheint jetzt erst, wenn alles geladen ist, und meldet dann echte Mapping-Probleme wie bisher.
+
 ## v2.351 — 2026-07
 
 ### Neu

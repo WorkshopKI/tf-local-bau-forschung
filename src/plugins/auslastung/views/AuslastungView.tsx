@@ -35,7 +35,9 @@ import { useAuslastungCrossTabSync } from '../hooks/useAuslastungCrossTabSync';
 import { useAuslastungShareWatcher } from '../hooks/useAuslastungShareWatcher';
 import { useAntraegeCacheSnapshotRefresh } from '../hooks/useAntraegeCache';
 import { AuslastungIndexProvider } from '../hooks/useAuslastungIndex';
-import { ModulLoadingBanner } from '../components/ModulLoadingBanner';
+import { useAuslastungReady } from '../hooks/useAuslastungReady';
+import { ModulLadeStreifen, ladePhasenText } from '../components/ModulLadeStreifen';
+import { SkeletonBar, SkeletonRows } from '../components/Skeleton';
 import { AuslastungSaveErrorBanner } from '../components/AuslastungSaveErrorBanner';
 import { KlassifizierungsReview } from './KlassifizierungsReview';
 import { ZuweisungsCockpit } from './ZuweisungsCockpit';
@@ -46,6 +48,39 @@ import { isAuslastungNurKorpusEnabled } from '@/config/feature-flags';
 
 type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen' | 'einstellungen';
 const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht', 'kompetenzen', 'einstellungen']);
+
+/**
+ * Platzhalter fuer die Phase, in der noch NICHTS gerendert werden kann
+ * (`auslastung.json` unterwegs) — bis v2.351 blieb die Seite hier komplett leer.
+ * Zeigt die Struktur, die gleich kommt: Tab-Leiste + Tabellen-Rumpf.
+ */
+function SeitenSkeleton(): React.ReactElement {
+  return (
+    <div className="mt-5 flex flex-col gap-5" aria-hidden>
+      <div className="flex items-center gap-6" style={{ borderBottom: '0.5px solid var(--tf-border)', paddingBottom: 10 }}>
+        {[130, 110, 100, 180, 90].map(w => <SkeletonBar key={w} width={w} height={13} />)}
+      </div>
+      <SkeletonRows count={8} columns={[70, 80, 240, 140, 80, 70, 70]} />
+    </div>
+  );
+}
+
+/**
+ * Inhalts-Huelle waehrend `!ready`: abgedimmt + nicht bedienbar, damit ein Klick
+ * nicht auf halbfertigen Daten landet. EIN Wrapper fuer alle Tabs (die Tab-Leiste
+ * selbst bleibt ausserhalb und bedienbar).
+ */
+function LadeDimmer({ aktiv, children }: { aktiv: boolean; children: React.ReactNode }): React.ReactElement {
+  return (
+    <div
+      aria-busy={aktiv || undefined}
+      className={aktiv ? 'pointer-events-none select-none' : undefined}
+      style={{ opacity: aktiv ? 0.55 : 1, transition: 'opacity 150ms var(--tf-ease)' }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function AuslastungView(): React.ReactElement {
   // Build-time-konstante Verzweigung (flippt zur Laufzeit nie → Rules-of-Hooks-
@@ -103,7 +138,7 @@ function AuslastungKorpusView(): React.ReactElement {
         </p>
       </div>
 
-      <ModulLoadingBanner />
+      <ModulLadeStreifen />
       <AuslastungSaveErrorBanner />
 
       {loaded && (
@@ -121,6 +156,7 @@ function AuslastungFullView(): React.ReactElement {
   const data = useAuslastungData(s => s.data);
   const load = useAuslastungData(s => s.load);
   const loaded = useAuslastungData(s => s.loaded);
+  const { ready, phase } = useAuslastungReady();
 
   const setupDone = data.config.setupAbgeschlossen;
 
@@ -224,11 +260,14 @@ function AuslastungFullView(): React.ReactElement {
     );
   }
 
-  // v2.13: Kein Early-Return mehr fuer !loaded. Header + ModulLoadingBanner
-  // werden sofort gerendert — beim Re-Mount sieht der User innerhalb von
-  // ~16ms den Spinner mit Countdown statt 2-3s blank wie vorher. Tabs werden
-  // erst nach loaded=true gerendert, damit ihre Mount-Effekte (LLM-Bridge,
-  // Verbund-Embeddings etc.) nicht doppelt feuern.
+  // v2.13: Kein Early-Return mehr fuer !loaded. Header + Lade-Streifen werden
+  // sofort gerendert. Tabs erst nach loaded=true, damit ihre Mount-Effekte
+  // (LLM-Bridge, Verbund-Embeddings etc.) nicht doppelt feuern.
+  //
+  // v2.352: EIN Ladezustand statt drei — der Phasentext haengt in der ohnehin
+  // vorhandenen Kopf-Zeile, darunter die schmale Leiste, und der Tab-Inhalt ist
+  // bis `ready` abgedimmt + nicht bedienbar.
+  const phasenText = ladePhasenText(phase);
   return (
     <div className="p-6">
       <div className="flex items-center gap-0 mb-4">
@@ -240,19 +279,18 @@ function AuslastungFullView(): React.ReactElement {
           style={{ paddingLeft: 14, marginLeft: 14, borderLeft: '0.5px solid var(--tf-border)' }}
         >
           {loaded
-            ? `${Object.keys(data.mitarbeiter).length} MAs · ${data.config.ueberKategorien.length} Kategorien · ${data.config.aktuellesQuartal}`
-            : 'wird geladen …'}
+            ? `${Object.keys(data.mitarbeiter).length} MAs · ${data.config.ueberKategorien.length} Kategorien · ${data.config.aktuellesQuartal}${phasenText ? ` · ${phasenText}` : ''}`
+            : (phasenText ?? 'wird geladen …')}
         </p>
       </div>
 
-      {/* v2.13: Banner direkt unter dem Header (vor den Tabs) — sofort
-          sichtbares "etwas-passiert"-Signal bei jedem Mount. Verschwindet
-          sobald useAuslastungReady() ready=true meldet. */}
-      <ModulLoadingBanner />
+      <ModulLadeStreifen />
 
       {/* v2.25: Sichtbarer Schreib-/Lade-Fehler (z.B. fehlendes Schreibrecht) —
           statt still geschluckter Rejection (Pitfall #15). */}
       <AuslastungSaveErrorBanner />
+
+      {!loaded && <SeitenSkeleton />}
 
       {loaded && (
         <>
@@ -264,35 +302,37 @@ function AuslastungFullView(): React.ReactElement {
               ein reiner CSS-Toggle (<100 ms). Das hilft besonders, weil
               `computeQuartalsAuslastung` jetzt 1x pro Render-Cycle via
               Provider statt 3x in den Konsumenten laeuft. */}
-          <AuslastungIndexProvider>
-            <div className="mt-5">
-              {ALL_TABS.has('klassifizierung') && (
-                <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
-                  <KlassifizierungsReview />
-                </div>
-              )}
-              {ALL_TABS.has('zuweisung') && (
-                <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
-                  <ZuweisungsCockpit />
-                </div>
-              )}
-              {ALL_TABS.has('uebersicht') && (
-                <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
-                  <UebersichtView />
-                </div>
-              )}
-              {ALL_TABS.has('kompetenzen') && (
-                <div style={{ display: tab === 'kompetenzen' ? 'block' : 'none' }}>
-                  <KompetenzMatrixView />
-                </div>
-              )}
-              {ALL_TABS.has('einstellungen') && (
-                <div style={{ display: tab === 'einstellungen' ? 'block' : 'none' }}>
-                  <EinstellungenView />
-                </div>
-              )}
-            </div>
-          </AuslastungIndexProvider>
+          <LadeDimmer aktiv={!ready}>
+            <AuslastungIndexProvider>
+              <div className="mt-5">
+                {ALL_TABS.has('klassifizierung') && (
+                  <div style={{ display: tab === 'klassifizierung' ? 'block' : 'none' }}>
+                    <KlassifizierungsReview />
+                  </div>
+                )}
+                {ALL_TABS.has('zuweisung') && (
+                  <div style={{ display: tab === 'zuweisung' ? 'block' : 'none' }}>
+                    <ZuweisungsCockpit />
+                  </div>
+                )}
+                {ALL_TABS.has('uebersicht') && (
+                  <div style={{ display: tab === 'uebersicht' ? 'block' : 'none' }}>
+                    <UebersichtView />
+                  </div>
+                )}
+                {ALL_TABS.has('kompetenzen') && (
+                  <div style={{ display: tab === 'kompetenzen' ? 'block' : 'none' }}>
+                    <KompetenzMatrixView />
+                  </div>
+                )}
+                {ALL_TABS.has('einstellungen') && (
+                  <div style={{ display: tab === 'einstellungen' ? 'block' : 'none' }}>
+                    <EinstellungenView />
+                  </div>
+                )}
+              </div>
+            </AuslastungIndexProvider>
+          </LadeDimmer>
         </>
       )}
     </div>

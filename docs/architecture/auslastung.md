@@ -17,10 +17,21 @@ Aus FZD-Kontext, im Admin editierbar: `IT` Industrielle Technologien, `DT` Digit
 Re-Mount-Latenz von 7 s → <1 s. Drei Hebel kombiniert:
 
 - **Hebel C — Aggregate im Store**: `anonymMap`, `verbuendeById`, `historischeDeskriptorenByAnon`, `historischeAstByAnon`, `allDeskriptoren` wandern aus den Component-`useMemo`-Kaskaden in den `useCacheStore`. Single-Pass-Aggregationen über 5000+ Antraege laufen genau einmal pro Daten-Load (nicht pro Tab-Mount). `ensureAggregates()` rechnet nach, wenn die kuerzel-map später ankommt.
-- **Hebel A — Banner immer sichtbar**: Der `if (!loaded)` Early-Return in `AuslastungView` ist weg. Header + `ModulLoadingBanner` rendern ab dem ersten Mount, Tabs kommen unter `loaded && (...)`. Spinner + Countdown bleiben auch beim Re-Mount sichtbar.
-- **Hebel B1 — Plugin `onInit`-Pre-Cache**: Auslastung-Plugin lädt `useAuslastungData` + `useKuerzelMap` parallel beim App-Start (non-blocking, fehlertolerant). `warmupAntraegeCache` wird via `useActiveProgramm`-Subscribe getriggert sobald die programmId steht. Erster Klick auf Auslastung findet die Daten schon im Store.
+- **Hebel A — Banner immer sichtbar**: Der `if (!loaded)` Early-Return in `AuslastungView` ist weg. Header + Lade-Anzeige rendern ab dem ersten Mount, Tabs kommen unter `loaded && (...)`.
+- **Hebel B1 — Plugin `onInit`-Pre-Cache**: Auslastung-Plugin lädt `useAuslastungData` + `useKuerzelMap` parallel beim App-Start (non-blocking, fehlertolerant). `warmupAntraegeCache` wird via `useActiveProgramm`-Subscribe getriggert sobald die programmId steht.
 
 Generisches Pattern für andere Plugins mit derselben Symptomatik: [docs/agents/optimize-remount-latency.md](../agents/optimize-remount-latency.md).
+
+## Ladezustand & Vorwärmen (v2.352)
+
+**Ein** Ladezustand, drei Phasen. `useAuslastungReady()` ist die einzige Quelle dafür, was gerade hängt; die Präzedenz steckt in der reinen `bestimmeLadePhase` (`auslastungsdaten` → `antraege` → `themenvektoren`). Angezeigt wird sie an genau zwei Stellen, die **keinen** zusätzlichen Platz kosten: als Zusatz in der Kopf-Zeile (`79 MAs · 5 Kategorien · Q3 · Anträge laden …`) und als 2 px hohe, unbestimmt laufende Leiste darunter ([ModulLadeStreifen](../../src/plugins/auslastung/components/ModulLadeStreifen.tsx), CSS-Klasse `.tf-ladeleiste` in `theme.css`). Der Tab-Inhalt ist bis `ready` abgedimmt und nicht bedienbar (`LadeDimmer` in `AuslastungView`, ein Wrapper für alle Tabs); vor `loaded` steht dort ein Seiten-Skeleton statt einer leeren Fläche.
+
+Zwei harte Regeln:
+
+- **Der Themen-Vektor-Korpus geht NICHT in `ready` ein.** Sein Download vom Datenspeicher kann Minuten dauern; die Seite ist derweil voll bedienbar (leere Themen-Vorschläge statt gesperrter Oberfläche). Er meldet sich nur als Phase — über den Spiegel-Store [useKorpusLadeStatus](../../src/plugins/auslastung/hooks/useKorpusLadeStatus.ts), nicht über den Versions-Zähler `corpus-signal.ts`.
+- **Diagnose-Banner erst nach `ready`.** `baueVollstaendigkeitsHinweise` gibt bei `datenBereit: false` immer `[]` zurück. Die Gate-Flags (`xtecAzSet`/`advAzSet`) entstehen erst in Phase 2 des Cache-Loads; wer sie vorher liest, meldet „kein Antrag trägt dort ein gültiges Datum" und schickt den User grundlos ins CSV-Mapping. Das galt bis v2.351 bei **jedem** ersten Modul-Aufruf. Gleiches gilt für jede künftige Diagnose, die auf Stream-Artefakten fußt.
+
+**Vorwärmen in zwei Anläufen.** Der `onInit`-Anlauf (Hebel B1) läuft in `App.tsx` **vor** dem Daten-Share-Grant; `useAuslastungData.load` setzt `loaded` aber bewusst nur bei lesbarem Share (v2.19.2), am Cold-Start bleibt er also meist wirkungslos — der SMB-Roundtrip auf `_intern/auslastung.json` (~0,5–2 s) fiel dem User beim ersten Klick zur Last. Deshalb stößt `nachStartDatenupdateVorwaermen` ([index.tsx](../../src/plugins/auslastung/index.tsx)) dieselben Loads einmalig erneut an, sobald `useStartupDataStatus.phase === 'done'` meldet (Pass fertig oder kein Share vorhanden) — im Idle-Fenster, alle Loads idempotent. Der Antraege-Cache läuft dabei über `refreshAntraegeCacheIfStale`, das den Snapshot-Versions-Vergleich mit dem Mount-Hook `useAntraegeCacheSnapshotRefresh` teilt (eine Implementierung, zwei Aufrufer) und einen noch laufenden Warmup abwartet, statt einen vor-Update-Stand stehen zu lassen. Reine Vorarbeit: kommt der User schneller, laden die Mount-Effekte der View wie bisher.
 
 ## Tabs (`AuslastungView`)
 
