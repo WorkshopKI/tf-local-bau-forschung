@@ -21,6 +21,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
 import { useKategorieSpalten } from './useKategorieSpalten';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 interface Props {
   filterOpen: boolean;
@@ -137,6 +138,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               includeBegleitung={bearbeiterFilter.includeBegleitung}
             />
           ) : null}
+          actions={<SeitenHilfeButton pluginId="antraege" />}
         />
 
         {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 (nur

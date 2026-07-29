@@ -12,6 +12,7 @@ import { logAudit } from '@/core/services/infrastructure/audit-log';
 import type { Programm } from '@/core/services/csv/types';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { UnterprogrammeSection } from './unterprogramme/UnterprogrammeSection';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function ProgrammeAdminPage(): React.ReactElement {
   const storage = useStorage();
@@ -119,14 +120,17 @@ export function ProgrammeAdminPage(): React.ReactElement {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Programme</h1>
-        <Button
-          size="sm"
-          variant="default"
-          onClick={() => { setCreateOpen(true); setNewName(''); }}
-          disabled={!session.isActive}
-        >
-          Neues Programm anlegen
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => { setCreateOpen(true); setNewName(''); }}
+            disabled={!session.isActive}
+          >
+            Neues Programm anlegen
+          </Button>
+          <SeitenHilfeButton pluginId="programme-kuration" />
+        </div>
       </div>
 
       <p className="text-[12.5px] text-[var(--tf-text-secondary)] mb-4">

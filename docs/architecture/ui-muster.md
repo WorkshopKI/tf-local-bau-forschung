@@ -11,6 +11,7 @@ Die App hat eine **geteilte, domänenfreie Layout-Schicht** in `src/components/`
 | Vordefinierte **Listen-Sichten mit Zähler** | `ScopeTabs` ([src/components/ui/ScopeTabs.tsx](../../src/components/ui/ScopeTabs.tsx)) — `variant='tabs'` (breit/unterstrichen) · `variant='pills'` (kompakt) |
 | Generische Section-/Settings-Navigation (ohne Zähler-Sichten) | `Tabs` ([src/components/ui/tabs.tsx](../../src/components/ui/tabs.tsx)) |
 | Seitenkopf (großer Titel + Meta/Aktionen) | `PageHeader` ([src/components/ui/PageHeader.tsx](../../src/components/ui/PageHeader.tsx)) |
+| „Hilfe"-Knopf im Seitenkopf (Kurzanleitung aus dem Kontext-Doc) | `SeitenHilfeButton` ([src/components/help/SeitenHilfeButton.tsx](../../src/components/help/SeitenHilfeButton.tsx)) — gehört auf **jede** Seite mit `docs/feedback-kontext/<id>.md`, rechtsbündig als letztes Element der Kopf-Aktionen; Guard `seitenHilfe.test.ts` |
 | Caps-Abschnitts-Label | `SectionHeader` ([src/components/ui/SectionHeader.tsx](../../src/components/ui/SectionHeader.tsx)) |
 | Status als Pill / farbiger Punkt | `StatusBadge` / `StatusDot` ([src/components/ui/StatusBadge.tsx](../../src/components/ui/StatusBadge.tsx)) — Farbe kommt vom Aufrufer |
 | Filter-Chip „Label: Wert" (optional entfernbar) | `FilterChip` ([src/components/ui/FilterChip.tsx](../../src/components/ui/FilterChip.tsx)) |

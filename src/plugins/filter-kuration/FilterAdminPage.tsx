@@ -16,6 +16,7 @@ import { SystemFilterList } from './sections/SystemFilterList';
 import { AdminCustomFilterList } from './sections/AdminCustomFilterList';
 import { UserPresetOverview } from './sections/UserPresetOverview';
 import { FilterEditDialog } from './dialogs/FilterEditDialog';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 type TabId = 'system' | 'admin' | 'user';
 
@@ -84,11 +85,14 @@ export function FilterAdminPage(): React.ReactElement {
             User-Presets sind private Filter-Kombinationen.
           </p>
         </div>
-        {tab === 'admin' ? (
-          <Button variant="default" size="sm" onClick={openNew} disabled={!session.isActive}>
-            Neuer Filter
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2 shrink-0">
+          {tab === 'admin' ? (
+            <Button variant="default" size="sm" onClick={openNew} disabled={!session.isActive}>
+              Neuer Filter
+            </Button>
+          ) : null}
+          <SeitenHilfeButton pluginId="filter-kuration" />
+        </div>
       </div>
 
       {!session.isActive ? (

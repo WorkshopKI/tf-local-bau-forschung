@@ -5,6 +5,7 @@ import { useKeyboardShortcut } from '@/core/hooks/useKeyboard';
 import { SettingsNav } from './SettingsNav';
 import { getSettingsPanels, buildSearchIndex } from './settingsPanels';
 import type { AIProviderConfig } from '@/core/types/config';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function EinstellungenPage(): React.ReactElement {
   const storage = useStorage();
@@ -74,7 +75,10 @@ export function EinstellungenPage(): React.ReactElement {
 
   return (
     <div className="px-8 pt-4 pb-6 max-w-5xl">
-      <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-6">Einstellungen</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Einstellungen</h1>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="einstellungen" /></div>
+      </div>
 
       <div className="grid grid-cols-[224px_1fr] items-start gap-0">
         <SettingsNav

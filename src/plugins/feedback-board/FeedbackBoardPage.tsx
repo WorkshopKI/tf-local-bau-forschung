@@ -40,6 +40,7 @@ import {
 } from '@/core/services/feedback';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 type ViewMode = 'liste' | 'board';
 type Scope = 'alle' | 'mir' | 'team';
@@ -291,6 +292,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             <div className="flex items-center gap-3">
               <NotificationBell count={unread} onClick={() => setScope('mir')} />
               <BudgetBadge refreshKey={refreshKey} bar />
+              <SeitenHilfeButton pluginId="feedback-board" />
             </div>
           }
           className="mb-4"

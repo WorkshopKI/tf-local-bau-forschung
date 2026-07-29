@@ -25,6 +25,7 @@ import { isDataShareEnabled, isEndUserProdVariant } from '@/config/feature-flags
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function HomePage(): React.ReactElement {
   const storage = useStorage();
@@ -196,15 +197,18 @@ export function HomePage(): React.ReactElement {
   return (
     <div className="px-8 pt-4 pb-6 max-w-[1600px]">
       {/* Header */}
-      <div data-tour="home-dashboard" className="mb-6">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
-        <p className="text-[13px] text-[var(--tf-text-secondary)]">
-          {subtitleParts.offen}
-          {subtitleParts.kritisch ? (
-            <> · <span className="text-[var(--tf-danger-text)]">{subtitleParts.kritisch}</span></>
-          ) : null}
-          {subtitleParts.warnung ? <> · {subtitleParts.warnung}</> : null}
-        </p>
+      <div data-tour="home-dashboard" className="mb-6 flex items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
+          <p className="text-[13px] text-[var(--tf-text-secondary)]">
+            {subtitleParts.offen}
+            {subtitleParts.kritisch ? (
+              <> · <span className="text-[var(--tf-danger-text)]">{subtitleParts.kritisch}</span></>
+            ) : null}
+            {subtitleParts.warnung ? <> · {subtitleParts.warnung}</> : null}
+          </p>
+        </div>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="home" /></div>
       </div>
 
       {data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing ? (

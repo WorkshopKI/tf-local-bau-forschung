@@ -5,6 +5,7 @@ import { getActiveModelId, getModelById } from '@/core/services/search/model-reg
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
 import { UserView } from './views/UserView';
 import { AdminView } from './views/AdminView';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 const TABS = [
   { id: 'overview', label: '\u00dcbersicht' },
@@ -99,12 +100,15 @@ export function IndexManager(): React.ReactElement {
             <span className="text-[13px] text-[var(--tf-text-secondary)]">{amp.label}</span>
           </div>
         </div>
-        {chunkCount > 0 && (
-          <p className="text-[12px] text-[var(--tf-text-tertiary)]">
-            {docCount} Dokumente {'\u00b7'} {chunkCount} Textabschnitte
-            {lastUpdate ? ` \u00b7 ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
-          </p>
-        )}
+        <div className="flex items-end gap-3 shrink-0">
+          {chunkCount > 0 && (
+            <p className="text-[12px] text-[var(--tf-text-tertiary)]">
+              {docCount} Dokumente {'\u00b7'} {chunkCount} Textabschnitte
+              {lastUpdate ? ` \u00b7 ${new Date(lastUpdate).toLocaleDateString('de-DE')}` : ''}
+            </p>
+          )}
+          <SeitenHilfeButton pluginId="kurator" />
+        </div>
       </div>
 
       <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />

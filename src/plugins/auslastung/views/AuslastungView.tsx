@@ -45,6 +45,7 @@ import { UebersichtView } from './UebersichtView';
 import { KompetenzMatrixView } from './KompetenzMatrixView';
 import { EinstellungenView } from './EinstellungenView';
 import { isAuslastungNurKorpusEnabled } from '@/config/feature-flags';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen' | 'einstellungen';
 const ALL_TABS: ReadonlySet<TabId> = new Set(['klassifizierung', 'zuweisung', 'uebersicht', 'kompetenzen', 'einstellungen']);
@@ -282,6 +283,7 @@ function AuslastungFullView(): React.ReactElement {
             ? `${Object.keys(data.mitarbeiter).length} MAs · ${data.config.ueberKategorien.length} Kategorien · ${data.config.aktuellesQuartal}${phasenText ? ` · ${phasenText}` : ''}`
             : (phasenText ?? 'wird geladen …')}
         </p>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="auslastung" /></div>
       </div>
 
       <ModulLadeStreifen />

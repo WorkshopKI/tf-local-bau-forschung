@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.357.0 — Seiten-Hilfe auf allen Seiten + groesserer Lese-Dialog (Juli 2026)
+
+MINOR — Der Hilfe-Knopf aus v2.355 stand nur auf einer Seite und öffnete ein Fenster, in dem man scrollen musste, um die Seite zu verstehen — beides war als Muster gedacht, nicht als Endzustand.
+
+- Knopf auf allen 20 Seiten mit Kontext-Doc, rechts im Seitenkopf ([ui-muster.md](docs/architecture/ui-muster.md)); `chat` bleibt außen vor (Redirect auf `/suche`, kein eigener Kopf).
+- Lese-Dialog auf `size="xl"` + `h-[92vh]`, zentriert statt `align="top"` — passt ohne Scrollen, sitzt näher am oberen Rand ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)).
+- Kein `resizable` mehr: eine einmal gemerkte kleinere Größe hätte die neue Höhe dauerhaft überstimmt.
+- Zwei Guards statt eines: kein Doc ohne Einbau, kein Einbau ohne Doc ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)) — ein neues Plugin braucht jetzt beides.
+
 ### v2.356.0 — Diese Woche nach Verbund gebuendelt (Juli 2026)
 
 MINOR — „Diese Woche" listete 6954 überfällige Meilensteine als Einzelzeilen — ein Verbund von 2013 belegte sechs davon. Das sind aber nicht sechs Probleme, sondern eines: der Vorgang wurde nie angefasst.

@@ -40,6 +40,7 @@ import {
   parseAssistentWidth,
   serializeAssistentOpen,
 } from './assistentPanel';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 function readLs(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -256,7 +257,10 @@ export function SuchSeite(): React.ReactElement {
       <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="px-8 pt-4 pb-6">
       <div className="flex flex-col items-start mb-4">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-4">Suche</h1>
+        <div className="flex w-full max-w-4xl items-center gap-3 mb-4">
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
+          <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="suche" /></div>
+        </div>
         <div className="flex items-center gap-2 w-full max-w-4xl">
           <SearchInput
             value={query}

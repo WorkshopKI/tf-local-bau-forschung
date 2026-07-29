@@ -41,6 +41,7 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 import { DetailKopf } from './DetailKopf';
 import { PersoenlichePanel } from './PersoenlichePanel';
 import { useSkillTweak } from './useSkillTweak';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 type TabId = 'skills' | 'regeln' | 'workflows' | 'textbausteine' | 'eval';
 
@@ -387,9 +388,12 @@ export function SkillVerwaltungPage(): React.ReactElement {
       {/* Header — volle Breite mit Unterkanten-Border, Inhalts-Box max-w-6xl px-8 */}
       <div className="shrink-0 pt-4 pb-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         <div className="max-w-6xl px-8">
-          <div className="mb-3">
-            <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">Skill-Verwaltung</h1>
-            <div className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5">Änderungen gelten für alle Nutzer</div>
+          <div className="mb-3 flex items-start gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">Skill-Verwaltung</h1>
+              <div className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5">Änderungen gelten für alle Nutzer</div>
+            </div>
+            <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="skill-verwaltung-kuration" /></div>
           </div>
 
           {/* Unterstrich-Tabs links, Aktionen rechts */}

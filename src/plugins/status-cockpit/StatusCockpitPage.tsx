@@ -20,6 +20,7 @@ import { KatalogTab } from './KatalogTab';
 import { FelderTab } from './FelderTab';
 import { RegelnTab } from './RegelnTab';
 import { SPINE_LABEL, SPINE_WERTE, feldStil, formatZeitpunkt } from './labels';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 type TabKey = 'katalog' | 'felder' | 'regeln';
 
@@ -235,7 +236,12 @@ export function StatusCockpitPage(): React.ReactElement {
         <PageHeader
           title="Status-Katalog"
           subtitle="Statuswerte kuratieren, simulieren, versionieren"
-          actions={<ExportImportButtons api={api} />}
+          actions={
+            <div className="flex items-center gap-2">
+              <ExportImportButtons api={api} />
+              <SeitenHilfeButton pluginId="status-cockpit" />
+            </div>
+          }
         />
         <ScopeTabs
           variant="tabs"

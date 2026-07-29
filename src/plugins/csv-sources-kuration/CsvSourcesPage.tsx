@@ -22,6 +22,7 @@ import { SourceList } from './SourceList';
 import { MaintenanceSection } from './MaintenanceSection';
 import { SchemaRecoverySection } from './SchemaRecoverySection';
 import { SourceModals, type ReimportRequest, type AddColumnsRequest } from './SourceModals';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 /**
  * Container der CSV-Sources-Kurationsseite: hält Programm-/Schema-Zustand +
@@ -125,14 +126,17 @@ export function CsvSourcesPage(): React.ReactElement {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">CSV-Sources</h1>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => setWizardOpen(true)}
-          disabled={!session.isActive || !programmId}
-        >
-          Neu registrieren
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setWizardOpen(true)}
+            disabled={!session.isActive || !programmId}
+          >
+            Neu registrieren
+          </Button>
+          <SeitenHilfeButton pluginId="csv-sources-kuration" />
+        </div>
       </div>
 
       {!session.isActive ? (

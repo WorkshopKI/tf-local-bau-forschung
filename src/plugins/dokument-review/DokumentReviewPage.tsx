@@ -18,6 +18,7 @@ import { DetailPanel } from './components/DetailPanel';
 import { PendingList } from './components/PendingList';
 import { KeyboardHandler } from './components/KeyboardHandler';
 import { ReviewToast } from './components/ReviewToast';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function DokumentReviewPage(): React.ReactElement {
   const storage = useStorage();
@@ -39,6 +40,9 @@ export function DokumentReviewPage(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4 p-6">
+      {/* Die Seite trägt keinen eigenen Titel (sie startet mit der Dashboard-Karte);
+          der Hilfe-Knopf steht darum allein rechts oben. */}
+      <div className="-mb-2 flex justify-end"><SeitenHilfeButton pluginId="dokument-review" /></div>
       <DashboardCard
         entries={manifest.entries}
         pending={manifest.pending}

@@ -13,6 +13,7 @@ import { EinreichungListe } from './components/EinreichungListe';
 import { PortfolioDemo } from './components/PortfolioDemo';
 import { PruefBlatt } from './components/PruefBlatt';
 import { useMapEinreichungen } from './useMapEinreichungen';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function MapPage(): React.ReactElement {
   const {
@@ -27,6 +28,7 @@ export function MapPage(): React.ReactElement {
         <PageHeader
           title="Förderfähigkeit"
           subtitle="Einreichung importieren, Rechenchecks prüfen, Förderfähigkeit bewerten"
+          actions={<SeitenHilfeButton pluginId="map-foerderfaehig" />}
         />
         <ScopeTabs
           items={[

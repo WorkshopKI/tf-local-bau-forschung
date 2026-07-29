@@ -7,6 +7,8 @@ Die Docs in `docs/feedback-kontext/` haben **zwei Leser**:
    veraltetem Wissen arbeitet (wie es `DEFAULT_SYSTEM_PROMPT` vor v2.165 tat);
 2. die **Seiten-Hilfe** (`getSeitenHilfe` in derselben `screenContext.ts`), die dasselbe
    Doc als Kurzanleitung im „Hilfe"-Dialog der Seite zeigt — **ohne** den Technik-Teil.
+   Der Knopf steht auf **jeder** Seite mit Doc (`SeitenHilfeButton`, rechts im Seitenkopf);
+   ein neues Plugin braucht also Doc **und** Knopf, beides wird per Test erzwungen.
 
 Ein veraltetes Doc ist damit nicht mehr nur eine schlechtere KI-Antwort, sondern eine
 falsche Hilfeseite. Diese Docs ziehen mit Feature-Änderungen mit.

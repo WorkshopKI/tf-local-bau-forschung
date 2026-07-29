@@ -10,6 +10,7 @@ import { isDevInfraPanelEnabled } from '@/config/feature-flags';
 import { useDmsSources } from './hooks/useDmsSources';
 import { VerwaltenSection } from './sections/VerwaltenSection';
 import { AktivierenIndexierenSection } from './sections/AktivierenIndexierenSection';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function DokumentenquellenPage(): React.ReactElement {
   const storage = useStorage();
@@ -19,12 +20,15 @@ export function DokumentenquellenPage(): React.ReactElement {
 
   return (
     <div className="px-8 pt-4 pb-6 max-w-4xl">
-      <div className="mb-6">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Dokumentenquellen</h1>
-        <p className="mt-1 text-[13px] text-[var(--tf-text-secondary)]">
-          DMS-Dokumentenpfade verwalten, aktivieren und indexieren. Alle Quellen
-          werden read-only gemountet — die App schreibt nie in diese Verzeichnisse.
-        </p>
+      <div className="mb-6 flex items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Dokumentenquellen</h1>
+          <p className="mt-1 text-[13px] text-[var(--tf-text-secondary)]">
+            DMS-Dokumentenpfade verwalten, aktivieren und indexieren. Alle Quellen
+            werden read-only gemountet — die App schreibt nie in diese Verzeichnisse.
+          </p>
+        </div>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="dokumentenquellen-kuration" /></div>
       </div>
 
       {error && (

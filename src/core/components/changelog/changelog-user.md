@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.357 — 2026-07
+
+### Neu
+- **Jede Seite hat jetzt einen Hilfe-Knopf** oben rechts. Er erklärt in Kurzform, wozu die Seite da ist, was die Bereiche zeigen und was die Fachbegriffe bedeuten — zum Nachlesen, ohne jemanden fragen zu müssen.
+- Das Fenster ist groß genug, um die Erklärung auf einen Blick zu lesen, ohne zu scrollen.
+
+### Verbesserungen
+- Passt ein Hilfe-Text nicht zu dem, was Sie auf dem Bildschirm sehen, melden Sie es bitte über den Feedback-Knopf — der Hinweis steht auch unten im Hilfe-Fenster.
+
 ## v2.356 — 2026-07
 
 ### Neu

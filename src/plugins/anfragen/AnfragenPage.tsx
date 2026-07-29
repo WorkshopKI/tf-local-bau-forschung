@@ -18,6 +18,7 @@ import { AnfrageTabelle } from './AnfrageTabelle';
 import { AnfrageKarten } from './AnfrageKarten';
 import { AnfrageDetail } from './AnfrageDetail';
 import { AnfrageRecallEval } from './AnfrageRecallEval';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function AnfragenPage(): React.ReactElement {
   const storage = useStorage();
@@ -57,7 +58,10 @@ export function AnfragenPage(): React.ReactElement {
               {anfragen.length} {anfragen.length === 1 ? 'Anfrage' : 'Anfragen'}
             </p>
           </div>
-          {!selected && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
+          <div className="flex items-center gap-2 shrink-0">
+            {!selected && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
+            <SeitenHilfeButton pluginId="anfragen" />
+          </div>
         </div>
         <AnfrageAufnahme />
         {isDevFixturesEnabled() && <AnfrageRecallEval />}

@@ -16,6 +16,7 @@ import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { canWriteDatenShare, getAnfragenDashboardUrl } from '@/config/feature-flags';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { readAnfragenSettingsFromShare, writeAnfragenSettingsToShare } from './settings';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 export function AnfragenEinstellungenPage(): React.ReactElement {
   const storage = useStorage();
@@ -59,10 +60,15 @@ export function AnfragenEinstellungenPage(): React.ReactElement {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
-      <h1 className="text-[20px] font-semibold text-[var(--tf-text)] mb-1">Anfragen</h1>
-      <p className="text-[13px] text-[var(--tf-text-tertiary)] mb-8">
-        Modul-Einstellungen für „Anfragen" — team-weit auf dem Daten-Share gespeichert.
-      </p>
+      <div className="flex items-start gap-3 mb-8">
+        <div className="min-w-0">
+          <h1 className="text-[20px] font-semibold text-[var(--tf-text)] mb-1">Anfragen</h1>
+          <p className="text-[13px] text-[var(--tf-text-tertiary)]">
+            Modul-Einstellungen für „Anfragen" — team-weit auf dem Daten-Share gespeichert.
+          </p>
+        </div>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="anfragen-kuration" /></div>
+      </div>
 
       <section className="mb-8">
         <SectionHeader label="ZIM FAQ-Assistent" />

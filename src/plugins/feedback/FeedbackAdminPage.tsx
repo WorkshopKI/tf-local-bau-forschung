@@ -17,6 +17,7 @@ import { FeedbackSponsoringOverview } from './sections/FeedbackSponsoringOvervie
 import { FeedbackInboxTab } from './sections/FeedbackInboxTab';
 import { useAutoCollectFeedback } from './hooks/useAutoCollectFeedback';
 import { CollapsibleSeg, type CollapsibleSegItem } from '@/plugins/antraege/filter/CollapsibleSeg';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 // Label↔Wert-Maps für die label-basierte CollapsibleSeg (wie im User-Board).
 // Status bleibt granular (Kurator braucht die feinen Stati); 'archiviert' ist ein
@@ -161,6 +162,7 @@ export function FeedbackAdminPage(): React.ReactElement {
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
           {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'} · {faqs.length} FAQ
         </p>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="feedback-kuration" /></div>
       </div>
 
       <Tabs tabs={tabs} activeTab={tab} onChange={setTab} />

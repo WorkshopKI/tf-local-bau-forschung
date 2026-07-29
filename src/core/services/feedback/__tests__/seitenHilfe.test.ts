@@ -2,16 +2,44 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { entferneTechnik, getSeitenHilfe, teileTitel } from '../screenContext';
+import {
+  entferneTechnik, getKnownScreenContextIds, getSeitenHilfe, teileTitel,
+  KURATION_PLUGIN_IDS,
+} from '../screenContext';
 
-const DOCS_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..', '..', '..', '..', '..',
-  'docs', 'feedback-kontext',
-);
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
+const DOCS_DIR = join(REPO, 'docs', 'feedback-kontext');
+const PLUGINS_DIR = join(REPO, 'src', 'plugins');
 
 const SEITEN_DOCS = readdirSync(DOCS_DIR)
   .filter(name => name.endsWith('.md') && name.toLowerCase() !== 'readme.md');
+
+/**
+ * Seiten, die ein Doc haben und darum auch den Hilfe-Knopf tragen müssen.
+ * `kuration` ist keine Plugin-ID, sondern das gemeinsame Doc der acht
+ * Kurator-Seiten — die stehen einzeln in KURATION_PLUGIN_IDS.
+ */
+const HILFE_PFLICHT: string[] = [
+  ...getKnownScreenContextIds().filter(id => id !== 'kuration'),
+  ...KURATION_PLUGIN_IDS,
+]
+  // `chat` ist seit dem Panel-Umbau ein hideFromNav-Redirect auf /suche und hat
+  // keinen eigenen Seitenkopf; das Doc dient nur noch der Feedback-KI.
+  .filter(id => id !== 'chat');
+
+/** Alle `pluginId="…"`-Werte, mit denen der Hilfe-Knopf irgendwo eingebaut ist. */
+function verdrahteteIds(): Set<string> {
+  const treffer = new Set<string>();
+  const dateien = readdirSync(PLUGINS_DIR, { recursive: true, encoding: 'utf-8' })
+    .filter(p => p.endsWith('.tsx'));
+  for (const rel of dateien) {
+    const text = readFileSync(join(PLUGINS_DIR, rel), 'utf-8');
+    for (const m of text.matchAll(/SeitenHilfeButton\s+pluginId="([^"]+)"/g)) {
+      treffer.add(m[1] ?? '');
+    }
+  }
+  return treffer;
+}
 
 describe('entferneTechnik', () => {
   it('schneidet ab der Technik-Ueberschrift bis Dateiende ab', () => {
@@ -67,6 +95,30 @@ describe('getSeitenHilfe', () => {
 
   it('liefert null fuer eine Seite ohne Kontext-Doc', () => {
     expect(getSeitenHilfe('gibt-es-nicht')).toBeNull();
+  });
+});
+
+describe('jede Seite mit Doc traegt auch den Hilfe-Knopf', () => {
+  // Der Coverage-Guard erzwingt das DOC; ohne diesen hier haette eine neue Seite
+  // zwar Hilfe-Text, aber keinen Weg dorthin — und niemand merkt es.
+  it('kein Doc ohne Einbau', () => {
+    const eingebaut = verdrahteteIds();
+    const fehlend = HILFE_PFLICHT.filter(id => !eingebaut.has(id));
+    expect(
+      fehlend,
+      `Diesen Seiten fehlt <SeitenHilfeButton pluginId="…" /> im Seitenkopf:\n` +
+      `${fehlend.join(', ')}\n` +
+      `Einbau ist eine Zeile (actions-Slot des PageHeader bzw. rechts neben der H1).`,
+    ).toEqual([]);
+  });
+
+  it('kein Einbau ohne Doc (Tippfehler in der pluginId)', () => {
+    const unbekannt = [...verdrahteteIds()].filter(id => getSeitenHilfe(id) === null);
+    expect(
+      unbekannt,
+      `Fuer diese pluginIds gibt es kein Kontext-Doc — der Knopf rendert dort nichts:\n` +
+      `${unbekannt.join(', ')}`,
+    ).toEqual([]);
   });
 });
 

@@ -9,6 +9,7 @@ import { useSearch } from '@/core/hooks/useSearch';
 import { DocConverter } from '@/core/services/converter';
 import { useDokumenteStore } from './store';
 import type { DocumentMeta } from './store';
+import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 const converter = new DocConverter();
 const PAGE_SIZE = 50;
@@ -142,11 +143,14 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
               {documents.length.toLocaleString('de-DE')} {documents.length === 1 ? 'Datei' : 'Dateien'}
             </p>
           </div>
-          {!narrow && (
-            <Button variant="secondary" icon={Upload} onClick={() => setShowDropZone(prev => !prev)}>
-              Importieren
-            </Button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {!narrow && (
+              <Button variant="secondary" icon={Upload} onClick={() => setShowDropZone(prev => !prev)}>
+                Importieren
+              </Button>
+            )}
+            <SeitenHilfeButton pluginId="dokumente" />
+          </div>
         </div>
 
         {/* Drop-Zone */}
