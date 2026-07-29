@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.360.1 — Skill-Verwaltung vor dem Feedback-Board (Juli 2026)
+
+PATCH — Die Skill-Verwaltung stand seit v2.360 als letzter Punkt hinter dem Feedback-Board. Das Board ist der Rückmelde-Kanal und gehört ans Ende der Liste, die Skill-Verwaltung zu den übrigen Werkzeugen.
+
+- `order: 80` → `70`, also zwischen Status-Katalog (8) und Feedback-Board (75) ([skill-verwaltung-kuration/index.ts](src/plugins/skill-verwaltung-kuration/index.ts)); Bereichsliste in [_app.md](docs/feedback-kontext/_app.md) mitgezogen.
+
 ### v2.360.0 — Sidebar-Fusszeile aufgeraeumt + Ueber die App (Juli 2026)
 
 MINOR — Der untere Rand der Sidebar trug drei Trennlinien und fünf Blöcke — und dazwischen einen großen Leerraum, weil der Spacer die System-Gruppe nach unten drückte: voll und leer zugleich. Gleichzeitig sah niemand den App-Überblick `_app.md`, der bis heute nur der Feedback-KI vorgelegt wurde.

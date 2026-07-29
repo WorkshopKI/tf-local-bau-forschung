@@ -50,18 +50,19 @@ describe('groupNavPlugins', () => {
     expect(groups.system.map(p => p.id)).toEqual(['irgendwas-system']);
   });
 
-  it('Skill-Verwaltung steht als letzter tools-Eintrag, Einstellungen gar nicht (Ist-Stand)', () => {
-    // Bis v2.359 bildeten die beiden zusammen die System-Gruppe. Seit v2.360 ist
-    // Skill-Verwaltung der letzte Punkt der Arbeitsliste und Einstellungen sitzt
-    // per `hideFromNav` in der Sidebar-Fußzeile.
+  it('Skill-Verwaltung steht vor dem Feedback-Board, Einstellungen gar nicht (Ist-Stand)', () => {
+    // Bis v2.359 bildeten die beiden zusammen die System-Gruppe. Seit v2.360 steht
+    // Skill-Verwaltung bei den Werkzeugen (vor dem Feedback-Board, das als
+    // Rückmelde-Kanal ans Ende gehört) und Einstellungen sitzt per `hideFromNav`
+    // in der Sidebar-Fußzeile.
     const plugins = [
       plugin({ id: 'status-cockpit', category: 'tools', order: 8 }),
       plugin({ id: 'feedback-board', category: 'tools', order: 75 }),
-      plugin({ id: 'skill-verwaltung-kuration', category: 'tools', order: 80 }),
+      plugin({ id: 'skill-verwaltung-kuration', category: 'tools', order: 70 }),
       plugin({ id: 'einstellungen', category: 'system', order: 20, hideFromNav: true }),
     ];
     const groups = groupNavPlugins(plugins);
-    expect(groups.tools.map(p => p.id)).toEqual(['status-cockpit', 'feedback-board', 'skill-verwaltung-kuration']);
+    expect(groups.tools.map(p => p.id)).toEqual(['status-cockpit', 'skill-verwaltung-kuration', 'feedback-board']);
     expect(groups.system).toEqual([]);
   });
 

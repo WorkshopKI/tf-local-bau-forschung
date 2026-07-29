@@ -8,10 +8,11 @@ import { SkillVerwaltungPage } from './SkillVerwaltungPage';
  * `is_kurator`); der Schutz sitzt IN der Seite über `canEditSkillRegistry`
  * (Kurator-Session bzw. pl-Schreibrecht).
  *
- * Seit v2.360 `category: 'tools'` mit hohem `order` statt der eigenen
- * System-Gruppe: die trug nur noch sie und die Einstellungen (jetzt in der
- * Fußzeile) und kostete eine Trennlinie plus den Leerraum darüber. Als letzter
- * Punkt der Arbeitsliste steht sie da, wo man sie sucht.
+ * Seit v2.360 `category: 'tools'` statt der eigenen System-Gruppe: die trug nur
+ * noch sie und die Einstellungen (jetzt in der Fußzeile) und kostete eine
+ * Trennlinie plus den Leerraum darüber. In der Arbeitsliste steht sie bei den
+ * übrigen Werkzeugen — vor dem Feedback-Board, das als Rückmelde-Kanal ans Ende
+ * gehört.
  */
 export const skillVerwaltungPlugin: TeamFlowPlugin = {
   id: 'skill-verwaltung-kuration',
@@ -20,7 +21,7 @@ export const skillVerwaltungPlugin: TeamFlowPlugin = {
   name: 'Skill-Verwaltung',
   icon: 'Wrench',
   category: 'tools',
-  // Hinter feedback-board (75) — letzter Eintrag der Arbeits-Gruppe.
-  order: 80,
+  // Zwischen status-cockpit (8) und feedback-board (75).
+  order: 70,
   component: SkillVerwaltungPage,
 };

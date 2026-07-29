@@ -11,9 +11,9 @@
 - **Förderfähigkeit** — Einreichung prüfen: Rechenchecks, editierbare Checkliste, Abschluss-Entwurf
 - **Suche** — Hybrid-Suche (Volltext + semantisch) über Anträge und Dokumente; der KI-Assistent dockt hier rechts an
 - **Status-Katalog** — Statuswerte des Fachsystems kuratieren, ihre Wirkung simulieren, Fassungen versionieren
-- **Feedback** — öffentliches Board: Probleme, Ideen, Bearbeitungsstand aller Rückmeldungen
 - **Dokumente** (nur Entwickler-Ausgabe) — Dokumentenverwaltung und -vorschau
 - **Skill-Verwaltung** — Skills und Prüfregeln der KI-Bausteine pflegen (Schreiben nur mit Kurator- bzw. PL-Recht)
+- **Feedback** — öffentliches Board: Probleme, Ideen, Bearbeitungsstand aller Rückmeldungen
 - **Kuration** (nur für Kuratoren, nach Login) — Suchindex, Programme, CSV-Quellen, Dokumentenquellen, Anfragen-Konfiguration, Filter, Feedback-Dashboard, Dokument-Review
 
 **Wiederkehrende Bedienelemente:** Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite. Rückmeldungen gehen über den runden Knopf unten rechts.
