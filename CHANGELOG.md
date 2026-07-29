@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.360.2 — Befehlssuche: Klick auf einen Eintrag wirkt wieder (Juli 2026)
+
+PATCH — In der Befehlssuche (Strg+K) bewirkte ein Klick auf einen Eintrag nichts: die Palette schloss sich wortlos, ohne zu navigieren. Der Fehler steckte seit v2.83 drin und fiel nicht auf, weil die Palette ein Tastatur-Werkzeug ist — Pfeiltasten und Enter liefen über das fokussierte Eingabefeld weiter.
+
+- Die Abdunkelung ist ein `absolute`-Geschwister und wurde deshalb ÜBER dem statischen Palettenkasten gemalt; sie fing jeden Klick ab und löste über die Hülle `onClose` aus. Fix: `relative` am Kasten ([CommandPalette.tsx](src/components/ui/CommandPalette.tsx)).
+
 ### v2.360.1 — Skill-Verwaltung vor dem Feedback-Board (Juli 2026)
 
 PATCH — Die Skill-Verwaltung stand seit v2.360 als letzter Punkt hinter dem Feedback-Board. Das Board ist der Rückmelde-Kanal und gehört ans Ende der Liste, die Skill-Verwaltung zu den übrigen Werkzeugen.

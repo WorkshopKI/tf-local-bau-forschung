@@ -29,6 +29,9 @@
 - Die **Seitenleiste ist unten aufgeräumt**: „Skill-Verwaltung" steht wieder oben als letzter Menüpunkt, die **Einstellungen** sind als Zahnrad in die untere Zeile neben die Versionsnummer gerückt. Damit fallen eine Trennlinie und der große Leerraum darüber weg.
 - Die Einstellungen bleiben wie gewohnt über **Strg+Umschalt+E** und über die Befehlssuche (**Strg+K**) erreichbar.
 
+### Bugfixes
+- In der **Befehlssuche (Strg+K)** ließ sich ein Eintrag nur mit der Tastatur auswählen — ein Mausklick schloss das Fenster, ohne etwas zu tun. Klicken funktioniert jetzt.
+
 ## v2.359 — 2026-07
 
 ### Neu
