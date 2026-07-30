@@ -13,6 +13,7 @@
  */
 import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { KopierIconButton } from '@/components/ui/KopierIconButton';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
@@ -160,7 +161,9 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     defaultVisible: true,
     locked: true,
     sortable: true,
-    width: 132,
+    // 156 statt der urspruenglichen 132: der Kopier-Slot rechts belegt dauerhaft
+    // ~22px (Layout-stabil, s.u.) — bei 132 wuerde das FKZ sonst abgeschnitten.
+    width: 156,
     wrap: false,
     accessor: r => r.aktenzeichen,
     render: r => {
@@ -171,7 +174,10 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
       const ampelDays = !meta && ampel !== null ? daysSinceEingang(r) : null;
       const fkzText = meta ? meta.fkzRange : r.aktenzeichen;
       return (
-        <span className="inline-flex items-center gap-1.5">
+        // `max-w-full min-w-0`: die Zelle clippt (overflow:hidden) — ohne das
+        // schoebe ein langer FKZ-Range den Kopier-Knopf aus dem Sichtfeld,
+        // statt den Text zu kuerzen.
+        <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
           <span className="shrink-0 w-2 h-2 inline-flex items-center justify-center">
             {ampel !== null ? (
               <span
@@ -182,7 +188,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
               />
             ) : null}
           </span>
-          <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)] truncate">{fkzText}</span>
+          <span className="min-w-0 font-mono text-[11px] text-[var(--tf-text-tertiary)] truncate" title={fkzText}>{fkzText}</span>
           {meta ? (
             <span
               className="shrink-0 font-mono text-[10px] text-[var(--tf-text-tertiary)]"
@@ -191,6 +197,18 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
               ·{meta.tvCount}
             </span>
           ) : null}
+          {/* Kopier-Slot: belegt IMMER Platz (nur die Sichtbarkeit schaltet um),
+              sonst spraenge die Zelle beim Hover (Pitfall #14). `focus-within`,
+              damit der per Tab erreichbare Knopf nicht unsichtbar bleibt.
+              Kopiert wird der ANGEZEIGTE Wert — bei einer Verbund-Zeile also das
+              gepflegte Verbund-FKZ (ersatzweise die TV-Range, s. `verbundFkz`). */}
+          <span className="shrink-0 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity">
+            <KopierIconButton
+              text={fkzText}
+              title={meta ? 'Verbund-FKZ kopieren' : 'FKZ kopieren'}
+              ariaLabel={`${meta ? 'Verbund-FKZ' : 'FKZ'} ${fkzText} kopieren`}
+            />
+          </span>
         </span>
       );
     },

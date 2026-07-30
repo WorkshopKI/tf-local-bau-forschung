@@ -454,7 +454,12 @@ export function SortableTable<T>({
                 ) : null}
                 <tr
                   onClick={clickable ? () => onRowClick(row) : undefined}
-                  className={clickable ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : undefined}
+                  // `group/row`: benannte Hover-Gruppe, damit Zell-Renderer
+                  // Aktionen erst bei Hover ueber die ZEILE einblenden koennen
+                  // (`group-hover/row:…`, z.B. das Kopier-Icon der FKZ-Spalte).
+                  // Benannt, damit sie sich nicht mit einer `group` INNERHALB
+                  // einer Zelle kreuzt.
+                  className={clickable ? 'group/row cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : 'group/row'}
                   style={{
                     borderTop: '0.5px solid var(--tf-border)',
                     background: selected ? 'var(--tf-bg-secondary)' : undefined,

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.363 — 2026-07
+
+### Neu
+- Förderkennzeichen kopieren: In der Tabelle der Förderanträge erscheint beim Überfahren einer Zeile neben dem FKZ ein kleines Kopier-Symbol. Ein Klick legt das FKZ in die Zwischenablage, ohne den Antrag zu öffnen — bei einer Verbund-Zeile ist es das Verbund-FKZ.
+
 ## v2.362 — 2026-07
 
 ### Bugfixes

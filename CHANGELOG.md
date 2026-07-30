@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.363.0 — FKZ in der Tabelle per Klick kopieren (Juli 2026)
+
+MINOR — Das FKZ ist die Kennung, mit der ein Antrag ins Fachsystem, in eine Mail oder nach Excel weitergereicht wird — bisher ging das nur per Maus-Markierung, und die kollidiert in einer Zeile, deren Klick das Detail öffnet. Bei einer Verbund-Sammelzeile war es gar nicht markierbar.
+
+- Kopier-Icon in der FKZ-Spalte, sichtbar beim Überfahren der Zeile ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)); Verbund-Zeile kopiert das Verbund-FKZ.
+- Geteilter `KopierIconButton` ([KopierIconButton.tsx](src/components/ui/KopierIconButton.tsx)) — dritte Kopie desselben Knopfes vermieden, `TvTitelCopyButton` ist jetzt nur noch dessen TV-Hülle.
+- `SortableTable`-Zeilen tragen die benannte Hover-Gruppe `group/row` ([SortableTable.tsx](src/components/data-table/SortableTable.tsx)) — Zell-Renderer können Aktionen bei Zeilen-Hover einblenden.
+- FKZ-Spalte 132 → 156 px, Kopier-Slot belegt dauerhaft Platz (kein Layout-Sprung beim Hover, Pitfall #14).
+
 ### v2.362.1 — Dokumentablage legt fehlenden Suchindex selbst an (Juli 2026)
 
 PATCH — Eine per Drag-and-drop abgelegte PDF scheiterte mit rotem „Fehler: Orama not initialized". Ursache: die Orama-DB legten bisher nur der Dev-Seed und der Kurator-Vollindexlauf an — auf einer frischen Variant-IDB ohne Index vom Share blieb `db` die ganze Sitzung `null`, und in prod/pl gab es ohne Kurator-Rolle gar keinen Weg, sie je anzulegen. Der Wurf traf zudem erst NACH dem Speichern, riss also die schon gelungene Aufnahme mit (kein `docId`, kein `onIngested`).
