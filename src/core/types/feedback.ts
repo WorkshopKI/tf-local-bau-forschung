@@ -169,6 +169,18 @@ export type FeedbackClassification =
 export interface FeedbackItem {
   id: string;
   created_at: string;
+  /**
+   * Letzte Änderung der NUTZER-Felder (`title`/`text`/`structured`/`attachments`)
+   * durch den Autor — gesetzt vom „Ergänzen"-Ablauf (v2.364). Additiv/optional:
+   * alte Shared-Files ohne das Feld bleiben lesbar.
+   *
+   * Trägt zwei Aufgaben: die Anzeige „bearbeitet am …" UND die Merge-Entscheidung
+   * in `mergeItems` — lokaler Nutzertext gewinnt nur, wenn er nicht ÄLTER ist als
+   * der geteilte Stand. Ohne das würde eine veraltete lokale Vollkopie (die beim
+   * Kommentieren eines fremden Tickets entsteht) den Edit des Autors dauerhaft
+   * überschreiben.
+   */
+  updated_at?: string;
   user_id: string;
   user_display_name?: string;
   /** Optionaler, scannbarer Titel (Redesign v2.199). Fehlt bei Bestands-Feedback

@@ -20,6 +20,7 @@
   "features": {
     "kuratorMenus": false,
     "feedback": true,
+    "feedbackDelete": true,
     "dokumentenscan": false,
     "volltextsuche": false,
     "devInfraPanel": false,

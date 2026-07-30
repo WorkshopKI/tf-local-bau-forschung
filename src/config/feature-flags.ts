@@ -131,6 +131,23 @@ export function isDatenShareWritable(): boolean {
 export function canWriteDatenShare(isKurator: boolean): boolean {
   return isKurator || isDatenShareWritable();
 }
+/**
+ * Darf der aktuelle Build/Nutzer FREMDES Feedback verwalten (Status, Priorität,
+ * Kategorie, Aufwand, interne Notiz, öffentliche Antwort, FAQ-Markierung)?
+ *
+ * Komponiert aus `canWriteDatenShare` — KEIN eigener Flag (Muster von
+ * `canEditSkillRegistry`): wer die geteilte `feedback.json` schreiben darf,
+ * verwaltet auch Feedback. Damit bekommt die pl-Variante die Bearbeitung ohne
+ * Kurator-Profil (v2.364, `datenShareSchreibrecht: true`), während prod-Endnutzer
+ * read-only bleiben und weiter über Kommentare/Stimmen mitwirken.
+ *
+ * Physischer Guard bleibt das self-gated `writeSharedFile` — dieses Prädikat
+ * steuert nur die Sichtbarkeit der Bedienelemente. Destruktives Löschen hängt
+ * zusätzlich an `isFeedbackDeleteEnabled()`.
+ */
+export function canManageFeedback(isKurator: boolean): boolean {
+  return canWriteDatenShare(isKurator);
+}
 /** v2.11: MA-Login-Wall beim Start (Kuerzel aus Passwort entschluesselt). Nur
  *  prod + dev. Greift erst wenn die Zugangsdatei existiert (sonst Fallback aufs
  *  alte Kuerzelfeld). Siehe MaLoginGate + useMAIdentity + App.tsx-Startup-Gate. */

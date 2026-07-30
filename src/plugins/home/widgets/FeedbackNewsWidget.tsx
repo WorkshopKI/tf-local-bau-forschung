@@ -2,7 +2,8 @@
  * Feedback-Neuigkeiten-Widget (Home, Seitenspalte — Phase 1 v1.1).
  *
  * Read-only + Navigation: zeigt seit dem letzten Besuch Antworten aufs eigene
- * Feedback, neue Team-Tickets und Stimmen-Zuwächse (Selektor feedbackNews.ts).
+ * Feedback, Statuswechsel an Tickets, an denen ich beteiligt bin, neue
+ * Team-Tickets und Stimmen-Zuwächse (Selektor feedbackNews.ts).
  * Versteckt sich bewusst NICHT bei „nichts Neues" (Startseiten-Stabilität) —
  * dann eine ruhige Zeile. „Alles gelesen" setzt den gerätelokalen Anker.
  */
@@ -14,6 +15,7 @@ import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getFeedbackList } from '@/core/services/feedback';
 import { formatShortDate } from '@/components/feedback/feedbackUi';
+import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { berechneFeedbackNews, type FeedbackNewsEintrag } from './feedbackNews';
 import { useFeedbackNewsAnchor } from './useFeedbackNewsAnchor';
@@ -42,7 +44,7 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
     return () => { cancelled = true; };
   }, [storage]);
 
-  const { anker, markiereGelesen } = useFeedbackNewsAnchor(meId);
+  const { anker, markiereGelesen, ergaenzeAnker } = useFeedbackNewsAnchor(meId);
 
   // Erst-Anker nach dem ersten Item-Load setzen (aus den AKTUELLEN Ständen —
   // nichts ist rückwirkend „neu"). Läuft genau einmal (danach anker != null).
@@ -50,12 +52,26 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
     if (loaded && meId && anker === null) markiereGelesen(items);
   }, [loaded, meId, anker, items, markiereGelesen]);
 
+  // Neu hinzugekommene Beteiligungen mit ihrem aktuellen Status nachtragen —
+  // verschiebt „gelesen bis" NICHT, macht aber deren nächsten Statuswechsel
+  // sichtbar. No-op, sobald nichts Unbekanntes mehr dabei ist.
+  useEffect(() => {
+    if (loaded && meId && anker !== null) ergaenzeAnker(items);
+  }, [loaded, meId, anker, items, ergaenzeAnker]);
+
   const news = useMemo(
     () => (anker ? berechneFeedbackNews(items, meId, anker, maxEintraege, Date.now()) : []),
     [items, meId, anker, maxEintraege],
   );
 
   const gelesen = useAsyncAction(async () => { markiereGelesen(items); });
+
+  // Klick öffnet das betroffene Ticket, nicht nur das Board: Ticket vormerken,
+  // dann navigieren — FeedbackBoardPage konsumiert den Slot beim Mount.
+  const oeffneTicket = (ticketId: string): void => {
+    useFeedbackNavStore.getState().requestOpenTicket(ticketId);
+    navigate('feedback-board');
+  };
 
   const seitLabel = anker ? `seit ${formatShortDate(anker.anker)}` : undefined;
 
@@ -93,7 +109,7 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
       ) : (
         <div className="flex flex-col">
           {news.map((n, i) => (
-            <NewsZeile key={n.key} eintrag={n} onOpen={() => navigate('feedback-board')} last={i === news.length - 1} />
+            <NewsZeile key={n.key} eintrag={n} onOpen={() => oeffneTicket(n.ticketId)} last={i === news.length - 1} />
           ))}
           <button
             type="button"

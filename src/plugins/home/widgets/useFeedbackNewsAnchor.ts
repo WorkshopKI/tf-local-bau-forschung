@@ -8,8 +8,8 @@
  * Glocke nicht still leeren und umgekehrt.
  */
 import { useCallback, useEffect, useState } from 'react';
-import type { FeedbackItem } from '@/core/types/feedback';
-import { schnappschuss, type FeedbackNewsAnker } from './feedbackNews';
+import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import { ergaenzeUnbekannte, schnappschuss, type FeedbackNewsAnker } from './feedbackNews';
 
 const ANKER_KEY_PREFIX = 'teamflow_feedback_news_anchor_v1';
 
@@ -31,6 +31,9 @@ export function ladeFeedbackNewsAnker(meId: string | undefined): FeedbackNewsAnk
       anker: o.anker,
       stimmenStand: (o.stimmenStand && typeof o.stimmenStand === 'object' ? o.stimmenStand : {}) as Record<string, number>,
       antwortStand: (o.antwortStand && typeof o.antwortStand === 'object' ? o.antwortStand : {}) as Record<string, string>,
+      // Fehlt bei Ankern vor v2.364 → leer. Der Selektor feuert nur bei bekanntem
+      // Vorwert, deshalb ist ein leerer Stand still (kein Nachrichten-Schwall).
+      statusStand: (o.statusStand && typeof o.statusStand === 'object' ? o.statusStand : {}) as Record<string, FeedbackStatus>,
     };
   } catch {
     return null;
@@ -50,6 +53,13 @@ export interface FeedbackNewsAnkerApi {
   anker: FeedbackNewsAnker | null;
   /** „Alles gelesen": Anker = jetzt + Snapshot der aktuellen Stände. */
   markiereGelesen: (items: FeedbackItem[]) => void;
+  /**
+   * Trägt neu hinzugekommene Beteiligungen (Stimme/Kommentar/Sponsoring an einem
+   * fremden Ticket) mit ihrem AKTUELLEN Status nach — ohne den „gelesen bis"-
+   * Zeitpunkt zu verschieben. Ohne das bliebe der erste Statuswechsel eines
+   * gerade erst kommentierten Tickets unsichtbar.
+   */
+  ergaenzeAnker: (items: FeedbackItem[]) => void;
 }
 
 export function useFeedbackNewsAnchor(meId: string | undefined): FeedbackNewsAnkerApi {
@@ -67,5 +77,16 @@ export function useFeedbackNewsAnchor(meId: string | undefined): FeedbackNewsAnk
     setAnker(next);
   }, [meId]);
 
-  return { anker, markiereGelesen };
+  const ergaenzeAnker = useCallback((items: FeedbackItem[]): void => {
+    if (!meId) return;
+    setAnker(prev => {
+      if (!prev) return prev;
+      const next = ergaenzeUnbekannte(prev, items, meId);
+      if (!next) return prev; // nichts Neues → kein Write, kein Re-Render
+      speichere(meId, next);
+      return next;
+    });
+  }, [meId]);
+
+  return { anker, markiereGelesen, ergaenzeAnker };
 }

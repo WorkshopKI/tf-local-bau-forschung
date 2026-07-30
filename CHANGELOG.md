@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.364.0 — Feedback: Verwaltung im Board, Statuswechsel im Widget, eigenes Feedback fortschreiben (Juli 2026)
+
+MINOR — Feedback lief über zwei Oberflächen, und die PL kam an keine: `kuratorMenus: false` filterte die ganze `kuration`-Kategorie, obwohl der Service-Layer PL-Schreibrechte längst kannte. Ein Statuswechsel war nirgends sichtbar — das Home-Widget meldete nur neue Antworttexte. Und wer sein Feedback präzisieren wollte, musste ein zweites Ticket aufmachen. Ziel: EINE Feedback-Oberfläche, ein Ticket je Themenkomplex, das man fortschreibt. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
+
+- Verwaltungsrecht über `canManageFeedback` ([feature-flags.ts](src/config/feature-flags.ts), komponiert aus `canWriteDatenShare` — kein neuer Flag): Verwaltungs-Block am Ticket ([FeedbackVerwaltungBlock.tsx](src/components/feedback/FeedbackVerwaltungBlock.tsx)) + Zahnrad-Dialog für Inbox/FAQ/Sponsoring/Einstellungen ([FeedbackVerwaltungDialog.tsx](src/plugins/feedback-board/verwaltung/FeedbackVerwaltungDialog.tsx)); `feedbackDelete` jetzt auch für pl.
+- Menüpunkt Kuration → Feedback entfällt: `feedback-kuration` ist nur noch ein `hideFromNav`-Redirect ([FeedbackKurationRedirect.tsx](src/plugins/feedback/FeedbackKurationRedirect.tsx)); `useAutoCollectFeedback` wandert ins Board ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)) — es war der einzige Pfad, über den prod-Feedback ankommt.
+- Statuswechsel im Home-Widget, auch an fremden Tickets mit eigener Beteiligung (Stimme/Kommentar/Sponsoring) — vierte Ereignisart + `statusStand` am gerätelokalen Anker ([feedbackNews.ts](src/plugins/home/widgets/feedbackNews.ts)); Klick öffnet jetzt das Ticket.
+- Autoren ergänzen ihr abgesendetes Feedback nachträglich — Titel, typspezifische Felder, weitere Screenshots/Dateien ([FeedbackErgaenzenForm.tsx](src/components/feedback/FeedbackErgaenzenForm.tsx), `appendAttachments` in [feedbackService.ts](src/core/services/feedback/feedbackService.ts)).
+- Latenter Datenverlust behoben: `mergeItems` ließ lokalen Nutzertext bedingungslos gewinnen, obwohl `addComment` eine Vollkopie fremder Tickets lokal ablegt — jetzt entscheidet `updated_at` ([feedbackSharedFile.ts](src/core/services/feedback/feedbackSharedFile.ts)); Filter/Sortierung des Boards sind als reine Funktionen node-getestet ([boardFilter.ts](src/plugins/feedback-board/boardFilter.ts)).
+
 ### v2.363.0 — FKZ in der Tabelle per Klick kopieren (Juli 2026)
 
 MINOR — Das FKZ ist die Kennung, mit der ein Antrag ins Fachsystem, in eine Mail oder nach Excel weitergereicht wird — bisher ging das nur per Maus-Markierung, und die kollidiert in einer Zeile, deren Klick das Detail öffnet. Bei einer Verbund-Sammelzeile war es gar nicht markierbar.

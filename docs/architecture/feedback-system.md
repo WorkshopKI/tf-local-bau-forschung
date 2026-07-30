@@ -1,6 +1,26 @@
 # Feedback-System
 
-Integriertes User-Feedback + Admin-Dashboard + öffentliches Board mit Sponsoring (Phase 1+2+3 komplett).
+Integriertes User-Feedback + öffentliches Board mit Sponsoring, Verwaltung und Fortschreibung (Phase 1+2+3 komplett).
+
+## Konsolidierung v2.364 — EINE Feedback-Oberfläche
+
+Bis v2.363 gab es zwei Oberflächen: das Board für alle und ein Kurator-Plugin `feedback-kuration` („Kuration → Feedback", 5 Tabs), das in der **pl-Variante gar nicht existierte** (`kuratorMenus: false` filtert die ganze `kuration`-Kategorie in [plugins.config.ts](../../src/plugins.config.ts)). Der Service-Layer konnte längst — PL hat `datenShareSchreibrecht: true` und `writeSharedFile` ist self-gated —, es fehlte nur die UI. Mit v2.364 ist das Board die einzige Feedback-Seite:
+
+- **Rechte-Gate `canManageFeedback(isKurator)`** ([feature-flags.ts](../../src/config/feature-flags.ts)) — komponiert aus `canWriteDatenShare`, **kein neuer Flag** (Muster von `canEditSkillRegistry`, Pitfall #25 bleibt gewahrt). Wirkt in dev + pl + kurator + as; prod-Endnutzer bleiben read-only und wirken über Kommentare/Stimmen mit. Physischer Guard bleibt `writeSharedFile`.
+- **Ticket-Verwaltung am Ticket** — [FeedbackVerwaltungBlock.tsx](../../src/components/feedback/FeedbackVerwaltungBlock.tsx) (Status/Kategorie/Priorität/Aufwand/interne Notiz/öffentliche Antwort/FAQ/Claude-Code-Prompt/Löschen) hängt als eingeklappte `CollapsibleSection` im `FeedbackBoardDetail`. Löschen zusätzlich hinter `isFeedbackDeleteEnabled()` (dev + kurator + **pl** seit v2.364; `as` bewusst nicht).
+- **Ticket-freie Aufgaben im Dialog** — [verwaltung/FeedbackVerwaltungDialog.tsx](../../src/plugins/feedback-board/verwaltung/FeedbackVerwaltungDialog.tsx) (Zahnrad im Seitenkopf) mit den vier unverändert übernommenen Sektionen Inbox / FAQ / Sponsoring / Einstellungen. Kanonischer Modal-Pfad `Dialog` aus `@/components/ui/dialog` (Guard `no-raw-modal`), `dismissOnOverlayClick={false}` wegen der langen Formulare.
+- **`useAutoCollectFeedback` ist ins Board gewandert** — der Hook hing am Kurator-Plugin und ist der EINZIGE Pfad, über den Feedback/Stimmen/Kommentare der read-only-Nutzer aus deren Outboxen in die geteilte `feedback.json` gelangen. Ohne den Umzug wäre prod-Feedback still versiegt.
+- **`feedback-kuration` ist nur noch ein Redirect** — [FeedbackKurationRedirect.tsx](../../src/plugins/feedback/FeedbackKurationRedirect.tsx), `hideFromNav` + `category: 'tools'` (nicht `'kuration'`, damit die Route in JEDER Variante erreichbar bleibt), `/kuration/feedback` → `/feedback-board`. Vorbild: `ChatRedirect`. Der Menüpunkt und der Strg+K-Eintrag sind weg, alte Lesezeichen laufen weiter. `KURATION_PLUGIN_IDS` in [screenContext.ts](../../src/core/services/feedback/screenContext.ts) führt die ID nicht mehr; Redirect-Seiten sind vom Hilfe-Knopf-Guard ausgenommen (`REDIRECT_SEITEN` in `seitenHilfe.test.ts`, wie `chat`).
+- **Archivierte** sind für Verwalter per Checkbox einblendbar (Key `teamflow_feedback_show_archived` — dieselbe Vorliebe wie im früheren Dashboard).
+- **Filter/Sortierung des Boards** liegen als reine, node-getestete Funktionen in [boardFilter.ts](../../src/plugins/feedback-board/boardFilter.ts) (`matchesBoardFilter`/`compareBoardTickets`/`filterAndSortBoard`) — herausgezogen beim Anfassen der Seite, ersetzt die mit dem Dashboard entfallene `feedback-filter.ts`.
+
+## Eigenes Feedback fortschreiben (v2.364)
+
+Ziel: **ein** Ticket je Themenkomplex, das der Autor fortschreibt, statt eines neuen Tickets für jede Präzisierung. [FeedbackErgaenzenForm.tsx](../../src/components/feedback/FeedbackErgaenzenForm.tsx), erreichbar über „Ergänzen" neben dem Titel — sichtbar wenn `mine && darfVerwalten` (read-only prod würde nur lokal schreiben, dort bleibt der Kommentar-Thread der Weg).
+
+- Felder + Reihenfolge kommen aus **derselben** Quelle wie das Erfassungs-Formular (`FEEDBACK_TYPES`), `text` wird mit **demselben** `composeFeedbackText` neu zusammengesetzt — sonst driften Erfassung und Nachbearbeitung auseinander (Board/Liste/Suche rendern auf `text`). Alt-Tickets ohne `structured` bekommen ein einziges Freitext-Feld statt geratener Feldwerte.
+- Anhänge nachreichen über `appendAttachments` ([feedbackService.ts](../../src/core/services/feedback/feedbackService.ts)): Bytes zuerst per `writeSharedAttachment`, **dann** die Referenzen ins Ticket — schlägt der Share-Write fehl, wirft die Funktion, statt Referenzen auf nicht existierende Dateien zu hinterlassen.
+- **`updated_at` + Merge-Regel (Pflicht, nicht Kosmetik):** `mergeItems` ließ `local_item.text` bedingungslos gewinnen. `addComment` legt beim Kommentieren eines FREMDEN Tickets eine **Vollkopie** davon in den localStorage (`saveOwnCommentsLocally`) — solange Texte unveränderlich waren, harmlos; mit „Ergänzen" hätte jeder frühere Kommentator dauerhaft die alte Fassung gesehen und sie zurückgespielt. Neue Regel: der lokale Nutzerfeld-Block (`title`/`text`/`structured`/`attachments`) gewinnt nur, wenn er **nicht älter** ist als der geteilte Stand. Ohne `updated_at` auf beiden Seiten (alle Bestandsdaten) ist das Ergebnis byte-identisch zu vorher. `[test: mergeItems.updatedAt.test.ts]`
 
 ## Redesign v2.199 — Votes · Kommentare · Titel · Karten-Board
 
@@ -76,22 +96,26 @@ Substrat für den Prompt-Kontext oben: pro nutzer-sichtbarem Plugin ein Markdown
 - `promptGenerator.ts` — `generateClaudeCodePrompt(ticket)` mit TeamFlow-Constraints-Block. **Bevorzugt `ticket.structured`** (v2.41): rendert typspezifische `###`-Abschnitte — Bug: Schritte zur Reproduktion / Tatsächliches / Erwartetes Verhalten; Feature: Ziel / Begründung / Lösungsidee; UX: Aktuelles Problem / Gewünschte Verbesserung (nur nicht-leere Felder). Eine vorhandene `llm_classification.summary` wird als Einleitung vorangestellt, ersetzt die Felder aber nicht. Ohne `structured` (Alt-Tickets, Lob/Frage) → Fallback auf summary/details/Rohtext.
 - `feedbackSponsoring.ts` — **`isSponsorableCategory(category)`** = `idea || ux` ist die Single Source of Truth, welche Kategorien sponsorbar sind (statt verstreuter `=== 'idea'`-Vergleiche). `isSponsoringOpen` und alle Board-/Kurator-Stellen routen darüber.
 
-## Kurator-Plugin (`src/plugins/feedback/`, `id: 'feedback-kuration'`, `kuratorOnly: true`)
+## Verwaltung (`src/plugins/feedback-board/verwaltung/`, Zahnrad im Board-Kopf)
 
-- `FeedbackAdminPage.tsx` — 5 Tabs (Tickets / Inbox / FAQ / Sponsoring / Einstellungen) via `@/ui/Tabs`.
-- `sections/FeedbackTicketList.tsx` — Filter (Status/Kategorie/Bereich) als `CollapsibleSeg`-Dropdowns mit Live-Zählern (identisch zum öffentlichen Board, v2.21.4), Karten-Liste links.
-- `sections/FeedbackInboxTab.tsx` — sammelt die persönlichen Feedback-Outboxen der read-only-Enduser ein (User-Folders-Root → `<user>/ZAH/feedback/outbox/*.json`). **v2.22: Auto-Collect** — `useAutoCollectFeedback` ([hooks/useAutoCollectFeedback.ts](../../src/plugins/feedback/hooks/useAutoCollectFeedback.ts)) importiert beim Öffnen des Moduls alle offenen Outbox-Einträge **ohne Review** direkt in die zentrale `feedback.json` (Status „neu"; Service `autoCollectFeedbackOutboxes`, Outbox-id als FeedbackItem-id → idempotent). Der Inbox-Tab dient weiterhin dem einmaligen User-Wurzel-Connect (FSAPI-Geste) + manuellem Nachladen/Override. **v2.41:** `submitToOutbox` (in `feedbackService.ts`) reicht jetzt `category` + `structured` mit, und `toFeedbackItem` mappt sie ins `FeedbackItem` — vorher gingen beide im prod-Pfad verloren (alles landete als „Unklassifiziert", obwohl der User den Typ gewählt hatte). `FeedbackOutboxItem` (`personal-storage/types.ts`) hat dafür `category?` (bestand) + `structured?` (neu).
-- `sections/FeedbackTicketDetail.tsx` — Status-Dropdown, Priority-Slider, **Aufwand-Dropdown (S/M/L/XL, für sponsorbare Kategorien = Ideen)**, **Sponsoring-Fortschritt-Block mit "Schwelle erreicht"-Hinweis**, **Screenshot-Galerie** (`TicketScreenshots`, v2.42), Notizen, FAQ-Markierung + Antwort + Stichwörter, "Claude Code Prompt generieren" mit Copy + Download .md.
-- `sections/FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
-- `sections/FeedbackSponsoringOverview.tsx` — Phase 3: Features-Ranking nach Progress, konfigurierbare Schwellen (S/M/L/XL + Hours-Faktor + Budget/Quartal), Budget-Statistik.
-- `sections/FeedbackConfigPanel.tsx` — Modell-Dropdown (Default `openai/gpt-oss-120b`), Max-Turns-Slider (2–12), System-Prompt-Pfad + Vorschau + "System-Prompt initialisieren"-Button (nur wenn Datei fehlt), Shared-File Status.
+Die vier Aufgaben ohne Ticket-Bezug — bis v2.363 Tabs des Kurator-Dashboards, seit v2.364 unverändert im Verwaltungs-Dialog des Boards. Gated über `canManageFeedback`.
 
-## Öffentliches Board (Phase 3, `src/plugins/feedback-board/`, `id: 'feedback-board'`, KEIN kuratorOnly)
+- `FeedbackVerwaltungDialog.tsx` — `Dialog` (size `xl`, align `top`) + `Tabs` über die vier Sektionen; `tickets` kommt ungefiltert herein (FAQ + Sponsoring brauchen auch die archivierten).
+- `FeedbackInboxTab.tsx` — sammelt die persönlichen Feedback-Outboxen der read-only-Enduser ein (User-Folders-Root → `<user>/ZAH/feedback/outbox/*.json`). **Auto-Collect** — `useAutoCollectFeedback` ([verwaltung/useAutoCollectFeedback.ts](../../src/plugins/feedback-board/verwaltung/useAutoCollectFeedback.ts)) importiert beim Öffnen des **Boards** alle offenen Outbox-Einträge **ohne Review** direkt in die zentrale `feedback.json` (Status „neu"; Service `autoCollectFeedbackOutboxes`, Outbox-id als FeedbackItem-id → idempotent). Der Inbox-Tab dient weiterhin dem einmaligen User-Wurzel-Connect (FSAPI-Geste) + manuellem Nachladen/Override. **v2.41:** `submitToOutbox` (in `feedbackService.ts`) reicht `category` + `structured` mit, und `toFeedbackItem` mappt sie ins `FeedbackItem` — vorher gingen beide im prod-Pfad verloren (alles landete als „Unklassifiziert", obwohl der User den Typ gewählt hatte). `FeedbackOutboxItem` (`personal-storage/types.ts`) hat dafür `category?` + `structured?`.
+- `FeedbackFaqTab.tsx` — Übersicht aller `is_faq===true` Items + manuell anlegen + bearbeiten + Markierung entfernen + löschen.
+- `FeedbackSponsoringOverview.tsx` — Phase 3: Features-Ranking nach Progress, konfigurierbare Schwellen (S/M/L/XL + Hours-Faktor + Budget/Quartal), Budget-Statistik.
+- `FeedbackConfigPanel.tsx` — Modell-Dropdown (Default `openai/gpt-oss-120b`), Max-Turns-Slider (2–12), System-Prompt-Pfad + Vorschau + "System-Prompt initialisieren"-Button (nur wenn Datei fehlt), Shared-File Status.
+
+Der Ticket-Teil des alten Dashboards (`FeedbackAdminPage`, `FeedbackTicketList`, `FeedbackTicketDetail`, `feedback-filter.ts`, der `TicketScreenshots`-Re-Export) ist entfallen — die Felder leben im `FeedbackVerwaltungBlock` am Ticket, Filter/Zähler in `boardFilter.ts`.
+
+## Feedback-Board (`src/plugins/feedback-board/`, `id: 'feedback-board'`, KEIN kuratorOnly)
 
 - Sichtbar für alle User in Sidebar Tools-Gruppe (order: 75).
 - `FeedbackBoardPage.tsx` (Redesign v2.199/v2.210, Lanes + Dichte v2.225 — Handoff `_design/handoff/feedback-kanban`) — `PageHeader` „Feedback" + Zähler (Probleme/Ideen) + `NotificationBell` + `BudgetBadge`; Toolbar mit Scope-Segmenten (`ScopeTabs variant="segmented"`, Alle/Von mir/Vom Team), Suche, `FeedbackSortSelect` (5 Ordnungen), Ansicht-Toggle (Liste/Board, **Standard Board**) + **Dichte-Umschalter** (Komfort/Kompakt, `dense`-Prop an Karten/Kanban); Typ-Filter-Chips (`FeedbackTypeChips`) + `FeedbackStatusSelect` (nur Liste); `MyProgressBar` (Scope „Von mir"); `MasterDetailLayout`-Split mit `FeedbackBoardDetail`. localStorage: Ansicht `tf-feedback-board-view-v3` (Key-Bump v2.354 beim Default-Wechsel auf Board), Sortierung `tf-feedback-board-sort-v3`, Dichte `tf-feedback-board-density-v1`.
 - **Kanban (v2.225)**: farbige Status-Lanes (`STATUS_LANE_ACCENT`/`STATUS_COLUMN_ICONS` in `constants.ts`; Tönungen per `color-mix` mit `--tf-bg`/`--tf-text`/`--tf-border`, neue Akzent-Tokens `--tf-fb-lane-neu`/`--tf-fb-lane-abgelehnt` in theme.css Light+Dark). Lob erscheint nur in der Liste (keine Board-Spalte); leere Spalten = farbige 46px-Rails. Board-Karte „akzent": Typ-farbige Linkskante, Typ-Label + „Antwort"-Badge + Datum, optionales Thumbnail (`FeedbackScreenshots variant="board"`, Lightbox), Footer Avatar + Name + Metriken (Datei/Kommentare/Punkte) bzw. **interaktive Vote-Pill** (bewusste Handoff-Abweichung: Hybrid Votes+Sponsoring bleibt).
 - Identität für Scope/Votes/Kommentare = `useMeinKuerzel() ?? profile.name`.
+- **Verwalter-Zusätze (v2.364, alle hinter `canManageFeedback`)**: Zahnrad im `PageHeader` → `FeedbackVerwaltungDialog`; Checkbox „Archivierte einblenden" in der Filterzeile (`teamflow_feedback_show_archived`); `darfVerwalten`-Prop ans Detail-Panel (schaltet `FeedbackVerwaltungBlock` + „Ergänzen" frei).
+- **Filter/Sortierung** liegen als reine Funktionen in `boardFilter.ts` — die Seite hält nur noch Zustand + Darstellung.
 - Sponsoring bleibt zusätzlich zum Vote (im Detail-Panel eigener Abschnitt, nur sponsorbare Kategorien = Ideen mit `effort_estimate`).
 
 ## Board-Komponenten (`src/components/feedback/`)
@@ -115,12 +139,12 @@ Substrat für den Prompt-Kontext oben: pro nutzer-sichtbarem Plugin ein Markdown
 - **Keine Auto-Transition**: Schwelle erreicht → Admin bekommt Hinweis "Status manuell auf Geplant setzen?", entscheidet selbst.
 - Sponsoring geschlossen sobald Status `in_bearbeitung`/`umgesetzt`/`abgelehnt`.
 
-## Admin-Gating
+## Rechte-Gating
 
-- `UserProfile.is_admin?: boolean` (`src/core/types/config.ts`)
-- `ShellLayout.tsx` filtert `enabledPlugins` → Plugins mit `kuratorOnly: true` nur sichtbar wenn `profile?.is_kurator === true` (Fallback auf Legacy-Feld `is_admin` / `adminOnly` beim Laden vor-v1.9-Profile).
-- Aktivierung: Onboarding Step 0 (Checkbox) ODER Einstellungen → Profil-Tab → "Kurator-Funktionen aktivieren"
-- Default: `false` (jeder Nutzer kann sich selbst zum Kurator machen — single-user trust model)
+Das Feedback-System hat seit v2.364 **kein `kuratorOnly`-Plugin mehr** — es gibt nur das Board, dessen Verwaltungs-Bedienelemente an `canManageFeedback(isKurator)` hängen (siehe „Konsolidierung v2.364"). Das Kurator-Profil ist damit nur noch EINER von zwei Wegen zum Schreibrecht; der andere ist die Build-Variante (`datenShareSchreibrecht`), weshalb die PL ohne Login verwalten kann.
+
+- `UserProfile.is_kurator?: boolean` (Legacy-Alias `is_admin`, `src/core/types/config.ts`) — Aktivierung über Onboarding Step 0 (Checkbox) ODER Einstellungen → Profil-Tab → „Kurator-Funktionen aktivieren". Default `false` (jeder Nutzer kann sich selbst zum Kurator machen — single-team trust model).
+- `ShellLayout.tsx` filtert `enabledPlugins` weiter für andere `kuratorOnly`-Plugins; für Feedback ist das ohne Belang.
 
 ## LLM-Transport-Erweiterung (`src/core/services/ai/transports/`)
 

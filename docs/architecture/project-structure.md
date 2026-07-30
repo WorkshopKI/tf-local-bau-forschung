@@ -139,7 +139,16 @@ src/
 │   ├── dokumente/               <- Dokumenten-Browser (id='dokumente', Phase-2-Platzhalter)
 │   ├── suche/                   <- Hybrid-Suche-UI (id='suche', Orama + Vector; v2.164: SuchSeite = schlanke Komposition aus SearchInput.tsx + useSearchResults.ts + SearchResultsTable/AnalysePromptDialog)
 │   ├── chat/                    <- AI-Chat (id='chat')
-│   ├── feedback-board/          <- Öffentliches Feedback-Board (id='feedback-board', KEIN kuratorOnly)
+│   ├── feedback-board/          <- Feedback-Board, EINZIGE Feedback-Seite (id='feedback-board', KEIN kuratorOnly)
+│   │   ├── FeedbackBoardPage.tsx     <- Zustand + Darstellung (Liste/Kanban, Master-Detail, Zahnrad)
+│   │   ├── boardFilter.ts            <- reine Filter-/Sortier-Logik (node-getestet), v2.364
+│   │   └── verwaltung/               <- nur mit canManageFeedback: Dialog + die 4 ticket-freien Aufgaben
+│   │       ├── FeedbackVerwaltungDialog.tsx   <- Dialog + Tabs (Inbox / FAQ / Sponsoring / Einstellungen)
+│   │       ├── FeedbackInboxTab.tsx           <- Outboxen der read-only-Nutzer einsammeln
+│   │       ├── FeedbackFaqTab.tsx
+│   │       ├── FeedbackSponsoringOverview.tsx <- Features-Ranking + Schwellen-Form + Budget-Stats
+│   │       ├── FeedbackConfigPanel.tsx
+│   │       └── useAutoCollectFeedback.ts      <- im Board gemountet (einziger Pfad fuer prod-Feedback!)
 │   ├── einstellungen/           <- Profil, Theme, AI-Provider, is_kurator-Toggle (id='einstellungen')
 │   # Kurator-Plugins (category 'kuration', kuratorOnly: true) — Directory-Name == Plugin-ID
 │   ├── kurator/                 <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
@@ -147,14 +156,8 @@ src/
 │   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie; v2.18: csv-source-handle.ts pickAndLinkCsvSource + components/CsvSourceLinkDialog.tsx für pl-Handle-Lücke; v2.164: CsvSourcesPage = Container aus SourceList.tsx + MaintenanceSection.tsx + SourceModals.tsx + csv-file-picker.ts)
 │   ├── dokumentenquellen-kuration/ <- DMS-Quellen-Verwaltung (id='dokumentenquellen-kuration', v1.15, Multi-Source + Indexierung)
 │   ├── filter-kuration/         <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
-│   ├── feedback/                <- Feedback-Verwaltung (id='feedback-kuration', 4 Tabs)
-│   │   ├── FeedbackAdminPage.tsx    <- 4 Tabs (Tickets / FAQ / Sponsoring / Einstellungen)
-│   │   ├── sections/
-│   │   │   ├── FeedbackTicketList.tsx
-│   │   │   ├── FeedbackTicketDetail.tsx      <- + Aufwand-Dropdown + Sponsoring-Info (Phase 3)
-│   │   │   ├── FeedbackFaqTab.tsx
-│   │   │   ├── FeedbackSponsoringOverview.tsx <- Phase 3: Features-Ranking + Schwellen-Form + Budget-Stats
-│   │   │   └── FeedbackConfigPanel.tsx
+│   ├── feedback/                <- NUR NOCH REDIRECT (id='feedback-kuration', hideFromNav; v2.364 im Board aufgegangen)
+│   │   ├── FeedbackKurationRedirect.tsx  <- /kuration/feedback -> /feedback-board (alte Lesezeichen)
 │   │   └── index.ts
 │   ├── dokument-review/         <- Phase-2 Review-Queue UI (id='dokument-review', kuratorOnly + features.dokumentenscan)
 │   │   ├── DokumentReviewPage.tsx

@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.364 — 2026-07
+
+### Neu
+- **Eigenes Feedback ergänzen statt neu melden.** Beim eigenen Ticket steht neben dem Titel „Ergänzen": damit lassen sich Überschrift und Antworten nachträglich überarbeiten und weitere Screenshots oder Dateien anhängen. Gedacht für ein Ticket je Thema, das man fortschreibt — statt für jede Präzisierung ein neues aufzumachen. Wann es zuletzt bearbeitet wurde, steht unter dem Namen.
+- **Statuswechsel erscheinen auf der Startseite.** Das Widget „Feedback-Neuigkeiten" meldete bisher nur, wenn das Team etwas geantwortet hat. Jetzt sieht man auch, wenn ein Feedback von „Neu" auf „In Bearbeitung" oder „Umgesetzt" springt — nicht nur beim eigenen, sondern bei jedem Ticket, an dem man beteiligt ist (abgestimmt, kommentiert oder gesponsert). Ein Klick öffnet das Ticket direkt.
+
+### Verbesserungen
+- **Feedback wird jetzt an einer Stelle bearbeitet.** Der separate Menüpunkt „Kuration → Feedback" ist entfallen. Alles passiert direkt im Feedback-Board: am geöffneten Ticket ein ausklappbarer Abschnitt „Verwaltung" (Status, Kategorie, Priorität, Aufwand, Notizen, öffentliche Antwort, FAQ, Löschen), im Seitenkopf ein Zahnrad für Inbox, FAQ, Sponsoring und Einstellungen. Wer noch ein Lesezeichen auf die alte Seite hat, landet automatisch auf dem Board.
+- **Die Projektleitung kann Feedback bearbeiten.** Bisher war das an das Kurator-Profil gebunden und in der PL-Fassung gar nicht vorhanden. Zusätzlich lassen sich archivierte Tickets bei Bedarf einblenden.
+
 ## v2.363 — 2026-07
 
 ### Neu

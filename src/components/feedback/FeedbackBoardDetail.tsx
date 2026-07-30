@@ -1,15 +1,18 @@
-// User-Detail-Panel des öffentlichen Boards (rechte Spalte der Split-Ansicht,
-// Redesign v2.208). Rein lesend für die Feedback-Inhalte + interaktiv für
-// Sponsoring/Votes/Kommentare. KEINE Kurator-Edit-Felder. Neu: dateloser
+// Detail-Panel des Feedback-Boards (rechte Spalte der Split-Ansicht,
+// Redesign v2.208). Lesend für die Feedback-Inhalte + interaktiv für
+// Sponsoring/Votes/Kommentare. Seit v2.364 ist es die EINZIGE Feedback-
+// Bearbeitungsstelle: mit Verwaltungsrecht (`canManageFeedback`) hängt der
+// Verwaltungs-Block darunter, dem Autor steht „Ergänzen" offen. Dateloser
 // Fortschritts-Stepper, Sponsoring-Panel (großes X/Y + +/− + Budget-Hinweis),
 // hervorgehobene Team-Antwort (ungelesen → rot + „Neu"). Bringt eigenes Scrollen
 // mit (das MasterDetailLayout-Detail-Pane ist overflow-hidden).
 
 import { useEffect, useState } from 'react';
-import { MessageSquare, X } from 'lucide-react';
+import { MessageSquare, Pencil, X } from 'lucide-react';
 import { isSponsorableCategory } from '@/core/services/feedback';
 import { EFFORT_LABELS } from '@/core/types/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import {
   CATEGORY_COLORS,
   CATEGORY_ICONS,
@@ -27,6 +30,8 @@ import { FeedbackVotePill } from './FeedbackVotePill';
 import { FeedbackCommentThread } from './FeedbackCommentThread';
 import { FeedbackStepper } from './FeedbackStepper';
 import { FeedbackSponsorPanel } from './FeedbackSponsorPanel';
+import { FeedbackVerwaltungBlock } from './FeedbackVerwaltungBlock';
+import { FeedbackErgaenzenForm } from './FeedbackErgaenzenForm';
 
 interface Props {
   ticket: FeedbackItem;
@@ -39,6 +44,8 @@ interface Props {
   unread?: boolean;
   /** Beim Öffnen als gesehen markieren (klärt Glocke + „Antwort"-Marker). */
   markSeen?: (ticket: FeedbackItem) => void;
+  /** Verwaltungs-Block zeigen (Aufrufer entscheidet über `canManageFeedback`). */
+  darfVerwalten?: boolean;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }): React.ReactElement {
@@ -47,7 +54,7 @@ function SectionLabel({ children }: { children: React.ReactNode }): React.ReactE
   );
 }
 
-export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, meName, unread, markSeen }: Props): React.ReactElement {
+export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, meName, unread, markSeen, darfVerwalten }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const mine = !!meId && ticket.user_id === meId;
   const author = mine ? 'Du' : (feedbackAuthorLabel(ticket) ?? 'Unbekannt');
@@ -64,6 +71,13 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
   // Aufrufer keyt dieses Panel per ticket.id → useState wird pro Ticket frisch.
   const [highlightReply] = useState(!!unread);
   useEffect(() => { markSeen?.(ticket); }, [ticket, markSeen]);
+
+  // „Ergänzen" (v2.364): nur der Autor, und nur auf Clients, die den Daten-Share
+  // schreiben können (`darfVerwalten`) — read-only prod würde sonst lokal
+  // editieren, ohne dass es beim Team ankommt. Dort bleibt der Kommentar-Thread.
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const darfErgaenzen = mine && !!darfVerwalten;
+  useEffect(() => { setBearbeiten(false); }, [ticket.id]);
 
   return (
     <div className="h-full overflow-y-auto flex flex-col">
@@ -95,14 +109,39 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
           <button type="button" onClick={onClose} className="p-1 rounded hover:bg-[var(--tf-hover)] cursor-pointer text-[var(--tf-text-tertiary)] shrink-0" aria-label="Schließen"><X size={16} /></button>
         </div>
 
-        {/* Titel + Autor */}
+        {/* Titel + Autor (+ „Ergänzen" für den Autor) */}
         <div>
-          <h2 className="text-[19px] font-medium text-[var(--tf-text)] leading-snug break-words">{feedbackTitle(ticket, Infinity)}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="min-w-0 flex-1 text-[19px] font-medium text-[var(--tf-text)] leading-snug break-words">{feedbackTitle(ticket, Infinity)}</h2>
+            {darfErgaenzen && !bearbeiten && (
+              <button
+                type="button"
+                onClick={() => setBearbeiten(true)}
+                title="Eigenes Feedback ergänzen — Titel, Felder, weitere Anhänge"
+                className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                <Pencil size={12} /> Ergänzen
+              </button>
+            )}
+          </div>
           <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-tertiary)]">
             <FeedbackAvatar name={author} size={20} />
-            <span className="truncate">von <span className="text-[var(--tf-text-secondary)]">{author}</span> · {formatShortDate(ticket.created_at)}</span>
+            <span className="truncate">
+              von <span className="text-[var(--tf-text-secondary)]">{author}</span> · {formatShortDate(ticket.created_at)}
+              {ticket.updated_at ? ` · bearbeitet ${formatShortDate(ticket.updated_at)}` : ''}
+            </span>
           </p>
         </div>
+
+        {/* Bearbeiten-Modus ersetzt die Felder-Anzeige unten */}
+        {bearbeiten && (
+          <FeedbackErgaenzenForm
+            ticket={ticket}
+            onFertig={() => setBearbeiten(false)}
+            onChanged={onChanged}
+          />
+        )}
 
         {/* Fortschritt (dateloser Stepper) */}
         {!isPraise && (
@@ -112,8 +151,9 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
           </div>
         )}
 
-        {/* Felder: alle Q&A ausgeschrieben (Lob als Zitat) */}
-        {segments.length > 0 && (
+        {/* Felder: alle Q&A ausgeschrieben (Lob als Zitat) — im Bearbeiten-Modus
+            zeigt das Formular oben dieselben Werte editierbar. */}
+        {!bearbeiten && segments.length > 0 && (
           isPraise && !segments[0]?.frage ? (
             <p className="text-[15px] italic text-[var(--tf-text)] leading-relaxed">„{segments[0]?.antwort}"</p>
           ) : (
@@ -166,6 +206,19 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
             <FeedbackCommentThread ticket={ticket} meId={meId} meName={meName} onChanged={onChanged} />
           </div>
         </div>
+
+        {/* Verwaltung — eingeklappt, damit das Panel für Verwalter nicht mit
+            Formularfeldern aufmacht. Auf/Zu überlebt den Reload. */}
+        {darfVerwalten && (
+          <CollapsibleSection label="Verwaltung" storageKey="tf-feedback-board-verwaltung-offen">
+            <FeedbackVerwaltungBlock
+              ticket={ticket}
+              config={config}
+              onChanged={onChanged}
+              onDeleted={onClose}
+            />
+          </CollapsibleSection>
+        )}
       </div>
 
       {/* Footer: Vote-Button + Hinweis (budgetfreies „Ich auch"-Signal) */}

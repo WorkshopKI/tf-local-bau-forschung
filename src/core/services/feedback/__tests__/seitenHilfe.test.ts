@@ -14,18 +14,23 @@ const PLUGINS_DIR = join(REPO, 'src', 'plugins');
 const SEITEN_DOCS = readdirSync(DOCS_DIR)
   .filter(name => name.endsWith('.md') && name.toLowerCase() !== 'readme.md');
 
+/** Plugins, die nur noch auf eine andere Seite umleiten (kein eigener Bildschirm). */
+const REDIRECT_SEITEN = new Set(['chat', 'feedback-kuration']);
+
 /**
  * Seiten, die ein Doc haben und darum auch den Hilfe-Knopf tragen müssen.
- * `kuration` ist keine Plugin-ID, sondern das gemeinsame Doc der acht
+ * `kuration` ist keine Plugin-ID, sondern das gemeinsame Doc der sieben
  * Kurator-Seiten — die stehen einzeln in KURATION_PLUGIN_IDS.
  */
 const HILFE_PFLICHT: string[] = [
   ...getKnownScreenContextIds().filter(id => id !== 'kuration'),
   ...KURATION_PLUGIN_IDS,
 ]
-  // `chat` ist seit dem Panel-Umbau ein hideFromNav-Redirect auf /suche und hat
-  // keinen eigenen Seitenkopf; das Doc dient nur noch der Feedback-KI.
-  .filter(id => id !== 'chat');
+  // `hideFromNav`-Redirects haben keinen eigenen Seitenkopf, also auch keinen Platz
+  // für den Hilfe-Knopf; ihr Doc dient nur noch der Feedback-KI (sie erklärt, wohin
+  // die Seite aufgegangen ist). `chat` → /suche?assistent=1 (Panel-Umbau),
+  // `feedback-kuration` → /feedback-board (v2.364, Verwaltung ist im Board).
+  .filter(id => !REDIRECT_SEITEN.has(id));
 
 /** Alle `pluginId="…"`-Werte, mit denen der Hilfe-Knopf irgendwo eingebaut ist. */
 function verdrahteteIds(): Set<string> {

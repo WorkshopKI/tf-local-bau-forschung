@@ -229,6 +229,9 @@ export async function updateFeedback(
     // `text`/`original_text` (v2.206): der geführte „verbessern"-Ablauf ersetzt
     // `text` durch die polierte Fassung und bewahrt das Original in `original_text`.
     | 'text' | 'original_text'
+    // `updated_at` (v2.364): Zeitstempel des „Ergänzen"-Ablaufs — trägt die Anzeige
+    // „bearbeitet am …" UND die Nutzertext-Precedence in `mergeItems`.
+    | 'updated_at'
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
     | 'effort_estimate' | 'effort_hours' | 'votes' | 'comments'
@@ -257,6 +260,35 @@ export async function updateFeedback(
     await writeSharedFile(storage, [{ ...localItem, ...updates }]);
   }
   emitFeedbackUpdated();
+}
+
+/**
+ * Hängt weitere Screenshots/Dateien an ein BESTEHENDES Ticket (v2.364,
+ * „Ergänzen"-Ablauf des Autors). Schreibt die Bytes ins Shared-Attachment-
+ * Verzeichnis und ergänzt danach die Referenzliste des Tickets.
+ *
+ * Nur für Clients mit Share-Schreibrecht: `writeSharedAttachment` ist self-gated
+ * und liefert `false` ohne readwrite — dann bricht die Funktion ab, statt
+ * Referenzen auf Dateien zu hinterlassen, die es nirgends gibt. Read-only-Nutzer
+ * (prod) ergänzen über den Kommentar-Thread, der einen Outbox-Pfad hat.
+ *
+ * Liefert die neue, vollständige Referenzliste (bestehende + neue).
+ */
+export async function appendAttachments(
+  storage: StorageService,
+  ticketId: string,
+  bestehende: readonly FeedbackAttachment[] | undefined,
+  neue: readonly SubmitAttachment[],
+): Promise<FeedbackAttachment[]> {
+  if (neue.length === 0) return [...(bestehende ?? [])];
+  const { refs, blobs } = buildAttachmentRefs(ticketId, neue);
+  for (const a of blobs) {
+    const ok = await writeSharedAttachment(storage, a.filename, a.blob);
+    if (!ok) throw new Error('Anhänge konnten nicht auf dem Daten-Share gespeichert werden (kein Schreibrecht).');
+  }
+  const alle = [...(bestehende ?? []), ...refs];
+  await updateFeedback(storage, ticketId, { attachments: alle, updated_at: new Date().toISOString() });
+  return alle;
 }
 
 export async function deleteFeedback(storage: StorageService, id: string): Promise<void> {

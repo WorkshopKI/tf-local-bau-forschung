@@ -6,7 +6,7 @@
 // (Master-Detail-Split) mit Stepper, Sponsoring-Panel, Votes + Kommentaren.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { List, Columns3, Rows3, Search } from 'lucide-react';
+import { List, Columns3, Rows3, Search, Settings2 } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -29,10 +29,8 @@ import { MyProgressBar } from '@/components/feedback/MyProgressBar';
 import { useUnreadReplies } from '@/components/feedback/useUnreadReplies';
 import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
 import { CATEGORY_DOT } from '@/components/feedback/constants';
-import { feedbackTitle } from '@/components/feedback/feedbackUi';
 import {
   getFeedbackList,
-  getSponsoringProgress,
   isClassifiedAs,
   isSponsorableCategory,
   loadFeedbackConfig,
@@ -40,6 +38,7 @@ import {
 } from '@/core/services/feedback';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
+import { canManageFeedback } from '@/config/feature-flags';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { FeedbackKanbanEinstellungen } from '@/components/feedback/FeedbackKanbanEinstellungen';
 import {
@@ -47,15 +46,19 @@ import {
   saveBoardKanbanConfig,
   type BoardKanbanConfig,
 } from '@/components/feedback/boardKanbanConfig';
+import { FeedbackVerwaltungDialog } from './verwaltung/FeedbackVerwaltungDialog';
+import { useAutoCollectFeedback } from './verwaltung/useAutoCollectFeedback';
+import { filterAndSortBoard, type BoardScope } from './boardFilter';
 
 type ViewMode = 'liste' | 'board';
-type Scope = 'alle' | 'mir' | 'team';
 
 // Key-Bump `_v3`: Standard ist jetzt „Board" (Fortschritt auf einen Blick);
 // gewonnen hätte sonst der alte, in localStorage gespeicherte 'liste'-Eintrag.
 const VIEW_MODE_KEY = 'tf-feedback-board-view-v3';
 const SORT_KEY = 'tf-feedback-board-sort-v3';
 const DENSITY_KEY = 'tf-feedback-board-density-v1';
+// Derselbe Key wie im früheren Kurator-Dashboard — die Vorliebe zieht mit um.
+const ARCHIV_KEY = 'teamflow_feedback_show_archived';
 const SORT_VALUES: readonly FeedbackSort[] = ['neu', 'pkt', 'naht', 'sup', 'kmt'];
 
 function loadViewMode(): ViewMode {
@@ -73,6 +76,10 @@ function loadDense(): boolean {
   try { return localStorage.getItem(DENSITY_KEY) === 'dense'; } catch { /* ignore */ }
   return false;
 }
+function loadZeigeArchiv(): boolean {
+  try { return localStorage.getItem(ARCHIV_KEY) === '1'; } catch { /* ignore */ }
+  return false;
+}
 
 const CATEGORY_CHIPS: Array<{ key: FeedbackCategory; label: string }> = [
   { key: 'problem', label: 'Problem' },
@@ -83,25 +90,35 @@ const CATEGORY_CHIPS: Array<{ key: FeedbackCategory; label: string }> = [
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
+  // Sammelt die persönlichen Feedback-/Stimmen-/Kommentar-Outboxen der
+  // read-only-Nutzer ein (einmal pro App-Session, self-gated: ohne verbundene
+  // User-Wurzel bzw. ohne Schreibrecht ein No-op). Hing bis v2.363 am
+  // Kurator-Plugin — ohne diesen Aufruf versiegte prod-Feedback still.
+  useAutoCollectFeedback();
   const { profile } = useProfile();
   const kuerzel = useMeinKuerzel();
   // Identität für Scope + Votes + Kommentare + Budget: Kürzel (Login) → sonst Profilname.
   const meId = kuerzel ?? (profile?.name && profile.name !== 'anonymous' ? profile.name : undefined);
   const meName = profile?.name && profile.name !== 'anonymous' ? profile.name : kuerzel;
+  // Verwaltungsrecht (v2.364): Kurator-Profil ODER Build mit Share-Schreibrecht
+  // (pl/kurator/as/dev). Ersetzt den früheren Menüpunkt Kuration → Feedback.
+  const darfVerwalten = canManageFeedback(profile?.is_kurator === true || profile?.is_admin === true);
 
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
-  const [scope, setScope] = useState<Scope>('alle');
+  const [scope, setScope] = useState<BoardScope>('alle');
   const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
   const [statusFilter, setStatusFilter] = useState<FeedbackStatusFilter>('alle');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<FeedbackSort>(loadSort);
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const [dense, setDense] = useState<boolean>(loadDense);
+  const [zeigeArchiv, setZeigeArchiv] = useState<boolean>(loadZeigeArchiv);
   const [kanbanConfig, setKanbanConfig] = useState<BoardKanbanConfig>(loadBoardKanbanConfig);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [verwaltungOffen, setVerwaltungOffen] = useState(false);
 
   const changeViewMode = useCallback((m: ViewMode): void => {
     setViewMode(m);
@@ -121,6 +138,10 @@ export function FeedbackBoardPage(): React.ReactElement {
       try { localStorage.setItem(DENSITY_KEY, next ? 'dense' : 'comfort'); } catch { /* ignore */ }
       return next;
     });
+  }, []);
+  const changeZeigeArchiv = useCallback((v: boolean): void => {
+    setZeigeArchiv(v);
+    try { localStorage.setItem(ARCHIV_KEY, v ? '1' : '0'); } catch { /* ignore */ }
   }, []);
 
   const reload = useCallback(async (silent = false): Promise<void> => {
@@ -161,8 +182,13 @@ export function FeedbackBoardPage(): React.ReactElement {
   const isBug = isClassifiedAs('problem');
   const isFeature = (t: FeedbackItem): boolean => isSponsorableCategory(t.category);
 
-  // Nicht-archivierte Basis für Zähler + Filter.
-  const base = useMemo(() => tickets.filter(t => !istArchiviert(t.kurator_status)), [tickets]);
+  // Nicht-archivierte Basis für Zähler + Filter. Verwalter dürfen die Archivierten
+  // einblenden (Aufräum-Sicht) — für alle anderen bleiben sie unsichtbar.
+  const archivSichtbar = darfVerwalten && zeigeArchiv;
+  const base = useMemo(
+    () => (archivSichtbar ? tickets : tickets.filter(t => !istArchiviert(t.kurator_status))),
+    [tickets, archivSichtbar],
+  );
 
   // Ungelesene Team-Antworten auf eigene Feedbacks (Glocke + Marker + „Neu"-Hervorhebung).
   const { count: unread, isUnread, markSeen } = useUnreadReplies(base, meId);
@@ -187,53 +213,14 @@ export function FeedbackBoardPage(): React.ReactElement {
     })),
   ], [base]);
 
-  const filteredSorted = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const byFilter = base.filter(t => {
-      if (scope === 'mir' && !(meId && t.user_id === meId)) return false;
-      if (scope === 'team' && meId && t.user_id === meId) return false;
-      if (filterKategorie && t.category !== filterKategorie) return false;
-      if (statusFilter !== 'alle') {
-        if (statusFilter === 'lob') { if (t.category !== 'praise') return false; }
-        else if (t.kurator_status !== statusFilter) return false;
-      }
-      if (q) {
-        // Voller Titel (Infinity) — sonst wäre bei langen Titeln das Ende nicht suchbar.
-        const hay = `${feedbackTitle(t, Infinity)} ${t.text} ${t.context?.page ?? ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-    const nearGoal = (t: FeedbackItem): number => {
-      const p = getSponsoringProgress(t, config);
-      if (p.threshold <= 0) return 0;
-      const ratio = p.combinedPoints / p.threshold;
-      return ratio >= 1 ? 0 : ratio; // erreichte Ziele sinken nach unten
-    };
-    return byFilter.sort((a, b) => {
-      switch (sort) {
-        case 'pkt': {
-          const d = getSponsoringProgress(b, config).combinedPoints - getSponsoringProgress(a, config).combinedPoints;
-          return d !== 0 ? d : b.created_at.localeCompare(a.created_at);
-        }
-        case 'naht': {
-          const d = nearGoal(b) - nearGoal(a);
-          if (d !== 0) return d;
-          return getSponsoringProgress(b, config).combinedPoints - getSponsoringProgress(a, config).combinedPoints;
-        }
-        case 'sup': {
-          const d = getSponsoringProgress(b, config).sponsorCount - getSponsoringProgress(a, config).sponsorCount;
-          return d !== 0 ? d : b.created_at.localeCompare(a.created_at);
-        }
-        case 'kmt': {
-          const d = (b.comments?.length ?? 0) - (a.comments?.length ?? 0);
-          return d !== 0 ? d : b.created_at.localeCompare(a.created_at);
-        }
-        default:
-          return b.created_at.localeCompare(a.created_at);
-      }
-    });
-  }, [base, scope, meId, filterKategorie, statusFilter, query, sort, config]);
+  const filteredSorted = useMemo(
+    () => filterAndSortBoard(
+      base,
+      { scope, meId, kategorie: filterKategorie, status: statusFilter, query, sort },
+      config,
+    ),
+    [base, scope, meId, filterKategorie, statusFilter, query, sort, config],
+  );
 
   const selectedTicket = useMemo(
     () => filteredSorted.find(t => t.id === selectedId),
@@ -305,6 +292,20 @@ export function FeedbackBoardPage(): React.ReactElement {
             <div className="flex items-center gap-3">
               <NotificationBell count={unread} onClick={() => setScope('mir')} />
               <BudgetBadge refreshKey={refreshKey} bar />
+              {/* Verwaltung (Inbox/FAQ/Sponsoring/Einstellungen) — löst den
+                  früheren Menüpunkt Kuration → Feedback ab. */}
+              {darfVerwalten && (
+                <button
+                  type="button"
+                  onClick={() => setVerwaltungOffen(true)}
+                  title="Feedback-Verwaltung — Inbox, FAQ, Sponsoring, Einstellungen"
+                  aria-label="Feedback-Verwaltung öffnen"
+                  className="h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors"
+                  style={{ border: '0.5px solid var(--tf-border-hover)' }}
+                >
+                  <Settings2 size={15} />
+                </button>
+              )}
               <SeitenHilfeButton pluginId="feedback-board" />
             </div>
           }
@@ -317,7 +318,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             variant="segmented"
             items={scopeItems}
             activeKey={scope}
-            onChange={k => setScope(k as Scope)}
+            onChange={k => setScope(k as BoardScope)}
             aria-label="Feedback-Sicht"
           />
           <div className="ml-auto flex items-center gap-2 shrink-0">
@@ -374,9 +375,23 @@ export function FeedbackBoardPage(): React.ReactElement {
           <div className="min-w-0 flex-1">
             <FeedbackTypeChips items={typeChips} activeKey={filterKategorie} onChange={k => setFilterKategorie(k as FeedbackCategory | '')} />
           </div>
-          {viewMode !== 'board' && (
-            <FeedbackStatusSelect value={statusFilter} onChange={setStatusFilter} />
-          )}
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Aufräum-Sicht der Verwalter — Archivierte sind sonst überall aus. */}
+            {darfVerwalten && (
+              <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={zeigeArchiv}
+                  onChange={e => changeZeigeArchiv(e.target.checked)}
+                  className="cursor-pointer accent-[var(--tf-primary)]"
+                />
+                Archivierte einblenden
+              </label>
+            )}
+            {viewMode !== 'board' && (
+              <FeedbackStatusSelect value={statusFilter} onChange={setStatusFilter} />
+            )}
+          </div>
         </div>
 
         {/* Dein Fortschritt (nur eigene Sicht) */}
@@ -402,6 +417,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             meName={meName ?? undefined}
             unread={isUnread(selectedTicket)}
             markSeen={markSeen}
+            darfVerwalten={darfVerwalten}
           />
         ) : undefined}
         list={(
@@ -410,6 +426,18 @@ export function FeedbackBoardPage(): React.ReactElement {
           </div>
         )}
       />
+
+      {/* Verwaltung: die vier Aufgaben ohne Ticket-Bezug. `tickets` (nicht `base`)
+          — FAQ + Sponsoring brauchen auch die archivierten. */}
+      {darfVerwalten && (
+        <FeedbackVerwaltungDialog
+          open={verwaltungOffen}
+          onClose={() => setVerwaltungOffen(false)}
+          tickets={tickets}
+          config={config}
+          onChanged={handleChanged}
+        />
+      )}
     </div>
   );
 }

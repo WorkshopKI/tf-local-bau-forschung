@@ -34,7 +34,6 @@ export const KURATION_PLUGIN_IDS: readonly string[] = [
   'dokumentenquellen-kuration',
   'anfragen-kuration',
   'filter-kuration',
-  'feedback-kuration',
   'dokument-review',
 ];
 

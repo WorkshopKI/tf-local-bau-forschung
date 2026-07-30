@@ -212,17 +212,36 @@ export function mergeItems(local: FeedbackItem[], shared: FeedbackItem[]): Feedb
       (sharedItem.comments && sharedItem.comments.length > 0)
         ? { comments: unionMergeComments(sharedItem.comments, local_item.comments) }
         : {};
-    // Merge: User-Felder aus local, Kurator/FAQ-Felder aus shared
+    // Gewinnt der LOKALE Nutzertext? Bis v2.363 bedingungslos ja — das war ein
+    // latenter Datenverlust: `addComment` legt beim Kommentieren eines FREMDEN
+    // Tickets eine Vollkopie davon lokal ab (saveOwnCommentsLocally). Solange
+    // Texte unveränderlich waren, fiel das nicht auf; seit dem „Ergänzen"-Ablauf
+    // (v2.364) hätte jeder frühere Kommentator dauerhaft die alte Fassung gesehen
+    // und sie bei jedem Schreiben zurückgespielt.
+    //
+    // Regel: der lokale Stand gewinnt, solange er nicht ÄLTER ist als der geteilte.
+    // Ohne `updated_at` auf beiden Seiten (alle Bestandsdaten) ist das Ergebnis
+    // byte-identisch zu vorher.
+    const lokalerTextGewinnt =
+      !sharedItem.updated_at || (local_item.updated_at ?? '') >= sharedItem.updated_at;
+    const nutzerFelder = lokalerTextGewinnt
+      ? {
+          title: local_item.title ?? sharedItem.title,
+          text: local_item.text,
+          structured: local_item.structured ?? sharedItem.structured,
+          attachments: local_item.attachments ?? sharedItem.attachments,
+          original_text: local_item.original_text ?? sharedItem.original_text,
+          stars: local_item.stars,
+          context: local_item.context,
+          llm_summary: local_item.llm_summary ?? sharedItem.llm_summary,
+          llm_classification: local_item.llm_classification ?? sharedItem.llm_classification,
+          updated_at: local_item.updated_at ?? sharedItem.updated_at,
+        }
+      : {};
+    // Merge: User-Felder aus local (wenn nicht veraltet), Kurator/FAQ-Felder aus shared
     byId.set(local_item.id, {
       ...sharedItem,
-      // User-fields override (User edits these locally first)
-      title: local_item.title ?? sharedItem.title,
-      text: local_item.text,
-      original_text: local_item.original_text ?? sharedItem.original_text,
-      stars: local_item.stars,
-      context: local_item.context,
-      llm_summary: local_item.llm_summary ?? sharedItem.llm_summary,
-      llm_classification: local_item.llm_classification ?? sharedItem.llm_classification,
+      ...nutzerFelder,
       user_confirmed: local_item.user_confirmed ?? sharedItem.user_confirmed,
       ...sponsorFields,
       ...voteFields,
