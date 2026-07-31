@@ -61,6 +61,10 @@ export default defineConfig({
     __TEAMFLOW_GIT_HASH__: JSON.stringify('test'),
     __TEAMFLOW_APP_VERSION__: JSON.stringify('0.0.0-test'),
     __TEAMFLOW_DEV_FIXTURES__: JSON.stringify(true),
+    // Variante „local" ist im Test IMMER aus: die reinen local-fs-Module werden
+    // direkt importiert und getestet, die Einhaengepunkte sollen den Normalpfad
+    // fahren (sonst synthetisierte jeder Handle-Test Fake-Slots).
+    __TEAMFLOW_LOCAL_FS__: JSON.stringify(false),
   },
   resolve: {
     alias: {

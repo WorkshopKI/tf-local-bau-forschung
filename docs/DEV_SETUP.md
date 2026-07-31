@@ -61,10 +61,27 @@ SMB-Handle aufgerufen. Damit entfällt das manuelle „Zugriff erneuern" nach
 Browser-Restarts. Das geht nur in User-Gesture-Kontext, daher an den
 allerersten Click gekoppelt.
 
+## Variante „local": Start ohne Ordner-Picker
+
+`npm run dev:local` (Port 5175) startet die App gegen **feste lokale Ordner**
+statt über den File-System-Access-API-Picker — kein Welcome-Screen, kein
+Berechtigungs-Dialog, echte Daten. Gedacht für Sicht-Checks und automatisiertes
+Bedienen durch Claude Code; ein `window.__tf`-Hook steuert den Zustand
+programmatisch (`bereit()`, `navigiere()`, `szenario()`, `fehler()`).
+
+Details, Slots und Fallstricke: [architecture/local-variante.md](architecture/local-variante.md).
+
+Das ersetzt **nicht** den `file://`-Smoke: der Dev-Server ist permissiver als ein
+Single-File-Build. Nach wie vor gilt für Varianten-Tests `npm run build:dev` +
+Doppelklick.
+
 ## Was Fixtures NICHT können
 
-- **Kein File-System-Access-API-Bypass:** Der allererste Ordner-Picker beim
-  Welcome-Screen bleibt manuell. Das ist Browser-Sicherheit, kein Fixture-Bug.
+- **Kein File-System-Access-API-Bypass im normalen Dev-Modus:** In `npm run dev`
+  und in gebauten Varianten bleibt der allererste Ordner-Picker manuell — das ist
+  Browser-Sicherheit, kein Fixture-Bug. Umgangen wird er ausschließlich von der
+  Variante „local" (siehe oben), und zwar über eine Node-seitige Brücke im
+  Dev-Server, nicht über den Browser.
 - **Kein Time-Travel:** Das Szenario-System manipuliert keine Zeit-Offsets
   (Backup-Timestamps, Historie). Für Zeit-abhängige Tests System-Uhr
   umstellen oder das entsprechende Datum manuell in IDB überschreiben.

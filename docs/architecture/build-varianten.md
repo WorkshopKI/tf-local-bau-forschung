@@ -7,6 +7,7 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 - `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
 - `configs/pl.config.json` — Produktion (Projektleitung), Home + Förderanträge + Auslastung + Einstellungen, kein Kurator-Login
 - `configs/as.config.json` (v2.115) — Produktion (AS-Rolle), **wie pl, aber ohne Auslastungs-Modul** (`features.auslastung` + `auslastungSelbstEintragung` + `deAnonymisierung` + `maVerwaltungPasswort` auf false); eigenes Zugangspasswort
+- `configs/local.config.json` (v2.371) — **wird nie gebaut**: reine Dev-Server-Variante (`npm run dev:local`, Port 5175), die statt des Ordner-Pickers feste lokale Ordner verdrahtet. Für Sicht-Checks und automatisiertes Bedienen. `validateConfig` verbietet den `local`-Block in `variant: "production"`, das Gate `__TEAMFLOW_LOCAL_FS__` hängt an `command === 'serve'`. Siehe [local-variante.md](local-variante.md)
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
 - `configs/_shared.json` (v2.0.2) — **Org-weite invariante Defaults** (aktuell: `data.fixedDataSharePath` + `data.expectedFolderName`). `build-with-config.mjs` + `vite.config.ts` mergen diese Datei mit der Variant-Config via `deepMerge` aus [scripts/config-schema.mjs](../../scripts/config-schema.mjs).
 

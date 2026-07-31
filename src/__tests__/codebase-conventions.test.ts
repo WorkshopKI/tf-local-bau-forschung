@@ -33,6 +33,9 @@
  *     eingebaut) statt per Hand `fixed inset-0`.
  *   - no-new-tf-ui-files                → P1b, src/ui/ ist nur noch Re-Export-Shim;
  *     neue UI-Komponenten gehoeren nach src/components/ui/.
+ *   - local-fs-gate-eingegrenzt         → Variante „local" (feste Entwickler-Ordner
+ *     statt FSAPI-Picker): das Define __TEAMFLOW_LOCAL_FS__ nur im local-fs-Adapter
+ *     und den benannten Einhaengepunkten; window.__tf importiert nichts aus local-fs/.
  *   - import-requires-store-refresh     → recurring-bug-classes Klasse 1, jede
  *     importCsvSource(-Datei referenziert refreshAntraegeStoreAfterSync.
  *   - antraege-write-requires-listview-rebuild → recurring-bug-classes Klasse 1,
@@ -628,6 +631,64 @@ describe('no-new-tf-ui-files (P1b: src/ui/ ist nur noch Re-Export-Shim)', () => 
   });
 });
 
+describe('local-fs-gate-eingegrenzt (Variante „local")', () => {
+  // Die Variante „local" haengt den Ordner-Picker aus und verdrahtet feste
+  // Entwickler-Pfade. Das Gate `__TEAMFLOW_LOCAL_FS__` darf deshalb NICHT quer
+  // durch die Codebase wandern: je mehr Stellen es abfragen, desto groesser die
+  // Chance, dass ein Zweig ohne Absicht in einer ausgelieferten Variante landet.
+  // Erlaubt sind der Adapter selbst und die wenigen Einhaengepunkte.
+  //
+  // Zusatzschichten (nicht hier pruefbar): `validateConfig` bricht bei
+  // `local` + variant="production" ab, und das Define haengt an
+  // `command === 'serve'` — jeder Build faltet es auf `false`.
+  // relPath() liefert `src/...` mit Forward-Slashes (auch auf Windows).
+  const ERLAUBT = [
+    'src/core/services/infrastructure/local-fs/',      // der Adapter selbst
+    'src/core/services/infrastructure/smb-handle.ts',  // Haupt-Einhaengepunkt
+    'src/core/services/gutachten-vorlagen/vorlagen-quelle.ts',
+    'src/plugins/csv-sources-kuration/csv-source-handle.ts',
+    'src/core/App.tsx',                                // Profil-Seed
+    'src/__tests__/codebase-conventions.test.ts',      // diese Regel selbst
+  ];
+
+  it('__TEAMFLOW_LOCAL_FS__ nur im local-fs-Adapter und den Einhaengepunkten', () => {
+    const treffer: Finding[] = [];
+    for (const file of ALL_SOURCE_FILES) {
+      const rel = relPath(file);
+      if (ERLAUBT.some(pfad => rel === pfad || rel.startsWith(pfad))) continue;
+      treffer.push(...findInFile(
+        file,
+        line => {
+          // Nur echte VERWENDUNG zaehlt. Kommentare duerfen das Define
+          // erklaeren (runtime-config.ts, Test-Header) — sonst muesste jede
+          // Doku-Stelle in die Allowlist und die Regel waere Papier.
+          const t = line.trim();
+          if (t.startsWith('*') || t.startsWith('//') || t.startsWith('/*')) return false;
+          return t.includes('__TEAMFLOW_LOCAL_FS__');
+        },
+        'allow-local-fs-gate',
+      ));
+    }
+    if (treffer.length > 0) {
+      expect.fail(
+        `__TEAMFLOW_LOCAL_FS__ ausserhalb der erlaubten Stellen verwendet.\n` +
+        `Der Lokal-Modus soll an wenigen, klar benannten Punkten einhaken —\n` +
+        `neue Bedarfsstellen bitte ueber src/core/services/infrastructure/local-fs/\n` +
+        `kapseln (z.B. leseHandleKey/lokalerSlotHandle) statt das Define zu streuen.\n\n` +
+        `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+
+  it('der window.__tf-Hook zieht den Brueckenadapter NICHT in den Bundle', () => {
+    // window-hook.ts haengt an devFixtures, nicht am Lokal-Modus. Ein Import aus
+    // local-fs/ wuerde den Adapter in JEDEN dev-Build ziehen (auch `npm run dev`
+    // ohne local-Block) — unnoetig und irrefuehrend.
+    const src = readFileSync(join(ROOT, 'dev-fixtures', 'window-hook.ts'), 'utf-8');
+    expect(src).not.toMatch(/from\s+['"][^'"]*local-fs/);
+  });
+});
+
 describe('import-requires-store-refresh (recurring-bug-classes Klasse 1)', () => {
   // Jede Datei, die importCsvSource( aufruft, MUSS refreshAntraegeStoreAfterSync
   // referenzieren — sonst bleibt der In-Memory-Antraege-Store nach dem Import
@@ -943,7 +1004,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 37;    // Ist 37; +1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 1800;       // Ist ~1781 (DIESE Datei; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1900;       // Ist ~1849 (DIESE Datei; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

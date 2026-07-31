@@ -24,6 +24,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "vite-env.d.ts", "docs/fixtures/schema-*.ts"],
+  "include": ["src", "vite-env.d.ts", "docs/fixtures/schema-*.ts", "scripts/local-fs"],
   "exclude": ["src/core/services/eval-fixtures/cli.ts", "src/core/services/skill-eval/cli.ts", "src/core/services/skill-eval/aufbereitung-eval.ts", "src/core/services/skill-eval/gedaechtnis-eval.ts"]
 }

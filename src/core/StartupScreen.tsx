@@ -10,7 +10,7 @@
  *  - Default: "Starten"-Button → refreshAllPermissions() in einer User-Gesture-Kette.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, Check, ClipboardCopy, FolderOpen, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -62,7 +62,6 @@ export function StartupScreen({
   // Prompt pro Klick (file://-„ein-Prompt-pro-Gesture", recurring-bug §2).
   const [stepperPending, setStepperPending] = useState<PendingGrant[] | null>(null);
   const [scanFailed, setScanFailed] = useState(false);
-  const scanStartedRef = useRef(false);
 
   // ConnectionState non-invasiv setzen (kein Prompt) + weiter. Gemeinsamer
   // Abschluss für Warm-Start (alle Handles granted) UND Stepper-Ende. WICHTIG:
@@ -78,10 +77,19 @@ export function StartupScreen({
     onReady();
   };
 
+  // Der Scan ist bewusst NUR ueber das cancelled-Flag entkoppelt, ohne
+  // zusaetzlichen „schon gestartet"-Ref. Beides zusammen blockierte sich unter
+  // StrictMode gegenseitig: Lauf 1 setzte den Ref und startete den Scan, das
+  // Cleanup setzte cancelled=true, Lauf 2 lief am Ref-Guard sofort zurueck — und
+  // das Ergebnis von Lauf 1 wurde als „abgebrochen" verworfen. Der Screen blieb
+  // dauerhaft auf „Berechtigungen werden geprueft…" stehen. In gebauten
+  // Varianten faellt das nicht auf (StrictMode doppelt Effekte nur im
+  // React-Dev-Build); sichtbar wird es erst, seit die Variante „local" den
+  // Dev-Server ueberhaupt bis hinter das Handle-Gate bringt.
+  // `listPendingGrants` ist ein reiner queryPermission-Sweep ohne Prompt —
+  // ein doppelter Lauf im Dev-Modus ist folgenlos.
   useEffect(() => {
     if (needsInitialPick || needsDowngrade) return;
-    if (scanStartedRef.current) return;
-    scanStartedRef.current = true;
     let cancelled = false;
     void (async () => {
       try {

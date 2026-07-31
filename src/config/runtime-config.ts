@@ -223,6 +223,37 @@ export interface TeamflowAuthConfig {
   hint?: string;
 }
 
+/**
+ * Variante „local" (nur Entwickler-Maschine, nur Vite-Dev-Server): feste lokale
+ * Ordner statt File-System-Access-API-Picker, damit die App ohne einen einzigen
+ * Browser-Dialog startet und automatisiert bedienbar ist.
+ *
+ * Die Pfade wirken NUR serverseitig (Vite-Plugin, `scripts/local-fs/`) — der
+ * Client adressiert Ordner ausschliesslich ueber Slot-Namen und kennt keinen
+ * absoluten Pfad. `validateConfig` verbietet den Block in `variant: "production"`,
+ * und `__TEAMFLOW_LOCAL_FS__` haengt an `command === 'serve'`: jeder Build faltet
+ * den Zweig weg. Siehe docs/architecture/local-variante.md.
+ */
+export interface TeamflowLocalConfig {
+  /** Daten-Share-Wurzel (enthaelt `programm/`, `_intern/`, `backups/`). */
+  datenShare?: string | null;
+  /** Home-Ordner des Users — die App navigiert selbst nach `ZAH/`. */
+  persoenlich?: string | null;
+  /** Wurzel der Home-Laufwerke; Kinder = User-Verzeichnisse. */
+  userFoldersRoot?: string | null;
+  /** Ordner der CSV-Quelldateien (eigener IDB-Key, nicht in der smb-handles-Map). */
+  csvSourceDir?: string | null;
+  /** Ordner der DOCX-Gutachten-Vorlagen. */
+  vorlagenDir?: string | null;
+  /** DMS-Quellen je Source-Id → Ordner (Slot `dms-source-<id>`). */
+  dmsSources?: Record<string, string>;
+  /**
+   * Profil-Seed. Ohne ihn landet die frische Varianten-IDB im Onboarding-Formular,
+   * weil `App.tsx` `onboarding-complete` VOR dem Handle-Gate prueft.
+   */
+  profil?: { name: string; kuerzel?: string; isKurator?: boolean };
+}
+
 export interface TeamflowScanConfig {
   /** Relative Unterprogramm-Roots im dokumentenquelle-Handle. Leer = ganzer Handle. */
   sub_roots: string[];
@@ -250,6 +281,8 @@ export interface TeamflowConfig {
   dev?: TeamflowDevConfig;
   /** v2.16 — optionales Build-Time Rollen-Passwort-Gate (pl + kurator). */
   auth?: TeamflowAuthConfig;
+  /** Variante „local" — feste Entwickler-Ordner statt FSAPI-Picker. Nie in Prod. */
+  local?: TeamflowLocalConfig | null;
   /** Modul „Anfragen" — externes ZIM FAQ-Assistent-Artifact (nur dev). Konfigwert
    *  (kein Hardcode): ein einmal unpublished Artifact bekommt eine neue URL,
    *  Tausch dann an EINER Stelle. */

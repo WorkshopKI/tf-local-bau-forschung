@@ -32,6 +32,8 @@ import {
   CSV_SOURCE_DIR_HANDLE_IDB_KEY as DIR_HANDLE_IDB_KEY,
   CSV_SOURCE_DIR_FILEMAP_IDB_KEY as DIR_FILEMAP_IDB_KEY,
 } from '@/core/services/infrastructure/types';
+import { leseHandleKey, schreibeHandleKey, lokalerSlotHandle } from '@/core/services/infrastructure/local-fs/slots';
+import { SLOT_CSV_SOURCE_DIR } from '@/core/services/infrastructure/local-fs/typen';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 
@@ -106,14 +108,18 @@ export async function requestCsvSourcePermission(
 export async function getCsvSourceDirHandle(
   idb: IDBStore,
 ): Promise<FileSystemDirectoryHandle | null> {
-  return (await idb.get<FileSystemDirectoryHandle>(DIR_HANDLE_IDB_KEY)) ?? null;
+  // Ueber den Leaf-Helper statt direkt aus der IDB: in der Variante „local"
+  // liefert er den konfigurierten Ordner (dieser Key liegt bewusst AUSSERHALB
+  // der `smb-handles`-Map, faellt also nicht unter deren Hook).
+  return leseHandleKey<FileSystemDirectoryHandle>(idb, DIR_HANDLE_IDB_KEY);
 }
 
 export async function setCsvSourceDirHandle(
   idb: IDBStore,
   handle: FileSystemDirectoryHandle,
 ): Promise<void> {
-  await idb.set(DIR_HANDLE_IDB_KEY, handle);
+  // No-op fuer synthetische Handles — die sind nicht structured-cloneable.
+  await schreibeHandleKey(idb, DIR_HANDLE_IDB_KEY, handle);
 }
 
 export async function clearCsvSourceDirHandle(idb: IDBStore): Promise<void> {
@@ -538,16 +544,23 @@ export async function pickAndLinkCsvFolder(
   const win = window as typeof window & {
     showDirectoryPicker?: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
   };
-  if (typeof win.showDirectoryPicker !== 'function') {
-    throw new Error('Ordner-Verknüpfung braucht Chrome oder Edge (File System Access API).');
-  }
 
   let dirHandle: FileSystemDirectoryHandle;
-  try {
-    dirHandle = await win.showDirectoryPicker({ mode: 'read' });
-  } catch (err) {
-    if ((err as DOMException).name === 'AbortError') return { linked: false, matched: [], unmatched: [] };
-    throw err;
+  // Variante „local": konfigurierter Ordner statt Picker — ein nativer Dialog
+  // liesse eine laufende Automation stumm haengen.
+  const lokal = __TEAMFLOW_LOCAL_FS__ ? lokalerSlotHandle(SLOT_CSV_SOURCE_DIR) : null;
+  if (lokal) {
+    dirHandle = lokal;
+  } else {
+    if (typeof win.showDirectoryPicker !== 'function') {
+      throw new Error('Ordner-Verknüpfung braucht Chrome oder Edge (File System Access API).');
+    }
+    try {
+      dirHandle = await win.showDirectoryPicker({ mode: 'read' });
+    } catch (err) {
+      if ((err as DOMException).name === 'AbortError') return { linked: false, matched: [], unmatched: [] };
+      throw err;
+    }
   }
 
   const matched: string[] = [];

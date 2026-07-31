@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.371.0 — Variante local: App ohne Ordner-Picker, fahrbar durch Claude Code (Juli 2026)
+
+MINOR — Der Ordner-Picker der File System Access API ist per Browser-Sicherheit nicht skriptbar; ohne Handle blieb die App im WelcomeScreen, jede visuelle Prüfung war Handarbeit. `npm run dev:local` (Port 5175) startet sie stattdessen gegen die feste lokale Share-Kopie — kein Dialog, echte Daten. Detail: [local-variante.md](docs/architecture/local-variante.md).
+
+- Dev-only Vite-Plugin legt eine HTTP-Brücke über die festen Ordner ([scripts/local-fs/](scripts/local-fs/)); der Client-Adapter spricht dagegen das FSAPI-Subset ([local-fs/](src/core/services/infrastructure/local-fs/)) und hängt an EINER Stelle ein: `readAll`/`writeAll` in [smb-handle.ts](src/core/services/infrastructure/smb-handle.ts).
+- Drei Schichten halten den Zweig aus Builds: `__TEAMFLOW_LOCAL_FS__` hängt an `command === 'serve'` ([vite.config.ts](vite.config.ts)), `validateConfig` verbietet den `local`-Block in `variant: "production"` ([config-schema.mjs](scripts/config-schema.mjs)), Guard `local-fs-gate-eingegrenzt`.
+- `window.__tf` macht die vorhandenen Dev-Fixtures programmatisch steuerbar ([window-hook.ts](src/dev-fixtures/window-hook.ts)) — `bereit()` wartet auf Mount UND abgeschlossenen Datenlauf, sonst screenshotet eine Automation die leere Tabelle.
+- **Bugfix (bestand länger):** StartupScreen blieb unter StrictMode dauerhaft auf „Berechtigungen werden geprüft…" — Ref-Guard und cancelled-Flag blockierten sich gegenseitig ([StartupScreen.tsx](src/core/StartupScreen.tsx)); in gebauten Varianten unsichtbar, weil StrictMode Effekte nur im React-Dev-Build doppelt.
+- Gemessen an der echten Kopie (14.221 Anträge): `/read` einer 67-MB-CSV in 188 ms, `__tf.bereit()` bei warmer IDB ~3,7 s.
+
 ### v2.370.0 — Bearbeiten mit KI: freie Ueberarbeitungs-Anweisung am Gutachten-Abschnitt (Juli 2026)
 
 MINOR — Neu/Kürzer/Länger sind drei fertige Antworten auf eine Frage, die der Gutachter selbst stellen will: „technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen". Bisher blieb dafür nur mehrfach „Neu" würfeln oder von Hand umschreiben. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
@@ -614,177 +624,4 @@ MINOR — Fundament des neuen Status-Systems: die bisher hartkodierte Status→K
 PATCH — Das v2.316.0-Recovery-Panel war in JEDEM Build unsichtbar: es hing an `import.meta.env.DEV`, das in einem `vite build` (auch `build:dev`) immer false ist. Jetzt an `isDevContext()` (variant==='development').
 
 - Panel-Gate von `import.meta.env.DEV` auf `isDevContext()` umgestellt — rendert jetzt korrekt im dev-Build ([SchemaRecoverySection.tsx](src/plugins/csv-sources-kuration/SchemaRecoverySection.tsx)).
-
-### v2.316.0 — CSV-Schema-Recovery-Panel (dev) (Juli 2026)
-
-MINOR — Wenn ein leer publizierter Snapshot die CSV-Quellen eines Rechners gewischt hat (Anträge da, aber „0 Schemas" / ● CSV grau), gab es bisher nur „neu mappen" oder Manifest-Handchirurgie. Dieses dev-only Panel stellt die Schemas aus einer guten `csv_schemas.jsonl` wieder her — lokal und über den Share. Ergänzt den Empty-Guard aus v2.312.
-
-- Neues dev-only „CSV-Schemas wiederherstellen"-Panel auf der CSV-Sources-Seite: Datei wählen → in lokale IDB schreiben → Snapshot neu schreiben ([SchemaRecoverySection.tsx](src/plugins/csv-sources-kuration/SchemaRecoverySection.tsx)).
-- Reiner Parser sondert Fixture-IDs + fremde Programme aus (keine Re-Kontamination); Restore + Republish über den echten Publish-Pfad statt Manifest-Handchirurgie ([schemaRecovery.ts](src/plugins/csv-sources-kuration/services/schemaRecovery.ts)).
-- Gesture-sicherer JSONL-Datei-Picker ([csv-file-picker.ts](src/plugins/csv-sources-kuration/csv-file-picker.ts)); Regressionstest für den Parser ([schemaRecovery.test.ts](src/plugins/csv-sources-kuration/__tests__/schemaRecovery.test.ts)).
-- Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).
-
-### v2.315.0 — Widerspruch/Stellungnahme: tragende Gruende gegen die Stellungnahme abgleichen (Juli 2026)
-
-MINOR — Nach einer Rücknahmeempfehlung oder Ablehnung antwortet der Antragsteller. Diese Ansicht stellt die tragenden Gründe des Bescheids Punkt für Punkt der Stellungnahme gegenüber und bereitet die Antwort in der Werkbank vor. Schließt den Artefakt-Werkbank-Umbau ab. Nur dev.
-
-- Neue Widerspruchs-/Stellungnahme-Sektion am Verbund-Detail, sichtbar sobald ein RNE/ABL-Bescheid existiert ([WiderspruchSection.tsx](src/plugins/antraege/widerspruch/WiderspruchSection.tsx)).
-- Je tragendem Grund drei Zustände (ausgeräumt/teilweise/nicht ausgeräumt) + Notiz — die Bewertung trifft immer der Mensch ([widerspruch.ts](src/plugins/antraege/widerspruch/widerspruch.ts)).
-- Die Gründe stammen aus der Provenienz des Bescheid-Laufs; die Stellungnahme wird über die normale Dokument-Mechanik zugeordnet ([useWiderspruch.ts](src/plugins/antraege/widerspruch/useWiderspruch.ts)).
-- „Antwort in der Werkbank vorbereiten" öffnet die Werkbank mit den offenen Gründen vorangekreuzt ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)).
-- Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
-
-### v2.314.0 — RNE + ABL: Bescheid-Entwuerfe in der Werkbank mit strengem Freigabe-Tor (Juli 2026)
-
-MINOR — Die Werkbank kann jetzt neben Nachforderungen auch Rücknahmeempfehlungen und Ablehnungen entwerfen — dieselbe Maschine, dieselben Textbausteine, aber ein strengeres Freigabe-Tor, weil ein Bescheid eine Rechtsfolge trägt. Nur dev; die Bausteine dafür legen Kuratoren im Katalog an.
-
-- RNE/ABL-Füll-Skills + Workflows als Draft-Seeds (aktiv:false, freigabe:entwurf) — gegebene Bausteine wortgetreu, nur Platzhalter füllen ([bescheid-skill.seed.ts](src/core/services/skills/registry/bescheid-skill.seed.ts)).
-- Der Artefakt-Schalter der Werkbank aktiviert RNE/ABL; die Generierung läuft über die bestehende NF-Maschine, je Typ mit eigenem Skill/Vorlage/Anker ([artefakt-typ.ts](src/plugins/antraege/nachforderungen/artefakt-typ.ts)).
-- Strengeres Freigabe-Tor: unzugeordnete Punkte blockieren die Generierung, Konsistenz-Warnungen gegen die MAP-Fachbewertung sind einzeln zu quittieren, und der DOCX-Export braucht eine Pflicht-Freigabe ([bescheid-freigabe.ts](src/plugins/antraege/nachforderungen/bescheid-freigabe.ts)).
-- Fehlt eine MAP-Bewertung, sagt der Tor das ehrlich („Konsistenz übersprungen"), statt still nichts zu prüfen ([map-bewertung.ts](src/plugins/antraege/werkbank/map-bewertung.ts)).
-- Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
-
-### v2.313.0 — Versionierte Backup-Historie der kleinen Struktur-Stores auf dem Share (Juli 2026)
-
-MINOR — Defense-in-depth zum Empty-Guard (v2.312): falls eine kleine Struktur-Store-Datei doch mal defekt/leer/gelöscht wird (Teil-Write, Fremd-Eingriff), liegt der letzte gute Stand griffbereit statt „weg". Nur die kleinen Stores — antraege (421 MB) bleibt außen vor.
-
-- Jeder Publish sichert `csv_schemas`/`programme`/`unterprogramme`/`verbuende`/`akronym_index` versioniert unter `<snapshot>/backups/<store>.<version>.jsonl` ([snapshot.ts](src/core/services/csv/snapshot.ts)).
-- Nur nicht-leerer + gegenüber der jüngsten Sicherung geänderter Inhalt wird gesichert (ein defekter Write wird nie die jüngste Sicherung; keine Duplikate).
-- Es werden die letzten `SMALL_STORE_BACKUP_KEEP` (5) distinkten Fassungen je Store gehalten, ältere werden gekappt.
-- Best-effort: Backup-Fehler blockieren den Publish nie (der eigentliche Snapshot steht schon).
-- Regressionstests (anlegen / Dedup / Prune) ([snapshot-empty-guard.test.ts](src/core/services/csv/__tests__/snapshot-empty-guard.test.ts)).
-
-### v2.312.0 — CSV-Schemas beim Sync nicht mehr verlieren (Empty-Guard) + aussagekraeftige Ampel + Kurator-Autorefresh (Juli 2026)
-
-MINOR — Ein leer publiziertes `csv_schemas` (Fixture-/Fehl-Publish, Vorfall-2026-06-Klasse) hat beim Snapshot-Sync die lokalen CSV-Quellen JEDES Consumers auf 0 gewischt — still, ohne Reconnect-Prompt (● CSV grau „unbekannt"). Zwei Guards stoppen den Datenverlust an beiden Enden; die Ampel sagt jetzt konkret, was fehlt.
-
-- Consumer-Guard: ein leerer Remote-Struktur-Store (`csv_schemas`/`programme`) wischt den nicht-leeren lokalen Stand nicht mehr ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts)).
-- Publish-Guard: ein leeres `csv_schemas` überschreibt keinen nicht-leeren Bestand auf dem Share mehr ([snapshot.ts](src/core/services/csv/snapshot.ts)).
-- ● CSV-Ampel: statt grau „unbekannt" jetzt „Keine CSV-Quellen" / „CSV-Ordner verknüpfen" (mit Aktion) / „offline" ([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx), [csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts)).
-- Kurator-Build importiert die täglichen CSV-Exporte jetzt ebenfalls automatisch (`csvAutoRefresh: true`) ([kurator.config.json](configs/kurator.config.json)).
-- Regressionstests für beide Guards ([snapshot-empty-guard.test.ts](src/core/services/csv/__tests__/snapshot-empty-guard.test.ts)).
-
-### v2.311.0 — Artefakt-Werkbank am Verbund-Detail (Punkte, Baustein-Auswahl, Entwurf) (Juli 2026)
-
-MINOR — Der bisherige Nachforderungs-Testballon ließ das LLM frei aus dem ganzen Katalog wählen. Die Werkbank dreht das um: der Prüfer benennt zuerst die offenen Punkte, bestätigt passende Bausteine und lässt dann nur noch die Platzhalter füllen. Ein Workspace in vier Schritten. Nur dev.
-
-- Neue „Artefakt-Werkbank" am Verbund-Detail (Flag `artefaktWerkbank`) ersetzt die Nachforderungen-Sektion: Punkte erfassen → ankreuzen → Bausteine bestätigen → Entwurf ([WerkbankSection.tsx](src/plugins/antraege/werkbank/WerkbankSection.tsx)).
-- Offene Punkte werden nach Prüfaspekt gruppiert und rein lokal gespeichert; Baustein-Vorschläge zeigen, warum sie angeschlagen haben ([bausteinAuswahl.ts](src/plugins/antraege/werkbank/bausteinAuswahl.ts)).
-- Die Generierung läuft über die bestehende NF-Maschine — kein zweiter Pfad; der Lauf stempelt die adressierten Punkte + Baustein-Fassungen ([useNachforderungen.ts](src/plugins/antraege/nachforderungen/useNachforderungen.ts)).
-- Der Prüfaspekt-Katalog wurde in ein abhängigkeitsfreies Modul gelöst, damit ihn Werkbank & Co. ohne den ganzen Aufbereitungs-Stack nutzen ([aspekt-katalog.ts](src/plugins/antraege/aufbereitung/aspekt-katalog.ts)).
-- Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
-
-### v2.310.0 — Textbaustein-Verwaltung + Word-Import (Juli 2026)
-
-MINOR — Aufbauend auf dem Katalog-Datenmodell (v2.309): die Nachforderungs-Textbausteine lassen sich jetzt in der App pflegen, statt nur im Code zu leben. Neuer Reiter in der Skill-Verwaltung, mit Word-Import als Einfuhrweg.
-
-- Reiter „Textbausteine" in der Skill-Verwaltung (dev/pl/kurator): Liste mit Filtern, Editor, Freigeben/Stilllegen, Versions-Historie mit Rollback ([TextbausteineTab.tsx](src/plugins/skill-verwaltung-kuration/TextbausteineTab.tsx)).
-- „Aus Word importieren" liest eine .docx ein und legt je Textblock einen Baustein-Entwurf an; der Wortlaut bleibt unverändert ([TextbausteinImportDialog.tsx](src/plugins/skill-verwaltung-kuration/TextbausteinImportDialog.tsx)).
-- Neue Bausteine und Importe starten als Entwurf; Freigabe erfolgt einzeln und mit Begründung ([versionierung.ts](src/core/services/skills/textbausteine/versionierung.ts)).
-- Der Katalog wird erst beim ersten Speichern auf den Share geschrieben — bis dahin arbeitet jeder mit dem gemeinsamen Seed-Stand.
-- Detail: [textbaustein-katalog.md](docs/architecture/textbaustein-katalog.md).
-
-### v2.309.0 — Textbaustein-Katalog: NF-Bausteine werden versionierte, freigebbare App-Daten (Juli 2026)
-
-MINOR — Die 78 NF-Bausteine waren hartkodierter Code — pflegbar nur durch einen Entwickler. Fundament, um sie (und später RNE/ABL) in der App zu pflegen: versioniert, freigebbar, per Word-Import befüllbar. Diese Phase legt das Datenmodell, die Phasen 3+ bauen die Verwaltung darauf.
-
-- Neuer Katalog-Service mit eigener Sidecar `_intern/skills/textbausteine.json` (Storage-Profil der Skill-Registry, `kv`-Cache) ([textbausteine/](src/core/services/skills/textbausteine/)).
-- Fassungen + Freigabe-Status wie bei Skills (Historie newest-first, Rollback als neue Version, kein Löschen) ([versionierung.ts](src/core/services/skills/textbausteine/versionierung.ts)).
-- Lazy-Migration übernimmt die 78 Seed-Bausteine als freigegebene Version 1, idempotent und nie überschreibend ([migration.ts](src/core/services/skills/textbausteine/migration.ts)).
-- Der Suchkern ist jetzt geteilt; der MAP-Abschluss nutzt ihn, Verhalten unverändert ([nf-suche.ts](src/plugins/map-foerderfaehig/abschluss/nf-suche.ts)).
-- Erzeugte NF-Läufe stempeln den Katalog-Stand + verwendete Baustein-Fassungen (`katalogRef`) ([textbaustein-katalog.md](docs/architecture/textbaustein-katalog.md)).
-
-### v2.308.0 — Fragen + Abdeckung pausiert, Zeitplan an die Einreichungs-JSON gehaengt (Juli 2026)
-
-MINOR — Fragen-Ableitung und Aspekt-Abdeckung tragen in der Praxis noch nicht, standen aber weiter nutzbar in der Tab-Leiste. Der Zeitplan war umgekehrt pausiert, obwohl es eine belastbare Quelle gibt: die Einreichungs-JSON.
-
-- Fragen- und Abdeckungs-Tab sind gesperrt mit Begründung; Code, Caches und gesetzte offene Punkte bleiben unangetastet ([pausierte-module.ts](src/plugins/antraege/aufbereitung/pausierte-module.ts)).
-- Der Zeitplan öffnet sich wieder, sobald zum Vorgang eine MAP-Einreichung derselben Vorhabensbeschreibung zugeordnet ist ([tab-gating.ts](src/plugins/antraege/aufbereitung/tab-gating.ts)).
-- Der Bezug entsteht rückwärts über die zugeordnete VB-Datei — eine Einreichung trägt kein Aktenzeichen ([map-verknuepfung.ts](src/plugins/antraege/aufbereitung/map-verknuepfung.ts)).
-- Im geöffneten Zeitplan stehen ausschließlich die Arbeitspakete aus der JSON, nie die der pausierten PDF-Ernte ([EinreichungsPlan.tsx](src/plugins/antraege/aufbereitung/EinreichungsPlan.tsx)).
-- Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
-
-### v2.307.0 — Ergebnis zurückbringen: Dateien ziehen, auch Markdown (Juli 2026)
-
-MINOR — ChatGPT Deep Research lädt den Report inzwischen auch als `.md` herunter — der Dialog nahm nur PDF und Word. Und der Abschnitt war die einzige Aufnahme-Fläche der App ohne Drag & Drop.
-
-- „Ergebnis zurückbringen" hat eine Ablage-Fläche (ziehen ODER klicken) für PDF, Word, Markdown und Text ([RechercheTab.tsx](src/plugins/antraege/aufbereitung/RechercheTab.tsx)); der Inline-Link „PDF/Word hochladen" entfällt.
-- Mehrere Dateien auf einmal ergeben je einen Import, mit Zähler und in EINEM Schreibvorgang ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
-- Gezogene Dateien werden auf ihre Endung geprüft, weil `accept` nur den Datei-Dialog filtert ([recherche-import.ts](src/plugins/antraege/aufbereitung/recherche-import.ts)).
-- Nicht gelesene Dateien werden benannt, nachdem die geglückten Importe stehen — und ein gescheitertes „Text übernehmen" verwirft den eingefügten Report nicht mehr.
-- Detail: [antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md).
-
-### v2.306.1 — Fünf tote `@deprecated`-Aliase abgelöst (Juli 2026)
-
-PATCH — Kandidat 4 aus dem Konsolidierungs-Pass: von 29 `@deprecated`-Markern waren fünf reine Namens-Aliase ohne Daten-Bezug. Die übrigen 24 sind Lese-Rückfälle für Bestandsdaten und bleiben, bis eine Migration sie ablöst.
-
-- Die Handle-Aliase `getSmbHandle` / `clearSmbHandle` / `pickAndStoreParentHandle` sind an 16 Dateien durch die kanonischen Namen ersetzt und entfernt ([smb-handle.ts](src/core/services/infrastructure/smb-handle.ts)).
-- Der Re-Export-Shim `RegistryViewModeToggle` entfällt; die Skill-Verwaltung importiert direkt ([ViewModeToggle.tsx](src/components/ui/ViewModeToggle.tsx)).
-- `getActiveProgramm` entfernt — außerhalb des Barrels ohne Aufrufer ([programmRegistry.ts](src/core/services/csv/programmRegistry.ts)).
-
-### v2.306.0 — Gutachten-Hook: drei Nebenzustände bekommen eine Überschrift (Juli 2026)
-
-MINOR — Kandidat 5 aus dem Konsolidierungs-Pass: der Gutachten-Hook trug neben der Ablauf-Steuerung drei Zustände, die je einen eigenen Auslöser und eine eigene Lebensdauer haben.
-
-- Geltende Workflow-Definition, KI-Erreichbarkeit und persönlicher Skill-Tweak liegen jetzt als je ein kleiner Hook daneben ([workflow-hooks.ts](src/plugins/antraege/gutachten/workflow-hooks.ts)).
-- Der Hook schrumpft von 674 auf 603 Zeilen; sein nach außen sichtbares Ergebnis (`GutachtenWorkflowController`) ist unverändert ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)).
-
-### v2.305.4 — Drei Relativzeit-Formatierer stehen nebeneinander statt verstreut (Juli 2026)
-
-PATCH — Kandidat 2 aus dem Konsolidierungs-Pass: drei unabhängige Implementierungen relativer Zeitangaben, jede mit eigener Behandlung kaputter Zeitstempel und ohne Kenntnis der anderen.
-
-- Rechnung und die drei Sprachregister liegen jetzt in einer Datei; die Wortwahl bleibt bewusst verschieden und ist als solche dokumentiert ([relativeZeit.ts](src/core/utils/relativeZeit.ts)).
-- Abgelöst in Feedback-Listen, Home-„Weitermachen" und der Dokument-Review-Liste ([feedbackUi.ts](src/components/feedback/feedbackUi.ts), [arbeitskontext-anzeige.ts](src/plugins/home/arbeitskontext-anzeige.ts), [PendingList.tsx](src/plugins/dokument-review/components/PendingList.tsx)).
-- 30 Fälle schreiben die heutige Ausgabe aller drei Register fest ([relativeZeit.test.ts](src/core/utils/__tests__/relativeZeit.test.ts)); der Feedback-Weg zeigt bei kaputtem Zeitstempel nicht mehr „Invalid Date".
-
-### v2.305.3 — Gescheitertes Kopieren sieht nicht mehr aus wie gelungenes (Juli 2026)
-
-PATCH — Neun Kopier-Knöpfe bauten denselben Dreiklang aus Kopieren, Häkchen und 1500-ms-Rücksetzer je selbst nach — und entschieden jeder für sich, ob ein Fehlschlag sichtbar wird. Wer ihn nicht bemerkt, fügt den alten Inhalt der Zwischenablage ein (die Falle aus v2.301.3).
-
-- Neuer Helfer `useKopierAktion` trägt den Kopier-Zustand samt fertig ausformuliertem Fehlergrund ([useKopierAktion.ts](src/core/hooks/useKopierAktion.ts)).
-- Acht Knöpfe zeigen im Fehlerfall jetzt ein Warnzeichen statt eines Häkchens — Teilvorhaben-Titel, Chat, Gutachten-Abschnitt, Feedback-Prompt, Recherche (2×) und die beiden Eval-Panels.
-- Der Fragen-Tab und der Zwischenablage-Export der Suche nennen den Grund statt nur „Fehler" ([FragenTab.tsx](src/plugins/antraege/aufbereitung/FragenTab.tsx), [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)).
-
-### v2.305.2 — Blatt-Schicht kennt keine Plugin-Liste mehr (Juli 2026)
-
-PATCH — Erster Kandidat aus dem Konsolidierungs-Pass: das Feedback-Panel lud für einen einzigen Anzeigenamen die gesamte Plugin-Liste. Das war die Wurzel aller vier in v2.302.4 aufgelösten Zyklen — behoben waren bisher nur die Folgekanten.
-
-- Der Name des aktiven Bereichs kommt jetzt aus der Navigation statt aus der Plugin-Konfiguration ([useNavigation.ts](src/core/hooks/useNavigation.ts), [Router.tsx](src/core/Router.tsx), [FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx)).
-- Neuer Wächter `no-plugins-config-in-components`: die geteilte Komponenten-Schicht importiert die Plugin-Konfiguration nicht mehr ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
-
-### v2.305.1 — Scan-Helfer ausgelagert, toten Code kuratiert abgebaut (Juli 2026)
-
-PATCH — Abschluss des Konsolidierungs-Passes. Die Guard-Datei wuchs mit jeder neuen Konvention zugleich in ihrer Infrastruktur; und aus der MVP-Zeit lagen zwei komplette Bausteine im Baum, die nie an die App angeschlossen wurden.
-
-- Datei-Suche und Fund-Formatierung der Konventions-Prüfungen liegen jetzt daneben; die Regeln selbst bleiben vollständig in einer Datei ([conventions-lib.ts](src/__tests__/conventions-lib.ts), Guard-Datei 1665 → 1566 Zeilen).
-- Peer-Review-Panel und Versionshistorie samt ihrer Dienste und Typen entfernt — Stand März 2026, ohne einen einzigen Nutzer im Code (7 Dateien, zwei Dienst-Verzeichnisse).
-- Vier Konstanten für Datei-Pfade aus der Zeit vor v1.9 entfernt, die niemand mehr las ([feedback.ts](src/core/types/feedback.ts), [constants.ts](src/core/services/csv/constants.ts)).
-- Die Drift-Schwellen für Dateigröße und Dienst-Verzeichnisse auf den neuen Ist-Stand gesenkt statt sie stehen zu lassen.
-
-### v2.305.0 — Workflow-Hook in seine Verantwortungen zerlegt (Juli 2026)
-
-MINOR — Der Gutachten-Workflow-Hook mischte auf 870 Zeilen vier Aufgaben: Registry laden, persistieren, generieren und die Schritt-Aktionen. Der Generierungsteil war der größte und brauchte als einziger kein React. Keine Verhaltensänderung, die Oberfläche für die Oberfläche bleibt unverändert.
-
-- Generierung, KI-Qualitätscheck und Feinschliff liegen jetzt React-frei nebenan, mit ausdrücklich übergebenen Abhängigkeiten statt stiller Zugriffe ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
-- Speichern und die Hülle für Zustandswechsel sind eine eigene Schicht; die Regel „ein Zustandswechsel, ein Schreibvorgang" steht jetzt an einer Stelle statt in jeder Aktion ([workflow-persistenz.ts](src/plugins/antraege/gutachten/workflow-persistenz.ts), 7 neue Tests).
-- Der Hook schrumpft von 870 auf 674 Zeilen und ist nur noch Bindung: laufend/abbrechen/Fehlerbanner ([useGutachtenWorkflow.ts](src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)).
-- `GutachtenWorkflowController` ist unverändert; `GutachtenSection` und alle weiteren Konsumenten wurden nicht angefasst, alle 23 Gutachten-Testdateien bleiben grün.
-
-### v2.304.0 — Seed-Split abgeschlossen, seed.ts ist nur noch die Sammelstelle (Juli 2026)
-
-MINOR — 14 Skills lagen schon in eigenen Dateien, vier Gruppen noch inline in `seed.ts` (868 Zeilen, die mit jedem Skill weiterwuchsen). Reine Verschiebung: die Skills liegen live auf dem geteilten Share, jede inhaltliche Änderung wäre sofort produktiv wirksam.
-
-- Kurzfassung, die vier Abschnitts-Skills B–G, QS-Basis und Relevanz-Map haben eigene Dateien ([gutachten-kurzfassung.seed.ts](src/core/services/skills/registry/gutachten-kurzfassung.seed.ts), [gutachten-bg.seed.ts](src/core/services/skills/registry/gutachten-bg.seed.ts), [qs-basis.seed.ts](src/core/services/skills/registry/qs-basis.seed.ts), [relevanz-map.seed.ts](src/core/services/skills/registry/relevanz-map.seed.ts)).
-- Geteilte Template-Hülle und Zeitstempel liegen in [ga-seed-basis.ts](src/core/services/skills/registry/ga-seed-basis.ts) — sonst wäre es eine Kopie oder ein Ringschluss geworden.
-- [seed.ts](src/core/services/skills/registry/seed.ts) ist von 868 auf 110 Zeilen geschrumpft und nur noch Sammelstelle; kein einziger Importpfad eines Konsumenten hat sich geändert.
-- Byte-Identität des gesamten Seed-Bestands (Skills, Prompts, Regeln, Workflows) gegen den Vor-Split-Stand nachgewiesen; alle 28 Skill-Testdateien unverändert grün.
-
-### v2.303.0 — Baustein-Zustand als eine Karte statt zwoelf Staende (Juli 2026)
-
-MINOR — Der Aufbereitungs-Hook hielt je KI-Baustein zwei getrennte Zustände, macht zwölf insgesamt. Jede Änderung musste sechs bis zwölf Stellen synchron treffen — es genügte, eine zu vergessen, und genau daran hingen mehrere Fixes der letzten Releases. Keine Verhaltensänderung, die Oberfläche des Hooks bleibt unverändert.
-
-- Ein Katalog beschreibt die sechs Bausteine einmal (Skill, Cache-Key, Lauf, Reihenfolge); Hook, Rehydrierung und Cache-Löschung ziehen sich ihre Arbeit daraus ([baustein-katalog.ts](src/plugins/antraege/aufbereitung/baustein-katalog.ts)).
-- Zwölf `useState` im Hook wurden einer; die Zustands-Übergänge liegen jetzt hook-frei und einzeln geprüft daneben ([baustein-zustand.ts](src/plugins/antraege/aufbereitung/baustein-zustand.ts), 17 neue Tests).
-- „Neu aufbereiten" und der Kontext-Wechsel erfassen nachweislich jeden Baustein statt sechs aufgezählter — ein neuer Baustein ist ab jetzt ein Tabellen-Eintrag ([useAufbereitung.ts](src/plugins/antraege/aufbereitung/useAufbereitung.ts)).
-- `UseAufbereitungResult` ist unverändert; kein Tab und kein anderer Konsument wurde angefasst.
 

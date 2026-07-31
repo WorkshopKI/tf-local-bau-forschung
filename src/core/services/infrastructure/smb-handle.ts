@@ -37,6 +37,7 @@ import {
   CSV_SOURCE_DIR_HANDLE_IDB_KEY,
 } from './types';
 import { canWriteDatenShare, isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
+import { mitLokalenHandles, ohneLokaleHandles, lokalerSlotHandle } from './local-fs/slots';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 
@@ -53,13 +54,29 @@ export interface FsFileHandle extends FileSystemFileHandle {
 
 type Handles = Record<string, FileSystemDirectoryHandle>;
 
+/**
+ * EINZIGE Lesestelle der Handle-Map — alle fuenf Getter (`getDatenShareHandle`,
+ * `getDokumentenquelleHandle`, `getDmsSourceHandle`, Persoenlich,
+ * UserFoldersRoot) und damit saemtliche Aufrufer laufen hier durch.
+ *
+ * Genau deshalb haengt die Variante „local" hier ein: ein Zweig, ~240 Call-Sites.
+ * Die synthetischen Handles melden `queryPermission → 'granted'`, wodurch
+ * `listPendingGrants` leer bleibt und der StartupScreen sich selbst weiterfaehrt.
+ */
 async function readAll(idb: IDBStore): Promise<Handles> {
-  const existing = await idb.get<Handles>(SMB_HANDLES_IDB_KEY);
-  return existing ?? {};
+  const existing = (await idb.get<Handles>(SMB_HANDLES_IDB_KEY)) ?? {};
+  return __TEAMFLOW_LOCAL_FS__ ? mitLokalenHandles(existing) : existing;
 }
 
+/**
+ * Gegenstueck zu `readAll`: synthetische Handles muessen VOR dem Persistieren
+ * wieder raus. Sie tragen Methoden und sind nicht structured-cloneable —
+ * `idb.set` wuerfe `DataCloneError`, und zwar auf einem Pfad, der bei JEDEM
+ * Start laeuft (App.tsx → migrateLegacyDmsSource → hier) und den Fehler nur als
+ * `console.warn` zeigt.
+ */
 async function writeAll(idb: IDBStore, handles: Handles): Promise<void> {
-  await idb.set(SMB_HANDLES_IDB_KEY, handles);
+  await idb.set(SMB_HANDLES_IDB_KEY, __TEAMFLOW_LOCAL_FS__ ? ohneLokaleHandles(handles) : handles);
 }
 
 export type PickResult =
@@ -68,7 +85,16 @@ export type PickResult =
 
 async function pickDirectory(
   mode: 'read' | 'readwrite' = 'readwrite',
+  slot?: string,
 ): Promise<FileSystemDirectoryHandle | { aborted: true } | { error: string }> {
+  // Variante „local": nie den nativen Picker oeffnen. Der Dialog ist per
+  // Browser-Sicherheit nicht skriptbar — er wuerde eine laufende Automation
+  // stumm blockieren. Stattdessen direkt den konfigurierten Ordner liefern.
+  if (__TEAMFLOW_LOCAL_FS__ && slot) {
+    const handle = lokalerSlotHandle(slot);
+    if (handle) return handle;
+    return { error: `Variante "local": fuer Slot "${slot}" ist kein Ordner konfiguriert.` };
+  }
   if (!('showDirectoryPicker' in window)) {
     return { error: 'File System Access API nicht verfügbar (falscher Browser?)' };
   }
@@ -97,7 +123,7 @@ export async function pickAndStoreDatenShareHandle(
   opts: { mode?: 'read' | 'readwrite' } = {},
 ): Promise<PickResult> {
   const mode = opts.mode ?? 'readwrite';
-  const res = await pickDirectory(mode);
+  const res = await pickDirectory(mode, SMB_HANDLE_DATEN_SHARE);
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
@@ -268,7 +294,7 @@ export async function pickAndStoreDmsSourceHandle(
   idb: IDBStore,
   sourceId: string,
 ): Promise<PickResult> {
-  const res = await pickDirectory('read');
+  const res = await pickDirectory('read', dmsSourceSlotKey(sourceId));
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return {
@@ -402,7 +428,7 @@ export { HEARTBEAT_PROBE_PATH, INTERN_FEEDBACK_DIR };
  * spaetere Outbox-Writes ohne extra Setup-Schritt funktionieren.
  */
 export async function pickAndStorePersoenlichHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory('readwrite');
+  const res = await pickDirectory('readwrite', SMB_HANDLE_PERSOENLICH);
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
@@ -437,7 +463,7 @@ export async function ensurePersoenlichFolders(parent: FileSystemDirectoryHandle
  * -------------------------------------------------------------------------- */
 
 export async function pickAndStoreUserFoldersRootHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory('read');
+  const res = await pickDirectory('read', SMB_HANDLE_USER_FOLDERS_ROOT);
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };

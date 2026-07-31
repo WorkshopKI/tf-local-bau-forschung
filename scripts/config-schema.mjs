@@ -290,6 +290,14 @@ export const DEFAULT_CONFIG = {
   // `npm run set-password -- <variant> <pw>` eingebacken (scripts/set-app-password.mjs).
   auth: null,
 
+  // Variante „local" (nur Entwickler-Maschine, nur Dev-Server): feste lokale
+  // Ordner statt File-System-Access-API-Picker. `null` = aus. Gesetzt wird der
+  // Block ausschliesslich von configs/local.config.json; `scripts/dev-local.mjs`
+  // startet damit den Vite-Dev-Server. Ein Build faltet den Zweig immer weg
+  // (`__TEAMFLOW_LOCAL_FS__` haengt an `command === 'serve'`, vite.config.ts).
+  // Siehe docs/architecture/local-variante.md.
+  local: null,
+
   // Modul „Anfragen" (nur dev). Optionaler Per-Variant-Override der ZIM-FAQ-
   // Assistent-URL. Der kanonische Default lebt als EINZIGE Code-Quelle in
   // src/config/feature-flags.ts (DEFAULT_ANFRAGEN_DASHBOARD_URL); `null` = diesen
@@ -307,6 +315,20 @@ export const DEFAULT_CONFIG = {
     mistralUrl: null,
   },
 };
+
+/** Einzel-Pfad-Slots des `local`-Blocks (Variante „local"). */
+const LOCAL_PFAD_SLOTS = ['datenShare', 'persoenlich', 'userFoldersRoot', 'csvSourceDir', 'vorlagenDir'];
+/** Slot-Maps `{id: pfad}` des `local`-Blocks. */
+const LOCAL_PFAD_MAPS = ['dmsSources'];
+
+/**
+ * Absoluter Pfad? Akzeptiert Windows (`C:\…`, `C:/…`), UNC (`\\server\…`) und
+ * POSIX (`/…`). Bewusst plattform-unabhaengig: diese Datei laeuft auch im
+ * Browser-Kontext der Config-UI, `node:path` ist hier nicht verfuegbar.
+ */
+function istAbsoluterPfad(p) {
+  return /^([a-zA-Z]:[\\/]|\\\\|\/)/.test(p);
+}
 
 /**
  * Validiert eine geladene Config. Gibt `errors`/`warnings`/`valid` zurück.
@@ -555,6 +577,68 @@ export function validateConfig(config) {
       }
       if (auth.hint != null && typeof auth.hint !== 'string') {
         errors.push('auth.hint muss string oder weggelassen sein');
+      }
+    }
+  }
+
+  // Variante „local" (feste Entwickler-Ordner statt FSAPI-Picker) strukturell prüfen.
+  const local = config.local ?? null;
+  if (local !== null) {
+    if (typeof local !== 'object' || Array.isArray(local)) {
+      errors.push('local muss Objekt oder null/weggelassen sein');
+    } else {
+      if (config.variant === 'production') {
+        errors.push(
+          'KRITISCH: der local-Block darf nicht in einer variant="production"-Config stehen. ' +
+          'Er verdrahtet feste Entwickler-Pfade und haengt den Ordner-Picker aus — ' +
+          'in einer ausgelieferten Variante waere das ein Datenleck-Pfad.',
+        );
+      }
+      for (const key of LOCAL_PFAD_SLOTS) {
+        const wert = local[key];
+        if (wert == null) continue;
+        if (typeof wert !== 'string' || !wert.trim()) {
+          errors.push(`local.${key} muss ein nicht-leerer Pfad-String oder null sein`);
+        } else if (!istAbsoluterPfad(wert)) {
+          errors.push(`local.${key} muss ein ABSOLUTER Pfad sein (ist "${wert}")`);
+        } else if (wert.includes('..')) {
+          errors.push(`local.${key} darf kein ".." enthalten (ist "${wert}")`);
+        }
+      }
+      for (const key of LOCAL_PFAD_MAPS) {
+        const map = local[key];
+        if (map == null) continue;
+        if (typeof map !== 'object' || Array.isArray(map)) {
+          errors.push(`local.${key} muss ein Objekt {id: pfad} oder weggelassen sein`);
+          continue;
+        }
+        for (const [id, wert] of Object.entries(map)) {
+          if (typeof wert !== 'string' || !istAbsoluterPfad(wert) || wert.includes('..')) {
+            errors.push(`local.${key}["${id}"] muss ein absoluter Pfad ohne ".." sein`);
+          }
+        }
+      }
+      if (local.profil != null) {
+        if (typeof local.profil !== 'object' || Array.isArray(local.profil)) {
+          errors.push('local.profil muss Objekt oder weggelassen sein');
+        } else if (typeof local.profil.name !== 'string' || !local.profil.name.trim()) {
+          errors.push('local.profil.name ist Pflicht, wenn local.profil gesetzt ist');
+        }
+      }
+      if (local.datenShare == null) {
+        warnings.push(
+          'local-Block ohne local.datenShare: die App startet ohne Daten-Share-Handle und landet im Welcome-Screen.',
+        );
+      }
+      if (features.devFixtures !== true) {
+        warnings.push(
+          'local-Block ohne features.devFixtures=true: der window.__tf-Steuerhook steht nicht zur Verfuegung.',
+        );
+      }
+      if (config.ki?.openrouter?.enabled === true) {
+        warnings.push(
+          'local-Block + OpenRouter aktiv: die lokale Share-Kopie enthaelt ECHTE Daten, die so an eine Cloud-API gehen koennten.',
+        );
       }
     }
   }

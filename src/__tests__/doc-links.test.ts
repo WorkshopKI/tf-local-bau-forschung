@@ -108,6 +108,11 @@ describe('doc-links', () => {
     // beim nächsten Lauf), und ein leeres Rollen-Array heißt „jeder darf",
     // nicht „niemand" — die umgekehrte Lesart blendet 143 von 505 Codes
     // überall aus. Das Detail lebt in docs/status-system/KATALOG-CODES.md.
-    expect(bytes).toBeLessThan(52_000);
+    // 52_000 → 52_200 (v2.371): EINE Decision-Tree-Zeile für die Variante
+    // „local". Sie ist reine Auffindbarkeit — ohne sie weiß ein Agent nicht,
+    // dass er die App überhaupt selbst ansehen und bedienen KANN, und fällt auf
+    // „bitte manuell prüfen" zurück. Die Zeile trägt nur Stichwort + Doc-Link +
+    // Kommando; das Detail lebt in docs/architecture/local-variante.md.
+    expect(bytes).toBeLessThan(52_200);
   });
 });

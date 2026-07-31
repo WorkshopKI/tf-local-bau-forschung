@@ -21,6 +21,13 @@ declare const __TEAMFLOW_APP_VERSION__: string;
  * (damit `if (__TEAMFLOW_DEV_FIXTURES__) { ... }` in Prod-Builds zu dead code wird).
  */
 declare const __TEAMFLOW_DEV_FIXTURES__: boolean;
+/**
+ * Literal-Boolean-Define für die Variante „local" (feste Entwickler-Ordner statt
+ * File-System-Access-API-Picker). Haengt an `command === 'serve'` UND einem
+ * gesetzten `local`-Block: in JEDEM Build ist die Konstante `false`, der Zweig
+ * wird von Rollup eliminiert. Siehe docs/architecture/local-variante.md.
+ */
+declare const __TEAMFLOW_LOCAL_FS__: boolean;
 
 interface FileSystemDirectoryHandle {
   requestPermission(descriptor?: { mode?: 'read' | 'readwrite' }): Promise<PermissionState>;

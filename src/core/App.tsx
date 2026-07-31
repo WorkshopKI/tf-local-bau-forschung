@@ -23,6 +23,8 @@ import {
   needsDatenShareDowngrade,
 } from '@/core/services/infrastructure/smb-handle';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
+import { sorgeFuerLokalesProfil } from '@/core/services/infrastructure/local-fs/boot';
+import { installiereTfHook } from '@/dev-fixtures/window-hook';
 import { listProgramme } from '@/core/services/csv';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
@@ -381,6 +383,18 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           })),
       );
 
+      // Variante „local": Profil einmalig seeden, BEVOR das Onboarding-Gate
+      // greift. Ohne das landet die per Definition leere Varianten-IDB bei
+      // jedem ersten Start im Onboarding-Formular und `refreshHandleGate`
+      // laeuft gar nicht erst. No-op ausserhalb der Variante (Dead Code im Build).
+      if (__TEAMFLOW_LOCAL_FS__) {
+        try {
+          await sorgeFuerLokalesProfil(storage.idb);
+        } catch (e) {
+          console.warn('[App] local-fs Profil-Seed fehlgeschlagen', e);
+        }
+      }
+
       const complete = await storage.idb.get<boolean>('onboarding-complete');
       if (complete) {
         const profile = await storage.idb.get<UserProfile>('profile');
@@ -408,6 +422,10 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       // damit sie VOR dem StartupScreen/Stepper rendert (erst anmelden, dann Ordner
       // freigeben). Pur — nur auth-Config + sessionStorage, keine Handle-Abhängigkeit.
       setShowAppGate(runtimeConfig.auth?.required === true && !getAppGateSession());
+
+      // `window.__tf` fuer programmatische Steuerung (Sicht-Check/Automation).
+      // No-op ohne devFixtures; in Prod-Builds entfernt Rollup den Zweig.
+      installiereTfHook(storage);
 
       setReady(true);
       hideLoader();

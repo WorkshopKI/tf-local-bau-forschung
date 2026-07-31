@@ -6,6 +6,7 @@ import path from 'path';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_CONFIG, deepMerge } from './scripts/config-schema.mjs';
+import { localFsPlugin, type LocalBlock } from './scripts/local-fs/plugin';
 
 // Dev-Server-Fallback: wenn TEAMFLOW_CONFIG nicht gesetzt ist (= `vite` direkt
 // statt `build-with-config.mjs`), lesen wir configs/_shared.json und mergen
@@ -20,6 +21,31 @@ const devFallbackConfig: unknown = sharedConfig
   ? deepMerge(DEFAULT_CONFIG, sharedConfig)
   : DEFAULT_CONFIG;
 
+/**
+ * Sammelt alle konfigurierten Ordner-Wurzeln der Variante „local" (Einzel-Slots
+ * + die `{id: pfad}`-Maps) als absolute Pfade — für den Watcher-Ausschluss unten.
+ */
+function sammleLocalRoots(local: Record<string, unknown> | null | undefined): string[] {
+  if (!local) return [];
+  const out: string[] = [];
+  for (const wert of Object.values(local)) {
+    if (typeof wert === 'string' && wert.trim()) {
+      out.push(wert);
+    } else if (wert && typeof wert === 'object' && !Array.isArray(wert)) {
+      for (const inner of Object.values(wert as Record<string, unknown>)) {
+        if (typeof inner === 'string' && inner.trim()) out.push(inner);
+      }
+    }
+  }
+  return out;
+}
+
+/** Vergleichsform für Pfad-Präfixe: Forward-Slashes, auf win32 zusätzlich lowercase. */
+function pfadSchluessel(p: string): string {
+  const norm = path.resolve(p).replace(/\\/g, '/');
+  return process.platform === 'win32' ? norm.toLowerCase() : norm;
+}
+
 // Single source of truth für die App-Version: package.json#version.
 const pkgPath = fileURLToPath(new URL('./package.json', import.meta.url));
 const appVersion: string = (() => {
@@ -31,7 +57,7 @@ const appVersion: string = (() => {
   }
 })();
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const isSingle = mode === 'single';
 
   // Config kommt entweder aus dem Build-Orchestrator (scripts/build-with-config.mjs)
@@ -46,6 +72,14 @@ export default defineConfig(({ mode }) => {
   // Dead-Code-Elimination (Akzeptanz-Kriterium: keine Fixture-Funktionen im Prod-Bundle).
   const parsedConfig = JSON.parse(rawConfig);
   const devFixturesEnabled = Boolean(parsedConfig.features?.devFixtures);
+
+  // Variante „local": feste lokale Ordner statt FSAPI-Picker (nur Dev-Maschine).
+  // `command === 'serve'` ist der harte Riegel — JEDER Build (auch ein
+  // versehentlicher mit local-Block in der Config) faltet die Konstante auf
+  // `false`, Rollup eliminiert den kompletten Zweig. Zweite Schicht:
+  // validateConfig bricht bei `local` + variant="production" KRITISCH ab.
+  const localFsEnabled = command === 'serve' && Boolean(parsedConfig.local);
+  const localRoots: string[] = localFsEnabled ? sammleLocalRoots(parsedConfig.local) : [];
 
   // Tab-Title + Loader-Label aus der Config in index.html injizieren.
   // Ohne diesen Hook flasht beim ersten Laden kurz "TeamFlow Local" (statisch
@@ -76,6 +110,9 @@ export default defineConfig(({ mode }) => {
         },
       },
       isSingle && viteSingleFile(),
+      // Variante „local": Dateisystem-Brücke über die festen Ordner. Das Plugin
+      // ist `apply: 'serve'` — es existiert in keinem Build.
+      localFsEnabled && localFsPlugin(parsedConfig.local as LocalBlock),
     ].filter(Boolean),
     define: {
       __TEAMFLOW_CONFIG__: rawConfig,
@@ -83,6 +120,7 @@ export default defineConfig(({ mode }) => {
       __TEAMFLOW_GIT_HASH__: JSON.stringify(gitHash),
       __TEAMFLOW_APP_VERSION__: JSON.stringify(appVersion),
       __TEAMFLOW_DEV_FIXTURES__: JSON.stringify(devFixturesEnabled),
+      __TEAMFLOW_LOCAL_FS__: JSON.stringify(localFsEnabled),
     },
     build: {
       target: 'esnext',
@@ -99,7 +137,24 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       watch: {
-        ignored: ['**/_reference/**', '**/_design/**'],
+        ignored: [
+          '**/_reference/**',
+          '**/_design/**',
+          // Variante „local": die App schreibt waehrend des Betriebs in ihre
+          // Datenordner (Snapshots, Audit-Log, Sidecars). Liegt eine Wurzel im
+          // Projekt, loeste jeder dieser Writes einen HMR-Reload mitten im Lauf
+          // aus. Als FUNKTION statt Glob, weil die Pfade Leerzeichen und
+          // Glob-Sonderzeichen enthalten koennen (z.B. „DMS Vorlagen").
+          ...(localRoots.length > 0
+            ? [(p: string): boolean => {
+                const kandidat = pfadSchluessel(p);
+                return localRoots.some(root => {
+                  const praefix = pfadSchluessel(root);
+                  return kandidat === praefix || kandidat.startsWith(`${praefix}/`);
+                });
+              }]
+            : []),
+        ],
       },
     },
   };

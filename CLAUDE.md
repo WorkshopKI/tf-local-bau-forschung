@@ -21,6 +21,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |
 | Wiederkehrende Bug-Klassen (Cold-Start-Refresh, FSAPI, Parallel-Varianten, Embedding-Caches) | [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md) |
 | Welche(n) Build nach dem Patch bauen | [docs/agents/which-build-to-run.md](docs/agents/which-build-to-run.md) |
+| App ansehen / UI automatisiert prüfen (ohne Picker, echte Daten) | [local-variante.md](docs/architecture/local-variante.md) — `npm run dev:local` |
 | Build-Varianten (Configs, Sichtbarkeits-Matrix, Feature-Flags) | [docs/architecture/build-varianten.md](docs/architecture/build-varianten.md) |
 | npm audit meldet etwas | [docs/audit-akzeptiert.md](docs/audit-akzeptiert.md) |
 | ONNX/Transformers-WASM, Bundle-Größe (Inline-gzip + `wasmBinary`, Post-Build-Strip) | Pitfall #39 + [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md) |
