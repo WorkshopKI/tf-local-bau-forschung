@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.368 — 2026-07
+
+### Verbesserungen
+- In „Über die App" lässt sich die Trennlinie zwischen den beiden Spalten jetzt mit der Maus verschieben. Die Aufteilung startet halbe/halbe, wird auf diesem Rechner gemerkt, und ein Doppelklick auf die Trennlinie stellt sie wieder her.
+- Der Knopf „Alle aufklappen" ist entfallen — bei fast 700 Einträgen hat er die Liste eher unbrauchbar gemacht.
+
 ## v2.367 — 2026-07
 
 ### Verbesserungen

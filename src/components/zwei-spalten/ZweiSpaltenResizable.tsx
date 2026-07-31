@@ -35,6 +35,12 @@ export interface ZweiSpaltenResizableProps {
   ariaLabel?: string;
   /** Tailwind-Gap-Klasse für die Grid-Lücke (Default `gap-8`). */
   gapClassName?: string;
+  /**
+   * Zusätzliche Klassen am Grid-Element. Gedacht für Konsumenten in einem Container
+   * mit fester Höhe (z.B. Dialog), die `h-full min-h-0` brauchen, damit beide Spalten
+   * die volle Höhe füllen und für sich scrollen. Ohne Angabe unverändert (Auto-Höhe).
+   */
+  className?: string;
 }
 
 export function ZweiSpaltenResizable({
@@ -46,6 +52,7 @@ export function ZweiSpaltenResizable({
   maxBreite,
   ariaLabel = 'Breite der Seitenspalte anpassen',
   gapClassName = 'gap-8',
+  className = '',
 }: ZweiSpaltenResizableProps): React.ReactElement {
   const klemme = useCallback(
     (px: number): number => clampBreite(px, minBreite, maxBreite, defaultBreite),
@@ -138,7 +145,7 @@ export function ZweiSpaltenResizable({
   return (
     <div
       ref={gridRef}
-      className={`grid grid-cols-1 lg:grid-cols-[1fr_var(--zs-seite-breite,320px)] ${gapClassName}`}
+      className={`grid grid-cols-1 lg:grid-cols-[1fr_var(--zs-seite-breite,320px)] ${gapClassName} ${className}`}
       style={{ '--zs-seite-breite': `${breite}px` } as React.CSSProperties}
     >
       {haupt}

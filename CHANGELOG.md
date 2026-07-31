@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.368.0 — Über die App: Spaltenteilung ziehbar (Juli 2026)
+
+MINOR — Nachzug zu v2.366: die feste Aufteilung passte nicht zu jedem Lesebedürfnis, und „Alle aufklappen" war ein Knopf, der eine Liste mit 685 Einträgen komplett entfaltet — praktisch nie das, was jemand will.
+
+- Spaltenteilung startet 50:50 und ist per Griff ziehbar ([UeberDieAppDialog.tsx](src/core/components/changelog/UeberDieAppDialog.tsx)) — über die geteilte `ZweiSpaltenResizable` statt eigener Drag-Logik, damit es keine dritte Resize-Implementierung gibt.
+- Breite wird gerätelokal gemerkt (`teamflow_ueber_app_spalten_breite`), Doppelklick auf den Griff stellt 50:50 wieder her; Griff ist auch per Tastatur bedienbar.
+- `ZweiSpaltenResizable` nimmt eine optionale `className` fürs Grid ([ZweiSpaltenResizable.tsx](src/components/zwei-spalten/ZweiSpaltenResizable.tsx)) — nötig für Konsumenten mit fester Container-Höhe (`h-full min-h-0`), sonst unverändert.
+- Knopf „Alle aufklappen" entfällt samt `expandAll`-Zustand; die Aufklapp-Logik (aktuelle Hauptnummer + erste 3 Versionen offen) bleibt.
+
 ### v2.367.0 — Kopieren und Stil in der Werkzeugzeile (Juli 2026)
 
 MINOR — „Text kopieren" und „Persönlicher Stil" lagen seit dem Vier-Ebenen-Umbau (v2.337) im ⋯-Menü der Abschnitts-Kopfzeile, dem Ort für „alles Seltenere". Beides ist aber Alltag — den fertigen Abschnitt in Mail/Word ziehen, den eigenen Stil setzen —, also gehören sie sichtbar unter den Text. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
