@@ -1,9 +1,21 @@
 # Dokumente
-**Zweck:** Nutzer importiert Dateien (DOCX/PDF/MD/TXT), die intern zu Markdown konvertiert und durchsuchbar abgelegt werden — mit Tags zur Organisation und Volltext-/semantischer Suche innerhalb der Liste.
 
-**UI-Elemente & Begriffe:** Liste links (mit „Angeheftet"-Sektion, Paginierung) + Detail-Seitenpanel rechts bei Auswahl; „Öffnen" wechselt in eine Vollbild-Markdown-Ansicht. Buttons: „Importieren" (öffnet Drop-Zone für Datei-Upload). Suchfeld „Volltext + semantische Suche". Tag-Pillen als Filter (Top 10 + „weitere" aufklappbar). Pin-Icon zum Anheften. Import-Feedback als Erfolgs-/Fehlermeldung.
+## Zweck
 
-**Typische Aktionen:**
+Nutzer importiert Dateien (DOCX/PDF/MD/TXT), die intern zu Markdown konvertiert und durchsuchbar abgelegt werden — mit Tags zur Organisation und Volltext-/semantischer Suche innerhalb der Liste.
+
+## UI-Elemente & Begriffe
+
+- **Liste links:** mit „Angeheftet"-Sektion und Paginierung.
+- **Detail-Seitenpanel rechts** bei Auswahl; „Öffnen" wechselt in eine Vollbild-Markdown-Ansicht.
+- **„Importieren":** öffnet die Drop-Zone für den Datei-Upload.
+- **Suchfeld** „Volltext + semantische Suche".
+- **Tag-Pillen** als Filter (Top 10 + „weitere" aufklappbar).
+- **Pin-Icon** zum Anheften.
+- **Import-Feedback** als Erfolgs-/Fehlermeldung.
+
+## Typische Aktionen
+
 - Datei(en) per Drag&Drop oder Dialog importieren (Konvertierung zu Markdown)
 - Dokument in der Liste auswählen, Metadaten/Inhalt im Seitenpanel ansehen
 - Tags vergeben/ändern, nach Tag filtern

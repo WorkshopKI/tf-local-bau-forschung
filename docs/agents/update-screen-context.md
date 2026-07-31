@@ -27,10 +27,11 @@ fachliche Änderung: nicht anfassen.
    `KURATION_PLUGIN_IDS` in [screenContext.ts](../../src/core/services/feedback/screenContext.ts))
    teilen sich `kuration.md` — dort den passenden Unterabschnitt anfassen.
 2. **Schablone einhalten** — sie steht mit Beispiel in
-   [README.md](../feedback-kontext/README.md): Zweck / UI-Elemente & Begriffe (als
-   Aufzählung je UI-Bereich) / Typische Aktionen (Aufzählung) / `## Technik`.
-   Leerzeile zwischen allen Blöcken (der Renderer läuft mit `breaks: false` — ohne
-   Leerzeilen wird das ganze Doc **ein** Absatz), kein Absatz über 1200 Zeichen.
+   [README.md](../feedback-kontext/README.md): `## Zweck` / `## UI-Elemente & Begriffe`
+   (Aufzählung je UI-Bereich) / `## Typische Aktionen` (Aufzählung) / `## Technik`.
+   Abschnitte sind **Überschriften**, keine Fett-Label (die rendern so groß wie fetter
+   Fließtext). Leerzeile zwischen allen Blöcken (der Renderer läuft mit `breaks: false`
+   — ohne Leerzeilen wird das ganze Doc **ein** Absatz), kein Absatz über 700 Zeichen.
 3. **Technisches nach unten**: Route, Feature-Flag, Stores, Dateinamen liest nur die
    KI. Sie stehen unter der `## Technik`-Überschrift am Ende, die `entferneTechnik()`
    für den Hilfe-Dialog wegschneidet — und weil sie ab der **ersten** solchen
@@ -50,7 +51,7 @@ fachliche Änderung: nicht anfassen.
    fängt fehlende Docs (neues Plugin ohne Doc) und die Reißleine;
    [seitenHilfe.test.ts](../../src/core/services/feedback/__tests__/seitenHilfe.test.ts)
    prüft je Doc den sichtbaren Teil: keine Datei-/Pfadangaben, keine Routen/Flags/
-   Komponentennamen, kein Technik-Fett-Label, kein Absatz über 1200 Zeichen,
+   Komponentennamen, kein Technik-Fett-Label, kein Absatz über 700 Zeichen,
    „Typische Aktionen" als Aufzählung, nichts hinter `## Technik`.
 
 ## Nicht ändern

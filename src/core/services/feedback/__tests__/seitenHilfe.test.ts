@@ -227,11 +227,11 @@ describe('jedes Kontext-Doc ist lesbar strukturiert', () => {
   // verschmilzt ein ganzes Doc zu EINEM Absatz. Genau so sahen bis v2.369 neun
   // der Docs im Hilfe-Dialog aus — eine Bleiwueste, die niemand liest.
   //
-  // Laengster Absatz je Doc beim Setzen der Schwelle: die strukturierten Docs lagen
-  // bei 174–1151 Zeichen, die neun Bleiwuesten bei 1075–4258. Die Schwelle darf nur
-  // SINKEN; wer sie unter ~1100 druecken will, muss zuerst die "UI-Elemente"-Absaetze
-  // von auslastung.md und suche.md in Unterpunkte brechen.
-  const MAX_ABSCHNITT_CHARS = 1200;
+  // Die Schwelle darf nur SINKEN. Erste Fassung war 1200 (der Wert, der die neun
+  // Bleiwuesten riss und alle anderen durchliess) — zu lasch: auslastung.md lag mit
+  // 1151 knapp darunter und war beim Gegenlesen trotzdem eine Wand. Seither sind
+  // auch dessen Tab-Beschreibungen Unterpunkte; 700 ist die neue Obergrenze.
+  const MAX_ABSCHNITT_CHARS = 700;
 
   it.each(SEITEN_DOCS)(`%s hat keinen Absatz ueber ${MAX_ABSCHNITT_CHARS} Zeichen`, (name) => {
     const zuLang = absaetze(sichtbarerText(name))

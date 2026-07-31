@@ -1,9 +1,23 @@
 # Suche
-**Zweck:** Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden Suche (Wortlaut + optional semantische Ähnlichkeit) und kann Treffer per KI mit Begründungen anreichern lassen.
 
-**UI-Elemente & Begriffe:** Suchfeld oben, Dropdown „Ohne/Mit Ähnlichkeitssuche" (lädt bei Bedarf das Embedding-Modell), Button „Mit KI analysieren" (Begründungs-Overlay je Treffer), Button „Assistent" (öffnet das andockende KI-Chat-Panel rechts, kennt die aktuellen Treffer als Kontext), Export-Menü (CSV/XLSX/Zwischenablage), Filter-Chips nach Treffer-Typ, „Antragstyp"-Filter, „Begründungen entfernen". Ergebnistabelle mit sortier-/filterbaren, konfigurierbaren Spalten (Spalten-Auswahl über das Spalten-Menü). Status-Badges „Embedding-Modell lädt…", Lade-Phasen (Substring-/Embedding-/Dokumente-Treffer). **Leerzustand** (noch nichts getippt): Titel „{n} Anträge durchsuchbar" + kurze Feld-Erklärung + drei klickbare Beispiel-Chips (starten sofort eine Suche) + zwei dezente Hinweise; bei fehlendem Dokumentenindex ganz unten eine gedämpfte Info-Zeile „Volltextsuche … noch nicht eingerichtet" (kein Button — Index ist Kurator-Aufgabe).
+## Zweck
 
-**Typische Aktionen:**
+Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden Suche (Wortlaut + optional semantische Ähnlichkeit) und kann Treffer per KI mit Begründungen anreichern lassen.
+
+## UI-Elemente & Begriffe
+
+- **Suchfeld** oben.
+- **Dropdown „Ohne/Mit Ähnlichkeitssuche":** lädt bei Bedarf das Embedding-Modell.
+- **„Mit KI analysieren":** Begründungs-Overlay je Treffer; „Begründungen entfernen" räumt sie wieder ab.
+- **„Assistent":** öffnet das andockende KI-Chat-Panel rechts, das die aktuellen Treffer als Kontext kennt.
+- **Export-Menü:** CSV / XLSX / Zwischenablage.
+- **Filter:** Filter-Chips nach Treffer-Typ und ein „Antragstyp"-Filter.
+- **Ergebnistabelle:** sortier-/filterbare, konfigurierbare Spalten (Spalten-Auswahl über das Spalten-Menü).
+- **Status-Badges:** „Embedding-Modell lädt…" sowie die Lade-Phasen (Substring-/Embedding-/Dokumente-Treffer).
+- **Leerzustand** (noch nichts getippt): Titel „{n} Anträge durchsuchbar" + kurze Feld-Erklärung + drei klickbare Beispiel-Chips (starten sofort eine Suche) + zwei dezente Hinweise. Fehlt der Dokumentenindex, steht ganz unten eine gedämpfte Info-Zeile „Volltextsuche … noch nicht eingerichtet" (kein Button — der Index ist Kurator-Aufgabe).
+
+## Typische Aktionen
+
 - Suchbegriff eingeben (oder Beispiel-Chip im Leerzustand klicken), Treffer aus Anträgen/Dokumenten durchsehen
 - Ähnlichkeitssuche ein-/ausschalten für semantische Treffer
 - Treffer nach Typ oder Antragstyp filtern, Spalten anpassen

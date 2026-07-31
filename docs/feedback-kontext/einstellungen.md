@@ -1,8 +1,11 @@
 # Einstellungen
 
-**Zweck:** Persönliche App-Konfiguration: Profil, Technologien, Darstellung & Bedienung, KI-Anbindung, Daten & Verbindungen — jeder User pflegt seine eigenen.
+## Zweck
 
-**UI-Elemente & Begriffe:**
+Persönliche App-Konfiguration: Profil, Technologien, Darstellung & Bedienung, KI-Anbindung, Daten & Verbindungen — jeder User pflegt seine eigenen.
+
+## UI-Elemente & Begriffe
+
 - **Settings-Sidebar links** mit Suchfeld (Strg+Komma fokussiert, springt zum Abschnitt und hebt ihn kurz hervor) und zwei Gruppen — **Persönlich** (Mein Profil, Meine Technologien) und **System** (Darstellung & Bedienung, Daten & Verbindungen, Interne KI); rechts das gewählte Panel.
 - **Mein Profil:** Name/Kürzel/Avatar, Bearbeiter-Filter, Home-Dashboard-Anzahl, Kurator-Login (nur Kurator-Build); im Dev-Build zusätzlich das Assistent-Arbeitsprotokoll (Opt-in, Export/Löschen, KI-Gedächtnis) — gefaltet statt als eigener Menüpunkt.
 - **Meine Technologien:** Programmkennung, Kategorien, Antragstypen, Auto-Tags, Zusätzliche Kompetenzen (für Auslastung).
@@ -10,7 +13,8 @@
 - **Daten & Verbindungen:** „Speicherorte" (Datenordner mit „Letzter CSV-Import" + „Jetzt aktualisieren" in der Zeile, Persönlicher Ordner, CSV-Quellen), „Persönliche Dokumentenquellen", „Tags" (Umbenennen/Löschen/Neu-zählen), „Team-Status" (nur pl/dev).
 - **Interne KI** (nur wo verfügbar): „LLM & Reasoning" (Kontextlänge in Tokens, Thinking-Toggle) und „Browser-KI-Verbindung" (Endpoint, Speichern/Testen, Lesezeichen; Dev: Provider).
 
-**Typische Aktionen:**
+## Typische Aktionen
+
 - Panel wählen oder per Suche springen
 - Profil ändern, Primärfarbe/Dark Mode umschalten
 - KI konfigurieren, Kurator-Modus aktivieren (Passwort)

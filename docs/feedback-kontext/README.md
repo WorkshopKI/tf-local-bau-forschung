@@ -9,14 +9,18 @@
 ```markdown
 # <Seitentitel wie in der Navigation>
 
-**Zweck:** <1–3 Sätze: was die Seite leistet, für wen.>
+## Zweck
 
-**UI-Elemente & Begriffe:**
+<1–3 Sätze: was die Seite leistet, für wen.>
+
+## UI-Elemente & Begriffe
+
 - **<UI-Bereich>:** <was dort steht — in der Sprache des Nutzers>
   - **<Unterelement>:** <nur wenn es eigene Begriffe/Regeln trägt>
 - **<UI-Bereich 2>:** …
 
-**Typische Aktionen:**
+## Typische Aktionen
+
 - <Verb + Objekt>
 
 ## Technik
@@ -28,12 +32,11 @@
 
 Struktur-Regeln (Guards in [seitenHilfe.test.ts](../../src/core/services/feedback/__tests__/seitenHilfe.test.ts)):
 
-1. **Leerzeile zwischen allen Blöcken.** Der Renderer läuft mit `breaks: false` — ohne Leerzeilen verschmilzt das ganze Doc zu **einem** Absatz. Genau so sahen bis v2.369 neun Docs im Hilfe-Dialog aus.
-2. **Ein Fett-Label steht allein auf seiner Zeile**, die Aufzählung beginnt direkt darunter (ohne Leerzeile dazwischen).
-3. **Kein Absatz über 1200 Zeichen** — lange Blöcke in Unterpunkte je UI-Bereich brechen, max. zwei Ebenen.
+1. **Abschnitte sind `##`-Überschriften, keine Fett-Label.** Ein `**Label:**` rendert genauso groß wie fetter Fließtext — dann ist es keine Überschrift. Zwischenstufen innerhalb eines Abschnitts: `###`.
+2. **Leerzeile zwischen allen Blöcken.** Der Renderer läuft mit `breaks: false` — ohne Leerzeilen verschmilzt das ganze Doc zu **einem** Absatz. Genau so sahen bis v2.369 neun Docs im Hilfe-Dialog aus.
+3. **Kein Absatz über 700 Zeichen** — lange Blöcke in Unterpunkte je UI-Bereich brechen, max. zwei Aufzählungs-Ebenen.
 4. **„Typische Aktionen" ist immer eine Aufzählung.**
 5. **`## Technik` ist die letzte Sektion.** `entferneTechnik()` schneidet ab der **ersten** solchen Überschrift bis Dateiende — was dahinter rutscht, sieht kein Nutzer mehr. Oberhalb steht kein Bezeichner in Backticks: keine Route, kein Feature-Flag, kein Komponentenname.
-6. `##`-Überschriften statt Fett-Labels sind gleichwertig erlaubt (Vorbilder: `meilensteine.md`, `status-cockpit.md`); die Regeln 1–5 gelten unverändert.
 
 **Pflege-Regel:** Bei UI- oder Datenmodell-Änderungen an einem Plugin das zugehörige `<plugin-id>.md` mit aktualisieren. Vorgehen siehe [docs/agents/update-screen-context.md](../agents/update-screen-context.md).
 

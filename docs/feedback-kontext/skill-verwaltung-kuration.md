@@ -1,8 +1,11 @@
 # Skill-Verwaltung
 
-**Zweck:** Kuratoren (bzw. PL im Schreib-Build) pflegen die KI-Skills, Qualitätsregeln und Textbausteine der Gutachten-/Bescheid-Erzeugung und testen Skills per Sandbox-Testlauf gegen echte Anträge, bevor sie live gehen.
+## Zweck
 
-**UI-Elemente & Begriffe:**
+Kuratoren (bzw. PL im Schreib-Build) pflegen die KI-Skills, Qualitätsregeln und Textbausteine der Gutachten-/Bescheid-Erzeugung und testen Skills per Sandbox-Testlauf gegen echte Anträge, bevor sie live gehen.
+
+## UI-Elemente & Begriffe
+
 - **Reiter:** „Skills", „Qualitätsregeln", „Workflows", „Textbausteine" (dev zusätzlich „Skill-Eval").
 - **Skill-Liste:** Ansichts-Umschalter (Liste/Tabelle/Karten; Start Tabelle), Facetten (Reifegrad, Kategorie mit Zähler, „nutzt Regel", Sortierung), Tabelle mit Name/Kategorie/Status + Reifegrad-Badge/Version/Regeln.
 - **Skill-Editor** (Detail-Kopf mit Umschalter „Team | Persönlich"):
@@ -14,7 +17,8 @@
 - **Weitere Werkzeuge:** Regel-Editor, Workflow-Editor (Schritte, Freigabe), Testlauf-Panel („VB ✓"/„keine VB"), Bundle-Import/-Export, „Ungespeicherte Änderungen"-Dialog.
 - **Reiter „Textbausteine":** Liste (Filter Typ NF/RNE/ABL, Status, Aspekt, Suche) + Editor (Thema, Aspekt-Chips A–J, Stichworte, Rechtstext mit Platzhaltern), Freigeben/Stilllegen mit Begründung, Versions-Historie mit Diff/Rollback, „Neuer Baustein" + „Aus Word importieren" (verbatim, erzeugt Entwürfe).
 
-**Typische Aktionen:**
+## Typische Aktionen
+
 - Skill/Regel bearbeiten und speichern, Skill duplizieren/löschen/exportieren
 - Regel aktivieren/deaktivieren, Sandbox-Testlauf starten
 - Umfangs-Vorgabe setzen/persönlich freigeben, Abnahme-Kriterien pflegen/ableiten

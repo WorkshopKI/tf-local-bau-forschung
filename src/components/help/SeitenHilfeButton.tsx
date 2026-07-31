@@ -23,7 +23,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { BookOpen, Compass, HelpCircle, Info, MessageSquarePlus } from 'lucide-react';
+import { BookOpen, Compass, HelpCircle, MessageSquarePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
@@ -108,13 +108,13 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
         className="h-[92vh]"
         headerActions={
           <>
-            <Button variant="ghost" size="sm" icon={Compass} onClick={tourStarten}>
-              Einführungs-Tour
-            </Button>
+            {/* Der Erklärtext hängt am Knopf selbst statt an einem ⓘ daneben: das
+                Icon war ein zweites Ziel für dieselbe Auskunft und hat die Zeile
+                nur verlängert. */}
             <Tooltip text={TOUR_DETAIL} maxWidth={340} wrapperClassName="flex items-center">
-              <span className="flex items-center text-[var(--tf-text-tertiary)]">
-                <Info size={13} aria-label="Was zeigt die Tour?" />
-              </span>
+              <Button variant="ghost" size="sm" icon={Compass} onClick={tourStarten}>
+                Einführungs-Tour
+              </Button>
             </Tooltip>
             <Button
               variant="ghost"

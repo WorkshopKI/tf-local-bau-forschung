@@ -1,8 +1,11 @@
 # Home
 
-**Zweck:** Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönliches Dashboard aus konfigurierbaren **Widgets** (seit v2.227): eigene offene Förderanträge, Antragseingang, Notizen, KI-Status.
+## Zweck
 
-**UI-Elemente & Begriffe:**
+Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönliches Dashboard aus konfigurierbaren **Widgets** (seit v2.227): eigene offene Förderanträge, Antragseingang, Notizen, KI-Status.
+
+## UI-Elemente & Begriffe
+
 - **Begrüßung:** „X offene Vorgänge …".
 - **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (drei klickbare Chips: über 90-Tage-Frist / nähern sich / QS-Freigaben offen → gefilterte Liste).
 - **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; Stift „Widget anpassen" nur bei einstellbaren — Kanban und Antragseingang; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Reihenfolge und Sichtbarkeit stehen in Einstellungen › Widgets.
@@ -19,7 +22,8 @@
   - **Weitermachen:** Opt-in — das Hero-Band ersetzt es im Default.
 - **Programm-Übersichtskarten** unterhalb der Widgets.
 
-**Typische Aktionen:**
+## Typische Aktionen
+
 - Über das Hero-Band weitermachen oder zu kritischen/QS-Punkten springen
 - Widgets ein-/ausklappen, per Stift anpassen (Kanban-Lanes/Farben, Ampel-Schwellen)
 - Auf Antrag-/Ampel-Zeile springen (→ gefilterte Liste), Kanban-Karte öffnen

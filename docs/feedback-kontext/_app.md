@@ -1,32 +1,45 @@
 # ZAH (ZIM-Arbeitshilfe) — App-Überblick
 
-**Was:** Die ZAH-App (ZIM-Arbeitshilfe) unterstützt bei der Textarbeit zu Förderanträgen und beim Controlling der eigenen Anträge.
+## Was
 
-**Hauptbereiche (Seitenleiste):** Die Liste ist in Blöcke geteilt — oben unbeschriftet der tägliche Weg, darunter „Werkzeuge", darunter „In Erprobung".
+Die ZAH-App (ZIM-Arbeitshilfe) unterstützt bei der Textarbeit zu Förderanträgen und beim Controlling der eigenen Anträge.
 
-Täglicher Weg:
+## Hauptbereiche (Seitenleiste)
+
+Die Liste ist in Blöcke geteilt — oben unbeschriftet der tägliche Weg, darunter „Werkzeuge", darunter „In Erprobung".
+
+### Täglicher Weg
+
 - **Home** — persönliches Dashboard aus konfigurierbaren Widgets (offene Anträge, Fristen, Rückstände)
 - **Förderanträge** — Kernmodul: Anträge und Verbünde/Teilvorhaben verwalten, Gutachten-Werkstatt, Artefakt-Werkbank, Antrag-Aufbereitung
 - **Auslastung** (nicht in allen Ausgaben) — Anträge in Überkategorien einsortieren, Mitarbeitenden zuweisen, Quartals-Kapazität planen
 
-Werkzeuge — stabil, aber seltener gebraucht:
+### Werkzeuge — stabil, aber seltener gebraucht
+
 - **Suche** — Hybrid-Suche (Volltext + semantisch) über Anträge und Dokumente; der KI-Assistent dockt hier rechts an
 - **Skill-Verwaltung** — Skills und Prüfregeln der KI-Bausteine pflegen (Schreiben nur mit Kurator- bzw. PL-Recht)
 - **Feedback** — öffentliches Board: Probleme, Ideen, Bearbeitungsstand aller Rückmeldungen
 - **Dokumente** (nur Entwickler-Ausgabe) — Dokumentenverwaltung und -vorschau
 
-In Erprobung — noch nicht ausgereift, Rückmeldungen ausdrücklich erwünscht; die Gruppe lässt sich zuklappen:
+### In Erprobung
+
+Noch nicht ausgereift, Rückmeldungen ausdrücklich erwünscht; die Gruppe lässt sich zuklappen.
+
 - **Fristen & Meilensteine** — Bearbeitungs-Meilensteine je Verbund, gemessen ab Antragseingang
 - **E-Mail Anfragen** — Anfragen anonymisiert an einen externen FAQ-Assistenten geben und die Antwort zurückführen
 - **Förderfähigkeit** — Einreichung prüfen: Rechenchecks, editierbare Checkliste, Abschluss-Entwurf
 - **Status-Katalog** — Statuswerte des Fachsystems kuratieren, ihre Wirkung simulieren, Fassungen versionieren
 
-Nur für Kuratoren nach Login:
+### Nur für Kuratoren nach Login
+
 - **Kuration** — Suchindex, Programme, CSV-Quellen, Dokumentenquellen, Anfragen-Konfiguration, Filter, Feedback-Dashboard, Dokument-Review
 
-**Wiederkehrende Bedienelemente:** Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite; in dessen Kopfzeile stehen auch die **Einführungs-Tour** und „Über die App". Rückmeldungen gehen über den runden Knopf unten rechts.
+## Wiederkehrende Bedienelemente
 
-**Begriffe:**
+Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite; in dessen Kopfzeile stehen auch die **Einführungs-Tour** und „Über die App". Rückmeldungen gehen über den runden Knopf unten rechts.
+
+## Begriffe
+
 - **Antrag** — ein Förderantrag, identifiziert über FKZ (Förderkennzeichen, Format `16KN######` oder `16EP######`)
 - **Verbund vs. Teilvorhaben** — ein Verbundprojekt bündelt mehrere Teilvorhaben (Teilanträge) unter einer gemeinsamen Projektbeschreibung; Anträge können Teil eines Verbunds oder eigenständig sein
 - **Rollen** — normale User (Sachbearbeitung/Gutachten, lesend + eigene Bereiche), Projektleitung (PL, schreibt Kurations-Daten), Kurator (voller Verwaltungszugriff nach Passwort-Login)

@@ -1,9 +1,29 @@
 # Auslastung
-**Zweck:** Der Projektleiter lässt Förderanträge automatisch in Fachkategorien einordnen und weist sie passenden Mitarbeitenden (MA) zu — inkl. quartalsweiser Kapazitätsplanung. Mitarbeitende sehen anonymisiert nur ihre eigene Auslastung/Vorschläge.
 
-**UI-Elemente & Begriffe:** 5 Tabs: „Anträge klassifizieren" (Kategorie-Vorschläge, Badge = offene Vorschläge; unvollständige Anträge ohne Sammel-Datum werden zurückgehalten „wartet auf Vollständigkeit", nur unter Chip „Unvollständig", nicht klassifiziert), „Anträge zuweisen" (50/50-Split-Cockpit mit Top-3-Match-Vorschlägen), „Auslastung MA" (Statistik + MA-Liste + Kapazität pro Quartal; je MA zwei getrennte Balken-Spalten: „Aktuelles Quartal" = Kapazitäts-Auslastung in % (rot bei Überbuchung) und „Altlasten (Rückstand)" = offene Anträge aus bis zu 7 Vorquartalen, gedämpfte Blau-Rampe (dunkel→hell = alt→neu, ältestes Quartal links; Hover zeigt die konkreten Anträge des Bands); daneben die Zahlenspalten Aktuell/Altlast./Frei), „Kompetenzen & Jahreskapazitäten" (Kompetenz-Matrix, XLSX-Upload), „Verwaltung" (Kategorien, CSV-Import/Export, Konfiguration inkl. Zugangspasswort-Verwaltung & E-Mail-Vorlage, Themen-Vektoren; hieß bis v2.205 „Einstellungen"). MAs erscheinen überall nur als anonyme ID (MA01–MAxx). Filter-Pillen zählen facettiert: die Zahl an einer Pille ist die Zeilenzahl nach dem Klick (andere aktive Filter sind eingerechnet).
+## Zweck
 
-**Typische Aktionen:**
+Der Projektleiter lässt Förderanträge automatisch in Fachkategorien einordnen und weist sie passenden Mitarbeitenden (MA) zu — inkl. quartalsweiser Kapazitätsplanung. Mitarbeitende sehen anonymisiert nur ihre eigene Auslastung/Vorschläge.
+
+## UI-Elemente & Begriffe
+
+Fünf Tabs:
+
+- **„Anträge klassifizieren":** Kategorie-Vorschläge, Badge = offene Vorschläge. Unvollständige Anträge ohne Sammel-Datum werden zurückgehalten („wartet auf Vollständigkeit") — sie stehen nur unter dem Chip „Unvollständig" und werden nicht klassifiziert.
+- **„Anträge zuweisen":** 50/50-Split-Cockpit mit Top-3-Match-Vorschlägen.
+- **„Auslastung MA":** Statistik + MA-Liste + Kapazität pro Quartal. Je MA zwei getrennte Balken-Spalten:
+  - **„Aktuelles Quartal"** = Kapazitäts-Auslastung in % (rot bei Überbuchung).
+  - **„Altlasten (Rückstand)"** = offene Anträge aus bis zu 7 Vorquartalen, gedämpfte Blau-Rampe (dunkel→hell = alt→neu, ältestes Quartal links); Hover zeigt die konkreten Anträge des Bands.
+  - Daneben die Zahlenspalten Aktuell / Altlast. / Frei.
+- **„Kompetenzen & Jahreskapazitäten":** Kompetenz-Matrix, XLSX-Upload.
+- **„Verwaltung":** Kategorien, CSV-Import/Export, Konfiguration inkl. Zugangspasswort-Verwaltung & E-Mail-Vorlage, Themen-Vektoren; hieß bis v2.205 „Einstellungen".
+
+Durchgängig:
+
+- **Anonymität:** MAs erscheinen überall nur als anonyme ID (MA01–MAxx).
+- **Filter-Pillen zählen facettiert:** die Zahl an einer Pille ist die Zeilenzahl nach dem Klick (andere aktive Filter sind eingerechnet).
+
+## Typische Aktionen
+
 - Klassifizierungs-Vorschläge pro Verbund prüfen/bestätigen
 - Anträge an MAs zuweisen (Top-3-Vorschläge nutzen)
 - Kapazität/Auslastung pro Quartal einsehen

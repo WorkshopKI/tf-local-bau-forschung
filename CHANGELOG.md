@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.369.1 — Hilfe-Kopfzeile: Tour-Erklaerung am Knopf statt am Info-Icon (Juli 2026)
+
+PATCH — Nachlese am Gegenlesen von v2.369.0: das ⓘ war ein zweites Ziel für dieselbe Auskunft, die Abschnitts-Label rendern so groß wie fetter Fließtext (also keine Überschriften), und drei Docs standen noch als Wand da — `auslastung.md` mit 1151 Zeichen knapp unter der zu lasch gesetzten Schwelle.
+
+- ⓘ entfällt; der Erklärtext hängt als Tooltip am Tour-Knopf selbst ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)) — Wortlaut und 340px-Breite unverändert.
+- Abschnitte sind in allen Docs `##`-Überschriften statt `**Fett-Label:**` — dieselbe Größenhierarchie, die `status-cockpit.md`/`meilensteine.md` schon hatten; am Renderer ändert sich dafür nichts.
+- Verschachtelte Aufzählungen bekommen eigene Marker/Abstände ([MarkdownRenderer.tsx](src/components/ui/MarkdownRenderer.tsx)) — die Unterpunkte je UI-Bereich erbten sonst `list-disc` + `mb-3` von der ersten Ebene.
+- Die letzten drei Wände aufgebrochen ([auslastung.md](docs/feedback-kontext/auslastung.md) je Tab, [suche.md](docs/feedback-kontext/suche.md) und [dokumente.md](docs/feedback-kontext/dokumente.md) je Bedienelement).
+- Absatz-Schwelle des Guards von 1200 auf **700** gesenkt ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)); Schablone an allen drei Fundstellen auf Überschriften umgestellt.
+
 ### v2.369.0 — Hilfe-Dialog: Tour und Ueber die App in die Kopfzeile, Kontext-Docs strukturiert (Juli 2026)
 
 MINOR — „Einführungs-Tour" und „Über die App" standen in der Fußzeile eines `h-[92vh]`-Dialogs: unterhalb einer Textwand am Bildschirmrand, wo sie niemand sucht. Und diese Textwand war real — neun der siebzehn Kontext-Docs hatten keine Leerzeile und verschmolzen im Renderer (`breaks: false`) zu EINEM Absatz. Schablone + Guard: [feedback-kontext/README.md](docs/feedback-kontext/README.md).

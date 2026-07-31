@@ -1,8 +1,11 @@
 # Förderanträge
 
-**Zweck:** Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Status/Dokumente verwalten.
+## Zweck
 
-**UI-Elemente & Begriffe:**
+Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Status/Dokumente verwalten.
+
+## UI-Elemente & Begriffe
+
 - **Liste links:** sortier-/gruppierbar. Bei offenem Detail schrumpft sie zur **Kompakt-Spalte** und lässt sich ganz einklappen (**Fokus-Modus**: alle Listen-Werkzeuge weg, Titel + „Aufnehmen" bleiben). Je Ordner des Fachsystems ist in der Tabelle eine Statusspalte einblendbar.
 - **FKZ** `16KN######` / `16EP######`: beim Überfahren einer Zeile erscheint rechts vom FKZ ein **Kopier-Icon** (Verbund-Zeile: das Verbund-FKZ).
 - **Filter:** als drittes Panel.
@@ -11,7 +14,8 @@
   - **„Fristen & Meilensteine":** Prognose + Restzeit.
   - **Offenes Teilvorhaben:** Felder, Netzwerk, Dokumente.
 
-**Gutachten-Werkstatt (wenn aktiv):**
+## Gutachten-Werkstatt (wenn aktiv)
+
 - **„Dokumente des Verbundes"** (oben): Typ + Umfang je Datei, maßgebliche **Vorhabensbeschreibung** markiert; weitere per „ins Gutachten aufnehmen".
 - **Noch nicht generierter Abschnitt:** „{Abschnitt} generieren" + **Persönlicher Stil**.
 - **Abschnitts-Karte**, vier Ebenen:
@@ -23,7 +27,8 @@
 - **Rechts „Quelle & KI-Hinweise"** (eingeklappt): **Beleg-Karten** (Klick → Satz), Abdeckung, Denkprozess.
 - **Offline:** Bearbeiten/Prüfen ja, KI aus.
 
-**Typische Aktionen:**
+## Typische Aktionen
+
 - Antrag suchen/filtern, Verbund öffnen, Teilvorhaben wechseln
 - Dokumente hochladen + Gutachten-Kontext wählen
 - Abschnitt erzeugen, per KI korrigieren, QS prüfen
