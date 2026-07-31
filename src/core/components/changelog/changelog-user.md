@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.365 — 2026-07
+
+### Bugfixes
+- **Der Umschalter auf die Standard-KI wirkt jetzt.** Wer bei „Interne KI" von „Agentisch" zurück auf „Standard" stellte, bekam zwar sofort die passenden Hinweise zum Kontextfenster — die Anfrage ging aber weiter an die agentische KI. Grund: Die App hat den Tab-Wechsel in der KI-Oberfläche nur in eine Richtung angestossen, zurück nie. Ab sofort springt die KI-Oberfläche sichtbar auf den passenden Tab, in beide Richtungen. Das Lesezeichen muss dafür **nicht** neu installiert werden.
+- **Der Notfall-Wechsel auf die Standard-KI wechselt wirklich.** Wenn die agentische KI nicht antwortet, übernimmt automatisch die Standard-KI. Dieser zweite Versuch lief bisher versehentlich in derselben KI weiter, die gerade ausgefallen war.
+
+### Verbesserungen
+- **Am Gutachten-Abschnitt steht, welche KI ihn geschrieben hat.** In der Fusszeile unter dem Text erscheint jetzt „Standard-KI" bzw. „Agentische KI" — bei älteren Abschnitten bleibt die Angabe leer, weil sie dort nicht mitgeschrieben wurde.
+
 ## v2.364 — 2026-07
 
 ### Neu

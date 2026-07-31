@@ -130,7 +130,8 @@ QS/Zweitmeinung. Das Bridge-Protokoll trägt dafür ein optionales `ziel` (`'sta
   `aktivesZielFuerLauf()` für die Bridge unerreichbar. Rein app-seitig behoben: das Snippet
   wertet `ziel` bei **jedem** `tf-request` aus (`runRequest(..., data.ziel, ...)`), Stream und
   Single-Turn gleichermassen — **kein `BRIDGE_REV`-Bump, keine Neu-Installation**. Ohne
-  gesetztes `ziel` fehlt das Feld weiterhin ganz (aktiver Tab, byte-identisch). Regressionstest:
+  gesetztes `ziel` lässt der Transport das Feld ganz weg (= aktiver Tab); seit v2.365 liefern
+  die Runner aber immer eines, siehe „Standard ist eine Aussage" unten. Regressionstest:
   [streamlit-ziel.test.ts](../../src/core/services/ai/__tests__/streamlit-ziel.test.ts).
 - **Nicht** abgedeckt: ein Variantenwechsel **mitten** in einer Unterhaltung wechselt den Tab,
   und der neue Tab hat seinen eigenen Verlauf — der Chat resettet bewusst nicht (Ausnahme von
@@ -166,9 +167,33 @@ Anzeige-Stellen über den Hook `useVbCharCap` ([useVbCharCap.ts](../../src/core/
 Kontextlänge gewinnt auch an der Bridge — wer sie gesetzt hat, soll sie nicht
 stillschweigend überschrieben bekommen.
 
-Anders als `aktivesZielFuerLauf` (das `'standard'` als `undefined` durchreicht, um kein
-Tab-Routing zu erzwingen) gibt `kontextZielFuerLauf` `'standard'` **mit**: für die
-Cap-Rechnung ist der Standard-Tab eine echte Aussage, nicht die Abwesenheit einer.
+Läufe, die ihr Ziel als Parameter tragen (Fallback-Retry!), leiten den Cap über
+`kontextZielFuer(bridge, ziel)` ab statt erneut den Store zu lesen — sonst misst die
+Rechnung gegen ein anderes Fenster als der Lauf tatsächlich fährt.
+
+### „Standard" ist eine Aussage, kein Weglassen (v2.365)
+
+`aktivesZielFuerLauf()` gibt **immer** ein explizites Ziel zurück, auch `'standard'`.
+
+Bis v2.364 reichte es für „Standard" `undefined` durch — mit der Begründung, kein
+Tab-Routing zu erzwingen. Das war ein Denkfehler: `undefined` heisst an der Bridge nicht
+„Standard-Tab", sondern **„aktiver Tab"** (`ensureZiel` steigt bei fehlendem `ziel` sofort
+aus und sucht gar keinen Tab). Da Streamlit die Tab-Auswahl hält und niemand sie
+zurückstellte, blieb nach dem ersten agentischen Lauf **jeder** Folge-Lauf im agentischen
+Chat — aus dem Agentischen führte kein Weg zurück, egal was der Umschalter zeigte. Sichtbar
+wurde es daran, dass die Cap-Warnung (die über `kontextZielFuerLauf` schon immer explizit
+`'standard'` sah) korrekt umsprang, während die Anfrage im falschen Tab landete.
+
+Derselbe Fehler steckte im Ziel-Fallback (`lauf(undefined)` als „Standard-Lauf") und in der
+Relevanz-Map (Reset + Submit ganz ohne `ziel`); beide nennen ihr Ziel jetzt ausdrücklich.
+Dritter Vorfall dieser Klasse nach v2.292 (`feedbackImprove`) und v2.298 (Aufbereitung) —
+dort wurde jeweils die Aufrufstelle gepinnt, die Wurzel blieb stehen.
+
+Rein app-seitig behoben: das ausgelieferte Snippet versteht explizites `'standard'` längst
+(`tabMatches`), und ohne Tab-UI ist `ensureZiel` ein No-op — **kein `BRIDGE_REV`-Bump, keine
+Neu-Installation**. Der Transport lässt das Feld weiterhin weg, wenn wirklich keins kommt
+([streamlit-ziel.test.ts](../../src/core/services/ai/__tests__/streamlit-ziel.test.ts) ist
+unverändert); geändert hat sich nur, dass die Runner immer eins liefern.
 
 ## Aktivierung (Nutzer-Flow)
 

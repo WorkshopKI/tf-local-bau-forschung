@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { Info, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
+import { zielLabel } from './abschnittAnzeige';
 import type { StepRun } from './types';
 
 interface Props {
@@ -52,6 +53,7 @@ export function AbschnittFuss({
   const prov = provenance
     ? `${provenance.skillName}${run.skillVersion != null ? ` v${run.skillVersion}` : ''}`
     : null;
+  const ki = zielLabel(run);
 
   return (
     <div className="g-fuss">
@@ -61,6 +63,7 @@ export function AbschnittFuss({
         {run.status === 'freigegeben' && ` · freigegeben am ${formatDate(run.freigegeben_am ?? run.erstellt_am)}`}
         {run.mitTweak ? ' · mit persönlichem Stil' : ''}
         {prov && ` · generiert von ${prov}`}
+        {ki && ` · ${ki}`}
       </span>
       {prov && onOpenSkill && (
         <button

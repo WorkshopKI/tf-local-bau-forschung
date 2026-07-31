@@ -7,6 +7,7 @@
  */
 import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
 import {
   STEP_ORDER,
@@ -314,6 +315,20 @@ export function applyZielFallback(run: WorkflowRun, stepId: StepId, now: string)
   const step = run.schritte[stepId];
   if (!step) return run;
   return setStep(run, stepId, { ...step, zielFallback: true }, now);
+}
+
+/**
+ * Hält am Schritt fest, welche interne KI seinen Text tatsächlich erzeugt hat.
+ * Wie `applyZielFallback` NACH der Mutation gesetzt (das effektive Ziel steht erst
+ * nach dem Lauf fest) und für Generierung wie Feinschliff gleichermaßen — beide
+ * erzeugen den angezeigten Text. No-op, wenn der Schritt leer ist.
+ */
+export function applyLaufZiel(
+  run: WorkflowRun, stepId: StepId, ziel: BridgeZiel, now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  return setStep(run, stepId, { ...step, ziel }, now);
 }
 
 /**

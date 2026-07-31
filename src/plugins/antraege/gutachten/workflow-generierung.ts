@@ -24,8 +24,8 @@ import {
   type CheckResult, type SkillModifierKey, type QualitaetsRegel, type SkillRecord,
   type SkillTweak, type WorkflowStep,
 } from '@/core/services/skills';
-import { kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
-import { mitZielFallback, zielWirktAuf } from '@/core/services/ai/ziel-fallback';
+import { kontextZielFuer } from '@/core/services/ai/ki-ziel';
+import { mitZielFallback, zielWirktAuf, type ZielFallbackErgebnis } from '@/core/services/ai/ziel-fallback';
 import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -36,7 +36,7 @@ import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import {
-  applyGeneration, applyFeinschliffUebersprungen, applyLektorat, applyQsHinweise, applyZielFallback,
+  applyGeneration, applyFeinschliffUebersprungen, applyLaufZiel, applyLektorat, applyQsHinweise, applyZielFallback,
   type GenerationInput,
 } from './runner';
 import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
@@ -109,9 +109,9 @@ async function mitFallbackLauf<R>(
   deps: GenerierungsDeps,
   transport: AITransport,
   signal: AbortSignal,
-  lauf: (deps: GenerierungsDeps, ziel: BridgeZiel | undefined) => Promise<R>,
+  lauf: (deps: GenerierungsDeps, ziel: BridgeZiel) => Promise<R>,
   istUnbrauchbar?: (ergebnis: R) => boolean,
-): Promise<{ result: R; zielFallback: boolean }> {
+): Promise<ZielFallbackErgebnis<R>> {
   let fehler: string | null = null;
   let verfuegbar: boolean | null = null;
   const gepuffert: GenerierungsDeps = {
@@ -168,16 +168,18 @@ export async function generateInto(
   deps.setLlmAvailable(ok);
   if (!ok) { deps.setError('KI nicht erreichbar — Generierung derzeit nicht möglich.'); return null; }
 
-  const { result, zielFallback } = await mitFallbackLauf(
+  const { result, zielFallback, ziel } = await mitFallbackLauf(
     deps, transport, o.signal,
-    (d, ziel) => generiereEinmal(base, stepId, o, d, sc, transport, ziel),
+    (d, z) => generiereEinmal(base, stepId, o, d, sc, transport, z),
     // Ein leerer finaler Text ist das, was ein nicht erreichbarer agentischer Tab
     // typischerweise liefert — für den Nutzer ein Ausfall, also fallback-würdig.
     (r) => !r.next.schritte[stepId]?.finalerText.trim(),
   );
+  const jetzt = new Date().toISOString();
+  const gestempelt = { ...result, next: applyLaufZiel(result.next, stepId, ziel, jetzt) };
   const roh = zielFallback
-    ? { ...result, next: applyZielFallback(result.next, stepId, new Date().toISOString()) }
-    : result;
+    ? { ...gestempelt, next: applyZielFallback(gestempelt.next, stepId, jetzt) }
+    : gestempelt;
 
   // Zweites Bein derselben Busy-Phase: der Feinschliff. Der Nutzer soll als
   // Ergebnis der Generierung direkt den polierten Text sehen — der Rohentwurf
@@ -244,7 +246,7 @@ async function generiereEinmal(
   deps: GenerierungsDeps,
   sc: SkillCtx,
   transport: AITransport,
-  ziel: BridgeZiel | undefined,
+  ziel: BridgeZiel,
 ): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
   const tw = o.tweak;
   const scRegeln = deps.regelnFuer(sc, tw);
@@ -264,8 +266,8 @@ async function generiereEinmal(
   if (!deps.forceFullContext && stepDef?.kontextBedarf === 'relevant' && vbBrauchtRelevanzMap(deps.korpusMd)) {
     try {
       const abschnitte: RelevanzAbschnitt[] = deps.steps.map(s => ({ id: s.id, label: s.label }));
-      const relevanz = await getOrComputeRelevanzMap(deps.idb, transport, deps.relevanzSkill, deps.key, deps.korpusMd, abschnitte);
-      const block = buildVbRelevant(relevanz, deps.korpusMd, stepId, getVbCharCap(kontextZielFuerLauf(deps.bridge)));
+      const relevanz = await getOrComputeRelevanzMap(deps.idb, transport, deps.relevanzSkill, deps.key, deps.korpusMd, abschnitte, ziel);
+      const block = buildVbRelevant(relevanz, deps.korpusMd, stepId, getVbCharCap(kontextZielFuer(deps.bridge, ziel)));
       if (block) vbRelevant = block;
     } catch {
       // Relevanz-Lauf gescheitert → Volltext-Fallback (nie scheitern).
@@ -286,10 +288,10 @@ async function generiereEinmal(
     let vorText = '';
     for (const teil of teilPlan) {
       const r = await runSkill(transport, sc.skill, teilRegelSatz, {
-        ...(ziel ? { ziel } : {}),
+        ziel,
         stammdaten: buildStammdaten(deps.ctx),
         vbMarkdown: deps.korpusMd,
-        vbCharCap: getVbCharCap(kontextZielFuerLauf(deps.bridge)),
+        vbCharCap: getVbCharCap(kontextZielFuer(deps.bridge, ziel)),
         thinkingBudget: deps.thinkingBudget,
         erwarteAbschluss: 'Finaler Text',
         onContentDelta: deps.stream.onContentDelta,
@@ -332,10 +334,10 @@ async function generiereEinmal(
   }
 
   const result = await runSkill(transport, sc.skill, scRegeln, {
-    ...(ziel ? { ziel } : {}),
+    ziel,
     stammdaten: buildStammdaten(deps.ctx),
     vbMarkdown: deps.korpusMd,
-    vbCharCap: getVbCharCap(kontextZielFuerLauf(deps.bridge)),
+    vbCharCap: getVbCharCap(kontextZielFuer(deps.bridge, ziel)),
     thinkingBudget: deps.thinkingBudget,
     // Abschluss-Marker-Schutz: A–G liefern alle „### Finaler Text" als Schluss-
     // Abschnitt. Verhindert, dass die Streamlit-Bridge einen langen Lauf schon nach
@@ -429,17 +431,17 @@ async function qsEinmal(
   qsCtx: SkillCtx,
   transport: AITransport,
   deps: GenerierungsDeps,
-  ziel: BridgeZiel | undefined,
+  ziel: BridgeZiel,
   signal: AbortSignal,
   kriterienBlock: string,
   satzAnzahl: number,
 ): Promise<QsBefund[]> {
   const zielDef = deps.steps.find(s => s.id === zielStepId);
   const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
-    ...(ziel ? { ziel } : {}),
+    ziel,
     stammdaten: buildStammdaten(deps.ctx),
     vbMarkdown: deps.korpusMd,
-    vbCharCap: getVbCharCap(kontextZielFuerLauf(deps.bridge)),
+    vbCharCap: getVbCharCap(kontextZielFuer(deps.bridge, ziel)),
     thinkingBudget: deps.thinkingBudget,
     onContentDelta: deps.stream.onContentDelta,
     onThinkingDelta: deps.stream.onThinkingDelta,
@@ -478,15 +480,17 @@ export async function laufLektorat(
   const ok = await transport.ping();
   deps.setLlmAvailable(ok);
   if (!ok) { deps.setError('KI nicht erreichbar — Feinschliff derzeit nicht möglich.'); return null; }
-  const { result, zielFallback } = await mitFallbackLauf(
+  const { result, zielFallback, ziel } = await mitFallbackLauf(
     deps, transport, signal,
-    (d, ziel) => lektoriereEinmal(run, stepId, sc, tweak, transport, d, ziel, signal),
+    (d, z) => lektoriereEinmal(run, stepId, sc, tweak, transport, d, z, signal),
     // Ein gezogenes Tor (leer / verdächtig gekürzt) ist ein unbrauchbares Ergebnis —
     // beim agentischen Tab genau der Fall, den die Standard-KI retten soll.
     (r) => r === null,
   );
   if (!result) return null;
-  return zielFallback ? applyZielFallback(result, stepId, new Date().toISOString()) : result;
+  const jetzt = new Date().toISOString();
+  const gestempelt = applyLaufZiel(result, stepId, ziel, jetzt);
+  return zielFallback ? applyZielFallback(gestempelt, stepId, jetzt) : gestempelt;
 }
 
 /** Ein einzelner Feinschliff-Versuch mit festem `ziel` (siehe `laufLektorat`). */
@@ -497,7 +501,7 @@ async function lektoriereEinmal(
   tweak: SkillTweak | null,
   transport: AITransport,
   deps: GenerierungsDeps,
-  ziel: BridgeZiel | undefined,
+  ziel: BridgeZiel,
   signal: AbortSignal,
 ): Promise<WorkflowRun | null> {
   const step = run.schritte[stepId];
@@ -507,7 +511,7 @@ async function lektoriereEinmal(
   deps.stream.setPhase('feinschliff');
   const zielDef = deps.steps.find(s => s.id === stepId);
   const result = await runSkill(transport, deps.lektorSkill, [], {
-    ...(ziel ? { ziel } : {}),
+    ziel,
     stammdaten: '',
     vbMarkdown: '',
     thinkingBudget: deps.thinkingBudget,

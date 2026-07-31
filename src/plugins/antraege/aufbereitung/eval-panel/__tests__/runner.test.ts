@@ -313,11 +313,14 @@ describe('runAufbereitungEval', () => {
     expect(resetZiele).toEqual(['agentisch']);
   });
 
-  it('ohne ziel bleibt der Standard-Tab (undefined durchgereicht, unverändertes Verhalten)', async () => {
+  // Der Standard-Tab wird jetzt AUSDRÜCKLICH angesteuert. Vorher reichte der Lauf
+  // `undefined` durch — an der Bridge heisst das „aktiver Tab", nicht „Standard":
+  // stand der agentische Tab offen, mass die Eval still gegen die falsche KI.
+  it('ohne ziel laeuft die Eval auf dem Standard-Tab — ausdruecklich, nicht per undefined', async () => {
     const { transport, submitZiele, resetZiele } = stubZielErfassung();
     await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false });
-    expect(submitZiele).toEqual([undefined]);
-    expect(resetZiele).toEqual([undefined]);
+    expect(submitZiele).toEqual(['standard']);
+    expect(resetZiele).toEqual(['standard']);
   });
 
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {

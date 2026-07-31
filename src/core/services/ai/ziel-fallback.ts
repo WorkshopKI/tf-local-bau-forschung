@@ -43,6 +43,13 @@ export interface ZielFallbackErgebnis<R> {
   result: R;
   /** True ⇔ der erste (agentische) Versuch scheiterte und der Standard-Lauf übernahm. */
   zielFallback: boolean;
+  /**
+   * Die KI, die `result` TATSÄCHLICH erzeugt hat — nach einem Fallback also
+   * `'standard'`, nicht die Präferenz aus dem Store. Aufrufer, die das Ziel am
+   * Ergebnis festhalten oder den Kontext-Cap dagegen rechnen, müssen diesen Wert
+   * nehmen und nicht erneut `aktivesZielFuerLauf()` lesen.
+   */
+  ziel: BridgeZiel;
 }
 
 /**
@@ -60,14 +67,18 @@ function istAbbruch(err: unknown): boolean {
 
 /**
  * Führt `lauf` mit der aktiven Ziel-Präferenz aus und wiederholt ihn GENAU EINMAL
- * mit `undefined` (= Standard-/aktiver Tab), wenn der agentische Versuch wirft
- * oder ein unbrauchbares Ergebnis liefert. Jeder Versuch ist ein eigener
- * `runSkill`-Aufruf — der Chat-Reset (Pitfall #36) greift damit pro Versuch.
+ * auf `'standard'`, wenn der agentische Versuch wirft oder ein unbrauchbares
+ * Ergebnis liefert. Jeder Versuch ist ein eigener `runSkill`-Aufruf — der Chat-Reset
+ * (Pitfall #36) greift damit pro Versuch.
+ *
+ * Der Retry nennt sein Ziel AUSDRÜCKLICH. Früher lief er mit `undefined`, und das
+ * heisst an der Bridge „aktiver Tab" — also derselbe agentische, dessen Ausfall den
+ * Fallback gerade ausgelöst hatte: die Rettung wechselte die KI nie.
  *
  * Wirft der Retry, propagiert der Fehler unverändert.
  */
 export async function mitZielFallback<R>(
-  lauf: (ziel: BridgeZiel | undefined) => Promise<R>,
+  lauf: (ziel: BridgeZiel) => Promise<R>,
   opts: ZielFallbackOptions<R>,
 ): Promise<ZielFallbackErgebnis<R>> {
   const ziel = aktivesZielFuerLauf();
@@ -75,7 +86,7 @@ export async function mitZielFallback<R>(
 
   const retry = async (): Promise<ZielFallbackErgebnis<R>> => {
     opts.vorRetry?.();
-    return { result: await lauf(undefined), zielFallback: true };
+    return { result: await lauf('standard'), zielFallback: true, ziel: 'standard' };
   };
 
   let ergebnis: R;
@@ -85,7 +96,7 @@ export async function mitZielFallback<R>(
     if (!retryMoeglich || istAbbruch(err) || opts.signal?.aborted) throw err;
     return retry();
   }
-  if (!retryMoeglich || opts.signal?.aborted) return { result: ergebnis, zielFallback: false };
-  if (!opts.istUnbrauchbar?.(ergebnis)) return { result: ergebnis, zielFallback: false };
+  if (!retryMoeglich || opts.signal?.aborted) return { result: ergebnis, zielFallback: false, ziel };
+  if (!opts.istUnbrauchbar?.(ergebnis)) return { result: ergebnis, zielFallback: false, ziel };
   return retry();
 }

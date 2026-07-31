@@ -13,6 +13,7 @@
  */
 import type { CheckResult, KatalogRef, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
 /**
@@ -140,6 +141,16 @@ export interface StepRun {
    * nicht).
    */
   zielFallback?: true;
+  /**
+   * Die interne KI, die den aktuellen Text TATSÄCHLICH erzeugt hat — nach einem
+   * Ziel-Fallback also `'standard'`, nicht die globale Präferenz. Bewusst am Lauf
+   * festgehalten und nicht zur Anzeigezeit aus dem Store abgeleitet: der Umschalter
+   * bewegt sich, der Text nicht. Treibt die Fußzeilen-Angabe „Standard-KI" /
+   * „Agentische KI"; `modell` bleibt der Transport-Name (beide Tabs sind derselbe
+   * Transport, unterscheiden sich dort also nicht). Additiv — alte Records ohne Feld
+   * bleiben ladbar und zeigen die Angabe einfach nicht.
+   */
+  ziel?: BridgeZiel;
   /**
    * True, wenn über der aktuellen Fassung der sprachliche Feinschliff
    * (Lektor-Skill) lief — treibt das Badge an der Karte und den Vergleich gegen

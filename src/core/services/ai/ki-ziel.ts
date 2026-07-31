@@ -3,7 +3,7 @@
  * `'standard'` (klassische interne KI) oder `'agentisch'` (agentische interne KI).
  *
  * DEFAULT `'standard'` — der agentische Chat ist eine Erprobung; produktive Läufe
- * bleiben ohne aktive Umstellung auf dem Standard-Tab (Verhalten byte-identisch).
+ * bleiben ohne aktive Umstellung auf dem Standard-Tab.
  * Die Präferenz wird an ALLE Skill-Läufe (Gutachten/Kurzfassung/NF/Aufbereitung) und
  * den Chat durchgereicht (`SkillRunInput.ziel` / `SubmitMessageOptions.ziel`) und ist
  * an den KI-Verbindungs-Stellen wählbar.
@@ -39,26 +39,51 @@ export const useKiZiel = create<KiZielStore>((set) => ({
 }));
 
 /**
- * Das für einen Lauf durchzureichende `ziel`: `'agentisch'` NUR bei aktiver agentischer
- * Präferenz, sonst `undefined` (= aktiver/Standard-Tab, Verhalten byte-identisch zu vor
- * dem Feature). So bleibt „Standard" wirklich die normale interne KI (kein erzwungenes
- * Tab-Routing). Synchroner Store-Read — für Runner (kein Hook nötig).
+ * Das für einen Lauf durchzureichende `ziel` — **immer explizit**, auch `'standard'`.
+ * Synchroner Store-Read; für Runner gedacht (kein Hook nötig).
+ *
+ * `undefined` wäre hier keine harmlose Abkürzung, sondern eine andere Aussage: der
+ * Transport lässt das Feld dann ganz weg, und das Bookmarklet steigt in `ensureZiel`
+ * sofort aus (`if (!ziel) { cb(null); return; }`) — es sucht gar keinen Tab. Da
+ * Streamlit die Tab-Auswahl hält und niemand sie zurückstellt, bliebe jeder Lauf im
+ * zuletzt benutzten Tab. Nach einem agentischen Lauf führte aus dem agentischen Chat
+ * also kein Weg zurück, egal was der Umschalter zeigte (v2.365; dritter Fall nach
+ * v2.292 `feedbackImprove` und v2.298 Aufbereitung).
+ *
+ * Explizites `'standard'` ist bookmarklet-seitig abgedeckt: `tabMatches` sucht „chat,
+ * aber nicht agentisch", und fehlt ein Tab-UI ganz, ist `ensureZiel` ein No-op — auf
+ * tab-losen Oberflächen bleibt das Verhalten damit unverändert.
  */
-export function aktivesZielFuerLauf(): BridgeZiel | undefined {
-  return useKiZiel.getState().ziel === 'agentisch' ? 'agentisch' : undefined;
+export function aktivesZielFuerLauf(): BridgeZiel {
+  return useKiZiel.getState().ziel;
 }
 
 /**
- * Lauf-Kontext für die Kontextfenster-Ableitung: über welche Transportart und
- * welchen Bridge-Tab geht dieser Lauf?
+ * Lauf-Kontext für die Kontextfenster-Ableitung bei EXPLIZIT bekanntem Ziel: über
+ * welche Transportart und welchen Bridge-Tab geht dieser Lauf?
  *
- * Anders als `aktivesZielFuerLauf` wird `'standard'` hier **mitgegeben** — für die
- * Cap-Rechnung ist der Standard-Tab eine echte Aussage (62k), nicht die Abwesenheit
- * einer Aussage. Der Bridge-Parameter ist strukturell, damit dieses Modul den
- * `AIBridge`-Typ nicht importieren muss (kein Zyklus).
+ * Nötig, wo ein Lauf sein Ziel als Parameter trägt statt es aus dem Store zu lesen —
+ * etwa der Fallback-Retry, der auf `'standard'` wechselt, während der Store noch
+ * `'agentisch'` sagt. Sonst misst die Cap-Rechnung gegen das falsche Fenster (774k
+ * statt 174k) und die „passt nicht"-Warnung schweigt genau dann, wenn sie nötig wäre.
+ *
+ * Der Bridge-Parameter ist strukturell, damit dieses Modul den `AIBridge`-Typ nicht
+ * importieren muss (kein Zyklus).
+ */
+export function kontextZielFuer(
+  bridge: { istBridgeAktiv: () => boolean },
+  ziel: BridgeZiel,
+): KontextZiel {
+  return { bridge: bridge.istBridgeAktiv(), ziel };
+}
+
+/**
+ * Lauf-Kontext für die Kontextfenster-Ableitung aus der globalen Präferenz — die
+ * Anzeige-Variante (Warnungen, Inventare), wo kein konkreter Lauf im Spiel ist.
+ * Eine Ableitung, keine zweite: führt auf `kontextZielFuer` zurück.
  */
 export function kontextZielFuerLauf(bridge: { istBridgeAktiv: () => boolean }): KontextZiel {
-  return { bridge: bridge.istBridgeAktiv(), ziel: useKiZiel.getState().ziel };
+  return kontextZielFuer(bridge, useKiZiel.getState().ziel);
 }
 
 /**

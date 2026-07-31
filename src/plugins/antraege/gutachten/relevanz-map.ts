@@ -24,7 +24,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, BridgeZiel, ConversationMessage } from '@/core/services/ai/transports/streamlit';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { hashText } from './runner';
 
@@ -206,6 +206,12 @@ export function assembleVbRelevant(
  * Fährt den Relevanz-Lauf über den (injizierten, internen) Transport und gibt die
  * rohe Antwort zurück (Parsing macht der Caller). Bevorzugt `submitConversation`
  * (DirectLLM), fällt auf `submitMessage` zurück (Streamlit-Bridge, single-turn).
+ *
+ * `ziel` ist das Ziel DES LAUFS, der die Map anfordert — Reset und Submit müssen im
+ * selben Tab landen wie die Abschnitts-Generierung danach. Ohne `ziel` blieben beide
+ * im gerade aktiven Tab (`ensureZiel` ist dann ein No-op), und die Map käme aus einer
+ * anderen KI als der Abschnitt, für den sie den Kontext auswählt — inklusive
+ * Fehl-Reset im fremden Chat. Optional, damit der Node-Eval-Harness unverändert läuft.
  */
 export async function runRelevanzMap(
   transport: AITransport,
@@ -213,12 +219,13 @@ export async function runRelevanzMap(
   headings: VbHeading[],
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
+  ziel?: BridgeZiel,
 ): Promise<string> {
   // Frischer Chat-Verlauf vor dem Relevanz-Lauf (stateful Streamlit-Chat, Pitfall
   // #36): die Map ist der Workflow-Einstieg — ohne Reset trüge sie den Verlauf
   // eines früheren Vorgangs. Best-effort; Status nicht durchgereicht (die
   // per-Sektion runSkill-Reset-Status sind das sichtbare Signal).
-  await starteFrischenChat(transport);
+  await starteFrischenChat(transport, ziel);
   const prompt = buildRelevanzPrompt(headings, vbMarkdown, abschnitte);
   const system = relevanzSkill.systemPrompt ?? '';
   const maxTokens = relevanzSkill.maxTokens ?? RELEVANZ_MAP_MAX_TOKENS;
@@ -227,9 +234,13 @@ export async function runRelevanzMap(
       ...(system ? [{ role: 'system', content: system } as ConversationMessage] : []),
       { role: 'user', content: prompt },
     ];
-    return transport.submitConversation(messages, { maxTokens });
+    return transport.submitConversation(messages, { maxTokens, ...(ziel ? { ziel } : {}) });
   }
-  return transport.submitMessage(system ? `${system}\n\n${prompt}` : prompt, system || undefined);
+  return transport.submitMessage(
+    system ? `${system}\n\n${prompt}` : prompt,
+    system || undefined,
+    ziel ? { ziel } : undefined,
+  );
 }
 
 /**
@@ -242,10 +253,11 @@ export async function computeRelevanzMap(
   relevanzSkill: SkillRecord,
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
+  ziel?: BridgeZiel,
 ): Promise<RelevanzMapResult> {
   const headings = parseVbHeadings(vbMarkdown);
   try {
-    const raw = await runRelevanzMap(transport, relevanzSkill, headings, vbMarkdown, abschnitte);
+    const raw = await runRelevanzMap(transport, relevanzSkill, headings, vbMarkdown, abschnitte, ziel);
     return { headings, map: parseRelevanzMap(raw, headings.map(h => h.id)) };
   } catch {
     return { headings, map: {} };
@@ -266,6 +278,7 @@ export async function getOrComputeRelevanzMap(
   antragKey: string,
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
+  ziel?: BridgeZiel,
 ): Promise<RelevanzMapResult> {
   const vbHash = hashText(vbMarkdown);
   const cacheKey = relevanzMapCacheKey(antragKey, vbHash);
@@ -275,7 +288,7 @@ export async function getOrComputeRelevanzMap(
   } catch {
     // Cache-Lesefehler ignorieren → frisch berechnen.
   }
-  const result = await computeRelevanzMap(transport, relevanzSkill, vbMarkdown, abschnitte);
+  const result = await computeRelevanzMap(transport, relevanzSkill, vbMarkdown, abschnitte, ziel);
   if (Object.keys(result.map).length > 0) {
     try { await idb.set(cacheKey, { vbHash, map: result.map }); } catch { /* Cache-Schreibfehler nicht eskalieren */ }
   }

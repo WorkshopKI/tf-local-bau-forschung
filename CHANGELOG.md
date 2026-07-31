@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.365.0 — KI-Variante Standard schaltet den Streamlit-Tab wirklich um (Juli 2026)
+
+MINOR — Der Umschalter zurück auf die Standard-KI war wirkungslos: für „Standard" reichte die App `undefined` durch, und das heisst an der Bridge nicht „Standard-Tab", sondern „aktiver Tab". Nach dem ersten agentischen Lauf blieb jede Anfrage im agentischen Chat — während die Kontext-Warnung korrekt umsprang. Rein app-seitig, kein `BRIDGE_REV`-Bump. Detail: [streamlit-bridge.md](docs/architecture/streamlit-bridge.md).
+
+- `aktivesZielFuerLauf()` nennt sein Ziel immer ausdrücklich, auch `'standard'` ([ki-ziel.ts](src/core/services/ai/ki-ziel.ts)) — wirkt für Gutachten, Chat, Kurzfassung, Nachforderungen und Batch zugleich.
+- Der Ziel-Fallback wechselt jetzt wirklich die KI: Retry auf `'standard'` statt `undefined` ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts)), Ergebnis trägt das tatsächlich genutzte `ziel`.
+- Relevanz-Map erbt das Ziel des Laufs für Reset UND Submit ([relevanz-map.ts](src/plugins/antraege/gutachten/relevanz-map.ts)) — sie lief sonst gegen eine andere KI als der Abschnitt, den sie vorbereitet.
+- Kontext-Cap folgt dem Lauf-Ziel statt der globalen Präferenz (`kontextZielFuer`, [workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)) — nach einem Fallback wurde sonst gegen 774k gemessen und gegen 174k gefahren.
+- Abschnitts-Fußzeile weist die verwendete KI aus (`StepRun.ziel`, [AbschnittFuss.tsx](src/plugins/antraege/gutachten/AbschnittFuss.tsx)) — bisher war nirgends ablesbar, welche KI geantwortet hat.
+
 ### v2.364.0 — Feedback: Verwaltung im Board, Statuswechsel im Widget, eigenes Feedback fortschreiben (Juli 2026)
 
 MINOR — Feedback lief über zwei Oberflächen, und die PL kam an keine: `kuratorMenus: false` filterte die ganze `kuration`-Kategorie, obwohl der Service-Layer PL-Schreibrechte längst kannte. Ein Statuswechsel war nirgends sichtbar — das Home-Widget meldete nur neue Antworttexte. Und wer sein Feedback präzisieren wollte, musste ein zweites Ticket aufmachen. Ziel: EINE Feedback-Oberfläche, ein Ticket je Themenkomplex, das man fortschreibt. Detail: [feedback-system.md](docs/architecture/feedback-system.md).

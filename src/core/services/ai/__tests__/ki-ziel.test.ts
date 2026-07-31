@@ -6,15 +6,29 @@ import { useKiZiel, aktivesZielFuerLauf, sollWechselHinweisZeigen } from '../ki-
 afterEach(() => { useKiZiel.getState().setZiel('standard'); });
 
 describe('useKiZiel / aktivesZielFuerLauf', () => {
-  it('Default ist standard → aktivesZielFuerLauf ist undefined (Verhalten byte-identisch)', () => {
+  it('Default ist standard → aktivesZielFuerLauf gibt "standard"', () => {
     expect(useKiZiel.getState().ziel).toBe('standard');
-    expect(aktivesZielFuerLauf()).toBeUndefined();
+    expect(aktivesZielFuerLauf()).toBe('standard');
   });
 
   it('agentisch aktiv → aktivesZielFuerLauf gibt "agentisch"', () => {
     useKiZiel.getState().setZiel('agentisch');
     expect(useKiZiel.getState().ziel).toBe('agentisch');
     expect(aktivesZielFuerLauf()).toBe('agentisch');
+  });
+
+  /**
+   * Regression: „Standard" war ein stiller No-op. `aktivesZielFuerLauf` gab dafür
+   * `undefined` zurück, der Transport liess das Feld weg und das Bookmarklet stieg
+   * in `ensureZiel` sofort aus (`if (!ziel) { cb(null); return; }`) — es suchte also
+   * gar keinen Tab. Da Streamlit die Tab-Auswahl hält, blieb jeder Lauf im zuletzt
+   * benutzten (agentischen) Tab: aus dem Agentischen führte kein Weg zurück.
+   * Nur ein EXPLIZITES 'standard' schaltet um.
+   */
+  it('Rueckweg aus dem Agentischen: nach dem Umschalten kommt ein explizites Ziel', () => {
+    useKiZiel.getState().setZiel('agentisch');
+    useKiZiel.getState().setZiel('standard');
+    expect(aktivesZielFuerLauf()).toBe('standard');
   });
 });
 
