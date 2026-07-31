@@ -26,13 +26,17 @@ fachliche Änderung: nicht anfassen.
    [src/plugins.config.ts](../../src/plugins.config.ts)). Kuration-Plugins (siehe
    `KURATION_PLUGIN_IDS` in [screenContext.ts](../../src/core/services/feedback/screenContext.ts))
    teilen sich `kuration.md` — dort den passenden Unterabschnitt anfassen.
-2. **Schablone einhalten** (siehe [README.md](../feedback-kontext/README.md)):
-   Zweck / UI-Elemente & Begriffe / Datenmodell dahinter / Typische Aktionen / Code.
+2. **Schablone einhalten** — sie steht mit Beispiel in
+   [README.md](../feedback-kontext/README.md): Zweck / UI-Elemente & Begriffe (als
+   Aufzählung je UI-Bereich) / Typische Aktionen (Aufzählung) / `## Technik`.
+   Leerzeile zwischen allen Blöcken (der Renderer läuft mit `breaks: false` — ohne
+   Leerzeilen wird das ganze Doc **ein** Absatz), kein Absatz über 1200 Zeichen.
 3. **Technisches nach unten**: Route, Feature-Flag, Stores, Dateinamen liest nur die
-   KI. Sie stehen entweder in den Zeilen `**Datenmodell dahinter:**` / `**Code:**`
-   oder unter einer `## Technik`-Überschrift am Ende — beides schneidet
-   `entferneTechnik()` für den Hilfe-Dialog weg. Alles andere **sieht der Nutzer**:
-   also in seiner Sprache schreiben, nicht in Bezeichnern.
+   KI. Sie stehen unter der `## Technik`-Überschrift am Ende, die `entferneTechnik()`
+   für den Hilfe-Dialog wegschneidet — und weil sie ab der **ersten** solchen
+   Überschrift bis Dateiende schneidet, ist `## Technik` die **letzte** Sektion.
+   Alles darüber **sieht der Nutzer**: in seiner Sprache schreiben, nicht in
+   Bezeichnern — auch keine Route und keinen Flag-Namen in Backticks.
 4. **Kein Zeichen-Budget** — schreib so lang, wie die Seite es ehrlich braucht,
    und **kürze nie etwas Richtiges weg, nur um eine Zahl zu treffen**. Die
    Disziplin ist inhaltlich: WAS der Nutzer sieht gehört hierher, das WIE ins
@@ -45,7 +49,9 @@ fachliche Änderung: nicht anfassen.
    [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts)
    fängt fehlende Docs (neues Plugin ohne Doc) und die Reißleine;
    [seitenHilfe.test.ts](../../src/core/services/feedback/__tests__/seitenHilfe.test.ts)
-   prüft je Doc, dass außerhalb des Technik-Teils keine Datei-/Pfadangaben stehen.
+   prüft je Doc den sichtbaren Teil: keine Datei-/Pfadangaben, keine Routen/Flags/
+   Komponentennamen, kein Technik-Fett-Label, kein Absatz über 1200 Zeichen,
+   „Typische Aktionen" als Aufzählung, nichts hinter `## Technik`.
 
 ## Nicht ändern
 

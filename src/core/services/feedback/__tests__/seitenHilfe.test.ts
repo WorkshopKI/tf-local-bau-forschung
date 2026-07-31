@@ -140,14 +140,41 @@ describe('jede Seite mit Doc traegt auch den Hilfe-Knopf', () => {
   });
 });
 
+/** Genau der Text, den der Hilfe-Dialog rendert. */
+function sichtbarerText(name: string): string {
+  return entferneTechnik(readFileSync(join(DOCS_DIR, name), 'utf-8'));
+}
+
+/**
+ * Der sichtbare Text, zerlegt in das, was der Leser als einen Block wahrnimmt:
+ * Leerzeilen trennen, und jede Aufzaehlungs-/Ueberschriftenzeile beginnt einen neuen
+ * Block. Fortsetzungszeilen gehoeren zum laufenden Block — `marked` laeuft mit
+ * `breaks: false`, ein Hard-Wrap im Quelltext ist im Dialog also unsichtbar.
+ */
+function absaetze(sichtbar: string): string[] {
+  const blocks: string[] = [];
+  let aktuell: string[] = [];
+  const schliessen = (): void => {
+    const text = aktuell.join(' ').trim();
+    if (text !== '') blocks.push(text);
+    aktuell = [];
+  };
+  for (const zeile of sichtbar.split(/\r?\n/)) {
+    if (zeile.trim() === '') { schliessen(); continue; }
+    if (/^\s*([-*]\s|#{1,6}\s)/.test(zeile)) schliessen();
+    aktuell.push(zeile.trim());
+  }
+  schliessen();
+  return blocks;
+}
+
 describe('kein Kontext-Doc zeigt Nutzern Code-Interna', () => {
   // Die Docs dienen zwei Konsumenten (Feedback-KI + Seiten-Hilfe). Code-Pfade
   // duerfen deshalb nur in den Technik-Teilen stehen, die entferneTechnik kappt —
   // sonst liest ein Sachbearbeiter Dateinamen. Stand heute halten das alle Docs
   // ein; der Test haelt es so.
   it.each(SEITEN_DOCS)('%s enthaelt nach dem Strip keine Datei-/Pfadangaben', (name) => {
-    const sichtbar = entferneTechnik(readFileSync(join(DOCS_DIR, name), 'utf-8'));
-    const treffer = sichtbar
+    const treffer = sichtbarerText(name)
       .split(/\r?\n/)
       .filter(z => /src\/|\.tsx|\.ts\b/.test(z));
     expect(
@@ -156,6 +183,95 @@ describe('kein Kontext-Doc zeigt Nutzern Code-Interna', () => {
       `Diese Zeilen sieht der Nutzer im Hilfe-Dialog:\n${treffer.join('\n')}\n` +
       `Loesung: nach unten unter eine "## Technik"-Ueberschrift verschieben ` +
       `(die KI bekommt weiterhin das ganze Doc).`,
+    ).toEqual([]);
+  });
+
+  // Der Test oben faengt Datei-Pfade — nicht aber Routen (`/status-cockpit`),
+  // Feature-Flags (`statusCockpit`) und Komponentennamen (`KompaktListe`), die
+  // genauso nur Entwickler etwas angehen. Beides zusammen ergibt die Zusage:
+  // oberhalb von "## Technik" steht kein Bezeichner aus dem Code.
+  it.each(SEITEN_DOCS)('%s nennt Nutzern keine Routen/Flags/Komponenten', (name) => {
+    const tokens = [...sichtbarerText(name).matchAll(/`([^`\n]+)`/g)].map(m => m[1] ?? '');
+    const treffer = tokens.filter(t =>
+      // routenfoermig: /status-cockpit, /chat
+      /^\/[a-z0-9][a-z0-9/_-]*$/.test(t) ||
+      // Bezeichner mit Camel-/Pascal-Hoecker: statusCockpit, KompaktListe.
+      // Fachliche Kuerzel ohne Hoecker (`MS01`, `16KN######`, `.msg`) bleiben erlaubt.
+      (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(t) && /[a-z][A-Z]/.test(t)),
+    );
+    expect(
+      treffer,
+      `${name}: Diese Bezeichner sieht der Nutzer im Hilfe-Dialog:\n` +
+      `${treffer.map(t => `  \`${t}\``).join('\n')}\n` +
+      `Loesung: im sichtbaren Teil streichen oder umschreiben ` +
+      `("die Kompakt-Spalte" statt \`KompaktListe\`); Technisches gehoert unter "## Technik".`,
+    ).toEqual([]);
+  });
+
+  it.each(SEITEN_DOCS)('%s zeigt keine Technik-Fett-Label', (name) => {
+    // Faengt die Variante, die entferneTechnik NICHT kennt — "**Datenmodell:**"
+    // statt "**Datenmodell dahinter:**" stand so lange sichtbar im MAP-Doc.
+    const treffer = sichtbarerText(name)
+      .split(/\r?\n/)
+      .filter(z => /^\s*\*\*(Datenmodell|Code|Route|Flag|Technik)/i.test(z));
+    expect(
+      treffer,
+      `${name}: Technik-Block im sichtbaren Teil.\n${treffer.join('\n')}\n` +
+      `Loesung: ans Doc-Ende unter eine "## Technik"-Ueberschrift verschieben.`,
+    ).toEqual([]);
+  });
+});
+
+describe('jedes Kontext-Doc ist lesbar strukturiert', () => {
+  // marked laeuft mit `breaks: false` (siehe MarkdownRenderer): OHNE Leerzeilen
+  // verschmilzt ein ganzes Doc zu EINEM Absatz. Genau so sahen bis v2.369 neun
+  // der Docs im Hilfe-Dialog aus — eine Bleiwueste, die niemand liest.
+  //
+  // Laengster Absatz je Doc beim Setzen der Schwelle: die strukturierten Docs lagen
+  // bei 174–1151 Zeichen, die neun Bleiwuesten bei 1075–4258. Die Schwelle darf nur
+  // SINKEN; wer sie unter ~1100 druecken will, muss zuerst die "UI-Elemente"-Absaetze
+  // von auslastung.md und suche.md in Unterpunkte brechen.
+  const MAX_ABSCHNITT_CHARS = 1200;
+
+  it.each(SEITEN_DOCS)(`%s hat keinen Absatz ueber ${MAX_ABSCHNITT_CHARS} Zeichen`, (name) => {
+    const zuLang = absaetze(sichtbarerText(name))
+      .filter(a => a.length > MAX_ABSCHNITT_CHARS)
+      .map(a => `  ${a.length} Zeichen: ${a.slice(0, 90)}…`);
+    expect(
+      zuLang,
+      `${name}: Absatz zu lang fuer den Hilfe-Dialog (max. ${MAX_ABSCHNITT_CHARS}).\n` +
+      `${zuLang.join('\n')}\n` +
+      `Loesung: in Unterpunkte je UI-Bereich brechen (Vorbild: auslastung.md).`,
+    ).toEqual([]);
+  });
+
+  it.each(SEITEN_DOCS)('%s fuehrt "Typische Aktionen" als Liste', (name) => {
+    const zeilen = sichtbarerText(name).split(/\r?\n/);
+    const idx = zeilen.findIndex(z => /^\s*(\*\*Typische Aktionen:?\*\*|#{2,3}\s+Typische Aktionen)/i.test(z));
+    if (idx === -1) return; // Docs mit eigener Gliederung (kuration, meilensteine, …)
+
+    const rest = (zeilen[idx] ?? '').replace(/^\s*(\*\*Typische Aktionen:?\*\*|#{2,3}\s+Typische Aktionen)/i, '').trim();
+    expect(rest, `${name}: "Typische Aktionen" muss allein auf seiner Zeile stehen, gefolgt von "- "-Punkten.`)
+      .toBe('');
+
+    const naechste = zeilen.slice(idx + 1).find(z => z.trim() !== '') ?? '';
+    expect(naechste.trimStart(), `${name}: nach "Typische Aktionen" folgt keine Aufzaehlung.`)
+      .toMatch(/^-\s/);
+  });
+
+  it.each(SEITEN_DOCS)('%s stellt "## Technik" ans Doc-Ende', (name) => {
+    // entferneTechnik bricht bei der ERSTEN Technik-Ueberschrift ab. Was danach
+    // kommt, sieht kein Nutzer mehr — auch versehentlich dorthin gerutschter
+    // Nutzertext nicht, und das faellt sonst niemandem auf.
+    const zeilen = readFileSync(join(DOCS_DIR, name), 'utf-8').split(/\r?\n/);
+    const idx = zeilen.findIndex(z => /^#{2,3}\s+Technik\b/i.test(z.trimStart()));
+    if (idx === -1) return;
+
+    const danach = zeilen.slice(idx + 1).filter(z => /^#{1,6}\s+\S/.test(z.trimStart()));
+    expect(
+      danach,
+      `${name}: Ueberschrift NACH "## Technik" — dieser Teil ist im Hilfe-Dialog unsichtbar:\n` +
+      `${danach.join('\n')}`,
     ).toEqual([]);
   });
 });

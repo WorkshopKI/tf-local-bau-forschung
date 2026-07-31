@@ -500,7 +500,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
               <>
                 {/* Zeile 1: Einstellungen (links) + Version (rechts, öffnet
                     „Über die App"). Beide Elemente stehen auf JEDER Seite gleich —
-                    der frühere Home-Sonderfall „Neu hier?" ist in die Fußzeile des
+                    der frühere Home-Sonderfall „Neu hier?" ist in die Kopfzeile des
                     Hilfe-Dialogs gewandert. Feedback *geben* liegt auf dem globalen
                     FAB unten rechts. */}
                 <div className="flex items-center gap-1">

@@ -2,7 +2,38 @@
 
 **Zweck:** Dieses Verzeichnis liefert kompakte Bildschirmseiten-Kontext-Docs. Geladen wird per `import.meta.glob` in [src/core/services/feedback/screenContext.ts](../../src/core/services/feedback/screenContext.ts) — statisch ins Single-File-Build gebündelt (kein `fetch`/dynamischer Import, siehe Pitfalls #1/#2).
 
-**Zwei Leser, eine Datei:** die interne KI bekommt bei der Feedback-Verbesserung das **ganze** Doc als App-Wissen; die **Seiten-Hilfe** (`getSeitenHilfe` in derselben Datei) zeigt dasselbe Doc als Kurzanleitung im „Hilfe"-Dialog der Seite, **ohne** den Technik-Teil. Eine zweite, nutzer-eigene Doku-Datei wäre gegen diese hier gedriftet und hätte jede Feature-Änderung zweimal gekostet — der Preis dafür ist die Strip-Regel: **Route, Feature-Flag, Stores und Dateinamen gehören in die Zeilen `Datenmodell dahinter:` / `Code:` oder unter eine `## Technik`-Überschrift am Ende.** Alles andere sieht der Nutzer — also in seiner Sprache schreiben, nicht in Bezeichnern.
+**Zwei Leser, eine Datei:** die interne KI bekommt bei der Feedback-Verbesserung das **ganze** Doc als App-Wissen; die **Seiten-Hilfe** (`getSeitenHilfe` in derselben Datei) zeigt dasselbe Doc als Kurzanleitung im „Hilfe"-Dialog der Seite, **ohne** den Technik-Teil. Eine zweite, nutzer-eigene Doku-Datei wäre gegen diese hier gedriftet und hätte jede Feature-Änderung zweimal gekostet — der Preis dafür ist die Strip-Regel: **Route, Feature-Flag, Stores und Dateinamen gehören unter die `## Technik`-Überschrift am Ende.** Alles andere sieht der Nutzer — also in seiner Sprache schreiben, nicht in Bezeichnern.
+
+## Schablone
+
+```markdown
+# <Seitentitel wie in der Navigation>
+
+**Zweck:** <1–3 Sätze: was die Seite leistet, für wen.>
+
+**UI-Elemente & Begriffe:**
+- **<UI-Bereich>:** <was dort steht — in der Sprache des Nutzers>
+  - **<Unterelement>:** <nur wenn es eigene Begriffe/Regeln trägt>
+- **<UI-Bereich 2>:** …
+
+**Typische Aktionen:**
+- <Verb + Objekt>
+
+## Technik
+
+**Route & Sichtbarkeit:** `/pfad`, Flag `flagName`; dev/pl/kurator
+**Datenmodell dahinter:** …
+**Code:** `src/plugins/<id>/` — …
+```
+
+Struktur-Regeln (Guards in [seitenHilfe.test.ts](../../src/core/services/feedback/__tests__/seitenHilfe.test.ts)):
+
+1. **Leerzeile zwischen allen Blöcken.** Der Renderer läuft mit `breaks: false` — ohne Leerzeilen verschmilzt das ganze Doc zu **einem** Absatz. Genau so sahen bis v2.369 neun Docs im Hilfe-Dialog aus.
+2. **Ein Fett-Label steht allein auf seiner Zeile**, die Aufzählung beginnt direkt darunter (ohne Leerzeile dazwischen).
+3. **Kein Absatz über 1200 Zeichen** — lange Blöcke in Unterpunkte je UI-Bereich brechen, max. zwei Ebenen.
+4. **„Typische Aktionen" ist immer eine Aufzählung.**
+5. **`## Technik` ist die letzte Sektion.** `entferneTechnik()` schneidet ab der **ersten** solchen Überschrift bis Dateiende — was dahinter rutscht, sieht kein Nutzer mehr. Oberhalb steht kein Bezeichner in Backticks: keine Route, kein Feature-Flag, kein Komponentenname.
+6. `##`-Überschriften statt Fett-Labels sind gleichwertig erlaubt (Vorbilder: `meilensteine.md`, `status-cockpit.md`); die Regeln 1–5 gelten unverändert.
 
 **Pflege-Regel:** Bei UI- oder Datenmodell-Änderungen an einem Plugin das zugehörige `<plugin-id>.md` mit aktualisieren. Vorgehen siehe [docs/agents/update-screen-context.md](../agents/update-screen-context.md).
 

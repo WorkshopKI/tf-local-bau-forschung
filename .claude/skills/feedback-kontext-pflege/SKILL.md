@@ -9,11 +9,16 @@ Nach einer Feature-Änderung an einem Plugin:
 
 1. Betroffene Plugin-ID(s) bestimmen (`src/plugins.config.ts`).
 2. Prüfen ob `docs/feedback-kontext/<id>.md` (bzw. `kuration.md` für
-   Kuration-Plugins) noch zum neuen Ist-Zustand passt — Schablone: Zweck / UI-Elemente
-   & Begriffe / Datenmodell dahinter / Typische Aktionen / Code.
+   Kuration-Plugins) noch zum neuen Ist-Zustand passt — Schablone: Zweck /
+   UI-Elemente & Begriffe (Aufzählung je UI-Bereich) / Typische Aktionen
+   (Aufzählung) / `## Technik` als **letzte** Sektion. Das Doc ist zugleich die
+   Hilfeseite: Leerzeile zwischen allen Blöcken, kein Absatz über 1200 Zeichen,
+   oberhalb von `## Technik` keine Route/Flag/Komponente in Backticks.
+   Volle Schablone: [docs/feedback-kontext/README.md](../../../docs/feedback-kontext/README.md).
 3. Bei Bedarf aktualisieren. **Kein Zeichen-Budget** — nie etwas Richtiges
    wegkürzen, nur um eine Zahl zu treffen. Nur eine Reißleine bei 10000 Zeichen
    (Unfall-Fänger). Disziplin ist inhaltlich: WAS der Nutzer sieht, nicht WIE.
-4. `npm run test` — Guard `screen-context-coverage` muss grün bleiben.
+4. `npm run test` — Guards `screen-context-coverage` und `seitenHilfe.test.ts`
+   müssen grün bleiben.
 
 Detail + Ausnahmen: [docs/agents/update-screen-context.md](../../../docs/agents/update-screen-context.md).

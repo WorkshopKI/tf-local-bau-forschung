@@ -24,7 +24,7 @@ In Erprobung — noch nicht ausgereift, Rückmeldungen ausdrücklich erwünscht;
 Nur für Kuratoren nach Login:
 - **Kuration** — Suchindex, Programme, CSV-Quellen, Dokumentenquellen, Anfragen-Konfiguration, Filter, Feedback-Dashboard, Dokument-Review
 
-**Wiederkehrende Bedienelemente:** Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite. Rückmeldungen gehen über den runden Knopf unten rechts.
+**Wiederkehrende Bedienelemente:** Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite; in dessen Kopfzeile stehen auch die **Einführungs-Tour** und „Über die App". Rückmeldungen gehen über den runden Knopf unten rechts.
 
 **Begriffe:**
 - **Antrag** — ein Förderantrag, identifiziert über FKZ (Förderkennzeichen, Format `16KN######` oder `16EP######`)

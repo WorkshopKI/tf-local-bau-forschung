@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.369.0 — Hilfe-Dialog: Tour und Ueber die App in die Kopfzeile, Kontext-Docs strukturiert (Juli 2026)
+
+MINOR — „Einführungs-Tour" und „Über die App" standen in der Fußzeile eines `h-[92vh]`-Dialogs: unterhalb einer Textwand am Bildschirmrand, wo sie niemand sucht. Und diese Textwand war real — neun der siebzehn Kontext-Docs hatten keine Leerzeile und verschmolzen im Renderer (`breaks: false`) zu EINEM Absatz. Schablone + Guard: [feedback-kontext/README.md](docs/feedback-kontext/README.md).
+
+- `Dialog` bekommt den optionalen Slot `headerActions` (Titelzeile, links vom Schließen-X) ([dialog.tsx](src/components/ui/dialog.tsx)); die Seiten-Hilfe hängt Tour + ⓘ + „Über die App" als ghost-Knöpfe dorthin, die Fußzeile trägt nur noch „Text stimmt nicht" ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)).
+- Neun Docs von Bleiwüste auf Struktur umgebaut (Absätze, Unterpunkte je UI-Bereich, „Typische Aktionen" als Liste) — Vorbild war das bereits strukturierte `auslastung.md`.
+- Technik-Teile (Datenmodell, Code, Route, Flag) stehen jetzt in **allen** Docs unter `## Technik` am Ende; damit verschwinden die sichtbaren Reste, u.a. `**Datenmodell:**` samt kv-Keys in [map-foerderfaehig.md](docs/feedback-kontext/map-foerderfaehig.md) und Route+Flag in [status-cockpit.md](docs/feedback-kontext/status-cockpit.md).
+- Neuer Struktur-Guard je Doc ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)): keine Routen/Flags/Komponentennamen sichtbar, kein Technik-Fett-Label, kein Absatz über 1200 Zeichen, „Typische Aktionen" als Aufzählung, nichts hinter `## Technik`.
+- Schablone an allen drei Fundstellen nachgezogen ([update-screen-context.md](docs/agents/update-screen-context.md), [SKILL.md](.claude/skills/feedback-kontext-pflege/SKILL.md), README) — sonst schreibt die nächste Runde wieder im alten Stil.
+
 ### v2.368.0 — Über die App: Spaltenteilung ziehbar (Juli 2026)
 
 MINOR — Nachzug zu v2.366: die feste Aufteilung passte nicht zu jedem Lesebedürfnis, und „Alle aufklappen" war ein Knopf, der eine Liste mit 685 Einträgen komplett entfaltet — praktisch nie das, was jemand will.

@@ -1,10 +1,38 @@
 # Förderfähigkeit (MAP-Prüf-Workflow)
-**Zweck:** Einreichung als JSON importieren, deterministisch nachrechnen und die Förderfähigkeit anhand einer im Betrieb editierbaren, versionierten Checkliste bewerten. Ersetzt die xlsx-Liste. dev + pl (`mapFoerderfaehig`).
-**Aufbau:** Zwei Bereiche — „Einreichungen" (Master/Detail) und „Portfolio (Prinzipansicht)": Sunburst mit erfundenen Demo-Daten, so gekennzeichnet. Links Drop-Zone; dieselbe Datei erneut abgelegt ersetzt den Stand. Trennlinie ziehbar, Liste einklappbar. Rechts Vorhaben kompakt (Eckdaten, Gantt, Pakete über 6 PM amber, Kostenbalken), Rechenchecks, Vorhabensbeschreibung, Canvas, Delta zum SdT, Wirkungskette, Lesen nach Aspekt, Förderfähig, Abschluss, Checkliste, Import-Report.
-**Prüfung:** Je Kriterium fünf Spalten — erfüllt / nicht erfüllt / n. z. / NF notw. / NF erfüllt; die beiden letzten verlangen eine Bemerkung. Die drei Kategorien der Entscheidungshilfe werden auf B0–B3 mit den wörtlichen Ankertexten bewertet; **eine einzige B0-Stufe setzt die Gesamtpunktzahl auf 0**. Unter 8 Punkten erscheint der vertiefte Block. Bedingte Blöcke entfallen ganz: Aufträge an Dritte nur bei geplanten Kosten, Doppelförderung erst nach Bestätigung. K-Kriterien zeigen den Rechenbefund mit „Befund übernehmen" — bewertet wird von Hand.
+
+**Zweck:** Einreichung als JSON importieren, deterministisch nachrechnen und die Förderfähigkeit anhand einer im Betrieb editierbaren, versionierten Checkliste bewerten. Ersetzt die xlsx-Liste.
+
+**Aufbau:**
+- Zwei Bereiche: **„Einreichungen"** (Master/Detail) und **„Portfolio (Prinzipansicht)"** — Sunburst mit erfundenen Demo-Daten, so gekennzeichnet.
+- **Links** die Drop-Zone; dieselbe Datei erneut abgelegt ersetzt den Stand. Trennlinie ziehbar, Liste einklappbar.
+- **Rechts** das Vorhaben kompakt: Eckdaten, Gantt (Pakete über 6 PM amber), Kostenbalken, Rechenchecks, Vorhabensbeschreibung, Canvas, Delta zum SdT, Wirkungskette, Lesen nach Aspekt, Förderfähig, Abschluss, Checkliste, Import-Report.
+
+**Prüfung:**
+- Je Kriterium fünf Spalten — erfüllt / nicht erfüllt / n. z. / NF notw. / NF erfüllt; die beiden letzten verlangen eine Bemerkung.
+- Die drei Kategorien der Entscheidungshilfe werden auf B0–B3 mit den wörtlichen Ankertexten bewertet; **eine einzige B0-Stufe setzt die Gesamtpunktzahl auf 0**. Unter 8 Punkten erscheint der vertiefte Block.
+- Bedingte Blöcke entfallen ganz: Aufträge an Dritte nur bei geplanten Kosten, Doppelförderung erst nach Bestätigung.
+- K-Kriterien zeigen den Rechenbefund mit „Befund übernehmen" — bewertet wird von Hand.
+
 **Editor:** Kriterium ändern, ergänzen, stilllegen (nie löschen). Jede Speicherung erhöht die Fassung und stempelt Autor und Zeit; laufende Prüfungen behalten ihre.
-**KI-Anteile (alle optional):** Steckbrief, Aspekt-Zuordnung und Infografik-Texte entstehen in internen Läufen über die Vorhabensbeschreibung. Vages wird als vage gekennzeichnet, nicht ergänzt. Ohne Bridge bleiben Import, Rechenchecks und Checkliste nutzbar. Ergebnisse überleben Seitenwechsel; neu gerechnet nur bei geändertem Korpus.
-**KI-Zweitmeinung (experimentell):** Derselbe Lauf stuft die drei Kategorien unverbindlich ein (B0–B3 mit Begründung). Sichtbar erst nach der eigenen Bewertung; kein Übernehmen-Knopf, keine Statusänderung, in keinem Entwurf und keiner Summe.
+
+**KI-Anteile (alle optional):**
+- Steckbrief, Aspekt-Zuordnung und Infografik-Texte entstehen in internen Läufen über die Vorhabensbeschreibung. Vages wird als vage gekennzeichnet, nicht ergänzt.
+- Ohne Bridge bleiben Import, Rechenchecks und Checkliste nutzbar. Ergebnisse überleben Seitenwechsel; neu gerechnet nur bei geändertem Korpus.
+- **KI-Zweitmeinung (experimentell):** Derselbe Lauf stuft die drei Kategorien unverbindlich ein (B0–B3 mit Begründung). Sichtbar erst nach der eigenen Bewertung; kein Übernehmen-Knopf, keine Statusänderung, in keinem Entwurf und keiner Summe.
+
 **Abschluss:** Gutachten, Nachforderung oder Ablehnung als kopierbares Markdown, ohne KI. Bausteine wortgetreu; sonst `[TODO Baustein zuordnen]`.
-**Datenmodell:** kv-Store, gerätelokal — `map-einreichung:`, `map-report:`, `map-pruefung:`, `map-vb:`, `map-checkliste:aktuell` plus KI-Ergebnisse. Kein `Antrag`-Record, kein Share, kein Snapshot. Personalbögen, Bankverbindung und Telemetrie werden nicht importiert.
+
+**Typische Aktionen:**
+- Einreichung ablegen (Drop-Zone), Import-Report und Rechenchecks lesen
+- Checkliste Kriterium für Kriterium bewerten, Bemerkung zu NF-Fällen schreiben
+- Befund aus der Rechnung übernehmen, Kriterien im Editor ändern/ergänzen/stilllegen
+- KI-Steckbrief und Zweitmeinung nach der eigenen Bewertung gegenlesen
+- Abschluss-Entwurf als Markdown kopieren
+
+## Technik
+
+**Sichtbarkeit:** dev + pl, Flag `mapFoerderfaehig`.
+
+**Datenmodell dahinter:** kv-Store, gerätelokal — `map-einreichung:`, `map-report:`, `map-pruefung:`, `map-vb:`, `map-checkliste:aktuell` plus KI-Ergebnisse. Kein `Antrag`-Record, kein Share, kein Snapshot. Personalbögen, Bankverbindung und Telemetrie werden nicht importiert.
+
 **Code:** `src/plugins/map-foerderfaehig/`.

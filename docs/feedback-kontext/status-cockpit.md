@@ -1,7 +1,7 @@
 # Status-Katalog (Cockpit)
 
-Vollbild-Admin-Seite (`/status-cockpit`, Flag `statusCockpit`; dev/pl/kurator).
-Hier wird der **Status-Katalog** gepflegt — die Daten hinter der Statusanzeige.
+Vollbild-Verwaltungsseite für Kuratoren. Hier wird der **Status-Katalog** gepflegt
+— die Daten hinter der Statusanzeige.
 
 ## Zweck
 
@@ -46,3 +46,9 @@ legt eine Fassung an. Ältere sind als Entwurf ladbar.
   wann er eine Änderung gesehen hat.
 - JSON-Export/Import dient der Sicherung, nicht dem Team-Abgleich.
 - Ändert nichts am Legacy-System — reine Anzeige-/Ableitungslogik.
+
+## Technik
+
+**Route & Sichtbarkeit:** `/status-cockpit`, Flag `statusCockpit`; dev/pl/kurator.
+
+**Datenmodell dahinter:** Katalog als Team-Sidecar `_intern/status-katalog.json` (Zugriff nur über `katalog-share.ts`), Event-Log `status_event` + Unkuratiert-Puffer gerätelokal. Siehe `docs/status-system/README.md` und `KATALOG-CODES.md`.

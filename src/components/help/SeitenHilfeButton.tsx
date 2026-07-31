@@ -8,18 +8,22 @@
  * Fehlt ein Doc (oder bleibt nach dem Technik-Strip nichts übrig), rendert die
  * Komponente NICHTS — kein toter Knopf. Inhalt + Strip-Regeln: screenContext.ts.
  *
- * Die Fußzeile bündelt alles, was die App erklärt oder korrigiert:
- *  - „Text stimmt nicht" öffnet das Feedback-Panel mit vorgewähltem Typ + Titel.
- *    Der Coverage-Guard erzwingt die EXISTENZ eines Docs, nicht seine Aktualität —
- *    Drift fällt nur auf, wenn Lesende sie melden, und das darf kein Suchspiel sein.
- *  - „Einführungs-Tour" startet die App-Tour (bis v2.359 ein eigener Knopf in der
- *    Sidebar-Fußzeile). Hier, weil die vertagten Seiten-Touren später an derselben
- *    Stelle hängen — ein Einstiegspunkt statt zweier.
- *  - „Über die App" öffnet Überblick + Version + Änderungsliste.
+ * Der Dialog bündelt alles, was die App erklärt oder korrigiert — verteilt auf zwei
+ * Zeilen, weil die drei Wege verschieden dringlich sind:
+ *  - KOPFZEILE (neben dem Titel): „Einführungs-Tour" startet die App-Tour (bis v2.359
+ *    ein eigener Knopf in der Sidebar-Fußzeile; die vertagten Seiten-Touren hängen
+ *    später an derselben Stelle — ein Einstiegspunkt statt zweier) und „Über die App"
+ *    öffnet Überblick + Version + Änderungsliste. Beide standen bis v2.369 unten
+ *    rechts: bei einem `h-[92vh]`-Dialog also unter einer Textwand am Bildschirmrand,
+ *    wo sie niemand suchte. Wege, die man beim LESEN sieht, gehören nach oben.
+ *  - FUSSZEILE: „Text stimmt nicht" öffnet das Feedback-Panel mit vorgewähltem Typ +
+ *    Titel. Der Coverage-Guard erzwingt die EXISTENZ eines Docs, nicht seine
+ *    Aktualität — Drift fällt nur auf, wenn Lesende sie melden, und das darf kein
+ *    Suchspiel sein. Bleibt unten: sie beurteilt den gelesenen Text.
  */
 
 import { useMemo, useState } from 'react';
-import { HelpCircle, Info, MessageSquarePlus } from 'lucide-react';
+import { BookOpen, Compass, HelpCircle, Info, MessageSquarePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
@@ -102,33 +106,33 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
         // Höhe hier dauerhaft überstimmen.
         size="xl"
         className="h-[92vh]"
+        headerActions={
+          <>
+            <Button variant="ghost" size="sm" icon={Compass} onClick={tourStarten}>
+              Einführungs-Tour
+            </Button>
+            <Tooltip text={TOUR_DETAIL} maxWidth={340} wrapperClassName="flex items-center">
+              <span className="flex items-center text-[var(--tf-text-tertiary)]">
+                <Info size={13} aria-label="Was zeigt die Tour?" />
+              </span>
+            </Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={BookOpen}
+              onClick={() => { setOffen(false); ueberAppOeffnen(); }}
+            >
+              Über die App
+            </Button>
+          </>
+        }
         footer={
-          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
+          // `w-full` gegen das `justify-end` der Dialog-Fußzeile: der einzelne Knopf
+          // bleibt links, wo er bis v2.368 auch stand.
+          <div className="flex w-full items-center">
             <Button variant="secondary" size="sm" icon={MessageSquarePlus} onClick={melden}>
               Text stimmt nicht
             </Button>
-            <div className="ml-auto flex items-center gap-2 text-[11.5px]">
-              <button
-                type="button"
-                onClick={tourStarten}
-                className="rounded-[var(--tf-radius)] px-1.5 py-1 text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-              >
-                Einführungs-Tour
-              </button>
-              <Tooltip text={TOUR_DETAIL} maxWidth={340}>
-                <span className="flex items-center text-[var(--tf-text-tertiary)]">
-                  <Info size={13} aria-label="Was zeigt die Tour?" />
-                </span>
-              </Tooltip>
-              <span className="text-[var(--tf-text-tertiary)]">·</span>
-              <button
-                type="button"
-                onClick={() => { setOffen(false); ueberAppOeffnen(); }}
-                className="rounded-[var(--tf-radius)] px-1.5 py-1 text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-              >
-                Über die App
-              </button>
-            </div>
           </div>
         }
       >

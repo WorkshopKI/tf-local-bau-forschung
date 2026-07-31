@@ -64,9 +64,11 @@ export function getKnownScreenContextIds(): string[] {
 // ── Seiten-Hilfe: dasselbe Doc, nutzer-lesbar ──────────────────────────────────
 //
 // Weggeschnitten wird, was nur Maschine oder Entwickler brauchen:
-//   - alles ab einer `## Technik`-Überschrift bis Dateiende (expliziter Marker),
-//   - die Zeilen `**Datenmodell dahinter:**` / `**Code:**` der noch unstrukturierten
-//     Docs (Fett-Label am Zeilenanfang, je genau eine Zeile).
+//   - alles ab einer `## Technik`-Überschrift bis Dateiende (expliziter Marker;
+//     seit v2.369 tragen ihn alle Docs, siehe docs/feedback-kontext/README.md),
+//   - die Zeilen `**Datenmodell dahinter:**` / `**Code:**` (Fett-Label am
+//     Zeilenanfang, je genau eine Zeile) — Netz für ein Doc, das wieder im alten
+//     Ein-Zeilen-Stil landet.
 //
 // Nebeneffekt, der den Aufwand trägt: die Docs werden dadurch überhaupt erst gelesen.
 // Der Coverage-Guard erzwingt ihre Existenz, nicht ihre Aktualität — ein Nutzer, der
@@ -76,10 +78,12 @@ export function getKnownScreenContextIds(): string[] {
 const TECHNIK_MARKER = /^#{2,3}\s+Technik\b/i;
 
 /**
- * Fett-Label, die in den noch unstrukturierten Docs eine reine Technik-Zeile
- * einleiten. Jedes steht auf GENAU einer Zeile — über alle Docs geprüft in
- * `__tests__/seitenHilfe.test.ts`, zusammen mit der Zusage, dass außerhalb
- * dieser Zeilen keine Code-Pfade in den Docs stehen.
+ * Fett-Label, die eine reine Technik-Zeile einleiten. Seit der Umstellung auf
+ * `## Technik` (v2.369) stehen sie unterhalb des Markers und fallen schon dem
+ * Abschnitts-Cut zum Opfer — die Regel bleibt als Netz für ein Doc, das wieder
+ * im alten Ein-Zeilen-Stil geschrieben wird. Der Struktur-Guard in
+ * `__tests__/seitenHilfe.test.ts` prüft ohnehin schärfer: oberhalb von
+ * `## Technik` steht weder Datei-Pfad noch Route/Flag/Komponentenname.
  */
 const TECHNIK_LABEL = /^\*\*(Datenmodell dahinter|Code):\*\*/i;
 

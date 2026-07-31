@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.369 — 2026-07
+
+### Verbesserungen
+- Im Hilfe-Fenster stehen „Einführungs-Tour" und „Über die App" jetzt oben neben dem Titel statt ganz unten — dort waren sie hinter dem Text kaum zu finden.
+- Die Hilfetexte aller Seiten sind neu gesetzt: Absätze statt einer Textwand, die Bedienelemente als Aufzählung nach Bereichen und „Typische Aktionen" als Liste.
+- Aus den Hilfetexten sind technische Reste verschwunden (interne Namen, Adressen, Datenbank-Schlüssel), die nur Entwickler etwas angehen.
+
 ## v2.368 — 2026-07
 
 ### Verbesserungen
