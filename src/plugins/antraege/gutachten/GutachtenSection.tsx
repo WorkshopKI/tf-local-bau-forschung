@@ -8,7 +8,7 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Pencil, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -632,6 +632,11 @@ function ActiveAbschnitt({
             <div className="flex items-center gap-2 flex-wrap">
               <button type="button" className="g-btn primary" disabled={ctrl.llmAvailable === false} onClick={() => ctrl.generate(id)}>
                 {def.label} generieren
+              </button>
+              {/* Der Stil wirkt auf die Generierung — also VOR ihr erreichbar, nicht
+                  erst am fertigen Text (die leere Karte hat kein ⋯-Menü). */}
+              <button type="button" className="g-btn" title="Eigene Vorgaben für Ton und Form dieses Abschnitts" onClick={onOpenTweak}>
+                <SlidersHorizontal size={14} /> Persönlicher Stil
               </button>
               {ctrl.kontextRelevant && (
                 <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none" title="Ignoriert die Relevanz-Map und übergibt die vollständige Vorhabensbeschreibung.">

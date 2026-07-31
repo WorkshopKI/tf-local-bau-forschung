@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.367 — 2026-07
+
+### Verbesserungen
+- Im Gutachten liegen „Text kopieren" und „Persönlicher Stil" jetzt direkt in der Knopfleiste unter dem Abschnitt statt im ⋯-Menü. Kopieren ist das Icon neben „Bearbeiten".
+- „Persönlicher Stil" lässt sich schon vor der ersten Generierung setzen — der Knopf steht neben „… generieren". Ist ein Stil aktiv, hebt sich der Knopf sichtbar ab.
+
 ## v2.366 — 2026-07
 
 ### Verbesserungen

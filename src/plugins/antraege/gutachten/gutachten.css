@@ -47,6 +47,8 @@
 .gutachten-werkstatt .g-btn.ghost { border-color: transparent; color: var(--tf-text-secondary); }
 .gutachten-werkstatt .g-btn.ghost:hover { background: var(--tf-hover); color: var(--tf-text); }
 .gutachten-werkstatt .g-btn.sm { height: 28px; padding: 0 11px; font-size: 12px; }
+/* Icon-only (Kopieren in der Werkzeugzeile): ohne Beschriftung wäre die Seitenluft doppelt. */
+.gutachten-werkstatt .g-btn.icon { padding: 0 8px; }
 .gutachten-werkstatt .g-btn.export { margin-left: auto; background: var(--tf-primary); color: #fff; border-color: var(--tf-primary); height: 34px; }
 .gutachten-werkstatt .g-btn.export:hover { opacity: .9; background: var(--tf-primary); }
 .gutachten-werkstatt .g-btn.export:disabled { opacity: .4; }

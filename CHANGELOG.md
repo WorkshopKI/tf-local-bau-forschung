@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.367.0 — Kopieren und Stil in der Werkzeugzeile (Juli 2026)
+
+MINOR — „Text kopieren" und „Persönlicher Stil" lagen seit dem Vier-Ebenen-Umbau (v2.337) im ⋯-Menü der Abschnitts-Kopfzeile, dem Ort für „alles Seltenere". Beides ist aber Alltag — den fertigen Abschnitt in Mail/Word ziehen, den eigenen Stil setzen —, also gehören sie sichtbar unter den Text. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- Werkzeugzeile führt jetzt „Persönlicher Stil" (links bei Neu/Kürzer/Länger) und ein Kopier-Icon neben „Bearbeiten" ([WerkzeugZeile.tsx](src/plugins/antraege/gutachten/WerkzeugZeile.tsx)) — beides auch am freigegebenen Abschnitt.
+- Aktiver persönlicher Stil zeigt sich am Knopf selbst (Kontur statt ghost), nicht nur als Vermerk in der Kopfzeile.
+- Die noch leere Abschnitts-Karte bekommt „Persönlicher Stil" neben „… generieren" ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)) — dort wirkt er, dort war er bisher gar nicht erreichbar (kein ⋯-Menü).
+- ⋯-Menü führt nur noch Feinschliff · Vorfassungen · Verwerfen ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)); `MenuAktion.offenLassen` entfällt mit seinem einzigen Nutzer ([AbschnittKopf.tsx](src/plugins/antraege/gutachten/AbschnittKopf.tsx)).
+- Kopier-Zustand kommt aus `useKopierAktion` (Icon-Dreiklang, Fehler schlägt Erfolg — v2.301.3), kein zweiter Zwischenablage-Weg.
+
 ### v2.366.0 — Über die App: zweispaltig und größer (Juli 2026)
 
 MINOR — Der Dialog startete 672 px breit mit drei Abschnitten untereinander; der Überblick allein füllt gut eine Bildschirmhöhe, „Änderungen & Updates" lag unerreichbar darunter. Dazu beschrieb der Was-Satz die App als Infrastruktur-Thema statt über ihren Nutzen.

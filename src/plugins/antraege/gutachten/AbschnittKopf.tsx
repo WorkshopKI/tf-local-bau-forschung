@@ -22,12 +22,6 @@ export interface MenuAktion {
   disabled?: boolean;
   /** Optischer Trenner ÜBER diesem Eintrag. */
   trenner?: boolean;
-  /**
-   * Menü nach dem Klick offen lassen (Default: schließen). Für Aktionen, deren
-   * Ergebnis im Label steht — „Text kopieren" → „Kopiert"; schlösse das Menü
-   * sofort, bliebe ein Fehlschlag unsichtbar.
-   */
-  offenLassen?: boolean;
 }
 
 interface Props {
@@ -147,7 +141,7 @@ export function AbschnittKopf({
                   role="menuitem"
                   disabled={a.disabled}
                   className={`g-menu-item${a.trenner ? ' trenner' : ''}`}
-                  onClick={() => { if (!a.offenLassen) setOffen(false); a.onClick(); }}
+                  onClick={() => { setOffen(false); a.onClick(); }}
                 >
                   {a.icon}
                   {a.label}

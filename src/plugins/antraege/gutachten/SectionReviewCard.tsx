@@ -21,7 +21,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { Copy, History, Pencil, SlidersHorizontal, SpellCheck, Trash2 } from 'lucide-react';
+import { History, Pencil, SpellCheck, Trash2 } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -29,7 +29,6 @@ import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
 import { splitSentences, countWords, type SkillModifierKey } from '@/core/services/skills';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { VersionVerlauf } from '../kurzfassung/VersionVerlauf';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
@@ -202,19 +201,12 @@ export function SectionReviewCard({
     return [markdownLivePreview(), km];
   }, []);
 
-  const copy = useKopierAktion(() => run.finalerText, 'Text in Zwischenablage kopieren');
   const hinweise = useMemo(() => abschnittHinweise(run, retryNote), [run, retryNote]);
   const qs = qsBadge(run);
 
   // ⋯-Menü: alles Seltenere. Im freigegebenen Zustand ohne die Entwurfs-Aktionen.
+  // Kopieren + Persönlicher Stil sind seit v2.366 sichtbar in der Werkzeugzeile.
   const menu: MenuAktion[] = [
-    {
-      key: 'kopieren',
-      label: copy.fehler ? 'Kopieren fehlgeschlagen' : copy.kopiert ? 'Kopiert' : 'Text kopieren',
-      icon: <Copy size={14} />,
-      onClick: () => { void copy.run(); },
-      offenLassen: true,
-    },
     ...(!freigegeben && onLektorat ? [{
       key: 'lektorat',
       label: 'Sprachlicher Feinschliff',
@@ -222,7 +214,6 @@ export function SectionReviewCard({
       disabled: genDisabled || !run.finalerText.trim(),
       onClick: onLektorat,
     }] : []),
-    { key: 'stil', label: 'Persönlicher Stil', icon: <SlidersHorizontal size={14} />, onClick: onOpenTweak },
     {
       key: 'verlauf',
       label: verlaufOffen ? 'Vorfassungen ausblenden' : `Vorfassungen (${run.verlauf?.length ?? 0})`,
@@ -353,10 +344,12 @@ export function SectionReviewCard({
           <WerkzeugZeile
             freigegeben={freigegeben}
             genDisabled={genDisabled}
-            textVorhanden={!!run.finalerText.trim()}
+            text={run.finalerText}
             qs={qs}
+            {...(kopf.tweakAktiv ? { stilAktiv: true } : {})}
             onModify={onModify}
             onBearbeiten={startEdit}
+            onOpenStil={onOpenTweak}
             {...(onQs ? { onQs } : {})}
             onFreigeben={onFreigeben}
             onErneutOeffnen={onErneutOeffnen}
