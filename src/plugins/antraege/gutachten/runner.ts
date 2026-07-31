@@ -88,6 +88,8 @@ export interface GenerationInput {
   /** Chat-Reset-Status des Laufs (Pitfall #36); nur bei Verlaufsrisiko persistiert. */
   chatResetStatus?: ChatResetStatus;
   modifier?: SkillModifierKey;
+  /** Freie Überarbeitungs-Anweisung des Bearbeiters, die zu dieser Fassung führte. */
+  anweisung?: string;
   /** Regel-ID, deren Verletzung diesen Korrektur-Lauf ausgelöst hat (nur Anzeige). */
   korrekturRegelId?: string;
   mitTweak?: boolean;
@@ -132,6 +134,7 @@ export function applyGeneration(
     ...(gen.warnung ? { warnung: gen.warnung } : {}),
     ...(gen.chatResetStatus && resetHatVerlaufsrisiko(gen.chatResetStatus) ? { chatResetStatus: gen.chatResetStatus } : {}),
     ...(gen.modifier ? { modifier: gen.modifier } : {}),
+    ...(gen.anweisung ? { anweisung: gen.anweisung } : {}),
     ...(gen.korrekturRegelId ? { korrekturRegelId: gen.korrekturRegelId } : {}),
     ...(gen.mitTweak ? { mitTweak: gen.mitTweak } : {}),
     ...(gen.tweakGeaendertAm ? { tweakGeaendertAm: gen.tweakGeaendertAm } : {}),

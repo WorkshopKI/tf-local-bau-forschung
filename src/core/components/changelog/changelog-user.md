@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.370 — 2026-07
+
+### Neu
+- Neuer Knopf **„Bearbeiten mit KI"** an jedem Gutachten-Abschnitt: Sie schreiben in eigenen Worten, was geändert werden soll — etwa „technische Risiken auf die des Lösungswegs beschränken, die anderen entfernen" oder „Details des Lösungsweges vertiefen" — und die KI überarbeitet den vorhandenen Text entsprechend.
+- Das Eingabefeld erscheint direkt in der Abschnitts-Karte, der Text bleibt dabei sichtbar. Ihre letzten fünf Anweisungen stehen als Vorschläge zum Anklicken bereit; sie bleiben nur auf Ihrem Rechner.
+- Jede so überarbeitete Fassung landet wie gewohnt in den Vorfassungen — dort steht Ihre Anweisung als Beschriftung, sodass nachvollziehbar bleibt, welche Fassung woraus entstand.
+
 ## v2.369 — 2026-07
 
 ### Verbesserungen

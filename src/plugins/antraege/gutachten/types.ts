@@ -132,6 +132,14 @@ export interface StepRun {
   /** Modifier, der zur AKTUELLEN Fassung führte (für die Verlaufs-Anzeige). */
   modifier?: SkillModifierKey;
   /**
+   * Freie Überarbeitungs-Anweisung („Bearbeiten mit KI"), die zur AKTUELLEN Fassung
+   * führte — wortgetreu wie eingegeben. Reine Provenienz für die Verlaufs-Anzeige,
+   * kein Verhalten: die Anweisung gilt für GENAU einen Lauf und wird nie erneut
+   * angewendet. Additiv (Alt-Runs ohne Feld bleiben ladbar); eine Re-Generierung
+   * baut einen frischen `StepRun` ohne dieses Feld.
+   */
+  anweisung?: string;
+  /**
    * True, wenn ein Lauf, der den aktuellen Text erzeugte oder veränderte
    * (Generierung ODER Feinschliff), von der agentischen auf die Standard-KI
    * zurückfiel (`ziel-fallback.ts`). Treibt das dezente „Standard-KI

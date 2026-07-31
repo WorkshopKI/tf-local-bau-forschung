@@ -40,6 +40,7 @@ import { AbschnittKopf, type MenuAktion } from './AbschnittKopf';
 import { HinweisStreifen } from './HinweisStreifen';
 import { QsStrip } from './QsStrip';
 import { WerkzeugZeile } from './WerkzeugZeile';
+import { AnweisungLeiste } from './AnweisungLeiste';
 import { AbschnittFuss } from './AbschnittFuss';
 import { abschnittHinweise, pipelineStatus, qsBadge } from './abschnittAnzeige';
 import type { CheckListAktion } from '../kurzfassung/CheckList';
@@ -105,6 +106,8 @@ interface Props {
   /** Neutraler Vermerk nach erschöpftem Auto-Retry — läuft in den Hinweis-Streifen. */
   retryNote?: string | null;
   onModify: (modifier: SkillModifierKey) => void;
+  /** Freie Überarbeitungs-Anweisung ausführen („Bearbeiten mit KI"). */
+  onUeberarbeiten: (anweisung: string) => void;
   /** Manuelle Inline-Bearbeitung übernehmen (Plain-Text; Hook persistiert + prüft neu). */
   onBearbeiten: (text: string) => Promise<void>;
   /** Regeln neu rechnen — sitzt in der Fußzeile des Prüf-Blocks. */
@@ -135,7 +138,7 @@ interface Props {
 }
 
 export function SectionReviewCard({
-  run, kopf, busy, llmAvailable, retryNote, onModify, onBearbeiten, onPruefen, pruefAktion,
+  run, kopf, busy, llmAvailable, retryNote, onModify, onUeberarbeiten, onBearbeiten, onPruefen, pruefAktion,
   onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, onLektorat,
   provenance, onOpenSkill, onFeedback, streamContent, streamThinking, streamPhase,
   fundstelle, hoverSaetze, onHoverSaetze,
@@ -150,6 +153,9 @@ export function SectionReviewCard({
   const regelnOk = run.checks.length - fehler - hinweis;
 
   const [editing, setEditing] = useState(false);
+  // Freie KI-Anweisung: die Leiste ersetzt die Werkzeugzeile (wie der Editor den
+  // Text ersetzt) — nie zwei offene Eingaben in einer Karte.
+  const [anweisungOffen, setAnweisungOffen] = useState(false);
   const [draft, setDraft] = useState('');
   const [verlaufOffen, setVerlaufOffen] = useState(false);
   const viewRef = useRef<EditorView | null>(null);
@@ -339,6 +345,12 @@ export function SectionReviewCard({
         <div className="g-actionbar">
           <StreamingVorschau thinking={streamThinking} content={streamContent} phase={streamPhase} onStop={onStop} />
         </div>
+      ) : !editing && anweisungOffen ? (
+        <AnweisungLeiste
+          genDisabled={genDisabled}
+          onAbbrechen={() => setAnweisungOffen(false)}
+          onStart={(anweisung) => { setAnweisungOffen(false); onUeberarbeiten(anweisung); }}
+        />
       ) : !editing && (
         <>
           <WerkzeugZeile
@@ -348,6 +360,7 @@ export function SectionReviewCard({
             qs={qs}
             {...(kopf.tweakAktiv ? { stilAktiv: true } : {})}
             onModify={onModify}
+            onAnweisung={() => setAnweisungOffen(true)}
             onBearbeiten={startEdit}
             onOpenStil={onOpenTweak}
             {...(onQs ? { onQs } : {})}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { composeSkillPrompt, buildTweakBlock, type SkillRunInput } from '../run-skill';
+import { composeSkillPrompt, buildTweakBlock, buildAnweisungBlock, type SkillRunInput } from '../run-skill';
 import { SEED_SKILL, SEED_REGISTRY, resolveRegeln, buildPromptVorgaben } from '@/core/services/skills';
 
 // Regeln wie in der Laufzeit AUFGELÖST (Skill-Vorgaben + Bibliotheks-Regeln) —
@@ -148,6 +148,58 @@ describe('composeSkillPrompt — regel-gebundene Zusatz-Anweisung (Journey-Paket
     expect(mit).not.toBe(base);
     expect(mit).toContain(`Zusätzliche Vorgabe: ${ZUSATZ}`);
     expect(mit.indexOf('Zusätzliche Vorgabe:')).toBeGreaterThan(mit.indexOf(VORGABEN_HEADING));
+  });
+});
+
+describe('composeSkillPrompt — freie Überarbeitungs-Anweisung („Bearbeiten mit KI")', () => {
+  const ANWEISUNG = 'Technische Risiken auf die des Lösungswegs beschränken, die anderen entfernen.';
+  const ANWEISUNG_HEADING = '## Überarbeitungs-Anweisung des Bearbeiters (gilt nur für diesen Lauf)';
+
+  it('ohne anweisung: kein Block (Bestandsläufe byte-identisch)', () => {
+    const base = compose({ ...baseInput, modifier: 'kuerzer', vorherigerText: 'X' });
+    expect(base).not.toContain(ANWEISUNG_HEADING);
+    expect(compose({ ...baseInput, modifier: 'kuerzer', vorherigerText: 'X' })).toBe(base);
+  });
+
+  it('leere/whitespace anweisung ist No-op', () => {
+    const base = compose({ ...baseInput, vorherigerText: 'X' });
+    expect(compose({ ...baseInput, vorherigerText: 'X', anweisung: '  \n ' })).toBe(base);
+  });
+
+  it('mit anweisung: Block steht NACH dem bisherigen Text und VOR der Regel-Vorgabe', () => {
+    const out = compose({
+      ...baseInput,
+      vorherigerText: 'FRUEHERER-TEXT',
+      anweisung: ANWEISUNG,
+      zusatzAnweisung: 'Kürze auf höchstens 1000 Zeichen.',
+    });
+    const iBisher = out.indexOf('## Bisheriger finaler Text (zur Überarbeitung)');
+    const iAnweisung = out.indexOf(ANWEISUNG_HEADING);
+    const iVorgabe = out.indexOf('Zusätzliche Vorgabe:');
+    expect(iBisher).toBeGreaterThanOrEqual(0);
+    expect(iAnweisung).toBeGreaterThan(iBisher);
+    expect(iVorgabe).toBeGreaterThan(iAnweisung);
+  });
+
+  it('die Anweisung steht wortgetreu im Prompt (keine Umformulierung/Kürzung)', () => {
+    const out = compose({ ...baseInput, vorherigerText: 'X', anweisung: ANWEISUNG });
+    expect(out).toContain(`Anweisung: ${ANWEISUNG}`);
+  });
+
+  it('der Rahmentext bindet die Anweisung an den bisherigen Text', () => {
+    // Ohne diese Sätze liest das Modell die Anweisung als Themenwunsch und schreibt
+    // den Abschnitt neu, statt ihn fortzuschreiben — der Wirkstoff des Blocks.
+    const out = compose({ ...baseInput, vorherigerText: 'X', anweisung: ANWEISUNG });
+    expect(out).toContain('Überarbeite den oben stehenden bisherigen finalen Text');
+    expect(out).toContain('Was sie nicht betrifft, übernimm unverändert.');
+    expect(out).toContain('erfinde nichts hinzu');
+  });
+
+  it('buildAnweisungBlock trimmt und ist die einzige Quelle des Wortlauts', () => {
+    const block = buildAnweisungBlock(`  ${ANWEISUNG}  `);
+    expect(block.startsWith(ANWEISUNG_HEADING)).toBe(true);
+    expect(block).toContain(`Anweisung: ${ANWEISUNG}`);
+    expect(compose({ ...baseInput, vorherigerText: 'X', anweisung: ANWEISUNG })).toContain(block);
   });
 });
 

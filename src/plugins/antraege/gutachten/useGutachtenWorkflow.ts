@@ -66,6 +66,20 @@ export interface KorrekturKontext {
   regelId?: string;
 }
 
+/**
+ * Was einen Generierungs-Lauf von einer frischen Generierung unterscheidet. Als
+ * Objekt statt als Positional-Liste: die drei Fälle (Modifier-Knopf, regel-gebundene
+ * Korrektur, freie Anweisung) sind unabhängig voneinander und wachsen sonst zu einer
+ * Kette optionaler Parameter, deren Reihenfolge man an der Aufrufstelle nicht mehr
+ * sieht. Leeres Objekt = frische Generierung.
+ */
+interface LaufOptionen {
+  modifier?: SkillModifierKey;
+  kontext?: KorrekturKontext;
+  /** Freie Überarbeitungs-Anweisung des Bearbeiters („Bearbeiten mit KI"). */
+  anweisung?: string;
+}
+
 export interface GutachtenWorkflowController {
   run: WorkflowRun | null;
   vbDokument: DocumentFull | null;
@@ -112,6 +126,12 @@ export interface GutachtenWorkflowController {
   /** Alle noch fehlenden Abschnitte nacheinander als Entwurf erzeugen (ohne Zwischen-Freigabe). */
   alleGenerieren: () => void;
   modify: (stepId: StepId, modifier: SkillModifierKey, kontext?: KorrekturKontext) => void;
+  /**
+   * Freie, einmalige Überarbeitungs-Anweisung des Bearbeiters („Bearbeiten mit KI"):
+   * derselbe Lauf wie ein Modifier, nur mit selbst formuliertem Auftrag am bestehenden
+   * Text. Leere Anweisung → No-op (kein Lauf, keine Fehlermeldung).
+   */
+  ueberarbeiten: (stepId: StepId, anweisung: string) => void;
   /** Manuelle Inline-Bearbeitung des finalen Textes übernehmen (Checks neu, ein persist). Awaitable für `useAsyncAction`. */
   bearbeitenStep: (stepId: StepId, text: string) => Promise<void>;
   /** Manuelle Bearbeitung verwerfen → ursprünglich generierten Text wiederherstellen. */
@@ -285,11 +305,13 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   });
 
   /**
-   * Eine Generierung (optional mit Modifier). Liefert die berechneten Checks zurück
+   * Eine Generierung (optional mit Modifier, regel-gebundenem Korrektur-Kontext
+   * oder freier Überarbeitungs-Anweisung). Liefert die berechneten Checks zurück
    * (für den Auto-Retry-Orchestrator), `null` bei Bail/Transport-weg/Abbruch/Fehler
    * — dann beendet der Orchestrator den Loop sofort (STOPP).
    */
-  const runGeneration = async (stepId: StepId, modifier?: SkillModifierKey, kontext?: KorrekturKontext): Promise<CheckResult[] | null> => {
+  const runGeneration = async (stepId: StepId, o: LaufOptionen = {}): Promise<CheckResult[] | null> => {
+    const { modifier, kontext, anweisung } = o;
     if (!vb || busy || !run || !skillMap.get(stepId)) return null;
     setBusy(true);
     setError(null);
@@ -300,6 +322,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const res = await generateInto(run, stepId, {
         quelle: 'freigegeben', tweak, signal: abort.signal,
         ...(modifier ? { modifier } : {}),
+        ...(anweisung ? { anweisung } : {}),
         ...(kontext?.anweisung ? { zusatzAnweisung: kontext.anweisung } : {}),
         ...(kontext?.regelId ? { korrekturRegelId: kontext.regelId } : {}),
       }, genDeps());
@@ -379,7 +402,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const mod = chooseRetryModifier(checks);
       if (!mod) return; // nur ok/hinweis → fertig
       attempt += 1;
-      checks = await runGeneration(stepId, mod);
+      checks = await runGeneration(stepId, { modifier: mod });
     }
     // Decke erreicht und weiterhin retry-würdige Fehler → neutraler Vermerk (kein roter Error).
     if (checks && attempt > 0 && chooseRetryModifier(checks)) {
@@ -580,7 +603,11 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     tweak,
     generate: (id) => { void runGenerateMitRetry(id); },
     alleGenerieren: () => { void generiereAlle(); },
-    modify: (id, m, kontext) => { void runGeneration(id, m, kontext); },
+    modify: (id, m, kontext) => { void runGeneration(id, { modifier: m, ...(kontext ? { kontext } : {}) }); },
+    ueberarbeiten: (id, anweisung) => {
+      const text = anweisung.trim();
+      if (text) void runGeneration(id, { anweisung: text });
+    },
     bearbeitenStep,
     zuruecksetzenStep,
     pruefen: (id) => { void pruefenStep(id); },

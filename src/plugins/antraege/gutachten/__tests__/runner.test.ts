@@ -85,6 +85,22 @@ describe('applyGeneration', () => {
     expect(mit.schritte.A?.korrekturRegelId).toBe('seed-zeichen-max');
     expect(mit.schritte.A?.modifier).toBe('kuerzer');
   });
+
+  it('persistiert die freie Überarbeitungs-Anweisung (sonst absent)', () => {
+    const ohne = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Regulär'), NOW);
+    expect(ohne.schritte.A?.anweisung).toBeUndefined();
+    const mit = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Überarbeitet', { anweisung: 'Risiken kürzen' }), NOW);
+    expect(mit.schritte.A?.anweisung).toBe('Risiken kürzen');
+    // Freie Anweisung ist KEIN Modifier — die Modifier-Anzeige bleibt leer.
+    expect(mit.schritte.A?.modifier).toBeUndefined();
+  });
+
+  it('die Anweisung wandert mit der Fassung in den Verlauf und haftet nicht am nächsten Lauf', () => {
+    let run = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Erst', { anweisung: 'Risiken kürzen' }), NOW);
+    run = applyGeneration(run, 'A', gen('Zweit'), LATER);
+    expect(run.schritte.A?.verlauf?.[0]?.anweisung).toBe('Risiken kürzen');
+    expect(run.schritte.A?.anweisung).toBeUndefined();
+  });
 });
 
 describe('applyPruefen', () => {

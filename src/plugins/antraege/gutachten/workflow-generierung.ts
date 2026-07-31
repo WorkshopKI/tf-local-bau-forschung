@@ -93,6 +93,13 @@ export interface GenerateIntoOptions {
   /** Journey-Paket 3: regel-gebundene Zusatz-Anweisung + auslösende Regel-ID. */
   zusatzAnweisung?: string;
   korrekturRegelId?: string;
+  /**
+   * Freie Überarbeitungs-Anweisung des Bearbeiters („Bearbeiten mit KI"). Wirkt
+   * wie ein Modifier, nur mit selbst formuliertem Auftrag: der Lauf bekommt den
+   * bisherigen Text als Referenz und überspringt die Teil-Generierung (siehe
+   * `generiereEinmal`).
+   */
+  anweisung?: string;
 }
 
 /**
@@ -279,8 +286,12 @@ async function generiereEinmal(
   // Abschnitt zusammenführen. Nur bei frischer Generierung (kein Modifier/Korrektur-
   // Lauf); im Teil-Prompt fallen die Gesamt-Größen-Regeln weg, der finale Check läuft
   // mit dem VOLLEN Regelsatz gegen den gemergten Text.
+  //
+  // Die freie Anweisung schließt den Zweig ebenso aus wie ein Modifier: sie ist eine
+  // ÜBERARBEITUNG des vorhandenen Textes. Über den Teil-Pfad würde der Abschnitt
+  // stattdessen frisch in Teilen neu entstehen — der bisherige Text wäre weg.
   const teilPlan = getTeilPlan(sc.skill.id);
-  if (teilPlan && !o.modifier) {
+  if (teilPlan && !o.modifier && !o.anweisung) {
     const vorherige = buildVorherigeAbschnitte(base, stepId, deps.steps, 2000, o.quelle);
     const teilRegelSatz = teilRegeln(scRegeln);
     const teilErgebnisse: TeilErgebnis[] = [];
@@ -349,7 +360,10 @@ async function generiereEinmal(
     ...(vbRelevant ? { vbRelevant } : {}),
     ...(tweakWirksam ? { tweak: tw } : {}),
     ...(o.modifier ? { modifier: o.modifier } : {}),
-    ...(o.modifier && prevText ? { vorherigerText: prevText } : {}),
+    // Der bisherige Text ist bei der freien Anweisung nicht Beiwerk, sondern ihr
+    // Gegenstand („die anderen entfernen") — dieselbe Bedingung wie beim Modifier.
+    ...((o.modifier || o.anweisung) && prevText ? { vorherigerText: prevText } : {}),
+    ...(o.anweisung ? { anweisung: o.anweisung } : {}),
     ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
     signal: o.signal,
   });
@@ -368,6 +382,7 @@ async function generiereEinmal(
     ...(result.parsed.warnung ? { warnung: result.parsed.warnung } : {}),
     ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
     ...(o.modifier ? { modifier: o.modifier } : {}),
+    ...(o.anweisung ? { anweisung: o.anweisung } : {}),
     ...(o.korrekturRegelId ? { korrekturRegelId: o.korrekturRegelId } : {}),
     ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
     ...(result.thinking ? { denkprozess: result.thinking } : {}),

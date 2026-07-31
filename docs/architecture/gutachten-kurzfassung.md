@@ -107,6 +107,35 @@ Der letzte, **rein sprachliche** Arbeitsgang vor der Freigabe: „Neu · Kürzer
 - **Reichweite**: Modifier-Läufe UND der Bulk-Lauf `generiereAlle` gehen durch dieselbe Kette. Der reine QS-Lauf und das manuelle Lektorat bleiben Einzel-Läufe. Bewusst **kein** Ein/Aus-Setting.
 - **Fortschritt** ist strukturiert, nicht geraten: `LaufPhase` (`'formulieren' | 'feinschliff'`) in [useStreamingBuffer.ts](../../src/plugins/antraege/kurzfassung/useStreamingBuffer.ts); `lektoriereEinmal` setzt sie je VERSUCH (ein Fallback-Retry resettet die Senke).
 
+## Freie Überarbeitungs-Anweisung — „Bearbeiten mit KI" (v2.370)
+
+Vierter Knopf neben Neu/Kürzer/Länger: der Bearbeiter formuliert **selbst**, was mit dem
+Abschnitt geschehen soll („technische Risiken auf die des Lösungswegs beschränken, die
+anderen entfernen", „Lösungsweg vertiefen"). Technisch ein **Modifier-Lauf ohne Modifier** —
+kein neuer Pfad, kein neuer Transport, keine neue Persistenz-Ebene.
+
+- **Prompt**: `SkillRunInput.anweisung` → eigener Block direkt nach dem Modifier-Block
+  ([`buildAnweisungBlock`](../../src/core/services/skills/run/run-skill.ts)). Bewusst **nicht**
+  `zusatzAnweisung` (die regel-abgeleitete Korrektur-Vorgabe aus Journey-Paket 3) mitbenutzt:
+  beide Blöcke können gemeinsam auftreten. Ohne Wert No-op → Bestandsläufe byte-identisch.
+- **Der Rahmentext des Blocks ist der Wirkstoff**, nicht Höflichkeit: er bindet die Anweisung
+  an den darüberstehenden „Bisherigen finalen Text", verlangt Unverändert-Übernahme des nicht
+  Betroffenen und hält den Erfindungs-Riegel für die Vertiefungs-Fälle vor. Ohne ihn liest das
+  Modell die Anweisung als Themenwunsch und schreibt den Abschnitt neu.
+- **Zwei Stellen in `generiereEinmal` behandeln die Anweisung wie einen Modifier**: sie zieht
+  `vorherigerText` in den Prompt (ohne ihn gäbe es nichts zu überarbeiten) und **schließt die
+  Teil-Generierung aus** — über den Teil-Pfad entstünde Abschnitt B frisch in Teilen statt
+  fortgeschrieben. Letzteres ist der Hauptfall, nicht der Randfall.
+- **Provenienz**: additives `StepRun.anweisung` + `KurzfassungVersion.anweisung`; `versionLabel`
+  zeigt „Überarbeitet: „…"" mit **Vorrang vor `lektoriert`** — weil an jede Generierung
+  automatisch der Feinschliff hängt, trüge sonst jede angewiesene Fassung nur „Sprachlich
+  überarbeitet". Die Anweisung gilt für **genau einen Lauf** und wird nie erneut angewendet.
+- **UI**: [`AnweisungLeiste`](../../src/plugins/antraege/gutachten/AnweisungLeiste.tsx) erscheint
+  inline **anstelle** der Werkzeugzeile (Text bleibt sichtbar, nie zwei offene Eingaben in einer
+  Karte). Die letzten 5 Anweisungen liegen als Chips in `localStorage`
+  ([anweisungVerlauf.ts](../../src/plugins/antraege/gutachten/anweisungVerlauf.ts)) — gerätelokal,
+  abschnitts- und verbundübergreifend, **nie** auf dem Share/im Snapshot.
+
 ## Transport-Fallback agentisch → standard (v2.334)
 
 Scheitert ein Lauf mit aktiver agentischer KI-Präferenz, übernimmt still die Standard-KI — statt den Lauf mit rotem Banner zu verlieren. Wiederverwendbar in [ziel-fallback.ts](../../src/core/services/ai/ziel-fallback.ts) (`mitZielFallback`), eingesetzt für Generierung, QS und Feinschliff.

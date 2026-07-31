@@ -1,7 +1,7 @@
 /**
  * Die EINZIGE Aktionszeile der Abschnitts-Karte: links die Werkzeuge am Text
- * (Neu · Kürzer · Länger · Persönlicher Stil | Bearbeiten · Kopieren · QS prüfen),
- * rechts der primäre CTA „Freigeben und weiter" mit QS-Badge.
+ * (Neu · Kürzer · Länger · Bearbeiten mit KI · Persönlicher Stil | Bearbeiten ·
+ * Kopieren · QS prüfen), rechts der primäre CTA „Freigeben und weiter" mit QS-Badge.
  *
  * Ersetzt die früheren drei getrennten Orte (Anpassen-Zeile über dem Text,
  * Prüf-Block-Fußzeile, Entscheidungs-Zeile unten). Seltener Gebrauchtes liegt im
@@ -12,7 +12,7 @@
  * Der Kopier-Zustand kommt aus `useKopierAktion`; geteilt wird der Zustand, nicht
  * das Aussehen — das Markup bleibt hier `g-btn`, damit die Zeile eine Optik hat.
  */
-import { AlertTriangle, ArrowRight, Check, Copy, Pencil, ShieldCheck, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Copy, Pencil, ShieldCheck, SlidersHorizontal, Sparkles, Undo2 } from 'lucide-react';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import type { SkillModifierKey } from '@/core/services/skills';
 import type { QsBadgeInfo } from './abschnittAnzeige';
@@ -28,6 +28,8 @@ interface Props {
   /** Persönlicher Stil wirkt auf diesen Abschnitt → Knopf mit Kontur statt ghost. */
   stilAktiv?: boolean;
   onModify: (modifier: SkillModifierKey) => void;
+  /** Freie Überarbeitungs-Anweisung eingeben („Bearbeiten mit KI"). */
+  onAnweisung: () => void;
   onBearbeiten: () => void;
   onOpenStil: () => void;
   onQs?: () => void;
@@ -37,7 +39,7 @@ interface Props {
 
 export function WerkzeugZeile({
   freigegeben, genDisabled, text, qs, stilAktiv,
-  onModify, onBearbeiten, onOpenStil, onQs, onFreigeben, onErneutOeffnen,
+  onModify, onAnweisung, onBearbeiten, onOpenStil, onQs, onFreigeben, onErneutOeffnen,
 }: Props): React.ReactElement {
   const textVorhanden = !!text.trim();
   const kopieren = useKopierAktion(text, 'Text in Zwischenablage kopieren');
@@ -96,6 +98,18 @@ export function WerkzeugZeile({
       <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('neu')}>Neu</button>
       <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('kuerzer')}>Kürzer</button>
       <button type="button" className="g-btn ghost sm" disabled={genDisabled} onClick={() => onModify('laenger')}>Länger</button>
+      {/* Das freie Geschwister der drei Modifier — steht deshalb bei ihnen und nicht
+          beim manuellen „Bearbeiten" rechts vom Trenner. Ohne Text nichts zu
+          überarbeiten (die leere Karte zeigt diese Zeile ohnehin nicht). */}
+      <button
+        type="button"
+        className="g-btn ghost sm"
+        disabled={genDisabled || !textVorhanden}
+        title="Eigene Anweisung eingeben, wie dieser Abschnitt überarbeitet werden soll"
+        onClick={onAnweisung}
+      >
+        <Sparkles size={13} /> Bearbeiten mit KI
+      </button>
       {stilKnopf}
       <span className="g-werkzeuge-sep" aria-hidden="true" />
       <button type="button" className="g-btn ghost sm" onClick={onBearbeiten}>

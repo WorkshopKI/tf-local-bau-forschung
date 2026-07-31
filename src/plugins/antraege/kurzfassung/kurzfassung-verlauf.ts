@@ -26,6 +26,8 @@ export interface VerlaufContent {
   erstellt_am: string;
   modell: string;
   modifier?: SkillModifierKey;
+  /** Freie Überarbeitungs-Anweisung des Bearbeiters, die zu dieser Fassung führte. */
+  anweisung?: string;
   /** True, wenn über dieser Fassung der sprachliche Feinschliff lief (Lektor-Skill). */
   lektoriert?: boolean;
   vbGekuerzt?: boolean;
@@ -40,12 +42,29 @@ const MODIFIER_LABEL: Record<SkillModifierKey, string> = {
   laenger: 'Verlängert',
 };
 
+/** Zeichen-Obergrenze der Anweisung IM LABEL (der Volltext gehört ins `title`). */
+const ANWEISUNG_LABEL_MAX = 40;
+
 /**
- * Anzeige-Label einer Fassung (Erstfassung = ohne Modifier). Der sprachliche
- * Feinschliff hat Vorrang vor dem Modifier: er ist der jüngere Arbeitsgang über
- * derselben Generierung, „Gekürzt" wäre danach irreführend.
+ * Anzeige-Label einer Fassung (Erstfassung = ohne Modifier). Rangfolge:
+ *
+ *  1. freie Anweisung — sagt als einzige, WAS an dieser Fassung anders ist;
+ *  2. sprachlicher Feinschliff — der jüngere Arbeitsgang über derselben
+ *     Generierung, „Gekürzt" wäre danach irreführend;
+ *  3. Modifier.
+ *
+ * Weil an jede Generierung automatisch ein Feinschliff angehängt wird, stünde ohne
+ * Regel 1 über JEDER angewiesenen Fassung nur „Sprachlich überarbeitet" — der
+ * Verlauf wäre eine Liste identischer Zeilen.
  */
-export function versionLabel(v: { modifier?: SkillModifierKey; lektoriert?: boolean }): string {
+export function versionLabel(v: { modifier?: SkillModifierKey; lektoriert?: boolean; anweisung?: string }): string {
+  const anweisung = v.anweisung?.trim();
+  if (anweisung) {
+    const kurz = anweisung.length > ANWEISUNG_LABEL_MAX
+      ? `${anweisung.slice(0, ANWEISUNG_LABEL_MAX).trimEnd()}…`
+      : anweisung;
+    return `Überarbeitet: „${kurz}“`;
+  }
   if (v.lektoriert) return 'Sprachlich überarbeitet';
   return v.modifier ? MODIFIER_LABEL[v.modifier] : 'Erstfassung';
 }
@@ -60,6 +79,7 @@ export function snapshotOf(record: VerlaufContent): KurzfassungVersion {
     erstellt_am: record.erstellt_am,
     modell: record.modell,
     ...(record.modifier ? { modifier: record.modifier } : {}),
+    ...(record.anweisung ? { anweisung: record.anweisung } : {}),
     ...(record.lektoriert ? { lektoriert: record.lektoriert } : {}),
     ...(record.vbGekuerzt ? { vbGekuerzt: record.vbGekuerzt } : {}),
     ...(record.warnung ? { warnung: record.warnung } : {}),
@@ -99,6 +119,7 @@ export function restoreVersion<T extends VerlaufContent>(record: T, index: numbe
     status: 'entwurf',
     verlauf: nextVerlauf,
     ...(chosen.modifier ? { modifier: chosen.modifier } : { modifier: undefined }),
+    ...(chosen.anweisung ? { anweisung: chosen.anweisung } : { anweisung: undefined }),
     ...(chosen.lektoriert ? { lektoriert: chosen.lektoriert } : { lektoriert: undefined }),
     ...(chosen.vbGekuerzt ? { vbGekuerzt: chosen.vbGekuerzt } : { vbGekuerzt: undefined }),
     ...(chosen.warnung ? { warnung: chosen.warnung } : { warnung: undefined }),

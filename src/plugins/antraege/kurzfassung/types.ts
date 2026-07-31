@@ -18,6 +18,13 @@ export interface KurzfassungVersion {
   /** Modifier, der zu DIESER Fassung führte (undefined = Erstfassung). */
   modifier?: SkillModifierKey;
   /**
+   * Freie Überarbeitungs-Anweisung („Bearbeiten mit KI"), die zu DIESER Fassung
+   * führte. Additiv; hat im `versionLabel` Vorrang vor Modifier UND Feinschliff —
+   * die selbst formulierte Anweisung ist die aussagekräftigste Beschreibung einer
+   * Fassung („Risiken gekürzt" statt „Sprachlich überarbeitet").
+   */
+  anweisung?: string;
+  /**
    * True, wenn DIESE Fassung aus dem sprachlichen Feinschliff (Lektor-Skill)
    * hervorging. Additiv; hat im `versionLabel` Vorrang vor dem Modifier, weil
    * der Feinschliff der jüngere Arbeitsgang über derselben Generierung ist.

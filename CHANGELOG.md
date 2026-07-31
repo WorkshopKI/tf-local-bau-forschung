@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.370.0 — Bearbeiten mit KI: freie Ueberarbeitungs-Anweisung am Gutachten-Abschnitt (Juli 2026)
+
+MINOR — Neu/Kürzer/Länger sind drei fertige Antworten auf eine Frage, die der Gutachter selbst stellen will: „technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen". Bisher blieb dafür nur mehrfach „Neu" würfeln oder von Hand umschreiben. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- Vierter Knopf „Bearbeiten mit KI" in der Werkzeugzeile; die Anweisung wird inline **anstelle** der Zeile eingegeben ([AnweisungLeiste.tsx](src/plugins/antraege/gutachten/AnweisungLeiste.tsx)) — der Abschnittstext bleibt beim Formulieren sichtbar.
+- Technisch ein Modifier-Lauf **ohne** Modifier: neuer Prompt-Block `buildAnweisungBlock` ([run-skill.ts](src/core/services/skills/run/run-skill.ts)), ohne Anweisung byte-identisch zum Bestand.
+- Die Anweisung zieht den bisherigen Text in den Prompt und schließt die Teil-Generierung aus ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)) — sonst entstünde Abschnitt B frisch in Teilen statt fortgeschrieben.
+- Vorfassungen tragen „Überarbeitet: „…"" statt „Sprachlich überarbeitet" ([kurzfassung-verlauf.ts](src/plugins/antraege/kurzfassung/kurzfassung-verlauf.ts)); additive `anweisung`-Felder an `StepRun`/`KurzfassungVersion`.
+- Die letzten 5 Anweisungen liegen als Chips gerätelokal bereit ([anweisungVerlauf.ts](src/plugins/antraege/gutachten/anweisungVerlauf.ts)) — nie auf dem Share, nie im Snapshot.
+
 ### v2.369.1 — Hilfe-Kopfzeile: Tour-Erklaerung am Knopf statt am Info-Icon (Juli 2026)
 
 PATCH — Nachlese am Gegenlesen von v2.369.0: das ⓘ war ein zweites Ziel für dieselbe Auskunft, die Abschnitts-Label rendern so groß wie fetter Fließtext (also keine Überschriften), und drei Docs standen noch als Wand da — `auslastung.md` mit 1151 Zeichen knapp unter der zu lasch gesetzten Schwelle.

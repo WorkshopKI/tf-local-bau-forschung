@@ -95,6 +95,18 @@ export interface SkillRunInput {
    * (ersetzt ihn nicht). Fehlt sie → No-op (Bestandsläufe byte-identisch).
    */
   zusatzAnweisung?: string;
+  /**
+   * Freie Überarbeitungs-Anweisung des Bearbeiters („Bearbeiten mit KI"): ein
+   * einmaliger, selbst formulierter Auftrag am bestehenden Text („technische
+   * Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen").
+   *
+   * Bewusst NICHT `zusatzAnweisung` mitbenutzt: das Feld trägt die regel-abgeleitete
+   * Korrektur-Vorgabe (Zielwert/Ist-Wert) und darf keine Sammelrinne werden — beide
+   * Blöcke können gemeinsam auftreten. Der Aufrufer setzt zusammen mit dieser
+   * Anweisung IMMER `vorherigerText` (sonst hätte das Modell nichts zu überarbeiten).
+   * Fehlt sie → No-op (Bestandsläufe byte-identisch).
+   */
+  anweisung?: string;
   /** Optionaler persönlicher Tweak (User-Tweaks v2). Fehlt er, ist die Ausgabe identisch zum tweaklosen Lauf. */
   tweak?: SkillTweakPromptInput;
   /**
@@ -234,6 +246,26 @@ export function buildTweakBlock(stilHinweise: string, beispielFormulierungen: st
 }
 
 /**
+ * Block der freien Überarbeitungs-Anweisung („Bearbeiten mit KI"). Exportiert,
+ * damit UI/Tests denselben Wortlaut prüfen können, statt ihn zu duplizieren.
+ *
+ * Die drei Rahmensätze sind Absicht, nicht Höflichkeit: (1) „überarbeite den
+ * bisherigen Text" bindet die Anweisung an den `vorherigerText`-Block darüber,
+ * (2) „was sie nicht betrifft, unverändert" verhindert die stille Komplett-
+ * Neuschrift, (3) „nur aus der Vorhabensbeschreibung" hält den Erfindungs-Riegel
+ * auch für die Vertiefungs-Fälle vor.
+ */
+export function buildAnweisungBlock(anweisung: string): string {
+  return [
+    '## Überarbeitungs-Anweisung des Bearbeiters (gilt nur für diesen Lauf)',
+    'Überarbeite den oben stehenden bisherigen finalen Text gemäß dieser Anweisung. '
+      + 'Was sie nicht betrifft, übernimm unverändert. Ergänzungen ausschließlich aus der '
+      + 'Vorhabensbeschreibung — erfinde nichts hinzu.',
+    `Anweisung: ${anweisung.trim()}`,
+  ].join('\n');
+}
+
+/**
  * Autoritativer Override-Block für die strukturierte Ausgabe des `### Finaler
  * Text`-Blocks. Deklariert dem Modell GENAU die erlaubten Keys (Reihenfolge +
  * Inhalt aus `teilStruktur`); der Parser verwirft alles, was nicht passt. Die
@@ -266,7 +298,7 @@ function buildTeilStrukturInstruktion(teile: TeilDeklaration[]): string {
  *   (2) persönlicher Tweak-Block — nur bei `tweak.aktiv` + nicht-leer
  *   (3) „Formale Vorgaben" (aus `buildPromptVorgaben`) — bewusst ZULETZT vor den
  *       Re-Invocation-Blöcken, damit die Kurator-Regeln Instruktions-Vorrang behalten
- *   (+) Re-Invocation: vorheriger Text + Modifier
+ *   (+) Re-Invocation: vorheriger Text + Modifier + freie Anweisung des Bearbeiters
  * Reine Funktion (getestet). Ohne (oder mit inaktivem/leerem) Tweak ist die
  * Ausgabe byte-identisch zum tweaklosen Lauf.
  */
@@ -313,6 +345,14 @@ export function composeSkillPrompt(
   if (input.modifier) {
     const mod = skill.modifiers[input.modifier];
     if (mod) content += `\n\n## Zusätzliche Anweisung\n${mod}`;
+  }
+  // Freie Überarbeitungs-Anweisung des Bearbeiters — direkt nach dem Modifier-Block
+  // (dieselbe Rangstufe: „was soll dieser Lauf anders machen"), aber als eigener,
+  // benannter Block. Der Rahmentext ist der eigentliche Wirkstoff: ohne ihn liest das
+  // Modell die Anweisung als Themenwunsch und schreibt den Abschnitt NEU, statt den
+  // darüberstehenden „Bisherigen finalen Text" fortzuschreiben. No-op ohne Wert.
+  if (input.anweisung && input.anweisung.trim()) {
+    content += `\n\n${buildAnweisungBlock(input.anweisung)}`;
   }
   // Regel-gebundene Zusatz-Anweisung (Journey-Paket 3) — unmittelbar NACH dem
   // Modifier-Block, klar als eigene Vorgabe markiert. Verschärft den Modifier mit

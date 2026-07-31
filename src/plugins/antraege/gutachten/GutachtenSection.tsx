@@ -665,6 +665,7 @@ function ActiveAbschnitt({
           llmAvailable={ctrl.llmAvailable}
           retryNote={ctrl.retryNote}
           onModify={(m) => ctrl.modify(id, m)}
+          onUeberarbeiten={(anweisung) => ctrl.ueberarbeiten(id, anweisung)}
           onBearbeiten={(text) => ctrl.bearbeitenStep(id, text)}
           onPruefen={() => ctrl.pruefen(id)}
           {...(pruefAktion ? { pruefAktion } : {})}

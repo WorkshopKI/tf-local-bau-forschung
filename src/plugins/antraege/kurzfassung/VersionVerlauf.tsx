@@ -111,7 +111,14 @@ export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, bus
             {/* Rechts: gewählte Vorfassung (Löschungen rot durchgestrichen) */}
             <div>
               <div className={META}>
-                <span className="text-[12px] font-medium text-[var(--tf-text-secondary)]">{versionLabel(gewaehlt)}</span>
+                {/* Das Label kürzt eine freie Anweisung auf Tab-Länge — der Volltext
+                    steht im Tooltip, damit die Fassung eindeutig zuordenbar bleibt. */}
+                <span
+                  className="text-[12px] font-medium text-[var(--tf-text-secondary)]"
+                  {...(gewaehlt.anweisung ? { title: `Anweisung: ${gewaehlt.anweisung}` } : {})}
+                >
+                  {versionLabel(gewaehlt)}
+                </span>
                 <span>·</span>
                 <span>generiert am {formatDate(gewaehlt.erstellt_am)}</span>
                 <span>·</span>

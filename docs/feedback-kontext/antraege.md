@@ -21,7 +21,8 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - **Abschnitts-Karte**, vier Ebenen:
   - **Kopf:** Titel, Entwurf/Freigegeben, Version, „Formuliert · Feinschliff", ggf. „Standard-KI (Fallback)", ⋯-Menü (Feinschliff/Vorfassungen/Verwerfen).
   - **Text:** satzweise markierbar.
-  - **Werkzeugzeile:** Neu/Kürzer/Länger · **Persönlicher Stil** · Bearbeiten · **Kopier-Icon** ⧉ neben Bearbeiten · QS prüfen · „Freigeben und weiter" mit QS-Badge. Freigegeben: Erneut öffnen · QS prüfen · Kopieren · Stil.
+  - **Werkzeugzeile:** Neu/Kürzer/Länger · **Bearbeiten mit KI** · **Persönlicher Stil** · Bearbeiten · **Kopier-Icon** ⧉ neben Bearbeiten · QS prüfen · „Freigeben und weiter" mit QS-Badge. Freigegeben: Erneut öffnen · QS prüfen · Kopieren · Stil.
+  - **„Bearbeiten mit KI":** eigene Anweisung eingeben, wie der Abschnitt überarbeitet werden soll („technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen"). Feld erscheint in der Karte, letzte 5 Anweisungen als Chips; gilt für genau einen Lauf, der bisherige Text bleibt die Grundlage.
   - **Fußzeile:** Sätze/Wörter/Regeln/Skill, verwendete KI „Standard-KI"/„Agentische KI" + 👍/👎.
 - **Am Text:** **Abschnitts-QS** („n von m Kriterien ok") + **Regelprüfung** (Messwert/Limit + KI-Korrektur). Generieren hängt den **Feinschliff** an.
 - **Rechts „Quelle & KI-Hinweise"** (eingeklappt): **Beleg-Karten** (Klick → Satz), Abdeckung, Denkprozess.

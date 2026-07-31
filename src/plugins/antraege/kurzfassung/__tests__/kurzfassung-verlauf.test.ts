@@ -29,6 +29,22 @@ describe('versionLabel', () => {
     expect(versionLabel({ lektoriert: true })).toBe('Sprachlich überarbeitet');
     expect(versionLabel({ modifier: 'kuerzer', lektoriert: true })).toBe('Sprachlich überarbeitet');
   });
+  it('freie Anweisung schlägt Feinschliff und Modifier (sagt als einzige, WAS anders ist)', () => {
+    // An jede Generierung wird automatisch ein Feinschliff gehängt — ohne diesen
+    // Vorrang trüge jede angewiesene Fassung nur „Sprachlich überarbeitet".
+    expect(versionLabel({ anweisung: 'Risiken kürzen', lektoriert: true, modifier: 'kuerzer' }))
+      .toBe('Überarbeitet: „Risiken kürzen“');
+  });
+  it('kürzt eine lange Anweisung im Label (Volltext gehört ins Tooltip)', () => {
+    const lang = 'Technische Risiken auf die des Lösungswegs beschränken und alle anderen entfernen';
+    const label = versionLabel({ anweisung: lang });
+    expect(label.length).toBeLessThan(lang.length);
+    expect(label).toContain('…');
+  });
+  it('leere/whitespace Anweisung fällt auf das bisherige Label zurück', () => {
+    expect(versionLabel({ anweisung: '   ', modifier: 'kuerzer' })).toBe('Gekürzt');
+    expect(versionLabel({ anweisung: '' })).toBe('Erstfassung');
+  });
 });
 
 describe('lektoriert im Verlauf (sprachlicher Feinschliff)', () => {
@@ -42,6 +58,18 @@ describe('lektoriert im Verlauf (sprachlicher Feinschliff)', () => {
   it('snapshotOf führt das Flag mit — und lässt es weg, wenn nicht gesetzt', () => {
     expect(snapshotOf(content({ lektoriert: true })).lektoriert).toBe(true);
     expect('lektoriert' in snapshotOf(content())).toBe(false);
+  });
+
+  it('snapshotOf/restoreVersion führen die freie Anweisung mit', () => {
+    expect(snapshotOf(content({ anweisung: 'Risiken kürzen' })).anweisung).toBe('Risiken kürzen');
+    expect('anweisung' in snapshotOf(content())).toBe(false);
+
+    const zurueck = restoreVersion(
+      content({ anweisung: 'Neuere Anweisung', verlauf: [snapshotOf(content({ finalerText: 'Original.' }))] }), 0,
+    );
+    // Die zurückgeholte Fassung entstand ohne Anweisung → das Label darf nicht die
+    // Anweisung der verdrängten Fassung weitertragen.
+    expect(zurueck.anweisung).toBeUndefined();
   });
 
   it('restoreVersion setzt bzw. löscht das Flag beim Rückgriff', () => {
