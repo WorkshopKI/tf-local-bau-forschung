@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.366.0 — Über die App: zweispaltig und größer (Juli 2026)
+
+MINOR — Der Dialog startete 672 px breit mit drei Abschnitten untereinander; der Überblick allein füllt gut eine Bildschirmhöhe, „Änderungen & Updates" lag unerreichbar darunter. Dazu beschrieb der Was-Satz die App als Infrastruktur-Thema statt über ihren Nutzen.
+
+- Dialog „Über die App" zweispaltig: links Überblick + Version, rechts „Änderungen & Updates" mit stehender Filterleiste, jede Spalte scrollt für sich ([UeberDieAppDialog.tsx](src/core/components/changelog/UeberDieAppDialog.tsx)); `flex-wrap` stapelt bei schmal gezogenem Dialog.
+- Neue Größenstufe `2xl` (1120 px) + resizable-Starthöhe 92vh statt 80vh ([dialog.tsx](src/components/ui/dialog.tsx)) — die Höhe entspricht dem Seiten-Hilfe-Dialog.
+- `resizeStorageKey` gebumpt (`…_size_v2`): eine gemerkte 672er-Größe hätte den neuen Default bei allen Bestandsnutzern überstimmt.
+- Was-Satz + Doc-Überschrift benennen die App als **ZAH (ZIM-Arbeitshilfe)** — Textarbeit an Förderanträgen + Controlling der eigenen Anträge ([_app.md](docs/feedback-kontext/_app.md)); dasselbe Doc speist die Feedback-KI.
+
 ### v2.365.0 — KI-Variante Standard schaltet den Streamlit-Tab wirklich um (Juli 2026)
 
 MINOR — Der Umschalter zurück auf die Standard-KI war wirkungslos: für „Standard" reichte die App `undefined` durch, und das heisst an der Bridge nicht „Standard-Tab", sondern „aktiver Tab". Nach dem ersten agentischen Lauf blieb jede Anfrage im agentischen Chat — während die Kontext-Warnung korrekt umsprang. Rein app-seitig, kein `BRIDGE_REV`-Bump. Detail: [streamlit-bridge.md](docs/architecture/streamlit-bridge.md).

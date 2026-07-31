@@ -9,6 +9,7 @@ const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
   md: "max-w-[480px]",
   lg: "max-w-2xl",
   xl: "max-w-4xl",
+  "2xl": "max-w-[1120px]",
 }
 
 /** Default-Startbreite (px) pro Groesse fuer den resizable-Modus (entspricht den max-w-Klassen). */
@@ -17,6 +18,7 @@ const SIZE_PX: Record<NonNullable<DialogProps["size"]>, number> = {
   md: 480,
   lg: 672,
   xl: 896,
+  "2xl": 1120,
 }
 
 interface SavedSize {
@@ -61,7 +63,7 @@ interface DialogProps {
    */
   dismissOnOverlayClick?: boolean
   /** Karten-Breite. Default `md` (= heutiger Wert, keine Regression). */
-  size?: "sm" | "md" | "lg" | "xl"
+  size?: "sm" | "md" | "lg" | "xl" | "2xl"
   /**
    * Macht die Karte per Maus frei groessenveraenderbar (natives CSS `resize`, Ecke unten
    * rechts). Default `false` (keine Regression). Ersetzt im aktivierten Fall die Breiten-/
@@ -114,7 +116,10 @@ function Dialog({
     const vh = typeof window !== "undefined" ? window.innerHeight : 800
     return {
       width: saved?.w ?? SIZE_PX[size],
-      height: saved?.h ?? Math.round(Math.min(vh * 0.8, vh - 32)),
+      // ~92vh statt 80vh: dieselbe Hoehe, die sich beim Seiten-Hilfe-Dialog bewaehrt hat
+      // (SeitenHilfeButton, `h-[92vh]`) — inhaltsreiche Dialoge sollen die Bildschirmhoehe
+      // nutzen, statt einen Rand zu lassen, den niemand braucht.
+      height: saved?.h ?? Math.round(Math.min(vh * 0.92, vh - 32)),
       minWidth: 360,
       minHeight: 280,
       maxWidth: "95vw",

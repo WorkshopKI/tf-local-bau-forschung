@@ -4,14 +4,16 @@
  * Beide Wege teilen sich `useUeberAppDialog`; gemountet wird genau einmal
  * (ShellLayout), siehe Store-Docblock.
  *
- * Drei Abschnitte von oben:
- *  1. **Überblick** — der App-Überblick aus `docs/feedback-kontext/_app.md`, ohne
- *     Technik-Teil (`getAppUeberblick`). Bis v2.360 sah den nur die Feedback-KI.
- *  2. **Version** — laufende Version, Build-Datum, Variante.
- *  3. **Änderungen & Updates** — gruppiert nach Hauptnummer (Major) als
- *     ausklappbare Über-Überschrift (aktuelle Major auf, frühere zu), darunter die
- *     Minor-Versionen `x.yy`. Jede Änderung trägt eine Kategorie (Neu & geändert /
- *     Bugfix); ein Filter blendet nur die jeweils gewünschte ein.
+ * Seit v2.366 ZWEI Spalten statt drei Abschnitte untereinander — der Überblick ist
+ * gut eine Bildschirmhöhe lang und schob „Änderungen & Updates" sonst unter den Falz.
+ * Jede Spalte scrollt für sich, beide sind ohne Scrollen sichtbar:
+ *  - **links: Überblick** — der App-Überblick aus `docs/feedback-kontext/_app.md`, ohne
+ *    Technik-Teil (`getAppUeberblick`). Bis v2.360 sah den nur die Feedback-KI.
+ *    Darunter fest die **Version** — laufende Version, Build-Datum, Variante.
+ *  - **rechts: Änderungen & Updates** — gruppiert nach Hauptnummer (Major) als
+ *    ausklappbare Über-Überschrift (aktuelle Major auf, frühere zu), darunter die
+ *    Minor-Versionen `x.yy`. Jede Änderung trägt eine Kategorie (Neu & geändert /
+ *    Bugfix); ein Filter blendet nur die jeweils gewünschte ein.
  *
  * Inhalt der Änderungsliste: bevorzugt die geglättete `changelog-user.md`, sonst
  * aus der entwickler-orientierten CHANGELOG.md (+ Archiv) abgeleitet (siehe
@@ -199,132 +201,138 @@ export function UeberDieAppDialog({ open, onClose }: { open: boolean; onClose: (
       onClose={onClose}
       title="Über die App"
       description="Was die App ist, welche Fassung läuft und was sich zuletzt geändert hat."
-      size="lg"
+      size="2xl"
       align="center"
       resizable
-      // Neuer Key: der Dialog hat seit v2.360 zwei Abschnitte mehr, eine unter
-      // dem alten Namen gemerkte Höhe wäre dafür zu knapp.
-      resizeStorageKey="teamflow_ueber_app_dialog_size"
+      // Neuer Key bei jeder Default-Änderung: eine unter dem alten Namen gemerkte Größe
+      // würde den neuen Default dauerhaft überstimmen (v2.360 zwei Abschnitte mehr,
+      // v2.366 zweispaltig + breiter — sonst sähe niemand mit Alt-Eintrag die Änderung).
+      resizeStorageKey="teamflow_ueber_app_dialog_size_v2"
     >
-      {/* Überblick — bis v2.360 sah dieses Doc nur die Feedback-KI. */}
-      {ueberblick !== null && (
-        <Collapsible defaultOpen className="mb-3 rounded-[var(--tf-radius)] border border-[var(--tf-border)]">
-          <CollapsibleTrigger className={`${TRIGGER_BASE} py-2.5`}>
-            <span className="text-[13px] font-medium text-[var(--tf-text)]">Überblick</span>
-            <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-3 pb-3 pt-1">
-            <MarkdownRenderer content={ueberblick.markdown} />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+      {/* Zwei Spalten, damit „Änderungen & Updates" nicht unter dem langen Überblick
+          verschwindet. `flex-wrap` statt Media-Query: maßgeblich ist die (frei ziehbare)
+          Dialog-Breite, nicht die des Fensters — bei schmalem Dialog stapeln die Spalten. */}
+      <div className="flex h-full min-h-0 flex-wrap gap-5">
+        {/* Linke Spalte: Überblick (scrollt) + Version (steht fest darunter). */}
+        {ueberblick !== null && (
+          <div className="flex min-h-0 min-w-[300px] shrink grow basis-[360px] flex-col">
+            <p className="mb-2 text-[13px] font-medium text-[var(--tf-text)]">Überblick</p>
+            {/* Bis v2.360 sah dieses Doc nur die Feedback-KI. */}
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-[var(--tf-radius)] border border-[var(--tf-border)] px-3 py-2.5">
+              <MarkdownRenderer content={ueberblick.markdown} />
+            </div>
+            {/* Version — was im Support-Fall gefragt wird, ohne Tooltip-Suche. */}
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] px-3 py-2 text-[12px] text-[var(--tf-text-secondary)]">
+              <span>Fassung <span className="font-mono text-[var(--tf-text)]">v{appVersion}</span></span>
+              <span>Stand {buildDatum}</span>
+              <span>Ausgabe {runtimeConfig.build.label}</span>
+            </div>
+          </div>
+        )}
 
-      {/* Version — was im Support-Fall gefragt wird, ohne Tooltip-Suche. */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] px-3 py-2 text-[12px] text-[var(--tf-text-secondary)]">
-        <span>Fassung <span className="font-mono text-[var(--tf-text)]">v{appVersion}</span></span>
-        <span>Stand {buildDatum}</span>
-        <span>Ausgabe {runtimeConfig.build.label}</span>
-      </div>
+        {/* Rechte Spalte: Kopf (Titel + Filter) steht, nur die Liste scrollt. */}
+        <div className="flex min-h-0 min-w-[380px] shrink grow basis-[560px] flex-col">
+          <p className="mb-2 text-[13px] font-medium text-[var(--tf-text)]">
+            Änderungen &amp; Updates <span className="font-normal text-[var(--tf-text-tertiary)]">— neueste zuerst</span>
+          </p>
 
-      <p className="mb-2 text-[13px] font-medium text-[var(--tf-text)]">
-        Änderungen &amp; Updates <span className="font-normal text-[var(--tf-text-tertiary)]">— neueste zuerst</span>
-      </p>
-
-      {/* Kategorie-Filter (klebt am oberen Rand des scrollbaren Inhalts) */}
-      <div className="sticky top-0 z-10 -mx-6 mb-3 flex flex-wrap items-center gap-1 border-b border-[var(--tf-border)] bg-[var(--tf-bg)] px-6 pb-2 pt-1">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-              filter === f.key ? f.activeClass : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-            }`}
-          >
-            {f.label} <span className="opacity-60">{f.count}</span>
-          </button>
-        ))}
-        {/* Rechte Gruppe: Aufklapp-Steuerung (orthogonal zur Kategorie). */}
-        <button
-          type="button"
-          onClick={() => setExpandAll((v) => !v)}
-          aria-pressed={expandAll}
-          className={`ml-auto rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-            expandAll
-              ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
-              : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-          }`}
-        >
-          {expandAll ? 'Alle zuklappen' : 'Alle aufklappen'}
-        </button>
-      </div>
-
-      {visibleMajors.length === 0 ? (
-        <p className="py-6 text-sm text-[var(--tf-text-secondary)]">
-          Keine Einträge in dieser Kategorie.
-        </p>
-      ) : (
-        <div className="space-y-3 pb-2">
-          {visibleMajors.map((maj) => (
-            <Collapsible
-              // expandAll im Key → Toggle mountet die ganze Hauptnummer neu, alle Kinder
-              // übernehmen ihr neues defaultOpen.
-              key={`${expandAll}-${maj.major}`}
-              defaultOpen={expandAll || maj.major === currentMajor}
-              className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
+          {/* Kategorie-Filter */}
+          <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-[var(--tf-border)] pb-2">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+                  filter === f.key ? f.activeClass : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+                }`}
+              >
+                {f.label} <span className="opacity-60">{f.count}</span>
+              </button>
+            ))}
+            {/* Rechte Gruppe: Aufklapp-Steuerung (orthogonal zur Kategorie). */}
+            <button
+              type="button"
+              onClick={() => setExpandAll((v) => !v)}
+              aria-pressed={expandAll}
+              className={`ml-auto rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
+                expandAll
+                  ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
+                  : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+              }`}
             >
-              <CollapsibleTrigger className={`${TRIGGER_BASE} py-3`}>
-                <span className="text-[15px] font-semibold text-[var(--tf-text)]">{maj.label}</span>
-                <ChevronDown size={18} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-1.5 px-2 pb-2">
-                {(() => {
-                  // Aktuelle Hauptnummer: erste 3 sichtbare Versionen einzeln (offen), Rest in
-                  // 10er-Pakete; ältere Hauptnummern komplett in Pakete. Filter im Key → bei
-                  // Tab-Wechsel neu mounten (Radix `defaultOpen` greift nur beim Mount).
-                  const { loose, buckets } = bucketizeMinors(
-                    maj.minors,
-                    maj.major === currentMajor ? 3 : 0,
-                    maj.major,
-                  );
-                  return (
-                    <>
-                      {loose.map((min, idx) => (
-                        <MinorCard
-                          key={`${filter}-${min.minor}`}
-                          min={min}
-                          defaultOpen={expandAll || (maj.major === currentMajor && idx < 3)}
-                          matches={matches}
-                        />
-                      ))}
-                      {buckets.map((bucket) => (
-                        <Collapsible
-                          key={`${filter}-${bucket.key}`}
-                          defaultOpen={expandAll}
-                          className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
-                        >
-                          <CollapsibleTrigger className={`${TRIGGER_BASE} py-2`}>
-                            <span className="text-[13px] font-medium text-[var(--tf-text-secondary)]">
-                              {bucket.label}
-                              <span className="ml-1.5 text-[var(--tf-text-tertiary)]">· {bucket.minors.length}</span>
-                            </span>
-                            <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="space-y-1.5 px-2 pb-2 pt-1">
-                            {bucket.minors.map((min) => (
-                              <MinorCard key={min.minor} min={min} defaultOpen={expandAll} matches={matches} />
-                            ))}
-                          </CollapsibleContent>
-                        </Collapsible>
-                      ))}
-                    </>
-                  );
-                })()}
-              </CollapsibleContent>
-            </Collapsible>
-          ))}
+              {expandAll ? 'Alle zuklappen' : 'Alle aufklappen'}
+            </button>
+          </div>
+
+          {visibleMajors.length === 0 ? (
+            <p className="py-6 text-sm text-[var(--tf-text-secondary)]">
+              Keine Einträge in dieser Kategorie.
+            </p>
+          ) : (
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
+              {visibleMajors.map((maj) => (
+                <Collapsible
+                  // expandAll im Key → Toggle mountet die ganze Hauptnummer neu, alle Kinder
+                  // übernehmen ihr neues defaultOpen.
+                  key={`${expandAll}-${maj.major}`}
+                  defaultOpen={expandAll || maj.major === currentMajor}
+                  className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
+                >
+                  <CollapsibleTrigger className={`${TRIGGER_BASE} py-3`}>
+                    <span className="text-[15px] font-semibold text-[var(--tf-text)]">{maj.label}</span>
+                    <ChevronDown size={18} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1.5 px-2 pb-2">
+                    {(() => {
+                      // Aktuelle Hauptnummer: erste 3 sichtbare Versionen einzeln (offen), Rest in
+                      // 10er-Pakete; ältere Hauptnummern komplett in Pakete. Filter im Key → bei
+                      // Tab-Wechsel neu mounten (Radix `defaultOpen` greift nur beim Mount).
+                      const { loose, buckets } = bucketizeMinors(
+                        maj.minors,
+                        maj.major === currentMajor ? 3 : 0,
+                        maj.major,
+                      );
+                      return (
+                        <>
+                          {loose.map((min, idx) => (
+                            <MinorCard
+                              key={`${filter}-${min.minor}`}
+                              min={min}
+                              defaultOpen={expandAll || (maj.major === currentMajor && idx < 3)}
+                              matches={matches}
+                            />
+                          ))}
+                          {buckets.map((bucket) => (
+                            <Collapsible
+                              key={`${filter}-${bucket.key}`}
+                              defaultOpen={expandAll}
+                              className="rounded-[var(--tf-radius)] border border-[var(--tf-border)]"
+                            >
+                              <CollapsibleTrigger className={`${TRIGGER_BASE} py-2`}>
+                                <span className="text-[13px] font-medium text-[var(--tf-text-secondary)]">
+                                  {bucket.label}
+                                  <span className="ml-1.5 text-[var(--tf-text-tertiary)]">· {bucket.minors.length}</span>
+                                </span>
+                                <ChevronDown size={15} className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="space-y-1.5 px-2 pb-2 pt-1">
+                                {bucket.minors.map((min) => (
+                                  <MinorCard key={min.minor} min={min} defaultOpen={expandAll} matches={matches} />
+                                ))}
+                              </CollapsibleContent>
+                            </Collapsible>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </Dialog>
   );
 }

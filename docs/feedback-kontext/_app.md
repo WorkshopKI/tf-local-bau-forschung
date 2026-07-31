@@ -1,6 +1,6 @@
-# TeamFlow Local — App-Überblick
+# ZAH (ZIM-Arbeitshilfe) — App-Überblick
 
-**Was:** Serverlose Browser-App für ein Förderanträge-Team (ZIM-Förderanträge, Forschung/Entwicklung). Verwaltet Förderanträge, Fristen, Kapazitätsplanung, Dokument-Klassifizierung und KI-gestützte Hybrid-Suche — ganz ohne eigene IT-Infrastruktur oder Server.
+**Was:** Die ZAH-App (ZIM-Arbeitshilfe) unterstützt bei der Textarbeit zu Förderanträgen und beim Controlling der eigenen Anträge.
 
 **Hauptbereiche (Seitenleiste):** Die Liste ist in Blöcke geteilt — oben unbeschriftet der tägliche Weg, darunter „Werkzeuge", darunter „In Erprobung".
 

@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.366 — 2026-07
+
+### Verbesserungen
+- „Über die App" öffnet jetzt breit und fast bildschirmhoch, mit zwei Spalten: links der Überblick über die App, rechts die Änderungen und Updates. Beides ist sofort zu sehen, ohne zu scrollen.
+- Die Einleitung sagt kürzer, worum es geht: Die ZAH-App (ZIM-Arbeitshilfe) unterstützt bei der Textarbeit zu Förderanträgen und beim Controlling der eigenen Anträge.
+
 ## v2.365 — 2026-07
 
 ### Bugfixes
