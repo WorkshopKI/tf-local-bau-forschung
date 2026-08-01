@@ -57,6 +57,20 @@ pauschales „bitte manuell testen" ersetzt den Sicht-Check nicht.
    Vor dem Melden mit `getBoundingClientRect` / `querySelectorAll` gegenrechnen.
 4. **Screenshots brauchen ein sichtbares Browser-Pane**; `read_page`,
    `javascript_tool` und die Konsolen-Werkzeuge laufen unabhängig davon.
+5. **Tastenkürzel des Panes kommen nicht zuverlässig an.** `computer{action:
+   'key'}` schluckte `ctrl+slash` ganz und eine Wiederholung von
+   `ctrl+shift+d` still. Verlässlich ist der synthetische Weg — der
+   `keyboardService` hängt am `document`:
+   `document.dispatchEvent(new KeyboardEvent('keydown', {key: '/', code: 'Slash', ctrlKey: true, bubbles: true, cancelable: true}))`.
+   `defaultPrevented === true` in der Rückgabe beweist, dass die App den
+   Griff angenommen hat.
+6. **`getBoundingClientRect()` lügt am Pane-Rand.** Gemessen: `aside` meldete
+   52 px, während `getAttribute('style')` `width: 220px` sagte und 21
+   beschriftete Nav-Knöpfe im DOM standen (einmal auch andersherum). Für
+   Breiten die Inline-Style-Zeichenkette lesen, für Zustände Elemente zählen.
+7. **`appVersion` friert beim Serverstart ein.** Der Wert kommt aus einem
+   Vite-`define`; nach `npm run version:bump` zeigt der Fuß der Seitenleiste
+   die alte Version, bis `dev:local` neu gestartet wird. Kein Befund.
 
 ## Warum
 
