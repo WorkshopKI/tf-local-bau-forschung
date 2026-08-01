@@ -174,6 +174,12 @@ export interface TeamflowFeatures {
    *  neben dem amtlichen Status — die Anzeige-`Prominenz` des Status-Katalogs
    *  bleibt davon unberuehrt. dev/pl/as/kurator. Optional, default false. */
   meilensteinMonitoring?: boolean;
+  /** Vorgangssystem: Status-Erklärung (Info-Icon), Kürzel-Glossar +
+   *  Nächster-Schritt-Navigator, To-do-Board, Stillstands-Wächter und
+   *  Fristen-Cockpit. Die App leitet dabei KEINEN Status ab — alles steht neben
+   *  dem importierten `STATUS_TV`/`STATUS_VB`. Setzt `statusCockpit` voraus
+   *  (ohne Katalog keine Codes). dev/pl. Optional, default false. */
+  vorgangssystem?: boolean;
 }
 
 export interface TeamflowMenuLabels {

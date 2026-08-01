@@ -11,6 +11,7 @@
  * evaluieren die Datums-Operatoren zu `false`.
  */
 import { parseGermanDate } from '@/core/services/csv/dateParse';
+import { toVbPhaseNumber } from '@/core/utils/vb-phase-mappings';
 import type { Bedingung } from './typen';
 import { normalisiereWert } from './typen';
 
@@ -38,10 +39,24 @@ export function baueKontext(
   return m;
 }
 
+/** Das erste lesbare Datum eines Feldes als Millisekunden, sonst `null`. */
+function ersterDatumsWert(ctx: BedingungsKontext, feldId: string): number | null {
+  const datum = (ctx.get(feldId) ?? [])
+    .map(v => parseGermanDate(v))
+    .find((d): d is string => !!d);
+  if (!datum) return null;
+  const ms = new Date(datum).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 /**
  * Wertet einen Bedingungs-Baum aus. `alle` = UND, `einige` = ODER; Blätter
  * prüfen einen Feldwert. Bei Mehrfachwerten (mehrere TVs) genügt EIN Treffer —
  * ausser bei `istNicht`/`leer`, die entsprechend negieren.
+ *
+ * `heute` ist der **injizierte Stichtag** — hier wird nie `new Date()` gerufen,
+ * damit dieselben Daten am selben Stichtag immer dasselbe Ergebnis liefern.
+ * Fehlt er, evaluieren die stichtagsabhängigen Operatoren zu `false`.
  */
 export function pruefeBedingung(b: Bedingung, ctx: BedingungsKontext, heute?: string): boolean {
   if ('alle' in b) return b.alle.every(x => pruefeBedingung(x, ctx, heute));
@@ -56,11 +71,58 @@ export function pruefeBedingung(b: Bedingung, ctx: BedingungsKontext, heute?: st
     case 'datumNach': {
       if (!heute) return false;
       const grenzeMs = new Date(heute).getTime() + b.tageRelativHeute * MS_TAG;
-      const datum = werte.map(v => parseGermanDate(v)).find((d): d is string => !!d);
-      if (!datum) return false;
-      const ms = new Date(datum).getTime();
+      const ms = ersterDatumsWert(ctx, b.feldId);
+      if (ms === null) return false;
       return b.op === 'datumVor' ? ms < grenzeMs : ms > grenzeMs;
+    }
+    case 'tageSeit': {
+      // Echtes `> N`, nicht `>= N`: die Mappe fragt „Widerspruchsfrist von 31
+      // Tagen ABGELAUFEN" — an Tag 31 läuft sie noch, ab Tag 32 ist sie vorbei.
+      if (!heute) return false;
+      const ms = ersterDatumsWert(ctx, b.feldId);
+      if (ms === null) return false;
+      const heuteMs = new Date(heute).getTime();
+      if (Number.isNaN(heuteMs)) return false;
+      return Math.floor((heuteMs - ms) / MS_TAG) > b.tage;
+    }
+    case 'datumNachFeld': {
+      // Kein Stichtag nötig — zwei Daten gegeneinander. Fehlt eines, ist die
+      // Aussage nicht belegt und damit `false` (nicht „stimmt vermutlich").
+      const a = ersterDatumsWert(ctx, b.feldId);
+      const c = ersterDatumsWert(ctx, b.vergleichFeldId);
+      if (a === null || c === null) return false;
+      return a > c;
+    }
+    case 'foerdervarianteIn': {
+      return werte.some(v => {
+        const n = toVbPhaseNumber(v);
+        return n !== null && b.varianten.includes(n);
+      });
     }
     default: return false;
   }
+}
+
+/**
+ * Alle Feld-Referenzen eines Bedingungs-Baums (dedupliziert, Reihenfolge stabil).
+ *
+ * Die **eine** Stelle, die weiß, welche Blatt-Formen ein Feld nennen — inklusive
+ * des zweiten Feldes bei `datumNachFeld`. Aufrufer sind die Feld-Auflösung der
+ * Meilensteine (`meilensteine/felder.ts`) und die Import-Validierung
+ * (`export-import.ts`); liefe eine davon auf einer eigenen Kopie, fiele ein neuer
+ * Operator dort still aus dem Auswertungs-Kontext und die Bedingung wäre
+ * dauerhaft `false`, ohne dass es jemand merkt.
+ */
+export function bedingungFeldRefs(b: Bedingung, out: string[] = []): string[] {
+  if ('alle' in b) {
+    for (const x of b.alle) bedingungFeldRefs(x, out);
+    return out;
+  }
+  if ('einige' in b) {
+    for (const x of b.einige) bedingungFeldRefs(x, out);
+    return out;
+  }
+  if (!out.includes(b.feldId)) out.push(b.feldId);
+  if (b.op === 'datumNachFeld' && !out.includes(b.vergleichFeldId)) out.push(b.vergleichFeldId);
+  return out;
 }

@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { canWriteDatenShare } from '@/config/feature-flags';
 import {
   listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
@@ -25,12 +27,16 @@ import {
   aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
+  uebernimmStatusCodes, ladeTrigger, speichereTrigger,
+  vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
+  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN,
+  type TriggerStand, type VorgangssystemLuecke,
   baueSeedCodeFelder, SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
   type StatusKategorie, type UnkuratierterFund, type VerbundFelder, type SimErgebnis,
-  type PhasenWechsel, type SpinePhase,
+  type PhasenWechsel, type SpinePhase, type StatusCodeEintrag, type TriggerZeile,
 } from '@/core/status';
 
 export interface StatusCockpitApi {
@@ -52,6 +58,10 @@ export interface StatusCockpitApi {
   zuletzt: Map<string, string>;
   /** feldId → CSV-Spalten, aus denen das Feld gefüllt wird (Herkunft). */
   csvSpalten: Map<string, string[]>;
+  /** Der geladene Bestand als Engine-Eingabe (Diagnose, Simulation). */
+  verbundFelder: VerbundFelder[];
+  /** Der EINE Stichtag dieses Seitenaufrufs — in alle Engines injiziert. */
+  stichtag: string;
   aktivVerteilung: Record<SpinePhase, number>;
   entwurfVerteilung: Record<SpinePhase, number>;
   phasenWechsel: PhasenWechsel[];
@@ -81,6 +91,31 @@ export interface StatusCockpitApi {
   seedNachziehen: () => void;
   /** Bezeichnung + Rollen aus der Kürzel-Zuarbeit übernehmen (sonst nichts). */
   texteUebernehmen: () => void;
+  /**
+   * Darf dieser Build/Nutzer den Daten-Share schreiben? Steuert nur die
+   * Sichtbarkeit der Bedienelemente — der physische Guard bleibt das self-gated
+   * `schreibeKatalogAufShare` (Pitfall #25).
+   */
+  darfSchreiben: boolean;
+  /** Importierten Status-Code-Katalog in den Entwurf übernehmen. */
+  statusCodesUebernehmen: (katalog: readonly StatusCodeEintrag[]) => void;
+  /** Was der Fassung aus der Vorgangssystem-Auslieferung fehlt (Codes/Phasen). */
+  vorgangssystemLuecke: VorgangssystemLuecke;
+  /** Codes, Varianten und ZAH-Phasen der Auslieferung nachziehen (additiv). */
+  vorgangssystemNachziehen: () => void;
+  /**
+   * Der Trigger-Stand aus `_intern/status-trigger.json` samt Herkunft
+   * (`share`/`cache`/`leer`). Eigene Datei, nicht Teil des Katalog-Entwurfs —
+   * siehe `trigger-share.ts`.
+   */
+  trigger: TriggerStand;
+  /**
+   * Importierte Trigger-Tabelle übernehmen: ersetzt die Tabelle, erhöht den
+   * Import-Zähler und veröffentlicht sie. Anders als Katalog-Änderungen läuft
+   * das NICHT über die Speicherleiste — die Trigger sind eine eigene Datei mit
+   * eigenem Stand. Liefert `false`, wenn nur der lokale Cache geschrieben wurde.
+   */
+  triggerUebernehmen: (zeilen: readonly TriggerZeile[]) => Promise<boolean>;
   verwerfen: () => void;
   speichern: (kommentar: string) => Promise<void>;
   reaktivieren: (version: number) => Promise<void>;
@@ -107,6 +142,11 @@ export function useStatusCockpit(): StatusCockpitApi {
   const storage = useStorage();
   const idb = storage.idb;
   const kuerzel = useMeinKuerzel();
+  const istKurator = useKuratorSession(s => s.isActive);
+  const darfSchreiben = canWriteDatenShare(istKurator);
+  // Der Stichtag wird EINMAL je Seitenaufruf gestempelt und in alle Engines
+  // injiziert — nie `new Date()` in der Berechnung selbst, sonst lieferten zwei
+  // Renders derselben Daten verschiedene Ergebnisse.
   const heuteRef = useRef<string>(new Date().toISOString());
 
   const [laden, setLaden] = useState(true);
@@ -120,6 +160,9 @@ export function useStatusCockpit(): StatusCockpitApi {
   const [speichernBusy, setSpeichernBusy] = useState(false);
   const [speichernFehler, setSpeichernFehler] = useState<string | null>(null);
   const [nurLokal, setNurLokal] = useState(false);
+  // Eigene Sidecar, eigener Zustand — die Trigger reisen NICHT in der
+  // Katalog-Fassung mit (`trigger-share.ts` erklärt, warum).
+  const [trigger, setTrigger] = useState<TriggerStand>({ datei: null, herkunft: 'leer' });
 
   const ladeBestand = useCallback(async (version: MappingVersion): Promise<Bestand> => {
     const programme = await listProgramme(idb);
@@ -171,9 +214,11 @@ export function useStatusCockpit(): StatusCockpitApi {
     setFehler(null);
     try {
       const version = await ladeAktiveVersion(idb);
-      const [alleVersionen, unk, unkFelder, b] = await Promise.all([
+      const [alleVersionen, unk, unkFelder, b, triggerStand] = await Promise.all([
         listeVersionen(idb), ladeUnkuratiert(idb), ladeUnkuratierteFelder(idb), ladeBestand(version),
+        ladeTrigger(idb),
       ]);
+      setTrigger(triggerStand);
       setAktiveVersion(version);
       setEntwurf(version);
       setVersionen(alleVersionen);
@@ -339,6 +384,36 @@ export function useStatusCockpit(): StatusCockpitApi {
     setEntwurf(v => (v ? uebernimmSeedTexte(v, SEED_FELDER) : v));
   }, []);
 
+  // Beide Referenz-Übernahmen schreiben in EINEM `setState` in den Entwurf;
+  // festgeschrieben wird erst über die Speicherleiste (ein `persist`, #16/#20).
+  const statusCodesUebernehmen = useCallback((katalog: readonly StatusCodeEintrag[]) => {
+    setEntwurf(v => (v ? uebernimmStatusCodes(v, katalog) : v));
+  }, []);
+
+  /**
+   * Was der Fassung aus der Vorgangssystem-Auslieferung fehlt. Bestandsfassungen
+   * (> 1) haben den Seed nie gesehen — ohne diesen Weg stünden dort dauerhaft
+   * „0 Statuswerte mit Code" und die ganze neue Schicht bliebe wirkungslos.
+   */
+  const vsLuecke = useMemo(
+    () => (entwurf
+      ? vorgangssystemLuecke(entwurf, STATUS_CODE_KATALOG)
+      : { werteOhneCode: 0, phasenFehlen: false }),
+    [entwurf],
+  );
+
+  const vorgangssystemNachziehen = useCallback(() => {
+    setEntwurf(v => (v ? ergaenzeVorgangssystemSeed(v, STATUS_CODE_KATALOG, SEED_ZAH_PHASEN) : v));
+  }, []);
+
+  const triggerUebernehmen = useCallback(async (zeilen: readonly TriggerZeile[]): Promise<boolean> => {
+    const { datei, aufShare } = await speichereTrigger(
+      idb, zeilen, kuerzel ?? null, trigger.datei?.version ?? 0, new Date().toISOString(),
+    );
+    setTrigger({ datei, herkunft: aufShare ? 'share' : 'cache' });
+    return aufShare;
+  }, [idb, kuerzel, trigger.datei?.version]);
+
   const verwerfen = useCallback(() => setEntwurf(aktiveVersion), [aktiveVersion]);
 
   return {
@@ -347,6 +422,8 @@ export function useStatusCockpit(): StatusCockpitApi {
     vorkommen: bestand?.vorkommen ?? new Map(),
     zuletzt: bestand?.zuletzt ?? new Map(),
     csvSpalten: bestand?.csvSpalten ?? new Map(),
+    verbundFelder: bestand?.verbundFelder ?? [],
+    stichtag: heuteRef.current,
     aktivVerteilung: bestand ? verteilung(bestand.aktivSim) : LEER_VERTEILUNG,
     entwurfVerteilung: bestand ? verteilung(entwurfSim) : LEER_VERTEILUNG,
     phasenWechsel: bestand ? diffPhasen(bestand.aktivSim, entwurfSim) : [],
@@ -355,6 +432,8 @@ export function useStatusCockpit(): StatusCockpitApi {
     geaendert, speichernBusy, speichernFehler, nurLokal, erneutAufShare,
     setWert, setFeld, setRegel, setKategorie, addKategorie, removeKategorie,
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
+    darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,
+    vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

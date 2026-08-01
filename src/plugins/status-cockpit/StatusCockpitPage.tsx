@@ -19,8 +19,11 @@ import { useStatusCockpit, type StatusCockpitApi } from './useStatusCockpit';
 import { KatalogTab } from './KatalogTab';
 import { FelderTab } from './FelderTab';
 import { RegelnTab } from './RegelnTab';
+import { ReferenzdatenSektion } from './ReferenzdatenSektion';
+import { DiagnoseSektion } from './DiagnoseSektion';
 import { SPINE_LABEL, SPINE_WERTE, feldStil, formatZeitpunkt } from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import { isVorgangssystemEnabled } from '@/config/feature-flags';
 
 type TabKey = 'katalog' | 'felder' | 'regeln';
 
@@ -270,6 +273,12 @@ export function StatusCockpitPage(): React.ReactElement {
         {tab === 'katalog' && <KatalogTab api={api} />}
         {tab === 'felder' && <FelderTab api={api} />}
         {tab === 'regeln' && <RegelnTab api={api} />}
+        {isVorgangssystemEnabled() && (
+          <>
+            <ReferenzdatenSektion api={api} />
+            <DiagnoseSektion api={api} />
+          </>
+        )}
         <VersionsPanel api={api} />
       </div>
 

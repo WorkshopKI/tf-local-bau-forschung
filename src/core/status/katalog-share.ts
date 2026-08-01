@@ -17,11 +17,14 @@
  * self-gated über `queryPermission` — ohne Schreibrecht ein No-op statt eines
  * Fehlers. Kein DB-Version-Bump: der bestehende Store `status_katalog` wird zum
  * Cache umgedeutet, nicht ersetzt.
+ *
+ * Die eigentliche Datei-Mechanik wohnt seit dem Vorgangssystem in
+ * `sidecar-datei.ts` und wird mit der Trigger-Tabelle geteilt — zwei Dateien,
+ * eine Mechanik.
  */
 import type { IDBStore } from '@/core/services/storage';
-import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
-import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type { MappingVersion } from './typen';
+import { leseSidecar, schreibeSidecar } from './sidecar-datei';
 import { getAktiveVersionsnummer, listeVersionen, setzeAktiv, speichereVersion } from './katalog-store';
 
 export const STATUS_KATALOG_PATH = '_intern/status-katalog.json';
@@ -60,17 +63,7 @@ export function istKatalogDatei(raw: unknown): raw is StatusKatalogDatei {
 
 /** Liest die Team-Fassung vom Share (`null` wenn fehlend/offline/kaputt). */
 export async function leseKatalogVomShare(idb: IDBStore): Promise<StatusKatalogDatei | null> {
-  const handle = await getDatenShareHandle(idb);
-  if (!handle) return null;
-  const text = await readText(handle, STATUS_KATALOG_PATH);
-  if (text == null) return null;
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return istKatalogDatei(parsed) ? parsed : null;
-  } catch (err) {
-    console.warn('[status] leseKatalogVomShare parse failed:', err);
-    return null;
-  }
+  return await leseSidecar(idb, STATUS_KATALOG_PATH, istKatalogDatei);
 }
 
 /**
@@ -79,9 +72,6 @@ export async function leseKatalogVomShare(idb: IDBStore): Promise<StatusKatalogD
  * Aufrufer sagt dem Nutzer dann, dass die Fassung nur lokal gilt.
  */
 export async function schreibeKatalogAufShare(idb: IDBStore): Promise<boolean> {
-  const handle = await getDatenShareHandle(idb);
-  if (!handle) return false;
-  if ((await queryPermission(handle)) !== 'granted') return false;
   try {
     const fassungen = await listeVersionen(idb);
     const aktiv = await getAktiveVersionsnummer(idb);
@@ -92,8 +82,7 @@ export async function schreibeKatalogAufShare(idb: IDBStore): Promise<boolean> {
       fassungen,
       updatedAt: new Date().toISOString(),
     };
-    await atomicWrite(handle, STATUS_KATALOG_PATH, JSON.stringify(datei, null, 2));
-    return true;
+    return await schreibeSidecar(idb, STATUS_KATALOG_PATH, datei);
   } catch (err) {
     console.error('[status] schreibeKatalogAufShare failed:', err);
     return false;

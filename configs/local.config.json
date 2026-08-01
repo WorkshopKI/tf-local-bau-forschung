@@ -54,7 +54,8 @@
     "assistentGedaechtnis": true,
     "mapFoerderfaehig": true,
     "statusCockpit": true,
-    "meilensteinMonitoring": true
+    "meilensteinMonitoring": true,
+    "vorgangssystem": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

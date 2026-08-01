@@ -50,6 +50,11 @@ export const OPERATOR_LABEL: Record<string, string> = {
   leer: 'ist leer',
   datumVor: 'liegt vor',
   datumNach: 'liegt nach',
+  // Vorgangssystem (To-do-Regeln); der Editor ist domänenfrei und zeigt sie
+  // deshalb auch an einem Meilenstein-Plan, falls dort einer auftaucht.
+  tageSeit: 'liegt länger zurück als',
+  datumNachFeld: 'liegt nach dem Datum von',
+  foerdervarianteIn: 'Fördervariante ist eine von',
 };
 
 export const TYP_LABEL: Record<AntragstypBucket, string> = {

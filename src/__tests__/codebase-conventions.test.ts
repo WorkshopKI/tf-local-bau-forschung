@@ -1002,7 +1002,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // Schlaegt eine Assertion fehl, ist die erste Frage „ist der Zuwachs gewollt?" —
   // wenn ja, die Konstante hier bewusst anheben (und im CHANGELOG vermerken). Das
   // ist eine Drift-Warnung, kein Verbot.
-  const MAX_FEATURE_FLAGS = 37;    // Ist 37; +1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
+  const MAX_FEATURE_FLAGS = 38;    // Ist 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
   const MAX_FILE_LOC = 1960;       // Ist ~1931 (DIESE Datei; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
@@ -1715,17 +1715,22 @@ describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () 
   // `_intern/status-katalog.json`. Genau ein Modul fasst dafuer den Share an —
   // sonst entstuende ein zweiter Schreibweg mit eigener Konflikt-Semantik.
   // Registry, SMB-Snapshot und Personal-Mirror bleiben tabu.
+  //
+  // Seit dem Vorgangssystem gibt es ZWEI Sidecars (Katalog + Trigger-Tabelle),
+  // aber weiterhin nur EINE Mechanik: `sidecar-datei.ts`. Der Guard wandert
+  // deshalb von `katalog-share.ts` dorthin — und wird dabei strenger, weil jetzt
+  // auch die Katalog-Datei nicht mehr selbst auf den Share greift.
   const istCode = (l: string): boolean => {
     const t = l.trim();
     return !(t.startsWith('//') || t.startsWith('*') || t.startsWith('/*'));
   };
 
-  it('nur katalog-share.ts fasst den Daten-Share an', () => {
+  it('nur sidecar-datei.ts fasst den Daten-Share an', () => {
     const treffer: string[] = [];
     for (const file of ALL_TS_FILES) {
       const p = relPath(file);
       if (!p.startsWith('src/core/status/') || p.includes('__tests__')) continue;
-      if (p.endsWith('/katalog-share.ts')) continue;
+      if (p.endsWith('/sidecar-datei.ts')) continue;
       const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
       for (const v of ['atomicWrite', 'getDatenShareHandle']) {
         if (lines.some(l => istCode(l) && l.includes(v))) treffer.push(`${p} → ${v}`);
@@ -1733,7 +1738,7 @@ describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () 
     }
     expect(
       treffer,
-      `Der Share-Zugriff des Status-Katalogs gehoert ausschliesslich in katalog-share.ts.\n`
+      `Der Share-Zugriff des Status-Systems gehoert ausschliesslich in sidecar-datei.ts.\n`
       + `Verbotene Referenz(en): ${treffer.join(', ')}`,
     ).toEqual([]);
   });
@@ -1751,11 +1756,22 @@ describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () 
     expect(treffer, `Verbotene Referenz(en): ${treffer.join(', ')}`).toEqual([]);
   });
 
-  it('der Sidecar-Pfad steht genau einmal im Code', () => {
-    const treffer = ALL_TS_FILES.filter(f =>
-      !relPath(f).includes('__tests__') && readFileSync(f, 'utf-8').includes('_intern/status-katalog.json'),
-    ).map(relPath);
-    expect(treffer).toEqual(['src/core/status/katalog-share.ts']);
+  it('jeder Sidecar-Pfad steht genau einmal im Code', () => {
+    // Ein Pfad, der an zwei Stellen steht, driftet beim ersten Umbenennen
+    // auseinander — und die zweite Stelle schreibt dann leise ins Nirgendwo.
+    const pfade: [string, string][] = [
+      ['_intern/status-katalog.json', 'src/core/status/katalog-share.ts'],
+      ['_intern/status-trigger.json', 'src/core/status/trigger-share.ts'],
+    ];
+    for (const [pfad, heimat] of pfade) {
+      // Nur CODE zaehlt: ein Modulkopf, der den Nachbar-Sidecar erklaert, ist
+      // Dokumentation und kein zweiter Schreibweg.
+      const treffer = ALL_TS_FILES.filter(f =>
+        !relPath(f).includes('__tests__')
+        && readFileSync(f, 'utf-8').split(/\r?\n/).some(l => istCode(l) && l.includes(pfad)),
+      ).map(relPath);
+      expect(treffer, `Sidecar-Pfad ${pfad} gehoert nur nach ${heimat}.`).toEqual([heimat]);
+    }
   });
 });
 

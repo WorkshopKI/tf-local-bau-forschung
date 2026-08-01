@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.374 — 2026-08
+
+### Neu
+- Der Status-Katalog kennt jetzt die amtlichen Statuscodes (11 Skizze bis 99 Schlussvermerk) und ordnet ihnen die Verfahrensphase zu. Grundlage für die kommenden Erklär- und Erinnerungs-Funktionen.
+- Zwei Zuarbeiten aus dem Fachsystem lassen sich als Excel-Datei einlesen: der Statuscode-Katalog und die Trigger-Tabelle. Vor jeder Übernahme zeigt eine Vorschau, was sich ändert.
+- Die Trigger-Tabelle wird in lesbare Sätze übersetzt — statt `<59|ABB|YIRR||||31|31` steht dort, welche Bedingungen gelten und welcher Status gesetzt wird.
+
+### Verbesserungen
+- Statuswerte werden auch dann erkannt, wenn sie leicht anders geschrieben sind (etwa „Stellungnahme zur Rücknahmeempf." mit oder ohne Punkt). Unbekannte Werte werden als solche benannt, statt still einsortiert zu werden.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v2.373 — 2026-08
 
 ### Neu

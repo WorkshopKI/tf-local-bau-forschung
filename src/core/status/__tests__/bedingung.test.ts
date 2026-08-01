@@ -5,7 +5,7 @@
  * still eine der beiden Seiten verschiebt.
  */
 import { describe, it, expect } from 'vitest';
-import { baueKontext, pruefeBedingung } from '@/core/status/bedingung';
+import { baueKontext, bedingungFeldRefs, pruefeBedingung } from '@/core/status/bedingung';
 import type { Bedingung } from '@/core/status/typen';
 
 const HEUTE = '2026-07-25T00:00:00.000Z';
@@ -70,6 +70,82 @@ describe('pruefeBedingung — Datums-Operatoren', () => {
   it('evaluiert ohne parsbares Datum zu false', () => {
     const kaputt = baueKontext({ datum: 'demnächst' });
     expect(pruefeBedingung({ feldId: 'datum', op: 'datumVor', tageRelativHeute: 0 }, kaputt, HEUTE)).toBe(false);
+  });
+});
+
+describe('pruefeBedingung — tageSeit (Vorgangssystem)', () => {
+  // 31-Tage-Widerspruchsfrist aus R6/R11: an Tag 31 laeuft sie noch, ab Tag 32
+  // ist sie abgelaufen. Der Stichtag wird injiziert — nie `new Date()`.
+  const gesetztAm = '24.06.2026';                    // 31 Tage vor dem 25.07.2026
+  const ctx = baueKontext({ D_ARZ: gesetztAm });
+
+  it('ist an Tag 31 noch NICHT erfuellt (echtes > N, nicht >= N)', () => {
+    expect(pruefeBedingung({ feldId: 'D_ARZ', op: 'tageSeit', tage: 31 }, ctx, HEUTE)).toBe(false);
+  });
+
+  it('ist an Tag 32 erfuellt', () => {
+    const tagSpaeter = '2026-07-26T00:00:00.000Z';
+    expect(pruefeBedingung({ feldId: 'D_ARZ', op: 'tageSeit', tage: 31 }, ctx, tagSpaeter)).toBe(true);
+  });
+
+  it('liefert bei demselben Stichtag immer dasselbe Ergebnis (Determinismus)', () => {
+    const b: Bedingung = { feldId: 'D_ARZ', op: 'tageSeit', tage: 10 };
+    expect(pruefeBedingung(b, ctx, HEUTE)).toBe(pruefeBedingung(b, ctx, HEUTE));
+    expect(pruefeBedingung(b, ctx, HEUTE)).toBe(true);
+  });
+
+  it('evaluiert ohne Stichtag oder ohne lesbares Datum zu false', () => {
+    expect(pruefeBedingung({ feldId: 'D_ARZ', op: 'tageSeit', tage: 1 }, ctx)).toBe(false);
+    const kaputt = baueKontext({ D_ARZ: 'irgendwann' });
+    expect(pruefeBedingung({ feldId: 'D_ARZ', op: 'tageSeit', tage: 1 }, kaputt, HEUTE)).toBe(false);
+  });
+});
+
+describe('pruefeBedingung — datumNachFeld (Vorgangssystem)', () => {
+  // R22: Nachlieferung eingegangen = `D_AL` liegt nach `D_AN`.
+  it('vergleicht zwei Felder ohne Stichtag', () => {
+    const ctx = baueKontext({ D_AN: '01.05.2026', D_AL: '20.05.2026' });
+    expect(pruefeBedingung({ feldId: 'D_AL', op: 'datumNachFeld', vergleichFeldId: 'D_AN' }, ctx)).toBe(true);
+    expect(pruefeBedingung({ feldId: 'D_AN', op: 'datumNachFeld', vergleichFeldId: 'D_AL' }, ctx)).toBe(false);
+  });
+
+  it('ist false, wenn eines der beiden Daten fehlt (nicht belegt ist nicht wahr)', () => {
+    const ctx = baueKontext({ D_AL: '20.05.2026' });
+    expect(pruefeBedingung({ feldId: 'D_AL', op: 'datumNachFeld', vergleichFeldId: 'D_AN' }, ctx)).toBe(false);
+  });
+});
+
+describe('pruefeBedingung — foerdervarianteIn (Vorgangssystem)', () => {
+  // R23 gilt nur fuer FuE (3) und DS (5) — DL/NW haben keinen PreCheck.
+  it('trifft die genannten Varianten und sonst nichts', () => {
+    const fue = baueKontext({ vb_phase: '3' });
+    const dl = baueKontext({ vb_phase: '4' });
+    expect(pruefeBedingung({ feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: [3, 5] }, fue)).toBe(true);
+    expect(pruefeBedingung({ feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: [3, 5] }, dl)).toBe(false);
+  });
+
+  it('liest auch numerische und leere Werte tolerant', () => {
+    const leer = baueKontext({ vb_phase: '' });
+    expect(pruefeBedingung({ feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: [3] }, leer)).toBe(false);
+    const unsinn = baueKontext({ vb_phase: 'FuE' });
+    expect(pruefeBedingung({ feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: [3] }, unsinn)).toBe(false);
+  });
+});
+
+describe('bedingungFeldRefs', () => {
+  it('sammelt dedupliziert und in stabiler Reihenfolge', () => {
+    const b: Bedingung = {
+      alle: [
+        { feldId: 'status', op: 'gefuellt' },
+        { einige: [{ feldId: 'D_AN', op: 'leer' }, { feldId: 'status', op: 'leer' }] },
+      ],
+    };
+    expect(bedingungFeldRefs(b)).toEqual(['status', 'D_AN']);
+  });
+
+  it('nennt BEIDE Felder von datumNachFeld — sonst fehlte das Vergleichsfeld im Kontext', () => {
+    expect(bedingungFeldRefs({ feldId: 'D_AL', op: 'datumNachFeld', vergleichFeldId: 'D_AN' }))
+      .toEqual(['D_AL', 'D_AN']);
   });
 });
 

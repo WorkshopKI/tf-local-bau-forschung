@@ -24,6 +24,8 @@ import { wertId } from './typen';
 import { baueSeedCodeFelder } from './seed-codes';
 import { SEED_KATEGORIEN } from './seed-kategorien';
 import { KATEGORIE_ZU_SPINE } from './spine-kategorie';
+import { reichereWerteAn } from './status-codes';
+import { SEED_ZAH_PHASEN } from './zah-phasen';
 
 const SEED_ZEITSTEMPEL = '2026-07-24T00:00:00.000Z';
 
@@ -127,7 +129,12 @@ function baueWerte(): StatusWertEintrag[] {
       });
     }
   }
-  return werte;
+  // Vorgangssystem: Code, Varianten, ZAH-Phase und Marker-Flag anreichern.
+  // Additiv — die Kategorie/Spine/Rang-Wertung oben bleibt unangetastet, damit
+  // `getStatusCategory` über den Snapshot bitweise identisch bleibt
+  // (`byte-identitaet`). Werte der Bauantrag-Domäne treffen keinen Förder-Code
+  // und laufen unverändert durch.
+  return reichereWerteAn(werte);
 }
 
 /**
@@ -187,5 +194,8 @@ export function baueSeedVersion(): MappingVersion {
     felder: [...FELDER.map(f => ({ ...f })), ...codeFelderOhneKanonische()],
     werte: baueWerte(),
     regeln: baueSeedRegeln(),
+    // Vorgangssystem: Beschriftung + Reihenfolge der ZAH-Phasen. Die Zuordnung
+    // Code→Phase steckt am Statuswert (`zahPhaseId`), nicht hier.
+    zahPhasen: SEED_ZAH_PHASEN.map(p => ({ ...p })),
   };
 }

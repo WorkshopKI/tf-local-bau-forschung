@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.374.0 — Vorgangssystem-Fundament: Status-Codes, ZAH-Phasen, Trigger-Parser, Referenz-Importe (August 2026)
+
+MINOR — Die App soll **Companion** des Fachsystems werden statt zweiter Workflow-Engine: `STATUS_TV`/`STATUS_VB` werden angezeigt wie importiert, alles Neue (Erklärung, Navigation, Warnung) steht daneben. Phase 0 legt das Fundament — Codes, Phasen, Trigger — additiv im bestehenden `src/core/status/`, ohne die alte Ableitung anzufassen.
+
+- Status-Code-Katalog (11 Skizze … 99 Schlussvermerk) + NFC-Join Text→Code mit Varianten und ehrlichem „nicht im Katalog" ([status-codes.ts](src/core/status/status-codes.ts), [normalisierung.ts](src/core/status/normalisierung.ts)).
+- ZAH-Phasen als eigene Achse neben der alten Spine-Phase; Marker (29/88/93/94) bewusst ohne Phase ([zah-phasen.ts](src/core/status/zah-phasen.ts)).
+- Trigger-Parser für die vier Legacy-Prozeduren mit deutscher Satzform; Unlesbares bleibt als „nicht interpretiert" erhalten ([trigger-parser.ts](src/core/status/trigger-parser.ts)).
+- Zwei XLSX-Referenz-Importe mit Diff-Vorschau; Trigger als Geschwister-Sidecar, weil sie in der Katalog-Datei zehnmal mitgereist wären (2,4 → 6,8 MB gemessen) ([import/](src/core/status/import/), [trigger-share.ts](src/core/status/trigger-share.ts)).
+- Dev-Diagnose „Phasen-Vergleich": 490 Abweichungen im Bestand, verdichtet auf 12 systematische Muster — Entscheidungsgrundlage für den späteren Rückbau ([phasen-vergleich.ts](src/core/status/phasen-vergleich.ts)).
+
 ### v2.373.1 — Temperatur gemessen statt geraten (August 2026)
 
 PATCH — v2.373.0 senkte den Standard auf 0,4, weil ein quellentreuer Text wenig Streuung brauche — belegt war das mit sechs Läufen an einer VB. 125 Läufe über 25 fiktive Vorhabensbeschreibungen zeigen: zwischen 0,2 und 1,0 gibt es keinen messbaren Unterschied in der Regeltreue, der ganze Abstand liegt unter dem Standardfehler.

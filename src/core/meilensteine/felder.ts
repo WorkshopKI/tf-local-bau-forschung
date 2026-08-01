@@ -18,7 +18,7 @@
  */
 import { resolveStatusDatumFelder } from '@/core/services/csv/status-datum-gruppen';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { baueKontext, type BedingungsKontext } from '@/core/status';
+import { baueKontext, bedingungFeldRefs, type BedingungsKontext } from '@/core/status';
 import type { Bedingung } from '@/core/status';
 import type { MeilensteinKnoten, MeilensteinPlan } from './typen';
 
@@ -34,16 +34,17 @@ export interface FeldAufloesung {
   viaSpaltenCode: boolean;
 }
 
-/** Alle Feld-Referenzen eines Bedingungs-Baums (dedupliziert, Reihenfolge stabil). */
+/**
+ * Alle Feld-Referenzen eines Bedingungs-Baums (dedupliziert, Reihenfolge stabil).
+ *
+ * Dünne Weiterleitung auf `bedingungFeldRefs` (`core/status/bedingung.ts`): die
+ * Blatt-Formen kennt der Evaluator, nicht die Meilenstein-Domäne. Eine eigene
+ * Rekursion hier hätte einen neuen Operator (`datumNachFeld` nennt ZWEI Felder)
+ * still übersehen — das zweite Feld fehlte im Kontext, die Bedingung wäre
+ * dauerhaft `false` gewesen.
+ */
 export function feldRefsAusBedingung(b: Bedingung, out: string[] = []): string[] {
-  if ('alle' in b) {
-    for (const x of b.alle) feldRefsAusBedingung(x, out);
-  } else if ('einige' in b) {
-    for (const x of b.einige) feldRefsAusBedingung(x, out);
-  } else if (!out.includes(b.feldId)) {
-    out.push(b.feldId);
-  }
-  return out;
+  return bedingungFeldRefs(b, out);
 }
 
 /** Alle Feld-Referenzen eines Knotens: Bedingung + `istDatumFeld`. */

@@ -3,10 +3,13 @@
  * Funktion liefert eine neue Version (nie in-place); id/feldId bleiben stabil.
  */
 import type {
-  MappingVersion, NaechsterSchrittRegel, Rolle, StatusFeldEintrag, StatusKategorie, StatusWertEintrag,
+  MappingVersion, NaechsterSchrittRegel, Rolle, StatusFeldEintrag, StatusKategorie,
+  StatusWertEintrag, ZahPhase,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
 import { rollenVonFeld } from './rollen';
+import { baueStatusCodeIndex, findeStatusCode, type StatusCodeEintrag } from './status-codes';
+import { SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
 
 export function aendereWert(
   version: MappingVersion, id: string, patch: Partial<StatusWertEintrag>,
@@ -147,6 +150,124 @@ export function ergaenzeSeedFelder(
     neueFelder: neueFelder.length,
     neueKategorien: neueKategorien.length,
   };
+}
+
+// --- Vorgangssystem: Referenz-Importe in die Fassung übernehmen -------------
+
+/**
+ * Übernimmt einen importierten Status-Code-Katalog in eine Fassung.
+ *
+ * Wirkt auf die **Statuswerte**: jeder Wert, dessen Rohtext auf einen Code des
+ * Imports joint, bekommt Code, Varianten und — sofern noch nicht kuratiert —
+ * die ZAH-Phase des Auslieferungs-Schnitts. Zieltage und von Hand umgehängte
+ * Phasen bleiben stehen; ein Import ist eine Aktualisierung der Fremddaten,
+ * keine Rücksetzung unserer Kuration.
+ *
+ * Werte, die der neue Katalog nicht mehr kennt, **verlieren ihren Code nicht**.
+ * Ein unvollständiges Blatt würde sonst reihenweise Anträge auf „nicht im
+ * Katalog" zurückwerfen; der Diff hat die entfallenen Einträge vorher genannt,
+ * die Entscheidung darüber gehört in die Vorschau, nicht in diese Funktion.
+ *
+ * Rein und idempotent.
+ */
+export function uebernimmStatusCodes(
+  version: MappingVersion, katalog: readonly StatusCodeEintrag[],
+): MappingVersion {
+  const index = baueStatusCodeIndex(katalog);
+  return {
+    ...version,
+    werte: version.werte.map(w => {
+      const treffer = findeStatusCode(w.wert, index);
+      if (!treffer) return w;
+      const { code, varianten } = treffer.eintrag;
+      const marker = SEED_MARKER_CODES.has(code);
+      return {
+        ...w,
+        code,
+        ...(varianten.length > 0 ? { varianten: [...varianten] } : {}),
+        // Nur setzen, wo die PL noch nichts entschieden hat.
+        ...(w.zahPhaseId === undefined
+          ? { zahPhaseId: SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null }
+          : {}),
+        ...(marker ? { marker: true } : {}),
+      };
+    }),
+  };
+}
+
+/** Was einer Fassung aus der Vorgangssystem-Auslieferung fehlt. */
+export interface VorgangssystemLuecke {
+  /** Aktive Statuswerte ohne Code-Zuordnung, für die die Auslieferung einen hat. */
+  werteOhneCode: number;
+  /** Die ZAH-Phasen-Tabelle fehlt ganz. */
+  phasenFehlen: boolean;
+}
+
+/**
+ * Was der Fassung aus der Auslieferung fehlt — **ohne** etwas zu ändern.
+ *
+ * Nötig, weil der Seed nur beim allerersten Start greift: eine Installation, die
+ * schon eine kuratierte Fassung führt, bekommt Codes und ZAH-Phasen sonst nie zu
+ * sehen und zeigt „0 Statuswerte mit Code". Genau dieselbe Lücke gibt es bei den
+ * Feldern (`ergaenzeSeedFelder`) und bei den Bezeichnungen (`uebernimmSeedTexte`).
+ */
+export function vorgangssystemLuecke(
+  version: MappingVersion, auslieferung: readonly StatusCodeEintrag[],
+): VorgangssystemLuecke {
+  const index = baueStatusCodeIndex(auslieferung);
+  return {
+    werteOhneCode: version.werte
+      .filter(w => w.aktiv && w.code === undefined && findeStatusCode(w.wert, index) !== null)
+      .length,
+    phasenFehlen: (version.zahPhasen ?? []).length === 0,
+  };
+}
+
+/**
+ * Zieht die Vorgangssystem-Auslieferung in eine Bestandsfassung nach: Codes,
+ * Varianten, ZAH-Phasen-Zuordnung und die Phasen-Tabelle.
+ *
+ * Additiv wie {@link ergaenzeSeedFelder}: nichts Kuratiertes wird überschrieben
+ * (ein von Hand gesetzter `zahPhaseId`, gepflegte `zieltage`, eine umbenannte
+ * Phase bleiben). Idempotent — ein zweiter Lauf ändert nichts mehr.
+ */
+export function ergaenzeVorgangssystemSeed(
+  version: MappingVersion,
+  auslieferung: readonly StatusCodeEintrag[],
+  phasen: readonly ZahPhase[],
+): MappingVersion {
+  const mitCodes = uebernimmStatusCodes(version, auslieferung);
+  if ((mitCodes.zahPhasen ?? []).length > 0) return mitCodes;
+  return { ...mitCodes, zahPhasen: phasen.map(p => ({ ...p })) };
+}
+
+/**
+ * Der Code-Katalog, gegen den ein Import verglichen wird: die **Auslieferung**,
+ * überlagert von dem, was die Fassung inzwischen pflegt (zusätzliche Varianten).
+ *
+ * Bewusst nicht nur aus `version.werte` abgeleitet: dort stehen nur Codes, für
+ * die im Bestand auch ein Statuswert beobachtet wurde. Codes wie 11 (Skizze),
+ * 88 (Sonderstatus) oder 93/94 (Partner) kämen dann bei jedem Import als „neu"
+ * durch, obwohl die App sie längst kennt — eine Diff-Zeile, die nichts bedeutet,
+ * ist schlimmer als keine.
+ */
+export function aktuellerStatusCodeKatalog(
+  version: MappingVersion, auslieferung: readonly StatusCodeEintrag[],
+): StatusCodeEintrag[] {
+  const proCode = new Map<number, StatusCodeEintrag>(
+    auslieferung.map(e => [e.code, { ...e, varianten: [...e.varianten] }]),
+  );
+  for (const w of version.werte) {
+    if (w.code === undefined) continue;
+    const bestand = proCode.get(w.code);
+    const varianten = new Set([...(bestand?.varianten ?? []), ...(w.varianten ?? [])]);
+    proCode.set(w.code, {
+      code: w.code,
+      text: bestand?.text ?? w.wert,
+      varianten: [...varianten],
+    });
+  }
+  return [...proCode.values()].sort((a, b) => a.code - b.code);
 }
 
 // --- Abgleich mit der Kürzel-Zuarbeit ---------------------------------------

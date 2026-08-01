@@ -11,12 +11,29 @@
 import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Bedingung } from '@/core/status';
+import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 import { STATUS_FELDER, bekannteStatusWerte, type SpaltenEintrag } from '@/core/meilensteine';
 import { OPERATOR_LABEL, feldStil } from './labels';
 
-/** Operatoren je Feld-Typ. Datumsspalten bekommen die Zeit-Operatoren. */
+/**
+ * Operatoren je Feld-Typ. Datumsspalten bekommen die Zeit-Operatoren.
+ *
+ * `tageSeit` und `datumNachFeld` kommen aus dem Vorgangssystem (To-do-Regeln),
+ * stehen aber jedem Bedingungs-Baum offen — der Editor ist domänenfrei.
+ * `foerdervarianteIn` steht nur an `vb_phase`, weil es nirgends sonst etwas
+ * bedeutet.
+ */
 const OPERATOREN_WERT = ['ist', 'istNicht', 'gefuellt', 'leer'] as const;
-const OPERATOREN_DATUM = ['gefuellt', 'leer', 'datumVor', 'datumNach'] as const;
+const OPERATOREN_DATUM = ['gefuellt', 'leer', 'datumVor', 'datumNach', 'tageSeit', 'datumNachFeld'] as const;
+const OPERATOREN_VARIANTE = ['foerdervarianteIn', 'ist', 'istNicht', 'gefuellt', 'leer'] as const;
+
+/** Das Feld, an dem die Fördervariante steht (`VB_PHASE`, kanonisch gemappt). */
+const VARIANTEN_FELD = 'vb_phase';
+
+/** Auswahl der Fördervarianten — Beschriftungen aus der EINEN Decode-Tabelle. */
+const VARIANTEN_WAHL: readonly [number, string][] = Object.entries(VB_PHASE_LABELS)
+  .map(([nr, label]) => [Number(nr), label] as [number, string])
+  .sort((a, b) => a[0] - b[0]);
 
 type Gruppe = { alle: Bedingung[] } | { einige: Bedingung[] };
 
@@ -40,18 +57,28 @@ function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
   onEntfernen: () => void;
 }): React.ReactElement {
   const eintrag = spalten.find(s => s.feldId === blatt.feldId);
-  const istDatum = eintrag?.typ === 'datum';
-  const operatoren = istDatum ? OPERATOREN_DATUM : OPERATOREN_WERT;
+  const operatorenFuer = (feldId: string, typ?: string): readonly string[] => {
+    if (feldId === VARIANTEN_FELD) return OPERATOREN_VARIANTE;
+    return typ === 'datum' ? OPERATOREN_DATUM : OPERATOREN_WERT;
+  };
+  const passende = operatorenFuer(blatt.feldId, eintrag?.typ);
+  // Ein Operator, den die Liste nicht führt (fremde Fassung, von Hand
+  // editierter Plan), wird MITGEZEIGT statt verschluckt: sonst stünde das
+  // Auswahlfeld leer und der erste Klick überschriebe eine Bedingung, die der
+  // Nutzer nie gesehen hat.
+  const operatoren = passende.includes(blatt.op) ? passende : [blatt.op, ...passende];
   const zeigeStatusAuswahl =
     (blatt.op === 'ist' || blatt.op === 'istNicht') && STATUS_FELDER.includes(blatt.feldId);
   const zeigeFreiWert = (blatt.op === 'ist' || blatt.op === 'istNicht') && !zeigeStatusAuswahl;
   const zeigeTage = blatt.op === 'datumVor' || blatt.op === 'datumNach';
+  const zeigeTageSeit = blatt.op === 'tageSeit';
+  const zeigeVergleichsfeld = blatt.op === 'datumNachFeld';
+  const zeigeVarianten = blatt.op === 'foerdervarianteIn';
 
   const setFeld = (feldId: string): void => {
     const neu = spalten.find(s => s.feldId === feldId);
-    const passend = neu?.typ === 'datum' ? OPERATOREN_DATUM : OPERATOREN_WERT;
     // Operator mitziehen, wenn er zum neuen Feld-Typ nicht mehr passt.
-    if ((passend as readonly string[]).includes(blatt.op)) {
+    if (operatorenFuer(feldId, neu?.typ).includes(blatt.op)) {
       onChange({ ...blatt, feldId });
     } else {
       onChange({ feldId, op: 'gefuellt' });
@@ -64,6 +91,13 @@ function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
       onChange({ feldId: blatt.feldId, op, tageRelativHeute: 0 });
     } else if (op === 'ist' || op === 'istNicht') {
       onChange({ feldId: blatt.feldId, op, wert: '' });
+    } else if (op === 'tageSeit') {
+      onChange({ feldId: blatt.feldId, op, tage: 31 });
+    } else if (op === 'datumNachFeld') {
+      const anderes = spalten.find(s => s.feldId !== blatt.feldId)?.feldId ?? blatt.feldId;
+      onChange({ feldId: blatt.feldId, op, vergleichFeldId: anderes });
+    } else if (op === 'foerdervarianteIn') {
+      onChange({ feldId: blatt.feldId, op, varianten: [] });
     }
   };
 
@@ -93,7 +127,9 @@ function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
         style={feldStil}
         aria-label="Operator"
       >
-        {operatoren.map(op => <option key={op} value={op}>{OPERATOR_LABEL[op]}</option>)}
+        {operatoren.map(op => (
+          <option key={op} value={op}>{OPERATOR_LABEL[op] ?? `${op} (unbekannt)`}</option>
+        ))}
       </select>
 
       {zeigeStatusAuswahl && (
@@ -132,6 +168,62 @@ function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
             aria-label="Tage relativ zu heute"
           />
           Tage
+        </span>
+      )}
+
+      {zeigeTageSeit && (
+        <span className="flex items-center gap-1 text-[12px] text-[var(--tf-text-secondary)]">
+          <input
+            type="number" min={0}
+            value={'tage' in blatt ? blatt.tage : 0}
+            onChange={e => onChange({ ...blatt, tage: Number(e.target.value) || 0 } as Bedingung)}
+            className="text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
+            style={feldStil}
+            aria-label="Tage"
+          />
+          Tage
+        </span>
+      )}
+
+      {zeigeVergleichsfeld && (
+        <select
+          value={'vergleichFeldId' in blatt ? blatt.vergleichFeldId : ''}
+          onChange={e => onChange({ ...blatt, vergleichFeldId: e.target.value } as Bedingung)}
+          className={`${selectKlasse} max-w-[240px]`}
+          style={feldStil}
+          aria-label="Vergleichsfeld"
+        >
+          {'vergleichFeldId' in blatt && !spalten.some(s => s.feldId === blatt.vergleichFeldId) && (
+            <option value={blatt.vergleichFeldId}>{blatt.vergleichFeldId} (nicht gemappt)</option>
+          )}
+          {spalten.map(s => (
+            <option key={s.feldId} value={s.feldId}>
+              {s.label === s.feldId ? s.feldId : `${s.label} · ${s.feldId}`}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {zeigeVarianten && (
+        <span className="flex items-center gap-1">
+          {VARIANTEN_WAHL.map(([nr, label]) => {
+            const gewaehlt = 'varianten' in blatt && blatt.varianten.includes(nr);
+            return (
+              <button
+                key={nr} type="button" aria-pressed={gewaehlt} title={`Fördervariante ${nr}`}
+                onClick={() => {
+                  const bisher = 'varianten' in blatt ? blatt.varianten : [];
+                  const next = gewaehlt ? bisher.filter(v => v !== nr) : [...bisher, nr].sort((a, b) => a - b);
+                  onChange({ ...blatt, varianten: next } as Bedingung);
+                }}
+                className={`text-[11px] leading-none rounded px-1.5 py-1 cursor-pointer ${
+                  gewaehlt ? 'text-white' : 'text-[var(--tf-text-tertiary)]'}`}
+                style={gewaehlt ? { background: 'var(--tf-primary)' } : feldStil}
+              >
+                {label}
+              </button>
+            );
+          })}
         </span>
       )}
 

@@ -245,6 +245,13 @@ export const DEFAULT_CONFIG = {
      *  Home-Widget und Detailseiten-Sektion. dev/pl/as/kurator. Optional,
      *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     meilensteinMonitoring: false,
+    /** Vorgangssystem: Status-Erklärung (Info-Icon), Kürzel-Glossar + Navigator,
+     *  To-do-Board, Stillstands-Wächter und Fristen-Cockpit. Die App leitet
+     *  dabei KEINEN Status ab — alles steht neben dem importierten Status.
+     *  Setzt `statusCockpit` voraus (ohne Katalog keine Codes). dev/pl.
+     *  Optional, default false (kein requiredFlags-Eintrag → `=== true`
+     *  Backward-Kompat). */
+    vorgangssystem: false,
   },
 
   menuLabels: {

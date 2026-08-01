@@ -41,7 +41,28 @@ export {
 export {
   loeseKategorieSpalten, kategorienMitDatumsfeldern, kategorieSpaltenSignatur,
 } from './kategorie-projektion';
-export { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
+export {
+  baueKontext, pruefeBedingung, bedingungFeldRefs, type BedingungsKontext,
+} from './bedingung';
+export { normKey, loseKey } from './normalisierung';
+export {
+  ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_ZAH_PHASEN,
+  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
+  zahPhaseRang, zahPhaseLabel, zahPhasenVon,
+} from './zah-phasen';
+export {
+  STATUS_CODE_KATALOG, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
+  reichereWerteAn, zaehleOhneCode,
+  type StatusCodeEintrag, type StatusCodeIndex, type StatusCodeTreffer, type JoinArt,
+} from './status-codes';
+export {
+  parseTriggerZeile, parseTriggerTabelle, triggerSatz, parseStatusVergleich,
+  textbausteinName, referenzierteKuerzel, type TriggerRohzeile,
+} from './trigger-parser';
+export {
+  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, ZAH_ZU_SPINE,
+  type PhasenVergleich, type PhasenVergleichZeile, type AbweichungsMuster,
+} from './phasen-vergleich';
 export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
@@ -57,7 +78,21 @@ export {
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie,
   ergaenzeSeedFelder, type ErgaenzungsErgebnis,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
+  uebernimmStatusCodes, aktuellerStatusCodeKatalog,
+  vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
 } from './katalog-edit';
+export { leseSidecar, schreibeSidecar } from './sidecar-datei';
+export {
+  ladeTrigger, speichereTrigger, triggerFuerKuerzel, istTriggerDatei,
+  STATUS_TRIGGER_PATH, TRIGGER_CACHE_KEY,
+  type TriggerDatei, type TriggerStand, type TriggerHerkunft,
+} from './trigger-share';
+export {
+  importiereStatusKatalog, importiereTriggerTabelle, triggerSchluessel,
+  berechneDiff, diffZusammenfassung,
+  type StatusKatalogImportErgebnis, type TriggerImportErgebnis,
+  type Diff, type DiffEintrag, type DiffArt,
+} from './import';
 export {
   NICHT_ZUGEORDNET_ID, kategorieIndex, kategoriePfad, kategoriePfadLabel,
   kinderVon, flacheBaumListe, baumVon, type KategorieKnoten,

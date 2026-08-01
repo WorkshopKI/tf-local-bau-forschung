@@ -32,6 +32,41 @@ export type SpinePhase =
 export type Prominenz = 'meilenstein' | 'normal' | 'nebensaechlich' | 'ignoriert';
 
 /**
+ * Die **ZAH-Phase** — die Lesebrille der App auf das Verfahren des Fachsystems.
+ *
+ * Bewusst eine App-Erfindung: das Legacy kennt keine Phasen (`VB_PHASE` ist die
+ * Fördervariante, ein anderes Konzept — siehe `vb-phase-mappings.ts`). Der Name
+ * trägt das „ZAH" deshalb im Bezeichner, damit die Kollision mit `VB_PHASE`
+ * dauerhaft beendet ist.
+ *
+ * Sie hängt am **Status-Code**, nicht am Rohtext, und ist eine explizite,
+ * PL-editierbare Zuordnungstabelle — kein Ableiten aus Code-Bereichen, weil die
+ * Codes nur grob geordnet sind (32 ablehnungsreif liegt vor 34 bearbeitungsreif).
+ *
+ * **Nur Anzeige-Funktion**: Gruppierung, Filter, Sortierung. Die ZAH-Phase leitet
+ * nichts ab und triggert nichts. Marker-Status (29, 88, 93, 94) bekommen bewusst
+ * KEINE Phase (`zahPhaseId: null` + `marker: true`).
+ *
+ * Abgrenzung zur {@link SpinePhase}: die ist die *alte*, aus Rängen abgeleitete
+ * Wirbelsäule und bleibt bis zum Rückbau (P6) unverändert daneben stehen.
+ */
+export type ZahPhaseId =
+  | 'eingang'
+  | 'vollstaendigkeit'
+  | 'pruefung'
+  | 'entscheidung'
+  | 'begleitung'
+  | 'abgeschlossen';
+
+/** Ein Eintrag der ZAH-Phasen-Tabelle (Beschriftung + Reihenfolge, PL-editierbar). */
+export interface ZahPhase {
+  id: ZahPhaseId;
+  label: string;
+  /** Aufsteigend entlang des Verfahrens; bestimmt Spalten-/Balken-Reihenfolge. */
+  reihenfolge: number;
+}
+
+/**
  * Wer einen Statuseintrag setzt. Quelle ist die Kürzel-Zuarbeit des Fachsystems
  * (Spalte „wird gesetzt von:") — deshalb heißt es „setzt", nicht „ist zuständig
  * für": `[AN]` „NF an ASt" setzen AB/FB/QS, betreffen tut der Eintrag alle.
@@ -113,6 +148,16 @@ export interface StatusFeldEintrag {
    *  Eintrag ist unter jeder Rollenwahl sichtbar. Immer über `rollenVonFeld`
    *  lesen — nur dort wird `zustaendigkeit` mit übersetzt. */
   rollen?: Rolle[];
+  /**
+   * Vorgangssystem: gehört dieses Kürzel zur laufenden Antragsbearbeitung?
+   *
+   * Markiert die ~50–70 Codes, die Navigator, Wächter und Verlaufs-Näherung
+   * auswerten. Das historische Rauschen (Kommunikations-Kanäle, Altlasten) bleibt
+   * vollständig abrufbar, stört aber nicht mehr — **nichts wird gelöscht**.
+   * Fehlend = `false`; die Auslieferung setzt bewusst keine Vorbelegung, sondern
+   * bietet im Kürzel-Tab eine Aktion „AB-Dashboard-Spalten markieren" an.
+   */
+  relevant?: boolean;
   /** @deprecated seit v2.348 — `rollen`. Wird nur noch gelesen, nie geschrieben. */
   zustaendigkeit?: Zustaendigkeit;
   /** Ableitungs-Beitrag für Felder OHNE Wert-Enum (`datum`/`text`): dort trägt
@@ -150,18 +195,168 @@ export interface StatusWertEintrag {
   aktiv: boolean;
   unkuratiert: boolean;
   erstmalsGesehen?: string;
+
+  // --- Vorgangssystem: der Statuswert als CODE des Fachsystems --------------
+  // Der Export liefert Status nur als TEXT. Der Code (11 Skizze … 99
+  // Schlussvermerk) kommt aus dem importierten Status-Katalog und wird über
+  // `wert` + `varianten` angejoint (`status-codes.ts`). Danach rechnet die App
+  // intern mit Codes; Textvarianten betreffen nur noch Beschriftungen.
+
+  /** Amtlicher Status-Code (11…99). Fehlt = Wert ist (noch) nicht im Katalog. */
+  code?: number;
+  /** Bekannte Schreibweisen desselben Status im Export („Stellungnahme zur
+   *  Rücknahmeempf." zu 72). Join-Reihenfolge: `wert` zuerst, dann Varianten. */
+  varianten?: string[];
+  /** ZAH-Phase dieses Codes. `null` = bewusst ohne Phase (Marker), `undefined`
+   *  = noch nicht zugeordnet. Der Unterschied ist der zwischen „gehört nicht ins
+   *  Verfahren" und „hat noch niemand entschieden". */
+  zahPhaseId?: ZahPhaseId | null;
+  /** Kennzeichen neben dem Verfahren (29 Irrläufer, 88 Sonderstatus, 93/94
+   *  Partner) — läuft ohne Phase mit. */
+  marker?: boolean;
+  /** Vorgangssystem/Wächter: nach wie vielen Tagen ohne Vorgangs-Aktivität gilt
+   *  ein Antrag in diesem Status als hängend? Fehlend/`null` ⇒ der Wächter meldet
+   *  **`unbewertet`** („kein Ziel definiert"), NICHT „läuft". */
+  zieltage?: number | null;
+}
+
+// --- Vorgangssystem: Trigger-Tabelle des Fachsystems -------------------------
+
+/** Die vier Prozeduren, die das Legacy an ein Kürzel hängen kann. */
+export type TriggerProzedur =
+  | 'TRG_TVs_Status_TV_VB'
+  | 'TRG.VorgEintragNeu'
+  | 'TRG.VorgEintragMail'
+  | 'TRG.Status.TV.VB';
+
+/** Vorbedingung an den Verbund-Status: `<59` = „vor 59". */
+export interface StatusVergleich {
+  op: '<' | '>' | '=';
+  code: number;
+}
+
+/** Die geparsten Parameter einer Trigger-Zeile, je Prozedur eigen geformt. */
+export type TriggerParam =
+  | {
+    art: 'statusTvVb';
+    /** Vorbedingung an den Verbund-Status (`<59`). */
+    status: StatusVergleich | null;
+    /** Das TV darf dieses Kürzel NICHT tragen (`ABB`). */
+    ohneTvKuerzel: string | null;
+    /** KEIN Teilvorhaben des Verbunds darf dieses Kürzel tragen (`YIRR`). */
+    ohneVerbundKuerzel: string | null;
+    /** Argumente zwischen den bekannten Positionen. Werden nie verworfen,
+     *  sondern im Satz mitgeführt — die Legacy-Doku deckt sie nicht ab. */
+    weitere: string[];
+    /** Neuer TV-Status, `null` = unverändert. */
+    statusTv: number | null;
+    /** Neuer VB-Status, `null` = unverändert. */
+    statusVb: number | null;
+  }
+  | { art: 'vorgEintragNeu'; code: string; ebene: string; tage: number }
+  | { art: 'vorgEintragMail'; empfaenger: string; textbaustein: string; cc: string | null }
+  | { art: 'statusSetzen'; ebene: string; status: number };
+
+/**
+ * Eine Zeile der importierten Trigger-Tabelle: welches Kürzel löst in welcher
+ * Folge welche Prozedur mit welchen Parametern aus.
+ *
+ * Nicht parsebare Zeilen werden **nie stillschweigend verworfen**: `geparst`
+ * bleibt `null` und `satz` trägt „Nicht interpretiert: <Rohtext>". Heuristiken
+ * sind ehrlich, sonst behauptet die Erklärung mehr, als sie weiß.
+ */
+export interface TriggerZeile {
+  /** Kürzel des Fachsystems ohne Spalten-Präfix (`AAE`), NFC-normalisiert. */
+  kuerzel: string;
+  /** Reihenfolge der Prozeduren an demselben Kürzel (1, 2, 3 …). */
+  folge: number;
+  /** Rohwert der Prozedur-Spalte — auch wenn sie keine der vier bekannten ist. */
+  prozedur: string;
+  /** Die Parameter-Spalte, wie sie in der XLSX steht (Pipe-getrennt). */
+  parameterRoh: string;
+  geparst: TriggerParam | null;
+  /** Deutsche Satzform für die Anzeige. Immer gefüllt. */
+  satz: string;
+  /** Optional: Richtlinien-Spalte der Zuarbeit (z.B. „76"). */
+  richtlinie?: string;
+}
+
+// --- Vorgangssystem: To-do-Regeln --------------------------------------------
+
+/**
+ * Eine Zeile der To-do-Entscheidungstabelle — der geteilte, versionierte Ersatz
+ * für die WENN-Formeln der privaten AB-XLSX-Mappe.
+ *
+ * **Auswertungsmodell: geordnete Liste, erste zutreffende Regel gewinnt** (exakt
+ * die Semantik verschachtelter WENNs). Die Reihenfolge steckt in
+ * {@link TodoRegel.reihenfolge} und ist per Drag änderbar — bewusst KEINE
+ * Prioritätszahlen wie bei {@link NaechsterSchrittRegel}, weil „Priorität" bei
+ * einer Kaskade das falsche Wort für „Position" ist.
+ *
+ * Trifft keine Regel: „kein To-do ermittelt" — sichtbar, nicht leer.
+ */
+export interface TodoRegel {
+  /** Stabil und sprechend (`r6-sv-nach-widerspruchsfrist`, `s1-zurueckgezogen`). */
+  id: string;
+  /** Position in der Kaskade (aufsteigend, Zehnerlücken). */
+  reihenfolge: number;
+  /** Menschenlesbare Herkunft („R6 · Rücknahmeempfehlung"). */
+  beschreibung: string;
+  bedingung: Bedingung;
+  /**
+   * Der To-do-Text, wie ihn das Board gruppiert („RNE ergänzen"). Bei einer
+   * **Sperre** leer: sie erzeugt kein To-do, sondern unterdrückt Stränge.
+   */
+  todo: string;
+  /** Wer handelt. Leer = keine Rolle benannt (nicht: „alle"). */
+  zustaendig: Rolle[];
+  /**
+   * Fremdrollen-Ansicht derselben Regel: für den AB ist „RNE ergänzen" eine
+   * Aufgabe, für den FB erscheint derselbe Antrag als „wartet auf AB". `ASt` =
+   * Antragsteller (außerhalb des Hauses), deshalb kein {@link Rolle}.
+   */
+  wartetAuf?: Rolle | 'ast' | null;
+  /**
+   * Sperre statt To-do: trifft sie zu, werden die genannten Regeln übersprungen.
+   * Bildet S1/S2 der Mappe ab (zurückgezogener Antrag bzw. begonnene RNE/ABL
+   * unterdrücken die PreCheck-, NF- und NL-Stränge).
+   */
+  sperrt?: string[];
+  aktiv: boolean;
 }
 
 // --- Nächste-Schritte-Regeln (Struktur hier; Auswertung folgt in Phase 3) ---
 
 export type Werkzeug = 'gutachten' | 'nachforderung' | 'ablehnung';
 
-/** Bedingung eines Regelblatts oder einer UND/ODER-Gruppe. Rein deklarativ. */
+/**
+ * Bedingung eines Regelblatts oder einer UND/ODER-Gruppe. Rein deklarativ.
+ *
+ * Ausgewertet **ausschließlich** von `pruefeBedingung` (`bedingung.ts`) — dem
+ * einen Evaluator, den sich Nächste-Schritte-Regeln, Bearbeitungs-Meilensteine
+ * und To-do-Regeln teilen.
+ *
+ * **Jedes Blatt trägt `feldId`.** Darauf verlassen sich `bedingungFeldRefs`
+ * (`bedingung.ts`) und die Feld-Auflösung der Meilensteine; ein Blatt ohne
+ * `feldId` fiele aus dem Auswertungs-Kontext und evaluierte still zu `false`.
+ */
 export type Bedingung =
   | { alle: Bedingung[] }
   | { einige: Bedingung[] }
   | { feldId: string; op: 'ist' | 'istNicht' | 'gefuellt' | 'leer'; wert?: string }
-  | { feldId: string; op: 'datumVor' | 'datumNach'; tageRelativHeute: number };
+  /** Feld-Datum liegt vor/nach `heute + tageRelativHeute`. `datumVor` mit `0`
+   *  ist zugleich „heute ist über den Termin hinaus" — dafür braucht es keinen
+   *  eigenen Operator. */
+  | { feldId: string; op: 'datumVor' | 'datumNach'; tageRelativHeute: number }
+  /** Seit dem Feld-Datum sind MEHR als `tage` Tage vergangen (`> N`, nicht `>=`).
+   *  Das wiederkehrende Muster der 31-Tage-Widerspruchsfrist (R6, R11). */
+  | { feldId: string; op: 'tageSeit'; tage: number }
+  /** Feld-Datum liegt nach dem Datum eines ANDEREN Feldes (R22: `D_AL` nach
+   *  `D_AN`). Braucht keinen Stichtag — ein Vergleich zweier Daten. */
+  | { feldId: string; op: 'datumNachFeld'; vergleichFeldId: string }
+  /** Fördervariante (`VB_PHASE`) ist eine der genannten — 3 FuE, 5 DS usw.
+   *  (`vb-phase-mappings.ts`). `feldId` ist üblicherweise `vb_phase`. */
+  | { feldId: string; op: 'foerdervarianteIn'; varianten: number[] };
 
 export interface NaechsterSchritt {
   label: string;
@@ -194,6 +389,24 @@ export interface MappingVersion {
    *  Code-Inventar unverändert gültig bleiben (fehlt er, sind alle Felder
    *  „Nicht zugeordnet"). */
   kategorien?: StatusKategorie[];
+
+  // --- Vorgangssystem (additiv) ---------------------------------------------
+  // Alle drei sind OPTIONAL, damit gespeicherte Fassungen aus IDB und Share ohne
+  // Daten-Migration weitergelten — dieselbe Regel wie bei `kategorien`. Eine
+  // Fassung ohne diese Felder verhält sich exakt wie vor der Erweiterung.
+
+  /** Beschriftung + Reihenfolge der ZAH-Phasen (PL-editierbar). Die Zuordnung
+   *  Code→Phase steht am Statuswert (`zahPhaseId`), nicht hier. */
+  zahPhasen?: ZahPhase[];
+  /** Die To-do-Entscheidungstabelle (geordnete Kaskade, PL-editierbar). */
+  todoRegeln?: TodoRegel[];
+
+  // Die **Trigger-Tabelle** steht bewusst NICHT hier, sondern in der
+  // Geschwister-Sidecar `_intern/status-trigger.json` (`trigger-share.ts`):
+  // sie ist reine Fremddaten ohne Kuration und wiegt mehr als der ganze
+  // Katalog. Da diese Datei ALLE Fassungen führt, hätte sie zehnmal dasselbe
+  // gespeichert und jedes Speichern über SMB verdreifacht (gemessen: 2,4 MB →
+  // 6,8 MB bei zehn Fassungen). Gleiche Schreib-Mechanik, andere Datei.
 }
 
 // --- Ableitung (Phase 3) ---

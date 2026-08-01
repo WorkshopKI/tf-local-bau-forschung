@@ -341,6 +341,16 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
           <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] uppercase tracking-wide">
             In den CSV-Quellen gefunden — noch nicht im Katalog
           </h3>
+          {/* Der Kürzel-Katalog wird zur Build-Zeit aus der Zuarbeit-CSV erzeugt
+              (`npm run gen:status-codes`) und hat bewusst KEINEN Laufzeit-Import.
+              Damit dieser Verzicht nicht stumm bleibt, sagt der Hinweis, was
+              wirklich zu tun ist — „Übernehmen" unten ist die Zwischenlösung,
+              die dem Feld noch Bezeichnung und Rollen schuldig bleibt. */}
+          <p className="text-[12.5px] text-[var(--tf-warning-text)]">
+            {api.unkuratierteFelder.length} Kürzel im Export ohne Katalog-Eintrag — Zuarbeit-CSV
+            aktualisieren und Build erneuern. Bis dahin lassen sie sich einzeln übernehmen; sie
+            kommen dann ohne Bezeichnung aus der Zuarbeit und ohne Rollen (= neutral).
+          </p>
           {api.unkuratierteFelder.map(f => (
             <div key={f.feldId} className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
               <div className="min-w-0 flex items-center gap-2 flex-wrap">

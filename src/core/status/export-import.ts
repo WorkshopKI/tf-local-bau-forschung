@@ -5,6 +5,7 @@
  */
 import type { Bedingung, MappingVersion } from './typen';
 import { findeZyklus } from './kategorien';
+import { bedingungFeldRefs } from './bedingung';
 
 export function exportiereVersion(version: MappingVersion): string {
   return JSON.stringify(version, null, 2);
@@ -16,10 +17,10 @@ export interface ImportErgebnis {
   fehler?: string;
 }
 
+/** Alle von einer Bedingung genannten Felder — über den geteilten Sammler, damit
+ *  ein neuer Operator hier nicht durchrutscht (siehe `bedingung.ts`). */
 function bedingungFeldIds(b: Bedingung, out: Set<string>): void {
-  if ('alle' in b) { b.alle.forEach(x => bedingungFeldIds(x, out)); return; }
-  if ('einige' in b) { b.einige.forEach(x => bedingungFeldIds(x, out)); return; }
-  out.add(b.feldId);
+  for (const feldId of bedingungFeldRefs(b)) out.add(feldId);
 }
 
 /** Validiert eingelesenen JSON-Text und liefert die Version oder einen Fehler. */

@@ -62,6 +62,50 @@ export async function pickSchemaSnapshotFile(): Promise<PickedTextFile | null> {
   }
 }
 
+/**
+ * Wählt eine `.xlsx`/`.xls`-Datei für die Referenz-Importe des Vorgangssystems
+ * (Status-Katalog, Trigger-Tabelle). Wie {@link pickCsvFile} MUSS die Funktion
+ * synchron aus der Klick-Geste gerufen werden — kein `await` davor.
+ *
+ * Liefert nur die `File`, kein Handle: die Referenz-Zuarbeiten kommen alle paar
+ * Monate von Hand, ein Auto-Update über ein gespeichertes Handle wäre für sie
+ * weder nötig noch gewollt.
+ */
+export async function pickXlsxFile(): Promise<File | null> {
+  if (!isFsApiSupported()) {
+    return await new Promise<File | null>(resolve => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      input.onchange = () => resolve(input.files?.[0] ?? null);
+      input.click();
+    });
+  }
+  try {
+    const handles = await (window as typeof window & {
+      showOpenFilePicker(opts?: {
+        types?: { description?: string; accept: Record<string, string[]> }[];
+        multiple?: boolean;
+        excludeAcceptAllOption?: boolean;
+      }): Promise<FileSystemFileHandle[]>;
+    }).showOpenFilePicker({
+      types: [{
+        description: 'Excel-Datei',
+        accept: {
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+          'application/vnd.ms-excel': ['.xls'],
+        },
+      }],
+      multiple: false,
+    });
+    const handle = handles[0];
+    return handle ? await handle.getFile() : null;
+  } catch (err) {
+    if ((err as DOMException).name === 'AbortError') return null;
+    throw err;
+  }
+}
+
 export async function pickCsvFile(): Promise<PickedFile | null> {
   if (!isFsApiSupported()) {
     // Fallback: lege ein verstecktes Input-Element an. Liefert kein

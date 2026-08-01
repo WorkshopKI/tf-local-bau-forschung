@@ -331,6 +331,24 @@ export function isMeilensteinMonitoringEnabled(): boolean {
   return features.meilensteinMonitoring === true;
 }
 
+/**
+ * Vorgangssystem: Status-Erklärung (Info-Icon), Kürzel-Glossar + Nächster-
+ * Schritt-Navigator, To-do-Board, Stillstands-Wächter, Fristen-Cockpit.
+ *
+ * Leitidee: die App ist **Companion** des Fachsystems, nicht zweite
+ * Workflow-Engine — sie leitet keinen Status ab, sondern stellt Erklärung,
+ * Navigation und Warnung DANEBEN. dev + pl.
+ *
+ * **Setzt `statusCockpit` voraus.** Ohne den Flag läuft `initStatusKatalog` gar
+ * nicht, es gibt also keinen Katalog, aus dem Codes, ZAH-Phasen oder Trigger
+ * gelesen werden könnten. Statt die halbe Oberfläche leer anzuzeigen, ist das
+ * Vorgangssystem dann geschlossen — eine Konfiguration mit `vorgangssystem: true`
+ * und `statusCockpit: false` ist ein Konfigurations-Fehler, kein Sonderfall.
+ */
+export function isVorgangssystemEnabled(): boolean {
+  return features.vorgangssystem === true && isStatusCockpitEnabled();
+}
+
 export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über
