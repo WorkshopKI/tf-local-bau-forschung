@@ -340,7 +340,7 @@ export function VerbundDetail({
           (Timeline + „Warum?" + nächste Schritte). Nur bei aktivem Status-Cockpit-Flag. */}
       {isStatusCockpitEnabled() && (
         <div id="status" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <StatusDetailSection verbundId={verbund.verbund_id} />
+          <StatusDetailSection verbundId={verbund.verbund_id} statusRoh={verbundStatus} />
         </div>
       )}
 

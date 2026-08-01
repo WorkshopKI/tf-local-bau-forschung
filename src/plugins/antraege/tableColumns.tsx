@@ -22,8 +22,9 @@ import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/fris
 import { isBegleitungStatus, isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { getAktiveVersion, leiteStatusAb } from '@/core/status';
-import { isStatusCockpitEnabled } from '@/config/feature-flags';
+import { isStatusCockpitEnabled, isVorgangssystemEnabled } from '@/config/feature-flags';
 import { KonfliktBadge } from './status/KonfliktBadge';
+import { HerleitungPopover } from './status/HerleitungPopover';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
@@ -104,6 +105,25 @@ function renderKonflikt(tvs: AntragListItem[]): ReactNode {
   const tvFelder = Object.fromEntries(tvs.map(tv => [tv.aktenzeichen, { status: String(tv.status ?? '') }]));
   const erg = leiteStatusAb(version, {}, tvFelder);
   return <KonfliktBadge ableitung={erg} version={version} kompakt />;
+}
+
+/**
+ * Das Info-Icon der Status-Erklärung (Vorgangssystem) für eine Listenzeile.
+ *
+ * Nur wo es eine Verbund-Id gibt — ohne sie könnte die Erklärung weder
+ * Teilvorhaben noch Datumsspalten laden und stünde leer da. Der Inhalt lädt erst
+ * beim Öffnen (`useHerleitung`), sonst ginge jede der 13 000 Zeilen beim
+ * Rendern auf die IndexedDB.
+ */
+function renderHerleitung(r: AntragListItem): ReactNode {
+  if (!isVorgangssystemEnabled()) return null;
+  const vbid = typeof r.verbund_id === 'string' && r.verbund_id ? r.verbund_id : null;
+  if (!vbid) return null;
+  return (
+    <span className="ml-1 inline-flex align-middle">
+      <HerleitungPopover verbundId={vbid} statusRoh={r.status} />
+    </span>
+  );
 }
 
 /** Key der MA-Spalte (TIB-Bearbeiter-Kürzel) — Konstante für die Auto-Show im
@@ -299,6 +319,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={getStatusLabel(s)}>
             {getStatusLabel(s)}
             {konfliktEl}
+            {renderHerleitung(r)}
           </span>
         );
       }
@@ -319,6 +340,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
             {getStatusLabel(s)}
           </Badge>
           {konfliktEl}
+          {renderHerleitung(r)}
           {aktion ? (
             <span className="ml-1.5 text-[var(--tf-text-secondary)]">→ {aktion}</span>
           ) : null}
@@ -345,12 +367,15 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     render: r => {
       const s = strOrNull(r.status);
       return s ? (
-        <Badge
-          variant={getStatusVariant(s)}
-          className="min-w-[100px] justify-center whitespace-nowrap text-[10.5px]"
-        >
-          {getStatusLabel(s)}
-        </Badge>
+        <span className="inline-flex items-center">
+          <Badge
+            variant={getStatusVariant(s)}
+            className="min-w-[100px] justify-center whitespace-nowrap text-[10.5px]"
+          >
+            {getStatusLabel(s)}
+          </Badge>
+          {renderHerleitung(r)}
+        </span>
       ) : null;
     },
   },

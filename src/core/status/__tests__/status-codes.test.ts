@@ -125,6 +125,40 @@ describe('STATUS_CODE_KATALOG', () => {
   });
 });
 
+describe('Abdeckung des echten Bestands', () => {
+  /**
+   * Die 25 Statuswerte, die im Bestand (9 314 Anträge, Import 27.07.2026)
+   * tatsächlich vorkommen — ausgezählt aus der List-View.
+   *
+   * Der Guard sichert die **Varianten**: „Ablehnung" (70), „Rücknahmeempfehlung"
+   * (71) und „VN techn. geprüft" (95) stehen im Export anders als in der
+   * Parametertabelle. Fiele eine dieser Zeilen beim Pflegen weg, verlören
+   * schlagartig 135 Anträge ihre Phase — und zwar still.
+   */
+  const IM_BESTAND: readonly string[] = [
+    'Schlussvermerk', 'abgelehnt/zurückgezogen', 'bewilligt', 'bearbeitungsreif', 'beendet',
+    'beantragt', 'VN geprüft', 'ablehnungsreif', 'Gutachten fertig', 'Irrläufer',
+    'VN techn. geprüft', 'NF gestellt', 'Ablehnung', 'NL eingegangen', 'Widerruf',
+    'Anhörung zum Widerruf', 'Rücknahmeempfehlung', 'kaufm geprüft',
+    'Bewilligungsentwurf VDI/VDE-IT', 'techn geprüft', 'Stellungnahme zur Rücknahmeempfehlung',
+    'Widerspruch zur Ablehnung', 'unvollständig', 'keine weiteren NF', 'abgebrochen',
+  ];
+
+  it('jeder im Bestand vorkommende Statuswert bekommt einen Code', () => {
+    const ohne = IM_BESTAND.filter(w => findeStatusCode(w) === null);
+    expect(ohne, `Ohne Code: ${ohne.join(', ')}`).toEqual([]);
+  });
+
+  it('jeder davon bekommt eine ZAH-Phase oder ist ausdrücklich ein Marker', () => {
+    const offen = IM_BESTAND.filter(w => {
+      const code = findeStatusCode(w)?.eintrag.code;
+      if (code === undefined) return true;
+      return !SEED_CODE_ZU_ZAH_PHASE.has(code) && !SEED_MARKER_CODES.has(code);
+    });
+    expect(offen, `Ohne Phase und ohne Marker-Kennzeichen: ${offen.join(', ')}`).toEqual([]);
+  });
+});
+
 describe('reichereWerteAn', () => {
   it('setzt Code, Varianten und ZAH-Phase', () => {
     const [a] = reichereWerteAn([wert('NF gestellt')]);

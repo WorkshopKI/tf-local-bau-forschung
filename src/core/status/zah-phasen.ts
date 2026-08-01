@@ -25,7 +25,7 @@
  *
  * Rein und deterministisch: keine IO, keine Uhr.
  */
-import type { ZahPhase, ZahPhaseId } from './typen';
+import type { SpinePhase, ZahPhase, ZahPhaseId } from './typen';
 
 /** Anzeige-Reihenfolge entlang des Verfahrens. */
 export const ZAH_PHASEN_REIHENFOLGE: readonly ZahPhaseId[] = [
@@ -103,6 +103,27 @@ export const SEED_CODE_ZU_ZAH_PHASE: ReadonlyMap<number, ZahPhaseId> = new Map<n
 
 /** Marker-Codes: bewusst ohne Phase, nicht „vergessen". */
 export const SEED_MARKER_CODES: ReadonlySet<number> = new Set([29, 88, 93, 94]);
+
+/**
+ * ZAH-Phase → die alte {@link SpinePhase}, unter der die Datumsfelder kuratiert
+ * sind. Die **einzige** Stelle, an der die beiden Achsen aufeinander abgebildet
+ * werden — ein zweites Mapping liefe beim ersten Umhängen auseinander.
+ *
+ * Zwei Nutzer: der Phasen-Vergleich (alte gegen neue Lesart) und die
+ * Status-Erklärung (welche Datumsfelder gehören zum aktuellen Status).
+ *
+ * Nicht bijektiv: die alte Wirbelsäule kannte Entscheidung und Prüfung nicht
+ * getrennt, und Begleitung lag bei der Bewilligung. Genau diese Zusammenlegung
+ * macht der spätere Rückbau rückgängig.
+ */
+export const ZAH_ZU_SPINE: Record<ZahPhaseId, SpinePhase> = {
+  eingang: 'eingang',
+  vollstaendigkeit: 'vollstaendigkeit',
+  pruefung: 'fachpruefung',
+  entscheidung: 'fachpruefung',
+  begleitung: 'bewilligung',
+  abgeschlossen: 'schluss',
+};
 
 /**
  * Sortier-Rang einer Phase für Gruppierungen. Marker (`null`/`undefined`) sinken

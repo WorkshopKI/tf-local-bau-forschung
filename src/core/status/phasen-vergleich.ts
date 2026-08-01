@@ -21,25 +21,11 @@
  */
 import { leiteStatusAb } from './ableitung';
 import type { VerbundFelder } from './cockpit-berechnung';
+// Die Abbildung ZAH-Phase → Spine-Phase wohnt in `zah-phasen.ts` und wird hier
+// nur BENUTZT, nicht weitergereicht: ein zweiter Ausgang für dasselbe Objekt
+// wäre ein zweiter Fundort — genau das, was der Modulkopf dort ausschließt.
+import { ZAH_ZU_SPINE } from './zah-phasen';
 import { normalisiereWert, type MappingVersion, type SpinePhase, type ZahPhaseId } from './typen';
-
-/**
- * ZAH-Phase → Spine-Phase, damit beide Lesarten vergleichbar werden.
- *
- * Die alte Wirbelsäule kennt keine getrennten Stationen für Entscheidung und
- * Begleitung: `entscheidung` lag in der Fachprüfung, `begleitung` bei der
- * Bewilligung. Genau diese Zusammenlegung macht der Rückbau später rückgängig —
- * hier wird sie nachgebildet, damit der Vergleich nicht künstlich Abweichungen
- * meldet, wo nur die Auflösung feiner geworden ist.
- */
-export const ZAH_ZU_SPINE: Record<ZahPhaseId, SpinePhase> = {
-  eingang: 'eingang',
-  vollstaendigkeit: 'vollstaendigkeit',
-  pruefung: 'fachpruefung',
-  entscheidung: 'fachpruefung',
-  begleitung: 'bewilligung',
-  abgeschlossen: 'schluss',
-};
 
 /** Ein Verbund im Vergleich beider Lesarten. */
 export interface PhasenVergleichZeile {

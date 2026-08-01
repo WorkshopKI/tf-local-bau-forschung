@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.375.0 — Status-Erklärung mit Herleitungs-Popover (August 2026)
+
+MINOR — „Warum steht der Antrag auf diesem Status, und was ist zuletzt passiert?" beantwortete bisher niemand — die Kürzel des Fachsystems kennen nicht alle. Ein graues Info-Icon an jeder Status-Anzeige rendert die Antwort vollständig aus Daten, ohne handgepflegten Text, der veralten könnte.
+
+- Herleitungs-Popover an Liste und Verbund-Detail: Code + Text + ZAH-Phase, letzter Vorgang mit Rolle, Verlaufs-Näherung, Datenstand, „Herleitung kopieren" ([HerleitungPopover.tsx](src/plugins/antraege/status/HerleitungPopover.tsx)).
+- Reiner Aufbau mit injiziertem Stichtag; „seit wann" bleibt LEER, wenn kein passendes Datum existiert, statt das jüngste beliebige zu nehmen ([herleitung.ts](src/core/status/herleitung.ts)).
+- Inhalt lädt erst beim Öffnen — sonst ginge jede der 13 000 Listenzeilen beim Rendern auf die IndexedDB ([useHerleitung.ts](src/plugins/antraege/status/useHerleitung.ts)).
+- Die Phase greift auf den Auslieferungs-Schnitt zurück, solange eine Bestandsfassung noch keine Codes trägt — sonst stünde dort wochenlang „keine Phase" ([herleitung.ts](src/core/status/herleitung.ts)).
+- Guard: alle 25 im Bestand vorkommenden Statuswerte lösen auf einen Code auf; er sichert vor allem die Export-Varianten „Ablehnung"/„Rücknahmeempfehlung"/„VN techn. geprüft" ([status-codes.test.ts](src/core/status/__tests__/status-codes.test.ts)).
+
 ### v2.374.0 — Vorgangssystem-Fundament: Status-Codes, ZAH-Phasen, Trigger-Parser, Referenz-Importe (August 2026)
 
 MINOR — Die App soll **Companion** des Fachsystems werden statt zweiter Workflow-Engine: `STATUS_TV`/`STATUS_VB` werden angezeigt wie importiert, alles Neue (Erklärung, Navigation, Warnung) steht daneben. Phase 0 legt das Fundament — Codes, Phasen, Trigger — additiv im bestehenden `src/core/status/`, ohne die alte Ableitung anzufassen.

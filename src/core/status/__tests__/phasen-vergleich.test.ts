@@ -8,8 +8,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, ZAH_ZU_SPINE,
+  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster,
 } from '@/core/status/phasen-vergleich';
+import { ZAH_ZU_SPINE } from '@/core/status/zah-phasen';
 import { baueSeedVersion } from '@/core/status/seed';
 import type { VerbundFelder } from '@/core/status/cockpit-berechnung';
 import type { MappingVersion } from '@/core/status/typen';

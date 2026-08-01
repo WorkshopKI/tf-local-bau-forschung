@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.375 — 2026-08
+
+### Neu
+- Neben jedem Status steht jetzt ein kleines Info-Zeichen. Ein Klick darauf erklärt, worauf der Status beruht: der amtliche Code, seit wann er gilt, welches Kürzel zuletzt gesetzt wurde (mit Bezeichnung und Rolle) und was davor passiert ist.
+- Die Erklärung lässt sich mit einem Klick als Text kopieren — praktisch für Rückfragen und Support-Fälle.
+- Angezeigt wird immer auch der Datenstand: wann zuletzt importiert wurde und mit welcher Katalog-Fassung gerechnet wird.
+
+### Verbesserungen
+- Der Verlauf ist ausdrücklich als Näherung gekennzeichnet: Das Fachsystem führt je Kürzel nur ein Datum, mehrfach gesetzte Kürzel lassen sich darin nicht unterscheiden. Fehlt eine Angabe, bleibt sie leer, statt geschätzt zu werden.
+
 ## v2.374 — 2026-08
 
 ### Neu

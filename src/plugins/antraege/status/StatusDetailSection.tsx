@@ -10,6 +10,8 @@
 import { ChevronRight } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { isVorgangssystemEnabled } from '@/config/feature-flags';
+import { HerleitungPopover } from './HerleitungPopover';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
 import { StatusChronik } from './StatusChronik';
@@ -18,7 +20,11 @@ import { StatusCodeListe } from './StatusCodeListe';
 import { useTimelinePrefs } from './timelinePrefs';
 import { WERKZEUG_LABEL, SPINE_LABEL } from './labels';
 
-export function StatusDetailSection({ verbundId }: { verbundId: string }): React.ReactElement | null {
+export function StatusDetailSection({ verbundId, statusRoh }: {
+  verbundId: string;
+  /** Der amtliche Verbund-Status — Grundlage der Erklärung (Vorgangssystem). */
+  statusRoh?: string | null;
+}): React.ReactElement | null {
   const v = useStatusVerlauf(verbundId);
   // Einklappbar, Default ZU (persistierter Zustand gewinnt): die abgeleitete
   // Phase steht als Vorschau im Kopf, Timeline und Begründung sind Nachschlagen.
@@ -53,6 +59,13 @@ export function StatusDetailSection({ verbundId }: { verbundId: string }): React
         </button>
         {/* Vorschau: die abgeleitete Phase — sonst sagt die eingeklappte Zeile nichts. */}
         <span className="text-[12px] text-[var(--tf-text-secondary)]">{SPINE_LABEL[ableitung.spinePhase]}</span>
+        {/* Die Status-Erklärung des Vorgangssystems: hier steht sie NEBEN der
+            abgeleiteten Phase, nicht an ihrer Stelle — die beiden Lesarten
+            gehen auseinander (siehe Diagnose-Report), und bis zum Rückbau soll
+            man beide sehen können. */}
+        {isVorgangssystemEnabled() && (
+          <HerleitungPopover verbundId={verbundId} statusRoh={statusRoh} />
+        )}
         {ableitung.konflikt ? (
           <span className="text-[12px] text-[var(--tf-warning-text)]">Widersprüchliche Statussignale</span>
         ) : null}

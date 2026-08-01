@@ -47,9 +47,14 @@ export {
 export { normKey, loseKey } from './normalisierung';
 export {
   ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_ZAH_PHASEN,
-  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
+  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES, ZAH_ZU_SPINE,
   zahPhaseRang, zahPhaseLabel, zahPhasenVon,
 } from './zah-phasen';
+export {
+  baueHerleitung, herleitungAlsText,
+  type Herleitung, type HerleitungEingabe, type Datenstand,
+  type VerlaufSchritt, type LetzterVorgang,
+} from './herleitung';
 export {
   STATUS_CODE_KATALOG, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
   reichereWerteAn, zaehleOhneCode,
@@ -60,7 +65,7 @@ export {
   textbausteinName, referenzierteKuerzel, type TriggerRohzeile,
 } from './trigger-parser';
 export {
-  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, ZAH_ZU_SPINE,
+  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster,
   type PhasenVergleich, type PhasenVergleichZeile, type AbweichungsMuster,
 } from './phasen-vergleich';
 export {
