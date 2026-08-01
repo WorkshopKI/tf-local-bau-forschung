@@ -9,6 +9,8 @@
  * `items` — sonst wirkt kein Eintrag aktiv und die Anzeige erfindet eine
  * Sortierung, die nicht läuft.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { sortSegModell, sortKeyFuerLabel } from '../sortSeg';
 import { DEFAULT_SORT_BY_VIEW, SORT_OPTIONS, type SortKey } from '../../sort';
@@ -102,5 +104,29 @@ describe('Beschriftungen beschreiben, was der Vergleich tut', () => {
   it('vergibt jede Beschriftung nur einmal (Label ist der Rückweg-Schlüssel)', () => {
     const labels = SORT_OPTIONS.map(o => o.label);
     expect(new Set(labels).size).toBe(labels.length);
+  });
+});
+
+describe('no-parallel-sort-options — die Toolbar führt keine eigene Liste', () => {
+  // Der Defekt entstand nicht durch einen falschen Wert, sondern dadurch, dass
+  // eine zweite Liste ÜBERHAUPT existierte: sie driftete still von `sort.ts` weg
+  // und niemand merkte es, weil beide Seiten für sich stimmig aussahen. Die
+  // Tests oben können das nicht fangen — sie prüfen `sortSeg.ts`, nicht die
+  // Komponente. Ausnahme bewusst per `// allow-no-parallel-sort-options: <grund>`.
+  const quelle = readFileSync(
+    join(process.cwd(), 'src/plugins/antraege/filter/QuickfilterToolbar.tsx'),
+    'utf-8',
+  );
+
+  it('definiert keine eigenen Sortier-Optionen', () => {
+    if (quelle.includes('allow-no-parallel-sort-options:')) return;
+    const eigeneListe = SORT_OPTIONS.some(o => new RegExp(`key:\\s*'${o.key}'`).test(quelle));
+    expect(eigeneListe, 'QuickfilterToolbar.tsx bindet einen SortKey selbst an ein Label').toBe(false);
+  });
+
+  it('bezieht Einträge und Beschriftungen aus sortSeg', () => {
+    expect(quelle).toMatch(/from '\.\/sortSeg'/);
+    expect(quelle).toContain('sortSegModell');
+    expect(quelle).toContain('sortKeyFuerLabel');
   });
 });
