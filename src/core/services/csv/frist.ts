@@ -123,6 +123,38 @@ export function computeVerbundFristDatum(
   return computeFristDatum({ ...representative, antragsdatum: maxAntragsdatum });
 }
 
+/**
+ * **Wirksamer Eingang** = das spätere von Antragseingang (`D_AAE`) und „alle
+ * Anträge da" (`D_XTE`).
+ *
+ * So startet die AB-Mappe alle Tage-Zählungen und damit faktisch die 90-Tage-Uhr:
+ * bearbeitet werden kann erst, wenn wirklich alles vorliegt. Fehlt `D_XTE`,
+ * bleibt es beim Antragseingang — das ist der heutige Stand und damit
+ * abwärtskompatibel.
+ *
+ * **Bewusst additiv.** `computeFristDatum` speist über den Merger das
+ * persistierte `frist_datum` des gesamten Bestands; diese Regel dort einzubauen
+ * änderte auf einen Schlag Zahlen in Listen, Ampeln und Home. Sie wird deshalb
+ * erst dort verwendet, wo sie ausgewiesen ist, und ihre Wirkung auf den Bestand
+ * wird gemessen, bevor sie irgendwo zum Default wird.
+ *
+ * Nimmt die beiden Werte als Parameter statt sie aus dem Antrag zu lesen:
+ * `D_XTE` ist in den Schemas **custom** gemappt (`alle_an_trage_da`) und steht
+ * nicht in der schlanken Listen-Projektion. Wer den Wert hat, reicht ihn herein
+ * — geraten wird der Record-Key hier nicht (recurring-bug-classes Klasse 5).
+ */
+export function wirksamerEingang(
+  antragsdatum: string | null | undefined,
+  alleAntraegeDa: string | null | undefined,
+): string | null {
+  const kandidaten = [antragsdatum, alleAntraegeDa]
+    .filter((d): d is string => typeof d === 'string' && d.trim() !== '')
+    .map(d => ({ iso: d, ms: new Date(d).getTime() }))
+    .filter(k => !Number.isNaN(k.ms));
+  if (kandidaten.length === 0) return null;
+  return kandidaten.reduce((a, b) => (b.ms > a.ms ? b : a)).iso;
+}
+
 /** Tage bis zur Frist (Vorzeichen-konsistent). Negativ = ueberfaellig,
  *  positiv = noch Zeit, `null` = keine Frist berechenbar. */
 export function daysUntilFristAware(

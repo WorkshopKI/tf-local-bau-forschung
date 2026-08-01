@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.379 — 2026-08
+
+### Neu
+- Das Vorgangs-Board hat zwei neue Reiter: **Fristen** und **Auswertung**. „Fristen" listet Ihre Anträge nach Restfrist mit Ampel (rot ab 14, gelb ab 30 Tagen); „Auswertung" zeigt die Verteilung über die ZAH-Phasen, die Liegezeit je Status (Median, p90 und Anzahl) und die Vorgänge unter 30 Tagen Restfrist.
+- Die Frist rechnet ab dem **wirksamen Eingang** — dem späteren von Antragseingang und „alle Anträge da". So beginnt auch in den bisherigen Excel-Listen die Uhr. Das Bezugsdatum steht in einer eigenen Spalte.
+- Beide Sichten lassen sich **als XLSX exportieren** — genau die Zeilen, die Sie gerade sehen.
+
+### Bugfixes
+- Die Fristenliste führte abgeschlossene und bewilligte Vorgänge mit „853 Tage über" an. Eine Antragsfrist läuft nur in der Antragsphase; danach gilt die Verwendungsnachweis-Logik. Wie viele Vorgänge deshalb nicht in der Liste stehen, sagt sie jetzt ausdrücklich.
+
 ## v2.378 — 2026-08
 
 ### Neu

@@ -25,7 +25,9 @@ Verfügung.
 
 ## Bereiche
 
-- **Drei Sichten** (Reiter mit Zähler), alle aus demselben Regelsatz:
+- **Fünf Reiter mit Zähler.** Die ersten drei zeigen dieselbe Menge nach
+  Zuständigkeit, die letzten beiden dieselbe Menge unter einer anderen Frage.
+- **Drei Aufgaben-Sichten**, alle aus demselben Regelsatz:
   - **Meine Aufgaben** — To-dos, für die die gewählte Rolle zuständig ist.
   - **Wartet auf andere** — dieselben Anträge aus der Fremdrollen-Sicht: was für
     den AB „RNE ergänzen" ist, erscheint dem FB als „wartet auf AB".
@@ -46,6 +48,21 @@ Verfügung.
   der **Stau je Rolle**; daneben — nicht darin — die Zahl der **nicht
   bewertbaren** Vorgänge, für deren Status niemand Zieltage gepflegt hat.
   Zieltage werden im Status-Katalog unter „Katalog" gepflegt.
+
+- **Fristen** (Bearbeiter-Sicht): die Anträge nach Restfrist, der knappste zuerst.
+  Gerechnet ab **wirksamem Eingang** — dem späteren von Antragseingang und „alle
+  Anträge da"; das Datum steht in einer eigenen Spalte, damit sichtbar ist,
+  worauf sich die Zahl bezieht. Ampel rot ab 14, gelb ab 30 Tagen. Daneben das
+  To-do und das Wächter-Urteil.
+  - Eine Antragsfrist läuft nur in der **Antragsphase**. Abgeschlossene und
+    bewilligte Vorgänge stehen nicht in der Liste — wie viele es sind, sagt eine
+    Zeile darüber, statt sie stumm zu unterschlagen.
+- **Auswertung** (PL-Sicht): Verteilung über die ZAH-Phasen, Stau je Rolle,
+  Liegezeit je Status (Median, p90 und **n** — eine Zahl aus zwei Proben sieht
+  sonst aus wie eine aus dreihundert) und die Fristrisiko-Liste unter 30 Tagen.
+  Kein Wochentrend: der Export liefert nur den Stand von heute Nacht.
+- **XLSX-Export** in beiden Sichten — genau die Zeilen, die auf dem Bildschirm
+  stehen, in derselben Reihenfolge.
 
 ## Wichtig
 

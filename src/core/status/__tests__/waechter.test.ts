@@ -198,8 +198,8 @@ describe('medianLiegezeit — Vorschlag aus der Ist-Verteilung', () => {
       { statusCode: 35, tage: 10 }, { statusCode: 35, tage: 20 }, { statusCode: 35, tage: 30 },
       { statusCode: 70, tage: 5 },
     ]);
-    expect(m.get(35)).toEqual({ median: 20, n: 3 });
-    expect(m.get(70)).toEqual({ median: 5, n: 1 });
+    expect(m.get(35)).toEqual({ median: 20, p90: 30, n: 3 });
+    expect(m.get(70)).toEqual({ median: 5, p90: 5, n: 1 });
   });
 
   it('mittelt bei gerader Anzahl', () => {
@@ -208,11 +208,27 @@ describe('medianLiegezeit — Vorschlag aus der Ist-Verteilung', () => {
     ]).get(1)?.median).toBe(16);
   });
 
+  it('zeigt im p90 den langen Schwanz, den der Median verschweigt', () => {
+    // Fünf schnelle, fünf zähe Vorgänge: der Median sagt 55, das p90 sagt 200.
+    const tage = [10, 10, 10, 10, 10, 100, 120, 150, 180, 200];
+    const v = medianLiegezeit(tage.map(t => ({ statusCode: 1, tage: t })))!.get(1)!;
+    expect(v.median).toBe(55);
+    expect(v.p90).toBe(180);
+    expect(v.n).toBe(10);
+  });
+
+  it('nutzt den nächstgelegenen Rang — bei kleinem n ist p90 der letzte Wert', () => {
+    // Kein Interpolieren: bei n = 3 gibt die Stichprobe keine Zwischenwerte her.
+    expect(medianLiegezeit([
+      { statusCode: 1, tage: 1 }, { statusCode: 1, tage: 2 }, { statusCode: 1, tage: 90 },
+    ]).get(1)?.p90).toBe(90);
+  });
+
   it('lässt Proben ohne Code oder ohne Liegezeit weg', () => {
     const m = medianLiegezeit([
       { statusCode: null, tage: 10 }, { statusCode: 1, tage: null }, { statusCode: 1, tage: 7 },
     ]);
-    expect(m.get(1)).toEqual({ median: 7, n: 1 });
+    expect(m.get(1)).toEqual({ median: 7, p90: 7, n: 1 });
     expect(m.size).toBe(1);
   });
 });

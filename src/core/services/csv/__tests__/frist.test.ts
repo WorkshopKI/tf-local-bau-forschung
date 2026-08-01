@@ -14,6 +14,7 @@ import {
   computeVerbundFristDatum,
   daysUntilFristAware,
   verbundAntragsdatum,
+  wirksamerEingang,
 } from '../frist';
 import { asAntragStatusRaw, type AntragListItem } from '../types';
 
@@ -212,5 +213,44 @@ describe('computeVerbundFristDatum', () => {
   it('null wenn Antragsphase und kein TV ein antragsdatum hat', () => {
     const rep = mk({ status: 'beantragt' });
     expect(computeVerbundFristDatum([rep], rep)).toBeNull();
+  });
+});
+
+/**
+ * Der wirksame Eingang: das SPÄTERE von Antragseingang und „alle Anträge da".
+ * So startet die AB-Mappe ihre Zählungen — bearbeitet werden kann erst, wenn
+ * alles vorliegt.
+ */
+describe('wirksamerEingang', () => {
+  it('nimmt das spätere der beiden Daten', () => {
+    expect(wirksamerEingang('2026-01-10', '2026-02-20')).toBe('2026-02-20');
+    expect(wirksamerEingang('2026-03-01', '2026-02-20')).toBe('2026-03-01');
+  });
+
+  it('fällt ohne „alle Anträge da" auf den Antragseingang zurück', () => {
+    // Das ist der heutige Stand — die Regel ist damit abwärtskompatibel.
+    expect(wirksamerEingang('2026-01-10', null)).toBe('2026-01-10');
+    expect(wirksamerEingang('2026-01-10', '')).toBe('2026-01-10');
+    expect(wirksamerEingang('2026-01-10', undefined)).toBe('2026-01-10');
+  });
+
+  it('kommt auch mit nur „alle Anträge da" zurecht', () => {
+    expect(wirksamerEingang(null, '2026-02-20')).toBe('2026-02-20');
+  });
+
+  it('liefert null, wenn keines der beiden Daten brauchbar ist', () => {
+    expect(wirksamerEingang(null, null)).toBeNull();
+    expect(wirksamerEingang('', '   ')).toBeNull();
+    expect(wirksamerEingang('kein Datum', 'auch nicht')).toBeNull();
+  });
+
+  it('ignoriert einen unlesbaren Wert, statt am anderen zu scheitern', () => {
+    expect(wirksamerEingang('2026-01-10', 'kaputt')).toBe('2026-01-10');
+  });
+
+  it('gibt den Rohwert zurück, nicht eine normalisierte Fassung', () => {
+    // Der Aufrufer rechnet damit weiter; eine stille Umformatierung wäre ein
+    // zweites Datumsformat im Umlauf.
+    expect(wirksamerEingang('2026-02-20T09:30:00.000Z', '2026-01-01')).toBe('2026-02-20T09:30:00.000Z');
   });
 });

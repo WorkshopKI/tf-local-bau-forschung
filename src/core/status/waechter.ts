@@ -254,22 +254,33 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
  * Status typischerweise unangetastet liegen; übernommen wird er pro Zeile
  * einzeln, nie im Block.
  */
+export interface Liegeverteilung {
+  median: number;
+  /** 90. Perzentil — der lange Schwanz, den der Median verschweigt. */
+  p90: number;
+  /** Stichprobengröße. Gehört ÜBERALL dazu, wo die Zahl angezeigt wird. */
+  n: number;
+}
+
 export function medianLiegezeit(
   proben: readonly { statusCode: number | null; tage: number | null }[],
-): Map<number, { median: number; n: number }> {
+): Map<number, Liegeverteilung> {
   const proCode = new Map<number, number[]>();
   for (const p of proben) {
     if (p.statusCode === null || p.tage === null || p.tage < 0) continue;
     const list = proCode.get(p.statusCode);
     if (list) list.push(p.tage); else proCode.set(p.statusCode, [p.tage]);
   }
-  const out = new Map<number, { median: number; n: number }>();
+  const out = new Map<number, Liegeverteilung>();
   for (const [code, werte] of proCode) {
     werte.sort((a, b) => a - b);
-    const m = werte.length % 2 === 1
+    const median = werte.length % 2 === 1
       ? werte[(werte.length - 1) / 2]!
       : Math.round((werte[werte.length / 2 - 1]! + werte[werte.length / 2]!) / 2);
-    out.set(code, { median: m, n: werte.length });
+    // Nächstgelegener Rang: bei kleinem n ist jede Interpolation eine
+    // Genauigkeit, die die Stichprobe nicht hergibt.
+    const p90 = werte[Math.min(werte.length - 1, Math.ceil(werte.length * 0.9) - 1)]!;
+    out.set(code, { median, p90, n: werte.length });
   }
   return out;
 }

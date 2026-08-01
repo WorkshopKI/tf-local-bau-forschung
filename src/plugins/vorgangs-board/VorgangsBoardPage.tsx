@@ -21,6 +21,7 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, type Rolle } from '@/core/status';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { useVorgangsBoard, type BoardTab, type BoardZeile } from './useVorgangsBoard';
+import { AuswertungSicht, FristenSicht } from './CockpitSichten';
 
 const feldStil: React.CSSProperties = {
   border: '1px solid var(--tf-border)',
@@ -141,14 +142,19 @@ export function VorgangsBoardPage(): React.ReactElement {
     { key: 'meine', label: 'Meine Aufgaben' },
     { key: 'warten', label: 'Wartet auf andere' },
     { key: 'ohne', label: 'Kein To-do ermittelt' },
+    // Dieselbe Menge unter zwei anderen Fragen: wann läuft es ab, und wo steht
+    // der Bestand insgesamt.
+    { key: 'fristen', label: 'Fristen' },
+    { key: 'auswertung', label: 'Auswertung' },
   ];
+  const cockpit = api.tab === 'fristen' || api.tab === 'auswertung';
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
         <PageHeader
           title="Vorgangs-Board"
-          subtitle="Was steht an — abgeleitet aus den To-do-Regeln"
+          subtitle="Was steht an, wo klemmt es, wann läuft es ab"
           actions={<SeitenHilfeButton pluginId="vorgangs-board" />}
         />
         <ScopeTabs
@@ -250,7 +256,9 @@ export function VorgangsBoardPage(): React.ReactElement {
             sind. Für die tägliche Arbeit sind die letzten drei Jahrgänge gemeint.
           </p>
         )}
-        {!api.laden && !api.ohneRegeln && api.gruppen.length === 0 && (
+        {!api.laden && api.tab === 'fristen' && <FristenSicht api={api} />}
+        {!api.laden && api.tab === 'auswertung' && <AuswertungSicht api={api} />}
+        {!api.laden && !cockpit && !api.ohneRegeln && api.gruppen.length === 0 && (
           <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
             Keine Anträge in dieser Sicht.
           </p>

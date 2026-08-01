@@ -19,6 +19,8 @@ import {
 } from '@/core/services/csv/idb-csv';
 import { toVbPhaseNumber, VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
+import { computeFristDatum, wirksamerEingang } from '@/core/services/csv/frist';
+import { isBegleitungStatus, isTerminalStatus } from '@/core/utils/status-canonical';
 import type { AntragListItem } from '@/core/services/csv/types';
 import {
   ladeAktiveVersion, getAktiveVersion, baueFeldAufloesung, sammleVorkommen,
@@ -50,11 +52,50 @@ export interface BoardZeile {
   belege: TodoBeleg[];
   /** Urteil des Stillstands-Wächters (Stufe 1 + 2). */
   waechter: WaechterErgebnis;
+  /** Späteres von Antragseingang und „alle Anträge da"; ISO oder null. */
+  wirksamerEingang: string | null;
+  /** Restfrist in Tagen ab wirksamem Eingang; negativ = überfällig. */
+  restTage: number | null;
+  /**
+   * Läuft für diesen Vorgang überhaupt noch eine Frist?
+   *
+   * Die 90-Tage-Uhr rechnet für JEDEN Antrag weiter — auch für einen, der vor
+   * zwei Jahren abgelehnt oder bewilligt wurde. Sie bedeutet dort nur nichts
+   * mehr. Ohne diese Unterscheidung führte die nach Restfrist sortierte Liste
+   * jahrelang geschlossene Vorgänge mit „853 T über" an (in der laufenden App
+   * gesehen), gefolgt von bewilligten mit „830 T über".
+   *
+   * Kriterium ist die **ZAH-Phase**, nicht die alte Kategorie: die Antragsfrist
+   * gehört zur Antragsphase (Eingang … Entscheidung). Danach gilt die
+   * VN-Logik, und die greift erst, wenn ein Verwendungsnachweis da ist —
+   * zwischen Bewilligung und VN läuft schlicht keine Frist. Kennt der Katalog
+   * die Phase nicht, bleibt es beim alten Kriterium „nicht terminal"; geraten
+   * wird nicht.
+   */
+  fristLaeuft: boolean;
   /** Rohsatz für den Kürzel-Filter (nur die Spalten, die er liest). */
   filterRecord: AntragListItem;
 }
 
-export type BoardTab = 'meine' | 'warten' | 'ohne';
+export type BoardTab = 'meine' | 'warten' | 'ohne' | 'fristen' | 'auswertung';
+
+/**
+ * Ampel-Schwellen der Bearbeiter-Sicht, in Tagen Restfrist.
+ *
+ * Bewusst hier als benannte Konstanten und nicht als Zahlen im JSX: sie sind
+ * eine Setzung (rot ab zwei Wochen, gelb ab einem Monat) und keine Ableitung
+ * aus den Daten — wer sie ändert, ändert eine Vereinbarung.
+ */
+export const AMPEL_ROT_TAGE = 14;
+export const AMPEL_GELB_TAGE = 30;
+
+/** Rot / gelb / grün — `null`, wenn keine Frist berechenbar ist. */
+export function ampelVon(restTage: number | null): 'rot' | 'gelb' | 'gruen' | null {
+  if (restTage === null) return null;
+  if (restTage <= AMPEL_ROT_TAGE) return 'rot';
+  if (restTage <= AMPEL_GELB_TAGE) return 'gelb';
+  return 'gruen';
+}
 
 export interface VorgangsBoardApi {
   laden: boolean;
@@ -114,6 +155,21 @@ const ALLE = 'alle';
  */
 const LETZTE_3 = 'letzte3';
 const JAHRGAENGE = 3;
+
+/** ZAH-Phasen, in denen die Antragsfrist (90 Tage) überhaupt gilt. */
+const ANTRAGSPHASE: ReadonlySet<ZahPhaseId> = new Set<ZahPhaseId>([
+  'eingang', 'vollstaendigkeit', 'pruefung', 'entscheidung',
+]);
+
+/** Siehe {@link BoardZeile.fristLaeuft}. Rein. */
+function fristLaeuftFuer(zahPhase: ZahPhaseId | null, statusRoh: unknown): boolean {
+  if (isTerminalStatus(statusRoh)) return false;
+  // Begleitphase mit Verwendungsnachweis: `computeFristDatum` liefert dort die
+  // VN-Frist, die ist echt.
+  if (isBegleitungStatus(statusRoh)) return true;
+  if (zahPhase === null) return true;      // Phase unbekannt → altes Kriterium
+  return ANTRAGSPHASE.has(zahPhase);
+}
 
 /** Fördervariante als Klartext; unbekannt → leer (nie geraten). */
 function varianteVon(rec: Record<string, unknown>): string {
@@ -183,6 +239,20 @@ export function useVorgangsBoard(): VorgangsBoardApi {
           const waechter = pruefeStillstand({
             version: v, vorkommen, statusCode: code, todo: e, stichtag: heuteRef.current,
           });
+          // Der wirksame Eingang braucht `D_XTE` — custom gemappt und NICHT in
+          // der Listen-Projektion. Hier ist er da, weil `sammleVorkommen` ihn
+          // über das Schema aufgelöst hat (Bug-Klasse 5).
+          const xte = vorkommen.find(x => x.feld.code === 'XTE');
+          const eingang = wirksamerEingang(
+            typeof rec.antragsdatum === 'string' ? rec.antragsdatum : null,
+            xte ? (parseGermanDate(xte.wert) ?? xte.wert) : null,
+          );
+          const frist = eingang
+            ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: rec.vn_eingang_datum as string | undefined })
+            : null;
+          const restTage = frist
+            ? Math.ceil((new Date(frist).getTime() - new Date(heuteRef.current).getTime()) / 86_400_000)
+            : null;
           const zahPhase = code !== null
             ? v.werte.find(w => w.code === code)?.zahPhaseId
               ?? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null
@@ -203,6 +273,9 @@ export function useVorgangsBoard(): VorgangsBoardApi {
             wartetAuf: e.wartetAuf,
             belege: e.belege,
             waechter,
+            wirksamerEingang: eingang,
+            restTage,
+            fristLaeuft: fristLaeuftFuer(zahPhase, a.status),
             filterRecord: a as unknown as AntragListItem,
           });
         }
@@ -259,12 +332,23 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   }, [rolle]);
 
   const zaehler = useMemo(() => {
-    const z: Record<BoardTab, number> = { meine: 0, warten: 0, ohne: 0 };
-    for (const zeile of zeilen) z[tabVon(zeile)] += 1;
+    const z: Record<BoardTab, number> = {
+      meine: 0, warten: 0, ohne: 0,
+      // Fristen zählt, was ein Fristrisiko trägt; Auswertung die ganze Menge.
+      fristen: zeilen.filter(x => x.fristLaeuft && (x.restTage ?? Infinity) <= AMPEL_GELB_TAGE).length,
+      auswertung: zeilen.length,
+    };
+    for (const zeile of zeilen) {
+      const t = tabVon(zeile);
+      if (t === 'meine' || t === 'warten' || t === 'ohne') z[t] += 1;
+    }
     return z;
   }, [zeilen, tabVon]);
 
   const gruppen = useMemo(() => {
+    // Die beiden Cockpit-Sichten gruppieren nicht nach To-do — sie zeigen
+    // dieselbe Menge unter einer anderen Frage.
+    if (tab === 'fristen' || tab === 'auswertung') return [];
     const imTab = zeilen.filter(z => tabVon(z) === tab);
     if (tab === 'ohne') {
       return imTab.length > 0 ? [{ todo: 'Kein To-do ermittelt', zeilen: imTab }] : [];

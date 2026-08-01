@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.379.0 — Fristen-Cockpit mit wirksamem Eingang (August 2026)
+
+MINOR — Bearbeiter und PL führen ihre Fristenlisten heute per Hand in Excel. Zwei zusätzliche Sichten im Vorgangs-Board ersetzen sie: Restfrist je Antrag ab wirksamem Eingang, und die Bestandsauswertung für die PL — beide als XLSX exportierbar.
+
+- `wirksamerEingang` = spätestes von Antragseingang und „alle Anträge da"; bewusst additiv, `computeFristDatum` bleibt unangetastet ([frist.ts](src/core/services/csv/frist.ts)).
+- Bearbeiter-Sicht: Restfrist mit Ampel (rot ≤ 14, gelb ≤ 30 Tage), Bezugsdatum in eigener Spalte, To-do und Wächter-Urteil daneben ([CockpitSichten.tsx](src/plugins/vorgangs-board/CockpitSichten.tsx)).
+- PL-Sicht: Verteilung über die ZAH-Phasen, Liegezeit je Status mit Median, p90 und n, Fristrisiko-Liste, Stau je Rolle ([CockpitSichten.tsx](src/plugins/vorgangs-board/CockpitSichten.tsx)).
+- XLSX-Export beider Sichten — genau die Zeilen, die auf dem Bildschirm stehen ([cockpit-export.ts](src/plugins/vorgangs-board/cockpit-export.ts)).
+- Fix: die Antragsfrist läuft nur in der Antragsphase. Ohne dieses Kriterium führte die Liste 2 850 abgeschlossene Vorgänge mit „853 T über" an ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts)).
+
 ### v2.378.0 — Stillstands-Wächter mit Zieltagen und Rollen-Stau (August 2026)
 
 MINOR — Ein vergessenes Kürzel fällt heute niemandem auf: der Vorgang steht einfach still. Der Wächter misst die Zeit seit der letzten Vorgangs-Aktivität gegen Zieltage je Status und benennt, wo möglich, auf wessen Schreibtisch es liegt.
