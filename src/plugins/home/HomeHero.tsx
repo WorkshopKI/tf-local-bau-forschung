@@ -20,17 +20,21 @@
  */
 import { Clock, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { AmpelBucket } from '@/plugins/antraege/eingangAmpel';
+import type { AmpelBucket, AmpelSchwellen } from '@/plugins/antraege/eingangAmpel';
 import { useWeitermachenRows } from './WeitermachenSection';
 import { relativeZeitKurz } from '@/core/utils/relativeZeit';
 import { useQsFreigaben } from './widgets/useQsFreigaben';
 import { heroChipSichtbarkeit } from './heroChips';
+import { labelKritisch, labelWarnung } from './homeSubtitle';
 import type { EingangAmpelCounts } from './useEingangAmpelCounts';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
 export interface HomeHeroProps {
   counts: EingangAmpelCounts;
+  /** Tage-Grenzen aus der Widget-Config — dieselbe Quelle wie die Kopfzeile,
+   *  damit Kachel-Beschriftung und gezählte Menge nicht auseinanderlaufen. */
+  schwellen: AmpelSchwellen;
   /** Öffnet die gefilterte Antragsliste für einen Ampel-Bucket (kritisch/warnung). */
   onOpenBucket: (bucket: AmpelBucket) => void;
   /**
@@ -42,7 +46,7 @@ export interface HomeHeroProps {
   onOpenQs: (scopeId: string) => void;
 }
 
-export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): React.ReactElement | null {
+export function HomeHero({ counts, schwellen, onOpenBucket, onOpenQs }: HomeHeroProps): React.ReactElement | null {
   const navigate = useNavigate();
   const resume = useWeitermachenRows()[0] ?? null;
   const { zeilen: qsZeilen } = useQsFreigaben(true);
@@ -99,7 +103,7 @@ export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): Rea
             {chips.kritisch ? (
               <HeroChip
                 n={counts.kritisch}
-                label="über 90-Tage-Frist"
+                label={labelKritisch(schwellen)}
                 color="var(--tf-danger-text)"
                 onClick={() => onOpenBucket('kritisch')}
               />
@@ -107,7 +111,7 @@ export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): Rea
             {chips.warnung ? (
               <HeroChip
                 n={counts.warnung}
-                label="nähern sich"
+                label={labelWarnung(schwellen)}
                 color="var(--tf-warning-text)"
                 onClick={() => onOpenBucket('warnung')}
               />

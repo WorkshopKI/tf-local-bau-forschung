@@ -25,6 +25,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
+import { alterInTagen } from '@/core/utils/relativeZeit';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -222,7 +223,7 @@ function LanePills({ lanes, farbmodus }: { lanes: KanbanLaneDaten[]; farbmodus: 
 
 /** Kompakt-Karte: Akronym, nächster Schritt, Meta (TV-Zahl bzw. FKZ · Alter). */
 function KanbanKarteView({ karte, onOpen }: { karte: KanbanKarte; onOpen: () => void }): React.ReactElement {
-  const alter = karte.alterTage !== null && karte.alterTage >= 0 ? `vor ${karte.alterTage} T` : null;
+  const alter = alterInTagen(karte.alterTage);
   const herkunft = karte.tvCount > 1 ? `${karte.tvCount} TV` : karte.aktenzeichen;
   return (
     <button

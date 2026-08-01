@@ -7,13 +7,13 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 ## UI-Elemente & Begriffe
 
 - **Begrüßung:** „X offene Vorgänge …".
-- **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (drei klickbare Chips: über 90-Tage-Frist / nähern sich / QS-Freigaben offen → gefilterte Liste).
+- **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (klickbare Chips: älter als 90 Tage / zwischen 31 und 90 Tagen → gefilterte Liste, QS-Freigaben offen → erster offener Entwurf). Die Tage-Grenzen kommen aus der Widget-Config; Chips mit Zähler 0 werden nicht gezeigt, ohne Chip entfällt die Karte.
 - **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; Stift „Widget anpassen" nur bei einstellbaren — Kanban und Antragseingang; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Reihenfolge und Sichtbarkeit stehen in Einstellungen › Widgets.
 - **Widgets** (read-only + Navigation):
   - **Meine Anträge:** Liste + Rückstands-Balken.
   - **Kanban:** Förderanträge ODER Feedback, farbige Lanes, 1–2 Spalten.
   - **Antragseingang-Ampel:** Schwellen einstellbar, Zeile → gefilterte Liste.
-  - **AI-Assistent** und **Notizen** („nur lokal").
+  - **KI-Assistent** und **Notizen** („nur lokal").
   - **Feedback-Neuigkeiten:** seit dem letzten „Alles gelesen" — Antworten aufs eigene Feedback, **Statuswechsel** an Tickets, an denen man beteiligt ist (eigenes, kommentiertes, mitgestimmtes oder gesponsertes), neue Team-Tickets, Stimmen-Zuwachs; Klick öffnet das Ticket im Feedback-Board.
   - **Auslastung:** Ich-/Team-Sicht; nur wo aktiv.
   - **QS-Freigaben offen:** Artefakt-Entwürfe → „Freigeben/Prüfen →"; gibt nie frei.

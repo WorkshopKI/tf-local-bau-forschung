@@ -10,7 +10,7 @@ import { WidgetShell } from './widgets/WidgetShell';
 import type { WidgetProps } from './widgets/widgetProps';
 
 /**
- * AI-Assistent-Widget (Home, Seitenspalte). Zeigt den LIVE-Verbindungsstatus der
+ * KI-Assistent-Widget (Home, Seitenspalte). Zeigt den LIVE-Verbindungsstatus der
  * internen KI (aus `useBridgeStatus`) — kein hartkodiertes „Nicht verbunden" mehr —
  * und erlaubt das Verbinden direkt von der Startseite (frueher nur via Einstellungen).
  *
@@ -32,7 +32,7 @@ export function AiAssistentWidget({ instanz, onToggleEingeklappt }: WidgetProps)
 
   return (
     <WidgetShell
-      titel="AI-Assistent"
+      titel="KI-Assistent"
       variante="seite"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}

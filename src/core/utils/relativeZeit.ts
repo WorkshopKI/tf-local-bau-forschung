@@ -88,6 +88,20 @@ export function relativeZeitKurz(ts: string, now: number = Date.now()): string {
 }
 
 /**
+ * Alter in TAGEN, ausgeschrieben — für Stellen, die bewusst die exakte Tagezahl
+ * zeigen (Eingangsalter treibt dort die Ampel, „vor 12 Monaten" verlöre die
+ * Genauigkeit). Ersetzt vier Kopien von `` `vor ${n} T` ``: das abgekürzte „T"
+ * stand direkt neben ausgeschriebenen „≤ 30 Tage"/„> 90 Tage" (v2.372.1).
+ *
+ * Negative Werte (Datum in der Zukunft) → `null`, damit die Aufrufer nichts
+ * anzeigen statt „vor -3 Tagen".
+ */
+export function alterInTagen(tage: number | null | undefined): string | null {
+  if (typeof tage !== 'number' || !Number.isFinite(tage) || tage < 0) return null;
+  return tage === 1 ? 'vor 1 Tag' : `vor ${tage} Tagen`;
+}
+
+/**
  * Listen-Register: gerundet und ohne „vor", weil die Spalte schmal ist.
  * Ungültiger Zeitstempel → der Rohwert (er ist dort die einzige Spur).
  */

@@ -8,6 +8,7 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { alterInTagen } from '@/core/utils/relativeZeit';
 import type { AntragVorgang } from './useDashboardData';
 import { MeineAntraegeBalken } from './MeineAntraegeBalken';
 import { WidgetShell } from './widgets/WidgetShell';
@@ -210,10 +211,9 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
         const displayLabel = split.acronym ?? (v.acronym?.trim() || null) ?? split.rest;
 
         // Ampel-Punkt + Eingangsalter aus demselben Datum (antragsdatum) — der
-        // Punkt spiegelt die Eingangs-Ampel, „vor N T" das Eingangsalter.
+        // Punkt spiegelt die Eingangs-Ampel, „vor N Tagen" das Eingangsalter.
         const ampel = getEingangAmpel(v);
-        const ageDays = daysSinceEingang(v);
-        const ageLabel = ageDays !== null && ageDays >= 0 ? `vor ${ageDays} T` : null;
+        const ageLabel = alterInTagen(daysSinceEingang(v));
 
         // Handlungs-Formel „Phase → Aktion" statt Status-Badge (inkl. PreCheck-Stand).
         // `?? ''` = PreCheck-Kontext bewusst opt-in (leer ⇒ „PreCheck nicht vorhanden").

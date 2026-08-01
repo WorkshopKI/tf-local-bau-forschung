@@ -28,6 +28,9 @@
 ### Verbesserungen
 - **Sie erfahren vor dem Lauf, wenn der Antrag nicht ins Kontextfenster passt.** Bisher stand erst am fertigen Abschnitt „auf gekürzter Basis entstanden". Jetzt steht die Warnung über der Karte, nennt die fehlenden Zeichen und schlägt vor, auf die andere KI zu wechseln — deren Fenster ist rund viermal so groß.
 - Der Skill-Editor weist jetzt darauf hin, wenn sich Umfangs-Vorgaben gegenseitig ausschließen (etwa Satzzahl mal Satzlänge gegen das Zeichenlimit) oder wenn eine Zahl doppelt gepflegt ist.
+- **Die Startseite nennt das Alter beim Namen.** Statt „493 über der 90-Tage-Frist" und „292 nähern sich" steht dort jetzt „493 älter als 90 Tage" und „292 zwischen 31 und 90 Tagen" — gemeint war nie ein versäumter Termin, sondern wie lange ein Antrag schon im Haus ist. Haben Sie die Tage-Grenzen im Widget „Antragseingang" verstellt, nennt der Text jetzt Ihre Werte statt fest 90.
+- Das Startseiten-Widget heißt **„KI-Assistent"** statt „AI-Assistent" — direkt darunter stand schon immer „KI-Variante".
+- Altersangaben sind ausgeschrieben: „vor 373 Tagen" statt „vor 373 T".
 
 ### Bugfixes
 - **Die Kurzfassung hielt sich schlechter an die Vorgaben, als sie musste.** Der Auftrag an die KI enthielt eine unsichtbare Formatvorgabe, die der Reihenfolge im Prompt-Text widersprach und deren Ergebnis anschließend ohnehin verworfen wurde. Sie ist entfernt. Außerdem sagt der Auftrag jetzt, welche Vorgabe gilt, wenn Zeichenlimit und Satzzahl nicht gleichzeitig erfüllbar sind.

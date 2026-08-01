@@ -84,11 +84,10 @@ export function HomePage(): React.ReactElement {
   }, [ladeWidgetConfig, storage.idb]);
   const schwellen = ampelSchwellenAusConfig(homeWidgetConfig);
   const ampelCounts = useEingangAmpelCounts(schwellen);
-  const subtitleParts = formatHomeSubtitle({
-    offen: ampelCounts.total,
-    kritisch: ampelCounts.kritisch,
-    warnung: ampelCounts.warnung,
-  });
+  const subtitleParts = formatHomeSubtitle(
+    { offen: ampelCounts.total, kritisch: ampelCounts.kritisch, warnung: ampelCounts.warnung },
+    schwellen,
+  );
 
   // Hero-Alert-Chips öffnen dieselbe gefilterte Liste wie das Antragseingang-
   // Widget (setActiveView setzt zurück → danach Quickfilter setzen).
@@ -234,7 +233,7 @@ export function HomePage(): React.ReactElement {
           <div className="min-w-0 space-y-[18px]">
             {/* Hero-Band (fixes Element, kein Widget) — Arbeitseinstieg oben in
                 der Hauptspalte, Rail top-aligned daneben (Handoff-Layout). */}
-            <HomeHero counts={ampelCounts} onOpenBucket={openBucket} onOpenQs={openQs} />
+            <HomeHero counts={ampelCounts} schwellen={schwellen} onOpenBucket={openBucket} onOpenQs={openQs} />
             <div data-tour="document-list">
               <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-[18px]" />
             </div>

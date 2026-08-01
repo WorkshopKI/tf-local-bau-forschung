@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.372.1 — Wortwahl Startseite: Eingangsalter statt Frist, KI statt AI (August 2026)
+
+PATCH — Stufe 2 des Startseiten-Reviews (v2.371.1). Der 90-Tage-Wert ist ein **Alter**, keine Frist — „über der 90-Tage-Frist" las sich als versäumter Termin, „nähern sich" hatte kein Objekt. Stellen, die eine echte Frist meinen (`frist_datum`, Meilensteine), behalten das Wort.
+
+- Kopfzeile + Hero-Kacheln sprechen jetzt Alter („älter als 90 Tage" / „zwischen 31 und 90 Tagen") und leiten die Grenzen aus der Widget-Config ab — bis hierher stand „90" im Text, während nach der Config gezählt wurde ([homeSubtitle.ts](src/plugins/home/homeSubtitle.ts), [HomeHero.tsx](src/plugins/home/HomeHero.tsx)).
+- „AI-Assistent" war die einzige englische Schreibweise der Oberfläche — direkt über dem „KI-Variante"-Umschalter derselben Karte; jetzt „KI-Assistent" ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts), [AiAssistantCard.tsx](src/plugins/home/AiAssistantCard.tsx)).
+- Vier Kopien von „vor N T" (neben ausgeschriebenen „≤ 30 Tage") laufen über den geteilten `alterInTagen` ([relativeZeit.ts](src/core/utils/relativeZeit.ts)).
+
 ### v2.372.0 — Prompt sichtbar, Prompt-Defekte behoben, Kontext-Warnung, Zweitfassung mit der anderen KI (August 2026)
 
 MINOR — Die KI-Kurzfassung eines 60-seitigen Antrags war unbrauchbar, und niemand konnte nachsehen, warum: der Skill-Editor zeigt die Vorlage, nicht den Lauf. Dazwischen lagen neun angehängte Blöcke, eine am Kontextfenster gekappte Vorhabensbeschreibung und drei Widersprüche. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

@@ -27,6 +27,7 @@ import {
   STATUS_LABELS,
 } from '@/components/feedback/constants';
 import { feedbackAuthorLabel, feedbackTitle } from '@/components/feedback/feedbackUi';
+import { alterInTagen } from '@/core/utils/relativeZeit';
 
 export type FeedbackNewsArt = 'antwort' | 'status' | 'neu-team' | 'stimmen';
 
@@ -205,7 +206,7 @@ export function berechneFeedbackNews(
         badgeLabel: typLabel(t.category),
         badgeColor: t.category ? CATEGORY_TEXT_VAR[t.category] : 'var(--tf-text-tertiary)',
         text: `Neu von ${feedbackAuthorLabel(t) ?? 'Team'}: „${titel}"`,
-        meta: [tage !== null ? `vor ${tage} T` : null, stimmen > 0 ? `${stimmen} Stimmen` : null]
+        meta: [alterInTagen(tage), stimmen > 0 ? `${stimmen} Stimmen` : null]
           .filter(Boolean).join(' · '),
         sortKey: t.created_at,
       });

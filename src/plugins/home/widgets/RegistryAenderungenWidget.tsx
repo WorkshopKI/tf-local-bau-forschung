@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Pencil, Plus, Power, PowerOff, type LucideIcon } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
+import { alterInTagen } from '@/core/utils/relativeZeit';
 import { readCachedSkillRegistry } from '@/core/services/skills';
 import type { SkillRegistryFile } from '@/core/services/skills';
 import { baueRegistryAenderungen, type AenderungsArt, type RegistryAenderung } from './registryAenderungen';
@@ -127,7 +128,7 @@ function AenderungZeile({ aenderung, onOpen, last }: { aenderung: RegistryAender
         </span>
       </div>
       <p className="mt-0.5 ml-[21px] text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
-        {tage !== null ? `vor ${tage} T` : ''}{suffix}
+        {alterInTagen(tage) ?? ''}{suffix}
       </p>
     </button>
   );
