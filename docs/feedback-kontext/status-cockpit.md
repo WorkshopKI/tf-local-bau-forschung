@@ -14,10 +14,15 @@ werden nie stillschweigend aufgelöst.
 ## Bereiche
 
 - **Katalog**: alle Statuswerte mit Inline-Bearbeitung (Label, Kategorie,
-  Spine-Phase, Rang, Prominenz, terminal, aktiv), **Vorkommen**, **zuletzt
-  gesehen**, Feldname und **CSV-Spalte** als Herkunft. Leeres Label heißt:
-  Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
+  Spine-Phase, Rang, Prominenz, **Zieltage**, terminal, aktiv), **Vorkommen**,
+  **zuletzt gesehen**, Feldname und **CSV-Spalte** als Herkunft. Leeres Label
+  heißt: Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
   „Übernehmen" geholt, nie automatisch.
+  - **Zieltage** speisen den Stillstands-Wächter: nach wie vielen Tagen ohne
+    Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt „nicht
+    bewertbar", nicht „unauffällig". Neben dem Feld steht ein ⌀-Vorschlag aus
+    der Ist-Verteilung (Median, Stichprobengröße im Tooltip); er wird pro Zeile
+    einzeln übernommen, nie im Block — er beschreibt das Ist, nicht das Soll.
 - **Kürzel**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
   Teilvorhaben getrennt.
   - Editierbar je Eintrag: Bezeichnung, Ordner, **wird gesetzt von**

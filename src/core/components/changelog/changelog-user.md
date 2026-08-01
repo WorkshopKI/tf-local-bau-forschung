@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.378 — 2026-08
+
+### Neu
+- **Stillstands-Wächter**: Er misst, wie lange an einem Vorgang nichts mehr passiert ist, und vergleicht das mit den **Zieltagen** des jeweiligen Status. Wo ein Kürzel-Paar halb offen ist (etwa Gutachten fachlich fertig, kaufmännisch offen), sagt er auch, auf wessen Schreibtisch es liegt.
+- Neues Home-Widget **„Hängt fest"** (unter Einstellungen → Darstellung & Bedienung einschaltbar): Ihre Vorgänge nach Liegezeit, der längste zuerst.
+- Im Katalog gibt es je Status eine Spalte **Zieltage**. Daneben steht ein Vorschlag aus der tatsächlichen Verteilung (⌀-Knopf, mit Stichprobengröße im Tooltip) — übernommen wird er einzeln, nie im Block.
+- Das Vorgangs-Board hat einen Filter **„hängt fest"** und zeigt im Kopf den Stau je Rolle.
+
+### Verbesserungen
+- Ohne gepflegte Zieltage sagt der Wächter **„nicht bewertbar"** statt „in Ordnung" — und zählt diese Fälle sichtbar mit. Eine Ampel ohne Grundlage wäre schlimmer als keine.
+
 ## v2.377 — 2026-08
 
 ### Neu

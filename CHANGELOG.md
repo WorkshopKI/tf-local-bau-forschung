@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.378.0 — Stillstands-Wächter mit Zieltagen und Rollen-Stau (August 2026)
+
+MINOR — Ein vergessenes Kürzel fällt heute niemandem auf: der Vorgang steht einfach still. Der Wächter misst die Zeit seit der letzten Vorgangs-Aktivität gegen Zieltage je Status und benennt, wo möglich, auf wessen Schreibtisch es liegt.
+
+- Wächter mit zwei Stufen: generische Liegezeit und, wo ein Kürzel-Paar halb offen ist, die hängende Rolle ([waechter.ts](src/core/status/waechter.ts)).
+- „unbewertet" ist ein eigenes Urteil, nie „ok": ohne gepflegte Zieltage fehlt die Grundlage, und das steht dann auch da ([waechter.ts](src/core/status/waechter.ts)).
+- Zieltage-Spalte im Katalog-Tab, je Zeile mit Vorschlag aus der Ist-Verteilung samt Stichprobengröße ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)).
+- Home-Widget „Hängt fest" (Opt-in): eigene Vorgänge nach Liegezeit, mit Grund und Rolle ([HaengtFestWidget.tsx](src/plugins/home/widgets/HaengtFestWidget.tsx)).
+- Board: Filter „hängt fest" plus Stau je Rolle im Kopf — die unbewerteten stehen daneben, nie darin ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)).
+
 ### v2.377.0 — To-do-Engine mit AB-Regelsatz und Vorgangs-Board (August 2026)
 
 MINOR — Die AB-Kolleginnen rechnen ihr „was steht an?" heute als verschachtelte WENN-Formel in einer privaten XLSX-Mappe. Dieselbe Kaskade läuft jetzt als versionierte Team-Regelmenge, und ein Board zeigt das Ergebnis — mit der Regel und den gelesenen Feldwerten daneben, damit ein To-do nachvollziehbar bleibt statt behauptet.

@@ -16,6 +16,7 @@ import {
   listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
 import type { CsvSchema } from '@/core/services/csv/types';
+import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { baueSpaltenKatalog, type SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
@@ -32,6 +33,7 @@ import {
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
+  findeStatusCode, medianLiegezeit,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
   STATUS_CODE_KATALOG, SEED_ZAH_PHASEN,
   type TriggerStand, type VorgangssystemLuecke,
@@ -116,6 +118,12 @@ export interface StatusCockpitApi {
   todoRegelnNachziehen: () => void;
   /** Spalten-Vorrat für den Bedingungs-Editor (aus den CSV-Schemas). */
   spalten: SpaltenEintrag[];
+  /**
+   * Status-Code → Median-Liegezeit im Bestand (Vorschlag für die Zieltage).
+   * Näherung: gemessen wird die Zeit seit der jüngsten Aktivität, nicht die
+   * echte Verweildauer im Status — die kennt der Export nicht.
+   */
+  liegezeitVorschlag: Map<number, { median: number; n: number }>;
   /** Wie viele Kürzel des AB-Dashboards noch kein Relevanz-Häkchen tragen. */
   relevanzLuecke: number;
   /** Die AB-Dashboard-Spalten als relevant markieren (setzt nur, nimmt nie weg). */
@@ -466,6 +474,33 @@ export function useStatusCockpit(): StatusCockpitApi {
    */
   const spalten = useMemo(() => baueSpaltenKatalog(bestand?.schemas ?? []), [bestand]);
 
+  /**
+   * Der Zieltage-Vorschlag aus dem Ist. Gerechnet über den ohnehin geladenen
+   * Bestand — die Liegezeit je Verbund kommt aus dem Wächter, damit die Zahl
+   * unter dem Vorschlag mit der Zahl im Urteil zusammenpasst.
+   */
+  const liegezeitVorschlag = useMemo(() => {
+    if (!entwurf || !bestand) return new Map<number, { median: number; n: number }>();
+    const proben = bestand.verbundFelder.map(vf => {
+      const roh = vf.felder.verbund_status ?? '';
+      const code = findeStatusCode(roh)?.eintrag.code ?? null;
+      let juengste: string | null = null;
+      for (const rec of [vf.felder, ...Object.values(vf.tvFelder)]) {
+        for (const [feldId, wert] of Object.entries(rec)) {
+          const eintrag = entwurf.felder.find(f => f.feldId === feldId);
+          if (eintrag?.typ !== 'datum') continue;
+          const iso = parseGermanDate(wert);
+          if (iso && (juengste === null || iso > juengste)) juengste = iso;
+        }
+      }
+      const tage = juengste
+        ? Math.floor((new Date(heuteRef.current).getTime() - new Date(juengste).getTime()) / 86_400_000)
+        : null;
+      return { statusCode: code, tage };
+    });
+    return medianLiegezeit(proben);
+  }, [entwurf, bestand]);
+
   const relLuecke = useMemo(
     () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
     [entwurf],
@@ -503,7 +538,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
-    relevanzLuecke: relLuecke, relevanzAusAbDashboard,
+    relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, spalten,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };

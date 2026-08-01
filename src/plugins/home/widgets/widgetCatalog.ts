@@ -20,6 +20,7 @@ import {
   Milestone,
   Play,
   StickyNote,
+  TimerOff,
 } from 'lucide-react';
 import {
   isAuslastungEnabled,
@@ -28,6 +29,7 @@ import {
   isKuratorMenusEnabled,
   isMeilensteinMonitoringEnabled,
   isStatusCockpitEnabled,
+  isVorgangssystemEnabled,
 } from '@/config/feature-flags';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
@@ -198,6 +200,17 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // An den Meilenstein-Plan gebunden; ohne Flag gibt es keine Soll-Termine,
     // also auch nichts zu warnen.
     sichtbarWenn: () => isMeilensteinMonitoringEnabled(),
+    defaultConfig: KEINE,
+  },
+  'haengt-fest': {
+    typ: 'haengt-fest',
+    label: 'Hängt fest',
+    icon: TimerOff,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // An den Stillstands-Wächter gebunden: ohne Zieltage im Katalog gäbe es
+    // nichts zu beurteilen, und ohne Flag keine Zieltage.
+    sichtbarWenn: () => isVorgangssystemEnabled(),
     defaultConfig: KEINE,
   },
 };

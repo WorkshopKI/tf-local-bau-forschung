@@ -23,8 +23,8 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import {
   ladeAktiveVersion, getAktiveVersion, baueFeldAufloesung, sammleVorkommen,
   baueTodoKontext, ermittleTodo, todoWerte, findeStatusCode, leseStatusRolle,
-  SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel,
-  type MappingVersion, type Rolle, type TodoBeleg, type ZahPhaseId,
+  pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel,
+  type MappingVersion, type Rolle, type TodoBeleg, type WaechterErgebnis, type ZahPhaseId,
 } from '@/core/status';
 import {
   parseBearbeiterFilter, antragMatchesBearbeiter, type BearbeiterFilterMode,
@@ -48,6 +48,8 @@ export interface BoardZeile {
   zustaendig: readonly Rolle[];
   wartetAuf: Rolle | 'ast' | null;
   belege: TodoBeleg[];
+  /** Urteil des Stillstands-Wächters (Stufe 1 + 2). */
+  waechter: WaechterErgebnis;
   /** Rohsatz für den Kürzel-Filter (nur die Spalten, die er liest). */
   filterRecord: AntragListItem;
 }
@@ -79,6 +81,12 @@ export interface VorgangsBoardApi {
   setVariante: (v: string) => void;
   phase: string;
   setPhase: (v: string) => void;
+  /** Nur Vorgänge zeigen, die der Wächter als hängend beurteilt. */
+  nurHaengt: boolean;
+  setNurHaengt: (v: boolean) => void;
+  /** Stau je Rolle über die gefilterte Menge — plus die unbewerteten. */
+  stau: { rolle: Rolle | 'ast' | 'offen'; anzahl: number }[];
+  unbewertet: number;
   /** Auswahllisten, aus dem Bestand erzeugt. */
   jahre: string[];
   /** Sind gerade ALLE Jahrgänge gewählt? Dann gehört ein Hinweis daneben. */
@@ -137,6 +145,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   const [jahr, setJahr] = useState(LETZTE_3);
   const [variante, setVariante] = useState(ALLE);
   const [phase, setPhase] = useState(ALLE);
+  const [nurHaengt, setNurHaengt] = useState(false);
 
   const laden_ = useCallback(async (): Promise<void> => {
     setLaden(true);
@@ -171,6 +180,9 @@ export function useVorgangsBoard(): VorgangsBoardApi {
           const e = ermittleTodo(regeln, baueTodoKontext(vorkommen), heuteRef.current);
           const statusRoh = typeof a.status === 'string' ? a.status : '';
           const code = findeStatusCode(statusRoh)?.eintrag.code ?? null;
+          const waechter = pruefeStillstand({
+            version: v, vorkommen, statusCode: code, todo: e, stichtag: heuteRef.current,
+          });
           const zahPhase = code !== null
             ? v.werte.find(w => w.code === code)?.zahPhaseId
               ?? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null
@@ -190,6 +202,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
             zustaendig: e.zustaendig,
             wartetAuf: e.wartetAuf,
             belege: e.belege,
+            waechter,
             filterRecord: a as unknown as AntragListItem,
           });
         }
@@ -229,8 +242,9 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     } else if (jahr !== ALLE && z.jahr !== jahr) return false;
     if (variante !== ALLE && z.variante !== variante) return false;
     if (phase !== ALLE && (z.zahPhase ?? '') !== phase) return false;
+    if (nurHaengt && z.waechter.urteil !== 'haengt') return false;
     return antragMatchesBearbeiter(z.filterRecord, kuerzelModus);
-  }), [alle, jahr, grenzJahr, variante, phase, kuerzelModus]);
+  }), [alle, jahr, grenzJahr, variante, phase, nurHaengt, kuerzelModus]);
 
   /**
    * Die drei Sichten desselben Regelsatzes (Konzept 6.5): was ICH tue, worauf
@@ -269,6 +283,27 @@ export function useVorgangsBoard(): VorgangsBoardApi {
       .map(t => ({ todo: t, zeilen: proTodo.get(t)! }));
   }, [zeilen, tab, tabVon, version]);
 
+  /**
+   * Stau je Rolle: wie viele hängende Vorgänge auf wessen Schreibtisch liegen.
+   * `offen` = hängt, aber ohne ableitbare Rolle — das ist eine eigene Aussage
+   * und wird nicht unter eine Rolle geschoben.
+   */
+  const { stau, unbewertet } = useMemo(() => {
+    const proRolle = new Map<Rolle | 'ast' | 'offen', number>();
+    let ohneZiel = 0;
+    for (const z of zeilen) {
+      if (z.waechter.urteil === 'unbewertet') { ohneZiel += 1; continue; }
+      if (z.waechter.urteil !== 'haengt') continue;
+      const k = z.waechter.rolle ?? 'offen';
+      proRolle.set(k, (proRolle.get(k) ?? 0) + 1);
+    }
+    return {
+      stau: [...proRolle].map(([rolle, anzahl]) => ({ rolle, anzahl }))
+        .sort((a, b) => b.anzahl - a.anzahl),
+      unbewertet: ohneZiel,
+    };
+  }, [zeilen]);
+
   const jahre = useMemo(
     () => [...new Set(alle.map(z => z.jahr).filter(Boolean))].sort().reverse(),
     [alle],
@@ -289,5 +324,6 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     tab, setTab, rolle, setRolle, nurMeine, setNurMeine,
     jahr, setJahr, variante, setVariante, phase, setPhase,
     jahre, alleJahrgaenge: jahr === ALLE, varianten, phasen, kuerzelModus,
+    nurHaengt, setNurHaengt, stau, unbewertet,
   };
 }

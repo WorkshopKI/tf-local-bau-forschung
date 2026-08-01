@@ -53,6 +53,17 @@ function Zeile({ z, onOeffnen }: {
           {z.titel || '(ohne Titel)'}
         </span>
         <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">{z.statusRoh}</span>
+        {/* Nur „hängt" bekommt eine Marke. „unbewertet" schweigt hier bewusst:
+            es steht im Kopf als Zahl, aber an der Zeile wäre es ein Alarm ohne
+            Aussage. */}
+        {z.waechter.urteil === 'haengt' && (
+          <span
+            className="shrink-0 text-[11px] text-[var(--tf-warning-text)] whitespace-nowrap"
+            title={z.waechter.grund}
+          >
+            hängt {z.waechter.tage} T
+          </span>
+        )}
         {z.zustaendig.length > 0 && (
           <span className="shrink-0 text-[11px] text-[var(--tf-text-secondary)]">
             {z.zustaendig.map(r => ROLLE_LABEL[r]).join('/')}
@@ -72,6 +83,9 @@ function Zeile({ z, onOeffnen }: {
       {offen && (
         <div className="px-2 pb-2 flex flex-col gap-0.5" style={{ background: 'var(--tf-bg-secondary)' }}>
           <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{z.beschreibung}</span>
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            Wächter: {z.waechter.grund}
+          </span>
           <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
             {z.belege.map(b => (
               <li key={b.feldId} className="text-[11px] text-[var(--tf-text-tertiary)]">
@@ -160,6 +174,12 @@ export function VorgangsBoardPage(): React.ReactElement {
             selected={api.nurMeine}
             onToggle={() => api.setNurMeine(!api.nurMeine)}
           />
+          <ToggleChip
+            label="hängt fest"
+            title="Keine Vorgangs-Aktivität länger als die Zieltage des Status"
+            selected={api.nurHaengt}
+            onToggle={() => api.setNurHaengt(!api.nurHaengt)}
+          />
           <span className="w-2" />
           <select value={api.jahr} className={feldKlasse} style={feldStil}
             aria-label="Jahr" onChange={e => api.setJahr(e.target.value)}>
@@ -196,6 +216,29 @@ export function VorgangsBoardPage(): React.ReactElement {
             </span>
           </div>
         )}
+        {/* Der Stau je Rolle — die PL-Frage „wo klemmt es?". `unbewertet` steht
+            DANEBEN und wird nie unter eine Rolle gezählt: es sind Vorgänge, für
+            deren Status niemand Zieltage gepflegt hat. */}
+        {!api.laden && (api.stau.length > 0 || api.unbewertet > 0) && (
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">
+            {api.stau.length > 0 && (
+              <>
+                Hängt fest:{' '}
+                {api.stau.map(s => `${s.anzahl} bei ${
+                  s.rolle === 'offen' ? 'niemandem zugeordnet'
+                    : s.rolle === 'ast' ? 'Antragsteller' : ROLLE_LABEL[s.rolle]
+                }`).join(' · ')}
+              </>
+            )}
+            {api.unbewertet > 0 && (
+              <span className="text-[var(--tf-text-tertiary)]">
+                {api.stau.length > 0 ? ' · ' : ''}
+                {api.unbewertet} nicht bewertbar (keine Zieltage für den Status)
+              </span>
+            )}
+          </p>
+        )}
+
         {/* Der Altbestand ist kein Rückstand: viele Spalten wurden früher nicht
             geführt, und eine Regel, die auf „leer" prüft, trifft dort
             massenhaft. Gemessen: 6 607 „ZuwB erstellen" über alle Jahrgänge,

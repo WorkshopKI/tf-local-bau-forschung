@@ -20,6 +20,7 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
   - **Registry-Änderungen:** nur Kurator.
   - **Neue Anträge für dich:** Selbsteintragung; nur wo Auslastung aktiv.
   - **Weitermachen:** Opt-in — das Hero-Band ersetzt es im Default.
+  - **Hängt fest:** Opt-in — eigene Vorgänge, an denen seit länger als den Zieltagen ihres Status nichts passiert ist, der längste zuerst; wo ein Kürzel-Paar halb offen ist, steht die hängende Rolle daneben. Vorgänge ohne gepflegte Zieltage zählt es als „nicht bewertbar" mit, statt sie als unauffällig zu führen.
 - **Programm-Übersichtskarten** unterhalb der Widgets.
 
 ## Typische Aktionen

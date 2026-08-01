@@ -100,6 +100,10 @@ export {
 } from './todo-engine';
 export { AB_TODO_REGELN, baueTodoRegelSeed, feld as todoFeld } from './todo-regeln.seed';
 export {
+  pruefeStillstand, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
+  type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil, type OffenesPaar,
+} from './waechter';
+export {
   navigatorKandidaten, wirkungSaetze,
   type NavigatorEingabe, type NavigatorErgebnis, type NavigatorKandidat,
   type TriggerWirkung, type BedingungsUrteil,

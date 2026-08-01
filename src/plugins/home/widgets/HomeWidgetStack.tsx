@@ -17,6 +17,7 @@ import { QsFreigabenWidget } from './QsFreigabenWidget';
 import { RegistryAenderungenWidget } from './RegistryAenderungenWidget';
 import { StatusVerlaufWidget } from './StatusVerlaufWidget';
 import { MeilensteineWidget } from './MeilensteineWidget';
+import { HaengtFestWidget } from './HaengtFestWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
@@ -37,6 +38,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   'neue-antraege': NeueAntraegeWidget,
   'status-verlauf': StatusVerlaufWidget,
   meilensteine: MeilensteineWidget,
+  'haengt-fest': HaengtFestWidget,
 };
 
 interface Props {

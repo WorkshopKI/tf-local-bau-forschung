@@ -12,11 +12,12 @@ import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
+import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { feldLabel } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, SpinePhase, Prominenz, UnkuratierterFund } from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
-  SPINE_LABEL, SPINE_WERTE, feldKlasse, feldStil, formatDatum,
+  SPINE_LABEL, SPINE_WERTE, feldKlasse, feldKlasseSchmal, feldStil, formatDatum,
 } from './labels';
 
 function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
@@ -29,8 +30,12 @@ function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
 
-function WertZeile({ w, feldName, csvSpalte, api }: {
+function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
   w: StatusWertEintrag; feldName: string; csvSpalte: string; api: StatusCockpitApi;
+  /** Zieltage-Spalte nur im Vorgangssystem — sonst hätte sie keinen Konsumenten. */
+  zeigeZieltage: boolean;
+  /** Median-Liegezeit dieses Status aus dem Bestand, falls messbar. */
+  vorschlag: { median: number; n: number } | undefined;
 }): React.ReactElement {
   const key = wertId(w.feldId, w.wert);
   return (
@@ -88,6 +93,33 @@ function WertZeile({ w, feldName, csvSpalte, api }: {
           {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
         </select>
       </td>
+      {zeigeZieltage && (
+        <td className={`${tdKlasse} w-[132px]`}>
+          <div className="flex items-center gap-1">
+            <input
+              type="number" min={0} value={w.zieltage ?? ''} placeholder="—"
+              className={`${feldKlasseSchmal} w-[58px]`} style={feldStil}
+              title="Nach wie vielen Tagen ohne Aktivität gilt dieser Status als hängend? Leer = nicht bewertbar."
+              onChange={e => api.setWert(w.id, {
+                zieltage: e.target.value === '' ? null
+                  : (Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : null),
+              })}
+            />
+            {/* Der Vorschlag wird ZEILENWEISE übernommen, nie im Block: er ist
+                eine Näherung aus dem Ist, kein Sollwert. */}
+            {vorschlag !== undefined && w.zieltage !== vorschlag.median && (
+              <button
+                type="button"
+                onClick={() => api.setWert(w.id, { zieltage: vorschlag.median })}
+                title={`Median der Ist-Liegezeiten: ${vorschlag.median} Tage (n = ${vorschlag.n})`}
+                className="text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline whitespace-nowrap"
+              >
+                ⌀{vorschlag.median}
+              </button>
+            )}
+          </div>
+        </td>
+      )}
       <td className={`${tdKlasse} text-center`}>
         <input
           type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={w.terminal}
@@ -111,6 +143,7 @@ function WertZeile({ w, feldName, csvSpalte, api }: {
 }
 
 export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  const zeigeZieltage = isVorgangssystemEnabled();
   const [suche, setSuche] = useState('');
   const [katFilter, setKatFilter] = useState<ReadonlySet<StatusCategory>>(() => new Set());
   const [promFilter, setPromFilter] = useState<ReadonlySet<Prominenz>>(() => new Set());
@@ -197,6 +230,14 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               <th className={thKlasse}>Spine-Phase</th>
               <th className={thKlasse}>Rang</th>
               <th className={thKlasse}>Prominenz</th>
+              {zeigeZieltage && (
+                <th
+                  className={thKlasse}
+                  title="Nach wie vielen Tagen ohne Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt: nicht bewertbar — nicht: unauffällig."
+                >
+                  Zieltage
+                </th>
+              )}
               <th className={`${thKlasse} text-center`}>terminal</th>
               <th className={`${thKlasse} text-center`}>aktiv</th>
               <th className={`${thKlasse} text-right`}>Vorkommen</th>
@@ -208,6 +249,8 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               <WertZeile
                 key={w.id} w={w} api={api}
                 feldName={feldName(w.feldId)} csvSpalte={csvSpalte(w.feldId)}
+                zeigeZieltage={zeigeZieltage}
+                vorschlag={w.code !== undefined ? api.liegezeitVorschlag.get(w.code) : undefined}
               />
             ))}
           </tbody>

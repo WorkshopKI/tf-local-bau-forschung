@@ -38,9 +38,14 @@ Verfügung.
   samt der gelesenen Feldwerte auf. Ohne diese Herleitung wäre ein To-do eine
   Behauptung.
 - **Filter**: Rollen-Chips (Vorbelegung aus dem Profil, umschaltbar auf alle),
-  eigenes Kürzel an/aus, Jahr des Antragseingangs, Fördervariante, ZAH-Phase.
-  Der Kürzel-Filter folgt der Rolle: ein AB sucht sich in der BIB-Spalte, ein FB
-  in TIB.
+  eigenes Kürzel an/aus, **„hängt fest"**, Jahr des Antragseingangs,
+  Fördervariante, ZAH-Phase. Der Kürzel-Filter folgt der Rolle: ein AB sucht
+  sich in der BIB-Spalte, ein FB in TIB.
+- **Stillstands-Wächter**: eine Zeile, an der seit länger als den **Zieltagen**
+  ihres Status nichts passiert ist, trägt die Marke „hängt n T". Im Kopf steht
+  der **Stau je Rolle**; daneben — nicht darin — die Zahl der **nicht
+  bewertbaren** Vorgänge, für deren Status niemand Zieltage gepflegt hat.
+  Zieltage werden im Status-Katalog unter „Katalog" gepflegt.
 
 ## Wichtig
 

@@ -48,7 +48,8 @@ export type WidgetTyp =
   | 'registry-aenderungen'
   | 'neue-antraege'
   | 'status-verlauf'
-  | 'meilensteine';
+  | 'meilensteine'
+  | 'haengt-fest';
 
 export interface WidgetInstanz {
   /** Instanz-ID — mehrere Instanzen desselben Typs sind möglich (z.B. 2 Kanbans). */
