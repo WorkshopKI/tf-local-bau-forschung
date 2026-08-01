@@ -201,7 +201,12 @@ export async function generateInto(
     o.ziel,
   );
   const jetzt = new Date().toISOString();
-  const gestempelt = { ...result, next: applyLaufZiel(result.next, stepId, ziel, jetzt) };
+  // Der Stempel gilt nur, wo das Ziel überhaupt etwas bewirkt: ohne Bridge gibt es
+  // keine „Standard"- und keine agentische KI (siehe `applyLaufZiel`).
+  const gestempelt = {
+    ...result,
+    next: applyLaufZiel(result.next, stepId, zielWirktAuf(transport) ? ziel : null, jetzt),
+  };
   const roh = zielFallback
     ? { ...gestempelt, next: applyZielFallback(gestempelt.next, stepId, jetzt) }
     : gestempelt;
@@ -527,7 +532,7 @@ export async function laufLektorat(
   );
   if (!result) return null;
   const jetzt = new Date().toISOString();
-  const gestempelt = applyLaufZiel(result, stepId, ziel, jetzt);
+  const gestempelt = applyLaufZiel(result, stepId, zielWirktAuf(transport) ? ziel : null, jetzt);
   return zielFallback ? applyZielFallback(gestempelt, stepId, jetzt) : gestempelt;
 }
 

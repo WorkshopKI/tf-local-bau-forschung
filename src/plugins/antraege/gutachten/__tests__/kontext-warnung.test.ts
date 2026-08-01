@@ -41,3 +41,22 @@ describe('pruefeKontextPasst', () => {
     expect(b?.andereKiLabel).toBe('Standard-KI');
   });
 });
+
+/**
+ * Am lokalen llama.cpp beobachtet: die Warnung sprach vom „Fenster der Standard-KI",
+ * obwohl gar keine Bridge lief. Ohne zweites Fenster gibt es keine Tabs — dann darf
+ * der Text keinen benennen.
+ */
+describe('fensterLabel', () => {
+  it('nennt ohne Bridge-Ziel schlicht das Modell', () => {
+    const b = pruefeKontextPasst({ korpusZeichen: 238_724, cap: 233_472, ziel: 'standard' });
+    expect(b?.fensterLabel).toBe('des Modells');
+  });
+
+  it('nennt mit Bridge-Ziel den Tab — im Dativ', () => {
+    expect(pruefeKontextPasst({ korpusZeichen: 200_000, cap: 173_712, ziel: 'standard', capAndere: 773_712 })?.fensterLabel)
+      .toBe('der Standard-KI');
+    expect(pruefeKontextPasst({ korpusZeichen: 900_000, cap: 773_712, ziel: 'agentisch', capAndere: 173_712 })?.fensterLabel)
+      .toBe('der agentischen KI');
+  });
+});

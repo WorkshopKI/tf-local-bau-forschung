@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.372.3 — Kontext-Warnung und Fusszeile benennen nur eine KI, die es gibt (August 2026)
+
+PATCH — Beim Testlauf gegen einen fiktiven Antrag am lokalen llama.cpp benannten zwei Stellen eine KI, die es dort gar nicht gibt: die Kontext-Warnung sprach vom „Fenster der Standard-KI", und die Fußzeile schrieb „· Standard-KI" unter einen Text, der nie über die Bridge lief. Ohne Bridge existieren weder Standard- noch agentischer Tab.
+
+- Kontext-Warnung sagt jetzt „ins Fenster des Modells", wo kein Bridge-Ziel wirkt (`KontextBefund.fensterLabel`, [kontextWarnung.ts](src/plugins/antraege/gutachten/kontextWarnung.ts), [GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)).
+- `applyLaufZiel(..., null)` **entfernt** den KI-Stempel statt ihn zu überspringen — der Schritt wird fortgeschrieben, ein Rest aus einem früheren Bridge-Lauf überlebte sonst ([runner.ts](src/plugins/antraege/gutachten/runner.ts), [workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Gesichtet an einem echten Lauf: fiktive VB (77.023 Zeichen) auf einem Verbund der local-Kopie, Abschnitt A dreimal über das lokale Qwen — Vorschau und „Zuletzt gesendet" byte-identisch, 6 von 6 Regeln erfüllt ([gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)).
+
 ### v2.372.2 — Startseite: Zahlen eindeutig, Layout entdichtet, Abnahme-Regel (August 2026)
 
 PATCH — Stufe 3+4 des Startseiten-Reviews. „Offen" ist jetzt festgelegt: **909 = offene Vorgänge mit gültigem Eingangsdatum** (die Antragsliste zeigt unter „Offen" dieselbe Zahl). Konkurrierende Zahlen und dreifache Wiederholungen sind aufgelöst, die Seite füllt wieder ihren Platz.

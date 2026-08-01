@@ -40,6 +40,7 @@
 
 ### Bugfixes
 - **Die Kurzfassung hielt sich schlechter an die Vorgaben, als sie musste.** Der Auftrag an die KI enthielt eine unsichtbare Formatvorgabe, die der Reihenfolge im Prompt-Text widersprach und deren Ergebnis anschließend ohnehin verworfen wurde. Sie ist entfernt. Außerdem sagt der Auftrag jetzt, welche Vorgabe gilt, wenn Zeichenlimit und Satzzahl nicht gleichzeitig erfüllbar sind.
+- **Es wird keine KI mehr genannt, die gar nicht im Spiel war.** Arbeiten Sie mit einer direkt angebundenen KI statt über die Browser-Verbindung, gibt es weder eine „Standard-" noch eine „agentische" KI. Die Kontext-Warnung spricht dort jetzt vom „Fenster des Modells", und unter dem Abschnitt steht keine falsche Herkunft mehr.
 
 ## v2.371 — 2026-08
 

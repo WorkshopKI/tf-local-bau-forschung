@@ -10,6 +10,7 @@ import {
   applyZuruecksetzen,
   applyPruefen,
   applyQsHinweise,
+  applyLaufZiel,
   freigeben,
   erneutOeffnen,
   weiterschalten,
@@ -380,6 +381,31 @@ describe('Reihenfolge als Datenparameter (Seed-Def == STEP_ORDER, aber Order ste
     const r2 = applyGeneration(emptyRun('AZ', NOW), 'B', gen('Entwurf B'), NOW);
     expect(fruehereInArbeit(r2, 'A', ['B', 'A', 'C'])).toBe(true);
     expect(fruehereInArbeit(r2, 'A', ['A', 'B', 'C'])).toBe(false); // Default-Order: B liegt nach A
+  });
+});
+
+/**
+ * Am lokalen llama.cpp beobachtet: die Fußzeile schrieb „· Standard-KI" unter einen
+ * Text, der nie über die Bridge lief. Ursache war nicht der Stempel selbst, sondern
+ * der ALTE Stempel — der Schritt wird fortgeschrieben, nicht ersetzt.
+ */
+describe('applyLaufZiel', () => {
+  const mitZiel = applyLaufZiel(applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text'), NOW), 'A', 'agentisch', NOW);
+
+  it('hält fest, welche interne KI den Text erzeugt hat', () => {
+    expect(mitZiel.schritte.A?.ziel).toBe('agentisch');
+  });
+
+  it('entfernt den Stempel, wenn das Ziel auf diesem Transport nicht wirkt', () => {
+    const ohne = applyLaufZiel(mitZiel, 'A', null, LATER);
+    expect(ohne.schritte.A?.ziel).toBeUndefined();
+    expect('ziel' in (ohne.schritte.A ?? {})).toBe(false);
+    expect(ohne.schritte.A?.finalerText).toBe('Text'); // sonst unverändert
+  });
+
+  it('ist ein No-op ohne Schritt', () => {
+    const leer = emptyRun('AZ', NOW);
+    expect(applyLaufZiel(leer, 'A', null, LATER)).toBe(leer);
   });
 });
 

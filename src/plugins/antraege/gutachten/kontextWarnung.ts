@@ -34,11 +34,23 @@ export interface KontextBefund {
   andereKiReicht: boolean;
   /** Name der anderen KI für die Empfehlung. */
   andereKiLabel: string;
+  /**
+   * Wessen Fenster gemessen wurde, im Dativ („passt nicht ins Fenster …").
+   * Ohne Bridge gibt es weder Standard- noch agentische KI — dann benennt der
+   * Text schlicht das Modell, statt einen Tab zu behaupten, den es nicht gibt.
+   */
+  fensterLabel: string;
 }
 
 export const ZIEL_LABEL: Record<BridgeZiel, string> = {
   standard: 'Standard-KI',
   agentisch: 'agentische KI',
+};
+
+/** Dativ-Form derselben Namen — „ins Fenster DER AGENTISCHEN KI". */
+const ZIEL_FENSTER: Record<BridgeZiel, string> = {
+  standard: 'der Standard-KI',
+  agentisch: 'der agentischen KI',
 };
 
 /**
@@ -54,5 +66,8 @@ export function pruefeKontextPasst(e: KontextBefundEingabe): KontextBefund | nul
     fehlend: e.korpusZeichen - e.cap,
     andereKiReicht: e.capAndere !== undefined && e.korpusZeichen <= e.capAndere,
     andereKiLabel: ZIEL_LABEL[andere],
+    // `capAndere` fehlt genau dann, wenn das Ziel nicht wirkt (siehe dort) —
+    // dieselbe Bedingung entscheidet, ob ein Tab-Name überhaupt zutrifft.
+    fensterLabel: e.capAndere === undefined ? 'des Modells' : ZIEL_FENSTER[e.ziel],
   };
 }

@@ -469,7 +469,7 @@ export function GutachtenSection({
               <AlertTriangle size={15} className="shrink-0 mt-[1px] text-[var(--tf-warning-text)]" />
               <div className="text-[12.5px] leading-[1.5] text-[var(--tf-text)]">
                 <b className="font-medium">
-                  Der Gutachten-Kontext passt nicht ins Fenster der {ZIEL_LABEL[kiZiel]}
+                  Der Gutachten-Kontext passt nicht ins Fenster {kontextBefund.fensterLabel}
                 </b>{' '}
                 — {kontextBefund.zeichen.toLocaleString('de-DE')} Zeichen gegen{' '}
                 {kontextBefund.cap.toLocaleString('de-DE')}. Die letzten{' '}

@@ -169,6 +169,7 @@ Dass die Vorhabensbeschreibung nicht ins Fenster passt, stand bisher erst am fer
 
 - Reine [`pruefeKontextPasst`](../../src/plugins/antraege/gutachten/kontextWarnung.ts) misst den KORPUS (VB + aufgenommene Zusatzdokumente) gegen den Cap des aktuell gewählten Ziels und sagt zusätzlich, ob das Fenster der **anderen** internen KI reichen würde. `null`, wenn alles passt — der Normalfall erzeugt keine Zeile.
 - Gerendert in [GutachtenSection](../../src/plugins/antraege/gutachten/GutachtenSection.tsx) über der Karte, reaktiv auf den KI-Umschalter (`useKontextZiel`). **Blockiert nie.**
+- **Benennt nur ein Fenster, das es gibt** (`KontextBefund.fensterLabel`): ohne Bridge kennt der Lauf weder Standard- noch agentische KI, dann heißt es „ins Fenster **des Modells**". Dieselbe Bedingung wie die Wechsel-Empfehlung (`capAndere === undefined`), damit es keine zweite Ableitung gibt.
 - **Relevanz-Map jetzt kuratierbar**: `kontextBedarf` (`voll` | `relevant`) steht als Auswahl je Schritt im [WorkflowEditor](../../src/plugins/skill-verwaltung-kuration/WorkflowEditor.tsx). Der Seed-Default bleibt `'voll'` — das Umschalten ist eine Kurator-Entscheidung nach Messung, kein stiller Verhaltenswechsel für alle Installationen. Erst dadurch wird auch das vorhandene „Vollständigen Kontext erzwingen" sinnvoll.
 
 ## Zweitfassung mit der anderen KI (v2.372)
@@ -179,6 +180,7 @@ Denselben Abschnitt ein zweites Mal erzeugen, mit der jeweils **anderen** intern
 - **Der angehängte Feinschliff folgt demselben Ziel** (`laufLektorat(..., zielOverride)`), sonst trüge die Zweitfassung den Schliff der ersten KI.
 - **Sichtbar nur, wo `ziel` wirkt**: der Menü-Eintrag erscheint bei aktiver Bridge; auf DirectLLM/OpenRouter wäre der zweite Lauf byte-identisch (`zielWirktAuf`). Beschriftet mit der *anderen* KI.
 - **Herkunft am Verlauf**: additives `KurzfassungVersion.ziel` (aus `StepRun.ziel`, von `snapshotOf` mitgeführt) → KI im Tab-Label und in beiden Meta-Zeilen. Ohne das trügen zwei Fassungen desselben Zyklus dieselbe Beschriftung.
+- **Der Stempel wird ENTFERNT, wo das Ziel nicht wirkt** (`applyLaufZiel(..., null)`, [runner.ts](../../src/plugins/antraege/gutachten/runner.ts)): der Schritt wird fortgeschrieben, nicht ersetzt — ein Rest aus einem früheren Bridge-Lauf schriebe sonst „· Standard-KI" unter einen Text, der am lokalen llama.cpp entstanden ist (so am 01.08.2026 in der local-Variante beobachtet).
 - **Ehrlich über den Vergleich**: unterscheiden sich die beiden Fassungen in `vbGekuerzt`, steht das im Verlauf — die Fenster der internen KIs unterscheiden sich um etwa das Vierfache, man vergleicht dann „gekürzt gegen vollständig" und nicht zwei Modelle.
 - `MAX_VERLAUF` 5 → 8: seit dem automatischen Feinschliff schreibt ein Zyklus zwei Verlaufs-Einträge; bei 5 fiel das Fassungs-Paar als erstes hinten raus.
 - DSGVO unverändert: beide Ziele sind dieselbe **interne** Klasse, der Transport kommt weiter aus `getTransportForSkillRun` (Pitfall #30).

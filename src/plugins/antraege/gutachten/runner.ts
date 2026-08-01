@@ -325,12 +325,21 @@ export function applyZielFallback(run: WorkflowRun, stepId: StepId, now: string)
  * Wie `applyZielFallback` NACH der Mutation gesetzt (das effektive Ziel steht erst
  * nach dem Lauf fest) und für Generierung wie Feinschliff gleichermaßen — beide
  * erzeugen den angezeigten Text. No-op, wenn der Schritt leer ist.
+ *
+ * `null` = das Ziel wirkt auf diesem Transport gar nicht (DirectLLM/lokales
+ * llama.cpp kennt keine Tabs). Dann wird der Stempel **entfernt**, nicht bloß
+ * übersprungen: ein Rest aus einem früheren Bridge-Lauf überlebt sonst im Record
+ * und schreibt „Standard-KI" unter einen Text, der nie dort entstanden ist.
  */
 export function applyLaufZiel(
-  run: WorkflowRun, stepId: StepId, ziel: BridgeZiel, now: string,
+  run: WorkflowRun, stepId: StepId, ziel: BridgeZiel | null, now: string,
 ): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step) return run;
+  if (ziel === null) {
+    const { ziel: _verworfen, ...ohneZiel } = step;
+    return setStep(run, stepId, ohneZiel, now);
+  }
   return setStep(run, stepId, { ...step, ziel }, now);
 }
 
