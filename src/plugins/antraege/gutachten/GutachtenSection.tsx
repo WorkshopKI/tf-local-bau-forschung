@@ -8,7 +8,7 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Pencil, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, FileText, FileSearch, Pencil, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -19,7 +19,10 @@ import { KorpusInventar } from './KorpusInventar';
 import { maxConversionLevel } from '@/core/services/converter';
 import { erlaubeWorkflowEntwuerfe, isDevContext } from '@/config/feature-flags';
 import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflowShared';
-import { useVbCharCap } from '@/core/hooks/useVbCharCap';
+import { useVbCharCap, useKontextZiel } from '@/core/hooks/useVbCharCap';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { VB_KUERZEN_HINWEIS } from '@/core/services/skills';
+import { pruefeKontextPasst, ZIEL_LABEL } from './kontextWarnung';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   ankerFuer, ankerKeyGueltig, type AbschnittEinfuegung, type AbschnittAnzeige,
@@ -30,6 +33,7 @@ import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
 import { WorkflowWerkstattDialog } from './WorkflowWerkstattDialog';
+import { PromptAnsichtDialog } from './PromptAnsichtDialog';
 import { AbschnittNav } from './AbschnittNav';
 import { AbschnittStepper } from './AbschnittStepper';
 import { SectionReviewCard, type KopfInfo } from './SectionReviewCard';
@@ -88,6 +92,22 @@ export function GutachtenSection({
   const { navigate } = useNavigation();
   // Cap folgt der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
   const vbCap = useVbCharCap();
+  // Für die Wechsel-Empfehlung wird auch das Fenster der ANDEREN internen KI
+  // gebraucht. Ohne Bridge (DirectLLM) gibt es keine zweite — dann entfällt sie.
+  const kontextZiel = useKontextZiel();
+  const kiZiel = kontextZiel.ziel ?? 'standard';
+  const capAndere = kontextZiel.bridge
+    ? getVbCharCap({ bridge: true, ziel: kiZiel === 'agentisch' ? 'standard' : 'agentisch' })
+    : undefined;
+  const korpusMarkdown = ctrl.quellen.quellen?.markdown ?? '';
+  const kontextBefund = korpusMarkdown
+    ? pruefeKontextPasst({
+        korpusZeichen: korpusMarkdown.length,
+        cap: vbCap,
+        ziel: kiZiel,
+        ...(capAndere !== undefined ? { capAndere } : {}),
+      })
+    : null;
   // dev-Inline-Werkstatt: Workflow/Skill direkt hier bearbeiten (nur dev). `null` = zu;
   // `{ skillId }` öffnet direkt den Skill-Editor des aktiven Schritts (Stift-Einstieg).
   const werkstattVerfuegbar = isDevContext();
@@ -103,6 +123,9 @@ export function GutachtenSection({
   const [reviewDocId, setReviewDocId] = useState<string | null>(null);
   const [ersetzen, setErsetzen] = useState(false);
   const [tweakOpen, setTweakOpen] = useState(false);
+  // Prompt-Ansicht des AKTIVEN Abschnitts. Beim Öffnen frisch gerechnet (kein Memo):
+  // sie soll den Stand des Klicks zeigen — Ziel-Umschalter, Stil, Korpus.
+  const [promptOpen, setPromptOpen] = useState(false);
   // Kontext-Panel ein-/ausgeklappt (Werkstatt; persistiert nur im Session-State).
   // Startet EINGEKLAPPT: der Entwurf soll die Bühne haben, das Panel trägt seit
   // v2.337 nur noch Zusatzmaterial (Belege/Denkprozess) — die QS steht in der Karte.
@@ -438,8 +461,28 @@ export function GutachtenSection({
             </div>
           )}
 
-          {/* Die Kontextfenster-Warnung lebt jetzt im Inventar — sie muss den KORPUS
-              messen (VB + aufgenommene Zusatzdokumente), nicht mehr die VB allein. */}
+          {/* Kontext-Warnung VOR dem Lauf. Die Fußzeile im (einklappbaren) Inventar
+              zeigt dieselbe Messung, wird aber genau dann nicht gelesen, wenn sie
+              zählt — nämlich unmittelbar vor dem Generieren-Klick. */}
+          {kontextBefund && (
+            <div className="mb-4 flex items-start gap-2 px-3.5 py-3 rounded-[10px] bg-[var(--tf-warning-soft)] border-[0.5px] border-[var(--tf-warning-border)]">
+              <AlertTriangle size={15} className="shrink-0 mt-[1px] text-[var(--tf-warning-text)]" />
+              <div className="text-[12.5px] leading-[1.5] text-[var(--tf-text)]">
+                <b className="font-medium">
+                  Der Gutachten-Kontext passt nicht ins Fenster der {ZIEL_LABEL[kiZiel]}
+                </b>{' '}
+                — {kontextBefund.zeichen.toLocaleString('de-DE')} Zeichen gegen{' '}
+                {kontextBefund.cap.toLocaleString('de-DE')}. Die letzten{' '}
+                {kontextBefund.fehlend.toLocaleString('de-DE')} Zeichen werden abgeschnitten und
+                fließen nicht in den Text ein.
+                <div className="mt-1 text-[var(--tf-text-secondary)]">
+                  {kontextBefund.andereKiReicht
+                    ? `Auf die ${kontextBefund.andereKiLabel} wechseln — dort passt der Kontext vollständig hinein.`
+                    : `Weniger Dokumente aufnehmen oder die Vorhabensbeschreibung kürzen. ${VB_KUERZEN_HINWEIS}`}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Wiederaufnahme-Zeile (wenn aktiver Schritt in Arbeit) */}
           {run.schritte[run.aktiverSchritt]?.status === 'entwurf' && (
@@ -452,7 +495,7 @@ export function GutachtenSection({
                 <>
                   <AbschnittStepper run={run} steps={steps} onJump={ctrl.weiterschaltenStep} />
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} pruefAktion={pruefAktion} />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenPrompt={() => setPromptOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} pruefAktion={pruefAktion} />
                   )}
                 </>
               ) : (
@@ -478,7 +521,7 @@ export function GutachtenSection({
                     />
                   )}
                   {activeDef && (
-                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} pruefAktion={pruefAktion} docked />
+                    <ActiveAbschnitt def={activeDef} run={run} ctrl={ctrl} tweakEffektiv={tweakEffektiv} onOpenTweak={() => setTweakOpen(true)} onOpenPrompt={() => setPromptOpen(true)} onOpenWerkstatt={onOpenWerkstatt} fundstelle={fundstelle ?? undefined} hoverSaetze={hoverSaetze} onHoverSaetze={setHoverSaetze} pruefAktion={pruefAktion} docked />
                   )}
                 </div>
               )}
@@ -528,6 +571,18 @@ export function GutachtenSection({
         />
       )}
 
+      {promptOpen && activeDef && (() => {
+        const daten = ctrl.promptAnsichtFuer(activeDef.id);
+        if (!daten) { return null; }
+        return (
+          <PromptAnsichtDialog
+            daten={daten}
+            sektionLabel={`${activeDef.kurz} — ${activeDef.label}`}
+            onClose={() => setPromptOpen(false)}
+          />
+        );
+      })()}
+
       {tweakOpen && ctrl.activeSkill && activeDef && (
         <TweakEditor
           skillVersion={ctrl.activeSkill.version}
@@ -555,13 +610,15 @@ export function GutachtenSection({
 
 /** Der aktive Abschnitt als Werkstatt-Karte (Kopf + Generieren-Prompt ODER Review). */
 function ActiveAbschnitt({
-  def, run, ctrl, tweakEffektiv, onOpenTweak, onOpenWerkstatt, fundstelle, hoverSaetze, onHoverSaetze, pruefAktion, docked = false,
+  def, run, ctrl, tweakEffektiv, onOpenTweak, onOpenPrompt, onOpenWerkstatt, fundstelle, hoverSaetze, onHoverSaetze, pruefAktion, docked = false,
 }: {
   def: WorkflowStep;
   run: WorkflowRun;
   ctrl: ReturnType<typeof useGutachtenWorkflow>;
   tweakEffektiv: boolean;
   onOpenTweak: () => void;
+  /** Prompt-Ansicht öffnen — erreichbar VOR der Generierung und im ⋯-Menü der Karte. */
+  onOpenPrompt: () => void;
   /** dev-Inline-Werkstatt für den Skill dieses Schritts öffnen (nur dev; sonst undefined). */
   onOpenWerkstatt?: (skillId?: string) => void;
   /** „Anzeigen"-Sprung (Journey-Paket 3) an die Review-Karte durchreichen. */
@@ -638,6 +695,11 @@ function ActiveAbschnitt({
               <button type="button" className="g-btn" title="Eigene Vorgaben für Ton und Form dieses Abschnitts" onClick={onOpenTweak}>
                 <SlidersHorizontal size={14} /> Persönlicher Stil
               </button>
+              {/* Vor dem Lauf ist die Prompt-Ansicht am wertvollsten: hier kostet ein
+                  Blick Sekunden, nach dem Lauf hat er schon Minuten gekostet. */}
+              <button type="button" className="g-btn" title="Den vollständigen Prompt ansehen, der an die KI geht" onClick={onOpenPrompt}>
+                <FileSearch size={14} /> Prompt ansehen
+              </button>
               {ctrl.kontextRelevant && (
                 <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none" title="Ignoriert die Relevanz-Map und übergibt die vollständige Vorhabensbeschreibung.">
                   <input
@@ -675,6 +737,13 @@ function ActiveAbschnitt({
           onUebernehmen={(i) => ctrl.uebernehmenStep(id, i)}
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
+          onOpenPrompt={onOpenPrompt}
+          {...(ctrl.zweitfassungZiel
+            ? {
+                onZweitfassung: () => ctrl.zweitfassung(id),
+                zweitfassungLabel: ZIEL_LABEL[ctrl.zweitfassungZiel],
+              }
+            : {})}
           {...(fundstelle ? { fundstelle } : {})}
           hoverSaetze={hoverSaetze ?? null}
           {...(onHoverSaetze ? { onHoverSaetze } : {})}

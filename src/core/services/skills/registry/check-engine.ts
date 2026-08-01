@@ -535,6 +535,27 @@ export function buildPromptHinweis(regel: QualitaetsRegel): string | null {
 }
 
 /**
+ * Vorrang-Zeile, wenn ein Zeichenlimit mit einer Satz-Vorgabe zusammentrifft.
+ *
+ * Die Obergrenzen sind an ihrem oberen Rand nicht gleichzeitig erfüllbar: neun
+ * Sätze zu je höchstens 25 Wörtern ergeben rund 1.500 Zeichen — bei einem Limit
+ * von 1.000 muss das Modell eine der beiden Vorgaben brechen. Welche, stand nirgends;
+ * die Liste nannte beide gleichrangig. Beobachtet an Abschnitt A: der Text hielt die
+ * Satzzahl und riss das Zeichenlimit, also genau die Vorgabe, an der die Word-Vorlage
+ * hängt.
+ */
+const VORRANG_ZEICHEN =
+  'Kollidieren diese Vorgaben miteinander, hat die Zeichenzahl Vorrang — formuliere dann '
+  + 'knapper, statt das Zeichenlimit zu überschreiten.';
+
+/** True, wenn ein Zeichenlimit mit einer Satzzahl-/Satzlängen-Vorgabe kollidieren kann. */
+function brauchtVorrangHinweis(regeln: QualitaetsRegel[]): boolean {
+  const aktiv = regeln.filter(r => r.aktiv);
+  return aktiv.some(r => r.typ === 'zeichen_max')
+    && aktiv.some(r => r.typ === 'satzanzahl' || r.typ === 'satzlaenge_max' || r.typ === 'wortanzahl');
+}
+
+/**
  * Baut den Block „Formale Vorgaben", der dem Skill-Prompt zur Laufzeit
  * angehängt wird (nur AKTIVE, bekannte Regeln). Leerstring, wenn keine.
  *
@@ -550,6 +571,7 @@ export function buildPromptVorgaben(regeln: QualitaetsRegel[]): string {
     if (hinweis) hinweise.push(hinweis);
   }
   if (hinweise.length === 0) return '';
+  if (brauchtVorrangHinweis(regeln)) hinweise.push(VORRANG_ZEICHEN);
   const einzeilig = hinweise.filter(h => !h.includes('\n'));
   const mehrzeilig = hinweise.filter(h => h.includes('\n'));
   const kopf = einzeilig.length
@@ -633,6 +655,116 @@ export function findeUmfangKonflikte(promptTemplate: string, regeln: QualitaetsR
         }
       }
     }
+  }
+  return meldungen;
+}
+
+/**
+ * Findet Umfangs-Zahlen, die der Prompt-TEXT nennt, obwohl der Auto-Block
+ * `## Formale Vorgaben` denselben Wert ohnehin aus der Regel ableitet.
+ *
+ * Abgrenzung zu `findeUmfangKonflikte`: dort geht es um ABWEICHUNG (der Prompt sagt
+ * etwas anderes als die Regel), hier um DOPPLUNG (er sagt dasselbe zweimal). Eine
+ * Dopplung ist kein Fehler und wird nichts kaputt machen — sie wird es erst beim
+ * nächsten Regel-Edit, weil die Prosa-Zahl dann stehen bleibt und der Prompt zwei
+ * verschiedene Zahlen trägt. Genau so war die Doppelquelle 2026-07 entstanden, die
+ * einmal per Migration entfernt werden musste.
+ *
+ * Render-only, blockt nichts. Nur „harte" Total-Formulierungen — dieselbe konservative
+ * Heuristik wie oben, damit weiche Teil-Richtwerte („(1–2 Sätze)") ruhig bleiben.
+ */
+export function findeUmfangDopplungen(promptTemplate: string, regeln: QualitaetsRegel[]): string[] {
+  // Nach WORTLAUT dedupliziert: derselbe Richtwert steht in einer Vorlage gern
+  // zweimal (Aufgaben-Zeile + Ausgabeformat). Zwei identische Warnzeilen lesen sich
+  // als Render-Fehler, nicht als zwei Fundstellen.
+  const meldungen = new Set<string>();
+  const melde = (regelName: string, prosa: string): void => {
+    meldungen.add(
+      `Der Prompt-Text nennt „${prosa}" — dieselbe Angabe erzeugt der Block „Formale Vorgaben" `
+      + `bereits aus der Regel „${regelName}". Zwei Quellen für eine Zahl laufen beim nächsten `
+      + 'Regel-Edit auseinander; entfernen Sie die Zahl aus dem Prompt-Text.',
+    );
+  };
+  for (const r of regeln) {
+    if (!r.aktiv) continue;
+    const min = optNumParam(r.params, 'min');
+    const max = optNumParam(r.params, 'max');
+
+    if (r.typ === 'satzanzahl') {
+      for (const m of promptTemplate.matchAll(/ca\.\s*(\d+)\s*Sätze[n]?/g)) {
+        const n = Number(m[1]);
+        // Innerhalb des Bandes = Dopplung; außerhalb meldet bereits der Konflikt-Check.
+        if ((min === undefined || n >= min) && (max === undefined || n <= max)) melde(r.name, `ca. ${n} Sätze`);
+      }
+      for (const m of promptTemplate.matchAll(/Toleranz\s*(\d+)\s*(?:bis|–|-)\s*(\d+)\s*Sätze[n]?/g)) {
+        if (Number(m[1]) === min && Number(m[2]) === max) melde(r.name, `Toleranz ${m[1]}–${m[2]} Sätze`);
+      }
+    } else if (r.typ === 'wortanzahl') {
+      for (const m of promptTemplate.matchAll(/(\d+)\s*(?:bis|–|-)\s*(\d+)\s*Wörter/g)) {
+        if (Number(m[1]) === min && Number(m[2]) === max) melde(r.name, `${m[1]}–${m[2]} Wörter`);
+      }
+    } else if (r.typ === 'zeichen_max') {
+      // Satzanfang-tolerant („Maximal 1000 Zeichen." steht so in kuratierten Vorlagen).
+      for (const m of promptTemplate.matchAll(/(?:maximal|höchstens)\s*(\d+)\s*Zeichen/gi)) {
+        if (Number(m[1]) === max) melde(r.name, `maximal ${m[1]} Zeichen`);
+      }
+    }
+  }
+  return [...meldungen];
+}
+
+/**
+ * Mittlere Zeichenlänge eines deutschen Wortes INKLUSIVE Trennzeichen — grob, aber
+ * für die Größenordnung ausreichend (Fachdeutsch liegt eher darüber). Bewusst
+ * konservativ: die Meldung soll nur bei echter Unerfüllbarkeit kommen.
+ */
+const ZEICHEN_JE_WORT = 6.5;
+
+/**
+ * Findet Vorgaben, die einander rechnerisch ausschließen — der Fall, den kein
+ * Prosa-Vergleich sieht, weil jede Zahl für sich stimmt.
+ *
+ * Beobachtet an Abschnitt A: 8–9 Sätze × höchstens 25 Wörter ergibt rund 1.500
+ * Zeichen, das Zeichenlimit steht auf 1.000. An der Untergrenze ist die Kombination
+ * nicht erfüllbar, und das Modell muss eine Vorgabe brechen — im Ergebnis regelmäßig
+ * die, an der die Word-Vorlage hängt. `buildPromptVorgaben` benennt inzwischen den
+ * Vorrang; diese Meldung sagt dem Kurator, dass die Zahlen selbst nicht zusammenpassen.
+ *
+ * Render-only, blockt nichts.
+ */
+export function findeVorgabenWidersprueche(regeln: QualitaetsRegel[]): string[] {
+  const aktiv = regeln.filter(r => r.aktiv);
+  const zeichen = aktiv.find(r => r.typ === 'zeichen_max');
+  const satzlaenge = aktiv.find(r => r.typ === 'satzlaenge_max');
+  const satzanzahl = aktiv.find(r => r.typ === 'satzanzahl');
+  const meldungen: string[] = [];
+  if (!zeichen) return meldungen;
+  const maxZeichen = optNumParam(zeichen.params, 'max');
+  if (maxZeichen === undefined) return meldungen;
+
+  const maxWoerter = satzlaenge ? optNumParam(satzlaenge.params, 'maxWoerter') : undefined;
+  const minSaetze = satzanzahl ? optNumParam(satzanzahl.params, 'min') : undefined;
+  if (maxWoerter !== undefined && minSaetze !== undefined) {
+    const noetig = Math.round(minSaetze * maxWoerter * ZEICHEN_JE_WORT);
+    if (noetig > maxZeichen) {
+      meldungen.push(
+        `„${satzanzahl!.name}" (mindestens ${minSaetze} Sätze) und „${satzlaenge!.name}" `
+        + `(bis ${maxWoerter} Wörter je Satz) ergeben zusammen bis zu ~${noetig.toLocaleString('de-DE')} `
+        + `Zeichen — „${zeichen.name}" erlaubt aber nur ${maxZeichen.toLocaleString('de-DE')}. `
+        + 'Die Obergrenzen sind nicht gleichzeitig erfüllbar; passen Sie eine der Vorgaben an.',
+      );
+    }
+  }
+
+  const wortanzahl = aktiv.find(r => r.typ === 'wortanzahl');
+  const minWoerter = wortanzahl ? optNumParam(wortanzahl.params, 'min') : undefined;
+  if (minWoerter !== undefined && Math.round(minWoerter * ZEICHEN_JE_WORT) > maxZeichen) {
+    meldungen.push(
+      `„${wortanzahl!.name}" verlangt mindestens ${minWoerter} Wörter (~`
+      + `${Math.round(minWoerter * ZEICHEN_JE_WORT).toLocaleString('de-DE')} Zeichen), `
+      + `„${zeichen.name}" erlaubt nur ${maxZeichen.toLocaleString('de-DE')}. `
+      + 'Die beiden Vorgaben schließen einander aus.',
+    );
   }
   return meldungen;
 }

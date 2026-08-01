@@ -130,3 +130,45 @@ describe('mitZielFallback — Fallback agentisch → standard', () => {
     expect(versuche.every(z => z !== undefined)).toBe(true);
   });
 });
+
+/**
+ * Erzwungenes Ziel („Zweitfassung mit der anderen KI"). Der Fallback muss dabei
+ * AUS sein: wer ausdrücklich die andere KI verlangt, bekäme sonst bei deren Ausfall
+ * still die Fassung der ersten zurück — und verglichen würde eine Fassung mit sich
+ * selbst.
+ */
+describe('mitZielFallback — zielOverride', () => {
+  it('benutzt das erzwungene Ziel statt der Präferenz', async () => {
+    useKiZiel.getState().setZiel('standard');
+    const { lauf, versuche } = laufMit(['ok']);
+    const r = await mitZielFallback(lauf, { ...AGENTISCH, zielOverride: 'agentisch' });
+    expect(versuche).toEqual(['agentisch']);
+    expect(r.ziel).toBe('agentisch');
+    expect(r.zielFallback).toBe(false);
+  });
+
+  it('macht KEINEN Retry, wenn der erzwungene Lauf wirft', async () => {
+    useKiZiel.getState().setZiel('standard');
+    const { lauf, versuche } = laufMit([new Error('Tab weg'), 'gerettet']);
+    await expect(mitZielFallback(lauf, { ...AGENTISCH, zielOverride: 'agentisch' })).rejects.toThrow('Tab weg');
+    expect(versuche).toEqual(['agentisch']);
+  });
+
+  it('macht KEINEN Retry bei unbrauchbarem Ergebnis', async () => {
+    useKiZiel.getState().setZiel('standard');
+    const { lauf, versuche } = laufMit(['', 'gerettet']);
+    const r = await mitZielFallback(lauf, {
+      ...AGENTISCH, zielOverride: 'agentisch', istUnbrauchbar: (s) => s === '',
+    });
+    expect(versuche).toEqual(['agentisch']);
+    expect(r.result).toBe('');
+  });
+
+  it('ohne Override bleibt alles beim Alten (Präferenz + Fallback)', async () => {
+    useKiZiel.getState().setZiel('agentisch');
+    const { lauf, versuche } = laufMit([new Error('Tab weg'), 'gerettet']);
+    const r = await mitZielFallback(lauf, AGENTISCH);
+    expect(versuche).toEqual(['agentisch', 'standard']);
+    expect(r.zielFallback).toBe(true);
+  });
+});

@@ -1,5 +1,6 @@
 /** Persistierter Zustand eines Kurzfassung-Skill-Laufs (pro Verbund). */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 
 export type KurzfassungStatus = 'entwurf' | 'freigegeben';
 
@@ -34,6 +35,13 @@ export interface KurzfassungVersion {
   warnung?: string;
   /** Reasoning-/Thinking-Text dieses Laufs, falls Thinking aktiv war (sonst undefined). */
   denkprozess?: string;
+  /**
+   * Die interne KI, die DIESE Fassung erzeugt hat (`StepRun.ziel` zum Zeitpunkt des
+   * Schnappschusses). Trägt den Vergleich zweier Fassungen aus verschiedenen KIs —
+   * ohne sie stünden im Verlauf zwei ununterscheidbare Zeilen. Additiv; alte
+   * Fassungen ohne Feld zeigen die Angabe einfach nicht.
+   */
+  ziel?: BridgeZiel;
 }
 
 export interface KurzfassungRecord {

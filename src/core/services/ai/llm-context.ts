@@ -136,6 +136,15 @@ export function computeVbCharCap(contextTokens: number): number {
 }
 
 /**
+ * Grobe Token-Schätzung einer Zeichenzahl — die Umkehrung derselben Quote, mit der
+ * der Cap gerechnet wird. Nur für Anzeigen (Prompt-Ansicht, Kontext-Warnung); eine
+ * zweite Quote an der Anzeigestelle würde gegen die Cap-Rechnung driften.
+ */
+export function schaetzeTokens(zeichen: number): number {
+  return Math.round(zeichen / CHARS_PER_TOKEN);
+}
+
+/**
  * Aktueller VB-Zeichen-Cap. Ohne `ziel` gilt das lokale Kontextfenster
  * (manuell > erkannt > Default) — genau wie bisher.
  */

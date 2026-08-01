@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.372 — 2026-08
+
+### Neu
+- **„Prompt ansehen" in der Gutachten-Werkstatt.** Sie können jetzt nachlesen, was tatsächlich an die KI geht — vor dem Erzeugen als Vorschau und danach als das wirklich Gesendete. Oben stehen die Maße (Zeichen gesamt, davon Vorhabensbeschreibung, Platz im Fenster der KI), darunter die Liste der enthaltenen Bausteine, darunter der Wortlaut. Erreichbar neben „… generieren" und im ⋯-Menü der Abschnittskarte.
+- **„Zweitfassung mit der anderen KI".** Derselbe Abschnitt lässt sich ein zweites Mal von der jeweils anderen internen KI schreiben. Beide Fassungen stehen anschließend unter „Vorfassungen" nebeneinander, mit hervorgehobenen Unterschieden und jeweils der KI, die sie verfasst hat — eine davon übernehmen Sie.
+
+### Verbesserungen
+- **Sie erfahren vor dem Lauf, wenn der Antrag nicht ins Kontextfenster passt.** Bisher stand erst am fertigen Abschnitt „auf gekürzter Basis entstanden". Jetzt steht die Warnung über der Karte, nennt die fehlenden Zeichen und schlägt vor, auf die andere KI zu wechseln — deren Fenster ist rund viermal so groß.
+- Der Skill-Editor weist jetzt darauf hin, wenn sich Umfangs-Vorgaben gegenseitig ausschließen (etwa Satzzahl mal Satzlänge gegen das Zeichenlimit) oder wenn eine Zahl doppelt gepflegt ist.
+
+### Bugfixes
+- **Die Kurzfassung hielt sich schlechter an die Vorgaben, als sie musste.** Der Auftrag an die KI enthielt eine unsichtbare Formatvorgabe, die der Reihenfolge im Prompt-Text widersprach und deren Ergebnis anschließend ohnehin verworfen wurde. Sie ist entfernt. Außerdem sagt der Auftrag jetzt, welche Vorgabe gilt, wenn Zeichenlimit und Satzzahl nicht gleichzeitig erfüllbar sind.
+
 ## v2.371 — 2026-08
 
 ### Verbesserungen

@@ -165,18 +165,12 @@ export const SEED_SKILL: SkillRecord = {
   regelIds: SEED_REGELN.map(r => r.id),
   vorgaben: SEED_VORGABEN_A,
   slots: ['stammdaten', 'vbMarkdown'],
-  // Strukturierte Ausgabe (Mess-Gate 2026-06 für A bestätigt: 5/5 robustes Parsen,
-  // flüssiger ~10-Satz-Block unter teilJoin '\n', keine deterministische Regression).
-  // B bewusst NICHT strukturiert (Absatz-Regel-Konflikt). Der `### Finaler Text`-Block
-  // wird als JSON-Array dieser Keys geliefert; finalerText bleibt die flache Quelle der
-  // Wahrheit (Teile per '\n' verbunden), Badges sind render-only.
-  teilStruktur: [
-    { key: 'ausgangsproblem', label: 'Ausgangsproblem' },
-    { key: 'projektziel', label: 'Projektziel' },
-    { key: 'technischer_ansatz', label: 'Technischer Ansatz' },
-    { key: 'erwartetes_ergebnis', label: 'Erwartetes Ergebnis' },
-    { key: 'anwendungsbereich', label: 'Anwendungsbereich' },
-  ],
-  teilJoin: '\n',
+  // KEINE `teilStruktur` (entfernt 2026-08, Migration `ga-teilstruktur-entfernen-2026-08`):
+  // Der Block hätte den finalen Text als JSON-Felder verlangt und sich dabei Vorrang vor
+  // der Formatangabe der Vorlage zugesprochen. Seit v2.335 hängt an jeder Generierung
+  // automatisch der Feinschliff, und `applyLektorat` verwirft `teile` — die JSON-Ausgabe
+  // wurde also immer weggeworfen. Zugleich stand die im Seed festgelegte Schlüssel-
+  // Reihenfolge quer zu jeder kuratierten Umsortierung der Teile im Prompt-Text, ohne dass
+  // der Kurator das im Editor sehen konnte. Details: docs/architecture/teilstruktur.md.
   geaendert_am: SEED_TS,
 };

@@ -12,6 +12,8 @@ import {
   rollbackSkill,
   buildPromptVorgaben,
   findeUmfangKonflikte,
+  findeUmfangDopplungen,
+  findeVorgabenWidersprueche,
   resolveRegeln,
   describeRegelParams,
   skillKategorieLabel,
@@ -84,6 +86,11 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
   // Doppelquellen-Guard: nennt der Prompt-TEXT eine Umfangs-Zahl, die von der zugeordneten
   // Regel abweicht, lief bisher der Prompt mit dem alten Wert weiter. Reiner Hinweis.
   const umfangKonflikte = findeUmfangKonflikte(draft.promptTemplate, assignedRegeln);
+  // Zwei weitere Prompt-Defekte, die keine Abweichung sind und daher oben durchfielen:
+  // dieselbe Zahl zweimal (Doppelquelle, läuft beim nächsten Regel-Edit auseinander)
+  // und Vorgaben, die einander rechnerisch ausschließen (Zeichenlimit vs. Satzbudget).
+  const umfangDopplungen = findeUmfangDopplungen(draft.promptTemplate, assignedRegeln);
+  const vorgabenWidersprueche = findeVorgabenWidersprueche(assignedRegeln);
   const reifegrad: Reifegrad = draft.reifegrad ?? 'entwurf';
   // Placeholder des Kategorie-Setzers: was ohne expliziten Wert gälte (Ableitung
   // aus id/Name) — daher bewusst OHNE `draft.kategorie`.
@@ -274,11 +281,12 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0 mb-2.5">
             Wird aus den zugeordneten Qualitätsregeln erzeugt und dem Prompt automatisch angehängt.
           </p>
+          {/* Den ganzen Block zeigen, nicht nur die „- "-Zeilen: mehrzeilige Hinweise
+              (Pflicht-Anfang) stehen bewusst als eigener Absatz unter der Liste und
+              fielen sonst still aus der Vorschau — der Prompt trug sie trotzdem. */}
           <div className="border-l-2 border-[var(--tf-border-hover)] bg-[var(--tf-bg-secondary)] rounded-r-[8px] px-4 py-3.5">
             {vorgaben
-              ? vorgaben.split('\n').filter(l => l.startsWith('- ')).map((l, i) => (
-                  <div key={i} className="font-mono text-[12.5px] leading-[1.5] text-[var(--tf-text-secondary)] mb-2 last:mb-0">{l.slice(2)}</div>
-                ))
+              ? <div className="font-mono text-[12.5px] leading-[1.6] whitespace-pre-wrap text-[var(--tf-text-secondary)]">{vorgaben}</div>
               : <div className="text-[12.5px] text-[var(--tf-text-tertiary)]">Keine aktiven Regeln zugeordnet.</div>}
           </div>
           {umfangKonflikte.length > 0 && (
@@ -286,6 +294,24 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
               <p className="text-[12px] font-medium text-[var(--tf-warning-text)] mb-1.5">⚠ Prompt-Text nennt eine andere Zahl als die Regel</p>
               {umfangKonflikte.map((msg, i) => (
                 <p key={i} className="text-[11.5px] leading-[1.5] text-[var(--tf-warning-text)] mb-1 last:mb-0">{msg}</p>
+              ))}
+            </div>
+          )}
+          {vorgabenWidersprueche.length > 0 && (
+            <div className="mt-2.5 rounded-[8px] border-[0.5px] border-[var(--tf-warning-border)] bg-[var(--tf-warning-soft)] p-3">
+              <p className="text-[12px] font-medium text-[var(--tf-warning-text)] mb-1.5">⚠ Die Vorgaben schließen einander aus</p>
+              {vorgabenWidersprueche.map((msg, i) => (
+                <p key={i} className="text-[11.5px] leading-[1.5] text-[var(--tf-warning-text)] mb-1 last:mb-0">{msg}</p>
+              ))}
+            </div>
+          )}
+          {umfangDopplungen.length > 0 && (
+            // Kein Warnton: eine Dopplung ist heute korrekt und wird erst beim nächsten
+            // Regel-Edit zum Problem. Hinweis, nicht Alarm.
+            <div className="mt-2.5 rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] p-3">
+              <p className="text-[12px] font-medium text-[var(--tf-text-secondary)] mb-1.5">Doppelte Umfangs-Angabe</p>
+              {umfangDopplungen.map((msg, i) => (
+                <p key={i} className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] mb-1 last:mb-0">{msg}</p>
               ))}
             </div>
           )}

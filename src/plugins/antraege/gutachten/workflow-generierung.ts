@@ -32,6 +32,8 @@ import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
 import { buildStammdaten, type SkillCtx } from './skill-context';
 import type { KurzfassungContext } from '../kurzfassung/types';
+import { baueSkillEingabe, tweakWirktAuf } from './laufEingabe';
+import type { GesendeterPrompt } from './promptAnsicht';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
@@ -83,6 +85,12 @@ export interface GenerierungsDeps {
   regelnFuer: (sc: SkillCtx, tw: SkillTweak | null) => QualitaetsRegel[];
   setLlmAvailable: (ok: boolean) => void;
   setError: (msg: string) => void;
+  /**
+   * Hält fest, was für diesen Abschnitt tatsächlich gesendet wurde (Prompt-Ansicht,
+   * „zuletzt gesendet"). Session-lokal im Hook — der Text trägt Dokumentinhalt und
+   * wird NIE persistiert. Optional: der Eval-/Test-Pfad reicht ihn nicht durch.
+   */
+  merkeGesendet?: (stepId: StepId, prompts: GesendeterPrompt[]) => void;
 }
 
 export interface GenerateIntoOptions {
@@ -100,6 +108,13 @@ export interface GenerateIntoOptions {
    * `generiereEinmal`).
    */
   anweisung?: string;
+  /**
+   * Erzwingt die interne KI dieses Laufs statt der globalen Präferenz
+   * („Zweitfassung mit der anderen KI"). Schaltet den Ziel-Fallback aus — sonst
+   * käme bei einem Ausfall wieder die Fassung der ersten KI heraus, und der
+   * Vergleich wäre keiner.
+   */
+  ziel?: BridgeZiel;
 }
 
 /**
@@ -118,6 +133,7 @@ async function mitFallbackLauf<R>(
   signal: AbortSignal,
   lauf: (deps: GenerierungsDeps, ziel: BridgeZiel) => Promise<R>,
   istUnbrauchbar?: (ergebnis: R) => boolean,
+  zielOverride?: BridgeZiel,
 ): Promise<ZielFallbackErgebnis<R>> {
   let fehler: string | null = null;
   let verfuegbar: boolean | null = null;
@@ -139,6 +155,7 @@ async function mitFallbackLauf<R>(
       // gescheiterten Versuchs vor der neuen Antwort.
       vorRetry: () => deps.stream.reset(),
       ...(istUnbrauchbar ? { istUnbrauchbar } : {}),
+      ...(zielOverride ? { zielOverride } : {}),
     },
   );
   if (verfuegbar !== null) deps.setLlmAvailable(verfuegbar);
@@ -181,6 +198,7 @@ export async function generateInto(
     // Ein leerer finaler Text ist das, was ein nicht erreichbarer agentischer Tab
     // typischerweise liefert — für den Nutzer ein Ausfall, also fallback-würdig.
     (r) => !r.next.schritte[stepId]?.finalerText.trim(),
+    o.ziel,
   );
   const jetzt = new Date().toISOString();
   const gestempelt = { ...result, next: applyLaufZiel(result.next, stepId, ziel, jetzt) };
@@ -193,9 +211,11 @@ export async function generateInto(
   // landet dabei über `applyLektorat` automatisch im Versionsverlauf.
   // Fehler-Meldungen des Feinschliffs werden verschluckt (`stilleDeps`): ein
   // Rohentwurf ist ein brauchbares Ergebnis, kein Fehlerfall.
+  // Der angehängte Feinschliff bleibt auf DERSELBEN KI wie die Generierung — sonst
+  // trüge eine „Zweitfassung mit der anderen KI" am Ende den Schliff der ersten.
   return mitFeinschliff(
     roh, stepId,
-    () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps)),
+    () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps), o.ziel),
   );
 }
 
@@ -257,8 +277,7 @@ async function generiereEinmal(
 ): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
   const tw = o.tweak;
   const scRegeln = deps.regelnFuer(sc, tw);
-  const tweakWirksam = !!(tw?.aktiv && tw.skillId === sc.skill.id
-    && (tw.stilHinweise.trim() || tw.beispielFormulierungen.trim()));
+  const tweakWirksam = tweakWirktAuf(sc.skill.id, tw);
   const prevText = base.schritte[stepId]?.finalerText;
   // Relevanz-Map: nur wenn der Schritt `kontextBedarf: 'relevant'` trägt UND die
   // VB groß genug ist. JEDER Fehlerpfad (Map leer / Lauf gescheitert) degradiert
@@ -295,25 +314,28 @@ async function generiereEinmal(
     const vorherige = buildVorherigeAbschnitte(base, stepId, deps.steps, 2000, o.quelle);
     const teilRegelSatz = teilRegeln(scRegeln);
     const teilErgebnisse: TeilErgebnis[] = [];
+    // Ein Teil-Lauf sendet MEHRERE Prompts je Abschnitt — die Ansicht zeigt sie
+    // alle, sonst sähe man den Kontext nur eines Bruchstücks.
+    const gesendet: GesendeterPrompt[] = [];
     let letztesResult: Awaited<ReturnType<typeof runSkill>> | null = null;
     let vorText = '';
     for (const teil of teilPlan) {
-      const r = await runSkill(transport, sc.skill, teilRegelSatz, {
-        ziel,
-        stammdaten: buildStammdaten(deps.ctx),
-        vbMarkdown: deps.korpusMd,
+      const eingabe = baueSkillEingabe({
+        ctx: deps.ctx,
+        korpusMd: deps.korpusMd,
         vbCharCap: getVbCharCap(kontextZielFuer(deps.bridge, ziel)),
         thinkingBudget: deps.thinkingBudget,
-        erwarteAbschluss: 'Finaler Text',
-        onContentDelta: deps.stream.onContentDelta,
-        onThinkingDelta: deps.stream.onThinkingDelta,
+        ziel,
         vorherigeAbschnitte: vorherige,
         teilAufgabe: teilAufgabe(teil, vorText),
-        ...(vbRelevant ? { vbRelevant } : {}),
-        ...(tweakWirksam ? { tweak: tw } : {}),
-        ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
+        stream: deps.stream,
         signal: o.signal,
+        ...(vbRelevant ? { vbRelevant } : {}),
+        ...(tweakWirksam ? { tweak: tw, tweakWirksam } : {}),
+        ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
       });
+      const r = await runSkill(transport, sc.skill, teilRegelSatz, eingabe);
+      if (r.gesendet) gesendet.push(r.gesendet);
       teilErgebnisse.push({
         quellenanalyse: r.parsed.quellenanalyse,
         finalerText: r.parsed.finalerText,
@@ -325,6 +347,7 @@ async function generiereEinmal(
       vorText = [vorText, r.parsed.finalerText].map(t => t.trim()).filter(Boolean).join('\n\n');
     }
     const merged = mergeTeile(teilErgebnisse);
+    deps.merkeGesendet?.(stepId, gesendet);
     const checks = runRegelChecks(merged.finalerText, scRegeln);
     const gen: GenerationInput = {
       quellenanalyse: merged.quellenanalyse,
@@ -344,29 +367,26 @@ async function generiereEinmal(
     return { next: applyGeneration(base, stepId, gen, new Date().toISOString()), checks };
   }
 
-  const result = await runSkill(transport, sc.skill, scRegeln, {
-    ziel,
-    stammdaten: buildStammdaten(deps.ctx),
-    vbMarkdown: deps.korpusMd,
+  const eingabe = baueSkillEingabe({
+    ctx: deps.ctx,
+    korpusMd: deps.korpusMd,
     vbCharCap: getVbCharCap(kontextZielFuer(deps.bridge, ziel)),
     thinkingBudget: deps.thinkingBudget,
-    // Abschluss-Marker-Schutz: A–G liefern alle „### Finaler Text" als Schluss-
-    // Abschnitt. Verhindert, dass die Streamlit-Bridge einen langen Lauf schon nach
-    // dem Quellenanalyse-Block finalisiert (auf DirectLLM wirkungslos).
-    erwarteAbschluss: 'Finaler Text',
-    onContentDelta: deps.stream.onContentDelta,
-    onThinkingDelta: deps.stream.onThinkingDelta,
+    ziel,
     vorherigeAbschnitte: buildVorherigeAbschnitte(base, stepId, deps.steps, 2000, o.quelle),
+    stream: deps.stream,
+    signal: o.signal,
     ...(vbRelevant ? { vbRelevant } : {}),
-    ...(tweakWirksam ? { tweak: tw } : {}),
+    ...(tweakWirksam ? { tweak: tw, tweakWirksam } : {}),
     ...(o.modifier ? { modifier: o.modifier } : {}),
     // Der bisherige Text ist bei der freien Anweisung nicht Beiwerk, sondern ihr
     // Gegenstand („die anderen entfernen") — dieselbe Bedingung wie beim Modifier.
     ...((o.modifier || o.anweisung) && prevText ? { vorherigerText: prevText } : {}),
     ...(o.anweisung ? { anweisung: o.anweisung } : {}),
     ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
-    signal: o.signal,
   });
+  const result = await runSkill(transport, sc.skill, scRegeln, eingabe);
+  deps.merkeGesendet?.(stepId, result.gesendet ? [result.gesendet] : []);
   const checks = runRegelChecks(result.parsed.finalerText, scRegeln);
   const gen: GenerationInput = {
     quellenanalyse: result.parsed.quellenanalyse,
@@ -487,6 +507,8 @@ export async function laufLektorat(
   tweak: SkillTweak | null,
   signal: AbortSignal,
   deps: GenerierungsDeps,
+  /** Erzwungene KI (folgt der Generierung bei der Zweitfassung); sonst globale Präferenz. */
+  zielOverride?: BridgeZiel,
 ): Promise<WorkflowRun | null> {
   const step = run.schritte[stepId];
   if (!step) return null;
@@ -501,6 +523,7 @@ export async function laufLektorat(
     // Ein gezogenes Tor (leer / verdächtig gekürzt) ist ein unbrauchbares Ergebnis —
     // beim agentischen Tab genau der Fall, den die Standard-KI retten soll.
     (r) => r === null,
+    zielOverride,
   );
   if (!result) return null;
   const jetzt = new Date().toISOString();

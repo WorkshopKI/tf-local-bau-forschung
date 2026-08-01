@@ -97,6 +97,9 @@ export const GA_INTERPUNKTION_MIGRATION = 'ga-interpunktion-2026-07';
 /** ID des Umbaus „Deep-Research-Auftrag" → Stichworte + feste Vorlage im Code. */
 export const AUFBEREITUNG_DR_STICHWORTE_MIGRATION = 'aufbereitung-dr-stichworte-2026-07';
 
+/** ID der Entfernung der strukturierten Ausgabe (`teilStruktur`) aus den Gutachten-Skills. */
+export const GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION = 'ga-teilstruktur-entfernen-2026-08';
+
 export interface ReconcileResult {
   file: SkillRegistryFile;
   /** True, wenn dieser Lauf etwas geändert hat und der Aufrufer zurückschreiben soll. */
@@ -492,6 +495,38 @@ function applySkillVorgaben(file: SkillRegistryFile): SkillRegistryFile {
   return { ...file, skills, regeln };
 }
 
+/**
+ * Entfernt `teilStruktur`/`teilJoin` aus den Gutachten-Skills (A–G).
+ *
+ * Die strukturierte Ausgabe hängte einen autoritativen Block an den Prompt („Diese
+ * Vorgabe hat Vorrang … NUR diese Schlüssel, in dieser Reihenfolge"). Sie hat sich
+ * doppelt überlebt:
+ *
+ *  1. **Wirkungslos.** Seit v2.335 hängt an JEDER Generierung automatisch der
+ *     sprachliche Feinschliff, und `applyLektorat` verwirft `teile` (der Lektor
+ *     schreibt den flachen Text neu, die Teilfelder würden divergieren). Die
+ *     erzwungene JSON-Ausgabe wird im Normalfall also immer weggeworfen — sie kostet
+ *     nur Prompt-Komplexität und Ausgabe-Budget.
+ *  2. **Widersprüchlich.** Die Schlüssel-Reihenfolge stammt aus dem Seed. Ordnet ein
+ *     Kurator die Teile im Prompt-Text um (was er darf und soll), widerspricht der
+ *     angehängte Block dem Template — und beansprucht dabei Vorrang. `teilStruktur`
+ *     ist im Skill-Editor weder sichtbar noch editierbar, der Kurator kann von dem
+ *     Konflikt also gar nichts wissen.
+ *
+ * Bewusst NICHT pristine-only: die beiden Felder sind nicht kurator-editierbar, es
+ * geht durch das Entfernen also keine kuratierte Arbeit verloren. Der `teilStruktur`-
+ * MECHANISMUS bleibt bestehen (`composeSkillPrompt`, Parser) — nur die GA-Skills geben
+ * ihn ab. Der Skill-Text bleibt unberührt; die Version wird nicht angefasst.
+ */
+function applyTeilStrukturEntfernen(skills: SkillRecord[]): SkillRecord[] {
+  const gaSkillIds = new Set(ZIM_EP_DEF.steps.map(s => s.skillId));
+  return skills.map(s => {
+    if (!gaSkillIds.has(s.id) || (!s.teilStruktur && !s.teilJoin)) return s;
+    const { teilStruktur: _ts, teilJoin: _tj, ...rest } = s;
+    return rest;
+  });
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -517,6 +552,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: SKILL_VORGABEN_MIGRATION, apply: applySkillVorgaben },
   { marker: GA_INTERPUNKTION_MIGRATION, apply: nurSkills(applyInterpunktion) },
   { marker: AUFBEREITUNG_DR_STICHWORTE_MIGRATION, apply: nurSkills(applyDrStichworte) },
+  { marker: GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, apply: nurSkills(applyTeilStrukturEntfernen) },
 ];
 
 /**

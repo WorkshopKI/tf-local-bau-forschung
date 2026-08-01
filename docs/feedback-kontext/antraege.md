@@ -17,12 +17,15 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 ## Gutachten-Werkstatt (wenn aktiv)
 
 - **„Dokumente des Verbundes"** (oben): Typ + Umfang je Datei, maßgebliche **Vorhabensbeschreibung** markiert; weitere per „ins Gutachten aufnehmen".
-- **Noch nicht generierter Abschnitt:** „{Abschnitt} generieren" + **Persönlicher Stil**.
+- **Kontext-Warnung** über der Karte, wenn die Unterlagen nicht ins Fenster der gewählten KI passen: sie nennt die fehlenden Zeichen und empfiehlt entweder den Wechsel auf die andere KI (deren Fenster ist rund viermal so groß) oder das Kürzen der Unterlagen. Sie erscheint **vor** dem Erzeugen, blockiert aber nichts.
+- **Noch nicht generierter Abschnitt:** „{Abschnitt} generieren" + **Persönlicher Stil** + **Prompt ansehen**.
+- **„Prompt ansehen":** zeigt den vollständigen Auftrag, der an die KI geht — als Vorschau des nächsten Laufs und, nach einem Lauf, als das tatsächlich Gesendete. Oben die Maße (Zeichen gesamt, davon Vorhabensbeschreibung, geschätzte Tokens, Platz im Fenster), darunter die Liste der enthaltenen Bausteine, darunter der Wortlaut. Die Vorhabensbeschreibung ist eingeklappt.
 - **Abschnitts-Karte**, vier Ebenen:
-  - **Kopf:** Titel, Entwurf/Freigegeben, Version, „Formuliert · Feinschliff", ggf. „Standard-KI (Fallback)", ⋯-Menü (Feinschliff/Vorfassungen/Verwerfen).
+  - **Kopf:** Titel, Entwurf/Freigegeben, Version, „Formuliert · Feinschliff", ggf. „Standard-KI (Fallback)", ⋯-Menü (Feinschliff/Zweitfassung/Vorfassungen/Prompt ansehen/Verwerfen).
   - **Text:** satzweise markierbar.
   - **Werkzeugzeile:** Neu/Kürzer/Länger · **Bearbeiten mit KI** · **Persönlicher Stil** · Bearbeiten · **Kopier-Icon** ⧉ neben Bearbeiten · QS prüfen · „Freigeben und weiter" mit QS-Badge. Freigegeben: Erneut öffnen · QS prüfen · Kopieren · Stil.
   - **„Bearbeiten mit KI":** eigene Anweisung eingeben, wie der Abschnitt überarbeitet werden soll („technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen"). Feld erscheint in der Karte, letzte 5 Anweisungen als Chips; gilt für genau einen Lauf, der bisherige Text bleibt die Grundlage.
+  - **„Zweitfassung mit der …":** erzeugt denselben Abschnitt noch einmal mit der jeweils anderen internen KI. Die bisherige Fassung wandert in die **Vorfassungen**, wo beide nebeneinander stehen, sich als Unterschied vergleichen lassen und eine davon übernommen werden kann. Jede Fassung ist mit der KI beschriftet, die sie geschrieben hat. Der Eintrag fehlt, wenn die aktive KI-Verbindung keine zwei Varianten kennt.
   - **Fußzeile:** Sätze/Wörter/Regeln/Skill, verwendete KI „Standard-KI"/„Agentische KI" + 👍/👎.
 - **Am Text:** **Abschnitts-QS** („n von m Kriterien ok") + **Regelprüfung** (Messwert/Limit + KI-Korrektur). Generieren hängt den **Feinschliff** an.
 - **Rechts „Quelle & KI-Hinweise"** (eingeklappt): **Beleg-Karten** (Klick → Satz), Abdeckung, Denkprozess.
@@ -33,6 +36,8 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - Antrag suchen/filtern, Verbund öffnen, Teilvorhaben wechseln
 - Dokumente hochladen + Gutachten-Kontext wählen
 - Abschnitt erzeugen, per KI korrigieren, QS prüfen
+- Vor dem Erzeugen nachsehen, was an die KI geht
+- Zwei Fassungen von verschiedenen KIs vergleichen und eine übernehmen
 - Vom Befund zum Satz springen
 
 ## Technik

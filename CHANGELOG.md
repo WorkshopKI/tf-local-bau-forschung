@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.372.0 — Prompt sichtbar, Prompt-Defekte behoben, Kontext-Warnung, Zweitfassung mit der anderen KI (August 2026)
+
+MINOR — Die KI-Kurzfassung eines 60-seitigen Antrags war unbrauchbar, und niemand konnte nachsehen, warum: der Skill-Editor zeigt die Vorlage, nicht den Lauf. Dazwischen lagen neun angehängte Blöcke, eine am Kontextfenster gekappte Vorhabensbeschreibung und drei Widersprüche. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **Prompt-Ansicht** an der Karte und vor dem ersten Lauf: Maße, Bausteine, Wortlaut — als Vorschau und als das zuletzt Gesendete, aus derselben Kette wie der Lauf ([PromptAnsichtDialog.tsx](src/plugins/antraege/gutachten/PromptAnsichtDialog.tsx), [renderSkillPrompt](src/core/services/skills/run/run-skill.ts)).
+- **Bugfix:** Der unsichtbare JSON-Ausgabe-Block widersprach jeder kuratierten Teil-Reihenfolge und wurde vom automatischen Feinschliff ohnehin verworfen — aus allen Gutachten-Skills entfernt ([Migration `ga-teilstruktur-entfernen-2026-08`](src/core/services/skills/registry/migrations.ts)).
+- **Bugfix:** Zeichenlimit und Satzvorgaben waren gemeinsam nicht erfüllbar; der Prompt benennt jetzt den Vorrang, der Skill-Editor meldet Widerspruch und Dopplung ([check-engine.ts](src/core/services/skills/registry/check-engine.ts)).
+- **Kontext-Warnung vor dem Lauf** statt Vermerk danach, inkl. Empfehlung zur anderen KI; `kontextBedarf` je Schritt kuratierbar ([kontextWarnung.ts](src/plugins/antraege/gutachten/kontextWarnung.ts), [WorkflowEditor.tsx](src/plugins/skill-verwaltung-kuration/WorkflowEditor.tsx)).
+- **Zweitfassung mit der anderen internen KI** in den vorhandenen Versionsverlauf (Diff + Übernehmen), je Fassung mit ihrer KI beschriftet ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts), [VersionVerlauf.tsx](src/plugins/antraege/kurzfassung/VersionVerlauf.tsx)).
+
 ### v2.371.1 — Startseiten-Review: Sidebar-Latch, Dark-Mode-Persistenz, tote QS-Kachel (August 2026)
 
 PATCH — Erster Sicht-Check der Startseite über die Variante „local" (v2.371). Fünf Befunde, die im Bild messbar waren; die übrigen (widersprüchliche Zahlen, sechs Namen für einen Sachverhalt, Layout) brauchen fachliche Entscheidungen und folgen getrennt.

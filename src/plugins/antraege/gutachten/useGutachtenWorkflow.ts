@@ -18,6 +18,9 @@ import {
   loadSkillRegistry,
   runRegelChecks,
   regelnMitOverride,
+  renderSkillPrompt,
+  type SkillRunInput,
+  type RenderedSkillPrompt,
   loadSkillTweak,
   saveSkillTweak,
   deleteSkillTweak,
@@ -42,6 +45,12 @@ import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { generateInto, laufQs, laufLektorat, type GenerierungsDeps } from './workflow-generierung';
+import { baueSkillEingabe, tweakWirktAuf } from './laufEingabe';
+import { buildVorherigeAbschnitte } from './context-provider';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
+import { aktivesZielFuerLauf, kontextZielFuer, useKiZiel } from '@/core/services/ai/ki-ziel';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { GesendeterPrompt } from './promptAnsicht';
 import { useLlmErreichbarkeit, useSkillTweak, useWorkflowRegistry } from './workflow-hooks';
 import { makePersist, makeReduce } from './workflow-persistenz';
 import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
@@ -78,6 +87,27 @@ interface LaufOptionen {
   kontext?: KorrekturKontext;
   /** Freie Überarbeitungs-Anweisung des Bearbeiters („Bearbeiten mit KI"). */
   anweisung?: string;
+  /** Erzwungene interne KI („Zweitfassung mit der anderen KI"); sonst globale Präferenz. */
+  ziel?: BridgeZiel;
+}
+
+/**
+ * Was die Prompt-Ansicht eines Abschnitts zeigt: die Vorschau des nächsten Laufs
+ * und die Prompts des letzten. Beide kommen aus derselben Kette wie der echte
+ * Lauf — `baueSkillEingabe` → `renderSkillPrompt` — damit die Ansicht nicht neben
+ * dem Gesendeten herlaufen kann.
+ */
+export interface PromptAnsichtDaten {
+  skill: SkillRecord;
+  regeln: QualitaetsRegel[];
+  eingabe: SkillRunInput;
+  vorschau: RenderedSkillPrompt;
+  /** Zeichen-Cap des aktuell gewählten Ziels. */
+  cap: number;
+  /** Der Schritt nutzt die Relevanz-Map — die Vorschau zeigt trotzdem den Volltext. */
+  relevanzOffen: boolean;
+  /** Prompts des letzten Laufs (mehrere bei Teil-Generierung); leer vor dem ersten Lauf. */
+  gesendet: GesendeterPrompt[];
 }
 
 export interface GutachtenWorkflowController {
@@ -166,6 +196,21 @@ export interface GutachtenWorkflowController {
   sendFeedback: (stepId: StepId, rating: Rating, notiz?: string) => void;
   /** Audit-Stempel der zuletzt zum Export genutzten Vorlage setzen (Artefakt-Engine). */
   stampVorlage: (info: { pfad: string; hash?: string }) => void;
+  /**
+   * Denselben Abschnitt noch einmal erzeugen — mit der jeweils ANDEREN internen KI.
+   * Die bisherige Fassung wandert dabei wie bei jeder Re-Generierung in den Verlauf;
+   * verglichen und zurückgeholt wird dort (Diff + „Diese Fassung übernehmen").
+   * `null`, wenn `ziel` beim aktiven Transport nicht wirkt — dann wäre der zweite
+   * Lauf byte-identisch und der Knopf entfällt.
+   */
+  zweitfassungZiel: BridgeZiel | null;
+  zweitfassung: (stepId: StepId) => void;
+  /**
+   * Grundlage der Prompt-Ansicht („was geht wirklich an die KI?"). `null`, solange
+   * Run oder Skill fehlen. Wird beim Öffnen des Dialogs gerufen, nicht memoisiert —
+   * die Vorschau soll den Stand des Klicks zeigen (Ziel-Umschalter, Tweak, Korpus).
+   */
+  promptAnsichtFuer: (stepId: StepId) => PromptAnsichtDaten | null;
 }
 
 export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflowController {
@@ -176,6 +221,14 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const bridgeStatus = useBridgeStatus(s => s.status);
   const meinKuerzel = useMeinKuerzel();
   const key = ctx.key;
+  // Welche interne KI eine „Zweitfassung" ansteuern würde — die jeweils andere.
+  // `null`, wenn `ziel` beim aktiven Transport gar nicht wirkt: über die Bridge wählt
+  // es den Tab, auf DirectLLM/OpenRouter wäre der zweite Lauf byte-identisch zum
+  // ersten und der Knopf ein leeres Versprechen (`zielWirktAuf`).
+  const kiZiel = useKiZiel(s => s.ziel);
+  const zweitfassungZiel: BridgeZiel | null = bridge.istBridgeAktiv()
+    ? (kiZiel === 'agentisch' ? 'standard' : 'agentisch')
+    : null;
 
   const [run, setRun] = useState<WorkflowRun | null>(null);
   // Quellen des Gutachtens: die maßgebliche VB (IDB-Index mit Vorrang ODER persönlicher
@@ -201,6 +254,11 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   // (bearbeitenStep ist bereits ein Save, kein Tastendruck — hier nur gegen
   // wiederholtes „Übernehmen" desselben Abschnitts entprellt).
   const editiertZuletzt = useRef<Map<StepId, number>>(new Map());
+  // Was für einen Abschnitt zuletzt WIRKLICH gesendet wurde (Prompt-Ansicht).
+  // Session-lokal in einer Ref: der Text trägt Dokumentinhalt und wird weder
+  // persistiert noch in den Snapshot/Personal-Mirror geschrieben. Ein Reload
+  // leert ihn bewusst — dann bleibt die Vorschau.
+  const gesendetRef = useRef<Map<StepId, GesendeterPrompt[]>>(new Map());
   // `erlaubeEntwuerfe` ist ein Build-Konstant (dev → true), daher render-stabil.
   const erlaubeEntwuerfe = erlaubeWorkflowEntwuerfe();
   // Welche Workflow-Definition gerade gilt (Skills, Schritte, QS-Ziele, dev-Testwahl):
@@ -302,7 +360,42 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     regelnFuer,
     setLlmAvailable,
     setError,
+    merkeGesendet: (stepId, prompts) => { gesendetRef.current.set(stepId, prompts); },
   });
+
+  /**
+   * Datengrundlage der Prompt-Ansicht: die VORSCHAU einer frischen Generierung
+   * (über dieselbe `baueSkillEingabe`/`renderSkillPrompt`-Kette wie der Lauf) plus
+   * das, was zuletzt tatsächlich gesendet wurde.
+   *
+   * Die Vorschau lässt `vbRelevant` bewusst weg — die Relevanz-Map entsteht erst im
+   * Lauf (ein eigener LLM-Aufruf). Trägt der Schritt `kontextBedarf: 'relevant'`,
+   * sagt `relevanzOffen` das an, statt eine Genauigkeit vorzutäuschen.
+   */
+  const promptAnsichtFuer = (stepId: StepId): PromptAnsichtDaten | null => {
+    const sc = skillMap.get(stepId);
+    if (!sc || !run) return null;
+    const ziel = aktivesZielFuerLauf();
+    const regeln = regelnFuer(sc, tweak);
+    const eingabe = baueSkillEingabe({
+      ctx,
+      korpusMd,
+      vbCharCap: getVbCharCap(kontextZielFuer(bridge, ziel)),
+      thinkingBudget,
+      ziel,
+      vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, steps, 2000, 'freigegeben'),
+      ...(tweakWirktAuf(sc.skill.id, tweak) ? { tweak, tweakWirksam: true } : {}),
+    });
+    return {
+      skill: sc.skill,
+      regeln,
+      eingabe,
+      vorschau: renderSkillPrompt(sc.skill, regeln, eingabe),
+      cap: getVbCharCap(kontextZielFuer(bridge, ziel)),
+      relevanzOffen: steps.find(s => s.id === stepId)?.kontextBedarf === 'relevant' && !forceFullContext,
+      gesendet: gesendetRef.current.get(stepId) ?? [],
+    };
+  };
 
   /**
    * Eine Generierung (optional mit Modifier, regel-gebundenem Korrektur-Kontext
@@ -311,7 +404,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
    * — dann beendet der Orchestrator den Loop sofort (STOPP).
    */
   const runGeneration = async (stepId: StepId, o: LaufOptionen = {}): Promise<CheckResult[] | null> => {
-    const { modifier, kontext, anweisung } = o;
+    const { modifier, kontext, anweisung, ziel } = o;
     if (!vb || busy || !run || !skillMap.get(stepId)) return null;
     setBusy(true);
     setError(null);
@@ -323,6 +416,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         quelle: 'freigegeben', tweak, signal: abort.signal,
         ...(modifier ? { modifier } : {}),
         ...(anweisung ? { anweisung } : {}),
+        ...(ziel ? { ziel } : {}),
         ...(kontext?.anweisung ? { zusatzAnweisung: kontext.anweisung } : {}),
         ...(kontext?.regelId ? { korrekturRegelId: kontext.regelId } : {}),
       }, genDeps());
@@ -629,5 +723,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     stampVorlage: (info) => {
       void reduce((r, now) => setVorlageRef(r, { pfad: info.pfad, hash: info.hash ?? '', gelesenAm: now }, now));
     },
+    promptAnsichtFuer,
+    zweitfassungZiel,
+    zweitfassung: (id) => { if (zweitfassungZiel) void runGeneration(id, { ziel: zweitfassungZiel }); },
   };
 }

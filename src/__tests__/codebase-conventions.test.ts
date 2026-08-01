@@ -1004,7 +1004,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 37;    // Ist 37; +1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 1900;       // Ist ~1849 (DIESE Datei; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 1960;       // Ist ~1931 (DIESE Datei; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1538,6 +1538,42 @@ describe('arbeitskontext-log-idb-only (Journey Phase 2 — rein lokales Log)', (
       `arbeitskontext-log.ts muss IDB-only bleiben (kein Share-/Mirror-Write).\n`
       + `Verbotene Referenz(en) gefunden: ${treffer.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+describe('prompt-nur-im-ram (der gesendete Prompt wird nie persistiert)', () => {
+  // `SkillRunResult.gesendet` trägt den vollständigen Prompt — inklusive der
+  // Vorhabensbeschreibung im Volltext. Er dient allein der Prompt-ANSICHT und lebt
+  // in einer React-Ref für die Dauer der Sitzung. Landete er in einem Record, ginge
+  // Dokumentinhalt in IDB-Persistenz, Snapshot und Personal-Mirror — vervielfacht
+  // um jeden Abschnitt und jeden Lauf.
+  it('kein persistierender Gutachten-Reducer nimmt ein `gesendet`-Feld auf', () => {
+    const dateien = ['runner.ts', 'types.ts', 'workflow-persistenz.ts']
+      .map(f => join(ROOT, 'plugins', 'antraege', 'gutachten', f));
+    const treffer: string[] = [];
+    for (const file of dateien) {
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      lines.forEach((l, i) => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
+        if (/\bgesendet\b/.test(l)) treffer.push(`${relPath(file)}:${i + 1}`);
+      });
+    }
+    expect(
+      treffer,
+      'Der gesendete Prompt (Dokumentinhalt) darf in keinen persistierten Record wandern.\n'
+      + `Fundstelle(n): ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('das Session-Protokoll liegt in einer Ref, nicht in IDB/Share', () => {
+    const file = join(ROOT, 'plugins', 'antraege', 'gutachten', 'useGutachtenWorkflow.ts');
+    const content = readFileSync(file, 'utf-8');
+    expect(content).toContain('gesendetRef');
+    const zeile = content.split(/\r?\n/).find(l => l.includes('gesendetRef.current.set'));
+    expect(zeile, 'merkeGesendet muss in die Ref schreiben').toBeDefined();
+    // Kein Persistenz-Aufruf in derselben Anweisung.
+    expect(zeile).not.toMatch(/persist|put\(|atomicWrite/);
   });
 });
 

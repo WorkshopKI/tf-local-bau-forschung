@@ -37,6 +37,16 @@ export interface ZielFallbackOptions<R> {
   istUnbrauchbar?: (ergebnis: R) => boolean;
   /** Wird unmittelbar VOR dem Retry gerufen (z.B. Streaming-Puffer leeren). */
   vorRetry?: () => void;
+  /**
+   * Erzwingt ein bestimmtes Ziel statt der globalen Präferenz — für die
+   * „Zweitfassung mit der anderen KI".
+   *
+   * Setzt zugleich den Fallback AUS: wer ausdrücklich die andere KI verlangt, darf
+   * nicht stillschweigend die Fassung der ersten zurückbekommen. Scheitert der Lauf,
+   * ist das eine Auskunft („die andere KI liefert gerade nicht") und kein Anlass,
+   * dieselbe Antwort ein zweites Mal zu erzeugen.
+   */
+  zielOverride?: BridgeZiel;
 }
 
 export interface ZielFallbackErgebnis<R> {
@@ -81,8 +91,9 @@ export async function mitZielFallback<R>(
   lauf: (ziel: BridgeZiel) => Promise<R>,
   opts: ZielFallbackOptions<R>,
 ): Promise<ZielFallbackErgebnis<R>> {
-  const ziel = aktivesZielFuerLauf();
-  const retryMoeglich = ziel === 'agentisch' && opts.zielWirkt;
+  const ziel = opts.zielOverride ?? aktivesZielFuerLauf();
+  // Ein erzwungenes Ziel schließt den Fallback aus (siehe `zielOverride`).
+  const retryMoeglich = !opts.zielOverride && ziel === 'agentisch' && opts.zielWirkt;
 
   const retry = async (): Promise<ZielFallbackErgebnis<R>> => {
     opts.vorRetry?.();

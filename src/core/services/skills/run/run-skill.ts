@@ -210,6 +210,16 @@ export interface SkillRunResult {
    * `'nicht-unterstuetzt'` (stateless-API-Transport) = unkritisch.
    */
   chatResetStatus?: ChatResetStatus;
+  /**
+   * Was TATSÄCHLICH gesendet wurde — für die Prompt-Ansicht („zuletzt gesendet").
+   * Bewusst am Ergebnis und nicht über eine Callback-Verdrahtung: so kann kein
+   * Aufrufer eine abweichende Rekonstruktion zeigen.
+   *
+   * **Nur RAM.** Der Text trägt Dokumentinhalt (die VB) und gehört in KEINEN
+   * persistierten Record, keinen Snapshot und keinen Personal-Mirror — Guard
+   * `prompt-nur-im-ram` in [codebase-conventions.test.ts].
+   */
+  gesendet?: { system: string; user: string; vb: string; vbGekuerzt: boolean };
 }
 
 /** Kürzt zu langes VB-Markdown am letzten Absatzumbruch vor dem Cap. */
@@ -380,6 +390,47 @@ export function composeSkillPrompt(
   return content;
 }
 
+/** Das fertig gerenderte Paar, das an den Transport geht (plus Mess-Werte). */
+export interface RenderedSkillPrompt {
+  /** System-Rolle (leer, wenn der Skill keine führt). */
+  system: string;
+  /** Der zusammengesetzte User-Content — GENAU der Text, der gesendet wird. */
+  user: string;
+  /** Der (ggf. gekürzte) VB-Text, wie er im `user`-Text steht. */
+  vb: string;
+  /** True, wenn die VB für den Prompt gekürzt werden musste. */
+  vbGekuerzt: boolean;
+  /** Output-Budget inkl. Thinking-Aufschlag. */
+  maxTokens: number;
+}
+
+/**
+ * Rendert den Lauf, ohne ihn zu fahren: VB kappen → Blöcke komponieren →
+ * Output-Budget rechnen. `runSkillInner` ruft genau diese Funktion, damit die
+ * Prompt-ANSICHT nicht neben dem Gesendeten herlaufen kann — eine Vorschau, die
+ * ihren Text selbst nachbaut, ist bei acht bedingten Blöcken zwangsläufig
+ * irgendwann falsch, und zwar unbemerkt.
+ *
+ * Rein (kein IO, kein Transport) — direkt in Node testbar.
+ */
+export function renderSkillPrompt(
+  skill: SkillRecord,
+  regeln: QualitaetsRegel[],
+  input: SkillRunInput,
+): RenderedSkillPrompt {
+  const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown, input.vbCharCap);
+  const budget: ThinkingBudget = input.thinkingBudget ?? 'none';
+  return {
+    system: skill.systemPrompt ?? '',
+    user: composeSkillPrompt(skill, regeln, input, vb),
+    vb,
+    vbGekuerzt: gekuerzt,
+    // Bei aktivem Thinking Platz für den Reasoning-Block aufschlagen, sonst frisst
+    // er das gemeinsame max_tokens-Budget und die Antwort wird leer abgeschnitten.
+    maxTokens: (skill.maxTokens ?? DEFAULT_MAX_TOKENS) + (budget !== 'none' ? THINKING_OUTPUT_HEADROOM : 0),
+  };
+}
+
 export async function runSkill(
   transport: AITransport,
   skill: SkillRecord,
@@ -420,13 +471,9 @@ async function runSkillInner(
   regeln: QualitaetsRegel[],
   input: SkillRunInput,
 ): Promise<SkillRunResult> {
-  const { text: vb, gekuerzt } = capVbMarkdown(input.vbMarkdown, input.vbCharCap);
-  const userContent = composeSkillPrompt(skill, regeln, input, vb);
-  const systemPrompt = skill.systemPrompt ?? '';
+  const gerendert = renderSkillPrompt(skill, regeln, input);
+  const { system: systemPrompt, user: userContent, vbGekuerzt: gekuerzt, maxTokens } = gerendert;
   const budget: ThinkingBudget = input.thinkingBudget ?? 'none';
-  // Bei aktivem Thinking Platz für den Reasoning-Block aufschlagen, sonst frisst
-  // er das gemeinsame max_tokens-Budget und die Antwort wird leer abgeschnitten.
-  const maxTokens = (skill.maxTokens ?? DEFAULT_MAX_TOKENS) + (budget !== 'none' ? THINKING_OUTPUT_HEADROOM : 0);
 
   // Frischer Chat-Verlauf vor JEDEM Skill-Lauf: der Streamlit-Chat ist stateful,
   // stateless-Läufe würden sonst über den alten Verlauf kontaminieren (Kontext-
@@ -540,6 +587,7 @@ async function runSkillInner(
     parsed,
     vbGekuerzt: gekuerzt,
     chatResetStatus,
+    gesendet: { system: systemPrompt, user: userContent, vb: gerendert.vb, vbGekuerzt: gekuerzt },
     ...(thinking ? { thinking } : {}),
     ...(entwurfVorLektor !== undefined ? { entwurfVorLektor } : {}),
   };

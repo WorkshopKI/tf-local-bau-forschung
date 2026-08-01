@@ -141,6 +141,18 @@ describe('Prompt-Hygiene — gerenderte A–G-Prompts', () => {
     }
   });
 
+  // Die strukturierte Ausgabe ist 2026-08 aus den GA-Skills entfernt (Migration
+  // `ga-teilstruktur-entfernen-2026-08`): sie hängte einen autoritativen JSON-Block an,
+  // dessen Schlüssel-Reihenfolge aus dem Seed stammte und jeder kuratierten Umsortierung
+  // der Teile im Prompt-Text widersprach — und dessen Ergebnis der automatische
+  // Feinschliff ohnehin verwarf (`applyLektorat` setzt `teile: undefined`).
+  it('kein Gutachten-Prompt verlangt mehr eine JSON-Ausgabe des finalen Textes', () => {
+    for (const skill of ALLE_SKILLS) {
+      expect(skill.teilStruktur, `${skill.id} trägt wieder teilStruktur`).toBeUndefined();
+      expect(render(skill), skill.id).not.toContain('AUSSCHLIESSLICH ein JSON-Array');
+    }
+  });
+
   // Teil-Generierung (Abschnitt B): die Teil-Vorgabe überstimmt das Template. Steht das
   // nicht im Prompt, muss das Modell subsumieren, ob auch der Inhaltskontrakt gemeint ist.
   it('die Teil-Vorgabe benennt ihren Vorrang über Umfang, Struktur UND Inhalt', () => {

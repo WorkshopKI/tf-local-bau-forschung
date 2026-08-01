@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import {
   normalizeStepRolle, QS_BASIS_SKILL_ID, MAX_AUTO_RETRIES, DEFAULT_MAX_RETRIES,
-  type GateExpr, type SkillRegistryFile, type WorkflowStep, type WorkflowStepRolle,
+  type GateExpr, type KontextBedarf, type SkillRegistryFile, type WorkflowStep, type WorkflowStepRolle,
 } from '@/core/services/skills';
 import { getWorkflowById, getWorkflowDef } from './workflowShared';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
@@ -179,6 +179,27 @@ export function WorkflowEditor({ file, workflowId, step, isNew, canEdit, onSave,
             {GATE_OPTIONS.map(g => <option key={g} value={g}>{GATE_LABEL[g]}</option>)}
           </select>
         </Field>
+
+        {rolle !== 'llm_qs' && (
+          <Field label="Kontext aus der Vorhabensbeschreibung">
+            <select
+              value={draft.kontextBedarf ?? 'voll'}
+              disabled={ro}
+              onChange={e => setDraft(d => ({ ...d, kontextBedarf: e.target.value as KontextBedarf }))}
+              className={`${inputCls} max-w-[360px]`}
+            >
+              <option value="voll">Vollständig — die ganze Vorhabensbeschreibung</option>
+              <option value="relevant">Nur die einschlägigen Abschnitte (Relevanz-Map)</option>
+            </select>
+            <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] mt-1.5">
+              Bei umfangreichen Anträgen passt die vollständige Beschreibung nicht ins Kontextfenster und wird
+              am Ende abgeschnitten. „Nur die einschlägigen Abschnitte" lässt die KI einmal je Vorhaben
+              bestimmen, welche Abschnitte zu welchem Gutachten-Teil gehören, und übergibt nur diese —
+              wortgetreu. Das kostet einen zusätzlichen, gecachten KI-Lauf je Vorhaben. Der Bearbeiter kann
+              die Auswahl pro Lauf übergehen („Vollständigen Kontext erzwingen").
+            </p>
+          </Field>
+        )}
 
         <Field label="Unterschritt von (optional — genau eine Ebene)">
           <select

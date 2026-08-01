@@ -14,6 +14,7 @@ import { splitSentences } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { versionLabel, formatDate } from './kurzfassung-verlauf';
 import { computeFinalerTextDiff, diffStats, type DiffOp } from './kurzfassung-diff';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { KurzfassungVersion } from './types';
 
 interface Props {
@@ -22,9 +23,16 @@ interface Props {
   aktuellerText: string;
   /** Zeitstempel der aktuell aktiven Fassung (linke Meta-Zeile). */
   aktuellErstelltAm: string;
+  /** Interne KI der aktiven Fassung — ohne sie wäre ein KI-Vergleich nicht zuordenbar. */
+  aktuellZiel?: BridgeZiel;
+  /** Ob die aktive Fassung auf gekürzter VB entstand (für den Vergleichs-Hinweis). */
+  aktuellVbGekuerzt?: boolean;
   busy: boolean;
   onUebernehmen: (index: number) => void;
 }
+
+/** Kurz-Beschriftung der internen KI (Tab + Meta-Zeile). */
+const ZIEL_KURZ: Record<BridgeZiel, string> = { standard: 'Standard-KI', agentisch: 'agentische KI' };
 
 const DIFF_BOX ='rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-3 text-[13px] leading-[1.7] text-[var(--tf-text)] whitespace-pre-wrap max-h-[360px] overflow-auto';
 const META = 'mb-2 flex items-baseline gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]';
@@ -56,7 +64,9 @@ function renderSide(diffs: DiffOp[], side: 'aktuell' | 'vorfassung'): React.Reac
   });
 }
 
-export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, busy, onUebernehmen }: Props): React.ReactElement | null {
+export function VersionVerlauf({
+  versions, aktuellerText, aktuellErstelltAm, aktuellZiel, aktuellVbGekuerzt, busy, onUebernehmen,
+}: Props): React.ReactElement | null {
   // Default: neueste Vorfassung gewählt. State darf nach Übernehmen/Neu-Lauf
   // veralten → beim Zugriff hart clampen.
   const [rawIdx, setRawIdx] = useState(versions.length - 1);
@@ -76,10 +86,23 @@ export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, bus
   const tabs = versions
     .map((v, i) => ({ v, i }))
     .reverse()
-    .map(({ v, i }) => ({ id: String(i), label: `${versionLabel(v)} · ${kurzDatum(v.erstellt_am)}` }));
+    .map(({ v, i }) => ({
+      id: String(i),
+      // Die KI gehört ins Tab-Label, nicht nur in die Meta-Zeile: zwei Fassungen
+      // desselben Zyklus tragen sonst dieselbe Beschriftung und dasselbe Datum.
+      label: `${versionLabel(v)}${v.ziel ? ` · ${ZIEL_KURZ[v.ziel]}` : ''} · ${kurzDatum(v.erstellt_am)}`,
+    }));
 
   const satzAktuell = splitSentences(aktuellerText).length;
   const satzGewaehlt = splitSentences(gewaehlt.finalerText).length;
+  // Zwei Fassungen aus verschiedenen KIs sind nicht ohne Weiteres vergleichbar, wenn
+  // eine davon auf gekappter Vorhabensbeschreibung entstand: die Fenster der beiden
+  // internen KIs unterscheiden sich um etwa das Vierfache. Dann vergleicht man
+  // „gekürzt gegen vollständig" — das muss dastehen, sonst liest es sich als
+  // Qualitätsurteil über das Modell.
+  const kontextUnterschied = !!aktuellZiel && !!gewaehlt.ziel
+    && aktuellZiel !== gewaehlt.ziel
+    && !!aktuellVbGekuerzt !== !!gewaehlt.vbGekuerzt;
 
   return (
     <div className="mt-4">
@@ -93,6 +116,14 @@ export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, bus
             <span className="text-[var(--tf-text-tertiary)]">Änderungen ggü. „{versionLabel(gewaehlt)}"</span>
           </div>
 
+          {kontextUnterschied && (
+            <div className="mb-3 px-3 py-2 rounded-[8px] bg-[var(--tf-bg-secondary)] text-[11.5px] leading-[1.5] text-[var(--tf-text-secondary)]">
+              Die beiden Fassungen sahen unterschiedlich viel vom Antrag: eine entstand auf gekürzter
+              Vorhabensbeschreibung, die andere nicht. Der Unterschied im Text sagt daher nicht allein
+              etwas über die KI aus.
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Links: aktuelle Fassung (Einfügungen grün) */}
             <div>
@@ -104,6 +135,8 @@ export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, bus
                 <span>{satzAktuell} {satzAktuell === 1 ? 'Satz' : 'Sätze'}</span>
                 <span>·</span>
                 <span>{aktuellerText.length} Zeichen</span>
+                {aktuellZiel ? <><span>·</span><span>{ZIEL_KURZ[aktuellZiel]}</span></> : null}
+                {aktuellVbGekuerzt ? <><span>·</span><span>VB gekürzt</span></> : null}
               </div>
               <div className={DIFF_BOX}>{renderSide(diffs, 'aktuell')}</div>
             </div>
@@ -125,6 +158,7 @@ export function VersionVerlauf({ versions, aktuellerText, aktuellErstelltAm, bus
                 <span>{satzGewaehlt} {satzGewaehlt === 1 ? 'Satz' : 'Sätze'}</span>
                 <span>·</span>
                 <span>{gewaehlt.finalerText.length} Zeichen</span>
+                {gewaehlt.ziel ? <><span>·</span><span>{ZIEL_KURZ[gewaehlt.ziel]}</span></> : null}
                 {gewaehlt.vbGekuerzt ? <><span>·</span><span>VB gekürzt</span></> : null}
               </div>
               <div className={DIFF_BOX}>{renderSide(diffs, 'vorfassung')}</div>

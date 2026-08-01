@@ -21,7 +21,7 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
-import { History, Pencil, SpellCheck, Trash2 } from 'lucide-react';
+import { FileSearch, GitCompare, History, Pencil, SpellCheck, Trash2 } from 'lucide-react';
 import { keymap, type EditorView } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -124,6 +124,15 @@ interface Props {
   onQs?: () => void;
   /** Sprachlicher Feinschliff (manuell) — fehlt, wenn der Lektor-Skill deaktiviert ist. */
   onLektorat?: () => void;
+  /** Den zusammengesetzten Prompt dieses Abschnitts ansehen (Vorschau + zuletzt gesendet). */
+  onOpenPrompt?: () => void;
+  /**
+   * Zweitfassung mit der ANDEREN internen KI erzeugen. Beschriftung nennt sie
+   * ausdrücklich; fehlt die Aktion, wirkt `ziel` beim aktiven Transport nicht.
+   */
+  onZweitfassung?: () => void;
+  /** Beschriftung der anderen KI (z.B. „agentische KI") — nur mit `onZweitfassung`. */
+  zweitfassungLabel?: string;
   provenance?: { skillName: string };
   onOpenSkill?: () => void;
   onFeedback?: (rating: 'up' | 'down', notiz?: string) => void;
@@ -139,7 +148,8 @@ interface Props {
 
 export function SectionReviewCard({
   run, kopf, busy, llmAvailable, retryNote, onModify, onUeberarbeiten, onBearbeiten, onPruefen, pruefAktion,
-  onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, onLektorat,
+  onFreigeben, onVerwerfen, onStop, onUebernehmen, onErneutOeffnen, onOpenTweak, onQs, onLektorat, onOpenPrompt,
+  onZweitfassung, zweitfassungLabel,
   provenance, onOpenSkill, onFeedback, streamContent, streamThinking, streamPhase,
   fundstelle, hoverSaetze, onHoverSaetze,
 }: Props): React.ReactElement {
@@ -220,6 +230,13 @@ export function SectionReviewCard({
       disabled: genDisabled || !run.finalerText.trim(),
       onClick: onLektorat,
     }] : []),
+    ...(!freigegeben && onZweitfassung ? [{
+      key: 'zweitfassung',
+      label: `Zweitfassung mit der ${zweitfassungLabel ?? 'anderen KI'}`,
+      icon: <GitCompare size={14} />,
+      disabled: genDisabled,
+      onClick: onZweitfassung,
+    }] : []),
     {
       key: 'verlauf',
       label: verlaufOffen ? 'Vorfassungen ausblenden' : `Vorfassungen (${run.verlauf?.length ?? 0})`,
@@ -227,6 +244,12 @@ export function SectionReviewCard({
       disabled: (run.verlauf?.length ?? 0) === 0,
       onClick: () => setVerlaufOffen(o => !o),
     },
+    ...(onOpenPrompt ? [{
+      key: 'prompt',
+      label: 'Prompt an die KI ansehen',
+      icon: <FileSearch size={14} />,
+      onClick: onOpenPrompt,
+    }] : []),
     ...(!freigegeben ? [{
       key: 'verwerfen',
       label: 'Abschnitt verwerfen',
@@ -335,6 +358,8 @@ export function SectionReviewCard({
           versions={run.verlauf ?? []}
           aktuellerText={run.finalerText}
           aktuellErstelltAm={run.erstellt_am}
+          {...(run.ziel ? { aktuellZiel: run.ziel } : {})}
+          {...(run.vbGekuerzt ? { aktuellVbGekuerzt: true } : {})}
           busy={busy}
           onUebernehmen={onUebernehmen}
         />

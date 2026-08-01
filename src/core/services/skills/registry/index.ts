@@ -10,6 +10,8 @@ export {
   buildPromptHinweis,
   buildPromptVorgaben,
   findeUmfangKonflikte,
+  findeUmfangDopplungen,
+  findeVorgabenWidersprueche,
   eingabeModusOf,
   kompiliereGruppe,
   erkennungsEintraege,

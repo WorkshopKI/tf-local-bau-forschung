@@ -11,10 +11,11 @@ Kuratoren (bzw. PL im Schreib-Build) pflegen die KI-Skills, Qualitätsregeln und
 - **Skill-Editor** (Detail-Kopf mit Umschalter „Team | Persönlich"):
   - Prompt-Template, Modifier (neu/kürzer/länger), Kategorie (leer = abgeleitet).
   - Sektion **„Umfang & Form"**: An/Aus-Pille je Vorgabe mit Zahlenfeld + Häkchen „persönlich anpassbar".
+  - Sektion **„Formale Vorgaben (automatisch)"**: der Block, der aus den Regeln erzeugt und dem Prompt angehängt wird. Darunter erscheinen bei Bedarf drei Hinweise: der Prompt-Text nennt eine andere Zahl als die Regel; die Vorgaben schließen einander aus (etwa Satzzahl mal Satzlänge gegen das Zeichenlimit); der Prompt-Text nennt eine Zahl doppelt, die ohnehin aus der Regel kommt.
   - Zugeordnete Bibliotheks-Regeln.
   - **„Abnahme-Kriterien (KI-QS)"**: ein prüfbarer Satz je Zeile (leer = generisch) + „Kriterien aus Prompt ableiten" (Vorschläge zum Anklicken).
   - **Persönlich-Ansicht:** freigegebene Werte verschieben + eigene Stil-Hinweise.
-- **Weitere Werkzeuge:** Regel-Editor, Workflow-Editor (Schritte, Freigabe), Testlauf-Panel („VB ✓"/„keine VB"), Bundle-Import/-Export, „Ungespeicherte Änderungen"-Dialog.
+- **Weitere Werkzeuge:** Regel-Editor, Workflow-Editor (Schritte, Freigabe, je Schritt **„Kontext aus der Vorhabensbeschreibung"**: vollständig oder nur die einschlägigen Abschnitte), Testlauf-Panel („VB ✓"/„keine VB"), Bundle-Import/-Export, „Ungespeicherte Änderungen"-Dialog.
 - **Reiter „Textbausteine":** Liste (Filter Typ NF/RNE/ABL, Status, Aspekt, Suche) + Editor (Thema, Aspekt-Chips A–J, Stichworte, Rechtstext mit Platzhaltern), Freigeben/Stilllegen mit Begründung, Versions-Historie mit Diff/Rollback, „Neuer Baustein" + „Aus Word importieren" (verbatim, erzeugt Entwürfe).
 
 ## Typische Aktionen

@@ -8,10 +8,18 @@
  * geht nichts verloren).
  */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
+import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { KurzfassungVersion } from './types';
 
-/** Maximale Anzahl aufbewahrter Vorfassungen (älteste fliegt beim Überlauf raus). */
-export const MAX_VERLAUF = 5;
+/**
+ * Maximale Anzahl aufbewahrter Vorfassungen (älteste fliegt beim Überlauf raus).
+ *
+ * Von 5 auf 8 gehoben (2026-08): seit dem automatisch angehängten Feinschliff
+ * schreibt EIN Generierungs-Zyklus zwei Einträge (Rohentwurf + Vorfassung). Bei 5
+ * überlebte ein bewusst erzeugtes Fassungs-Paar aus beiden internen KIs den nächsten
+ * Lauf nicht — genau das, was man vergleichen will, fiel als erstes hinten raus.
+ */
+export const MAX_VERLAUF = 8;
 
 /**
  * Gemeinsame Inhalts-Form für die Verlaufs-Helfer. Sowohl `KurzfassungRecord`
@@ -33,6 +41,8 @@ export interface VerlaufContent {
   vbGekuerzt?: boolean;
   warnung?: string;
   denkprozess?: string;
+  /** Die interne KI dieses Laufs (`StepRun.ziel`) — trägt den KI-Vergleich im Verlauf. */
+  ziel?: BridgeZiel;
   verlauf?: KurzfassungVersion[];
 }
 
@@ -84,6 +94,7 @@ export function snapshotOf(record: VerlaufContent): KurzfassungVersion {
     ...(record.vbGekuerzt ? { vbGekuerzt: record.vbGekuerzt } : {}),
     ...(record.warnung ? { warnung: record.warnung } : {}),
     ...(record.denkprozess ? { denkprozess: record.denkprozess } : {}),
+    ...(record.ziel ? { ziel: record.ziel } : {}),
   };
 }
 
@@ -124,6 +135,7 @@ export function restoreVersion<T extends VerlaufContent>(record: T, index: numbe
     ...(chosen.vbGekuerzt ? { vbGekuerzt: chosen.vbGekuerzt } : { vbGekuerzt: undefined }),
     ...(chosen.warnung ? { warnung: chosen.warnung } : { warnung: undefined }),
     ...(chosen.denkprozess ? { denkprozess: chosen.denkprozess } : { denkprozess: undefined }),
+    ...(chosen.ziel ? { ziel: chosen.ziel } : { ziel: undefined }),
   } as T;
 }
 
