@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { Info, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { zielLabel } from './abschnittAnzeige';
+import { fassungLabel } from './zweitfassung';
 import type { StepRun } from './types';
 
 interface Props {
@@ -53,7 +54,10 @@ export function AbschnittFuss({
   const prov = provenance
     ? `${provenance.skillName}${run.skillVersion != null ? ` v${run.skillVersion}` : ''}`
     : null;
-  const ki = zielLabel(run);
+  // Herkunft: entweder die interne KI (Bridge) ODER die mutigere Einstellung
+  // (direkt angebundene KI). Beides zugleich gibt es nicht — wo `ziel` wirkt,
+  // variiert die Zweitfassung den Tab und nicht die Temperatur.
+  const ki = zielLabel(run) ?? fassungLabel(run.fassung);
 
   return (
     <div className="g-fuss">

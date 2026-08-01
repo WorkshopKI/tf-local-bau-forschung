@@ -168,6 +168,7 @@ export class DirectLLMTransport implements AITransport {
       max_tokens: options?.maxTokens ?? 1500,
     };
     this.applyLlamaCppFields(body, options?.thinkingBudget);
+    if (options?.temperatur !== undefined) body.temperature = options.temperatur;
     if (options?.responseFormat) body.response_format = options.responseFormat;
 
     const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
@@ -199,6 +200,7 @@ export class DirectLLMTransport implements AITransport {
       stream: true,
     };
     this.applyLlamaCppFields(body, options?.thinkingBudget);
+    if (options?.temperatur !== undefined) body.temperature = options.temperatur;
     // stream_options nur bei OpenRouter — ältere llama.cpp-Builds lehnen unbekannte
     // Params ab; llama.cpp liefert `timings` ohnehin im Final-Chunk.
     if (this.endpoint.includes('openrouter')) body.stream_options = { include_usage: true };

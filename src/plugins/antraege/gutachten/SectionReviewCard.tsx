@@ -127,11 +127,12 @@ interface Props {
   /** Den zusammengesetzten Prompt dieses Abschnitts ansehen (Vorschau + zuletzt gesendet). */
   onOpenPrompt?: () => void;
   /**
-   * Zweitfassung mit der ANDEREN internen KI erzeugen. Beschriftung nennt sie
-   * ausdrücklich; fehlt die Aktion, wirkt `ziel` beim aktiven Transport nicht.
+   * Zweitfassung desselben Abschnitts erzeugen — über die Bridge mit der anderen
+   * internen KI, an einer direkt angebundenen KI mit mutigerer Einstellung. Was
+   * genau variiert wird, steht in der Beschriftung (`bestimmeZweitfassung`).
    */
   onZweitfassung?: () => void;
-  /** Beschriftung der anderen KI (z.B. „agentische KI") — nur mit `onZweitfassung`. */
+  /** Dativ-Ergänzung zu „Zweitfassung mit …" (z.B. „der agentischen KI"). */
   zweitfassungLabel?: string;
   provenance?: { skillName: string };
   onOpenSkill?: () => void;
@@ -232,7 +233,7 @@ export function SectionReviewCard({
     }] : []),
     ...(!freigegeben && onZweitfassung ? [{
       key: 'zweitfassung',
-      label: `Zweitfassung mit der ${zweitfassungLabel ?? 'anderen KI'}`,
+      label: `Zweitfassung mit ${zweitfassungLabel ?? 'der anderen KI'}`,
       icon: <GitCompare size={14} />,
       disabled: genDisabled,
       onClick: onZweitfassung,
@@ -359,6 +360,7 @@ export function SectionReviewCard({
           aktuellerText={run.finalerText}
           aktuellErstelltAm={run.erstellt_am}
           {...(run.ziel ? { aktuellZiel: run.ziel } : {})}
+          {...(run.fassung ? { aktuellFassung: run.fassung } : {})}
           {...(run.vbGekuerzt ? { aktuellVbGekuerzt: true } : {})}
           busy={busy}
           onUebernehmen={onUebernehmen}

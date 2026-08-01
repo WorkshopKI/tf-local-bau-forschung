@@ -130,6 +130,7 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose }: Props): Re
     <>
       <span className="mr-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">
         {daten.skill.name} v{daten.skill.version} · Ausgabe-Budget {zahl(daten.vorschau.maxTokens)} Tokens
+        {' · '}Temperatur {daten.vorschau.temperatur.toLocaleString('de-DE')}
       </span>
       <Button variant="ghost" icon={Copy} onClick={() => kopieren.run()} loading={kopieren.busy}>
         Kopieren

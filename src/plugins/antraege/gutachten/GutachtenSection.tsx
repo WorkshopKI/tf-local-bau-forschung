@@ -22,7 +22,7 @@ import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflow
 import { useVbCharCap, useKontextZiel } from '@/core/hooks/useVbCharCap';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { VB_KUERZEN_HINWEIS } from '@/core/services/skills';
-import { pruefeKontextPasst, ZIEL_LABEL } from './kontextWarnung';
+import { pruefeKontextPasst } from './kontextWarnung';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   ankerFuer, ankerKeyGueltig, type AbschnittEinfuegung, type AbschnittAnzeige,
@@ -738,12 +738,8 @@ function ActiveAbschnitt({
           onErneutOeffnen={() => ctrl.erneutOeffnenStep(id)}
           onOpenTweak={onOpenTweak}
           onOpenPrompt={onOpenPrompt}
-          {...(ctrl.zweitfassungZiel
-            ? {
-                onZweitfassung: () => ctrl.zweitfassung(id),
-                zweitfassungLabel: ZIEL_LABEL[ctrl.zweitfassungZiel],
-              }
-            : {})}
+          onZweitfassung={() => ctrl.zweitfassung(id)}
+          zweitfassungLabel={ctrl.zweitfassungArt.label}
           {...(fundstelle ? { fundstelle } : {})}
           hoverSaetze={hoverSaetze ?? null}
           {...(onHoverSaetze ? { onHoverSaetze } : {})}

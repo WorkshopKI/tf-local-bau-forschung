@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { capVbMarkdown, vbUeberschreitetCap, VB_CHAR_CAP, runSkill } from '../run-skill';
+import { capVbMarkdown, vbUeberschreitetCap, VB_CHAR_CAP, runSkill, renderSkillPrompt } from '../run-skill';
+import { TEMPERATUR_MUTIG, TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type { SkillRecord } from '@/core/services/skills';
 
@@ -198,5 +199,52 @@ describe('runSkill Abschluss-Marker (erwarteAbschluss → submitMessage)', () =>
     const { transport, opts } = capturingTransport();
     await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
     expect(opts()).toBeUndefined();
+  });
+});
+
+/**
+ * Bis v2.372 sendete die App gar keine Temperatur — es galt still die
+ * Server-Voreinstellung (llama.cpp: 1.0 bei zufälligem Seed), während die
+ * Node-Eval auf 0 maß. Der Runner setzt sie jetzt IMMER.
+ */
+describe('runSkill Temperatur', () => {
+  function skill(): SkillRecord {
+    return {
+      id: 's', name: 's', beschreibung: '', version: 1,
+      promptTemplate: 'VB:\n{{vbMarkdown}}',
+      modifiers: { neu: '', kuerzer: '', laenger: '' },
+      regelIds: [], slots: ['vbMarkdown'], geaendert_am: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  /** API-Transport (submitConversation-Zweig); fängt die Options des Inhalts-Calls. */
+  function apiTransport(): { transport: AITransport; opts: () => { temperatur?: number } } {
+    let captured: { temperatur?: number } = {};
+    const transport: AITransport = {
+      name: 'stub',
+      ping: async () => true,
+      submitMessage: async () => 'Text.',
+      submitConversation: async (_m, options) => { captured = options ?? {}; return 'Text.'; },
+    };
+    return { transport, opts: () => captured };
+  }
+
+  it('sendet ohne Angabe den sicheren Standard', async () => {
+    const { transport, opts } = apiTransport();
+    await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
+    expect(opts().temperatur).toBe(TEMPERATUR_SICHER);
+  });
+
+  it('übernimmt eine erzwungene Temperatur (Zweitfassung)', async () => {
+    const { transport, opts } = apiTransport();
+    await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x', temperatur: TEMPERATUR_MUTIG });
+    expect(opts().temperatur).toBe(TEMPERATUR_MUTIG);
+  });
+
+  it('meldet sie auch in der Prompt-Vorschau — sonst wäre sie wieder unsichtbar', () => {
+    expect(renderSkillPrompt(skill(), [], { stammdaten: '', vbMarkdown: 'x' }).temperatur)
+      .toBe(TEMPERATUR_SICHER);
+    expect(renderSkillPrompt(skill(), [], { stammdaten: '', vbMarkdown: 'x', temperatur: 0.9 }).temperatur)
+      .toBe(0.9);
   });
 });

@@ -25,6 +25,8 @@ interface Props {
   aktuellErstelltAm: string;
   /** Interne KI der aktiven Fassung — ohne sie wäre ein KI-Vergleich nicht zuordenbar. */
   aktuellZiel?: BridgeZiel;
+  /** Erhöhte Temperatur der aktiven Fassung — dasselbe ohne Bridge. */
+  aktuellFassung?: 'mutig';
   /** Ob die aktive Fassung auf gekürzter VB entstand (für den Vergleichs-Hinweis). */
   aktuellVbGekuerzt?: boolean;
   busy: boolean;
@@ -33,6 +35,16 @@ interface Props {
 
 /** Kurz-Beschriftung der internen KI (Tab + Meta-Zeile). */
 const ZIEL_KURZ: Record<BridgeZiel, string> = { standard: 'Standard-KI', agentisch: 'agentische KI' };
+
+/**
+ * Woher eine Fassung kommt — die andere KI (Bridge) ODER die mutigere Einstellung
+ * (direkt angebundene KI). Genau das unterscheidet ein Fassungs-Paar; ohne die
+ * Angabe tragen beide Tabs dieselbe Beschriftung und dasselbe Datum.
+ */
+function herkunftKurz(v: { ziel?: BridgeZiel; fassung?: 'mutig' }): string | null {
+  if (v.ziel) return ZIEL_KURZ[v.ziel];
+  return v.fassung === 'mutig' ? 'mutigere Einstellung' : null;
+}
 
 const DIFF_BOX ='rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-3 text-[13px] leading-[1.7] text-[var(--tf-text)] whitespace-pre-wrap max-h-[360px] overflow-auto';
 const META = 'mb-2 flex items-baseline gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]';
@@ -65,7 +77,7 @@ function renderSide(diffs: DiffOp[], side: 'aktuell' | 'vorfassung'): React.Reac
 }
 
 export function VersionVerlauf({
-  versions, aktuellerText, aktuellErstelltAm, aktuellZiel, aktuellVbGekuerzt, busy, onUebernehmen,
+  versions, aktuellerText, aktuellErstelltAm, aktuellZiel, aktuellFassung, aktuellVbGekuerzt, busy, onUebernehmen,
 }: Props): React.ReactElement | null {
   // Default: neueste Vorfassung gewählt. State darf nach Übernehmen/Neu-Lauf
   // veralten → beim Zugriff hart clampen.
@@ -90,7 +102,7 @@ export function VersionVerlauf({
       id: String(i),
       // Die KI gehört ins Tab-Label, nicht nur in die Meta-Zeile: zwei Fassungen
       // desselben Zyklus tragen sonst dieselbe Beschriftung und dasselbe Datum.
-      label: `${versionLabel(v)}${v.ziel ? ` · ${ZIEL_KURZ[v.ziel]}` : ''} · ${kurzDatum(v.erstellt_am)}`,
+      label: `${versionLabel(v)}${herkunftKurz(v) ? ` · ${herkunftKurz(v)}` : ''} · ${kurzDatum(v.erstellt_am)}`,
     }));
 
   const satzAktuell = splitSentences(aktuellerText).length;
@@ -100,6 +112,10 @@ export function VersionVerlauf({
   // internen KIs unterscheiden sich um etwa das Vierfache. Dann vergleicht man
   // „gekürzt gegen vollständig" — das muss dastehen, sonst liest es sich als
   // Qualitätsurteil über das Modell.
+  const herkunftAktuell = herkunftKurz({
+    ...(aktuellZiel ? { ziel: aktuellZiel } : {}),
+    ...(aktuellFassung ? { fassung: aktuellFassung } : {}),
+  });
   const kontextUnterschied = !!aktuellZiel && !!gewaehlt.ziel
     && aktuellZiel !== gewaehlt.ziel
     && !!aktuellVbGekuerzt !== !!gewaehlt.vbGekuerzt;
@@ -135,7 +151,7 @@ export function VersionVerlauf({
                 <span>{satzAktuell} {satzAktuell === 1 ? 'Satz' : 'Sätze'}</span>
                 <span>·</span>
                 <span>{aktuellerText.length} Zeichen</span>
-                {aktuellZiel ? <><span>·</span><span>{ZIEL_KURZ[aktuellZiel]}</span></> : null}
+                {herkunftAktuell ? <><span>·</span><span>{herkunftAktuell}</span></> : null}
                 {aktuellVbGekuerzt ? <><span>·</span><span>VB gekürzt</span></> : null}
               </div>
               <div className={DIFF_BOX}>{renderSide(diffs, 'aktuell')}</div>
@@ -158,7 +174,7 @@ export function VersionVerlauf({
                 <span>{satzGewaehlt} {satzGewaehlt === 1 ? 'Satz' : 'Sätze'}</span>
                 <span>·</span>
                 <span>{gewaehlt.finalerText.length} Zeichen</span>
-                {gewaehlt.ziel ? <><span>·</span><span>{ZIEL_KURZ[gewaehlt.ziel]}</span></> : null}
+                {herkunftKurz(gewaehlt) ? <><span>·</span><span>{herkunftKurz(gewaehlt)}</span></> : null}
                 {gewaehlt.vbGekuerzt ? <><span>·</span><span>VB gekürzt</span></> : null}
               </div>
               <div className={DIFF_BOX}>{renderSide(diffs, 'vorfassung')}</div>

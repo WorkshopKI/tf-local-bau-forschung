@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.373 — 2026-08
+
+### Neu
+- **„Zweitfassung mit mutigerer Einstellung".** Arbeiten Sie mit einer direkt angebundenen KI, gab es bisher keine Zweitfassung — es gibt dort ja nur ein Modell. Jetzt schreibt dasselbe Modell die zweite Fassung mit freierer Einstellung. Beide stehen anschließend unter „Vorfassungen" nebeneinander, jede mit dem Vermerk, wie sie entstanden ist.
+
+### Verbesserungen
+- **Die App gibt der KI jetzt eine feste Einstellung vor.** Bisher überließ sie das dem Server; welche Einstellung galt, war nirgends zu sehen. Der Wert steht jetzt unten in der Prompt-Ansicht neben dem Ausgabe-Budget.
+
 ## v2.372 — 2026-08
 
 ### Neu

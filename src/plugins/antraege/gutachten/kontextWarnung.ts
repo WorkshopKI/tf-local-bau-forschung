@@ -47,8 +47,8 @@ export const ZIEL_LABEL: Record<BridgeZiel, string> = {
   agentisch: 'agentische KI',
 };
 
-/** Dativ-Form derselben Namen — „ins Fenster DER AGENTISCHEN KI". */
-const ZIEL_FENSTER: Record<BridgeZiel, string> = {
+/** Dativ-Form derselben Namen — „ins Fenster DER AGENTISCHEN KI", „mit DER STANDARD-KI". */
+export const ZIEL_DATIV: Record<BridgeZiel, string> = {
   standard: 'der Standard-KI',
   agentisch: 'der agentischen KI',
 };
@@ -68,6 +68,6 @@ export function pruefeKontextPasst(e: KontextBefundEingabe): KontextBefund | nul
     andereKiLabel: ZIEL_LABEL[andere],
     // `capAndere` fehlt genau dann, wenn das Ziel nicht wirkt (siehe dort) —
     // dieselbe Bedingung entscheidet, ob ein Tab-Name überhaupt zutrifft.
-    fensterLabel: e.capAndere === undefined ? 'des Modells' : ZIEL_FENSTER[e.ziel],
+    fensterLabel: e.capAndere === undefined ? 'des Modells' : ZIEL_DATIV[e.ziel],
   };
 }

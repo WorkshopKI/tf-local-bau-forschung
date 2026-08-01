@@ -344,6 +344,25 @@ export function applyLaufZiel(
 }
 
 /**
+ * Hält fest, ob der Text mit erhöhter Temperatur entstand („Zweitfassung mit
+ * mutigerer Einstellung"). Gleiche Bauart wie `applyLaufZiel`, inklusive des
+ * Entfernens: `false` löscht den Marker eines früheren Laufs, weil der Schritt
+ * fortgeschrieben und nicht ersetzt wird.
+ */
+export function applyLaufFassung(
+  run: WorkflowRun, stepId: StepId, mutig: boolean, now: string,
+): WorkflowRun {
+  const step = run.schritte[stepId];
+  if (!step) return run;
+  if (!mutig) {
+    if (step.fassung === undefined) return run; // Normalfall: nichts anfassen
+    const { fassung: _verworfen, ...ohneFassung } = step;
+    return setStep(run, stepId, ohneFassung, now);
+  }
+  return setStep(run, stepId, { ...step, fassung: 'mutig' }, now);
+}
+
+/**
  * Audit-Stempel der zuletzt zum Befüllen genutzten Vorlage setzen (Artefakt-
  * Engine). Reiner Run-Übergang, kein Schritt-Bezug.
  */

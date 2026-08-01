@@ -25,10 +25,7 @@ export interface GesendeterPrompt {
 
 /** Mess-Werte eines bereits gesendeten Prompts (kein `RenderedSkillPrompt` mehr zur Hand). */
 export function masseVonGesendet(p: GesendeterPrompt, cap: number): PromptMasse {
-  return promptMasse(
-    { system: p.system, user: p.user, vb: p.vb, vbGekuerzt: p.vbGekuerzt, maxTokens: 0 },
-    cap,
-  );
+  return promptMasse({ system: p.system, user: p.user, vb: p.vb, vbGekuerzt: p.vbGekuerzt }, cap);
 }
 
 /** Ein Baustein des zusammengesetzten Prompts. */
@@ -130,7 +127,14 @@ export interface PromptMasse {
   vbGekuerzt: boolean;
 }
 
-export function promptMasse(gerendert: RenderedSkillPrompt, cap: number): PromptMasse {
+/**
+ * Nur die Felder, aus denen sich Maße rechnen lassen — bewusst schmaler als
+ * `RenderedSkillPrompt`, damit ein bereits GESENDETER Prompt (der kein Budget und
+ * keine Temperatur mehr mitführt) hier keine Platzhalter-Nullen erfinden muss.
+ */
+type MessbarerPrompt = Pick<RenderedSkillPrompt, 'system' | 'user' | 'vb' | 'vbGekuerzt'>;
+
+export function promptMasse(gerendert: MessbarerPrompt, cap: number): PromptMasse {
   const zeichen = gerendert.system.length + gerendert.user.length;
   const vbZeichen = gerendert.vb.length;
   return {

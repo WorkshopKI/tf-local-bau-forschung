@@ -46,6 +46,13 @@ export interface ConversationOptions {
    *  Skill-Runnern verdrahtet — dass ausgerechnet der Chat sie ignorierte, war
    *  kein Schutz mehr, sondern ein toter Schalter. */
   ziel?: BridgeZiel;
+  /**
+   * Sampling-Temperatur. Nur API-Transports (DirectLLM/OpenRouter) — die
+   * Streamlit-Bridge tippt in ein Chat-Feld und hat keine Stellschraube.
+   * Fehlt der Wert, sendet der Transport das Feld nicht und es gilt die
+   * Server-Voreinstellung. Werte: [sampling.ts](../sampling.ts).
+   */
+  temperatur?: number;
 }
 
 export interface SubmitMessageOptions {

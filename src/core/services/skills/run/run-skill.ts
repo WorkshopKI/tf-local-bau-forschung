@@ -11,6 +11,7 @@
 import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
+import { TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
 import {
   buildPromptVorgaben,
   type QualitaetsRegel,
@@ -187,6 +188,14 @@ export interface SkillRunInput {
    * wirkungslos.
    */
   ziel?: BridgeZiel;
+  /**
+   * Sampling-Temperatur dieses Laufs. Fehlt sie → `TEMPERATUR_SICHER`; der Runner
+   * sendet also IMMER einen Wert, statt wie bis v2.372 die Server-Voreinstellung
+   * (beim internen llama.cpp 1.0) still gelten zu lassen. Übersteuert wird sie nur
+   * von der „Zweitfassung mit mutigerer Einstellung" ([sampling.ts](../../ai/sampling.ts)).
+   * Auf der Streamlit-Bridge wirkungslos — dort gibt es keine Stellschraube.
+   */
+  temperatur?: number;
   signal?: AbortSignal;
 }
 
@@ -402,6 +411,8 @@ export interface RenderedSkillPrompt {
   vbGekuerzt: boolean;
   /** Output-Budget inkl. Thinking-Aufschlag. */
   maxTokens: number;
+  /** Sampling-Temperatur, die dieser Lauf senden würde (nie undefiniert). */
+  temperatur: number;
 }
 
 /**
@@ -428,6 +439,7 @@ export function renderSkillPrompt(
     // Bei aktivem Thinking Platz für den Reasoning-Block aufschlagen, sonst frisst
     // er das gemeinsame max_tokens-Budget und die Antwort wird leer abgeschnitten.
     maxTokens: (skill.maxTokens ?? DEFAULT_MAX_TOKENS) + (budget !== 'none' ? THINKING_OUTPUT_HEADROOM : 0),
+    temperatur: input.temperatur ?? TEMPERATUR_SICHER,
   };
 }
 
@@ -472,7 +484,7 @@ async function runSkillInner(
   input: SkillRunInput,
 ): Promise<SkillRunResult> {
   const gerendert = renderSkillPrompt(skill, regeln, input);
-  const { system: systemPrompt, user: userContent, vbGekuerzt: gekuerzt, maxTokens } = gerendert;
+  const { system: systemPrompt, user: userContent, vbGekuerzt: gekuerzt, maxTokens, temperatur } = gerendert;
   const budget: ThinkingBudget = input.thinkingBudget ?? 'none';
 
   // Frischer Chat-Verlauf vor JEDEM Skill-Lauf: der Streamlit-Chat ist stateful,
@@ -509,6 +521,7 @@ async function runSkillInner(
       }, {
         maxTokens,
         thinkingBudget: budget,
+        temperatur,
         ...(input.signal ? { signal: input.signal } : {}),
       });
       // streamConversation wirft bei Abbruch NICHT, sondern liefert aborted:true
@@ -521,6 +534,7 @@ async function runSkillInner(
       raw = await transport.submitConversation(messages, {
         maxTokens,
         thinkingBudget: budget,
+        temperatur,
         ...(input.signal ? { signal: input.signal } : {}),
       });
     }
@@ -564,7 +578,7 @@ async function runSkillInner(
     if (typeof transport.submitConversation === 'function') {
       lektorRaw = await transport.submitConversation(
         [{ role: 'user', content: lektorContent } as ConversationMessage],
-        { maxTokens, thinkingBudget: budget, ...(input.signal ? { signal: input.signal } : {}) },
+        { maxTokens, thinkingBudget: budget, temperatur, ...(input.signal ? { signal: input.signal } : {}) },
       );
     } else {
       lektorRaw = await transport.submitMessage(

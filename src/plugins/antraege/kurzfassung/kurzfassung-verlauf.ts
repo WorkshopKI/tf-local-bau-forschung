@@ -43,6 +43,8 @@ export interface VerlaufContent {
   denkprozess?: string;
   /** Die interne KI dieses Laufs (`StepRun.ziel`) — trägt den KI-Vergleich im Verlauf. */
   ziel?: BridgeZiel;
+  /** Erhöhte Temperatur (`StepRun.fassung`) — trägt denselben Vergleich ohne Bridge. */
+  fassung?: 'mutig';
   verlauf?: KurzfassungVersion[];
 }
 
@@ -95,6 +97,7 @@ export function snapshotOf(record: VerlaufContent): KurzfassungVersion {
     ...(record.warnung ? { warnung: record.warnung } : {}),
     ...(record.denkprozess ? { denkprozess: record.denkprozess } : {}),
     ...(record.ziel ? { ziel: record.ziel } : {}),
+    ...(record.fassung ? { fassung: record.fassung } : {}),
   };
 }
 
@@ -136,6 +139,7 @@ export function restoreVersion<T extends VerlaufContent>(record: T, index: numbe
     ...(chosen.warnung ? { warnung: chosen.warnung } : { warnung: undefined }),
     ...(chosen.denkprozess ? { denkprozess: chosen.denkprozess } : { denkprozess: undefined }),
     ...(chosen.ziel ? { ziel: chosen.ziel } : { ziel: undefined }),
+    ...(chosen.fassung ? { fassung: chosen.fassung } : { fassung: undefined }),
   } as T;
 }
 

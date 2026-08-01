@@ -30,6 +30,8 @@ export interface SkillEingabeArgs {
   vbCharCap: number;
   thinkingBudget: ThinkingBudget;
   ziel: BridgeZiel;
+  /** Sampling-Temperatur; fehlt sie, setzt `runSkill` den sicheren Standard. */
+  temperatur?: number;
   /** Fertiger `{{vorherigeAbschnitte}}`-Block (nie leer — siehe context-provider). */
   vorherigeAbschnitte: string;
   /** Relevanz-Map-Ausschnitt; nur bei `kontextBedarf: 'relevant'` und erst zur Laufzeit. */
@@ -63,6 +65,7 @@ export function baueSkillEingabe(a: SkillEingabeArgs): SkillRunInput {
     ...(a.stream
       ? { onContentDelta: a.stream.onContentDelta, onThinkingDelta: a.stream.onThinkingDelta }
       : {}),
+    ...(a.temperatur !== undefined ? { temperatur: a.temperatur } : {}),
     ...(a.vbRelevant ? { vbRelevant: a.vbRelevant } : {}),
     ...(a.tweakWirksam && a.tweak ? { tweak: a.tweak } : {}),
     ...(a.modifier ? { modifier: a.modifier } : {}),

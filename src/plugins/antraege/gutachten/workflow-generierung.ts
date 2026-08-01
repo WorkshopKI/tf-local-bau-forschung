@@ -26,6 +26,7 @@ import {
 } from '@/core/services/skills';
 import { kontextZielFuer } from '@/core/services/ai/ki-ziel';
 import { mitZielFallback, zielWirktAuf, type ZielFallbackErgebnis } from '@/core/services/ai/ziel-fallback';
+import { TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
 import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -38,7 +39,7 @@ import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
 import {
-  applyGeneration, applyFeinschliffUebersprungen, applyLaufZiel, applyLektorat, applyQsHinweise, applyZielFallback,
+  applyGeneration, applyFeinschliffUebersprungen, applyLaufFassung, applyLaufZiel, applyLektorat, applyQsHinweise, applyZielFallback,
   type GenerationInput,
 } from './runner';
 import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
@@ -115,6 +116,12 @@ export interface GenerateIntoOptions {
    * Vergleich wäre keiner.
    */
   ziel?: BridgeZiel;
+  /**
+   * Erzwingt die Sampling-Temperatur dieses Laufs („Zweitfassung mit mutigerer
+   * Einstellung"). Der Gegenpart zu `ziel` bei einer direkt angebundenen KI, wo es
+   * keinen zweiten Tab gibt. Fehlt sie → sicherer Standard aus `runSkill`.
+   */
+  temperatur?: number;
 }
 
 /**
@@ -205,7 +212,12 @@ export async function generateInto(
   // keine „Standard"- und keine agentische KI (siehe `applyLaufZiel`).
   const gestempelt = {
     ...result,
-    next: applyLaufZiel(result.next, stepId, zielWirktAuf(transport) ? ziel : null, jetzt),
+    next: applyLaufFassung(
+      applyLaufZiel(result.next, stepId, zielWirktAuf(transport) ? ziel : null, jetzt),
+      stepId,
+      o.temperatur !== undefined && o.temperatur > TEMPERATUR_SICHER,
+      jetzt,
+    ),
   };
   const roh = zielFallback
     ? { ...gestempelt, next: applyZielFallback(gestempelt.next, stepId, jetzt) }
@@ -216,11 +228,11 @@ export async function generateInto(
   // landet dabei über `applyLektorat` automatisch im Versionsverlauf.
   // Fehler-Meldungen des Feinschliffs werden verschluckt (`stilleDeps`): ein
   // Rohentwurf ist ein brauchbares Ergebnis, kein Fehlerfall.
-  // Der angehängte Feinschliff bleibt auf DERSELBEN KI wie die Generierung — sonst
-  // trüge eine „Zweitfassung mit der anderen KI" am Ende den Schliff der ersten.
+  // Der angehängte Feinschliff bleibt auf DERSELBEN KI und derselben Temperatur wie
+  // die Generierung — sonst trüge eine Zweitfassung am Ende den Schliff der ersten.
   return mitFeinschliff(
     roh, stepId,
-    () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps), o.ziel),
+    () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps), o.ziel, o.temperatur),
   );
 }
 
@@ -335,6 +347,7 @@ async function generiereEinmal(
         teilAufgabe: teilAufgabe(teil, vorText),
         stream: deps.stream,
         signal: o.signal,
+        ...(o.temperatur !== undefined ? { temperatur: o.temperatur } : {}),
         ...(vbRelevant ? { vbRelevant } : {}),
         ...(tweakWirksam ? { tweak: tw, tweakWirksam } : {}),
         ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
@@ -381,6 +394,7 @@ async function generiereEinmal(
     vorherigeAbschnitte: buildVorherigeAbschnitte(base, stepId, deps.steps, 2000, o.quelle),
     stream: deps.stream,
     signal: o.signal,
+    ...(o.temperatur !== undefined ? { temperatur: o.temperatur } : {}),
     ...(vbRelevant ? { vbRelevant } : {}),
     ...(tweakWirksam ? { tweak: tw, tweakWirksam } : {}),
     ...(o.modifier ? { modifier: o.modifier } : {}),
@@ -514,6 +528,8 @@ export async function laufLektorat(
   deps: GenerierungsDeps,
   /** Erzwungene KI (folgt der Generierung bei der Zweitfassung); sonst globale Präferenz. */
   zielOverride?: BridgeZiel,
+  /** Erzwungene Temperatur — folgt derselben Zweitfassung wie `zielOverride`. */
+  temperatur?: number,
 ): Promise<WorkflowRun | null> {
   const step = run.schritte[stepId];
   if (!step) return null;
@@ -524,7 +540,7 @@ export async function laufLektorat(
   if (!ok) { deps.setError('KI nicht erreichbar — Feinschliff derzeit nicht möglich.'); return null; }
   const { result, zielFallback, ziel } = await mitFallbackLauf(
     deps, transport, signal,
-    (d, z) => lektoriereEinmal(run, stepId, sc, tweak, transport, d, z, signal),
+    (d, z) => lektoriereEinmal(run, stepId, sc, tweak, transport, d, z, signal, temperatur),
     // Ein gezogenes Tor (leer / verdächtig gekürzt) ist ein unbrauchbares Ergebnis —
     // beim agentischen Tab genau der Fall, den die Standard-KI retten soll.
     (r) => r === null,
@@ -546,6 +562,7 @@ async function lektoriereEinmal(
   deps: GenerierungsDeps,
   ziel: BridgeZiel,
   signal: AbortSignal,
+  temperatur?: number,
 ): Promise<WorkflowRun | null> {
   const step = run.schritte[stepId];
   if (!step) return null;
@@ -564,6 +581,7 @@ async function lektoriereEinmal(
     zielText: step.finalerText,
     abschnittszweck: zielDef?.label ?? stepId,
     signal,
+    ...(temperatur !== undefined ? { temperatur } : {}),
   });
   const text = result.parsed.finalerText.trim();
   if (!text) {

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.373.0 — Sampling-Temperatur steuerbar, Zweitfassung auch ohne Bridge (August 2026)
+
+MINOR — Die App sendete bisher **keinen** Sampling-Parameter: jeder Skill-Lauf fuhr still auf der Server-Voreinstellung (internes llama.cpp `temperature: 1.0`), während die Node-Eval derselben Skills auf 0 maß. Damit fehlte auch die naheliegende Zweitfassung an einer direkt angebundenen KI, wo es keinen zweiten Tab gibt.
+
+- Zwei Temperatur-Konstanten, fest im Code, ohne Einstellung in der Oberfläche; `runSkill` setzt sie immer, DirectLLM schreibt sie in den Body ([sampling.ts](src/core/services/ai/sampling.ts), [direct-llm.ts](src/core/services/ai/transports/direct-llm.ts)).
+- „Zweitfassung mit mutigerer Einstellung" — der Menü-Eintrag entfällt ohne Bridge nicht mehr, was er variiert steht in der Beschriftung ([zweitfassung.ts](src/plugins/antraege/gutachten/zweitfassung.ts)).
+- `StepRun.fassung` hält die mutigere Einstellung am Lauf fest → Fußzeile, Verlaufs-Tabs und Meta-Zeilen unterscheiden die beiden Fassungen ([runner.ts](src/plugins/antraege/gutachten/runner.ts), [VersionVerlauf.tsx](src/plugins/antraege/kurzfassung/VersionVerlauf.tsx)).
+- Die Prompt-Ansicht nennt die Temperatur in der Fußzeile — sonst wäre der Wert wieder unsichtbar ([PromptAnsichtDialog.tsx](src/plugins/antraege/gutachten/PromptAnsichtDialog.tsx)).
+- **Gemessen, nicht bestätigt**: 3 Läufe bei ~1.0 hielten das Zeichenlimit, 3 bei 0,4/0,9 rissen es um 42–73 Zeichen — die erwartete bessere Regeltreue zeigte sich nicht ([gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)).
+
 ### v2.372.4 — Sortier-Auswahl aus einer Quelle, drei Journey-Korrekturen (August 2026)
 
 PATCH — Beim Nachtesten des Startseiten-Reviews fiel auf, dass die „Sortiert nach"-Pille eine **zweite** Options-Liste führte: in der Sicht „Bewilligt" zeigte sie „Neueste zuerst", während nach Bewilligungsdatum sortiert wurde — und dieser Schlüssel war nicht anwählbar. Dazu die drei offenen Journey-Befunde D2–D4.

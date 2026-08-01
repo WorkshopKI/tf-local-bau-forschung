@@ -42,6 +42,13 @@ export interface KurzfassungVersion {
    * Fassungen ohne Feld zeigen die Angabe einfach nicht.
    */
   ziel?: BridgeZiel;
+  /**
+   * `'mutig'`, wenn DIESE Fassung mit erhöhter Sampling-Temperatur entstand
+   * (`StepRun.fassung`). Das Gegenstück zu `ziel`, wo es keine zweite KI gibt —
+   * ohne den Marker sind die beiden Fassungen eines Vergleichs im Verlauf nicht
+   * auseinanderzuhalten. Additiv.
+   */
+  fassung?: 'mutig';
 }
 
 export interface KurzfassungRecord {

@@ -160,6 +160,15 @@ export interface StepRun {
    */
   ziel?: BridgeZiel;
   /**
+   * `'mutig'`, wenn dieser Text mit erhöhter Sampling-Temperatur entstanden ist
+   * („Zweitfassung mit mutigerer Einstellung", [sampling.ts](../../../core/services/ai/sampling.ts)).
+   * Das Gegenstück zu `ziel` bei einer direkt angebundenen KI: dort gibt es keinen
+   * zweiten Tab, den man benennen könnte, wohl aber eine zweite Einstellung — und
+   * ohne diesen Marker sähen die beiden Fassungen im Verlauf gleich aus. Fehlt das
+   * Feld, lief der sichere Standard; alte Records bleiben ladbar.
+   */
+  fassung?: 'mutig';
+  /**
    * True, wenn über der aktuellen Fassung der sprachliche Feinschliff
    * (Lektor-Skill) lief — treibt das Badge an der Karte und den Vergleich gegen
    * die letzte Verlaufs-Fassung (Zahlen-/Längen-Wächter, `lektorat.ts`). Additiv;

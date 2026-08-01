@@ -51,6 +51,7 @@ import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { aktivesZielFuerLauf, kontextZielFuer, useKiZiel } from '@/core/services/ai/ki-ziel';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import type { GesendeterPrompt } from './promptAnsicht';
+import { bestimmeZweitfassung, type ZweitfassungArt } from './zweitfassung';
 import { useLlmErreichbarkeit, useSkillTweak, useWorkflowRegistry } from './workflow-hooks';
 import { makePersist, makeReduce } from './workflow-persistenz';
 import { logArbeitskontext } from '@/core/services/personal-storage/arbeitskontext-log';
@@ -89,6 +90,8 @@ interface LaufOptionen {
   anweisung?: string;
   /** Erzwungene interne KI („Zweitfassung mit der anderen KI"); sonst globale Präferenz. */
   ziel?: BridgeZiel;
+  /** Erzwungene Temperatur („Zweitfassung mit mutigerer Einstellung"); sonst sicherer Standard. */
+  temperatur?: number;
 }
 
 /**
@@ -197,13 +200,13 @@ export interface GutachtenWorkflowController {
   /** Audit-Stempel der zuletzt zum Export genutzten Vorlage setzen (Artefakt-Engine). */
   stampVorlage: (info: { pfad: string; hash?: string }) => void;
   /**
-   * Denselben Abschnitt noch einmal erzeugen — mit der jeweils ANDEREN internen KI.
-   * Die bisherige Fassung wandert dabei wie bei jeder Re-Generierung in den Verlauf;
-   * verglichen und zurückgeholt wird dort (Diff + „Diese Fassung übernehmen").
-   * `null`, wenn `ziel` beim aktiven Transport nicht wirkt — dann wäre der zweite
-   * Lauf byte-identisch und der Knopf entfällt.
+   * Denselben Abschnitt noch einmal erzeugen — über die Bridge mit der ANDEREN
+   * internen KI, an einer direkt angebundenen KI mit mutigerer Einstellung
+   * (`bestimmeZweitfassung`). Die bisherige Fassung wandert dabei wie bei jeder
+   * Re-Generierung in den Verlauf; verglichen und zurückgeholt wird dort
+   * (Diff + „Diese Fassung übernehmen").
    */
-  zweitfassungZiel: BridgeZiel | null;
+  zweitfassungArt: ZweitfassungArt;
   zweitfassung: (stepId: StepId) => void;
   /**
    * Grundlage der Prompt-Ansicht („was geht wirklich an die KI?"). `null`, solange
@@ -221,14 +224,11 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const bridgeStatus = useBridgeStatus(s => s.status);
   const meinKuerzel = useMeinKuerzel();
   const key = ctx.key;
-  // Welche interne KI eine „Zweitfassung" ansteuern würde — die jeweils andere.
-  // `null`, wenn `ziel` beim aktiven Transport gar nicht wirkt: über die Bridge wählt
-  // es den Tab, auf DirectLLM/OpenRouter wäre der zweite Lauf byte-identisch zum
-  // ersten und der Knopf ein leeres Versprechen (`zielWirktAuf`).
+  // Was eine „Zweitfassung" hier variiert: über die Bridge den Tab (andere KI),
+  // an einer direkt angebundenen KI die Sampling-Temperatur — dort gibt es nur ein
+  // Modell, aber sehr wohl eine zweite Einstellung (`zweitfassung.ts`).
   const kiZiel = useKiZiel(s => s.ziel);
-  const zweitfassungZiel: BridgeZiel | null = bridge.istBridgeAktiv()
-    ? (kiZiel === 'agentisch' ? 'standard' : 'agentisch')
-    : null;
+  const zweitfassungArt = bestimmeZweitfassung(bridge.istBridgeAktiv(), kiZiel);
 
   const [run, setRun] = useState<WorkflowRun | null>(null);
   // Quellen des Gutachtens: die maßgebliche VB (IDB-Index mit Vorrang ODER persönlicher
@@ -404,7 +404,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
    * — dann beendet der Orchestrator den Loop sofort (STOPP).
    */
   const runGeneration = async (stepId: StepId, o: LaufOptionen = {}): Promise<CheckResult[] | null> => {
-    const { modifier, kontext, anweisung, ziel } = o;
+    const { modifier, kontext, anweisung, ziel, temperatur } = o;
     if (!vb || busy || !run || !skillMap.get(stepId)) return null;
     setBusy(true);
     setError(null);
@@ -417,6 +417,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
         ...(modifier ? { modifier } : {}),
         ...(anweisung ? { anweisung } : {}),
         ...(ziel ? { ziel } : {}),
+        ...(temperatur !== undefined ? { temperatur } : {}),
         ...(kontext?.anweisung ? { zusatzAnweisung: kontext.anweisung } : {}),
         ...(kontext?.regelId ? { korrekturRegelId: kontext.regelId } : {}),
       }, genDeps());
@@ -724,7 +725,11 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       void reduce((r, now) => setVorlageRef(r, { pfad: info.pfad, hash: info.hash ?? '', gelesenAm: now }, now));
     },
     promptAnsichtFuer,
-    zweitfassungZiel,
-    zweitfassung: (id) => { if (zweitfassungZiel) void runGeneration(id, { ziel: zweitfassungZiel }); },
+    zweitfassungArt,
+    zweitfassung: (id) => {
+      void runGeneration(id, zweitfassungArt.art === 'ki'
+        ? { ziel: zweitfassungArt.ziel }
+        : { temperatur: zweitfassungArt.temperatur });
+    },
   };
 }
