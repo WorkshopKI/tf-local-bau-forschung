@@ -124,8 +124,12 @@ export function QuickfilterToolbar(): React.ReactElement {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      {/* „Status in dieser Sicht", nicht bloß „Status": die Zähler beziehen sich
+          auf `countBase`, also auf die oben gewählte Sicht. Ohne den Zusatz
+          standen „Offen 909" (Sicht-Reiter) und „Offen 852" (Chip) zwei Zeilen
+          auseinander und widersprachen sich scheinbar (v2.372.2). */}
       <CollapsibleSeg
-        label="Status"
+        label="Status in dieser Sicht"
         value={phase}
         items={phaseItems}
         onChange={onPhaseChange}

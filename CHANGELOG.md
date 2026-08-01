@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.372.2 — Startseite: Zahlen eindeutig, Layout entdichtet, Abnahme-Regel (August 2026)
+
+PATCH — Stufe 3+4 des Startseiten-Reviews. „Offen" ist jetzt festgelegt: **909 = offene Vorgänge mit gültigem Eingangsdatum** (die Antragsliste zeigt unter „Offen" dieselbe Zahl). Konkurrierende Zahlen und dreifache Wiederholungen sind aufgelöst, die Seite füllt wieder ihren Platz.
+
+- Kopfzeile trägt nur noch die Gesamtzahl — die Aufteilung stand wortgleich als Kachel im Hero-Band und als Zeile im Antragseingang-Widget ([homeSubtitle.ts](src/plugins/home/homeSubtitle.ts), [HomePage.tsx](src/plugins/home/HomePage.tsx)).
+- „638 Anträge · 930 TVS" las sich als zweite Gesamtzahl; jetzt „638 Einträge · 930 Teilvorhaben" mit erklärendem Titel, und der doppelte Knopf „Zu meinen Anträgen →" ist weg (er tat dasselbe wie „Alle →" im Kartenkopf) — [MeineAntraegeBalken.tsx](src/plugins/home/MeineAntraegeBalken.tsx).
+- Seitenspalte 260 → 300 px (das Widget schnitt seinen eigenen Titel ab) und „Meine Anträge" startet mit 10 statt 5 Zeilen — die Seite endete bei 43 % Leerraum ([HomeZweiSpalten.tsx](src/plugins/home/HomeZweiSpalten.tsx), [HomePage.tsx](src/plugins/home/HomePage.tsx)).
+- Das schmalste Balken-Segment zeigt seine Zahl wieder (Schwelle 8 % → 4 %, darunter wandert sie in die Legende); die Segment-Tooltips nennen das Kalenderquartal ([DistributionBar.tsx](src/components/ui/DistributionBar.tsx), [quartalBuckets.ts](src/plugins/home/quartalBuckets.ts)).
+- **Abnahme-Regel neu**: sichtbare Änderungen prüft Claude Code selbst in der Variante „local"; beim Nutzer bleibt nur, was der Dev-Server nicht zeigen kann ([CLAUDE.md](CLAUDE.md), [local-variante.md](docs/architecture/local-variante.md)).
+
 ### v2.372.1 — Wortwahl Startseite: Eingangsalter statt Frist, KI statt AI (August 2026)
 
 PATCH — Stufe 2 des Startseiten-Reviews (v2.371.1). Der 90-Tage-Wert ist ein **Alter**, keine Frist — „über der 90-Tage-Frist" las sich als versäumter Termin, „nähern sich" hatte kein Objekt. Stellen, die eine echte Frist meinen (`frist_datum`, Meilensteine), behalten das Wort.

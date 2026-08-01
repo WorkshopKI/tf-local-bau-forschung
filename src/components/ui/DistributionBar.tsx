@@ -38,8 +38,16 @@ interface DistributionBarProps {
 }
 
 const BAR_RADIUS = 4;
-/** Zahl im Segment erst ab diesem Anteil zeigen (sonst zu eng). */
-const SHOW_LABEL_MIN_SHARE = 0.08;
+/**
+ * Zahl im Segment erst ab diesem Anteil zeigen (sonst zu eng).
+ *
+ * 0.08 → 0.04 (v2.372.2): bei vier Segmenten fiel ausgerechnet die älteste
+ * Kohorte durch (49 von 638 = 7,7 %) — der Wert, der am meisten weh tut, war
+ * der einzige ohne Zahl. 4 % sind bei der Home-Balkenbreite (~1090 px) noch
+ * ~44 px, also reichlich für eine zweistellige Zahl bei 10,5 px Schriftgröße.
+ * Wer noch schmaler wird, bekommt die Zahl in der Legende (siehe unten).
+ */
+const SHOW_LABEL_MIN_SHARE = 0.04;
 
 export function DistributionBar({
   segments,
@@ -88,6 +96,11 @@ export function DistributionBar({
         <div className="flex mt-2" style={{ gap: 2 }}>
           {segments.map((seg) => {
             if (seg.count <= 0) return null;
+            // Zu schmal für die Zahl IM Balken → sie wandert in die Legende.
+            // Sonst stünde sie nur im Hover-Tooltip, und der ist für Touch und
+            // Tastatur unerreichbar (v2.372.2).
+            const share = total > 0 ? seg.count / total : 0;
+            const zahlInLegende = share < SHOW_LABEL_MIN_SHARE;
             return (
               <span
                 key={seg.key}
@@ -98,7 +111,10 @@ export function DistributionBar({
                   aria-hidden
                   style={{ width: 10, height: 10, borderRadius: 3, background: seg.color, flex: 'none' }}
                 />
-                <span className="truncate">{seg.legendLabel}</span>
+                <span className="truncate">
+                  {seg.legendLabel}
+                  {zahlInLegende ? <span className="tabular-nums"> {seg.count}</span> : null}
+                </span>
               </span>
             );
           })}

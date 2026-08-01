@@ -8,7 +8,11 @@
 import { ZweiSpaltenResizable, clampBreite } from '@/components/zwei-spalten';
 
 const LS_KEY = 'teamflow_home_seite_breite';
-const DEFAULT_BREITE = 260;
+/** 260 → 300 (v2.372.2): bei 260 schnitt die Spalte den EIGENEN Widget-Titel ab
+ *  („Antragseing…", gemessen 103 px Bedarf gegen 86 px Platz) und dazu das
+ *  Bearbeiter-Label. Eine gezogene Breite bleibt erhalten — der Default greift
+ *  nur, wo nie gezogen wurde. */
+const DEFAULT_BREITE = 300;
 const MIN_BREITE = 200;
 const MAX_BREITE = 480;
 

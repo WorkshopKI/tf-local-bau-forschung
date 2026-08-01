@@ -21,7 +21,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |
 | Wiederkehrende Bug-Klassen (Cold-Start-Refresh, FSAPI, Parallel-Varianten, Embedding-Caches) | [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md) |
 | Welche(n) Build nach dem Patch bauen | [docs/agents/which-build-to-run.md](docs/agents/which-build-to-run.md) |
-| App ansehen / UI automatisiert prüfen (ohne Picker, echte Daten) | [local-variante.md](docs/architecture/local-variante.md) — `npm run dev:local` |
+| App ansehen / UI selbst prüfen (Pflicht bei jeder sichtbaren Änderung) | [local-variante.md](docs/architecture/local-variante.md) — `npm run dev:local` + [Abnahme-Regel](#abnahme-selbst-ansehen-nicht-ansagen) |
 | Build-Varianten (Configs, Sichtbarkeits-Matrix, Feature-Flags) | [docs/architecture/build-varianten.md](docs/architecture/build-varianten.md) |
 | npm audit meldet etwas | [docs/audit-akzeptiert.md](docs/audit-akzeptiert.md) |
 | ONNX/Transformers-WASM, Bundle-Größe (Inline-gzip + `wasmBinary`, Post-Build-Strip) | Pitfall #39 + [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md) |
@@ -248,6 +248,12 @@ Die Vitest-Suite läuft in **zwei Projekten** (`vitest.config.mts`): `fast` (ohn
 - **Phasen-Gate** (vor jedem Commit): `npm run check` — voll: Typecheck + Lint + `cycles` + komplette Testsuite + `build:dev`.
 - **Zyklen** ([check-cycles.mjs](scripts/check-cycles.mjs), nicht in `check:quick`): Allowlist ist **leer** — neuer Laufzeit-Zyklus wird aufgelöst (Barrel-Import → Direktimport), nicht eingetragen.
 - Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm run typecheck:full` (`tsc --build --force`).
+
+## Abnahme: selbst ansehen, nicht ansagen
+
+Grün heißt „kompiliert", nicht „funktioniert". **Jede Änderung, die sich in der App zeigt, prüft Claude Code selbst** — in der Variante „local" ([local-variante.md](docs/architecture/local-variante.md)): `npm run dev:local` (Port 5175) → `await window.__tf.bereit()` → die betroffene Stelle mit `read_page`/Screenshot **und** `window.__tf.fehler()` (muss 0 sein). Ohne diesen Lauf ist eine UI-Änderung nicht fertig; „bitte manuell prüfen" ist keine Abnahme. Gilt für Zahlen und Texte genauso wie für Layout: die gerenderte Zeichenkette gegenprüfen, nicht die Absicht im Code.
+
+**Beim Nutzer bleibt nur, was der Dev-Server nicht zeigen kann**: `file://`-Betrieb (Single-File-Build, dynamische Importe, rohe Worker, relative `fetch`, Bundle-/WASM-Größe), der FSAPI-Ordner-Picker samt Berechtigungs-Dialogen, und alles, was echte Team-Schreibrechte auf dem SMB-Share braucht. Diese Fälle benennen und `npm run build:dev` + Doppelklick ansagen — pauschal auf den Handtest verweisen gilt nicht.
 
 ## Shell-Konventionen (Windows)
 

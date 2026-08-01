@@ -9,6 +9,7 @@ import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { alterInTagen } from '@/core/utils/relativeZeit';
+import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import type { AntragVorgang } from './useDashboardData';
 import { MeineAntraegeBalken } from './MeineAntraegeBalken';
 import { WidgetShell } from './widgets/WidgetShell';
@@ -58,6 +59,13 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
   // die Home-Liste, was Verwirrung stiftete. Bearbeiter-Filter ist via
   // profile.bearbeiter_kuerzel sowieso automatisch aktiv.
   const handleAlle = (): void => {
+    // Das Protokoll-Ereignis hing bis v2.372.2 am doppelten Knopf „Zu meinen
+    // Anträgen →" im Rückstands-Balken. Mit dessen Wegfall zieht es hierher —
+    // sonst verlöre das Assistent-Protokoll diesen Weg ersatzlos.
+    void protokolliereEreignis({
+      typ: 'frist_angesehen',
+      detail: { quelle: 'home-meine-antraege', view: 'meine_offenen', sort: 'frist_asc' },
+    });
     const store = useAntraegeStore.getState();
     store.setActiveView('meine_offenen');
     store.setSortForView('meine_offenen', 'frist_asc');
@@ -74,10 +82,12 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
     includeBegleitung: false,
   });
 
+  // Kein „N sichtbar" in der Meta-Zeile mehr: dieselbe Auskunft steht als
+  // „N von M" unter der Liste, dort mit der Gesamtzahl daneben (v2.372.2).
   return (
     <WidgetShell
       titel="Meine Anträge"
-      meta={zeigtListe ? `${scopeLabel} · Sortierung: Frist · ${Math.min(visibleCount, antraege.length)} sichtbar` : undefined}
+      meta={zeigtListe ? `${scopeLabel} · Sortierung: Frist` : undefined}
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}

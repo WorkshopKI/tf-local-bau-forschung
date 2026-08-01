@@ -1,11 +1,13 @@
 import { DistributionBar, type DistributionSegment } from '@/components/ui/DistributionBar';
-import { useNavigation } from '@/core/hooks/useNavigation';
-import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
-import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getStatusLabel } from '@/core/utils/status-mappings';
 import { formatGermanDate } from '@/core/services/csv';
 import type { AntragVorgang } from './useDashboardData';
-import { bucketMeineAntraege, type QuartalBucket, type QuartalBucketIndex } from './quartalBuckets';
+import {
+  bucketMeineAntraege,
+  quartalKalenderName,
+  type QuartalBucket,
+  type QuartalBucketIndex,
+} from './quartalBuckets';
 
 /**
  * Home-Rückstands-Balken: verteilt die eigenen offenen Anträge nach dem Alter
@@ -59,7 +61,7 @@ const TT_GRID = 'grid items-baseline gap-x-2 grid-cols-[72px_104px_86px_60px_28p
 const TT_MAX_ROWS = 10;
 
 /** Segment-Tooltip — spiegelt den Auslastungs-Altlast-Tooltip (`AltlastSegmentTooltip`). */
-function QuartalTooltip({ bucket }: { bucket: QuartalBucket }): React.ReactElement {
+function QuartalTooltip({ bucket, kalender }: { bucket: QuartalBucket; kalender: string }): React.ReactElement {
   const meta = BUCKET_META[bucket.index];
   const shown = bucket.rows.slice(0, TT_MAX_ROWS);
   const rest = bucket.rows.length - shown.length;
@@ -71,7 +73,7 @@ function QuartalTooltip({ bucket }: { bucket: QuartalBucket }): React.ReactEleme
           style={{ width: 7, height: 7, borderRadius: '50%', background: meta.color, flex: '0 0 auto' }}
         />
         <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--tf-text-secondary)' }}>
-          {meta.fullLabel} · {bucket.count} {bucket.count === 1 ? 'Antrag' : 'Anträge'} · {bucket.tvs} TVs
+          {meta.fullLabel} · {kalender} · {bucket.count} {bucket.count === 1 ? 'Antrag' : 'Anträge'} · {bucket.tvs} TVs
         </span>
       </div>
       <div className={`${TT_GRID} text-[8.5px] uppercase tracking-wider pb-1`} style={{ color: 'var(--tf-text-tertiary)' }}>
@@ -111,49 +113,47 @@ interface Props {
 }
 
 export function MeineAntraegeBalken({ antraege }: Props): React.ReactElement | null {
-  const { navigate } = useNavigation();
-  const { buckets, totalAntraege, totalTvs } = bucketMeineAntraege(antraege, new Date());
+  const jetzt = new Date();
+  const { buckets, totalAntraege, totalTvs } = bucketMeineAntraege(antraege, jetzt);
 
   // Kein datierbarer Antrag → kein leerer Balken.
   if (totalAntraege === 0) return null;
 
-  // Gleiche Navigation wie „Alle →" in MeineAntraegeSection: View „Offen" + Frist-Sort.
-  const handleZuAntraegen = (): void => {
-    void protokolliereEreignis({
-      typ: 'frist_angesehen',
-      detail: { quelle: 'home-rueckstands-balken', view: 'meine_offenen', sort: 'frist_asc' },
-    });
-    const store = useAntraegeStore.getState();
-    store.setActiveView('meine_offenen');
-    store.setSortForView('meine_offenen', 'frist_asc');
-    navigate('antraege');
-  };
-
   const segments: DistributionSegment[] = RENDER_ORDER
     .map((idx) => ({ bucket: buckets[idx], meta: BUCKET_META[idx] }))
     .filter(({ bucket }) => bucket.count > 0)
-    .map(({ bucket, meta }) => ({
-      key: String(bucket.index),
-      count: bucket.count,
-      color: meta.color,
-      textColor: meta.textColor,
-      legendLabel: meta.legendLabel,
-      tooltip: <QuartalTooltip bucket={bucket} />,
-    }));
+    .map(({ bucket, meta }) => {
+      // „Q-2" allein nennt keinen Zeitraum — im Tooltip steht das Kalenderquartal
+      // daneben. Bucket 3 reicht offen zurück, daher „bis Q…".
+      const kalender = bucket.index === 3
+        ? `bis ${quartalKalenderName(jetzt, 3)}`
+        : quartalKalenderName(jetzt, bucket.index);
+      return {
+        key: String(bucket.index),
+        count: bucket.count,
+        color: meta.color,
+        textColor: meta.textColor,
+        legendLabel: meta.legendLabel,
+        tooltip: <QuartalTooltip bucket={bucket} kalender={kalender} />,
+      };
+    });
 
   return (
     <div className="mb-6 border border-[var(--tf-border)] rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[18px] pt-4 pb-[18px]">
-      <div className="flex items-center justify-between mb-2.5">
-        <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
-          <span className="font-medium tabular-nums text-[var(--tf-text)]">{totalAntraege}</span> Anträge ·{' '}
-          <span className="font-medium tabular-nums text-[var(--tf-text)]">{totalTvs}</span> TVS
-        </span>
-        <button
-          onClick={handleZuAntraegen}
-          className="text-[12px] text-[var(--tf-primary)] hover:underline cursor-pointer"
+      {/* „TVS" war eine unaufgelöste Abkürzung, und „638 Anträge" las sich als
+          zweite Gesamtzahl neben den 909 offenen Vorgängen der Kopfzeile. Beides
+          benannt: Einträge = Zeilen dieser Liste (Verbünde gebündelt),
+          Teilvorhaben = die darin enthaltenen TVs. Der frühere Knopf
+          „Zu meinen Anträgen →" ist entfallen — er tat exakt dasselbe wie
+          „Alle →" im Kopf derselben Karte (v2.372.2). */}
+      <div className="mb-2.5">
+        <span
+          className="text-[12.5px] text-[var(--tf-text-secondary)]"
+          title="Verbünde stehen als ein Eintrag; die zweite Zahl nennt die darin enthaltenen Teilvorhaben."
         >
-          Zu meinen Anträgen →
-        </button>
+          <span className="font-medium tabular-nums text-[var(--tf-text)]">{totalAntraege}</span> Einträge ·{' '}
+          <span className="font-medium tabular-nums text-[var(--tf-text)]">{totalTvs}</span> Teilvorhaben
+        </span>
       </div>
       <DistributionBar segments={segments} />
     </div>

@@ -9,6 +9,55 @@ Browser-Dialog. Damit kann Claude Code (oder jede andere Automation) die App
 > Imports, rohe Worker, relative `fetch`) fallen hier **nicht** auf. Der Handtest
 > nach `npm run build:dev` bleibt Pflicht.
 
+## Abnahme-Regel: wer prüft was
+
+Seit es diese Variante gibt, ist der Sicht-Check **Aufgabe des Agenten**, nicht
+des Nutzers. Die Regel steht in [CLAUDE.md](../../CLAUDE.md#abnahme-selbst-ansehen-nicht-ansagen);
+hier die Trennlinie im Detail.
+
+**Claude Code prüft selbst** — ohne Rückfrage, als Teil der Änderung:
+
+| Klasse | Wie |
+|---|---|
+| Texte, Beschriftungen, Zahlen | `read_page` / `get_page_text` gegen die konkrete Zeichenkette |
+| Layout, Abstände, Abschneiden | Screenshot + `scrollWidth > clientWidth`-Messung im DOM |
+| Interaktion (Klick, Filter, Navigation) | `computer`-Klick → `read_page`, Route über `location.hash` |
+| Zustände nach Reload | `location.reload()` + `await window.__tf.bereit()` |
+| Persistenz | Wert direkt aus `localStorage` / der Varianten-IDB lesen |
+| Konsolen-Sauberkeit | `window.__tf.fehler()` **muss 0 sein** |
+| Dark Mode, Responsive | `resize_window({colorScheme})` / `({preset})` |
+
+**Beim Nutzer bleibt** — hier zeigt der Dev-Server das Problem gar nicht:
+
+- **`file://`-Betrieb**: Single-File-Build, dynamische Importe, rohe Worker,
+  relative `fetch`, Service-Worker, Bundle- und WASM-Größe. Der Dev-Server
+  serviert über HTTP und lädt Module einzeln — ein Verstoß fällt erst beim
+  Doppelklick auf `dist-single/dev/zah-dev.html` auf.
+- **Der FSAPI-Ordner-Picker** und alle Berechtigungs-Dialoge: genau die Schicht,
+  die diese Variante ersetzt. Wer sie ändert, hat sie hier nicht unter Test.
+- **Echte Team-Schreibpfade** auf dem SMB-Share (Sidecars, Backups, Presence
+  über mehrere Nutzer): die lokale Kopie hat nur einen Nutzer.
+- **Kaltstart-Verhalten unter Citrix**, Netzlaufwerk-Latenzen, Multi-Varianten-
+  Parallelbetrieb.
+
+Fällt eine Änderung in eine dieser Klassen, wird sie **benannt** — mit dem
+konkreten Grund und dem Kommando (`npm run build:dev` + Doppelklick). Ein
+pauschales „bitte manuell testen" ersetzt den Sicht-Check nicht.
+
+### Fallstricke beim automatisierten Prüfen
+
+1. **`resize_window` feuert kein `resize`-Event.** Breakpoint-Logik greift erst
+   nach `window.dispatchEvent(new Event('resize'))`. Ohne das sieht man
+   Fenster-abhängiges Verhalten nie.
+2. **Zwei `location.reload()` kurz hintereinander** erzeugen einen Schwall
+   `IDBStore not opened` — abgebrochene In-Flight-Reads, kein Bug. Vor dem
+   Fehlerzählen **einmal** sauber neu laden und `bereit()` abwarten.
+3. **Aus dem Bild vermuten, per DOM belegen.** Screenshots in Pane-Auflösung
+   erzeugen Phantom-Befunde (scheinbar verrutschte Legenden, doppelte Labels).
+   Vor dem Melden mit `getBoundingClientRect` / `querySelectorAll` gegenrechnen.
+4. **Screenshots brauchen ein sichtbares Browser-Pane**; `read_page`,
+   `javascript_tool` und die Konsolen-Werkzeuge laufen unabhängig davon.
+
 ## Warum
 
 Der Ordner-Picker der File System Access API ist per Browser-Sicherheit nicht

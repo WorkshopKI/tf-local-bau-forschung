@@ -84,10 +84,7 @@ export function HomePage(): React.ReactElement {
   }, [ladeWidgetConfig, storage.idb]);
   const schwellen = ampelSchwellenAusConfig(homeWidgetConfig);
   const ampelCounts = useEingangAmpelCounts(schwellen);
-  const subtitleParts = formatHomeSubtitle(
-    { offen: ampelCounts.total, kritisch: ampelCounts.kritisch, warnung: ampelCounts.warnung },
-    schwellen,
-  );
+  const subtitle = formatHomeSubtitle(ampelCounts.total);
 
   // Hero-Alert-Chips öffnen dieselbe gefilterte Liste wie das Antragseingang-
   // Widget (setActiveView setzt zurück → danach Quickfilter setzen).
@@ -103,7 +100,10 @@ export function HomePage(): React.ReactElement {
 
   // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation
   // (useDashboardData) läuft EINMAL hier, nicht je Widget.
-  const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 5));
+  // Default 5 → 10 (v2.372.2): mit 5 Zeilen endete die Startseite bei 726 von
+  // 1262 px, also 43 % Leerraum bei 909 offenen Vorgängen. Ein eigener Wert im
+  // Profil sticht den Default weiterhin (Bereich 5–15).
+  const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 10));
   const widgetCtx: HomeWidgetContext = { data, initialCount };
 
   // Auto-Start der Tour beim ersten Besuch (nur wenn Daten vorhanden)
@@ -203,13 +203,9 @@ export function HomePage(): React.ReactElement {
       <div data-tour="home-dashboard" className="mb-6 flex items-start gap-3">
         <div className="min-w-0">
           <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
-          <p className="text-[13px] text-[var(--tf-text-secondary)]">
-            {subtitleParts.offen}
-            {subtitleParts.kritisch ? (
-              <> · <span className="text-[var(--tf-danger-text)]">{subtitleParts.kritisch}</span></>
-            ) : null}
-            {subtitleParts.warnung ? <> · {subtitleParts.warnung}</> : null}
-          </p>
+          {/* Nur die Gesamtzahl: die Aufteilung steht als klickbare Kacheln im
+              Hero-Band direkt darunter (und im Antragseingang-Widget rechts). */}
+          <p className="text-[13px] text-[var(--tf-text-secondary)]">{subtitle}</p>
         </div>
         <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="home" /></div>
       </div>

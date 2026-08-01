@@ -113,6 +113,12 @@ describe('doc-links', () => {
     // dass er die App überhaupt selbst ansehen und bedienen KANN, und fällt auf
     // „bitte manuell prüfen" zurück. Die Zeile trägt nur Stichwort + Doc-Link +
     // Kommando; das Detail lebt in docs/architecture/local-variante.md.
-    expect(bytes).toBeLessThan(52_200);
+    // 52_200 → 53_300 (v2.372.2): der Abschnitt „Abnahme: selbst ansehen, nicht
+    // ansagen". Seit der Variante „local" KANN ein Agent die App selbst bedienen —
+    // ohne die Regel fällt er auf „bitte manuell prüfen" zurück, und genau das
+    // soll nicht mehr passieren. Die Ausnahmeliste (`file://`, FSAPI-Picker,
+    // Share-Schreibrechte) gehört daneben, sonst wird aus der Pflicht ein
+    // Versprechen, das der Dev-Server nicht halten kann.
+    expect(bytes).toBeLessThan(53_300);
   });
 });

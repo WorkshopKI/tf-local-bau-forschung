@@ -60,6 +60,19 @@ export function currentQuartalNum(now: Date): number {
 }
 
 /**
+ * Kalender-Name des Quartals, das `versatz` Quartale vor dem aktuellen liegt —
+ * z.B. `„Q3/2026"`. „Q-2" allein sagt niemandem, welcher Zeitraum gemeint ist
+ * (v2.372.2); der Bucket 3 („ab Q-3") bekommt eine offene Angabe, weil er
+ * beliebig weit zurückreicht.
+ */
+export function quartalKalenderName(now: Date, versatz: number): string {
+  const q = currentQuartalNum(now) - versatz;
+  const jahr = Math.floor(q / 4);
+  const index = q - jahr * 4; // 0..3
+  return `Q${index + 1}/${jahr}`;
+}
+
+/**
  * Ordnet ein `antragsdatum` einem Bucket zu:
  * `0` = aktuelles Quartal, `1` = Q-1, `2` = Q-2, `3` = Q-3 **und älter**.
  * `null` = zukünftig (sollte nicht vorkommen) oder undatierbar.

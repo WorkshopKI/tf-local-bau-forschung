@@ -22,9 +22,11 @@ describe('clampSeiteBreite', () => {
     expect(clampSeiteBreite(300.6)).toBe(301);
   });
 
-  it('fällt bei NaN/Infinity auf den Default (260px) zurück', () => {
-    expect(clampSeiteBreite(Number.NaN)).toBe(260);
-    expect(clampSeiteBreite(Number.POSITIVE_INFINITY)).toBe(260);
-    expect(clampSeiteBreite(Number('abc'))).toBe(260);
+  // Default 260 → 300 (v2.372.2): bei 260 schnitt die Spalte den eigenen
+  // Widget-Titel ab („Antragseing…").
+  it('fällt bei NaN/Infinity auf den Default (300px) zurück', () => {
+    expect(clampSeiteBreite(Number.NaN)).toBe(300);
+    expect(clampSeiteBreite(Number.POSITIVE_INFINITY)).toBe(300);
+    expect(clampSeiteBreite(Number('abc'))).toBe(300);
   });
 });

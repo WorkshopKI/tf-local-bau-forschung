@@ -31,6 +31,12 @@
 - **Die Startseite nennt das Alter beim Namen.** Statt „493 über der 90-Tage-Frist" und „292 nähern sich" steht dort jetzt „493 älter als 90 Tage" und „292 zwischen 31 und 90 Tagen" — gemeint war nie ein versäumter Termin, sondern wie lange ein Antrag schon im Haus ist. Haben Sie die Tage-Grenzen im Widget „Antragseingang" verstellt, nennt der Text jetzt Ihre Werte statt fest 90.
 - Das Startseiten-Widget heißt **„KI-Assistent"** statt „AI-Assistent" — direkt darunter stand schon immer „KI-Variante".
 - Altersangaben sind ausgeschrieben: „vor 373 Tagen" statt „vor 373 T".
+- **Die Startseite sagt jede Zahl nur noch einmal.** „493 älter als 90 Tage" stand bisher gleichzeitig in der Begrüßungszeile, auf der Kachel darunter und im Widget rechts. Die Begrüßungszeile nennt jetzt nur die Gesamtzahl der offenen Vorgänge; die Aufteilung steht dort, wo Sie sie auch anklicken können.
+- **Klarer, was 638 und 930 bedeuten:** aus „638 Anträge · 930 TVS" wurde „638 Einträge · 930 Teilvorhaben" — Verbünde stehen als ein Eintrag, die zweite Zahl nennt die enthaltenen Teilvorhaben.
+- Der Knopf „Zu meinen Anträgen →" ist entfallen; er führte an dieselbe Stelle wie „Alle →" oben in derselben Karte.
+- **Die Startseite ist wieder gefüllt:** „Meine Anträge" zeigt anfangs 10 statt 5 Zeilen, und die rechte Spalte ist breiter — dort wurde bisher sogar die Überschrift „Antragseingang" abgeschnitten. Beides lässt sich weiterhin selbst einstellen bzw. ziehen.
+- Im Rückstands-Balken zeigt auch das schmalste Segment seine Zahl, und beim Darüberfahren steht jetzt das Kalenderquartal dabei („Q-1 · Q2/2026") statt nur „Q-1".
+- Auf der Förderanträge-Seite heißt die Filterzeile jetzt **„Status in dieser Sicht"** — ihre Zahlen beziehen sich auf den oben gewählten Reiter, was vorher wie ein Widerspruch aussah („Offen 909" oben, „Offen 852" darunter).
 
 ### Bugfixes
 - **Die Kurzfassung hielt sich schlechter an die Vorgaben, als sie musste.** Der Auftrag an die KI enthielt eine unsichtbare Formatvorgabe, die der Reihenfolge im Prompt-Text widersprach und deren Ergebnis anschließend ohnehin verworfen wurde. Sie ist entfernt. Außerdem sagt der Auftrag jetzt, welche Vorgabe gilt, wenn Zeichenlimit und Satzzahl nicht gleichzeitig erfüllbar sind.

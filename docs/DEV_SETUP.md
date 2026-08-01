@@ -71,9 +71,18 @@ programmatisch (`bereit()`, `navigiere()`, `szenario()`, `fehler()`).
 
 Details, Slots und Fallstricke: [architecture/local-variante.md](architecture/local-variante.md).
 
+**Damit ist der Sicht-Check Aufgabe des Agenten.** Jede Änderung, die sich in der
+App zeigt, prüft Claude Code hier selbst — Text, Layout, Klickwege, Zustand nach
+Reload, `window.__tf.fehler() === 0`. Beim Nutzer bleibt nur, was der Dev-Server
+strukturell nicht zeigen kann: `file://`-Betrieb (Single-File-Build, dynamische
+Importe, rohe Worker, relative `fetch`, Bundle-Größe), der FSAPI-Ordner-Picker
+samt Berechtigungs-Dialogen und echte Team-Schreibpfade auf dem SMB-Share. Die
+vollständige Trennlinie steht in
+[architecture/local-variante.md](architecture/local-variante.md#abnahme-regel-wer-prüft-was).
+
 Das ersetzt **nicht** den `file://`-Smoke: der Dev-Server ist permissiver als ein
-Single-File-Build. Nach wie vor gilt für Varianten-Tests `npm run build:dev` +
-Doppelklick.
+Single-File-Build. Für Varianten-Tests gilt weiter `npm run build:dev` +
+Doppelklick — dann aber mit benanntem Grund, nicht als Pauschalverweis.
 
 ## Was Fixtures NICHT können
 
