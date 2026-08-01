@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.377 — 2026-08
+
+### Neu
+- Neue Seite **Vorgangs-Board**: sie sagt je Antrag, was als Nächstes zu tun ist — in drei Sichten: *Meine Aufgaben*, *Wartet auf andere* und *Kein To-do ermittelt*. Ein Klick auf „warum?" zeigt die Regel und die Feldwerte, aus denen sich die Aufgabe ergibt.
+- Die Aufgaben kommen aus einer **Regel-Kaskade**, die im Status-Katalog unter „Regeln" steht — dieselbe Rechnung wie in den bisherigen Excel-Dashboards, nur für alle sichtbar und versioniert. Jede Regel ist dort als deutscher Satz lesbar und lässt sich in der Reihenfolge verschieben; die Reihenfolge entscheidet, denn die erste zutreffende Regel gewinnt.
+- Das Board startet mit den **letzten drei Jahrgängen**. Ältere Vorgänge führen viele Spalten gar nicht; dort meldeten die Regeln Aufgaben, die keine sind. Über „Alle Jahre" bleiben sie erreichbar — mit Hinweis.
+
 ## v2.376 — 2026-08
 
 ### Neu

@@ -21,7 +21,8 @@ export type PluginFeatureKey =
   | 'skillVerwaltung'
   | 'statusCockpit'
   | 'suche'
-  | 'volltextsuche';
+  | 'volltextsuche'
+  | 'vorgangssystem';
 
 /**
  * Services, die ein Plugin in seinem `onInit`-Hook nutzen darf. Aktuell nur

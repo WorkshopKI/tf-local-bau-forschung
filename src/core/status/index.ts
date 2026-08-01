@@ -48,6 +48,7 @@ export {
 export {
   baueKontext, pruefeBedingung, bedingungFeldRefs, type BedingungsKontext,
 } from './bedingung';
+export { bedingungAlsText, bedingungSatz } from './bedingung-text';
 export { normKey, loseKey } from './normalisierung';
 export {
   ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_ZAH_PHASEN,
@@ -91,7 +92,13 @@ export {
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
   relevanzLuecke, markiereRelevanz,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
+  aendereTodoRegel, verschiebeTodoRegel,
 } from './katalog-edit';
+export {
+  ermittleTodo, baueTodoKontext, todoWerte,
+  type TodoErgebnis, type TodoBeleg,
+} from './todo-engine';
+export { AB_TODO_REGELN, baueTodoRegelSeed, feld as todoFeld } from './todo-regeln.seed';
 export {
   navigatorKandidaten, wirkungSaetze,
   type NavigatorEingabe, type NavigatorErgebnis, type NavigatorKandidat,

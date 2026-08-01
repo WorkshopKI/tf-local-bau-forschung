@@ -21,6 +21,7 @@ import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
 import { mapFoerderfaehigPlugin } from '@/plugins/map-foerderfaehig';
 import { statusCockpitPlugin } from '@/plugins/status-cockpit';
 import { meilensteinePlugin } from '@/plugins/meilensteine';
+import { vorgangsBoardPlugin } from '@/plugins/vorgangs-board';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -29,6 +30,7 @@ const allPlugins: TeamFlowPlugin[] = [
   anfragenPlugin,
   mapFoerderfaehigPlugin,
   meilensteinePlugin,
+  vorgangsBoardPlugin,
   statusCockpitPlugin,
   auslastungPlugin,
   dokumentePlugin,

@@ -1787,6 +1787,7 @@ describe('status-kategorie-nur-aus-katalog (Ordnerbaum ist Daten, kein Code)', (
     'src/core/status/seed-kategorien.ts',
     'src/core/status/seed-codes.ts',
     'src/core/status/seed.ts',                 // kanonische Felder haengen im Baum
+    'src/core/status/seed-kanonisch.ts',       // ebendiese, seit dem Zyklenschnitt hier
     'src/core/status/kategorien.ts',           // NICHT_ZUGEORDNET_ID (Sammelordner)
   ];
 

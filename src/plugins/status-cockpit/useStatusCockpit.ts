@@ -16,6 +16,7 @@ import {
   listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
 import type { CsvSchema } from '@/core/services/csv/types';
+import { baueSpaltenKatalog, type SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
@@ -24,13 +25,14 @@ import {
   ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
   baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
   csvSpaltenJeFeld, baueFeldAufloesung,
-  aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
+  aendereWert, aendereFeld, aendereRegel, aendereTodoRegel, verschiebeTodoRegel,
+  fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
-  baueSeedVersion, KANONISCHE_CODE_FELDER,
+  baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
   STATUS_CODE_KATALOG, SEED_ZAH_PHASEN,
   type TriggerStand, type VorgangssystemLuecke,
   SEED_KATEGORIEN,
@@ -39,6 +41,7 @@ import {
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
   type StatusKategorie, type UnkuratierterFund, type VerbundFelder, type SimErgebnis,
   type PhasenWechsel, type SpinePhase, type StatusCodeEintrag, type TriggerZeile,
+  type TodoRegel,
 } from '@/core/status';
 
 export interface StatusCockpitApi {
@@ -105,6 +108,14 @@ export interface StatusCockpitApi {
   vorgangssystemLuecke: VorgangssystemLuecke;
   /** Codes, Varianten und ZAH-Phasen der Auslieferung nachziehen (additiv). */
   vorgangssystemNachziehen: () => void;
+  /** Eine To-do-Regel ändern (Id und Position bleiben). */
+  setTodoRegel: (id: string, patch: Partial<TodoRegel>) => void;
+  /** Eine To-do-Regel um eine Position in der Kaskade verschieben. */
+  verschiebeTodoRegel: (id: string, richtung: -1 | 1) => void;
+  /** Den ausgelieferten AB-Regelsatz in eine Fassung ohne Regeln nachziehen. */
+  todoRegelnNachziehen: () => void;
+  /** Spalten-Vorrat für den Bedingungs-Editor (aus den CSV-Schemas). */
+  spalten: SpaltenEintrag[];
   /** Wie viele Kürzel des AB-Dashboards noch kein Relevanz-Häkchen tragen. */
   relevanzLuecke: number;
   /** Die AB-Dashboard-Spalten als relevant markieren (setzt nur, nimmt nie weg). */
@@ -131,6 +142,8 @@ export interface StatusCockpitApi {
 
 interface Bestand {
   verbundFelder: VerbundFelder[];
+  /** Roh mitgeführt: der Bedingungs-Editor braucht den Spalten-Vorrat. */
+  schemas: CsvSchema[];
   vorkommen: Map<string, number>;
   zuletzt: Map<string, string>;
   csvSpalten: Map<string, string[]>;
@@ -221,6 +234,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     const events = await getAlleEvents(idb);
     return {
       verbundFelder: vf,
+      schemas,
       vorkommen: zaehleVorkommen(vf),
       zuletzt: zuletztGesehen(events),
       csvSpalten: csvSpaltenJeFeld(schemas),
@@ -417,15 +431,40 @@ export function useStatusCockpit(): StatusCockpitApi {
   const vsLuecke = useMemo(
     () => (entwurf
       ? vorgangssystemLuecke(entwurf, STATUS_CODE_KATALOG, KANONISCHE_CODE_FELDER)
-      : { werteOhneCode: 0, phasenFehlen: false, doppelteCodes: 0 }),
+      : { werteOhneCode: 0, phasenFehlen: false, doppelteCodes: 0, todoRegelnFehlen: false }),
     [entwurf],
   );
 
   const vorgangssystemNachziehen = useCallback(() => {
     setEntwurf(v => (v
-      ? ergaenzeVorgangssystemSeed(v, STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, KANONISCHE_CODE_FELDER)
+      ? ergaenzeVorgangssystemSeed(
+        v, STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
+      )
       : v));
   }, []);
+
+  const setTodoRegel = useCallback((id: string, patch: Partial<TodoRegel>) => {
+    setEntwurf(v => (v ? aendereTodoRegel(v, id, patch) : v));
+  }, []);
+
+  const verschiebeTodo = useCallback((id: string, richtung: -1 | 1) => {
+    setEntwurf(v => (v ? verschiebeTodoRegel(v, id, richtung) : v));
+  }, []);
+
+  const todoRegelnNachziehen = useCallback(() => {
+    setEntwurf(v => (v && (v.todoRegeln ?? []).length === 0
+      ? { ...v, todoRegeln: AB_TODO_REGELN.map(r => ({ ...r, zustaendig: [...r.zustaendig] })) }
+      : v));
+  }, []);
+
+  /**
+   * Der Spalten-Vorrat des Bedingungs-Editors — **derselbe Katalog wie bei den
+   * Meilensteinen** (`baueSpaltenKatalog`), nicht die Katalog-Felder. Eine
+   * Bedingung muss gegen das treffen, was der Export wirklich führt; die
+   * Katalog-Felder sind unsere Kuration darüber und enthalten auch Codes, die in
+   * keinem Schema stehen.
+   */
+  const spalten = useMemo(() => baueSpaltenKatalog(bestand?.schemas ?? []), [bestand]);
 
   const relLuecke = useMemo(
     () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
@@ -465,6 +504,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard,
+    setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, spalten,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

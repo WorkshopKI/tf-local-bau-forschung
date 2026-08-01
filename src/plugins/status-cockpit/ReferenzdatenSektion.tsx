@@ -119,6 +119,15 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
 
   const entwurf = api.entwurf;
 
+  /** Was der Fassung fehlt — als Liste, damit der Satz immer aufgeht. */
+  const l = api.vorgangssystemLuecke;
+  const luecken: string[] = [
+    ...(l.werteOhneCode > 0 ? [`${l.werteOhneCode} Statuswerte ohne Code`] : []),
+    ...(l.phasenFehlen ? ['keine ZAH-Phasen'] : []),
+    ...(l.todoRegelnFehlen ? ['keine To-do-Regeln'] : []),
+    ...(l.doppelteCodes > 0 ? [`${l.doppelteCodes} doppelt geführte Kürzel`] : []),
+  ];
+
   // WICHTIG: `pickXlsxFile` ist der erste `await` — kein weiterer davor, sonst
   // verwirft der Browser die Klick-Geste (recurring-bug-classes Bug-Klasse 2).
   const statusImport = useAsyncAction(async () => {
@@ -218,16 +227,16 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
               Seed nie gesehen: sie führt Statuswerte ohne Code und keine
               ZAH-Phasen. Ohne diesen Weg bliebe die ganze Schicht dort
               wirkungslos — dasselbe Muster wie beim Feld-Nachzug im Kürzel-Tab. */}
-          {(api.vorgangssystemLuecke.werteOhneCode > 0 || api.vorgangssystemLuecke.phasenFehlen
-            || api.vorgangssystemLuecke.doppelteCodes > 0) && (
+          {luecken.length > 0 && (
             <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
               <span className="text-[12.5px] text-[var(--tf-text)]">
+                {/* Als LISTE gebaut und dann verbunden, nicht aus Bedingungen
+                    zusammengeklebt: sonst steht bei ausgefallenen Teilen ein
+                    Satzzeichen ohne Satz („vor dem Vorgangssystem:, keine
+                    To-do-Regeln") — in der laufenden App beobachtet. */}
                 Diese Fassung stammt aus der Zeit vor dem Vorgangssystem:
-                {api.vorgangssystemLuecke.werteOhneCode > 0
-                  && ` ${api.vorgangssystemLuecke.werteOhneCode} Statuswerte ohne Code`}
-                {api.vorgangssystemLuecke.werteOhneCode > 0 && api.vorgangssystemLuecke.phasenFehlen && ','}
-                {api.vorgangssystemLuecke.phasenFehlen && ' keine ZAH-Phasen'}.
-                Kuratiertes bleibt unangetastet.
+                {' '}{luecken.join(', ')}.
+                {' '}Kuratiertes bleibt unangetastet.
                 {/* Die Dubletten sind kein „fehlt noch", sondern ein Fehlstand:
                     das Aufräumen ENTFERNT ein Feld. Das gehört ausgesprochen. */}
                 {api.vorgangssystemLuecke.doppelteCodes > 0 && (

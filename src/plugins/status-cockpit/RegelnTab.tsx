@@ -1,36 +1,23 @@
 /**
- * Regeln-Tab — Nächste-Schritte-Regeln kuratieren.
+ * Regeln-Tab — zwei Regelwerke nebeneinander.
  *
- * Liste der Regelblätter (nach Priorität) mit Inline-Bearbeitung von aktiv,
- * Priorität und Beschreibung. Die Bedingung wird nur lesend dargestellt (ein
- * kleiner rekursiver Formatierer) — der strukturelle Bedingungs-Editor ist für
- * v1 bewusst NICHT enthalten. Änderungen über `api.setRegel`.
+ * Oben die **To-do-Kaskade** des Vorgangssystems (geordnet, erste zutreffende
+ * Regel gewinnt), darunter die alten **Nächste-Schritte-Regeln** (priorisiert,
+ * alle zutreffenden liefern Schritte). Die beiden folgen verschiedenen
+ * Auswertungsmodellen; sie zusammenzulegen wäre erst nach dem Rückbau (P6)
+ * ehrlich, wenn geklärt ist, welches bleibt.
+ *
+ * Die Bedingung wird über den geteilten `bedingungAlsText` gerendert — nicht
+ * über einen tab-eigenen Formatierer, der die Operatoren des Vorgangssystems
+ * nicht kennte.
  */
 import { Badge } from '@/components/ui/badge';
+import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import type { StatusCockpitApi } from './useStatusCockpit';
-import { feldLabel } from '@/core/status';
-import type { Bedingung, MappingVersion, NaechsterSchrittRegel } from '@/core/status';
+import { bedingungAlsText } from '@/core/status';
+import type { MappingVersion, NaechsterSchrittRegel } from '@/core/status';
 import { WERKZEUG_LABEL, feldKlasse, feldStil } from './labels';
-
-/**
- * Rekursiver Nur-Lese-Formatierer für eine Bedingung (Blatt / UND / ODER).
- * Felder erscheinen unter ihrem kuratierten Namen — „TV-Status ist beantragt"
- * statt „status ist beantragt".
- */
-function formatBedingung(b: Bedingung, version: MappingVersion): string {
-  if ('alle' in b) return `(${b.alle.map(x => formatBedingung(x, version)).join(' UND ')})`;
-  if ('einige' in b) return `(${b.einige.map(x => formatBedingung(x, version)).join(' ODER ')})`;
-  const feld = feldLabel(version, b.feldId);
-  switch (b.op) {
-    case 'gefuellt': return `${feld} gefüllt`;
-    case 'leer': return `${feld} leer`;
-    case 'ist': return `${feld} ist „${b.wert ?? ''}"`;
-    case 'istNicht': return `${feld} ist nicht „${b.wert ?? ''}"`;
-    case 'datumVor': return `${feld} vor heute ${b.tageRelativHeute >= 0 ? '+' : ''}${b.tageRelativHeute} T`;
-    case 'datumNach': return `${feld} nach heute ${b.tageRelativHeute >= 0 ? '+' : ''}${b.tageRelativHeute} T`;
-    default: return '';
-  }
-}
+import { TodoRegelnBereich } from './TodoRegelnBereich';
 
 function RegelKarte({ r, version, api }: {
   r: NaechsterSchrittRegel; version: MappingVersion; api: StatusCockpitApi;
@@ -67,7 +54,7 @@ function RegelKarte({ r, version, api }: {
 
       <div className="text-[11px] text-[var(--tf-text-tertiary)]">
         <span className="uppercase tracking-wide">Wenn</span>{' '}
-        <span className="text-[var(--tf-text-secondary)]">{formatBedingung(r.bedingung, version)}</span>
+        <span className="text-[var(--tf-text-secondary)]">{bedingungAlsText(r.bedingung, version)}</span>
       </div>
 
       {r.schritte.length > 0 && (
@@ -97,15 +84,23 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const regeln = [...entwurf.regeln].sort((a, b) => a.prioritaet - b.prioritaet);
 
   return (
-    <div className="flex flex-col gap-2.5 pt-3">
-      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-        {regeln.length} Regeln, aufsteigend nach Priorität. Alle zutreffenden aktiven Regeln liefern
-        Schritte. Die Bedingungsstruktur wird hier nur angezeigt (Bearbeitung folgt).
-      </p>
-      {regeln.map(r => <RegelKarte key={r.id} r={r} version={entwurf} api={api} />)}
-      {regeln.length === 0 && (
-        <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Keine Regeln im Entwurf.</p>
-      )}
+    <div className="flex flex-col gap-4 pt-3">
+      {isVorgangssystemEnabled() && <TodoRegelnBereich version={entwurf} api={api} />}
+
+      <section className="flex flex-col gap-2.5">
+        <h3 className="text-[13px] font-medium text-[var(--tf-text)]">
+          Nächste-Schritte-Regeln (alte Ableitung)
+        </h3>
+        <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+          {regeln.length} Regeln, aufsteigend nach Priorität. Anders als die Kaskade oben liefern
+          hier <strong>alle</strong> zutreffenden aktiven Regeln Schritte. Die Bedingungsstruktur
+          wird nur angezeigt.
+        </p>
+        {regeln.map(r => <RegelKarte key={r.id} r={r} version={entwurf} api={api} />)}
+        {regeln.length === 0 && (
+          <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Keine Regeln im Entwurf.</p>
+        )}
+      </section>
     </div>
   );
 }

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.377.0 — To-do-Engine mit AB-Regelsatz und Vorgangs-Board (August 2026)
+
+MINOR — Die AB-Kolleginnen rechnen ihr „was steht an?" heute als verschachtelte WENN-Formel in einer privaten XLSX-Mappe. Dieselbe Kaskade läuft jetzt als versionierte Team-Regelmenge, und ein Board zeigt das Ergebnis — mit der Regel und den gelesenen Feldwerten daneben, damit ein To-do nachvollziehbar bleibt statt behauptet.
+
+- To-do-Engine: geordnete Kaskade, erste zutreffende Regel gewinnt, Sperren legen ganze Stränge still; kein Treffer ist ein sichtbares Ergebnis ([todo-engine.ts](src/core/status/todo-engine.ts)).
+- AB-Regelsatz als Auslieferung: 25 Regeln + 2 Sperren aus der Mappe transkribiert, je Regel ein positives Fixture im Test ([todo-regeln.seed.ts](src/core/status/todo-regeln.seed.ts)).
+- Neues Plugin „Vorgangs-Board" (erprobung, dev+pl): drei Sichten desselben Regelsatzes — eigene Aufgaben, Warten auf andere, kein To-do ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)).
+- Regel-Pflege im Status-Katalog: jede Regel als deutscher Satz, Reihenfolge über Pfeile, Bedingung über den geteilten Editor der Meilensteine ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx)).
+- Vorbelegung „letzte 3 Jahrgänge": über alle Jahre meldete allein „ZuwB erstellen" 6 607 Aufgaben — Altbestand, der die Spalte nie geführt hat ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts)).
+
 ### v2.376.0 — Kürzel-Glossar, Relevanz, Nächster-Schritt-Navigator (August 2026)
 
 MINOR — „Viele kennen die Kürzel nicht" war der meistgenannte Einstiegshemmnis. Der Kürzel-Tab wird zum Glossar (Bezeichnung, Rolle, Trigger-Wirkung in Satzform), die Relevanz-Häkchen grenzen die 505 Kürzel auf die ~30 der Antragsbearbeitung ein, und am Verbund steht, welche davon unter dem aktuellen Status überhaupt greifen würden.

@@ -328,3 +328,64 @@ describe('applyInaktiveExclusion', () => {
     expect(applyInaktiveExclusion(antraege, false, setNfc, false)).toHaveLength(0);
   });
 });
+
+/**
+ * Der Rollen-Zuschnitt (Vorgangssystem): AB liest BIB/BFM/PFM, FB liest
+ * TIB/ZTP. Die wichtigste Zusage steht im ersten Test — **ohne `rolle` ändert
+ * sich nichts**. Die Förderanträge-Liste ruft denselben Filter auf und darf von
+ * der Erweiterung nichts merken.
+ */
+describe('Rollen-Zuschnitt der Spalten', () => {
+  const nurFb = makeAntrag({ aktenzeichen: 'fb', tib_kuerz: 'MUE' });
+  const nurAb = makeAntrag({ aktenzeichen: 'ab', bib_kuerz: 'MUE' });
+  const begleitFb = makeAntrag({ aktenzeichen: 'zt', ztp_kuerz: 'MUE' });
+  const begleitAb = makeAntrag({ aktenzeichen: 'pf', pfm_kuerz: 'MUE' });
+  const alle = [nurFb, nurAb, begleitFb, begleitAb];
+  const az = (l: AntragListItem[]): string[] => l.map(a => a.aktenzeichen);
+
+  it('ohne Rolle exakt wie bisher — Bearbeiter-Spalten beider Rollen', () => {
+    const mode = parseBearbeiterFilter('MUE', false);
+    expect(az(applyBearbeiterFilter(alle, mode))).toEqual(['fb', 'ab']);
+    expect(mode.rolle).toBeUndefined();
+  });
+
+  it('ohne Rolle, mit Begleitung: alle vier Spalten', () => {
+    const mode = parseBearbeiterFilter('MUE', true);
+    expect(az(applyBearbeiterFilter(alle, mode))).toEqual(['fb', 'ab', 'zt', 'pf']);
+  });
+
+  it('AB sieht nur die BIB-Spalte', () => {
+    const mode = { ...parseBearbeiterFilter('MUE', false), rolle: 'ab' as const };
+    expect(az(applyBearbeiterFilter(alle, mode))).toEqual(['ab']);
+  });
+
+  it('FB sieht nur die TIB-Spalte', () => {
+    const mode = { ...parseBearbeiterFilter('MUE', false), rolle: 'fb' as const };
+    expect(az(applyBearbeiterFilter(alle, mode))).toEqual(['fb']);
+  });
+
+  it('mit Begleitung kommt je Rolle genau ihre Begleit-Spalte dazu', () => {
+    const ab = { ...parseBearbeiterFilter('MUE', true), rolle: 'ab' as const };
+    const fb = { ...parseBearbeiterFilter('MUE', true), rolle: 'fb' as const };
+    expect(az(applyBearbeiterFilter(alle, ab))).toEqual(['ab', 'pf']);
+    expect(az(applyBearbeiterFilter(alle, fb))).toEqual(['fb', 'zt']);
+  });
+
+  it('Rollen ohne eigene Spalten (QS/PA/Jur) behalten den vollen Satz', () => {
+    // Ein leerer Spaltensatz blendete jeden Antrag aus — das wäre keine
+    // Einschränkung, sondern ein stiller Totalausfall.
+    const mode = { ...parseBearbeiterFilter('MUE', false), rolle: 'qs' as const };
+    expect(az(applyBearbeiterFilter(alle, mode))).toEqual(['fb', 'ab']);
+  });
+
+  it('antragMatchesBearbeiter folgt demselben Zuschnitt', () => {
+    const ab = { ...parseBearbeiterFilter('MUE', false), rolle: 'ab' as const };
+    expect(antragMatchesBearbeiter(nurAb, ab)).toBe(true);
+    expect(antragMatchesBearbeiter(nurFb, ab)).toBe(false);
+  });
+
+  it('inaktiver Filter reicht auch mit Rolle alles durch', () => {
+    const mode = { ...parseBearbeiterFilter('alle', false), rolle: 'ab' as const };
+    expect(az(applyBearbeiterFilter(alle, mode))).toEqual(az(alle));
+  });
+});

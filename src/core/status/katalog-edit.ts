@@ -4,7 +4,7 @@
  */
 import type {
   MappingVersion, NaechsterSchrittRegel, Rolle, StatusFeldEintrag, StatusKategorie,
-  StatusWertEintrag, ZahPhase,
+  StatusWertEintrag, TodoRegel, ZahPhase,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
 import { normKey } from './normalisierung';
@@ -204,6 +204,8 @@ export interface VorgangssystemLuecke {
   phasenFehlen: boolean;
   /** Codes, die doppelt geführt werden — kanonisches Feld UND eigenes `D_`-Feld. */
   doppelteCodes: number;
+  /** Die To-do-Kaskade fehlt ganz (Fassung aus der Zeit vor dem Regelsatz). */
+  todoRegelnFehlen: boolean;
 }
 
 /**
@@ -281,6 +283,7 @@ export function vorgangssystemLuecke(
       .length,
     phasenFehlen: (version.zahPhasen ?? []).length === 0,
     doppelteCodes: kanonischeCodeDoppel(version, kanonisch).length,
+    todoRegelnFehlen: (version.todoRegeln ?? []).length === 0,
   };
 }
 
@@ -297,13 +300,21 @@ export function ergaenzeVorgangssystemSeed(
   auslieferung: readonly StatusCodeEintrag[],
   phasen: readonly ZahPhase[],
   kanonisch: ReadonlyMap<string, string>,
+  todoRegeln: readonly TodoRegel[] = [],
 ): MappingVersion {
   // Entdoppeln zuerst: solange zwei Felder denselben Code führen, ist jede
   // Aussage über diesen Code eine Münze mit zwei Seiten.
   const bereinigt = entdoppleKanonischeCodes(version, kanonisch);
   const mitCodes = uebernimmStatusCodes(bereinigt, auslieferung);
-  if ((mitCodes.zahPhasen ?? []).length > 0) return mitCodes;
-  return { ...mitCodes, zahPhasen: phasen.map(p => ({ ...p })) };
+  // Phasen und Regeln nur ANLEGEN, nie ersetzen: eine gepflegte Kaskade darf
+  // ein Nachziehen nicht auf den Auslieferungsstand zurückwerfen.
+  return {
+    ...mitCodes,
+    ...((mitCodes.zahPhasen ?? []).length === 0 ? { zahPhasen: phasen.map(p => ({ ...p })) } : {}),
+    ...((mitCodes.todoRegeln ?? []).length === 0 && todoRegeln.length > 0
+      ? { todoRegeln: todoRegeln.map(r => ({ ...r, zustaendig: [...r.zustaendig] })) }
+      : {}),
+  };
 }
 
 /**
@@ -404,6 +415,41 @@ export function uebernimmSeedTexte(
       const { zustaendigkeit: _abgeloest, ...rest } = f;
       return { ...rest, label: s.label, rollen: [...rollenVonFeld(s)] };
     }),
+  };
+}
+
+/** Ändert eine To-do-Regel; Id und Reihenfolge bleiben unangetastet. */
+export function aendereTodoRegel(
+  version: MappingVersion, id: string, patch: Partial<TodoRegel>,
+): MappingVersion {
+  return {
+    ...version,
+    todoRegeln: (version.todoRegeln ?? []).map(r => (
+      r.id === id ? { ...r, ...patch, id: r.id, reihenfolge: r.reihenfolge } : r
+    )),
+  };
+}
+
+/**
+ * Verschiebt eine Regel um eine Position in der Kaskade.
+ *
+ * **Die Reihenfolge wird komplett neu vergeben** (10, 20, 30 …) statt zwei
+ * Werte zu tauschen: importierte oder von Hand gepflegte Fassungen können
+ * Lücken und Doppelwerte tragen, und ein Tausch zweier gleicher Zahlen wäre
+ * eine Aktion, die sichtbar nichts tut.
+ */
+export function verschiebeTodoRegel(
+  version: MappingVersion, id: string, richtung: -1 | 1,
+): MappingVersion {
+  const sortiert = [...(version.todoRegeln ?? [])].sort((a, b) => a.reihenfolge - b.reihenfolge);
+  const i = sortiert.findIndex(r => r.id === id);
+  const ziel = i + richtung;
+  if (i < 0 || ziel < 0 || ziel >= sortiert.length) return version;
+  const [bewegt] = sortiert.splice(i, 1);
+  sortiert.splice(ziel, 0, bewegt!);
+  return {
+    ...version,
+    todoRegeln: sortiert.map((r, n) => ({ ...r, reihenfolge: (n + 1) * 10 })),
   };
 }
 

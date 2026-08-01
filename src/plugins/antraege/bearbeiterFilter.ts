@@ -1,4 +1,5 @@
 import type { AntragListItem } from '@/core/services/csv/types';
+import type { Rolle } from '@/core/status';
 import { isBegleitungStatus } from '@/core/utils/status-canonical';
 
 /**
@@ -33,12 +34,28 @@ import { isBegleitungStatus } from '@/core/utils/status-canonical';
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
 const BEGLEITUNG_FIELDS_LOWER: readonly string[] = ['ztp_kuerz', 'pfm_kuerz'];
 const BEARBEITER_FIELDS_LOWER_SET: ReadonlySet<string> = new Set(BEARBEITER_FIELDS_LOWER);
-const BEGLEITUNG_FIELDS_LOWER_SET: ReadonlySet<string> = new Set(BEGLEITUNG_FIELDS_LOWER);
 const COMBINED_FIELDS_LOWER: readonly string[] = [
   ...BEARBEITER_FIELDS_LOWER,
   ...BEGLEITUNG_FIELDS_LOWER,
 ];
 const COMBINED_FIELDS_LOWER_SET: ReadonlySet<string> = new Set(COMBINED_FIELDS_LOWER);
+
+/**
+ * Rollen-Zuschnitt der Spalten (Vorgangssystem, Konzept 5a).
+ *
+ * Das Legacy führt die Zuständigkeit rollenspezifisch: **AB in BIB** (bzw.
+ * BFM/PFM), **FB in TIB** (Begleitung: ZTP). Ohne diesen Zuschnitt sieht ein AB
+ * auch die Anträge, auf denen nur sein Name in der FB-Spalte steht — und
+ * umgekehrt.
+ *
+ * `BFM_KUERZ` steht in der Legacy-Parametertabelle, aber in keinem der heute
+ * importierten Schemas. Es bleibt hier gelistet: fehlt die Spalte, kostet der
+ * Eintrag einen Set-Lookup; kommt sie, wirkt sie ohne Codeänderung.
+ */
+const ROLLEN_SPALTEN: Partial<Record<Rolle, { bearbeiter: string[]; begleitung: string[] }>> = {
+  ab: { bearbeiter: ['bib_kuerz', 'bfm_kuerz'], begleitung: ['pfm_kuerz'] },
+  fb: { bearbeiter: ['tib_kuerz'], begleitung: ['ztp_kuerz'] },
+};
 
 export interface BearbeiterFilterMode {
   /** Aktiv? Wenn false, lassen sich Anträge unfiltriert durchreichen. */
@@ -47,6 +64,29 @@ export interface BearbeiterFilterMode {
   tokens: string[];
   /** Auch Begleitungs-Spalten (ZTP, PFM) berücksichtigen. */
   includeBegleitung: boolean;
+  /**
+   * Auf die Spalten EINER Rolle einschränken. **Fehlt sie, verhält sich alles
+   * exakt wie bisher** — die Förderanträge-Liste darf davon nichts merken.
+   * Nur QS/PA/Juristen haben keine eigenen Spalten; für sie bleibt es beim
+   * vollen Satz, weil ein leerer Spaltensatz jeden Antrag ausblendete.
+   */
+  rolle?: Rolle;
+}
+
+/** Die Spaltenlisten für einen Modus — mit Rolle eingeschränkt, sonst voll. */
+function spaltenFuer(mode: BearbeiterFilterMode): {
+  keys: readonly string[]; set: ReadonlySet<string>;
+} {
+  const zuschnitt = mode.rolle ? ROLLEN_SPALTEN[mode.rolle] : undefined;
+  if (!zuschnitt) {
+    return mode.includeBegleitung
+      ? { keys: COMBINED_FIELDS_LOWER, set: COMBINED_FIELDS_LOWER_SET }
+      : { keys: BEARBEITER_FIELDS_LOWER, set: BEARBEITER_FIELDS_LOWER_SET };
+  }
+  const keys = mode.includeBegleitung
+    ? [...zuschnitt.bearbeiter, ...zuschnitt.begleitung]
+    : zuschnitt.bearbeiter;
+  return { keys, set: new Set(keys) };
 }
 
 /**
@@ -146,16 +186,8 @@ function antragHasKuerzel(
  */
 export function antragMatchesBearbeiter(antrag: AntragListItem, mode: BearbeiterFilterMode): boolean {
   if (!mode.active) return true;
-  if (antragHasKuerzel(antrag, BEARBEITER_FIELDS_LOWER, BEARBEITER_FIELDS_LOWER_SET, mode.tokens)) {
-    return true;
-  }
-  if (
-    mode.includeBegleitung
-    && antragHasKuerzel(antrag, BEGLEITUNG_FIELDS_LOWER, BEGLEITUNG_FIELDS_LOWER_SET, mode.tokens)
-  ) {
-    return true;
-  }
-  return false;
+  const { keys, set } = spaltenFuer(mode);
+  return antragHasKuerzel(antrag, keys, set, mode.tokens);
 }
 
 /**
@@ -183,10 +215,8 @@ export function applyBearbeiterFilter(antraege: AntragListItem[], mode: Bearbeit
   if (!mode.active) return antraege;
   // Pre-resolve Keys/Set einmal (statt pro Record): bei aktivem
   // includeBegleitung kombinieren wir Bearbeiter+Begleitungs-Felder zu
-  // einem Lookup, damit pro Record genau ein Pass läuft (statt zwei
-  // sequenzieller Aufrufe wie in `antragMatchesBearbeiter`).
-  const keys = mode.includeBegleitung ? COMBINED_FIELDS_LOWER : BEARBEITER_FIELDS_LOWER;
-  const set = mode.includeBegleitung ? COMBINED_FIELDS_LOWER_SET : BEARBEITER_FIELDS_LOWER_SET;
+  // einem Lookup, damit pro Record genau ein Pass läuft.
+  const { keys, set } = spaltenFuer(mode);
   const tokens = mode.tokens;
   return antraege.filter(a => antragHasKuerzel(a, keys, set, tokens));
 }

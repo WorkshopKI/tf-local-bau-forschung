@@ -26,6 +26,14 @@ import { SEED_KATEGORIEN } from './seed-kategorien';
 import { KATEGORIE_ZU_SPINE } from './spine-kategorie';
 import { reichereWerteAn } from './status-codes';
 import { SEED_ZAH_PHASEN } from './zah-phasen';
+import { KANONISCHE_FELDER, KANONISCHE_CODE_FELDER } from './seed-kanonisch';
+import { baueTodoRegelSeed } from './todo-regeln.seed';
+
+/** Re-Export: die kanonischen Felder leben in `seed-kanonisch.ts` (Zyklenschnitt). */
+export { KANONISCHE_FELDER, KANONISCHE_CODE_FELDER };
+
+/** Kurzname im Modul — der Seed baut daraus die Fassung. */
+const FELDER = KANONISCHE_FELDER;
 
 const SEED_ZEITSTEMPEL = '2026-07-24T00:00:00.000Z';
 
@@ -84,31 +92,6 @@ function prominenzFor(normalisierterWert: string): Prominenz {
   return MEILENSTEIN_WERTE.has(normalisierterWert) ? 'meilenstein' : 'normal';
 }
 
-/**
- * Die kanonischen Felder. Wert-Felder tragen ein Enum, Datumsfelder nicht.
- * `ebene`/`quelleKey` steuern, aus welchem Record (Verbund vs. Antrag) und unter
- * welchem Key der Wert gelesen wird — insb. `verbund_status`, das der Verbund-
- * Record unter `status` führt (`VB_FIELD_MAP` im Merger).
- *
- * Die Datumsfelder tragen zusätzlich ihren `code` aus dem Fachsystem: die
- * Spalten `D_AAE`/`D_AZ1_1`/`D_ABB`/`D_VBE` sind app-weit auf kanonische Felder
- * gemappt (`CANONICAL_FIELD_NAME_ALIASES`). Genau deshalb fehlen diese Codes in
- * `seed-codes.ts` — sonst stünden zwei Katalog-Einträge auf derselben Spalte
- * und jedes Ereignis zählte doppelt.
- */
-const FELDER: StatusFeldEintrag[] = [
-  // `rollen: []` = neutral, also unter jeder Rollenwahl sichtbar. Die drei
-  // Wert-Felder sind unsere eigenen Projektionen und gehören niemandem; bei den
-  // Datumsfeldern steht die Rolle in der Kürzel-Zuarbeit (AAE=PA, ABB=QS,
-  // AZ1/VBE=neutral).
-  { feldId: 'status', label: 'TV-Status', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-  { feldId: 'verbund_status', label: 'Verbund-Status', typ: 'wert', ebene: 'verbund', quelleKey: 'status', herkunft: 'verbund-record', kategorieId: 'vb.antragsbearbeitung', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-  { feldId: 'vb_phase', label: 'Verbund-Phase (Fördervariante)', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'nebensaechlich', aktiv: true, unkuratiert: false },
-  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', ebene: 'tv', code: 'AAE', kategorieId: 'tv.antragsbearbeitung', rollen: ['pa'], spinePhase: 'eingang', rang: 10, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', ebene: 'tv', code: 'AZ1', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', ebene: 'tv', code: 'ABB', kategorieId: 'tv.antragsbearbeitung', rollen: ['qs'], spinePhase: 'bewilligung', rang: 42, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', ebene: 'tv', code: 'VBE', kategorieId: 'tv.verwendungsnachweis', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
-];
 
 function baueWerte(): StatusWertEintrag[] {
   const werte: StatusWertEintrag[] = [];
@@ -162,15 +145,6 @@ function baueSeedRegeln(): NaechsterSchrittRegel[] {
 }
 
 /**
- * Baut die deterministische Seed-Version 1. Reine Funktion.
- *
- * Enthält den kompletten Code-Katalog des Fachsystems — eine frische
- * Installation startet damit vollständig. **Bestehende** Installationen führen
- * eine kuratierte Fassung > 1; die bekommt die neuen Felder nicht von hier,
- * sondern über `ergaenzeSeedFelder` im Cockpit, damit Handarbeit der PL nicht
- * überschrieben wird.
- */
-/**
  * Der Code-Katalog OHNE die Codes, die schon als kanonisches Feld im Katalog
  * stehen (`AAE` zu `antragsdatum`, `ABB` zu `bewilligung_datum`, …).
  *
@@ -184,19 +158,14 @@ export function baueSeedCodeFelderOhneKanonische(): StatusFeldEintrag[] {
 }
 
 /**
- * Code → feldId des kanonischen Feldes, das ihn führt (`AAE` → `antragsdatum`).
+ * Baut die deterministische Seed-Version 1. Reine Funktion.
  *
- * Die eine Wahrheit darüber, welcher Code **nicht** als eigenes `D_`-Feld in
- * einen Katalog gehört. Wer diese Liste umgeht, erzeugt zwei Felder für
- * dasselbe Ereignis: eines mit dem Wert (das kanonische, weil es die
- * Kollisionsregel der Feld-Auflösung gewinnt) und eines mit dem Code (das nie
- * einen Wert trägt). Alles, was am Code hängt — Navigator, Wächter, Relevanz —
- * bekommt dann für dieses Ereignis dauerhaft „nicht gesetzt" zur Antwort.
+ * Enthält den kompletten Code-Katalog des Fachsystems — eine frische
+ * Installation startet damit vollständig. **Bestehende** Installationen führen
+ * eine kuratierte Fassung > 1; die bekommt die neuen Felder nicht von hier,
+ * sondern über `ergaenzeSeedFelder` im Cockpit, damit Handarbeit der PL nicht
+ * überschrieben wird.
  */
-export const KANONISCHE_CODE_FELDER: ReadonlyMap<string, string> = new Map(
-  FELDER.filter(f => f.code !== undefined).map(f => [f.code!, f.feldId]),
-);
-
 export function baueSeedVersion(): MappingVersion {
   return {
     version: 1,
@@ -210,5 +179,7 @@ export function baueSeedVersion(): MappingVersion {
     // Vorgangssystem: Beschriftung + Reihenfolge der ZAH-Phasen. Die Zuordnung
     // Code→Phase steckt am Statuswert (`zahPhaseId`), nicht hier.
     zahPhasen: SEED_ZAH_PHASEN.map(p => ({ ...p })),
+    // Der AB-Regelsatz aus der XLSX-Mappe. Die Reihenfolge IST die Kaskade.
+    todoRegeln: baueTodoRegelSeed(),
   };
 }
