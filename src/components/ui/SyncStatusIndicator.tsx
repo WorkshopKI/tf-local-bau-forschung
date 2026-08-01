@@ -63,12 +63,17 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean } =
         ? 'Verbunden'
         : `Offline${status.pending > 0 ? ` (${status.pending})` : ''}`;
 
+  // „Anträge sind aktuell" stand hier bis v2.372.4 — eine Aussage über den
+  // INHALT, die dieser Indikator nicht treffen kann: er kennt nur die
+  // Erreichbarkeit des Ordners und die eigene Schreib-Warteschlange. Ob die
+  // täglichen CSV-Exporte eingelesen sind, weiß allein der „CSV"-Punkt daneben
+  // — der meldete gleichzeitig „Neue CSV-Exporte verfügbar".
   const triggerTooltip = status.syncing
     ? 'Synchronisierung läuft...'
     : status.pending > 0
       ? `${status.pending} Sync-Operationen ausstehend`
       : datenShareAvailable
-        ? 'Datenordner ist erreichbar, Anträge sind aktuell.'
+        ? 'Datenordner ist erreichbar, keine ausstehenden Sync-Vorgänge.'
         : 'Datenordner offline — klicken um zu verbinden.';
 
   return (
@@ -93,7 +98,9 @@ export function SyncStatusIndicator({ compact = false }: { compact?: boolean } =
 
           {datenShareAvailable && !status.syncing && status.pending === 0 && (
             <p className="text-[12px] text-[var(--tf-text-tertiary)] leading-snug">
-              Datenordner ist erreichbar, Anträge sind aktuell.
+              Datenordner ist erreichbar, keine ausstehenden Sync-Vorgänge.
+              Ob die täglichen CSV-Exporte eingelesen sind, zeigt der Punkt
+              „CSV" daneben.
             </p>
           )}
 

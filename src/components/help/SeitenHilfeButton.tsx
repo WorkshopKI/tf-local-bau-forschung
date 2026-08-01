@@ -59,6 +59,12 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
   // Der Puls-Punkt hing bis v2.359 an „Neu hier?" in der Fußzeile. Nur auf der
   // Startseite, sonst blinkte er auf jeder Seite der App.
   const tourAnbieten = pluginId === 'home' && !tour.hasCompleted;
+  // Der Punkt allein sagte nicht, wofür er blinkt: er ist `aria-hidden`, hatte
+  // keinen Tooltip, und der Knopf versprach nur eine Kurzanleitung. Die Tour lag
+  // damit zwei Klicks tief hinter einem Wort, das sie nicht nennt (v2.372.4).
+  const knopfTitel = tourAnbieten
+    ? 'Kurzanleitung zu dieser Seite — und die Einführungs-Tour, die Sie noch nicht gemacht haben'
+    : 'Kurzanleitung zu dieser Seite';
 
   /** Dialog zu, Feedback auf — mit Typ „Problem" und fertiger Überschrift. */
   const melden = (): void => {
@@ -84,14 +90,19 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
         size="sm"
         icon={HelpCircle}
         onClick={() => setOffen(true)}
-        title="Kurzanleitung zu dieser Seite"
+        title={knopfTitel}
       >
         Hilfe
         {tourAnbieten && (
-          <span
-            aria-hidden="true"
-            className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse"
-          />
+          <>
+            <span
+              aria-hidden="true"
+              className="ml-0.5 h-1.5 w-1.5 rounded-full bg-[var(--tf-primary)] animate-pulse"
+            />
+            {/* Der Punkt ist rein visuell — ohne diesen Text hört eine
+                Screenreader-Nutzerin nichts von der offenen Tour. */}
+            <span className="sr-only">Einführungs-Tour noch offen</span>
+          </>
         )}
       </Button>
       <Dialog

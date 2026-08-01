@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.372.4 — Sortier-Auswahl aus einer Quelle, drei Journey-Korrekturen (August 2026)
+
+PATCH — Beim Nachtesten des Startseiten-Reviews fiel auf, dass die „Sortiert nach"-Pille eine **zweite** Options-Liste führte: in der Sicht „Bewilligt" zeigte sie „Neueste zuerst", während nach Bewilligungsdatum sortiert wurde — und dieser Schlüssel war nicht anwählbar. Dazu die drei offenen Journey-Befunde D2–D4.
+
+- Sortier-Optionen kommen nur noch aus [sort.ts](src/plugins/antraege/sort.ts); die Pille liest sie über das reine [sortSeg.ts](src/plugins/antraege/filter/sortSeg.ts), die Doppel-Liste in [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx) ist entfallen.
+- Beschriftungen benennen das Feld statt der Richtung allein: „Eingang (neueste)" / „Bewilligung (älteste)" / „Frist (kürzeste)" — letztere hieß im Katalog „Älteste Eingänge zuerst" und beschrieb damit einen anderen Vergleich ([sort.ts](src/plugins/antraege/sort.ts)).
+- Der „Hilfe"-Knopf nennt die Einführungs-Tour, solange sie offen ist — der pulsende Punkt daneben war `aria-hidden` und ohne Tooltip ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)).
+- „+10 mehr anzeigen" nennt jetzt den Rest, den es nicht zeigt („+10 anzeigen (628 weitere)"), und der doppelte Zähler unter der Liste ist weg ([MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx)).
+- Der Sync-Punkt behauptet keine Aktualität mehr, die er nicht kennt — er meldete „Anträge sind aktuell", während der CSV-Punkt daneben offene Importe zeigte ([SyncStatusIndicator.tsx](src/components/ui/SyncStatusIndicator.tsx)).
+
 ### v2.372.3 — Kontext-Warnung und Fusszeile benennen nur eine KI, die es gibt (August 2026)
 
 PATCH — Beim Testlauf gegen einen fiktiven Antrag am lokalen llama.cpp benannten zwei Stellen eine KI, die es dort gar nicht gibt: die Kontext-Warnung sprach vom „Fenster der Standard-KI", und die Fußzeile schrieb „· Standard-KI" unter einen Text, der nie über die Bridge lief. Ohne Bridge existieren weder Standard- noch agentischer Tab.

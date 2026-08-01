@@ -268,16 +268,22 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
         );
       })}
       {hasMore ? (
-        <div className="mt-2 flex items-center justify-between">
+        // Der Knopf nennt den Rest, den er NICHT zeigt. „+10 mehr anzeigen" bei
+        // 628 verbleibenden las sich wie ein vollwertiger Weg durch die Liste —
+        // tatsächlich wären es 63 Klicks; der Weg dorthin ist „Alle →" oben in
+        // derselben Karte. Der Zähler stand hier ein zweites Mal (identisch zum
+        // Karten-Kopf) und ist deshalb entfallen (v2.372.4).
+        <div className="mt-2">
           <button
             onClick={() => setVisibleCount(c => Math.min(antraege.length, c + 10))}
             className="text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+            title={`Zeigt ${nextChunk} weitere hier in der Karte. Die vollständige Liste öffnet „Alle →" oben.`}
           >
-            +{nextChunk} mehr anzeigen
+            +{nextChunk} anzeigen{' '}
+            <span className="text-[var(--tf-text-tertiary)]">
+              ({remaining.toLocaleString('de-DE')} weitere)
+            </span>
           </button>
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-            {visibleCount} von {antraege.length}
-          </span>
         </div>
       ) : null}
     </div>

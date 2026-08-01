@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveViewMode } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
-import { type SortKey } from '../sort';
+import { sortSegModell, sortKeyFuerLabel } from './sortSeg';
 import { CollapsibleSeg } from './CollapsibleSeg';
 import {
   getPhaseFromActive,
@@ -43,19 +43,6 @@ import {
   toggleExpandedSeg,
   type QuickfilterSegId,
 } from './quickfilterExpanded';
-
-/** Alle Sortier-Optionen in einer einzigen Liste — Source-of-Truth fuer
- *  die `Sortiert nach`-Quickfilter-Pille. Reihenfolge bestimmt die UI-
- *  Reihenfolge in der SegGroup. */
-const SORT_OPTIONS: { label: string; key: SortKey }[] = [
-  { label: 'Neueste zuerst', key: 'antrag_desc' },
-  { label: 'Älteste zuerst', key: 'antrag_asc' },
-  { label: 'Frist (kürzeste zuerst)', key: 'frist_asc' },
-  { label: 'Akronym (A→Z)', key: 'akronym_asc' },
-  { label: 'Antragsteller (A→Z)', key: 'antragsteller_asc' },
-];
-
-const DEFAULT_SORT_LABEL = 'Neueste zuerst';
 
 export function QuickfilterToolbar(): React.ReactElement {
   // Counts auf der "Kürzel-gefilterten" Basis berechnen, nicht auf der
@@ -113,13 +100,14 @@ export function QuickfilterToolbar(): React.ReactElement {
     setPrecheckBucket(asPrecheckBucket(label));
   };
 
-  // Sortiert nach (nur List-/Karten-Ansicht)
-  const currentSortLabel =
-    SORT_OPTIONS.find(o => o.key === sortKey)?.label ?? DEFAULT_SORT_LABEL;
+  // Sortiert nach (nur List-/Karten-Ansicht) — Einträge, aktuelles Label und
+  // Kollaps-Wert kommen aus `sortSeg.ts`, damit die Pille nicht wieder eine
+  // eigene, von `sort.ts` abweichende Options-Liste führen kann.
+  const sortSeg = useMemo(() => sortSegModell(activeView, sortKey), [activeView, sortKey]);
   const onSortChange = (label: string): void => {
-    const opt = SORT_OPTIONS.find(o => o.label === label);
-    if (!opt) return;
-    setSortForView(activeView, opt.key);
+    const key = sortKeyFuerLabel(activeView, label);
+    if (key === null) return;
+    setSortForView(activeView, key);
   };
 
   return (
@@ -155,9 +143,9 @@ export function QuickfilterToolbar(): React.ReactElement {
       {viewMode === 'compact' ? null : (
         <CollapsibleSeg
           label="Sortiert nach"
-          value={currentSortLabel}
-          defaultValue={DEFAULT_SORT_LABEL}
-          items={SORT_OPTIONS.map(o => ({ label: o.label }))}
+          value={sortSeg.aktuellesLabel}
+          defaultValue={sortSeg.defaultLabel}
+          items={sortSeg.items}
           onChange={onSortChange}
           expanded={expandedSeg === 'sort'}
           onExpandToggle={() => handleToggle('sort')}

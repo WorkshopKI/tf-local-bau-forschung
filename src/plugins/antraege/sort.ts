@@ -15,7 +15,12 @@ export type SortKey =
 
 export interface SortOption {
   key: SortKey;
+  /** Angezeigter Text in der „Sortiert nach"-Pille. Kurz genug für eine Zeile —
+   *  die Richtung steht in Klammern, die Langfassung im `hinweis`. */
   label: string;
+  /** Optionaler Hover-Text (`title` am Seg-Knopf). Nur dort nötig, wo die
+   *  Kurzform die Richtung nicht vollständig erklärt. */
+  hinweis?: string;
   compare: (a: AntragListItem, b: AntragListItem) => number;
 }
 
@@ -61,30 +66,44 @@ function compareTextAsc(a: AntragListItem, b: AntragListItem, field: 'akronym' |
   return va.localeCompare(vb, 'de');
 }
 
+/** EINZIGE Quelle der Sortier-Optionen — Schlüssel, Beschriftung und Vergleich
+ *  liegen zusammen, damit die Anzeige nicht von der Wirkung abweichen kann.
+ *  Bis v2.372.4 führte [QuickfilterToolbar](filter/QuickfilterToolbar.tsx) eine
+ *  eigene, kürzere Liste: `frist_asc` hieß dort „Frist (kürzeste zuerst)" und
+ *  hier „Älteste Eingänge zuerst", und die drei hier fehlenden Schlüssel waren
+ *  gar nicht wählbar — in der Sicht „Bewilligt" zeigte die Pille deshalb
+ *  „Neueste zuerst", während nach Bewilligungsdatum sortiert wurde. */
 export const SORT_OPTIONS: readonly SortOption[] = [
   {
     key: 'bewilligung_desc',
-    label: 'Bewilligungsdatum (neueste zuerst)',
+    label: 'Bewilligung (neueste)',
+    hinweis: 'Bewilligungsdatum, neueste zuerst',
     compare: (a, b) => compareDateDesc(a, b, 'bewilligung_datum'),
   },
   {
     key: 'bewilligung_asc',
-    label: 'Bewilligungsdatum (älteste zuerst)',
+    label: 'Bewilligung (älteste)',
+    hinweis: 'Bewilligungsdatum, älteste zuerst',
     compare: (a, b) => compareDateAsc(a, b, 'bewilligung_datum'),
   },
   {
     key: 'antrag_desc',
-    label: 'Antragsdatum (neueste zuerst)',
+    label: 'Eingang (neueste)',
+    hinweis: 'Antragseingang, neueste zuerst',
     compare: (a, b) => compareDateDesc(a, b, 'antragsdatum'),
   },
   {
     key: 'antrag_asc',
-    label: 'Antragsdatum (älteste zuerst)',
+    label: 'Eingang (älteste)',
+    hinweis: 'Antragseingang, älteste zuerst',
     compare: (a, b) => compareDateAsc(a, b, 'antragsdatum'),
   },
   {
+    // Sortiert nach RESTLAUFZEIT der Frist, nicht nach Eingangsalter — die alte
+    // Beschriftung „Älteste Eingänge zuerst" beschrieb `antrag_asc`.
     key: 'frist_asc',
-    label: 'Älteste Eingänge zuerst',
+    label: 'Frist (kürzeste)',
+    hinweis: 'Frist, kürzeste Restlaufzeit zuerst — Überfällige oben',
     compare: compareFristAsc,
   },
   {
