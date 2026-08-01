@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.371.1 — Startseiten-Review: Sidebar-Latch, Dark-Mode-Persistenz, tote QS-Kachel (August 2026)
+
+PATCH — Erster Sicht-Check der Startseite über die Variante „local" (v2.371). Fünf Befunde, die im Bild messbar waren; die übrigen (widersprüchliche Zahlen, sechs Namen für einen Sachverhalt, Layout) brauchen fachliche Entscheidungen und folgen getrennt.
+
+- **Bugfix:** Ein einmal schmales Fenster rastete die Icon-Leiste dauerhaft ein — der erzwungene Mobil-Modus schrieb in denselben State, der persistiert wird. Wahl und Zwang sind jetzt getrennt ([sidebarModus.ts](src/core/nav/sidebarModus.ts), [ShellLayout.tsx](src/core/ShellLayout.tsx)).
+- **Bugfix:** Dark Mode überlebte den Neustart nur über die Einstellungen, nicht über Strg+Umschalt+D oder die Command Palette — jetzt EIN Weg für beides ([useDarkMode.ts](src/core/hooks/useDarkMode.ts)), bewacht von `no-raw-set-dark-mode`.
+- Hero-Kacheln mit Zähler 0 entfallen; „QS-Freigaben offen" springt in einen echten offenen Entwurf statt in die ungefilterte Antragsliste ([heroChips.ts](src/plugins/home/heroChips.ts), [HomeHero.tsx](src/plugins/home/HomeHero.tsx)).
+- Die Seitenleiste zeigte zweimal „E-Mail Anfragen" mit gleichem Icon und verschiedenen Zielen; der Kurations-Eintrag heißt jetzt „E-Mail Anfragen: Einstellungen" ([anfragen/index.ts](src/plugins/anfragen/index.ts)).
+
 ### v2.371.0 — Variante local: App ohne Ordner-Picker, fahrbar durch Claude Code (Juli 2026)
 
 MINOR — Der Ordner-Picker der File System Access API ist per Browser-Sicherheit nicht skriptbar; ohne Handle blieb die App im WelcomeScreen, jede visuelle Prüfung war Handarbeit. `npm run dev:local` (Port 5175) startet sie stattdessen gegen die feste lokale Share-Kopie — kein Dialog, echte Daten. Detail: [local-variante.md](docs/architecture/local-variante.md).

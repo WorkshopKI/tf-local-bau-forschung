@@ -98,7 +98,9 @@ export function HomePage(): React.ReactElement {
     store.setAmpelQuickfilter({ bucket, schwellen });
     navigate('antraege');
   };
-  const openQs = (): void => navigate('antraege');
+  // Direkt in den Vorgang statt in die ungefilterte Liste — dieselbe Zielwahl
+  // wie die „Prüfen →"-Zeile im QS-Widget (eine QS-Listenseite gibt es nicht).
+  const openQs = (scopeId: string): void => navigate('antraege', { selectedId: scopeId });
 
   // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation
   // (useDashboardData) läuft EINMAL hier, nicht je Widget.
@@ -111,7 +113,9 @@ export function HomePage(): React.ReactElement {
   const tourStart = tour.start;
   useEffect(() => {
     // v2.21: Auto-Start nur im prod-Endkunden-Build — pl/kurator/dev/demo
-    // starten die Tour nicht automatisch (der „Neu hier?"-Button bleibt überall).
+    // starten die Tour nicht automatisch. Manueller Einstieg überall: „Hilfe" im
+    // Seitenkopf → „Einführungs-Tour" (bis v2.359 ein „Neu hier?"-Knopf in der
+    // Sidebar-Fußzeile).
     if (!isEndUserProdVariant()) return;
     if (tourHasCompleted || tourIsActive) return;
     if (data.stats.total === 0) return;

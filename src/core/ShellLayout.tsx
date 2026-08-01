@@ -5,7 +5,13 @@ import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { keyboardService } from '@/core/services/keyboard';
 import { CommandPalette } from '@/components/ui/CommandPalette';
 import type { CommandItem } from '@/components/ui/CommandPalette';
-import { setDarkMode, isDarkMode } from '@/components/ui/theme';
+import { useDarkMode } from '@/core/hooks/useDarkMode';
+import {
+  MOBILE_BREAKPOINT,
+  effektiverModus,
+  umgeschalteteWahl,
+  type SidebarModus,
+} from '@/core/nav/sidebarModus';
 import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
 import { BridgeStatusIndicator } from '@/components/ui/BridgeStatusIndicator';
 import { CsvFreshnessIndicator } from '@/components/ui/CsvFreshnessIndicator';
@@ -70,8 +76,6 @@ const SIDEBAR_MIN = 140;
 const SIDEBAR_MAX = 360;
 const SIDEBAR_RAIL_WIDTH = 52;
 
-type SidebarMode = 'expanded' | 'rail';
-
 function loadSidebarWidth(): number {
   try {
     const v = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
@@ -80,7 +84,7 @@ function loadSidebarWidth(): number {
   return SIDEBAR_DEFAULT;
 }
 
-function loadSidebarMode(): SidebarMode {
+function loadSidebarModus(): SidebarModus {
   try {
     if (localStorage.getItem(SIDEBAR_MODE_KEY) === 'rail') return 'rail';
   } catch { /* ignore */ }
@@ -126,14 +130,31 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const activeId = routeToPluginId(location.pathname) ?? 'home';
   const ueberAppOffen = useUeberAppDialog(s => s.open);
   const ueberAppSchliessen = useUeberAppDialog(s => s.close);
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(loadSidebarMode);
+  // Die BEWUSSTE Wahl des Nutzers — der einzige Wert, der persistiert wird.
+  const [nutzerModus, setNutzerModus] = useState<SidebarModus>(loadSidebarModus);
   const [isMobile, setIsMobile] = useState(false);
+  // Im schmalen Fenster ist die Leiste eine Schublade; dieses Flag hält fest, ob
+  // der Nutzer sie dort gerade aufgezogen hat. Es überlebt weder das Verbreitern
+  // noch den Neustart — sonst rastet ein einmal schmales Fenster die Schiene
+  // dauerhaft ein (bis v2.371 der Fall: 20 unbeschriftete Icons ohne Rückweg).
+  const [schubladeOffen, setSchubladeOffen] = useState(false);
+  const sidebarMode = effektiverModus({ nutzerWahl: nutzerModus, schmalesFenster: isMobile, schubladeOffen });
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(loadSidebarWidth);
   const [sidebarDragging, setSidebarDragging] = useState(false);
 
+  const { umschalten: darkUmschalten } = useDarkMode();
+  const darkUmschaltenRef = useRef(darkUmschalten);
+  useEffect(() => { darkUmschaltenRef.current = darkUmschalten; }, [darkUmschalten]);
+
+  // Fensterbreite live statt aus `isMobile`: so bleibt der Callback stabil und
+  // taugt für den Tastatur-Effekt unten (leere Deps).
   const toggleSidebar = useCallback((): void => {
-    setSidebarMode(prev => (prev === 'expanded' ? 'rail' : 'expanded'));
+    if (window.innerWidth < MOBILE_BREAKPOINT) {
+      setSchubladeOffen(v => !v);
+      return;
+    }
+    setNutzerModus(umgeschalteteWahl);
   }, []);
 
   // Sidebar-Breite per Drag-Handle anpassen.
@@ -167,9 +188,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch { /* ignore */ }
   }, [sidebarWidth]);
 
+  // Bewusst `nutzerModus`, NICHT `sidebarMode`: der vom Fenster erzwungene
+  // Schienen-Modus darf die Wahl fürs breite Fenster nicht überschreiben.
   useEffect(() => {
-    try { localStorage.setItem(SIDEBAR_MODE_KEY, sidebarMode); } catch { /* ignore */ }
-  }, [sidebarMode]);
+    try { localStorage.setItem(SIDEBAR_MODE_KEY, nutzerModus); } catch { /* ignore */ }
+  }, [nutzerModus]);
 
   const tour = useTourContext();
   const storage = useStorage();
@@ -311,10 +334,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     if (assistentEntryAvailable) {
       items.push({ id: 'act-assistent', label: 'Assistent öffnen', category: 'Navigation', action: openAssistent });
     }
-    items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: () => setDarkMode(!isDarkMode()) });
+    items.push({ id: 'act-dark', label: 'Dark Mode umschalten', category: 'Einstellungen', shortcut: `${mod}⇧D`, action: darkUmschalten });
     items.push({ id: 'act-sidebar', label: 'Sidebar ein-/einklappen', category: 'Einstellungen', shortcut: `${mod}/`, action: toggleSidebar });
     return items;
-  }, [sortedPlugins, visiblePlugins, goToPlugin, toggleSidebar, assistentEntryAvailable, openAssistent]);
+  }, [sortedPlugins, visiblePlugins, goToPlugin, toggleSidebar, darkUmschalten, assistentEntryAvailable, openAssistent]);
 
   useEffect(() => {
     keyboardService.init();
@@ -322,8 +345,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     // wiederholter Keydown darf sie nie wieder zuklappen; Schließen via escape /
     // Backdrop / Auswahl).
     keyboardService.register('mod+k', () => setCmdPaletteOpen(true), { description: 'Command Palette', category: 'Global' });
-    keyboardService.register('mod+/', () => setSidebarMode(prev => prev === 'expanded' ? 'rail' : 'expanded'), { description: 'Sidebar toggle', category: 'Global' });
-    keyboardService.register('mod+shift+d', () => setDarkMode(!isDarkMode()), { description: 'Dark Mode toggle', category: 'Global' });
+    keyboardService.register('mod+/', toggleSidebar, { description: 'Sidebar toggle', category: 'Global' });
+    // Über den Ref, weil `darkUmschalten` am Profil hängt und dieser Effekt
+    // bewusst nur einmal registriert (leere Deps).
+    keyboardService.register('mod+shift+d', () => darkUmschaltenRef.current(), { description: 'Dark Mode toggle', category: 'Global' });
     keyboardService.register('escape', () => setCmdPaletteOpen(false), { description: 'Schließen', category: 'Global' });
     return () => { keyboardService.unregister('mod+k'); keyboardService.unregister('mod+/'); keyboardService.unregister('mod+shift+d'); keyboardService.unregister('escape'); };
   }, []);
@@ -352,9 +377,12 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
 
   useEffect(() => {
     const check = (): void => {
-      const mobile = window.innerWidth < 768;
+      const mobile = window.innerWidth < MOBILE_BREAKPOINT;
       setIsMobile(mobile);
-      if (mobile) setSidebarMode('rail');
+      // Schublade beim Verlassen des schmalen Fensters schließen, damit ein
+      // späterer Wechsel zurück wieder eingeklappt startet. Gleicher Wert →
+      // React bricht das Re-Render selbst ab.
+      if (!mobile) setSchubladeOffen(false);
     };
     check();
     window.addEventListener('resize', check);
@@ -372,7 +400,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     const isRail = sidebarMode === 'rail';
     return (
       <button key={plugin.id}
-        onClick={() => { goToPlugin(plugin.id); if (isMobile) setSidebarMode('rail'); }}
+        onClick={() => { goToPlugin(plugin.id); if (isMobile) setSchubladeOffen(false); }}
         title={isRail ? displayName(plugin) : undefined}
         aria-current={isActive ? 'page' : undefined}
         // „Desk & Blatt": das aktive Item ist ein kleines weißes Blatt (bg + Haarlinie),

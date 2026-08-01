@@ -5,9 +5,14 @@
  * ProgrammeOverviewCards): der morgendliche Arbeitseinstieg. Zwei Karten:
  *  1. Resume-Karte „Weiter, wo du aufgehört hast" — jüngster Arbeitskontext
  *     (reuse `useWeitermachenRows`, ersetzt das gleichnamige Widget im Default).
- *  2. Alert-Karte „Braucht heute Aufmerksamkeit" — drei klickbare Chips:
+ *  2. Alert-Karte „Braucht heute Aufmerksamkeit" — bis zu drei klickbare Chips:
  *     kritisch / nähern sich (aus den Ampel-Aggregaten) + QS-Freigaben offen
  *     (geteilter `useQsFreigaben`-Hook → gleiche Zahl wie das QS-Widget).
+ *
+ * Chips mit Zähler 0 werden NICHT gerendert, und ohne Chip entfällt die ganze
+ * Karte: unter der Überschrift „Braucht heute Aufmerksamkeit" ist eine 0 keine
+ * Information, sondern ein Klickziel, das nichts zeigt (bis v2.371 führte die
+ * QS-Kachel bei 0 in die ungefilterte Antragsliste).
  *
  * Navigation kommt als Callbacks aus HomePage (dieselbe Filter-Logik wie das
  * Antragseingang-Widget: setActiveView + setAmpelQuickfilter). Flach ohne
@@ -19,6 +24,7 @@ import type { AmpelBucket } from '@/plugins/antraege/eingangAmpel';
 import { useWeitermachenRows } from './WeitermachenSection';
 import { relativeZeitKurz } from '@/core/utils/relativeZeit';
 import { useQsFreigaben } from './widgets/useQsFreigaben';
+import { heroChipSichtbarkeit } from './heroChips';
 import type { EingangAmpelCounts } from './useEingangAmpelCounts';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
@@ -27,8 +33,13 @@ export interface HomeHeroProps {
   counts: EingangAmpelCounts;
   /** Öffnet die gefilterte Antragsliste für einen Ampel-Bucket (kritisch/warnung). */
   onOpenBucket: (bucket: AmpelBucket) => void;
-  /** Öffnet die Anträge-/Artefakt-Oberfläche (QS-Freigaben). */
-  onOpenQs: () => void;
+  /**
+   * Öffnet die Anträge-/Artefakt-Oberfläche für einen offenen Entwurf. Die
+   * `scopeId` ist der erste offene QS-Vorgang — eine QS-Listenseite, auf die
+   * man filtern könnte, gibt es nicht (das QS-Widget springt genauso direkt
+   * in den Vorgang).
+   */
+  onOpenQs: (scopeId: string) => void;
 }
 
 export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): React.ReactElement | null {
@@ -36,13 +47,21 @@ export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): Rea
   const resume = useWeitermachenRows()[0] ?? null;
   const { zeilen: qsZeilen } = useQsFreigaben(true);
   const qsCount = qsZeilen.length;
+  const ersteQsScopeId = qsZeilen[0]?.scopeId;
+
+  const chips = heroChipSichtbarkeit({
+    kritisch: counts.kritisch,
+    warnung: counts.warnung,
+    qsCount,
+    ersteQsScopeId,
+  });
 
   // Nichts anzuzeigen → Band ganz ausblenden. (HomePage rendert den Hero ohnehin
   // nur bei stats.total > 0; dieser Guard deckt „alles frisch, kein Kontext" ab.)
-  if (!resume && counts.kritisch === 0 && counts.warnung === 0 && qsCount === 0) return null;
+  if (!resume && !chips.karte) return null;
 
   return (
-    <div className={`grid gap-3.5 ${resume ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+    <div className={`grid gap-3.5 ${resume && chips.karte ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
       {resume ? (
         <button
           type="button"
@@ -68,34 +87,42 @@ export function HomeHero({ counts, onOpenBucket, onOpenQs }: HomeHeroProps): Rea
         </button>
       ) : null}
 
-      <div
-        className="rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[17px] py-[15px] min-w-0"
-        style={{ border: '0.5px solid var(--tf-border)' }}
-      >
-        <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-[var(--tf-text-tertiary)]">
-          Braucht heute Aufmerksamkeit
+      {chips.karte ? (
+        <div
+          className="rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[17px] py-[15px] min-w-0"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-[var(--tf-text-tertiary)]">
+            Braucht heute Aufmerksamkeit
+          </div>
+          <div className="mt-3 flex gap-2">
+            {chips.kritisch ? (
+              <HeroChip
+                n={counts.kritisch}
+                label="über 90-Tage-Frist"
+                color="var(--tf-danger-text)"
+                onClick={() => onOpenBucket('kritisch')}
+              />
+            ) : null}
+            {chips.warnung ? (
+              <HeroChip
+                n={counts.warnung}
+                label="nähern sich"
+                color="var(--tf-warning-text)"
+                onClick={() => onOpenBucket('warnung')}
+              />
+            ) : null}
+            {chips.qs && ersteQsScopeId !== undefined ? (
+              <HeroChip
+                n={qsCount}
+                label="QS-Freigaben offen"
+                color="var(--tf-primary)"
+                onClick={() => onOpenQs(ersteQsScopeId)}
+              />
+            ) : null}
+          </div>
         </div>
-        <div className="mt-3 flex gap-2">
-          <HeroChip
-            n={counts.kritisch}
-            label="über 90-Tage-Frist"
-            color="var(--tf-danger-text)"
-            onClick={() => onOpenBucket('kritisch')}
-          />
-          <HeroChip
-            n={counts.warnung}
-            label="nähern sich"
-            color="var(--tf-warning-text)"
-            onClick={() => onOpenBucket('warnung')}
-          />
-          <HeroChip
-            n={qsCount}
-            label="QS-Freigaben offen"
-            color="var(--tf-primary)"
-            onClick={onOpenQs}
-          />
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }

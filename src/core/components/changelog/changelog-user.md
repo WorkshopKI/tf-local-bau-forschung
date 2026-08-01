@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.371 — 2026-08
+
+### Verbesserungen
+- Auf der Startseite verschwinden die Kacheln unter „Braucht heute Aufmerksamkeit", wenn es dort nichts zu tun gibt — eine 0 unter dieser Überschrift war eher verwirrend als beruhigend. Die Kachel „QS-Freigaben offen" führt jetzt direkt in den ersten offenen Entwurf statt in die vollständige Antragsliste.
+- In der Seitenleiste standen zweimal „E-Mail Anfragen" mit demselben Symbol, aber verschiedenen Zielen. Der Eintrag unter „Kuration" heißt jetzt **„E-Mail Anfragen: Einstellungen"**.
+
+### Bugfixes
+- **Die Seitenleiste bleibt nicht mehr dauerhaft auf Symbole zusammengeklappt.** Wer das Fenster einmal schmal gezogen hatte (angedockt, kleiner Bildschirm, Citrix), bekam die beschriftete Leiste danach auch auf einem großen Bildschirm nicht mehr zurück — ohne erkennbaren Grund. Schmale Fenster klappen die Leiste weiterhin ein, merken sich das aber nicht mehr: sobald wieder Platz ist, steht Ihre eigene Einstellung da.
+- **Dunkles Erscheinungsbild bleibt jetzt auf jedem Weg erhalten.** Über Strg+Umschalt+D oder die Befehlssuche umgeschaltet, war es nach dem nächsten Start wieder hell — nur der Weg über Einstellungen → Darstellung wurde gespeichert.
+
 ## v2.370 — 2026-07
 
 ### Neu

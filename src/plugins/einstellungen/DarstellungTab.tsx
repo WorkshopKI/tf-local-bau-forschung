@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Check, Moon, Sun } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { PRESET_COLORS, applyThemeColor, setDarkMode, isDarkMode } from '@/components/ui/theme';
+import { PRESET_COLORS, applyThemeColor } from '@/components/ui/theme';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useDarkMode } from '@/core/hooks/useDarkMode';
 import { SettingsSectionHeader } from './_shared/settings-primitives';
 
 /**
@@ -12,20 +12,15 @@ import { SettingsSectionHeader } from './_shared/settings-primitives';
  */
 export function DarstellungTab(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
-  const [dark, setDark] = useState(isDarkMode());
+  // Geteilter Hook statt lokalem State: schaltet jemand nebenher per
+  // Strg+Umschalt+D um, zieht diese Seite mit (und beide Wege persistieren).
+  const { dark, umschalten: handleDarkToggle } = useDarkMode();
 
   const currentHue = profile?.theme.hue ?? 215;
 
   const handleColorChange = (h: number, s: string, l: string): void => {
     applyThemeColor(h, s, l);
     if (profile) updateProfile({ theme: { ...profile.theme, hue: h } });
-  };
-
-  const handleDarkToggle = (): void => {
-    const next = !dark;
-    setDark(next);
-    setDarkMode(next);
-    if (profile) updateProfile({ theme: { ...profile.theme, dark: next } });
   };
 
   return (
