@@ -3,7 +3,7 @@
  * versionieren.
  *
  * Reine Darstellung über der `useStatusCockpit`-API: Seitenkopf + Export/Import,
- * Tab-Leiste (Katalog/Felder/Regeln), eine Simulations-Leiste (Phasenverteilung
+ * Tab-Leiste (Katalog/Kürzel/Regeln), eine Simulations-Leiste (Phasenverteilung
  * Aktiv→Entwurf + Konflikte + Phasenwechsel-Diff), eine Versions-Sektion und
  * eine Speicher-Leiste, sobald der Entwurf von der aktiven Fassung abweicht.
  */
@@ -253,7 +253,7 @@ export function StatusCockpitPage(): React.ReactElement {
           onChange={k => setTab(k as TabKey)}
           items={[
             { key: 'katalog', label: 'Katalog', count: werteCount },
-            { key: 'felder', label: 'Felder', count: felderCount },
+            { key: 'felder', label: 'Kürzel', count: felderCount },
             { key: 'regeln', label: 'Regeln', count: regelnCount },
           ]}
         />

@@ -18,15 +18,23 @@ werden nie stillschweigend aufgelöst.
   gesehen**, Feldname und **CSV-Spalte** als Herkunft. Leeres Label heißt:
   Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
   „Übernehmen" geholt, nie automatisch.
-- **Felder**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
-  Teilvorhaben getrennt. Editierbar je Eintrag: Bezeichnung, Ordner, **wird
-  gesetzt von** (AB/FB/QS/PA/Juristen, Mehrfachauswahl; leer = jeder darf),
-  Prominenz, Spine-Phase, **Rang**, terminal — ohne Rang wird er angezeigt, hebt
-  aber keine Phase (bei Wert-Feldern hängen beide am Wert).
-  „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu, Ziehen hängt um,
-  Klick auf den Namen benennt um. Drei Übernahme-Blöcke: Auslieferung
-  nachziehen, Bezeichnung/Rollen der Kürzel-Zuarbeit übernehmen, gefundene
-  CSV-Spalten einsortieren. Filter: Ebene, Rolle, „nur mit Rang".
+- **Kürzel**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
+  Teilvorhaben getrennt.
+  - Editierbar je Eintrag: Bezeichnung, Ordner, **wird gesetzt von**
+    (AB/FB/QS/PA/Juristen, Mehrfachauswahl; leer = jeder darf), **relevant**,
+    Prominenz, Spine-Phase, **Rang**, terminal — ohne Rang wird er angezeigt,
+    hebt aber keine Phase (bei Wert-Feldern hängen beide am Wert).
+  - Das **Relevanz-Häkchen** markiert die Kürzel, die für die
+    Antragsbearbeitung zählen; es grenzt Navigator, Wächter und die
+    Status-Erklärung ein.
+  - Trägt ein Kürzel Trigger-Zeilen, steht neben dem Code ein **Blitz mit
+    Anzahl** — Klick klappt auf, was das Setzen im Foyer auslöst (Satzform).
+  - „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu, Ziehen hängt um,
+    Klick auf den Namen benennt um.
+  - Vier Übernahme-Blöcke: Auslieferung nachziehen, Bezeichnung/Rollen der
+    Kürzel-Zuarbeit übernehmen, **AB-Dashboard-Spalten als relevant markieren**
+    (setzt nur, nimmt nie weg), gefundene CSV-Spalten einsortieren.
+  - Filter: Ebene, Rolle, „nur mit Rang", „nur relevante", „nur mit CSV-Spalte".
 - **Regeln**: priorisierte Nächste-Schritte-Regeln (Bedingung → Schritt, optional
   mit Werkzeug). aktiv/Priorität/Beschreibung editierbar.
 

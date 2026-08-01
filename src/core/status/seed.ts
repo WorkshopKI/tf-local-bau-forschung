@@ -179,10 +179,23 @@ function baueSeedRegeln(): NaechsterSchrittRegel[] {
  * wird aus den kanonischen Feldern ABGELEITET statt gepflegt — ein neues
  * kanonisches Feld mit `code` wirkt hier automatisch.
  */
-function codeFelderOhneKanonische(): StatusFeldEintrag[] {
-  const kanonisch = new Set(FELDER.map(f => f.code).filter((c): c is string => !!c));
-  return baueSeedCodeFelder().filter(f => !f.code || !kanonisch.has(f.code));
+export function baueSeedCodeFelderOhneKanonische(): StatusFeldEintrag[] {
+  return baueSeedCodeFelder().filter(f => !f.code || !KANONISCHE_CODE_FELDER.has(f.code));
 }
+
+/**
+ * Code → feldId des kanonischen Feldes, das ihn führt (`AAE` → `antragsdatum`).
+ *
+ * Die eine Wahrheit darüber, welcher Code **nicht** als eigenes `D_`-Feld in
+ * einen Katalog gehört. Wer diese Liste umgeht, erzeugt zwei Felder für
+ * dasselbe Ereignis: eines mit dem Wert (das kanonische, weil es die
+ * Kollisionsregel der Feld-Auflösung gewinnt) und eines mit dem Code (das nie
+ * einen Wert trägt). Alles, was am Code hängt — Navigator, Wächter, Relevanz —
+ * bekommt dann für dieses Ereignis dauerhaft „nicht gesetzt" zur Antwort.
+ */
+export const KANONISCHE_CODE_FELDER: ReadonlyMap<string, string> = new Map(
+  FELDER.filter(f => f.code !== undefined).map(f => [f.code!, f.feldId]),
+);
 
 export function baueSeedVersion(): MappingVersion {
   return {
@@ -191,7 +204,7 @@ export function baueSeedVersion(): MappingVersion {
     zeitstempel: SEED_ZEITSTEMPEL,
     kommentar: 'Auslieferungs-Seed (status-canonical.ts + Code-Katalog des Fachsystems)',
     kategorien: SEED_KATEGORIEN.map(k => ({ ...k })),
-    felder: [...FELDER.map(f => ({ ...f })), ...codeFelderOhneKanonische()],
+    felder: [...FELDER.map(f => ({ ...f })), ...baueSeedCodeFelderOhneKanonische()],
     werte: baueWerte(),
     regeln: baueSeedRegeln(),
     // Vorgangssystem: Beschriftung + Reihenfolge der ZAH-Phasen. Die Zuordnung

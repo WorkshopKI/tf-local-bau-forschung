@@ -26,6 +26,7 @@ const ISOLATED_TESTS = [
   'src/core/status/__tests__/byte-identitaet.test.ts',
   'src/core/status/__tests__/katalog-store.test.ts',
   'src/core/status/__tests__/reconcile-store.test.ts',
+  'src/core/status/__tests__/trigger-share.test.ts',
   'src/plugins/auslastung/__tests__/assign-verbund.test.ts',
   'src/plugins/auslastung/__tests__/auslastung-coldstart-guard.test.ts',
   'src/plugins/auslastung/__tests__/auslastung-crosstab-reload.test.ts',

@@ -12,6 +12,7 @@ import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { HerleitungPopover } from './HerleitungPopover';
+import { NaechsteSchritte } from './NaechsteSchritte';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
 import { StatusChronik } from './StatusChronik';
@@ -125,6 +126,14 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
             </ul>
           )}
         </div>
+      </div>
+
+      {/* Der Navigator des Vorgangssystems. Er steht NEBEN den abgeleiteten
+          „Nächsten Schritten" oben, nicht an ihrer Stelle: die dort kommen aus
+          unseren fünf Alt-Regeln, diese aus der Trigger-Tabelle des
+          Fachsystems. Bis zum Rückbau soll man beide vergleichen können. */}
+      <div className="mt-5">
+        <NaechsteSchritte version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} />
       </div>
 
       {/* Die Ordner des Fachsystems: was steht wo. Die Timeline oben beantwortet

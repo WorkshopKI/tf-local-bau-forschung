@@ -7,6 +7,7 @@ import type {
   StatusWertEintrag, ZahPhase,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
+import { normKey } from './normalisierung';
 import { rollenVonFeld } from './rollen';
 import { baueStatusCodeIndex, findeStatusCode, type StatusCodeEintrag } from './status-codes';
 import { SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
@@ -201,6 +202,63 @@ export interface VorgangssystemLuecke {
   werteOhneCode: number;
   /** Die ZAH-Phasen-Tabelle fehlt ganz. */
   phasenFehlen: boolean;
+  /** Codes, die doppelt geführt werden — kanonisches Feld UND eigenes `D_`-Feld. */
+  doppelteCodes: number;
+}
+
+/**
+ * Codes, die eine Fassung doppelt führt: einmal am kanonischen Feld, einmal als
+ * eigenes `D_`-Feld.
+ *
+ * Der Auslieferungs-Seed schließt diese vier Codes aus (`AAE`, `ABB`, `AZ1`,
+ * `VBE` — siehe `KANONISCHE_CODE_FELDER`); ein „Nachziehen" mit der
+ * ungefilterten Code-Liste hat sie in Bestandsfassungen trotzdem angelegt.
+ * Sichtbar wird das erst spät und dann falsch: den Wert trägt das kanonische
+ * Feld (es gewinnt die Kollisionsregel der Feld-Auflösung), den Code das
+ * `D_`-Feld — und der Navigator schlägt vor, einen längst gesetzten
+ * Antragseingang zu setzen. Schlimmer noch bei `ABB`: fast jede
+ * Trigger-Bedingung lautet „TV hat kein ABB", und die wäre dann immer erfüllt.
+ */
+export function kanonischeCodeDoppel(
+  version: MappingVersion, kanonisch: ReadonlyMap<string, string>,
+): string[] {
+  const doppelt: string[] = [];
+  for (const [code, feldId] of kanonisch) {
+    const traeger = version.felder.filter(f => f.code === code || f.feldId === feldId);
+    if (traeger.length > 1) doppelt.push(code);
+  }
+  return doppelt;
+}
+
+/**
+ * Räumt die doppelt geführten Codes auf: der Code wandert ans kanonische Feld
+ * (dort steht der Wert), das überzählige `D_`-Feld fällt weg.
+ *
+ * **Das ist bewusst ein Entfernen, kein Zusammenführen.** Das `D_`-Feld hat nie
+ * einen Wert getragen; was daran kuratiert wurde (Ordner, Rang), beschreibt ein
+ * Ereignis, das die App längst über das kanonische Feld führt. Es stehenzulassen
+ * hieße, zwei Wahrheiten über denselben Vorgang zu behalten.
+ *
+ * Idempotent: gibt dieselbe Referenz zurück, wenn es nichts zu tun gibt.
+ */
+export function entdoppleKanonischeCodes(
+  version: MappingVersion, kanonisch: ReadonlyMap<string, string>,
+): MappingVersion {
+  const betroffen = new Set(kanonischeCodeDoppel(version, kanonisch));
+  if (betroffen.size === 0) return version;
+  const zielFeldId = new Map([...kanonisch].map(([code, feldId]) => [feldId, code]));
+  return {
+    ...version,
+    felder: version.felder
+      // Das kanonische Feld bekommt (oder behält) den Code …
+      .map(f => {
+        const code = zielFeldId.get(f.feldId);
+        return code !== undefined && betroffen.has(code) ? { ...f, code } : f;
+      })
+      // … und alles andere, was denselben Code trägt, fällt weg.
+      .filter(f => !(f.code !== undefined && betroffen.has(f.code)
+        && kanonisch.get(f.code) !== f.feldId)),
+  };
 }
 
 /**
@@ -212,7 +270,9 @@ export interface VorgangssystemLuecke {
  * Feldern (`ergaenzeSeedFelder`) und bei den Bezeichnungen (`uebernimmSeedTexte`).
  */
 export function vorgangssystemLuecke(
-  version: MappingVersion, auslieferung: readonly StatusCodeEintrag[],
+  version: MappingVersion,
+  auslieferung: readonly StatusCodeEintrag[],
+  kanonisch: ReadonlyMap<string, string>,
 ): VorgangssystemLuecke {
   const index = baueStatusCodeIndex(auslieferung);
   return {
@@ -220,6 +280,7 @@ export function vorgangssystemLuecke(
       .filter(w => w.aktiv && w.code === undefined && findeStatusCode(w.wert, index) !== null)
       .length,
     phasenFehlen: (version.zahPhasen ?? []).length === 0,
+    doppelteCodes: kanonischeCodeDoppel(version, kanonisch).length,
   };
 }
 
@@ -235,8 +296,12 @@ export function ergaenzeVorgangssystemSeed(
   version: MappingVersion,
   auslieferung: readonly StatusCodeEintrag[],
   phasen: readonly ZahPhase[],
+  kanonisch: ReadonlyMap<string, string>,
 ): MappingVersion {
-  const mitCodes = uebernimmStatusCodes(version, auslieferung);
+  // Entdoppeln zuerst: solange zwei Felder denselben Code führen, ist jede
+  // Aussage über diesen Code eine Münze mit zwei Seiten.
+  const bereinigt = entdoppleKanonischeCodes(version, kanonisch);
+  const mitCodes = uebernimmStatusCodes(bereinigt, auslieferung);
   if ((mitCodes.zahPhasen ?? []).length > 0) return mitCodes;
   return { ...mitCodes, zahPhasen: phasen.map(p => ({ ...p })) };
 }
@@ -339,5 +404,42 @@ export function uebernimmSeedTexte(
       const { zustaendigkeit: _abgeloest, ...rest } = f;
       return { ...rest, label: s.label, rollen: [...rollenVonFeld(s)] };
     }),
+  };
+}
+
+/**
+ * Wie viele Felder eine Code-Liste zusätzlich als relevant markieren würde.
+ * Zählt nur, was sich wirklich ändert — die Anzeige soll keine Aktion anbieten,
+ * die nichts tut.
+ */
+export function relevanzLuecke(
+  version: MappingVersion, codes: readonly string[],
+): number {
+  const gesucht = new Set(codes.map(normKey));
+  return version.felder.filter(
+    f => f.code !== undefined && gesucht.has(normKey(f.code)) && f.relevant !== true,
+  ).length;
+}
+
+/**
+ * Setzt die Relevanz-Häkchen für eine Code-Liste.
+ *
+ * **Nimmt nie eines weg.** Die Listen sind rollen-typisch (der AB-Vorschlag,
+ * später ein FB-Vorschlag); zwei nacheinander angewandte Vorschläge sollen sich
+ * ergänzen, nicht gegenseitig löschen. Wer ein Häkchen wieder loswerden will,
+ * klickt es einzeln weg.
+ *
+ * Idempotent: gibt dieselbe Referenz zurück, wenn nichts zu tun ist.
+ */
+export function markiereRelevanz(
+  version: MappingVersion, codes: readonly string[],
+): MappingVersion {
+  if (relevanzLuecke(version, codes) === 0) return version;
+  const gesucht = new Set(codes.map(normKey));
+  return {
+    ...version,
+    felder: version.felder.map(f => (
+      f.code !== undefined && gesucht.has(normKey(f.code)) ? { ...f, relevant: true } : f
+    )),
   };
 }

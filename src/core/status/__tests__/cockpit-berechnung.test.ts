@@ -92,4 +92,26 @@ describe('csvSpaltenJeFeld — Herkunft eines Katalog-Feldes', () => {
     const m = csvSpaltenJeFeld([schema('s1', { D_QS: { type: 'date' } })]);
     expect(m.get('D_QS')).toEqual(['D_QS']);
   });
+
+  /**
+   * Beobachtet an `D_AAE` (Antragseingang) und `D_ABB` (Bewilligung): beide sind
+   * kanonisch gemappt. Ohne diesen Zweit-Eintrag stünden sie nur unter
+   * `antragsdatum`/`bewilligung_datum`, und der Kürzel-Tab meldete für zwei
+   * Kernspalten „nicht im Export".
+   */
+  it('findet eine kanonisch gemappte Spalte AUCH unter ihrem rohen Namen', () => {
+    const m = csvSpaltenJeFeld([schema('s1', { D_AAE: { canonical: 'antragsdatum' } })]);
+    expect(m.get('antragsdatum')).toEqual(['D_AAE']);
+    expect(m.get('D_AAE')).toEqual(['D_AAE']);
+  });
+
+  it('vermischt dabei die beiden Sichten nicht', () => {
+    const m = csvSpaltenJeFeld([
+      schema('s1', { D_AAE: { canonical: 'antragsdatum' } }),
+      schema('s2', { EINGANG: { canonical: 'antragsdatum' } }),
+    ]);
+    // Das kanonische Feld kennt beide Quellen, das Kürzel-Feld nur die eigene.
+    expect(m.get('antragsdatum')).toEqual(['D_AAE', 'EINGANG']);
+    expect(m.get('D_AAE')).toEqual(['D_AAE']);
+  });
 });

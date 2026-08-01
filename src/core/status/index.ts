@@ -6,9 +6,13 @@
  */
 export * from './typen';
 export { STATUS_KATALOG_STORE, STATUS_EVENT_STORE } from './stores';
-export { baueSeedVersion } from './seed';
+export {
+  baueSeedVersion, baueSeedCodeFelderOhneKanonische, KANONISCHE_CODE_FELDER,
+} from './seed';
 export { SEED_KATEGORIEN, LEERE_SEED_KATEGORIEN } from './seed-kategorien';
-export { baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE } from './seed-codes';
+export {
+  baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE, AB_DASHBOARD_RELEVANZ,
+} from './seed-codes';
 export { setStatusKatalogSnapshot, getAktiveVersion } from './snapshot';
 export {
   listeVersionen, getVersion, speichereVersion,
@@ -85,7 +89,14 @@ export {
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   uebernimmStatusCodes, aktuellerStatusCodeKatalog,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
+  relevanzLuecke, markiereRelevanz,
+  kanonischeCodeDoppel, entdoppleKanonischeCodes,
 } from './katalog-edit';
+export {
+  navigatorKandidaten, wirkungSaetze,
+  type NavigatorEingabe, type NavigatorErgebnis, type NavigatorKandidat,
+  type TriggerWirkung, type BedingungsUrteil,
+} from './navigator';
 export { leseSidecar, schreibeSidecar } from './sidecar-datei';
 export {
   ladeTrigger, speichereTrigger, triggerFuerKuerzel, istTriggerDatei,

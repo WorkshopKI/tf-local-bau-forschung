@@ -54,16 +54,31 @@ export function baueVerbundFelder(
  * ungemappte Spalten sind ihr eigener Key (dieselbe Regel wie im Spalten-Vorrat
  * der Meilensteine). Mehrere Programme können dasselbe Feld aus verschieden
  * benannten Spalten füllen — daher eine Liste, sortiert und doppelfrei. Rein.
+ *
+ * **Und zusätzlich unter dem rohen Spaltennamen.** Die Code-Felder des
+ * Fachsystems tragen als `feldId` genau diesen Rohnamen (`D_AAE`) — mappt ein
+ * Programm die Spalte kanonisch (`D_AAE` → `antragsdatum`), stünde sie sonst nur
+ * unter `antragsdatum` und das Kürzel-Feld fände sich nirgends. Die Anzeige
+ * behauptete dann „nicht im Export", obwohl die Spalte da ist. Beobachtet an
+ * `D_AAE` und `D_ABB` — beide kanonisch gemappt, beide Kernspalten
+ * (Antragseingang, Bewilligung).
+ *
+ * Der Zweit-Eintrag ist gefahrlos: gelesen wird die Map ausschließlich per
+ * `feldId`, und ein Rohname, den kein Katalog-Feld trägt, wird nie nachgeschlagen.
  */
 export function csvSpaltenJeFeld(schemas: readonly CsvSchema[]): Map<string, string[]> {
   const roh = new Map<string, Set<string>>();
+  const merke = (feldId: string, spalte: string): void => {
+    const set = roh.get(feldId);
+    if (set) set.add(spalte);
+    else roh.set(feldId, new Set([spalte]));
+  };
   for (const schema of schemas) {
     for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
       if (!entry || entry.ignore) continue;
-      const feldId = entry.canonical?.trim() || spalte;
-      const set = roh.get(feldId);
-      if (set) set.add(spalte);
-      else roh.set(feldId, new Set([spalte]));
+      const kanonisch = entry.canonical?.trim();
+      merke(kanonisch || spalte, spalte);
+      if (kanonisch) merke(spalte, spalte);
     }
   }
   return new Map(

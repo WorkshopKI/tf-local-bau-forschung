@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE } from '@/core/status/seed-codes';
+import {
+  AB_DASHBOARD_RELEVANZ, baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE,
+} from '@/core/status/seed-codes';
 import { ZUARBEIT_CODES } from '@/core/status/seed-codes.data';
 import { LEERE_SEED_KATEGORIEN, SEED_KATEGORIEN } from '@/core/status/seed-kategorien';
 import { findeZyklus, flacheBaumListe, NICHT_ZUGEORDNET_ID } from '@/core/status/kategorien';
@@ -138,5 +140,28 @@ describe('Seed-Code-Katalog', () => {
       if (sammel.has(id)) continue;
       expect(belegt.has(id), `${id} sollte leer ausgeliefert werden`).toBe(false);
     }
+  });
+});
+
+describe('AB_DASHBOARD_RELEVANZ', () => {
+  /**
+   * Der Relevanz-Vorschlag ist aus der AB-Mappe transkribiert, nicht aus dem
+   * Katalog abgeleitet — ein Tippfehler darin wäre stumm: die Aktion setzte
+   * schlicht ein Häkchen weniger. Deshalb der Abgleich gegen die Zuarbeit.
+   */
+  it('nennt nur Codes, die die Zuarbeit führt', () => {
+    const bekannt = new Set(ZUARBEIT_CODES.map(z => z.code));
+    const fehlend = AB_DASHBOARD_RELEVANZ.filter(c => !bekannt.has(c));
+    expect(fehlend, `Nicht in der Zuarbeit: ${fehlend.join(', ')}`).toEqual([]);
+  });
+
+  it('trifft für jeden Code genau ein Auslieferungs-Feld', () => {
+    for (const code of AB_DASHBOARD_RELEVANZ) {
+      expect(FELDER.filter(f => f.code === code), code).toHaveLength(1);
+    }
+  });
+
+  it('führt jeden Code nur einmal', () => {
+    expect(new Set(AB_DASHBOARD_RELEVANZ).size).toBe(AB_DASHBOARD_RELEVANZ.length);
   });
 });

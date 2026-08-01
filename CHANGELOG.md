@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.376.0 — Kürzel-Glossar, Relevanz, Nächster-Schritt-Navigator (August 2026)
+
+MINOR — „Viele kennen die Kürzel nicht" war der meistgenannte Einstiegshemmnis. Der Kürzel-Tab wird zum Glossar (Bezeichnung, Rolle, Trigger-Wirkung in Satzform), die Relevanz-Häkchen grenzen die 505 Kürzel auf die ~30 der Antragsbearbeitung ein, und am Verbund steht, welche davon unter dem aktuellen Status überhaupt greifen würden.
+
+- „Nächste Schritte (im Foyer zu setzen)" am Verbund: Kandidaten aus den Trigger-Vorbedingungen, mit Wirkung, Rolle und Grund, wo eine Bedingung nicht prüfbar war ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx), [navigator.ts](src/core/status/navigator.ts)).
+- Kürzel-Tab (vormals „Felder"): Relevanz-Häkchen, aufklappbare Trigger-Wirkung, Filter „nur relevante"/„nur mit CSV-Spalte"; Abgleich-Banner in eigene Datei ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx), [FelderAbgleich.tsx](src/plugins/status-cockpit/FelderAbgleich.tsx)).
+- Relevanz-Startvorschlag aus den 31 Spalten des AB-Dashboards — setzt nur Häkchen, nimmt nie welche weg ([seed-codes.ts](src/core/status/seed-codes.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)).
+- Fix: „Nachziehen" legte vier Kürzel doppelt an (kanonisches Feld **und** eigene Spalte); das Kürzel galt dadurch überall als nie gesetzt — kritisch bei `ABB`, das fast jede Trigger-Bedingung prüft ([seed.ts](src/core/status/seed.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)).
+- Fix: kanonisch gemappte Spalten (`D_AAE` → `antragsdatum`) waren unter ihrem Kürzel-Namen nicht auffindbar — der Tab meldete für zwei Kernspalten „nicht im Export" ([cockpit-berechnung.ts](src/core/status/cockpit-berechnung.ts)).
+
 ### v2.375.0 — Status-Erklärung mit Herleitungs-Popover (August 2026)
 
 MINOR — „Warum steht der Antrag auf diesem Status, und was ist zuletzt passiert?" beantwortete bisher niemand — die Kürzel des Fachsystems kennen nicht alle. Ein graues Info-Icon an jeder Status-Anzeige rendert die Antwort vollständig aus Daten, ohne handgepflegten Text, der veralten könnte.

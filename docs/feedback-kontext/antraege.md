@@ -10,7 +10,7 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - **FKZ** `16KN######` / `16EP######`: beim Überfahren einer Zeile erscheint rechts vom FKZ ein **Kopier-Icon** (Verbund-Zeile: das Verbund-FKZ).
 - **Filter:** als drittes Panel.
 - **Detail rechts:** Kopf (Titel + Meta + Stepper, rechts „Antrag-Aufbereitung öffnen"), klappbare **Kurzbeschreibung** (offen), Gutachten-Werkstatt, dann — eingeklappt — „Antragsdaten" (Fakten + Verbundpartner/Teilvorhaben), Artefakt-Werkbank, „Alle Felder", „Historie".
-  - **„Status & Verlauf":** Phase; **Chronik** der Termine oder **Zeitstrahl**, „Warum dieser Status?", **Statuseinträge** nach den Ordnern des Fachsystems, vorgefiltert auf die eigene Rolle.
+  - **„Status & Verlauf":** Phase; **Chronik** der Termine oder **Zeitstrahl**, „Warum dieser Status?", **„Nächste Schritte (im Foyer zu setzen)"** — die Kürzel, deren Trigger-Vorbedingungen zum aktuellen Status passen, mit Wirkung und Rolle, vorgefiltert auf die eigene Rolle; die App setzt nichts selbst. Darunter die **Statuseinträge** nach den Ordnern des Fachsystems, ebenfalls rollen-vorgefiltert.
   - **„Fristen & Meilensteine":** Prognose + Restzeit.
   - **Offenes Teilvorhaben:** Felder, Netzwerk, Dokumente.
 

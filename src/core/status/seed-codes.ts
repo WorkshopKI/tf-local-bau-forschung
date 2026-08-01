@@ -330,3 +330,26 @@ export function baueSeedCodeFelder(): StatusFeldEintrag[] {
 
   return out;
 }
+
+/**
+ * Die Kürzel, mit denen das AB-Dashboard rechnet — Startvorschlag für die
+ * **Relevanz-Häkchen** (Konzept 4.1).
+ *
+ * Herkunft: die Eingaben der 25 transkribierten WENN-Regeln plus die beiden
+ * Sperren, dazu `AAE`/`XTE` für den wirksamen Eingang (Frist) und `XKS` aus dem
+ * ungeklärten RNE-Gate (Verifikationsfrage V1 in `todo-regeln-ab-seed.md`).
+ * Genau die Spalten also, die eine AB-Kollegin heute in ihrer Mappe führt.
+ *
+ * **Ein Vorschlag, keine Wahrheit**: die Liste wird über eine Aktion in den
+ * Entwurf übernommen und ist danach normal editierbar. Sie ist rollen-typisch
+ * (AB) — der FB-Satz entsteht nach demselben Muster, wenn die FB-Regeln kommen.
+ * Deshalb setzt die Übernahme nur Häkchen und nimmt keine weg.
+ *
+ * 31 Codes, alle in der Zuarbeit vorhanden (ein Test hält das fest).
+ */
+export const AB_DASHBOARD_RELEVANZ: readonly string[] = [
+  'AAE', 'AAR', 'ABB', 'ABLK', 'ABLT', 'ABLW', 'ABLZ', 'AK4', 'AL', 'ALSB',
+  'ALT', 'ALU', 'AN', 'ANT', 'ARK', 'ART', 'ARW', 'ARZ', 'AT4', 'AVK',
+  'AZBE', 'PC-', 'PC+', 'QS', 'QS-', 'VV', 'XABLF', 'XKS', 'XPC-', 'XPC+',
+  'XTE',
+];

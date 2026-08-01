@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  aendereKategorie, entferneKategorie, ergaenzeSeedFelder, fuegeFeldHinzu, fuegeKategorieHinzu,
-  seedTextAbweichungen, uebernimmSeedTexte,
+  aendereKategorie, entdoppleKanonischeCodes, entferneKategorie, ergaenzeSeedFelder,
+  ergaenzeVorgangssystemSeed, fuegeFeldHinzu, fuegeKategorieHinzu, kanonischeCodeDoppel,
+  markiereRelevanz, relevanzLuecke, seedTextAbweichungen, uebernimmSeedTexte,
 } from '@/core/status/katalog-edit';
-import { baueSeedVersion } from '@/core/status/seed';
+import {
+  baueSeedVersion, baueSeedCodeFelderOhneKanonische, KANONISCHE_CODE_FELDER,
+} from '@/core/status/seed';
 import { SEED_KATEGORIEN as SEED_KATEGORIEN_ECHT } from '@/core/status/seed-kategorien';
 import type { MappingVersion, StatusFeldEintrag, StatusKategorie } from '@/core/status/typen';
 
@@ -169,5 +172,109 @@ describe('Abgleich mit der Kürzel-Zuarbeit', () => {
     const nachher = uebernimmSeedTexte(v, [AUSLIEFERUNG[0]!]);
     const unberuehrt = nachher.felder.find(x => x.feldId === 'D_ZZ2');
     expect(unberuehrt).toEqual(v.felder.find(x => x.feldId === 'D_ZZ2'));
+  });
+});
+
+describe('Doppelt geführte Codes (kanonisches Feld + eigene D_-Spalte)', () => {
+  const KANONISCH = new Map([['AAE', 'antragsdatum'], ['ABB', 'bewilligung_datum']]);
+
+  /** Der Zuschnitt, den ein „Nachziehen" mit der ungefilterten Liste erzeugte. */
+  function doppelt(): MappingVersion {
+    const v = altfassung();
+    return {
+      ...v,
+      felder: [
+        // Das kanonische Feld trägt den Wert, aber (in Bestandsfassungen) keinen Code.
+        { ...feld('antragsdatum', 'zz.ab'), label: 'Antragseingang' },
+        { ...feld('D_AAE', 'zz.ab'), code: 'AAE', label: 'Antragseingang' },
+        { ...feld('D_ZZ9', 'zz.ab'), code: 'ZZ9' },
+      ],
+    };
+  }
+
+  it('erkennt genau die doppelt geführten Codes', () => {
+    expect(kanonischeCodeDoppel(doppelt(), KANONISCH)).toEqual(['AAE']);
+  });
+
+  it('meldet nichts, wenn der Code nur am kanonischen Feld hängt', () => {
+    const sauber: MappingVersion = {
+      ...altfassung(),
+      felder: [{ ...feld('antragsdatum', 'zz.ab'), code: 'AAE' }],
+    };
+    expect(kanonischeCodeDoppel(sauber, KANONISCH)).toEqual([]);
+  });
+
+  it('gibt den Code ans kanonische Feld und entfernt die überzählige Spalte', () => {
+    const nachher = entdoppleKanonischeCodes(doppelt(), KANONISCH);
+    expect(nachher.felder.find(f => f.feldId === 'antragsdatum')?.code).toBe('AAE');
+    expect(nachher.felder.find(f => f.feldId === 'D_AAE')).toBeUndefined();
+    // Unbeteiligte Code-Felder bleiben unangetastet.
+    expect(nachher.felder.find(f => f.feldId === 'D_ZZ9')?.code).toBe('ZZ9');
+  });
+
+  it('ist idempotent und gibt bei Gleichstand dieselbe Referenz zurück', () => {
+    const einmal = entdoppleKanonischeCodes(doppelt(), KANONISCH);
+    expect(entdoppleKanonischeCodes(einmal, KANONISCH)).toBe(einmal);
+  });
+
+  it('der Auslieferungs-Seed ist von sich aus dublettenfrei', () => {
+    expect(kanonischeCodeDoppel(baueSeedVersion(), KANONISCHE_CODE_FELDER)).toEqual([]);
+  });
+
+  it('und die gefilterte Code-Liste bringt keine Dubletten mit', () => {
+    const codes = baueSeedCodeFelderOhneKanonische().map(f => f.code);
+    for (const code of KANONISCHE_CODE_FELDER.keys()) {
+      expect(codes, `${code} gehört ans kanonische Feld`).not.toContain(code);
+    }
+  });
+
+  it('ergaenzeVorgangssystemSeed räumt beim Nachziehen mit auf', () => {
+    const nachher = ergaenzeVorgangssystemSeed(doppelt(), [], [], KANONISCH);
+    expect(kanonischeCodeDoppel(nachher, KANONISCH)).toEqual([]);
+  });
+});
+
+describe('Relevanz-Häkchen', () => {
+  /** Ein Code-Feld: die Relevanz hängt am `code`, nicht an der `feldId`. */
+  const codeFeld = (code: string): StatusFeldEintrag => ({ ...feld(`D_${code}`, 'zz.ab'), code });
+
+  /** Fassung mit drei Code-Feldern, alle ohne Relevanz. */
+  function fassung(): MappingVersion {
+    const v = altfassung();
+    return { ...v, felder: [...v.felder, codeFeld('ZZ1'), codeFeld('ZZ2'), codeFeld('ZZ3')] };
+  }
+
+  it('zählt nur, was sich wirklich ändern würde', () => {
+    expect(relevanzLuecke(fassung(), ['ZZ1', 'ZZ2'])).toBe(2);
+    const schon = markiereRelevanz(fassung(), ['ZZ1']);
+    expect(relevanzLuecke(schon, ['ZZ1', 'ZZ2'])).toBe(1);
+  });
+
+  it('ignoriert Codes, die die Fassung nicht führt', () => {
+    expect(relevanzLuecke(fassung(), ['GIBTSNICHT'])).toBe(0);
+  });
+
+  it('setzt die Häkchen und lässt die übrigen Felder unberührt', () => {
+    const nachher = markiereRelevanz(fassung(), ['ZZ1', 'ZZ3']);
+    expect(nachher.felder.find(f => f.code === 'ZZ1')?.relevant).toBe(true);
+    expect(nachher.felder.find(f => f.code === 'ZZ3')?.relevant).toBe(true);
+    expect(nachher.felder.find(f => f.code === 'ZZ2')?.relevant).toBeUndefined();
+  });
+
+  it('nimmt NIE ein Häkchen weg — zwei Vorschläge ergänzen sich', () => {
+    const erst = markiereRelevanz(fassung(), ['ZZ1']);
+    const dann = markiereRelevanz(erst, ['ZZ2']);
+    expect(dann.felder.find(f => f.code === 'ZZ1')?.relevant).toBe(true);
+    expect(dann.felder.find(f => f.code === 'ZZ2')?.relevant).toBe(true);
+  });
+
+  it('trifft auch bei abweichender Schreibweise (NFC, Casing)', () => {
+    const nachher = markiereRelevanz(fassung(), [' zz1 ']);
+    expect(nachher.felder.find(f => f.code === 'ZZ1')?.relevant).toBe(true);
+  });
+
+  it('ist idempotent und gibt bei Gleichstand dieselbe Referenz zurück', () => {
+    const einmal = markiereRelevanz(fassung(), ['ZZ1']);
+    expect(markiereRelevanz(einmal, ['ZZ1'])).toBe(einmal);
   });
 });

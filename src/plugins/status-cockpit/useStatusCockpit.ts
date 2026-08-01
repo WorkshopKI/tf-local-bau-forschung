@@ -29,9 +29,11 @@ import {
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
+  relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
+  baueSeedVersion, KANONISCHE_CODE_FELDER,
   STATUS_CODE_KATALOG, SEED_ZAH_PHASEN,
   type TriggerStand, type VorgangssystemLuecke,
-  baueSeedCodeFelder, SEED_KATEGORIEN,
+  SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
@@ -103,6 +105,10 @@ export interface StatusCockpitApi {
   vorgangssystemLuecke: VorgangssystemLuecke;
   /** Codes, Varianten und ZAH-Phasen der Auslieferung nachziehen (additiv). */
   vorgangssystemNachziehen: () => void;
+  /** Wie viele Kürzel des AB-Dashboards noch kein Relevanz-Häkchen tragen. */
+  relevanzLuecke: number;
+  /** Die AB-Dashboard-Spalten als relevant markieren (setzt nur, nimmt nie weg). */
+  relevanzAusAbDashboard: () => void;
   /**
    * Der Trigger-Stand aus `_intern/status-trigger.json` samt Herkunft
    * (`share`/`cache`/`leer`). Eigene Datei, nicht Teil des Katalog-Entwurfs —
@@ -135,8 +141,21 @@ const LEER_VERTEILUNG: Record<SpinePhase, number> = {
   eingang: 0, vollstaendigkeit: 0, fachpruefung: 0, bewilligung: 0, schluss: 0, keine: 0,
 };
 
-/** Der Auslieferungsstand als Vergleichsmaß — einmal gebaut, nicht je Render. */
-const SEED_FELDER = baueSeedCodeFelder();
+/**
+ * Der Auslieferungsstand als Vergleichsmaß — einmal gebaut, nicht je Render.
+ *
+ * **Genau die Felder, die eine frische Installation bekommt**: die kanonischen
+ * plus die Code-Felder OHNE die vier, die schon kanonisch belegt sind (`AAE` an
+ * `antragsdatum`, `ABB` an `bewilligung_datum`, …). Zwei Gründe, warum hier
+ * nicht die rohe Code-Liste steht:
+ *
+ * - Sie legte beim „Nachziehen" ein zweites Feld für dasselbe Ereignis an — mit
+ *   dem Code, aber ohne je einen Wert (siehe `KANONISCHE_CODE_FELDER`).
+ * - Sie ließ die kanonischen Felder aus dem Zuarbeit-Abgleich fallen. Deren
+ *   Bezeichnung und Rollen (`ABB` = QS) stehen ebenso in der Zuarbeit; eine
+ *   Bestandsfassung bekam sie nie zu sehen.
+ */
+const SEED_FELDER = baueSeedVersion().felder;
 
 export function useStatusCockpit(): StatusCockpitApi {
   const storage = useStorage();
@@ -397,13 +416,24 @@ export function useStatusCockpit(): StatusCockpitApi {
    */
   const vsLuecke = useMemo(
     () => (entwurf
-      ? vorgangssystemLuecke(entwurf, STATUS_CODE_KATALOG)
-      : { werteOhneCode: 0, phasenFehlen: false }),
+      ? vorgangssystemLuecke(entwurf, STATUS_CODE_KATALOG, KANONISCHE_CODE_FELDER)
+      : { werteOhneCode: 0, phasenFehlen: false, doppelteCodes: 0 }),
     [entwurf],
   );
 
   const vorgangssystemNachziehen = useCallback(() => {
-    setEntwurf(v => (v ? ergaenzeVorgangssystemSeed(v, STATUS_CODE_KATALOG, SEED_ZAH_PHASEN) : v));
+    setEntwurf(v => (v
+      ? ergaenzeVorgangssystemSeed(v, STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, KANONISCHE_CODE_FELDER)
+      : v));
+  }, []);
+
+  const relLuecke = useMemo(
+    () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
+    [entwurf],
+  );
+
+  const relevanzAusAbDashboard = useCallback(() => {
+    setEntwurf(v => (v ? markiereRelevanz(v, AB_DASHBOARD_RELEVANZ) : v));
   }, []);
 
   const triggerUebernehmen = useCallback(async (zeilen: readonly TriggerZeile[]): Promise<boolean> => {
@@ -434,6 +464,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
+    relevanzLuecke: relLuecke, relevanzAusAbDashboard,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

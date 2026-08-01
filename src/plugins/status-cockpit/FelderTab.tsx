@@ -1,31 +1,43 @@
 /**
- * Felder-Tab — der Statuskatalog des Fachsystems kuratieren.
+ * Kürzel-Tab — das Verzeichnis der Vorgangskürzel des Fachsystems, kuratierbar.
  *
- * Gezeigt wird der Ordnerbaum (Verbund und Teilvorhaben getrennt), darin je Feld
- * eine Zeile mit allem, was die PL entscheidet: Name, Ordner, wer den Eintrag
- * setzt (AB/FB/QS/PA/Juristen — Mehrfachauswahl, leer = jeder), Prominenz und
- * — der wirksame Teil — Spine-Phase, Rang und terminal.
- * **Ohne Rang trägt ein Feld nicht zur Statusableitung bei**; so ist der ganze
- * Code-Katalog ausgeliefert.
+ * Gezeigt wird der Ordnerbaum (Verbund und Teilvorhaben getrennt), darin je
+ * Kürzel eine Zeile mit allem, was die PL entscheidet: Name, Ordner, wer den
+ * Eintrag setzt (AB/FB/QS/PA/Juristen — Mehrfachauswahl, leer = jeder),
+ * **Relevanz**, Prominenz und — der wirksame Teil der alten Ableitung —
+ * Spine-Phase, Rang und terminal. **Ohne Rang trägt ein Feld nicht zur
+ * Statusableitung bei**; so ist der ganze Code-Katalog ausgeliefert.
  *
- * Darüber zwei Übernahme-Blöcke: was die Auslieferung mitbringt und was in den
- * CSV-Quellen gefunden wurde. Rein darstellend — jede Änderung geht über die
- * `api`-Setter in den Entwurf.
+ * Zwei Dinge macht der Tab seit dem Vorgangssystem zusätzlich:
+ *
+ * - **Relevanz-Häkchen** (Konzept 4.1): markiert die Kürzel, die für die
+ *   Antragsbearbeitung zählen. Sie grenzen Navigator, Wächter und die
+ *   Status-Erklärung ein — ohne sie bleibt die Kandidatenliste unbrauchbar groß.
+ * - **Trigger-Wirkung**: was ein Kürzel im Foyer auslöst, in Satzform aus der
+ *   importierten Trigger-Tabelle. Aufklappbar in der Zeile, damit die Tabelle
+ *   nicht noch eine Spalte breiter wird.
+ *
+ * Die Frage „hat das Kürzel überhaupt eine `D_`-Spalte im Export?" beantwortet
+ * die vorhandene Spalte **CSV-Spalte** (leer = nirgends gemappt); dafür braucht
+ * es keine zweite Spalte, nur den passenden Filter.
+ *
+ * Der Abgleich mit den Fremddaten (Auslieferung, CSV-Quellen) steht in
+ * [FelderAbgleich](./FelderAbgleich.tsx) — andere Frage, andere Datei.
  *
  * **Alle Ordner starten zugeklappt**, und was der Nutzer öffnet, bleibt für den
  * nächsten Seitenaufruf offen (`useCollapsedSection`, localStorage, gerätelokal).
  */
 import { useMemo, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
-  betrifftRolle, rollenVonFeld, sortiereRollen,
+  betrifftRolle, rollenVonFeld, sortiereRollen, wirkungSaetze,
   type Prominenz, type Rolle, type SpinePhase,
-  type StatusFeldEintrag, type StatusKategorie,
+  type StatusFeldEintrag, type StatusKategorie, type TriggerZeile,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import {
@@ -33,6 +45,7 @@ import {
   feldKlasse, feldStil,
 } from './labels';
 import { KategorieEditor } from './KategorieEditor';
+import { FelderAbgleich } from './FelderAbgleich';
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
@@ -78,72 +91,113 @@ function RollenWahl({ f, set }: {
   );
 }
 
-function FeldZeile({ f, csvSpalte, api, ordnerWahl }: {
+function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
   f: StatusFeldEintrag;
   csvSpalte: string;
   api: StatusCockpitApi;
   ordnerWahl: { id: string; label: string }[];
+  /** Trigger-Sätze dieses Kürzels; leer, solange keine Tabelle importiert ist. */
+  wirkung: string[];
+  /** Spaltenzahl der Tabelle — für die aufgeklappte Wirkungs-Zeile. */
+  spalten: number;
 }): React.ReactElement {
+  const [offen, setOffen] = useState(false);
   const set = (patch: Partial<StatusFeldEintrag>): void => api.setFeld(f.feldId, patch);
+  const vorgangssystem = isVorgangssystemEnabled();
   return (
-    <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] font-mono whitespace-nowrap`} title={f.feldId}>
-        <div className="flex items-center gap-1.5">
-          <span>{f.code ?? f.feldId}</span>
-          {f.unkuratiert && <Badge variant="warning">neu</Badge>}
-        </div>
-      </td>
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] font-mono whitespace-nowrap`}>
-        {csvSpalte}
-      </td>
-      <td className={`${tdKlasse} min-w-[240px]`}>
-        <input value={f.label} placeholder={f.feldId} className={feldKlasse} style={feldStil}
-          onChange={e => set({ label: e.target.value })} />
-      </td>
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)]`}>{TYP_LABEL[f.typ]}</td>
-      <td className={`${tdKlasse} min-w-[190px]`}>
-        <select value={ordnerVon(f)} className={feldKlasse} style={feldStil}
-          onChange={e => set({ kategorieId: e.target.value })}>
-          {ordnerWahl.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
-      </td>
-      <td className={`${tdKlasse} whitespace-nowrap`}>
-        <RollenWahl f={f} set={set} />
-      </td>
-      <td className={`${tdKlasse} min-w-[124px]`}>
-        <select value={f.prominenzDefault} className={feldKlasse} style={feldStil}
-          onChange={e => set({ prominenzDefault: e.target.value as Prominenz })}>
-          {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
-        </select>
-      </td>
-      {/* Wert-Felder holen Phase und Rang aus dem Wert, nicht aus dem Feld —
-          dort wären die Eingaben wirkungslos und würden nur in die Irre führen. */}
-      <td className={`${tdKlasse} min-w-[124px]`}>
-        {f.typ === 'wert' ? <span className="text-[12px] text-[var(--tf-text-tertiary)]">je Wert</span> : (
-          <select value={f.spinePhase ?? 'keine'} className={feldKlasse} style={feldStil}
-            onChange={e => set({ spinePhase: e.target.value as SpinePhase })}>
-            {SPINE_WERTE.map(p => <option key={p} value={p}>{SPINE_LABEL[p]}</option>)}
+    <>
+      <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
+        <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] font-mono whitespace-nowrap`} title={f.feldId}>
+          <div className="flex items-center gap-1.5">
+            <span>{f.code ?? f.feldId}</span>
+            {f.unkuratiert && <Badge variant="warning">neu</Badge>}
+            {/* Die Wirkung sitzt am Code, nicht in einer eigenen Spalte: dort
+                sucht sie der Leser, und die Tabelle bleibt schmal. */}
+            {vorgangssystem && wirkung.length > 0 && (
+              <button
+                type="button" onClick={() => setOffen(v => !v)} aria-expanded={offen}
+                title={`${wirkung.length} Trigger-Zeile${wirkung.length === 1 ? '' : 'n'} anzeigen`}
+                className="inline-flex items-center gap-0.5 text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+              >
+                <Zap size={11} />
+                {wirkung.length}
+              </button>
+            )}
+          </div>
+        </td>
+        <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] font-mono whitespace-nowrap`}>
+          {csvSpalte}
+        </td>
+        <td className={`${tdKlasse} min-w-[240px]`}>
+          <input value={f.label} placeholder={f.feldId} className={feldKlasse} style={feldStil}
+            onChange={e => set({ label: e.target.value })} />
+        </td>
+        {vorgangssystem && (
+          <td className={`${tdKlasse} text-center`}>
+            <input type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
+              title="Für die Antragsbearbeitung relevant — grenzt Navigator und Wächter ein"
+              checked={f.relevant === true} onChange={e => set({ relevant: e.target.checked })} />
+          </td>
+        )}
+        <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)]`}>{TYP_LABEL[f.typ]}</td>
+        <td className={`${tdKlasse} min-w-[190px]`}>
+          <select value={ordnerVon(f)} className={feldKlasse} style={feldStil}
+            onChange={e => set({ kategorieId: e.target.value })}>
+            {ordnerWahl.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
-        )}
-      </td>
-      <td className={`${tdKlasse} w-[64px]`}>
-        {f.typ === 'wert' ? null : (
-          <input type="number" value={f.rang ?? 0} className={feldKlasse} style={feldStil}
-            title="0 = trägt nicht zur Statusableitung bei"
-            onChange={e => set({ rang: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0 })} />
-        )}
-      </td>
-      <td className={`${tdKlasse} text-center`}>
-        {f.typ === 'wert' ? null : (
+        </td>
+        <td className={`${tdKlasse} whitespace-nowrap`}>
+          <RollenWahl f={f} set={set} />
+        </td>
+        <td className={`${tdKlasse} min-w-[124px]`}>
+          <select value={f.prominenzDefault} className={feldKlasse} style={feldStil}
+            onChange={e => set({ prominenzDefault: e.target.value as Prominenz })}>
+            {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
+          </select>
+        </td>
+        {/* Wert-Felder holen Phase und Rang aus dem Wert, nicht aus dem Feld —
+            dort wären die Eingaben wirkungslos und würden nur in die Irre führen. */}
+        <td className={`${tdKlasse} min-w-[124px]`}>
+          {f.typ === 'wert' ? <span className="text-[12px] text-[var(--tf-text-tertiary)]">je Wert</span> : (
+            <select value={f.spinePhase ?? 'keine'} className={feldKlasse} style={feldStil}
+              onChange={e => set({ spinePhase: e.target.value as SpinePhase })}>
+              {SPINE_WERTE.map(p => <option key={p} value={p}>{SPINE_LABEL[p]}</option>)}
+            </select>
+          )}
+        </td>
+        <td className={`${tdKlasse} w-[64px]`}>
+          {f.typ === 'wert' ? null : (
+            <input type="number" value={f.rang ?? 0} className={feldKlasse} style={feldStil}
+              title="0 = trägt nicht zur Statusableitung bei"
+              onChange={e => set({ rang: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0 })} />
+          )}
+        </td>
+        <td className={`${tdKlasse} text-center`}>
+          {f.typ === 'wert' ? null : (
+            <input type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
+              checked={f.terminal === true} onChange={e => set({ terminal: e.target.checked })} />
+          )}
+        </td>
+        <td className={`${tdKlasse} text-center`}>
           <input type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
-            checked={f.terminal === true} onChange={e => set({ terminal: e.target.checked })} />
-        )}
-      </td>
-      <td className={`${tdKlasse} text-center`}>
-        <input type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
-          checked={f.aktiv} onChange={e => set({ aktiv: e.target.checked })} />
-      </td>
-    </tr>
+            checked={f.aktiv} onChange={e => set({ aktiv: e.target.checked })} />
+        </td>
+      </tr>
+      {offen && (
+        <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
+          <td colSpan={spalten} className="px-2 py-2">
+            <ul className="flex flex-col gap-0.5">
+              {wirkung.map((satz, i) => (
+                <li key={`${f.feldId}-${i}`} className="text-[11.5px] text-[var(--tf-text-secondary)]">
+                  <span className="text-[var(--tf-text-tertiary)] font-mono mr-1.5">{i + 1}</span>
+                  {satz}
+                </li>
+              ))}
+            </ul>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -159,18 +213,23 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl }: {
  * Bei aktiver Suche stehen alle Ordner offen (sonst versteckte die Seite genau
  * die Treffer) und der Umschalter ruht, statt wirkungslos zu klicken.
  */
-function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus }: {
+function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, trigger }: {
   kategorie: StatusKategorie;
   tiefe: number;
   felder: StatusFeldEintrag[];
   api: StatusCockpitApi;
   ordnerWahl: Record<'verbund' | 'tv', { id: string; label: string }[]>;
   suchModus: boolean;
+  trigger: readonly TriggerZeile[];
 }): React.ReactElement {
   const [offen, toggleOffen] = useCollapsedSection(
     `status-cockpit:felder:${kategorie.id}`, { defaultOpen: false },
   );
   const zeigeOffen = offen || suchModus;
+  const vorgangssystem = isVorgangssystemEnabled();
+  // Code, CSV-Spalte, Bezeichnung, [relevant], Typ, Ordner, Rollen, Prominenz,
+  // Spine-Phase, Rang, terminal, aktiv.
+  const spalten = vorgangssystem ? 12 : 11;
 
   return (
     <div style={{ marginLeft: tiefe * 14 }}>
@@ -195,6 +254,14 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus }: 
               <th className={thKlasse}>Code</th>
               <th className={thKlasse}>CSV-Spalte</th>
               <th className={thKlasse}>Bezeichnung</th>
+              {vorgangssystem && (
+                <th
+                  className={`${thKlasse} text-center`}
+                  title="Für die Antragsbearbeitung relevant — grenzt Navigator, Wächter und Erklärung ein"
+                >
+                  relevant
+                </th>
+              )}
               <th className={thKlasse}>Typ</th>
               <th className={thKlasse}>Ordner</th>
               <th
@@ -215,6 +282,8 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus }: 
               <FeldZeile
                 key={f.feldId} f={f} api={api} ordnerWahl={ordnerWahl[f.ebene]}
                 csvSpalte={api.csvSpalten.get(f.feldId)?.join(', ') ?? '—'}
+                wirkung={f.code ? wirkungSaetze(trigger, f.code) : []}
+                spalten={spalten}
               />
             ))}
           </tbody>
@@ -229,22 +298,25 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const [ebeneFilter, setEbeneFilter] = useState<'alle' | 'verbund' | 'tv'>('alle');
   const [rolleFilter, setRolleFilter] = useState<'alle' | Rolle>('alle');
   const [nurMitRang, setNurMitRang] = useState(false);
-  const [abweichungenOffen, setAbweichungenOffen] = useState(false);
+  const [nurRelevante, setNurRelevante] = useState(false);
+  const [nurMitSpalte, setNurMitSpalte] = useState(false);
   // Auf-/Zu bleibt über Seitenaufrufe erhalten (localStorage, gerätelokal).
   const [ordnerOffen, toggleOrdnerOffen] = useCollapsedSection(
     'status-cockpit:ordner-editor', { defaultOpen: false },
   );
   const suchModus = suche.trim() !== '';
+  const vorgangssystem = isVorgangssystemEnabled();
 
   const entwurf = api.entwurf;
   const kategorien = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
+  const trigger = api.trigger.datei?.trigger ?? [];
 
   /** Ordner-Auswahl je Ebene, in Baum-Reihenfolge und eingerückt beschriftet. */
   const ordnerWahl = useMemo(() => {
     const je: Record<'verbund' | 'tv', { id: string; label: string }[]> = { verbund: [], tv: [] };
     for (const ebene of ['verbund', 'tv'] as const) {
       je[ebene] = flacheBaumListe(kategorien, ebene)
-        .map(({ kategorie, tiefe }) => ({ id: kategorie.id, label: `${'  '.repeat(tiefe)}${kategorie.label}` }));
+        .map(({ kategorie, tiefe }) => ({ id: kategorie.id, label: `${'  '.repeat(tiefe)}${kategorie.label}` }));
     }
     return je;
   }, [kategorien]);
@@ -257,11 +329,15 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       // „jeder darf setzen", nicht „niemand".
       if (!betrifftRolle(f, rolleFilter)) return false;
       if (nurMitRang && (f.rang ?? 0) === 0) return false;
+      if (nurRelevante && f.relevant !== true) return false;
+      // „Hat das Kürzel eine Spalte im Export?" ist genau die Frage, die die
+      // Spalte CSV-Spalte beantwortet — ohne Eintrag ist es nirgends gemappt.
+      if (nurMitSpalte && (api.csvSpalten.get(f.feldId)?.length ?? 0) === 0) return false;
       if (!q) return true;
       const spalten = api.csvSpalten.get(f.feldId)?.join(' ') ?? '';
       return `${f.code ?? ''} ${f.feldId} ${f.label} ${spalten}`.toLowerCase().includes(q);
     });
-  }, [entwurf, suche, ebeneFilter, rolleFilter, nurMitRang, api.csvSpalten]);
+  }, [entwurf, suche, ebeneFilter, rolleFilter, nurMitRang, nurRelevante, nurMitSpalte, api.csvSpalten]);
 
   if (!entwurf) return null;
 
@@ -273,106 +349,27 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   }
 
   const mitRang = entwurf.felder.filter(f => (f.rang ?? 0) > 0).length;
+  const relevanteAnzahl = entwurf.felder.filter(f => f.relevant === true).length;
 
   return (
     <div className="flex flex-col gap-3 pt-3">
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-        {entwurf.felder.length} Felder in {kategorien.length} Ordnern · {mitRang} davon wirken auf die
-        Statusableitung. Ein Feld ohne Rang wird erfasst und angezeigt, hebt aber keine Phase.
+        {entwurf.felder.length} Kürzel in {kategorien.length} Ordnern · {mitRang} davon wirken auf die
+        Statusableitung. Ein Kürzel ohne Rang wird erfasst und angezeigt, hebt aber keine Phase.
+        {vorgangssystem && (
+          <>
+            {' '}{relevanteAnzahl} als relevant markiert
+            {relevanteAnzahl === 0 && ' — ohne Markierung prüft der Navigator alle Kürzel'}
+            {trigger.length === 0 && ' · Trigger-Tabelle nicht importiert (keine Wirkungen)'}.
+          </>
+        )}
       </p>
 
-      {api.seedLuecke.felder > 0 && (
-        <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
-          <span className="text-[12.5px] text-[var(--tf-text)]">
-            Die Auslieferung führt {api.seedLuecke.felder} Statusfelder
-            {api.seedLuecke.kategorien > 0 ? ` und ${api.seedLuecke.kategorien} Ordner` : ''}, die dieser
-            Fassung fehlen.
-          </span>
-          <Button variant="secondary" size="sm" onClick={api.seedNachziehen}>Nachziehen</Button>
-        </div>
-      )}
-
-      {api.textAbweichungen.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded px-2.5 py-2" style={feldStil}>
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[12.5px] text-[var(--tf-text)]">
-              Bei {api.textAbweichungen.length} Feldern weichen Bezeichnung oder Rollen von der
-              Kürzel-Zuarbeit des Fachsystems ab. Ordner, Phase und Rang bleiben unangetastet.
-            </span>
-            <Button variant="secondary" size="sm" onClick={api.texteUebernehmen}>
-              Zuarbeit übernehmen
-            </Button>
-          </div>
-          <button
-            type="button" onClick={() => setAbweichungenOffen(v => !v)} aria-expanded={abweichungenOffen}
-            className="self-start text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer underline"
-          >
-            {abweichungenOffen ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
-          </button>
-          {abweichungenOffen && (
-            <ul className="flex flex-col gap-0.5 max-h-[220px] overflow-y-auto">
-              {api.textAbweichungen.map(a => (
-                <li key={a.feldId} className="text-[11.5px] text-[var(--tf-text-secondary)] flex gap-2">
-                  <span className="font-mono text-[var(--tf-text-tertiary)] shrink-0 w-[72px] truncate">
-                    {a.code ?? a.feldId}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="line-through">{a.altesLabel}</span>
-                    {' → '}
-                    <span className="text-[var(--tf-text)]">{a.neuesLabel}</span>
-                    {a.alteRollen.join('/') !== a.neueRollen.join('/') && (
-                      <span className="text-[var(--tf-text-tertiary)]">
-                        {' · '}
-                        {a.alteRollen.length ? a.alteRollen.map(r => ROLLE_LABEL[r]).join('/') : 'alle'}
-                        {' → '}
-                        {a.neueRollen.length ? a.neueRollen.map(r => ROLLE_LABEL[r]).join('/') : 'alle'}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {api.unkuratierteFelder.length > 0 && (
-        <section className="flex flex-col gap-1.5">
-          <h3 className="text-[12px] font-medium text-[var(--tf-text-secondary)] uppercase tracking-wide">
-            In den CSV-Quellen gefunden — noch nicht im Katalog
-          </h3>
-          {/* Der Kürzel-Katalog wird zur Build-Zeit aus der Zuarbeit-CSV erzeugt
-              (`npm run gen:status-codes`) und hat bewusst KEINEN Laufzeit-Import.
-              Damit dieser Verzicht nicht stumm bleibt, sagt der Hinweis, was
-              wirklich zu tun ist — „Übernehmen" unten ist die Zwischenlösung,
-              die dem Feld noch Bezeichnung und Rollen schuldig bleibt. */}
-          <p className="text-[12.5px] text-[var(--tf-warning-text)]">
-            {api.unkuratierteFelder.length} Kürzel im Export ohne Katalog-Eintrag — Zuarbeit-CSV
-            aktualisieren und Build erneuern. Bis dahin lassen sie sich einzeln übernehmen; sie
-            kommen dann ohne Bezeichnung aus der Zuarbeit und ohne Rollen (= neutral).
-          </p>
-          {api.unkuratierteFelder.map(f => (
-            <div key={f.feldId} className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
-              <div className="min-w-0 flex items-center gap-2 flex-wrap">
-                <Badge variant="warning">neu</Badge>
-                <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">{f.feldId}</span>
-                <span className="text-[12.5px] text-[var(--tf-text)]">{f.label}</span>
-                <span className="text-[11px] text-[var(--tf-text-tertiary)]">{EBENE_LABEL[f.ebene]}</span>
-              </div>
-              <Button
-                variant="secondary" size="sm"
-                onClick={() => api.uebernehmeFeld(f, NICHT_ZUGEORDNET_ID[f.ebene])}
-              >
-                Übernehmen
-              </Button>
-            </div>
-          ))}
-        </section>
-      )}
+      <FelderAbgleich api={api} />
 
       <div className="flex flex-col gap-2">
         <input
-          value={suche} placeholder="Code, Spalte oder Bezeichnung suchen …"
+          value={suche} placeholder="Kürzel, Spalte oder Bezeichnung suchen …"
           className="w-full max-w-[360px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
           style={feldStil} onChange={e => setSuche(e.target.value)}
         />
@@ -392,6 +389,10 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
           ))}
           <span className="w-2" />
           <ToggleChip label="nur mit Rang" selected={nurMitRang} onToggle={() => setNurMitRang(v => !v)} />
+          {vorgangssystem && (
+            <ToggleChip label="nur relevante" selected={nurRelevante} onToggle={() => setNurRelevante(v => !v)} />
+          )}
+          <ToggleChip label="nur mit CSV-Spalte" selected={nurMitSpalte} onToggle={() => setNurMitSpalte(v => !v)} />
         </div>
       </div>
 
@@ -427,7 +428,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
                 <OrdnerGruppe
                   key={g.kategorie.id}
                   kategorie={g.kategorie} tiefe={g.tiefe} felder={g.felder}
-                  api={api} ordnerWahl={ordnerWahl} suchModus={suchModus}
+                  api={api} ordnerWahl={ordnerWahl} suchModus={suchModus} trigger={trigger}
                 />
               ))}
           </section>
@@ -435,7 +436,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
 
       {gefiltert.length === 0 && (
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)] px-3 py-4">
-          Keine Felder für die aktuellen Filter.
+          Keine Kürzel für die aktuellen Filter.
         </p>
       )}
     </div>

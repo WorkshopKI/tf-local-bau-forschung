@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.376 — 2026-08
+
+### Neu
+- Der Verbund zeigt unter „Status & Verlauf" jetzt **„Nächste Schritte (im Foyer zu setzen)"**: welche Kürzel unter dem aktuellen Status überhaupt greifen würden, was sie auslösen und wer sie setzt. Vorgefiltert auf Ihre Rolle, umschaltbar auf alle. Die App setzt nichts selbst — sie sagt, was im Foyer zu tun wäre.
+- Der Tab „Felder" im Status-Katalog heißt jetzt **„Kürzel"** und ist ein Glossar: neben dem Code steht ein Blitz mit der Anzahl der Trigger; ein Klick zeigt in einem Satz, was das Setzen auslöst.
+- **Relevanz-Häkchen** je Kürzel grenzen die 505 Einträge auf die für die Antragsbearbeitung wichtigen ein. Eine Aktion übernimmt die 31 Spalten des AB-Dashboards als Startvorschlag; sie setzt nur Häkchen und nimmt nie welche weg.
+
+### Verbesserungen
+- Neue Filter im Kürzel-Tab: „nur relevante" und „nur mit CSV-Spalte".
+
+### Bugfixes
+- Vier Kürzel (u. a. Antragseingang und Bewilligung) wurden doppelt geführt und galten dadurch überall als nie gesetzt. Das Nachziehen im Status-Katalog räumt das auf und sagt vorher, was es entfernt.
+
 ## v2.375 — 2026-08
 
 ### Neu
