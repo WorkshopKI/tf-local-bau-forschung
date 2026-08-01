@@ -119,6 +119,15 @@ describe('doc-links', () => {
     // soll nicht mehr passieren. Die Ausnahmeliste (`file://`, FSAPI-Picker,
     // Share-Schreibrechte) gehört daneben, sonst wird aus der Pflicht ein
     // Versprechen, das der Dev-Server nicht halten kann.
-    expect(bytes).toBeLessThan(53_300);
+    // 53_300 → 55_500 (v2.380): das Vorgangssystem. Ein Subsystem über sechs
+    // neue Module in `core/status/` plus ein Plugin, komprimiert auf EINE
+    // Decision-Tree-Zeile, EINEN Absatz und Pitfall #44. Drei Dinge macht man
+    // ohne Hinweis garantiert falsch: eine neue Ableitung bauen (die App leitet
+    // KEINEN Status mehr ab), ein Kürzel als `D_<code>` schreiben (vier Codes
+    // heißen im Katalog anders, und das Feld findet dann nie einen Wert), und
+    // Unbelegbares als „ok" zählen statt als eigenes Urteil. Alles Detail —
+    // Bausteine, Messwerte, Abweichungen — lebt in
+    // docs/architecture/vorgangssystem.md.
+    expect(bytes).toBeLessThan(55_500);
   });
 });

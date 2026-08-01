@@ -1,6 +1,34 @@
-# Vorgangssystem — Konzept: Status, To-do, Wächter, Cockpit (ZAH-App)
+# Vorgangssystem — Status, To-do, Wächter, Cockpit (ZAH-App)
 
-Stand: 01.08.2026 · Abgestimmt, Umsetzung via prompt-vorgangssystem.md (Phasen 0–6)
+Stand: 01.08.2026 · **P0–P5 umgesetzt** (v2.374 – v2.379), P6 offen ·
+Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
+
+## 0. Umsetzungsstand
+
+| Phase | Was | Version |
+|---|---|---|
+| P0 | Status-Codes, ZAH-Phasen, Trigger-Parser, zwei XLSX-Importe, Diagnose-Report | v2.374.0 |
+| P1 | Status-Erklärung (Herleitungs-Popover) | v2.375.0 |
+| P2 | Kürzel-Glossar, Relevanz-Häkchen, Nächster-Schritt-Navigator | v2.376.0 |
+| P3 | To-do-Kaskade (AB-Regelsatz) + Vorgangs-Board | v2.377.0 |
+| P4 | Stillstands-Wächter, Zieltage, Home-Widget „Hängt fest" | v2.378.0 |
+| P5 | Fristen-Cockpit (Bearbeiter + PL), wirksamer Eingang, XLSX-Export | v2.379.0 |
+| P6 | Rückbau der alten Ableitung | offen → [vorgangssystem-p6-inventar.md](vorgangssystem-p6-inventar.md) |
+
+**Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
+
+- Die **Trigger-Tabelle** liegt in einer eigenen Sidecar
+  (`_intern/status-trigger.json`) statt in der Katalog-Fassung — gemessen: 356,5 KB
+  je Fassung, bei zehn Fassungen 6,8 statt 2,4 MB, und jedes Speichern schreibt
+  die ganze Datei über SMB. **Eine** Mechanik (`sidecar-datei.ts`), zwei Dateien.
+- Die **Cockpit-Sichten** sitzen im Vorgangs-Board, nicht im Meilenstein-Plugin:
+  sie brauchen Status, ZAH-Phase, To-do, Wächter und Restfrist, und das entsteht
+  dort in EINEM Durchlauf über 14 221 Anträge.
+- Die **Reihenfolge der To-do-Regeln** ändert man über Pfeile, nicht per Ziehen —
+  die Position ist das Ergebnis, also muss sie präzise setzbar sein.
+- **Kein Kürzel-Laufzeit-Import**: die 505 Codes kommen weiter über
+  `npm run gen:status-codes` in den Build. Dafür meldet der Kürzel-Tab Drift
+  („n Kürzel im Export ohne Katalog-Eintrag").
 
 ## 1. Leitidee
 
@@ -157,16 +185,31 @@ Das Modul bleibt und wird vom Kuratier-Werkzeug zum **Spiegel + Pflege der drei 
 
 Aus `status-canonical.ts` bleibt die Kategorie-Helper-API (`isOpenStatus` etc.) als **Fassade** erhalten — intern gespeist aus Code + ZAH-Phasen-Tabelle statt aus der eingebauten Doppel-Domain-Map. Bauantrag-Domain (dev/demo-only) bleibt unberührt auf der alten Map.
 
-## 8. Umsetzungsreihenfolge (für spätere Phase-Prompts)
+## 8. Was die Umsetzung an den Daten gelernt hat
 
-Risiko-aufsteigend, jede Phase einzeln nutzbar, `npm run check`-Gate:
+Zahlen aus dem Bestand (7 534 Verbünde / 14 221 Anträge, Import 27.07.2026). Sie
+gehören ins Konzept, weil sie Entscheidungen tragen:
 
-- **P0 — Fundament:** XLSX-Importer für die drei Referenzen (inkl. Trigger-Parser + Satzform), Text↔Code-Join mit NFC, Versionierung + Diff, Datenstand-Anzeige im Footer. Rein additiv.
-- **P1 — Info-Icon:** Status-Erklärung an Liste/Detail/Home. Rein additiv.
-- **P2 — Glossar + Navigator:** Kürzel-Glossar, Relevanz-Häkchen, Kandidaten-Berechnung aus Trigger-Vorbedingungen.
-- **P3 — Wächter:** Zieltage-Pflege, Stufe 1 generisch, Home-Widget + PL-Liste; Stufe 2 wo herleitbar.
-- **P4 — Cockpit:** Bearbeiter- und PL-Sicht, XLSX-Export.
-- **P5 — Rückbau:** ZAH-Phasen-Umbenennung, Katalog-Modul-Umbau nach Tabelle in 7, Entfernen von Rängen/Prioritäten/Prominenz, Alt-Regeln als Test abgesichert löschen.
+- **Alle 25 im Bestand vorkommenden Statuswerte lösen auf einen Code auf.** Der
+  Join trägt; drei Export-Schreibweisen weichen von der Parametertabelle ab
+  („Ablehnung", „Rücknahmeempfehlung", „VN techn. geprüft") und sind als
+  Varianten gepflegt.
+- **Vier Kürzel wurden doppelt geführt** — `AAE`, `ABB`, `AZ1`, `VBE` hängen an
+  kanonischen Feldern und dürfen kein zweites `D_`-Feld haben. Solange sie es
+  hatten, galt `ABB` überall als „nie gesetzt", und fast jede Trigger-Bedingung
+  lautet „TV hat kein ABB".
+- **Der Altbestand ist kein Rückstand.** Von 9 141 bewilligten Anträgen tragen
+  nur 2 529 ein Datum in `D_AZBE`; über alle Jahrgänge meldete allein „ZuwB
+  erstellen" 6 607 Aufgaben. Das Board zeigt deshalb die letzten drei Jahrgänge
+  und sagt, was das ausblendet.
+- **Eine Antragsfrist läuft nur in der Antragsphase.** Ohne dieses Kriterium
+  führte die Fristenliste 2 850 abgeschlossene Vorgänge mit „853 T über" an.
+- **Zieltage sind die Grundlage des Wächters, und sie fehlen.** Mit 7 von 74
+  gepflegten Statuswerten sind 1 921 Vorgänge „nicht bewertbar" — sichtbar
+  ausgewiesen, nicht als unauffällig gezählt.
+- **Der Phasen-Vergleich zeigt 490 Abweichungen in 12 Mustern**, alle auf zwei
+  Ursachen zurückführbar: die alte Ableitung lief dem amtlichen Status voraus.
+  Details und Abnahme-Kriterium: [vorgangssystem-p6-inventar.md](vorgangssystem-p6-inventar.md).
 
 ## 9. Entschieden / offen
 
