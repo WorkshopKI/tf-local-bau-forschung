@@ -22,10 +22,11 @@
 ## v2.373 — 2026-08
 
 ### Neu
-- **„Zweitfassung mit mutigerer Einstellung".** Arbeiten Sie mit einer direkt angebundenen KI, gab es bisher keine Zweitfassung — es gibt dort ja nur ein Modell. Jetzt schreibt dasselbe Modell die zweite Fassung mit freierer Einstellung. Beide stehen anschließend unter „Vorfassungen" nebeneinander, jede mit dem Vermerk, wie sie entstanden ist.
+- **„Zweitfassung mit anderer Einstellung".** Arbeiten Sie mit einer direkt angebundenen KI, gab es bisher keine Zweitfassung — es gibt dort ja nur ein Modell. Jetzt schreibt dasselbe Modell die zweite Fassung mit einer anderen Einstellung. Beide stehen anschließend unter „Vorfassungen" nebeneinander, jede mit dem Vermerk, wie sie entstanden ist.
 
 ### Verbesserungen
 - **Die App gibt der KI jetzt eine feste Einstellung vor.** Bisher überließ sie das dem Server; welche Einstellung galt, war nirgends zu sehen. Der Wert steht jetzt unten in der Prompt-Ansicht neben dem Ausgabe-Budget.
+- **Die Einstellung ist jetzt gemessen statt geraten.** Ein Vergleich über 25 fiktive Vorhabensbeschreibungen hat gezeigt, dass sie auf die Einhaltung der Vorgaben keinen erkennbaren Einfluss hat. Die App behält deshalb die bisher gewohnte Einstellung bei, statt sie auf Verdacht zu verändern — an den Texten ändert sich nichts.
 
 ## v2.372 — 2026-08
 

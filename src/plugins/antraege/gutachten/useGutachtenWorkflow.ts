@@ -90,7 +90,7 @@ interface LaufOptionen {
   anweisung?: string;
   /** Erzwungene interne KI („Zweitfassung mit der anderen KI"); sonst globale Präferenz. */
   ziel?: BridgeZiel;
-  /** Erzwungene Temperatur („Zweitfassung mit mutigerer Einstellung"); sonst sicherer Standard. */
+  /** Erzwungene Temperatur („Zweitfassung mit anderer Einstellung"); sonst Standard. */
   temperatur?: number;
 }
 
@@ -201,7 +201,7 @@ export interface GutachtenWorkflowController {
   stampVorlage: (info: { pfad: string; hash?: string }) => void;
   /**
    * Denselben Abschnitt noch einmal erzeugen — über die Bridge mit der ANDEREN
-   * internen KI, an einer direkt angebundenen KI mit mutigerer Einstellung
+   * internen KI, an einer direkt angebundenen KI mit anderer Einstellung
    * (`bestimmeZweitfassung`). Die bisherige Fassung wandert dabei wie bei jeder
    * Re-Generierung in den Verlauf; verglichen und zurückgeholt wird dort
    * (Diff + „Diese Fassung übernehmen").

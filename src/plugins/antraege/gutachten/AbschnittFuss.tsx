@@ -54,7 +54,7 @@ export function AbschnittFuss({
   const prov = provenance
     ? `${provenance.skillName}${run.skillVersion != null ? ` v${run.skillVersion}` : ''}`
     : null;
-  // Herkunft: entweder die interne KI (Bridge) ODER die mutigere Einstellung
+  // Herkunft: entweder die interne KI (Bridge) ODER die andere Einstellung
   // (direkt angebundene KI). Beides zugleich gibt es nicht — wo `ziel` wirkt,
   // variiert die Zweitfassung den Tab und nicht die Temperatur.
   const ki = zielLabel(run) ?? fassungLabel(run.fassung);

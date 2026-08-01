@@ -14,13 +14,13 @@
  * Rein — kein Store, kein Transport.
  */
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
-import { TEMPERATUR_MUTIG } from '@/core/services/ai/sampling';
+import { TEMPERATUR_ZWEITFASSUNG, type FassungMarker } from '@/core/services/ai/sampling';
 import { ZIEL_DATIV } from './kontextWarnung';
 
 export type ZweitfassungArt =
   /** Bridge: derselbe Prompt an den jeweils ANDEREN Tab. */
   | { art: 'ki'; ziel: BridgeZiel; label: string }
-  /** Direkt angebundene KI: dasselbe Modell, mehr Streuung. */
+  /** Direkt angebundene KI: dasselbe Modell, andere Sampling-Einstellung. */
   | { art: 'temperatur'; temperatur: number; label: string };
 
 /**
@@ -29,16 +29,21 @@ export type ZweitfassungArt =
  */
 export function bestimmeZweitfassung(bridgeAktiv: boolean, kiZiel: BridgeZiel): ZweitfassungArt {
   if (!bridgeAktiv) {
-    return { art: 'temperatur', temperatur: TEMPERATUR_MUTIG, label: 'mutigerer Einstellung' };
+    return { art: 'temperatur', temperatur: TEMPERATUR_ZWEITFASSUNG, label: 'anderer Einstellung' };
   }
   const andere: BridgeZiel = kiZiel === 'agentisch' ? 'standard' : 'agentisch';
   return { art: 'ki', ziel: andere, label: ZIEL_DATIV[andere] };
 }
 
 /**
- * Beschriftung der Herkunft einer fertigen Fassung („· mutigere Einstellung").
+ * Beschriftung der Herkunft einer fertigen Fassung („· andere Einstellung").
  * `null` für Fassungen ohne Marker — das ist der Normalfall und soll nichts sagen.
+ *
+ * `'mutig'` ist der Marker aus v2.373, als der zweite Lauf eine HÖHERE Temperatur
+ * fuhr. Die Messung hat diese Richtung verworfen (siehe [sampling.ts]); bereits
+ * gespeicherte Fassungen behalten ihren Marker und werden hier mit übersetzt,
+ * statt beim Lesen als „ohne Herkunft" durchzufallen.
  */
-export function fassungLabel(fassung?: 'mutig'): string | null {
-  return fassung === 'mutig' ? 'mutigere Einstellung' : null;
+export function fassungLabel(fassung?: FassungMarker): string | null {
+  return fassung === undefined ? null : 'andere Einstellung';
 }

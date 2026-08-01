@@ -130,7 +130,9 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose }: Props): Re
     <>
       <span className="mr-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">
         {daten.skill.name} v{daten.skill.version} · Ausgabe-Budget {zahl(daten.vorschau.maxTokens)} Tokens
-        {' · '}Temperatur {daten.vorschau.temperatur.toLocaleString('de-DE')}
+        {/* Immer mit Nachkommastelle: „Temperatur 1" liest sich wie eine Stufe,
+            „Temperatur 1,0" wie der Messwert, der es ist — und passt zu „0,4". */}
+        {' · '}Temperatur {daten.vorschau.temperatur.toLocaleString('de-DE', { minimumFractionDigits: 1 })}
       </span>
       <Button variant="ghost" icon={Copy} onClick={() => kopieren.run()} loading={kopieren.busy}>
         Kopieren

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { bestimmeZweitfassung, fassungLabel } from '../zweitfassung';
-import { TEMPERATUR_MUTIG, TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
+import { TEMPERATUR_STANDARD, TEMPERATUR_ZWEITFASSUNG } from '@/core/services/ai/sampling';
 
 describe('bestimmeZweitfassung', () => {
   it('variiert über die Bridge die KI — die jeweils andere', () => {
@@ -23,7 +23,7 @@ describe('bestimmeZweitfassung', () => {
   it('variiert ohne Bridge die Temperatur — unabhängig von der KI-Präferenz', () => {
     for (const ziel of ['standard', 'agentisch'] as const) {
       expect(bestimmeZweitfassung(false, ziel)).toEqual({
-        art: 'temperatur', temperatur: TEMPERATUR_MUTIG, label: 'mutigerer Einstellung',
+        art: 'temperatur', temperatur: TEMPERATUR_ZWEITFASSUNG, label: 'anderer Einstellung',
       });
     }
   });
@@ -34,22 +34,32 @@ describe('bestimmeZweitfassung', () => {
 });
 
 describe('Temperatur-Konstanten', () => {
-  it('die mutige Fassung liegt über der sicheren — sonst wäre es keine zweite', () => {
-    expect(TEMPERATUR_MUTIG).toBeGreaterThan(TEMPERATUR_SICHER);
+  it('die zweite Fassung weicht vom Standard ab — sonst wäre es keine zweite', () => {
+    expect(TEMPERATUR_ZWEITFASSUNG).not.toBe(TEMPERATUR_STANDARD);
   });
 
   it('KEIN Greedy Decoding: Reasoning-Modelle laufen bei 0 in Wiederholschleifen', () => {
-    expect(TEMPERATUR_SICHER).toBeGreaterThan(0);
+    expect(TEMPERATUR_ZWEITFASSUNG).toBeGreaterThan(0);
   });
 
-  it('bleibt unter der llama.cpp-Voreinstellung 1.0 — das war der Ist-Zustand bis v2.372', () => {
-    expect(TEMPERATUR_MUTIG).toBeLessThan(1);
+  /**
+   * Die 125-Lauf-Messung (25 fiktive VBs × fünf Temperaturen) fand zwischen 0,2
+   * und 1,0 keinen Unterschied in der Regeltreue. Der Standard schreibt deshalb
+   * die llama.cpp-Voreinstellung fest, statt eine Qualitätsaussage zu behaupten —
+   * wer ihn ändert, soll an dieser Stelle stolpern und erst neu messen.
+   */
+  it('der Standard IST die Server-Voreinstellung — nur eben nicht mehr implizit', () => {
+    expect(TEMPERATUR_STANDARD).toBe(1.0);
   });
 });
 
 describe('fassungLabel', () => {
-  it('benennt die mutigere Einstellung', () => {
-    expect(fassungLabel('mutig')).toBe('mutigere Einstellung');
+  it('benennt die abweichende Einstellung', () => {
+    expect(fassungLabel('abweichend')).toBe('andere Einstellung');
+  });
+
+  it('übersetzt den v2.373-Marker mit — gespeicherte Fassungen fallen nicht durch', () => {
+    expect(fassungLabel('mutig')).toBe('andere Einstellung');
   });
 
   it('schweigt beim Standard — der Normalfall sagt nichts', () => {

@@ -128,7 +128,7 @@ interface Props {
   onOpenPrompt?: () => void;
   /**
    * Zweitfassung desselben Abschnitts erzeugen — über die Bridge mit der anderen
-   * internen KI, an einer direkt angebundenen KI mit mutigerer Einstellung. Was
+   * internen KI, an einer direkt angebundenen KI mit anderer Einstellung. Was
    * genau variiert wird, steht in der Beschriftung (`bestimmeZweitfassung`).
    */
   onZweitfassung?: () => void;

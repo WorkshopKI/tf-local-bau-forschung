@@ -11,7 +11,7 @@
 import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
-import { TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
+import { TEMPERATUR_STANDARD } from '@/core/services/ai/sampling';
 import {
   buildPromptVorgaben,
   type QualitaetsRegel,
@@ -189,10 +189,10 @@ export interface SkillRunInput {
    */
   ziel?: BridgeZiel;
   /**
-   * Sampling-Temperatur dieses Laufs. Fehlt sie → `TEMPERATUR_SICHER`; der Runner
+   * Sampling-Temperatur dieses Laufs. Fehlt sie → `TEMPERATUR_STANDARD`; der Runner
    * sendet also IMMER einen Wert, statt wie bis v2.372 die Server-Voreinstellung
-   * (beim internen llama.cpp 1.0) still gelten zu lassen. Übersteuert wird sie nur
-   * von der „Zweitfassung mit mutigerer Einstellung" ([sampling.ts](../../ai/sampling.ts)).
+   * still gelten zu lassen. Übersteuert wird sie nur von der „Zweitfassung mit
+   * anderer Einstellung" ([sampling.ts](../../ai/sampling.ts)).
    * Auf der Streamlit-Bridge wirkungslos — dort gibt es keine Stellschraube.
    */
   temperatur?: number;
@@ -439,7 +439,7 @@ export function renderSkillPrompt(
     // Bei aktivem Thinking Platz für den Reasoning-Block aufschlagen, sonst frisst
     // er das gemeinsame max_tokens-Budget und die Antwort wird leer abgeschnitten.
     maxTokens: (skill.maxTokens ?? DEFAULT_MAX_TOKENS) + (budget !== 'none' ? THINKING_OUTPUT_HEADROOM : 0),
-    temperatur: input.temperatur ?? TEMPERATUR_SICHER,
+    temperatur: input.temperatur ?? TEMPERATUR_STANDARD,
   };
 }
 

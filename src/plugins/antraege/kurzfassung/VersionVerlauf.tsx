@@ -15,6 +15,7 @@ import { CheckList } from './CheckList';
 import { versionLabel, formatDate } from './kurzfassung-verlauf';
 import { computeFinalerTextDiff, diffStats, type DiffOp } from './kurzfassung-diff';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { FassungMarker } from '@/core/services/ai/sampling';
 import type { KurzfassungVersion } from './types';
 
 interface Props {
@@ -25,8 +26,8 @@ interface Props {
   aktuellErstelltAm: string;
   /** Interne KI der aktiven Fassung — ohne sie wäre ein KI-Vergleich nicht zuordenbar. */
   aktuellZiel?: BridgeZiel;
-  /** Erhöhte Temperatur der aktiven Fassung — dasselbe ohne Bridge. */
-  aktuellFassung?: 'mutig';
+  /** Abweichende Sampling-Einstellung der aktiven Fassung — dasselbe ohne Bridge. */
+  aktuellFassung?: FassungMarker;
   /** Ob die aktive Fassung auf gekürzter VB entstand (für den Vergleichs-Hinweis). */
   aktuellVbGekuerzt?: boolean;
   busy: boolean;
@@ -37,13 +38,13 @@ interface Props {
 const ZIEL_KURZ: Record<BridgeZiel, string> = { standard: 'Standard-KI', agentisch: 'agentische KI' };
 
 /**
- * Woher eine Fassung kommt — die andere KI (Bridge) ODER die mutigere Einstellung
- * (direkt angebundene KI). Genau das unterscheidet ein Fassungs-Paar; ohne die
- * Angabe tragen beide Tabs dieselbe Beschriftung und dasselbe Datum.
+ * Woher eine Fassung kommt — die andere KI (Bridge) ODER die andere Sampling-
+ * Einstellung (direkt angebundene KI). Genau das unterscheidet ein Fassungs-Paar;
+ * ohne die Angabe tragen beide Tabs dieselbe Beschriftung und dasselbe Datum.
  */
-function herkunftKurz(v: { ziel?: BridgeZiel; fassung?: 'mutig' }): string | null {
+function herkunftKurz(v: { ziel?: BridgeZiel; fassung?: FassungMarker }): string | null {
   if (v.ziel) return ZIEL_KURZ[v.ziel];
-  return v.fassung === 'mutig' ? 'mutigere Einstellung' : null;
+  return v.fassung === undefined ? null : 'andere Einstellung';
 }
 
 const DIFF_BOX ='rounded-[8px] border-[0.5px] border-[var(--tf-border)] p-3 text-[13px] leading-[1.7] text-[var(--tf-text)] whitespace-pre-wrap max-h-[360px] overflow-auto';

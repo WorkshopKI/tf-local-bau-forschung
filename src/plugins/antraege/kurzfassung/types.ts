@@ -1,6 +1,7 @@
 /** Persistierter Zustand eines Kurzfassung-Skill-Laufs (pro Verbund). */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { FassungMarker } from '@/core/services/ai/sampling';
 
 export type KurzfassungStatus = 'entwurf' | 'freigegeben';
 
@@ -43,12 +44,12 @@ export interface KurzfassungVersion {
    */
   ziel?: BridgeZiel;
   /**
-   * `'mutig'`, wenn DIESE Fassung mit erhöhter Sampling-Temperatur entstand
-   * (`StepRun.fassung`). Das Gegenstück zu `ziel`, wo es keine zweite KI gibt —
-   * ohne den Marker sind die beiden Fassungen eines Vergleichs im Verlauf nicht
-   * auseinanderzuhalten. Additiv.
+   * Gesetzt, wenn DIESE Fassung nicht mit der Standard-Sampling-Einstellung
+   * entstand (`StepRun.fassung`). Das Gegenstück zu `ziel`, wo es keine zweite KI
+   * gibt — ohne den Marker sind die beiden Fassungen eines Vergleichs im Verlauf
+   * nicht auseinanderzuhalten. Additiv.
    */
-  fassung?: 'mutig';
+  fassung?: FassungMarker;
 }
 
 export interface KurzfassungRecord {

@@ -413,13 +413,13 @@ describe('applyLaufZiel', () => {
 describe('applyLaufFassung', () => {
   const basis = applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text'), NOW);
 
-  it('markiert die mutigere Einstellung', () => {
-    expect(applyLaufFassung(basis, 'A', true, NOW).schritte.A?.fassung).toBe('mutig');
+  it('markiert die abweichende Einstellung', () => {
+    expect(applyLaufFassung(basis, 'A', true, NOW).schritte.A?.fassung).toBe('abweichend');
   });
 
   it('entfernt den Marker beim nächsten Standard-Lauf', () => {
-    const mutig = applyLaufFassung(basis, 'A', true, NOW);
-    const zurueck = applyLaufFassung(mutig, 'A', false, LATER);
+    const abweichend = applyLaufFassung(basis, 'A', true, NOW);
+    const zurueck = applyLaufFassung(abweichend, 'A', false, LATER);
     expect('fassung' in (zurueck.schritte.A ?? {})).toBe(false);
     expect(zurueck.schritte.A?.finalerText).toBe('Text');
   });

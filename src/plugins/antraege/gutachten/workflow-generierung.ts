@@ -26,7 +26,7 @@ import {
 } from '@/core/services/skills';
 import { kontextZielFuer } from '@/core/services/ai/ki-ziel';
 import { mitZielFallback, zielWirktAuf, type ZielFallbackErgebnis } from '@/core/services/ai/ziel-fallback';
-import { TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
+import { TEMPERATUR_STANDARD } from '@/core/services/ai/sampling';
 import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
@@ -117,9 +117,9 @@ export interface GenerateIntoOptions {
    */
   ziel?: BridgeZiel;
   /**
-   * Erzwingt die Sampling-Temperatur dieses Laufs („Zweitfassung mit mutigerer
+   * Erzwingt die Sampling-Temperatur dieses Laufs („Zweitfassung mit anderer
    * Einstellung"). Der Gegenpart zu `ziel` bei einer direkt angebundenen KI, wo es
-   * keinen zweiten Tab gibt. Fehlt sie → sicherer Standard aus `runSkill`.
+   * keinen zweiten Tab gibt. Fehlt sie → Standard aus `runSkill`.
    */
   temperatur?: number;
 }
@@ -215,7 +215,7 @@ export async function generateInto(
     next: applyLaufFassung(
       applyLaufZiel(result.next, stepId, zielWirktAuf(transport) ? ziel : null, jetzt),
       stepId,
-      o.temperatur !== undefined && o.temperatur > TEMPERATUR_SICHER,
+      o.temperatur !== undefined && o.temperatur !== TEMPERATUR_STANDARD,
       jetzt,
     ),
   };

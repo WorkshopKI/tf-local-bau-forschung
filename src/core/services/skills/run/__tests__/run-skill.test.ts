@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { capVbMarkdown, vbUeberschreitetCap, VB_CHAR_CAP, runSkill, renderSkillPrompt } from '../run-skill';
-import { TEMPERATUR_MUTIG, TEMPERATUR_SICHER } from '@/core/services/ai/sampling';
+import { TEMPERATUR_STANDARD, TEMPERATUR_ZWEITFASSUNG } from '@/core/services/ai/sampling';
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type { SkillRecord } from '@/core/services/skills';
 
@@ -229,21 +229,21 @@ describe('runSkill Temperatur', () => {
     return { transport, opts: () => captured };
   }
 
-  it('sendet ohne Angabe den sicheren Standard', async () => {
+  it('sendet ohne Angabe den Standard', async () => {
     const { transport, opts } = apiTransport();
     await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
-    expect(opts().temperatur).toBe(TEMPERATUR_SICHER);
+    expect(opts().temperatur).toBe(TEMPERATUR_STANDARD);
   });
 
   it('übernimmt eine erzwungene Temperatur (Zweitfassung)', async () => {
     const { transport, opts } = apiTransport();
-    await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x', temperatur: TEMPERATUR_MUTIG });
-    expect(opts().temperatur).toBe(TEMPERATUR_MUTIG);
+    await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x', temperatur: TEMPERATUR_ZWEITFASSUNG });
+    expect(opts().temperatur).toBe(TEMPERATUR_ZWEITFASSUNG);
   });
 
   it('meldet sie auch in der Prompt-Vorschau — sonst wäre sie wieder unsichtbar', () => {
     expect(renderSkillPrompt(skill(), [], { stammdaten: '', vbMarkdown: 'x' }).temperatur)
-      .toBe(TEMPERATUR_SICHER);
+      .toBe(TEMPERATUR_STANDARD);
     expect(renderSkillPrompt(skill(), [], { stammdaten: '', vbMarkdown: 'x', temperatur: 0.9 }).temperatur)
       .toBe(0.9);
   });

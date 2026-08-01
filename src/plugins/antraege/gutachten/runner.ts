@@ -344,22 +344,22 @@ export function applyLaufZiel(
 }
 
 /**
- * Hält fest, ob der Text mit erhöhter Temperatur entstand („Zweitfassung mit
- * mutigerer Einstellung"). Gleiche Bauart wie `applyLaufZiel`, inklusive des
- * Entfernens: `false` löscht den Marker eines früheren Laufs, weil der Schritt
- * fortgeschrieben und nicht ersetzt wird.
+ * Hält fest, ob der Text mit einer anderen als der Standard-Temperatur entstand
+ * („Zweitfassung mit anderer Einstellung"). Gleiche Bauart wie `applyLaufZiel`,
+ * inklusive des Entfernens: `false` löscht den Marker eines früheren Laufs, weil
+ * der Schritt fortgeschrieben und nicht ersetzt wird.
  */
 export function applyLaufFassung(
-  run: WorkflowRun, stepId: StepId, mutig: boolean, now: string,
+  run: WorkflowRun, stepId: StepId, abweichend: boolean, now: string,
 ): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step) return run;
-  if (!mutig) {
+  if (!abweichend) {
     if (step.fassung === undefined) return run; // Normalfall: nichts anfassen
     const { fassung: _verworfen, ...ohneFassung } = step;
     return setStep(run, stepId, ohneFassung, now);
   }
-  return setStep(run, stepId, { ...step, fassung: 'mutig' }, now);
+  return setStep(run, stepId, { ...step, fassung: 'abweichend' }, now);
 }
 
 /**

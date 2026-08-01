@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.373.1 — Temperatur gemessen statt geraten (August 2026)
+
+PATCH — v2.373.0 senkte den Standard auf 0,4, weil ein quellentreuer Text wenig Streuung brauche — belegt war das mit sechs Läufen an einer VB. 125 Läufe über 25 fiktive Vorhabensbeschreibungen zeigen: zwischen 0,2 und 1,0 gibt es keinen messbaren Unterschied in der Regeltreue, der ganze Abstand liegt unter dem Standardfehler.
+
+- `TEMPERATUR_STANDARD = 1.0` schreibt die Server-Voreinstellung fest statt sie zu erben — Reproduzierbarkeit, keine Qualitätsaussage; ein Test hält den Wert ([sampling.ts](src/core/services/ai/sampling.ts)).
+- `TEMPERATUR_SICHER`/`TEMPERATUR_MUTIG` → `TEMPERATUR_STANDARD`/`TEMPERATUR_ZWEITFASSUNG`; die Namen behaupteten eine Wirkung, die es nicht gibt ([zweitfassung.ts](src/plugins/antraege/gutachten/zweitfassung.ts)).
+- Zweitfassung heißt jetzt „mit anderer Einstellung"; der v2.373.0-Marker `'mutig'` wird nur noch gelesen, statt gespeicherte Fassungen durchfallen zu lassen ([sampling.ts](src/core/services/ai/sampling.ts)).
+- Mess-Aufbau + die beiden Fallen (Denkprozess an statt aus, zweiter Prozess am selben Server) dokumentiert ([gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)).
+
 ### v2.373.0 — Sampling-Temperatur steuerbar, Zweitfassung auch ohne Bridge (August 2026)
 
 MINOR — Die App sendete bisher **keinen** Sampling-Parameter: jeder Skill-Lauf fuhr still auf der Server-Voreinstellung (internes llama.cpp `temperature: 1.0`), während die Node-Eval derselben Skills auf 0 maß. Damit fehlte auch die naheliegende Zweitfassung an einer direkt angebundenen KI, wo es keinen zweiten Tab gibt.

@@ -14,6 +14,7 @@
 import type { CheckResult, KatalogRef, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { FassungMarker } from '@/core/services/ai/sampling';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
 /**
@@ -160,14 +161,14 @@ export interface StepRun {
    */
   ziel?: BridgeZiel;
   /**
-   * `'mutig'`, wenn dieser Text mit erhöhter Sampling-Temperatur entstanden ist
-   * („Zweitfassung mit mutigerer Einstellung", [sampling.ts](../../../core/services/ai/sampling.ts)).
+   * Gesetzt, wenn dieser Text NICHT mit `TEMPERATUR_STANDARD` entstanden ist
+   * („Zweitfassung mit anderer Einstellung", [sampling.ts](../../../core/services/ai/sampling.ts)).
    * Das Gegenstück zu `ziel` bei einer direkt angebundenen KI: dort gibt es keinen
    * zweiten Tab, den man benennen könnte, wohl aber eine zweite Einstellung — und
    * ohne diesen Marker sähen die beiden Fassungen im Verlauf gleich aus. Fehlt das
-   * Feld, lief der sichere Standard; alte Records bleiben ladbar.
+   * Feld, lief der Standard; alte Records bleiben ladbar.
    */
-  fassung?: 'mutig';
+  fassung?: FassungMarker;
   /**
    * True, wenn über der aktuellen Fassung der sprachliche Feinschliff
    * (Lektor-Skill) lief — treibt das Badge an der Karte und den Vergleich gegen

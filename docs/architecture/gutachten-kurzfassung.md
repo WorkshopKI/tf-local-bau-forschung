@@ -163,11 +163,28 @@ Der Skill-Editor zeigt die **Vorlage**, nicht den **Lauf**. Dazwischen liegen bi
 - **Nur RAM.** Der gesendete Prompt trägt Dokumentinhalt und lebt in einer `useRef`-Map für die Sitzung — nie IDB, nie Share, nie Snapshot, nie Personal-Mirror. Guard `prompt-nur-im-ram` ([codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts)) verbietet ein `gesendet`-Feld in `runner.ts`/`types.ts`/`workflow-persistenz.ts`.
 - **Maße vor Wortlaut** ([promptAnsicht.ts](../../src/plugins/antraege/gutachten/promptAnsicht.ts)): Zeichen gesamt · davon VB · davon Anweisungen · geschätzte Tokens (`schaetzeTokens` — dieselbe Quote wie die Cap-Rechnung, keine zweite) · Cap des Ziels. Darunter `beschreibeBloecke` — welche der neun Blöcke im Prompt stehen, **auch die abwesenden**. Die VB-Passage ist per `trennePromptAmVb` abgetrennt und eingeklappt; ein `<pre>` mit sechsstelliger Zeichenzahl macht den Dialog sonst unbenutzbar.
 
-## Sampling-Temperatur (v2.373)
+## Sampling-Temperatur (v2.373, gemessen v2.373.1)
 
-Bis v2.372 sendete die App **keinen** Sampling-Parameter — der Body bestand aus `model`, `messages`, `max_tokens`. Damit lief jeder Skill-Lauf auf der Server-Voreinstellung (internes llama.cpp: `temperature: 1.0`, zufälliger Seed), während die Node-Eval, mit der dieselben Skills vermessen wurden, auf `temperature: 0` fuhr. Zwei Werte, fest im Code ([sampling.ts](../../src/core/services/ai/sampling.ts)), bewusst **ohne** Einstellung in der Oberfläche; `runSkill` setzt `TEMPERATUR_SICHER`, wenn der Aufrufer nichts vorgibt, und die Prompt-Ansicht zeigt den Wert in der Fußzeile.
+Bis v2.372 sendete die App **keinen** Sampling-Parameter — der Body bestand aus `model`, `messages`, `max_tokens`. Damit lief jeder Skill-Lauf auf der Server-Voreinstellung (internes llama.cpp: `temperature: 1.0`), während die Node-Eval, mit der dieselben Skills vermessen wurden, auf `temperature: 0` fuhr. Welcher Wert wirkte, hing an den Startflags des Servers und stand nirgends im Projekt. Zwei Werte, fest im Code ([sampling.ts](../../src/core/services/ai/sampling.ts)), bewusst **ohne** Einstellung in der Oberfläche; `runSkill` setzt `TEMPERATUR_STANDARD`, wenn der Aufrufer nichts vorgibt, und die Prompt-Ansicht zeigt den Wert in der Fußzeile.
 
-> **Gemessen, nicht bestätigt** (01.08.2026, local-Variante, fiktive VB „Predictive Quality", Abschnitt A, Qwen 3.6 35B-A3B): drei Läufe auf der Server-Voreinstellung ~1.0 hielten das Zeichenlimit (919 / 780 / ✓), drei Läufe bei 0,4 bzw. 0,9 rissen es um 42–73 Zeichen (1073 / 1042 / 1052). Die erwartete bessere Regeltreue durch weniger Streuung hat sich damit **nicht** gezeigt — n=3 je Gruppe, eine VB, ein Abschnitt. Der Wert ist eine Konstante an einer Stelle; wer ihn ändert, ändert ihn hier.
+**Der Wert steuert die Regeltreue nicht.** v2.373 senkte den Standard auf 0,4 in der Annahme, ein streng quellenbasierter Text brauche wenig Streuung. Die Messung widerlegt das:
+
+| Temperatur | sauber¹ | alle 6 Regeln | Zeichen Median (max) | über 1000 |
+|---|---|---|---|---|
+| 0,2 | 92 % | 84 % | 806 (1045) | 8 % |
+| 0,4 | 88 % | 80 % | 835 (1203) | 12 % |
+| 0,6 | 88 % | 84 % | 847 (1126) | 12 % |
+| 0,8 | 92 % | 88 % | 841 (1262) | 8 % |
+| 1,0 | 96 % | 84 % | 865 (1189) | 4 % |
+
+> ¹ ohne Verstoß gegen eine der drei **Fehler**-Regeln (Zeichengrenze 1000, keine Aufzählungen, keine Semikolon/Gedankenstriche). 125 Läufe: 25 fiktive Vorhabensbeschreibungen × fünf Temperaturen, Abschnitt A, Skill „Kurzfassung (Gutachten) v4", Qwen 3.6 35B-A3B Q4_K_M, Rohentwurf ohne Feinschliff. Der gesamte Abstand zwischen bester und schlechtester Spalte ist kleiner als der Standardfehler von rund sechs Punkten bei 25 Läufen — es gibt **keinen** messbaren Effekt.
+
+Daraus `TEMPERATUR_STANDARD = 1.0`: der Wert, der vor v2.372 ohnehin wirkte, jetzt ausdrücklich gesetzt statt vom Server geerbt. Das ist eine Reproduzierbarkeits-Entscheidung, keine Qualitätsaussage — wer die Ausgabe besser treffen will, ändert Prompt und Regeln, nicht diese Zahl. Ein Test hält den Wert auf 1,0 fest, damit die nächste Änderung erst wieder misst.
+
+**Zwei Fallen dieser Messung**, beide zuerst falsch gemacht:
+
+- **Die Messung muss die Body-Form der App haben.** Der erste Anlauf lief über `runOneSection`/`NodeOpenAITransport` — die fahren fest `thinkingBudget: 'medium'` und senden den Denkprozess-Schalter gar nicht weiter, der Server denkt dann per `--reasoning auto` mit. Die App schickt `chat_template_kwargs.enable_thinking = false`. Unterschied auf demselben Modell: 209 s gegen 31 s pro Lauf, also ein anderes Regime, nicht nur ein langsameres.
+- **Ein zweiter Messprozess auf demselben Server verfälscht alles.** Zwei parallele Läufe teilen sich einen llama.cpp-Slot; die Dauer versechsfacht sich und der Prompt-Cache (`cache_prompt`) trägt nicht mehr. Vor dem Messen prüfen, dass nur ein Prozess spricht.
 
 ## Kontext-Warnung VOR dem Lauf (v2.372)
 
@@ -184,7 +201,7 @@ Denselben Abschnitt ein zweites Mal erzeugen, mit der jeweils **anderen** intern
 
 - **Erzwungenes Ziel schaltet den Fallback aus** (`ZielFallbackOptions.zielOverride`, [ziel-fallback.ts](../../src/core/services/ai/ziel-fallback.ts)): wer ausdrücklich die andere KI verlangt, darf bei deren Ausfall nicht still die Fassung der ersten zurückbekommen — verglichen würde sonst eine Fassung mit sich selbst.
 - **Der angehängte Feinschliff folgt demselben Ziel** (`laufLektorat(..., zielOverride)`), sonst trüge die Zweitfassung den Schliff der ersten KI.
-- **Was variiert wird, hängt am Transport** ([zweitfassung.ts](../../src/plugins/antraege/gutachten/zweitfassung.ts), seit v2.373): über die Bridge der Tab (andere KI), an einer direkt angebundenen KI die **Sampling-Temperatur** (`TEMPERATUR_MUTIG`). Bis v2.372 entfiel der Eintrag ohne Bridge ersatzlos — ausgerechnet am lokalen Modell, wo ein zweiter Lauf am billigsten ist. Die Beschriftung nennt die Art („Zweitfassung mit mutigerer Einstellung"), und `StepRun.fassung` hält sie am Lauf fest; ohne den Marker sind die beiden Fassungen im Verlauf nicht auseinanderzuhalten.
+- **Was variiert wird, hängt am Transport** ([zweitfassung.ts](../../src/plugins/antraege/gutachten/zweitfassung.ts), seit v2.373): über die Bridge der Tab (andere KI), an einer direkt angebundenen KI die **Sampling-Temperatur** (`TEMPERATUR_ZWEITFASSUNG`). Bis v2.372 entfiel der Eintrag ohne Bridge ersatzlos — ausgerechnet am lokalen Modell, wo ein zweiter Lauf am billigsten ist. Die Beschriftung nennt die Art („Zweitfassung mit anderer Einstellung"), und `StepRun.fassung` hält sie am Lauf fest; ohne den Marker sind die beiden Fassungen im Verlauf nicht auseinanderzuhalten. Der Marker `'mutig'` aus v2.373 wird nur noch gelesen (`FassungMarker`) — beide Werte heißen für den Leser dasselbe.
 - **Herkunft am Verlauf**: additives `KurzfassungVersion.ziel` (aus `StepRun.ziel`, von `snapshotOf` mitgeführt) → KI im Tab-Label und in beiden Meta-Zeilen. Ohne das trügen zwei Fassungen desselben Zyklus dieselbe Beschriftung.
 - **Der Stempel wird ENTFERNT, wo das Ziel nicht wirkt** (`applyLaufZiel(..., null)`, [runner.ts](../../src/plugins/antraege/gutachten/runner.ts)): der Schritt wird fortgeschrieben, nicht ersetzt — ein Rest aus einem früheren Bridge-Lauf schriebe sonst „· Standard-KI" unter einen Text, der am lokalen llama.cpp entstanden ist (so am 01.08.2026 in der local-Variante beobachtet).
 - **Ehrlich über den Vergleich**: unterscheiden sich die beiden Fassungen in `vbGekuerzt`, steht das im Verlauf — die Fenster der internen KIs unterscheiden sich um etwa das Vierfache, man vergleicht dann „gekürzt gegen vollständig" und nicht zwei Modelle.
