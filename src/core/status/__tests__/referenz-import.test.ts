@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
 import { importiereTriggerTabelle } from '@/core/status/import/trigger-import';
 import { importiereStatusKatalog } from '@/core/status/import/status-katalog-import';
+import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
 
 /** Baut eine XLSX-Mappe aus benannten Blättern (jedes als Zeilen-Matrix). */
 function mappe(blaetter: Record<string, string[][]>): File {
@@ -184,7 +185,83 @@ describe('leseXlsxTabelle — Blattwahl', () => {
   });
 });
 
-describe('importiereStatusKatalog — drei Zeilenarten in „Erklärung Parameter"', () => {
+/**
+ * Das echte Blatt: Spalte A Wert, B Erklärung, C Kategorie („Status" /
+ * „Bearbeiter" / leer), Zeile 1 nur Beschriftung. Es hat KEINE Kopfzeile im
+ * Sinne der Alias-Suche — bis v2.380 brach der Import genau daran ab.
+ */
+const LEGENDE = [
+  ['Inhalt Parameter', 'Erklärung', ''],
+  ['210', 'Zuordnung zum Verbund', ''],
+  ['211', 'Zuordnung zum Teilvorhaben', ''],
+  ['BIB', 'Bearbeiter Inland', 'Bearbeiter'],
+  ['TIB', 'technischer Bearbeiter', 'Bearbeiter'],
+  ['XYZ', 'unbekanntes Kürzel der Zuarbeit', 'Bearbeiter'],
+  ['31', 'beantragt', 'Status'],
+  ['59', 'bewilligt', 'Status'],
+  ['99', 'Schlussvermerk', 'Status'],
+  ['!.055.VorgInfo.01', 'Information über einen neuen Vorgang', ''],
+];
+
+describe('importiereStatusKatalog — Legenden-Format „Erklärung Parameter"', () => {
+  it('liest das Blatt ohne Kopfzeile und verwirft die Beschriftungszeile', async () => {
+    const e = await importiereStatusKatalog(mappe({ 'Erklärung Parameter': LEGENDE }), []);
+    expect(e.fehler).toBeUndefined();
+    expect(e.format).toBe('legende');
+    expect(e.blatt).toBe('Erklärung Parameter');
+    expect(e.eintraege.map(x => x.code)).toEqual([31, 59, 99]);
+    expect(e.textbausteine).toEqual([
+      { kennung: '!.055.VorgInfo.01', text: 'Information über einen neuen Vorgang' },
+    ]);
+    // BIB/TIB kennt `MAIL_ROLLE`, XYZ nicht — nur das Unbekannte wird gemeldet.
+    expect(e.unbekannteBearbeiter).toEqual(['XYZ']);
+  });
+
+  it('macht aus 210/211 KEINE Statuscodes — dort entscheidet die Kategorie-Spalte', async () => {
+    const e = await importiereStatusKatalog(mappe({ 'Erklärung Parameter': LEGENDE }), []);
+    expect(e.eintraege.map(x => x.code)).not.toContain(210);
+    expect(e.eintraege.map(x => x.code)).not.toContain(211);
+    expect(e.bilanz.zuordnung).toBe(2);
+  });
+
+  it('hält die Bezugsdatei-Nummern gegen unsere erschlossene Lesart', async () => {
+    const e = await importiereStatusKatalog(mappe({ 'Erklärung Parameter': LEGENDE }), []);
+    expect(e.ebenenHinweise).toEqual([
+      { wert: '210', text: 'Zuordnung zum Verbund', unsereLesart: 'VB' },
+      { wert: '211', text: 'Zuordnung zum Teilvorhaben', unsereLesart: 'TV' },
+    ]);
+  });
+
+  it('zählt jede gelesene Zeile in genau einen Topf — die Beschriftung in keinen', async () => {
+    const e = await importiereStatusKatalog(mappe({ 'Erklärung Parameter': LEGENDE }), []);
+    expect(e.bilanz).toEqual({
+      status: 3, bearbeiter: 3, textbaustein: 1, zuordnung: 2, unklar: 0,
+    });
+    const summe = Object.values(e.bilanz).reduce((a, b) => a + b, 0);
+    expect(summe).toBe(LEGENDE.length - 1);
+  });
+
+  it('erkennt das Format auch, wenn das Blatt anders heißt', async () => {
+    const e = await importiereStatusKatalog(mappe({ Tabelle1: LEGENDE }), []);
+    expect(e.format).toBe('legende');
+    expect(e.blatt).toBe('Tabelle1');
+    expect(e.eintraege).toHaveLength(3);
+  });
+
+  it('ergibt gegen den Seed einen leeren Diff — die Zusage der Nacharbeit', async () => {
+    const alsLegende = [
+      ['Inhalt Parameter', 'Erklärung', ''],
+      ...STATUS_CODE_KATALOG.map(e => [String(e.code), e.text, 'Status']),
+    ];
+    const e = await importiereStatusKatalog(
+      mappe({ 'Erklärung Parameter': alsLegende }), STATUS_CODE_KATALOG,
+    );
+    expect(e.eintraege).toHaveLength(STATUS_CODE_KATALOG.length);
+    expect(e.diff?.leer).toBe(true);
+  });
+});
+
+describe('importiereStatusKatalog — Kopfzeilen-Variante bleibt gültig', () => {
   const PARAMETER = [
     ['Parameter', 'Bedeutung'],
     ['31', 'beantragt'],
@@ -197,6 +274,7 @@ describe('importiereStatusKatalog — drei Zeilenarten in „Erklärung Paramete
   it('trennt Statuscodes, Bearbeiter und Textbausteine ohne Kategorie-Spalte', async () => {
     const e = await importiereStatusKatalog(mappe({ 'Erklärung Parameter': PARAMETER }), []);
     expect(e.fehler).toBeUndefined();
+    expect(e.format).toBe('kopf');
     expect(e.eintraege.map(x => x.code)).toEqual([31, 59]);
     expect(e.textbausteine).toEqual([
       { kennung: '!.055.VorgInfo.01', text: 'Information über einen neuen Vorgang' },
@@ -217,6 +295,7 @@ describe('importiereStatusKatalog — drei Zeilenarten in „Erklärung Paramete
       }),
       [],
     );
+    expect(e.format).toBe('kopf');
     expect(e.eintraege.map(x => x.code)).toEqual([31]);
     expect(e.textbausteine).toHaveLength(1);
     expect(e.unbekannteBearbeiter).toEqual([]);

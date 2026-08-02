@@ -21,7 +21,8 @@ import { pickXlsxFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import {
   importiereStatusKatalog, importiereTriggerTabelle, diffZusammenfassung,
   aktuellerStatusCodeKatalog, STATUS_CODE_KATALOG, zeilenOhneProgramm, programmeInTrigger,
-  type Diff, type ProgrammStatistik, type StatusCodeEintrag, type TriggerZeile,
+  type Diff, type EbenenHinweis, type ProgrammStatistik, type StatusCodeEintrag,
+  type TriggerZeile, type ZeilenBilanz,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { feldStil } from './labels';
@@ -32,6 +33,10 @@ interface Vorschau {
   titel: string;
   zusammenfassung: string;
   zeilen: string[];
+  /** Auskunft, keine Beanstandung: Blattformat, Bilanz, abgeglichene Nummern.
+   *  Bewusst NICHT unter `warnungen` — was übersprungen wurde, ist kein Fehler,
+   *  und in Warnfarbe gesetzt läse es sich wie einer. */
+  hinweise?: string[];
   warnungen: string[];
   /** Zeilen/Kürzel je Programm — steht ÜBER dem Diff, weil ein fehlendes
    *  Programm die wichtigere Nachricht ist als eine geänderte Zeile. */
@@ -49,6 +54,30 @@ const HERKUNFT_LABEL: Record<string, string> = {
 };
 
 const MAX_DIFF_ZEILEN = 40;
+
+const FORMAT_LABEL: Record<string, string> = {
+  legende: 'Legende ohne Kopfzeile (Wert · Erklärung · Kategorie)',
+  kopf: 'Kopfzeilen-Tabelle (Code/Text)',
+};
+
+/** „30 Statuscodes übernommen · übersprungen: 12 Textbausteine, 5 Bearbeiter". */
+function bilanzSatz(uebernommen: number, b: ZeilenBilanz): string {
+  const rest: string[] = [];
+  if (b.textbaustein > 0) rest.push(`${b.textbaustein} Textbausteine`);
+  if (b.bearbeiter > 0) rest.push(`${b.bearbeiter} Bearbeiter`);
+  if (b.zuordnung > 0) rest.push(`${b.zuordnung} Zuordnungen`);
+  if (b.unklar > 0) rest.push(`${b.unklar} ohne erkennbare Art`);
+  return `${uebernommen} Statuscodes übernommen`
+    + (rest.length > 0 ? ` · übersprungen: ${rest.join(', ')}` : '');
+}
+
+/** Was die Zuarbeit über 210/211 sagt, neben dem, was die App bisher annimmt. */
+function ebenenSatz(h: EbenenHinweis): string {
+  const lesart = h.unsereLesart
+    ? `unsere Lesart: ${h.unsereLesart}`
+    : 'die App kennt diese Nummer nicht';
+  return `Bezugsdatei ${h.wert} laut Zuarbeit: „${h.text || '(ohne Erklärung)'}" (${lesart})`;
+}
 
 function diffZeilen<T>(d: Diff<T>, beschreibe: (e: T) => string): string[] {
   const out: string[] = [];
@@ -83,6 +112,14 @@ function VorschauKarte({ v, onVerwerfen, darfSchreiben }: {
             </span>
           ))}
         </div>
+      )}
+
+      {v.hinweise && v.hinweise.length > 0 && (
+        <ul className="flex flex-col gap-0.5">
+          {v.hinweise.map((h, i) => (
+            <li key={i} className="text-[11.5px] text-[var(--tf-text-secondary)]">{h}</li>
+          ))}
+        </ul>
       )}
 
       {v.warnungen.length > 0 && (
@@ -161,9 +198,13 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
     setVorschau({
       art: 'status',
       titel: `Parametertabelle · ${datei.name}`,
-      zusammenfassung: `${diffZusammenfassung(e.diff)}`
-        + (e.textbausteine.length > 0 ? ` · ${e.textbausteine.length} Textbausteine` : ''),
+      zusammenfassung: diffZusammenfassung(e.diff),
       zeilen: diffZeilen<StatusCodeEintrag>(e.diff, x => x.text),
+      hinweise: [
+        `Blatt „${e.blatt}" · ${FORMAT_LABEL[e.format] ?? e.format}`,
+        bilanzSatz(e.eintraege.length, e.bilanz),
+        ...e.ebenenHinweise.map(ebenenSatz),
+      ],
       warnungen,
       aktion: 'In den Entwurf übernehmen',
       uebernehmen: () => {
@@ -266,8 +307,10 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
             Der Export liefert den Status nur als Text. Diese beiden Zuarbeiten aus dem Fachsystem
             geben ihm einen Code und sagen, was ein gesetztes Kürzel auslöst. Gelesen werden die
             Blätter „Erklärung Parameter" und „Trigger-Prozeduren" — passt der Name nicht, wird die
-            ganze Mappe nach passenden Überschriften durchsucht. Die Trigger gelten <b>je
-            Richtlinie</b>; welche Menge an einem Antrag gilt, entscheidet dessen FM-Nummer.
+            ganze Mappe durchsucht. „Erklärung Parameter" ist eine <b>Legende ohne Kopfzeile</b>
+            (Wert · Erklärung · Kategorie): Codes werden nur aus den Zeilen der Kategorie „Status",
+            alles andere zählt die Vorschau auf. Die Trigger gelten <b>je Richtlinie</b>; welche
+            Menge an einem Antrag gilt, entscheidet dessen FM-Nummer.
             Vor jeder Übernahme steht die Vorschau.
           </p>
 

@@ -1,23 +1,28 @@
 /**
- * Import der Legacy-Parametertabelle (Blatt „Erklärung Parameter").
+ * Import der Legacy-Parametertabelle: aus dem Blatt „Erklärung Parameter" wird
+ * der **Code ↔ Text**-Katalog.
  *
- * Das Blatt führt **drei Arten von Zeilen** in einer Liste:
+ * Das Blatt selbst liest `parameter-blatt.ts` (zwei Formate, ein Parser); hier
+ * steht nur noch, was mit den vier Zeilenarten geschieht:
  *
- * | Art | Erkennungsmerkmal | wofür |
- * |---|---|---|
- * | Statuscode | ganze Zahl 11…99 | Code ↔ Text (`StatusCodeEintrag`) |
- * | Bearbeiter | kurzes Buchstaben-Token (`BIB`, `TIB`) | Abgleich gegen `MAIL_ROLLE` |
- * | Textbaustein | Kennung mit `!.`-Präfix | Legende der Mail-Trigger |
+ * | Art | wofür |
+ * |---|---|
+ * | `status` | Code ↔ Text — das Einzige, was in den Katalog wandert |
+ * | `bearbeiter` | Abgleich gegen `MAIL_ROLLE` |
+ * | `textbaustein` | Legende der Mail-Trigger |
+ * | `zuordnung` | Bezugsdatei-Nummern gegen `ebeneVonNummer` |
  *
- * Führt die Datei eine Kategorie-Spalte, entscheidet die; sonst der Inhalt. Was
- * sich keiner Art zuordnen lässt, wird **gemeldet, nicht verworfen** — eine
- * stille Lücke im Katalog wäre später nicht mehr aufzuklären.
+ * **Übersprungen heißt nicht verschwiegen.** Was nicht Statuscode wird, steht
+ * als Zahl in der `ZeilenBilanz` und damit in der Vorschau. Eine stille Lücke im
+ * Katalog wäre später nicht mehr aufzuklären — und eine Zeile, die klanglos
+ * verschwindet, sieht genauso aus wie eine, die es gar nicht gab.
  *
- * **Die Bearbeiter-Zeilen werden geprüft, nicht gespeichert.** Die Zuordnung
- * Kürzel → Rolle steht genau einmal im Code (`MAIL_ROLLE` in `rollen.ts`); ein
- * zweites, importiertes Rollen-Modell danebenzustellen wäre die Sorte
- * Doppel-Wahrheit, gegen die Pitfall #43 geschrieben ist. Kennt die Zuarbeit ein
- * Token, das der Code nicht führt, ist das eine Warnung im Diff.
+ * **Bearbeiter und Zuordnung werden GEPRÜFT, nicht gespeichert.** Beide
+ * Zuordnungen stehen genau einmal im Code (`MAIL_ROLLE` in `rollen.ts`,
+ * `ebeneVonNummer` in `trigger-parser.ts`); ein zweites, importiertes Modell
+ * danebenzustellen wäre die Sorte Doppel-Wahrheit, gegen die Pitfall #43
+ * geschrieben ist. Was die Zuarbeit anders sieht als der Code, ist ein Hinweis
+ * in der Vorschau.
  *
  * **Varianten bleiben erhalten.** Die Zuarbeit führt je Code eine Schreibweise;
  * die im Export beobachteten Abweichungen („Stellungnahme zur Rücknahmeempf.")
@@ -28,46 +33,30 @@ import type { StatusCodeEintrag } from '../status-codes';
 import type { TextbausteinEintrag } from '../typen';
 import { normKey } from '../normalisierung';
 import { MAIL_ROLLE } from '../rollen';
+import { ebeneVonNummer } from '../trigger-parser';
 import { berechneDiff, type Diff } from './diff';
-import { istLeseFehler, leseXlsxTabelle, spalte, zelle } from './xlsx-tabelle';
-
-/** Blatt der Zuarbeit; fehlt es, wird über alle Blätter nach dem Kopf gesucht. */
-export const PARAMETER_BLATT = 'Erklärung Parameter';
-
-const ALIAS_CODE = ['Code', 'Status', 'Statuscode', 'Status-Code', 'Nr', 'Nummer', 'Schlüssel', 'Parameter'];
-const ALIAS_TEXT = ['Text', 'Bezeichnung', 'Statustext', 'Status-Text', 'Beschreibung', 'Label', 'Bedeutung'];
-const ALIAS_VARIANTEN = ['Varianten', 'Variante', 'Alias', 'Aliase', 'Schreibweisen'];
-const ALIAS_KATEGORIE = ['Kategorie', 'Art', 'Typ', 'Gruppe', 'Bereich'];
-
-/** Welche Zeilenart die Kategorie-Spalte benennt; `null` = unbekannter Wert. */
-type Zeilenart = 'status' | 'bearbeiter' | 'textbaustein';
-
-const KATEGORIE_ART: Readonly<Record<string, Zeilenart>> = {
-  status: 'status',
-  statuscode: 'status',
-  status_tv: 'status',
-  bearbeiter: 'bearbeiter',
-  rolle: 'bearbeiter',
-  textbaustein: 'textbaustein',
-  baustein: 'textbaustein',
-  mail: 'textbaustein',
-};
-
-/** Kurzes Buchstaben-Token wie `BIB` — kein Code, keine Bausteinkennung. */
-const BEARBEITER_RE = /^[A-Za-zÄÖÜäöüß]{2,5}$/;
+import { istLeseFehler } from './xlsx-tabelle';
+import { leseParameterBlatt, type BlattFormat } from './parameter-blatt';
 
 /**
- * Zeilenart bestimmen: Kategorie-Spalte schlägt Inhalt. Ohne beides `null` —
- * dann landet die Zeile in den Warnungen statt in irgendeinem Topf.
+ * Wie sich das Blatt aufteilte. Die Summe ist die Zahl der gelesenen Zeilen —
+ * `status` zählt die als Statuscode ERKANNTEN, nicht die übernommenen; wo beide
+ * auseinanderfallen (kein lesbarer Code, keine Bezeichnung, Dublette), sagt es
+ * eine Warnung.
  */
-export function bestimmeZeilenart(kategorie: string, schluessel: string): Zeilenart | null {
-  const ausSpalte = KATEGORIE_ART[normKey(kategorie)];
-  if (ausSpalte) return ausSpalte;
-  const s = schluessel.trim();
-  if (s.startsWith('!.')) return 'textbaustein';
-  if (Number.isInteger(Number(s)) && s !== '') return 'status';
-  if (BEARBEITER_RE.test(s)) return 'bearbeiter';
-  return null;
+export interface ZeilenBilanz {
+  status: number;
+  bearbeiter: number;
+  textbaustein: number;
+  zuordnung: number;
+  unklar: number;
+}
+
+/** Eine Bezugsdatei-Zeile der Zuarbeit neben unserer erschlossenen Lesart. */
+export interface EbenenHinweis {
+  wert: string;
+  text: string;
+  unsereLesart: 'VB' | 'TV' | null;
 }
 
 export interface StatusKatalogImportErgebnis {
@@ -78,14 +67,27 @@ export interface StatusKatalogImportErgebnis {
   textbausteine: TextbausteinEintrag[];
   /** Bearbeiter-Token der Zuarbeit, die `MAIL_ROLLE` nicht kennt. */
   unbekannteBearbeiter: string[];
+  /** Bezugsdatei-Nummern (210/211) mit dem Erklärungstext der Datei. */
+  ebenenHinweise: EbenenHinweis[];
+  /** Aus welchem Blatt, in welchem Format gelesen wurde. */
+  blatt: string;
+  format: BlattFormat;
+  bilanz: ZeilenBilanz;
   /** Abbruch-Grund. Gesetzt ⇒ nichts wurde gelesen. */
   fehler?: string;
   /** Nicht-blockierende Auffälligkeiten (übersprungene Zeilen, Dubletten). */
   warnungen: string[];
 }
 
+function leereBilanz(): ZeilenBilanz {
+  return { status: 0, bearbeiter: 0, textbaustein: 0, zuordnung: 0, unklar: 0 };
+}
+
 function fehlerErgebnis(fehler: string): StatusKatalogImportErgebnis {
-  return { eintraege: [], diff: null, textbausteine: [], unbekannteBearbeiter: [], fehler, warnungen: [] };
+  return {
+    eintraege: [], diff: null, textbausteine: [], unbekannteBearbeiter: [], ebenenHinweise: [],
+    blatt: '', format: 'kopf', bilanz: leereBilanz(), fehler, warnungen: [],
+  };
 }
 
 /**
@@ -97,78 +99,86 @@ function fehlerErgebnis(fehler: string): StatusKatalogImportErgebnis {
 export async function importiereStatusKatalog(
   datei: File, bestand: readonly StatusCodeEintrag[],
 ): Promise<StatusKatalogImportErgebnis> {
-  const tabelle = await leseXlsxTabelle(datei, [ALIAS_CODE, ALIAS_TEXT], { blattName: PARAMETER_BLATT });
-  if (istLeseFehler(tabelle)) return fehlerErgebnis(tabelle.fehler);
-
-  const iCode = spalte(tabelle.kopf, ALIAS_CODE);
-  const iText = spalte(tabelle.kopf, ALIAS_TEXT);
-  const iVarianten = spalte(tabelle.kopf, ALIAS_VARIANTEN);
-  const iKategorie = spalte(tabelle.kopf, ALIAS_KATEGORIE);
+  const blatt = await leseParameterBlatt(datei);
+  if (istLeseFehler(blatt)) return fehlerErgebnis(blatt.fehler);
 
   const warnungen: string[] = [];
   const eintraege: StatusCodeEintrag[] = [];
   const textbausteine: TextbausteinEintrag[] = [];
   const unbekannteBearbeiter: string[] = [];
+  const ebenenHinweise: EbenenHinweis[] = [];
+  const bilanz = leereBilanz();
   const gesehen = new Map<number, StatusCodeEintrag>();
   const bausteinGesehen = new Set<string>();
+  const ebeneGesehen = new Set<string>();
   const bestandNachCode = new Map(bestand.map(e => [e.code, e]));
-  let ohneArt = 0;
 
-  tabelle.zeilen.forEach((zeile, i) => {
-    const zeilenNr = tabelle.kopfZeileNr + 1 + i;
-    const codeRoh = zelle(zeile, iCode);
-    const text = zelle(zeile, iText);
-    if (!codeRoh) {
-      warnungen.push(`Zeile ${zeilenNr}: ohne Schlüssel — übersprungen.`);
-      return;
+  for (const zeile of blatt.zeilen) {
+    const { nr, wert, text } = zeile;
+    if (!wert) {
+      bilanz.unklar += 1;
+      warnungen.push(`Zeile ${nr}: ohne Schlüssel — übersprungen.`);
+      continue;
+    }
+    if (zeile.art === null) {
+      bilanz.unklar += 1;
+      continue;
     }
 
-    const art = bestimmeZeilenart(zelle(zeile, iKategorie), codeRoh);
-    if (art === null) {
-      ohneArt += 1;
-      return;
-    }
-
-    if (art === 'bearbeiter') {
+    if (zeile.art === 'bearbeiter') {
+      bilanz.bearbeiter += 1;
       // Nur Abgleich: die Rollen stehen im Code, nicht in dieser Datei.
-      if (!MAIL_ROLLE[normKey(codeRoh)] && !unbekannteBearbeiter.includes(codeRoh)) {
-        unbekannteBearbeiter.push(codeRoh);
+      if (!MAIL_ROLLE[normKey(wert)] && !unbekannteBearbeiter.includes(wert)) {
+        unbekannteBearbeiter.push(wert);
       }
-      return;
+      continue;
     }
 
-    if (art === 'textbaustein') {
+    if (zeile.art === 'zuordnung') {
+      bilanz.zuordnung += 1;
+      // Ebenfalls nur Abgleich — aber sichtbar: diese Zeilen sind der Beleg für
+      // eine Zuordnung, die der Trigger-Parser bisher erschlossen hat.
+      if (!ebeneGesehen.has(normKey(wert))) {
+        ebeneGesehen.add(normKey(wert));
+        ebenenHinweise.push({ wert, text, unsereLesart: ebeneVonNummer(wert) });
+      }
+      continue;
+    }
+
+    if (zeile.art === 'textbaustein') {
+      bilanz.textbaustein += 1;
       if (!text) {
-        warnungen.push(`Zeile ${zeilenNr}: Textbaustein ${codeRoh} ohne Klartext — übersprungen.`);
-        return;
+        warnungen.push(`Zeile ${nr}: Textbaustein ${wert} ohne Klartext — übersprungen.`);
+        continue;
       }
-      if (bausteinGesehen.has(normKey(codeRoh))) {
-        warnungen.push(`Zeile ${zeilenNr}: Textbaustein ${codeRoh} steht mehrfach — erster Eintrag gilt.`);
-        return;
+      if (bausteinGesehen.has(normKey(wert))) {
+        warnungen.push(`Zeile ${nr}: Textbaustein ${wert} steht mehrfach — erster Eintrag gilt.`);
+        continue;
       }
-      bausteinGesehen.add(normKey(codeRoh));
-      textbausteine.push({ kennung: codeRoh, text });
-      return;
+      bausteinGesehen.add(normKey(wert));
+      textbausteine.push({ kennung: wert, text });
+      continue;
     }
 
-    const code = Number(codeRoh);
+    bilanz.status += 1;
+    const code = Number(wert);
     if (!Number.isInteger(code)) {
-      warnungen.push(`Zeile ${zeilenNr}: kein lesbarer Code („${codeRoh}") — übersprungen.`);
-      return;
+      warnungen.push(`Zeile ${nr}: kein lesbarer Code („${wert}") — übersprungen.`);
+      continue;
     }
     if (!text) {
-      warnungen.push(`Zeile ${zeilenNr}: Code ${code} ohne Bezeichnung — übersprungen.`);
-      return;
+      warnungen.push(`Zeile ${nr}: Code ${code} ohne Bezeichnung — übersprungen.`);
+      continue;
     }
     const schonDa = gesehen.get(code);
     if (schonDa) {
-      warnungen.push(`Zeile ${zeilenNr}: Code ${code} steht mehrfach in der Datei — erster Eintrag „${schonDa.text}" gilt.`);
-      return;
+      warnungen.push(`Zeile ${nr}: Code ${code} steht mehrfach in der Datei — erster Eintrag „${schonDa.text}" gilt.`);
+      continue;
     }
 
     // Varianten: aus der Datei (falls die Spalte existiert) UND die bereits
     // gepflegten des Bestands — additiv, damit Kuration einen Re-Import überlebt.
-    const ausDatei = zelle(zeile, iVarianten)
+    const ausDatei = zeile.varianten
       .split(/[;|]/)
       .map(s => s.trim())
       .filter(s => s.length > 0);
@@ -185,18 +195,18 @@ export async function importiereStatusKatalog(
     const eintrag: StatusCodeEintrag = { code, text, varianten };
     gesehen.set(code, eintrag);
     eintraege.push(eintrag);
-  });
+  }
 
-  if (ohneArt > 0) {
+  if (bilanz.unklar > 0) {
     warnungen.push(
-      `${ohneArt} Zeilen ließen sich keiner Art zuordnen (weder Statuscode noch Bearbeiter `
-      + 'noch Textbaustein) und wurden übergangen.',
+      `${bilanz.unklar} Zeilen ließen sich keiner Art zuordnen (weder Statuscode noch Bearbeiter `
+      + 'noch Textbaustein noch Zuordnung) und wurden übergangen.',
     );
   }
 
   if (eintraege.length === 0) {
     return fehlerErgebnis(
-      `Blatt „${tabelle.blatt}": keine gültige Statuscode-Zeile gefunden `
+      `Blatt „${blatt.blatt}": keine gültige Statuscode-Zeile gefunden `
       + '(kein lesbarer Code mit Bezeichnung).',
     );
   }
@@ -206,5 +216,8 @@ export async function importiereStatusKatalog(
     e => String(e.code),
     e => ({ text: e.text, varianten: [...e.varianten].sort() }),
   );
-  return { eintraege, diff, textbausteine, unbekannteBearbeiter, warnungen };
+  return {
+    eintraege, diff, textbausteine, unbekannteBearbeiter, ebenenHinweise,
+    blatt: blatt.blatt, format: blatt.format, bilanz, warnungen,
+  };
 }

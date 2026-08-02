@@ -112,15 +112,8 @@ Splitten bleiben als unbekannte Kürzel voraussichtlich nur **ID, TTV1, TTV2,
 TVB1** übrig (Verifikationsfrage V6).
 
 **Blätter werden namentlich gewählt** — „Trigger-Prozeduren" und „Erklärung
-Parameter"; passt der Name nicht, wird die ganze Mappe nach passenden
-Überschriften durchsucht, und erst dann gibt der Import auf (mit Blatt- und
-Spaltenliste in der Meldung). „Erklärung Parameter" führt drei Zeilenarten:
-Statuscodes, Bearbeiter-Kürzel und `!.055.…`-Textbausteine. Die Bearbeiter-Zeilen
-werden gegen `MAIL_ROLLE` (`rollen.ts`) **geprüft**, nicht gespeichert — die
-Zuordnung Kürzel → Rolle steht genau einmal im Code (Pitfall #43). Die
-Textbaustein-Legende landet als `MappingVersion.textbausteine` in der Fassung und
-wird zur **Anzeigezeit** aufgelöst, damit eine später importierte Legende nicht
-die ganze Trigger-Tabelle neu parsen lassen muss.
+Parameter"; passt der Name nicht, wird die ganze Mappe durchsucht, und erst dann
+gibt der Import auf (mit Blatt- und Spaltenliste in der Meldung).
 
 **Gemessen am Bestand (14 221 Anträge, August 2026):** jeder Antrag trägt eine
 `FM_NUMMER` — der Fall „Programm unbekannt" kommt im echten Bestand nicht vor.
@@ -131,6 +124,37 @@ die App künftig „für Programm N keine Trigger importiert" — vorher bekam s
 stillschweigend die Trigger der Richtlinie 76. Der Import-Diff listet die
 Programme mit Antragszahl auf, damit die Lücke eine Entscheidung wird und kein
 Zufall bleibt.
+
+### 3b. „Erklärung Parameter" ist eine Legende, keine Tabelle
+
+Das Blatt führt **keine Kopfzeile**: Spalte A der Wert, B die Erklärung, C die
+Kategorie („Status" / „Bearbeiter" / leer); Zeile 1 („Inhalt Parameter" ·
+„Erklärung") ist Beschriftung. Bis v2.380 verlangte der Import einen `Code`/`Text`-
+Kopf und **brach an der echten Datei ab** — der Statuscode-Katalog kam nie aus der
+amtlichen Quelle. Seit v2.381 liest `parameter-blatt.ts` beide Formate (Legende
+und Kopfzeilen-Tabelle) und liefert dem Katalog-Import eine einheitliche,
+klassifizierte Zeile; der Spaltenschnitt wird über die Kategorie-Spalte **gesucht**,
+nicht auf A/B/C gesetzt.
+
+- **Die Kategorie-Spalte entscheidet, nicht der Inhalt.** Nur Zeilen der Kategorie
+  „Status" werden zu Codes. Bliebe „ganze Zahl = Statuscode" wie in der
+  Kopfzeilen-Variante, stünden die Bezugsdatei-Nummern **210/211** als Codes im
+  Katalog — dieselbe stille Klasse wie ein Schlüssel ohne alle Dimensionen
+  (Bug-Klasse 14), eine Ebene tiefer.
+- **Vier Zeilenarten, alle sichtbar.** Was nicht Statuscode wird, zählt die
+  `ZeilenBilanz` und die Vorschau sagt es („4 Statuscodes übernommen ·
+  übersprungen: 2 Textbausteine, 3 Bearbeiter, 2 Zuordnungen"). Übersprungen ist
+  kein Fehler — aber auch kein Schweigen.
+- **Bearbeiter- und Zuordnungs-Zeilen werden GEPRÜFT, nicht gespeichert.** Beide
+  Zuordnungen stehen genau einmal im Code (`MAIL_ROLLE` in `rollen.ts`,
+  `ebeneVonNummer` in `trigger-parser.ts`); ein zweites, importiertes Modell wäre
+  die Doppel-Wahrheit, gegen die Pitfall #43 geschrieben ist. Ein unbekanntes
+  Bearbeiter-Token ist eine Warnung; die 210/211-Zeilen stehen als Hinweis neben
+  unserer bisher nur **erschlossenen** Lesart (VB/TV) und belegen oder widerlegen
+  sie beim ersten echten Import.
+- Die **Textbaustein-Legende** landet als `MappingVersion.textbausteine` in der
+  Fassung und wird zur **Anzeigezeit** aufgelöst, damit eine später importierte
+  Legende nicht die ganze Trigger-Tabelle neu parsen lassen muss.
 
 ## 4. App-eigene Pflege: bewusst nur vier kleine Listen
 

@@ -121,6 +121,7 @@ export {
   berechneDiff, diffZusammenfassung, TRIGGER_BLATT, PARAMETER_BLATT,
   type StatusKatalogImportErgebnis, type TriggerImportErgebnis,
   type ProgrammStatistik, type NichtInterpretiert,
+  type ZeilenBilanz, type EbenenHinweis,
   type Diff, type DiffEintrag, type DiffArt,
 } from './import';
 export {

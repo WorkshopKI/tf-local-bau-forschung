@@ -249,6 +249,7 @@ Positivbeispielen: [prompt-audit-2026-07.md](../prompt-audit-2026-07.md).
 - **Diff-Vorschau je Dimension.** „5 neu · 2 geändert" verbirgt einen Kollaps von 2450 auf 362; „Programm 76: 528 Zeilen · Programm 139: 107" zeigt ihn sofort.
 - **Bestandsdaten aus der Zeit vor der Dimension heilen, nicht raten** — leeren Wert stempeln, zählen und zum Neu-Import auffordern.
 - **Warnungs-Häufung ist ein Befund, kein Rauschen.** Wenn eine Dedup-Warnung auf wenigen Schlüsseln clustert, ist meist der Schlüssel falsch — nicht die Daten.
+- **Wo die Quelle eine Angabe FÜHRT, wird sie nicht aus dem Inhalt geraten.** Dieselbe Klasse eine Ebene tiefer (v2.381): das Blatt „Erklärung Parameter" nennt die Zeilenart in einer eigenen Spalte, der Import schloss sie aber aus dem Wert („ganze Zahl = Statuscode") — die Bezugsdatei-Nummern 210/211 wären als Statuscodes im Katalog gelandet, neben 30 echten. Eine Heuristik ist nur zulässig, wo die Quelle schweigt.
 
-**Kanonische Dateien:** [trigger-import.ts](../../src/core/status/import/trigger-import.ts) (`triggerSchluessel`, `statistik`), [trigger-share.ts](../../src/core/status/trigger-share.ts) (`triggerFuerProgramm`, `heileTriggerDatei`), [referenz-import.test.ts](../../src/core/status/__tests__/referenz-import.test.ts).
+**Kanonische Dateien:** [trigger-import.ts](../../src/core/status/import/trigger-import.ts) (`triggerSchluessel`, `statistik`), [trigger-share.ts](../../src/core/status/trigger-share.ts) (`triggerFuerProgramm`, `heileTriggerDatei`), [parameter-blatt.ts](../../src/core/status/import/parameter-blatt.ts) (`bestimmeZeilenart`, `findeSchnitt`), [referenz-import.test.ts](../../src/core/status/__tests__/referenz-import.test.ts).
 

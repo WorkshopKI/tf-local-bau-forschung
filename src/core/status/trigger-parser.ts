@@ -82,6 +82,17 @@ const EBENEN_KURZ: ReadonlyMap<string, 'VB' | 'TV'> = new Map([
   ['211', 'TV'],
 ]);
 
+/**
+ * Unsere Lesart einer Bezugsdatei-Nummer; `null` = unbekannte Nummer.
+ *
+ * Die eine Stelle, an der diese Zuordnung steht. Der Parameter-Import stellt die
+ * `zuordnung`-Zeilen der Zuarbeit daneben, statt eine zweite Tabelle anzulegen —
+ * so wird aus „erschlossen" beim ersten echten Import „belegt" oder „widerlegt".
+ */
+export function ebeneVonNummer(roh: string): 'VB' | 'TV' | null {
+  return EBENEN_KURZ.get(roh.trim()) ?? null;
+}
+
 /** „TV-Ebene 211" bzw. „Ebene 999" — die Nummer bleibt immer sichtbar. */
 function ebenePhrase(roh: string): string {
   const t = roh.trim();

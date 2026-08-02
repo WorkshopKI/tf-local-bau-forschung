@@ -61,6 +61,14 @@ legt eine Fassung an. Ältere sind als Entwurf ladbar.
   wann er eine Änderung gesehen hat.
 - JSON-Export/Import dient der Sicherung, nicht dem Team-Abgleich.
 - Ändert nichts am Legacy-System — reine Anzeige-/Ableitungslogik.
+- Die **Parametertabelle** („Erklärung Parameter") ist eine Legende ohne
+  Kopfzeile: Wert · Erklärung · Kategorie. Codes entstehen **nur** aus den Zeilen
+  der Kategorie „Status"; was übersprungen wird, nennt die Vorschau nach Art
+  („4 Statuscodes übernommen · übersprungen: 2 Textbausteine, 3 Bearbeiter,
+  2 Zuordnungen"). Bearbeiter-Kürzel und die Bezugsdatei-Nummern 210/211 werden
+  gegen das geprüft, was die App annimmt — Abweichungen stehen als Hinweis in der
+  Vorschau, gespeichert wird davon nichts. Eine reine Code/Text-Tabelle wird
+  weiterhin gelesen.
 - Die **Trigger-Tabelle gilt je Richtlinie**. Der Bereich „Referenzdaten" nennt
   Stand, Zeilenzahl und die geführten Programme; die Vorschau vor der Übernahme
   zählt Zeilen und Kürzel je Programm und nennt die Programme des Bestands, für

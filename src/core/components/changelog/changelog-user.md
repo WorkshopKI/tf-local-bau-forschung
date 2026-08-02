@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.381 — 2026-08
+
+### Bugfixes
+- Die Parametertabelle aus dem Fachsystem lässt sich jetzt einlesen. Das Blatt „Erklärung Parameter" ist eine Legende ohne Überschriftenzeile — daran scheiterte der Import bisher, obwohl die Datei in Ordnung war.
+### Verbesserungen
+- Vor der Übernahme steht jetzt da, was in der Datei stand und was davon Statuscodes wurden („4 Statuscodes übernommen · übersprungen: 2 Textbausteine, 3 Bearbeiter, 2 Zuordnungen") — statt dass Zeilen stillschweigend verschwinden.
+
 ## v2.380 — 2026-08
 
 ### Bugfixes

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.381.0 — Parametertabelle im Legenden-Format (August 2026)
+
+MINOR — Der zweite Import derselben Mappe scheiterte an der echten Datei: „Erklärung Parameter" ist eine Legende ohne Kopfzeile (Wert · Erklärung · Kategorie), der Import verlangte einen `Code`/`Text`-Kopf und brach ab — der Statuscode-Katalog kam nie aus der amtlichen Quelle. Und hätte er gelesen, wären die Bezugsdatei-Nummern 210/211 als Statuscodes im Katalog gelandet.
+
+- Beide Formate über einen Parser: Legende (Spaltenschnitt über die Kategorie-Spalte gesucht, Beschriftungszeile verworfen) und die bisherige Kopfzeilen-Tabelle ([parameter-blatt.ts](src/core/status/import/parameter-blatt.ts)).
+- Im Legenden-Format entscheidet die Kategorie-Spalte, nicht der Inhalt — Codes nur aus „Status"-Zeilen, 210/211 bleiben draußen ([status-katalog-import.ts](src/core/status/import/status-katalog-import.ts)).
+- Übersprungene Zeilen werden je Art gezählt und in der Vorschau benannt, als Auskunft statt als Warnung ([ReferenzdatenSektion.tsx](src/plugins/status-cockpit/ReferenzdatenSektion.tsx)).
+- Bearbeiter-Kürzel und die Nummern 210/211 werden gegen `MAIL_ROLLE` bzw. `ebeneVonNummer` geprüft, nicht gespeichert — die Zuarbeit belegt damit eine bisher nur erschlossene Lesart ([trigger-parser.ts](src/core/status/trigger-parser.ts)).
+- XLSX-Leser in IO (`leseMappe`) und reine Kopfsuche (`findeKopfInMappe`) getrennt; die Mappe wird einmal gelesen ([xlsx-tabelle.ts](src/core/status/import/xlsx-tabelle.ts)).
+
 ### v2.380.0 — Trigger-Import je Programm (August 2026)
 
 MINOR — Der erste echte Import zeigte, dass die Trigger-Zuarbeit ~2450 Zeilen über neun Richtlinien führt, der Importer aber nur nach (Kürzel, Folge) schlüsselte: 362 Zeilen blieben übrig, der Rest fiel als „Dublette" weg — und jeder Antrag bekam danach die Trigger der ersten Richtlinie. Dieselbe Datei widerlegte drei weitere Screenshot-Annahmen aus P0.
