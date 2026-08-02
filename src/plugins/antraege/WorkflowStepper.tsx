@@ -1,16 +1,19 @@
 /**
- * 5-Stationen-Stepper für Förderanträge — die „Wirbelsäule" des Verbund-Kopfes.
+ * Die ZAH-Phasen-Leiste des Verbund-Kopfes.
  *
  * Die Position kommt aus dem AMTLICHEN Status (`statusZuStepperPosition`), nicht
- * aus einem WorkflowRun — deckt damit endlich die Förderantrag-Roh-Status ab
- * (die alte `STATUS_TO_STEP`-Map kannte nur Bauantrag-snake_case und ließ jeden
- * Förderantrag auf Station 1 fallen). Darstellung: passierte Stationen tragen
- * ein Häkchen, die aktive einen betonten Ring (fett), künftige einen leeren Ring
- * (gedämpft). Terminal-negativ (`abgelehnt` / `abgelehnt/zurückgezogen`): rotes X
- * an der Abbruch-Station, Status-Label als Beschriftung; Folgestationen gedämpft.
+ * aus einem WorkflowRun. Darstellung: passierte Stationen tragen ein Häkchen,
+ * die aktive einen betonten Ring (fett), künftige einen leeren Ring (gedämpft).
+ * Terminal-negativ (`abgelehnt` / `abgelehnt/zurückgezogen`): rotes X an der
+ * Abschluss-Station, Status-Label als Beschriftung.
+ *
+ * **Marker neben der Leiste, nicht darin.** Irrläufer und Sonderstatus laufen
+ * neben dem Verfahren — sie bekommen keine Station, sondern ein Kennzeichen
+ * davor. Ebenso ein Status, den der Katalog nicht kennt: dann steht die Leiste
+ * gedämpft da, statt fälschlich Station 1 zu betonen.
  *
  * `collapsible` (Kompakt-/Narrow-Kontext): eingeklappt nur eine Status-Pille +
- * „Alle Schritte ↓"; sonst der volle Stepper.
+ * „Alle Schritte ↓"; sonst die volle Leiste.
  */
 import { Fragment, useState } from 'react';
 import { Check, X } from 'lucide-react';
@@ -43,8 +46,15 @@ interface Props {
 }
 
 export function WorkflowStepper({ status, collapsible = false }: Props): React.ReactElement {
-  const { station, terminal } = statusZuStepperPosition(status);
+  const { station, terminal, marker } = statusZuStepperPosition(status);
   const [open, setOpen] = useState(!collapsible);
+
+  /** Kennzeichen neben der Leiste: Marker bzw. „nicht im Katalog". */
+  const kennzeichen = marker
+    ? `${getStatusLabel(status)} · läuft neben dem Verfahren`
+    : station === null && !terminal
+      ? `${getStatusLabel(status)} · keiner Phase zugeordnet`
+      : null;
 
   const toggle = (label: string, onClick: () => void): React.ReactElement => (
     <button
@@ -70,7 +80,7 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
           ) : (
             <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />
           )}
-          {terminal
+          {terminal || station === null
             ? getStatusLabel(status)
             : `${STEPPER_STATIONS[station - 1]}, Schritt ${station} / ${STEPPER_STATIONS.length}`}
         </span>
@@ -81,15 +91,26 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto py-0.5">
+      {kennzeichen !== null ? (
+        <span
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] whitespace-nowrap bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]"
+          title={kennzeichen}
+        >
+          {kennzeichen}
+        </span>
+      ) : null}
       {STEPPER_STATIONS.map((label, idx) => {
         const n = idx + 1;
-        const isDone = n < station;
-        const isActive = n === station;
+        // Ohne Station (Marker / nicht im Katalog) ist KEINE Stufe aktiv oder
+        // passiert — die Leiste steht gedämpft da. Station 1 zu betonen hieße
+        // „ganz am Anfang", und das wissen wir gerade nicht.
+        const isDone = station !== null && n < station;
+        const isActive = station !== null && n === station;
         const isTerminal = isActive && !!terminal;
         // Verbindungs-Linie VOR Station n (idx>0): „erreicht", wenn Station n
         // aktiv oder passiert ist (n <= station). Bei Terminal sitzt die Abbruch-
         // Station bei `station`; Folgelinien (n > station) bleiben ungefüllt.
-        const lineReached = n <= station;
+        const lineReached = station !== null && n <= station;
 
         return (
           <Fragment key={label}>

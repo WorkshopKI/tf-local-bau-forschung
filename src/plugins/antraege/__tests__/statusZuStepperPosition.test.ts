@@ -1,76 +1,129 @@
 /**
- * Amtlicher-Status → Stepper-Position (Journey-Paket 2 Phase 6).
+ * Amtlicher Status → Position auf der ZAH-Phasen-Leiste.
  *
- * Deckt alle kanonischen Kategorien (Förderantrag- UND Bauantrag-Domäne) inkl.
- * Terminal-negativ und unbekannter/leerer Eingaben ab. Die Position kommt aus
- * dem amtlichen Status (nicht aus einem WorkflowRun) — Kern-Fix für die frühere
- * `STATUS_TO_STEP`-Lücke, die jeden Förderantrag auf Station 1 fallen ließ.
+ * Seit v2.384 sind die Stationen die **sechs ZAH-Phasen** des Status-Katalogs,
+ * nicht mehr die fünf abgeleiteten Spine-Stationen. Drei Zusagen tragen den
+ * Umbau:
+ *
+ * 1. Die Position kommt aus dem **amtlichen Code**, nicht aus einem WorkflowRun
+ *    und nicht aus Roh-Literalen (Pitfall #12).
+ * 2. **Marker sind keine Stufe** — sie laufen neben dem Verfahren und bekommen
+ *    `station: null`.
+ * 3. **„Wir wissen es nicht" ist nicht „ganz am Anfang"** — ein Status ohne
+ *    Katalog-Treffer landet nicht auf Station 1.
  */
 import { describe, it, expect } from 'vitest';
 import { statusZuStepperPosition, STEPPER_STATIONS } from '../statusZuStepperPosition';
+import { ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL } from '@/core/status/zah-phasen';
 
-describe('statusZuStepperPosition', () => {
-  it('Eingang (Station 1): beantragt, neu, eingereicht', () => {
-    for (const s of ['beantragt', 'neu', 'eingereicht']) {
-      expect(statusZuStepperPosition(s)).toEqual({ station: 1 });
+/** 1-basierte Station einer Phase — wie die Leiste sie rendert. */
+const st = (phase: (typeof ZAH_PHASEN_REIHENFOLGE)[number]): number =>
+  ZAH_PHASEN_REIHENFOLGE.indexOf(phase) + 1;
+
+describe('Die Stationen sind der Katalog, keine zweite Liste', () => {
+  it('trägt die sechs ZAH-Phasen in Verfahrens-Reihenfolge', () => {
+    expect(STEPPER_STATIONS).toEqual(ZAH_PHASEN_REIHENFOLGE.map(id => ZAH_PHASE_LABEL[id]));
+    expect(STEPPER_STATIONS).toHaveLength(6);
+  });
+});
+
+describe('statusZuStepperPosition — die Phase des amtlichen Status', () => {
+  it('Eingang: Skizze, beantragt', () => {
+    for (const s of ['Skizze eingegangen', 'beantragt']) {
+      expect(statusZuStepperPosition(s), s).toEqual({ station: st('eingang') });
     }
   });
 
-  it('Vollständigkeit (Station 2): bearbeitungsreif, NL eingegangen', () => {
-    expect(statusZuStepperPosition('bearbeitungsreif')).toEqual({ station: 2 });
-    expect(statusZuStepperPosition('NL eingegangen')).toEqual({ station: 2 });
-    // case-insensitive
-    expect(statusZuStepperPosition('nl eingegangen')).toEqual({ station: 2 });
+  it('Vollständigkeit: unvollständig, bearbeitungsreif, NF/NL/keine weiteren NF', () => {
+    for (const s of ['unvollständig', 'bearbeitungsreif', 'NF gestellt', 'NL eingegangen', 'keine weiteren NF']) {
+      expect(statusZuStepperPosition(s), s).toEqual({ station: st('vollstaendigkeit') });
+    }
+    // Groß-/Kleinschreibung und gepflegte Varianten treffen ebenso.
+    expect(statusZuStepperPosition('nl eingegangen')).toEqual({ station: st('vollstaendigkeit') });
+    expect(statusZuStepperPosition('Nachforderung gestellt')).toEqual({ station: st('vollstaendigkeit') });
   });
 
-  it('Fachprüfung (Station 3): Prüfung / Nachforderung / Entscheidung', () => {
+  it('Prüfung: techn/kaufm geprüft, Gutachten fertig', () => {
+    for (const s of ['techn geprüft', 'kaufm geprüft', 'Gutachten fertig', 'technisch geprüft']) {
+      expect(statusZuStepperPosition(s), s).toEqual({ station: st('pruefung') });
+    }
+  });
+
+  it('Entscheidung: ablehnungsreif, Bewilligungsentwurf, RNE-Strecke, Widerspruch', () => {
     for (const s of [
-      'techn geprüft', 'kaufm geprüft', 'Gutachten fertig', // in_pruefung
-      'in_pruefung', 'in_begutachtung', 'in_bearbeitung',    // Bauantrag → in_pruefung
-      'NF gestellt', 'keine weiteren NF',                     // nachforderung
-      'bewilligungsreif', 'ablehnungsreif', 'Ablehnung',      // entscheidung
+      'ablehnungsreif', 'Bewilligungsentwurf VDI/VDE-IT', 'bewilligungsreif',
+      'Ablehnung', 'Rücknahmeempfehlung', 'Stellungnahme zur Rücknahmeempfehlung',
+      'Widerspruch zur Ablehnung',
     ]) {
-      expect(statusZuStepperPosition(s)).toEqual({ station: 3 });
+      expect(statusZuStepperPosition(s), s).toEqual({ station: st('entscheidung') });
     }
   });
 
-  it('Bewilligung (Station 4): bewilligt/genehmigt + Begleitphase (VN/ZB/Widerruf)', () => {
-    // Widerruf/Anhörung sind Post-Bewilligungs-Verfahren → Kategorie begleitung.
-    for (const s of ['bewilligt', 'genehmigt', 'VN geprüft', 'VN techn. geprüft', 'ZB eingegangen', 'Widerruf', 'Anhörung zum Widerruf']) {
-      expect(statusZuStepperPosition(s)).toEqual({ station: 4 });
+  it('Begleitung: bewilligt, Widerruf-Strecke, VN-Prüfung', () => {
+    for (const s of ['bewilligt', 'Anhörung zum Widerruf', 'Widerruf', 'VN techn. geprüft', 'VN geprüft']) {
+      expect(statusZuStepperPosition(s), s).toEqual({ station: st('begleitung') });
     }
   });
 
-  it('Schluss (Station 5): Schlussvermerk, beendet, abgebrochen, archiviert', () => {
-    for (const s of ['Schlussvermerk', 'beendet', 'abgebrochen', 'archiviert', 'abgeschlossen']) {
-      expect(statusZuStepperPosition(s)).toEqual({ station: 5 });
+  it('Abgeschlossen: abgebrochen, beendet, Schlussvermerk', () => {
+    for (const s of ['abgebrochen', 'beendet', 'Schlussvermerk']) {
+      expect(statusZuStepperPosition(s), s).toEqual({ station: st('abgeschlossen') });
+    }
+  });
+});
+
+describe('Terminal-negativ bricht an der Abschluss-Station ab', () => {
+  it('Förderantrag `abgelehnt/zurückgezogen`', () => {
+    expect(statusZuStepperPosition('abgelehnt/zurückgezogen'))
+      .toEqual({ station: st('abgeschlossen'), terminal: 'zurueckgezogen' });
+  });
+
+  it('Bauantrag `abgelehnt` (eigener Endzustand)', () => {
+    expect(statusZuStepperPosition('abgelehnt'))
+      .toEqual({ station: st('abgeschlossen'), terminal: 'abgelehnt' });
+  });
+});
+
+describe('Marker sind keine Stufe', () => {
+  it('laufen ohne Station neben dem Verfahren', () => {
+    for (const s of ['Irrläufer', 'Sonderstatus', 'assoziierter Partner', 'internationaler Partner']) {
+      expect(statusZuStepperPosition(s), s).toEqual({ station: null, marker: true });
     }
   });
 
-  it('Terminal-negativ: Abbruch an Station 3 mit terminal-Flag', () => {
-    // Bauantrag-Domäne: eigener `abgelehnt`-Endzustand
-    expect(statusZuStepperPosition('abgelehnt')).toEqual({ station: 3, terminal: 'abgelehnt' });
-    // Förderantrag-Domäne: `abgelehnt/zurückgezogen` (Kategorie abgeschlossen)
-    expect(statusZuStepperPosition('abgelehnt/zurückgezogen')).toEqual({ station: 3, terminal: 'zurueckgezogen' });
-  });
-
-  it('abgelehnt/zurückgezogen schlägt das abgeschlossen→5-Mapping (Terminal-Check zuerst)', () => {
-    const pos = statusZuStepperPosition('abgelehnt/zurückgezogen');
-    expect(pos.station).toBe(3);
-    expect(pos.terminal).toBeDefined();
-  });
-
-  it('Unbekannt / leer / null → Station 1 (Fallback), kein terminal', () => {
-    for (const s of ['Irrläufer', 'unvollständig', 'völlig unbekannt', '', '   ', null, undefined, 42]) {
-      expect(statusZuStepperPosition(s as unknown)).toEqual({ station: 1 });
+  it('„nicht im Katalog" ist NICHT Station 1', () => {
+    // Vorher fielen diese Werte auf „Eingang" — die Leiste behauptete damit
+    // einen Verfahrensstand, den die Daten nicht hergeben.
+    for (const s of ['völlig unbekannt', '', '   ', null, undefined, 42]) {
+      expect(statusZuStepperPosition(s as unknown), String(s)).toEqual({ station: null });
     }
   });
+});
 
-  it('jede Station bleibt im gültigen 1..STEPPER_STATIONS-Bereich', () => {
-    for (const s of ['beantragt', 'bearbeitungsreif', 'NF gestellt', 'bewilligt', 'Schlussvermerk', 'abgelehnt']) {
+describe('Bauantrag-Domäne (dev/demo) fällt auf die Kategorie zurück', () => {
+  it('ordnet die Snake-Case-Werte ohne amtlichen Code ein', () => {
+    expect(statusZuStepperPosition('neu')).toEqual({ station: st('eingang') });
+    expect(statusZuStepperPosition('in_pruefung')).toEqual({ station: st('pruefung') });
+    expect(statusZuStepperPosition('nachbesserung')).toEqual({ station: st('vollstaendigkeit') });
+    expect(statusZuStepperPosition('genehmigt')).toEqual({ station: st('begleitung') });
+    expect(statusZuStepperPosition('archiviert')).toEqual({ station: st('abgeschlossen') });
+  });
+
+  it('das VN/ZB-Pattern greift weiter (Statuswerte ohne Code)', () => {
+    expect(statusZuStepperPosition('ZB eingegangen')).toEqual({ station: st('begleitung') });
+  });
+});
+
+describe('Jede gelieferte Station liegt im gültigen Bereich', () => {
+  it('1 … STEPPER_STATIONS.length oder null', () => {
+    for (const s of [
+      'beantragt', 'bearbeitungsreif', 'NF gestellt', 'bewilligt', 'Schlussvermerk',
+      'abgelehnt', 'Irrläufer', 'völlig unbekannt',
+    ]) {
       const { station } = statusZuStepperPosition(s);
-      expect(station).toBeGreaterThanOrEqual(1);
-      expect(station).toBeLessThanOrEqual(STEPPER_STATIONS.length);
+      if (station === null) continue;
+      expect(station, s).toBeGreaterThanOrEqual(1);
+      expect(station, s).toBeLessThanOrEqual(STEPPER_STATIONS.length);
     }
   });
 });

@@ -17,6 +17,7 @@ import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 import { resolveWorkflowSteps } from '../gutachten/active-workflow';
 import { getWorkflowRun } from '../gutachten/workflow-store';
 import type { WorkflowRun } from '../gutachten/types';
+import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
 import { statusZuStepperPosition } from '../statusZuStepperPosition';
 import {
   buildGutachtenKarte, buildNachforderungKarte,
@@ -49,10 +50,15 @@ export function useArtefaktLeiste(input: {
   const azList = useMemo(() => tvs.map(t => t.aktenzeichen), [tvs]);
   const azKey = azList.join(',');
 
-  // Fachprüfungs-Gate (Stepper-Station 3, nicht terminal) + phasen-bewusste Frist —
-  // aus den amtlichen Daten, wie in Liste/Kopf (kein zweiter Frist-Begriff).
+  // Prüfungs-Gate + phasen-bewusste Frist — aus den amtlichen Daten, wie in
+  // Liste/Kopf (kein zweiter Frist-Begriff). Seit v2.384 über die ZAH-Phase
+  // statt über die Stations-Nummer: die alte Station 3 („Fachprüfung") deckte
+  // Prüfung UND Entscheidung ab, auf der neuen Achse sind das zwei Stationen.
+  // Eine Zahl im Vergleich hätte die Karte für alle Entscheidungs-Vorgänge
+  // stillschweigend abgeschaltet.
   const pos = statusZuStepperPosition(status);
-  const istFachpruefung = pos.station === 3 && !pos.terminal;
+  const phase = zahPhaseFuerStatusText(status);
+  const istFachpruefung = !pos.terminal && (phase === 'pruefung' || phase === 'entscheidung');
   const fristDatum = useMemo(() => {
     const vn = tvs[0]?.vn_eingang_datum;
     const fristInput: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'> = {

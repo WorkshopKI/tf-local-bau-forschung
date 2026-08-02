@@ -1,89 +1,95 @@
 /**
- * Amtlicher-Status → Stepper-Position (Journey-Paket 2 Phase 6).
+ * Amtlicher Status → Position auf der ZAH-Phasen-Leiste.
  *
- * Reine Ableitung der 5-Stationen-Position aus dem AMTLICHEN Antrags-/Verbund-
- * Status (NICHT aus einem WorkflowRun). Ersetzt die alte `STATUS_TO_STEP`-Map im
- * WorkflowStepper, die nur Bauantrag-snake_case kannte → jeder Förderantrag-Roh-
- * Status fiel still auf Station 1. Die Stationen bilden den amtlichen Lebenszyklus
- * ab: Eingang → Vollständigkeit → Fachprüfung → Bewilligung → Schluss.
+ * Die Stationen sind seit v2.384 die **ZAH-Phasen** des Status-Katalogs
+ * (Eingang · Vollständigkeit · Prüfung · Entscheidung · Begleitung ·
+ * Abgeschlossen), nicht mehr die fünf abgeleiteten Spine-Stationen. Damit zeigt
+ * der Kopf dieselbe Achse, nach der Filter, Cockpit und Erklärung gruppieren —
+ * und die PL kann einen Code umhängen, ohne dass jemand Code anfasst.
  *
- * Terminal-negativ (`abgelehnt` / `abgelehnt/zurückgezogen`) → Abbruch an der
- * Fachprüfungs-Station (3) mit X-Rendering; Folgestationen bleiben gedämpft.
+ * **Marker sind keine Stufe.** 29 Irrläufer, 88 Sonderstatus, 93/94
+ * Partner-Kennzeichen laufen bewusst neben dem Verfahren. Sie bekommen deshalb
+ * `station: null` und werden als Kennzeichen neben der Leiste gerendert — eine
+ * Station „Irrläufer" hätte behauptet, sie seien ein Verfahrensschritt.
  *
- * Einzelquelle für den Stepper — Vergleiche laufen über die Kategorie-Helper aus
- * `status-canonical.ts` (Pitfall #12), nie gegen Status-Literale.
+ * **Terminal-negativ** (`abgelehnt` bzw. `abgelehnt/zurückgezogen`) bleibt ein
+ * Abbruch mit X-Rendering, jetzt an der Abgeschlossen-Station: dorthin gehört
+ * der Vorgang fachlich, und die alte Sonderposition „Abbruch in der Fachprüfung"
+ * war eine Eigenheit der Spine-Achse.
+ *
+ * Vergleiche laufen über den Code-Katalog und die Kategorie-Helper, nie gegen
+ * Status-Literale (Pitfall #12).
  */
 import { getStatusCategory, isAbgelehntZurueckgezogenStatus } from '@/core/utils/status-canonical';
-// Direktimport auf das Quellmodul, NICHT über das Barrel `@/core/status` — das
+// Direktimporte auf die Quellmodule, NICHT über das Barrel `@/core/status` — das
 // zieht `snapshot.ts` mit und damit einen Laufzeit-Zyklus (Zyklen-Wächter).
-import { findeStatusCode } from '@/core/status/status-codes';
+import { zahPhaseFuerStatusText, codeFuerStatusText } from '@/core/status/kategorie-ableitung';
+import { ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, SEED_MARKER_CODES } from '@/core/status/zah-phasen';
+import type { ZahPhaseId } from '@/core/status/typen';
 
-/** Die fünf amtlichen Stationen (1-indiziert über `station`). */
-export const STEPPER_STATIONS = [
-  'Eingang',
-  'Vollständigkeit',
-  'Fachprüfung',
-  'Bewilligung',
-  'Schluss',
-] as const;
+/** Die Stationen in Verfahrens-Reihenfolge — aus dem Katalog, nicht dupliziert. */
+export const STEPPER_STATIONS: readonly string[] =
+  ZAH_PHASEN_REIHENFOLGE.map(id => ZAH_PHASE_LABEL[id]);
 
-export type StepperStation = 1 | 2 | 3 | 4 | 5;
+/** 1-basierte Station; `null` = keine (Marker oder Status nicht im Katalog). */
+export type StepperStation = number | null;
 
 export interface StepperPosition {
-  /** Aktive Station 1..5 (bei Terminal: die Abbruch-Station). */
+  /** Aktive Station 1…6, `null` bei Marker/unbekannt. */
   station: StepperStation;
   /** Gesetzt bei final-negativem Ausgang → X-Rendering statt Ring. */
   terminal?: 'abgelehnt' | 'zurueckgezogen';
+  /**
+   * Marker-Status: läuft neben dem Verfahren. Trägt das Label für das
+   * Kennzeichen neben der Leiste.
+   */
+  marker?: boolean;
 }
 
-/**
- * Status-Codes, die auf der Vollständigkeits-Station stehen: 34
- * (bearbeitungsreif) und 36 (NL eingegangen).
- *
- * Über den CODE statt über Roh-Literale (Pitfall #12) — und unabhängig von der
- * Kategorie: `NL eingegangen` ist seit v2.383 `nachforderung`, die Station
- * bleibt aber 2. Hinge die Prüfung wie vorher an `case 'offen'`, wäre sie mit
- * dem Kategorie-Wechsel still auf Station 3 gerutscht.
- */
-const VOLLSTAENDIGKEITS_CODES: ReadonlySet<number> = new Set([34, 36]);
+/** Station einer Phase (1-basiert). */
+function stationVon(phase: ZahPhaseId): number {
+  return ZAH_PHASEN_REIHENFOLGE.indexOf(phase) + 1;
+}
 
 /**
  * Bildet einen rohen amtlichen Status auf die Stepper-Position ab.
  *
- * - Terminal-negativ (Bauantrag `abgelehnt` ODER Förderantrag
- *   `abgelehnt/zurückgezogen`) → Station 3 (Fachprüfung) + `terminal`.
- * - Codes 34/36 → 2 (Vollständigkeit), unabhängig von der Kategorie.
- * - `offen` → 1 (Eingang).
- * - `in_pruefung` / `nachforderung` / `entscheidung` → 3 (Fachprüfung).
- * - `bewilligt` / `begleitung` → 4 (Bewilligung).
- * - `abgeschlossen` → 5 (Schluss).
- * - `sonstige` / unbekannt / leer → 1 (Eingang, Fallback).
+ * - Marker (29/88/93/94) → `station: null`, `marker: true`.
+ * - Terminal-negativ → Abgeschlossen-Station + `terminal`.
+ * - Sonst die Station der ZAH-Phase.
+ * - Status ohne Katalog-Treffer → `station: null` (nicht Station 1: „wir wissen
+ *   es nicht" ist etwas anderes als „ganz am Anfang").
  */
 export function statusZuStepperPosition(status: unknown): StepperPosition {
+  const code = codeFuerStatusText(status);
+  if (code !== null && SEED_MARKER_CODES.has(code)) return { station: null, marker: true };
+
   if (isAbgelehntZurueckgezogenStatus(status)) {
     // Bauantrag-`abgelehnt` (Kategorie `abgelehnt`) vs. Förderantrag
     // `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`) — nur fürs Label.
     const terminal = getStatusCategory(status) === 'abgelehnt' ? 'abgelehnt' : 'zurueckgezogen';
-    return { station: 3, terminal };
+    return { station: stationVon('abgeschlossen'), terminal };
   }
 
-  const code = findeStatusCode(status)?.eintrag.code;
-  if (code !== undefined && VOLLSTAENDIGKEITS_CODES.has(code)) return { station: 2 };
+  const phase = zahPhaseFuerStatusText(status);
+  if (phase !== null) return { station: stationVon(phase) };
 
+  // Die Bauantrag-Domäne (dev/demo) hat keine Codes — sie wird über die
+  // Kategorie eingeordnet, damit der Stepper dort nicht leer bleibt.
+  return { station: stationAusKategorie(status) };
+}
+
+/** Fallback für Werte ohne amtlichen Code (Bauantrag-Domäne). */
+function stationAusKategorie(status: unknown): StepperStation {
   switch (getStatusCategory(status)) {
-    case 'offen':
-      return { station: 1 };
-    case 'in_pruefung':
-    case 'nachforderung':
-    case 'entscheidung':
-      return { station: 3 };
+    case 'offen': return stationVon('eingang');
+    case 'nachforderung': return stationVon('vollstaendigkeit');
+    case 'in_pruefung': return stationVon('pruefung');
+    case 'entscheidung': return stationVon('entscheidung');
     case 'bewilligt':
-    case 'begleitung':
-      return { station: 4 };
+    case 'begleitung': return stationVon('begleitung');
     case 'abgeschlossen':
-      return { station: 5 };
-    default:
-      // 'sonstige' + alles Unbekannte → Eingang.
-      return { station: 1 };
+    case 'abgelehnt': return stationVon('abgeschlossen');
+    default: return null;   // `sonstige`/leer: keine Aussage, keine Station
   }
 }

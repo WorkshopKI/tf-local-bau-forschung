@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.384.0 — Anzeige auf ZAH-Phasen umgehängt (August 2026)
+
+MINOR — Die Oberfläche zeigte drei verschiedene Antworten auf dieselbe Frage „wo steht dieser Antrag?": die abgeleitete Spine-Phase im Verbund-Kopf, eine handgeschriebene Phasen-Liste in der Filter-Sidebar und die ZAH-Phase im Popover. Ab hier ist es eine — die des Status-Katalogs.
+
+- Der Verbund-Kopf zeigt die sechs ZAH-Phasen; Marker (Irrläufer, Sonderstatus) stehen als Kennzeichen **neben** der Leiste, und ein Status ohne Katalog-Treffer betont keine Station mehr ([statusZuStepperPosition.ts](src/plugins/antraege/statusZuStepperPosition.ts), [WorkflowStepper.tsx](src/plugins/antraege/WorkflowStepper.tsx)).
+- Die Filter-Sidebar gruppiert nach ZAH-Phasen auf Code-Ebene: eine Zeile je Code, Schreibweisen kollabieren mit Summen-Zählung, Marker als eigene Gruppe ([statusGroups.ts](src/plugins/antraege/filter/statusGroups.ts), [StatusFilterFacet.tsx](src/plugins/antraege/filter/facets/StatusFilterFacet.tsx)).
+- „Warum dieser Status?" und das Konflikt-Badge entfallen — beide erklärten eine Ableitung, die es nicht mehr gibt; die Frage beantwortet das Herleitungs-Popover ([StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx)).
+- Home-Widget „Status & Verlauf" zeigt ZAH-Phase + To-do aus der Kaskade statt abgeleiteter Phase + Alt-Regel-Schritt ([StatusVerlaufWidget.tsx](src/plugins/home/widgets/StatusVerlaufWidget.tsx)).
+- Das Artefakt-Gate hängt an der Phase statt an einer Stations-Nummer — die alte Station 3 deckte Prüfung UND Entscheidung ab ([useArtefaktLeiste.ts](src/plugins/antraege/artefakte/useArtefaktLeiste.ts)).
+
 ### v2.383.0 — Fassade aus Code-Join und ZAH-Phase (August 2026)
 
 MINOR — Die Kategorie-Fassade hielt eine zweite, handgeschriebene Werteliste neben dem Code-Katalog. Sie kannte nur 21 der 30 amtlichen Statuscodes unter ihrem amtlichen Namen; bei Code 72 ging das schon schief — der Export schreibt „Stellungnahme zur Rücknahmeempfehlung" aus, die Tabelle kannte nur die Abkürzung, und 16 Vorgänge lagen deshalb unter `sonstige`.

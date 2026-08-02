@@ -1,5 +1,6 @@
 import type { ActiveFilter, ActiveFilterValue, FilterDefinition } from '@/core/services/csv';
-import { STATUS_GROUPS, getPhaseForStatus, type PhaseId } from './statusGroups';
+import { getPhaseForStatus, getPhaseLabel, type PhaseId } from './statusGroups';
+import { codeFuerStatusText } from '@/core/status/kategorie-ableitung';
 
 const STORAGE_KEY = 'teamflow_antraege_frequent_filters_v1';
 const HINT_DISMISSED_KEY = 'teamflow_antraege_preset_hint_dismissed_v1';
@@ -45,9 +46,11 @@ function phaseAggregateLabel(values: string[]): string | null {
   if (phases.size !== 1) return null;
   const phaseId = phases.values().next().value;
   if (!phaseId) return null;
-  const phase = STATUS_GROUPS.find(p => p.id === phaseId);
-  if (!phase) return null;
-  return `Phase ${phase.label} (${values.length})`;
+  // Gezählt werden CODES, nicht Schreibweisen: „Phase Entscheidung (7)" soll
+  // sagen, wie viele Zustände gewählt sind — nicht, wie viele Schreibvarianten
+  // davon im Filter stehen.
+  const codes = new Set(values.map(v => v.toLowerCase().trim()).map(v => codeFuerStatusText(v) ?? v));
+  return `Phase ${getPhaseLabel(phaseId)} (${codes.size})`;
 }
 
 function mapLabel(field: string, code: string, valueLabels: FieldValueLabels): string {

@@ -1,27 +1,42 @@
 /**
- * Phasen-Gruppierung für den Status-Filter.
+ * Gruppierung des Status-Filters — **nach ZAH-Phasen, auf Code-Ebene**.
  *
- * Die 30 Status-Labels stammen aus dem Forschungsförderungs-Domänenmodell
- * (Design-Handoff `_design/handoff/filter-sidebar/README.md`). Reihenfolge
- * innerhalb einer Phase und Reihenfolge der Phasen sind designvorgegeben —
- * nicht alphabetisch sortieren.
+ * Bis v2.383 stand hier eine dritte Achse: eine handgeschriebene Liste von 24
+ * Roh-Labels aus einem Design-Handoff, entkoppelt vom Katalog. Sie lief
+ * auseinander, wo es zählt — `NF gestellt` unter „Nachforderung", im Katalog
+ * unter „Vollständigkeit"; `bewilligt` unter „Entscheidung", im Katalog unter
+ * „Begleitung"; und jede amtliche Schreibweise, die der Handoff nicht kannte,
+ * fiel in „Sonstige". Jetzt gilt dieselbe Achse wie in Cockpit, Stepper und
+ * Erklärung, und ein Umhängen durch die PL wirkt hier mit.
  *
- * Unbekannte Runtime-Werte (z.B. snake_case-Seeds wie `genehmigt`/`in_pruefung`)
- * landen via `getPhaseForStatus()` in der Phase `sonstige`.
+ * **Ein Eintrag je Code, nicht je Schreibweise.** Der Export liefert denselben
+ * Status mal ausgeschrieben, mal abgekürzt („Stellungnahme zur
+ * Rücknahmeempfehlung" / „…Rücknahmeempf."). Als zwei Filter-Zeilen mit je
+ * eigener Zahl wäre das für die Nutzerin eine Fehlinformation — es sind
+ * Schreibweisen eines Status. Sie kollabieren auf einen Eintrag mit
+ * **Summen-Zählung**; gefiltert wird über alle Schreibweisen.
+ *
+ * **Marker sind eine eigene Gruppe** (29 Irrläufer, 88 Sonderstatus, 93/94
+ * Partner): sie laufen neben dem Verfahren, nicht darin. „Sonstige" enthält
+ * danach nur noch echte Katalog-Fremde — und wird damit zur Kuratier-Anzeige
+ * statt zum Sammelbecken.
  */
+import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
+import {
+  ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_CODE_ZU_ZAH_PHASE,
+  SEED_MARKER_CODES,
+} from '@/core/status/zah-phasen';
+import { codeFuerStatusText } from '@/core/status/kategorie-ableitung';
+import type { ZahPhaseId } from '@/core/status/typen';
 
-export type PhaseId =
-  | 'eingang'
-  | 'pruefung'
-  | 'entscheidung'
-  | 'nachforderung'
-  | 'begleitung'
-  | 'abgeschlossen'
-  | 'sonstige';
+/** Gruppen-Id: eine ZAH-Phase, die Marker-Gruppe oder der Rest. */
+export type PhaseId = ZahPhaseId | 'marker' | 'sonstige';
 
 export interface StatusItem {
-  /** Roher Status-Wert wie im CSV-Import (case-sensitive). */
+  /** Anzeige-Schreibweise (amtlicher Text bzw. der Roh-Wert bei Katalog-Fremden). */
   value: string;
+  /** Alle Schreibweisen, die auf denselben Eintrag filtern (inkl. `value`). */
+  schreibweisen: readonly string[];
 }
 
 export interface PhaseGroup {
@@ -30,100 +45,70 @@ export interface PhaseGroup {
   items: StatusItem[];
 }
 
-export const STATUS_GROUPS: readonly PhaseGroup[] = [
-  {
-    id: 'eingang',
-    label: 'Eingang',
-    items: [
-      { value: 'beantragt' },
-      { value: 'bearbeitungsreif' },
-      { value: 'NL eingegangen' },
-    ],
-  },
-  {
-    id: 'pruefung',
-    label: 'Prüfung',
-    items: [
-      { value: 'techn geprüft' },
-      { value: 'kaufm geprüft' },
-      { value: 'Gutachten fertig' },
-    ],
-  },
-  {
-    id: 'entscheidung',
-    label: 'Entscheidung',
-    items: [
-      { value: 'bewilligt' },
-      { value: 'bewilligungsreif' },
-      { value: 'Bewilligungsentwurf VDI/VDE-IT' },
-      { value: 'ablehnungsreif' },
-      { value: 'Ablehnung' },
-      { value: 'Widerruf' },
-      { value: 'Anhörung zum Widerruf' },
-      { value: 'Rücknahmeempfehlung' },
-      { value: 'Stellungnahme zur Rücknahmeempf.' },
-      { value: 'Widerspruch zur Ablehnung' },
-    ],
-  },
-  {
-    id: 'nachforderung',
-    label: 'Nachforderung',
-    items: [
-      { value: 'NF gestellt' },
-      { value: 'keine weiteren NF' },
-    ],
-  },
-  {
-    id: 'begleitung',
-    label: 'Begleitung',
-    items: [
-      { value: 'VN geprüft' },
-      { value: 'VN techn. geprüft' },
-    ],
-  },
-  {
-    id: 'abgeschlossen',
-    label: 'Abgeschlossen',
-    items: [
-      { value: 'Schlussvermerk' },
-      { value: 'beendet' },
-      { value: 'abgelehnt/zurückgezogen' },
-      { value: 'abgebrochen' },
-    ],
-  },
-  {
-    id: 'sonstige',
-    label: 'Sonstige',
-    items: [
-      { value: 'Irrläufer' },
-      { value: 'unvollständig' },
-    ],
-  },
-];
+const GRUPPEN_LABEL: Record<PhaseId, string> = {
+  ...ZAH_PHASE_LABEL,
+  marker: ZAH_MARKER_LABEL,
+  sonstige: 'Nicht im Katalog',
+};
 
-/** Lookup-Map: lowercased value → phase id. Wird einmalig initialisiert. */
-const VALUE_TO_PHASE: ReadonlyMap<string, PhaseId> = (() => {
-  const m = new Map<string, PhaseId>();
-  for (const phase of STATUS_GROUPS) {
-    for (const item of phase.items) {
-      m.set(item.value.toLowerCase(), phase.id);
+/** Gruppen-Reihenfolge: Verfahren zuerst, danach was danebensteht. */
+const GRUPPEN_REIHENFOLGE: readonly PhaseId[] = [...ZAH_PHASEN_REIHENFOLGE, 'marker', 'sonstige'];
+
+/** Zu welcher Gruppe ein Code gehört. */
+function gruppeFuerCode(code: number): PhaseId {
+  if (SEED_MARKER_CODES.has(code)) return 'marker';
+  return SEED_CODE_ZU_ZAH_PHASE.get(code) ?? 'marker';
+}
+
+/**
+ * Die Gruppen aus dem Code-Katalog — ein Eintrag je Code, in Code-Reihenfolge.
+ * Das ist die Orientierung für den Kurator: sie steht auch, wenn im Bestand
+ * gerade kein Vorgang darauf liegt.
+ */
+export const STATUS_GROUPS: readonly PhaseGroup[] = (() => {
+  const proGruppe = new Map<PhaseId, StatusItem[]>(GRUPPEN_REIHENFOLGE.map(id => [id, []]));
+  for (const e of STATUS_CODE_KATALOG) {
+    proGruppe.get(gruppeFuerCode(e.code))!.push({
+      value: e.text,
+      schreibweisen: [e.text, ...e.varianten],
+    });
+  }
+  return GRUPPEN_REIHENFOLGE.map(id => ({
+    id, label: GRUPPEN_LABEL[id], items: proGruppe.get(id) ?? [],
+  }));
+})();
+
+/** Lookup: normalisierte Schreibweise → Anzeige-Wert des Eintrags. */
+const SCHREIBWEISE_ZU_WERT: ReadonlyMap<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const g of STATUS_GROUPS) {
+    for (const it of g.items) {
+      for (const s of it.schreibweisen) m.set(s.toLowerCase().trim(), it.value);
     }
   }
   return m;
 })();
 
-/** Mappt rohen Status-Wert auf eine Phase. Unbekannt → 'sonstige'. */
+/** Mappt einen rohen Status-Wert auf seine Gruppe. Unbekannt → `sonstige`. */
 export function getPhaseForStatus(raw: string): PhaseId {
-  return VALUE_TO_PHASE.get(raw.toLowerCase()) ?? 'sonstige';
+  const code = codeFuerStatusText(raw);
+  return code === null ? 'sonstige' : gruppeFuerCode(code);
+}
+
+/** Deutsches Label einer Gruppe. */
+export function getPhaseLabel(id: PhaseId): string {
+  return GRUPPEN_LABEL[id] ?? id;
 }
 
 export interface GroupedItem {
-  /** Roher Status-Wert (case wie im Design oder im CSV-Import). */
+  /** Anzeige-Schreibweise. */
   value: string;
-  /** Anzahl Anträge mit diesem Status (post-Filter, exklusive aktiver Status-Selektion). */
+  /** Summe über alle Schreibweisen dieses Codes (post-Filter). */
   count: number;
-  /** True wenn der Wert aus dem Design stammt (auch bei count=0 anzeigen). */
+  /** True, wenn der Wert aus dem Code-Katalog stammt (auch bei count = 0 zeigen). */
   designed: boolean;
+  /** Womit gefiltert wird — alle bekannten Schreibweisen. */
+  schreibweisen: readonly string[];
 }
 
 export interface GroupedPhase {
@@ -133,38 +118,43 @@ export interface GroupedPhase {
 }
 
 /**
- * Bin alle Runtime-Werte (Keys der Counts-Map) in Phasen.
+ * Bin die Runtime-Werte (Keys der Counts-Map) in Gruppen.
  *
- * Verhalten:
- * - Design-bekannte Status-Labels einer Phase erscheinen IMMER als Item, auch
- *   wenn `counts.get(value) === 0` (Orientierung für den Kurator).
- * - Zusätzliche Runtime-only-Werte (z.B. `genehmigt` aus den Seeds) erscheinen
- *   in der Phase `sonstige` mit `designed=false`.
- * - Reihenfolge: zuerst die design-vorgegebenen Items in Design-Reihenfolge,
- *   dann die Runtime-only-Items alphabetisch sortiert (nur in `sonstige`).
+ * - Katalog-Codes erscheinen IMMER als Eintrag, auch mit `count: 0` — als
+ *   Orientierung, welche Zustände es überhaupt gibt.
+ * - Zählungen summieren über alle Schreibweisen eines Codes.
+ * - Werte, die der Katalog nicht kennt, landen in `sonstige` mit
+ *   `designed: false`. Das ist der Hinweis „im Export gesehen, nicht im Katalog"
+ *   — und im Idealfall ist die Gruppe leer.
  */
 export function groupStatusValues(counts: Map<string, number>): GroupedPhase[] {
-  const result: GroupedPhase[] = STATUS_GROUPS.map(p => ({
-    id: p.id,
-    label: p.label,
-    items: p.items.map(it => ({
+  const summen = new Map<string, number>();
+  const fremde: GroupedItem[] = [];
+  for (const [value, count] of counts) {
+    if (!value || value === '(leer)') continue;
+    const eintrag = SCHREIBWEISE_ZU_WERT.get(value.toLowerCase().trim());
+    if (eintrag === undefined) {
+      fremde.push({ value, count, designed: false, schreibweisen: [value] });
+      continue;
+    }
+    summen.set(eintrag, (summen.get(eintrag) ?? 0) + count);
+  }
+
+  const result: GroupedPhase[] = STATUS_GROUPS.map(g => ({
+    id: g.id,
+    label: g.label,
+    items: g.items.map(it => ({
       value: it.value,
-      count: counts.get(it.value) ?? 0,
+      count: summen.get(it.value) ?? 0,
       designed: true,
+      schreibweisen: it.schreibweisen,
     })),
   }));
 
-  const knownLower = new Set(VALUE_TO_PHASE.keys());
-  const extras: GroupedItem[] = [];
-  for (const [value, count] of counts) {
-    if (!value || value === '(leer)') continue;
-    if (knownLower.has(value.toLowerCase())) continue;
-    extras.push({ value, count, designed: false });
-  }
-  if (extras.length > 0) {
-    extras.sort((a, b) => a.value.localeCompare(b.value, 'de'));
+  if (fremde.length > 0) {
+    fremde.sort((a, b) => a.value.localeCompare(b.value, 'de'));
     const sonstige = result.find(p => p.id === 'sonstige');
-    if (sonstige) sonstige.items.push(...extras);
+    if (sonstige) sonstige.items.push(...fremde);
   }
   return result;
 }

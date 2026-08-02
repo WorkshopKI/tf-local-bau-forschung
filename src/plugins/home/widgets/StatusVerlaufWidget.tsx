@@ -1,13 +1,19 @@
 /**
  * Status & Verlauf (Home-Widget, Hauptbereich).
  *
- * Zeigt je Verbund den DETERMINISTISCH abgeleiteten Status (SPINE_LABEL), einen
- * Mini-Verlauf (die letzten sichtbaren Status-Events) und den ersten nächsten
- * Schritt. Read-only + strikt gerätelokal: liest ausschließlich via `idb.get`
+ * Zeigt je Verbund die **ZAH-Phase des amtlichen Status**, einen Mini-Verlauf
+ * (die letzten sichtbaren Status-Events) und das erste offene To-do. Read-only +
+ * strikt gerätelokal: liest ausschließlich via `idb.get`
  * (getVerbund/listAntraegeByVerbund/getStatusEvents) und die REINE Status-API
  * (@/core/status) — kein Share-/Snapshot-/Mirror-Write (Guard
  * `home-widgets-local-only`). Die Status-Logik wird NICHT dupliziert, nur
  * konsumiert (analog `useStatusVerlauf` der Verbund-Detailseite).
+ *
+ * Bis v2.383 stand hier die abgeleitete Spine-Phase, ein Konflikt-Badge und ein
+ * Schritt aus den fünf handgeschriebenen Alt-Regeln. Alle drei haben Nachfolger,
+ * die näher an den Daten sitzen: die Phase am amtlichen Code, der Widerspruch im
+ * Herleitungs-Popover (als Auskunft, nicht als Warnung), das To-do in der
+ * Kaskade des Vorgangssystems.
  *
  * Datenbasis: der einmal berechnete Dashboard-Aggregat
  * (`ctx.data.meineAntraege`) — bereits bearbeiter-gescoped, verbund-geclustert
@@ -19,15 +25,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getVerbund, listAntraegeByVerbund } from '@/core/services/csv/idb-csv';
+import {
+  getVerbund, listAntraegeByVerbund, listSchemasByProgramm,
+} from '@/core/services/csv/idb-csv';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import {
-  getAktiveVersion, getStatusEvents, baueVerbundFelder, leiteStatusAb,
+  getAktiveVersion, getStatusEvents, sammleVorkommen, baueFeldAufloesung,
+  ermittleTodo, baueTodoKontext, zahPhaseLabel, zahPhaseFuerStatusText,
   sortiereEvents, eventProminenz, eventZeitMs, feldLabel,
-  type MappingVersion, type StatusEvent, type AbleitungsErgebnis,
+  type MappingVersion, type StatusEvent, type ZahPhaseId,
 } from '@/core/status';
-import { SPINE_LABEL } from '@/plugins/antraege/status/labels';
-import { KonfliktBadge } from '@/plugins/antraege/status/KonfliktBadge';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
 
@@ -43,14 +50,22 @@ interface Verbundzeile {
 }
 
 interface ZeileDaten {
-  ableitung: AbleitungsErgebnis;
+  /** ZAH-Phase des amtlichen Verbund-Status; `null` = Marker oder nicht im Katalog. */
+  phase: ZahPhaseId | null;
+  /** Erstes zutreffendes To-do aus der Kaskade; `null` = keine Regel greift. */
+  todo: string | null;
   events: StatusEvent[];
 }
 
 /**
- * Lädt Ensemble + Historie je (gekapptem) Verbund und leitet den Status ab.
- * Nur aktiv, wenn das Widget ausgeklappt ist (`aktiv`) — der WidgetShell-Body
- * existiert eingeklappt gar nicht. Abbruch-sicher gegen Unmount / ID-Wechsel.
+ * Lädt Status, To-do und Historie je (gekapptem) Verbund. Nur aktiv, wenn das
+ * Widget ausgeklappt ist (`aktiv`) — der WidgetShell-Body existiert eingeklappt
+ * gar nicht. Abbruch-sicher gegen Unmount / ID-Wechsel.
+ *
+ * Die Schemas werden je Programm EINMAL geladen und für die Feld-Auflösung
+ * gebraucht: dieselbe `D_`-Spalte liegt in verschiedenen Programmen unter
+ * verschiedenen Record-Keys (Bug-Klasse 5). Ohne sie liefe die To-do-Kaskade auf
+ * lauter leeren Feldern und meldete falsche Aufgaben.
  */
 function useStatusZeilen(
   version: MappingVersion | null,
@@ -72,6 +87,8 @@ function useStatusZeilen(
     void (async () => {
       try {
         const heute = new Date().toISOString();
+        const regeln = version.todoRegeln ?? [];
+        const aufloesungCache = new Map<string, ReturnType<typeof baueFeldAufloesung>>();
         const paare = await Promise.all(
           verbuende.map(async (v): Promise<[string, ZeileDaten]> => {
             const [verbund, antraege, events] = await Promise.all([
@@ -79,17 +96,27 @@ function useStatusZeilen(
               listAntraegeByVerbund(idb, v.verbundId),
               getStatusEvents(idb, v.verbundId),
             ]);
-            const vf = baueVerbundFelder(
-              version,
-              v.verbundId,
+            const programmId = verbund?.programm_id ?? antraege[0]?.programm_id ?? null;
+            let aufloesung = programmId ? aufloesungCache.get(programmId) : undefined;
+            if (programmId && !aufloesung) {
+              aufloesung = baueFeldAufloesung(await listSchemasByProgramm(idb, programmId), version.felder);
+              aufloesungCache.set(programmId, aufloesung);
+            }
+            const vorkommen = sammleVorkommen(
+              version.felder,
               (verbund ?? {}) as unknown as Record<string, unknown>,
               antraege.map(a => ({
                 aktenzeichen: a.aktenzeichen,
                 record: a as unknown as Record<string, unknown>,
               })),
+              aufloesung,
             );
-            const ableitung = leiteStatusAb(version, vf.felder, vf.tvFelder, heute);
-            return [v.verbundId, { ableitung, events }];
+            const todo = ermittleTodo(regeln, baueTodoKontext(vorkommen), heute);
+            return [v.verbundId, {
+              phase: zahPhaseFuerStatusText(verbund?.status),
+              todo: todo?.todo ?? null,
+              events,
+            }];
           }),
         );
         if (abgebrochen) return;
@@ -195,7 +222,7 @@ function StatusZeile({
   laden: boolean;
   onOpen: () => void;
 }): React.ReactElement {
-  const ableitung = daten?.ableitung ?? null;
+  const phase = daten?.phase ?? null;
   const events = daten?.events ?? [];
 
   // Mini-Verlauf: sichtbare Events (Meilenstein/Normal — nebensächliche +
@@ -208,11 +235,11 @@ function StatusZeile({
     return sichtbar.slice(-MINI_VERLAUF).reverse();
   }, [events, version]);
 
-  const naechster = ableitung?.naechsteSchritte[0]?.label ?? null;
+  const naechster = daten?.todo ?? null;
 
-  // Einzeilig: Akronym · Status-Badge · Konflikt · (nächster Schritt, füllt) ·
-  // Mini-Verlauf. Der nächste Schritt / Leer-Hinweis wandert in dieselbe Zeile
-  // (füllt den Rest, truncate), damit vertikal mehr Verbünde sichtbar sind.
+  // Einzeilig: Akronym · ZAH-Phase · (To-do, füllt) · Mini-Verlauf. Das To-do /
+  // der Leer-Hinweis wandert in dieselbe Zeile (füllt den Rest, truncate), damit
+  // vertikal mehr Verbünde sichtbar sind.
   return (
     <button
       type="button"
@@ -226,7 +253,7 @@ function StatusZeile({
       >
         {zeile.akronym}
       </span>
-      {ableitung ? (
+      {phase !== null ? (
         <span
           className="shrink-0 inline-flex items-center rounded-[6px] px-1.5 py-0.5 text-[11px]"
           style={{
@@ -234,12 +261,11 @@ function StatusZeile({
             background: 'color-mix(in srgb, var(--tf-primary) 12%, var(--tf-bg))',
           }}
         >
-          {SPINE_LABEL[ableitung.spinePhase]}
+          {zahPhaseLabel(phase, version.zahPhasen)}
         </span>
       ) : laden ? (
         <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">…</span>
       ) : null}
-      {ableitung ? <KonfliktBadge ableitung={ableitung} version={version} kompakt /> : null}
       {naechster ? (
         <span
           className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]"
@@ -247,7 +273,7 @@ function StatusZeile({
         >
           {naechster}
         </span>
-      ) : ableitung && verlauf.length === 0 ? (
+      ) : daten && verlauf.length === 0 ? (
         <span className="flex-1 min-w-0 truncate text-[11px] text-[var(--tf-text-tertiary)]">
           Noch keine Statushistorie.
         </span>

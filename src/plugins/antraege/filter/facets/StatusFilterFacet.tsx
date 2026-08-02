@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Search } from 'lucide-react';
-import { groupStatusValues, type GroupedPhase, type PhaseId } from '../statusGroups';
+import { groupStatusValues, type GroupedItem, type GroupedPhase, type PhaseId } from '../statusGroups';
 
 interface Props {
   counts: Map<string, number>;
@@ -11,16 +11,21 @@ interface Props {
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
 /**
- * Status-Filter mit Phasen-Akkordeon (Design Option 7).
+ * Status-Filter mit Phasen-Akkordeon.
  *
- * Jede Phase ist eine eigene kollabierbare Row mit linker Akzent-Border
- * wenn die Phase aktive Filter hat. Default-Open: alle Phasen, die beim
- * Mount mindestens einen aktiven Status haben. Manuelles Schließen wird in
- * lokalem State gehalten (nicht persistiert).
+ * Jede ZAH-Phase ist eine eigene kollabierbare Row mit linker Akzent-Border,
+ * wenn sie aktive Filter hat. Default-Open: alle Phasen, die beim Mount
+ * mindestens einen aktiven Status haben. Manuelles Schließen wird in lokalem
+ * State gehalten (nicht persistiert).
  *
- * Shift-Klick auf eine Phase-Header toggelt alle Status-Werte der Phase
- * (übernommen aus der Vor-Akkordeon-Version). Normaler Klick togglet
- * Expand/Collapse.
+ * Shift-Klick auf einen Phasen-Header toggelt alle Status der Phase, normaler
+ * Klick klappt auf/zu.
+ *
+ * **Eine Zeile filtert über alle Schreibweisen ihres Codes.** Der Export
+ * liefert denselben Status mal ausgeschrieben, mal abgekürzt; als zwei Zeilen
+ * mit je eigener Zahl wäre das eine Fehlinformation. Ein Häkchen setzt deshalb
+ * alle Schreibweisen — und ein gespeicherter Filter, der nur eine davon führt,
+ * zählt weiter als gesetzt (sonst sähe er nach dem Update aus wie „aus").
  */
 export function StatusFilterFacet({ counts, selected, onChange }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
@@ -33,17 +38,22 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
     return phases
       .map(p => ({
         ...p,
-        items: p.items.filter(it => it.value.toLowerCase().includes(q)),
+        // Auch über die Varianten suchen: wer „Rücknahmeempf." eintippt (so
+        // steht es im Export), soll den Eintrag finden.
+        items: p.items.filter(it => it.schreibweisen.some(s => s.toLowerCase().includes(q))),
       }))
       .filter(p => p.items.length > 0);
   }, [phases, query]);
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
 
+  /** Gesetzt, sobald IRGENDEINE Schreibweise im Filter steht. */
+  const istGesetzt = (it: GroupedItem): boolean => it.schreibweisen.some(s => selectedSet.has(s));
+
   const initialOpen = useMemo<Set<PhaseId>>(() => {
     const set = new Set<PhaseId>();
     for (const p of phases) {
-      if (p.items.some(it => selectedSet.has(it.value))) set.add(p.id);
+      if (p.items.some(istGesetzt)) set.add(p.id);
     }
     return set;
     // Initial-Berechnung läuft nur einmal beim Mount — danach übernimmt
@@ -75,22 +85,23 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
     });
   };
 
-  const toggleStatus = (value: string): void => {
-    const next = selectedSet.has(value)
-      ? selected.filter(v => v !== value)
-      : [...selected, value];
+  const toggleStatus = (item: GroupedItem): void => {
+    const alle = new Set<string>(item.schreibweisen);
+    const next = istGesetzt(item)
+      ? selected.filter(v => !alle.has(v))
+      : [...selected, ...item.schreibweisen.filter(s => !selectedSet.has(s))];
     onChange(next);
   };
 
   const togglePhaseSelection = (phase: GroupedPhase): void => {
-    const phaseValues = phase.items.map(it => it.value);
-    const allOn = phaseValues.length > 0 && phaseValues.every(v => selectedSet.has(v));
+    const alle = new Set<string>(phase.items.flatMap(it => it.schreibweisen));
+    const allOn = phase.items.length > 0 && phase.items.every(istGesetzt);
     if (allOn) {
-      onChange(selected.filter(v => !phaseValues.includes(v)));
+      onChange(selected.filter(v => !alle.has(v)));
     } else {
       const merged = new Set(selected);
-      phaseValues.forEach(v => merged.add(v));
-      onChange(Array.from(merged));
+      for (const v of alle) merged.add(v);
+      onChange([...merged]);
     }
   };
 
@@ -142,11 +153,7 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
           </div>
         ) : (
           filteredPhases.map(phase => {
-            const phaseValues = phase.items.map(it => it.value);
-            const onCount = phaseValues.reduce(
-              (n, v) => (selectedSet.has(v) ? n + 1 : n),
-              0,
-            );
+            const onCount = phase.items.reduce((n, it) => (istGesetzt(it) ? n + 1 : n), 0);
             const totalCount = phase.items.reduce((n, it) => n + it.count, 0);
             const isOpen = openPhases.has(phase.id);
             const hasActive = onCount > 0;
@@ -202,10 +209,14 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
                 {isOpen ? (
                   <div style={{ paddingLeft: 18, paddingTop: 2, paddingBottom: 4 }}>
                     {phase.items.map(item => {
-                      const isOn = selectedSet.has(item.value);
+                      const isOn = istGesetzt(item);
+                      const weitere = item.schreibweisen.length - 1;
                       return (
                         <label
                           key={item.value}
+                          title={weitere > 0
+                            ? `Auch: ${item.schreibweisen.slice(1).join(', ')}`
+                            : undefined}
                           className={`flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer text-[12.5px] ${
                             isOn
                               ? 'text-[var(--tf-text)] font-medium'
@@ -215,7 +226,7 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
                           <input
                             type="checkbox"
                             checked={isOn}
-                            onChange={() => toggleStatus(item.value)}
+                            onChange={() => toggleStatus(item)}
                             className="accent-[var(--tf-primary)]"
                           />
                           <span className="flex-1 truncate">{item.value}</span>

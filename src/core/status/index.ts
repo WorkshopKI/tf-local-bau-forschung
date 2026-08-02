@@ -56,6 +56,13 @@ export {
   zahPhaseRang, zahPhaseLabel, zahPhasenVon,
 } from './zah-phasen';
 export {
+  kategorieFuerCode, kategorieFuerPhase, codeFuerStatusText, zahPhaseFuerStatusText,
+  baueFoerderKategorieEintraege, baueFoerderSeedEintraege,
+  ZAH_PHASE_ZU_KATEGORIE, NACHFORDERUNG_CODES, BEWILLIGT_CODE,
+  type KategorieEintrag,
+} from './kategorie-ableitung';
+export { indexNachSchreibweise } from './wert-index';
+export {
   baueHerleitung, herleitungAlsText, statusKurz,
   type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
   type VerlaufSchritt, type LetzterVorgang,

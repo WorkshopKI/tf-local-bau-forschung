@@ -1,25 +1,31 @@
 /**
- * Status-Detailsektion (`#status`) der Verbund-Detailseite (Phase 5). Komponiert
- * Timeline + „Warum?"-Panel + Nächste-Schritte aus dem gerätelokalen,
- * read-only `useStatusVerlauf`. Rendert nichts, solange Katalog/Ableitung fehlen
- * (Flag aus oder noch nicht initialisiert).
+ * Status-Detailsektion (`#status`) der Verbund-Detailseite. Komponiert Chronik
+ * bzw. Zeitstrahl, die Status-Erklärung und den Navigator aus dem gerätelokalen,
+ * read-only `useStatusVerlauf`. Rendert nichts, solange der Katalog fehlt (Flag
+ * aus oder noch nicht initialisiert).
  *
- * Einklappbar mit Default ZU — im Kopf steht die abgeleitete Phase, aufgeklappt
- * die Begründung dazu.
+ * Einklappbar mit Default ZU — im Kopf steht die **ZAH-Phase** des amtlichen
+ * Status, aufgeklappt der Verlauf.
+ *
+ * Bis v2.383 stand hier die abgeleitete Spine-Phase, daneben ein „Warum dieser
+ * Status?"-Panel aus Rängen und ein zweiter Block „Nächste Schritte" aus fünf
+ * handgeschriebenen Regeln. Beide sind mit dem Rückbau entfallen: die Frage
+ * „warum?" beantwortet das Herleitungs-Popover aus dem amtlichen Status, die
+ * Frage „was jetzt?" der Navigator aus der Trigger-Tabelle. Zwei
+ * Erklärungs-Oberflächen nebeneinander waren der Übergangszustand, nicht das Ziel.
  */
 import { ChevronRight } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
+import { zahPhaseLabel, zahPhaseFuerStatusText } from '@/core/status';
 import { HerleitungPopover } from './HerleitungPopover';
 import { NaechsteSchritte } from './NaechsteSchritte';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
 import { StatusChronik } from './StatusChronik';
-import { StatusWarum } from './StatusWarum';
 import { StatusCodeListe } from './StatusCodeListe';
 import { useTimelinePrefs } from './timelinePrefs';
-import { WERKZEUG_LABEL, SPINE_LABEL } from './labels';
 
 export function StatusDetailSection({ verbundId, statusRoh }: {
   verbundId: string;
@@ -38,9 +44,11 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
   if (v.laden) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>;
   }
-  if (!v.version || !v.ableitung) return null;
+  if (!v.version) return null;
   const version = v.version;
-  const ableitung = v.ableitung;
+  // Die Phase des AMTLICHEN Status — nicht abgeleitet. Ohne Katalog-Treffer
+  // bleibt die Vorschau leer statt eine Phase zu erfinden.
+  const phase = zahPhaseFuerStatusText(statusRoh);
 
   return (
     <div>
@@ -58,18 +66,15 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           />
           <span className="text-[16px] font-medium text-[var(--tf-text)]">Status &amp; Verlauf</span>
         </button>
-        {/* Vorschau: die abgeleitete Phase — sonst sagt die eingeklappte Zeile nichts. */}
-        <span className="text-[12px] text-[var(--tf-text-secondary)]">{SPINE_LABEL[ableitung.spinePhase]}</span>
-        {/* Die Status-Erklärung des Vorgangssystems: hier steht sie NEBEN der
-            abgeleiteten Phase, nicht an ihrer Stelle — die beiden Lesarten
-            gehen auseinander (siehe Diagnose-Report), und bis zum Rückbau soll
-            man beide sehen können. */}
+        {/* Vorschau: die ZAH-Phase — sonst sagt die eingeklappte Zeile nichts. */}
+        {phase !== null && (
+          <span className="text-[12px] text-[var(--tf-text-secondary)]">
+            {zahPhaseLabel(phase, version.zahPhasen)}
+          </span>
+        )}
         {isVorgangssystemEnabled() && (
           <HerleitungPopover verbundId={verbundId} statusRoh={statusRoh} ebene="verbund" />
         )}
-        {ableitung.konflikt ? (
-          <span className="text-[12px] text-[var(--tf-warning-text)]">Widersprüchliche Statussignale</span>
-        ) : null}
       </div>
 
       <div className={open ? undefined : 'hidden'}>
@@ -99,39 +104,8 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         <StatusTimeline events={v.events} version={version} grenze={v.grenze} prefsApi={prefsApi} />
       )}
 
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div>
-          <div className="text-[12px] font-medium text-[var(--tf-text-secondary)] mb-2">Warum dieser Status?</div>
-          <StatusWarum ableitung={ableitung} version={version} />
-        </div>
-        <div>
-          <div className="text-[12px] font-medium text-[var(--tf-text-secondary)] mb-2">Nächste Schritte</div>
-          {ableitung.naechsteSchritte.length === 0 ? (
-            <div className="text-[12px] text-[var(--tf-text-tertiary)]">Keine offenen Schritte abgeleitet.</div>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {ableitung.naechsteSchritte.map((s, i) => (
-                <li
-                  key={`${s.regelId}:${i}`}
-                  className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]"
-                >
-                  <span>{s.label}</span>
-                  {s.werkzeug ? (
-                    <span className="text-[10.5px] px-1.5 py-[1px] rounded-full bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]">
-                      {WERKZEUG_LABEL[s.werkzeug]}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Der Navigator des Vorgangssystems. Er steht NEBEN den abgeleiteten
-          „Nächsten Schritten" oben, nicht an ihrer Stelle: die dort kommen aus
-          unseren fünf Alt-Regeln, diese aus der Trigger-Tabelle des
-          Fachsystems. Bis zum Rückbau soll man beide vergleichen können. */}
+      {/* Der Navigator: was ist als Nächstes zu setzen, von wem, was löst es aus.
+          Aus der Trigger-Tabelle des Fachsystems — nicht abgeleitet. */}
       <div className="mt-5">
         <NaechsteSchritte
           version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} programm={v.programm}

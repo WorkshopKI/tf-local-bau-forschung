@@ -1,9 +1,13 @@
 /**
- * Deutsche Anzeige-Labels für das Status-System (Phase 5, UI-Schicht).
+ * Deutsche Anzeige-Labels für das Status-System (UI-Schicht).
  *
- * Reine Nachschlage-Tabellen — keine Logik. Die Wahrheit über Kategorie/Phase/
- * Prominenz liegt im kuratierten Katalog (`@/core/status`); hier stehen nur die
- * sprechenden Texte für Timeline, „Warum?"-Panel und Konflikt-Badge.
+ * Reine Nachschlage-Tabellen — keine Logik. Die Wahrheit über Kategorie und
+ * Phase liegt im kuratierten Katalog (`@/core/status`); hier stehen nur die
+ * sprechenden Texte.
+ *
+ * `SPINE_LABEL` beschriftet noch die Phasen-Marke der Chronik, die an der
+ * (alten) Feld-Phase hängt. Sie wandert mit dem Rückbau auf die ZAH-Phase am
+ * Feld — zusammen mit `bestimmeSeit`, das an derselben Angabe hängt.
  */
 import type { SpinePhase, StatusCategory, Werkzeug } from '@/core/status';
 
@@ -28,13 +32,6 @@ export const KATEGORIE_LABEL: Record<StatusCategory, string> = {
   abgelehnt: 'Abgelehnt',
   abgeschlossen: 'Abgeschlossen',
   sonstige: 'Sonstige',
-};
-
-/** Grund, warum ein Feldwert nicht zur Ableitung beiträgt. */
-export const GRUND_LABEL: Record<'unkuratiert' | 'rang-0' | 'inaktiv', string> = {
-  unkuratiert: 'unkuratiert',
-  'rang-0': 'trägt nicht bei',
-  inaktiv: 'inaktiv',
 };
 
 /** Nächste-Schritte-Werkzeug → deutsches Chip-Label. */

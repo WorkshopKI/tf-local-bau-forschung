@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.384 — 2026-08
+
+### Verbesserungen
+- Die Schritt-Leiste am Verbund zeigt jetzt dieselben Phasen wie Filter und Cockpit: Eingang · Vollständigkeit · Prüfung · Entscheidung · Begleitung · Abgeschlossen. Vorher waren es fünf andere Stationen, die die App selbst ausgerechnet hatte.
+- Irrläufer und Sonderstatus stehen als Kennzeichen **neben** der Leiste statt auf einer Stufe — sie laufen neben dem Verfahren, nicht darin. Und ein Status, den der Katalog nicht kennt, betont keine Station mehr, statt „Eingang" zu behaupten.
+- Der Status-Filter ist nach denselben Phasen gruppiert und zeigt **eine Zeile je Status** statt einer je Schreibweise. „Ablehnung versandt" und „Ablehnung" waren zwei Einträge mit getrennten Zahlen; jetzt ist es einer mit der Summe, und ein Häkchen filtert beide.
+- Das Feld „Warum dieser Status?" auf der Verbund-Seite ist entfallen. Es begründete eine Einordnung, die die App selbst vorgenommen hatte; die Frage beantwortet jetzt das Info-Icon am Status aus den amtlichen Daten.
+
 ## v2.383 — 2026-08
 
 ### Bugfixes
