@@ -11,11 +11,12 @@ stattfand, sodass entweder niemand kuratierte oder jeder neu. Das Event-Log
 wandert bewusst NICHT mit: es hält fest, wann *diese Installation* eine Änderung
 beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
 
-## Drei Schichten
+## Zwei Schichten
 
 1. **Katalog** ([katalog-store.ts](../../src/core/status/katalog-store.ts), Seed
    [seed.ts](../../src/core/status/seed.ts)) — jedes Statusfeld + jeder Statuswert
-   bekommt Kategorie, Spine-Phase, Rang, Prominenz, Terminal-Flag. Versioniert im
+   bekommt Kategorie, ZAH-Phase und Prominenz; Statuswerte zusätzlich Zieltage.
+   Versioniert im
    dedizierten IDB-Store `status_katalog`. Unbekanntes wird beim Import als
    `unkuratiert` gesammelt, nie automatisch gemappt.
    Seit v2.348 führt er die **505 Codes des Fachsystems** aus der Kürzel-Zuarbeit
@@ -24,24 +25,24 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
    Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md).
 2. **Historie** ([HISTORIE.md](HISTORIE.md)) — append-only `StatusEvent`-Log
    (`status_event`), per idempotentem Post-Import-Reconcile befüllt.
-3. **Ableitung** ([ableitung.ts](../../src/core/status/ableitung.ts)) — Hauptstatus
-   = höchster Phasenrang über alle berücksichtigten Feldwerte (robust gegen
-   veraltete Einzelfelder); Terminal schlägt Rang; Widerspruch ⇒ Konflikt
-   (ausgewiesen, nie stillschweigend aufgelöst); priorisierte Nächste-Schritte-Regeln.
-   Seit v2.342 tragen auch **Datums- und Textfelder** bei — dort hängt die Phase
-   am Feld, und nur mit `rang > 0`. **Konflikte bleiben eine Frage der
-   Wert-Felder**: ein Datum hält fest, dass ein Punkt passiert wurde, es behauptet
-   nicht, wo der Vorgang gerade steht.
+
+> **Eine dritte Schicht gab es bis v2.384**: eine Ableitungs-Engine, die aus dem
+> ganzen Feld-Ensemble einen Hauptstatus errechnete (höchster Rang gewinnt,
+> `terminal` schlägt Rang, Widerspruch ⇒ Konflikt). Sie lief dem amtlichen Status
+> regelmäßig voraus — bei 485 von 7 534 Verbünden sagten beide etwas anderes —
+> und ist mit dem Rückbau entfallen. Die App leitet keinen Status ab
+> (Pitfall #44); was von der Achse bleibt, ist die **ZAH-Phase** am amtlichen
+> Code: [vorgangssystem.md §7](../architecture/vorgangssystem.md#7-der-rückbau-der-alten-ableitung-p6-umgesetzt).
 
 ## Anzeigeflächen
 
 - **Cockpit** (Plugin `status-cockpit`, [status-cockpit.md](../feedback-kontext/status-cockpit.md)) —
-  Katalog/Felder/Regeln kuratieren, Simulieren, Versionieren, JSON-Export/Import.
+  Katalog/Kürzel/To-dos kuratieren, Versionieren, JSON-Export/Import.
   Der Ordnerbaum ist seit v2.351 ein **echter Baum** ([KategorieEditor.tsx](../../src/plugins/status-cockpit/KategorieEditor.tsx)):
   Zweige klappen zu, umgehängt wird per Ziehen (Regeln rein in
   [ordnerDrag.ts](../../src/plugins/status-cockpit/ordnerDrag.ts) — Ebenen bleiben
   getrennt, kein Nachfahre als Elternknoten).
-- **Detailseite** — `#status`-Abschnitt (Verlauf + „Warum" + nächste Schritte).
+- **Detailseite** — `#status`-Abschnitt (ZAH-Phase + Verlauf + Navigator).
   Zwei Sichten auf den Verlauf: **Chronik** (Standard,
   [chronik.ts](../../src/core/status/chronik.ts)) liest die Termine aus den
   Datumsfeldern und steht damit nach jedem Import bereit; der **Zeitstrahl**
@@ -49,7 +50,7 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
   zeigt das gerätelokale Ereignis-Protokoll und bleibt leer, bis diese
   Installation die erste Änderung mitgeschrieben hat. Beide filtern
   `ignoriert`/`nebensaechlich` nach derselben Regel.
-- **Fördertabelle** — Konflikt-Badge auf Multi-TV-Verbund-Zeilen.
+- **Fördertabelle** — Info-Icon je Zeile mit der Status-Erklärung.
 - **Home-Widget** „Status & Verlauf".
 
 ## Harte Regeln
@@ -75,15 +76,16 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
   Portabilitätsweg, sondern für Sicherung und Transfer zwischen Installationen.
 - **Event-Log ist append-only** — nie mutieren/löschen (auch kein „Aufräumen"
   ignorierter Felder).
-- **Spine = amtliche Wirbelsäule** (`STEPPER_STATIONS`); die bestehende
-  `statusZuStepperPosition.ts` bleibt unverändert (Zwei-Achsen-Prinzip: amtlicher
-  Status vs. Artefakte GA/NF/ABL/RNE).
+- **Eine Phasen-Achse**: die ZAH-Phase am amtlichen Code. `STEPPER_STATIONS`
+  speist sich seit v2.384 daraus, statt eine zweite Wirbelsäule zu führen. Das
+  Zwei-Achsen-Prinzip bleibt — amtlicher Status **vs. Artefakte** (GA/NF/ABL/RNE),
+  nicht amtlicher Status vs. abgeleitete Position.
 
 ## Weitere Docs
 
 - [KATALOG-CODES.md](KATALOG-CODES.md) — die ~180 Codes des Fachsystems:
-  Spalten-Konvention (`D_`/`T_`/`X`), Ordnerbaum, AB/FB, was auf die Ableitung
-  wirkt, Ordner-Spalten in der Fördertabelle.
+  Spalten-Konvention (`D_`/`T_`/`X`), Ordnerbaum, AB/FB, ZAH-Phase je Feld,
+  Ordner-Spalten in der Fördertabelle.
 - [BESTANDSAUFNAHME.md](BESTANDSAUFNAHME.md) — verifizierter Ausgangszustand.
-- [KATALOG-V1.md](KATALOG-V1.md) — Seed-Defaults (Rang/Spine/Prominenz/Terminal, Regeln).
+- [KATALOG-V1.md](KATALOG-V1.md) — Seed-Defaults. **Historisch**: die dort beschriebenen Rang-/Spine-/Terminal-Defaults sind mit v2.385 entfallen.
 - [HISTORIE.md](HISTORIE.md) — Event-Modell + Reconcile.

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.385.1 — P6-Doku: Rückbau abgeschlossen (August 2026)
+
+PATCH — Die Docs beschrieben noch die Ableitung, die es seit v2.385 nicht mehr gibt. Ist-Zustand nachgezogen, das Inventar als Protokoll geschlossen.
+
+- [vorgangssystem.md](docs/architecture/vorgangssystem.md) Abschnitt 7 auf „umgesetzt": Vorher/Nachher-Tabelle, die vier Funde am Bestand, was bleibt und warum.
+- [vorgangssystem-p6-inventar.md](docs/architecture/vorgangssystem-p6-inventar.md) auf erledigt — inkl. der vier Plan-Abweichungen (Prominenz bleibt, Code 73 bleibt `abgeschlossen`, `byte-identitaet` bleibt, Diagnose entfällt statt umgewidmet).
+- **Pitfall #45** neu: Fassade aus Code+ZAH-Phase, Varianten über `indexNachSchreibweise`, Abgeleitetes nicht daneben persistieren ([CLAUDE.md](CLAUDE.md)).
+- Kontext-Docs `status-cockpit` und `antraege` auf den Ist-Zustand ([docs/feedback-kontext/](docs/feedback-kontext/)); [status-system/README.md](docs/status-system/README.md) von drei auf zwei Schichten.
+- Das CLAUDE.md-Diät-Ceiling steigt begründet auf 56 400 Bytes ([doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+
 ### v2.385.0 — Rückbau der alten Statusableitung (August 2026)
 
 MINOR — Die App rechnete aus dem ganzen `D_`-Feld-Ensemble eine eigene Verfahrensposition aus (höchster Rang gewinnt, `terminal` schlägt Rang) und lief dem amtlichen Status damit regelmäßig voraus. Sie tut es nicht mehr: das Fachsystem führt den Status, die App liest ihn (Pitfall #44).

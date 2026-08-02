@@ -128,6 +128,16 @@ describe('doc-links', () => {
     // Unbelegbares als „ok" zählen statt als eigenes Urteil. Alles Detail —
     // Bausteine, Messwerte, Abweichungen — lebt in
     // docs/architecture/vorgangssystem.md.
-    expect(bytes).toBeLessThan(55_500);
+    // 55_500 → 56_400 (v2.385): Pitfall #45 + zwei Sätze am
+    // Vorgangssystem-Absatz für den Rückbau der Ableitung. Zwei Fehler macht
+    // man ohne den Hinweis garantiert: eine zweite Werteliste neben dem
+    // Code-Katalog anlegen (die alte kannte 21 von 30 Codes, und niemand merkte
+    // es), und eine abgeleitete Größe zusätzlich persistieren (die gespeicherte
+    // Fassung gewinnt dann über die neue Ableitung — beobachtet als zwei
+    // verschiedene Zahlen auf derselben Seite). Beides ist im Diff unsichtbar
+    // und fällt erst am Bestand auf. Gegengerechnet: die abgelöste Rede von der
+    // „Ableitung" ist an drei Stellen gekürzt worden, der Netto-Zuwachs sind
+    // ~1,2 KB. Detail: docs/architecture/vorgangssystem.md#7.
+    expect(bytes).toBeLessThan(56_400);
   });
 });

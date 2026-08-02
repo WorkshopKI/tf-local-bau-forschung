@@ -1,6 +1,6 @@
 # Vorgangssystem — Status, To-do, Wächter, Cockpit (ZAH-App)
 
-Stand: 01.08.2026 · **P0–P5 umgesetzt** (v2.374 – v2.379), P6 offen ·
+Stand: 02.08.2026 · **P0–P6 umgesetzt** (v2.374 – v2.385) ·
 Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
 
 ## 0. Umsetzungsstand
@@ -13,8 +13,8 @@ Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
 | P3 | To-do-Kaskade (AB-Regelsatz) + Vorgangs-Board | v2.377.0 |
 | P4 | Stillstands-Wächter, Zieltage, Home-Widget „Hängt fest" | v2.378.0 |
 | P5 | Fristen-Cockpit (Bearbeiter + PL), wirksamer Eingang, XLSX-Export | v2.379.0 |
-| P6 | Rückbau der alten Ableitung | offen → [vorgangssystem-p6-inventar.md](vorgangssystem-p6-inventar.md) |
 | — | Trigger je Richtlinie (Nacharbeit am ersten echten Import) | v2.380.0 → [Abschnitt 3a](#3a-trigger-gelten-je-richtlinie) |
+| P6 | **Rückbau der alten Ableitung** — Vorab-Fixes, Fassade aus Code+ZAH, Anzeige umgehängt, Ableitung entfernt | v2.382 – v2.385 → [Abschnitt 7](#7-umbau-des-bestehenden-status-katalog-moduls) |
 
 **Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
 
@@ -253,19 +253,59 @@ Das selbstgebaute AB-Dashboard („AB Anträge") ist der Beleg, dass 6.2–6.4 g
 - **Seed statt Neuerfindung:** die WENN-Formeln der Mappe werden transkribiert und bilden den ersten To-do-Regelsatz (AB); die im Dashboard gewählten `D_`-Spalten sind der Relevanz-Seed für die Rolle AB. Der FB-Regelsatz entsteht danach mit den FB-Kollegen nach demselben Muster.
 - **Ehrlichkeit wie überall:** Anträge, auf die keine Regel passt, erscheinen als „kein To-do ermittelt" — nicht gar nicht.
 
-## 7. Umbau des bestehenden Status-Katalog-Moduls
+## 7. Der Rückbau der alten Ableitung (P6, umgesetzt)
 
-Das Modul bleibt und wird vom Kuratier-Werkzeug zum **Spiegel + Pflege der drei kleinen Listen**:
+Bis v2.381 rechnete die App **neben** dem amtlichen Status eine eigene
+Verfahrensposition aus: höchster Rang über das ganze `D_`-Feld-Ensemble gewinnt,
+ein `terminal`-Flag schlägt den Rang. Gemessen am Bestand (7 534 Verbünde,
+02.08.2026) sagten beide Lesarten bei **485** Vorgängen etwas anderes — und die
+alte lief dem Fachsystem stets voraus. Genau das beendet das Companion-Prinzip.
 
-| Heute | Wird zu |
+**Was jetzt gilt:** eine Achse (ZAH-Phase am amtlichen Code), eine
+Kategorie-Ableitung, keine Ränge.
+
+| Vorher | Jetzt |
 |---|---|
-| Katalog-Tab (74 Einträge, Kategorie/Spine-Phase/Rang/Prominenz/terminal je Eintrag) | Importierter Status-Katalog: Code, Text, ZAH-Phase (editierbar), Zieltage (editierbar), Marker-Flag. Vorkommen/zuletzt-gesehen bleiben als Drift-Anzeige. Rang/Prominenz/terminal entfallen |
-| Felder-Tab (512 Felder, Ordner-Ränge) | Kürzel-Verzeichnis: `D_`/`T_`-Spalten ↔ Kürzel-Katalog verknüpft, Rollen-Filter (AB/FB/QS/PA/Jur existieren schon als Chips), **Relevanz-Häkchen**. Ordner bleiben als Gliederung, **Ordner-Ränge entfallen ersatzlos** |
-| Regeln-Tab (5 handgeschriebene Regeln, Prioritäten) | Zwei Bereiche: **Trigger-Viewer** (read-only, importierte Trigger in Satzform, filterbar nach Kürzel/Status/Rolle) + **To-do-Regeln** (editierbare Entscheidungstabelle, Abschnitt 4 Nr. 4). Die 5 Alt-Regeln haben exakt diese Form (WENN Status … DANN Schritt) und gehen im To-do-Regelsatz auf — Prioritäten entfallen |
-| Unkuratiert-Queue | Ein Warnbanner: „N Werte im Export, die nicht im Katalog sind" |
-| Konflikte-Chip (46) | Entfällt mit der Ableitung; verbleibende echte Konflikte = Katalog-Drift-Warnungen |
+| `status-canonical.ts` mit handgeschriebener Rohtext→Kategorie-Tabelle | Fassade, intern gespeist aus **Rohtext → Code → ZAH-Phase → Kategorie** ([kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts)). Flag-unabhängig in der eingebauten Map; Bauantrag-Domäne (dev/demo, ohne Codes) bleibt eine Handliste |
+| Katalog-Tab mit Kategorie/Spine-Phase/Rang/Prominenz/terminal | Code, Text, Kategorie, Prominenz, **ZAH-Phase**, **Zieltage**, aktiv. Vorkommen + „zuletzt gesehen" bleiben als Drift-Anzeige |
+| Kürzel-Tab mit Spine-Phase/Rang/terminal, Filter „nur mit Rang" | **ZAH-Phase je Datumsfeld** (24 gesetzt, Rest bewusst leer). Ordner bleiben als Gliederung, Ordner-Ränge ersatzlos entfallen |
+| Regeln-Tab: 5 handgeschriebene Regeln mit Prioritäten **neben** der Kaskade | Nur die To-do-Kaskade. Die 5 Alt-Regeln gehen darin auf — Zuordnung im Kopf von [RegelnTab.tsx](../../src/plugins/status-cockpit/RegelnTab.tsx) |
+| Simulations-Leiste (Phasenverteilung Aktiv→Entwurf, Konflikte, Wechsel-Diff) | Entfällt: sie schätzte die Wirkung von **Rang**-Änderungen ab |
+| „Warum dieser Status?" + Konflikt-Badge | Herleitungs-Popover aus dem amtlichen Status; auseinanderlaufende Ebenen sind eine **Auskunft** („Verbund-Status: 31 · TV-Status: 72"), keine Warnung |
+| 5-Stationen-Stepper aus Rängen | 6 ZAH-Phasen; Marker (29/88/93/94) stehen als Kennzeichen **neben** der Leiste |
+| Filter-Sidebar mit eigener, dritter Phasen-Liste | ZAH-Phasen auf Code-Ebene, Schreibweisen kollabieren mit Summen-Zählung, Marker als eigene Gruppe |
 
-Aus `status-canonical.ts` bleibt die Kategorie-Helper-API (`isOpenStatus` etc.) als **Fassade** erhalten — intern gespeist aus Code + ZAH-Phasen-Tabelle statt aus der eingebauten Doppel-Domain-Map. Bauantrag-Domain (dev/demo-only) bleibt unberührt auf der alten Map.
+### 7.1 Was der Rückbau an den Daten gefunden hat
+
+- **Die Handtabelle kannte nur 21 der 30 amtlichen Codes** unter ihrem amtlichen
+  Namen. Bei 70/71/95 ging es nur gut, weil der Export zufällig die abgekürzte
+  Schreibweise liefert. Bei **Code 72** ging es schon vorher schief: 15
+  Teilvorhaben und 1 Verbund lagen unter `sonstige` und in keiner Arbeitsliste.
+- **Sechs Kategorie-Deltas**, drei davon im Ist wirksam: `unvollständig` (33)
+  `sonstige`→`offen` (6 TV), `NL eingegangen` (36) `offen`→`nachforderung`
+  (52 TV), Code 72 `sonstige`→`entscheidung` (16). Die Liste ist im Test
+  abschließend ([kategorie-deltas.ts](../../src/core/status/__tests__/fixtures/kategorie-deltas.ts)).
+- **Die Varianten-Auflösung fehlte an drei Stellen** (Snapshot, Phasen-Vergleich,
+  Ableitung). Sie hat jetzt genau eine ([wert-index.ts](../../src/core/status/wert-index.ts)).
+- **Ein persistierter Snapshot kann eine neue Ableitung überschreiben**: Fassung
+  v7 trug die Kategorien ihres Seed-Standes weiter, während die eingebaute Map
+  schon die neuen sagte — sichtbar als Widerspruch auf einer Seite (NF-Reiter 53,
+  Filterzeile daneben 105). Der Snapshot leitet die Kategorie deshalb aus
+  (kuratierter Phase + Code) ab. Nebeneffekt: eine PL-Umhängung wirkt jetzt ohne
+  Deployment — die Zusage aus Abschnitt 5 trägt erst dadurch.
+
+### 7.2 Was bleibt und warum
+
+- **`Prominenz` bleibt.** Sie steuert die Punktgröße in Chronik und Zeitstrahl
+  und den `ignoriert`-Filter — Anzeige, keine Ableitung. Sie mitzureißen hätte
+  die Chronik plattgemacht, ohne etwas ableitungsfreier zu machen.
+- **Die ZAH-Phase am Datumsfeld bleibt** — sie beantwortet „welches Datum gehört
+  zum aktuellen Status?" (die „seit"-Angabe, die Chronik-Marke). Sie ordnet ein,
+  sie leitet nichts ab.
+- **Zwei dauerhafte Guards** statt des Phasen-Vergleichs:
+  `kategorie-ableitung.test.ts` („ist die Ableitung richtig?", 30-Code-Wahrheits-
+  tabelle von Hand) und `byte-identitaet.test.ts` („liefert sie über Snapshot und
+  eingebaute Map dasselbe?", inklusive jeder Variante).
 
 ## 8. Was die Umsetzung an den Daten gelernt hat
 
@@ -289,9 +329,10 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 - **Zieltage sind die Grundlage des Wächters, und sie fehlen.** Mit 7 von 74
   gepflegten Statuswerten sind 1 921 Vorgänge „nicht bewertbar" — sichtbar
   ausgewiesen, nicht als unauffällig gezählt.
-- **Der Phasen-Vergleich zeigt 490 Abweichungen in 12 Mustern**, alle auf zwei
-  Ursachen zurückführbar: die alte Ableitung lief dem amtlichen Status voraus.
-  Details und Abnahme-Kriterium: [vorgangssystem-p6-inventar.md](vorgangssystem-p6-inventar.md).
+- **Der Phasen-Vergleich zeigte 485 Abweichungen in 12 Mustern** (Stand
+  02.08.2026; 490 am 27.07.), alle auf zwei Ursachen zurückführbar: die alte
+  Ableitung lief dem amtlichen Status voraus. Sie ist mit v2.385 entfallen —
+  Details in [Abschnitt 7](#7-der-rückbau-der-alten-ableitung-p6-umgesetzt).
 
 ## 9. Entschieden / offen
 

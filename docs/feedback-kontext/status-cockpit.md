@@ -5,19 +5,24 @@ Vollbild-Verwaltungsseite für Kuratoren. Hier wird der **Status-Katalog** gepfl
 
 ## Zweck
 
-Der Katalog ordnet jedem Statuswert und Statusfeld **Kategorie**, **Spine-Phase**
-(Eingang → Vollständigkeit → Fachprüfung → Bewilligung → Schluss), **Rang**,
-**Prominenz** und **Terminal**-Flag zu. Daraus leitet sich der Hauptstatus ab:
-höchster Rang, terminal schlägt Rang, Widersprüche gelten als **Konflikt** und
-werden nie stillschweigend aufgelöst.
+Der Katalog ordnet jedem Statuswert seine **ZAH-Phase** (Eingang →
+Vollständigkeit → Prüfung → Entscheidung → Begleitung → Abgeschlossen) und seine
+**Zieltage** zu — mehr wird nicht kuratiert. Die **Kategorie** (offen, in
+Prüfung, Nachforderung …) folgt aus Phase und amtlichem Code; hängt die
+Projektleitung einen Code auf eine andere Phase um, zieht sie automatisch nach.
+
+**Die App leitet keinen Status ab.** Bis v2.384 rechnete sie aus allen gesetzten
+Datumsfeldern eine eigene Verfahrensposition aus (Rang, terminal-Flag,
+Konflikt-Meldung) — die lief dem Status im Fachsystem regelmäßig voraus. Das ist
+entfallen: angezeigt wird, was das Fachsystem führt.
 
 ## Bereiche
 
 - **Katalog**: alle Statuswerte mit Inline-Bearbeitung (Label, Kategorie,
-  Spine-Phase, Rang, Prominenz, **Zieltage**, terminal, aktiv), **Vorkommen**,
-  **zuletzt gesehen**, Feldname und **CSV-Spalte** als Herkunft. Leeres Label
-  heißt: Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
-  „Übernehmen" geholt, nie automatisch.
+  Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt gesehen**, Feldname
+  und **CSV-Spalte** als Herkunft. Leeres Label heißt: Rohwert gilt. Neue Werte
+  erscheinen als **unkuratiert** und werden per „Übernehmen" geholt, nie
+  automatisch.
   - **Zieltage** speisen den Stillstands-Wächter: nach wie vielen Tagen ohne
     Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt „nicht
     bewertbar", nicht „unauffällig". Neben dem Feld steht ein ⌀-Vorschlag aus
@@ -27,8 +32,11 @@ werden nie stillschweigend aufgelöst.
   Teilvorhaben getrennt.
   - Editierbar je Eintrag: Bezeichnung, Ordner, **wird gesetzt von**
     (AB/FB/QS/PA/Juristen, Mehrfachauswahl; leer = jeder darf), **relevant**,
-    Prominenz, Spine-Phase, **Rang**, terminal — ohne Rang wird er angezeigt,
-    hebt aber keine Phase (bei Wert-Feldern hängen beide am Wert).
+    Prominenz und die **ZAH-Phase** des Datums. Die Phase beantwortet „welches
+    Datum gehört zum aktuellen Status?" — sie speist die „seit"-Angabe der
+    Status-Erklärung und die Marke in der Chronik. Leer heißt ehrlich „trägt
+    nichts bei"; nur 24 der 505 Kürzel tragen eine, weil eine geratene Zuordnung
+    schlechter wäre als keine. Bei Wert-Feldern hängt die Phase am Wert.
   - Das **Relevanz-Häkchen** markiert die Kürzel, die für die
     Antragsbearbeitung zählen; es grenzt Navigator, Wächter und die
     Status-Erklärung ein.
@@ -41,16 +49,16 @@ werden nie stillschweigend aufgelöst.
   - Vier Übernahme-Blöcke: Auslieferung nachziehen, Bezeichnung/Rollen der
     Kürzel-Zuarbeit übernehmen, **AB-Dashboard-Spalten als relevant markieren**
     (setzt nur, nimmt nie weg), gefundene CSV-Spalten einsortieren.
-  - Filter: Ebene, Rolle, „nur mit Rang", „nur relevante", „nur mit CSV-Spalte".
-- **Regeln**: priorisierte Nächste-Schritte-Regeln (Bedingung → Schritt, optional
-  mit Werkzeug). aktiv/Priorität/Beschreibung editierbar.
+  - Filter: Ebene, Rolle, „nur relevante", „nur mit CSV-Spalte".
+- **To-dos**: die To-do-Kaskade — geordnet, die erste zutreffende Regel gewinnt.
+  Die Reihenfolge IST das Ergebnis, deshalb wird sie über Pfeile gesetzt, nicht
+  per Ziehen. Jede Regel liest sich als deutscher Satz („WENN Status 71 und
+  D_ARQ leer → To-do «RNE ergänzen», zuständig AB").
 
-## Simulation + Versionen
+## Versionen
 
-Die **Simulations-Leiste** über den Tabs zeigt Phasenverteilung (Aktiv →
-Entwurf), Konfliktzahl und die wechselnden Verbünde — das Abnahme-Instrument.
-Änderungen sind ein **Entwurf**; „Für das Team speichern"
-legt eine Fassung an. Ältere sind als Entwurf ladbar.
+Änderungen sind ein **Entwurf**; „Für das Team speichern" legt eine Fassung an.
+Ältere Fassungen sind als Entwurf ladbar.
 
 ## Wichtig
 
@@ -60,7 +68,7 @@ legt eine Fassung an. Ältere sind als Entwurf ladbar.
 - Die **Historie** (Statusverlauf) bleibt auf dem eigenen Rechner: sie hält fest,
   wann er eine Änderung gesehen hat.
 - JSON-Export/Import dient der Sicherung, nicht dem Team-Abgleich.
-- Ändert nichts am Legacy-System — reine Anzeige-/Ableitungslogik.
+- Ändert nichts am Legacy-System — reine Anzeige und Einordnung.
 - Die **Parametertabelle** („Erklärung Parameter") ist eine Legende ohne
   Kopfzeile: Wert · Erklärung · Kategorie. Codes entstehen **nur** aus den Zeilen
   der Kategorie „Status"; was übersprungen wird, nennt die Vorschau nach Art
