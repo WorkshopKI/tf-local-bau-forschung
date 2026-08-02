@@ -35,9 +35,9 @@ import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
-  betrifftRolle, rollenVonFeld, sortiereRollen, wirkungSaetze,
+  betrifftRolle, rollenVonFeld, sortiereRollen, wirkungZeilen, baueLegende,
   type Prominenz, type Rolle, type SpinePhase,
-  type StatusFeldEintrag, type StatusKategorie, type TriggerZeile,
+  type StatusFeldEintrag, type StatusKategorie, type TriggerZeile, type WirkungsZeile,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import {
@@ -96,8 +96,8 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
   csvSpalte: string;
   api: StatusCockpitApi;
   ordnerWahl: { id: string; label: string }[];
-  /** Trigger-Sätze dieses Kürzels; leer, solange keine Tabelle importiert ist. */
-  wirkung: string[];
+  /** Trigger-Wirkung dieses Kürzels je Programm; leer ohne importierte Tabelle. */
+  wirkung: WirkungsZeile[];
   /** Spaltenzahl der Tabelle — für die aufgeklappte Wirkungs-Zeile. */
   spalten: number;
 }): React.ReactElement {
@@ -186,11 +186,16 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
       {offen && (
         <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
           <td colSpan={spalten} className="px-2 py-2">
+            {/* Das Programm steht an JEDER Zeile: dasselbe Kürzel wirkt je
+                Richtlinie verschieden, und ohne die Nummer stünden hier
+                widersprüchliche Sätze untereinander. */}
             <ul className="flex flex-col gap-0.5">
-              {wirkung.map((satz, i) => (
+              {wirkung.map((w, i) => (
                 <li key={`${f.feldId}-${i}`} className="text-[11.5px] text-[var(--tf-text-secondary)]">
-                  <span className="text-[var(--tf-text-tertiary)] font-mono mr-1.5">{i + 1}</span>
-                  {satz}
+                  <span className="text-[var(--tf-text-tertiary)] font-mono mr-1.5">
+                    {w.programm || '—'}/{w.folge}
+                  </span>
+                  {w.satz}
                 </li>
               ))}
             </ul>
@@ -213,13 +218,14 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
  * Bei aktiver Suche stehen alle Ordner offen (sonst versteckte die Seite genau
  * die Treffer) und der Umschalter ruht, statt wirkungslos zu klicken.
  */
-function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, trigger }: {
+function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, trigger, legende }: {
   kategorie: StatusKategorie;
   tiefe: number;
   felder: StatusFeldEintrag[];
   api: StatusCockpitApi;
   ordnerWahl: Record<'verbund' | 'tv', { id: string; label: string }[]>;
   suchModus: boolean;
+  legende: ReturnType<typeof baueLegende>;
   trigger: readonly TriggerZeile[];
 }): React.ReactElement {
   const [offen, toggleOffen] = useCollapsedSection(
@@ -282,7 +288,7 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, tr
               <FeldZeile
                 key={f.feldId} f={f} api={api} ordnerWahl={ordnerWahl[f.ebene]}
                 csvSpalte={api.csvSpalten.get(f.feldId)?.join(', ') ?? '—'}
-                wirkung={f.code ? wirkungSaetze(trigger, f.code) : []}
+                wirkung={f.code ? wirkungZeilen(trigger, f.code, legende) : []}
                 spalten={spalten}
               />
             ))}
@@ -310,6 +316,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const entwurf = api.entwurf;
   const kategorien = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
   const trigger = api.trigger.datei?.trigger ?? [];
+  const legende = useMemo(() => baueLegende(entwurf?.textbausteine), [entwurf?.textbausteine]);
 
   /** Ordner-Auswahl je Ebene, in Baum-Reihenfolge und eingerückt beschriftet. */
   const ordnerWahl = useMemo(() => {
@@ -429,6 +436,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
                   key={g.kategorie.id}
                   kategorie={g.kategorie} tiefe={g.tiefe} felder={g.felder}
                   api={api} ordnerWahl={ordnerWahl} suchModus={suchModus} trigger={trigger}
+                  legende={legende}
                 />
               ))}
           </section>

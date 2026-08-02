@@ -19,15 +19,48 @@
  * mittleren Positionen von `TRG_TVs_Status_TV_VB` nicht ab, und ein Parser, der
  * so tut als wäre da nichts, belügt den Leser.
  *
- * **Toleranz bei leeren Argumenten:** die Anzahl leerer Pipes schwankt zwischen
- * Zuarbeit-Fassungen. Der Parser liest deshalb von beiden Enden her (die letzten
- * beiden Argumente sind die Zielstatus, die ersten drei die Bedingungen) statt
- * auf einer festen Länge zu bestehen.
+ * **Die Argumente von `TRG_TVs_Status_TV_VB` stehen an acht festen Positionen**
+ * und werden von VORN gelesen; fehlende Schluss-Pipes heißen „Argument fehlt".
+ * Bis v2.379 las der Parser von beiden Enden her, weil die Pipe-Anzahl aus einem
+ * Screenshot geschätzt war. Die echte Datei entscheidet die Frage: `<59|ABB|||||40`
+ * hat sieben Argumente und bedeutet „TV-Status 40, VB-Status unverändert" — von
+ * hinten gelesen käme das Gegenteil heraus. Alle 14 Fixture-Zeilen der Seed-Doku
+ * ergeben unter beiden Lesarten denselben Satz; nur die Kurz- und Langformen
+ * unterscheiden sich, und dort hat die Datei recht.
+ *
+ * **Kommas trennen UND-Listen** (Legacy-Doku, Blatt „Erklärung Prozedur"): in den
+ * Argumenten 2–6 steht `ABB,AB,AK4` für „hat kein ABB und kein AB und kein AK4".
+ * Ungesplittet suchte die App ein Kürzel dieses Namens und fände nie eines.
  *
  * Rein und deterministisch: keine IO, keine Uhr.
  */
 import { normKey } from './normalisierung';
-import type { StatusVergleich, TriggerParam, TriggerZeile } from './typen';
+import { MAIL_ROLLE, ROLLE_LABEL } from './rollen';
+import type { StatusVergleich, TextbausteinEintrag, TriggerParam, TriggerZeile } from './typen';
+
+/**
+ * Textbaustein-Kennung → Klartext, für die Anzeige. Schlüssel ist `normKey` der
+ * Kennung. Wird in `triggerSatz` nur ERGÄNZEND gelesen: ohne Legende bleibt der
+ * Satz genau der, der auch gespeichert ist.
+ */
+export type TextbausteinLegende = ReadonlyMap<string, string>;
+
+/**
+ * Legende aus den gepflegten Einträgen einer Fassung bauen. Leere Liste ⇒
+ * `undefined`, damit die Aufrufer den Fall „keine Legende" nicht selbst prüfen
+ * müssen und der gespeicherte Satz unverändert durchgereicht wird.
+ */
+export function baueLegende(
+  eintraege: readonly TextbausteinEintrag[] | undefined,
+): TextbausteinLegende | undefined {
+  if (!eintraege || eintraege.length === 0) return undefined;
+  const map = new Map<string, string>();
+  for (const e of eintraege) {
+    const k = normKey(e.kennung);
+    if (k && !map.has(k)) map.set(k, e.text);
+  }
+  return map.size > 0 ? map : undefined;
+}
 
 /** Die vier bekannten Prozedur-Namen, normalisiert nachschlagbar. */
 const PROZEDUREN: ReadonlyMap<string, TriggerParam['art']> = new Map([
@@ -86,6 +119,32 @@ function optional(roh: string | undefined): string | null {
 }
 
 /**
+ * Ein Bedingungs-Argument in seine Kürzel zerlegen: `ABB,AB,AK4` → drei Einträge.
+ *
+ * Die Schreibweise bleibt, wie sie in der Datei steht — kleingeschrieben wird nur
+ * für Joins (`normKey`), nie für die Anzeige. Doppelte Nennungen fallen weg,
+ * damit derselbe Grund nicht zweimal im Satz steht.
+ */
+export function kuerzelListe(roh: string | undefined): string[] {
+  const out: string[] = [];
+  for (const teil of (roh ?? '').split(',')) {
+    const t = teil.trim();
+    if (t.length > 0 && !out.some(v => normKey(v) === normKey(t))) out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Die Aufzählungsform einer UND-Liste, mit dem passenden Bindewort davor:
+ * `kein ABB` bzw. `keines von ABB, AB, AK4` (am TV), `YIRR` bzw. `eines von …`
+ * (am Verbund, wo die Verneinung schon im Satzanfang steckt).
+ */
+function listePhrase(kuerzel: readonly string[], stelle: 'tv' | 'verbund'): string {
+  if (kuerzel.length === 1) return stelle === 'tv' ? `kein ${kuerzel[0]}` : kuerzel[0]!;
+  return `${stelle === 'tv' ? 'keines' : 'eines'} von ${kuerzel.join(', ')}`;
+}
+
+/**
  * Textbaustein-Kennung lesbar machen: `!.055.VorgInfo.01` → `VorgInfo.01`.
  * Das Präfix ist die interne Dateinummer und sagt dem Leser nichts.
  */
@@ -97,20 +156,29 @@ export function textbausteinName(roh: string): string {
 
 // --- Parser je Prozedur ------------------------------------------------------
 
+/**
+ * Die acht Positionen von `TRG_TVs_Status_TV_VB`, von vorn gezählt:
+ * 0 Status-Vergleich · 1 ohne-TV-Kürzel · 2 ohne-Verbund-Kürzel ·
+ * 3–5 weitere Bedingungen · 6 neuer TV-Status · 7 neuer VB-Status.
+ */
+const POS_STATUS_TV = 6;
+const POS_STATUS_VB = 7;
+
 function parseStatusTvVb(args: string[]): TriggerParam | null {
-  // Von beiden Enden lesen: vorne die Bedingungen, hinten die Zielstatus.
-  // Mit weniger als fünf Argumenten überlappen beide Enden — dann ist die Zeile
-  // nicht das, wofür wir sie halten, und wird lieber gar nicht gedeutet.
-  if (args.length < 5) return null;
-  const statusVb = parseStatus(args[args.length - 1]);
-  const statusTv = parseStatus(args[args.length - 2]);
+  // Feste Positionen, von vorn. Fehlende Schluss-Argumente sind fehlende
+  // Argumente (= unverändert), überzählige wandern sichtbar nach `weitere`.
+  const statusTv = parseStatus(args[POS_STATUS_TV]);
+  const statusVb = parseStatus(args[POS_STATUS_VB]);
+  // Eine Zeile dieser Prozedur, die keinen der beiden Status setzt, tut nichts —
+  // dann halten wir sie für etwas anderes und deuten sie lieber gar nicht.
   if (statusTv === null && statusVb === null) return null;
   return {
     art: 'statusTvVb',
     status: parseStatusVergleich(args[0] ?? ''),
-    ohneTvKuerzel: optional(args[1]),
-    ohneVerbundKuerzel: optional(args[2]),
-    weitere: args.slice(3, args.length - 2).map(a => a.trim()).filter(a => a.length > 0),
+    ohneTvKuerzel: kuerzelListe(args[1]),
+    ohneVerbundKuerzel: kuerzelListe(args[2]),
+    weitere: [...args.slice(3, POS_STATUS_TV), ...args.slice(POS_STATUS_VB + 1)]
+      .flatMap(a => kuerzelListe(a)),
     statusTv,
     statusVb,
   };
@@ -147,9 +215,11 @@ function satzStatusTvVb(p: Extract<TriggerParam, { art: 'statusTvVb' }>): string
     const wort = p.status.op === '<' ? 'vor' : p.status.op === '>' ? 'nach' : 'ist';
     bedingungen.push(`VB-Status ${wort} ${p.status.code}`);
   }
-  if (p.ohneTvKuerzel) bedingungen.push(`TV hat kein ${p.ohneTvKuerzel}`);
-  if (p.ohneVerbundKuerzel) {
-    bedingungen.push(`kein TV des Verbunds hat ${p.ohneVerbundKuerzel}`);
+  if (p.ohneTvKuerzel.length > 0) {
+    bedingungen.push(`TV hat ${listePhrase(p.ohneTvKuerzel, 'tv')}`);
+  }
+  if (p.ohneVerbundKuerzel.length > 0) {
+    bedingungen.push(`kein TV des Verbunds hat ${listePhrase(p.ohneVerbundKuerzel, 'verbund')}`);
   }
   for (const w of p.weitere) bedingungen.push(`weiteres Argument „${w}"`);
 
@@ -163,31 +233,62 @@ function satzStatusTvVb(p: Extract<TriggerParam, { art: 'statusTvVb' }>): string
     : `${setze[0]!.toUpperCase()}${setze.slice(1)}.`;
 }
 
-/** Die deutsche Satzform eines geparsten Triggers. */
-export function triggerSatz(p: TriggerParam): string {
+/**
+ * Empfänger mit Rolle beschriften, wo wir sie kennen: `TIB` → `TIB (FB)`.
+ *
+ * Adressen und Platzhalter (`#TB1`) bleiben unangetastet — eine erfundene Rolle
+ * wäre schlimmer als keine.
+ */
+function empfaengerPhrase(roh: string): string {
+  const rolle = MAIL_ROLLE[normKey(roh)];
+  return rolle ? `${roh} (${ROLLE_LABEL[rolle]})` : roh;
+}
+
+/**
+ * Die deutsche Satzform eines geparsten Triggers.
+ *
+ * @param legende Optionale Textbaustein-Legende. Fehlt sie, steht nur die
+ *   Kennung da — dieselbe Ausgabe wie beim Import, damit gespeicherter und
+ *   gerenderter Satz nie ohne Grund auseinanderlaufen.
+ */
+export function triggerSatz(p: TriggerParam, legende?: TextbausteinLegende): string {
   switch (p.art) {
     case 'statusTvVb':
       return satzStatusTvVb(p);
     case 'vorgEintragNeu':
       return `Vorgangseintrag ${p.code} anlegen (${ebenePhrase(p.ebene)}, ${p.tage >= 0 ? '+' : ''}${p.tage} Tage).`;
     case 'vorgEintragMail': {
-      const cc = p.cc ? `, CC ${p.cc}` : '';
-      return `Mail an ${p.empfaenger}, Textbaustein ${textbausteinName(p.textbaustein)}${cc}.`;
+      const cc = p.cc ? `, CC ${empfaengerPhrase(p.cc)}` : '';
+      const klartext = legende?.get(normKey(p.textbaustein));
+      const baustein = klartext
+        ? `${textbausteinName(p.textbaustein)} — ${klartext}`
+        : textbausteinName(p.textbaustein);
+      return `Mail an ${empfaengerPhrase(p.empfaenger)}, Textbaustein ${baustein}${cc}.`;
     }
     case 'statusSetzen':
       return `Setze ${statusEbenePhrase(p.ebene)} auf ${p.status}.`;
   }
 }
 
+/**
+ * Der anzuzeigende Satz einer Zeile: mit Legende neu gerendert, ohne sie der
+ * gespeicherte. Die eine Stelle, die alle Anzeigen benutzen — sonst zeigte die
+ * Liste die Kennung und das Popover den Klartext.
+ */
+export function triggerSatzVon(zeile: TriggerZeile, legende?: TextbausteinLegende): string {
+  return zeile.geparst && legende ? triggerSatz(zeile.geparst, legende) : zeile.satz;
+}
+
 // --- Einstieg ----------------------------------------------------------------
 
 /** Rohzeile, wie sie aus der XLSX kommt. */
 export interface TriggerRohzeile {
+  /** Spalte „Richtlinie"/„Programm". Pflicht — siehe `TriggerZeile.programm`. */
+  programm: string;
   kuerzel: string;
   folge: string | number;
   prozedur: string;
   parameter: string;
-  richtlinie?: string;
 }
 
 /**
@@ -199,11 +300,11 @@ export function parseTriggerZeile(roh: TriggerRohzeile): TriggerZeile {
   const folgeZahl = Number(String(roh.folge).trim());
   const parameterRoh = roh.parameter.trim();
   const basis = {
+    programm: roh.programm.normalize('NFC').trim(),
     kuerzel,
     folge: Number.isInteger(folgeZahl) ? folgeZahl : 0,
     prozedur: roh.prozedur.trim(),
     parameterRoh,
-    ...(roh.richtlinie?.trim() ? { richtlinie: roh.richtlinie.trim() } : {}),
   };
 
   const art = PROZEDUREN.get(normKey(roh.prozedur));
@@ -235,11 +336,16 @@ export function parseTriggerTabelle(zeilen: readonly TriggerRohzeile[]): Trigger
 /**
  * Alle Kürzel, die eine Trigger-Zeile referenziert — für die Import-Validierung
  * gegen den Kürzel-Katalog. Neben dem eigenen Kürzel sind das die
- * Negativ-Bedingungen (`ABB`, `YIRR`) und der Code eines Folge-Eintrags.
+ * Negativ-Bedingungen (`ABB`, `YIRR`), die noch nicht gedeuteten Argumente der
+ * Positionen 4–6 und der Code eines Folge-Eintrags.
+ *
+ * Die `weitere`-Argumente sind mit drin, obwohl wir ihre BEDEUTUNG nicht kennen:
+ * ihre Kürzel kennt der Katalog sehr wohl, und was danach an Unbekanntem
+ * übrigbleibt, ist genau die Liste, die mit der Fachseite zu klären ist.
  *
  * Bewusst OHNE die Mail-Empfänger: `TIB`/`BIB`/`PFM` sind Zuständigkeits-Spalten
  * und Mailadressen, keine Vorgangskürzel — sie im Katalog zu suchen erzeugte nur
- * Falschmeldungen.
+ * Falschmeldungen (ihre Rollen stehen in `MAIL_ROLLE`).
  */
 export function referenzierteKuerzel(zeile: TriggerZeile): string[] {
   const out: string[] = [];
@@ -250,8 +356,9 @@ export function referenzierteKuerzel(zeile: TriggerZeile): string[] {
   add(zeile.kuerzel);
   const p = zeile.geparst;
   if (p?.art === 'statusTvVb') {
-    add(p.ohneTvKuerzel);
-    add(p.ohneVerbundKuerzel);
+    for (const k of p.ohneTvKuerzel) add(k);
+    for (const k of p.ohneVerbundKuerzel) add(k);
+    for (const k of p.weitere) add(k);
   }
   if (p?.art === 'vorgEintragNeu') add(p.code);
   return out;

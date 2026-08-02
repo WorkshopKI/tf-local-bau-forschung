@@ -19,11 +19,12 @@ vi.mock('@/core/status/sidecar-datei', () => ({
 }));
 
 const {
-  ladeTrigger, speichereTrigger, triggerFuerKuerzel, istTriggerDatei, TRIGGER_CACHE_KEY,
+  ladeTrigger, speichereTrigger, triggerFuerKuerzel, triggerFuerProgramm, programmeInTrigger,
+  heileTriggerDatei, zeilenOhneProgramm, istTriggerDatei, TRIGGER_CACHE_KEY,
 } = await import('@/core/status/trigger-share');
 
-const ZEILE = (kuerzel: string, folge: number): TriggerZeile => ({
-  kuerzel, folge, prozedur: 'TRG.Status.TV.VB', parameterRoh: '211|74',
+const ZEILE = (kuerzel: string, folge: number, programm = '76'): TriggerZeile => ({
+  programm, kuerzel, folge, prozedur: 'TRG.Status.TV.VB', parameterRoh: '211|74',
   geparst: { art: 'statusSetzen', ebene: '211', status: 74 },
   satz: 'Setze TV-Status (211) auf 74.',
 });
@@ -135,5 +136,55 @@ describe('triggerFuerKuerzel', () => {
 
   it('liefert für ein unbekanntes Kürzel eine leere Liste', () => {
     expect(triggerFuerKuerzel(tabelle, 'XYZ')).toEqual([]);
+  });
+});
+
+describe('Programm-Auswahl', () => {
+  const tabelle = [ZEILE('AAE', 1, '76'), ZEILE('AAE', 1, '131'), ZEILE('ABB', 1, '131')];
+
+  it('liefert nur die Zeilen des gefragten Programms', () => {
+    expect(triggerFuerProgramm(tabelle, '131')).toHaveLength(2);
+    expect(triggerFuerProgramm(tabelle, '76')).toHaveLength(1);
+  });
+
+  it('liefert für ein unbekanntes oder fehlendes Programm NICHTS — nie die ganze Tabelle', () => {
+    expect(triggerFuerProgramm(tabelle, '999')).toEqual([]);
+    expect(triggerFuerProgramm(tabelle, null)).toEqual([]);
+    expect(triggerFuerProgramm(tabelle, '  ')).toEqual([]);
+  });
+
+  it('nennt die geführten Programme aufsteigend nach Nummer', () => {
+    expect(programmeInTrigger(tabelle)).toEqual(['76', '131']);
+  });
+});
+
+describe('heileTriggerDatei — Bestand vor der Programm-Dimension', () => {
+  /** So sah eine Zeile vor v2.380 aus: ohne `programm`. */
+  const alt = {
+    format: 1 as const, version: 2, importiertAm: 'x', importiertVon: null,
+    trigger: [{ ...ZEILE('AAE', 1), programm: undefined } as unknown as TriggerZeile],
+  };
+
+  it('stempelt ein leeres Programm — und matcht damit keinen Antrag', () => {
+    const geheilt = heileTriggerDatei(alt);
+    expect(geheilt.trigger[0]?.programm).toBe('');
+    expect(triggerFuerProgramm(geheilt.trigger, '76')).toEqual([]);
+    expect(zeilenOhneProgramm(geheilt.trigger)).toBe(1);
+  });
+
+  it('lässt eine schon vollständige Datei unangetastet (dieselbe Referenz)', () => {
+    const neu = { ...alt, trigger: [ZEILE('AAE', 1)] };
+    expect(heileTriggerDatei(neu)).toBe(neu);
+    expect(zeilenOhneProgramm(neu.trigger)).toBe(0);
+  });
+
+  it('greift auch auf dem Weg über den Cache', async () => {
+    const idb = fakeIdb();
+    idb.daten.set(TRIGGER_CACHE_KEY, alt);
+    leseSidecar.mockResolvedValue(null);
+
+    const stand = await ladeTrigger(alsStore(idb));
+    expect(stand.herkunft).toBe('cache');
+    expect(stand.datei?.trigger[0]?.programm).toBe('');
   });
 });

@@ -38,7 +38,7 @@ export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type R
 export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
 export { KATEGORIE_ZU_SPINE, SPINE_ZU_KATEGORIE, kategorieFuerFeld } from './spine-kategorie';
 export {
-  ROLLEN, ROLLE_LABEL, ROLLE_LANG, NEUTRAL_LABEL,
+  ROLLEN, ROLLE_LABEL, ROLLE_LANG, NEUTRAL_LABEL, MAIL_ROLLE,
   rollenVonFeld, istNeutral, betrifftRolle, rollenLabel, sortiereRollen, parseRollenSpalte,
   leseStatusRolle,
 } from './rollen';
@@ -66,8 +66,9 @@ export {
   type StatusCodeEintrag, type StatusCodeIndex, type StatusCodeTreffer, type JoinArt,
 } from './status-codes';
 export {
-  parseTriggerZeile, parseTriggerTabelle, triggerSatz, parseStatusVergleich,
-  textbausteinName, referenzierteKuerzel, type TriggerRohzeile,
+  parseTriggerZeile, parseTriggerTabelle, triggerSatz, triggerSatzVon, parseStatusVergleich,
+  textbausteinName, referenzierteKuerzel, kuerzelListe, baueLegende,
+  type TriggerRohzeile, type TextbausteinLegende,
 } from './trigger-parser';
 export {
   vergleichePhasen, vergleichZusammenfassung, abweichungsMuster,
@@ -104,20 +105,22 @@ export {
   type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil, type OffenesPaar,
 } from './waechter';
 export {
-  navigatorKandidaten, wirkungSaetze,
+  navigatorKandidaten, wirkungZeilen,
   type NavigatorEingabe, type NavigatorErgebnis, type NavigatorKandidat,
-  type TriggerWirkung, type BedingungsUrteil,
+  type TriggerWirkung, type BedingungsUrteil, type WirkungsZeile,
 } from './navigator';
 export { leseSidecar, schreibeSidecar } from './sidecar-datei';
 export {
-  ladeTrigger, speichereTrigger, triggerFuerKuerzel, istTriggerDatei,
+  ladeTrigger, speichereTrigger, triggerFuerKuerzel, triggerFuerProgramm,
+  programmeInTrigger, heileTriggerDatei, zeilenOhneProgramm, istTriggerDatei,
   STATUS_TRIGGER_PATH, TRIGGER_CACHE_KEY,
   type TriggerDatei, type TriggerStand, type TriggerHerkunft,
 } from './trigger-share';
 export {
   importiereStatusKatalog, importiereTriggerTabelle, triggerSchluessel,
-  berechneDiff, diffZusammenfassung,
+  berechneDiff, diffZusammenfassung, TRIGGER_BLATT, PARAMETER_BLATT,
   type StatusKatalogImportErgebnis, type TriggerImportErgebnis,
+  type ProgrammStatistik, type NichtInterpretiert,
   type Diff, type DiffEintrag, type DiffArt,
 } from './import';
 export {

@@ -1,15 +1,21 @@
 /**
  * Gemeinsamer Unterbau der Referenz-Importe: XLSX → Kopfzeile + Datenzeilen,
- * Spalten **per Namen** statt per Position.
+ * **Blatt per Namen**, Spalten **per Namen** statt per Position.
  *
  * Warum header-tolerant und nicht positionsbasiert: die Zuarbeiten kommen aus
  * dem Fachsystem und ändern zwischen Fassungen ihre Spaltenreihenfolge. Ein
  * Import auf festen Indizes liest dann klaglos die falsche Spalte — der
  * schlimmste Fehlermodus, weil er wie ein Erfolg aussieht.
  *
- * Und wenn kein Kopf passt, wird **nicht geraten**: die Meldung nennt die
- * gefundenen Überschriften, damit der Kurator sieht, was die Datei wirklich
- * enthält. Vorbild: `kompetenz-import.ts` (Auslastung).
+ * Warum das Blatt beim Namen genannt wird: die echte Zuarbeit ist eine Mappe mit
+ * mehreren Blättern („Trigger-Prozeduren", „Erklärung Parameter", „Erklärung
+ * Prozedur"). Immer das erste zu nehmen hieße, auf die Blattreihenfolge zu
+ * wetten. Passt der Name nicht, werden alle Blätter nach einem passenden Kopf
+ * durchsucht — erst dann gibt der Import auf.
+ *
+ * Und wenn nichts passt, wird **nicht geraten**: die Meldung nennt die
+ * gefundenen Blätter und Überschriften, damit der Kurator sieht, was die Datei
+ * wirklich enthält. Vorbild: `kompetenz-import.ts` (Auslastung).
  *
  * Rein bis auf das Lesen der übergebenen `File` — kein IDB, kein Share.
  */
@@ -17,6 +23,8 @@ import * as XLSX from 'xlsx';
 
 /** Eine eingelesene Tabelle: normalisierte Kopfzeile + Rohzeilen. */
 export interface XlsxTabelle {
+  /** Name des Blattes, aus dem gelesen wurde. */
+  blatt: string;
   /** Überschriften in Originalschreibweise (für Fehlermeldungen). */
   kopf: string[];
   /** Datenzeilen ohne die Kopfzeile; Zellen als getrimmte Strings. */
@@ -40,33 +48,34 @@ export function kopfKey(roh: unknown): string {
   return String(roh ?? '').normalize('NFC').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
 }
 
+export interface LeseOptionen {
+  /** Bevorzugtes Blatt. Kein Treffer ⇒ alle Blätter werden durchsucht. */
+  blattName?: string;
+  /** Wie viele Zeilen von oben nach der Kopfzeile abgesucht werden. */
+  maxSuchtiefe?: number;
+}
+
+/** Blätter in Prüfreihenfolge: das benannte zuerst, dann der Rest der Mappe. */
+function blattReihenfolge(wb: XLSX.WorkBook, blattName: string | undefined): string[] {
+  const namen = [...wb.SheetNames];
+  if (!blattName) return namen;
+  const gesucht = kopfKey(blattName);
+  const treffer = namen.filter(n => kopfKey(n) === gesucht);
+  return [...treffer, ...namen.filter(n => kopfKey(n) !== gesucht)];
+}
+
 /**
- * Liest das erste Blatt und sucht die Kopfzeile: die erste Zeile unter den
- * ersten `maxSuchtiefe`, in der **alle** Pflicht-Aliase vorkommen.
+ * Die Kopfzeile eines Blattes suchen; `null`, wenn keine alle Aliase führt.
  *
- * Die Suche über mehrere Zeilen ist nötig, weil die Zuarbeiten gern eine Titel-
- * oder Leerzeile über dem eigentlichen Kopf führen.
+ * Ein Treffer OHNE Datenzeilen wird zurückgegeben, nicht verschwiegen — der
+ * Aufrufer sucht dann in den übrigen Blättern weiter und kann am Ende sagen
+ * „Kopf gefunden, aber leer" statt „nichts gefunden".
  */
-export async function leseXlsxTabelle(
-  datei: File,
+function findeKopf(
+  aoa: string[][],
   pflichtAliase: readonly (readonly string[])[],
-  maxSuchtiefe = 8,
-): Promise<XlsxLeseErgebnis> {
-  let wb: XLSX.WorkBook;
-  try {
-    const buf = await datei.arrayBuffer();
-    wb = XLSX.read(buf, { type: 'array' });
-  } catch (err) {
-    return { fehler: `XLSX konnte nicht gelesen werden: ${err instanceof Error ? err.message : String(err)}` };
-  }
-
-  const ws = wb.Sheets[wb.SheetNames[0] ?? ''];
-  if (!ws) return { fehler: 'Keine Tabelle in der Datei gefunden.' };
-
-  const aoa = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, raw: false, defval: '' });
-  if (aoa.length < 2) return { fehler: 'Datei zu kurz — erwartet werden eine Kopfzeile und mindestens eine Datenzeile.' };
-
-  const grenze = Math.min(maxSuchtiefe, aoa.length);
+  grenze: number,
+): { kopf: string[]; zeilen: string[][]; kopfZeileNr: number } | null {
   for (let i = 0; i < grenze; i++) {
     const kopf = (aoa[i] ?? []).map(c => String(c ?? '').trim());
     const keys = kopf.map(kopfKey);
@@ -75,22 +84,62 @@ export async function leseXlsxTabelle(
     const zeilen = aoa.slice(i + 1)
       .map(r => (r ?? []).map(c => String(c ?? '').trim()))
       .filter(r => r.some(c => c.length > 0));
-    if (zeilen.length === 0) return { fehler: 'Kopfzeile gefunden, aber keine Datenzeile darunter.' };
     return { kopf, zeilen, kopfZeileNr: i + 1 };
   }
+  return null;
+}
+
+/**
+ * Liest das passende Blatt und sucht die Kopfzeile: die erste Zeile unter den
+ * ersten `maxSuchtiefe`, in der **alle** Pflicht-Aliase vorkommen.
+ *
+ * Die Suche über mehrere Zeilen ist nötig, weil die Zuarbeiten gern eine Titel-
+ * oder Leerzeile über dem eigentlichen Kopf führen.
+ */
+export async function leseXlsxTabelle(
+  datei: File,
+  pflichtAliase: readonly (readonly string[])[],
+  opts: LeseOptionen = {},
+): Promise<XlsxLeseErgebnis> {
+  const maxSuchtiefe = opts.maxSuchtiefe ?? 8;
+  let wb: XLSX.WorkBook;
+  try {
+    const buf = await datei.arrayBuffer();
+    wb = XLSX.read(buf, { type: 'array' });
+  } catch (err) {
+    return { fehler: `XLSX konnte nicht gelesen werden: ${err instanceof Error ? err.message : String(err)}` };
+  }
+
+  if (wb.SheetNames.length === 0) return { fehler: 'Keine Tabelle in der Datei gefunden.' };
 
   const gesehen = new Set<string>();
-  for (let i = 0; i < grenze; i++) {
-    for (const c of aoa[i] ?? []) {
-      const t = String(c ?? '').trim();
-      if (t) gesehen.add(t);
+  let leeresBlatt: string | null = null;
+  for (const name of blattReihenfolge(wb, opts.blattName)) {
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const aoa = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, raw: false, defval: '' });
+    const grenze = Math.min(maxSuchtiefe, aoa.length);
+    const treffer = findeKopf(aoa, pflichtAliase, grenze);
+    if (treffer && treffer.zeilen.length > 0) return { blatt: name, ...treffer };
+    if (treffer) leeresBlatt ??= name;
+    // Für die Fehlermeldung sammeln, was in den Kopfzeilen wirklich stand.
+    for (let i = 0; i < grenze; i++) {
+      for (const c of aoa[i] ?? []) {
+        const t = String(c ?? '').trim();
+        if (t) gesehen.add(t);
+      }
     }
+  }
+
+  if (leeresBlatt) {
+    return { fehler: `Blatt „${leeresBlatt}": Kopfzeile gefunden, aber keine Datenzeile darunter.` };
   }
   const erwartet = pflichtAliase.map(a => `„${a[0]}"`).join(', ');
   const gefunden = gesehen.size > 0 ? [...gesehen].slice(0, 25).join(' · ') : '(keine)';
+  const blaetter = wb.SheetNames.join(' · ');
   return {
     fehler: `Keine passende Kopfzeile gefunden. Erwartet: ${erwartet}. `
-      + `Gefundene Überschriften in den ersten ${grenze} Zeilen: ${gefunden}`,
+      + `Blätter der Datei: ${blaetter}. Gefundene Überschriften: ${gefunden}`,
   };
 }
 

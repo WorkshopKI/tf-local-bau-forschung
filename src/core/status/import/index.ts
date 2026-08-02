@@ -8,8 +8,10 @@ export {
   type Diff, type DiffEintrag, type DiffArt,
 } from './diff';
 export {
-  importiereStatusKatalog, type StatusKatalogImportErgebnis,
+  importiereStatusKatalog, bestimmeZeilenart, PARAMETER_BLATT,
+  type StatusKatalogImportErgebnis,
 } from './status-katalog-import';
 export {
-  importiereTriggerTabelle, triggerSchluessel, type TriggerImportErgebnis,
+  importiereTriggerTabelle, triggerSchluessel, TRIGGER_BLATT,
+  type TriggerImportErgebnis, type ProgrammStatistik, type NichtInterpretiert,
 } from './trigger-import';

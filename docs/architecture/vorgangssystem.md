@@ -14,6 +14,7 @@ Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
 | P4 | Stillstands-Wächter, Zieltage, Home-Widget „Hängt fest" | v2.378.0 |
 | P5 | Fristen-Cockpit (Bearbeiter + PL), wirksamer Eingang, XLSX-Export | v2.379.0 |
 | P6 | Rückbau der alten Ableitung | offen → [vorgangssystem-p6-inventar.md](vorgangssystem-p6-inventar.md) |
+| — | Trigger je Richtlinie (Nacharbeit am ersten echten Import) | v2.380.0 → [Abschnitt 3a](#3a-trigger-gelten-je-richtlinie) |
 
 **Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
 
@@ -73,6 +74,63 @@ Alle drei kommen als XLSX-Import aus dem Legacy (Kurator-Aktion, manuell alle pa
 Mail-Empfänger-Platzhalter (#BA1, #FB1, #TB1, #TV1 …) werden zunächst **unaufgelöst mit Legende** angezeigt („#TB1 = Bearbeiter des TV"); die Auflösung auf CSV-Spalten (vermutlich BIB-/TIB-Familien, s. Abschnitt 5a) ist spätere Verfeinerung, kein Blocker.
 
 Dazu eine Mini-Referenz **Fördervariante** (`VB_PHASE`): 1 = NW 1 · 2 = NW 2 · 3 = FuE · 4 = DL · 5 = DS · 9 = Irrläufer (decodiert aus der Dashboard-Formel der ABs). Damit verschwinden die `VB_PHASE`-Werte endgültig aus jeder Status-Betrachtung — es ist der **Antragstyp**, derselbe, den das Auslastungs-Modul als DL/DS/NW/FuE-Kontingente kennt, und ein Filter-Facet im Cockpit.
+
+### 3a. Trigger gelten je Richtlinie
+
+Der erste echte Import (v2.380) hat drei Annahmen aus P0 widerlegt, die auf einem
+Screenshot beruhten. Alle drei sind korrigiert; die Regeln stehen hier, weil man
+sie ohne Hinweis wieder falsch macht.
+
+**Das Programm ist Teil des Schlüssels.** Die Zuarbeit führt ~2450 Zeilen über
+neun Richtlinien (76, 77, 78, 79, 131, 136–139), oft dieselbe (Kürzel, Folge) mit
+verschiedener Wirkung. Der alte Schlüssel (Kürzel, Folge) ließ davon **362**
+übrig — der Rest fiel als „Dublette, erster Eintrag gilt" weg, und danach bekam
+jeder Antrag die Trigger der Richtlinie 76. Nichts daran war sichtbar. Jetzt gilt:
+
+- Schlüssel = `(Programm, Kürzel, Folge)`; keine programmübergreifende Deduplizierung.
+- Fehlt die Spalte „Richtlinie/Programm", **bricht der Import ab** statt teilweise
+  zu laden — ein programmloser Bestand ließe sich keinem Antrag zuordnen.
+- Die Auswahl je Antrag läuft über `FM_NUMMER` (kanonisch `unterprogramm_id`);
+  Programm-Nummer und Richtlinien-Nummer sind derselbe Nummernraum.
+- **Kein Ersatz-Programm.** Drei unterscheidbare Zustände, nie ein vierter stiller:
+  Tabelle nicht importiert · Programm des Antrags unbekannt · Programm ohne Trigger.
+- Zeilen aus einem Import vor v2.380 tragen kein Programm, greifen an keinem
+  Antrag und werden in der Referenzdaten-Sektion gezählt („bitte neu einlesen").
+
+**Argumente stehen an acht festen Positionen, von vorn gezählt** (0 Status-Vergleich ·
+1 ohne-TV · 2 ohne-Verbund · 3–5 weitere · 6 TV-Status · 7 VB-Status). Fehlende
+Schluss-Pipes heißen „Argument fehlt": `<59|ABB|||||40` (sieben Argumente) setzt
+den **TV**-Status auf 40 und lässt den VB unverändert. Bis v2.379 las der Parser
+von beiden Enden — das drehte genau diesen Fall um. Alle 14 Fixture-Zeilen der
+Seed-Doku liefern unter beiden Lesarten denselben Satz.
+
+**Kommas trennen UND-Listen** (Legacy-Doku, Blatt „Erklärung Prozedur"): in den
+Argumenten 2–6 steht `ABB,AB,AK4` für „hat kein ABB und kein AB und kein AK4".
+Jedes Kürzel ist im Navigator eine eigene Bedingung mit eigenem Urteil — ein
+unbekanntes macht nur seinen Teil unprüfbar, nicht die ganze Zeile. Nach dem
+Splitten bleiben als unbekannte Kürzel voraussichtlich nur **ID, TTV1, TTV2,
+TVB1** übrig (Verifikationsfrage V6).
+
+**Blätter werden namentlich gewählt** — „Trigger-Prozeduren" und „Erklärung
+Parameter"; passt der Name nicht, wird die ganze Mappe nach passenden
+Überschriften durchsucht, und erst dann gibt der Import auf (mit Blatt- und
+Spaltenliste in der Meldung). „Erklärung Parameter" führt drei Zeilenarten:
+Statuscodes, Bearbeiter-Kürzel und `!.055.…`-Textbausteine. Die Bearbeiter-Zeilen
+werden gegen `MAIL_ROLLE` (`rollen.ts`) **geprüft**, nicht gespeichert — die
+Zuordnung Kürzel → Rolle steht genau einmal im Code (Pitfall #43). Die
+Textbaustein-Legende landet als `MappingVersion.textbausteine` in der Fassung und
+wird zur **Anzeigezeit** aufgelöst, damit eine später importierte Legende nicht
+die ganze Trigger-Tabelle neu parsen lassen muss.
+
+**Gemessen am Bestand (14 221 Anträge, August 2026):** jeder Antrag trägt eine
+`FM_NUMMER` — der Fall „Programm unbekannt" kommt im echten Bestand nicht vor.
+Die Nummern verteilen sich auf **16** Programme, die Trigger-Zuarbeit deckt neun
+davon ab. Auf die abgedeckten entfallen 7269 Anträge, auf die übrigen sieben
+(47, 36, 46, 34, 48, 35, 37) **6952**. Für diese knappe Hälfte des Bestands sagt
+die App künftig „für Programm N keine Trigger importiert" — vorher bekam sie
+stillschweigend die Trigger der Richtlinie 76. Der Import-Diff listet die
+Programme mit Antragszahl auf, damit die Lücke eine Entscheidung wird und kein
+Zufall bleibt.
 
 ## 4. App-eigene Pflege: bewusst nur vier kleine Listen
 

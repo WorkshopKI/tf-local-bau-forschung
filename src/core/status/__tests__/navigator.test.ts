@@ -7,19 +7,21 @@
  *   Zeile desselben Kürzels noch feuern könnte
  * - ein neutrales Kürzel aus einer Rollen-Auswahl kippen (Pitfall #43)
  * - die Liste leer laufen lassen, solange niemand Relevanz gepflegt hat
+ * - Trigger eines FREMDEN Programms zeigen, wenn das eigene keine hat
  */
 import { describe, it, expect } from 'vitest';
-import { navigatorKandidaten, wirkungSaetze } from '@/core/status/navigator';
+import { navigatorKandidaten, wirkungZeilen } from '@/core/status/navigator';
 import { parseTriggerZeile } from '@/core/status/trigger-parser';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type { Rolle, StatusFeldEintrag, TriggerZeile } from '@/core/status/typen';
 
-const zeile = (kuerzel: string, folge: number, prozedur: string, parameter: string): TriggerZeile =>
-  parseTriggerZeile({ kuerzel, folge, prozedur, parameter });
+const zeile = (
+  kuerzel: string, folge: number, prozedur: string, parameter: string, programm = '76',
+): TriggerZeile => parseTriggerZeile({ programm, kuerzel, folge, prozedur, parameter });
 
 /** Trigger-Fixtures aus `todo-regeln-ab-seed.md` (Richtlinie 76). */
 const TRIGGER: TriggerZeile[] = [
-  zeile('AAE', 1, 'TRG_TVs_Status_TV_VB', '<59|ABB|YIRR|||||31|31'),
+  zeile('AAE', 1, 'TRG_TVs_Status_TV_VB', '<59|ABB|YIRR||||31|31'),
   zeile('AAE', 3, 'TRG.VorgEintragNeu', 'XAAE|210|0'),
   zeile('AAR', 1, 'TRG_TVs_Status_TV_VB', '<59|ABB|||||73|73'),
   zeile('AAR', 2, 'TRG.VorgEintragMail', 'TIB|!.055.VorgInfo.01|BIB'),
@@ -56,7 +58,7 @@ const vorkommen = (...codes: string[]): FeldVorkommen[] =>
 
 const lauf = (over: Partial<Parameters<typeof navigatorKandidaten>[0]> = {}): ReturnType<typeof navigatorKandidaten> =>
   navigatorKandidaten({
-    trigger: TRIGGER, felder: FELDER, vorkommen: [], statusCode: 31, ...over,
+    trigger: TRIGGER, programm: '76', felder: FELDER, vorkommen: [], statusCode: 31, ...over,
   });
 
 const kuerzelVon = (r: ReturnType<typeof navigatorKandidaten>): string[] =>
@@ -121,8 +123,8 @@ describe('navigatorKandidaten — Ehrlichkeit', () => {
 
   it('führt undeutbare Zusatz-Argumente als nicht prüfbar mit', () => {
     const r = navigatorKandidaten({
-      trigger: [zeile('AX', 1, 'TRG_TVs_Status_TV_VB', '<59|||WASAUCHIMMER||31|31')],
-      felder: [feld('AX')], vorkommen: [], statusCode: 31,
+      trigger: [zeile('AX', 1, 'TRG_TVs_Status_TV_VB', '<59|||WASAUCHIMMER|||31|31')],
+      programm: '76', felder: [feld('AX')], vorkommen: [], statusCode: 31,
     });
     expect(r.kandidaten[0]?.unpruefbar).toBe(true);
     expect(r.kandidaten[0]?.wirkung[0]?.gruende.join(' ')).toContain('WASAUCHIMMER');
@@ -131,7 +133,7 @@ describe('navigatorKandidaten — Ehrlichkeit', () => {
   it('zählt nicht interpretierte Zeilen, statt sie zu verschlucken', () => {
     const r = navigatorKandidaten({
       trigger: [...TRIGGER, zeile('AAE', 9, 'TRG.Unbekannt', 'irgendwas')],
-      felder: FELDER, vorkommen: [], statusCode: 31,
+      programm: '76', felder: FELDER, vorkommen: [], statusCode: 31,
     });
     expect(r.nichtInterpretiert).toBe(1);
     const aae = r.kandidaten.find(k => k.kuerzel === 'AAE');
@@ -147,7 +149,7 @@ describe('navigatorKandidaten — Ehrlichkeit', () => {
   it('markiert Kürzel, die der Katalog nicht kennt, als unbekannt', () => {
     const r = navigatorKandidaten({
       trigger: [zeile('ZZZ', 1, 'TRG.Status.TV.VB', '211|74')],
-      felder: FELDER, vorkommen: [], statusCode: 31,
+      programm: '76', felder: FELDER, vorkommen: [], statusCode: 31,
     });
     expect(r.kandidaten[0]?.unbekannt).toBe(true);
     expect(r.kandidaten[0]?.label).toBe('ZZZ');
@@ -188,7 +190,7 @@ describe('navigatorKandidaten — Anzeige-Ordnung und Zusatzangaben', () => {
   it('sammelt Mail-Platzhalter, ohne sie zu deuten', () => {
     const r = navigatorKandidaten({
       trigger: [zeile('AX', 1, 'TRG.VorgEintragMail', '#TB1|!.055.VorgInfo.01|#BA1')],
-      felder: [feld('AX')], vorkommen: [], statusCode: 31,
+      programm: '76', felder: [feld('AX')], vorkommen: [], statusCode: 31,
     });
     expect(r.kandidaten[0]?.platzhalter).toEqual(['#TB1', '#BA1']);
   });
@@ -204,15 +206,49 @@ describe('navigatorKandidaten — Anzeige-Ordnung und Zusatzangaben', () => {
   });
 });
 
-describe('wirkungSaetze', () => {
-  it('liefert die Sätze eines Kürzels in Folge-Reihenfolge', () => {
-    expect(wirkungSaetze(TRIGGER, 'aar')).toEqual([
-      'Wenn VB-Status vor 59, TV hat kein ABB → setze TV-Status 73 und VB-Status 73.',
-      'Mail an TIB, Textbaustein VorgInfo.01, CC BIB.',
+describe('navigatorKandidaten — Programm-Auswahl', () => {
+  const ANDERES: TriggerZeile[] = [
+    zeile('AAE', 1, 'TRG.Status.TV.VB', '211|59', '131'),
+  ];
+
+  it('prüft nur die Trigger des eigenen Programms', () => {
+    const r = navigatorKandidaten({
+      trigger: [...TRIGGER, ...ANDERES], programm: '131',
+      felder: FELDER, vorkommen: [], statusCode: 31,
+    });
+    expect(kuerzelVon(r)).toEqual(['AAE']);
+    expect(r.kandidaten[0]?.wirkung.map(w => w.satz)).toEqual(['Setze TV-Status (211) auf 59.']);
+  });
+
+  it('sagt es, wenn die Tabelle zum Programm nichts führt — statt ein anderes zu nehmen', () => {
+    const r = lauf({ programm: '999' });
+    expect(r.kandidaten).toEqual([]);
+    expect(r.programmOhneTrigger).toBe(true);
+    expect(r.programmUnbekannt).toBe(false);
+  });
+
+  it('unterscheidet „Programm unbekannt" von „Programm ohne Trigger"', () => {
+    const r = lauf({ programm: null });
+    expect(r.kandidaten).toEqual([]);
+    expect(r.programmUnbekannt).toBe(true);
+    expect(r.programmOhneTrigger).toBe(false);
+  });
+});
+
+describe('wirkungZeilen', () => {
+  it('liefert die Sätze eines Kürzels mit Programm, nach Programm und Folge sortiert', () => {
+    const mitZweitem = [...TRIGGER, zeile('AAR', 1, 'TRG.Status.TV.VB', '211|59', '131')];
+    expect(wirkungZeilen(mitZweitem, 'aar')).toEqual([
+      {
+        programm: '76', folge: 1,
+        satz: 'Wenn VB-Status vor 59, TV hat kein ABB → setze TV-Status 73 und VB-Status 73.',
+      },
+      { programm: '76', folge: 2, satz: 'Mail an TIB (FB), Textbaustein VorgInfo.01, CC BIB (AB).' },
+      { programm: '131', folge: 1, satz: 'Setze TV-Status (211) auf 59.' },
     ]);
   });
 
   it('liefert eine leere Liste für ein Kürzel ohne Trigger', () => {
-    expect(wirkungSaetze(TRIGGER, 'XYZ')).toEqual([]);
+    expect(wirkungZeilen(TRIGGER, 'XYZ')).toEqual([]);
   });
 });

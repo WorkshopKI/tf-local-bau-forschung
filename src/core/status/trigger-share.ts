@@ -18,6 +18,7 @@
  */
 import type { IDBStore } from '@/core/services/storage';
 import type { TriggerZeile } from './typen';
+import { normKey } from './normalisierung';
 import { leseSidecar, schreibeSidecar } from './sidecar-datei';
 
 export const STATUS_TRIGGER_PATH = '_intern/status-trigger.json';
@@ -54,6 +55,28 @@ export function istTriggerDatei(raw: unknown): raw is TriggerDatei {
 }
 
 /**
+ * Zeilen aus einer Fassung VOR der Programm-Dimension (v2.380) tragen kein
+ * `programm`. Sie bekommen hier `''` — das matcht nie einen Antrag, und die
+ * Referenzdaten-Sektion zählt sie und bittet um einen neuen Import.
+ *
+ * Bewusst kein Ersatzwert: „gehört zu Programm 76" wäre geraten, und der Bestand
+ * ist genau deshalb falsch, weil ihm ein Programm zugeschrieben wurde, das er
+ * nicht hat.
+ */
+export function heileTriggerDatei(datei: TriggerDatei): TriggerDatei {
+  if (datei.trigger.every(z => typeof z.programm === 'string')) return datei;
+  return {
+    ...datei,
+    trigger: datei.trigger.map(z => ({ ...z, programm: typeof z.programm === 'string' ? z.programm : '' })),
+  };
+}
+
+/** Wie viele Zeilen ohne Programm-Angabe geführt werden (Alt-Import). */
+export function zeilenOhneProgramm(trigger: readonly TriggerZeile[]): number {
+  return trigger.filter(z => !z.programm.trim()).length;
+}
+
+/**
  * Lädt den Trigger-Stand: Share zuerst, sonst der lokale Cache, sonst leer.
  *
  * Die Herkunft wird **mitgeliefert und angezeigt** — ein stiller Rückfall auf
@@ -66,13 +89,13 @@ export async function ladeTrigger(idb: IDBStore): Promise<TriggerStand> {
     const vomShare = await leseSidecar(idb, STATUS_TRIGGER_PATH, istTriggerDatei);
     if (vomShare) {
       await idb.set(TRIGGER_CACHE_KEY, vomShare);
-      return { datei: vomShare, herkunft: 'share' };
+      return { datei: heileTriggerDatei(vomShare), herkunft: 'share' };
     }
   } catch (err) {
     console.warn('[status] ladeTrigger: Share nicht lesbar:', err);
   }
   const cache = await idb.get<unknown>(TRIGGER_CACHE_KEY);
-  if (istTriggerDatei(cache)) return { datei: cache, herkunft: 'cache' };
+  if (istTriggerDatei(cache)) return { datei: heileTriggerDatei(cache), herkunft: 'cache' };
   return { datei: null, herkunft: 'leer' };
 }
 
@@ -107,8 +130,34 @@ export async function speichereTrigger(
 export function triggerFuerKuerzel(
   trigger: readonly TriggerZeile[], kuerzel: string,
 ): TriggerZeile[] {
-  const gesucht = kuerzel.normalize('NFC').trim().toLowerCase();
+  const gesucht = normKey(kuerzel);
   return trigger
-    .filter(t => t.kuerzel.normalize('NFC').trim().toLowerCase() === gesucht)
+    .filter(t => normKey(t.kuerzel) === gesucht)
     .sort((a, b) => a.folge - b.folge);
+}
+
+/**
+ * Die Zeilen EINES Programms. Rein.
+ *
+ * `null`/leeres Programm liefert eine leere Liste — nie die ganze Tabelle. Ein
+ * Antrag, dessen Programm wir nicht kennen, bekommt lieber gar keine Trigger als
+ * die eines fremden Programms; die Oberfläche sagt dann, welcher der beiden
+ * Fälle vorliegt.
+ */
+export function triggerFuerProgramm(
+  trigger: readonly TriggerZeile[], programm: string | null,
+): TriggerZeile[] {
+  const gesucht = normKey(programm ?? '');
+  if (!gesucht) return [];
+  return trigger.filter(t => normKey(t.programm) === gesucht);
+}
+
+/** Welche Programme die Tabelle führt, aufsteigend (numerisch, wo möglich). */
+export function programmeInTrigger(trigger: readonly TriggerZeile[]): string[] {
+  const gesehen = new Map<string, string>();
+  for (const t of trigger) {
+    const p = t.programm.trim();
+    if (p && !gesehen.has(normKey(p))) gesehen.set(normKey(p), p);
+  }
+  return [...gesehen.values()].sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
 }

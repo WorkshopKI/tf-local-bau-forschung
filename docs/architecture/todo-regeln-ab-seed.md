@@ -118,10 +118,20 @@ Stand: 01.08.2026 · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt 
 - **V2:** Wer führt den PreCheck durch (Zuständigkeit für „PC offen") — FB?
 - **V3:** Bestätigen, dass der übermittelte Spaltenkopf 1:1 der nächtliche CSV-Export ist (nicht eine in der Mappe angereicherte Sicht).
 - **V4:** `D_QS` / `D_QS-` — Zuordnung zu „Gutachten QS fertig" / „QS zurück" stimmt? (Label-Zeile hat an dieser Stelle Leerzellen, Alignment nicht eindeutig.)
+- **V5:** „in QS" trifft 1766 Vorgänge, weil R19 keine Endschranke kennt — in der Mappe erledigt das der Status-Slicer. Soll die Regel einen terminalen Ausschluss bekommen?
+- **V6:** Nach dem Komma-Splitten der Bedingungs-Argumente (v2.380) bleiben als unbekannte Kürzel **ID, TTV1, TTV2, TVB1** übrig. Was bezeichnen sie — Vorgangskürzel, Tabellen-Kennungen oder Steuerworte der Prozedur?
 
 ## Anhang: Trigger-Fixture-Zeilen für Parser-Tests
 
-Transkribiert aus der Legacy-Trigger-Tabelle (Richtlinie 76). **Hinweis:** Pipe-Anzahl aus Screenshot übernommen — beim ersten echten XLSX-Import gegen die Originaldatei verifizieren; der Parser muss mit abweichender Anzahl leerer Argumente tolerant umgehen (leer = darf leer sein, lt. Legacy-Doku).
+Transkribiert aus der Legacy-Trigger-Tabelle (Richtlinie 76).
+
+> **Verifiziert am echten Import (v2.380).** Die Pipe-Anzahl stimmt: acht
+> Argumente, von **vorn** gezählt. Fehlende Schluss-Pipes heißen „Argument fehlt",
+> nicht „die letzten Werte rutschen nach vorn" — die frühere Lesart von beiden
+> Enden her drehte `<59|ABB|||||40` (sieben Argumente) um. Die Tabelle unten ist
+> unverändert gültig; ihre Zeilen liefern unter beiden Lesarten denselben Satz.
+> Neu ist außerdem, dass jede Zeile zu **einer Richtlinie** gehört (hier 76) —
+> siehe [vorgangssystem.md, Abschnitt 3a](vorgangssystem.md#3a-trigger-gelten-je-richtlinie).
 
 | Kürzel | Folge | Prozedur | Parameter |
 |---|---|---|---|

@@ -235,3 +235,20 @@ Positivbeispielen: [prompt-audit-2026-07.md](../prompt-audit-2026-07.md).
 **Maschinell erzwungen (v2.284.1):** `keine-elidierte-wortlaut-vorgabe` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts). Unter `src/core/services/skills/` darf keine Zeile ein Literalitäts-Wort (`exakt`/`wörtlich`/`wortgetreu`) mit einem elidierten Zitat (`…` direkt vor einem schließenden Anführungszeichen) kombinieren. Eingefrorene Alt-Stände für die Migrations-Erkennung: Zeile mit `// allow-elidierte-wortlaut-vorgabe: <grund>` markieren. Rein veranschaulichende „…"-Zitate ohne Literalitäts-Forderung (z.B. `grundsatz.ts`) sind nicht erfasst.
 
 **Kanonische Dateien:** [seed.ts](../../src/core/services/skills/registry/seed.ts) (`abschnittTemplate.pflichtAnfang`, `G_ABSCHNITT_OPTS`), [check-engine.ts](../../src/core/services/skills/registry/check-engine.ts) (`pflicht_anfang.hint`), [migrations.ts](../../src/core/services/skills/registry/migrations.ts) (`GA_PFLICHT_ANFANG_KLAR_MIGRATION`).
+
+## 14. Fremddaten-Schlüssel ohne alle Dimensionen — Dedup frisst den Rest
+
+**Symptom:** Ein Import „läuft durch", der Bestand ist aber ein Bruchteil der Datei. Die Warnungen lesen sich harmlos („X steht mehrfach — erster Eintrag gilt") und häufen sich auf ein paar Kürzel, die nach einem Zeichensatz-Problem aussehen (ÄQ/ÄT/ÄW). Danach zeigt die App zu jedem Datensatz *irgendetwas* — nur eben das Falsche, ohne dass irgendwo etwas rot wird.
+
+**Root-Cause:** Der Vergleichsschlüssel lässt eine fachliche Dimension weg, die die Quelle sehr wohl führt. Gemessen (v2.380): die Trigger-Zuarbeit führt ~2450 Zeilen über **neun Richtlinien**, der Importer schlüsselte nach `(Kürzel, Folge)` — **362 Zeilen** blieben übrig, alles jenseits der ersten Richtlinie fiel als Dublette weg. Die Umlaut-Warnungen waren keine NFC-Frage, sondern programmübergreifende Kollisionen: dieselben Kürzel mit verschiedener Wirkung.
+
+**Fix-Pattern:**
+- **Die Dimension gehört in den Schlüssel, nicht daneben.** Ein optionales Feld „Richtlinie" am Datensatz, das der Schlüssel ignoriert, ist genau die Falle — der Wert ist da und wirkt trotzdem nicht.
+- **Fehlt die Spalte ganz, abbrechen statt teilzuimportieren.** Ein Bestand ohne die Dimension lässt sich später keinem Datensatz zuordnen, sieht aber vollständig aus.
+- **Beim Lesen kein Ersatz über die Dimensionsgrenze.** Lieber nichts zeigen und sagen, warum (`programmUnbekannt` vs. `programmOhneTrigger`), als den Nachbarn nehmen.
+- **Diff-Vorschau je Dimension.** „5 neu · 2 geändert" verbirgt einen Kollaps von 2450 auf 362; „Programm 76: 528 Zeilen · Programm 139: 107" zeigt ihn sofort.
+- **Bestandsdaten aus der Zeit vor der Dimension heilen, nicht raten** — leeren Wert stempeln, zählen und zum Neu-Import auffordern.
+- **Warnungs-Häufung ist ein Befund, kein Rauschen.** Wenn eine Dedup-Warnung auf wenigen Schlüsseln clustert, ist meist der Schlüssel falsch — nicht die Daten.
+
+**Kanonische Dateien:** [trigger-import.ts](../../src/core/status/import/trigger-import.ts) (`triggerSchluessel`, `statistik`), [trigger-share.ts](../../src/core/status/trigger-share.ts) (`triggerFuerProgramm`, `heileTriggerDatei`), [referenz-import.test.ts](../../src/core/status/__tests__/referenz-import.test.ts).
+

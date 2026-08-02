@@ -22,7 +22,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
-  ROLLEN, ROLLE_LABEL, ROLLE_LANG, findeStatusCode, ladeTrigger, leseStatusRolle,
+  ROLLEN, ROLLE_LABEL, ROLLE_LANG, baueLegende, findeStatusCode, ladeTrigger, leseStatusRolle,
   navigatorKandidaten,
   type FeldVorkommen, type MappingVersion, type NavigatorKandidat, type Rolle,
   type TriggerZeile,
@@ -88,25 +88,30 @@ function Kandidat({ k }: { k: NavigatorKandidat }): React.ReactElement {
   );
 }
 
-export function NaechsteSchritte({ version, vorkommen, statusRoh }: {
+export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
   version: MappingVersion;
   /** Alle gesetzten Statuseinträge des Verbunds (`sammleVorkommen`). */
   vorkommen: readonly FeldVorkommen[];
   /** Der amtliche Verbund-Status als Rohtext aus dem Export. */
   statusRoh?: string | null;
+  /** Programm-/Richtlinien-Nummer des Vorhabens; `null` = unbekannt. */
+  programm: string | null;
 }): React.ReactElement | null {
   const { profile } = useProfile();
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
   const [alleZeigen, setAlleZeigen] = useState(false);
   const { trigger, geladen } = useTriggerTabelle();
 
+  const legende = useMemo(() => baueLegende(version.textbausteine), [version.textbausteine]);
   const ergebnis = useMemo(() => navigatorKandidaten({
     trigger,
+    programm,
     felder: version.felder,
     vorkommen,
     statusCode: findeStatusCode(statusRoh ?? '')?.eintrag.code ?? null,
     rolle,
-  }), [trigger, version.felder, vorkommen, statusRoh, rolle]);
+    legende,
+  }), [trigger, programm, version.felder, vorkommen, statusRoh, rolle, legende]);
 
   /** Teilvorhaben, für die überhaupt Einträge vorliegen. */
   const tvAnzahl = useMemo(
@@ -148,11 +153,30 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh }: {
             Import im Status-Katalog unter „Referenzdaten".
           </span>
         </p>
+      ) : ergebnis.programmUnbekannt ? (
+        // Drei Gründe für „leer", drei verschiedene Sätze: nicht importiert,
+        // Programm unbekannt, Programm ohne Trigger. Sie zu einem „keine
+        // Kandidaten" zusammenzuziehen verschwiege, was zu tun wäre.
+        <p className="flex items-start gap-1.5 text-[12px] text-[var(--tf-warning-text)]">
+          <AlertTriangle size={13} className="shrink-0 mt-[2px]" />
+          <span>
+            Programm des Vorhabens unbekannt (Spalte FM_NUMMER nicht gemappt) — Trigger gelten je
+            Richtlinie, deshalb wird hier nichts geraten.
+          </span>
+        </p>
+      ) : ergebnis.programmOhneTrigger ? (
+        <p className="flex items-start gap-1.5 text-[12px] text-[var(--tf-warning-text)]">
+          <AlertTriangle size={13} className="shrink-0 mt-[2px]" />
+          <span>
+            Für Programm {programm} sind keine Trigger importiert. Die Zuarbeit führt sie je
+            Richtlinie — Import im Status-Katalog unter „Referenzdaten".
+          </span>
+        </p>
       ) : (
         <>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            Aus den Vorbedingungen der Trigger-Tabelle abgeleitet: was das Fachsystem unter dem
-            aktuellen Status zuließe. Was fachlich ansteht, weiß die App nicht.
+            Aus den Vorbedingungen der Trigger-Tabelle für Programm {programm} abgeleitet: was das
+            Fachsystem unter dem aktuellen Status zuließe. Was fachlich ansteht, weiß die App nicht.
             {!ergebnis.relevanzGefiltert
               && ' Es sind noch keine Kürzel als relevant markiert — geprüft werden deshalb alle.'}
             {tvAnzahl > 1

@@ -4,7 +4,7 @@
  */
 import type {
   MappingVersion, NaechsterSchrittRegel, Rolle, StatusFeldEintrag, StatusKategorie,
-  StatusWertEintrag, TodoRegel, ZahPhase,
+  StatusWertEintrag, TextbausteinEintrag, TodoRegel, ZahPhase,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
 import { normKey } from './normalisierung';
@@ -172,11 +172,17 @@ export function ergaenzeSeedFelder(
  * Rein und idempotent.
  */
 export function uebernimmStatusCodes(
-  version: MappingVersion, katalog: readonly StatusCodeEintrag[],
+  version: MappingVersion,
+  katalog: readonly StatusCodeEintrag[],
+  textbausteine: readonly TextbausteinEintrag[] = [],
 ): MappingVersion {
   const index = baueStatusCodeIndex(katalog);
   return {
     ...version,
+    // Die Textbaustein-Legende kommt aus demselben Blatt. Leer heißt „das Blatt
+    // führte keine" — dann bleibt die gepflegte Legende stehen, statt von einem
+    // Import ohne diese Zeilen gelöscht zu werden.
+    ...(textbausteine.length > 0 ? { textbausteine: textbausteine.map(t => ({ ...t })) } : {}),
     werte: version.werte.map(w => {
       const treffer = findeStatusCode(w.wert, index);
       if (!treffer) return w;

@@ -20,8 +20,8 @@ import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { pickXlsxFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import {
   importiereStatusKatalog, importiereTriggerTabelle, diffZusammenfassung,
-  aktuellerStatusCodeKatalog, STATUS_CODE_KATALOG,
-  type Diff, type StatusCodeEintrag, type TriggerZeile,
+  aktuellerStatusCodeKatalog, STATUS_CODE_KATALOG, zeilenOhneProgramm, programmeInTrigger,
+  type Diff, type ProgrammStatistik, type StatusCodeEintrag, type TriggerZeile,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { feldStil } from './labels';
@@ -33,6 +33,9 @@ interface Vorschau {
   zusammenfassung: string;
   zeilen: string[];
   warnungen: string[];
+  /** Zeilen/Kürzel je Programm — steht ÜBER dem Diff, weil ein fehlendes
+   *  Programm die wichtigere Nachricht ist als eine geänderte Zeile. */
+  jeProgramm?: ProgrammStatistik[];
   /** Beschriftung des Übernehmen-Knopfes — der Katalog geht in den Entwurf,
    *  die Trigger-Tabelle wird als eigene Datei sofort veröffentlicht. */
   aktion: string;
@@ -70,6 +73,17 @@ function VorschauKarte({ v, onVerwerfen, darfSchreiben }: {
         <span className="text-[12.5px] font-medium text-[var(--tf-text)]">{v.titel}</span>
         <span className="text-[12px] text-[var(--tf-text-secondary)]">{v.zusammenfassung}</span>
       </div>
+
+      {v.jeProgramm && v.jeProgramm.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          {v.jeProgramm.map(p => (
+            <span key={p.programm} className="text-[11.5px] text-[var(--tf-text-secondary)]">
+              <span className="font-mono text-[var(--tf-text)]">{p.programm}</span>
+              {' '}{p.zeilen} Zeilen · {p.kuerzel} Kürzel
+            </span>
+          ))}
+        </div>
+      )}
 
       {v.warnungen.length > 0 && (
         <ul className="flex flex-col gap-0.5">
@@ -137,14 +151,25 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
     const bestand = aktuellerStatusCodeKatalog(entwurf, STATUS_CODE_KATALOG);
     const e = await importiereStatusKatalog(datei, bestand);
     if (e.fehler || !e.diff) { setFehler(e.fehler ?? 'Import fehlgeschlagen.'); return; }
+    const warnungen = [...e.warnungen];
+    if (e.unbekannteBearbeiter.length > 0) {
+      warnungen.push(
+        `Bearbeiter-Kürzel aus der Zuarbeit, die die App nicht kennt: `
+        + `${e.unbekannteBearbeiter.join(', ')}. Die Mail-Trigger nennen sie dann ohne Rolle.`,
+      );
+    }
     setVorschau({
       art: 'status',
-      titel: `Status-Katalog · ${datei.name}`,
-      zusammenfassung: diffZusammenfassung(e.diff),
+      titel: `Parametertabelle · ${datei.name}`,
+      zusammenfassung: `${diffZusammenfassung(e.diff)}`
+        + (e.textbausteine.length > 0 ? ` · ${e.textbausteine.length} Textbausteine` : ''),
       zeilen: diffZeilen<StatusCodeEintrag>(e.diff, x => x.text),
-      warnungen: e.warnungen,
+      warnungen,
       aktion: 'In den Entwurf übernehmen',
-      uebernehmen: () => { api.statusCodesUebernehmen(e.eintraege); setVorschau(null); },
+      uebernehmen: () => {
+        api.statusCodesUebernehmen(e.eintraege, e.textbausteine);
+        setVorschau(null);
+      },
     });
   });
 
@@ -153,13 +178,29 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
     if (!datei || !entwurf) return;
     setFehler(null);
     const kuerzel = entwurf.felder.map(f => f.code).filter((c): c is string => !!c);
-    const e = await importiereTriggerTabelle(datei, api.trigger.datei?.trigger ?? [], kuerzel);
+    const e = await importiereTriggerTabelle(
+      datei, api.trigger.datei?.trigger ?? [], kuerzel, api.programmeImBestand,
+    );
     if (e.fehler || !e.diff) { setFehler(e.fehler ?? 'Import fehlgeschlagen.'); return; }
     const warnungen = [...e.warnungen];
-    if (e.nichtInterpretiert > 0) {
+    if (e.programmeOhneTrigger.length > 0) {
       warnungen.push(
-        `${e.nichtInterpretiert} von ${e.zeilen.length} Zeilen konnte der Parser nicht deuten — `
-        + 'sie werden mit Rohtext übernommen und in der Erklärung als „nicht interpretiert" gezeigt.',
+        'Für diese Programme des Bestands führt die Datei keine Trigger: '
+        + `${e.programmeOhneTrigger.map(p => `${p.programm} (${p.antraege} Anträge)`).join(', ')}. `
+        + 'Dort bleiben Navigator und Erklärung stumm — das ist Absicht, kein Ausfall.',
+      );
+    }
+    if (e.nichtInterpretiert.length > 0) {
+      // Konkret statt nur gezählt: eine gestiegene Zahl heißt „Schema geändert",
+      // und dann will man die Rohtexte sehen, nicht die Summe.
+      const liste = e.nichtInterpretiert
+        .slice(0, 8)
+        .map(z => `${z.programm}/${z.kuerzel}/${z.folge}: ${z.parameterRoh || '(leer)'}`)
+        .join(' · ');
+      warnungen.push(
+        `${e.nichtInterpretiert.length} von ${e.zeilen.length} Zeilen konnte der Parser nicht `
+        + `deuten — sie werden mit Rohtext übernommen. ${liste}`
+        + (e.nichtInterpretiert.length > 8 ? ` … und ${e.nichtInterpretiert.length - 8} weitere` : ''),
       );
     }
     if (e.unbekannteKuerzel.length > 0) {
@@ -172,9 +213,11 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
     setVorschau({
       art: 'trigger',
       titel: `Trigger-Tabelle · ${datei.name}`,
-      zusammenfassung: diffZusammenfassung(e.diff),
+      zusammenfassung: `${e.zeilen.length} Zeilen in ${e.jeProgramm.length} Programmen · `
+        + diffZusammenfassung(e.diff),
       zeilen: diffZeilen<TriggerZeile>(e.diff, x => `${x.prozedur} ${x.parameterRoh}`),
       warnungen,
+      jeProgramm: e.jeProgramm,
       // Eigene Datei, eigener Stand: die Trigger gehen nicht über die
       // Speicherleiste des Katalogs, sondern werden direkt veröffentlicht.
       aktion: 'Übernehmen und veröffentlichen',
@@ -197,6 +240,8 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
   const ohneCode = entwurf.werte.filter(w => w.aktiv && w.code === undefined).length;
   const trigger = api.trigger.datei?.trigger ?? [];
   const triggerOffen = trigger.filter(t => t.geparst === null).length;
+  const ohneProgramm = zeilenOhneProgramm(trigger);
+  const programme = programmeInTrigger(trigger);
   const busy = statusImport.busy || triggerImport.busy;
 
   return (
@@ -219,8 +264,11 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
         <div className="flex flex-col gap-3 border-t border-[var(--tf-border)] px-3 py-3">
           <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
             Der Export liefert den Status nur als Text. Diese beiden Zuarbeiten aus dem Fachsystem
-            geben ihm einen Code und sagen, was ein gesetztes Kürzel auslöst. Sie kommen alle paar
-            Monate neu — vor jeder Übernahme steht die Vorschau.
+            geben ihm einen Code und sagen, was ein gesetztes Kürzel auslöst. Gelesen werden die
+            Blätter „Erklärung Parameter" und „Trigger-Prozeduren" — passt der Name nicht, wird die
+            ganze Mappe nach passenden Überschriften durchsucht. Die Trigger gelten <b>je
+            Richtlinie</b>; welche Menge an einem Antrag gilt, entscheidet dessen FM-Nummer.
+            Vor jeder Übernahme steht die Vorschau.
           </p>
 
           {/* Eine Fassung, die vor dem Vorgangssystem gespeichert wurde, hat den
@@ -266,7 +314,7 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                 variant="secondary" size="sm" icon={FileSpreadsheet} disabled={busy}
                 onClick={() => statusImport.run()}
               >
-                {statusImport.busy ? 'Liest …' : 'Status-Katalog (XLSX)'}
+                {statusImport.busy ? 'Liest …' : 'Parametertabelle (XLSX)'}
               </Button>
               <span className="text-[12px] text-[var(--tf-text-tertiary)]">
                 {mitCode} Werte zugeordnet
@@ -286,12 +334,34 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
               <span className="text-[12px] text-[var(--tf-text-tertiary)]">
                 {trigger.length === 0
                   ? HERKUNFT_LABEL[api.trigger.herkunft]
-                  : `Stand v${api.trigger.datei?.version} · ${trigger.length} Zeilen · ${HERKUNFT_LABEL[api.trigger.herkunft]}`}
+                  : `Stand v${api.trigger.datei?.version} · ${trigger.length} Zeilen`
+                    + ` · ${programme.length} Programme (${programme.join(', ')})`
+                    + ` · ${HERKUNFT_LABEL[api.trigger.herkunft]}`}
                 {triggerOffen > 0 && (
                   <> · <span className="text-[var(--tf-warning-text)]">{triggerOffen} nicht interpretiert</span></>
                 )}
               </span>
             </div>
+
+            {/* Ein Bestand aus der Zeit vor der Programm-Dimension ist nicht
+                halb richtig, sondern unbrauchbar: er wurde beim Import auf das
+                erste Programm eingedampft. Das gehört ausgesprochen, nicht
+                stillschweigend weiterbenutzt. */}
+            {ohneProgramm > 0 && (
+              <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+                ⚠ {ohneProgramm} der {trigger.length} Zeilen tragen keine Programm-Angabe — sie
+                stammen aus einem Import vor v2.380, der alle Programme auf das erste eingedampft
+                hat. Sie greifen an keinem Antrag. Bitte die Trigger-XLSX neu einlesen.
+              </p>
+            )}
+
+            {api.antraegeOhneProgramm > 0 && (
+              <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+                ⚠ {api.antraegeOhneProgramm} Anträge im Bestand tragen keine Programm-Nummer
+                (Spalte FM_NUMMER nicht gemappt) — dort kann das Vorgangssystem keine Trigger
+                zuordnen.
+              </p>
+            )}
 
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="default">Kürzel-Katalog</Badge>

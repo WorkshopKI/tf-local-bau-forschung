@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.380 — 2026-08
+
+### Bugfixes
+- **Die Trigger-Tabelle gilt je Richtlinie — bisher galt überall die erste.** Die Zuarbeit führt dieselben Kürzel für neun Richtlinien mit je eigener Wirkung. Der Import hat davon nur eine behalten und sie allen Vorhaben gezeigt. Jetzt entscheidet die FM-Nummer des Vorhabens, welche Trigger gelten.
+- Wo für eine Richtlinie keine Trigger eingelesen sind, steht das jetzt da („Für Programm 47 sind keine Trigger importiert") — statt der Wirkung einer fremden Richtlinie.
+- Die Satzform der Trigger stimmt in zwei Punkten nicht mehr überein mit vorher: fehlende Argumente am Zeilenende heißen „unverändert" (nicht „der letzte Wert rutscht nach vorn"), und Kürzel-Aufzählungen wie `ABB,AB` werden als drei Bedingungen gelesen statt als ein Kürzel mit Kommas im Namen.
+
+### Verbesserungen
+- Das Kürzel-Glossar zeigt an jeder Wirkungszeile die Richtlinie, zu der sie gehört.
+- Mail-Trigger nennen die Rolle des Empfängers (`TIB (FB)`) und — sofern die Parametertabelle sie mitliefert — den Klartext des Textbausteins.
+
+### Wichtig
+- **Die Trigger-Tabelle muss einmal neu eingelesen werden** (Status-Katalog → Referenzdaten). Der bisherige Stand trägt keine Richtlinien-Angabe und greift deshalb an keinem Vorhaben mehr; die Seite sagt es, wenn es so ist.
+
 ## v2.379 — 2026-08
 
 ### Neu

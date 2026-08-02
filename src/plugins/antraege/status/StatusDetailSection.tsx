@@ -133,7 +133,9 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           unseren fünf Alt-Regeln, diese aus der Trigger-Tabelle des
           Fachsystems. Bis zum Rückbau soll man beide vergleichen können. */}
       <div className="mt-5">
-        <NaechsteSchritte version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} />
+        <NaechsteSchritte
+          version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} programm={v.programm}
+        />
       </div>
 
       {/* Die Ordner des Fachsystems: was steht wo. Die Timeline oben beantwortet

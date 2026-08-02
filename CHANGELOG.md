@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.380.0 — Trigger-Import je Programm (August 2026)
+
+MINOR — Der erste echte Import zeigte, dass die Trigger-Zuarbeit ~2450 Zeilen über neun Richtlinien führt, der Importer aber nur nach (Kürzel, Folge) schlüsselte: 362 Zeilen blieben übrig, der Rest fiel als „Dublette" weg — und jeder Antrag bekam danach die Trigger der ersten Richtlinie. Dieselbe Datei widerlegte drei weitere Screenshot-Annahmen aus P0.
+
+- Programm ist Teil des Schlüssels und wird je Antrag über `FM_NUMMER` aufgelöst; fehlt die Spalte, bricht der Import ab statt teilweise zu laden ([trigger-import.ts](src/core/status/import/trigger-import.ts), [trigger-share.ts](src/core/status/trigger-share.ts)).
+- Argumente von `TRG_TVs_Status_TV_VB` stehen an acht festen Positionen und werden von vorn gelesen; Komma-Listen sind UND-Listen ([trigger-parser.ts](src/core/status/trigger-parser.ts)) — kehrt die P0-Lesart „von beiden Enden" um, die auf einem Screenshot beruhte.
+- Blätter werden namentlich gewählt („Trigger-Prozeduren", „Erklärung Parameter"), sonst die ganze Mappe durchsucht ([xlsx-tabelle.ts](src/core/status/import/xlsx-tabelle.ts)).
+- „Erklärung Parameter" liefert zusätzlich die Textbaustein-Legende der Mail-Trigger und prüft die Bearbeiter-Kürzel gegen `MAIL_ROLLE` ([status-katalog-import.ts](src/core/status/import/status-katalog-import.ts)).
+- **Migrationsnotiz:** die Trigger-XLSX muss einmal neu eingelesen werden — Zeilen ohne Programm greifen an keinem Antrag, die Referenzdaten-Sektion sagt es ([vorgangssystem.md](docs/architecture/vorgangssystem.md)).
+
 ### v2.379.1 — Vorgangssystem: P6-Inventar und Doku (August 2026)
 
 PATCH — Abschluss des Vorgangssystem-Laufs P0–P5. P6 (Rückbau der alten Ableitung) bekommt sein Inventar mit gemessenen Zahlen statt einer Schätzung; Konzept und CLAUDE.md ziehen auf den Ist-Stand nach.

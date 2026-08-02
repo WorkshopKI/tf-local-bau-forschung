@@ -33,6 +33,8 @@ function vorkommen(feldId: string, wert: string, text?: string): FeldVorkommen {
 const basis = {
   version: seed,
   trigger: [] as TriggerZeile[],
+  // Trigger gelten je Richtlinie; die Fixtures stammen alle aus Programm 76.
+  programm: '76',
   datenstand: DATENSTAND,
   stichtag: STICHTAG,
 };
@@ -238,7 +240,7 @@ describe('baueHerleitung — „seit wann"', () => {
 
 describe('baueHerleitung — Trigger und Datenstand', () => {
   const trigger: TriggerZeile[] = [{
-    kuerzel: 'AT4', folge: 1, prozedur: 'TRG.Status.TV.VB', parameterRoh: '211|38',
+    programm: '76', kuerzel: 'AT4', folge: 1, prozedur: 'TRG.Status.TV.VB', parameterRoh: '211|38',
     geparst: { art: 'statusSetzen', ebene: '211', status: 38 },
     satz: 'Setze TV-Status (211) auf 38.',
   }];
@@ -256,6 +258,27 @@ describe('baueHerleitung — Trigger und Datenstand', () => {
       ...basis, vorkommen: [vorkommen('D_AT4', '14.06.2026')], statusRoh: 'techn geprüft',
     });
     expect(h.letzterVorgang?.trigger).toEqual([]);
+    expect(h.programmOhneTrigger).toBe(false);   // die Tabelle ist leer, nicht das Programm
+  });
+
+  it('nimmt NIE die Trigger eines fremden Programms', () => {
+    const h = baueHerleitung({
+      ...basis, trigger, programm: '131',
+      vorkommen: [vorkommen('D_AT4', '14.06.2026')], statusRoh: 'techn geprüft',
+    });
+    expect(h.letzterVorgang?.trigger).toEqual([]);
+    expect(h.programmOhneTrigger).toBe(true);
+    expect(herleitungAlsText(h)).toContain('Für Programm 131 sind keine Trigger importiert');
+  });
+
+  it('unterscheidet „Programm unbekannt" von „Programm ohne Trigger"', () => {
+    const h = baueHerleitung({
+      ...basis, trigger, programm: null,
+      vorkommen: [vorkommen('D_AT4', '14.06.2026')], statusRoh: 'techn geprüft',
+    });
+    expect(h.programm).toBeNull();
+    expect(h.programmOhneTrigger).toBe(false);
+    expect(herleitungAlsText(h)).toContain('Programm des Antrags unbekannt');
   });
 
   it('führt den Datenstand in jeder Erklärung mit', () => {

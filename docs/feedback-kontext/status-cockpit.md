@@ -34,6 +34,8 @@ werden nie stillschweigend aufgelöst.
     Status-Erklärung ein.
   - Trägt ein Kürzel Trigger-Zeilen, steht neben dem Code ein **Blitz mit
     Anzahl** — Klick klappt auf, was das Setzen im Foyer auslöst (Satzform).
+    Jede Zeile beginnt mit `Richtlinie/Folge`, weil dasselbe Kürzel je
+    Richtlinie etwas anderes auslöst.
   - „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu, Ziehen hängt um,
     Klick auf den Namen benennt um.
   - Vier Übernahme-Blöcke: Auslieferung nachziehen, Bezeichnung/Rollen der
@@ -59,6 +61,12 @@ legt eine Fassung an. Ältere sind als Entwurf ladbar.
   wann er eine Änderung gesehen hat.
 - JSON-Export/Import dient der Sicherung, nicht dem Team-Abgleich.
 - Ändert nichts am Legacy-System — reine Anzeige-/Ableitungslogik.
+- Die **Trigger-Tabelle gilt je Richtlinie**. Der Bereich „Referenzdaten" nennt
+  Stand, Zeilenzahl und die geführten Programme; die Vorschau vor der Übernahme
+  zählt Zeilen und Kürzel je Programm und nennt die Programme des Bestands, für
+  die die Datei nichts führt (mit Antragszahl). Zeilen aus einem Import vor
+  v2.380 tragen keine Richtlinie und greifen an keinem Vorhaben — die Seite sagt
+  das und bittet um einen neuen Import.
 
 ## Technik
 

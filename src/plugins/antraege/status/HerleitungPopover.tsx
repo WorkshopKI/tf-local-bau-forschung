@@ -108,11 +108,24 @@ function Inhalt({ h }: { h: Herleitung }): React.ReactElement {
             {v.trigger.length > 0 && (
               <ul className="mt-1 flex flex-col gap-0.5">
                 {v.trigger.map(t => (
-                  <li key={`${t.kuerzel}-${t.folge}`} className="text-[11.5px] text-[var(--tf-text-secondary)]">
+                  <li key={t.folge} className="text-[11.5px] text-[var(--tf-text-secondary)]">
                     → {t.satz}
                   </li>
                 ))}
               </ul>
+            )}
+            {/* Warum hier keine Wirkung steht, ist eine Aussage — Schweigen
+                sähe aus wie „dieses Kürzel löst nichts aus". */}
+            {v.trigger.length === 0 && h.programm === null && (
+              <p className="mt-1 text-[11.5px] text-[var(--tf-warning-text)]">
+                Programm des Vorhabens unbekannt (Spalte FM_NUMMER nicht gemappt) — Trigger
+                lassen sich nicht zuordnen.
+              </p>
+            )}
+            {v.trigger.length === 0 && h.programmOhneTrigger && (
+              <p className="mt-1 text-[11.5px] text-[var(--tf-warning-text)]">
+                Für Programm {h.programm} sind keine Trigger importiert.
+              </p>
             )}
           </>
         ) : (

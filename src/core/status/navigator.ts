@@ -26,12 +26,20 @@
  *    Auflösung auf Personen ist am Legacy nicht verifiziert (offener Punkt 2 im
  *    Konzept); eine erfundene Legende wäre schlimmer als keine.
  *
+ * **Und eine Auswahl-Regel**: geprüft wird nur die Trigger-Menge des Programms,
+ * zu dem der Antrag gehört (`FM_NUMMER`). Kennen wir das Programm nicht oder
+ * führt die Tabelle keines dazu, ist das Ergebnis leer und sagt WELCHER der
+ * beiden Fälle vorliegt — ein Ersatz-Programm gibt es nicht, dieselben Kürzel
+ * lösen dort anderes aus.
+ *
  * Rein und deterministisch: keine IO, keine Uhr. Der Aufrufer entscheidet, gegen
  * welche Vorkommen geprüft wird — auf der Verbund-Seite sind das die Einträge
  * ALLER Teilvorhaben, und genau das muss die Anzeige dann auch sagen.
  */
 import { normKey } from './normalisierung';
 import { betrifftRolle, rollenLabel, rollenVonFeld } from './rollen';
+import { triggerFuerProgramm } from './trigger-share';
+import { triggerSatzVon, type TextbausteinLegende } from './trigger-parser';
 import type { FeldVorkommen } from './feld-aufloesung';
 import type { Rolle, StatusFeldEintrag, TriggerParam, TriggerZeile } from './typen';
 
@@ -82,10 +90,20 @@ export interface NavigatorErgebnis {
   relevanzGefiltert: boolean;
   /** Wie viele verschiedene Kürzel die Trigger-Tabelle überhaupt führt. */
   geprueft: number;
+  /** Das Programm des Antrags ist unbekannt (`FM_NUMMER` fehlt oder ist leer). */
+  programmUnbekannt: boolean;
+  /** Programm bekannt, aber die Trigger-Tabelle führt keine Zeile dazu. */
+  programmOhneTrigger: boolean;
 }
 
 export interface NavigatorEingabe {
   trigger: readonly TriggerZeile[];
+  /**
+   * Programm-/Richtlinien-Nummer des Antrags (`FM_NUMMER` → `unterprogramm_id`).
+   * `null` = unbekannt; dann wird NICHTS geprüft, statt ein fremdes Programm zu
+   * nehmen.
+   */
+  programm: string | null;
   /** Die Felder der aktiven Fassung — Quelle für Bezeichnung, Rollen, Relevanz. */
   felder: readonly StatusFeldEintrag[];
   /** Gesetzte Einträge des Antrags/Verbunds (`sammleVorkommen`). */
@@ -94,6 +112,8 @@ export interface NavigatorEingabe {
   statusCode: number | null;
   /** Rollen-Filter. Default `alle`; neutrale Kürzel bleiben immer sichtbar. */
   rolle?: Rolle | 'alle';
+  /** Optionale Textbaustein-Legende für die Mail-Sätze. */
+  legende?: TextbausteinLegende;
 }
 
 /**
@@ -159,9 +179,9 @@ function pruefeOhne(kuerzel: string, art: 'TV' | 'Verbund', k: Kontext): {
 }
 
 /** Die Vorbedingungen EINER Trigger-Zeile auswerten. */
-function pruefeZeile(zeile: TriggerZeile, k: Kontext): TriggerWirkung {
+function pruefeZeile(zeile: TriggerZeile, k: Kontext, legende?: TextbausteinLegende): TriggerWirkung {
   const p = zeile.geparst;
-  const basis = { folge: zeile.folge, satz: zeile.satz };
+  const basis = { folge: zeile.folge, satz: triggerSatzVon(zeile, legende) };
   if (!p) {
     // Nicht gedeutete Zeilen zählen separat und tragen hier nichts bei — sie
     // als „erfüllt" mitzuzählen erfände eine Wirkung, die wir nicht kennen.
@@ -186,12 +206,16 @@ function pruefeZeile(zeile: TriggerZeile, k: Kontext): TriggerWirkung {
         nimm(ok ? 'erfuellt' : 'verletzt', ok ? null : `Status ${k.statusCode} ist nicht ${wort} ${code}.`);
       }
     }
-    if (p.ohneTvKuerzel) {
-      const r = pruefeOhne(p.ohneTvKuerzel, 'TV', k);
+    // Komma-Listen sind UND-Listen: jedes Kürzel ist eine eigene Bedingung mit
+    // eigenem Urteil. Ein unbekanntes macht nur SEINEN Teil unprüfbar, nicht die
+    // ganze Zeile — sonst nähme ein einziger Katalog-Ausreißer dem Nutzer auch
+    // die Aussage über die übrigen.
+    for (const kuerzel of p.ohneTvKuerzel) {
+      const r = pruefeOhne(kuerzel, 'TV', k);
       nimm(r.urteil, r.grund);
     }
-    if (p.ohneVerbundKuerzel) {
-      const r = pruefeOhne(p.ohneVerbundKuerzel, 'Verbund', k);
+    for (const kuerzel of p.ohneVerbundKuerzel) {
+      const r = pruefeOhne(kuerzel, 'Verbund', k);
       nimm(r.urteil, r.grund);
     }
     for (const w of p.weitere) {
@@ -211,6 +235,15 @@ function pruefeZeile(zeile: TriggerZeile, k: Kontext): TriggerWirkung {
  * das richtige.
  */
 export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
+  // Zuerst das Programm: dieselben Kürzel lösen in Richtlinie 76 und 131
+  // Verschiedenes aus. Ohne bekanntes Programm bleibt die Menge leer.
+  const programm = (e.programm ?? '').trim();
+  const eigene = triggerFuerProgramm(e.trigger, programm);
+  const leerGrund = {
+    programmUnbekannt: programm === '',
+    programmOhneTrigger: programm !== '' && eigene.length === 0,
+  };
+
   const felderNachCode = new Map<string, StatusFeldEintrag>();
   for (const f of e.felder) {
     if (!f.code) continue;
@@ -239,7 +272,7 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
   // Zeilen je Kürzel bündeln, Reihenfolge der Tabelle bewahren.
   const jeKuerzel = new Map<string, { kuerzel: string; zeilen: TriggerZeile[] }>();
   let nichtInterpretiert = 0;
-  for (const z of e.trigger) {
+  for (const z of eigene) {
     if (!z.geparst) nichtInterpretiert += 1;
     const key = normKey(z.kuerzel);
     if (!key) continue;
@@ -262,7 +295,7 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
 
     const geprueft = [...zeilen]
       .sort((a, b) => a.folge - b.folge)
-      .map(z => pruefeZeile(z, kontext));
+      .map(z => pruefeZeile(z, kontext, e.legende));
     const moeglich = geprueft.filter(w => w.urteil !== 'verletzt');
     if (moeglich.length === 0) { verletzt += 1; continue; }
 
@@ -302,20 +335,37 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
     nichtInterpretiert,
     relevanzGefiltert,
     geprueft: jeKuerzel.size,
+    ...leerGrund,
   };
 }
 
+/** Eine Wirkungszeile im Glossar: welches Programm, welche Folge, welcher Satz. */
+export interface WirkungsZeile {
+  programm: string;
+  folge: number;
+  satz: string;
+}
+
 /**
- * Die Trigger-Wirkung eines Kürzels als Satzliste — fürs Glossar, wo kein
- * Antrags-Kontext existiert und deshalb nichts geprüft werden kann.
+ * Die Trigger-Wirkung eines Kürzels — fürs Glossar, wo kein Antrags-Kontext
+ * existiert und deshalb nichts geprüft werden kann.
+ *
+ * Hier wird **über alle Programme** gezeigt, mit dem Programm an jeder Zeile:
+ * das Glossar erklärt das Kürzel, nicht einen Vorgang, und dasselbe Kürzel wirkt
+ * je Richtlinie verschieden. Ohne die Programm-Angabe stünden widersprüchliche
+ * Sätze untereinander, ohne dass man den Grund sähe.
  *
  * Bewusst dieselbe Satzform wie im Navigator: der Nutzer soll den Satz im
  * Glossar wiedererkennen, den er am Antrag gesehen hat.
  */
-export function wirkungSaetze(trigger: readonly TriggerZeile[], kuerzel: string): string[] {
+export function wirkungZeilen(
+  trigger: readonly TriggerZeile[], kuerzel: string, legende?: TextbausteinLegende,
+): WirkungsZeile[] {
   const key = normKey(kuerzel);
   return trigger
     .filter(z => normKey(z.kuerzel) === key)
-    .sort((a, b) => a.folge - b.folge)
-    .map(z => z.satz);
+    .sort((a, b) => (
+      a.programm.localeCompare(b.programm, 'de', { numeric: true }) || a.folge - b.folge
+    ))
+    .map(z => ({ programm: z.programm, folge: z.folge, satz: triggerSatzVon(z, legende) }));
 }

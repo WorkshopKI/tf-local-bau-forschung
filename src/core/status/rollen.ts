@@ -102,6 +102,27 @@ export function leseStatusRolle(roh: string | undefined): Rolle | 'alle' {
   return (ROLLEN as readonly string[]).includes(roh) ? (roh as Rolle) : 'alle';
 }
 
+/**
+ * Die Bearbeiter-Kürzel des Fachsystems und ihre Rolle — die **einzige** Stelle,
+ * an der diese Zuordnung steht (Schlüssel: `normKey`).
+ *
+ * Gebraucht wird sie für die Mail-Trigger: `TRG.VorgEintragMail` adressiert
+ * `TIB`/`BIB`/`PFM`, und ohne diese Tabelle stünde im Satz ein Kürzel ohne
+ * Bedeutung. Die Zuarbeit („Erklärung Parameter", Zeilen der Art „Bearbeiter")
+ * führt dieselbe Zuordnung — der Import **prüft** dagegen und warnt bei
+ * Unbekanntem, statt eine zweite Tabelle daneben anzulegen (Pitfall #43).
+ *
+ * Verwandt, aber nicht dasselbe: `ROLLEN_SPALTEN` in `bearbeiterFilter.ts`
+ * bildet Rollen auf CSV-SPALTEN ab (`bib_kuerz`), hier stehen die Token selbst.
+ */
+export const MAIL_ROLLE: Readonly<Record<string, Rolle>> = {
+  bib: 'ab',
+  bfm: 'ab',
+  pfm: 'ab',
+  tib: 'fb',
+  ztp: 'fb',
+};
+
 const SPALTEN_TOKEN: Record<string, Rolle> = {
   AB: 'ab',
   FB: 'fb',

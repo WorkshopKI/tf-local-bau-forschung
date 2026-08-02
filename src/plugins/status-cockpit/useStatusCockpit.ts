@@ -43,7 +43,7 @@ import {
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
   type StatusKategorie, type UnkuratierterFund, type VerbundFelder, type SimErgebnis,
   type PhasenWechsel, type SpinePhase, type StatusCodeEintrag, type TriggerZeile,
-  type TodoRegel,
+  type TodoRegel, type TextbausteinEintrag,
 } from '@/core/status';
 
 export interface StatusCockpitApi {
@@ -104,8 +104,10 @@ export interface StatusCockpitApi {
    * `schreibeKatalogAufShare` (Pitfall #25).
    */
   darfSchreiben: boolean;
-  /** Importierten Status-Code-Katalog in den Entwurf übernehmen. */
-  statusCodesUebernehmen: (katalog: readonly StatusCodeEintrag[]) => void;
+  /** Importierten Status-Code-Katalog (+ Textbaustein-Legende) übernehmen. */
+  statusCodesUebernehmen: (
+    katalog: readonly StatusCodeEintrag[], textbausteine?: readonly TextbausteinEintrag[],
+  ) => void;
   /** Was der Fassung aus der Vorgangssystem-Auslieferung fehlt (Codes/Phasen). */
   vorgangssystemLuecke: VorgangssystemLuecke;
   /** Codes, Varianten und ZAH-Phasen der Auslieferung nachziehen (additiv). */
@@ -124,6 +126,14 @@ export interface StatusCockpitApi {
    * echte Verweildauer im Status — die kennt der Export nicht.
    */
   liegezeitVorschlag: Map<number, { median: number; n: number }>;
+  /**
+   * Programme des Bestands (`FM_NUMMER` → `unterprogramm_id`) mit Antragszahl,
+   * absteigend. Der Trigger-Import sagt damit, für welche Programme die Datei
+   * schweigt — und wie viele Anträge das trifft.
+   */
+  programmeImBestand: { programm: string; antraege: number }[];
+  /** Anträge ohne Programm-Nummer: dort kann das Vorgangssystem nie greifen. */
+  antraegeOhneProgramm: number;
   /** Wie viele Kürzel des AB-Dashboards noch kein Relevanz-Häkchen tragen. */
   relevanzLuecke: number;
   /** Die AB-Dashboard-Spalten als relevant markieren (setzt nur, nimmt nie weg). */
@@ -156,6 +166,10 @@ interface Bestand {
   zuletzt: Map<string, string>;
   csvSpalten: Map<string, string[]>;
   aktivSim: SimErgebnis[];
+  /** Programm-Nummer (`FM_NUMMER`) → Anzahl Anträge; für den Trigger-Import. */
+  programmAntraege: Map<string, number>;
+  /** Anträge ganz ohne Programm-Nummer — dort greift das Vorgangssystem nie. */
+  antraegeOhneProgramm: number;
 }
 
 const LEER_VERTEILUNG: Record<SpinePhase, number> = {
@@ -208,6 +222,10 @@ export function useStatusCockpit(): StatusCockpitApi {
     const programme = await listProgramme(idb);
     const vf: VerbundFelder[] = [];
     const schemas: CsvSchema[] = [];
+    // Fällt hier kostenlos ab: die Schleife liest die Anträge ohnehin. Ein
+    // zweiter Durchlauf für dieselbe Zahl wäre eine zweite Wahrheit.
+    const programmAntraege = new Map<string, number>();
+    let antraegeOhneProgramm = 0;
     for (const p of programme) {
       const [verbuende, antraege, programmSchemas] = await Promise.all([
         listVerbuendeByProgramm(idb, p.id),
@@ -221,6 +239,9 @@ export function useStatusCockpit(): StatusCockpitApi {
       const byVb = new Map<string, { aktenzeichen: string; record: Record<string, unknown> }[]>();
       const einzeln: { aktenzeichen: string; record: Record<string, unknown> }[] = [];
       for (const a of antraege) {
+        const up = typeof a.unterprogramm_id === 'string' ? a.unterprogramm_id.trim() : '';
+        if (up) programmAntraege.set(up, (programmAntraege.get(up) ?? 0) + 1);
+        else antraegeOhneProgramm += 1;
         const rec = a as unknown as Record<string, unknown>;
         const vbid = typeof a.verbund_id === 'string' && a.verbund_id ? a.verbund_id : null;
         const eintrag = { aktenzeichen: a.aktenzeichen, record: rec };
@@ -247,6 +268,8 @@ export function useStatusCockpit(): StatusCockpitApi {
       zuletzt: zuletztGesehen(events),
       csvSpalten: csvSpaltenJeFeld(schemas),
       aktivSim: simuliere(version, vf, heuteRef.current),
+      programmAntraege,
+      antraegeOhneProgramm,
     };
   }, [idb]);
 
@@ -427,8 +450,10 @@ export function useStatusCockpit(): StatusCockpitApi {
 
   // Beide Referenz-Übernahmen schreiben in EINEM `setState` in den Entwurf;
   // festgeschrieben wird erst über die Speicherleiste (ein `persist`, #16/#20).
-  const statusCodesUebernehmen = useCallback((katalog: readonly StatusCodeEintrag[]) => {
-    setEntwurf(v => (v ? uebernimmStatusCodes(v, katalog) : v));
+  const statusCodesUebernehmen = useCallback((
+    katalog: readonly StatusCodeEintrag[], textbausteine: readonly TextbausteinEintrag[] = [],
+  ) => {
+    setEntwurf(v => (v ? uebernimmStatusCodes(v, katalog, textbausteine) : v));
   }, []);
 
   /**
@@ -537,6 +562,10 @@ export function useStatusCockpit(): StatusCockpitApi {
     setWert, setFeld, setRegel, setKategorie, addKategorie, removeKategorie,
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,
+    programmeImBestand: [...(bestand?.programmAntraege ?? new Map())]
+      .map(([programm, antraege]) => ({ programm, antraege }))
+      .sort((a, b) => b.antraege - a.antraege),
+    antraegeOhneProgramm: bestand?.antraegeOhneProgramm ?? 0,
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, spalten,

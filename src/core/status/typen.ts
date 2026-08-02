@@ -235,18 +235,26 @@ export interface StatusVergleich {
   code: number;
 }
 
-/** Die geparsten Parameter einer Trigger-Zeile, je Prozedur eigen geformt. */
+/**
+ * Die geparsten Parameter einer Trigger-Zeile, je Prozedur eigen geformt.
+ *
+ * Die drei Kürzel-Listen von `statusTvVb` sind **UND-Listen**: `ABB,AB,AK4` heißt
+ * „hat kein ABB UND kein AB UND kein AK4". Die Legacy-Doku (Blatt „Erklärung
+ * Prozedur") lässt Kommas ohne Leerzeichen in den Argumenten 2–6 zu; ungesplittet
+ * suchte die App ein Kürzel namens „ABB,AB,AK4" und fände nie eines.
+ */
 export type TriggerParam =
   | {
     art: 'statusTvVb';
     /** Vorbedingung an den Verbund-Status (`<59`). */
     status: StatusVergleich | null;
-    /** Das TV darf dieses Kürzel NICHT tragen (`ABB`). */
-    ohneTvKuerzel: string | null;
-    /** KEIN Teilvorhaben des Verbunds darf dieses Kürzel tragen (`YIRR`). */
-    ohneVerbundKuerzel: string | null;
-    /** Argumente zwischen den bekannten Positionen. Werden nie verworfen,
-     *  sondern im Satz mitgeführt — die Legacy-Doku deckt sie nicht ab. */
+    /** Das TV darf KEINES dieser Kürzel tragen (`ABB` bzw. `ABB,AB`). */
+    ohneTvKuerzel: string[];
+    /** KEIN Teilvorhaben des Verbunds darf eines dieser Kürzel tragen (`YIRR`). */
+    ohneVerbundKuerzel: string[];
+    /** Argumente der Positionen 4–6 plus alles jenseits der achten. Werden nie
+     *  verworfen, sondern im Satz mitgeführt — die Legacy-Doku deckt ihre
+     *  Bedeutung nicht ab, ihre Kürzel gehen aber in die Katalog-Prüfung ein. */
     weitere: string[];
     /** Neuer TV-Status, `null` = unverändert. */
     statusTv: number | null;
@@ -266,6 +274,16 @@ export type TriggerParam =
  * sind ehrlich, sonst behauptet die Erklärung mehr, als sie weiß.
  */
 export interface TriggerZeile {
+  /**
+   * Programm-/Richtlinien-Nummer der Zuarbeit (`76`, `131` …) — **Teil des
+   * Schlüssels**, nicht Beiwerk.
+   *
+   * Dasselbe Kürzel trägt je Programm andere Trigger; ohne diese Dimension
+   * kollabierten 2450 Zeilen auf 362, weil alles jenseits des ersten Programms
+   * als Dublette wegfiel. Leer (`''`) heißt „aus einer Fassung vor v2.380" und
+   * matcht deshalb **keinen** Antrag — nie ein Ersatz-Programm.
+   */
+  programm: string;
   /** Kürzel des Fachsystems ohne Spalten-Präfix (`AAE`), NFC-normalisiert. */
   kuerzel: string;
   /** Reihenfolge der Prozeduren an demselben Kürzel (1, 2, 3 …). */
@@ -277,8 +295,22 @@ export interface TriggerZeile {
   geparst: TriggerParam | null;
   /** Deutsche Satzform für die Anzeige. Immer gefüllt. */
   satz: string;
-  /** Optional: Richtlinien-Spalte der Zuarbeit (z.B. „76"). */
-  richtlinie?: string;
+}
+
+/**
+ * Ein Eintrag der Textbaustein-Legende (Blatt „Erklärung Parameter"):
+ * `!.055.VorgInfo.01` → wofür dieser Baustein steht.
+ *
+ * Nur Beschriftung — die Mail-Trigger tragen die Kennung, die Legende macht sie
+ * lesbar. Aufgelöst wird zur ANZEIGEZEIT (`triggerSatz(p, legende)`), nicht beim
+ * Parsen: sonst müsste eine später importierte Legende die ganze Trigger-Tabelle
+ * neu parsen lassen.
+ */
+export interface TextbausteinEintrag {
+  /** Kennung wie in der Trigger-Zeile (`!.055.VorgInfo.01`). */
+  kennung: string;
+  /** Klartext aus der Zuarbeit. */
+  text: string;
 }
 
 // --- Vorgangssystem: To-do-Regeln --------------------------------------------
@@ -400,6 +432,8 @@ export interface MappingVersion {
   zahPhasen?: ZahPhase[];
   /** Die To-do-Entscheidungstabelle (geordnete Kaskade, PL-editierbar). */
   todoRegeln?: TodoRegel[];
+  /** Legende der Mail-Textbausteine aus der Legacy-Parametertabelle. */
+  textbausteine?: TextbausteinEintrag[];
 
   // Die **Trigger-Tabelle** steht bewusst NICHT hier, sondern in der
   // Geschwister-Sidecar `_intern/status-trigger.json` (`trigger-share.ts`):

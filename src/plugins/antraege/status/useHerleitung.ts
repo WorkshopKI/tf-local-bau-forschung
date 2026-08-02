@@ -20,6 +20,7 @@ import {
   baueHerleitung, ladeTrigger,
   type Herleitung,
 } from '@/core/status';
+import { programmNummer } from './programmNummer';
 
 export interface HerleitungStand {
   laden: boolean;
@@ -87,6 +88,7 @@ export function useHerleitung(
           vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
           statusRoh,
           trigger: triggerStand.datei?.trigger ?? [],
+          programm: programmNummer(antraege),
           stichtag: new Date().toISOString(),
           datenstand: {
             importiertAm,

@@ -25,7 +25,8 @@
 import { baueChronik, type ChronikEintrag } from './chronik';
 import type { FeldVorkommen } from './feld-aufloesung';
 import { findeStatusCode, type StatusCodeIndex, type StatusCodeTreffer } from './status-codes';
-import { triggerFuerKuerzel } from './trigger-share';
+import { triggerFuerKuerzel, triggerFuerProgramm } from './trigger-share';
+import { triggerSatzVon, baueLegende } from './trigger-parser';
 import { rollenLabel } from './rollen';
 import {
   zahPhaseLabel, ZAH_ZU_SPINE, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
@@ -48,8 +49,8 @@ export interface VerlaufSchritt {
 
 /** Der letzte Vorgang, so weit er sich aus den Datumsspalten ablesen lässt. */
 export interface LetzterVorgang extends VerlaufSchritt {
-  /** Trigger-Zeilen zu diesem Kürzel, in Folge-Reihenfolge (Satzform). */
-  trigger: TriggerZeile[];
+  /** Was dieses Kürzel im Programm des Antrags auslöst, in Folge-Reihenfolge. */
+  trigger: { folge: number; satz: string }[];
 }
 
 export interface Herleitung {
@@ -76,6 +77,10 @@ export interface Herleitung {
   verlaufGesamt: number;
   /** Warnung, wenn der Statuswert nicht im Katalog steht. */
   nichtImKatalog: boolean;
+  /** Programm des Antrags (`FM_NUMMER`); `null`, wenn die Spalte nichts liefert. */
+  programm: string | null;
+  /** Programm bekannt, aber die Trigger-Tabelle führt keine Zeile dazu. */
+  programmOhneTrigger: boolean;
   datenstand: Datenstand;
 }
 
@@ -97,6 +102,13 @@ export interface HerleitungEingabe {
   /** Der rohe Statuswert, der erklärt werden soll. */
   statusRoh: unknown;
   trigger: readonly TriggerZeile[];
+  /**
+   * Programm-/Richtlinien-Nummer des Antrags (`FM_NUMMER` → `unterprogramm_id`).
+   * Gefiltert wird ausschließlich darauf — dasselbe Kürzel löst in Richtlinie 76
+   * und 131 Verschiedenes aus, und die Erklärung eines fremden Programms wäre
+   * schlimmer als gar keine.
+   */
+  programm: string | null;
   datenstand: Datenstand;
   /** ISO — injiziert, nie `new Date()` hier drin. */
   stichtag: string;
@@ -196,10 +208,17 @@ export function baueHerleitung(e: HerleitungEingabe): Herleitung {
     ? null
     : Math.floor((stichtagMs - seitMs) / MS_TAG);
 
+  // Nur die Trigger des eigenen Programms. Ohne Programm bleibt die Menge leer —
+  // `triggerFuerProgramm` kennt keinen Ersatz (siehe dort).
+  const programm = (e.programm ?? '').trim() || null;
+  const eigeneTrigger = triggerFuerProgramm(e.trigger, programm);
+  const legende = baueLegende(e.version.textbausteine);
+
   const letzterVorgang: LetzterVorgang | null = neuester
     ? {
       ...alsSchritt(neuester),
-      trigger: neuester.feld.code ? triggerFuerKuerzel(e.trigger, neuester.feld.code) : [],
+      trigger: (neuester.feld.code ? triggerFuerKuerzel(eigeneTrigger, neuester.feld.code) : [])
+        .map(z => ({ folge: z.folge, satz: triggerSatzVon(z, legende) })),
     }
     : null;
 
@@ -218,6 +237,8 @@ export function baueHerleitung(e: HerleitungEingabe): Herleitung {
     verlauf: rest.slice(0, maxVerlauf).map(alsSchritt),
     verlaufGesamt: rest.length,
     nichtImKatalog: statusRoh !== '' && treffer === null,
+    programm,
+    programmOhneTrigger: programm !== null && e.trigger.length > 0 && eigeneTrigger.length === 0,
     datenstand: e.datenstand,
   };
 }
@@ -254,6 +275,11 @@ export function herleitungAlsText(h: Herleitung): string {
     zeilen.push(`Letzter Vorgang: ${v.code ?? ''} „${v.label}" (${tagDe(v.tag)}, Rolle ${v.rollen})`.trim());
     if (v.text) zeilen.push(`  Notiz: ${v.text}`);
     for (const t of v.trigger) zeilen.push(`  Dieser Trigger löste aus: ${t.satz}`);
+    if (h.programmOhneTrigger) {
+      zeilen.push(`  Für Programm ${h.programm} sind keine Trigger importiert.`);
+    } else if (h.programm === null) {
+      zeilen.push('  Programm des Antrags unbekannt — Trigger nicht zuordenbar.');
+    }
   } else {
     zeilen.push('Letzter Vorgang: kein Datumseintrag gefunden.');
   }
