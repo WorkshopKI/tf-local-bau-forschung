@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.385.0 — Rückbau der alten Statusableitung (August 2026)
+
+MINOR — Die App rechnete aus dem ganzen `D_`-Feld-Ensemble eine eigene Verfahrensposition aus (höchster Rang gewinnt, `terminal` schlägt Rang) und lief dem amtlichen Status damit regelmäßig voraus. Sie tut es nicht mehr: das Fachsystem führt den Status, die App liest ihn (Pitfall #44).
+
+- `ableitung.ts`, `spine-kategorie.ts`, `phasen-vergleich.ts` und die Diagnose-Sektion entfallen; mit ihnen `SpinePhase`, `rang`, `terminal` und die Ergebnistypen ([typen.ts](src/core/status/typen.ts)).
+- Die Feld-Phase wandert von der Spine- auf die ZAH-Achse (24 Felder, je Feld begründet) — sie speist „seit wann gilt der Status" und die Chronik-Marke ([seed-codes.ts](src/core/status/seed-codes.ts), [herleitung.ts](src/core/status/herleitung.ts)).
+- Katalog-Tab ohne Spine-Phase/Rang/terminal, Kürzel-Tab mit ZAH-Phase statt Rang, Simulations-Leiste entfällt ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx), [FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx)).
+- Die fünf alten „Nächste-Schritte-Regeln" entfallen; sie gehen im AB-To-do-Regelsatz auf — die Zuordnung steht im Kopf von [RegelnTab.tsx](src/plugins/status-cockpit/RegelnTab.tsx).
+- Der Import prüft die To-do-Kaskade statt der Alt-Regeln und lässt dabei Begleit-Textspalten (`T_XPC+`) als Referenz zu ([export-import.ts](src/core/status/export-import.ts)).
+
 ### v2.384.0 — Anzeige auf ZAH-Phasen umgehängt (August 2026)
 
 MINOR — Die Oberfläche zeigte drei verschiedene Antworten auf dieselbe Frage „wo steht dieser Antrag?": die abgeleitete Spine-Phase im Verbund-Kopf, eine handgeschriebene Phasen-Liste in der Filter-Sidebar und die ZAH-Phase im Popover. Ab hier ist es eine — die des Status-Katalogs.

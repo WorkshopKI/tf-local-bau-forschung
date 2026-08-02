@@ -37,7 +37,7 @@ function kat(id: string, label: string, aktiv = true): StatusKategorie {
 function fassung(felder: StatusFeldEintrag[], kategorien: StatusKategorie[]): MappingVersion {
   return {
     version: 1, autor: null, zeitstempel: '2026-01-01T00:00:00.000Z',
-    felder, werte: [], regeln: [], kategorien,
+    felder, werte: [], kategorien,
   };
 }
 

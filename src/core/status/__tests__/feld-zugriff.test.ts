@@ -14,7 +14,7 @@ function feld(feldId: string, label: string): StatusFeldEintrag {
 function version(felder: StatusFeldEintrag[]): MappingVersion {
   return {
     version: 1, zeitstempel: '2026-07-25T00:00:00.000Z', autor: null,
-    werte: [], felder, regeln: [],
+    werte: [], felder,
   };
 }
 

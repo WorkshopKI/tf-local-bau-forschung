@@ -29,9 +29,7 @@ import { findeStatusCode, type StatusCodeIndex, type StatusCodeTreffer } from '.
 import { triggerFuerKuerzel, triggerFuerProgramm } from './trigger-share';
 import { triggerSatzVon, baueLegende } from './trigger-parser';
 import { rollenLabel } from './rollen';
-import {
-  zahPhaseLabel, ZAH_ZU_SPINE, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
-} from './zah-phasen';
+import { zahPhaseLabel, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
 import type { MappingVersion, TriggerZeile, ZahPhaseId } from './typen';
 
 /** Ein Eintrag der Verlaufs-Näherung. */
@@ -150,6 +148,10 @@ function alsSchritt(e: ChronikEintrag): VerlaufSchritt {
  * Datumsfeld, das der Katalog derselben ZAH-Phase zuordnet wie den aktuellen
  * Status. Findet sich keines, liefert die Funktion `null` — und die Anzeige
  * lässt die Zeile weg, statt das jüngste beliebige Datum als „seit" auszugeben.
+ *
+ * Nachgeschlagen wird in der FASSUNG, nicht am Feld-Objekt im Vorkommen: das
+ * kann aus einer älteren Auflösung stammen und trüge dann eine veraltete
+ * Zuordnung.
  */
 function bestimmeSeit(
   chronik: readonly ChronikEintrag[],
@@ -157,13 +159,9 @@ function bestimmeSeit(
   zahPhase: ZahPhaseId | null,
 ): string | null {
   if (!zahPhase) return null;
-  // Welche Datumsfelder gehören zu dieser Phase? Über den Katalog-Eintrag des
-  // Feldes: dort steht die (alte) Spine-Phase, die wir auf die ZAH-Phase
-  // abbilden — dieselbe Tabelle, die auch der Phasen-Vergleich nutzt.
-  const gesucht = ZAH_ZU_SPINE[zahPhase];
   const passend = chronik.filter(e => {
     const feld = version.felder.find(f => f.feldId === e.feld.feldId);
-    return feld?.spinePhase !== undefined && feld.spinePhase === gesucht;
+    return feld?.zahPhaseId === zahPhase;
   });
   const letzter = passend[passend.length - 1];
   return letzter?.tag ?? null;

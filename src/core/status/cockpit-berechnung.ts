@@ -1,13 +1,12 @@
 /**
  * Reine Berechnungen fürs Cockpit: Feld-Extraktion je Verbund, Vorkommen,
- * Simulation (abgeleitete Phasen-Verteilung), Vorher/Nachher-Diff, „zuletzt
- * gesehen". Alles ohne IO — die Daten reicht der Hook rein (testbar).
+ * Spalten-Herkunft, „zuletzt gesehen". Alles ohne IO — die Daten reicht der
+ * Hook rein (testbar).
  */
 import type { CsvSchema } from '@/core/services/csv/types';
-import type { MappingVersion, SpinePhase } from './typen';
+import type { MappingVersion } from './typen';
 import { wertId } from './typen';
 import { sammleVorkommen, type FeldAufloesung, type FeldVorkommen } from './feld-aufloesung';
-import { leiteStatusAb } from './ableitung';
 import type { StatusEvent } from './event-typen';
 
 export interface VerbundFelder {
@@ -129,55 +128,11 @@ export function zaehleVorkommen(alle: readonly VerbundFelder[]): Map<string, num
   return m;
 }
 
-export interface SimErgebnis {
-  verbundId: string;
-  spinePhase: SpinePhase;
-  konflikt: boolean;
-}
-
-/** Leitet für jeden Verbund die Phase + Konflikt ab (Entwurf oder aktiv). Rein. */
-export function simuliere(
-  version: MappingVersion, alle: readonly VerbundFelder[], heute?: string,
-): SimErgebnis[] {
-  return alle.map(vf => {
-    const r = leiteStatusAb(version, vf.felder, vf.tvFelder, heute);
-    return { verbundId: vf.verbundId, spinePhase: r.spinePhase, konflikt: r.konflikt };
-  });
-}
-
-export const SPINE_REIHENFOLGE: readonly SpinePhase[] = [
-  'eingang', 'vollstaendigkeit', 'fachpruefung', 'bewilligung', 'schluss', 'keine',
-];
-
-/** Zählt Ergebnisse je Spine-Phase. Rein. */
-export function verteilung(ergebnisse: readonly SimErgebnis[]): Record<SpinePhase, number> {
-  const v: Record<SpinePhase, number> = {
-    eingang: 0, vollstaendigkeit: 0, fachpruefung: 0, bewilligung: 0, schluss: 0, keine: 0,
-  };
-  for (const e of ergebnisse) v[e.spinePhase]++;
-  return v;
-}
-
-export interface PhasenWechsel {
-  verbundId: string;
-  vorher: SpinePhase;
-  nachher: SpinePhase;
-}
-
-/** Verbünde, die zwischen aktiv und Entwurf die Phase wechseln. Rein. */
-export function diffPhasen(
-  aktiv: readonly SimErgebnis[], entwurf: readonly SimErgebnis[],
-): PhasenWechsel[] {
-  const aMap = new Map(aktiv.map(e => [e.verbundId, e.spinePhase]));
-  const out: PhasenWechsel[] = [];
-  for (const e of entwurf) {
-    const vorher = aMap.get(e.verbundId);
-    if (vorher !== undefined && vorher !== e.spinePhase) {
-      out.push({ verbundId: e.verbundId, vorher, nachher: e.spinePhase });
-    }
-  }
-  return out;
-}
+// Hier stand bis v2.385 die Simulation: „welche Phase bekäme jeder Verbund mit
+// diesem Entwurf?". Sie war das Werkzeug, um Rang-Änderungen abzuschätzen — und
+// mit den Rängen ist die Frage weg. Was die PL am Katalog ändert, sind
+// ZAH-Phase und Zieltage; deren Wirkung steht in der Diagnose, nicht in einer
+// Vorher/Nachher-Leiste.
 
 /** Jüngstes `erfasstAm` je (feldId, wert) aus dem Event-Log. Rein. */
 export function zuletztGesehen(events: readonly StatusEvent[]): Map<string, string> {

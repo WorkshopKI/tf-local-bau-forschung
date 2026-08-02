@@ -42,10 +42,7 @@ const wert = (code: number, zieltage?: number): StatusWertEintrag => ({
   feldId: 'status',
   wert: `wert-${code}`,
   kategorie: 'sonstige',
-  spinePhase: 'keine',
-  rang: 0,
   prominenz: 'normal',
-  terminal: false,
   aktiv: true,
   unkuratiert: false,
   code,
@@ -65,7 +62,6 @@ function fassung(over: Partial<MappingVersion> = {}): MappingVersion {
       feld('AT4x', { feldId: 'D_AT4', code: 'AT4', rollen: ['fb'] }),
     ].filter((f, i, a) => a.findIndex(x => x.feldId === f.feldId) === i),
     werte: [wert(35, 21), wert(88)],
-    regeln: [],
     ...over,
   };
 }

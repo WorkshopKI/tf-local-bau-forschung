@@ -104,12 +104,12 @@ describe('ergaenzeSeedFelder', () => {
     const kuratiert: MappingVersion = {
       ...basis,
       felder: basis.felder.map(f =>
-        f.feldId === 'D_ZZ1' ? { ...f, label: 'Von der PL umbenannt', rang: 42 } : f),
+        f.feldId === 'D_ZZ1' ? { ...f, label: 'Von der PL umbenannt', zahPhaseId: 'pruefung' } : f),
     };
     const nachher = ergaenzeSeedFelder(kuratiert, SEED_FELDER, SEED_KATEGORIEN).version;
     const f = nachher.felder.find(x => x.feldId === 'D_ZZ1');
     expect(f?.label).toBe('Von der PL umbenannt');
-    expect(f?.rang).toBe(42);
+    expect(f?.zahPhaseId).toBe('pruefung');
   });
 
   it('ergänzt nur die Lücke, wenn ein Teil schon da ist', () => {
@@ -127,7 +127,7 @@ describe('Abgleich mit der Kürzel-Zuarbeit', () => {
     return {
       ...basis,
       felder: basis.felder.map(f => (f.feldId === 'D_ZZ1'
-        ? { ...f, label: 'Alte Bezeichnung', zustaendigkeit: 'beide' as const, rang: 42 }
+        ? { ...f, label: 'Alte Bezeichnung', zustaendigkeit: 'beide' as const, zahPhaseId: 'pruefung' as const }
         : f)),
     };
   }
@@ -156,8 +156,8 @@ describe('Abgleich mit der Kürzel-Zuarbeit', () => {
     const f = nachher.felder.find(x => x.feldId === 'D_ZZ1')!;
     expect(f.label).toBe('Neue Bezeichnung');
     expect(f.rollen).toEqual(['qs']);
-    // Der Rang ist eine Entscheidung der PL und überlebt die Übernahme.
-    expect(f.rang).toBe(42);
+    // Die ZAH-Phase ist eine Entscheidung der PL und überlebt die Übernahme.
+    expect(f.zahPhaseId).toBe('pruefung');
     // Der abgelöste Wert wird ausgebucht, sonst widerspräche er den Rollen.
     expect(f.zustaendigkeit).toBeUndefined();
   });

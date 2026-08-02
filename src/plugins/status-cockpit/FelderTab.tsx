@@ -4,9 +4,14 @@
  * Gezeigt wird der Ordnerbaum (Verbund und Teilvorhaben getrennt), darin je
  * Kürzel eine Zeile mit allem, was die PL entscheidet: Name, Ordner, wer den
  * Eintrag setzt (AB/FB/QS/PA/Juristen — Mehrfachauswahl, leer = jeder),
- * **Relevanz**, Prominenz und — der wirksame Teil der alten Ableitung —
- * Spine-Phase, Rang und terminal. **Ohne Rang trägt ein Feld nicht zur
- * Statusableitung bei**; so ist der ganze Code-Katalog ausgeliefert.
+ * **Relevanz**, Prominenz und die **ZAH-Phase** des Datums.
+ *
+ * Die ZAH-Phase am Feld beantwortet „welches Datum gehört zum aktuellen
+ * Status?" — sie speist die „seit"-Angabe der Erklärung und die Marke in der
+ * Chronik. Leer heißt „trägt nichts bei"; so ist der Großteil des Code-Katalogs
+ * ausgeliefert, weil eine geratene Zuordnung schlechter wäre als keine. Sie
+ * leitet **keinen Status ab** (Pitfall #44) — Spine-Phase, Rang und das
+ * Terminal-Häkchen, die das taten, sind mit v2.385 entfallen.
  *
  * Zwei Dinge macht der Tab seit dem Vorgangssystem zusätzlich:
  *
@@ -36,12 +41,13 @@ import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
   betrifftRolle, rollenVonFeld, sortiereRollen, wirkungZeilen, baueLegende,
-  type Prominenz, type Rolle, type SpinePhase,
+  type Prominenz, type Rolle, type ZahPhaseId,
+  ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL,
   type StatusFeldEintrag, type StatusKategorie, type TriggerZeile, type WirkungsZeile,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import {
-  EBENE_LABEL, PROMINENZ_LABEL, PROMINENZ_WERTE, SPINE_LABEL, SPINE_WERTE, TYP_LABEL,
+  EBENE_LABEL, PROMINENZ_LABEL, PROMINENZ_WERTE, TYP_LABEL,
   feldKlasse, feldStil,
 } from './labels';
 import { KategorieEditor } from './KategorieEditor';
@@ -155,27 +161,20 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
             {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
           </select>
         </td>
-        {/* Wert-Felder holen Phase und Rang aus dem Wert, nicht aus dem Feld —
-            dort wären die Eingaben wirkungslos und würden nur in die Irre führen. */}
-        <td className={`${tdKlasse} min-w-[124px]`}>
+        {/* Wert-Felder tragen ihre Phase am WERT, nicht am Feld — hier wäre die
+            Eingabe wirkungslos und würde nur in die Irre führen. */}
+        <td className={`${tdKlasse} min-w-[132px]`}>
           {f.typ === 'wert' ? <span className="text-[12px] text-[var(--tf-text-tertiary)]">je Wert</span> : (
-            <select value={f.spinePhase ?? 'keine'} className={feldKlasse} style={feldStil}
-              onChange={e => set({ spinePhase: e.target.value as SpinePhase })}>
-              {SPINE_WERTE.map(p => <option key={p} value={p}>{SPINE_LABEL[p]}</option>)}
+            <select
+              value={f.zahPhaseId ?? ''} className={feldKlasse} style={feldStil}
+              title="Zu welcher Phase gehört dieses Datum? Beantwortet „seit wann gilt der Status“ und beschriftet die Chronik-Marke. Leer = trägt nichts bei."
+              onChange={e => set({ zahPhaseId: e.target.value === '' ? null : e.target.value as ZahPhaseId })}
+            >
+              <option value="">—</option>
+              {ZAH_PHASEN_REIHENFOLGE.map(p => (
+                <option key={p} value={p}>{ZAH_PHASE_LABEL[p]}</option>
+              ))}
             </select>
-          )}
-        </td>
-        <td className={`${tdKlasse} w-[64px]`}>
-          {f.typ === 'wert' ? null : (
-            <input type="number" value={f.rang ?? 0} className={feldKlasse} style={feldStil}
-              title="0 = trägt nicht zur Statusableitung bei"
-              onChange={e => set({ rang: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0 })} />
-          )}
-        </td>
-        <td className={`${tdKlasse} text-center`}>
-          {f.typ === 'wert' ? null : (
-            <input type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
-              checked={f.terminal === true} onChange={e => set({ terminal: e.target.checked })} />
           )}
         </td>
         <td className={`${tdKlasse} text-center`}>
@@ -234,8 +233,8 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, tr
   const zeigeOffen = offen || suchModus;
   const vorgangssystem = isVorgangssystemEnabled();
   // Code, CSV-Spalte, Bezeichnung, [relevant], Typ, Ordner, Rollen, Prominenz,
-  // Spine-Phase, Rang, terminal, aktiv.
-  const spalten = vorgangssystem ? 12 : 11;
+  // ZAH-Phase, aktiv.
+  const spalten = vorgangssystem ? 10 : 9;
 
   return (
     <div style={{ marginLeft: tiefe * 14 }}>
@@ -277,9 +276,7 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, tr
                 wird gesetzt von <span className="font-normal">(leer = alle)</span>
               </th>
               <th className={thKlasse}>Prominenz</th>
-              <th className={thKlasse}>Spine-Phase</th>
-              <th className={thKlasse}>Rang</th>
-              <th className={`${thKlasse} text-center`}>terminal</th>
+              <th className={thKlasse}>ZAH-Phase</th>
               <th className={`${thKlasse} text-center`}>aktiv</th>
             </tr>
           </thead>
@@ -303,7 +300,6 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const [suche, setSuche] = useState('');
   const [ebeneFilter, setEbeneFilter] = useState<'alle' | 'verbund' | 'tv'>('alle');
   const [rolleFilter, setRolleFilter] = useState<'alle' | Rolle>('alle');
-  const [nurMitRang, setNurMitRang] = useState(false);
   const [nurRelevante, setNurRelevante] = useState(false);
   const [nurMitSpalte, setNurMitSpalte] = useState(false);
   // Auf-/Zu bleibt über Seitenaufrufe erhalten (localStorage, gerätelokal).
@@ -335,7 +331,6 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       // Neutrale Einträge (ohne Rollen) bleiben unter jeder Wahl sichtbar —
       // „jeder darf setzen", nicht „niemand".
       if (!betrifftRolle(f, rolleFilter)) return false;
-      if (nurMitRang && (f.rang ?? 0) === 0) return false;
       if (nurRelevante && f.relevant !== true) return false;
       // „Hat das Kürzel eine Spalte im Export?" ist genau die Frage, die die
       // Spalte CSV-Spalte beantwortet — ohne Eintrag ist es nirgends gemappt.
@@ -344,7 +339,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       const spalten = api.csvSpalten.get(f.feldId)?.join(' ') ?? '';
       return `${f.code ?? ''} ${f.feldId} ${f.label} ${spalten}`.toLowerCase().includes(q);
     });
-  }, [entwurf, suche, ebeneFilter, rolleFilter, nurMitRang, nurRelevante, nurMitSpalte, api.csvSpalten]);
+  }, [entwurf, suche, ebeneFilter, rolleFilter, nurRelevante, nurMitSpalte, api.csvSpalten]);
 
   if (!entwurf) return null;
 
@@ -355,14 +350,14 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
     if (liste) liste.push(f); else proOrdner.set(id, [f]);
   }
 
-  const mitRang = entwurf.felder.filter(f => (f.rang ?? 0) > 0).length;
+  const mitPhase = entwurf.felder.filter(f => f.zahPhaseId != null).length;
   const relevanteAnzahl = entwurf.felder.filter(f => f.relevant === true).length;
 
   return (
     <div className="flex flex-col gap-3 pt-3">
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-        {entwurf.felder.length} Kürzel in {kategorien.length} Ordnern · {mitRang} davon wirken auf die
-        Statusableitung. Ein Kürzel ohne Rang wird erfasst und angezeigt, hebt aber keine Phase.
+        {entwurf.felder.length} Kürzel in {kategorien.length} Ordnern · {mitPhase} davon tragen eine
+        ZAH-Phase. Ein Kürzel ohne Phase wird erfasst und angezeigt, erklärt aber kein „seit wann".
         {vorgangssystem && (
           <>
             {' '}{relevanteAnzahl} als relevant markiert
@@ -395,7 +390,6 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             />
           ))}
           <span className="w-2" />
-          <ToggleChip label="nur mit Rang" selected={nurMitRang} onToggle={() => setNurMitRang(v => !v)} />
           {vorgangssystem && (
             <ToggleChip label="nur relevante" selected={nurRelevante} onToggle={() => setNurRelevante(v => !v)} />
           )}

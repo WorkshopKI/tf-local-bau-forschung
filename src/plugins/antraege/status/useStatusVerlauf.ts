@@ -1,14 +1,15 @@
 /**
- * Lädt Status-Historie + abgeleiteten Status eines Verbunds für die Status-
- * Detailansicht (Timeline + „Warum" + nächste Schritte). Gerätelokal, read-only.
+ * Lädt Status-Historie und Feld-Vorkommen eines Verbunds für die Status-
+ * Detailansicht (Chronik, Zeitstrahl, Navigator, Ordner-Liste). Gerätelokal,
+ * read-only — und ohne jede Ableitung: der Status kommt aus dem Export.
  */
 import { useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getVerbund, listAntraegeByVerbund, listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import {
-  getAktiveVersion, ladeAktiveVersion, getStatusEvents, baueVerbundFelder, baueFeldAufloesung,
-  sammleVorkommen, leiteStatusAb, aufzeichnungsGrenze,
-  type MappingVersion, type StatusEvent, type AbleitungsErgebnis, type FeldVorkommen,
+  getAktiveVersion, ladeAktiveVersion, getStatusEvents, baueFeldAufloesung,
+  sammleVorkommen, aufzeichnungsGrenze,
+  type MappingVersion, type StatusEvent, type FeldVorkommen,
 } from '@/core/status';
 import { programmNummer } from './programmNummer';
 
@@ -16,7 +17,6 @@ export interface StatusVerlauf {
   laden: boolean;
   version: MappingVersion | null;
   events: StatusEvent[];
-  ableitung: AbleitungsErgebnis | null;
   /** „ab hier lückenlose Aufzeichnung" (ISO) oder null. */
   grenze: string | null;
   /** Alle gesetzten Statuseinträge des Verbunds — Grundlage der Ordner-Ansicht. */
@@ -30,7 +30,7 @@ export interface StatusVerlauf {
 }
 
 const LEER: StatusVerlauf = {
-  laden: true, version: null, events: [], ableitung: null, grenze: null, vorkommen: [],
+  laden: true, version: null, events: [], grenze: null, vorkommen: [],
   programm: null,
 };
 
@@ -62,10 +62,8 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
         const tvs = antraege.map(a => ({
           aktenzeichen: a.aktenzeichen, record: a as unknown as Record<string, unknown>,
         }));
-        const vf = baueVerbundFelder(version, verbundId, vbRecord, tvs, aufloesung);
-        const ableitung = leiteStatusAb(version, vf.felder, vf.tvFelder, new Date().toISOString());
         setState({
-          laden: false, version, events, ableitung,
+          laden: false, version, events,
           grenze: aufzeichnungsGrenze(events),
           vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
           programm: programmNummer(antraege),

@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
-  csvSpaltenJeFeld,
+  baueVerbundFelder, vorkommenAus, zaehleVorkommen, zuletztGesehen, csvSpaltenJeFeld,
 } from '@/core/status/cockpit-berechnung';
 import { baueSeedVersion } from '@/core/status/seed';
-import { aendereWert } from '@/core/status/katalog-edit';
 import { wertId } from '@/core/status/typen';
 import type { StatusEvent } from '@/core/status/event-typen';
 import type { ColumnMapping, CsvSchema } from '@/core/services/csv/types';
@@ -33,23 +31,14 @@ describe('cockpit-berechnung', () => {
     expect(vk.get(wertId('status', 'beantragt'))).toBe(1);
   });
 
-  it('simuliere + verteilung', () => {
-    const alle = [
-      baueVerbundFelder(version, 'VB1', {}, [{ aktenzeichen: 'A', record: { status: 'gutachten fertig' } }]),
-      baueVerbundFelder(version, 'VB2', {}, [{ aktenzeichen: 'B', record: { status: 'bewilligt' } }]),
-    ];
-    const vt = verteilung(simuliere(version, alle));
-    expect(vt.fachpruefung).toBe(1);
-    expect(vt.bewilligung).toBe(1);
-  });
-
-  it('diffPhasen erkennt Phasenwechsel durch Katalog-Edit', () => {
-    const alle = [baueVerbundFelder(version, 'VB1', {}, [{ aktenzeichen: 'A', record: { status: 'gutachten fertig' } }])];
-    const aktiv = simuliere(version, alle);
-    const entwurfVersion = aendereWert(version, wertId('status', 'gutachten fertig'), { spinePhase: 'bewilligung', rang: 40 });
-    const d = diffPhasen(aktiv, simuliere(entwurfVersion, alle));
-    expect(d).toHaveLength(1);
-    expect(d[0]).toMatchObject({ verbundId: 'VB1', vorher: 'fachpruefung', nachher: 'bewilligung' });
+  it('vorkommenAus baut die Vorkommen zurück — Hin- und Rückweg passen zueinander', () => {
+    const vf = baueVerbundFelder(version, 'VB1', { status: 'bewilligt' },
+      [{ aktenzeichen: 'AZ1', record: { status: 'gutachten fertig' } }]);
+    const vorkommen = vorkommenAus(version, vf);
+    expect(vorkommen.map(v => v.feld.feldId).sort())
+      .toEqual(['status', 'verbund_status']);
+    expect(vorkommen.find(v => v.feld.feldId === 'verbund_status')?.wert).toBe('bewilligt');
+    expect(vorkommen.find(v => v.tvId === 'AZ1')?.wert).toBe('gutachten fertig');
   });
 
   it('zuletztGesehen nimmt das jüngste erfasstAm', () => {

@@ -7,7 +7,7 @@
  * | | Was | Wo |
  * |---|---|---|
  * | Fremddaten | Bezeichnung, wer den Eintrag setzt | `seed-codes.data.ts` (generiert aus der Zuarbeit) |
- * | Unsere Entscheidung | Ordner, Prominenz, Spine-Phase, Rang, terminal | diese Datei |
+ * | Unsere Entscheidung | Ordner, Prominenz, ZAH-Phase | diese Datei |
  *
  * Deshalb überlebt die Kuration jede neue Zuarbeit: `npm run gen:status-codes`
  * schreibt nur die Datendatei neu, der Diff zeigt genau, was das Fachsystem
@@ -29,15 +29,17 @@
  * Programm-Schema nicht mappt, löst schlicht nicht auf und trägt nie einen Wert
  * — das ist kein Fehler.
  *
- * **Rang bewusst sparsam**: ohne `rang` trägt ein Feld NICHT zur Statusableitung
- * bei. Vergeben ist er nur für Codes, die eine Phase eindeutig markieren; alles
- * andere entscheidet die PL im Cockpit gegen die Simulation.
+ * **ZAH-Phase bewusst sparsam**: sie beantwortet „welches Datum gehört zum
+ * aktuellen Status?" und ist nur dort vergeben, wo die Zuordnung fachlich klar
+ * ist. Ein Feld ohne Phase trägt nichts bei — besser als eine geratene Marke.
+ * Sie leitet **keinen Status ab** (Pitfall #44); alles Weitere entscheidet die
+ * PL im Cockpit.
  *
  * Details: `docs/status-system/KATALOG-CODES.md`.
  */
 import { NICHT_ZUGEORDNET_ID } from './kategorien';
 import { ZUARBEIT_CODES, type ZuarbeitCode } from './seed-codes.data';
-import type { Prominenz, SpinePhase, StatusFeldEintrag } from './typen';
+import type { Prominenz, StatusFeldEintrag, ZahPhaseId } from './typen';
 
 /** Was WIR zu einem Code entscheiden. Bezeichnung und Rollen stehen in der Zuarbeit. */
 interface Kuration {
@@ -47,9 +49,15 @@ interface Kuration {
   text?: string;
   /** Default `normal`. */
   prominenz?: Prominenz;
-  spine?: SpinePhase;
-  rang?: number;
-  terminal?: true;
+  /**
+   * Zu welcher ZAH-Phase dieses Datumsfeld gehört — die Antwort auf „welches
+   * Datum gehört zum aktuellen Status?" (Status-Erklärung, Chronik-Marke).
+   *
+   * Bewusst nur an den Feldern, bei denen die Zuordnung fachlich klar ist. Ein
+   * Feld ohne Phase trägt nichts bei; das ist besser als eine geratene Marke.
+   * PL-editierbar im Kürzel-Tab.
+   */
+  zah?: ZahPhaseId;
 }
 
 /** Reine Nachrichtenkanäle — vollständig erfasst, aber nicht im Vordergrund. */
@@ -84,11 +92,11 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     'XRN+': {},
     'XRN-': {},
     XTE: {},
-    XTEC: { prominenz: MST, spine: 'vollstaendigkeit', rang: 21 },
+    XTEC: { prominenz: MST, zah: 'vollstaendigkeit' },
     XAT: { spalte: 'T_XAT' },
     'XAT+': { spalte: 'T_XAT+' },
-    XANT: { prominenz: MST, spine: 'vollstaendigkeit', rang: 22 },
-    'XPC+': { text: 'T_XPC+', prominenz: MST, spine: 'vollstaendigkeit', rang: 25 },
+    XANT: { prominenz: MST, zah: 'vollstaendigkeit' },
+    'XPC+': { text: 'T_XPC+', prominenz: MST, zah: 'vollstaendigkeit' },
     'XPC?': {},
     'XPC-': {},
     XIZ: {},
@@ -96,8 +104,8 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     XALF: {},
     XARF: {},
     XABLF: {},
-    XKS: { prominenz: MST, spine: 'fachpruefung', rang: 34 },
-    XQS: { prominenz: MST, spine: 'fachpruefung', rang: 36 },
+    XKS: { prominenz: MST, zah: 'pruefung' },
+    XQS: { prominenz: MST, zah: 'pruefung' },
     XQSW: {},
     XTG: {},
     XFB: {},
@@ -113,7 +121,7 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     XVT: {},
     XVK: {},
     XVZ: {},
-    XVE: { prominenz: MST, spine: 'schluss', rang: 50, terminal: true },
+    XVE: { prominenz: MST, zah: 'abgeschlossen' },
   },
   'tv.kommunikation': {
     COMP: { prominenz: KANAL },
@@ -156,10 +164,10 @@ const KURATION: Record<string, Record<string, Kuration>> = {
   },
   'tv.antragsbearbeitung': {
     AA: {},
-    AAI: { text: 'T_AAI', prominenz: MST, spine: 'eingang', rang: 10 },
+    AAI: { text: 'T_AAI', prominenz: MST, zah: 'eingang' },
     AAE2: {},
     ABK: { spalte: 'T_ABK' },
-    ADV: { prominenz: MST, spine: 'vollstaendigkeit', rang: 20 },
+    ADV: { prominenz: MST, zah: 'vollstaendigkeit' },
     AE: {},
     AR: { spalte: 'T_AR' },
     AUS: {},
@@ -176,17 +184,20 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     AMA: { spalte: 'T_AMA' },
     AVU: { spalte: 'T_AVU' },
     AVB: { spalte: 'T_AVB' },
-    AT4: { spine: 'fachpruefung', rang: 30 },
-    AK4: { spine: 'fachpruefung', rang: 30 },
+    AT4: { zah: 'pruefung' },
+    AK4: { zah: 'pruefung' },
     'AQ4-': {},
-    AQ4: { spine: 'fachpruefung', rang: 32 },
+    AQ4: { zah: 'pruefung' },
     'QS-': {},
-    QS: { spine: 'fachpruefung', rang: 32 },
+    QS: { zah: 'pruefung' },
     ABX: {},
-    AB: { spine: 'bewilligung', rang: 40 },
-    AZBE: { spine: 'bewilligung', rang: 44 },
+    // Die alte Achse legte Entscheidung und Bewilligung zusammen; der Schnitt
+    // liegt zwischen „erstellt" und „an ZE": bis der Bescheid raus ist, läuft
+    // die Entscheidung, mit dem Versand beginnt die Begleitung (Status 59).
+    AB: { zah: 'entscheidung' },
+    AZBE: { zah: 'entscheidung' },
     AZBQ: {},
-    AZBZ: { prominenz: MST, spine: 'bewilligung', rang: 46 },
+    AZBZ: { prominenz: MST, zah: 'begleitung' },
     ABE: {},
     AFUE: { text: 'T_AFUE' },
     ADS: { text: 'T_ADS' },
@@ -195,7 +206,7 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     ADL3: {},
   },
   'tv.antragsbearbeitung.precheck': {
-    'PC+': { prominenz: MST, spine: 'vollstaendigkeit', rang: 24 },
+    'PC+': { prominenz: MST, zah: 'vollstaendigkeit' },
     'PC?': {},
     'PC-': {},
     PCAN: {},
@@ -209,7 +220,7 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     ARQ: {},
     ARZ: {},
     ARR: {},
-    AAR: { prominenz: MST, spine: 'schluss', rang: 50, terminal: true },
+    AAR: { prominenz: MST, zah: 'abgeschlossen' },
     ARW: {},
   },
   'tv.antragsbearbeitung.ablehnung': {
@@ -219,11 +230,14 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     ABLQ: {},
     ABLJ: {},
     ABLQS: {},
-    ABLZ: { prominenz: MST, spine: 'fachpruefung', rang: 38, terminal: true },
+    // Die Ablehnung an den Antragsteller IST die Entscheidung (Status 70);
+    // bestandskräftig wird sie erst mit `ABLD` — dann ist der Vorgang
+    // abgeschlossen (73). Die alte Achse kannte diesen Unterschied nicht.
+    ABLZ: { prominenz: MST, zah: 'entscheidung' },
     AAA: {},
     ABL10: {},
     'ABL10+': {},
-    ABLD: { spine: 'fachpruefung', rang: 39, terminal: true },
+    ABLD: { zah: 'abgeschlossen' },
   },
   'tv.antragsbearbeitung.widerspruch-antrag': {
     ABLW: {},
@@ -255,7 +269,7 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     RZQ: {},
     RZG: {},
     'RZG+': {},
-    RZZ: { prominenz: MST, spine: 'schluss', rang: 50, terminal: true },
+    RZZ: { prominenz: MST, zah: 'abgeschlossen' },
   },
   'tv.antragsbearbeitung.stichprobe': {
     STIP: {},
@@ -291,9 +305,7 @@ function baueFeld(z: ZuarbeitCode, k: Kuration, kategorieId: string): StatusFeld
     ...(k.text ? { textSpalte: k.text } : {}),
     kategorieId,
     rollen: [...z.rollen],
-    ...(k.spine ? { spinePhase: k.spine } : {}),
-    ...(k.rang !== undefined ? { rang: k.rang } : {}),
-    ...(k.terminal ? { terminal: true } : {}),
+    ...(k.zah ? { zahPhaseId: k.zah } : {}),
     prominenzDefault: k.prominenz ?? 'normal',
     aktiv: true,
     unkuratiert: false,

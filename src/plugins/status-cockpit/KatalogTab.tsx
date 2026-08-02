@@ -1,10 +1,15 @@
 /**
  * Katalog-Tab — die Statuswerte kuratieren.
  *
- * Volle Tabelle der Wert-Einträge des Entwurfs mit Inline-Bearbeitung
- * (Label, Kategorie, Spine-Phase, Rang, Prominenz, terminal, aktiv), darüber
- * Filter-Chips + Suche, darunter die Übernahme neu entdeckter (unkuratierter)
- * Funde. Rein darstellend — jede Änderung geht über `api.setWert` in den Entwurf.
+ * Volle Tabelle der Wert-Einträge des Entwurfs mit Inline-Bearbeitung (Label,
+ * Kategorie, Prominenz, ZAH-Phase, Zieltage, aktiv), darüber Filter-Chips +
+ * Suche, darunter die Übernahme neu entdeckter (unkuratierter) Funde. Rein
+ * darstellend — jede Änderung geht über `api.setWert` in den Entwurf.
+ *
+ * Spine-Phase, Rang und das Terminal-Häkchen sind mit v2.385 entfallen: sie
+ * waren die Stellschrauben der alten Statusableitung. Kuratiert werden jetzt
+ * ZAH-Phase und Zieltage — beides Angaben ÜBER den amtlichen Status, keine, aus
+ * denen einer errechnet würde (Pitfall #44).
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +19,10 @@ import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { feldLabel } from '@/core/status';
-import type { StatusWertEintrag, StatusCategory, SpinePhase, Prominenz, UnkuratierterFund } from '@/core/status';
+import type { StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
-  SPINE_LABEL, SPINE_WERTE, feldKlasse, feldKlasseSchmal, feldStil, formatDatum,
+  feldKlasse, feldKlasseSchmal, feldStil, formatDatum,
 } from './labels';
 
 function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
@@ -73,20 +78,6 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
       </td>
       <td className={`${tdKlasse} min-w-[124px]`}>
         <select
-          value={w.spinePhase} className={feldKlasse} style={feldStil}
-          onChange={e => api.setWert(w.id, { spinePhase: e.target.value as SpinePhase })}
-        >
-          {SPINE_WERTE.map(p => <option key={p} value={p}>{SPINE_LABEL[p]}</option>)}
-        </select>
-      </td>
-      <td className={`${tdKlasse} w-[64px]`}>
-        <input
-          type="number" value={w.rang} className={feldKlasse} style={feldStil}
-          onChange={e => api.setWert(w.id, { rang: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0 })}
-        />
-      </td>
-      <td className={`${tdKlasse} min-w-[124px]`}>
-        <select
           value={w.prominenz} className={feldKlasse} style={feldStil}
           onChange={e => api.setWert(w.id, { prominenz: e.target.value as Prominenz })}
         >
@@ -120,12 +111,6 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
           </div>
         </td>
       )}
-      <td className={`${tdKlasse} text-center`}>
-        <input
-          type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={w.terminal}
-          onChange={e => api.setWert(w.id, { terminal: e.target.checked })}
-        />
-      </td>
       <td className={`${tdKlasse} text-center`}>
         <input
           type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={w.aktiv}
@@ -227,8 +212,6 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               <th className={thKlasse}>Rohwert</th>
               <th className={thKlasse}>Label</th>
               <th className={thKlasse}>Kategorie</th>
-              <th className={thKlasse}>Spine-Phase</th>
-              <th className={thKlasse}>Rang</th>
               <th className={thKlasse}>Prominenz</th>
               {zeigeZieltage && (
                 <th
@@ -238,7 +221,6 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
                   Zieltage
                 </th>
               )}
-              <th className={`${thKlasse} text-center`}>terminal</th>
               <th className={`${thKlasse} text-center`}>aktiv</th>
               <th className={`${thKlasse} text-right`}>Vorkommen</th>
               <th className={`${thKlasse} text-right`}>zuletzt gesehen</th>

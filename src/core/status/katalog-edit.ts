@@ -3,7 +3,7 @@
  * Funktion liefert eine neue Version (nie in-place); id/feldId bleiben stabil.
  */
 import type {
-  MappingVersion, NaechsterSchrittRegel, Rolle, StatusFeldEintrag, StatusKategorie,
+  MappingVersion, Rolle, StatusFeldEintrag, StatusKategorie,
   StatusWertEintrag, TextbausteinEintrag, TodoRegel, ZahPhase,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
@@ -27,15 +27,6 @@ export function aendereFeld(
   return {
     ...version,
     felder: version.felder.map(f => (f.feldId === feldId ? { ...f, ...patch, feldId: f.feldId } : f)),
-  };
-}
-
-export function aendereRegel(
-  version: MappingVersion, id: string, patch: Partial<NaechsterSchrittRegel>,
-): MappingVersion {
-  return {
-    ...version,
-    regeln: version.regeln.map(r => (r.id === id ? { ...r, ...patch, id: r.id } : r)),
   };
 }
 

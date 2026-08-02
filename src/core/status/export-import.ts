@@ -33,8 +33,8 @@ export function validiereImport(text: string): ImportErgebnis {
   }
   if (!data || typeof data !== 'object') return { ok: false, fehler: 'Kein Objekt.' };
   const v = data as Partial<MappingVersion>;
-  if (!Array.isArray(v.felder) || !Array.isArray(v.werte) || !Array.isArray(v.regeln)) {
-    return { ok: false, fehler: 'Struktur unvollständig (felder/werte/regeln fehlen).' };
+  if (!Array.isArray(v.felder) || !Array.isArray(v.werte)) {
+    return { ok: false, fehler: 'Struktur unvollständig (felder/werte fehlen).' };
   }
   // Kategorien sind optional (Fassungen vor dem Code-Inventar haben keine),
   // müssen aber in sich stimmen: eindeutige Ids, existierende Elternknoten,
@@ -60,6 +60,9 @@ export function validiereImport(text: string): ImportErgebnis {
   }
 
   const feldIds = new Set<string>();
+  /** Zusätzlich die Begleit-Textspalten: Bedingungen dürfen `T_XPC+` prüfen,
+   *  obwohl die feldId `D_XPC+` heißt — die Textspalte gehört zum selben Feld. */
+  const referenzierbar = new Set<string>();
   for (const f of v.felder) {
     if (!f || typeof f.feldId !== 'string' || typeof f.typ !== 'string' || (f.ebene !== 'verbund' && f.ebene !== 'tv')) {
       return { ok: false, fehler: 'Ungültiger Feld-Eintrag.' };
@@ -68,6 +71,8 @@ export function validiereImport(text: string): ImportErgebnis {
       return { ok: false, fehler: `Feld „${f.feldId}" verweist auf unbekannte Kategorie „${f.kategorieId}".` };
     }
     feldIds.add(f.feldId);
+    referenzierbar.add(f.feldId);
+    if (f.textSpalte) referenzierbar.add(f.textSpalte);
   }
   for (const w of v.werte) {
     if (!w || typeof w.id !== 'string' || typeof w.feldId !== 'string' || typeof w.wert !== 'string') {
@@ -77,15 +82,17 @@ export function validiereImport(text: string): ImportErgebnis {
       return { ok: false, fehler: `Wert „${w.wert}" verweist auf unbekanntes Feld „${w.feldId}".` };
     }
   }
-  for (const r of v.regeln) {
-    if (!r || typeof r.id !== 'string' || !r.bedingung || !Array.isArray(r.schritte)) {
-      return { ok: false, fehler: 'Ungültiger Regel-Eintrag.' };
+  // Die To-do-Kaskade ist optional (Fassungen vor dem Vorgangssystem führen
+  // keine); geprüft wird sie trotzdem, sobald sie da ist.
+  for (const r of v.todoRegeln ?? []) {
+    if (!r || typeof r.id !== 'string' || !r.bedingung || typeof r.todo !== 'string') {
+      return { ok: false, fehler: 'Ungültiger To-do-Regel-Eintrag.' };
     }
     const referenziert = new Set<string>();
     bedingungFeldIds(r.bedingung as Bedingung, referenziert);
     for (const fid of referenziert) {
-      if (!feldIds.has(fid)) {
-        return { ok: false, fehler: `Regel „${r.id}" verweist auf unbekanntes Feld „${fid}".` };
+      if (!referenzierbar.has(fid)) {
+        return { ok: false, fehler: `To-do-Regel „${r.id}" verweist auf unbekanntes Feld „${fid}".` };
       }
     }
   }

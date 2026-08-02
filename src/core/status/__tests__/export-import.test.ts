@@ -30,7 +30,7 @@ describe('export-import', () => {
     const v = baueSeedVersion();
     const kaputt = {
       ...v,
-      regeln: [{ id: 'x', prioritaet: 1, aktiv: true, beschreibung: '', bedingung: { feldId: 'gibtsnicht', op: 'ist', wert: 'a' }, schritte: [{ label: 'x' }] }],
+      todoRegeln: [{ id: 'x', position: 1, aktiv: true, todo: 'X', zustaendig: [], bedingung: { feldId: 'gibtsnicht', op: 'ist', wert: 'a' } }],
     };
     const r = validiereImport(JSON.stringify(kaputt));
     expect(r.ok).toBe(false);

@@ -1,30 +1,21 @@
 /**
- * Datenmodell des Status-Katalogs (Status-System neu, Phase 1).
+ * Datenmodell des Status-Katalogs.
  *
  * Der Katalog macht aus der bisher hartkodierten Status→Kategorie-Map
- * (`status-canonical.ts`) **kuratierbare, versionierte Daten**: jedes Statusfeld
- * und jeder bekannte Statuswert bekommt einen Eintrag mit Label, Kategorie,
- * Spine-Phase, Rang und Prominenz. Unbekanntes wird beim Import als
- * `unkuratiert` aufgenommen — nie stillschweigend gemappt.
+ * **kuratierbare, versionierte Daten**: jedes Statusfeld und jeder bekannte
+ * Statuswert bekommt einen Eintrag mit Label, ZAH-Phase, Zieltagen und
+ * Prominenz. Unbekanntes wird beim Import als `unkuratiert` aufgenommen — nie
+ * stillschweigend gemappt.
  *
- * Die `StatusCategory`-Taxonomie bleibt **unverändert** aus `status-canonical.ts`
- * (keine zweite Kategorien-Wahrheit). Die `SpinePhase` ist genau die amtliche
- * 5-Stationen-Wirbelsäule (`STEPPER_STATIONS` in `statusZuStepperPosition.ts`),
- * hier als benanntes Union statt als Stationsindex.
+ * **Der Katalog leitet keinen Status ab** (Pitfall #44). Bis v2.384 trugen die
+ * Einträge zusätzlich Spine-Phase, Rang und ein Terminal-Flag; daraus rechnete
+ * die App eine eigene Verfahrensposition, die dem amtlichen Status regelmäßig
+ * vorauslief. Was bleibt, ist eine Lesebrille: der amtliche Code, seine
+ * ZAH-Phase und die daraus abgeleitete {@link StatusCategory}.
  */
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 export type { StatusCategory };
-
-/** Amtliche Wirbelsäule (Eingang→…→Schluss), 1:1 zu `STEPPER_STATIONS`.
- *  `keine` = trägt nicht zur Positionsableitung bei (Sonstige/Unkuratiert). */
-export type SpinePhase =
-  | 'eingang'
-  | 'vollstaendigkeit'
-  | 'fachpruefung'
-  | 'bewilligung'
-  | 'schluss'
-  | 'keine';
 
 /** Anzeige-Prominenz eines Feldes/Wertes. Wirkt **nur** auf die Darstellung
  *  (Timeline/Warum), nie auf Erfassung oder Ableitung. `ignoriert` = nirgends
@@ -47,8 +38,9 @@ export type Prominenz = 'meilenstein' | 'normal' | 'nebensaechlich' | 'ignoriert
  * nichts ab und triggert nichts. Marker-Status (29, 88, 93, 94) bekommen bewusst
  * KEINE Phase (`zahPhaseId: null` + `marker: true`).
  *
- * Abgrenzung zur {@link SpinePhase}: die ist die *alte*, aus Rängen abgeleitete
- * Wirbelsäule und bleibt bis zum Rückbau (P6) unverändert daneben stehen.
+ * Seit v2.385 die **einzige** Phasen-Achse der App. Daneben stand bis dahin eine
+ * zweite, aus Rängen abgeleitete („Spine-Phase") — sie lief dem amtlichen Status
+ * regelmäßig voraus und ist mit dem Rückbau entfallen.
  */
 export type ZahPhaseId =
   | 'eingang'
@@ -160,16 +152,19 @@ export interface StatusFeldEintrag {
   relevant?: boolean;
   /** @deprecated seit v2.348 — `rollen`. Wird nur noch gelesen, nie geschrieben. */
   zustaendigkeit?: Zustaendigkeit;
-  /** Ableitungs-Beitrag für Felder OHNE Wert-Enum (`datum`/`text`): dort trägt
-   *  das FELD die Phase, weil es keinen Wert gibt, an dem sie hängen könnte.
-   *  `rang` 0/undefiniert = trägt nicht bei (Default für den ganzen Seed). */
-  spinePhase?: SpinePhase;
-  rang?: number;
-  terminal?: boolean;
-  /** Überschreibt die aus `spinePhase` abgeleitete Kategorie (`spine-kategorie.ts`).
-   *  Nötig, wo eine Phase mehrere Kategorien trägt — die Fachprüfung beherbergt
-   *  Prüfung, Nachforderung, Entscheidung und Ablehnung. */
-  kategorie?: StatusCategory;
+  /**
+   * Zu welcher ZAH-Phase dieses Datumsfeld gehört.
+   *
+   * Beantwortet „welches Datum gehört zum aktuellen Status?" — die Grundlage
+   * der „seit"-Angabe in der Status-Erklärung und der Phasen-Marke in der
+   * Chronik. Nur gesetzt, wo die Zuordnung fachlich klar ist; ein Feld ohne
+   * Phase trägt nichts bei, und das ist besser als eine geratene Marke.
+   * PL-editierbar im Kürzel-Tab.
+   *
+   * **Nicht zu verwechseln mit der Ableitung**: die Phase ordnet ein Datumsfeld
+   * ein, sie leitet keinen Status ab (Pitfall #44).
+   */
+  zahPhaseId?: ZahPhaseId | null;
   prominenzDefault: Prominenz;
   aktiv: boolean;
   unkuratiert: boolean;
@@ -185,13 +180,14 @@ export interface StatusWertEintrag {
   wert: string;
   /** Default: `wert`. */
   label?: string;
+  /**
+   * Kanonische Kategorie. **Abgeleitet, nicht kuratiert**: für Werte mit
+   * amtlichem Code entsteht sie aus Code + ZAH-Phase
+   * (`kategorie-ableitung.ts`), und der Snapshot rechnet sie beim Laden neu.
+   * Das Feld bleibt für die Bauantrag-Domäne (kein Code) und als Anzeigewert.
+   */
   kategorie: StatusCategory;
-  spinePhase: SpinePhase;
-  /** 0 = trägt nicht zur Ableitung bei; sonst Zehnerlücken (10, 20, …) entlang der Spine. */
-  rang: number;
   prominenz: Prominenz;
-  /** Ablehnung, Widerruf, Rücknahme, Schlussvermerk … — final entschieden. */
-  terminal: boolean;
   aktiv: boolean;
   unkuratiert: boolean;
   erstmalsGesehen?: string;
@@ -396,17 +392,7 @@ export interface NaechsterSchritt {
   werkzeug?: Werkzeug;
 }
 
-export interface NaechsterSchrittRegel {
-  id: string;
-  /** Aufsteigend; alle zutreffenden aktiven Regeln liefern Schritte. */
-  prioritaet: number;
-  aktiv: boolean;
-  beschreibung: string;
-  bedingung: Bedingung;
-  schritte: NaechsterSchritt[];
-}
-
-/** Eine gespeicherte, aktivierbare Fassung des Katalogs (+ Regeln). */
+/** Eine gespeicherte, aktivierbare Fassung des Katalogs. */
 export interface MappingVersion {
   /** v+1 beim Speichern. */
   version: number;
@@ -416,7 +402,6 @@ export interface MappingVersion {
   kommentar?: string;
   felder: StatusFeldEintrag[];
   werte: StatusWertEintrag[];
-  regeln: NaechsterSchrittRegel[];
   /** Der Statusbaum. Optional, damit Fassungen aus der Zeit vor dem
    *  Code-Inventar unverändert gültig bleiben (fehlt er, sind alle Felder
    *  „Nicht zugeordnet"). */
@@ -443,53 +428,10 @@ export interface MappingVersion {
   // 6,8 MB bei zehn Fassungen). Gleiche Schreib-Mechanik, andere Datei.
 }
 
-// --- Ableitung (Phase 3) ---
-
-/** Ein Feldwert und ob/warum er zur Positionsableitung beiträgt. Datenbasis des
- *  „Warum?"-Popovers. */
-export interface Beitrag {
-  feldId: string;
-  wert: string;
-  /** Gesetzt bei TV-bezogenen Werten. */
-  tvId?: string;
-  kategorie: StatusCategory;
-  spinePhase: SpinePhase;
-  rang: number;
-  terminal: boolean;
-  beruecksichtigt: boolean;
-  /** Grund für Nicht-Berücksichtigung. */
-  grund?: 'unkuratiert' | 'rang-0' | 'inaktiv';
-}
-
-export interface FuehrenderWert {
-  feldId: string;
-  wert: string;
-  rang: number;
-  tvId?: string;
-}
-
-export interface KonfliktDetail {
-  feldId: string;
-  wert: string;
-  tvId?: string;
-  spinePhase: SpinePhase;
-}
-
-export interface AbgeleiteterSchritt extends NaechsterSchritt {
-  regelId: string;
-}
-
-/** Ergebnis der deterministischen Statusableitung über das Feld-Ensemble. */
-export interface AbleitungsErgebnis {
-  spinePhase: SpinePhase;
-  kategorie: StatusCategory;
-  fuehrenderWert: FuehrenderWert | null;
-  terminal: boolean;
-  konflikt: boolean;
-  konfliktDetails: KonfliktDetail[];
-  beitraege: Beitrag[];
-  naechsteSchritte: AbgeleiteterSchritt[];
-}
+// Hier standen bis v2.385 die Typen der Statusableitung (`Beitrag`,
+// `FuehrenderWert`, `KonfliktDetail`, `AbleitungsErgebnis`). Sie sind mit ihr
+// entfallen: die App leitet keinen Status mehr ab, sie liest den amtlichen
+// (Pitfall #44).
 
 /** Ein noch nicht kuratierter, beim Import entdeckter (Feld,Wert)-Fund. */
 export interface UnkuratierterFund {

@@ -1,8 +1,8 @@
 /**
  * Zustand + IO des Status-Cockpits.
  *
- * Lädt die aktive Katalog-Version, den Bestand (alle Verbünde/Antraege für
- * Vorkommen + Simulation), die CSV-Schemas (Spalten-Herkunft je Feld) und das
+ * Lädt die aktive Katalog-Version, den Bestand (alle Verbünde/Anträge für
+ * Vorkommen + Diagnose), die CSV-Schemas (Spalten-Herkunft je Feld) und das
  * Event-Log („zuletzt gesehen"). Hält einen editierbaren Entwurf; Speichern legt
  * eine neue Version an, aktiviert sie, setzt den `getStatusCategory`-Snapshot neu
  * und veröffentlicht sie auf dem Daten-Share (der Katalog gilt team-weit).
@@ -23,9 +23,9 @@ import {
   ladeAktiveVersion, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
   getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot, getAlleEvents,
   ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
-  baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
+  baueVerbundFelder, zaehleVorkommen, zuletztGesehen,
   csvSpaltenJeFeld, baueFeldAufloesung,
-  aendereWert, aendereFeld, aendereRegel, aendereTodoRegel, verschiebeTodoRegel,
+  aendereWert, aendereFeld, aendereTodoRegel, verschiebeTodoRegel,
   fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
@@ -39,9 +39,9 @@ import {
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare,
-  type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag, type NaechsterSchrittRegel,
-  type StatusKategorie, type UnkuratierterFund, type VerbundFelder, type SimErgebnis,
-  type PhasenWechsel, type SpinePhase, type StatusCodeEintrag, type TriggerZeile,
+  type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag,
+  type StatusKategorie, type UnkuratierterFund, type VerbundFelder,
+  type StatusCodeEintrag, type TriggerZeile,
   type TodoRegel, type TextbausteinEintrag,
 } from '@/core/status';
 
@@ -64,15 +64,10 @@ export interface StatusCockpitApi {
   zuletzt: Map<string, string>;
   /** feldId → CSV-Spalten, aus denen das Feld gefüllt wird (Herkunft). */
   csvSpalten: Map<string, string[]>;
-  /** Der geladene Bestand als Engine-Eingabe (Diagnose, Simulation). */
+  /** Der geladene Bestand als reine Eingabe (Vorkommen, Zieltage-Vorschlag). */
   verbundFelder: VerbundFelder[];
   /** Der EINE Stichtag dieses Seitenaufrufs — in alle Engines injiziert. */
   stichtag: string;
-  aktivVerteilung: Record<SpinePhase, number>;
-  entwurfVerteilung: Record<SpinePhase, number>;
-  phasenWechsel: PhasenWechsel[];
-  konflikteAktiv: number;
-  konflikteEntwurf: number;
   geaendert: boolean;
   speichernBusy: boolean;
   speichernFehler: string | null;
@@ -86,7 +81,6 @@ export interface StatusCockpitApi {
   erneutAufShare: () => Promise<void>;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
   setFeld: (feldId: string, patch: Partial<StatusFeldEintrag>) => void;
-  setRegel: (id: string, patch: Partial<NaechsterSchrittRegel>) => void;
   setKategorie: (id: string, patch: Partial<StatusKategorie>) => void;
   addKategorie: (kategorie: StatusKategorie) => void;
   removeKategorie: (id: string) => void;
@@ -164,16 +158,11 @@ interface Bestand {
   vorkommen: Map<string, number>;
   zuletzt: Map<string, string>;
   csvSpalten: Map<string, string[]>;
-  aktivSim: SimErgebnis[];
   /** Programm-Nummer (`FM_NUMMER`) → Anzahl Anträge; für den Trigger-Import. */
   programmAntraege: Map<string, number>;
   /** Anträge ganz ohne Programm-Nummer — dort greift das Vorgangssystem nie. */
   antraegeOhneProgramm: number;
 }
-
-const LEER_VERTEILUNG: Record<SpinePhase, number> = {
-  eingang: 0, vollstaendigkeit: 0, fachpruefung: 0, bewilligung: 0, schluss: 0, keine: 0,
-};
 
 /**
  * Der Auslieferungsstand als Vergleichsmaß — einmal gebaut, nicht je Render.
@@ -266,7 +255,6 @@ export function useStatusCockpit(): StatusCockpitApi {
       vorkommen: zaehleVorkommen(vf),
       zuletzt: zuletztGesehen(events),
       csvSpalten: csvSpaltenJeFeld(schemas),
-      aktivSim: simuliere(version, vf, heuteRef.current),
       programmAntraege,
       antraegeOhneProgramm,
     };
@@ -298,11 +286,6 @@ export function useStatusCockpit(): StatusCockpitApi {
   }, [idb, ladeBestand]);
 
   useEffect(() => { void ladeAlles(); }, [ladeAlles]);
-
-  const entwurfSim = useMemo<SimErgebnis[]>(
-    () => (entwurf && bestand ? simuliere(entwurf, bestand.verbundFelder, heuteRef.current) : []),
-    [entwurf, bestand],
-  );
 
   const geaendert = useMemo(
     () => JSON.stringify(entwurf) !== JSON.stringify(aktiveVersion),
@@ -354,7 +337,6 @@ export function useStatusCockpit(): StatusCockpitApi {
       setAktiveVersion(neu);
       setEntwurf(neu);
       setVersionen(await listeVersionen(idb));
-      setBestand(b => (b ? { ...b, aktivSim: simuliere(neu, b.verbundFelder, heuteRef.current) } : b));
       setNurLokal(!(await schreibeKatalogAufShare(idb)));
     } catch (e) {
       setSpeichernFehler((e as Error).message ?? 'Speichern fehlgeschlagen.');
@@ -405,9 +387,6 @@ export function useStatusCockpit(): StatusCockpitApi {
   const setFeld = useCallback((feldId: string, patch: Partial<StatusFeldEintrag>) => {
     setEntwurf(v => (v ? aendereFeld(v, feldId, patch) : v));
   }, []);
-  const setRegel = useCallback((id: string, patch: Partial<NaechsterSchrittRegel>) => {
-    setEntwurf(v => (v ? aendereRegel(v, id, patch) : v));
-  }, []);
   const setKategorie = useCallback((id: string, patch: Partial<StatusKategorie>) => {
     setEntwurf(v => (v ? aendereKategorie(v, id, patch) : v));
   }, []);
@@ -421,8 +400,8 @@ export function useStatusCockpit(): StatusCockpitApi {
   const uebernehmen = useCallback((fund: UnkuratierterFund) => {
     setEntwurf(v => (v ? fuegeWertHinzu(v, {
       id: fund.id, feldId: fund.feldId, wert: fund.wert,
-      kategorie: 'sonstige', spinePhase: 'keine', rang: 0, prominenz: 'normal',
-      terminal: false, aktiv: true, unkuratiert: false, erstmalsGesehen: fund.erstmalsGesehen,
+      kategorie: 'sonstige', prominenz: 'normal',
+      aktiv: true, unkuratiert: false, erstmalsGesehen: fund.erstmalsGesehen,
     }) : v));
     setUnkuratiert(u => u.filter(x => x.id !== fund.id));
     void speichereUnkuratiert(idb, unkuratiert.filter(x => x.id !== fund.id)).catch(() => {});
@@ -551,13 +530,8 @@ export function useStatusCockpit(): StatusCockpitApi {
     csvSpalten: bestand?.csvSpalten ?? new Map(),
     verbundFelder: bestand?.verbundFelder ?? [],
     stichtag: heuteRef.current,
-    aktivVerteilung: bestand ? verteilung(bestand.aktivSim) : LEER_VERTEILUNG,
-    entwurfVerteilung: bestand ? verteilung(entwurfSim) : LEER_VERTEILUNG,
-    phasenWechsel: bestand ? diffPhasen(bestand.aktivSim, entwurfSim) : [],
-    konflikteAktiv: bestand ? bestand.aktivSim.filter(s => s.konflikt).length : 0,
-    konflikteEntwurf: entwurfSim.filter(s => s.konflikt).length,
     geaendert, speichernBusy, speichernFehler, nurLokal, erneutAufShare,
-    setWert, setFeld, setRegel, setKategorie, addKategorie, removeKategorie,
+    setWert, setFeld, setKategorie, addKategorie, removeKategorie,
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,
     programmeImBestand: [...(bestand?.programmAntraege ?? new Map())]

@@ -16,11 +16,10 @@
 import { Milestone } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import {
-  baueChronik, gruppiereNachMonat, kategoriePfadLabel,
+  baueChronik, gruppiereNachMonat, kategoriePfadLabel, zahPhaseLabel,
   type ChronikEintrag, type FeldVorkommen, type MappingVersion,
 } from '@/core/status';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
-import { SPINE_LABEL } from './labels';
 
 /** `2026-03` → „März 2026". */
 function monatLabel(monat: string): string {
@@ -130,9 +129,9 @@ export function StatusChronik({
                       >
                         {e.feld.label}
                       </span>
-                      {e.feld.spinePhase && e.feld.spinePhase !== 'keine' ? (
+                      {e.feld.zahPhaseId ? (
                         <span className="rounded-full bg-[var(--tf-bg-secondary)] px-1.5 py-[1px] text-[10.5px] text-[var(--tf-text-secondary)]">
-                          {SPINE_LABEL[e.feld.spinePhase]}
+                          {zahPhaseLabel(e.feld.zahPhaseId, version.zahPhasen)}
                         </span>
                       ) : null}
                       <span className="truncate text-[11px] text-[var(--tf-text-tertiary)]">

@@ -22,10 +22,7 @@ const wert = (w: string): StatusWertEintrag => ({
   feldId: 'status',
   wert: w,
   kategorie: 'sonstige',
-  spinePhase: 'keine',
-  rang: 0,
   prominenz: 'normal',
-  terminal: false,
   aktiv: true,
   unkuratiert: false,
 });

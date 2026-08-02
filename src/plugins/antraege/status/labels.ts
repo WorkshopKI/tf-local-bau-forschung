@@ -9,18 +9,9 @@
  * (alten) Feld-Phase hängt. Sie wandert mit dem Rückbau auf die ZAH-Phase am
  * Feld — zusammen mit `bestimmeSeit`, das an derselben Angabe hängt.
  */
-import type { SpinePhase, StatusCategory, Werkzeug } from '@/core/status';
+import type { StatusCategory, Werkzeug } from '@/core/status';
 
 /** Amtliche Wirbelsäule → deutsches Label (`keine` = „—"). */
-export const SPINE_LABEL: Record<SpinePhase, string> = {
-  eingang: 'Eingang',
-  vollstaendigkeit: 'Vollständigkeit',
-  fachpruefung: 'Fachprüfung',
-  bewilligung: 'Bewilligung',
-  schluss: 'Schluss',
-  keine: '—',
-};
-
 /** Kanonische Status-Kategorie → deutsches Label (Sentence-Case). */
 export const KATEGORIE_LABEL: Record<StatusCategory, string> = {
   offen: 'Offen',

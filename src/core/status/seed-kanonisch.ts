@@ -29,10 +29,10 @@ export const KANONISCHE_FELDER: readonly StatusFeldEintrag[] = [
   { feldId: 'status', label: 'TV-Status', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
   { feldId: 'verbund_status', label: 'Verbund-Status', typ: 'wert', ebene: 'verbund', quelleKey: 'status', herkunft: 'verbund-record', kategorieId: 'vb.antragsbearbeitung', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
   { feldId: 'vb_phase', label: 'Verbund-Phase (Fördervariante)', typ: 'wert', ebene: 'tv', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'nebensaechlich', aktiv: true, unkuratiert: false },
-  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', ebene: 'tv', code: 'AAE', kategorieId: 'tv.antragsbearbeitung', rollen: ['pa'], spinePhase: 'eingang', rang: 10, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', ebene: 'tv', code: 'AZ1', kategorieId: 'tv.antragsbearbeitung', rollen: [], prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', ebene: 'tv', code: 'ABB', kategorieId: 'tv.antragsbearbeitung', rollen: ['qs'], spinePhase: 'bewilligung', rang: 42, prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
-  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', ebene: 'tv', code: 'VBE', kategorieId: 'tv.verwendungsnachweis', rollen: [], prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
+  { feldId: 'antragsdatum', label: 'Antragseingang', typ: 'datum', ebene: 'tv', code: 'AAE', kategorieId: 'tv.antragsbearbeitung', rollen: ['pa'], zahPhaseId: 'eingang', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'erstentscheidung', label: 'Vorläufige Erstentscheidung', typ: 'datum', ebene: 'tv', code: 'AZ1', kategorieId: 'tv.antragsbearbeitung', rollen: [], zahPhaseId: 'entscheidung', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'bewilligung_datum', label: 'Bewilligung', typ: 'datum', ebene: 'tv', code: 'ABB', kategorieId: 'tv.antragsbearbeitung', rollen: ['qs'], zahPhaseId: 'begleitung', prominenzDefault: 'meilenstein', aktiv: true, unkuratiert: false },
+  { feldId: 'vn_eingang_datum', label: 'VN-Eingang (Begleitphase)', typ: 'datum', ebene: 'tv', code: 'VBE', kategorieId: 'tv.verwendungsnachweis', rollen: [], zahPhaseId: 'begleitung', prominenzDefault: 'normal', aktiv: true, unkuratiert: false },
 ];
 
 /**

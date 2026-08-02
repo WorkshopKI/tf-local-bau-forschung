@@ -1,8 +1,9 @@
 /**
- * Status-System neu — Barrel.
+ * Status-System — Barrel.
  *
- * Schicht 1 (Katalog) + Snapshot-Anbindung. Historie (Schicht 2) und
- * Ableitungs-Engine (Schicht 3) kommen in den Folgephasen dazu.
+ * Katalog + Snapshot-Anbindung, Historie, Erklärung, Navigator, To-do-Kaskade,
+ * Wächter. **Keine Ableitungs-Engine**: die App liest den amtlichen Status, sie
+ * rechnet keinen aus (Pitfall #44).
  */
 export * from './typen';
 export { STATUS_KATALOG_STORE, STATUS_EVENT_STORE } from './stores';
@@ -35,8 +36,6 @@ export type { StatusEvent } from './event-typen';
 export { appendEvents, getStatusEvents, getAlleEvents } from './event-store';
 export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
-export { leiteStatusAb, KONFLIKT_SCHWELLE } from './ableitung';
-export { KATEGORIE_ZU_SPINE, SPINE_ZU_KATEGORIE, kategorieFuerFeld } from './spine-kategorie';
 export {
   ROLLEN, ROLLE_LABEL, ROLLE_LANG, NEUTRAL_LABEL, MAIL_ROLLE,
   rollenVonFeld, istNeutral, betrifftRolle, rollenLabel, sortiereRollen, parseRollenSpalte,
@@ -52,7 +51,7 @@ export { bedingungAlsText, bedingungSatz } from './bedingung-text';
 export { normKey, loseKey } from './normalisierung';
 export {
   ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_ZAH_PHASEN,
-  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES, ZAH_ZU_SPINE,
+  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
   zahPhaseRang, zahPhaseLabel, zahPhasenVon,
 } from './zah-phasen';
 export {
@@ -78,21 +77,16 @@ export {
   type TriggerRohzeile, type TextbausteinLegende,
 } from './trigger-parser';
 export {
-  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, musterBilanzAlsText,
-  type PhasenVergleich, type PhasenVergleichZeile, type AbweichungsMuster,
-} from './phasen-vergleich';
-export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
   STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY, type StatusKatalogDatei,
 } from './katalog-share';
 export {
-  baueVerbundFelder, vorkommenAus, zaehleVorkommen, simuliere, verteilung, diffPhasen,
-  zuletztGesehen, csvSpaltenJeFeld,
-  SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,
+  baueVerbundFelder, vorkommenAus, zaehleVorkommen, zuletztGesehen, csvSpaltenJeFeld,
+  type VerbundFelder,
 } from './cockpit-berechnung';
 export {
-  aendereWert, aendereFeld, aendereRegel, fuegeWertHinzu, fuegeFeldHinzu,
+  aendereWert, aendereFeld, fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie,
   ergaenzeSeedFelder, type ErgaenzungsErgebnis,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,

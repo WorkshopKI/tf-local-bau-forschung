@@ -1,11 +1,13 @@
 /**
- * Status-Cockpit — Vollbild-Seite: Statuswerte kuratieren, Wirkung simulieren,
- * versionieren.
+ * Status-Cockpit — Vollbild-Seite: Statuswerte kuratieren und versionieren.
  *
  * Reine Darstellung über der `useStatusCockpit`-API: Seitenkopf + Export/Import,
- * Tab-Leiste (Katalog/Kürzel/Regeln), eine Simulations-Leiste (Phasenverteilung
- * Aktiv→Entwurf + Konflikte + Phasenwechsel-Diff), eine Versions-Sektion und
- * eine Speicher-Leiste, sobald der Entwurf von der aktiven Fassung abweicht.
+ * Tab-Leiste (Katalog/Kürzel/To-dos), eine Versions-Sektion und eine
+ * Speicher-Leiste, sobald der Entwurf von der aktiven Fassung abweicht.
+ *
+ * Die Simulations-Leiste (Phasenverteilung Aktiv→Entwurf, Konflikte,
+ * Phasenwechsel-Diff) ist mit v2.385 entfallen: sie schätzte die Wirkung von
+ * RANG-Änderungen ab, und die gibt es nicht mehr.
  */
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -20,8 +22,7 @@ import { KatalogTab } from './KatalogTab';
 import { FelderTab } from './FelderTab';
 import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
-import { DiagnoseSektion } from './DiagnoseSektion';
-import { SPINE_LABEL, SPINE_WERTE, feldStil, formatZeitpunkt } from './labels';
+import { feldStil, formatZeitpunkt } from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 
@@ -60,71 +61,6 @@ function NurLokalHinweis({ api }: { api: StatusCockpitApi }): React.ReactElement
       <Button variant="ghost" size="sm" className="ml-auto" disabled={erneut.busy} onClick={() => erneut.run()}>
         {erneut.busy ? 'Versucht …' : 'Erneut veröffentlichen'}
       </Button>
-    </div>
-  );
-}
-
-function PhasenZelle({ label, aktiv, entwurf, geaendert }: {
-  label: string; aktiv: number; entwurf: number; geaendert: boolean;
-}): React.ReactElement {
-  const abweichend = geaendert && aktiv !== entwurf;
-  return (
-    <div className="flex items-baseline gap-1.5 rounded px-2 py-1" style={feldStil}>
-      <span className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">{label}</span>
-      <span className="text-[12.5px] font-mono text-[var(--tf-text)]">{aktiv}</span>
-      {abweichend && (
-        <span className="text-[12.5px] font-mono text-[var(--tf-primary)] font-medium whitespace-nowrap">
-          → {entwurf}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function SimulationsLeiste({ api }: { api: StatusCockpitApi }): React.ReactElement {
-  const wechsel = api.phasenWechsel;
-  const sichtbar = wechsel.slice(0, 50);
-  const konfliktAbweichend = api.geaendert && api.konflikteAktiv !== api.konflikteEntwurf;
-  return (
-    <div className="px-6 py-2.5 border-b border-[var(--tf-border)] flex flex-col gap-2">
-      <div className="flex items-center gap-2 flex-wrap">
-        {SPINE_WERTE.map(p => (
-          <PhasenZelle
-            key={p} label={SPINE_LABEL[p]}
-            aktiv={api.aktivVerteilung[p]} entwurf={api.entwurfVerteilung[p]} geaendert={api.geaendert}
-          />
-        ))}
-        <div className="flex items-baseline gap-1.5 rounded px-2 py-1" style={feldStil}>
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">Konflikte</span>
-          <span className="text-[12.5px] font-mono text-[var(--tf-text)]">{api.konflikteAktiv}</span>
-          {konfliktAbweichend && (
-            <span className="text-[12.5px] font-mono text-[var(--tf-warning-text)] font-medium">
-              → {api.konflikteEntwurf}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {api.geaendert && wechsel.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            {wechsel.length} Verbünde wechseln die Phase
-          </p>
-          <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-            {sichtbar.map(w => (
-              <span key={w.verbundId} className="text-[11px] text-[var(--tf-text-tertiary)] whitespace-nowrap">
-                <span className="font-mono text-[var(--tf-text-secondary)]">{w.verbundId}</span>{' '}
-                {SPINE_LABEL[w.vorher]} → {SPINE_LABEL[w.nachher]}
-              </span>
-            ))}
-            {wechsel.length > sichtbar.length && (
-              <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-                +{wechsel.length - sichtbar.length} weitere
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -222,7 +158,7 @@ export function StatusCockpitPage(): React.ReactElement {
     return (
       <div className="flex flex-col h-full min-h-0">
         <div className="px-6 pt-5 pb-3">
-          <PageHeader title="Status-Katalog" subtitle="Statuswerte kuratieren, simulieren, versionieren" />
+          <PageHeader title="Status-Katalog" subtitle="Statuswerte kuratieren und versionieren" />
         </div>
         <div className="flex-1 grid place-items-center text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>
       </div>
@@ -231,14 +167,13 @@ export function StatusCockpitPage(): React.ReactElement {
 
   const werteCount = api.entwurf?.werte.length ?? 0;
   const felderCount = api.entwurf?.felder.length ?? 0;
-  const regelnCount = api.entwurf?.regeln.length ?? 0;
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
         <PageHeader
           title="Status-Katalog"
-          subtitle="Statuswerte kuratieren, simulieren, versionieren"
+          subtitle="Statuswerte kuratieren und versionieren"
           actions={
             <div className="flex items-center gap-2">
               <ExportImportButtons api={api} />
@@ -254,7 +189,7 @@ export function StatusCockpitPage(): React.ReactElement {
           items={[
             { key: 'katalog', label: 'Katalog', count: werteCount },
             { key: 'felder', label: 'Kürzel', count: felderCount },
-            { key: 'regeln', label: 'Regeln', count: regelnCount },
+            { key: 'regeln', label: 'To-dos', count: api.entwurf?.todoRegeln?.length ?? 0 },
           ]}
         />
       </div>
@@ -267,7 +202,6 @@ export function StatusCockpitPage(): React.ReactElement {
 
       {api.nurLokal && <NurLokalHinweis api={api} />}
 
-      <SimulationsLeiste api={api} />
 
       <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
         {tab === 'katalog' && <KatalogTab api={api} />}
@@ -276,7 +210,6 @@ export function StatusCockpitPage(): React.ReactElement {
         {isVorgangssystemEnabled() && (
           <>
             <ReferenzdatenSektion api={api} />
-            <DiagnoseSektion api={api} />
           </>
         )}
         <VersionsPanel api={api} />

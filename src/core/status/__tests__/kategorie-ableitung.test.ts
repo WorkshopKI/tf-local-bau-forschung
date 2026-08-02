@@ -11,7 +11,6 @@
  * |---|---|
  * | dieser | Ist die Ableitung richtig? |
  * | `byte-identitaet` | Liefert sie über beide Pfade (Snapshot / eingebaut) dasselbe? |
- * | `phasen-vergleich-golden` | Deckt sie sich mit der alten Welt, wo sie soll? (stirbt mit P6) |
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -23,7 +22,7 @@ import { STATUS_CODE_KATALOG } from '../status-codes';
 import { SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from '../zah-phasen';
 import { getStatusCategory, getCanonicalStatusEntries } from '@/core/utils/status-canonical';
 import type { StatusCategory } from '../typen';
-import { KATEGORIE_DELTAS } from './fixtures/phasen-vergleich-muster';
+import { KATEGORIE_DELTAS } from './fixtures/kategorie-deltas';
 
 /**
  * Alle 30 amtlichen Codes mit ihrer erwarteten Kategorie — von Hand geführt.

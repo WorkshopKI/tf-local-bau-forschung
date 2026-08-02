@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ZAH_PHASEN_REIHENFOLGE } from '@/core/status/zah-phasen';
 import {
   AB_DASHBOARD_RELEVANZ, baueSeedCodeFelder, ebeneVonCode, SEED_CODE_TABELLE,
 } from '@/core/status/seed-codes';
@@ -109,22 +110,19 @@ describe('Seed-Code-Katalog', () => {
     }
   });
 
-  it('vergibt Rang nur zusammen mit einer Spine-Phase', () => {
+  it('vergibt die ZAH-Phase sparsam — nur wo die Zuordnung fachlich klar ist', () => {
+    const mitPhase = FELDER.filter(f => f.zahPhaseId != null);
+    expect(mitPhase.length).toBeGreaterThan(0);
+    // Der Großteil der 505 Kürzel trägt bewusst keine: eine geratene Zuordnung
+    // wäre schlechter als keine.
+    expect(mitPhase.length).toBeLessThan(FELDER.length / 4);
+  });
+
+  it('setzt nur gültige ZAH-Phasen', () => {
     for (const f of FELDER) {
-      if (f.rang !== undefined) expect(f.spinePhase).toBeDefined();
-      if (f.terminal) expect(f.rang).toBeDefined();
+      if (f.zahPhaseId == null) continue;
+      expect(ZAH_PHASEN_REIHENFOLGE).toContain(f.zahPhaseId);
     }
-  });
-
-  it('hält die Rang-Vergabe sparsam — der Großteil trägt nicht zur Ableitung bei', () => {
-    const mitRang = FELDER.filter(f => (f.rang ?? 0) > 0);
-    expect(mitRang.length).toBeGreaterThan(0);
-    expect(mitRang.length).toBeLessThan(FELDER.length / 4);
-  });
-
-  it('markiert genau die endgültigen Ausgänge als terminal', () => {
-    const terminal = FELDER.filter(f => f.terminal).map(f => f.code).sort();
-    expect(terminal).toEqual(['AAR', 'ABLD', 'ABLZ', 'RZZ', 'XVE']);
   });
 
   it('ist deterministisch — zwei Aufrufe liefern dasselbe', () => {

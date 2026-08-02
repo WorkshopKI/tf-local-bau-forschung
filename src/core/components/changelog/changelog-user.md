@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.385 — 2026-08
+
+### Verbesserungen
+- Die App rechnet sich keinen eigenen Verfahrensstand mehr aus. Bisher leitete sie aus allen gesetzten Datumsfeldern eine Position ab, die dem Status im Fachsystem oft vorauslief — bei 485 von 7.534 Verbünden sagten beide etwas anderes. Angezeigt wird jetzt der Status, wie das Fachsystem ihn führt.
+- Im Status-Katalog wird nur noch kuratiert, was wirklich eine Entscheidung ist: ZAH-Phase und Zieltage. Spine-Phase, Rang und das „terminal"-Häkchen waren Stellschrauben der alten Rechnung und sind weg — ebenso die Simulations-Leiste, die deren Wirkung abschätzte.
+- Im Kürzel-Verzeichnis steht statt „Rang" die ZAH-Phase des Datums. Sie beantwortet „seit wann gilt dieser Status" und beschriftet die Marke in der Chronik; leer heißt ehrlich „trägt nichts bei".
+- Der Regeln-Tab führt nur noch die To-do-Kaskade. Die fünf alten „Nächste-Schritte"-Regeln sind darin aufgegangen — feiner geschnitten und mit zuständiger Rolle.
+
 ## v2.384 — 2026-08
 
 ### Verbesserungen

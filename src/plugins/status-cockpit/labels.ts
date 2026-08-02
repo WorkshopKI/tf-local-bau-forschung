@@ -1,25 +1,15 @@
 /**
  * Geteilte Beschriftungen + Formularklassen für die Status-Cockpit-Tabs.
  *
- * Rein darstellend: deutsche Labels für die Enums (SpinePhase, StatusCategory,
+ * Rein darstellend: deutsche Labels für die Enums (StatusCategory,
  * Prominenz, Werkzeug), die Aufzähl-Reihenfolgen für Selects/Filter und die
  * gemeinsamen Feld-Klassen (aus dem ChecklistenEditor-Muster übernommen).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
 import {
-  SPINE_REIHENFOLGE,
-  type SpinePhase, type StatusCategory, type Prominenz, type Werkzeug,
+  type StatusCategory, type Prominenz, type Werkzeug,
   type StatusFeldEintrag,
 } from '@/core/status';
-
-export const SPINE_LABEL: Record<SpinePhase, string> = {
-  eingang: 'Eingang',
-  vollstaendigkeit: 'Vollständigkeit',
-  fachpruefung: 'Fachprüfung',
-  bewilligung: 'Bewilligung',
-  schluss: 'Schluss',
-  keine: '—',
-};
 
 export const KATEGORIE_LABEL: Record<StatusCategory, string> = {
   offen: 'Offen',
@@ -67,9 +57,6 @@ export const KATEGORIE_WERTE: readonly StatusCategory[] = [
 export const PROMINENZ_WERTE: readonly Prominenz[] = [
   'meilenstein', 'normal', 'nebensaechlich', 'ignoriert',
 ];
-
-/** Spine-Phasen in amtlicher Reihenfolge (Eingang→…→Schluss, keine). */
-export const SPINE_WERTE: readonly SpinePhase[] = SPINE_REIHENFOLGE;
 
 /**
  * Wie `feldKlasse`, aber **ohne** `w-full` — für Felder, die ihre Breite selbst

@@ -57,7 +57,7 @@ export function istKatalogDatei(raw: unknown): raw is StatusKatalogDatei {
     if (!f || typeof f !== 'object') return false;
     const v = f as Record<string, unknown>;
     return typeof v.version === 'number'
-      && Array.isArray(v.felder) && Array.isArray(v.werte) && Array.isArray(v.regeln);
+      && Array.isArray(v.felder) && Array.isArray(v.werte);
   });
 }
 

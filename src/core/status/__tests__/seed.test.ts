@@ -9,14 +9,13 @@ describe('Status-Katalog Seed', () => {
     expect(baueSeedVersion()).toEqual(baueSeedVersion());
   });
 
-  it('ist Version 1, autorlos, mit festem Zeitstempel und Default-Regeln', () => {
+  it('ist Version 1, autorlos, mit festem Zeitstempel und To-do-Kaskade', () => {
     const v = baueSeedVersion();
     expect(v.version).toBe(1);
     expect(v.autor).toBeNull();
     expect(v.zeitstempel).toBe('2026-07-24T00:00:00.000Z');
-    expect(v.regeln.length).toBeGreaterThan(0);
-    expect(v.regeln.every(r => r.aktiv)).toBe(true);
-    expect(v.regeln.map(r => r.id)).toContain('ga-fertig');
+    // Die To-do-Kaskade ersetzt die fünf alten Nächste-Schritte-Regeln.
+    expect(v.todoRegeln?.length ?? 0).toBeGreaterThan(0);
   });
 
   it('führt jeden kanonischen Statuswert unter „status" mit identischer Kategorie', () => {
@@ -73,8 +72,11 @@ describe('Status-Katalog Seed', () => {
     expect(v.felder).toHaveLength(ZUARBEIT_CODES.length - 4 + 7);
   });
 
-  it('hält die Rang-Vergabe bei 22 Feldern — der Rest ist wirkungslos', () => {
+  it('vergibt die ZAH-Phase an 24 Feldern — der Rest trägt bewusst keine', () => {
+    // 22 aus der Kuration plus die beiden kanonischen Felder, die vorher keinen
+    // Rang trugen und trotzdem eine klare Phase haben: `AZ1` (vorläufige
+    // Erstentscheidung → Entscheidung) und `VBE` (VN-Eingang → Begleitung).
     const v = baueSeedVersion();
-    expect(v.felder.filter(f => (f.rang ?? 0) > 0)).toHaveLength(22);
+    expect(v.felder.filter(f => f.zahPhaseId != null)).toHaveLength(24);
   });
 });
