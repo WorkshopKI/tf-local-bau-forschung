@@ -24,7 +24,7 @@ import { wertId } from './typen';
 import { baueSeedCodeFelder } from './seed-codes';
 import { SEED_KATEGORIEN } from './seed-kategorien';
 import { KATEGORIE_ZU_SPINE } from './spine-kategorie';
-import { reichereWerteAn } from './status-codes';
+import { findeStatusCode, reichereWerteAn } from './status-codes';
 import { SEED_ZAH_PHASEN } from './zah-phasen';
 import { KANONISCHE_FELDER, KANONISCHE_CODE_FELDER } from './seed-kanonisch';
 import { baueTodoRegelSeed } from './todo-regeln.seed';
@@ -73,13 +73,23 @@ const MEILENSTEIN_WERTE = new Set<string>([
   'abgelehnt/zurückgezogen',
 ]);
 
-/** Wert-Ebene: `bearbeitungsreif`/`NL eingegangen` sitzen in „Vollständigkeit",
- *  alle übrigen `offen`-Werte in „Eingang" (wie der Stepper). */
+/**
+ * Status-Codes, deren Wert die Station „Vollständigkeit" markiert: 34
+ * (bearbeitungsreif) und 36 (NL eingegangen).
+ *
+ * Über den CODE, nicht über den Rohtext plus `kategorie === 'offen'`: dieselbe
+ * Zuordnung hing bis v2.383 an zwei Literalen, und der Kategorie-Wechsel von
+ * „NL eingegangen" auf `nachforderung` hätte sie still ausgehebelt — die
+ * Spine-Phase wäre von `vollstaendigkeit` auf `fachpruefung` gesprungen und
+ * hätte jeden NL-Verbund zu einer neuen Abweichung im Phasen-Vergleich gemacht.
+ * Bewusst NICHT 33/35/37: das reproduziert die Zuordnung, die vorher galt.
+ */
+const VOLLSTAENDIGKEITS_CODES: ReadonlySet<number> = new Set([34, 36]);
+
+/** Wert-Ebene: siehe {@link VOLLSTAENDIGKEITS_CODES}; sonst die Kategorie-Abbildung. */
 function spineFor(normalisierterWert: string, kategorie: StatusCategory): SpinePhase {
-  if (kategorie === 'offen'
-    && (normalisierterWert === 'bearbeitungsreif' || normalisierterWert === 'nl eingegangen')) {
-    return 'vollstaendigkeit';
-  }
+  const code = findeStatusCode(normalisierterWert)?.eintrag.code;
+  if (code !== undefined && VOLLSTAENDIGKEITS_CODES.has(code)) return 'vollstaendigkeit';
   return KATEGORIE_ZU_SPINE[kategorie];
 }
 

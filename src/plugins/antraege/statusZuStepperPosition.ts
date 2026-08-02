@@ -14,6 +14,9 @@
  * `status-canonical.ts` (Pitfall #12), nie gegen Status-Literale.
  */
 import { getStatusCategory, isAbgelehntZurueckgezogenStatus } from '@/core/utils/status-canonical';
+// Direktimport auf das Quellmodul, NICHT über das Barrel `@/core/status` — das
+// zieht `snapshot.ts` mit und damit einen Laufzeit-Zyklus (Zyklen-Wächter).
+import { findeStatusCode } from '@/core/status/status-codes';
 
 /** Die fünf amtlichen Stationen (1-indiziert über `station`). */
 export const STEPPER_STATIONS = [
@@ -33,19 +36,24 @@ export interface StepperPosition {
   terminal?: 'abgelehnt' | 'zurueckgezogen';
 }
 
-function normalize(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const t = raw.trim().toLowerCase();
-  return t.length === 0 ? null : t;
-}
+/**
+ * Status-Codes, die auf der Vollständigkeits-Station stehen: 34
+ * (bearbeitungsreif) und 36 (NL eingegangen).
+ *
+ * Über den CODE statt über Roh-Literale (Pitfall #12) — und unabhängig von der
+ * Kategorie: `NL eingegangen` ist seit v2.383 `nachforderung`, die Station
+ * bleibt aber 2. Hinge die Prüfung wie vorher an `case 'offen'`, wäre sie mit
+ * dem Kategorie-Wechsel still auf Station 3 gerutscht.
+ */
+const VOLLSTAENDIGKEITS_CODES: ReadonlySet<number> = new Set([34, 36]);
 
 /**
  * Bildet einen rohen amtlichen Status auf die Stepper-Position ab.
  *
  * - Terminal-negativ (Bauantrag `abgelehnt` ODER Förderantrag
  *   `abgelehnt/zurückgezogen`) → Station 3 (Fachprüfung) + `terminal`.
- * - `offen`: `bearbeitungsreif`/`NL eingegangen` → 2 (Vollständigkeit),
- *   sonst (`beantragt`, `neu`, `eingereicht`, …) → 1 (Eingang).
+ * - Codes 34/36 → 2 (Vollständigkeit), unabhängig von der Kategorie.
+ * - `offen` → 1 (Eingang).
  * - `in_pruefung` / `nachforderung` / `entscheidung` → 3 (Fachprüfung).
  * - `bewilligt` / `begleitung` → 4 (Bewilligung).
  * - `abgeschlossen` → 5 (Schluss).
@@ -59,12 +67,12 @@ export function statusZuStepperPosition(status: unknown): StepperPosition {
     return { station: 3, terminal };
   }
 
+  const code = findeStatusCode(status)?.eintrag.code;
+  if (code !== undefined && VOLLSTAENDIGKEITS_CODES.has(code)) return { station: 2 };
+
   switch (getStatusCategory(status)) {
-    case 'offen': {
-      const raw = normalize(status);
-      if (raw === 'bearbeitungsreif' || raw === 'nl eingegangen') return { station: 2 };
+    case 'offen':
       return { station: 1 };
-    }
     case 'in_pruefung':
     case 'nachforderung':
     case 'entscheidung':

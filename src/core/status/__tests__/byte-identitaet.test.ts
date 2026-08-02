@@ -1,7 +1,21 @@
 /**
- * Kernzusage von Phase 1: `getStatusCategory` liefert über den Katalog-Snapshot
- * BITWEISE dasselbe wie über die eingebaute `CATEGORY_MAP`. Wir erfassen die
- * Baseline OHNE Snapshot, setzen dann den Seed-Snapshot und vergleichen.
+ * **Liefert die Ableitung über beide Pfade dasselbe?** — `getStatusCategory`
+ * über den Katalog-Snapshot BITWEISE gleich wie über die eingebaute
+ * `CATEGORY_MAP`. Baseline OHNE Snapshot erfassen, Seed-Snapshot setzen,
+ * vergleichen.
+ *
+ * **Warum das trägt, und wofür.** Die eingebaute Map ist der einzige Pfad, den
+ * prod/as haben: dort ist `statusCockpit` aus, `initStatusKatalog` läuft nie,
+ * ein Snapshot existiert nicht. Weichen die Pfade ab, verhält sich dieselbe
+ * App-Version je nach Variante anders — und niemand merkt es, weil beide für
+ * sich plausibel aussehen.
+ *
+ * **Die wahrscheinlichste Art, das kaputtzumachen**, seit die Fassade aus dem
+ * Code-Katalog gespeist wird: eine Schreibweise, die die eingebaute Map kennt,
+ * fehlt im Seed. Der Katalog führt eine Zeile je Code und trägt die
+ * Schreibweisen als `varianten`; vergisst der Snapshot sie, löst
+ * „techn. geprüft" nur noch über die eingebaute Map auf. Deshalb prüft dieser
+ * Test seit v2.383 **jede Variante einzeln** — nicht nur die kanonischen Werte.
  *
  * Setzt Modul-globalen Zustand (den Snapshot in status-canonical.ts) → läuft im
  * Projekt `isolated` und räumt in `afterAll` auf.
@@ -13,6 +27,8 @@ import {
 } from '@/core/utils/status-canonical';
 import { setStatusKatalogSnapshot } from '@/core/status/snapshot';
 import { baueSeedVersion } from '@/core/status/seed';
+import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
+import { SEED_MARKER_CODES } from '@/core/status/zah-phasen';
 
 const ALLE_KATEGORIEN: StatusCategory[] = [
   'offen', 'in_pruefung', 'nachforderung', 'entscheidung',
@@ -20,6 +36,8 @@ const ALLE_KATEGORIEN: StatusCategory[] = [
 ];
 
 const KANON_WERTE = getCanonicalStatusEntries().map(([w]) => w);
+/** Jede im Code-Katalog gepflegte Schreibweise — Text UND Varianten. */
+const ALLE_SCHREIBWEISEN = STATUS_CODE_KATALOG.flatMap(e => [e.text, ...e.varianten]);
 const RAND_WERTE = [
   'VN angefordert', 'ZB eingegangen', 'ZB.foo', 'Widerruf',
   'BEWILLIGT', 'Gutachten Fertig', 'schlussvermerk', 'abgelehnt/zurückgezogen',
@@ -31,7 +49,7 @@ afterAll(() => setStatusKatalogSnapshot(null));
 
 describe('Byte-Identität Katalog-Snapshot vs. eingebaute CATEGORY_MAP', () => {
   it('getStatusCategory ist für alle Roh- und Randwerte identisch', () => {
-    const werte = [...KANON_WERTE, ...RAND_WERTE];
+    const werte = [...KANON_WERTE, ...ALLE_SCHREIBWEISEN, ...RAND_WERTE];
     // Baseline OHNE Snapshot.
     const baseline = new Map(werte.map(w => [w, getStatusCategory(w)]));
     const baselineNichtStrings = NICHT_STRINGS.map(w => getStatusCategory(w));
@@ -61,5 +79,58 @@ describe('Byte-Identität Katalog-Snapshot vs. eingebaute CATEGORY_MAP', () => {
     setStatusKatalogSnapshot(baueSeedVersion());
     setStatusKatalogSnapshot(null);
     expect(getStatusCategory('gutachten fertig')).toBe(vorher);
+  });
+
+  it('JEDE gepflegte Variante löst über den Snapshot auf — nicht nur der amtliche Text', () => {
+    // Die Lücke, die dieser Guard seit v2.383 vor allem fängt: der Katalog führt
+    // eine Zeile je Code, die Schreibweisen des Exports hängen als `varianten`
+    // daran. Fehlten sie im Snapshot, verhielte sich prod (eingebaute Map)
+    // anders als pl (Snapshot) — in derselben Version.
+    setStatusKatalogSnapshot(baueSeedVersion());
+    for (const e of STATUS_CODE_KATALOG) {
+      // Marker sind `sonstige` — dort ist es die Aussage, nicht die Lücke.
+      if (SEED_MARKER_CODES.has(e.code)) continue;
+      for (const s of [e.text, ...e.varianten]) {
+        expect(getStatusCategory(s), `${e.code}: „${s}"`).not.toBe('sonstige');
+      }
+    }
+  });
+
+  it('Marker bleiben `sonstige` — auch über den Snapshot', () => {
+    setStatusKatalogSnapshot(baueSeedVersion());
+    for (const s of ['Irrläufer', 'Sonderstatus', 'assoziierter Partner', 'internationaler Partner']) {
+      expect(getStatusCategory(s), s).toBe('sonstige');
+    }
+  });
+
+  it('eine ALTE Fassung schleppt ihre Kategorien nicht mit', () => {
+    // Beobachtet an Fassung v7: sie führte `NL eingegangen` noch als `offen`,
+    // während die eingebaute Map schon `nachforderung` sagte. Konsumenten, die
+    // beim Modul-Laden fragten, sahen das eine, Render-Zeit-Konsumenten das
+    // andere — auf derselben Seite, mit verschiedenen Zahlen.
+    const alt = baueSeedVersion();
+    const veraltet = {
+      ...alt,
+      werte: alt.werte.map(w => ({ ...w, kategorie: 'sonstige' as const })),
+    };
+    setStatusKatalogSnapshot(veraltet);
+    // Die Kategorie kommt aus Code + ZAH-Phase, nicht aus dem gepflegten Feld.
+    expect(getStatusCategory('NL eingegangen')).toBe('nachforderung');
+    expect(getStatusCategory('bewilligt')).toBe('bewilligt');
+    expect(getStatusCategory('Schlussvermerk')).toBe('abgeschlossen');
+  });
+
+  it('eine PL-Umhängung der ZAH-Phase zieht die Kategorie mit', () => {
+    // Die Zusage des Vorgangssystems: umhängen ist eine Katalog-Zeile, kein
+    // Deployment. Sie trägt nur, wenn die Kategorie der Phase folgt.
+    const alt = baueSeedVersion();
+    const umgehaengt = {
+      ...alt,
+      werte: alt.werte.map(w => (w.code === 40 ? { ...w, zahPhaseId: 'entscheidung' as const } : w)),
+    };
+    setStatusKatalogSnapshot(umgehaengt);
+    expect(getStatusCategory('Gutachten fertig')).toBe('entscheidung');
+    setStatusKatalogSnapshot(baueSeedVersion());
+    expect(getStatusCategory('Gutachten fertig')).toBe('in_pruefung');
   });
 });

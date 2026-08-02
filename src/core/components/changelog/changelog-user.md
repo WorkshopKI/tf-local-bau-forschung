@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.383 — 2026-08
+
+### Bugfixes
+- 16 Vorgänge mit dem Status „Stellungnahme zur Rücknahmeempfehlung" tauchten in keiner Arbeitsliste auf. Grund: die App kannte diesen Status nur in der abgekürzten Schreibweise, der Export schreibt ihn aus. Alle Statuswerte kommen jetzt aus dem amtlichen Statuscode-Katalog, samt der bekannten Schreibweisen.
+- Anträge mit Status „unvollständig" (6 Stück) galten als Sonderfall und standen in keiner Liste. Sie sind offene Arbeit in der Vollständigkeitsprüfung und erscheinen jetzt dort — „Irrläufer" bleibt bewusst außen vor.
+### Verbesserungen
+- „NL eingegangen" zählt jetzt zum Nachforderungs-Zyklus statt allgemein zu „offen" — wie „NF gestellt" und „keine weiteren NF" auch. Der NF-Reiter zeigt dadurch 52 Anträge mehr.
+- Hängt die Projektleitung im Status-Katalog einen Code auf eine andere Phase um, folgt die Einordnung des Antrags jetzt automatisch. Vorher blieb sie auf dem Stand, unter dem die Katalog-Fassung angelegt wurde.
+
 ## v2.382 — 2026-08
 
 ### Verbesserungen

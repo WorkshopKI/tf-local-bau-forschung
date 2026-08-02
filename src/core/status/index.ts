@@ -71,7 +71,7 @@ export {
   type TriggerRohzeile, type TextbausteinLegende,
 } from './trigger-parser';
 export {
-  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster,
+  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, musterBilanzAlsText,
   type PhasenVergleich, type PhasenVergleichZeile, type AbweichungsMuster,
 } from './phasen-vergleich';
 export {

@@ -25,6 +25,7 @@ import type { VerbundFelder } from './cockpit-berechnung';
 // nur BENUTZT, nicht weitergereicht: ein zweiter Ausgang für dasselbe Objekt
 // wäre ein zweiter Fundort — genau das, was der Modulkopf dort ausschließt.
 import { ZAH_ZU_SPINE } from './zah-phasen';
+import { indexNachSchreibweise } from './wert-index';
 import { normalisiereWert, type MappingVersion, type SpinePhase, type ZahPhaseId } from './typen';
 
 /** Ein Verbund im Vergleich beider Lesarten. */
@@ -77,13 +78,10 @@ function statusVon(vf: VerbundFelder): string {
 export function vergleichePhasen(
   version: MappingVersion, alle: readonly VerbundFelder[], heute?: string,
 ): PhasenVergleich {
-  // Statuswert → Katalog-Eintrag. Über beide Wert-Felder, weil derselbe Rohwert
+  // Statuswert → Katalog-Eintrag, über alle bekannten Schreibweisen
+  // (`indexNachSchreibweise`). Über beide Wert-Felder, weil derselbe Rohwert
   // unter `status` und `verbund_status` geführt wird.
-  const nachWert = new Map<string, { code?: number; zahPhaseId?: ZahPhaseId | null; marker?: boolean }>();
-  for (const w of version.werte) {
-    const k = normalisiereWert(w.wert);
-    if (!nachWert.has(k)) nachWert.set(k, w);
-  }
+  const nachWert = indexNachSchreibweise(version.werte);
 
   const zeilen: PhasenVergleichZeile[] = [];
   let gleich = 0;
@@ -174,6 +172,38 @@ export function abweichungsMuster(v: PhasenVergleich): AbweichungsMuster[] {
   return [...proMuster.values()].sort(
     (a, b) => b.anzahl - a.anzahl || a.statusRoh.localeCompare(b.statusRoh, 'de'),
   );
+}
+
+/**
+ * Die Muster-Bilanz als Text — zum Kopieren aus der Dev-Diagnose.
+ *
+ * **Ohne Verbund-IDs und ohne Förderkennzeichen.** Der Text wandert in
+ * Protokolle, Tickets und Fixtures; er trägt Muster, Codes und Zählungen, keine
+ * Vorgangs-Bezüge. Die Beispiele bleiben am Bildschirm, wo sie zum Nachschlagen
+ * gebraucht werden.
+ *
+ * Damit ist Nachmessen bei jedem künftigen Katalog- oder Datenstand ein Klick,
+ * kein Abtippen — und die eingefrorene Fixture-Tabelle bleibt vergleichbar.
+ */
+export function musterBilanzAlsText(
+  v: PhasenVergleich, kopf?: { stichtag?: string; katalogVersion?: number },
+): string {
+  const zeilen: string[] = ['Phasen-Vergleich — Muster-Bilanz'];
+  const teile: string[] = [];
+  if (kopf?.stichtag) teile.push(`Stichtag ${kopf.stichtag}`);
+  if (kopf?.katalogVersion !== undefined) teile.push(`Katalog v${kopf.katalogVersion}`);
+  if (teile.length > 0) zeilen.push(teile.join(' · '));
+  zeilen.push(
+    `${v.zeilen.length} Verbünde: ${v.gleich} gleich, ${v.abweichend} abweichend, `
+    + `${v.unvergleichbar} nicht vergleichbar`,
+  );
+  zeilen.push('');
+  zeilen.push('Anzahl\tCode\tStatus (roh)\tZAH-Phase\tSpine (alt)');
+  for (const m of abweichungsMuster(v)) {
+    zeilen.push(`${m.anzahl}\t${m.code ?? '—'}\t${m.statusRoh || '(leer)'}\t${m.zahPhase ?? '—'}\t${m.spinePhase}`);
+  }
+  if (v.abweichend === 0) zeilen.push('(keine Abweichung)');
+  return zeilen.join('\n');
 }
 
 /** Kurzfassung für die Oberfläche. */

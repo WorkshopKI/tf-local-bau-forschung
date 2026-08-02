@@ -15,7 +15,17 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
   it.each([
     ['beantragt', 'offen'],
     ['bearbeitungsreif', 'offen'],
-    ['NL eingegangen', 'offen'],
+    // v2.383: Code 36 liegt in der Phase Vollständigkeit und gehört zum
+    // Nachforderungs-Zyklus (35–37) — 37 „keine weiteren NF" lag schon vorher
+    // dort, 36 zieht nach. Bleibt `isOpenStatus`.
+    ['NL eingegangen', 'nachforderung'],
+    // Amtliche Schreibweisen, die die alte Handtabelle nicht kannte und die
+    // deshalb auf `sonstige` fielen — seit v2.383 über den Code-Katalog.
+    ['Skizze eingegangen', 'offen'],
+    ['Ablehnung versandt', 'entscheidung'],
+    ['Rücknahmeempfehlung versandt', 'entscheidung'],
+    ['Stellungnahme zur Rücknahmeempfehlung', 'entscheidung'],
+    ['VN technisch geprüft', 'begleitung'],
     // Antrags-Pruefung (vor Bewilligung) bleibt in_pruefung
     ['techn geprüft', 'in_pruefung'],
     ['kaufm geprüft', 'in_pruefung'],
@@ -41,8 +51,15 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['beendet', 'abgeschlossen'],
     ['abgelehnt/zurückgezogen', 'abgeschlossen'],
     ['abgebrochen', 'abgeschlossen'],
+    // Marker (29/88/93/94) laufen ohne Phase neben dem Verfahren — `sonstige`
+    // ist hier die Aussage, nicht die Lücke.
     ['Irrläufer', 'sonstige'],
-    ['unvollständig', 'sonstige'],
+    ['Sonderstatus', 'sonstige'],
+    ['assoziierter Partner', 'sonstige'],
+    // v2.383: Code 33 liegt in der Phase Vollständigkeit und ist offene Arbeit.
+    // Unter `sonstige` war er in keiner Arbeitsliste sichtbar. Die Asymmetrie zu
+    // 29 Irrläufer (bleibt Marker) ist gewollt.
+    ['unvollständig', 'offen'],
   ] as const)('"%s" → %s', (raw, expected) => {
     expect(getStatusCategory(raw)).toBe(expected);
   });
@@ -100,6 +117,9 @@ describe('getStatusCategory — Edge-Cases', () => {
 describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheidung + begleitung ab', () => {
   it.each([
     'beantragt', 'bearbeitungsreif', 'NL eingegangen',
+    // v2.383: Code 33 ist offene Arbeit in der Vollständigkeitsphase und taucht
+    // damit erstmals in den Arbeitslisten auf, statt unter `sonstige` zu liegen.
+    'unvollständig', 'Skizze eingegangen',
     'kaufm geprüft', 'Gutachten fertig', 'techn geprüft',
     // VN-Stati zaehlen jetzt als Begleitung — bleiben aber offen (noch nicht abgeschlossen)
     'VN geprüft', 'VN techn. geprüft', 'ZB eingegangen',
@@ -118,7 +138,8 @@ describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheid
     'abgelehnt',
     'Schlussvermerk', 'archiviert', 'abgeschlossen', 'abgebrochen',
     'abgelehnt/zurückgezogen',
-    'Irrläufer', 'unvollständig', '', undefined,
+    // Marker laufen neben dem Verfahren — kein Arbeitsvorrat.
+    'Irrläufer', 'Sonderstatus', '', undefined,
   ])('"%s" ist NICHT offen', s => {
     expect(isOpenStatus(s)).toBe(false);
   });

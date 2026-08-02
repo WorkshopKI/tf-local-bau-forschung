@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.383.0 — Fassade aus Code-Join und ZAH-Phase (August 2026)
+
+MINOR — Die Kategorie-Fassade hielt eine zweite, handgeschriebene Werteliste neben dem Code-Katalog. Sie kannte nur 21 der 30 amtlichen Statuscodes unter ihrem amtlichen Namen; bei Code 72 ging das schon schief — der Export schreibt „Stellungnahme zur Rücknahmeempfehlung" aus, die Tabelle kannte nur die Abkürzung, und 16 Vorgänge lagen deshalb unter `sonstige`.
+
+- `getStatusCategory` wird intern aus Rohtext → Code → ZAH-Phase → Kategorie gespeist; flag-unabhängig in der eingebauten Map, nicht nur im Snapshot ([kategorie-ableitung.ts](src/core/status/kategorie-ableitung.ts), [status-canonical.ts](src/core/utils/status-canonical.ts)).
+- Varianten-Auflösung an **einer** Stelle statt in dreien — Snapshot, Phasen-Vergleich und Ableitung schlagen über dieselbe Regel nach ([wert-index.ts](src/core/status/wert-index.ts)).
+- Der Snapshot leitet die Kategorie aus Phase + Code ab, statt sie aus der Fassung zu übernehmen: eine ältere Fassung schleppte sonst ihre Kategorien mit, und eine PL-Umhängung wirkte nicht ([snapshot.ts](src/core/status/snapshot.ts)).
+- Golden Test friert die zwölf Abweichungs-Muster ein; die Dev-Diagnose kopiert die Bilanz als Text, ohne Verbund-IDs ([phasen-vergleich-golden.test.ts](src/core/status/__tests__/phasen-vergleich-golden.test.ts), [DiagnoseSektion.tsx](src/plugins/status-cockpit/DiagnoseSektion.tsx)).
+- Sechs dokumentierte Kategorie-Deltas, drei davon im Bestand wirksam: `unvollständig` (+6), `NL eingegangen` (52 → Nachforderung), Code 72 (+16) — Details in [phasen-vergleich-muster.ts](src/core/status/__tests__/fixtures/phasen-vergleich-muster.ts).
+
 ### v2.382.0 — Vorab-Fixes vor dem Ableitungs-Rückbau (August 2026)
 
 MINOR — Drei kleine Korrekturen an genau den Flächen, die nach dem Rückbau der alten Statusableitung (P6) die einzigen sind: der Wächter zählte Termine als Bearbeitung, das Herleitungs-Popover sagte nicht, welchen Status es erklärt, und dieselbe Seite zeigte drei Datumsformate nebeneinander.

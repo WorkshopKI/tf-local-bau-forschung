@@ -14,9 +14,11 @@ import { useMemo } from 'react';
 import { Stethoscope } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { isDevContext } from '@/config/feature-flags';
 import {
-  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, zahPhaseLabel,
+  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, musterBilanzAlsText,
+  zahPhaseLabel,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { SPINE_LABEL, feldStil } from './labels';
@@ -31,6 +33,16 @@ export function DiagnoseSektion({ api }: { api: StatusCockpitApi }): React.React
   const vergleich = useMemo(
     () => (api.entwurf ? vergleichePhasen(api.entwurf, api.verbundFelder, api.stichtag) : null),
     [api.entwurf, api.verbundFelder, api.stichtag],
+  );
+
+  // Vor dem frühen `return`, damit die Hook-Reihenfolge stabil bleibt (React #310).
+  const kopieren = useKopierAktion(
+    () => (vergleich
+      ? musterBilanzAlsText(vergleich, {
+        stichtag: api.stichtag.slice(0, 10), katalogVersion: api.entwurf?.version,
+      })
+      : ''),
+    'Muster-Bilanz kopieren (ohne Verbund-IDs)',
   );
 
   if (!isDevContext() || !vergleich) return null;
@@ -68,6 +80,16 @@ export function DiagnoseSektion({ api }: { api: StatusCockpitApi }): React.React
             <span className="text-[var(--tf-text-tertiary)]">
               nicht vergleichbar: <b>{vergleich.unvergleichbar}</b>
             </span>
+            {/* Nachmessen muss ein Klick sein, kein Abtippen: die Bilanz geht als
+                Text in Protokoll und Fixture — ohne Verbund-IDs. */}
+            <button
+              type="button"
+              onClick={() => { void kopieren.run(); }}
+              title={kopieren.titel}
+              className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline"
+            >
+              {kopieren.fehler ? '⚠ nicht kopiert' : kopieren.kopiert ? 'kopiert' : 'Bilanz kopieren'}
+            </button>
           </div>
 
           {muster.length === 0 ? (

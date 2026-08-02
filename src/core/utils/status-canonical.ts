@@ -39,56 +39,25 @@ export type StatusCategory =
   | 'abgeschlossen' // abgeschlossen (Schlussvermerk, abgebrochen, zurueckgezogen)
   | 'sonstige';     // Irrlaeufer, unvollstaendig, leer, unbekannt
 
-const FOERDERANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> = [
-  // Eingang
-  ['beantragt', 'offen'],
-  ['bearbeitungsreif', 'offen'],
-  ['nl eingegangen', 'offen'],
-  // Antrags-Pruefung (vor Bewilligung)
-  ['techn geprüft', 'in_pruefung'],
-  ['kaufm geprüft', 'in_pruefung'],
-  ['gutachten fertig', 'in_pruefung'],
-  // Begleitung (nach Bewilligung): Verwendungsnachweis-Pruefung + Widerrufs-
-  // Verfahren. Pattern-Fallback unten matched zusaetzlich alle Stati die mit
-  // "VN " oder "ZB " beginnen — neue VN-/ZB-Varianten muessen nicht zwingend
-  // manuell gelistet werden. Widerruf-Stati gehoeren konzeptionell zur
-  // Begleitphase (post-Bewilligungs-Verfahren, gleicher Lebenszyklus); sie
-  // werden hier explizit gelistet, weil das VN-/ZB-Pattern sie nicht faengt.
-  ['vn geprüft', 'begleitung'],
-  ['vn techn. geprüft', 'begleitung'],
-  ['widerruf', 'begleitung'],
-  ['anhörung zum widerruf', 'begleitung'],
-  // Entscheidungs-Vorbereitung + in-Process-Negativ-Entscheidungen
-  // (pre-Bewilligung). Solange der Vorgang in Ablehnungsreif/Ruecknahme/
-  // Widerspruch laeuft, ist er aktiv im Verfahren — NICHT final-abgelehnt.
-  // Erst der abschliessende Status `abgelehnt/zurueckgezogen` (Kategorie
-  // `abgeschlossen`) macht den negativen Ausgang final. Konsequenz:
-  // `isOpenStatus` matched diese, `isClosedStatus` nicht. `isAbgelehntStatus`
-  // (Bauantrag-Domain) matched sie ebenfalls nicht.
-  ['bewilligungsreif', 'entscheidung'],
-  ['bewilligungsentwurf vdi/vde-it', 'entscheidung'],
-  ['ablehnungsreif', 'entscheidung'],
-  ['ablehnung', 'entscheidung'],
-  ['rücknahmeempfehlung', 'entscheidung'],
-  ['stellungnahme zur rücknahmeempf.', 'entscheidung'],
-  ['widerspruch zur ablehnung', 'entscheidung'],
-  // Positiv (final)
-  ['bewilligt', 'bewilligt'],
-  // Nachforderung
-  ['nf gestellt', 'nachforderung'],
-  ['keine weiteren nf', 'nachforderung'],
-  // Abgeschlossen (final — schliesst auch den negativ-finalen Pfad
-  // `abgelehnt/zurueckgezogen` ein; Foerderantrag-Domain hat keinen
-  // separaten `abgelehnt`-Endzustand).
-  ['schlussvermerk', 'abgeschlossen'],
-  ['beendet', 'abgeschlossen'],
-  ['abgelehnt/zurückgezogen', 'abgeschlossen'],
-  ['abgebrochen', 'abgeschlossen'],
-  // Sonstige
-  ['irrläufer', 'sonstige'],
-  ['unvollständig', 'sonstige'],
-];
+/**
+ * Die Foerderantrag-Haelfte entsteht seit v2.383 aus dem **Code-Katalog** des
+ * Fachsystems: Rohtext → amtlicher Code → ZAH-Phase → Kategorie
+ * (`core/status/kategorie-ableitung.ts`). Sie war vorher eine zweite,
+ * handgeschriebene Werteliste neben dem Code-Katalog und kannte nur 21 der 30
+ * Codes unter ihrem amtlichen Namen — Code 72 fiel deshalb schon im Ist auf
+ * `sonstige`. Neue Schreibweisen sind jetzt ein Listeneintrag in
+ * `status-codes.ts`, keine zweite Pflegestelle.
+ *
+ * Einbahn-Abhaengigkeit: `core/utils` → `core/status/{kategorie-ableitung,
+ * status-codes, zah-phasen}` (alles Blaetter). NIE ueber das Barrel
+ * `@/core/status` — das zoege `snapshot.ts` und damit dieses Modul zurueck.
+ */
+import { baueFoerderKategorieEintraege, baueFoerderSeedEintraege } from '@/core/status/kategorie-ableitung';
 
+/**
+ * Die Bauantrag-Domaene (dev/demo) bleibt eine Handliste: sie hat keine
+ * amtlichen Codes und gehoert nicht in dieses Verfahren (Pitfall #9).
+ */
 const BAUANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> = [
   // Eingang
   ['neu', 'offen'],
@@ -111,9 +80,10 @@ const BAUANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> = [
   ['abgeschlossen', 'abgeschlossen'],
 ];
 
+/** Alle bekannten Schreibweisen — Foerder-Domaene abgeleitet, Bauantrag von Hand. */
 const CATEGORY_MAP: ReadonlyMap<string, StatusCategory> = (() => {
   const m = new Map<string, StatusCategory>();
-  for (const [key, cat] of FOERDERANTRAG_STATUSES) m.set(key, cat);
+  for (const [key, cat] of baueFoerderKategorieEintraege()) m.set(key, cat);
   for (const [key, cat] of BAUANTRAG_STATUSES) m.set(key, cat);
   return m;
 })();
@@ -139,11 +109,21 @@ function effektiveMap(): ReadonlyMap<string, StatusCategory> {
   return snapshotMap ?? CATEGORY_MAP;
 }
 
-/** Alle eingebauten (normalisiert(Rohwert) → Kategorie)-Paare — Einzelquelle für
- *  den deterministischen Seed des Status-Katalogs. Liefert IMMER die eingebaute
- *  `CATEGORY_MAP` (nie den Snapshot): der Seed leitet SICH aus ihr ab. */
+/**
+ * Die (normalisiert(Rohwert) → Kategorie)-Paare für den **Seed** des
+ * Status-Katalogs — Einzelquelle, damit Katalog und Fassade nicht auseinander
+ * laufen. Liefert nie den Snapshot: der Seed leitet SICH hieraus ab.
+ *
+ * **Eine Zeile je Code** (amtlicher Text) plus die Bauantrag-Domäne. Die
+ * Varianten sind bewusst NICHT dabei: als eigene Katalog-Einträge wären sie
+ * kuratierbare Doppelzeilen desselben Codes. Sie hängen am Eintrag
+ * (`StatusWertEintrag.varianten`, gesetzt von `reichereWerteAn`), und
+ * `snapshot.ts` zieht sie beim Bau der Nachschlage-Map mit — deshalb löst der
+ * Snapshot-Weg trotzdem dieselben Schreibweisen auf wie die eingebaute Map
+ * (`byte-identitaet`).
+ */
 export function getCanonicalStatusEntries(): ReadonlyArray<readonly [string, StatusCategory]> {
-  return [...CATEGORY_MAP.entries()];
+  return [...baueFoerderSeedEintraege(), ...BAUANTRAG_STATUSES];
 }
 
 function normalize(raw: unknown): string | null {

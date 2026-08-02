@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster,
+  vergleichePhasen, vergleichZusammenfassung, abweichungsMuster, musterBilanzAlsText,
 } from '@/core/status/phasen-vergleich';
 import { ZAH_ZU_SPINE } from '@/core/status/zah-phasen';
 import { baueSeedVersion } from '@/core/status/seed';
@@ -142,6 +142,38 @@ describe('abweichungsMuster', () => {
   it('nimmt erklärte Nicht-Vergleiche nicht auf', () => {
     const v = vergleichePhasen(seed, [vb('A', 'Irrläufer'), vb('B', 'Wunschstatus')], HEUTE);
     expect(abweichungsMuster(v)).toEqual([]);
+  });
+});
+
+describe('musterBilanzAlsText — was kopiert wird', () => {
+  /** Fassung, in der „beantragt" umgehängt ist — erzeugt eine Abweichung. */
+  const umgehaengt: MappingVersion = {
+    ...seed,
+    werte: seed.werte.map(w => (w.wert === 'beantragt' ? { ...w, zahPhaseId: 'abgeschlossen' } : w)),
+  };
+  const viele = [
+    ...Array.from({ length: 3 }, (_, i) => vb(`VB-${i}`, 'beantragt')),
+    vb('VB-M', 'Irrläufer'),
+  ];
+
+  it('trägt Bilanz, Kopfdaten und je Muster Anzahl, Code und beide Phasen', () => {
+    const text = musterBilanzAlsText(
+      vergleichePhasen(umgehaengt, viele, HEUTE), { stichtag: '2026-08-01', katalogVersion: 7 },
+    );
+    expect(text).toContain('Stichtag 2026-08-01');
+    expect(text).toContain('Katalog v7');
+    expect(text).toContain('4 Verbünde: 0 gleich, 3 abweichend, 1 nicht vergleichbar');
+    expect(text).toContain('3\t31\tbeantragt');
+  });
+
+  it('nennt KEINE Verbund-IDs — der Text wandert in Protokolle und Fixtures', () => {
+    const text = musterBilanzAlsText(vergleichePhasen(umgehaengt, viele, HEUTE));
+    for (const v of viele) expect(text).not.toContain(v.verbundId);
+  });
+
+  it('sagt ausdrücklich, wenn es nichts zu melden gibt', () => {
+    const text = musterBilanzAlsText(vergleichePhasen(seed, [vb('A', 'beantragt')], HEUTE));
+    expect(text).toContain('(keine Abweichung)');
   });
 });
 

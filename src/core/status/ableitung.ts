@@ -14,6 +14,7 @@ import type {
   MappingVersion, SpinePhase, StatusCategory, StatusFeldEintrag, StatusWertEintrag,
 } from './typen';
 import { normalisiereWert } from './typen';
+import { indexNachSchreibweise } from './wert-index';
 import { kategorieFuerFeld } from './spine-kategorie';
 import { baueKontext, pruefeBedingung, type BedingungsKontext } from './bedingung';
 
@@ -45,10 +46,10 @@ function sammleEingaenge(
   return out;
 }
 
+/** Feld-skopierter Nachschlage-Index inklusive der bekannten Varianten
+ *  (`indexNachSchreibweise` — dieselbe Regel wie Snapshot und Phasen-Vergleich). */
 function wertIndex(version: MappingVersion): Map<string, StatusWertEintrag> {
-  const m = new Map<string, StatusWertEintrag>();
-  for (const w of version.werte) m.set(`${w.feldId}::${normalisiereWert(w.wert)}`, w);
-  return m;
+  return indexNachSchreibweise(version.werte, (w, norm) => `${w.feldId}::${norm}`);
 }
 
 /**
