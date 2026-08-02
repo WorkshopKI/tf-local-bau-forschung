@@ -2,7 +2,7 @@ export * from './types';
 export * from './constants';
 export { murmurhash3, canonicalRowHash } from './hash';
 export { sha1Hex } from './sha1';
-export { parseGermanDate, formatGermanDate } from './dateParse';
+export { parseGermanDate, formatGermanDate, formatDatumsWert } from './dateParse';
 export { parseCsvPreview, parseCsvStream, parseCsvAll } from './parser';
 export type { CsvPreview, StreamOptions } from './parser';
 export {

@@ -1,5 +1,5 @@
 /** Kleine Formatter für Glance + Partner-Tabelle (geteilt, pur/testbar). */
-import { formatGermanDate } from '@/core/services/csv';
+import { formatDatumsWert } from '@/core/services/csv';
 
 /**
  * Parst einen „Euroish"-Rohwert (Number oder String wie `"280.000"`,
@@ -21,13 +21,12 @@ export function formatEuro(n: number): string {
 }
 
 /**
- * Formatiert einen Datums-Rohwert tolerant: ISO `YYYY-MM-DD` → deutsch;
- * bereits deutsche `DD.MM.YYYY` → unverändert; sonst der Roh-String.
+ * Formatiert einen Datums-Rohwert tolerant. Die Formatierung selbst liegt in
+ * `formatDatumsWert` (eine Kette für die ganze App); hier bleibt nur die
+ * `unknown`-Annahme und das `null` für „nichts anzuzeigen".
  */
 export function formatDateish(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const t = raw.trim();
-  if (t.length === 0) return null;
-  if (/^\d{4}-\d{2}-\d{2}/.test(t)) return formatGermanDate(t);
-  return t;
+  return t.length === 0 ? null : formatDatumsWert(t);
 }

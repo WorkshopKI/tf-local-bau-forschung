@@ -5,6 +5,7 @@
  * Prominenz, Werkzeug), die Aufzähl-Reihenfolgen für Selects/Filter und die
  * gemeinsamen Feld-Klassen (aus dem ChecklistenEditor-Muster übernommen).
  */
+import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
 import {
   SPINE_REIHENFOLGE,
   type SpinePhase, type StatusCategory, type Prominenz, type Werkzeug,
@@ -89,12 +90,12 @@ export const feldKlasse = `w-full ${feldKlasseSchmal}`;
 /** Haarlinien-Rahmen für Inline-Formularfelder (einzige erlaubte Inline-Style-Ausnahme). */
 export const feldStil: React.CSSProperties = { border: '0.5px solid var(--tf-border)' };
 
-/** ISO-Zeitstempel → `DD.MM.YYYY`; leer/ungültig → `—`. */
+/** ISO-Zeitstempel → `DD.MM.YYYY`; leer/ungültig → `—`.
+ *  Über dieselbe Parse-/Format-Kette wie der Rest der App — nur das `—` für
+ *  „nichts anzuzeigen" ist Cockpit-eigen. */
 export function formatDatum(iso?: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const tag = iso ? parseGermanDate(iso) : null;
+  return tag ? formatGermanDate(tag) : '—';
 }
 
 /** ISO-Zeitstempel → `DD.MM.YYYY, HH:MM`; leer/ungültig → `—`. */

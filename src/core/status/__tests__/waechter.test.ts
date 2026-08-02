@@ -20,6 +20,11 @@ function vorTagen(tage: number): string {
   return `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${d.getUTCFullYear()}`;
 }
 
+/** Derselbe Tag als ISO — so, wie ihn `letzteAktivitaet` zurückgibt. */
+function isoVorTagen(tage: number): string {
+  return new Date(new Date(STICHTAG).getTime() - tage * 86_400_000).toISOString().slice(0, 10);
+}
+
 const feld = (code: string, over: Partial<StatusFeldEintrag> = {}): StatusFeldEintrag => ({
   feldId: `D_${code}`,
   label: `Bezeichnung ${code}`,
@@ -67,6 +72,11 @@ function fassung(over: Partial<MappingVersion> = {}): MappingVersion {
 
 const vk = (code: string, tage: number): FeldVorkommen => ({
   feld: feld(code), wert: vorTagen(tage),
+});
+
+/** Ein Datum IN DER ZUKUNFT — ein Termin, keine Bearbeitung. */
+const termin = (code: string, tage: number): FeldVorkommen => ({
+  feld: feld(code), wert: vorTagen(-tage),
 });
 
 const lauf = (
@@ -128,6 +138,43 @@ describe('Stufe 1 — generische Liegezeit', () => {
     const e = lauf([vk('ANY', 3), vk('AK4', 60)], 35, { felder: nurAk4 });
     expect(e.tage).toBe(60);
     expect(e.urteil).toBe('haengt');
+  });
+});
+
+describe('Ein Termin ist keine Bearbeitung', () => {
+  it('ein Datum in der Zukunft maskiert den Stillstand nicht', () => {
+    // Vorher: das Zukunftsdatum gewann als „jüngstes", die Liegezeit wurde
+    // negativ und `tage > zieltage` nie wahr — Urteil „ok" trotz 60 Tagen Stille.
+    const e = lauf([vk('AK4', 60), termin('ANY', 30)], 35);
+    expect(e.urteil).toBe('haengt');
+    expect(e.tage).toBe(60);
+    expect(e.letzteAktivitaet).toBe(isoVorTagen(60));
+  });
+
+  it('weist den Termin gesondert aus, statt ihn zu verschweigen', () => {
+    const e = lauf([vk('AK4', 60), termin('ANY', 30), termin('AT4', 90)], 35);
+    // Das NÄCHSTE Datum nach dem Stichtag, nicht das späteste.
+    expect(e.anstehend?.code).toBe('ANY');
+    expect(e.grund).toContain('Anstehend am');
+    expect(e.grund).toContain('Bezeichnung ANY');
+  });
+
+  it('nur Zukunftsdaten heißt „keine datierte Aktivität", nicht „ok"', () => {
+    const e = lauf([termin('ANY', 10)], 35);
+    expect(e.urteil).toBe('unbewertet');
+    expect(e.letzteAktivitaet).toBeNull();
+    expect(e.anstehend).not.toBeNull();
+  });
+
+  it('der Stichtag selbst zählt als Aktivität, nicht als Zukunft', () => {
+    const e = lauf([vk('ANY', 0)], 35);
+    expect(e.tage).toBe(0);
+    expect(e.urteil).toBe('ok');
+    expect(e.anstehend).toBeNull();
+  });
+
+  it('ohne Termin bleibt `anstehend` null', () => {
+    expect(lauf([vk('ANY', 5)], 35).anstehend).toBeNull();
   });
 });
 

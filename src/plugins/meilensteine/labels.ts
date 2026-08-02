@@ -2,6 +2,7 @@
  * Anzeige-Texte und -Stile des Meilenstein-Moduls. Farben ausschließlich über
  * `--tf-*`-Tokens (Guard `theme-token-contract`).
  */
+import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
 import type { MstZustand, Prognose } from '@/core/meilensteine';
 import type { AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 
@@ -67,11 +68,16 @@ export const feldStil: React.CSSProperties = {
   background: 'var(--tf-bg)',
 };
 
+/**
+ * ISO → `DD.MM.YYYY`; leer/unlesbar → `—`.
+ *
+ * Über die zentrale Kette statt `toLocaleDateString`: die liefert **ohne
+ * führende Null** (`1.9.2025`), und der Meilenstein-Streifen steht auf der
+ * Verbund-Detailseite direkt neben Panels, die `01.09.2025` schreiben.
+ */
 export function formatDatum(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const ms = new Date(iso).getTime();
-  if (Number.isNaN(ms)) return '—';
-  return new Date(ms).toLocaleDateString('de-DE');
+  const tag = iso ? parseGermanDate(iso) : null;
+  return tag ? formatGermanDate(tag) : '—';
 }
 
 /** „+3 Tage" / „−12 Tage" / „pünktlich". */

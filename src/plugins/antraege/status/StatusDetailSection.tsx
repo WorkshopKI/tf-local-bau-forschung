@@ -65,7 +65,7 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
             gehen auseinander (siehe Diagnose-Report), und bis zum Rückbau soll
             man beide sehen können. */}
         {isVorgangssystemEnabled() && (
-          <HerleitungPopover verbundId={verbundId} statusRoh={statusRoh} />
+          <HerleitungPopover verbundId={verbundId} statusRoh={statusRoh} ebene="verbund" />
         )}
         {ableitung.konflikt ? (
           <span className="text-[12px] text-[var(--tf-warning-text)]">Widersprüchliche Statussignale</span>

@@ -6,7 +6,7 @@
 import type { CsvSchema } from '@/core/services/csv/types';
 import type { MappingVersion, SpinePhase } from './typen';
 import { wertId } from './typen';
-import { sammleVorkommen, type FeldAufloesung } from './feld-aufloesung';
+import { sammleVorkommen, type FeldAufloesung, type FeldVorkommen } from './feld-aufloesung';
 import { leiteStatusAb } from './ableitung';
 import type { StatusEvent } from './event-typen';
 
@@ -42,6 +42,31 @@ export function baueVerbundFelder(
     rec[v.feld.feldId] = v.wert;
   }
   return { verbundId, felder, tvFelder };
+}
+
+/**
+ * Der Rückweg: `VerbundFelder` → `FeldVorkommen[]`.
+ *
+ * Der Bestand liegt im Cockpit bereits flachgeklopft vor; wer darauf eine
+ * Funktion anwenden will, die auf Vorkommen rechnet (etwa
+ * `letzteAktivitaetVon`), braucht die Feld-Einträge zurück. Unbekannte feldIds
+ * fallen weg — sie tragen auch in der Hinrichtung nichts bei. Rein.
+ */
+export function vorkommenAus(
+  version: MappingVersion, vf: VerbundFelder,
+): FeldVorkommen[] {
+  const nachId = new Map(version.felder.map(f => [f.feldId, f]));
+  const out: FeldVorkommen[] = [];
+  const sammle = (rec: Record<string, string>, tvId?: string): void => {
+    for (const [feldId, wert] of Object.entries(rec)) {
+      const feld = nachId.get(feldId);
+      if (!feld || !wert) continue;
+      out.push({ feld, wert, ...(tvId ? { tvId } : {}) });
+    }
+  };
+  sammle(vf.felder);
+  for (const [tvId, rec] of Object.entries(vf.tvFelder)) sammle(rec, tvId);
+  return out;
 }
 
 /**

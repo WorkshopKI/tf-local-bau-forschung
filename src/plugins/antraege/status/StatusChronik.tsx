@@ -19,7 +19,7 @@ import {
   baueChronik, gruppiereNachMonat, kategoriePfadLabel,
   type ChronikEintrag, type FeldVorkommen, type MappingVersion,
 } from '@/core/status';
-import { formatGermanDate } from '@/core/services/csv/dateParse';
+import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import { SPINE_LABEL } from './labels';
 
 /** `2026-03` → „März 2026". */
@@ -29,9 +29,10 @@ function monatLabel(monat: string): string {
   return d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 }
 
-/** `2026-03-10` → „10.03." — das Jahr steht schon in der Monatsüberschrift. */
+/** `2026-03-10` → „10.03." — das Jahr steht schon in der Monatsüberschrift.
+ *  Über die zentrale Kette, damit hier nicht ein zweites Datumsformat entsteht. */
 function tagLabel(tag: string): string {
-  return formatGermanDate(tag).slice(0, 6);
+  return formatDatumsWert(tag).slice(0, 6);
 }
 
 /** Punkt auf der Achse, Größe nach Prominenz (gleiche Sprache wie die Lane-Ansicht). */

@@ -121,7 +121,9 @@ function renderHerleitung(r: AntragListItem): ReactNode {
   if (!vbid) return null;
   return (
     <span className="ml-1 inline-flex align-middle">
-      <HerleitungPopover verbundId={vbid} statusRoh={r.status} />
+      {/* Die Status-Spalte der Liste zeigt den TV-Status — das steht seit v2.382
+          auch im Popover-Kopf, statt dass man es wissen muss. */}
+      <HerleitungPopover verbundId={vbid} statusRoh={r.status} ebene="tv" />
     </span>
   );
 }

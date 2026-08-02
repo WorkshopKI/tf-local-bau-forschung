@@ -56,8 +56,8 @@ export {
   zahPhaseRang, zahPhaseLabel, zahPhasenVon,
 } from './zah-phasen';
 export {
-  baueHerleitung, herleitungAlsText,
-  type Herleitung, type HerleitungEingabe, type Datenstand,
+  baueHerleitung, herleitungAlsText, statusKurz,
+  type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
   type VerlaufSchritt, type LetzterVorgang,
 } from './herleitung';
 export {
@@ -80,8 +80,8 @@ export {
   STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY, type StatusKatalogDatei,
 } from './katalog-share';
 export {
-  baueVerbundFelder, zaehleVorkommen, simuliere, verteilung, diffPhasen, zuletztGesehen,
-  csvSpaltenJeFeld,
+  baueVerbundFelder, vorkommenAus, zaehleVorkommen, simuliere, verteilung, diffPhasen,
+  zuletztGesehen, csvSpaltenJeFeld,
   SPINE_REIHENFOLGE, type VerbundFelder, type SimErgebnis, type PhasenWechsel,
 } from './cockpit-berechnung';
 export {
@@ -101,8 +101,9 @@ export {
 } from './todo-engine';
 export { AB_TODO_REGELN, baueTodoRegelSeed, feld as todoFeld } from './todo-regeln.seed';
 export {
-  pruefeStillstand, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
+  pruefeStillstand, letzteAktivitaetVon, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
   type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil, type OffenesPaar,
+  type AnstehenderTermin, type Zeitachse,
 } from './waechter';
 export {
   navigatorKandidaten, wirkungZeilen,

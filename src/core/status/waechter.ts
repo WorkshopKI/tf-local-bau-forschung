@@ -4,8 +4,8 @@
  * Zwei Stufen, beide ohne jede Ketten-Pflege:
  *
  * - **Stufe 1 (generisch)**: letzte Aktivität = jüngstes Datum über die
- *   relevanten Kürzel-Spalten. Liegt sie länger zurück als die Zieltage des
- *   Status, hängt der Vorgang.
+ *   relevanten Kürzel-Spalten, **das nicht in der Zukunft liegt**. Liegt sie
+ *   länger zurück als die Zieltage des Status, hängt der Vorgang.
  * - **Stufe 2 (gezielt)**: wo ein halb offenes Kürzel-Paar existiert
  *   (fachlich fertig, administrativ offen) oder das To-do eine Rolle benennt,
  *   sagt der Wächter, auf **wessen Schreibtisch** es liegt.
@@ -14,6 +14,14 @@
  * gepflegte Zieltage lässt sich nicht beurteilen; ihn als unauffällig zu zählen
  * hieße, eine Aussage zu treffen, für die die Grundlage fehlt. Genau daran
  * scheitern Ampeln, denen man später nicht mehr glaubt.
+ *
+ * **Ein Termin ist keine Bearbeitung.** Die `D_`-Spalten führen auch Daten, die
+ * in der Zukunft liegen (geplante Termine, Laufzeit- und Planungsdaten). Zählte
+ * man sie als „letzte Aktivität", gewänne das späteste Datum, die Liegezeit
+ * würde negativ und `tage > zieltage` nie wahr — der Stillstand wäre genau dort
+ * unsichtbar, wo ein Termin gesetzt und danach nichts mehr getan wurde. Sie
+ * werden deshalb ausgeschlossen und als {@link AnstehenderTermin} **gesondert
+ * ausgewiesen**; sie wegzulassen wäre wieder Schweigen.
  *
  * Rein und deterministisch: kein IO, keine Uhr — `stichtag` reicht der Aufrufer
  * herein.
@@ -44,10 +52,24 @@ export interface OffenesPaar {
   rolle: Rolle | null;
 }
 
+/** Ein Datum, das noch bevorsteht — Termin, kein Nachweis von Bearbeitung. */
+export interface AnstehenderTermin {
+  /** ISO-Tag, echt nach dem Stichtag. */
+  tag: string;
+  /** Kürzel des Fachsystems, falls das Feld eines trägt. */
+  code?: string;
+  /** Bezeichnung aus der Zuarbeit. */
+  label: string;
+}
+
 export interface WaechterErgebnis {
   urteil: WaechterUrteil;
-  /** Jüngste Aktivität über die betrachteten Kürzel; `null` = keine. */
+  /** Jüngste Aktivität über die betrachteten Kürzel; `null` = keine.
+   *  Zukunftsdaten sind ausgeschlossen (siehe Modulkopf). */
   letzteAktivitaet: string | null;
+  /** Das nächste Datum NACH dem Stichtag; `null` = keins gesetzt. Es geht nicht
+   *  in das Urteil ein, gehört aber in die Anzeige („anstehend am …"). */
+  anstehend: AnstehenderTermin | null;
   /** Tage seit der letzten Aktivität. `null`, wenn keine gefunden wurde. */
   tage: number | null;
   /** Zieltage des Status; `null` = für diesen Status keine gepflegt. */
@@ -163,26 +185,63 @@ function findePaar(e: WaechterEingabe): OffenesPaar | null {
   return bester;
 }
 
+/** Was die Datumsspalten eines Vorgangs über seine Zeitachse hergeben. */
+export interface Zeitachse {
+  /** Jüngstes Datum bis einschließlich Stichtag; `null` = keins. */
+  letzteAktivitaet: string | null;
+  /** Frühestes Datum NACH dem Stichtag; `null` = keins. */
+  anstehend: AnstehenderTermin | null;
+}
+
 /**
- * Beurteilt den Stillstand. Rein.
+ * Die Zeitachse eines Vorgangs aus seinen Datumsspalten. Rein.
+ *
+ * **Einzelquelle** — der Wächter und der Zieltage-Vorschlag im Cockpit rechnen
+ * dieselbe Zahl; zwei Implementierungen liefen beim ersten Sonderfall
+ * auseinander (der Vorschlag kannte weder Relevanz- noch Zukunftsfilter).
  *
  * Berücksichtigt nur **relevante** Kürzel, sobald die Fassung welche markiert —
  * sonst hielte ein beliebiger Nebenvermerk den Vorgang „aktiv" (dieselbe Regel
  * wie in `baueHerleitung`).
  */
-export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
+export function letzteAktivitaetVon(
+  vorkommen: readonly FeldVorkommen[], version: MappingVersion, stichtag: string,
+): Zeitachse {
   const relevante = new Set(
-    e.version.felder.filter(f => f.relevant === true).map(f => f.feldId),
+    version.felder.filter(f => f.relevant === true).map(f => f.feldId),
   );
   const betrachtet = relevante.size > 0
-    ? e.vorkommen.filter(v => relevante.has(v.feld.feldId))
-    : e.vorkommen;
+    ? vorkommen.filter(v => relevante.has(v.feld.feldId))
+    : vorkommen;
 
+  // Der Stichtag kommt als ISO-Zeitpunkt, die Feldwerte als ISO-Tag — auf
+  // Tagesgranularität vergleichen, sonst gälte „heute" schon als Zukunft.
+  const heute = stichtag.slice(0, 10);
   let letzteAktivitaet: string | null = null;
+  let anstehend: AnstehenderTermin | null = null;
   for (const v of betrachtet) {
     const tag = tagVon(v);
-    if (tag && (letzteAktivitaet === null || tag > letzteAktivitaet)) letzteAktivitaet = tag;
+    if (!tag) continue;
+    if (tag > heute) {
+      if (anstehend === null || tag < anstehend.tag) {
+        anstehend = {
+          tag,
+          ...(v.feld.code ? { code: v.feld.code } : {}),
+          label: v.feld.label,
+        };
+      }
+      continue;
+    }
+    if (letzteAktivitaet === null || tag > letzteAktivitaet) letzteAktivitaet = tag;
   }
+  return { letzteAktivitaet, anstehend };
+}
+
+/**
+ * Beurteilt den Stillstand. Rein.
+ */
+export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
+  const { letzteAktivitaet, anstehend } = letzteAktivitaetVon(e.vorkommen, e.version, e.stichtag);
   const tage = letzteAktivitaet ? tageZwischen(letzteAktivitaet, e.stichtag) : null;
   const zieltage = zieltageFuer(e.version, e.statusCode);
   const paar = findePaar(e);
@@ -193,15 +252,22 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
     ?? e.todo?.zustaendig[0]
     ?? null;
 
+  // Ein anstehender Termin erklärt einen Teil der Stille, ohne sie aufzuheben —
+  // er gehört deshalb an jede Begründung, nie in die Liegezeit.
+  const terminGrund = anstehend
+    ? ` Anstehend am ${anstehend.tag}${anstehend.code ? ` (${anstehend.code})` : ''}: „${anstehend.label}".`
+    : '';
+
   if (zieltage === null) {
     return {
       urteil: 'unbewertet',
       letzteAktivitaet,
+      anstehend,
       tage,
       zieltage: null,
-      grund: e.statusCode === null
+      grund: (e.statusCode === null
         ? 'Status nicht im Katalog — kein Ziel bestimmbar.'
-        : `Für Status ${e.statusCode} sind keine Zieltage definiert.`,
+        : `Für Status ${e.statusCode} sind keine Zieltage definiert.`) + terminGrund,
       rolle,
       paar,
     };
@@ -210,9 +276,10 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
     return {
       urteil: 'unbewertet',
       letzteAktivitaet: null,
+      anstehend,
       tage: null,
       zieltage,
-      grund: 'Keine datierte Aktivität gefunden — Liegezeit nicht bestimmbar.',
+      grund: 'Keine datierte Aktivität gefunden — Liegezeit nicht bestimmbar.' + terminGrund,
       rolle,
       paar,
     };
@@ -225,9 +292,10 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
     return {
       urteil: 'haengt',
       letzteAktivitaet,
+      anstehend,
       tage,
       zieltage,
-      grund: `Keine Vorgangs-Aktivität seit ${tage} Tagen, Ziel ${zieltage}.${paarGrund}`,
+      grund: `Keine Vorgangs-Aktivität seit ${tage} Tagen, Ziel ${zieltage}.${paarGrund}${terminGrund}`,
       rolle,
       paar,
     };
@@ -236,9 +304,10 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
   return {
     urteil: 'ok',
     letzteAktivitaet,
+    anstehend,
     tage,
     zieltage,
-    grund: `Zuletzt vor ${tage} Tagen aktiv, Ziel ${zieltage}.`,
+    grund: `Zuletzt vor ${tage} Tagen aktiv, Ziel ${zieltage}.${terminGrund}`,
     rolle,
     paar,
   };

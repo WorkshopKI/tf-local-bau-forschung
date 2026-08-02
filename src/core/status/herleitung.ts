@@ -22,6 +22,7 @@
  * Rein und deterministisch: kein IDB, kein `new Date()` — `stichtag` und
  * `datenstand` reicht der Aufrufer herein.
  */
+import { formatDatumsWert as tagDe } from '@/core/services/csv/dateParse';
 import { baueChronik, type ChronikEintrag } from './chronik';
 import type { FeldVorkommen } from './feld-aufloesung';
 import { findeStatusCode, type StatusCodeIndex, type StatusCodeTreffer } from './status-codes';
@@ -53,7 +54,14 @@ export interface LetzterVorgang extends VerlaufSchritt {
   trigger: { folge: number; satz: string }[];
 }
 
-export interface Herleitung {
+/**
+ * Der Kopf einer Status-Erklärung: Code, amtlicher Text, ZAH-Phase.
+ *
+ * Eigener Typ, weil er **ohne** die teure Vorkommen-Auswertung zu haben ist —
+ * die zweite Ebene im Popover („TV-Status: 72 · … · ZAH-Phase Entscheidung")
+ * braucht genau das und nichts weiter.
+ */
+export interface StatusKurz {
   /** Rohwert, wie er im Export steht. */
   statusRoh: string;
   /** Amtlicher Code — `null`, wenn der Katalog den Text nicht kennt. */
@@ -66,6 +74,11 @@ export interface Herleitung {
   zahPhaseLabel: string;
   /** Marker-Status (29/88/93/94) laufen bewusst ohne Phase mit. */
   marker: boolean;
+  /** Warnung, wenn der Statuswert nicht im Katalog steht. */
+  nichtImKatalog: boolean;
+}
+
+export interface Herleitung extends StatusKurz {
   /** ISO-Tag, seit wann der Status gilt — `null`, wenn nicht bestimmbar. */
   seit: string | null;
   /** Tage seit `seit`, gegen den Stichtag. `null`, wenn `seit` fehlt. */
@@ -75,8 +88,6 @@ export interface Herleitung {
   verlauf: VerlaufSchritt[];
   /** Wie viele Schritte die Näherung insgesamt kennt (auch die ungezeigten). */
   verlaufGesamt: number;
-  /** Warnung, wenn der Statuswert nicht im Katalog steht. */
-  nichtImKatalog: boolean;
   /** Programm des Antrags (`FM_NUMMER`); `null`, wenn die Spalte nichts liefert. */
   programm: string | null;
   /** Programm bekannt, aber die Trigger-Tabelle führt keine Zeile dazu. */
@@ -159,6 +170,43 @@ function bestimmeSeit(
 }
 
 /**
+ * Code, amtlicher Text und ZAH-Phase eines Rohstatus. Rein, ohne Vorkommen.
+ *
+ * Die **eine** Stelle, an der ein Statustext auf seine Einordnung gebracht wird —
+ * `baueHerleitung` baut darauf auf, und die zweite Ebene im Popover benutzt sie
+ * allein. Ein zweiter Weg liefe beim ersten Umhängen eines Codes auseinander.
+ */
+export function statusKurz(
+  version: MappingVersion, roh: unknown, index?: StatusCodeIndex,
+): StatusKurz {
+  const statusRoh = typeof roh === 'string' ? roh.trim() : '';
+  const treffer = findeStatusCode(statusRoh, index);
+  const code = treffer?.eintrag.code ?? null;
+
+  // Die Phase steht am kuratierten Statuswert — SOFERN die Fassung schon Codes
+  // trägt. Bestandsfassungen tun das erst nach dem Nachziehen; bis dahin greift
+  // der Auslieferungs-Schnitt, damit die Erklärung nicht wochenlang „keine
+  // Phase" behauptet, obwohl der Code längst einer zugeordnet ist.
+  const wertEintrag = code !== null ? version.werte.find(w => w.code === code) : undefined;
+  const zahPhase: ZahPhaseId | null = wertEintrag?.zahPhaseId !== undefined
+    ? wertEintrag.zahPhaseId
+    : (code !== null ? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null : null);
+  const marker = wertEintrag?.marker === true
+    || (code !== null && wertEintrag?.marker === undefined && SEED_MARKER_CODES.has(code));
+
+  return {
+    statusRoh,
+    code,
+    statusText: treffer?.eintrag.text ?? statusRoh,
+    joinArt: treffer?.art ?? null,
+    zahPhase,
+    zahPhaseLabel: zahPhaseLabel(zahPhase, version.zahPhasen),
+    marker,
+    nichtImKatalog: statusRoh !== '' && treffer === null,
+  };
+}
+
+/**
  * Baut die Erklärung. Rein — dieselbe Eingabe liefert immer dieselbe Ausgabe.
  *
  * Berücksichtigt für Verlauf und letzten Vorgang nur **relevante** Kürzel, wenn
@@ -166,20 +214,7 @@ function bestimmeSeit(
  * ohne dass eine leere Relevanz-Liste sie leer laufen ließe.
  */
 export function baueHerleitung(e: HerleitungEingabe): Herleitung {
-  const statusRoh = typeof e.statusRoh === 'string' ? e.statusRoh.trim() : '';
-  const treffer = findeStatusCode(statusRoh, e.index);
-  const code = treffer?.eintrag.code ?? null;
-
-  // Die Phase steht am kuratierten Statuswert — SOFERN die Fassung schon Codes
-  // trägt. Bestandsfassungen tun das erst nach dem Nachziehen; bis dahin greift
-  // der Auslieferungs-Schnitt, damit die Erklärung nicht wochenlang „keine
-  // Phase" behauptet, obwohl der Code längst einer zugeordnet ist.
-  const wertEintrag = code !== null ? e.version.werte.find(w => w.code === code) : undefined;
-  const zahPhase: ZahPhaseId | null = wertEintrag?.zahPhaseId !== undefined
-    ? wertEintrag.zahPhaseId
-    : (code !== null ? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null : null);
-  const marker = wertEintrag?.marker === true
-    || (code !== null && wertEintrag?.marker === undefined && SEED_MARKER_CODES.has(code));
+  const kurz = statusKurz(e.version, e.statusRoh, e.index);
 
   // Relevanz filtert, sobald die Fassung überhaupt welche kennt. Nachgeschlagen
   // wird in der FASSUNG, nicht am Feld-Objekt im Vorkommen: das kann aus einer
@@ -201,7 +236,7 @@ export function baueHerleitung(e: HerleitungEingabe): Herleitung {
   const absteigend = [...chronik].sort((a, b) => b.tag.localeCompare(a.tag));
   const [neuester, ...rest] = absteigend;
 
-  const seit = bestimmeSeit(chronik, e.version, zahPhase);
+  const seit = bestimmeSeit(chronik, e.version, kurz.zahPhase);
   const seitMs = seit ? new Date(seit).getTime() : NaN;
   const stichtagMs = new Date(e.stichtag).getTime();
   const tage = Number.isNaN(seitMs) || Number.isNaN(stichtagMs)
@@ -224,41 +259,55 @@ export function baueHerleitung(e: HerleitungEingabe): Herleitung {
 
   const maxVerlauf = e.maxVerlauf ?? 5;
   return {
-    statusRoh,
-    code: treffer?.eintrag.code ?? null,
-    statusText: treffer?.eintrag.text ?? statusRoh,
-    joinArt: treffer?.art ?? null,
-    zahPhase,
-    zahPhaseLabel: zahPhaseLabel(zahPhase, e.version.zahPhasen),
-    marker,
+    ...kurz,
     seit,
     tage,
     letzterVorgang,
     verlauf: rest.slice(0, maxVerlauf).map(alsSchritt),
     verlaufGesamt: rest.length,
-    nichtImKatalog: statusRoh !== '' && treffer === null,
     programm,
     programmOhneTrigger: programm !== null && e.trigger.length > 0 && eigeneTrigger.length === 0,
     datenstand: e.datenstand,
   };
 }
 
-/** `YYYY-MM-DD` → `DD.MM.YYYY`; unlesbar → der Rohwert. */
-function tagDe(tag: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tag);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : tag;
+/** Code + amtlicher Text eines Status, wie er im Kopf steht. */
+function kopfVon(s: StatusKurz): string {
+  return s.code !== null ? `${s.code} · ${s.statusText}` : s.statusText || '(kein Status)';
+}
+
+/** Was zusätzlich in die Kopie soll: die benannte Ebene und was daneben steht. */
+export interface TextRahmen {
+  /** „Verbund-Status" / „TV-Status" — welche Ebene erklärt wird. */
+  ebeneLabel: string;
+  /** Abweichende Status der jeweils anderen Ebene, schon beschriftet. */
+  abweichend?: readonly { label: string; kurz: StatusKurz; anzahl: number }[];
+  /** Distinkte abweichende Werte, die `abweichend` nicht mehr aufzählt. */
+  weitere?: number;
 }
 
 /**
  * Die Erklärung als Fließtext — für „Herleitung kopieren" (Support-Fälle) und
  * als Grundlage jeder Textausgabe. Bewusst dieselbe Quelle wie die Anzeige,
- * damit Kopie und Bildschirm nie auseinanderlaufen.
+ * damit Kopie und Bildschirm nie auseinanderlaufen — deshalb trägt auch die
+ * Kopie die Ebene und die abweichende Gegenseite, wenn der Aufrufer sie kennt.
  */
-export function herleitungAlsText(h: Herleitung): string {
+export function herleitungAlsText(h: Herleitung, rahmen?: TextRahmen): string {
   const zeilen: string[] = [];
-  const kopf = h.code !== null ? `${h.code} · ${h.statusText}` : h.statusText || '(kein Status)';
   const seitTeil = h.seit ? ` — seit ${tagDe(h.seit)}${h.tage !== null ? ` (${h.tage} Tage)` : ''}` : '';
-  zeilen.push(`${kopf}${seitTeil}`);
+  const praefix = rahmen ? `${rahmen.ebeneLabel}: ` : '';
+  zeilen.push(`${praefix}${kopfVon(h)}${seitTeil}`);
+
+  for (const a of rahmen?.abweichend ?? []) {
+    const phase = a.kurz.nichtImKatalog
+      ? ' · nicht im Katalog'
+      : a.kurz.marker
+        ? ' · Marker (ohne Phase)'
+        : a.kurz.zahPhase !== null ? ` · ZAH-Phase ${a.kurz.zahPhaseLabel}` : '';
+    const wieViele = a.anzahl > 1 ? ` (${a.anzahl} TV)` : '';
+    zeilen.push(`${a.label}: ${kopfVon(a.kurz)}${wieViele}${phase}`);
+  }
+  if (rahmen?.weitere) zeilen.push(`… ${rahmen.weitere} weitere abweichende Statuswerte`);
 
   if (h.nichtImKatalog) {
     zeilen.push('Statuswert nicht im Katalog — keine ZAH-Phase zugeordnet.');

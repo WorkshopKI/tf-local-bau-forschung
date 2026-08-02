@@ -16,7 +16,6 @@ import {
   listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { baueSpaltenKatalog, type SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
@@ -33,7 +32,7 @@ import {
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
-  findeStatusCode, medianLiegezeit,
+  findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
   STATUS_CODE_KATALOG, SEED_ZAH_PHASEN,
   type TriggerStand, type VorgangssystemLuecke,
@@ -509,17 +508,16 @@ export function useStatusCockpit(): StatusCockpitApi {
     const proben = bestand.verbundFelder.map(vf => {
       const roh = vf.felder.verbund_status ?? '';
       const code = findeStatusCode(roh)?.eintrag.code ?? null;
-      let juengste: string | null = null;
-      for (const rec of [vf.felder, ...Object.values(vf.tvFelder)]) {
-        for (const [feldId, wert] of Object.entries(rec)) {
-          const eintrag = entwurf.felder.find(f => f.feldId === feldId);
-          if (eintrag?.typ !== 'datum') continue;
-          const iso = parseGermanDate(wert);
-          if (iso && (juengste === null || iso > juengste)) juengste = iso;
-        }
-      }
-      const tage = juengste
-        ? Math.floor((new Date(heuteRef.current).getTime() - new Date(juengste).getTime()) / 86_400_000)
+      // Über `letzteAktivitaetVon`, nicht über eine zweite Schleife hier: der
+      // Vorschlag muss dieselbe Zahl rechnen wie das Urteil im Board — inklusive
+      // Relevanz- und Zukunftsfilter.
+      const { letzteAktivitaet } = letzteAktivitaetVon(
+        vorkommenAus(entwurf, vf), entwurf, heuteRef.current,
+      );
+      const tage = letzteAktivitaet
+        ? Math.floor(
+          (new Date(heuteRef.current).getTime() - new Date(letzteAktivitaet).getTime()) / 86_400_000,
+        )
         : null;
       return { statusCode: code, tage };
     });

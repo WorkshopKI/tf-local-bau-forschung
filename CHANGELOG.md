@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.382.0 — Vorab-Fixes vor dem Ableitungs-Rückbau (August 2026)
+
+MINOR — Drei kleine Korrekturen an genau den Flächen, die nach dem Rückbau der alten Statusableitung (P6) die einzigen sind: der Wächter zählte Termine als Bearbeitung, das Herleitungs-Popover sagte nicht, welchen Status es erklärt, und dieselbe Seite zeigte drei Datumsformate nebeneinander.
+
+- Zukunftsdaten zählen nicht mehr als „letzte Aktivität" und werden als anstehender Termin gesondert ausgewiesen; eine zweite Liegezeit-Rechnung im Cockpit entfällt zugunsten von `letzteAktivitaetVon` ([waechter.ts](src/core/status/waechter.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts)).
+- Das Herleitungs-Popover benennt die Ebene („Verbund-Status: 31 · beantragt") und stellt einen abweichenden Status der Gegenseite darunter, mit Stückzahl bei mehreren Teilvorhaben ([HerleitungPopover.tsx](src/plugins/antraege/status/HerleitungPopover.tsx), [useHerleitung.ts](src/plugins/antraege/status/useHerleitung.ts)).
+- `statusKurz` als geteilter Kopf beider Ebenen; „Herleitung kopieren" trägt dieselbe Ebenen-Angabe wie der Bildschirm ([herleitung.ts](src/core/status/herleitung.ts)).
+- Eine Datums-Anzeigekette (`formatDatumsWert`) ersetzt vier lokale Formatierer; das Alle-Felder-Panel formatiert feldnamens-unabhängig, auch uneinheitliche Verbund-Werte („29.08.2025 / 01.09.2025") ([dateParse.ts](src/core/services/csv/dateParse.ts), [buildDisplayRows.ts](src/plugins/antraege/alleFelder/buildDisplayRows.ts)).
+- Der Meilenstein-Streifen schreibt Daten mit führender Null wie der Rest der Detailseite ([meilensteine/labels.ts](src/plugins/meilensteine/labels.ts)).
+
 ### v2.381.0 — Parametertabelle im Legenden-Format (August 2026)
 
 MINOR — Der zweite Import derselben Mappe scheiterte an der echten Datei: „Erklärung Parameter" ist eine Legende ohne Kopfzeile (Wert · Erklärung · Kategorie), der Import verlangte einen `Code`/`Text`-Kopf und brach ab — der Statuscode-Katalog kam nie aus der amtlichen Quelle. Und hätte er gelesen, wären die Bezugsdatei-Nummern 210/211 als Statuscodes im Katalog gelandet.

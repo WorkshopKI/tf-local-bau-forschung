@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.382 — 2026-08
+
+### Verbesserungen
+- Das Info-Icon am Status sagt jetzt, welchen Status es erklärt — „Verbund-Status" oder „TV-Status". Weicht die andere Ebene ab, steht sie mit Code und Phase darunter. Bei Verbünden mit nur einem Teilvorhaben war bisher am wenigsten erkennbar, welche Zahl gemeint war.
+- Datumsangaben sehen überall gleich aus. In der Feldübersicht standen bisher „2026-07-08" und „08.07.2026" untereinander, im Meilenstein-Streifen daneben „1.9.2025".
+### Bugfixes
+- Der Stillstands-Wächter zählt geplante Termine nicht mehr als Bearbeitung. Ein Antrag mit einem Termin in der Zukunft galt als „gerade aktiv", auch wenn seit Wochen nichts passiert war; der Termin wird jetzt getrennt als „anstehend am …" genannt.
+
 ## v2.381 — 2026-08
 
 ### Bugfixes

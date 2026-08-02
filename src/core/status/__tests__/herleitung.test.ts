@@ -8,7 +8,9 @@
  * - Der Verlauf ist als Näherung gekennzeichnet und sagt, wie viel er verschweigt.
  */
 import { describe, it, expect } from 'vitest';
-import { baueHerleitung, herleitungAlsText, type Datenstand } from '@/core/status/herleitung';
+import {
+  baueHerleitung, herleitungAlsText, statusKurz, type Datenstand,
+} from '@/core/status/herleitung';
 import { baueSeedVersion } from '@/core/status/seed';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type { MappingVersion, StatusFeldEintrag, TriggerZeile } from '@/core/status/typen';
@@ -294,6 +296,66 @@ describe('baueHerleitung — Trigger und Datenstand', () => {
       datenstand: { ...DATENSTAND, triggerVersion: null, triggerHerkunft: 'leer' },
     });
     expect(herleitungAlsText(h)).toContain('Trigger nicht importiert');
+  });
+});
+
+describe('statusKurz — die Ebene benennen', () => {
+  // Realer Fall: ein Verbund mit genau EINEM Teilvorhaben, dessen TV-Status weit
+  // vor dem Verbund-Status liegt. Wer nur eine Zahl sah, hielt sie für „den"
+  // Status des Vorhabens — bei Ein-TV-Verbünden am ehesten.
+  const VB = 'beantragt';
+  const TV = 'Stellungnahme zur Rücknahmeempfehlung';
+
+  it('löst beide Ebenen unabhängig auf', () => {
+    const vb = statusKurz(seed, VB);
+    const tv = statusKurz(seed, TV);
+    expect(vb.code).toBe(31);
+    expect(vb.zahPhaseLabel).toBe('Eingang');
+    expect(tv.code).toBe(72);
+    expect(tv.zahPhaseLabel).toBe('Entscheidung');
+  });
+
+  it('trifft auch die abgekürzte Export-Schreibweise', () => {
+    expect(statusKurz(seed, 'Stellungnahme zur Rücknahmeempf.').code).toBe(72);
+  });
+
+  it('ist dieselbe Quelle wie der Kopf der Herleitung', () => {
+    const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: TV });
+    const k = statusKurz(seed, TV);
+    expect(h.code).toBe(k.code);
+    expect(h.statusText).toBe(k.statusText);
+    expect(h.zahPhase).toBe(k.zahPhase);
+    expect(h.marker).toBe(k.marker);
+    expect(h.nichtImKatalog).toBe(k.nichtImKatalog);
+  });
+
+  it('die Kopie trägt Ebene und Gegenseite — wie der Bildschirm', () => {
+    const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: VB });
+    const text = herleitungAlsText(h, {
+      ebeneLabel: 'Verbund-Status',
+      abweichend: [{ label: 'TV-Status', kurz: statusKurz(seed, TV), anzahl: 1 }],
+    });
+    expect(text).toContain('Verbund-Status: 31 · beantragt');
+    expect(text).toContain('TV-Status: 72 · Stellungnahme zur Rücknahmeempfehlung');
+    expect(text).toContain('ZAH-Phase Entscheidung');
+    // Bei genau einem Teilvorhaben steht keine Stückzahl dran.
+    expect(text).not.toContain('(1 TV)');
+  });
+
+  it('zählt mehrfach vorkommende TV-Status und nennt den Rest', () => {
+    const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: VB });
+    const text = herleitungAlsText(h, {
+      ebeneLabel: 'Verbund-Status',
+      abweichend: [{ label: 'TV-Status', kurz: statusKurz(seed, 'bewilligt'), anzahl: 4 }],
+      weitere: 2,
+    });
+    expect(text).toContain('(4 TV)');
+    expect(text).toContain('… 2 weitere abweichende Statuswerte');
+  });
+
+  it('ohne Rahmen bleibt die Kopie wie bisher — ohne Ebenen-Präfix', () => {
+    const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: VB });
+    expect(herleitungAlsText(h).startsWith('31 · beantragt')).toBe(true);
   });
 });
 

@@ -1,5 +1,5 @@
 import { CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/constants';
-import { formatGermanDate } from '@/core/services/csv';
+import { formatDatumsWert, parseGermanDate } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
 import { kuratierteGruppe, GRUPPEN_ORDER } from './felderGruppen';
@@ -207,8 +207,31 @@ function formatValue(raw: unknown, field: string): string {
     return raw.toLocaleString('de-DE');
   }
   if (typeof raw === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw) && field.endsWith('datum')) return formatGermanDate(raw);
-    return raw;
+    // Feldnamens-unabhängig über die zentrale Kette. Die frühere Bedingung
+    // („endet auf `datum`" UND reines ISO) ließ `laufzeitende`, die
+    // `D_`-Kürzelspalten, `*_am` und ISO-Zeitstempel roh stehen — in derselben
+    // Liste standen dann `2026-07-08` und `08.07.2026` untereinander.
+    // `formatDatumsWert` gibt alles unverändert zurück, was kein reiner
+    // Datumswert ist (Aktenzeichen, Text mit Datum darin).
+    return formatDatumsWert(mehrfachwert(raw));
   }
   return String(raw);
+}
+
+/** Wie `mergeAntraegeForDisplay` uneinheitliche TV-Werte zusammenfasst. */
+const MEHRFACH_TRENNER = ' / ';
+
+/**
+ * Uneinheitliche Verbund-Werte kommen als `„a / b"` aus `mergeAntraegeForDisplay`
+ * — daran scheitert jede Wert-Formatierung, weil die Zeichenkette als Ganzes kein
+ * Datum ist. Sind **alle** Teile Daten, werden sie einzeln formatiert; sonst
+ * bleibt der Wert unangetastet (ein Text mit „ / " darin ist kein Datumspaar).
+ */
+function mehrfachwert(raw: string): string {
+  if (!raw.includes(MEHRFACH_TRENNER)) return raw;
+  const teile = raw.split(MEHRFACH_TRENNER).map(t => t.trim());
+  // Geprüft wird „ist ein Datum", NICHT „hat sich geändert": ein bereits
+  // deutscher Teil bliebe sonst gleich und kippte die ganze Zeile zurück auf roh.
+  if (!teile.every(t => parseGermanDate(t) !== null)) return raw;
+  return teile.map(formatDatumsWert).join(MEHRFACH_TRENNER);
 }

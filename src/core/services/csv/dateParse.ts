@@ -1,3 +1,13 @@
+/**
+ * Datums-Parsen und -Anzeigen — **eine** Kette für die ganze App.
+ *
+ * Der Export mischt die Formate: ISO (`2026-07-08`), ISO-Zeitstempel und
+ * deutsches `TT.MM.JJJJ`, je nach Spalte und Quellsystem. Wer das roh anzeigt,
+ * bekommt beides nebeneinander in derselben Liste — beobachtet im
+ * Alle-Felder-Panel und in der Chronik. `formatDatumsWert` ist deshalb die
+ * Ausgabe-Seite dieses Moduls: hinein geht, was immer in der Spalte steht,
+ * heraus kommt deutsch — oder unverändert der Rohwert, wenn es kein Datum ist.
+ */
 export function parseGermanDate(raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;
@@ -39,4 +49,20 @@ export function formatGermanDate(iso: string | null | undefined): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return iso;
   return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+/**
+ * Ein beliebiger Rohwert als deutsches Datum — die **Anzeige-Kette**.
+ *
+ * Lässt er sich als Datum lesen (ISO, ISO-Zeitstempel, `TT.MM.JJJJ`, `TT.MM.JJ`),
+ * kommt `TT.MM.JJJJ` heraus; sonst **unverändert der Rohwert**. Bewusst
+ * feldnamens-unabhängig: die Feldnamen-Heuristik („endet auf `datum`") ließ
+ * `laufzeitende`, die `D_`-Kürzelspalten und `*_am` roh stehen. Und bewusst
+ * streng — `parseGermanDate` trifft nur den ganzen Wert, ein Aktenzeichen oder
+ * ein Text mit Datum darin bleibt unangetastet.
+ */
+export function formatDatumsWert(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const iso = parseGermanDate(raw);
+  return iso ? formatGermanDate(iso) : raw;
 }

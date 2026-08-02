@@ -11,20 +11,28 @@
  *   ginge jede Listenzeile beim Rendern auf die IndexedDB.
  * - **Ehrlich**: unbekannter Status → Warnung statt Phase; fehlender Verlauf →
  *   Hinweis statt Leere; „Näherung" steht an der Näherung dran.
+ * - **Benennt die Ebene**: der Kopf sagt, WELCHEN Status er erklärt
+ *   („Verbund-Status: 31 · beantragt"). Weicht die andere Ebene ab, steht sie in
+ *   einer zweiten Zeile. Vorher las man dieselbe Erklärung in der Liste (TV) und
+ *   im Detail (Verbund), ohne dass irgendwo stand, welcher gemeint war — und bei
+ *   Ein-TV-Verbünden, wo man beide für dasselbe hält, war es am irreführendsten.
  */
 import { useState } from 'react';
 import { Info, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
+import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import { herleitungAlsText, type Herleitung, type VerlaufSchritt } from '@/core/status';
-import { useHerleitung } from './useHerleitung';
+import { useHerleitung, type AbweichendeEbene, type StatusEbene } from './useHerleitung';
 
-/** `YYYY-MM-DD` → `DD.MM.YYYY`. */
-function tagDe(tag: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tag);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : tag;
-}
+const EBENE_LABEL: Record<StatusEbene, string> = {
+  verbund: 'Verbund-Status',
+  tv: 'TV-Status',
+};
+
+/** `YYYY-MM-DD` → `DD.MM.YYYY`; über die zentrale Kette. */
+const tagDe = formatDatumsWert;
 
 function Zeile({ s }: { s: VerlaufSchritt }): React.ReactElement {
   return (
@@ -42,22 +50,71 @@ function Zeile({ s }: { s: VerlaufSchritt }): React.ReactElement {
   );
 }
 
-function Inhalt({ h }: { h: Herleitung }): React.ReactElement {
-  const kopieren = useKopierAktion(() => herleitungAlsText(h), 'Herleitung kopieren');
+/**
+ * Die andere Ebene: nur Code, Text und Phase — kein „seit", weil die Liegezeit
+ * an den Vorkommen der ERKLÄRTEN Ebene hängt und hier geraten wäre.
+ */
+function AndereEbeneZeile({ a }: { a: AbweichendeEbene }): React.ReactElement {
+  const s = a.kurz;
+  return (
+    <div className="flex items-baseline gap-1.5 flex-wrap text-[11.5px] text-[var(--tf-text-secondary)]">
+      <span className="text-[var(--tf-text-tertiary)]">{EBENE_LABEL[a.ebene]}:</span>
+      {s.code !== null && <span className="font-mono">{s.code}</span>}
+      <span>{s.statusText || '(kein Status)'}</span>
+      {a.anzahl > 1 && (
+        <span className="text-[var(--tf-text-tertiary)]">({a.anzahl} TV)</span>
+      )}
+      {s.nichtImKatalog
+        ? <span className="text-[var(--tf-warning-text)]">· nicht im Katalog</span>
+        : s.marker
+          ? <span className="text-[var(--tf-text-tertiary)]">· Marker (ohne Phase)</span>
+          : s.zahPhase !== null
+            && <span className="text-[var(--tf-text-tertiary)]">· ZAH-Phase {s.zahPhaseLabel}</span>}
+    </div>
+  );
+}
+
+function Inhalt({ h, ebene, abweichend, weitere }: {
+  h: Herleitung;
+  ebene: StatusEbene;
+  abweichend: AbweichendeEbene[];
+  weitere: number;
+}): React.ReactElement {
+  const kopieren = useKopierAktion(
+    () => herleitungAlsText(h, {
+      ebeneLabel: EBENE_LABEL[ebene],
+      abweichend: abweichend.map(a => ({
+        label: EBENE_LABEL[a.ebene], kurz: a.kurz, anzahl: a.anzahl,
+      })),
+      weitere,
+    }),
+    'Herleitung kopieren',
+  );
   const v = h.letzterVorgang;
 
   return (
     <div className="flex flex-col gap-2 text-[12px]">
-      <div className="flex items-baseline gap-1.5 flex-wrap">
-        {h.code !== null && (
-          <span className="font-mono text-[13px] text-[var(--tf-text)]">{h.code}</span>
-        )}
-        <span className="text-[13px] font-medium text-[var(--tf-text)]">
-          {h.statusText || '(kein Status)'}
-        </span>
-        {h.seit && (
-          <span className="text-[var(--tf-text-tertiary)]">
-            seit {tagDe(h.seit)}{h.tage !== null && ` (${h.tage} Tage)`}
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="text-[var(--tf-text-tertiary)]">{EBENE_LABEL[ebene]}:</span>
+          {h.code !== null && (
+            <span className="font-mono text-[13px] text-[var(--tf-text)]">{h.code}</span>
+          )}
+          <span className="text-[13px] font-medium text-[var(--tf-text)]">
+            {h.statusText || '(kein Status)'}
+          </span>
+          {h.seit && (
+            <span className="text-[var(--tf-text-tertiary)]">
+              seit {tagDe(h.seit)}{h.tage !== null && ` (${h.tage} Tage)`}
+            </span>
+          )}
+        </div>
+        {abweichend.map(a => (
+          <AndereEbeneZeile key={`${a.ebene}-${a.kurz.statusRoh}`} a={a} />
+        ))}
+        {weitere > 0 && (
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            … {weitere} weitere abweichende Statuswerte
           </span>
         )}
       </div>
@@ -169,20 +226,27 @@ function Inhalt({ h }: { h: Herleitung }): React.ReactElement {
   );
 }
 
-export function HerleitungPopover({ verbundId, statusRoh }: {
+/**
+ * @param ebene Welche Ebene der übergebene `statusRoh` ist. Der Aufrufer weiß
+ *              es — die Liste zeigt den TV-Status, das Detail den
+ *              Verbund-Status; das Bauteil rät nicht. Die jeweils andere Ebene
+ *              liest der Hook selbst aus den geladenen Records.
+ */
+export function HerleitungPopover({ verbundId, statusRoh, ebene }: {
   verbundId: string | null;
   statusRoh: unknown;
+  ebene: StatusEbene;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
-  const stand = useHerleitung(verbundId, statusRoh, offen);
+  const stand = useHerleitung(verbundId, statusRoh, offen, ebene);
 
   return (
     <Popover open={offen} onOpenChange={setOffen}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label="Warum dieser Status?"
-          title="Warum dieser Status?"
+          aria-label={`Warum dieser ${EBENE_LABEL[ebene]}?`}
+          title={`Warum dieser ${EBENE_LABEL[ebene]}?`}
           // Feste Breite + `shrink-0`: das Icon darf die Zeile nie umbrechen
           // oder ihre Breite ändern, wenn der Inhalt nachlädt (Pitfall #14).
           // Grau über `--tf-text-tertiary`; ein `--tf-text-muted`, wie es
@@ -204,7 +268,12 @@ export function HerleitungPopover({ verbundId, statusRoh }: {
         {stand.fehler != null && (
           <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ {stand.fehler}</p>
         )}
-        {stand.herleitung && <Inhalt h={stand.herleitung} />}
+        {stand.herleitung && (
+          <Inhalt
+            h={stand.herleitung} ebene={ebene}
+            abweichend={stand.abweichend} weitere={stand.weitere}
+          />
+        )}
       </PopoverContent>
     </Popover>
   );
