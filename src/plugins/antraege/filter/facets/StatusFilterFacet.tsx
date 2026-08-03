@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Search } from 'lucide-react';
-import { groupStatusValues, type GroupedItem, type GroupedPhase, type PhaseId } from '../statusGroups';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { TfTree } from '@/components/tree';
+import type { TfTreeNodeRenderProps } from '@/components/tree';
+import { groupStatusValues, type GroupedPhase } from '../statusGroups';
+import {
+  baueStatusBaum, checkedAusFilter, filterAusChecked, filtereStatusPhasen,
+  istGesetzt, phaseKnotenId, type StatusKnoten,
+} from '../statusTreeAdapter';
 
 interface Props {
   counts: Map<string, number>;
@@ -11,114 +17,85 @@ interface Props {
 const fmt = (n: number): string => n.toLocaleString('de-DE');
 
 /**
- * Status-Filter mit Phasen-Akkordeon.
+ * Status-Filter als Checkbox-Baum: ZAH-Phase als Ordner, Status als Blätter,
+ * Tri-State an der Phase (alle / teilweise / keine).
  *
- * Jede ZAH-Phase ist eine eigene kollabierbare Row mit linker Akzent-Border,
- * wenn sie aktive Filter hat. Default-Open: alle Phasen, die beim Mount
- * mindestens einen aktiven Status haben. Manuelles Schließen wird in lokalem
- * State gehalten (nicht persistiert).
+ * Seit v2.393 auf der gemeinsamen `TfTree`-Basis statt eines eigenen
+ * Akkordeons — damit gibt es hier Pfeiltasten, Home/End und Typeahead, ohne
+ * dass sie eigens gebaut werden müssten.
  *
- * Shift-Klick auf einen Phasen-Header toggelt alle Status der Phase, normaler
- * Klick klappt auf/zu.
+ * **Der Store bleibt die Quelle der Wahrheit.** Der Baum ist controlled; die
+ * Übersetzung Häkchen ↔ Filterwerte macht `statusTreeAdapter` (eine Zeile
+ * filtert über alle Schreibweisen ihres Codes — Details dort).
  *
- * **Eine Zeile filtert über alle Schreibweisen ihres Codes.** Der Export
- * liefert denselben Status mal ausgeschrieben, mal abgekürzt; als zwei Zeilen
- * mit je eigener Zahl wäre das eine Fehlinformation. Ein Häkchen setzt deshalb
- * alle Schreibweisen — und ein gespeicherter Filter, der nur eine davon führt,
- * zählt weiter als gesetzt (sonst sähe er nach dem Update aus wie „aus").
+ * **Such-Aufklappen ist vorübergehend.** Beim ersten Zeichen wird der
+ * bisherige Aufklapp-Zustand gemerkt und die Treffer-Phasen geöffnet; beim
+ * Leeren kehrt der gemerkte Zustand zurück. Die Suche verändert also nicht,
+ * womit die Nutzerin danach weiterarbeitet.
  */
 export function StatusFilterFacet({ counts, selected, onChange }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
 
   const phases = useMemo(() => groupStatusValues(counts), [counts]);
+  const filteredPhases = useMemo<GroupedPhase[]>(
+    () => filtereStatusPhasen(phases, query), [phases, query],
+  );
 
-  const filteredPhases = useMemo<GroupedPhase[]>(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return phases;
+  const { items, rootId } = useMemo(() => baueStatusBaum(filteredPhases), [filteredPhases]);
+  const gesetzt = useMemo(() => new Set(selected), [selected]);
+  const checked = useMemo(
+    () => checkedAusFilter(filteredPhases, selected), [filteredPhases, selected],
+  );
+
+  const initialOpen = useMemo<string[]>(() => {
+    const beimMount = new Set(selected);
     return phases
-      .map(p => ({
-        ...p,
-        // Auch über die Varianten suchen: wer „Rücknahmeempf." eintippt (so
-        // steht es im Export), soll den Eintrag finden.
-        items: p.items.filter(it => it.schreibweisen.some(s => s.toLowerCase().includes(q))),
-      }))
-      .filter(p => p.items.length > 0);
-  }, [phases, query]);
-
-  const selectedSet = useMemo(() => new Set(selected), [selected]);
-
-  /** Gesetzt, sobald IRGENDEINE Schreibweise im Filter steht. */
-  const istGesetzt = (it: GroupedItem): boolean => it.schreibweisen.some(s => selectedSet.has(s));
-
-  const initialOpen = useMemo<Set<PhaseId>>(() => {
-    const set = new Set<PhaseId>();
-    for (const p of phases) {
-      if (p.items.some(istGesetzt)) set.add(p.id);
-    }
-    return set;
-    // Initial-Berechnung läuft nur einmal beim Mount — danach übernimmt
-    // der User die Steuerung via Klick. Bewusst keine Dep-Liste, damit
-    // ein Außen-Reset nicht Phasen aufpoppen lässt.
+      .filter(p => p.items.some(it => istGesetzt(it, beimMount)))
+      .map(p => phaseKnotenId(p.id));
+    // Initial-Berechnung läuft nur einmal beim Mount — danach übernimmt der
+    // User die Steuerung. Bewusst keine Dep-Liste, damit ein Außen-Reset nicht
+    // Phasen aufpoppen lässt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [openPhases, setOpenPhases] = useState<Set<PhaseId>>(initialOpen);
+  const [offen, setOffen] = useState<string[]>(initialOpen);
+  /** Aufklapp-Zustand vor der Suche — `null`, solange nicht gesucht wird. */
+  const vorSuche = useRef<string[] | null>(null);
 
-  // Wenn Such-Query gesetzt ist: alle gematchten Phasen auch öffnen, damit
-  // der Treffer sichtbar wird. Beim Leeren des Querys NICHT automatisch
-  // wieder schließen — User-State respektieren.
   useEffect(() => {
-    if (!query.trim()) return;
-    setOpenPhases(prev => {
-      const next = new Set(prev);
-      for (const p of filteredPhases) next.add(p.id);
-      return next;
-    });
-  }, [query, filteredPhases]);
-
-  const toggleOpen = (id: PhaseId): void => {
-    setOpenPhases(s => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  };
-
-  const toggleStatus = (item: GroupedItem): void => {
-    const alle = new Set<string>(item.schreibweisen);
-    const next = istGesetzt(item)
-      ? selected.filter(v => !alle.has(v))
-      : [...selected, ...item.schreibweisen.filter(s => !selectedSet.has(s))];
-    onChange(next);
-  };
-
-  const togglePhaseSelection = (phase: GroupedPhase): void => {
-    const alle = new Set<string>(phase.items.flatMap(it => it.schreibweisen));
-    const allOn = phase.items.length > 0 && phase.items.every(istGesetzt);
-    if (allOn) {
-      onChange(selected.filter(v => !alle.has(v)));
-    } else {
-      const merged = new Set(selected);
-      for (const v of alle) merged.add(v);
-      onChange([...merged]);
-    }
-  };
-
-  const handlePhaseHeaderClick = (phase: GroupedPhase, e: React.MouseEvent): void => {
-    if (e.shiftKey) {
-      togglePhaseSelection(phase);
-      // Bei Shift-Klick die Phase immer aufklappen, damit der User
-      // unmittelbar sieht welche Stati nun gesetzt (bzw. abgewählt) sind.
-      setOpenPhases(s => {
-        if (s.has(phase.id)) return s;
-        const n = new Set(s);
-        n.add(phase.id);
-        return n;
+    const sucht = query.trim() !== '';
+    if (sucht) {
+      if (vorSuche.current === null) vorSuche.current = offen;
+      setOffen(prev => {
+        const next = new Set(prev);
+        for (const p of filteredPhases) next.add(phaseKnotenId(p.id));
+        return next.size === prev.length ? prev : [...next];
       });
       return;
     }
-    toggleOpen(phase.id);
+    if (vorSuche.current !== null) {
+      setOffen(vorSuche.current);
+      vorSuche.current = null;
+    }
+    // `offen` ist bewusst keine Dependency: der Effekt SETZT ihn, eine
+    // Rückkopplung wäre eine Schleife.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, filteredPhases]);
+
+  /**
+   * Shift-Klick auf eine Phase togglet alle ihre Stati — dasselbe, was die
+   * Ordner-Checkbox tut. Bleibt als Alias erhalten, weil es der bisher EINZIGE
+   * Weg dafür war und in der Fußzeile jahrelang so beschrieben stand.
+   */
+  const shiftAufPhase = (id: string, data: StatusKnoten, e: React.MouseEvent): void => {
+    if (!e.shiftKey || data.art !== 'phase') return;
+    e.stopPropagation();
+    const alle = new Set(data.phase.items.flatMap(it => it.schreibweisen));
+    const allesAn = data.phase.items.length > 0 && data.phase.items.every(it => istGesetzt(it, gesetzt));
+    onChange(allesAn
+      ? selected.filter(v => !alle.has(v))
+      : [...selected, ...[...alle].filter(v => !gesetzt.has(v))]);
+    setOffen(prev => (prev.includes(id) ? prev : [...prev, id]));
   };
 
   const isEmpty = filteredPhases.length === 0;
@@ -141,7 +118,6 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
         />
       </div>
 
-      {/* Phasen-Akkordeon */}
       <div className="max-h-[70vh] overflow-y-auto -mx-1 px-1">
         {isEmpty ? (
           <div
@@ -152,106 +128,95 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
             Kein Status gefunden
           </div>
         ) : (
-          filteredPhases.map(phase => {
-            const onCount = phase.items.reduce((n, it) => (istGesetzt(it) ? n + 1 : n), 0);
-            const totalCount = phase.items.reduce((n, it) => n + it.count, 0);
-            const isOpen = openPhases.has(phase.id);
-            const hasActive = onCount > 0;
-
-            return (
-              <div key={phase.id} className="mb-0.5">
-                {/* Phase-Header (kollabierbar) */}
-                <button
-                  type="button"
-                  onClick={e => handlePhaseHeaderClick(phase, e)}
-                  title="Klick: aufklappen · Shift-Klick: alle Stati der Phase togglen"
-                  className="w-full flex items-center gap-1.5 cursor-pointer select-none hover:bg-[var(--tf-hover)] rounded-sm"
-                  style={{
-                    padding: '7px 6px',
-                    borderLeft: `2px solid ${hasActive ? 'var(--tf-primary)' : 'transparent'}`,
-                  }}
-                >
-                  <ChevronRight
-                    size={12}
-                    className="shrink-0 text-[var(--tf-text-tertiary)]"
-                    style={{
-                      transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                    }}
-                  />
-                  <span
-                    className={`text-[11px] font-medium uppercase ${
-                      hasActive ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'
-                    }`}
-                    style={{ letterSpacing: '0.08em' }}
-                  >
-                    {phase.label}
-                  </span>
-                  {hasActive ? (
-                    <span
-                      className="text-[11px] font-medium tabular-nums"
-                      style={{ color: 'var(--tf-primary)' }}
-                    >
-                      {onCount}/{phase.items.length}
-                    </span>
-                  ) : null}
-                  <span className="flex-1" />
-                  <span
-                    className={`text-[11px] tabular-nums ${
-                      hasActive ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'
-                    }`}
-                  >
-                    {fmt(totalCount)}
-                  </span>
-                </button>
-
-                {/* Status-Items (offen) */}
-                {isOpen ? (
-                  <div style={{ paddingLeft: 18, paddingTop: 2, paddingBottom: 4 }}>
-                    {phase.items.map(item => {
-                      const isOn = istGesetzt(item);
-                      const weitere = item.schreibweisen.length - 1;
-                      return (
-                        <label
-                          key={item.value}
-                          title={weitere > 0
-                            ? `Auch: ${item.schreibweisen.slice(1).join(', ')}`
-                            : undefined}
-                          className={`flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer text-[12.5px] ${
-                            isOn
-                              ? 'text-[var(--tf-text)] font-medium'
-                              : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isOn}
-                            onChange={() => toggleStatus(item)}
-                            className="accent-[var(--tf-primary)]"
-                          />
-                          <span className="flex-1 truncate">{item.value}</span>
-                          <span
-                            className={`text-[11px] tabular-nums ${
-                              isOn ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'
-                            }`}
-                          >
-                            {fmt(item.count)}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })
+          <TfTree<StatusKnoten>
+            items={items}
+            rootId={rootId}
+            label="Status filtern"
+            features={{ checkboxes: true }}
+            expandedItems={offen}
+            onExpandedChange={setOffen}
+            checkedItems={checked}
+            onCheckedChange={ids => onChange(filterAusChecked(filteredPhases, ids, selected))}
+            onZeilenKlick={shiftAufPhase}
+            slots={{
+              label: p => <Beschriftung p={p} gesetzt={gesetzt} />,
+              trailing: p => <Zahl p={p} gesetzt={gesetzt} />,
+              zeilenStil: p => (p.data.art === 'phase' && hatAktive(p.data.phase, gesetzt)
+                ? { borderLeft: '2px solid var(--tf-primary)', paddingLeft: 4 }
+                : { borderLeft: '2px solid transparent' }),
+            }}
+          />
         )}
       </div>
 
-      {/* Footer-Hint */}
       <div className="mt-2 px-0.5 text-[11px] text-[var(--tf-text-tertiary)] leading-snug">
-        Shift-Klick auf Phase wählt alle Stati der Phase.
+        Checkbox an der Phase wählt alle Stati der Phase.
       </div>
     </div>
+  );
+}
+
+/** Hat die Phase mindestens einen gesetzten Status? */
+function hatAktive(phase: GroupedPhase, gesetzt: ReadonlySet<string>): boolean {
+  return phase.items.some(it => istGesetzt(it, gesetzt));
+}
+
+/** Phasen-Label in Versalien, Status-Label normal. */
+function Beschriftung({ p, gesetzt }: {
+  p: TfTreeNodeRenderProps<StatusKnoten>; gesetzt: ReadonlySet<string>;
+}): React.ReactElement {
+  const aktiv = p.checked !== 'unchecked';
+  if (p.data.art === 'phase') {
+    const an = p.data.phase.items.reduce((n, it) => (istGesetzt(it, gesetzt) ? n + 1 : n), 0);
+    return (
+      <>
+        <span
+          className={`text-[11px] font-medium uppercase ${
+            an > 0 ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'
+          }`}
+          style={{ letterSpacing: '0.08em' }}
+        >
+          {p.name}
+        </span>
+        {an > 0 && (
+          <span className="text-[11px] font-medium tabular-nums" style={{ color: 'var(--tf-primary)' }}>
+            {an}/{p.data.phase.items.length}
+          </span>
+        )}
+        <span className="flex-1" />
+      </>
+    );
+  }
+  const weitere = p.data.art === 'status' ? p.data.item.schreibweisen.length - 1 : 0;
+  return (
+    <span
+      title={weitere > 0 && p.data.art === 'status'
+        ? `Auch: ${p.data.item.schreibweisen.slice(1).join(', ')}`
+        : undefined}
+      className={`flex-1 min-w-0 truncate text-[12.5px] ${
+        aktiv ? 'text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)]'
+      }`}
+    >
+      {p.name}
+    </span>
+  );
+}
+
+/** Rechtsbündige Anzahl — bei der Phase die Summe ihrer Blätter. */
+function Zahl({ p, gesetzt }: {
+  p: TfTreeNodeRenderProps<StatusKnoten>; gesetzt: ReadonlySet<string>;
+}): React.ReactElement | null {
+  if (p.data.art === 'wurzel') return null;
+  const [wert, aktiv] = p.data.art === 'phase'
+    ? [p.data.phase.items.reduce((n, it) => n + it.count, 0), hatAktive(p.data.phase, gesetzt)]
+    : [p.data.item.count, istGesetzt(p.data.item, gesetzt)];
+  return (
+    <span
+      className={`shrink-0 text-[11px] tabular-nums ${
+        aktiv ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)]'
+      }`}
+    >
+      {fmt(wert)}
+    </span>
   );
 }
