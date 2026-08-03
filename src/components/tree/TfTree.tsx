@@ -153,6 +153,7 @@ export function TfTree<T>({
     ...(mitZiehen
       ? {
           canReorder: features?.reorder === true,
+          seperateDragHandle: features?.dragHandle === true,
           canDrag: items_ => canDrag?.(items_.map(i => i.getId())) ?? true,
           canDrop: (quellen, ziel) =>
             canDrop?.(quellen.map(i => i.getId()), zielId(ziel)) ?? true,
@@ -200,10 +201,11 @@ export function TfTree<T>({
       isDropZiel: mitZiehen ? item.isDragTarget() : false,
       zeilenProps: item.getProps(),
       renameProps: mitUmbenennen && item.isRenaming() ? item.getRenameInputProps() : null,
+      dragHandleProps: mitZiehen && features?.dragHandle === true ? item.getDragHandleProps() : null,
       toggleChecked: () => { if (mitCheckboxen) void item.toggleCheckedState(); },
       starteUmbenennen: () => { if (mitUmbenennen && item.canRename()) item.startRenaming(); },
     };
-  }, [mitAuswahl, mitCheckboxen, mitUmbenennen, mitZiehen]);
+  }, [mitAuswahl, mitCheckboxen, mitUmbenennen, mitZiehen, features?.dragHandle]);
 
   // Die Einfüge-Marke beim Umsortieren. Position rechnet die Bibliothek, die
   // Farbe kommt von uns — deshalb `getDragLineStyle()` und ein eigener Strich.

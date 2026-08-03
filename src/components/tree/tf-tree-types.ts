@@ -47,6 +47,12 @@ export interface TfTreeFeatureFlags {
    * Neuaufbau hinweg.
    */
   reorder?: boolean;
+  /**
+   * Nur mit `dnd`: Gezogen wird an einem eigenen Griff, nicht an der ganzen
+   * Zeile. Nötig, sobald die Zeile Eingabefelder trägt — sonst startet der
+   * Versuch, eine Zahl zu markieren, einen Drag.
+   */
+  dragHandle?: boolean;
 }
 
 /** Häkchen-Zustand eines Knotens. */
@@ -73,6 +79,8 @@ export interface TfTreeNodeRenderProps<T> {
   zeilenProps: Record<string, unknown>;
   /** Auf das Umbenennen-Eingabefeld spreaden; `null`, wenn nicht umbenannt wird. */
   renameProps: Record<string, unknown> | null;
+  /** Auf den Zieh-Griff spreaden; `null` ohne `features.dragHandle`. */
+  dragHandleProps: Record<string, unknown> | null;
   /** Häkchen umschalten (No-op ohne `checkboxes`). */
   toggleChecked: () => void;
   /** Umbenennen starten (No-op ohne `renaming` bzw. wenn `canRename` verneint). */
@@ -84,6 +92,8 @@ export interface TfTreeNodeRenderProps<T> {
  * Jeder Slot bekommt dieselben Render-Props wie die Zeile selbst.
  */
 export interface TfTreeSlots<T> {
+  /** Ganz links, vor dem Chevron — z. B. der Zieh-Griff (`dragHandleProps`). */
+  leading?: (p: TfTreeNodeRenderProps<T>) => ReactNode;
   icon?: (p: TfTreeNodeRenderProps<T>) => ReactNode;
   /** Ersetzt die Standard-Beschriftung (`name`). */
   label?: (p: TfTreeNodeRenderProps<T>) => ReactNode;

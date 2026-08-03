@@ -66,6 +66,8 @@ export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNode
         ...slots?.zeilenStil?.(node),
       }}
     >
+      {slots?.leading?.(node)}
+
       {isFolder ? (
         <ChevronRight
           size={12}
