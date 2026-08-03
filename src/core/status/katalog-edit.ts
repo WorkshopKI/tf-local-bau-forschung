@@ -314,6 +314,89 @@ export function ergaenzeVorgangssystemSeed(
   };
 }
 
+/** Was der ausgelieferte Regelsatz gegenüber der Fassung anders sagt. */
+export interface TodoRegelDrift {
+  /** Seed-Regeln, die die Fassung gar nicht führt. */
+  neu: string[];
+  /** Ids in beiden, deren Inhalt auseinanderläuft (Bedingung, Rolle, Text …). */
+  geaendert: string[];
+  /** Noch aktive Regeln, die der Seed nicht mehr führt. */
+  entfallen: string[];
+}
+
+/** Vergleichsform einer Regel — ohne die Felder, die nur die Anzeige betreffen. */
+function regelKern(r: TodoRegel): string {
+  return JSON.stringify({
+    reihenfolge: r.reihenfolge, bedingung: r.bedingung, todo: r.todo,
+    zustaendig: [...r.zustaendig].sort(), wartetAuf: r.wartetAuf ?? null,
+    sperrt: [...(r.sperrt ?? [])].sort(), sperrtNicht: [...(r.sperrtNicht ?? [])].sort(),
+  });
+}
+
+/**
+ * Drift zwischen der gepflegten Kaskade und dem Auslieferungsstand.
+ *
+ * Braucht es, weil der Regelsatz **wächst**: die Fachabstimmung hat Sperren
+ * ergänzt und eine Regel nach Rollen geteilt. Ohne Nachzieh-Weg liefe jede
+ * bestehende Installation weiter auf dem Stand ihres ersten Seeds — sichtbar
+ * wäre das nirgends.
+ */
+export function todoRegelDrift(
+  version: MappingVersion,
+  seed: readonly TodoRegel[],
+  entfalleneIds: readonly string[],
+): TodoRegelDrift {
+  const bestand = new Map((version.todoRegeln ?? []).map(r => [r.id, r]));
+  const neu: string[] = [];
+  const geaendert: string[] = [];
+  for (const s of seed) {
+    const b = bestand.get(s.id);
+    if (!b) neu.push(s.id);
+    else if (regelKern(b) !== regelKern(s)) geaendert.push(s.id);
+  }
+  const entfallen = entfalleneIds.filter(id => bestand.get(id)?.aktiv === true);
+  return { neu, geaendert, entfallen };
+}
+
+/**
+ * Zieht den ausgelieferten Regelsatz in eine Fassung nach.
+ *
+ * Anders als {@link ergaenzeVorgangssystemSeed} **ersetzt** das die gelieferten
+ * Regeln — sonst käme eine korrigierte Bedingung nie an. Das ist deshalb eine
+ * ausdrückliche Aktion mit vorher sichtbarer Bilanz, keine automatische.
+ *
+ * Drei Sorten, drei Behandlungen:
+ * - Seed-Regel, die die Fassung nicht kennt ⇒ **anlegen**.
+ * - Seed-Regel, die beide kennen ⇒ **ersetzen** (die Auslieferung ist für ihre
+ *   eigenen Regeln maßgeblich; eine PL-Änderung daran geht verloren und steht
+ *   deshalb in der Bilanz).
+ * - Id, die der Seed nicht (mehr) führt ⇒ **unangetastet**, außer sie steht in
+ *   `entfalleneIds`: dann `aktiv: false`. Invalidieren statt löschen.
+ */
+export function zieheTodoRegelnNach(
+  version: MappingVersion,
+  seed: readonly TodoRegel[],
+  entfalleneIds: readonly string[],
+): MappingVersion {
+  const ausSeed = new Map(seed.map(r => [r.id, r]));
+  const entfallen = new Set(entfalleneIds);
+  const behalten = (version.todoRegeln ?? [])
+    .filter(r => !ausSeed.has(r.id))
+    .map(r => (entfallen.has(r.id) ? { ...r, aktiv: false } : r));
+  return {
+    ...version,
+    todoRegeln: [
+      ...seed.map(r => ({
+        ...r,
+        zustaendig: [...r.zustaendig],
+        ...(r.sperrt ? { sperrt: [...r.sperrt] } : {}),
+        ...(r.sperrtNicht ? { sperrtNicht: [...r.sperrtNicht] } : {}),
+      })),
+      ...behalten,
+    ].sort((a, b) => a.reihenfolge - b.reihenfolge),
+  };
+}
+
 /**
  * Der Code-Katalog, gegen den ein Import verglichen wird: die **Auslieferung**,
  * überlagert von dem, was die Fassung inzwischen pflegt (zusätzliche Varianten).

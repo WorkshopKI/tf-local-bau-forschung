@@ -21,7 +21,7 @@
  * Verifikationsfragen V1–V4 stehen im Quell-Dokument.
  */
 import { KANONISCHE_CODE_FELDER } from './seed-kanonisch';
-import type { Bedingung, TodoRegel } from './typen';
+import { ALLE_STRAENGE, type Bedingung, type TodoRegel } from './typen';
 
 /** Kürzel → feldId im Katalog. Kanonisch belegte Codes heißen dort anders. */
 export function feld(code: string): string {
@@ -47,10 +47,36 @@ const MIT_PRECHECK = [3, 5];
  * denselben Sachverhalt, keine engere Fassung; wo sie knapper wirken, gilt die
  * Tabelle. Vermerkt als Randfall für die Abstimmung mit den ABs.
  */
-const GESPERRTE_STRAENGE = ['r1', 'r2', 'r22', 'r23', 'r24', 'r25'];
+const GESPERRTE_STRAENGE = ['r1', 'r2', 'r22', 'r23a', 'r23b', 'r24', 'r25'];
 
 export const AB_TODO_REGELN: readonly TodoRegel[] = [
   // --- Sperren (vor allem anderen ausgewertet) -------------------------------
+  {
+    /**
+     * Die Populations-Filter der Mappe. Der Slicer-Screenshot zeigt fixiert
+     * `D_AZBE = Leer` und `D_VV = Leer` — beides schneidet ganze Vorgänge weg,
+     * nicht einzelne Stränge. Ohne sie meldeten Regeln ohne Endschranke über den
+     * ganzen Altbestand (gemessen: „in QS" 1766).
+     *
+     * `D_AZ1_1` (Erstentscheidung) stand im Screenshot auf „Alle" und filterte
+     * NICHT — der ursprünglich vorgeschlagene S3 ist damit widerlegt und wird
+     * nicht gebaut (Fachabstimmung A3, siehe `todo-regeln-ab-seed.md`).
+     */
+    id: 's0', reihenfolge: 5, beschreibung: 'S0 · Verfahren abgeschlossen (Schlussvermerk)',
+    bedingung: gefuellt('VV'),
+    todo: '', zustaendig: [], sperrt: [ALLE_STRAENGE], aktiv: true,
+  },
+  {
+    /**
+     * Ausgenommen ist R3 („ZuwB erstellen"), und zwar mit Absicht doppelt:
+     * R3 verlangt ohnehin `D_AZBE` leer und ist zu dieser Sperre logisch
+     * disjunkt. Die Ausnahme steht trotzdem da, weil sie sichtbar macht, warum
+     * R3 überlebt — und weil sie hält, wenn jemand R3 später umschreibt.
+     */
+    id: 's0b', reihenfolge: 6, beschreibung: 'S0b · Zuwendungsbescheid erstellt (in Begleitung)',
+    bedingung: gefuellt('AZBE'),
+    todo: '', zustaendig: [], sperrt: [ALLE_STRAENGE], sperrtNicht: ['r3'], aktiv: true,
+  },
   {
     id: 's1', reihenfolge: 10, beschreibung: 'S1 · Antrag vom ASt zurückgezogen',
     bedingung: gefuellt('AAR'),
@@ -94,14 +120,19 @@ export const AB_TODO_REGELN: readonly TodoRegel[] = [
   },
 
   // --- 4 · Rücknahmeempfehlung ----------------------------------------------
+  // Das Gate `D_XKS leer` („nur solange die kaufm. QS nicht erfolgt ist") stand
+  // in der Mappe an allen vier Regeln dieses Strangs und war als V1 zu
+  // verifizieren. Die Fachabstimmung vom 03.08.2026 bestätigt es als ABSICHT:
+  // nach erfolgter kaufmännischer QS ist der RNE-Vorgang aus AB-Sicht durch,
+  // eine Erinnerung daran wäre Lärm. Damit ist es reguläre Bedingung.
   {
     id: 'r6', reihenfolge: 80, beschreibung: 'R6 · RNE-Widerspruchsfrist abgelaufen',
-    bedingung: alle(gefuellt('ARZ'), leer('ARW'), tageSeit('ARZ', 31), leer('AVK')),
+    bedingung: alle(gefuellt('ARZ'), leer('ARW'), tageSeit('ARZ', 31), leer('AVK'), leer('XKS')),
     todo: 'SV erstellen', zustaendig: ['ab'], aktiv: true,
   },
   {
     id: 'r7', reihenfolge: 90, beschreibung: 'R7 · Widerspruch gegen RNE eingegangen',
-    bedingung: alle(gefuellt('ARZ'), gefuellt('ARW'), leer('AAR')),
+    bedingung: alle(gefuellt('ARZ'), gefuellt('ARW'), leer('AAR'), leer('XKS')),
     todo: 'Stellungnahme RNE prüfen', zustaendig: ['ab', 'fb'], aktiv: true,
   },
   {
@@ -109,12 +140,12 @@ export const AB_TODO_REGELN: readonly TodoRegel[] = [
     // nimmt den abgelaufenen Fall weg. Genau so rechnet die verschachtelte
     // WENN-Formel — die Kaskade IST die Fallunterscheidung.
     id: 'r8', reihenfolge: 100, beschreibung: 'R8 · RNE versandt, Frist läuft',
-    bedingung: alle(gefuellt('ARZ'), leer('ARW'), leer('AAR')),
+    bedingung: alle(gefuellt('ARZ'), leer('ARW'), leer('AAR'), leer('XKS')),
     todo: 'RNE abwarten', zustaendig: [], wartetAuf: 'ast', aktiv: true,
   },
   {
     id: 'r9', reihenfolge: 110, beschreibung: 'R9 · RNE technisch erstellt, kaufm. Teil fehlt',
-    bedingung: alle(gefuellt('ART'), leer('ARZ'), leer('AAR')),
+    bedingung: alle(gefuellt('ART'), leer('ARZ'), leer('AAR'), leer('XKS')),
     todo: 'RNE ergänzen', zustaendig: ['ab'], aktiv: true,
   },
 
@@ -213,14 +244,30 @@ export const AB_TODO_REGELN: readonly TodoRegel[] = [
   },
 
   // --- 10 · Nachforderung / PreCheck offen -----------------------------------
+  // V2 ist beantwortet: der PreCheck hat ZWEI Teile mit verschiedenen Rollen —
+  // der TV-PreCheck (`D_PC±`) ist die betriebswirtschaftliche Vorprüfung des AB,
+  // der Verbund-PreCheck (`D_XPC±`) die inhaltliche des FB. „PC offen" muss
+  // deshalb sagen, auf WEN gewartet wird; die Engine kennt keine gerechneten
+  // Rollen, also steht je Teil eine Regel da. Beide behalten denselben
+  // To-do-Text — das Board gruppiert danach, und fachlich ist es eine Aufgabe.
   {
-    // Zuständigkeit ist Verifikationsfrage V2 — bis dahin „wartet auf FB",
-    // weil der PreCheck fachlich läuft.
-    id: 'r23', reihenfolge: 250, beschreibung: 'R23 · PreCheck offen (nur FuE/DS)',
+    id: 'r23a', reihenfolge: 250, beschreibung: 'R23a · PreCheck TV offen (nur FuE/DS)',
     bedingung: alle(
       { feldId: 'status', op: 'ist', wert: 'beantragt' },
       { feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: MIT_PRECHECK },
-      leer('AN'),
+      leer('AN'), leer('PC+'), leer('PC-'),
+    ),
+    todo: 'PC offen', zustaendig: [], wartetAuf: 'ab', aktiv: true,
+  },
+  {
+    // Sind BEIDE PreCheck-Teile vermerkt und `D_AN` trotzdem leer, trifft keine
+    // der beiden Regeln mehr und der Antrag fällt auf R24/R25 durch. Das ist die
+    // Korrektur, nicht der Verlust: „PC offen" wäre dort schlicht falsch.
+    id: 'r23b', reihenfolge: 255, beschreibung: 'R23b · PreCheck Verbund offen (nur FuE/DS)',
+    bedingung: alle(
+      { feldId: 'status', op: 'ist', wert: 'beantragt' },
+      { feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: MIT_PRECHECK },
+      leer('AN'), leer('XPC+'), leer('XPC-'),
     ),
     todo: 'PC offen', zustaendig: [], wartetAuf: 'fb', aktiv: true,
   },
@@ -245,12 +292,25 @@ export const AB_TODO_REGELN: readonly TodoRegel[] = [
   },
 ];
 
+/**
+ * Regel-Ids, die der Seed einmal führte und nicht mehr führt.
+ *
+ * Ohne diese Liste ließe sich beim Nachziehen nicht unterscheiden, ob eine
+ * unbekannte Id von der PL erfunden wurde (bleibt) oder aus der Auslieferung
+ * verschwunden ist (soll nicht weiter feuern). Stillgelegt wird sie, nicht
+ * gelöscht — eine Fassung soll ihre Historie behalten.
+ *
+ * `r23` ist mit der Fachabstimmung in `r23a`/`r23b` aufgegangen (V2).
+ */
+export const ENTFALLENE_REGEL_IDS: readonly string[] = ['r23'];
+
 /** Frische Kopien — der Seed darf nie durch eine Kuration mutiert werden. */
 export function baueTodoRegelSeed(): TodoRegel[] {
   return AB_TODO_REGELN.map(r => ({
     ...r,
     zustaendig: [...r.zustaendig],
     ...(r.sperrt ? { sperrt: [...r.sperrt] } : {}),
+    ...(r.sperrtNicht ? { sperrtNicht: [...r.sperrtNicht] } : {}),
     bedingung: JSON.parse(JSON.stringify(r.bedingung)) as Bedingung,
   }));
 }

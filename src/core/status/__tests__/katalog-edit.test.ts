@@ -3,7 +3,9 @@ import {
   aendereKategorie, entdoppleKanonischeCodes, entferneKategorie, ergaenzeSeedFelder,
   ergaenzeVorgangssystemSeed, fuegeFeldHinzu, fuegeKategorieHinzu, kanonischeCodeDoppel,
   markiereRelevanz, relevanzLuecke, seedTextAbweichungen, uebernimmSeedTexte,
+  todoRegelDrift, zieheTodoRegelnNach,
 } from '@/core/status/katalog-edit';
+import { baueTodoRegelSeed } from '@/core/status/todo-regeln.seed';
 import {
   baueSeedVersion, baueSeedCodeFelderOhneKanonische, KANONISCHE_CODE_FELDER,
 } from '@/core/status/seed';
@@ -231,6 +233,48 @@ describe('Doppelt geführte Codes (kanonisches Feld + eigene D_-Spalte)', () => 
   it('ergaenzeVorgangssystemSeed räumt beim Nachziehen mit auf', () => {
     const nachher = ergaenzeVorgangssystemSeed(doppelt(), [], [], KANONISCH);
     expect(kanonischeCodeDoppel(nachher, KANONISCH)).toEqual([]);
+  });
+
+  it('Regelsatz-Drift: neu, geändert, entfallen — jedes einzeln benannt', () => {
+    const seed = baueTodoRegelSeed();
+    const fassung: MappingVersion = {
+      ...altfassung(),
+      todoRegeln: [
+        // unverändert übernommen
+        seed.find(r => r.id === 'r3')!,
+        // von Hand geändert (andere Rolle)
+        { ...seed.find(r => r.id === 'r9')!, zustaendig: ['fb'] },
+        // aus dem Seed verschwunden, noch aktiv
+        { id: 'r23', reihenfolge: 250, beschreibung: 'alt', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'PC offen', zustaendig: [], aktiv: true },
+        // von der PL erfunden — bleibt unangetastet
+        { id: 'pl1', reihenfolge: 900, beschreibung: 'eigene', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'Eigenes', zustaendig: ['ab'], aktiv: true },
+      ],
+    };
+    const drift = todoRegelDrift(fassung, seed, ['r23']);
+    expect(drift.geaendert).toEqual(['r9']);
+    expect(drift.entfallen).toEqual(['r23']);
+    expect(drift.neu, 'alles außer r3/r9 fehlt der Fassung').not.toContain('r3');
+    expect(drift.neu).toContain('s0b');
+  });
+
+  it('Nachziehen ersetzt Geliefertes, legt Entfallenes still, lässt Eigenes stehen', () => {
+    const seed = baueTodoRegelSeed();
+    const fassung: MappingVersion = {
+      ...altfassung(),
+      todoRegeln: [
+        { ...seed.find(r => r.id === 'r9')!, zustaendig: ['fb'] },
+        { id: 'r23', reihenfolge: 250, beschreibung: 'alt', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'PC offen', zustaendig: [], aktiv: true },
+        { id: 'pl1', reihenfolge: 900, beschreibung: 'eigene', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'Eigenes', zustaendig: ['ab'], aktiv: true },
+      ],
+    };
+    const nachher = zieheTodoRegelnNach(fassung, seed, ['r23']);
+    const nach = new Map((nachher.todoRegeln ?? []).map(r => [r.id, r]));
+    expect(nach.get('r9')?.zustaendig, 'geliefert ⇒ ersetzt').toEqual(['ab']);
+    expect(nach.get('r23')?.aktiv, 'entfallen ⇒ stillgelegt, nicht gelöscht').toBe(false);
+    expect(nach.get('pl1')?.aktiv, 'eigene Regel bleibt').toBe(true);
+    expect(nach.has('s0b'), 'neue Sperre kommt dazu').toBe(true);
+    // Idempotent: ein zweiter Lauf meldet keine Drift mehr.
+    expect(todoRegelDrift(nachher, seed, ['r23'])).toEqual({ neu: [], geaendert: [], entfallen: [] });
   });
 
   it('jedes Kürzel im Seed hat GENAU EINEN Speicherort', () => {

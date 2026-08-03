@@ -28,6 +28,7 @@ import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import {
   ROLLE_LABEL, ROLLE_LANG, bedingungSatz, bedingungFeldRefs, referenzierbareFelder,
+  ALLE_STRAENGE,
   type Bedingung, type MappingVersion, type Rolle, type TodoRegel,
 } from '@/core/status';
 import { feldKlasse, feldStil } from './labels';
@@ -46,6 +47,16 @@ const WARTET_WAHL: { wert: string; label: string }[] = [
 
 const ROLLEN_WAHL: readonly Rolle[] = ['ab', 'fb', 'qs', 'pa', 'jur'];
 
+/** Was eine Sperre stilllegt — und was sie bewusst durchlässt. */
+function sperrSatz(r: TodoRegel): string {
+  const ids = r.sperrt ?? [];
+  const ausnahmen = (r.sperrtNicht ?? []).join(', ');
+  const rest = ausnahmen ? ` — außer ${ausnahmen}` : '';
+  return ids.includes(ALLE_STRAENGE)
+    ? `kein To-do mehr${rest}`
+    : `${ids.length} Regeln überspringen (${ids.join(', ')})${rest}`;
+}
+
 function RegelSatz({ r, version }: { r: TodoRegel; version: MappingVersion }): React.ReactElement {
   const istSperre = (r.sperrt?.length ?? 0) > 0;
   return (
@@ -54,9 +65,7 @@ function RegelSatz({ r, version }: { r: TodoRegel; version: MappingVersion }): R
       {bedingungSatz(r.bedingung, version)}{' '}
       <span className="text-[var(--tf-text-tertiary)]">DANN</span>{' '}
       {istSperre ? (
-        <span className="text-[var(--tf-text)]">
-          {r.sperrt!.length} Regeln überspringen ({r.sperrt!.join(', ')})
-        </span>
+        <span className="text-[var(--tf-text)]">{sperrSatz(r)}</span>
       ) : (
         <>
           <span className="text-[var(--tf-text)]">„{r.todo}"</span>
@@ -193,6 +202,8 @@ export interface TodoRegelnApi {
   setTodoRegel: (id: string, patch: Partial<TodoRegel>) => void;
   verschiebeTodoRegel: (id: string, richtung: -1 | 1) => void;
   todoRegelnNachziehen: () => void;
+  /** Was die Auslieferung gegenüber der gepflegten Kaskade anders sagt. */
+  todoDrift: { neu: string[]; geaendert: string[]; entfallen: string[] };
 }
 
 export function TodoRegelnBereich({ version, api }: {
@@ -208,6 +219,14 @@ export function TodoRegelnBereich({ version, api }: {
       : `„${feldId}" steht nicht im Katalog — diese Bedingung träfe nie zu.`;
   }, [version.felder]);
 
+  const { neu, geaendert, entfallen } = api.todoDrift;
+  const driftGesamt = neu.length + geaendert.length + entfallen.length;
+  const driftSatz = [
+    neu.length > 0 ? `${neu.length} neue Regeln (${neu.join(', ')})` : null,
+    geaendert.length > 0 ? `${geaendert.length} geändert (${geaendert.join(', ')})` : null,
+    entfallen.length > 0 ? `${entfallen.length} entfallen (${entfallen.join(', ')})` : null,
+  ].filter(Boolean).join(' · ');
+
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
@@ -221,11 +240,24 @@ export function TodoRegelnBereich({ version, api }: {
         im Board unter „Kein To-do ermittelt".
       </p>
 
+      {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
+          stumm auf dem Stand ihres ersten Seeds stehen. Die Bilanz steht dran,
+          weil das Nachziehen die GELIEFERTEN Regeln ersetzt. */}
+      {driftGesamt > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
+          <span className="text-[12.5px] text-[var(--tf-text)]">
+            Die Auslieferung sagt {driftSatz}. Nachziehen legt neue Regeln an, <strong>ersetzt</strong>{' '}
+            die gelieferten und legt entfallene still — eigene Regeln bleiben unangetastet.
+          </span>
+          <Button variant="secondary" size="sm" onClick={api.todoRegelnNachziehen}>Nachziehen</Button>
+        </div>
+      )}
+
       {regeln.length === 0 ? (
         <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
           <span className="text-[12.5px] text-[var(--tf-text)]">
             Diese Fassung führt keine To-do-Regeln. Die Auslieferung bringt den AB-Regelsatz mit
-            (25 Regeln + 2 Sperren, transkribiert aus der Mappe „AB Anträge").
+            (26 Regeln + 4 Sperren, transkribiert aus der Mappe „AB Anträge").
           </span>
           <Button variant="secondary" size="sm" onClick={api.todoRegelnNachziehen}>Nachziehen</Button>
         </div>

@@ -50,6 +50,13 @@ export interface BoardZeile {
   zustaendig: readonly Rolle[];
   wartetAuf: Rolle | 'ast' | null;
   belege: TodoBeleg[];
+  /**
+   * Ids der Sperren, die griffen. Trennt die beiden Sorten von „kein To-do":
+   * „das Verfahren ist durch" (S0/S0b) ist eine ANDERE Aussage als „auf diesen
+   * Vorgang passt keine Regel" — die erste ist ein Ergebnis, die zweite eine
+   * Lücke im Regelsatz.
+   */
+  gesperrtDurch: string[];
   /** Urteil des Stillstands-Wächters (Stufe 1 + 2). */
   waechter: WaechterErgebnis;
   /** Späteres von Antragseingang und „alle Anträge da"; ISO oder null. */
@@ -272,6 +279,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
             zustaendig: e.zustaendig,
             wartetAuf: e.wartetAuf,
             belege: e.belege,
+            gesperrtDurch: e.gesperrtDurch,
             waechter,
             wirksamerEingang: eingang,
             restTage,
@@ -351,7 +359,18 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     if (tab === 'fristen' || tab === 'auswertung') return [];
     const imTab = zeilen.filter(z => tabVon(z) === tab);
     if (tab === 'ohne') {
-      return imTab.length > 0 ? [{ todo: 'Kein To-do ermittelt', zeilen: imTab }] : [];
+      // Zwei Sorten, zwei Gruppen: eine greifende Sperre ist ein ERGEBNIS
+      // („Verfahren abgeschlossen"), kein fehlendes Urteil. Zusammengeworfen
+      // wäre die Lücken-Anzeige unbrauchbar — seit S0/S0b liegen tausende
+      // abgeschlossene Vorgänge über den paar hundert echten Unbekannten.
+      const gesperrt = imTab.filter(z => z.gesperrtDurch.length > 0);
+      const offen = imTab.filter(z => z.gesperrtDurch.length === 0);
+      return [
+        ...(offen.length > 0 ? [{ todo: 'Kein To-do ermittelt', zeilen: offen }] : []),
+        ...(gesperrt.length > 0
+          ? [{ todo: 'Keine Aufgabe mehr (Verfahren abgeschlossen)', zeilen: gesperrt }]
+          : []),
+      ];
     }
     // Kaskaden-Reihenfolge statt Häufigkeit: so steht das Board in derselben
     // Ordnung wie der Regelsatz, und ein Vergleich beider ist möglich.

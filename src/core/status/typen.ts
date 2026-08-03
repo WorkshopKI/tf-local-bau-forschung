@@ -348,10 +348,25 @@ export interface TodoRegel {
    * Sperre statt To-do: trifft sie zu, werden die genannten Regeln übersprungen.
    * Bildet S1/S2 der Mappe ab (zurückgezogener Antrag bzw. begonnene RNE/ABL
    * unterdrücken die PreCheck-, NF- und NL-Stränge).
+   *
+   * Der Sentinel {@link ALLE_STRAENGE} (`'*'`) sperrt **alle übrigen** Regeln.
+   * Die Alternative — alle Ids aufzählen — wäre brüchig: eine später ergänzte
+   * Regel fiele still durch die Sperre hindurch, und niemand sähe es.
    */
   sperrt?: string[];
+  /**
+   * Ausnahmen von {@link TodoRegel.sperrt} — nur sinnvoll neben `'*'`.
+   *
+   * Macht sichtbar, welche Aufgabe eine Totalsperre bewusst überlebt (S0b legt
+   * alles still, außer „ZuwB erstellen"), und hält, wenn jemand später die
+   * Bedingung der ausgenommenen Regel ändert.
+   */
+  sperrtNicht?: string[];
   aktiv: boolean;
 }
+
+/** Sentinel in {@link TodoRegel.sperrt}: „alle übrigen Regeln". */
+export const ALLE_STRAENGE = '*';
 
 // --- Nächste-Schritte-Regeln (Struktur hier; Auswertung folgt in Phase 3) ---
 

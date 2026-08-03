@@ -15,8 +15,9 @@
  * 4. **Was der Trigger auslöste** — die Zeilen der Trigger-Tabelle zu diesem
  *    Kürzel, in Satzform.
  * 5. **Verlauf** — die letzten Datumsspalten chronologisch. Ausdrücklich als
- *    **Näherung** gekennzeichnet: das Fachsystem führt je Kürzel nur EIN Datum,
- *    mehrfach gesetzte Kürzel sind darin nicht unterscheidbar.
+ *    **Näherung** gekennzeichnet: die `D_`-Spalten tragen je Kürzel das ZULETZT
+ *    gesetzte Datum (V9, Fachabstimmung 03.08.2026), frühere Setzungen sind im
+ *    Export überschrieben und darin nicht mehr unterscheidbar.
  * 6. **Datenstand** — wann importiert, welche Katalog-Fassung, woher.
  *
  * Rein und deterministisch: kein IDB, kein `new Date()` — `stichtag` und
@@ -336,7 +337,7 @@ export function herleitungAlsText(h: Herleitung, rahmen?: TextRahmen): string {
     if (h.verlaufGesamt > h.verlauf.length) {
       zeilen.push(`  … ${h.verlaufGesamt - h.verlauf.length} weitere Einträge`);
     }
-    zeilen.push('  (Verlauf ist eine Näherung aus den Datumsspalten.)');
+    zeilen.push('  (Näherung: je Kürzel steht nur das zuletzt gesetzte Datum im Export.)');
   }
 
   const d = h.datenstand;

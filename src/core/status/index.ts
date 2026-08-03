@@ -93,6 +93,7 @@ export {
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   uebernimmStatusCodes, aktuellerStatusCodeKatalog,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
+  todoRegelDrift, zieheTodoRegelnNach, type TodoRegelDrift,
   relevanzLuecke, markiereRelevanz,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
   aendereTodoRegel, verschiebeTodoRegel,
@@ -101,7 +102,9 @@ export {
   ermittleTodo, baueTodoKontext, todoWerte,
   type TodoErgebnis, type TodoBeleg,
 } from './todo-engine';
-export { AB_TODO_REGELN, baueTodoRegelSeed, feld as todoFeld } from './todo-regeln.seed';
+export {
+  AB_TODO_REGELN, baueTodoRegelSeed, ENTFALLENE_REGEL_IDS, feld as todoFeld,
+} from './todo-regeln.seed';
 export {
   pruefeStillstand, letzteAktivitaetVon, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
   type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil, type OffenesPaar,

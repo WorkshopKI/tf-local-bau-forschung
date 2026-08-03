@@ -31,6 +31,7 @@ import {
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
+  todoRegelDrift, zieheTodoRegelnNach, ENTFALLENE_REGEL_IDS, type TodoRegelDrift,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
   findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
@@ -109,8 +110,10 @@ export interface StatusCockpitApi {
   setTodoRegel: (id: string, patch: Partial<TodoRegel>) => void;
   /** Eine To-do-Regel um eine Position in der Kaskade verschieben. */
   verschiebeTodoRegel: (id: string, richtung: -1 | 1) => void;
-  /** Den ausgelieferten AB-Regelsatz in eine Fassung ohne Regeln nachziehen. */
+  /** Den ausgelieferten AB-Regelsatz nachziehen (ersetzt die gelieferten Regeln). */
   todoRegelnNachziehen: () => void;
+  /** Was die Auslieferung gegenüber der gepflegten Kaskade anders sagt. */
+  todoDrift: TodoRegelDrift;
   /**
    * Status-Code → Median-Liegezeit im Bestand (Vorschlag für die Zieltage).
    * Näherung: gemessen wird die Zeit seit der jüngsten Aktivität, nicht die
@@ -482,10 +485,21 @@ export function useStatusCockpit(): StatusCockpitApi {
   }, []);
 
   const todoRegelnNachziehen = useCallback(() => {
-    setEntwurf(v => (v && (v.todoRegeln ?? []).length === 0
-      ? { ...v, todoRegeln: AB_TODO_REGELN.map(r => ({ ...r, zustaendig: [...r.zustaendig] })) }
-      : v));
+    setEntwurf(v => (v ? zieheTodoRegelnNach(v, AB_TODO_REGELN, ENTFALLENE_REGEL_IDS) : v));
   }, []);
+
+  /**
+   * Was die Auslieferung anders sagt als die gepflegte Kaskade. Sichtbar, weil
+   * der Regelsatz wächst: die Fachabstimmung hat Sperren ergänzt und eine Regel
+   * nach Rollen geteilt. Ohne Anzeige liefe jede bestehende Fassung weiter auf
+   * dem Stand ihres ersten Seeds, und niemand sähe es.
+   */
+  const todoDrift = useMemo(
+    () => (entwurf
+      ? todoRegelDrift(entwurf, AB_TODO_REGELN, ENTFALLENE_REGEL_IDS)
+      : { neu: [], geaendert: [], entfallen: [] }),
+    [entwurf],
+  );
 
   /**
    * Der Zieltage-Vorschlag aus dem Ist. Gerechnet über den ohnehin geladenen
@@ -551,7 +565,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     programmUneinheitlich: bestand?.programmUneinheitlich ?? [],
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
-    setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen,
+    setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

@@ -14,7 +14,7 @@ import { ermittleTodo, baueTodoKontext, todoWerte } from '@/core/status/todo-eng
 import { AB_TODO_REGELN, baueTodoRegelSeed, feld } from '@/core/status/todo-regeln.seed';
 import type { BedingungsKontext } from '@/core/status/bedingung';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
-import type { StatusFeldEintrag, TodoRegel } from '@/core/status/typen';
+import { ALLE_STRAENGE, type StatusFeldEintrag, type TodoRegel } from '@/core/status/typen';
 
 const STICHTAG = '2026-08-01T00:00:00.000Z';
 const REGELN = baueTodoRegelSeed();
@@ -41,11 +41,13 @@ const HEUTE = vorTagen(0);
 const GESTERN = vorTagen(1);
 
 describe('Regelsatz — Aufbau', () => {
-  it('führt 25 Regeln und 2 Sperren, jede Id genau einmal', () => {
+  it('führt 26 Regeln und 4 Sperren, jede Id genau einmal', () => {
+    // S0/S0b kamen mit der Fachabstimmung dazu (die fixierten Slicer der Mappe),
+    // R23 wurde nach Rollen in R23a/R23b geteilt.
     const sperren = AB_TODO_REGELN.filter(r => (r.sperrt?.length ?? 0) > 0);
-    expect(sperren.map(s => s.id)).toEqual(['s1', 's2']);
-    expect(AB_TODO_REGELN).toHaveLength(27);
-    expect(new Set(AB_TODO_REGELN.map(r => r.id)).size).toBe(27);
+    expect(sperren.map(s => s.id)).toEqual(['s0', 's0b', 's1', 's2']);
+    expect(AB_TODO_REGELN).toHaveLength(30);
+    expect(new Set(AB_TODO_REGELN.map(r => r.id)).size).toBe(30);
   });
 
   it('ist streng aufsteigend sortiert — die Reihenfolge IST die Kaskade', () => {
@@ -54,10 +56,13 @@ describe('Regelsatz — Aufbau', () => {
     expect(new Set(r).size).toBe(r.length);
   });
 
-  it('sperrt nur Regeln, die es gibt', () => {
+  it('sperrt nur Regeln, die es gibt (der Sentinel ausgenommen)', () => {
     const ids = new Set(AB_TODO_REGELN.map(r => r.id));
     for (const s of AB_TODO_REGELN) {
-      for (const ziel of s.sperrt ?? []) expect(ids.has(ziel), ziel).toBe(true);
+      for (const ziel of [...(s.sperrt ?? []), ...(s.sperrtNicht ?? [])]) {
+        if (ziel === ALLE_STRAENGE) continue;
+        expect(ids.has(ziel), ziel).toBe(true);
+      }
     }
   });
 
@@ -115,7 +120,8 @@ describe('Kaskade — je Regel ein positives Fixture', () => {
     ['r20', { '_T_XPC+': 'ja', AK4: GESTERN }, 'kaufm. fertig für QS'],
     ['r21', { '_T_XPC+': 'ja', AT4: GESTERN }, 'GA schreiben'],
     ['r22', { AN: vorTagen(20), AL: vorTagen(5) }, 'NL prüfen'],
-    ['r23', { _status: 'beantragt', _vb_phase: '3' }, 'PC offen'],
+    ['r23a', { _status: 'beantragt', _vb_phase: '3' }, 'PC offen'],
+    ['r23b', { _status: 'beantragt', _vb_phase: '3', 'PC+': GESTERN }, 'PC offen'],
     ['r24', { ALU: GESTERN }, 'NF ergänzen'],
     ['r25', { _status: 'bearbeitungsreif' }, 'NF erstellen'],
   ];
@@ -177,8 +183,75 @@ describe('Sperren', () => {
 
   it('eine Sperre erzeugt selbst nie ein To-do', () => {
     const e = ermittleTodo(REGELN, ctx({ AAR: GESTERN, AVK: GESTERN, VV: GESTERN }), STICHTAG);
-    expect(e.gesperrtDurch).toEqual(['s1']);
+    // `D_VV` gefüllt heißt zusätzlich S0 („Verfahren abgeschlossen").
+    expect(e.gesperrtDurch).toEqual(['s0', 's1']);
     expect(e.regelId).not.toBe('s1');
+  });
+});
+
+describe('S0/S0b — die fixierten Slicer der AB-Mappe', () => {
+  it('S0 legt nach dem Schlussvermerk ALLES still', () => {
+    // Ohne `D_VV` wäre das „ZuwB erstellen" (R3) — mit ihm ist der Vorgang durch.
+    const e = ermittleTodo(REGELN, ctx({ VV: GESTERN, ABB: GESTERN }), STICHTAG);
+    expect(e.gesperrtDurch).toContain('s0');
+    expect(e.todo).toBeNull();
+  });
+
+  it('S0b legt nach dem Zuwendungsbescheid alles still …', () => {
+    const e = ermittleTodo(REGELN, ctx({ AZBE: GESTERN, AK4: GESTERN, AT4: GESTERN }), STICHTAG);
+    expect(e.gesperrtDurch).toContain('s0b');
+    expect(e.todo, 'ohne S0b wäre das „in QS" (R19)').toBeNull();
+  });
+
+  it('… lässt R3 „ZuwB erstellen" aber ausdrücklich durch', () => {
+    // Der eigentliche Grund für `sperrtNicht`: die beiden Bedingungen sind zwar
+    // disjunkt (R3 verlangt AZBE leer), aber die Ausnahme muss lesbar dastehen —
+    // und halten, falls jemand R3 später umschreibt.
+    const s0b = REGELN.find(r => r.id === 's0b');
+    expect(s0b?.sperrtNicht).toEqual(['r3']);
+    // Gegenprobe mit einer künstlich immer greifenden S0b-Variante:
+    const alwaysS0b = REGELN.map(r => r.id === 's0b'
+      ? { ...r, bedingung: { feldId: feld('ABB'), op: 'gefuellt' as const } } : r);
+    const e = ermittleTodo(alwaysS0b, ctx({ ABB: GESTERN }), STICHTAG);
+    expect(e.gesperrtDurch).toContain('s0b');
+    expect(e.todo).toBe('ZuwB erstellen');
+  });
+
+  it('erfasst mit dem Sentinel auch eine später ergänzte Regel', () => {
+    // Genau dafür steht `'*'` statt einer Id-Liste: eine neue Regel darf nicht
+    // still an einer Totalsperre vorbeilaufen.
+    const neu: TodoRegel = {
+      id: 'r99', reihenfolge: 999, beschreibung: 'Neu dazugekommen',
+      bedingung: { feldId: feld('AAE'), op: 'gefuellt' },
+      todo: 'Frisch erfunden', zustaendig: ['ab'], aktiv: true,
+    };
+    const e = ermittleTodo([...REGELN, neu], ctx({ VV: GESTERN, AAE: GESTERN }), STICHTAG);
+    expect(e.todo).toBeNull();
+  });
+});
+
+describe('V1 — das D_XKS-Gate am RNE-Strang', () => {
+  it('unterdrückt die RNE-To-dos, sobald die kaufm. QS erfolgt ist', () => {
+    expect(todoVon({ ARZ: vorTagen(40) })).toBe('SV erstellen');
+    expect(todoVon({ ARZ: vorTagen(40), XKS: GESTERN })).not.toBe('SV erstellen');
+    expect(todoVon({ ART: GESTERN, XKS: GESTERN })).not.toBe('RNE ergänzen');
+  });
+});
+
+describe('V2 — „PC offen" nennt die wartende Rolle', () => {
+  const basis = { _status: 'beantragt', _vb_phase: '3' };
+
+  it('fehlt der TV-PreCheck, wartet es auf AB', () => {
+    expect(ermittleTodo(REGELN, ctx(basis), STICHTAG).wartetAuf).toBe('ab');
+  });
+
+  it('ist der TV-Teil da und der Verbund-Teil offen, wartet es auf FB', () => {
+    expect(ermittleTodo(REGELN, ctx({ ...basis, 'PC+': GESTERN }), STICHTAG).wartetAuf).toBe('fb');
+  });
+
+  it('sind BEIDE Teile vermerkt, ist „PC offen" keine wahre Aussage mehr', () => {
+    const e = ermittleTodo(REGELN, ctx({ ...basis, 'PC+': GESTERN, 'XPC+': GESTERN }), STICHTAG);
+    expect(e.todo).not.toBe('PC offen');
   });
 });
 

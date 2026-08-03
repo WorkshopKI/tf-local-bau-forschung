@@ -188,6 +188,8 @@ const KURATION: Record<string, Record<string, Kuration>> = {
     AK4: { zah: 'pruefung' },
     'AQ4-': {},
     AQ4: { zah: 'pruefung' },
+    // V4 bestaetigt (Fachabstimmung 03.08.2026): `QS` = Gutachten-QS fertig,
+    // `QS-` = QS zurueck an AB/FB. Die Regeln R17/R18 lesen genau so.
     'QS-': {},
     QS: { zah: 'pruefung' },
     ABX: {},

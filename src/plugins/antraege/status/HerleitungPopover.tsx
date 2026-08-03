@@ -199,7 +199,8 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
           </ul>
           <p className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)]">
             {h.verlaufGesamt > h.verlauf.length && `${h.verlaufGesamt - h.verlauf.length} weitere · `}
-            Verlauf ist eine Näherung aus den Datumsspalten.
+            Verlauf ist eine Näherung: die `D_`-Spalten tragen je Kürzel das
+            zuletzt gesetzte Datum, frühere Setzungen sind im Export überschrieben.
           </p>
         </div>
       )}

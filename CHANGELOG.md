@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.387.0 — Regelwerk aus der Fachabstimmung (August 2026)
+
+MINOR — Die To-do-Kaskade kannte die fixierten Slicer der AB-Mappe nicht und meldete deshalb über den ganzen Altbestand („in QS": 1756). Mit den beiden Populations-Sperren steht die Arbeitsliste auf der Menge, die die ABs tatsächlich ansehen.
+
+- **S0/S0b**: Schlussvermerk bzw. Zuwendungsbescheid beenden die Aufgabenliste eines Vorgangs; `sperrt: ['*']` erfasst auch später ergänzte Regeln, `sperrtNicht` nimmt „ZuwB erstellen" aus ([todo-regeln.seed.ts](src/core/status/todo-regeln.seed.ts), [todo-engine.ts](src/core/status/todo-engine.ts)).
+- Gemessen am Bestand: „in QS" 1756 → **75**, „Meine Aufgaben" 1117 → 477, echte Regellücken 520 → **120**.
+- **V1** (`D_XKS`-Gate am RNE-Strang) ist als Absicht bestätigt und jetzt Bedingung von R6–R9; **V2**: R23 ist nach Rollen in R23a (wartet auf AB) und R23b (wartet auf FB) geteilt.
+- Das Board trennt „keine Regel traf" von „Verfahren abgeschlossen" — eine greifende Sperre ist ein Ergebnis, keine Lücke ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts)).
+- Ein gewachsener Regelsatz erreicht bestehende Fassungen: der Status-Katalog zeigt die Drift und zieht sie nach (`zieheTodoRegelnNach`, [katalog-edit.ts](src/core/status/katalog-edit.ts)).
+
 ### v2.386.0 — Technische Sammel-Nacharbeit am Vorgangssystem (August 2026)
 
 MINOR — Fünf Reste aus dem P6-Rückbau, die keine Fachabstimmung brauchten. Der größte war unsichtbar: die Trigger-Sidecar speicherte ihre eigene Deutung mit, sodass eine Parser-Verbesserung erst beim nächsten XLSX-Import gewirkt hätte.

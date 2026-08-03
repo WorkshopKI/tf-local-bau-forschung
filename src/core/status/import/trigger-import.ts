@@ -159,6 +159,9 @@ export async function importiereTriggerTabelle(
     if (gesehen.has(schluessel)) {
       // Nach der Programm-Dimension ist das eine echte Dublette INNERHALB eines
       // Programms; Umlaut-Kürzel sind über `normKey` (NFC) bereits vereinheitlicht.
+      // V7 bestätigt (Fachabstimmung 03.08.2026): „erster Eintrag gilt" bleibt —
+      // die doppelten AZBE/Folge-1-Zeilen in 79 und 139 sind identisch, die
+      // Warnung genügt. Kein Zusammenführen, kein stilles Verwerfen.
       warnungen.push(
         `Zeile ${zeilenNr}: ${geparst.kuerzel}/Folge ${geparst.folge} steht in Programm `
         + `${geparst.programm} mehrfach — erster Eintrag gilt.`,

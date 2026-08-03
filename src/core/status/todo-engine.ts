@@ -9,10 +9,12 @@
  *
  * Zwei Eigenheiten, die aus der Mappe stammen und hier explizit sind:
  *
- * 1. **Sperren.** `S1` (Antrag zurückgezogen) und `S2` (RNE/ABL begonnen)
- *    erzeugen kein To-do, sondern unterdrücken die PreCheck-, NF- und
- *    NL-Stränge. In der Mappe sind sie äußere WENNs; hier eine Regel mit
- *    `sperrt`, damit sichtbar bleibt, WARUM ein Strang schweigt.
+ * 1. **Sperren.** `S0`/`S0b` (Verfahren abgeschlossen bzw. ZuwB erstellt), `S1`
+ *    (Antrag zurückgezogen) und `S2` (RNE/ABL begonnen) erzeugen kein To-do,
+ *    sondern unterdrücken Stränge. In der Mappe sind sie äußere WENNs bzw.
+ *    fixierte Slicer; hier eine Regel mit `sperrt`, damit sichtbar bleibt, WARUM
+ *    ein Strang schweigt. `sperrt: ['*']` legt alles still, `sperrtNicht` nimmt
+ *    einzelne Aufgaben davon aus.
  * 2. **Kein Treffer ist ein Ergebnis.** `todo: null` heißt „kein To-do
  *    ermittelt" — der Antrag verschwindet nicht, er steht in einer eigenen
  *    Gruppe. Ein leeres Board wäre die unehrlichste aller Antworten.
@@ -23,7 +25,7 @@
 import { pruefeBedingung, type BedingungsKontext } from './bedingung';
 import { bedingungFeldRefs } from './bedingung';
 import type { FeldVorkommen } from './feld-aufloesung';
-import type { Rolle, TodoRegel } from './typen';
+import { ALLE_STRAENGE, type Rolle, type TodoRegel } from './typen';
 
 /** Ein Feld, das die treffende Regel liest, mit seinem aktuellen Wert. */
 export interface TodoBeleg {
@@ -88,18 +90,28 @@ export function ermittleTodo(
   // Stränge und müssen deshalb vor jeder Regel feststehen, nicht erst wenn die
   // Kaskade an ihnen vorbeikommt.
   const gesperrt = new Set<string>();
+  const ausnahmen = new Set<string>();
+  let alleGesperrt = false;
   const gesperrtDurch: string[] = [];
   for (const s of aktive) {
     if (!istSperre(s)) continue;
     if (!pruefeBedingung(s.bedingung, ctx, stichtag)) continue;
     gesperrtDurch.push(s.id);
-    for (const id of s.sperrt ?? []) gesperrt.add(id);
+    for (const id of s.sperrt ?? []) {
+      if (id === ALLE_STRAENGE) alleGesperrt = true; else gesperrt.add(id);
+    }
+    for (const id of s.sperrtNicht ?? []) ausnahmen.add(id);
   }
+  // Die Ausnahme gewinnt: S0b legt das ganze Feld still, „ZuwB erstellen" muss
+  // trotzdem feuern können. Eine Ausnahme wirkt gegen JEDE greifende Sperre —
+  // wer eine Regel ausnimmt, meint „diese Aufgabe bleibt", nicht „nur gegen S0b".
+  const istGesperrt = (id: string): boolean =>
+    !ausnahmen.has(id) && (alleGesperrt || gesperrt.has(id));
 
   let treffer: TodoRegel | null = null;
   const weitereTreffer: { regelId: string; todo: string }[] = [];
   for (const r of aktive) {
-    if (istSperre(r) || gesperrt.has(r.id)) continue;
+    if (istSperre(r) || istGesperrt(r.id)) continue;
     if (!pruefeBedingung(r.bedingung, ctx, stichtag)) continue;
     if (!treffer) treffer = r;
     else weitereTreffer.push({ regelId: r.id, todo: r.todo });

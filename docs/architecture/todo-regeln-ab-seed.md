@@ -1,6 +1,6 @@
 # To-do-Regeln — AB-Seed (Transkription des XLSX-Dashboards)
 
-Stand: 01.08.2026 · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt docs/architecture/vorgangssystem.md, Abschnitt 4 Nr. 4 + 6.5
+Stand: 03.08.2026 (Fachabstimmung eingearbeitet) · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt docs/architecture/vorgangssystem.md, Abschnitt 4 Nr. 4 + 6.5
 
 ## Auswertungsmodell
 
@@ -8,12 +8,18 @@ Stand: 01.08.2026 · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt 
 
 **Bedingungs-Vokabular** (vollständig für alle 25 Regeln): Feld gefüllt / leer · Datum A nach Datum B · Tage seit Feld > N · heute > Termin-Feld · `STATUS_TV` = Wert · Fördervariante ∈ {…}.
 
-**Globale Sperren** (werden vor den Strängen 1, 9 und 10 geprüft):
+**Globale Sperren** (vor allen Regeln geprüft):
 
 | ID | Bedingung | Wirkung |
 |---|---|---|
+| S0 | `D_VV` gefüllt (Schlussvermerk) | **kein To-do mehr** — Verfahren abgeschlossen |
+| S0b | `D_AZBE` gefüllt (Zuwendungsbescheid erstellt) | **kein To-do mehr, außer R3** — Vorgang in Begleitung |
 | S1 | `D_AAR` gefüllt (Antrag vom ASt zurückgezogen) | unterdrückt PreCheck-, NF- und NL-To-dos (löst stattdessen R5 aus) |
 | S2 | eines von `D_ARK`, `D_ART`, `D_ABLK`, `D_ABLT` gefüllt (RNE/ABL begonnen) | unterdrückt PreCheck-, NF- und NL-To-dos |
+
+S0/S0b rekonstruieren die **fixierten Slicer** der Mappe („Bitte untere Auswahl nicht ändern"). Sie schneiden ganze Vorgänge weg, nicht einzelne Stränge — im Code deshalb `sperrt: ['*']` statt einer Id-Liste, damit eine später ergänzte Regel nicht still an ihnen vorbeiläuft. S0b nimmt R3 („ZuwB erstellen") ausdrücklich aus; die beiden Bedingungen sind zwar disjunkt (R3 verlangt `D_AZBE` leer), aber die Ausnahme macht lesbar, warum R3 überlebt.
+
+**Verworfen: S3** (`D_AZ1_1` gefüllt → Vor-Entscheidungs-Stränge unterdrücken). Der Slicer-Screenshot der AB-Mappe zeigt `D_AZ1_1` auf **„Alle"** — die Spalte filterte nicht. Fixiert waren nur `D_AZBE = Leer` und `D_VV = Leer`. Der ursprüngliche Vorschlag beruhte auf einer Fehllesart des Screenshots (Fachabstimmung A3).
 
 ## Regelsatz (Reihenfolge = Kaskade der Mappe)
 
@@ -48,7 +54,7 @@ Stand: 01.08.2026 · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt 
 | R8 | `D_ARZ` gefüllt, `D_ARW` leer (≤ 31 Tage), `D_AAR` leer | **RNE abwarten** | wartet auf ASt |
 | R9 | `D_ART` gefüllt (RNE techn. erstellt), `D_ARZ` leer, `D_AAR` leer | **RNE ergänzen** (kaufm. Teil) | AB |
 
-*Original-Gate „nur solange `D_XKS` leer" (kaufm. QS erfolgt) am RNE-Strang — Zweck unklar, verifizieren (V1).*
+*Gate `D_XKS` leer (kaufm. QS noch nicht erfolgt) an allen vier Regeln — **V1 beantwortet: Absicht**. Nach erfolgter kaufmännischer QS ist der RNE-Vorgang aus AB-Sicht durch; eine Erinnerung daran wäre Lärm. Seit v2.387 reguläre Bedingung, nicht mehr Vorbehalt.*
 
 ### 5 · Nachforderungs-Erinnerung
 
@@ -94,11 +100,14 @@ Stand: 01.08.2026 · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt 
 
 | Nr | WENN | DANN To-do | zuständig / wartet auf |
 |---|---|---|---|
-| R23 | `STATUS_TV` = „beantragt", Fördervariante ∈ {FuE, DS}, `D_AN` leer, S1/S2 greifen nicht | **PC offen** | wartet auf FB (PreCheck) — Zuständigkeit verifizieren (V2) |
+| R23a | `STATUS_TV` = „beantragt", Fördervariante ∈ {FuE, DS}, `D_AN` leer, `D_PC±` beide leer | **PC offen** | wartet auf AB (TV-PreCheck) |
+| R23b | wie R23a, aber `D_XPC±` beide leer | **PC offen** | wartet auf FB (Verbund-PreCheck) |
 | R24 | `D_AN` leer, `D_ALSB` leer, `D_ALT` leer, `D_ALU` gefüllt (FB-NF-Teil da) | **NF ergänzen** (kaufm. Teil) | AB |
 | R25 | `D_AN` leer, `D_ALSB` leer, `D_ALT` leer, `D_ALU` leer, `STATUS_TV` ≠ „beantragt" | **NF erstellen** | AB |
 
-*Fördervarianten-Ausnahme: DL, NW 1, NW 2 haben keinen PreCheck (`Spalte17`) — R23 gilt nur für FuE/DS.*
+*Fördervarianten-Ausnahme: DL, NW 1, NW 2 haben keinen PreCheck (`Spalte17`) — R23a/b gelten nur für FuE/DS.*
+
+*V2 beantwortet: der PreCheck hat zwei Teile mit verschiedenen Rollen — TV-PreCheck (`D_PC±`) = betriebswirtschaftliche Vorprüfung des **AB**, Verbund-PreCheck (`D_XPC±`) = inhaltliche Vorprüfung des **FB**. Deshalb zwei Regeln statt einer: die Engine kennt keine gerechneten Rollen. Sind BEIDE Teile vermerkt und `D_AN` trotzdem leer, fällt der Antrag auf R24/R25 durch — „PC offen" wäre dort falsch.*
 
 ## Erkenntnisse aus der Transkription
 
@@ -114,12 +123,19 @@ Stand: 01.08.2026 · Quelle: WENN-Formeln der Mappe „AB Anträge" · Ergänzt 
 
 ## Verifikationsfragen (an AB-Kollegen / am Legacy)
 
-- **V1:** Wozu das `D_XKS`-Gate am RNE-Strang (RNE-To-dos nur solange kaufm. QS nicht erfolgt)? Absicht oder Altlast?
-- **V2:** Wer führt den PreCheck durch (Zuständigkeit für „PC offen") — FB?
-- **V3:** Bestätigen, dass der übermittelte Spaltenkopf 1:1 der nächtliche CSV-Export ist (nicht eine in der Mappe angereicherte Sicht).
-- **V4:** `D_QS` / `D_QS-` — Zuordnung zu „Gutachten QS fertig" / „QS zurück" stimmt? (Label-Zeile hat an dieser Stelle Leerzellen, Alignment nicht eindeutig.)
-- **V5:** „in QS" trifft 1766 Vorgänge, weil R19 keine Endschranke kennt — in der Mappe erledigt das der Status-Slicer. Soll die Regel einen terminalen Ausschluss bekommen?
-- **V6:** Nach dem Komma-Splitten der Bedingungs-Argumente (v2.380) bleiben als unbekannte Kürzel **ID, TTV1, TTV2, TVB1** übrig. Was bezeichnen sie — Vorgangskürzel, Tabellen-Kennungen oder Steuerworte der Prozedur?
+Stand nach der Fachabstimmung vom 03.08.2026. Detail: [fachabstimmung-2026-08.md](fachabstimmung-2026-08.md).
+
+- **V1 — beantwortet (Absicht).** Das `D_XKS`-Gate am RNE-Strang ist gewollt: nach erfolgter kaufm. QS ist der Vorgang aus AB-Sicht durch. Seit v2.387 Bedingung von R6–R9.
+- **V2 — beantwortet.** TV-PreCheck (`D_PC±`) = **AB**, Verbund-PreCheck (`D_XPC±`) = **FB**. R23 ist entsprechend in R23a/R23b geteilt.
+- **V3 — erledigt.** Der übermittelte Spaltenkopf ist der nächtliche Export.
+- **V4 — bestätigt.** `D_QS` = Gutachten-QS fertig, `D_QS-` = QS zurück an AB/FB (Kommentar an der Stelle in `seed-codes.ts`).
+- **V5 — beantwortet über A3.** Die Endschranke ist kein Zusatz an R19, sondern die Populations-Sperre S0b: nach dem Zuwendungsbescheid gibt es kein To-do mehr.
+- **V6 — Antwort ausstehend.** Unbekannte Kürzel **ID, TTV1, TTV2, TVB1** aus den Bedingungs-Argumenten. Bis dahin bleiben sie im Navigator als „unprüfbar" sichtbar, nie als „erfüllt".
+- **V7 — beantwortet.** Innerhalb eines Programms doppelte (Kürzel, Folge) bleiben „erster Eintrag gilt + Warnung"; die beobachteten Fälle (AZBE/Folge 1 in 79 und 139) sind identisch.
+- **V9 — beantwortet.** Die `D_`-Spalten tragen je Kürzel das **zuletzt** gesetzte Datum; frühere Setzungen sind im Export überschrieben. Der Verlauf sagt das jetzt so.
+- **V10 — zur Kenntnis.** Der Tippfehler „Rüchnahmeempfehlung" im Blatt „Erklärung Parameter" wird in der Quelle korrigiert; die App führt beide Schreibweisen weiter.
+
+**Neu aus der Messung (v2.386), noch offen:** sieben Trigger-Zeilen `VOBQ/Folge 1` (Programme 76, 77, 78, 131, 136, 137, 138) tragen den Parameter `PFM!.055.VorgInfo.01` — zwischen Empfänger und Textbaustein **fehlt die Pipe** (`PFM|!.055.VorgInfo.01`). Sie sind die einzigen verbliebenen „nicht interpretiert"-Zeilen.
 
 ## Anhang: Trigger-Fixture-Zeilen für Parser-Tests
 

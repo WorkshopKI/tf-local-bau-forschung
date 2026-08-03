@@ -3,7 +3,7 @@
  * referenzielle Konsistenz (jeder Wert/jede Regel verweist auf ein bekanntes
  * Feld), bevor die Fassung übernommen wird. Rein.
  */
-import type { Bedingung, MappingVersion } from './typen';
+import { ALLE_STRAENGE, type Bedingung, type MappingVersion } from './typen';
 import { findeZyklus } from './kategorien';
 import { bedingungFeldRefs, referenzierbareFelder } from './bedingung';
 
@@ -81,6 +81,7 @@ export function validiereImport(text: string): ImportErgebnis {
   }
   // Die To-do-Kaskade ist optional (Fassungen vor dem Vorgangssystem führen
   // keine); geprüft wird sie trotzdem, sobald sie da ist.
+  const regelIds = new Set((v.todoRegeln ?? []).map(r => r?.id));
   for (const r of v.todoRegeln ?? []) {
     if (!r || typeof r.id !== 'string' || !r.bedingung || typeof r.todo !== 'string') {
       return { ok: false, fehler: 'Ungültiger To-do-Regel-Eintrag.' };
@@ -90,6 +91,13 @@ export function validiereImport(text: string): ImportErgebnis {
     for (const fid of referenziert) {
       if (!referenzierbar.has(fid)) {
         return { ok: false, fehler: `To-do-Regel „${r.id}" verweist auf unbekanntes Feld „${fid}".` };
+      }
+    }
+    // Eine Sperre auf eine Regel-Id, die es nicht (mehr) gibt, sperrt nichts —
+    // und sagt es nicht. Der Sentinel `'*'` ist keine Id und deshalb ausgenommen.
+    for (const id of [...(r.sperrt ?? []), ...(r.sperrtNicht ?? [])]) {
+      if (id !== ALLE_STRAENGE && !regelIds.has(id)) {
+        return { ok: false, fehler: `To-do-Regel „${r.id}" verweist auf unbekannte Regel „${id}".` };
       }
     }
   }
