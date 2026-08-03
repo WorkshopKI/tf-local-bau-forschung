@@ -116,6 +116,18 @@ entfallen: angezeigt wird, was das Fachsystem führt.
   die die Datei nichts führt (mit Antragszahl). Zeilen aus einem Import vor
   v2.380 tragen keine Richtlinie und greifen an keinem Vorhaben — die Seite sagt
   das und bittet um einen neuen Import.
+- Die **Journal-Frische** steht als dritte Angabe im Bereich „Referenzdaten" —
+  schon in der Kopfzeile, weil der Bereich eingeklappt startet: letzter Stempel
+  mit Datum und Alter, Einträge des laufenden Monats, Nullpunkt der Historie.
+  Ist seit mehr als drei Tagen kein Export journalisiert worden, warnt die Seite
+  und nennt die Folge: Änderungen aus dieser Zeit lassen sich danach nur noch als
+  **Zeitraum** erfassen, nicht als Datum. Gibt es noch kein Journal, sagt die
+  Seite das ausdrücklich („noch nicht angelegt") statt eine leere Angabe zu
+  zeigen. Keine Bearbeiter-Angabe — das Journal führt keine.
+- Im Tab **To-dos** trägt jede Platzhalter-Zeile **zwei** Zahlen: wie oft die
+  Rolle das To-do heute geliehen sieht, und wie oft die Bedingung der
+  Herkunftsregel im Bestand überhaupt zutrifft. Die zweite ist die Reichweite
+  einer eigenen Regel und regelmäßig ein Vielfaches der ersten.
 
 ## Technik
 

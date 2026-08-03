@@ -358,13 +358,28 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 4. **Zieltage-Startwerte:** aus der PL-Erfahrung oder initial aus der Ist-Verteilung (Median-Verweildauer je Status) vorschlagen lassen?
 5. **Kürzel-Paare:** Erkennung der adm./fachl.-Paare (AK4/AT4 …) — als Konvention aus dem Katalog ableitbar oder als kleine Paar-Liste pflegen? Beim AB-Onboarding klären, ob Relevanz-Defaults je Rolle getrennt sein sollen.
 6. ~~AB-Dashboard-Mappe beschaffen~~ **Erledigt:** To-do-Logik transkribiert → `todo-regeln-ab-seed.md` (25 Regeln + 2 Sperren, inkl. bereinigter Mappen-Fehler). Der übermittelte Spaltenkopf deckt alle Regel-Eingaben ab. Verbleibend: Verifikationsfragen V1–V4 aus der Seed-Datei mit AB-Kollegen klären; Spaltenauswahl der Mappe als Relevanz-Seed AB übernehmen.
+7. **Trigger-Nachexport für 46/47/48** (Abstimmungspunkt A4, seit v2.397 wieder offen): die Generation 2015 gehört jetzt zum Arbeitsvorrat, die Trigger-Zuarbeit führt für sie nichts. Bis zu 5 086 Vorgänge sagen deshalb „für Programm N keine Trigger importiert" — korrekt, aber häufig. Fachfrage bleibt, ob das Fachsystem für diese Programme noch Trigger-Definitionen führt (V8).
 
 ## 10. Betrachtungsbereich: Arbeitsvorrat folgt dem Bereich, Evidenz nicht
 
-Gemessen am Bestand gehören **6 952 von 14 221 Anträgen** zu stillgelegten
-Altprogrammen (47 allein 4 190). Sie standen bisher in jeder Grundmenge — in den
-Tab-Zählern, in der Kapazitätsrechnung, in jeder Board-Berechnung. Sichtbar war
-das nirgends.
+Maßstab ist die **Richtlinien-Generation**: die aktuelle ZIM-Richtlinie und die
+beiden davor. Gemessen am Bestand (14 221 Anträge) sind das die Generationen
+**2015, 2020 und 2025** mit 12 Programmen und **12 355 Anträgen**; außerhalb
+bleibt die Generation 2012 (Programme 34–37) mit **1 866 Anträgen**. Sie stand
+bisher in jeder Grundmenge — in den Tab-Zählern, in der Kapazitätsrechnung, in
+jeder Board-Berechnung. Sichtbar war das nirgends.
+
+Der erste Anlauf (v2.389) schnitt den Bereich nach der **Trigger-Abdeckung** —
+neun Programme, für die die Zuarbeit etwas führt — und nannte ihn trotzdem
+„letzte 3 Richtlinien". Das waren zwei Generationen: 2015 fehlte (5 086 Anträge,
+47 allein 4 190). Der Arbeitsvorrat nach Datenverfügbarkeit zu schneiden war der
+Fehler; die Trigger-Lücke ist eine Aussage **am Vorgang** („für Programm N keine
+Trigger importiert", Pitfall #44), keine Grenze des Arbeitsvorrats. Seit v2.397
+ist die Generation die Datenstruktur ([betrachtungsbereich.ts](../../src/core/status/betrachtungsbereich.ts)):
+`RICHTLINIEN_GENERATIONEN` aufsteigend, der Seed ist `slice(-3)` davon, und die
+Chip-Beschriftung wird daraus **abgeleitet** statt danebengeschrieben. Ein
+Richtlinien-Wechsel ist damit ein angehängter Listeneintrag — die älteste
+Generation rollt von selbst heraus.
 
 **Das Prinzip (Pitfall #46):** der Bereich ist ein **expliziter Parameter jedes
 Konsumenten**, nie ein stiller Filter im Daten-Layer. Zöge ihn der Daten-Layer,
@@ -394,22 +409,59 @@ Der Preis ist benannt und **sichtbar gemacht**: weicht die gepflegte Liste vom
 Seed ab, sagt das Auswahl-Panel „wirkt in den schlanken Varianten erst mit dem
 nächsten Release". Zwei stille Wahrheiten wären das eigentliche Problem.
 
+Die gepflegte Fassung bleibt eine **flache Code-Liste** (`{ programme: string[] }`),
+keine Generationen-Struktur. Welche Programme die Richtlinie 2015 bilden, ist eine
+Tatsache der Förderlandschaft und damit Code-Wissen; kuriert wird nur, *welche*
+Programme zählen. Nebenbei ist die flache Form die ausdrucksstärkere: nur sie kann
+eine **unvollständige** Generation überhaupt beschreiben — und genau darauf beruht,
+dass der Chip in dem Fall keine Generationszahl behauptet.
+
 Die **Auswahl** (Standard / Alle / eigene Liste) ist dagegen persönlich und
 gerätelokal — sie geht niemanden sonst etwas an. Definition = Team-Kuration,
-Auswahl = Person; getrennte Lebensdauern, getrennte Speicher.
+Auswahl = Person; getrennte Lebensdauern, getrennte Speicher. Ein Wechsel des
+Standard-Bereichs bumpt den localStorage-Key deshalb **nicht**: `standard`
+speichert bewusst keine Liste und greift den neuen Bereich von selbst ab, und wer
+eine eigene Auswahl gesetzt hat, behält sie. Damit sie nicht still veraltet, sagt
+das Panel, wovon sie abweicht („Ihre Auswahl weicht vom Standard-Bereich ab
+(12 Programme, Richtlinien 2015 + 2020 + 2025)") — ein Klick auf
+„Standard-Bereich" ist der Rückweg.
 
 ### 10.2 Was die Umstellung gemessen hat
 
-- **Von den sichtbaren Zahlen ändert sich fast nichts.** In der Antragsliste
-  bewegt sich nur „Alle" (9 316 → 5 542); Offen 892, Überfällig 478 und NF 105
-  bleiben identisch. Die offene Arbeit liegt vollständig in den neun
-  Richtlinien — der Altbestand ist abgeschlossen, nicht liegengeblieben.
-- **Board-Rechenzeit über den Bestand**: 14 221 Vorgänge in ~6,5 s → 7 269 in
-  ~4,7 s. Rund ein Drittel schneller; die Streuung unter Last ist groß, deshalb
-  eine Spanne und kein Punktwert.
-- **Meilensteine**: 57 Verbünde weniger.
-- Der Chip nennt beides — was gilt und was fehlt: „Anzeige: letzte 3
-  Richtlinien (9 Programme) · 6 952 ausgeblendet".
+Beide Zustände **unmittelbar hintereinander** an derselben Sitzung gemessen (der
+alte Bereich über eine eigene Auswahl der neun Programme reproduziert, Zahlen
+byte-identisch zur Messung vor der Änderung) — so trifft jede Drift auf der
+Maschine beide Seiten gleich.
+
+| | 9 Programme (2020 + 2025) | 12 Programme (ab 2015) |
+|---|---|---|
+| Chip | `letzte 3 Richtlinien (9 Programme) · 6.952 ausgeblendet` | `letzte 3 Richtlinien (12 Programme) · 1.866 ausgeblendet` |
+| Antragsliste „Alle" | 5 542 | **7 468** |
+| Offen · Diese Woche · Überfällig · NF · Bewilligt 2026 | 892 · 35 · 478 · 105 · 541 | **identisch** |
+| Board: gerechnet · übersprungen | 7 269 · 6 952 | **12 355 · 1 866** |
+| Board-Tabs (Vorbelegung letzte 3 Jahrgänge) | 477 · 347 · 3 057 · 664 · 3 881 | **identisch** |
+| Meilensteine: ausgeblendete Verbünde | 57 | **38** |
+| Auslastung: Arbeitsvorrat · Kompetenz-Basis | — | **12 355 · 14 221** |
+
+Drei Aussagen daraus:
+
+- **Die offene Arbeit bewegt sich nicht.** Offen, Überfällig, NF und Bewilligt
+  bleiben auf die Zahl gleich; nur „Alle" wächst. Der Satz „der Altbestand ist
+  abgeschlossen, nicht liegengeblieben" gilt also auch für die Generation 2015 —
+  das war die Messung, die die Änderung hätte widerlegen können. Dasselbe am
+  Board: bei der Vorbelegung „letzte 3 Jahrgänge" ändert sich **kein** Tab-Wert,
+  weil die 2015er-Anträge alte Antragsjahre tragen.
+- **Die Rechenzeit ist teurer, aber nicht messbar teurer.** Gerechnet werden
+  12 355 statt 7 269 Vorgänge (+70 %). Gemessen wurden 7,4 s und 14,6 s gegen
+  vorher 8,4 s und 16,9 s — die Spannen **überlappen vollständig**, weil zwei
+  Dev-Server und ein ladendes Embedding-Modell auf derselben Maschine liefen.
+  Der Mehraufwand ist real und aus der Vorgangszahl belegt; eine belastbare
+  Zeit-Differenz braucht eine ruhige Maschine. Der Gewinn aus v2.389 (~6,5 s über
+  14 221 → ~4,7 s über 7 269) wird damit größtenteils zurückgegeben.
+- **Die Kompetenz-Basis der Auslastung bleibt bei 14 221** — der Vollbestand,
+  unabhängig vom Bereich (Pitfall #17/#18). Der Readout im Zuweisungs-Cockpit
+  nennt beide Datenbasen nebeneinander, damit das nachprüfbar bleibt statt
+  behauptet.
 
 ## 11. Regelsätze je Rolle (v2.391)
 
@@ -466,26 +518,39 @@ deshalb aus dem Bestand, was der Termin braucht — abgeleitete Platzhalter, bli
 Flecken, Kürzel-Landkarte — als XLSX plus Kurzfassung
 ([fb-erhebung.ts](../../src/core/status/fb-erhebung.ts)).
 
-Gemessen am 03.08.2026 über 7 269 Vorgänge im Betrachtungsbereich:
+Gemessen am 03.08.2026 über 12 355 Vorgänge im Betrachtungsbereich:
 
-| Befund | Zahl |
-|---|---|
-| FB-Platzhalter (Board, letzte 3 Jahrgänge) | 68 — R2: 38 · R20: 20 · R16: 10 |
-| QS-Platzhalter | 130 — R19: 75 · R14: 55 |
-| Ohne To-do in **keinem** Regelsatz (alle Jahrgänge) | 6 017 |
-| davon mit einseitig offenem Kürzel-Paar | 2 261 |
-| Größte Paare | ALT ohne ALU 662× (Median **746 T**) · ALU ohne ALT 544× (**1 183 T**) · SK ohne ST 421× (139 T) |
+| Situation | als Platzhalter sichtbar | Bedingung trifft |
+|---|---:|---:|
+| QS ← R19 Gutachten vollständig | 75 | 284 |
+| FB ← R16 nur kaufm. Ablehnung erstellt | 10 | **222** |
+| QS ← R14 alle Ablehnungen fertig | 55 | 61 |
+| FB ← R2 PreCheck negativ (Verbund) | 53 | 59 |
+| FB ← R20 kaufm. Gutachten fertig | 20 | 25 |
 
-Zwei Dinge, die daraus für den Termin folgen:
+Drei Dinge, die daraus für den Termin folgen:
 
-1. **Die Platzhalter-Zahl ist eine Untergrenze.** Eine Testregel aus dem
-   R2-Platzhalter traf **153** statt der 38 Vorgänge: der Platzhalter zählt nur,
-   wo die AB-Regel ihre Kaskade *gewinnt*; eine eigene FB-Regel steht in ihrem
-   Satz allein und greift überall, wo ihre Bedingung gilt. Wer das nicht weiß,
-   plant mit der falschen Größenordnung — der Satz steht deshalb in UI und Export.
-2. **Die hohen Mediane sind der eigentliche Befund.** Bei 746 und 1 183 Tagen ist
-   der Großteil der 2 261 offenen Paare Altbestand, nicht Rückstand. Diese
-   Unterscheidung ist Frage 2 der Kurzfassung.
+1. **Die sichtbare Zahl ist eine Untergrenze — und zwar pro Regel verschieden
+   stark.** Ein Platzhalter entsteht nur, wo die fremde Regel ihre Kaskade
+   *gewinnt*; eine eigene Regel stünde in ihrem Satz allein. Die Lücke reicht von
+   +11 % (R2) bis auf das **22-fache** (R16). Genau deshalb steht seit v2.396
+   `bedingungTrifft` als zweite Spalte daneben statt eines pauschalen Warnsatzes:
+   der sagte nicht, *welche* Regel betroffen ist.
+2. **Sperren gelten in beiden Zahlen.** `bedingungTrifft` wird aus
+   `weitereTreffer` der ohnehin gerechneten Ergebnisse abgeleitet, und dort sind
+   die Sperren bereits verrechnet — „Kaskade raus, Sperre bleibt". Achtung beim
+   Erzeugen einer Regel aus einem Platzhalter: sie bekommt eine **neue Id** und
+   steht damit nicht in `GESPERRTE_STRAENGE`, das seine Ziele namentlich nennt.
+   Gemessen: dieselbe Bedingung trifft mit Id `r2` **59** Vorgänge, mit neuer Id
+   **179**. Ob eine FB-Regel die Sperr-Zugehörigkeit ihrer Herkunftsregel erben
+   soll, ist eine fachliche Frage des Termins (§9, offen).
+3. **Die hohen Mediane sind der eigentliche Befund.** Von 5 820 einseitig offenen
+   Paaren liegen **4 868 jenseits von 400 Tagen** Standzeit
+   (`PAAR_ALTBESTAND_TAGE`) — das ist Altbestand, kein Rückstand. Der Split
+   trennt das seit v2.396 und führt je Block auch den Median der letzten
+   Aktivität mit: `SK→ST` hat 379 aktuelle Fälle mit Median 124 T (laufende
+   Arbeit), `AT4→AK4` dagegen 814 alte mit 3 351 T Standzeit und 2 269 T ohne
+   jede Bewegung (tote Akte). In einer Zahl gebündelt sähe beides gleich aus.
 
 ## 12. Import-Diff-Journal (v2.392)
 
@@ -525,9 +590,13 @@ nicht als Datum behauptet**.
 ### 12.4 Der Bereich gilt hier auch für Evidenz
 
 Pitfall #46 sagt: Arbeitsvorrat folgt dem Betrachtungsbereich, Evidenz nicht. Das
-Journal ist Evidenz und folgt ihm **trotzdem** — eine bewusste Abweichung, weil
-der volle Bestand die Datei ohne Erkenntnisgewinn fast verdoppeln würde (gemessen:
-3,38 MB für 7 269 Anträge). Drei Dinge halten die Abweichung ehrlich:
+Journal ist Evidenz und folgt ihm **trotzdem** — eine bewusste Abweichung. Die
+Begründung war ursprünglich die Dateigröße; seit der Bereich die Generation 2015
+mitführt (12 355 von 14 221 Anträgen, **87 %** des Bestands) trägt sie nicht mehr:
+gespart werden noch ~13 %. Was bleibt, ist der eigentliche Grund — ein Journal
+wird **am Vorgang** gelesen, und ein Vorgang außerhalb des Arbeitsvorrats hat
+keinen Leser. Die Datei würde wachsen, ohne dass jemand hineinsähe. Drei Dinge
+halten die Abweichung ehrlich:
 
 - Der Bereich kommt aus der **Team-Kuration** (`bereichsProgramme` der aktiven
   Fassung), nie aus der persönlichen Auswahl — sonst entschiede die Einstellung
@@ -567,7 +636,48 @@ nachlesbar bleibt; ein Konventionstest hält sie.
 | gefüllte Feldwerte | 184 892 · 25,4 je Antrag |
 | **`stand.json`** | **3,38 MB** — Sharding nach Antragsjahr ist damit nicht nötig |
 
+Diese Zeilen sind am **9-Programm-Bereich** erhoben (vor v2.397). Mit 12 355 statt
+7 269 Anträgen im Bereich wächst `stand.json` rechnerisch auf ~5,7 MB; die
+Aussage „kein Sharding nötig" trägt das. Neu gemessen wird erst, wenn der nächste
+Export-Lauf ohnehin durchläuft — eine Zahl, für die niemand wartet, ist keinen
+Sonderlauf wert.
+
 Die Wirkung am Wächter, mit drei journalisierten Anträgen: der Stau fällt von
 **304 auf 303 bei AB**. `16DS261741` verliert sein „hängt 52 T", weil das Journal
 eine Aktivität belegt, die der Export nicht mehr zeigt. Wo genähert wird, trägt
 die Zahl weiterhin ein „≥".
+
+### 12.8 Frische: ein ausgefallener Lauf muss auffallen (v2.396)
+
+Ein Journal, das aufhört, sagt nichts — es hört einfach auf. Die Folge merkt man
+erst später: der nächste Eintrag trägt eine `unscharf`-Spanne über den ganzen
+unbemerkten Zeitraum, und der Nullpunkt ist verwässert, bevor es jemandem
+auffällt. Deshalb steht die Frische in der Referenzdaten-Sektion des
+Status-Katalogs — dort, wo auch Parametertabelle und Trigger-Tabelle ihren Stand
+melden ([JournalFrische.tsx](../../src/plugins/status-cockpit/JournalFrische.tsx)).
+
+- **In der Kopfzeile**, nicht nur im aufgeklappten Bereich: die Sektion ist per
+  Default zu, und eine Warnung, die man erst aufklappen muss, ist keine.
+- **Schwelle `JOURNAL_FRISCHE_WARNUNG_TAGE = 3`.** Ein Freitags-Export ist am
+  Montag drei Tage alt; ein Wochenende ist kein Ausfall, ab vier Tagen ist es
+  einer.
+- **Die Warnung nennt die Folge, nicht den Zustand**: „was sich in dieser Zeit
+  geändert hat, kann der nächste Lauf nur als Zeitraum erfassen, nicht als
+  Datum".
+- Ohne Schreibrecht bleibt die Anzeige, nur der Hinweis „ein Import auf diesem
+  Gerät holt das nach" fällt weg — ein Versprechen, das dieses Gerät nicht
+  einlösen kann, ist schlechter als keins.
+
+**Geschrieben wird flag-unabhängig, angezeigt nicht.** `journalisiereImport`
+hängt am Auto-Refresh und prüft `vorgangssystem` bewusst nicht: ein Export, den
+niemand journalisiert hat, ist unwiederbringlich. Die Frische-Anzeige sitzt
+dagegen hinter dem Flag (dev/pl). Wer den Nacht-Import aus der Kurator-Variante
+fährt, schreibt das Journal also mit, sieht seine Frische aber nicht — bewusst in
+Kauf genommen, solange das Vorgangssystem in Erprobung ist.
+
+**Warum `dev:local` den Schritt nie auslöst:** die Variante seedet über
+[fixture-loader.ts](../../src/core/services/seed/fixture-loader.ts), das
+`importCsvSource(…, {})` **ohne** `onRows` aufruft. Nur der Auto-Refresh-Pfad
+reicht den Journal-Schritt herein. Das ist Absicht — ein Fixture-Seed darf den
+Team-Stand nicht anlegen —, heißt aber: der Live-Pfad ist nur aus einem echten
+Nacht-Import heraus zu beobachten, nicht aus dem Dev-Server.

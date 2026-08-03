@@ -26,6 +26,7 @@ import {
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { feldStil } from './labels';
+import { useJournalFrische, JournalFrischeChip, JournalFrischeBlock } from './JournalFrische';
 
 /** Was der Nutzer nach dem Lesen der Datei sieht, bevor er übernimmt. */
 interface Vorschau {
@@ -179,6 +180,9 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
   );
   const [vorschau, setVorschau] = useState<Vorschau | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  // Die dritte Referenzdaten-Quelle: sie schreibt sich selbst fort, und genau
+  // deshalb muss man ihr ansehen, wenn sie aufgehört hat.
+  const journal = useJournalFrische(api.stichtag);
 
   const entwurf = api.entwurf;
 
@@ -312,6 +316,10 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
         <span className="text-[11px] text-[var(--tf-text-tertiary)]">
           {mitCode} Statuswerte mit Code · {trigger.length} Trigger
         </span>
+        {/* Steht in der KOPFZEILE, nicht nur im aufgeklappten Bereich: die
+            Sektion ist per Default zu, und eine Warnung, die man erst
+            aufklappen muss, ist keine. */}
+        <JournalFrischeChip lage={journal} />
         <span className="ml-auto text-[11px] text-[var(--tf-text-tertiary)]">
           {offen ? 'einklappen' : 'ausklappen'}
         </span>
@@ -434,6 +442,8 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                 {api.programmUneinheitlich.length > 3 && ' …'}
               </p>
             )}
+
+            <JournalFrischeBlock lage={journal} darfSchreiben={api.darfSchreiben} />
 
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="default">Kürzel-Katalog</Badge>

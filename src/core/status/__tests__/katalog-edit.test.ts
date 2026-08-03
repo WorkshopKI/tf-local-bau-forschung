@@ -3,7 +3,7 @@ import {
   aendereKategorie, entdoppleKanonischeCodes, entferneKategorie, ergaenzeSeedFelder,
   ergaenzeVorgangssystemSeed, fuegeFeldHinzu, fuegeKategorieHinzu, kanonischeCodeDoppel,
   markiereRelevanz, relevanzLuecke, seedTextAbweichungen, uebernimmSeedTexte,
-  todoRegelDrift, zieheTodoRegelnNach, verschiebeTodoRegel,
+  todoRegelDrift, zieheTodoRegelnNach, verschiebeTodoRegel, fuegeTodoRegelHinzu,
 } from '@/core/status/katalog-edit';
 import { baueTodoRegelSeed } from '@/core/status/todo-regeln.seed';
 import type { TodoRegel } from '@/core/status/typen';
@@ -322,6 +322,47 @@ describe('Doppelt geführte Codes (kanonisches Feld + eigene D_-Spalte)', () => 
     const vorher: MappingVersion = { ...altfassung(), todoRegeln: regeln };
     expect(verschiebeTodoRegel(vorher, 'f1', -1)).toBe(vorher);
     expect(verschiebeTodoRegel(vorher, 'a1', 1)).toBe(vorher);
+  });
+
+  it('eine neue Regel außerhalb von AB entsteht IMMER stillgelegt', () => {
+    // `status-katalog.json` ist für alle Build-Varianten gleichzeitig live: eine
+    // aktive FB-Regel würde von jeder Installation, die `regelsatz` noch nicht
+    // kennt, in der AB-Kaskade mitgewertet. Das Freischalten ist deshalb eine
+    // eigene, bewusste Handlung — keine Eigenschaft des Anlegens. Der Editor
+    // fragt dafür zurück; diese Zusicherung hängt darunter und hält auch, wenn
+    // eine andere Stelle die Regel anlegt.
+    const basis: MappingVersion = { ...altfassung(), todoRegeln: [] };
+    const regel = (id: string, satz?: TodoRegel['regelsatz']): TodoRegel => ({
+      id, reihenfolge: 0, beschreibung: id,
+      bedingung: { feldId: 'status', op: 'gefuellt' },
+      todo: id, zustaendig: [], aktiv: true, ...(satz ? { regelsatz: satz } : {}),
+    });
+
+    const mitFb = fuegeTodoRegelHinzu(basis, regel('f1', 'fb'));
+    expect(mitFb.todoRegeln?.find(r => r.id === 'f1')?.aktiv, 'FB startet stillgelegt').toBe(false);
+    for (const satz of ['qs', 'pa', 'jur'] as const) {
+      const v = fuegeTodoRegelHinzu(basis, regel(`x-${satz}`, satz));
+      expect(v.todoRegeln?.find(r => r.id === `x-${satz}`)?.aktiv, satz).toBe(false);
+    }
+    // AB bleibt unberührt — dort ist `aktiv: true` die normale Ansage.
+    const mitAb = fuegeTodoRegelHinzu(basis, regel('a1'));
+    expect(mitAb.todoRegeln?.find(r => r.id === 'a1')?.aktiv).toBe(true);
+  });
+
+  it('eine neue Regel hängt ans Ende IHRES Satzes, nicht ans Ende von allem', () => {
+    const basis: MappingVersion = {
+      ...altfassung(),
+      todoRegeln: [
+        { id: 'a1', reihenfolge: 10, beschreibung: 'A1', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'A1', zustaendig: ['ab'], aktiv: true },
+        { id: 'a2', reihenfolge: 900, beschreibung: 'A2', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'A2', zustaendig: ['ab'], aktiv: true },
+      ],
+    };
+    const nachher = fuegeTodoRegelHinzu(basis, {
+      id: 'f1', reihenfolge: 0, beschreibung: 'F1',
+      bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'F1',
+      zustaendig: ['fb'], regelsatz: 'fb', aktiv: false,
+    });
+    expect(nachher.todoRegeln?.find(r => r.id === 'f1')?.reihenfolge).toBe(10);
   });
 
   it('jedes Kürzel im Seed hat GENAU EINEN Speicherort', () => {

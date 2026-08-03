@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.396.0 — Erhebungs-Fallzahl, Paar-Alter und Journal-Frische (August 2026)
+
+MINOR — Drei Nachzüge aus den Protokollen zu v2.391/v2.392. Die FB-Erhebung nannte dem Termin die falsche Größenordnung, der Alterssplit fehlte, und ein ausgefallener Journal-Lauf war nur in der Konsole sichtbar.
+
+- **Zweite Kennzahl `bedingungTrifft`** je Platzhalter — die Bedingung ohne Kaskaden-Vorrang ausgewertet; gemessen 10 sichtbar vs. 222 betroffen bei R16 ([fb-erhebung.ts](src/core/status/fb-erhebung.ts))
+- **Alterssplit `PAAR_ALTBESTAND_TAGE = 400`** in den blinden Flecken, je Block Anzahl, Median-Standzeit und Median der letzten Aktivität — 952 aktuelle gegen 4.868 alte Fälle
+- **Beide Zahlen und beide Blöcke** in Regeln-Tab, XLSX und Kurzfassung ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx), [fbErhebungExport.ts](src/plugins/status-cockpit/fbErhebungExport.ts))
+- **Journal-Frische im Bereich „Referenzdaten"** mit Warnschwelle 3 Tage, die die Folge nennt statt des Zustands ([JournalFrische.tsx](src/plugins/status-cockpit/JournalFrische.tsx), [lesen.ts](src/core/status/journal/lesen.ts))
+- **Rollout-Sperre testgesichert** + Warnzeile, sobald ein Regelsatz ≠ AB aktive Regeln führt — deckt auch den Katalog-Import ab, der an keinem Dialog vorbeikommt
+
 ### v2.395.2 — Avatar traegt das Kuerzel, Begruessung nur den Vornamen (August 2026)
 
 PATCH — Der Profil-Avatar trug die Namens-Initialen; das eigentlich identitätsstiftende Kürzel war nirgends sichtbar. Die Startseite sprach mit dem vollen Namen an statt nur dem Vornamen.

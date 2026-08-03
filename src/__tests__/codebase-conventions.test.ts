@@ -22,6 +22,9 @@
  *   - no-raw-clipboard                  → v2.301.3, Zwischenablage nur ueber
  *     kopiereText() aus src/core/utils/kopieren.ts (execCommand-Rueckfall +
  *     wirft statt still zu scheitern); "kopieren und oeffnen" erst kopieren.
+ *   - no-headless-tree-outside-wrapper  → Tree-Basis (v2.393): @headless-tree/*
+ *     nur in src/components/tree/; Verbraucher nutzen TfTree statt einen zweiten
+ *     Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten zu bauen.
  *   - no-plugins-config-in-components   → Konsolidierungs-Pass, src/components/
  *     (geteilte Blatt-Schicht) importiert nicht @/plugins.config; Plugin-Wissen
  *     kommt als Prop oder via useNavigation().activeName herein.
@@ -331,6 +334,37 @@ describe('no-raw-worker (CLAUDE.md Pitfall #5)', () => {
         `  import MyWorker from './worker.ts?worker&inline';\n` +
         `  const w = new MyWorker();\n` +
         `Siehe docs/agents/file-protocol-pitfalls.md.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-headless-tree-outside-wrapper (Tree-Basis, v2.393)', () => {
+  // `@headless-tree/*` ist die Mechanik hinter `TfTree`, nicht die Schnittstelle
+  // der App. Wer sie direkt importiert, baut einen zweiten Baum mit eigenem
+  // Aufklapp-/Auswahl-/DnD-Verhalten -- genau die Duplikation, die die
+  // gemeinsame Basis beendet hat (Status-Filter, Textbausteine, Status-Ordner,
+  // Meilenstein-Konfiguration hatten je einen eigenen). Fehlt eine Faehigkeit,
+  // wird sie im Wrapper ergaenzt, nicht daneben.
+  const pattern = /from\s+['"]@headless-tree\//;
+  const wrapper = `${sep}src${sep}components${sep}tree${sep}`;
+
+  it('kein Import von @headless-tree ausserhalb src/components/tree/', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(wrapper)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-no-headless-tree-outside-wrapper'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Direkter @headless-tree-Import ausserhalb der Tree-Basis verboten.\n` +
+        `Baeume laufen ueber src/components/tree/ (TfTree + TfTreeNode):\n` +
+        `  import { TfTree } from '@/components/tree';\n` +
+        `Fehlende Faehigkeit? Im Wrapper als Feature-Flag ergaenzen.\n` +
+        `Nur mit sehr gutem Grund: Zeile mit\n` +
+        `'// allow-no-headless-tree-outside-wrapper: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });
@@ -1007,7 +1041,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 38;    // Ist 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2100;       // Ist ~2088 (DIESE Datei; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2150;       // Ist ~2118 (DIESE Datei; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1860,6 +1894,11 @@ describe('journal-ohne-personen-achse (Pitfall #48)', () => {
   const ANSICHTEN = [
     'src/plugins/home/widgets/NachtlaufWidget.tsx',
     'src/plugins/antraege/status/JournalVerlauf.tsx',
+    // Die Frische-Diagnose im Status-Cockpit: sie beantwortet „laeuft das
+    // Journal noch", nie „wer war das". Deshalb steht sie in einer EIGENEN
+    // Datei — an eine Sammel-Sektion gehaengt liesse sich die Regel nicht mehr
+    // pruefen, ohne deren uebrige Diagnosen mitzufangen.
+    'src/plugins/status-cockpit/JournalFrische.tsx',
   ];
   const istCode = (l: string): boolean => {
     const t = l.trim();

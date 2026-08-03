@@ -117,7 +117,9 @@ export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
 // die Stellen, die andere Module ohnehin über `@/core/status` beziehen.
 export {
   chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag,
-  type AntragsChronik, type FeldChronik, type JournalEintrag, type NachtLauf,
+  journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
+  type AntragsChronik, type FeldChronik, type JournalEintrag, type JournalFrische,
+  type NachtLauf,
 } from './journal';
 export {
   erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX, PAAR_ALTBESTAND_TAGE,

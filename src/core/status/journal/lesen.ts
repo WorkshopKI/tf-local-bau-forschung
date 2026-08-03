@@ -15,7 +15,7 @@ import { leseSidecarText } from '../sidecar-datei';
 import { dedupliziere } from './diff';
 import { journalMonatsPfad, monateZwischen } from './pfade';
 import { leseStand } from './stand';
-import type { JournalEintrag, JournalStand } from './typen';
+import type { JournalEintrag, JournalStand, Stempel } from './typen';
 
 /**
  * Monats-Cache für die Sitzung, entwertet vom Stempel des Stands.
@@ -69,6 +69,74 @@ async function frischerStand(idb: IDBStore): Promise<JournalStand | null> {
 export function leereJournalCache(): void {
   monatsCache.clear();
   cacheStempel = null;
+}
+
+// --- Frische ---------------------------------------------------------------
+
+/**
+ * Ab wie vielen Tagen ohne neuen Export die Anzeige warnt.
+ *
+ * Drei, nicht einer: ein Freitags-Export ist am Montag drei Tage alt, und ein
+ * Wochenende ist kein Ausfall. Ab vier Tagen ist es einer — und die Folge steht
+ * fest, sobald es weitergeht: der nächste Lauf kann die Änderungen dieser Tage
+ * nur noch als **Zeitraum** ausweisen (`unscharf`), nicht als Datum.
+ */
+export const JOURNAL_FRISCHE_WARNUNG_TAGE = 3;
+
+export interface JournalFrische {
+  /** Der Nullpunkt — gehört an jede Journal-Anzeige. */
+  journalAb: string;
+  /** Der zuletzt verarbeitete Export. */
+  stempel: Stempel;
+  tageAlt: number;
+  /** Über {@link JOURNAL_FRISCHE_WARNUNG_TAGE} — die Anzeige warnt. */
+  veraltet: boolean;
+  /** Der laufende Monat (`2026-08`), auf den sich {@link eintraegeImMonat} bezieht. */
+  monat: string;
+  eintraegeImMonat: number;
+}
+
+const MS_TAG = 86_400_000;
+
+/**
+ * Wie alt der letzte Export ist. Rein — die Uhr kommt von außen.
+ *
+ * Ein Export-Datum **nach** heute ist ein Uhr- oder `lastModified`-Artefakt und
+ * kein frischerer Stand; es wird auf 0 Tage geklemmt statt als negative Zahl
+ * angezeigt. Verschleiert wird dabei nichts: das Stempel-Datum selbst steht in
+ * der Anzeige daneben.
+ */
+export function bewerteAlter(
+  exportDatum: string, heuteIso: string,
+): { tageAlt: number; veraltet: boolean } {
+  const a = Date.parse(`${exportDatum.slice(0, 10)}T00:00:00Z`);
+  const b = Date.parse(`${heuteIso.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return { tageAlt: 0, veraltet: false };
+  const tageAlt = Math.max(0, Math.round((b - a) / MS_TAG));
+  return { tageAlt, veraltet: tageAlt > JOURNAL_FRISCHE_WARNUNG_TAGE };
+}
+
+/**
+ * Wie frisch das Journal ist. `null` = es wird (noch) keines geführt.
+ *
+ * Ein ausgefallener Journal-Schritt war bisher nur in der Konsole zu sehen. Das
+ * ist die teuerste Art zu schweigen: der erste Eintrag danach trägt eine Spanne
+ * über den ganzen unbemerkten Zeitraum, und der Nullpunkt ist verwässert, bevor
+ * es jemandem auffällt.
+ */
+export async function journalFrische(
+  idb: IDBStore, heuteIso: string,
+): Promise<JournalFrische | null> {
+  const stand = await frischerStand(idb);
+  if (!stand) return null;
+  const monat = heuteIso.slice(0, 7);
+  return {
+    journalAb: stand.journalAb,
+    stempel: stand.letzterStempel,
+    ...bewerteAlter(stand.letzterStempel.datum, heuteIso),
+    monat,
+    eintraegeImMonat: (await ladeMonat(idb, monat)).length,
+  };
 }
 
 /** Die Einträge eines Feldes, aufsteigend nach Export-Datum. */

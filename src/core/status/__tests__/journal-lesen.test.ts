@@ -23,8 +23,10 @@ vi.mock('@/core/status/sidecar-datei', async (echt) => {
   };
 });
 
-const { chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag, leereJournalCache } =
-  await import('@/core/status/journal/lesen');
+const {
+  chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag, leereJournalCache,
+  bewerteAlter, journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
+} = await import('@/core/status/journal/lesen');
 const { pruefeStillstand } = await import('@/core/status/waechter');
 
 const IDB = {} as IDBStore;
@@ -133,5 +135,50 @@ describe('Wächter: belegt vs. genähert', () => {
       });
       expect(e.belegt, String(wert)).toBe(false);
     }
+  });
+});
+
+describe('Frische — ein ausgefallener Lauf muss auffallen', () => {
+  it('warnt erst jenseits der Schwelle: ein Freitags-Export ist am Montag ok', () => {
+    // Drei Tage sind ein Wochenende, kein Ausfall. Ab vier ist es einer.
+    expect(bewerteAlter('2026-08-05', '2026-08-07')).toEqual({ tageAlt: 2, veraltet: false });
+    expect(bewerteAlter('2026-08-05', '2026-08-08'))
+      .toEqual({ tageAlt: JOURNAL_FRISCHE_WARNUNG_TAGE, veraltet: false });
+    expect(bewerteAlter('2026-08-05', '2026-08-09')).toEqual({ tageAlt: 4, veraltet: true });
+  });
+
+  it('klemmt ein Export-Datum aus der Zukunft auf 0 statt negativ zu zaehlen', () => {
+    // Ein `lastModified` nach heute ist ein Uhr-Artefakt, kein frischerer Stand.
+    expect(bewerteAlter('2026-08-10', '2026-08-05')).toEqual({ tageAlt: 0, veraltet: false });
+  });
+
+  it('liefert Stempel, Nullpunkt und die Eintraege des laufenden Monats', async () => {
+    const f = await journalFrische(IDB, '2026-08-06');
+    expect(f).toMatchObject({
+      journalAb: '2026-08-01',
+      stempel: { id: 's2', datum: '2026-08-05' },
+      tageAlt: 1,
+      veraltet: false,
+      monat: '2026-08',
+    });
+    // Entdoppelt: die vier Zeilen enthalten eine Dublette aus einem
+    // abgebrochenen Lauf.
+    expect(f?.eintraegeImMonat).toBe(3);
+  });
+
+  it('meldet den Ausfall, sobald der letzte Export zu lange her ist', async () => {
+    const f = await journalFrische(IDB, '2026-08-20');
+    expect(f).toMatchObject({ tageAlt: 15, veraltet: true });
+  });
+
+  it('ohne Stand null — „noch nicht angelegt" ist etwas anderes als „nichts passiert"', async () => {
+    share.stand = null;
+    expect(await journalFrische(IDB, '2026-08-06')).toBeNull();
+  });
+
+  it('zaehlt 0 Eintraege, wenn der laufende Monat noch keine Datei hat', async () => {
+    const f = await journalFrische(IDB, '2026-09-02');
+    expect(f?.monat).toBe('2026-09');
+    expect(f?.eintraegeImMonat).toBe(0);
   });
 });

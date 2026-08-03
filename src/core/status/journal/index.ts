@@ -24,5 +24,6 @@ export {
 } from './import-anbindung';
 export {
   chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag, leereJournalCache,
-  type AntragsChronik, type FeldChronik, type NachtLauf,
+  bewerteAlter, journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
+  type AntragsChronik, type FeldChronik, type JournalFrische, type NachtLauf,
 } from './lesen';

@@ -225,7 +225,14 @@ export interface RefreshReport {
   skippedInactiveUnterprogramm: number;
   /**
    * Was der Journal-Schritt je Master-Quelle getan hat. Leer, wenn keine Quelle
-   * journalisiert wurde (kein Master, kein Schreibrecht, Flag aus).
+   * journalisiert wurde (kein Master, keine Join-Spalte, keine `D_`-Spalten,
+   * kein Schreibrecht).
+   *
+   * **Bewusst NICHT an `vorgangssystem` gebunden.** Das Journal begleitet den
+   * Export, und ein Export, den niemand journalisiert hat, ist unwiederbringlich
+   * — die Lücke ließe sich später nicht mehr schließen. Geschrieben wird deshalb
+   * aus jedem Build mit Schreibrecht; ANGEZEIGT wird die Frische nur dort, wo
+   * das Vorgangssystem läuft (dev/pl).
    */
   journal: (AnbindungsErgebnis & { schemaId: string })[];
 }

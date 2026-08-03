@@ -396,6 +396,7 @@ export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: 
     .filter(r => ((r.sperrt?.length ?? 0) > 0 ? sperreGiltFuer(r, satz) : regelsatzVon(r) === satz))
     .sort((a, b) => a.reihenfolge - b.reihenfolge), [alleRegeln, satz]);
   const eigeneRegeln = regeln.filter(r => (r.sperrt?.length ?? 0) === 0);
+  const aktiveEigene = eigeneRegeln.filter(r => r.aktiv).length;
   const vorrat = useMemo(() => baueTodoFeldVorrat(version.felder), [version.felder]);
   const pruefeFeld = useMemo(() => {
     const erlaubt = referenzierbareFelder(version.felder);
@@ -443,6 +444,19 @@ export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: 
           wissen, warum hier alles stillgelegt ist. */}
       {satz !== REGELSATZ_DEFAULT && (
         <p className="text-[11.5px] text-[var(--tf-warning-text)]">{ROLLOUT_HINWEIS}</p>
+      )}
+
+      {/* Der `aktiv: false`-Default beim Anlegen und die Rückfrage beim
+          Umschalten decken die beiden Wege ab, die durch diesen Editor führen —
+          nicht aber den Katalog-IMPORT: eine eingelesene Fassung bringt ihre
+          `aktiv`-Flags mit, ohne je einen Dialog zu sehen. Deshalb hier eine
+          Feststellung über den ZUSTAND statt über den Weg. */}
+      {satz !== REGELSATZ_DEFAULT && aktiveEigene > 0 && (
+        <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+          ⚠ {aktiveEigene === 1 ? 'Eine Regel dieses Satzes ist' : `${aktiveEigene} Regeln dieses Satzes sind`}
+          {' '}<strong>aktiv</strong> und wirkt damit in jeder Installation — auch in denen, die den
+          Regelsatz noch nicht kennen und sie als AB-Regel werten.
+        </p>
       )}
 
       {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung

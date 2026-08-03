@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.396 — 2026-08
+
+### Neu
+- Im Status-Katalog zeigt der Bereich **Referenzdaten** jetzt an, wie frisch das Änderungs-Journal ist: von wann der zuletzt verarbeitete Export stammt und wie viele Änderungen in diesem Monat erfasst wurden. Ist mehrere Tage lang keiner verarbeitet worden, warnt die Seite — Änderungen aus dieser Zeit lassen sich danach nur noch als Zeitraum festhalten, nicht mehr auf den Tag genau.
+### Verbesserungen
+- Die Erhebung für den Regelsatz-Termin nennt jetzt **zwei** Zahlen je Situation: wie oft sie heute sichtbar ist und wie viele Vorhaben tatsächlich betroffen wären. Die zweite ist oft ein Vielfaches der ersten — in einem Fall das Zweiundzwanzigfache.
+- Die Liste der einseitig offenen Kürzel-Paare ist nach Alter getrennt (bis 400 Tage / darüber). Der ältere Block ist überwiegend Altbestand und kein Rückstand; das war in einer gemeinsamen Zahl nicht zu erkennen.
+### Bugfixes
+<!-- - … -->
+
 ## v2.395 — 2026-08
 
 ### Neu
