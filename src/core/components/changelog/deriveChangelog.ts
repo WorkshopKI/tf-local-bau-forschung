@@ -3,7 +3,7 @@
  *
  * Zwei Quellen, EINE Render-Pipeline:
  *  - Default: `deriveUserChangelogFromDev()` leitet aus der entwickler-orientierten
- *    CHANGELOG.md (+ Archiv) eine schlanke „kanonische" Nutzer-Form ab — pro Minor
+ *    CHANGELOG.md eine schlanke „kanonische" Nutzer-Form ab — pro Minor
  *    `x.yy` aggregiert, Datei-Links/Backticks entfernt, auf die aktuelle Hauptnummer
  *    gefiltert. Jeder Eintrag wird nach Kategorie gebündelt (Neu & Verbesserungen
  *    vs. Fehlerbehebungen) in `### `-Untersektionen — das ist zugleich die Basis für
@@ -148,8 +148,10 @@ function detectBump(bodyLines: string[]): 'PATCH' | 'MINOR' | 'MAJOR' | null {
 }
 
 /**
- * Leitet aus der entwickler-orientierten CHANGELOG-Markdown (CHANGELOG.md ggf. mit
- * Archiv konkateniert) die kanonische Nutzer-Form für genau eine Hauptnummer ab.
+ * Leitet aus der entwickler-orientierten CHANGELOG-Markdown die kanonische
+ * Nutzer-Form für genau eine Hauptnummer ab. Der Aufrufer entscheidet, was er
+ * hineinreicht — heute die eingebettete CHANGELOG.md (das Archiv ist bewusst
+ * nicht im Bundle, siehe `UeberDieAppDialog`).
  *
  * Jede Minor `x.yy` wird zu einem `## vX.Y`-Abschnitt; ihre Patch-Einträge werden
  * nach Kategorie in `### Neu & Verbesserungen` / `### Fehlerbehebungen` gebündelt.

@@ -17,9 +17,16 @@
  *    Bugfix); ein Filter blendet nur die jeweils gewünschte ein.
  *
  * Inhalt der Änderungsliste: bevorzugt die geglättete `changelog-user.md`, sonst
- * aus der entwickler-orientierten CHANGELOG.md (+ Archiv) abgeleitet (siehe
- * deriveChangelog). Alle Markdown-Quellen werden zur BUILD-Zeit via `?raw` inlined
- * (file://-tauglich, Pitfall #1/#2 — kein Runtime-fetch).
+ * aus der entwickler-orientierten CHANGELOG.md abgeleitet (siehe deriveChangelog).
+ * Beide Markdown-Quellen werden zur BUILD-Zeit via `?raw` inlined (file://-tauglich,
+ * Pitfall #1/#2 — kein Runtime-fetch).
+ *
+ * **Das Changelog-ARCHIV ist bewusst NICHT eingebettet** (v2.393): es ist mit
+ * ~916 KB die mit Abstand größte Textquelle und lag in JEDER Single-File-Variante
+ * — ungeschützt, ohne dev-Guard. Die kuratierte `changelog-user.md` deckt v2.100
+ * aufwärts ab und gewinnt je Version ohnehin; der abgeleitete Lückenfüller reicht
+ * so weit zurück wie die CHANGELOG.md. Ältere Versionen stehen im Repo, worauf die
+ * Fußzeile der rechten Spalte hinweist.
  */
 
 import { useMemo, useState } from 'react';
@@ -27,7 +34,6 @@ import { ChevronDown } from 'lucide-react';
 import { marked } from 'marked';
 // Markdown-Quellen werden zur Build-Zeit als String eingebettet (?raw).
 import devChangelogRaw from '../../../../CHANGELOG.md?raw';
-import archivChangelogRaw from '../../../../docs/CHANGELOG-ARCHIV.md?raw';
 import userChangelogRaw from './changelog-user.md?raw';
 import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer, sanitizeHtml } from '@/components/ui/MarkdownRenderer';
@@ -59,8 +65,11 @@ const TRIGGER_BASE =
   'flex w-full items-center justify-between gap-2 rounded-[var(--tf-radius)] px-3 text-left ' +
   'transition-colors hover:bg-[var(--tf-hover)] [&[data-state=open]>svg]:rotate-180';
 
-/** Entwickler-CHANGELOG + Archiv, zur Build-Zeit eingebettet (stabil → memo-tauglich). */
-const DEV_COMBINED = `${devChangelogRaw}\n${archivChangelogRaw}`;
+/** Entwickler-CHANGELOG, zur Build-Zeit eingebettet (stabil → memo-tauglich). */
+const DEV_COMBINED = devChangelogRaw;
+
+/** Wo die nicht eingebetteten älteren Versionen liegen (reiner Text, kein Datei-Zugriff). */
+const ARCHIV_PFAD = 'docs/CHANGELOG-ARCHIV.md';
 
 /** Breite der rechten Spalte — gerätelokale Darstellungs-Präferenz (kein Share, kein Snapshot). */
 const SPALTEN_KEY = 'teamflow_ueber_app_spalten_breite';
@@ -334,6 +343,11 @@ export function UeberDieAppDialog({ open, onClose }: { open: boolean; onClose: (
                 ))}
               </div>
             )}
+
+            {/* Das Archiv ist nicht eingebettet (siehe Docblock) — nur der Pfad im Repo. */}
+            <p className="mt-2 shrink-0 border-t border-[var(--tf-border)] pt-2 text-[11px] text-[var(--tf-text-tertiary)]">
+              Ältere Versionen: <span className="font-mono">{ARCHIV_PFAD}</span> im Repo
+            </p>
           </div>
         }
       />

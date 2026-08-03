@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.393.0 — Changelog-Archiv nicht mehr im Bundle (August 2026)
+
+MINOR — Das Changelog-Archiv (~916 KB) lag per `?raw` in **jeder** Single-File-Variante — ohne dev-Guard, ohne Nutzen: die kuratierte `changelog-user.md` deckt v2.98 aufwärts ab und gewinnt je Version ohnehin. Es ist jetzt draußen; der Dialog nennt nur noch den Repo-Pfad.
+
+- `?raw`-Import von `docs/CHANGELOG-ARCHIV.md` entfernt, Fußzeile „Ältere Versionen: … im Repo" ([UeberDieAppDialog.tsx](src/core/components/changelog/UeberDieAppDialog.tsx)).
+- **Gemessen:** `zah-dev.html` 20 822 492 → 19 879 328 Bytes (−943 164 / −0,92 MB) — dieselbe Ersparnis in prod/pl/as/kurator.
+- **Bewusster Verlust:** 43 Minor-Versionen v2.2–v2.97 erscheinen nicht mehr im Dialog; v2.98–v2.393 bleiben vollständig (616 Einträge, in der App gegengeprüft).
+- Dritter Dev-Server-Slot `local-c` (Port 5177) für parallele Sessions ([launch.json](.claude/launch.json)).
+
 ### v2.392.1 — Repo-Hygiene: echte Triage-Dokumente und Worktree-Reste aus dem Git-Index (August 2026)
 
 PATCH — Elf echte DMS-Dokumente (DOCX/PDF) und fünf transiente Worktree-Einträge lagen im Git-Index eines öffentlichen Repos. Sie werden weiterhin lokal für manuelle Triage-Tests gebraucht und bleiben im Arbeitsverzeichnis liegen — nur der Index wird bereinigt.
