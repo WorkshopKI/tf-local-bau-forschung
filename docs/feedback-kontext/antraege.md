@@ -9,7 +9,10 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - **Liste links:** sortier-/gruppierbar. Bei offenem Detail schrumpft sie zur **Kompakt-Spalte** und lässt sich ganz einklappen (**Fokus-Modus**: alle Listen-Werkzeuge weg, Titel + „Aufnehmen" bleiben). Je Ordner des Fachsystems ist in der Tabelle eine Statusspalte einblendbar.
 - **FKZ** `16KN######` / `16EP######`: beim Überfahren einer Zeile erscheint rechts vom FKZ ein **Kopier-Icon** (Verbund-Zeile: das Verbund-FKZ).
 - **Filter:** als drittes Panel.
-- **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien (9 Programme) · 6 952 ausgeblendet". Er sagt, welche Förder-Richtlinien gerade zum Arbeitsvorrat zählen und wie viele Anträge das ausblendet; Klick öffnet die Auswahl (Standard-Bereich / alle Richtlinien / eigene Liste, mit Klartext-Namen). Die **Suche bleibt immer am ganzen Bestand** — Treffer außerhalb sind gekennzeichnet und lassen sich öffnen.
+- **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien (12 Programme) · 1.866 ausgeblendet". Er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen und wie viele Anträge das ausblendet. Gemeint sind die drei jüngsten ZIM-Generationen — 2015, 2020, 2025; draußen bleibt nur die Generation 2012.
+  - **Klick öffnet die Auswahl:** Standard-Bereich / alle Richtlinien / eigene Liste, mit Klartext-Namen und **nach Generation gruppiert** („Richtlinie 2025 / 2020 / 2015").
+  - **Eigene Auswahl:** der Chip sagt dann „Anzeige: eigene Auswahl (N Programme)", und das Panel nennt, wovon sie abweicht.
+  - Die **Suche bleibt immer am ganzen Bestand** — Treffer außerhalb sind gekennzeichnet und lassen sich öffnen.
 - **Detail rechts:** Kopf (Titel + Meta + Stepper, rechts „Antrag-Aufbereitung öffnen"), klappbare **Kurzbeschreibung** (offen), Gutachten-Werkstatt, dann — eingeklappt — „Antragsdaten" (Fakten + Verbundpartner/Teilvorhaben), Artefakt-Werkbank, „Alle Felder", „Historie".
   - **„Status & Verlauf":** die **ZAH-Phase** des amtlichen Status; **Chronik** der Termine oder **Zeitstrahl**; darunter **Offene Aufgaben** je Teilvorhaben und je Rolle mit „warum?"-Herleitung (geliehene Einträge sind als solche markiert); darunter **Belegte Änderungen** aus dem Änderungs-Journal — was sich seit dem Nullpunkt wirklich geändert hat, auch wo der Export die frühere Setzung inzwischen überschrieben hat; unklare Zeiträume stehen als Spanne. Der Nullpunkt steht immer dabei, und ein Antrag, für den kein Journal geführt wird, sagt das ausdrücklich. Zuletzt die **Statuseinträge** nach den Ordnern des Fachsystems, rollen-vorgefiltert.
   - **„Nächste Schritte (im Foyer zu setzen)":** die Kürzel, deren Trigger-Vorbedingungen zum aktuellen Status passen, mit Wirkung und Rolle, vorgefiltert auf die eigene Rolle; die App setzt nichts selbst. Maßgeblich sind **nur die Trigger der Richtlinie des Vorhabens** (FM-Nummer): führt die Zuarbeit dazu keine, steht das da („Für Programm 47 sind keine Trigger importiert") — die einer anderen Richtlinie werden nie ersatzweise gezeigt.
@@ -22,9 +25,15 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - **„Dokumente des Verbundes"** (oben): Typ + Umfang je Datei, maßgebliche **Vorhabensbeschreibung** markiert; weitere per „ins Gutachten aufnehmen".
 - **Kontext-Warnung** über der Karte, wenn die Unterlagen nicht ins Fenster der gewählten KI passen: sie nennt die fehlenden Zeichen und empfiehlt entweder den Wechsel auf die andere KI (deren Fenster ist rund viermal so groß) oder das Kürzen der Unterlagen. Sie erscheint **vor** dem Erzeugen, blockiert aber nichts.
 - **Noch nicht generierter Abschnitt:** „{Abschnitt} generieren" + **Persönlicher Stil** + **Prompt ansehen**.
-- **„Prompt ansehen":** zeigt den vollständigen Auftrag, der an die KI geht — als Vorschau des nächsten Laufs und, nach einem Lauf, als das tatsächlich Gesendete. Oben die Maße (Zeichen gesamt, davon Vorhabensbeschreibung, geschätzte Tokens, Platz im Fenster), darunter die Liste der enthaltenen Bausteine, darunter der Wortlaut. Die Vorhabensbeschreibung ist eingeklappt.
+- **„Prompt ansehen":** zeigt den vollständigen Auftrag, der an die KI geht — als Vorschau des nächsten Laufs und, nach einem Lauf, als das tatsächlich Gesendete. Oben die Maße (Zeichen gesamt, davon Vorhabensbeschreibung, geschätzte Tokens, Platz im Fenster), darunter die Liste der enthaltenen Bausteine, darunter der Wortlaut. Die Vorhabensbeschreibung ist eingeklappt. Wer die Werkstatt öffnen darf, findet in der Fußzeile zusätzlich **„Anweisung bearbeiten"**.
+- **„Anweisung an die KI bearbeiten"** (Stift am Abschnittskopf; sichtbar für pl, as, dev und den angemeldeten Kurator): Prompt-Vorlage, Umfang &amp; Form, Abnahme-Kriterien und die **Regeln dieses Abschnitts** direkt am Antrag ändern, ohne in die Skill-Verwaltung zu wechseln.
+  - **Regeln:** ein Stift je Regel öffnet ihre Parameter im selben Dialog, „+ Neue Regel" legt eine an. Die Schritte des Gutachtens liegen hinter „← Alle Schritte".
+  - **„Was daraus wirklich an die KI geht"** (aufklappbar unter der Vorlage): Maße, die Reihenfolge der angehängten Bausteine und der Wortlaut ohne die Vorhabensbeschreibung. Die Vorlage ist nicht der fertige Auftrag — was weiter unten hängt, hat das letzte Wort.
+  - **Ein Band oben erinnert:** Änderungen gelten **für alle Nutzer**. Wer nur seinen eigenen Ton verschieben will, wird auf „Persönlicher Stil" verwiesen.
+  - **Warnung**, wenn ein Platzhalter wie `{{vbMarkdown}}` herausgelöscht wurde: der nächste Lauf sieht den Antrag dann nicht mehr und schreibt trotzdem — ohne Fehlermeldung.
+  - **Nach dem Speichern** meldet ein Band über der Karte die neue Version und bietet „Abschnitt neu erzeugen" an; bei freigegebenem Abschnitt stattdessen „Erneut öffnen". Nie automatisch.
 - **Abschnitts-Karte**, vier Ebenen:
-  - **Kopf:** Titel, Entwurf/Freigegeben, Version, „Formuliert · Feinschliff", ggf. „Standard-KI (Fallback)", ⋯-Menü (Feinschliff/Zweitfassung/Vorfassungen/Prompt ansehen/Verwerfen).
+  - **Kopf:** Titel, Entwurf/Freigegeben, Version, Stift „Anweisung bearbeiten", „Formuliert · Feinschliff", ggf. „Standard-KI (Fallback)", ⋯-Menü (Feinschliff/Zweitfassung/Vorfassungen/Prompt ansehen/Verwerfen).
   - **Text:** satzweise markierbar.
   - **Werkzeugzeile:** Neu/Kürzer/Länger · **Bearbeiten mit KI** · **Persönlicher Stil** · Bearbeiten · **Kopier-Icon** ⧉ neben Bearbeiten · QS prüfen · „Freigeben und weiter" mit QS-Badge. Freigegeben: Erneut öffnen · QS prüfen · Kopieren · Stil.
   - **„Bearbeiten mit KI":** eigene Anweisung eingeben, wie der Abschnitt überarbeitet werden soll („technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen"). Feld erscheint in der Karte, letzte 5 Anweisungen als Chips; gilt für genau einen Lauf, der bisherige Text bleibt die Grundlage.
@@ -40,6 +49,7 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - Dokumente hochladen + Gutachten-Kontext wählen
 - Abschnitt erzeugen, per KI korrigieren, QS prüfen
 - Vor dem Erzeugen nachsehen, was an die KI geht
+- Anweisung, Umfang oder eine Regel des Abschnitts am offenen Antrag anpassen und neu erzeugen
 - Zwei Fassungen von verschiedenen KIs vergleichen und eine übernehmen
 - Vom Befund zum Satz springen
 

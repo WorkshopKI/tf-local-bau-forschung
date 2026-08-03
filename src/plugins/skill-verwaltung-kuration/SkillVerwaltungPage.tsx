@@ -8,7 +8,6 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { MasterDetailLayout } from '@/components/master-detail';
 import {
   resolveRegeln,
-  skillsUsingRegel,
   exportSkillBundle,
   exportWorkflowBundle,
   type QualitaetsRegel,
@@ -33,9 +32,10 @@ import { SkillEvalPanel } from './SkillEvalPanel';
 import { TextbausteineTab } from './TextbausteineTab';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { ViewModeToggle, type ViewMode as RegistryViewMode } from '@/components/ui/ViewModeToggle';
-import { blankRegel, upsertRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
+import { blankRegel, ADD_TYPEN, TYP_LABEL } from './regelShared';
 import { blankStep, getWorkflowById, getWorkflowDef } from './workflowShared';
 import { buildWorkflowMutations } from './workflowMutations';
+import { buildRegelMutations } from './regelMutations';
 import { useEditorLeaveGuard } from './editorGuard';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 import { DetailKopf } from './DetailKopf';
@@ -202,28 +202,15 @@ export function SkillVerwaltungPage(): React.ReactElement {
     downloadAsFile(JSON.stringify(bundle, null, 2), `skill-${slug}.json`, 'application/json');
   };
 
-  // — Regel-Aktionen —
-  const toggleAktiv = (r: QualitaetsRegel): void => {
-    void save.run({ ...file, regeln: upsertRegel(file.regeln, { ...r, aktiv: !r.aktiv, geaendert_am: new Date().toISOString() }) });
-  };
-  const saveRegel = (r: QualitaetsRegel): void => {
-    void save.run({ ...file, regeln: upsertRegel(file.regeln, r) }).then(closeEditor);
-  };
-  // Roher Persist (wirft bei Fehler, schließt NICHT) — für die Leave-Guard-Nachfrage.
-  const persistRegel = (r: QualitaetsRegel): Promise<void> =>
-    reg.persist({ ...file, regeln: upsertRegel(file.regeln, r) });
-  const deleteRegel = (r: QualitaetsRegel): void => {
-    const used = skillsUsingRegel(file, r.id);
-    const msg = used.length > 0
-      ? `Regel „${r.name}" wird in ${used.length} Skill(s) verwendet: ${used.join(', ')}.\nWirklich löschen? Die Zuordnung wird dort entfernt.`
-      : `Regel „${r.name}" wirklich löschen?`;
-    if (!window.confirm(msg)) return;
-    void save.run({
-      ...file,
-      regeln: file.regeln.filter(x => x.id !== r.id),
-      skills: file.skills.map(s => ({ ...s, regelIds: s.regelIds.filter(id => id !== r.id) })),
-    }).then(closeEditor);
-  };
+  // — Regel-Aktionen über die geteilte Fabrik (DRY mit der Inline-Werkstatt in
+  //   der Gutachten-Ansicht — dort werden dieselben Regeln bearbeitet). —
+  const { toggleAktiv, saveRegel, persistRegel, deleteRegel } = buildRegelMutations({
+    file,
+    persist: reg.persist,
+    run: save.run,
+    onGespeichert: closeEditor,
+    onGeloescht: closeEditor,
+  });
 
   // — Workflow-Aktionen (Schritte + Management) über die geteilte Fabrik (DRY mit
   //   dem dev-Inline-Editor in der Gutachten-Werkstatt). Ziel-Def = `selectedWorkflowId`. —

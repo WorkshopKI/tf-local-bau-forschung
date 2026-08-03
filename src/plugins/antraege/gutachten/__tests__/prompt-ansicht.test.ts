@@ -111,6 +111,22 @@ describe('promptMasse', () => {
     expect(m.vbGekuerzt).toBe(false);
   });
 
+  it('zählt die VB NICHT mit, wenn das Template ihren Slot nicht (mehr) führt', () => {
+    // Die Werkstatt rechnet die Maße live gegen den bearbeiteten Entwurf. Löscht
+    // jemand `{{vbMarkdown}}` heraus, liefert `renderSkillPrompt` die VB weiterhin
+    // als Feld mit — sie steht dann aber in keinem Prompt. Vorher meldete die
+    // Anzeige einen VB-Anteil GRÖSSER als den ganzen Prompt und „Anweisungen 0".
+    const ohneSlot: SkillRecord = { ...SEED_SKILL, promptTemplate: SEED_SKILL.promptTemplate.replace('{{vbMarkdown}}', '') };
+    const gerendert = renderSkillPrompt(ohneSlot, SEED_REGELN, baueSkillEingabe(args()));
+    const m = promptMasse(gerendert, 100_000);
+
+    expect(gerendert.vb).toBe('VB-VOLLTEXT');       // mitgeliefert …
+    expect(gerendert.user).not.toContain('VB-VOLLTEXT'); // … aber nicht eingesetzt
+    expect(m.vbZeichen).toBe(0);
+    expect(m.anweisungsZeichen).toBe(m.zeichen);
+    expect(m.vbZeichen).toBeLessThanOrEqual(m.zeichen);
+  });
+
   it('meldet die Kürzung durch bis zur Anzeige', () => {
     const skill: SkillRecord = { ...SEED_SKILL };
     const gerendert = renderSkillPrompt(

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Info, Sparkles } from 'lucide-react';
+import { Info, Pencil, Sparkles } from 'lucide-react';
 import type { EditorView } from '@codemirror/view';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -31,6 +31,7 @@ import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { SkillVersionen } from './SkillVersionen';
 import { VorgabenEditor } from './VorgabenEditor';
 import { groupRegelnByKategorie } from './regelGruppen';
+import { pruefeSlotAenderung } from './promptSlotWarnung';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
 import { leiteQsKriterienAb } from './qsKriterienAbleitung';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -71,9 +72,19 @@ interface SkillEditorProps {
   onTestlauf: (skill: SkillRecord, regeln: QualitaetsRegel[], hinweis: string) => void;
   /** Meldet `{ dirty, save }` an den Leave-Guard der Skill-Verwaltung. */
   onGuardStateChange?: (state: EditorGuardState | null) => void;
+  /** Regel direkt hier bearbeiten, statt in die Bibliothek zu springen. Nur gesetzt,
+   *  wo ein Regel-Editor daneben Platz hat (Inline-Werkstatt); fehlt auf der
+   *  Verwaltungsseite — dort führt der Weg über die Regel-Liste. */
+  onEditRegel?: (regel: QualitaetsRegel) => void;
+  /** Neue Regel anlegen und direkt bearbeiten (Gegenstück zu `onEditRegel`). */
+  onNeueRegel?: () => void;
+  /** Neben den Prompt gerenderter Zusatz (Live-Vorschau des zusammengesetzten
+   *  Prompts). Als Render-Prop, damit der Knoten aus dem AUFRUFENDEN Plugin
+   *  kommt — sonst entstünde die Kante Kuration → Gutachten (Zyklus-Guard). */
+  nebenPrompt?: (entwurf: SkillRecord) => React.ReactNode;
 }
 
-export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onSaved, onManageRegeln, onTestlauf, onGuardStateChange }: SkillEditorProps): React.ReactElement {
+export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, persist, onBack, onSaved, onManageRegeln, onTestlauf, onGuardStateChange, onEditRegel, onNeueRegel, nebenPrompt }: SkillEditorProps): React.ReactElement {
   const [draft, setDraft] = useState<SkillRecord>(skill);
   const [begruendung, setBegruendung] = useState('');
   const [view, setView] = useState<'bearbeiten' | 'versionen'>(initialView ?? 'bearbeiten');
@@ -100,6 +111,9 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
   // DSGVO-Transport-Policy: abgeleitete Klassifizierung (Ableitung schlägt Flag).
   const slotErzwingtIntern = templateReferenziertInhaltsSlot(draft.promptTemplate);
   const inhaltsTragend = skillEnthaeltDokumentInhalte(draft);
+  // Gegen den GESPEICHERTEN Stand, nicht gegen `draft.slots` — sonst meldete jeder
+  // Bestands-Skill mit abweichendem slots-Array sofort Alarm (Pitfall #35).
+  const slotAenderung = pruefeSlotAenderung(skill.promptTemplate, draft.promptTemplate);
 
   // Prompt-Vorlage = Markdown-Live-Preview-Editor (wie Gutachten-Abschnitte).
   // MarkdownEditor.onChange ist 300 ms debounced → beim Speichern den Live-Doc-Wert
@@ -234,6 +248,29 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
             </div>
           ))}
         </div>
+
+        {/* Entfernter Inhalts-Slot: der Lauf setzt den Antragstext dann nicht mehr
+            ein — ohne Fehlermeldung. Vergleich gegen den GESPEICHERTEN Stand. */}
+        {slotAenderung.entfernteSlots.length > 0 && (
+          <div className="mt-3 rounded-[8px] border-[0.5px] border-[var(--tf-warning-border)] bg-[var(--tf-warning-soft)] p-3">
+            <p className="text-[12px] font-medium text-[var(--tf-warning-text)] mb-1.5">
+              ⚠ {slotAenderung.entfernteSlots.map(s => `{{${s}}}`).join(', ')} steht nicht mehr im Text
+            </p>
+            <p className="text-[11.5px] leading-[1.5] text-[var(--tf-warning-text)] m-0">
+              {slotAenderung.vbVerloren
+                ? 'Der nächste Lauf sieht die Vorhabensbeschreibung nicht mehr und schreibt den Abschnitt ohne den Antrag — ohne Fehlermeldung.'
+                : 'Der nächste Lauf bekommt diesen Kontext nicht mehr mitgeliefert.'}
+              {slotAenderung.kipptAufInhaltsfrei
+                ? ' Zusätzlich ist das Häkchen „Verarbeitet Dokumentinhalte" jetzt bedienbar geworden: der Skill gilt nur noch durch den Fail-safe-Standard als intern-pflichtig.'
+                : ''}
+            </p>
+          </div>
+        )}
+
+        {/* Was der Lauf aus dieser Vorlage macht — vom Aufrufer geliefert, weil die
+            Eingabe (Antrag, Korpus, Ziel) nur dort bekannt ist. Die Vorlage IST nicht
+            der Prompt: dahinter hängen bis zu neun Blöcke, die sie überstimmen können. */}
+        {nebenPrompt && <div className="mt-4">{nebenPrompt(draft)}</div>}
 
         {/* DSGVO-Transport-Policy: abgeleitete Klassifizierung + optionaler Override.
             Erklärprosa hinter dem Info-Icon (zustandsabhängig). */}
@@ -373,11 +410,26 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
                     {gruppe.regeln.map(r => {
                       const checked = draft.regelIds.includes(r.id);
                       return (
-                        <label key={r.id} className="flex items-center gap-3 py-[9px] border-t-[0.5px] border-[var(--tf-border)] first:border-t-0 cursor-pointer">
-                          <input type="checkbox" checked={checked} disabled={ro} onChange={() => toggleRegel(r.id)} className="accent-[var(--tf-primary)]" />
-                          <span className="text-[13px] text-[var(--tf-text)]">{r.name}</span>
-                          <span className="ml-auto font-mono text-[12px] text-[var(--tf-text-tertiary)]">{describeRegelParams(r)}</span>
-                        </label>
+                        // Zeile ist ein div, nicht das <label>: ein Stift INNERHALB des
+                        // Labels würde beim Klick zusätzlich die Checkbox umschalten.
+                        <div key={r.id} className="flex items-center gap-3 py-[9px] border-t-[0.5px] border-[var(--tf-border)] first:border-t-0">
+                          <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                            <input type="checkbox" checked={checked} disabled={ro} onChange={() => toggleRegel(r.id)} className="accent-[var(--tf-primary)]" />
+                            <span className="text-[13px] text-[var(--tf-text)]">{r.name}</span>
+                            <span className="ml-auto font-mono text-[12px] text-[var(--tf-text-tertiary)]">{describeRegelParams(r)}</span>
+                          </label>
+                          {onEditRegel && (
+                            <button
+                              type="button"
+                              onClick={() => onEditRegel(r)}
+                              title={`Regel „${r.name}" bearbeiten`}
+                              aria-label={`Regel „${r.name}" bearbeiten`}
+                              className="flex-shrink-0 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] transition-colors"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -385,7 +437,12 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
               ))}
             </div>
           )}
-          <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline mt-3.5">Regeln verwalten →</button>
+          <div className="flex items-center gap-4 mt-3.5">
+            {onNeueRegel && canEdit && (
+              <button onClick={onNeueRegel} className="text-[12.5px] text-[var(--tf-primary)] hover:underline">+ Neue Regel</button>
+            )}
+            <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline">Regeln verwalten →</button>
+          </div>
         </div>
 
         {/* Abnahme-Kriterien für die beratende KI-QS. Eine Zeile = ein Kriterium

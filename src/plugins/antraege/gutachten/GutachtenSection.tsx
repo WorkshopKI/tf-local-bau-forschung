@@ -8,7 +8,7 @@
  * Stände + Export bleiben nutzbar; nur Generieren/Modifier degradieren).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, FileText, FileSearch, Pencil, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { AlertTriangle, FileText, FileSearch, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
@@ -17,7 +17,7 @@ import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { KorpusInventar } from './KorpusInventar';
 import { maxConversionLevel } from '@/core/services/converter';
-import { erlaubeWorkflowEntwuerfe, isDevContext } from '@/config/feature-flags';
+import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { ARTEFAKT_TYP_LABEL } from '@/plugins/skill-verwaltung-kuration/workflowShared';
 import { useVbCharCap, useKontextZiel } from '@/core/hooks/useVbCharCap';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
@@ -32,7 +32,10 @@ import { TweakEditor } from '../kurzfassung/TweakEditor';
 import { StreamingVorschau } from '../kurzfassung/StreamingVorschau';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useGutachtenWorkflow } from './useGutachtenWorkflow';
+import { useWerkstattZugang } from './useWerkstattZugang';
 import { WorkflowWerkstattDialog } from './WorkflowWerkstattDialog';
+import { PromptVorschauSpalte } from './PromptVorschauSpalte';
+import { werkstattNachwirkung, type WerkstattNachwirkung } from './werkstattNachwirkung';
 import { PromptAnsichtDialog } from './PromptAnsichtDialog';
 import { AbschnittNav } from './AbschnittNav';
 import { AbschnittStepper } from './AbschnittStepper';
@@ -42,7 +45,7 @@ import { KontextPanel } from './KontextPanel';
 import type { CheckListAktion } from '../kurzfassung/CheckList';
 import { ResumeLine } from './ResumeLine';
 import { leereSchritte } from './runner';
-import type { WorkflowStep } from '@/core/services/skills';
+import type { SkillRecord, WorkflowStep } from '@/core/services/skills';
 import type { StepId, WorkflowRun } from './types';
 import './gutachten.css';
 
@@ -108,11 +111,23 @@ export function GutachtenSection({
         ...(capAndere !== undefined ? { capAndere } : {}),
       })
     : null;
-  // dev-Inline-Werkstatt: Workflow/Skill direkt hier bearbeiten (nur dev). `null` = zu;
-  // `{ skillId }` öffnet direkt den Skill-Editor des aktiven Schritts (Stift-Einstieg).
-  const werkstattVerfuegbar = isDevContext();
+  // Inline-Werkstatt: Anweisung/Regeln des Abschnitts direkt hier bearbeiten, statt
+  // ins Kuration-Plugin zu wechseln (dev/local + pl/as + kurator-mit-Session).
+  // `null` = zu; `{ skillId }` öffnet direkt den Skill-Editor des aktiven Schritts.
+  const werkstattVerfuegbar = useWerkstattZugang();
   const [werkstatt, setWerkstatt] = useState<{ skillId?: string } | null>(null);
-  const onOpenWerkstatt = werkstattVerfuegbar ? (skillId?: string): void => setWerkstatt({ skillId }) : undefined;
+  // Skill-Version beim Öffnen — Bezugspunkt für die Nachwirkungs-Meldung. Ref statt
+  // State: sie darf beim Reload nicht selbst ein Rendern auslösen.
+  const werkstattVersionRef = useRef<number | null>(null);
+  const [wartetAufReload, setWartetAufReload] = useState(false);
+  const [nachwirkung, setNachwirkung] = useState<WerkstattNachwirkung | null>(null);
+  const onOpenWerkstatt = werkstattVerfuegbar
+    ? (skillId?: string): void => {
+        werkstattVersionRef.current = ctrl.activeSkill?.version ?? null;
+        setNachwirkung(null);
+        setWerkstatt({ skillId });
+      }
+    : undefined;
   // Einklappbar (persistiert, Default offen): beim Texten anderer Artefakte
   // (NF/Kurzfassung) wegklappbar. Body via CSS verstecken statt unmounten —
   // der aktive Markdown-Editor (SectionReviewCard) behält so seinen Buffer.
@@ -196,7 +211,7 @@ export function GutachtenSection({
 
   // Beim Abschnittswechsel ein etwaiges „Anzeigen"-Highlight + Hover verwerfen (die neue
   // Karte remountet — sonst würde ihr Effekt einen stale satzIndex highlighten).
-  useEffect(() => { setFundstelle(null); setHoverSaetze(null); }, [run?.aktiverSchritt]);
+  useEffect(() => { setFundstelle(null); setHoverSaetze(null); setNachwirkung(null); }, [run?.aktiverSchritt]);
 
   const order = steps.map(s => s.id);
   const reviewDok = reviewDocId ? ctrl.quellen.quellen?.volltexte.get(reviewDocId) ?? null : null;
@@ -212,6 +227,25 @@ export function GutachtenSection({
   // gültige aktiverSchritt-ID; Fallback auf den ersten Step defensiv).
   const activeDef = run ? (steps.find(d => d.id === run.aktiverSchritt) ?? steps[0]) : undefined;
   const activeStep = run && activeDef ? run.schritte[activeDef.id] : undefined;
+
+  // Nach einem Persist in der Werkstatt lädt `reloadRegistry` asynchron nach. Erst
+  // wenn die Skill-Version wirklich gestiegen ist, steht fest, was für den offenen
+  // Abschnitt gilt — vorher wäre die Meldung geraten.
+  const aktiveSkillVersion = ctrl.activeSkill?.version ?? null;
+  const aktiverStatus = activeStep?.status ?? 'leer';
+  useEffect(() => {
+    if (!wartetAufReload) return;
+    const n = werkstattNachwirkung({
+      versionVorher: werkstattVersionRef.current,
+      versionNachher: aktiveSkillVersion,
+      abschnittStatus: aktiverStatus,
+    });
+    if (!n) return;
+    setNachwirkung(n);
+    setWartetAufReload(false);
+    // Folge-Speicherungen messen ab dem neuen Stand.
+    werkstattVersionRef.current = aktiveSkillVersion;
+  }, [wartetAufReload, aktiveSkillVersion, aktiverStatus]);
 
   // Layout-Entscheidung: einspaltig unterhalb der Schwelle.
   const solo = bodyWidth < WERK_MIN_WIDTH;
@@ -447,19 +481,9 @@ export function GutachtenSection({
             </div>
           )}
 
-          {/* dev-Inline-Werkstatt: Prompts + Schritte des aktiven Workflows direkt hier
-              bearbeiten (statt Kontextwechsel ins Kuration-Plugin). Nur dev. */}
-          {werkstattVerfuegbar && (
-            <div className="mb-4">
-              <button
-                type="button"
-                onClick={() => setWerkstatt({})}
-                className="inline-flex items-center gap-1.5 text-[12px] px-[13px] py-[7px] rounded-[99px] border-[0.5px] border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:border-[var(--tf-border-hover)]"
-              >
-                <Pencil size={12} /> Workflow bearbeiten (dev)
-              </button>
-            </div>
-          )}
+          {/* Kein zweiter Einstieg in die Werkstatt mehr: der Stift am Abschnittskopf
+              ist die Tür. Er landet direkt beim Prompt des offenen Abschnitts — die
+              Schritt-Struktur liegt dahinter einen Klick tiefer („← Alle Schritte"). */}
 
           {/* Kontext-Warnung VOR dem Lauf. Die Fußzeile im (einklappbaren) Inventar
               zeigt dieselbe Messung, wird aber genau dann nicht gelesen, wenn sie
@@ -481,6 +505,40 @@ export function GutachtenSection({
                     : `Weniger Dokumente aufnehmen oder die Vorhabensbeschreibung kürzen. ${VB_KUERZEN_HINWEIS}`}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Nach dem Schließen der Werkstatt: hat die neue Anweisung gewirkt, und was
+              heißt das für DIESEN Abschnitt? Ohne den Hinweis liest sich der unverändert
+              stehende Text wie „hat nichts gebracht". */}
+          {nachwirkung && activeDef && (
+            <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-2.5 rounded-[10px] bg-[var(--tf-bg-secondary)] border-[0.5px] border-[var(--tf-border)]">
+              <span className="text-[12.5px] leading-[1.5] text-[var(--tf-text)]">{nachwirkung.text}</span>
+              {nachwirkung.aktion === 'neu-erzeugen' && (
+                <button
+                  type="button"
+                  onClick={() => { setNachwirkung(null); ctrl.generate(activeDef.id); }}
+                  className="text-[12.5px] text-[var(--tf-primary)] hover:underline"
+                >
+                  Abschnitt neu erzeugen
+                </button>
+              )}
+              {nachwirkung.aktion === 'erneut-oeffnen' && (
+                <button
+                  type="button"
+                  onClick={() => { setNachwirkung(null); ctrl.erneutOeffnenStep(activeDef.id); }}
+                  className="text-[12.5px] text-[var(--tf-primary)] hover:underline"
+                >
+                  Erneut öffnen
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setNachwirkung(null)}
+                className="ml-auto text-[12px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+              >
+                Ausblenden
+              </button>
             </div>
           )}
 
@@ -579,6 +637,9 @@ export function GutachtenSection({
             daten={daten}
             sektionLabel={`${activeDef.kurz} — ${activeDef.label}`}
             onClose={() => setPromptOpen(false)}
+            {...(onOpenWerkstatt && ctrl.activeSkill
+              ? { onBearbeiten: () => { setPromptOpen(false); onOpenWerkstatt(ctrl.activeSkill?.id); } }
+              : {})}
           />
         );
       })()}
@@ -600,8 +661,19 @@ export function GutachtenSection({
           aktiverWorkflowId={ctrl.activeWorkflowId}
           initialSkillId={werkstatt.skillId}
           onClose={() => setWerkstatt(null)}
-          onChanged={ctrl.reloadRegistry}
+          onChanged={() => { setWartetAufReload(true); ctrl.reloadRegistry(); }}
           onNavigateKuration={target => navigate('skill-verwaltung-kuration', target.skillId ? { selectedId: target.skillId } : {})}
+          onOpenPersoenlich={() => { setWerkstatt(null); setTweakOpen(true); }}
+          // Vorschau gegen den UNGESPEICHERTEN Entwurf — nur sinnvoll für den Skill
+          // des offenen Abschnitts, denn nur dort ist die Eingabe (Antrag, Korpus,
+          // Ziel) bekannt. Für andere Skills liefert sie bewusst `null`.
+          {...(activeDef ? {
+            nebenPrompt: (entwurf: SkillRecord) => (
+              <PromptVorschauSpalte
+                daten={entwurf.id === ctrl.activeSkill?.id ? ctrl.promptAnsichtFuer(activeDef.id, entwurf) : null}
+              />
+            ),
+          } : {})}
         />
       )}
     </div>
@@ -619,7 +691,7 @@ function ActiveAbschnitt({
   onOpenTweak: () => void;
   /** Prompt-Ansicht öffnen — erreichbar VOR der Generierung und im ⋯-Menü der Karte. */
   onOpenPrompt: () => void;
-  /** dev-Inline-Werkstatt für den Skill dieses Schritts öffnen (nur dev; sonst undefined). */
+  /** Inline-Werkstatt für den Skill dieses Schritts öffnen (fehlt ohne Registry-Zugang). */
   onOpenWerkstatt?: (skillId?: string) => void;
   /** „Anzeigen"-Sprung (Journey-Paket 3) an die Review-Karte durchreichen. */
   fundstelle?: { satzIndex: number; nonce: number };

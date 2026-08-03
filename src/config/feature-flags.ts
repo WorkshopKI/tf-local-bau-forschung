@@ -6,6 +6,7 @@
  */
 
 import { runtimeConfig } from './runtime-config';
+import { registryEditierbar, type RegistryUmgebung } from './registry-zugang';
 
 export const features = runtimeConfig.features;
 export const kiConfig = runtimeConfig.ki;
@@ -262,20 +263,28 @@ export function getAufbereitungDrUrls(): AufbereitungDrUrls {
 export function isStreamlitBridgeEnabled(): boolean {
   return features.streamlitBridge === true;
 }
+/** Die Konfig-Fakten für die Registry-Zugangs-Entscheidung an einer Stelle
+ *  einsammeln. EINE Quelle für die Ableitung — die reine Logik lebt in
+ *  [registry-zugang.ts] und bekommt das Ergebnis als Arg (kein `runtimeConfig`
+ *  in der Gate-Logik, sonst ist sie über die Varianten-Matrix nicht testbar). */
+export function registryUmgebung(sessionAktiv: boolean): RegistryUmgebung {
+  return {
+    devKontext: isDevContext(),
+    skillVerwaltung: isSkillVerwaltungEnabled(),
+    datenShareSchreibrecht: isDatenShareWritable(),
+    kuratorMenus: isKuratorMenusEnabled(),
+    sessionAktiv,
+  };
+}
+
 /**
  * Darf der aktuelle Build/Nutzer die Skill-Registry SCHREIBEN? Komponiert aus
- * bestehenden Primitiven — KEIN neues Auth-Muster:
- *  - dev (`build:dev` + `npm run dev`): IMMER voll editierbar — der Entwickler
- *    muss alles testen können, ohne erst die Kurator-Session zu aktivieren.
- *  - pl-Build (Schreibrecht auf dem Share, aber ohne Kurator-Login) editiert
- *    direkt: `datenShareSchreibrecht && !kuratorMenus` identifiziert pl eindeutig.
- *  - sonst (kurator): nur mit aktiver Kurator-Session; prod/demo read-only.
+ * bestehenden Primitiven — KEIN neues Auth-Muster. Die Fallunterscheidung
+ * (dev/local · pl/as · kurator · prod) steht in `registryEditierbar`.
  * Physischer Guard bleibt `queryPermission` in `writeSkillRegistry`.
  */
 export function canEditSkillRegistry(sessionActive: boolean): boolean {
-  if (isDevContext()) return true;
-  if (isDatenShareWritable() && !isKuratorMenusEnabled()) return true;
-  return sessionActive;
+  return registryEditierbar(registryUmgebung(sessionActive));
 }
 
 /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll (Recorder + „Assistent

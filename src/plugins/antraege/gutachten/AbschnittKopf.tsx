@@ -42,7 +42,8 @@ interface Props {
   tweakAktiv?: boolean;
   /** Nur bei EXTERNER KI ein sichtbarer Warnhinweis (DSGVO-Klasse). */
   externerProvider?: string;
-  /** dev: Prompt/Workflow dieses Schritts bearbeiten. */
+  /** Anweisung (Prompt + Regeln) dieses Abschnitts bearbeiten — der Einstieg in
+   *  die Inline-Werkstatt. Fehlt ohne Registry-Zugang (`useWerkstattZugang`). */
   onOpenWerkstatt?: () => void;
   /** Einträge des ⋯-Menüs; leer/fehlend → kein Menü. */
   menu?: MenuAktion[];
@@ -76,8 +77,8 @@ export function AbschnittKopf({
         <button
           type="button"
           className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] transition-colors"
-          title="Prompt/Workflow dieses Schritts bearbeiten (dev)"
-          aria-label="Workflow bearbeiten (dev)"
+          title="Anweisung für diesen Abschnitt bearbeiten"
+          aria-label="Anweisung für diesen Abschnitt bearbeiten"
           onClick={onOpenWerkstatt}
         >
           <Pencil size={13} />

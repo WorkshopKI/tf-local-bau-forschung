@@ -12,7 +12,7 @@
  * aus derselben Kette wie der echte Lauf — hier wird nichts nachgebaut.
  */
 import { useState } from 'react';
-import { Copy, AlertTriangle, Check, Minus } from 'lucide-react';
+import { Copy, AlertTriangle, Check, Minus, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
@@ -31,6 +31,9 @@ interface Props {
   /** Abschnitts-Label für den Kopf-Pill (z.B. „A — Kurzfassung"). */
   sektionLabel: string;
   onClose: () => void;
+  /** Der natürliche nächste Schritt: „Ich habe gesehen, was rausgeht — jetzt ändere
+   *  ich es." Nur gesetzt, wo die Werkstatt zugänglich ist (`useWerkstattZugang`). */
+  onBearbeiten?: () => void;
 }
 
 const zahl = (n: number): string => n.toLocaleString('de-DE');
@@ -96,7 +99,7 @@ function PromptBlockAnsicht({ system, user, vb }: { system: string; user: string
   );
 }
 
-export function PromptAnsichtDialog({ daten, sektionLabel, onClose }: Props): React.ReactElement {
+export function PromptAnsichtDialog({ daten, sektionLabel, onClose, onBearbeiten }: Props): React.ReactElement {
   const [sicht, setSicht] = useState<'vorschau' | 'gesendet'>(
     daten.gesendet.length > 0 ? 'gesendet' : 'vorschau',
   );
@@ -137,6 +140,11 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose }: Props): Re
       <Button variant="ghost" icon={Copy} onClick={() => kopieren.run()} loading={kopieren.busy}>
         Kopieren
       </Button>
+      {onBearbeiten && (
+        <Button variant="secondary" icon={Pencil} onClick={onBearbeiten}>
+          Anweisung bearbeiten
+        </Button>
+      )}
       <Button variant="primary" onClick={onClose}>Schließen</Button>
     </>
   );

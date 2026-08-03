@@ -18,6 +18,7 @@ import {
   loadSkillRegistry,
   runRegelChecks,
   regelnMitOverride,
+  resolveRegeln,
   renderSkillPrompt,
   type SkillRunInput,
   type RenderedSkillPrompt,
@@ -213,7 +214,9 @@ export interface GutachtenWorkflowController {
    * Run oder Skill fehlen. Wird beim Öffnen des Dialogs gerufen, nicht memoisiert —
    * die Vorschau soll den Stand des Klicks zeigen (Ziel-Umschalter, Tweak, Korpus).
    */
-  promptAnsichtFuer: (stepId: StepId) => PromptAnsichtDaten | null;
+  /** Datengrundlage der Prompt-Ansicht. Mit `entwurf` gegen einen ungespeicherten
+   *  Skill-Stand aus der Werkstatt statt gegen den gespeicherten. */
+  promptAnsichtFuer: (stepId: StepId, entwurf?: SkillRecord) => PromptAnsichtDaten | null;
 }
 
 export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflowController {
@@ -372,11 +375,17 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
    * Lauf (ein eigener LLM-Aufruf). Trägt der Schritt `kontextBedarf: 'relevant'`,
    * sagt `relevanzOffen` das an, statt eine Genauigkeit vorzutäuschen.
    */
-  const promptAnsichtFuer = (stepId: StepId): PromptAnsichtDaten | null => {
+  const promptAnsichtFuer = (stepId: StepId, entwurf?: SkillRecord): PromptAnsichtDaten | null => {
     const sc = skillMap.get(stepId);
     if (!sc || !run) return null;
+    // `entwurf` = der ungespeicherte Stand aus der offenen Werkstatt. Dann werden
+    // auch seine Regeln frisch aufgelöst — der Bearbeiter kann eine Regel gerade
+    // an- oder abgewählt haben, und genau deren Vorgaben-Block will er sehen.
+    const basis: SkillCtx = (entwurf && registry.regFile)
+      ? { skill: entwurf, regeln: resolveRegeln(registry.regFile, entwurf) }
+      : sc;
     const ziel = aktivesZielFuerLauf();
-    const regeln = regelnFuer(sc, tweak);
+    const regeln = regelnFuer(basis, tweak);
     const eingabe = baueSkillEingabe({
       ctx,
       korpusMd,
@@ -384,13 +393,13 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       thinkingBudget,
       ziel,
       vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, steps, 2000, 'freigegeben'),
-      ...(tweakWirktAuf(sc.skill.id, tweak) ? { tweak, tweakWirksam: true } : {}),
+      ...(tweakWirktAuf(basis.skill.id, tweak) ? { tweak, tweakWirksam: true } : {}),
     });
     return {
-      skill: sc.skill,
+      skill: basis.skill,
       regeln,
       eingabe,
-      vorschau: renderSkillPrompt(sc.skill, regeln, eingabe),
+      vorschau: renderSkillPrompt(basis.skill, regeln, eingabe),
       cap: getVbCharCap(kontextZielFuer(bridge, ziel)),
       relevanzOffen: steps.find(s => s.id === stepId)?.kontextBedarf === 'relevant' && !forceFullContext,
       gesendet: gesendetRef.current.get(stepId) ?? [],

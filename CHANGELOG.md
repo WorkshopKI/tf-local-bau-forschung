@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.398.0 — Anweisung, Regeln und Prompt am offenen Antrag bearbeiten (August 2026)
+
+MINOR — Wer ein Gutachten schreibt, merkt am Abschnitt, dass die Anweisung nicht passt — und musste dafür bisher das Plugin wechseln. Die Inline-Werkstatt gab es seit v2.247, aber nur hinter `isDevContext()`; pl und as durften die Registry längst schreiben und sahen den kurzen Weg trotzdem nicht.
+
+- **Zugang als reine Funktion** statt zweier Prädikate nebeneinander: `registryEditierbar`/`werkstattZugang` — dev/local + pl/as + Kurator-mit-Session, prod raus; `canEditSkillRegistry` delegiert dorthin, kein neuer Flag ([registry-zugang.ts](src/config/registry-zugang.ts))
+- **Regeln des Abschnitts inline bearbeitbar** (Stift je Zeile, „+ Neue Regel") über die geteilte Fabrik `buildRegelMutations` — dieselbe, die die Verwaltungsseite nutzt ([regelMutations.ts](src/plugins/skill-verwaltung-kuration/regelMutations.ts))
+- **„Was daraus wirklich an die KI geht"** unter der Vorlage: Maße, Baustein-Reihenfolge und Wortlaut gegen den ungespeicherten Entwurf, rein gerechnet ohne KI-Aufruf ([PromptVorschauSpalte.tsx](src/plugins/antraege/gutachten/PromptVorschauSpalte.tsx))
+- **Warnung bei entferntem Inhalts-Slot** — nicht primär DSGVO (die ist fail-safe), sondern: der Lauf sieht die Vorhabensbeschreibung nicht mehr und schreibt trotzdem ([promptSlotWarnung.ts](src/plugins/skill-verwaltung-kuration/promptSlotWarnung.ts))
+- **Bugfix `promptMasse`**: die VB zählte auch dann als Anteil, wenn das Template ihren Slot nicht führt — die Anzeige meldete 78.040 VB-Zeichen bei 2.028 Gesamtzeichen ([promptAnsicht.ts](src/plugins/antraege/gutachten/promptAnsicht.ts))
+
 ### v2.397.0 — Betrachtungsbereich: alle drei ZIM-Richtlinien ab 2015 (August 2026)
 
 MINOR — Der Chip versprach „letzte 3 Richtlinien", zeigte aber zwei Generationen: v2.389 hatte den Bereich nach der Trigger-Abdeckung geschnitten (neun Programme) und trotzdem als Generationszahl beschriftet. Die Generation 2015 fehlte — 5.086 Anträge, 47 allein 4.190.

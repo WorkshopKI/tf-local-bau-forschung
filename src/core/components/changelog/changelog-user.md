@@ -19,6 +19,24 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.398 — 2026-08
+
+### Neu
+- Die Anweisung an die KI lässt sich jetzt **direkt am offenen Antrag** ändern: Der Stift am Abschnittskopf öffnet Prompt, Umfang und die Regeln dieses Abschnitts, ohne dass Sie in die Skill-Verwaltung wechseln müssen.
+- Unter der Vorlage steht aufklappbar **„Was daraus wirklich an die KI geht"** — mit Umfang, den angehängten Bausteinen in ihrer Reihenfolge und dem Wortlaut. Sie sehen also, was Ihre Änderung am fertigen Auftrag bewirkt, bevor Sie sie speichern.
+- Nach dem Speichern sagt ein Hinweis über dem Abschnitt, welche Fassung jetzt gilt, und bietet **„Abschnitt neu erzeugen"** an. Freigegebene Abschnitte bleiben unangetastet.
+
+### Verbesserungen
+- Der Dialog erinnert sichtbar daran, dass solche Änderungen **für alle gelten** — und verweist auf „Persönlicher Stil", wenn nur der eigene Ton gemeint ist.
+- Wird beim Bearbeiten der Platzhalter für die Vorhabensbeschreibung gelöscht, warnt die App: Der nächste Lauf würde den Antrag sonst gar nicht mehr sehen und trotzdem einen Text schreiben.
+
+### Bugfixes
+- In der Prompt-Ansicht stimmte die Aufteilung „davon Vorhabensbeschreibung / davon Anweisungen" nicht mehr, sobald eine Vorlage die Vorhabensbeschreibung nicht einsetzte.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v2.397 — 2026-08
 
 ### Bugfixes

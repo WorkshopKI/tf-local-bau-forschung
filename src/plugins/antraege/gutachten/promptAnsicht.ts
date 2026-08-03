@@ -136,7 +136,13 @@ type MessbarerPrompt = Pick<RenderedSkillPrompt, 'system' | 'user' | 'vb' | 'vbG
 
 export function promptMasse(gerendert: MessbarerPrompt, cap: number): PromptMasse {
   const zeichen = gerendert.system.length + gerendert.user.length;
-  const vbZeichen = gerendert.vb.length;
+  // Die VB zählt nur, wenn sie WIRKLICH im Prompt steht. `renderSkillPrompt` liefert
+  // sie auch dann mit, wenn das Template gar keinen VB-Slot (mehr) referenziert —
+  // die Maße meldeten dann einen VB-Anteil GRÖSSER als den ganzen Prompt und
+  // „davon Anweisungen 0". Sichtbar wurde das erst, seit die Werkstatt den Prompt
+  // live gegen den bearbeiteten Entwurf rechnet. Dieselbe Prüfung wie in
+  // `trennePromptAmVb` — kein zweiter Matcher.
+  const vbZeichen = trennePromptAmVb(gerendert.user, gerendert.vb).vb.length;
   return {
     zeichen,
     vbZeichen,
