@@ -2,7 +2,7 @@
 
 Kontextbewusstes Frage-Antwort-Panel über deterministisch bereitgestellten Fakten. Der Nutzer fragt zu seiner aktuellen Arbeit („nächster Schritt bei diesem Verbund?", „welche Fristen?", „wo steht im Antrag etwas zu X?"); die App assembliert den Kontext **rein deterministisch** und schickt **genau einen** Prompt an das **interne** Modell. Das LLM formuliert nur — Status/Phase/Frist/nächster Schritt kommen aus bestehenden reinen Funktionen, nie vom Modell.
 
-Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + kurator). **Phase 1 ist read-only**: kein Tool-Use, kein Auto-Retry, kein Zugriff auf das Phase-0-Ereignisprotokoll, kein Memory, keine schreibenden Aktionen, **keine** Persistenz der Historie (session-only). Agentik kommt in späteren Phasen.
+Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + kurator + as). **Phase 1 ist read-only**: kein Tool-Use, kein Auto-Retry, kein Zugriff auf das Phase-0-Ereignisprotokoll, kein Memory, keine schreibenden Aktionen, **keine** Persistenz der Historie (session-only). Agentik kommt in späteren Phasen.
 
 ## Harte Invarianten
 
@@ -71,6 +71,6 @@ Statt statischer Beispielfragen zeigt die Erststart-Leiste **routen-sensitive Qu
 - Der bestehende Chat + „Mit KI analysieren" nutzen weiter rohen `getActiveTransport()` (nur das Build-Flag schützt) — in dieser Phase **nicht** gefixt; der Assistent erbt den Pfad nicht (eigener gegateter Controller).
 - Später (nicht Phase 1): zentrale Assistenten-Transport-Policy, Tool-Use/Agentik, Zugriff aufs Phase-0-Protokoll/Memory (Streaming-Antwort, sobald der Bridge-Pfad es produktiv hergibt).
 
-## Aktivierung außerhalb dev
+## Aktivierung
 
-pl separat nach manuellem Smoke-Test schalten: in `configs/pl.config.json` unter `features` `"assistentPanel": true` ergänzen und `npm run build:pl` neu bauen.
+**Aktiv in dev + pl + kurator + as** (pl + kurator seit v2.346.0, as seit v2.390.0). **prod: nicht aktiv** — der Flag steht nicht in `configs/prod.config.json` (Default `false`). Voraussetzung jeder Variante ist ein **interner** Transport (`ki.localLlama.enabled` bzw. `streamlitBridge`). Ohne geladenen Orama-Index (z. B. `as`: `dokumentenscan`/`volltextsuche` aus) degradiert das Panel sauber auf „Fakten ohne Auszüge" — `retrieve` liefert `null`, der Turn läuft.

@@ -156,7 +156,7 @@ export function ProfilTab(): React.ReactElement {
         </section>
       )}
 
-      {/* Assistent & Gedächtnis (Assistent Phase 0, nur dev) — seit v2.235 hier
+      {/* Assistent & Gedächtnis (Assistent Phase 0) — seit v2.235 hier
           gefaltet statt als eigener Menüpunkt. Bringt eigene `sec-assistent-…`-
           Anker mit (Deep-Link/Suche/Scroll unverändert). */}
       {isAssistentProtokollEnabled() && <AssistentTab />}

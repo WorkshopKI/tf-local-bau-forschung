@@ -1,5 +1,5 @@
 /**
- * Einstellungs-Sektion „Persönliches Gedächtnis" (Assistent Phase 2, nur dev —
+ * Einstellungs-Sektion „Persönliches Gedächtnis" (Assistent Phase 2 —
  * gegated via `isAssistentGedaechtnisEnabled`).
  *
  * Doppeltes Opt-in: aktivierbar nur, wenn das Arbeitsprotokoll-Opt-in aktiv ist.

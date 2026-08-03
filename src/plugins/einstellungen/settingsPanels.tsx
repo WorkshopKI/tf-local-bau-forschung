@@ -84,14 +84,14 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       ...(isKuratorMenusEnabled()
         ? [{ id: 'sec-kurator', label: 'Kurator-Bereich', keywords: 'anmelden menüs ttl session kuration' }]
         : []),
-      // Assistent & Gedächtnis (Assistent Phase 0, nur dev) — gerätelokales, opt-in
+      // Assistent & Gedächtnis (Assistent Phase 0) — gerätelokales, opt-in
       // Arbeitsprotokoll. Seit v2.235 nicht mehr als eigener Menüpunkt, sondern in
       // „Mein Profil" gefaltet (persönliche, gerätelokale Daten).
       ...(isAssistentProtokollEnabled()
         ? [
             { id: 'sec-assistent-protokoll', label: 'Arbeitsprotokoll', keywords: 'assistent gedächtnis protokoll aufzeichnung opt-in datenschutz lokal ereignisse' },
             { id: 'sec-assistent-daten', label: 'Meine Daten', keywords: 'assistent daten export löschen transparenz ereignisse protokoll' },
-            // Assistent Phase 2 — persönliches Gedächtnis (nur dev)
+            // Assistent Phase 2 — persönliches Gedächtnis
             ...(isAssistentGedaechtnisEnabled()
               ? [{ id: 'sec-assistent-gedaechtnis', label: 'Persönliches Gedächtnis', keywords: 'gedächtnis memory konsolidierung notizen arbeitskontext präferenzen offene fäden vergessen' }]
               : []),

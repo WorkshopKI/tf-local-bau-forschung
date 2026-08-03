@@ -11,7 +11,7 @@ Destillierte ist nur Cache. Deshalb wird hier nichts interpretiert, zusammengefa
 oder bewertet — nur app-semantische Ereignisse deterministisch aufgezeichnet.
 
 Feature-Flag: `features.assistentProtokoll` (`isAssistentProtokollEnabled()`,
-dev + pl + kurator). Gated den gesamten Phase-0-Umfang (Aufzeichnung +
+dev + pl + kurator + as). Gated den gesamten Phase-0-Umfang (Aufzeichnung +
 Einstellungs-Sektion). Freischaltung ≠ Aufzeichnung: das Opt-in bleibt beim
 User, das Protokoll bleibt gerätelokal (Invarianten unten).
 

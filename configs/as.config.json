@@ -45,6 +45,9 @@
     "anfragen": true,
     "streamlitBridge": true,
     "deltaSnapshotWrite": true,
+    "assistentProtokoll": true,
+    "assistentPanel": true,
+    "assistentGedaechtnis": true,
     "meilensteinMonitoring": true
   },
   "menuLabels": {

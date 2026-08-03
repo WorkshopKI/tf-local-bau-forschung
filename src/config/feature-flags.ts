@@ -280,7 +280,7 @@ export function canEditSkillRegistry(sessionActive: boolean): boolean {
 
 /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll (Recorder + „Assistent
  *  & Gedächtnis"-Einstellungssektion). Fundament für den späteren persönlichen
- *  Assistenten — in Phase 0 KEIN LLM/Chat/UI-Assistent. dev + pl + kurator;
+ *  Assistenten — in Phase 0 KEIN LLM/Chat/UI-Assistent. dev + pl + kurator + as;
  *  Freischaltung ≠ Aufzeichnung (bleibt opt-in + gerätelokal, Pitfall #37).
  *  Default false (`=== true`, Backward-Kompat). */
 export function isAssistentProtokollEnabled(): boolean {
@@ -289,7 +289,7 @@ export function isAssistentProtokollEnabled(): boolean {
 
 /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
  *  assemblierter Kontext, intern-only Transport, session-only Historie).
- *  dev + pl + kurator. Default false (`=== true`, Backward-Kompat). Baut auf [[assistent-protokoll]]
+ *  dev + pl + kurator + as. Default false (`=== true`, Backward-Kompat). Baut auf [[assistent-protokoll]]
  *  (Phase 0) NICHT auf — Phase 1 liest das Protokoll bewusst nicht. */
 export function isAssistentPanelEnabled(): boolean {
   return features.assistentPanel === true;
@@ -297,8 +297,9 @@ export function isAssistentPanelEnabled(): boolean {
 
 /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Hintergrundlauf
  *  destilliert das [[assistent-protokoll]] per INTERNEM Modell in Memory-Blocks;
- *  doppeltes Opt-in (setzt das Protokoll-Opt-in voraus). dev + pl + kurator.
- *  Default false (`=== true`, Backward-Kompat). */
+ *  doppeltes Opt-in (setzt das Protokoll-Opt-in voraus). dev + pl + kurator + as;
+ *  setzt `assistentPanel` + `assistentProtokoll` voraus (von `validateConfig`
+ *  erzwungen). Default false (`=== true`, Backward-Kompat). */
 export function isAssistentGedaechtnisEnabled(): boolean {
   return features.assistentGedaechtnis === true;
 }

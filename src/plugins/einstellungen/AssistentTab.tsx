@@ -1,5 +1,5 @@
 /**
- * Einstellungs-Sektion „Assistent & Gedächtnis" (Assistent Phase 0, nur dev —
+ * Einstellungs-Sektion „Assistent & Gedächtnis" (Assistent Phase 0 —
  * gegated via `isAssistentProtokollEnabled`).
  *
  * Steuert das gerätelokale, opt-in Arbeitsprotokoll: Opt-in-Toggle mit Klartext-
@@ -246,7 +246,7 @@ export function AssistentTab(): React.ReactElement {
         )}
       </section>
 
-      {/* ── Persönliches Gedächtnis (Phase 2, nur dev) ── */}
+      {/* ── Persönliches Gedächtnis (Phase 2) ── */}
       {isAssistentGedaechtnisEnabled() && <GedaechtnisSektion protokollAktiv={aktiv} />}
     </div>
   );

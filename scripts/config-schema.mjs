@@ -213,19 +213,20 @@ export const DEFAULT_CONFIG = {
     /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll über
      *  app-semantische Aktionen (Fundament für den späteren persönlichen
      *  Assistenten — noch KEIN LLM/Chat/UI-Assistent). Gated den gesamten
-     *  Phase-0-Umfang (Aufzeichnung + Einstellungs-Sektion). dev + pl + kurator;
+     *  Phase-0-Umfang (Aufzeichnung + Einstellungs-Sektion). dev + pl + kurator + as;
      *  Freischaltung ≠ Aufzeichnung (bleibt opt-in + gerätelokal). Optional,
      *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     assistentProtokoll: false,
     /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
      *  assemblierter Kontext + intern-only Transport, session-only Historie).
-     *  dev + pl + kurator. Optional, default false (`=== true` Backward-Kompat). */
+     *  dev + pl + kurator + as. Optional, default false (`=== true` Backward-Kompat). */
     assistentPanel: false,
     /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Ein Hintergrund-
      *  lauf destilliert das Ereignisprotokoll per INTERNEM Modell in benannte
      *  Memory-Blocks, die transparent einsehbar/löschbar sind und in den Panel-
      *  Kontext einfließen. Doppeltes Opt-in (setzt Protokoll-Opt-in voraus).
-     *  dev + pl + kurator. Optional, default false (`=== true` Backward-Kompat). */
+     *  dev + pl + kurator + as; erfordert `assistentPanel` + `assistentProtokoll`
+     *  (Regel in `validateConfig`). Optional, default false (`=== true` Backward-Kompat). */
     assistentGedaechtnis: false,
     /** MAP „Neuer Prüf-Workflow": Import von Plattform-Einreichungs-JSON per
      *  Drag & Drop, deterministische Rechenchecks und eine im Betrieb
@@ -448,6 +449,20 @@ export function validateConfig(config) {
   // muss aktiv sein. `dokumente` zählt nicht — reiner Phase-2-Platzhalter.
   if (!features.antraege) {
     errors.push('features.antraege muss aktiv sein (einziges Bereichs-Menü).');
+  }
+
+  // Die Assistent-Phasen bauen aufeinander auf: Phase 2 destilliert das Phase-0-
+  // Protokoll (Quelle) und speist ausschliesslich den Phase-1-Panel-Kontext (Senke).
+  // Ohne die Vorstufen liefe eine Konsolidierung, die niemand ausloesen und deren
+  // Ergebnis niemand sehen koennte — die UI haengt in ProfilTab hinter dem
+  // Protokoll-Gate, der Memory-Block hat ohne Panel keinen Leser.
+  if (features.assistentGedaechtnis === true) {
+    const fehlend = ['assistentPanel', 'assistentProtokoll'].filter(f => features[f] !== true);
+    if (fehlend.length > 0) {
+      errors.push(
+        `features.assistentGedaechtnis = true erfordert ${fehlend.map(f => `features.${f} = true`).join(' und ')}`,
+      );
+    }
   }
 
   // menuLabels: für jedes aktive Bereichs-Menü muss ein nicht-leerer Label-String gesetzt sein.

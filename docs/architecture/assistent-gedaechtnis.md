@@ -2,7 +2,7 @@
 
 Sleep-time-Konsolidierung des [Ereignisprotokolls](assistent-protokoll.md) (Phase 0) in wenige benannte, größenbegrenzte **Memory-Blocks**. Ein Hintergrundlauf destilliert per **internem** Modell die neuen Ereignisse zu knappen Faktensätzen, die transparent einsehbar/löschbar sind und als zusätzlicher Block in den [Panel-Kontext-Assembler](assistent-panel.md) (Phase 1) einfließen.
 
-Feature-Flag `features.assistentGedaechtnis` (`isAssistentGedaechtnisEnabled()`, dev + pl + kurator). **Read-only zum Panel hin**; schreibend ist ausschließlich der Konsolidierungslauf (gegated).
+Feature-Flag `features.assistentGedaechtnis` (`isAssistentGedaechtnisEnabled()`, dev + pl + kurator + as). **Read-only zum Panel hin**; schreibend ist ausschließlich der Konsolidierungslauf (gegated).
 
 Kernidee (Verankerungs-Philosophie der App, auf Nutzerkontext angewandt): **das rohe Protokoll ist die Wahrheit, jeder Gedächtnis-Eintrag ist Cache** und trägt Belege (Ereignis-IDs). Das LLM liefert **nur Faktensätze + Operationstypen** — nie IDs/Zeitstempel/Belege, nie einen Block als Ganzes.
 
@@ -91,6 +91,6 @@ CLI `npm run eval:gedaechtnis` ([gedaechtnis-eval.ts](../../src/core/services/sk
 
 ## Aktivierung
 
-**dev: aktiv** (seit v2.257.0, `assistentGedaechtnis: true` in `configs/dev.config.json`) — weiterhin **opt-in + doppelt gegatet**, der Assistent ist per Default „nicht verbunden". Die Freigabe erfolgte nach einer In-App-Baseline über den **Standard-Chat (gpt-oss)**: fortschreibung/widerspruch/poisoning 3/3, kaltstart 2/3. **Transport-Hinweis:** der agentische Qwen-Tab ist für die strukturierte JSON-Konsolidierung ungeeignet (gibt teils Reasoning-Prosa statt JSON aus + Loop-Detector-Abbruch „🔁 Wiederholung erkannt"); die produktive Konsolidierung trifft ohnehin den Standard-Chat (`submitMessage` **ohne** `ziel`), nicht den agentischen Tab.
+**Aktiv in dev + pl + kurator + as** (dev seit v2.257.0, pl + kurator seit v2.346.0, as seit v2.390.0 nach Freigabe durch DSB und Personalrat ohne Auflagen). In jeder Variante bleibt es **opt-in + doppelt gegatet** — der Assistent ist per Default „nicht verbunden". Die Freigabe stützt sich auf eine In-App-Baseline über den **Standard-Chat (gpt-oss)**: fortschreibung/widerspruch/poisoning 3/3, kaltstart 2/3. **Transport-Hinweis:** der agentische Qwen-Tab ist für die strukturierte JSON-Konsolidierung ungeeignet (gibt teils Reasoning-Prosa statt JSON aus + Loop-Detector-Abbruch „🔁 Wiederholung erkannt"); die produktive Konsolidierung trifft ohnehin den Standard-Chat (`submitMessage` **ohne** `ziel`), nicht den agentischen Tab.
 
-**pl/prod: nicht aktiv** — der Behörden-Rollout wartet auf DSB/Personalrat (viel später). pl separat schalten: in `configs/pl.config.json` unter `features` `"assistentGedaechtnis": true` ergänzen (setzt `assistentPanel` + `assistentProtokoll` voraus) und `npm run build:pl` neu bauen.
+**prod: nicht aktiv** — der Flag steht nicht in `configs/prod.config.json` (Default `false`, kein `requiredFlags`-Eintrag). Phase 2 setzt `assistentPanel` **und** `assistentProtokoll` voraus; seit v2.390.0 erzwingt `validateConfig` das im Build ([config-schema.mjs](../../scripts/config-schema.mjs)) — eine Variante mit Gedächtnis ohne Panel/Protokoll bricht ab, statt eine unerreichbare UI auszuliefern.

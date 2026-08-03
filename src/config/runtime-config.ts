@@ -145,15 +145,18 @@ export interface TeamflowFeatures {
   deltaSnapshotWrite?: boolean;
   /** Assistent Phase 0: gerätelokales, opt-in Ereignisprotokoll (Fundament für
    *  den späteren persönlichen Assistenten). Gated Aufzeichnung + Einstellungs-
-   *  Sektion. Nur dev. Optional, default false. */
+   *  Sektion. dev + pl + kurator + as; Freischaltung ≠ Aufzeichnung (das Opt-in
+   *  bleibt beim User). Optional, default false. */
   assistentProtokoll?: boolean;
   /** Assistent Phase 1: kontextbewusstes Assistenz-Panel (deterministisch
    *  assemblierter Kontext, intern-only Transport, session-only Historie). Shell-
-   *  weites Dock. Nur dev. Optional, default false. */
+   *  weites Dock. dev + pl + kurator + as. Optional, default false. */
   assistentPanel?: boolean;
   /** Assistent Phase 2: Gedächtnis-Konsolidierung (Sleep-time). Hintergrundlauf
    *  destilliert das Ereignisprotokoll per INTERNEM Modell in Memory-Blocks;
-   *  doppeltes Opt-in. Nur dev. Optional, default false. */
+   *  doppeltes Opt-in. dev + pl + kurator + as; setzt `assistentPanel` +
+   *  `assistentProtokoll` voraus (von `validateConfig` erzwungen). Optional,
+   *  default false. */
   assistentGedaechtnis?: boolean;
   /** MAP „Neuer Prüf-Workflow": Einreichungs-Import (Drag & Drop), Rechenchecks
    *  und editierbare, versionierte Förderfähigkeits-Checkliste. Eigene Entität

@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.390 — 2026-08
+
+### Neu
+- Der Assistent steht jetzt auch in der AS-Fassung zur Verfügung: das Frage-Antwort-Panel rechts am Bildschirmrand (Strg+Umschalt+K) und das persönliche Gedächtnis unter Einstellungen → Mein Profil. Beides bleibt freiwillig — Sie schalten es selbst ein, und die Daten bleiben auf Ihrem Rechner.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v2.389 — 2026-08
 
 ### Neu

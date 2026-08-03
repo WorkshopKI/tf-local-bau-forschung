@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.390.0 — Assistent-Phasen 0-2 fuer die as-Variante freigeschaltet (August 2026)
+
+MINOR — DSB und Personalrat haben das Assistent-Gedächtnis ohne Auflagen freigegeben, `as` bekommt es damit wie pl. Beim Nachsehen fiel auf: für pl und kurator ist es seit v2.346.0 an, das Themen-Doc behauptete weiterhin „wartet auf DSB/Personalrat" — genau diese Drift hat die Freischaltung angefragt, die längst bestand.
+
+- `as` führt jetzt alle drei Assistent-Phasen ([as.config.json](configs/as.config.json)); `prod` bleibt bewusst ohne.
+- **Abhängigkeit maschinell erzwungen**: Gedächtnis ohne Panel/Protokoll bricht den Build ab, statt eine unerreichbare UI auszuliefern ([config-schema.mjs](scripts/config-schema.mjs), [config-schema-assistent.test.ts](src/config/__tests__/config-schema-assistent.test.ts)).
+- Abschnitt „Aktivierung" in [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md) und [assistent-panel.md](docs/architecture/assistent-panel.md) auf den Ist-Zustand — die alten Fassungen erklärten Schritte, die seit v2.346.0 erledigt waren.
+- Sieben JSDoc-/Kommentar-Stellen sagten „nur dev" ([runtime-config.ts](src/config/runtime-config.ts), [feature-flags.ts](src/config/feature-flags.ts), `plugins/einstellungen/*`).
+
 ### v2.389.1 — Fachabstimmung dokumentiert, Betrachtungsbereich im Konzept (August 2026)
 
 PATCH — Die Entscheidungen der AB-Abstimmung lagen bisher nur in Commit-Messages und Code-Kommentaren. Sie gehören an eine Stelle, an der man sie in einem Jahr wiederfindet.
