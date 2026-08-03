@@ -36,10 +36,12 @@
  * welche Vorkommen geprüft wird — auf der Verbund-Seite sind das die Einträge
  * ALLER Teilvorhaben, und genau das muss die Anzeige dann auch sagen.
  */
+import { kuerzelIndex, type KuerzelIndex } from './feld-zugriff';
 import { normKey } from './normalisierung';
 import { betrifftRolle, rollenLabel, rollenVonFeld } from './rollen';
 import { triggerFuerProgramm } from './trigger-share';
-import { triggerSatzVon, type TextbausteinLegende } from './trigger-parser';
+import { triggerSegmenteVon, triggerSatzVon, alsText, type TextbausteinLegende } from './trigger-satz';
+import { erklaereSegmente, type ErklaerKatalog, type ErklaertesSegment } from './trigger-erklaerung';
 import type { FeldVorkommen } from './feld-aufloesung';
 import type { Rolle, StatusFeldEintrag, TriggerParam, TriggerZeile } from './typen';
 
@@ -49,8 +51,14 @@ export type BedingungsUrteil = 'erfuellt' | 'verletzt' | 'unpruefbar';
 /** Eine Trigger-Zeile in der Kandidaten-Ansicht. */
 export interface TriggerWirkung {
   folge: number;
-  /** Deutsche Satzform aus dem Parser. */
+  /** Deutsche Satzform — die Verkettung von `segmente`, nie ein zweiter Weg. */
   satz: string;
+  /**
+   * Derselbe Satz in seinen erklärbaren Stücken. Ohne `katalog` in der Eingabe
+   * bleiben die Segmente unerklärt (die Anzeige zeigt dann keine Geste), der
+   * Text ist derselbe.
+   */
+  segmente: ErklaertesSegment[];
   urteil: BedingungsUrteil;
   /** Je Bedingung ein Satz — warum verletzt bzw. warum nicht prüfbar. */
   gruende: string[];
@@ -114,6 +122,12 @@ export interface NavigatorEingabe {
   rolle?: Rolle | 'alle';
   /** Optionale Textbaustein-Legende für die Mail-Sätze. */
   legende?: TextbausteinLegende;
+  /**
+   * Fassungs-Ausschnitt für die Zeichen-Erklärungen (`ABB` → „Bewilligung").
+   * Optional, weil der Navigator ohne ihn dasselbe Ergebnis liefert — nur eben
+   * ohne die Erklärungen an den Segmenten.
+   */
+  katalog?: ErklaerKatalog;
 }
 
 /**
@@ -146,10 +160,12 @@ function aendertStatus(p: TriggerParam): boolean {
 
 interface Kontext {
   /** normKey(Kürzel) → Katalog-Feld. */
-  felderNachCode: ReadonlyMap<string, StatusFeldEintrag>;
+  felderNachCode: KuerzelIndex;
   /** normKey(Kürzel) der Einträge, die im Bestand ein Datum tragen. */
   gesetzt: ReadonlySet<string>;
   statusCode: number | null;
+  /** Quelle der Zeichen-Erklärungen; fehlt sie, bleiben die Segmente unerklärt. */
+  katalog?: ErklaerKatalog;
 }
 
 /**
@@ -181,7 +197,12 @@ function pruefeOhne(kuerzel: string, art: 'TV' | 'Verbund', k: Kontext): {
 /** Die Vorbedingungen EINER Trigger-Zeile auswerten. */
 function pruefeZeile(zeile: TriggerZeile, k: Kontext, legende?: TextbausteinLegende): TriggerWirkung {
   const p = zeile.geparst;
-  const basis = { folge: zeile.folge, satz: triggerSatzVon(zeile, legende) };
+  const roh = triggerSegmenteVon(zeile, legende);
+  const basis = {
+    folge: zeile.folge,
+    satz: alsText(roh),
+    segmente: k.katalog ? erklaereSegmente(k.katalog, roh, k.felderNachCode) : [...roh],
+  };
   if (!p) {
     // Nicht gedeutete Zeilen zählen separat und tragen hier nichts bei — sie
     // als „erfüllt" mitzuzählen erfände eine Wirkung, die wir nicht kennen.
@@ -244,12 +265,7 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
     programmOhneTrigger: programm !== '' && eigene.length === 0,
   };
 
-  const felderNachCode = new Map<string, StatusFeldEintrag>();
-  for (const f of e.felder) {
-    if (!f.code) continue;
-    const key = normKey(f.code);
-    if (!felderNachCode.has(key)) felderNachCode.set(key, f);
-  }
+  const felderNachCode = kuerzelIndex(e.felder);
 
   const gesetzt = new Set<string>();
   for (const v of e.vorkommen) {
@@ -266,7 +282,9 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
   }
   const relevanzGefiltert = relevante.size > 0;
 
-  const kontext: Kontext = { felderNachCode, gesetzt, statusCode: e.statusCode };
+  const kontext: Kontext = {
+    felderNachCode, gesetzt, statusCode: e.statusCode, ...(e.katalog ? { katalog: e.katalog } : {}),
+  };
   const rolle = e.rolle ?? 'alle';
 
   // Zeilen je Kürzel bündeln, Reihenfolge der Tabelle bewahren.

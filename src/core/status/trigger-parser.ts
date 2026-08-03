@@ -35,32 +35,8 @@
  * Rein und deterministisch: keine IO, keine Uhr.
  */
 import { normKey } from './normalisierung';
-import { MAIL_ROLLE, ROLLE_LABEL } from './rollen';
-import type { StatusVergleich, TextbausteinEintrag, TriggerParam, TriggerZeile } from './typen';
-
-/**
- * Textbaustein-Kennung → Klartext, für die Anzeige. Schlüssel ist `normKey` der
- * Kennung. Wird in `triggerSatz` nur ERGÄNZEND gelesen: ohne Legende bleibt der
- * Satz genau der, der auch gespeichert ist.
- */
-export type TextbausteinLegende = ReadonlyMap<string, string>;
-
-/**
- * Legende aus den gepflegten Einträgen einer Fassung bauen. Leere Liste ⇒
- * `undefined`, damit die Aufrufer den Fall „keine Legende" nicht selbst prüfen
- * müssen und der gespeicherte Satz unverändert durchgereicht wird.
- */
-export function baueLegende(
-  eintraege: readonly TextbausteinEintrag[] | undefined,
-): TextbausteinLegende | undefined {
-  if (!eintraege || eintraege.length === 0) return undefined;
-  const map = new Map<string, string>();
-  for (const e of eintraege) {
-    const k = normKey(e.kennung);
-    if (k && !map.has(k)) map.set(k, e.text);
-  }
-  return map.size > 0 ? map : undefined;
-}
+import { istZulaessigkeit, triggerSatz } from './trigger-satz';
+import type { StatusVergleich, TriggerParam, TriggerZeile } from './typen';
 
 /** Die vier bekannten Prozedur-Namen, normalisiert nachschlagbar. */
 const PROZEDUREN: ReadonlyMap<string, TriggerParam['art']> = new Map([
@@ -69,43 +45,6 @@ const PROZEDUREN: ReadonlyMap<string, TriggerParam['art']> = new Map([
   ['trg.vorgeintragmail', 'vorgEintragMail'],
   ['trg.status.tv.vb', 'statusSetzen'],
 ]);
-
-/**
- * Die „Bezugsdatei"-Nummern des Legacy. 210 steht an Verbund-Codes (`XAAE`),
- * 211 an Teilvorhaben-Codes — die Zuarbeit belegt beides mit je einem Beispiel
- * (`AAE/3` mit `XAAE|210|0`, `ABA/1` mit `211|74` und der Lesart „TV-Status").
- * Die Zuordnung ist damit **erschlossen, nicht belegt** — sie steht auf der
- * Verifikationsliste. Unbekannte Nummern werden roh beschriftet statt geraten.
- */
-const EBENEN_KURZ: ReadonlyMap<string, 'VB' | 'TV'> = new Map([
-  ['210', 'VB'],
-  ['211', 'TV'],
-]);
-
-/**
- * Unsere Lesart einer Bezugsdatei-Nummer; `null` = unbekannte Nummer.
- *
- * Die eine Stelle, an der diese Zuordnung steht. Der Parameter-Import stellt die
- * `zuordnung`-Zeilen der Zuarbeit daneben, statt eine zweite Tabelle anzulegen —
- * so wird aus „erschlossen" beim ersten echten Import „belegt" oder „widerlegt".
- */
-export function ebeneVonNummer(roh: string): 'VB' | 'TV' | null {
-  return EBENEN_KURZ.get(roh.trim()) ?? null;
-}
-
-/** „TV-Ebene 211" bzw. „Ebene 999" — die Nummer bleibt immer sichtbar. */
-function ebenePhrase(roh: string): string {
-  const t = roh.trim();
-  const kurz = EBENEN_KURZ.get(t);
-  return kurz ? `${kurz}-Ebene ${t}` : `Ebene ${t}`;
-}
-
-/** „TV-Status (211)" bzw. „Status (Ebene 999)". */
-function statusEbenePhrase(roh: string): string {
-  const t = roh.trim();
-  const kurz = EBENEN_KURZ.get(t);
-  return kurz ? `${kurz}-Status (${t})` : `Status (Ebene ${t})`;
-}
 
 /** `<59` → `{op:'<', code:59}`. `null`, wenn dort keine Vergleichsangabe steht. */
 export function parseStatusVergleich(roh: string): StatusVergleich | null {
@@ -145,26 +84,6 @@ export function kuerzelListe(roh: string | undefined): string[] {
   return out;
 }
 
-/**
- * Die Aufzählungsform einer UND-Liste, mit dem passenden Bindewort davor:
- * `kein ABB` bzw. `keines von ABB, AB, AK4` (am TV), `YIRR` bzw. `eines von …`
- * (am Verbund, wo die Verneinung schon im Satzanfang steckt).
- */
-function listePhrase(kuerzel: readonly string[], stelle: 'tv' | 'verbund'): string {
-  if (kuerzel.length === 1) return stelle === 'tv' ? `kein ${kuerzel[0]}` : kuerzel[0]!;
-  return `${stelle === 'tv' ? 'keines' : 'eines'} von ${kuerzel.join(', ')}`;
-}
-
-/**
- * Textbaustein-Kennung lesbar machen: `!.055.VorgInfo.01` → `VorgInfo.01`.
- * Das Präfix ist die interne Dateinummer und sagt dem Leser nichts.
- */
-export function textbausteinName(roh: string): string {
-  const t = roh.trim();
-  const m = /^!\.\d+\.(.+)$/.exec(t);
-  return m ? m[1]! : t;
-}
-
 // --- Parser je Prozedur ------------------------------------------------------
 
 /**
@@ -200,20 +119,6 @@ function parseStatusTvVb(args: string[]): TriggerParam | null {
   return istZulaessigkeit(p) || statusTv !== null || statusVb !== null ? p : null;
 }
 
-/**
- * Trägt die Zeile Bedingungen, aber keinen Zielstatus? Dann ist sie eine
- * **Zulässigkeitsprüfung**: sie sagt, unter welchen Umständen das Kürzel gesetzt
- * werden darf, und lässt den Status, wie er ist.
- */
-export function istZulaessigkeit(p: TriggerParam): boolean {
-  if (p.art !== 'statusTvVb') return false;
-  if (p.statusTv !== null || p.statusVb !== null) return false;
-  return p.status !== null
-    || p.ohneTvKuerzel.length > 0
-    || p.ohneVerbundKuerzel.length > 0
-    || p.weitere.length > 0;
-}
-
 function parseVorgEintragNeu(args: string[]): TriggerParam | null {
   const code = optional(args[0]);
   const ebene = optional(args[1]);
@@ -235,84 +140,6 @@ function parseStatusSetzen(args: string[]): TriggerParam | null {
   const status = parseStatus(args[1]);
   if (!ebene || status === null) return null;
   return { art: 'statusSetzen', ebene, status };
-}
-
-// --- Satzform ----------------------------------------------------------------
-
-function satzStatusTvVb(p: Extract<TriggerParam, { art: 'statusTvVb' }>): string {
-  const bedingungen: string[] = [];
-  if (p.status) {
-    const wort = p.status.op === '<' ? 'vor' : p.status.op === '>' ? 'nach' : 'ist';
-    bedingungen.push(`VB-Status ${wort} ${p.status.code}`);
-  }
-  if (p.ohneTvKuerzel.length > 0) {
-    bedingungen.push(`TV hat ${listePhrase(p.ohneTvKuerzel, 'tv')}`);
-  }
-  if (p.ohneVerbundKuerzel.length > 0) {
-    bedingungen.push(`kein TV des Verbunds hat ${listePhrase(p.ohneVerbundKuerzel, 'verbund')}`);
-  }
-  for (const w of p.weitere) bedingungen.push(`weiteres Argument „${w}"`);
-
-  // Zulässigkeitsprüfung: Bedingungen ja, Statuswechsel nein. Der Satz muss das
-  // sagen — „setze " mit leerer Wirkung wäre eine Lüge mit Grammatikfehler.
-  if (istZulaessigkeit(p)) {
-    return `Kürzel nur zulässig, wenn ${bedingungen.join(', ')}; Status bleibt unverändert.`;
-  }
-
-  const wirkung: string[] = [];
-  if (p.statusTv !== null) wirkung.push(`TV-Status ${p.statusTv}`);
-  if (p.statusVb !== null) wirkung.push(`VB-Status ${p.statusVb}`);
-  const setze = `setze ${wirkung.join(' und ')}`;
-
-  return bedingungen.length > 0
-    ? `Wenn ${bedingungen.join(', ')} → ${setze}.`
-    : `${setze[0]!.toUpperCase()}${setze.slice(1)}.`;
-}
-
-/**
- * Empfänger mit Rolle beschriften, wo wir sie kennen: `TIB` → `TIB (FB)`.
- *
- * Adressen und Platzhalter (`#TB1`) bleiben unangetastet — eine erfundene Rolle
- * wäre schlimmer als keine.
- */
-function empfaengerPhrase(roh: string): string {
-  const rolle = MAIL_ROLLE[normKey(roh)];
-  return rolle ? `${roh} (${ROLLE_LABEL[rolle]})` : roh;
-}
-
-/**
- * Die deutsche Satzform eines geparsten Triggers.
- *
- * @param legende Optionale Textbaustein-Legende. Fehlt sie, steht nur die
- *   Kennung da — dieselbe Ausgabe wie beim Import, damit gespeicherter und
- *   gerenderter Satz nie ohne Grund auseinanderlaufen.
- */
-export function triggerSatz(p: TriggerParam, legende?: TextbausteinLegende): string {
-  switch (p.art) {
-    case 'statusTvVb':
-      return satzStatusTvVb(p);
-    case 'vorgEintragNeu':
-      return `Vorgangseintrag ${p.code} anlegen (${ebenePhrase(p.ebene)}, ${p.tage >= 0 ? '+' : ''}${p.tage} Tage).`;
-    case 'vorgEintragMail': {
-      const cc = p.cc ? `, CC ${empfaengerPhrase(p.cc)}` : '';
-      const klartext = legende?.get(normKey(p.textbaustein));
-      const baustein = klartext
-        ? `${textbausteinName(p.textbaustein)} — ${klartext}`
-        : textbausteinName(p.textbaustein);
-      return `Mail an ${empfaengerPhrase(p.empfaenger)}, Textbaustein ${baustein}${cc}.`;
-    }
-    case 'statusSetzen':
-      return `Setze ${statusEbenePhrase(p.ebene)} auf ${p.status}.`;
-  }
-}
-
-/**
- * Der anzuzeigende Satz einer Zeile: mit Legende neu gerendert, ohne sie der
- * gespeicherte. Die eine Stelle, die alle Anzeigen benutzen — sonst zeigte die
- * Liste die Kennung und das Popover den Klartext.
- */
-export function triggerSatzVon(zeile: TriggerZeile, legende?: TextbausteinLegende): string {
-  return zeile.geparst && legende ? triggerSatz(zeile.geparst, legende) : zeile.satz;
 }
 
 // --- Einstieg ----------------------------------------------------------------

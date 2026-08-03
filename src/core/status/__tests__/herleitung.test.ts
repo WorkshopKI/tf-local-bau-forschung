@@ -255,6 +255,18 @@ describe('baueHerleitung — Trigger und Datenstand', () => {
     expect(herleitungAlsText(h)).toContain('Dieser Trigger löste aus: Setze TV-Status (211) auf 38.');
   });
 
+  it('liefert dieselben Trigger-Sätze auch als erklärte Segmente', () => {
+    const h = baueHerleitung({
+      ...basis, trigger, vorkommen: [vorkommen('D_AT4', '14.06.2026')], statusRoh: 'techn geprüft',
+    });
+    const w = h.letzterVorgang!.trigger[0]!;
+    // Der Satz IST die Verkettung — Kopie und Bildschirm können nicht abweichen.
+    expect(w.segmente.map(s => s.text).join('')).toBe(w.satz);
+    // Und die Zahlen sind auseinandergehalten: 211 ist die Bezugsdatei, 38 der Status.
+    expect(w.segmente.find(s => s.text === '38')?.erklaerung?.titel).toBe('techn geprüft');
+    expect(w.segmente.find(s => s.text === '211')?.erklaerung?.titel).toBe('Teilvorhaben-Ebene');
+  });
+
   it('kommt ohne importierte Trigger aus', () => {
     const h = baueHerleitung({
       ...basis, vorkommen: [vorkommen('D_AT4', '14.06.2026')], statusRoh: 'techn geprüft',

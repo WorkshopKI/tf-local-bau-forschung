@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.400.0 — Kürzel und Codes im Herleitungs-Popover erklärt (August 2026)
+
+MINOR — „Wenn VB-Status vor 59, TV hat kein ABB → setze TV-Status 31." ist für den Eingearbeiteten präzise und für alle anderen Geheimschrift. Die Zeichen tragen jetzt ihre Bedeutung im Tooltip — und nur die belegten, damit der fehlende Unterstrich selbst eine Aussage bleibt.
+
+- **Der Satz entsteht als Segment-Liste, nicht als String**; `triggerSatz` ist nur noch deren Verkettung, Kopie und Bildschirm können damit nicht auseinanderlaufen ([trigger-satz.ts](src/core/status/trigger-satz.ts), abgespalten von [trigger-parser.ts](src/core/status/trigger-parser.ts))
+- **Erklärt wird gegen die Katalog-Fassung**: Kürzel → Bezeichnung + Rolle, Statuscode → amtlicher Text + ZAH-Phase, Bezugsdatei-Nummer, Mail-Empfänger ([trigger-erklaerung.ts](src/core/status/trigger-erklaerung.ts))
+- **Beide Flächen** — Herleitungs-Popover und „Nächste Schritte" auf derselben Seite ([ErklaerterSatz.tsx](src/plugins/antraege/status/ErklaerterSatz.tsx))
+- **Geteilter `kuerzelIndex`** statt der dritten Kopie derselben Map ([feld-zugriff.ts](src/core/status/feld-zugriff.ts))
+- Belegt am echten Bestand (2447 Trigger-Zeilen): `ABB` → „Bewilligung / wird gesetzt von QS", `211` → Ebene statt Statuscode, nicht interpretierte Zeilen ohne jede Geste
+
 ### v2.399.0 — Sicht-Tab NF entfällt (August 2026)
 
 MINOR — Die Sicht-Tabs trugen mit „NF" eine Auswahl, die der Phasen-Quickfilter direkt darunter deckungsgleich trifft (beide über `isNachforderungStatus`). Zwei Bedienwege für dieselbe Menge; der obere fällt weg. „Bewilligt <Jahr>" bleibt — der Quickfilter „Bewilligt" ist jahrgangsübergreifend und damit kein Ersatz.

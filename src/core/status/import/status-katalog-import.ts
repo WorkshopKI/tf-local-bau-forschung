@@ -33,7 +33,7 @@ import type { StatusCodeEintrag } from '../status-codes';
 import type { TextbausteinEintrag } from '../typen';
 import { normKey } from '../normalisierung';
 import { MAIL_ROLLE } from '../rollen';
-import { ebeneVonNummer } from '../trigger-parser';
+import { ebeneVonNummer } from '../trigger-satz';
 import { berechneDiff, type Diff } from './diff';
 import { istLeseFehler } from './xlsx-tabelle';
 import { leseParameterBlatt, type BlattFormat } from './parameter-blatt';

@@ -17,13 +17,18 @@
  *   im Detail (Verbund), ohne dass irgendwo stand, welcher gemeint war — und bei
  *   Ein-TV-Verbünden, wo man beide für dasselbe hält, war es am irreführendsten.
  */
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Info, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
-import { herleitungAlsText, type Herleitung, type VerlaufSchritt } from '@/core/status';
+import {
+  herleitungAlsText, sortiereRollen, ROLLE_LABEL, ROLLE_LANG,
+  type Herleitung, type VerlaufSchritt,
+} from '@/core/status';
+import { ErklaerterSatz } from './ErklaerterSatz';
 import { useHerleitung, type AbweichendeEbene, type StatusEbene } from './useHerleitung';
 import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 
@@ -34,6 +39,40 @@ const EBENE_LABEL: Record<StatusEbene, string> = {
 
 /** `YYYY-MM-DD` → `DD.MM.YYYY`; über die zentrale Kette. */
 const tagDe = formatDatumsWert;
+
+/**
+ * Wer den Eintrag setzt — `AB/FB` bzw. `alle`, jedes Kürzel mit seinem Klartext.
+ *
+ * Angezeigt wird weiter `rollenLabel`s Schreibweise, Zeichen für Zeichen: die
+ * Ids dienen nur der Erklärung, sie ersetzen den String nicht.
+ */
+function Rollen({ s }: { s: VerlaufSchritt }): React.ReactElement {
+  if (s.rollenIds.length === 0) {
+    return <Tooltip text="Kein Rollen-Vermerk in der Zuarbeit — jeder darf diesen Eintrag setzen.">
+      <span className="cursor-help underline decoration-dotted decoration-[var(--tf-text-tertiary)] underline-offset-2">
+        {s.rollen}
+      </span>
+    </Tooltip>;
+  }
+  return (
+    <>
+      {sortiereRollen([...s.rollenIds]).map((r, i) => (
+        <Fragment key={r}>
+          {i > 0 && '/'}
+          <Tooltip text={ROLLE_LANG[r]}>
+            <span
+              tabIndex={0}
+              aria-label={ROLLE_LANG[r]}
+              className="cursor-help underline decoration-dotted decoration-[var(--tf-text-tertiary)] underline-offset-2"
+            >
+              {ROLLE_LABEL[r]}
+            </span>
+          </Tooltip>
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 function Zeile({ s }: { s: VerlaufSchritt }): React.ReactElement {
   return (
@@ -158,7 +197,7 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
               Letzter Vorgang:{' '}
               <span className="text-[var(--tf-text)]">{v.label}</span>{' '}
               <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-                {v.code && `${v.code} · `}{tagDe(v.tag)} · {v.rollen}
+                {v.code && `${v.code} · `}{tagDe(v.tag)} · <Rollen s={v} />
               </span>
             </p>
             {v.text && (
@@ -168,7 +207,7 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
               <ul className="mt-1 flex flex-col gap-0.5">
                 {v.trigger.map(t => (
                   <li key={t.folge} className="text-[11.5px] text-[var(--tf-text-secondary)]">
-                    → {t.satz}
+                    → <ErklaerterSatz segmente={t.segmente} />
                   </li>
                 ))}
               </ul>

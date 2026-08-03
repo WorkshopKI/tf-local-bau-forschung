@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.400 — 2026-08
+
+### Neu
+- In der Status-Erklärung (das ⓘ neben dem Status) und unter „Nächste Schritte" sind Kürzel und Statuscodes jetzt erklärt: Maus auf `ABB` oder `59`, und die Bedeutung steht da — samt Rolle bzw. ZAH-Phase. Gepunktet unterstrichen ist nur, wofür der Katalog wirklich eine Bezeichnung führt.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v2.399 — 2026-08
 
 ### Verbesserungen

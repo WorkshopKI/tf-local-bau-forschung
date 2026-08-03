@@ -23,11 +23,12 @@ import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlin
 import { useStorage } from '@/core/hooks/useStorage';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
-  ROLLEN, ROLLE_LABEL, ROLLE_LANG, baueLegende, findeStatusCode, ladeTrigger, leseStatusRolle,
-  navigatorKandidaten,
+  ROLLEN, ROLLE_LABEL, ROLLE_LANG, baueLegende, erklaerKatalog, findeStatusCode, ladeTrigger,
+  leseStatusRolle, navigatorKandidaten,
   type FeldVorkommen, type MappingVersion, type NavigatorKandidat, type Rolle,
   type TriggerZeile,
 } from '@/core/status';
+import { ErklaerterSatz } from './ErklaerterSatz';
 
 /** Mehr als das überblickt niemand; der Rest wird gezählt, nicht verschwiegen. */
 const MAX_ANZEIGE = 12;
@@ -69,7 +70,7 @@ function Kandidat({ k }: { k: NavigatorKandidat }): React.ReactElement {
       <ul className="flex flex-col gap-0.5">
         {k.wirkung.map(w => (
           <li key={w.folge} className="text-[11.5px] text-[var(--tf-text-secondary)]">
-            → {w.satz}
+            → <ErklaerterSatz segmente={w.segmente} />
             {w.urteil === 'unpruefbar' && (
               <span className="text-[var(--tf-warning-text)]"> · Bedingung nicht prüfbar</span>
             )}
@@ -113,7 +114,10 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
     statusCode: findeStatusCode(statusRoh ?? '')?.eintrag.code ?? null,
     rolle,
     legende,
-  }), [trigger, programm, version.felder, vorkommen, statusRoh, rolle, legende]);
+    // Damit `ABB` und `59` in den Regelsätzen dasselbe erklären wie im
+    // Herleitungs-Popover — beides steht auf dieser Seite untereinander.
+    katalog: erklaerKatalog(version),
+  }), [trigger, programm, version, vorkommen, statusRoh, rolle, legende]);
 
   /** Teilvorhaben, für die überhaupt Einträge vorliegen. */
   const tvAnzahl = useMemo(

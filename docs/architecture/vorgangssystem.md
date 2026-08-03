@@ -223,6 +223,14 @@ An jeder Status-Anzeige (Förderanträge-Liste, Detail, Home, Verbund). Popover,
 
 Verlauf = relevante `D_`-Spalten chronologisch (als Näherung gekennzeichnet, s. 2). „Herleitung kopieren" für Support-Fälle.
 
+**Die Zeichen im Trigger-Satz sind erklärt** (v2.400). „Wenn VB-Status vor 59, TV hat kein ABB → setze TV-Status 31." ist ohne Vorwissen Geheimschrift; Kürzel, Statuscodes, Bezugsdatei-Nummern und Mail-Empfänger tragen deshalb ihre Bedeutung im Tooltip (`ABB` → „Bewilligung · wird gesetzt von QS", `59` → „bewilligt · ZAH-Phase Begleitung"). Drei Regeln:
+
+1. **Der Satz entsteht als Segment-Liste** ([trigger-satz.ts](../../src/core/status/trigger-satz.ts)), der Text ist nur ihre Verkettung. Ein Muster über den fertigen Satz könnte es nicht: `Setze TV-Status (211) auf 74.` trägt Bezugsdatei-Nummer und Statuscode nebeneinander, der Textbaustein-Klartext bringt beliebige Prosa mitten hinein, und eine nicht interpretierte Zeile trägt ihren Rohparameter.
+2. **Erklärt wird gegen die Fassung** ([trigger-erklaerung.ts](../../src/core/status/trigger-erklaerung.ts)) — kuratierte Werte schlagen den Auslieferungs-Schnitt, wie in `statusKurz`.
+3. **Gepunktet unterstrichen ist genau, wozu es eine Erklärung gibt.** Ein gedeutetes, aber unbekanntes Kürzel sagt „steht nicht im Katalog"; eines aus den ungedeuteten Zusatz-Argumenten schweigt, weil dort nicht einmal feststeht, dass es ein Kürzel ist. Das Fehlen der Geste ist damit selbst eine Auskunft.
+
+Dieselben Sätze und dieselbe Auszeichnung stehen unter „Nächste Schritte" (6.2) — beides über den einen Renderer [ErklaerterSatz.tsx](../../src/plugins/antraege/status/ErklaerterSatz.tsx).
+
 ### 6.2 Nächster-Schritt-Navigator + Kürzel-Glossar
 
 Aus aktuellem Status + Trigger-Vorbedingungen (`<x`/`>x`, ABB-/YIRR-Bedingungen gegen die `D_`-Spalten geprüft) berechnet die App die **kandidierenden nächsten Kürzel** — gefiltert auf Relevanz-Häkchen, mit Rolle („wird gesetzt von") und Wirkung (Statuswechsel, Mail an wen):

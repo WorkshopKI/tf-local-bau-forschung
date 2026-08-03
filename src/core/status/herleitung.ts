@@ -27,11 +27,13 @@ import { formatDatumsWert as tagDe } from '@/core/services/csv/dateParse';
 import { baueChronik, type ChronikEintrag } from './chronik';
 import type { FeldVorkommen } from './feld-aufloesung';
 import { findeStatusCode, type StatusCodeIndex, type StatusCodeTreffer } from './status-codes';
+import { kuerzelIndex } from './feld-zugriff';
 import { triggerFuerKuerzel, triggerFuerProgramm } from './trigger-share';
-import { triggerSatzVon, baueLegende } from './trigger-parser';
-import { rollenLabel } from './rollen';
+import { triggerSegmenteVon, alsText, baueLegende } from './trigger-satz';
+import { erklaereSegmente, erklaerKatalog, type ErklaertesSegment } from './trigger-erklaerung';
+import { rollenLabel, rollenVonFeld } from './rollen';
 import { zahPhaseLabel, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
-import type { MappingVersion, TriggerZeile, ZahPhaseId } from './typen';
+import type { MappingVersion, Rolle, TriggerZeile, ZahPhaseId } from './typen';
 
 /** Ein Eintrag der Verlaufs-Näherung. */
 export interface VerlaufSchritt {
@@ -43,6 +45,13 @@ export interface VerlaufSchritt {
   label: string;
   /** `AB/FB` bzw. `alle` — wer den Eintrag setzt. */
   rollen: string;
+  /**
+   * Dieselbe Aussage als Ids, für die Anzeige, die `PA` erklären können soll.
+   * Zusätzlich statt statt `rollen`, nicht anstelle: der String ist das
+   * Anzeigeergebnis von `rollenLabel` und bleibt die eine Schreibweise. Ihn zum
+   * Erklären zurück zu parsen wäre ein zweiter Leseweg (siehe `rollen.ts`).
+   */
+  rollenIds: readonly Rolle[];
   /** Begleittext aus der `T_`-Spalte, falls gefüllt. */
   text?: string;
 }
@@ -50,7 +59,21 @@ export interface VerlaufSchritt {
 /** Der letzte Vorgang, so weit er sich aus den Datumsspalten ablesen lässt. */
 export interface LetzterVorgang extends VerlaufSchritt {
   /** Was dieses Kürzel im Programm des Antrags auslöst, in Folge-Reihenfolge. */
-  trigger: { folge: number; satz: string }[];
+  trigger: TriggerWirkungSatz[];
+}
+
+/**
+ * Eine Trigger-Wirkung in Satzform — einmal flach, einmal in ihre erklärbaren
+ * Stücke zerlegt.
+ *
+ * Beides, weil beides gebraucht wird: `satz` trägt die Textausgabe („Herleitung
+ * kopieren"), `segmente` die Anzeige, die `ABB` und `59` erklären können soll.
+ * Sie können nicht auseinanderlaufen — `satz` IST die Verkettung der Segmente.
+ */
+export interface TriggerWirkungSatz {
+  folge: number;
+  satz: string;
+  segmente: ErklaertesSegment[];
 }
 
 /**
@@ -137,6 +160,7 @@ function alsSchritt(e: ChronikEintrag): VerlaufSchritt {
     ...(e.feld.code ? { code: e.feld.code } : {}),
     label: e.feld.label,
     rollen: rollenLabel(e.feld),
+    rollenIds: rollenVonFeld(e.feld),
     ...(e.text ? { text: e.text } : {}),
   };
 }
@@ -247,12 +271,22 @@ export function baueHerleitung(e: HerleitungEingabe): Herleitung {
   const programm = (e.programm ?? '').trim() || null;
   const eigeneTrigger = triggerFuerProgramm(e.trigger, programm);
   const legende = baueLegende(e.version.textbausteine);
+  // Einmal je Erklärung, nicht je Segment: der Index läuft über alle Katalog-Felder.
+  const felderIndex = kuerzelIndex(e.version.felder);
+  const katalog = erklaerKatalog(e.version);
 
   const letzterVorgang: LetzterVorgang | null = neuester
     ? {
       ...alsSchritt(neuester),
       trigger: (neuester.feld.code ? triggerFuerKuerzel(eigeneTrigger, neuester.feld.code) : [])
-        .map(z => ({ folge: z.folge, satz: triggerSatzVon(z, legende) })),
+        .map(z => {
+          const roh = triggerSegmenteVon(z, legende);
+          return {
+            folge: z.folge,
+            satz: alsText(roh),
+            segmente: erklaereSegmente(katalog, roh, felderIndex),
+          };
+        }),
     }
     : null;
 

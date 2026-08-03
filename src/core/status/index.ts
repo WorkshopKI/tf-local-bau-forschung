@@ -27,7 +27,9 @@ export {
 export {
   entdeckeUnkuratiertNachImport, entdeckeNeueFelderNachImport, nachImportStatusPflege,
 } from './import-integration';
-export { recordKey, leseFeldWert, feldLabel } from './feld-zugriff';
+export {
+  recordKey, leseFeldWert, feldLabel, kuerzelIndex, type KuerzelIndex,
+} from './feld-zugriff';
 export {
   baueFeldAufloesung, aufloesungFuer, sammleVorkommen, herkunftVon,
   type FeldAufloesung, type AufgeloestesFeld, type FeldVorkommen,
@@ -73,18 +75,28 @@ export {
 export {
   baueHerleitung, herleitungAlsText, statusKurz,
   type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
-  type VerlaufSchritt, type LetzterVorgang,
+  type VerlaufSchritt, type LetzterVorgang, type TriggerWirkungSatz,
 } from './herleitung';
+export {
+  erklaereSegmente, erklaerKatalog, kuerzelErklaerung, statusErklaerung,
+  ebeneErklaerung, empfaengerErklaerung,
+  type ErklaertesSegment, type SegmentErklaerung, type ErklaerKatalog,
+} from './trigger-erklaerung';
 export {
   STATUS_CODE_KATALOG, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
   reichereWerteAn, zaehleOhneCode,
   type StatusCodeEintrag, type StatusCodeIndex, type StatusCodeTreffer, type JoinArt,
 } from './status-codes';
 export {
-  parseTriggerZeile, parseTriggerTabelle, triggerSatz, triggerSatzVon, parseStatusVergleich,
-  textbausteinName, referenzierteKuerzel, kuerzelListe, baueLegende,
-  type TriggerRohzeile, type TextbausteinLegende,
+  parseTriggerZeile, parseTriggerTabelle, parseStatusVergleich,
+  referenzierteKuerzel, kuerzelListe,
+  type TriggerRohzeile,
 } from './trigger-parser';
+export {
+  triggerSatz, triggerSatzVon, triggerSegmente, triggerSegmenteVon, alsText,
+  textbausteinName, baueLegende,
+  type TextbausteinLegende, type TriggerSegment, type KuerzelHerkunft,
+} from './trigger-satz';
 export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,

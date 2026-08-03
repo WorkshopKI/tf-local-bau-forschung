@@ -19,9 +19,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseTriggerZeile, parseTriggerTabelle, parseStatusVergleich, kuerzelListe,
-  textbausteinName, referenzierteKuerzel, baueLegende, triggerSatzVon,
+  referenzierteKuerzel,
   type TriggerRohzeile,
 } from '@/core/status/trigger-parser';
+import {
+  textbausteinName, baueLegende, triggerSatzVon, triggerSegmenteVon, alsText,
+  type TriggerSegment,
+} from '@/core/status/trigger-satz';
 
 /** Die Fixture-Tabelle, 1:1 aus der Seed-Doku (alle aus Richtlinie 76). */
 const FIXTURES: TriggerRohzeile[] = ([
@@ -287,5 +291,106 @@ describe('Trigger-Parser — Hilfsfunktionen', () => {
     expect(referenzierteKuerzel(parseTriggerZeile(FIXTURES[5]!))).toEqual(['AAR', 'AAA']);
     // TIB/BIB sind Zuständigkeits-Spalten, keine Vorgangskürzel.
     expect(referenzierteKuerzel(parseTriggerZeile(FIXTURES[4]!))).toEqual(['AAR']);
+  });
+});
+
+/**
+ * Die Segment-Zerlegung. Zwei Fragen stehen hier auf dem Prüfstand:
+ *
+ * 1. **Bleibt der Satz derselbe?** Die Segmente sind die einzige Produktion, der
+ *    Satz nur ihre Verkettung — geht das auseinander, wäre „Herleitung kopieren"
+ *    etwas anderes als das, was auf dem Bildschirm steht.
+ * 2. **Deutet die Zerlegung nur, was der Parser wirklich gedeutet hat?** Ein
+ *    Muster über den fertigen Satz würde `211` für einen Statuscode halten, im
+ *    Textbaustein-Klartext mitlesen und eine nicht interpretierte Zeile für
+ *    verstanden ausgeben. Genau diese drei Fälle stehen unten.
+ */
+describe('Trigger-Satz — Segmente', () => {
+  const legende = baueLegende([
+    { kennung: '!.055.VorgInfo.01', text: 'Information über einen neuen Vorgang' },
+  ]);
+  const codes = (s: readonly TriggerSegment[], art: 'kuerzel'): string[] =>
+    s.filter(x => x.art === art).map(x => x.code);
+  const statusCodes = (s: readonly TriggerSegment[]): number[] =>
+    s.filter(x => x.art === 'status').map(x => x.code);
+  const ebenen = (s: readonly TriggerSegment[]): string[] =>
+    s.filter(x => x.art === 'ebene').map(x => x.nummer);
+
+  it('verkettet zu genau dem Satz, den die Zeile trägt — mit und ohne Legende', () => {
+    for (const z of parseTriggerTabelle(FIXTURES)) {
+      expect(alsText(triggerSegmenteVon(z))).toBe(z.satz);
+      expect(alsText(triggerSegmenteVon(z, legende))).toBe(triggerSatzVon(z, legende));
+    }
+  });
+
+  it('erklärt AAE/1 vollständig: zwei Kürzel, drei Statuscodes', () => {
+    const s = triggerSegmenteVon(parseTriggerZeile(FIXTURES[0]!));
+    expect(codes(s, 'kuerzel')).toEqual(['ABB', 'YIRR']);
+    expect(statusCodes(s)).toEqual([59, 31, 31]);
+  });
+
+  it('hält Bezugsdatei-Nummer und Statuscode auseinander (ABA/1)', () => {
+    // „Setze TV-Status (211) auf 74." — 211 ist die Bezugsdatei, 74 der Status.
+    // Ein Zahlen-Muster über den Satz träfe beide und erfände einen „Status 211".
+    const s = triggerSegmenteVon(parseTriggerZeile(FIXTURES[7]!));
+    expect(statusCodes(s)).toEqual([74]);
+    expect(ebenen(s)).toEqual(['211']);
+  });
+
+  it('liest im Folge-Eintrag das Kürzel, nicht die Ebenen-Nummer als Status (AAE/3)', () => {
+    const s = triggerSegmenteVon(parseTriggerZeile(FIXTURES[2]!));
+    expect(codes(s, 'kuerzel')).toEqual(['XAAE']);
+    expect(ebenen(s)).toEqual(['210']);
+    expect(statusCodes(s)).toEqual([]);   // die „+0 Tage" bleiben Text
+  });
+
+  it('lässt den Textbaustein-Klartext ungedeutet, auch wenn Kürzel darin vorkommen', () => {
+    const falle = baueLegende([
+      { kennung: '!.055.VorgInfo.01', text: 'Nachforderung ABB an 31 Tage' },
+    ]);
+    const s = triggerSegmenteVon(parseTriggerZeile(FIXTURES[4]!), falle);
+    expect(codes(s, 'kuerzel')).toEqual([]);
+    expect(statusCodes(s)).toEqual([]);
+    expect(alsText(s)).toContain('Nachforderung ABB an 31 Tage');
+  });
+
+  it('gibt einer nicht interpretierten Zeile genau ein Text-Segment', () => {
+    for (const rohzeile of [
+      roh('XYZ', 'TRG.Irgendwas.Neues', 'a|b|c'),
+      roh('PFM', 'TRG_TVs_Status_TV_VB', 'PFM!.055.VorgInfo.01'),
+    ]) {
+      const z = parseTriggerZeile(rohzeile);
+      const s = triggerSegmenteVon(z);
+      expect(s).toEqual([{ art: 'text', text: z.satz }]);
+    }
+  });
+
+  it('lässt den gespeicherten Satz gewinnen, wenn die Grammatik seither abweicht', () => {
+    // Sidecar aus einer älteren Fassung: `geparst` liegt vor, der Satz stammt aber
+    // aus einer anderen Grammatik. Dann lieber keine Deutung als eine, die zum
+    // angezeigten Satz nicht passt.
+    const alt = { ...parseTriggerZeile(FIXTURES[0]!), satz: 'Alter Satz aus v2.378.' };
+    expect(triggerSegmenteVon(alt)).toEqual([{ art: 'text', text: 'Alter Satz aus v2.378.' }]);
+    expect(triggerSatzVon(alt)).toBe('Alter Satz aus v2.378.');
+  });
+
+  it('trägt Kürzel in Original-Schreibweise, samt Umlaut', () => {
+    const s = triggerSegmenteVon(parseTriggerZeile(roh('ÄK', 'TRG_TVs_Status_TV_VB', '<59|ÄT|||||31|31')));
+    expect(codes(s, 'kuerzel')).toEqual(['ÄT']);
+    expect(alsText(s)).toContain('TV hat kein ÄT');
+  });
+
+  it('unterscheidet gedeutete Kürzel von den ungedeuteten Zusatz-Argumenten', () => {
+    const s = triggerSegmenteVon(parseTriggerZeile(roh('AAE', 'TRG_TVs_Status_TV_VB', '<59|ABB|YIRR|XYZ|||31|31')));
+    const herkunft = s.filter(x => x.art === 'kuerzel').map(x => [x.code, x.herkunft]);
+    expect(herkunft).toEqual([['ABB', 'bedingung'], ['YIRR', 'bedingung'], ['XYZ', 'weiteres']]);
+  });
+
+  it('erklärt den Mail-Empfänger nur, wo eine Rolle bekannt ist', () => {
+    const mitRolle = triggerSegmenteVon(parseTriggerZeile(FIXTURES[4]!));
+    expect(mitRolle.filter(x => x.art === 'empfaenger').map(x => x.token)).toEqual(['TIB', 'BIB']);
+    // Eine Mailadresse ist keine Rolle — sie bleibt blanker Text.
+    const adresse = triggerSegmenteVon(parseTriggerZeile(FIXTURES[10]!));
+    expect(adresse.filter(x => x.art === 'empfaenger')).toEqual([]);
   });
 });
