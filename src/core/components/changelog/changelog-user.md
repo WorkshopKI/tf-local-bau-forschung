@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.392 — 2026-08
+
+### Neu
+- Auf der Vorhaben-Seite steht unter „Status & Verlauf" neu der Block **Belegte Änderungen**: was sich seit Einführung des Änderungs-Journals an den Kürzeln getan hat — auch dann, wenn der nächtliche Export die frühere Setzung inzwischen überschrieben hat. Bisher war davon nur der jeweils letzte Stand sichtbar. Über welchem Zeitpunkt die Aufzeichnung beginnt, steht immer dabei.
+- Neues Startseiten-Widget **Änderungen der letzten Nacht** (unter Einstellungen → Darstellung & Bedienung einschaltbar): was der jüngste Export gebracht hat, nach Feld gruppiert. Es zeigt bewusst keine Bearbeiter — festgehalten wird, *was* sich geändert hat, nicht *wer* es war.
+### Verbesserungen
+- Die Angabe „hängt seit n Tagen" im Vorgangs-Board sagt jetzt, wie sicher sie ist: ein vorangestelltes „≥" heißt, dass die Zahl aus den Datumsspalten geschätzt ist. Wo das Änderungs-Journal die letzte Aktivität belegt, steht sie ohne Vorbehalt — manche Vorgänge verschwinden dadurch aus der Stau-Liste, weil dort nachweislich gearbeitet wurde.
+### Bugfixes
+<!-- - … -->
+
 ## v2.391 — 2026-08
 
 ### Neu

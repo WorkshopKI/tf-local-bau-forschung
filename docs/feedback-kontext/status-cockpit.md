@@ -52,7 +52,10 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     Klick auf den Namen benennt um.
   - Vier Übernahme-Blöcke: Auslieferung nachziehen, Bezeichnung/Rollen der
     Kürzel-Zuarbeit übernehmen, **AB-Dashboard-Spalten als relevant markieren**
-    (setzt nur, nimmt nie weg), gefundene CSV-Spalten einsortieren.
+    (setzt nur, nimmt nie weg), gefundene CSV-Spalten einsortieren. Für die
+    übrigen Rollen gibt es dieselbe Aktion, gespeist aus der Zuarbeit-Spalte
+    „wird gesetzt von" statt aus einer erfundenen Liste; Kürzel, die jeder
+    setzen darf, bleiben dabei außen vor.
   - Filter: Ebene, Rolle, „nur relevante", „nur mit CSV-Spalte".
 - **To-dos**: die To-do-Kaskade — geordnet, die erste zutreffende Regel gewinnt.
   Weicht der ausgelieferte Regelsatz von der gepflegten Fassung ab, steht das
@@ -63,6 +66,27 @@ entfallen: angezeigt wird, was das Fachsystem führt.
   Die Reihenfolge IST das Ergebnis, deshalb wird sie über Pfeile gesetzt, nicht
   per Ziehen. Jede Regel liest sich als deutscher Satz („WENN Status 71 und
   D_ARQ leer → To-do «RNE ergänzen», zuständig AB").
+  - **Regelsatz je Rolle**: über der Liste stehen Reiter (AB, FB, weitere sobald
+    dort Regeln existieren). Ausgewertet wird immer genau ein Satz. Sperren
+    gelten vorgangsweit und erscheinen deshalb in jedem Reiter, dort mit dem
+    Hinweis „gilt für alle Regelsätze" und ohne Pfeile — verschoben werden sie
+    in ihrem eigenen Satz.
+  - **Rollout-Sperre**: Regeln außerhalb von AB entstehen immer stillgelegt, und
+    das Aktivieren fragt nach. Grund steht dauerhaft am Reiter: die Katalog-Datei
+    gilt für alle Installationen gleichzeitig, und ältere Fassungen der App
+    würden eine fremde Regel in der AB-Kaskade mitwerten.
+  - **Tagesordnung statt Leerzustand**: für einen Satz ohne eigene Regeln zeigt
+    der Reiter, in welchen Situationen die bestehenden Regeln heute auf diese
+    Rolle warten — mit Anzahl, Herkunftsregel und Beispiel-Aktenzeichen. Aus
+    jeder Zeile lässt sich die fehlende Regel direkt anlegen, vorbefüllt mit der
+    Bedingung, die schon feststeht. Die Anzahl ist eine **Untergrenze**: eine
+    eigene Regel steht in ihrem Satz allein und trifft meist deutlich mehr.
+  - Daneben die Zahl der Vorgänge **ohne To-do in jedem Regelsatz**, bei denen
+    ein Kürzel-Paar einseitig offen steht — die fachlichen Lagen, für die die
+    bestehende Kaskade blind ist, mit Median-Standzeit je Paar.
+  - **Erhebung exportieren** legt diese drei Auswertungen als Arbeitsmappe ab,
+    plus eine Kurzfassung für die Einladung zum Fachtermin. Der Export braucht
+    kein Schreibrecht — er nimmt nichts mit auf den Daten-Ordner.
 
 ## Versionen
 

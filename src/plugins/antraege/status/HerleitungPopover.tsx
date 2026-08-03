@@ -200,10 +200,15 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
           <ul className="flex flex-col gap-0.5">
             {h.verlauf.map(s => <Zeile key={`${s.tag}-${s.label}`} s={s} />)}
           </ul>
+          {/* Der Satz trennt jetzt belegt von genähert: DIESER Verlauf bleibt
+              die Näherung aus den Datumsspalten. Was sich seit dem Nullpunkt
+              wirklich geändert hat, steht unter „Belegte Änderungen" auf der
+              Vorhaben-Seite — aus dem Import-Diff-Journal. */}
           <p className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)]">
             {h.verlaufGesamt > h.verlauf.length && `${h.verlaufGesamt - h.verlauf.length} weitere · `}
-            Verlauf ist eine Näherung: die `D_`-Spalten tragen je Kürzel das
-            zuletzt gesetzte Datum, frühere Setzungen sind im Export überschrieben.
+            Dieser Verlauf ist eine Näherung: die `D_`-Spalten tragen je Kürzel das zuletzt gesetzte
+            Datum, frühere Setzungen sind im Export überschrieben. Belegte Änderungen ab dem
+            Journal-Nullpunkt stehen auf der Vorhaben-Seite unter „Status &amp; Verlauf".
           </p>
         </div>
       )}

@@ -58,7 +58,7 @@ Die 512 Felder im bestehenden Felder-Tab **sind** diese Kürzel-Spalten; der Ord
 
 **Bekannte Grenzen (ehrlich ausweisen, nicht verstecken):**
 
-- Ein Datum pro Kürzel-Spalte → bei mehrfach gesetzten Kürzeln ist nur das letzte (bzw. das exportierte) Datum sichtbar. Der rekonstruierte Verlauf ist eine Näherung, keine vollständige Historie. Wiederholungen mit eigener Spalte (z. B. `D_AAE2`) werden normal mitgenommen.
+- Ein Datum pro Kürzel-Spalte → bei mehrfach gesetzten Kürzeln ist nur das letzte Datum sichtbar (V9 bestätigt). Der aus den Spalten rekonstruierte Verlauf ist eine Näherung, keine vollständige Historie. Wiederholungen mit eigener Spalte (z. B. `D_AAE2`) werden normal mitgenommen. **Seit v2.392 gilt das nur noch rückwärts:** ab dem Nullpunkt des Import-Diff-Journals (Abschnitt 12) ist der Verlauf belegt — auch für Setzungen, die der nächste Export überschrieben hat.
 - Ein-Tages-Verzug durch den Nacht-Export. Bei 90-Tage-Fristen ist Tagesgranularität ausreichend; der Importzeitpunkt wird überall angezeigt.
 - Status liegt nur als Text vor → Join über den importierten Status-Katalog (Text ↔ Code), NFC-normalisiert. Danach rechnet die App intern mit Codes; Textvarianten betreffen nur noch Labels.
 
@@ -352,7 +352,7 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 
 **Offen:**
 
-1. **Mehrfach-Kürzel:** Prüfen am echten Export, ob `D_`-Spalten bei Wiederholung das erste oder letzte Datum tragen.
+1. ~~**Mehrfach-Kürzel:** Prüfen am echten Export, ob `D_`-Spalten bei Wiederholung das erste oder letzte Datum tragen.~~ **Erledigt (V9):** das **zuletzt** gesetzte Datum; frühere Setzungen sind überschrieben. Damit die Information nicht länger verloren geht, führt die App seit v2.392 ein Import-Diff-Journal (Abschnitt 12).
 2. **Mail-Platzhalter** (#BA1/#FB1/#TB1 …): vermutlich BIB-/TIB-Familien — am Legacy verifizieren, dann im Navigator auflösen.
 3. **Phasen-Schnitt** aus Abschnitt 5 fachlich abnehmen (insb. 32 ablehnungsreif unter „Entscheidung", der 70er-Block, 59 bewilligt als Beginn von „Begleitung", 29 Irrläufer als Marker).
 4. **Zieltage-Startwerte:** aus der PL-Erfahrung oder initial aus der Ist-Verteilung (Median-Verweildauer je Status) vorschlagen lassen?
@@ -410,3 +410,164 @@ Auswahl = Person; getrennte Lebensdauern, getrennte Speicher.
 - **Meilensteine**: 57 Verbünde weniger.
 - Der Chip nennt beides — was gilt und was fehlt: „Anzeige: letzte 3
   Richtlinien (9 Programme) · 6 952 ausgeblendet".
+
+## 11. Regelsätze je Rolle (v2.391)
+
+Bis v2.390 kannte die To-do-Kaskade genau **eine** Spur, und die war durchgängig
+AB: von 25 Regeln des Seeds tragen 13 `zustaendig: ['ab']`, alle anderen Rollen
+kommen ausschließlich als `wartetAuf` vor. Der FB sah seine Arbeit damit nur als
+Spiegelbild der AB-Sicht.
+
+Jetzt trägt jede Regel einen **Regelsatz** (`TodoRegel.regelsatz`, fehlend ⇒
+`'ab'`), und die Engine wertet je Rolle den ihren aus. Solange nur der AB-Satz
+gefüllt ist, ist das Ergebnis bitgenau das von vorher — das ist die wichtigste
+Zusicherung des Umbaus und steht als Regressionsgatter im Test.
+
+### 11.1 Warum die Auswahl in der Engine liegt
+
+`ermittleTodo` filtert selbst, statt eine vorgefilterte Liste zu bekommen. Grund:
+der **Sperr-Pass läuft über alle aktiven Regeln**. Eine nach `regelsatz`
+vorgefilterte Menge nähme ihm S0/S0b/S1/S2 — und ein im Foyer abgeschlossener
+Vorgang stünde dem FB als offene Aufgabe im Board. Eine Sperre gehört keinem
+Regelsatz; sie gilt vorgangsweit, solange sie über `giltFuer` nichts anderes sagt.
+
+> **Zwei gegenläufige Leer-Konventionen im selben Typ.** Leeres `zustaendig`
+> heißt „keine Rolle benannt", leeres `giltFuer` heißt „alle Rollen" (wie
+> `StatusFeldEintrag.rollen`, Pitfall #43). Gelesen wird deshalb nur über
+> `regelsatzVon` und `sperreGiltFuer` ([regelsatz.ts](../../src/core/status/regelsatz.ts)).
+
+### 11.2 Abgeleitete Platzhalter — der Weg ohne Umschaltpunkt
+
+Liefert der Regelsatz einer Rolle keinen Treffer, hat aber die für eine andere
+Rolle greifende Regel ein `wartetAuf` auf sie, entsteht ein **geliehenes**
+Ergebnis: derselbe To-do-Text, `quelle: 'abgeleitet'`, Herkunft in
+`abgeleitetAus`. Im Board trägt es den Marker „geliehen".
+
+Drei Regeln halten es ehrlich: ein echter Treffer schlägt den Platzhalter immer;
+er läuft durch den Sperr-Filter der eigenen Rolle (sonst würde ein für sie
+geschlossener Fall wiederbelebt); und er trägt `regelId: null`, weil die Rolle
+eben keine eigene Regel hat.
+
+Damit ersetzt **jede geschriebene FB-Regel genau einen Platzhalter** — schrittweise,
+ohne Stichtag, an dem etwas „umgestellt" wird.
+
+### 11.3 Rollout-Sperre
+
+`_intern/status-katalog.json` ist für alle Build-Varianten gleichzeitig live. Eine
+aktive FB-Regel würde von jeder Installation unter v2.391 in der AB-Kaskade
+mitgewertet, weil deren Engine das Feld `regelsatz` nicht kennt. Deshalb: Regeln
+in einem Satz ≠ AB entstehen **immer** `aktiv: false`, das Aktivieren verlangt
+eine Bestätigung, und am Tab steht der Grund dauerhaft.
+
+### 11.4 Was die Erhebung am Bestand gezeigt hat
+
+Für die FB-Seite gibt es keine Mappe zum Transkribieren. Der Regeln-Tab erhebt
+deshalb aus dem Bestand, was der Termin braucht — abgeleitete Platzhalter, blinde
+Flecken, Kürzel-Landkarte — als XLSX plus Kurzfassung
+([fb-erhebung.ts](../../src/core/status/fb-erhebung.ts)).
+
+Gemessen am 03.08.2026 über 7 269 Vorgänge im Betrachtungsbereich:
+
+| Befund | Zahl |
+|---|---|
+| FB-Platzhalter (Board, letzte 3 Jahrgänge) | 68 — R2: 38 · R20: 20 · R16: 10 |
+| QS-Platzhalter | 130 — R19: 75 · R14: 55 |
+| Ohne To-do in **keinem** Regelsatz (alle Jahrgänge) | 6 017 |
+| davon mit einseitig offenem Kürzel-Paar | 2 261 |
+| Größte Paare | ALT ohne ALU 662× (Median **746 T**) · ALU ohne ALT 544× (**1 183 T**) · SK ohne ST 421× (139 T) |
+
+Zwei Dinge, die daraus für den Termin folgen:
+
+1. **Die Platzhalter-Zahl ist eine Untergrenze.** Eine Testregel aus dem
+   R2-Platzhalter traf **153** statt der 38 Vorgänge: der Platzhalter zählt nur,
+   wo die AB-Regel ihre Kaskade *gewinnt*; eine eigene FB-Regel steht in ihrem
+   Satz allein und greift überall, wo ihre Bedingung gilt. Wer das nicht weiß,
+   plant mit der falschen Größenordnung — der Satz steht deshalb in UI und Export.
+2. **Die hohen Mediane sind der eigentliche Befund.** Bei 746 und 1 183 Tagen ist
+   der Großteil der 2 261 offenen Paare Altbestand, nicht Rückstand. Diese
+   Unterscheidung ist Frage 2 der Kurzfassung.
+
+## 12. Import-Diff-Journal (v2.392)
+
+### 12.1 Warum ein mitgeführter Stand
+
+Der Nacht-Export **wird überschrieben**; alte Dateien stehen nicht zur Verfügung.
+Das Journal kann deshalb nicht aus einer Dateireihe abgeleitet werden — es führt
+`stand.json` mit: die Projektion des letzten Exports, gegen die der nächste
+verglichen wird.
+
+Ablage unter `_intern/vorgangssystem/journal/` (Stand + `journal-YYYY-MM.jsonl`,
+append-only). **Nie in IndexedDB**: eine gerätelokale Historie erzeugte exakt die
+Divergenz, die das Vorgangssystem beseitigt hat — zwei Rechner, zwei Verläufe,
+keine Möglichkeit zu entscheiden, welcher stimmt.
+
+### 12.2 Der Nullpunkt
+
+`journalAb` ist der Tag des Baseline-Laufs. Davor gibt es nichts und wird es nie
+etwas geben. **Der Nullpunkt steht deshalb an jeder Anzeige** — im Verlauf, im
+Widget, im Popover. Ohne ihn wird eine unvollständige Chronik als vollständige
+gelesen, und ausgerechnet bei einem Verlauf ist das der teuerste Irrtum.
+
+Der Baseline-Lauf erzeugt **keine** Einträge. Täte er es, stünden beim ersten Mal
+über hunderttausend Phantom-„gesetzt" in der Datei.
+
+### 12.3 Fünf Aussagen, nicht eine
+
+`gesetzt` · `geaendert` · `geleert` · `antrag-neu` (ein Eintrag je Antrag, nicht
+je Feld) · `antrag-fehlt` (festhalten, nichts löschen — es kann ein Exportfehler
+sein). `geleert` ist die interessanteste: dass jemand im Foyer eine Setzung
+zurückgenommen hat, ist heute vollständig unsichtbar.
+
+Liegt zwischen zwei Exporten mehr als ein Tag (Wochenende, Urlaub), tragen die
+Einträge `unscharf` samt Zeitraum — die Änderung wird **als Spanne ausgewiesen,
+nicht als Datum behauptet**.
+
+### 12.4 Der Bereich gilt hier auch für Evidenz
+
+Pitfall #46 sagt: Arbeitsvorrat folgt dem Betrachtungsbereich, Evidenz nicht. Das
+Journal ist Evidenz und folgt ihm **trotzdem** — eine bewusste Abweichung, weil
+der volle Bestand die Datei ohne Erkenntnisgewinn fast verdoppeln würde (gemessen:
+3,38 MB für 7 269 Anträge). Drei Dinge halten die Abweichung ehrlich:
+
+- Der Bereich kommt aus der **Team-Kuration** (`bereichsProgramme` der aktiven
+  Fassung), nie aus der persönlichen Auswahl — sonst entschiede die Einstellung
+  eines Rechners über den Inhalt einer geteilten Datei. Konventionstest.
+- `stand.bereich` wird mitgeführt. Ändert er sich, bekommen neu hinzugekommene
+  Anträge eine **Baseline** statt tausender Phantom-`antrag-neu`.
+- Ein Antrag außerhalb bekommt einen **benannten** Zustand („wird kein Journal
+  geführt"), keine leere Liste.
+
+### 12.5 Reihenfolge und Idempotenz
+
+Der Stempel (SHA-256 über die Datei-**Bytes**, erste 12 Hex-Stellen) ist die
+Idempotenz-Grundlage: unveränderter Export ⇒ gleiche Id ⇒ Ende, bevor etwas
+beginnt. Vor dem Schreiben wird der Stand erneut gelesen (**optimistische
+Sperre**); trägt er schon unseren Stempel, war ein anderes Gerät schneller.
+
+Geschrieben wird **erst das JSONL, dann der Stand**. Bricht es dazwischen ab,
+erzeugt der nächste Lauf denselben Diff erneut — lieber doppelt als verloren; das
+Lesen dedupliziert über `(stempel, antragId, feld, art)`.
+
+### 12.6 Keine Personen-Achse
+
+Bearbeiter-Kürzel werden **nicht** journalisiert, und keine Journal-Ansicht ist
+nach Bearbeiter gruppier- oder filterbar. Mit Personenbezug plus Datumsverlauf
+entstünde ein Aktivitätsprotokoll — Leistungs- und Verhaltenskontrolle,
+mitbestimmungspflichtig. `JOURNAL_AUSGESCHLOSSEN` nennt die Spalten ausdrücklich
+(obwohl die `D_`-Regel sie ohnehin nicht erfasst), damit die Entscheidung
+nachlesbar bleibt; ein Konventionstest hält sie.
+
+### 12.7 Gemessen
+
+| | |
+|---|---|
+| Export | 13,3 MB · 13 085 Zeilen |
+| Anträge im Bereich | 7 269 |
+| Journal-Spalten | 110 |
+| gefüllte Feldwerte | 184 892 · 25,4 je Antrag |
+| **`stand.json`** | **3,38 MB** — Sharding nach Antragsjahr ist damit nicht nötig |
+
+Die Wirkung am Wächter, mit drei journalisierten Anträgen: der Stau fällt von
+**304 auf 303 bei AB**. `16DS261741` verliert sein „hängt 52 T", weil das Journal
+eine Aktivität belegt, die der Export nicht mehr zeigt. Wo genähert wird, trägt
+die Zahl weiterhin ein „≥".

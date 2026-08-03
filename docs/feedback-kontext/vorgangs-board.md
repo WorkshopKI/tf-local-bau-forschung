@@ -43,6 +43,17 @@ Verfügung.
   Rolle bzw. „wartet auf …", und ein **„warum?"** — es klappt die treffende Regel
   samt der gelesenen Feldwerte auf. Ohne diese Herleitung wäre ein To-do eine
   Behauptung.
+- **Rollen-Sicht**: jede Rolle hat einen eigenen Regelsatz. Die Rollen-Chips
+  schalten die Sicht um; ausgewertet wird immer genau ein Satz. „Alle Rollen"
+  zeigt den AB-Satz — er ist der einzige mit einer vollstaendigen Kaskade.
+- **Geliehene To-dos**: solange fuer eine Rolle keine eigene Regel gepflegt ist,
+  leiht sich das Board die Aussage der Regel, die auf sie wartet. Solche
+  Eintraege sind mit **„geliehen"** markiert (Zeile und Gruppenkopf); der
+  Tooltip nennt die Herkunftsregel. Eine spaeter geschriebene eigene Regel
+  ersetzt den geliehenen Eintrag.
+- **Rollen-Bilanz** im Kopf: „824 AB-To-dos · 68 FB-To-dos, davon 68 abgeleitet".
+  Der zweite Teil sagt, wie viel von der Arbeit einer Rolle nur geliehen ist —
+  und damit, wie viel Regelarbeit noch aussteht.
 - **Filter**: Rollen-Chips (Vorbelegung aus dem Profil, umschaltbar auf alle),
   eigenes Kürzel an/aus, **„hängt fest"**, Jahr des Antragseingangs,
   Fördervariante, ZAH-Phase. Der Kürzel-Filter folgt der Rolle: ein AB sucht
@@ -52,6 +63,11 @@ Verfügung.
   der **Stau je Rolle**; daneben — nicht darin — die Zahl der **nicht
   bewertbaren** Vorgänge, für deren Status niemand Zieltage gepflegt hat.
   Zieltage werden im Status-Katalog unter „Katalog" gepflegt.
+
+  Steht vor der Zahl ein **„≥"**, ist die Liegezeit eine Untergrenze: die
+  Datumsspalten des Exports tragen je Kürzel nur das zuletzt gesetzte Datum.
+  Wo das Änderungs-Journal die letzte Änderung belegt, steht die Zahl ohne
+  Vorbehalt.
 
 - **Fristen** (Bearbeiter-Sicht): die Anträge nach Restfrist, der knappste zuerst.
   Gerechnet ab **wirksamem Eingang** — dem späteren von Antragseingang und „alle

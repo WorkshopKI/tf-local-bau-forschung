@@ -59,7 +59,7 @@ Die Meldung nennt jetzt das Klartext-Label statt der nackten Nummer.
 | V4 | `D_QS` / `D_QS-` | **Bestätigt**: QS = Gutachten-QS fertig, QS- = zurück an AB/FB | Code-Kommentar an der Stelle |
 | V6 | Kürzel **ID, TTV1, TTV2, TVB1** | **Antwort ausstehend** | Bleiben im Navigator „unprüfbar", nie „erfüllt" |
 | V7 | Doppelte AZBE/Folge-1-Zeilen (79, 139) | „erster gilt + Warnung" bleibt — die Einträge sind identisch | Kommentar im Import |
-| V9 | Erstes oder letztes Datum in der `D_`-Spalte? | **Das zuletzt gesetzte**; frühere Setzungen sind überschrieben | Beschriftung von Verlauf und Chronik |
+| V9 | Erstes oder letztes Datum in der `D_`-Spalte? | **Das zuletzt gesetzte**; frühere Setzungen sind überschrieben | Beschriftung von Verlauf und Chronik — und seit v2.392 das **Import-Diff-Journal**: ab seinem Nullpunkt geht die überschriebene Setzung nicht mehr verloren ([vorgangssystem.md §12](vorgangssystem.md)) |
 | V10 | Tippfehler „Rüchnahmeempfehlung" in der Zuarbeit | wird in der Quelle korrigiert | App führt beide Schreibweisen weiter |
 
 *(V5 und V8 sind über A3 bzw. A4 beantwortet.)*

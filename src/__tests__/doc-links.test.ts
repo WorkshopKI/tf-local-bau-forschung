@@ -145,6 +145,21 @@ describe('doc-links', () => {
     // Leere) und die Kompetenz-Historie der Auslastung mitfiltern (die
     // AnonymMap ist append-only und führt ehemalige Bearbeiter). Beides ist im
     // Diff unsichtbar. Detail: docs/architecture/vorgangssystem.md §10.
-    expect(bytes).toBeLessThan(58_000);
+    // 58_000 → 61_000 (v2.392): Pitfall #47 + #48, zwei Decision-Tree-Zeilen und
+    // zwei Sätze am Vorgangssystem-Absatz für die beiden neuen Subsysteme.
+    // Drei Fehler macht man ohne die Hinweise garantiert, und alle drei sind im
+    // Diff unsichtbar:
+    //  (1) die Regelsatz-Auswahl als Vorfilter statt in der Engine — dann
+    //      fallen S0/S1/S2 aus jeder fremden Rollensicht heraus, und ein im
+    //      Foyer abgeschlossener Vorgang steht dem FB als offene Aufgabe im
+    //      Board;
+    //  (2) `giltFuer` leer als „keine Rolle" lesen (wie `zustaendig` daneben)
+    //      statt als „alle" — die Sperre greift dann nirgends;
+    //  (3) das Journal gerätelokal führen oder eine Bearbeiterspalte
+    //      aufnehmen — das erste erzeugt genau die Rechner-Divergenz, die das
+    //      Vorgangssystem beseitigt hat, das zweite macht aus einem
+    //      Änderungs-Journal ein mitbestimmungspflichtiges Aktivitätsprotokoll.
+    // Detail: docs/architecture/vorgangssystem.md §11 und §12.
+    expect(bytes).toBeLessThan(61_000);
   });
 });

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.392.0 — Import-Diff-Journal: belegter Verlauf statt Näherung (August 2026)
+
+MINOR — Der Nacht-Export wird überschrieben; eine `D_`-Setzung, die im Foyer korrigiert oder erneut gesetzt wird, ist danach spurlos (Verifikation V9). Die App führt jetzt einen eigenen Stand mit und hält fest, was sich zwischen zwei Exporten geändert hat — ab dem Nullpunkt ist der Verlauf belegt statt genähert.
+
+- **Journal-Kern** unter `_intern/vorgangssystem/journal/` (Stand + Monats-JSONL, nie in IDB): Stempel-Idempotenz, Baseline ohne Einträge, optimistische Sperre, fünf Eintragsarten inkl. `geleert` ([journal/](src/core/status/journal/), [vorgangssystem.md §12](docs/architecture/vorgangssystem.md)).
+- **Verlauf am Teilvorhaben** mit dauerhaftem Nullpunkt-Satz und Zeitraum-Darstellung bei unscharfer Spanne ([JournalVerlauf.tsx](src/plugins/antraege/status/JournalVerlauf.tsx)).
+- **Stillstands-Wächter** nutzt die belegte Änderung, wo es eine gibt; sonst bleibt die Näherung und trägt sichtbar „≥" bzw. „mindestens" ([waechter.ts](src/core/status/waechter.ts)).
+- **Widget „Änderungen der letzten Nacht"** (opt-in), gruppiert nach Feld — **keine Personen-Achse**, weder in der Projektion noch in einer Ansicht (Pitfall #48, Konventionstest).
+- Gemessen: `stand.json` 3,38 MB bei 7 269 Anträgen und 110 Spalten (kein Sharding nötig); mit drei journalisierten Anträgen fällt der Stau von 304 auf 303 bei AB — einer verliert sein „hängt 52 T", weil das Journal eine Aktivität belegt, die der Export nicht mehr zeigt.
+
 ### v2.391.0 — FB-Regelsätze: mehrspurige To-do-Engine und Erhebungsmaterial (August 2026)
 
 MINOR — Die To-do-Kaskade war durchgängig AB-zentriert: der FB sah seine Arbeit nur als Spiegelbild („wartet auf FB"). Jede Rolle bekommt jetzt einen eigenen Regelsatz. Der FB-Satz bleibt leer — er entsteht in einem Fachtermin, für den es auf FB-Seite nichts zu transkribieren gibt; diese Runde baut die Fähigkeit und das Erhebungsmaterial.
