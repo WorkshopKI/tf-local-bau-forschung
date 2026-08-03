@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.386.0 — Technische Sammel-Nacharbeit am Vorgangssystem (August 2026)
+
+MINOR — Fünf Reste aus dem P6-Rückbau, die keine Fachabstimmung brauchten. Der größte war unsichtbar: die Trigger-Sidecar speicherte ihre eigene Deutung mit, sodass eine Parser-Verbesserung erst beim nächsten XLSX-Import gewirkt hätte.
+
+- Zulässigkeits-Trigger (leere Zielstatus in `TRG_TVs_Status_TV_VB`) werden gedeutet statt verworfen — „nicht interpretiert" fällt am Bestand von 30 auf 7 ([trigger-parser.ts](src/core/status/trigger-parser.ts)).
+- `geparst`/`satz` werden beim Laden neu abgeleitet statt aus der Datei übernommen — abgeleitete Werte werden nicht daneben persistiert (Pitfall #45, [trigger-share.ts](src/core/status/trigger-share.ts)).
+- Der To-do-Regel-Editor arbeitet auf dem Katalog-Vokabular und meldet nicht referenzierbare Spalten sichtbar, statt eine stumme Regel zuzulassen ([todoFeldVorrat.ts](src/plugins/status-cockpit/todoFeldVorrat.ts), [bedingung.ts](src/core/status/bedingung.ts)).
+- Neuer Konventionstest `kuerzel-genau-ein-speicherort` gegen die v2.376-Doppelfeld-Regression ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
+- Import-Diffs zeigen die Original-Schreibweise (`76#AAE#1`), und ein Verbund mit uneinheitlicher `FM_NUMMER` wird gemeldet statt still geheilt ([programmNummer.ts](src/plugins/antraege/status/programmNummer.ts)).
+
 ### v2.385.1 — P6-Doku: Rückbau abgeschlossen (August 2026)
 
 PATCH — Die Docs beschrieben noch die Ableitung, die es seit v2.385 nicht mehr gibt. Ist-Zustand nachgezogen, das Inventar als Protokoll geschlossen.

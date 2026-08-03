@@ -66,7 +66,7 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
           laden: false, version, events,
           grenze: aufzeichnungsGrenze(events),
           vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
-          programm: programmNummer(antraege),
+          programm: programmNummer(antraege, verbundId),
         });
       } catch {
         if (!abgebrochen) setState({ ...LEER, laden: false });

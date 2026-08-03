@@ -117,7 +117,7 @@ export function useHerleitung(
           vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
           statusRoh,
           trigger: triggerStand.datei?.trigger ?? [],
-          programm: programmNummer(antraege),
+          programm: programmNummer(antraege, verbundId),
           stichtag: new Date().toISOString(),
           datenstand: {
             importiertAm,

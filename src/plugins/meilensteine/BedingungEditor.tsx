@@ -50,9 +50,21 @@ export function alsGruppe(b: Bedingung): Gruppe {
 const selectKlasse =
   'text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
 
-function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
+/**
+ * Optionale Zusatzprüfung des Aufrufers: kennt die Zielwelt das Feld?
+ *
+ * Die Spaltenliste eines Editors und der Vorrat, gegen den später ausgewertet
+ * wird, sind nicht zwingend dieselbe Menge — die To-do-Kaskade z.B. liest den
+ * Status-Katalog, der Editor bot bis v2.386 die CSV-Schema-Spalten an. Ohne
+ * Prüfung baut man dort eine Regel, die nie zutrifft und nichts sagt.
+ * `null` = in Ordnung, ein String = die Meldung, die am Blatt erscheint.
+ */
+export type FeldPruefung = (feldId: string) => string | null;
+
+function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
   blatt: Exclude<Bedingung, Gruppe>;
   spalten: SpaltenEintrag[];
+  pruefeFeld?: FeldPruefung;
   onChange: (b: Bedingung) => void;
   onEntfernen: () => void;
 }): React.ReactElement {
@@ -101,7 +113,14 @@ function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
     }
   };
 
+  // Beide Feld-Referenzen prüfen — `datumNachFeld` nennt ein zweites.
+  const monita = [
+    pruefeFeld?.(blatt.feldId),
+    zeigeVergleichsfeld && 'vergleichFeldId' in blatt ? pruefeFeld?.(blatt.vergleichFeldId) : null,
+  ].filter((m): m is string => typeof m === 'string' && m.length > 0);
+
   return (
+    <div className="flex flex-col gap-1">
     <div className="flex items-center gap-1.5 flex-wrap">
       <select
         value={blatt.feldId}
@@ -237,12 +256,18 @@ function BlattZeile({ blatt, spalten, onChange, onEntfernen }: {
         <X size={13} />
       </button>
     </div>
+      {monita.map(m => (
+        <p key={m} className="text-[11.5px] text-[var(--tf-danger-text)] pl-0.5">{m}</p>
+      ))}
+    </div>
   );
 }
 
-export function BedingungEditor({ bedingung, spalten, onChange, tiefe = 0 }: {
+export function BedingungEditor({ bedingung, spalten, pruefeFeld, onChange, tiefe = 0 }: {
   bedingung: Bedingung;
   spalten: SpaltenEintrag[];
+  /** Ohne diese Prop verhält sich der Editor wie vor v2.386 (Meilensteine). */
+  pruefeFeld?: FeldPruefung;
   onChange: (b: Bedingung) => void;
   tiefe?: number;
 }): React.ReactElement {
@@ -290,6 +315,7 @@ export function BedingungEditor({ bedingung, spalten, onChange, tiefe = 0 }: {
                 <div className="flex-1 min-w-0">
                   <BedingungEditor
                     bedingung={kind} spalten={spalten} tiefe={tiefe + 1}
+                    pruefeFeld={pruefeFeld}
                     onChange={b => setzeKind(i, b)}
                   />
                 </div>
@@ -305,7 +331,7 @@ export function BedingungEditor({ bedingung, spalten, onChange, tiefe = 0 }: {
               </div>
             ) : (
               <BlattZeile
-                blatt={kind} spalten={spalten}
+                blatt={kind} spalten={spalten} pruefeFeld={pruefeFeld}
                 onChange={b => setzeKind(i, b)}
                 onEntfernen={() => entferneKind(i)}
               />

@@ -78,6 +78,11 @@
  *     global in src/theme.css definiert sein, sonst die "nackt"-Falle v2.67.1 (ein
  *     undefiniertes var() macht die GANZE CSS-Deklaration ungueltig). Mit-Fallback-
  *     Nutzung undefinierter Tokens nur Warnung. Ausnahme '// allow-tf-token: <grund>'.
+ *   - kuerzel-genau-ein-speicherort     → Pitfall #44 / v2.376: die vier kanonisch
+ *     belegten Kuerzel (AAE/ABB/AZ1/VBE) duerfen im Vorgangssystem-Scope kein
+ *     zweites `D_<code>`-Feld bekommen — das kanonische Feld gewinnt den Wert,
+ *     das Code-Feld bleibt leer, und alles was am Code haengt antwortet „nie
+ *     gesetzt". Spaltenname immer ueber todoFeld()/feld().
  *   - screen-context-coverage           → Feedback-KI-Kontext (docs/feedback-kontext/):
  *     jede nicht-dev Plugin-ID (Text-Scan von src/plugins/index.ts(x) je Ordner, da ein
  *     Import von plugins.config.ts unter Vitest an pdfjs-dist-Workern bricht) hat
@@ -90,6 +95,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
 import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
+import { KANONISCHE_CODE_FELDER } from '../core/status/seed-kanonisch';
 // Datei-Walk + Such-Primitive liegen in der Lib; die REGELN bleiben hier
 // (CLAUDE.md Doku-Konvention 4: alle Konventionen in EINER Datei).
 import {
@@ -1004,7 +1010,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 38;    // Ist 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 1960;       // Ist ~1931 (DIESE Datei; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2010;       // Ist ~1968 (DIESE Datei; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1807,6 +1813,62 @@ describe('status-kategorie-nur-aus-katalog (Ordnerbaum ist Daten, kein Code)', (
       + 'Wer einen Ordner braucht, liest ihn aus `version.kategorien` — die PL kann ihn '
       + `jederzeit umbenennen oder umhaengen. Gefunden in: ${treffer.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+describe('kuerzel-genau-ein-speicherort (Regression des v2.376-Doppelfelds)', () => {
+  // Vier Kürzel des Fachsystems hängen an einem KANONISCHEN Feld (`AAE` →
+  // antragsdatum, `ABB` → bewilligung_datum, `AZ1` → erstentscheidung, `VBE` →
+  // vn_eingang_datum). Sie dürfen NICHT zusätzlich als `D_<code>`-Feld geführt
+  // werden: die Kollisionsregel der Feld-Auflösung gibt dem kanonischen Feld den
+  // Wert, das `D_`-Feld bleibt für immer leer. Solange `ABB` doppelt hing, galt
+  // es überall als „nie gesetzt" — und fast jede Trigger-Bedingung lautet „TV
+  // hat kein ABB" (Pitfall #44).
+  //
+  // Die Liste wird AUS `KANONISCHE_CODE_FELDER` gebaut, nie von Hand gepflegt:
+  // ein fünftes kanonisches Feld ist damit ab dem ersten Tag mit bewacht.
+  const CODES = [...KANONISCHE_CODE_FELDER.keys()];
+  // `D_AAE` als ganzer String/Bezeichner — `D_AZ1_1` (die echte CSV-Spalte, per
+  // Alias kanonisch gemappt) endet nicht hier und bleibt erlaubt.
+  const LITERAL = new RegExp(`['"\`]D_(?:${CODES.join('|')})['"\`]`);
+  // Scope: die Module, in denen ein `D_<code>` einen KATALOG-FELD-Eintrag meint.
+  // Außerhalb (z.B. die CSV-Label-Tabelle der Auslastung) ist `D_AAE` schlicht
+  // der Name einer Export-Spalte — den gibt es wirklich, und ihn zu benennen ist
+  // richtig. Der Fehler entsteht erst dort, wo daraus ein Feld des Katalogs wird.
+  const SCOPE = [
+    'src/core/status/',
+    'src/plugins/status-cockpit/',
+    'src/plugins/vorgangs-board/',
+    'src/plugins/antraege/status/',
+  ];
+
+  it('LITERAL trifft das Code-Feld, nicht die CSV-Spalte', () => {
+    expect(LITERAL.test("feld('D_ABB')")).toBe(true);
+    expect(LITERAL.test('"D_AAE"')).toBe(true);
+    expect(LITERAL.test("'D_AZ1_1'")).toBe(false);   // CSV-Spalte, kanonisch gemappt
+    expect(LITERAL.test("'D_ABLZ'")).toBe(false);    // fremdes Kürzel
+  });
+
+  it('kein kanonisch belegtes Kürzel wird als D_-Feld geschrieben', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      if (!SCOPE.some(s => relPath(file).startsWith(s))) continue;
+      findings.push(...findInFile(
+        file,
+        l => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && LITERAL.test(l),
+        'allow-kanonisches-doppelfeld',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Ein kanonisch belegtes Kürzel darf kein zweites \`D_\`-Feld bekommen.\n`
+        + `Den Spaltennamen über todoFeld()/feld() aus KANONISCHE_CODE_FELDER holen —\n`
+        + `dort steht, wie das Feld im Katalog wirklich heißt. Ein hart geschriebenes\n`
+        + `\`D_<code>\` findet für diese vier Kürzel NIE einen Wert und schweigt für immer.\n`
+        + `\nTreffer:\n${fmt(findings)}`,
+      );
+    }
   });
 });
 

@@ -16,8 +16,8 @@ import {
   listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { baueSpaltenKatalog, type SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
+import { programmNummernVon } from '@/plugins/antraege/status/programmNummer';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
   ladeAktiveVersion, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
@@ -111,8 +111,6 @@ export interface StatusCockpitApi {
   verschiebeTodoRegel: (id: string, richtung: -1 | 1) => void;
   /** Den ausgelieferten AB-Regelsatz in eine Fassung ohne Regeln nachziehen. */
   todoRegelnNachziehen: () => void;
-  /** Spalten-Vorrat für den Bedingungs-Editor (aus den CSV-Schemas). */
-  spalten: SpaltenEintrag[];
   /**
    * Status-Code → Median-Liegezeit im Bestand (Vorschlag für die Zieltage).
    * Näherung: gemessen wird die Zeit seit der jüngsten Aktivität, nicht die
@@ -127,6 +125,8 @@ export interface StatusCockpitApi {
   programmeImBestand: { programm: string; antraege: number }[];
   /** Anträge ohne Programm-Nummer: dort kann das Vorgangssystem nie greifen. */
   antraegeOhneProgramm: number;
+  /** Verbünde mit uneinheitlicher Programm-Nummer (Invariante, erwartet leer). */
+  programmUneinheitlich: { verbundId: string; nummern: string[] }[];
   /** Wie viele Kürzel des AB-Dashboards noch kein Relevanz-Häkchen tragen. */
   relevanzLuecke: number;
   /** Die AB-Dashboard-Spalten als relevant markieren (setzt nur, nimmt nie weg). */
@@ -162,6 +162,14 @@ interface Bestand {
   programmAntraege: Map<string, number>;
   /** Anträge ganz ohne Programm-Nummer — dort greift das Vorgangssystem nie. */
   antraegeOhneProgramm: number;
+  /**
+   * Verbünde, deren Teilvorhaben verschiedene Programm-Nummern tragen.
+   *
+   * Verletzt die Invariante „ein Verbund läuft in genau einer Richtlinie" — dann
+   * hinge die Trigger-Auswahl an der Zeilenreihenfolge. Gemeldet statt geheilt
+   * (`programmNummer`); erwartet ist 0.
+   */
+  programmUneinheitlich: { verbundId: string; nummern: string[] }[];
 }
 
 /**
@@ -214,6 +222,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     // zweiter Durchlauf für dieselbe Zahl wäre eine zweite Wahrheit.
     const programmAntraege = new Map<string, number>();
     let antraegeOhneProgramm = 0;
+    const programmUneinheitlich: { verbundId: string; nummern: string[] }[] = [];
     for (const p of programme) {
       const [verbuende, antraege, programmSchemas] = await Promise.all([
         listVerbuendeByProgramm(idb, p.id),
@@ -240,6 +249,15 @@ export function useStatusCockpit(): StatusCockpitApi {
           einzeln.push(eintrag);
         }
       }
+      // Invariante „ein Verbund läuft in genau einer Richtlinie" — hier prüfbar,
+      // weil die Gruppierung ohnehin steht. Erwartet ist eine leere Liste.
+      for (const [vbid, tvs] of byVb) {
+        const nummern = programmNummernVon(tvs.map(t => ({
+          unterprogramm_id: typeof t.record.unterprogramm_id === 'string'
+            ? t.record.unterprogramm_id : undefined,
+        })));
+        if (nummern.length > 1) programmUneinheitlich.push({ verbundId: vbid, nummern });
+      }
       for (const v of verbuende) {
         vf.push(baueVerbundFelder(version, v.verbund_id, v as unknown as Record<string, unknown>, byVb.get(v.verbund_id) ?? [], aufloesung));
         byVb.delete(v.verbund_id);
@@ -257,6 +275,7 @@ export function useStatusCockpit(): StatusCockpitApi {
       csvSpalten: csvSpaltenJeFeld(schemas),
       programmAntraege,
       antraegeOhneProgramm,
+      programmUneinheitlich,
     };
   }, [idb]);
 
@@ -469,15 +488,6 @@ export function useStatusCockpit(): StatusCockpitApi {
   }, []);
 
   /**
-   * Der Spalten-Vorrat des Bedingungs-Editors — **derselbe Katalog wie bei den
-   * Meilensteinen** (`baueSpaltenKatalog`), nicht die Katalog-Felder. Eine
-   * Bedingung muss gegen das treffen, was der Export wirklich führt; die
-   * Katalog-Felder sind unsere Kuration darüber und enthalten auch Codes, die in
-   * keinem Schema stehen.
-   */
-  const spalten = useMemo(() => baueSpaltenKatalog(bestand?.schemas ?? []), [bestand]);
-
-  /**
    * Der Zieltage-Vorschlag aus dem Ist. Gerechnet über den ohnehin geladenen
    * Bestand — die Liegezeit je Verbund kommt aus dem Wächter, damit die Zahl
    * unter dem Vorschlag mit der Zahl im Urteil zusammenpasst.
@@ -538,9 +548,10 @@ export function useStatusCockpit(): StatusCockpitApi {
       .map(([programm, antraege]) => ({ programm, antraege }))
       .sort((a, b) => b.antraege - a.antraege),
     antraegeOhneProgramm: bestand?.antraegeOhneProgramm ?? 0,
+    programmUneinheitlich: bestand?.programmUneinheitlich ?? [],
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
-    setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, spalten,
+    setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };
 }

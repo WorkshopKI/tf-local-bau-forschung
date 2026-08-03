@@ -232,6 +232,27 @@ describe('Doppelt geführte Codes (kanonisches Feld + eigene D_-Spalte)', () => 
     const nachher = ergaenzeVorgangssystemSeed(doppelt(), [], [], KANONISCH);
     expect(kanonischeCodeDoppel(nachher, KANONISCH)).toEqual([]);
   });
+
+  it('jedes Kürzel im Seed hat GENAU EINEN Speicherort', () => {
+    // Die allgemeine Fassung der Regel: `kanonischeCodeDoppel` prüft nur die vier
+    // bekannten Kollisionen. Hier zählt jeder Code über alle Felder — ein Code an
+    // zwei `feldId` ist immer der v2.376-Fehler, egal welcher.
+    const jeCode = new Map<string, string[]>();
+    for (const f of baueSeedVersion().felder) {
+      if (!f.code) continue;
+      const liste = jeCode.get(f.code);
+      if (liste) liste.push(f.feldId); else jeCode.set(f.code, [f.feldId]);
+    }
+    const doppelte = [...jeCode.entries()]
+      .filter(([, felder]) => felder.length > 1)
+      .map(([code, felder]) => `${code} → ${felder.join(' + ')}`);
+    expect(
+      doppelte,
+      'Ein Kürzel an zwei Feldern: das kanonische gewinnt den Wert, das andere '
+      + 'bleibt für immer leer — und alles, was am Code hängt (Navigator, Wächter, '
+      + 'To-do-Regeln), bekommt „nie gesetzt" zur Antwort.',
+    ).toEqual([]);
+  });
 });
 
 describe('Relevanz-Häkchen', () => {

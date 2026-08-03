@@ -79,13 +79,25 @@ function ebenenSatz(h: EbenenHinweis): string {
   return `Bezugsdatei ${h.wert} laut Zuarbeit: „${h.text || '(ohne Erklärung)'}" (${lesart})`;
 }
 
-function diffZeilen<T>(d: Diff<T>, beschreibe: (e: T) => string): string[] {
+/**
+ * Diff-Zeilen für die Vorschau.
+ *
+ * `anzeige` überschreibt den Join-Schlüssel für die Ausgabe: der Trigger-Diff
+ * joint über `normKey` (`76#aae#1`), gelesen wird aber die Schreibweise der
+ * Datei (`76#AAE#1`). `normKey` bleibt Join-only — wer im Katalog nach „AAE"
+ * sucht, soll den Diff-Eintrag wiedererkennen.
+ */
+function diffZeilen<T>(
+  d: Diff<T>, beschreibe: (e: T) => string, anzeige?: (e: T) => string,
+): string[] {
+  const schluessel = (e: { schluessel: string }, t: T | undefined): string =>
+    (t && anzeige ? anzeige(t) : e.schluessel);
   const out: string[] = [];
-  for (const e of d.neu) out.push(`+ ${e.schluessel} · ${beschreibe(e.nachher!)}`);
+  for (const e of d.neu) out.push(`+ ${schluessel(e, e.nachher)} · ${beschreibe(e.nachher!)}`);
   for (const e of d.geaendert) {
-    out.push(`~ ${e.schluessel} · ${beschreibe(e.vorher!)} → ${beschreibe(e.nachher!)} (${e.felder?.join(', ')})`);
+    out.push(`~ ${schluessel(e, e.nachher)} · ${beschreibe(e.vorher!)} → ${beschreibe(e.nachher!)} (${e.felder?.join(', ')})`);
   }
-  for (const e of d.entfallen) out.push(`− ${e.schluessel} · ${beschreibe(e.vorher!)}`);
+  for (const e of d.entfallen) out.push(`− ${schluessel(e, e.vorher)} · ${beschreibe(e.vorher!)}`);
   return out;
 }
 
@@ -256,7 +268,11 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
       titel: `Trigger-Tabelle · ${datei.name}`,
       zusammenfassung: `${e.zeilen.length} Zeilen in ${e.jeProgramm.length} Programmen · `
         + diffZusammenfassung(e.diff),
-      zeilen: diffZeilen<TriggerZeile>(e.diff, x => `${x.prozedur} ${x.parameterRoh}`),
+      zeilen: diffZeilen<TriggerZeile>(
+        e.diff,
+        x => `${x.prozedur} ${x.parameterRoh}`,
+        x => `${x.programm}#${x.kuerzel}#${x.folge}`,
+      ),
       warnungen,
       jeProgramm: e.jeProgramm,
       // Eigene Datei, eigener Stand: die Trigger gehen nicht über die
@@ -403,6 +419,19 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                 ⚠ {api.antraegeOhneProgramm} Anträge im Bestand tragen keine Programm-Nummer
                 (Spalte FM_NUMMER nicht gemappt) — dort kann das Vorgangssystem keine Trigger
                 zuordnen.
+              </p>
+            )}
+
+            {/* Invariante: ein Verbund läuft in genau einer Richtlinie. Sonst
+                entschiede die Zeilenreihenfolge, welche Trigger gelten. */}
+            {api.programmUneinheitlich.length > 0 && (
+              <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+                ⚠ {api.programmUneinheitlich.length} Verbünde tragen an ihren Teilvorhaben
+                verschiedene Programm-Nummern — die Trigger-Auswahl hängt dort an der
+                Zeilenreihenfolge. Beispiele:{' '}
+                {api.programmUneinheitlich.slice(0, 3)
+                  .map(v => `${v.verbundId} (${v.nummern.join('/')})`).join(', ')}
+                {api.programmUneinheitlich.length > 3 && ' …'}
               </p>
             )}
 

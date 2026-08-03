@@ -45,7 +45,8 @@ export {
   loeseKategorieSpalten, kategorienMitDatumsfeldern, kategorieSpaltenSignatur,
 } from './kategorie-projektion';
 export {
-  baueKontext, pruefeBedingung, bedingungFeldRefs, type BedingungsKontext,
+  baueKontext, pruefeBedingung, bedingungFeldRefs, referenzierbareFelder,
+  type BedingungsKontext,
 } from './bedingung';
 export { bedingungAlsText, bedingungSatz } from './bedingung-text';
 export { normKey, loseKey } from './normalisierung';

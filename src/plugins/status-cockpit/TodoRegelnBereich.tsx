@@ -14,19 +14,24 @@
  * es nur ein Davor und ein Danach.
  *
  * Der Bedingungs-Editor ist der **domänenfreie** aus den Meilensteinen — kein
- * zweiter, der beim nächsten Operator auseinanderliefe.
+ * zweiter, der beim nächsten Operator auseinanderliefe. Sein Feld-Vorrat und
+ * seine Prüfung kommen hier aus der **Fassung** (`baueTodoFeldVorrat` /
+ * `referenzierbareFelder`), nicht aus den CSV-Schemas: die Kaskade wird gegen den
+ * Katalog ausgewertet, und wer ein Feld anbietet, das dort fehlt, lädt zu einer
+ * Regel ein, die nie zutrifft (v2.386).
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import {
-  ROLLE_LABEL, ROLLE_LANG, bedingungSatz,
+  ROLLE_LABEL, ROLLE_LANG, bedingungSatz, bedingungFeldRefs, referenzierbareFelder,
   type Bedingung, type MappingVersion, type Rolle, type TodoRegel,
 } from '@/core/status';
 import { feldKlasse, feldStil } from './labels';
+import { baueTodoFeldVorrat } from './todoFeldVorrat';
 
 /** Wer wartet — Rollen plus „Antragsteller", der außerhalb des Hauses steht. */
 const WARTET_WAHL: { wert: string; label: string }[] = [
@@ -67,16 +72,21 @@ function RegelSatz({ r, version }: { r: TodoRegel; version: MappingVersion }): R
   );
 }
 
-function RegelKarte({ r, version, index, anzahl, api }: {
+function RegelKarte({ r, version, index, anzahl, api, vorrat, pruefeFeld }: {
   r: TodoRegel;
   version: MappingVersion;
   index: number;
   anzahl: number;
   api: TodoRegelnApi;
+  vorrat: SpaltenEintrag[];
+  pruefeFeld: (feldId: string) => string | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
   const istSperre = (r.sperrt?.length ?? 0) > 0;
   const set = (patch: Partial<TodoRegel>): void => api.setTodoRegel(r.id, patch);
+  // Am Kopf sichtbar, auch wenn die Bearbeitung zu ist: sonst findet man die
+  // stumme Regel erst, wenn jemand sie aufklappt.
+  const unbekannte = bedingungFeldRefs(r.bedingung).filter(f => pruefeFeld(f) !== null);
 
   return (
     <div className="rounded px-3 py-2 flex flex-col gap-1.5" style={{ ...feldStil, opacity: r.aktiv ? 1 : 0.6 }}>
@@ -101,6 +111,9 @@ function RegelKarte({ r, version, index, anzahl, api }: {
         <span className="text-[12.5px] font-medium text-[var(--tf-text)]">{r.beschreibung}</span>
         {istSperre && <Badge variant="default">Sperre</Badge>}
         {!r.aktiv && <Badge variant="default">stillgelegt</Badge>}
+        {unbekannte.length > 0 && (
+          <Badge variant="error">trifft nie zu: {unbekannte.join(', ')}</Badge>
+        )}
         <span className="ml-auto flex items-center gap-2">
           <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer">
             <input
@@ -165,7 +178,8 @@ function RegelKarte({ r, version, index, anzahl, api }: {
           )}
           <BedingungEditor
             bedingung={r.bedingung}
-            spalten={api.spalten}
+            spalten={vorrat}
+            pruefeFeld={pruefeFeld}
             onChange={(b: Bedingung) => set({ bedingung: b })}
           />
         </div>
@@ -179,8 +193,6 @@ export interface TodoRegelnApi {
   setTodoRegel: (id: string, patch: Partial<TodoRegel>) => void;
   verschiebeTodoRegel: (id: string, richtung: -1 | 1) => void;
   todoRegelnNachziehen: () => void;
-  /** Spalten-Vorrat für den Bedingungs-Editor — derselbe wie bei den Meilensteinen. */
-  spalten: SpaltenEintrag[];
 }
 
 export function TodoRegelnBereich({ version, api }: {
@@ -188,6 +200,13 @@ export function TodoRegelnBereich({ version, api }: {
   api: TodoRegelnApi;
 }): React.ReactElement {
   const regeln = [...(version.todoRegeln ?? [])].sort((a, b) => a.reihenfolge - b.reihenfolge);
+  const vorrat = useMemo(() => baueTodoFeldVorrat(version.felder), [version.felder]);
+  const pruefeFeld = useMemo(() => {
+    const erlaubt = referenzierbareFelder(version.felder);
+    return (feldId: string): string | null => erlaubt.has(feldId)
+      ? null
+      : `„${feldId}" steht nicht im Katalog — diese Bedingung träfe nie zu.`;
+  }, [version.felder]);
 
   return (
     <section className="flex flex-col gap-2">
@@ -214,6 +233,7 @@ export function TodoRegelnBereich({ version, api }: {
         regeln.map((r, i) => (
           <RegelKarte
             key={r.id} r={r} version={version} index={i} anzahl={regeln.length} api={api}
+            vorrat={vorrat} pruefeFeld={pruefeFeld}
           />
         ))
       )}

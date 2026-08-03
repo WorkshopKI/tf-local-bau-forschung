@@ -172,10 +172,30 @@ describe('heileTriggerDatei — Bestand vor der Programm-Dimension', () => {
     expect(zeilenOhneProgramm(geheilt.trigger)).toBe(1);
   });
 
-  it('lässt eine schon vollständige Datei unangetastet (dieselbe Referenz)', () => {
+  it('lässt eine schon vollständige Datei inhaltlich unangetastet', () => {
     const neu = { ...alt, trigger: [ZEILE('AAE', 1)] };
-    expect(heileTriggerDatei(neu)).toBe(neu);
+    expect(heileTriggerDatei(neu)).toEqual(neu);
     expect(zeilenOhneProgramm(neu.trigger)).toBe(0);
+  });
+
+  it('leitet Deutung und Satz NEU ab, statt der Datei zu glauben', () => {
+    // Der eigentliche Grund für das Neu-Parsen: `geparst`/`satz` sind abgeleitet
+    // (aus `prozedur` + `parameterRoh`) und dürfen nicht aus einer alten Fassung
+    // weiterwirken — sonst trägt eine im Juli importierte Tabelle ihre Juli-
+    // Lesart weiter, obwohl der Parser längst mehr versteht (Pitfall #45).
+    const veraltet = {
+      ...alt,
+      trigger: [{
+        ...ZEILE('AAE', 1),
+        prozedur: 'TRG_TVs_Status_TV_VB',
+        parameterRoh: '<99|||AB||||',
+        geparst: null,
+        satz: 'Nicht interpretiert: <99|||AB||||',
+      } as unknown as TriggerZeile],
+    };
+    const geheilt = heileTriggerDatei(veraltet);
+    expect(geheilt.trigger[0]?.geparst).not.toBeNull();
+    expect(geheilt.trigger[0]?.satz).toContain('Kürzel nur zulässig, wenn');
   });
 
   it('greift auch auf dem Weg über den Cache', async () => {

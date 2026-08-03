@@ -180,10 +180,7 @@ function parseStatusTvVb(args: string[]): TriggerParam | null {
   // Argumente (= unverändert), überzählige wandern sichtbar nach `weitere`.
   const statusTv = parseStatus(args[POS_STATUS_TV]);
   const statusVb = parseStatus(args[POS_STATUS_VB]);
-  // Eine Zeile dieser Prozedur, die keinen der beiden Status setzt, tut nichts —
-  // dann halten wir sie für etwas anderes und deuten sie lieber gar nicht.
-  if (statusTv === null && statusVb === null) return null;
-  return {
+  const p: TriggerParam = {
     art: 'statusTvVb',
     status: parseStatusVergleich(args[0] ?? ''),
     ohneTvKuerzel: kuerzelListe(args[1]),
@@ -193,6 +190,28 @@ function parseStatusTvVb(args: string[]): TriggerParam | null {
     statusTv,
     statusVb,
   };
+  // Erst wenn die Zeile WEDER eine Bedingung NOCH einen Zielstatus trägt, hat
+  // sie nichts zu sagen — dann halten wir sie für etwas anderes und deuten sie
+  // lieber gar nicht. Eine Zeile mit Bedingungen und leeren Argumenten 7/8 ist
+  // dagegen gültig: die Legacy-Doku liest sie als Zulässigkeitsprüfung
+  // („Kürzel nur setzbar, wenn …"), nicht als kaputte Zeile. Bis v2.385 fielen
+  // diese Zeilen unter „nicht interpretiert" und nahmen ihre Bedingungs-Kürzel
+  // aus der Katalog-Prüfung mit.
+  return istZulaessigkeit(p) || statusTv !== null || statusVb !== null ? p : null;
+}
+
+/**
+ * Trägt die Zeile Bedingungen, aber keinen Zielstatus? Dann ist sie eine
+ * **Zulässigkeitsprüfung**: sie sagt, unter welchen Umständen das Kürzel gesetzt
+ * werden darf, und lässt den Status, wie er ist.
+ */
+export function istZulaessigkeit(p: TriggerParam): boolean {
+  if (p.art !== 'statusTvVb') return false;
+  if (p.statusTv !== null || p.statusVb !== null) return false;
+  return p.status !== null
+    || p.ohneTvKuerzel.length > 0
+    || p.ohneVerbundKuerzel.length > 0
+    || p.weitere.length > 0;
 }
 
 function parseVorgEintragNeu(args: string[]): TriggerParam | null {
@@ -233,6 +252,12 @@ function satzStatusTvVb(p: Extract<TriggerParam, { art: 'statusTvVb' }>): string
     bedingungen.push(`kein TV des Verbunds hat ${listePhrase(p.ohneVerbundKuerzel, 'verbund')}`);
   }
   for (const w of p.weitere) bedingungen.push(`weiteres Argument „${w}"`);
+
+  // Zulässigkeitsprüfung: Bedingungen ja, Statuswechsel nein. Der Satz muss das
+  // sagen — „setze " mit leerer Wirkung wäre eine Lüge mit Grammatikfehler.
+  if (istZulaessigkeit(p)) {
+    return `Kürzel nur zulässig, wenn ${bedingungen.join(', ')}; Status bleibt unverändert.`;
+  }
 
   const wirkung: string[] = [];
   if (p.statusTv !== null) wirkung.push(`TV-Status ${p.statusTv}`);

@@ -5,7 +5,7 @@
  */
 import type { Bedingung, MappingVersion } from './typen';
 import { findeZyklus } from './kategorien';
-import { bedingungFeldRefs } from './bedingung';
+import { bedingungFeldRefs, referenzierbareFelder } from './bedingung';
 
 export function exportiereVersion(version: MappingVersion): string {
   return JSON.stringify(version, null, 2);
@@ -60,9 +60,6 @@ export function validiereImport(text: string): ImportErgebnis {
   }
 
   const feldIds = new Set<string>();
-  /** Zusätzlich die Begleit-Textspalten: Bedingungen dürfen `T_XPC+` prüfen,
-   *  obwohl die feldId `D_XPC+` heißt — die Textspalte gehört zum selben Feld. */
-  const referenzierbar = new Set<string>();
   for (const f of v.felder) {
     if (!f || typeof f.feldId !== 'string' || typeof f.typ !== 'string' || (f.ebene !== 'verbund' && f.ebene !== 'tv')) {
       return { ok: false, fehler: 'Ungültiger Feld-Eintrag.' };
@@ -71,9 +68,9 @@ export function validiereImport(text: string): ImportErgebnis {
       return { ok: false, fehler: `Feld „${f.feldId}" verweist auf unbekannte Kategorie „${f.kategorieId}".` };
     }
     feldIds.add(f.feldId);
-    referenzierbar.add(f.feldId);
-    if (f.textSpalte) referenzierbar.add(f.textSpalte);
   }
+  // Derselbe Prüfbegriff, den der Regel-Editor vorab anzeigt (`bedingung.ts`).
+  const referenzierbar = referenzierbareFelder(v.felder);
   for (const w of v.werte) {
     if (!w || typeof w.id !== 'string' || typeof w.feldId !== 'string' || typeof w.wert !== 'string') {
       return { ok: false, fehler: 'Ungültiger Wert-Eintrag.' };

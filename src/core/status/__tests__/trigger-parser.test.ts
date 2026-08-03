@@ -141,6 +141,44 @@ describe('Trigger-Parser — feste Positionen statt Lesen von beiden Enden', () 
   });
 });
 
+describe('Trigger-Parser — Zulässigkeitsprüfung (leere Argumente 7/8)', () => {
+  // Legacy-Doku: leere Zielstatus in `TRG_TVs_Status_TV_VB` sind gültig und
+  // heißen „keine Statusänderung". Die Zeile sagt dann, unter welchen Umständen
+  // das Kürzel überhaupt gesetzt werden darf.
+  const ZULAESSIG = '<99|||AB||||';
+
+  it('deutet die Zeile, statt sie zu verwerfen', () => {
+    const z = parseTriggerZeile(roh('XKS', 'TRG_TVs_Status_TV_VB', ZULAESSIG));
+    expect(z.geparst?.art).toBe('statusTvVb');
+    if (z.geparst?.art === 'statusTvVb') {
+      expect(z.geparst.statusTv).toBeNull();
+      expect(z.geparst.statusVb).toBeNull();
+      expect(z.geparst.status).toEqual({ op: '<', code: 99 });
+      expect(z.geparst.weitere).toContain('AB');
+    }
+  });
+
+  it('sagt im Satz, dass der Status unverändert bleibt', () => {
+    expect(satzVon(roh('XKS', 'TRG_TVs_Status_TV_VB', ZULAESSIG))).toBe(
+      'Kürzel nur zulässig, wenn VB-Status vor 99, weiteres Argument „AB"; Status bleibt unverändert.',
+    );
+  });
+
+  it('nimmt die Bedingungs-Kürzel jetzt in die Katalog-Prüfung auf', () => {
+    // Vorher gingen sie mit der verworfenen Deutung verloren.
+    const z = parseTriggerZeile(roh('XKS', 'TRG_TVs_Status_TV_VB', '<99|ABB|YIRR|||||'));
+    expect(referenzierteKuerzel(z)).toEqual(['XKS', 'ABB', 'YIRR']);
+  });
+
+  it('gilt auch für die Kurzform ohne Schluss-Pipes', () => {
+    // Fehlende Schluss-Pipes heißen „Argument fehlt" — für die Zielstatus ist
+    // das derselbe Fall wie ein leeres Argument.
+    const z = parseTriggerZeile(roh('AAE', 'TRG_TVs_Status_TV_VB', '<59|ABB'));
+    expect(z.geparst?.art).toBe('statusTvVb');
+    expect(z.satz).toBe('Kürzel nur zulässig, wenn VB-Status vor 59, TV hat kein ABB; Status bleibt unverändert.');
+  });
+});
+
 describe('Trigger-Parser — Komma-Listen sind UND-Listen', () => {
   it('zerlegt die Bedingungs-Argumente und formuliert sie als Aufzählung', () => {
     const z = parseTriggerZeile(roh('AK4', 'TRG_TVs_Status_TV_VB', '<59|ABB,AB,AK4|||||31|31'));
@@ -215,10 +253,13 @@ describe('Trigger-Parser — Ehrlichkeit bei Unbekanntem', () => {
     expect(z.prozedur).toBe('TRG.Irgendwas.Neues');
   });
 
-  it('markiert eine bekannte Prozedur ohne Zielstatus als nicht interpretiert', () => {
-    const z = parseTriggerZeile(roh('AAE', 'TRG_TVs_Status_TV_VB', '<59|ABB'));
+  it('markiert eine Zeile ohne Bedingung UND ohne Zielstatus als nicht interpretiert', () => {
+    // Bis v2.385 galt „kein Zielstatus" allein als Abbruchgrund — damit fielen
+    // auch die Zulässigkeits-Zeilen heraus (siehe eigener Block unten). Jetzt
+    // muss die Zeile WEDER Bedingung NOCH Wirkung tragen, um stumm zu sein.
+    const z = parseTriggerZeile(roh('PFM', 'TRG_TVs_Status_TV_VB', 'PFM!.055.VorgInfo.01'));
     expect(z.geparst).toBeNull();
-    expect(z.satz).toBe('Nicht interpretiert: <59|ABB');
+    expect(z.satz).toBe('Nicht interpretiert: PFM!.055.VorgInfo.01');
   });
 
   it('benennt auch leere Parameter statt einen leeren Satz zu liefern', () => {

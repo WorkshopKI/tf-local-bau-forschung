@@ -126,3 +126,24 @@ export function bedingungFeldRefs(b: Bedingung, out: string[] = []): string[] {
   if (b.op === 'datumNachFeld' && !out.includes(b.vergleichFeldId)) out.push(b.vergleichFeldId);
   return out;
 }
+
+/**
+ * Welche `feldId` darf eine Bedingung überhaupt nennen? Die Katalog-Felder plus
+ * ihre Begleit-**Textspalten** (`T_XPC+` gehört zu `D_XPC+`, trägt aber einen
+ * anderen Wert — siehe `baueTodoKontext`).
+ *
+ * Der **eine** Prüfbegriff für beide Seiten: der Regel-Editor warnt damit vorab,
+ * die Import-Validierung lehnt damit ab. Liefen sie auf zwei Listen, könnte man
+ * im Editor eine Regel bauen, die der Share-Import später zurückweist — oder,
+ * schlimmer, eine, die stillschweigend nie zutrifft.
+ */
+export function referenzierbareFelder(
+  felder: readonly { feldId: string; textSpalte?: string }[],
+): Set<string> {
+  const out = new Set<string>();
+  for (const f of felder) {
+    if (typeof f?.feldId === 'string') out.add(f.feldId);
+    if (f?.textSpalte) out.add(f.textSpalte);
+  }
+  return out;
+}

@@ -19,6 +19,7 @@
 import type { IDBStore } from '@/core/services/storage';
 import type { TriggerZeile } from './typen';
 import { normKey } from './normalisierung';
+import { parseTriggerZeile } from './trigger-parser';
 import { leseSidecar, schreibeSidecar } from './sidecar-datei';
 
 export const STATUS_TRIGGER_PATH = '_intern/status-trigger.json';
@@ -55,19 +56,34 @@ export function istTriggerDatei(raw: unknown): raw is TriggerDatei {
 }
 
 /**
- * Zeilen aus einer Fassung VOR der Programm-Dimension (v2.380) tragen kein
- * `programm`. Sie bekommen hier `''` — das matcht nie einen Antrag, und die
- * Referenzdaten-Sektion zählt sie und bittet um einen neuen Import.
+ * Bringt eine geladene Datei auf den Stand des heutigen Codes. Zwei Dinge:
  *
- * Bewusst kein Ersatzwert: „gehört zu Programm 76" wäre geraten, und der Bestand
- * ist genau deshalb falsch, weil ihm ein Programm zugeschrieben wurde, das er
- * nicht hat.
+ * 1. Zeilen aus einer Fassung VOR der Programm-Dimension (v2.380) tragen kein
+ *    `programm`. Sie bekommen `''` — das matcht nie einen Antrag, und die
+ *    Referenzdaten-Sektion zählt sie und bittet um einen neuen Import. Bewusst
+ *    kein Ersatzwert: „gehört zu Programm 76" wäre geraten, und der Bestand ist
+ *    genau deshalb falsch, weil ihm ein Programm zugeschrieben wurde, das er
+ *    nicht hat.
+ * 2. **`geparst` und `satz` werden neu abgeleitet**, nie aus der Datei
+ *    übernommen. Beide sind reine Funktionen von `prozedur` + `parameterRoh` —
+ *    und die stehen mit in der Datei. Wer die gespeicherte Deutung gelten ließe,
+ *    hätte dieselbe Falle wie eine persistierte Kategorie (Pitfall #45): eine im
+ *    Juli importierte Tabelle trüge ihre Juli-Lesart weiter, während der Parser
+ *    längst mehr versteht. Genau so blieb der Zähler „30 nicht interpretiert"
+ *    nach dem Zulässigkeits-Fix (v2.386) unbewegt stehen.
+ *
+ * Kosten: ein Regex-Parse je Zeile beim Laden (~2450 Zeilen), einmal pro Sitzung.
  */
 export function heileTriggerDatei(datei: TriggerDatei): TriggerDatei {
-  if (datei.trigger.every(z => typeof z.programm === 'string')) return datei;
   return {
     ...datei,
-    trigger: datei.trigger.map(z => ({ ...z, programm: typeof z.programm === 'string' ? z.programm : '' })),
+    trigger: datei.trigger.map(z => parseTriggerZeile({
+      programm: typeof z.programm === 'string' ? z.programm : '',
+      kuerzel: z.kuerzel,
+      folge: z.folge,
+      prozedur: z.prozedur,
+      parameter: z.parameterRoh,
+    })),
   };
 }
 
