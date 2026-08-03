@@ -107,11 +107,23 @@ export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNode
 
   // Ohne Menü-Einträge KEINE Menü-Hülle: der Trigger hängt sich sonst in den
   // Rechtsklick und unterdrückt das Browser-Menü, ohne etwas anzubieten.
-  if (!menue) return zeile;
-  return (
+  const mitMenue = menue ? (
     <ContextMenu>
       <ContextMenuTrigger asChild>{zeile}</ContextMenuTrigger>
       <ContextMenuContent>{menue}</ContextMenuContent>
     </ContextMenu>
+  ) : zeile;
+
+  const koerper = slots?.body?.(node);
+  if (!koerper) return mitMenue;
+  return (
+    <>
+      {mitMenue}
+      {/* Kein `treeitem`, kein `group` — der Detail-Bereich ist Beiwerk zur
+          Zeile und soll den Baum für Screenreader nicht verlängern. */}
+      <div role="presentation" style={{ paddingLeft: 6 + (level + 1) * indent }}>
+        {koerper}
+      </div>
+    </>
   );
 }

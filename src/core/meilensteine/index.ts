@@ -35,8 +35,9 @@ export {
   type SpaltenEintrag, type SpaltenTyp,
 } from './spalten-katalog';
 export {
-  aendereKnoten, entferneKnoten, fuegeKnotenHinzu, kinderVon, naechsteKnotenId,
-  nummeriereNeu, sortiereKnoten, tiefeVon, verschiebeKnoten,
+  aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
+  istNachfahre, kinderVon, naechsteKnotenId, nummeriereNeu, sortiereKnoten,
+  tiefeVon, verschiebeKnoten,
 } from './knoten-edit';
 export {
   ergaenzeRisiko, erledigeRisiko, istRisikoDatei, leseEigeneRisiken, leseRisikenAusOrdner,

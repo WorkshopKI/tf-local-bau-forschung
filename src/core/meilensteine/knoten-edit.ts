@@ -133,6 +133,64 @@ export function entferneKnoten(
   return nummeriereNeu(knoten.filter(k => !zuLoeschen.has(k.id)));
 }
 
+/** Ist `kandidat` ein Nachfahre von `id`? Zyklen-sicher. */
+export function istNachfahre(
+  knoten: readonly MeilensteinKnoten[], id: string, kandidat: string,
+): boolean {
+  const byId = new Map(knoten.map(k => [k.id, k]));
+  const gesehen = new Set<string>([kandidat]);
+  let cursor = byId.get(kandidat)?.elternId ?? null;
+  while (cursor !== null && !gesehen.has(cursor)) {
+    if (cursor === id) return true;
+    gesehen.add(cursor);
+    cursor = byId.get(cursor)?.elternId ?? null;
+  }
+  return false;
+}
+
+/**
+ * Darf `id` unter `zielElternId` hängen (`null` = oberste Ebene)?
+ *
+ * Nein bei Selbstbezug und bei einem eigenen Nachfahren als Elternknoten — das
+ * hinge den Ast an sich selbst. Der Zug auf den BISHERIGEN Elternknoten bleibt
+ * erlaubt: er sortiert innerhalb der Geschwister um.
+ */
+export function darfUmhaengen(
+  knoten: readonly MeilensteinKnoten[], id: string, zielElternId: string | null,
+): boolean {
+  if (!knoten.some(k => k.id === id)) return false;
+  if (zielElternId === null) return true;
+  if (zielElternId === id) return false;
+  if (!knoten.some(k => k.id === zielElternId)) return false;
+  return !istNachfahre(knoten, id, zielElternId);
+}
+
+/**
+ * Hängt `id` unter `zielElternId` (`null` = oberste Ebene), optional an
+ * Position `index` unter den Geschwistern. Die `sortierung` wird für die
+ * betroffene Geschwisterreihe in Zehnerschritten neu vergeben, damit sie nie
+ * kollidiert; die Anzeige-Nummern folgen wie überall aus der Baumposition.
+ *
+ * Unzulässige Züge sind ein No-op (gleiche Referenz) statt eines stillen
+ * Umbaus — die Oberfläche soll gar nicht erst als Ziel leuchten.
+ */
+export function haengeKnotenUm(
+  knoten: readonly MeilensteinKnoten[], id: string, zielElternId: string | null, index?: number,
+): MeilensteinKnoten[] {
+  if (!darfUmhaengen(knoten, id, zielElternId)) return knoten as MeilensteinKnoten[];
+  const geschwister = kinderVon(knoten, zielElternId).filter(k => k.id !== id);
+  const pos = index === undefined
+    ? geschwister.length
+    : Math.max(0, Math.min(index, geschwister.length));
+  const reihe = [...geschwister.slice(0, pos), { id }, ...geschwister.slice(pos)];
+  const neueSortierung = new Map(reihe.map((k, i) => [k.id, (i + 1) * 10]));
+  return nummeriereNeu(knoten.map(k => {
+    const s = neueSortierung.get(k.id);
+    if (k.id === id) return { ...k, elternId: zielElternId, sortierung: s ?? k.sortierung };
+    return s === undefined ? k : { ...k, sortierung: s };
+  }));
+}
+
 /** Vertauscht einen Knoten mit seinem Nachbarn. Am Rand ein No-op. */
 export function verschiebeKnoten(
   knoten: readonly MeilensteinKnoten[], id: string, richtung: 'hoch' | 'runter',

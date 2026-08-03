@@ -100,6 +100,13 @@ export interface TfTreeSlots<T> {
   /** Rechtsbündig: Zähler, Badges, Aktionen. */
   trailing?: (p: TfTreeNodeRenderProps<T>) => ReactNode;
   /**
+   * Aufklappbarer Bereich UNTER der Zeile — für Detail-Editoren, die zu einem
+   * Knoten gehören. Wann er erscheint, entscheidet der Verbraucher (`null` =
+   * nicht); das Chevron bleibt beim Auf-/Zuklappen der KINDER, sonst hätte eine
+   * Zeile zwei Bedeutungen für dasselbe Dreieck.
+   */
+  body?: (p: TfTreeNodeRenderProps<T>) => ReactNode;
+  /**
    * Reicher Tooltip an Icon + Beschriftung. `undefined` für eine Zeile heißt:
    * kein HoverCard-Element — Zeilen ohne Zusatzinfo kosten nichts. Die
    * Checkbox liegt bewusst außerhalb des Triggers, damit der Tooltip sie nicht
