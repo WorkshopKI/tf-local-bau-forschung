@@ -26,6 +26,7 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import { vornameVon } from '@/core/utils/profil-anzeige';
 
 export function HomePage(): React.ReactElement {
   const storage = useStorage();
@@ -69,7 +70,7 @@ export function HomePage(): React.ReactElement {
   // useAntraegeStore.antraege-State enthält nach loadAll(idb, programmId)
   // bereits nur die Anträge des aktiven Programms.
   const data = useDashboardData();
-  const name = profile?.name ?? '';
+  const name = vornameVon(profile?.name);
 
   // Kopfzeilen-Subtitle aus denselben Ampel-Aggregaten wie das Antragseingang-
   // Widget — GLEICHE Schwellen-Quelle (ampelSchwellenAusConfig auf derselben

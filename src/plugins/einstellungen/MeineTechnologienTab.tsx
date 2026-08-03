@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { profilAvatarText } from '@/core/utils/profil-anzeige';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
@@ -108,9 +109,7 @@ export function MeineTechnologienTab(): React.ReactElement {
   useEffect(() => { void load(storage); }, [storage, load]);
 
   const myAnonId = resolveAnonIdForUser(meinKuerzel, cache.anonymMap);
-  const initials = profile?.name
-    ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : '??';
+  const avatarText = profilAvatarText(meinKuerzel, profile?.name);
 
   // Fallback-Hydration aus `auslastung.json` — NUR wenn kein persoenliches
   // Profil existiert (hasPersonalProfil === false). Sonst ist das persoenliche
@@ -242,7 +241,7 @@ export function MeineTechnologienTab(): React.ReactElement {
         <SettingsSectionHeader label="Programmkennung" />
         <SettingsRow gap="lg">
           <SettingsRowGroup>
-            <Avatar initials={initials} />
+            <Avatar text={avatarText} />
             <span className="text-[13px] font-medium text-[var(--tf-text)]">{profile?.name ?? '—'}</span>
           </SettingsRowGroup>
           <SettingsRowSeparator />

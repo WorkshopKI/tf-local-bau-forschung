@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "2.395.1",
+  "version": "2.395.2",
   "type": "module",
   "scripts": {
     "dev": "vite",

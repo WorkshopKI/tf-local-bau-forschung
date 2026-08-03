@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.395 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- Der Avatar-Kreis neben Ihrem Namen (Einstellungen → Mein Profil) zeigt jetzt Ihr Bearbeiter-Kürzel — ist kein Kürzel gewählt, erscheinen weiter die Namens-Initialen.
+- Die Begrüßung auf der Startseite spricht nur noch mit dem Vornamen an.
+### Bugfixes
+<!-- - … -->
+
 ## v2.392 — 2026-08
 
 ### Neu

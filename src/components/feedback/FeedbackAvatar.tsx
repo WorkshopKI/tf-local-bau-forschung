@@ -5,6 +5,7 @@
 // Die Palette liegt bewusst als JS-Konstante vor (nicht als --tf-*-Token): es sind
 // dekorative, per-Name variierende Werte (dynamische Inline-Farbe erlaubt); die
 // mittlere Helligkeit trägt Weiß-Text in Light + Dark.
+import { initialenVon } from '@/core/utils/profil-anzeige';
 
 const AV_COLORS = [
   'hsl(215 40% 50%)',
@@ -21,13 +22,8 @@ export function avatarColor(name: string): string {
 }
 
 export function avatarInitials(name: string): string {
-  const n = name.trim();
-  if (!n) return '?';
-  if (n.toLowerCase() === 'du') return 'DU';
-  const parts = n.split(/\s+/);
-  const a = parts[0]?.[0] ?? '';
-  const b = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
-  return (a + b).toUpperCase() || '?';
+  if (name.trim().toLowerCase() === 'du') return 'DU';
+  return initialenVon(name);
 }
 
 interface Props {

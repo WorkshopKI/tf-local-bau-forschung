@@ -27,17 +27,20 @@ export function SettingsRowSeparator(): React.ReactElement {
   return <div className="w-px h-5 bg-[var(--tf-border)]" aria-hidden />;
 }
 
-export function Avatar({ initials }: { initials: string }): React.ReactElement {
+export function Avatar({ text }: { text: string }): React.ReactElement {
+  // 3+ Zeichen (z.B. „THÜ"): kleinere Schrift damit das Kürzel im 36-px-Kreis Platz hat.
+  const fontSize = text.length >= 3 ? 10 : 13;
   return (
     <div
-      className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[13px] font-medium shrink-0"
+      className="w-9 h-9 rounded-full flex items-center justify-center text-white font-medium shrink-0"
       style={{
         background: 'hsl(var(--tf-primary-h), var(--tf-primary-s), 35%)',
         letterSpacing: '0.03em',
+        fontSize,
       }}
       aria-hidden
     >
-      {initials}
+      {text}
     </div>
   );
 }

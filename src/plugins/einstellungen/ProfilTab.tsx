@@ -3,6 +3,8 @@ import { Pencil, Minus, Plus } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { profilAvatarText } from '@/core/utils/profil-anzeige';
 import { useKuerzelFilterOptions } from '@/plugins/auslastung/hooks/useKuerzelFilterOptions';
 import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
 import { ROLLEN, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
@@ -35,6 +37,8 @@ export function ProfilTab(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
   const sessionKuerzel = useMAIdentity(s => s.kuerzel);
   const istAngemeldet = useMAIdentity(s => s.istAngemeldet);
+  // Muss VOR dem Early-Return stehen (React-Regel #310 — tsc fängt es nicht).
+  const meinKuerzel = useMeinKuerzel();
   // v2.11: im MA-Login-Modus (prod, angemeldet) ist das Kürzel aus dem Passwort
   // abgeleitet und read-only — kein freies Eingabefeld mehr.
   const maLoginActive = isMaLoginEnabled() && istAngemeldet;
@@ -47,9 +51,7 @@ export function ProfilTab(): React.ReactElement {
     );
   }
 
-  const initials = profile.name
-    ? profile.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : '??';
+  const avatarText = profilAvatarText(meinKuerzel, profile.name);
 
   return (
     <div className="space-y-8">
@@ -58,7 +60,7 @@ export function ProfilTab(): React.ReactElement {
         <SettingsSectionHeader label="Account" />
         <SettingsRow>
           <SettingsRowGroup>
-            <Avatar initials={initials} />
+            <Avatar text={avatarText} />
             <NameEditor name={profile.name} onSave={n => updateProfile({ name: n })} />
           </SettingsRowGroup>
         </SettingsRow>

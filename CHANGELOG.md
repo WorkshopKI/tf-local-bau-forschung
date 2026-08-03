@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.395.2 — Avatar traegt das Kuerzel, Begruessung nur den Vornamen (August 2026)
+
+PATCH — Der Profil-Avatar trug die Namens-Initialen; das eigentlich identitätsstiftende Kürzel war nirgends sichtbar. Die Startseite sprach mit dem vollen Namen an statt nur dem Vornamen.
+
+- **Profil-Avatar zeigt das Kürzel** wenn eines gewählt ist (z.B. „THÜ"), sonst weiter Namens-Initialen ([settings-primitives.tsx](src/plugins/einstellungen/_shared/settings-primitives.tsx), [ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx), [MeineTechnologienTab.tsx](src/plugins/einstellungen/MeineTechnologienTab.tsx))
+- **Startseiten-Begrüßung nur noch mit Vornamen** — „Guten Tag, Thomas" statt „Guten Tag, Thomas Hollerith" ([HomePage.tsx](src/plugins/home/HomePage.tsx))
+- **`profilAvatarText` / `vornameVon` / `initialenVon` / `kuerzelFuerAnzeige`** als gemeinsame Basis in [profil-anzeige.ts](src/core/utils/profil-anzeige.ts) (zuvor drei unterschiedliche Inline-Varianten)
+
 ### v2.395.1 — Doku auf den Ist-Zustand nach dem Bauantrag-Endausbau (August 2026)
 
 PATCH — Nachtrag zu v2.395: sechs lebende Docs beschrieben noch „zwei Status-Domänen" und verwiesen auf die gelöschte Fixture. Docs beschreiben den Ist-Zustand (Doku-Konvention 1), also werden sie umgeschrieben statt ergänzt.
