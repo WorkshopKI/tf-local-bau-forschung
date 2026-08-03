@@ -26,7 +26,7 @@
 ### Verbesserungen
 <!-- - … -->
 ### Bugfixes
-<!-- - … -->
+- Die Sicht-Tabs über der Antragsliste und die Schnellauswahl-Chips im Filter-Panel nannten für dieselbe Sicht verschiedene Zahlen (z. B. 541 gegen 555). Beide zählen jetzt genau das, was die Liste darunter zeigt.
 
 ## v2.399 — 2026-08
 

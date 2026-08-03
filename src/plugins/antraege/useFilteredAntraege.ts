@@ -4,7 +4,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/types';
 import { useAntraegeStore, getEffectiveSortKey } from './store';
 import { useFilterState } from './filter/useFilterState';
-import { getView, type AntragView } from './views';
+import { getView, viewCounts, type AntragView, type ViewKey } from './views';
 import { getSortOption } from './sort';
 import { applyVerbundClustering } from './antragGroups';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -58,6 +58,14 @@ export interface FilteredAntraegeResult {
    * Wechsel.
    */
   countBase: AntragListItem[];
+  /**
+   * Zähler JE SICHT auf derselben Grundmenge wie die Liste — Bereich,
+   * Inaktiv-Ausschluss und Irrläufer-Schalter inklusive. Alle Oberflächen, die
+   * Sicht-Zahlen zeigen (Tab-Leiste, Schnellauswahl-Chips), lesen dieses Feld;
+   * eine zweite Zählung auf der rohen Store-Liste driftet still von der Liste
+   * darunter weg (Pitfall #46).
+   */
+  counts: Record<ViewKey, number>;
   /**
    * Wie viele Anträge der Betrachtungsbereich gerade wegnimmt — die Zahl für
    * den Chip. Ohne sie wäre die Einschränkung unsichtbar (Pitfall #46).
@@ -141,6 +149,16 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Inaktiv-Ausblendung NACH dem Kürzel-Filter, VOR den Sidebar-Filtern —
     // damit auch die Quickfilter-Counts (countBase) die Ausblendung spiegeln.
     const byInaktive = applyInaktiveExclusion(byBearbeiter, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
+    // Sicht-Zaehler aus DERSELBEN Grundmenge wie die Liste: Bereich (steckt
+    // schon in `antraege`), Inaktiv-Ausschluss und derselbe Irrlaeufer-Schalter.
+    // Die Exklusion wirkt je Datensatz, ist also unabhaengig davon, ob sie vor
+    // oder nach View/Bearbeiter laeuft — sie darf hier auf die Basis, weil
+    // `viewCounts` alle Sichten auf einmal zaehlt.
+    const counts = viewCounts(
+      applyInaktiveExclusion(antraege, bearbeiterFilter.active, inaktiveKuerzel, showInaktive),
+      bearbeiterFilter,
+      !explicitVbPhase,
+    );
     // PreCheck-Quickfilter (abgeleitete Klassifikation, eigener Store-Slot) VOR
     // den Sidebar-Filtern — analog Status/Antragstyp; `countBase` (= byInaktive)
     // bleibt bewusst davor, damit die PreCheck-Pillen-Counts stabil sind.
@@ -184,6 +202,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
       countBase: byInaktive,
+      counts,
       ausgeblendet: alleAntraege.length - antraege.length,
     };
   }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);

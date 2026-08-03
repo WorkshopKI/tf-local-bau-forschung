@@ -1,22 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Download, Filter, FileUp, Loader2, Search } from 'lucide-react';
 import { useAntraegeStore, getEffectiveViewMode } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
-import { VIEWS, viewCounts, type ViewKey } from './views';
+import { VIEWS, type ViewKey } from './views';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
-import { useBereich } from '@/core/hooks/useBereich';
-import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { menuLabel, isAuslastungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useFilteredAntraege, hasExplicitVbPhaseFilter } from './useFilteredAntraege';
-import { applyInaktiveExclusion } from './bearbeiterFilter';
+import { useFilteredAntraege } from './useFilteredAntraege';
 import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
-import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -44,16 +40,6 @@ interface Props {
  *  wird zurückgesetzt — Suchtext, aktive Sicht und Filter greifen unverändert,
  *  sobald die Liste wieder eingeblendet ist. */
 export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Props): React.ReactElement {
-  const alleAntraege = useAntraegeStore(s => s.antraege);
-  const bereich = useBereich();
-  // Tab-Zähler auf derselben Grundmenge wie die Liste — sonst nennt der Kopf
-  // eine Zahl, die im Panel darunter nie erscheint (Pitfall #46).
-  const antraege = useMemo(
-    () => (bereich.menge === null
-      ? alleAntraege
-      : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereich.menge))),
-    [alleAntraege, bereich.menge],
-  );
   const activeView = useAntraegeStore(s => s.activeView);
   const setActiveView = useAntraegeStore(s => s.setActiveView);
   const search = useAntraegeStore(s => s.search);
@@ -67,17 +53,16 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
   const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
   const filterCount = useFilterState(s => s.active.length);
-  const active = useFilterState(s => s.active);
-  const definitions = useFilterState(s => s.definitions);
   // Im Compact-Modus (Tabelle) sollen die Header-Icons mit dem Tabellen-Rand
   // fluchten (kein pr-4); in List/Cards bleibt pr-4 für Bündigkeit mit den
   // px-4-Status-Badges der Cards.
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
   const actionPr = viewMode === 'compact' ? '' : 'pr-4';
-  const { filtered, bearbeiterFilter } = useFilteredAntraege();
+  // Zähler UND Ausblend-Zahl kommen aus derselben Pipeline wie die Liste — der
+  // Kopf rechnet nichts nach (Pitfall #46).
+  const { filtered, bearbeiterFilter, counts, ausgeblendet } = useFilteredAntraege();
   const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
   const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
-  const inaktiveKuerzel = useInaktiveKuerzelSet();
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Export folgt der Tabellen-Ansicht: dieselben sichtbaren Spalten (+ MA-Spalte
   // im „alle"-/Übersichtsmodus, identisch zu AntraegeMain).
@@ -110,20 +95,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   // gaebe es nichts zu ignorieren und der UI-Punkt waere irrefuehrend.
   const showIgnoreBearbeiterToggle = searchActive && bearbeiterFilter.active;
 
-  const counts = useMemo(() => {
-    // Pre-Filter konsistent zum Listenrendering: Irrlaeufer (vb_phase=9)
-    // werden in den Tab-Counts ausgeblendet, AUSSER ein expliziter
-    // vb_phase-Filter ist aktiv (dann uebernimmt die Sidebar die Kontrolle).
-    const applyVbPhasePreFilter = !hasExplicitVbPhaseFilter(active, definitions);
-    // Tab-Counts konsistent zur Liste: im „alle"-Modus Anträge inaktiver MAs
-    // ausblenden (pl/dev; außerhalb ist das Set leer → No-op).
-    const antraegeForCounts = applyInaktiveExclusion(antraege, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
-    // Single-Pass: alle View-Counts in einem Loop ueber `antraege` — statt
-    // ein viewCount() je Sicht mit jeweils neuer `new Date()`-Allokation pro
-    // Antrag im Predicate.
-    return viewCounts(antraegeForCounts, bearbeiterFilter, applyVbPhasePreFilter);
-  }, [antraege, bearbeiterFilter, active, definitions, inaktiveKuerzel, showInaktive]);
-
   return (
     <div
       className="shrink-0 pt-4 pb-0"
@@ -146,7 +117,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           title={menuLabel('antraege', 'Förderanträge')}
           meta={(
             <span className="inline-flex items-center gap-1.5 flex-wrap">
-              <BereichChip ausgeblendet={alleAntraege.length - antraege.length} />
+              <BereichChip ausgeblendet={ausgeblendet} />
               {bearbeiterFilter.active && (
                 <BearbeiterFilterPill
                   tokens={bearbeiterFilter.tokens}

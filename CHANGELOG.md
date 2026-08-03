@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.400.1 — Sicht-Zähler auf eine Grundmenge (August 2026)
+
+PATCH — Dieselbe Sicht trug zwei Zahlen: Tab „Bewilligt 2026" 541, Schnellauswahl-Chip 555. Der Kopf zählte über die Grundmenge der Liste (Bereich, inaktive MAs, Irrläufer-Schalter), die Chips über die rohe Store-Liste — genau der Fehlermodus, den Pitfall #46 benennt.
+
+- **`useFilteredAntraege` liefert die Zähler mit** (`counts` je Sicht) — gerechnet dort, wo die Liste entsteht; Tab-Leiste und Chips lesen nur noch ([useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts))
+- **Der Kopf rechnet nichts mehr nach**: eigene Bereichs-Filterung, Inaktiv-Ausschluss und Ausblend-Zahl entfallen ersatzlos ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Guard `Sicht-Zaehler kommen aus EINER Grundmenge`** — außerhalb der Pipeline zählt niemand mehr selbst, inklusive Positiv-Kontrolle gegen einen ins Leere laufenden Pfad-Filter ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
+
 ### v2.400.0 — Kürzel und Codes im Herleitungs-Popover erklärt (August 2026)
 
 MINOR — „Wenn VB-Status vor 59, TV hat kein ABB → setze TV-Status 31." ist für den Eingearbeiteten präzise und für alle anderen Geheimschrift. Die Zeichen tragen jetzt ihre Bedeutung im Tooltip — und nur die belegten, damit der fehlende Unterstrich selbst eine Aussage bleibt.
