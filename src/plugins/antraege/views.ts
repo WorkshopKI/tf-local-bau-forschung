@@ -2,7 +2,6 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
 import {
   isOpenStatus,
-  isNachforderungStatus,
   isBewilligtStatus,
   isBegleitungStatus,
 } from '@/core/utils/status-canonical';
@@ -13,7 +12,6 @@ export type ViewKey =
   | 'meine_offenen'
   | 'diese_woche_faellig'
   | 'ueberfaellig'
-  | 'nachforderungen'
   | 'bewilligt_jahr'
   | 'alle';
 
@@ -77,11 +75,6 @@ export const VIEWS: AntragView[] = [
     },
   },
   {
-    key: 'nachforderungen',
-    label: 'NF',
-    predicate: a => isNachforderungStatus(a.status),
-  },
-  {
     key: 'bewilligt_jahr',
     label: `Bewilligt ${getCurrentYear()}`,
     predicate: a => isBewilligtStatus(a.status) && yearOfBewilligung(a) === getCurrentYear(),
@@ -133,10 +126,10 @@ export function viewCount(
 
 /**
  * Single-Pass-Variante: berechnet die Counts fuer ALLE Views in einem Loop
- * ueber die Antraege. Im Header laufen sonst 6 separate `viewCount`-Aufrufe
+ * ueber die Antraege. Im Header laufen sonst 5 separate `viewCount`-Aufrufe
  * mit jeweils einer Allokation pro Antrag (`new Date()` in `daysSinceEingang`,
  * `Number(d.slice(0,4))` in `yearOfBewilligung`). Bei 13k Antraegen spart
- * das ~78k Predicate-Calls auf ~13k mit gemeinsamen Zwischenwerten.
+ * das ~65k Predicate-Calls auf ~13k mit gemeinsamen Zwischenwerten.
  *
  * Verhalten ist 1:1 aequivalent zu `VIEWS.map(v => viewCount(v.key, ...))` —
  * jeder Eintrag im Ergebnis-Record entspricht dem gleichnamigen View-Predicate.
@@ -154,7 +147,6 @@ export function viewCounts(
     meine_offenen: 0,
     diese_woche_faellig: 0,
     ueberfaellig: 0,
-    nachforderungen: 0,
     bewilligt_jahr: 0,
     alle: 0,
   };
@@ -178,7 +170,6 @@ export function viewCounts(
       }
     }
 
-    if (isNachforderungStatus(a.status)) counts.nachforderungen++;
     if (isBewilligtStatus(a.status) && yearOfBewilligung(a) === currentYear) {
       counts.bewilligt_jahr++;
     }

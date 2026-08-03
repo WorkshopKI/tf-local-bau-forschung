@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.399.0 — Sicht-Tab NF entfällt (August 2026)
+
+MINOR — Die Sicht-Tabs trugen mit „NF" eine Auswahl, die der Phasen-Quickfilter direkt darunter deckungsgleich trifft (beide über `isNachforderungStatus`). Zwei Bedienwege für dieselbe Menge; der obere fällt weg. „Bewilligt <Jahr>" bleibt — der Quickfilter „Bewilligt" ist jahrgangsübergreifend und damit kein Ersatz.
+
+- **`VIEWS` ohne `nachforderungen`** — Tab-Leiste und Schnellauswahl-Chips der Filter-Sidebar leiten sich beide daraus ab, der Eintrag verschwindet in einem Zug ([views.ts](src/plugins/antraege/views.ts))
+- **Persistierte Sicht wird gegen `VIEWS` validiert** statt gegen eine zweite Literal-Liste: ein Altwert fällt auf „Offen" zurück, statt die Seite ohne aktiven Tab auf eine ungefilterte Liste zu stellen ([store.ts](src/plugins/antraege/store.ts))
+- Belegt am echten Bestand: Quickfilter „NF" liefert dieselben 105 Teilvorhaben, die der Tab zeigte
+
 ### v2.398.0 — Anweisung, Regeln und Prompt am offenen Antrag bearbeiten (August 2026)
 
 MINOR — Wer ein Gutachten schreibt, merkt am Abschnitt, dass die Anweisung nicht passt — und musste dafür bisher das Plugin wechseln. Die Inline-Werkstatt gab es seit v2.247, aber nur hinter `isDevContext()`; pl und as durften die Registry längst schreiben und sahen den kurzen Weg trotzdem nicht.

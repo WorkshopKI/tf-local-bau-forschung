@@ -118,8 +118,8 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
     // Tab-Counts konsistent zur Liste: im „alle"-Modus Anträge inaktiver MAs
     // ausblenden (pl/dev; außerhalb ist das Set leer → No-op).
     const antraegeForCounts = applyInaktiveExclusion(antraege, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
-    // Single-Pass: alle 6 View-Counts in einem Loop ueber `antraege` —
-    // statt 6× viewCount() mit jeweils neuer `new Date()`-Allokation pro
+    // Single-Pass: alle View-Counts in einem Loop ueber `antraege` — statt
+    // ein viewCount() je Sicht mit jeweils neuer `new Date()`-Allokation pro
     // Antrag im Predicate.
     return viewCounts(antraegeForCounts, bearbeiterFilter, applyVbPhasePreFilter);
   }, [antraege, bearbeiterFilter, active, definitions, inaktiveKuerzel, showInaktive]);

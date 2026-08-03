@@ -106,6 +106,6 @@ describe('isArbeitsvorratView', () => {
     expect(isArbeitsvorratView('alle', 'verbund')).toBe(false);
     expect(isArbeitsvorratView('alle', 'netzwerk')).toBe(false);
     expect(isArbeitsvorratView('meine_offenen', 'none')).toBe(false);
-    expect(isArbeitsvorratView('nachforderungen', 'none')).toBe(false);
+    expect(isArbeitsvorratView('bewilligt_jahr', 'none')).toBe(false);
   });
 });

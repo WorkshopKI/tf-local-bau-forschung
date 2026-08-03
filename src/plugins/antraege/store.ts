@@ -9,7 +9,7 @@ import {
 } from '@/core/services/csv/idb-csv';
 import { tfPerfLog, tfPerfStart } from '@/core/utils/tfPerf';
 import { buildNetzwerkNameIndex } from './netzwerk';
-import type { ViewKey } from './views';
+import { VIEWS, type ViewKey } from './views';
 import {
   DEFAULT_SORT_BY_VIEW,
   SORT_OPTIONS,
@@ -36,13 +36,15 @@ const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
 const TABLE_GROUPING_BY_VIEW_KEY = 'teamflow_antraege_table_grouping_by_view';
 const VIEW_MODE_BY_TAB_KEY = 'teamflow_antraege_view_mode_by_tab';
 
+/** Persistierte Sicht, gegen `VIEWS` validiert statt gegen eine zweite
+ *  Literal-Liste: entfaellt eine Sicht, faellt ihr Altwert hier automatisch auf
+ *  `meine_offenen` zurueck. Eine Handliste wuerde stumm driften — der Wert ist
+ *  ein `string`, TypeScript wuerde den toten Schluessel nicht melden, und die
+ *  Seite stuende danach ohne aktiven Tab auf einer ungefilterten Liste. */
 function loadActiveView(): ViewKey {
   try {
     const v = localStorage.getItem(ACTIVE_VIEW_KEY);
-    if (v === 'meine_offenen' || v === 'diese_woche_faellig' || v === 'ueberfaellig'
-      || v === 'nachforderungen' || v === 'bewilligt_jahr' || v === 'alle') {
-      return v;
-    }
+    if (v !== null && VIEWS.some(view => view.key === v)) return v as ViewKey;
   } catch { /* ignore */ }
   return 'meine_offenen';
 }

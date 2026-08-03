@@ -75,13 +75,6 @@ describe('View "alle" + Status-Filter', () => {
   });
 });
 
-describe('View "nachforderungen"', () => {
-  it('nur "NF gestellt" (View-Predicate ueber Kategorie)', () => {
-    const result = runPipeline(REAL_CSV_ANTRAEGE, 'nachforderungen', [], [], NEUTRAL);
-    expect(result.map(r => r.aktenzeichen).sort()).toEqual(['REAL-005', 'REAL-006']);
-  });
-});
-
 describe('View "meine_offenen" + Bearbeiter-Filter — Intersection', () => {
   it('bearbeiter=ABC → nur REAL-016', () => {
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'meine_offenen', [], [], ABC);

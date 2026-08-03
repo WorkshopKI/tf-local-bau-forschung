@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.399 — 2026-08
+
+### Verbesserungen
+- Die Sicht-Tabs über der Antragsliste sind kürzer: „NF" ist weg. Dieselbe Auswahl trifft der Status-Filter direkt darunter mit einem Klick — „NF" dort zeigt genau die gleichen Anträge. „Bewilligt 2026" bleibt, weil der Filter alle Jahrgänge zusammen zeigt.
+### Bugfixes
+<!-- - … -->
+
 ## v2.398 — 2026-08
 
 ### Neu

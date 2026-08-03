@@ -20,7 +20,6 @@ const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: numbe
   // ist 87d (SLA-Risk diese Woche), REAL-004 ist 131d (ueberfaellig).
   diese_woche_faellig: { withPreFilter: 1, withoutPreFilter: 1 },
   ueberfaellig: { withPreFilter: 1, withoutPreFilter: 1 },
-  nachforderungen: { withPreFilter: 2, withoutPreFilter: 2 },
   bewilligt_jahr: { withPreFilter: 3, withoutPreFilter: 3 },
   alle: { withPreFilter: 18, withoutPreFilter: 20 },
 };
@@ -39,7 +38,7 @@ describe('viewCount', () => {
 
 describe('viewCount — Edge-Cases', () => {
   it('leerer Array → 0 fuer alle Views', () => {
-    for (const v of ['meine_offenen', 'alle', 'bewilligt_jahr', 'nachforderungen'] as ViewKey[]) {
+    for (const v of ['meine_offenen', 'alle', 'bewilligt_jahr', 'ueberfaellig'] as ViewKey[]) {
       expect(viewCount(v, [], undefined, true)).toBe(0);
     }
   });

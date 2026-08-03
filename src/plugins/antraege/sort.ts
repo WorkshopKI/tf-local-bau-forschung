@@ -127,7 +127,6 @@ export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
   meine_offenen: 'frist_asc',
   diese_woche_faellig: 'frist_asc',
   ueberfaellig: 'frist_asc',
-  nachforderungen: 'frist_asc',
   bewilligt_jahr: 'bewilligung_desc',
   // „Alle": neueste Antragseingänge zuerst (Journey-Paket 2 Phase 4) — das
   // aktuellste Geschehen oben statt FKZ-alphabetisch. Bestehende explizite
@@ -185,7 +184,6 @@ export const DEFAULT_GROUPING_BY_VIEW: Record<ViewKey, GroupingMode> = {
   meine_offenen: 'none',
   diese_woche_faellig: 'none',
   ueberfaellig: 'none',
-  nachforderungen: 'none',
   bewilligt_jahr: 'none',
   alle: 'none',
 };
