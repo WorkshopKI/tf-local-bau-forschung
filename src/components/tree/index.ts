@@ -1,5 +1,6 @@
 export { TfTree, type TfTreeProps } from './TfTree';
 export { TfTreeNode, type TfTreeNodeProps } from './TfTreeNode';
+export { TfTreeHoverCard, type TfTreeHoverCardProps } from './TfTreeHoverCard';
 export type {
   TfTreeCallbacks, TfTreeCheckState, TfTreeFeatureFlags, TfTreeItem, TfTreeItems,
   TfTreeNodeRenderProps, TfTreeSlots,

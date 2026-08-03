@@ -71,6 +71,13 @@ export interface TfTreeSlots<T> {
   /** Rechtsbündig: Zähler, Badges, Aktionen. */
   trailing?: (p: TfTreeNodeRenderProps<T>) => ReactNode;
   /**
+   * Reicher Tooltip an Icon + Beschriftung. `undefined` für eine Zeile heißt:
+   * kein HoverCard-Element — Zeilen ohne Zusatzinfo kosten nichts. Die
+   * Checkbox liegt bewusst außerhalb des Triggers, damit der Tooltip sie nicht
+   * überdeckt.
+   */
+  hoverContent?: (p: TfTreeNodeRenderProps<T>) => ReactNode;
+  /**
    * Zusatz-Styles der Zeile — für Zustands-Akzente (z. B. eine linke Kante an
    * aktiven Ordnern). Wird über den Grundstil gelegt; Einzug und Polsterung
    * bleiben Sache der Zeile.

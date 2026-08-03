@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { TfTree } from '@/components/tree';
 import type { TfTreeNodeRenderProps } from '@/components/tree';
-import { groupStatusValues, type GroupedPhase } from '../statusGroups';
+import { groupStatusValues, type GroupedItem, type GroupedPhase, type PhaseId } from '../statusGroups';
 import {
   baueStatusBaum, checkedAusFilter, filterAusChecked, filtereStatusPhasen,
-  istGesetzt, phaseKnotenId, type StatusKnoten,
+  istGesetzt, phaseKnotenId, statusHoverDaten, type StatusKnoten,
 } from '../statusTreeAdapter';
 
 interface Props {
@@ -141,6 +141,13 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
             slots={{
               label: p => <Beschriftung p={p} gesetzt={gesetzt} />,
               trailing: p => <Zahl p={p} gesetzt={gesetzt} />,
+              // Nur Blätter tragen einen Tooltip. Die Entscheidung fällt HIER
+              // und nicht in der Komponente: ein Element, das intern `null`
+              // liefert, ist für den Baum trotzdem Inhalt — und ergäbe über
+              // Ordnerzeilen einen leeren Kasten.
+              hoverContent: p => (p.data.art === 'status'
+                ? <StatusTooltip p={p} item={p.data.item} phaseId={p.data.phaseId} phasen={filteredPhases} />
+                : null),
               zeilenStil: p => (p.data.art === 'phase' && hatAktive(p.data.phase, gesetzt)
                 ? { borderLeft: '2px solid var(--tf-primary)', paddingLeft: 4 }
                 : { borderLeft: '2px solid transparent' }),
@@ -152,6 +159,41 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
       <div className="mt-2 px-0.5 text-[11px] text-[var(--tf-text-tertiary)] leading-snug">
         Checkbox an der Phase wählt alle Stati der Phase.
       </div>
+    </div>
+  );
+}
+
+/**
+ * Tooltip an einem Status-Blatt: Gruppe, aktuelle Anzahl, Herkunft und die
+ * weiteren Schreibweisen. Phasen-Zeilen bekommen keinen — ihre Zahl steht
+ * schon rechts, ein Tooltip wiederholte nur.
+ */
+function StatusTooltip({ p, item, phaseId, phasen }: {
+  p: TfTreeNodeRenderProps<StatusKnoten>;
+  item: GroupedItem;
+  phaseId: PhaseId;
+  phasen: GroupedPhase[];
+}): React.ReactElement {
+  const gruppe = phasen.find(ph => ph.id === phaseId)?.label ?? '—';
+  const d = statusHoverDaten(item, gruppe);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="font-medium">{p.name}</div>
+      <Zeile k="Gruppe" v={d.gruppe} />
+      <Zeile k="Anträge" v={fmt(d.anzahl)} />
+      <Zeile k="Herkunft" v={d.herkunft} />
+      {d.weitereSchreibweisen.length > 0 && (
+        <Zeile k="Auch" v={d.weitereSchreibweisen.join(', ')} />
+      )}
+    </div>
+  );
+}
+
+function Zeile({ k, v }: { k: string; v: string }): React.ReactElement {
+  return (
+    <div className="flex gap-2">
+      <span className="shrink-0 text-[var(--tf-text-tertiary)]">{k}</span>
+      <span className="min-w-0 flex-1 text-right">{v}</span>
     </div>
   );
 }

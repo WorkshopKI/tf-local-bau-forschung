@@ -131,6 +131,35 @@ export function filterAusChecked(
   return raus;
 }
 
+/** Was der Tooltip eines Status-Blattes zeigt. */
+export interface StatusHoverDaten {
+  /** Gruppe, in der der Status hängt (ZAH-Phase, Marker oder „Nicht im Katalog"). */
+  gruppe: string;
+  /** Aktuelle Anzahl im gefilterten Bestand. */
+  anzahl: number;
+  /** Herkunft — die eigentliche Aussage: kennt der Katalog den Wert? */
+  herkunft: 'kuratiert' | 'nicht im Katalog';
+  /** Weitere Schreibweisen desselben Codes (ohne die angezeigte). */
+  weitereSchreibweisen: readonly string[];
+}
+
+/**
+ * Der Tooltip-Inhalt eines Status-Blattes — rein, damit er ohne DOM prüfbar
+ * bleibt und leicht austauschbar ist.
+ *
+ * `designed: false` heißt **im Export gesehen, im Katalog nicht geführt**. Das
+ * ist keine Randnotiz, sondern der Kuratier-Hinweis an die PL; deshalb steht er
+ * im Tooltip und nicht nur in der Gruppenüberschrift.
+ */
+export function statusHoverDaten(item: GroupedItem, gruppenLabel: string): StatusHoverDaten {
+  return {
+    gruppe: gruppenLabel,
+    anzahl: item.count,
+    herkunft: item.designed ? 'kuratiert' : 'nicht im Katalog',
+    weitereSchreibweisen: item.schreibweisen.filter(s => s !== item.value),
+  };
+}
+
 /**
  * Such-Filter über die Phasen. Gesucht wird über **alle** Schreibweisen — wer
  * „Rücknahmeempf." eintippt (so steht es im Export), soll den Eintrag finden.

@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   STATUS_BAUM_ROOT, baueStatusBaum, checkedAusFilter, filterAusChecked,
-  filtereStatusPhasen, istGesetzt, phaseKnotenId, statusKnotenId,
+  filtereStatusPhasen, istGesetzt, phaseKnotenId, statusHoverDaten, statusKnotenId,
 } from '../statusTreeAdapter';
 import { groupStatusValues, type GroupedPhase } from '../statusGroups';
 
@@ -134,6 +134,27 @@ describe('Tri-State der Phase leitet sich aus ihren Blättern ab', () => {
 
   it('alle Blätter gesetzt ⇒ checked — auch über eine Nebenschreibweise', () => {
     expect(zustand(['Nachforderung gestellt', 'unvollständig'])).toBe('checked');
+  });
+});
+
+describe('statusHoverDaten — was der Tooltip behauptet', () => {
+  it('nennt Gruppe, Anzahl und die weiteren Schreibweisen', () => {
+    const d = statusHoverDaten(PHASEN[1]!.items[0]!, 'Vollständigkeit');
+    expect(d).toEqual({
+      gruppe: 'Vollständigkeit',
+      anzahl: 5,
+      herkunft: 'kuratiert',
+      weitereSchreibweisen: ['Nachforderung gestellt'],
+    });
+  });
+
+  it('lässt die Schreibweisen-Liste leer, wenn es nur eine gibt', () => {
+    expect(statusHoverDaten(PHASEN[0]!.items[1]!, 'Eingang').weitereSchreibweisen).toEqual([]);
+  });
+
+  it('markiert Katalog-Fremde als „nicht im Katalog" — das ist der Kuratier-Hinweis', () => {
+    const fremd = { value: 'Freitext XY', count: 2, designed: false, schreibweisen: ['Freitext XY'] };
+    expect(statusHoverDaten(fremd, 'Nicht im Katalog').herkunft).toBe('nicht im Katalog');
   });
 });
 

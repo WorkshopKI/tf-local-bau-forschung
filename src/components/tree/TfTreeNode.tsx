@@ -11,6 +11,7 @@
  */
 import { ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TfTreeHoverCard } from './TfTreeHoverCard';
 import type { TfTreeNodeRenderProps, TfTreeSlots } from './tf-tree-types';
 
 const CHEVRON = 14;
@@ -26,6 +27,16 @@ export interface TfTreeNodeProps<T> {
 
 export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNodeProps<T>): React.ReactElement {
   const { zeilenProps, level, isFolder, isExpanded, isFocused, checked, name } = node;
+
+  /** Icon + Beschriftung — der Teil, der bei Bedarf im HoverCard-Trigger sitzt. */
+  const mitte = (
+    <>
+      {slots?.icon?.(node)}
+      {slots?.label
+        ? slots.label(node)
+        : <span className="flex-1 min-w-0 truncate text-[12.5px] text-[var(--tf-text)]">{name}</span>}
+    </>
+  );
 
   return (
     <div
@@ -66,11 +77,11 @@ export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNode
         </span>
       )}
 
-      {slots?.icon?.(node)}
-
-      {slots?.label
-        ? slots.label(node)
-        : <span className="flex-1 min-w-0 truncate text-[12.5px] text-[var(--tf-text)]">{name}</span>}
+      {/* Der Slot entscheidet, OB es einen Tooltip gibt; der Inhalt entsteht
+          erst beim Öffnen (deshalb die Funktion, nicht der fertige Knoten). */}
+      {slots?.hoverContent
+        ? <TfTreeHoverCard inhalt={() => slots.hoverContent!(node)}>{mitte}</TfTreeHoverCard>
+        : mitte}
 
       {slots?.trailing?.(node)}
     </div>
