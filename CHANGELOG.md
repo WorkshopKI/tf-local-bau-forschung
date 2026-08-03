@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.389.0 — Betrachtungsbereich (August 2026)
+
+MINOR — Von 14 221 Anträgen gehören 6 952 zu stillgelegten Altprogrammen. Sie verzerrten jede Arbeitsliste und jede Rechenzeit — unsichtbar. Der Bereich macht daraus einen sichtbaren, umschaltbaren Parameter.
+
+- Seed im Code (neun Richtlinien), Katalog-Fassung überschreibt ihn — dieselbe Reihenfolge wie die Kategorie-Fassade, damit der Bereich auch in prod/as gilt ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts)).
+- **Chip im Kopf jeder Datensicht**: „Anzeige: letzte 3 Richtlinien (9 Programme) · 6 952 ausgeblendet", Klick öffnet die Auswahl mit Klartext-Labels ([BereichChip.tsx](src/components/bereich/BereichChip.tsx)).
+- Arbeitsvorrat folgt dem Bereich (Liste, Board, Meilensteine, Home, Auslastung); **Suche bleibt am Vollbestand**, Treffer außerhalb werden gekennzeichnet, Deep-Links öffnen jeden Antrag (Pitfall #46).
+- Gemessen: Board-Rechenzeit 6,5 s → 4,7 s über den Bestand; von den sichtbaren Zahlen ändert sich **nur** „Alle" (9 316 → 5 542) — kein Arbeitsvorrat-Zähler.
+- Das Board verlinkte auf `?az=`, das niemand liest — ein toter Link auf leere Liste, jetzt der Pfad ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)).
+
 ### v2.388.0 — Zieltage-Sammelübernahme (August 2026)
 
 MINOR — Der Stillstands-Wächter braucht je Status eine Zielvorgabe; gepflegt waren 7 von 74 Werten, weil jeder einzeln zu setzen war. Die Sammel-Übernahme macht daraus einen Schritt — mit Vorschau, und ohne zu raten, wo die Datengrundlage fehlt.

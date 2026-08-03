@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
@@ -29,7 +31,15 @@ export interface EingangAmpelCounts {
  * bisherigen Defaults (30/90) unverändert.
  */
 export function useEingangAmpelCounts(schwellen?: AmpelSchwellen): EingangAmpelCounts {
-  const antraege = useAntraegeStore(s => s.antraege);
+  const alleAntraege = useAntraegeStore(s => s.antraege);
+  const bereichMenge = useBereich().menge;
+  // Arbeitsvorrat-Zähler ⇒ Betrachtungsbereich, wie die Liste (Pitfall #46).
+  const antraege = useMemo(
+    () => (bereichMenge === null
+      ? alleAntraege
+      : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge))),
+    [alleAntraege, bereichMenge],
+  );
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
 

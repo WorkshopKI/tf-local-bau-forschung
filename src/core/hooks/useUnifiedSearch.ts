@@ -51,6 +51,8 @@ import {
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { useUnterprogrammLabels } from '@/plugins/antraege/useUnterprogrammLabels';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 
 const DEBOUNCE_MS = 300;
@@ -138,6 +140,7 @@ function mapAntragHit(
     // Roher Unterprogramm-Code; das sprechende Label wird erst nach dem Mappen
     // via useUnterprogrammLabels aufgeloest (Fallback = Code).
     unterprogramm: item?.unterprogramm_id?.trim() || undefined,
+    unterprogrammCode: item?.unterprogramm_id?.trim() || undefined,
     antragsteller: item?.antragsteller,
     status: item?.status,
     statusKategorie: item?.status ? getStatusCategory(item.status) : undefined,
@@ -174,6 +177,7 @@ function mapDokumentHit(
       ? (programmNameById.get(linkedItem.programm_id) ?? linkedItem.programm_id)
       : undefined,
     unterprogramm: linkedItem?.unterprogramm_id?.trim() || undefined,
+    unterprogrammCode: linkedItem?.unterprogramm_id?.trim() || undefined,
   };
 }
 
@@ -203,6 +207,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   // Code→Name-Map der Unterprogramme des aktiven Programms (Modul-gecacht).
   // Die Suche ist immer auf EIN Programm gescoped, daher genuegt eine Map.
   const unterprogrammLabels = useUnterprogrammLabels(activeProgrammId);
+  const bereichMenge = useBereich().menge;
 
   const [results, setResults] = useState<UnifiedSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -424,20 +429,26 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   // NACH der Streaming-Pipeline als reines Memo, damit der Effekt-Dep-Array
   // unberuehrt bleibt (kein zusaetzlicher Such-Re-Run/Flicker beim Label-Load).
   const resultsWithUnterprogramm = useMemo(() => {
-    if (unterprogrammLabels.size === 0) return results;
+    // Die Suche bleibt IMMER am Vollbestand (Pitfall #46) — sie ist Evidenz,
+    // kein Arbeitsvorrat. Damit ein Treffer außerhalb des Anzeigebereichs nicht
+    // wie ein Widerspruch zur Liste wirkt, wird er MARKIERT, nicht entfernt.
+    if (unterprogrammLabels.size === 0 && bereichMenge === null) return results;
     let changed = false;
     const out = results.map(r => {
+      let next = r;
       if (r.unterprogramm) {
         const label = unterprogrammLabels.get(r.unterprogramm);
-        if (label && label !== r.unterprogramm) {
-          changed = true;
-          return { ...r, unterprogramm: label };
-        }
+        if (label && label !== r.unterprogramm) next = { ...next, unterprogramm: label };
       }
-      return r;
+      if (bereichMenge !== null && r.unterprogrammCode !== undefined
+        && !istImBereich(r.unterprogrammCode, bereichMenge)) {
+        next = { ...next, ausserhalbBereich: true };
+      }
+      if (next !== r) changed = true;
+      return next;
     });
     return changed ? out : results;
-  }, [results, unterprogrammLabels]);
+  }, [results, unterprogrammLabels, bereichMenge]);
 
   return {
     results: resultsWithUnterprogramm,

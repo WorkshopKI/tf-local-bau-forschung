@@ -1816,6 +1816,39 @@ describe('status-kategorie-nur-aus-katalog (Ordnerbaum ist Daten, kein Code)', (
   });
 });
 
+describe('bereich-nie-im-daten-layer (Pitfall #46)', () => {
+  // Der Betrachtungsbereich ist ein EXPLIZITER Parameter jedes Konsumenten —
+  // Arbeitsvorrat folgt ihm, Evidenz nicht. Zöge ihn stattdessen der Daten-Layer
+  // (IDB-Leser, CSV-Dienste, Suchkorpus), gäbe es keine Stelle mehr, an der man
+  // ihn abschalten könnte: die Suche fände dann nur noch, was ohnehin sichtbar
+  // ist, und ein Deep-Link auf ein Altprogramm liefe ins Leere.
+  const VERBOTEN = /\bistImBereich\b|useBereich\b/;
+  const TABU = [
+    'src/core/services/csv/',        // IDB-Leser + Projektionen
+    'src/core/services/search/',     // Suchkorpus + Orama
+    'src/plugins/antraege/services/', // Antrags-Suchkorpus
+  ];
+
+  it('kein Bereichs-Filter in Daten-Layer oder Suchkorpus', () => {
+    const treffer = ALL_TS_FILES.filter(f => {
+      const p = relPath(f);
+      if (p.includes('__tests__')) return false;
+      if (!TABU.some(t => p.startsWith(t))) return false;
+      return readFileSync(f, 'utf-8').split(/\r?\n/).some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        return VERBOTEN.test(l);
+      });
+    }).map(relPath);
+    expect(
+      treffer,
+      'Der Betrachtungsbereich gehört an den Konsumenten, nicht in den Daten-Layer. '
+      + 'Die globale Suche bleibt am Vollbestand, und ein Antrag muss per Deep-Link '
+      + `immer erreichbar sein (Pitfall #46). Gefunden in: ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
+});
+
 describe('kuerzel-genau-ein-speicherort (Regression des v2.376-Doppelfelds)', () => {
   // Vier Kürzel des Fachsystems hängen an einem KANONISCHEN Feld (`AAE` →
   // antragsdatum, `ABB` → bewilligung_datum, `AZ1` → erstentscheidung, `VBE` →

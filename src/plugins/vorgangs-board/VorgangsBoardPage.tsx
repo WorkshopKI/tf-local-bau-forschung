@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { BereichChip } from '@/components/bereich/BereichChip';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { Badge } from '@/components/ui/badge';
@@ -135,7 +136,11 @@ export function VorgangsBoardPage(): React.ReactElement {
   const navigate = useNavigate();
 
   const oeffnen = (z: BoardZeile): void => {
-    navigate(z.verbundId ? `/antraege/${z.verbundId}` : `/antraege?az=${z.aktenzeichen}`);
+    // Beides über den Pfad: `?az=` liest niemand — der Parameter war ein toter
+    // Link, der still auf einer leeren Liste landete. `/antraege/<akz>` setzt
+    // die Auswahl über den Router und öffnet den Antrag auch dann, wenn er
+    // außerhalb des Betrachtungsbereichs liegt.
+    navigate(`/antraege/${z.verbundId ?? z.aktenzeichen}`);
   };
 
   const TABS: { key: BoardTab; label: string }[] = [
@@ -155,6 +160,7 @@ export function VorgangsBoardPage(): React.ReactElement {
         <PageHeader
           title="Vorgangs-Board"
           subtitle="Was steht an, wo klemmt es, wann läuft es ab"
+          meta={<BereichChip ausgeblendet={api.ausgeblendet} />}
           actions={<SeitenHilfeButton pluginId="vorgangs-board" />}
         />
         <ScopeTabs

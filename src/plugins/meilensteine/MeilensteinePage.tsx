@@ -20,6 +20,7 @@
  */
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { BereichChip } from '@/components/bereich/BereichChip';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
@@ -245,6 +246,7 @@ export function MeilensteinePage(): React.ReactElement {
     <PageHeader
       title="Fristen & Meilensteine"
       subtitle="Bearbeitungs-Meilensteine je Verbund, gemessen ab Antragseingang"
+      meta={<BereichChip ausgeblendet={stand.ausgeblendet} />}
       actions={<SeitenHilfeButton pluginId="meilensteine" />}
     />
   );

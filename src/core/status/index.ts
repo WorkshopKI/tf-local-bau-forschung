@@ -63,6 +63,10 @@ export {
 } from './kategorie-ableitung';
 export { indexNachSchreibweise } from './wert-index';
 export {
+  BETRACHTUNGSBEREICH_SEED, bereichsProgramme, bereichsMenge, istImBereich,
+  bereichWeichtVomSeedAb,
+} from './betrachtungsbereich';
+export {
   waehleZieltageVorschlaege, MIN_STICHPROBE, ZIELTAGE_PHASEN,
   type ZieltageAuswahl, type ZieltageUebernahme,
 } from './zieltage-vorschlag';

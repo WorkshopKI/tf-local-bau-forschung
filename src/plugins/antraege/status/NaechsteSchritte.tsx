@@ -19,6 +19,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 import { useStorage } from '@/core/hooks/useStorage';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
@@ -98,6 +99,7 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
   programm: string | null;
 }): React.ReactElement | null {
   const { profile } = useProfile();
+  const labels = useRichtlinienLabels();
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
   const [alleZeigen, setAlleZeigen] = useState(false);
   const { trigger, geladen } = useTriggerTabelle();
@@ -168,15 +170,17 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
         <p className="flex items-start gap-1.5 text-[12px] text-[var(--tf-warning-text)]">
           <AlertTriangle size={13} className="shrink-0 mt-[2px]" />
           <span>
-            Für Programm {programm} sind keine Trigger importiert. Die Zuarbeit führt sie je
-            Richtlinie — Import im Status-Katalog unter „Referenzdaten".
+            Für „{richtlinienLabel(programm ?? '', labels)}" ({programm}) sind keine Trigger
+            importiert. Die Zuarbeit führt sie je Richtlinie — Import im Status-Katalog unter
+            „Referenzdaten".
           </span>
         </p>
       ) : (
         <>
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            Aus den Vorbedingungen der Trigger-Tabelle für Programm {programm} abgeleitet: was das
-            Fachsystem unter dem aktuellen Status zuließe. Was fachlich ansteht, weiß die App nicht.
+            Aus den Vorbedingungen der Trigger-Tabelle für „{richtlinienLabel(programm ?? '', labels)}"
+            abgeleitet: was das Fachsystem unter dem aktuellen Status zuließe. Was fachlich ansteht,
+            weiß die App nicht.
             {!ergebnis.relevanzGefiltert
               && ' Es sind noch keine Kürzel als relevant markiert — geprüft werden deshalb alle.'}
             {tvAnzahl > 1

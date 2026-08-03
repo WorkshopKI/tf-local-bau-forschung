@@ -14,6 +14,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import {
   listAllAntraegeListView, listProgramme, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
@@ -38,6 +40,8 @@ export interface MeilensteinStandApi {
   keinPlan: boolean;
   plan: MeilensteinPlan | null;
   zeilen: VerbundZeile[];
+  /** Verbünde, die der Betrachtungsbereich wegnimmt (für den Chip). */
+  ausgeblendet: number;
   /** Abgeschlossene Vorgänge für die Dauer-Auswertung (aus der Listen-Projektion). */
   abschluesse: AbschlussFall[];
   meinKuerzel: string;
@@ -54,6 +58,7 @@ function abschlussDatumVon(a: { bewilligung_datum?: string; erstentscheidung?: s
 export function useMeilensteinStand(): MeilensteinStandApi {
   const idb = useStorage().idb;
   const meinKuerzel = (useMeinKuerzel() ?? '').trim();
+  const bereich = useBereich();
 
   const [laden, setLaden] = useState(true);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -113,7 +118,21 @@ export function useMeilensteinStand(): MeilensteinStandApi {
     return m;
   }, [listItems]);
 
-  const zeilen = useMemo<VerbundZeile[]>(() => roh.map(v => {
+  /**
+   * Verbünde im Betrachtungsbereich. Der Bereich hängt an der `FM_NUMMER` des
+   * Antrags; die Meilenstein-Projektion rechnet je Verbund — die Zuordnung kommt
+   * deshalb über die Listen-Projektion, die ohnehin geladen ist.
+   */
+  const imBereich = useMemo(() => {
+    if (bereich.menge === null) return null;
+    const ids = new Set<string>();
+    for (const a of listItems) {
+      if (a.verbund_id && istImBereich(a.unterprogramm_id, bereich.menge)) ids.add(a.verbund_id);
+    }
+    return ids;
+  }, [listItems, bereich.menge]);
+
+  const zeilen = useMemo<VerbundZeile[]>(() => roh.filter(v => imBereich === null || imBereich.has(v.verbundId)).map(v => {
     const m = meta.get(v.verbundId);
     return {
       ...v,
@@ -121,7 +140,7 @@ export function useMeilensteinStand(): MeilensteinStandApi {
       titel: m?.titel ?? '',
       kuerzel: m ? [...m.kuerzel] : [],
     };
-  }), [roh, meta]);
+  }), [roh, meta, imBereich]);
 
   /**
    * Abschlüsse für die Dauer-Auswertung: ein Eintrag je Verbund, Anker ist das
@@ -146,5 +165,8 @@ export function useMeilensteinStand(): MeilensteinStandApi {
       }));
   }, [listItems]);
 
-  return { laden, fehler, keinPlan, plan, zeilen, abschluesse, meinKuerzel, stand, neuLaden: laden0 };
+  return {
+    laden, fehler, keinPlan, plan, zeilen, abschluesse, meinKuerzel, stand, neuLaden: laden0,
+    ausgeblendet: imBereich === null ? 0 : roh.length - zeilen.length,
+  };
 }

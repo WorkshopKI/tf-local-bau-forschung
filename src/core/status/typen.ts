@@ -434,6 +434,13 @@ export interface MappingVersion {
   todoRegeln?: TodoRegel[];
   /** Legende der Mail-Textbausteine aus der Legacy-Parametertabelle. */
   textbausteine?: TextbausteinEintrag[];
+  /**
+   * Der **Betrachtungsbereich**: welche Förder-Richtlinien (`FM_NUMMER`) zählen
+   * zum Arbeitsvorrat. Fehlt er, gilt der ausgelieferte Seed
+   * (`betrachtungsbereich.ts`) — dieselbe Reihenfolge wie bei der
+   * Kategorie-Fassade: Code als Grundlage, Fassung als Kuration.
+   */
+  betrachtungsbereich?: { programme: string[] };
 
   // Die **Trigger-Tabelle** steht bewusst NICHT hier, sondern in der
   // Geschwister-Sidecar `_intern/status-trigger.json` (`trigger-share.ts`):

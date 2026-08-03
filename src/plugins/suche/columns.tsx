@@ -208,6 +208,17 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     render: r => (
       <div className="min-w-0">
         <span className="font-medium text-[13px] text-[var(--tf-text)]">{r.title}</span>
+        {/* Die Suche bleibt am Vollbestand — ein Treffer aus einem
+            stillgelegten Altprogramm wird gekennzeichnet, nicht verschwiegen.
+            Öffnen geht trotzdem; der Bereich bleibt, wie er ist. */}
+        {r.ausserhalbBereich && (
+          <span
+            className="ml-1.5 text-[10.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap"
+            title="Dieser Antrag liegt außerhalb des eingestellten Anzeigebereichs. Er lässt sich trotzdem öffnen."
+          >
+            · außerhalb des Anzeigebereichs
+          </span>
+        )}
         {r.snippet && (
           <>
             <span className="text-[12px] text-[var(--tf-text-tertiary)]"> — </span>

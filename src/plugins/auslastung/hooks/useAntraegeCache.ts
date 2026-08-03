@@ -36,10 +36,12 @@
  *  - KuerzelMap-Append (neuer TIB): `ensureAggregates()` rechnet die Aggregate
  *    via Key-Vergleich nach.
  */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import {
   forEachAntragChunkByProgramm,
   listAntraegeListViewByProgramm,
@@ -71,6 +73,14 @@ export interface AntraegeCache {
   /** Slim-Projektion (v2.63) — Listen/Filter/Aggregation. Volle Records bei
    *  Bedarf per `getAntrag`-Point-Read. */
   antraege: AntragListItem[];
+  /**
+   * Derselbe Stand OHNE Betrachtungsbereich.
+   *
+   * Die Kompetenz-Historie und die AnonymMap brauchen den Vollbestand: die Map
+   * ist append-only und führt ehemalige Bearbeiter als Referenz (Pitfall
+   * #17/#18). Wer Arbeitsvorrat meint, nimmt `antraege`.
+   */
+  antraegeVollbestand: AntragListItem[];
   /** Raw-Array aus dem Store — ref-stable ueber Re-Mount (im Gegensatz zu
    *  `verbuendeById`, das durch useMemo geht). Konsumenten, die Closure-
    *  Caches keyen, nutzen DIESE Property. */
@@ -630,8 +640,29 @@ export function useAntraegeCache(): AntraegeCache {
     ensureAggregates();
   }, [ensureAggregates, antraege, verbuende, kuerzelMapFile, loaded, kuerzelMapLoaded, aggregatesLoaded]);
 
+  /**
+   * **Betrachtungsbereich am Arbeitsvorrat, nicht an der Kompetenz-Historie.**
+   *
+   * Was die Auslastung als offene Arbeit zeigt (Listen, Kapazität,
+   * Zuweisbarkeit), folgt dem Bereich wie jede andere Arbeitssicht. Die
+   * historischen Aggregate und die AnonymMap laufen bewusst weiter über den
+   * VOLLBESTAND: die Map ist append-only und führt ehemalige Bearbeiter als
+   * Kompetenz-Referenz (Pitfall #17/#18), und ein Bearbeiter, der nur in
+   * Altprogrammen gearbeitet hat, verlöre sonst sein Profil. Das Zuweisungs-
+   * Cockpit sagt diese Trennung in der Datenbasis-Zeile ausdrücklich.
+   */
+  const bereichMenge = useBereich().menge;
+  const antraegeImBereich = useMemo(
+    () => (bereichMenge === null
+      ? antraege
+      : antraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge))),
+    [antraege, bereichMenge],
+  );
+
   return {
-    antraege,
+    antraege: antraegeImBereich,
+    /** Der ungefilterte Stand — für die Datenbasis-Zeile und die AnonymMap. */
+    antraegeVollbestand: antraege,
     verbuende,
     verbuendeById,
     loading,

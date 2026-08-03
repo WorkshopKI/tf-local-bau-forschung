@@ -21,6 +21,8 @@ import { toVbPhaseNumber, VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { computeFristDatum, wirksamerEingang } from '@/core/services/csv/frist';
 import { isBegleitungStatus, isTerminalStatus } from '@/core/utils/status-canonical';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import type { AntragListItem } from '@/core/services/csv/types';
 import {
   ladeAktiveVersion, getAktiveVersion, baueFeldAufloesung, sammleVorkommen,
@@ -143,6 +145,10 @@ export interface VorgangsBoardApi {
   phasen: { id: string; label: string }[];
   /** Kürzel-Modus für die Kopfzeile („Alle Bearbeiter" vs. „Kürzel MUE"). */
   kuerzelModus: BearbeiterFilterMode;
+  /** Wie viele Anträge der Betrachtungsbereich weggenommen hat (für den Chip). */
+  ausgeblendet: number;
+  /** Rechenzeit des letzten Laufs über den Bestand, in Millisekunden. */
+  ladeMs: number | null;
 }
 
 const ALLE = 'alle';
@@ -201,6 +207,11 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   const [fehler, setFehler] = useState<string | null>(null);
   const [version, setVersion] = useState<MappingVersion | null>(null);
   const [alle, setAlle] = useState<BoardZeile[]>([]);
+  const [ausgeblendet, setAusgeblendet] = useState(0);
+  /** Rechenzeit des letzten Laufs über den Bestand (ms) — für die Messung. */
+  const [ladeMs, setLadeMs] = useState<number | null>(null);
+  const bereich = useBereich();
+  const bereichMenge = bereich.menge;
 
   const [tab, setTab] = useState<BoardTab>('meine');
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
@@ -217,6 +228,10 @@ export function useVorgangsBoard(): VorgangsBoardApi {
       const v = getAktiveVersion() ?? await ladeAktiveVersion(idb);
       const regeln = v.todoRegeln ?? [];
       const zeilen: BoardZeile[] = [];
+      // Gemessen und angezeigt, nicht geschätzt: die Ladezeit über den Bestand
+      // ist die Zahl, an der sich der Bereich rechtfertigen muss.
+      const begonnen = performance.now();
+      let uebergangen = 0;
 
       for (const p of await listProgramme(idb)) {
         const [verbuende, antraege, schemas] = await Promise.all([
@@ -232,6 +247,11 @@ export function useVorgangsBoard(): VorgangsBoardApi {
         );
 
         for (const a of antraege) {
+          // Betrachtungsbereich VOR der teuren Arbeit: `sammleVorkommen`,
+          // `ermittleTodo` und der Wächter laufen je Antrag über das ganze
+          // Feld-Ensemble. Was nicht im Bereich liegt, wird gar nicht erst
+          // gerechnet — hier spart der Bereich Zeit, nicht nur Zeilen.
+          if (!istImBereich(a.unterprogramm_id, bereichMenge)) { uebergangen += 1; continue; }
           const rec = a as unknown as Record<string, unknown>;
           const vbId = typeof a.verbund_id === 'string' && a.verbund_id ? a.verbund_id : null;
           const vorkommen = sammleVorkommen(
@@ -291,12 +311,21 @@ export function useVorgangsBoard(): VorgangsBoardApi {
 
       setVersion(v);
       setAlle(zeilen);
+      const ms = Math.round(performance.now() - begonnen);
+      setAusgeblendet(uebergangen);
+      setLadeMs(ms);
+      // Die Rechenzeit über den Bestand ist die Zahl, an der sich der Bereich
+      // rechtfertigen muss — messbar statt behauptet.
+      console.info(
+        `[vorgangs-board] ${zeilen.length} Vorgänge in ${ms} ms gerechnet`
+        + (uebergangen > 0 ? ` · ${uebergangen} außerhalb des Bereichs übersprungen` : ''),
+      );
     } catch (err) {
       setFehler((err as Error).message ?? 'Board konnte nicht geladen werden.');
     } finally {
       setLaden(false);
     }
-  }, [idb]);
+  }, [idb, bereichMenge]);
 
   useEffect(() => { void laden_(); }, [laden_]);
 
@@ -427,6 +456,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     tab, setTab, rolle, setRolle, nurMeine, setNurMeine,
     jahr, setJahr, variante, setVariante, phase, setPhase,
     jahre, alleJahrgaenge: jahr === ALLE, varianten, phasen, kuerzelModus,
+    ausgeblendet, ladeMs,
     nurHaengt, setNurHaengt, stau, unbewertet,
   };
 }

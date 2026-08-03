@@ -3,6 +3,8 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { parseBearbeiterFilter, applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
@@ -56,6 +58,7 @@ export function useDashboardData(): DashboardData {
   // useDeferredValue puffert die kaskadierenden Store-Updates beim Home-Mount
   // (Antraege landen asynchron im Store) und berechnet die Memo mit niedriger
   // Prioritaet, sobald sich der Wert stabilisiert hat.
+  const bereichMenge = useBereich().menge;
   const antraege = useDeferredValue(antraegeRaw);
   const verbundById = useDeferredValue(verbundByIdRaw);
 
@@ -68,8 +71,14 @@ export function useDashboardData(): DashboardData {
     // Im „alle"-Modus die Förderanträge inaktiver MAs ausblenden (pl/dev),
     // konsistent zur Förderanträge-Liste.
     const antraegeFiltered = applyInaktiveExclusion(antraege, bearbeiterMode.active, inaktiveKuerzel, showInaktive);
+    // Betrachtungsbereich: die Startseite zeigt Arbeitsvorrat, also gilt er hier
+    // wie in der Liste. Ohne ihn nennte das Dashboard Zahlen, die im
+    // Förderanträge-Tab darunter nie erscheinen.
+    const imBereich = bereichMenge === null
+      ? antraegeFiltered
+      : antraegeFiltered.filter(a => istImBereich(a.unterprogramm_id, bereichMenge));
 
-    const agg = computeDashboardAggregate(antraegeFiltered, bearbeiterMode, {
+    const agg = computeDashboardAggregate(imBereich, bearbeiterMode, {
       includeAntraege: true,
       verbundById,
     });
@@ -99,5 +108,5 @@ export function useDashboardData(): DashboardData {
     };
     end(`antraege=${antraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [antraege, verbundById, meinKuerzel, profile?.bearbeiter_inkl_begleitung, inaktiveKuerzel, showInaktive]);
+  }, [antraege, verbundById, meinKuerzel, profile?.bearbeiter_inkl_begleitung, inaktiveKuerzel, showInaktive, bereichMenge]);
 }

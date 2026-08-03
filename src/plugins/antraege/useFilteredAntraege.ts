@@ -23,6 +23,8 @@ import { applyPrecheckBucket } from './filter/precheckQuickfilter';
 import { filtereAmpelQuickfilter } from './eingangAmpel';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 
 /** True wenn die User mind. einen Filter auf das Feld `vb_phase` aktiv hat —
  *  in dem Fall wird der implizite Irrlaeufer-Pre-Filter deaktiviert, damit die
@@ -56,13 +58,36 @@ export interface FilteredAntraegeResult {
    * Wechsel.
    */
   countBase: AntragListItem[];
+  /**
+   * Wie viele Anträge der Betrachtungsbereich gerade wegnimmt — die Zahl für
+   * den Chip. Ohne sie wäre die Einschränkung unsichtbar (Pitfall #46).
+   */
+  ausgeblendet: number;
 }
 
 /** Zentrales Memo der View+Filter+Search+Sort-Pipeline. Header und List-Panel
  *  konsumieren beide das Resultat — sonst rechnet jeder dieselbe Pipeline
  *  doppelt. */
 export function useFilteredAntraege(): FilteredAntraegeResult {
-  const antraege = useAntraegeStore(s => s.antraege);
+  const alleAntraege = useAntraegeStore(s => s.antraege);
+  const bereich = useBereich();
+  const selectedAktenzeichen = useAntraegeStore(s => s.selectedAktenzeichen);
+  const selectedVerbundId = useAntraegeStore(s => s.selectedVerbundId);
+  /**
+   * **Vorfilter Betrachtungsbereich** — vor der View, damit auch Tab-Zähler und
+   * Quickfilter-Counts auf derselben Grundmenge rechnen.
+   *
+   * Der gerade geöffnete Datensatz bleibt sichtbar, auch wenn er außerhalb
+   * liegt: sonst risse ein Deep-Link oder ein Suchtreffer ab, sobald man ihn
+   * anklickt — genau der Fall, für den die Suche am Vollbestand bleibt.
+   */
+  const antraege = useMemo(() => {
+    if (bereich.menge === null) return alleAntraege;
+    return alleAntraege.filter(a =>
+      istImBereich(a.unterprogramm_id, bereich.menge)
+      || (selectedAktenzeichen !== null && a.aktenzeichen === selectedAktenzeichen)
+      || (selectedVerbundId !== null && a.verbund_id === selectedVerbundId));
+  }, [alleAntraege, bereich.menge, selectedAktenzeichen, selectedVerbundId]);
   const search = useAntraegeStore(s => s.search);
   const hybridMatchAkz = useAntraegeStore(s => s.hybridSearch.matchedAkz);
   const searchIgnoreBearbeiterFilter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
@@ -159,6 +184,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
       countBase: byInaktive,
+      ausgeblendet: alleAntraege.length - antraege.length,
     };
-  }, [antraege, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
+  }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
 }

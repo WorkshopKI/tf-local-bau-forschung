@@ -25,6 +25,7 @@ import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import { herleitungAlsText, type Herleitung, type VerlaufSchritt } from '@/core/status';
 import { useHerleitung, type AbweichendeEbene, type StatusEbene } from './useHerleitung';
+import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 
 const EBENE_LABEL: Record<StatusEbene, string> = {
   verbund: 'Verbund-Status',
@@ -90,6 +91,7 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
     }),
     'Herleitung kopieren',
   );
+  const labels = useRichtlinienLabels();
   const v = h.letzterVorgang;
 
   return (
@@ -181,7 +183,8 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
             )}
             {v.trigger.length === 0 && h.programmOhneTrigger && (
               <p className="mt-1 text-[11.5px] text-[var(--tf-warning-text)]">
-                Für Programm {h.programm} sind keine Trigger importiert.
+                Für „{richtlinienLabel(h.programm ?? '', labels)}" ({h.programm}) sind keine
+                Trigger importiert.
               </p>
             )}
           </>

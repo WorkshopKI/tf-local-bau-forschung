@@ -42,6 +42,16 @@ export interface UnifiedSearchResult {
    *  geladen sind bzw. kein Name kuratiert ist — der rohe Unterprogramm-Code.
    *  Für die kombinierte „Programm/Unterprogramm"-Anzeige in der Suchtabelle. */
   unterprogramm?: string;
+  /** Der rohe Code, unabhängig vom Label — für den Bereichs-Abgleich. */
+  unterprogrammCode?: string;
+  /**
+   * Der Treffer liegt außerhalb des Betrachtungsbereichs.
+   *
+   * Die Suche bleibt am Vollbestand (Pitfall #46) — sie ist Evidenz, kein
+   * Arbeitsvorrat. Ohne diese Marke sähe ein Treffer aus einem stillgelegten
+   * Altprogramm wie ein Widerspruch zur Liste aus, die ihn nicht führt.
+   */
+  ausserhalbBereich?: boolean;
   antragsteller?: string;
   /** Roh-Status-String aus CSV. */
   status?: string;

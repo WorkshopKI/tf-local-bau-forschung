@@ -37,6 +37,8 @@ import { applyFilters } from '@/core/services/csv/filter/engine';
 import type { FilterDefinition, UserPreset } from '@/core/services/csv/filter/types';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { bearbeiterScopeLabel, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 import { getStatusCategoryLabel } from '@/plugins/antraege/groupAggregates';
 import { WIDGET_KATALOG } from './widgetCatalog';
@@ -76,7 +78,15 @@ const OHNE_PRESET: PresetZustand = { preset: null, fehlt: false, definitions: []
 export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const storage = useStorage();
   const { navigate } = useNavigation();
-  const antraege = useAntraegeStore(s => s.antraege);
+  const alleAntraege = useAntraegeStore(s => s.antraege);
+  const bereichMenge = useBereich().menge;
+  // Arbeitsvorrat-Widget ⇒ Betrachtungsbereich, wie die Liste (Pitfall #46).
+  const antraege = useMemo(
+    () => (bereichMenge === null
+      ? alleAntraege
+      : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge))),
+    [alleAntraege, bereichMenge],
+  );
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);

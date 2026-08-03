@@ -22,6 +22,8 @@ import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuensche';
 import { usePersistedKlassifizierungenView } from '../hooks/useKlassifizierungen';
 import { getAntrag } from '@/core/services/csv/idb-csv';
+import { BereichChip } from '@/components/bereich/BereichChip';
+import { useBereich } from '@/core/hooks/useBereich';
 import { runMatchingWithContext } from '../services/matching';
 import {
   buildZuweisbarkeitsPruefung,
@@ -90,6 +92,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const applyUebernahmeWuensche = useAuslastungData(s => s.applyUebernahmeWuensche);
 
   const cache = useAntraegeCache();
+  const bereich = useBereich();
   // v2.9: offene Übernahme-Wünsche (read-only aus den persönlichen Ordnern) —
   // markiert Anträge schon VOR dem Einsammeln als „vorgemerkt".
   const { pendingByAntrag, wunschStand, reloadPending } = usePendingUebernahmeWuensche(cache.anonymMap);
@@ -710,6 +713,19 @@ export function ZuweisungsCockpit(): React.ReactElement {
           </Button>
         </div>
       </div>
+
+      {/* Datenbasis ausdrücklich, weil sie hier ZWEI verschiedene sind: der
+          Arbeitsvorrat folgt dem Betrachtungsbereich, die Kompetenz-Historie
+          nicht. Wer eine Empfehlung liest, muss wissen, worauf sie beruht. */}
+      <p className="flex items-center gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]">
+        <BereichChip />
+        Arbeitsvorrat: {cache.antraege.length.toLocaleString('de-DE')} Anträge
+        {' '}({bereich.modus === 'alle' ? 'alle Richtlinien' : `${bereich.programme.length} Richtlinien`})
+        {' · '}
+        <span title="Die Kompetenz-Profile der Bearbeiter stammen aus dem gesamten Bestand — auch aus Altprogrammen. Ein Bearbeiter, der nur dort gearbeitet hat, verlöre sonst sein Profil.">
+          Kompetenz-Basis: {cache.antraegeVollbestand.length.toLocaleString('de-DE')} Anträge (gesamter Bestand)
+        </span>
+      </p>
 
       {/* Filter-Chips im Stil der Foerderantraege-Quickfilter (CollapsibleSeg) */}
       <FilterToolbar

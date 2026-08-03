@@ -7,6 +7,9 @@ import { useFilterState } from './filter/useFilterState';
 import { VIEWS, viewCounts, type ViewKey } from './views';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { BereichChip } from '@/components/bereich/BereichChip';
+import { useBereich } from '@/core/hooks/useBereich';
+import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { menuLabel, isAuslastungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,7 +44,16 @@ interface Props {
  *  wird zurückgesetzt — Suchtext, aktive Sicht und Filter greifen unverändert,
  *  sobald die Liste wieder eingeblendet ist. */
 export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Props): React.ReactElement {
-  const antraege = useAntraegeStore(s => s.antraege);
+  const alleAntraege = useAntraegeStore(s => s.antraege);
+  const bereich = useBereich();
+  // Tab-Zähler auf derselben Grundmenge wie die Liste — sonst nennt der Kopf
+  // eine Zahl, die im Panel darunter nie erscheint (Pitfall #46).
+  const antraege = useMemo(
+    () => (bereich.menge === null
+      ? alleAntraege
+      : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereich.menge))),
+    [alleAntraege, bereich.menge],
+  );
   const activeView = useAntraegeStore(s => s.activeView);
   const setActiveView = useAntraegeStore(s => s.setActiveView);
   const search = useAntraegeStore(s => s.search);
@@ -132,12 +144,17 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
         <PageHeader
           className="mb-3"
           title={menuLabel('antraege', 'Förderanträge')}
-          meta={bearbeiterFilter.active ? (
-            <BearbeiterFilterPill
-              tokens={bearbeiterFilter.tokens}
-              includeBegleitung={bearbeiterFilter.includeBegleitung}
-            />
-          ) : null}
+          meta={(
+            <span className="inline-flex items-center gap-1.5 flex-wrap">
+              <BereichChip ausgeblendet={alleAntraege.length - antraege.length} />
+              {bearbeiterFilter.active && (
+                <BearbeiterFilterPill
+                  tokens={bearbeiterFilter.tokens}
+                  includeBegleitung={bearbeiterFilter.includeBegleitung}
+                />
+              )}
+            </span>
+          )}
           actions={<SeitenHilfeButton pluginId="antraege" />}
         />
 
