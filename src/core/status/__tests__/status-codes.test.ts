@@ -82,7 +82,7 @@ describe('findeStatusCode', () => {
     expect(findeStatusCode(42)).toBeNull();
   });
 
-  it('lässt Bauantrag-Werte unberührt (andere Domäne, Pitfall #9)', () => {
+  it('lässt katalogfremde Werte unberührt (Pitfall #9)', () => {
     for (const v of ['neu', 'genehmigt', 'archiviert', 'in_pruefung', 'nachbesserung', 'abgelehnt']) {
       expect(findeStatusCode(v)).toBeNull();
     }
@@ -208,12 +208,6 @@ describe('Seed-Anbindung', () => {
     // Dasselbe Vokabular liegt unter beiden Wert-Feldern.
     const nfVb = seed.werte.find(w => w.feldId === 'verbund_status' && w.wert === 'nf gestellt');
     expect(nfVb?.code).toBe(35);
-  });
-
-  it('lässt die Bauantrag-Werte des Seeds ohne Code', () => {
-    const bau = seed.werte.filter(w => ['neu', 'genehmigt', 'archiviert'].includes(w.wert));
-    expect(bau.length).toBeGreaterThan(0);
-    expect(bau.every(w => w.code === undefined)).toBe(true);
   });
 
   it('zaehleOhneCode zählt genau die Werte ohne Zuordnung', () => {

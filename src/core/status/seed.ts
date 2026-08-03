@@ -68,7 +68,7 @@ function baueWerte(): StatusWertEintrag[] {
   // Vorgangssystem: Code, Varianten, ZAH-Phase und Marker-Flag anreichern.
   // Additiv — die Kategorie oben bleibt unangetastet, damit `getStatusCategory`
   // über den Snapshot bitweise identisch bleibt (`byte-identitaet`). Werte der
-  // Bauantrag-Domäne treffen keinen Förder-Code und laufen unverändert durch.
+  // ohne Code laufen unverändert durch.
   return reichereWerteAn(werte);
 }
 

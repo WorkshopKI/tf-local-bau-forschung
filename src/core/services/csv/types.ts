@@ -58,8 +58,8 @@ export type CanonicalLevel = 'antrag' | 'verbund';
  * an. Boundary-Cast via `asAntragStatusRaw()` nur an Schreib-Stellen
  * (CSV-Merger, Seed-Loader, Test-Fixtures).
  *
- * Vorgang.status (Bauantrag-Domain) bleibt als Union-Type — dort verhindert
- * die Union schon Typos. Branded ist nur die offene CSV-Status-Domäne.
+ * `Vorgang.status` (Home-Projektion) ist ungebrandeter `string` — dorthin
+ * fliesst derselbe Rohwert, nur ohne Brand-Zwang an der Projektionsgrenze.
  */
 export type AntragStatusRaw = string & { readonly __brand: 'AntragStatusRaw' };
 export const asAntragStatusRaw = (s: string): AntragStatusRaw => s as AntragStatusRaw;

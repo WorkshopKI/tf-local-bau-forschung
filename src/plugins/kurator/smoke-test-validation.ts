@@ -7,7 +7,7 @@ export interface ValidationResult {
 }
 
 const KNOWN_DOC_TYPES = [
-  'Bauantrag', 'Foerderantrag', 'Gutachten', 'Stellungnahme', 'Protokoll',
+  'Foerderantrag', 'Gutachten', 'Stellungnahme', 'Protokoll',
   'Nachforderung', 'Formular', 'Statik', 'Brandschutzkonzept',
   'Schallschutznachweis', 'Energienachweis', 'Zwischenbericht', 'Review',
   'Ethikantrag', 'Datenschutz', 'Compliance', 'Sonstiges',

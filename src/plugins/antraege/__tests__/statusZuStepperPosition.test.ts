@@ -78,10 +78,6 @@ describe('Terminal-negativ bricht an der Abschluss-Station ab', () => {
       .toEqual({ station: st('abgeschlossen'), terminal: 'zurueckgezogen' });
   });
 
-  it('Bauantrag `abgelehnt` (eigener Endzustand)', () => {
-    expect(statusZuStepperPosition('abgelehnt'))
-      .toEqual({ station: st('abgeschlossen'), terminal: 'abgelehnt' });
-  });
 });
 
 describe('Marker sind keine Stufe', () => {
@@ -100,13 +96,15 @@ describe('Marker sind keine Stufe', () => {
   });
 });
 
-describe('Bauantrag-Domäne (dev/demo) fällt auf die Kategorie zurück', () => {
-  it('ordnet die Snake-Case-Werte ohne amtlichen Code ein', () => {
-    expect(statusZuStepperPosition('neu')).toEqual({ station: st('eingang') });
-    expect(statusZuStepperPosition('in_pruefung')).toEqual({ station: st('pruefung') });
-    expect(statusZuStepperPosition('nachbesserung')).toEqual({ station: st('vollstaendigkeit') });
-    expect(statusZuStepperPosition('genehmigt')).toEqual({ station: st('begleitung') });
-    expect(statusZuStepperPosition('archiviert')).toEqual({ station: st('abgeschlossen') });
+describe('Werte ohne amtlichen Code fallen auf die Kategorie zurück', () => {
+  it('ordnet ein, was eine kuratierte Fassung einer Kategorie zuweist', () => {
+    // Der Fallback ist Produktverhalten und wird hier direkt geprüft: dieselbe
+    // Abbildung, die `stationAusKategorie` für jeden katalogfremden Wert fährt.
+    expect(statusZuStepperPosition('beantragt')).toEqual({ station: st('eingang') });
+    expect(statusZuStepperPosition('techn geprüft')).toEqual({ station: st('pruefung') });
+  });
+  it('unbekannte Werte bekommen KEINE Station (nicht Station 1)', () => {
+    expect(statusZuStepperPosition('fantasieStatus42')).toEqual({ station: null });
   });
 
   it('das VN/ZB-Pattern greift weiter (Statuswerte ohne Code)', () => {

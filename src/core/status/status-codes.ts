@@ -18,9 +18,8 @@
  *
  * **Der Seed legt keine zweite Werteliste an.** Er reichert die vorhandenen
  * `StatusWertEintrag` an (die aus `status-canonical.ts` stammen, siehe
- * `seed.ts`): Code, Varianten, ZAH-Phase, Marker-Flag. Werte der
- * Bauantrag-Domäne (`neu`, `genehmigt`, `archiviert` …) treffen naturgemäß
- * keinen Förder-Code und bleiben unangetastet — sie gehören nicht in dieses
+ * `seed.ts`): Code, Varianten, ZAH-Phase, Marker-Flag. Unkuratierte Werte, die
+ * keinen Code treffen, bleiben unangetastet — sie gehören nicht in dieses
  * Verfahren (Pitfall #9).
  *
  * Rein und deterministisch: keine IO, keine Uhr, feste Reihenfolge.

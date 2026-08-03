@@ -153,10 +153,11 @@ describe('Die Nachschlage-Schlüssel', () => {
     expect(seedKeys.length).toBeLessThan(eintraege.length);
   });
 
-  it('`getCanonicalStatusEntries` liefert Seed-Zeilen plus Bauantrag-Domäne', () => {
+  it('`getCanonicalStatusEntries` liefert genau die Seed-Zeilen', () => {
     const alle = getCanonicalStatusEntries();
-    expect(alle.length).toBe(baueFoerderSeedEintraege().length + 11);
-    expect(alle.map(([k]) => k)).toContain('genehmigt'); // Bauantrag bleibt
+    expect(alle.length).toBe(baueFoerderSeedEintraege().length);
+    // Keine zweite, handgepflegte Werteliste mehr daneben.
+    expect(alle.map(([k]) => k)).not.toContain('genehmigt');
   });
 });
 

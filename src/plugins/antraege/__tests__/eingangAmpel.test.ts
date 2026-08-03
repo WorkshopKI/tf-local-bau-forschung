@@ -7,8 +7,7 @@ import {
 } from '../eingangAmpel';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { parseBearbeiterFilter } from '../bearbeiterFilter';
-import { SEED_ANTRAEGE, TEST_TODAY } from './fixtures/seed-antraege';
-import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
+import { REAL_CSV_ANTRAEGE, TEST_TODAY } from './fixtures/real-csv-antraege';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
 
@@ -33,22 +32,22 @@ function mk(p: Partial<Omit<AntragListItem, 'status'>> & { aktenzeichen: string;
 describe('getEingangAmpel — Schwellen', () => {
   it('≤30d & open → gruen', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-20',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-04-20',
     }))).toBe('gruen');
   });
   it('31-60d & open → gelb', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-04-01',
     }))).toBe('gelb');
   });
   it('61-90d & open → orange', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-03-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-03-01',
     }))).toBe('orange');
   });
   it('>90d & open → rot', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-01-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-01-01',
     }))).toBe('rot');
   });
 });
@@ -62,22 +61,22 @@ describe('getEingangAmpel — Ausschluesse → null', () => {
   });
   it('antragsdatum fehlt → null', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht',
+      aktenzeichen: 'A', status: 'beantragt',
     }))).toBeNull();
   });
   it('antragsdatum ungueltig → null', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: 'nicht-ein-datum',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: 'nicht-ein-datum',
     }))).toBeNull();
   });
   it('antragsdatum in der Zukunft → null', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2099-01-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2099-01-01',
     }))).toBeNull();
   });
   it('Status abgelehnt (closed) → null, auch ohne bewilligung_datum', () => {
     expect(getEingangAmpel(mk({
-      aktenzeichen: 'A', status: 'abgelehnt', antragsdatum: '2026-04-20',
+      aktenzeichen: 'A', status: 'abgelehnt/zurückgezogen', antragsdatum: '2026-04-20',
     }))).toBeNull();
   });
   it('Foerderantrag "Schlussvermerk" (abgeschlossen) → null', () => {
@@ -130,15 +129,15 @@ describe('getEingangAmpel — Foerderantrag Status-Werte (offene Stati)', () => 
 describe('daysSinceEingang', () => {
   it('berechnet korrekt fuer ISO-Datum', () => {
     expect(daysSinceEingang(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-05-02',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-05-02',
     }))).toBe(10);
   });
   it('null fuer fehlendes antragsdatum', () => {
-    expect(daysSinceEingang(mk({ aktenzeichen: 'A', status: 'eingereicht' }))).toBeNull();
+    expect(daysSinceEingang(mk({ aktenzeichen: 'A', status: 'beantragt' }))).toBeNull();
   });
   it('null fuer ungueltiges antragsdatum', () => {
     expect(daysSinceEingang(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: 'foo',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: 'foo',
     }))).toBeNull();
   });
 });
@@ -146,22 +145,22 @@ describe('daysSinceEingang', () => {
 describe('getAmpelBucket — Mapping der 4 Stufen auf 3 Buckets', () => {
   it('gruen → frisch', () => {
     expect(getAmpelBucket(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-20',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-04-20',
     }))).toBe('frisch');
   });
   it('gelb → warnung', () => {
     expect(getAmpelBucket(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-04-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-04-01',
     }))).toBe('warnung');
   });
   it('orange → warnung', () => {
     expect(getAmpelBucket(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-03-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-03-01',
     }))).toBe('warnung');
   });
   it('rot → kritisch', () => {
     expect(getAmpelBucket(mk({
-      aktenzeichen: 'A', status: 'eingereicht', antragsdatum: '2026-01-01',
+      aktenzeichen: 'A', status: 'beantragt', antragsdatum: '2026-01-01',
     }))).toBe('kritisch');
   });
   it('null → null (z.B. bewilligt)', () => {
@@ -173,41 +172,37 @@ describe('getAmpelBucket — Mapping der 4 Stufen auf 3 Buckets', () => {
 });
 
 describe('countByAmpelBucket — Konsistenz mit getEingangAmpel', () => {
-  for (const [name, data] of [
-    ['Bauantraege', SEED_ANTRAEGE],
-    ['Foerderantraege', REAL_CSV_ANTRAEGE],
-  ] as const) {
-    it(`${name}: frisch == #(getEingangAmpel === 'gruen', ohne Irrlaeufer)`, () => {
-      const expected = data.filter(a =>
-        !isIrrlaeufer(a.vb_phase) && getEingangAmpel(a) === 'gruen'
-      ).length;
-      expect(countByAmpelBucket([...data], 'frisch')).toBe(expected);
-    });
-    it(`${name}: warnung == #(getEingangAmpel === 'gelb' || 'orange', ohne Irrlaeufer)`, () => {
-      const expected = data.filter(a => {
-        if (isIrrlaeufer(a.vb_phase)) return false;
-        const e = getEingangAmpel(a);
-        return e === 'gelb' || e === 'orange';
-      }).length;
-      expect(countByAmpelBucket([...data], 'warnung')).toBe(expected);
-    });
-    it(`${name}: kritisch == #(getEingangAmpel === 'rot', ohne Irrlaeufer)`, () => {
-      const expected = data.filter(a =>
-        !isIrrlaeufer(a.vb_phase) && getEingangAmpel(a) === 'rot'
-      ).length;
-      expect(countByAmpelBucket([...data], 'kritisch')).toBe(expected);
-    });
-  }
+  const data = REAL_CSV_ANTRAEGE;
+  it(`frisch == #(getEingangAmpel === 'gruen', ohne Irrlaeufer)`, () => {
+    const expected = data.filter(a =>
+      !isIrrlaeufer(a.vb_phase) && getEingangAmpel(a) === 'gruen'
+    ).length;
+    expect(countByAmpelBucket([...data], 'frisch')).toBe(expected);
+  });
+  it(`warnung == #(getEingangAmpel === 'gelb' || 'orange', ohne Irrlaeufer)`, () => {
+    const expected = data.filter(a => {
+      if (isIrrlaeufer(a.vb_phase)) return false;
+      const e = getEingangAmpel(a);
+      return e === 'gelb' || e === 'orange';
+    }).length;
+    expect(countByAmpelBucket([...data], 'warnung')).toBe(expected);
+  });
+  it(`kritisch == #(getEingangAmpel === 'rot', ohne Irrlaeufer)`, () => {
+    const expected = data.filter(a =>
+      !isIrrlaeufer(a.vb_phase) && getEingangAmpel(a) === 'rot'
+    ).length;
+    expect(countByAmpelBucket([...data], 'kritisch')).toBe(expected);
+  });
 });
 
 describe('countByAmpelBucket — Bearbeiter-Filter', () => {
   it('bearbeiter=ABC reduziert Counts auf tib_kuerz="abc"-Items', () => {
     const bearb = parseBearbeiterFilter('ABC', false);
-    // *-016 ist offen + bearbeiter-match. Welcher Bucket es ist, haengt
+    // REAL-016 ist offen + bearbeiter-match. Welcher Bucket es ist, haengt
     // vom antragsdatum der Fixture ab — wir testen nur die Reduktion.
-    const frisch = countByAmpelBucket([...SEED_ANTRAEGE], 'frisch', bearb);
-    const warnung = countByAmpelBucket([...SEED_ANTRAEGE], 'warnung', bearb);
-    const kritisch = countByAmpelBucket([...SEED_ANTRAEGE], 'kritisch', bearb);
+    const frisch = countByAmpelBucket([...REAL_CSV_ANTRAEGE], 'frisch', bearb);
+    const warnung = countByAmpelBucket([...REAL_CSV_ANTRAEGE], 'warnung', bearb);
+    const kritisch = countByAmpelBucket([...REAL_CSV_ANTRAEGE], 'kritisch', bearb);
     expect(frisch + warnung + kritisch).toBeLessThanOrEqual(2);
   });
 });

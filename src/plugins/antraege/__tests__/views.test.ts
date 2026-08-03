@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { getView, viewCount, type ViewKey } from '../views';
 import { parseBearbeiterFilter } from '../bearbeiterFilter';
-import { SEED_ANTRAEGE, TEST_TODAY } from './fixtures/seed-antraege';
-import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
+import { REAL_CSV_ANTRAEGE, TEST_TODAY } from './fixtures/real-csv-antraege';
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -12,16 +11,13 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
-/**
- * Erwartete Counts pro View. Strikt identisch fuer beide Fixtures — wenn
- * Fixture A gruen ist aber Fixture B failt, ist das der Bug.
- */
+/** Erwartete Counts pro View gegen die CSV-Rohwert-Fixture. */
 const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: number }> = {
   // 11 offene (ohne Irrlaeufer) bzw. 13 (mit)
   meine_offenen: { withPreFilter: 11, withoutPreFilter: 13 },
   // SLA-basiert: diese_woche_faellig = #(offen ∧ daysSinceEingang ∈ [84, 90]),
-  // ueberfaellig = #(offen ∧ daysSinceEingang > 90). Fixture: SEED-006/REAL-006
-  // ist 87d (SLA-Risk diese Woche), SEED-004/REAL-004 ist 131d (ueberfaellig).
+  // ueberfaellig = #(offen ∧ daysSinceEingang > 90). Fixture: REAL-006
+  // ist 87d (SLA-Risk diese Woche), REAL-004 ist 131d (ueberfaellig).
   diese_woche_faellig: { withPreFilter: 1, withoutPreFilter: 1 },
   ueberfaellig: { withPreFilter: 1, withoutPreFilter: 1 },
   nachforderungen: { withPreFilter: 2, withoutPreFilter: 2 },
@@ -29,19 +25,14 @@ const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: numbe
   alle: { withPreFilter: 18, withoutPreFilter: 20 },
 };
 
-const FIXTURES = [
-  { name: 'Fixture A (Bauantraege, Snake-Case)', data: SEED_ANTRAEGE },
-  { name: 'Fixture B (Foerderantraege, CSV-Rohwerte)', data: REAL_CSV_ANTRAEGE },
-] as const;
-
-describe.each(FIXTURES)('viewCount mit $name', ({ data }) => {
+describe('viewCount', () => {
   for (const key of Object.keys(EXPECTED) as ViewKey[]) {
     const exp = EXPECTED[key];
     it(`${key} mit Pre-Filter (vb_phase=9 ausgeblendet) → ${exp.withPreFilter}`, () => {
-      expect(viewCount(key, [...data], undefined, true)).toBe(exp.withPreFilter);
+      expect(viewCount(key, [...REAL_CSV_ANTRAEGE], undefined, true)).toBe(exp.withPreFilter);
     });
     it(`${key} OHNE Pre-Filter (Irrlaeufer sichtbar) → ${exp.withoutPreFilter}`, () => {
-      expect(viewCount(key, [...data], undefined, false)).toBe(exp.withoutPreFilter);
+      expect(viewCount(key, [...REAL_CSV_ANTRAEGE], undefined, false)).toBe(exp.withoutPreFilter);
     });
   }
 });
@@ -59,22 +50,22 @@ describe('viewCount — Edge-Cases', () => {
     expect(viewCount('meine_offenen', noStatus as never, undefined, true)).toBe(0);
   });
   it('Default-Wert fuer applyVbPhasePreFilter ist true', () => {
-    expect(viewCount('alle', [...SEED_ANTRAEGE])).toBe(EXPECTED.alle.withPreFilter);
+    expect(viewCount('alle', [...REAL_CSV_ANTRAEGE])).toBe(EXPECTED.alle.withPreFilter);
   });
 });
 
-describe.each(FIXTURES)('Bearbeiter-Filter mit $name', ({ data }) => {
+describe('Bearbeiter-Filter', () => {
   // Bearbeiter='ABC' matcht items mit tib_kuerz='abc'
   const bearb = parseBearbeiterFilter('ABC', false);
   it('viewCount(alle, bearbeiter=ABC) — nur tib_kuerz="abc" Items', () => {
-    // Items mit tib_kuerz='abc': *-016, *-018 (beide Fixtures)
-    expect(viewCount('alle', [...data], bearb, true)).toBe(2);
+    // Items mit tib_kuerz='abc': REAL-016, REAL-018
+    expect(viewCount('alle', [...REAL_CSV_ANTRAEGE], bearb, true)).toBe(2);
   });
-  it('viewCount(meine_offenen, bearbeiter=ABC) — nur das offene davon (*-016)', () => {
-    expect(viewCount('meine_offenen', [...data], bearb, true)).toBe(1);
+  it('viewCount(meine_offenen, bearbeiter=ABC) — nur das offene davon (REAL-016)', () => {
+    expect(viewCount('meine_offenen', [...REAL_CSV_ANTRAEGE], bearb, true)).toBe(1);
   });
-  it('viewCount(bewilligt_jahr, bearbeiter=ABC) — nur das bewilligte (*-018)', () => {
-    expect(viewCount('bewilligt_jahr', [...data], bearb, true)).toBe(1);
+  it('viewCount(bewilligt_jahr, bearbeiter=ABC) — nur das bewilligte (REAL-018)', () => {
+    expect(viewCount('bewilligt_jahr', [...REAL_CSV_ANTRAEGE], bearb, true)).toBe(1);
   });
 });
 

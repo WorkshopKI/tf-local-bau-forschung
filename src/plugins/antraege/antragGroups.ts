@@ -45,8 +45,8 @@ export type StatusPhaseLabel = (typeof STATUS_PHASE_ORDER)[number];
 
 /** Foerderantrag-Rohwert fuer den final-negativen Pfad — wird in eine eigene
  *  Status-Section ausgegliedert (im Workflow am wenigsten relevant, blaeht
- *  sonst "Abgeschlossen" auf). Bauantrag-`abgelehnt` (Kategorie `abgelehnt`)
- *  bleibt bewusst in "Abgeschlossen" — andere Domain. */
+ *  sonst "Abgeschlossen" auf). Werte der Kategorie `abgelehnt` bleiben bewusst
+ *  in "Abgeschlossen" — die Section haengt am Rohwert, nicht an der Kategorie. */
 const STATUS_RAW_ABGELEHNT_ZURUECKGEZOGEN = 'abgelehnt/zurückgezogen';
 
 function isAbgelehntZurueckgezogenRaw(raw: unknown): boolean {

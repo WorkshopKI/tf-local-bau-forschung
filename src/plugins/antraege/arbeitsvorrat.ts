@@ -51,8 +51,8 @@ export interface ArchivAufschluesselung {
   /** Terminal, aber NICHT abgelehnt/zurückgezogen — Schlussvermerk / beendet /
    *  abgebrochen. */
   schlussvermerk: number;
-  /** Final negativ: Förderantrag `abgelehnt/zurückgezogen` bzw. Bauantrag
-   *  `abgelehnt`. */
+  /** Final negativ: der amtliche `abgelehnt/zurückgezogen` bzw. jeder Wert der
+   *  Kategorie `abgelehnt`. */
   abgelehntZurueckgezogen: number;
 }
 

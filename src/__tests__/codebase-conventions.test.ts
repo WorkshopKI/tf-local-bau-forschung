@@ -126,10 +126,6 @@ describe('no-direct-status-compare (CLAUDE.md Pitfall #12)', () => {
     'bearbeitungsreif', 'nl eingegangen',
     'techn geprüft', 'kaufm geprüft', 'gutachten fertig',
     'VN geprüft', 'VN techn. geprüft',
-    // Bauantrag-Domain (eindeutig)
-    'in_pruefung', 'in_begutachtung',
-    'nachforderung', 'nachbesserung', 'genehmigt',
-    'archiviert',
   ];
 
   // Files die das Pattern legitim nutzen duerfen (Status-Canonical-Modul +

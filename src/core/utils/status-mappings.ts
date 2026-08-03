@@ -1,10 +1,8 @@
 /**
- * Zentrale Status-Labels und Badge-Variants fuer Vorgang-Status (Bauantrag, Förderantrag).
- *
- * Deckt beide Domaenen ab:
- * - **Bauantraege** — Snake-Case-Werte (`neu`, `in_pruefung`, `genehmigt`, ...)
- * - **Foerderantraege** — CSV-Rohwerte aus dem Foyer-Quellsystem
- *   (`beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, ...)
+ * Zentrale Status-Labels und Badge-Variants fuer die **Anzeige** eines rohen
+ * Antrags-Status: CSV-Rohwerte aus dem Foyer-Quellsystem (`beantragt`,
+ * `VN geprüft`, `NF gestellt`, `bewilligt`, ...). Unbekanntes faellt auf den
+ * Rohwert bzw. `'default'` zurueck.
  *
  * Fuer fachliche Vergleiche (offen / bewilligt / nachforderung / etc.) NICHT diese
  * Maps nutzen — stattdessen die Kategorie-Helper aus `status-canonical.ts`.
@@ -12,34 +10,15 @@
  * NICHT fuer Feedback-Status verwenden — die haben eine andere Semantik
  * (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`)
  * und ihre eigenen Maps in `src/components/feedback/constants.ts`.
- *
- * Wenn ein neuer Vorgangstyp dazukommt: hier die Status-Werte ergaenzen UND
- * `status-canonical.ts` um die Kategorie-Zuordnung erweitern.
  */
 
 export type BadgeVariant = 'info' | 'warning' | 'success' | 'error' | 'default';
 
 export const STATUS_LABELS: Record<string, string> = {
-  // ── Bauantraege — Snake-Case-Werte ─────────────────────────────────────
-  // Bauantrag
-  neu: 'Neu',
-  in_bearbeitung: 'In Bearbeitung',
-  nachforderung: 'Nachforderung',
-  in_pruefung: 'In Prüfung',
-  genehmigt: 'Genehmigt',
-  abgelehnt: 'Abgelehnt',
-  archiviert: 'Archiviert',
-  // Forschung
-  eingereicht: 'Eingereicht',
-  in_begutachtung: 'In Begutachtung',
-  nachbesserung: 'Nachbesserung',
-  bewilligt: 'Bewilligt',
-  abgeschlossen: 'Abgeschlossen',
-
-  // ── Foerderantraege — CSV-Rohwerte aus dem Foyer-Quellsystem ───────────
   // Labels gekuerzt, damit die Status-Pille mit einheitlicher Breite ohne
   // Umbruch passt. Vergleich case-sensitive (CSV-Werte sind so).
   beantragt: 'Beantragt',
+  bewilligt: 'Bewilligt',
   bearbeitungsreif: 'Bearbeitungsreif',
   'NL eingegangen': 'NL eingegangen',
   'VN geprüft': 'VN geprüft',
@@ -67,21 +46,8 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export const STATUS_VARIANTS: Record<string, BadgeVariant> = {
-  // ── Bauantraege ─────────────────────────────────────────────────────────
-  neu: 'info',
-  in_bearbeitung: 'warning',
-  nachforderung: 'warning',
-  in_pruefung: 'info',
-  genehmigt: 'success',
-  abgelehnt: 'error',
-  archiviert: 'default',
-  eingereicht: 'info',
-  in_begutachtung: 'warning',
-  nachbesserung: 'warning',
+  // Variants nach fachlicher Kategorie.
   bewilligt: 'success',
-  abgeschlossen: 'default',
-
-  // ── Foerderantraege — Variants nach fachlicher Kategorie ────────────────
   // offen → info
   beantragt: 'info',
   bearbeitungsreif: 'info',

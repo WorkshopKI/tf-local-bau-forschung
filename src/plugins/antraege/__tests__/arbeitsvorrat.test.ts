@@ -23,7 +23,7 @@ function a(status: string): { status: ReturnType<typeof asAntragStatusRaw> } {
 
 describe('arbeitsvorratSectionOf', () => {
   it('terminale Status → Archiv', () => {
-    for (const s of ['Schlussvermerk', 'beendet', 'abgebrochen', 'abgelehnt/zurückgezogen', 'abgelehnt']) {
+    for (const s of ['Schlussvermerk', 'beendet', 'abgebrochen', 'abgelehnt/zurückgezogen']) {
       expect(arbeitsvorratSectionOf(a(s))).toBe('archiv');
     }
   });
@@ -55,10 +55,10 @@ describe('archivAufschluesselung', () => {
   it('splittet terminale Anträge in Schlussvermerk vs. abgelehnt/zurückgezogen, ignoriert nicht-terminale', () => {
     const rows = [
       a('Schlussvermerk'), a('beendet'), a('abgebrochen'),
-      a('abgelehnt/zurückgezogen'), a('abgelehnt'),
+      a('abgelehnt/zurückgezogen'),
       a('beantragt'), a('bewilligt'),
     ];
-    expect(archivAufschluesselung(rows)).toEqual({ schlussvermerk: 3, abgelehntZurueckgezogen: 2 });
+    expect(archivAufschluesselung(rows)).toEqual({ schlussvermerk: 3, abgelehntZurueckgezogen: 1 });
   });
   it('leere Liste → beide null', () => {
     expect(archivAufschluesselung([])).toEqual({ schlussvermerk: 0, abgelehntZurueckgezogen: 0 });

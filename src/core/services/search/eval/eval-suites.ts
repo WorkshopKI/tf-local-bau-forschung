@@ -9,22 +9,15 @@ export interface EvalSuite {
   cases: EvalTestCase[];
 }
 
-const BAU_IDS = ['K1','K2','K4','K5','S1','S2','S3','S4','S5','S6','S11','S12','S13','S14'];
-const ANTRAEGE_IDS = ['K3','S2','S7','S8','S9','S10','S15'];
-const HARD_IDS = ['H1','H2','H3','H4','H5','H6','H7','H8','H9','H10'];
+const ANTRAEGE_IDS = ['K3','S7','S8','S9','S10','S15'];
+const HARD_IDS = ['H1','H2','H3','H4','H5','H6','H7','H9'];
 const EXTREME_IDS = ['X1','X2','X3','X4','X5','X6','X7','X8','X9','X10'];
 
 export const EVAL_SUITES: EvalSuite[] = [
   {
     id: 'alle', label: 'Alle Testfaelle',
-    description: 'Vollstaendige Suite mit allen 40 Testfaellen',
+    description: 'Vollstaendige Suite mit allen 24 Testfaellen',
     department: 'alle', cases: EVAL_TEST_CASES,
-  },
-  {
-    id: 'bau', label: 'Bauantraege',
-    description: 'Brandschutz, Statik, Energie, Denkmalschutz',
-    department: 'bau',
-    cases: EVAL_TEST_CASES.filter(tc => BAU_IDS.includes(tc.id)),
   },
   {
     id: 'antraege', label: 'Foerderantraege',

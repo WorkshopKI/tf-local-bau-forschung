@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.395.0 — Bauantrag-Endausbau: das Vokabular der entfernten Demo-Domaene raus (August 2026)
+
+MINOR — Die Bauantrag-Demo-Domäne ist seit v2.88 weg, ihr Vokabular lief weiter: eine handgepflegte Statusliste neben dem Code-Katalog, eine erfundene Status-Union, eine zweite Test-Fixture, 16 Search-Eval-Fälle und ein Dokumenttyp in zwei LLM-Prompts.
+
+- **`BAUANTRAG_STATUSES` entfernt** — die Kategorie-Fassade speist sich nur noch aus dem Code-Katalog ([status-canonical.ts](src/core/utils/status-canonical.ts)); `isAbgelehntStatus` (0 Konsumenten) gelöscht, Snake-Case-Hälfte aus [status-mappings.ts](src/core/utils/status-mappings.ts) raus.
+- **`VorgangStatus` ist `string`** statt Snake-Case-Union — der Wert war schon immer der rohe CSV-Status, nur hineingecastet ([vorgang.ts](src/core/types/vorgang.ts), Pitfall #12 gilt unverändert).
+- **Fixture A gelöscht**, die vier Doppelläufe (`views`, `dashboardCounts`, `eingangAmpel`, `filterViewInteraction`) laufen nur noch gegen die CSV-Rohwert-Fixture.
+- **Search-Eval 40 → 24 Fälle**: 16 mit Bauantrags-Korpus raus, `bau`-Suite entfernt. Die Baseline 90 % / 36 von 40 ist damit ungültig und muss **manuell in der App** neu gezogen werden ([README](src/core/services/search/eval/README.md)).
+- **Gemessen im echten Bestand** (14 221 Anträge, 26 Status-Werte): kein einziger der elf entfernten Werte kommt vor, 0 Anträge ohne Status — Home-Kacheln, Quartalsbalken und Ampel unverändert.
+
 ### v2.394.0 — Dead Code: Orphan-Dateien, Redirect-Plugins, tote Code-Bruecke (August 2026)
 
 MINOR — Acht Dateien ohne einen einzigen Import, zwei Plugins, die nur noch weiterleiten, und eine `@deprecated`-Funktion ohne Aufrufer. Feld-Bookmarks auf `/chat` und `/kuration/feedback` sind laut Fachseite nicht mehr im Umlauf.

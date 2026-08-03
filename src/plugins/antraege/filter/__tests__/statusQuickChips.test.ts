@@ -8,16 +8,14 @@ import {
 } from '../statusQuickChips';
 
 describe('chipStatusValues', () => {
-  it('Bewilligt-Chip enthält "bewilligt" und "genehmigt" (Foerderantrag + Bauantrag)', () => {
+  it('Bewilligt-Chip enthält "bewilligt"', () => {
     const values = chipStatusValues('bewilligt');
     expect(values.has('bewilligt')).toBe(true);
-    expect(values.has('genehmigt')).toBe(true);
   });
 
-  it('Abgeschlossen-Chip enthält "abgelehnt/zurückgezogen" und "abgelehnt" (Bauantrag)', () => {
+  it('Abgeschlossen-Chip enthält "abgelehnt/zurückgezogen" und "schlussvermerk"', () => {
     const values = chipStatusValues('abgeschlossen');
     expect(values.has('abgelehnt/zurückgezogen')).toBe(true);
-    expect(values.has('abgelehnt')).toBe(true);
     expect(values.has('schlussvermerk')).toBe(true);
   });
 
@@ -61,13 +59,13 @@ describe('deriveChipState', () => {
   });
 
   it('Filter enthält teilweise Werte eines Chips → mixed', () => {
-    const state = deriveChipState(['bewilligt']);
-    // Bewilligt-Chip enthält bewilligt + genehmigt → nur bewilligt da → mixed
-    expect(state.bewilligt).toBe('mixed');
+    // Der Abgeschlossen-Chip führt mehrere Werte; nur einer im Filter → mixed.
+    const state = deriveChipState(['schlussvermerk']);
+    expect(state.abgeschlossen).toBe('mixed');
   });
 
   it('case-insensitive Match', () => {
-    const state = deriveChipState(['BEWILLIGT', '  Genehmigt  ']);
+    const state = deriveChipState(['BEWILLIGT']);
     expect(state.bewilligt).toBe('on');
   });
 });
@@ -109,7 +107,6 @@ describe('computeFilterValue', () => {
     const state = soloChipState('bewilligt');
     const value = computeFilterValue(state)!;
     expect(value).toContain('bewilligt');
-    expect(value).toContain('genehmigt');
     expect(value).toContain('irrläufer');  // sonstige immer
     expect(value).not.toContain('beantragt');
     expect(value).not.toContain('vn geprüft');

@@ -9,7 +9,7 @@ export const METADATA_SYSTEM_PROMPT = 'Du bist ein Metadaten-Extraktor fuer deut
  * bekam damit ein engeres Vokabular gezeigt, als das Schema zuliess.
  */
 export const METADATA_DOC_TYPES = [
-  'Bauantrag', 'Foerderantrag', 'Gutachten', 'Stellungnahme',
+  'Foerderantrag', 'Gutachten', 'Stellungnahme',
   'Protokoll', 'Nachforderung', 'Formular', 'Statik',
   'Brandschutzkonzept', 'Schallschutznachweis', 'Energienachweis',
   'Energieberatungsbericht', 'Genehmigung', 'Bescheid', 'Bericht',

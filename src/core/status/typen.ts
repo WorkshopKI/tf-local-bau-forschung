@@ -184,7 +184,7 @@ export interface StatusWertEintrag {
    * Kanonische Kategorie. **Abgeleitet, nicht kuratiert**: für Werte mit
    * amtlichem Code entsteht sie aus Code + ZAH-Phase
    * (`kategorie-ableitung.ts`), und der Snapshot rechnet sie beim Laden neu.
-   * Das Feld bleibt für die Bauantrag-Domäne (kein Code) und als Anzeigewert.
+   * Das Feld bleibt für unkuratierte Werte (kein Code) und als Anzeigewert.
    */
   kategorie: StatusCategory;
   prominenz: Prominenz;

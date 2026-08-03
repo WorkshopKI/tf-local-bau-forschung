@@ -1,18 +1,15 @@
 /**
  * Kanonische Status-Kategorien fuer Antrag-Status.
  *
- * Die App haelt zwei Domaenen von Status-Werten parallel:
- * - **Bauantraege** (Snake-Case-Werte aus dem Bauantrag-Workflow): `neu`,
- *   `in_bearbeitung`, `in_pruefung`, `nachforderung`, `genehmigt`, `abgelehnt`,
- *   `archiviert`. Auch in den Snake-Case-Seeds verbreitet (`eingereicht`,
- *   `in_begutachtung`, `bewilligt`, `nachbesserung`, `abgeschlossen`).
- * - **Foerderantraege** (CSV-Rohwerte aus dem Foyer-Quellsystem):
- *   `beantragt`, `bearbeitungsreif`, `VN geprueft`, `NF gestellt`,
- *   `Schlussvermerk`, `abgelehnt/zurueckgezogen`, ... — kommen aus echten
- *   CSV-Importen + den anonymisierten Real-Fixtures.
+ * Die Werte sind **CSV-Rohwerte aus dem Foyer-Quellsystem**: `beantragt`,
+ * `bearbeitungsreif`, `VN geprueft`, `NF gestellt`, `Schlussvermerk`,
+ * `abgelehnt/zurueckgezogen`, ... — sie kommen aus echten CSV-Importen und den
+ * anonymisierten Real-Fixtures. Bis v2.395 lief daneben eine zweite,
+ * handgepflegte Domaene mit Snake-Case-Werten aus der Bauantrag-Demo (deren
+ * Fachdomaene schon mit v2.88 entfallen war); sie ist entfernt.
  *
- * Views, Dashboard und Workflow-Logik sollten NICHT direkt gegen einen der beiden
- * Werte-Saetze vergleichen. Stattdessen die Helper hier nutzen:
+ * Views, Dashboard und Workflow-Logik sollten NICHT direkt gegen einen Rohwert
+ * vergleichen. Stattdessen die Helper hier nutzen:
  *
  *     // FALSCH:  a.status === 'bewilligt' || a.status === 'genehmigt'
  *     // RICHTIG: isBewilligtStatus(a.status)
@@ -35,7 +32,12 @@ export type StatusCategory =
                     // Pruefung (VN/ZB-Stati) + Widerrufs-Verfahren (Widerruf,
                     // Anhoerung zum Widerruf). Andere Zustaendigkeit (ZTP/PFM)
                     // als die Antrags-Phase (TIB/BIB).
-  | 'abgelehnt'     // negativ entschieden
+  | 'abgelehnt'     // negativ entschieden. **Vom Foerder-Katalog unbesetzt**: dort
+                    // endet der negative Pfad ueber `abgelehnt/zurueckgezogen` in
+                    // `abgeschlossen`. Die Kategorie bleibt als semantischer Platz
+                    // (Farbe/Label/Kanban-Lane haengen an ihr) und traegt Werte
+                    // aus kuratierten Katalog-Fassungen, die einen Code ohne
+                    // ZAH-Phase fuehren.
   | 'abgeschlossen' // abgeschlossen (Schlussvermerk, abgebrochen, zurueckgezogen)
   | 'sonstige';     // Irrlaeufer, unvollstaendig, leer, unbekannt
 
@@ -54,39 +56,9 @@ export type StatusCategory =
  */
 import { baueFoerderKategorieEintraege, baueFoerderSeedEintraege } from '@/core/status/kategorie-ableitung';
 
-/**
- * Die Bauantrag-Domaene (dev/demo) bleibt eine Handliste: sie hat keine
- * amtlichen Codes und gehoert nicht in dieses Verfahren (Pitfall #9).
- */
-const BAUANTRAG_STATUSES: ReadonlyArray<readonly [string, StatusCategory]> = [
-  // Eingang
-  ['neu', 'offen'],
-  ['eingereicht', 'offen'],
-  // Pruefung
-  ['in_pruefung', 'in_pruefung'],
-  ['in_begutachtung', 'in_pruefung'],
-  ['in_bearbeitung', 'in_pruefung'],
-  // Nachforderung
-  ['nachforderung', 'nachforderung'],
-  ['nachbesserung', 'nachforderung'],
-  // Positiv (Bauantrag-Domain nennt es `genehmigt`, Foerderantrag-Domain
-  // `bewilligt` — beide sind "positiv entschieden")
-  ['genehmigt', 'bewilligt'],
-  // Negativ (final, nur Bauantrag-Domain — bei Foerderantraegen geht der
-  // negativ-finale Pfad ueber `abgelehnt/zurueckgezogen` in `abgeschlossen`)
-  ['abgelehnt', 'abgelehnt'],
-  // Abgeschlossen
-  ['archiviert', 'abgeschlossen'],
-  ['abgeschlossen', 'abgeschlossen'],
-];
-
-/** Alle bekannten Schreibweisen — Foerder-Domaene abgeleitet, Bauantrag von Hand. */
-const CATEGORY_MAP: ReadonlyMap<string, StatusCategory> = (() => {
-  const m = new Map<string, StatusCategory>();
-  for (const [key, cat] of baueFoerderKategorieEintraege()) m.set(key, cat);
-  for (const [key, cat] of BAUANTRAG_STATUSES) m.set(key, cat);
-  return m;
-})();
+/** Alle bekannten Schreibweisen, abgeleitet aus dem Code-Katalog. */
+const CATEGORY_MAP: ReadonlyMap<string, StatusCategory> =
+  new Map<string, StatusCategory>(baueFoerderKategorieEintraege());
 
 /**
  * Status-System neu: optionaler Katalog-Snapshot. Ist er gesetzt, liest
@@ -114,7 +86,7 @@ function effektiveMap(): ReadonlyMap<string, StatusCategory> {
  * Status-Katalogs — Einzelquelle, damit Katalog und Fassade nicht auseinander
  * laufen. Liefert nie den Snapshot: der Seed leitet SICH hieraus ab.
  *
- * **Eine Zeile je Code** (amtlicher Text) plus die Bauantrag-Domäne. Die
+ * **Eine Zeile je Code** (amtlicher Text). Die
  * Varianten sind bewusst NICHT dabei: als eigene Katalog-Einträge wären sie
  * kuratierbare Doppelzeilen desselben Codes. Sie hängen am Eintrag
  * (`StatusWertEintrag.varianten`, gesetzt von `reichereWerteAn`), und
@@ -123,7 +95,7 @@ function effektiveMap(): ReadonlyMap<string, StatusCategory> {
  * (`byte-identitaet`).
  */
 export function getCanonicalStatusEntries(): ReadonlyArray<readonly [string, StatusCategory]> {
-  return [...baueFoerderSeedEintraege(), ...BAUANTRAG_STATUSES];
+  return baueFoerderSeedEintraege();
 }
 
 function normalize(raw: unknown): string | null {
@@ -152,7 +124,7 @@ export function getStatusValuesByCategory(category: StatusCategory): string[] {
 }
 
 /** Mappt einen rohen Status-Wert auf eine Kategorie. Lookup-Reihenfolge:
- *  1. Explizite Map (Foerderantrag + Bauantrag Stati)
+ *  1. Explizite Map (Katalog-Snapshot, sonst die eingebaute Ableitung)
  *  2. VN/ZB-Pattern → Begleitung
  *  3. Sonstige (unbekannt, leer) */
 export function getStatusCategory(raw: unknown): StatusCategory {
@@ -191,19 +163,16 @@ export function isBewilligtStatus(raw: unknown): boolean {
   return getStatusCategory(raw) === 'bewilligt';
 }
 
-export function isAbgelehntStatus(raw: unknown): boolean {
-  return getStatusCategory(raw) === 'abgelehnt';
-}
-
-/** True fuer final negativ ausgegangene Antraege: Foerderantrag
+/** True fuer final negativ ausgegangene Antraege: der amtliche Wert
  *  `abgelehnt/zurückgezogen` (in der Map als Kategorie `abgeschlossen` gefuehrt,
- *  weil die Foerderantrag-Domain keinen separaten `abgelehnt`-Endzustand hat)
- *  ODER Bauantrag `abgelehnt` (Kategorie `abgelehnt`). Praeziser als
- *  `isClosedStatus` (das auch bewilligt + Schlussvermerk einschliesst) — fuer
- *  „wurde dieses Projekt schon einmal abgelehnt/zurueckgezogen?". */
+ *  weil der Foerder-Katalog keinen separaten `abgelehnt`-Endzustand hat) ODER
+ *  ein Wert, den eine kuratierte Katalog-Fassung nach `abgelehnt` haengt.
+ *  Praeziser als `isClosedStatus` (das auch bewilligt + Schlussvermerk
+ *  einschliesst) — fuer „wurde dieses Projekt schon einmal
+ *  abgelehnt/zurueckgezogen?". */
 export function isAbgelehntZurueckgezogenStatus(raw: unknown): boolean {
-  if (getStatusCategory(raw) === 'abgelehnt') return true; // Bauantrag-Domain
-  return normalize(raw) === 'abgelehnt/zurückgezogen';     // Foerderantrag-Domain
+  if (getStatusCategory(raw) === 'abgelehnt') return true;
+  return normalize(raw) === 'abgelehnt/zurückgezogen';
 }
 
 /** True, wenn final entschieden (bewilligt, abgelehnt, abgeschlossen). */
@@ -215,7 +184,7 @@ export function isClosedStatus(raw: unknown): boolean {
 /**
  * Kategorien, deren Anträge als **terminal** (Arbeit abgeschlossen) gelten:
  * `abgeschlossen` (Schlussvermerk, beendet, abgebrochen, abgelehnt/zurückgezogen)
- * und `abgelehnt` (Bauantrag-Domain). Bewusst OHNE `bewilligt` — nach der
+ * und `abgelehnt`. Bewusst OHNE `bewilligt` — nach der
  * Bewilligung folgt noch die Begleitphase (VN/ZB), der Antrag ist also weiter
  * „in Arbeit". Einzelquelle für den Arbeitsvorrat/Archiv-Split (View „Alle")
  * und die PreCheck-Regeln in `naechsterSchritt`.

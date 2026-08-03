@@ -162,7 +162,10 @@ function antragToVorgangLike(
   return {
     id: a.aktenzeichen,
     title: a.titel ?? a.aktenzeichen,
-    status: (a.status as Vorgang['status']) ?? 'neu',
+    // Roher CSV-Wert, unverändert durchgereicht. Fehlt er, bleibt er leer —
+    // `getStatusCategory('')` sagt `sonstige` („wir wissen es nicht"), was
+    // ehrlicher ist als ein erfundener Anfangsstatus.
+    status: a.status ?? '',
     priority: 'normal',
     assignee: a.antragsteller ?? '',
     created,

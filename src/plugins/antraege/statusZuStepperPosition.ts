@@ -65,8 +65,8 @@ export function statusZuStepperPosition(status: unknown): StepperPosition {
   if (code !== null && SEED_MARKER_CODES.has(code)) return { station: null, marker: true };
 
   if (isAbgelehntZurueckgezogenStatus(status)) {
-    // Bauantrag-`abgelehnt` (Kategorie `abgelehnt`) vs. Förderantrag
-    // `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`) — nur fürs Label.
+    // Nur fürs Label: Kategorie `abgelehnt` (aus einer kuratierten Fassung) vs.
+    // der amtliche `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`).
     const terminal = getStatusCategory(status) === 'abgelehnt' ? 'abgelehnt' : 'zurueckgezogen';
     return { station: stationVon('abgeschlossen'), terminal };
   }
@@ -74,12 +74,12 @@ export function statusZuStepperPosition(status: unknown): StepperPosition {
   const phase = zahPhaseFuerStatusText(status);
   if (phase !== null) return { station: stationVon(phase) };
 
-  // Die Bauantrag-Domäne (dev/demo) hat keine Codes — sie wird über die
-  // Kategorie eingeordnet, damit der Stepper dort nicht leer bleibt.
+  // Unkuratierte Werte ohne amtlichen Code werden über die Kategorie
+  // eingeordnet, damit der Stepper dort nicht leer bleibt.
   return { station: stationAusKategorie(status) };
 }
 
-/** Fallback für Werte ohne amtlichen Code (Bauantrag-Domäne). */
+/** Fallback für unkuratierte Werte ohne amtlichen Code. */
 function stationAusKategorie(status: unknown): StepperStation {
   switch (getStatusCategory(status)) {
     case 'offen': return stationVon('eingang');

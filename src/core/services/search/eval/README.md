@@ -31,6 +31,16 @@ In der App selbst, im Kurator-Plugin **Suchindex** → Tab „Eval":
 | `eval-runner.ts` | `EvalRunner.run(testCases)` — orchestriert Embedding → hybridSearch → optional Re-Rank → Score-Berechnung |
 | `eval-export.ts` | JSON-Export der Reports für Vergleich zwischen Pipeline-Konfigurationen |
 
+## Suiten + Baseline
+
+Vier Suiten über **24 Fälle**: `alle`, `antraege` (6), `hard` (8), `extreme` (10).
+
+> ⚠️ **Die Baseline ist ungültig.** Bis v2.394 umfasste die Suite 40 Fälle, davon 16 mit Bauantrags-Korpus (`Brandschutz_*`, `Statik_*`, `Energienachweis_*`, `Denkmalschutz`, `Altlasten`, `Artenschutz`, `Schallschutz`, `Nachforderung_BA*`) — samt einer eigenen `bau`-Suite. Diese Fälle sind mit dem Bauantrag-Endausbau (v2.395) entfernt; die alte Messung **90 % Treffer / 36 von 40** ist damit nicht mehr vergleichbar.
+>
+> Eine neue Baseline muss **manuell in der App** gezogen werden (Kurator → Suchindex → Eval, WebGPU + geladenes Modell nötig). Das ist nicht automatisierbar und nicht Teil des Testlaufs.
+
+Der Bauantrags-Korpus unter `public/test-korpus/bauforschung-v2/` bleibt indiziert — er dient den verbliebenen H-/X-Fällen weiter als Distraktor-Material.
+
 ## Neue Test-Cases hinzufügen
 
 1. Eintrag in `EVAL_TEST_CASES` (`test-cases.ts`) ergänzen

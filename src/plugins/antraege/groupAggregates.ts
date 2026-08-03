@@ -152,8 +152,8 @@ export function statusPhaseForGroup(
 ): StatusPhaseLabel {
   const raw = dominantStatus(tvs, verbundStatus);
   // Foerderantrag-Rohwert `abgelehnt/zurückgezogen` bekommt eine eigene
-  // Section (siehe antragGroups.ts STATUS_PHASE_ORDER). Bauantrag-`abgelehnt`
-  // (Kategorie `abgelehnt`) bleibt im default-Switch in "Abgeschlossen".
+  // Section (siehe antragGroups.ts STATUS_PHASE_ORDER). Die Kategorie
+  // `abgelehnt` bleibt im default-Switch in "Abgeschlossen".
   if (typeof raw === 'string' && raw.trim().toLowerCase() === 'abgelehnt/zurückgezogen') {
     return 'Abgelehnt/Zurückgezogen';
   }

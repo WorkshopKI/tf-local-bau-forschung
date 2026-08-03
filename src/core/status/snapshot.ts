@@ -60,7 +60,7 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
  * Schnitt (dieselbe Regel wie in `baueHerleitung`).
  */
 function kategorieAusFassung(w: StatusWertEintrag): StatusCategory {
-  if (w.code === undefined) return w.kategorie;   // Bauantrag-Domäne, kein Code
+  if (w.code === undefined) return w.kategorie;   // unkuratierter Wert, kein Code
   if (w.zahPhaseId !== undefined) return kategorieFuerPhase(w.zahPhaseId, w.code);
   return kategorieFuerCode(w.code);
 }

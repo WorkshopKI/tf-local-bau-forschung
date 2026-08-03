@@ -1,18 +1,20 @@
 /**
- * Fixture B — Foerderantrag-artig: Antraege mit CSV-Rohwerten aus dem
- * echten Foyer-Quellsystem.
+ * Antraege mit CSV-Rohwerten aus dem echten Foyer-Quellsystem — die
+ * **einzige** Antrags-Fixture der View-/Dashboard-Tests.
  *
- * Spiegelt den Produktiv-Pfad. Strukturell parallel zu `seed-antraege.ts`
- * (Bauantrag-artige Snake-Case-Werte): dieselbe Anzahl, dieselbe
- * vb_phase/Datums-Verteilung, dieselben View-Zuordnungen — nur die
- * Status-Werte sind anders. So koennen Tests beide Fixtures gegen dieselben
- * Erwartungen laufen lassen; wenn ein Test mit Fixture A (Bauantrag) passt
- * aber mit Fixture B (Foerderantrag) failt, ist genau das der Bug.
+ * Sie spiegelt den Produktiv-Pfad. Bis v2.395 lief daneben eine zweite
+ * Fixture mit Snake-Case-Werten der Bauantrag-Demo; beide gingen `describe.each`
+ * gegen dieselben Erwartungen, damit Domaenen-Abhaengigkeiten auffliegen.
+ * Mit dem Wegfall der zweiten Domaene entfaellt auch dieser Doppellauf.
+ *
+ * Jedes Item ist mit Inline-Kommentar dokumentiert, in welche View(s) es fallen
+ * soll. Alle relativen Datums-Werte sind gegen `TEST_TODAY` ausgerichtet.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
 
-export { TEST_TODAY, TEST_TODAY_MS } from './seed-antraege';
+export const TEST_TODAY = '2026-05-12';
+export const TEST_TODAY_MS = new Date(TEST_TODAY).getTime();
 
 type Partial0 = Partial<Omit<AntragListItem, 'status'>> & {
   aktenzeichen: string;
@@ -77,8 +79,7 @@ export const REAL_CSV_ANTRAEGE: readonly AntragListItem[] = [
     antragsdatum: '2024-08-01', bewilligung_datum: '2024-12-01',
   }),
   // 10 — Schlussvermerk (abgeschlossen, final-closed) ohne bewilligung_datum
-  // → Ampel null via Status-Check (nicht via Datum-Check). Parallel zu
-  // SEED-010 (Bauantrag: `abgelehnt`, ebenfalls final-closed ohne Datum).
+  // → Ampel null via Status-Check (nicht via Datum-Check).
   // Hinweis: Foerderantraege haben keinen final-`abgelehnt`-Endzustand;
   // negative Verfahren laufen via `Ablehnung`/`Widerruf` (Kategorie
   // `entscheidung`, noch offen!) und finalisieren via

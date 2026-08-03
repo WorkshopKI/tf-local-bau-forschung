@@ -6,8 +6,7 @@ import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { getView, type ViewKey } from '../views';
 import { hasExplicitVbPhaseFilter } from '../useFilteredAntraege';
 import { parseBearbeiterFilter, applyBearbeiterFilter } from '../bearbeiterFilter';
-import { SEED_ANTRAEGE, TEST_TODAY } from './fixtures/seed-antraege';
-import { REAL_CSV_ANTRAEGE } from './fixtures/real-csv-antraege';
+import { REAL_CSV_ANTRAEGE, TEST_TODAY } from './fixtures/real-csv-antraege';
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -68,37 +67,23 @@ const VB_PHASE_FILTER_DEF: FilterDefinition = {
 
 const DEFS = [STATUS_FILTER_DEF, VB_PHASE_FILTER_DEF];
 
-describe('View "alle" + Status-Filter — beide Welten', () => {
-  it('Bauantraege: Filter ["bewilligt"] matcht NUR Bauantrag "bewilligt" (Substring-Vergleich, Rohwert)', () => {
-    const active: ActiveFilter[] = [{ filterId: 'filter-status', value: ['bewilligt'] }];
-    const result = runPipeline(SEED_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
-    // SEED-007 (bewilligt), SEED-009 (bewilligt), SEED-018 (bewilligt) — NICHT SEED-008 (genehmigt)
-    expect(result.map(r => r.aktenzeichen).sort()).toEqual(['SEED-007', 'SEED-009', 'SEED-018']);
-  });
-  it('Foerderantraege: Filter ["bewilligt"] matcht alle Foerderantrag "bewilligt"-Items', () => {
+describe('View "alle" + Status-Filter', () => {
+  it('Filter ["bewilligt"] matcht alle "bewilligt"-Items (Substring-Vergleich, Rohwert)', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-status', value: ['bewilligt'] }];
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
     expect(result.map(r => r.aktenzeichen).sort()).toEqual(['REAL-007', 'REAL-008', 'REAL-009', 'REAL-018']);
   });
 });
 
-describe('View "nachforderungen" — beide Welten', () => {
-  it('Bauantraege: nur Bauantrag nachforderung/nachbesserung', () => {
-    const result = runPipeline(SEED_ANTRAEGE, 'nachforderungen', [], [], NEUTRAL);
-    expect(result.map(r => r.aktenzeichen).sort()).toEqual(['SEED-005', 'SEED-006']);
-  });
-  it('Foerderantraege: nur Foerderantrag "NF gestellt" (View-Predicate ueber Kategorie)', () => {
+describe('View "nachforderungen"', () => {
+  it('nur "NF gestellt" (View-Predicate ueber Kategorie)', () => {
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'nachforderungen', [], [], NEUTRAL);
     expect(result.map(r => r.aktenzeichen).sort()).toEqual(['REAL-005', 'REAL-006']);
   });
 });
 
 describe('View "meine_offenen" + Bearbeiter-Filter — Intersection', () => {
-  it('Bauantraege: bearbeiter=ABC → nur SEED-016', () => {
-    const result = runPipeline(SEED_ANTRAEGE, 'meine_offenen', [], [], ABC);
-    expect(result.map(r => r.aktenzeichen)).toEqual(['SEED-016']);
-  });
-  it('Foerderantraege: bearbeiter=ABC → nur REAL-016', () => {
+  it('bearbeiter=ABC → nur REAL-016', () => {
     const result = runPipeline(REAL_CSV_ANTRAEGE, 'meine_offenen', [], [], ABC);
     expect(result.map(r => r.aktenzeichen)).toEqual(['REAL-016']);
   });
@@ -107,22 +92,21 @@ describe('View "meine_offenen" + Bearbeiter-Filter — Intersection', () => {
 describe('vb_phase-Filter steuert den Irrlaeufer-Pre-Filter', () => {
   it('View "alle" + vb_phase-Filter [9] → Irrlaeufer sind sichtbar (Pre-Filter deaktiviert)', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-vbphase', value: ['9'] }];
-    const result = runPipeline(SEED_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
-    // SEED-013, SEED-014 (beide vb_phase=9)
-    expect(result.map(r => r.aktenzeichen).sort()).toEqual(['SEED-013', 'SEED-014']);
+    const result = runPipeline(REAL_CSV_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
+    // REAL-013, REAL-014 (beide vb_phase=9)
+    expect(result.map(r => r.aktenzeichen).sort()).toEqual(['REAL-013', 'REAL-014']);
   });
   it('View "alle" + vb_phase-Filter [3] → nur FuE-Antraege', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-vbphase', value: ['3'] }];
-    const result = runPipeline(SEED_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
-    // Alle mit vb_phase=3: SEED-003, 004, 005, 007, 009, 010, 011, 018
+    const result = runPipeline(REAL_CSV_ANTRAEGE, 'alle', active, DEFS, NEUTRAL);
     expect(result.map(r => r.aktenzeichen).sort()).toEqual([
-      'SEED-003', 'SEED-004', 'SEED-005', 'SEED-007', 'SEED-009', 'SEED-010', 'SEED-018',
+      'REAL-003', 'REAL-004', 'REAL-005', 'REAL-007', 'REAL-009', 'REAL-010', 'REAL-018',
     ]);
   });
   it('View "alle" ohne Filter → Irrlaeufer ausgeblendet (Pre-Filter aktiv)', () => {
-    const result = runPipeline(SEED_ANTRAEGE, 'alle', [], [], NEUTRAL);
-    expect(result.find(r => r.aktenzeichen === 'SEED-013')).toBeUndefined();
-    expect(result.find(r => r.aktenzeichen === 'SEED-014')).toBeUndefined();
+    const result = runPipeline(REAL_CSV_ANTRAEGE, 'alle', [], [], NEUTRAL);
+    expect(result.find(r => r.aktenzeichen === 'REAL-013')).toBeUndefined();
+    expect(result.find(r => r.aktenzeichen === 'REAL-014')).toBeUndefined();
     expect(result).toHaveLength(18);
   });
 });
