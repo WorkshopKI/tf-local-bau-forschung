@@ -105,13 +105,19 @@ export {
   setzeZieltage,
   relevanzLuecke, markiereRelevanz,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
-  aendereTodoRegel, verschiebeTodoRegel,
+  aendereTodoRegel, verschiebeTodoRegel, fuegeTodoRegelHinzu, codesMitRolle,
 } from './katalog-edit';
 export {
   ermittleTodo, ermittleTodosAlleRollen, baueTodoKontext, todoWerte,
   type TodoErgebnis, type TodoBeleg, type TodoOptionen,
 } from './todo-engine';
 export { REGELSATZ_DEFAULT, regelsatzVon, sperreGiltFuer } from './regelsatz';
+export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
+export {
+  erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX,
+  type ErhebungsFall, type BewerteterVorgang, type PlatzhalterGruppe,
+  type PlatzhalterErhebung, type RollenBilanz,
+} from './fb-erhebung';
 export {
   AB_TODO_REGELN, baueTodoRegelSeed, ENTFALLENE_REGEL_IDS, feld as todoFeld,
 } from './todo-regeln.seed';

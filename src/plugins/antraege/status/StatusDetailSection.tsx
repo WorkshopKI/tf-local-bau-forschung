@@ -14,6 +14,7 @@
  * Frage „was jetzt?" der Navigator aus der Trigger-Tabelle. Zwei
  * Erklärungs-Oberflächen nebeneinander waren der Übergangszustand, nicht das Ziel.
  */
+import { useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
@@ -21,6 +22,7 @@ import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { zahPhaseLabel, zahPhaseFuerStatusText } from '@/core/status';
 import { HerleitungPopover } from './HerleitungPopover';
 import { NaechsteSchritte } from './NaechsteSchritte';
+import { OffeneAufgaben } from './OffeneAufgaben';
 import { useStatusVerlauf } from './useStatusVerlauf';
 import { StatusTimeline } from './StatusTimeline';
 import { StatusChronik } from './StatusChronik';
@@ -40,6 +42,10 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
   // Eine Präferenz-Instanz für beide Verlaufs-Ansichten (Hook vor den Early
   // Returns — React #310).
   const prefsApi = useTimelinePrefs();
+  // Einmal je Seitenaufruf gestempelt und in die reine Engine injiziert — nie
+  // eine Uhr in der Berechnung (Hook vor den Early Returns, React #310).
+  const stichtagRef = useRef<string>(new Date().toISOString());
+  const stichtag = stichtagRef.current;
 
   if (v.laden) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>;
@@ -102,6 +108,17 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         />
       ) : (
         <StatusTimeline events={v.events} version={version} grenze={v.grenze} prefsApi={prefsApi} />
+      )}
+
+      {/* Was steht an — dieselbe Kaskade wie im Board, je Teilvorhaben und je
+          Rolle. Steht VOR dem Navigator: „was ist meine Aufgabe" kommt vor
+          „welches Kürzel setze ich dafür". */}
+      {isVorgangssystemEnabled() && (
+        <div className="mt-5">
+          <OffeneAufgaben
+            version={version} jeTeilvorhaben={v.jeTeilvorhaben} stichtag={stichtag}
+          />
+        </div>
       )}
 
       {/* Der Navigator: was ist als Nächstes zu setzen, von wem, was löst es aus.

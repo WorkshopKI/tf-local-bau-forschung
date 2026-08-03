@@ -143,12 +143,52 @@ function RelevanzVorschlag({ api }: { api: StatusCockpitApi }): React.ReactEleme
   );
 }
 
+/**
+ * Dasselbe für die anderen Rollen — aber **aus dem Katalog gespeist**, nicht aus
+ * einer Liste.
+ *
+ * Für den AB gibt es die kuratierte Spaltenauswahl der Mappe. Für den FB gibt es
+ * nichts dergleichen, und eine Liste zu erfinden hieße raten. Die Zuarbeit weiß
+ * es aber bereits: sie führt je Code, wer ihn setzt. Neutrale Codes bleiben
+ * draußen — sie darf jeder setzen (Pitfall #43), als Vorschlag gelesen wären sie
+ * ein Häkchen bei allem.
+ *
+ * `markiereRelevanz` nimmt nie ein Häkchen weg: zwei Vorschläge nacheinander
+ * ergänzen sich, statt sich gegenseitig zu löschen.
+ */
+function RelevanzJeRolle({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  const offen = (['fb', 'qs'] as const)
+    .map(rolle => ({ rolle, luecke: api.relevanzLueckeRolle(rolle) }))
+    .filter(x => x.luecke > 0);
+  if (!isVorgangssystemEnabled() || offen.length === 0) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
+      <span className="text-[12.5px] text-[var(--tf-text)]">
+        Weitere Rollen: {offen.map(x => `${x.luecke} Kürzel mit Rolle ${ROLLE_LABEL[x.rolle]}`).join(' · ')}{' '}
+        noch ohne Relevanz-Häkchen. Die Liste kommt aus der Kürzel-Zuarbeit („wird gesetzt von"),
+        nicht aus einer erfundenen Auswahl.
+      </span>
+      <span className="flex items-center gap-1.5 shrink-0">
+        {offen.map(x => (
+          <Button
+            key={x.rolle} variant="secondary" size="sm"
+            onClick={() => api.relevanzAusRolle(x.rolle)}
+          >
+            {ROLLE_LABEL[x.rolle]}-Kürzel markieren
+          </Button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 export function FelderAbgleich({ api }: { api: StatusCockpitApi }): React.ReactElement {
   return (
     <>
       <SeedLuecke api={api} />
       <TextAbweichungen api={api} />
       <RelevanzVorschlag api={api} />
+      <RelevanzJeRolle api={api} />
       <UnkuratierteFelder api={api} />
     </>
   );

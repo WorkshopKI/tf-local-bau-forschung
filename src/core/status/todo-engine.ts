@@ -211,11 +211,28 @@ export function ermittleTodosAlleRollen(
   regeln: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string,
 ): Record<Rolle, TodoErgebnis> {
   const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
+
+  // Zwei Abkürzungen, damit die Mehrspurigkeit nicht das Fünffache kostet. Sie
+  // ändern das Ergebnis nicht, sie sparen Läufe, die nachweislich dasselbe
+  // liefern:
+  //  - Trägt KEINE Sperre ein `giltFuer`, ist die Sperr-Lage für jede Rolle
+  //    dieselbe — einmal rechnen genügt.
+  //  - Ein Regelsatz ohne eigene Regeln kann keinen Treffer haben; der
+  //    Treffer-Pass liefe nur, um alles zu überspringen.
+  const rollenSperre = aktive.some(r => istSperre(r) && (r.giltFuer?.length ?? 0) > 0);
+  const mitRegeln = new Set<Rolle>();
+  for (const r of aktive) if (!istSperre(r)) mitRegeln.add(regelsatzVon(r));
+  const gemeinsameLage = rollenSperre
+    ? null
+    : sperrLage(aktive, ctx, stichtag, REGELSATZ_DEFAULT);
+
   const lagen = {} as Record<Rolle, SperrLage>;
   const pro = {} as Record<Rolle, TodoErgebnis>;
   for (const rolle of ROLLEN) {
-    lagen[rolle] = sperrLage(aktive, ctx, stichtag, rolle);
-    pro[rolle] = trefferLauf(aktive, ctx, stichtag, rolle, lagen[rolle]);
+    lagen[rolle] = gemeinsameLage ?? sperrLage(aktive, ctx, stichtag, rolle);
+    pro[rolle] = mitRegeln.has(rolle)
+      ? trefferLauf(aktive, ctx, stichtag, rolle, lagen[rolle])
+      : { ...LEER, gesperrtDurch: lagen[rolle].gesperrtDurch };
   }
 
   for (const rolle of ROLLEN) {

@@ -13,10 +13,10 @@
  * Export liefert immer nur den Stand von heute Nacht. Eine „Entwicklung", die in
  * Wahrheit ein Momentwert ist, wäre eine Erfindung.
  */
-import { ROLLE_LABEL, type ZahPhaseId } from '@/core/status';
+import { ROLLE_LABEL, type Rolle, type ZahPhaseId } from '@/core/status';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { ampelVon, type BoardZeile, type VorgangsBoardApi } from './useVorgangsBoard';
+import { ampelVon, sichtVon, type BoardZeile, type VorgangsBoardApi } from './useVorgangsBoard';
 import { exportiereCockpitXlsx } from './cockpit-export';
 
 const AMPEL_FARBE: Record<'rot' | 'gelb' | 'gruen', string> = {
@@ -35,8 +35,15 @@ function tagDe(iso: string | null): string {
 }
 
 /** Ein Export-Knopf, der den Fehlerfall zeigt statt ihn zu schlucken (#15). */
-function ExportKnopf({ zeilen, sicht }: { zeilen: BoardZeile[]; sicht: 'fristen' | 'auswertung' }): React.ReactElement {
-  const aktion = useAsyncAction(async () => { await exportiereCockpitXlsx(zeilen, sicht); });
+function ExportKnopf({ zeilen, sicht, rolle }: {
+  zeilen: BoardZeile[];
+  sicht: 'fristen' | 'auswertung';
+  rolle: Rolle | 'alle';
+}): React.ReactElement {
+  // Die Rolle geht mit: der Export zeigt GENAU die Sicht, die auf dem Schirm
+  // steht — sonst enthielte die weitergegebene Datei ein anderes To-do als das,
+  // was der Absender gesehen hat.
+  const aktion = useAsyncAction(async () => { await exportiereCockpitXlsx(zeilen, sicht, rolle); });
   return (
     <span className="flex items-center gap-2">
       <Button variant="secondary" size="sm" disabled={aktion.busy} onClick={() => aktion.run()}>
@@ -71,7 +78,7 @@ export function FristenSicht({ api }: { api: VorgangsBoardApi }): React.ReactEle
           90 Tage in der Antragsphase. Rot ab {14} Tagen, gelb ab {30}.
         </p>
         <span className="ml-auto" />
-        <ExportKnopf zeilen={zeilen} sicht="fristen" />
+        <ExportKnopf zeilen={zeilen} sicht="fristen" rolle={api.rolle} />
       </div>
 
       {(ohneFrist > 0 || abgeschlossen > 0) && (
@@ -113,7 +120,7 @@ export function FristenSicht({ api }: { api: VorgangsBoardApi }): React.ReactEle
                   >
                     {z.restTage !== null && z.restTage < 0 ? `${-z.restTage} T über` : `${z.restTage} T`}
                   </td>
-                  <td className={`${tdKlasse} text-[var(--tf-text-secondary)]`}>{z.todo ?? '—'}</td>
+                  <td className={`${tdKlasse} text-[var(--tf-text-secondary)]`}>{sichtVon(z, api.rolle).todo ?? '—'}</td>
                   <td className={`${tdKlasse} whitespace-nowrap`} title={z.waechter.grund}>
                     {z.waechter.urteil === 'haengt'
                       ? <span style={{ color: 'var(--tf-warning-text)' }}>hängt {z.waechter.tage} T</span>
@@ -207,7 +214,7 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
         <div className="flex items-center gap-2">
           <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Verteilung über die ZAH-Phasen</h3>
           <span className="ml-auto" />
-          <ExportKnopf zeilen={api.zeilen} sicht="auswertung" />
+          <ExportKnopf zeilen={api.zeilen} sicht="auswertung" rolle={api.rolle} />
         </div>
         {balken.length === 0 ? (
           <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Keine Phasen zugeordnet.</p>

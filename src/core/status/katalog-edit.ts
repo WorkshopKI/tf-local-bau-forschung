@@ -523,6 +523,57 @@ export function uebernimmSeedTexte(
   };
 }
 
+/**
+ * Legt eine To-do-Regel an — ans Ende **ihres** Regelsatzes.
+ *
+ * **Ein Regelsatz ≠ AB startet immer stillgelegt.** `pflege`-Daten liegen für
+ * alle Build-Varianten in derselben Datei: eine aktive FB-Regel würde von jeder
+ * Installation unter v2.391 als AB-Regel mitgewertet, weil deren Engine das Feld
+ * `regelsatz` nicht kennt. Das Freischalten ist deshalb eine eigene, bewusste
+ * Handlung im Editor und keine Eigenschaft des Anlegens.
+ */
+export function fuegeTodoRegelHinzu(
+  version: MappingVersion, regel: TodoRegel,
+): MappingVersion {
+  const bestand = version.todoRegeln ?? [];
+  if (bestand.some(r => r.id === regel.id)) return version;
+  const satz = regelsatzVon(regel);
+  const letzte = bestand
+    .filter(r => regelsatzVon(r) === satz)
+    .reduce((max, r) => Math.max(max, r.reihenfolge), 0);
+  return {
+    ...version,
+    todoRegeln: [...bestand, {
+      ...regel,
+      reihenfolge: letzte + 10,
+      aktiv: satz === 'ab' ? regel.aktiv : false,
+    }],
+  };
+}
+
+/**
+ * Die Kürzel, die eine Rolle setzt — die Rollen-Fassung von
+ * `AB_DASHBOARD_RELEVANZ`.
+ *
+ * Für den AB gibt es eine kuratierte Liste (die Spaltenauswahl der Mappe); für
+ * die anderen Rollen gibt es keine, und eine zu erfinden hieße raten. Der
+ * Kürzel-Katalog weiß es aber bereits: die Zuarbeit führt je Code, wer ihn setzt.
+ *
+ * **Neutrale Felder zählen NICHT mit.** `rollenVonFeld` liefert dort ein leeres
+ * Array, was „jeder darf setzen" heißt (Pitfall #43) — als Relevanz-Vorschlag
+ * gelesen wäre das „alle 143 neutralen Codes ankreuzen", und der Vorschlag
+ * verlöre jeden Zuschnitt.
+ */
+export function codesMitRolle(version: MappingVersion, rolle: Rolle): string[] {
+  const out: string[] = [];
+  for (const f of version.felder) {
+    if (f.code === undefined) continue;
+    const rollen = rollenVonFeld(f);
+    if (rollen.length > 0 && rollen.includes(rolle)) out.push(f.code);
+  }
+  return out;
+}
+
 /** Ändert eine To-do-Regel; Id und Reihenfolge bleiben unangetastet. */
 export function aendereTodoRegel(
   version: MappingVersion, id: string, patch: Partial<TodoRegel>,

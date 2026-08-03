@@ -21,8 +21,12 @@
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { TodoRegelnBereich } from './TodoRegelnBereich';
+import { usePlatzhalterErhebung } from './usePlatzhalterErhebung';
 
 export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  // Der Hook steht VOR dem Early-Return: Hook-Reihenfolge ist an die
+  // Aufrufreihenfolge gebunden, und `tsc` fängt einen Verstoß nicht (React #310).
+  const platzhalter = usePlatzhalterErhebung(api.entwurf);
   const entwurf = api.entwurf;
   if (!entwurf) return null;
   if (!isVorgangssystemEnabled()) {
@@ -34,7 +38,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   }
   return (
     <div className="flex flex-col gap-4 pt-3">
-      <TodoRegelnBereich version={entwurf} api={api} />
+      <TodoRegelnBereich version={entwurf} api={api} platzhalter={platzhalter} />
     </div>
   );
 }

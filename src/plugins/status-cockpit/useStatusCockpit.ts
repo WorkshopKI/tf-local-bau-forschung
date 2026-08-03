@@ -26,6 +26,7 @@ import {
   baueVerbundFelder, zaehleVorkommen, zuletztGesehen,
   csvSpaltenJeFeld, baueFeldAufloesung,
   aendereWert, aendereFeld, aendereTodoRegel, verschiebeTodoRegel,
+  fuegeTodoRegelHinzu, codesMitRolle, ROLLE_LABEL,
   fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
@@ -45,6 +46,7 @@ import {
   type StatusKategorie, type UnkuratierterFund, type VerbundFelder,
   type StatusCodeEintrag, type TriggerZeile,
   type TodoRegel, type TextbausteinEintrag,
+  type Bedingung, type PlatzhalterGruppe, type Rolle,
 } from '@/core/status';
 
 export interface StatusCockpitApi {
@@ -142,6 +144,15 @@ export interface StatusCockpitApi {
   relevanzLuecke: number;
   /** Die AB-Dashboard-Spalten als relevant markieren (setzt nur, nimmt nie weg). */
   relevanzAusAbDashboard: () => void;
+  /**
+   * Dasselbe je Rolle, gespeist aus dem KÜRZEL-KATALOG statt aus einer Liste:
+   * für den AB gibt es die kuratierte Spaltenauswahl der Mappe, für die anderen
+   * Rollen gibt es keine — die Zuarbeit weiß aber je Code, wer ihn setzt.
+   */
+  relevanzLueckeRolle: (rolle: Rolle) => number;
+  relevanzAusRolle: (rolle: Rolle) => void;
+  /** Eine Regel aus einem abgeleiteten Platzhalter erzeugen (stillgelegt). */
+  todoRegelAusPlatzhalter: (g: PlatzhalterGruppe) => void;
   /**
    * Der Trigger-Stand aus `_intern/status-trigger.json` samt Herkunft
    * (`share`/`cache`/`leer`). Eigene Datei, nicht Teil des Katalog-Entwurfs —
@@ -579,6 +590,42 @@ export function useStatusCockpit(): StatusCockpitApi {
     setEntwurf(v => (v ? markiereRelevanz(v, AB_DASHBOARD_RELEVANZ) : v));
   }, []);
 
+  const relevanzLueckeRolle = useCallback(
+    (rolle: Rolle) => (entwurf ? relevanzLuecke(entwurf, codesMitRolle(entwurf, rolle)) : 0),
+    [entwurf],
+  );
+
+  const relevanzAusRolle = useCallback((rolle: Rolle) => {
+    setEntwurf(v => (v ? markiereRelevanz(v, codesMitRolle(v, rolle)) : v));
+  }, []);
+
+  /**
+   * Aus einem Platzhalter eine echte Regel machen.
+   *
+   * Vorbefüllt mit der Bedingung der auslösenden Regel — die steht ja schon
+   * fest, und sie abzutippen wäre die fehleranfälligste Stelle des ganzen
+   * Termins. Rolle gedreht (`wartetAuf: fb` wird zu `zustaendig: ['fb']`) und
+   * **stillgelegt**: `fuegeTodoRegelHinzu` erzwingt das für jeden Satz außer AB.
+   */
+  const todoRegelAusPlatzhalter = useCallback((g: PlatzhalterGruppe) => {
+    setEntwurf(v => {
+      if (!v) return v;
+      const quelle = (v.todoRegeln ?? []).find(r => r.id === g.quellRegelId);
+      if (!quelle) return v;
+      return fuegeTodoRegelHinzu(v, {
+        id: `${g.rolle}-${quelle.id}`,
+        reihenfolge: 0,
+        beschreibung: `${ROLLE_LABEL[g.rolle]} · aus ${quelle.beschreibung}`,
+        bedingung: JSON.parse(JSON.stringify(quelle.bedingung)) as Bedingung,
+        todo: g.todo,
+        zustaendig: [g.rolle],
+        wartetAuf: null,
+        regelsatz: g.rolle,
+        aktiv: false,
+      });
+    });
+  }, []);
+
   const triggerUebernehmen = useCallback(async (zeilen: readonly TriggerZeile[]): Promise<boolean> => {
     const { datei, aufShare } = await speichereTrigger(
       idb, zeilen, kuerzel ?? null, trigger.datei?.version ?? 0, new Date().toISOString(),
@@ -608,6 +655,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     programmUneinheitlich: bestand?.programmUneinheitlich ?? [],
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
+    relevanzLueckeRolle, relevanzAusRolle, todoRegelAusPlatzhalter,
     zieltageAuswahl, zieltageUebernehmen,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     verwerfen, speichern, reaktivieren, exportieren, importieren,

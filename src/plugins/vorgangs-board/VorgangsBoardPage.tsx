@@ -20,8 +20,9 @@ import { ToggleChip } from '@/components/ui/ToggleChip';
 import { Badge } from '@/components/ui/badge';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, type Rolle } from '@/core/status';
+import { AbgeleitetMarke, TodoHerleitung, WartetAuf } from '@/components/vorgang/TodoAnzeige';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
-import { useVorgangsBoard, type BoardTab, type BoardZeile } from './useVorgangsBoard';
+import { useVorgangsBoard, sichtVon, type BoardTab, type BoardZeile } from './useVorgangsBoard';
 import { AuswertungSicht, FristenSicht } from './CockpitSichten';
 
 const feldStil: React.CSSProperties = {
@@ -30,18 +31,32 @@ const feldStil: React.CSSProperties = {
 };
 const feldKlasse = 'text-[12.5px] rounded px-2 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)]';
 
-/** Wer wartet: eine Rolle, der Antragsteller oder niemand Benanntes. */
-function WartetAuf({ z }: { z: BoardZeile }): React.ReactElement | null {
-  if (z.wartetAuf === null) return null;
-  const text = z.wartetAuf === 'ast' ? 'Antragsteller' : ROLLE_LANG[z.wartetAuf];
-  return <span className="text-[11px] text-[var(--tf-text-tertiary)]">wartet auf {text}</span>;
+/**
+ * Das To-do einer FREMDEN Rolle, gedämpft daneben.
+ *
+ * Nur echte Treffer — ein geliehenes Fremd-To-do wäre eine Aussage über eine
+ * Rolle, die selbst noch keine hat. Solange nur der AB-Satz gepflegt ist,
+ * erscheint hier deshalb nichts; mit dem ersten FB-Regelsatz erscheint es.
+ */
+function FremdeSpuren({ z, rolle }: { z: BoardZeile; rolle: Rolle | 'alle' }): React.ReactElement | null {
+  const andere = ROLLEN.filter(r => r !== rolle)
+    .map(r => ({ r, e: z.todos[r] }))
+    .filter(x => x.e.todo !== null && x.e.quelle === 'regel');
+  if (andere.length === 0) return null;
+  return (
+    <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)] truncate max-w-[220px]">
+      {andere.map(x => `${ROLLE_LABEL[x.r]}: ${x.e.todo}`).join(' · ')}
+    </span>
+  );
 }
 
-function Zeile({ z, onOeffnen }: {
+function Zeile({ z, rolle, onOeffnen }: {
   z: BoardZeile;
+  rolle: Rolle | 'alle';
   onOeffnen: (z: BoardZeile) => void;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
+  const e = sichtVon(z, rolle);
   return (
     <li className="border-b border-[var(--tf-border)] last:border-b-0">
       <div className="flex items-baseline gap-2 px-2 py-1.5 hover:bg-[var(--tf-hover)]">
@@ -66,12 +81,14 @@ function Zeile({ z, onOeffnen }: {
             hängt {z.waechter.tage} T
           </span>
         )}
-        {z.zustaendig.length > 0 && (
+        {e.zustaendig.length > 0 && (
           <span className="shrink-0 text-[11px] text-[var(--tf-text-secondary)]">
-            {z.zustaendig.map(r => ROLLE_LABEL[r]).join('/')}
+            {e.zustaendig.map(r => ROLLE_LABEL[r]).join('/')}
           </span>
         )}
-        <WartetAuf z={z} />
+        <AbgeleitetMarke e={e} rolle={rolle} />
+        <WartetAuf e={e} />
+        <FremdeSpuren z={z} rolle={rolle} />
         {/* Die Herleitung: welche Regel, welche Felder. Ohne sie ist ein To-do
             eine Behauptung — mit ihr eine nachvollziehbare Ableitung. */}
         <button
@@ -83,29 +100,18 @@ function Zeile({ z, onOeffnen }: {
         </button>
       </div>
       {offen && (
-        <div className="px-2 pb-2 flex flex-col gap-0.5" style={{ background: 'var(--tf-bg-secondary)' }}>
-          <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{z.beschreibung}</span>
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-            Wächter: {z.waechter.grund}
-          </span>
-          <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {z.belege.map(b => (
-              <li key={b.feldId} className="text-[11px] text-[var(--tf-text-tertiary)]">
-                <span className="font-mono">{b.feldId}</span>
-                {' = '}
-                {b.werte.length > 0 ? b.werte.join(', ') : <em>leer</em>}
-              </li>
-            ))}
-          </ul>
+        <div className="px-2 pb-2" style={{ background: 'var(--tf-bg-secondary)' }}>
+          <TodoHerleitung e={e} rolle={rolle} waechterGrund={z.waechter.grund} />
         </div>
       )}
     </li>
   );
 }
 
-function Gruppe({ todo, zeilen, onOeffnen }: {
+function Gruppe({ todo, zeilen, rolle, onOeffnen }: {
   todo: string;
   zeilen: BoardZeile[];
+  rolle: Rolle | 'alle';
   onOeffnen: (z: BoardZeile) => void;
 }): React.ReactElement {
   const [offen, setOffen] = useState(true);
@@ -121,10 +127,22 @@ function Gruppe({ todo, zeilen, onOeffnen }: {
         />
         <span className="text-[13px] font-medium text-[var(--tf-text)]">{todo}</span>
         <span className="text-[11px] text-[var(--tf-text-tertiary)]">{zeilen.length}</span>
+        {/* Eine Gruppe, die nur geliehen dasteht, sagt das am Kopf — sonst liest
+            man sie als gepflegtes Ergebnis eines Regelsatzes, den es nicht gibt. */}
+        {zeilen.every(z => sichtVon(z, rolle).quelle === 'abgeleitet') && (
+          <span
+            className="text-[11px] italic text-[var(--tf-text-tertiary)]"
+            title="Alle Einträge dieser Gruppe sind aus einer fremden Regel abgeleitet — für diese Rolle gibt es dazu noch keine eigene."
+          >
+            geliehen
+          </span>
+        )}
       </button>
       {offen && (
         <ul className="bg-[var(--tf-bg)]">
-          {zeilen.map(z => <Zeile key={z.aktenzeichen} z={z} onOeffnen={onOeffnen} />)}
+          {zeilen.map(z => (
+            <Zeile key={z.aktenzeichen} z={z} rolle={rolle} onOeffnen={onOeffnen} />
+          ))}
         </ul>
       )}
     </section>
@@ -228,6 +246,19 @@ export function VorgangsBoardPage(): React.ReactElement {
             </span>
           </div>
         )}
+        {/* Die Spuren nebeneinander. „davon N abgeleitet" ist die eigentliche
+            Aussage: so viel von dem, was diese Rolle sieht, stammt aus einer
+            FREMDEN Regel — und ist damit offene Regelarbeit, keine gepflegte
+            Kaskade. */}
+        {!api.laden && api.rollenBilanz.length > 0 && (
+          <p className="text-[12px] text-[var(--tf-text-secondary)]">
+            {api.rollenBilanz.map(b => (
+              `${b.todos} ${ROLLE_LABEL[b.rolle]}-To-dos${
+                b.abgeleitet > 0 ? `, davon ${b.abgeleitet} abgeleitet` : ''}`
+            )).join(' · ')}
+          </p>
+        )}
+
         {/* Der Stau je Rolle — die PL-Frage „wo klemmt es?". `unbewertet` steht
             DANEBEN und wird nie unter eine Rolle gezählt: es sind Vorgänge, für
             deren Status niemand Zieltage gepflegt hat. */}
@@ -270,7 +301,7 @@ export function VorgangsBoardPage(): React.ReactElement {
           </p>
         )}
         {api.gruppen.map(g => (
-          <Gruppe key={g.todo} todo={g.todo} zeilen={g.zeilen} onOeffnen={oeffnen} />
+          <Gruppe key={g.todo} todo={g.todo} zeilen={g.zeilen} rolle={api.rolle} onOeffnen={oeffnen} />
         ))}
         {!api.laden && (
           <p className="text-[11px] text-[var(--tf-text-tertiary)] pt-1">

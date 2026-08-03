@@ -24,15 +24,17 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import {
-  ROLLE_LABEL, ROLLE_LANG, bedingungSatz, bedingungFeldRefs, referenzierbareFelder,
-  ALLE_STRAENGE,
-  type Bedingung, type MappingVersion, type Rolle, type TodoRegel,
+  ROLLEN, ROLLE_LABEL, ROLLE_LANG, bedingungSatz, bedingungFeldRefs, referenzierbareFelder,
+  ALLE_STRAENGE, regelsatzVon, sperreGiltFuer, REGELSATZ_DEFAULT,
+  type Bedingung, type MappingVersion, type PlatzhalterGruppe, type Rolle, type TodoRegel,
 } from '@/core/status';
 import { feldKlasse, feldStil } from './labels';
 import { baueTodoFeldVorrat } from './todoFeldVorrat';
+import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 
 /** Wer wartet — Rollen plus „Antragsteller", der außerhalb des Hauses steht. */
 const WARTET_WAHL: { wert: string; label: string }[] = [
@@ -81,18 +83,40 @@ function RegelSatz({ r, version }: { r: TodoRegel; version: MappingVersion }): R
   );
 }
 
-function RegelKarte({ r, version, index, anzahl, api, vorrat, pruefeFeld }: {
+/**
+ * Die Warnung, die an jedem Nicht-AB-Regelsatz steht.
+ *
+ * `status-katalog.json` ist für alle Build-Varianten gleichzeitig live. Eine
+ * aktive FB-Regel würde von jeder Installation unter v2.391 in der AB-Kaskade
+ * mitgewertet, weil deren Engine das Feld `regelsatz` nicht kennt — und dort
+ * eine Aufgabe erzeugen, die es nicht gibt.
+ */
+const ROLLOUT_HINWEIS = 'Regelsätze außer AB werden von Installationen unter v2.391 in der '
+  + 'AB-Kaskade mitgewertet. Erst aktivieren, wenn alle Varianten aktualisiert sind.';
+
+function RegelKarte({ r, version, index, anzahl, satz, api, vorrat, pruefeFeld }: {
   r: TodoRegel;
   version: MappingVersion;
   index: number;
   anzahl: number;
+  /** Der gerade gezeigte Regelsatz — nicht zwingend der der Regel (Sperren). */
+  satz: Rolle;
   api: TodoRegelnApi;
   vorrat: SpaltenEintrag[];
   pruefeFeld: (feldId: string) => string | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
   const istSperre = (r.sperrt?.length ?? 0) > 0;
+  // Eine vorgangsweite Sperre erscheint in JEDEM Satz — verschieben lässt sie
+  // sich aber nur dort, wo sie zu Hause ist: sonst bewegte ein Klick im FB-Tab
+  // eine Regel, die im AB-Tab an anderer Stelle steht.
+  const eigen = regelsatzVon(r) === satz;
   const set = (patch: Partial<TodoRegel>): void => api.setTodoRegel(r.id, patch);
+  const setzeAktiv = (an: boolean): void => {
+    if (an && regelsatzVon(r) !== REGELSATZ_DEFAULT
+      && !window.confirm(`${ROLLOUT_HINWEIS}\n\nRegel „${r.beschreibung}" trotzdem aktivieren?`)) return;
+    set({ aktiv: an });
+  };
   // Am Kopf sichtbar, auch wenn die Bearbeitung zu ist: sonst findet man die
   // stumme Regel erst, wenn jemand sie aufklappt.
   const unbekannte = bedingungFeldRefs(r.bedingung).filter(f => pruefeFeld(f) !== null);
@@ -103,14 +127,16 @@ function RegelKarte({ r, version, index, anzahl, api, vorrat, pruefeFeld }: {
         <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)] w-[26px]">{index + 1}</span>
         <div className="flex items-center gap-0.5">
           <button
-            type="button" title="eine Position nach oben" disabled={index === 0}
+            type="button" disabled={index === 0 || !eigen}
+            title={eigen ? 'eine Position nach oben' : 'Diese Sperre gilt für alle Regelsätze — verschieben im Satz AB'}
             onClick={() => api.verschiebeTodoRegel(r.id, -1)}
             className="p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer disabled:opacity-30 disabled:cursor-default"
           >
             <ChevronUp size={14} />
           </button>
           <button
-            type="button" title="eine Position nach unten" disabled={index === anzahl - 1}
+            type="button" disabled={index === anzahl - 1 || !eigen}
+            title={eigen ? 'eine Position nach unten' : 'Diese Sperre gilt für alle Regelsätze — verschieben im Satz AB'}
             onClick={() => api.verschiebeTodoRegel(r.id, 1)}
             className="p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer disabled:opacity-30 disabled:cursor-default"
           >
@@ -119,6 +145,11 @@ function RegelKarte({ r, version, index, anzahl, api, vorrat, pruefeFeld }: {
         </div>
         <span className="text-[12.5px] font-medium text-[var(--tf-text)]">{r.beschreibung}</span>
         {istSperre && <Badge variant="default">Sperre</Badge>}
+        {istSperre && !eigen && (
+          <span title="Sie trägt kein giltFuer und wirkt deshalb in jedem Regelsatz.">
+            <Badge variant="default">gilt für alle Regelsätze</Badge>
+          </span>
+        )}
         {!r.aktiv && <Badge variant="default">stillgelegt</Badge>}
         {unbekannte.length > 0 && (
           <Badge variant="error">trifft nie zu: {unbekannte.join(', ')}</Badge>
@@ -127,7 +158,7 @@ function RegelKarte({ r, version, index, anzahl, api, vorrat, pruefeFeld }: {
           <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer">
             <input
               type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={r.aktiv}
-              onChange={e => set({ aktiv: e.target.checked })}
+              onChange={e => setzeAktiv(e.target.checked)}
             />
             aktiv
           </label>
@@ -197,6 +228,93 @@ function RegelKarte({ r, version, index, anzahl, api, vorrat, pruefeFeld }: {
   );
 }
 
+/**
+ * Der Leerzustand eines Regelsatzes — **die Tagesordnung, nicht „nichts da".**
+ *
+ * „Keine Regeln" wäre wahr und nutzlos. Was der FB-Termin braucht, ist die
+ * Liste der Situationen, in denen die AB-Regeln schon heute auf ihn warten: je
+ * Zeile die Herkunftsregel, wie oft sie im Bestand auftritt und ein
+ * Beispiel-Aktenzeichen zum Nachsehen. Aus jeder Zeile lässt sich die fehlende
+ * Regel direkt anlegen — vorbefüllt mit der Bedingung, die schon feststeht.
+ */
+function PlatzhalterListe({ satz, lauf, onRegelErzeugen }: {
+  satz: Rolle;
+  lauf: PlatzhalterLauf;
+  onRegelErzeugen: (g: PlatzhalterGruppe) => void;
+}): React.ReactElement {
+  const gruppen = (lauf.erhebung?.gruppen ?? []).filter(g => g.rolle === satz);
+  return (
+    <div className="flex flex-col gap-2 rounded px-2.5 py-2" style={feldStil}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-[12.5px] text-[var(--tf-text)]">
+          Für <strong>{ROLLE_LABEL[satz]}</strong> ist noch keine Regel gepflegt. Solange das so ist,
+          leiht sich das Board die Aussage der AB-Regel, die auf {ROLLE_LABEL[satz]} wartet — im Board
+          als „geliehen" markiert.
+        </span>
+        <Button
+          variant="secondary" size="sm" disabled={lauf.aktion.busy}
+          onClick={() => lauf.aktion.run()}
+        >
+          {lauf.aktion.busy ? 'Zählt …' : 'Platzhalter im Bestand zählen'}
+        </Button>
+      </div>
+      {lauf.aktion.error !== null && (
+        <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ {lauf.aktion.error}</p>
+      )}
+      {lauf.erhebung !== null && (
+        <>
+          {/* Der Jahrgang gehört dazu: das Board zeigt vorbelegt die letzten
+              drei, diese Erhebung alle. Ohne den Satz rechnet jemand die 43
+              hier gegen die 38 dort und sucht einen Fehler, der keiner ist. */}
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            {lauf.erhebung.gesamt.toLocaleString('de-DE')} Vorgänge ausgewertet
+            {lauf.bereichText !== null && <> · Betrachtungsbereich: {lauf.bereichText}</>}
+            {' '}· <strong>alle Jahrgänge</strong> (das Board zeigt vorbelegt die letzten drei und
+            kommt deshalb auf kleinere Zahlen)
+          </p>
+          {/* Gemessen: aus 38 Platzhaltern wurden 153 Treffer, als die Regel
+              wirklich stand. Der Platzhalter zählt nur, wo die AB-Regel ihre
+              Kaskade GEWINNT; die neue Regel steht in ihrem eigenen Satz allein
+              und greift überall, wo ihre Bedingung gilt. Wer das nicht weiß,
+              plant den Termin mit der falschen Größenordnung. */}
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Die Anzahl ist eine <strong>Untergrenze</strong>: sie zählt die Vorgänge, bei denen die
+            AB-Regel die Kaskade gewinnt. Eine eigene Regel steht in ihrem Satz allein und trifft
+            deshalb in der Regel deutlich mehr Vorgänge.
+          </p>
+          {gruppen.length === 0 ? (
+            <p className="text-[12px] text-[var(--tf-text-secondary)]">
+              Keine Platzhalter für {ROLLE_LABEL[satz]} — keine AB-Regel wartet im aktuellen Bestand
+              auf diese Rolle.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {gruppen.map(g => (
+                <li key={g.quellRegelId} className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] w-[64px] shrink-0">
+                    {g.anzahl.toLocaleString('de-DE')}×
+                  </span>
+                  <span className="text-[12.5px] text-[var(--tf-text)]">„{g.todo}"</span>
+                  <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{g.beschreibung}</span>
+                  <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">
+                    {g.beispiele.join(', ')}
+                  </span>
+                  <Button
+                    variant="secondary" size="sm" className="ml-auto"
+                    onClick={() => onRegelErzeugen(g)}
+                  >
+                    Regel erzeugen
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Der Ausschnitt der Cockpit-API, den dieser Bereich braucht. */
 export interface TodoRegelnApi {
   setTodoRegel: (id: string, patch: Partial<TodoRegel>) => void;
@@ -204,13 +322,30 @@ export interface TodoRegelnApi {
   todoRegelnNachziehen: () => void;
   /** Was die Auslieferung gegenüber der gepflegten Kaskade anders sagt. */
   todoDrift: { neu: string[]; geaendert: string[]; entfallen: string[] };
+  /** Eine Regel aus einem Platzhalter erzeugen — stillgelegt, vorbefüllt. */
+  todoRegelAusPlatzhalter: (g: PlatzhalterGruppe) => void;
 }
 
-export function TodoRegelnBereich({ version, api }: {
+export function TodoRegelnBereich({ version, api, platzhalter }: {
   version: MappingVersion;
   api: TodoRegelnApi;
+  platzhalter: PlatzhalterLauf;
 }): React.ReactElement {
-  const regeln = [...(version.todoRegeln ?? [])].sort((a, b) => a.reihenfolge - b.reihenfolge);
+  const alleRegeln = version.todoRegeln ?? [];
+  const [satz, setSatz] = useState<Rolle>(REGELSATZ_DEFAULT);
+  // Sichtbar sind AB und FB immer — sie sind die beiden Achsen, um die es geht.
+  // Weitere Rollen erscheinen erst, wenn für sie etwas existiert; eine leere
+  // Juristen-Kaskade wäre ein Tab, der nie etwas zu sagen hat.
+  const saetze = useMemo(() => {
+    const belegt = new Set<Rolle>(alleRegeln.filter(r => (r.sperrt?.length ?? 0) === 0).map(regelsatzVon));
+    return ROLLEN.filter(r => r === 'ab' || r === 'fb' || belegt.has(r));
+  }, [alleRegeln]);
+  // Sperren erscheinen in jedem Satz, in dem sie greifen — eine unsichtbare
+  // Sperre wäre genau die stille Leere, die das Board vermeidet.
+  const regeln = useMemo(() => alleRegeln
+    .filter(r => ((r.sperrt?.length ?? 0) > 0 ? sperreGiltFuer(r, satz) : regelsatzVon(r) === satz))
+    .sort((a, b) => a.reihenfolge - b.reihenfolge), [alleRegeln, satz]);
+  const eigeneRegeln = regeln.filter(r => (r.sperrt?.length ?? 0) === 0);
   const vorrat = useMemo(() => baueTodoFeldVorrat(version.felder), [version.felder]);
   const pruefeFeld = useMemo(() => {
     const erlaubt = referenzierbareFelder(version.felder);
@@ -231,7 +366,7 @@ export function TodoRegelnBereich({ version, api }: {
     <section className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
         <h3 className="text-[13px] font-medium text-[var(--tf-text)]">To-do-Regeln</h3>
-        <span className="text-[11px] text-[var(--tf-text-tertiary)]">{regeln.length}</span>
+        <span className="text-[11px] text-[var(--tf-text-tertiary)]">{alleRegeln.length}</span>
       </div>
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
         Geordnete Kaskade: die <strong>erste zutreffende</strong> Regel bestimmt das To-do — die
@@ -239,6 +374,26 @@ export function TodoRegelnBereich({ version, api }: {
         und erzeugen kein To-do, sondern legen ganze Stränge stumm. Trifft nichts, steht der Antrag
         im Board unter „Kein To-do ermittelt".
       </p>
+
+      {/* Je Rolle ein Regelsatz — ausgewertet wird immer genau einer. */}
+      <ScopeTabs
+        variant="pills"
+        aria-label="Regelsatz"
+        activeKey={satz}
+        onChange={(k: string) => setSatz(k as Rolle)}
+        items={saetze.map(r => ({
+          key: r,
+          label: ROLLE_LABEL[r],
+          title: ROLLE_LANG[r],
+          count: alleRegeln.filter(x => (x.sperrt?.length ?? 0) === 0 && regelsatzVon(x) === r).length,
+        }))}
+      />
+
+      {/* Steht dauerhaft da, nicht nur beim Aktivieren: wer den Tab öffnet, soll
+          wissen, warum hier alles stillgelegt ist. */}
+      {satz !== REGELSATZ_DEFAULT && (
+        <p className="text-[11.5px] text-[var(--tf-warning-text)]">{ROLLOUT_HINWEIS}</p>
+      )}
 
       {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
           stumm auf dem Stand ihres ersten Seeds stehen. Die Bilanz steht dran,
@@ -253,7 +408,10 @@ export function TodoRegelnBereich({ version, api }: {
         </div>
       )}
 
-      {regeln.length === 0 ? (
+      {/* Zwei verschiedene Leerzustände, zwei verschiedene Antworten: dem
+          AB-Satz fehlt die AUSLIEFERUNG (ein Klick), dem FB-Satz fehlen die
+          REGELN (ein Termin). Ein gemeinsamer Text würde beides verwischen. */}
+      {eigeneRegeln.length === 0 && satz === REGELSATZ_DEFAULT && (
         <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
           <span className="text-[12.5px] text-[var(--tf-text)]">
             Diese Fassung führt keine To-do-Regeln. Die Auslieferung bringt den AB-Regelsatz mit
@@ -261,14 +419,17 @@ export function TodoRegelnBereich({ version, api }: {
           </span>
           <Button variant="secondary" size="sm" onClick={api.todoRegelnNachziehen}>Nachziehen</Button>
         </div>
-      ) : (
-        regeln.map((r, i) => (
-          <RegelKarte
-            key={r.id} r={r} version={version} index={i} anzahl={regeln.length} api={api}
-            vorrat={vorrat} pruefeFeld={pruefeFeld}
-          />
-        ))
       )}
+      {eigeneRegeln.length === 0 && satz !== REGELSATZ_DEFAULT && (
+        <PlatzhalterListe satz={satz} lauf={platzhalter} onRegelErzeugen={api.todoRegelAusPlatzhalter} />
+      )}
+
+      {regeln.map((r, i) => (
+        <RegelKarte
+          key={r.id} r={r} version={version} index={i} anzahl={regeln.length} satz={satz} api={api}
+          vorrat={vorrat} pruefeFeld={pruefeFeld}
+        />
+      ))}
     </section>
   );
 }

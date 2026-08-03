@@ -14,9 +14,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import {
-  listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
-} from '@/core/services/csv/idb-csv';
 import { toVbPhaseNumber, VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { computeFristDatum, wirksamerEingang } from '@/core/services/csv/frist';
@@ -25,10 +22,12 @@ import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import type { AntragListItem } from '@/core/services/csv/types';
 import {
-  ladeAktiveVersion, getAktiveVersion, baueFeldAufloesung, sammleVorkommen,
-  baueTodoKontext, ermittleTodo, todoWerte, findeStatusCode, leseStatusRolle,
-  pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel,
-  type MappingVersion, type Rolle, type TodoBeleg, type WaechterErgebnis, type ZahPhaseId,
+  ladeAktiveVersion, getAktiveVersion, jederVorgang,
+  baueTodoKontext, ermittleTodosAlleRollen, todoWerte, findeStatusCode, leseStatusRolle,
+  pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel, REGELSATZ_DEFAULT,
+  fassePlatzhalterZusammen,
+  type MappingVersion, type Rolle, type TodoErgebnis, type WaechterErgebnis, type ZahPhaseId,
+  type RollenBilanz,
 } from '@/core/status';
 import {
   parseBearbeiterFilter, antragMatchesBearbeiter, type BearbeiterFilterMode,
@@ -46,19 +45,18 @@ export interface BoardZeile {
   jahr: string;
   /** Fördervariante (`VB_PHASE`) als Klartext — NICHT die Phase. */
   variante: string;
-  todo: string | null;
-  regelId: string | null;
-  beschreibung: string | null;
-  zustaendig: readonly Rolle[];
-  wartetAuf: Rolle | 'ast' | null;
-  belege: TodoBeleg[];
   /**
-   * Ids der Sperren, die griffen. Trennt die beiden Sorten von „kein To-do":
-   * „das Verfahren ist durch" (S0/S0b) ist eine ANDERE Aussage als „auf diesen
-   * Vorgang passt keine Regel" — die erste ist ein Ergebnis, die zweite eine
-   * Lücke im Regelsatz.
+   * Das To-do **je Rolle** — eine Auswertung, mehrere Spuren.
+   *
+   * Welche davon die Karte zeigt, entscheidet die Rollenwahl über
+   * {@link sichtVon}; berechnet werden sie in einem Durchgang. Das ist nicht nur
+   * billiger als fünf Läufe, es behebt auch einen alten Fehler: `rolle` war keine
+   * Dependency des Ladens, ein Rollenwechsel rechnete also gar nicht neu.
+   *
+   * Enthält auch die abgeleiteten Platzhalter (`quelle: 'abgeleitet'`) — die
+   * geliehene Aussage für eine Rolle, die noch keinen eigenen Regelsatz hat.
    */
-  gesperrtDurch: string[];
+  todos: Record<Rolle, TodoErgebnis>;
   /** Urteil des Stillstands-Wächters (Stufe 1 + 2). */
   waechter: WaechterErgebnis;
   /** Späteres von Antragseingang und „alle Anträge da"; ISO oder null. */
@@ -87,6 +85,18 @@ export interface BoardZeile {
 }
 
 export type BoardTab = 'meine' | 'warten' | 'ohne' | 'fristen' | 'auswertung';
+
+/**
+ * Das To-do, das die gewählte Sicht zeigt.
+ *
+ * „Alle Rollen" zeigt den **AB-Satz** und nicht etwa alle fünf übereinander: er
+ * ist der einzige, der eine vollständige Kaskade führt, und die Sicht ohne
+ * Rollenwahl soll dasselbe zeigen wie vor der Mehrspurigkeit. Wer die geliehene
+ * FB-Sicht sehen will, wählt FB — das ist eine Frage, keine Voreinstellung.
+ */
+export function sichtVon(z: BoardZeile, rolle: Rolle | 'alle'): TodoErgebnis {
+  return z.todos[rolle === 'alle' ? REGELSATZ_DEFAULT : rolle];
+}
 
 /**
  * Ampel-Schwellen der Bearbeiter-Sicht, in Tagen Restfrist.
@@ -137,6 +147,14 @@ export interface VorgangsBoardApi {
   /** Stau je Rolle über die gefilterte Menge — plus die unbewerteten. */
   stau: { rolle: Rolle | 'ast' | 'offen'; anzahl: number }[];
   unbewertet: number;
+  /**
+   * Wie viele To-dos jede Rolle sieht und wie viele davon nur geliehen sind.
+   *
+   * Gehört in die Kopfzeile, weil „84 FB-To-dos" und „84 FB-To-dos, davon 61
+   * abgeleitet" verschiedene Aussagen sind — die zweite sagt zusätzlich, wie
+   * viel Regelarbeit noch aussteht.
+   */
+  rollenBilanz: RollenBilanz[];
   /** Auswahllisten, aus dem Bestand erzeugt. */
   jahre: string[];
   /** Sind gerade ALLE Jahrgänge gewählt? Dann gehört ein Hinweis daneben. */
@@ -233,81 +251,61 @@ export function useVorgangsBoard(): VorgangsBoardApi {
       const begonnen = performance.now();
       let uebergangen = 0;
 
-      for (const p of await listProgramme(idb)) {
-        const [verbuende, antraege, schemas] = await Promise.all([
-          listVerbuendeByProgramm(idb, p.id),
-          listAntraegeByProgramm(idb, p.id),
-          listSchemasByProgramm(idb, p.id),
-        ]);
-        // Je Programm auflösen: dieselbe Spalte kann in verschiedenen Programmen
-        // unter verschiedenen Record-Keys liegen (Bug-Klasse 5).
-        const aufloesung = baueFeldAufloesung(schemas, v.felder);
-        const vbRecords = new Map(
-          verbuende.map(x => [x.verbund_id, x as unknown as Record<string, unknown>]),
+      await jederVorgang(idb, v, (satz) => {
+        const { aktenzeichen, unterprogrammId, verbundId: vbId, record: rec, vorkommen } = satz;
+        const a = rec as unknown as AntragListItem;
+        // Betrachtungsbereich vor der teuren Arbeit: `ermittleTodosAlleRollen`
+        // und der Wächter laufen je Antrag über das ganze Feld-Ensemble. Was
+        // nicht im Bereich liegt, wird gar nicht erst gerechnet — hier spart
+        // der Bereich Zeit, nicht nur Zeilen.
+        if (!istImBereich(unterprogrammId, bereichMenge)) { uebergangen += 1; return; }
+        const todos = ermittleTodosAlleRollen(regeln, baueTodoKontext(vorkommen), heuteRef.current);
+        const statusRoh = typeof a.status === 'string' ? a.status : '';
+        const code = findeStatusCode(statusRoh)?.eintrag.code ?? null;
+        // Der Wächter bekommt bewusst den AB-Satz und nicht die gewählte
+        // Sicht: sein Urteil (ok/hängt/unbewertet) hängt gar nicht am To-do,
+        // und die Rollen-Zuordnung des Staus soll sich nicht verschieben, nur
+        // weil jemand die Anzeige umschaltet. Die Stau-Zahlen bleiben damit
+        // vergleichbar mit denen vor der Mehrspurigkeit.
+        const waechter = pruefeStillstand({
+          version: v, vorkommen, statusCode: code, todo: todos[REGELSATZ_DEFAULT],
+          stichtag: heuteRef.current,
+        });
+        // Der wirksame Eingang braucht `D_XTE` — custom gemappt und NICHT in
+        // der Listen-Projektion. Hier ist er da, weil `sammleVorkommen` ihn
+        // über das Schema aufgelöst hat (Bug-Klasse 5).
+        const xte = vorkommen.find(x => x.feld.code === 'XTE');
+        const eingang = wirksamerEingang(
+          typeof rec.antragsdatum === 'string' ? rec.antragsdatum : null,
+          xte ? (parseGermanDate(xte.wert) ?? xte.wert) : null,
         );
-
-        for (const a of antraege) {
-          // Betrachtungsbereich VOR der teuren Arbeit: `sammleVorkommen`,
-          // `ermittleTodo` und der Wächter laufen je Antrag über das ganze
-          // Feld-Ensemble. Was nicht im Bereich liegt, wird gar nicht erst
-          // gerechnet — hier spart der Bereich Zeit, nicht nur Zeilen.
-          if (!istImBereich(a.unterprogramm_id, bereichMenge)) { uebergangen += 1; continue; }
-          const rec = a as unknown as Record<string, unknown>;
-          const vbId = typeof a.verbund_id === 'string' && a.verbund_id ? a.verbund_id : null;
-          const vorkommen = sammleVorkommen(
-            v.felder,
-            (vbId ? vbRecords.get(vbId) : undefined) ?? {},
-            [{ aktenzeichen: a.aktenzeichen, record: rec }],
-            aufloesung,
-          );
-          const e = ermittleTodo(regeln, baueTodoKontext(vorkommen), heuteRef.current);
-          const statusRoh = typeof a.status === 'string' ? a.status : '';
-          const code = findeStatusCode(statusRoh)?.eintrag.code ?? null;
-          const waechter = pruefeStillstand({
-            version: v, vorkommen, statusCode: code, todo: e, stichtag: heuteRef.current,
-          });
-          // Der wirksame Eingang braucht `D_XTE` — custom gemappt und NICHT in
-          // der Listen-Projektion. Hier ist er da, weil `sammleVorkommen` ihn
-          // über das Schema aufgelöst hat (Bug-Klasse 5).
-          const xte = vorkommen.find(x => x.feld.code === 'XTE');
-          const eingang = wirksamerEingang(
-            typeof rec.antragsdatum === 'string' ? rec.antragsdatum : null,
-            xte ? (parseGermanDate(xte.wert) ?? xte.wert) : null,
-          );
-          const frist = eingang
-            ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: rec.vn_eingang_datum as string | undefined })
-            : null;
-          const restTage = frist
-            ? Math.ceil((new Date(frist).getTime() - new Date(heuteRef.current).getTime()) / 86_400_000)
-            : null;
-          const zahPhase = code !== null
-            ? v.werte.find(w => w.code === code)?.zahPhaseId
-              ?? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null
-            : null;
-          zeilen.push({
-            aktenzeichen: a.aktenzeichen,
-            verbundId: vbId,
-            titel: typeof a.titel === 'string' ? a.titel : (a.akronym ?? ''),
-            statusRoh,
-            zahPhase,
-            zahPhaseText: zahPhaseLabel(zahPhase, v.zahPhasen),
-            jahr: jahrVon(rec),
-            variante: varianteVon(rec),
-            todo: e.todo,
-            regelId: e.regelId,
-            beschreibung: e.beschreibung,
-            zustaendig: e.zustaendig,
-            wartetAuf: e.wartetAuf,
-            belege: e.belege,
-            gesperrtDurch: e.gesperrtDurch,
-            waechter,
-            wirksamerEingang: eingang,
-            restTage,
-            fristLaeuft: fristLaeuftFuer(zahPhase, a.status),
-            filterRecord: a as unknown as AntragListItem,
-          });
-        }
-      }
+        const frist = eingang
+          ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: rec.vn_eingang_datum as string | undefined })
+          : null;
+        const restTage = frist
+          ? Math.ceil((new Date(frist).getTime() - new Date(heuteRef.current).getTime()) / 86_400_000)
+          : null;
+        const zahPhase = code !== null
+          ? v.werte.find(w => w.code === code)?.zahPhaseId
+            ?? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null
+          : null;
+        zeilen.push({
+          aktenzeichen,
+          verbundId: vbId,
+          titel: typeof a.titel === 'string' ? a.titel : (a.akronym ?? ''),
+          statusRoh,
+          zahPhase,
+          zahPhaseText: zahPhaseLabel(zahPhase, v.zahPhasen),
+          jahr: jahrVon(rec),
+          variante: varianteVon(rec),
+          todos,
+          waechter,
+          wirksamerEingang: eingang,
+          restTage,
+          fristLaeuft: fristLaeuftFuer(zahPhase, a.status),
+          filterRecord: a,
+        });
+      });
 
       setVersion(v);
       setAlle(zeilen);
@@ -363,9 +361,13 @@ export function useVorgangsBoard(): VorgangsBoardApi {
    * gesetzte Rolle leer.
    */
   const tabVon = useCallback((z: BoardZeile): BoardTab => {
-    if (!z.todo) return 'ohne';
-    if (rolle === 'alle') return z.zustaendig.length > 0 ? 'meine' : 'warten';
-    return z.zustaendig.includes(rolle) ? 'meine' : 'warten';
+    const e = sichtVon(z, rolle);
+    if (!e.todo) return 'ohne';
+    // Ein abgeleiteter Platzhalter trägt `zustaendig: [rolle]` — er landet also
+    // unter „Meine Aufgaben". Das ist die Aussage: die Regel wartet auf DICH,
+    // auch wenn dein Regelsatz sie noch nicht selbst beschreibt.
+    if (rolle === 'alle') return e.zustaendig.length > 0 ? 'meine' : 'warten';
+    return e.zustaendig.includes(rolle) ? 'meine' : 'warten';
   }, [rolle]);
 
   const zaehler = useMemo(() => {
@@ -392,8 +394,8 @@ export function useVorgangsBoard(): VorgangsBoardApi {
       // („Verfahren abgeschlossen"), kein fehlendes Urteil. Zusammengeworfen
       // wäre die Lücken-Anzeige unbrauchbar — seit S0/S0b liegen tausende
       // abgeschlossene Vorgänge über den paar hundert echten Unbekannten.
-      const gesperrt = imTab.filter(z => z.gesperrtDurch.length > 0);
-      const offen = imTab.filter(z => z.gesperrtDurch.length === 0);
+      const gesperrt = imTab.filter(z => sichtVon(z, rolle).gesperrtDurch.length > 0);
+      const offen = imTab.filter(z => sichtVon(z, rolle).gesperrtDurch.length === 0);
       return [
         ...(offen.length > 0 ? [{ todo: 'Kein To-do ermittelt', zeilen: offen }] : []),
         ...(gesperrt.length > 0
@@ -403,17 +405,35 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     }
     // Kaskaden-Reihenfolge statt Häufigkeit: so steht das Board in derselben
     // Ordnung wie der Regelsatz, und ein Vergleich beider ist möglich.
-    const reihenfolge = todoWerte(version?.todoRegeln ?? []);
+    const regeln = version?.todoRegeln ?? [];
     const proTodo = new Map<string, BoardZeile[]>();
     for (const z of imTab) {
-      const key = z.todo ?? '';
+      const key = sichtVon(z, rolle).todo ?? '';
       const list = proTodo.get(key);
       if (list) list.push(z); else proTodo.set(key, [z]);
     }
+    const eigene = todoWerte(regeln, rolle === 'alle' ? REGELSATZ_DEFAULT : rolle);
+    // Geliehene Gruppen hinten anhängen: ihr Text stammt aus einem FREMDEN
+    // Regelsatz und steht deshalb in `eigene` nicht drin. Sortiert nach der
+    // Position der Herkunftsregel — dieselbe Ordnung wie dort, nicht nach
+    // Häufigkeit.
+    const position = new Map(regeln.map(r => [r.id, r.reihenfolge]));
+    const geliehen = new Map<string, number>();
+    for (const z of imTab) {
+      const e = sichtVon(z, rolle);
+      if (e.quelle !== 'abgeleitet' || !e.todo || eigene.includes(e.todo)) continue;
+      const rang = position.get(e.abgeleitetAus ?? '') ?? Infinity;
+      const bisher = geliehen.get(e.todo);
+      if (bisher === undefined || rang < bisher) geliehen.set(e.todo, rang);
+    }
+    const reihenfolge = [
+      ...eigene,
+      ...[...geliehen].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([t]) => t),
+    ];
     return reihenfolge
       .filter(t => proTodo.has(t))
       .map(t => ({ todo: t, zeilen: proTodo.get(t)! }));
-  }, [zeilen, tab, tabVon, version]);
+  }, [zeilen, tab, tabVon, version, rolle]);
 
   /**
    * Stau je Rolle: wie viele hängende Vorgänge auf wessen Schreibtisch liegen.
@@ -436,6 +456,13 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     };
   }, [zeilen]);
 
+  // Über die GEFILTERTE Menge: die Kopfzeile soll das beziffern, was darunter
+  // steht, nicht den ungefilterten Bestand.
+  const rollenBilanz = useMemo(
+    () => fassePlatzhalterZusammen(zeilen, version?.todoRegeln ?? []).proRolle,
+    [zeilen, version],
+  );
+
   const jahre = useMemo(
     () => [...new Set(alle.map(z => z.jahr).filter(Boolean))].sort().reverse(),
     [alle],
@@ -457,6 +484,6 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     jahr, setJahr, variante, setVariante, phase, setPhase,
     jahre, alleJahrgaenge: jahr === ALLE, varianten, phasen, kuerzelModus,
     ausgeblendet, ladeMs,
-    nurHaengt, setNurHaengt, stau, unbewertet,
+    nurHaengt, setNurHaengt, stau, unbewertet, rollenBilanz,
   };
 }

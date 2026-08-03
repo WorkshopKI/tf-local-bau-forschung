@@ -22,6 +22,16 @@ export interface StatusVerlauf {
   /** Alle gesetzten Statuseinträge des Verbunds — Grundlage der Ordner-Ansicht. */
   vorkommen: FeldVorkommen[];
   /**
+   * Dieselben Einträge, aber **je Teilvorhaben getrennt** (Verbund-Felder plus
+   * die eigenen des TV).
+   *
+   * `vorkommen` wirft alle Teilvorhaben in einen Topf, was für Chronik und
+   * Ordner-Liste richtig ist — dort geht es um den Verbund. Für die To-do-Regeln
+   * wäre es falsch: sie lesen überwiegend TV-Spalten, und ein fertiges
+   * Teilvorhaben bekäme das To-do seines Nachbarn.
+   */
+  jeTeilvorhaben: { aktenzeichen: string; titel: string; vorkommen: FeldVorkommen[] }[];
+  /**
    * Programm-/Richtlinien-Nummer des Vorhabens (`FM_NUMMER` →
    * `unterprogramm_id`). Wählt die Trigger-Menge des Navigators aus; `null`,
    * wenn die Spalte im Schema nicht gemappt ist — dann sagt die Anzeige das.
@@ -31,7 +41,7 @@ export interface StatusVerlauf {
 
 const LEER: StatusVerlauf = {
   laden: true, version: null, events: [], grenze: null, vorkommen: [],
-  programm: null,
+  jeTeilvorhaben: [], programm: null,
 };
 
 export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
@@ -66,6 +76,11 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
           laden: false, version, events,
           grenze: aufzeichnungsGrenze(events),
           vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
+          jeTeilvorhaben: antraege.map((a, i) => ({
+            aktenzeichen: a.aktenzeichen,
+            titel: typeof a.titel === 'string' && a.titel ? a.titel : (a.akronym ?? ''),
+            vorkommen: sammleVorkommen(version.felder, vbRecord, [tvs[i]!], aufloesung),
+          })),
           programm: programmNummer(antraege, verbundId),
         });
       } catch {

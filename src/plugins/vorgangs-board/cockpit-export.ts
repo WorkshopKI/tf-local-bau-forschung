@@ -9,8 +9,8 @@
  * Reuses `xlsx@0.18.5` (ohnehin im Bundle).
  */
 import * as XLSX from 'xlsx';
-import { ROLLE_LABEL } from '@/core/status';
-import type { BoardZeile } from './useVorgangsBoard';
+import { ROLLE_LABEL, type Rolle } from '@/core/status';
+import { sichtVon, type BoardZeile } from './useVorgangsBoard';
 
 /** `2026-08-01T22:13` → `2026-08-01-22-13`; Mehrfach-Exports überschreiben nicht. */
 function zeitstempel(jetzt: Date): string {
@@ -29,7 +29,8 @@ function rolleText(r: BoardZeile['waechter']['rolle']): string {
 }
 
 /** Eine Export-Zeile — die Spalten der Bearbeiter-Sicht plus die Herleitung. */
-function alsZeile(z: BoardZeile): Record<string, string | number> {
+function alsZeile(z: BoardZeile, rolle: Rolle | 'alle'): Record<string, string | number> {
+  const e = sichtVon(z, rolle);
   return {
     Aktenzeichen: z.aktenzeichen,
     Kurzname: z.titel,
@@ -39,10 +40,13 @@ function alsZeile(z: BoardZeile): Record<string, string | number> {
     Jahrgang: z.jahr,
     'wirksamer Eingang': tagDe(z.wirksamerEingang),
     'Restfrist (Tage)': z.restTage ?? '',
-    'To-do': z.todo ?? 'kein To-do ermittelt',
-    Regel: z.beschreibung ?? '',
-    Zuständig: z.zustaendig.map(r => ROLLE_LABEL[r]).join('/'),
-    'Wartet auf': z.wartetAuf === null ? '' : (z.wartetAuf === 'ast' ? 'Antragsteller' : ROLLE_LABEL[z.wartetAuf]),
+    'To-do': e.todo ?? 'kein To-do ermittelt',
+    Regel: e.beschreibung ?? '',
+    // Ein geliehenes To-do muss auch in der weitergegebenen Datei als solches
+    // dastehen — sonst liest der Empfänger einen Platzhalter als Regelergebnis.
+    Herkunft: e.quelle === 'abgeleitet' ? `abgeleitet aus ${e.abgeleitetAus ?? '?'}` : '',
+    Zuständig: e.zustaendig.map(r => ROLLE_LABEL[r]).join('/'),
+    'Wartet auf': e.wartetAuf === null ? '' : (e.wartetAuf === 'ast' ? 'Antragsteller' : ROLLE_LABEL[e.wartetAuf]),
     Wächter: z.waechter.urteil,
     'Liegezeit (Tage)': z.waechter.tage ?? '',
     'Zieltage': z.waechter.zieltage ?? '',
@@ -60,10 +64,11 @@ function alsZeile(z: BoardZeile): Record<string, string | number> {
 export async function exportiereCockpitXlsx(
   zeilen: readonly BoardZeile[],
   sicht: 'fristen' | 'auswertung',
+  rolle: Rolle | 'alle',
   jetzt: Date = new Date(),
 ): Promise<void> {
   if (zeilen.length === 0) throw new Error('Nichts zu exportieren — die Auswahl ist leer.');
-  const blatt = XLSX.utils.json_to_sheet(zeilen.map(alsZeile));
+  const blatt = XLSX.utils.json_to_sheet(zeilen.map(z => alsZeile(z, rolle)));
   const mappe = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(mappe, blatt, sicht === 'fristen' ? 'Fristen' : 'Auswertung');
   const name = `vorgangs-board-${sicht}-${zeitstempel(jetzt)}.xlsx`;
