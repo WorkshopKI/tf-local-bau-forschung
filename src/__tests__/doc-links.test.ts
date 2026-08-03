@@ -138,6 +138,13 @@ describe('doc-links', () => {
     // und fällt erst am Bestand auf. Gegengerechnet: die abgelöste Rede von der
     // „Ableitung" ist an drei Stellen gekürzt worden, der Netto-Zuwachs sind
     // ~1,2 KB. Detail: docs/architecture/vorgangssystem.md#7.
-    expect(bytes).toBeLessThan(56_400);
+    // 56_400 → 58_000 (v2.389): Pitfall #46 + zwei Decision-Tree-Zeilen für den
+    // Betrachtungsbereich. Zwei Fehler macht man ohne den Hinweis garantiert:
+    // den Bereich in den Daten-Layer ziehen (dann findet die Suche nur noch,
+    // was ohnehin sichtbar ist, und ein Deep-Link auf ein Altprogramm läuft ins
+    // Leere) und die Kompetenz-Historie der Auslastung mitfiltern (die
+    // AnonymMap ist append-only und führt ehemalige Bearbeiter). Beides ist im
+    // Diff unsichtbar. Detail: docs/architecture/vorgangssystem.md §10.
+    expect(bytes).toBeLessThan(58_000);
   });
 });

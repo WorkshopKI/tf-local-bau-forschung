@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.389.1 — Fachabstimmung dokumentiert, Betrachtungsbereich im Konzept (August 2026)
+
+PATCH — Die Entscheidungen der AB-Abstimmung lagen bisher nur in Commit-Messages und Code-Kommentaren. Sie gehören an eine Stelle, an der man sie in einem Jahr wiederfindet.
+
+- **[fachabstimmung-2026-08.md](docs/architecture/fachabstimmung-2026-08.md)** neu: A1–A5 mit Begründung, V1–V10 mit Antwort und Umsetzung, gemessene Wirkung je Entscheidung, zwei neu aufgeworfene Fachfragen.
+- [vorgangssystem.md](docs/architecture/vorgangssystem.md) Abschnitt 10: der Betrachtungsbereich mit der Tabelle „folgt dem Bereich / folgt nicht" und dem Warum je Zeile.
+- **Pitfall #46** neu (Arbeitsvorrat vs. Evidenz) + zwei Decision-Tree-Zeilen; CLAUDE.md-Ceiling begründet auf 58 000 ([doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+- Kontext-Docs `antraege`, `status-cockpit`, `vorgangs-board`, `meilensteine`, `auslastung` auf den Ist-Zustand ([docs/feedback-kontext/](docs/feedback-kontext/)).
+- Nutzer-Changelog für v2.389 geglättet ([changelog-user.md](src/core/components/changelog/changelog-user.md)).
+
 ### v2.389.0 — Betrachtungsbereich (August 2026)
 
 MINOR — Von 14 221 Anträgen gehören 6 952 zu stillgelegten Altprogrammen. Sie verzerrten jede Arbeitsliste und jede Rechenzeit — unsichtbar. Der Bereich macht daraus einen sichtbaren, umschaltbaren Parameter.

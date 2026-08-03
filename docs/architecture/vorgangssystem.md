@@ -1,7 +1,8 @@
 # Vorgangssystem — Status, To-do, Wächter, Cockpit (ZAH-App)
 
-Stand: 02.08.2026 · **P0–P6 umgesetzt** (v2.374 – v2.385) ·
-Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
+Stand: 03.08.2026 · **P0–P6 umgesetzt + Fachabstimmung eingearbeitet**
+(v2.374 – v2.389) · Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
+· Entscheidungen: [fachabstimmung-2026-08.md](fachabstimmung-2026-08.md)
 
 ## 0. Umsetzungsstand
 
@@ -15,6 +16,10 @@ Flag `vorgangssystem` (dev + pl) · Modul `src/core/status/`
 | P5 | Fristen-Cockpit (Bearbeiter + PL), wirksamer Eingang, XLSX-Export | v2.379.0 |
 | — | Trigger je Richtlinie (Nacharbeit am ersten echten Import) | v2.380.0 → [Abschnitt 3a](#3a-trigger-gelten-je-richtlinie) |
 | P6 | **Rückbau der alten Ableitung** — Vorab-Fixes, Fassade aus Code+ZAH, Anzeige umgehängt, Ableitung entfernt | v2.382 – v2.385 → [Abschnitt 7](#7-umbau-des-bestehenden-status-katalog-moduls) |
+| — | Technische Sammel-Nacharbeit (Zulässigkeits-Trigger, Doppelfeld-Guard, Regel-Editor-Validierung, FM_NUMMER-Invariante) | v2.386.0 |
+| — | **Regelwerk aus der Fachabstimmung** — S0/S0b statt S3, `D_XKS`-Gate, PreCheck-Rollen | v2.387.0 → [fachabstimmung-2026-08.md](fachabstimmung-2026-08.md) |
+| — | Zieltage-Sammelübernahme (A2) | v2.388.0 |
+| — | **Betrachtungsbereich** — Arbeitsvorrat folgt dem Bereich, Evidenz nicht | v2.389.0 → [Abschnitt 10](#10-betrachtungsbereich-arbeitsvorrat-folgt-dem-bereich-evidenz-nicht) |
 
 **Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
 
@@ -353,3 +358,55 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 4. **Zieltage-Startwerte:** aus der PL-Erfahrung oder initial aus der Ist-Verteilung (Median-Verweildauer je Status) vorschlagen lassen?
 5. **Kürzel-Paare:** Erkennung der adm./fachl.-Paare (AK4/AT4 …) — als Konvention aus dem Katalog ableitbar oder als kleine Paar-Liste pflegen? Beim AB-Onboarding klären, ob Relevanz-Defaults je Rolle getrennt sein sollen.
 6. ~~AB-Dashboard-Mappe beschaffen~~ **Erledigt:** To-do-Logik transkribiert → `todo-regeln-ab-seed.md` (25 Regeln + 2 Sperren, inkl. bereinigter Mappen-Fehler). Der übermittelte Spaltenkopf deckt alle Regel-Eingaben ab. Verbleibend: Verifikationsfragen V1–V4 aus der Seed-Datei mit AB-Kollegen klären; Spaltenauswahl der Mappe als Relevanz-Seed AB übernehmen.
+
+## 10. Betrachtungsbereich: Arbeitsvorrat folgt dem Bereich, Evidenz nicht
+
+Gemessen am Bestand gehören **6 952 von 14 221 Anträgen** zu stillgelegten
+Altprogrammen (47 allein 4 190). Sie standen bisher in jeder Grundmenge — in den
+Tab-Zählern, in der Kapazitätsrechnung, in jeder Board-Berechnung. Sichtbar war
+das nirgends.
+
+**Das Prinzip (Pitfall #46):** der Bereich ist ein **expliziter Parameter jedes
+Konsumenten**, nie ein stiller Filter im Daten-Layer. Zöge ihn der Daten-Layer,
+gäbe es keine Stelle mehr, an der man ihn abschalten könnte: die Suche fände nur
+noch, was ohnehin sichtbar ist, und ein Deep-Link auf ein Altprogramm liefe ins
+Leere. Ein Konventionstest hält das fest.
+
+| | folgt dem Bereich | Begründung |
+|---|---|---|
+| Antragsliste, Tab-Zähler, Quickfilter | ja | Arbeitsvorrat |
+| Vorgangs-Board, Fristen, Meilensteine | ja | Arbeitsvorrat |
+| Home-Dashboard, Kanban, Eingangs-Ampel | ja | Arbeitsvorrat |
+| Auslastung: offene Arbeit, Kapazität | ja | Arbeitsvorrat |
+| **Auslastung: Kompetenz-Historie, AnonymMap** | **nein** | append-only, führt ehemalige Bearbeiter als Referenz (Pitfall #17/#18) — ein Bearbeiter, der nur in Altprogrammen gearbeitet hat, verlöre sonst sein Profil |
+| **Globale Suche** | **nein** | Evidenz. Treffer außerhalb tragen „· außerhalb des Anzeigebereichs" und lassen sich öffnen |
+| **Deep-Link / offener Datensatz** | **nein** | `/antraege/<akz>` erreicht jeden Antrag; der gerade geöffnete bleibt in der Liste sichtbar, sonst risse der Link ab |
+
+### 10.1 Zwei Quellen, eine Reihenfolge
+
+Wie bei der Kategorie-Fassade (Pitfall #45): der Seed steht **flag-unabhängig im
+Code** ([betrachtungsbereich.ts](../../src/core/status/betrachtungsbereich.ts)),
+eine geladene Katalog-Fassung überschreibt ihn. Damit gilt der Bereich auch in
+prod/as, wo `initStatusKatalog` hinter `statusCockpit` nie läuft — dort eben mit
+dem ausgelieferten Stand.
+
+Der Preis ist benannt und **sichtbar gemacht**: weicht die gepflegte Liste vom
+Seed ab, sagt das Auswahl-Panel „wirkt in den schlanken Varianten erst mit dem
+nächsten Release". Zwei stille Wahrheiten wären das eigentliche Problem.
+
+Die **Auswahl** (Standard / Alle / eigene Liste) ist dagegen persönlich und
+gerätelokal — sie geht niemanden sonst etwas an. Definition = Team-Kuration,
+Auswahl = Person; getrennte Lebensdauern, getrennte Speicher.
+
+### 10.2 Was die Umstellung gemessen hat
+
+- **Von den sichtbaren Zahlen ändert sich fast nichts.** In der Antragsliste
+  bewegt sich nur „Alle" (9 316 → 5 542); Offen 892, Überfällig 478 und NF 105
+  bleiben identisch. Die offene Arbeit liegt vollständig in den neun
+  Richtlinien — der Altbestand ist abgeschlossen, nicht liegengeblieben.
+- **Board-Rechenzeit über den Bestand**: 14 221 Vorgänge in ~6,5 s → 7 269 in
+  ~4,7 s. Rund ein Drittel schneller; die Streuung unter Last ist groß, deshalb
+  eine Spanne und kein Punktwert.
+- **Meilensteine**: 57 Verbünde weniger.
+- Der Chip nennt beides — was gilt und was fehlt: „Anzeige: letzte 3
+  Richtlinien (9 Programme) · 6 952 ausgeblendet".

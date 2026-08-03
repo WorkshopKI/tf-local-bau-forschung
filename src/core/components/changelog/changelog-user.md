@@ -19,6 +19,25 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.389 — 2026-08
+
+### Neu
+- **Anzeigebereich**: Listen, Zähler und Fristen stehen jetzt auf den letzten drei Förder-Richtlinien statt auf dem gesamten Altbestand. Der Chip im Seitenkopf sagt, was gilt und wie viel ausgeblendet ist — ein Klick schaltet auf „alle Richtlinien" oder eine eigene Auswahl. Die Suche findet weiterhin alles; Treffer außerhalb sind gekennzeichnet.
+- **Zieltage in einem Schritt**: der Status-Katalog schlägt für alle Statuswerte der Antragsphasen einen Wert aus der Ist-Verteilung vor — mit Vorschau, und ohne zu raten, wo zu wenig Daten vorliegen.
+
+### Verbesserungen
+- Die Aufgabenliste endet mit dem Verfahren: nach Schlussvermerk oder Zuwendungsbescheid meldet sie nichts mehr. „In QS" fiel damit von 1 756 auf 75.
+- „Kein To-do ermittelt" trennt jetzt zwei Dinge: wirklich keine passende Regel — oder Verfahren abgeschlossen.
+- „PC offen" sagt, auf wen gewartet wird: auf die AB (Teilvorhaben-PreCheck) oder auf die FB (Verbund-PreCheck).
+- Programm-Nummern stehen überall mit Klartext-Namen daneben.
+- Das Vorgangs-Board rechnet rund ein Drittel schneller.
+
+### Bugfixes
+- Trigger-Zeilen ohne Statuswechsel („Kürzel nur zulässig, wenn …") wurden als unverständlich abgetan — jetzt werden sie gelesen. Nicht interpretierbar sind nur noch 7 statt 30 Zeilen.
+- Im Regel-Editor ließ sich eine Bedingung auf eine Spalte bauen, die es im Katalog nicht gibt — sie traf dann nie zu, ohne dass es jemand sah. Das steht jetzt als Fehler an der Regel.
+- Der Verlauf erklärt jetzt, dass je Kürzel nur das zuletzt gesetzte Datum im Export steht.
+- Ein Klick aus dem Vorgangs-Board auf einen Antrag ohne Verbund landete auf einer leeren Liste.
+
 ## v2.385 — 2026-08
 
 ### Verbesserungen

@@ -27,11 +27,15 @@ Verfügung.
 
 - **Fünf Reiter mit Zähler.** Die ersten drei zeigen dieselbe Menge nach
   Zuständigkeit, die letzten beiden dieselbe Menge unter einer anderen Frage.
+- **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien (9 Programme) · 6 952 ausgeblendet". Er sagt, welche Förder-Richtlinien gerade zum Arbeitsvorrat zählen und wie viele Anträge das ausblendet; Klick öffnet die Auswahl (Standard-Bereich / alle Richtlinien / eigene Liste, mit Klartext-Namen). Die **Suche bleibt immer am ganzen Bestand** — Treffer außerhalb sind gekennzeichnet und lassen sich öffnen.
 - **Drei Aufgaben-Sichten**, alle aus demselben Regelsatz:
   - **Meine Aufgaben** — To-dos, für die die gewählte Rolle zuständig ist.
   - **Wartet auf andere** — dieselben Anträge aus der Fremdrollen-Sicht: was für
     den AB „RNE ergänzen" ist, erscheint dem FB als „wartet auf AB".
-  - **Kein To-do ermittelt** — die Ehrlichkeits-Anzeige, immer erreichbar.
+  - **Kein To-do ermittelt** — die Ehrlichkeits-Anzeige, immer erreichbar. Sie
+    trennt zwei Sorten: „Kein To-do ermittelt" (keine Regel traf — eine Lücke im
+    Regelsatz) und „Keine Aufgabe mehr (Verfahren abgeschlossen)" (eine Sperre
+    griff, weil Schlussvermerk oder Zuwendungsbescheid vorliegen — ein Ergebnis).
 - **Gruppen**: innerhalb einer Sicht nach To-do-Wert, in **Kaskaden-Reihenfolge**
   des Regelsatzes (nicht nach Häufigkeit) — so liest sich das Board in derselben
   Ordnung wie die Regeln. Jede Gruppe ist einklappbar und zeigt ihre Anzahl.

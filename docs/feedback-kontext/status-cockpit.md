@@ -27,7 +27,11 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt „nicht
     bewertbar", nicht „unauffällig". Neben dem Feld steht ein ⌀-Vorschlag aus
     der Ist-Verteilung (Median, Stichprobengröße im Tooltip); er wird pro Zeile
-    einzeln übernommen, nie im Block — er beschreibt das Ist, nicht das Soll.
+    einzeln übernommen. Über der Tabelle steht zusätzlich „Vorschläge ansehen":
+    eine Vorschau (Status, Ebene, Phase, Stichprobe, alt → neu) und die Übernahme
+    aller Vorschläge in einem Schritt. Übernommen werden nur die Phasen Eingang
+    bis Entscheidung und nur ab fünf Beobachtungen — Statuswerte mit kleinerer
+    Stichprobe stehen darunter namentlich als „zu wenig Daten".
 - **Kürzel**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
   Teilvorhaben getrennt.
   - Editierbar je Eintrag: Bezeichnung, Ordner, **wird gesetzt von**
@@ -51,6 +55,11 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     (setzt nur, nimmt nie weg), gefundene CSV-Spalten einsortieren.
   - Filter: Ebene, Rolle, „nur relevante", „nur mit CSV-Spalte".
 - **To-dos**: die To-do-Kaskade — geordnet, die erste zutreffende Regel gewinnt.
+  Weicht der ausgelieferte Regelsatz von der gepflegten Fassung ab, steht das
+  oben mit Bilanz („4 neue Regeln · 6 geändert · 1 entfallen") und einem
+  Nachziehen-Knopf; Nachziehen ersetzt die gelieferten Regeln, legt entfallene
+  still und lässt eigene unangetastet. Eine Bedingung auf eine Spalte, die der
+  Katalog nicht führt, wird als Fehler angezeigt („trifft nie zu").
   Die Reihenfolge IST das Ergebnis, deshalb wird sie über Pfeile gesetzt, nicht
   per Ziehen. Jede Regel liest sich als deutscher Satz („WENN Status 71 und
   D_ARQ leer → To-do «RNE ergänzen», zuständig AB").
