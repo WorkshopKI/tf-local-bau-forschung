@@ -47,6 +47,7 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from '@/core/services/csv/snapshot';
 import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE } from '@/core/services/csv/constants';
+import { journalisiereImport, type AnbindungsErgebnis } from '@/core/status/journal';
 import {
   loadFileFromStoredHandle,
   setCsvSourceHandle,
@@ -222,6 +223,11 @@ export interface RefreshReport {
    * Store der stille Daten-Verlust (Prod-Vorfall 2026-07). Sichtbar für Diagnose.
    */
   skippedInactiveUnterprogramm: number;
+  /**
+   * Was der Journal-Schritt je Master-Quelle getan hat. Leer, wenn keine Quelle
+   * journalisiert wurde (kein Master, kein Schreibrecht, Flag aus).
+   */
+  journal: (AnbindungsErgebnis & { schemaId: string })[];
 }
 
 export interface RefreshProgress {
@@ -346,7 +352,7 @@ export async function runAutoRefresh(
   opts: RunAutoRefreshOptions = {},
 ): Promise<RefreshReport> {
   const report: RefreshReport = {
-    processed: [], drift: [], errors: [],
+    processed: [], drift: [], errors: [], journal: [],
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
     skippedInactiveUnterprogramm: 0,
   };
@@ -431,6 +437,19 @@ export async function runAutoRefresh(
       // nach Abschluss der N-Quellen-Pipeline — ein Refresh pro Quelle waere redundant.
       const result = await importCsvSource(idb, schemaId, file, { // allow-import-no-refresh: Refresh erfolgt gebuendelt im Caller-Hook useCsvAutoRefreshCheck
         onLockConflict: async () => (opts.force ? 'force' : 'abort'),
+        // Das Journal sieht den EXPORT, nicht das gemergte Ergebnis. Die Zeilen
+        // liegen an dieser Stelle ohnehin im Speicher; Fehler bleiben folgenlos
+        // (das Journal begleitet den Import, es bedingt ihn nicht).
+        onRows: async (zeilen, headers) => {
+          const j = await journalisiereImport(idb, file, schema, zeilen, headers);
+          if (j) {
+            report.journal.push({ schemaId, ...j });
+            console.info(
+              `[journal] ${j.art}: ${j.eintraege} Einträge, ${j.antraege} Anträge im Stand`
+              + ` (ab ${j.journalAb}, Stempel ${j.stempel.id})`,
+            );
+          }
+        },
         // Snapshot-Write bündeln: bei N Quellen schreibt sonst jede den vollen
         // Snapshot (~25 s, touched-unabhängig). Wir publizieren EINMAL nach dem
         // Batch (siehe unten).

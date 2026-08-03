@@ -43,6 +43,19 @@ export interface ImportOptions {
   onProgress?: (p: ImportProgress) => void;
   onLockConflict?: (ageMinutes: number) => Promise<'force' | 'abort'>;
   /**
+   * Wird EINMAL nach dem Parsen mit den rohen Export-Zeilen aufgerufen.
+   *
+   * Für Konsumenten, die den Export selbst sehen müssen statt seines gemergten
+   * Ergebnisses — heute das Import-Diff-Journal: es datiert Änderungen an
+   * `D_`-Spalten, und ein gemergter Wert ist eine Mischung mehrerer Quellen.
+   * Die Zeilen liegen an dieser Stelle ohnehin im Speicher, ein zweiter Parse
+   * über eine 67-MB-Datei wäre reine Verschwendung.
+   *
+   * Best-effort: ein Fehler darf den Import nicht abbrechen — das Journal ist
+   * eine Begleitung, keine Voraussetzung.
+   */
+  onRows?: (rows: Record<string, string>[], headers: string[]) => Promise<void>;
+  /**
    * Ueberschreibt schema.encoding fuer DIESEN Import. Wichtig beim Re-Import
    * der gespeicherten SMB-Datei: die wird in saveCsvSourceFile immer als
    * UTF-8 normalisiert geschrieben — egal was schema.encoding sagt. Beim
@@ -143,7 +156,7 @@ export async function importCsvSource(
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
     const tParse = performance.now();
-    let { rows } = await parseCsvAllStreamed(csvBlob, {
+    let { rows, headers } = await parseCsvAllStreamed(csvBlob, {
       encoding: effectiveEncoding,
       separator: schema.separator,
       onProgress: (bytes, totalBytes) => {
@@ -152,6 +165,13 @@ export async function importCsvSource(
     });
     timings.parseMs = performance.now() - tParse;
     result.rowCount = rows.length;
+
+    // Rohe Export-Zeilen durchreichen (Journal). Best-effort: ein Fehler hier
+    // darf den Import nicht abbrechen.
+    if (opts.onRows) {
+      await opts.onRows(rows, headers).catch((err: unknown) =>
+        console.warn('[csv-import] onRows fehlgeschlagen', err));
+    }
 
     // Persist CSV to SMB (für Merge beim nächsten Recompute + für Backup).
     // CSV in UTF-8 normalisieren bevor sie auf den Share geht — der Merge-Pfad

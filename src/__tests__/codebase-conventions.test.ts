@@ -1768,6 +1768,10 @@ describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () 
     const pfade: [string, string][] = [
       ['_intern/status-katalog.json', 'src/core/status/katalog-share.ts'],
       ['_intern/status-trigger.json', 'src/core/status/trigger-share.ts'],
+      // Das Journal ist die dritte Sidecar. Stand und Monatsdateien leiten sich
+      // beide aus DIESER Wurzel ab — stünde sie zweimal, schriebe die zweite
+      // Stelle beim ersten Umbenennen leise ins Nirgendwo.
+      ['_intern/vorgangssystem/journal', 'src/core/status/journal/pfade.ts'],
     ];
     for (const [pfad, heimat] of pfade) {
       // Nur CODE zaehlt: ein Modulkopf, der den Nachbar-Sidecar erklaert, ist

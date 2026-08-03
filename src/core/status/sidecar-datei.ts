@@ -19,7 +19,10 @@
  * Rein bis auf den Share-Zugriff; kein Wissen über Katalog oder Trigger.
  */
 import type { IDBStore } from '@/core/services/storage';
-import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
+import {
+  atomicWrite, atomicWriteStream, appendToFile, readText,
+  type AtomicWriteSink,
+} from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 
 /**
@@ -59,6 +62,62 @@ export async function schreibeSidecar(
     return true;
   } catch (err) {
     console.error(`[status] schreibeSidecar(${pfad}) failed:`, err);
+    return false;
+  }
+}
+
+// --- Zwei Primitive für große und für wachsende Sidecars ---------------------
+// Das Import-Diff-Journal braucht beides: einen mehrere MB großen Stand, der
+// nicht als ein String im Speicher entstehen soll, und eine Monatsdatei, an die
+// angehängt wird. Sie stehen HIER, damit es beim „genau ein Weg auf den Share"
+// bleibt — die Entscheidung, WANN und WAS geschrieben wird, bleibt beim Aufrufer.
+
+/** Rohtext einer Sidecar (JSONL). `null` wie bei {@link leseSidecar}. */
+export async function leseSidecarText(idb: IDBStore, pfad: string): Promise<string | null> {
+  const handle = await getDatenShareHandle(idb);
+  if (!handle) return null;
+  try {
+    return await readText(handle, pfad);
+  } catch (err) {
+    console.warn(`[status] leseSidecarText(${pfad}) failed:`, err);
+    return null;
+  }
+}
+
+/**
+ * Schreibt eine Sidecar **gestreamt** — für Dateien, die als ein String zu groß
+ * wären. Self-gated wie {@link schreibeSidecar}.
+ */
+export async function schreibeSidecarGestreamt(
+  idb: IDBStore, pfad: string, erzeuge: (sink: AtomicWriteSink) => Promise<void>,
+): Promise<boolean> {
+  const handle = await getDatenShareHandle(idb);
+  if (!handle) return false;
+  if ((await queryPermission(handle)) !== 'granted') return false;
+  try {
+    await atomicWriteStream(handle, pfad, erzeuge);
+    return true;
+  } catch (err) {
+    console.error(`[status] schreibeSidecarGestreamt(${pfad}) failed:`, err);
+    return false;
+  }
+}
+
+/**
+ * Hängt Zeilen an eine append-only Sidecar an (Profil „append-only",
+ * Pitfall #23). Self-gated wie {@link schreibeSidecar}.
+ */
+export async function haengeAnSidecar(
+  idb: IDBStore, pfad: string, zeilen: string,
+): Promise<boolean> {
+  const handle = await getDatenShareHandle(idb);
+  if (!handle) return false;
+  if ((await queryPermission(handle)) !== 'granted') return false;
+  try {
+    await appendToFile(handle, pfad, zeilen);
+    return true;
+  } catch (err) {
+    console.error(`[status] haengeAnSidecar(${pfad}) failed:`, err);
     return false;
   }
 }

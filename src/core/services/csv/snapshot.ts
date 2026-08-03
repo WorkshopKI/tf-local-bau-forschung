@@ -15,6 +15,7 @@ import {
   getProgramm,
 } from './idb-csv';
 import { murmurhash3 } from './hash';
+import { sha256Praefixiert, sha256PraefixiertAusChunks } from './sha256';
 import { healMissingVerbuende } from './verbuende-rebuild';
 import { isFixtureSchemaId } from '../seed/fixture-ids';
 import {
@@ -120,31 +121,11 @@ export interface ProgrammSnapshotManifest {
   delta?: SnapshotDeltaBlock;
 }
 
-async function sha256Hex(text: string): Promise<string> {
-  const buf = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest('SHA-256', buf);
-  return 'sha256-' + Array.from(new Uint8Array(digest))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/**
- * SHA-256 über bereits UTF-8-kodierte Chunks (gestreamtes JSONL) — ohne den
- * vollständigen String im RAM neu aufzubauen. Liefert exakt denselben Hash wie
- * `sha256Hex(chunks.map(decode).join(''))`. Leere Chunk-Liste → Hash des
- * leeren Inputs (identisch zu `sha256Hex('')`).
- */
-async function sha256HexFromChunks(chunks: Uint8Array[]): Promise<string> {
-  let total = 0;
-  for (const c of chunks) total += c.length;
-  const all = new Uint8Array(total);
-  let off = 0;
-  for (const c of chunks) { all.set(c, off); off += c.length; }
-  const digest = await crypto.subtle.digest('SHA-256', all);
-  return 'sha256-' + Array.from(new Uint8Array(digest))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+// Die beiden Hash-Helfer standen bis v2.392 hier als private Kopien. Sie leben
+// jetzt in `sha256.ts` — dasselbe Verfahren, dasselbe `sha256-`-Präfix, nur
+// nicht mehr dreimal geschrieben.
+const sha256Hex = sha256Praefixiert;
+const sha256HexFromChunks = sha256PraefixiertAusChunks;
 
 function toJsonl<T>(items: readonly T[], sortKey: (item: T) => string): string {
   const sorted = [...items].sort((a, b) => {
