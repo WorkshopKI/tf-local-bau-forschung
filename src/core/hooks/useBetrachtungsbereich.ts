@@ -13,14 +13,22 @@
  * Konsumenten wenden ihn selbst an — nie ein stiller Filter im Daten-Layer.
  */
 import { create } from 'zustand';
+import type { BereichModus } from '@/core/status/betrachtungsbereich';
 
-export type BereichModus = 'standard' | 'alle' | 'auswahl';
+export type { BereichModus };
 
 /**
  * Versionierter Key: `_v1` ist der erste Stand. Wer die Bedeutung des
  * gespeicherten Werts ändert (andere Stufen, andere Semantik von `auswahl`),
  * bumpt hier — ein alter Eintrag darf nie unter neuer Lesart weitergelten
  * (Muster wie `ansichtPersistenz.bereichV2`).
+ *
+ * **Ein Wechsel des Standard-Bereichs bumpt hier NICHT** (geprüft beim Nachzug
+ * der Generation 2015): `modus` heißt weiter dasselbe, `auswahl` weiter „genau
+ * diese Codes" — kein gespeicherter Wert wird unter neuer Lesart gelesen. Und
+ * `standard` speichert bewusst keine Liste, greift den neuen Bereich also von
+ * selbst ab. Wer eine eigene Auswahl gesetzt hat, behält sie (sie gehört ihm);
+ * dass sie vom Standard abweicht, sagt das Auswahl-Panel.
  */
 const KEY = 'teamflow_betrachtungsbereich_v1';
 

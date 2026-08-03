@@ -160,6 +160,14 @@ describe('doc-links', () => {
     //      Vorgangssystem beseitigt hat, das zweite macht aus einem
     //      Änderungs-Journal ein mitbestimmungspflichtiges Aktivitätsprotokoll.
     // Detail: docs/architecture/vorgangssystem.md §11 und §12.
-    expect(bytes).toBeLessThan(61_000);
+    // 61_000 → 61_400 (v2.397): eine Klausel an Pitfall #46 — die Programm-Liste
+    // des Betrachtungsbereichs ist die Vereinigung der drei jüngsten
+    // Richtlinien-GENERATIONEN, nicht der Programme mit Trigger-Zuarbeit, und die
+    // Zahl im Chip wird daraus abgeleitet statt danebengeschrieben. Genau diese
+    // beiden Sätze fehlten in v2.389: der Bereich wurde nach Datenverfügbarkeit
+    // geschnitten (neun Programme = zwei Generationen) und trug trotzdem das
+    // Etikett „letzte 3 Richtlinien". Im Diff unsichtbar, weil beide Hälften für
+    // sich plausibel aussahen.
+    expect(bytes).toBeLessThan(61_400);
   });
 });

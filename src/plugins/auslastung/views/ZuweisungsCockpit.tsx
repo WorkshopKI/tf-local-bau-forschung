@@ -720,7 +720,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
       <p className="flex items-center gap-2 flex-wrap text-[11.5px] text-[var(--tf-text-tertiary)]">
         <BereichChip />
         Arbeitsvorrat: {cache.antraege.length.toLocaleString('de-DE')} Anträge
-        {' '}({bereich.modus === 'alle' ? 'alle Richtlinien' : `${bereich.programme.length} Richtlinien`})
+        {' '}({bereich.modus === 'alle' ? 'alle Richtlinien' : `${bereich.programme.length} Programme`})
         {' · '}
         <span title="Die Kompetenz-Profile der Bearbeiter stammen aus dem gesamten Bestand — auch aus Altprogrammen. Ein Bearbeiter, der nur dort gearbeitet hat, verlöre sonst sein Profil.">
           Kompetenz-Basis: {cache.antraegeVollbestand.length.toLocaleString('de-DE')} Anträge (gesamter Bestand)

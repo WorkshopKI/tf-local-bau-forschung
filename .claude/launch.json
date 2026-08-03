@@ -24,6 +24,18 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/dev-local.mjs", "--config", "configs/local.config.json", "--port", "5177"],
       "port": 5177
+    },
+    {
+      "name": "local-d",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-local.mjs", "--config", "configs/local.config.json", "--port", "5178"],
+      "port": 5178
+    },
+    {
+      "name": "local-e",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/dev-local.mjs", "--config", "configs/local.config.json", "--port", "5179"],
+      "port": 5179
     }
   ]
 }

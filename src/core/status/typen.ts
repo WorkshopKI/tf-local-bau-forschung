@@ -462,6 +462,12 @@ export interface MappingVersion {
    * zum Arbeitsvorrat. Fehlt er, gilt der ausgelieferte Seed
    * (`betrachtungsbereich.ts`) — dieselbe Reihenfolge wie bei der
    * Kategorie-Fassade: Code als Grundlage, Fassung als Kuration.
+   *
+   * Bleibt eine **flache Code-Liste**, keine Generationen-Struktur: welche
+   * Programme die Richtlinie 2015 bilden, ist Code-Wissen über die
+   * Förderlandschaft; kuriert wird nur, *welche* Programme zählen. Und nur die
+   * flache Form kann eine unvollständige Generation ausdrücken — worauf beruht,
+   * dass der Chip dann keine Generationszahl behauptet.
    */
   betrachtungsbereich?: { programme: string[] };
 

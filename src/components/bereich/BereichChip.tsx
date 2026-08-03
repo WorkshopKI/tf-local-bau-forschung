@@ -1,10 +1,14 @@
 /**
  * Der **Betrachtungsbereich-Chip** im Kopf jeder Datensicht.
  *
- * „Kein Zustand ohne Anzeige" (Pitfall #46): eine Liste, die 6 952 Anträge
+ * „Kein Zustand ohne Anzeige" (Pitfall #46): eine Liste, die 1 866 Anträge
  * ausblendet, muss das sagen — sonst hält der Leser die gezeigte Menge für den
  * ganzen Bestand und sucht vergeblich nach einem alten Vorhaben. Der Chip nennt
  * darum beides: was gilt und was fehlt.
+ *
+ * Die **Beschriftung kommt aus `bereichsLabel`**, nicht aus dieser Datei: Zahl
+ * und Wort haben damit eine Quelle. Eine hartcodierte „3" neben einem
+ * gerechneten „(N Programme)" hat schon einmal auseinandergelaufen.
  *
  * Klick öffnet die Auswahl (drei Stufen + Programm-Liste in Klartext). Der
  * Chip erscheint in allen Build-Varianten — auch dort, wo der Status-Katalog
@@ -13,6 +17,7 @@
 import { useState } from 'react';
 import { Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { bereichsLabel } from '@/core/status/betrachtungsbereich';
 import { useBereich } from '@/core/hooks/useBereich';
 import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 import { BereichPanel } from './BereichPanel';
@@ -29,11 +34,7 @@ export function BereichChip({ ausgeblendet }: {
   const labels = useRichtlinienLabels();
   const [offen, setOffen] = useState(false);
 
-  const text = bereich.modus === 'alle'
-    ? 'Anzeige: alle Richtlinien'
-    : bereich.modus === 'auswahl'
-      ? `Anzeige: ${bereich.programme.length} ausgewählte Richtlinien`
-      : `Anzeige: letzte 3 Richtlinien (${bereich.programme.length} Programme)`;
+  const text = bereichsLabel(bereich.modus, bereich.programme);
 
   const titel = bereich.modus === 'alle'
     ? 'Der ganze Bestand — auch stillgelegte Altprogramme. Klick zum Wechseln.'

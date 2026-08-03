@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.397 — 2026-08
+
+### Bugfixes
+- **Die Anzeige „letzte 3 Richtlinien" zeigte nur zwei.** Gemeint sind die drei jüngsten ZIM-Richtlinien — 2025, 2020 und **2015**; letztere fehlte im Arbeitsvorrat und damit rund 5.100 Anträge (ZIM FuE allein 4.190). Listen, Zähler, Fristen, Board und Auslastung rechnen jetzt mit allen zwölf Programmen ab 2015. Draußen bleibt nur noch die Richtlinie von 2012.
+
+### Verbesserungen
+- Die Auswahl hinter dem Anzeige-Chip ist nach Richtlinie gruppiert („Richtlinie 2025 / 2020 / 2015"), statt zwölf Programme in eine Liste zu schütten.
+- Wer sich eine **eigene** Programm-Auswahl gesetzt hat, behält sie — sieht aber jetzt im Auswahl-Fenster, wovon sie abweicht, und kommt mit einem Klick zurück zum Standard.
+- Wo sich die Zahl der Richtlinien nicht sauber angeben lässt (etwa bei einer Teilauswahl), nennt der Chip nur noch die Zahl der Programme statt eine falsche Richtlinien-Zahl zu behaupten.
+
+### Zu beachten
+- Für die Richtlinie 2015 liegen keine Trigger-Angaben vor. Bei diesen Vorhaben steht deshalb „für Programm N keine Trigger importiert", und es entstehen keine To-dos — die Anzeige ist korrekt, ein Nachexport ist mit der AB abzustimmen.
+
 ## v2.396 — 2026-08
 
 ### Neu

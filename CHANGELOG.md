@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.397.0 — Betrachtungsbereich: alle drei ZIM-Richtlinien ab 2015 (August 2026)
+
+MINOR — Der Chip versprach „letzte 3 Richtlinien", zeigte aber zwei Generationen: v2.389 hatte den Bereich nach der Trigger-Abdeckung geschnitten (neun Programme) und trotzdem als Generationszahl beschriftet. Die Generation 2015 fehlte — 5.086 Anträge, 47 allein 4.190.
+
+- **Standard-Bereich sind die drei jüngsten Richtlinien-Generationen** (2015 + 2020 + 2025 = 12 Programme, 12.355 von 14.221 Anträgen); außerhalb bleibt nur die Generation 2012 ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts))
+- **`RICHTLINIEN_GENERATIONEN` als Datenstruktur**, Seed ist `slice(-3)` davon — ein Richtlinien-Wechsel ist ein angehängter Listeneintrag, die älteste Generation rollt von selbst heraus
+- **Chip-Beschriftung abgeleitet statt danebengeschrieben** (`bereichsLabel`): keine hartcodierte „3" mehr, Singular korrekt, und wo sich keine Generation belegen lässt, wird keine behauptet ([BereichChip.tsx](src/components/bereich/BereichChip.tsx))
+- **Auswahl-Panel nach Generation gruppiert** (jüngste oben) + Hinweis, wenn eine eigene Auswahl vom Standard abweicht — der Ersatz für einen localStorage-Key-Bump ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+- **Gemessen** ([§10.2](docs/architecture/vorgangssystem.md)): nur „Alle" bewegt sich (5.542 → 7.468), Offen 892 / Überfällig 478 / NF 105 identisch; Board rechnet 12.355 statt 7.269 Vorgänge; Kompetenz-Basis der Auslastung bleibt 14.221
+
 ### v2.396.0 — Erhebungs-Fallzahl, Paar-Alter und Journal-Frische (August 2026)
 
 MINOR — Drei Nachzüge aus den Protokollen zu v2.391/v2.392. Die FB-Erhebung nannte dem Termin die falsche Größenordnung, der Alterssplit fehlte, und ein ausgefallener Journal-Lauf war nur in der Konsole sichtbar.

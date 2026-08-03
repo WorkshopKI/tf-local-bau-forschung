@@ -1,10 +1,19 @@
 /**
  * Der **Betrachtungsbereich**: welche Förder-Richtlinien zählen zum Arbeitsvorrat?
  *
- * Gemessen am Bestand (14 221 Anträge, August 2026) deckt die Trigger-Zuarbeit
- * neun Richtlinien mit 7 269 Anträgen ab; die übrigen 6 952 gehören zu
- * stillgelegten Altprogrammen (47 allein 4 190). Sie verzerren jede Arbeitsliste,
- * jeden Tab-Zähler und jede Kapazitätsrechnung — und zwar unsichtbar.
+ * Maßstab ist die **Richtlinien-Generation** — die aktuelle ZIM-Richtlinie und
+ * die beiden davor. Gemessen am Bestand (14 221 Anträge, August 2026) sind das
+ * die Generationen 2015, 2020 und 2025 mit zusammen 12 Programmen und 12 355
+ * Anträgen; außerhalb bleibt die Generation 2012 (Programme 34, 35, 36, 37) mit
+ * 1 866 Anträgen. Sie verzerrt jede Arbeitsliste, jeden Tab-Zähler und jede
+ * Kapazitätsrechnung — und zwar unsichtbar.
+ *
+ * **Nicht zu verwechseln mit der Trigger-Abdeckung.** Die Trigger-Zuarbeit führt
+ * heute nur für die Generationen 2020 und 2025 etwas (neun Programme). Das ist
+ * eine andere, kleinere Menge; wo sie fehlt, sagt der Vorgang das ausdrücklich
+ * („für Programm N keine Trigger importiert", Pitfall #44). Den Bereich daran zu
+ * bemessen hieße, den Arbeitsvorrat nach Datenverfügbarkeit zu schneiden — genau
+ * daran ist der erste Anlauf gescheitert.
  *
  * **Leitprinzip: Arbeitsvorrat folgt dem Bereich, Evidenz nicht.** Der Bereich
  * ist ein expliziter Parameter jedes Konsumenten, nie ein stiller Filter im
@@ -24,16 +33,46 @@
 import { normKey } from './normalisierung';
 import type { MappingVersion } from './typen';
 
+/** Eine Richtlinien-Generation: das Jahr und die Programme, die dazu gehören. */
+export interface RichtlinienGeneration {
+  jahr: number;
+  programme: readonly string[];
+}
+
 /**
- * Die aktuelle Richtlinie und die beiden davor — deckungsgleich mit den
- * Programmen, für die die Trigger-Zuarbeit etwas führt.
+ * Alle bekannten Generationen, **aufsteigend nach Jahr**.
  *
- * Ein Richtlinien-Wechsel ist eine Zeilen-Änderung im Status-Katalog; diese
- * Liste ist nur der Startzustand.
+ * Die Reihenfolge trägt Logik: `slice(-N)` unten liest „die N jüngsten", und
+ * `generationenVon` entscheidet daran, ob eine Liste die *aktuellen* Richtlinien
+ * meint. Eine neue Richtlinie wird deshalb **unten angehängt**, nie oben
+ * eingefügt — sonst zeigt der Bereich still auf die ältesten Generationen.
+ *
+ * Ein Richtlinien-Wechsel ist damit ein Listeneintrag: die älteste Generation
+ * rollt von selbst aus dem Bereich, Chip-Zahl und Panel-Gruppen folgen ohne
+ * Zweitpflege. Erhoben aus dem Jahr der Unterprogramm-Kuration (Spalte
+ * „Geplanter Zeitraum"), Stand August 2026.
  */
-export const BETRACHTUNGSBEREICH_SEED: readonly string[] = [
-  '76', '77', '78', '79', '131', '136', '137', '138', '139',
+export const RICHTLINIEN_GENERATIONEN: readonly RichtlinienGeneration[] = [
+  { jahr: 2012, programme: ['34', '35', '36', '37'] },
+  { jahr: 2015, programme: ['46', '47', '48'] },
+  { jahr: 2020, programme: ['76', '77', '78', '79', '131'] },
+  { jahr: 2025, programme: ['136', '137', '138', '139'] },
 ];
+
+/** Wie viele Generationen der Standard-Bereich umfasst — die „3" im Chip. */
+export const BEREICH_GENERATIONEN = 3;
+
+/**
+ * Der ausgelieferte Standard-Bereich: die drei jüngsten Generationen.
+ *
+ * Abgeleitet, nicht abgeschrieben — die Liste kann der Beschriftung nicht
+ * widersprechen. Nur der Startzustand: die Katalog-Fassung überschreibt ihn.
+ */
+export const BETRACHTUNGSBEREICH_SEED: readonly string[] =
+  RICHTLINIEN_GENERATIONEN.slice(-BEREICH_GENERATIONEN).flatMap(g => g.programme);
+
+/** Die drei Stufen der persönlichen Auswahl (reiner Domänen-Typ). */
+export type BereichModus = 'standard' | 'alle' | 'auswahl';
 
 /** Die gepflegte Programm-Liste, sonst die ausgelieferte. */
 export function bereichsProgramme(version?: MappingVersion | null): readonly string[] {
@@ -81,4 +120,126 @@ export function istImBereich(
   if (typeof unterprogrammId !== 'string') return false;
   const k = normKey(unterprogrammId);
   return k !== '' && programme.has(k);
+}
+
+/** Zu welcher Generation gehört dieses Programm? `null` = keiner bekannten. */
+export function generationVon(programm: string): number | null {
+  const k = normKey(programm);
+  if (!k) return null;
+  for (const g of RICHTLINIEN_GENERATIONEN) {
+    if (g.programme.some(p => normKey(p) === k)) return g.jahr;
+  }
+  return null;
+}
+
+/** Was eine Programm-Liste an Richtlinien-Generationen abdeckt. */
+export interface Generationsabdeckung {
+  /** **Vollständig** abgedeckte Generationen, aufsteigend nach Jahr. */
+  jahre: readonly number[];
+  /** Die Liste ist genau die Vereinigung von `jahre` — nichts fehlt, nichts extra. */
+  exakt: boolean;
+  /** `jahre` sind die N jüngsten Generationen (nur dann gilt „letzte N"). */
+  juengste: boolean;
+}
+
+/**
+ * Welche Generationen deckt diese Programm-Liste ab?
+ *
+ * `exakt: false` heißt: über Generationen ist hier **nichts** zu behaupten. Das
+ * trifft zwei Fälle, und der zweite ist der gefährlichere:
+ *
+ * 1. ein Code, der zu keiner bekannten Generation gehört;
+ * 2. eine nur **teilweise** enthaltene Generation. `['46','76','136']` besteht
+ *    aus lauter bekannten Codes und berührt drei Generationen — „letzte 3
+ *    Richtlinien (3 Programme)" wäre daraus die schlimmere Falschaussage, weil
+ *    der Leser den vollen Bestand dieser Richtlinien vor sich zu haben glaubt.
+ *
+ * Eine Generation zählt deshalb nur mit, wenn sie **ganz** enthalten ist, und
+ * `exakt` nur, wenn die Liste darüber hinaus nichts enthält. `juengste` trennt
+ * zusätzlich „die aktuellen Richtlinien" von „drei alte Generationen".
+ */
+export function generationenVon(programme: readonly string[]): Generationsabdeckung {
+  const menge = bereichsMenge(programme);
+  const jahre: number[] = [];
+  let abgedeckt = 0;
+  for (const g of RICHTLINIEN_GENERATIONEN) {
+    const drin = g.programme.filter(p => menge.has(normKey(p))).length;
+    if (drin > 0 && drin === g.programme.length) {
+      jahre.push(g.jahr);
+      abgedeckt += drin;
+    }
+  }
+  const exakt = jahre.length > 0 && abgedeckt === menge.size;
+  const schwanz = RICHTLINIEN_GENERATIONEN.slice(-jahre.length).map(g => g.jahr);
+  const juengste = exakt && jahre.every((j, i) => j === schwanz[i]);
+  return { jahre, exakt, juengste };
+}
+
+/** Eine Gruppe der Auswahl-Liste: Überschrift plus die Codes darunter. */
+export interface Programmgruppe {
+  /** `null` für Programme außerhalb jeder bekannten Generation. */
+  jahr: number | null;
+  titel: string;
+  programme: readonly string[];
+}
+
+/**
+ * Die Codes der Auswahl-Liste, nach Generation gruppiert — **jüngste zuerst**,
+ * Unbekanntes zuletzt.
+ *
+ * Jüngste oben, weil die Liste zur Leserichtung von „letzte 3 Richtlinien"
+ * passen und die aktuelle Arbeit vorn stehen soll; der Seed bleibt aufsteigend,
+ * weil er sich als Historie liest. Beides geht, weil die Reihenfolge nirgends
+ * Logik trägt (`bereichWeichtVomSeedAb` sortiert, `bereichsMenge` baut ein Set).
+ *
+ * Was zu keiner bekannten Generation gehört, bekommt eine eigene Gruppe statt
+ * stillschweigend zu fehlen — sonst wäre eine Liste kürzer als ihre Eingabe.
+ */
+export function gruppiereNachGeneration(
+  programme: readonly string[],
+): readonly Programmgruppe[] {
+  const gruppen: Programmgruppe[] = [];
+  const menge = bereichsMenge(programme);
+  for (const g of [...RICHTLINIEN_GENERATIONEN].reverse()) {
+    const drin = g.programme.filter(p => menge.has(normKey(p)));
+    if (drin.length > 0) {
+      gruppen.push({ jahr: g.jahr, titel: `Richtlinie ${g.jahr}`, programme: drin });
+    }
+  }
+  const rest = programme.filter(p => normKey(p) && generationVon(p) === null);
+  if (rest.length > 0) {
+    gruppen.push({ jahr: null, titel: 'Andere Programme', programme: [...new Set(rest)] });
+  }
+  return gruppen;
+}
+
+/**
+ * Der Text des Bereichs-Chips — **eine** Quelle für Zahl und Wort.
+ *
+ * Vorher stand die „3" als Literal neben einem gerechneten „(N Programme)".
+ * Zwei Quellen für dieselbe Aussage laufen auseinander, und genau das ist
+ * passiert: der Standard-Bereich deckte zwei Generationen ab, der Chip
+ * versprach drei. Wo sich keine Generationszahl belegen lässt, nennt der Chip
+ * lieber keine — die Programme selbst stehen im Tooltip.
+ */
+export function bereichsLabel(modus: BereichModus, programme: readonly string[]): string {
+  if (modus === 'alle') return 'Anzeige: alle Richtlinien';
+
+  const n = programme.length;
+  const zahl = n === 1 ? '1 Programm' : `${n} Programme`;
+  // Eine eigene Auswahl nennt bewusst keine Generation: die Information, auf die
+  // es ankommt, ist „das ist nicht der Team-Standard".
+  if (modus === 'auswahl') return `Anzeige: eigene Auswahl (${zahl})`;
+
+  const { jahre, exakt, juengste } = generationenVon(programme);
+  if (!exakt) return `Anzeige: ${zahl}`;
+  if (juengste) {
+    return jahre.length === 1
+      ? `Anzeige: letzte Richtlinie (${zahl})`
+      : `Anzeige: letzte ${jahre.length} Richtlinien (${zahl})`;
+  }
+  const liste = jahre.join(' + ');
+  return jahre.length === 1
+    ? `Anzeige: Richtlinie ${liste} (${zahl})`
+    : `Anzeige: Richtlinien ${liste} (${zahl})`;
 }

@@ -14,6 +14,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBereich } from '@/core/hooks/useBereich';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
+import { generationenVon } from '@/core/status/betrachtungsbereich';
 import {
   jederVorgang, baueTodoKontext, ermittleTodosAlleRollen, fassePlatzhalterZusammen,
   erhebeBlindeFlecken, erhebeKuerzelKarte, istImBereich, normKey, ladeTrigger,
@@ -76,9 +77,17 @@ export function usePlatzhalterErhebung(version: MappingVersion | null): Platzhal
       flecken: erhebeBlindeFlecken(flecken, version, regeln, stichtag),
       karte: (rolle: Rolle) => erhebeKuerzelKarte(version, proCode, trigger, rolle),
     });
-    setBereichText(bereich.menge === null
-      ? 'alle Richtlinien'
-      : `${bereich.programme.length} Richtlinien (${bereich.programme.join(', ')})`);
+    // Der Export wird Monate später gelesen — deshalb die Generationen beim
+    // Namen nennen, nicht „letzte 3". Und Programme als Programme zählen: die
+    // Liste enthält 12 Programme aus 3 Richtlinien, nicht 12 Richtlinien.
+    if (bereich.menge === null) {
+      setBereichText('alle Richtlinien');
+    } else {
+      const zahl = `${bereich.programme.length} Programme`;
+      const { jahre, exakt } = generationenVon(bereich.programme);
+      const kopf = exakt ? `Richtlinien ${jahre.join(' + ')} · ${zahl}` : zahl;
+      setBereichText(`${kopf} (${bereich.programme.join(', ')})`);
+    }
   }, [idb, version, bereich.menge, bereich.programme]);
 
   return {

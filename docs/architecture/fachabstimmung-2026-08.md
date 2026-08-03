@@ -37,11 +37,13 @@ Beide sperren im Code `['*']` (alle übrigen Regeln) statt einer Id-Liste: eine 
 
 **Gemessen** (v2.387): „in QS" **1 756 → 75** · Meine Aufgaben 1 117 → 477 · Wartet auf andere 2 244 → 347 · echte Regellücken 520 → **120** (dazu 2 937 abgeschlossene, seither eine eigene Gruppe: eine greifende Sperre ist ein Ergebnis, keine Lücke).
 
-### A4 · Programme ohne Trigger — 6 952 Anträge
+### A4 · Programme ohne Trigger — wieder offen (v2.397)
 
-**Option 1: Zustand belassen** — die Programme sind stillgelegt, die Meldung ist korrekt (V8: keine aktiven Trigger). Der Nebeneffekt ist eingetreten: im Standard-Betrachtungsbereich (v2.389) verschwindet die Meldung von selbst, weil diese Programme nicht mehr im Arbeitsvorrat stehen.
+**Option 1: Zustand belassen** — die Programme sind stillgelegt, die Meldung ist korrekt (V8: keine aktiven Trigger). Die Meldung nennt jetzt das Klartext-Label statt der nackten Nummer.
 
-Die Meldung nennt jetzt das Klartext-Label statt der nackten Nummer.
+**Der damals genannte Nebeneffekt ist zurückgenommen.** Er lautete: im Standard-Betrachtungsbereich (v2.389) verschwinde die Meldung von selbst, weil diese Programme nicht mehr im Arbeitsvorrat stünden. Seit v2.397 umfasst der Bereich die **drei jüngsten Richtlinien-Generationen** — 2015 gehört dazu. Damit stehen 46/47/48 (5 086 Anträge) wieder im Arbeitsvorrat, und die Trigger-Zuarbeit führt für sie nichts: die Meldung ist bis zu 5 086 Mal korrekt statt praktisch unsichtbar. Außerhalb bleibt nur die Generation 2012 (34–37, 1 866 Anträge).
+
+**Damit ist Option 2 konkret adressierbar:** Nachexport der Trigger für **46, 47, 48** anfordern? Das ist eine Entscheidung der AB, kein Code-Fix — die App sagt derweil ehrlich, was sie nicht weiß.
 
 ### A5 · Führende Status-Ebene in Listen
 
@@ -76,4 +78,4 @@ Aus der Umsetzung, noch offen:
 - **Die Trigger-Sidecar speicherte ihre eigene Deutung mit.** Eine Parser-Verbesserung wäre erst beim nächsten XLSX-Import angekommen; jetzt wird beim Laden neu abgeleitet.
 - **Der Regel-Editor arbeitete auf einem anderen Vokabular als die Auswertung** — man konnte dort eine Regel bauen, die still nie zutrifft.
 - **Ein gewachsener Regelsatz erreichte bestehende Fassungen nicht.** Der Status-Katalog zeigt die Drift jetzt und zieht sie nach.
-- **Betrachtungsbereich** (v2.389): der Arbeitsvorrat steht auf den letzten drei Richtlinien, die Suche bleibt am Vollbestand. Von den sichtbaren Zahlen ändert sich **nur** „Alle" in der Antragsliste (9 316 → 5 542) — kein Arbeitsvorrat-Zähler. Board-Rechenzeit über den Bestand: rund ein Drittel schneller.
+- **Betrachtungsbereich** (v2.389, korrigiert v2.397): der Arbeitsvorrat steht auf den letzten drei Richtlinien-**Generationen** (2015 + 2020 + 2025 = 12 Programme, 12 355 Anträge), die Suche bleibt am Vollbestand. v2.389 hatte nach Trigger-Abdeckung geschnitten und dabei 2015 ausgelassen. Von den sichtbaren Zahlen ändert sich **nur** „Alle" in der Antragsliste (9 316 → 5 542 → 7 468) — kein Arbeitsvorrat-Zähler, in keinem der beiden Schritte.

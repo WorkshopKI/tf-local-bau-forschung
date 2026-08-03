@@ -34,13 +34,16 @@ Die To-do-Regeln wurden aus den WENN-Formeln des AB-XLSX übernommen — aber di
 - [ ] **Option 1 (Empfehlung):** S0 + S3 wie vorgeschlagen einführen.
 - [ ] **Option 2:** andere Abgrenzung — **Frage an die AB-Kollegen (= V5):** Welche Slicer-Werte waren in der Mappe fixiert? Antwort: ______________________
 
-### A4 · Programme ohne Trigger — betrifft 6 952 Anträge (Altbestand)
+### A4 · Programme ohne Trigger — betrifft 5 086 Anträge im Arbeitsvorrat
 
-Die Trigger-Zuarbeit deckt die Programme 76–79, 131, 136–139 ab (7 269 Anträge). Für 47, 36, 46, 34, 48, 35, 37 (6 952 Anträge, überwiegend Altbestand; 47 allein 4 190) führt sie nichts — Navigator und Trigger-Erklärung sagen dort ehrlich „für Programm N keine Trigger importiert".
+Der **Arbeitsvorrat** umfasst die drei jüngsten Richtlinien-Generationen: **2015** (46, 47, 48 · 5 086 Anträge), **2020** (76–79, 131 · 4 735) und **2025** (136–139 · 2 534) — zusammen 12 355 von 14 221. Außerhalb bleibt nur die Generation **2012** (34–37 · 1 866).
 
-- [ ] **Option 1:** Zustand belassen — die Programme sind stillgelegt, die Meldung ist korrekt.
-- [ ] **Option 2:** Nachexport der Trigger für folgende Programme anfordern: ______________________
-- **Fachfrage (= V8):** Führt das Fachsystem für diese Programme noch aktive Trigger-Definitionen? Antwort: ______________________
+Die Trigger-Zuarbeit deckt davon nur 2020 und 2025 ab (7 269 Anträge). Für die Generation **2015** führt sie nichts — Navigator und Trigger-Erklärung sagen dort ehrlich „für Programm N keine Trigger importiert". Das betrifft bis zu **5 086 Vorgänge**, die sehr wohl in Listen und Zählern stehen; 47 allein bringt 4 190 mit und lief nach Aktenlage bis 02.11.2023.
+
+- [ ] **Option 1:** Zustand belassen — die Meldung ist korrekt, und ohne Zieltage/Trigger entsteht dort eben kein To-do.
+- [ ] **Option 2 (Empfehlung, wenn 2015 noch bearbeitet wird):** Nachexport der Trigger für **46, 47, 48** anfordern.
+- [ ] **Option 3:** Generation 2015 aus dem Arbeitsvorrat nehmen (dann zurück auf 9 Programme — dieselbe Lage wie vor v2.397).
+- **Fachfrage (= V8):** Führt das Fachsystem für 46/47/48 noch aktive Trigger-Definitionen? Antwort: ______________________
 
 ### A5 · Führende Status-Ebene in Listen
 
