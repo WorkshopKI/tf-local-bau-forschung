@@ -271,7 +271,7 @@ Kategorie-Ableitung, keine Ränge.
 
 | Vorher | Jetzt |
 |---|---|
-| `status-canonical.ts` mit handgeschriebener Rohtext→Kategorie-Tabelle | Fassade, intern gespeist aus **Rohtext → Code → ZAH-Phase → Kategorie** ([kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts)). Flag-unabhängig in der eingebauten Map; Bauantrag-Domäne (dev/demo, ohne Codes) bleibt eine Handliste |
+| `status-canonical.ts` mit handgeschriebener Rohtext→Kategorie-Tabelle | Fassade, intern gespeist aus **Rohtext → Code → ZAH-Phase → Kategorie** ([kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts)). Flag-unabhängig in der eingebauten Map; die zweite Handliste daneben ist mit v2.395 entfallen |
 | Katalog-Tab mit Kategorie/Spine-Phase/Rang/Prominenz/terminal | Code, Text, Kategorie, Prominenz, **ZAH-Phase**, **Zieltage**, aktiv. Vorkommen + „zuletzt gesehen" bleiben als Drift-Anzeige |
 | Kürzel-Tab mit Spine-Phase/Rang/terminal, Filter „nur mit Rang" | **ZAH-Phase je Datumsfeld** (24 gesetzt, Rest bewusst leer). Ordner bleiben als Gliederung, Ordner-Ränge ersatzlos entfallen |
 | Regeln-Tab: 5 handgeschriebene Regeln mit Prioritäten **neben** der Kaskade | Nur die To-do-Kaskade. Die 5 Alt-Regeln gehen darin auf — Zuordnung im Kopf von [RegelnTab.tsx](../../src/plugins/status-cockpit/RegelnTab.tsx) |

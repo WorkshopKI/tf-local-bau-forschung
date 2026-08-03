@@ -1,8 +1,10 @@
-# Antrag-Status: zwei Domänen, eine Kategorie (CLAUDE.md Pitfall #12)
+# Antrag-Status: Rohwert vs. Kategorie (CLAUDE.md Pitfall #12)
 
-## Werte-Sätze
+## Werte-Satz
 
-`AntragListItem.status` trägt entweder **Bauantrag-Snake-Case-Werte** (`neu`, `in_pruefung`, `genehmigt`, `abgelehnt`, `archiviert`, …) oder **Förderantrag-CSV-Rohwerte** aus dem Foyer-Quellsystem (`beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, `Schlussvermerk`, `abgelehnt/zurückgezogen`, …).
+`AntragListItem.status` trägt **CSV-Rohwerte aus dem Foyer-Quellsystem** (`beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, `Schlussvermerk`, `abgelehnt/zurückgezogen`, …). Die Kategorie leitet sich daraus über den Code-Katalog ab: Rohtext → Code → ZAH-Phase → `StatusCategory` ([kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts)).
+
+Bis v2.395 lief daneben ein zweiter, handgepflegter Werte-Satz mit Snake-Case-Werten der mit v2.88 entfernten Bauantrag-Demo (`neu`, `in_pruefung`, `genehmigt`, `archiviert`, …). Er ist entfernt; im echten Bestand kam keiner dieser Werte vor (gemessen: 14 221 Anträge, 26 Status-Werte, 0 Treffer). Was der Katalog nicht kennt, ist `sonstige` — das ist eine eigene Aussage, kein Verfahrensschritt.
 
 ## Strukturelle Sicherung (Mai 2026)
 
@@ -10,7 +12,7 @@
 
 ## Vergleichs-Pflicht: Kategorie-Helper
 
-Views, Dashboard, Eingangs-Ampel und Workflow-Logik **NIE direkt** gegen einen der Werte-Sätze vergleichen (`status === 'bewilligt'`). Stattdessen die Kategorie-Helper aus [src/core/utils/status-canonical.ts](../../src/core/utils/status-canonical.ts) nutzen:
+Views, Dashboard, Eingangs-Ampel und Workflow-Logik **NIE direkt** gegen einen Rohwert vergleichen (`status === 'bewilligt'`). Stattdessen die Kategorie-Helper aus [src/core/utils/status-canonical.ts](../../src/core/utils/status-canonical.ts) nutzen:
 
 - `isOpenStatus()`
 - `isBewilligtStatus()`
@@ -29,7 +31,9 @@ Die Filter-Sidebar ([statusGroups.ts](../../src/plugins/antraege/filter/statusGr
 
 ### (a) Förderantrag hat keinen final-`abgelehnt`-Endzustand
 
-`Ablehnung` / `Widerruf` / `Anhörung zum Widerruf` zählen als Kategorie `entscheidung` (= noch im Verfahren, `isOpenStatus`-true). Der final-negative Pfad geht über `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`). Nur die Bauantrag-Domain hat `abgelehnt` als finalen Endzustand.
+`Ablehnung` / `Widerruf` / `Anhörung zum Widerruf` zählen als Kategorie `entscheidung` (= noch im Verfahren, `isOpenStatus`-true). Der final-negative Pfad geht über `abgelehnt/zurückgezogen` (Kategorie `abgeschlossen`).
+
+Die Kategorie `abgelehnt` ist deshalb **unbesetzt** — sie bleibt trotzdem im Union-Type: Farbe, Label, Quickchip und Kanban-Lane hängen an ihr, und eine kuratierte Katalog-Fassung kann sie besetzen. `isAbgelehntStatus` ist mit v2.395 entfallen (hätte immer `false` geliefert); `isAbgelehntZurueckgezogenStatus` prüft weiter beides.
 
 ### (b) Begleit-Phase
 
@@ -55,7 +59,7 @@ Zwischenstand-Doku (Mai 2026 kurzzeitig, dann revidiert): Toggle steuerte NUR KU
 
 ## Test-Fixtures
 
-Tests in [src/plugins/antraege/__tests__/](../../src/plugins/antraege/__tests__/) laufen mit zwei handgeschriebenen Fixture-Sätzen (`seed-antraege.ts` Bauantrag, `real-csv-antraege.ts` Förderantrag) plus den echten Real-Fixture-CSVs (`realCsvImport.test.ts`) — wenn ein Test mit Bauantrag-Fixture passt aber mit Förderantrag-Fixture failt, ist genau das ein Domain-Mismatch-Bug.
+Tests in [src/plugins/antraege/__tests__/](../../src/plugins/antraege/__tests__/) laufen gegen `real-csv-antraege.ts` (CSV-Rohwerte) plus die echten Real-Fixture-CSVs (`realCsvImport.test.ts`). Bis v2.395 lief daneben eine zweite Fixture mit Bauantrag-Werten, gegen dieselben Erwartungen — ein Test, der nur mit einer der beiden passte, zeigte einen Domain-Mismatch. Mit dem Wegfall der zweiten Domäne entfällt dieser Doppellauf.
 
 ---
 
@@ -63,8 +67,8 @@ Tests in [src/plugins/antraege/__tests__/](../../src/plugins/antraege/__tests__/
 
 ### Pitfall #9 — Status-Mappings sind domain-getrennt
 
-`src/core/utils/status-mappings.ts` ist NUR für Vorgang-Status (Bauantrag/Förderantrag: `neu`, `in_pruefung`, `genehmigt`, …). Feedback-Status (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`) hat seine eigenen Maps in `src/components/feedback/constants.ts` — bewusst getrennt, weil andere Semantik (siehe [feedback-system.md](feedback-system.md) Pitfall #21). Beim Hinzufügen neuer Status-Werte: Vorgang-Status zentral (`status-mappings.ts` + `status-canonical.ts` + `statusGroups.ts`), Feedback-Status in der Feedback-Domain.
+`src/core/utils/status-mappings.ts` ist NUR für die Anzeige des Antrags-Rohwerts (`beantragt`, `VN geprüft`, `bewilligt`, …). Feedback-Status (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`) hat seine eigenen Maps in `src/components/feedback/constants.ts` — bewusst getrennt, weil andere Semantik (siehe [feedback-system.md](feedback-system.md) Pitfall #21). Beim Hinzufügen neuer Status-Werte: Vorgang-Status zentral (`status-mappings.ts` + `status-canonical.ts` + `statusGroups.ts`), Feedback-Status in der Feedback-Domain.
 
-### Pitfall #12 — Antrag-Status: zwei Domänen, eine Kategorie
+### Pitfall #12 — Antrag-Status: Rohwert vs. Kategorie
 
 `[test: no-direct-status-compare]` — Die gesamte Datei oben ist die Detail-Heimat. Kernregel: `Antrag.status` / `AntragListItem.status` / `Verbund.status` (`AntragStatusRaw = string & { __brand }`) nie gegen ein Literal vergleichen (`status === 'bewilligt'`) — Kategorie-Helper aus [status-canonical.ts](../../src/core/utils/status-canonical.ts) nutzen (`isOpenStatus`, `isBewilligtStatus`, `isBegleitungStatus`, `isClosedStatus`, `getStatusCategory`). **Maschinell erzwungen** durch `no-direct-status-compare` (Inline-Ausnahme: `// allow-status-literal: <grund>`).

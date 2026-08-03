@@ -69,7 +69,7 @@ src/
 │   │   │   └── index.ts         <- PDF + DOCX to Markdown
 │   │   ├── skills/              <- v2.68: Gutachten-Skill als Datenstruktur (kurzfassung-skill + parseSkillOutput + checks + transport-agnostischer run-skill) — Registry-ready
 │   │   ├── gutachten-vorlagen/  <- v2.68: DOCX-Vorlagen-Füller (fill-template Run-Splitting + Anker + Dry-Run, field-mapping, vorlagen-quelle Handle, save-docx)
-│   │   ├── seed/                <- Förder-Fixture-Loader (fixture-loader.ts; Bauantrag-/Dokumente-/Artefakt-Demo-Seeds entfernt v2.88)
+│   │   ├── seed/                <- Förder-Fixture-Loader (fixture-loader.ts; Demo-Seeds entfernt v2.88)
 │   │   ├── storage/
 │   │   │   ├── index.ts         <- StorageService facade
 │   │   │   ├── idb-store.ts     <- IndexedDB wrapper
@@ -102,7 +102,7 @@ src/
 │   │   │   ├── types.ts             <- AuditEntry, BuildLock, BackupEntry, SessionMeta, KuratorConfigPlain, ZugangsEintrag/-File, FolderValidationResult, Pfad-Konstanten
 │   │   │   └── index.ts             <- Barrel-Export
 │   ├── types/
-│   │   ├── vorgang.ts           <- Vorgang + VorgangStatus (Home-Dashboard-Shape; Bauantrag-Domäne entfernt v2.88)
+│   │   ├── vorgang.ts           <- Vorgang + VorgangStatus=string (Home-Dashboard-Shape; Demo-Domäne v2.88, ihr Vokabular v2.395 entfernt)
 │   │   ├── config.ts            <- UserProfile (is_kurator + Legacy is_admin), AIProviderConfig
 │   │   ├── plugin.ts            <- TeamFlowPlugin interface (kuratorOnly + Legacy adminOnly, category 'kuration')
 │   │   ├── feedback.ts          <- FeedbackItem (kurator_status/_priority/_notes + Legacy admin_*), FeedbackCategory, FeedbackStatus, ChatMsg, etc.

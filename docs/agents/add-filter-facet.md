@@ -30,4 +30,4 @@ Wenn eine neue System-Filter-Facet zur Antrags-Sidebar kommt (z.B. `Bearbeiter-K
 - `npm run typecheck` grün
 - Kurator-Plugin „Filter-Kuration" öffnen → neue Facet erscheint in der Sidebar mit Display-Group aus dem Schema
 - Antraege-Plugin: Filter setzen, Liste filtert korrekt
-- Mit beiden Fixture-Domänen (Bauantrag + Förderantrag) gegen-prüfen
+- Gegen die CSV-Rohwert-Fixture (`real-csv-antraege.ts`) prüfen

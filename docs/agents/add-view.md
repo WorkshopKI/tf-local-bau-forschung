@@ -9,7 +9,7 @@ Wenn eine neue Liste-View für `src/plugins/antraege/` dazukommt (z.B. `meine_in
 
 ## Status-Domänen-Pflicht
 
-Predicates **niemals** direkt gegen Status-Strings vergleichen (`a.status === 'bewilligt'`). Es gibt zwei Status-Domänen (Bauantrag-Snake-Case vs. Förderantrag-CSV-Rohwerte), die sich am selben `AntragListItem.status`-Feld vermischen. Stattdessen die Kategorie-Helper aus [src/core/utils/status-canonical.ts](../../src/core/utils/status-canonical.ts) verwenden: `isOpenStatus()`, `isBewilligtStatus()`, `isNachforderungStatus()`, `isBegleitungStatus()`, `isClosedStatus()`. Tests müssen die View mit **beiden** Fixture-Sätzen (`seed-antraege.ts` Bauantrag + `real-csv-antraege.ts` Förderantrag) bestehen.
+Predicates **niemals** direkt gegen Status-Strings vergleichen (`a.status === 'bewilligt'`). `AntragListItem.status` trägt den rohen CSV-Wert; welche Schreibweisen vorkommen, entscheidet der Code-Katalog, nicht der Code. Stattdessen die Kategorie-Helper aus [src/core/utils/status-canonical.ts](../../src/core/utils/status-canonical.ts) verwenden: `isOpenStatus()`, `isBewilligtStatus()`, `isNachforderungStatus()`, `isBegleitungStatus()`, `isClosedStatus()`. Tests laufen gegen `real-csv-antraege.ts`.
 
 ## Optional (UI / Persistenz)
 

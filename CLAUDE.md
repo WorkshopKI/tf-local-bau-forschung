@@ -216,7 +216,7 @@ Konzept: [vorgangssystem.md](docs/architecture/vorgangssystem.md); Regel-Herkunf
 
 ### Legacy: Vorgang-Typ
 
-`src/core/types/vorgang.ts` (`Vorgang` + `VorgangStatus`) — Überbleibsel des alten Vorgang-zentrierten Datenmodells. Die zugehörige Bauantrag-Demo-Domäne (Plugin, Seed, Workflow-/Artefakt-Stack) wurde mit **v2.88 entfernt**; übrig bleibt der `Vorgang`-Typ als reines Projektions-Shape für die **Home-Dashboard**-Aggregation (`AntragVorgang = Vorgang & {…}` in [dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)) — kein eigener IDB-Store mehr. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
+`src/core/types/vorgang.ts` (`Vorgang` + `VorgangStatus`) — Überbleibsel des alten Vorgang-zentrierten Datenmodells; die zugehörige Demo-Domäne fiel mit **v2.88**, ihr Status-Vokabular mit **v2.395** (`VorgangStatus` ist jetzt `string` = der rohe CSV-Wert). Übrig bleibt der `Vorgang`-Typ als reines Projektions-Shape für die **Home-Dashboard**-Aggregation (`AntragVorgang = Vorgang & {…}` in [dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts)) — kein eigener IDB-Store mehr. **Neue Features verwenden das `Antrag`-Interface aus dem CSV-Schema (`src/core/types/csv/types.ts`), nicht `Vorgang`.**
 
 ### Referenz-App
 

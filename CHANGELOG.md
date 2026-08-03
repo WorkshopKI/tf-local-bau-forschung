@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.395.1 — Doku auf den Ist-Zustand nach dem Bauantrag-Endausbau (August 2026)
+
+PATCH — Nachtrag zu v2.395: sechs lebende Docs beschrieben noch „zwei Status-Domänen" und verwiesen auf die gelöschte Fixture. Docs beschreiben den Ist-Zustand (Doku-Konvention 1), also werden sie umgeschrieben statt ergänzt.
+
+- [antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) neu geschnitten: „Rohwert vs. Kategorie" statt zwei Domänen, inkl. der unbesetzten Kategorie `abgelehnt` und der Messung aus dem echten Bestand.
+- [add-view.md](docs/agents/add-view.md) + [add-filter-facet.md](docs/agents/add-filter-facet.md): keine Doppelfixture-Pflicht mehr.
+- [CLAUDE.md](CLAUDE.md), [project-structure.md](docs/architecture/project-structure.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md) auf `VorgangStatus = string` bzw. die entfallene Handliste gezogen.
+- **Nicht angefasst:** `prompt-vorgangssystem.md` (Auftragsdokument einer vergangenen Runde) und `KATALOG-V1.md` (im README bereits als historisch markiert) — beides Archiv-Kandidaten für eine spätere Runde.
+
 ### v2.395.0 — Bauantrag-Endausbau: das Vokabular der entfernten Demo-Domaene raus (August 2026)
 
 MINOR — Die Bauantrag-Demo-Domäne ist seit v2.88 weg, ihr Vokabular lief weiter: eine handgepflegte Statusliste neben dem Code-Katalog, eine erfundene Status-Union, eine zweite Test-Fixture, 16 Search-Eval-Fälle und ein Dokumenttyp in zwei LLM-Prompts.
