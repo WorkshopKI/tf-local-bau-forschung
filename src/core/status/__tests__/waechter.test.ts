@@ -208,7 +208,7 @@ describe('Stufe 2 — halb offene Kürzel-Paare', () => {
     const e = pruefeStillstand({
       version: fassung(), vorkommen: [vk('ANY', 40)], statusCode: 35, stichtag: STICHTAG,
       todo: {
-        todo: 'SV in QS', regelId: 'r4', beschreibung: null,
+        todo: 'SV in QS', regelId: 'r4', beschreibung: null, quelle: 'regel',
         zustaendig: [], wartetAuf: 'qs', belege: [], gesperrtDurch: [], weitereTreffer: [],
       },
     });

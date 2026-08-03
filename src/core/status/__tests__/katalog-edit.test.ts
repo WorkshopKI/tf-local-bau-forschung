@@ -3,9 +3,10 @@ import {
   aendereKategorie, entdoppleKanonischeCodes, entferneKategorie, ergaenzeSeedFelder,
   ergaenzeVorgangssystemSeed, fuegeFeldHinzu, fuegeKategorieHinzu, kanonischeCodeDoppel,
   markiereRelevanz, relevanzLuecke, seedTextAbweichungen, uebernimmSeedTexte,
-  todoRegelDrift, zieheTodoRegelnNach,
+  todoRegelDrift, zieheTodoRegelnNach, verschiebeTodoRegel,
 } from '@/core/status/katalog-edit';
 import { baueTodoRegelSeed } from '@/core/status/todo-regeln.seed';
+import type { TodoRegel } from '@/core/status/typen';
 import {
   baueSeedVersion, baueSeedCodeFelderOhneKanonische, KANONISCHE_CODE_FELDER,
 } from '@/core/status/seed';
@@ -275,6 +276,52 @@ describe('Doppelt geführte Codes (kanonisches Feld + eigene D_-Spalte)', () => 
     expect(nach.has('s0b'), 'neue Sperre kommt dazu').toBe(true);
     // Idempotent: ein zweiter Lauf meldet keine Drift mehr.
     expect(todoRegelDrift(nachher, seed, ['r23'])).toEqual({ neu: [], geaendert: [], entfallen: [] });
+  });
+
+  it('Nachziehen des AB-Seeds lässt einen fremden Regelsatz unberührt', () => {
+    // `zieheTodoRegelnNach` vergleicht über Ids, nicht über Mengen — eine
+    // FB-Regel darf davon weder verschwinden noch stillgelegt werden, sonst
+    // fräße jede AB-Pflege die Arbeit des FB-Termins.
+    const seed = baueTodoRegelSeed();
+    const fb: TodoRegel = {
+      id: 'fb1', reihenfolge: 10, beschreibung: 'FB1',
+      bedingung: { feldId: 'status', op: 'gefuellt' },
+      todo: 'Verbund prüfen', zustaendig: ['fb'], regelsatz: 'fb', aktiv: true,
+    };
+    const fassung: MappingVersion = { ...altfassung(), todoRegeln: [fb] };
+    const nachher = zieheTodoRegelnNach(fassung, seed, ['r23']);
+    const nach = (nachher.todoRegeln ?? []).find(r => r.id === 'fb1');
+    expect(nach).toEqual(fb);
+    expect(todoRegelDrift(nachher, seed, ['r23']), 'die FB-Regel ist keine Drift')
+      .toEqual({ neu: [], geaendert: [], entfallen: [] });
+  });
+
+  it('Verschieben bewegt nur innerhalb des eigenen Regelsatzes', () => {
+    // Über alle Sätze hinweg zu nummerieren hieße, dass ein Klick im AB-Tab die
+    // Regel an einer FB-Regel vorbeischiebt, die dort gar nicht steht — die
+    // Aktion sähe wirkungslos aus.
+    const regeln: TodoRegel[] = [
+      { id: 'a1', reihenfolge: 10, beschreibung: 'A1', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'A1', zustaendig: ['ab'], aktiv: true },
+      { id: 'f1', reihenfolge: 20, beschreibung: 'F1', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'F1', zustaendig: ['fb'], regelsatz: 'fb', aktiv: true },
+      { id: 'a2', reihenfolge: 30, beschreibung: 'A2', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'A2', zustaendig: ['ab'], aktiv: true },
+      { id: 'f2', reihenfolge: 40, beschreibung: 'F2', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'F2', zustaendig: ['fb'], regelsatz: 'fb', aktiv: true },
+    ];
+    const nachher = verschiebeTodoRegel({ ...altfassung(), todoRegeln: regeln }, 'a2', -1);
+    const nach = new Map((nachher.todoRegeln ?? []).map(r => [r.id, r.reihenfolge]));
+    expect(nach.get('a2'), 'A2 steht jetzt vor A1').toBe(10);
+    expect(nach.get('a1')).toBe(20);
+    expect(nach.get('f1'), 'der FB-Satz bleibt unangetastet').toBe(20);
+    expect(nach.get('f2')).toBe(40);
+  });
+
+  it('Verschieben am Rand des eigenen Satzes tut nichts', () => {
+    const regeln: TodoRegel[] = [
+      { id: 'a1', reihenfolge: 10, beschreibung: 'A1', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'A1', zustaendig: ['ab'], aktiv: true },
+      { id: 'f1', reihenfolge: 20, beschreibung: 'F1', bedingung: { feldId: 'status', op: 'gefuellt' }, todo: 'F1', zustaendig: ['fb'], regelsatz: 'fb', aktiv: true },
+    ];
+    const vorher: MappingVersion = { ...altfassung(), todoRegeln: regeln };
+    expect(verschiebeTodoRegel(vorher, 'f1', -1)).toBe(vorher);
+    expect(verschiebeTodoRegel(vorher, 'a1', 1)).toBe(vorher);
   });
 
   it('jedes Kürzel im Seed hat GENAU EINEN Speicherort', () => {

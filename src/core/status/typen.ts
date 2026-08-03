@@ -345,6 +345,29 @@ export interface TodoRegel {
    */
   wartetAuf?: Rolle | 'ast' | null;
   /**
+   * Zu welchem **Regelsatz** die Regel gehört — die Kaskade der Rolle, die sie
+   * abarbeitet. Fehlend ⇒ `'ab'`, weil der ausgelieferte Seed die AB-Mappe
+   * transkribiert; jede Fassung aus der Zeit vor v2.390 verhält sich damit
+   * unverändert, ohne dass die geteilte Datei umgeschrieben wird.
+   *
+   * Bewusst der bestehende {@link Rolle}-Typ statt eines eigenen `'AB'|'FB'`:
+   * QS, PA und Juristen bekommen ihren Satz dann ohne zweite Migration.
+   * Gelesen wird ausschließlich über `regelsatzVon` (`regelsatz.ts`).
+   */
+  regelsatz?: Rolle;
+  /**
+   * Nur an einer **Sperre** sinnvoll: in welchen Regelsätzen sie greift.
+   * Fehlend ODER leer ⇒ in allen. S0/S0b/S1/S2 sind vorgangsweit und tragen das
+   * Feld deshalb nicht.
+   *
+   * **Gegenläufig zu {@link TodoRegel.zustaendig}**: dort heißt leer „keine
+   * Rolle benannt", hier „alle Rollen" — wie bei
+   * {@link StatusFeldEintrag.rollen} (Pitfall #43). Die beiden Konventionen
+   * stehen in diesem Typ nebeneinander; gelesen wird deshalb ausschließlich
+   * über `sperreGiltFuer` (`regelsatz.ts`).
+   */
+  giltFuer?: Rolle[];
+  /**
    * Sperre statt To-do: trifft sie zu, werden die genannten Regeln übersprungen.
    * Bildet S1/S2 der Mappe ab (zurückgezogener Antrag bzw. begonnene RNE/ABL
    * unterdrücken die PreCheck-, NF- und NL-Stränge).

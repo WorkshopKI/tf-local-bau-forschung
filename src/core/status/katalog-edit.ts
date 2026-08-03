@@ -8,6 +8,7 @@ import type {
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
 import { normKey } from './normalisierung';
+import { regelsatzVon } from './regelsatz';
 import { rollenVonFeld } from './rollen';
 import { baueStatusCodeIndex, findeStatusCode, type StatusCodeEintrag } from './status-codes';
 import { SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
@@ -350,6 +351,10 @@ function regelKern(r: TodoRegel): string {
     reihenfolge: r.reihenfolge, bedingung: r.bedingung, todo: r.todo,
     zustaendig: [...r.zustaendig].sort(), wartetAuf: r.wartetAuf ?? null,
     sperrt: [...(r.sperrt ?? [])].sort(), sperrtNicht: [...(r.sperrtNicht ?? [])].sort(),
+    // Regelsatz und Sperr-Geltung entscheiden mit, WO eine Regel wirkt — zöge
+    // die Auslieferung eine Regel in einen anderen Satz um, bliebe das ohne sie
+    // eine stille Änderung.
+    regelsatz: regelsatzVon(r), giltFuer: [...(r.giltFuer ?? [])].sort(),
   });
 }
 
@@ -531,25 +536,42 @@ export function aendereTodoRegel(
 }
 
 /**
- * Verschiebt eine Regel um eine Position in der Kaskade.
+ * Verschiebt eine Regel um eine Position in **ihrer** Kaskade.
  *
  * **Die Reihenfolge wird komplett neu vergeben** (10, 20, 30 …) statt zwei
  * Werte zu tauschen: importierte oder von Hand gepflegte Fassungen können
  * Lücken und Doppelwerte tragen, und ein Tausch zweier gleicher Zahlen wäre
  * eine Aktion, die sichtbar nichts tut.
+ *
+ * **Nur innerhalb des eigenen Regelsatzes** (seit v2.390). Über alle Sätze
+ * hinweg zu nummerieren hieße, dass ein Klick im AB-Tab die Regel an einer
+ * FB-Regel vorbeischiebt, die dort gar nicht steht — die Aktion sähe wirkungslos
+ * aus und wäre es nicht. Dass die Nummern sich zwischen den Sätzen doppeln, ist
+ * harmlos: der Treffer-Pass sieht immer nur einen Satz, und der Sperr-Pass ist
+ * ein Vollscan ohne Ordnung.
  */
 export function verschiebeTodoRegel(
   version: MappingVersion, id: string, richtung: -1 | 1,
 ): MappingVersion {
-  const sortiert = [...(version.todoRegeln ?? [])].sort((a, b) => a.reihenfolge - b.reihenfolge);
+  const alle = version.todoRegeln ?? [];
+  const regel = alle.find(r => r.id === id);
+  if (!regel) return version;
+  const satz = regelsatzVon(regel);
+  const sortiert = alle
+    .filter(r => regelsatzVon(r) === satz)
+    .sort((a, b) => a.reihenfolge - b.reihenfolge);
   const i = sortiert.findIndex(r => r.id === id);
   const ziel = i + richtung;
   if (i < 0 || ziel < 0 || ziel >= sortiert.length) return version;
   const [bewegt] = sortiert.splice(i, 1);
   sortiert.splice(ziel, 0, bewegt!);
+  const neueNummer = new Map(sortiert.map((r, n) => [r.id, (n + 1) * 10]));
   return {
     ...version,
-    todoRegeln: sortiert.map((r, n) => ({ ...r, reihenfolge: (n + 1) * 10 })),
+    todoRegeln: alle.map(r => {
+      const nummer = neueNummer.get(r.id);
+      return nummer === undefined ? r : { ...r, reihenfolge: nummer };
+    }),
   };
 }
 

@@ -19,12 +19,18 @@
  *    ermittelt" — der Antrag verschwindet nicht, er steht in einer eigenen
  *    Gruppe. Ein leeres Board wäre die unehrlichste aller Antworten.
  *
+ * 3. **Mehrspurig seit v2.390.** Jede Regel gehört einem {@link Rolle}-Regelsatz
+ *    (fehlend ⇒ `'ab'`); ausgewertet wird immer genau einer. Solange nur der
+ *    AB-Satz gefüllt ist, ist das Ergebnis bitgenau das von vorher.
+ *
  * Rein und deterministisch: der `stichtag` wird injiziert, ausgewertet wird über
  * den geteilten `pruefeBedingung` — kein zweiter Evaluator (Pitfall #41).
  */
 import { pruefeBedingung, type BedingungsKontext } from './bedingung';
 import { bedingungFeldRefs } from './bedingung';
 import type { FeldVorkommen } from './feld-aufloesung';
+import { regelsatzVon, sperreGiltFuer, REGELSATZ_DEFAULT } from './regelsatz';
+import { ROLLEN } from './rollen';
 import { ALLE_STRAENGE, type Rolle, type TodoRegel } from './typen';
 
 /** Ein Feld, das die treffende Regel liest, mit seinem aktuellen Wert. */
@@ -55,11 +61,21 @@ export interface TodoErgebnis {
   gesperrtDurch: string[];
   /** Regeln, die ebenfalls zuträfen — für die gedämpfte Zweitanzeige. */
   weitereTreffer: { regelId: string; todo: string }[];
+  /**
+   * Woher das To-do kommt: aus einer eigenen Regel dieses Regelsatzes
+   * (`'regel'`) oder abgeleitet aus dem `wartetAuf` einer fremden Regel
+   * (`'abgeleitet'`). Ohne Treffer steht `'regel'` — es gibt dann nichts
+   * abzuleiten.
+   */
+  quelle: 'regel' | 'abgeleitet';
+  /** Bei `quelle: 'abgeleitet'`: die Regel, aus deren `wartetAuf` es stammt. */
+  abgeleitetAus?: string;
 }
 
 const LEER: TodoErgebnis = {
   todo: null, regelId: null, beschreibung: null,
   zustaendig: [], wartetAuf: null, belege: [], gesperrtDurch: [], weitereTreffer: [],
+  quelle: 'regel',
 };
 
 /** Sperre = Regel ohne To-do, die andere Regeln überspringt. */
@@ -74,27 +90,31 @@ function belegeVon(regel: TodoRegel, ctx: BedingungsKontext): TodoBeleg[] {
   }));
 }
 
-/**
- * Ermittelt das To-do eines Antrags/Verbunds. Rein.
- *
- * @param regeln  Die Kaskade; wird nach `reihenfolge` sortiert, Inaktive fallen raus.
- * @param ctx     Feldwerte (`baueTodoKontext`).
- * @param stichtag ISO — injiziert, nie eine Uhr in der Engine.
- */
-export function ermittleTodo(
-  regeln: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string,
-): TodoErgebnis {
-  const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
+/** Welche Regeln in diesem Regelsatz schweigen und warum. */
+interface SperrLage {
+  /** Ids der greifenden Sperren — erklärt, warum ein Strang stumm bleibt. */
+  gesperrtDurch: string[];
+  istGesperrt: (id: string) => boolean;
+}
 
-  // Erst die Sperren — sie stehen in der Mappe als äußere WENNs um ganze
-  // Stränge und müssen deshalb vor jeder Regel feststehen, nicht erst wenn die
-  // Kaskade an ihnen vorbeikommt.
+/**
+ * Der Sperr-Pass für EINEN Regelsatz.
+ *
+ * Läuft bewusst über **alle** aktiven Regeln und filtert erst über `giltFuer`:
+ * eine Sperre gehört keinem Regelsatz, sie gilt vorgangsweit, solange sie nichts
+ * anderes sagt. Vorgefiltert nach `regelsatz` fielen S0/S1/S2 aus jeder fremden
+ * Rollen-Sicht heraus — der abgeschlossene Vorgang stünde dem FB als offene
+ * Aufgabe im Board.
+ */
+function sperrLage(
+  aktive: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string, rolle: Rolle,
+): SperrLage {
   const gesperrt = new Set<string>();
   const ausnahmen = new Set<string>();
   let alleGesperrt = false;
   const gesperrtDurch: string[] = [];
   for (const s of aktive) {
-    if (!istSperre(s)) continue;
+    if (!istSperre(s) || !sperreGiltFuer(s, rolle)) continue;
     if (!pruefeBedingung(s.bedingung, ctx, stichtag)) continue;
     gesperrtDurch.push(s.id);
     for (const id of s.sperrt ?? []) {
@@ -105,19 +125,27 @@ export function ermittleTodo(
   // Die Ausnahme gewinnt: S0b legt das ganze Feld still, „ZuwB erstellen" muss
   // trotzdem feuern können. Eine Ausnahme wirkt gegen JEDE greifende Sperre —
   // wer eine Regel ausnimmt, meint „diese Aufgabe bleibt", nicht „nur gegen S0b".
-  const istGesperrt = (id: string): boolean =>
-    !ausnahmen.has(id) && (alleGesperrt || gesperrt.has(id));
+  return {
+    gesperrtDurch,
+    istGesperrt: (id: string) => !ausnahmen.has(id) && (alleGesperrt || gesperrt.has(id)),
+  };
+}
 
+/** Der Treffer-Pass für EINEN Regelsatz: erste zutreffende Regel gewinnt. */
+function trefferLauf(
+  aktive: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string,
+  rolle: Rolle, lage: SperrLage,
+): TodoErgebnis {
   let treffer: TodoRegel | null = null;
   const weitereTreffer: { regelId: string; todo: string }[] = [];
   for (const r of aktive) {
-    if (istSperre(r) || istGesperrt(r.id)) continue;
+    if (istSperre(r) || regelsatzVon(r) !== rolle || lage.istGesperrt(r.id)) continue;
     if (!pruefeBedingung(r.bedingung, ctx, stichtag)) continue;
     if (!treffer) treffer = r;
     else weitereTreffer.push({ regelId: r.id, todo: r.todo });
   }
 
-  if (!treffer) return { ...LEER, gesperrtDurch };
+  if (!treffer) return { ...LEER, gesperrtDurch: lage.gesperrtDurch };
   return {
     todo: treffer.todo,
     regelId: treffer.id,
@@ -125,9 +153,93 @@ export function ermittleTodo(
     zustaendig: treffer.zustaendig,
     wartetAuf: treffer.wartetAuf ?? null,
     belege: belegeVon(treffer, ctx),
-    gesperrtDurch,
+    gesperrtDurch: lage.gesperrtDurch,
     weitereTreffer,
+    quelle: 'regel',
   };
+}
+
+/** Optionen der Auswertung. */
+export interface TodoOptionen {
+  /**
+   * Welcher Regelsatz ausgewertet wird. Default `'ab'` — und damit exakt die
+   * Menge, die vor v2.390 die einzige war (Regeln ohne `regelsatz` sind
+   * AB-Regeln).
+   */
+  rolle?: Rolle;
+}
+
+/**
+ * Ermittelt das To-do eines Antrags/Verbunds für EINEN Regelsatz. Rein.
+ *
+ * Die Regelsatz-Auswahl liegt hier drin und nicht beim Aufrufer: der Sperr-Pass
+ * braucht die ungefilterte Liste (siehe {@link sperrLage}), eine vorgefilterte
+ * Menge nähme ihm still die vorgangsweiten Sperren.
+ *
+ * @param regeln  Die Kaskade; wird nach `reihenfolge` sortiert, Inaktive fallen raus.
+ * @param ctx     Feldwerte (`baueTodoKontext`).
+ * @param stichtag ISO — injiziert, nie eine Uhr in der Engine.
+ * @param opts    Regelsatz; ohne Angabe der des AB.
+ */
+export function ermittleTodo(
+  regeln: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string,
+  opts: TodoOptionen = {},
+): TodoErgebnis {
+  const rolle = opts.rolle ?? REGELSATZ_DEFAULT;
+  const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
+  return trefferLauf(aktive, ctx, stichtag, rolle, sperrLage(aktive, ctx, stichtag, rolle));
+}
+
+/**
+ * Das To-do **jeder** Rolle in einem Durchgang, samt abgeleiteter Platzhalter.
+ *
+ * Der Platzhalter ist das Kernstück der Mehrspurigkeit: solange der Regelsatz
+ * einer Rolle die Situation nicht selbst beschreibt, leiht sie sich die Aussage
+ * der fremden Regel, die auf sie wartet. So steht die FB-Sicht vom ersten Tag an
+ * da — nicht leer, sondern erkennbar geliehen — und jede geschriebene FB-Regel
+ * ersetzt genau einen Platzhalter. Kein Umschaltpunkt, kein Big Bang.
+ *
+ * Drei Regeln, die den Platzhalter ehrlich halten:
+ * 1. Ein echter Regeltreffer schlägt ihn immer.
+ * 2. Er läuft durch den Sperr-Filter der EIGENEN Rolle. Wäre die Herkunftsregel
+ *    für sie gesperrt, entstünde sonst aus einem für sie geschlossenen Fall eine
+ *    neue Aufgabe.
+ * 3. Er trägt `regelId: null` — die Rolle hat keine eigene Regel, und das soll
+ *    man ihm ansehen. Die Herkunft steht in `abgeleitetAus`.
+ */
+export function ermittleTodosAlleRollen(
+  regeln: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string,
+): Record<Rolle, TodoErgebnis> {
+  const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
+  const lagen = {} as Record<Rolle, SperrLage>;
+  const pro = {} as Record<Rolle, TodoErgebnis>;
+  for (const rolle of ROLLEN) {
+    lagen[rolle] = sperrLage(aktive, ctx, stichtag, rolle);
+    pro[rolle] = trefferLauf(aktive, ctx, stichtag, rolle, lagen[rolle]);
+  }
+
+  for (const rolle of ROLLEN) {
+    if (pro[rolle].todo !== null) continue;
+    for (const quelle of ROLLEN) {
+      const q = pro[quelle];
+      if (quelle === rolle || q.todo === null || q.wartetAuf !== rolle) continue;
+      if (q.regelId === null || lagen[rolle].istGesperrt(q.regelId)) continue;
+      pro[rolle] = {
+        todo: q.todo,
+        regelId: null,
+        beschreibung: q.beschreibung,
+        zustaendig: [rolle],
+        wartetAuf: null,
+        belege: q.belege,
+        gesperrtDurch: pro[rolle].gesperrtDurch,
+        weitereTreffer: [],
+        quelle: 'abgeleitet',
+        abgeleitetAus: q.regelId,
+      };
+      break;
+    }
+  }
+  return pro;
 }
 
 /**
@@ -155,10 +267,18 @@ export function baueTodoKontext(vorkommen: readonly FeldVorkommen[]): Bedingungs
   return ctx;
 }
 
-/** Alle To-do-Werte einer Regelmenge, in Kaskaden-Reihenfolge, ohne Doppelte. */
-export function todoWerte(regeln: readonly TodoRegel[]): string[] {
+/**
+ * Alle To-do-Werte einer Regelmenge, in Kaskaden-Reihenfolge, ohne Doppelte —
+ * die Gruppen-Reihenfolge des Boards.
+ *
+ * @param rolle Auf diesen Regelsatz einschränken. Ohne Angabe zählen alle mit;
+ *   das Board reicht seine Rollenwahl herein, damit die Gruppen der einen Sicht
+ *   nicht in der anderen auftauchen.
+ */
+export function todoWerte(regeln: readonly TodoRegel[], rolle?: Rolle): string[] {
   const out: string[] = [];
   for (const r of [...regeln].sort((a, b) => a.reihenfolge - b.reihenfolge)) {
+    if (rolle !== undefined && regelsatzVon(r) !== rolle) continue;
     if (!r.todo || out.includes(r.todo)) continue;
     out.push(r.todo);
   }

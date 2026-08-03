@@ -108,9 +108,10 @@ export {
   aendereTodoRegel, verschiebeTodoRegel,
 } from './katalog-edit';
 export {
-  ermittleTodo, baueTodoKontext, todoWerte,
-  type TodoErgebnis, type TodoBeleg,
+  ermittleTodo, ermittleTodosAlleRollen, baueTodoKontext, todoWerte,
+  type TodoErgebnis, type TodoBeleg, type TodoOptionen,
 } from './todo-engine';
+export { REGELSATZ_DEFAULT, regelsatzVon, sperreGiltFuer } from './regelsatz';
 export {
   AB_TODO_REGELN, baueTodoRegelSeed, ENTFALLENE_REGEL_IDS, feld as todoFeld,
 } from './todo-regeln.seed';

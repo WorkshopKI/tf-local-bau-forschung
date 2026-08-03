@@ -10,7 +10,9 @@
  *    noch, ab Tag 32 ist sie vorbei.
  */
 import { describe, it, expect } from 'vitest';
-import { ermittleTodo, baueTodoKontext, todoWerte } from '@/core/status/todo-engine';
+import {
+  ermittleTodo, ermittleTodosAlleRollen, baueTodoKontext, todoWerte,
+} from '@/core/status/todo-engine';
 import { AB_TODO_REGELN, baueTodoRegelSeed, feld } from '@/core/status/todo-regeln.seed';
 import type { BedingungsKontext } from '@/core/status/bedingung';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
@@ -298,6 +300,152 @@ describe('Belege', () => {
     // Auch die LEEREN Felder der Regel stehen da — genau sie erklären den Fall.
     expect(nach.get('D_ARW')).toEqual([]);
     expect(nach.has('D_AAR')).toBe(true);
+  });
+});
+
+describe('Regelsätze je Rolle', () => {
+  /** Eine FB-Regel, die auf dasselbe Feld sieht wie R2 (`D_XPC-`). */
+  const fbRegel = (patch: Partial<TodoRegel> = {}): TodoRegel => ({
+    id: 'fb1', reihenfolge: 10, beschreibung: 'FB1 · PreCheck-Verbund negativ',
+    bedingung: { feldId: feld('XPC-'), op: 'gefuellt' },
+    todo: 'Verbund-Ablehnung schreiben', zustaendig: ['fb'], regelsatz: 'fb', aktiv: true,
+    ...patch,
+  });
+
+  describe('Regressionsgatter — leerer FB-Satz ändert nichts', () => {
+    // Die wichtigste Zusicherung der Mehrspurigkeit. Das ganze restliche File
+    // ist der ausführliche Teil davon: es ruft `ermittleTodo` ohne Rolle auf
+    // und muss unverändert grün bleiben.
+    const FAELLE: Record<string, string>[] = [
+      { 'PC-': GESTERN }, { ABB: GESTERN }, { ARZ: vorTagen(40) },
+      { VV: GESTERN, ABB: GESTERN }, { AAR: GESTERN }, {},
+    ];
+
+    it('ohne Rollen-Angabe wird der AB-Satz ausgewertet', () => {
+      for (const werte of FAELLE) {
+        expect(ermittleTodo(REGELN, ctx(werte), STICHTAG))
+          .toEqual(ermittleTodo(REGELN, ctx(werte), STICHTAG, { rolle: 'ab' }));
+      }
+    });
+
+    it('eine FB-Regel daneben lässt das AB-Ergebnis unberührt', () => {
+      const mitFb = [...REGELN, fbRegel()];
+      for (const werte of [...FAELLE, { 'XPC-': GESTERN }]) {
+        expect(ermittleTodo(mitFb, ctx(werte), STICHTAG))
+          .toEqual(ermittleTodo(REGELN, ctx(werte), STICHTAG));
+      }
+    });
+
+    it('jede Regel des Auslieferungsstands liegt im AB-Satz', () => {
+      const fremd = AB_TODO_REGELN.filter(r => r.regelsatz !== undefined);
+      expect(fremd, 'der Seed transkribiert die AB-Mappe').toEqual([]);
+    });
+  });
+
+  describe('Abgeleitete Platzhalter', () => {
+    it('leiht der wartenden Rolle die Aussage der fremden Regel', () => {
+      // R2 „Abl/RNE von FB abwarten" wartet auf FB — der FB hat dazu (noch)
+      // keine eigene Regel und bekommt sie erkennbar geliehen.
+      const alle = ermittleTodosAlleRollen(REGELN, ctx({ 'XPC-': GESTERN }), STICHTAG);
+      expect(alle.ab.regelId).toBe('r2');
+      expect(alle.ab.quelle).toBe('regel');
+      expect(alle.fb.todo).toBe('Abl/RNE von FB abwarten');
+      expect(alle.fb.quelle).toBe('abgeleitet');
+      expect(alle.fb.abgeleitetAus).toBe('r2');
+      expect(alle.fb.regelId, 'der FB hat keine eigene Regel — das soll man sehen').toBeNull();
+      expect(alle.fb.zustaendig).toEqual(['fb']);
+    });
+
+    it('trägt die Belege der Herkunftsregel mit', () => {
+      const alle = ermittleTodosAlleRollen(REGELN, ctx({ 'XPC-': GESTERN }), STICHTAG);
+      expect(alle.fb.belege).toEqual(alle.ab.belege);
+    });
+
+    it('entsteht auch für QS (R4 „SV in QS")', () => {
+      const alle = ermittleTodosAlleRollen(REGELN, ctx({ AVK: GESTERN }), STICHTAG);
+      expect(alle.qs.abgeleitetAus).toBe('r4');
+      expect(alle.fb.todo, 'nur die wartende Rolle bekommt ihn').toBeNull();
+    });
+
+    it('entsteht NICHT aus einem Warten auf den Antragsteller', () => {
+      // R8 „RNE abwarten" wartet auf `ast` — außerhalb des Hauses und keine
+      // Rolle. Für niemanden im Haus ist das eine Aufgabe.
+      const alle = ermittleTodosAlleRollen(REGELN, ctx({ ARZ: vorTagen(10) }), STICHTAG);
+      expect(alle.ab.regelId).toBe('r8');
+      for (const r of ['fb', 'qs', 'pa', 'jur'] as const) expect(alle[r].todo, r).toBeNull();
+    });
+
+    it('wird von einer echten Regel desselben Satzes verdrängt', () => {
+      const alle = ermittleTodosAlleRollen(
+        [...REGELN, fbRegel()], ctx({ 'XPC-': GESTERN }), STICHTAG,
+      );
+      expect(alle.fb.todo).toBe('Verbund-Ablehnung schreiben');
+      expect(alle.fb.quelle).toBe('regel');
+      expect(alle.fb.regelId).toBe('fb1');
+      expect(alle.fb.abgeleitetAus).toBeUndefined();
+      expect(alle.ab.regelId, 'der AB-Satz bleibt, wie er war').toBe('r2');
+    });
+
+    it('unterbleibt, wo eine Sperre den Fall für DIESE Rolle geschlossen hat', () => {
+      // Sonst entstünde aus einem für den FB abgeschlossenen Vorgang eine neue
+      // Aufgabe — der Platzhalter würde ihn wiederbeleben.
+      const nurFbSperre: TodoRegel = {
+        id: 'sfb', reihenfolge: 1, beschreibung: 'FB ist hier fertig',
+        bedingung: { feldId: feld('XPC-'), op: 'gefuellt' },
+        todo: '', zustaendig: [], sperrt: [ALLE_STRAENGE], giltFuer: ['fb'], aktiv: true,
+      };
+      const alle = ermittleTodosAlleRollen(
+        [...REGELN, nurFbSperre], ctx({ 'XPC-': GESTERN }), STICHTAG,
+      );
+      expect(alle.fb.todo).toBeNull();
+      expect(alle.fb.gesperrtDurch).toContain('sfb');
+      expect(alle.ab.regelId, 'im AB-Satz greift sie nicht').toBe('r2');
+      expect(alle.ab.gesperrtDurch).not.toContain('sfb');
+    });
+  });
+
+  describe('Sperren gelten vorgangsweit, solange sie nichts anderes sagen', () => {
+    it('S0 legt auch einen fremden Regelsatz still', () => {
+      // Die Sperre trägt kein `giltFuer` — ein abgeschlossenes Verfahren ist für
+      // jede Rolle abgeschlossen.
+      const alle = ermittleTodosAlleRollen(
+        [...REGELN, fbRegel()], ctx({ 'XPC-': GESTERN, VV: GESTERN }), STICHTAG,
+      );
+      expect(alle.fb.todo).toBeNull();
+      expect(alle.fb.gesperrtDurch).toContain('s0');
+      expect(alle.ab.todo).toBeNull();
+    });
+
+    it('leeres giltFuer heißt „alle", nicht „keine"', () => {
+      const s0Leer = REGELN.map(r => (r.id === 's0' ? { ...r, giltFuer: [] } : r));
+      const e = ermittleTodo(s0Leer, ctx({ VV: GESTERN, ABB: GESTERN }), STICHTAG, { rolle: 'fb' });
+      expect(e.gesperrtDurch).toContain('s0');
+    });
+  });
+
+  describe('Zwei echte Spuren nebeneinander', () => {
+    it('ein Antrag kann gleichzeitig ein AB- und ein FB-To-do tragen', () => {
+      const fbEigen = fbRegel({
+        id: 'fb2', bedingung: { feldId: feld('AT4'), op: 'gefuellt' },
+        todo: 'Gutachten technisch prüfen',
+      });
+      const alle = ermittleTodosAlleRollen(
+        [...REGELN, fbEigen], ctx({ ABB: GESTERN, AT4: GESTERN }), STICHTAG,
+      );
+      expect(alle.ab.todo).toBe('ZuwB erstellen');
+      expect(alle.ab.quelle).toBe('regel');
+      expect(alle.fb.todo).toBe('Gutachten technisch prüfen');
+      expect(alle.fb.quelle).toBe('regel');
+    });
+  });
+
+  describe('todoWerte je Regelsatz', () => {
+    it('ohne Rolle zählen alle Sätze, mit Rolle nur der eigene', () => {
+      const mitFb = [...REGELN, fbRegel()];
+      expect(todoWerte(mitFb)).toContain('Verbund-Ablehnung schreiben');
+      expect(todoWerte(mitFb, 'ab')).not.toContain('Verbund-Ablehnung schreiben');
+      expect(todoWerte(mitFb, 'fb')).toEqual(['Verbund-Ablehnung schreiben']);
+    });
   });
 });
 
