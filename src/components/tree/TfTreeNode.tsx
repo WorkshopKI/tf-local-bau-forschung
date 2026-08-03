@@ -11,6 +11,7 @@
  */
 import { ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { TfTreeHoverCard } from './TfTreeHoverCard';
 import type { TfTreeNodeRenderProps, TfTreeSlots } from './tf-tree-types';
 
@@ -26,10 +27,21 @@ export interface TfTreeNodeProps<T> {
 }
 
 export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNodeProps<T>): React.ReactElement {
-  const { zeilenProps, level, isFolder, isExpanded, isFocused, checked, name } = node;
+  const {
+    zeilenProps, level, isFolder, isExpanded, isFocused, checked, name,
+    isRenaming, renameProps, isDropZiel,
+  } = node;
 
   /** Icon + Beschriftung — der Teil, der bei Bedarf im HoverCard-Trigger sitzt. */
-  const mitte = (
+  const mitte = isRenaming && renameProps ? (
+    // Das Eingabefeld nimmt die Breite der Beschriftung ein, damit die Zeile
+    // beim Umbenennen nicht springt.
+    <input
+      {...renameProps}
+      className="min-w-0 flex-1 rounded-[3px] border-[0.5px] border-[var(--tf-primary)] bg-[var(--tf-bg)] px-1 py-0 text-[12.5px] text-[var(--tf-text)] outline-none"
+      onClick={e => e.stopPropagation()}
+    />
+  ) : (
     <>
       {slots?.icon?.(node)}
       {slots?.label
@@ -38,13 +50,17 @@ export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNode
     </>
   );
 
-  return (
+  const menue = slots?.contextMenu?.(node);
+
+  const zeile = (
     <div
       {...zeilenProps}
       onClickCapture={onZeilenKlick}
+      onDoubleClick={node.starteUmbenennen}
       className={`flex items-center gap-1.5 rounded-sm cursor-pointer select-none outline-none
         hover:bg-[var(--tf-hover)] focus-visible:ring-1 focus-visible:ring-[var(--tf-primary)]
-        ${isFocused ? 'bg-[var(--tf-hover)]' : ''}`}
+        ${isFocused ? 'bg-[var(--tf-hover)]' : ''}
+        ${isDropZiel ? 'ring-1 ring-[var(--tf-primary)] bg-[var(--tf-primary-soft)]' : ''}`}
       style={{
         paddingTop: 4, paddingBottom: 4, paddingRight: 6, paddingLeft: 6 + level * indent,
         ...slots?.zeilenStil?.(node),
@@ -85,5 +101,15 @@ export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNode
 
       {slots?.trailing?.(node)}
     </div>
+  );
+
+  // Ohne Menü-Einträge KEINE Menü-Hülle: der Trigger hängt sich sonst in den
+  // Rechtsklick und unterdrückt das Browser-Menü, ohne etwas anzubieten.
+  if (!menue) return zeile;
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{zeile}</ContextMenuTrigger>
+      <ContextMenuContent>{menue}</ContextMenuContent>
+    </ContextMenu>
   );
 }

@@ -15,13 +15,17 @@
  * Ordner behalten Auf-/Zuklappen — das ist das Verhalten aus dem Bestand und
  * das, was man aus dem Datei-Explorer kennt.
  */
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckedState,
   checkboxesFeature,
+  dragAndDropFeature,
   hotkeysCoreFeature,
+  keyboardDragAndDropFeature,
+  renamingFeature,
   selectionFeature,
   syncDataLoaderFeature,
+  type DragTarget,
   type FeatureImplementation,
   type ItemInstance,
   type SetStateFn,
@@ -79,11 +83,14 @@ export function TfTree<T>({
   checkedItems, onCheckedChange,
   selectedItems, onSelectedChange,
   onPrimaryAction, onZeilenKlick,
+  canRename, onRename, canDrag, canDrop, onDrop,
   indent = STANDARD_EINZUG,
   className,
 }: TfTreeProps<T>): React.ReactElement {
   const mitCheckboxen = features?.checkboxes === true;
   const mitAuswahl = features?.selection === true;
+  const mitUmbenennen = features?.renaming === true;
+  const mitZiehen = features?.dnd === true;
 
   // Unkontrollierte Rückfallebene je Achse — greift nur, wo der Verbraucher
   // keinen Callback gesetzt hat.
@@ -99,9 +106,18 @@ export function TfTree<T>({
     const f: FeatureImplementation[] = [syncDataLoaderFeature];
     if (mitAuswahl) f.push(selectionFeature);
     if (mitCheckboxen) f.push(checkboxesFeature);
+    if (mitUmbenennen) f.push(renamingFeature);
+    if (mitZiehen) {
+      f.push(dragAndDropFeature);
+      // Ziehen NUR mit der Maus wäre für Tastaturnutzer eine geschlossene Tür.
+      f.push(keyboardDragAndDropFeature);
+    }
     if (features?.hotkeys !== false) f.push(hotkeysCoreFeature);
     return f;
-  }, [mitAuswahl, mitCheckboxen, features?.hotkeys]);
+  }, [mitAuswahl, mitCheckboxen, mitUmbenennen, mitZiehen, features?.hotkeys]);
+
+  /** Ziel-Id eines Drop-Vorgangs: der künftige Elternknoten. */
+  const zielId = (t: DragTarget<TfTreeItem<T>>): string => t.item.getId();
 
   const tree = useTree<TfTreeItem<T>>({
     rootItemId: rootId,
@@ -128,6 +144,27 @@ export function TfTree<T>({
     ...(mitAuswahl
       ? { setSelectedItems: alsSetzer(gewaehlt, onSelectedChange ?? setEigenGewaehlt) }
       : {}),
+    ...(mitUmbenennen
+      ? {
+          canRename: item => canRename?.(item.getId(), item.getItemData()?.data) ?? true,
+          onRename: (item, wert) => onRename?.(item.getId(), wert, item.getItemData()?.data),
+        }
+      : {}),
+    ...(mitZiehen
+      ? {
+          canReorder: features?.reorder === true,
+          canDrag: items_ => canDrag?.(items_.map(i => i.getId())) ?? true,
+          canDrop: (quellen, ziel) =>
+            canDrop?.(quellen.map(i => i.getId()), zielId(ziel)) ?? true,
+          onDrop: (quellen, ziel) => {
+            onDrop?.(
+              quellen.map(i => i.getId()),
+              zielId(ziel),
+              'childIndex' in ziel ? ziel.childIndex : undefined,
+            );
+          },
+        }
+      : {}),
     onPrimaryAction: item => {
       // Blatt in einem Checkbox-Baum: die Zeile IST die Checkbox. Ordner
       // behalten Auf-/Zuklappen (das erledigt `getProps().onClick`).
@@ -136,6 +173,16 @@ export function TfTree<T>({
     },
     features: featureListe,
   });
+
+  /**
+   * Ändert sich der Knoten-Bestand, muss die Zeilenliste neu entstehen.
+   *
+   * Die Bibliothek baut sie sonst nur bei ZUSTANDS-Änderungen neu; ein
+   * Umbenennen ändert aber die Daten, nicht den Zustand. Ohne dieses Rebuild
+   * blieben nach dem Umbenennen einer Gruppe deren Kinder ohne Elternzeile
+   * stehen — sichtbar geworden beim Selbst-Check am Textbaustein-Katalog.
+   */
+  useEffect(() => { tree.rebuildTree(); }, [items, tree]);
 
   const baueProps = useCallback((item: ItemInstance<TfTreeItem<T>>): TfTreeNodeRenderProps<T> => {
     const daten = item.getItemData();
@@ -149,15 +196,33 @@ export function TfTree<T>({
       isFocused: item.isFocused(),
       isSelected: mitAuswahl ? item.isSelected() : false,
       checked: mitCheckboxen ? CHECK_STATE[item.getCheckedState()] : null,
+      isRenaming: mitUmbenennen ? item.isRenaming() : false,
+      isDropZiel: mitZiehen ? item.isDragTarget() : false,
       zeilenProps: item.getProps(),
+      renameProps: mitUmbenennen && item.isRenaming() ? item.getRenameInputProps() : null,
       toggleChecked: () => { if (mitCheckboxen) void item.toggleCheckedState(); },
+      starteUmbenennen: () => { if (mitUmbenennen && item.canRename()) item.startRenaming(); },
     };
-  }, [mitAuswahl, mitCheckboxen]);
+  }, [mitAuswahl, mitCheckboxen, mitUmbenennen, mitZiehen]);
+
+  // Die Einfüge-Marke beim Umsortieren. Position rechnet die Bibliothek, die
+  // Farbe kommt von uns — deshalb `getDragLineStyle()` und ein eigener Strich.
+  const dragLinie = mitZiehen && features?.reorder === true ? tree.getDragLineStyle() : null;
 
   return (
     // Zwischen `role="tree"` und den `role="treeitem"`-Zeilen darf KEIN
     // Wrapper-Element stehen — deshalb `Fragment` statt eines Schlüssel-Divs.
-    <div {...tree.getContainerProps(label)} className={className}>
+    <div
+      {...tree.getContainerProps(label)}
+      className={className}
+      style={mitZiehen ? { position: 'relative' } : undefined}
+    >
+      {dragLinie && (
+        <div
+          aria-hidden="true"
+          style={{ ...dragLinie, height: 2, background: 'var(--tf-primary)', borderRadius: 1, pointerEvents: 'none' }}
+        />
+      )}
       {tree.getItems().map(item => {
         // Zeile aus der noch nicht neu gebauten Liste: `data` wäre der
         // Platzhalter und jeder Slot, der darauf zugreift, würde werfen.

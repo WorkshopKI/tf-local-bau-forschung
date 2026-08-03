@@ -13,7 +13,6 @@ import { Search, Upload, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Dialog } from '@/components/ui/dialog';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -24,11 +23,12 @@ import {
 } from '@/core/services/skills';
 import { PRUEF_ASPEKTE } from '@/plugins/antraege/aufbereitung/aspekt-katalog';
 import { useTextbausteinKatalog } from './useTextbausteinKatalog';
+import { TextbausteinBaum } from './TextbausteinBaum';
 import { findeBaustein, neuerBaustein, scopeAusId, upsertBaustein } from './textbausteinKatalogOps';
 import { filterBausteine, LEERER_FILTER, zaehleStatus, type BausteinFilter } from './textbausteinFilter';
 import { TextbausteinEditor, type BausteinEntwurf } from './TextbausteinEditor';
 import { TextbausteinImportDialog } from './TextbausteinImportDialog';
-import { ARTEFAKT_TYPEN, STATUS_LABEL, STATUS_VARIANT, TYP_KURZ } from './textbausteinLabels';
+import { ARTEFAKT_TYPEN, STATUS_LABEL, TYP_KURZ } from './textbausteinLabels';
 
 export function TextbausteineTab(): React.ReactElement {
   const ctl = useTextbausteinKatalog();
@@ -66,6 +66,19 @@ export function TextbausteineTab(): React.ReactElement {
     if (!selected) return;
     const neu = setzeBausteinStatus(selected, status, kontext(grund));
     void save.run(upsertBaustein(katalog, neu));
+  };
+  /**
+   * Thema mehrerer Bausteine setzen (Umbenennen eines Thema-Knotens bzw.
+   * Verschieben). **Ein** `setState`/`persist` für alle Betroffenen — der
+   * Save-Lock verwirft parallele Schreibvorgänge (Pitfall #16/#20).
+   */
+  const themaSetzen = (bausteine: readonly TextbausteinRecord[], thema: string): void => {
+    const k = kontext();
+    const naechster = bausteine.reduce(
+      (acc, b) => upsertBaustein(acc, bearbeiteBaustein(b, { thema }, k)),
+      katalog,
+    );
+    void save.run(naechster);
   };
   const rollback = (snap: TextbausteinSnapshot): void => {
     if (!selected) return;
@@ -141,15 +154,18 @@ export function TextbausteineTab(): React.ReactElement {
         </div>
       )}
 
-      {/* Split: Liste | Editor */}
+      {/* Split: Baum | Editor */}
       <div className="flex gap-5 items-start">
-        <div className="w-[340px] shrink-0 flex flex-col gap-1 max-h-[70vh] overflow-y-auto pr-1">
-          {gefiltert.length === 0 ? (
-            <div className="text-[12.5px] text-[var(--tf-text-tertiary)] py-6 text-center">Keine Bausteine für diesen Filter.</div>
-          ) : gefiltert.map(b => (
-            <ListenZeile key={b.id} baustein={b} aktiv={b.id === selectedId} onClick={() => setSelectedId(b.id)} />
-          ))}
-        </div>
+        <TextbausteinBaum
+          gefiltert={gefiltert}
+          alle={katalog.bausteine}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          canEdit={ctl.canEdit}
+          busy={save.busy}
+          onThemaSetzen={themaSetzen}
+          onStatus={(b, status, grund) => { void save.run(upsertBaustein(katalog, setzeBausteinStatus(b, status, kontext(grund)))); }}
+        />
         <div className="flex-1 min-w-0 rounded-[12px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg)] px-5 py-4">
           {selected ? (
             <TextbausteinEditor
@@ -230,25 +246,6 @@ function NeuerBausteinDialog({ existiert, busy, onClose, onAnlegen }: {
         <Textarea value={text} onChange={e => setText(e.target.value)} rows={6} placeholder="Rechtstext, mit {Platzhaltern} …" className="font-mono text-[12.5px] leading-[1.6]" />
       </div>
     </Dialog>
-  );
-}
-
-function ListenZeile({ baustein, aktiv, onClick }: { baustein: TextbausteinRecord; aktiv: boolean; onClick: () => void }): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left rounded-[8px] px-3 py-2 transition-colors ${
-        aktiv ? 'bg-[var(--tf-primary-light)]' : 'hover:bg-[var(--tf-hover)]'
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-[11.5px] text-[var(--tf-text-tertiary)] shrink-0">{TYP_KURZ[baustein.artefaktTyp]} {baustein.id}</span>
-        <span className="flex-1" />
-        <Badge variant={STATUS_VARIANT[baustein.status]}>{STATUS_LABEL[baustein.status]}</Badge>
-      </div>
-      <div className="text-[12.5px] text-[var(--tf-text)] mt-0.5 truncate">{baustein.thema || '—'}</div>
-    </button>
   );
 }
 
