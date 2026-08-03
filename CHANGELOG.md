@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.394.0 — Dead Code: Orphan-Dateien, Redirect-Plugins, tote Code-Bruecke (August 2026)
+
+MINOR — Acht Dateien ohne einen einzigen Import, zwei Plugins, die nur noch weiterleiten, und eine `@deprecated`-Funktion ohne Aufrufer. Feld-Bookmarks auf `/chat` und `/kuration/feedback` sind laut Fachseite nicht mehr im Umlauf.
+
+- **8 Orphan-Dateien gelöscht** (`ui/label`, `ui/slider`, `ArtefaktBreadcrumb`, `antraege/status/labels`, `klassifizierung-columns`) inkl. drei konsumentenloser Barrel-Indizes (`src/ui`, `auslastung/services`, `home/widgets`).
+- **Chat-Redirect entfernt** — `src/plugins/chat/` bleibt und hostet weiter `ChatPanelHost` + `assistent/` ([plugins.config.ts](src/plugins.config.ts)).
+- **`src/plugins/feedback/` entfernt** (nur noch Redirect seit v2.364); das Board ist die einzige Feedback-Oberfläche.
+- Einzige `@deprecated`-Brücke ohne Konsument entfernt: `pickAndStoreDokumentenquelleHandle` ([smb-handle.ts](src/core/services/infrastructure/smb-handle.ts)). Alle übrigen 27 Stellen parsen persistierte Alt-Daten und **bleiben**.
+- Verifiziert in `dev:local`: `#/chat`, `#/kuration/feedback` und eine Fantasie-Route landen auf `/`, Suche + Assistent-Panel unversehrt, keine Konsolenfehler.
+
 ### v2.393.1 — Docs-Archiv: Momentaufnahmen von lebender Referenz getrennt (August 2026)
 
 PATCH — In `docs/` lagen erledigte Protokolle, Audits und Pläne neben der lebenden Referenz. Wer dort sucht, findet mit gleicher Wahrscheinlichkeit einen Stand von Juni wie den von heute. Die Momentaufnahmen liegen jetzt getrennt und stehen in der Ignorierliste.

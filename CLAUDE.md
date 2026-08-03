@@ -114,7 +114,7 @@ Geteilte, domänenfreie Layout-Schicht in `src/components/` — neue Module baue
 
 Jedes Feature ist ein Plugin in `src/plugins/{name}/` mit `TeamFlowPlugin`-Manifest (`id`, `name`, `icon`, `category` `'workflow'|'tools'|'erprobung'|'system'|'kuration'`, `order`, `component`; optional `kuratorOnly`, `hideFromNav`, `navHint`, `badge`, `onInit`, `route`, `featureFlag`), registriert in `src/plugins.config.ts`. Sidebar-Gruppierung/Sortierung/Beschriftung in der puren [groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts) (kein id-Sonderfall im ShellLayout); **neue Plugins starten in `erprobung`** ([add-plugin.md](docs/agents/add-plugin.md)). `hideFromNav: true` nimmt aus Nav + Nav-Commands, **ohne** die Route zu deregistrieren (Bookmarks/Redirects bleiben, Routen aus der ungefilterten Liste, [Router.tsx](src/core/Router.tsx)).
 
-Das `chat`-Plugin ist `hideFromNav`-Redirect `/chat → /suche?assistent=1` ([ChatRedirect.tsx](src/plugins/chat/ChatRedirect.tsx)); der Chat lebt als andockendes [ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx) rechts in der Suche (reused `useChatController`/`useChatStore` **ohne** Fork, Suchtreffer via `extraContext`/`getPinnedContext`). Die Suche nutzt **immer** diesen vollen Host; das schlanke shell-weite Assistent-Panel ist auf `/suche` bewusst **nicht** gemountet (kein Doppel-Panel). Neues Plugin: [docs/agents/add-plugin.md](docs/agents/add-plugin.md); `onInit`-Pattern: [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md).
+`src/plugins/chat/` ist **kein Plugin mehr** (Redirect `/chat` mit v2.394 entfernt); der Chat lebt als andockendes [ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx) rechts in der Suche (reused `useChatController`/`useChatStore` **ohne** Fork, Suchtreffer via `extraContext`/`getPinnedContext`). Die Suche nutzt **immer** diesen vollen Host; das schlanke shell-weite Assistent-Panel ist auf `/suche` bewusst **nicht** gemountet (kein Doppel-Panel). Neues Plugin: [docs/agents/add-plugin.md](docs/agents/add-plugin.md); `onInit`-Pattern: [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md).
 
 ### Infrastructure Layer (Phase 1a + v1.9)
 
@@ -128,7 +128,7 @@ Cross-Cutting-Layers (IndexedDB + File-System-Access-API, Orama-Hybrid-Search mi
 
 ### Feedback-System
 
-User-Feedback + Board mit Sponsoring, Verwaltung, Fortschreibung. Seit **v2.364 EINE Oberfläche**: FAB + Bausteine in `src/components/feedback/`, Service in `src/core/services/feedback/`, Board `src/plugins/feedback-board/` (id `feedback-board`, inkl. `verwaltung/`); `feedback-kuration` ist nur ein Redirect. Recht: **`canManageFeedback`** (aus `canWriteDatenShare`; prod read-only).
+User-Feedback + Board mit Sponsoring, Verwaltung, Fortschreibung. Seit **v2.364 EINE Oberfläche**: FAB + Bausteine in `src/components/feedback/`, Service in `src/core/services/feedback/`, Board `src/plugins/feedback-board/` (id `feedback-board`, inkl. `verwaltung/`); der `feedback-kuration`-Redirect ist mit v2.394 entfernt. Recht: **`canManageFeedback`** (aus `canWriteDatenShare`; prod read-only).
 
 Detail (Datenmodell, Sponsoring-Logik, Komponenten-Liste): [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md). Neue Status-Werte: [docs/agents/add-feedback-status.md](docs/agents/add-feedback-status.md). Neue Kategorie: [docs/agents/add-feedback-category.md](docs/agents/add-feedback-category.md) (nutzt den `isSponsorableCategory`-Helper statt verstreuter `=== 'idea'`-Vergleiche).
 

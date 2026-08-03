@@ -2,10 +2,8 @@ import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { homePlugin } from '@/plugins/home';
 import { einstellungenPlugin } from '@/plugins/einstellungen';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
-import { chatPlugin } from '@/plugins/chat';
 import { suchePlugin } from '@/plugins/suche';
 import { adminPlugin } from '@/plugins/kurator';
-import { feedbackAdminPlugin } from '@/plugins/feedback';
 import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
@@ -35,7 +33,6 @@ const allPlugins: TeamFlowPlugin[] = [
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,
-  chatPlugin,
   feedbackBoardPlugin,
   skillVerwaltungPlugin,
   einstellungenPlugin,
@@ -45,7 +42,6 @@ const allPlugins: TeamFlowPlugin[] = [
   dokumentenquellenKurationPlugin,
   anfragenKurationPlugin,
   filterAdminPlugin,
-  feedbackAdminPlugin,
   dokumentReviewPlugin,
   devInfrastructureTestPlugin,
   devStateInspectorPlugin,

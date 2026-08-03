@@ -137,29 +137,6 @@ export async function pickAndStoreDatenShareHandle(
 }
 
 /**
- * @deprecated Seit v1.15 nur noch fuer Tests / Migration. Multi-Source-Quellen
- * werden via `pickAndStoreDmsSourceHandle(idb, sourceId)` verwaltet. Aufrufer
- * sollten die DMS-Source-API benutzen; dieser Single-Slot-Picker wird in
- * einem Folge-Patch entfernt.
- *
- * **Read-Only**: Die App liest die DMS-Dokumente nur (Triage liest erste Seite,
- * Bulk-Scan listet die Dateibaum-Struktur). Es wird NIE in dieses Verzeichnis
- * geschrieben. `mode: 'read'` sorgt dafuer, dass der Browser-Dialog
- * "Dateien lesen" anzeigt statt "Dateien bearbeiten".
- */
-export async function pickAndStoreDokumentenquelleHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory('read');
-  if ('aborted' in res) return { ok: false, reason: 'aborted' };
-  if ('error' in res) {
-    return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
-  }
-  const map = await readAll(idb);
-  map[SMB_HANDLE_DOKUMENTENQUELLE] = res;
-  await writeAll(idb, map);
-  return { ok: true, handle: res };
-}
-
-/**
  * Liefert das Daten-Share-Handle. Fällt transparent auf Legacy-Slot `test-programm`
  * zurück, wenn noch keine Migration stattgefunden hat.
  */
