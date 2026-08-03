@@ -10,9 +10,16 @@
  *
  * Verhalten:
  * - "Alle" → `system-status`-Filter wird gelöscht (`clearFilter`)
- * - Phase-Bucket → schreibt alle Status-Werte des Buckets + alle `sonstige`-
- *   Werte als Filter-Value (damit Irrläufer/unvollständige nicht versehentlich
- *   ausgeblendet werden — gleiche Regel wie im alten Multi-Toggle).
+ * - Phase-Bucket → schreibt **genau** die Status-Werte des Buckets als
+ *   Filter-Value.
+ *
+ * **Die Zahl an der Pille ist die Zeilenzahl, die ihr Klick liefert.** Zählung
+ * (`getPhaseItems`) und Filter (`applyPhase`) speisen sich aus derselben Menge
+ * `chipStatusValues(chip)`; die Engine vergleicht schreibungs-tolerant. Früher
+ * hängte `applyPhase` zusätzlich alle `sonstige`-Werte an — Werte, die die
+ * Pille nicht mitzählte. Das Motiv (Irrläufer nicht verstecken) trägt bereits
+ * der implizite `vb_phase = 9`-Vorfilter in `useFilteredAntraege`; wer
+ * „Bewilligt" wählt, will keine katalogfremden Sätze sehen.
  *
  * Counts kommen über die gesamte Liste, nicht über die aktuell gefilterte
  * Teilmenge — Design-Vorgabe: Stabilität wichtiger als „akkurate Restanzahl
@@ -40,6 +47,8 @@ const PHASE_LABEL_BY_CHIP_ID: Record<StatusQuickChipId, PhaseLabel> = {
   abgeschlossen: 'Abgeschl.',
 };
 
+/** Die `sonstige`-Werte — nur noch, um einen früher gespeicherten Filter-Wert
+ *  wiederzuerkennen (siehe `getPhaseFromActive`). */
 const SONSTIGE_VALUES: ReadonlySet<string> = new Set(getStatusValuesByCategory('sonstige'));
 
 /** Wandelt einen Phase-Label-String in die zugehörige Chip-ID, oder null
@@ -51,20 +60,22 @@ function chipIdForPhase(phase: PhaseLabel): StatusQuickChipId | null {
   return null;
 }
 
-/** Status-Werte (lowercase) für eine Phase + die `sonstige`-Werte, damit
- *  Irrläufer nicht ausgeblendet werden. */
+/** Status-Werte einer Phase — dieselbe Menge, über die `getPhaseItems` zählt. */
 function statusValuesForPhase(phase: PhaseLabel): string[] {
   const chipId = chipIdForPhase(phase);
   if (chipId === null) return [];
-  const out = new Set<string>([...chipStatusValues(chipId)]);
-  for (const v of SONSTIGE_VALUES) out.add(v);
-  return [...out].sort();
+  return [...chipStatusValues(chipId)].sort();
 }
 
 /** Liest die aktuelle Phase aus dem aktiven Filter-Set. Wenn der Filter nicht
  *  exakt einem Phase-Bucket entspricht (z.B. weil der User in der Sidebar
  *  manuell Status-Werte gemischt hat), wird 'Alle' returned — der Quickfilter
- *  zeigt dann seinen Default-Zustand. Die Sidebar bleibt davon unberührt. */
+ *  zeigt dann seinen Default-Zustand. Die Sidebar bleibt davon unberührt.
+ *
+ *  Der frühere Wertesatz (Bucket + `sonstige`) zählt weiter als Treffer:
+ *  die aktiven Filter überleben den Reload (`activeFilterPersistence.ts`), und
+ *  eine restaurierte Auswahl darf nach dem Update nicht als „Alle" erscheinen,
+ *  während die Liste gefiltert ist. */
 export function getPhaseFromActive(active: ActiveFilter[]): PhaseLabel {
   const entry = active.find(a => a.filterId === STATUS_FILTER_ID);
   if (!entry) return 'Alle';
@@ -74,9 +85,9 @@ export function getPhaseFromActive(active: ActiveFilter[]): PhaseLabel {
     if (typeof v === 'string') activeSet.add(v.toLowerCase().trim());
   }
   for (const chip of STATUS_QUICK_CHIPS) {
-    const expected = new Set<string>([...chipStatusValues(chip.id)]);
-    for (const v of SONSTIGE_VALUES) expected.add(v);
-    if (setsEqual(activeSet, expected)) {
+    const werte = chipStatusValues(chip.id);
+    const mitSonstige = new Set<string>([...werte, ...SONSTIGE_VALUES]);
+    if (setsEqual(activeSet, werte) || setsEqual(activeSet, mitSonstige)) {
       return PHASE_LABEL_BY_CHIP_ID[chip.id];
     }
   }
@@ -90,7 +101,11 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 }
 
 /** Liefert die Items für `CollapsibleSeg`: Alle + 5 Phasen, jeweils mit Count
- *  über die gesamte Antrags-Liste (vor allen Filtern). */
+ *  über die übergebene Sicht (`countBase` — vor den Sidebar-Filtern).
+ *
+ *  Zählt über `chipStatusValues`, also über **exakt** die Menge, die
+ *  `applyPhase` in den Filter schreibt. Diese Deckungsgleichheit ist die
+ *  Invariante der Pille; `phaseQuickfilter.test.ts` hält sie fest. */
 export function getPhaseItems(antraege: AntragListItem[]): CollapsibleSegItem[] {
   const counts: Record<PhaseLabel, number> = {
     'Alle': antraege.length,

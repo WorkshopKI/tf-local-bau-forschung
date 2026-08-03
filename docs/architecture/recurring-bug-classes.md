@@ -1,6 +1,6 @@
 # Wiederkehrende Bug-Klassen
 
-Elf Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
+Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen Coding-Agents real scheitern. Vor dem Bauen neuer Lade-/Persist-/Permission-/Modal-/Transport-/Filter-Pfade die zur Aufgabe passende Klasse überfliegen — das verhindert die häufigsten Regressions.
 
 > Diese Datei ist die **Single Source of Truth** für diese Muster. CLAUDE.md → Decision-Tree und einige Pitfalls verweisen hierher.
 
@@ -252,4 +252,22 @@ Positivbeispielen: [prompt-audit-2026-07.md](../_archiv/prompt-audit-2026-07.md)
 - **Wo die Quelle eine Angabe FÜHRT, wird sie nicht aus dem Inhalt geraten.** Dieselbe Klasse eine Ebene tiefer (v2.381): das Blatt „Erklärung Parameter" nennt die Zeilenart in einer eigenen Spalte, der Import schloss sie aber aus dem Wert („ganze Zahl = Statuscode") — die Bezugsdatei-Nummern 210/211 wären als Statuscodes im Katalog gelandet, neben 30 echten. Eine Heuristik ist nur zulässig, wo die Quelle schweigt.
 
 **Kanonische Dateien:** [trigger-import.ts](../../src/core/status/import/trigger-import.ts) (`triggerSchluessel`, `statistik`), [trigger-share.ts](../../src/core/status/trigger-share.ts) (`triggerFuerProgramm`, `heileTriggerDatei`), [parameter-blatt.ts](../../src/core/status/import/parameter-blatt.ts) (`bestimmeZeilenart`, `findeSchnitt`), [referenz-import.test.ts](../../src/core/status/__tests__/referenz-import.test.ts).
+
+---
+
+## 15. Zähler und Filter aus zwei Vokabularen
+
+**Symptom:** Ein Filter-Element trägt eine Zahl, und ein Klick darauf liefert eine andere. Nicht überall — genau dort, wo die Rohwerte anders geschrieben sind als die Vergleichswerte. Gemessen im Bestand: die Status-Pille meldete „NF 2" und filterte **0** Zeilen heraus; „Abgeschl. 162" wurden 78. „Bewilligt 97" stimmte, weil der Rohwert dort zufällig kleingeschrieben ist. Nichts wird rot — die Liste sieht bloß zu kurz aus.
+
+**Root-Cause:** Der Zähler und der Filter greifen auf **verschiedene Wertemengen** derselben Sache zu. Gezählt wurde über normalisierte Schlüssel aus einem kanonischen Helfer (`getStatusValuesByCategory` → `nf gestellt`), gefiltert über einen exakten `Set.has()`-Vergleich gegen den **CSV-Rohwert** (`NF gestellt`). Zwei korrekte Bausteine, ein falsches Bindeglied. Verschärfend: der Filter hängte zusätzlich Werte an (`sonstige`), die der Zähler nicht kannte — dieselbe Lücke in die Gegenrichtung.
+
+**Fix-Pattern:**
+- **Eine Menge, zwei Verwender.** Wer eine Zahl an eine Filter-Aktion hängt, speist beide aus derselben Funktion. Dann ist die Gleichheit strukturell, nicht getestet-und-gehofft.
+- **Der Test vergleicht die Wege, nicht Erwartungszahlen.** `zähle(fixture) === filtere(fixture).length` bleibt richtig, wenn sich die Daten ändern — eine erwartete `17` nicht.
+- **Filterwerte sind Rohwerte.** Kanonische Helfer liefern normalisierte Schlüssel; wer sie in einen Filter schreibt, muss den Vergleich normalisieren (siehe `normWert` in [engine.ts](../../src/core/services/csv/filter/engine.ts)) oder die amtliche Schreibweise schreiben.
+- **Kein stiller Anhang.** Werte, die der Filter zusätzlich einschließt („damit nichts verschwindet"), gehören entweder in den Zähler oder gar nicht in den Filter.
+- **Eine Zahl aus einem Kind-Effekt braucht einen Guard beim Elternteil.** Rendert das Kind bei null Treffern nicht, meldet es auch nichts — und die Zahl der vorigen Auswahl bleibt stehen. Die Wahrheit über „gibt es Treffer" hat das Elternteil (siehe `berechneTrefferZahl` in [trefferZahl.ts](../../src/plugins/antraege/trefferZahl.ts)).
+- **Zahlen nennen ihre Einheit.** Zählt die Kopfzeile Teilvorhaben und rendert die Liste Verbund-Zeilen, ist jede Zahl für sich richtig und der Bildschirm trotzdem widersprüchlich.
+
+**Kanonische Dateien:** [engine.ts](../../src/core/services/csv/filter/engine.ts) (`normWert`, `multi_select`), [phaseQuickfilter.ts](../../src/plugins/antraege/filter/phaseQuickfilter.ts) (`getPhaseItems` / `applyPhase`), [trefferZahl.ts](../../src/plugins/antraege/trefferZahl.ts), [phaseQuickfilter.test.ts](../../src/plugins/antraege/filter/__tests__/phaseQuickfilter.test.ts).
 

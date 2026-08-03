@@ -21,6 +21,7 @@ import {
 } from './arbeitsvorrat';
 import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
 import { useArbeitsvorratCollapsed } from './useArbeitsvorratCollapsed';
+import type { ZeilenMeldung } from './trefferZahl';
 
 interface Props {
   filtered: AntragListItem[];
@@ -33,10 +34,9 @@ interface Props {
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
-  /** Meldet die spaltengefilterte TV-Anzahl (vor Gruppierungs-Kollabierung)
-   *  an die Toolbar in AntraegeMain — Quelle für die Trefferzahl-Anzeige in
-   *  der Tabellen-Ansicht (List/Karten nutzen direkt `filtered.length`). */
-  onFilteredCountChange?: (n: number) => void;
+  /** Meldet der Toolbar in AntraegeMain, was die Tabelle gerade zeigt: die
+   *  spaltengefilterte TV-Anzahl und die Zeilen, die daraus werden. */
+  onZeilenMeldung?: (m: ZeilenMeldung) => void;
 }
 
 /** Section-Key-Funktion pro Zeile (Status-Phase oder Arbeitsvorrat-Sektion) bzw.
@@ -94,7 +94,7 @@ export function AntraegeTable({
   onOpenAntrag,
   onOpenVerbund,
   sentinelRef,
-  onFilteredCountChange,
+  onZeilenMeldung,
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -138,13 +138,6 @@ export function AntraegeTable({
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
     useColumnFilters(enriched, columns);
 
-  // Spaltengefilterte TV-Anzahl an die Toolbar melden (vor der Gruppierungs-
-  // Kollabierung → TV-Level, nicht Verbund-Zeilen). Effekt statt direktem
-  // Aufruf, weil setState eines Eltern-Elements im Render verboten ist.
-  useEffect(() => {
-    onFilteredCountChange?.(filteredRows.length);
-  }, [filteredRows.length, onFilteredCountChange]);
-
   // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
   const { allRows, sectionOf, archivMeta } = useMemo<{
     allRows: AntragTableRow[];
@@ -185,6 +178,24 @@ export function AntraegeTable({
     }
     return { allRows: filteredRows, sectionOf: null, archivMeta: null };
   }, [grouping, arbeitsvorratEnabled, filteredRows, verbundById, archivPersistedCollapsed, searchActive]);
+
+  // An die Toolbar melden, was hier steht. Effekt statt direktem Aufruf, weil
+  // setState eines Eltern-Elements im Render verboten ist.
+  //
+  // Eine abweichende Zeilenzahl gibt es NUR im Verbund-Modus — nur dort fasst
+  // die Tabelle mehrere TV zu einer Zeile zusammen. Im Arbeitsvorrat-Modus ist
+  // `allRows` bei eingeklapptem Archiv ebenfalls kürzer, aber das ist keine
+  // Verdichtung, sondern ein zugeklappter Abschnitt (dessen Kopf unter der
+  // Tabelle steht); als „Zeilen" ausgewiesen wäre es eine Falschaussage.
+  const zeilen = grouping === 'verbund' ? allRows.length : filteredRows.length;
+  useEffect(() => {
+    onZeilenMeldung?.({
+      quelle: 'compact',
+      tv: filteredRows.length,
+      zeilen,
+      art: grouping === 'verbund' ? 'verbund' : null,
+    });
+  }, [filteredRows.length, zeilen, grouping, onZeilenMeldung]);
 
   // storageKey → die Klick-auf-Spaltenkopf-Sortierung überlebt Reload/Seiten-
   // wechsel (Nutzer-Wunsch). Global (nicht per-View), konsistent mit den

@@ -140,6 +140,13 @@ export default defineConfig(({ command, mode }) => {
         ignored: [
           '**/_reference/**',
           '**/_design/**',
+          // Build-Ausgabe: `npm run build:*` schreibt hierhin. Ohne diesen
+          // Eintrag reisst ein Build jeden parallel laufenden Dev-Server aus
+          // dem Lauf (Vite meldet „page reload dist-single/index.html") — mitten
+          // in einer Messung oder Abnahme. Dieselbe Klasse wie die lokalen
+          // Datenordner unten, nur die andere Schreibrichtung.
+          '**/dist-single/**',
+          '**/dist/**',
           // Variante „local": die App schreibt waehrend des Betriebs in ihre
           // Datenordner (Snapshots, Audit-Log, Sidecars). Liegt eine Wurzel im
           // Projekt, loeste jeder dieser Writes einen HMR-Reload mitten im Lauf

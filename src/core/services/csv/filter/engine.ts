@@ -37,13 +37,28 @@ function isEmpty(v: unknown): boolean {
   return v === undefined || v === null || v === '';
 }
 
+/**
+ * Vergleichsform eines Filter-Werts: trim + lowercase.
+ *
+ * Die Filter-Werte sind **CSV-Rohwerte** und im Export gemischt geschrieben
+ * (`beantragt`, aber `NF gestellt`, `Schlussvermerk`). Wer sie aus einem
+ * kanonischen Helfer bezieht (der normalisierte Schluessel liefert), traefe
+ * beim exakten Vergleich genau die grossgeschriebenen Werte nicht — die
+ * Status-Pille filterte deshalb weniger heraus, als sie zaehlte. Der Vergleich
+ * laeuft daher auf beiden Seiten ueber diese Form; das Sentinel `(leer)`
+ * normalisiert auf sich selbst.
+ */
+function normWert(v: string): string {
+  return v.toLowerCase().trim();
+}
+
 function matchesAny(val: string, patterns: string[]): boolean {
   if (patterns.length === 0) return false;
-  const low = val.toLowerCase().trim();
+  const low = normWert(val);
   for (const p of patterns) {
     if (p === '*nonempty*') {
       if (low !== '') return true;
-    } else if (p.toLowerCase().trim() === low) {
+    } else if (normWert(p) === low) {
       return true;
     }
   }
@@ -80,11 +95,11 @@ function buildPredicate<T extends FilterableAntrag>(
     case 'multi_select': {
       const targets = Array.isArray(af.value) ? (af.value as string[]) : [];
       if (targets.length === 0) return () => true;
-      const set = new Set(targets);
+      const set = new Set(targets.map(normWert));
       return (a) => {
         const v = getValue(a, feld, resolveVerbund);
         if (isEmpty(v)) return set.has('(leer)');
-        return set.has(asString(v));
+        return set.has(normWert(asString(v)));
       };
     }
     case 'boolean_ja_nein': {

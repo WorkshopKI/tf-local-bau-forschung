@@ -38,6 +38,12 @@ import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
 import { KompaktListe } from './KompaktListe';
 import { getView } from './views';
+import {
+  berechneTrefferZahl,
+  formatTrefferZahl,
+  trefferZahlTitel,
+  type ZeilenMeldung,
+} from './trefferZahl';
 import { ColumnPicker } from '@/components/data-table';
 import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY, kategorieStatusColumns } from './tableColumns';
 import { useKategorieSpalten } from './useKategorieSpalten';
@@ -119,9 +125,11 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     [showMa, kategorieSpalten],
   );
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
-  // Tabellen-Ansicht meldet ihre spaltengefilterte TV-Anzahl hierher; List/
-  // Karten haben keine Spaltenfilter und nutzen direkt `filtered.length`.
-  const [tableFilteredCount, setTableFilteredCount] = useState<number | null>(null);
+  // Tabelle und gruppierte Liste melden hierher, was sie zeigen (TV-Anzahl nach
+  // Spaltenfiltern + daraus entstandene Zeilen). Die Karten-Ansicht meldet
+  // nichts — sie ist flach; `berechneTrefferZahl` verwirft dort die fremde
+  // Meldung und zählt `filtered.length`.
+  const [zeilenMeldung, setZeilenMeldung] = useState<ZeilenMeldung | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   // Scroll-Stand der Voll-Tabelle über den Detail-Split hinweg erhalten: im
   // Narrow-Modus rendert eine andere Teilbaum-Struktur (KompaktListe), der
@@ -191,13 +199,9 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
       ? 'px-8 pb-6 max-w-6xl'
       : 'px-8 pb-6';
 
-  // Trefferzahl nach Filterung — immer auf TV-Ebene. In der Tabellen-Ansicht
-  // zählt der spaltengefilterte Wert (Fallback `filtered.length` für das eine
-  // Frame nach (Re-)Mount, bevor die Tabelle ihren ersten Wert meldet); in
-  // List/Karten gibt es keine Spaltenfilter → `filtered.length`.
-  const displayCount = viewMode === 'compact'
-    ? (tableFilteredCount ?? filtered.length)
-    : filtered.length;
+  // Trefferzahl nach Filterung — Basis immer TV-Ebene, dazu die Zeilenzahl,
+  // wenn eine Gruppierung verdichtet. Details + Guards in `trefferZahl.ts`.
+  const treffer = berechneTrefferZahl(viewMode, filtered.length, zeilenMeldung);
 
   // Quickfilter-Segmente (Status/Antragstyp/PreCheck) haben ihre eigene Pille und
   // erzeugen KEINEN Chip. Ein aktiver system-status/system-vb-phase-Filter wird
@@ -280,7 +284,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               ) : null}
             </div>
           </div>
-          {(chipActive.length > 0 || ampelQuickfilter !== null || displayCount > 0) ? (
+          {(chipActive.length > 0 || ampelQuickfilter !== null || treffer.tv > 0) ? (
             <div className="mt-2 mb-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0 flex items-center flex-wrap gap-1.5">
                 {ampelQuickfilter !== null ? (
@@ -305,12 +309,12 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   />
                 ) : null}
               </div>
-              {displayCount > 0 ? (
+              {treffer.tv > 0 ? (
                 <span
                   className="shrink-0 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
-                  title="Anzahl Teilvorhaben nach Filterung"
+                  title={trefferZahlTitel(treffer)}
                 >
-                  {displayCount.toLocaleString('de-DE')} {displayCount === 1 ? 'Antrag' : 'Anträge'}
+                  {formatTrefferZahl(treffer)}
                 </span>
               ) : null}
             </div>
@@ -366,7 +370,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
-              onFilteredCountChange={setTableFilteredCount}
+              onZeilenMeldung={setZeilenMeldung}
             />
           ) : viewMode === 'cards' ? (
             <CardGrid
@@ -389,6 +393,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               onOpenVerbund={openVerbund}
               narrow={narrow}
               sentinelRef={sentinelRef}
+              onZeilenMeldung={setZeilenMeldung}
             />
           )}
         </div>
@@ -407,6 +412,8 @@ interface GroupedListProps {
   onOpenVerbund: (id: string) => void;
   narrow: boolean;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
+  /** Meldet der Toolbar TV-Anzahl und die Karten, die daraus entstehen. */
+  onZeilenMeldung?: (m: ZeilenMeldung) => void;
 }
 
 function GroupedList({
@@ -418,6 +425,7 @@ function GroupedList({
   onOpenVerbund,
   narrow,
   sentinelRef,
+  onZeilenMeldung,
 }: GroupedListProps): React.ReactElement {
   const sortKey = useAntraegeStore(s => getEffectiveSortKey(s.activeView, s.sortByView));
   const userGroupingMode = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
@@ -440,6 +448,18 @@ function GroupedList({
     [filtered, effectiveMode, netzwerkNames, verbundById],
   );
   const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
+
+  // An die Toolbar melden, was hier steht. Jeder Modus außer `none` bündelt
+  // Verbund-Cluster zu EINER Karte (auch `status` — siehe buildAntragGroups),
+  // die Karten-Zahl liegt dann unter der TV-Zahl.
+  useEffect(() => {
+    onZeilenMeldung?.({
+      quelle: 'list',
+      tv: filtered.length,
+      zeilen: effectiveMode === 'none' ? filtered.length : allGroups.length,
+      art: effectiveMode === 'none' ? null : 'gruppe',
+    });
+  }, [filtered.length, allGroups.length, effectiveMode, onZeilenMeldung]);
 
   // Arbeitsvorrat/Archiv-Split greift nur im „Alle"-Tab ohne aktive Gruppierung
   // (Status/NW ersetzen die Sektionierung). In `none`-Modus ist jede Gruppe ein

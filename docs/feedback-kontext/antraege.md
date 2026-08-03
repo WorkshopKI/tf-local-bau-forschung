@@ -9,6 +9,10 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
 - **Liste links:** sortier-/gruppierbar. Bei offenem Detail schrumpft sie zur **Kompakt-Spalte** und lässt sich ganz einklappen (**Fokus-Modus**: alle Listen-Werkzeuge weg, Titel + „Aufnehmen" bleiben). Je Ordner des Fachsystems ist in der Tabelle eine Statusspalte einblendbar.
 - **FKZ** `16KN######` / `16EP######`: beim Überfahren einer Zeile erscheint rechts vom FKZ ein **Kopier-Icon** (Verbund-Zeile: das Verbund-FKZ).
 - **Filter:** als drittes Panel.
+- **Alle Zähler der Seite zählen Teilvorhaben** — die Reiter oben (Offen / Diese Woche / Überfällig / NF / Bewilligt / Alle), die Pille **„Status in dieser Sicht"** und die **Trefferzahl** rechts über der Liste. Die Zahl an einer Status-Pille ist genau die Trefferzahl, die ihr Klick liefert.
+  - Der Reiter „Offen" zählt **mehr** als die gleichnamige Pille: er schließt Nachforderung und Begleitung mit ein. Deshalb heißt die Pille „Status in dieser **Sicht**" — sie zerlegt den gerade gewählten Reiter.
+  - Die **Trefferzahl** nennt ihre Einheit: „294 Teilvorhaben". Fasst die Liste gerade mehrere Teilvorhaben zu einer Zeile zusammen (Gruppierung „Verbund" in der Tabelle, Status-/Netzwerk-Gruppierung in der Listen-Ansicht), steht die Zeilenzahl daneben: „17 Teilvorhaben · 12 Verbund-Zeilen".
+  - Ohne Treffer verschwindet die Trefferzahl — sie zeigt nie die Zahl der vorherigen Auswahl.
 - **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien (12 Programme) · 1.866 ausgeblendet". Er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen und wie viele Anträge das ausblendet. Gemeint sind die drei jüngsten ZIM-Generationen — 2015, 2020, 2025; draußen bleibt nur die Generation 2012.
   - **Klick öffnet die Auswahl:** Standard-Bereich / alle Richtlinien / eigene Liste, mit Klartext-Namen und **nach Generation gruppiert** („Richtlinie 2025 / 2020 / 2015").
   - **Eigene Auswahl:** der Chip sagt dann „Anzeige: eigene Auswahl (N Programme)", und das Panel nennt, wovon sie abweicht.
