@@ -168,6 +168,14 @@ describe('doc-links', () => {
     // geschnitten (neun Programme = zwei Generationen) und trug trotzdem das
     // Etikett „letzte 3 Richtlinien". Im Diff unsichtbar, weil beide Hälften für
     // sich plausibel aussahen.
-    expect(bytes).toBeLessThan(61_400);
+    // 61_400 → 61_700 (v2.401): die Tree-Basis bekommt eine Zeile in der
+    // „Ich will…"-Tabelle, eine Klausel in der Layout-Schicht („kein eigener
+    // Baum") und ihren Guard-Namen in der Guard-Aufzählung. Das Detail steht
+    // NICHT hier, sondern in docs/architecture/tree-komponenten.md — der erste
+    // Entwurf hatte einen ganzen Abschnitt in CLAUDE.md und riss genau dieses
+    // Ceiling. Ohne die Klausel in der Layout-Schicht baut das nächste Modul
+    // wieder einen eigenen Baum; das ist der Fehler, den vier Module vor dem
+    // Umbau gemacht haben.
+    expect(bytes).toBeLessThan(61_700);
   });
 });

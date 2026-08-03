@@ -48,8 +48,10 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     Anzahl** — Klick klappt auf, was das Setzen im Foyer auslöst (Satzform).
     Jede Zeile beginnt mit `Richtlinie/Folge`, weil dasselbe Kürzel je
     Richtlinie etwas anderes auslöst.
-  - „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu, Ziehen hängt um,
-    Klick auf den Namen benennt um.
+  - „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu (Klick oder
+    Pfeiltasten), Ziehen **am Griff** hängt um, F2 oder Doppelklick benennt um.
+    Rechtsklick öffnet Umbenennen · Stilllegen · Entfernen. Verbund und
+    Teilvorhaben bleiben getrennte Bäume — ein Ordner wechselt die Ebene nicht.
   - Vier Übernahme-Blöcke: Auslieferung nachziehen, Bezeichnung/Rollen der
     Kürzel-Zuarbeit übernehmen, **AB-Dashboard-Spalten als relevant markieren**
     (setzt nur, nimmt nie weg), gefundene CSV-Spalten einsortieren. Für die

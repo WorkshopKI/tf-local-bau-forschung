@@ -33,9 +33,13 @@ Teilvorhaben.
   FuE/DS/DL/NW; je Meilenstein Soll-Woche, Ø Ist-Woche, Δ und Reißquote. Die
   Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.
 - **Konfiguration**: der Meilenstein-Baum (Nummer, Bezeichnung, Soll-Woche,
-  Schalter „aktiv" und „Frist"). Aufgeklappt: Beschreibung, Antragstyp-Filter und
-  der Bedingungs-Editor — UND/ODER-Gruppen mit Feld, Operator und Wert aus den
-  gemappten CSV-Spalten. Dazu Fassungs-Leiste und frühere Fassungen.
+  Schalter „aktiv" und „Frist"). Das Dreieck klappt die **Unter-Meilensteine**
+  auf; ein Klick wählt den Meilenstein zugleich aus und öffnet **darunter**
+  Beschreibung, Antragstyp-Filter und den Bedingungs-Editor — UND/ODER-Gruppen
+  mit Feld, Operator und Wert aus den gemappten CSV-Spalten. Umsortiert und
+  untergeordnet wird per **Ziehen am Griff**; die Pfeile hoch/runter bleiben als
+  Zweitweg. Rechtsklick: Unter-Meilenstein anlegen · Stilllegen · Löschen. Dazu
+  Fassungs-Leiste und frühere Fassungen.
 
 ## Wichtig
 

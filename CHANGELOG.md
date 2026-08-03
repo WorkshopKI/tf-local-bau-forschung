@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.401.0 — Gemeinsame Tree-Basis für Status-Filter, Textbausteine, Ordner und Meilensteine (August 2026)
+
+MINOR — Vier Module bauten Baum-Verhalten je selbst nach: eigenes Aufklapp-Set, im Ordner-Editor dazu hand-geschriebenes HTML5-Drag. Keines davon konnte Tastatur. Eine gemeinsame Basis ersetzt alle vier — sieben eigene Zustandsstücke fallen weg.
+
+- **Tree-Basis `src/components/tree/`** auf `@headless-tree` (1.7.0, MIT, keine Runtime-Deps): Aufklappen, Pfeiltasten/Home/End, Tri-State-Checkboxen, Umbenennen, Ziehen, HoverCard und Kontextmenü — einziger erlaubter Ort für den Lib-Import (Guard `no-headless-tree-outside-wrapper`) ([TfTree.tsx](src/components/tree/TfTree.tsx))
+- **Status-Filter als Checkbox-Baum** mit echtem Tri-State an der Phase; die Übersetzung Baum ↔ Filter-Store ist rein und erhält fremde Preset-Werte ([statusTreeAdapter.ts](src/plugins/antraege/filter/statusTreeAdapter.ts))
+- **Textbaustein-Katalog als Hierarchie** Bereich → Überkategorie → Thema → Baustein, mit Umbenennen, Ziehen und Kontextmenü; kein Löschen, weil der Katalog keins kennt ([bausteinBaum.ts](src/plugins/skill-verwaltung-kuration/bausteinBaum.ts))
+- **Status-Ordnerbaum** ohne die fünf eigenen Zustandsstücke und ohne den `umhaengen`-Zweitweg; gezogen wird am Griff, weil die Zeile ein Zahlenfeld trägt ([kategorieBaum.ts](src/plugins/status-cockpit/kategorieBaum.ts))
+- **Meilenstein-Konfiguration**: Chevron klappt Unter-Meilensteine auf, der Bedingungs-Editor hängt am ausgewählten Knoten, Umsortieren per Ziehen über die neue reine `haengeKnotenUm` ([knoten-edit.ts](src/core/meilensteine/knoten-edit.ts))
+
 ### v2.400.1 — Sicht-Zähler auf eine Grundmenge (August 2026)
 
 PATCH — Dieselbe Sicht trug zwei Zahlen: Tab „Bewilligt 2026" 541, Schnellauswahl-Chip 555. Der Kopf zählte über die Grundmenge der Liste (Bereich, inaktive MAs, Irrläufer-Schalter), die Chips über die rohe Store-Liste — genau der Fehlermodus, den Pitfall #46 benennt.

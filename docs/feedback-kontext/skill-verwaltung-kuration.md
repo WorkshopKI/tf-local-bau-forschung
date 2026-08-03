@@ -16,7 +16,10 @@ Kuratoren (bzw. PL im Schreib-Build) pflegen die KI-Skills, Qualitätsregeln und
   - **„Abnahme-Kriterien (KI-QS)"**: ein prüfbarer Satz je Zeile (leer = generisch) + „Kriterien aus Prompt ableiten" (Vorschläge zum Anklicken).
   - **Persönlich-Ansicht:** freigegebene Werte verschieben + eigene Stil-Hinweise.
 - **Weitere Werkzeuge:** Regel-Editor, Workflow-Editor (Schritte, Freigabe, je Schritt **„Kontext aus der Vorhabensbeschreibung"**: vollständig oder nur die einschlägigen Abschnitte), Testlauf-Panel („VB ✓"/„keine VB"), Bundle-Import/-Export, „Ungespeicherte Änderungen"-Dialog.
-- **Reiter „Textbausteine":** Liste (Filter Typ NF/RNE/ABL, Status, Aspekt, Suche) + Editor (Thema, Aspekt-Chips A–J, Stichworte, Rechtstext mit Platzhaltern), Freigeben/Stilllegen mit Begründung, Versions-Historie mit Diff/Rollback, „Neuer Baustein" + „Aus Word importieren" (verbatim, erzeugt Entwürfe).
+- **Reiter „Textbausteine":** Filterleiste (Typ NF/RNE/ABL, Status, Aspekt, Suche) über einem **Baum** Bereich → Überkategorie → Thema → Baustein (Blatt zeigt ID + Textanfang + Status-Badge, Gruppenknoten die Anzahl) + Editor rechts (Thema, Aspekt-Chips A–J, Stichworte, Rechtstext mit Platzhaltern), Freigeben/Stilllegen mit Begründung, Versions-Historie mit Diff/Rollback, „Neuer Baustein" + „Aus Word importieren" (verbatim, erzeugt Entwürfe).
+  - **Thema umbenennen:** F2 oder Doppelklick auf einen Thema-Knoten; betrifft es mehrere Bausteine, fragt ein Dialog mit Anzahl und IDs nach. **Bausteine sind nicht inline umbenennbar** — ihre Zeile zeigt die ID, und die ist unveränderlich; das Thema eines einzelnen Bausteins ändert der Dialog „Thema ändern …" aus dem Kontextmenü.
+  - **Verschieben:** Baustein per Ziehen in ein anderes Thema **derselben Überkategorie**. Bereichswechsel, Überkategorie-Wechsel und G↔T sind gesperrt — das wäre eine fachliche Umwidmung, kein Umsortieren.
+  - **Kontextmenü** (Rechtsklick): Thema ändern · Freigeben · Zurück in Entwurf · Stilllegen. **Kein Löschen** — der Katalog kennt keins, stillgelegte Bausteine bleiben lesbar.
 
 ## Typische Aktionen
 

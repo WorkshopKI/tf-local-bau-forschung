@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.401 — 2026-08
+
+### Neu
+- Der Status-Filter ist ein Baum mit Häkchen: das Häkchen an einer Phase wählt alle ihre Stati auf einmal und zeigt als Balken an, wenn nur ein Teil gewählt ist. Mit der Maus auf einen Status stehen Gruppe, Anzahl und die weiteren Schreibweisen desselben Status im Tooltip.
+- Die Textbausteine in der Skill-Verwaltung stehen jetzt geordnet nach Bereich, Überkategorie und Thema statt in einer langen Liste. Themen lassen sich per F2 umbenennen, Bausteine per Rechtsklick in ein anderes Thema schieben, freigeben oder stilllegen.
+### Verbesserungen
+- Alle Baum-Ansichten (Status-Filter, Textbausteine, Ordner im Status-Katalog, Meilenstein-Konfiguration) lassen sich jetzt mit der Tastatur bedienen: Pfeiltasten zum Wandern, Pfeil rechts/links zum Auf- und Zuklappen, Pos1/Ende an den Anfang oder ans Ende.
+- In der Meilenstein-Konfiguration klappt das Dreieck jetzt die Unter-Meilensteine auf; die Bedingung erscheint unter dem Meilenstein, den Sie angeklickt haben. Umsortiert wird per Ziehen — die Pfeiltasten hoch/runter bleiben daneben bestehen.
+### Bugfixes
+<!-- - … -->
+
 ## v2.400 — 2026-08
 
 ### Neu
