@@ -23,7 +23,7 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
    in einem Ordnerbaum (Verbund und Teilvorhaben getrennt), jeweils mit den
    Rollen, die den Eintrag setzen dürfen — Herkunft, Spalten-Konvention und
    Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md).
-2. **Historie** ([HISTORIE.md](HISTORIE.md)) — append-only `StatusEvent`-Log
+2. **Historie** ([HISTORIE.md](../_archiv/HISTORIE.md)) — append-only `StatusEvent`-Log
    (`status_event`), per idempotentem Post-Import-Reconcile befüllt.
 
 > **Eine dritte Schicht gab es bis v2.384**: eine Ableitungs-Engine, die aus dem
@@ -86,6 +86,5 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
 - [KATALOG-CODES.md](KATALOG-CODES.md) — die ~180 Codes des Fachsystems:
   Spalten-Konvention (`D_`/`T_`/`X`), Ordnerbaum, AB/FB, ZAH-Phase je Feld,
   Ordner-Spalten in der Fördertabelle.
-- [BESTANDSAUFNAHME.md](BESTANDSAUFNAHME.md) — verifizierter Ausgangszustand.
 - [KATALOG-V1.md](KATALOG-V1.md) — Seed-Defaults. **Historisch**: die dort beschriebenen Rang-/Spine-/Terminal-Defaults sind mit v2.385 entfallen.
-- [HISTORIE.md](HISTORIE.md) — Event-Modell + Reconcile.
+- Im Archiv (Momentaufnahmen, nicht beim Arbeiten am Code lesen): [BESTANDSAUFNAHME.md](../_archiv/BESTANDSAUFNAHME.md) — verifizierter Ausgangszustand; [HISTORIE.md](../_archiv/HISTORIE.md) — Event-Modell + Reconcile.

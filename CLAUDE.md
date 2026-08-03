@@ -70,10 +70,10 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - `_archive/` — Historische Architektur-Docs, erledigte Audits, überholte Test-Daten, archivierte Eval-Reports (`_archive/eval-reports/`). Enthält die alte MVP-Architektur (postMessage-AI-Bridge, Vorgang-zentriertes Datenmodell, "Admin"-Terminologie) und führt bei aktuellem Code zu falschen Annahmen. Ein Agent, der hier sucht, bekommt mit hoher Wahrscheinlichkeit überholte Guidance.
 - `node_modules/`, `dist*/`, `.vite/` — Build-Artefakte.
 - `_reference/` — externe Referenz-Apps und Mockup-Bilder, nicht Teil von TeamFlow. Wird von Vite (`server.watch.ignored`) ignoriert.
-- `CHANGELOG.md` + `docs/CHANGELOG-ARCHIV.md` — nie am Stück lesen (~400 KB / ~330 KB); Einträge werden nur oben angefügt (ab v2.248 per Script). Zum Nachschlagen einzelner Versionen: grep nach `### vX.Y`.
+- `docs/_archiv/` — Momentaufnahmen (Protokolle, Audits, erledigte Pläne, Changelog-Historie): vergangene Stände, führen bei aktuellem Code zu falschen Annahmen. Inventar: [README](docs/_archiv/README.md).
+- `CHANGELOG.md` — nie am Stück lesen (~100 KB); Einträge nur oben angefügt (ab v2.248 per Script). Einzelne Version: grep nach `### vX.Y`.
 - `src/core/services/skill-eval/fixtures/eval-fixtures.data.json` — ~2 MB generierte Fixture-Daten.
-- `docs/phase-2/triage-beispiele/` — **gitignored, echte Dokumente** (DOCX/PDF aus dem DMS, ~1 MB). Liegen nur lokal für manuelle Triage-Tests; nie committen.
-- `docs/superpowers/` — erledigte Plan-/Spec-Dokumente vergangener Feature-Runden; für aktuellen Code irrelevant, führt Explorer in die Irre.
+- `docs/phase-2/triage-beispiele/` — **gitignored, echte Dokumente** (DOCX/PDF, ~1 MB); nur lokal für Triage-Tests, nie committen.
 
 ## Critical Constraints
 
@@ -212,7 +212,7 @@ Demonstrator der Fachprüfung: Einreichungs-JSON → Rechenchecks → **editierb
 
 **Import-Diff-Journal seit v2.392** (Pitfall #48): der Nacht-Export wird überschrieben, also führt die App einen Stand mit (`_intern/vorgangssystem/journal/`) und hält fest, was sich zwischen zwei Exporten geändert hat. Ab dem Nullpunkt ist der Verlauf belegt statt genähert — ohne Personen-Achse.
 
-Konzept + Rückbau-Protokoll: [vorgangssystem.md](docs/architecture/vorgangssystem.md), [p6-inventar](docs/architecture/vorgangssystem-p6-inventar.md); Regel-Herkunft: [todo-regeln-ab-seed.md](docs/architecture/todo-regeln-ab-seed.md).
+Konzept: [vorgangssystem.md](docs/architecture/vorgangssystem.md); Regel-Herkunft: [todo-regeln-ab-seed.md](docs/architecture/todo-regeln-ab-seed.md).
 
 ### Legacy: Vorgang-Typ
 
@@ -303,7 +303,7 @@ Beim MAJOR-Bump zusätzlich: Migrations-Notiz in [CHANGELOG.md](CHANGELOG.md) er
 
 **Bump + Changelog-Skeleton** laufen über `npm run version:bump -- <major|minor|patch> "<Titel>" [--user]`: das Script bumpt `package.json#version`, fügt oben in CHANGELOG.md ein Kompakt-Skeleton ein (bei `--user` zusätzlich in `changelog-user.md`) und rotiert übergroße CHANGELOG.md-Blöcke ins Archiv (> 100 KB → ≤ 80 KB, ≥ 30 neueste bleiben). CHANGELOG.md wird **nie manuell am Kopf editiert** — nur das Skeleton ausfüllen.
 
-Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, ältere in **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)** (beide append-only, chronologisch absteigend). Migrationsnotizen stehen beim jeweiligen MAJOR-Block.
+Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, ältere in **[docs/_archiv/CHANGELOG-ARCHIV.md](docs/_archiv/CHANGELOG-ARCHIV.md)** (beide append-only, chronologisch absteigend). Migrationsnotizen stehen beim jeweiligen MAJOR-Block.
 
 ## Doku-Konventionen
 
@@ -314,6 +314,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 5. Bildschirmseiten-Kontext-Docs (`docs/feedback-kontext/`) folgen derselben Ist-Zustand-Regel — bei UI-/Datenmodell-Änderungen an einem Plugin das zugehörige Doc mitziehen (siehe [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md)); Guard `screen-context-coverage` erzwingt Vollständigkeit, nicht Aktualität.
 6. Changelog-Kompaktformat: pro Version max. 3 Zeilen Motivation + max. 5 Bullets à 1 Zeile (WAS + Datei-Link, **kein** WIE); Architektur-Detail lebt genau einmal im Themen-Doc, der Changelog verlinkt nur.
 7. `changelog-user.md` (geglättete Fassung) nur bei **nutzersichtbaren** Änderungen pflegen (`--user`-Flag von `npm run version:bump`), nicht pro Version.
+8. Erledigte Protokolle/Audits/Pläne wandern nach [docs/_archiv/](docs/_archiv/README.md); fortgeschriebene Register (`audit-akzeptiert.md`, `layout-audit.md`) bleiben in `docs/`.
 
 ## Common Pitfalls
 

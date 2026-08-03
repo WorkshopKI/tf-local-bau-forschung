@@ -21,7 +21,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHANGELOG = join(ROOT, 'CHANGELOG.md');
-const ARCHIV = join(ROOT, 'docs', 'CHANGELOG-ARCHIV.md');
+const ARCHIV = join(ROOT, 'docs', '_archiv', 'CHANGELOG-ARCHIV.md');
 const USER_CHANGELOG = join(ROOT, 'src', 'core', 'components', 'changelog', 'changelog-user.md');
 const PKG = join(ROOT, 'package.json');
 

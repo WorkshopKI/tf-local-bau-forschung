@@ -69,7 +69,7 @@ const TRIGGER_BASE =
 const DEV_COMBINED = devChangelogRaw;
 
 /** Wo die nicht eingebetteten älteren Versionen liegen (reiner Text, kein Datei-Zugriff). */
-const ARCHIV_PFAD = 'docs/CHANGELOG-ARCHIV.md';
+const ARCHIV_PFAD = 'docs/_archiv/CHANGELOG-ARCHIV.md';
 
 /** Breite der rechten Spalte — gerätelokale Darstellungs-Präferenz (kein Share, kein Snapshot). */
 const SPALTEN_KEY = 'teamflow_ueber_app_spalten_breite';

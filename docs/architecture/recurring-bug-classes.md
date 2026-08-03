@@ -230,7 +230,7 @@ Prompt steht, existiert für das Modell nicht.** Verwandt und ebenso häufig: An
 Information verweisen, die im Prompt fehlt (`Vermeide die hinterlegten verbotenen Formulierungen.`),
 Überschriften über leeren Slots, und Beispiele, die der Antwort-Parser nicht von echten Daten
 unterscheiden kann. Vollständige Befundliste über alle Prompt-Pfade mit Fundstellen und
-Positivbeispielen: [prompt-audit-2026-07.md](../prompt-audit-2026-07.md).
+Positivbeispielen: [prompt-audit-2026-07.md](../_archiv/prompt-audit-2026-07.md).
 
 **Maschinell erzwungen (v2.284.1):** `keine-elidierte-wortlaut-vorgabe` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts). Unter `src/core/services/skills/` darf keine Zeile ein Literalitäts-Wort (`exakt`/`wörtlich`/`wortgetreu`) mit einem elidierten Zitat (`…` direkt vor einem schließenden Anführungszeichen) kombinieren. Eingefrorene Alt-Stände für die Migrations-Erkennung: Zeile mit `// allow-elidierte-wortlaut-vorgabe: <grund>` markieren. Rein veranschaulichende „…"-Zitate ohne Literalitäts-Forderung (z.B. `grundsatz.ts`) sind nicht erfasst.
 

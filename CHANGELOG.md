@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.393.1 — Docs-Archiv: Momentaufnahmen von lebender Referenz getrennt (August 2026)
+
+PATCH — In `docs/` lagen erledigte Protokolle, Audits und Pläne neben der lebenden Referenz. Wer dort sucht, findet mit gleicher Wahrscheinlichkeit einen Stand von Juni wie den von heute. Die Momentaufnahmen liegen jetzt getrennt und stehen in der Ignorierliste.
+
+- `docs/_archiv/` mit Inventar-README angelegt; 11 Momentaufnahmen + `superpowers/` + die Paket-4-Eval-Artefakte verschoben ([README](docs/_archiv/README.md)).
+- **Bewusst draußen geblieben:** `audit-akzeptiert.md`, `layout-audit.md`, `map-testleitfaden.md`, `fachabstimmung-2026-08.md` — sie werden fortgeschrieben und beantworten je eine Decision-Tree-Zeile.
+- **Aus `eval/` nur die Paket-4-Artefakte** — `eval-goldset-aspekte.json` wird per `?raw` vom Code geladen, die teilStruktur-Pilotdateien sind lebendes Mess-Gate.
+- Rotationsziel von `version:bump` auf den neuen Archiv-Pfad gezogen ([version-bump.mjs](scripts/version-bump.mjs)); Verweise in 6 lebenden Docs + einem Code-Kommentar nachgezogen.
+- Ignorierliste + neue Doku-Konvention in [CLAUDE.md](CLAUDE.md); die Datei bleibt trotz zweier neuer Zeilen unter dem Diät-Ceiling (60 994 B).
+
 ### v2.393.0 — Changelog-Archiv nicht mehr im Bundle (August 2026)
 
 MINOR — Das Changelog-Archiv (~916 KB) lag per `?raw` in **jeder** Single-File-Variante — ohne dev-Guard, ohne Nutzen: die kuratierte `changelog-user.md` deckt v2.98 aufwärts ab und gewinnt je Version ohnehin. Es ist jetzt draußen; der Dialog nennt nur noch den Repo-Pfad.

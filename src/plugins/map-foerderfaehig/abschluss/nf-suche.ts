@@ -10,7 +10,7 @@
  * Katalog: die beiden Aufrufer (`markdown.ts`, `nf-praezision.ts`) sind rein und
  * synchron, der Katalog lädt asynchron. Solange die Verwaltung fehlt, sind beide
  * Stände identisch; die Umstellung gehört in dieselbe Phase wie die Bearbeitbarkeit
- * (siehe `docs/protokoll-artefakt-werkbank.md`).
+ * (siehe `docs/_archiv/protokoll-artefakt-werkbank.md`).
  *
  * Pitfall #34 gilt unverändert: die Suche **wählt aus**, sie formuliert nicht um und
  * füllt keine Platzhalter.
