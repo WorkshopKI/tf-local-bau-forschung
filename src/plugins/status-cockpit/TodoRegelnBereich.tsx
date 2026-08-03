@@ -229,27 +229,38 @@ function RegelKarte({ r, version, index, anzahl, satz, api, vorrat, pruefeFeld }
 }
 
 /**
- * Der Leerzustand eines Regelsatzes — **die Tagesordnung, nicht „nichts da".**
+ * Die **Tagesordnung** eines Nicht-AB-Regelsatzes — nicht „nichts da".
  *
  * „Keine Regeln" wäre wahr und nutzlos. Was der FB-Termin braucht, ist die
  * Liste der Situationen, in denen die AB-Regeln schon heute auf ihn warten: je
  * Zeile die Herkunftsregel, wie oft sie im Bestand auftritt und ein
  * Beispiel-Aktenzeichen zum Nachsehen. Aus jeder Zeile lässt sich die fehlende
  * Regel direkt anlegen — vorbefüllt mit der Bedingung, die schon feststeht.
+ *
+ * **Steht immer da, nicht nur im Leerzustand.** Die erste angelegte Regel darf
+ * die Arbeitsgrundlage nicht wegnehmen: im Termin entstehen die Regeln nach und
+ * nach, und die übrigen Platzhalter (samt Export) werden bis zum Schluss
+ * gebraucht.
  */
-function PlatzhalterListe({ satz, lauf, onRegelErzeugen }: {
+function PlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen, onExportieren }: {
   satz: Rolle;
+  /** Wie viele eigene Regeln der Satz schon führt — bestimmt nur den Text. */
+  anzahlRegeln: number;
   lauf: PlatzhalterLauf;
   onRegelErzeugen: (g: PlatzhalterGruppe) => void;
+  onExportieren: (rolle: Rolle) => void;
 }): React.ReactElement {
-  const gruppen = (lauf.erhebung?.gruppen ?? []).filter(g => g.rolle === satz);
+  const gruppen = (lauf.erhebung?.platzhalter.gruppen ?? []).filter(g => g.rolle === satz);
   return (
     <div className="flex flex-col gap-2 rounded px-2.5 py-2" style={feldStil}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-[12.5px] text-[var(--tf-text)]">
-          Für <strong>{ROLLE_LABEL[satz]}</strong> ist noch keine Regel gepflegt. Solange das so ist,
-          leiht sich das Board die Aussage der AB-Regel, die auf {ROLLE_LABEL[satz]} wartet — im Board
-          als „geliehen" markiert.
+          {anzahlRegeln === 0 && <>Für <strong>{ROLLE_LABEL[satz]}</strong> ist noch keine Regel gepflegt.</>}
+          {anzahlRegeln === 1 && <>Für <strong>{ROLLE_LABEL[satz]}</strong> ist eine Regel gepflegt.</>}
+          {anzahlRegeln > 1 && <>Für <strong>{ROLLE_LABEL[satz]}</strong> sind {anzahlRegeln} Regeln gepflegt.</>}
+          {' '}
+          Wo keine davon greift, leiht sich das Board die Aussage der Regel, die auf{' '}
+          {ROLLE_LABEL[satz]} wartet — dort als „geliehen" markiert.
         </span>
         <Button
           variant="secondary" size="sm" disabled={lauf.aktion.busy}
@@ -267,7 +278,7 @@ function PlatzhalterListe({ satz, lauf, onRegelErzeugen }: {
               drei, diese Erhebung alle. Ohne den Satz rechnet jemand die 43
               hier gegen die 38 dort und sucht einen Fehler, der keiner ist. */}
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            {lauf.erhebung.gesamt.toLocaleString('de-DE')} Vorgänge ausgewertet
+            {lauf.erhebung.platzhalter.gesamt.toLocaleString('de-DE')} Vorgänge ausgewertet
             {lauf.bereichText !== null && <> · Betrachtungsbereich: {lauf.bereichText}</>}
             {' '}· <strong>alle Jahrgänge</strong> (das Board zeigt vorbelegt die letzten drei und
             kommt deshalb auf kleinere Zahlen)
@@ -282,6 +293,35 @@ function PlatzhalterListe({ satz, lauf, onRegelErzeugen }: {
             AB-Regel die Kaskade gewinnt. Eine eigene Regel steht in ihrem Satz allein und trifft
             deshalb in der Regel deutlich mehr Vorgänge.
           </p>
+          {/* Die blinden Flecken stehen im Export ausführlich; hier die eine
+              Zahl, die zählt. Sie nur in die Datei zu schreiben hieße, die
+              ergiebigste Auswertung vor dem zu verstecken, der sie auslöst. */}
+          <p className="text-[12px] text-[var(--tf-text)]">
+            <strong>{lauf.erhebung.flecken.ohneTodo.toLocaleString('de-DE')}</strong> Vorgänge tragen
+            in <em>keinem</em> Regelsatz ein To-do.
+            {lauf.erhebung.flecken.paare.length > 0 ? (
+              <> Bei {lauf.erhebung.flecken.paare.reduce((n, p) => n + p.anzahl, 0).toLocaleString('de-DE')}
+                {' '}davon steht ein Kürzel-Paar einseitig offen —{' '}
+                {lauf.erhebung.flecken.paare.slice(0, 3).map(p => (
+                  `${p.gesetzt} ohne ${p.fehlt} (${p.anzahl}×, Median ${p.medianTage} T)`
+                )).join(' · ')}
+                {lauf.erhebung.flecken.paare.length > 3 && ` · +${lauf.erhebung.flecken.paare.length - 3} weitere`}.
+                {' '}Das sind die rein fachlichen Lagen, für die die AB-Kaskade blind ist.
+              </>
+            ) : (
+              <> Kein Kürzel-Paar steht dabei einseitig offen.</>
+            )}
+          </p>
+
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-[11.5px] text-[var(--tf-text-secondary)]">
+              Für den Termin: drei Auswertungen als Arbeitsmappe (Platzhalter, blinde Flecken,
+              Kürzel-Landkarte) plus eine Kurzfassung für die Einladung.
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => onExportieren(satz)}>
+              Erhebung exportieren
+            </Button>
+          </div>
           {gruppen.length === 0 ? (
             <p className="text-[12px] text-[var(--tf-text-secondary)]">
               Keine Platzhalter für {ROLLE_LABEL[satz]} — keine AB-Regel wartet im aktuellen Bestand
@@ -326,10 +366,12 @@ export interface TodoRegelnApi {
   todoRegelAusPlatzhalter: (g: PlatzhalterGruppe) => void;
 }
 
-export function TodoRegelnBereich({ version, api, platzhalter }: {
+export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: {
   version: MappingVersion;
   api: TodoRegelnApi;
   platzhalter: PlatzhalterLauf;
+  /** Erhebung als XLSX + Markdown herunterladen — schreibrechtsunabhängig. */
+  onExportieren: (rolle: Rolle) => void;
 }): React.ReactElement {
   const alleRegeln = version.todoRegeln ?? [];
   const [satz, setSatz] = useState<Rolle>(REGELSATZ_DEFAULT);
@@ -420,8 +462,11 @@ export function TodoRegelnBereich({ version, api, platzhalter }: {
           <Button variant="secondary" size="sm" onClick={api.todoRegelnNachziehen}>Nachziehen</Button>
         </div>
       )}
-      {eigeneRegeln.length === 0 && satz !== REGELSATZ_DEFAULT && (
-        <PlatzhalterListe satz={satz} lauf={platzhalter} onRegelErzeugen={api.todoRegelAusPlatzhalter} />
+      {satz !== REGELSATZ_DEFAULT && (
+        <PlatzhalterListe
+          satz={satz} anzahlRegeln={eigeneRegeln.length} lauf={platzhalter}
+          onRegelErzeugen={api.todoRegelAusPlatzhalter} onExportieren={onExportieren}
+        />
       )}
 
       {regeln.map((r, i) => (

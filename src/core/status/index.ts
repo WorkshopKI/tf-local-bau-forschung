@@ -115,14 +115,18 @@ export { REGELSATZ_DEFAULT, regelsatzVon, sperreGiltFuer } from './regelsatz';
 export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
 export {
   erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX,
+  erhebeBlindeFlecken, erhebeKuerzelKarte,
   type ErhebungsFall, type BewerteterVorgang, type PlatzhalterGruppe,
   type PlatzhalterErhebung, type RollenBilanz,
+  type BlinderFleck, type BlindeFleckenErhebung, type FleckenFall,
+  type KuerzelKarteZeile,
 } from './fb-erhebung';
 export {
   AB_TODO_REGELN, baueTodoRegelSeed, ENTFALLENE_REGEL_IDS, feld as todoFeld,
 } from './todo-regeln.seed';
 export {
   pruefeStillstand, letzteAktivitaetVon, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
+  findeOffenePaare,
   type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil, type OffenesPaar,
   type AnstehenderTermin, type Zeitachse,
 } from './waechter';

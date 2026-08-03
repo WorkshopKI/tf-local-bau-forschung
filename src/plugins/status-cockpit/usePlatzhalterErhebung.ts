@@ -16,15 +16,25 @@ import { useBereich } from '@/core/hooks/useBereich';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import {
   jederVorgang, baueTodoKontext, ermittleTodosAlleRollen, fassePlatzhalterZusammen,
-  istImBereich,
-  type BewerteterVorgang, type MappingVersion, type PlatzhalterErhebung,
+  erhebeBlindeFlecken, erhebeKuerzelKarte, istImBereich, normKey, ladeTrigger,
+  type BewerteterVorgang, type BlindeFleckenErhebung, type FleckenFall,
+  type KuerzelKarteZeile, type MappingVersion, type PlatzhalterErhebung, type Rolle,
 } from '@/core/status';
+
+export interface ErhebungsErgebnis {
+  platzhalter: PlatzhalterErhebung;
+  flecken: BlindeFleckenErhebung;
+  /** Je Rolle die Kürzel-Landkarte — berechnet, sobald sie gebraucht wird. */
+  karte: (rolle: Rolle) => KuerzelKarteZeile[];
+}
 
 export interface PlatzhalterLauf {
   /** Ergebnis des letzten Laufs; `null`, solange keiner lief. */
-  erhebung: PlatzhalterErhebung | null;
+  erhebung: ErhebungsErgebnis | null;
   /** Wie der Bereich beim Lauf stand — sonst ist `gesamt` nicht einzuordnen. */
   bereichText: string | null;
+  /** ISO des Laufs — gehört auf jedes Blatt des Exports. */
+  stichtag: string;
   /** Busy/Fehler/Doppelklick-Schutz kommen aus `useAsyncAction` (Pitfall #15). */
   aktion: UseAsyncActionResult<[]>;
 }
@@ -33,25 +43,45 @@ export function usePlatzhalterErhebung(version: MappingVersion | null): Platzhal
   const idb = useStorage().idb;
   const bereich = useBereich();
   const stichtagRef = useRef<string>(new Date().toISOString());
-  const [erhebung, setErhebung] = useState<PlatzhalterErhebung | null>(null);
+  const [erhebung, setErhebung] = useState<ErhebungsErgebnis | null>(null);
   const [bereichText, setBereichText] = useState<string | null>(null);
 
   const starte = useCallback(async (): Promise<void> => {
     if (!version) return;
     const regeln = version.todoRegeln ?? [];
+    const stichtag = stichtagRef.current;
+    // EIN Durchgang über den Bestand für alle drei Auswertungen: er ist der
+    // teure Teil (Sekunden über 7 000 Vorgänge), das Zusammenfassen danach ist
+    // billig. Drei Läufe wären dreimal dieselbe Arbeit.
     const bewertet: BewerteterVorgang[] = [];
+    const flecken: FleckenFall[] = [];
+    const proCode = new Map<string, number>();
     await jederVorgang(idb, version, ({ aktenzeichen, unterprogrammId, vorkommen }) => {
       if (!istImBereich(unterprogrammId, bereich.menge)) return;
       bewertet.push({
         aktenzeichen,
-        todos: ermittleTodosAlleRollen(regeln, baueTodoKontext(vorkommen), stichtagRef.current),
+        todos: ermittleTodosAlleRollen(regeln, baueTodoKontext(vorkommen), stichtag),
       });
+      flecken.push({ aktenzeichen, vorkommen });
+      for (const v of vorkommen) {
+        if (!v.feld.code) continue;
+        const k = normKey(v.feld.code);
+        proCode.set(k, (proCode.get(k) ?? 0) + 1);
+      }
     });
-    setErhebung(fassePlatzhalterZusammen(bewertet, regeln));
+
+    const trigger = (await ladeTrigger(idb)).datei?.trigger ?? [];
+    setErhebung({
+      platzhalter: fassePlatzhalterZusammen(bewertet, regeln),
+      flecken: erhebeBlindeFlecken(flecken, version, regeln, stichtag),
+      karte: (rolle: Rolle) => erhebeKuerzelKarte(version, proCode, trigger, rolle),
+    });
     setBereichText(bereich.menge === null
       ? 'alle Richtlinien'
       : `${bereich.programme.length} Richtlinien (${bereich.programme.join(', ')})`);
   }, [idb, version, bereich.menge, bereich.programme]);
 
-  return { erhebung, bereichText, aktion: useAsyncAction(starte) };
+  return {
+    erhebung, bereichText, stichtag: stichtagRef.current, aktion: useAsyncAction(starte),
+  };
 }

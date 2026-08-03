@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.391 — 2026-08
+
+### Neu
+- Das Vorgangs-Board zeigt die Aufgaben jetzt **je Rolle**. Über die Rollen-Auswahl sehen Sie, was aus Sicht von AB, FB oder QS ansteht. Für Rollen, für die noch keine eigenen Regeln gepflegt sind, leiht sich das Board die Aussage der Regel, die auf sie wartet — solche Einträge sind als „geliehen" gekennzeichnet, damit man sie nicht für ein gepflegtes Ergebnis hält.
+- Auf der Vorhaben-Seite steht unter „Status & Verlauf" neu der Block **Offene Aufgaben**: was an welchem Teilvorhaben ansteht, je Rolle, mit „warum?"-Erklärung.
+### Verbesserungen
+- Im Status-Katalog lassen sich To-do-Regeln jetzt getrennt nach Rolle pflegen. Für eine Rolle ohne eigene Regeln zeigt der Tab, in welchen Situationen die bestehenden Regeln heute auf sie warten — samt Anzahl und Beispiel-Aktenzeichen — und man kann daraus direkt eine Regel anlegen.
+### Bugfixes
+- Ein Wechsel der Rollen-Auswahl im Vorgangs-Board wirkte sich bisher nicht auf die Berechnung aus; die Ansicht zeigte weiter die alten Werte.
+
 ## v2.390 — 2026-08
 
 ### Neu

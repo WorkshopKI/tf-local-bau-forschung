@@ -137,23 +137,29 @@ export function zieltageFuer(version: MappingVersion, statusCode: number | null)
 }
 
 /**
- * Sucht ein halb offenes Paar: eine Seite gesetzt, die andere leer.
+ * **Alle** halb offenen Paare: eine Seite gesetzt, die andere leer.
  *
  * Betrachtet werden nur Paare, deren **beide** Kürzel der Katalog kennt — sonst
  * hieße „die Gegenseite ist leer" nur „wir können sie nicht lesen".
+ *
+ * Absteigend nach Standzeit, das älteste zuerst: der Wächter nimmt daraus das
+ * erste (es erklärt den Stau am besten), die FB-Erhebung braucht alle — dort ist
+ * jedes einseitig offene Paar eine eigene Situation.
  */
-function findePaar(e: WaechterEingabe): OffenesPaar | null {
+export function findeOffenePaare(
+  version: MappingVersion, vorkommen: readonly FeldVorkommen[], stichtag: string,
+): OffenesPaar[] {
   const felderNachCode = new Map<string, FeldVorkommen['feld']>();
-  for (const f of e.version.felder) {
+  for (const f of version.felder) {
     if (f.code) felderNachCode.set(normKey(f.code), f);
   }
   const gesetztAm = new Map<string, string>();
-  for (const v of e.vorkommen) {
+  for (const v of vorkommen) {
     const tag = v.feld.code ? tagVon(v) : null;
     if (tag) gesetztAm.set(normKey(v.feld.code!), tag);
   }
 
-  let bester: OffenesPaar | null = null;
+  const offen: OffenesPaar[] = [];
   for (const paar of KUERZEL_PAARE) {
     const seiten = [
       { gesetzt: paar.adm, fehlt: paar.fachl },
@@ -165,24 +171,27 @@ function findePaar(e: WaechterEingabe): OffenesPaar | null {
       if (!felderNachCode.has(gk) || !felderNachCode.has(fk)) continue;
       const seit = gesetztAm.get(gk);
       if (!seit || gesetztAm.has(fk)) continue;
-      const tage = tageZwischen(seit, e.stichtag);
+      const tage = tageZwischen(seit, stichtag);
       if (tage === null) continue;
-      // Das ÄLTESTE offene Paar erklärt den Stau am besten — es liegt am
-      // längsten quer.
-      if (bester && bester.tage >= tage) continue;
       const feld = felderNachCode.get(fk)!;
-      const rollen = rollenVonFeld(feld);
-      bester = {
+      offen.push({
         gesetzt: s.gesetzt,
         fehlt: s.fehlt,
         fehltLabel: feld.label,
         seit,
         tage,
-        rolle: rollen[0] ?? null,
-      };
+        rolle: rollenVonFeld(feld)[0] ?? null,
+      });
     }
   }
-  return bester;
+  // Stabil: bei gleicher Standzeit gewinnt das in `KUERZEL_PAARE` frühere —
+  // dieselbe Auswahl wie vor der Aufteilung.
+  return offen.sort((a, b) => b.tage - a.tage);
+}
+
+/** Das älteste halb offene Paar — es liegt am längsten quer. */
+function findePaar(e: WaechterEingabe): OffenesPaar | null {
+  return findeOffenePaare(e.version, e.vorkommen, e.stichtag)[0] ?? null;
 }
 
 /** Was die Datumsspalten eines Vorgangs über seine Zeitachse hergeben. */

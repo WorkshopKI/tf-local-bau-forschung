@@ -18,15 +18,32 @@
  * | ablehnungsreif → Ablehnung vorbereiten | „Abl/RNE erstellen" · „Abl erstellt" · „Abl in QS" · „Abl ergänzen" |
  * | beantragt → Vollständigkeit prüfen | „PC offen" · „NF erstellen" |
  */
+import { useCallback } from 'react';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
+import type { Rolle } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { TodoRegelnBereich } from './TodoRegelnBereich';
 import { usePlatzhalterErhebung } from './usePlatzhalterErhebung';
+import { exportiereErhebung } from './fbErhebungExport';
 
 export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
-  // Der Hook steht VOR dem Early-Return: Hook-Reihenfolge ist an die
+  // Die Hooks stehen VOR dem Early-Return: Hook-Reihenfolge ist an die
   // Aufrufreihenfolge gebunden, und `tsc` fängt einen Verstoß nicht (React #310).
   const platzhalter = usePlatzhalterErhebung(api.entwurf);
+  // Reiner Export, deshalb OHNE Schreibrecht-Gate: er nimmt nichts mit auf den
+  // Share, er nimmt etwas mit in den Termin.
+  const onExportieren = useCallback((rolle: Rolle) => {
+    const e = platzhalter.erhebung;
+    if (!e) return;
+    exportiereErhebung(
+      {
+        stichtag: platzhalter.stichtag,
+        bereichText: platzhalter.bereichText ?? 'unbekannt',
+        rolle,
+      },
+      { platzhalter: e.platzhalter, flecken: e.flecken, karte: e.karte(rolle) },
+    );
+  }, [platzhalter.erhebung, platzhalter.stichtag, platzhalter.bereichText]);
   const entwurf = api.entwurf;
   if (!entwurf) return null;
   if (!isVorgangssystemEnabled()) {
@@ -38,7 +55,9 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   }
   return (
     <div className="flex flex-col gap-4 pt-3">
-      <TodoRegelnBereich version={entwurf} api={api} platzhalter={platzhalter} />
+      <TodoRegelnBereich
+        version={entwurf} api={api} platzhalter={platzhalter} onExportieren={onExportieren}
+      />
     </div>
   );
 }

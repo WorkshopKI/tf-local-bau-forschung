@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.391.0 — FB-Regelsätze: mehrspurige To-do-Engine und Erhebungsmaterial (August 2026)
+
+MINOR — Die To-do-Kaskade war durchgängig AB-zentriert: der FB sah seine Arbeit nur als Spiegelbild („wartet auf FB"). Jede Rolle bekommt jetzt einen eigenen Regelsatz. Der FB-Satz bleibt leer — er entsteht in einem Fachtermin, für den es auf FB-Seite nichts zu transkribieren gibt; diese Runde baut die Fähigkeit und das Erhebungsmaterial.
+
+- **Regelsatz je Rolle** an `TodoRegel.regelsatz` (fehlend ⇒ AB), Sperren mit `giltFuer`; bei leerem FB-Satz bitgenau das bisherige Verhalten ([todo-engine.ts](src/core/status/todo-engine.ts), [regelsatz.ts](src/core/status/regelsatz.ts)).
+- **Abgeleitete Platzhalter**: eine Rolle ohne eigene Regel leiht sich die Aussage der fremden Regel, die auf sie wartet — im Board als „geliehen" markiert, verdrängt von jedem echten Treffer ([vorgangssystem.md](docs/architecture/vorgangssystem.md)).
+- **Rollout-Sperre**: Nicht-AB-Regeln entstehen `aktiv: false`, Aktivieren nur nach Bestätigung — `status-katalog.json` ist für alle Varianten gleichzeitig live ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx)).
+- **Erhebung für den Termin**: Platzhalter, blinde Flecken (Vorgänge ohne jedes To-do mit einseitig offenem Kürzel-Paar) und Kürzel-Landkarte als XLSX + Markdown ([fb-erhebung.ts](src/core/status/fb-erhebung.ts), [fbErhebungExport.ts](src/plugins/status-cockpit/fbErhebungExport.ts)).
+- Gemessen: 68 FB- und 130 QS-Platzhalter; 6 017 von 7 269 Vorgängen ohne To-do, davon 2 261 mit offenem Paar (ALT/ALU 662×, Median 746 Tage). Eine Testregel traf 153 statt der 38 Platzhalter — die Platzhalter-Zahl ist eine Untergrenze, das steht jetzt in UI und Export.
+
 ### v2.390.0 — Assistent-Phasen 0-2 fuer die as-Variante freigeschaltet (August 2026)
 
 MINOR — DSB und Personalrat haben das Assistent-Gedächtnis ohne Auflagen freigegeben, `as` bekommt es damit wie pl. Beim Nachsehen fiel auf: für pl und kurator ist es seit v2.346.0 an, das Themen-Doc behauptete weiterhin „wartet auf DSB/Personalrat" — genau diese Drift hat die Freischaltung angefragt, die längst bestand.

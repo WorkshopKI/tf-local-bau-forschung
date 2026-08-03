@@ -10,10 +10,14 @@
  * **rein** — Stichtag und die auszuwertende Menge kommen von außen, damit
  * dieselbe Rechnung im Regeln-Tab, im Export und im Test dasselbe liefert.
  */
-import { ermittleTodosAlleRollen, type TodoErgebnis } from './todo-engine';
-import { ROLLEN } from './rollen';
+import { ermittleTodosAlleRollen, baueTodoKontext, type TodoErgebnis } from './todo-engine';
+import { ROLLEN, rollenVonFeld } from './rollen';
+import { findeOffenePaare } from './waechter';
+import { normKey } from './normalisierung';
 import type { BedingungsKontext } from './bedingung';
-import type { Rolle, TodoRegel } from './typen';
+import type { FeldVorkommen } from './feld-aufloesung';
+import type { TriggerZeile } from './typen';
+import type { MappingVersion, Rolle, TodoRegel } from './typen';
 
 /** Wie viele Beispiel-Aktenzeichen je Gruppe mitgeführt werden. */
 export const BEISPIELE_MAX = 3;
@@ -133,4 +137,136 @@ export function erhebePlatzhalter(
     });
   }
   return fassePlatzhalterZusammen(bewertet, regeln);
+}
+
+// --- (b) Blinde Flecken -----------------------------------------------------
+
+/**
+ * Ein Vorgang, bei dem **keine** Regel greift, aber ein Kürzel-Paar einseitig
+ * offen steht.
+ *
+ * Das ist die ergiebigste der drei Auswertungen: die AB-Kaskade ist hier
+ * nachweislich blind — sie sagt „kein To-do ermittelt" —, während die Daten
+ * zeigen, dass jemand angefangen und nicht abgeschlossen hat. Genau solche
+ * Situationen soll der FB-Regelsatz beschreiben.
+ *
+ * **Ohne To-do heißt: in KEINEM Regelsatz.** Ein Vorgang, der bereits ein
+ * FB-To-do trägt, ist kein blinder Fleck mehr.
+ */
+export interface BlinderFleck {
+  /** Das gesetzte Kürzel. */
+  gesetzt: string;
+  /** Das fehlende Gegenstück. */
+  fehlt: string;
+  fehltLabel: string;
+  /** Rolle des fehlenden Kürzels — wessen Schreibtisch. */
+  rolle: Rolle | null;
+  anzahl: number;
+  /** Median der Standzeit in Tagen. Eine Zahl ohne `anzahl` sagt nichts. */
+  medianTage: number;
+  beispiele: string[];
+}
+
+export interface BlindeFleckenErhebung {
+  /** Ausgewertete Vorgänge insgesamt. */
+  gesamt: number;
+  /** Davon ohne To-do in jedem Regelsatz. */
+  ohneTodo: number;
+  paare: BlinderFleck[];
+}
+
+/** Median einer nicht-leeren Zahlenliste (Nächstgelegener Rang, kein Interpolieren). */
+function median(werte: number[]): number {
+  const s = [...werte].sort((a, b) => a - b);
+  return s.length % 2 === 1
+    ? s[(s.length - 1) / 2]!
+    : Math.round((s[s.length / 2 - 1]! + s[s.length / 2]!) / 2);
+}
+
+/** Ein Vorgang mit allem, was die blinden Flecken brauchen. */
+export interface FleckenFall {
+  aktenzeichen: string;
+  vorkommen: readonly FeldVorkommen[];
+}
+
+export function erhebeBlindeFlecken(
+  faelle: Iterable<FleckenFall>,
+  version: MappingVersion,
+  regeln: readonly TodoRegel[],
+  stichtag: string,
+): BlindeFleckenErhebung {
+  const proPaar = new Map<string, { fleck: Omit<BlinderFleck, 'anzahl' | 'medianTage'>; tage: number[] }>();
+  let gesamt = 0;
+  let ohneTodo = 0;
+
+  for (const f of faelle) {
+    gesamt += 1;
+    const todos = ermittleTodosAlleRollen(regeln, baueTodoKontext(f.vorkommen), stichtag);
+    if (ROLLEN.some(r => todos[r].todo !== null)) continue;
+    ohneTodo += 1;
+    for (const p of findeOffenePaare(version, f.vorkommen, stichtag)) {
+      const key = `${p.gesetzt}→${p.fehlt}`;
+      const eintrag = proPaar.get(key);
+      if (eintrag) {
+        eintrag.tage.push(p.tage);
+        if (eintrag.fleck.beispiele.length < BEISPIELE_MAX) eintrag.fleck.beispiele.push(f.aktenzeichen);
+      } else {
+        proPaar.set(key, {
+          fleck: {
+            gesetzt: p.gesetzt, fehlt: p.fehlt, fehltLabel: p.fehltLabel,
+            rolle: p.rolle, beispiele: [f.aktenzeichen],
+          },
+          tage: [p.tage],
+        });
+      }
+    }
+  }
+
+  const paare = [...proPaar.values()]
+    .map(({ fleck, tage }) => ({ ...fleck, anzahl: tage.length, medianTage: median(tage) }))
+    .sort((a, b) => b.anzahl - a.anzahl || a.gesetzt.localeCompare(b.gesetzt));
+  return { gesamt, ohneTodo, paare };
+}
+
+// --- (c) FB-Kürzel-Landkarte ------------------------------------------------
+
+/** Ein Kürzel, das diese Rolle setzt — mit seinem Gewicht im Bestand. */
+export interface KuerzelKarteZeile {
+  code: string;
+  label: string;
+  /** In wie vielen Vorgängen ist das Kürzel gesetzt? */
+  vorkommen: number;
+  /** Was das Fachsystem beim Setzen auslöst (Satzform der Trigger-Tabelle). */
+  wirkung: string[];
+}
+
+/**
+ * Alle Kürzel einer Rolle mit ihrem Vorkommen im Bestand, absteigend.
+ *
+ * Die Landkarte beantwortet die Frage, mit der ein FB-Termin anfängt: „womit
+ * arbeiten wir eigentlich?" — und sagt gleich dazu, was das Fachsystem beim
+ * Setzen auslöst. Kürzel ohne Vorkommen bleiben in der Liste: dass ein Code
+ * vorgesehen, aber nie gesetzt ist, ist selbst ein Befund.
+ */
+export function erhebeKuerzelKarte(
+  version: MappingVersion,
+  vorkommenJeCode: ReadonlyMap<string, number>,
+  trigger: readonly TriggerZeile[],
+  rolle: Rolle,
+): KuerzelKarteZeile[] {
+  const wirkungen = new Map<string, string[]>();
+  for (const t of trigger) {
+    const k = normKey(t.kuerzel);
+    const list = wirkungen.get(k);
+    if (list) { if (!list.includes(t.satz)) list.push(t.satz); } else wirkungen.set(k, [t.satz]);
+  }
+  return version.felder
+    .filter(f => f.code !== undefined && rollenVonFeld(f).includes(rolle))
+    .map(f => ({
+      code: f.code!,
+      label: f.label,
+      vorkommen: vorkommenJeCode.get(normKey(f.code!)) ?? 0,
+      wirkung: wirkungen.get(normKey(f.code!)) ?? [],
+    }))
+    .sort((a, b) => b.vorkommen - a.vorkommen || a.code.localeCompare(b.code));
 }
