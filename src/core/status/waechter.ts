@@ -139,7 +139,9 @@ function tagVon(v: FeldVorkommen): string | null {
   return parseGermanDate(v.wert) ?? (/^\d{4}-\d{2}-\d{2}/.test(v.wert) ? v.wert.slice(0, 10) : null);
 }
 
-function tageZwischen(tag: string, stichtag: string): number | null {
+/** Ganze Tage zwischen zwei ISO-Tagen; `null`, wenn eines nicht lesbar ist.
+ *  Exportiert, damit die FB-Erhebung dieselbe Arithmetik nutzt statt einer zweiten. */
+export function tageZwischen(tag: string, stichtag: string): number | null {
   const a = new Date(tag).getTime();
   const b = new Date(stichtag).getTime();
   if (Number.isNaN(a) || Number.isNaN(b)) return null;

@@ -10,10 +10,24 @@
  * ruft nur die geteilte Mappen-Utility.
  */
 import {
-  ROLLE_LABEL, ROLLE_LANG,
-  type BlindeFleckenErhebung, type KuerzelKarteZeile, type PlatzhalterErhebung, type Rolle,
+  ROLLE_LABEL, ROLLE_LANG, PAAR_ALTBESTAND_TAGE,
+  type BlinderFleck, type BlindeFleckenErhebung, type FleckenBlock,
+  type KuerzelKarteZeile, type PlatzhalterErhebung, type Rolle,
 } from '@/core/status';
 import { schreibeArbeitsmappe, zeitstempel, type Blatt } from './arbeitsmappe';
+
+/**
+ * Der eine Satz, der die zwei Platzhalter-Zahlen auseinanderhält.
+ *
+ * Ohne ihn sind zwei Zahlen schlimmer als eine: niemand weiß, welche gilt. Er
+ * steht wortgleich im Blatt und in der Kurzfassung.
+ */
+const ZWEI_ZAHLEN = 'Zwei Zahlen je Zeile: „als Platzhalter sichtbar" zählt die Vorgänge, '
+  + 'in denen die fremde Regel ihre Kaskade gewinnt; „Bedingung trifft" zählt alle, auf die '
+  + 'sie zutrifft — das ist die Reichweite einer eigenen Regel, denn die stünde in ihrem Satz allein.';
+
+const BLOCK_AKTUELL = `bis ${PAAR_ALTBESTAND_TAGE} Tage`;
+const BLOCK_ALT = `über ${PAAR_ALTBESTAND_TAGE} Tage`;
 
 export interface ErhebungsKontext {
   /** ISO-Zeitpunkt des Laufs. */
@@ -40,6 +54,15 @@ function kopfZeilen(k: ErhebungsKontext, gesamt: number, was: string): string[] 
   ];
 }
 
+/** Eine Zeile des Blinde-Flecken-Blattes; leere Blöcke erzeugen keine. */
+function fleckenZeile(p: BlinderFleck, block: string, b: FleckenBlock): (string | number)[] {
+  return [
+    block, b.anzahl, p.gesetzt, p.fehlt, p.fehltLabel,
+    p.rolle === null ? 'alle' : ROLLE_LABEL[p.rolle],
+    b.medianTage, b.medianLetzteAktivitaet, b.beispiele.join(', '),
+  ];
+}
+
 export function baueBlaetter(k: ErhebungsKontext, d: ErhebungsDaten): Blatt[] {
   const rolle = ROLLE_LABEL[k.rolle];
   return [
@@ -48,12 +71,18 @@ export function baueBlaetter(k: ErhebungsKontext, d: ErhebungsDaten): Blatt[] {
       kopf: [
         ...kopfZeilen(k, d.platzhalter.gesamt, 'abgeleitete Platzhalter'),
         `Situationen, in denen eine fremde Regel schon heute auf ${rolle} wartet.`,
-        'Die Anzahl ist eine Untergrenze: gezählt wird nur, wo die fremde Regel ihre Kaskade gewinnt.',
+        ZWEI_ZAHLEN,
       ],
-      spalten: ['Anzahl', 'To-do', 'Herkunftsregel', 'Rolle', 'Beispiel-Aktenzeichen'],
+      spalten: [
+        'Als Platzhalter sichtbar', 'Bedingung trifft', 'To-do', 'Herkunftsregel', 'Rolle',
+        'Beispiel-Aktenzeichen',
+      ],
       zeilen: d.platzhalter.gruppen
         .filter(g => g.rolle === k.rolle)
-        .map(g => [g.anzahl, g.todo, g.beschreibung, ROLLE_LABEL[g.rolle], g.beispiele.join(', ')]),
+        .map(g => [
+          g.alsPlatzhalter, g.bedingungTrifft, g.todo, g.beschreibung, ROLLE_LABEL[g.rolle],
+          g.beispiele.join(', '),
+        ]),
     },
     {
       name: 'Blinde Flecken',
@@ -62,16 +91,22 @@ export function baueBlaetter(k: ErhebungsKontext, d: ErhebungsDaten): Blatt[] {
         `Davon ohne To-do in JEDEM Regelsatz: ${d.flecken.ohneTodo}`,
         'Vorgänge, für die keine Regel greift, obwohl ein Kürzel-Paar einseitig offen steht —',
         'jemand hat angefangen und nicht abgeschlossen, und die Kaskade sagt dazu nichts.',
+        `Getrennt nach Standzeit an ${PAAR_ALTBESTAND_TAGE} Tagen: was zwei bis drei Jahre so `
+        + 'steht, ist kein Rückstand, sondern die Frage, ob das Paar unter allen Umständen gilt.',
       ],
       spalten: [
-        'Anzahl', 'gesetzt', 'fehlt', 'Bezeichnung des fehlenden Kürzels',
-        'zuständige Rolle', 'Median-Standzeit (Tage)', 'Beispiel-Aktenzeichen',
+        'Block', 'Anzahl', 'gesetzt', 'fehlt', 'Bezeichnung des fehlenden Kürzels',
+        'zuständige Rolle', 'Median-Standzeit (Tage)', 'Median letzte Aktivität (Tage)',
+        'Beispiel-Aktenzeichen',
       ],
-      zeilen: d.flecken.paare.map(p => [
-        p.anzahl, p.gesetzt, p.fehlt, p.fehltLabel,
-        p.rolle === null ? 'alle' : ROLLE_LABEL[p.rolle],
-        p.medianTage, p.beispiele.join(', '),
-      ]),
+      // Erst der eine Block, dann der andere — zwei Tabellen in einem Blatt,
+      // damit man sie im Termin nebeneinanderlegen kann.
+      zeilen: [
+        ...d.flecken.paare.filter(p => p.aktuell.anzahl > 0)
+          .map(p => fleckenZeile(p, BLOCK_AKTUELL, p.aktuell)),
+        ...d.flecken.paare.filter(p => p.altbestand.anzahl > 0)
+          .map(p => fleckenZeile(p, BLOCK_ALT, p.altbestand)),
+      ],
     },
     {
       name: `${rolle}-Kürzel`,
@@ -110,13 +145,13 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
     z.push(`${bilanz?.abgeleitet ?? 0} Vorgänge tragen heute ein geliehenes To-do. Je Zeile: `
       + 'was die App anzeigt, aus welcher Regel es stammt, wie oft.');
     z.push('');
-    z.push('| Anzahl | To-do | Herkunftsregel |');
-    z.push('|---:|---|---|');
-    for (const g of eigene) z.push(`| ${g.anzahl} | ${g.todo} | ${g.beschreibung} |`);
+    z.push('| Als Platzhalter sichtbar | Bedingung trifft | To-do | Herkunftsregel |');
+    z.push('|---:|---:|---|---|');
+    for (const g of eigene) {
+      z.push(`| ${g.alsPlatzhalter} | ${g.bedingungTrifft} | ${g.todo} | ${g.beschreibung} |`);
+    }
     z.push('');
-    z.push('**Achtung bei der Größenordnung:** die Anzahl zählt nur die Vorgänge, bei denen die '
-      + 'AB-Regel ihre Kaskade gewinnt. Eine eigene Regel steht in ihrem Satz allein und trifft '
-      + 'deshalb regelmäßig ein Vielfaches.');
+    z.push(`**Achtung bei der Größenordnung:** ${ZWEI_ZAHLEN}`);
   }
   z.push('');
   z.push('## 2. Wo heute niemand etwas sagt');
@@ -128,10 +163,25 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
   if (d.flecken.paare.length === 0) {
     z.push('Keine einseitig offenen Paare im ausgewerteten Bestand.');
   } else {
-    z.push('| Anzahl | gesetzt | fehlt | Median-Standzeit |');
-    z.push('|---:|---|---|---:|');
-    for (const p of d.flecken.paare) {
-      z.push(`| ${p.anzahl} | ${p.gesetzt} | ${p.fehlt} („${p.fehltLabel}") | ${p.medianTage} Tage |`);
+    // Zwei Tabellen, nicht eine: der obere Block ist Arbeit, der untere eine
+    // Frage an die Paar-Definition. In einer Zahl gebündelt läse sich beides
+    // als Rückstand.
+    for (const [titel, block] of [
+      [`Standzeit ${BLOCK_AKTUELL}`, 'aktuell'],
+      [`Standzeit ${BLOCK_ALT} — vermutlich Altbestand, kein Rückstand`, 'altbestand'],
+    ] as const) {
+      const zeilen = d.flecken.paare.filter(p => p[block].anzahl > 0);
+      if (zeilen.length === 0) continue;
+      z.push(`**${titel}**`);
+      z.push('');
+      z.push('| Anzahl | gesetzt | fehlt | Median-Standzeit | Median letzte Aktivität |');
+      z.push('|---:|---|---|---:|---:|');
+      for (const p of zeilen) {
+        const b = p[block];
+        z.push(`| ${b.anzahl} | ${p.gesetzt} | ${p.fehlt} („${p.fehltLabel}") | ${b.medianTage} Tage`
+          + ` | ${b.medianLetzteAktivitaet} Tage |`);
+      }
+      z.push('');
     }
   }
   z.push('');

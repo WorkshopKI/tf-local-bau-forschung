@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  erhebePlatzhalter, erhebeBlindeFlecken, erhebeKuerzelKarte,
+  erhebePlatzhalter, erhebeBlindeFlecken, erhebeKuerzelKarte, PAAR_ALTBESTAND_TAGE,
 } from '@/core/status/fb-erhebung';
 import { baueTodoRegelSeed, feld } from '@/core/status/todo-regeln.seed';
 import type { BedingungsKontext } from '@/core/status/bedingung';
@@ -51,6 +51,9 @@ const VERSION: MappingVersion = {
     kfeld('ARK', 'RNE kaufm.', ['ab']),
     kfeld('ART', 'RNE techn.', ['fb']),
     kfeld('XPC+', 'PreCheck Verbund positiv', ['fb']),
+    // Weder Teil eines Kürzel-Paares noch von einer Regel gelesen — nur dazu da,
+    // die Zeitachse eines Vorgangs zu bewegen, ohne sein To-do zu ändern.
+    kfeld('ZZTEST', 'Nebenvermerk ohne Wirkung', []),
   ],
 };
 
@@ -73,9 +76,40 @@ describe('(a) Abgeleitete Platzhalter', () => {
     expect(e.gesamt).toBe(3);
     const fb = e.gruppen.find(g => g.rolle === 'fb');
     expect(fb?.quellRegelId).toBe('r2');
-    expect(fb?.anzahl).toBe(2);
+    expect(fb?.alsPlatzhalter).toBe(2);
     expect(fb?.beispiele).toEqual(['A1', 'A2']);
     expect(e.gruppen.find(g => g.rolle === 'qs')?.quellRegelId).toBe('r4');
+  });
+
+  it('zählt getrennt, wo die Quellregel ihre Kaskade verliert', () => {
+    // Der teuerste Irrtum des Termins: die sichtbare Zahl für die Reichweite
+    // einer künftigen Regel zu halten. A2 trifft R1 (Position 30) UND R2
+    // (Position 40) — R1 gewinnt, also entsteht KEIN FB-Platzhalter aus R2,
+    // obwohl dessen Bedingung erfüllt ist. Eine eigene FB-Regel stünde in ihrem
+    // Satz allein und träfe beide.
+    const e = erhebePlatzhalter([
+      { aktenzeichen: 'A1', ctx: ctx({ 'XPC-': GESTERN }) },
+      { aktenzeichen: 'A2', ctx: ctx({ 'XPC-': GESTERN, 'PC-': GESTERN }) },
+    ], REGELN, STICHTAG);
+
+    const fb = e.gruppen.find(g => g.rolle === 'fb');
+    expect(fb?.quellRegelId).toBe('r2');
+    expect(fb?.alsPlatzhalter).toBe(1);
+    expect(fb?.bedingungTrifft).toBe(2);
+  });
+
+  it('lässt einen gesperrten Vorgang in BEIDEN Zahlen weg', () => {
+    // S2 („RNE oder Ablehnung begonnen") legt den PreCheck-Strang still. Die
+    // Sperre ist keine Kaskadenfrage — sie stilllegt den Vorgang, und das gilt
+    // für eine eigene FB-Regel genauso.
+    const e = erhebePlatzhalter([
+      { aktenzeichen: 'A1', ctx: ctx({ 'XPC-': GESTERN }) },
+      { aktenzeichen: 'A2', ctx: ctx({ 'XPC-': GESTERN, ART: GESTERN }) },
+    ], REGELN, STICHTAG);
+
+    const fb = e.gruppen.find(g => g.rolle === 'fb');
+    expect(fb?.alsPlatzhalter).toBe(1);
+    expect(fb?.bedingungTrifft).toBe(1);
   });
 
   it('führt je Rolle eine Bilanz — Gesamtzahl UND abgeleiteter Anteil', () => {
@@ -103,6 +137,62 @@ describe('(a) Abgeleitete Platzhalter', () => {
     ], REGELN, STICHTAG);
     // Beide 1× — r2 (Position 40) steht vor r4 (Position 60).
     expect(e.gruppen.map(g => g.quellRegelId)).toEqual(['r2', 'r4']);
+  });
+});
+
+describe('Alterssplit der blinden Flecken', () => {
+  it('trennt an der Grenze: 399/400 gehören nach oben, 401 nach unten', () => {
+    const e = erhebeBlindeFlecken([
+      { aktenzeichen: 'B1', vorkommen: [vk('AK4', PAAR_ALTBESTAND_TAGE - 1)] },
+      { aktenzeichen: 'B2', vorkommen: [vk('AK4', PAAR_ALTBESTAND_TAGE)] },
+      { aktenzeichen: 'B3', vorkommen: [vk('AK4', PAAR_ALTBESTAND_TAGE + 1)] },
+    ], VERSION, REGELN, STICHTAG);
+
+    const p = e.paare[0]!;
+    expect(p.anzahl).toBe(3);
+    expect(p.aktuell.anzahl).toBe(2);
+    expect(p.aktuell.beispiele).toEqual(['B1', 'B2']);
+    expect(p.altbestand.anzahl).toBe(1);
+    expect(p.altbestand.medianTage).toBe(PAAR_ALTBESTAND_TAGE + 1);
+  });
+
+  it('rechnet den Median je Block, nicht über beide', () => {
+    const e = erhebeBlindeFlecken([
+      { aktenzeichen: 'B1', vorkommen: [vk('AK4', 10)] },
+      { aktenzeichen: 'B2', vorkommen: [vk('AK4', 30)] },
+      { aktenzeichen: 'B3', vorkommen: [vk('AK4', 700)] },
+      { aktenzeichen: 'B4', vorkommen: [vk('AK4', 900)] },
+    ], VERSION, REGELN, STICHTAG);
+
+    const p = e.paare[0]!;
+    expect(p.aktuell).toMatchObject({ anzahl: 2, medianTage: 20 });
+    expect(p.altbestand).toMatchObject({ anzahl: 2, medianTage: 800 });
+    // Der Gesamt-Median bleibt daneben stehen — er ist die Zahl, die ohne den
+    // Split zu einem Rückstand verlesen wurde.
+    expect(p.medianTage).toBe(365);
+  });
+
+  it('leerer Block ist Anzahl 0, keine fehlende Angabe', () => {
+    const e = erhebeBlindeFlecken(
+      [{ aktenzeichen: 'B1', vorkommen: [vk('AK4', 10)] }], VERSION, REGELN, STICHTAG,
+    );
+    expect(e.paare[0]!.altbestand).toEqual({
+      anzahl: 0, medianTage: 0, medianLetzteAktivitaet: 0, beispiele: [],
+    });
+  });
+
+  it('unterscheidet lange Standzeit von langer Stille', () => {
+    // Dieselbe Standzeit, zwei verschiedene Lagen: an B2 ist vorgestern etwas
+    // passiert, an B1 seit 800 Tagen nichts. Nur die zweite Zahl sieht das.
+    const e = erhebeBlindeFlecken([
+      { aktenzeichen: 'B1', vorkommen: [vk('AK4', 800)] },
+      { aktenzeichen: 'B2', vorkommen: [vk('AK4', 800), vk('ZZTEST', 2)] },
+    ], VERSION, REGELN, STICHTAG);
+
+    const alt = e.paare[0]!.altbestand;
+    expect(alt.anzahl).toBe(2);
+    expect(alt.medianTage).toBe(800);
+    expect(alt.medianLetzteAktivitaet).toBe(401);   // Median aus 800 und 2
   });
 });
 

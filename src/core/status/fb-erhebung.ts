@@ -12,7 +12,7 @@
  */
 import { ermittleTodosAlleRollen, baueTodoKontext, type TodoErgebnis } from './todo-engine';
 import { ROLLEN, rollenVonFeld } from './rollen';
-import { findeOffenePaare } from './waechter';
+import { findeOffenePaare, letzteAktivitaetVon, tageZwischen } from './waechter';
 import { normKey } from './normalisierung';
 import type { BedingungsKontext } from './bedingung';
 import type { FeldVorkommen } from './feld-aufloesung';
@@ -46,7 +46,23 @@ export interface PlatzhalterGruppe {
   /** Menschenlesbare Herkunft („R2 · PreCheck negativ (Verbund)"). */
   beschreibung: string;
   todo: string;
-  anzahl: number;
+  /**
+   * **Sichtbar heute**: wie oft die Rolle dieses To-do geliehen dastehen sieht.
+   *
+   * Gezählt wird nur, wo die Quellregel ihre Kaskade *gewinnt* — verliert sie
+   * gegen eine frühere Regel, entsteht kein Platzhalter, obwohl ihre Bedingung
+   * zutrifft.
+   */
+  alsPlatzhalter: number;
+  /**
+   * **Tatsächlich betroffen**: wie oft die Bedingung der Quellregel im Bestand
+   * zutrifft, ohne Kaskaden-Vorrang anderer Regeln.
+   *
+   * Das ist die Größenordnung, die eine eigene Regel dieser Rolle erreichte:
+   * sie stünde in ihrem Satz allein. Gemessen wurden 153 gegenüber 38 sichtbaren
+   * Platzhaltern — wer nur die kleinere Zahl kennt, plant den Termin falsch.
+   */
+  bedingungTrifft: number;
   /** Bis zu {@link BEISPIELE_MAX} Aktenzeichen — damit die Zahl prüfbar wird. */
   beispiele: string[];
 }
@@ -79,10 +95,30 @@ export function fassePlatzhalterZusammen(
   const bilanz = new Map<Rolle, RollenBilanz>(
     ROLLEN.map(r => [r, { rolle: r, todos: 0, abgeleitet: 0 }]),
   );
+  /** regelId → in wie vielen Vorgängen ihre Bedingung zutraf. */
+  const trefferProRegel = new Map<string, number>();
   let gesamt = 0;
 
   for (const v of vorgaenge) {
     gesamt += 1;
+    // Welche Regeln hat dieser Vorgang überhaupt getroffen? Die Antwort liegt
+    // bereits vor: `trefferLauf` bricht beim Sieger NICHT ab, sondern führt jeden
+    // weiteren Treffer in `weitereTreffer` mit. Sieger ∪ weitereTreffer ist damit
+    // genau die Menge der Regeln, deren Bedingung zutraf UND die keine Sperre
+    // unterdrückt hat — „Kaskade raus, Sperre bleibt", ohne einen zweiten
+    // Auswertungslauf und ohne die Engine anzufassen.
+    //
+    // Restunschärfe: verrechnet ist die Sperr-Lage des QUELL-Regelsatzes, nicht
+    // die der Zielrolle. Beide sind identisch, solange keine Sperre ein
+    // `giltFuer` trägt (heute trägt keine eines) — siehe `ermittleTodosAlleRollen`.
+    const getroffen = new Set<string>();
+    for (const rolle of ROLLEN) {
+      const e = v.todos[rolle];
+      if (e.regelId !== null) getroffen.add(e.regelId);
+      for (const w of e.weitereTreffer) getroffen.add(w.regelId);
+    }
+    for (const id of getroffen) trefferProRegel.set(id, (trefferProRegel.get(id) ?? 0) + 1);
+
     for (const rolle of ROLLEN) {
       const e = v.todos[rolle];
       if (e.todo === null) continue;
@@ -93,7 +129,7 @@ export function fassePlatzhalterZusammen(
       const key = `${rolle}::${e.abgeleitetAus}`;
       const gruppe = proRegel.get(key);
       if (gruppe) {
-        gruppe.anzahl += 1;
+        gruppe.alsPlatzhalter += 1;
         if (gruppe.beispiele.length < BEISPIELE_MAX) gruppe.beispiele.push(v.aktenzeichen);
       } else {
         proRegel.set(key, {
@@ -101,7 +137,8 @@ export function fassePlatzhalterZusammen(
           quellRegelId: e.abgeleitetAus,
           beschreibung: e.beschreibung ?? e.abgeleitetAus,
           todo: e.todo,
-          anzahl: 1,
+          alsPlatzhalter: 1,
+          bedingungTrifft: 0,   // erst nach dem Durchgang bekannt
           beispiele: [v.aktenzeichen],
         });
       }
@@ -109,14 +146,18 @@ export function fassePlatzhalterZusammen(
   }
 
   // Häufigste zuerst — das ist die Reihenfolge, in der der Termin sie abarbeiten
-  // sollte. Bei Gleichstand entscheidet die Kaskaden-Position, damit dieselbe
-  // Eingabe immer dieselbe Ausgabe ergibt (der Export wird verglichen).
+  // sollte. Sortiert wird nach der SICHTBAREN Zahl: sie ist der Anlass, über die
+  // Situation zu reden; `bedingungTrifft` sagt danach, wie groß sie ist.
+  // Bei Gleichstand entscheidet die Kaskaden-Position, damit dieselbe Eingabe
+  // immer dieselbe Ausgabe ergibt (der Export wird verglichen).
   const position = new Map(regeln.map(r => [r.id, r.reihenfolge]));
-  const gruppen = [...proRegel.values()].sort((a, b) => (
-    b.anzahl - a.anzahl
-    || (position.get(a.quellRegelId) ?? Infinity) - (position.get(b.quellRegelId) ?? Infinity)
-    || a.quellRegelId.localeCompare(b.quellRegelId)
-  ));
+  const gruppen = [...proRegel.values()]
+    .map(g => ({ ...g, bedingungTrifft: trefferProRegel.get(g.quellRegelId) ?? 0 }))
+    .sort((a, b) => (
+      b.alsPlatzhalter - a.alsPlatzhalter
+      || (position.get(a.quellRegelId) ?? Infinity) - (position.get(b.quellRegelId) ?? Infinity)
+      || a.quellRegelId.localeCompare(b.quellRegelId)
+    ));
 
   return {
     gesamt,
@@ -153,6 +194,33 @@ export function erhebePlatzhalter(
  * **Ohne To-do heißt: in KEINEM Regelsatz.** Ein Vorgang, der bereits ein
  * FB-To-do trägt, ist kein blinder Fleck mehr.
  */
+/**
+ * Ab wann ein einseitig offenes Paar als **Altbestand** gilt und nicht als
+ * Rückstand.
+ *
+ * Gemessen wurden Mediane von 746 und 1183 Tagen. Eine Situation, die zwei bis
+ * drei Jahre so steht, ist keine liegengebliebene Aufgabe — sie ist die Frage,
+ * ob das Paar unter allen Umständen gilt. Beides in einer Zahl zu bündeln hieße,
+ * dem Termin einen Rückstand zu melden, den es nicht gibt.
+ */
+export const PAAR_ALTBESTAND_TAGE = 400;
+
+/** Eine Hälfte des Alterssplits. Leer heißt `anzahl: 0` — kein fehlender Block. */
+export interface FleckenBlock {
+  anzahl: number;
+  /** Median der Standzeit des Paares in Tagen. */
+  medianTage: number;
+  /**
+   * Median der Tage seit der letzten Aktivität am Vorgang.
+   *
+   * Die zweite Frage neben der Standzeit: ein Paar, das seit 1 000 Tagen offen
+   * steht, an dessen Vorgang aber vorgestern etwas passiert ist, ist laufende
+   * Arbeit — eines ohne jede Bewegung ist eine Altlast der Datenpflege.
+   */
+  medianLetzteAktivitaet: number;
+  beispiele: string[];
+}
+
 export interface BlinderFleck {
   /** Das gesetzte Kürzel. */
   gesetzt: string;
@@ -161,10 +229,14 @@ export interface BlinderFleck {
   fehltLabel: string;
   /** Rolle des fehlenden Kürzels — wessen Schreibtisch. */
   rolle: Rolle | null;
+  /** Summe beider Blöcke. */
   anzahl: number;
-  /** Median der Standzeit in Tagen. Eine Zahl ohne `anzahl` sagt nichts. */
+  /** Median der Standzeit über beide Blöcke. Eine Zahl ohne `anzahl` sagt nichts. */
   medianTage: number;
-  beispiele: string[];
+  /** Bis einschließlich {@link PAAR_ALTBESTAND_TAGE} Tage Standzeit. */
+  aktuell: FleckenBlock;
+  /** Länger — der Block, den der Termin anders behandeln muss. */
+  altbestand: FleckenBlock;
 }
 
 export interface BlindeFleckenErhebung {
@@ -175,12 +247,31 @@ export interface BlindeFleckenErhebung {
   paare: BlinderFleck[];
 }
 
-/** Median einer nicht-leeren Zahlenliste (Nächstgelegener Rang, kein Interpolieren). */
+/** Median einer Zahlenliste (Nächstgelegener Rang, kein Interpolieren); leer ⇒ 0. */
 function median(werte: number[]): number {
+  if (werte.length === 0) return 0;
   const s = [...werte].sort((a, b) => a - b);
   return s.length % 2 === 1
     ? s[(s.length - 1) / 2]!
     : Math.round((s[s.length / 2 - 1]! + s[s.length / 2]!) / 2);
+}
+
+/** Ein einzelner Paarfall — die Zeile, aus der die Blöcke gerechnet werden. */
+interface Paarfall {
+  aktenzeichen: string;
+  /** Standzeit des Paares in Tagen. */
+  tage: number;
+  /** Tage seit der letzten Aktivität am Vorgang. */
+  letzteAktivitaet: number;
+}
+
+function baueBlock(faelle: readonly Paarfall[]): FleckenBlock {
+  return {
+    anzahl: faelle.length,
+    medianTage: median(faelle.map(f => f.tage)),
+    medianLetzteAktivitaet: median(faelle.map(f => f.letzteAktivitaet)),
+    beispiele: faelle.slice(0, BEISPIELE_MAX).map(f => f.aktenzeichen),
+  };
 }
 
 /** Ein Vorgang mit allem, was die blinden Flecken brauchen. */
@@ -195,7 +286,8 @@ export function erhebeBlindeFlecken(
   regeln: readonly TodoRegel[],
   stichtag: string,
 ): BlindeFleckenErhebung {
-  const proPaar = new Map<string, { fleck: Omit<BlinderFleck, 'anzahl' | 'medianTage'>; tage: number[] }>();
+  type Kopf = Pick<BlinderFleck, 'gesetzt' | 'fehlt' | 'fehltLabel' | 'rolle'>;
+  const proPaar = new Map<string, { kopf: Kopf; faelle: Paarfall[] }>();
   let gesamt = 0;
   let ohneTodo = 0;
 
@@ -204,26 +296,37 @@ export function erhebeBlindeFlecken(
     const todos = ermittleTodosAlleRollen(regeln, baueTodoKontext(f.vorkommen), stichtag);
     if (ROLLEN.some(r => todos[r].todo !== null)) continue;
     ohneTodo += 1;
+    // Einmal je Vorgang, nicht je Paar — dieselbe Zeitachse wie im Wächter
+    // (Einzelquelle, kein zweiter Aktivitätsbegriff).
+    const achse = letzteAktivitaetVon(f.vorkommen, version, stichtag).letzteAktivitaet;
+    const seitAktivitaet = achse === null ? null : tageZwischen(achse, stichtag);
     for (const p of findeOffenePaare(version, f.vorkommen, stichtag)) {
       const key = `${p.gesetzt}→${p.fehlt}`;
+      // Ohne lesbare Zeitachse (kein relevantes Datumsfeld) gilt das Datum der
+      // gesetzten Paar-Seite: das IST eine Aktivität an diesem Vorgang, kein
+      // stiller Ersatzwert. Der kleinere Wert gewinnt — er liegt näher an heute.
+      const letzteAktivitaet = seitAktivitaet === null ? p.tage : Math.min(seitAktivitaet, p.tage);
+      const fall: Paarfall = { aktenzeichen: f.aktenzeichen, tage: p.tage, letzteAktivitaet };
       const eintrag = proPaar.get(key);
       if (eintrag) {
-        eintrag.tage.push(p.tage);
-        if (eintrag.fleck.beispiele.length < BEISPIELE_MAX) eintrag.fleck.beispiele.push(f.aktenzeichen);
+        eintrag.faelle.push(fall);
       } else {
         proPaar.set(key, {
-          fleck: {
-            gesetzt: p.gesetzt, fehlt: p.fehlt, fehltLabel: p.fehltLabel,
-            rolle: p.rolle, beispiele: [f.aktenzeichen],
-          },
-          tage: [p.tage],
+          kopf: { gesetzt: p.gesetzt, fehlt: p.fehlt, fehltLabel: p.fehltLabel, rolle: p.rolle },
+          faelle: [fall],
         });
       }
     }
   }
 
   const paare = [...proPaar.values()]
-    .map(({ fleck, tage }) => ({ ...fleck, anzahl: tage.length, medianTage: median(tage) }))
+    .map(({ kopf, faelle: fs }) => ({
+      ...kopf,
+      anzahl: fs.length,
+      medianTage: median(fs.map(x => x.tage)),
+      aktuell: baueBlock(fs.filter(x => x.tage <= PAAR_ALTBESTAND_TAGE)),
+      altbestand: baueBlock(fs.filter(x => x.tage > PAAR_ALTBESTAND_TAGE)),
+    }))
     .sort((a, b) => b.anzahl - a.anzahl || a.gesetzt.localeCompare(b.gesetzt));
   return { gesamt, ohneTodo, paare };
 }

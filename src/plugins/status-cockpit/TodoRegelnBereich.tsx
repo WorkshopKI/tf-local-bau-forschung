@@ -286,12 +286,13 @@ function PlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen, onExporti
           {/* Gemessen: aus 38 Platzhaltern wurden 153 Treffer, als die Regel
               wirklich stand. Der Platzhalter zählt nur, wo die AB-Regel ihre
               Kaskade GEWINNT; die neue Regel steht in ihrem eigenen Satz allein
-              und greift überall, wo ihre Bedingung gilt. Wer das nicht weiß,
-              plant den Termin mit der falschen Größenordnung. */}
+              und greift überall, wo ihre Bedingung gilt. Deshalb stehen beide
+              Zahlen an jeder Zeile — die zweite ist die, mit der man plant. */}
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            Die Anzahl ist eine <strong>Untergrenze</strong>: sie zählt die Vorgänge, bei denen die
-            AB-Regel die Kaskade gewinnt. Eine eigene Regel steht in ihrem Satz allein und trifft
-            deshalb in der Regel deutlich mehr Vorgänge.
+            Je Zeile zwei Zahlen: <strong>sichtbar</strong> zählt die Vorgänge, in denen die
+            AB-Regel die Kaskade gewinnt; <strong>trifft</strong> zählt alle, auf die ihre Bedingung
+            zutrifft. Die zweite ist die Reichweite einer eigenen Regel — sie stünde in ihrem Satz
+            allein.
           </p>
           {/* Die blinden Flecken stehen im Export ausführlich; hier die eine
               Zahl, die zählt. Sie nur in die Datei zu schreiben hieße, die
@@ -331,8 +332,15 @@ function PlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen, onExporti
             <ul className="flex flex-col gap-1">
               {gruppen.map(g => (
                 <li key={g.quellRegelId} className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] w-[64px] shrink-0">
-                    {g.anzahl.toLocaleString('de-DE')}×
+                  <span
+                    className="text-[12px] font-mono text-[var(--tf-text-tertiary)] w-[228px] shrink-0"
+                    title={`${g.alsPlatzhalter} Vorgänge sehen das To-do heute geliehen · `
+                      + `${g.bedingungTrifft} Vorgänge erfüllen die Bedingung der Herkunftsregel`}
+                  >
+                    {g.alsPlatzhalter.toLocaleString('de-DE')}× sichtbar
+                    <span className="text-[var(--tf-text)]">
+                      {' · '}{g.bedingungTrifft.toLocaleString('de-DE')}× trifft
+                    </span>
                   </span>
                   <span className="text-[12.5px] text-[var(--tf-text)]">„{g.todo}"</span>
                   <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{g.beschreibung}</span>

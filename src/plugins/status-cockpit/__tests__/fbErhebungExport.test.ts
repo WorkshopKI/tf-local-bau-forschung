@@ -13,7 +13,7 @@ import { baueArbeitsmappe } from '../arbeitsmappe';
 
 const KONTEXT: ErhebungsKontext = {
   stichtag: '2026-08-03T09:00:00.000Z',
-  bereichText: '9 Richtlinien (76, 77, 78, 79, 131, 136, 137, 138, 139)',
+  bereichText: 'Richtlinien 2015 + 2020 + 2025 · 12 Programme (46, 47, 48, 76, 77, 78, 79, 131, 136, 137, 138, 139)',
   rolle: 'fb',
 };
 
@@ -23,13 +23,13 @@ const DATEN: ErhebungsDaten = {
     gruppen: [
       {
         rolle: 'fb', quellRegelId: 'r2', beschreibung: 'R2 · PreCheck negativ (Verbund)',
-        todo: 'Abl/RNE von FB abwarten', anzahl: 43,
+        todo: 'Abl/RNE von FB abwarten', alsPlatzhalter: 43, bedingungTrifft: 153,
         beispiele: ['16DS260251', '16EP260073', '16EP260087'],
       },
       // Eine fremde Rolle — darf im FB-Blatt NICHT auftauchen.
       {
         rolle: 'qs', quellRegelId: 'r19', beschreibung: 'R19 · Gutachten vollständig',
-        todo: 'in QS', anzahl: 75, beispiele: ['16KN1'],
+        todo: 'in QS', alsPlatzhalter: 75, bedingungTrifft: 75, beispiele: ['16KN1'],
       },
     ],
     proRolle: [
@@ -42,7 +42,11 @@ const DATEN: ErhebungsDaten = {
     ohneTodo: 6017,
     paare: [{
       gesetzt: 'ALT', fehlt: 'ALU', fehltLabel: 'Brief NF von TB', rolle: 'fb',
-      anzahl: 662, medianTage: 746, beispiele: ['16EP1', '16EP2'],
+      anzahl: 662, medianTage: 746,
+      aktuell: { anzahl: 120, medianTage: 210, medianLetzteAktivitaet: 96, beispiele: ['16EP1'] },
+      altbestand: {
+        anzahl: 542, medianTage: 980, medianLetzteAktivitaet: 910, beispiele: ['16EP2', '16EP3'],
+      },
     }],
   },
   karte: [
@@ -62,30 +66,50 @@ describe('Blätter der Arbeitsmappe', () => {
     for (const b of blaetter) {
       const kopf = b.kopf.join('\n');
       expect(kopf, b.name).toContain('Stichtag: 2026-08-03');
-      expect(kopf, b.name).toContain('9 Richtlinien');
+      expect(kopf, b.name).toContain('12 Programme');
       expect(kopf, b.name).toContain('Ausgewertete Vorgänge: 7269');
       expect(kopf, b.name).toContain('alle Jahrgänge');
     }
   });
 
-  it('zeigt im Platzhalter-Blatt nur die eigene Rolle', () => {
+  it('zeigt im Platzhalter-Blatt nur die eigene Rolle, mit beiden Zahlen', () => {
     const zeilen = blaetter[0]!.zeilen;
     expect(zeilen).toHaveLength(1);
     expect(zeilen[0]).toEqual([
-      43, 'Abl/RNE von FB abwarten', 'R2 · PreCheck negativ (Verbund)', 'FB',
+      43, 153, 'Abl/RNE von FB abwarten', 'R2 · PreCheck negativ (Verbund)', 'FB',
       '16DS260251, 16EP260073, 16EP260087',
     ]);
   });
 
-  it('sagt am Platzhalter-Blatt, dass die Anzahl eine Untergrenze ist', () => {
-    expect(blaetter[0]!.kopf.join('\n')).toContain('Untergrenze');
+  it('erklärt die zwei Zahlen im Kopf — sonst sind sie schlimmer als eine', () => {
+    const kopf = blaetter[0]!.kopf.join('\n');
+    expect(kopf).toContain('als Platzhalter sichtbar');
+    expect(kopf).toContain('Bedingung trifft');
+    expect(blaetter[0]!.spalten.slice(0, 2)).toEqual(['Als Platzhalter sichtbar', 'Bedingung trifft']);
   });
 
-  it('führt die blinden Flecken mit Median-Standzeit', () => {
+  it('trennt die blinden Flecken in zwei Blöcke, je mit Anzahl und Medianen', () => {
     expect(blaetter[1]!.kopf.join('\n')).toContain('ohne To-do in JEDEM Regelsatz: 6017');
-    expect(blaetter[1]!.zeilen[0]).toEqual([
-      662, 'ALT', 'ALU', 'Brief NF von TB', 'FB', 746, '16EP1, 16EP2',
+    expect(blaetter[1]!.kopf.join('\n')).toContain('400 Tagen');
+    expect(blaetter[1]!.zeilen).toEqual([
+      ['bis 400 Tage', 120, 'ALT', 'ALU', 'Brief NF von TB', 'FB', 210, 96, '16EP1'],
+      ['über 400 Tage', 542, 'ALT', 'ALU', 'Brief NF von TB', 'FB', 980, 910, '16EP2, 16EP3'],
     ]);
+  });
+
+  it('lässt einen leeren Block weg, statt eine Nullzeile zu schreiben', () => {
+    const nurAlt = baueBlaetter(KONTEXT, {
+      ...DATEN,
+      flecken: {
+        ...DATEN.flecken,
+        paare: [{
+          ...DATEN.flecken.paare[0]!,
+          aktuell: { anzahl: 0, medianTage: 0, medianLetzteAktivitaet: 0, beispiele: [] },
+        }],
+      },
+    });
+    expect(nurAlt[1]!.zeilen).toHaveLength(1);
+    expect(nurAlt[1]!.zeilen[0]![0]).toBe('über 400 Tage');
   });
 
   it('behält in der Landkarte auch die nie gesetzten Kürzel', () => {
@@ -113,18 +137,21 @@ describe('Kurzfassung für die Einladung', () => {
   it('trägt den Erhebungs-Kontext im Kopf', () => {
     expect(md).toContain('# Erhebung FB-Regelsatz');
     expect(md).toContain('Stand 2026-08-03');
-    expect(md).toContain('9 Richtlinien');
+    expect(md).toContain('12 Programme');
   });
 
-  it('warnt vor der Größenordnung des Platzhalters', () => {
+  it('warnt vor der Größenordnung des Platzhalters und nennt beide Zahlen', () => {
     // Der teuerste Irrtum des Termins: die 43 für die Reichweite der künftigen
     // Regel zu halten. Gemessen wurden 153.
     expect(md).toContain('Achtung bei der Größenordnung');
+    expect(md).toContain('| 43 | 153 |');
   });
 
-  it('nennt die blinden Flecken samt Standzeit', () => {
+  it('nennt die blinden Flecken in zwei Blöcken samt beider Mediane', () => {
     expect(md).toContain('6017 von 7269');
-    expect(md).toContain('746 Tage');
+    expect(md).toContain('Standzeit bis 400 Tage');
+    expect(md).toContain('vermutlich Altbestand, kein Rückstand');
+    expect(md).toContain('| 980 Tage | 910 Tage |');
   });
 
   it('endet mit den Entscheidungen, die der Termin treffen muss', () => {

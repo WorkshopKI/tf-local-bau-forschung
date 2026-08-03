@@ -120,11 +120,11 @@ export {
   type AntragsChronik, type FeldChronik, type JournalEintrag, type NachtLauf,
 } from './journal';
 export {
-  erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX,
+  erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX, PAAR_ALTBESTAND_TAGE,
   erhebeBlindeFlecken, erhebeKuerzelKarte,
   type ErhebungsFall, type BewerteterVorgang, type PlatzhalterGruppe,
   type PlatzhalterErhebung, type RollenBilanz,
-  type BlinderFleck, type BlindeFleckenErhebung, type FleckenFall,
+  type BlinderFleck, type BlindeFleckenErhebung, type FleckenBlock, type FleckenFall,
   type KuerzelKarteZeile,
 } from './fb-erhebung';
 export {
