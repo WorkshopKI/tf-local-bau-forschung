@@ -72,7 +72,7 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - `_reference/` — externe Referenz-Apps und Mockup-Bilder, nicht Teil von TeamFlow. Wird von Vite (`server.watch.ignored`) ignoriert.
 - `CHANGELOG.md` + `docs/CHANGELOG-ARCHIV.md` — nie am Stück lesen (~400 KB / ~330 KB); Einträge werden nur oben angefügt (ab v2.248 per Script). Zum Nachschlagen einzelner Versionen: grep nach `### vX.Y`.
 - `src/core/services/skill-eval/fixtures/eval-fixtures.data.json` — ~2 MB generierte Fixture-Daten.
-- `docs/phase-2/triage-beispiele/` — Beispiel-DOCX/-PDFs (~1 MB).
+- `docs/phase-2/triage-beispiele/` — **gitignored, echte Dokumente** (DOCX/PDF aus dem DMS, ~1 MB). Liegen nur lokal für manuelle Triage-Tests; nie committen.
 - `docs/superpowers/` — erledigte Plan-/Spec-Dokumente vergangener Feature-Runden; für aktuellen Code irrelevant, führt Explorer in die Irre.
 
 ## Critical Constraints

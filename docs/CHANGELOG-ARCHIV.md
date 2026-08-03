@@ -2,6 +2,177 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.349.0 — Jahrgangs-Filter fuer Fristen und Meilensteine (Juli 2026)
+
+MINOR — Die Seite listete alle 1836 offenen Verbünde, der älteste bei Woche 673. Weil nach Prognose vor Restzeit sortiert wird, standen genau diese Altlasten ganz oben; in „Diese Woche" erzeugten sie dauerhaft gerissene Meilensteine und machten die Arbeitsliste unbrauchbar.
+
+- Neue Jahrgangs-Leiste im Seitenkopf: Chips für die drei jüngsten Jahre, Von-Bis-Listen und „Alle Jahre" ([JahresFilter.tsx](src/plugins/meilensteine/JahresFilter.tsx)).
+- Vorbelegt mit laufendem Jahr + Vorjahr — beim Öffnen zeigt die Seite den aktuellen Bestand statt des vollen Archivs.
+- Der Filter gilt für den ganzen Bereich (Übersicht, Diese Woche, Auswertung) samt der Zähler in der Tab-Leiste ([MeilensteinePage.tsx](src/plugins/meilensteine/MeilensteinePage.tsx)).
+- **Die Ø-Bearbeitungsdauer der Auswertung ist damit standardmäßig jahrgangsbezogen** — „Alle Jahre" liefert wieder den Gesamtwert.
+- Bezugsjahr ist der Antragseingang, gelesen über `parseGermanDate`; Verbünde ohne Antragsdatum erscheinen nur unter „Alle Jahre" und werden ausgewiesen ([monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts)).
+
+### v2.348.0 — Rollen und Bezeichnungen aus der Kuerzel-Zuarbeit (Juli 2026)
+
+MINOR — Der Katalog kannte 177 Codes aus Bildschirmfotos und genau zwei Rollen. Die Zuarbeit des Fachsystems führt 505 Codes mit amtlicher Bezeichnung und sechs Rollen — 126 unserer Einträge behaupteten „AB + FB", obwohl sie QS, PA, Juristen oder niemandem Bestimmten gehören.
+
+- Rollen statt AB/FB-Achse: `ab`/`fb`/`qs`/`pa`/`jur` als Mehrfachauswahl, leere Auswahl = jeder darf setzen ([rollen.ts](src/core/status/rollen.ts)) — Bestandsfassungen werden zur Lesezeit übersetzt, nichts zu migrieren.
+- Die Zuarbeit ist generierte Fremddaten ([seed-codes.data.ts](src/core/status/seed-codes.data.ts) via `npm run gen:status-codes`); unsere Kuration — Ordner, Phase, Rang — liegt getrennt daneben und überlebt jede Neugenerierung ([seed-codes.ts](src/core/status/seed-codes.ts)).
+- Der Katalog wächst auf 508 Felder; die 330 Codes ohne Ordner-Nachweis landen sichtbar unter „Nicht zugeordnet" statt zu fehlen.
+- Neuer Übernahme-Block im Felder-Tab: „Bei N Feldern weichen Bezeichnung oder Rollen ab" mit Vorschau — korrigiert nur diese beiden Angaben ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx)).
+- „Meine Rolle" im Profil kennt alle fünf Rollen; Statusliste und Felder-Tab filtern danach, neutrale Einträge bleiben immer sichtbar ([KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md), Pitfall #43).
+
+### v2.347.0 — Ziehbare Spaltenteilung auf der Foerderfaehigkeit-Seite (Juli 2026)
+
+MINOR — Auf der Förderfähigkeit-Seite ließ sich die Grenze zwischen Einreichungs-Liste und Detail nicht verschieben. Der Resize war im geteilten Shell längst da, aber unsichtbar — und die Seite gab dem Shell keine Höhe, sodass sie als Ganzes scrollte statt der Detailspalte.
+
+- Der Einreichungen-Bereich wird zum Flex-Spalten-Kontext: Liste und Detail scrollen je für sich, Kopf und Sicht-Tabs bleiben stehen ([MapPage.tsx](src/plugins/map-foerderfaehig/MapPage.tsx)).
+- Der Trenn-Griff im geteilten Master-Detail-Shell ist jetzt dauerhaft sichtbar und per Tastatur (←/→) sowie Doppelklick (Reset) bedienbar, Pointer- statt Maus-Events ([MasterDetailLayout.tsx](src/components/master-detail/MasterDetailLayout.tsx)) — wirkt auf alle Split-Seiten.
+- Die Einreichungs-Liste lässt sich auf eine schmale Leiste einklappen (`collapsible`-Opt-in, Zustand gemerkt) ([EinreichungListe.tsx](src/plugins/map-foerderfaehig/components/EinreichungListe.tsx)).
+- Neue reine Helfer `maxListWidth` + `keyboardWidthStep` samt Tests ([masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts)).
+- DESIGN_GUIDE hält die Fallgrube fest: `MasterDetailLayout` muss direktes Kind eines `flex flex-col`-Containers sein, Ausblenden über die Klasse statt das `hidden`-Attribut ([DESIGN_GUIDE.md](DESIGN_GUIDE.md)).
+
+### v2.346.0 — Features fuer pl und kurator freischalten (Juli 2026)
+
+MINOR — Die App ist nicht produktiv, der Nutzerkreis sind drei Testpersonen (dev, PL, Kurator). Etliche fertige Features standen trotzdem auf „nur dev" und waren für genau die zwei Menschen unsichtbar, die sie testen sollen. Ab jetzt gilt: was der dev geprüft hat, geht direkt an pl und kurator.
+
+- **pl** bekommt Antrag-Aufbereitung, NF-Nachforderungen + Artefakt-Werkbank, MAP-Förderfähigkeit, Workflow-Entwürfe und die drei Assistent-Phasen ([pl.config.json](configs/pl.config.json)).
+- **kurator** bekommt den Gutachten-Workflow (Testfläche für die selbst gepflegten Skills), Workflow-Entwürfe und die Assistent-Phasen ([kurator.config.json](configs/kurator.config.json)).
+- `artefaktWerkbank` nur zusammen mit `nfNachforderungen` — allein fehlt der Artefakt-Leiste die NF-Karte; `workflowEntwuerfe` muss in `production`-Varianten explizit gesetzt werden ([feature-flags.ts](src/config/feature-flags.ts)).
+- Die Assistent-Phasen sind damit sichtbar, nicht aktiv: Protokoll und Gedächtnis bleiben opt-in und gerätelokal (Pitfall #37/#38).
+- Aufbereitung: Tor B (Sichtbarkeit) ist offen, Tor A (Skill-Seeds `aktiv:false`) bleibt zu — die PL sieht die deterministischen Sichten, die KI-Bausteine warten auf die Eval-Reife ([antrag-aufbereitung.md](docs/architecture/antrag-aufbereitung.md)).
+
+### v2.345.0 — Ordner-Spalten in der Fördertabelle (Juli 2026)
+
+MINOR — Bislang gab es zwei fest im Code stehende Datums-Status-Spalten (FB, PreCheck). Mit dem kuratierten Ordnerbaum liegt dieselbe Frage — „wann ist in diesem Bereich zuletzt etwas passiert" — für jeden Ordner auf dem Tisch, ohne dass jemand Code anfasst.
+
+- Je kuratiertem Ordner eine einblendbare Spalte mit dem jüngsten Termin ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx), Auflösung in [kategorie-projektion.ts](src/core/status/kategorie-projektion.ts)); der XLSX-Export zieht mit.
+- Der Statuskatalog geht in die Projektions-Signatur ein: hängt die PL ein Feld um, wird die Slim-Projektion neu gebaut, obwohl sich kein Antrag geändert hat ([list-view-migration.ts](src/core/services/csv/list-view-migration.ts)).
+- Die Spalten-Sichtbarkeit erkennt Ordner-Spalten am Präfix statt an einer festen Liste — sonst wäre die Auswahl nach jedem Reload weg.
+- Neues Themen-Doc [KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md) (Spalten-Konvention, Herkunft des Seeds, AB/FB, was auf die Ableitung wirkt) + Pitfall #42 und Guard `status-kategorie-nur-aus-katalog`.
+
+### v2.344.0 — Statuseinträge auf der Antragsseite, Rolle im Profil (Juli 2026)
+
+MINOR — Der Katalog kannte die ~180 Statuseinträge des Fachsystems, zeigte sie aber nirgends. Die Antragsseite bekommt sie in genau der Ordnung, in der das Team seine Vorgänge kennt — und die eigene Rolle sortiert vor.
+
+- Abschnitt „Statuseinträge" unter Timeline und Begründung, gruppiert nach den Ordnern des Fachsystems, Verbund und Teilvorhaben getrennt ([StatusCodeListe.tsx](src/plugins/antraege/status/StatusCodeListe.tsx)).
+- „Meine Rolle" (AB / FB / beides) im Profil ([ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx)) — Vorauswahl der Liste, keine Sperre; ohne Angabe bleibt alles sichtbar.
+- Der Statusverlauf löst die Code-Spalten jetzt gegen das Programm-Schema auf, sonst blieben die Einträge leer ([useStatusVerlauf.ts](src/plugins/antraege/status/useStatusVerlauf.ts)).
+- Stillgelegte und auf „Ignoriert" gesetzte Felder erscheinen nicht — die Kuration im Cockpit wirkt hier unmittelbar.
+
+### v2.343.0 — Status-Cockpit: Kuration des Statusbaums (Juli 2026)
+
+MINOR — Der Katalog führt jetzt 184 Felder in 19 Ordnern; die flache Tabelle des Felder-Tabs war dafür nicht mehr die richtige Form. Und ohne Bedienoberfläche kommt weder der ausgelieferte Baum noch eine entdeckte Spalte je in der Team-Fassung an.
+
+- Felder-Tab als Ordnerbaum, Verbund und Teilvorhaben getrennt, je Ordner eine eigene Tabelle ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx)).
+- Je Feld editierbar: Bezeichnung, Ordner, Zuständigkeit AB/FB, Prominenz sowie Spine-Phase, Rang und terminal — bei Wert-Feldern bleiben Phase und Rang beim Wert.
+- Ordner anlegen, umbenennen, umhängen und stilllegen ([KategorieEditor.tsx](src/plugins/status-cockpit/KategorieEditor.tsx)); ein entfernter Ordner lässt keine toten Verweise zurück.
+- Zwei Übernahme-Blöcke: fehlende Felder aus der Auslieferung nachziehen und in den CSV-Quellen gefundene Spalten einsortieren.
+- Filter nach Ebene, Zuständigkeit und „nur mit Rang" — letzteres zeigt, was tatsächlich auf die Statusableitung wirkt.
+
+### v2.342.0 — Statusableitung: Datums- und Textfelder tragen bei (Juli 2026)
+
+MINOR — Bisher leitete sich die Phase allein aus den beiden Statuswert-Feldern ab; alle Termine des Fachsystems blieben stumm. Jetzt darf ein Termin die Phase heben — aber nur, wo die Projektleitung ihm einen Rang gibt.
+
+- Datums- und Textfelder tragen mit der Phase des FELDES bei (`rang > 0` und lesbarer Wert), Wert-Felder unverändert mit der Kategorie des Werts ([ableitung.ts](src/core/status/ableitung.ts)).
+- Konflikte werden weiter nur zwischen Wert-Feldern gemeldet — ein Antragseingang neben einem fertigen Gutachten ist Historie, kein Widerspruch.
+- Kategorie ↔ Spine-Phase in beiden Richtungen an einer Stelle, terminale Felder in der Fachprüfung gelten als Ablehnung ([spine-kategorie.ts](src/core/status/spine-kategorie.ts)).
+- Wirksam wird das für Antragseingang und Bewilligungsdatum; die 177 Codes des Fachsystems bleiben ohne Rang, bis die PL sie gegen die Simulation freigibt.
+
+### v2.341.0 — Status-Katalog: Code-Spalten auflösen und entdecken (Juli 2026)
+
+MINOR — Die Code-Felder tragen den rohen CSV-Spaltennamen; unter welchem Key die Spalte im Record landet, entscheidet erst das Programm-Mapping. Dazu die zweite Lücke: entdeckt wurden bisher nur neue Status*werte*, nie neue *Felder* — die eingeklappten Ordner des Fachsystems blieben damit unsichtbar.
+
+- Auflösung Code → Record-Key über die Programm-Schemas, inkl. Begleit-Textspalte und Kollisionsschutz zugunsten kanonischer Felder ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts)).
+- `sammleVorkommen` ist die eine Stelle für die Ebene/Herkunft-Regel; Ableitung, Cockpit und Historie bauen darauf auf ([cockpit-berechnung.ts](src/core/status/cockpit-berechnung.ts), [reconcile.ts](src/core/status/reconcile.ts)).
+- Verbund-Codes werden aus der TV-Zeile gelesen, aber nur einmal gemeldet — sie stehen dort auf jeder Zeile gleich.
+- Gemappte `D_`/`T_`-Spalten, die der Katalog nicht kennt, landen als unkuratierte Felder im gerätelokalen Puffer ([entdecke.ts](src/core/status/entdecke.ts)).
+- Auf „Ignoriert" gesetzte oder stillgelegte Felder erzeugen keine Ereignisse mehr — bei ~180 Feldern ist das der Hebel gegen ein aufgeblähtes Log.
+
+### v2.340.0 — Status-Katalog: 177 Codes des Fachsystems ausgeliefert (Juli 2026)
+
+MINOR — Der Katalog kannte 7 Statusfelder. Das Fachsystem führt ~200 Codes, und der Code ist zugleich der CSV-Spaltenname (`D_XTEC` zum Ordner-Eintrag `[XTEC]`, `T_` für Texteinträge, `X` für Verbund-Ebene). Diese Runde liefert den Katalog aus — Kuration und Wirkung folgen.
+
+- 19 Ordner in getrennten Verbund- und TV-Bäumen ([seed-kategorien.ts](src/core/status/seed-kategorien.ts)); vier im Fachsystem eingeklappte Ordner starten bewusst leer.
+- 181 Code-Felder mit Label, Kategorie, Ebene und Zuständigkeit AB/FB ([seed-codes.ts](src/core/status/seed-codes.ts)) — aus Bildschirmfotos übertragen, von der PL zu bestätigen.
+- Rang nur für 22 Felder, die eine Phase eindeutig markieren; alle übrigen tragen (noch) nicht zur Statusableitung bei.
+- Die vier kanonisch gemappten Spalten (`D_AAE`, `D_ABB`, `D_AZ1_1`, `D_VBE`) bleiben Einzeleinträge und wandern nur in den Baum ([seed.ts](src/core/status/seed.ts)) — kein zweiter Eintrag auf derselben Spalte.
+
+### v2.339.0 — Status-Katalog: Kategoriebaum + AB/FB im Datenmodell (Juli 2026)
+
+MINOR — Der Status-Katalog kennt 7 Felder; das Fachsystem führt ~200 Statuscodes in einem Ordnerbaum (Kommunikation, Antragsbearbeitung → pre-check, Betreuung …), getrennt nach Verbund- und Teilvorhaben-Ebene und nach Zuständigkeit AB/FB. Fundament dafür: das Datenmodell, noch ohne Inhalt.
+
+- `StatusKategorie`-Baum an der Katalog-Fassung, Feld-Eintrag um Code, Kategorie, Zuständigkeit, Typ „Text", Herkunft und Ableitungs-Rang erweitert — alles optional ([typen.ts](src/core/status/typen.ts)).
+- Baum-Mechanik (Pfad, Kinder, Ebenen-Trennung, Zyklenschutz) in [kategorien.ts](src/core/status/kategorien.ts).
+- Kategorie-Operationen + `ergaenzeSeedFelder`: eine neue Auslieferung ergänzt nur Lücken und fasst kuratierte Einträge nie an ([katalog-edit.ts](src/core/status/katalog-edit.ts)).
+- JSON-Import prüft den Baum mit (eindeutige Ids, existierende Elternknoten, kein Ringschluss, gültige Feld-Zuordnung) ([export-import.ts](src/core/status/export-import.ts)).
+
+### v2.338.0 — Detailseite: Fokus-Modus und weniger Sektionen (Juli 2026)
+
+MINOR — Wer die Antragsliste einklappt, will an EINEM Antrag arbeiten — trotzdem blieb der komplette Listen-Werkzeugkasten im Kopf stehen (Suche, Sicht-Tabs, Export, Ansicht, Filter): tote Knöpfe, die Platz kosten. Zugleich war die Detailseite sektions-übersättigt und die Werkbank stand hinter den Feld-Sektionen, obwohl sie im Ablauf davor kommt.
+
+- Fokus-Modus: eingeklappte Liste blendet alle Listen-Werkzeuge aus, es bleiben Titel + „Aufnehmen" ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), Ableitung über `shouldShowList` in [listCollapse.ts](src/plugins/antraege/listCollapse.ts)).
+- „Antrag-Aufbereitung öffnen" sitzt jetzt rechts in der Kopfzeile statt lose darunter (neuer `aktion`-Slot in [VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx)).
+- Kurzbeschreibung ist klappbar, Default offen ([KurzbeschreibungCard.tsx](src/plugins/antraege/KurzbeschreibungCard.tsx)).
+- „Verbundpartner und Teilvorhaben" lebt als Unterabschnitt in „Antragsdaten" — eine Sektion weniger ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)).
+- Artefakt-Werkbank + Widerspruch stehen vor „Alle Felder" ([VerbundDetail.tsx](src/plugins/antraege/VerbundDetail.tsx)).
+
+### v2.337.2 — Meilenstein-Zeitstrahl: Namen vor Wochen-Achse (Juli 2026)
+
+PATCH — Die Meilenstein-Namen brachen bei 210px ab („Schriftstück abgestimmt und …"), während die Wochen-Achse den Großteil der Breite hielt. Der Name ist die Information, die Achse nur die Verortung dazu.
+
+- Label-Spalte 210 → 340px (die Achse gibt die Breite ab), Beschriftungen der Achse von ~12 auf ~8 ausgedünnt ([MeilensteinLeiste.tsx](src/plugins/meilensteine/MeilensteinLeiste.tsx)).
+
+### v2.337.1 — Verbund-Detail: Status und Meilensteine einklappbar, Zeitstrahl-Achse gerade gerückt (Juli 2026)
+
+PATCH — Die Verbund-Detailseite trug „Status &amp; Verlauf" und „Fristen &amp; Meilensteine" dauerhaft aufgeklappt, während die Nachbarsektionen einklappbar sind. Im Meilenstein-Zeitstrahl war die Wochen-Achse breiter als die Zeilen darunter — die Marken standen neben ihren Punkten.
+
+- Beide Sektionen einklappbar mit Default ZU; die Kennzahlen (abgeleitete Phase bzw. Prognose/Frist/Restzeit) stehen im Kopf und bleiben eingeklappt sichtbar ([StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx), [MeilensteinSection.tsx](src/plugins/antraege/meilensteine/MeilensteinSection.tsx)).
+- Achse und Zeilen teilen dasselbe Spaltenraster (`STATUS_W`), Randmarken werden nach innen gezogen statt zentriert ([MeilensteinLeiste.tsx](src/plugins/meilensteine/MeilensteinLeiste.tsx)).
+- Meilenstein-Auswahl der Risiko-Meldung auf 440px erweitert, mit Titel-Tooltip ([MeilensteinSection.tsx](src/plugins/antraege/meilensteine/MeilensteinSection.tsx)).
+- Kontext-Doc der Detailseite nennt die beiden Sektionen samt Einklapp-Verhalten ([antraege.md](docs/feedback-kontext/antraege.md)).
+
+### v2.337.0 — Gutachten: Abschnitts-Karte auf vier Ebenen (Juli 2026)
+
+MINOR — Die Abschnitts-Karte war über sieben Ebenen, drei getrennte Werkzeug-Orte und bis zu fünf einzelne Banner gewachsen. Sie hat jetzt vier: Kopf · Text · Werkzeugzeile · Fußzeile, plus ein Bewertungs-Band am Text.
+
+- Kopfzeile trägt Pipeline-Status („Formuliert · Feinschliff"), Fallback-Badge und das ⋯-Menü; sie wird von leerem und befülltem Zustand geteilt ([AbschnittKopf.tsx](src/plugins/antraege/gutachten/AbschnittKopf.tsx)).
+- Alle Meldungen laufen in EINEN Hinweis-Streifen statt in fünf Banner ([HinweisStreifen.tsx](src/plugins/antraege/gutachten/HinweisStreifen.tsx)).
+- Abschnitts-QS als Strip am Text; Klick auf einen Befund markiert die Sätze über den bestehenden Fundstellen-Pfad — das Kontext-Panel zeigt die QS nicht mehr doppelt und startet eingeklappt ([QsStrip.tsx](src/plugins/antraege/gutachten/QsStrip.tsx), [KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx)).
+- Eine Werkzeugzeile ersetzt die drei Aktions-Orte; „Freigeben und weiter" trägt den QS-Stand als Badge ([WerkzeugZeile.tsx](src/plugins/antraege/gutachten/WerkzeugZeile.tsx)).
+- 👍/👎 bleiben dauerhaft sichtbar in der Fußzeile (nicht im Menü) — das System lernt daraus ([AbschnittFuss.tsx](src/plugins/antraege/gutachten/AbschnittFuss.tsx)).
+- Behoben: `SkillEditor` verletzte seit v2.336.0 Pitfall #15 (`onClick={() => void …}`) — der Guard war rot, der Verstoß ist raus; `gutachten-entwurf-kein-plain-textarea` deckt jetzt auch die Fußzeile ab ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
+
+### v2.336.0 — Gutachten: Abnahme-Kriterien am Skill, satzgenaue KI-QS (Juli 2026)
+
+MINOR — Die KI-QS bewertete vier fest verdrahtete Dimensionen, die weder am Skill hingen noch sagten, welcher Satz gemeint ist. Kuratoren pflegen jetzt prüfbare Abnahme-Kriterien je Abschnitts-Skill; die Befunde dürfen Satz-Nummern nennen.
+
+- `SkillRecord.qsKriterien` additiv durch Normalisierung, Versions-Snapshot, Diff, Rollback und Bundle-Rundlauf ([storage.ts](src/core/services/skills/registry/storage.ts), [versioning.ts](src/core/services/skills/registry/versioning.ts)).
+- Kriterien erreichen das Modell als autoritativer **Anhänge-Block** — der kuratierte `qs-basis`-Seed bleibt unangetastet ([run-skill.ts](src/core/services/skills/run/run-skill.ts), [qs.ts](src/plugins/antraege/gutachten/qs.ts)).
+- Befunde tragen 0-basierte `satzIndizes`, gegen den echten Text validiert; Sätze ohne Beleg gehen als Prüfkandidaten mit ([belege.ts](src/plugins/antraege/gutachten/belege.ts)).
+- Deterministische `StepRun.qsAbnahme` (bestanden ⇔ alle Befunde ok); jede Textänderung entwertet sie sichtbar, statt sie zu löschen ([runner.ts](src/plugins/antraege/gutachten/runner.ts)).
+- Editor-Feld je Skill + registry-freie Ableitung „Kriterien aus Prompt" (nur Vorschläge, intern) ([qsKriterienAbleitung.ts](src/plugins/skill-verwaltung-kuration/qsKriterienAbleitung.ts)).
+
+### v2.335.0 — Gutachten: Feinschliff automatisch in der Generierungs-Kette (Juli 2026)
+
+MINOR — Der erste Kontakt mit einem generierten Abschnitt war bisher der Rohentwurf; den sprachlichen Feinschliff musste der Gutachter jedes Mal von Hand nachschieben. Er hängt jetzt automatisch an derselben Busy-Phase, der Rohentwurf bleibt als Vorfassung vergleichbar.
+
+- `generateInto` kettet den Lektor-Lauf an; auch Modifier- und Bulk-Läufe gehen durch dieselbe Kette ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- `mitFeinschliff` degradiert bei Tor, Wurf UND Abbruch zum Rohentwurf — der bereits berechnete Entwurf geht nie verloren ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Zurückgegebene `checks` stammen immer vom final angezeigten Text (sonst entschiede der Auto-Retry über eine unsichtbare Fassung).
+- Busy-Anzeige wechselt sichtbar Formulieren → Feinschliff ([useStreamingBuffer.ts](src/plugins/antraege/kurzfassung/useStreamingBuffer.ts), [StreamingVorschau.tsx](src/plugins/antraege/kurzfassung/StreamingVorschau.tsx)).
+- Additives `StepRun.feinschliffUebersprungen` + dezenter Hinweis; ein späterer manueller Feinschliff löscht die Markierung ([runner.ts](src/plugins/antraege/gutachten/runner.ts)).
+
+### v2.334.0 — Gutachten: Transport-Fallback agentische KI auf Standard-KI (Juli 2026)
+
+MINOR — Wer die agentische KI als Ziel gewählt hatte, verlor einen ganzen Gutachten-Lauf, sobald deren Tab nicht erreichbar war — mit rotem Fehlerbanner als erstem Kontakt. Jetzt übernimmt die Standard-KI still und der Abschnitt vermerkt es.
+
+- Wiederverwendbarer Wrapper `mitZielFallback`: genau EIN Retry agentisch→standard, nie umgekehrt, nie bei Nutzer-Abbruch ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts)).
+- Kein Retry, wenn `ziel` beim aktiven Transport gar nicht wirkt — auf DirectLLM wäre der zweite Lauf byte-identisch ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts)).
+- Generierung, QS und Feinschliff laufen über den Wrapper; Preflight + Ping bleiben einmalig in der Hülle ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- `setError`/`setLlmAvailable` sind je Versuch gepuffert — ein geretteter Lauf hinterlässt kein Fehlerbanner ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Additives `StepRun.zielFallback` + dezenter Info-Hinweis an der Karte ([types.ts](src/plugins/antraege/gutachten/types.ts), [runner.ts](src/plugins/antraege/gutachten/runner.ts)).
+
 ### v2.333.0 — Status-Katalog: Feldname statt feldId, CSV-Spalte als Herkunft (Juli 2026)
 
 MINOR — Die Katalog-Tabelle zeigte je Zeile die technische `feldId` (`status`), obwohl der Katalog dafür längst einen kuratierten Namen führt („TV-Status"). Es fehlte zugleich die CSV-Spalte — der Bezeichner, unter dem ein Status im Fachsystem-Export tatsächlich steht.

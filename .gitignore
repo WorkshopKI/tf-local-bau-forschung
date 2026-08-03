@@ -103,6 +103,11 @@ registry.live.json
 registry.A-v2.json
 registry.lektor-test.json
 
+# Echte Beispieldokumente der Phase-2-Triage (DOCX/PDF aus dem DMS) — nur lokal,
+# nie committen. Sie werden fuer manuelle Triage-Tests gebraucht und bleiben
+# deshalb im Arbeitsverzeichnis liegen; das Repo ist OEFFENTLICH.
+docs/phase-2/triage-beispiele/
+
 # Outlook-.msg-Dateien tragen reale PII (echte Absender/Inhalte) — NIE committen.
 # Der .msg-Parser (src/core/services/msg) wird committed gegen synthetische
 # CFB-Fixtures getestet; echte Mails liegen nur lokal in fixtures-local/.
