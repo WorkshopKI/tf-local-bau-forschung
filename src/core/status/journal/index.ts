@@ -22,3 +22,7 @@ export { laufeJournal, type LaufEingabe, type LaufErgebnis } from './lauf';
 export {
   journalisiereImport, stempelBekannt, type AnbindungsErgebnis,
 } from './import-anbindung';
+export {
+  chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag, leereJournalCache,
+  type AntragsChronik, type FeldChronik, type NachtLauf,
+} from './lesen';

@@ -67,6 +67,17 @@ export interface WaechterErgebnis {
   /** Jüngste Aktivität über die betrachteten Kürzel; `null` = keine.
    *  Zukunftsdaten sind ausgeschlossen (siehe Modulkopf). */
   letzteAktivitaet: string | null;
+  /**
+   * Ist `letzteAktivitaet` **belegt** oder genähert?
+   *
+   * Genähert (`false`) heißt: sie kommt aus dem jüngsten `D_`-Datum. Das ist
+   * eine Untergrenze — mehrfach gesetzte Kürzel tragen im Export nur das letzte
+   * Datum (V9), und eine zurückgenommene Setzung ist gar nicht sichtbar. Belegt
+   * (`true`) heißt: das Import-Diff-Journal führt für diesen Antrag eine
+   * Änderung ab seinem Nullpunkt. Der Unterschied gehört an jede Anzeige, sonst
+   * liest man eine Schätzung als Messung.
+   */
+  belegt: boolean;
   /** Das nächste Datum NACH dem Stichtag; `null` = keins gesetzt. Es geht nicht
    *  in das Urteil ein, gehört aber in die Anzeige („anstehend am …"). */
   anstehend: AnstehenderTermin | null;
@@ -110,6 +121,14 @@ export interface WaechterEingabe {
   statusCode: number | null;
   /** Ergebnis der To-do-Engine — speist Stufe 2, wenn kein Paar greift. */
   todo?: TodoErgebnis | null;
+  /**
+   * Die belegte letzte Änderung aus dem Import-Diff-Journal (ISO-Tag).
+   *
+   * Optional, damit `pruefeStillstand` rein bleibt und ohne Journal exakt
+   * weiterrechnet wie bisher. Ist sie gesetzt, gewinnt sie gegen die Näherung
+   * aus `max(D_)`: sie kennt auch Änderungen, die der Export überschrieben hat.
+   */
+  journalAenderung?: string | null;
   /** ISO — injiziert, nie `new Date()` hier drin. */
   stichtag: string;
 }
@@ -250,7 +269,14 @@ export function letzteAktivitaetVon(
  * Beurteilt den Stillstand. Rein.
  */
 export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
-  const { letzteAktivitaet, anstehend } = letzteAktivitaetVon(e.vorkommen, e.version, e.stichtag);
+  const { letzteAktivitaet: genaehert, anstehend } = letzteAktivitaetVon(
+    e.vorkommen, e.version, e.stichtag,
+  );
+  // Das Journal gewinnt, wo es etwas weiss: es kennt auch die Setzungen, die
+  // der Export inzwischen ueberschrieben hat (V9). Wo es schweigt, bleibt die
+  // Naeherung aus `max(D_)` — und sie wird als solche ausgewiesen.
+  const belegt = typeof e.journalAenderung === 'string' && e.journalAenderung !== '';
+  const letzteAktivitaet = belegt ? e.journalAenderung! : genaehert;
   const tage = letzteAktivitaet ? tageZwischen(letzteAktivitaet, e.stichtag) : null;
   const zieltage = zieltageFuer(e.version, e.statusCode);
   const paar = findePaar(e);
@@ -266,11 +292,16 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
   const terminGrund = anstehend
     ? ` Anstehend am ${anstehend.tag}${anstehend.code ? ` (${anstehend.code})` : ''}: „${anstehend.label}".`
     : '';
+  // „mindestens", wo genähert wird: das jüngste `D_`-Datum ist eine Untergrenze,
+  // weil mehrfach gesetzte Kürzel nur das letzte Datum tragen (V9). Ohne dieses
+  // Wort liest sich eine Schätzung wie eine Messung.
+  const seit = belegt ? 'seit' : 'seit mindestens';
 
   if (zieltage === null) {
     return {
       urteil: 'unbewertet',
       letzteAktivitaet,
+      belegt,
       anstehend,
       tage,
       zieltage: null,
@@ -285,6 +316,7 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
     return {
       urteil: 'unbewertet',
       letzteAktivitaet: null,
+      belegt,
       anstehend,
       tage: null,
       zieltage,
@@ -301,10 +333,11 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
     return {
       urteil: 'haengt',
       letzteAktivitaet,
+      belegt,
       anstehend,
       tage,
       zieltage,
-      grund: `Keine Vorgangs-Aktivität seit ${tage} Tagen, Ziel ${zieltage}.${paarGrund}${terminGrund}`,
+      grund: `Keine Vorgangs-Aktivität ${seit} ${tage} Tagen, Ziel ${zieltage}.${paarGrund}${terminGrund}`,
       rolle,
       paar,
     };
@@ -313,10 +346,11 @@ export function pruefeStillstand(e: WaechterEingabe): WaechterErgebnis {
   return {
     urteil: 'ok',
     letzteAktivitaet,
+    belegt,
     anstehend,
     tage,
     zieltage,
-    grund: `Zuletzt vor ${tage} Tagen aktiv, Ziel ${zieltage}.${terminGrund}`,
+    grund: `Zuletzt vor ${belegt ? '' : 'mindestens '}${tage} Tagen aktiv, Ziel ${zieltage}.${terminGrund}`,
     rolle,
     paar,
   };

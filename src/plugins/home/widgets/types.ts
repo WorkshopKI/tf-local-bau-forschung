@@ -49,7 +49,8 @@ export type WidgetTyp =
   | 'neue-antraege'
   | 'status-verlauf'
   | 'meilensteine'
-  | 'haengt-fest';
+  | 'haengt-fest'
+  | 'nachtlauf';
 
 export interface WidgetInstanz {
   /** Instanz-ID — mehrere Instanzen desselben Typs sind möglich (z.B. 2 Kanbans). */

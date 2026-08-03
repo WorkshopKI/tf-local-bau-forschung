@@ -18,6 +18,7 @@ import {
   type FeldVorkommen, type MappingVersion, type Rolle, type TodoErgebnis,
 } from '@/core/status';
 import { AbgeleitetMarke, TodoHerleitung, WartetAuf } from '@/components/vorgang/TodoAnzeige';
+import { JournalVerlauf } from './JournalVerlauf';
 
 interface TvAufgaben {
   aktenzeichen: string;
@@ -114,6 +115,11 @@ export function OffeneAufgaben({ version, jeTeilvorhaben, stichtag }: {
                     {rollen.map(r => <RollenZeile key={r} rolle={r} e={a.todos[r]} />)}
                   </ul>
                 )}
+                {/* Der belegte Verlauf gehört zum Teilvorhaben, nicht zum
+                    Verbund: das Journal führt Aktenzeichen. */}
+                <div className="pl-2">
+                  <JournalVerlauf aktenzeichen={a.aktenzeichen} stichtag={stichtag} />
+                </div>
               </li>
             );
           })}

@@ -113,6 +113,12 @@ export {
 } from './todo-engine';
 export { REGELSATZ_DEFAULT, regelsatzVon, sperreGiltFuer } from './regelsatz';
 export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
+// Das Import-Diff-Journal hat ein eigenes Barrel (`./journal`); hier stehen nur
+// die Stellen, die andere Module ohnehin über `@/core/status` beziehen.
+export {
+  chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag,
+  type AntragsChronik, type FeldChronik, type JournalEintrag, type NachtLauf,
+} from './journal';
 export {
   erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX,
   erhebeBlindeFlecken, erhebeKuerzelKarte,

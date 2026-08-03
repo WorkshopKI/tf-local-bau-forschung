@@ -78,7 +78,11 @@ function Zeile({ z, rolle, onOeffnen }: {
             className="shrink-0 text-[11px] text-[var(--tf-warning-text)] whitespace-nowrap"
             title={z.waechter.grund}
           >
-            hängt {z.waechter.tage} T
+            {/* „≥" wo genähert wird: das jüngste `D_`-Datum ist eine
+                Untergrenze, weil mehrfach gesetzte Kürzel nur das letzte Datum
+                tragen (V9). Wo das Journal die Änderung belegt, steht die
+                Zahl ohne Vorbehalt. */}
+            hängt {z.waechter.belegt ? '' : '≥'}{z.waechter.tage} T
           </span>
         )}
         {e.zustaendig.length > 0 && (

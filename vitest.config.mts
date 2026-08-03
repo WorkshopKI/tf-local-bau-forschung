@@ -24,6 +24,10 @@ const ISOLATED_TESTS = [
   'src/core/services/skill-feedback/__tests__/read.test.ts',
   'src/core/services/skill-feedback/__tests__/selfcheck.test.ts',
   'src/core/status/__tests__/byte-identitaet.test.ts',
+  // Beide mocken die Share-Schicht des Journals; ohne Isolation greifen ihre
+  // Mocks ineinander.
+  'src/core/status/__tests__/journal-lauf.test.ts',
+  'src/core/status/__tests__/journal-lesen.test.ts',
   'src/core/status/__tests__/katalog-store.test.ts',
   'src/core/status/__tests__/reconcile-store.test.ts',
   'src/core/status/__tests__/trigger-share.test.ts',

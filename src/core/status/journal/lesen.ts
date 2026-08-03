@@ -1,0 +1,184 @@
+/**
+ * Das Journal **lesen**: Chronik je Antrag, Einträge des letzten Nachtlaufs.
+ *
+ * Geladen werden gezielt die Monatsdateien ab dem Nullpunkt, nicht „das
+ * Journal" — nach einem Jahr wären das sonst bei jedem Öffnen einer
+ * Antragsseite zweistellige Megabyte.
+ *
+ * **Dedupliziert wird beim Lesen, nicht beim Schreiben.** Der Lauf hängt erst
+ * das JSONL an und schreibt dann den Stand; bricht er dazwischen ab, entsteht
+ * derselbe Diff beim nächsten Lauf erneut. Das ist die richtige Richtung —
+ * lieber ein doppelter Eintrag als ein verlorener — und hier wird aufgeräumt.
+ */
+import type { IDBStore } from '@/core/services/storage/idb-store';
+import { leseSidecarText } from '../sidecar-datei';
+import { dedupliziere } from './diff';
+import { journalMonatsPfad, monateZwischen } from './pfade';
+import { leseStand } from './stand';
+import type { JournalEintrag, JournalStand } from './typen';
+
+/**
+ * Monats-Cache für die Sitzung, entwertet vom Stempel des Stands.
+ *
+ * Ein neuer Export ⇒ neuer Stempel ⇒ die Monatsdatei kann gewachsen sein.
+ * Ohne diesen Schlüssel zeigte die Antragsseite nach einem Import weiter den
+ * alten Verlauf, bis jemand neu lädt.
+ */
+let cacheStempel: string | null = null;
+const monatsCache = new Map<string, JournalEintrag[]>();
+
+function parseZeilen(roh: string): JournalEintrag[] {
+  const out: JournalEintrag[] = [];
+  for (const zeile of roh.split('\n')) {
+    const t = zeile.trim();
+    if (t === '') continue;
+    try {
+      const e: unknown = JSON.parse(t);
+      if (typeof e === 'object' && e !== null && 'antragId' in e && 'art' in e) {
+        out.push(e as JournalEintrag);
+      }
+    } catch {
+      // Eine kaputte Zeile ist kein Grund, den ganzen Monat zu verwerfen —
+      // append-only-Dateien können an einem abgebrochenen Write enden.
+    }
+  }
+  return out;
+}
+
+async function ladeMonat(idb: IDBStore, monat: string): Promise<JournalEintrag[]> {
+  const treffer = monatsCache.get(monat);
+  if (treffer) return treffer;
+  const roh = await leseSidecarText(idb, journalMonatsPfad(`${monat}-01`));
+  const eintraege = roh === null ? [] : dedupliziere(parseZeilen(roh));
+  monatsCache.set(monat, eintraege);
+  return eintraege;
+}
+
+/** Cache anhand des Stands entwerten. */
+async function frischerStand(idb: IDBStore): Promise<JournalStand | null> {
+  const stand = await leseStand(idb);
+  const stempel = stand?.letzterStempel.id ?? null;
+  if (stempel !== cacheStempel) {
+    monatsCache.clear();
+    cacheStempel = stempel;
+  }
+  return stand;
+}
+
+/** Nur für Tests: den Sitzungs-Cache leeren. */
+export function leereJournalCache(): void {
+  monatsCache.clear();
+  cacheStempel = null;
+}
+
+/** Die Einträge eines Feldes, aufsteigend nach Export-Datum. */
+export interface FeldChronik {
+  feld: string;
+  eintraege: JournalEintrag[];
+}
+
+export interface AntragsChronik {
+  /**
+   * Ab wann das Journal Aussagen macht. **Gehört an jede Anzeige** — sonst wird
+   * eine unvollständige Chronik als vollständige gelesen.
+   */
+  journalAb: string;
+  /**
+   * Führt das Journal diesen Antrag überhaupt? `false` heißt „außerhalb des
+   * Betrachtungsbereichs", nicht „nichts passiert" — das ist ein Unterschied,
+   * den die Anzeige benennen muss.
+   */
+  gefuehrt: boolean;
+  felder: FeldChronik[];
+  /** Jüngstes Export-Datum mit einer Änderung; `null` = keine erfasst. */
+  letzteAenderung: string | null;
+}
+
+/**
+ * Die Chronik eines Antrags. `null`, wenn es (noch) kein Journal gibt — dann
+ * bleibt die Anzeige bei ihrer bisherigen Näherung.
+ *
+ * @param heuteIso ISO-Tag — injiziert, nie eine Uhr hier drin.
+ */
+export async function chronikFuerAntrag(
+  idb: IDBStore, antragId: string, heuteIso: string,
+): Promise<AntragsChronik | null> {
+  const stand = await frischerStand(idb);
+  if (!stand) return null;
+
+  const proFeld = new Map<string, JournalEintrag[]>();
+  let letzteAenderung: string | null = null;
+  for (const monat of monateZwischen(stand.journalAb, heuteIso)) {
+    for (const e of await ladeMonat(idb, monat)) {
+      if (e.antragId !== antragId) continue;
+      if (letzteAenderung === null || e.datum > letzteAenderung) letzteAenderung = e.datum;
+      const feld = e.feld ?? `(${e.art})`;
+      const list = proFeld.get(feld);
+      if (list) list.push(e); else proFeld.set(feld, [e]);
+    }
+  }
+
+  return {
+    journalAb: stand.journalAb,
+    gefuehrt: antragId in stand.werte,
+    letzteAenderung,
+    felder: [...proFeld.entries()]
+      .map(([feld, eintraege]) => ({
+        feld,
+        eintraege: [...eintraege].sort((a, b) => a.datum.localeCompare(b.datum)),
+      }))
+      .sort((a, b) => a.feld.localeCompare(b.feld)),
+  };
+}
+
+/**
+ * Je Antrag das jüngste belegte Änderungsdatum — für das Board.
+ *
+ * Einmal über die Monatsdateien statt 7 000-mal `chronikFuerAntrag`: das Board
+ * rechnet über den ganzen Bestand, und ein Lesevorgang je Zeile wäre die
+ * teuerste Art, dieselben Dateien zu lesen.
+ *
+ * `null`, wenn es kein Journal gibt — dann bleibt das Board bei der Näherung.
+ */
+export async function letzteAenderungJeAntrag(
+  idb: IDBStore, heuteIso: string,
+): Promise<Map<string, string> | null> {
+  const stand = await frischerStand(idb);
+  if (!stand) return null;
+  const out = new Map<string, string>();
+  for (const monat of monateZwischen(stand.journalAb, heuteIso)) {
+    for (const e of await ladeMonat(idb, monat)) {
+      const bisher = out.get(e.antragId);
+      if (bisher === undefined || e.datum > bisher) out.set(e.antragId, e.datum);
+    }
+  }
+  return out;
+}
+
+export interface NachtLauf {
+  stempel: string;
+  datum: string;
+  journalAb: string;
+  eintraege: JournalEintrag[];
+}
+
+/**
+ * Die Einträge des **jüngsten** Exports — die Grundlage des Nachtlauf-Widgets.
+ *
+ * `null`, wenn es kein Journal gibt; leere `eintraege`, wenn der letzte Lauf
+ * nichts fand. Beides sind verschiedene Aussagen und werden getrennt angezeigt.
+ */
+export async function letzterNachtLauf(idb: IDBStore): Promise<NachtLauf | null> {
+  const stand = await frischerStand(idb);
+  if (!stand) return null;
+  // Nur der Monat des letzten Stempels — ältere Dateien können ihn nicht führen.
+  const monat = stand.letzterStempel.datum.slice(0, 7);
+  const eintraege = (await ladeMonat(idb, monat))
+    .filter(e => e.stempel === stand.letzterStempel.id);
+  return {
+    stempel: stand.letzterStempel.id,
+    datum: stand.letzterStempel.datum,
+    journalAb: stand.journalAb,
+    eintraege,
+  };
+}

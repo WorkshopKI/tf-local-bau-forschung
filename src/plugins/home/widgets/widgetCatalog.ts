@@ -12,6 +12,7 @@ import {
   Bot,
   ClipboardCheck,
   Columns3,
+  FileClock,
   Gauge,
   GitBranch,
   Inbox,
@@ -200,6 +201,19 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // An den Meilenstein-Plan gebunden; ohne Flag gibt es keine Soll-Termine,
     // also auch nichts zu warnen.
     sichtbarWenn: () => isMeilensteinMonitoringEnabled(),
+    defaultConfig: KEINE,
+  },
+  nachtlauf: {
+    typ: 'nachtlauf',
+    label: 'Änderungen der letzten Nacht',
+    icon: FileClock,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // Schwer genug fuer ein Default-Zu: es liest die Monatsdateien des Journals
+    // vom Share.
+    defaultEingeklappt: true,
+    // An das Import-Diff-Journal gebunden; ohne Vorgangssystem entsteht keines.
+    sichtbarWenn: () => isVorgangssystemEnabled(),
     defaultConfig: KEINE,
   },
   'haengt-fest': {

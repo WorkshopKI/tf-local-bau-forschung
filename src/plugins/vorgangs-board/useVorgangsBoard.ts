@@ -25,7 +25,7 @@ import {
   ladeAktiveVersion, getAktiveVersion, jederVorgang,
   baueTodoKontext, ermittleTodosAlleRollen, todoWerte, findeStatusCode, leseStatusRolle,
   pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel, REGELSATZ_DEFAULT,
-  fassePlatzhalterZusammen,
+  fassePlatzhalterZusammen, letzteAenderungJeAntrag,
   type MappingVersion, type Rolle, type TodoErgebnis, type WaechterErgebnis, type ZahPhaseId,
   type RollenBilanz,
 } from '@/core/status';
@@ -245,6 +245,11 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     try {
       const v = getAktiveVersion() ?? await ladeAktiveVersion(idb);
       const regeln = v.todoRegeln ?? [];
+      // Einmal fuer den ganzen Bestand statt einmal je Zeile: das Journal liegt
+      // in Monatsdateien, und ein Lesevorgang je Antrag waere die teuerste Art,
+      // dieselben Dateien zu lesen. `null` = kein Journal, dann bleibt es bei
+      // der Naeherung aus `max(D_)`.
+      const journal = await letzteAenderungJeAntrag(idb, heuteRef.current.slice(0, 10));
       const zeilen: BoardZeile[] = [];
       // Gemessen und angezeigt, nicht geschätzt: die Ladezeit über den Bestand
       // ist die Zahl, an der sich der Bereich rechtfertigen muss.
@@ -269,6 +274,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
         // vergleichbar mit denen vor der Mehrspurigkeit.
         const waechter = pruefeStillstand({
           version: v, vorkommen, statusCode: code, todo: todos[REGELSATZ_DEFAULT],
+          journalAenderung: journal?.get(aktenzeichen) ?? null,
           stichtag: heuteRef.current,
         });
         // Der wirksame Eingang braucht `D_XTE` — custom gemappt und NICHT in
