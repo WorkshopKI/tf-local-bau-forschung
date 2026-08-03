@@ -314,6 +314,26 @@ export function ergaenzeVorgangssystemSeed(
   };
 }
 
+/**
+ * Setzt Zieltage an vielen Statuswerten in EINEM Schritt.
+ *
+ * Kein Ersatz für {@link aendereWert}, sondern dessen Sammel-Form: 60 einzelne
+ * Aufrufe wären 60 `setState`-Runden, von denen der Save-Lock die meisten
+ * verwürfe (Pitfall #16/#20). Werte, die die Map nicht nennt, bleiben unberührt.
+ */
+export function setzeZieltage(
+  version: MappingVersion, zieltage: ReadonlyMap<string, number>,
+): MappingVersion {
+  if (zieltage.size === 0) return version;
+  return {
+    ...version,
+    werte: version.werte.map(w => {
+      const neu = zieltage.get(w.id);
+      return neu === undefined ? w : { ...w, zieltage: neu };
+    }),
+  };
+}
+
 /** Was der ausgelieferte Regelsatz gegenüber der Fassung anders sagt. */
 export interface TodoRegelDrift {
   /** Seed-Regeln, die die Fassung gar nicht führt. */

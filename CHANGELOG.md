@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.388.0 — Zieltage-Sammelübernahme (August 2026)
+
+MINOR — Der Stillstands-Wächter braucht je Status eine Zielvorgabe; gepflegt waren 7 von 74 Werten, weil jeder einzeln zu setzen war. Die Sammel-Übernahme macht daraus einen Schritt — mit Vorschau, und ohne zu raten, wo die Datengrundlage fehlt.
+
+- „Vorschläge ansehen" im Katalog-Tab: Tabelle mit Status, Ebene, Phase, Stichprobe und alt → neu; Übernahme in **einem** `setState` ([ZieltageUebernahmeDialog.tsx](src/plugins/status-cockpit/ZieltageUebernahmeDialog.tsx), [zieltage-vorschlag.ts](src/core/status/zieltage-vorschlag.ts)).
+- Nur die Phasen Eingang bis Entscheidung, nur ab 5 Beobachtungen — kleinere Stichproben werden benannt statt gesetzt.
+- **Die Stichprobe zählte nur den Verbund-Status**: „NF gestellt" kam auf n = 2 und fiel durch die Grenze. Mit den TV-Status sind es n = 51 ([useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts)).
+- Gemessen am Bestand: „nicht bewertbar" 1937 → **1679**; von den verbleibenden 1982 (Vollbestand) sind 1769 der Status 59 „bewilligt", innerhalb der Antragsphasen bleiben **7**.
+
 ### v2.387.0 — Regelwerk aus der Fachabstimmung (August 2026)
 
 MINOR — Die To-do-Kaskade kannte die fixierten Slicer der AB-Mappe nicht und meldete deshalb über den ganzen Altbestand („in QS": 1756). Mit den beiden Populations-Sperren steht die Arbeitsliste auf der Menge, die die ABs tatsächlich ansehen.

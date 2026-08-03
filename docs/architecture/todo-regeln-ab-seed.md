@@ -135,6 +135,8 @@ Stand nach der Fachabstimmung vom 03.08.2026. Detail: [fachabstimmung-2026-08.md
 - **V9 — beantwortet.** Die `D_`-Spalten tragen je Kürzel das **zuletzt** gesetzte Datum; frühere Setzungen sind im Export überschrieben. Der Verlauf sagt das jetzt so.
 - **V10 — zur Kenntnis.** Der Tippfehler „Rüchnahmeempfehlung" im Blatt „Erklärung Parameter" wird in der Quelle korrigiert; die App führt beide Schreibweisen weiter.
 
+**Neu aus der Messung (v2.388), noch offen:** nach der Zieltage-Sammelübernahme bleiben **1982 Vorgänge „nicht bewertbar"** — davon **1769 im Status 59 „bewilligt"** (Begleitungsphase) und 206 in weiteren Begleitungs-/Abschluss-Status. Innerhalb der Antragsphasen sind es nur noch **7**. Der Wächter schweigt dort also nicht aus Nachlässigkeit, sondern weil die Antragsfrist in der Begleitung nichts mehr misst. Ob die Begleitung eine **eigene** Zielvorgabe bekommen soll (VN-Logik statt 90-Tage-Uhr), ist eine Fachfrage.
+
 **Neu aus der Messung (v2.386), noch offen:** sieben Trigger-Zeilen `VOBQ/Folge 1` (Programme 76, 77, 78, 131, 136, 137, 138) tragen den Parameter `PFM!.055.VorgInfo.01` — zwischen Empfänger und Textbaustein **fehlt die Pipe** (`PFM|!.055.VorgInfo.01`). Sie sind die einzigen verbliebenen „nicht interpretiert"-Zeilen.
 
 ## Anhang: Trigger-Fixture-Zeilen für Parser-Tests

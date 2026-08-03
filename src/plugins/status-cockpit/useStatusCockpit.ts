@@ -32,10 +32,11 @@ import {
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   todoRegelDrift, zieheTodoRegelnNach, ENTFALLENE_REGEL_IDS, type TodoRegelDrift,
+  setzeZieltage, waehleZieltageVorschlaege, MIN_STICHPROBE, type ZieltageAuswahl,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
   findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
-  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN,
+  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE,
   type TriggerStand, type VorgangssystemLuecke,
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
@@ -120,6 +121,13 @@ export interface StatusCockpitApi {
    * echte Verweildauer im Status — die kennt der Export nicht.
    */
   liegezeitVorschlag: Map<number, { median: number; n: number }>;
+  /**
+   * Vorschau der Sammel-Übernahme: was gesetzt würde, und welche Statuswerte
+   * mangels Stichprobe (< {@link MIN_STICHPROBE}) bewusst NICHT gesetzt werden.
+   */
+  zieltageAuswahl: ZieltageAuswahl;
+  /** Alle Vorschläge aus {@link zieltageAuswahl} in EINEM Schritt übernehmen. */
+  zieltageUebernehmen: () => void;
   /**
    * Programme des Bestands (`FM_NUMMER` → `unterprogramm_id`) mit Antragszahl,
    * absteigend. Der Trigger-Import sagt damit, für welche Programme die Datei
@@ -502,15 +510,22 @@ export function useStatusCockpit(): StatusCockpitApi {
   );
 
   /**
-   * Der Zieltage-Vorschlag aus dem Ist. Gerechnet über den ohnehin geladenen
-   * Bestand — die Liegezeit je Verbund kommt aus dem Wächter, damit die Zahl
-   * unter dem Vorschlag mit der Zahl im Urteil zusammenpasst.
+   * Der Zieltage-Vorschlag aus dem Ist.
+   *
+   * **Gezählt werden Verbund- UND Teilvorhaben-Status.** Bis v2.388 speiste sich
+   * die Stichprobe allein aus `verbund_status` — und weil Werte wie „NF gestellt"
+   * oder „techn geprüft" fast nur am TV stehen, kam dort `n = 2` heraus und der
+   * Vorschlag fiel unter die Stichproben-Grenze. Ausgerechnet die Status, für die
+   * eine Zielvorgabe am meisten trägt, bekamen so nie eine.
+   *
+   * Die Liegezeit bleibt die des Verbunds (`letzteAktivitaetVon` über dessen
+   * Vorkommen) — dieselbe Näherung wie bisher, nur an der Stelle gezählt, an der
+   * der Status wirklich steht.
    */
   const liegezeitVorschlag = useMemo(() => {
     if (!entwurf || !bestand) return new Map<number, { median: number; n: number }>();
-    const proben = bestand.verbundFelder.map(vf => {
-      const roh = vf.felder.verbund_status ?? '';
-      const code = findeStatusCode(roh)?.eintrag.code ?? null;
+    const proben: { statusCode: number | null; tage: number | null }[] = [];
+    for (const vf of bestand.verbundFelder) {
       // Über `letzteAktivitaetVon`, nicht über eine zweite Schleife hier: der
       // Vorschlag muss dieselbe Zahl rechnen wie das Urteil im Board — inklusive
       // Relevanz- und Zukunftsfilter.
@@ -522,10 +537,38 @@ export function useStatusCockpit(): StatusCockpitApi {
           (new Date(heuteRef.current).getTime() - new Date(letzteAktivitaet).getTime()) / 86_400_000,
         )
         : null;
-      return { statusCode: code, tage };
-    });
+      const nimm = (roh: string | undefined): void => {
+        const code = findeStatusCode(roh ?? '')?.eintrag.code ?? null;
+        proben.push({ statusCode: code, tage });
+      };
+      nimm(vf.felder.verbund_status);
+      for (const tv of Object.values(vf.tvFelder)) nimm(tv.status);
+    }
     return medianLiegezeit(proben);
   }, [entwurf, bestand]);
+
+  /**
+   * Die Sammel-Übernahme der Zieltage: was gesetzt würde und was mangels
+   * Stichprobe NICHT gesetzt wird. Beides sichtbar, bevor irgendetwas passiert.
+   */
+  const zieltageAuswahl = useMemo(
+    () => (entwurf
+      ? waehleZieltageVorschlaege(
+        entwurf.werte, liegezeitVorschlag,
+        w => (w.zahPhaseId !== undefined
+          ? w.zahPhaseId
+          : (w.code !== undefined ? SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null : null)),
+      )
+      : { uebernehmen: [], zuWenigDaten: [] }),
+    [entwurf, liegezeitVorschlag],
+  );
+
+  const zieltageUebernehmen = useCallback(() => {
+    // EIN setState mit der ganzen Map — nicht 60 einzelne `setWert` (Pitfall #16).
+    setEntwurf(v => (v
+      ? setzeZieltage(v, new Map(zieltageAuswahl.uebernehmen.map(u => [u.id, u.neu])))
+      : v));
+  }, [zieltageAuswahl]);
 
   const relLuecke = useMemo(
     () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
@@ -565,6 +608,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     programmUneinheitlich: bestand?.programmUneinheitlich ?? [],
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
+    zieltageAuswahl, zieltageUebernehmen,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };

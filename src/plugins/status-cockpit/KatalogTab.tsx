@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
+import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { feldLabel } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
@@ -133,6 +134,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   const [katFilter, setKatFilter] = useState<ReadonlySet<StatusCategory>>(() => new Set());
   const [promFilter, setPromFilter] = useState<ReadonlySet<Prominenz>>(() => new Set());
   const [nurUnkuratiert, setNurUnkuratiert] = useState(false);
+  const [zieltageOffen, setZieltageOffen] = useState(false);
 
   const entwurf = api.entwurf;
   const werte = entwurf?.werte ?? [];
@@ -173,6 +175,31 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
           {api.unkuratiert.length} neue Statuswerte seit letztem Import
         </p>
       )}
+
+      {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
+          Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,
+          steht vorher in der Vorschau — inklusive dessen, was er NICHT setzt. */}
+      {zeigeZieltage && api.zieltageAuswahl.uebernehmen.length > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
+          <span className="text-[12.5px] text-[var(--tf-text)]">
+            Für {api.zieltageAuswahl.uebernehmen.length} Statuswerte der Phasen Eingang bis
+            Entscheidung liegt ein Zieltage-Vorschlag aus dem Ist vor
+            {api.zieltageAuswahl.zuWenigDaten.length > 0
+              && ` (${api.zieltageAuswahl.zuWenigDaten.length} weitere haben zu wenig Daten)`}.
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => setZieltageOffen(true)}>
+            Vorschläge ansehen
+          </Button>
+        </div>
+      )}
+
+      <ZieltageUebernahmeDialog
+        auswahl={api.zieltageAuswahl}
+        offen={zieltageOffen}
+        darfSchreiben={api.darfSchreiben}
+        onSchliessen={() => setZieltageOffen(false)}
+        onUebernehmen={api.zieltageUebernehmen}
+      />
 
       <div className="flex flex-col gap-2">
         <input

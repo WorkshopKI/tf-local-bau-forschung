@@ -63,6 +63,10 @@ export {
 } from './kategorie-ableitung';
 export { indexNachSchreibweise } from './wert-index';
 export {
+  waehleZieltageVorschlaege, MIN_STICHPROBE, ZIELTAGE_PHASEN,
+  type ZieltageAuswahl, type ZieltageUebernahme,
+} from './zieltage-vorschlag';
+export {
   baueHerleitung, herleitungAlsText, statusKurz,
   type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
   type VerlaufSchritt, type LetzterVorgang,
@@ -94,6 +98,7 @@ export {
   uebernimmStatusCodes, aktuellerStatusCodeKatalog,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
   todoRegelDrift, zieheTodoRegelnNach, type TodoRegelDrift,
+  setzeZieltage,
   relevanzLuecke, markiereRelevanz,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
   aendereTodoRegel, verschiebeTodoRegel,
