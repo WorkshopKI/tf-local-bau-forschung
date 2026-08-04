@@ -669,9 +669,11 @@ function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintrag {
     gesehen.add(k);
     varianten.push(s);
   }
-  return varianten.length === (w.varianten ?? []).length ? w : { ...w, varianten };
+  return { ...w, varianten };
 }
 ```
+
+> **Nicht** über `varianten.length === (w.varianten ?? []).length` abkürzen und `w` unverändert zurückgeben: die gepflegte Variante kann dieselbe Normalform wie `wert` haben (Fassung 12 führt zu Code 72 genau das — `wert` „stellungnahme zur rücknahmeempf." und Variante „Stellungnahme zur Rücknahmeempf."). Sie fällt dann aus der Liste, und wenn der Code-Katalog genau eine Schreibweise beisteuert, sind beide Längen 1 — die Anreicherung ginge still verloren. Die Funktion läuft einmal je Snapshot über ~74 Einträge; das Objekt immer neu zu bauen kostet nichts.
 
 Die Importe am Kopf ergänzen: `statusCodeEintrag` aus `./status-codes`, `normalisiereWert` und `StatusWertEintrag` aus `./typen` (sofern noch nicht vorhanden).
 
