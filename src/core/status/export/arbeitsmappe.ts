@@ -7,10 +7,16 @@
  * Erhebung mit mehreren Auswertungen fehlte das Stück; es steht hier und lässt
  * die vier unangetastet.
  *
- * **Warum im Plugin und nicht unter `core/services/`**: es hat heute genau einen
- * Konsumenten. Ein eigenes Top-Level-Verzeichnis für eine Datei ist genau die
- * Drift, die der `health-baseline`-Guard meldet — wenn ein zweiter Konsument
- * dazukommt, ist das Hochziehen ein Zweizeiler.
+ * **Hierher gezogen mit dem zweiten Konsumenten** (v2.407, Klärungs-Export). Bis
+ * dahin stand die Datei im Status-Cockpit, mit dem ausdrücklichen Vermerk, dass
+ * das Hochziehen ein Zweizeiler ist, sobald jemand zweites sie braucht. Sie liegt
+ * unter `core/status/`, nicht unter `core/services/`: alle drei Konsumenten
+ * (Status-Cockpit, Vorgangs-Board, „Zu klären") gehören zum Status-Subsystem, und
+ * `core/status/import/` ist der Präzedenzfall. Ein neues Verzeichnis unter
+ * `core/services/` hätte zudem den Zähl-Guard gerissen.
+ *
+ * `zeitstempel` wohnt hier ebenfalls — es stand vorher wörtlich zweimal im Code
+ * (hier und im Board-Export).
  *
  * **Jedes Blatt trägt eine Kopfzeile mit seinem Erhebungs-Kontext.** Eine Zahl
  * ohne Stichtag und Grundmenge ist im Termin nicht einzuordnen — und genau

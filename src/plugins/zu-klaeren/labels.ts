@@ -39,11 +39,18 @@ export function standZeit(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** Datum eines Beitrags, deutsch und mit führender Null. */
-export function beitragDatum(iso: string): string {
+/** Kalendertag, deutsch und mit führender Null (`toLocaleDateString` lässt sie weg). */
+export function kurzDatum(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const tag = String(d.getDate()).padStart(2, '0');
   const monat = String(d.getMonth() + 1).padStart(2, '0');
-  return `${tag}.${monat}.${d.getFullYear()} ${standZeit(iso)}`;
+  return `${tag}.${monat}.${d.getFullYear()}`;
+}
+
+/** Datum eines Beitrags, deutsch und mit führender Null. */
+export function beitragDatum(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${kurzDatum(iso)} ${standZeit(iso)}`;
 }

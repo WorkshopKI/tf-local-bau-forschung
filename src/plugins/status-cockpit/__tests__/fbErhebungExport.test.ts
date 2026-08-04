@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { baueBlaetter, baueMarkdown, type ErhebungsDaten, type ErhebungsKontext } from '../fbErhebungExport';
-import { baueArbeitsmappe } from '../arbeitsmappe';
+import { baueArbeitsmappe } from '@/core/status/export/arbeitsmappe';
 
 const KONTEXT: ErhebungsKontext = {
   stichtag: '2026-08-03T09:00:00.000Z',

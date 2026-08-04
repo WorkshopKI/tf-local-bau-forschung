@@ -176,6 +176,14 @@ describe('doc-links', () => {
     // Ceiling. Ohne die Klausel in der Layout-Schicht baut das nächste Modul
     // wieder einen eigenen Baum; das ist der Fehler, den vier Module vor dem
     // Umbau gemacht haben.
-    expect(bytes).toBeLessThan(61_700);
+    // 61_700 → 62_100 (v2.407): das Klärungs-Modul „Zu klären" bekommt die drei
+    // Zeilen, die jedes Modul hier bekommt — eine in der „Ich will…"-Tabelle,
+    // eine im Pitfall-Themenindex und Pitfall #49. Der erste Entwurf von #49 war
+    // dreimal so lang und riss dieses Ceiling; das Detail (warum Datei je Autor,
+    // warum Faltung nach Dateireihenfolge, warum kein Rückschreiben) steht in
+    // docs/architecture/klaerung.md. Hier bleibt nur, was beim Patchen sofort
+    // sichtbar sein muss — allen voran: NICHT auf eine gemeinsame Antwortdatei
+    // umbauen, `appendToFile` verliert dann stillschweigend Zeilen.
+    expect(bytes).toBeLessThan(62_100);
   });
 });

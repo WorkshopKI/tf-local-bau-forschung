@@ -14,7 +14,7 @@ import {
   type BlinderFleck, type BlindeFleckenErhebung, type FleckenBlock,
   type KuerzelKarteZeile, type PlatzhalterErhebung, type Rolle,
 } from '@/core/status';
-import { schreibeArbeitsmappe, zeitstempel, type Blatt } from './arbeitsmappe';
+import { schreibeArbeitsmappe, zeitstempel, type Blatt } from '@/core/status/export/arbeitsmappe';
 
 /**
  * Der eine Satz, der die zwei Platzhalter-Zahlen auseinanderhält.

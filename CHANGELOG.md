@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.407.0 — Modul Zu klären: Export, Phasen-Lesespalte und Doku (August 2026)
+
+MINOR — Zweiter Teil des Klärungs-Moduls: die Klärung war beantwortbar, aber ihr Ergebnis kam nicht heraus, und die Vorkommen-Spalte stand leer. Dazu die Nachlese am Phasenschnitt selbst — er ist jetzt auch im Katalog-Tab sichtbar, statt nur zu wirken.
+
+- **Drei Ausgaben statt einer**: Arbeitsmappe für den Termin, Markdown-Kurzfassung fürs Protokoll, pastefähiger Seed-Diff für die Umsetzung — Strittiges bleibt aus dem Diff draußen ([export.ts](src/plugins/zu-klaeren/export.ts))
+- **Vorkommen je Statuscode** mit Bestandsstempel, über den ganzen Bestand ohne Betrachtungsbereich ([vorkommen.ts](src/plugins/zu-klaeren/vorkommen.ts))
+- **Neu gelesen bei Fensterfokus** und per Knopf, kein Polling ([useKlaerung.ts](src/plugins/zu-klaeren/useKlaerung.ts))
+- **ZAH-Phase als Lesespalte** im Katalog-Tab — sichtbar, nicht änderbar ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx))
+- **Arbeitsmappen-Helfer hochgezogen** zum zweiten Konsumenten, doppeltes `zeitstempel` eingesammelt ([arbeitsmappe.ts](src/core/status/export/arbeitsmappe.ts))
+
 ### v2.406.0 — Katalogfremde Kürzel geklärt (ID, Testkürzel) (August 2026)
 
 MINOR — Von 221 Kürzeln, welche die Trigger-Zuarbeit referenziert, fehlten genau vier im Katalog; die Fachabstimmung hat sie am 04.08.2026 benannt (V6): `ID` = Rollenvergabe, `TTV1`/`TTV2`/`TVB1` = Testkürzel. Bis dahin standen die drei Testkürzel als mögliche nächste Schritte in 78 und 138 (5337 Anträge), und die Import-Warnung zählte jedes Mal dieselben vier Namen auf.

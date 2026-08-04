@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.407 — 2026-08
+
+### Neu
+- Neuer Bereich **Zu klären** unter „Werkzeuge": dort stehen Fachfragen, die wir gemeinsam beantworten — jeder wann er Zeit hat, statt alle gleichzeitig in einer Sitzung. Erste Frage ist der **ZAH-Phasenschnitt**: welche Phase zu welchem Status gehört. Pro Zeile wählt man „passt", „gehört nach …" oder „unklar" und kann begründen.
+- Uneinigkeit wird ruhig markiert und ist filterbar — sie ist das erwartete Ergebnis einer Abstimmung, kein Fehler. „unklar" zählt getrennt, weil eine Rückfrage etwas anderes ist als ein Widerspruch.
+- Neben jeder Zeile steht, **wie viele Vorgänge** dieser Status im Bestand hat. Eine Zuordnung mit 222 Vorgängen wiegt anders als eine mit dreien.
+- Am Ende lässt sich das Ergebnis mitnehmen: eine Tabelle für den Termin, eine Kurzfassung fürs Protokoll und eine Liste der Änderungen für die Umsetzung.
+
+### Verbesserungen
+- Im **Status-Katalog** ist die ZAH-Phase jetzt sichtbar (nur zum Lesen). Sie wirkte schon länger auf Gruppierung und Fristen-Vorschläge, stand aber nirgends.
+
 ## v2.406 — 2026-08
 
 ### Verbesserungen

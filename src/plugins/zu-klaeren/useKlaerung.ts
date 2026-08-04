@@ -20,6 +20,7 @@ import { falte, baueEintrag, type EintragEingabe } from './fold';
 import { autorenVon, istAntwortfaehig } from './konsens';
 import { baueZeilen, baueGruppen, beantwortetVon, type GruppeAnsicht, type ZeilenFilter } from './gruppen';
 import { leseKlaerung, haengeEintragAn } from './klaerung-share';
+import { ladeVorkommen } from './vorkommen';
 import { PHASENSCHNITT, bauePunkte } from './seed-phasenschnitt';
 import { OHNE_PHASE, type Klaerung, type KlaerungPunkt, type KlaerungStand } from './typen';
 
@@ -49,6 +50,10 @@ export interface KlaerungApi {
   fehler: string | null;
   /** Codes, bei denen die geladene Katalog-Fassung vom Auslieferungsschnitt abweicht. */
   fassungWeichtAb: number[];
+  /** Vorkommen je Statuscode; `null`, solange der Zähl-Lauf nicht durch ist. */
+  vorkommen: Map<number, number> | null;
+  /** ISO-Zeitpunkt des Bestands, auf den sich die Vorkommen-Zahlen berufen. */
+  bestandVom: string | null;
   neuLaden: () => Promise<void>;
   aeussern: (eingabe: Omit<EintragEingabe, 'autor'>) => Promise<void>;
 }
@@ -69,6 +74,8 @@ export function useKlaerung(): KlaerungApi {
   const [fehler, setFehler] = useState<string | null>(null);
   const [filter, setFilter] = useState<ZeilenFilter>('alle');
   const [fassungWeichtAb, setFassungWeichtAb] = useState<number[]>([]);
+  const [vorkommen, setVorkommen] = useState<Map<number, number> | null>(null);
+  const [bestandVom, setBestandVom] = useState<string | null>(null);
   const laufend = useRef(false);
 
   const neuLaden = useCallback(async (): Promise<void> => {
@@ -91,6 +98,14 @@ export function useKlaerung(): KlaerungApi {
           && (w.zahPhaseId ?? OHNE_PHASE) !== (SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? OHNE_PHASE))
         .map(w => w.code as number);
       setFassungWeichtAb([...new Set(abweichend)].sort((a, b) => a - b));
+
+      // Nach dem Stand, nicht davor: die Tabelle soll stehen, bevor der Zähl-Lauf
+      // über den ganzen Bestand beginnt. Ein Fragebogen darf nicht auf 14 000
+      // Anträge warten. Scheitert der Lauf, bleiben die Zahlen leer („—") —
+      // die Klärung funktioniert auch ohne sie.
+      void ladeVorkommen(idb, version)
+        .then(v => { setVorkommen(v.proCode); setBestandVom(v.importiertAm); })
+        .catch((err: unknown) => { console.warn('[zu-klaeren] Vorkommen nicht gezählt:', err); });
     } catch (err) {
       setFehler((err as Error).message ?? 'Die Klärung konnte nicht geladen werden.');
     } finally {
@@ -100,6 +115,21 @@ export function useKlaerung(): KlaerungApi {
   }, [idb]);
 
   useEffect(() => { void neuLaden(); }, [neuLaden]);
+
+  // Neu gelesen wird beim Zurückkommen ins Fenster — und sonst nur per Knopf.
+  // Kein Intervall: mehrere Clients, die ein SMB-Verzeichnis pollen, sind ein
+  // schlechter Nachbar, und eine Abstimmung hat jemanden, der klicken kann.
+  useEffect(() => {
+    const beiRueckkehr = (): void => {
+      if (document.visibilityState === 'visible') void neuLaden();
+    };
+    document.addEventListener('visibilitychange', beiRueckkehr);
+    window.addEventListener('focus', beiRueckkehr);
+    return () => {
+      document.removeEventListener('visibilitychange', beiRueckkehr);
+      window.removeEventListener('focus', beiRueckkehr);
+    };
+  }, [neuLaden]);
 
   const sperre: Sperre = !istAntwortfaehig(meinKuerzel)
     ? 'kein-kuerzel'
@@ -122,8 +152,8 @@ export function useKlaerung(): KlaerungApi {
 
   const autoren = useMemo(() => autorenVon(stand), [stand]);
   const zeilen = useMemo(
-    () => baueZeilen(punkte, stand, autoren, meinKuerzel, null),
-    [punkte, stand, autoren, meinKuerzel],
+    () => baueZeilen(punkte, stand, autoren, meinKuerzel, vorkommen),
+    [punkte, stand, autoren, meinKuerzel, vorkommen],
   );
   const gruppen = useMemo(() => baueGruppen(zeilen, filter), [zeilen, filter]);
 
@@ -135,7 +165,7 @@ export function useKlaerung(): KlaerungApi {
     filter, setFilter,
     anzahlStrittig: zeilen.filter(z => z.befund.zustand === 'strittig').length,
     anzahlUnklar: zeilen.filter(z => z.befund.unklarVon.length > 0).length,
-    laden, standIso, fehler, fassungWeichtAb,
+    laden, standIso, fehler, fassungWeichtAb, vorkommen, bestandVom,
     neuLaden, aeussern,
   };
 }

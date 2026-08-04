@@ -10,12 +10,8 @@
  */
 import * as XLSX from 'xlsx';
 import { ROLLE_LABEL, type Rolle } from '@/core/status';
+import { zeitstempel } from '@/core/status/export/arbeitsmappe';
 import { sichtVon, type BoardZeile } from './useVorgangsBoard';
-
-/** `2026-08-01T22:13` → `2026-08-01-22-13`; Mehrfach-Exports überschreiben nicht. */
-function zeitstempel(jetzt: Date): string {
-  return jetzt.toISOString().slice(0, 16).replace(/[:T]/g, '-');
-}
 
 function tagDe(iso: string | null): string {
   if (!iso) return '';

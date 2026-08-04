@@ -18,6 +18,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useKlaerung } from './useKlaerung';
 import { PunkteTabelle, type AntwortKontext } from './PunkteTabelle';
 import { GrundsatzFragen } from './GrundsatzFragen';
+import { ExportLeiste } from './ExportLeiste';
 import { standZeit } from './labels';
 import type { ZeilenFilter } from './gruppen';
 
@@ -119,10 +120,20 @@ export function ZuKlaerenPage(): React.ReactElement {
             Fristen-Vorschläge. Diese Seite sammelt nur Antworten; übernommen wird eine Änderung
             später als Programm-Änderung.
           </p>
-          <PunkteTabelle gruppen={api.gruppen} kontext={kontext} />
+          <PunkteTabelle gruppen={api.gruppen} kontext={kontext} bestandVom={api.bestandVom} />
         </section>
 
         <GrundsatzFragen fragen={api.fragen} kontext={kontext} />
+
+        <ExportLeiste baueEingabe={() => ({
+          klaerung: api.klaerung,
+          punkte: api.punkte,
+          stand: api.stand,
+          autoren: api.autoren,
+          vorkommen: api.vorkommen,
+          bestandVom: api.bestandVom,
+          jetztIso: new Date().toISOString(),
+        })} />
       </div>
     </div>
   );

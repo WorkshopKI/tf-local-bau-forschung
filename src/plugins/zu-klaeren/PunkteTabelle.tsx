@@ -11,7 +11,7 @@
  */
 import { Fragment, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
-import { thKlasse, tdKlasse, rahmenStil, zielLabel } from './labels';
+import { thKlasse, tdKlasse, rahmenStil, zielLabel, kurzDatum } from './labels';
 import { AntwortZelle } from './AntwortZelle';
 import { PunktKommentare } from './PunktKommentare';
 import { beitraegeSortiert, type EintragEingabe } from './fold';
@@ -151,10 +151,12 @@ function Zeile({
 }
 
 export function PunkteTabelle({
-  gruppen, kontext,
+  gruppen, kontext, bestandVom,
 }: {
   gruppen: readonly GruppeAnsicht[];
   kontext: AntwortKontext;
+  /** Woher die Vorkommen-Zahlen stammen — gehört an die Spalte, nicht in eine Fußnote. */
+  bestandVom: string | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState<string | null>(null);
 
@@ -174,7 +176,19 @@ export function PunkteTabelle({
             <th className={`${thKlasse} w-[64px]`}>Code</th>
             <th className={thKlasse}>Bezeichnung</th>
             <th className={`${thKlasse} w-[132px]`}>Stand</th>
-            <th className={`${thKlasse} text-right w-[96px]`}>Vorgänge</th>
+            <th
+              className={`${thKlasse} text-right w-[110px]`}
+              title={bestandVom === null
+                ? 'Anzahl Vorgänge im lokal geladenen Bestand'
+                : `Anzahl Vorgänge im Bestand vom ${kurzDatum(bestandVom)} — gezählt über den ganzen Bestand, ohne Betrachtungsbereich`}
+            >
+              Vorgänge
+              {bestandVom !== null && (
+                <span className="block font-normal text-[10px] text-[var(--tf-text-tertiary)]">
+                  Stand {kurzDatum(bestandVom)}
+                </span>
+              )}
+            </th>
             <th className={`${thKlasse} text-right w-[312px]`}>Gehört die Phase so?</th>
           </tr>
         </thead>

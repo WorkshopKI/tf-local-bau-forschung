@@ -24,7 +24,7 @@ import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { feldLabel } from '@/core/status';
+import { feldLabel, zahPhaseLabel, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
@@ -90,6 +90,20 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
           {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
         </select>
       </td>
+      {zeigeZieltage && (
+        // Read-only: der Phasenschnitt ist Auslieferung, nicht Kuration (siehe
+        // Modulkopf). Sichtbar ist er trotzdem — an ihm hängen Gruppierung,
+        // Zieltage-Vorschläge und Kategorie-Ableitung, und bis v2.407 stand er
+        // nirgends in der Oberfläche.
+        <td
+          className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] whitespace-nowrap w-[112px]`}
+          title={'Ausgelieferte ZAH-Phase. Nicht hier änderbar — Änderungswünsche laufen über „Zu klären".'}
+        >
+          {w.code === undefined
+            ? '—'
+            : zahPhaseLabel(SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null, api.entwurf?.zahPhasen)}
+        </td>
+      )}
       {zeigeZieltage && (
         <td className={`${tdKlasse} w-[132px]`}>
           <div className="flex items-center gap-1">
@@ -245,6 +259,14 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               <th className={thKlasse}>Label</th>
               <th className={thKlasse}>Kategorie</th>
               <th className={thKlasse}>Prominenz</th>
+              {zeigeZieltage && (
+                <th
+                  className={thKlasse}
+                  title={'Ausgelieferte ZAH-Phase. Nur zum Lesen — Änderungswünsche laufen über die Seite „Zu klären".'}
+                >
+                  ZAH-Phase
+                </th>
+              )}
               {zeigeZieltage && (
                 <th
                   className={thKlasse}
