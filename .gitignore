@@ -129,3 +129,10 @@ src/plugins/map-foerderfaehig/__tests__/fixtures-local/
 # abgeleiteten Pruefkriterien leben als App-Daten im committeten Checklisten-Seed
 # (src/plugins/map-foerderfaehig/checkliste/checkliste.seed.ts).
 _reference/zim-richtlinie/
+
+# Arbeitsstand der Plan-Queue (Plan-Queue.bat): Auftragsliste, Laufprotokolle,
+# Ergebnis-Dateien — Momentaufnahmen einer Maschine, kein Repo-Inhalt. Und
+# darunter liegt `oauth-token.txt`: ein gueltiger CLAUDE_CODE_OAUTH_TOKEN. Das
+# Repo ist OEFFENTLICH — ein einmal gepushter Token ist verbrannt und muss
+# widerrufen werden. Deshalb der ganze Ordner, nicht nur die Token-Datei.
+_plans/
