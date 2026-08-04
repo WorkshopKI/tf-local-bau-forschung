@@ -68,6 +68,18 @@ entfallen: angezeigt wird, was das Fachsystem führt.
   Die Reihenfolge IST das Ergebnis, deshalb wird sie über Pfeile gesetzt, nicht
   per Ziehen. Jede Regel liest sich als deutscher Satz („WENN Status 71 und
   D_ARQ leer → To-do «RNE ergänzen», zuständig AB").
+  - **Zwei Ansichten, ein Reiter**: Solange keine Regel geöffnet ist, steht die
+    ganze Kaskade als Karten über die volle Breite — Nummer, Pfeile, Satz,
+    Zustand und „Bearbeiten" in einer Zeile. Ein Klick auf eine Karte teilt die
+    Ansicht: links eine schlanke Liste (Nummer und Beschreibung, dazu Marker für
+    Sperre, stillgelegt und „trifft nie zu"), rechts die Regel mit Kopf und
+    Editor. Die Trennlinie lässt sich ziehen — auch mit den Pfeiltasten,
+    Doppelklick setzt zurück —, und ihre Lage bleibt bis zum nächsten Mal
+    erhalten. Esc oder „Schließen" bringt die Karten zurück.
+  - In der geteilten Ansicht stehen die **Positions-Pfeile im Regel-Kopf**
+    („Position 5 von 27"), weil die schlanken Zeilen selbst nur die Auswahl
+    tragen. Erklärtext, Nachziehen-Hinweis und die Tagesordnung erscheinen nur,
+    solange keine Regel geöffnet ist — sie brauchen die volle Breite.
   - **Regelsatz je Rolle**: über der Liste stehen Reiter (AB, FB, weitere sobald
     dort Regeln existieren). Ausgewertet wird immer genau ein Satz. Sperren
     gelten vorgangsweit und erscheinen deshalb in jedem Reiter, dort mit dem
@@ -126,6 +138,9 @@ entfallen: angezeigt wird, was das Fachsystem führt.
   **Zeitraum** erfassen, nicht als Datum. Gibt es noch kein Journal, sagt die
   Seite das ausdrücklich („noch nicht angelegt") statt eine leere Angabe zu
   zeigen. Keine Bearbeiter-Angabe — das Journal führt keine.
+- **Referenzdaten** und **Versionen** stehen in den Reitern Katalog und Kürzel.
+  Der Reiter To-dos füllt die Höhe stattdessen mit der geteilten Regel-Ansicht,
+  deren beide Spalten für sich scrollen.
 - Im Tab **To-dos** trägt jede Platzhalter-Zeile **zwei** Zahlen: wie oft die
   Rolle das To-do heute geliehen sieht, und wie oft die Bedingung der
   Herkunftsregel im Bestand überhaupt zutrifft. Die zweite ist die Reichweite

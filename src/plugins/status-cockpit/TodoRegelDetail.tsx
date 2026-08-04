@@ -1,0 +1,187 @@
+/**
+ * Die geöffnete To-do-Regel — Kopf und Editor in der rechten Spalte.
+ *
+ * Der Kopf wiederholt bewusst, was links in der Zeile nicht mehr steht: die
+ * Zustände, den aktiv-Haken, die Regel-Id und die **Positions-Pfeile**. Die
+ * Pfeile wohnen hier, weil die schlanken Auswahl-Zeilen selbst Knöpfe sind und
+ * keine weiteren tragen dürfen; „Position 5 von 27" nennt dazu die Stelle in der
+ * Kaskade, die man beim Verschieben im Blick behalten will.
+ *
+ * Der Bedingungs-Editor ist der **domänenfreie** aus den Meilensteinen — kein
+ * zweiter, der beim nächsten Operator auseinanderliefe. Sein Feld-Vorrat und
+ * seine Prüfung kommen aus der **Fassung** (`baueTodoFeldVorrat` /
+ * `referenzierbareFelder`), nicht aus den CSV-Schemas: die Kaskade wird gegen den
+ * Katalog ausgewertet, und wer ein Feld anbietet, das dort fehlt, lädt zu einer
+ * Regel ein, die nie zutrifft (v2.386).
+ */
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
+import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
+import {
+  ROLLE_LABEL, ROLLE_LANG,
+  type Bedingung, type MappingVersion, type Rolle, type TodoRegel,
+} from '@/core/status';
+import { feldKlasse, feldStil } from './labels';
+import { TodoRegelSatz } from './TodoRegelSatz';
+import {
+  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, positionsText, zustandsMarker, type TodoRegelnApi,
+} from './todoRegelnAnsicht';
+
+/** Wer wartet — Rollen plus „Antragsteller", der außerhalb des Hauses steht. */
+const WARTET_WAHL: { wert: string; label: string }[] = [
+  { wert: '', label: '—' },
+  { wert: 'ab', label: ROLLE_LANG.ab },
+  { wert: 'fb', label: ROLLE_LANG.fb },
+  { wert: 'qs', label: ROLLE_LANG.qs },
+  { wert: 'pa', label: ROLLE_LANG.pa },
+  { wert: 'jur', label: ROLLE_LANG.jur },
+  { wert: 'ast', label: 'Antragsteller' },
+];
+
+const ROLLEN_WAHL: readonly Rolle[] = ['ab', 'fb', 'qs', 'pa', 'jur'];
+
+const PFEIL_KLASSE = 'p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]'
+  + ' cursor-pointer disabled:opacity-30 disabled:cursor-default';
+
+export function TodoRegelDetail({
+  r, version, index, anzahl, satz, api, vorrat, pruefeFeld, unbekannte, onSchliessen,
+}: {
+  r: TodoRegel;
+  version: MappingVersion;
+  index: number;
+  anzahl: number;
+  /** Der gerade gezeigte Regelsatz — nicht zwingend der der Regel (Sperren). */
+  satz: Rolle;
+  api: TodoRegelnApi;
+  vorrat: SpaltenEintrag[];
+  pruefeFeld: (feldId: string) => string | null;
+  unbekannte: readonly string[];
+  onSchliessen: () => void;
+}): React.ReactElement {
+  const { istSperre, eigen, giltFuerAlle } = zustandsMarker(r, satz, unbekannte);
+  const set = (patch: Partial<TodoRegel>): void => api.setTodoRegel(r.id, patch);
+  const setzeAktiv = (an: boolean): void => {
+    if (brauchtRolloutRueckfrage(r, an)
+      && !window.confirm(`${ROLLOUT_HINWEIS}\n\nRegel „${r.beschreibung}" trotzdem aktivieren?`)) return;
+    set({ aktiv: an });
+  };
+  // Eine vorgangsweite Sperre erscheint in JEDEM Satz — verschieben lässt sie
+  // sich aber nur dort, wo sie zu Hause ist: sonst bewegte ein Klick im FB-Tab
+  // eine Regel, die im AB-Tab an anderer Stelle steht.
+  const pfeilTitel = eigen
+    ? null
+    : 'Diese Sperre gilt für alle Regelsätze — verschieben im Satz AB';
+
+  return (
+    // Das Detail-Pane des Shells ist `overflow-hidden`; das Scrollen bringt der
+    // Inhalt mit. Kein `opacity` für stillgelegte Regeln: ein gedimmter Editor
+    // läse sich wie „gesperrt", obwohl jedes Feld bedienbar ist.
+    <div className="h-full overflow-y-auto flex flex-col gap-3 p-4">
+      <div className="shrink-0 flex flex-col gap-2">
+        <div className="flex items-start gap-2">
+          <h4 className="flex-1 min-w-0 text-[14px] font-medium text-[var(--tf-text)]">
+            {r.beschreibung}
+          </h4>
+          <Button variant="ghost" size="sm" icon={X} onClick={onSchliessen} title="Schließen (Esc)">
+            Schließen
+          </Button>
+        </div>
+
+        {(istSperre || !r.aktiv || unbekannte.length > 0) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {istSperre && <Badge variant="default">Sperre</Badge>}
+            {giltFuerAlle && (
+              <span title="Sie trägt kein giltFuer und wirkt deshalb in jedem Regelsatz.">
+                <Badge variant="default">gilt für alle Regelsätze</Badge>
+              </span>
+            )}
+            {!r.aktiv && <Badge variant="default">stillgelegt</Badge>}
+            {unbekannte.length > 0 && (
+              <Badge variant="error">trifft nie zu: {unbekannte.join(', ')}</Badge>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 flex-wrap text-[12px]">
+          <label className="inline-flex items-center gap-1.5 text-[var(--tf-text-secondary)] cursor-pointer">
+            <input
+              type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={r.aktiv}
+              onChange={e => setzeAktiv(e.target.checked)}
+            />
+            aktiv
+          </label>
+          <span className="inline-flex items-center gap-1 text-[var(--tf-text-secondary)]">
+            {positionsText(index, anzahl)}
+            <button
+              type="button" disabled={index === 0 || !eigen} className={PFEIL_KLASSE}
+              title={pfeilTitel ?? 'eine Position nach oben'}
+              onClick={() => api.verschiebeTodoRegel(r.id, -1)}
+            >
+              <ChevronUp size={14} />
+            </button>
+            <button
+              type="button" disabled={index === anzahl - 1 || !eigen} className={PFEIL_KLASSE}
+              title={pfeilTitel ?? 'eine Position nach unten'}
+              onClick={() => api.verschiebeTodoRegel(r.id, 1)}
+            >
+              <ChevronDown size={14} />
+            </button>
+          </span>
+          <span className="ml-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">{r.id}</span>
+        </div>
+
+        <TodoRegelSatz r={r} version={version} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <input
+          value={r.beschreibung} placeholder="Beschreibung" className={feldKlasse} style={feldStil}
+          onChange={e => set({ beschreibung: e.target.value })}
+        />
+        {!istSperre && (
+          <>
+            <input
+              value={r.todo} placeholder="To-do-Text (Gruppe im Board)" className={feldKlasse} style={feldStil}
+              onChange={e => set({ todo: e.target.value })}
+            />
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">zuständig</span>
+              {ROLLEN_WAHL.map(x => {
+                const an = r.zustaendig.includes(x);
+                return (
+                  <button
+                    key={x} type="button" aria-pressed={an} title={ROLLE_LANG[x]}
+                    onClick={() => set({
+                      zustaendig: an ? r.zustaendig.filter(y => y !== x) : [...r.zustaendig, x],
+                    })}
+                    className={`text-[11px] leading-none rounded px-1.5 py-1 cursor-pointer ${
+                      an ? 'text-white' : 'text-[var(--tf-text-tertiary)]'}`}
+                    style={an ? { background: 'var(--tf-primary)' } : feldStil}
+                  >
+                    {ROLLE_LABEL[x]}
+                  </button>
+                );
+              })}
+              <span className="w-2" />
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">wartet auf</span>
+              <select
+                value={r.wartetAuf ?? ''} className={feldKlasse} style={feldStil}
+                onChange={e => set({ wartetAuf: (e.target.value || null) as TodoRegel['wartetAuf'] })}
+              >
+                {WARTET_WAHL.map(w => <option key={w.wert} value={w.wert}>{w.label}</option>)}
+              </select>
+            </div>
+          </>
+        )}
+        <BedingungEditor
+          bedingung={r.bedingung}
+          spalten={vorrat}
+          pruefeFeld={pruefeFeld}
+          onChange={(b: Bedingung) => set({ bedingung: b })}
+        />
+      </div>
+    </div>
+  );
+}

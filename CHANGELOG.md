@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.405.0 — To-do-Regeln: geteilte Ansicht + kompakte Karten (August 2026)
+
+MINOR — Der Editor klappte IN der Karte auf und schob die folgenden Regeln nach unten — beim Bearbeiten verlor man damit genau den Überblick, auf den es ankommt: die Reihenfolge IST das Ergebnis. Gemessen: die Kaskade war 3017 px hoch, jede Karte 89 px.
+
+- **Karte 89 → 57 px**, Kaskade 3017 → 1919 px: drei Zeilen wurden zwei, „Bearbeiten" steht in der Titelzeile ([TodoRegelKarte.tsx](src/plugins/status-cockpit/TodoRegelKarte.tsx))
+- **Geteilte Ansicht bei Auswahl** über das geteilte `MasterDetailLayout` — links schlanke Zeilen, rechts Kopf + Editor, Trenner ziehbar und gemerkt ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx))
+- **Positions-Pfeile im Regel-Kopf** („Position 5 von 27"), weil die Auswahl-Zeilen selbst Knöpfe sind und keine weiteren tragen dürfen ([TodoRegelDetail.tsx](src/plugins/status-cockpit/TodoRegelDetail.tsx))
+- **Auswahl wird abgeleitet, nicht synchronisiert**: verschwindet die Regel, schließt sich das Detail von selbst — geprüft in [todoRegelnAnsicht.test.ts](src/plugins/status-cockpit/__tests__/todoRegelnAnsicht.test.ts)
+- **Reiter To-dos füllt die Höhe**; Referenzdaten und Versionen stehen in Katalog/Kürzel ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
+
 ### v2.404.1 — Guard gegen as/pl-Feature-Drift (August 2026)
 
 PATCH — Die as/pl-Angleichung aus v2.403.0 war eine Aufräumarbeit, die sich jederzeit wiederholen kann: kein Test verglich zwei Varianten miteinander, deshalb konnte as über acht Flags hinweg unbemerkt hinter pl zurückfallen. Der Nachtrag schließt die Lücke, statt sich auf Aufmerksamkeit zu verlassen.

@@ -9,7 +9,7 @@ Der ursprüngliche Phasen-Prompt nahm eine Extraktion „von Grund auf" an. Das 
 
 | Muster (Spec-Zielname) | Realität | Pfad |
 |---|---|---|
-| `MasterDetailShell` | **existiert** als `MasterDetailLayout` (6 Konsumenten) | [src/components/master-detail/MasterDetailLayout.tsx](../src/components/master-detail/MasterDetailLayout.tsx) |
+| `MasterDetailShell` | **existiert** als `MasterDetailLayout` (6 rendernde Konsumenten) | [src/components/master-detail/MasterDetailLayout.tsx](../src/components/master-detail/MasterDetailLayout.tsx) |
 | `SortableColumnHeader` / `ColumnConfigDropdown` | **existiert** als `SortableTable` + `SortIcon` + `ColumnPicker` | [src/components/data-table/](../src/components/data-table/) |
 | `SectionHeader` | **existiert** (domänenfrei, collapsible) | [src/components/ui/SectionHeader.tsx](../src/components/ui/SectionHeader.tsx) |
 | `PrimaryButton` | **existiert** (shadcn `default`-Variante) — nur Token koppeln | [src/components/ui/button.tsx](../src/components/ui/button.tsx) |
@@ -87,6 +87,7 @@ In [src/theme.css](../src/theme.css):
 - `PageHeader` ← Förderanträge-Titel ([AntraegeHeader.tsx](../src/plugins/antraege/AntraegeHeader.tsx)) — exakter Match (gleiche Wrapper-/H1-Klassen + Meta-Slot)
 - `StatusDot` ← [StatusDotRow.tsx](../src/plugins/antraege/StatusDotRow.tsx)
 - `FilterChip` ← [ActiveFilterChips.tsx](../src/plugins/antraege/filter/ActiveFilterChips.tsx)
+- `MasterDetailLayout` ← To-do-Regeln im Status-Katalog ([TodoRegelnBereich.tsx](../src/plugins/status-cockpit/TodoRegelnBereich.tsx)) — Split **innerhalb eines Reiters**: der Tab-Zweig der Seite ist ein eigener `flex-1 min-h-0 flex flex-col` ohne Seiten-Scroll, der Bereichs-Kopf darüber `shrink-0`
 
 **Gebaut, aber (noch) NICHT adoptiert — bewusst, weil nicht 1:1 invariant:**
 - `PageHeader` an **Auslastung** ([AuslastungView.tsx](../src/plugins/auslastung/views/AuslastungView.tsx)) + **Einstellungen** ([EinstellungenPage.tsx](../src/plugins/einstellungen/EinstellungenPage.tsx)): deren H1 nutzt abweichendes `leading-none`/`tracking-[-0.01em]`/`gap-0` bzw. ein nacktes `<h1>` ohne `leading` — eine Umstellung würde das Aussehen minimal ändern (verboten außer Chat-Pills). Adoption erst, wenn `PageHeader` die nötigen Props bekommt oder eine bewusste Normalisierung beauftragt wird.

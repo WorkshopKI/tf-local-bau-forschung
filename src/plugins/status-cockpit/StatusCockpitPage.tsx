@@ -203,17 +203,23 @@ export function StatusCockpitPage(): React.ReactElement {
       {api.nurLokal && <NurLokalHinweis api={api} />}
 
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
-        {tab === 'katalog' && <KatalogTab api={api} />}
-        {tab === 'felder' && <FelderTab api={api} />}
-        {tab === 'regeln' && <RegelnTab api={api} />}
-        {isVorgangssystemEnabled() && (
-          <>
-            <ReferenzdatenSektion api={api} />
-          </>
-        )}
-        <VersionsPanel api={api} />
-      </div>
+      {/* Der Regeln-Tab füllt die Höhe selbst: sein Master-Detail-Split scrollt
+          seine beiden Spalten getrennt und braucht dafür einen Flex-Spalten-
+          Kontext OHNE Seiten-Scroll. Referenzdaten und Versionen stehen deshalb
+          in den Reitern Katalog/Kürzel — ein Split mit Sektionen darunter hätte
+          keine definite Höhe mehr. */}
+      {tab === 'regeln' ? (
+        <div className="flex-1 min-h-0 flex flex-col px-6 pb-4 pt-3">
+          <RegelnTab api={api} />
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {tab === 'katalog' && <KatalogTab api={api} />}
+          {tab === 'felder' && <FelderTab api={api} />}
+          {isVorgangssystemEnabled() && <ReferenzdatenSektion api={api} />}
+          <VersionsPanel api={api} />
+        </div>
+      )}
 
       {api.geaendert && <SaveBar api={api} />}
     </div>

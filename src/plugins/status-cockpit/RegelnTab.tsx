@@ -53,8 +53,11 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       </p>
     );
   }
+  // Flex-Spalten-Höhenkontext für das Master-Detail-Shell darunter: `flex-1
+  // min-h-0` greift nur in einem `flex flex-col`-Elternteil, sonst verliert das
+  // Split-Layout seine definite Höhe und die Panes scrollen nicht mehr selbst.
   return (
-    <div className="flex flex-col gap-4 pt-3">
+    <div className="flex-1 min-h-0 flex flex-col">
       <TodoRegelnBereich
         version={entwurf} api={api} platzhalter={platzhalter} onExportieren={onExportieren}
       />

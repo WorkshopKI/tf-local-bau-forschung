@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.405 — 2026-08
+
+### Neu
+- Im Status-Katalog unter **To-dos** öffnet ein Klick auf eine Regel jetzt eine **geteilte Ansicht**: links die Liste aller Regeln zum schnellen Springen, rechts die ausgewählte Regel zum Bearbeiten. Die Trennlinie lässt sich ziehen, und wo Sie sie hinlegen, bleibt sie.
+### Verbesserungen
+- Die Regelkarten sind rund ein Drittel flacher — die ganze Kaskade passt jetzt auf deutlich weniger Bildschirmhöhe, und „Bearbeiten" steht direkt in der Titelzeile.
+
 ## v2.404 — 2026-08
 
 ### Neu
