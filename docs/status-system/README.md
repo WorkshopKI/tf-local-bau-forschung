@@ -68,6 +68,22 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
   `uebernehmeKatalogVomShare` den lokalen Stand einmalig unter
   `status-katalog:vor-share-uebernahme`; lokale Fassungen mit Nummern, die der
   Share nicht kennt, bleiben stehen.
+- **Veröffentlichen ist read-before-write** ([katalog-konflikt.ts](../../src/core/status/katalog-konflikt.ts)),
+  seit den Katalog mehrere PL-Personen asynchron pflegen. Jeder Schreibvorgang
+  liest die Datei zuerst und **vereinigt die Fassungsliste** — fremde Fassungen,
+  die der lokale Cache nicht kennt, kommen hinein (auch wenn der Konflikt danach
+  bewusst übergangen wird). Vereinigt wird nur die **Liste**, nie der Inhalt: eine
+  feldweise Mischung ergäbe einen Katalog, den niemand beschlossen hat. Die
+  Vereinigung steht **vor** der Nummernvergabe, damit `naechsteVersionsnummer`
+  keine Nummer zweimal ausgibt.
+  Erkannt wird optimistisch wie im Journal (`aktiv > basisVersion`, plus
+  Nummern-Kollision), geprüft ein zweites Mal unmittelbar vor dem Schreiben —
+  dafür reicht `leseKatalogNummer` mit 4 KB Dateikopf statt der ~2,9 MB dahinter.
+  **Gelöst wird nichts automatisch**: der Konflikt kommt mit Nummer, Autor,
+  Zeitpunkt und der Zahl abweichender Einträge vor den Menschen, und beide Wege
+  („fremde laden" / „trotzdem veröffentlichen") lassen beide Fassungen in der
+  Datei stehen. Die Frühwarnung beim Fensterfokus liest nur diese Nummer — kein
+  Intervall, kein automatisches Umschalten.
 - **Das Event-Log bleibt gerätelokal** — nie Share/Snapshot/Personal-Mirror
   (Guard `status-event-log-local-only`). Ebenso der Unkuratiert-Puffer: er hält
   fest, was *diese* Installation gesehen hat; was die PL inzwischen team-weit

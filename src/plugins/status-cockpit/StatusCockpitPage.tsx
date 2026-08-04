@@ -22,6 +22,7 @@ import { KatalogTab } from './KatalogTab';
 import { FelderTab } from './FelderTab';
 import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
+import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
 import { feldStil, formatZeitpunkt } from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
@@ -61,6 +62,49 @@ function NurLokalHinweis({ api }: { api: StatusCockpitApi }): React.ReactElement
       <Button variant="ghost" size="sm" className="ml-auto" disabled={erneut.busy} onClick={() => erneut.run()}>
         {erneut.busy ? 'Versucht …' : 'Erneut veröffentlichen'}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Zwei ruhige Zustände über der Seite, beide ohne Warnrot:
+ * - Der Konflikt ist noch offen (Dialog weggeklickt) — die eigene Fassung gilt
+ *   dann NICHT team-weit, und das darf nicht unsichtbar sein.
+ * - Auf dem Share liegt eine neuere Fassung (Frühwarnung beim Fensterfokus).
+ *   Umgeschaltet wird nur auf Klick.
+ */
+function ShareStandHinweis({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  const laden = useAsyncAction(async () => { await api.fremdeFassungLaden(); });
+
+  if (api.konflikt && !api.konfliktOffen) {
+    const { konflikt, eigene } = api.konflikt;
+    return (
+      <div className="mx-6 mt-3 rounded px-3 py-2 flex items-center gap-2 flex-wrap text-[12.5px] text-[var(--tf-text-secondary)]" style={feldStil}>
+        <span>
+          {eigene == null ? 'Deine Fassung' : `Fassung v${eigene}`} ist noch nicht veröffentlicht —
+          auf dem Share liegt v{konflikt.fremde.version}
+          {konflikt.fremde.autor ? ` von ${konflikt.fremde.autor}` : ''}.
+        </span>
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={api.konfliktOeffnen}>
+          Klären
+        </Button>
+      </div>
+    );
+  }
+
+  if (api.neueFassungAufShare == null) return null;
+  return (
+    <div className="mx-6 mt-3 rounded px-3 py-2 flex items-center gap-2 flex-wrap text-[12.5px] text-[var(--tf-text-secondary)]" style={feldStil}>
+      <span>
+        Auf dem Share liegt inzwischen Fassung v{api.neueFassungAufShare}. Dein Entwurf beruht
+        auf einem älteren Stand.
+      </span>
+      <Button variant="ghost" size="sm" className="ml-auto" disabled={laden.busy} onClick={() => laden.run()}>
+        {laden.busy ? 'Lädt …' : 'Laden'}
+      </Button>
+      {laden.error != null && (
+        <span className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {laden.error}</span>
+      )}
     </div>
   );
 }
@@ -201,6 +245,17 @@ export function StatusCockpitPage(): React.ReactElement {
       )}
 
       {api.nurLokal && <NurLokalHinweis api={api} />}
+      <ShareStandHinweis api={api} />
+
+      {api.konflikt && (
+        <KatalogKonfliktDialog
+          stand={api.konflikt}
+          offen={api.konfliktOffen}
+          onSchliessen={api.konfliktSchliessen}
+          onTrotzdem={api.trotzdemVeroeffentlichen}
+          onFremdeLaden={api.fremdeFassungLaden}
+        />
+      )}
 
 
       {/* Der Regeln-Tab füllt die Höhe selbst: sein Master-Detail-Split scrollt

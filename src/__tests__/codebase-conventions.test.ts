@@ -1129,10 +1129,17 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // WAS der Nutzer sieht und benennt, das WIE gehoert ins Architektur-Doc. Ein
   // Doc, das anschwillt, hat fast immer WIE drin — dagegen hilft Lesen, keine
   // Zahl. Die Reissleine faengt nur den Unfall (Architektur-Doc reinkopiert,
-  // generierter Dump) und liegt bewusst weit ueber jeder legitimen Laenge:
-  // rund das Vierfache des heute groessten Docs.
+  // generierter Dump) und liegt bewusst weit ueber jeder legitimen Laenge.
+  //
+  // Angehoben von 10000 auf 20000 (v2.409): status-cockpit.md stand bei 9992
+  // Zeichen an der Wand — nicht durch WIE-Text, sondern weil die Seite drei
+  // Reiter, einen Ordnerbaum, die Regel-Kaskade und jetzt den
+  // Veroeffentlichungs-Konflikt traegt. Genau der Effekt, den der Kommentar oben
+  // beim alten 2500er-Limit beschreibt. Die urspruengliche Begruendung „rund das
+  // Vierfache des groessten Docs" war mitgewandert und stimmte nicht mehr; der
+  // Unfall, den die Zahl faengt, liegt bei 30000+.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 10000;
+  const REISSLEINE_DOC_CHARS = 20000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

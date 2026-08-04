@@ -28,6 +28,8 @@ const ISOLATED_TESTS = [
   // Mocks ineinander.
   'src/core/status/__tests__/journal-lauf.test.ts',
   'src/core/status/__tests__/journal-lesen.test.ts',
+  // Mockt dieselbe Share-Schicht (`sidecar-datei`) wie die Journal-Tests.
+  'src/core/status/__tests__/katalog-share.test.ts',
   'src/core/status/__tests__/katalog-store.test.ts',
   'src/core/status/__tests__/reconcile-store.test.ts',
   'src/core/status/__tests__/trigger-share.test.ts',

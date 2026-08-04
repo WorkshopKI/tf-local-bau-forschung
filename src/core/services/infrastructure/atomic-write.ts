@@ -229,6 +229,27 @@ export async function readText(
   }
 }
 
+/**
+ * Nur die ersten `bytes` einer Datei. Für Dateien, aus denen eine einzelne
+ * Angabe im Kopf gebraucht wird (Versionsnummer, Format-Marke) und deren
+ * Volllesen über SMB unverhältnismäßig wäre. Fehlertoleranz wie {@link readText}.
+ */
+export async function readTextPrefix(
+  root: FileSystemDirectoryHandle,
+  path: string,
+  bytes: number,
+): Promise<string | null> {
+  try {
+    const { dirParts, filename } = splitPath(path);
+    const dir = await navigateToDir(root, dirParts, false);
+    const fh = await dir.getFileHandle(filename);
+    const f = await fh.getFile();
+    return await f.slice(0, bytes).text();
+  } catch {
+    return null;
+  }
+}
+
 export async function readBinary(
   root: FileSystemDirectoryHandle,
   path: string,

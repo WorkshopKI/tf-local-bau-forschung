@@ -115,11 +115,34 @@ entfallen: angezeigt wird, was das Fachsystem führt.
 Änderungen sind ein **Entwurf**; „Für das Team speichern" legt eine Fassung an.
 Ältere Fassungen sind als Entwurf ladbar.
 
+Weil den Katalog mehrere Personen pflegen, wird vor dem Veröffentlichen
+nachgesehen, was inzwischen auf dem Daten-Ordner liegt. Fremde Fassungen, die
+dieser Rechner nicht kennt, wandern dabei in die Fassungsliste — sie gehen nie
+verloren, auch wenn danach eine andere gilt.
+
+Hat jemand anderes zwischenzeitlich veröffentlicht, wird **nichts geschrieben**;
+eine Meldung nennt Nummer, Kürzel und Zeitpunkt der fremden Fassung. Die eigene
+Arbeit ist da bereits als neue Fassung gespeichert — offen ist nur die
+Veröffentlichung. Zwei Wege:
+
+- **Fremde Fassung laden** — sie gilt danach für das Team; vorher steht da, in
+  wie vielen Einträgen sich beide unterscheiden. Die eigene bleibt in der Liste
+  und ist wieder als Entwurf ladbar.
+- **Trotzdem veröffentlichen** — die eigene gilt danach; die Änderungen der
+  fremden sind darin nicht enthalten, sie bleibt aber erhalten.
+
+„Später entscheiden" schließt die Meldung; im Seitenkopf bleibt der Hinweis, dass
+die eigene Fassung noch nicht veröffentlicht ist. Liegt beim Zurückkommen ins
+Fenster eine neuere Fassung vor, steht auch das im Seitenkopf — mit Knopf zum
+Laden. Umgeschaltet wird nie von allein.
+
 ## Wichtig
 
 - Der Katalog gilt **team-weit**: Speichern legt ihn auf dem Daten-Share ab, alle
   übernehmen ihn beim nächsten App-Start. Ohne erreichbaren Share bleibt die
   Fassung lokal — die Seite sagt das und bietet „Erneut veröffentlichen" an.
+- Zwei Fassungen werden **nie inhaltlich zusammengeführt**. Zusammengeführt wird
+  allein die Liste der Fassungen; welche gilt, entscheidet ein Mensch.
 - Die **Historie** (Statusverlauf) bleibt auf dem eigenen Rechner: sie hält fest,
   wann er eine Änderung gesehen hat.
 - JSON-Export/Import dient der Sicherung, nicht dem Team-Abgleich.

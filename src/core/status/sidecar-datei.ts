@@ -20,8 +20,8 @@
  */
 import type { IDBStore } from '@/core/services/storage';
 import {
-  atomicWrite, atomicWriteStream, appendToFile, readText, listFilesWithBackupInfo,
-  type AtomicWriteSink,
+  atomicWrite, atomicWriteStream, appendToFile, readText, readTextPrefix,
+  listFilesWithBackupInfo, type AtomicWriteSink,
 } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 
@@ -80,6 +80,26 @@ export async function leseSidecarText(idb: IDBStore, pfad: string): Promise<stri
     return await readText(handle, pfad);
   } catch (err) {
     console.warn(`[status] leseSidecarText(${pfad}) failed:`, err);
+    return null;
+  }
+}
+
+/**
+ * Nur den ANFANG einer Sidecar — für die eine Angabe, die im Kopf der Datei
+ * steht. Der Status-Katalog wiegt Megabyte; wer aus ihm bloß die aktive
+ * Fassungsnummer braucht (Frühwarnung beim Fensterfokus, späte Nachprüfung vor
+ * dem Schreiben), holt nicht die ganze Datei über SMB. `null` wie bei
+ * {@link leseSidecarText}.
+ */
+export async function leseSidecarKopf(
+  idb: IDBStore, pfad: string, bytes: number,
+): Promise<string | null> {
+  const handle = await getDatenShareHandle(idb);
+  if (!handle) return null;
+  try {
+    return await readTextPrefix(handle, pfad, bytes);
+  } catch (err) {
+    console.warn(`[status] leseSidecarKopf(${pfad}) failed:`, err);
     return null;
   }
 }

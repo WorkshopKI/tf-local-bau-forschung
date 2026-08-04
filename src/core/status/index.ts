@@ -109,8 +109,14 @@ export {
 export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
-  STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY, type StatusKatalogDatei,
+  leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,
+  STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY,
+  type StatusKatalogDatei, type KatalogSchreibErgebnis,
 } from './katalog-share';
+export {
+  planeVereinigung, findeKonflikt, istSelbeFassung, zaehleAbweichungen, leseNummerAusKopf,
+  type KatalogKonflikt, type FremdeFassung, type Vereinigung,
+} from './katalog-konflikt';
 export {
   baueVerbundFelder, vorkommenAus, zaehleVorkommen, zuletztGesehen, csvSpaltenJeFeld,
   type VerbundFelder,

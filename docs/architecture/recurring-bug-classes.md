@@ -278,3 +278,24 @@ Positivbeispielen: [prompt-audit-2026-07.md](../_archiv/prompt-audit-2026-07.md)
 
 **Kanonische Dateien:** [engine.ts](../../src/core/services/csv/filter/engine.ts) (`normWert`, `multi_select`), [phaseQuickfilter.ts](../../src/plugins/antraege/filter/phaseQuickfilter.ts) (`getPhaseItems` / `applyPhase`), [trefferZahl.ts](../../src/plugins/antraege/trefferZahl.ts), [phaseQuickfilter.test.ts](../../src/plugins/antraege/filter/__tests__/phaseQuickfilter.test.ts), [statusQuickChips.ts](../../src/plugins/antraege/filter/statusQuickChips.ts) (`chipStatusValues`), [snapshot.ts](../../src/core/status/snapshot.ts) (`mitAmtlichenSchreibweisen`), [schreibweisen-fremddaten.test.ts](../../src/core/status/__tests__/schreibweisen-fremddaten.test.ts).
 
+---
+
+## 16. Eine Team-Sidecar, mehrere Schreiber — der Verlust meldet sich nicht
+
+**Symptom:** Zwei Personen pflegen dieselbe Sidecar. Beide speichern, beide sehen einen Erfolg. Später fehlt die Arbeit der einen — nicht nur überschrieben, sondern **ohne Rückweg**, weil sie auch aus der Historie der Datei verschwunden ist. Beim nächsten Start holt der Verlierer den fremden Stand und überschreibt seinen eigenen gleich mit.
+
+**Root-Cause:** Eine Sidecar, die *den ganzen Stand* schreibt, ist für einen Schreiber gebaut. Der Schreibvorgang liest die Datei nicht, bevor er sie ersetzt; abgeleitete Größen (die nächste Versionsnummer, ein Zähler) entstehen aus dem **lokalen** Stand und kollidieren deshalb. Gemessen am Status-Katalog (v2.409): zwischen dem Startup-Abgleich und dem Schreiben lag eine **ganze Sitzung**, in der der Share nie wieder gelesen wurde.
+
+**Fix-Pattern — drei Bauformen, je nach Datenart:**
+- **Datei je Autor**, wo jeder nur eigene Zeilen beiträgt (Klärungen, Pitfall #49). `appendToFile` ist read-modify-write: auf einer gemeinsamen Datei verliert ein gleichzeitiger Schreiber seine Zeile, während der Aufruf `true` meldet.
+- **Optimistische Sperre**, wo ein Lauf idempotent wiederholbar ist (Journal, Pitfall #48): Marke am Stand mitführen, unmittelbar vor dem Schreiben erneut lesen, bei Bewegung sauber benannt abbrechen (`art: 'kollision'`) statt zu werfen.
+- **Read-before-write + Vereinigung der LISTE**, wo eine kuratierte Historie in einer Datei liegt (Status-Katalog, v2.409): fremde Einträge, die der lokale Cache nicht kennt, vor dem Schreiben übernehmen — **auch dann, wenn der Konflikt bewusst übergangen wird**. Das allein beseitigt den Verlust des Rückwegs.
+
+**Und quer über alle drei:**
+- **Abgeleitete Nummern nach der Vereinigung ziehen**, nie davor. Eine Nummer aus dem lokalen Maximum ist im Mehrbenutzerfall keine Nummer, sondern eine Wette.
+- **Inhalte werden nie automatisch gemischt.** Vereinigt wird die Liste, nie der Eintrag — sonst entsteht ein Stand, den niemand beschlossen hat.
+- **Der Konflikt gehört vor den Menschen, mit Namen und Zeitpunkt.** Stilles Blockieren ist so schlecht wie stilles Überschreiben; „später entscheiden" braucht einen sichtbaren Rest-Hinweis, sonst hält der Nutzer die Arbeit für veröffentlicht.
+- **Nachsehen kostet Bytes, nicht Megabyte.** Steht die entscheidende Angabe im Kopf der Datei, reicht ein Prefix-Lesepfad (`readTextPrefix` → `leseSidecarKopf`): 4 KB statt 2,9 MB — billig genug für die späte Nachprüfung vor dem Schreiben **und** für eine Frühwarnung beim Fensterfokus. Kein Intervall: mehrere Clients, die ein SMB-Verzeichnis pollen, sind ein schlechter Nachbar.
+
+**Kanonische Dateien:** [katalog-konflikt.ts](../../src/core/status/katalog-konflikt.ts) (`planeVereinigung`, `findeKonflikt`, `leseNummerAusKopf`), [katalog-share.ts](../../src/core/status/katalog-share.ts) (`schreibeKatalogAufShare`, `vereinigeMitShare`, `umnummeriereEigeneFassung`), [journal/lauf.ts](../../src/core/status/journal/lauf.ts) (optimistische Sperre), [klaerung-share.ts](../../src/plugins/zu-klaeren/klaerung-share.ts) (Datei je Autor), [sidecar-datei.ts](../../src/core/status/sidecar-datei.ts) (`leseSidecarKopf`).
+

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.409 — 2026-08
+
+### Verbesserungen
+- Den **Status-Katalog** pflegen jetzt mehrere Personen. Damit dabei niemandem Arbeit verlorengeht, sieht die App vor dem Veröffentlichen nach, was inzwischen auf dem Daten-Ordner liegt. Fassungen von Kolleginnen und Kollegen, die dieser Rechner noch nicht kennt, wandern dabei in die Fassungsliste — sie gehen nie verloren.
+- Hat jemand anderes zwischenzeitlich veröffentlicht, wird **nichts überschrieben**: eine Meldung nennt Nummer, Kürzel und Zeitpunkt der fremden Fassung, und man entscheidet selbst — die fremde laden oder die eigene trotzdem veröffentlichen. In beiden Fällen bleiben beide Fassungen erhalten und sind wieder ladbar. Zusammengeführt wird nie automatisch.
+- Die eigene Arbeit ist zu diesem Zeitpunkt bereits gespeichert; offen ist nur die Veröffentlichung. Steht die Entscheidung noch aus, sagt das ein Hinweis im Seitenkopf.
+- Kommt man ins Fenster zurück und es liegt eine neuere Fassung vor, steht auch das im Seitenkopf — mit einem Knopf zum Laden. Umgeschaltet wird nie von allein.
+
 ## v2.407 — 2026-08
 
 ### Neu

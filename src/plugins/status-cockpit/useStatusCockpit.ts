@@ -43,13 +43,24 @@ import {
   type TriggerStand, type VorgangssystemLuecke,
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
-  wertId, schreibeKatalogAufShare,
+  wertId, schreibeKatalogAufShare, vereinigeMitShare, leseKatalogVomShare, leseKatalogNummer,
+  synchronisiereKatalogVomShare, umnummeriereEigeneFassung, zaehleAbweichungen,
+  type KatalogKonflikt, type StatusKatalogDatei,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag,
   type StatusKategorie, type UnkuratierterFund, type VerbundFelder,
   type StatusCodeEintrag, type TriggerZeile,
   type TodoRegel, type TextbausteinEintrag,
   type Bedingung, type PlatzhalterGruppe, type Rolle,
 } from '@/core/status';
+
+/** Der Konflikt, wie ihn die Oberfläche braucht: wer, wie weit, und was von mir. */
+export interface KatalogKonfliktStand {
+  konflikt: KatalogKonflikt;
+  /** Wie viele Einträge die fremde Fassung anders führt als die eigene. */
+  abweichungen: number;
+  /** Nummer der eigenen, lokal bereits festgeschriebenen Fassung. */
+  eigene: number | null;
+}
 
 export interface StatusCockpitApi {
   laden: boolean;
@@ -85,6 +96,26 @@ export interface StatusCockpitApi {
   nurLokal: boolean;
   /** Zweiter Anlauf für den Share-Write nach `nurLokal`. */
   erneutAufShare: () => Promise<void>;
+  /**
+   * Jemand anderes hat veröffentlicht, während dieser Entwurf entstand. Die
+   * eigene Arbeit ist lokal bereits festgeschrieben — offen ist nur die
+   * Veröffentlichung. Bleibt stehen, bis einer der beiden Wege gewählt wurde.
+   */
+  konflikt: KatalogKonfliktStand | null;
+  /** Ob der Konflikt gerade als Dialog vor dem Nutzer steht. */
+  konfliktOffen: boolean;
+  konfliktOeffnen: () => void;
+  konfliktSchliessen: () => void;
+  /** Eigene Fassung veröffentlichen; die fremde bleibt in der Datei. */
+  trotzdemVeroeffentlichen: () => Promise<void>;
+  /** Die fremde Fassung aktivieren; die eigene bleibt in der Fassungsliste. */
+  fremdeFassungLaden: () => Promise<void>;
+  /**
+   * Frühwarnung: beim Zurückkommen ins Fenster lag auf dem Share eine neuere
+   * aktive Fassung als die, auf der dieser Entwurf beruht. Kein automatisches
+   * Umschalten — der Mensch entscheidet, wann er nachzieht.
+   */
+  neueFassungAufShare: number | null;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
   setFeld: (feldId: string, patch: Partial<StatusFeldEintrag>) => void;
   setKategorie: (id: string, patch: Partial<StatusKategorie>) => void;
@@ -271,6 +302,19 @@ export function useStatusCockpit(): StatusCockpitApi {
   const [speichernBusy, setSpeichernBusy] = useState(false);
   const [speichernFehler, setSpeichernFehler] = useState<string | null>(null);
   const [nurLokal, setNurLokal] = useState(false);
+  const [konflikt, setKonflikt] = useState<KatalogKonfliktStand | null>(null);
+  const [konfliktOffen, setKonfliktOffen] = useState(false);
+  const [neueFassungAufShare, setNeueFassungAufShare] = useState<number | null>(null);
+  /**
+   * Die Fassung, auf der dieser Entwurf beruht — die Grundlage der
+   * Konfliktprüfung. Sie beantwortet „welchen Team-Stand kenne ich", nicht
+   * „welchen Inhalt bearbeite ich": beim Reaktivieren einer alten Fassung wird
+   * sie deshalb NICHT gesenkt, sonst meldete das Speichern einen Konflikt gegen
+   * die eigene, längst veröffentlichte Fassung.
+   */
+  const basisRef = useRef<number | null>(null);
+  /** Verhindert überlappende Frühwarn-Lesevorgänge bei schnellen Fokuswechseln. */
+  const fruehwarnungLaeuft = useRef(false);
   // Eigene Sidecar, eigener Zustand — die Trigger reisen NICHT in der
   // Katalog-Fassung mit (`trigger-share.ts` erklärt, warum).
   const [trigger, setTrigger] = useState<TriggerStand>({ datei: null, herkunft: 'leer' });
@@ -350,6 +394,11 @@ export function useStatusCockpit(): StatusCockpitApi {
         ladeTrigger(idb),
       ]);
       setTrigger(triggerStand);
+      // Der Snapshot folgt der geladenen Fassung. Beim Mount ist das ein No-op
+      // (`initStatusKatalog` hat ihn gesetzt); nach dem Übernehmen einer fremden
+      // Fassung ist es die Stelle, an der `getStatusCategory` nachzieht.
+      setStatusKatalogSnapshot(version);
+      basisRef.current = version.version;
       setAktiveVersion(version);
       setEntwurf(version);
       setVersionen(alleVersionen);
@@ -394,11 +443,41 @@ export function useStatusCockpit(): StatusCockpitApi {
     [entwurf],
   );
 
+  /**
+   * Den Konflikt für die Oberfläche aufbereiten: die fremde Fassung aus der
+   * Share-Datei nachschlagen (Autor, Zeitpunkt) und ausrechnen, wie weit sie von
+   * der eigenen entfernt ist. `datei` wird durchgereicht, wo sie schon gelesen
+   * wurde — sonst kostet der seltene Fall ein Volllesen.
+   */
+  const meldeKonflikt = useCallback(async (
+    roh: KatalogKonflikt, eigene: MappingVersion | null, datei: StatusKatalogDatei | null,
+  ): Promise<void> => {
+    const quelle = datei ?? await leseKatalogVomShare(idb);
+    const fremd = quelle?.fassungen.find(f => f.version === roh.fremde.version) ?? null;
+    setKonflikt({
+      konflikt: fremd
+        ? { ...roh, fremde: { version: fremd.version, autor: fremd.autor, zeitstempel: fremd.zeitstempel } }
+        : roh,
+      abweichungen: eigene && fremd ? zaehleAbweichungen(eigene, fremd) : 0,
+      eigene: eigene?.version ?? null,
+    });
+    setKonfliktOffen(true);
+    setNurLokal(false);
+    setNeueFassungAufShare(null);
+  }, [idb]);
+
   const speichern = useCallback(async (kommentar: string): Promise<void> => {
     if (!entwurf) return;
     setSpeichernBusy(true);
     setSpeichernFehler(null);
     try {
+      // Vorschritt: was der Share an unbekannten Fassungen führt, kommt VOR der
+      // Nummernvergabe in den lokalen Cache. Sonst vergäben zwei Rechner mit
+      // demselben Startstand dieselbe Nummer. Der gelesene Stand wird
+      // weitergereicht, statt die Datei gleich noch einmal zu holen.
+      const { datei } = await vereinigeMitShare(idb);
+      const basisVorher = basisRef.current;
+
       const nr = await naechsteVersionsnummer(idb);
       const neu: MappingVersion = {
         ...entwurf,
@@ -409,38 +488,132 @@ export function useStatusCockpit(): StatusCockpitApi {
       };
       // Erst lokal festschreiben, dann für das Team veröffentlichen. Diese
       // Reihenfolge ist Absicht: schlägt der Share-Write fehl (offline, kein
-      // Schreibrecht), ist die Arbeit trotzdem nicht verloren — sie gilt nur
-      // noch nicht team-weit, und genau das meldet `nurLokal`.
+      // Schreibrecht, Konflikt), ist die Arbeit trotzdem nicht verloren — sie
+      // gilt nur noch nicht team-weit.
       await speichereVersion(idb, neu);
       await setzeAktiv(idb, nr);
       setStatusKatalogSnapshot(neu);
       setAktiveVersion(neu);
       setEntwurf(neu);
       setVersionen(await listeVersionen(idb));
-      setNurLokal(!(await schreibeKatalogAufShare(idb)));
+      basisRef.current = nr;
+
+      const ergebnis = await schreibeKatalogAufShare(idb, { basisVersion: basisVorher, stand: datei });
+      if (ergebnis.art === 'konflikt') {
+        await meldeKonflikt(ergebnis.konflikt, neu, datei);
+        return;
+      }
+      setKonflikt(null);
+      setKonfliktOffen(false);
+      setNeueFassungAufShare(null);
+      setNurLokal(ergebnis.art === 'nur-lokal');
     } catch (e) {
       setSpeichernFehler((e as Error).message ?? 'Speichern fehlgeschlagen.');
       throw e;
     } finally {
       setSpeichernBusy(false);
     }
-  }, [entwurf, idb, kuerzel]);
+  }, [entwurf, idb, kuerzel, meldeKonflikt]);
 
   const erneutAufShare = useCallback(async (): Promise<void> => {
     setSpeichernFehler(null);
-    const ok = await schreibeKatalogAufShare(idb);
-    setNurLokal(!ok);
-    if (!ok) {
+    const ergebnis = await schreibeKatalogAufShare(idb, { basisVersion: basisRef.current });
+    if (ergebnis.art === 'konflikt') {
+      await meldeKonflikt(ergebnis.konflikt, aktiveVersion, null);
+      return;
+    }
+    setNurLokal(ergebnis.art === 'nur-lokal');
+    if (ergebnis.art === 'nur-lokal') {
       setSpeichernFehler(
         'Der Katalog konnte nicht auf den Daten-Share geschrieben werden. '
         + 'Ist der Share verbunden und besteht Schreibberechtigung?',
       );
     }
+  }, [idb, aktiveVersion, meldeKonflikt]);
+
+  /**
+   * Der seltene Rest: dieselbe Nummer trägt hier und dort verschiedene
+   * Fassungen. Die eigene wandert auf die nächste freie Nummer, die fremde
+   * bekommt ihre zurück — beide bleiben erhalten. Ohne diesen Schritt fiele eine
+   * von beiden aus der Datei, egal welchen Weg der Mensch wählt.
+   */
+  const loeseNummernKollision = useCallback(async (
+    stand: KatalogKonfliktStand,
+  ): Promise<void> => {
+    if (stand.konflikt.grund !== 'nummern-kollision') return;
+    const datei = await leseKatalogVomShare(idb);
+    const fremd = datei?.fassungen.find(f => f.version === stand.konflikt.fremde.version);
+    if (!fremd) return;
+    const neueNr = await umnummeriereEigeneFassung(idb, fremd.version, fremd);
+    if (neueNr == null) return;
+    const umbenannt = await getVersion(idb, neueNr);
+    if (umbenannt) {
+      setStatusKatalogSnapshot(umbenannt);
+      setAktiveVersion(umbenannt);
+      setEntwurf(umbenannt);
+    }
+    basisRef.current = neueNr;
+    setVersionen(await listeVersionen(idb));
+  }, [idb]);
+
+  const trotzdemVeroeffentlichen = useCallback(async (): Promise<void> => {
+    if (!konflikt) return;
+    setSpeichernFehler(null);
+    await loeseNummernKollision(konflikt);
+    const ergebnis = await schreibeKatalogAufShare(idb, { basisVersion: basisRef.current });
+    if (ergebnis.art === 'konflikt') {
+      await meldeKonflikt(ergebnis.konflikt, aktiveVersion, null);
+      return;
+    }
+    setKonflikt(null);
+    setKonfliktOffen(false);
+    setNurLokal(ergebnis.art === 'nur-lokal');
+  }, [idb, konflikt, aktiveVersion, loeseNummernKollision, meldeKonflikt]);
+
+  const fremdeFassungLaden = useCallback(async (): Promise<void> => {
+    setSpeichernFehler(null);
+    // Erst die eigene Fassung aus der Schusslinie nehmen, dann den Share
+    // übernehmen: `uebernehmeKatalogVomShare` überschreibt gleichnummerige
+    // Fassungen, und verworfen heißt hier „nicht aktiv", nicht „weg".
+    if (konflikt) await loeseNummernKollision(konflikt);
+    await synchronisiereKatalogVomShare(idb);
+    await ladeAlles();
+    setKonflikt(null);
+    setKonfliktOffen(false);
+    setNeueFassungAufShare(null);
+    setNurLokal(false);
+  }, [idb, konflikt, loeseNummernKollision, ladeAlles]);
+
+  // Neu nachgesehen wird beim Zurückkommen ins Fenster — und sonst nur, wenn
+  // gespeichert wird. Kein Intervall: mehrere Clients, die ein SMB-Verzeichnis
+  // pollen, sind ein schlechter Nachbar. Gelesen werden 4 KB Dateikopf, nicht
+  // die ~2,9 MB dahinter.
+  useEffect(() => {
+    const beiRueckkehr = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      if (fruehwarnungLaeuft.current) return;
+      fruehwarnungLaeuft.current = true;
+      void leseKatalogNummer(idb)
+        .then(nr => {
+          const basis = basisRef.current;
+          setNeueFassungAufShare(nr != null && basis != null && nr > basis ? nr : null);
+        })
+        .catch((err: unknown) => { console.warn('[status-cockpit] Frühwarnung fehlgeschlagen:', err); })
+        .finally(() => { fruehwarnungLaeuft.current = false; });
+    };
+    document.addEventListener('visibilitychange', beiRueckkehr);
+    window.addEventListener('focus', beiRueckkehr);
+    return () => {
+      document.removeEventListener('visibilitychange', beiRueckkehr);
+      window.removeEventListener('focus', beiRueckkehr);
+    };
   }, [idb]);
 
   const reaktivieren = useCallback(async (version: number): Promise<void> => {
     const alt = await getVersion(idb, version);
     if (!alt) return;
+    // `basisRef` bleibt, wo sie ist: welche Fassung als Entwurf dient, ändert
+    // nichts daran, welchen Team-Stand dieses Fenster kennt.
     setEntwurf({ ...alt });
   }, [idb]);
 
@@ -707,6 +880,10 @@ export function useStatusCockpit(): StatusCockpitApi {
     verbundFelder: bestand?.verbundFelder ?? [],
     stichtag: heuteRef.current,
     geaendert, speichernBusy, speichernFehler, nurLokal, erneutAufShare,
+    konflikt, konfliktOffen,
+    konfliktOeffnen: () => setKonfliktOffen(true),
+    konfliktSchliessen: () => setKonfliktOffen(false),
+    trotzdemVeroeffentlichen, fremdeFassungLaden, neueFassungAufShare,
     setWert, setFeld, setKategorie, addKategorie, removeKategorie,
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,

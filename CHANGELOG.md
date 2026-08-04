@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.409.0 — Konfliktschutz beim Veröffentlichen der Katalog-Fassung (August 2026)
+
+MINOR — Der Katalog wird ab sofort von mehreren PL-Personen asynchron gepflegt; der Schreibweg war für einen Schreiber gebaut. `naechsteVersionsnummer` zählte die lokale Liste hoch und `schreibeKatalogAufShare` ersetzte die Datei damit — die fremde Fassung war überschrieben UND aus der Historie verschwunden, ohne Meldung. Detail: [status-system/README.md](docs/status-system/README.md) + [recurring-bug-classes.md §16](docs/architecture/recurring-bug-classes.md).
+
+- **Read-before-write mit Vereinigung der Fassungsliste** — fremde Fassungen kommen vor dem Schreiben in den Cache, auch wenn der Konflikt bewusst übergangen wird; Inhalte werden nie gemischt ([katalog-konflikt.ts](src/core/status/katalog-konflikt.ts))
+- **Optimistisch geprüft wie im Journal**: `aktiv > basisVersion` plus Nummern-Kollision, nachgeprüft unmittelbar vor dem Schreiben ([katalog-share.ts](src/core/status/katalog-share.ts))
+- **Konflikt kommt vor den Menschen** — Nummer, Autor, Zeitpunkt, Zahl abweichender Einträge, zwei Wege; beide lassen beide Fassungen in der Datei ([KatalogKonfliktDialog.tsx](src/plugins/status-cockpit/KatalogKonfliktDialog.tsx))
+- **Frühwarnung beim Fensterfokus** aus 4 KB Dateikopf statt 2,9 MB, kein Polling, kein automatisches Umschalten ([sidecar-datei.ts](src/core/status/sidecar-datei.ts))
+- Reißleine für Kontext-Docs 10000 → 20000 Zeichen: `status-cockpit.md` stand bei 9992 an der Wand ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
+
 ### v2.408.0 — Phasenvorschlag für Kürzel aus Trigger-Tabelle und Auslieferung (August 2026)
 
 MINOR — Kein einziges der 508 Kürzel trug eine ZAH-Phase, also lieferte `bestimmeSeit` für den gesamten Bestand `null` — die „seit"-Zeile der Status-Erklärung war tot. 508 Zuordnungen von Hand sind keine Option; Trigger-Tabelle und Auslieferung wissen es bereits. Detail: [vorgangssystem.md §13](docs/architecture/vorgangssystem.md).
