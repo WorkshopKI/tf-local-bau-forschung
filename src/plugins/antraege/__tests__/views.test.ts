@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { getView, viewCount, type ViewKey } from '../views';
+import { getView, viewCount, viewCounts, type ViewKey } from '../views';
 import { parseBearbeiterFilter } from '../bearbeiterFilter';
 import { REAL_CSV_ANTRAEGE, TEST_TODAY } from './fixtures/real-csv-antraege';
+import { isOpenStatus } from '@/core/utils/status-canonical';
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -11,10 +12,13 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
-/** Erwartete Counts pro View gegen die CSV-Rohwert-Fixture. */
+/** Erwartete Counts pro View gegen die CSV-Rohwert-Fixture.
+ *  Die Fixture führt 3× „VN geprüft" (Kategorie begleitung); eine davon
+ *  (REAL-014) ist zugleich Irrläufer (vb_phase=9). Antragsphase = offen ohne
+ *  Begleitung: 11 − 2 = 9 bzw. 13 − 3 = 10. */
 const EXPECTED: Record<ViewKey, { withPreFilter: number; withoutPreFilter: number }> = {
-  // 11 offene (ohne Irrlaeufer) bzw. 13 (mit)
-  meine_offenen: { withPreFilter: 11, withoutPreFilter: 13 },
+  meine_offenen: { withPreFilter: 9, withoutPreFilter: 10 },
+  begleitung: { withPreFilter: 2, withoutPreFilter: 3 },
   // SLA-basiert: diese_woche_faellig = #(offen ∧ daysSinceEingang ∈ [84, 90]),
   // ueberfaellig = #(offen ∧ daysSinceEingang > 90). Fixture: REAL-006
   // ist 87d (SLA-Risk diese Woche), REAL-004 ist 131d (ueberfaellig).
@@ -79,12 +83,16 @@ describe('viewCount — der Profil-Haken blendet nichts mehr aus', () => {
   it('includeBegleitung=false zählt Begleitung genauso mit wie true', () => {
     const aus = parseBearbeiterFilter('alle', false);
     const an = parseBearbeiterFilter('alle', true);
-    expect(viewCount('meine_offenen', data, aus, true)).toBe(2);
-    expect(viewCount('meine_offenen', data, an, true)).toBe(2);
+    expect(viewCount('meine_offenen', data, aus, true)).toBe(1);
+    expect(viewCount('meine_offenen', data, an, true)).toBe(1);
   });
 
   it('ohne bearbeiter-Mode identisch', () => {
-    expect(viewCount('meine_offenen', data, undefined, true)).toBe(2);
+    expect(viewCount('meine_offenen', data, undefined, true)).toBe(1);
+  });
+
+  it('begleitung zählt den Begleitphase-Datensatz, unabhängig vom Profil-Haken', () => {
+    expect(viewCount('begleitung', data, undefined, true)).toBe(1);
   });
 });
 
@@ -94,5 +102,32 @@ describe('getView — Fallback', () => {
   });
   it('liefert Fallback bei unbekanntem Key', () => {
     expect(getView('fantasie' as ViewKey).key).toBe('alle');
+  });
+});
+
+describe('Antragsphase und Begleitung teilen isOpenStatus auf', () => {
+  const antragsphase = getView('meine_offenen');
+  const begleitung = getView('begleitung');
+
+  it('sind disjunkt', () => {
+    const doppelt = REAL_CSV_ANTRAEGE.filter(
+      a => antragsphase.predicate(a) && begleitung.predicate(a),
+    );
+    expect(doppelt).toEqual([]);
+  });
+
+  it('ergeben zusammen genau isOpenStatus', () => {
+    const zusammen = REAL_CSV_ANTRAEGE.filter(
+      a => antragsphase.predicate(a) || begleitung.predicate(a),
+    ).length;
+    const offen = REAL_CSV_ANTRAEGE.filter(a => isOpenStatus(a.status)).length;
+    expect(zusammen).toBe(offen);
+  });
+
+  it('viewCounts stimmt je Sicht mit viewCount überein', () => {
+    const counts = viewCounts([...REAL_CSV_ANTRAEGE], undefined, true);
+    for (const key of Object.keys(EXPECTED) as ViewKey[]) {
+      expect(counts[key]).toBe(viewCount(key, [...REAL_CSV_ANTRAEGE], undefined, true));
+    }
   });
 });

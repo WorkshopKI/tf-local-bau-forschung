@@ -125,6 +125,10 @@ export const SORT_OPTIONS: readonly SortOption[] = [
 
 export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
   meine_offenen: 'frist_asc',
+  // `frist_asc` ist hier richtig, obwohl die Begleitung eine andere Uhr hat:
+  // `computeFristDatum` schreibt in `frist_datum` bereits die VN-Frist
+  // (vn_eingang_datum + 6 Monate). Die Sortierung liest das fertige Feld.
+  begleitung: 'frist_asc',
   diese_woche_faellig: 'frist_asc',
   ueberfaellig: 'frist_asc',
   bewilligt_jahr: 'bewilligung_desc',
@@ -182,6 +186,7 @@ export const GROUPING_OPTIONS: readonly GroupingOption[] = [
  *  fallen alle Views auf `none` zurück — explizit und vorhersagbar. */
 export const DEFAULT_GROUPING_BY_VIEW: Record<ViewKey, GroupingMode> = {
   meine_offenen: 'none',
+  begleitung: 'none',
   diese_woche_faellig: 'none',
   ueberfaellig: 'none',
   bewilligt_jahr: 'none',

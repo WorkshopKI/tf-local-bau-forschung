@@ -10,6 +10,7 @@ import { daysSinceEingang } from './eingangAmpel';
 
 export type ViewKey =
   | 'meine_offenen'
+  | 'begleitung'
   | 'diese_woche_faellig'
   | 'ueberfaellig'
   | 'bewilligt_jahr'
@@ -44,9 +45,21 @@ export interface AntragView {
 
 export const VIEWS: AntragView[] = [
   {
+    // Der Schlüssel bleibt `meine_offenen`: daran hängen die persistierte
+    // Sicht, die Sortier-Vorlieben und die Sprünge von der Startseite.
+    // Antragsphase = Eingang bis Bewilligung (ca. 3–9 Monate, TIB/BIB).
     key: 'meine_offenen',
-    label: 'Offen',
-    predicate: a => isOpenStatus(a.status),
+    label: 'Antragsphase',
+    predicate: a => isOpenStatus(a.status) && !isBegleitungStatus(a.status),
+  },
+  {
+    // Begleitphase = nach der Bewilligung, während der Antragsteller umsetzt
+    // (3–4 Jahre, ZTP/PFM). Eigene Uhr: `computeFristDatum` rechnet hier ab
+    // vn_eingang_datum + 6 Monate statt antragsdatum + 90 Tage. Beide Uhren in
+    // einer Zahl zu addieren ergibt kein Arbeitssignal.
+    key: 'begleitung',
+    label: 'Begleitung',
+    predicate: a => isBegleitungStatus(a.status),
   },
   {
     // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) erreicht diese Woche.
@@ -123,7 +136,7 @@ export function viewCount(
 
 /**
  * Single-Pass-Variante: berechnet die Counts fuer ALLE Views in einem Loop
- * ueber die Antraege. Im Header laufen sonst 5 separate `viewCount`-Aufrufe
+ * ueber die Antraege. Im Header laufen sonst 6 separate `viewCount`-Aufrufe
  * mit jeweils einer Allokation pro Antrag (`new Date()` in `daysSinceEingang`,
  * `Number(d.slice(0,4))` in `yearOfBewilligung`). Bei 13k Antraegen spart
  * das ~65k Predicate-Calls auf ~13k mit gemeinsamen Zwischenwerten.
@@ -138,6 +151,7 @@ export function viewCounts(
 ): Record<ViewKey, number> {
   const counts: Record<ViewKey, number> = {
     meine_offenen: 0,
+    begleitung: 0,
     diese_woche_faellig: 0,
     ueberfaellig: 0,
     bewilligt_jahr: 0,
@@ -151,9 +165,11 @@ export function viewCounts(
     counts.alle++;
 
     const open = isOpenStatus(a.status);
-    if (open) counts.meine_offenen++;
+    const begl = isBegleitungStatus(a.status);
+    if (open && !begl) counts.meine_offenen++;
+    if (begl) counts.begleitung++;
 
-    if (open && !isBegleitungStatus(a.status)) {
+    if (open && !begl) {
       const d = daysSinceEingang(a);
       if (d !== null) {
         if (d >= 84 && d <= 90) counts.diese_woche_faellig++;
