@@ -23,12 +23,14 @@
  */
 
 import { useMemo, useState } from 'react';
-import { BookOpen, Compass, HelpCircle, MessageSquarePlus } from 'lucide-react';
+import { BookOpen, Compass, HelpCircle, MessageSquarePlus, PanelRight } from 'lucide-react';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getSeitenHilfe } from '@/core/services/feedback/screenContext';
+import { oeffneHilfeFenster } from '@/components/help/hilfeFenster';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useUeberAppDialog } from '@/core/components/changelog/useUeberAppDialog';
 // Direkt am Quellmodul statt am Feedback-Barrel: das Barrel zieht `FeedbackPanel`
@@ -38,6 +40,11 @@ import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 
 /** `FeedbackItem.title` ist auf 90 Zeichen begrenzt (siehe FeedbackInputStep). */
 const MAX_TITEL = 90;
+
+const FENSTER_DETAIL =
+  'Öffnet dieselbe Anleitung als eigenes Fenster, das Sie neben die App stellen können — ' +
+  'so lesen Sie mit und probieren die Schritte direkt aus, statt den Dialog dafür zu ' +
+  'schließen. Das Fenster läuft beim Seitenwechsel mit und lässt sich festhalten.';
 
 const TOUR_DETAIL =
   'Die Einführungs-Tour zeigt den Rahmen der App — Startseite, Navigation, Suche, ' +
@@ -51,6 +58,7 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
   const tour = useTourContext();
   const ueberAppOeffnen = useUeberAppDialog(s => s.openDialog);
   const [offen, setOffen] = useState(false);
+  const [fensterBlockiert, setFensterBlockiert] = useState(false);
 
   // Hooks stehen VOR dem Early-Return — sonst kippt die Hook-Reihenfolge (React #310).
   if (hilfe === null) return null;
@@ -81,6 +89,21 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
   const tourStarten = (): void => {
     setOffen(false);
     tour.start();
+  };
+
+  /**
+   * SYNCHRON — kein `await`, kein `useAsyncAction`: `window.open` überlebt nur
+   * innerhalb der User-Geste, alles danach fängt der Popup-Blocker (vgl.
+   * services/ai/connect-ki.ts). Blockiert der Browser trotzdem, bleibt der
+   * Dialog offen und sagt es; der Nutzer verliert den Text nicht.
+   */
+  const fensterOeffnen = (): void => {
+    if (oeffneHilfeFenster(pluginId, titel)) {
+      setFensterBlockiert(false);
+      setOffen(false);
+      return;
+    }
+    setFensterBlockiert(true);
   };
 
   return (
@@ -119,6 +142,11 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
         className="h-[92vh]"
         headerActions={
           <>
+            <Tooltip text={FENSTER_DETAIL} maxWidth={340} wrapperClassName="flex items-center">
+              <Button variant="ghost" size="sm" icon={PanelRight} onClick={fensterOeffnen}>
+                Eigenes Fenster
+              </Button>
+            </Tooltip>
             {/* Der Erklärtext hängt am Knopf selbst statt an einem ⓘ daneben: das
                 Icon war ein zweites Ziel für dieselbe Auskunft und hat die Zeile
                 nur verlängert. */}
@@ -147,6 +175,14 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
           </div>
         }
       >
+        {fensterBlockiert && (
+          <Alert variant="warning" className="mb-3">
+            Der Browser hat das eigene Fenster blockiert. Rechts in der Adressleiste
+            erscheint ein Symbol für blockierte Pop-ups — dort „Pop-ups von dieser Seite
+            immer zulassen" wählen und erneut klicken. Bis dahin bleibt die Anleitung hier
+            im Dialog lesbar.
+          </Alert>
+        )}
         <MarkdownRenderer content={hilfe.markdown} />
       </Dialog>
     </>

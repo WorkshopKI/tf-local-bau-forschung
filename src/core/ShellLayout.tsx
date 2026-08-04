@@ -45,6 +45,7 @@ import { ProgrammSwitcher } from '@/core/components/ProgrammSwitcher';
 import { FooterSettingsButton } from '@/core/components/FooterSettingsButton';
 import { UeberDieAppDialog } from '@/core/components/changelog/UeberDieAppDialog';
 import { useUeberAppDialog } from '@/core/components/changelog/useUeberAppDialog';
+import { useHilfeFensterFolgt } from '@/components/help/useHilfeFensterFolgt';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
@@ -130,6 +131,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const activeId = routeToPluginId(location.pathname) ?? 'home';
   const ueberAppOffen = useUeberAppDialog(s => s.open);
   const ueberAppSchliessen = useUeberAppDialog(s => s.close);
+  // Ein Mount für die ganze App: das Hilfe-Fenster (falls offen) folgt der Seite.
+  // Im SeitenHilfeButton ginge das nicht — der rendert `null`, wo ein Doc fehlt.
+  useHilfeFensterFolgt();
   // Die BEWUSSTE Wahl des Nutzers — der einzige Wert, der persistiert wird.
   const [nutzerModus, setNutzerModus] = useState<SidebarModus>(loadSidebarModus);
   const [isMobile, setIsMobile] = useState(false);
