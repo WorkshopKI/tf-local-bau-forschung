@@ -89,9 +89,14 @@ export function HomePage(): React.ReactElement {
 
   // Hero-Alert-Chips öffnen dieselbe gefilterte Liste wie das Antragseingang-
   // Widget (setActiveView setzt zurück → danach Quickfilter setzen).
+  //
+  // Ziel ist „Alle", nicht „Antragsphase": die Ampel zählt jeden noch offenen
+  // Antrag mit Eingangsdatum, ausdrücklich auch Begleit-Stati ohne
+  // Bewilligungsdatum (`eingangAmpel.ts`). Landete der Klick in der
+  // Antragsphase, nennte der Chip mehr Anträge, als die Liste danach zeigt.
   const openBucket = (bucket: AmpelBucket): void => {
     const store = useAntraegeStore.getState();
-    store.setActiveView('meine_offenen');
+    store.setActiveView('alle');
     store.setAmpelQuickfilter({ bucket, schwellen });
     navigate('antraege');
   };

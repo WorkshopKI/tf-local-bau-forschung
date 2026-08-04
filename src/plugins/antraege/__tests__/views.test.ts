@@ -74,7 +74,7 @@ describe('Bearbeiter-Filter', () => {
 
 describe('viewCount — der Profil-Haken blendet nichts mehr aus', () => {
   // „vn geprüft" → Kategorie begleitung. isOpenStatus schließt Begleitung ein;
-  // die Sichtbarkeit hängt seit v2.402 an der Sicht, nicht am Profil-Haken.
+  // die Sichtbarkeit hängt seit v2.404 an der Sicht, nicht am Profil-Haken.
   const data = [
     { aktenzeichen: 'BEGLEIT-1', programm_id: 'P', status: 'vn geprüft', _updated_at: '2026-01-01T00:00:00Z' },
     { aktenzeichen: 'OFFEN-1', programm_id: 'P', status: 'techn geprüft', _updated_at: '2026-01-01T00:00:00Z' },
@@ -129,5 +129,36 @@ describe('Antragsphase und Begleitung teilen isOpenStatus auf', () => {
     for (const key of Object.keys(EXPECTED) as ViewKey[]) {
       expect(counts[key]).toBe(viewCount(key, [...REAL_CSV_ANTRAEGE], undefined, true));
     }
+  });
+});
+
+describe('Die SLA-Sichten rechnen die Antragsphase, nie die Begleitung', () => {
+  // Eigene Daten statt der Fixture: deren Begleit-Datensätze sind gegen
+  // TEST_TODAY (2026-05-12) 20 bzw. 41 Tage alt und fielen damit ohnehin aus
+  // beiden Fenstern — ein wegfallender Guard bliebe unbemerkt. Hier ist je ein
+  // Begleit-Datensatz gebaut, der ohne den Guard sicher zählen WÜRDE.
+  const daten = [
+    // 131 Tage vor TEST_TODAY → über 90, also „überfällig"-Kandidat.
+    { aktenzeichen: 'B-ALT', programm_id: 'P', status: 'VN geprüft', antragsdatum: '2026-01-01', _updated_at: '2026-01-01T00:00:00Z' },
+    // 87 Tage vor TEST_TODAY → im Fenster [84, 90], also „Diese Woche"-Kandidat.
+    { aktenzeichen: 'B-FENSTER', programm_id: 'P', status: 'Widerruf', antragsdatum: '2026-02-14', _updated_at: '2026-01-01T00:00:00Z' },
+    // Gegenprobe aus der Antragsphase, damit der Test nicht nur Nullen prüft.
+    { aktenzeichen: 'A-ALT', programm_id: 'P', status: 'techn geprüft', antragsdatum: '2026-01-01', _updated_at: '2026-01-01T00:00:00Z' },
+  ] as never;
+
+  it('„Diese Woche" und „Überfällig" enthalten keine Begleitung', () => {
+    expect(viewCount('ueberfaellig', daten, undefined, true)).toBe(1);
+    expect(viewCount('diese_woche_faellig', daten, undefined, true)).toBe(0);
+  });
+
+  it('dieselben Datensätze zählen sehr wohl in der Sicht „Begleitung"', () => {
+    expect(viewCount('begleitung', daten, undefined, true)).toBe(2);
+  });
+
+  it('viewCounts zieht dieselbe Grenze wie viewCount', () => {
+    const counts = viewCounts(daten, undefined, true);
+    expect(counts.ueberfaellig).toBe(1);
+    expect(counts.diese_woche_faellig).toBe(0);
+    expect(counts.begleitung).toBe(2);
   });
 });

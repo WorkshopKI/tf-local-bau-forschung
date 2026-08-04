@@ -144,10 +144,12 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
   );
 
   // „+ N weitere →" / „Alle" — bestehendes store-getriebenes Muster (kein
-  // eigener Routen-Mechanismus): mit Preset in die Voll-Liste, sonst in die
-  // „Meine offenen"-View (deckungsgleiche Grundmengen-Semantik).
+  // eigener Routen-Mechanismus). Ziel ist immer die Voll-Liste: die Lanes
+  // binden an Status-Kategorien und dürfen eine `begleitung`-Lane führen,
+  // während `filtereKanbanGrundmenge` gar nicht nach Status filtert. In der
+  // Sicht „Antragsphase" fehlten genau diese Karten nach dem Klick.
   const openListe = (): void => {
-    useAntraegeStore.getState().setActiveView(presetZustand.preset ? 'alle' : 'meine_offenen');
+    useAntraegeStore.getState().setActiveView('alle');
     navigate('antraege');
   };
 

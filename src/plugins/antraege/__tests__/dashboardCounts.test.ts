@@ -11,7 +11,7 @@ describe('computeDashboardAggregate — Grund-Counts', () => {
     const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, {
       includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
-    // 18 = 20 minus 2 Irrlaeufer. Begleit-Stati zaehlen seit v2.402 mit.
+    // 18 = 20 minus 2 Irrlaeufer. Begleit-Stati zaehlen seit v2.404 mit.
     expect(agg.stats.total).toBe(18);
   });
   it('nachforderung zaehlt „NF gestellt"', () => {

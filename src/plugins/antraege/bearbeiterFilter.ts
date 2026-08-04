@@ -26,7 +26,7 @@ import type { Rolle } from '@/core/status';
  *
  * Er blendet NICHTS aus. Bis v2.401 tat er beides — und versteckte damit die
  * Begleitphase app-weit, weil er ab Werk aus steht. Sichtbarkeit macht seit
- * v2.402 die Sicht (`views.ts`).
+ * v2.404 die Sicht (`views.ts`).
  */
 
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];

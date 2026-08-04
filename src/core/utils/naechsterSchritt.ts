@@ -68,8 +68,11 @@ const SCHRITT_BY_STATUS: Record<string, NaechsterSchritt> = {
   beantragt: { phase: 'Eingang', aktion: 'Vollständigkeit prüfen' },
   bearbeitungsreif: { phase: 'Eingang', aktion: 'Vollständigkeit prüfen' },
   'NL eingegangen': { phase: 'Vollständigkeit', aktion: 'Nachlieferung prüfen' },
-  'VN geprüft': { phase: 'Fachprüfung', aktion: 'Gutachten beginnen' },
-  'VN techn. geprüft': { phase: 'Fachprüfung', aktion: 'Gutachten beginnen' },
+  // Die Begleitphase (VN-/ZB-Stati) steht bewusst NICHT in dieser Tabelle: ein
+  // geprüfter Verwendungsnachweis löst kein Gutachten aus, und der Ablauf nach
+  // der Bewilligung ist hier nicht abgebildet. Sie fällt damit auf den unten
+  // beschriebenen Weg — nur die Phase, keine erratene Aktion. Eine falsche
+  // Anweisung wäre schlechter als keine.
   'techn geprüft': { phase: 'Fachprüfung', aktion: 'Gutachten beginnen' },
   'kaufm geprüft': { phase: 'Fachprüfung', aktion: 'Gutachten beginnen' },
   'Gutachten fertig': { phase: 'Fachprüfung', aktion: 'Gutachten freigeben' },

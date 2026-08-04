@@ -7,8 +7,6 @@ describe('naechsterSchritt — gemappte Roh-Stati (Kern-Tabelle)', () => {
     ['beantragt', 'Eingang', 'Vollständigkeit prüfen'],
     ['bearbeitungsreif', 'Eingang', 'Vollständigkeit prüfen'],
     ['NL eingegangen', 'Vollständigkeit', 'Nachlieferung prüfen'],
-    ['VN geprüft', 'Fachprüfung', 'Gutachten beginnen'],
-    ['VN techn. geprüft', 'Fachprüfung', 'Gutachten beginnen'],
     ['techn geprüft', 'Fachprüfung', 'Gutachten beginnen'],
     ['kaufm geprüft', 'Fachprüfung', 'Gutachten beginnen'],
     ['Gutachten fertig', 'Fachprüfung', 'Gutachten freigeben'],
@@ -24,6 +22,14 @@ describe('naechsterSchritt — gemappte Roh-Stati (Kern-Tabelle)', () => {
 
   it('trimmt Whitespace vor dem Lookup', () => {
     expect(naechsterSchritt('  beantragt  ')).toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+  });
+
+  it('Begleitphase bekommt KEINE Antragsphasen-Aktion', () => {
+    // Ein geprüfter Verwendungsnachweis löst kein Gutachten aus. Der Ablauf
+    // nach der Bewilligung ist nicht abgebildet — also nur die Phase.
+    for (const status of ['VN geprüft', 'VN techn. geprüft']) {
+      expect(naechsterSchritt(status)?.aktion).toBe('');
+    }
   });
 });
 

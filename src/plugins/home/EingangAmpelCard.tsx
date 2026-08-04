@@ -52,7 +52,9 @@ export function AntragseingangWidget({ instanz, onToggleEingeklappt }: WidgetPro
   const openListe = (bucket: AmpelBucket): void => {
     const store = useAntraegeStore.getState();
     // Reihenfolge: setActiveView resettet den Quickfilter → danach setzen.
-    store.setActiveView('meine_offenen');
+    // Ziel ist „Alle", nicht „Antragsphase": die Ampel zählt auch Begleit-Stati
+    // ohne Bewilligungsdatum mit (`eingangAmpel.ts`), die dort fehlten.
+    store.setActiveView('alle');
     store.setAmpelQuickfilter({ bucket, schwellen });
     navigate('antraege');
   };

@@ -41,13 +41,13 @@ Status-Werte mit Präfix `VN ` (Verwendungsnachweis) oder `ZB ` (Zwischenbericht
 
 **Begründung**: Widerruf ist post-Bewilligungs-Verfahren (Bescheid wurde erteilt und soll zurückgenommen werden) — gleicher Lebenszyklus wie VN-Prüfung, andere Frist-Logik als Antragsphase. Zuständigkeit wechselt von TIB/BIB (Antrag) zu ZTP/PFM (Begleitung).
 
-### (c) Bearbeiter-Filter-Toggle `bearbeiter_inkl_begleitung` (Doppelwirkung, Mai 2026 erneut revidiert)
+### (c) Bearbeiter-Filter-Toggle `bearbeiter_inkl_begleitung` (nur noch KUERZ-Spalten)
 
-Steuert BEIDES — Phase-Sichtbarkeit UND KUERZ-Spalten:
+**KUERZ-Match**: ohne Toggle matchen nur TIB/BIB-Spalten, mit Toggle zusätzlich ZTP/PFM. Das ist seine gesamte Wirkung — er blendet **nichts** aus.
 
-(i) **Phase-Filter**: ohne Toggle werden Begleit-Stati (VN-/ZB-) universell ausgeblendet (Home + Antrags-Liste + Aggregate), auch wenn das TIB-/BIB-Kuerzel matched. Mit Toggle bleiben sie sichtbar. Implementiert in `filterByBegleitungPhase` ([src/plugins/antraege/bearbeiterFilter.ts](../../src/plugins/antraege/bearbeiterFilter.ts)) und dem Phase-Gate in `computeDashboardAggregate` ([src/plugins/home/dashboardAggregate.ts](../../src/plugins/home/dashboardAggregate.ts)).
+Bis v2.403 steuerte er zusätzlich die Sichtbarkeit: ohne Toggle verschwanden Begleit-Stati app-weit. Weil er ab Werk aus steht, war die Begleitphase damit für niemanden auffindbar (im Bestand ~193 Anträge). Die Trennung der beiden Lebenszyklen macht seit v2.404 die **Sicht**: die Förderanträge-Liste führt „Antragsphase" und „Begleitung" als eigene Reiter ([src/plugins/antraege/views.ts](../../src/plugins/antraege/views.ts)). `filterByBegleitungPhase` und das Phase-Gate in `computeDashboardAggregate` sind damit entfallen.
 
-(ii) **KUERZ-Match**: ohne Toggle matchen nur TIB/BIB-Spalten, mit Toggle zusätzlich ZTP/PFM.
+Die antragsdatum-basierten Flächen der Startseite (Meine-Anträge-Liste, Rückstands-Balken, Fristen) rechnen weiterhin die Antragsphase — bedingungslos und aus demselben Grund, aus dem die Sichten `diese_woche_faellig`/`ueberfaellig` die Begleitung ausschließen: eine 3–4-Jahres-Uhr in einem antragsdatum-Bucket ergibt kein Arbeitssignal. Der Ausschluss hängt am Lebenszyklus, nie am Toggle.
 
 (iii) **Frist-Berechnung phasen-abhängig**:
 - Antragsphase = `antragsdatum + 90 Tage` (Bearbeitungs-SLA)

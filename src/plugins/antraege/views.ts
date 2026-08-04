@@ -113,7 +113,7 @@ export function getView(key: ViewKey): AntragView {
  * wenn in der Sidebar ein expliziter `vb_phase`-Filter aktiv ist (dann sollen
  * Irrlaeufer wieder sichtbar werden).
  *
- * Die Begleitphase wird NICHT mehr ausgeblendet: sie hat seit v2.402 eine eigene
+ * Die Begleitphase wird NICHT mehr ausgeblendet: sie hat seit v2.404 eine eigene
  * Sicht. Der Profil-Haken `bearbeiter_inkl_begleitung` steuert nur noch, ob
  * ZTP-/PFM-Spalten beim Kürzel-Zuschnitt mitzählen (`spaltenFuer`).
  */

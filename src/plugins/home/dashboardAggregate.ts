@@ -9,6 +9,13 @@
  * d.h. sowohl Welt-A (Seed-Werte wie `genehmigt`/`in_pruefung`) als auch Welt-B
  * (CSV-Rohwerte wie `bewilligt`/`VN geprüft`/`NF gestellt`) werden korrekt
  * gezaehlt.
+ *
+ * **Zwei Ergebnis-Arten, zwei Grundmengen.** Die `stats` zaehlen den gesamten
+ * eigenen Bestand und weisen die Begleitphase eigens aus. Alle Listen- und
+ * Frist-Felder darunter rechnen dagegen die **Antragsphase**: sie bucketen nach
+ * `antragsdatum`, und die Begleitphase laeuft nach einer anderen Uhr
+ * (`vn_eingang_datum + 6 Monate` statt `antragsdatum + 90 Tage`, 3–4 Jahre statt
+ * 3–9 Monate). Beides in einer Zahl zu addieren ergibt kein Arbeitssignal.
  */
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { computeVerbundFristDatum } from '@/core/services/csv/frist';
@@ -18,7 +25,7 @@ import {
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
-import { getStatusCategory } from '@/core/utils/status-canonical';
+import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 
 export type AntragVorgang = Vorgang & {
   _isAntrag: true;
@@ -69,13 +76,14 @@ export interface DashboardStats {
 }
 
 export interface DashboardAggregateResult {
+  /** Eigene Vorgänge der Antragsphase (offen ohne Begleitung). */
   offeneVorgaenge: Vorgang[];
   dringend: Array<Vorgang & { daysLeft: number }>;
   naechsterSchritt: (Vorgang & { daysLeft: number }) | null;
   fristenDieseWoche: number;
   letzteAenderungen: Vorgang[];
-  /** Alle offenen eigenen Förderanträge, sortiert nach Frist asc, dann
-   *  vb_phase asc. Die UI (HomePage/MeineAntraegeSection) schneidet selbst
+  /** Alle eigenen Förderanträge der Antragsphase, sortiert nach Frist asc,
+   *  dann vb_phase asc. Die UI (HomePage/MeineAntraegeSection) schneidet selbst
    *  ab — initial nach `profile.home_meine_antraege_count` (Default 5),
    *  optional erweiterbar via "+10 mehr"-Button. */
   meineAntraege: AntragVorgang[];
@@ -197,10 +205,11 @@ interface MutableStats {
   bewilligt: number;
 }
 
-/** Zaehlt einen Status-Wert in das Stats-Objekt und gibt zurueck, ob der
- *  Status final entschieden ist (closed = nicht mehr in `offen`). */
-function tallyStatus(status: string | undefined, stats: MutableStats): boolean {
-  const cat = getStatusCategory(status);
+/** Zaehlt eine Status-Kategorie in das Stats-Objekt und gibt zurueck, ob der
+ *  Status final entschieden ist (closed = nicht mehr in `offen`). Nimmt die
+ *  Kategorie statt des Rohwerts: der Aufrufer braucht sie ohnehin fuer die
+ *  Phasen-Trennung und normalisiert den Rohwert so nur einmal. */
+function tallyKategorie(cat: StatusCategory, stats: MutableStats): boolean {
   if (cat === 'in_pruefung') stats.inPruefung++;
   else if (cat === 'nachforderung') stats.nachforderung++;
   else if (cat === 'begleitung') stats.begleitung++;
@@ -247,10 +256,19 @@ export function computeDashboardAggregate(
       if (isIrrlaeufer(a.vb_phase)) continue;
       if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
       const v = antragToVorgangLike(a, options.verbundById, verbundAllTvs);
+      const kategorie = getStatusCategory(v.status);
       stats.total++;
-      const isClosed = tallyStatus(v.status as string, stats);
-      if (isClosed) continue;
+      if (tallyKategorie(kategorie, stats)) continue;
       stats.offen++;
+      // Ab hier rechnet die Startseite die Antragsphase — genau wie die
+      // SLA-Sichten `diese_woche_faellig`/`ueberfaellig` in `views.ts`. Liste,
+      // Rueckstands-Balken und Fristen bucketen nach `antragsdatum`; ein
+      // Begleit-Vorgang ist dort seit 3–4 Jahren eingegangen und faende sich
+      // geschlossen im aeltesten Segment wieder. Der Ausschluss haengt am
+      // Lebenszyklus und ist bedingungslos — NICHT am Profil-Haken
+      // `bearbeiter_inkl_begleitung`, der genau deshalb entkoppelt wurde. Die
+      // Zaehler oben weisen die Begleitung weiter aus (`stats.begleitung`).
+      if (kategorie === 'begleitung') continue;
       offeneVorgaenge.push(v);
       offeneAntraege.push(v);
       const dl = daysUntil(v.deadline, nowMs);

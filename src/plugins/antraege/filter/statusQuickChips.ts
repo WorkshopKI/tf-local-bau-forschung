@@ -43,7 +43,7 @@ export type StatusQuickChipId = (typeof STATUS_QUICK_CHIPS)[number]['id'];
 /**
  * Die Status-Werte eines Chips — abgeleitet bei jedem Aufruf, nicht gecacht.
  *
- * Die Menge hing bis v2.401 an einer Modul-Konstante, die beim Import lief —
+ * Die Menge hing bis v2.403 an einer Modul-Konstante, die beim Import lief —
  * also BEVOR `setStatusKatalogSnapshot` den kuratierten Katalog setzt. Die
  * Pille rechnete deshalb dauerhaft mit dem eingebauten Code-Seed, der Rest der
  * App mit dem Katalog; im echten Bestand gingen die beiden um 15 Anträge

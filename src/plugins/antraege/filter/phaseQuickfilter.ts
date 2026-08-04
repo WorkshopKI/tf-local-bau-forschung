@@ -48,8 +48,16 @@ const PHASE_LABEL_BY_CHIP_ID: Record<StatusQuickChipId, PhaseLabel> = {
 };
 
 /** Die `sonstige`-Werte — nur noch, um einen früher gespeicherten Filter-Wert
- *  wiederzuerkennen (siehe `getPhaseFromActive`). */
-const SONSTIGE_VALUES: ReadonlySet<string> = new Set(getStatusValuesByCategory('sonstige'));
+ *  wiederzuerkennen (siehe `getPhaseFromActive`).
+ *
+ *  Wird bei jedem Aufruf abgeleitet, nicht als Modul-Konstante gehalten: eine
+ *  solche entsteht beim Import, also bevor der kuratierte Katalog als Snapshot
+ *  gesetzt ist, und bliebe dann für immer auf dem eingebauten Seed stehen.
+ *  `getPhaseFromActive` läuft je Interaktion, nicht je Datensatz — die
+ *  Ableitung ist hier billig. */
+function sonstigeWerte(): ReadonlySet<string> {
+  return new Set(getStatusValuesByCategory('sonstige'));
+}
 
 /** Wandelt einen Phase-Label-String in die zugehörige Chip-ID, oder null
  *  (für 'Alle' oder unbekannt). */
@@ -84,9 +92,10 @@ export function getPhaseFromActive(active: ActiveFilter[]): PhaseLabel {
   for (const v of entry.value) {
     if (typeof v === 'string') activeSet.add(v.toLowerCase().trim());
   }
+  const sonstige = sonstigeWerte();
   for (const chip of STATUS_QUICK_CHIPS) {
     const werte = chipStatusValues(chip.id);
-    const mitSonstige = new Set<string>([...werte, ...SONSTIGE_VALUES]);
+    const mitSonstige = new Set<string>([...werte, ...sonstige]);
     if (setsEqual(activeSet, werte) || setsEqual(activeSet, mitSonstige)) {
       return PHASE_LABEL_BY_CHIP_ID[chip.id];
     }
