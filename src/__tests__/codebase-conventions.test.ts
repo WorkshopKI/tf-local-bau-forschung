@@ -1762,11 +1762,16 @@ describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () 
     return !(t.startsWith('//') || t.startsWith('*') || t.startsWith('/*'));
   };
 
+  // Das Klärungs-Modul wohnt im Plugin (ein Konsument, ein Blatt), legt seine
+  // Antworten aber auf denselben Share. Damit es dadurch nicht aus der Aufsicht
+  // faellt, gilt der Guard hier mit: auch `zu-klaeren` geht ueber sidecar-datei.ts.
+  const SHARE_AUFSICHT = ['src/core/status/', 'src/plugins/zu-klaeren/'];
+
   it('nur sidecar-datei.ts fasst den Daten-Share an', () => {
     const treffer: string[] = [];
     for (const file of ALL_TS_FILES) {
       const p = relPath(file);
-      if (!p.startsWith('src/core/status/') || p.includes('__tests__')) continue;
+      if (!SHARE_AUFSICHT.some(d => p.startsWith(d)) || p.includes('__tests__')) continue;
       if (p.endsWith('/sidecar-datei.ts')) continue;
       const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
       for (const v of ['atomicWrite', 'getDatenShareHandle']) {
@@ -1803,6 +1808,10 @@ describe('status-katalog-share-only (Katalog: genau EIN Weg auf den Share)', () 
       // beide aus DIESER Wurzel ab — stünde sie zweimal, schriebe die zweite
       // Stelle beim ersten Umbenennen leise ins Nirgendwo.
       ['_intern/vorgangssystem/journal', 'src/core/status/journal/pfade.ts'],
+      // Die Klaerungs-Ablage ist die vierte. Verzeichnis UND Autor-Dateiname
+      // leiten sich aus dieser Wurzel ab — stuende sie zweimal, schriebe die
+      // zweite Stelle beim ersten Umbenennen leise ins Nirgendwo.
+      ['_intern/klaerung', 'src/plugins/zu-klaeren/pfade.ts'],
     ];
     for (const [pfad, heimat] of pfade) {
       // Nur CODE zaehlt: ein Modulkopf, der den Nachbar-Sidecar erklaert, ist

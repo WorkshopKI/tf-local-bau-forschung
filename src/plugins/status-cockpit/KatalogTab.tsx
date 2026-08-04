@@ -2,14 +2,19 @@
  * Katalog-Tab — die Statuswerte kuratieren.
  *
  * Volle Tabelle der Wert-Einträge des Entwurfs mit Inline-Bearbeitung (Label,
- * Kategorie, Prominenz, ZAH-Phase, Zieltage, aktiv), darüber Filter-Chips +
- * Suche, darunter die Übernahme neu entdeckter (unkuratierter) Funde. Rein
- * darstellend — jede Änderung geht über `api.setWert` in den Entwurf.
+ * Kategorie, Prominenz, Zieltage, aktiv), darüber Filter-Chips + Suche, darunter
+ * die Übernahme neu entdeckter (unkuratierter) Funde. Rein darstellend — jede
+ * Änderung geht über `api.setWert` in den Entwurf.
  *
  * Spine-Phase, Rang und das Terminal-Häkchen sind mit v2.385 entfallen: sie
  * waren die Stellschrauben der alten Statusableitung. Kuratiert werden jetzt
- * ZAH-Phase und Zieltage — beides Angaben ÜBER den amtlichen Status, keine, aus
- * denen einer errechnet würde (Pitfall #44).
+ * Zieltage — eine Angabe ÜBER den amtlichen Status, keine, aus der einer
+ * errechnet würde (Pitfall #44).
+ *
+ * **Die ZAH-Phase wird hier NICHT kuratiert.** Ein früherer Modulkopf zählte sie
+ * unter den Inline-Feldern auf; ein Bedienelement dafür gab es nie. Der Schnitt
+ * ist Auslieferung (`zah-phasen.ts`), sein Änderungsweg läuft über die Seite
+ * „Zu klären" → Export → Seed-Änderung → Release.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';

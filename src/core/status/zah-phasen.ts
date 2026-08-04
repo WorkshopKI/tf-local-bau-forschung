@@ -20,8 +20,16 @@
  * „Administrative Prüfung" neben „Fachprüfung" wäre falsch modelliert: ein TV
  * wäre ständig in beiden. Die Phase sagt WO im Verfahren, die Rolle WER dran ist.
  *
- * Der Schnitt hier ist eine **Vorbelegung, die die PL bestätigt** — im Cockpit
- * editierbar, jede Änderung eine neue Katalog-Fassung mit Diff.
+ * **Dieser Schnitt ist die Auslieferung — er wird nicht in der App editiert.** Ein
+ * früherer Modulkopf versprach das („im Cockpit editierbar"); ein Bedienelement
+ * dafür gab es nie. Es soll auch keins geben: `prod` lädt keine Katalog-Fassung,
+ * ein in `pl` geänderter Schnitt wäre also eine zweite stille Wahrheit, die nur
+ * ein Teil des Teams sähe.
+ *
+ * Der Änderungsweg läuft stattdessen über die Seite „Zu klären": die Kollegen
+ * prüfen und kommentieren den Schnitt dort, das Ergebnis wird exportiert, hier im
+ * Seed geändert und mit dem nächsten Release ausgeliefert
+ * (`docs/architecture/klaerung.md`).
  *
  * Rein und deterministisch: keine IO, keine Uhr.
  */

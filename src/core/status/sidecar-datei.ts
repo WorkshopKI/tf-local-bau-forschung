@@ -20,7 +20,7 @@
  */
 import type { IDBStore } from '@/core/services/storage';
 import {
-  atomicWrite, atomicWriteStream, appendToFile, readText,
+  atomicWrite, atomicWriteStream, appendToFile, readText, listFilesWithBackupInfo,
   type AtomicWriteSink,
 } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
@@ -104,8 +104,35 @@ export async function schreibeSidecarGestreamt(
 }
 
 /**
+ * Listet die Dateinamen in einem Sidecar-Verzeichnis. Leer bei fehlendem Handle
+ * oder fehlendem Ordner — ein Verzeichnis, das es noch nicht gibt, ist kein Fehler,
+ * sondern der Zustand „hat noch niemand etwas hineingeschrieben".
+ *
+ * Gebraucht von Ablagen, die eine Datei **je Autor** führen: dort ist die Liste
+ * der Dateien die Liste der Beteiligten (siehe `zu-klaeren/pfade.ts`).
+ */
+export async function listeSidecarDateien(
+  idb: IDBStore, verzeichnis: string,
+): Promise<string[]> {
+  const handle = await getDatenShareHandle(idb);
+  if (!handle) return [];
+  try {
+    return (await listFilesWithBackupInfo(handle, verzeichnis)).map(e => e.name);
+  } catch (err) {
+    console.warn(`[status] listeSidecarDateien(${verzeichnis}) failed:`, err);
+    return [];
+  }
+}
+
+/**
  * Hängt Zeilen an eine append-only Sidecar an (Profil „append-only",
  * Pitfall #23). Self-gated wie {@link schreibeSidecar}.
+ *
+ * **Achtung, read-modify-write**: `appendToFile` liest die ganze Datei, hängt an
+ * und schreibt sie neu. Auf einer Datei mit MEHREREN gleichzeitigen Schreibern
+ * kann dabei eine Zeile verlorengehen, ohne dass dieser Aufruf es merkt. Wer
+ * mehrere Schreiber hat, teilt die Ablage auf (eine Datei je Autor), statt sich
+ * auf einen Wiederholungsversuch zu verlassen.
  */
 export async function haengeAnSidecar(
   idb: IDBStore, pfad: string, zeilen: string,

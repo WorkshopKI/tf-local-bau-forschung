@@ -365,7 +365,7 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 - Rollen ↔ Export-Spalten: **AB = BIB/BFM/PFM, FB = TIB/ZTP** (Legacy-Parametertabelle; das AB-Dashboard filtert über `BIB_K`).
 - `VB_PHASE` = **Fördervariante** (1 NW 1 · 2 NW 2 · 3 FuE · 4 DL · 5 DS · 9 Irrläufer) — Decode-Referenz statt Status-Kuration; identisch mit dem Antragstyp des Auslastungs-Moduls.
 - **To-do-Regeln** als vierte Pflegeliste; Seed durch Transkription des AB-XLSX, FB-Regelsatz danach nach gleichem Muster (6.5).
-- ZAH-Phasen-Zuordnung ist PL-editierbar mit Versionierung — spätere Änderungswünsche der Kollegen sind Zeilen-Änderungen, kein Deployment.
+- ZAH-Phasen-Zuordnung bleibt **Auslieferung** (`zah-phasen.ts`), nicht Kuration: `prod` lädt keine Katalog-Fassung, ein in `pl` geänderter Schnitt wäre eine zweite stille Wahrheit. Änderungswünsche laufen über die Seite „Zu klären" ([klaerung.md](klaerung.md)) → Export → Seed-Änderung → Release. *(Ursprünglich war „PL-editierbar mit Versionierung" geplant; ein Bedienelement dafür wurde nie gebaut, und die Absicht ist mit v2.407 ausdrücklich aufgegeben.)*
 
 **Offen:**
 
