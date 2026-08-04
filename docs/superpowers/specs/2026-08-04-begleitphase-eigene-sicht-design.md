@@ -91,9 +91,14 @@ Der Haken bleibt als reine Kürzel-Frage erhalten (`spaltenFuer` matcht weiter Z
 
 **Code.** `CHIP_VALUES` wird nicht mehr eingefroren. Statt eines Caches mit Invalidierung fällt die Modul-Konstante ersatzlos weg: `chipStatusValues` leitet bei Aufruf ab, und `getPhaseItems` hebt die fünf Mengen **einmal vor** seine Datensatz-Schleife (heute steht der Aufruf in der Schleife, bei 14k Datensätzen × 5 Chips). Damit lesen Pille und Sicht wieder dieselbe Quelle, ohne dass ein zweiter Mechanismus die Gültigkeit verwalten muss.
 
-**Daten.** Der Katalog-Eintrag zu Code 72 braucht die Langform als Variante. Das ist Kuration und erzeugt eine neue Katalog-Fassung mit Diff zur Freigabe — kein Code-Seed-Write (der Seed führt sie bereits richtig).
+**Daten — und warum es doch Code ist.** Die Planung hat die Wurzel eine Ebene tiefer gefunden, als dieser Abschnitt zunächst annahm. Zwei Stellen zusammen frieren die Schreibweisen ein:
 
-**Vorbeugung.** Die App hat für „Wert im Bestand, den der Katalog nicht kennt" bereits den Unkuratiert-Puffer (Pitfall #40). Erster Schritt ist deshalb zu klären, **warum er hier nicht angeschlagen hat** — ein zweiter Melde-Weg wird nur gebaut, wenn sich zeigt, dass der Puffer diesen Fall grundsätzlich nicht abdeckt.
+- [status-codes.ts:174](../../../src/core/status/status-codes.ts) — `reichereWerteAn` steigt bei `if (w.code !== undefined) return w;` sofort aus. Ein Eintrag, der bereits einen Code trägt, bekommt seine Schreibweisen nie wieder frisch. Der Frühausstieg soll die Kuration schützen (Phase, Zieltage, Rang) — er friert die Fremddaten gleich mit ein.
+- [seed.ts:72](../../../src/core/status/seed.ts) ist ihr **einziger** Aufrufer. Eine vom Daten-Share geladene Fassung wird überhaupt nie angereichert und geht ungefiltert in `setStatusKatalogSnapshot`.
+
+Damit ist eine einmalige Datenkorrektur am Eintrag zu Code 72 die falsche Antwort: sie behöbe den Fall, nicht die Klasse, und käme beim nächsten Kurations-Schritt wieder. Richtig ist, die Zuständigkeit geradezurücken — **Schreibweisen eines codierten Werts gehören dem Code-Katalog** (Pitfall #43), die Fassung besitzt Ordner, Phase, Rang und Zieltage. Der Snapshot-Bau ergänzt sie deshalb beim Indizieren; die persistierte Fassung bleibt unangetastet (Pitfall #45).
+
+**Vorbeugung — der Puffer hat nicht angeschlagen, und das ist erklärbar.** Der Unkuratiert-Puffer (Pitfall #40) ist in Fassung 12 **leer**: null Einträge, obwohl 15 Datensätze einen unbekannten Wert tragen. `ermittleNeueUnkuratierte` läuft beim **Import**; kuratiert wird **danach**. Verliert eine spätere Fassung eine Schreibweise, prüft sie niemand mehr gegen den Bestand. Für codierte Werte nimmt der Fix oben dieser Klasse die Grundlage — sie können keine amtliche Schreibweise mehr verlieren. Für Werte **ohne** Code bleibt die Lücke bestehen; sie ist ein eigener Vorgang, kein Teil dieser Änderung.
 
 ## 4. Tests
 
