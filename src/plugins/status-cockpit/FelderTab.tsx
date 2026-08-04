@@ -18,7 +18,7 @@
  * - **Relevanz-Häkchen** (Konzept 4.1): markiert die Kürzel, die für die
  *   Antragsbearbeitung zählen. Sie grenzen Navigator, Wächter und die
  *   Status-Erklärung ein — ohne sie bleibt die Kandidatenliste unbrauchbar groß.
- * - **Trigger-Wirkung**: was ein Kürzel im Foyer auslöst, in Satzform aus der
+ * - **Trigger-Wirkung**: was ein Kürzel in C16 auslöst, in Satzform aus der
  *   importierten Trigger-Tabelle. Aufklappbar in der Zeile, damit die Tabelle
  *   nicht noch eine Spalte breiter wird.
  *

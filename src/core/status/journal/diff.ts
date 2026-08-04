@@ -2,7 +2,7 @@
  * Der **Diff zwischen zwei Exportständen**. Rein und deterministisch.
  *
  * Fünf Eintragsarten, jede mit einer eigenen Aussage — insbesondere `geleert`:
- * dass jemand im Foyer eine Setzung zurückgenommen hat, ist heute vollständig
+ * dass jemand in C16 eine Setzung zurückgenommen hat, ist heute vollständig
  * unsichtbar, weil der Export nur den Endzustand zeigt.
  *
  * **`antrag-neu` erzeugt EINEN Eintrag**, nicht einen je Feld: ein frisch

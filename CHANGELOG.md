@@ -15,6 +15,16 @@ MINOR — Jahrgänge, Fördervarianten und ZAH-Phasen ließen je nur EINEN Wert 
 - **Altbestands-Hinweis greift genauer**: schon bei einem einzeln gewählten alten Jahrgang, nicht erst bei „alle" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
 - **Fachliche Ordnung der Menüs**: ZAH-Phasen entlang des Verfahrens (statt nach Auftreten), Fördervarianten nach `VB_PHASE`-Nummer (statt alphabetisch „DL" vor „FuE" vor „NW 1") ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
 
+### v2.401.1 — Fachsystem heisst C16 (August 2026)
+
+PATCH — Das Legacy-Fachsystem, das die Vorgangskürzel führt und den Nacht-Export liefert, heißt **C16**; die App nannte es durchgängig „Foyer" und schickte Nutzer damit zum falschen System. Das ZIM-Foyer (Antragsportal) ist ein anderes System und bleibt unverändert.
+
+- **Nutzersichtbar**: Abschnittsüberschrift „Nächste Schritte (in C16 zu setzen)" ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx)) und drei Seiten-Hilfe-Docs, die zugleich das App-Wissen der Feedback-KI speisen ([docs/feedback-kontext/](docs/feedback-kontext/))
+- **Zweitname beseitigt**: das Substantiv „Legacy" für dasselbe System wurde mit umbenannt; die Komposita (`Legacy-Trigger`, `Legacy-Doku`) und das unverwandte Legacy im Sinne alter Schemata/Props bleiben ([vorgangssystem.md](docs/architecture/vorgangssystem.md))
+- **Fremddaten unberührt**: die amtlichen Kürzel-Labels der Zuarbeit („Eingang Foyer", „Antragsimport aus ZIM-Foyer …") bleiben wortgetreu, Pitfall #43 ([seed-codes.data.ts](src/core/status/seed-codes.data.ts))
+- **CSV-Label-Matcher unberührt**: `'ZIM-Foyer Vorgangscode'` und `'Antragsimport aus ZIM-Foyer'` vergleichen gegen echte Spaltenüberschriften ([felderKuration.ts](src/plugins/antraege/alleFelder/felderKuration.ts), [felderGruppen.ts](src/plugins/antraege/alleFelder/felderGruppen.ts))
+- `T_AAI` trägt den Identcode des **Portals** und heißt deshalb jetzt explizit `ZIM-Foyer-Identcode` ([vorgangssystem.md](docs/architecture/vorgangssystem.md))
+
 ### v2.401.0 — Gemeinsame Tree-Basis für Status-Filter, Textbausteine, Ordner und Meilensteine (August 2026)
 
 MINOR — Vier Module bauten Baum-Verhalten je selbst nach: eigenes Aufklapp-Set, im Ordner-Editor dazu hand-geschriebenes HTML5-Drag. Keines davon konnte Tastatur. Eine gemeinsame Basis ersetzt alle vier — sieben eigene Zustandsstücke fallen weg.
@@ -149,7 +159,7 @@ PATCH — Elf echte DMS-Dokumente (DOCX/PDF) und fünf transiente Worktree-Eintr
 
 ### v2.392.0 — Import-Diff-Journal: belegter Verlauf statt Näherung (August 2026)
 
-MINOR — Der Nacht-Export wird überschrieben; eine `D_`-Setzung, die im Foyer korrigiert oder erneut gesetzt wird, ist danach spurlos (Verifikation V9). Die App führt jetzt einen eigenen Stand mit und hält fest, was sich zwischen zwei Exporten geändert hat — ab dem Nullpunkt ist der Verlauf belegt statt genähert.
+MINOR — Der Nacht-Export wird überschrieben; eine `D_`-Setzung, die in C16 korrigiert oder erneut gesetzt wird, ist danach spurlos (Verifikation V9). Die App führt jetzt einen eigenen Stand mit und hält fest, was sich zwischen zwei Exporten geändert hat — ab dem Nullpunkt ist der Verlauf belegt statt genähert.
 
 - **Journal-Kern** unter `_intern/vorgangssystem/journal/` (Stand + Monats-JSONL, nie in IDB): Stempel-Idempotenz, Baseline ohne Einträge, optimistische Sperre, fünf Eintragsarten inkl. `geleert` ([journal/](src/core/status/journal/), [vorgangssystem.md §12](docs/architecture/vorgangssystem.md)).
 - **Verlauf am Teilvorhaben** mit dauerhaftem Nullpunkt-Satz und Zeitraum-Darstellung bei unscharfer Spanne ([JournalVerlauf.tsx](src/plugins/antraege/status/JournalVerlauf.tsx)).
@@ -338,7 +348,7 @@ MINOR — Die AB-Kolleginnen rechnen ihr „was steht an?" heute als verschachte
 
 MINOR — „Viele kennen die Kürzel nicht" war der meistgenannte Einstiegshemmnis. Der Kürzel-Tab wird zum Glossar (Bezeichnung, Rolle, Trigger-Wirkung in Satzform), die Relevanz-Häkchen grenzen die 505 Kürzel auf die ~30 der Antragsbearbeitung ein, und am Verbund steht, welche davon unter dem aktuellen Status überhaupt greifen würden.
 
-- „Nächste Schritte (im Foyer zu setzen)" am Verbund: Kandidaten aus den Trigger-Vorbedingungen, mit Wirkung, Rolle und Grund, wo eine Bedingung nicht prüfbar war ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx), [navigator.ts](src/core/status/navigator.ts)).
+- „Nächste Schritte (in C16 zu setzen)" am Verbund: Kandidaten aus den Trigger-Vorbedingungen, mit Wirkung, Rolle und Grund, wo eine Bedingung nicht prüfbar war ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx), [navigator.ts](src/core/status/navigator.ts)).
 - Kürzel-Tab (vormals „Felder"): Relevanz-Häkchen, aufklappbare Trigger-Wirkung, Filter „nur relevante"/„nur mit CSV-Spalte"; Abgleich-Banner in eigene Datei ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx), [FelderAbgleich.tsx](src/plugins/status-cockpit/FelderAbgleich.tsx)).
 - Relevanz-Startvorschlag aus den 31 Spalten des AB-Dashboards — setzt nur Häkchen, nimmt nie welche weg ([seed-codes.ts](src/core/status/seed-codes.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)).
 - Fix: „Nachziehen" legte vier Kürzel doppelt an (kanonisches Feld **und** eigene Spalte); das Kürzel galt dadurch überall als nie gesetzt — kritisch bei `ABB`, das fast jede Trigger-Bedingung prüft ([seed.ts](src/core/status/seed.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)).

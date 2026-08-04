@@ -4,7 +4,7 @@
  * Ersetzt die frueheren handgeschriebenen `Antrag`-Objekt-Seeds: statt
  * synthetische Records direkt in IDB zu schreiben, durchlaeuft jede CSV den
  * vollen Import-Stack (`importCsvSource`) und landet damit identisch zu einem
- * echten Foyer-Import. Bugs im Parser, Column-Mapping oder Merger werden so
+ * echten C16-Import. Bugs im Parser, Column-Mapping oder Merger werden so
  * im Seed-Pfad sichtbar.
  *
  * Vite-Glob: laedt die CSVs als UTF-8-Strings zur Build-Zeit. Wenn die CSVs

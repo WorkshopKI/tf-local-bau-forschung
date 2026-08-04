@@ -598,7 +598,7 @@ export const AUSLASTUNG_EMB_PREFIX = 'auslastung-emb:';
 /** Canonical-Field-Keys aus dem CSV-Schema. */
 export const CANONICAL_AKTENZEICHEN = 'aktenzeichen';
 export const CANONICAL_TIB_KUERZ = 'tib_kuerz';
-/** Administrativer Bearbeiter (BIB_KUERZ aus dem Foyer-Schema). Wird im
+/** Administrativer Bearbeiter (BIB_KUERZ aus dem C16-Schema). Wird im
  *  Auslastungs-Modul ausschliesslich informativ angezeigt — nicht Teil der
  *  AnonymMap (siehe CLAUDE.md Pitfall #17), keine zu-verteilende Ressource. */
 export const CANONICAL_BIB_KUERZ = 'bib_kuerz';
@@ -623,7 +623,7 @@ export const CANONICAL_D_XTEC = 'd_xtec';
 export const CANONICAL_D_ADV = 'd_adv';
 
 /** Custom-Field-Keys (nicht canonical, ueber antrag[key] erreichbar). */
-/** VB_Inhalt aus dem Foyer-Schema — Inhalts-Zusammenfassung des Vorhabens,
+/** VB_Inhalt aus dem C16-Schema — Inhalts-Zusammenfassung des Vorhabens,
  *  vom Bearbeiter nach Bewilligung gepflegt. Nur fuer historische Antraege. */
 export const FIELD_PROJEKTBESCHREIBUNG = 'projektbeschreibung_text';
 /** Inhalts-Zusammenfassung des Vorhabens vom Antragsteller (100–300 Worte).
@@ -634,7 +634,7 @@ export const FIELD_VORHABEN_ZUSAMMENFASSUNG_AST = 'vorhaben_zusammenfassung_ast'
 /** Aus der PDF-Vorhabensbeschreibung LLM-extrahierte Zusammenfassung. Wie
  *  AST-Zusammenfassung, nur automatisch erzeugt. Auch noch nicht im Schema. */
 export const FIELD_VORHABEN_ZUSAMMENFASSUNG_PDF = 'vorhaben_zusammenfassung_pdf';
-/** Antragsteller-Typ aus Foyer (ATTR_AUFB). Verteilt im Auslastungs-Match-
+/** Antragsteller-Typ aus C16 (ATTR_AUFB). Verteilt im Auslastungs-Match-
  *  Boost: Unternehmen sind thematisch konsistent (starker Boost bei
  *  Wiederholungs-AST), Forschungseinrichtungen breit aufgestellt (schwacher
  *  Boost). */

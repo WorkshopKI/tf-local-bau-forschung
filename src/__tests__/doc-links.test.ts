@@ -151,7 +151,7 @@ describe('doc-links', () => {
     // Diff unsichtbar:
     //  (1) die Regelsatz-Auswahl als Vorfilter statt in der Engine — dann
     //      fallen S0/S1/S2 aus jeder fremden Rollensicht heraus, und ein im
-    //      Foyer abgeschlossener Vorgang steht dem FB als offene Aufgabe im
+    //      C16 abgeschlossener Vorgang steht dem FB als offene Aufgabe im
     //      Board;
     //  (2) `giltFuer` leer als „keine Rolle" lesen (wie `zustaendig` daneben)
     //      statt als „alle" — die Sperre greift dann nirgends;

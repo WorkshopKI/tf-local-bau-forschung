@@ -53,7 +53,7 @@ export function buildEmbeddingTextForAntrag(antrag: Antrag): string {
  * Bedingung wie im Build-Loop ({@link buildEmbeddingCorpus}, der ohne Text
  * skipt). Wird in der UI gebraucht, damit Drift-Detection (lokaler Hash vs.
  * Share-Manifest-Hash) nur ueber die tatsaechlich embedbaren Akz rechnet —
- * sonst weicht der Hash strukturell ab, weil Foyer-Exporte regelmaessig
+ * sonst weicht der Hash strukturell ab, weil C16-Exporte regelmaessig
  * 5–10 Antraege ohne Titel/VB-Titel/Projektbeschreibung enthalten.
  */
 export function isEmbeddableAntrag(antrag: Antrag): boolean {

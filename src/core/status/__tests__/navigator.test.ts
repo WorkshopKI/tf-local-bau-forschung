@@ -1,5 +1,5 @@
 /**
- * Der Navigator schlägt vor, was im Foyer als Nächstes gesetzt werden kann —
+ * Der Navigator schlägt vor, was in C16 als Nächstes gesetzt werden kann —
  * und die Tests halten vor allem fest, was er dabei NICHT tun darf:
  *
  * - einen Kandidaten verwerfen, nur weil eine Bedingung nicht auswertbar war

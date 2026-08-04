@@ -3,7 +3,7 @@
  * Akkordeon-Gruppen wie im Handoff).
  *
  * **Warum kuratiert:** Die Gruppierung kommt sonst allein aus dem CSV-Schema-
- * `group_path` (siehe `groupDisplayRows`). Der echte Foyer-Label-XLS lumpt aber
+ * `group_path` (siehe `groupDisplayRows`). Der echte C16-Label-XLS lumpt aber
  * ~36 Felder unter EINE Kategorie „Vorhabensinformation" und kennt keine
  * sauberen „Finanzen"/„Termine"/„Klassifikation"-Gruppen. Das SOLL (Design-
  * Handoff `_design/handoff/alle-felder/felder-data.js` `FIELD_GROUPS`) re-
@@ -12,7 +12,7 @@
  * [felderKuration.ts]).
  *
  * Gematcht wird tolerant über das normalisierte **Label** ODER den Feld-**Key**
- * (canonical-Keys sind stabil, Foyer-Labels stabiler als import-abhängige
+ * (canonical-Keys sind stabil, C16-Labels stabiler als import-abhängige
  * Custom-Slugs — beide Welten abgedeckt). Reines Exact-Match (keine Keyword-
  * Heuristik — `normLabel("Kosten")` enthält z.B. „ost", Substring-Regeln wären
  * fehleranfällig).

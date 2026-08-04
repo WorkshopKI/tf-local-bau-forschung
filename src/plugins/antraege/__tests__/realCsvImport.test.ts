@@ -1,10 +1,10 @@
 /**
- * Real-CSV-Fixture-Tests — laeuft gegen die anonymisierten Foyer-CSVs unter
+ * Real-CSV-Fixture-Tests — laeuft gegen die anonymisierten C16-CSVs unter
  * `docs/fixtures/`. Wenn die Files fehlen (frischer Klon, CI ohne lokale
  * Fixtures), wird der gesamte Block via `describe.skip` uebersprungen.
  *
  * Zweck: stellt sicher, dass
- * - der CSV-Parser die echten Foyer-Headerzeilen + Separatoren + Encodings
+ * - der CSV-Parser die echten C16-Headerzeilen + Separatoren + Encodings
  *   verarbeiten kann
  * - die Status-Werte in den echten CSVs allesamt im Foerderantrag-Canonical-
  *   Mapping (`status-canonical.ts`) abgedeckt sind (keine "sonstige"-Fallthrough)

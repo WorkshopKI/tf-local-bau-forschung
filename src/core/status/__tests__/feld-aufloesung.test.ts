@@ -30,7 +30,7 @@ const FIXTURE_SCHEMAS: CsvSchema[] = [
 
 /**
  * Die Fixture-Schemas mappen bewusst nur einen Ausschnitt (24/21/75 Spalten) —
- * ein echtes Foyer-Schema mappt die Statusspalten mit. Für die Auflösung selbst
+ * ein echtes C16-Schema mappt die Statusspalten mit. Für die Auflösung selbst
  * braucht es deshalb ein Schema, das sie führt; die Fixtures bleiben für die
  * Kollisions-Fälle zuständig, wo ihre kanonischen Mappings der Punkt sind.
  */

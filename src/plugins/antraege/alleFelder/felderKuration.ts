@@ -10,7 +10,7 @@
  *
  * Gematcht wird tolerant über das normalisierte **Label** ODER den Feld-**Key**
  * (Custom-Slugs sind import-abhängig, Labels stabiler — beide Welten abgedeckt):
- * - Echte Foyer-Labels (wie in den Screenshots / im Handoff benannt)
+ * - Echte C16-Labels (wie in den Screenshots / im Handoff benannt)
  * - Fixture-Keys (`docs/fixtures/schema-a.ts` etc.)
  */
 import type { DisplayRow } from './buildDisplayRows';

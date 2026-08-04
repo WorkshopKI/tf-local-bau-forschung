@@ -38,7 +38,7 @@ Stand: 03.08.2026 · **P0–P6 umgesetzt + Fachabstimmung eingearbeitet**
 
 ## 1. Leitidee
 
-Die ZAH-App ist **Companion, nicht zweite Workflow-Engine**. Das Legacy-System (Foyer) führt die Wahrheit: Bearbeiter setzen Vorgangskürzel, Trigger ändern Status und versenden Mails. Die App liest den nächtlichen CSV-Export und leistet das, was dem Legacy fehlt:
+Die ZAH-App ist **Companion, nicht zweite Workflow-Engine**. Das Fachsystem C16 führt die Wahrheit: Bearbeiter setzen Vorgangskürzel, Trigger ändern Status und versenden Mails. Die App liest den nächtlichen CSV-Export und leistet das, was C16 fehlt:
 
 1. **Erklären** — warum hat ein Antrag diesen Status, was ist zuletzt passiert (Info-Icon)
 2. **Navigieren** — welches Kürzel ist als Nächstes zu setzen, von wem, was löst es aus
@@ -52,7 +52,7 @@ Die ZAH-App ist **Companion, nicht zweite Workflow-Engine**. Das Legacy-System (
 **Die Vorgangskarte ist bereits im CSV** — flachgeklopft als Spalten:
 
 - `D_<KÜRZEL>` = Datum, an dem das Kürzel gesetzt wurde (z. B. `D_AAE` Antragseingang, `D_ARF` Entwurf RNE fertig)
-- `T_<KÜRZEL>` = optionaler Begleitwert (z. B. `T_AAI` Foyer-Identcode, `T_XAT` Anzahl erw. TV)
+- `T_<KÜRZEL>` = optionaler Begleitwert (z. B. `T_AAI` ZIM-Foyer-Identcode, `T_XAT` Anzahl erw. TV)
 
 Die 512 Felder im bestehenden Felder-Tab **sind** diese Kürzel-Spalten; der Ordnerbaum ist ihre fachliche Gliederung, die Label-XLS liefert die Bezeichnungen. Es braucht keinen neuen Export — nur eine neue Interpretation der vorhandenen Felder.
 
@@ -64,7 +64,7 @@ Die 512 Felder im bestehenden Felder-Tab **sind** diese Kürzel-Spalten; der Ord
 
 ## 3. Referenzdaten: drei Importe statt Kuratier-Aufwand
 
-Alle drei kommen als XLSX-Import aus dem Legacy (Kurator-Aktion, manuell alle paar Monate), liegen versioniert auf dem Share (`_intern/`, `atomicWrite`, Version + Hash), und zeigen beim Re-Import einen Diff („3 neue Kürzel, 1 geänderter Trigger, 2 entfallen").
+Alle drei kommen als XLSX-Import aus C16 (Kurator-Aktion, manuell alle paar Monate), liegen versioniert auf dem Share (`_intern/`, `atomicWrite`, Version + Hash), und zeigen beim Re-Import einen Diff („3 neue Kürzel, 1 geänderter Trigger, 2 entfallen").
 
 | Referenz | Inhalt | Umfang | Rolle in der App |
 |---|---|---|---|
@@ -72,7 +72,7 @@ Alle drei kommen als XLSX-Import aus dem Legacy (Kurator-Aktion, manuell alle pa
 | **Kürzel-Katalog** | Kürzel ↔ Beschreibung ↔ „wird gesetzt von" (AB/FB/QS/PA/Juristen/neutral) | mehrere hundert | Glossar, Navigator, Wächter-Rollen |
 | **Trigger-Tabelle** | Kürzel → Folge → Prozedur → Parameter (geparst) | mehrere hundert Zeilen | Erklärung + Navigator |
 
-**Trigger-Parser:** vier Prozedurtypen (`TRG_TVs_Status_TV_VB`, `TRG.VorgEintragNeu`, `TRG.VorgEintragMail`, `TRG.Status.TV.VB`), Pipe-getrennte Parameter, Semantik ist im Legacy dokumentiert. Nicht parsebare Zeilen werden als „nicht interpretiert" gekennzeichnet und roh angezeigt — niemals stillschweigend verworfen (Heuristiken sind ehrlich). Der Parser erzeugt pro Trigger eine **deutsche Satzform**:
+**Trigger-Parser:** vier Prozedurtypen (`TRG_TVs_Status_TV_VB`, `TRG.VorgEintragNeu`, `TRG.VorgEintragMail`, `TRG.Status.TV.VB`), Pipe-getrennte Parameter, Semantik ist in C16 dokumentiert. Nicht parsebare Zeilen werden als „nicht interpretiert" gekennzeichnet und roh angezeigt — niemals stillschweigend verworfen (Heuristiken sind ehrlich). Der Parser erzeugt pro Trigger eine **deutsche Satzform**:
 
 > **AAE / Folge 1:** Wenn Verbund-Status vor 59 (bewilligt), das TV kein ABB hat und kein TV des Verbunds ein YIRR → setze TV- und VB-Status auf 31 (beantragt).
 
@@ -174,7 +174,7 @@ Kein Regel-Editor, keine Prioritäten, keine Kategorie-Kuration, keine Unkuratie
 
 ## 5. ZAH-Phasen: die Lesebrille der App
 
-Die bisherigen Spine-Phasen (Eingang → Vollständigkeit → Fachprüfung → Bewilligung → Schluss) sind eine App-Erfindung — das Legacy kennt keine Phasen (`VB_PHASE` ist die Fördervariante, ein anderes Konzept). Das ist legitim, wird aber ehrlich gemacht:
+Die bisherigen Spine-Phasen (Eingang → Vollständigkeit → Fachprüfung → Bewilligung → Schluss) sind eine App-Erfindung — C16 kennt keine Phasen (`VB_PHASE` ist die Fördervariante, ein anderes Konzept). Das ist legitim, wird aber ehrlich gemacht:
 
 - **Umbenennung in „ZAH-Phase"** überall (UI, Code, Docs), um die Kollision mit `VB_PHASE` dauerhaft zu beenden.
 - **Explizite Zuordnungstabelle** Status-Code → ZAH-Phase (~30 Zeilen, PL-editierbar, sinnvoll vorbelegt). Kein Ableiten aus Code-Bereichen — die Codes sind nur grob geordnet (32 ablehnungsreif liegt vor 34 bearbeitungsreif).
@@ -235,9 +235,9 @@ Dieselben Sätze und dieselbe Auszeichnung stehen unter „Nächste Schritte" (6
 
 Aus aktuellem Status + Trigger-Vorbedingungen (`<x`/`>x`, ABB-/YIRR-Bedingungen gegen die `D_`-Spalten geprüft) berechnet die App die **kandidierenden nächsten Kürzel** — gefiltert auf Relevanz-Häkchen, mit Rolle („wird gesetzt von") und Wirkung (Statuswechsel, Mail an wen):
 
-> Nächster erwarteter Schritt: **ABLW** setzen (im Foyer) — Rolle AB · prüft NF-Rücklauf · setzt Status 37 · Mail an TIB
+> Nächster erwarteter Schritt: **ABLW** setzen (in C16) — Rolle AB · prüft NF-Rücklauf · setzt Status 37 · Mail an TIB
 
-Default-Filter „Meine Rolle" (aus dem Profil, Abschnitt 5a), umschaltbar auf alle Rollen. Die App setzt nichts selbst; sie sagt präzise, was im Legacy zu tun ist. Dazu das **Kürzel-Glossar** als durchsuchbare Seite (Kürzel, Beschreibung, Rolle, Trigger-Wirkung in Satzform, Relevanz-Häkchen, Rollen-Filter) — beantwortet das „viele kennen die Kürzel nicht"-Problem am Ort des Bedarfs.
+Default-Filter „Meine Rolle" (aus dem Profil, Abschnitt 5a), umschaltbar auf alle Rollen. Die App setzt nichts selbst; sie sagt präzise, was in C16 zu tun ist. Dazu das **Kürzel-Glossar** als durchsuchbare Seite (Kürzel, Beschreibung, Rolle, Trigger-Wirkung in Satzform, Relevanz-Häkchen, Rollen-Filter) — beantwortet das „viele kennen die Kürzel nicht"-Problem am Ort des Bedarfs.
 
 ### 6.3 Stillstands-Wächter
 
@@ -361,7 +361,7 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 **Offen:**
 
 1. ~~**Mehrfach-Kürzel:** Prüfen am echten Export, ob `D_`-Spalten bei Wiederholung das erste oder letzte Datum tragen.~~ **Erledigt (V9):** das **zuletzt** gesetzte Datum; frühere Setzungen sind überschrieben. Damit die Information nicht länger verloren geht, führt die App seit v2.392 ein Import-Diff-Journal (Abschnitt 12).
-2. **Mail-Platzhalter** (#BA1/#FB1/#TB1 …): vermutlich BIB-/TIB-Familien — am Legacy verifizieren, dann im Navigator auflösen.
+2. **Mail-Platzhalter** (#BA1/#FB1/#TB1 …): vermutlich BIB-/TIB-Familien — an C16 verifizieren, dann im Navigator auflösen.
 3. **Phasen-Schnitt** aus Abschnitt 5 fachlich abnehmen (insb. 32 ablehnungsreif unter „Entscheidung", der 70er-Block, 59 bewilligt als Beginn von „Begleitung", 29 Irrläufer als Marker).
 4. **Zieltage-Startwerte:** aus der PL-Erfahrung oder initial aus der Ist-Verteilung (Median-Verweildauer je Status) vorschlagen lassen?
 5. **Kürzel-Paare:** Erkennung der adm./fachl.-Paare (AK4/AT4 …) — als Konvention aus dem Katalog ableitbar oder als kleine Paar-Liste pflegen? Beim AB-Onboarding klären, ob Relevanz-Defaults je Rolle getrennt sein sollen.
@@ -487,7 +487,7 @@ Zusicherung des Umbaus und steht als Regressionsgatter im Test.
 
 `ermittleTodo` filtert selbst, statt eine vorgefilterte Liste zu bekommen. Grund:
 der **Sperr-Pass läuft über alle aktiven Regeln**. Eine nach `regelsatz`
-vorgefilterte Menge nähme ihm S0/S0b/S1/S2 — und ein im Foyer abgeschlossener
+vorgefilterte Menge nähme ihm S0/S0b/S1/S2 — und ein in C16 abgeschlossener
 Vorgang stünde dem FB als offene Aufgabe im Board. Eine Sperre gehört keinem
 Regelsatz; sie gilt vorgangsweit, solange sie über `giltFuer` nichts anderes sagt.
 
@@ -588,7 +588,7 @@ Der Baseline-Lauf erzeugt **keine** Einträge. Täte er es, stünden beim ersten
 
 `gesetzt` · `geaendert` · `geleert` · `antrag-neu` (ein Eintrag je Antrag, nicht
 je Feld) · `antrag-fehlt` (festhalten, nichts löschen — es kann ein Exportfehler
-sein). `geleert` ist die interessanteste: dass jemand im Foyer eine Setzung
+sein). `geleert` ist die interessanteste: dass jemand in C16 eine Setzung
 zurückgenommen hat, ist heute vollständig unsichtbar.
 
 Liegt zwischen zwei Exporten mehr als ein Tag (Wochenende, Urlaub), tragen die

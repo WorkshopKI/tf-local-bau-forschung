@@ -1,5 +1,5 @@
 /**
- * „Nächste Schritte (im Foyer zu setzen)" — der Nächster-Schritt-Navigator am
+ * „Nächste Schritte (in C16 zu setzen)" — der Nächster-Schritt-Navigator am
  * Verbund.
  *
  * Die App setzt nichts. Sie liest die importierte Trigger-Tabelle und sagt,
@@ -7,8 +7,8 @@
  * Wirkung, Rolle und, wo eine Bedingung nicht auswertbar war, dem Grund dafür.
  *
  * **Die Überschrift ist bewusst umständlich.** „Nächste Schritte" allein hieße,
- * die App wüsste, was fachlich ansteht; sie weiß nur, was das Legacy maschinell
- * zulässt. Der Zusatz „(im Foyer zu setzen)" sagt außerdem, wo gehandelt wird —
+ * die App wüsste, was fachlich ansteht; sie weiß nur, was C16 maschinell
+ * zulässt. Der Zusatz „(in C16 zu setzen)" sagt außerdem, wo gehandelt wird —
  * nicht hier.
  *
  * Die eigene Rolle aus dem Profil ist **Vorauswahl, keine Sperre** (wie in
@@ -83,7 +83,7 @@ function Kandidat({ k }: { k: NavigatorKandidat }): React.ReactElement {
       {k.platzhalter.length > 0 && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)]">
           Empfänger-Platzhalter des Fachsystems: {k.platzhalter.join(', ')} — die Auflösung auf
-          Personen ist am Legacy noch nicht verifiziert.
+          Personen ist an C16 noch nicht verifiziert.
         </p>
       )}
     </li>
@@ -134,7 +134,7 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
     <section className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
         <h4 className="text-[13px] font-medium text-[var(--tf-text)]">
-          Nächste Schritte (im Foyer zu setzen)
+          Nächste Schritte (in C16 zu setzen)
         </h4>
         <span className="text-[12px] text-[var(--tf-text-tertiary)]">{ergebnis.kandidaten.length}</span>
         <span className="flex-1" />

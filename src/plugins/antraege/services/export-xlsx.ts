@@ -41,7 +41,7 @@ function buildFilename(now: Date = new Date()): string {
  *     Kurator die Spalte `VB_TITEL` als canonical `verbund_titel` gemappt hat
  *     (Verbund-Level-Feld, geht NICHT auf den Antrag selbst).
  *  2. textMap-Eintrag (Antrag-Record) — wenn die Spalte unmapped oder als
- *     custom auf den Antrag direkt geschrieben wurde (Foyer-Default ohne
+ *     custom auf den Antrag direkt geschrieben wurde (C16-Default ohne
  *     Wizard-Mapping → `a.vb_titel`).
  *  3. Leer-String — kein Titel verfuegbar.
  *

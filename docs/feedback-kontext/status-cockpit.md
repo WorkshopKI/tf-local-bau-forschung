@@ -45,7 +45,7 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     Antragsbearbeitung zählen; es grenzt Navigator, Wächter und die
     Status-Erklärung ein.
   - Trägt ein Kürzel Trigger-Zeilen, steht neben dem Code ein **Blitz mit
-    Anzahl** — Klick klappt auf, was das Setzen im Foyer auslöst (Satzform).
+    Anzahl** — Klick klappt auf, was das Setzen in C16 auslöst (Satzform).
     Jede Zeile beginnt mit `Richtlinie/Folge`, weil dasselbe Kürzel je
     Richtlinie etwas anderes auslöst.
   - „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu (Klick oder

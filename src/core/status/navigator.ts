@@ -1,5 +1,5 @@
 /**
- * Der **Nächster-Schritt-Navigator**: welche Kürzel kommen im Foyer als Nächstes
+ * Der **Nächster-Schritt-Navigator**: welche Kürzel kommen in C16 als Nächstes
  * in Frage?
  *
  * Die App setzt nichts. Sie liest die importierte Trigger-Tabelle und grenzt ein:
@@ -8,7 +8,7 @@
  * verletzt ist.
  *
  * **Was der Navigator NICHT weiß**: was fachlich als Nächstes ansteht. Er kennt
- * nur die maschinellen Vorbedingungen des Legacy. Ohne die Relevanz-Liste bleibt
+ * nur die maschinellen Vorbedingungen von C16. Ohne die Relevanz-Liste bleibt
  * die Menge deshalb groß — das ist kein Defekt, sondern der Grund, warum es die
  * Relevanz-Häkchen gibt (Konzept 4.1). Ob gefiltert wurde, steht im Ergebnis und
  * gehört in die Anzeige.
@@ -23,7 +23,7 @@
  *    eine, kann die andere trotzdem feuern. Ein Kürzel fällt erst raus, wenn
  *    ALLE seine Zeilen verletzt sind.
  * 3. Mail-Platzhalter (`#TB1`, `#BA1` …) werden **roh durchgereicht**. Ihre
- *    Auflösung auf Personen ist am Legacy nicht verifiziert (offener Punkt 2 im
+ *    Auflösung auf Personen ist an C16 nicht verifiziert (offener Punkt 2 im
  *    Konzept); eine erfundene Legende wäre schlimmer als keine.
  *
  * **Und eine Auswahl-Regel**: geprüft wird nur die Trigger-Menge des Programms,

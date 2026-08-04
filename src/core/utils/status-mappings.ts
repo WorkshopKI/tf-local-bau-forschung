@@ -1,6 +1,6 @@
 /**
  * Zentrale Status-Labels und Badge-Variants fuer die **Anzeige** eines rohen
- * Antrags-Status: CSV-Rohwerte aus dem Foyer-Quellsystem (`beantragt`,
+ * Antrags-Status: CSV-Rohwerte aus dem C16-Quellsystem (`beantragt`,
  * `VN geprüft`, `NF gestellt`, `bewilligt`, ...). Unbekanntes faellt auf den
  * Rohwert bzw. `'default'` zurueck.
  *

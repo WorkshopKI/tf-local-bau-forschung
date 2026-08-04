@@ -132,7 +132,7 @@ export function EmbeddingCorpusSection({ storage, antraege, embeddableAz }: Prop
 
   // SHA-256 ueber die aktuelle aktenzeichen-Liste — aber nur ueber die
   // embedbaren Antraege, sonst weicht der Hash strukturell vom Manifest-Hash
-  // ab (Foyer-Exporte enthalten regelmaessig 5–10 Antraege ohne Titel/VB-Titel/
+  // ab (C16-Exporte enthalten regelmaessig 5–10 Antraege ohne Titel/VB-Titel/
   // Projektbeschreibung, die im Build geskipt werden und nicht im Manifest
   // landen). 13k Field-Lookups + Filter sind <50 ms — laeuft nur bei
   // antraege-Aenderung, nicht pro Render.

@@ -251,7 +251,7 @@ export interface AntragListItem {
   antragsdatum?: string;
   /** D_VBE = Eingang VN-Sach (Begleitphase). Basis fuer die VN-Frist
    *  (vn_eingang_datum + 6 Monate). Leer bis der Verwendungsnachweis im
-   *  Foyer eingelaufen ist. */
+   *  C16 eingelaufen ist. */
   vn_eingang_datum?: string;
   /** Projekt-Laufzeitbeginn (CSV-Header LFZ_TV_B). ISO YYYY-MM-DD oder Roh-String. */
   laufzeitbeginn?: string;

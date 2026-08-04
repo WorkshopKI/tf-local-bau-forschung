@@ -15,7 +15,7 @@
  * - `readAntragDeskriptoren` aus `profil-aggregator.ts`
  * - `ZUKUNFTSTECHNOLOGIE_FELDER` aus `default-labels.ts`
  *
- * Foyer-CSVs speichern Boolean-Spalten heterogen: echtes `true`, `"X"`,
+ * C16-CSVs speichern Boolean-Spalten heterogen: echtes `true`, `"X"`,
  * `"1"`, `"Ja"` etc. — wir matchen konservativ nur die bekannten
  * Wahr-Varianten. Alle anderen Werte (leer, `"0"`, `"-"`, `false`) gelten
  * als false.
@@ -24,7 +24,7 @@ import type { Antrag } from '@/core/services/csv/types';
 import { ZUKUNFTSTECHNOLOGIE_FELDER } from '@/plugins/auslastung/services/default-labels';
 import { readAntragDeskriptoren } from '@/plugins/auslastung/services/identitaet';
 
-/** Heuristisch erkannte „wahr"-Varianten in Foyer-CSV-Exporten. */
+/** Heuristisch erkannte „wahr"-Varianten in C16-CSV-Exporten. */
 function isTruthyFlag(v: unknown): boolean {
   if (v === true || v === 1) return true;
   if (typeof v !== 'string') return false;

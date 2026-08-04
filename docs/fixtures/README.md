@@ -1,6 +1,6 @@
 # Anonymisierte Real-Fixtures
 
-Dieser Ordner enthaelt **anonymisierte Auszuege aus echten Foyer-CSVs**, die im
+Dieser Ordner enthaelt **anonymisierte Auszuege aus echten C16-CSVs**, die im
 Dev-Build als Seed-Daten und in Unit-Tests als Real-World-Fixtures dienen.
 
 ## Wichtig: CSVs sind lokal-only
@@ -53,11 +53,11 @@ Was wird **getauscht** (anonymisiert):
 
 ## Re-Generation
 
-Die CSVs werden manuell von einem Kurator aus einem echten Foyer-Export
+Die CSVs werden manuell von einem Kurator aus einem echten C16-Export
 erstellt. Beim Anonymisieren UTF-8 oder Windows-1252 als Encoding behalten —
 beide werden vom Parser auto-detected.
 
-Wer auf eine neue Foyer-Schema-Version aktualisiert: Spalten in `schema-*.ts`
+Wer auf eine neue C16-Schema-Version aktualisiert: Spalten in `schema-*.ts`
 anpassen, Re-Anonymisierung als neue CSV ablegen.
 
 ## Verwendung im Code
@@ -77,4 +77,4 @@ nutzen denselben Glob-Mechanismus mit `describe.skip` als Fallback.
 
 ### Pitfall #13 — Förderantrag-Seeds kommen aus echten CSVs
 
-Die Dev-Seed-Anträge werden nicht in TypeScript handgeschrieben, sondern als anonymisierte Real-Foyer-CSVs in diesem Ordner abgelegt (siehe oben). Der Seed-Loader [fixture-loader.ts](../../src/core/services/seed/fixture-loader.ts) durchläuft den vollen `importCsvSource`-Pfad — Bugs im Parser, Column-Mapping oder Merger werden so im Seed-Lauf sichtbar. Schemas (`schema-*.ts`) sind committet, die CSVs via globalem `*.csv`-Pattern in `.gitignore` lokal-only. Fehlende CSVs → Loader liefert graceful 0 Anträge, App startet trotzdem. Seed-Flag: `seed-complete-v2`. Encoding-Pipeline: `scripts/normalize-fixture-csvs.mjs` (windows-1252 → UTF-8, idempotent als `prebuild`/`predev`).
+Die Dev-Seed-Anträge werden nicht in TypeScript handgeschrieben, sondern als anonymisierte Real-C16-CSVs in diesem Ordner abgelegt (siehe oben). Der Seed-Loader [fixture-loader.ts](../../src/core/services/seed/fixture-loader.ts) durchläuft den vollen `importCsvSource`-Pfad — Bugs im Parser, Column-Mapping oder Merger werden so im Seed-Lauf sichtbar. Schemas (`schema-*.ts`) sind committet, die CSVs via globalem `*.csv`-Pattern in `.gitignore` lokal-only. Fehlende CSVs → Loader liefert graceful 0 Anträge, App startet trotzdem. Seed-Flag: `seed-complete-v2`. Encoding-Pipeline: `scripts/normalize-fixture-csvs.mjs` (windows-1252 → UTF-8, idempotent als `prebuild`/`predev`).

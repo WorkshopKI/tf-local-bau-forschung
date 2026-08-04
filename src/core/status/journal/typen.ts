@@ -2,7 +2,7 @@
  * Datenmodell des **Import-Diff-Journals**.
  *
  * Der Nacht-Export wird auf dem Share überschrieben; eine `D_`-Setzung, die im
- * Foyer korrigiert oder erneut gesetzt wird, ist danach spurlos. Verifikation V9
+ * C16 korrigiert oder erneut gesetzt wird, ist danach spurlos. Verifikation V9
  * hat es bestätigt: die Spalte trägt das **zuletzt** gesetzte Datum. Das Journal
  * hält fest, was sich zwischen zwei Exporten geändert hat — ab dem Tag seiner
  * Einführung ist der Verlauf belegt statt genähert.
@@ -39,7 +39,7 @@ export type EintragsArt =
   | 'gesetzt'
   /** Wert → anderer Wert. */
   | 'geaendert'
-  /** Wert → leer. Typischerweise eine Korrektur im Foyer, heute unsichtbar. */
+  /** Wert → leer. Typischerweise eine Korrektur in C16, heute unsichtbar. */
   | 'geleert'
   /** Antrag erstmals im Export — EIN Eintrag je Antrag, nicht je Feld. */
   | 'antrag-neu'

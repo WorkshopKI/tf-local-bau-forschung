@@ -2,7 +2,7 @@
 
 ## Werte-Satz
 
-`AntragListItem.status` trägt **CSV-Rohwerte aus dem Foyer-Quellsystem** (`beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, `Schlussvermerk`, `abgelehnt/zurückgezogen`, …). Die Kategorie leitet sich daraus über den Code-Katalog ab: Rohtext → Code → ZAH-Phase → `StatusCategory` ([kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts)).
+`AntragListItem.status` trägt **CSV-Rohwerte aus dem C16-Quellsystem** (`beantragt`, `VN geprüft`, `NF gestellt`, `bewilligt`, `Schlussvermerk`, `abgelehnt/zurückgezogen`, …). Die Kategorie leitet sich daraus über den Code-Katalog ab: Rohtext → Code → ZAH-Phase → `StatusCategory` ([kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts)).
 
 Bis v2.395 lief daneben ein zweiter, handgepflegter Werte-Satz mit Snake-Case-Werten der mit v2.88 entfernten Bauantrag-Demo (`neu`, `in_pruefung`, `genehmigt`, `archiviert`, …). Er ist entfernt; im echten Bestand kam keiner dieser Werte vor (gemessen: 14 221 Anträge, 26 Status-Werte, 0 Treffer). Was der Katalog nicht kennt, ist `sonstige` — das ist eine eigene Aussage, kein Verfahrensschritt.
 

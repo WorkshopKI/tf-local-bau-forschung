@@ -43,7 +43,7 @@ export interface AntragTextEntry {
 /**
  * Feld-Name-Kandidaten je Spalte. Der CSV-Merger
  * ([helpers.ts](src/core/services/csv/merger/helpers.ts)) speichert ein
- * Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()`. Foyer
+ * Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()`. C16
  * exportiert mit Leerzeichen im Spaltennamen (`VB INHALT`, `VB TITEL`) →
  * ohne Wizard-Mapping landet das als `'vb inhalt'` / `'vb titel'` (mit
  * Space, nicht Underscore). Wir gleichen deshalb gegen die NORMALISIERTE

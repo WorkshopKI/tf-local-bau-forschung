@@ -2,7 +2,7 @@
  * Findet frühere, abgelehnte/zurückgezogene Einreichungen desselben Projekts
  * (gleicher VB_KURZNAM / `akronym`) für den Verbund-Detail-Hinweis.
  *
- * Hintergrund: Im Foyer-Quellsystem wird ein erneut eingereichtes Projekt unter
+ * Hintergrund: Im C16-Quellsystem wird ein erneut eingereichtes Projekt unter
  * demselben Kurznamen geführt; der überholte Vorgänger trägt seinen Kurznamen in
  * **Klammern** (`(SCULPT)`), der aktive Verbund ohne (`SCULPT`), und seine TVs
  * stehen auf Status `abgelehnt/zurückgezogen`. Merger/Akronym-Index vergleichen

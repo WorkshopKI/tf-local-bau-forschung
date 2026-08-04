@@ -3,7 +3,7 @@ import { buildSuggestionsFromColumnNames } from '../filter/xlsLabelParser';
 
 /**
  * Regression: die name-basierte Auto-Suggestion im CSV-Wizard
- * (`buildSuggestionsFromColumnNames`) muss die eingebürgerten Foyer-Header
+ * (`buildSuggestionsFromColumnNames`) muss die eingebürgerten C16-Header
  * auf die richtigen Standardfelder mappen — sonst landen Zuwendung/Laufzeit
  * als Custom-Felder und bleiben in den Listen-/Such-Spalten leer.
  */

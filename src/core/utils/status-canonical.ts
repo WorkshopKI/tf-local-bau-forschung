@@ -1,7 +1,7 @@
 /**
  * Kanonische Status-Kategorien fuer Antrag-Status.
  *
- * Die Werte sind **CSV-Rohwerte aus dem Foyer-Quellsystem**: `beantragt`,
+ * Die Werte sind **CSV-Rohwerte aus dem C16-Quellsystem**: `beantragt`,
  * `bearbeitungsreif`, `VN geprueft`, `NF gestellt`, `Schlussvermerk`,
  * `abgelehnt/zurueckgezogen`, ... — sie kommen aus echten CSV-Importen und den
  * anonymisierten Real-Fixtures. Bis v2.395 lief daneben eine zweite,

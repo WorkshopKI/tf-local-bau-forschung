@@ -25,7 +25,7 @@ export type Prominenz = 'meilenstein' | 'normal' | 'nebensaechlich' | 'ignoriert
 /**
  * Die **ZAH-Phase** — die Lesebrille der App auf das Verfahren des Fachsystems.
  *
- * Bewusst eine App-Erfindung: das Legacy kennt keine Phasen (`VB_PHASE` ist die
+ * Bewusst eine App-Erfindung: C16 kennt keine Phasen (`VB_PHASE` ist die
  * Fördervariante, ein anderes Konzept — siehe `vb-phase-mappings.ts`). Der Name
  * trägt das „ZAH" deshalb im Bezeichner, damit die Kollision mit `VB_PHASE`
  * dauerhaft beendet ist.
@@ -218,7 +218,7 @@ export interface StatusWertEintrag {
 
 // --- Vorgangssystem: Trigger-Tabelle des Fachsystems -------------------------
 
-/** Die vier Prozeduren, die das Legacy an ein Kürzel hängen kann. */
+/** Die vier Prozeduren, die C16 an ein Kürzel hängen kann. */
 export type TriggerProzedur =
   | 'TRG_TVs_Status_TV_VB'
   | 'TRG.VorgEintragNeu'

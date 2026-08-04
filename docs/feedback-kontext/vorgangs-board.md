@@ -9,7 +9,7 @@ AB-Kollegin heute als verschachtelte WENN-Formel in ihrer Mappe führt, nur
 versioniert und für alle sichtbar.
 
 Die App **setzt nichts**. Sie leitet ab, was ansteht; gehandelt wird im
-Fachsystem (Foyer).
+Fachsystem C16.
 
 ## Auswertungsmodell
 

@@ -121,7 +121,7 @@ S0/S0b rekonstruieren die **fixierten Slicer** der Mappe („Bitte untere Auswah
 - „Tage bis ABLT" rechnet im Original mit `D_ART` statt `D_ABLT` (Copy-Paste-Fehler) — hier korrigiert.
 - Die Hilfsspalte „Empfehlung" priorisiert NF vor GA, die To-do-Spalte GA vor NF. Übernommen wurde die To-do-Reihenfolge (GA vor NF); mit den ABs bestätigen.
 
-## Verifikationsfragen (an AB-Kollegen / am Legacy)
+## Verifikationsfragen (an AB-Kollegen / an C16)
 
 Stand nach der Fachabstimmung vom 03.08.2026. Detail: [fachabstimmung-2026-08.md](fachabstimmung-2026-08.md).
 

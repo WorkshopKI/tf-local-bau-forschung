@@ -6,7 +6,7 @@
  * gleichen Feldern entscheidet `priority` (hoehere Zahl gewinnt) — Master
  * bekommt die hoechste Priority.
  *
- * Spaltenheader sind 1:1 die Original-Foyer-Headerzeile. Encoding der CSV-
+ * Spaltenheader sind 1:1 die Original-C16-Headerzeile. Encoding der CSV-
  * Datei ist Windows-1252; der Parser detected das automatisch via Mojibake-
  * Heuristik, daher hier explizit gesetzt damit das auch bei Force-Re-Imports
  * stabil bleibt.

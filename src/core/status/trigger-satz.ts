@@ -38,7 +38,7 @@ export type TriggerSegment =
   | { art: 'kuerzel'; text: string; code: string; herkunft: KuerzelHerkunft }
   /** Amtlicher Statuscode (`59`, `31`, `74`). */
   | { art: 'status'; text: string; code: number }
-  /** Bezugsdatei-Nummer des Legacy (`210`/`211`) — NICHT der Statuscode. */
+  /** Bezugsdatei-Nummer aus C16 (`210`/`211`) — NICHT der Statuscode. */
   | { art: 'ebene'; text: string; nummer: string }
   /** Mail-Empfänger (`TIB`, `BIB`) — Zuständigkeitsspalte, kein Vorgangskürzel. */
   | { art: 'empfaenger'; text: string; token: string };
@@ -92,7 +92,7 @@ export function baueLegende(
 }
 
 /**
- * Die „Bezugsdatei"-Nummern des Legacy. 210 steht an Verbund-Codes (`XAAE`),
+ * Die „Bezugsdatei"-Nummern aus C16. 210 steht an Verbund-Codes (`XAAE`),
  * 211 an Teilvorhaben-Codes — die Zuarbeit belegt beides mit je einem Beispiel
  * (`AAE/3` mit `XAAE|210|0`, `ABA/1` mit `211|74` und der Lesart „TV-Status").
  * Die Zuordnung ist damit **erschlossen, nicht belegt** — sie steht auf der

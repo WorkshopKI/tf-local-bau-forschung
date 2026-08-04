@@ -205,7 +205,7 @@ Demonstrator der Fachprüfung: Einreichungs-JSON → Rechenchecks → **editierb
 
 ### Vorgangssystem (Flag `vorgangssystem`, dev + pl)
 
-**Companion des Fachsystems (Foyer), nicht zweite Workflow-Engine**: `STATUS_TV`/`STATUS_VB` gelten wie importiert, **die App leitet keinen Status ab** (Pitfall #44). Alles Neue steht daneben — erklären, navigieren, warnen, steuern. Wohnt in `src/core/status/` und **erweitert** das Status-System, statt ein paralleles Modul danebenzusetzen (ein Evaluator, ein Bedingungs-Formatierer, eine Sidecar-Mechanik für Katalog + Trigger). UI: [vorgangs-board](src/plugins/vorgangs-board/) + Erweiterungen am Status-Katalog und Verbund-Detail.
+**Companion des Fachsystems C16, nicht zweite Workflow-Engine**: `STATUS_TV`/`STATUS_VB` gelten wie importiert, **die App leitet keinen Status ab** (Pitfall #44). Alles Neue steht daneben — erklären, navigieren, warnen, steuern. Wohnt in `src/core/status/` und **erweitert** das Status-System, statt ein paralleles Modul danebenzusetzen (ein Evaluator, ein Bedingungs-Formatierer, eine Sidecar-Mechanik für Katalog + Trigger). UI: [vorgangs-board](src/plugins/vorgangs-board/) + Erweiterungen am Status-Katalog und Verbund-Detail.
 
 **Eine Achse** (Rückbau v2.385): Rohtext → Code → **ZAH-Phase** → `StatusCategory` (Pitfall #45). Spine-Phase/Rang/`terminal`/Simulation entfallen — sie liefen dem amtlichen Status voraus.
 

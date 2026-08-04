@@ -1,5 +1,5 @@
 /**
- * Antraege mit CSV-Rohwerten aus dem echten Foyer-Quellsystem — die
+ * Antraege mit CSV-Rohwerten aus dem echten C16-Quellsystem — die
  * **einzige** Antrags-Fixture der View-/Dashboard-Tests.
  *
  * Sie spiegelt den Produktiv-Pfad. Bis v2.395 lief daneben eine zweite

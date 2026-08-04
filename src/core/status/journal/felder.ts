@@ -8,7 +8,7 @@
  *
  * **Gelesen wird die ROHE CSV-Spalte, nicht der gemergte Record.** Das Journal
  * beschreibt den *Export*; ein gemergter Wert ist eine Mischung mehrerer Quellen
- * und ließe sich nicht mehr einer Änderung im Foyer zuordnen. Damit entfällt
+ * und ließe sich nicht mehr einer Änderung in C16 zuordnen. Damit entfällt
  * auch die Schema-Auflösung (Bug-Klasse 5) — die Spalte heißt hier, wie sie in
  * der Datei heißt.
  *

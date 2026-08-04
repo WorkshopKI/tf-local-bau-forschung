@@ -35,7 +35,7 @@ describe('kuratierteGruppe', () => {
     expect(kuratierteGruppe(row('frist_datum', 'Fristdatum'))).toBe('Termine');
   });
 
-  it('mappt per Foyer-Label (label-tolerant)', () => {
+  it('mappt per C16-Label (label-tolerant)', () => {
     expect(kuratierteGruppe(row('x', 'beantragte Kosten (Deckblatt Mantelbogen)'))).toBe('Finanzen');
     expect(kuratierteGruppe(row('x', 'NF an ASt'))).toBe('Nachforderung');
     expect(kuratierteGruppe(row('x', 'Nachlieferung Eingang'))).toBe('Nachforderung');

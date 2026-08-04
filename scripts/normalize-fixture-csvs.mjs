@@ -3,7 +3,7 @@
  * Normalisiert die Encodings der Real-Fixture-CSVs unter docs/fixtures/.
  *
  * Vite's `?raw`-Import liest Files immer als UTF-8. Wenn die anonymisierten
- * Fixture-CSVs aus dem Foyer-Export windows-1252-encoded sind (was sie initial
+ * Fixture-CSVs aus dem C16-Export windows-1252-encoded sind (was sie initial
  * sind), kommen sie mit U+FFFD-Replacement-Chars im JS-String an und der
  * Parser scheitert.
  *

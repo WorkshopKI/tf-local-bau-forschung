@@ -2,7 +2,7 @@
  * Der Journal-Kern. Was hier festgehalten wird:
  *
  * 1. **Fünf Eintragsarten, fünf Aussagen** — insbesondere `geleert`: dass jemand
- *    im Foyer eine Setzung zurückgenommen hat, ist heute vollständig unsichtbar.
+ *    in C16 eine Setzung zurückgenommen hat, ist heute vollständig unsichtbar.
  * 2. **Der Baseline-Lauf erzeugt KEINE Einträge.** Ohne diese Regel stünden beim
  *    ersten Lauf hunderttausend Phantom-„gesetzt" in der Datei.
  * 3. **Ein Bereichswechsel ist keine Änderung.** Neu hinzugekommene Anträge

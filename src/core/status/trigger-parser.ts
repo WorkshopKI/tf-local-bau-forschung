@@ -1,7 +1,7 @@
 /**
  * Der Trigger-Parser: was ein gesetztes Kürzel im Fachsystem auslöst.
  *
- * Das Legacy hängt an jedes Kürzel eine Folge von Prozeduren mit Pipe-getrennten
+ * C16 hängt an jedes Kürzel eine Folge von Prozeduren mit Pipe-getrennten
  * Parametern. Vier Prozeduren kommen vor:
  *
  * | Prozedur | Parameter | Bedeutung |
