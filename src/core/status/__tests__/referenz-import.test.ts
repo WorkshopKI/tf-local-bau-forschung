@@ -138,12 +138,32 @@ describe('importiereTriggerTabelle — Ehrlichkeit über den Rest', () => {
       mappe({
         'Trigger-Prozeduren': [
           TRIGGER_KOPF,
-          ['76', 'AAE', '1', 'TRG_TVs_Status_TV_VB', '<59|ABB,TTV1|TVB1|ID|||31|31'],
+          ['76', 'AAE', '1', 'TRG_TVs_Status_TV_VB', '<59|ABB,ZZA|ZZB|ZZC|||31|31'],
         ],
       }),
       [], KUERZEL,
     );
-    expect(e.unbekannteKuerzel).toEqual(['ID', 'TTV1', 'TVB1']);
+    expect(e.unbekannteKuerzel).toEqual(['ZZA', 'ZZB', 'ZZC']);
+    expect(e.sonderkuerzel).toEqual([]);
+  });
+
+  it('zieht die vier von der Fachseite geklärten Kürzel von der Warnung ab (V6)', async () => {
+    // Sonst zählte die Meldung bei jedem Import dieselben vier bekannten Namen
+    // auf — und der fünfte, wirklich neue ginge darin unter.
+    const e = await importiereTriggerTabelle(
+      mappe({
+        'Trigger-Prozeduren': [
+          TRIGGER_KOPF,
+          ['76', 'ID', '1', 'TRG.VorgEintragMail', 'BIB|!.055.VorgInfo.01'],
+          ['78', 'TTV1', '1', 'TRG_TVs_Status_TV_VB', '<59|ABB|TVB1|TTV2|||11|11'],
+          ['78', 'ZZZ', '1', 'TRG.Status.TV.VB', '211|74'],
+        ],
+      }),
+      [], KUERZEL,
+    );
+    expect(e.unbekannteKuerzel).toEqual(['ZZZ']);
+    expect(e.sonderkuerzel.map(s => `${s.kuerzel}/${s.art}`))
+      .toEqual(['ID/rollenvergabe', 'TTV1/test', 'TTV2/test', 'TVB1/test']);
   });
 
   it('nennt Programme des Bestands, für die die Datei schweigt — mit Antragszahl', async () => {

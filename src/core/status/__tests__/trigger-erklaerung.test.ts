@@ -147,6 +147,14 @@ describe('erklaereSegmente', () => {
     expect(s.find(x => x.text === 'ZZZ')?.erklaerung).toBeUndefined();
   });
 
+  it('erklärt ein katalogfremdes Kürzel, das die Fachseite benannt hat — auch an ungedeuteter Position', () => {
+    // Der Unterschied zum Test darüber: bei `TTV2` ist BELEGT, dass es ein
+    // Kürzel ist und welches. Genau das war der Grund fürs Schweigen, und mit
+    // der Antwort aus V6 gilt er nicht mehr.
+    const s = erklaereSegmente(katalog, triggerSegmenteVon(zeile('AAE', 'TRG_TVs_Status_TV_VB', '<59|ABB||TTV2|||31|31')), index);
+    expect(s.find(x => x.text === 'TTV2')?.erklaerung?.titel).toBe('Testkürzel der Zuarbeit');
+  });
+
   it('rührt Text-Segmente nicht an', () => {
     const roh = triggerSegmenteVon(zeile('ABA', 'TRG.Status.TV.VB', '211|74'));
     const s = erklaereSegmente(katalog, roh, index);

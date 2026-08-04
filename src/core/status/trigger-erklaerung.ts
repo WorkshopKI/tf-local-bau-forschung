@@ -19,6 +19,7 @@
 import { kuerzelIndex, type KuerzelIndex } from './feld-zugriff';
 import { normKey } from './normalisierung';
 import { istNeutral, rollenLabel, MAIL_ROLLE, ROLLE_LANG } from './rollen';
+import { sonderKuerzel } from './sonderkuerzel';
 import { statusCodeEintrag, type StatusCodeIndex } from './status-codes';
 import { ebeneVonNummer, type TriggerSegment } from './trigger-satz';
 import { zahPhaseLabel, ZAH_MARKER_LABEL, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
@@ -138,8 +139,13 @@ export function erklaereSegmente(
       case 'kuerzel': {
         const treffer = kuerzelErklaerung(felder, s.code);
         if (treffer) return { ...s, erklaerung: treffer };
-        // Die ungedeuteten Zusatz-Argumente schweigen: dass sie überhaupt ein
-        // Kürzel sind, deckt die Legacy-Doku nicht ab (siehe `TriggerParam`).
+        // Was die Fachseite zu einem katalogfremden Kürzel gesagt hat, gilt auch
+        // an einer ungedeuteten Position — dort ist jetzt belegt, dass es ein
+        // Kürzel IST, und das war der einzige Grund fürs Schweigen.
+        const sonder = sonderKuerzel(s.code);
+        if (sonder) return { ...s, erklaerung: { titel: sonder.label, zusatz: sonder.zusatz } };
+        // Die übrigen ungedeuteten Zusatz-Argumente schweigen weiter: dass sie
+        // überhaupt ein Kürzel sind, deckt die Legacy-Doku nicht ab.
         return s.herkunft === 'weiteres' ? s : { ...s, erklaerung: { titel: NICHT_IM_KATALOG } };
       }
       case 'status': {

@@ -179,6 +179,44 @@ describe('navigatorKandidaten — Relevanz und Rollen', () => {
   });
 });
 
+describe('navigatorKandidaten — katalogfremde Kürzel (Fachabstimmung V6)', () => {
+  /** Wie im echten Bestand: eigene Trigger-Zeilen, keine Bedingungs-Argumente. */
+  const MIT_SONDER: TriggerZeile[] = [
+    ...TRIGGER,
+    zeile('TTV1', 1, 'TRG.VorgEintragMail', 'TIB|!.055.VorgInfo.01'),
+    zeile('ID', 1, 'TRG.VorgEintragMail', 'BIB|!.055.VorgInfo.01|TIB'),
+  ];
+
+  it('blendet Testkürzel aus der Kandidatenliste aus und zählt sie', () => {
+    const r = lauf({ trigger: MIT_SONDER });
+    expect(kuerzelVon(r)).not.toContain('TTV1');
+    expect(r.testKuerzel).toBe(1);
+  });
+
+  it('blendet sie unter JEDER Rollenwahl aus — auch dort, wo „ohne Rolle" sonst sichtbar bleibt', () => {
+    // Ohne Katalog-Eintrag gilt ein Kürzel als neutral und überlebt jeden
+    // Rollen-Filter (Pitfall #43). Der Testkürzel-Filter muss davor greifen.
+    expect(lauf({ trigger: MIT_SONDER, rolle: 'ab' as Rolle }).testKuerzel).toBe(1);
+    expect(kuerzelVon(lauf({ trigger: MIT_SONDER, rolle: 'fb' as Rolle }))).not.toContain('TTV1');
+  });
+
+  it('nennt ID bei seiner Bedeutung, behält aber den Katalog-Hinweis', () => {
+    const k = lauf({ trigger: MIT_SONDER }).kandidaten.find(x => x.kuerzel === 'ID');
+    expect(k?.label).toBe('Rollenvergabe');
+    expect(k?.unbekannt).toBe(true);   // im Katalog steht es weiterhin nicht
+  });
+
+  it('nennt in einer Bedingung den Grund, statt nur „nicht im Katalog"', () => {
+    const r = navigatorKandidaten({
+      trigger: [zeile('AX', 1, 'TRG_TVs_Status_TV_VB', '<59|TVB1|||||31|31')],
+      programm: '76', felder: [feld('AX')], vorkommen: [], statusCode: 31,
+    });
+    const w = r.kandidaten[0]?.wirkung[0];
+    expect(w?.urteil).toBe('unpruefbar');   // lesbar wird die Spalte dadurch nicht
+    expect(w?.gruende.join(' ')).toContain('Testkürzel der Zuarbeit');
+  });
+});
+
 describe('navigatorKandidaten — Anzeige-Ordnung und Zusatzangaben', () => {
   it('stellt Kandidaten, die den Status bewegen, nach vorn', () => {
     // ABA setzt Status unbedingt, AAE/3 legt bei Status 73 nur einen

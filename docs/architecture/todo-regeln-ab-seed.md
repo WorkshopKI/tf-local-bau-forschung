@@ -130,7 +130,7 @@ Stand nach der Fachabstimmung vom 03.08.2026. Detail: [fachabstimmung-2026-08.md
 - **V3 — erledigt.** Der übermittelte Spaltenkopf ist der nächtliche Export.
 - **V4 — bestätigt.** `D_QS` = Gutachten-QS fertig, `D_QS-` = QS zurück an AB/FB (Kommentar an der Stelle in `seed-codes.ts`).
 - **V5 — beantwortet über A3.** Die Endschranke ist kein Zusatz an R19, sondern die Populations-Sperre S0b: nach dem Zuwendungsbescheid gibt es kein To-do mehr.
-- **V6 — Antwort ausstehend.** Unbekannte Kürzel **ID, TTV1, TTV2, TVB1** aus den Bedingungs-Argumenten. Bis dahin bleiben sie im Navigator als „unprüfbar" sichtbar, nie als „erfüllt".
+- **V6 — beantwortet (04.08.2026).** `ID` = **Rollenvergabe**, `TTV1`/`TTV2`/`TVB1` = **Testkürzel**. Anders als hier bisher notiert stehen sie nicht in Bedingungs-Argumenten, sondern tragen **eigene Trigger-Zeilen** (`ID` 30 Zeilen in allen neun Richtlinien, die Testkürzel je 2 in 78 und 138; einzige Ausnahme: `TTV2` steht zusätzlich zweimal als ungedeutetes Zusatz-Argument). Umgesetzt in [sonderkuerzel.ts](../../src/core/status/sonderkuerzel.ts).
 - **V7 — beantwortet.** Innerhalb eines Programms doppelte (Kürzel, Folge) bleiben „erster Eintrag gilt + Warnung"; die beobachteten Fälle (AZBE/Folge 1 in 79 und 139) sind identisch.
 - **V9 — beantwortet.** Die `D_`-Spalten tragen je Kürzel das **zuletzt** gesetzte Datum; frühere Setzungen sind im Export überschrieben. Der Verlauf sagt das jetzt so.
 - **V10 — zur Kenntnis.** Der Tippfehler „Rüchnahmeempfehlung" im Blatt „Erklärung Parameter" wird in der Quelle korrigiert; die App führt beide Schreibweisen weiter.

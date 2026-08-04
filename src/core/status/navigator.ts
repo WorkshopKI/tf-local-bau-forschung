@@ -32,6 +32,11 @@
  * beiden Fälle vorliegt — ein Ersatz-Programm gibt es nicht, dieselben Kürzel
  * lösen dort anderes aus.
  *
+ * **Testkürzel der Zuarbeit** (`TTV1`, `TTV2`, `TVB1`, siehe `sonderkuerzel.ts`)
+ * stehen nicht in der Kandidatenliste — sie sind kein Arbeitsschritt, sondern
+ * Testeinträge in C16. Ausgeblendet heißt hier gezählt und benannt: die Fußzeile
+ * nennt sie, damit „weg" nicht mit „gibt es nicht" verwechselt wird.
+ *
  * Rein und deterministisch: keine IO, keine Uhr. Der Aufrufer entscheidet, gegen
  * welche Vorkommen geprüft wird — auf der Verbund-Seite sind das die Einträge
  * ALLER Teilvorhaben, und genau das muss die Anzeige dann auch sagen.
@@ -39,6 +44,7 @@
 import { kuerzelIndex, type KuerzelIndex } from './feld-zugriff';
 import { normKey } from './normalisierung';
 import { betrifftRolle, rollenLabel, rollenVonFeld } from './rollen';
+import { istTestKuerzel, sonderKuerzel } from './sonderkuerzel';
 import { triggerFuerProgramm } from './trigger-share';
 import { triggerSegmenteVon, triggerSatzVon, alsText, type TextbausteinLegende } from './trigger-satz';
 import { erklaereSegmente, type ErklaerKatalog, type ErklaertesSegment } from './trigger-erklaerung';
@@ -92,6 +98,8 @@ export interface NavigatorErgebnis {
   bereitsGesetzt: number;
   /** Kürzel, deren Zeilen allesamt verletzt waren. */
   verletzt: number;
+  /** Testkürzel der Zuarbeit — ausgeblendet, aber gezählt (siehe `sonderkuerzel.ts`). */
+  testKuerzel: number;
   /** Trigger-Zeilen, die der Parser nicht deuten konnte (`geparst: null`). */
   nichtInterpretiert: number;
   /** Wurde auf Relevanz gefiltert? `false` = die Fassung markiert noch keine. */
@@ -180,9 +188,15 @@ function pruefeOhne(kuerzel: string, art: 'TV' | 'Verbund', k: Kontext): {
 } {
   const key = normKey(kuerzel);
   if (!k.felderNachCode.has(key)) {
+    // Ein katalogfremdes Kürzel, das die Fachseite erklärt hat, bleibt ebenfalls
+    // unprüfbar — es gibt keine Spalte, in die man sehen könnte. Nur der Grund
+    // ist ein anderer, und der gehört dann auch dagestanden.
+    const sonder = sonderKuerzel(kuerzel);
     return {
       urteil: 'unpruefbar',
-      grund: `Kürzel ${kuerzel} steht nicht im Katalog — „ohne ${kuerzel}" nicht prüfbar.`,
+      grund: sonder
+        ? `${kuerzel}: ${sonder.label} — „ohne ${kuerzel}" nicht prüfbar.`
+        : `Kürzel ${kuerzel} steht nicht im Katalog — „ohne ${kuerzel}" nicht prüfbar.`,
     };
   }
   if (k.gesetzt.has(key)) {
@@ -240,7 +254,10 @@ function pruefeZeile(zeile: TriggerZeile, k: Kontext, legende?: TextbausteinLege
       nimm(r.urteil, r.grund);
     }
     for (const w of p.weitere) {
-      nimm('unpruefbar', `Weiteres Argument „${w}" ist nicht gedeutet.`);
+      const sonder = sonderKuerzel(w);
+      nimm('unpruefbar', sonder
+        ? `Weiteres Argument „${w}": ${sonder.label} — seine Wirkung an dieser Stelle ist ungedeutet.`
+        : `Weiteres Argument „${w}" ist nicht gedeutet.`);
     }
   }
 
@@ -302,8 +319,14 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
   const kandidaten: NavigatorKandidat[] = [];
   let bereitsGesetzt = 0;
   let verletzt = 0;
+  let testKuerzel = 0;
 
   for (const [key, { kuerzel, zeilen }] of jeKuerzel) {
+    // Testkürzel der Zuarbeit sind kein Arbeitsschritt (Fachabstimmung V6). Sie
+    // fliegen VOR jedem anderen Filter raus, damit sie unter jeder Rollenwahl
+    // und in jeder Relevanz-Fassung verschwinden — gezählt und in der Fußzeile
+    // genannt, nicht stillschweigend geschluckt.
+    if (istTestKuerzel(kuerzel)) { testKuerzel += 1; continue; }
     if (relevanzGefiltert && !relevante.has(key)) continue;
     const feld = felderNachCode.get(key) ?? null;
     // Ein neutrales oder unbekanntes Kürzel bleibt unter jeder Rollenwahl
@@ -328,7 +351,10 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
     kandidaten.push({
       kuerzel,
       feldId: feld?.feldId ?? null,
-      label: feld?.label ?? kuerzel,
+      // Ohne Katalog-Eintrag stand hier bisher das Kürzel selbst („ID · ID").
+      // Was die Fachseite benannt hat, steht jetzt da — der `unbekannt`-Hinweis
+      // bleibt trotzdem: im Katalog steht es weiterhin nicht.
+      label: feld?.label ?? sonderKuerzel(kuerzel)?.label ?? kuerzel,
       rollen: feld ? rollenVonFeld(feld) : [],
       rollenText: feld ? rollenLabel(feld) : 'alle',
       wirkung: moeglich,
@@ -350,6 +376,7 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
     kandidaten,
     bereitsGesetzt,
     verletzt,
+    testKuerzel,
     nichtInterpretiert,
     relevanzGefiltert,
     geprueft: jeKuerzel.size,

@@ -120,16 +120,17 @@ entfallen: angezeigt wird, was das Fachsystem führt.
   Kopfzeile: Wert · Erklärung · Kategorie. Codes entstehen **nur** aus den Zeilen
   der Kategorie „Status"; was übersprungen wird, nennt die Vorschau nach Art
   („4 Statuscodes übernommen · übersprungen: 2 Textbausteine, 3 Bearbeiter,
-  2 Zuordnungen"). Bearbeiter-Kürzel und die Bezugsdatei-Nummern 210/211 werden
-  gegen das geprüft, was die App annimmt — Abweichungen stehen als Hinweis in der
-  Vorschau, gespeichert wird davon nichts. Eine reine Code/Text-Tabelle wird
-  weiterhin gelesen.
+  2 Zuordnungen"). Bearbeiter-Kürzel und die Nummern 210/211 werden gegen die
+  Annahme der App geprüft; Abweichungen stehen als Hinweis, gespeichert wird
+  davon nichts. Eine reine Code/Text-Tabelle wird weiter gelesen.
 - Die **Trigger-Tabelle gilt je Richtlinie**. Der Bereich „Referenzdaten" nennt
-  Stand, Zeilenzahl und die geführten Programme; die Vorschau vor der Übernahme
-  zählt Zeilen und Kürzel je Programm und nennt die Programme des Bestands, für
-  die die Datei nichts führt (mit Antragszahl). Zeilen aus einem Import vor
+  Stand, Zeilenzahl und Programme; die Vorschau zählt Zeilen und Kürzel je
+  Programm und nennt die Programme des Bestands, für die die Datei nichts führt
+  (mit Antragszahl). Zeilen aus einem Import vor
   v2.380 tragen keine Richtlinie und greifen an keinem Vorhaben — die Seite sagt
-  das und bittet um einen neuen Import.
+  das und bittet um einen neuen Import. Kürzel ohne Katalog-Eintrag meldet die
+  Vorschau als Warnung, die vier geklärten (`ID` = Rollenvergabe, `TTV1`/`TTV2`/
+  `TVB1` = Testkürzel) nur als Hinweis.
 - Die **Journal-Frische** steht als dritte Angabe im Bereich „Referenzdaten" —
   schon in der Kopfzeile, weil der Bereich eingeklappt startet: letzter Stempel
   mit Datum und Alter, Einträge des laufenden Monats, Nullpunkt der Historie.

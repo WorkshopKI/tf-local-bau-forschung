@@ -61,7 +61,7 @@ Real-Fall SPOROWIPE: TV-Status steht auf 72 (Stellungnahme RNE), Verbund-Status 
 | V1 | RNE-Strang: Die AB-Mappe unterdrückt RNE-To-dos, sobald die kaufm. QS (D_XKS) erfolgt ist. Absicht oder Altlast? | |
 | V2 | PreCheck: Wer führt ihn durch — FB? (bestimmt die Rollen-Anzeige bei „PC offen") | |
 | V4 | Spalten-Zuordnung: D_QS = „Gutachten-QS fertig", D_QS- = „QS zurück an AB/FB" — korrekt? | |
-| V6 | Trigger referenzieren vier Kürzel, die der Katalog nicht kennt: **ID, TTV1, TTV2, TVB1** — was sind sie? | |
+| V6 | Trigger referenzieren vier Kürzel, die der Katalog nicht kennt: **ID, TTV1, TTV2, TVB1** — was sind sie? | **beantwortet 04.08.2026:** ID = Rollenvergabe · TTV1, TTV2, TVB1 = Testkürzel |
 | V7 | Trigger AZBE/Folge 1 steht in Programm 79 und 139 jeweils **doppelt** in der Zuarbeit — welcher Eintrag gilt? (Zeilen 893 / 2315) | |
 | V9 | Mehrfach gesetzte Kürzel: Trägt die D_-Spalte im Export das **erste oder letzte** Datum? (bestimmt die Beschriftung des Verlaufs) | |
 | V10 | Zuarbeit-Tippfehler: Blatt „Erklärung Parameter", Code 72 heißt dort „Stellungnahme zur **Rüchnahme**empfehlung" — bitte in der Quelle korrigieren (App führt beide Schreibweisen, kein Handlungsdruck) | |

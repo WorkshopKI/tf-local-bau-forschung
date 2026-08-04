@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.406 — 2026-08
+
+### Verbesserungen
+- Unter **Nächste Schritte** stehen keine Testkürzel mehr (TTV1, TTV2, TVB1): sie sind im Fachsystem zum Testen angelegt und kein Arbeitsschritt. Betroffen waren die Richtlinien 78 und 138. Die Fußzeile sagt, wie viele ausgeblendet wurden — verschwiegen wird nichts.
+- Das Kürzel **ID** heißt jetzt „Rollenvergabe" statt nur „ID".
+- Beim Import der Trigger-Tabelle meldet die Vorschau nur noch **wirklich** unbekannte Kürzel als Warnung. Die vier geklärten stehen als Hinweis daneben — so fällt ein neuer Fall sofort auf.
+
 ## v2.405 — 2026-08
 
 ### Neu

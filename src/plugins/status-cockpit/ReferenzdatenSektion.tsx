@@ -21,8 +21,8 @@ import { pickXlsxFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import {
   importiereStatusKatalog, importiereTriggerTabelle, diffZusammenfassung,
   aktuellerStatusCodeKatalog, STATUS_CODE_KATALOG, zeilenOhneProgramm, programmeInTrigger,
-  type Diff, type EbenenHinweis, type ProgrammStatistik, type StatusCodeEintrag,
-  type TriggerZeile, type ZeilenBilanz,
+  type Diff, type EbenenHinweis, type ProgrammStatistik, type SonderKuerzel,
+  type StatusCodeEintrag, type TriggerZeile, type ZeilenBilanz,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { feldStil } from './labels';
@@ -70,6 +70,17 @@ function bilanzSatz(uebernommen: number, b: ZeilenBilanz): string {
   if (b.unklar > 0) rest.push(`${b.unklar} ohne erkennbare Art`);
   return `${uebernommen} Statuscodes übernommen`
     + (rest.length > 0 ? ` · übersprungen: ${rest.join(', ')}` : '');
+}
+
+/**
+ * Die katalogfremden, aber geklärten Kürzel — nach Bedeutung gebündelt, damit
+ * „TTV1, TTV2, TVB1" einmal und nicht dreimal erklärt wird.
+ */
+function sonderSatz(liste: readonly SonderKuerzel[]): string {
+  const jeLabel = new Map<string, string[]>();
+  for (const s of liste) jeLabel.set(s.label, [...(jeLabel.get(s.label) ?? []), s.kuerzel]);
+  const teile = [...jeLabel].map(([label, kuerzel]) => `${kuerzel.join(', ')} — ${label}`);
+  return `Nicht im Kürzel-Katalog, aber geklärt: ${teile.join(' · ')}`;
 }
 
 /** Was die Zuarbeit über 210/211 sagt, neben dem, was die App bisher annimmt. */
@@ -277,6 +288,7 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
         x => `${x.prozedur} ${x.parameterRoh}`,
         x => `${x.programm}#${x.kuerzel}#${x.folge}`,
       ),
+      ...(e.sonderkuerzel.length > 0 ? { hinweise: [sonderSatz(e.sonderkuerzel)] } : {}),
       warnungen,
       jeProgramm: e.jeProgramm,
       // Eigene Datei, eigener Stand: die Trigger gehen nicht über die

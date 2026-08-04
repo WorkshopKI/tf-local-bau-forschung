@@ -59,7 +59,7 @@ Beide sperren im Code `['*']` (alle übrigen Regeln) statt einer Id-Liste: eine 
 | V2 | Wer führt den PreCheck durch? | **Zwei Teile, zwei Rollen**: TV (`D_PC±`) = AB, Verbund (`D_XPC±`) = FB | R23 in R23a/R23b geteilt (v2.387) |
 | V3 | Spaltenabdeckung des Nachtexports | bestätigt | — |
 | V4 | `D_QS` / `D_QS-` | **Bestätigt**: QS = Gutachten-QS fertig, QS- = zurück an AB/FB | Code-Kommentar an der Stelle |
-| V6 | Kürzel **ID, TTV1, TTV2, TVB1** | **Antwort ausstehend** | Bleiben im Navigator „unprüfbar", nie „erfüllt" |
+| V6 | Kürzel **ID, TTV1, TTV2, TVB1** | **beantwortet (04.08.2026)**: `ID` = Rollenvergabe, die drei anderen = Testkürzel | `sonderkuerzel.ts` (v2.406): Testkürzel raus aus dem Navigator (gezählt), `ID` mit Bedeutung statt nackt, Import-Warnung um die vier bereinigt |
 | V7 | Doppelte AZBE/Folge-1-Zeilen (79, 139) | „erster gilt + Warnung" bleibt — die Einträge sind identisch | Kommentar im Import |
 | V9 | Erstes oder letztes Datum in der `D_`-Spalte? | **Das zuletzt gesetzte**; frühere Setzungen sind überschrieben | Beschriftung von Verlauf und Chronik — und seit v2.392 das **Import-Diff-Journal**: ab seinem Nullpunkt geht die überschriebene Setzung nicht mehr verloren ([vorgangssystem.md §12](vorgangssystem.md)) |
 | V10 | Tippfehler „Rüchnahmeempfehlung" in der Zuarbeit | wird in der Quelle korrigiert | App führt beide Schreibweisen weiter |

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.406.0 — Katalogfremde Kürzel geklärt (ID, Testkürzel) (August 2026)
+
+MINOR — Von 221 Kürzeln, welche die Trigger-Zuarbeit referenziert, fehlten genau vier im Katalog; die Fachabstimmung hat sie am 04.08.2026 benannt (V6): `ID` = Rollenvergabe, `TTV1`/`TTV2`/`TVB1` = Testkürzel. Bis dahin standen die drei Testkürzel als mögliche nächste Schritte in 78 und 138 (5337 Anträge), und die Import-Warnung zählte jedes Mal dieselben vier Namen auf.
+
+- **Eine Tabelle, drei Konsumenten** — Navigator, Erklärung und Import lesen dieselbe Antwort ([sonderkuerzel.ts](src/core/status/sonderkuerzel.ts))
+- **Testkürzel sind kein Arbeitsschritt** und fallen vor jedem anderen Filter aus der Kandidatenliste — gezählt und in der Fußzeile benannt ([navigator.ts](src/core/status/navigator.ts), [NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx))
+- **`ID` steht mit seiner Bedeutung** statt nackt da und behält den Hinweis „nicht im Katalog" — es IST ein Vorgang, nur keiner mit Katalog-Eintrag
+- **Import-Warnung nur noch für wirklich Unbekanntes**; die vier stehen als Auskunft in der Vorschau ([trigger-import.ts](src/core/status/import/trigger-import.ts), [ReferenzdatenSektion.tsx](src/plugins/status-cockpit/ReferenzdatenSektion.tsx))
+- **Kein Raten nach Muster**: `TTV3` bliebe unbekannt — der fünfte Fall soll auffallen ([sonderkuerzel.test.ts](src/core/status/__tests__/sonderkuerzel.test.ts))
+
 ### v2.405.0 — To-do-Regeln: geteilte Ansicht + kompakte Karten (August 2026)
 
 MINOR — Der Editor klappte IN der Karte auf und schob die folgenden Regeln nach unten — beim Bearbeiten verlor man damit genau den Überblick, auf den es ankommt: die Reihenfolge IST das Ergebnis. Gemessen: die Kaskade war 3017 px hoch, jede Karte 89 px.

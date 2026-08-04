@@ -215,6 +215,10 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">
             {ergebnis.geprueft} Kürzel geprüft · {ergebnis.bereitsGesetzt} bereits gesetzt
             {' · '}{ergebnis.verletzt} durch Vorbedingung ausgeschlossen
+            {/* Ausgeblendet, aber nicht verschwiegen — sonst fehlten in 78 und
+                138 drei Kürzel, ohne dass jemand den Grund sähe. */}
+            {ergebnis.testKuerzel > 0
+              && ` · ${ergebnis.testKuerzel} Testkürzel der Zuarbeit ausgeblendet`}
             {ergebnis.nichtInterpretiert > 0
               && ` · ${ergebnis.nichtInterpretiert} Trigger-Zeilen nicht interpretiert`}
           </p>

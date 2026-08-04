@@ -20,10 +20,17 @@
  *    die Erklärung zeigt dann eben „unbekanntes Kürzel". Blockieren wäre falsch:
  *    die Trigger-Tabelle kann legitim neuer sein als die Kürzel-Zuarbeit, und
  *    dann wäre die App ohne Grund handlungsunfähig.
+ *
+ * Ausgenommen von dieser Warnung sind die vier Kürzel, welche die Fachabstimmung
+ * benannt hat (`sonderkuerzel.ts`): sie stehen als **Auskunft** in der Vorschau,
+ * nicht als Beanstandung. Eine Meldung, die jedes Mal dieselben vier bekannten
+ * Namen aufzählt, liest irgendwann niemand mehr — und dann fällt der fünfte,
+ * neue nicht mehr auf.
  */
 import type { TriggerZeile } from '../typen';
 import { parseTriggerZeile, referenzierteKuerzel, type TriggerRohzeile } from '../trigger-parser';
 import { normKey } from '../normalisierung';
+import { sonderKuerzel, type SonderKuerzel } from '../sonderkuerzel';
 import { berechneDiff, type Diff } from './diff';
 import { istLeseFehler, leseXlsxTabelle, spalte, zelle } from './xlsx-tabelle';
 
@@ -72,6 +79,8 @@ export interface TriggerImportErgebnis {
   nichtInterpretiert: NichtInterpretiert[];
   /** Referenzierte Kürzel ohne Eintrag im Katalog — Warnung, kein Blocker. */
   unbekannteKuerzel: string[];
+  /** Katalogfremd, aber von der Fachseite erklärt — Auskunft statt Warnung. */
+  sonderkuerzel: SonderKuerzel[];
   /** Programme, für die Anträge da sind, die Datei aber keine Trigger führt. */
   programmeOhneTrigger: { programm: string; antraege: number }[];
 }
@@ -79,7 +88,8 @@ export interface TriggerImportErgebnis {
 function fehlerErgebnis(fehler: string): TriggerImportErgebnis {
   return {
     zeilen: [], diff: null, fehler, warnungen: [],
-    jeProgramm: [], nichtInterpretiert: [], unbekannteKuerzel: [], programmeOhneTrigger: [],
+    jeProgramm: [], nichtInterpretiert: [], unbekannteKuerzel: [], sonderkuerzel: [],
+    programmeOhneTrigger: [],
   };
 }
 
@@ -176,9 +186,15 @@ export async function importiereTriggerTabelle(
 
   const katalog = new Set(bekannteKuerzel.map(k => normKey(k)));
   const unbekannt = new Map<string, string>();
+  const sonder = new Map<string, SonderKuerzel>();
   for (const z of zeilen) {
     for (const k of referenzierteKuerzel(z)) {
-      if (!katalog.has(normKey(k)) && !unbekannt.has(normKey(k))) unbekannt.set(normKey(k), k);
+      const key = normKey(k);
+      if (katalog.has(key)) continue;
+      const erklaert = sonderKuerzel(k);
+      // Erklärt ⇒ eigene Liste. Nur was danach übrigbleibt, ist wirklich neu.
+      if (erklaert) sonder.set(key, erklaert);
+      else if (!unbekannt.has(key)) unbekannt.set(key, k);
     }
   }
 
@@ -205,6 +221,7 @@ export async function importiereTriggerTabelle(
         programm: z.programm, kuerzel: z.kuerzel, folge: z.folge, parameterRoh: z.parameterRoh,
       })),
     unbekannteKuerzel: [...unbekannt.values()].sort((a, b) => a.localeCompare(b, 'de')),
+    sonderkuerzel: [...sonder.values()].sort((a, b) => a.kuerzel.localeCompare(b.kuerzel, 'de')),
     programmeOhneTrigger,
   };
 }

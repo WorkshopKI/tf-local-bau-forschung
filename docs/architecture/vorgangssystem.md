@@ -112,9 +112,18 @@ Seed-Doku liefern unter beiden Lesarten denselben Satz.
 **Kommas trennen UND-Listen** (Legacy-Doku, Blatt „Erklärung Prozedur"): in den
 Argumenten 2–6 steht `ABB,AB,AK4` für „hat kein ABB und kein AB und kein AK4".
 Jedes Kürzel ist im Navigator eine eigene Bedingung mit eigenem Urteil — ein
-unbekanntes macht nur seinen Teil unprüfbar, nicht die ganze Zeile. Nach dem
-Splitten bleiben als unbekannte Kürzel voraussichtlich nur **ID, TTV1, TTV2,
-TVB1** übrig (Verifikationsfrage V6).
+unbekanntes macht nur seinen Teil unprüfbar, nicht die ganze Zeile.
+
+**Vier Kürzel kennt der Katalog nicht — und das ist geklärt (V6).** Von 221
+referenzierten Kürzeln fehlen genau vier: `ID` = **Rollenvergabe** (30 eigene
+Zeilen in allen neun Richtlinien, sämtlich Mail-Trigger), `TTV1`/`TTV2`/`TVB1` =
+**Testkürzel** (je 2 Zeilen, nur in 78 und 138 — eine davon adressiert eine
+persönliche Mailadresse statt eines Rollen-Tokens). Sie stehen deshalb nicht im
+Kürzel-Katalog, sondern in [sonderkuerzel.ts](../../src/core/status/sonderkuerzel.ts):
+Testkürzel sind kein Arbeitsschritt und fallen aus der Kandidatenliste (gezählt
+und in der Fußzeile benannt), `ID` behält seinen Platz und bekommt seine
+Bedeutung, und der Import zieht alle vier von der Unbekannt-Warnung ab, damit
+ein **fünftes** auffällt.
 
 **Blätter werden namentlich gewählt** — „Trigger-Prozeduren" und „Erklärung
 Parameter"; passt der Name nicht, wird die ganze Mappe durchsucht, und erst dann
@@ -177,7 +186,7 @@ Kein Regel-Editor, keine Prioritäten, keine Kategorie-Kuration, keine Unkuratie
 Die bisherigen Spine-Phasen (Eingang → Vollständigkeit → Fachprüfung → Bewilligung → Schluss) sind eine App-Erfindung — C16 kennt keine Phasen (`VB_PHASE` ist die Fördervariante, ein anderes Konzept). Das ist legitim, wird aber ehrlich gemacht:
 
 - **Umbenennung in „ZAH-Phase"** überall (UI, Code, Docs), um die Kollision mit `VB_PHASE` dauerhaft zu beenden.
-- **Explizite Zuordnungstabelle** Status-Code → ZAH-Phase (~30 Zeilen, PL-editierbar, sinnvoll vorbelegt). Kein Ableiten aus Code-Bereichen — die Codes sind nur grob geordnet (32 ablehnungsreif liegt vor 34 bearbeitungsreif).
+- **Explizite Zuordnungstabelle** Status-Code → ZAH-Phase (30 Zeilen im Seed, `zah-phasen.ts`). Kein Ableiten aus Code-Bereichen — die Codes sind nur grob geordnet (32 ablehnungsreif liegt vor 34 bearbeitungsreif).
 - **Marker-Status ohne Phase**: 88 Sonderstatus, 93 assoziierter Partner, 94 internationaler Partner u. ä. bekommen bewusst keine Phase und laufen als Kennzeichen neben dem Verfahren.
 - **Nur Anzeige-Funktion**: Gruppierung im Cockpit, Filter-Sidebar, Sortierung. Die ZAH-Phase leitet nichts ab und triggert nichts.
 
@@ -195,7 +204,7 @@ Vorschlag Phasen-Schnitt (Seed, diskutierbar):
 | Abgeschlossen | 73 abgelehnt/zurückgezogen, 90 abgebrochen, 91 beendet, 99 Schlussvermerk |
 | Marker (ohne Phase) | 29 Irrläufer, 88 Sonderstatus, 93 assoziierter Partner, 94 internationaler Partner |
 
-Änderungswünsche der Kollegen sind eingeplant: die Zuordnung ist eine editierbare Tabelle im Status-Katalog-Modul (PL/Kurator), jede Änderung erzeugt eine neue Katalog-Version mit Diff — umhängen eines Status ist eine Zeilen-Änderung, kein Code-Deployment.
+Änderungswünsche der Kollegen laufen über die Seite **„Zu klären"** ([klaerung.md](klaerung.md)): dort prüfen und kommentieren AB/FB den Schnitt Zeile für Zeile, das Ergebnis wird exportiert und im Seed geändert. **Die App editiert den Schnitt nicht** — sie kann es auch nicht sinnvoll: `prod` lädt keine Katalog-Fassung, ein in `pl` geänderter Schnitt wäre eine zweite stille Wahrheit. Umhängen eines Status ist deshalb eine Seed-Zeile plus Release, nicht eine Kuration zur Laufzeit.
 
 ## 5a. Rollen: die zweite Dimension
 

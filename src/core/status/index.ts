@@ -44,6 +44,9 @@ export {
   leseStatusRolle,
 } from './rollen';
 export {
+  SONDER_KUERZEL, sonderKuerzel, istTestKuerzel, type SonderKuerzel, type SonderArt,
+} from './sonderkuerzel';
+export {
   loeseKategorieSpalten, kategorienMitDatumsfeldern, kategorieSpaltenSignatur,
 } from './kategorie-projektion';
 export {
