@@ -48,8 +48,8 @@ export function QuickfilterToolbar(): React.ReactElement {
   // Counts auf der "Kürzel-gefilterten" Basis berechnen, nicht auf der
   // Roh-Liste — sonst zeigen die Pillen Counts der gesamten Kohorte
   // obwohl die Tabs oben (Offen / Alle …) bereits den Kürzel-Filter
-  // anwenden. countBase = View + Irrläufer-Pre-Filter + Begleitphase +
-  // Bearbeiter-Filter, ohne die Sidebar-Active-Filter (Stabilität).
+  // anwenden. countBase = View + Irrläufer-Pre-Filter + Bearbeiter-Filter,
+  // ohne die Sidebar-Active-Filter (Stabilität).
   const { countBase } = useFilteredAntraege();
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);

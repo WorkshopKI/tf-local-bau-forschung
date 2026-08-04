@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { Badge } from '@/components/ui/badge';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, type Rolle } from '@/core/status';
@@ -25,11 +26,11 @@ import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { useVorgangsBoard, sichtVon, type BoardTab, type BoardZeile } from './useVorgangsBoard';
 import { AuswertungSicht, FristenSicht } from './CockpitSichten';
 
+/** Rahmen der Gruppen-Karten und des „keine Regeln"-Hinweises. */
 const feldStil: React.CSSProperties = {
   border: '1px solid var(--tf-border)',
   background: 'var(--tf-bg-secondary)',
 };
-const feldKlasse = 'text-[12.5px] rounded px-2 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)]';
 
 /**
  * Das To-do einer FREMDEN Rolle, gedämpft daneben.
@@ -165,6 +166,10 @@ export function VorgangsBoardPage(): React.ReactElement {
     navigate(`/antraege/${z.verbundId ?? z.aktenzeichen}`);
   };
 
+  // Trifft die Auswahl genau die Vorbelegung? Dann trägt sie deren Namen.
+  const istLetzteDrei = api.jahre.length === api.letzteDrei.length
+    && api.letzteDrei.every(j => api.jahre.includes(j));
+
   const TABS: { key: BoardTab; label: string }[] = [
     { key: 'meine', label: 'Meine Aufgaben' },
     { key: 'warten', label: 'Wartet auf andere' },
@@ -215,22 +220,52 @@ export function VorgangsBoardPage(): React.ReactElement {
             onToggle={() => api.setNurHaengt(!api.nurHaengt)}
           />
           <span className="w-2" />
-          <select value={api.jahr} className={feldKlasse} style={feldStil}
-            aria-label="Jahr" onChange={e => api.setJahr(e.target.value)}>
-            <option value="letzte3">Letzte 3 Jahrgänge</option>
-            <option value="alle">Alle Jahre</option>
-            {api.jahre.map(j => <option key={j} value={j}>{j}</option>)}
-          </select>
-          <select value={api.variante} className={feldKlasse} style={feldStil}
-            aria-label="Fördervariante" onChange={e => api.setVariante(e.target.value)}>
-            <option value="alle">Alle Fördervarianten</option>
-            {api.varianten.map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select value={api.phase} className={feldKlasse} style={feldStil}
-            aria-label="ZAH-Phase" onChange={e => api.setPhase(e.target.value)}>
-            <option value="alle">Alle ZAH-Phasen</option>
-            {api.phasen.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
+          <MultiSelectDropdown
+            einheit="Jahrgänge"
+            alleLabel="Alle Jahrgänge"
+            optionen={api.jahrOptionen}
+            ausgewaehlt={api.jahre}
+            onChange={api.setJahre}
+            // Die Vorbelegung hat einen Namen — „3 Jahrgänge" wäre richtig, aber
+            // nichtssagend.
+            labelOverride={istLetzteDrei ? 'Letzte 3 Jahrgänge' : null}
+            aktionen={[
+              {
+                label: 'Letzte 3 Jahrgänge',
+                onClick: () => api.setJahre(api.letzteDrei),
+                aktiv: istLetzteDrei,
+              },
+              {
+                label: 'Alle Jahrgänge',
+                onClick: () => api.setJahre([]),
+                aktiv: api.jahre.length === 0,
+              },
+            ]}
+          />
+          <MultiSelectDropdown
+            einheit="Fördervarianten"
+            alleLabel="Alle Fördervarianten"
+            optionen={api.variantenOptionen}
+            ausgewaehlt={api.varianten}
+            onChange={api.setVarianten}
+            aktionen={[{
+              label: 'Alle Fördervarianten',
+              onClick: () => api.setVarianten([]),
+              aktiv: api.varianten.length === 0,
+            }]}
+          />
+          <MultiSelectDropdown
+            einheit="ZAH-Phasen"
+            alleLabel="Alle ZAH-Phasen"
+            optionen={api.phasenOptionen}
+            ausgewaehlt={api.phasen}
+            onChange={api.setPhasen}
+            aktionen={[{
+              label: 'Alle ZAH-Phasen',
+              onClick: () => api.setPhasen([]),
+              aktiv: api.phasen.length === 0,
+            }]}
+          />
         </div>
       </div>
 
@@ -290,11 +325,11 @@ export function VorgangsBoardPage(): React.ReactElement {
             geführt, und eine Regel, die auf „leer" prüft, trifft dort
             massenhaft. Gemessen: 6 607 „ZuwB erstellen" über alle Jahrgänge,
             davon 0 im laufenden Jahr. */}
-        {!api.laden && api.alleJahrgaenge && (
+        {!api.laden && api.zeigtAltbestand && (
           <p className="text-[11.5px] text-[var(--tf-warning-text)]">
-            Alle Jahrgänge: ältere Vorgänge führen viele Spalten gar nicht (etwa den
-            Zuwendungsbescheid). Regeln, die auf „leer" prüfen, melden dort Aufgaben, die keine
-            sind. Für die tägliche Arbeit sind die letzten drei Jahrgänge gemeint.
+            Die Auswahl reicht in den Altbestand: ältere Vorgänge führen viele Spalten gar nicht
+            (etwa den Zuwendungsbescheid). Regeln, die auf „leer" prüfen, melden dort Aufgaben,
+            die keine sind. Für die tägliche Arbeit sind die letzten drei Jahrgänge gemeint.
           </p>
         )}
         {!api.laden && api.tab === 'fristen' && <FristenSicht api={api} />}

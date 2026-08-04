@@ -25,13 +25,17 @@ import {
   ladeAktiveVersion, getAktiveVersion, jederVorgang,
   baueTodoKontext, ermittleTodosAlleRollen, todoWerte, findeStatusCode, leseStatusRolle,
   pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel, REGELSATZ_DEFAULT,
-  fassePlatzhalterZusammen, letzteAenderungJeAntrag,
+  fassePlatzhalterZusammen, letzteAenderungJeAntrag, ZAH_PHASEN_REIHENFOLGE,
   type MappingVersion, type Rolle, type TodoErgebnis, type WaechterErgebnis, type ZahPhaseId,
   type RollenBilanz,
 } from '@/core/status';
 import {
-  parseBearbeiterFilter, antragMatchesBearbeiter, type BearbeiterFilterMode,
+  parseBearbeiterFilter, type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
+import {
+  letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
+  zaehleNach,
+} from './boardFilter';
 
 /** Eine Zeile des Boards — ein Teilvorhaben mit seinem ermittelten To-do. */
 export interface BoardZeile {
@@ -116,6 +120,16 @@ export function ampelVon(restTage: number | null): 'rot' | 'gelb' | 'gruen' | nu
   return 'gruen';
 }
 
+/**
+ * Ein Menü-Eintrag einer Filter-Achse. Strukturgleich zu `MultiSelectOption` —
+ * der Hook bleibt damit frei von einer Abhängigkeit auf das Anzeige-Bauteil.
+ */
+export interface FilterOption {
+  wert: string;
+  label: string;
+  anzahl: number;
+}
+
 export interface VorgangsBoardApi {
   laden: boolean;
   fehler: string | null;
@@ -135,12 +149,16 @@ export interface VorgangsBoardApi {
   setRolle: (r: Rolle | 'alle') => void;
   nurMeine: boolean;
   setNurMeine: (v: boolean) => void;
-  jahr: string;
-  setJahr: (v: string) => void;
-  variante: string;
-  setVariante: (v: string) => void;
-  phase: string;
-  setPhase: (v: string) => void;
+  /**
+   * Die drei Menü-Achsen als **Mehrfachauswahl**. Leere Liste = kein Filter
+   * (alle Werte) — nicht „nichts anzeigen".
+   */
+  jahre: string[];
+  setJahre: (v: string[]) => void;
+  varianten: string[];
+  setVarianten: (v: string[]) => void;
+  phasen: string[];
+  setPhasen: (v: string[]) => void;
   /** Nur Vorgänge zeigen, die der Wächter als hängend beurteilt. */
   nurHaengt: boolean;
   setNurHaengt: (v: boolean) => void;
@@ -155,12 +173,19 @@ export interface VorgangsBoardApi {
    * viel Regelarbeit noch aussteht.
    */
   rollenBilanz: RollenBilanz[];
-  /** Auswahllisten, aus dem Bestand erzeugt. */
-  jahre: string[];
-  /** Sind gerade ALLE Jahrgänge gewählt? Dann gehört ein Hinweis daneben. */
-  alleJahrgaenge: boolean;
-  varianten: string[];
-  phasen: { id: string; label: string }[];
+  /**
+   * Die Menü-Einträge je Achse, aus dem Bestand erzeugt — mit **Facetten-Zahl**:
+   * gerechnet unter den JEWEILS ANDEREN Filtern, die eigene Achse ausgelassen.
+   * Sonst zeigte „2023: 0", solange 2023 nicht angehakt ist, und die Zahl wäre
+   * keine Zusage mehr, was ein Klick bringt.
+   */
+  jahrOptionen: FilterOption[];
+  variantenOptionen: FilterOption[];
+  phasenOptionen: FilterOption[];
+  /** Die Jahre der Vorbelegung — für den Schnellweg „Letzte 3 Jahrgänge". */
+  letzteDrei: string[];
+  /** Reicht die Auswahl in den Altbestand? Dann gehört der Hinweis daneben. */
+  zeigtAltbestand: boolean;
   /** Kürzel-Modus für die Kopfzeile („Alle Bearbeiter" vs. „Kürzel MUE"). */
   kuerzelModus: BearbeiterFilterMode;
   /** Wie viele Anträge der Betrachtungsbereich weggenommen hat (für den Chip). */
@@ -169,10 +194,9 @@ export interface VorgangsBoardApi {
   ladeMs: number | null;
 }
 
-const ALLE = 'alle';
-
 /**
- * Vorbelegung des Jahrgangs-Filters: **das laufende Jahr und die beiden davor**.
+ * Vorbelegung des Jahrgangs-Filters: **das laufende Jahr und die beiden davor**
+ * ({@link letzteDreiJahrgaenge}).
  *
  * Kein kosmetischer Default, sondern eine fachliche Aussage. Gemessen am
  * Bestand: von 9 141 bewilligten Anträgen tragen nur 2 529 ein Datum in
@@ -182,10 +206,11 @@ const ALLE = 'alle';
  * Altbestand ist kein Rückstand, sondern unvollständig gepflegte Historie; die
  * AB-Mappe blendet ihn über ihren Jahres-Slicer ebenso aus.
  *
- * Erreichbar bleibt er über „Alle Jahre" — mit Hinweis, nicht stillschweigend.
+ * Erreichbar bleibt er über „Alle Jahrgänge" — mit Hinweis, nicht
+ * stillschweigend. Seit der Mehrfachauswahl stehen die drei Jahre **angekreuzt**
+ * im Menü, statt sich hinter einem Sammelwert zu verstecken: der Nutzer sieht,
+ * welche gemeint sind, und kann einzeln dazu- oder abwählen.
  */
-const LETZTE_3 = 'letzte3';
-const JAHRGAENGE = 3;
 
 /** ZAH-Phasen, in denen die Antragsfrist (90 Tage) überhaupt gilt. */
 const ANTRAGSPHASE: ReadonlySet<ZahPhaseId> = new Set<ZahPhaseId>([
@@ -231,12 +256,15 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   const bereich = useBereich();
   const bereichMenge = bereich.menge;
 
+  /** Die Jahre der Vorbelegung — aus dem Stichtag, einmal je Seitenaufruf. */
+  const letzteDrei = useMemo(() => letzteDreiJahrgaenge(heuteRef.current), []);
+
   const [tab, setTab] = useState<BoardTab>('meine');
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
   const [nurMeine, setNurMeine] = useState(true);
-  const [jahr, setJahr] = useState(LETZTE_3);
-  const [variante, setVariante] = useState(ALLE);
-  const [phase, setPhase] = useState(ALLE);
+  const [jahre, setJahre] = useState<string[]>(letzteDrei);
+  const [varianten, setVarianten] = useState<string[]>([]);
+  const [phasen, setPhasen] = useState<string[]>([]);
   const [nurHaengt, setNurHaengt] = useState(false);
 
   const laden_ = useCallback(async (): Promise<void> => {
@@ -345,20 +373,45 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     ...(rolle === 'alle' ? {} : { rolle }),
   }), [nurMeine, meinKuerzel, profile, rolle]);
 
-  /** Ältester Jahrgang der Vorbelegung — aus dem Stichtag, nie aus einer Uhr. */
-  const grenzJahr = String(new Date(heuteRef.current).getUTCFullYear() - (JAHRGAENGE - 1));
+  /**
+   * Die Menge OHNE die Menü-Achsen — Grundlage aller drei Facetten-Rechnungen.
+   * „Hängt fest" und der Kürzel-Filter stehen darin, weil sie kein eigenes Menü
+   * haben und ihre Wirkung sonst in keiner Zahl auftauchte.
+   */
+  const basis = useMemo(
+    () => alle.filter(z => passtRest(z, nurHaengt, kuerzelModus)),
+    [alle, nurHaengt, kuerzelModus],
+  );
 
-  const zeilen = useMemo(() => alle.filter(z => {
-    if (jahr === LETZTE_3) {
-      // Ohne Antragsdatum lässt sich kein Jahrgang bestimmen — solche Vorgänge
-      // gehören nicht in die Vorbelegung, sondern unter „Alle Jahre".
-      if (z.jahr === '' || z.jahr < grenzJahr) return false;
-    } else if (jahr !== ALLE && z.jahr !== jahr) return false;
-    if (variante !== ALLE && z.variante !== variante) return false;
-    if (phase !== ALLE && (z.zahPhase ?? '') !== phase) return false;
-    if (nurHaengt && z.waechter.urteil !== 'haengt') return false;
-    return antragMatchesBearbeiter(z.filterRecord, kuerzelModus);
-  }), [alle, jahr, grenzJahr, variante, phase, nurHaengt, kuerzelModus]);
+  const zeilen = useMemo(
+    () => basis.filter(z => passtJahr(z, jahre) && passtVariante(z, varianten) && passtPhase(z, phasen)),
+    [basis, jahre, varianten, phasen],
+  );
+
+  // Je Achse: alle ANDEREN Filter angewandt, die eigene ausgelassen. Drei
+  // weitere Durchläufe über ~14 000 Zeilen — gegenüber der Ableitung je Antrag
+  // (die im Ladelauf steckt) nicht messbar.
+  const jahrZaehler = useMemo(
+    () => zaehleNach(
+      basis.filter(z => passtVariante(z, varianten) && passtPhase(z, phasen)),
+      z => z.jahr,
+    ),
+    [basis, varianten, phasen],
+  );
+  const variantenZaehler = useMemo(
+    () => zaehleNach(
+      basis.filter(z => passtJahr(z, jahre) && passtPhase(z, phasen)),
+      z => z.variante,
+    ),
+    [basis, jahre, phasen],
+  );
+  const phasenZaehler = useMemo(
+    () => zaehleNach(
+      basis.filter(z => passtJahr(z, jahre) && passtVariante(z, varianten)),
+      z => z.zahPhase ?? '',
+    ),
+    [basis, jahre, varianten],
+  );
 
   /**
    * Die drei Sichten desselben Regelsatzes (Konzept 6.5): was ICH tue, worauf
@@ -469,27 +522,57 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     [zeilen, version],
   );
 
-  const jahre = useMemo(
-    () => [...new Set(alle.map(z => z.jahr).filter(Boolean))].sort().reverse(),
-    [alle],
-  );
-  const varianten = useMemo(
-    () => [...new Set(alle.map(z => z.variante).filter(Boolean))].sort(),
-    [alle],
-  );
-  const phasen = useMemo(() => {
-    const ids = [...new Set(alle.map(z => z.zahPhase).filter((p): p is ZahPhaseId => p !== null))];
-    return ids.map(id => ({ id, label: zahPhaseLabel(id, version?.zahPhasen) }));
-  }, [alle, version]);
+  /**
+   * Die Menü-Einträge. **Vorhandene Werte kommen aus dem Bestand, die Ordnung
+   * aus dem Fach** — nicht aus der Reihenfolge des Auftretens (Phasen) und nicht
+   * alphabetisch (Varianten, wo sonst „DL" vor „FuE" vor „NW 1" stünde).
+   *
+   * Ein gewählter Wert bleibt im Menü, auch wenn die anderen Filter ihn gerade
+   * auf 0 drücken — sonst verschwände ein aktiver Filter aus seinem eigenen
+   * Menü und ließe sich nicht mehr abwählen.
+   */
+  const jahrOptionen = useMemo<FilterOption[]>(() => {
+    const werte = new Set([...alle.map(z => z.jahr).filter(Boolean), ...jahre]);
+    return [...werte].sort().reverse()
+      .map(wert => ({ wert, label: wert, anzahl: jahrZaehler.get(wert) ?? 0 }));
+  }, [alle, jahre, jahrZaehler]);
+
+  const variantenOptionen = useMemo<FilterOption[]>(() => {
+    const vorhanden = new Set([...alle.map(z => z.variante).filter(Boolean), ...varianten]);
+    // Reihenfolge der Fördervarianten = die der VB_PHASE-Nummern (NW 1, NW 2,
+    // FuE, DL, DS, Irrläufer), nicht das Alphabet.
+    const geordnet = Object.keys(VB_PHASE_LABELS)
+      .map(Number).sort((a, b) => a - b)
+      .map(n => VB_PHASE_LABELS[n])
+      .filter((l): l is string => l !== undefined && vorhanden.has(l));
+    // Werte, die das Mapping nicht kennt (`Variante N`), hinten anhängen statt
+    // unterschlagen.
+    const rest = [...vorhanden].filter(v => !geordnet.includes(v)).sort();
+    return [...geordnet, ...rest]
+      .map(wert => ({ wert, label: wert, anzahl: variantenZaehler.get(wert) ?? 0 }));
+  }, [alle, varianten, variantenZaehler]);
+
+  const phasenOptionen = useMemo<FilterOption[]>(() => {
+    const vorhanden = new Set<string>([
+      ...alle.map(z => z.zahPhase).filter((p): p is ZahPhaseId => p !== null),
+      ...phasen,
+    ]);
+    return ZAH_PHASEN_REIHENFOLGE.filter(id => vorhanden.has(id)).map(id => ({
+      wert: id,
+      label: zahPhaseLabel(id, version?.zahPhasen),
+      anzahl: phasenZaehler.get(id) ?? 0,
+    }));
+  }, [alle, phasen, phasenZaehler, version]);
 
   return {
     laden, fehler, version, zeilen, gruppen, zaehler,
     gesamt: alle.length,
     ohneRegeln: version !== null && (version.todoRegeln ?? []).length === 0,
     tab, setTab, rolle, setRolle, nurMeine, setNurMeine,
-    jahr, setJahr, variante, setVariante, phase, setPhase,
-    jahre, alleJahrgaenge: jahr === ALLE, varianten, phasen, kuerzelModus,
-    ausgeblendet, ladeMs,
+    jahre, setJahre, varianten, setVarianten, phasen, setPhasen,
+    jahrOptionen, variantenOptionen, phasenOptionen,
+    letzteDrei, zeigtAltbestand: reichtInAltbestand(jahre, heuteRef.current),
+    kuerzelModus, ausgeblendet, ladeMs,
     nurHaengt, setNurHaengt, stau, unbewertet, rollenBilanz,
   };
 }

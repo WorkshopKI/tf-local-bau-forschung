@@ -58,9 +58,22 @@ Verfügung.
   Der zweite Teil sagt, wie viel von der Arbeit einer Rolle nur geliehen ist —
   und damit, wie viel Regelarbeit noch aussteht.
 - **Filter**: Rollen-Chips (Vorbelegung aus dem Profil, umschaltbar auf alle),
-  eigenes Kürzel an/aus, **„hängt fest"**, Jahr des Antragseingangs,
-  Fördervariante, ZAH-Phase. Der Kürzel-Filter folgt der Rolle: ein AB sucht
-  sich in der BIB-Spalte, ein FB in TIB.
+  eigenes Kürzel an/aus, **„hängt fest"** — dazu drei Menüs mit
+  **Mehrfachauswahl**: Jahrgänge (Jahr des Antragseingangs), Fördervarianten und
+  ZAH-Phasen. Der Kürzel-Filter folgt der Rolle: ein AB sucht sich in der
+  BIB-Spalte, ein FB in TIB.
+  - **Nichts angehakt heißt „alle"**, nicht „nichts". Jedes Menü hat oben einen
+    Rücksetzer.
+  - **Jahrgänge starten auf den letzten dreien** — und zwar sichtbar angekreuzt,
+    nicht als Sammelwert. Der Schnellweg „Letzte 3 Jahrgänge" stellt sie wieder
+    her, „Alle Jahrgänge" hebt die Auswahl auf.
+  - **Die Zahl neben jedem Wert ist eine Zusage**: sie sagt, wie viele Zeilen ein
+    Klick brächte, und rechnet dafür unter den *jeweils anderen* aktiven Filtern
+    — die eigene Achse bleibt ausgespart. Wer „FuE" wählt, sieht die Jahrgangs-
+    Zahlen schrumpfen; die Varianten-Zahlen im eigenen Menü ändern sich nicht.
+  - Der **Altbestands-Hinweis** erscheint, sobald die Auswahl einen Jahrgang vor
+    der Drei-Jahres-Grenze enthält — auch bei einem einzeln gewählten alten Jahr,
+    nicht erst bei „alle".
 - **Stillstands-Wächter**: eine Zeile, an der seit länger als den **Zieltagen**
   ihres Status nichts passiert ist, trägt die Marke „hängt n T". Im Kopf steht
   der **Stau je Rolle**; daneben — nicht darin — die Zahl der **nicht

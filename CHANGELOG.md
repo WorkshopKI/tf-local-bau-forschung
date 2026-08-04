@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.402.0 — Vorgangs-Board: Mehrfachauswahl-Filter (August 2026)
+
+MINOR — Jahrgänge, Fördervarianten und ZAH-Phasen ließen je nur EINEN Wert zu: „2024 und 2025" war nicht wählbar, man musste auf „Alle" ausweichen und bekam den Altbestand dazu. Die drei Filter waren zugleich die einzigen nativen `<select>` in einer Filter-Leiste der App — daher das Betriebssystem-Menü in fremden Farben. Beides hat dieselbe Lösung.
+
+- **`MultiSelectDropdown`** in der Layout-Schicht: Mehrfachauswahl, leere Auswahl = kein Filter, Schnellwege über der Liste; visuelle Familie von `GruppierenDropdown`/`ColumnPicker` (gemessen: identische Rahmen-, Radius-, Schrift-, Padding- und Höhenwerte) ([MultiSelectDropdown.tsx](src/components/ui/MultiSelectDropdown.tsx))
+- **Trefferzahl je Wert als Facetten-Zahl** — gerechnet unter den jeweils anderen Filtern, die eigene Achse ausgespart; Filter-Logik dafür rein und geprüft aus dem Hook gelöst ([boardFilter.ts](src/plugins/vorgangs-board/boardFilter.ts))
+- **Vorbelegung „Letzte 3 Jahrgänge" steht jetzt angekreuzt da** statt als Sammelwert; die Zahlen bleiben unverändert (gemessen: 3 881 nach Filter, wie zuvor) ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
+- **Altbestands-Hinweis greift genauer**: schon bei einem einzeln gewählten alten Jahrgang, nicht erst bei „alle" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- **Fachliche Ordnung der Menüs**: ZAH-Phasen entlang des Verfahrens (statt nach Auftreten), Fördervarianten nach `VB_PHASE`-Nummer (statt alphabetisch „DL" vor „FuE" vor „NW 1") ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
+
 ### v2.401.0 — Gemeinsame Tree-Basis für Status-Filter, Textbausteine, Ordner und Meilensteine (August 2026)
 
 MINOR — Vier Module bauten Baum-Verhalten je selbst nach: eigenes Aufklapp-Set, im Ordner-Editor dazu hand-geschriebenes HTML5-Drag. Keines davon konnte Tastatur. Eine gemeinsame Basis ersetzt alle vier — sieben eigene Zustandsstücke fallen weg.

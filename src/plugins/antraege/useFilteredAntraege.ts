@@ -50,11 +50,10 @@ export interface FilteredAntraegeResult {
    */
   bearbeiterKuerzelMissing: boolean;
   /**
-   * Anträge nach View + Irrläufer-Pre-Filter + Begleitphase + Bearbeiter-
-   * Filter, aber VOR den Sidebar-Active-Filtern und der Such-Eingabe. Wird
-   * von den Quickfilter-Pillen als Count-Basis genutzt, damit die Counts
-   * den Kürzel-Filter widerspiegeln und stabil bleiben gegen Quickfilter-
-   * Wechsel.
+   * Anträge nach View + Irrläufer-Pre-Filter + Bearbeiter-Filter, aber VOR
+   * den Sidebar-Active-Filtern und der Such-Eingabe. Wird von den
+   * Quickfilter-Pillen als Count-Basis genutzt, damit die Counts den
+   * Kürzel-Filter widerspiegeln und stabil bleiben gegen Quickfilter-Wechsel.
    */
   countBase: AntragListItem[];
   /**

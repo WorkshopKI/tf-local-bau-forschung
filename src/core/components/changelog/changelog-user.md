@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.402 — 2026-08
+
+### Neu
+- Im Vorgangs-Board lassen sich Jahrgänge, Fördervarianten und ZAH-Phasen jetzt **mehrfach** auswählen — etwa 2024 *und* 2025, oder FuE *und* DL.
+- Neben jedem Wert steht, **wie viele Anträge er bringt** — und zwar unter den anderen gerade gesetzten Filtern. Man sieht vor dem Klick, ob sich ein Filter lohnt.
+
+### Verbesserungen
+- Die drei Filter sehen jetzt aus wie die übrigen Menüs der App, statt ein graues Windows-Menü zu öffnen.
+- Die Vorbelegung „Letzte 3 Jahrgänge" zeigt die drei Jahre angekreuzt, statt sie hinter einem Sammelwert zu verstecken; ein Schnellweg stellt sie jederzeit wieder her.
+- Der Hinweis zum Altbestand erscheint schon, wenn ein einzelner alter Jahrgang dazukommt — nicht erst bei „alle Jahrgänge".
+
 ## v2.401 — 2026-08
 
 ### Neu
@@ -28,7 +39,7 @@
 - Alle Baum-Ansichten (Status-Filter, Textbausteine, Ordner im Status-Katalog, Meilenstein-Konfiguration) lassen sich jetzt mit der Tastatur bedienen: Pfeiltasten zum Wandern, Pfeil rechts/links zum Auf- und Zuklappen, Pos1/Ende an den Anfang oder ans Ende.
 - In der Meilenstein-Konfiguration klappt das Dreieck jetzt die Unter-Meilensteine auf; die Bedingung erscheint unter dem Meilenstein, den Sie angeklickt haben. Umsortiert wird per Ziehen — die Pfeiltasten hoch/runter bleiben daneben bestehen.
 ### Bugfixes
-<!-- - … -->
+- Das Fachsystem heißt **C16** — die App nannte es an allen Stellen „Foyer". Betroffen waren unter anderem die Kurzanleitung des Vorgangs-Boards und die Überschrift „Nächste Schritte (in C16 zu setzen)" am Verbund. Das ZIM-Foyer, über das Anträge eingehen, ist ein anderes System und heißt weiterhin so.
 
 ## v2.400 — 2026-08
 
@@ -230,7 +241,7 @@
 ## v2.376 — 2026-08
 
 ### Neu
-- Der Verbund zeigt unter „Status & Verlauf" jetzt **„Nächste Schritte (im Foyer zu setzen)"**: welche Kürzel unter dem aktuellen Status überhaupt greifen würden, was sie auslösen und wer sie setzt. Vorgefiltert auf Ihre Rolle, umschaltbar auf alle. Die App setzt nichts selbst — sie sagt, was im Foyer zu tun wäre.
+- Der Verbund zeigt unter „Status & Verlauf" jetzt **„Nächste Schritte (in C16 zu setzen)"**: welche Kürzel unter dem aktuellen Status überhaupt greifen würden, was sie auslösen und wer sie setzt. Vorgefiltert auf Ihre Rolle, umschaltbar auf alle. Die App setzt nichts selbst — sie sagt, was in C16 zu tun wäre.
 - Der Tab „Felder" im Status-Katalog heißt jetzt **„Kürzel"** und ist ein Glossar: neben dem Code steht ein Blitz mit der Anzahl der Trigger; ein Klick zeigt in einem Satz, was das Setzen auslöst.
 - **Relevanz-Häkchen** je Kürzel grenzen die 505 Einträge auf die für die Antragsbearbeitung wichtigen ein. Eine Aktion übernimmt die 31 Spalten des AB-Dashboards als Startvorschlag; sie setzt nur Häkchen und nimmt nie welche weg.
 

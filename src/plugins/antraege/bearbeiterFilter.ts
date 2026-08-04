@@ -89,9 +89,10 @@ function spaltenFuer(mode: BearbeiterFilterMode): {
 
 /**
  * Parst das Profil-Feld zu einem normalisierten Filter-Modus.
- * - Leer / undefined / nur Whitespace → Kürzel-Filter inaktiv (aber
- *   `includeBegleitung` bleibt aus dem Profil erhalten, weil die Phase-
- *   Filterung auch ohne aktiven Kürzel-Filter wirkt).
+ * - Leer / undefined / nur Whitespace → Kürzel-Filter inaktiv. `includeBegleitung`
+ *   wird trotzdem aus dem Profil übernommen, wirkt bei inaktivem Kürzel-Filter
+ *   aber nirgends: es steuert nur die Spaltenauswahl (`spaltenFuer`), und ohne
+ *   aktiven Filter wird gar keine Spalte gematcht.
  * - "alle" (case-insensitive) → Kürzel-Filter inaktiv
  * - Sonst: comma-split, trim, uppercase, leere Tokens entfernt.
  */
