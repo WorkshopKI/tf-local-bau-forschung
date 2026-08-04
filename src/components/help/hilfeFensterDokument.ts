@@ -132,12 +132,16 @@ body {
   top: 0;
   background: var(--tf-bg);
   border-bottom: 1px solid var(--tf-border);
-  padding: 14px 20px 10px;
+  /* Seitliche Abstaende gleich denen des Inhalts, sonst steht die Ueberschrift
+     eingerueckt gegen den Text darunter. */
+  padding: 14px 28px 10px;
   flex: 0 0 auto;
 }
-/* Derselbe Mitte-Block wie im Inhalt: sonst steht die Ueberschrift in einem
-   breiten Fenster woanders als der Text darunter. */
-.tf-kopf .tf-mitte { padding: 0; }
+/* Kopf und Inhalt teilen denselben Block, damit die Ueberschrift ueber dem Text
+   sitzt und nicht daneben. Die seitlichen Abstaende stellt tf-kopf selbst.
+   ACHTUNG: keine Backticks in diesen Kommentaren — der ganze Block ist ein
+   Template-Literal, ein Backtick beendet ihn mittendrin. */
+.tf-kopf .tf-spalte { padding: 0; }
 .tf-kopf-zeile { display: flex; align-items: flex-start; gap: 12px; }
 .tf-kopf h1 { font-size: 1.125rem; font-weight: 600; margin: 0; flex: 1 1 auto; }
 .tf-unter { margin: 2px 0 0; font-size: 0.75rem; color: var(--tf-text-secondary); }
@@ -163,12 +167,14 @@ body {
   padding: 2px 8px; cursor: pointer;
 }
 .tf-hinweis button:hover { background: var(--tf-hover); }
-/* Der Scroller ist IMMER fensterbreit — die Leseweite begrenzt der innere Block.
-   Beides auf einem Element hiesse: bei einem breiter gezogenen Fenster klebt der
-   Text links und die Bildlaufleiste steht mitten im Fenster. */
+/* Der Text laeuft ueber die volle Fensterbreite: wer das Fenster breiter zieht,
+   will weniger scrollen, nicht eine schmale Spalte mit Rand daneben. Eine feste
+   Leseweite (max-width) stand dem im Weg und ist bewusst raus. Der Scroller ist
+   das <main>, der Block darin traegt nur die Innenabstaende — beides auf einem
+   Element liesse die Bildlaufleiste mitten im Fenster stehen. */
 main { flex: 1 1 auto; overflow-y: auto; }
-.tf-mitte { max-width: 78ch; margin: 0 auto; }
-main .tf-mitte { padding: 16px 20px 40px; line-height: 1.625; }
+.tf-spalte { width: 100%; }
+main .tf-spalte { padding: 16px 28px 40px; line-height: 1.625; }
 main h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.75rem; }
 main h2 { font-size: 1.25rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
 main h3 { font-size: 1.125rem; font-weight: 500; margin: 1.25rem 0 0.5rem; }
@@ -238,7 +244,7 @@ export function hinweisText(
 /** Kopfzeile + leerer Inhaltsbereich als HTML-String (`document.body.innerHTML`). */
 export function baueGeruestHtml(): string {
   return `<header class="tf-kopf">
-  <div class="tf-mitte">
+  <div class="tf-spalte">
     <div class="tf-kopf-zeile">
       <h1 id="${HILFE_IDS.titel}"></h1>
       <label class="tf-fest" title="Hält diese Anleitung fest, auch wenn Sie in der App auf eine andere Seite wechseln.">
@@ -252,7 +258,7 @@ export function baueGeruestHtml(): string {
     </div>
   </div>
 </header>
-<main><div class="tf-mitte" id="${HILFE_IDS.inhalt}"></div></main>`;
+<main><div class="tf-spalte" id="${HILFE_IDS.inhalt}"></div></main>`;
 }
 
 /** `<head>`-Inhalt. Das `<style>` wird später einzeln nachgezogen (Theme-Wechsel). */
