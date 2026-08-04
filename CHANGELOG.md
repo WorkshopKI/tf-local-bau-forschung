@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.404.1 — Guard gegen as/pl-Feature-Drift (August 2026)
+
+PATCH — Die as/pl-Angleichung aus v2.403.0 war eine Aufräumarbeit, die sich jederzeit wiederholen kann: kein Test verglich zwei Varianten miteinander, deshalb konnte as über acht Flags hinweg unbemerkt hinter pl zurückfallen. Der Nachtrag schließt die Lücke, statt sich auf Aufmerksamkeit zu verlassen.
+
+- **Guard `variant-drift`** mergt beide Configs wie der Build und vergleicht die *effektiven* Flag-Werte; ein nur in pl gesetztes Flag macht ihn rot und nennt den Namen ([variant-drift.test.ts](src/config/__tests__/variant-drift.test.ts))
+- **Vier erlaubte Abweichungen** stehen benannt und begründet in `ERWARTETE_ABWEICHUNGEN` — wer sie ändert, ändert die Definition der as-Variante
+- **`kuerzelDropdown` gilt nicht als Drift**: roh verschieden (as explizit, pl abgeleitet), effektiv gleich — der Guard rechnet die Ableitungen aus [feature-flags.ts](src/config/feature-flags.ts) nach, statt roh zu vergleichen
+- **Gegen den echten Vorher-Stand geprüft**: mit `as.config.json` aus 75725a46^ meldet der Guard exakt die acht historisch gedrifteten Flags
+- [build-varianten.md](docs/architecture/build-varianten.md) hält fest, dass die Vier-Flag-Differenz jetzt maschinell abgesichert ist
+
 ### v2.404.0 — Begleitphase als eigene Sicht (August 2026)
 
 MINOR — Der Reiter „Offen" bündelte Antragsphase (TIB/BIB, 3–9 Monate) und Begleitphase (ZTP/PFM, 3–4 Jahre) mit zwei verschiedenen Fristuhren in einer Sicht; ein Profil-Haken blendete die Begleitphase zusätzlich app-weit aus, solange niemand ihn aktivierte. Zwei Nachzieh-Fixes hoben außerdem 15 Anträge in ihre korrekte Sicht, die zuvor an einem eingefrorenen Seed bzw. einer unvollständigen Fassung vorbeifielen.
