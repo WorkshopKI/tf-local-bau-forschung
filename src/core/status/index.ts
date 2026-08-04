@@ -76,6 +76,12 @@ export {
   type ZieltageAuswahl, type ZieltageUebernahme,
 } from './zieltage-vorschlag';
 export {
+  berechnePhasenVorschlag,
+  type PhasenAuswahl, type PhasenVorschlag, type PhasenBeleg, type PhasenKonflikt,
+  type PhasenKennzahlen, type PhasenSchnitt, type QuellenAbweichung,
+  type PhasenHerkunft, type PhasenQuelle, type OhneGrund,
+} from './feld-phase-vorschlag';
+export {
   baueHerleitung, herleitungAlsText, statusKurz,
   type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
   type VerlaufSchritt, type LetzterVorgang, type TriggerWirkungSatz,
@@ -117,7 +123,7 @@ export {
   uebernimmStatusCodes, aktuellerStatusCodeKatalog,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
   todoRegelDrift, zieheTodoRegelnNach, type TodoRegelDrift,
-  setzeZieltage,
+  setzeZieltage, setzeFeldPhasen,
   relevanzLuecke, markiereRelevanz,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
   aendereTodoRegel, verschiebeTodoRegel, fuegeTodoRegelHinzu, codesMitRolle,

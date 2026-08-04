@@ -20,6 +20,7 @@ Stand: 03.08.2026 · **P0–P6 umgesetzt + Fachabstimmung eingearbeitet**
 | — | **Regelwerk aus der Fachabstimmung** — S0/S0b statt S3, `D_XKS`-Gate, PreCheck-Rollen | v2.387.0 → [fachabstimmung-2026-08.md](fachabstimmung-2026-08.md) |
 | — | Zieltage-Sammelübernahme (A2) | v2.388.0 |
 | — | **Betrachtungsbereich** — Arbeitsvorrat folgt dem Bereich, Evidenz nicht | v2.389.0 → [Abschnitt 10](#10-betrachtungsbereich-arbeitsvorrat-folgt-dem-bereich-evidenz-nicht) |
+| — | Phasenvorschlag für Kürzel (Trigger-Tabelle + Auslieferung) | v2.408.0 → [Abschnitt 13](#13-phasenvorschlag-für-kürzel-v2408) |
 
 **Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
 
@@ -376,6 +377,7 @@ gehören ins Konzept, weil sie Entscheidungen tragen:
 5. **Kürzel-Paare:** Erkennung der adm./fachl.-Paare (AK4/AT4 …) — als Konvention aus dem Katalog ableitbar oder als kleine Paar-Liste pflegen? Beim AB-Onboarding klären, ob Relevanz-Defaults je Rolle getrennt sein sollen.
 6. ~~AB-Dashboard-Mappe beschaffen~~ **Erledigt:** To-do-Logik transkribiert → `todo-regeln-ab-seed.md` (25 Regeln + 2 Sperren, inkl. bereinigter Mappen-Fehler). Der übermittelte Spaltenkopf deckt alle Regel-Eingaben ab. Verbleibend: Verifikationsfragen V1–V4 aus der Seed-Datei mit AB-Kollegen klären; Spaltenauswahl der Mappe als Relevanz-Seed AB übernehmen.
 7. **Trigger-Nachexport für 46/47/48** (Abstimmungspunkt A4, seit v2.397 wieder offen): die Generation 2015 gehört jetzt zum Arbeitsvorrat, die Trigger-Zuarbeit führt für sie nichts. Bis zu 5 086 Vorgänge sagen deshalb „für Programm N keine Trigger importiert" — korrekt, aber häufig. Fachfrage bleibt, ob das Fachsystem für diese Programme noch Trigger-Definitionen führt (V8).
+8. **Zieht `ergaenzeSeedFelder` die `zahPhaseId` nach?** Heute nicht: die Funktion ist rein additiv und rührt bestehende Felder nicht an, deshalb erreichten die 24 hand-kuratierten Feld-Phasen der Auslieferung keine Bestandsfassung — sie waren seit Anlage der Fassung tote Fracht. Das Band aus Abschnitt 13 holt es einmalig nach, aber die Lücke reißt bei jedem künftig hinzukommenden Seed-Feld wieder auf. Zu klären: soll das Nachziehen die Phase bei **neu hinzukommenden** Feldern mitführen (bestehende blieben unangetastet), oder bleibt es beim ausdrücklichen Vorschlag?
 
 ## 10. Betrachtungsbereich: Arbeitsvorrat folgt dem Bereich, Evidenz nicht
 
@@ -698,3 +700,58 @@ Kauf genommen, solange das Vorgangssystem in Erprobung ist.
 reicht den Journal-Schritt herein. Das ist Absicht — ein Fixture-Seed darf den
 Team-Stand nicht anlegen —, heißt aber: der Live-Pfad ist nur aus einem echten
 Nacht-Import heraus zu beobachten, nicht aus dem Dev-Server.
+
+## 13. Phasenvorschlag für Kürzel (v2.408)
+
+Die ZAH-Phase am **Kürzel** beantwortet „welches Datum gehört zum aktuellen
+Status?". Ohne sie liefert `bestimmeSeit` ([herleitung.ts](../../src/core/status/herleitung.ts))
+immer `null` — es sucht in der Chronik ein Datumsfeld derselben Phase wie der
+Status und findet keines. Gemessen am 04.08.2026 trug **kein einziges** der 508
+Felder der Bestandsfassung eine Phase; die „seit"-Zeile der Status-Erklärung und
+die Phasen-Marke der Chronik waren damit für den gesamten Bestand tot.
+
+508 Zuordnungen von Hand sind keine Option. Zwei Quellen wissen es bereits, und
+`feld-phase-vorschlag.ts` rechnet sie zu einem Vorschlag zusammen:
+
+| Quelle | Aussage | Ausbeute |
+|---|---|---|
+| **Trigger-Tabelle** | Das Kürzel setzt Status X, X liegt in Phase P. Eine Regel des Fachsystems, keine Beobachtung — ein Beleg genügt. | 33 |
+| **Auslieferung** | `seed-codes.ts` kuratiert 24 Feld-Phasen von Hand; sie erreichen keine Bestandsfassung, weil `ergaenzeSeedFelder` rein additiv ist (offener Punkt 8). | 13 |
+
+**Was der Vorschlag NICHT tut**, und warum:
+
+- **Keine Mehrheitsentscheidung.** Setzt ein Kürzel über die neun Richtlinien
+  hinweg Status verschiedener Phasen, gibt es keinen Vorschlag; der Fall steht
+  mit den konkurrierenden Phasen und den jeweiligen Richtlinien in der Vorschau.
+  Am heutigen Stand tritt er **null**-mal auf — der Codepfad existiert trotzdem
+  und ist getestet, sonst liefe er erstmals an dem Tag, an dem er gebraucht wird.
+- **Trigger schlägt Auslieferung, aber nicht stillschweigend.** Widersprechen
+  sich beide Quellen an einem Feld, fällt der Vorschlag aus **beiden** weg und
+  die Abweichung wird benannt. Sonst kippte ein späterer Trigger-Import still
+  eine handkuratierte Zuordnung. Heute decken sich 11 Felder in beiden Quellen —
+  alle 11 ohne Konflikt.
+- **TV vor VB, aber sichtbar.** Die Kürzel-Phase beschreibt den TV-Weg, also
+  gewinnt `statusTv`. Weicht `statusVb` in der Phase ab, bleibt der Vorschlag und
+  der Beleg sagt es ausdrücklich. Von 54 Zeilen mit beiden Zielstatus weicht
+  heute keine ab.
+- **Kein Vorschlag ist eine Antwort, kein Mangel** — und sie wird begründet:
+  kein Trigger (293) · nur Mail-/Eintrags-Prozeduren (177) · nur Marker (2) ·
+  Zielcode ohne Phase (0). Von 505 Kürzeln setzen nur **35** überhaupt einen
+  Status; die übrigen erklären kein „seit wann" und brauchen keine Phase. Genau
+  das sagt die Kopfzeile des Kürzel-Tabs, damit „46 von 508" nicht als 9 %
+  Erledigungsgrad gelesen wird.
+
+Ein **Beleg ist eine Regel, nicht eine Zeile**: dasselbe Kürzel trägt dieselbe
+Wirkung in allen neun Richtlinien, teils zweimal je Richtlinie. Zeile für Zeile
+aufgeführt wären das für `AAE` siebzehn identische Sätze; gefaltet ist es einer,
+der seine Richtlinien nennt.
+
+Übernommen wird **zeilenweise auswählbar** in den Entwurf (`setzeFeldPhasen`,
+ein `setState`); festgeschrieben wird wie immer über die Speicherleiste. Danach
+ist es eine normale Zuordnung ohne Herkunftsvermerk — editierbar wie jede andere.
+Der Filterchip **„ohne Phase"** im Kürzel-Tab zeigt, was von Hand bleibt.
+
+Endstand nach beiden Übernahmen: **46 von 508** Feldern mit Phase, verteilt über
+alle sechs ZAH-Phasen (Eingang 3 · Vollständigkeit 10 · Prüfung 6 ·
+Entscheidung 10 · Begleitung 8 · Abgeschlossen 9). Alle 46 sind Datumsfelder —
+genau die Sorte, die `bestimmeSeit` auswertet.

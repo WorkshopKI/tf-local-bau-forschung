@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { AB_DASHBOARD_RELEVANZ, NICHT_ZUGEORDNET_ID, ROLLE_LABEL } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
+import { FeldPhasenUebernahmeDialog } from './FeldPhasenUebernahmeDialog';
 import { EBENE_LABEL, feldStil } from './labels';
 
 /** Was die Auslieferung mitbringt und der Fassung fehlt. */
@@ -182,11 +183,108 @@ function RelevanzJeRolle({ api }: { api: StatusCockpitApi }): React.ReactElement
   );
 }
 
+/**
+ * Die ZAH-Phase eines Kürzels — aus der Trigger-Tabelle abgeleitet.
+ *
+ * Ohne Phase erklärt der Katalog kein „seit wann" (`bestimmeSeit` findet kein
+ * Datumsfeld derselben Phase). 508 Zuordnungen von Hand sind keine Option; die
+ * Trigger-Tabelle weiß je Kürzel, welchen Status es setzt, und der Status kennt
+ * seine Phase. Was daraus NICHT folgt, steht in der Vorschau daneben.
+ */
+function PhasenAusTrigger({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  const [offen, setOffen] = useState(false);
+  const { vorschlaege, uneinheitlich, ohneVorschlag, kennzahlen } = api.feldPhasenAuswahl;
+  const ausTrigger = vorschlaege.filter(v => v.herkunft === 'trigger');
+  if (!isVorgangssystemEnabled() || ausTrigger.length === 0) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
+      <span className="text-[12.5px] text-[var(--tf-text)]">
+        Für {ausTrigger.length} der {kennzahlen.mitCode} Kürzel liegt eine Phasenzuordnung aus der
+        Trigger-Tabelle vor
+        {/* Nur nennen, wenn es sie gibt — „0 uneinheitlich" meldet ein Problem,
+            das keines ist. */}
+        {uneinheitlich.length > 0
+          && `; ${uneinheitlich.length} sind über die Richtlinien hinweg uneinheitlich`}
+        {ohneVorschlag.length > 0 && `. ${ohneVorschlag.length} setzen keinen Status`}.
+      </span>
+      <Button variant="secondary" size="sm" onClick={() => setOffen(true)}>
+        Vorschläge ansehen
+      </Button>
+      <FeldPhasenUebernahmeDialog
+        titel="ZAH-Phasen aus der Trigger-Tabelle übernehmen"
+        einleitung={
+          <>
+            Die Trigger-Tabelle sagt je Kürzel, welchen <strong>Status</strong> es setzt — und der
+            Status kennt seine ZAH-Phase. Das ist eine Regel des Fachsystems, keine Beobachtung aus
+            dem Bestand: ein einziger Beleg genügt. Wo mehrere Richtlinien verschiedene Phasen
+            ergeben, wird nichts vorgeschlagen. Jede Zuordnung bleibt danach einzeln editierbar.
+          </>
+        }
+        vorschlaege={ausTrigger}
+        uneinheitlich={uneinheitlich}
+        ohneVorschlag={ohneVorschlag}
+        offen={offen}
+        darfSchreiben={api.darfSchreiben}
+        onSchliessen={() => setOffen(false)}
+        onUebernehmen={api.feldPhasenUebernehmen}
+      />
+    </div>
+  );
+}
+
+/**
+ * Dieselbe Frage, zweite Quelle: die von Hand kuratierten Phasen der
+ * Auslieferung.
+ *
+ * Sie erreichen eine Bestandsfassung nie — `ergaenzeSeedFelder` ist rein additiv
+ * und zieht an bestehenden Feldern nichts nach. Angeboten wird nur, wo die
+ * Trigger-Tabelle schweigt; wo sich beide widersprechen, steht die Abweichung in
+ * der Vorschau und es wird aus keiner Quelle etwas gesetzt.
+ */
+function PhasenAusAuslieferung({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  const [offen, setOffen] = useState(false);
+  const { vorschlaege, quellenAbweichungen } = api.feldPhasenAuswahl;
+  const ausSeed = vorschlaege.filter(v => v.herkunft === 'seed');
+  if (!isVorgangssystemEnabled() || ausSeed.length === 0) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
+      <span className="text-[12.5px] text-[var(--tf-text)]">
+        {ausSeed.length} Kürzel tragen in der Auslieferung eine hand-kuratierte ZAH-Phase, die
+        dieser Fassung fehlt
+        {quellenAbweichungen.length > 0
+          && `; bei ${quellenAbweichungen.length} widerspricht ihr die Trigger-Tabelle`}.
+      </span>
+      <Button variant="secondary" size="sm" onClick={() => setOffen(true)}>
+        Vorschläge ansehen
+      </Button>
+      <FeldPhasenUebernahmeDialog
+        titel="ZAH-Phasen der Auslieferung nachziehen"
+        einleitung={
+          <>
+            Die Auslieferung kuratiert einige Phasen von Hand. Sie kommen in einer bestehenden
+            Fassung nie an, weil „Nachziehen" nur <strong>fehlende Felder</strong> ergänzt und
+            vorhandene bewusst unangetastet lässt. Angeboten wird nur, wo die Trigger-Tabelle
+            nichts sagt — sie hat Vorrang, weil sie die geltende Regel beschreibt.
+          </>
+        }
+        vorschlaege={ausSeed}
+        abweichungen={quellenAbweichungen}
+        offen={offen}
+        darfSchreiben={api.darfSchreiben}
+        onSchliessen={() => setOffen(false)}
+        onUebernehmen={api.feldPhasenUebernehmen}
+      />
+    </div>
+  );
+}
+
 export function FelderAbgleich({ api }: { api: StatusCockpitApi }): React.ReactElement {
   return (
     <>
       <SeedLuecke api={api} />
       <TextAbweichungen api={api} />
+      <PhasenAusTrigger api={api} />
+      <PhasenAusAuslieferung api={api} />
       <RelevanzVorschlag api={api} />
       <RelevanzJeRolle api={api} />
       <UnkuratierteFelder api={api} />

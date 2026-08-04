@@ -4,7 +4,7 @@
  */
 import type {
   MappingVersion, Rolle, StatusFeldEintrag, StatusKategorie,
-  StatusWertEintrag, TextbausteinEintrag, TodoRegel, ZahPhase,
+  StatusWertEintrag, TextbausteinEintrag, TodoRegel, ZahPhase, ZahPhaseId,
 } from './typen';
 import { erzeugtZyklus } from './kategorien';
 import { normKey } from './normalisierung';
@@ -331,6 +331,27 @@ export function setzeZieltage(
     werte: version.werte.map(w => {
       const neu = zieltage.get(w.id);
       return neu === undefined ? w : { ...w, zieltage: neu };
+    }),
+  };
+}
+
+/**
+ * Setzt ZAH-Phasen an vielen Statusfeldern in EINEM Schritt.
+ *
+ * Das Feld-Pendant zu {@link setzeZieltage}, aus demselben Grund: 46 einzelne
+ * `aendereFeld`-Aufrufe wären 46 `setState`-Runden (Pitfall #16/#20). Felder,
+ * die die Map nicht nennt, bleiben unberührt — die Übernahme ist eine Auswahl,
+ * kein Rundumschlag.
+ */
+export function setzeFeldPhasen(
+  version: MappingVersion, phasen: ReadonlyMap<string, ZahPhaseId>,
+): MappingVersion {
+  if (phasen.size === 0) return version;
+  return {
+    ...version,
+    felder: version.felder.map(f => {
+      const neu = phasen.get(f.feldId);
+      return neu === undefined ? f : { ...f, zahPhaseId: neu };
     }),
   };
 }

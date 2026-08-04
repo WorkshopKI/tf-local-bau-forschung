@@ -34,10 +34,12 @@ import {
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   todoRegelDrift, zieheTodoRegelnNach, ENTFALLENE_REGEL_IDS, type TodoRegelDrift,
   setzeZieltage, waehleZieltageVorschlaege, MIN_STICHPROBE, type ZieltageAuswahl,
+  setzeFeldPhasen, berechnePhasenVorschlag,
+  type PhasenAuswahl, type PhasenSchnitt,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
   findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
-  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE,
+  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
   type TriggerStand, type VorgangssystemLuecke,
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
@@ -131,6 +133,14 @@ export interface StatusCockpitApi {
   /** Alle Vorschläge aus {@link zieltageAuswahl} in EINEM Schritt übernehmen. */
   zieltageUebernehmen: () => void;
   /**
+   * Welche ZAH-Phase an ein KÜRZEL gehört — aus der Trigger-Tabelle und aus der
+   * Auslieferung, mit den Fällen, in denen es bewusst keinen Vorschlag gibt.
+   * Ohne Phase am Feld erklärt der Katalog kein „seit wann" (`bestimmeSeit`).
+   */
+  feldPhasenAuswahl: PhasenAuswahl;
+  /** Die ausgewählten Vorschläge in EINEM Schritt in den Entwurf übernehmen. */
+  feldPhasenUebernehmen: (feldIds: readonly string[]) => void;
+  /**
    * Programme des Bestands (`FM_NUMMER` → `unterprogramm_id`) mit Antragszahl,
    * absteigend. Der Trigger-Import sagt damit, für welche Programme die Datei
    * schweigt — und wie viele Anträge das trifft.
@@ -209,6 +219,35 @@ interface Bestand {
  *   Bestandsfassung bekam sie nie zu sehen.
  */
 const SEED_FELDER = baueSeedVersion().felder;
+
+/**
+ * Code → Phase, wie die FASSUNG sie führt, mit dem Auslieferungs-Schnitt als
+ * Rücken. Ein von Hand umgehängter Code muss den Kürzel-Vorschlag mitziehen —
+ * sonst schlüge das Band eine Phase vor, die die Fassung an derselben Stelle
+ * längst anders sieht.
+ *
+ * **Erster Wert mit dem Code gewinnt**, genau wie in `statusKurz`
+ * (`version.werte.find(w => w.code === code)`): derselbe Code steht an TV- und
+ * Verbund-Feld, und zwei Wege zur Phase wären ein zweiter Kategorien-Weg.
+ */
+function schnittVon(version: MappingVersion | null): PhasenSchnitt {
+  const codeZuPhase = new Map(SEED_CODE_ZU_ZAH_PHASE);
+  const markerCodes = new Set(SEED_MARKER_CODES);
+  const gesehen = new Set<number>();
+  for (const w of version?.werte ?? []) {
+    if (w.code === undefined || gesehen.has(w.code)) continue;
+    gesehen.add(w.code);
+    if (w.zahPhaseId !== undefined) {
+      if (w.zahPhaseId === null) codeZuPhase.delete(w.code);
+      else codeZuPhase.set(w.code, w.zahPhaseId);
+    }
+    if (w.marker !== undefined) {
+      if (w.marker) markerCodes.add(w.code);
+      else markerCodes.delete(w.code);
+    }
+  }
+  return { codeZuPhase, markerCodes };
+}
 
 export function useStatusCockpit(): StatusCockpitApi {
   const storage = useStorage();
@@ -581,6 +620,29 @@ export function useStatusCockpit(): StatusCockpitApi {
       : v));
   }, [zieltageAuswahl]);
 
+  /**
+   * Welche ZAH-Phase an ein KÜRZEL gehört — aus der Trigger-Tabelle und aus der
+   * Auslieferung. Der Katalog-Schnitt der Fassung geht vor, wo sie einen führt:
+   * die Codes wurden womöglich schon umgehängt.
+   */
+  const feldPhasenAuswahl = useMemo(
+    () => berechnePhasenVorschlag(
+      entwurf?.felder ?? [], trigger.datei?.trigger ?? [], SEED_FELDER,
+      schnittVon(entwurf),
+    ),
+    [entwurf, trigger],
+  );
+
+  const feldPhasenUebernehmen = useCallback((feldIds: readonly string[]) => {
+    const gewaehlt = new Set(feldIds);
+    // EIN setState mit der ganzen Map — nicht 46 einzelne `setFeld` (Pitfall #16).
+    setEntwurf(v => (v
+      ? setzeFeldPhasen(v, new Map(feldPhasenAuswahl.vorschlaege
+        .filter(p => gewaehlt.has(p.feldId))
+        .map(p => [p.feldId, p.phase])))
+      : v));
+  }, [feldPhasenAuswahl]);
+
   const relLuecke = useMemo(
     () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
     [entwurf],
@@ -657,6 +719,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
     relevanzLueckeRolle, relevanzAusRolle, todoRegelAusPlatzhalter,
     zieltageAuswahl, zieltageUebernehmen,
+    feldPhasenAuswahl, feldPhasenUebernehmen,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };

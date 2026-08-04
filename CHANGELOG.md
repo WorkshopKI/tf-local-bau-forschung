@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.408.0 — Phasenvorschlag für Kürzel aus Trigger-Tabelle und Auslieferung (August 2026)
+
+MINOR — Kein einziges der 508 Kürzel trug eine ZAH-Phase, also lieferte `bestimmeSeit` für den gesamten Bestand `null` — die „seit"-Zeile der Status-Erklärung war tot. 508 Zuordnungen von Hand sind keine Option; Trigger-Tabelle und Auslieferung wissen es bereits. Detail: [vorgangssystem.md §13](docs/architecture/vorgangssystem.md).
+
+- **Zwei Quellen, getrennte Bänder** — 33 Vorschläge aus der Trigger-Tabelle, 13 aus der Auslieferung, Endstand 46 von 508 ([feld-phase-vorschlag.ts](src/core/status/feld-phase-vorschlag.ts))
+- **Kein Vorschlag bei Uneinigkeit**: verschiedene Phasen über die Richtlinien oder Widerspruch zwischen den Quellen werden benannt statt geglättet ([FeldPhasenUebernahmeDialog.tsx](src/plugins/status-cockpit/FeldPhasenUebernahmeDialog.tsx))
+- **Kein Vorschlag ist eine Antwort**: 472 Kürzel nach Grund gruppiert, und die Kopfzeile sagt, warum mehr nicht ableitbar ist ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx))
+- **Zeilenweise Auswahl** statt alles-oder-nichts, übernommen in EINEM `setState` ([katalog-edit.ts](src/core/status/katalog-edit.ts))
+- **Filterchip „ohne Phase"** für den Rest von Hand ([FelderAbgleich.tsx](src/plugins/status-cockpit/FelderAbgleich.tsx))
+
 ### v2.407.0 — Modul Zu klären: Export, Phasen-Lesespalte und Doku (August 2026)
 
 MINOR — Zweiter Teil des Klärungs-Moduls: die Klärung war beantwortbar, aber ihr Ergebnis kam nicht heraus, und die Vorkommen-Spalte stand leer. Dazu die Nachlese am Phasenschnitt selbst — er ist jetzt auch im Katalog-Tab sichtbar, statt nur zu wirken.

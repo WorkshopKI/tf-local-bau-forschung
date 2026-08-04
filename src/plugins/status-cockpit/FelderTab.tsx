@@ -302,6 +302,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const [rolleFilter, setRolleFilter] = useState<'alle' | Rolle>('alle');
   const [nurRelevante, setNurRelevante] = useState(false);
   const [nurMitSpalte, setNurMitSpalte] = useState(false);
+  const [nurOhnePhase, setNurOhnePhase] = useState(false);
   // Auf-/Zu bleibt über Seitenaufrufe erhalten (localStorage, gerätelokal).
   const [ordnerOffen, toggleOrdnerOffen] = useCollapsedSection(
     'status-cockpit:ordner-editor', { defaultOpen: false },
@@ -335,11 +336,14 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       // „Hat das Kürzel eine Spalte im Export?" ist genau die Frage, die die
       // Spalte CSV-Spalte beantwortet — ohne Eintrag ist es nirgends gemappt.
       if (nurMitSpalte && (api.csvSpalten.get(f.feldId)?.length ?? 0) === 0) return false;
+      // Deckungsgleich mit dem Zähler der Kopfzeile, damit Chip und Zahl
+      // dasselbe meinen: `null` (bewusst ohne Phase) zählt wie `undefined`.
+      if (nurOhnePhase && f.zahPhaseId != null) return false;
       if (!q) return true;
       const spalten = api.csvSpalten.get(f.feldId)?.join(' ') ?? '';
       return `${f.code ?? ''} ${f.feldId} ${f.label} ${spalten}`.toLowerCase().includes(q);
     });
-  }, [entwurf, suche, ebeneFilter, rolleFilter, nurRelevante, nurMitSpalte, api.csvSpalten]);
+  }, [entwurf, suche, ebeneFilter, rolleFilter, nurRelevante, nurMitSpalte, nurOhnePhase, api.csvSpalten]);
 
   if (!entwurf) return null;
 
@@ -352,6 +356,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
 
   const mitPhase = entwurf.felder.filter(f => f.zahPhaseId != null).length;
   const relevanteAnzahl = entwurf.felder.filter(f => f.relevant === true).length;
+  const phasenZahlen = api.feldPhasenAuswahl.kennzahlen;
 
   return (
     <div className="flex flex-col gap-3 pt-3">
@@ -366,6 +371,18 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
           </>
         )}
       </p>
+
+      {/* Ohne diesen Satz liest sich „46 von 508" wie 9 % erledigt und schickt
+          den Nächsten auf die Suche nach einer Lücke, die keine ist. Die Zahlen
+          werden gerechnet, nicht gesetzt — sie ändern sich mit jedem Import. */}
+      {vorgangssystem && trigger.length > 0 && (
+        <p className="text-[12px] text-[var(--tf-text-tertiary)] -mt-2">
+          Mehr ist aus den beiden Quellen nicht ableitbar: von {phasenZahlen.mitCode} Kürzeln setzen
+          nur {phasenZahlen.mitStatusTrigger} überhaupt einen Status, und die Auslieferung kuratiert
+          {' '}{phasenZahlen.seedPhasen} Phasen von Hand. Die übrigen Kürzel erklären kein „seit
+          wann" und brauchen keine Phase.
+        </p>
+      )}
 
       <FelderAbgleich api={api} />
 
@@ -394,6 +411,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             <ToggleChip label="nur relevante" selected={nurRelevante} onToggle={() => setNurRelevante(v => !v)} />
           )}
           <ToggleChip label="nur mit CSV-Spalte" selected={nurMitSpalte} onToggle={() => setNurMitSpalte(v => !v)} />
+          <ToggleChip label="ohne Phase" selected={nurOhnePhase} onToggle={() => setNurOhnePhase(v => !v)} />
         </div>
       </div>
 
