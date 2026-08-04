@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   getStatusCategory,
+  getStatusValuesByCategory,
+  setStatusKatalogSnapshotMap,
   isOpenStatus,
   isInPruefungStatus,
   isNachforderungStatus,
@@ -8,6 +10,7 @@ import {
   isBegleitungStatus,
   isClosedStatus,
   statusRang,
+  type StatusCategory,
 } from '@/core/utils/status-canonical';
 
 describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
@@ -246,5 +249,35 @@ describe('statusRang — kanonische Lebenszyklus-Ordnung', () => {
     const sorted = [...ranks].sort((a, b) => a - b);
     expect(ranks).toEqual(sorted);
     expect(new Set(ranks).size).toBe(ranks.length); // strikt aufsteigend, keine Kollision
+  });
+});
+
+describe('getStatusValuesByCategory und getStatusCategory sind Umkehrungen', () => {
+  const KATEGORIEN: StatusCategory[] = [
+    'offen', 'in_pruefung', 'nachforderung', 'entscheidung',
+    'bewilligt', 'begleitung', 'abgelehnt', 'abgeschlossen', 'sonstige',
+  ];
+
+  afterEach(() => { setStatusKatalogSnapshotMap(null); });
+
+  function pruefeRundlauf(): void {
+    for (const kat of KATEGORIEN) {
+      for (const wert of getStatusValuesByCategory(kat)) {
+        expect(getStatusCategory(wert), `Wert "${wert}" aus Kategorie ${kat}`).toBe(kat);
+      }
+    }
+  }
+
+  it('gilt ohne Snapshot (eingebaute Map)', () => {
+    pruefeRundlauf();
+  });
+
+  it('gilt mit Snapshot', () => {
+    setStatusKatalogSnapshotMap(new Map<string, StatusCategory>([
+      ['beantragt', 'offen'],
+      ['sonderfall xy', 'entscheidung'],
+      ['vn geprüft', 'begleitung'],
+    ]));
+    pruefeRundlauf();
   });
 });

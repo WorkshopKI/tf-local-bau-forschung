@@ -40,21 +40,22 @@ export const STATUS_QUICK_CHIPS = [
 
 export type StatusQuickChipId = (typeof STATUS_QUICK_CHIPS)[number]['id'];
 
-/** Status-Werte (lowercase) die zu einem Chip gehören. Statisch — cached über
- *  die Modul-Lebenszeit. */
-const CHIP_VALUES: Record<StatusQuickChipId, ReadonlySet<string>> = (() => {
-  const out: Partial<Record<StatusQuickChipId, ReadonlySet<string>>> = {};
-  for (const chip of STATUS_QUICK_CHIPS) {
-    const values = new Set<string>();
-    for (const cat of chip.categories) {
-      for (const v of getStatusValuesByCategory(cat)) values.add(v);
-    }
-    out[chip.id] = values;
-  }
-  return out as Record<StatusQuickChipId, ReadonlySet<string>>;
-})();
-
-/** Liefert die normalisierten Status-Werte für einen Chip. */
+/**
+ * Die Status-Werte eines Chips — abgeleitet bei jedem Aufruf, nicht gecacht.
+ *
+ * Die Menge hing bis v2.401 an einer Modul-Konstante, die beim Import lief —
+ * also BEVOR `setStatusKatalogSnapshot` den kuratierten Katalog setzt. Die
+ * Pille rechnete deshalb dauerhaft mit dem eingebauten Code-Seed, der Rest der
+ * App mit dem Katalog; im echten Bestand gingen die beiden um 15 Anträge
+ * auseinander. Wer das Ergebnis in einer Schleife braucht, hebt es heraus
+ * (siehe `getPhaseItems`).
+ */
 export function chipStatusValues(chipId: StatusQuickChipId): ReadonlySet<string> {
-  return CHIP_VALUES[chipId];
+  const werte = new Set<string>();
+  const chip = STATUS_QUICK_CHIPS.find(c => c.id === chipId);
+  if (!chip) return werte;
+  for (const cat of chip.categories) {
+    for (const v of getStatusValuesByCategory(cat)) werte.add(v);
+  }
+  return werte;
 }

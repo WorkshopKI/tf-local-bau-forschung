@@ -115,12 +115,18 @@ export function getPhaseItems(antraege: AntragListItem[]): CollapsibleSegItem[] 
     'Begleitung': 0,
     'Abgeschl.': 0,
   };
+  // Einmal vor der Schleife: `chipStatusValues` leitet seit dem Wegfall der
+  // Modul-Konstante bei jedem Aufruf aus dem aktiven Katalog ab.
+  const buckets = STATUS_QUICK_CHIPS.map(chip => ({
+    label: PHASE_LABEL_BY_CHIP_ID[chip.id],
+    werte: chipStatusValues(chip.id),
+  }));
   for (const a of antraege) {
     const s = typeof a.status === 'string' ? a.status.toLowerCase().trim() : '';
     if (!s) continue;
-    for (const chip of STATUS_QUICK_CHIPS) {
-      if (chipStatusValues(chip.id).has(s)) {
-        counts[PHASE_LABEL_BY_CHIP_ID[chip.id]]++;
+    for (const b of buckets) {
+      if (b.werte.has(s)) {
+        counts[b.label]++;
         break;
       }
     }

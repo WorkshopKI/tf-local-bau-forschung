@@ -6,7 +6,8 @@
  * sind entfallen — Reste des Multi-Toggle-Vorgängers, in der App
  * seit dem Akkordeon-Umbau ungenutzt. Ihre Tests sind mit ihnen gegangen.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { setStatusKatalogSnapshotMap, type StatusCategory } from '@/core/utils/status-canonical';
 import { STATUS_QUICK_CHIPS, chipStatusValues } from '../statusQuickChips';
 
 describe('chipStatusValues', () => {
@@ -47,5 +48,24 @@ describe('chipStatusValues', () => {
         gesehen.set(v, chip.id);
       }
     }
+  });
+});
+
+describe('chipStatusValues folgt dem aktiven Katalog', () => {
+  afterEach(() => { setStatusKatalogSnapshotMap(null); });
+
+  it('nimmt eine Schreibweise auf, die erst der Snapshot kennt', () => {
+    expect(chipStatusValues('offen').has('sonderfall xy')).toBe(false);
+    setStatusKatalogSnapshotMap(new Map<string, StatusCategory>([
+      ['sonderfall xy', 'entscheidung'],
+    ]));
+    expect(chipStatusValues('offen').has('sonderfall xy')).toBe(true);
+  });
+
+  it('verliert eine Schreibweise, die der Snapshot nicht führt', () => {
+    setStatusKatalogSnapshotMap(new Map<string, StatusCategory>([
+      ['beantragt', 'offen'],
+    ]));
+    expect(chipStatusValues('offen').has('bearbeitungsreif')).toBe(false);
   });
 });

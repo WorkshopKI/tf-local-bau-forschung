@@ -13,10 +13,11 @@
  * geschriebene Rohwerte) und vergleicht nicht Erwartungszahlen, sondern die
  * beiden Wege gegeneinander: gezählt vs. gefiltert.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { applyFilters } from '@/core/services/csv/filter/engine';
 import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/types';
-import { getStatusValuesByCategory } from '@/core/utils/status-canonical';
+import { getStatusValuesByCategory, setStatusKatalogSnapshotMap, type StatusCategory } from '@/core/utils/status-canonical';
+import type { AntragListItem } from '@/core/services/csv/types';
 import { REAL_CSV_ANTRAEGE } from '../../__tests__/fixtures/real-csv-antraege';
 import { getPhaseItems, applyPhase, getPhaseFromActive, STATUS_FILTER_ID } from '../phaseQuickfilter';
 import { STATUS_QUICK_CHIPS, chipStatusValues, type StatusQuickChipId } from '../statusQuickChips';
@@ -136,5 +137,24 @@ describe('getPhaseFromActive', () => {
 
   it('ohne Status-Filter „Alle"', () => {
     expect(getPhaseFromActive([])).toBe('Alle');
+  });
+});
+
+describe('Zähler = Filter gilt auch mit gesetztem Katalog-Snapshot', () => {
+  afterEach(() => { setStatusKatalogSnapshotMap(null); });
+
+  it('eine Schreibweise, die nur der Snapshot kennt, wird gezählt UND gefiltert', () => {
+    const daten = [
+      { aktenzeichen: 'A', programm_id: 'P', status: 'Sonderfall XY', _updated_at: '2026-01-01T00:00:00Z' },
+    ] as never as AntragListItem[];
+    setStatusKatalogSnapshotMap(new Map<string, StatusCategory>([
+      ['sonderfall xy', 'entscheidung'],
+    ]));
+    const gezaehlt = getPhaseItems(daten).find(i => i.label === 'Offen')?.count ?? 0;
+    expect(gezaehlt).toBe(1);
+
+    let geschrieben: string[] = [];
+    applyPhase('Offen', (_id, v) => { geschrieben = v; }, () => {});
+    expect(geschrieben).toContain('sonderfall xy');
   });
 });
