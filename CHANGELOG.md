@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.403.0 — as-Variante an pl angeglichen (ohne Auslastungs-Modul) (August 2026)
+
+MINOR — Die as-Variante sollte laut Definition „pl ohne Auslastungs-Modul" sein, war aber in **zwölf** Feature-Flags verschieden: pl bekam über die letzten Versionen neue Opt-in-Features, `as.config.json` wurde nie nachgezogen. AS-Nutzern fehlten dadurch drei komplette Sidebar-Bereiche und die halbe Artefakt-Kette.
+
+- **Acht gedriftete Flags nachgezogen** — `statusCockpit`, `vorgangssystem`, `mapFoerderfaehig`, `nfNachforderungen`, `artefaktWerkbank`, `antragAufbereitung`, `workflowEntwuerfe`, `feedbackDelete` ([as.config.json](configs/as.config.json))
+- **Differenz as↔pl jetzt genau vier Flags**, alle aus der Auslastungs-Domäne (`auslastung`, `auslastungSelbstEintragung`, `deAnonymisierung`, `maVerwaltungPasswort`) — gemessen über `deepMerge` + `validateConfig`, beide Varianten fehlerfrei
+- **Auslastung bleibt vollständig aus**: nicht nur Menü + Route, auch MA-Kürzel-Spalte, Home-Widget „Neue Anträge für dich", Kaltstart-Korpus-Download und Auslastungs-Feedback ([build-varianten.md](docs/architecture/build-varianten.md))
+- **Sichtbarkeits-Matrix auf den Ist-Zustand gezogen** — Erprobungs-Bereiche ergänzt, Flag-Spalte dazu; die stale „Chat"-Zeile (seit v2.394 kein Plugin) und das falsche `–` bei prod/Suche korrigiert ([build-varianten.md](docs/architecture/build-varianten.md))
+- Reine Config-Änderung, kein Code-Pfad angefasst
+
 ### v2.402.0 — Vorgangs-Board: Mehrfachauswahl-Filter (August 2026)
 
 MINOR — Jahrgänge, Fördervarianten und ZAH-Phasen ließen je nur EINEN Wert zu: „2024 und 2025" war nicht wählbar, man musste auf „Alle" ausweichen und bekam den Altbestand dazu. Die drei Filter waren zugleich die einzigen nativen `<select>` in einer Filter-Leiste der App — daher das Betriebssystem-Menü in fremden Farben. Beides hat dieselbe Lösung.

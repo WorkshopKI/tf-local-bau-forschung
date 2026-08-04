@@ -20,6 +20,7 @@
   "features": {
     "kuratorMenus": false,
     "feedback": true,
+    "feedbackDelete": true,
     "dokumentenscan": false,
     "volltextsuche": false,
     "devInfraPanel": false,
@@ -39,8 +40,10 @@
     "onlineStatusTab": true,
     "gutachtenKurzfassung": true,
     "gutachtenWorkflow": true,
-    "nfNachforderungen": false,
-    "antragAufbereitung": false,
+    "workflowEntwuerfe": true,
+    "nfNachforderungen": true,
+    "artefaktWerkbank": true,
+    "antragAufbereitung": true,
     "skillVerwaltung": true,
     "anfragen": true,
     "streamlitBridge": true,
@@ -48,7 +51,10 @@
     "assistentProtokoll": true,
     "assistentPanel": true,
     "assistentGedaechtnis": true,
-    "meilensteinMonitoring": true
+    "mapFoerderfaehig": true,
+    "statusCockpit": true,
+    "meilensteinMonitoring": true,
+    "vorgangssystem": true
   },
   "menuLabels": {
     "antraege": "Förderanträge"

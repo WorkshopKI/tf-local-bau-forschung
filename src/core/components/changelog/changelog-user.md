@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.403 — 2026-08
+
+### Neu
+- In der AS-Fassung stehen jetzt dieselben Bereiche zur Verfügung wie in der PL-Fassung: Status-Katalog, Vorgangs-Board und Förderfähigkeit in der Sidebar, dazu Nachforderungen samt Artefakt-Leiste und die Antrag-Aufbereitung auf der Verbund-Seite.
+### Verbesserungen
+- Einziger Unterschied zwischen AS und PL bleibt das Auslastungs-Modul, das in AS bewusst nicht erscheint — auch nicht als Mitarbeiter-Spalte in der Antragsliste oder als Startseiten-Kachel „Neue Anträge für dich".
+
 ## v2.402 — 2026-08
 
 ### Neu

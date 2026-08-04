@@ -5,32 +5,43 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 - `configs/dev.config.json` — Developer-Build, alle Features + OpenRouter aktiv
 - `configs/prod.config.json` — Produktion (End-User), nur Home + Förderanträge + Einstellungen, kein Kurator-Login
 - `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
-- `configs/pl.config.json` — Produktion (Projektleitung), Home + Förderanträge + Auslastung + Einstellungen, kein Kurator-Login
-- `configs/as.config.json` (v2.115) — Produktion (AS-Rolle), **wie pl, aber ohne Auslastungs-Modul** (`features.auslastung` + `auslastungSelbstEintragung` + `deAnonymisierung` + `maVerwaltungPasswort` auf false); eigenes Zugangspasswort
+- `configs/pl.config.json` — Produktion (Projektleitung), der volle Fach-Stack ohne Kurator-Login: Förderanträge + Auslastung + Erprobungs-Bereiche (Anfragen, Meilensteine, Förderfähigkeit, Vorgangs-Board, Status-Katalog) + Suche + Skill-Verwaltung
+- `configs/as.config.json` (v2.115) — Produktion (AS-Rolle), **feature-identisch zu pl, ohne Auslastungs-Modul** (`features.auslastung` + `auslastungSelbstEintragung` + `deAnonymisierung` + `maVerwaltungPasswort` auf false); eigenes Zugangspasswort
 - `configs/local.config.json` (v2.371) — **wird nie gebaut**: reine Dev-Server-Variante (`npm run dev:local`, Port 5175), die statt des Ordner-Pickers feste lokale Ordner verdrahtet. Für Sicht-Checks und automatisiertes Bedienen. `validateConfig` verbietet den `local`-Block in `variant: "production"`, das Gate `__TEAMFLOW_LOCAL_FS__` hängt an `command === 'serve'`. Siehe [local-variante.md](local-variante.md)
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
 - `configs/_shared.json` (v2.0.2) — **Org-weite invariante Defaults** (aktuell: `data.fixedDataSharePath` + `data.expectedFolderName`). `build-with-config.mjs` + `vite.config.ts` mergen diese Datei mit der Variant-Config via `deepMerge` aus [scripts/config-schema.mjs](../../scripts/config-schema.mjs).
 
 Sichtbarkeits-Matrix (was steht in der Sidebar):
 
-| Plugin | dev | prod | kurator (vor Login) | kurator (nach Login) | pl | as |
-| --- | --- | --- | --- | --- | --- | --- |
-| Home | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Förderanträge | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Auslastung | ✓ | – | ○ | ○ | ✓ | – |
-| Dokumente | ✓ | – | – | – | – | – |
-| Suche | ✓ | – | ✓ | ✓ | ✓ | ✓ |
-| Chat | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Feedback Übersicht | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Einstellungen | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Kurator-Toggle in Einstellungen | ✓ | – | ✓ | ✓ | – | – |
-| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | ✓ | – | – | ✓ | – | – |
+| Plugin (Sidebar-Name) | Flag | dev | prod | kurator (vor Login) | kurator (nach Login) | pl | as |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Home | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Förderanträge | `antraege` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Auslastung | `auslastung` | ✓ | – | ○ | ○ | ✓ | – |
+| E-Mail Anfragen | `anfragen` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Fristen & Meilensteine | `meilensteinMonitoring` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Förderfähigkeit | `mapFoerderfaehig` | ✓ | – | – | – | ✓ | ✓ |
+| Vorgangs-Board | `vorgangssystem` | ✓ | – | – | – | ✓ | ✓ |
+| Status-Katalog | `statusCockpit` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Dokumente | `dokumente` | ✓ | – | – | – | – | – |
+| Suche (inkl. angedocktem Chat) | `suche` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Skill-Verwaltung | `skillVerwaltung` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Feedback | `feedback` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Einstellungen (Sidebar-Fuß) | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Kurator-Toggle in Einstellungen | `kuratorMenus` | ✓ | – | ✓ | ✓ | – | – |
+| Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | `kuratorMenus` | ✓ | – | – | ✓ | – | – |
+
+Anfragen, Meilensteine, Förderfähigkeit, Vorgangs-Board und Status-Katalog stehen in der Sidebar-Gruppe **„In Erprobung"** (`category: 'erprobung'`, siehe [groupNavPlugins.ts](../../src/core/nav/groupNavPlugins.ts)).
 
 ○ = **Auslastung in kurator nur als „Themen-Vektoren"** (v2.56, `features.auslastungNurKorpus`): schlanker Korpus-Pflege-View zum Aktuell-Halten des Embedding-Katalogs — **kein** MA-Auslastung/Zuweisung/Kompetenzen, nur „Inkrementell" (kein Vollbuild, der bleibt dev-exklusiv). Sichtbar als Workflow-Plugin (unabhängig vom Kurator-Toggle).
 
+Nicht in der Tabelle, weil ohne eigenen Sidebar-Eintrag: `nfNachforderungen` + `artefaktWerkbank` (Artefakt-Leiste auf der Verbund-Detailseite), `antragAufbereitung` (Vollbild-Route unter dem Verbund), `workflowEntwuerfe` (nicht freigegebene Workflows wählbar), `feedbackDelete` (Löschen in der Feedback-Verwaltung), `gutachtenKurzfassung` / `gutachtenWorkflow`. Alle sechs sind in dev, pl **und as** aktiv.
+
 Die kurator-Variante ist der einzige Produktions-Build mit `features.kuratorMenus: true`. Sie kombiniert User-seitig einen schlanken Stack (Förderanträge + Einstellungen) mit allen Kuration-Plugins, die erst nach Aktivierung des Kurator-Toggles in den Einstellungen erscheinen.
 
-Die **as**-Variante ist eine Kopie von **pl** ohne die Auslastungs-Domäne — gleicher Schreib-Build (`datenShareSchreibrecht: true`, Gutachten/Skills, CSV-Auto-Refresh, Passwort-Gate), aber `features.auslastung` + `auslastungSelbstEintragung` (Startseiten-Selbsteintragung) auf `false`; die nur im Modul wirksamen Flags `deAnonymisierung` + `maVerwaltungPasswort` ebenfalls `false`. Eigenes Zugangspasswort (`npm run set-password -- as "<pw>"`).
+Die **as**-Variante ist eine Kopie von **pl** ohne die Auslastungs-Domäne. Seit v2.403 ist das wieder wörtlich zu nehmen: die beiden `features`-Blöcke unterscheiden sich in **genau vier** Flags — `auslastung`, `auslastungSelbstEintragung`, `deAnonymisierung`, `maVerwaltungPasswort`, alle in as `false`. (Formal steht `kuerzelDropdown` nur in as explizit auf `true`; pl leitet es über `isKuerzelDropdownEnabled()` aus `auslastung` ab — effektiv sind beide gleich.) Alles andere ist identisch: gleicher Schreib-Build (`datenShareSchreibrecht: true`, CSV-Auto-Refresh), gleiche Gutachten-/Skill-/Artefakt-Kette, gleiche Erprobungs-Bereiche. Eigenes Zugangspasswort (`npm run set-password -- as "<pw>"`).
+
+`auslastung: false` nimmt as nicht nur Menüpunkt und Route, sondern auch die Ableger des Moduls außerhalb davon: die MA-Kürzel-Spalte der Antragsliste samt „Inaktive einblenden" ([AntraegeMain.tsx](../../src/plugins/antraege/AntraegeMain.tsx), [AntraegeHeader.tsx](../../src/plugins/antraege/AntraegeHeader.tsx)), das Home-Widget „Neue Anträge für dich" (liest `auslastung.json`, schreibt Übernahme-Wünsche), den Kaltstart-Download des Embedding-Korpus ([useAuslastungCorpusAutoload.ts](../../src/core/hooks/useAuslastungCorpusAutoload.ts)) und die Auslastungs-Einträge in der Feedback-Übersicht ([feedbackService.ts](../../src/core/services/feedback/feedbackService.ts)). Das ist gewollt — sonst bliebe Modul-Oberfläche für ein unerreichbares Modul stehen.
 
 Build-Kommandos:
 
