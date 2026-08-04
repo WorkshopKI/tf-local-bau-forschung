@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.404 — 2026-08
+
+### Neu
+- Der Reiter „Offen" heißt jetzt **„Antragsphase"** und hat einen neuen Nachbarn **„Begleitung"** — die beiden zusammen zeigen genau, was vorher in „Offen" steckte, jetzt aber mit eigener Fristanzeige je Phase.
+### Verbesserungen
+- Die Begleitphase ist ab sofort **ohne** eigene Profil-Einstellung sichtbar. Dadurch steigen die Zahlen in „Alle" und auf der Startseite — es sind keine neuen Anträge, sie waren vorher nur ausgeblendet.
+
 ## v2.403 — 2026-08
 
 ### Neu
