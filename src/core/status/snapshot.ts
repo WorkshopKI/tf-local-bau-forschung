@@ -18,14 +18,19 @@
  * aber nicht — die App verhielte sich mit Flag anders als ohne, in derselben
  * Version. Genau das misst `byte-identitaet`.
  *
+ * Zusätzlich kommen die **amtlichen** Schreibweisen aus dem Code-Katalog dazu
+ * (`mitAmtlichenSchreibweisen`) — eine Fassung, die eine davon nicht führt,
+ * darf sie nicht aus der Auflösung nehmen.
+ *
  * **Die Kategorie wird abgeleitet, nicht aus der Fassung übernommen** — siehe
  * `kategorieAusFassung`. Sonst trüge eine ältere Fassung die Kategorien ihres
  * Seed-Standes weiter, obwohl der Code-Katalog längst etwas anderes sagt.
  */
 import { setStatusKatalogSnapshotMap } from '@/core/utils/status-canonical';
-import type { MappingVersion, StatusCategory, StatusWertEintrag } from './typen';
+import { normalisiereWert, type MappingVersion, type StatusCategory, type StatusWertEintrag } from './typen';
 import { indexNachSchreibweise } from './wert-index';
 import { kategorieFuerCode, kategorieFuerPhase } from './kategorie-ableitung';
+import { statusCodeEintrag } from './status-codes';
 
 let aktiveVersion: MappingVersion | null = null;
 
@@ -37,10 +42,40 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
     setStatusKatalogSnapshotMap(null);
     return;
   }
-  const idx = indexNachSchreibweise(version.werte.filter(w => !w.unkuratiert));
+  const kuratiert = version.werte.filter(w => !w.unkuratiert);
+  const idx = indexNachSchreibweise(kuratiert.map(mitAmtlichenSchreibweisen));
   const m = new Map<string, StatusCategory>();
   for (const [key, w] of idx) m.set(key, kategorieAusFassung(w));
   setStatusKatalogSnapshotMap(m);
+}
+
+/**
+ * Ergänzt die Schreibweisen eines Eintrags um die amtlichen aus dem
+ * Code-Katalog. **Nur Schreibweisen** — Kategorie, Phase, Rang und Zieltage
+ * bleiben, wie die PL sie kuratiert hat (Pitfall #43: Bezeichnungen sind
+ * Fremddaten, unsere Kuration lebt daneben).
+ *
+ * Ohne diesen Schritt friert eine Fassung, die eine Schreibweise nicht führt,
+ * sie dauerhaft aus: Fassung 12 kannte Code 72 nur als „stellungnahme zur
+ * rücknahmeempf.", im Bestand stand 15× die Langform — die fielen auf
+ * `sonstige` und standen damit in keiner Sicht. `reichereWerteAn` half nicht:
+ * sie steigt bei gesetztem Code sofort aus und läuft nur beim Seed-Bau.
+ *
+ * Rein: das Ergebnis wird NICHT zurückgeschrieben (Pitfall #45).
+ */
+function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintrag {
+  if (w.code === undefined) return w;
+  const amtlich = statusCodeEintrag(w.code);
+  if (!amtlich) return w;
+  const gesehen = new Set<string>([normalisiereWert(w.wert)]);
+  const varianten: string[] = [];
+  for (const s of [...(w.varianten ?? []), amtlich.text, ...amtlich.varianten]) {
+    const k = normalisiereWert(s);
+    if (!k || gesehen.has(k)) continue;
+    gesehen.add(k);
+    varianten.push(s);
+  }
+  return { ...w, varianten };
 }
 
 /**
