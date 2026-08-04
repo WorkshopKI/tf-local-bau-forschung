@@ -1,6 +1,5 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { Rolle } from '@/core/status';
-import { isBegleitungStatus } from '@/core/utils/status-canonical';
 
 /**
  * Bearbeiter-Kürzel-Filter + Begleitphase-Filter.
@@ -21,14 +20,13 @@ import { isBegleitungStatus } from '@/core/utils/status-canonical';
  * - "MUE"  → matched gegen ein einzelnes Kürzel
  * - "MUE, SCH" → mehrere Kürzel komma-separiert (für Vertretung)
  *
- * `bearbeiter_inkl_begleitung` (Profil-Toggle, **Doppelwirkung**):
- * - true:  Begleit-Stati (VN-/ZB-) bleiben sichtbar UND ZTP/PFM-Kürzel
- *          werden zusätzlich gematcht.
- * - false: Begleit-Stati werden komplett ausgeblendet (auch wenn das
- *          TIB-/BIB-Kürzel matched). Nur TIB/BIB-Spalten werden gematcht.
+ * `bearbeiter_inkl_begleitung` (Profil-Toggle): schneidet die Spaltenauswahl zu.
+ * - true:  zusätzlich ZTP_KUERZ / PFM_KUERZ matchen.
+ * - false: nur TIB_KUERZ / BIB_KUERZ.
  *
- * Die Phase-Filterung wirkt auch wenn der Kürzel-Filter inaktiv ist —
- * deshalb wird `includeBegleitung` in der INACTIVE-Mode-Variante mitgeführt.
+ * Er blendet NICHTS aus. Bis v2.401 tat er beides — und versteckte damit die
+ * Begleitphase app-weit, weil er ab Werk aus steht. Sichtbarkeit macht seit
+ * v2.402 die Sicht (`views.ts`).
  */
 
 const BEARBEITER_FIELDS_LOWER: readonly string[] = ['tib_kuerz', 'bib_kuerz'];
@@ -191,25 +189,9 @@ export function antragMatchesBearbeiter(antrag: AntragListItem, mode: Bearbeiter
 }
 
 /**
- * Filtert Begleitphase-Antraege raus, wenn der Profil-Toggle off ist.
- * Wirkt unabhaengig vom Kuerzel-Filter — wenn `includeBegleitung=false`,
- * werden VN-/ZB-Stati universell ausgeblendet (Home, Antrags-Liste, etc.).
- *
- * Aufruf-Reihenfolge in `useFilteredAntraege`:
- *   isIrrlaeufer → filterByBegleitungPhase → applyBearbeiterFilter
- */
-export function filterByBegleitungPhase(
-  antraege: AntragListItem[],
-  includeBegleitung: boolean,
-): AntragListItem[] {
-  if (includeBegleitung) return antraege;
-  return antraege.filter(a => !isBegleitungStatus(a.status));
-}
-
-/**
  * Convenience: filtert eine Liste mit dem Kuerzel-Modus. Inaktiver Filter →
- * unverändert. **Phase-Filter ist eine separate Stufe** — siehe
- * `filterByBegleitungPhase`.
+ * unverändert. Aufruf-Reihenfolge in `useFilteredAntraege`:
+ * isIrrlaeufer → applyBearbeiterFilter.
  */
 export function applyBearbeiterFilter(antraege: AntragListItem[], mode: BearbeiterFilterMode): AntragListItem[] {
   if (!mode.active) return antraege;

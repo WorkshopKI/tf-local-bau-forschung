@@ -13,7 +13,6 @@ import {
   parseBearbeiterFilter,
   applyBearbeiterFilter,
   applyInaktiveExclusion,
-  filterByBegleitungPhase,
   hasAnyKuerzelData,
   type BearbeiterFilterMode,
 } from './bearbeiterFilter';
@@ -135,9 +134,6 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     const byPreFilter = explicitVbPhase
       ? byView
       : byView.filter(a => !isIrrlaeufer(a.vb_phase));
-    // Phase-Filter (Begleitphase): wirkt unabhaengig vom Kuerzel-Filter.
-    // Ohne aktiven Toggle werden VN-/ZB-Stati ausgeblendet.
-    const byPhase = filterByBegleitungPhase(byPreFilter, bearbeiterFilter.includeBegleitung);
     // Bearbeiter-Filter (Profil-Kürzel) NACH der View, vor den Custom-Filtern.
     // Override: wenn der User aktiv über die "Auch außerhalb meiner Anträge"-
     // Checkbox neben dem Suchfeld den Filter deaktiviert hat UND eine Such-
@@ -145,7 +141,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // beim Leeren der Suche automatisch wieder ausgeschaltet (siehe store).
     const q = deferredSearch.trim().toLowerCase();
     const skipBearbeiter = searchIgnoreBearbeiterFilter && q.length > 0;
-    const byBearbeiter = skipBearbeiter ? byPhase : applyBearbeiterFilter(byPhase, bearbeiterFilter);
+    const byBearbeiter = skipBearbeiter ? byPreFilter : applyBearbeiterFilter(byPreFilter, bearbeiterFilter);
     // Inaktiv-Ausblendung NACH dem Kürzel-Filter, VOR den Sidebar-Filtern —
     // damit auch die Quickfilter-Counts (countBase) die Ausblendung spiegeln.
     const byInaktive = applyInaktiveExclusion(byBearbeiter, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);

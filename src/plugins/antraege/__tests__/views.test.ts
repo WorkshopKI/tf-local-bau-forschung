@@ -68,24 +68,23 @@ describe('Bearbeiter-Filter', () => {
   });
 });
 
-describe('viewCount — Begleitphasen-Filter (Tab-Counts konsistent zur Liste)', () => {
-  // „vn geprüft" → Kategorie begleitung; isOpenStatus schließt Begleitung ein,
-  // d.h. ohne Begleit-Filter zählt der offene Begleit-Antrag mit.
+describe('viewCount — der Profil-Haken blendet nichts mehr aus', () => {
+  // „vn geprüft" → Kategorie begleitung. isOpenStatus schließt Begleitung ein;
+  // die Sichtbarkeit hängt seit v2.402 an der Sicht, nicht am Profil-Haken.
   const data = [
     { aktenzeichen: 'BEGLEIT-1', programm_id: 'P', status: 'vn geprüft', _updated_at: '2026-01-01T00:00:00Z' },
     { aktenzeichen: 'OFFEN-1', programm_id: 'P', status: 'techn geprüft', _updated_at: '2026-01-01T00:00:00Z' },
   ] as never;
 
-  it('ohne bearbeiter-Mode → Begleit zählt mit (Default includeBegleitung=true)', () => {
+  it('includeBegleitung=false zählt Begleitung genauso mit wie true', () => {
+    const aus = parseBearbeiterFilter('alle', false);
+    const an = parseBearbeiterFilter('alle', true);
+    expect(viewCount('meine_offenen', data, aus, true)).toBe(2);
+    expect(viewCount('meine_offenen', data, an, true)).toBe(2);
+  });
+
+  it('ohne bearbeiter-Mode identisch', () => {
     expect(viewCount('meine_offenen', data, undefined, true)).toBe(2);
-  });
-  it('includeBegleitung=false → Begleit ausgeblendet (wie die Liste)', () => {
-    const mode = parseBearbeiterFilter('alle', false); // active:false, includeBegleitung:false
-    expect(viewCount('meine_offenen', data, mode, true)).toBe(1);
-  });
-  it('includeBegleitung=true → Begleit zählt mit', () => {
-    const mode = parseBearbeiterFilter('alle', true);
-    expect(viewCount('meine_offenen', data, mode, true)).toBe(2);
   });
 });
 

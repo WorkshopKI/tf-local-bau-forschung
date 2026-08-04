@@ -94,7 +94,7 @@ export function ProfilTab(): React.ReactElement {
             />
             <FieldLabel
               text="Begleitungen einschließen"
-              hint="Matcht zusätzlich auf ZTP_KUERZ und PFM_KUERZ und zeigt Anträge in VN-/ZB-Stati. Frist für VN-Anträge: D_VBE + 6 Monate."
+              hint="Zählt Anträge, auf denen Ihr Kürzel in der Begleitung steht (ZTP_KUERZ, PFM_KUERZ), zu Ihren eigenen. Sichtbar ist die Begleitphase unabhängig davon — sie hat einen eigenen Reiter. Frist für VN-Anträge: D_VBE + 6 Monate."
             />
           </SettingsRowGroup>
           <SettingsRowSeparator />

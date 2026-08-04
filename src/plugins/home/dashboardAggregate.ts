@@ -18,7 +18,7 @@ import {
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
-import { getStatusCategory, isBegleitungStatus } from '@/core/utils/status-canonical';
+import { getStatusCategory } from '@/core/utils/status-canonical';
 
 export type AntragVorgang = Vorgang & {
   _isAntrag: true;
@@ -245,11 +245,6 @@ export function computeDashboardAggregate(
     for (const a of antraege) {
       if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
       if (isIrrlaeufer(a.vb_phase)) continue;
-      // Phase-Filter: Antraege in Begleitphase (VN-/ZB-Stati) nur sichtbar,
-      // wenn der Profil-Toggle `bearbeiter_inkl_begleitung` aktiv ist. Die
-      // Begleitung hat andere Zustaendigkeit (ZTP/PFM) und andere Frist-
-      // Berechnung — Default ist sie auf der Home ausgeblendet.
-      if (isBegleitungStatus(a.status) && !bearbeiterMode.includeBegleitung) continue;
       if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
       const v = antragToVorgangLike(a, options.verbundById, verbundAllTvs);
       stats.total++;

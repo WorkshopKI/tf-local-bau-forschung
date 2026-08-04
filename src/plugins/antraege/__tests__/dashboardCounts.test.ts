@@ -7,12 +7,12 @@ import { asAntragStatusRaw, type AntragListItem, type Verbund } from '@/core/ser
 const NEUTRAL = parseBearbeiterFilter(undefined, undefined);
 
 describe('computeDashboardAggregate — Grund-Counts', () => {
-  it('total reflektiert Phase-Filter (Begleit-Stati ausgeblendet)', () => {
+  it('total zaehlt Begleitung mit', () => {
     const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, {
       includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
-    // 16 = 20 minus 2 Irrlaeufer minus 2 VN-Stati (Phase-Filter).
-    expect(agg.stats.total).toBe(16);
+    // 18 = 20 minus 2 Irrlaeufer. Begleit-Stati zaehlen seit v2.402 mit.
+    expect(agg.stats.total).toBe(18);
   });
   it('nachforderung zaehlt „NF gestellt"', () => {
     const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, {
@@ -26,13 +26,11 @@ describe('computeDashboardAggregate — Grund-Counts', () => {
     });
     expect(agg.stats.bewilligt).toBe(4);
   });
-  // NEUTRAL (Profil ohne bearbeiter_inkl_begleitung=true) blendet Begleit-Stati
-  // (VN-/ZB-Stati) komplett aus — REAL-002 + REAL-017 fehlen deshalb in `offen`.
-  it('offen reflektiert Phase-Filter (Begleit-Stati ausgeblendet)', () => {
+  it('offen zaehlt Begleitung mit', () => {
     const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, {
       includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
-    expect(agg.stats.offen).toBe(9);
+    expect(agg.stats.offen).toBe(11);
   });
 });
 
@@ -43,25 +41,21 @@ describe('computeDashboardAggregate — Foerderantrag-Domain (CSV-Rohwerte mit B
     });
     expect(agg.stats.inPruefung).toBe(2);
   });
-  it('begleitung = 0 ohne Toggle (Phase-Filter blendet VN-Stati aus)', () => {
+  it('begleitung = 2 unabhaengig vom Profil-Haken', () => {
     const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, {
-      includeAntraege: true, nowMs: TEST_TODAY_MS,
-    });
-    expect(agg.stats.begleitung).toBe(0);
-  });
-  it('begleitung = 2 mit Toggle aktiv (REAL-002 + REAL-017 sind VN geprueft)', () => {
-    const withBegleitung = parseBearbeiterFilter(undefined, true);
-    const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, withBegleitung, {
       includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.stats.begleitung).toBe(2);
   });
-  it('offen = 11 mit Toggle aktiv (Begleit-Stati zaehlen wieder)', () => {
-    const withBegleitung = parseBearbeiterFilter(undefined, true);
-    const agg = computeDashboardAggregate(REAL_CSV_ANTRAEGE, withBegleitung, {
-      includeAntraege: true, nowMs: TEST_TODAY_MS,
-    });
-    expect(agg.stats.offen).toBe(11);
+  it('der Profil-Haken aendert an den Zahlen nichts mehr', () => {
+    const opts = { includeAntraege: true, nowMs: TEST_TODAY_MS } as const;
+    const ohne = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, opts);
+    const mit = computeDashboardAggregate(
+      REAL_CSV_ANTRAEGE, parseBearbeiterFilter(undefined, true), opts,
+    );
+    expect(mit.stats).toEqual(ohne.stats);
+    expect(ohne.stats.begleitung).toBe(2);
+    expect(ohne.stats.offen).toBe(11);
   });
 });
 
