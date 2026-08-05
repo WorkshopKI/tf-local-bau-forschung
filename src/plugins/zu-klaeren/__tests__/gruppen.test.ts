@@ -108,7 +108,13 @@ describe('beantwortetVon (der Zähler im Seitenkopf)', () => {
   });
 
   it('bei einer Grundsatzfrage zählt der eigene Kommentar als Antwort', () => {
-    const stand = falte([e({ autor: 'MUE', punktId: 'frage-3', kommentar: 'meine Sicht' })]);
+    const stand = falte([e({ autor: 'MUE', punktId: 'frage-59-begleitung', kommentar: 'meine Sicht' })]);
+    expect(beantwortetVon(PUNKTE, stand, 'MUE')).toBe(1);
+  });
+
+  it('… auch dann, wenn er noch unter der alten Punkt-Id in der Datei steht', () => {
+    // `frage-3` ist die Id, unter der diese Frage bis v2.412 geschrieben wurde.
+    const stand = falte([e({ autor: 'MUE', punktId: 'frage-3', kommentar: 'aus der alten Datei' })]);
     expect(beantwortetVon(PUNKTE, stand, 'MUE')).toBe(1);
   });
 

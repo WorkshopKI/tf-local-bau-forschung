@@ -18,8 +18,10 @@ const ZEILE: KlaerungPunkt = {
   id: 'code-38', klaerungId: 'k', art: 'phasenzuordnung',
   titel: '38 · techn geprüft', code: 38, seedZiel: 'pruefung',
 };
+// Bewusst KEINE Id aus `ALT_PUNKT_IDS` (`frage-1` …): die würde beim Falten
+// übersetzt, und der Test prüfte dann etwas anderes, als er behauptet.
 const FRAGE: KlaerungPunkt = {
-  id: 'frage-1', klaerungId: 'k', art: 'freitext', titel: 'Warum?',
+  id: 'frage-freitext-fixture', klaerungId: 'k', art: 'freitext', titel: 'Warum?',
 };
 
 const stand = (...e: Partial<KlaerungEintrag>[]) => falte(

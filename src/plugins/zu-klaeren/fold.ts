@@ -19,6 +19,7 @@
  *
  * Rein: keine IO, keine Uhr (`baueEintrag` bekommt den Zeitstempel gereicht).
  */
+import { ALT_PUNKT_IDS } from './seed-phasenschnitt';
 import {
   urteilSchluessel, normalisiereAutor,
   type Beitrag, type KlaerungEintrag, type KlaerungStand, type Urteil, type ZielWert,
@@ -55,6 +56,12 @@ export function parseEintraege(roh: string): KlaerungEintrag[] {
  * Ein Eintrag darf beides tragen; dann wirkt er auf beides. Ein Eintrag **ohne**
  * `urteil`-Schlüssel lässt das bisherige Urteil stehen — er äußert sich dazu
  * nicht, statt es zu löschen.
+ *
+ * **Alte Punkt-Ids werden hier übersetzt, an genau einer Stelle.** Urteil,
+ * Kommentar und Widerruf müssen denselben Schlüssel sehen — läge die Übersetzung
+ * in `parseEintraege`, umginge sie jeden Aufrufer, der `falte` direkt mit
+ * Objekten füttert; läge sie an den Lesestellen (`konsens`, `gruppen`, `export`),
+ * wären es acht Kopien derselben Zeile.
  */
 export function falte(eintraege: readonly KlaerungEintrag[]): KlaerungStand {
   const urteile = new Map<string, { urteil: Urteil; zielWert?: ZielWert; ts: string }>();
@@ -62,19 +69,20 @@ export function falte(eintraege: readonly KlaerungEintrag[]): KlaerungStand {
 
   for (const e of eintraege) {
     const autor = normalisiereAutor(e.autor);
+    const punktId = ALT_PUNKT_IDS.get(e.punktId) ?? e.punktId;
 
     if (e.urteil !== undefined) {
-      urteile.set(urteilSchluessel(autor, e.punktId), {
+      urteile.set(urteilSchluessel(autor, punktId), {
         urteil: e.urteil,
         ...(e.zielWert !== undefined ? { zielWert: e.zielWert } : {}),
         ts: e.ts,
       });
     }
 
-    const liste = kommentare.get(e.punktId);
+    const liste = kommentare.get(punktId);
     if (typeof e.kommentar === 'string' && e.kommentar.trim() !== '') {
       const beitrag: Beitrag = { autor, ts: e.ts, text: e.kommentar };
-      if (liste) liste.push(beitrag); else kommentare.set(e.punktId, [beitrag]);
+      if (liste) liste.push(beitrag); else kommentare.set(punktId, [beitrag]);
     }
     if (e.kommentarZurueck === true && liste) {
       // Der jüngste noch stehende EIGENE Beitrag — eindeutig, weil alle Einträge

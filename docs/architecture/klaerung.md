@@ -67,6 +67,17 @@ Kaputte Zeilen werden übersprungen, nie geworfen — eine append-only Datei kan
 einem abgebrochenen Schreibvorgang enden, und eine halbe letzte Zeile darf nicht
 die Antworten aller anderen unlesbar machen.
 
+**Punkt-Ids sind stabil, und alte werden beim Lesen übersetzt.** Eine Id darf nie
+aus einer Position entstehen: die Zeilen auf dem Share zeigen darauf, und ein
+eingefügter Punkt verschöbe alle Antworten dahinter — lautlos, in einer Datei, die
+sich nicht korrigieren lässt. Bis v2.412 galt das für die Grundsatzfragen nicht
+(`frage-${i + 1}`); die bereits geschriebenen Zeilen laufen seither über
+`ALT_PUNKT_IDS` aus dem Seed, ausgewertet an **genau einer** Stelle in `falte`.
+Damit sehen Urteil, Kommentar und Widerruf denselben Schlüssel, der Schreibpfad
+bleibt unberührt, und eine Jahre später eingespielte Archivdatei stimmt weiterhin.
+Ein Konventionstest (`no-index-punkt-id`) hält die Zusage fest; aus **Daten**
+abgeleitete Ids (`code-${code}`) sind ausdrücklich erlaubt.
+
 **Kein `null` im Drahtformat.** `JSON.stringify` verschluckt `undefined` und behält
 `null`; ein nullbares Feld hätte zwei unsichtbar verschiedene „leer"-Arme.
 Zurückziehen ist deshalb ein **Wert** (`urteil: 'zurueckgezogen'` bzw.

@@ -36,11 +36,12 @@ nirgends sichtbar.
 - **Reiter über der Tabelle** — „Alle Zuordnungen", „Nur strittige" und „Offene
   Rückfragen", jeweils mit Zähler. Uneinigkeit ist das erwartete Ergebnis einer
   Abstimmung, kein Fehler — sie ist deshalb ruhig markiert und filterbar.
-- **Grundsatzfragen** — sieben Fragen unter der Tabelle, die den Schnitt als Ganzes
+- **Grundsatzfragen** — elf Fragen unter der Tabelle, die den Schnitt als Ganzes
   betreffen. Sie werden nur mit Text beantwortet; ein „passt / gehört nach …" wäre
   hier Scheinpräzision. Sie sind immer sichtbar und verschwinden nicht durch einen
-  Filter.
-- **Zähler im Seitenkopf** — wie viele der 37 Punkte man selbst beantwortet hat.
+  Filter. Vier davon kamen nach der Bestands-Erhebung dazu (PreCheck-Meldung,
+  PreCheck-Vollständigkeit, Zieltage als Soll oder Ist, Abgrenzung 31/33/34).
+- **Zähler im Seitenkopf** — wie viele der 41 Punkte man selbst beantwortet hat.
   Zurückgezogene Antworten zählen nicht mit.
 - **Neu laden** — liest die Antworten der anderen frisch. Die Seite aktualisiert
   sich nicht von allein; die Uhrzeit daneben sagt, von wann der Stand ist.

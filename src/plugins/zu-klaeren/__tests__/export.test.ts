@@ -81,6 +81,8 @@ describe('baueSeedDiff (nur was sich ändert)', () => {
 });
 
 describe('baueBlaetter (jedes Blatt trägt seinen Erhebungs-Kontext)', () => {
+  // `frage-1` ist die ALTE Id der ersten Grundsatzfrage; der Export läuft über
+  // `bauePunkte()` und findet sie nur, weil `falte` sie übersetzt (v2.412).
   const blaetter = baueBlaetter(eingabe([
     e({ autor: 'MUE', punktId: 'code-38', urteil: 'passt', kommentar: 'stimmt so' }),
     e({ autor: 'SCH', punktId: 'frage-1', kommentar: 'Sehe ich anders.' }),
@@ -137,6 +139,13 @@ describe('baueKurzfassung (nur Abweichendes und Kommentiertes)', () => {
   });
 
   it('führt kommentierte Grundsatzfragen mit Beitrag', () => {
+    const md = baueKurzfassung(eingabe([
+      e({ autor: 'SCH', punktId: 'frage-marker-ohne-phase', kommentar: 'Marker bitte so lassen.' }),
+    ], ['SCH']));
+    expect(md).toContain('Marker bitte so lassen.');
+  });
+
+  it('… und ebenso einen Beitrag, der noch die alte Punkt-Id trägt', () => {
     const md = baueKurzfassung(eingabe([
       e({ autor: 'SCH', punktId: 'frage-4', kommentar: 'Marker bitte so lassen.' }),
     ], ['SCH']));

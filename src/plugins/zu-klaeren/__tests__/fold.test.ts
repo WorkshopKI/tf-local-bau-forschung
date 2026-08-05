@@ -7,6 +7,8 @@
  * 3. Urteil und Kommentar sind zwei unabhängige Projektionen desselben Durchlaufs.
  * 4. Zurückziehen verliert nie eine Zeile.
  * 5. Das Drahtformat überlebt JSON unverändert (kein `null`, kein `undefined`).
+ * 6. Eine alte Punkt-Id wird beim LESEN übersetzt — für Urteil UND Kommentar,
+ *    an genau einer Stelle. Geschrieben wird sie nie wieder.
  */
 import { describe, it, expect } from 'vitest';
 import { parseEintraege, falte, baueEintrag, beitraegeSortiert } from '@/plugins/zu-klaeren/fold';
@@ -135,6 +137,56 @@ describe('falte (Dateireihenfolge entscheidet, nicht der Zeitstempel)', () => {
       z({ ts: '2026-08-04T09:00:00.000Z', autor: 'SCH', punktId: 'code-11', kommentar: 'früh' }),
     ].join('\n')));
     expect(beitraegeSortiert(stand, 'code-11').map(b => b.text)).toEqual(['früh', 'spät']);
+  });
+});
+
+describe('falte übersetzt alte Punkt-Ids (v2.412)', () => {
+  const ALT = 'frage-1';
+  const NEU = 'frage-32-ablehnungsreif';
+
+  it('ein Urteil unter der alten Id zählt für die neue', () => {
+    const stand = falte(parseEintraege(z({ autor: 'MUE', punktId: ALT, urteil: 'passt' })));
+    expect(stand.urteile.get(urteilSchluessel('MUE', NEU))?.urteil).toBe('passt');
+    expect(stand.urteile.get(urteilSchluessel('MUE', ALT))).toBeUndefined();
+  });
+
+  it('ein Kommentar unter der alten Id landet an derselben Frage', () => {
+    const stand = falte(parseEintraege([
+      z({ autor: 'MUE', punktId: ALT, kommentar: 'aus der alten Datei' }),
+      z({ autor: 'SCH', punktId: NEU, kommentar: 'aus der neuen' }),
+    ].join('\n')));
+    expect(stand.kommentare.get(NEU)?.map(b => b.text))
+      .toEqual(['aus der alten Datei', 'aus der neuen']);
+    expect(stand.kommentare.has(ALT)).toBe(false);
+  });
+
+  it('eine neue Äußerung überschreibt die alte desselben Autors', () => {
+    const stand = falte(parseEintraege([
+      z({ autor: 'MUE', punktId: ALT, urteil: 'passt' }),
+      z({ autor: 'MUE', punktId: NEU, urteil: 'unklar' }),
+    ].join('\n')));
+    expect(stand.urteile.size).toBe(1);
+    expect(stand.urteile.get(urteilSchluessel('MUE', NEU))?.urteil).toBe('unklar');
+  });
+
+  it('kommentarZurueck greift über die Id-Grenze hinweg auf dieselbe Liste', () => {
+    // Der Widerruf steht unter der NEUEN Id, der Beitrag unter der alten. Ohne
+    // eine gemeinsame Übersetzung sähen beide verschiedene Fächer, und der
+    // Widerruf liefe ins Leere — sichtbar erst Wochen später.
+    const stand = falte(parseEintraege([
+      z({ autor: 'MUE', punktId: ALT, kommentar: 'Tippfehler' }),
+      z({ autor: 'MUE', punktId: NEU, kommentarZurueck: true }),
+    ].join('\n')));
+    expect(stand.kommentare.get(NEU) ?? []).toHaveLength(0);
+  });
+
+  it('unbekannte Ids bleiben unangetastet', () => {
+    const stand = falte(parseEintraege(z({ autor: 'MUE', punktId: 'code-11', urteil: 'passt' })));
+    expect(stand.urteile.get(urteilSchluessel('MUE', 'code-11'))?.urteil).toBe('passt');
+  });
+
+  it('geschrieben wird die Id unverändert — die Übersetzung ist ein Lesepfad', () => {
+    expect(baueEintrag({ autor: 'MUE', punktId: ALT }, 'T').punktId).toBe(ALT);
   });
 });
 
