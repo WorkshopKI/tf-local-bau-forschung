@@ -130,6 +130,11 @@ export {
   type AenderungsBilanz, type AenderungsGruppe, type VerglichenerVorgang,
 } from './regel-aenderung';
 export {
+  erhebeTerminBefunde,
+  type TerminBefunde, type TerminFall, type BefundGruppe,
+  type PrecheckLuecke, type FeldPaar, type VerdeckungsBefund,
+} from './termin-erhebung';
+export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
   leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,

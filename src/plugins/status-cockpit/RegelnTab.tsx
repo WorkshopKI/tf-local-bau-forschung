@@ -20,12 +20,16 @@
  */
 import { useCallback, useState } from 'react';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { REGELSATZ_DEFAULT, type Rolle } from '@/core/status';
+import { REGELSATZ_DEFAULT, zieltageFuer, type Rolle } from '@/core/status';
+
+/** „beantragt" — der Status, dessen Zieltage faktisch die PreCheck-Frist sind. */
+const BEANTRAGT_CODE = 31;
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { TodoRegelnBereich } from './TodoRegelnBereich';
 import { usePlatzhalterErhebung } from './usePlatzhalterErhebung';
 import { useRegelWirkung } from './useRegelWirkung';
 import { useRegelProbelauf } from './useRegelProbelauf';
+import { useTerminErhebung } from './useTerminErhebung';
 import { exportiereErhebung } from './fbErhebungExport';
 
 export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
@@ -38,6 +42,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const [satz, setSatz] = useState<Rolle>(REGELSATZ_DEFAULT);
   const wirkung = useRegelWirkung(api.entwurf, satz);
   const probe = useRegelProbelauf(api.entwurf, satz);
+  const termin = useTerminErhebung(api.entwurf);
   // Reiner Export, deshalb OHNE Schreibrecht-Gate: er nimmt nichts mit auf den
   // Share, er nimmt etwas mit in den Termin.
   const onExportieren = useCallback((rolle: Rolle) => {
@@ -69,6 +74,8 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       <TodoRegelnBereich
         version={entwurf} api={api} platzhalter={platzhalter} onExportieren={onExportieren}
         satz={satz} onSatzWechsel={setSatz} wirkung={wirkung} probe={probe}
+        termin={termin} zieltageBeantragt={api.liegezeitVorschlag.get(BEANTRAGT_CODE) ?? null}
+        zieltageGepflegt={zieltageFuer(entwurf, BEANTRAGT_CODE)}
       />
     </div>
   );

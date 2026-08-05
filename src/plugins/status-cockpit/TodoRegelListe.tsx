@@ -23,10 +23,12 @@ import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 import type { WirkungsLauf } from './useRegelWirkung';
 import type { ProbeLauf } from './useRegelProbelauf';
 import { RegelProbelauf } from './RegelProbelauf';
+import { TerminBefundeBlock } from './TerminBefundeBlock';
+import type { TerminLauf } from './useTerminErhebung';
 
 export function TodoRegelListe({
   regeln, eigeneRegeln, version, satz, api, platzhalter, onExportieren, wirkung, probe,
-  gewaehlt, onWaehlen, unbekannteJeRegel,
+  termin, zieltageBeantragt, zieltageGepflegt, gewaehlt, onWaehlen, unbekannteJeRegel,
 }: {
   regeln: readonly TodoRegel[];
   /** Die Regeln OHNE Sperren — nur sie zählen als „gepflegt" in diesem Satz. */
@@ -40,6 +42,10 @@ export function TodoRegelListe({
   wirkung: WirkungsLauf;
   /** Die Probe am Einzelfall — beantwortet „und was passiert bei DIESEM Vorgang?". */
   probe: ProbeLauf;
+  /** Die Befunde für die AB-Runde — vier Zahlen, die im Termin sonst geschätzt würden. */
+  termin: TerminLauf;
+  zieltageBeantragt: { median: number; n: number } | null;
+  zieltageGepflegt: number | null;
   /** Id der geöffneten Regel — `null` schaltet auf die Karten-Ansicht. */
   gewaehlt: string | null;
   onWaehlen: (id: string) => void;
@@ -110,6 +116,10 @@ export function TodoRegelListe({
           )}
 
           <RegelProbelauf satz={satz} lauf={probe} />
+
+          <TerminBefundeBlock
+            lauf={termin} zieltage={zieltageBeantragt} gepflegt={zieltageGepflegt}
+          />
 
           {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
               stumm auf dem Stand ihres ersten Seeds stehen. Die Bilanz steht dran,
