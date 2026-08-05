@@ -47,17 +47,23 @@ Recovery läuft manuell über den Explorer (Kurator kopiert relevante Dateien au
 - `validateSelectedFolder(handle)` klassifiziert Ordner in `current`/`empty`/`legacy`/`subfolder`.
 - `migrateLegacyStructure(idb, parent)` verschiebt Legacy-Daten aus `programm-test/` und `feedback/` in die v1.9-Struktur, benennt `admin-*` → `kurator-*`, löscht `programm-test/dokumente/` (mit Count-Anzeige im Dialog vor Bestätigung), rotiert Backups aus der Zwischenebene. Idempotent.
 
-## Kurator-Config
+## Kurator-Config (entfallen mit v3.0)
 
-[kurator-config.ts](../../src/core/services/infrastructure/kurator-config.ts) (ehemals `admin-config.ts`): `isKuratorConfigured`, `setupKuratorConfig`, `verifyPassword`, `changeKuratorPassword`, `readKuratorName`, `writeKuratorName`. Physische Datei: `_intern/kurator-config.enc`.
+`kurator-config.ts` und `_intern/kurator-config.enc` gibt es nicht mehr. Der Kurator-Zugang
+existierte doppelt — als Passwortdatei auf dem Share und als build-eingebackenes Passwort der
+Start-Wall. Geblieben ist der Build-Weg (`verifyModulPassword` in
+[app-password.ts](../../src/core/services/infrastructure/app-password.ts)); die Session hält seither
+nur noch Zustand. Die Audit-Identität kommt aus dem Profilnamen statt aus der Datei —
+inhaltlich ein Gewinn, weil der kurator-Build bei Shared-Passwort das Build-Label in jeden
+Eintrag stempelte. Detail: [modul-freischaltung.md](modul-freischaltung.md).
 
 ## Shared Types/Constants
 
-[types.ts](../../src/core/services/infrastructure/types.ts): `AuditEntry`, `BuildLock`, `BackupEntry`, `KuratorConfigPlain`, `SessionMeta`, `FolderValidationResult` + Pfad-Konstanten:
+[types.ts](../../src/core/services/infrastructure/types.ts): `AuditEntry`, `BuildLock`, `BackupEntry`, `SessionMeta`, `FolderValidationResult` + Pfad-Konstanten:
 
 - `AUDIT_LOG_PATH='_intern/audit-log.jsonl'`
 - `BUILD_LOCK_PATH='_intern/build-lock.json'`
-- `KURATOR_CONFIG_PATH='_intern/kurator-config.enc'`
+
 - `PROGRAMM_DIR_NAME='programm'`
 - `PROGRAMM_SUBDIRS=['antraege','schemas','index']`
 - `INTERN_DIR='_intern'`

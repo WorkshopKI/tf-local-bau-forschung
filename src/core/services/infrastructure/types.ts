@@ -37,7 +37,6 @@ export function dmsSourceSlotKey(sourceId: string): string {
 
 // IDB-Key-Werte bleiben unverändert, damit bestehende Test-Sessions weiter valide sind.
 export const KURATOR_SESSION_META_IDB_KEY = 'admin-session-meta';
-export const KURATOR_NAME_LOCAL_IDB_KEY = 'admin-name-local';
 
 /** v3.0: Freischaltung der per Zusatzpasswort gesperrten Module. Geraetelokal —
  *  gehoert NIE in Snapshot, Share oder Personal-Mirror (eine Freischaltung ist
@@ -60,10 +59,9 @@ export const ANTRAEGE_IMPORTS_DIR = 'antraege/imports';
 export const INTERN_DIR = '_intern';
 export const INTERN_FEEDBACK_DIR = '_intern/feedback';
 export const AUDIT_LOG_PATH = '_intern/audit-log.jsonl';
-export const KURATOR_CONFIG_PATH = '_intern/kurator-config.enc';
 /** v2.11: Zugangsdatei der MA-Login-Wall. JSON-Huelle mit pro-Eintrag Salt +
  *  AES-GCM-verschluesseltem Kuerzel (kein Klartext-Kuerzel/Passwort/Hint).
- *  Liegt neben kurator-config.enc auf dem Daten-Share.
+ *  Liegt auf dem Daten-Share.
  *  Schreib-Profil (Pitfall #23): idempotent-overwrite via `atomicWrite` MIT
  *  Backup (ganze Datei wird pro Mutation neu geschrieben). */
 export const ZUGANG_CONFIG_PATH = '_intern/auslastung-zugang.enc';
@@ -254,12 +252,6 @@ export interface BackupEntry {
   datum: string;
   folderName: string;
   fileCount: number;
-}
-
-export interface KuratorConfigPlain {
-  version: 1;
-  kuratorName: string;
-  created: string;
 }
 
 export interface SessionMeta {

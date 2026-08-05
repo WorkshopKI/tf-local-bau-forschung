@@ -19,8 +19,7 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 - `_intern/anfragen-settings.json` — (v2.137) Modul „Anfragen": team-weite Modul-Einstellungen, derzeit nur `dashboardUrl` (Override der externen ZIM-FAQ-Assistent-URL). Schema `{ version: 1, updatedAt?, dashboardUrl? }`. Idempotent-overwrite via `atomicWrite` (kurator-gated). Mirror, nicht Master: Auflösung GUI-Override → IDB-Cache → Build-Default. Service: [settings.ts](../../src/plugins/anfragen/settings.ts).
 - `_intern/audit-log.jsonl` — Kurator-Events (Append-Only JSONL)
 - `_intern/build-lock.json` — Aktiver Build-Lock (Heartbeat)
-- `_intern/kurator-config.enc` — verschlüsselte Kurator-Credentials
-- `_intern/kurator-name-*.txt` — rechnerspezifische Kurator-Kennung (Fingerprint-suffixed)
+- ~~`_intern/kurator-config.enc`~~ / ~~`_intern/kurator-name-*.txt`~~ — **entfallen mit v3.0**: der Kurator-Zugang lief doppelt (Share-Datei UND build-eingebackenes Passwort). Geblieben ist der Build-Weg, siehe [modul-freischaltung.md](modul-freischaltung.md). Vorhandene Dateien werden nicht mehr gelesen und können nach dem Rollout gelöscht werden.
 - `_intern/scan-manifest.json` — Phase 2: JSONL-Spiegel des `phase2_scan_manifest`-IDB-Stores (optional, Caller-getriggert)
 - `_intern/dms-index-filtered.csv` — Phase 2: gefilterte DMS-CSV (Output von `scripts/filter-dms-csv.mjs`)
 - `_intern/aktenplan-mapping.json` — Phase 2: optionales Override des Aktenplanzuordnung→doc_type Mappings
@@ -43,7 +42,7 @@ Alle geteilten Daten und Config-Dateien liegen im **Daten-Share** (separater SMB
 
 ## Browser-IndexedDB (machine-lokaler Cache, pro Variante getrennt)
 
-Die IndexedDB ist der **maschine-lokale Cache** im Browser (nicht auf dem Share). Seit v2.87 ist der DB-Name **pro Build-Variante** suffigiert: `teamflow-<outputFilename>` — also `teamflow-zah-prod`, `teamflow-zah-kurator`, `teamflow-zah-pl`, `teamflow-zah-dev` (Dev-Server: `teamflow-dev`). Abgeleitet via `getVariantDbName()` / `deriveVariantDbName()` in [runtime-config.ts](../../src/config/runtime-config.ts), reingereicht in den `IDBStore`-Konstruktor ([idb-store.ts](../../src/core/services/storage/idb-store.ts)).
+Die IndexedDB ist der **maschine-lokale Cache** im Browser (nicht auf dem Share). Seit v2.87 ist der DB-Name **pro Build-Variante** suffigiert: `teamflow-<outputFilename>` — also `teamflow-zim-dashboard`, `teamflow-zah-pl`, `teamflow-zah-dev` (Dev-Server: `teamflow-dev`). Abgeleitet via `getVariantDbName()` / `deriveVariantDbName()` in [runtime-config.ts](../../src/config/runtime-config.ts), reingereicht in den `IDBStore`-Konstruktor ([idb-store.ts](../../src/core/services/storage/idb-store.ts)).
 
 Hintergrund: Unter `file://` teilen alle Varianten denselben Origin; ein konstanter Name `teamflow` ließ prod/kurator/pl in **dieselbe** DB schreiben (Bug-Klasse 1/3, Datenverlust beim Varianten-Wechsel). Eine frisch suffigierte Variant-DB startet **leer** und lädt beim Erststart per normalem Snapshot-Sync aus dem Daten-Share (kein Migrations-/Kopier-Code; Share = Source of Truth). Eine alte `teamflow`-DB aus Pre-v2.87-Nutzung bleibt verwaist liegen (harmlos, manuell via DevTools löschbar).
 

@@ -41,7 +41,7 @@ Referenz: [scripts/build-default-labels.mjs](../../scripts/build-default-labels.
 4. **Pre-Hooks**:
    - `prebuild`: Pflicht, damit der CI-Build den generierten File aktuell hat.
    - `predev`: nur wenn der Dev-Server das Asset zur Laufzeit braucht (z.B. bei Test-CSV-Generation). Sonst überspringen — spart Dev-Start-Zeit.
-   - Variant-spezifische `prebuild:dev` / `prebuild:prod` / `prebuild:kurator` / `prebuild:pl` greifen, wenn `npm run build:<variant>` ein dediziertes Pre-Script hat. In TeamFlow alle vier → `npm run generate:test-assets`.
+   - Variant-spezifische `prebuild:dev` / `prebuild:pl` / `prebuild:prod` greifen, wenn `npm run build:<variant>` ein dediziertes Pre-Script hat. In TeamFlow alle drei → `npm run generate:test-assets`.
 
 ## Konventionen
 

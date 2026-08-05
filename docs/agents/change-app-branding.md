@@ -7,9 +7,8 @@
 Genau **eine** Variant-Config anfassen — die, deren Build umgebrandet werden soll:
 
 - `configs/dev.config.json` (gebaut via `npm run build:dev`)
-- `configs/prod.config.json` (gebaut via `npm run build:prod`)
-- `configs/kurator.config.json` (gebaut via `npm run build:kurator`)
 - `configs/pl.config.json` (gebaut via `npm run build:pl`)
+- `configs/prod.config.json` (gebaut via `npm run build:prod`)
 
 Im `build`-Block:
 
@@ -38,7 +37,7 @@ Im `build`-Block:
 
 ## Andere Varianten nicht mit-bauen
 
-`npm run build:prod` / `build:kurator` / `build:pl` werden **nicht** routinemäßig nach Branding-Änderungen mitgebaut. Nur die geänderte Variant-Config bauen.
+`npm run build:prod` / `build:pl` werden **nicht** routinemäßig nach Branding-Änderungen mitgebaut. Nur die geänderte Variant-Config bauen.
 
 ## Verifikation
 

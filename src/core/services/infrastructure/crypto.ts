@@ -53,21 +53,6 @@ export async function decrypt(blob: Uint8Array, key: CryptoKey): Promise<string>
 }
 
 /** kurator-config File-Layout: [16B salt][12B IV][N+16B ciphertext||tag] */
-export function packKuratorConfigBlob(salt: Uint8Array, ivAndCt: Uint8Array): Uint8Array {
-  const out = new Uint8Array(SALT_BYTES + ivAndCt.byteLength);
-  out.set(salt, 0);
-  out.set(ivAndCt, SALT_BYTES);
-  return out;
-}
-
-export function unpackKuratorConfigBlob(blob: Uint8Array): { salt: Uint8Array; ivAndCt: Uint8Array } {
-  if (blob.byteLength < SALT_BYTES + IV_BYTES + GCM_TAG_BYTES) throw new Error('kurator-config blob too short');
-  return {
-    salt: blob.slice(0, SALT_BYTES),
-    ivAndCt: blob.slice(SALT_BYTES),
-  };
-}
-
 /** Grober Rechner-Fingerprint (8 Hex-Chars). Nur Disambiguierung, keine Security. */
 export async function machineFingerprint(): Promise<string> {
   const parts = [

@@ -11,12 +11,12 @@
 
 import { DEFAULT_CONFIG, validateConfig, CONFIG_SCHEMA_VERSION } from './schema.mjs';
 
+// v3.0: drei Varianten. Die frueheren Eintraege 'demo'/'kurator' zeigten noch
+// lange auf Configs, die es nicht mehr gab.
 const PRESET_PATHS = {
   dev: '/configs/dev.config.json',
-  demo: '/configs/demo.config.json',
-  prod: '/configs/prod.config.json',
-  kurator: '/configs/kurator.config.json',
   pl: '/configs/pl.config.json',
+  prod: '/configs/prod.config.json',
 };
 
 let currentConfig = structuredClone(DEFAULT_CONFIG);

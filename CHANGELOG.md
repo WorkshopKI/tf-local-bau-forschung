@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.0.0 — Build-Konsolidierung: drei Varianten, Module per Zusatzpasswort (August 2026)
+
+MAJOR — Aus fünf Build-Varianten werden drei. `as` und `kurator` unterschieden sich von `pl` nur in Flags bei byte-gleichem Code — die Trennung sparte kein Byte und kostete Pflege (`as` fiel über zwölf Flags zurück, v2.403). Was die Zielgruppen trennte, entscheidet jetzt ein Zusatzpasswort zur Laufzeit.
+
+- `pl`, `as` und `kurator` gehen in einem `zah-pl.html` auf; Auslastung und Kuration liegen dort hinter je einem Zusatzpasswort — [modul-freischaltung.md](docs/architecture/modul-freischaltung.md), Pitfall #51
+- Der prod-Build heißt **`zim-dashboard.html`** (vorher `zah-prod.html`) — [prod.config.json](configs/prod.config.json)
+- Elf Feature-Flags entfernt (38 → 27): sie trugen überall denselben Wert oder bedienten nur eine abgeschaffte Variante — [feature-flags.ts](src/config/feature-flags.ts)
+- Der doppelte Kurator-Login ist weg: `_intern/kurator-config.enc` entfällt, geblieben ist der Build-Weg; die Audit-Identität kommt jetzt aus dem Profilnamen statt aus dem Build-Label — [update-author.ts](src/core/services/infrastructure/update-author.ts)
+- Variant-Configs enthalten nur noch ihre Abweichungen (`buildBasis()` als neutrale Basis) — [config-schema.mjs](scripts/config-schema.mjs)
+
+**Migration.** `zim-dashboard.html` leitet einen neuen IndexedDB-Namen ab (`teamflow-zim-dashboard`);
+bestehende prod-Installationen laufen **einmalig** durch Onboarding + Ordner-Freigabe + Profil.
+Fachdaten gehen nicht verloren — der Share ist die Quelle der Wahrheit, die IDB nur Cache. Die
+alte `teamflow-zah-prod`-DB bleibt harmlos liegen und kann über die DevTools gelöscht werden.
+Nutzer von `zah-as.html` / `zah-kurator.html` wechseln auf `zah-pl.html` (ebenfalls einmaliger
+Erststart). `_intern/kurator-config.enc` wird nicht mehr gelesen.
+
+**Vor dem Rollout**: die Platzhalter-Passwörter ersetzen —
+`npm run set-password -- pl --modul auslastung "<pw>"` und `--modul kurator "<pw>"`.
+
 ### v2.416.0 — Kommentare im Hover lesen, neue Kommentare sichtbar (August 2026)
 
 MINOR — Die Diskussion an einem Ticket war unsichtbar: das Board zeigte `💬 3` als stumme Zahl, den Inhalt gab es nur nach einem Klick im Detail-Panel. Genau die Tickets mit laufender Diskussion sind aber die wichtigen.

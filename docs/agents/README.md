@@ -54,4 +54,4 @@ Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm r
 
 Verifikation per Doppelklick auf die gebaute HTML unter `dist-single/` (z.B. `zah.html`, abhängig von `build.outputFilename` in der dev-Config) in Chrome/Edge — keine Console-Errors.
 
-`build:prod`, `build:kurator` und `build:pl` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.
+`build:prod` und `build:pl` **nicht** routinemäßig mit-bauen — nur bei strukturellen Änderungen an Variant-Configs. Siehe `CLAUDE.md` → Build-Varianten.

@@ -7,12 +7,12 @@ Lokale, serverlose Web-App für kollaboratives Aufgabenmanagement mit AI-Integra
 ```bash
 npm install
 npm run dev          # Dev-Server auf http://localhost:5173
-npm run build:single # Single-File Build → dist-single/index.html
+npm run build:pl     # Single-File Build → dist-single/zah-pl.html
 ```
 
 ## Deployment
 
-1. `npm run build:single` ausführen
+1. `npm run build:pl` (oder `build:dev` / `build:prod`) ausführen
 2. `dist-single/index.html` auf den File Server kopieren (z.B. `\\server\TeamFlow\app\index.html`)
 3. User öffnet die Datei per Doppelklick — fertig
 

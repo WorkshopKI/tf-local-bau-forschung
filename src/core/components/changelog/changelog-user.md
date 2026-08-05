@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.0 — 2026-08
+
+### Neu
+- **Module mit einem Zusatzpasswort freischalten:** Auslastung und die Kurations-Bereiche liegen jetzt hinter je einem eigenen Passwort. Du gibst es entweder gleich beim Anmelden ein — dann ist der Bereich sofort offen — oder später unter *Einstellungen → Mein Profil → Module freischalten*. Eine Freischaltung gilt 12 Stunden und übersteht das Schließen der App.
+
+### Verbesserungen
+- **Statt fünf Programm-Versionen gibt es nur noch drei.** Wer bisher `zah-as.html` oder `zah-kurator.html` benutzt hat, nimmt künftig **`zah-pl.html`** — dieselbe Datei für alle, der Rest hängt am Passwort. Die Version für alle Kolleg:innen heißt jetzt **`zim-dashboard.html`** (vorher `zah-prod.html`).
+- **Einmalige Einrichtung beim Umstieg:** Weil die Datei einen neuen Namen hat, fragt sie beim ersten Start noch einmal nach dem Datenordner und Deinem Namen — wie bei einer Neuinstallation. Es gehen keine Daten verloren: alles Fachliche liegt auf dem gemeinsamen Laufwerk, Dein Rechner hält davon nur eine Kopie.
+
+### Bugfixes
+<!-- - … -->
+
 ## v2.416 — 2026-08
 
 ### Neu

@@ -221,4 +221,28 @@
   //   "salt": "<base64 — generiert>",
   //   "verifier": "<base64 — generiert>"
   // }
+  //
+  // v3.0 — MODUL-SCHLOESSER. Einzelne Module hinter ein Zusatzpasswort legen,
+  // statt dafuer eine eigene Build-Variante zu pflegen. Erzeugt via
+  //   npm run set-password -- <variant> --modul <auslastung|kurator> "<pw>"
+  //
+  // LEITREGEL: vorhandener Slot = gesperrt, fehlender Slot = offen. Es gibt kein
+  // "required" je Slot — ein Build sperrt nur, was er ausdruecklich sperrt.
+  // Deshalb bleiben dev und local unangetastet: sie fuehren den Block nicht.
+  //
+  // Ein unbekannter Slot-Name ist ein HARTER Validierungsfehler — ein Tippfehler
+  // hiesse sonst GAR KEINE Sperre. Siehe docs/architecture/modul-freischaltung.md.
+  //
+  // "moduleAuth": {
+  //   "auslastung": {
+  //     "hint": "Zugang zum Auslastungs-Modul: Projektleitung.",
+  //     "salt": "<base64 — generiert>",
+  //     "verifier": "<base64 — generiert>"
+  //   },
+  //   "kurator": {
+  //     "hint": "Zugang zur Kuration: IT-Koordination.",
+  //     "salt": "<base64 — generiert>",
+  //     "verifier": "<base64 — generiert>"
+  //   }
+  // }
 }

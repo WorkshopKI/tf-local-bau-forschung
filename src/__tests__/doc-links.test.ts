@@ -192,6 +192,14 @@ describe('doc-links', () => {
     // Getrennt wären es vier Nummern für einen Zusammenhang; das Detail (warum
     // asymmetrisch, welche sieben Abschnitte, welche Namen) steht in
     // docs/architecture/status-achsen.md.
-    expect(bytes).toBeLessThan(63_600);
+    // 63_600 → 65_100 (v3.0): die Modul-Freischaltung bekommt ihre drei Zeilen
+    // (Tabelle, Themenindex, Pitfall #51). Gegengerechnet ist bereits, was die
+    // Varianten-Zusammenlegung eingespart hat: der Build-Varianten-Abschnitt
+    // beschreibt drei statt fünf Varianten und ist dabei kürzer geworden. Der
+    // erste Entwurf von #51 war doppelt so lang; das Detail (zwei Ebenen, warum
+    // die Prädikate nicht in feature-flags.ts leben, welche Aufrufstellen roh
+    // bleiben) steht in docs/architecture/modul-freischaltung.md. Hier bleibt
+    // nur, was beim Patchen sofort sichtbar sein muss.
+    expect(bytes).toBeLessThan(65_100);
   });
 });

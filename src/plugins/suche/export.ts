@@ -50,7 +50,7 @@ function fileTimestamp(now: Date = new Date()): string {
 }
 
 /** Branding-Prefix fuer Such-Exporte. Passt zu den Build-Output-Dateien
- *  (`zah-prod.html`, „ZAH dev" in der Sidebar). */
+ *  (`zim-dashboard.html`, „ZAH dev" in der Sidebar). */
 const EXPORT_PREFIX = 'zah-suche';
 
 function quoteCsvCell(v: string | number): string {

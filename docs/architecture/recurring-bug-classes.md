@@ -63,7 +63,7 @@ Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen 
 
 ## 3. Parallele `file://`-Varianten teilen Storage
 
-**Symptom (historisch):** Datenverlust/Interferenz, wenn mehrere Builds (`zah-pl.html`, `zah-prod.html`, `zah-kurator.html`, dev) gleichzeitig als Tabs offen waren. Konkret (Juni 2026): pl+prod+kurator parallel, Shift+Reload auf pl → `auslastung.json` von 263 KB auf 7 KB überschrieben.
+**Symptom (historisch):** Datenverlust/Interferenz, wenn mehrere Builds (`zah-pl.html`, `zim-dashboard.html`, dev) gleichzeitig als Tabs offen waren. Konkret (Juni 2026): pl+prod+kurator parallel, Shift+Reload auf pl → `auslastung.json` von 263 KB auf 7 KB überschrieben.
 
 **Strukturelle Wurzel — die geteilte IndexedDB — ist seit v2.87 behoben.** Unter `file://` teilen alle Builds zwar weiterhin **denselben Origin**, aber der **IDB-Name ist jetzt pro Variante suffigiert** (`teamflow-<outputFilename>` via `getVariantDbName()`, siehe [data-layout.md](data-layout.md)). Damit hat jede Variante ihre **eigene** DB — der frühere „eine geteilte `teamflow`-DB für alle"-Zustand existiert nicht mehr. Konsequenzen:
 - **Downgrade-Flag-Vergiftung — strukturell ausgeschlossen.** Das `needs-handle-downgrade`-Flag ist ein IDB-Key; per-Variante-DB heißt: prod kann pl/kurator nicht mehr vergiften. (Der `writeRole`-Guard in `App.tsx` bleibt als Defense-in-Depth, Pitfall #25.)
