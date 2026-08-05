@@ -16,14 +16,14 @@ import {
   loadLocalItems,
   saveLocalItems,
 } from './feedbackStorage';
-import { mergeItems, readSharedFile, writeSharedFile } from './feedbackSharedFile';
+import { mergeItems, readSharedFileLage, writeSharedFile } from './feedbackSharedFile';
 import { loadFeedbackVotes, writeFeedbackVotes, type VoteFile } from './feedbackVoteOutbox';
 
 export interface VoteResult {
   ok: boolean;
   /** Zustand NACH dem Toggle: hat der Nutzer jetzt gevotet? */
   voted: boolean;
-  error?: 'invalid';
+  error?: 'invalid' | 'share_unreadable';
   /** Nicht-fatal: Stimme lokal/IDB gesichert, aber persoenlicher Ordner fehlt
    *  (read-only prod → Kurator kann nicht einsammeln). */
   warning?: 'no_personal_folder';
@@ -42,7 +42,11 @@ export async function toggleVote(
 ): Promise<VoteResult> {
   if (!ticketId || !userId) return { ok: false, voted: false, error: 'invalid' };
 
-  const shared = await readSharedFile(storage);
+  // Unlesbarer geteilter Stand → abbrechen statt auf einer leeren Basis zu
+  // rechnen (dieselbe Regel wie in addComment, siehe readSharedFileLage).
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') return { ok: false, voted: false, error: 'share_unreadable' };
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const localItems = loadLocalItems();
   const merged = shared ? mergeItems(localItems, shared.items) : localItems;
   const target = merged.find(i => i.id === ticketId);

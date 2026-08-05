@@ -77,10 +77,27 @@ export function FeedbackCommentThread({ ticket, meId, meName, onChanged, neueKom
     }, { once: true });
   };
 
+  // Ein fehlgeschlagener Kommentar MUSS sichtbar sein: `useAsyncAction` fängt nur
+  // geworfene Fehler, ein `ok:false` gar nicht — beides blieb bis v2.416.1 stumm,
+  // der Text verschwand beim Schließen und der Nutzer hielt ihn für gespeichert.
+  const [hinweis, setHinweis] = useState<string | null>(null);
   const submit = useAsyncAction(async () => {
     if (!meId || !text.trim()) return;
+    setHinweis(null);
     const res = await addComment(storage, ticket.id, meId, text, meName);
-    if (res.ok) { setText(''); onChanged(); }
+    if (!res.ok) {
+      setHinweis(
+        res.error === 'share_unreadable'
+          ? 'Der Datenordner war gerade nicht lesbar — nichts gespeichert. Bitte noch einmal senden.'
+          : 'Der Kommentar konnte nicht gespeichert werden.',
+      );
+      return; // Text bleibt stehen — er ist die einzige Kopie.
+    }
+    setText('');
+    if (res.warning === 'no_personal_folder') {
+      setHinweis('Gespeichert — aber ohne verbundenen persönlichen Ordner erreicht er das Team noch nicht.');
+    }
+    onChanged();
   });
 
   return (
@@ -131,7 +148,18 @@ export function FeedbackCommentThread({ ticket, meId, meName, onChanged, neueKom
             </button>
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {(hinweis || submit.error) && (
+        <p
+          className="text-[11.5px] px-2.5 py-1.5 rounded-[var(--tf-radius)] bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]"
+          role="status"
+        >
+          {hinweis ?? `Fehler: ${submit.error}`}
+        </p>
+      )}
+
+      {!meId && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] italic">
           Zum Kommentieren im Profil anmelden.
         </p>

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.0.1 — Kommentar geht nicht mehr still verloren (August 2026)
+
+PATCH — Gemeldet: Kommentar schreiben, senden, Ticket schließen, wieder öffnen — Kommentar weg, ohne jede Meldung. Ursache ist eine Verwechslung zwei Ebenen tiefer: `readText` schluckt jeden Lesefehler und liefert `null`, ununterscheidbar von „Datei gibt es nicht".
+
+- Neue Lage-Unterscheidung `ok`/`leer`/`unlesbar` ([readSharedFileLage](src/core/services/feedback/feedbackSharedFile.ts)); `readSharedFile` bleibt für Leser unverändert
+- Schreibende Pfade (`addComment`, `toggleVote`, `sponsorTicket`, `unsponsorTicket`) brechen bei `unlesbar` ab, statt auf leerer Basis zu rechnen — vorher hielten sie das Ticket für nicht existent und verwarfen die Eingabe wortlos
+- **Verhinderter Datenverlust:** in derselben Lage schrieb der Vorgang den lokalen Teilbestand über die geteilte Datei — fremde Kommentare/Stimmen wären verschwunden ([addComment.test.ts](src/core/services/feedback/__tests__/addComment.test.ts) hält beides fest)
+- Fehlschlag ist jetzt sichtbar und der Text bleibt stehen ([FeedbackCommentThread.tsx](src/components/feedback/FeedbackCommentThread.tsx)) — `useAsyncAction.error` wurde nie gerendert, `ok:false` gar nicht ausgewertet
+- Nachgemessen in `dev:local`: Kommentar senden → schließen → öffnen hält (vorher/nachher), kein Hinweis-Banner im Normalfall, `__tf.fehler()` = 0
+
 ### v3.0.0 — Build-Konsolidierung: drei Varianten, Module per Zusatzpasswort (August 2026)
 
 MAJOR — Aus fünf Build-Varianten werden drei. `as` und `kurator` unterschieden sich von `pl` nur in Flags bei byte-gleichem Code — die Trennung sparte kein Byte und kostete Pflege (`as` fiel über zwölf Flags zurück, v2.403). Was die Zielgruppen trennte, entscheidet jetzt ein Zusatzpasswort zur Laufzeit.

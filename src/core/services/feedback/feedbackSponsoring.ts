@@ -26,7 +26,7 @@ import {
   loadLocalItems,
   saveLocalItems,
 } from './feedbackStorage';
-import { mergeItems, readSharedFile, writeSharedFile } from './feedbackSharedFile';
+import { mergeItems, readSharedFileLage, writeSharedFile } from './feedbackSharedFile';
 import { updateFeedback } from './feedbackService';
 import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import {
@@ -98,7 +98,7 @@ export function isSponsoringOpen(ticket: FeedbackItem): boolean {
 
 export interface SponsorResult {
   ok: boolean;
-  error?: 'no_budget' | 'already_sponsored' | 'not_open' | 'invalid' | 'write_failed';
+  error?: 'no_budget' | 'already_sponsored' | 'not_open' | 'invalid' | 'write_failed' | 'share_unreadable';
   /** Nicht-fatal: Stimme lokal/IDB gesichert, aber persönlicher Ordner fehlt
    *  (read-only prod ohne verbundenen Ordner → Kurator kann nicht einsammeln). */
   warning?: 'no_personal_folder';
@@ -127,7 +127,12 @@ export async function sponsorTicket(
   // Re-Read shared first + merge (Konflikt-Strategie). Der Union-Merge zieht die
   // eigene lokale Stimme mit ein → `existing` kennt den aktuellen Betrag auch für
   // read-only prod (deren Stimme nie in der Shared-Datei steht).
-  const shared = await readSharedFile(storage);
+  // Unlesbarer geteilter Stand → abbrechen (siehe readSharedFileLage): sonst
+  // rechnet der Stepper auf einer leeren Basis und das Schreiben ersetzt den
+  // geteilten Bestand durch den lokalen Teilbestand.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') return { ok: false, error: 'share_unreadable' };
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const localItems = loadLocalItems();
   const merged = shared ? mergeItems(localItems, shared.items) : localItems;
   const target = merged.find(i => i.id === ticketId);
@@ -200,7 +205,10 @@ export async function unsponsorTicket(
   type: 'points' | 'hours',
   config: FeedbackConfig,
 ): Promise<void> {
-  const shared = await readSharedFile(storage);
+  // Unlesbarer geteilter Stand → nichts tun statt auf leerer Basis zurückzubuchen.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') return;
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const localItems = loadLocalItems();
   const merged = shared ? mergeItems(localItems, shared.items) : localItems;
   const target = merged.find(i => i.id === ticketId);

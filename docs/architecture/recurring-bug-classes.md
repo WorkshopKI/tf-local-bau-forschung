@@ -299,3 +299,21 @@ Positivbeispielen: [prompt-audit-2026-07.md](../_archiv/prompt-audit-2026-07.md)
 
 **Kanonische Dateien:** [katalog-konflikt.ts](../../src/core/status/katalog-konflikt.ts) (`planeVereinigung`, `findeKonflikt`, `leseNummerAusKopf`), [katalog-share.ts](../../src/core/status/katalog-share.ts) (`schreibeKatalogAufShare`, `vereinigeMitShare`, `umnummeriereEigeneFassung`), [journal/lauf.ts](../../src/core/status/journal/lauf.ts) (optimistische Sperre), [klaerung-share.ts](../../src/plugins/zu-klaeren/klaerung-share.ts) (Datei je Autor), [sidecar-datei.ts](../../src/core/status/sidecar-datei.ts) (`leseSidecarKopf`).
 
+## 17. Toleranter Leser: `null` heißt „fehlt ODER kaputt" — der Schreiber liest es als „leer"
+
+**Symptom:** Eine Eingabe verschwindet spurlos und ohne Meldung; im Wiederholungsfall ist zusätzlich fremder Bestand weg. Gemessen am Feedback-Kommentar (v3.0.1): senden → schließen → öffnen → weg, in Datei **und** Oberfläche keine Spur.
+
+**Root-Cause:** Die Lesehelfer dieser Codebasis sind bewusst fehlertolerant — [`readText`](../../src/core/services/infrastructure/atomic-write.ts) fängt **jeden** Fehler und liefert `null`. Für Leser ist das richtig. Ein Schreiber, der denselben Helfer nutzt, liest daraus aber „es gibt nichts Geteiltes" und baut seine Vereinigung auf einer **leeren** Basis:
+1. Sein Ziel-Datensatz ist plötzlich „nicht vorhanden" → stiller Abbruch, Eingabe verworfen. Das trifft besonders Rollen, deren Datensätze NUR geteilt liegen und nie lokal (Schreibrollen legen sie nicht zusätzlich in den localStorage).
+2. Schreibt er trotzdem, ersetzt sein lokaler Teilbestand den vollständigen geteilten — der Verlust ist stumm und trifft alle.
+
+Ein transienter Lesefehler ist auf einem geteilten Laufwerk normal: ein zweiter Client mitten im `atomicWrite`, eine SMB-Aussetzer-Millisekunde. Es braucht keinen Defekt, damit `null` zurückkommt.
+
+**Fix-Pattern:**
+- **Lage statt Wert lesen.** Der schreibende Pfad braucht eine dreiwertige Auskunft — `ok` / `leer` / `unlesbar` —, unterschieden über `fileExists`: existiert die Datei, war `null` ein **Fehler**, kein Anfangszustand. Muster: [`readSharedFileLage`](../../src/core/services/feedback/feedbackSharedFile.ts).
+- **Bei `unlesbar` abbrechen, nie rechnen.** Kein Merge, kein Schreiben, kein Budget-Rückbuchen. `leer` bleibt ein gültiger Startzustand.
+- **Die lesende Signatur unangetastet lassen** (`readSharedFile` liefert weiter `null`) — sonst zieht der Fix eine Migration durch alle Anzeige-Pfade.
+- **Fehlschlag sichtbar machen und die Eingabe stehen lassen.** Sie ist die einzige Kopie. `useAsyncAction` fängt nur *geworfene* Fehler; ein `{ok:false}`-Rückgabewert muss der Aufrufer selbst auswerten und anzeigen — Pitfall #15 deckt nur die halbe Strecke ab.
+
+**Prüffrage beim Review:** Schreibt dieser Pfad einen Stand, den er zuvor über einen fehlertoleranten Leser geholt hat? Dann: was passiert bei `null`?
+

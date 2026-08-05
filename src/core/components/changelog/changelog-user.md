@@ -29,7 +29,7 @@
 - **Einmalige Einrichtung beim Umstieg:** Weil die Datei einen neuen Namen hat, fragt sie beim ersten Start noch einmal nach dem Datenordner und Deinem Namen — wie bei einer Neuinstallation. Es gehen keine Daten verloren: alles Fachliche liegt auf dem gemeinsamen Laufwerk, Dein Rechner hält davon nur eine Kopie.
 
 ### Bugfixes
-<!-- - … -->
+- **Kommentare gehen nicht mehr verloren.** Konnte die App die gemeinsame Feedback-Datei im Moment des Speicherns nicht lesen (etwa weil jemand anderes gerade schrieb), verschwand der Kommentar wortlos — er sah gespeichert aus, war aber nirgends. Jetzt wird nichts mehr stillschweigend verworfen: Der Text bleibt stehen und ein Hinweis bittet Dich, noch einmal zu senden.
 
 ## v2.416 — 2026-08
 

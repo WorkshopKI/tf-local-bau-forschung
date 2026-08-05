@@ -25,26 +25,56 @@ import type {
   FeedbackVote,
   SharedFeedbackFile,
 } from '@/core/types/feedback';
-import { atomicWrite, readBinary, readText } from '@/core/services/infrastructure/atomic-write';
+import { atomicWrite, fileExists, readBinary, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { normalizeLegacyFields } from './feedbackStorage';
 
 /** Screenshot-Bilddateien liegen neben der feedback.json. */
 export const FEEDBACK_ATTACHMENTS_DIR = `${FEEDBACK_DATA_DIR}/attachments`;
 
-export async function readSharedFile(storage: StorageService): Promise<SharedFeedbackFile | null> {
+/**
+ * Lage der geteilten Datei — die Unterscheidung, die `readSharedFile` nicht
+ * treffen kann, weil `readText` JEDEN Fehler schluckt und `null` liefert.
+ *
+ * `leer` heißt „es gibt (noch) nichts Geteiltes" (kein Share verbunden oder
+ * Datei existiert nicht) — darauf darf man aufbauen. `unlesbar` heißt „die Datei
+ * IST da, ließ sich aber gerade nicht lesen oder ergab keinen Sinn" — darauf
+ * darf man NICHT aufbauen: wer daraus eine leere Liste macht, verwirft fremde
+ * Kommentare/Stimmen beim nächsten Schreiben und verliert die eigene Eingabe.
+ */
+export type SharedFileLage =
+  | { status: 'ok'; datei: SharedFeedbackFile }
+  | { status: 'leer' }
+  | { status: 'unlesbar' };
+
+export async function readSharedFileLage(storage: StorageService): Promise<SharedFileLage> {
   const handle = await getDatenShareHandle(storage.idb);
-  if (!handle) return null;
+  if (!handle) return { status: 'leer' };
   const text = await readText(handle, FEEDBACK_SHARED_FILE);
-  if (text == null) return null;
+  if (text == null) {
+    // `null` ist zweideutig → nachsehen, ob die Datei existiert. Tut sie es,
+    // war es ein Lesefehler (paralleler atomicWrite, SMB-Aussetzer), kein
+    // leerer Anfangszustand.
+    return (await fileExists(handle, FEEDBACK_SHARED_FILE)) ? { status: 'unlesbar' } : { status: 'leer' };
+  }
   try {
     const data = JSON.parse(text) as SharedFeedbackFile;
-    if (!data || data.version !== 1 || !Array.isArray(data.items)) return null;
-    return { ...data, items: data.items.map(normalizeLegacyFields) };
+    if (!data || data.version !== 1 || !Array.isArray(data.items)) return { status: 'unlesbar' };
+    return { status: 'ok', datei: { ...data, items: data.items.map(normalizeLegacyFields) } };
   } catch (err) {
     console.warn('[feedbackSharedFile] readSharedFile parse failed:', err);
-    return null;
+    return { status: 'unlesbar' };
   }
+}
+
+/**
+ * Geteilte Datei lesen; `null` = nichts Verwertbares. Für LESENDE Aufrufer, die
+ * mit „nichts" leben können. Wer SCHREIBT, nimmt `readSharedFileLage` und bricht
+ * bei `unlesbar` ab (siehe dort).
+ */
+export async function readSharedFile(storage: StorageService): Promise<SharedFeedbackFile | null> {
+  const lage = await readSharedFileLage(storage);
+  return lage.status === 'ok' ? lage.datei : null;
 }
 
 export async function writeSharedFile(

@@ -15,7 +15,7 @@ import {
   loadLocalItems,
   saveLocalItems,
 } from './feedbackStorage';
-import { mergeItems, readSharedFile, writeSharedFile } from './feedbackSharedFile';
+import { mergeItems, readSharedFileLage, writeSharedFile } from './feedbackSharedFile';
 import {
   loadFeedbackComments,
   writeFeedbackComments,
@@ -25,7 +25,9 @@ import {
 export interface AddCommentResult {
   ok: boolean;
   comment?: FeedbackComment;
-  error?: 'invalid';
+  /** `share_unreadable`: der geteilte Stand war nicht lesbar — nichts geschrieben,
+   *  der Nutzer muss es erneut versuchen (Text bleibt stehen). */
+  error?: 'invalid' | 'share_unreadable';
   warning?: 'no_personal_folder';
 }
 
@@ -44,7 +46,13 @@ export async function addComment(
   const trimmed = text.trim();
   if (!ticketId || !userId || !trimmed) return { ok: false, error: 'invalid' };
 
-  const shared = await readSharedFile(storage);
+  // Auf einem UNLESBAREN geteilten Stand darf hier nichts weiterlaufen: die
+  // Tickets schreibender Rollen stehen nur dort, das Ticket wäre also „nicht
+  // gefunden" und der Kommentar wortlos verworfen — und ein Schreiben würde den
+  // geteilten Bestand auf den lokalen Teilbestand eindampfen.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') return { ok: false, error: 'share_unreadable' };
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const localItems = loadLocalItems();
   const merged = shared ? mergeItems(localItems, shared.items) : localItems;
   const target = merged.find(i => i.id === ticketId);

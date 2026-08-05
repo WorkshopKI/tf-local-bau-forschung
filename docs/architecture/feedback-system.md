@@ -34,6 +34,17 @@ Merge-Precedence in `mergeItems` ([feedbackSharedFile.ts](../../src/core/service
 
 Neue Präsentations-Bausteine (`src/components/feedback/`): `FeedbackCard` (Listen-Zeile), `FeedbackKanban` (Board nach `kurator_status`, Pitfall #21 — seit v2.225 farbige Lanes in fester Reihenfolge Neu · Abgelehnt · Geplant · In Bearbeitung · Umgesetzt, **ohne** Lob-Spalte; reine `buildBoardColumns` + Test), `FeedbackBoardDetail` (Detail-Panel), `FeedbackTypeChips` (Typ-Filter, aktiv = `--tf-primary`), `FeedbackVotePill`, `FeedbackCommentThread`, `FeedbackAvatar` (deterministische Farbe aus Name). Kurz-Q&A-Labels via `shortLabel` in `FEEDBACK_TYPES`. Die geteilte `FeedbackTicketRow` (Kurator-Liste) ist auf denselben Karten-Look gehoben (Votes/Kommentare read-only + „Abhaken"-Knopf); der Kurator-Detail zeigt Titel + Kommentar-Thread.
 
+## Schreibende Pfade lesen die LAGE, nicht nur die Datei (v3.0.1)
+
+`readText` ist bewusst fehlertolerant und liefert bei **jedem** Problem `null` — „Datei gibt es nicht" und „Datei ließ sich gerade nicht lesen" sehen identisch aus. `readSharedFile` machte daraus „keine geteilten Daten", und die vier schreibenden Pfade (`addComment`, `toggleVote`, `sponsorTicket`, `unsponsorTicket`) rechneten auf `merged = localItems` weiter. Zwei Folgen, beide still:
+
+- **Eingabe verworfen.** Tickets schreibender Rollen (PL/Kurator/dev) stehen NUR in der geteilten Datei — `submitFeedback` legt sie auf dem Shared-Pfad nicht zusätzlich in den localStorage. War die Datei einen Moment unlesbar (paralleler `atomicWrite` eines zweiten Clients, SMB-Aussetzer), fand `addComment` das Ticket nirgends und gab `{ok:false}` zurück; die Oberfläche wertete das nicht aus.
+- **Fremde Daten überschrieben.** Der anschließende Schreibvorgang hätte die geteilte Datei durch den lokalen Teilbestand ersetzt — alle fremden Kommentare, Stimmen und Sponsorings weg.
+
+Regel seither: **wer schreibt, liest `readSharedFileLage`** (`ok` | `leer` | `unlesbar`) und bricht bei `unlesbar` ab. `leer` (kein Share verbunden oder Datei existiert noch nicht) bleibt ein gültiger Startzustand, `unlesbar` nie. Unterschieden wird über `fileExists` — existiert die Datei, war `null` ein Lesefehler. `readSharedFile` behält seine Signatur für alle **lesenden** Aufrufer.
+
+Dazu die UI-Regel: ein fehlgeschlagener Kommentar ist sichtbar und der Text bleibt im Feld stehen — er ist die einzige Kopie. `useAsyncAction` fängt nur *geworfene* Fehler; ein `ok:false` muss der Aufrufer selbst auswerten (Pitfall #15 deckt nur die halbe Strecke ab). `[test: addComment.test.ts]`
+
 ## Kommentare: Hover-Vorschau + Neu-Marker (v2.416)
 
 Die Diskussion war bis dahin unsichtbar: die Karte zeigte `💬 3` als stumme Zahl, den Inhalt gab es nur im Detail-Panel. Zwei rein anzeigende Ergänzungen, kein Datenmodell-Feld, kein Share-Write.

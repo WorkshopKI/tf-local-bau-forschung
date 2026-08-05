@@ -29,6 +29,12 @@ vi.mock('../feedbackSharedFile', async (importActual) => {
   return {
     ...actual,
     readSharedFile: vi.fn(async () => ({ version: 1 as const, updated_at: '', items: state.shared })),
+    // Schreibende Pfade lesen seit v3.0.1 die LAGE (ok/leer/unlesbar), nicht mehr
+    // nur die Datei — sonst liefe hier die echte Implementierung gegen die IDB.
+    readSharedFileLage: vi.fn(async () => ({
+      status: 'ok' as const,
+      datei: { version: 1 as const, updated_at: '', items: state.shared },
+    })),
     writeSharedFile: vi.fn(async (_s: unknown, items: FeedbackItem[]) => { state.shared = items; return true; }),
   };
 });
