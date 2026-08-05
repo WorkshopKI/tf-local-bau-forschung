@@ -10,6 +10,8 @@
  * korrigieren (PDF-Tool → OCR/DOCX) und erneut hochladen.
  */
 
+import { PDF_ASSET_MELDUNG } from './pdf-assets';
+
 export type ConversionLevel = 'warnung' | 'hinweis';
 
 export interface ConversionWarning {
@@ -30,6 +32,12 @@ export interface ConversionInput {
   format: string;            // 'pdf' | 'docx' | 'md' | 'txt'
   /** Extrahierter Text (PDF) bzw. Markdown-Body (DOCX) — ohne Frontmatter. */
   text: string;
+  /**
+   * Hat pdf.js beim Lesen eine **Zeichentabelle** (CMap) nicht laden können?
+   * Dann fehlt Text, ohne dass ein Fehler geworfen wurde — siehe
+   * `pdf-assets.ts`. Fehlt das Feld, ändert sich nichts.
+   */
+  pdfCmapFehlt?: boolean;
   /** mammoth-HTML (nur DOCX) — Quelle für Tabellen-/Bild-Zählung. */
   html?: string;
   pages?: number;
@@ -58,15 +66,26 @@ export function buildConversionReport(input: ConversionInput): ConversionReport 
 
   if (input.format === 'pdf') {
     const pages = input.pages;
-    if (charCount === 0) {
+    const duenn = pages !== undefined && pages > 0 && charCount / pages < PDF_MIN_CHARS_PER_PAGE;
+    // Die CMap-Meldung ERSETZT die Gescannt-Vermutung, statt danebenzustehen:
+    // beide beschreiben denselben fehlenden Text, aber nur eine nennt die
+    // Ursache — und sie widerspricht der anderen (OCR hilft hier nicht).
+    //
+    // Sie erscheint nur zusammen mit dem SYMPTOM. Eine Warnung allein genügt
+    // nicht: gemessen an echten Dokumenten liefert pdf.js auch dann brauchbaren
+    // Text, wenn es über ein Asset klagt. Wo Text da ist, gibt es nichts zu
+    // melden — egal was die Bibliothek in die Konsole schreibt.
+    if (input.pdfCmapFehlt === true && (charCount === 0 || duenn)) {
+      warnings.push({ level: 'warnung', message: PDF_ASSET_MELDUNG });
+    } else if (charCount === 0) {
       warnings.push({
         level: 'warnung',
         message: 'Kein Text extrahiert — vermutlich ein gescanntes PDF. Bitte per OCR (z. B. im PDF-Tool nach DOCX) umwandeln, prüfen und erneut hochladen.',
       });
-    } else if (pages && pages > 0 && charCount / pages < PDF_MIN_CHARS_PER_PAGE) {
+    } else if (duenn) {
       warnings.push({
         level: 'warnung',
-        message: `Sehr wenig Text extrahiert (Ø ${Math.round(charCount / pages)} Zeichen/Seite) — evtl. ein bildbasiertes PDF. Bitte Konvertierung prüfen.`,
+        message: `Sehr wenig Text extrahiert (Ø ${Math.round(charCount / pages!)} Zeichen/Seite) — evtl. ein bildbasiertes PDF. Bitte Konvertierung prüfen.`,
       });
     }
     return { charCount, ...(pages !== undefined ? { pages } : {}), warnings };

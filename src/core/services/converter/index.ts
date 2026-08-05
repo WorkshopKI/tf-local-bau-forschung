@@ -4,6 +4,7 @@ import { tables } from 'turndown-plugin-gfm';
 import * as pdfjsLib from 'pdfjs-dist';
 import PdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&inline';
 import { buildConversionReport, type ConversionReport } from './conversion-report';
+import { istFehlendesPdfAsset, sammlePdfWarnungen, PDF_ASSET_MELDUNG } from './pdf-assets';
 import { pdfPageToMarkdown, type PdfTextFragment } from './pdf-tables';
 
 export type { ConversionReport, ConversionWarning, ConversionLevel } from './conversion-report';
@@ -58,7 +59,27 @@ function makeFrontmatter(filename: string, format: string, extra?: Record<string
   return `---\n${lines.join('\n')}\n---\n\n`;
 }
 
-async function convertPdf(arrayBuffer: ArrayBuffer): Promise<{ text: string; pages: number }> {
+/**
+ * PDF → Text. Der ganze Lauf steckt in `sammlePdfWarnungen`, weil pdf.js ein
+ * fehlendes CMap-/Schrift-/WASM-Asset NICHT wirft, sondern warnt und weniger
+ * Text liefert (siehe `pdf-assets.ts`). Wirft es doch, wird der Wurf in einen
+ * lesbaren Satz übersetzt statt roh durchgereicht.
+ */
+async function convertPdf(
+  arrayBuffer: ArrayBuffer,
+): Promise<{ text: string; pages: number; cmapFehlt: boolean }> {
+  try {
+    const { ergebnis, cmapFehlt } = await sammlePdfWarnungen(
+      () => leseAllePdfSeiten(arrayBuffer),
+    );
+    return { ...ergebnis, cmapFehlt };
+  } catch (err) {
+    if (istFehlendesPdfAsset(err)) throw new Error(PDF_ASSET_MELDUNG);
+    throw err;
+  }
+}
+
+async function leseAllePdfSeiten(arrayBuffer: ArrayBuffer): Promise<{ text: string; pages: number }> {
   const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const pageTexts: string[] = [];
 
@@ -96,7 +117,9 @@ export class DocConverter {
       const result = await convertPdf(arrayBuffer);
       markdown = makeFrontmatter(file.name, 'pdf', { pages: result.pages }) + result.text;
       pages = result.pages;
-      report = buildConversionReport({ format, text: result.text, pages: result.pages });
+      report = buildConversionReport({
+        format, text: result.text, pages: result.pages, pdfCmapFehlt: result.cmapFehlt,
+      });
     } else if (format === 'docx') {
       const result = await mammoth.convertToHtml({ arrayBuffer });
       html = result.value;

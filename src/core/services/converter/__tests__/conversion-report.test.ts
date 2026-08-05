@@ -1,6 +1,52 @@
 import { describe, it, expect } from 'vitest';
 import { buildConversionReport, maxConversionLevel } from '../conversion-report';
 
+describe('PDF: fehlendes Zusatz-Asset', () => {
+  // Der Regelfall ist der stille Textverlust — pdf.js warnt und liefert
+  // weniger Text. Ohne diese Warnung liest der Bearbeiter „vermutlich
+  // gescannt" und versucht OCR an einem PDF, das Text hat.
+  it('meldet den Klartext, wenn die Zeichentabelle fehlt UND kein Text herauskam', () => {
+    const r = buildConversionReport({ format: 'pdf', text: '', pages: 2, pdfCmapFehlt: true });
+    expect(r.warnings.some(w => w.level === 'warnung' && w.message.includes('außerhalb der App')))
+      .toBe(true);
+  });
+
+  it('schweigt, wenn trotz der Warnung brauchbarer Text herauskam', () => {
+    // Der wichtigste Fall: an echten Dokumenten gemessen liefert pdf.js auch
+    // dann Text, wenn es über ein Asset klagt. Wo Text ist, gibt es nichts zu
+    // melden — sonst warnt die App bei praktisch jedem PDF.
+    const r = buildConversionReport({
+      format: 'pdf', text: 'viel Text '.repeat(50), pages: 1, pdfCmapFehlt: true,
+    });
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('ohne das Feld bleibt der Report unveraendert — gute PDFs merken nichts', () => {
+    const ohne = buildConversionReport({ format: 'pdf', text: 'viel Text '.repeat(50), pages: 1 });
+    const mitFalse = buildConversionReport({
+      format: 'pdf', text: 'viel Text '.repeat(50), pages: 1, pdfCmapFehlt: false,
+    });
+    expect(ohne.warnings).toEqual([]);
+    expect(mitFalse.warnings).toEqual([]);
+  });
+
+  it('ERSETZT die Gescannt-Vermutung, statt danebenzustehen', () => {
+    // Beide beschreiben denselben fehlenden Text, aber nur eine nennt die
+    // Ursache — und sie widersprechen einander: OCR hilft bei einer fehlenden
+    // Zeichentabelle nicht.
+    const r = buildConversionReport({ format: 'pdf', text: '', pages: 3, pdfCmapFehlt: true });
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]?.message).toContain('Zeichentabelle');
+    expect(r.warnings.some(w => w.message.includes('gescanntes PDF'))).toBe(false);
+  });
+
+  it('ohne die Warnung bleibt die Gescannt-Vermutung, wie sie war', () => {
+    const r = buildConversionReport({ format: 'pdf', text: '', pages: 3 });
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]?.message).toContain('gescanntes PDF');
+  });
+});
+
 describe('buildConversionReport — PDF', () => {
   it('warnt bei 0 Zeichen (gescanntes PDF)', () => {
     const r = buildConversionReport({ format: 'pdf', text: '   ', pages: 3 });

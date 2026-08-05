@@ -15,6 +15,8 @@
  *   Main-Thread-Modus zurueck (kein crash).
  */
 
+import { istFehlendesPdfAsset, sammlePdfWarnungen } from '@/core/services/converter/pdf-assets';
+
 const MAX_CHARS = 3500;
 
 // Promise-basiertes Singleton — verhindert dass parallele Worker-Coroutinen
@@ -55,6 +57,16 @@ export interface PdfExtractResult {
   page1Text: string;
   /** Ungeclippte Laenge — fuer Stage-1-searchable-Pruefung (>=20 chars). */
   totalCharsPage1: number;
+  /**
+   * pdfjs konnte die ZEICHENTABELLE (CMap) nicht laden UND es kam kein Text
+   * heraus — beides zusammen, weil die Warnung allein nichts bedeutet (siehe
+   * `core/services/converter/pdf-assets.ts`).
+   *
+   * Wichtig fuer die Triage: das ist KEIN `parse_error`. Die Datei ist lesbar,
+   * nur ihre Schrift nicht — sie als „kaputt" einzusortieren (cleanup.ts) waere
+   * falsch, denn ein Mensch kann sie oeffnen.
+   */
+  cmapFehlt?: boolean;
 }
 
 function clip(text: string): string {
@@ -75,6 +87,18 @@ function isWorkerRaceError(e: unknown): boolean {
 }
 
 async function extractPdfOnceInternal(blob: Blob): Promise<PdfExtractResult> {
+  // Der haeufigere Fall ist der stille: pdfjs warnt und liefert weniger Text,
+  // statt zu werfen. Deshalb der Warnungs-Kanal UM den ganzen Lauf, nicht nur
+  // ein `catch` (siehe `pdf-assets.ts`).
+  const { ergebnis, cmapFehlt } = await sammlePdfWarnungen(() => leseEinmal(blob));
+  // Nur melden, wenn auch tatsaechlich kein Text herauskam: pdfjs klagt auch
+  // dann ueber Assets, wenn es brauchbar liest (an echten PDFs gemessen).
+  return cmapFehlt && ergebnis.totalCharsPage1 === 0
+    ? { ...ergebnis, cmapFehlt: true }
+    : ergebnis;
+}
+
+async function leseEinmal(blob: Blob): Promise<PdfExtractResult> {
   await setupWorkerOnce();
   const pdfjsLib = await import('pdfjs-dist');
   const buf = await blob.arrayBuffer();
@@ -83,6 +107,7 @@ async function extractPdfOnceInternal(blob: Blob): Promise<PdfExtractResult> {
     const pages = doc.numPages;
     let totalCharsPage1 = 0;
     let page1Text = '';
+    let cmapFehlt = false;
     if (pages > 0) {
       try {
         const page = await doc.getPage(1);
@@ -94,11 +119,15 @@ async function extractPdfOnceInternal(blob: Blob): Promise<PdfExtractResult> {
         }
         page1Text = texts.join(' ').trim();
         totalCharsPage1 = page1Text.length;
-      } catch {
-        // Page 1 nicht lesbar — pages bleibt korrekt, Text leer
+      } catch (e) {
+        // Page 1 nicht lesbar — pages bleibt korrekt, Text leer. Ein fehlendes
+        // Zusatz-Asset wird dabei NICHT verschluckt: es ist der Unterschied
+        // zwischen „diese Seite ist kaputt" und „wir koennen diese Schrift
+        // nicht lesen", und nur der zweite Fall ist einem Menschen erklaerbar.
+        if (istFehlendesPdfAsset(e)) cmapFehlt = true;
       }
     }
-    return { pages, page1Text: clip(page1Text), totalCharsPage1 };
+    return { pages, page1Text: clip(page1Text), totalCharsPage1, cmapFehlt };
   } finally {
     await doc.destroy().catch(() => { /* best-effort */ });
   }
