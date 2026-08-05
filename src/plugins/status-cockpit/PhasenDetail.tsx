@@ -8,13 +8,16 @@
  *   sie in festen Code-Tabellen.
  * - **Status-Code** — Label, Prominenz, Zieltage, aktiv. Dieselben Felder wie in
  *   der Tabelle, nur an EINER Stelle statt an zwei Zeilen: der Code steht unter
- *   TV- und Verbund-Feld, und beide werden gemeinsam gesetzt.
+ *   TV- und Verbund-Feld, und beide werden gemeinsam gesetzt. Darunter steht,
+ *   **wodurch** der Status entsteht — die einzige nur lesende Angabe hier, und
+ *   die einzige, die nicht aus unserer Kuration stammt, sondern aus C16.
  *
  * Rein darstellend — jede Änderung geht über die `api`-Setter in den Entwurf.
  */
 import { Badge } from '@/components/ui/badge';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import type { PhasenBaumKnoten } from './phasenKnoten';
+import { StatusHerkunftBlock } from './StatusHerkunftBlock';
 import { KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels';
 import type { Prominenz, StatusCategory, StatusWertEintrag } from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';
@@ -167,6 +170,13 @@ function CodeDetail({ knoten, api }: {
             ({eintraege.map(w => w.feldId).join(', ')}) — sie dürfen nicht auseinanderlaufen.
           </p>
         </>
+      )}
+
+      {/* AUSSERHALB des Wert-Eintrag-Zweigs: die Frage „wodurch entsteht das?"
+          gilt dem Code, nicht unserer Kuration. Ein Code ohne Eintrag in der
+          Fassung ist gerade der Fall, in dem sie am dringendsten ist. */}
+      {api.entwurf && (
+        <StatusHerkunftBlock code={knoten.code} version={api.entwurf} trigger={api.trigger} />
       )}
     </div>
   );

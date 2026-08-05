@@ -118,6 +118,10 @@ export {
   type TextbausteinLegende, type TriggerSegment, type KuerzelHerkunft,
 } from './trigger-satz';
 export {
+  herkunftZuStatus, richtlinienSatz,
+  type StatusHerkunft, type HerkunftGruppe, type HerkunftWirkung, type HerkunftEbene,
+} from './trigger-herkunft';
+export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
   leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,
