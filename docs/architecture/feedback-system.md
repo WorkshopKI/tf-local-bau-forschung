@@ -32,7 +32,7 @@ Das öffentliche Board wurde neu gestaltet (Handoff `_design/handoff/feedback`):
 
 Merge-Precedence in `mergeItems` ([feedbackSharedFile.ts](../../src/core/services/feedback/feedbackSharedFile.ts)): `title` lokal-wins, `votes` union-by-user (nur wenn lokal eigene Stimme = Anti-Stale), `comments` immer union-by-id. Beide Collectors sind an denselben Stellen verdrahtet wie `autoCollectSponsorVotes` (`useAutoCollectFeedback` + Inbox-Tab „Stimmen einsammeln"). `updateFeedback`-Whitelist um `title`/`votes`/`comments` erweitert.
 
-Neue Präsentations-Bausteine (`src/components/feedback/`): `FeedbackCard` (Listen-Zeile), `FeedbackKanban` (Board nach `kurator_status`, Pitfall #21 — seit v2.225 farbige Lanes in fester Reihenfolge Neu · Abgelehnt · Geplant · In Bearbeitung · Umgesetzt, **ohne** Lob-Spalte; reine `buildBoardColumns` + Test), `FeedbackBoardDetail` (Detail-Panel), `FeedbackTypeChips` (Typ-Filter, aktiv = `--tf-primary`), `FeedbackVotePill`, `FeedbackCommentThread`, `FeedbackAvatar` (deterministische Farbe aus Name). Kurz-Q&A-Labels via `shortLabel` in `FEEDBACK_TYPES`. Die geteilte `FeedbackTicketRow` (Kurator-Liste) ist auf denselben Karten-Look gehoben (Votes/Kommentare read-only + „Abhaken"-Knopf); der Kurator-Detail zeigt Titel + Kommentar-Thread.
+Neue Präsentations-Bausteine (`src/components/feedback/`): `FeedbackCard` (Listen-Zeile), `FeedbackKanban` (Board nach `kurator_status`, Pitfall #21 — seit v2.225 farbige Lanes in fester Reihenfolge Neu · Abgelehnt · Geplant · In Bearbeitung · Umgesetzt, **ohne** Lob-Spalte; reine `buildBoardColumns` + Test), `FeedbackBoardDetail` (Detail-Panel), `FeedbackTypeChips` (Typ-Filter, aktiv = `--tf-primary`), `FeedbackVotePill`, `FeedbackCommentThread`, `FeedbackAvatar` (deterministische Farbe aus Name). Kurz-Q&A-Labels via `shortLabel` in `FEEDBACK_TYPES`.
 
 ## Kommentare: Hover-Vorschau + Neu-Marker (v2.416)
 
@@ -132,7 +132,6 @@ Der Ticket-Teil des alten Dashboards (`FeedbackAdminPage`, `FeedbackTicketList`,
 
 ## Board-Komponenten (`src/components/feedback/`)
 
-- `FeedbackBoardCard.tsx` — Einzelne Karte mit Status/Kategorie/Aufwand/Progress/Sponsor-Buttons/Sponsor-Liste.
 - `SponsorButton.tsx` — Punkte-Dropdown (1/2/3/5) + Stunden-Dialog (hours + project_ref) + "Du sponsorst"-Badge mit Zurückziehen.
 - `BudgetBadge.tsx` — `X/Y Punkte (Q2 2026)` mit Ampelfarbe (grün >5, gelb 2-5, rot 0-1).
 

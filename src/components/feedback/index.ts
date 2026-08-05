@@ -9,12 +9,7 @@ export { FaqSuggestions } from './FaqSuggestions';
 export { MyFeedbackList } from './MyFeedbackList';
 export { BudgetBadge } from './BudgetBadge';
 export { SponsorButton } from './SponsorButton';
-export { FeedbackBoardCard } from './FeedbackBoardCard';
-export { FeedbackBoardListView } from './FeedbackBoardListView';
-export { FeedbackTicketRow } from './FeedbackTicketRow';
-export { FeedbackBoardList } from './FeedbackBoardList';
 export { FeedbackBoardDetail } from './FeedbackBoardDetail';
-export { FeedbackCategoryGroup, type CategoryGroupKey } from './FeedbackCategoryGroup';
 export { SponsoringInfoBanner } from './SponsoringInfoBanner';
 // Redesign v2.199
 export { FeedbackCard } from './FeedbackCard';
