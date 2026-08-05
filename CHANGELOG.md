@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.416.0 — Kommentare im Hover lesen, neue Kommentare sichtbar (August 2026)
+
+MINOR — Die Diskussion an einem Ticket war unsichtbar: das Board zeigte `💬 3` als stumme Zahl, den Inhalt gab es nur nach einem Klick im Detail-Panel. Genau die Tickets mit laufender Diskussion sind aber die wichtigen.
+
+- Hover über den Kommentar-Zähler zeigt die letzten vier Kommentare direkt (gekürzt, scrollbar, „+N ältere") — [FeedbackCommentHover.tsx](src/components/feedback/FeedbackCommentHover.tsx); Klick öffnet weiterhin das Detail
+- Thread und Vorschau teilen sich eine Darstellung ([FeedbackCommentList.tsx](src/components/feedback/FeedbackCommentList.tsx)) und eine reine Auswahl-Funktion (`waehleKommentarVorschau` in [feedbackUi.ts](src/components/feedback/feedbackUi.ts))
+- Neue Kommentare tragen ein blaues **„+N"** im Kopf der Karte (neben „Antwort") und sind in Vorschau + Thread hinterlegt — [FeedbackKanban.tsx](src/components/feedback/FeedbackKanban.tsx) / [FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx)
+- Gelesen-Stand gerätelokal je Ticket ([kommentarStand.ts](src/components/feedback/kommentarStand.ts) + [useUnreadComments.ts](src/components/feedback/useUnreadComments.ts)); Details + Invarianten in [feedback-system.md](docs/architecture/feedback-system.md)
+- Nachgemessen in `dev:local`: Erststart setzt die Baseline und zeigt **kein** „+N"; nach zwei fremden Kommentaren „+2", nach dem Öffnen weg; Vorschau 340×282 mit Innen-Scroll (464 px Inhalt), am schmalen Rand vollständig im Bild; dense-Kopfzeile ohne Überlauf (Antwort + „+1" + Datum in 200 px); `__tf.fehler()` = 0
+- `feedbackImprove.test.ts` nach `ISOLATED_TESTS` ([vitest.config.mts](vitest.config.mts)) — sein `screenContext`-Mock hielt der neuen Ladereihenfolge im geteilten Modul-Register nicht stand
+
 ### v2.415.2 — Feedback-Karte erzeugt keine verschachtelten Buttons mehr (August 2026)
 
 PATCH — Das Feedback-Board meldete bei jedem Laden zwei React-Fehler: die Vote-Pille (ein `<button>`) saß in der Meta-Zeile innerhalb des Karten-`<button>` — ungültiges HTML.

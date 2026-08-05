@@ -42,6 +42,8 @@ interface Props {
   meName?: string;
   /** Ungelesene Team-Antwort auf dieses (eigene) Feedback beim Öffnen. */
   unread?: boolean;
+  /** Neue Kommentare beim Öffnen → im Thread hervorgehoben. */
+  neueKommentare?: number;
   /** Beim Öffnen als gesehen markieren (klärt Glocke + „Antwort"-Marker). */
   markSeen?: (ticket: FeedbackItem) => void;
   /** Verwaltungs-Block zeigen (Aufrufer entscheidet über `canManageFeedback`). */
@@ -54,7 +56,7 @@ function SectionLabel({ children }: { children: React.ReactNode }): React.ReactE
   );
 }
 
-export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, meName, unread, markSeen, darfVerwalten }: Props): React.ReactElement {
+export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, meName, unread, neueKommentare, markSeen, darfVerwalten }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const mine = !!meId && ticket.user_id === meId;
   const author = mine ? 'Du' : (feedbackAuthorLabel(ticket) ?? 'Unbekannt');
@@ -70,6 +72,7 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
   // bleibt, während markSeen die Glocke/den Listen-Marker global klärt. Der
   // Aufrufer keyt dieses Panel per ticket.id → useState wird pro Ticket frisch.
   const [highlightReply] = useState(!!unread);
+  const [highlightKommentare] = useState(neueKommentare ?? 0);
   useEffect(() => { markSeen?.(ticket); }, [ticket, markSeen]);
 
   // „Ergänzen" (v2.364): nur der Autor, und nur auf Clients, die den Daten-Share
@@ -203,7 +206,13 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
         {/* Kommentare */}
         <div className="pt-1 border-t" style={{ borderColor: 'var(--tf-border)' }}>
           <div className="pt-3">
-            <FeedbackCommentThread ticket={ticket} meId={meId} meName={meName} onChanged={onChanged} />
+            <FeedbackCommentThread
+              ticket={ticket}
+              meId={meId}
+              meName={meName}
+              onChanged={onChanged}
+              neueKommentare={highlightKommentare}
+            />
           </div>
         </div>
 

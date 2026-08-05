@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.416 — 2026-08
+
+### Neu
+- **Kommentare lesen, ohne zu klicken:** Bleib mit der Maus auf dem Sprechblasen-Zähler einer Feedback-Karte stehen — die letzten Kommentare erscheinen direkt daneben (mit Name und Datum, lange Beiträge gekürzt, ältere als Hinweis „+N ältere"). Bei viel Text kannst Du in der Vorschau scrollen; ein Klick öffnet wie gewohnt das Ticket.
+- **Neue Kommentare fallen auf:** Hat seit Deinem letzten Besuch jemand anderes an einem Ticket kommentiert, trägt die Karte oben ein blaues **„+2"**, und der Sprechblasen-Zähler färbt sich blau. Im Ticket selbst sind die neuen Beiträge hinterlegt und mit „neu" markiert — so siehst Du auf einen Blick, wo gerade diskutiert wird. Der Marker verschwindet, sobald Du das Ticket geöffnet hast; eigene Kommentare zählen nicht mit.
+
 ## v2.415 — 2026-08
 
 ### Verbesserungen

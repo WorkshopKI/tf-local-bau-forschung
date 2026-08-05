@@ -3,7 +3,7 @@
 // FeedbackBoardCard.tsx — hier zentralisiert (DRY).
 
 import * as Icons from 'lucide-react';
-import type { FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackComment, FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_TYPES } from './constants';
 
 export type IconComponent = React.ComponentType<{ size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
@@ -121,6 +121,69 @@ export function feedbackTitle(item: FeedbackItem, maxLen = 90): string {
 function truncate(s: string, maxLen: number): string {
   const clean = s.replace(/\s+/g, ' ').trim();
   return clean.length > maxLen ? `${clean.slice(0, maxLen - 1).trimEnd()}…` : clean;
+}
+
+/** Ein Kommentar, wie ihn die geteilte Kommentar-Liste rendert. `text` ist die
+ *  (ggf. gekürzte) Fassung, `neu` markiert ihn als seit dem letzten Ansehen
+ *  hinzugekommen. */
+export interface KommentarVorschauEintrag {
+  comment: FeedbackComment;
+  text: string;
+  neu: boolean;
+}
+
+/** Ausgewählte Kommentare + wieviele davor ausgelassen wurden. */
+export interface KommentarVorschau {
+  eintraege: KommentarVorschauEintrag[];
+  /** Ältere, nicht gezeigte Kommentare (0 im Thread, der alle zeigt). */
+  aeltereAnzahl: number;
+}
+
+/**
+ * Kommentartext für eine platzknappe Vorschau. Kürzt an der letzten Wortgrenze
+ * ab 60 % der Grenze (sonst hart), und zieht Leerzeilen-Kaskaden zusammen —
+ * drei Absätze Abstand kosten in einer 280-px-Karte den halben Platz.
+ *
+ * `maxZeichen = Infinity` gibt den Text **unverändert** zurück, Whitespace
+ * eingeschlossen: der Thread im Detail-Panel zeigt den Originalwortlaut, und
+ * eine stille Normalisierung dort wäre eine Textänderung ohne Anlass.
+ */
+export function kuerzeKommentarText(text: string, maxZeichen: number): string {
+  if (!Number.isFinite(maxZeichen)) return text;
+  const kompakt = text.replace(/\n{3,}/g, '\n\n');
+  if (kompakt.length <= maxZeichen) return kompakt;
+  const roh = kompakt.slice(0, maxZeichen);
+  const wortGrenze = Math.max(roh.lastIndexOf(' '), roh.lastIndexOf('\n'));
+  const schnitt = wortGrenze >= maxZeichen * 0.6 ? wortGrenze : maxZeichen;
+  return `${kompakt.slice(0, schnitt).trimEnd()}…`;
+}
+
+/**
+ * Wählt die anzuzeigenden Kommentare — eine Funktion für beide Orte: der Hover
+ * ruft mit engen Grenzen, der Thread mit `Infinity` (zeigt alles ungekürzt).
+ *
+ * Gezeigt werden die **letzten** N in Speicher-Reihenfolge (chronologisch,
+ * neueste unten). Nicht umsortieren: der Thread liest so, und zwei Reihenfolgen
+ * für dieselben Daten wären zwei Wahrheiten. Weil neue Kommentare hinten
+ * anhängen, sind sie damit immer im Ausschnitt.
+ */
+export function waehleKommentarVorschau(
+  comments: readonly FeedbackComment[],
+  opts: { maxEintraege: number; maxZeichen: number; neuAnzahl: number },
+): KommentarVorschau {
+  const gesamt = comments.length;
+  const sichtbar = Math.max(0, Math.min(opts.maxEintraege, gesamt));
+  const ab = gesamt - sichtbar;
+  // Ab diesem absoluten Index gilt „neu". neuAnzahl 0 → gesamt → kein Treffer.
+  const abNeu = gesamt - Math.max(0, Math.min(opts.neuAnzahl, gesamt));
+  return {
+    eintraege: comments.slice(ab).map((comment, i) => ({
+      comment,
+      text: kuerzeKommentarText(comment.text, opts.maxZeichen),
+      neu: ab + i >= abNeu,
+    })),
+    aeltereAnzahl: ab,
+  };
 }
 
 /**

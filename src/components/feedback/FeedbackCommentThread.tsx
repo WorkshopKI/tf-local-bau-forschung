@@ -13,8 +13,9 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { addComment } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
-import { berechneKommentarHoehe, clampKommentarHoehe, formatShortDate } from './feedbackUi';
+import { berechneKommentarHoehe, clampKommentarHoehe, waehleKommentarVorschau } from './feedbackUi';
 import { FeedbackAvatar } from './FeedbackAvatar';
+import { FeedbackCommentList } from './FeedbackCommentList';
 
 // Gerätelokale Darstellungs-Präferenz — kein Share, kein Snapshot, kein Schema.
 // `-v1` im Schlüssel ist Absicht: ein späterer Wechsel der Grundhöhe muss auf `-v2`
@@ -33,9 +34,12 @@ interface Props {
   meId?: string;
   meName?: string;
   onChanged: () => void;
+  /** Beim Öffnen eingefrorene Zahl neuer Kommentare → die letzten N werden
+   *  hervorgehoben. 0 = nichts hervorheben. */
+  neueKommentare?: number;
 }
 
-export function FeedbackCommentThread({ ticket, meId, meName, onChanged }: Props): React.ReactElement {
+export function FeedbackCommentThread({ ticket, meId, meName, onChanged, neueKommentare = 0 }: Props): React.ReactElement {
   const storage = useStorage();
   const [text, setText] = useState('');
   const comments = ticket.comments ?? [];
@@ -88,23 +92,16 @@ export function FeedbackCommentThread({ ticket, meId, meName, onChanged }: Props
       {comments.length === 0 ? (
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)] italic">Noch keine Kommentare.</p>
       ) : (
-        <div className="space-y-2.5">
-          {comments.map(c => {
-            const name = c.user_display_name || c.user_id;
-            return (
-              <div key={c.id} className="flex gap-2">
-                <FeedbackAvatar name={name} size={20} className="mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-baseline gap-1.5 text-[11px]">
-                    <span className="font-medium text-[var(--tf-text)]">{name}</span>
-                    <span className="text-[var(--tf-text-tertiary)]">{formatShortDate(c.created_at)}</span>
-                  </p>
-                  <p className="text-[13px] text-[var(--tf-text-secondary)] whitespace-pre-wrap leading-snug">{c.text}</p>
-                </div>
-              </div>
-            );
+        // Dieselbe Auswahl-Funktion wie der Hover, nur ohne Grenzen: der Thread
+        // zeigt alles und kürzt nichts.
+        <FeedbackCommentList
+          {...waehleKommentarVorschau(comments, {
+            maxEintraege: Infinity,
+            maxZeichen: Infinity,
+            neuAnzahl: neueKommentare,
           })}
-        </div>
+          variante="thread"
+        />
       )}
 
       {/* Eingabe */}

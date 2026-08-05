@@ -3,8 +3,15 @@
  * Kurz-Labels in den Q&A-Segmenten, Avatar-Initialen/-Farbe.
  */
 import { describe, expect, it } from 'vitest';
-import type { FeedbackItem } from '@/core/types/feedback';
-import { berechneKommentarHoehe, clampKommentarHoehe, feedbackTitle, feedbackQaSegments } from '../feedbackUi';
+import type { FeedbackComment, FeedbackItem } from '@/core/types/feedback';
+import {
+  berechneKommentarHoehe,
+  clampKommentarHoehe,
+  feedbackTitle,
+  feedbackQaSegments,
+  kuerzeKommentarText,
+  waehleKommentarVorschau,
+} from '../feedbackUi';
 import { avatarInitials, avatarColor } from '../FeedbackAvatar';
 
 function ticket(partial: Partial<FeedbackItem>): FeedbackItem {
@@ -99,6 +106,81 @@ describe('berechneKommentarHoehe', () => {
 
   it('deckelt bei max', () => {
     expect(berechneKommentarHoehe(900, 62, 400, 320)).toBe(320);
+  });
+});
+
+describe('kuerzeKommentarText', () => {
+  it('lässt Text unter der Grenze unverändert', () => {
+    expect(kuerzeKommentarText('kurz und knapp', 100)).toBe('kurz und knapp');
+  });
+
+  it('schneidet an der letzten Wortgrenze und hängt eine Ellipse an', () => {
+    const s = 'Das ist ein ziemlich langer Kommentar über die Sortierung der Tabelle';
+    const gekuerzt = kuerzeKommentarText(s, 30);
+    expect(gekuerzt.endsWith('…')).toBe(true);
+    expect(gekuerzt.length).toBeLessThanOrEqual(31);
+    // Wortgrenze: kein abgeschnittenes Wort vor der Ellipse.
+    expect(s.startsWith(gekuerzt.slice(0, -1))).toBe(true);
+    expect(gekuerzt.slice(0, -1).endsWith(' ')).toBe(false);
+  });
+
+  it('schneidet hart, wenn die letzte Wortgrenze zu früh käme', () => {
+    // Ein einziges langes Wort → keine brauchbare Grenze ab 60 %.
+    expect(kuerzeKommentarText(`kurz ${'x'.repeat(50)}`, 20)).toBe(`${'kurz '}${'x'.repeat(15)}…`);
+  });
+
+  it('zieht Leerzeilen-Kaskaden auf einen Absatz zusammen', () => {
+    expect(kuerzeKommentarText('a\n\n\n\nb', 100)).toBe('a\n\nb');
+  });
+
+  it('gibt bei Infinity den Originaltext byte-gleich zurück', () => {
+    const roh = 'a\n\n\n\nb   ';
+    expect(kuerzeKommentarText(roh, Infinity)).toBe(roh);
+  });
+});
+
+describe('waehleKommentarVorschau', () => {
+  const c = (id: string, text = id): FeedbackComment => ({
+    id, user_id: 'AM', text, created_at: '2026-07-07T10:00:00Z',
+  });
+  const fuenf = [c('1'), c('2'), c('3'), c('4'), c('5')];
+
+  it('nimmt die LETZTEN N und meldet die ausgelassenen', () => {
+    const v = waehleKommentarVorschau(fuenf, { maxEintraege: 2, maxZeichen: 100, neuAnzahl: 0 });
+    expect(v.eintraege.map(e => e.comment.id)).toEqual(['4', '5']);
+    expect(v.aeltereAnzahl).toBe(3);
+  });
+
+  it('markiert genau die letzten `neuAnzahl` als neu', () => {
+    const v = waehleKommentarVorschau(fuenf, { maxEintraege: 4, maxZeichen: 100, neuAnzahl: 2 });
+    expect(v.eintraege.map(e => e.neu)).toEqual([false, false, true, true]);
+  });
+
+  it('markiert nichts bei neuAnzahl 0', () => {
+    const v = waehleKommentarVorschau(fuenf, { maxEintraege: 5, maxZeichen: 100, neuAnzahl: 0 });
+    expect(v.eintraege.some(e => e.neu)).toBe(false);
+  });
+
+  it('verkraftet mehr neue als sichtbare Einträge', () => {
+    const v = waehleKommentarVorschau(fuenf, { maxEintraege: 2, maxZeichen: 100, neuAnzahl: 4 });
+    expect(v.eintraege.map(e => e.neu)).toEqual([true, true]);
+    expect(v.aeltereAnzahl).toBe(3);
+  });
+
+  it('zeigt bei Infinity alles ungekürzt (Thread-Fall)', () => {
+    const lang = c('6', 'x'.repeat(500));
+    const v = waehleKommentarVorschau([...fuenf, lang], {
+      maxEintraege: Infinity, maxZeichen: Infinity, neuAnzahl: 0,
+    });
+    expect(v.eintraege).toHaveLength(6);
+    expect(v.aeltereAnzahl).toBe(0);
+    expect(v.eintraege[v.eintraege.length - 1]?.text).toBe(lang.text);
+  });
+
+  it('kommt mit einer leeren Liste klar', () => {
+    const v = waehleKommentarVorschau([], { maxEintraege: 4, maxZeichen: 100, neuAnzahl: 3 });
+    expect(v.eintraege).toEqual([]);
+    expect(v.aeltereAnzahl).toBe(0);
   });
 });
 

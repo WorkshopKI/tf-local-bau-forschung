@@ -30,6 +30,7 @@ import {
 } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, formatShortDate, getLucideIcon } from './feedbackUi';
 import { FeedbackAvatar } from './FeedbackAvatar';
+import { FeedbackCommentHover } from './FeedbackCommentHover';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
 import { FeedbackVotePill } from './FeedbackVotePill';
 
@@ -66,6 +67,8 @@ interface Props {
   meName?: string;
   /** Ungelesene Team-Antwort auf ein eigenes Feedback → „Antwort"-Badge. */
   isUnread?: (ticket: FeedbackItem) => boolean;
+  /** Seit dem letzten Ansehen hinzugekommene Kommentare → „+N"-Badge. */
+  neueKommentare?: (ticket: FeedbackItem) => number;
   onSelect: (ticket: FeedbackItem) => void;
   onChanged: () => void;
   /** Kompakte Dichte (Dichte-Umschalter der Seite). */
@@ -76,7 +79,7 @@ interface Props {
   farbmodus: LaneFarbmodus;
 }
 
-export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isUnread, onSelect, onChanged, dense, lanes, farbmodus }: Props): React.ReactElement {
+export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isUnread, neueKommentare, onSelect, onChanged, dense, lanes, farbmodus }: Props): React.ReactElement {
   const columns = useMemo(() => buildBoardColumns(tickets, lanes), [tickets, lanes]);
   const boardCount = columns.reduce((n, c) => n + c.items.length, 0);
 
@@ -110,6 +113,7 @@ export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isU
           config={config}
           mine={!!meineUserId && t.user_id === meineUserId}
           unread={!!isUnread?.(t)}
+          neueKommentare={neueKommentare?.(t) ?? 0}
           meId={meId}
           meName={meName}
           onSelect={onSelect}
@@ -123,8 +127,9 @@ export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isU
 
 // Board-Karte im „Akzent"-Stil (Handoff feedback-kanban): Typ-farbige Linkskante
 // statt mine-Kante (Eigenheit zeigt nur noch „Du" im Footer).
-function MiniCard({ ticket, config, mine, unread, meId, meName, onSelect, onChanged, dense }: {
+function MiniCard({ ticket, config, mine, unread, neueKommentare, meId, meName, onSelect, onChanged, dense }: {
   ticket: FeedbackItem; config: FeedbackConfig; mine: boolean; unread: boolean;
+  neueKommentare: number;
   meId?: string; meName?: string; onSelect: (t: FeedbackItem) => void; onChanged: () => void;
   dense: boolean;
 }): React.ReactElement {
@@ -156,6 +161,18 @@ function MiniCard({ ticket, config, mine, unread, meId, meName, onSelect, onChan
               Antwort
             </span>
           )}
+          {/* Neue Kommentare gehören nach OBEN: die Fuß-Metrik bei 11 px erfüllt
+              „besser sichtbar" nicht, hier ist die Aufmerksamkeitszone der Karte.
+              Blau grenzt bewusst gegen das rote „Antwort"-Badge ab — Team-Antwort
+              ist etwas anderes als eine laufende Diskussion. */}
+          {neueKommentare > 0 && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--tf-fb-idee-bg)] text-[var(--tf-fb-idee)] whitespace-nowrap tabular-nums"
+              title={`${neueKommentare} neue${neueKommentare > 1 ? '' : 'r'} Kommentar${neueKommentare > 1 ? 'e' : ''} seit deinem letzten Besuch`}
+            >
+              <MessageSquare size={9} strokeWidth={2} /> +{neueKommentare}
+            </span>
+          )}
           <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap">{formatShortDate(ticket.created_at)}</span>
         </span>
       </div>
@@ -184,9 +201,13 @@ function MiniCard({ ticket, config, mine, unread, meId, meName, onSelect, onChan
             </span>
           )}
           {commentCount > 0 && (
-            <span className="inline-flex items-center gap-1 tabular-nums" title={`${commentCount} Kommentar${commentCount > 1 ? 'e' : ''}`}>
-              <MessageSquare size={12} strokeWidth={1.75} /> {commentCount}
-            </span>
+            // Kein `title` mehr: es konkurrierte mit der Hover-Vorschau (zwei
+            // Popups über demselben Icon).
+            <FeedbackCommentHover comments={ticket.comments ?? []} neueKommentare={neueKommentare}>
+              <span className={`inline-flex items-center gap-1 tabular-nums ${neueKommentare > 0 ? 'font-semibold text-[var(--tf-fb-idee)]' : ''}`}>
+                <MessageSquare size={12} strokeWidth={1.75} /> {commentCount}
+              </span>
+            </FeedbackCommentHover>
           )}
           {showPts ? (
             <span className="inline-flex items-center gap-1 tabular-nums" title={`${progress.combinedPoints} von ${progress.threshold} Pkt`}>

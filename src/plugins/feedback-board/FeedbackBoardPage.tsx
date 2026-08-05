@@ -27,6 +27,7 @@ import { FeedbackStatusSelect, type FeedbackStatusFilter } from '@/components/fe
 import { NotificationBell } from '@/components/feedback/NotificationBell';
 import { MyProgressBar } from '@/components/feedback/MyProgressBar';
 import { useUnreadReplies } from '@/components/feedback/useUnreadReplies';
+import { useUnreadComments } from '@/components/feedback/useUnreadComments';
 import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
 import { CATEGORY_DOT } from '@/components/feedback/constants';
 import {
@@ -191,7 +192,15 @@ export function FeedbackBoardPage(): React.ReactElement {
   );
 
   // Ungelesene Team-Antworten auf eigene Feedbacks (Glocke + Marker + „Neu"-Hervorhebung).
-  const { count: unread, isUnread, markSeen } = useUnreadReplies(base, meId);
+  const { count: unread, isUnread, markSeen: markAntwortSeen } = useUnreadReplies(base, meId);
+  // Neue Kommentare an BELIEBIGEN Tickets (Marker + Hervorhebung im Hover).
+  const { neuFuer, markSeen: markKommentareSeen } = useUnreadComments(base, meId);
+  // Eine komponierte „gesehen"-Meldung: das Detail-Panel kennt weiterhin genau
+  // einen Rückkanal, und beide Teile ignorieren selbst, was sie nichts angeht.
+  const markSeen = useCallback((t: FeedbackItem): void => {
+    markAntwortSeen(t);
+    markKommentareSeen(t);
+  }, [markAntwortSeen, markKommentareSeen]);
 
   const counts = useMemo(() => ({
     probleme: base.filter(isBug).length,
@@ -246,6 +255,7 @@ export function FeedbackBoardPage(): React.ReactElement {
           meId={meId}
           meName={meName ?? undefined}
           isUnread={isUnread}
+          neueKommentare={neuFuer}
           onSelect={t => setSelectedId(t.id)}
           onChanged={handleChanged}
           dense={dense}
@@ -264,6 +274,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             selected={selectedId === t.id}
             mine={!!meId && t.user_id === meId}
             unread={isUnread(t)}
+            neueKommentare={neuFuer(t)}
             meId={meId}
             meName={meName ?? undefined}
             onSelect={x => setSelectedId(x.id)}
@@ -416,6 +427,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             meId={meId}
             meName={meName ?? undefined}
             unread={isUnread(selectedTicket)}
+            neueKommentare={neuFuer(selectedTicket)}
             markSeen={markSeen}
             darfVerwalten={darfVerwalten}
           />

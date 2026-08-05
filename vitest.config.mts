@@ -16,6 +16,10 @@ const ISOLATED_TESTS = [
   'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',
   'src/core/services/csv/__tests__/unterprogramm-registry.test.ts',
   'src/core/services/embedding-corpus/__tests__/storage.test.ts',
+  // Mockt `screenContext` modulweit; sobald eine weitere Feedback-Testdatei die
+  // Ladereihenfolge im gemeinsamen Modul-Register verschiebt, greift der Mock
+  // nicht mehr (die Prompts kamen ohne APP-OVERVIEW-Marker an).
+  'src/core/services/feedback/__tests__/feedbackImprove.test.ts',
   'src/core/services/feedback/__tests__/sponsorTicketUpsert.test.ts',
   'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
   'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',

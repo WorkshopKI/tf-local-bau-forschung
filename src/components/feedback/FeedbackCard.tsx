@@ -20,6 +20,7 @@ import { istUmgesetzt } from '@/core/services/feedback/feedback-status';
 import { CATEGORY_COLORS, CATEGORY_ICONS, EFFORT_SIZE_LABELS, STATUS_DOT, STATUS_LABELS, STATUS_TINT } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, feedbackQaSegments, formatShortDate, getLucideIcon } from './feedbackUi';
 import { FeedbackAvatar } from './FeedbackAvatar';
+import { FeedbackCommentHover } from './FeedbackCommentHover';
 import { FeedbackVotePill } from './FeedbackVotePill';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
 import { FeedbackMiniStepper } from './FeedbackMiniStepper';
@@ -34,6 +35,8 @@ interface Props {
   meName?: string;
   /** Ungelesene Team-Antwort auf dieses (eigene) Feedback → „Antwort"-Marker. */
   unread?: boolean;
+  /** Seit dem letzten Ansehen hinzugekommene Kommentare → „+N"-Marker. */
+  neueKommentare?: number;
   onSelect: (ticket: FeedbackItem) => void;
   onChanged: () => void;
   /** Schmale Variante bei offenem Detail (weniger Beiwerk). */
@@ -43,7 +46,7 @@ interface Props {
   dense?: boolean;
 }
 
-export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unread, onSelect, onChanged, narrow, dense }: Props): React.ReactElement {
+export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unread, neueKommentare = 0, onSelect, onChanged, narrow, dense }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
   const title = feedbackTitle(ticket, Infinity);
   const lead = feedbackQaSegments(ticket)[0]?.antwort;
@@ -93,6 +96,14 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
                 Antwort
               </span>
             )}
+            {neueKommentare > 0 && (
+              <span
+                className="shrink-0 inline-flex items-center gap-0.5 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[var(--tf-fb-idee-bg)] text-[var(--tf-fb-idee)] tabular-nums"
+                title={`${neueKommentare} neue${neueKommentare > 1 ? '' : 'r'} Kommentar${neueKommentare > 1 ? 'e' : ''} seit deinem letzten Besuch`}
+              >
+                <MessageSquare size={10} strokeWidth={2} /> +{neueKommentare}
+              </span>
+            )}
             <span className="ml-auto shrink-0 whitespace-nowrap text-[11.5px] text-[var(--tf-text-tertiary)]">{date}</span>
           </div>
 
@@ -132,9 +143,12 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
                 </span>
               )}
               {commentCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)]" title={`${commentCount} Kommentar${commentCount > 1 ? 'e' : ''}`}>
-                  <MessageSquare size={13} /> {commentCount}
-                </span>
+                // `title` entfällt — es konkurrierte mit der Hover-Vorschau.
+                <FeedbackCommentHover comments={ticket.comments ?? []} neueKommentare={neueKommentare}>
+                  <span className={`inline-flex items-center gap-1 text-[11px] ${neueKommentare > 0 ? 'font-semibold text-[var(--tf-fb-idee)]' : 'text-[var(--tf-text-tertiary)]'}`}>
+                    <MessageSquare size={13} /> {commentCount}
+                  </span>
+                </FeedbackCommentHover>
               )}
               {!showBar && <FeedbackVotePill ticket={ticket} meId={meId} meName={meName} onChanged={onChanged} />}
             </span>
