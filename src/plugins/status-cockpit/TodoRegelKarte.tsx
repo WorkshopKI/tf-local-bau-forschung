@@ -14,14 +14,16 @@
  */
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { type MappingVersion, type Rolle, type TodoRegel } from '@/core/status';
+import { type MappingVersion, type RegelWirkung, type Rolle, type TodoRegel } from '@/core/status';
 import { feldStil } from './labels';
 import { TodoRegelSatz } from './TodoRegelSatz';
 import {
-  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, zustandsMarker, type TodoRegelnApi,
+  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, wirkungsAnzeige, zustandsMarker, type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 
-export function TodoRegelKarte({ r, version, index, anzahl, satz, api, unbekannte, onWaehlen }: {
+export function TodoRegelKarte({
+  r, version, index, anzahl, satz, api, unbekannte, wirkung, veraltet, onWaehlen,
+}: {
   r: TodoRegel;
   version: MappingVersion;
   index: number;
@@ -31,9 +33,13 @@ export function TodoRegelKarte({ r, version, index, anzahl, satz, api, unbekannt
   api: TodoRegelnApi;
   /** Feld-Referenzen ohne Entsprechung im Katalog — vom Bereich vorberechnet. */
   unbekannte: readonly string[];
+  /** Gemessene Wirkung am Bestand; `undefined`, solange kein Lauf stattfand. */
+  wirkung: RegelWirkung | undefined;
+  veraltet: boolean;
   onWaehlen: () => void;
 }): React.ReactElement {
   const { istSperre, eigen, giltFuerAlle } = zustandsMarker(r, satz, unbekannte);
+  const w = wirkungsAnzeige(wirkung, istSperre);
   const setzeAktiv = (an: boolean): void => {
     if (brauchtRolloutRueckfrage(r, an)
       && !window.confirm(`${ROLLOUT_HINWEIS}\n\nRegel „${r.beschreibung}" trotzdem aktivieren?`)) return;
@@ -107,6 +113,17 @@ export function TodoRegelKarte({ r, version, index, anzahl, satz, api, unbekannt
       </div>
 
       <TodoRegelSatz r={r} version={version} />
+
+      {/* Der Satz unter der Regel, nicht nur die Zahlen: „153 trifft, 43
+          gewinnt" ist erst dann eine Aussage, wenn dabeisteht, was der
+          Unterschied bedeutet. Ohne Lauf steht hier nichts. */}
+      {w !== null && (
+        <p className={`text-[11.5px] leading-[1.35] ${
+          w.nullbefund ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-tertiary)]'}`}>
+          {w.lang}
+          {veraltet && <em> — Stand vor der letzten Änderung.</em>}
+        </p>
+      )}
     </div>
   );
 }

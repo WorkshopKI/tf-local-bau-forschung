@@ -12,16 +12,18 @@
  */
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { REGELSATZ_DEFAULT, type MappingVersion, type Rolle, type TodoRegel } from '@/core/status';
+import { REGELSATZ_DEFAULT, ROLLE_LABEL, type MappingVersion, type Rolle, type TodoRegel } from '@/core/status';
 import { feldStil } from './labels';
 import { TodoRegelKarte } from './TodoRegelKarte';
 import { TodoRegelZeile } from './TodoRegelZeile';
 import { TodoPlatzhalterListe } from './TodoPlatzhalterListe';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import type { TodoRegelnApi } from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
+import type { WirkungsLauf } from './useRegelWirkung';
 
 export function TodoRegelListe({
-  regeln, eigeneRegeln, version, satz, api, platzhalter, onExportieren,
+  regeln, eigeneRegeln, version, satz, api, platzhalter, onExportieren, wirkung,
   gewaehlt, onWaehlen, unbekannteJeRegel,
 }: {
   regeln: readonly TodoRegel[];
@@ -32,6 +34,8 @@ export function TodoRegelListe({
   api: TodoRegelnApi;
   platzhalter: PlatzhalterLauf;
   onExportieren: (rolle: Rolle) => void;
+  /** Der Wirkungs-Lauf am Bestand — auf Knopfdruck, nie automatisch. */
+  wirkung: WirkungsLauf;
   /** Id der geöffneten Regel — `null` schaltet auf die Karten-Ansicht. */
   gewaehlt: string | null;
   onWaehlen: (id: string) => void;
@@ -67,6 +71,39 @@ export function TodoRegelListe({
               Wirkung im Vorgangs-Board ansehen
             </button>
           </p>
+
+          {/* Der Lauf kostet Sekunden über den ganzen Betrachtungsbereich —
+              deshalb ein Knopf und keine Automatik, und deshalb wird nach einer
+              Änderung auch nicht still neu gerechnet. */}
+          <div className="flex items-center justify-between gap-2 flex-wrap rounded px-2.5 py-2" style={feldStil}>
+            <span className="text-[12.5px] text-[var(--tf-text)]">
+              {wirkung.wirkung === null ? (
+                <>Wie oft greift welche Regel? Der Lauf zählt je Regel, auf wie viele Vorgänge
+                  ihre Bedingung zutrifft und bei wie vielen sie die Kaskade gewinnt.</>
+              ) : (
+                <>
+                  {zaehlwort(wirkung.gesamt, 'Vorgang', 'Vorgänge')} gemessen
+                  {wirkung.bereichText !== null && <> · {wirkung.bereichText}</>}
+                  {' '}· Regelsatz {ROLLE_LABEL[satz]}
+                  {wirkung.veraltet && (
+                    <strong className="text-[var(--tf-warning-text)]">
+                      {' '}· Regeln seit dem Lauf geändert — die Zahlen sind der Stand von vorher.
+                    </strong>
+                  )}
+                </>
+              )}
+            </span>
+            <Button
+              variant="secondary" size="sm" disabled={wirkung.aktion.busy}
+              onClick={() => wirkung.aktion.run()}
+            >
+              {wirkung.aktion.busy ? 'Misst …'
+                : wirkung.wirkung === null ? 'Wirkung am Bestand messen' : 'Erneut messen'}
+            </Button>
+          </div>
+          {wirkung.aktion.error !== null && (
+            <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ {wirkung.aktion.error}</p>
+          )}
 
           {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
               stumm auf dem Stand ihres ersten Seeds stehen. Die Bilanz steht dran,
@@ -108,12 +145,16 @@ export function TodoRegelListe({
         {regeln.map((r, i) => (gewaehlt === null ? (
           <TodoRegelKarte
             key={r.id} r={r} version={version} index={i} anzahl={regeln.length} satz={satz}
-            api={api} unbekannte={unbekannteJeRegel.get(r.id) ?? []} onWaehlen={() => onWaehlen(r.id)}
+            api={api} unbekannte={unbekannteJeRegel.get(r.id) ?? []}
+            wirkung={wirkung.wirkung?.get(r.id)} veraltet={wirkung.veraltet}
+            onWaehlen={() => onWaehlen(r.id)}
           />
         ) : (
           <TodoRegelZeile
             key={r.id} r={r} index={i} satz={satz} aktiv={r.id === gewaehlt}
-            unbekannte={unbekannteJeRegel.get(r.id) ?? []} onWaehlen={() => onWaehlen(r.id)}
+            unbekannte={unbekannteJeRegel.get(r.id) ?? []}
+            wirkung={wirkung.wirkung?.get(r.id)} veraltet={wirkung.veraltet}
+            onWaehlen={() => onWaehlen(r.id)}
           />
         )))}
       </div>

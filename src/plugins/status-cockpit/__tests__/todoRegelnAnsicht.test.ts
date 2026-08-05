@@ -10,7 +10,8 @@
 import { describe, it, expect } from 'vitest';
 import type { Rolle, TodoRegel } from '@/core/status';
 import {
-  brauchtRolloutRueckfrage, positionsText, sichtbareRegeln, waehleRegel, zustandsMarker,
+  brauchtRolloutRueckfrage, positionsText, sichtbareRegeln, waehleRegel, wirkungsAnzeige,
+  zustandsMarker,
 } from '../todoRegelnAnsicht';
 
 const regel = (p: Partial<TodoRegel> & { id: string; reihenfolge: number }): TodoRegel => ({
@@ -93,5 +94,57 @@ describe('brauchtRolloutRueckfrage', () => {
     expect(brauchtRolloutRueckfrage(FB1, true)).toBe(true);
     expect(brauchtRolloutRueckfrage(FB1, false), 'stilllegen ist immer harmlos').toBe(false);
     expect(brauchtRolloutRueckfrage(AB1, true), 'AB wirkt überall gleich').toBe(false);
+  });
+});
+
+describe('wirkungsAnzeige (was an einer Regel über ihre Wirkung steht)', () => {
+  it('ohne Lauf steht NICHTS da — kein Platzhalterstrich', () => {
+    // Ein „—" läse sich wie eine gemessene Null. Nicht gemessen ist nicht null.
+    expect(wirkungsAnzeige(undefined, false)).toBeNull();
+    expect(wirkungsAnzeige(undefined, true)).toBeNull();
+  });
+
+  it('sind beide Zahlen gleich, steht nur EINE da', () => {
+    const a = wirkungsAnzeige({ gewinnt: 43, trifftZu: 43, greift: 0 }, false);
+    expect(a?.kurz).toBe('43 Vorgänge');
+    expect(a?.kurz).not.toContain('trifft');
+    expect(a?.nullbefund).toBe(false);
+  });
+
+  it('bei Kaskadenverlust stehen beide, und der Satz erklärt die Differenz', () => {
+    const a = wirkungsAnzeige({ gewinnt: 43, trifftZu: 153, greift: 0 }, false);
+    expect(a?.kurz).toBe('trifft 153 · gewinnt 43');
+    expect(a?.lang).toContain('110');   // 153 − 43 = die verdeckten Fälle
+    expect(a?.lang).toContain('weiter vorn in der Kaskade');
+  });
+
+  it('bei genau einem verdeckten Fall steht kein Plural-Satz um eine 1', () => {
+    // Am echten Bestand gemessen: die Differenz ist regelmäßig genau eins, und
+    // „bei den übrigen 1" fällt im Termin sofort auf.
+    const a = wirkungsAnzeige({ gewinnt: 199, trifftZu: 200, greift: 0 }, false);
+    expect(a?.lang).toContain('bei einem davon greift');
+    expect(a?.lang).not.toContain('übrigen 1 ');
+  });
+
+  it('trifft nie zu ⇒ ruhiger Hinweis, kein stiller Nullwert', () => {
+    const a = wirkungsAnzeige({ gewinnt: 0, trifftZu: 0, greift: 0 }, false);
+    expect(a?.nullbefund).toBe(true);
+    expect(a?.lang).toContain('überholt');
+  });
+
+  it('eine Sperre bekommt ihre eigene Zahl statt zweier Nullen', () => {
+    const a = wirkungsAnzeige({ gewinnt: 0, trifftZu: 0, greift: 862 }, true);
+    expect(a?.kurz).toBe('greift 862');
+    expect(a?.lang).toContain('Stränge still');
+    expect(a?.nullbefund).toBe(false);
+  });
+
+  it('eine Sperre, die nie greift, ist ebenfalls ein Befund', () => {
+    expect(wirkungsAnzeige({ gewinnt: 0, trifftZu: 0, greift: 0 }, true)?.nullbefund).toBe(true);
+  });
+
+  it('Tausendertrennung deutsch, damit die Zahl im Termin lesbar ist', () => {
+    expect(wirkungsAnzeige({ gewinnt: 1234, trifftZu: 5678, greift: 0 }, false)?.kurz)
+      .toBe('trifft 5.678 · gewinnt 1.234');
   });
 });

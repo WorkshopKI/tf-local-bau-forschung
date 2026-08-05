@@ -21,12 +21,13 @@ import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import {
   ROLLE_LABEL, ROLLE_LANG,
-  type Bedingung, type MappingVersion, type Rolle, type TodoRegel,
+  type Bedingung, type MappingVersion, type RegelWirkung, type Rolle, type TodoRegel,
 } from '@/core/status';
 import { feldKlasse, feldStil } from './labels';
 import { TodoRegelSatz } from './TodoRegelSatz';
 import {
-  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, positionsText, zustandsMarker, type TodoRegelnApi,
+  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, positionsText, wirkungsAnzeige, zustandsMarker,
+  type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 
 /** Wer wartet — Rollen plus „Antragsteller", der außerhalb des Hauses steht. */
@@ -46,7 +47,8 @@ const PFEIL_KLASSE = 'p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[v
   + ' cursor-pointer disabled:opacity-30 disabled:cursor-default';
 
 export function TodoRegelDetail({
-  r, version, index, anzahl, satz, api, vorrat, pruefeFeld, unbekannte, onSchliessen,
+  r, version, index, anzahl, satz, api, vorrat, pruefeFeld, unbekannte, wirkung, veraltet,
+  onSchliessen,
 }: {
   r: TodoRegel;
   version: MappingVersion;
@@ -58,9 +60,13 @@ export function TodoRegelDetail({
   vorrat: SpaltenEintrag[];
   pruefeFeld: (feldId: string) => string | null;
   unbekannte: readonly string[];
+  /** Gemessene Wirkung am Bestand; `undefined`, solange kein Lauf stattfand. */
+  wirkung: RegelWirkung | undefined;
+  veraltet: boolean;
   onSchliessen: () => void;
 }): React.ReactElement {
   const { istSperre, eigen, giltFuerAlle } = zustandsMarker(r, satz, unbekannte);
+  const w = wirkungsAnzeige(wirkung, istSperre);
   const set = (patch: Partial<TodoRegel>): void => api.setTodoRegel(r.id, patch);
   const setzeAktiv = (an: boolean): void => {
     if (brauchtRolloutRueckfrage(r, an)
@@ -133,6 +139,21 @@ export function TodoRegelDetail({
         </div>
 
         <TodoRegelSatz r={r} version={version} />
+
+        {/* Hier prominenter als in der Zeile: wer eine Regel bearbeitet, trifft
+            genau hier die Entscheidung, für die die Zahl gedacht ist. */}
+        {w !== null && (
+          <p
+            className={`text-[12px] leading-[1.35] rounded px-2 py-1.5 ${
+              w.nullbefund ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-secondary)]'}`}
+            style={feldStil}
+          >
+            {w.lang}
+            {veraltet && (
+              <em> — Stand vor der letzten Änderung; erneut messen für aktuelle Zahlen.</em>
+            )}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

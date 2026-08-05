@@ -32,18 +32,24 @@ import {
   ROLLOUT_HINWEIS, sichtbareRegeln, waehleRegel, type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
+import type { WirkungsLauf } from './useRegelWirkung';
 
 export type { TodoRegelnApi } from './todoRegelnAnsicht';
 
-export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: {
+export function TodoRegelnBereich({
+  version, api, platzhalter, onExportieren, satz, onSatzWechsel, wirkung,
+}: {
   version: MappingVersion;
   api: TodoRegelnApi;
   platzhalter: PlatzhalterLauf;
   /** Erhebung als XLSX + Markdown herunterladen — schreibrechtsunabhängig. */
   onExportieren: (rolle: Rolle) => void;
+  /** Der gezeigte Regelsatz. Liegt im Tab, weil der Wirkungs-Lauf ihn braucht. */
+  satz: Rolle;
+  onSatzWechsel: (r: Rolle) => void;
+  wirkung: WirkungsLauf;
 }): React.ReactElement {
   const alleRegeln = version.todoRegeln ?? [];
-  const [satz, setSatz] = useState<Rolle>(REGELSATZ_DEFAULT);
   const [gewaehlt, setGewaehlt] = useState<string | null>(null);
   // Sichtbar sind AB und FB immer — sie sind die beiden Achsen, um die es geht.
   // Weitere Rollen erscheinen erst, wenn für sie etwas existiert; eine leere
@@ -90,7 +96,7 @@ export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: 
           variant="pills"
           aria-label="Regelsatz"
           activeKey={satz}
-          onChange={(k: string) => { setSatz(k as Rolle); setGewaehlt(null); }}
+          onChange={(k: string) => { onSatzWechsel(k as Rolle); setGewaehlt(null); }}
           items={saetze.map(r => ({
             key: r,
             label: ROLLE_LABEL[r],
@@ -125,7 +131,7 @@ export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: 
         list={
           <TodoRegelListe
             regeln={regeln} eigeneRegeln={eigeneRegeln} version={version} satz={satz} api={api}
-            platzhalter={platzhalter} onExportieren={onExportieren}
+            platzhalter={platzhalter} onExportieren={onExportieren} wirkung={wirkung}
             gewaehlt={auswahl?.regel.id ?? null} onWaehlen={setGewaehlt}
             unbekannteJeRegel={unbekannteJeRegel}
           />
@@ -136,6 +142,7 @@ export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: 
             r={auswahl.regel} version={version} index={auswahl.index} anzahl={auswahl.anzahl}
             satz={satz} api={api} vorrat={vorrat} pruefeFeld={pruefeFeld}
             unbekannte={unbekannteJeRegel.get(auswahl.regel.id) ?? []}
+            wirkung={wirkung.wirkung?.get(auswahl.regel.id)} veraltet={wirkung.veraltet}
             onSchliessen={() => setGewaehlt(null)}
           />
         )}

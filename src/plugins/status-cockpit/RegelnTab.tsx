@@ -18,18 +18,24 @@
  * | ablehnungsreif → Ablehnung vorbereiten | „Abl/RNE erstellen" · „Abl erstellt" · „Abl in QS" · „Abl ergänzen" |
  * | beantragt → Vollständigkeit prüfen | „PC offen" · „NF erstellen" |
  */
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import type { Rolle } from '@/core/status';
+import { REGELSATZ_DEFAULT, type Rolle } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { TodoRegelnBereich } from './TodoRegelnBereich';
 import { usePlatzhalterErhebung } from './usePlatzhalterErhebung';
+import { useRegelWirkung } from './useRegelWirkung';
 import { exportiereErhebung } from './fbErhebungExport';
 
 export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   // Die Hooks stehen VOR dem Early-Return: Hook-Reihenfolge ist an die
   // Aufrufreihenfolge gebunden, und `tsc` fängt einen Verstoß nicht (React #310).
   const platzhalter = usePlatzhalterErhebung(api.entwurf);
+  // Der gewählte Regelsatz wohnt hier statt in `TodoRegelnBereich`, weil der
+  // Wirkungs-Lauf ihn braucht: gemessen wird IMMER genau ein Satz (der gezeigte),
+  // sonst stünden an einer FB-Regel Zahlen aus der AB-Kaskade.
+  const [satz, setSatz] = useState<Rolle>(REGELSATZ_DEFAULT);
+  const wirkung = useRegelWirkung(api.entwurf, satz);
   // Reiner Export, deshalb OHNE Schreibrecht-Gate: er nimmt nichts mit auf den
   // Share, er nimmt etwas mit in den Termin.
   const onExportieren = useCallback((rolle: Rolle) => {
@@ -60,6 +66,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
     <div className="flex-1 min-h-0 flex flex-col">
       <TodoRegelnBereich
         version={entwurf} api={api} platzhalter={platzhalter} onExportieren={onExportieren}
+        satz={satz} onSatzWechsel={setSatz} wirkung={wirkung}
       />
     </div>
   );

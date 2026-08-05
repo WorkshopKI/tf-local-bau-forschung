@@ -122,6 +122,10 @@ export {
   type StatusHerkunft, type HerkunftGruppe, type HerkunftWirkung, type HerkunftEbene,
 } from './trigger-herkunft';
 export {
+  erhebeRegelWirkung, wirkungsSignatur,
+  type RegelWirkung, type BewerteterLauf, type WirkungsSignatur,
+} from './regel-wirkung';
+export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
   leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,

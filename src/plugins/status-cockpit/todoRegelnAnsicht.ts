@@ -10,7 +10,7 @@
  */
 import {
   regelsatzVon, sperreGiltFuer, REGELSATZ_DEFAULT,
-  type PlatzhalterGruppe, type Rolle, type TodoRegel,
+  type PlatzhalterGruppe, type RegelWirkung, type Rolle, type TodoRegel,
 } from '@/core/status';
 
 /**
@@ -95,6 +95,80 @@ export function zustandsMarker(
 /** `Position 5 von 27` — 1-basiert angezeigt über 0-basiertem Index. */
 export function positionsText(index: number, anzahl: number): string {
   return `Position ${index + 1} von ${anzahl}`;
+}
+
+/** Was an einer Regel über ihre Wirkung am Bestand steht. */
+export interface WirkungsAnzeige {
+  /** Die knappe Fassung für das rechte Zeilenende („trifft 153 · gewinnt 43"). */
+  kurz: string;
+  /** Der erklärende Satz für Karte und Detail. */
+  lang: string;
+  /** Trifft nie zu — ruhiger Hinweis, die Regel ist überholt oder falsch. */
+  nullbefund: boolean;
+}
+
+const zahl = (n: number): string => n.toLocaleString('de-DE');
+
+/**
+ * Die Wirkung einer Regel in Worte fassen. Rein — deshalb hier und nicht in der
+ * Komponente (node-only Testumgebung).
+ *
+ * Drei Fälle, drei Formulierungen:
+ * - **Sperre**: sie erzeugt kein To-do, also ist „gewinnt" keine sinnvolle
+ *   Frage. Gezählt wird, wie oft sie greift.
+ * - **gewinnt === trifftZu**: nur EINE Zahl. Zwei gleiche Zahlen nebeneinander
+ *   lesen sich wie ein Problem, wo keines ist — und der Regelfall ist, dass eine
+ *   Regel überall gewinnt, wo sie zutrifft.
+ * - **gewinnt < trifftZu**: beide, und der Satz erklärt den Unterschied. Das ist
+ *   die Kaskade, sichtbar gemacht.
+ *
+ * Ohne Lauf gibt es KEINE Anzeige (`null`) — kein Platzhalterstrich, der wie
+ * eine gemessene Null aussähe.
+ */
+export function wirkungsAnzeige(w: RegelWirkung | undefined, istSperre: boolean): WirkungsAnzeige | null {
+  if (!w) return null;
+
+  if (istSperre) {
+    return {
+      kurz: `greift ${zahl(w.greift)}`,
+      lang: w.greift === 0
+        ? 'Diese Sperre greift im gemessenen Bestand bei keinem Vorgang.'
+        : `Diese Sperre greift bei ${zahl(w.greift)} Vorgängen und legt dort ihre Stränge still.`,
+      nullbefund: w.greift === 0,
+    };
+  }
+
+  if (w.trifftZu === 0) {
+    return {
+      kurz: 'trifft 0',
+      lang: 'Diese Regel trifft im gemessenen Bestand auf keinen Vorgang zu — '
+        + 'entweder ist sie überholt, oder ihre Bedingung beschreibt etwas anderes als gemeint.',
+      nullbefund: true,
+    };
+  }
+
+  if (w.gewinnt === w.trifftZu) {
+    return {
+      kurz: `${zahl(w.gewinnt)} Vorgänge`,
+      lang: `Diese Regel bestimmt das To-do bei ${zahl(w.gewinnt)} Vorgängen — überall, `
+        + 'wo ihre Bedingung zutrifft. Keine frühere Regel verdeckt sie.',
+      nullbefund: false,
+    };
+  }
+
+  // „bei den übrigen 1" stand nach dem ersten Messlauf am Bestand da — die
+  // Differenz ist regelmäßig genau eins, und ein Zahlwort im Plural-Satz fällt
+  // im Termin sofort auf.
+  const rest = w.trifftZu - w.gewinnt;
+  const restSatz = rest === 1
+    ? 'bei einem davon greift eine Regel weiter vorn in der Kaskade'
+    : `bei den übrigen ${zahl(rest)} greift eine Regel weiter vorn in der Kaskade`;
+  return {
+    kurz: `trifft ${zahl(w.trifftZu)} · gewinnt ${zahl(w.gewinnt)}`,
+    lang: `Die Bedingung trifft auf ${zahl(w.trifftZu)} Vorgänge zu, aber nur bei `
+      + `${zahl(w.gewinnt)} bestimmt diese Regel das To-do — ${restSatz}.`,
+    nullbefund: false,
+  };
 }
 
 /**

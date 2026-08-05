@@ -11,21 +11,25 @@
  * Genau darum wohnen Positions-Pfeile und aktiv-Haken im Detail-Kopf; die
  * Zustände erscheinen hier als reine Marker.
  */
-import type { Rolle, TodoRegel } from '@/core/status';
-import { zustandsMarker } from './todoRegelnAnsicht';
+import type { RegelWirkung, Rolle, TodoRegel } from '@/core/status';
+import { wirkungsAnzeige, zustandsMarker } from './todoRegelnAnsicht';
 
 const MARKER = 'shrink-0 text-[10px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
 
-export function TodoRegelZeile({ r, index, satz, unbekannte, aktiv, onWaehlen }: {
+export function TodoRegelZeile({ r, index, satz, unbekannte, aktiv, wirkung, veraltet, onWaehlen }: {
   r: TodoRegel;
   index: number;
   satz: Rolle;
   unbekannte: readonly string[];
   /** Ist das die gerade geöffnete Regel? */
   aktiv: boolean;
+  /** Gemessene Wirkung; `undefined`, solange kein Lauf stattfand. */
+  wirkung: RegelWirkung | undefined;
+  veraltet: boolean;
   onWaehlen: () => void;
 }): React.ReactElement {
   const { istSperre, giltFuerAlle, stillgelegt } = zustandsMarker(r, satz, unbekannte);
+  const w = wirkungsAnzeige(wirkung, istSperre);
   return (
     <button
       type="button"
@@ -44,6 +48,18 @@ export function TodoRegelZeile({ r, index, satz, unbekannte, aktiv, onWaehlen }:
         {index + 1}
       </span>
       <span className="flex-1 min-w-0 truncate text-[12.5px]">{r.beschreibung}</span>
+      {/* Ohne Lauf steht hier NICHTS — kein Platzhalterstrich, der wie eine
+          gemessene Null aussähe. Reiner Text, kein Knopf: die Zeile IST ein
+          `<button>`. */}
+      {w !== null && (
+        <span
+          className={`shrink-0 text-[10.5px] font-mono tabular-nums ${
+            veraltet ? 'text-[var(--tf-text-tertiary)] italic' : 'text-[var(--tf-text-tertiary)]'}`}
+          title={veraltet ? `${w.lang}\n\nStand vor der letzten Änderung.` : w.lang}
+        >
+          {w.kurz}
+        </span>
+      )}
       {istSperre && (
         <span className={MARKER} title={giltFuerAlle ? 'Sperre — gilt für alle Regelsätze' : 'Sperre'}>
           Sp
