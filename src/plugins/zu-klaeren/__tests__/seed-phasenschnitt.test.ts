@@ -1,7 +1,7 @@
 /**
  * Was diese Datei festnagelt:
  *
- * 1. Die 41 Punkte entstehen AUS dem Katalog — kein Code fehlt, keiner doppelt.
+ * 1. Die 43 Punkte entstehen AUS dem Katalog — kein Code fehlt, keiner doppelt.
  *    Eine abgeschriebene Tabelle würde beim ersten neuen Statuscode driften.
  * 2. Die vier Marker-Codes tragen ausdrücklich „ohne Phase", nicht „vergessen".
  * 3. Die Reihenfolge folgt dem Verfahren, die Marker stehen daneben.
@@ -21,10 +21,10 @@ const zeilen = punkte.filter(p => p.art === 'phasenzuordnung');
 const fragen = punkte.filter(p => p.art === 'freitext');
 
 describe('seed-phasenschnitt (die Punkte entstehen aus dem Katalog)', () => {
-  it('liefert 30 Zeilen-Punkte und 11 Fragen-Punkte', () => {
+  it('liefert 30 Zeilen-Punkte und 13 Fragen-Punkte', () => {
     expect(zeilen).toHaveLength(30);
-    expect(fragen).toHaveLength(11);
-    expect(punkte).toHaveLength(41);
+    expect(fragen).toHaveLength(13);
+    expect(punkte).toHaveLength(43);
   });
 
   it('jeder Status-Code des Katalogs kommt genau einmal vor', () => {

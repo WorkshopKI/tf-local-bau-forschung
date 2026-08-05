@@ -11,6 +11,12 @@
  * Begründung, warum sie überhaupt eine Frage ist. Ohne diese Begründung liest sich
  * „32 ablehnungsreif" wie eine Behauptung statt wie ein Zweifel.
  *
+ * **Fragen werden angepasst, solange niemand geantwortet hat.** Eine Frage, zu
+ * der eine Antwort auf dem Share liegt, wird NIE umformuliert — sonst bezieht
+ * sich die Antwort auf etwas, das so nicht mehr dasteht; dann bekommt die neue
+ * Fassung eine eigene Id und verweist im `zusatz` auf die alte. Vor jeder
+ * Umformulierung wird der Antwort-Stand geprüft, nicht vermutet.
+ *
  * **Jede Frage trägt ihre Id selbst** (`frage-32-ablehnungsreif`), sie wird nicht
  * aus der Position gebildet. Bis v2.412 stand hier `frage-${i + 1}`: der nächste
  * eingefügte Punkt hätte alle Antworten dahinter lautlos verschoben, und die
@@ -93,41 +99,84 @@ const GRUNDSATZFRAGEN: readonly { id: string; titel: string; zusatz: string }[] 
   },
 
   // --- Nachgetragen v2.412: was die Erhebung am Bestand aufgeworfen hat --------
+  //
+  // Alle vier wurden mit v2.414 an den Erkenntnisstand angepasst: K2 hat die
+  // Trigger-Herkunft belegt, die Bestands-Erhebung hat die Zahlen gemessen.
+  // ANGEPASST statt neu angelegt, weil zu keiner der Fragen eine Antwort vorlag
+  // (geprüft am 05.08.2026: alle elf Fragen ohne Beitrag, keine strittige
+  // Zuordnung, keine offene Rückfrage). Läge eine vor, bekäme die neue
+  // Fassung eine eigene Id — eine gegebene Antwort darf nie zu einer Frage
+  // stehen, die so nicht mehr dasteht.
   {
     id: 'frage-precheck-bearbeitungsreif',
-    titel: 'Soll die App melden, wenn ein Antrag bearbeitungsreif ist, ohne dass ein '
-      + 'PreCheck vermerkt wurde?',
-    zusatz: 'R23a und R23b melden „PC offen" nur bei Status beantragt. Läuft ein Antrag '
-      + 'ohne PreCheck auf unvollständig oder bearbeitungsreif weiter, schweigt die App — '
-      + 'also gerade dann, wenn der PreCheck am deutlichsten überfällig ist. Betroffen sind '
-      + 'derzeit neun Vorgänge; die Regeln gelten nur für die Fördervarianten FuE und DS, '
-      + 'DL und NW haben laut Seed keinen PreCheck.',
+    titel: 'Zwei Vorgänge stehen auf bearbeitungsreif, ohne dass ein PreCheck vermerkt ist '
+      + '— Erfassungsfehler, anderer Weg auf 34, oder soll die App darauf hinweisen?',
+    zusatz: 'Gemessen am 05.08.2026 über 12 356 Vorgänge: von 334 auf Status 34 tragen genau '
+      + 'zwei weder PC+ noch XPC+ — 16DS260731 (DS) und 16KN128033 (FuE), beide also mit '
+      + 'PreCheck-Pflicht. Kein DL-/NW-Fall, dort gibt es laut Seed gar keinen PreCheck. Das '
+      + 'ist deutlich weniger als die ursprünglich vermuteten neun. Brisant bleibt es trotzdem, '
+      + 'weil 34 laut Trigger-Tabelle von PC+ bzw. XPC+ GESETZT wird: ein 34 ohne Vermerk '
+      + 'sollte es eigentlich nicht geben. R23a/R23b melden „PC offen" bisher nur bei Status '
+      + 'beantragt.',
   },
   {
     id: 'frage-precheck-vollstaendigkeit',
-    titel: 'Setzt der PreCheck vollständige Antragsunterlagen voraus, oder läuft er '
-      + 'unabhängig davon?',
-    zusatz: 'Davon hängt ab, ob unvollständig (33) in die Regel gehört und ob die '
-      + 'Wochenfrist ab Eingang oder ab Vollständigkeit läuft. Setzt er Vollständigkeit '
-      + 'voraus, ist eine Woche ab Eingang bei jedem Antrag mit Nachforderung nicht '
-      + 'einzuhalten.',
+    titel: 'Gibt es Fälle, in denen der PreCheck doch auf vollständige Unterlagen wartet?',
+    zusatz: 'Im Kern beantwortet: 33 unvollständig wird laut Trigger-Tabelle von PC? gesetzt '
+      + '(pre-check unvollständig), stammt also AUS dem PreCheck und nicht aus einer Prüfung '
+      + 'der Unterlagen davor. Damit läuft der PreCheck vor der Vollständigkeit, und die '
+      + 'Wochenfrist läuft ab Antragseingang — nicht ab Vollständigkeit. Offen ist nur noch '
+      + 'die Gegenprobe: kennt die Praxis Fälle, in denen der PreCheck doch liegen bleibt, '
+      + 'bis Unterlagen nachkommen?',
   },
   {
     id: 'frage-zieltage-soll-oder-ist',
     titel: 'Sind die Zieltage eine Beschreibung des Ist oder eine verbindliche Sollzeit?',
-    zusatz: 'Die 26 Vorschläge sind Mediane aus dem Bestand und beschreiben, wie lange es '
-      + 'dauert, nicht wie lange es dauern soll. Für beantragt schlägt das Ist 27 Tage vor; '
-      + 'die fachliche Erwartung an den PreCheck liegt bei einer Woche. Wo es eine Sollzeit '
-      + 'gibt, muss sie den Median schlagen — sonst zementieren die Zieltage die Liegezeiten, '
-      + 'die sie sichtbar machen sollen.',
+    zusatz: 'Die Vorschläge sind Mediane aus dem Bestand und beschreiben, wie lange es dauert, '
+      + 'nicht wie lange es dauern soll. Für beantragt gemessen (05.08.2026): Ist-Median '
+      + '29 Tage bei 446 Beobachtungen, gepflegt sind 27 Tage — der gepflegte Wert beschreibt '
+      + 'also das Ist, er fordert nichts. Das wiegt hier besonders schwer, weil 34 durch PC+ '
+      + 'gesetzt wird: die Zieltage für beantragt SIND faktisch die PreCheck-Frist, und die '
+      + 'fachliche Erwartung daran liegt bei einer Woche. Wo es eine Sollzeit gibt, muss sie '
+      + 'den Median schlagen — sonst zementieren die Zieltage die Liegezeiten, die sie sichtbar '
+      + 'machen sollen.',
   },
   {
     id: 'frage-abgrenzung-31-33-34',
-    titel: 'Wie grenzen sich beantragt, unvollständig und bearbeitungsreif voneinander ab?',
-    zusatz: 'Das Fachsystem liefert nur die Bezeichnung. Die Vorkommen legen nahe, dass '
-      + 'unvollständig eine Durchgangsstation ist (8 Fälle) und bearbeitungsreif ein Zustand, '
-      + 'in dem Vorgänge liegen (352). Die Trigger-Tabelle sagt, welche Kürzel die Status '
-      + 'setzen — im Statuswert-Detail unter „Wodurch dieser Status entsteht" nachlesbar.',
+    titel: 'Bestätigung: 33 unvollständig heißt „PreCheck mit Vorbehalt" und NICHT '
+      + '„Antragsunterlagen unvollständig" — trifft diese Lesart zu?',
+    zusatz: 'Die Trigger-Tabelle beantwortet die Abgrenzung: 31 beantragt wird von AAE gesetzt '
+      + '(Antragseingang, Rolle PA), 33 unvollständig von PC? (pre-check unvollständig) und '
+      + '34 bearbeitungsreif von PC+ am Teilvorhaben bzw. XPC+ am Verbund (beide AB/FB/QS). '
+      + 'Alle drei sind damit PreCheck-Ergebnisse, nicht Aussagen über die Unterlagen — '
+      + 'nachlesbar im Statuswert-Detail unter „Wodurch dieser Status entsteht". Aus der '
+      + 'offenen Frage wird damit eine Bestätigungsfrage: stimmt die Lesart fachlich?',
+  },
+
+  // --- Nachgetragen v2.414: was die Regel-Werkstatt am Bestand gefunden hat ----
+  {
+    id: 'frage-r4-schlussvermerk-qs',
+    titel: 'R4 meldet „SV in QS" und trifft auf keinen einzigen Vorgang zu — wird das Feld '
+      + 'nicht gepflegt, oder gibt es diesen Zwischenzustand im Ablauf gar nicht?',
+    zusatz: 'R4 greift, wenn der Schlussvermerk signiert ist (D_AVK gefüllt), das Verfahren '
+      + 'aber noch nicht abgeschlossen (D_VV leer). Gemessen am 05.08.2026: D_AVK ist bei '
+      + '412 Vorgängen gefüllt — und bei ALLEN 412 steht zugleich D_VV. Der Zwischenzustand '
+      + 'kommt im Nacht-Export also nie vor. Das ist ein anderer Befund als „Feld wird nicht '
+      + 'gepflegt": keine Regel auf dieser Lücke kann je feuern, egal wie sie formuliert ist. '
+      + 'Zum Vergleich dieselbe Messung für D_AAR (R5): 2 394 gefüllt, davon 2 236 zusammen '
+      + 'mit D_VV — dort bleiben 158 Fälle übrig, die Regel arbeitet.',
+  },
+  {
+    id: 'frage-r8-verdeckt',
+    titel: 'Bei zwei Dritteln der versandten Rücknahmeempfehlungen gewinnt R6 statt R8 — '
+      + 'ist das richtig so, oder soll die Fristüberwachung vorgehen?',
+    zusatz: 'Gemessen am 05.08.2026: R8 „RNE versandt, Frist läuft" trifft auf 68 Vorgänge zu '
+      + 'und bestimmt das To-do bei 22. Bei den übrigen 46 gewinnt ausnahmslos R6 '
+      + '„RNE-Widerspruchsfrist abgelaufen" — eine einzige Regel, keine Streuung. Das ist so '
+      + 'entworfen: R6 steht in der Kaskade vor R8 und nimmt den abgelaufenen Fall weg, damit '
+      + 'R8 die „höchstens 31 Tage" nicht selbst prüfen muss. Die Frage ist also nicht, '
+      + 'warum verdeckt wird, sondern ob es fachlich richtig ist, dass eine abgelaufene Frist '
+      + 'die laufende Überwachung ablöst — oder ob beide nebeneinander sichtbar bleiben.',
   },
 ];
 
