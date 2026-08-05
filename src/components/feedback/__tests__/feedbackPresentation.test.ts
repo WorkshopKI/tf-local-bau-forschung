@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { FeedbackItem } from '@/core/types/feedback';
-import { feedbackTitle, feedbackQaSegments } from '../feedbackUi';
+import { berechneKommentarHoehe, clampKommentarHoehe, feedbackTitle, feedbackQaSegments } from '../feedbackUi';
 import { avatarInitials, avatarColor } from '../FeedbackAvatar';
 
 function ticket(partial: Partial<FeedbackItem>): FeedbackItem {
@@ -64,6 +64,41 @@ describe('feedbackQaSegments — shortFrage', () => {
     }));
     expect(segs.map(s => s.shortFrage)).toEqual(['Gemacht', 'Passiert']);
     expect(segs.map(s => s.frage)).toEqual(['Was hast du gemacht?', 'Was ist passiert?']);
+  });
+});
+
+describe('clampKommentarHoehe', () => {
+  it('liest nichts Gemerktes als undefined (Grundhöhe gilt)', () => {
+    expect(clampKommentarHoehe(null, 56, 320)).toBeUndefined();
+    expect(clampKommentarHoehe('', 56, 320)).toBeUndefined();
+    expect(clampKommentarHoehe('abc', 56, 320)).toBeUndefined();
+  });
+
+  it('klemmt Alt-Einträge in die Grenzen', () => {
+    expect(clampKommentarHoehe('20', 56, 320)).toBe(56);
+    expect(clampKommentarHoehe('9999', 56, 320)).toBe(320);
+    expect(clampKommentarHoehe('120', 56, 320)).toBe(120);
+  });
+});
+
+describe('berechneKommentarHoehe', () => {
+  it('hält das leere Feld auf Grundhöhe', () => {
+    expect(berechneKommentarHoehe(20, 62, undefined, 320)).toBe(62);
+  });
+
+  it('wächst mit dem Inhalt', () => {
+    expect(berechneKommentarHoehe(140, 62, undefined, 320)).toBe(140);
+  });
+
+  it('nimmt die gezogene Höhe als Mindesthöhe — nicht als feste Höhe', () => {
+    // Gezogen auf 200, wenig Text → bleibt 200 (Ziehen überlebt das Tippen).
+    expect(berechneKommentarHoehe(30, 62, 200, 320)).toBe(200);
+    // Mehr Text als gezogen → Inhalt gewinnt (der Entwurf wird nicht abgeschnitten).
+    expect(berechneKommentarHoehe(260, 62, 200, 320)).toBe(260);
+  });
+
+  it('deckelt bei max', () => {
+    expect(berechneKommentarHoehe(900, 62, 400, 320)).toBe(320);
   });
 });
 

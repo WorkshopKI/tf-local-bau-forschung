@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.415.1 — Kommentarfeld waechst mit und ist ziehbar (August 2026)
+
+PATCH — Das Kommentarfeld im Feedback-Detail war einzeilig und fest: wer mehr als einen Satz schrieb, sah den eigenen Text nicht mehr.
+
+- Feld startet auf **drei Zeilen** und **wächst beim Schreiben mit** (Rezept aus dem Chat-Composer), gedeckelt bei 320 px — darüber scrollt es intern ([FeedbackCommentThread.tsx](src/components/feedback/FeedbackCommentThread.tsx))
+- Zusätzlich am nativen Anfasser ziehbar (`resize-y`); die gezogene Höhe wird gerätelokal gemerkt, weil das Detail-Panel je Ticket neu mountet
+- Auto-Wachsen und Anfasser schreiben beide `style.height` — deshalb setzt das Ziehen die **Mindest**höhe, nicht eine feste Höhe ([berechneKommentarHoehe](src/components/feedback/feedbackUi.ts))
+- Erkannt wird das Ziehen an der Zeiger-Geste, nicht per `ResizeObserver`: der könnte Tipp-Wachstum nicht unterscheiden und würde die Mindesthöhe beim Schreiben hochratschen
+- Nachgemessen in `dev:local`: leer 70 px, 4 Zeilen 87 px, 20 Zeilen gedeckelt auf 320 px mit internem Scrollen; gezogene 200 px überleben Tastendruck, Ticket-Wechsel und Reload; ohne Ziehen bleibt der Schlüssel leer
+
 ### v2.415.0 — Autorschaft der Klaerung ist der Profilname (August 2026)
 
 MINOR — Autorschaft ist eine Person, das Bearbeiter-Kürzel eine Rolle im Fachsystem. Projektleitung und Kuration haben keines und waren damit von der Klärung ausgesperrt — ausgerechnet die zwei Rollen, die den Phasenschnitt kuratieren.

@@ -22,6 +22,7 @@
 ## v2.415 — 2026-08
 
 ### Verbesserungen
+- Das **Kommentarfeld im Feedback** ist jetzt drei Zeilen hoch statt einer und **wächst beim Schreiben mit** — wer Return drückt, hat sofort Platz für die nächste Zeile. Zusätzlich lässt es sich an der Ecke unten rechts größer ziehen; diese Höhe merkt sich die App auf Deinem Rechner.
 - Bei „Zu klären" steht jetzt **Dein Name** an Deinen Antworten, nicht mehr Dein Bearbeiter-Kürzel. Zum Mitmachen genügt damit ein Name im Profil — wer kein Kürzel im Fachsystem hat (Projektleitung, Kuration) oder das Sammel-Kürzel „alle" benutzt, konnte bisher nicht antworten.
 - Die Fassungsliste der Vorgangs-Regeln lädt schneller: Ältere Fassungen liegen in einem **Archiv daneben** und werden erst geholt, wenn Du die Liste aufklappst. Verloren geht nichts — archivierte Fassungen sind gekennzeichnet und lassen sich weiterhin als Entwurf laden.
 

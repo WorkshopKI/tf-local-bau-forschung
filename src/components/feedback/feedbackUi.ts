@@ -123,6 +123,40 @@ function truncate(s: string, maxLen: number): string {
   return clean.length > maxLen ? `${clean.slice(0, maxLen - 1).trimEnd()}…` : clean;
 }
 
+/**
+ * Gemerkte Mindesthöhe des Kommentarfelds (px) aus dem localStorage-Rohwert.
+ * Defekt/leer/NaN → `undefined` = „nichts gemerkt", die Grundhöhe gilt.
+ * Der Wert wird auf `[min, max]` geklemmt, damit ein Alt-Eintrag aus einer
+ * anderen Fenstergröße das Feld weder verschwinden noch das Panel schlucken lässt.
+ */
+export function clampKommentarHoehe(roh: string | null, min: number, max: number): number | undefined {
+  if (roh === null || roh.trim() === '') return undefined;
+  const px = Number(roh);
+  if (!Number.isFinite(px)) return undefined;
+  return Math.round(Math.max(min, Math.min(max, px)));
+}
+
+/**
+ * Zielhöhe des Kommentarfelds — reine Arithmetik, kein DOM.
+ *
+ * Drei Untergrenzen konkurrieren, die größte gewinnt: der geschriebene Inhalt
+ * (`scrollHoehe`), die vom Nutzer gezogene Mindesthöhe (`gemerkt`) und die
+ * Grundhöhe des leeren Felds (`grundHoehe`, = `rows`). Gedeckelt bei `max`,
+ * darüber scrollt das Feld intern.
+ *
+ * Dass `gemerkt` als MINDESThöhe wirkt (nicht als feste Höhe), ist der Kern:
+ * sonst würden Auto-Wachsen und Zieh-Anfasser einander die Höhe überschreiben.
+ */
+export function berechneKommentarHoehe(
+  scrollHoehe: number,
+  grundHoehe: number,
+  gemerkt: number | undefined,
+  max: number,
+): number {
+  const untergrenzen = [scrollHoehe, grundHoehe, gemerkt ?? 0].filter(n => Number.isFinite(n));
+  return Math.round(Math.min(max, Math.max(0, ...untergrenzen)));
+}
+
 /** Fallback-Parser für den komponierten `text` (`Label\nWert` je `\n\n`-Block). */
 function parseComposedFeedbackText(text: string): FeedbackQaSegment[] {
   const trimmed = (text ?? '').trim();

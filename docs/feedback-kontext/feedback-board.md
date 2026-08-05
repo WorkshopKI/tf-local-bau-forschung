@@ -14,6 +14,7 @@
   - Ausgeblendete Lanes zeigen ihre Tickets nicht im Board, wohl aber in der Liste (Hinweiszeile im Popover).
   - Die Einstellung gilt nur auf diesem Gerät und ist unabhängig vom Kanban-Widget der Startseite.
 - **Detail-Panel rechts** (Klick auf eine Karte): voller Stepper, alle Antworten, Downloads, „Antwort vom Team" (ungelesen rot + „Neu"), Sponsoring-Panel (X/Y Pkt, +/−, Budget-Hinweis), Kommentar-Thread + Vote.
+  - Das Kommentar-Eingabefeld ist drei Zeilen hoch und wächst beim Schreiben mit (Return macht eine neue Zeile, gesendet wird über den Pfeil-Knopf). Am Anfasser unten rechts lässt es sich größer ziehen; diese Höhe gilt dann als Mindesthöhe und bleibt auf diesem Gerät erhalten.
 - **Feedback geben** liegt auf dem globalen Button unten rechts (optionaler Titel + Datei-Anhänge).
 
 ## Eigenes Feedback ergänzen
