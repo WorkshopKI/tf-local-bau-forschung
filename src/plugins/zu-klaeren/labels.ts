@@ -1,9 +1,11 @@
 /**
  * Beschriftungen und Klassenkonstanten der Klärungs-Seite.
  *
- * Die Tabellen-Klassen sind bewusst identisch zu Katalog-Tab und Vorgangs-Board —
- * dieselbe Zeilenhöhe, dieselben Token. Eine dritte Tabellen-Optik im selben
- * Subsystem wäre keine Gestaltung, sondern Drift.
+ * Die Tabellen-Klassen folgen Katalog-Tab und Vorgangs-Board (gleiche Token,
+ * gleiche Schriftgrößen) mit **einer** bewussten Abweichung: das Zeilenpolster ist
+ * um eine Stufe kleiner. Diese Tabelle wird im Fachtermin per Bildschirmfreigabe
+ * durchgegangen — 30 Zeilen am Stück sind hier der Zweck, nicht ein Nebeneffekt.
+ * Alles andere bleibt gleich; eine dritte Tabellen-Optik wäre Drift.
  *
  * Rein darstellend.
  */
@@ -12,17 +14,29 @@ import { OHNE_PHASE, type Urteil, type ZielWert } from './typen';
 
 export const thKlasse =
   'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
-export const tdKlasse = 'px-2 py-1.5 align-middle text-[12px]';
+export const tdKlasse = 'px-2 py-1 align-middle text-[12px]';
 
 /** Der einzige zugelassene Inline-Stil (wie in `status-cockpit/labels.ts`). */
 export const rahmenStil = { border: '0.5px solid var(--tf-border)' } as const;
 
-/** Die drei Antwort-Knöpfe. `zurueckgezogen` ist kein Knopf, sondern eine Folge. */
+/**
+ * Die drei Antwort-Knöpfe. `zurueckgezogen` ist kein Knopf, sondern eine Folge.
+ *
+ * **Ein Wort je Knopf.** „gehört nach …" brach als einziges Label zweizeilig um und
+ * bestimmte damit die Höhe JEDER der 30 Zeilen (46 px statt 28 px). Drei gleich
+ * kurze Wörter wiegen zudem gleich schwer — was „andere" heißt, sagt der Tooltip
+ * und danach das Zielfeld, das genau dafür erscheint.
+ */
 export const URTEIL_LABEL: Record<Urteil, string> = {
   passt: 'passt',
-  andere: 'gehört nach …',
+  andere: 'andere',
   unklar: 'unklar',
   zurueckgezogen: 'zurückgezogen',
+};
+
+/** Was der knappe Knopf meint — der Tooltip trägt den ganzen Satz. */
+export const URTEIL_TITEL: Partial<Record<Urteil, string>> = {
+  andere: 'gehört in eine andere Phase',
 };
 
 export const URTEIL_WAHL: readonly Urteil[] = ['passt', 'andere', 'unklar'];

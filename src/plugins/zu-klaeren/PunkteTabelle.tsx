@@ -8,17 +8,20 @@
  *
  * Uneinigkeit wird **ruhig** markiert: ein Punkt und ein Wort, kein Warnrot. Sie
  * ist das erwartete Ergebnis des Termins, kein Fehler.
+ *
+ * **Dicht, weil sie im Termin gezeigt wird**: keine Linie je Zeile (die graue Fläche
+ * des Gruppenkopfs gliedert, `hover` führt), kleines Zeilenpolster, und die Spalte
+ * „Stand" erscheint erst, wenn sie etwas trägt. Was Inhalt trägt, bleibt: Code,
+ * Bezeichnung und Vorkommen stehen immer.
  */
 import { Fragment, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
-import { thKlasse, tdKlasse, rahmenStil, zielLabel, kurzDatum } from './labels';
+import { thKlasse, tdKlasse, rahmenStil, kurzDatum } from './labels';
 import { AntwortZelle } from './AntwortZelle';
 import { PunktKommentare } from './PunktKommentare';
 import { beitraegeSortiert, type EintragEingabe } from './fold';
-import type { GruppeAnsicht, ZeileAnsicht } from './gruppen';
+import { standMarke, zeigtStand, type GruppeAnsicht, type ZeileAnsicht } from './gruppen';
 import type { KlaerungStand } from './typen';
-
-const SPALTEN = 5;
 
 /** Was jede Ebene der Tabelle zum Antworten braucht. */
 interface AntwortKontext {
@@ -29,42 +32,26 @@ interface AntwortKontext {
   aeussern: (eingabe: Omit<EintragEingabe, 'autor'>) => Promise<void>;
 }
 
-/** Der ruhige Uneinigkeits-/Rückfrage-Marker einer Zeile. */
+/** Der ruhige Uneinigkeits-/Rückfrage-Marker einer Zeile — Text aus `standMarke`. */
 function Marke({ zeile }: { zeile: ZeileAnsicht }): React.ReactElement | null {
-  const { zustand, unklarVon, ziel } = zeile.befund;
-  if (zustand === 'strittig') {
-    return (
-      <span
-        className="text-[11.5px] text-[var(--tf-text)]"
-        title="Zwei oder mehr verschiedene Zielphasen genannt"
-      >• strittig</span>
-    );
-  }
-  if (unklarVon.length > 0) {
-    return (
-      <span
-        className="text-[11.5px] text-[var(--tf-text-secondary)]"
-        title={`Rückfrage von ${unklarVon.join(', ')}`}
-      >• Rückfrage</span>
-    );
-  }
-  if (zustand === 'einig' && ziel !== null && ziel !== zeile.punkt.seedZiel) {
-    return (
-      <span
-        className="text-[11.5px] text-[var(--tf-text-secondary)]"
-        title="Einig — aber anders als ausgeliefert"
-      >• → {zielLabel(ziel)}</span>
-    );
-  }
-  return null;
+  const marke = standMarke(zeile);
+  if (marke === null) return null;
+  return (
+    <span
+      className={`text-[11.5px] ${marke.leise ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}
+      title={marke.title}
+    >• {marke.text}</span>
+  );
 }
 
-function GruppenKopf({ gruppe }: { gruppe: GruppeAnsicht }): React.ReactElement {
+function GruppenKopf({ gruppe, spalten }: {
+  gruppe: GruppeAnsicht; spalten: number;
+}): React.ReactElement {
   return (
     <tr>
       <td
-        colSpan={SPALTEN}
-        className="px-2 py-2"
+        colSpan={spalten}
+        className="px-2 py-1"
         style={{
           background: 'var(--tf-bg-secondary)',
           borderTop: '0.5px solid var(--tf-border)',
@@ -90,22 +77,25 @@ function GruppenKopf({ gruppe }: { gruppe: GruppeAnsicht }): React.ReactElement 
 }
 
 function Zeile({
-  zeile, istOffen, umschalten, kontext,
+  zeile, istOffen, umschalten, kontext, mitStand, spalten,
 }: {
   zeile: ZeileAnsicht;
   istOffen: boolean;
   umschalten: () => void;
   kontext: AntwortKontext;
+  mitStand: boolean;
+  spalten: number;
 }): React.ReactElement {
   const id = zeile.punkt.id;
   return (
     <>
-      <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
+      {/* Keine Zeilenlinie: der Gruppenkopf gliedert, `hover` führt das Auge. */}
+      <tr className="hover:bg-[var(--tf-hover)]">
         <td className={`${tdKlasse} font-mono tabular-nums text-[var(--tf-text-secondary)]`}>
           {zeile.punkt.code}
         </td>
         <td className={tdKlasse}>{zeile.punkt.bezeichnung ?? zeile.punkt.titel}</td>
-        <td className={tdKlasse}><Marke zeile={zeile} /></td>
+        {mitStand && <td className={tdKlasse}><Marke zeile={zeile} /></td>}
         <td className={`${tdKlasse} text-right tabular-nums text-[var(--tf-text-secondary)]`}>
           {zeile.vorkommen === null ? '—' : zeile.vorkommen.toLocaleString('de-DE')}
         </td>
@@ -123,7 +113,7 @@ function Zeile({
               aria-expanded={istOffen}
               title={istOffen ? 'Beiträge zuklappen' : 'Beiträge zeigen'}
               onClick={umschalten}
-              className="inline-flex items-center gap-1 shrink-0 px-1.5 py-1 rounded text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]"
+              className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 leading-4 rounded text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]"
             >
               <MessageSquare size={12} />
               <span className="tabular-nums">{zeile.kommentarAnzahl}</span>
@@ -134,7 +124,7 @@ function Zeile({
 
       {istOffen && (
         <tr className="border-b border-[var(--tf-border)]">
-          <td colSpan={SPALTEN} className="px-4 py-3 bg-[var(--tf-bg-secondary)]">
+          <td colSpan={spalten} className="px-4 py-3 bg-[var(--tf-bg-secondary)]">
             <PunktKommentare
               punktId={id}
               beitraege={beitraegeSortiert(kontext.stand, id)}
@@ -159,6 +149,11 @@ export function PunkteTabelle({
   bestandVom: string | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState<string | null>(null);
+  // Solange niemand geantwortet hat, stünde „Stand" 30-mal leer da und nähme der
+  // Bezeichnung die Breite. Maßstab ist die Marke, nicht „irgendwer hat geklickt":
+  // sind sich alle einig, gibt es nichts zu melden — und keine leere Spalte.
+  const mitStand = zeigtStand(gruppen);
+  const spalten = mitStand ? 5 : 4;
 
   if (gruppen.length === 0) {
     return (
@@ -175,7 +170,7 @@ export function PunkteTabelle({
           <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
             <th className={`${thKlasse} w-[64px]`}>Code</th>
             <th className={thKlasse}>Bezeichnung</th>
-            <th className={`${thKlasse} w-[132px]`}>Stand</th>
+            {mitStand && <th className={`${thKlasse} w-[132px]`}>Stand</th>}
             <th
               className={`${thKlasse} text-right w-[110px]`}
               title={bestandVom === null
@@ -195,7 +190,7 @@ export function PunkteTabelle({
         <tbody>
           {gruppen.map(gruppe => (
             <Fragment key={gruppe.id}>
-              <GruppenKopf gruppe={gruppe} />
+              <GruppenKopf gruppe={gruppe} spalten={spalten} />
               {gruppe.zeilen.map(zeile => (
                 <Fragment key={zeile.punkt.id}>
                   <Zeile
@@ -203,6 +198,8 @@ export function PunkteTabelle({
                     istOffen={offen === zeile.punkt.id}
                     umschalten={() => setOffen(offen === zeile.punkt.id ? null : zeile.punkt.id)}
                     kontext={kontext}
+                    mitStand={mitStand}
+                    spalten={spalten}
                   />
                 </Fragment>
               ))}

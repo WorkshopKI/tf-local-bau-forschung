@@ -7,9 +7,13 @@
  *    Gruppe.
  * 3. Die Marker-Gruppe steht am Ende und ist als solche erkennbar.
  * 4. Der Zähler zählt nur eigene, nicht zurückgezogene Antworten.
+ * 5. Die Spalte „Stand" erscheint genau dann, wenn eine Zeile etwas zu melden hat —
+ *    dieselbe Funktion entscheidet über Anzeige UND Sichtbarkeit der Spalte.
  */
 import { describe, it, expect } from 'vitest';
-import { baueZeilen, baueGruppen, beantwortetVon } from '@/plugins/zu-klaeren/gruppen';
+import {
+  baueZeilen, baueGruppen, beantwortetVon, standMarke, zeigtStand,
+} from '@/plugins/zu-klaeren/gruppen';
 import { falte } from '@/plugins/zu-klaeren/fold';
 import { bauePunkte } from '@/plugins/zu-klaeren/seed-phasenschnitt';
 import { OHNE_PHASE, type KlaerungEintrag } from '@/plugins/zu-klaeren/typen';
@@ -95,7 +99,7 @@ describe('beantwortetVon (der Zähler im Seitenkopf)', () => {
     expect(beantwortetVon(PUNKTE, stand, 'MUE')).toBe(0);
   });
 
-  it('„gehört nach …" ohne gewählte Zielphase zählt noch nicht', () => {
+  it('„andere" ohne gewählte Zielphase zählt noch nicht', () => {
     // Sonst behauptete der Zähler „erledigt", während die Auswertung aus dem
     // Eintrag nichts liest — jemand hielte sich für durch und wäre es nicht.
     const offen = falte([e({ autor: 'MUE', punktId: 'code-11', urteil: 'andere' })]);
@@ -121,5 +125,59 @@ describe('beantwortetVon (der Zähler im Seitenkopf)', () => {
   it('ohne Kürzel ist der Zähler 0, nicht die Gesamtzahl', () => {
     const stand = falte([e({ autor: 'MUE', punktId: 'code-11', urteil: 'passt' })]);
     expect(beantwortetVon(PUNKTE, stand, undefined)).toBe(0);
+  });
+});
+
+describe('standMarke / zeigtStand (die Spalte „Stand")', () => {
+  const zeileZu = (stand: ReturnType<typeof falte>, autoren: string[], id: string) =>
+    baueZeilen(PUNKTE, stand, autoren, undefined, null).find(z => z.punkt.id === id)!;
+
+  it('ohne Antworten meldet keine Zeile etwas — die Spalte bleibt weg', () => {
+    const g = baueGruppen(baueZeilen(PUNKTE, LEER, [], undefined, null));
+    expect(g.flatMap(x => x.zeilen).every(z => standMarke(z) === null)).toBe(true);
+    expect(zeigtStand(g)).toBe(false);
+  });
+
+  it('Einigkeit auf die ausgelieferte Phase ist keine Meldung — und keine leere Spalte', () => {
+    // Der Maßstab ist die Marke, nicht „irgendwer hat geklickt": stimmen alle zu,
+    // stünde die Spalte 30-mal leer und nähme der Bezeichnung die Breite.
+    const stand = falte([
+      e({ autor: 'MUE', punktId: 'code-38', urteil: 'passt' }),
+      e({ autor: 'SCH', punktId: 'code-38', urteil: 'passt' }),
+    ]);
+    expect(standMarke(zeileZu(stand, ['MUE', 'SCH'], 'code-38'))).toBeNull();
+    expect(zeigtStand(baueGruppen(baueZeilen(PUNKTE, stand, ['MUE', 'SCH'], undefined, null))))
+      .toBe(false);
+  });
+
+  it('zwei verschiedene Zielphasen ergeben „strittig" — und zwar laut', () => {
+    const stand = falte([
+      e({ autor: 'MUE', punktId: 'code-38', urteil: 'passt' }),
+      e({ autor: 'SCH', punktId: 'code-38', urteil: 'andere', zielWert: 'entscheidung' }),
+    ]);
+    expect(standMarke(zeileZu(stand, ['MUE', 'SCH'], 'code-38')))
+      .toMatchObject({ text: 'strittig', leise: false });
+    expect(zeigtStand(baueGruppen(baueZeilen(PUNKTE, stand, ['MUE', 'SCH'], undefined, null))))
+      .toBe(true);
+  });
+
+  it('`unklar` meldet eine Rückfrage samt Kürzel — leise, denn es ist keine Gegenstimme', () => {
+    const stand = falte([e({ autor: 'MUE', punktId: 'code-11', urteil: 'unklar' })]);
+    const marke = standMarke(zeileZu(stand, ['MUE'], 'code-11'));
+    expect(marke).toMatchObject({ text: 'Rückfrage', leise: true });
+    expect(marke?.title).toContain('MUE');
+  });
+
+  it('Einigkeit auf eine ANDERE Phase zeigt das Ziel an', () => {
+    const stand = falte([e({ autor: 'MUE', punktId: 'code-38', urteil: 'andere', zielWert: 'entscheidung' })]);
+    expect(standMarke(zeileZu(stand, ['MUE'], 'code-38'))?.text).toMatch(/^→ /);
+  });
+
+  it('ein zurückgezogenes Urteil nimmt die Marke wieder weg', () => {
+    const stand = falte([
+      e({ autor: 'MUE', punktId: 'code-38', urteil: 'andere', zielWert: 'entscheidung' }),
+      e({ autor: 'MUE', punktId: 'code-38', urteil: 'zurueckgezogen' }),
+    ]);
+    expect(standMarke(zeileZu(stand, ['MUE'], 'code-38'))).toBeNull();
   });
 });

@@ -2,8 +2,8 @@
  * Die Grundsatzfragen — der Abschnitt unter der Tabelle.
  *
  * Sie hängen nicht an einem einzelnen Code, sondern an einer Entscheidung über den
- * Schnitt als Ganzes. Deshalb kein Urteil, nur Text: „passt / gehört nach …" wäre
- * hier eine Scheinpräzision.
+ * Schnitt als Ganzes. Deshalb kein Urteil, nur Text: „passt / andere" wäre hier
+ * eine Scheinpräzision.
  *
  * Bewusst **immer sichtbar** statt hinter dem Zeilen-Filter: die Fragen, über die
  * am meisten zu reden ist, dürfen von einem Filter „nur strittige" nicht

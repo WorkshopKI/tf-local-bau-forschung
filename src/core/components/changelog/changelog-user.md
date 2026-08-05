@@ -30,6 +30,7 @@
 ### Verbesserungen
 - Das Jahres-Menü im Vorgangs-Board spricht jetzt durchgängig von **Jahren** statt von „Jahrgängen": „Letzte 3 Jahre", „Alle Jahre", „2 Jahre".
 - Die Arbeitsliste „Entscheidungsreif" heißt jetzt **„Zu entscheiden"**. Der alte Name war zu lang für die Spalten im Kanban und wurde dort abgeschnitten — abgekürzt sah er aus wie der Verfahrensschritt „Entscheidung", und genau die beiden sollte man auseinanderhalten können.
+- Die Tabelle unter **„Zu klären" steht deutlich dichter** — eine Zeile ist jetzt halb so hoch, es passt gut doppelt so viel auf einen Blick. Dafür heißt der mittlere Antwortknopf nur noch **„andere"** (statt „gehört nach …", was zweizeilig umbrach und jede Zeile in die Höhe zog); wohin, sagt weiterhin das Auswahlfeld darunter. Die Spalte „Stand" erscheint erst, sobald es etwas zu melden gibt.
 - Sperren nennen jetzt **Stränge** statt einzelner Regeln („die Stränge PreCheck und Nachforderung ruhen"). Eine neu angelegte Regel gehört damit automatisch zur richtigen Kette, statt still an der Sperre vorbeizulaufen. Am Bestand geprüft: an den ermittelten To-dos ändert sich dadurch nichts.
 
 ## v2.412 — 2026-08

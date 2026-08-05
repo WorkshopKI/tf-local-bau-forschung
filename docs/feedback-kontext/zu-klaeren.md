@@ -24,21 +24,22 @@ nirgends sichtbar.
   Zuordnung, die 222 Vorgänge betrifft, wiegt anders als eine mit dreien.
 - **Marker (ohne Phase)** — die letzte Gruppe, abgesetzt dargestellt. Diese Codes
   laufen als Kennzeichen neben dem Verfahren und haben bewusst keine Phase.
-- **Antwort je Zeile** — drei Möglichkeiten: „passt", „gehört nach …" (dann eine
-  Zielphase wählen) und „unklar". Denselben Knopf noch einmal drücken zieht die
-  eigene Antwort zurück.
+- **Antwort je Zeile** — ein Streifen aus drei zusammenhängenden Knöpfen: „passt",
+  „andere" (dann eine Zielphase wählen) und „unklar". Denselben Knopf noch einmal
+  drücken zieht die eigene Antwort zurück.
 - **Stand** — die Marke in der Zeile. „strittig" heißt: zwei oder mehr Personen
   haben verschiedene Zielphasen genannt. „Rückfrage" heißt: jemand konnte es nicht
   beurteilen. Ein Pfeil zeigt eine Zielphase, auf die sich alle einig sind, die
-  aber von der heutigen abweicht.
+  aber von der heutigen abweicht. **Die Spalte erscheint erst, wenn eine Zeile
+  etwas zu melden hat** — sind sich alle einig, stünde sie nur leer da.
 - **Beiträge** — das Sprechblasen-Symbol mit Zähler klappt die Zeile auf. Darunter
   stehen die Beiträge chronologisch mit Kürzel und Datum, darunter das Eingabefeld.
 - **Reiter über der Tabelle** — „Alle Zuordnungen", „Nur strittige" und „Offene
   Rückfragen", jeweils mit Zähler. Uneinigkeit ist das erwartete Ergebnis einer
   Abstimmung, kein Fehler — sie ist deshalb ruhig markiert und filterbar.
 - **Grundsatzfragen** — dreizehn Fragen unter der Tabelle, die den Schnitt als
-  Ganzes betreffen. Sie werden nur mit Text beantwortet; ein „passt / gehört nach
-  …" wäre hier Scheinpräzision. Sie sind immer sichtbar und verschwinden nicht
+  Ganzes betreffen. Sie werden nur mit Text beantwortet; ein „passt / andere"
+  wäre hier Scheinpräzision. Sie sind immer sichtbar und verschwinden nicht
   durch einen Filter. Sechs davon kamen aus Messungen am Bestand: PreCheck-Lücke,
   PreCheck-Vollständigkeit, Zieltage als Soll oder Ist, Abgrenzung 31/33/34, eine
   Regel ohne Treffer und eine verdeckte Fristüberwachung. Wo eine Messung eine
@@ -51,8 +52,8 @@ nirgends sichtbar.
 
 ## Typische Aktionen
 
-- Eine Zeile durchgehen und „passt", „gehört nach …" oder „unklar" wählen.
-- Bei „gehört nach …" die Zielphase auswählen; „ohne Phase" ist eine gültige Wahl.
+- Eine Zeile durchgehen und „passt", „andere" oder „unklar" wählen.
+- Bei „andere" die Zielphase auswählen; „ohne Phase" ist eine gültige Wahl.
 - Eine Zeile aufklappen und begründen, warum man anderer Meinung ist.
 - Auf „Nur strittige" umschalten und die offenen Punkte für den Termin sammeln.
 - Eine Grundsatzfrage beantworten.

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.413.4 — Zu-klaeren-Tabelle vertikal verdichtet (August 2026)
+
+PATCH — Die Tabelle wird im Fachtermin per Bildschirmfreigabe durchgegangen; 30 Zeilen à 58,5 px passten auf keinen Bildschirm. Treiber war das einzige zweizeilige Label: „gehört nach …" machte jede Zeile 46 px hoch statt 28 px. Reine Darstellung, kein Verhalten.
+
+- **Mittlerer Antwortknopf heißt „andere"** (Tooltip trägt den ganzen Satz) — drei gleich kurze Wörter, kein Umbruch ([labels.ts](src/plugins/zu-klaeren/labels.ts))
+- **Die drei Knöpfe sitzen als Streifen auf gemeinsamer Kante** statt einzeln mit Zwischenraum: 254 → 207 px breit, 46 → 22 px hoch ([AntwortZelle.tsx](src/plugins/zu-klaeren/AntwortZelle.tsx)); das geteilte `ToggleChip` bleibt unangetastet
+- **Keine Linie je Datenzeile mehr** (Gruppenkopf gliedert, `hover` führt), kleineres Zeilenpolster ([PunkteTabelle.tsx](src/plugins/zu-klaeren/PunkteTabelle.tsx))
+- **Spalte „Stand" erscheint erst, wenn eine Zeile etwas meldet** — eine Quelle für Anzeige und Sichtbarkeit (`standMarke`/`zeigtStand` in [gruppen.ts](src/plugins/zu-klaeren/gruppen.ts)); die 132 px gehen an die Bezeichnung
+- Nachgemessen in `dev:local` bei 1440×900: Zeile 58,5 → 30 px, Gruppenkopf 33 → 25 px, Tabelle 2042 → 1122 px (−45 %); für einen Bildschirm ohne Scrollen fehlen weiter 328 px — nicht durch kleinere Schrift erzwungen (12 px bleibt)
+
 ### v2.413.3 — Jahres-Menue heisst durchgaengig „Jahre" (August 2026)
 
 PATCH — Nachzug zu v2.413.2: „Letzte 3 Jahre" neben „Alle Jahrgänge" im selben Menü war halb umbenannt.

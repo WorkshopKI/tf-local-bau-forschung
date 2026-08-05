@@ -13,6 +13,7 @@
  */
 // Gegen die AUSLIEFERUNG, nicht gegen den geltenden Schnitt: siehe `zielLabel`.
 import { SEED_ZAH_PHASEN, ZAH_MARKER_LABEL, zahPhaseLabel } from '@/core/status';
+import { zielLabel } from './labels';
 import { konsens, type PunktBefund } from './konsens';
 import {
   OHNE_PHASE, urteilSchluessel, normalisiereAutor,
@@ -66,6 +67,43 @@ export function baueZeilen(
   });
 }
 
+/** Was in der Spalte „Stand" steht — oder `null`, wenn die Zeile nichts zu melden hat. */
+export interface StandMarke {
+  text: string;
+  title: string;
+  /** Gedämpft darstellen: Uneinigkeit ist das einzige, was Aufmerksamkeit verlangt. */
+  leise: boolean;
+}
+
+/**
+ * Der ruhige Marker einer Zeile — **eine** Quelle für Anzeige und Spalten-Sichtbarkeit.
+ *
+ * Ohne Antworten meldet jede Zeile `null`; die Spalte stünde dann 30-mal leer und
+ * nähme der Bezeichnung die Breite. Deshalb entscheidet dieselbe Funktion, ob die
+ * Spalte überhaupt erscheint (`zeigtStand`) — zwei Bedingungen nebeneinander wären
+ * zwei Wahrheiten, und die falsche fiele erst im Termin auf.
+ */
+export function standMarke(zeile: ZeileAnsicht): StandMarke | null {
+  const { zustand, unklarVon, ziel } = zeile.befund;
+  if (zustand === 'strittig') {
+    return {
+      text: 'strittig', title: 'Zwei oder mehr verschiedene Zielphasen genannt', leise: false,
+    };
+  }
+  if (unklarVon.length > 0) {
+    return { text: 'Rückfrage', title: `Rückfrage von ${unklarVon.join(', ')}`, leise: true };
+  }
+  if (zustand === 'einig' && ziel !== null && ziel !== zeile.punkt.seedZiel) {
+    return { text: `→ ${zielLabel(ziel)}`, title: 'Einig — aber anders als ausgeliefert', leise: true };
+  }
+  return null;
+}
+
+/** Trägt mindestens eine sichtbare Zeile eine Marke? Sonst bleibt die Spalte weg. */
+export function zeigtStand(gruppen: readonly GruppeAnsicht[]): boolean {
+  return gruppen.some(g => g.zeilen.some(z => standMarke(z) !== null));
+}
+
 /** Passt eine Zeile zum Filter? */
 export function passtZumFilter(zeile: ZeileAnsicht, filter: ZeilenFilter): boolean {
   if (filter === 'strittig') return zeile.befund.zustand === 'strittig';
@@ -110,7 +148,7 @@ export function baueGruppen(
  * Drei Fälle zählen bewusst nicht:
  * - ein zurückgezogenes Urteil — sonst zeigte der Zähler Arbeit an, die man
  *   ausdrücklich zurückgenommen hat;
- * - „gehört nach …" ohne gewählte Zielphase — die Auswertung liest daraus nichts,
+ * - „andere" ohne gewählte Zielphase — die Auswertung liest daraus nichts,
  *   also darf der Zähler nicht „erledigt" behaupten und jemanden in dem Glauben
  *   lassen, er sei durch;
  * - bei Freitext-Punkten alles außer einem eigenen Beitrag; ein Urteil gibt es dort
