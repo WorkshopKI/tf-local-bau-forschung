@@ -9,6 +9,15 @@
 export const CONFIG_SCHEMA_VERSION = 2;
 
 /**
+ * v3.0: Module, die per Zusatzpasswort gesperrt werden koennen.
+ *
+ * Muss mit `ModulSlot` in src/config/runtime-config.ts uebereinstimmen — die
+ * Liste steht hier ein zweites Mal, weil dieses Script kein TypeScript importiert.
+ * Ein Convention-Test haelt beide Seiten zusammen.
+ */
+export const MODUL_SLOTS = ['auslastung', 'kurator'];
+
+/**
  * Deep-Merge zweier Plain-Objekte. Override gewinnt; Sub-Objekte werden rekursiv
  * gemergt; Arrays werden ERSETZT (nicht concatenated), weil variant-spezifische
  * Listen wie `scan.file_extensions` sonst stillschweigend wachsen wuerden.
@@ -297,6 +306,10 @@ export const DEFAULT_CONFIG = {
   // Varianten ohne Gate). pl/kurator bekommen den auth-Block via
   // `npm run set-password -- <variant> <pw>` eingebacken (scripts/set-app-password.mjs).
   auth: null,
+
+  // v3.0: Modul-Schloesser. null/leer = nichts gesperrt (Dev-Server, dev, prod).
+  // Nur `pl` traegt Slots — via `npm run set-password -- pl --modul <slot> <pw>`.
+  moduleAuth: null,
 
   // Variante „local" (nur Entwickler-Maschine, nur Dev-Server): feste lokale
   // Ordner statt File-System-Access-API-Picker. `null` = aus. Gesetzt wird der
@@ -599,6 +612,79 @@ export function validateConfig(config) {
       }
       if (auth.hint != null && typeof auth.hint !== 'string') {
         errors.push('auth.hint muss string oder weggelassen sein');
+      }
+    }
+  }
+
+  // v3.0: Modul-Schlösser (moduleAuth) — Zusatzpasswörter für einzelne Module.
+  // Leitregel: VORHANDENER Slot = gesperrt, fehlender Slot = offen.
+  const moduleAuth = config.moduleAuth ?? null;
+  if (moduleAuth !== null) {
+    if (typeof moduleAuth !== 'object' || Array.isArray(moduleAuth)) {
+      errors.push('moduleAuth muss Objekt oder null/weggelassen sein');
+    } else {
+      for (const [slot, eintrag] of Object.entries(moduleAuth)) {
+        // Ein Tippfehler im Slot-Namen hieße sonst GAR KEINE Sperre — ein stiller
+        // Rückbau des Schutzes. Deshalb hart, nicht als Warnung.
+        if (!MODUL_SLOTS.includes(slot)) {
+          errors.push(
+            `KRITISCH: moduleAuth.${slot} ist kein bekanntes Modul (erlaubt: ${MODUL_SLOTS.join(', ')}). ` +
+            'Ein Tippfehler würde das Modul unbemerkt UNGESPERRT lassen.',
+          );
+          continue;
+        }
+        if (typeof eintrag !== 'object' || eintrag === null || Array.isArray(eintrag)) {
+          errors.push(`moduleAuth.${slot} muss ein Objekt sein`);
+          continue;
+        }
+        if (typeof eintrag.salt !== 'string' || !eintrag.salt.trim()) {
+          errors.push(
+            `KRITISCH: moduleAuth.${slot}.salt ist leer — das Schloss ist nicht verifizierbar. ` +
+            `Passwort via \`npm run set-password -- <variant> --modul ${slot} <passwort>\` setzen.`,
+          );
+        }
+        if (typeof eintrag.verifier !== 'string' || !eintrag.verifier.trim()) {
+          errors.push(
+            `KRITISCH: moduleAuth.${slot}.verifier ist leer — das Schloss ist nicht verifizierbar. ` +
+            `Passwort via \`npm run set-password -- <variant> --modul ${slot} <passwort>\` setzen.`,
+          );
+        }
+        if (eintrag.hint != null && typeof eintrag.hint !== 'string') {
+          errors.push(`moduleAuth.${slot}.hint muss string oder weggelassen sein`);
+        }
+      }
+
+      // Ein Schloss vor einem Modul, das gar nicht mitgebaut wird, ist tote Konfig.
+      if (moduleAuth.auslastung && config.features?.auslastung !== true) {
+        errors.push(
+          'KRITISCH: moduleAuth.auslastung gesetzt, aber features.auslastung ist nicht true — ' +
+          'das Modul ist gar nicht einkompiliert, die Sperre liefe ins Leere.',
+        );
+      }
+      if (moduleAuth.kurator && config.features?.kuratorMenus !== true) {
+        errors.push(
+          'KRITISCH: moduleAuth.kurator gesetzt, aber features.kuratorMenus ist nicht true — ' +
+          'die Kuration-Plugins werden schon zur Bauzeit entfernt, kein Passwort holt sie zurück.',
+        );
+      }
+
+      // Geteilte Salts wären ein Copy-Paste-Fehler: ein Passwort öffnete zwei Türen.
+      const salts = [
+        ...(auth?.salt ? [['auth', auth.salt]] : []),
+        ...Object.entries(moduleAuth)
+          .filter(([, e]) => e && typeof e === 'object' && typeof e.salt === 'string')
+          .map(([slot, e]) => [`moduleAuth.${slot}`, e.salt]),
+      ];
+      const gesehen = new Map();
+      for (const [wo, salt] of salts) {
+        if (gesehen.has(salt)) {
+          warnings.push(
+            `${wo} und ${gesehen.get(salt)} teilen sich dasselbe Salt — vermutlich ein Copy-Paste-Fehler ` +
+            '(ein Passwort würde beide Türen öffnen).',
+          );
+        } else {
+          gesehen.set(salt, wo);
+        }
       }
     }
   }

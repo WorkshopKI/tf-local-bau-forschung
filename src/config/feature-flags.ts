@@ -5,7 +5,7 @@
  * zu tippen — so fällt das Umschreiben bei Schema-Änderungen leichter.
  */
 
-import { runtimeConfig } from './runtime-config';
+import { runtimeConfig, MODUL_SLOTS, type ModulSlot } from './runtime-config';
 import { registryEditierbar, type RegistryUmgebung } from './registry-zugang';
 
 export const features = runtimeConfig.features;
@@ -35,6 +35,23 @@ export function isKuratorMenusEnabled(): boolean {
  *  AppPasswordGate + app-password.ts. */
 export function isAppGateRequired(): boolean {
   return runtimeConfig.auth?.required === true;
+}
+
+/**
+ * v3.0: Sperrt DIESER Build das Modul hinter ein Zusatzpasswort?
+ *
+ * Reiner Config-Read (kein Store-Zugriff) — die Laufzeit-Antwort „ist es gerade
+ * frei?" steht bewusst woanders (`@/core/modul-freischaltung`), weil ein
+ * Store-Import hier den Zyklus feature-flags → useKuratorSession → kurator-config
+ * → smb-handle → feature-flags schlösse. `npm run cycles` hat eine leere Allowlist.
+ */
+export function hatModulSchloss(slot: ModulSlot): boolean {
+  return !!runtimeConfig.moduleAuth?.[slot];
+}
+
+/** Trägt der Build überhaupt Schlösser? (steuert die Einstellungs-Sektion) */
+export function hatIrgendeinModulSchloss(): boolean {
+  return MODUL_SLOTS.some(hatModulSchloss);
 }
 
 /** v2.21: True nur im reinen prod-Endkunden-Build (variant=production OHNE

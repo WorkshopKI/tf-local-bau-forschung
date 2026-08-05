@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import type { ReactElement } from 'react';
 import {
   createHashRouter,
   Navigate,
@@ -17,8 +18,11 @@ import { legacyRedirectTarget, pluginIdToRoute, routeToPluginId } from '@/core/r
 import { FLAT_ROUTE_PLUGIN_IDS } from '@/plugins.config';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { AufbereitungPage } from '@/plugins/antraege/aufbereitung/AufbereitungPage';
-import { isAntragAufbereitungEnabled } from '@/config/feature-flags';
+import { isAntragAufbereitungEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
+import { ModulSchlossGate } from '@/core/components/ModulSchlossGate';
+import { useAuslastungFrei, useKuratorFrei } from '@/core/modul-freischaltung';
+import { useProfile } from '@/core/hooks/useProfile';
 
 /**
  * Kompatibilitäts-Wrapper: Bietet den bestehenden NavigationContext
@@ -118,6 +122,38 @@ function stripLeadingSlash(route: string): string {
   return route.replace(/^\//, '');
 }
 
+/**
+ * v3.0: Rendert eine geschuetzte Plugin-Seite — oder die Sperre.
+ *
+ * Betrifft `kuratorOnly`-Plugins und solche mit `modulSchloss`. Ohne Schloss in
+ * der Config sind die Praedikate konstant `true`, dev/local aendern sich also nicht.
+ */
+function GeschuetzteSeite({ plugin }: { plugin: TeamFlowPlugin }): ReactElement {
+  const { profile } = useProfile();
+  const auslastungFrei = useAuslastungFrei();
+  const kuratorFrei = useKuratorFrei();
+  const Component = plugin.component;
+
+  const istKurator = !!(profile?.is_kurator ?? profile?.is_admin) && isKuratorMenusEnabled() && kuratorFrei;
+  const kuratorOnly = plugin.kuratorOnly ?? plugin.adminOnly;
+
+  let frei = true;
+  if (kuratorOnly) frei = istKurator;
+  if (plugin.modulSchloss === 'auslastung') frei = frei && auslastungFrei;
+  if (plugin.modulSchloss === 'kurator') frei = frei && kuratorFrei;
+
+  return (
+    <ModulSchlossGate frei={frei} bereich={plugin.name}>
+      <Component />
+    </ModulSchlossGate>
+  );
+}
+
+/** Braucht dieses Plugin ueberhaupt einen Routen-Schutz? */
+function brauchtSchutz(p: TeamFlowPlugin): boolean {
+  return !!(p.modulSchloss || p.kuratorOnly || p.adminOnly);
+}
+
 export function buildRouter(
   plugins: TeamFlowPlugin[],
 ): ReturnType<typeof createHashRouter> {
@@ -135,7 +171,10 @@ export function buildRouter(
     const plugin = byId.get(id);
     if (!plugin) continue;
     const Component = plugin.component;
-    children.push({ path: stripLeadingSlash(pluginIdToRoute(id)), element: <Component /> });
+    children.push({
+      path: stripLeadingSlash(pluginIdToRoute(id)),
+      element: brauchtSchutz(plugin) ? <GeschuetzteSeite plugin={plugin} /> : <Component />,
+    });
   }
 
   // Legacy /admin/* → /kuration/* Redirects (Bookmarks / Browser-History).

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { StorageService } from '@/core/services/storage';
+import type { ModulSlot } from '@/config/runtime-config';
 
 /**
  * Feature-Flags, die einzelne Plugins gaten koennen. Subset von
@@ -72,6 +73,16 @@ export interface TeamFlowPlugin {
   component: ComponentType;
   /** Wenn true, nur sichtbar für User mit `profile.is_kurator === true`. */
   kuratorOnly?: boolean;
+  /**
+   * v3.0: Laufzeit-Schloss. Das Plugin ist einkompiliert (`featureFlag`), aber erst
+   * sichtbar, nachdem der Slot per Zusatzpasswort freigeschaltet wurde
+   * (`moduleAuth.<slot>` in der Variant-Config). Fehlt das Schloss in der Config,
+   * ist nichts gesperrt — dev/local verhalten sich unveraendert.
+   *
+   * Der Filter sitzt in ShellLayout (Sidebar/Command-Palette/Shortcuts), die Route
+   * schuetzt zusaetzlich `ModulSchlossGate` gegen Deep-Links.
+   */
+  modulSchloss?: ModulSlot;
   /**
    * Wenn true, taucht das Plugin NICHT in der Sidebar-Nav (und den Nav-Command-
    * Items) auf — seine Route bleibt aber registriert und erreichbar (Bookmarks,

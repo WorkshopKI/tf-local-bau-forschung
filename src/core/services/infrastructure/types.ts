@@ -39,6 +39,11 @@ export function dmsSourceSlotKey(sourceId: string): string {
 export const KURATOR_SESSION_META_IDB_KEY = 'admin-session-meta';
 export const KURATOR_NAME_LOCAL_IDB_KEY = 'admin-name-local';
 
+/** v3.0: Freischaltung der per Zusatzpasswort gesperrten Module. Geraetelokal —
+ *  gehoert NIE in Snapshot, Share oder Personal-Mirror (eine Freischaltung ist
+ *  eine Aussage ueber DIESES Geraet, nicht ueber das Team). */
+export const MODUL_FREISCHALTUNG_IDB_KEY = 'modul-freischaltung';
+
 export const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 /** Programm-Ordner-Name (v1.9). Migration aus `programm-test/` liegt in migration.ts. */

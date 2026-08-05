@@ -233,6 +233,36 @@ export interface TeamflowAuthConfig {
 }
 
 /**
+ * v3.0: Module, die zur LAUFZEIT per Zusatzpasswort freigeschaltet werden.
+ *
+ * Hintergrund: bis v2.x trennten eigene Build-Varianten (`pl`/`as`/`kurator`) die
+ * Zielgruppen. Seit der Zusammenlegung entscheidet ein Passwort statt eines Builds.
+ */
+export type ModulSlot = 'auslastung' | 'kurator';
+
+/** Alle bekannten Slots — Reihenfolge = Prüfreihenfolge in `verifyAnyPassword`. */
+export const MODUL_SLOTS: readonly ModulSlot[] = ['auslastung', 'kurator'] as const;
+
+/** Ein Schloss: dieselbe Krypto wie `auth`, erzeugt vom selben Build-Tool. */
+export interface TeamflowModuleAuthEntry {
+  /** Base64, 16 Random-Bytes (PBKDF2-Salt). */
+  salt: string;
+  /** Base64, [12B IV][ciphertext+tag]; Sentinel trägt `role: <slot>`. */
+  verifier: string;
+  /** Optionaler Hinweis im Freischalt-Dialog. */
+  hint?: string;
+}
+
+/**
+ * **Vorhandener Slot = gesperrt, fehlender Slot = offen.** Kein `required` je Slot.
+ *
+ * Diese Regel hält `dev` und `local` verhaltensgleich: beide führen keinen Block,
+ * also ist dort nichts gesperrt — sonst wäre ausgerechnet in der Abnahme-Umgebung
+ * (`npm run dev:local`) das Modul unsichtbar.
+ */
+export type TeamflowModuleAuth = Partial<Record<ModulSlot, TeamflowModuleAuthEntry>>;
+
+/**
  * Variante „local" (nur Entwickler-Maschine, nur Vite-Dev-Server): feste lokale
  * Ordner statt File-System-Access-API-Picker, damit die App ohne einen einzigen
  * Browser-Dialog startet und automatisiert bedienbar ist.
@@ -288,8 +318,10 @@ export interface TeamflowConfig {
   /** Phase 2 — optional, default-leere Werte werden vom Build-Layer gesetzt. */
   scan?: TeamflowScanConfig;
   dev?: TeamflowDevConfig;
-  /** v2.16 — optionales Build-Time Rollen-Passwort-Gate (pl + kurator). */
+  /** v2.16 — optionales Build-Time Rollen-Passwort-Gate (App-Start, ganze App). */
   auth?: TeamflowAuthConfig;
+  /** v3.0 — optionale Modul-Schlösser (Auslastung / Kurator). Fehlt = nichts gesperrt. */
+  moduleAuth?: TeamflowModuleAuth;
   /** Variante „local" — feste Entwickler-Ordner statt FSAPI-Picker. Nie in Prod. */
   local?: TeamflowLocalConfig | null;
   /** Modul „Anfragen" — externes ZIM FAQ-Assistent-Artifact (nur dev). Konfigwert

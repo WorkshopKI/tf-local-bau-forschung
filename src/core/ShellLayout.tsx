@@ -29,6 +29,8 @@ import {
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
+import { useAuslastungFrei, useKuratorFrei } from '@/core/modul-freischaltung';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { useKuratorActivityTracker } from '@/core/hooks/useKuratorActivityTracker';
 import { ensureDefaultProgramm } from '@/core/services/csv';
@@ -116,7 +118,12 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   // — der Runtime-Check hier schützt zusätzlich Plugins die `kuratorOnly: true`
   // mit anderer Kategorie kombinieren (falls künftig eingeführt) und ignoriert
   // Legacy-Profile aus Dev-Builds die versehentlich mit Prod-Build geöffnet werden.
-  const isKurator = !!(profile?.is_kurator ?? profile?.is_admin) && isKuratorMenusEnabled();
+  // v3.0: zusaetzlich zur Profil-Flagge zaehlt die Freischaltung. In Builds ohne
+  // Kurator-Schloss (dev/local) ist `useKuratorFrei()` konstant true — dort bleibt
+  // es exakt beim bisherigen Verhalten.
+  const kuratorFrei = useKuratorFrei();
+  const auslastungFrei = useAuslastungFrei();
+  const isKurator = !!(profile?.is_kurator ?? profile?.is_admin) && isKuratorMenusEnabled() && kuratorFrei;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -124,9 +131,13 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     return plugins.filter(p => {
       const kuratorOnly = p.kuratorOnly ?? p.adminOnly;
       if (kuratorOnly && !isKurator) return false;
+      // Laufzeit-Schloss (moduleAuth). Deckt Sidebar, Command-Palette und
+      // Shortcuts in einem Zug ab — alle leiten sich von visiblePlugins ab.
+      if (p.modulSchloss === 'auslastung' && !auslastungFrei) return false;
+      if (p.modulSchloss === 'kurator' && !kuratorFrei) return false;
       return true;
     });
-  }, [plugins, isKurator]);
+  }, [plugins, isKurator, auslastungFrei, kuratorFrei]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
   const ueberAppOffen = useUeberAppDialog(s => s.open);
@@ -201,6 +212,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const tour = useTourContext();
   const storage = useStorage();
   const kuratorSession = useKuratorSession();
+  const modulFreischaltung = useModulFreischaltung();
   const smbStatus = useSmbStatus();
   const initActiveProgramm = useActiveProgramm(s => s.init);
 
@@ -242,12 +254,15 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Rehydrate Kurator-Session + start SMB-polling once.
-  // Demo-Variante (kein fester Pfad, keine User-Auswahl) nutzt das SMB-Layer
-  // nicht und soll auf evtl. verwaiste Handles aus parallelen Builds nicht
-  // reagieren — kuratorSession bleibt aktiv, weil sie nur IDB-Meta liest.
+  // Start SMB-polling once. Demo-Variante (kein fester Pfad, keine User-Auswahl)
+  // nutzt das SMB-Layer nicht und soll auf evtl. verwaiste Handles aus parallelen
+  // Builds nicht reagieren.
+  //
+  // v3.0: Der Rehydrate der Kurator-Session ist von hier nach App.tsx gewandert —
+  // er muss VOR den Plugin-onInit-Hooks laufen, sonst sieht ein gesperrtes Modul
+  // seine gueltige Freischaltung nicht. Hier waere er zu spaet (die Shell mountet
+  // erst nach der Passwort-Wall).
   useEffect(() => {
-    void kuratorSession.rehydrate(storage.idb);
     if (!isDataShareEnabled()) return;
     smbStatus.startPolling(storage.idb);
     void (async () => {
@@ -274,7 +289,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, []);
 
   useEffect(() => {
-    const h = window.setInterval(() => kuratorSession.tick(storage.idb), 60_000);
+    const h = window.setInterval(() => {
+      kuratorSession.tick(storage.idb);
+      modulFreischaltung.tick(storage.idb);
+    }, 60_000);
     return () => window.clearInterval(h);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

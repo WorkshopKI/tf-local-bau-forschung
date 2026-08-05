@@ -40,6 +40,8 @@ import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig, isMaLoginEnabled, canWriteDatenShare } from '@/config/feature-flags';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import { getAppGateSession } from '@/core/hooks/useAppGateSession';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { seedTestData } from '@/core/services/seed/seed-data';
 import { useConnectionState } from '@/core/services/connection-status';
 import { useVisibilityPermissionProbe } from '@/core/hooks/useVisibilityPermissionProbe';
@@ -369,6 +371,17 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       } catch (e) {
         console.warn('[App] ensureListViewProjection fehlgeschlagen', e);
       }
+
+      // v3.0: Modul-Freischaltungen wiederherstellen — MUSS vor den onInit-Hooks
+      // und vor der Gate-Entscheidung stehen. Nur dadurch koennen die
+      // Sichtbarkeits-Praedikate synchron bleiben: sie lesen den Store-Zustand,
+      // und der ist ab hier fuer den Rest des Starts korrekt. Laeuft der Rehydrate
+      // spaeter, sieht das Auslastungs-onInit faelschlich „gesperrt" und der
+      // Warmup unterbleibt trotz gueltiger Freischaltung. Zwei IDB-Punktlesungen.
+      await Promise.allSettled([
+        useKuratorSession.getState().rehydrate(storage.idb),
+        useModulFreischaltung.getState().rehydrate(storage.idb),
+      ]);
 
       // v2.13: Plugin onInit-Hooks parallel + fehlertolerant. Non-blocking
       // — blockiert den App-Start NICHT, laeuft im Hintergrund. Plugins
