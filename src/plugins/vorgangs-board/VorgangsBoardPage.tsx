@@ -237,12 +237,12 @@ export function VorgangsBoardPage(): React.ReactElement {
           />
           <span className="w-2" />
           <MultiSelectDropdown
-            einheit="Jahrgänge"
-            alleLabel="Alle Jahrgänge"
+            einheit="Jahre"
+            alleLabel="Alle Jahre"
             optionen={api.jahrOptionen}
             ausgewaehlt={api.jahre}
             onChange={api.setJahre}
-            // Die Vorbelegung hat einen Namen — „3 Jahrgänge" wäre richtig, aber
+            // Die Vorbelegung hat einen Namen — „3 Jahre" wäre richtig, aber
             // nichtssagend.
             labelOverride={istLetzteDrei ? 'Letzte 3 Jahre' : null}
             aktionen={[
@@ -252,7 +252,7 @@ export function VorgangsBoardPage(): React.ReactElement {
                 aktiv: istLetzteDrei,
               },
               {
-                label: 'Alle Jahrgänge',
+                label: 'Alle Jahre',
                 onClick: () => api.setJahre([]),
                 aktiv: api.jahre.length === 0,
               },

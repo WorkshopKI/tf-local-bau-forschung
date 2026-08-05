@@ -59,14 +59,14 @@ Verfügung.
   und damit, wie viel Regelarbeit noch aussteht.
 - **Filter**: Rollen-Chips (Vorbelegung aus dem Profil, umschaltbar auf alle),
   eigenes Kürzel an/aus, **„hängt fest"** — dazu drei Menüs mit
-  **Mehrfachauswahl**: Jahrgänge (Jahr des Antragseingangs), Fördervarianten und
+  **Mehrfachauswahl**: Jahre (Jahr des Antragseingangs), Fördervarianten und
   ZAH-Phasen. Der Kürzel-Filter folgt der Rolle: ein AB sucht sich in der
   BIB-Spalte, ein FB in TIB.
   - **Nichts angehakt heißt „alle"**, nicht „nichts". Jedes Menü hat oben einen
     Rücksetzer.
-  - **Jahrgänge starten auf den letzten dreien** — und zwar sichtbar angekreuzt,
+  - **Die Jahre starten auf den letzten dreien** — und zwar sichtbar angekreuzt,
     nicht als Sammelwert. Der Schnellweg „Letzte 3 Jahre" stellt sie wieder
-    her, „Alle Jahrgänge" hebt die Auswahl auf.
+    her, „Alle Jahre" hebt die Auswahl auf.
   - **Die Zahl neben jedem Wert ist eine Zusage**: sie sagt, wie viele Zeilen ein
     Klick brächte, und rechnet dafür unter den *jeweils anderen* aktiven Filtern
     — die eigene Achse bleibt ausgespart. Wer „FuE" wählt, sieht die Jahrgangs-

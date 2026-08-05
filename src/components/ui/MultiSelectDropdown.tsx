@@ -33,7 +33,7 @@ export interface MultiSelectAktion {
 }
 
 export interface MultiSelectDropdownProps {
-  /** Was ausgewählt wird, im Plural — „Jahrgänge", „Fördervarianten". */
+  /** Was ausgewählt wird, im Plural — „Jahre", „Fördervarianten". */
   einheit: string;
   /** Beschriftung bei leerer Auswahl, z.B. „Alle Fördervarianten". */
   alleLabel: string;
@@ -42,7 +42,7 @@ export interface MultiSelectDropdownProps {
   onChange: (werte: string[]) => void;
   /**
    * Überschreibt die abgeleitete Button-Beschriftung — für Auswahlen, die einen
-   * eigenen Namen haben („Letzte 3 Jahre" statt „3 Jahrgänge").
+   * eigenen Namen haben („Letzte 3 Jahre" statt „3 Jahre").
    */
   labelOverride?: string | null;
   aktionen?: readonly MultiSelectAktion[];
@@ -94,7 +94,7 @@ export function MultiSelectDropdown({
         aria-haspopup="listbox"
         aria-expanded={offen}
         aria-controls={offen ? listenId : undefined}
-        // Der Tooltip nennt die volle Auswahl — „3 Jahrgänge" allein sagt
+        // Der Tooltip nennt die volle Auswahl — „3 Jahre" allein sagt
         // nicht, welche.
         title={gewaehlteLabels.length > 1 ? gewaehlteLabels.join(', ') : undefined}
         className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] whitespace-nowrap cursor-pointer"

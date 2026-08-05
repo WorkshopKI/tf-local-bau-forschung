@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.413.3 — Jahres-Menue heisst durchgaengig „Jahre" (August 2026)
+
+PATCH — Nachzug zu v2.413.2: „Letzte 3 Jahre" neben „Alle Jahrgänge" im selben Menü war halb umbenannt.
+
+- **Alle Beschriftungen des Jahres-Menüs sprechen von „Jahren"** — leere Auswahl „Alle Jahre", Mehrfachauswahl „N Jahre" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- Nachgemessen in `dev:local` über alle vier Zustände: Vorbelegung „Letzte 3 Jahre", leer „Alle Jahre", ein Jahr „2026", zwei Jahre „2 Jahre" (Tooltip „2026, 2025")
+
 ### v2.413.2 — Jahres-Filter heisst „Letzte 3 Jahre" (August 2026)
 
 PATCH — Der Jahres-Filter des Vorgangs-Boards nannte sich „Letzte 3 Jahrgänge"; gemeint sind schlicht die letzten drei Jahre des Antragseingangs.
