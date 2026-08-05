@@ -77,5 +77,5 @@ Aus der Umsetzung, noch offen:
 
 - **Die Trigger-Sidecar speicherte ihre eigene Deutung mit.** Eine Parser-Verbesserung wäre erst beim nächsten XLSX-Import angekommen; jetzt wird beim Laden neu abgeleitet.
 - **Der Regel-Editor arbeitete auf einem anderen Vokabular als die Auswertung** — man konnte dort eine Regel bauen, die still nie zutrifft.
-- **Ein gewachsener Regelsatz erreichte bestehende Fassungen nicht.** Der Status-Katalog zeigt die Drift jetzt und zieht sie nach.
+- **Ein gewachsener Regelsatz erreichte bestehende Fassungen nicht.** Die Vorgangs-Regeln zeigen die Drift jetzt und ziehen sie nach.
 - **Betrachtungsbereich** (v2.389, korrigiert v2.397): der Arbeitsvorrat steht auf den letzten drei Richtlinien-**Generationen** (2015 + 2020 + 2025 = 12 Programme, 12 355 Anträge), die Suche bleibt am Vollbestand. v2.389 hatte nach Trigger-Abdeckung geschnitten und dabei 2015 ausgelassen. Von den sichtbaren Zahlen ändert sich **nur** „Alle" in der Antragsliste (9 316 → 5 542 → 7 468) — kein Arbeitsvorrat-Zähler, in keinem der beiden Schritte.

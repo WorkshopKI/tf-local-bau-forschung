@@ -4,7 +4,7 @@
 
 Das geteilte To-do-Board — der Ersatz für die privaten XLSX-Dashboards. Es sagt
 je Antrag, **was als Nächstes zu tun ist**, abgeleitet aus einer geordneten
-Regel-Kaskade, die im Status-Katalog gepflegt wird. Dieselbe Rechnung, die eine
+Regel-Kaskade, die unter „Vorgangs-Regeln" gepflegt wird. Dieselbe Rechnung, die eine
 AB-Kollegin heute als verschachtelte WENN-Formel in ihrer Mappe führt, nur
 versioniert und für alle sichtbar.
 
@@ -78,7 +78,7 @@ Verfügung.
   ihres Status nichts passiert ist, trägt die Marke „hängt n T". Im Kopf steht
   der **Stau je Rolle**; daneben — nicht darin — die Zahl der **nicht
   bewertbaren** Vorgänge, für deren Status niemand Zieltage gepflegt hat.
-  Zieltage werden im Status-Katalog unter „Katalog" gepflegt.
+  Zieltage werden unter „Vorgangs-Regeln" im Reiter „Statuswerte" gepflegt.
 
   Steht vor der Zahl ein **„≥"**, ist die Liegezeit eine Untergrenze: die
   Datumsspalten des Exports tragen je Kürzel nur das zuletzt gesetzte Datum.
@@ -102,7 +102,7 @@ Verfügung.
 
 ## Wichtig
 
-- **Der Regelsatz wird nicht hier gepflegt**, sondern im Status-Katalog unter
+- **Der Regelsatz wird nicht hier gepflegt**, sondern unter „Vorgangs-Regeln" im Reiter
   „Regeln" → To-do-Regeln. Führt die Katalog-Fassung keine Regeln, sagt das Board
   das und zeigt nichts an, statt Leere zu behaupten.
 - Die Rollen-Zuordnung ist die **Soll-Rolle** aus dem Regelsatz, nicht die Person:

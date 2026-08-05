@@ -10,7 +10,7 @@ beweglich.
 | **Frage** | Wo im Verfahren steht der Vorgang? | Wer ist am Zug — oder ist es erledigt? |
 | **Wirkt auf** | Verfahrensleiste, Filter-Gruppierung, Zieltage, Stillstands-Wächter | Reiter, Abschnitte, Farben und Kanban-Lanes in *Förderanträge* |
 | **Wohnt in** | der Katalog-Fassung (`MappingVersion.zahPhasen`) | dem Code (`core/utils/status-canonical.ts`) |
-| **Ändert wer** | die PL im Baum-Editor des Status-Katalogs | niemand zur Laufzeit |
+| **Ändert wer** | die PL im Baum-Editor der Vorgangs-Regeln | niemand zur Laufzeit |
 | **Anzahl** | 3 bis 9, ausgeliefert 6 | fest 9 |
 
 Beide hängen zusammen, aber nur in eine Richtung: jede Phase trägt eine

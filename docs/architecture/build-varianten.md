@@ -5,7 +5,7 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 - `configs/dev.config.json` — Developer-Build, alle Features + OpenRouter aktiv
 - `configs/prod.config.json` — Produktion (End-User), nur Home + Förderanträge + Einstellungen, kein Kurator-Login
 - `configs/kurator.config.json` — Produktion (Kurator-Rolle), Standard-Sidebar wie prod + Kuration-Menüs nach Login
-- `configs/pl.config.json` — Produktion (Projektleitung), der volle Fach-Stack ohne Kurator-Login: Förderanträge + Auslastung + Erprobungs-Bereiche (Anfragen, Meilensteine, Förderfähigkeit, Vorgangs-Board, Status-Katalog) + Suche + Skill-Verwaltung
+- `configs/pl.config.json` — Produktion (Projektleitung), der volle Fach-Stack ohne Kurator-Login: Förderanträge + Auslastung + Erprobungs-Bereiche (Anfragen, Meilensteine, Förderfähigkeit, Vorgangs-Board, Vorgangs-Regeln) + Suche + Skill-Verwaltung
 - `configs/as.config.json` (v2.115) — Produktion (AS-Rolle), **feature-identisch zu pl, ohne Auslastungs-Modul** (`features.auslastung` + `auslastungSelbstEintragung` + `deAnonymisierung` + `maVerwaltungPasswort` auf false); eigenes Zugangspasswort
 - `configs/local.config.json` (v2.371) — **wird nie gebaut**: reine Dev-Server-Variante (`npm run dev:local`, Port 5175), die statt des Ordner-Pickers feste lokale Ordner verdrahtet. Für Sicht-Checks und automatisiertes Bedienen. `validateConfig` verbietet den `local`-Block in `variant: "production"`, das Gate `__TEAMFLOW_LOCAL_FS__` hängt an `command === 'serve'`. Siehe [local-variante.md](local-variante.md)
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
@@ -22,7 +22,7 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Fristen & Meilensteine | `meilensteinMonitoring` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
 | Förderfähigkeit | `mapFoerderfaehig` | ✓ | – | – | – | ✓ | ✓ |
 | Vorgangs-Board | `vorgangssystem` | ✓ | – | – | – | ✓ | ✓ |
-| Status-Katalog | `statusCockpit` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
+| Vorgangs-Regeln | `statusCockpit` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
 | Dokumente | `dokumente` | ✓ | – | – | – | – | – |
 | Suche (inkl. angedocktem Chat) | `suche` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Skill-Verwaltung | `skillVerwaltung` | ✓ | – | ✓ | ✓ | ✓ | ✓ |
@@ -31,7 +31,7 @@ Sichtbarkeits-Matrix (was steht in der Sidebar):
 | Kurator-Toggle in Einstellungen | `kuratorMenus` | ✓ | – | ✓ | ✓ | – | – |
 | Kuration-Menüs (Suchindex, Programme, CSV, DMS, Filter, Feedback, Review) | `kuratorMenus` | ✓ | – | – | ✓ | – | – |
 
-Anfragen, Meilensteine, Förderfähigkeit, Vorgangs-Board und Status-Katalog stehen in der Sidebar-Gruppe **„In Erprobung"** (`category: 'erprobung'`, siehe [groupNavPlugins.ts](../../src/core/nav/groupNavPlugins.ts)).
+Anfragen, Meilensteine, Förderfähigkeit, Vorgangs-Board und Vorgangs-Regeln stehen in der Sidebar-Gruppe **„In Erprobung"** (`category: 'erprobung'`, siehe [groupNavPlugins.ts](../../src/core/nav/groupNavPlugins.ts)).
 
 ○ = **Auslastung in kurator nur als „Themen-Vektoren"** (v2.56, `features.auslastungNurKorpus`): schlanker Korpus-Pflege-View zum Aktuell-Halten des Embedding-Katalogs — **kein** MA-Auslastung/Zuweisung/Kompetenzen, nur „Inkrementell" (kein Vollbuild, der bleibt dev-exklusiv). Sichtbar als Workflow-Plugin (unabhängig vom Kurator-Toggle).
 

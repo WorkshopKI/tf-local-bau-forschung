@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.412.0 — Vorgangs-Regeln: Klaerung, Trigger-Herkunft, Benennung (August 2026)
+
+MINOR — Vor der AB-Sitzung fehlten zwei Dinge: die Antworten der Klärung hingen an einer Id, die sich beim nächsten eingefügten Punkt verschoben hätte, und in der App ließ sich nicht nachsehen, wodurch ein Status überhaupt entsteht. Dazu die Benennung: unter „Status-Katalog" vermutete niemand die Regeln. Detail: [klaerung.md](docs/architecture/klaerung.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md).
+
+- **Grundsatzfragen tragen stabile Ids**; bereits geschriebene Antworten werden beim Lesen übersetzt, nicht migriert (append-only Ablage) ([seed-phasenschnitt.ts](src/plugins/zu-klaeren/seed-phasenschnitt.ts), [fold.ts](src/plugins/zu-klaeren/fold.ts), Guard `no-index-punkt-id`)
+- **Vier neue Grundsatzfragen** aus der Bestands-Erhebung: PreCheck jenseits „beantragt", PreCheck-Vollständigkeit, Zieltage als Soll oder Ist, Abgrenzung 31/33/34
+- **„Wodurch dieser Status entsteht"** am Statuswert — setzende Kürzel mit Rolle, Ebene und Richtlinien, gebündelt statt neunmal derselbe Satz ([trigger-herkunft.ts](src/core/status/trigger-herkunft.ts), [StatusHerkunftBlock.tsx](src/plugins/status-cockpit/StatusHerkunftBlock.tsx))
+- **Reiter benannt und erklärt**: Statuswerte / Kürzel / To-do-Regeln, je mit einem Zwecksatz ([labels.ts](src/plugins/status-cockpit/labels.ts))
+- **Plugin heißt „Vorgangs-Regeln"** und ist mit dem Vorgangs-Board in beide Richtungen verknüpft; Route, Ordner und Id bleiben `status-cockpit` ([index.ts](src/plugins/status-cockpit/index.ts))
+
 ### v2.411.0 — Profilhaken benannt, Reitergruppen getrennt, Lane-Zaehler sichtbar (August 2026)
 
 MINOR — Nachlese zu v2.404/v2.410 samt Sichtprüfung am echten Bestand. Der Profilhaken hieß seit der Trennung von Antrags- und Begleitphase falsch, die Reiterleiste zeigte zwei Bestandssichten und drei Zeitschnitte als eine Reihe, und die Prüfung fand zwei Stellen, an denen Text schlicht verschwand. Detail: [status-achsen.md](docs/architecture/status-achsen.md).

@@ -1,11 +1,14 @@
-# Status-Katalog (Cockpit)
+# Vorgangs-Regeln
 
-Vollbild-Verwaltungsseite für Kuratoren. Hier wird der **Status-Katalog** gepflegt
-— die Daten hinter der Statusanzeige.
+Vollbild-Verwaltungsseite für Kuratoren: die Grundlagen, auf denen Status,
+Fristen und To-dos beruhen. Der Ordner im Code heißt weiter `status-cockpit`,
+die Seite hieß bis v2.412 „Status-Katalog" — unter dem Namen vermutete niemand
+die Regeln, und das Paar *Vorgangs-Board* / *Vorgangs-Regeln* macht sichtbar,
+dass das eine die To-dos zeigt, die das andere definiert.
 
 ## Zweck
 
-Der Katalog ordnet jedem Statuswert seinen **Verfahrensschritt** (die ZAH-Phase)
+Der Statuswert-Katalog ordnet jedem Statuswert seinen **Verfahrensschritt** (die ZAH-Phase)
 und seine **Zieltage** zu — mehr wird nicht kuratiert. Die **Kategorie** (offen,
 in Prüfung, Nachforderung …) folgt aus Phase und amtlichem Code; hängt die
 Projektleitung einen Code auf eine andere Phase um, zieht sie automatisch nach.
@@ -24,7 +27,11 @@ entfallen: angezeigt wird, was das Fachsystem führt.
 
 ## Bereiche
 
-- **Katalog** — zwei Sichten, umschaltbar oben; der Baum ist vorbelegt.
+Drei Reiter, jeder mit einem Zwecksatz darunter, der sagt, was dort gepflegt
+wird.
+
+- **Statuswerte** (bis v2.412 „Katalog") — zwei Sichten, umschaltbar oben; der
+  Baum ist vorbelegt.
   - **Phasen und Zuordnung** (Baum): Ebene 1 sind die Verfahrensschritte, Ebene 2
     die Statuswerte darunter. Ein Statuswert wird per **Ziehen** auf einen anderen
     Schritt gehängt; Schritte selbst werden untereinander sortiert, per F2 oder
@@ -33,6 +40,15 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     Zeilen ziehen gemeinsam um. Rechts steht der Editor zum ausgewählten Knoten —
     bei einem Schritt Beschriftung, Arbeitsliste und Zieltage-Relevanz, bei einem
     Statuswert Label, Prominenz, Zieltage und aktiv.
+    - Unter den Feldern eines Statuswerts steht **„Wodurch dieser Status
+      entsteht"** — die einzige nur lesende Angabe hier und die einzige, die
+      nicht aus unserer Kuration stammt: welche Kürzel des Fachsystems diesen
+      Status setzen, mit Bezeichnung, Rolle, ob TV- oder Verbund-Status, und in
+      welchen Richtlinien der Weg besteht. Gleiche Wirkung über mehrere
+      Richtlinien steht als EINE Zeile („in 131, 133 und 137"). Kennt die
+      Trigger-Tabelle keinen Weg, steht das als Satz da — eine Aussage, kein
+      Fehler. Ist die Tabelle gar nicht eingelesen, verweist der Block auf
+      „Referenzdaten".
     - **Schritt anlegen** bis zur Obergrenze 9; darüber ist der Knopf mit
       Begründung deaktiviert. **Entfernen** fragt immer „wohin mit den n
       Statuswerten?" — sie verschwinden nie, sie ziehen um. Unter 3 Schritten
@@ -92,15 +108,22 @@ entfallen: angezeigt wird, was das Fachsystem führt.
     dieselbe Aktion, gespeist aus „wird gesetzt von" statt aus einer erfundenen
     Liste; Kürzel, die jeder setzen darf, bleiben außen vor.
   - Filter: Ebene, Rolle, „nur relevante", „nur mit CSV-Spalte", „ohne Phase".
-- **To-dos**: die To-do-Kaskade — geordnet, die erste zutreffende Regel gewinnt.
-  Weicht der ausgelieferte Regelsatz von der gepflegten Fassung ab, steht das
-  oben mit Bilanz („4 neue Regeln · 6 geändert · 1 entfallen") und einem
-  Nachziehen-Knopf; Nachziehen ersetzt die gelieferten Regeln, legt entfallene
-  still und lässt eigene unangetastet. Eine Bedingung auf eine Spalte, die der
-  Katalog nicht führt, wird als Fehler angezeigt („trifft nie zu").
-  Die Reihenfolge IST das Ergebnis, deshalb wird sie über Pfeile gesetzt, nicht
-  per Ziehen. Jede Regel liest sich als deutscher Satz („WENN Status 71 und
-  D_ARQ leer → To-do «RNE ergänzen», zuständig AB").
+- **To-do-Regeln** (bis v2.412 „To-dos"): die To-do-Kaskade — geordnet, die
+  erste zutreffende Regel gewinnt. Die Reihenfolge IST das Ergebnis, deshalb
+  wird sie über Pfeile gesetzt, nicht per Ziehen. Jede Regel liest sich als
+  deutscher Satz („WENN Status 71 und D_ARQ leer → To-do «RNE ergänzen»,
+  zuständig AB").
+
+  - Der Reiter heißt bewusst nicht mehr „To-dos": wer das liest, erwartet seine
+    Aufgaben, und die stehen im Vorgangs-Board. Von dort führt ein Verweis
+    „Regeln bearbeiten" direkt hierher, zurück geht es über „Wirkung im
+    Vorgangs-Board ansehen".
+  - Weicht der ausgelieferte Regelsatz von der gepflegten Fassung ab, steht das
+    oben mit Bilanz („4 neue Regeln · 6 geändert · 1 entfallen") und einem
+    Nachziehen-Knopf; Nachziehen ersetzt die gelieferten Regeln, legt entfallene
+    still und lässt eigene unangetastet.
+  - Eine Bedingung auf eine Spalte, die der Katalog nicht führt, wird als Fehler
+    angezeigt („trifft nie zu").
   - **Zwei Ansichten, ein Reiter**: ohne geöffnete Regel steht die ganze Kaskade
     als Karten über die volle Breite (Nummer, Pfeile, Satz, Zustand,
     „Bearbeiten"). Ein Klick teilt die Ansicht: links die schlanke Liste mit

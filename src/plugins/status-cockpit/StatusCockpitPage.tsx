@@ -1,15 +1,20 @@
 /**
- * Status-Cockpit — Vollbild-Seite: Statuswerte kuratieren und versionieren.
+ * **Vorgangs-Regeln** — Vollbild-Seite: Statuswerte, Kürzel, To-do-Kaskade.
  *
  * Reine Darstellung über der `useStatusCockpit`-API: Seitenkopf + Export/Import,
- * Tab-Leiste (Katalog/Kürzel/To-dos), eine Versions-Sektion und eine
- * Speicher-Leiste, sobald der Entwurf von der aktiven Fassung abweicht.
+ * Tab-Leiste (Statuswerte/Kürzel/To-do-Regeln) mit Zwecksatz, eine
+ * Versions-Sektion und eine Speicher-Leiste, sobald der Entwurf von der aktiven
+ * Fassung abweicht.
+ *
+ * Der Ordner heißt weiter `status-cockpit` — siehe `index.ts`, dort steht,
+ * warum Anzeigename und Ordnername auseinanderfallen.
  *
  * Die Simulations-Leiste (Phasenverteilung Aktiv→Entwurf, Konflikte,
  * Phasenwechsel-Diff) ist mit v2.385 entfallen: sie schätzte die Wirkung von
  * RANG-Änderungen ab, und die gibt es nicht mehr.
  */
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
@@ -23,11 +28,15 @@ import { FelderTab } from './FelderTab';
 import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
 import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
-import { TAB_LABEL, TAB_ZWECK, feldStil, formatZeitpunkt, type TabKey } from './labels';
+import {
+  TAB_LABEL, TAB_ZWECK, feldStil, formatZeitpunkt, tabAusParameter, type TabKey,
+} from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel } from '@/core/status';
 
+/** Seitentitel — der Anzeigename des Plugins, an einer Stelle. */
+const SEITEN_TITEL = 'Vorgangs-Regeln';
 /** Untertitel der Seite — sie trägt drei Reiter, nicht nur den Statuswert-Katalog. */
 const SEITEN_UNTERTITEL = 'Die Grundlagen, auf denen Status, Fristen und To-dos beruhen';
 
@@ -234,11 +243,24 @@ export function StatusCockpitPage(): React.ReactElement {
   const api = useStatusCockpit();
   const [tab, setTab] = useState<TabKey>('katalog');
 
+  // Deep-Link von außerhalb: `/status-cockpit?tab=regeln` (Vorgangs-Board →
+  // „Regeln bearbeiten"). Einmal je Wert behandeln — sonst zöge der Effekt jeden
+  // späteren Reiter-Wechsel zurück, solange der Parameter in der URL steht.
+  const [searchParams] = useSearchParams();
+  const behandelterTab = useRef<string | null>(null);
+  useEffect(() => {
+    const roh = searchParams.get('tab');
+    if (roh === null || behandelterTab.current === roh) return;
+    behandelterTab.current = roh;
+    const ziel = tabAusParameter(roh);
+    if (ziel) setTab(ziel);
+  }, [searchParams]);
+
   if (api.laden) {
     return (
       <div className="flex flex-col h-full min-h-0">
         <div className="px-6 pt-5 pb-3">
-          <PageHeader title="Status-Katalog" subtitle={SEITEN_UNTERTITEL} />
+          <PageHeader title={SEITEN_TITEL} subtitle={SEITEN_UNTERTITEL} />
         </div>
         <div className="flex-1 grid place-items-center text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>
       </div>
@@ -252,7 +274,7 @@ export function StatusCockpitPage(): React.ReactElement {
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
         <PageHeader
-          title="Status-Katalog"
+          title={SEITEN_TITEL}
           subtitle={SEITEN_UNTERTITEL}
           actions={
             <div className="flex items-center gap-2">

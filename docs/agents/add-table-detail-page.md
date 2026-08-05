@@ -58,7 +58,7 @@ bauen** — die Bausteine existieren.
   — kanonischer Konsument von `MasterDetailLayout`.
 - **Dokumente** ([dokumente/index.tsx](../../src/plugins/dokumente/index.tsx)) — noch hand-gerolltes Split
   (`narrow={!!selectedId}`), Migrations-Kandidat.
-- **Split innerhalb eines Reiters**: To-do-Regeln im Status-Katalog
+- **Split innerhalb eines Reiters**: To-do-Regeln in den Vorgangs-Regeln
   ([TodoRegelnBereich.tsx](../../src/plugins/status-cockpit/TodoRegelnBereich.tsx)) — der Tab-Zweig
   der Seite bekommt einen eigenen `flex-1 min-h-0 flex flex-col` **ohne** `overflow-y-auto` (statt
   im gemeinsamen Seiten-Scroll zu hängen), der Bereichs-Kopf darüber ist `shrink-0`. Dort auch das

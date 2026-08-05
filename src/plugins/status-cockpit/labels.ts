@@ -59,6 +59,17 @@ export const PROMINENZ_WERTE: readonly Prominenz[] = [
 /** Die drei Reiter der Seite. Der Schlüssel ist stabil, die Beschriftung nicht. */
 export type TabKey = 'katalog' | 'felder' | 'regeln';
 
+const TAB_KEYS: readonly TabKey[] = ['katalog', 'felder', 'regeln'];
+
+/**
+ * Der Reiter aus `?tab=` — für Deep-Links von außerhalb (`/status-cockpit?tab=regeln`
+ * aus dem Vorgangs-Board). Unbekannter Wert ⇒ `null`, der Aufrufer bleibt dann
+ * beim Standard-Reiter statt auf einer leeren Seite zu landen.
+ */
+export function tabAusParameter(roh: string | null): TabKey | null {
+  return TAB_KEYS.find(k => k === roh) ?? null;
+}
+
 /**
  * Reiter-Beschriftungen — **eine** Quelle, wie bei den Kategoriebezeichnungen.
  *

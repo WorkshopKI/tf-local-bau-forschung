@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.412 — 2026-08
+
+### Neu
+- Am Statuswert steht jetzt, **wodurch er entsteht**: welche Kürzel des Fachsystems ihn setzen, wer sie setzen darf und in welchen Richtlinien. Damit lässt sich in der App belegen, wie sich etwa „beantragt", „unvollständig" und „bearbeitungsreif" voneinander abgrenzen.
+- Vier neue Grundsatzfragen in „Zu klären" — unter anderem, ob die Zieltage eine Sollzeit sind oder nur beschreiben, wie lange es heute dauert.
+
+### Verbesserungen
+- „Status-Katalog" heißt jetzt **Vorgangs-Regeln** und steht direkt neben dem Vorgangs-Board. Vom Board führt „Regeln bearbeiten" hin, von dort „Wirkung im Vorgangs-Board ansehen" zurück.
+- Die drei Reiter sagen jetzt, was dort zu tun ist: **Statuswerte**, **Kürzel**, **To-do-Regeln** — jeder mit einem Satz darunter.
+
+### Bugfixes
+- Die Antworten auf die Grundsatzfragen in „Zu klären" hängen nicht mehr an der Position der Frage. Vorher hätte eine eingefügte Frage alle Antworten dahinter stillschweigend verschoben; bereits gegebene Antworten bleiben erhalten.
+
 ## v2.411 — 2026-08
 
 ### Verbesserungen

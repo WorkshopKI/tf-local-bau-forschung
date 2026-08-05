@@ -19,6 +19,7 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, type Rolle } from '@/core/status';
 import { AbgeleitetMarke, TodoHerleitung, WartetAuf } from '@/components/vorgang/TodoAnzeige';
@@ -188,7 +189,22 @@ export function VorgangsBoardPage(): React.ReactElement {
           title="Vorgangs-Board"
           subtitle="Was steht an, wo klemmt es, wann läuft es ab"
           meta={<BereichChip ausgeblendet={api.ausgeblendet} />}
-          actions={<SeitenHilfeButton pluginId="vorgangs-board" />}
+          actions={
+            <div className="flex items-center gap-2">
+              {/* Der Verweis trifft die Frage im Moment ihres Entstehens: Wer
+                  wissen will, warum eine Karte hier steht, sitzt davor — und
+                  nicht in der Navigation auf der Suche nach dem Modul, das die
+                  Regel dazu führt. */}
+              <Button
+                variant="ghost" size="sm"
+                title="Die Kaskade pflegen, aus der diese Karten entstehen"
+                onClick={() => navigate('/status-cockpit?tab=regeln')}
+              >
+                Regeln bearbeiten
+              </Button>
+              <SeitenHilfeButton pluginId="vorgangs-board" />
+            </div>
+          }
         />
         <ScopeTabs
           variant="tabs"
@@ -280,9 +296,15 @@ export function VorgangsBoardPage(): React.ReactElement {
           <div className="rounded px-2.5 py-2 flex items-center gap-2" style={feldStil}>
             <Badge variant="warning">keine Regeln</Badge>
             <span className="text-[12.5px] text-[var(--tf-text)]">
-              Diese Katalog-Fassung führt keine To-do-Regeln. Im Status-Katalog unter
-              „Referenzdaten" nachziehen — bis dahin kann das Board nichts ableiten.
+              Diese Katalog-Fassung führt keine To-do-Regeln. Unter <strong>Vorgangs-Regeln</strong>
+              {' '}im Reiter „To-do-Regeln" nachziehen — bis dahin kann das Board nichts ableiten.
             </span>
+            <Button
+              variant="secondary" size="sm" className="ml-auto"
+              onClick={() => navigate('/status-cockpit?tab=regeln')}
+            >
+              Regeln öffnen
+            </Button>
           </div>
         )}
         {/* Die Spuren nebeneinander. „davon N abgeleitet" ist die eigentliche

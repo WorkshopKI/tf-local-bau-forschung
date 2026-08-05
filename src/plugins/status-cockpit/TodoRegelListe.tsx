@@ -10,6 +10,7 @@
  * mit drei Badges, Haken, Id und „Bearbeiten" auf fünf Zeilen um und wäre höher
  * als vor dem Umbau — der Zweck der Sache schlüge ins Gegenteil um.
  */
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { REGELSATZ_DEFAULT, type MappingVersion, type Rolle, type TodoRegel } from '@/core/status';
 import { feldStil } from './labels';
@@ -36,6 +37,7 @@ export function TodoRegelListe({
   onWaehlen: (id: string) => void;
   unbekannteJeRegel: ReadonlyMap<string, readonly string[]>;
 }): React.ReactElement {
+  const navigate = useNavigate();
   const { neu, geaendert, entfallen } = api.todoDrift;
   const driftGesamt = neu.length + geaendert.length + entfallen.length;
   const driftSatz = [
@@ -53,7 +55,17 @@ export function TodoRegelListe({
             Geordnete Kaskade: die <strong>erste zutreffende</strong> Regel bestimmt das To-do — die
             Reihenfolge ist also Teil des Ergebnisses, keine Sortierung der Anzeige. Sperren stehen
             vorn und erzeugen kein To-do, sondern legen ganze Stränge stumm. Trifft nichts, steht der
-            Antrag im Board unter „Kein To-do ermittelt".
+            Antrag im Board unter „Kein To-do ermittelt".{' '}
+            {/* Der Weg muss in beide Richtungen offen sein: wer hier eine Regel
+                ändert, will sehen, was sie am Bestand tut — und das steht im
+                Board, nicht in dieser Liste. */}
+            <button
+              type="button"
+              onClick={() => navigate('/vorgangs-board')}
+              className="underline underline-offset-2 cursor-pointer text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]"
+            >
+              Wirkung im Vorgangs-Board ansehen
+            </button>
           </p>
 
           {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
