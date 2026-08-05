@@ -78,10 +78,10 @@ export function TodoRegelnBereich({ version, api, platzhalter, onExportieren }: 
   return (
     <section className="flex-1 min-h-0 flex flex-col gap-2">
       <div className="shrink-0 flex flex-col gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-[13px] font-medium text-[var(--tf-text)]">To-do-Regeln</h3>
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">{alleRegeln.length}</span>
-        </div>
+        {/* Keine Überschrift „To-do-Regeln" mehr: seit v2.412 heißt der Reiter
+            darüber genauso und trägt dieselbe Zahl — zwei Zeilen Abstand, Wort
+            für Wort dasselbe. Die Regelsatz-Pills gleich darunter sagen, was
+            man hier wirklich wissen will. */}
 
         {/* Je Rolle ein Regelsatz — ausgewertet wird immer genau einer. Die
             Auswahl fällt beim Wechsel: eine Sperre überlebte ihn technisch,

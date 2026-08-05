@@ -23,12 +23,13 @@ import { FelderTab } from './FelderTab';
 import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
 import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
-import { feldStil, formatZeitpunkt } from './labels';
+import { TAB_LABEL, TAB_ZWECK, feldStil, formatZeitpunkt, type TabKey } from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel } from '@/core/status';
 
-type TabKey = 'katalog' | 'felder' | 'regeln';
+/** Untertitel der Seite — sie trägt drei Reiter, nicht nur den Statuswert-Katalog. */
+const SEITEN_UNTERTITEL = 'Die Grundlagen, auf denen Status, Fristen und To-dos beruhen';
 
 function ExportImportButtons({ api }: { api: StatusCockpitApi }): React.ReactElement {
   const importieren = useAsyncAction(async () => { await api.importieren(); });
@@ -237,7 +238,7 @@ export function StatusCockpitPage(): React.ReactElement {
     return (
       <div className="flex flex-col h-full min-h-0">
         <div className="px-6 pt-5 pb-3">
-          <PageHeader title="Status-Katalog" subtitle="Statuswerte kuratieren und versionieren" />
+          <PageHeader title="Status-Katalog" subtitle={SEITEN_UNTERTITEL} />
         </div>
         <div className="flex-1 grid place-items-center text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>
       </div>
@@ -252,7 +253,7 @@ export function StatusCockpitPage(): React.ReactElement {
       <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
         <PageHeader
           title="Status-Katalog"
-          subtitle="Statuswerte kuratieren und versionieren"
+          subtitle={SEITEN_UNTERTITEL}
           actions={
             <div className="flex items-center gap-2">
               <ExportImportButtons api={api} />
@@ -266,11 +267,16 @@ export function StatusCockpitPage(): React.ReactElement {
           activeKey={tab}
           onChange={k => setTab(k as TabKey)}
           items={[
-            { key: 'katalog', label: 'Katalog', count: werteCount },
-            { key: 'felder', label: 'Kürzel', count: felderCount },
-            { key: 'regeln', label: 'To-dos', count: api.entwurf?.todoRegeln?.length ?? 0 },
+            { key: 'katalog', label: TAB_LABEL.katalog, count: werteCount },
+            { key: 'felder', label: TAB_LABEL.felder, count: felderCount },
+            { key: 'regeln', label: TAB_LABEL.regeln, count: api.entwurf?.todoRegeln?.length ?? 0 },
           ]}
         />
+        {/* Der Zwecksatz steht als eigene Zeile unter der Leiste, nicht als
+            Tooltip an der Lasche: er soll gelesen werden, ohne dass jemand
+            danach sucht — das Modul ist neu, und kein Reitername erklärt sich
+            von selbst. */}
+        <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{TAB_ZWECK[tab]}</p>
       </div>
 
       {api.fehler != null && (

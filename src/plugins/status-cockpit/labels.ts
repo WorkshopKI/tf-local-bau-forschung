@@ -56,6 +56,38 @@ export const PROMINENZ_WERTE: readonly Prominenz[] = [
   'meilenstein', 'normal', 'nebensaechlich', 'ignoriert',
 ];
 
+/** Die drei Reiter der Seite. Der Schlüssel ist stabil, die Beschriftung nicht. */
+export type TabKey = 'katalog' | 'felder' | 'regeln';
+
+/**
+ * Reiter-Beschriftungen — **eine** Quelle, wie bei den Kategoriebezeichnungen.
+ *
+ * `katalog` hieß bis v2.412 „Katalog" und damit fast wie die Seite selbst; ein
+ * Reiter, der den Seitennamen wiederholt, trägt keine Information. Der
+ * Schlüssel bleibt `katalog` — er steht in gespeicherten Zuständen und in
+ * Deep-Links, und eine Umbenennung dort brächte nichts als Bruch.
+ */
+export const TAB_LABEL: Record<TabKey, string> = {
+  katalog: 'Statuswerte',
+  felder: 'Kürzel',
+  regeln: 'To-do-Regeln',
+};
+
+/**
+ * Ein Satz je Reiter: was dort gepflegt wird und wozu.
+ *
+ * Das Modul ist neu, und kein Reitername sagt von sich aus, was dahinter zu tun
+ * ist. „To-do-Regeln" statt „To-dos" ist derselbe Gedanke in der Beschriftung:
+ * wer „To-dos" liest, erwartet seine Aufgaben — die stehen im Vorgangs-Board,
+ * hier wird die Kaskade gepflegt, die sie erzeugt.
+ */
+export const TAB_ZWECK: Record<TabKey, string> = {
+  katalog: 'Was ein Status bedeutet, in welchem Verfahrensschritt er steht und wie lange '
+    + 'er dauern darf.',
+  felder: 'Die Felder des Fachsystems, wer sie setzt und welche als Aktivität zählen.',
+  regeln: 'Die geordnete Kaskade, die bestimmt, welche Aufgabe an einem Vorgang ansteht.',
+};
+
 /**
  * Wie `feldKlasse`, aber **ohne** `w-full` — für Felder, die ihre Breite selbst
  * setzen (`w-[64px]`, `flex-1`).
