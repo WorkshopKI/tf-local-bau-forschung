@@ -13,7 +13,7 @@
  *    Wechsel in die Karten-Ansicht.
  * 2. **Sie sagte nicht, was sie zählt.** Alle Zähler der Seite (Reiter,
  *    Status-Pillen, Sektions-Bänder, diese Zahl) zählen **Teilvorhaben**. Nur
- *    die Liste fasst sie bei aktiver Gruppierung zu weniger Zeilen zusammen —
+ *    die Liste fasst sie je nach Ansicht/Gruppierung zu weniger Zeilen zusammen —
  *    17 TV wurden zu 12 Verbund-Zeilen, und nichts erklärte die Differenz.
  *    Deshalb nennt die Zahl ihre Einheit und stellt die Zeilenzahl daneben,
  *    sobald verdichtet wird.
@@ -24,7 +24,7 @@ import type { ViewMode } from './viewModes';
 
 /** Wie die Liste mehrere Teilvorhaben zu einer Zeile zusammenfasst. */
 export type VerdichtungsArt =
-  /** Tabellen-Gruppierung „Verbund": eine Zeile je Verbund. */
+  /** Tabellen-Ansicht „Antrag": eine Zeile je Verbund. */
   | 'verbund'
   /** Listen-Gruppierung (Status-/Netzwerk-Cluster): eine Karte je Gruppe. */
   | 'gruppe';

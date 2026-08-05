@@ -8,8 +8,11 @@ import { useAntraegeStore } from './store';
 import {
   buildVerbundTableRows,
   buildStatusSectionRows,
+  buildNetzwerkSectionRows,
+  buildKuerzelSectionRows,
   type AntragTableRow,
   type TableGroupingMode,
+  type TabellenAnsicht,
 } from './tableGrouping';
 import {
   partitionArbeitsvorrat,
@@ -29,6 +32,9 @@ interface Props {
   selectedAktenzeichen: string | null;
   selectedVerbundId: string | null;
   grouping: TableGroupingMode;
+  /** Zeilen-Körnung: `antrag` verdichtet Verbünde zu einer Zeile. Orthogonal zur
+   *  Gruppierung — siehe Kopfkommentar von `tableGrouping.ts`. */
+  ansicht: TabellenAnsicht;
   /** „alle"-/Übersichtsmodus → MA-Spalte (tib_kuerz) automatisch einblenden. */
   showMaColumn: boolean;
   onOpenAntrag: (az: string) => void;
@@ -39,9 +45,12 @@ interface Props {
   onZeilenMeldung?: (m: ZeilenMeldung) => void;
 }
 
-/** Section-Key-Funktion pro Zeile (Status-Phase oder Arbeitsvorrat-Sektion) bzw.
- *  `null` (keine Sektionierung). */
+/** Section-Key-Funktion pro Zeile (Gruppierungs-Abschnitt oder Arbeitsvorrat-
+ *  Sektion) bzw. `null` (keine Sektionierung). */
 type SectionOf = ((row: AntragTableRow) => string) | null;
+/** Beschriftung eines Abschnitts-Schlüssels. `null`, wo der Renderer den
+ *  Schlüssel selbst deutet (Arbeitsvorrat/Archiv). */
+type LabelOf = ((key: string) => string) | null;
 /** Archiv-Metadaten für den Arbeitsvorrat/Archiv-Split (nur View „Alle", ohne
  *  aktive Gruppierung). `null` außerhalb dieses Falls. */
 type ArchivMeta = {
@@ -74,12 +83,14 @@ function StatusBand({ label, count }: { label: string; count: number }): React.R
  * Header-Tabelle mit konfigurierbaren Spalten (Spalten-Picker im Header) +
  * Klick-auf-Header-Sortierung, gebaut auf der generischen `SortableTable`.
  *
- * Gruppierung (Toolbar-Pille im Compact-Modus):
- * - `none`: flach — `filtered` (bereits gefiltert + Toolbar-sortiert + Verbund-
- *   geclustert). Header-Sort überschreibt die Default-Reihenfolge.
- * - `verbund`: pro Verbund eine Zeile (Multi-TV kollabiert, Solo unverändert).
- * - `status`: jedes TV einzeln, in Status-Bänder gruppiert; Header-Sort wirkt
- *   section-stabil (innerhalb der Bänder).
+ * Zwei Toolbar-Achsen, in dieser Reihenfolge ausgewertet (siehe Kopfkommentar
+ * von `tableGrouping.ts`):
+ *
+ * 1. **Ansicht** — `antrag`: pro Verbund eine Zeile (Multi-TV kollabiert, Solo
+ *    unverändert). `antrag-mit-tv`: jedes Teilvorhaben eine eigene Zeile.
+ * 2. **Gruppierung** — `none`: flach (im Reiter „Alle" mit Arbeitsvorrat/Archiv-
+ *    Split). `status`/`netzwerk`/`fb`/`ab`: Bänder über den Zeilen; Header-Sort
+ *    wirkt section-stabil (innerhalb der Bänder).
  *
  * Header-Sort (`useTableSort`) läuft VOR dem Pagination-Slice, damit die
  * Sortierung über die ganze Liste greift, nicht nur die sichtbare Seite.
@@ -90,6 +101,7 @@ export function AntraegeTable({
   selectedAktenzeichen,
   selectedVerbundId,
   grouping,
+  ansicht,
   showMaColumn,
   onOpenAntrag,
   onOpenVerbund,
@@ -98,6 +110,8 @@ export function AntraegeTable({
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
+  // Netzwerk-Namen für die NW-Bänder (Cross-Programm-Index, einmal pro Session).
+  const netzwerkNameById = useAntraegeStore(s => s.netzwerkNameById);
   // Arbeitsvorrat/Archiv-Split greift nur im „Alle"-Tab ohne aktive Gruppierung.
   const activeView = useAntraegeStore(s => s.activeView);
   const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
@@ -138,21 +152,31 @@ export function AntraegeTable({
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
     useColumnFilters(enriched, columns);
 
-  // Basis-Zeilen je Gruppierungs-Modus (vor Header-Sort + Slice).
-  const { allRows, sectionOf, archivMeta } = useMemo<{
+  // Achse 1 (Ansicht): Zeilen-Körnung. Läuft VOR der Gruppierung — eine
+  // Verbund-Zeile wird also nach den Werten ihres Lead-TVs einsortiert.
+  const baseRows = useMemo<AntragTableRow[]>(
+    () => (ansicht === 'antrag' ? buildVerbundTableRows(filteredRows, verbundById) : filteredRows),
+    [ansicht, filteredRows, verbundById],
+  );
+
+  // Achse 2 (Gruppierung): Abschnitts-Bänder über den Basis-Zeilen (vor
+  // Header-Sort + Slice).
+  const { allRows, sectionOf, labelOf, archivMeta } = useMemo<{
     allRows: AntragTableRow[];
     sectionOf: SectionOf;
+    labelOf: LabelOf;
     archivMeta: ArchivMeta;
   }>(() => {
-    if (grouping === 'verbund') {
-      return { allRows: buildVerbundTableRows(filteredRows, verbundById), sectionOf: null, archivMeta: null };
-    }
-    if (grouping === 'status') {
-      const built = buildStatusSectionRows(filteredRows);
-      return { allRows: built.rows, sectionOf: built.sectionOf, archivMeta: null };
+    if (grouping === 'status' || grouping === 'netzwerk' || grouping === 'fb' || grouping === 'ab') {
+      const built = grouping === 'status'
+        ? buildStatusSectionRows(baseRows)
+        : grouping === 'netzwerk'
+          ? buildNetzwerkSectionRows(baseRows, netzwerkNameById)
+          : buildKuerzelSectionRows(baseRows, grouping === 'fb' ? 'tib_kuerz' : 'bib_kuerz');
+      return { allRows: built.rows, sectionOf: built.sectionOf, labelOf: built.labelOf, archivMeta: null };
     }
     if (arbeitsvorratEnabled) {
-      const { inArbeit, archiv } = partitionArbeitsvorrat(filteredRows);
+      const { inArbeit, archiv } = partitionArbeitsvorrat(baseRows);
       // Sektionieren nur, wenn es überhaupt etwas zu archivieren gibt.
       if (archiv.length > 0) {
         // Bei leerem Arbeitsvorrat (nur terminale Anträge) das Archiv immer
@@ -167,6 +191,7 @@ export function AntraegeTable({
         return {
           allRows: rows,
           sectionOf: (r: AntragTableRow) => arbeitsvorratSectionOf(r),
+          labelOf: null,
           archivMeta: {
             count: archiv.length,
             inArbeitCount: inArbeit.length,
@@ -176,26 +201,27 @@ export function AntraegeTable({
         };
       }
     }
-    return { allRows: filteredRows, sectionOf: null, archivMeta: null };
-  }, [grouping, arbeitsvorratEnabled, filteredRows, verbundById, archivPersistedCollapsed, searchActive]);
+    return { allRows: baseRows, sectionOf: null, labelOf: null, archivMeta: null };
+  }, [grouping, arbeitsvorratEnabled, baseRows, netzwerkNameById, archivPersistedCollapsed, searchActive]);
 
   // An die Toolbar melden, was hier steht. Effekt statt direktem Aufruf, weil
   // setState eines Eltern-Elements im Render verboten ist.
   //
-  // Eine abweichende Zeilenzahl gibt es NUR im Verbund-Modus — nur dort fasst
-  // die Tabelle mehrere TV zu einer Zeile zusammen. Im Arbeitsvorrat-Modus ist
-  // `allRows` bei eingeklapptem Archiv ebenfalls kürzer, aber das ist keine
-  // Verdichtung, sondern ein zugeklappter Abschnitt (dessen Kopf unter der
-  // Tabelle steht); als „Zeilen" ausgewiesen wäre es eine Falschaussage.
-  const zeilen = grouping === 'verbund' ? allRows.length : filteredRows.length;
+  // Eine abweichende Zeilenzahl gibt es NUR in der Ansicht „Antrag" — nur dort
+  // fasst die Tabelle mehrere TV zu einer Zeile zusammen. Gezählt wird auf
+  // `baseRows`, nicht auf `allRows`: im Arbeitsvorrat-Modus ist `allRows` bei
+  // eingeklapptem Archiv ebenfalls kürzer, aber das ist keine Verdichtung,
+  // sondern ein zugeklappter Abschnitt (dessen Kopf unter der Tabelle steht);
+  // als „Zeilen" ausgewiesen wäre es eine Falschaussage.
+  const zeilen = ansicht === 'antrag' ? baseRows.length : filteredRows.length;
   useEffect(() => {
     onZeilenMeldung?.({
       quelle: 'compact',
       tv: filteredRows.length,
       zeilen,
-      art: grouping === 'verbund' ? 'verbund' : null,
+      art: ansicht === 'antrag' ? 'verbund' : null,
     });
-  }, [filteredRows.length, zeilen, grouping, onZeilenMeldung]);
+  }, [filteredRows.length, zeilen, ansicht, onZeilenMeldung]);
 
   // storageKey → die Klick-auf-Spaltenkopf-Sortierung überlebt Reload/Seiten-
   // wechsel (Nutzer-Wunsch). Global (nicht per-View), konsistent mit den
@@ -233,7 +259,10 @@ export function AntraegeTable({
     ? {
         sectionKeyOf: (r: AntragTableRow) => sectionOf(r),
         renderSectionHeader: (key: string, count: number): React.ReactNode => {
-          if (grouping === 'status') return <StatusBand label={key} count={count} />;
+          // Gruppierungs-Bänder: der Schlüssel ist eine stabile Id (Abschnitt,
+          // Netzwerk-Id, Kürzel) — die Beschriftung kommt vom Builder. Bis v3.0
+          // stand der Schlüssel roh im Band („VOR-ENTSCHEIDUNG").
+          if (labelOf !== null) return <StatusBand label={labelOf(key)} count={count} />;
           // Arbeitsvorrat/Archiv: eigene Bänder. Zähler kommen aus archivMeta
           // (Gesamt der Sektion), nicht aus dem Slice-Count der SortableTable —
           // sonst wüchse „ABGESCHLOSSEN · n" erst beim Scrollen. Das Archiv-Band

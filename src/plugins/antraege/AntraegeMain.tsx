@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode } from './store';
+import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode, getEffectiveTableAnsicht } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { FilterChip } from '@/components/ui/FilterChip';
@@ -22,7 +22,12 @@ import {
 } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { sortDisablesGrouping, GROUPING_OPTIONS } from './sort';
-import { TABLE_GROUPING_OPTIONS, type TableGroupingMode } from './tableGrouping';
+import {
+  TABLE_GROUPING_OPTIONS,
+  TABLE_ANSICHT_OPTIONS,
+  type TableGroupingMode,
+  type TabellenAnsicht,
+} from './tableGrouping';
 import { StatusSectionHeader } from './StatusSectionHeader';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
@@ -51,7 +56,7 @@ import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
-import { AlertTriangle, Settings, PanelLeftClose } from 'lucide-react';
+import { AlertTriangle, Settings, PanelLeftClose, Rows3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
@@ -91,8 +96,10 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
   const tableGrouping = useAntraegeStore(s => getEffectiveTableGroupingMode(s.activeView, s.tableGroupingByView));
   const listGrouping = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
+  const tableAnsicht = useAntraegeStore(s => getEffectiveTableAnsicht(s.activeView, s.tableAnsichtByView));
   const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
   const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
+  const setTableAnsichtForView = useAntraegeStore(s => s.setTableAnsichtForView);
   // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
   // teilt den State reaktiv mit der Tabelle über den globalen Store.
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
@@ -267,6 +274,17 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               <QuickfilterToolbar />
             </div>
             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
+              {/* Zeilen-Körnung — nur die Tabelle kennt diese Achse; Karten- und
+                  Listen-Ansicht verdichten Verbünde nicht. */}
+              {viewMode === 'compact' ? (
+                <GruppierenDropdown
+                  label="Ansicht:"
+                  icon={Rows3}
+                  options={TABLE_ANSICHT_OPTIONS}
+                  value={tableAnsicht}
+                  onChange={(key) => setTableAnsichtForView(activeView, key as TabellenAnsicht)}
+                />
+              ) : null}
               <GruppierenDropdown
                 options={viewMode === 'compact' ? TABLE_GROUPING_OPTIONS : GROUPING_OPTIONS}
                 value={viewMode === 'compact' ? tableGrouping : listGrouping}
@@ -366,6 +384,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               selectedAktenzeichen={selectedAktenzeichen}
               selectedVerbundId={selectedVerbundId}
               grouping={tableGrouping}
+              ansicht={tableAnsicht}
               showMaColumn={showMa}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}

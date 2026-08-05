@@ -103,8 +103,9 @@ describe('isArbeitsvorratView', () => {
   it('nur im „Alle"-Tab ohne aktive Gruppierung', () => {
     expect(isArbeitsvorratView('alle', 'none')).toBe(true);
     expect(isArbeitsvorratView('alle', 'status')).toBe(false);
-    expect(isArbeitsvorratView('alle', 'verbund')).toBe(false);
     expect(isArbeitsvorratView('alle', 'netzwerk')).toBe(false);
+    expect(isArbeitsvorratView('alle', 'fb')).toBe(false);
+    expect(isArbeitsvorratView('alle', 'ab')).toBe(false);
     expect(isArbeitsvorratView('meine_offenen', 'none')).toBe(false);
     expect(isArbeitsvorratView('bewilligt_jahr', 'none')).toBe(false);
   });

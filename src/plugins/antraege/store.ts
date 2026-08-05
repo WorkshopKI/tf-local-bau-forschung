@@ -19,7 +19,13 @@ import {
   GROUPING_OPTIONS,
 } from './sort';
 import type { GroupingMode } from './antragGroups';
-import type { TableGroupingMode } from './tableGrouping';
+import {
+  DEFAULT_TABLE_ANSICHT,
+  istTableGroupingMode,
+  istTabellenAnsicht,
+  type TableGroupingMode,
+  type TabellenAnsicht,
+} from './tableGrouping';
 import { asPrecheckBucket, type PrecheckBucket } from './filter/precheckQuickfilter';
 import type { AmpelQuickfilter } from './eingangAmpel';
 import {
@@ -34,6 +40,7 @@ const PRECHECK_BUCKET_KEY = 'teamflow_antraege_precheck_bucket';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
 const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
 const TABLE_GROUPING_BY_VIEW_KEY = 'teamflow_antraege_table_grouping_by_view';
+const TABLE_ANSICHT_BY_VIEW_KEY = 'teamflow_antraege_table_ansicht_by_view';
 const VIEW_MODE_BY_TAB_KEY = 'teamflow_antraege_view_mode_by_tab';
 
 /** Persistierte Sicht, gegen `VIEWS` validiert statt gegen eine zweite
@@ -104,8 +111,8 @@ function saveGroupingByView(map: Partial<Record<ViewKey, GroupingMode>>): void {
   try { localStorage.setItem(GROUPING_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
 }
 
-const VALID_TABLE_GROUPING_KEYS = new Set<TableGroupingMode>(['none', 'verbund', 'status']);
-
+/** Whitelist + Migration liegen bei den Optionen (`istTableGroupingMode`) —
+ *  ein Altwert `'verbund'` fällt dort durch und landet auf `'none'`. */
 function loadTableGroupingByView(): Partial<Record<ViewKey, TableGroupingMode>> {
   try {
     const raw = localStorage.getItem(TABLE_GROUPING_BY_VIEW_KEY);
@@ -113,9 +120,7 @@ function loadTableGroupingByView(): Partial<Record<ViewKey, TableGroupingMode>> 
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const out: Partial<Record<ViewKey, TableGroupingMode>> = {};
     for (const [view, key] of Object.entries(parsed)) {
-      if (typeof key === 'string' && VALID_TABLE_GROUPING_KEYS.has(key as TableGroupingMode)) {
-        out[view as ViewKey] = key as TableGroupingMode;
-      }
+      if (istTableGroupingMode(key)) out[view as ViewKey] = key;
     }
     return out;
   } catch {
@@ -125,6 +130,25 @@ function loadTableGroupingByView(): Partial<Record<ViewKey, TableGroupingMode>> 
 
 function saveTableGroupingByView(map: Partial<Record<ViewKey, TableGroupingMode>>): void {
   try { localStorage.setItem(TABLE_GROUPING_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+function loadTableAnsichtByView(): Partial<Record<ViewKey, TabellenAnsicht>> {
+  try {
+    const raw = localStorage.getItem(TABLE_ANSICHT_BY_VIEW_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Partial<Record<ViewKey, TabellenAnsicht>> = {};
+    for (const [view, key] of Object.entries(parsed)) {
+      if (istTabellenAnsicht(key)) out[view as ViewKey] = key;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveTableAnsichtByView(map: Partial<Record<ViewKey, TabellenAnsicht>>): void {
+  try { localStorage.setItem(TABLE_ANSICHT_BY_VIEW_KEY, JSON.stringify(map)); } catch { /* ignore */ }
 }
 
 /** Quellen, die die Hybrid-Suche aus Datenmangel nicht beitragen konnte —
@@ -193,9 +217,12 @@ interface AntraegeState {
   /** User-Override pro View. Leer → Default aus DEFAULT_GROUPING_BY_VIEW. */
   groupingByView: Partial<Record<ViewKey, GroupingMode>>;
   /** Eigener Gruppierungs-Slot für die Tabellen-Ansicht (Compact-Modus).
-   *  Getrennt von `groupingByView`, weil die Optionen abweichen (Verbund nur
-   *  hier, NW/NW-Größe nur in der List-View). Leer → Default `'none'`. */
+   *  Getrennt von `groupingByView`, weil die Optionen abweichen (FB/AB nur hier,
+   *  NW-Größe nur in der List-View). Leer → Default `'none'`. */
   tableGroupingByView: Partial<Record<ViewKey, TableGroupingMode>>;
+  /** Zeilen-Körnung der Tabellen-Ansicht — die zweite Achse neben der
+   *  Gruppierung (siehe tableGrouping.ts). Leer → `DEFAULT_TABLE_ANSICHT`. */
+  tableAnsichtByView: Partial<Record<ViewKey, TabellenAnsicht>>;
   /** User-Override pro View. Leer → Default `DEFAULT_VIEW_MODE` ('list'). */
   viewModeByTab: Partial<Record<ViewKey, ViewMode>>;
   /** Cross-Programm-Index: 4-Ziffer-Netzwerk-ID → Netzwerk-Name (akronym des
@@ -231,6 +258,7 @@ interface AntraegeState {
   setSortForView: (view: ViewKey, key: SortKey) => void;
   setGroupingForView: (view: ViewKey, mode: GroupingMode) => void;
   setTableGroupingForView: (view: ViewKey, mode: TableGroupingMode) => void;
+  setTableAnsichtForView: (view: ViewKey, ansicht: TabellenAnsicht) => void;
   setViewModeForTab: (view: ViewKey, mode: ViewMode) => void;
   setSelectedAktenzeichen: (az: string | null) => void;
   setSelectedVerbundId: (id: string | null) => void;
@@ -273,6 +301,13 @@ export function getEffectiveTableGroupingMode(
   return overrides[view] ?? 'none';
 }
 
+export function getEffectiveTableAnsicht(
+  view: ViewKey,
+  overrides: Partial<Record<ViewKey, TabellenAnsicht>>,
+): TabellenAnsicht {
+  return overrides[view] ?? DEFAULT_TABLE_ANSICHT;
+}
+
 export function getEffectiveViewMode(
   view: ViewKey,
   overrides: Partial<Record<ViewKey, ViewMode>>,
@@ -297,6 +332,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
   tableGroupingByView: loadTableGroupingByView(),
+  tableAnsichtByView: loadTableAnsichtByView(),
   viewModeByTab: loadViewModeByTab(VIEW_MODE_BY_TAB_KEY),
   netzwerkNameById: new Map<string, string>(),
   netzwerkNameIndexLoaded: false,
@@ -439,6 +475,18 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     }
     saveTableGroupingByView(next);
     set({ tableGroupingByView: next });
+  },
+
+  setTableAnsichtForView: (view: ViewKey, ansicht: TabellenAnsicht) => {
+    const current = useAntraegeStore.getState().tableAnsichtByView;
+    const next: Partial<Record<ViewKey, TabellenAnsicht>> = { ...current };
+    if (ansicht === DEFAULT_TABLE_ANSICHT) {
+      delete next[view];
+    } else {
+      next[view] = ansicht;
+    }
+    saveTableAnsichtByView(next);
+    set({ tableAnsichtByView: next });
   },
 
   setViewModeForTab: (view: ViewKey, mode: ViewMode) => {

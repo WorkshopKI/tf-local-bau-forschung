@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildVerbundTableRows, buildStatusSectionRows } from '../tableGrouping';
+import {
+  buildVerbundTableRows,
+  buildStatusSectionRows,
+  buildNetzwerkSectionRows,
+  buildKuerzelSectionRows,
+} from '../tableGrouping';
 import { statusPhaseForAntrag, STATUS_SECTION_ORDER } from '../antragGroups';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
@@ -17,7 +22,7 @@ function mk(aktenzeichen: string, opts: Partial<AntragListItem> = {}): AntragLis
 
 const st = (s: string): AntragListItem['status'] => asAntragStatusRaw(s);
 
-describe('buildVerbundTableRows (Gruppiert: Verbund)', () => {
+describe('buildVerbundTableRows (Ansicht: Antrag)', () => {
   it('kollabiert Multi-TV-Verbund zu einer Zeile, Solo-Antrag bleibt eigene Zeile', () => {
     const input = [
       mk('A', { verbund_id: 'V1', antragsdatum: '2026-01-10', status: st('beantragt') }),
@@ -95,7 +100,7 @@ describe('buildStatusSectionRows (Gruppiert: Status)', () => {
     }
   });
 
-  it('fasst Verbünde im Status-Modus NICHT zusammen — jedes TV bleibt eine Zeile', () => {
+  it('fasst Verbünde im Status-Modus NICHT zusammen — das macht die Ansicht-Achse', () => {
     const input = [
       mk('A', { verbund_id: 'V1', status: st('beantragt') }),
       mk('B', { verbund_id: 'V1', status: st('beantragt') }),
@@ -103,5 +108,128 @@ describe('buildStatusSectionRows (Gruppiert: Status)', () => {
     const { rows } = buildStatusSectionRows(input);
     expect(rows).toHaveLength(2);
     expect(rows.every(r => r._verbund === undefined)).toBe(true);
+  });
+
+  it('beschriftet die Bänder, statt die rohe Abschnitts-Id zu zeigen', () => {
+    const { labelOf } = buildStatusSectionRows([mk('A', { status: st('beantragt') })]);
+    expect(labelOf('vor-entscheidung')).toBe('Vor Entscheidung');
+    expect(labelOf('abgelehnt-zurueckgezogen')).toBe('Abgelehnt/Zurückgezogen');
+  });
+});
+
+describe('buildNetzwerkSectionRows (Gruppiert: NW)', () => {
+  // 16KN<4 Ziffern Netzwerk><2 Ziffern Position>; 01/02 + vb_phase 1/2 = Lead.
+  const lead = (nid: string, phase: number, akronym: string): AntragListItem =>
+    mk(`16KN${nid}0${phase}`, { vb_phase: phase, akronym });
+  const tv = (nid: string, pos: string): AntragListItem => mk(`16KN${nid}${pos}`);
+
+  it('bändert nach Netzwerk-Id und benennt das Band nach dem Lead-Akronym', () => {
+    const input = [lead('1062', 1, 'INNOWERK'), tv('1062', '27')];
+    const { rows, sectionOf, labelOf } = buildNetzwerkSectionRows(input, null);
+    expect(rows).toHaveLength(2);
+    expect(sectionOf(rows[0]!)).toBe('1062');
+    expect(labelOf('1062')).toBe('INNOWERK · Phase 1');
+  });
+
+  it('fällt ohne bekannten Lead auf die technische Bezeichnung zurück', () => {
+    const { labelOf } = buildNetzwerkSectionRows([tv('1062', '27')], null);
+    expect(labelOf('1062')).toBe('Netzwerk 1062');
+  });
+
+  it('sammelt ALLE Zeilen ohne 16KN-Netzwerk in EINEM Abschluss-Abschnitt', () => {
+    // Solos stehen in der Eingabe zwischen den Netzwerken — in der Tabelle
+    // ergäbe das sonst pro Solo-Lauf ein eigenes „Ohne Netzwerk"-Band.
+    const input = [
+      mk('16EP100001'),
+      tv('1062', '27'),
+      mk('16EP100002'),
+      tv('2000', '31'),
+      mk('16EP100003'),
+    ];
+    const { rows, sectionOf, labelOf } = buildNetzwerkSectionRows(input, null);
+    expect(rows.map(r => sectionOf(r))).toEqual([
+      '1062', '2000', '__ohne_netzwerk__', '__ohne_netzwerk__', '__ohne_netzwerk__',
+    ]);
+    expect(labelOf('__ohne_netzwerk__')).toBe('Ohne Netzwerk');
+  });
+
+  it('nimmt den Netzwerk-Namen aus dem Cross-Programm-Index, wenn kein Lead im Bestand ist', () => {
+    const index = new Map([['1062', 'INNOWERK']]);
+    const { labelOf } = buildNetzwerkSectionRows([tv('1062', '27')], index);
+    expect(labelOf('1062')).toBe('INNOWERK');
+  });
+
+  it('verliert keine Zeile — Summenprobe über alle Abschnitte', () => {
+    const input = [lead('1062', 1, 'A'), tv('1062', '27'), tv('2000', '31'), mk('16EP100001')];
+    const { rows, sectionOf } = buildNetzwerkSectionRows(input, null);
+    const proSektion = new Map<string, number>();
+    for (const r of rows) proSektion.set(sectionOf(r), (proSektion.get(sectionOf(r)) ?? 0) + 1);
+    expect([...proSektion.values()].reduce((a, b) => a + b, 0)).toBe(input.length);
+  });
+});
+
+describe('buildKuerzelSectionRows (Gruppiert: FB / AB)', () => {
+  it('sortiert die FB-Abschnitte alphabetisch, „ohne FB" immer zuletzt', () => {
+    const input = [
+      mk('A', { tib_kuerz: 'ZTP' }),
+      mk('B'),
+      mk('C', { tib_kuerz: 'BIB' }),
+      mk('D', { tib_kuerz: 'ZTP' }),
+      mk('E', { tib_kuerz: '   ' }),
+    ];
+    const { rows, sectionOf, labelOf } = buildKuerzelSectionRows(input, 'tib_kuerz');
+    expect(rows.map(r => r.aktenzeichen)).toEqual(['C', 'A', 'D', 'B', 'E']);
+    expect(rows.map(r => sectionOf(r))).toEqual([
+      'BIB', 'ZTP', 'ZTP', '__ohne_kuerzel__', '__ohne_kuerzel__',
+    ]);
+    expect(labelOf('BIB')).toBe('BIB');
+    expect(labelOf('__ohne_kuerzel__')).toBe('ohne FB');
+  });
+
+  it('liest für AB die BIB-Spalte und beschriftet den Rest-Abschnitt entsprechend', () => {
+    const input = [mk('A', { bib_kuerz: 'MUE', tib_kuerz: 'THU' }), mk('B', { tib_kuerz: 'THU' })];
+    const { sectionOf, labelOf } = buildKuerzelSectionRows(input, 'bib_kuerz');
+    expect(sectionOf(input[0]!)).toBe('MUE');
+    expect(sectionOf(input[1]!)).toBe('__ohne_kuerzel__');
+    expect(labelOf('__ohne_kuerzel__')).toBe('ohne AB');
+  });
+
+  it('legt ein Umlaut-Kürzel in BEIDEN Unicode-Normalformen in EINEN Abschnitt', () => {
+    // NFC: U+00DC (Ü als ein Zeichen) — NFD: U+0055 U+0308 (U + Kombinierendes Trema).
+    const nfc = 'THÜ';
+    const nfd = 'THÜ';
+    expect(nfc).not.toBe(nfd);
+    const input = [mk('A', { tib_kuerz: nfc }), mk('B', { tib_kuerz: nfd })];
+    const { rows, sectionOf } = buildKuerzelSectionRows(input, 'tib_kuerz');
+    expect(new Set(rows.map(r => sectionOf(r))).size).toBe(1);
+    expect(sectionOf(rows[0]!)).toBe(nfc);
+  });
+
+  it('verliert keine Zeile — Summenprobe über alle Abschnitte', () => {
+    const input = [
+      mk('A', { tib_kuerz: 'ZTP' }), mk('B'), mk('C', { tib_kuerz: 'BIB' }), mk('D', { tib_kuerz: 'ZTP' }),
+    ];
+    const { rows, sectionOf } = buildKuerzelSectionRows(input, 'tib_kuerz');
+    const proSektion = new Map<string, number>();
+    for (const r of rows) proSektion.set(sectionOf(r), (proSektion.get(sectionOf(r)) ?? 0) + 1);
+    expect([...proSektion.values()].reduce((a, b) => a + b, 0)).toBe(input.length);
+    expect(rows).toHaveLength(input.length);
+  });
+
+  it('gruppiert die verdichteten Zeilen, wenn beide Achsen gesetzt sind', () => {
+    // Ansicht „Antrag" + Gruppierung FB: der Verbund zählt als EINE Zeile und
+    // landet unter dem Kürzel seines Lead-TVs.
+    const verbund = buildVerbundTableRows(
+      [
+        mk('A', { verbund_id: 'V1', tib_kuerz: 'BIB' }),
+        mk('B', { verbund_id: 'V1', tib_kuerz: 'BIB' }),
+        mk('C', { tib_kuerz: 'ZTP' }),
+      ],
+      new Map(),
+    );
+    const { rows, sectionOf } = buildKuerzelSectionRows(verbund, 'tib_kuerz');
+    expect(rows).toHaveLength(2);
+    expect(rows.map(r => sectionOf(r))).toEqual(['BIB', 'ZTP']);
+    expect(rows[0]!._verbund!.tvCount).toBe(2);
   });
 });

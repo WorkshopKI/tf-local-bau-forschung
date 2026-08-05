@@ -1,5 +1,6 @@
 /**
- * „Gruppierung: {Wert} ▾"-Dropdown für die Förderanträge-Toolbar.
+ * „{Beschriftung}: {Wert} ▾"-Dropdown für die Förderanträge-Toolbar — im Einsatz
+ * für die Gruppierung (alle View-Modi) und für die Ansicht-Achse der Tabelle.
  *
  * Seit Journey-Paket 2 Phase 2 wohnt die Gruppieren-Steuerung nicht mehr als
  * Quickfilter-Segment in der Filter-Zeile, sondern als ruhiges Dropdown rechts
@@ -10,7 +11,7 @@
  * `--tf-*`-Theming), damit die beiden rechten Toolbar-Steuerungen fluchten.
  */
 import { useRef, useState } from 'react';
-import { ChevronDown, Layers } from 'lucide-react';
+import { ChevronDown, Layers, type LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 
 export interface GruppierenOption {
@@ -23,9 +24,21 @@ interface Props {
   /** Aktueller Gruppierungs-Key. */
   value: string;
   onChange: (key: string) => void;
+  /** Beschriftung links vom Wert. Default „Gruppierung:". Die Tabellen-Ansicht
+   *  stellt mit demselben Bauteil auch ihre zweite Achse („Ansicht:") — kein
+   *  Fork, damit die beiden Schalter garantiert fluchten. */
+  label?: string;
+  /** Icon vor der Beschriftung. Default `Layers`. */
+  icon?: LucideIcon;
 }
 
-export function GruppierenDropdown({ options, value, onChange }: Props): React.ReactElement {
+export function GruppierenDropdown({
+  options,
+  value,
+  onChange,
+  label = 'Gruppierung:',
+  icon: Icon = Layers,
+}: Props): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   useClickOutside(containerRef, () => setOpen(false), open);
@@ -42,8 +55,8 @@ export function GruppierenDropdown({ options, value, onChange }: Props): React.R
         className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] whitespace-nowrap"
         style={{ border: '0.5px solid var(--tf-border)' }}
       >
-        <Layers size={14} className="text-[var(--tf-text-tertiary)]" />
-        <span className="text-[var(--tf-text-tertiary)]">Gruppierung:</span>
+        <Icon size={14} className="text-[var(--tf-text-tertiary)]" />
+        <span className="text-[var(--tf-text-tertiary)]">{label}</span>
         <span className="font-medium">{current?.label ?? 'Keine'}</span>
         <ChevronDown size={12} />
       </button>
