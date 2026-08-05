@@ -5,7 +5,8 @@
     "label": "ZAH dev",
     "outputFilename": "zah-dev",
     "outputSubdir": "dev",
-    "browserTabTitle": "ZAH dev"
+    "browserTabTitle": "zim-dev",
+    "faviconColor": "#b5651d"
   },
   "data": {
     "allowUserToChangePath": true,

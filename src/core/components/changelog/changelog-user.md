@@ -27,6 +27,7 @@
 
 ### Verbesserungen
 - „Verbund" ist aus der Gruppierung verschwunden: es hat nie nach Verbund gruppiert, sondern die Teilvorhaben ausgeblendet. Genau das macht jetzt die Ansicht „Antrag" — und blockiert dabei nicht mehr die Gruppierung nach Status.
+- Der Browser-Tab trägt jetzt ein eigenes Symbol (ein „Z") und einen sprechenden Namen: `zim-dashboard`. Wer mehrere Fassungen gleichzeitig offen hat, erkennt sie an der Farbe des Symbols — jede Fassung hat ihre eigene.
 
 ### Bugfixes
 - Die Zwischenüberschriften der Status-Gruppierung in der Tabelle zeigten einen internen Schlüssel („VOR-ENTSCHEIDUNG") statt der Bezeichnung („Vor Entscheidung").

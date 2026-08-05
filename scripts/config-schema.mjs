@@ -6,6 +6,8 @@
  * weil kein Bundler-Step).
  */
 
+import { FAVICON_DEFAULT_COLOR } from './favicon.mjs';
+
 export const CONFIG_SCHEMA_VERSION = 2;
 
 /**
@@ -114,6 +116,7 @@ export const DEFAULT_CONFIG = {
     outputFilename: 'teamflow',
     browserTabTitle: 'TeamFlow',
     sidebarSubtitle: 'Verwaltung',
+    faviconColor: FAVICON_DEFAULT_COLOR,
   },
 
   data: {
@@ -396,6 +399,13 @@ export function validateConfig(config) {
   if (build.outputSubdir != null) {
     if (typeof build.outputSubdir !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(build.outputSubdir)) {
       errors.push('build.outputSubdir muss leer oder a-z/A-Z/0-9/-/_ sein');
+    }
+  }
+  if (build.faviconColor != null) {
+    // Wird in das Favicon-SVG interpoliert (scripts/favicon.mjs) — hier hart
+    // pruefen statt still auf den Default zurueckfallen zu lassen.
+    if (typeof build.faviconColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(build.faviconColor)) {
+      errors.push('build.faviconColor muss die Form #rrggbb haben (z.B. #506786)');
     }
   }
 

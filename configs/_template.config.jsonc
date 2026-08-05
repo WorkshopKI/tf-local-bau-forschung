@@ -19,7 +19,11 @@
     // Browser-Tab-Titel
     "browserTabTitle": "TeamFlow",
     // Untertitel unter dem Label im Sidebar-Header. Optional — Fallback "Verwaltung".
-    "sidebarSubtitle": "Verwaltung"
+    "sidebarSubtitle": "Verwaltung",
+    // Grundfarbe des Favicons (Monogramm „Z" auf abgerundetem Quadrat), Form #rrggbb.
+    // Optional — Fallback #506786. Pro Variante eine eigene Farbe, damit sich
+    // gleichzeitig geoeffnete Builds im Tab unterscheiden.
+    "faviconColor": "#506786"
   },
 
   "data": {

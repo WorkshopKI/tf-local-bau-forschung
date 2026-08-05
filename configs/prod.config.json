@@ -4,7 +4,8 @@
   "build": {
     "label": "ZAH",
     "outputFilename": "zim-dashboard",
-    "browserTabTitle": "ZAH prod"
+    "browserTabTitle": "zim-dashboard",
+    "faviconColor": "#506786"
   },
   "data": {
     "allowUserToChangePath": false,

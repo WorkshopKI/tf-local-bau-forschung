@@ -4,7 +4,8 @@
   "build": {
     "label": "ZAH PL",
     "outputFilename": "zah-pl",
-    "browserTabTitle": "ZAH pl"
+    "browserTabTitle": "zim-pl",
+    "faviconColor": "#3f7a5a"
   },
   "data": {
     "allowUserToChangePath": false,

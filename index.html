@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TeamFlow Local</title>
+    <!-- Favicon: Inline-SVG als data:-URI (Icon-Dateien überleben den Single-File-Build
+         nicht). Farbe = Default; der Build ersetzt den ganzen Tag variantenweise
+         (vite.config.ts → teamflow-index-html-branding, scripts/favicon.mjs). -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23506786%22%2F%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M7%207h18v4.4l-11%209.2H25v4.4H7v-4.4l11-9.2H7z%22%2F%3E%3C%2Fsvg%3E" />
     <style>
       /* Ladebildschirm — wird sofort angezeigt, vor jeglichem JS */
       #tf-loader {

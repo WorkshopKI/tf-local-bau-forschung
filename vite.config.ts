@@ -6,6 +6,7 @@ import path from 'path';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_CONFIG, deepMerge } from './scripts/config-schema.mjs';
+import { faviconLinkTag, FAVICON_DEFAULT_COLOR } from './scripts/favicon.mjs';
 import { localFsPlugin, type LocalBlock } from './scripts/local-fs/plugin';
 
 // Dev-Server-Fallback: wenn TEAMFLOW_CONFIG nicht gesetzt ist (= `vite` direkt
@@ -81,11 +82,13 @@ export default defineConfig(({ command, mode }) => {
   const localFsEnabled = command === 'serve' && Boolean(parsedConfig.local);
   const localRoots: string[] = localFsEnabled ? sammleLocalRoots(parsedConfig.local) : [];
 
-  // Tab-Title + Loader-Label aus der Config in index.html injizieren.
+  // Tab-Title + Loader-Label + Favicon aus der Config in index.html injizieren.
   // Ohne diesen Hook flasht beim ersten Laden kurz "TeamFlow Local" (statisch
-  // im HTML), bis App.tsx via document.title den Wert ueberschreibt.
+  // im HTML), bis App.tsx via document.title den Wert ueberschreibt. Das Favicon
+  // hat KEIN Laufzeit-Pendant — es ist ausschliesslich hier gebacken.
   const tabTitle = (parsedConfig.build?.browserTabTitle as string | undefined) ?? 'TeamFlow';
   const buildLabel = (parsedConfig.build?.label as string | undefined) ?? tabTitle;
+  const faviconColor = (parsedConfig.build?.faviconColor as string | undefined) ?? FAVICON_DEFAULT_COLOR;
   const escapeHtml = (s: string): string => s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -96,7 +99,7 @@ export default defineConfig(({ command, mode }) => {
       react(),
       tailwindcss(),
       {
-        name: 'teamflow-index-html-title',
+        name: 'teamflow-index-html-branding',
         transformIndexHtml: {
           order: 'pre' as const,
           handler(html: string) {
@@ -105,7 +108,8 @@ export default defineConfig(({ command, mode }) => {
               .replace(
                 /(<div class="tf-loader-title">)[^<]*(<\/div>)/,
                 `$1${escapeHtml(buildLabel)}$2`,
-              );
+              )
+              .replace(/<link rel="icon"[^>]*>/, faviconLinkTag(faviconColor));
           },
         },
       },

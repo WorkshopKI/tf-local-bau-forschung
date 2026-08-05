@@ -11,6 +11,12 @@ export interface TeamflowBuildInfo {
   browserTabTitle: string;
   /** Untertitel unter dem Label im Sidebar-Header. Fallback "Verwaltung", wenn weggelassen. */
   sidebarSubtitle?: string;
+  /**
+   * Grundfarbe des Favicons (`#rrggbb`). Wird ausschliesslich zur BAUZEIT
+   * ausgewertet (vite.config.ts → scripts/favicon.mjs backt das SVG als
+   * data:-URI ins HTML) — zur Laufzeit liest das Feld niemand.
+   */
+  faviconColor?: string;
 }
 
 export interface TeamflowDataConfig {

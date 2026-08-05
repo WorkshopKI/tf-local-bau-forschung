@@ -5,7 +5,8 @@
   "build": {
     "label": "ZAH local",
     "outputFilename": "zah-local",
-    "browserTabTitle": "ZAH local"
+    "browserTabTitle": "ZAH local",
+    "faviconColor": "#6b6b6b"
   },
   "data": {
     "fixedDataSharePath": null,

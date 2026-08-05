@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.2.1 — Tab-Titel auf ZIM umgestellt + Favicon je Variante (August 2026)
+
+PATCH — Der prod-Tab hieß „ZAH prod" — ein Bauzeit-Etikett vor Endnutzern, während die Datei längst `zim-dashboard.html` heißt. Und die App hatte überhaupt kein Favicon: unter `file://` läuft die `favicon.ico`-Anfrage ins Leere, im Tab stand das generische Blatt.
+
+- Tab-Titel: prod `zim-dashboard`, pl `zim-pl`, dev `zim-dev` — [configs/](configs/prod.config.json). Dateinamen und Sidebar-Label bleiben (`outputFilename` hängt am IndexedDB-Namen)
+- Favicon als Inline-`data:`-URI: Monogramm „Z" auf abgerundetem Quadrat, Geometrie auf 16 px gemessen — [scripts/favicon.mjs](scripts/favicon.mjs). Icon-**Dateien** gehen hier nicht: Vite lehnt das Inlinen von Icon-Links ab, singlefile inlined nur JS/CSS
+- Neues optionales `build.faviconColor` (`#rrggbb`, validiert): prod schiefer-blau, pl grün, dev orange, local grau — gleichzeitig offene Builds sind im Tab unterscheidbar
+- Injektion im bestehenden Hook (jetzt `teamflow-index-html-branding`), der schon Titel und Loader-Label ersetzt — [vite.config.ts](vite.config.ts)
+- Guards: Farben paarweise verschieden, kaputte Farbe = Validierungsfehler statt stiller Default, `index.html`-Kopie byte-gleich zu `favicon.mjs` — [favicon.test.ts](src/config/__tests__/favicon.test.ts)
+
 ### v3.2.0 — Tabelle: Ansicht und Gruppierung getrennt (August 2026)
 
 MINOR — Die Pille „Gruppierung" mischte zwei Dinge: „Status" bildete Abschnitte, „Verbund" verdichtete Teilvorhaben zu einer Zeile. Weil beides im selben Schalter saß, schlossen sie sich aus — wer nach Status gruppieren wollte, verlor die Verdichtung. Jetzt sind es zwei Achsen.

@@ -91,8 +91,11 @@ Jeder Build kopiert zusätzlich `Dokumentenindex-aktualisieren.bat` neben die HT
 Varianten-Mix entsteht.
 
 Testen: HTML per Doppelklick direkt in Chrome/Edge (`file://`) öffnen. Keine Console-Errors,
-Sidebar rendert mit dem Variant-Label, Tab-Titel passt zum `build.browserTabTitle` der Config,
-BuildInfo-Footer unten in der Sidebar zeigt Variant + Git-Hash + Datum.
+Sidebar rendert mit dem Variant-Label, Tab-Titel passt zum `build.browserTabTitle` der Config
+(`zim-dashboard` / `zim-pl` / `zim-dev`), das Favicon zeigt das „Z"-Monogramm in der Variant-Farbe
+(`build.faviconColor`, als data:-URI eingebacken — siehe
+[change-app-branding.md](../agents/change-app-branding.md)), BuildInfo-Footer unten in der Sidebar
+zeigt Variant + Git-Hash + Datum.
 
 **Sicherheits-Check**: Wenn OpenRouter in einer `variant: "production"`-Config mit festem
 Daten-Share-Pfad aktiviert ist, bricht `validateConfig()` den Build ab — per Design, damit keine
