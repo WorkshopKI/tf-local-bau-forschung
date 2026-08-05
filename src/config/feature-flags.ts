@@ -263,7 +263,6 @@ export function registryUmgebung(sessionAktiv: boolean): RegistryUmgebung {
     devKontext: isDevContext(),
     skillVerwaltung: isSkillVerwaltungEnabled(),
     datenShareSchreibrecht: isDatenShareWritable(),
-    kuratorMenus: isKuratorMenusEnabled(),
     sessionAktiv,
   };
 }

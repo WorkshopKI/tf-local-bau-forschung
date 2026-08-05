@@ -26,9 +26,7 @@ export interface RegistryUmgebung {
   skillVerwaltung: boolean;
   /** `features.datenShareSchreibrecht` — der Build darf den Share schreiben. */
   datenShareSchreibrecht: boolean;
-  /** `features.kuratorMenus` — unterscheidet kurator (true) von pl/as (false). */
-  kuratorMenus: boolean;
-  /** Läuft gerade eine Kurator-Session? Für pl/as IMMER false (sie bekommen keine). */
+  /** Läuft gerade eine Kurator-Session? */
   sessionAktiv: boolean;
 }
 
@@ -37,13 +35,24 @@ export interface RegistryUmgebung {
  *
  *  - dev/local: immer — der Entwickler muss alles testen können, ohne erst eine
  *    Kurator-Session zu aktivieren.
- *  - pl/as: direkt. `datenShareSchreibrecht && !kuratorMenus` trennt sie von
- *    kurator; eine Kurator-Session bekommen sie nie (`AppPasswordGate`).
- *  - kurator: nur mit aktiver Session. prod: nie (kein Schreibrecht, keine Session).
+ *  - pl: direkt, über `datenShareSchreibrecht`.
+ *  - prod: nie (kein Schreibrecht, keine Session).
+ *
+ * **v3.0 — der Term `&& !u.kuratorMenus` ist entfallen.** Er hieß wörtlich
+ * „pl/as, aber nicht kurator" und war der einzige verkappte Varianten-Test im
+ * `src/`-Baum. Mit der Zusammenlegung muss `kuratorMenus` auch in pl auf `true`
+ * stehen (sonst wirft `plugins.config.ts` die Kuration-Plugins schon zur Bauzeit
+ * raus) — der Term hätte PL-Nutzern also still das Schreibrecht auf die
+ * Skill-Registry genommen und eine Kurator-Freischaltung dafür verlangt. Die
+ * Skill-Verwaltung ist ein PL-Werkzeug, kein Kurations-Bereich.
+ *
+ * prod bleibt ohne Sonderfall draußen: `datenShareSchreibrecht` ist dort `false`,
+ * eine Session unerreichbar — und `werkstattZugang` verlangt zusätzlich
+ * `skillVerwaltung`, das prod ebenfalls nicht hat.
  */
 export function registryEditierbar(u: RegistryUmgebung): boolean {
   if (u.devKontext) return true;
-  if (u.datenShareSchreibrecht && !u.kuratorMenus) return true;
+  if (u.datenShareSchreibrecht) return true;
   return u.sessionAktiv;
 }
 

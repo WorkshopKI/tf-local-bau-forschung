@@ -8,7 +8,8 @@ import { VIEWS, type ViewKey } from './views';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
-import { menuLabel, isAuslastungEnabled, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
+import { menuLabel, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege } from './useFilteredAntraege';
@@ -71,7 +72,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [exportBusy, setExportBusy] = useState(false);
   const searchActive = search.trim().length > 0;
-  const showMaColumn = isAuslastungEnabled() && !bearbeiterFilter.active;
+  const showMaColumn = isAuslastungFreigeschaltet() && !bearbeiterFilter.active;
   // Der Export bildet exakt die Spalten der Ansicht ab — die kuratierten
   // Ordner-Spalten gehören dazu.
   const kategorieSpalten = useKategorieSpalten();
@@ -249,7 +250,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 <option value="ohne">Ohne Ähnlichkeitssuche</option>
                 <option value="mit">Mit Ähnlichkeitssuche</option>
               </select>
-              {!bearbeiterFilter.active && isAuslastungEnabled() ? (
+              {!bearbeiterFilter.active && isAuslastungFreigeschaltet() ? (
                 <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none shrink-0 whitespace-nowrap">
                   <input
                     type="checkbox"

@@ -12,14 +12,14 @@
  * Exklusions-Stufe ist dort ein No-op (prod/kurator/demo unverändert).
  */
 import { useMemo } from 'react';
-import { isAuslastungEnabled } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { useKuerzelMap } from './useKuerzelMap';
 import { useAuslastungData } from './useAuslastungData';
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 export function useInaktiveKuerzelSet(): ReadonlySet<string> {
-  const enabled = isAuslastungEnabled();
+  const enabled = isAuslastungFreigeschaltet();
   const file = useKuerzelMap(s => s.file);
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
 

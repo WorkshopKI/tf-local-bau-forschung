@@ -39,7 +39,7 @@ import {
   writeSharedFile,
 } from './feedbackSharedFile';
 import { isAuslastungFeedback } from './feedbackClassification';
-import { isAuslastungEnabled } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { submitFeedback as submitToOutbox } from '@/core/services/personal-storage';
 
 // ── Public CRUD API ─────────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ export async function getFeedbackList(
   // Auslastungs-Modul-Feedback nur in Varianten mit aktivem Modul (pl/dev) zeigen.
   // In prod/kurator (kein Auslastungs-Modul) ausblenden — sonst leakt PL-Feedback
   // über die geteilte feedback.json in fremde Übersichten.
-  const scoped = isAuslastungEnabled()
+  const scoped = isAuslastungFreigeschaltet()
     ? merged
     : merged.filter(item => !isAuslastungFeedback(item));
   if (!filters) return scoped;

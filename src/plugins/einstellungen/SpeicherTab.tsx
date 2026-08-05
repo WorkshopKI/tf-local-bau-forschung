@@ -9,6 +9,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled, canWriteDatenShare } from '@/config/feature-flags';
+import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import {
   clearDatenShareHandle,
   clearPersoenlichHandle,
@@ -470,12 +471,12 @@ export function SpeicherTab(): React.ReactElement {
 
 
       <section className="scroll-mt-20 space-y-4">
-      {(directories.length > 0 || isKuratorMenusEnabled()) && (
+      {(directories.length > 0 || isKuratorFreigeschaltet()) && (
         <SettingsSectionHeader label="Verbundene Verzeichnisse" />
       )}
 
       {directories.length === 0 ? (
-        isKuratorMenusEnabled() ? (
+        isKuratorFreigeschaltet() ? (
           <p className="text-[13px] text-[var(--tf-text-secondary)]">Keine Verzeichnisse verbunden</p>
         ) : null
       ) : (
@@ -524,7 +525,7 @@ export function SpeicherTab(): React.ReactElement {
           in demo/prod/pl ist der Daten-Share fix und persönliche Ordner werden
           beim App-Start oder bei Kürzeleingabe automatisch gesetzt. Gate via
           isKuratorMenusEnabled() — matched präzise dev + kurator. */}
-      {isKuratorMenusEnabled() && (
+      {isKuratorFreigeschaltet() && (
         <>
           <SettingsSectionHeader label="Verzeichnis hinzufügen" />
 

@@ -49,7 +49,7 @@ import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY, kategorieStatusColumns } from './t
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
-import { isAuslastungEnabled } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
 import { AlertTriangle, Settings, PanelLeftClose } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -107,7 +107,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const setAmpelQuickfilter = useAntraegeStore(s => s.setAmpelQuickfilter);
   // Im „alle"-/Übersichtsmodus (pl/dev) wird je Antrag das MA-Kürzel angezeigt,
   // damit sichtbar ist, welcher Bearbeiter zuständig ist.
-  const showMa = isAuslastungEnabled() && !bearbeiterFilter.active;
+  const showMa = isAuslastungFreigeschaltet() && !bearbeiterFilter.active;
   // MA-Spalte (TIB-Kürzel) ist regulär im Picker wählbar — AUSSER im „alle"-/
   // Übersichtsmodus, wo sie ohnehin erzwungen wird (showMa): dort raus aus dem
   // Picker, damit keine wirkungslose Checkbox erscheint. In „meine Anträge"

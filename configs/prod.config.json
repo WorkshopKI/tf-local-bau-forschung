@@ -3,7 +3,7 @@
   "variant": "production",
   "build": {
     "label": "ZAH",
-    "outputFilename": "zah-prod",
+    "outputFilename": "zim-dashboard",
     "browserTabTitle": "ZAH prod"
   },
   "data": {

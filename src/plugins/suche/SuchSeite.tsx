@@ -2,7 +2,8 @@ import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'reac
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { isKuratorMenusEnabled, isDokumentenscanEnabled } from '@/config/feature-flags';
+import { isDokumentenscanEnabled } from '@/config/feature-flags';
+import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -439,7 +440,7 @@ export function SuchSeite(): React.ReactElement {
           antraegeGeladen={indexInfo.antraegeGeladen}
           textabschnitteImIndex={indexInfo.textabschnitteImIndex}
           onExample={runExampleSearch}
-          kuratorVariant={isKuratorMenusEnabled() && isDokumentenscanEnabled()}
+          kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}
           onOpenDokumentenquellen={() => navigate('/kuration/dokumentenquellen')}
         />
       )}

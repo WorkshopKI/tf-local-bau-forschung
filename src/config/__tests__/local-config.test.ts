@@ -12,11 +12,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error — reines Node-ESM-Modul ohne Typen (Build-Layer, kein src/).
-import { validateConfig, deepMerge, DEFAULT_CONFIG } from '../../../scripts/config-schema.mjs';
+import { validateConfig, deepMerge, DEFAULT_CONFIG, buildBasis } from '../../../scripts/config-schema.mjs';
 
 interface ValidationResult {
   errors: string[];
@@ -30,7 +30,7 @@ const lade = (name: string): Config =>
   JSON.parse(readFileSync(join(REPO, 'configs', name), 'utf-8')) as Config;
 
 const shared = lade('_shared.json');
-const gemergt = (name: string): Config => deepMerge(shared, lade(name)) as Config;
+const gemergt = (name: string): Config => deepMerge(deepMerge(buildBasis(), shared), lade(name)) as Config;
 const pruefe = (c: Config): ValidationResult => validateConfig(c) as ValidationResult;
 
 const LOCAL = gemergt('local.config.json');
@@ -68,9 +68,14 @@ describe('local-Block: Schema-Guards', () => {
   });
 
   it('akzeptiert Configs ohne local-Block unveraendert', () => {
-    for (const name of ['dev', 'prod', 'kurator', 'pl', 'as']) {
-      const res = pruefe(gemergt(`${name}.config.json`));
-      expect(res.valid, `${name}: ${res.errors.join(' | ')}`).toBe(true);
+    // Geglobbt statt gepflegt: die frühere harte Liste schleppte `kurator` und
+    // `as` noch mit, als es die Varianten längst nicht mehr gab.
+    const varianten = readdirSync(join(REPO, 'configs'))
+      .filter(f => f.endsWith('.config.json') && f !== 'local.config.json');
+    expect(varianten.length).toBeGreaterThan(0);
+    for (const datei of varianten) {
+      const res = pruefe(gemergt(datei));
+      expect(res.valid, `${datei}: ${res.errors.join(' | ')}`).toBe(true);
     }
   });
 });

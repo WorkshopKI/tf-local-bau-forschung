@@ -13,7 +13,8 @@ import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
 import { deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
 import { getCsvSourceDirHandle, requestCsvSourceDirPermission, pickAndLinkCsvFolder } from '@/plugins/csv-sources-kuration/csv-source-handle';
-import { isDevFixturesEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isDevFixturesEnabled } from '@/config/feature-flags';
+import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
@@ -424,7 +425,7 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
              Nur dev + kurator (isKuratorMenusEnabled): ein Diagnose-/Kurations-Werkzeug,
              das End-User in pl/as/prod nur verwirrt. Immer verfügbar, sobald
              verknüpfte Quellen existieren, auch bei „grün". */}
-          {isKuratorMenusEnabled() && result.sources.length > 0 && (
+          {isKuratorFreigeschaltet() && result.sources.length > 0 && (
             <Button
               variant="ghost"
               icon={RefreshCw}

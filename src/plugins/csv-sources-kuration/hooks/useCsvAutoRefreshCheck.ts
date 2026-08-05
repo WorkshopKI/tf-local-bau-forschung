@@ -93,11 +93,17 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
   const session = useKuratorSession();
   const smbStatus = useSmbStatus();
 
-  // Build-konstante Gates: Kurator-Banner läuft über `kuratorMenus`, der pl-
-  // Banner über `csvAutoRefresh`. Im Kurator-Modus ist zusätzlich eine aktive
-  // Kurator-Session Vorbedingung; im reinen csvAutoRefresh-Modus (pl) nicht.
+  // Build-konstante Gates: der Banner läuft über `csvAutoRefresh` ODER die
+  // Kurations-Oberfläche.
+  //
+  // v3.0: `requireSession` hing an `kuratorMenus` — das traf bis dahin genau den
+  // kurator-Build. Im zusammengelegten pl-Build steht das Flag auf `true`, und die
+  // Bedingung hätte den CSV-Auto-Refresh der PL still hinter eine Kurator-Session
+  // gesperrt. Maßgeblich ist jetzt, ob der Build den Auto-Refresh selbst mitbringt:
+  // wo `csvAutoRefresh` an ist, läuft er ohne Session (das war schon immer die
+  // pl-Semantik); nur im reinen Kurations-Fall bleibt die Session Vorbedingung.
   const enabled = isKuratorMenusEnabled() || isCsvAutoRefreshEnabled();
-  const requireSession = isKuratorMenusEnabled();
+  const requireSession = !isCsvAutoRefreshEnabled();
 
   const [candidates, setCandidates] = useState<RefreshCandidate[]>([]);
   const [permissionNeeded, setPermissionNeeded] = useState<PermissionNeededEntry[]>([]);

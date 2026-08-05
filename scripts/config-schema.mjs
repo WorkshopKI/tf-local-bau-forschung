@@ -626,6 +626,8 @@ export function validateConfig(config) {
       errors.push('moduleAuth muss Objekt oder null/weggelassen sein');
     } else {
       for (const [slot, eintrag] of Object.entries(moduleAuth)) {
+        // `_comment` ist die Konfig-Konvention dieses Repos (siehe _shared.json).
+        if (slot.startsWith('_')) continue;
         // Ein Tippfehler im Slot-Namen hieße sonst GAR KEINE Sperre — ein stiller
         // Rückbau des Schutzes. Deshalb hart, nicht als Warnung.
         if (!MODUL_SLOTS.includes(slot)) {

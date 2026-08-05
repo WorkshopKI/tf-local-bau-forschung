@@ -23,7 +23,8 @@ import { X, AlertTriangle, CheckCircle2, Link2 } from 'lucide-react';
 import type { AutoRefreshCheckState } from '../hooks/useCsvAutoRefreshCheck';
 import { CsvAutoRefreshDriftDialog } from './CsvAutoRefreshDriftDialog';
 import { CsvSourceLinkDialog } from './CsvSourceLinkDialog';
-import { isCsvAutoRefreshEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isCsvAutoRefreshEnabled } from '@/config/feature-flags';
+import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { useDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
 import { pluginIdToRoute } from '@/core/routes';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -66,7 +67,7 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
   // Rollen: der Picker steht in Builds mit `csvAutoRefresh` (pl + dev), die
   // Navigation ins CSV-Sources-Plugin nur mit `kuratorMenus` (kurator + dev).
   const showLinkPicker = isCsvAutoRefreshEnabled();
-  const canNavigateToKuration = isKuratorMenusEnabled();
+  const canNavigateToKuration = isKuratorFreigeschaltet();
 
   // Quellen, die der Picker verknüpfen/re-granten kann (fehlendes Handle ODER
   // abgelaufene Permission — ein Re-Pick erneuert beides).

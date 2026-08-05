@@ -12,9 +12,9 @@ import {
   isKuratorMenusEnabled,
   hatModulSchloss,
   isMaLoginEnabled,
-  isAuslastungEnabled,
   isAssistentProtokollEnabled,
 } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import {
   SettingsRow,
   SettingsRowGroup,
@@ -328,9 +328,11 @@ function KuerzelEditor(): React.ReactElement {
         ))}
       </select>
       {/* „Inaktive einblenden" braucht Aktiv/Inaktiv-Daten aus dem Auslastungs-
-          Modul. Ohne dieses Modul (z.B. AS-Variante: Dropdown via kuerzelDropdown,
-          aber kein MA-Sync) gibt es keine inaktiven MAs — Checkbox ausblenden. */}
-      {isAuslastungEnabled() && (
+          Modul. Ohne das Modul gibt es keine inaktiven MAs — Checkbox ausblenden.
+          MUSS am selben Prädikat hängen wie `useInaktiveKuerzelSet`: filterte die
+          Liste (Modul da), während das Häkchen fehlt (Modul gesperrt), verschwänden
+          die Anträge ehemaliger Kolleg:innen ohne Weg, sie wieder einzublenden. */}
+      {isAuslastungFreigeschaltet() && (
         <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer select-none ml-1">
           <input
             type="checkbox"

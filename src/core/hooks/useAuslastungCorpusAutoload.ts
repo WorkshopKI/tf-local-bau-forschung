@@ -17,7 +17,7 @@
  * geladen, auch wenn er den lokalen Stand nicht exakt abdeckt; die wenigen
  * neueren Anträge bleiben un-embedded bis zum nächsten manuellen Rebuild.
  *
- * Gegated auf `isAuslastungEnabled()` (pl + dev) — in prod/demo/kurator No-Op.
+ * Gegated auf `isAuslastungFreigeschaltet()` (pl + dev) — in prod/demo/kurator No-Op.
  *
  * Siehe Memory `embedding-caches-machine-local` (Ursache) +
  * `cold-start-store-refresh-pattern` (Bug-Klasse).
@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
-import { isAuslastungEnabled } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { countEmbeddings, checkCompat } from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
@@ -78,7 +78,7 @@ export function useAuslastungCorpusAutoload(): void {
   }, [storage]);
 
   useEffect(() => {
-    if (!isAuslastungEnabled()) return;
+    if (!isAuslastungFreigeschaltet()) return;
     if (smbStatus.status !== 'online') return;
     if (attemptedRef.current) return;
     attemptedRef.current = true; // Latch vor run() → kein Doppel-Fire (StrictMode)
