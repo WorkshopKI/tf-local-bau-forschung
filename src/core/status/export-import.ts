@@ -6,6 +6,7 @@
 import { ALLE_STRAENGE, type Bedingung, type MappingVersion } from './typen';
 import { findeZyklus } from './kategorien';
 import { bedingungFeldRefs, referenzierbareFelder } from './bedingung';
+import { strangAusEintrag } from './regelsatz';
 
 export function exportiereVersion(version: MappingVersion): string {
   return JSON.stringify(version, null, 2);
@@ -94,9 +95,14 @@ export function validiereImport(text: string): ImportErgebnis {
       }
     }
     // Eine Sperre auf eine Regel-Id, die es nicht (mehr) gibt, sperrt nichts —
-    // und sagt es nicht. Der Sentinel `'*'` ist keine Id und deshalb ausgenommen.
+    // und sagt es nicht. Zwei Formen sind keine Ids und deshalb ausgenommen: der
+    // Sentinel `'*'` und ein `strang:`-Eintrag. Ein Strang wird NICHT gegen die
+    // vorhandenen Regeln geprüft — eine Sperre darf einen Strang nennen, den
+    // heute keine Regel trägt (der nächste Termin füllt ihn), und eine
+    // Fehlermeldung stünde dann im Weg statt zu helfen.
     for (const id of [...(r.sperrt ?? []), ...(r.sperrtNicht ?? [])]) {
-      if (id !== ALLE_STRAENGE && !regelIds.has(id)) {
+      if (id === ALLE_STRAENGE || strangAusEintrag(id) !== null) continue;
+      if (!regelIds.has(id)) {
         return { ok: false, fehler: `To-do-Regel „${r.id}" verweist auf unbekannte Regel „${id}".` };
       }
     }

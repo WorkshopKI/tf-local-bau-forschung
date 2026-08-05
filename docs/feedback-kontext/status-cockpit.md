@@ -124,6 +124,27 @@ wird.
     still und lässt eigene unangetastet.
   - Eine Bedingung auf eine Spalte, die der Katalog nicht führt, wird als Fehler
     angezeigt („trifft nie zu").
+  - **Wirkung am Bestand messen** (Knopf, nie automatisch — der Lauf kostet
+    Sekunden): je Regel steht danach, auf wie viele Vorgänge ihre Bedingung
+    zutrifft und bei wie vielen sie die Kaskade gewinnt. Sind beide Zahlen
+    gleich, steht nur eine da; an einer Sperre steht stattdessen, wie oft sie
+    greift. Ohne Lauf steht nichts. Wird danach umsortiert oder bearbeitet,
+    gelten die Zahlen als „Stand vor der letzten Änderung" — neu gerechnet wird
+    nur auf Knopfdruck.
+  - **Probe am Fall**: ein Aktenzeichen eingeben, und es steht da, welche Regel
+    bei diesem Vorgang gewinnt, welche Sperren griffen und mit welchen
+    Feldwerten — dieselbe Ansicht wie am Antrag. Ein unbekanntes Aktenzeichen
+    und eines außerhalb des Betrachtungsbereichs werden getrennt benannt.
+  - **Änderung am Bestand messen** steht in der Speicherleiste, weil
+    veröffentlichte Regeln sofort für alle scharf sind: bei wie vielen Vorgängen
+    sich das To-do ändert, gruppiert alt → neu mit Beispiel-Aktenzeichen.
+    Gemessen, nicht geschätzt; das Speichern wird nicht blockiert.
+  - **Strang** je Regel („PreCheck", „Nachforderung", „RNE", … frei ergänzbar):
+    Sperren legen ganze Stränge still statt einzelne Regeln aufzuzählen. Eine
+    Regel ohne Strang wird von keiner Strang-Sperre erfasst — darauf weist der
+    Editor hin, wo tatsächlich eine greift.
+  - **Begründung** je Regel — woher sie stammt und wer sie beschlossen hat. In
+    der Liste als gedämpfte zweite Zeile.
   - **Zwei Ansichten, ein Reiter**: ohne geöffnete Regel steht die ganze Kaskade
     als Karten über die volle Breite (Nummer, Pfeile, Satz, Zustand,
     „Bearbeiten"). Ein Klick teilt die Ansicht: links die schlanke Liste mit

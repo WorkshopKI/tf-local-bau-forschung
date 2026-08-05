@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.413.0 — Regel-Werkstatt: Wirkung, Probelauf, Straenge (August 2026)
+
+MINOR — Die To-do-Regeln sollen künftig von AB- und FB-Vertretern selbst festgelegt werden. Der Editor trug bereits; es fehlte alles vor und nach dem Bearbeiten: die Wirkung einer Regel am Bestand, die Probe am echten Fall, die Zahl vor dem Scharfschalten. Detail: [vorgangssystem.md §11a](docs/architecture/vorgangssystem.md).
+
+- **Wirkung je Regel am Bestand messen** — „trifft 153 · gewinnt 43" macht die Kaskade sichtbar; Sperren zählen, wie oft sie greifen ([regel-wirkung.ts](src/core/status/regel-wirkung.ts), [useRegelWirkung.ts](src/plugins/status-cockpit/useRegelWirkung.ts))
+- **Probe am Fall**: Aktenzeichen eingeben, Ergebnis der Engine samt Sperren und Feldwerten — dieselbe Ansicht wie am Antrag ([RegelProbelauf.tsx](src/plugins/status-cockpit/RegelProbelauf.tsx))
+- **Änderungsmessung vor dem Speichern**: beide Fassungen über denselben Bestand, gruppiert alt → neu — gemessen, nicht geschätzt ([regel-aenderung.ts](src/core/status/regel-aenderung.ts))
+- **Sperren greifen nach Strang** statt nach sieben Regel-Ids; eine später ergänzte Regel gehört automatisch dazu ([regelsatz.ts](src/core/status/regelsatz.ts), Pitfall #51)
+- **Begründung je Regel** — Herkunft und Beschluss, überlebt Speichern, Export/Import und Nachziehen ([typen.ts](src/core/status/typen.ts))
+
 ### v2.412.0 — Vorgangs-Regeln: Klaerung, Trigger-Herkunft, Benennung (August 2026)
 
 MINOR — Vor der AB-Sitzung fehlten zwei Dinge: die Antworten der Klärung hingen an einer Id, die sich beim nächsten eingefügten Punkt verschoben hätte, und in der App ließ sich nicht nachsehen, wodurch ein Status überhaupt entsteht. Dazu die Benennung: unter „Status-Katalog" vermutete niemand die Regeln. Detail: [klaerung.md](docs/architecture/klaerung.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md).

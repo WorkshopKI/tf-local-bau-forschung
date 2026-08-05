@@ -44,3 +44,32 @@ export function sperreGiltFuer(regel: Pick<TodoRegel, 'giltFuer'>, rolle: Rolle)
   const nur = regel.giltFuer;
   return nur === undefined || nur.length === 0 || nur.includes(rolle);
 }
+
+/** Präfix eines Strang-Eintrags in {@link TodoRegel.sperrt}: `strang:rne`. */
+export const STRANG_PREFIX = 'strang:';
+
+/** `strang:rne` → `rne`; alles andere → `null` (dann ist es eine Regel-Id). */
+export function strangAusEintrag(eintrag: string): string | null {
+  return eintrag.startsWith(STRANG_PREFIX)
+    ? eintrag.slice(STRANG_PREFIX.length).trim() || null
+    : null;
+}
+
+/**
+ * Trifft dieser `sperrt`-Eintrag auf diese Regel zu? — die EINZIGE Lesestelle.
+ *
+ * Drei Formen, in dieser Reihenfolge geprüft: der Sentinel `'*'` (alles), ein
+ * Strang-Eintrag (`strang:rne` gegen {@link TodoRegel.strang}), sonst eine
+ * Regel-Id. Der Sentinel wird hier NICHT behandelt — er wirkt in `sperrLage`
+ * über eine eigene Schranke, weil er auch Regeln erfasst, die es beim Schreiben
+ * der Sperre noch gar nicht gab.
+ *
+ * **Eine Regel ohne `strang` wird von keinem Strang-Eintrag erfasst.** Das ist
+ * die gewollte Lesart und zugleich die Falle, vor der das Detail warnt: wer eine
+ * Regel in einen gesperrten Strang stellen will, muss ihn ihr geben.
+ */
+export function sperrEintragTrifft(eintrag: string, regel: Pick<TodoRegel, 'id' | 'strang'>): boolean {
+  const strang = strangAusEintrag(eintrag);
+  if (strang !== null) return regel.strang !== undefined && regel.strang.trim() === strang;
+  return eintrag === regel.id;
+}

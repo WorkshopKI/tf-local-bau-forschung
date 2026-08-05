@@ -561,8 +561,9 @@ Drei Dinge, die daraus für den Termin folgen:
    Erzeugen einer Regel aus einem Platzhalter: sie bekommt eine **neue Id** und
    steht damit nicht in `GESPERRTE_STRAENGE`, das seine Ziele namentlich nennt.
    Gemessen: dieselbe Bedingung trifft mit Id `r2` **59** Vorgänge, mit neuer Id
-   **179**. Ob eine FB-Regel die Sperr-Zugehörigkeit ihrer Herkunftsregel erben
-   soll, ist eine fachliche Frage des Termins (§9, offen).
+   **179**. **Seit v2.412 ist das behoben** (§11a): die Sperren nennen Stränge,
+   und eine aus einem Platzhalter erzeugte Regel erbt den `strang` ihrer
+   Herkunftsregel — sie steht damit von Anfang an in derselben Kette.
 3. **Die hohen Mediane sind der eigentliche Befund.** Von 5 820 einseitig offenen
    Paaren liegen **4 868 jenseits von 400 Tagen** Standzeit
    (`PAAR_ALTBESTAND_TAGE`) — das ist Altbestand, kein Rückstand. Der Split
@@ -570,6 +571,53 @@ Drei Dinge, die daraus für den Termin folgen:
    Aktivität mit: `SK→ST` hat 379 aktuelle Fälle mit Median 124 T (laufende
    Arbeit), `AT4→AK4` dagegen 814 alte mit 3 351 T Standzeit und 2 269 T ohne
    jede Bewegung (tote Akte). In einer Zahl gebündelt sähe beides gleich aus.
+
+## 11a. Stränge statt Regel-Id-Listen (v2.412)
+
+S1 und S2 zählten sieben Regel-Ids auf (`['r1','r2','r22','r23a','r23b','r24','r25']`).
+Wer eine achte PreCheck-Regel anlegte, musste daran denken, **beide** Sperren zu
+ändern — und wenn er es vergaß, fiel die neue Regel still durch jede Sperre und
+feuerte auch am zurückgezogenen Antrag. Der Kopfkommentar der Engine sprach
+längst von Strängen; nur das Datenmodell nicht.
+
+**Das Modell.** `TodoRegel.strang` (Freitext mit Vorschlagsliste, kein Enum — die
+Fachseite pflegt die Kaskade selbst, ein neuer Strang darf kein Release
+brauchen). `sperrt` führt drei Formen nebeneinander, ausdrücklich mischbar:
+
+| Eintrag | Bedeutung |
+|---|---|
+| `'*'` (`ALLE_STRAENGE`) | alle übrigen Regeln — auch später ergänzte |
+| `'strang:rne'` | jede Regel mit `strang: 'rne'`, auch später ergänzte |
+| `'r22'` | genau diese eine Regel |
+
+`sperrtNicht` bleibt bei Ids: eine Ausnahme meint genau **eine** Aufgabe („ZuwB
+erstellen" überlebt S0b), nie eine ganze Kette.
+
+**Die Auswertung liegt in einer Funktion**, wie `regelsatzVon` und
+`sperreGiltFuer`: `sperrEintragTrifft(eintrag, regel)` in
+[regelsatz.ts](../../src/core/status/regelsatz.ts). `sperrLage` sammelt die
+Einträge und löst sie erst gegen die jeweilige Regel auf — genau darin liegt der
+Gewinn, denn eine Regel, die es beim Schreiben der Sperre noch nicht gab, gehört
+dann automatisch dazu. `istGesperrt` nimmt deshalb die **Regel**, nicht ihre Id.
+
+**Eine Regel ohne `strang` wird von keiner Strang-Sperre erfasst.** Das ist die
+gewollte Lesart — und die Falle, vor der der Regel-Editor warnt, sobald im
+gezeigten Regelsatz tatsächlich eine Strang-Sperre greift.
+
+**Die Stränge des ausgelieferten Satzes**: `precheck` (R1, R2, R23a, R23b),
+`nachforderung` (R22, R24, R25), `rne` (R6–R9), `ablehnung` (R11–R16),
+`gutachten` (R17–R21), `zuwb` (R3), `schluss` (R4, R5). **R10**
+(„Nachlieferungstermin verstrichen") bleibt **ohne** Strang: sie steht in keiner
+Sperre und liegt zwischen Nachforderung und Erinnerung — geraten wird nicht.
+Nur `precheck` und `nachforderung` werden gesperrt; die übrigen sind vergeben,
+damit die nächste Sperre sicher ist.
+
+**Rollout.** Bestandsfassungen auf dem Share behalten ihre Id-Listen und
+verhalten sich unverändert — beide Formen wertet dieselbe Engine aus. Die
+Strang-Form kommt über „Nachziehen"; die Drift-Bilanz weist s1/s2 dann als
+geändert aus (`regelKern` führt `strang` seit v2.412 mit). Am echten Bestand
+gemessen: nach dem Nachziehen ändert sich bei **0 von 12 355** Vorgängen das
+To-do.
 
 ## 12. Import-Diff-Journal (v2.392)
 

@@ -16,6 +16,7 @@ import {
 import { AB_TODO_REGELN, baueTodoRegelSeed, feld } from '@/core/status/todo-regeln.seed';
 import type { BedingungsKontext } from '@/core/status/bedingung';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
+import { strangAusEintrag } from '@/core/status/regelsatz';
 import { ALLE_STRAENGE, type StatusFeldEintrag, type TodoRegel } from '@/core/status/typen';
 
 const STICHTAG = '2026-08-01T00:00:00.000Z';
@@ -58,14 +59,39 @@ describe('Regelsatz — Aufbau', () => {
     expect(new Set(r).size).toBe(r.length);
   });
 
-  it('sperrt nur Regeln, die es gibt (der Sentinel ausgenommen)', () => {
+  it('sperrt nur Regeln und Straenge, die es gibt (der Sentinel ausgenommen)', () => {
     const ids = new Set(AB_TODO_REGELN.map(r => r.id));
+    const straenge = new Set(AB_TODO_REGELN.map(r => r.strang).filter(Boolean));
     for (const s of AB_TODO_REGELN) {
       for (const ziel of [...(s.sperrt ?? []), ...(s.sperrtNicht ?? [])]) {
         if (ziel === ALLE_STRAENGE) continue;
-        expect(ids.has(ziel), ziel).toBe(true);
+        const strang = strangAusEintrag(ziel);
+        // Ein genannter Strang muss BELEGT sein: eine Sperre auf einen Strang,
+        // den keine Regel traegt, sperrt nichts und sagt es nicht — dieselbe
+        // Falle wie eine tote Regel-Id.
+        if (strang !== null) expect(straenge.has(strang), ziel).toBe(true);
+        else expect(ids.has(ziel), ziel).toBe(true);
       }
     }
+  });
+
+  it('sperrtNicht nennt Regeln, nie Straenge', () => {
+    // Eine Ausnahme meint genau EINE Aufgabe, die eine Totalsperre ueberlebt
+    // („ZuwB erstellen"). Ein ganzer Strang als Ausnahme waere eine zweite
+    // Sperr-Sprache mit umgekehrtem Vorzeichen.
+    for (const s of AB_TODO_REGELN) {
+      for (const ziel of s.sperrtNicht ?? []) expect(strangAusEintrag(ziel), ziel).toBeNull();
+    }
+  });
+
+  it('jede Regel eines gesperrten Strangs traegt ihn auch', () => {
+    // Die Umstellung ist nur dann vollstaendig, wenn kein Mitglied fehlt —
+    // genau das war der Defekt der Id-Listen, nur andersherum.
+    const gesperrte = new Set(AB_TODO_REGELN
+      .flatMap(r => r.sperrt ?? [])
+      .map(strangAusEintrag)
+      .filter((x): x is string => x !== null));
+    expect([...gesperrte].sort()).toEqual(['nachforderung', 'precheck']);
   });
 
   it('gibt jeder Regel entweder eine Zuständigkeit oder ein Warten', () => {
@@ -98,8 +124,12 @@ describe('Regelsatz — Aufbau', () => {
   });
 });
 
-describe('Kaskade — je Regel ein positives Fixture', () => {
-  const FAELLE: [string, Record<string, string>, string][] = [
+/**
+ * Je Regel eine Feldlage, unter der sie feuert. Steht ausserhalb des `describe`,
+ * weil das Regressionsgatter unten dieselben Lagen braucht — zwei Kopien liefen
+ * beim ersten neuen Fixture auseinander.
+ */
+const FAELLE: [string, Record<string, string>, string][] = [
     ['r1', { 'PC-': GESTERN }, 'Abl/RNE erstellen'],
     ['r2', { 'XPC-': GESTERN }, 'Abl/RNE von FB abwarten'],
     ['r3', { ABB: GESTERN }, 'ZuwB erstellen'],
@@ -125,9 +155,13 @@ describe('Kaskade — je Regel ein positives Fixture', () => {
     ['r23a', { _status: 'beantragt', _vb_phase: '3' }, 'PC offen'],
     ['r23b', { _status: 'beantragt', _vb_phase: '3', 'PC+': GESTERN }, 'PC offen'],
     ['r24', { ALU: GESTERN }, 'NF ergänzen'],
-    ['r25', { _status: 'bearbeitungsreif' }, 'NF erstellen'],
-  ];
+  ['r25', { _status: 'bearbeitungsreif' }, 'NF erstellen'],
+];
 
+/** Nur Id + Feldlage — die Erwartung braucht das Gatter nicht. */
+const FIXTURE_LAGEN: [string, Record<string, string>][] = FAELLE.map(([id, w]) => [id, w]);
+
+describe('Kaskade — je Regel ein positives Fixture', () => {
   for (const [id, werte, erwartet] of FAELLE) {
     it(`${id} → „${erwartet}"`, () => {
       const e = ermittleTodo(REGELN, ctx(werte), STICHTAG);
@@ -473,5 +507,110 @@ describe('baueTodoKontext', () => {
 
   it('legt keinen Text-Schlüssel an, wenn kein Text da ist', () => {
     expect(baueTodoKontext([eintrag('D_XPC+', HEUTE, 'T_XPC+')]).has('T_XPC+')).toBe(false);
+  });
+});
+
+describe('Regressionsgatter — Strang-Sperren statt Id-Listen (v2.412)', () => {
+  /**
+   * Der Kern der Umstellung: S1 und S2 zaehlten sieben Regel-Ids auf, jetzt
+   * nennen sie zwei Straenge. Am Verhalten darf sich NICHTS aendern — und das
+   * wird hier gegen den ganzen Fixture-Bestand gestellt, nicht gegen eine
+   * Erwartung im Kopf.
+   *
+   * Verglichen wird das VOLLE `TodoErgebnis` inklusive `gesperrtDurch` und
+   * `weitereTreffer`: ein Unterschied in der Begruendung waere genauso ein
+   * Bruch wie einer im Ergebnis.
+   */
+  const ALTE_IDS = ['r1', 'r2', 'r22', 'r23a', 'r23b', 'r24', 'r25'];
+
+  /** Der Seed in der Form VOR der Umstellung — nur die `sperrt`-Listen tauschen. */
+  const altForm = (): TodoRegel[] => baueTodoRegelSeed().map(r => (
+    r.id === 's1' || r.id === 's2' ? { ...r, sperrt: [...ALTE_IDS] } : r
+  ));
+
+  /** Jede Fixture-Lage, einmal blank und einmal unter jeder der beiden Sperren. */
+  const LAGEN: [string, Record<string, string>][] = [
+    ['blank', {}],
+    ...FIXTURE_LAGEN.map(([id, w]) => [id, w] as [string, Record<string, string>]),
+    ...FIXTURE_LAGEN.map(([id, w]) => [`${id}+S1`, { ...w, AAR: GESTERN }] as [string, Record<string, string>]),
+    ...FIXTURE_LAGEN.map(([id, w]) => [`${id}+S2`, { ...w, ARK: GESTERN }] as [string, Record<string, string>]),
+    ...FIXTURE_LAGEN.map(([id, w]) => [`${id}+S0`, { ...w, VV: GESTERN }] as [string, Record<string, string>]),
+  ];
+
+  for (const [name, werte] of LAGEN) {
+    it(`${name}: beide Formen liefern dasselbe Ergebnis`, () => {
+      const c = ctx(werte);
+      expect(ermittleTodo(baueTodoRegelSeed(), c, STICHTAG))
+        .toEqual(ermittleTodo(altForm(), c, STICHTAG));
+    });
+  }
+
+  it('auch ueber ALLE Rollen hinweg, samt abgeleiteter Platzhalter', () => {
+    for (const [, werte] of LAGEN) {
+      const c = ctx(werte);
+      expect(ermittleTodosAlleRollen(baueTodoRegelSeed(), c, STICHTAG))
+        .toEqual(ermittleTodosAlleRollen(altForm(), c, STICHTAG));
+    }
+  });
+
+  it('eine SPAETER ergaenzte Regel im Strang wird erfasst — die Id-Liste haette sie verpasst', () => {
+    // Das ist der Grund fuer den Umbau, als Test: dieselbe neue Regel faellt in
+    // der alten Form durch die Sperre und wird in der neuen davon erfasst.
+    // `reihenfolge: 65` liegt VOR R5 („zurueckgezogen, SV fehlt", 70) — sonst
+    // gewaenne R5 in beiden Formen und der Unterschied bliebe unsichtbar. Genau
+    // an dieser Stelle wuerde eine echte neue Regel auch stehen.
+    const neueRegel: TodoRegel = {
+      id: 'r26', reihenfolge: 65, beschreibung: 'R26 · spaeter ergaenzt',
+      strang: 'nachforderung',
+      bedingung: { feldId: feld('AAE'), op: 'gefuellt' },
+      todo: 'Frisch erfunden', zustaendig: ['ab'], aktiv: true,
+    };
+    const lage = ctx({ AAR: GESTERN, AAE: GESTERN });
+
+    // Alte Form: S1 nennt die neue Id nicht, die Regel feuert am
+    // zurueckgezogenen Antrag — still und ohne dass es jemand saehe.
+    expect(ermittleTodo([...altForm(), neueRegel], lage, STICHTAG).todo).toBe('Frisch erfunden');
+    // Neue Form: sie gehoert zum Strang und ruht mit ihm.
+    expect(ermittleTodo([...baueTodoRegelSeed(), neueRegel], lage, STICHTAG).todo)
+      .not.toBe('Frisch erfunden');
+  });
+
+  it('eine Regel OHNE Strang bleibt von Strang-Sperren unberuehrt', () => {
+    // Die gewollte Lesart — und die Falle, vor der das Detail warnt.
+    const ohneStrang: TodoRegel = {
+      id: 'r27', reihenfolge: 65, beschreibung: 'R27 · ohne Strang',
+      bedingung: { feldId: feld('AAE'), op: 'gefuellt' },
+      todo: 'Ohne Strang', zustaendig: ['ab'], aktiv: true,
+    };
+    const e = ermittleTodo(
+      [...baueTodoRegelSeed(), ohneStrang], ctx({ AAR: GESTERN, AAE: GESTERN }), STICHTAG,
+    );
+    expect(e.gesperrtDurch, 'S1 greift — nur diese Regel eben nicht').toContain('s1');
+    expect(e.todo).toBe('Ohne Strang');
+  });
+
+  it('gemischte Listen wirken auf beiden Wegen', () => {
+    // `sperrt: ['strang:rne', 'r22']` — Strang UND Einzel-Id nebeneinander sind
+    // vorgesehen, nicht ein Uebergangszustand.
+    const gemischt = baueTodoRegelSeed().map(r => (
+      r.id === 's1' ? { ...r, sperrt: ['strang:rne', 'r22'] } : r
+    ));
+    // RNE-Regel ruht (ueber den Strang) …
+    expect(ermittleTodo(gemischt, ctx({ AAR: GESTERN, ART: GESTERN, AVK: GESTERN }), STICHTAG).todo)
+      .not.toBe('RNE ergänzen');
+    // … r22 ebenfalls (ueber die Id).
+    const mitR22 = ermittleTodo(
+      gemischt, ctx({ AAR: GESTERN, AN: vorTagen(20), AL: vorTagen(5), AVK: GESTERN }), STICHTAG,
+    );
+    expect(mitR22.todo).not.toBe('NL prüfen');
+  });
+
+  it('sperrtNicht schlaegt auch eine Strang-Sperre', () => {
+    const mitAusnahme = baueTodoRegelSeed().map(r => (
+      r.id === 's1' ? { ...r, sperrt: ['strang:precheck'], sperrtNicht: ['r1'] } : r
+    ));
+    const e = ermittleTodo(mitAusnahme, ctx({ AAR: GESTERN, 'PC-': GESTERN }), STICHTAG);
+    expect(e.gesperrtDurch).toContain('s1');
+    expect(e.todo).toBe('Abl/RNE erstellen');
   });
 });

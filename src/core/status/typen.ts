@@ -399,13 +399,33 @@ export interface TodoRegel {
    */
   giltFuer?: Rolle[];
   /**
+   * Der **Strang**, zu dem die Regel gehört — die fachliche Kette, die eine
+   * Sperre als Ganzes stilllegt (`rne`, `ablehnung`, `nachforderung`, …).
+   *
+   * Bis v2.412 zählten S1 und S2 sieben Regel-Ids einzeln auf. Wer eine achte
+   * RNE-Regel anlegte, musste daran denken, beide Sperren zu ändern — und wenn
+   * er es vergaß, fiel die neue Regel still durch jede Sperre hindurch. Der
+   * Kopfkommentar der Engine sprach längst von Strängen; nur das Datenmodell
+   * nicht.
+   *
+   * Freitext mit Vorschlagsliste, nicht Enum: die Fachseite pflegt die Kaskade
+   * selbst, und ein neuer Strang darf kein Release brauchen. Gelesen wird
+   * ausschließlich über `sperrEintragTrifft` (`regelsatz.ts`).
+   */
+  strang?: string;
+  /**
    * Sperre statt To-do: trifft sie zu, werden die genannten Regeln übersprungen.
    * Bildet S1/S2 der Mappe ab (zurückgezogener Antrag bzw. begonnene RNE/ABL
-   * unterdrücken die PreCheck-, NF- und NL-Stränge).
+   * unterdrücken die PreCheck- und Nachforderungs-Stränge).
    *
-   * Der Sentinel {@link ALLE_STRAENGE} (`'*'`) sperrt **alle übrigen** Regeln.
-   * Die Alternative — alle Ids aufzählen — wäre brüchig: eine später ergänzte
-   * Regel fiele still durch die Sperre hindurch, und niemand sähe es.
+   * Drei Formen nebeneinander, ausdrücklich mischbar:
+   * - `'*'` ({@link ALLE_STRAENGE}) — alle übrigen Regeln.
+   * - `'strang:rne'` — alle Regeln mit {@link TodoRegel.strang} `'rne'`; eine
+   *   später ergänzte gehört automatisch dazu.
+   * - `'r22'` — genau diese eine Regel, für Fälle ohne passenden Strang.
+   *
+   * Gemischte Listen sind der Normalfall und kein Übergangszustand: eine
+   * Umstellung, die nur ganz oder gar nicht ginge, bliebe unvollständig liegen.
    */
   sperrt?: string[];
   /**

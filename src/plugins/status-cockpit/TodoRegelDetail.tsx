@@ -23,10 +23,11 @@ import {
   ROLLE_LABEL, ROLLE_LANG,
   type Bedingung, type MappingVersion, type RegelWirkung, type Rolle, type TodoRegel,
 } from '@/core/status';
-import { feldKlasse, feldStil } from './labels';
+import { feldKlasse, feldKlasseSchmal, feldStil } from './labels';
 import { TodoRegelSatz } from './TodoRegelSatz';
 import {
-  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, positionsText, wirkungsAnzeige, zustandsMarker,
+  ROLLOUT_HINWEIS, bekannteStraenge, brauchtRolloutRueckfrage, fehltStrangTrotzSperre,
+  positionsText, wirkungsAnzeige, zustandsMarker,
   type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 
@@ -67,6 +68,9 @@ export function TodoRegelDetail({
 }): React.ReactElement {
   const { istSperre, eigen, giltFuerAlle } = zustandsMarker(r, satz, unbekannte);
   const w = wirkungsAnzeige(wirkung, istSperre);
+  const alleRegeln = version.todoRegeln ?? [];
+  const straenge = bekannteStraenge(alleRegeln);
+  const strangFehlt = fehltStrangTrotzSperre(r, alleRegeln, satz);
   const set = (patch: Partial<TodoRegel>): void => api.setTodoRegel(r.id, patch);
   const setzeAktiv = (an: boolean): void => {
     if (brauchtRolloutRueckfrage(r, an)
@@ -167,6 +171,35 @@ export function TodoRegelDetail({
               value={r.todo} placeholder="To-do-Text (Gruppe im Board)" className={feldKlasse} style={feldStil}
               onChange={e => set({ todo: e.target.value })}
             />
+
+            {/* Freitext MIT Vorschlagsliste (`datalist`), nicht `select`: die
+                Fachseite pflegt die Kaskade selbst, und ein neuer Strang darf
+                kein Release brauchen. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)] shrink-0">Strang</span>
+              <input
+                value={r.strang ?? ''} list={`straenge-${r.id}`} placeholder="ohne Strang"
+                className={`${feldKlasseSchmal} w-[180px] shrink-0`} style={feldStil}
+                onChange={e => set({ strang: e.target.value.trim() || undefined })}
+              />
+              <datalist id={`straenge-${r.id}`}>
+                {straenge.map(x => <option key={x} value={x} />)}
+              </datalist>
+              <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+                Sperren legen ganze Stränge still — der Strang entscheidet, ob diese Regel
+                davon erfasst wird.
+              </span>
+            </div>
+
+            {/* Der Hinweis steht NUR da, wo im gezeigten Satz wirklich eine
+                Strang-Sperre greift. Sonst wäre er Lärm an jeder Regel. */}
+            {strangFehlt && (
+              <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+                ⚠ Diese Regel trägt keinen Strang und wird deshalb von <strong>keiner</strong>{' '}
+                Strang-Sperre erfasst — sie feuert auch am zurückgezogenen Antrag. Gehört sie in
+                eine der gesperrten Ketten, muss der Strang hier stehen.
+              </p>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">zuständig</span>
               {ROLLEN_WAHL.map(x => {

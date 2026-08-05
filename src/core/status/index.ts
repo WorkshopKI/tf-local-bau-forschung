@@ -162,7 +162,10 @@ export {
   ermittleTodo, ermittleTodosAlleRollen, baueTodoKontext, todoWerte,
   type TodoErgebnis, type TodoBeleg, type TodoOptionen,
 } from './todo-engine';
-export { REGELSATZ_DEFAULT, regelsatzVon, sperreGiltFuer } from './regelsatz';
+export {
+  REGELSATZ_DEFAULT, STRANG_PREFIX,
+  regelsatzVon, sperreGiltFuer, sperrEintragTrifft, strangAusEintrag,
+} from './regelsatz';
 export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
 // Das Import-Diff-Journal hat ein eigenes Barrel (`./journal`); hier stehen nur
 // die Stellen, die andere Module ohnehin über `@/core/status` beziehen.

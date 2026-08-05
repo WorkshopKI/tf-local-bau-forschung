@@ -372,10 +372,12 @@ function regelKern(r: TodoRegel): string {
     reihenfolge: r.reihenfolge, bedingung: r.bedingung, todo: r.todo,
     zustaendig: [...r.zustaendig].sort(), wartetAuf: r.wartetAuf ?? null,
     sperrt: [...(r.sperrt ?? [])].sort(), sperrtNicht: [...(r.sperrtNicht ?? [])].sort(),
-    // Regelsatz und Sperr-Geltung entscheiden mit, WO eine Regel wirkt — zöge
-    // die Auslieferung eine Regel in einen anderen Satz um, bliebe das ohne sie
-    // eine stille Änderung.
+    // Regelsatz, Sperr-Geltung und Strang entscheiden mit, WO eine Regel wirkt —
+    // zöge die Auslieferung eine Regel in einen anderen Satz oder Strang um,
+    // bliebe das ohne sie eine stille Änderung. Der `strang` ist seit v2.412
+    // dabei: er bestimmt, welche Sperren die Regel erfassen.
     regelsatz: regelsatzVon(r), giltFuer: [...(r.giltFuer ?? [])].sort(),
+    strang: r.strang ?? '',
   });
 }
 

@@ -9,7 +9,7 @@
  * eigenen). Hier steht sie einmal — und ist damit node-testbar.
  */
 import {
-  regelsatzVon, sperreGiltFuer, REGELSATZ_DEFAULT,
+  regelsatzVon, sperreGiltFuer, strangAusEintrag, ALLE_STRAENGE, REGELSATZ_DEFAULT,
   type PlatzhalterGruppe, type RegelWirkung, type Rolle, type TodoRegel,
 } from '@/core/status';
 
@@ -181,4 +181,106 @@ export function wirkungsAnzeige(w: RegelWirkung | undefined, istSperre: boolean)
  */
 export function brauchtRolloutRueckfrage(r: TodoRegel, an: boolean): boolean {
   return an && regelsatzVon(r) !== REGELSATZ_DEFAULT;
+}
+
+/**
+ * Vorschläge für {@link TodoRegel.strang} — eine **Liste**, kein Enum.
+ *
+ * Die Kaskade wird von der Fachseite gepflegt; ein neuer Strang darf kein
+ * Release brauchen. Was hier steht, sind die Ketten des ausgelieferten Satzes.
+ */
+export const STRANG_VORSCHLAEGE: readonly string[] = [
+  'precheck', 'nachforderung', 'rne', 'ablehnung', 'gutachten', 'zuwb', 'schluss',
+];
+
+/**
+ * Alle Stränge, die in dieser Fassung vorkommen — aus den Vorschlägen UND dem,
+ * was Regeln und Sperren tatsächlich führen.
+ *
+ * Ein selbst vergebener Strang muss in der Auswahl wieder auftauchen, sonst
+ * bietet der Editor beim nächsten Öffnen etwas anderes an, als dasteht.
+ */
+export function bekannteStraenge(regeln: readonly TodoRegel[]): string[] {
+  const alle = new Set<string>(STRANG_VORSCHLAEGE);
+  for (const r of regeln) {
+    if (r.strang) alle.add(r.strang.trim());
+    for (const e of r.sperrt ?? []) {
+      const s = strangAusEintrag(e);
+      if (s) alle.add(s);
+    }
+  }
+  return [...alle].sort((a, b) => a.localeCompare(b, 'de'));
+}
+
+/**
+ * Fällt diese Regel durch jede Strang-Sperre, weil sie keinen Strang trägt?
+ *
+ * Genau das Problem, das der Umbau beseitigt: eine neu angelegte Regel ohne
+ * `strang` bleibt für S1/S2 unsichtbar und feuert auch am zurückgezogenen
+ * Antrag. Der Hinweis steht deshalb NUR da, wo im gezeigten Regelsatz
+ * tatsächlich eine Sperre nach Strängen greift — sonst wäre er Lärm.
+ *
+ * Sperren selbst sind ausgenommen: sie werden nie von einer anderen erfasst.
+ */
+export function fehltStrangTrotzSperre(r: TodoRegel, alle: readonly TodoRegel[], satz: Rolle): boolean {
+  if ((r.sperrt?.length ?? 0) > 0) return false;
+  if (r.strang !== undefined && r.strang.trim() !== '') return false;
+  return alle.some(s => (s.sperrt ?? []).some(e => strangAusEintrag(e) !== null)
+    && s.aktiv && sperreGiltFuer(s, satz));
+}
+
+/**
+ * Anzeigeform eines Strangs. Die gepflegten Ketten tragen Schreibweisen, die
+ * keine Regel errät (`zuwb` → `ZuwB`, `rne` → `RNE`); alles andere bekommt einen
+ * Großbuchstaben und bleibt sonst, wie es eingegeben wurde.
+ */
+const STRANG_LABEL: Record<string, string> = {
+  precheck: 'PreCheck', nachforderung: 'Nachforderung', rne: 'RNE',
+  ablehnung: 'Ablehnung', gutachten: 'Gutachten', zuwb: 'ZuwB', schluss: 'Schlussvermerk',
+};
+
+export function strangLabel(s: string): string {
+  const k = s.trim();
+  return STRANG_LABEL[k.toLowerCase()] ?? (k.charAt(0).toUpperCase() + k.slice(1));
+}
+
+/** Aufzählung mit „und" vor dem letzten Glied. */
+function undListe(teile: readonly string[]): string {
+  if (teile.length <= 1) return teile[0] ?? '';
+  return `${teile.slice(0, -1).join(', ')} und ${teile[teile.length - 1]}`;
+}
+
+/**
+ * Was eine Sperre stilllegt — und was sie bewusst durchlässt.
+ *
+ * Seit v2.412 nennt sie **Stränge** statt sieben Regel-Ids: „ruhen die Stränge
+ * PreCheck und Nachforderung" ist ein Satz, den ein Fachvertreter prüfen kann;
+ * „7 Regeln überspringen (r1, r2, r22, r23a, r23b, r24, r25)" war eine Liste,
+ * die man erst auflösen musste. Gemischte Listen nennen beides — sie sind
+ * vorgesehen, kein Übergangszustand.
+ *
+ * Steht hier und nicht in der Komponente, damit die Grammatik prüfbar ist: die
+ * erste Fassung schrieb „7 die Regeln r1, …", und das sah man erst im Browser.
+ */
+export function sperrSatz(r: TodoRegel): string {
+  const eintraege = r.sperrt ?? [];
+  const ausnahmen = (r.sperrtNicht ?? []).join(', ');
+  const rest = ausnahmen ? ` — außer ${ausnahmen}` : '';
+  if (eintraege.includes(ALLE_STRAENGE)) return `kein To-do mehr${rest}`;
+
+  const straenge = eintraege.map(strangAusEintrag).filter((x): x is string => x !== null);
+  const ids = eintraege.filter(e => strangAusEintrag(e) === null);
+  if (straenge.length === 0 && ids.length === 0) return `nichts wird gesperrt${rest}`;
+
+  const teile: string[] = [];
+  if (straenge.length > 0) {
+    teile.push(`${straenge.length === 1 ? 'der Strang' : 'die Stränge'} `
+      + undListe(straenge.map(strangLabel)));
+  }
+  if (ids.length > 0) {
+    teile.push(`${ids.length === 1 ? 'die Regel' : 'die Regeln'} ${ids.join(', ')}`);
+  }
+  // Ein einzelnes Glied ruht, mehrere ruhen — und zwei Teile sind immer mehrere.
+  const einzahl = teile.length === 1 && straenge.length + ids.length === 1;
+  return `${undListe(teile)} ${einzahl ? 'ruht' : 'ruhen'}${rest}`;
 }

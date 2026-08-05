@@ -29,7 +29,7 @@
 import { pruefeBedingung, type BedingungsKontext } from './bedingung';
 import { bedingungFeldRefs } from './bedingung';
 import type { FeldVorkommen } from './feld-aufloesung';
-import { regelsatzVon, sperreGiltFuer, REGELSATZ_DEFAULT } from './regelsatz';
+import { regelsatzVon, sperrEintragTrifft, sperreGiltFuer, REGELSATZ_DEFAULT } from './regelsatz';
 import { ROLLEN } from './rollen';
 import { ALLE_STRAENGE, type Rolle, type TodoRegel } from './typen';
 
@@ -94,7 +94,11 @@ function belegeVon(regel: TodoRegel, ctx: BedingungsKontext): TodoBeleg[] {
 interface SperrLage {
   /** Ids der greifenden Sperren — erklärt, warum ein Strang stumm bleibt. */
   gesperrtDurch: string[];
-  istGesperrt: (id: string) => boolean;
+  /**
+   * Nimmt die **Regel**, nicht ihre Id: seit v2.412 sperrt ein Eintrag auch nach
+   * {@link TodoRegel.strang}, und der steht an der Regel.
+   */
+  istGesperrt: (r: Pick<TodoRegel, 'id' | 'strang'>) => boolean;
 }
 
 /**
@@ -109,7 +113,11 @@ interface SperrLage {
 function sperrLage(
   aktive: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string, rolle: Rolle,
 ): SperrLage {
-  const gesperrt = new Set<string>();
+  // Die Einträge werden GESAMMELT, nicht sofort aufgelöst: ein `strang:`-Eintrag
+  // meint eine Menge, die erst gegen die jeweilige Regel entschieden wird — und
+  // genau das ist der Punkt der Umstellung (eine später ergänzte Regel gehört
+  // automatisch dazu, statt still durch die Sperre zu fallen).
+  const eintraege: string[] = [];
   const ausnahmen = new Set<string>();
   let alleGesperrt = false;
   const gesperrtDurch: string[] = [];
@@ -117,17 +125,20 @@ function sperrLage(
     if (!istSperre(s) || !sperreGiltFuer(s, rolle)) continue;
     if (!pruefeBedingung(s.bedingung, ctx, stichtag)) continue;
     gesperrtDurch.push(s.id);
-    for (const id of s.sperrt ?? []) {
-      if (id === ALLE_STRAENGE) alleGesperrt = true; else gesperrt.add(id);
+    for (const e of s.sperrt ?? []) {
+      if (e === ALLE_STRAENGE) alleGesperrt = true; else eintraege.push(e);
     }
     for (const id of s.sperrtNicht ?? []) ausnahmen.add(id);
   }
   // Die Ausnahme gewinnt: S0b legt das ganze Feld still, „ZuwB erstellen" muss
   // trotzdem feuern können. Eine Ausnahme wirkt gegen JEDE greifende Sperre —
   // wer eine Regel ausnimmt, meint „diese Aufgabe bleibt", nicht „nur gegen S0b".
+  // Sie steht weiterhin als Regel-Id da: eine Ausnahme meint genau eine Aufgabe,
+  // nie einen ganzen Strang.
   return {
     gesperrtDurch,
-    istGesperrt: (id: string) => !ausnahmen.has(id) && (alleGesperrt || gesperrt.has(id)),
+    istGesperrt: (r: Pick<TodoRegel, 'id' | 'strang'>) => !ausnahmen.has(r.id)
+      && (alleGesperrt || eintraege.some(e => sperrEintragTrifft(e, r))),
   };
 }
 
@@ -139,7 +150,7 @@ function trefferLauf(
   let treffer: TodoRegel | null = null;
   const weitereTreffer: { regelId: string; todo: string }[] = [];
   for (const r of aktive) {
-    if (istSperre(r) || regelsatzVon(r) !== rolle || lage.istGesperrt(r.id)) continue;
+    if (istSperre(r) || regelsatzVon(r) !== rolle || lage.istGesperrt(r)) continue;
     if (!pruefeBedingung(r.bedingung, ctx, stichtag)) continue;
     if (!treffer) treffer = r;
     else weitereTreffer.push({ regelId: r.id, todo: r.todo });
@@ -235,12 +246,18 @@ export function ermittleTodosAlleRollen(
       : { ...LEER, gesperrtDurch: lagen[rolle].gesperrtDurch };
   }
 
+  // Die Herkunftsregel wird für den Sperr-Filter gebraucht — seit v2.412 nicht
+  // mehr nur ihre Id, sondern ihr `strang`. Einmal aufgebaut statt je Paar
+  // gesucht: die Schleife darunter läuft über ROLLEN².
+  const nachId = new Map(aktive.map(r => [r.id, r]));
+
   for (const rolle of ROLLEN) {
     if (pro[rolle].todo !== null) continue;
     for (const quelle of ROLLEN) {
       const q = pro[quelle];
       if (quelle === rolle || q.todo === null || q.wartetAuf !== rolle) continue;
-      if (q.regelId === null || lagen[rolle].istGesperrt(q.regelId)) continue;
+      const herkunft = q.regelId === null ? undefined : nachId.get(q.regelId);
+      if (herkunft === undefined || lagen[rolle].istGesperrt(herkunft)) continue;
       pro[rolle] = {
         todo: q.todo,
         regelId: null,
@@ -251,7 +268,7 @@ export function ermittleTodosAlleRollen(
         gesperrtDurch: pro[rolle].gesperrtDurch,
         weitereTreffer: [],
         quelle: 'abgeleitet',
-        abgeleitetAus: q.regelId,
+        abgeleitetAus: herkunft.id,
       };
       break;
     }

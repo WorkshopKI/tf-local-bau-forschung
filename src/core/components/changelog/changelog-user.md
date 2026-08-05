@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.413 — 2026-08
+
+### Neu
+- In den Vorgangs-Regeln lässt sich jetzt **messen, was eine Regel am Bestand tut**: auf wie viele Vorgänge ihre Bedingung zutrifft und bei wie vielen sie tatsächlich das To-do bestimmt. Der Unterschied zeigt, welche Regeln von einer früheren verdeckt werden.
+- **Probe am Fall**: ein Aktenzeichen eingeben, und es steht da, welche Regel bei genau diesem Vorgang greift, welche Sperren wirken und mit welchen Feldwerten.
+- Vor dem Speichern lässt sich **messen, was die Änderung am Bestand bewirkt** — bei wie vielen Vorgängen sich das To-do ändert, von welchem auf welches, mit Beispiel-Aktenzeichen. Gespeichert wird trotzdem erst auf Klick.
+- Jede Regel kann eine **Begründung** tragen: woher sie stammt und wer sie beschlossen hat.
+
+### Verbesserungen
+- Sperren nennen jetzt **Stränge** statt einzelner Regeln („die Stränge PreCheck und Nachforderung ruhen"). Eine neu angelegte Regel gehört damit automatisch zur richtigen Kette, statt still an der Sperre vorbeizulaufen. Am Bestand geprüft: an den ermittelten To-dos ändert sich dadurch nichts.
+
 ## v2.412 — 2026-08
 
 ### Neu

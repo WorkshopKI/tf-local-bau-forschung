@@ -864,6 +864,12 @@ export function useStatusCockpit(): StatusCockpitApi {
    * fest, und sie abzutippen wäre die fehleranfälligste Stelle des ganzen
    * Termins. Rolle gedreht (`wartetAuf: fb` wird zu `zustaendig: ['fb']`) und
    * **stillgelegt**: `fuegeTodoRegelHinzu` erzwingt das für jeden Satz außer AB.
+   *
+   * **Der `strang` wird geerbt** (v2.412). Die neue Regel bekommt eine neue Id
+   * und stand damit in keiner Sperre, die ihre Ziele namentlich nennt — gemessen
+   * traf dieselbe Bedingung als `r2` 59 Vorgänge, unter neuer Id 179. Über den
+   * Strang gehört sie derselben Kette an wie ihre Herkunft, und die Sperre
+   * greift von Anfang an.
    */
   const todoRegelAusPlatzhalter = useCallback((g: PlatzhalterGruppe) => {
     setEntwurf(v => {
@@ -879,6 +885,7 @@ export function useStatusCockpit(): StatusCockpitApi {
         zustaendig: [g.rolle],
         wartetAuf: null,
         regelsatz: g.rolle,
+        ...(quelle.strang !== undefined ? { strang: quelle.strang } : {}),
         aktiv: false,
       });
     });

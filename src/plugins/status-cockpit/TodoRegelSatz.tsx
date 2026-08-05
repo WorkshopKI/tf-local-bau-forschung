@@ -7,20 +7,14 @@
  * noch einmal im Detail-Kopf, wo sonst nur die Einzelfelder des Editors stünden.
  */
 import {
-  ROLLE_LABEL, bedingungSatz, ALLE_STRAENGE,
+  ROLLE_LABEL, bedingungSatz,
   type MappingVersion, type TodoRegel,
 } from '@/core/status';
-import { zaehlwort } from '@/core/utils/zaehlwort';
+import { sperrSatz } from './todoRegelnAnsicht';
 
-/** Was eine Sperre stilllegt — und was sie bewusst durchlässt. */
-export function sperrSatz(r: TodoRegel): string {
-  const ids = r.sperrt ?? [];
-  const ausnahmen = (r.sperrtNicht ?? []).join(', ');
-  const rest = ausnahmen ? ` — außer ${ausnahmen}` : '';
-  return ids.includes(ALLE_STRAENGE)
-    ? `kein To-do mehr${rest}`
-    : `${zaehlwort(ids.length, 'Regel', 'Regeln')} überspringen (${ids.join(', ')})${rest}`;
-}
+// Die Satzform der Sperre wohnt im Ansichts-Modell — dort ist sie ohne React
+// prüfbar, und ihre Grammatik hat genau das gebraucht (v2.412).
+export { sperrSatz } from './todoRegelnAnsicht';
 
 export function TodoRegelSatz({ r, version, className = '' }: {
   r: TodoRegel;
