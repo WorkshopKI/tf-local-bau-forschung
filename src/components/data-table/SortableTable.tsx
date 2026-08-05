@@ -446,15 +446,15 @@ export function SortableTable<T>({
               && (idx === 0 || sectionKeyOf!(rows[idx - 1]!) !== sectionKey);
             return (
               <Fragment key={rowKey(row)}>
+                {/* Der graue Grund IST die Abgrenzung — eine zusaetzliche
+                    Oberkante stiess beim ersten Band direkt auf die Unterkante
+                    des Tabellenkopfes und las sich dort als doppelte Linie. */}
                 {showSection ? (
                   <tr>
                     <td
                       colSpan={columns.length}
                       className="px-3 py-1.5"
-                      style={{
-                        background: 'var(--tf-bg-secondary)',
-                        borderTop: '0.5px solid var(--tf-border)',
-                      }}
+                      style={{ background: 'var(--tf-bg-secondary)' }}
                     >
                       {renderSectionHeader!(sectionKey!, sectionCounts?.get(sectionKey!) ?? 0)}
                     </td>

@@ -16,6 +16,11 @@ const ISOLATED_TESTS = [
   'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',
   'src/core/services/csv/__tests__/unterprogramm-registry.test.ts',
   'src/core/services/embedding-corpus/__tests__/storage.test.ts',
+  // Mockt `feedbackStorage` + `feedbackSharedFile` modulweit — dieselben Module
+  // wie `sponsorTicketUpsert.test.ts` weiter unten. Ohne Isolation fiel die
+  // Datei sporadisch mit vier Fehlschlägen aus (einzeln immer grün, im Suite-Lauf
+  // je nach Ladereihenfolge).
+  'src/core/services/feedback/__tests__/addComment.test.ts',
   // Mockt `screenContext` modulweit; sobald eine weitere Feedback-Testdatei die
   // Ladereihenfolge im gemeinsamen Modul-Register verschiebt, greift der Mock
   // nicht mehr (die Prompts kamen ohne APP-OVERVIEW-Marker an).

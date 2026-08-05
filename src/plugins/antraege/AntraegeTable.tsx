@@ -61,9 +61,13 @@ type ArchivMeta = {
   breakdown: string;
 } | null;
 
-/** Band-Header für `Gruppiert: Status` in der Tabelle — gleiche Optik wie
- *  `StatusSectionHeader` der List-View, aber nicht-kollabierbar (eingebettet
- *  in einer Tabellen-Zeile). */
+/** Band-Header der Gruppierung in der Tabelle — wie `StatusSectionHeader` der
+ *  List-View, aber nicht-kollabierbar (eingebettet in einer Tabellen-Zeile).
+ *
+ *  **Ohne Trennlinie**, anders als die List-View-Variante: in der Tabelle sitzt
+ *  das Band auf grauem Grund, der die Abgrenzung schon leistet. Die auslaufende
+ *  Linie war eine zweite Aussage zur selben Sache — und stieß beim ersten Band
+ *  direkt auf die Unterkante des Tabellenkopfes. */
 function StatusBand({ label, count }: { label: string; count: number }): React.ReactElement {
   return (
     <div className="flex items-center gap-2">
@@ -73,7 +77,6 @@ function StatusBand({ label, count }: { label: string; count: number }): React.R
       <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
         {count.toLocaleString('de-DE')}
       </span>
-      <div className="flex-1 h-px bg-[var(--tf-border)]" />
     </div>
   );
 }
@@ -275,10 +278,17 @@ export function AntraegeTable({
                 collapsed={false}
                 onToggle={toggleArchiv}
                 breakdown={archivMeta?.breakdown}
+                linie={false}
               />
             );
           }
-          return <ArbeitsvorratSectionHeader section="in_arbeit" count={archivMeta?.inArbeitCount ?? count} />;
+          return (
+            <ArbeitsvorratSectionHeader
+              section="in_arbeit"
+              count={archivMeta?.inArbeitCount ?? count}
+              linie={false}
+            />
+          );
         },
       }
     : {};

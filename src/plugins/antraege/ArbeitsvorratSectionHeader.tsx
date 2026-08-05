@@ -25,6 +25,11 @@ interface Props {
   onToggle?: () => void;
   /** Kurz-Aufschlüsselung rechts (nur `archiv`). Leerstring = nichts anzeigen. */
   breakdown?: string;
+  /** Auslaufende Trennlinie hinter dem Zähler. In der Tabelle `false`: dort
+   *  sitzt das Band auf grauem Grund, der die Abgrenzung schon leistet, und die
+   *  Linie stieß beim ersten Band auf die Unterkante des Tabellenkopfes. In der
+   *  List-View (kein grauer Grund) trennt sie weiterhin. */
+  linie?: boolean;
 }
 
 const LABEL_CLASS =
@@ -37,16 +42,20 @@ export function ArbeitsvorratSectionHeader({
   collapsed,
   onToggle,
   breakdown,
+  linie = true,
 }: Props): React.ReactElement {
   const label = ARBEITSVORRAT_LABEL[section];
   const countStr = count.toLocaleString('de-DE');
+  // Ohne Linie braucht es trotzdem den Dehnungs-Platzhalter, damit die
+  // Aufschlüsselung rechts stehen bleibt statt an den Zähler zu rutschen.
+  const fueller = linie ? <div className="flex-1 h-px bg-[var(--tf-border)]" /> : <div className="flex-1" />;
 
   if (section === 'in_arbeit') {
     return (
       <div className="w-full flex items-center gap-2">
         <span className={LABEL_CLASS}>{label}</span>
         <span className={COUNT_CLASS}>{countStr}</span>
-        <div className="flex-1 h-px bg-[var(--tf-border)]" />
+        {fueller}
       </div>
     );
   }
@@ -63,7 +72,7 @@ export function ArbeitsvorratSectionHeader({
       <Icon size={12} className="text-[var(--tf-text-tertiary)] shrink-0" />
       <span className={LABEL_CLASS}>{label}</span>
       <span className={COUNT_CLASS}>{countStr}</span>
-      <div className="flex-1 h-px bg-[var(--tf-border)]" />
+      {fueller}
       {breakdown ? (
         <span className="shrink-0 text-[10.5px] text-[var(--tf-text-tertiary)] normal-case tracking-normal tabular-nums">
           {breakdown}
