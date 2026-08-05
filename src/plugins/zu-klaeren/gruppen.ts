@@ -11,7 +11,8 @@
  *
  * Rein: keine IO, keine Uhr.
  */
-import { ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL } from '@/core/status';
+// Gegen die AUSLIEFERUNG, nicht gegen den geltenden Schnitt: siehe `zielLabel`.
+import { SEED_ZAH_PHASEN, ZAH_MARKER_LABEL, zahPhaseLabel } from '@/core/status';
 import { konsens, type PunktBefund } from './konsens';
 import {
   OHNE_PHASE, urteilSchluessel, normalisiereAutor,
@@ -84,7 +85,7 @@ export function baueGruppen(
   zeilen: readonly ZeileAnsicht[], filter: ZeilenFilter = 'alle',
 ): GruppeAnsicht[] {
   const sichtbar = zeilen.filter(z => passtZumFilter(z, filter));
-  const reihenfolge: ZielWert[] = [...ZAH_PHASEN_REIHENFOLGE, OHNE_PHASE];
+  const reihenfolge: ZielWert[] = [...SEED_ZAH_PHASEN.map(p => p.id), OHNE_PHASE];
 
   return reihenfolge.flatMap(id => {
     const meine = sichtbar.filter(z => (z.punkt.seedZiel ?? OHNE_PHASE) === id);
@@ -92,7 +93,7 @@ export function baueGruppen(
     const mitZahl = meine.filter(z => z.vorkommen !== null);
     return [{
       id,
-      label: id === OHNE_PHASE ? ZAH_MARKER_LABEL : ZAH_PHASE_LABEL[id],
+      label: id === OHNE_PHASE ? ZAH_MARKER_LABEL : zahPhaseLabel(id, SEED_ZAH_PHASEN),
       istMarker: id === OHNE_PHASE,
       zeilen: meine,
       codeAnzahl: meine.length,

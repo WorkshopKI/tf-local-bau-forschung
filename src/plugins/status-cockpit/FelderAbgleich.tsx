@@ -220,6 +220,7 @@ function PhasenAusTrigger({ api }: { api: StatusCockpitApi }): React.ReactElemen
             ergeben, wird nichts vorgeschlagen. Jede Zuordnung bleibt danach einzeln editierbar.
           </>
         }
+        phasen={api.entwurf?.zahPhasen}
         vorschlaege={ausTrigger}
         uneinheitlich={uneinheitlich}
         ohneVorschlag={ohneVorschlag}
@@ -267,6 +268,7 @@ function PhasenAusAuslieferung({ api }: { api: StatusCockpitApi }): React.ReactE
             nichts sagt — sie hat Vorrang, weil sie die geltende Regel beschreibt.
           </>
         }
+        phasen={api.entwurf?.zahPhasen}
         vorschlaege={ausSeed}
         abweichungen={quellenAbweichungen}
         offen={offen}

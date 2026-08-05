@@ -40,8 +40,10 @@
 import { normKey } from './normalisierung';
 import { statusCodeEintrag } from './status-codes';
 import { ebeneVonNummer } from './trigger-satz';
-import { ZAH_PHASE_LABEL } from './zah-phasen';
-import type { StatusFeldEintrag, TriggerZeile, ZahPhaseId } from './typen';
+import { zahPhaseLabel, type PhasenSchnitt } from './zah-phasen';
+import type { StatusFeldEintrag, TriggerZeile, ZahPhase, ZahPhaseId } from './typen';
+
+export type { PhasenSchnitt };
 
 /** An welchem Status-Feld die Trigger-Zeile ihre Wirkung entfaltet. */
 export type PhasenQuelle = 'tv' | 'vb' | 'seed';
@@ -135,15 +137,6 @@ export interface PhasenAuswahl {
   kennzahlen: PhasenKennzahlen;
 }
 
-/**
- * Die Quellen, die eine Fassung überschreiben kann — deshalb hereingereicht und
- * nicht importiert (wie `phaseVon` bei den Zieltagen).
- */
-export interface PhasenSchnitt {
-  codeZuPhase: ReadonlyMap<number, ZahPhaseId>;
-  markerCodes: ReadonlySet<number>;
-}
-
 /** Sortierung von Richtlinien-Nummern: 76 vor 131, nicht „131" vor „76". */
 const nachNummer = (a: string, b: string): number =>
   a.localeCompare(b, 'de', { numeric: true });
@@ -177,11 +170,11 @@ function zielStatus(zeile: TriggerZeile): { status: number; quelle: 'tv' | 'vb';
 
 function belegSatz(
   programme: readonly string[], status: number, quelle: 'tv' | 'vb',
-  phase: ZahPhaseId, vbAbweichend: number | null,
+  phase: ZahPhaseId, vbAbweichend: number | null, phasen: readonly ZahPhase[] | undefined,
 ): string {
   const feld = quelle === 'tv' ? 'TV-Status' : 'VB-Status';
   const kern = `setzt in Richtlinie ${programme.join(', ')} den ${feld} ${statusPhrase(status)}`
-    + ` → ${ZAH_PHASE_LABEL[phase]}`;
+    + ` → ${zahPhaseLabel(phase, phasen)}`;
   return vbAbweichend !== null
     ? `${kern}, VB-Status abweichend ${statusPhrase(vbAbweichend)}`
     : kern;
@@ -194,6 +187,7 @@ function belegSatz(
  */
 function faltePhasen(
   zeilen: readonly TriggerZeile[], schnitt: PhasenSchnitt,
+  phasenTabelle: readonly ZahPhase[] | undefined,
 ): { phasen: Map<ZahPhaseId, PhasenBeleg[]>; hatStatus: boolean; hatUnbekannt: boolean } {
   type Rohbeleg = {
     phase: ZahPhaseId; status: number; quelle: 'tv' | 'vb';
@@ -238,16 +232,19 @@ function faltePhasen(
       status: r.status,
       quelle: r.quelle,
       ...(r.abweichend !== null ? { abweichenderVbStatus: r.abweichend } : {}),
-      satz: belegSatz(programme, r.status, r.quelle, r.phase, r.abweichend),
+      satz: belegSatz(programme, r.status, r.quelle, r.phase, r.abweichend, phasenTabelle),
     });
     phasen.set(r.phase, liste);
   }
   return { phasen, hatStatus, hatUnbekannt };
 }
 
-function konfliktSatz(code: string, phasen: { phase: ZahPhaseId; programme: string[] }[]): string {
+function konfliktSatz(
+  code: string, phasen: { phase: ZahPhaseId; programme: string[] }[],
+  phasenTabelle: readonly ZahPhase[] | undefined,
+): string {
   const teile = phasen.map(
-    p => `${ZAH_PHASE_LABEL[p.phase]} (Richtlinie ${p.programme.join(', ')})`,
+    p => `${zahPhaseLabel(p.phase, phasenTabelle)} (Richtlinie ${p.programme.join(', ')})`,
   );
   return `${code} setzt ${teile.join(' und ')} — kein Vorschlag, solange das offen ist.`;
 }
@@ -261,12 +258,16 @@ function konfliktSatz(code: string, phasen: { phase: ZahPhaseId; programme: stri
  *   keinem Antrag zuordnen.
  * @param seedFelder Die Felder der Auslieferung (`SEED_FELDER`).
  * @param schnitt    Code → Phase und die Marker-Codes.
+ * @param phasen     Die Phasen-Tabelle für die Beschriftungen in den Sätzen;
+ *   ohne Angabe der geltende Schnitt. Der Aufrufer übergibt den ENTWURF — eine
+ *   dort umbenannte Phase soll in der Vorschau schon so heißen.
  */
 export function berechnePhasenVorschlag(
   felder: readonly StatusFeldEintrag[],
   trigger: readonly TriggerZeile[],
   seedFelder: readonly StatusFeldEintrag[],
   schnitt: PhasenSchnitt,
+  phasen?: readonly ZahPhase[],
 ): PhasenAuswahl {
   const jeKuerzel = new Map<string, TriggerZeile[]>();
   for (const z of trigger) {
@@ -293,10 +294,10 @@ export function berechnePhasenVorschlag(
       continue;
     }
 
-    const { phasen, hatStatus, hatUnbekannt } = faltePhasen(zeilen, schnitt);
+    const { phasen: getroffene, hatStatus, hatUnbekannt } = faltePhasen(zeilen, schnitt, phasen);
     if (hatStatus) mitStatusTrigger++;
 
-    if (phasen.size === 0) {
+    if (getroffene.size === 0) {
       const grund: OhneGrund = !hatStatus
         ? 'keinStatusTrigger'
         : hatUnbekannt ? 'unbekannterZielcode' : 'nurMarker';
@@ -304,19 +305,19 @@ export function berechnePhasenVorschlag(
       continue;
     }
 
-    if (phasen.size > 1) {
-      const liste = [...phasen.entries()].map(([phase, belege]) => ({
+    if (getroffene.size > 1) {
+      const liste = [...getroffene.entries()].map(([phase, belege]) => ({
         phase,
         programme: [...new Set(belege.flatMap(b => b.programme))].sort(nachNummer),
       }));
       uneinheitlich.push({
         feldId: f.feldId, code: f.code, bezeichnung, phasen: liste,
-        satz: konfliktSatz(f.code, liste),
+        satz: konfliktSatz(f.code, liste, phasen),
       });
       continue;
     }
 
-    const [phase, belege] = [...phasen.entries()][0]!;
+    const [phase, belege] = [...getroffene.entries()][0]!;
     if (f.zahPhaseId === phase) continue;   // steht schon so da
     vorschlaege.push({
       feldId: f.feldId, code: f.code, bezeichnung, phase,
@@ -325,7 +326,7 @@ export function berechnePhasenVorschlag(
     });
   }
 
-  const quellenAbweichungen = ergaenzeSeedPhasen(felder, seedFelder, vorschlaege);
+  const quellenAbweichungen = ergaenzeSeedPhasen(felder, seedFelder, vorschlaege, phasen);
 
   vorschlaege.sort((a, b) => a.code.localeCompare(b.code, 'de'));
   uneinheitlich.sort((a, b) => a.code.localeCompare(b.code, 'de'));
@@ -357,6 +358,7 @@ function ergaenzeSeedPhasen(
   felder: readonly StatusFeldEintrag[],
   seedFelder: readonly StatusFeldEintrag[],
   vorschlaege: PhasenVorschlag[],
+  phasenTabelle: readonly ZahPhase[] | undefined,
 ): QuellenAbweichung[] {
   const abweichungen: QuellenAbweichung[] = [];
   const jeFeldId = new Map(felder.map(f => [f.feldId, f]));
@@ -377,8 +379,9 @@ function ergaenzeSeedPhasen(
       abweichungen.push({
         feldId: s.feldId, code: feld.code ?? s.feldId, bezeichnung: feld.label,
         seedPhase, triggerPhase,
-        satz: `${feld.code ?? s.feldId}: Auslieferung sagt ${ZAH_PHASE_LABEL[seedPhase]},`
-          + ` Trigger-Tabelle sagt ${ZAH_PHASE_LABEL[triggerPhase]} — kein Vorschlag aus beiden Quellen.`,
+        satz: `${feld.code ?? s.feldId}: Auslieferung sagt ${zahPhaseLabel(seedPhase, phasenTabelle)},`
+          + ` Trigger-Tabelle sagt ${zahPhaseLabel(triggerPhase, phasenTabelle)}`
+          + ' — kein Vorschlag aus beiden Quellen.',
       });
       continue;
     }
@@ -388,7 +391,7 @@ function ergaenzeSeedPhasen(
       phase: seedPhase, alt: feld.zahPhaseId, herkunft: 'seed',
       belege: [{
         programme: [], status: null, quelle: 'seed',
-        satz: `steht in der Auslieferung als ${ZAH_PHASE_LABEL[seedPhase]}`,
+        satz: `steht in der Auslieferung als ${zahPhaseLabel(seedPhase, phasenTabelle)}`,
       }],
     });
   }

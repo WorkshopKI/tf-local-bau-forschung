@@ -42,21 +42,52 @@ export type Prominenz = 'meilenstein' | 'normal' | 'nebensaechlich' | 'ignoriert
  * zweite, aus Rängen abgeleitete („Spine-Phase") — sie lief dem amtlichen Status
  * regelmäßig voraus und ist mit dem Rückbau entfallen.
  */
-export type ZahPhaseId =
-  | 'eingang'
-  | 'vollstaendigkeit'
-  | 'pruefung'
-  | 'entscheidung'
-  | 'begleitung'
-  | 'abgeschlossen';
+/**
+ * Id einer ZAH-Phase — **stabil und opak**.
+ *
+ * Bis v2.408 ein geschlossener Union der sechs ausgelieferten Phasen. Seit die
+ * PL den Schnitt selbst zuschneidet (3 bis 9 Phasen, freie Beschriftung), ist
+ * die Id ein beliebiger String. Die sechs Auslieferungs-Ids (`eingang` …
+ * `abgeschlossen`) bleiben erhalten — deshalb brauchen Bestandsfassungen keine
+ * Migration.
+ *
+ * **Nummern sind keine Identität.** Reihenfolge und Beschriftung sind eigene
+ * Felder; wird eine Phase eingeschoben, ändert sich keine Id. Was der Nutzer als
+ * 1…n sieht, ist Anzeige aus der Reihenfolge, nie ein Schlüssel.
+ */
+export type ZahPhaseId = string;
 
-/** Ein Eintrag der ZAH-Phasen-Tabelle (Beschriftung + Reihenfolge, PL-editierbar). */
+/**
+ * Ein Eintrag der ZAH-Phasen-Tabelle. Kuratierbar im Baum-Editor des
+ * Status-Cockpits; die Auslieferung steht in `SEED_ZAH_PHASEN`.
+ */
 export interface ZahPhase {
   id: ZahPhaseId;
   label: string;
   /** Aufsteigend entlang des Verfahrens; bestimmt Spalten-/Balken-Reihenfolge. */
   reihenfolge: number;
+  /**
+   * Zählt diese Phase für den Zieltage-Vorschlag aus dem Ist? Löste die feste
+   * Menge `ZIELTAGE_PHASEN` ab.
+   *
+   * Fehlt in Fassungen vor v2.409 — `zahPhasenVon` ergänzt aus dem Seed.
+   */
+  zieltageRelevant?: boolean;
+  /**
+   * In welche Arbeitsliste ({@link StatusCategory}) Status dieser Phase fallen.
+   * Löste die feste Tabelle `ZAH_PHASE_ZU_KATEGORIE` ab.
+   *
+   * Fehlt in Fassungen vor v2.409 — `zahPhasenVon` ergänzt aus dem Seed.
+   */
+  kategorieVorgabe?: StatusCategory;
 }
+
+/**
+ * Eine Phase, wie `zahPhasenVon` sie liefert: alle Felder gesetzt, Lücken einer
+ * Bestandsfassung aus dem Seed geschlossen. Jeder Leser bekommt diese Form —
+ * die optionalen Felder sind allein die Persistenz-Sicht.
+ */
+export type GeltendeZahPhase = Required<ZahPhase>;
 
 /**
  * Wer einen Statuseintrag setzt. Quelle ist die Kürzel-Zuarbeit des Fachsystems

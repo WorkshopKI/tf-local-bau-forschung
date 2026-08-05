@@ -20,11 +20,18 @@
  * Partner): sie laufen neben dem Verfahren, nicht darin. „Sonstige" enthält
  * danach nur noch echte Katalog-Fremde — und wird damit zur Kuratier-Anzeige
  * statt zum Sammelbecken.
+ *
+ * **Alles wird je Aufruf abgeleitet, nichts beim Import gerechnet.** Bis v2.408
+ * standen hier zwei IIFE-Konstanten; sie entstanden beim Modul-Laden, also lange
+ * bevor `setStatusKatalogSnapshot` den kuratierten Schnitt setzt. Seit die PL die
+ * Phasen selbst zuschneidet, hieße das: eine im Baum-Editor angelegte Phase
+ * tauchte in dieser Sidebar nie auf, und ein umgehängter Code stünde weiter in
+ * seiner alten Gruppe. Dasselbe Muster wie `chipStatusValues` (v2.403), aus
+ * demselben Grund.
  */
 import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
 import {
-  ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_CODE_ZU_ZAH_PHASE,
-  SEED_MARKER_CODES,
+  ZAH_MARKER_LABEL, zahPhasenVon, geltenderSchnitt,
 } from '@/core/status/zah-phasen';
 import { codeFuerStatusText } from '@/core/status/kategorie-ableitung';
 import type { ZahPhaseId } from '@/core/status/typen';
@@ -45,19 +52,16 @@ export interface PhaseGroup {
   items: StatusItem[];
 }
 
-const GRUPPEN_LABEL: Record<PhaseId, string> = {
-  ...ZAH_PHASE_LABEL,
-  marker: ZAH_MARKER_LABEL,
-  sonstige: 'Nicht im Katalog',
-};
+/** Die Gruppen-Ids in Anzeige-Reihenfolge: Verfahren zuerst, danach was danebensteht. */
+function gruppenReihenfolge(): PhaseId[] {
+  return [...zahPhasenVon().map(p => p.id), 'marker', 'sonstige'];
+}
 
-/** Gruppen-Reihenfolge: Verfahren zuerst, danach was danebensteht. */
-const GRUPPEN_REIHENFOLGE: readonly PhaseId[] = [...ZAH_PHASEN_REIHENFOLGE, 'marker', 'sonstige'];
-
-/** Zu welcher Gruppe ein Code gehört. */
+/** Zu welcher Gruppe ein Code gehört — nach dem GELTENDEN Schnitt. */
 function gruppeFuerCode(code: number): PhaseId {
-  if (SEED_MARKER_CODES.has(code)) return 'marker';
-  return SEED_CODE_ZU_ZAH_PHASE.get(code) ?? 'marker';
+  const { codeZuPhase, markerCodes } = geltenderSchnitt();
+  if (markerCodes.has(code)) return 'marker';
+  return codeZuPhase.get(code) ?? 'marker';
 }
 
 /**
@@ -65,29 +69,31 @@ function gruppeFuerCode(code: number): PhaseId {
  * Das ist die Orientierung für den Kurator: sie steht auch, wenn im Bestand
  * gerade kein Vorgang darauf liegt.
  */
-export const STATUS_GROUPS: readonly PhaseGroup[] = (() => {
-  const proGruppe = new Map<PhaseId, StatusItem[]>(GRUPPEN_REIHENFOLGE.map(id => [id, []]));
+export function getStatusGroups(): PhaseGroup[] {
+  const reihenfolge = gruppenReihenfolge();
+  const proGruppe = new Map<PhaseId, StatusItem[]>(reihenfolge.map(id => [id, []]));
   for (const e of STATUS_CODE_KATALOG) {
-    proGruppe.get(gruppeFuerCode(e.code))!.push({
+    // Ein Code, dessen Phase die Fassung nicht (mehr) führt, fiele sonst durch:
+    // `gruppeFuerCode` nennt eine Id, die in `reihenfolge` fehlt.
+    const gruppe = gruppeFuerCode(e.code);
+    (proGruppe.get(gruppe) ?? proGruppe.get('marker')!).push({
       value: e.text,
       schreibweisen: [e.text, ...e.varianten],
     });
   }
-  return GRUPPEN_REIHENFOLGE.map(id => ({
-    id, label: GRUPPEN_LABEL[id], items: proGruppe.get(id) ?? [],
+  return reihenfolge.map(id => ({
+    id, label: getPhaseLabel(id), items: proGruppe.get(id) ?? [],
   }));
-})();
+}
 
 /** Lookup: normalisierte Schreibweise → Anzeige-Wert des Eintrags. */
-const SCHREIBWEISE_ZU_WERT: ReadonlyMap<string, string> = (() => {
+function schreibweiseZuWert(): Map<string, string> {
   const m = new Map<string, string>();
-  for (const g of STATUS_GROUPS) {
-    for (const it of g.items) {
-      for (const s of it.schreibweisen) m.set(s.toLowerCase().trim(), it.value);
-    }
+  for (const e of STATUS_CODE_KATALOG) {
+    for (const s of [e.text, ...e.varianten]) m.set(s.toLowerCase().trim(), e.text);
   }
   return m;
-})();
+}
 
 /** Mappt einen rohen Status-Wert auf seine Gruppe. Unbekannt → `sonstige`. */
 export function getPhaseForStatus(raw: string): PhaseId {
@@ -97,7 +103,9 @@ export function getPhaseForStatus(raw: string): PhaseId {
 
 /** Deutsches Label einer Gruppe. */
 export function getPhaseLabel(id: PhaseId): string {
-  return GRUPPEN_LABEL[id] ?? id;
+  if (id === 'marker') return ZAH_MARKER_LABEL;
+  if (id === 'sonstige') return 'Nicht im Katalog';
+  return zahPhasenVon().find(p => p.id === id)?.label ?? id;
 }
 
 export interface GroupedItem {
@@ -130,9 +138,10 @@ export interface GroupedPhase {
 export function groupStatusValues(counts: Map<string, number>): GroupedPhase[] {
   const summen = new Map<string, number>();
   const fremde: GroupedItem[] = [];
+  const zuWert = schreibweiseZuWert();
   for (const [value, count] of counts) {
     if (!value || value === '(leer)') continue;
-    const eintrag = SCHREIBWEISE_ZU_WERT.get(value.toLowerCase().trim());
+    const eintrag = zuWert.get(value.toLowerCase().trim());
     if (eintrag === undefined) {
       fremde.push({ value, count, designed: false, schreibweisen: [value] });
       continue;
@@ -140,7 +149,7 @@ export function groupStatusValues(counts: Map<string, number>): GroupedPhase[] {
     summen.set(eintrag, (summen.get(eintrag) ?? 0) + count);
   }
 
-  const result: GroupedPhase[] = STATUS_GROUPS.map(g => ({
+  const result: GroupedPhase[] = getStatusGroups().map(g => ({
     id: g.id,
     label: g.label,
     items: g.items.map(it => ({

@@ -13,30 +13,30 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  STATUS_GROUPS, groupStatusValues, getPhaseForStatus, getPhaseLabel,
+  getStatusGroups, groupStatusValues, getPhaseForStatus, getPhaseLabel,
 } from '../statusGroups';
 import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
 import { ZAH_PHASEN_REIHENFOLGE, SEED_MARKER_CODES } from '@/core/status/zah-phasen';
 
 describe('Die Gruppen kommen aus dem Katalog', () => {
   it('führt die sechs ZAH-Phasen, dann Marker, dann Katalog-Fremde', () => {
-    expect(STATUS_GROUPS.map(g => g.id))
+    expect(getStatusGroups().map(g => g.id))
       .toEqual([...ZAH_PHASEN_REIHENFOLGE, 'marker', 'sonstige']);
   });
 
   it('verteilt jeden Katalog-Code auf genau eine Gruppe', () => {
-    const codes = STATUS_GROUPS.flatMap(g => g.items).map(it => it.value);
+    const codes = getStatusGroups().flatMap(g => g.items).map(it => it.value);
     expect(codes).toHaveLength(STATUS_CODE_KATALOG.length);
     expect(new Set(codes).size).toBe(codes.length);
   });
 
   it('legt die Marker in ihre eigene Gruppe, nicht unter „Sonstige"', () => {
-    const marker = STATUS_GROUPS.find(g => g.id === 'marker')!;
+    const marker = getStatusGroups().find(g => g.id === 'marker')!;
     const erwartet = STATUS_CODE_KATALOG
       .filter(e => SEED_MARKER_CODES.has(e.code)).map(e => e.text).sort();
     expect(marker.items.map(it => it.value).sort()).toEqual(erwartet);
     // „Nicht im Katalog" startet leer — es ist eine Kuratier-Anzeige, kein Rest.
-    expect(STATUS_GROUPS.find(g => g.id === 'sonstige')!.items).toHaveLength(0);
+    expect(getStatusGroups().find(g => g.id === 'sonstige')!.items).toHaveLength(0);
   });
 
   it('ordnet die Werte dort ein, wo der Katalog sie führt', () => {

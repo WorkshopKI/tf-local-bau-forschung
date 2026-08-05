@@ -12,18 +12,24 @@
  * 3. **„Wir wissen es nicht" ist nicht „ganz am Anfang"** — ein Status ohne
  *    Katalog-Treffer landet nicht auf Station 1.
  */
-import { describe, it, expect } from 'vitest';
-import { statusZuStepperPosition, STEPPER_STATIONS } from '../statusZuStepperPosition';
-import { ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL } from '@/core/status/zah-phasen';
+import { describe, it, expect, afterEach } from 'vitest';
+import { statusZuStepperPosition, getStepperStations } from '../statusZuStepperPosition';
+import {
+  SEED_ZAH_PHASEN, resetZahPhasenSnapshotFuerTests, setZahPhasenSnapshot,
+} from '@/core/status/zah-phasen';
+import type { ZahPhase } from '@/core/status/typen';
 
 /** 1-basierte Station einer Phase — wie die Leiste sie rendert. */
-const st = (phase: (typeof ZAH_PHASEN_REIHENFOLGE)[number]): number =>
-  ZAH_PHASEN_REIHENFOLGE.indexOf(phase) + 1;
+const st = (phase: string): number => SEED_ZAH_PHASEN.findIndex(p => p.id === phase) + 1;
+
+afterEach(() => resetZahPhasenSnapshotFuerTests());
 
 describe('Die Stationen sind der Katalog, keine zweite Liste', () => {
-  it('trägt die sechs ZAH-Phasen in Verfahrens-Reihenfolge', () => {
-    expect(STEPPER_STATIONS).toEqual(ZAH_PHASEN_REIHENFOLGE.map(id => ZAH_PHASE_LABEL[id]));
-    expect(STEPPER_STATIONS).toHaveLength(6);
+  it('trägt die sechs ausgelieferten ZAH-Phasen in Verfahrens-Reihenfolge', () => {
+    expect(getStepperStations()).toEqual(
+      SEED_ZAH_PHASEN.map(p => ({ id: p.id, label: p.label })),
+    );
+    expect(getStepperStations()).toHaveLength(6);
   });
 });
 
@@ -113,7 +119,7 @@ describe('Werte ohne amtlichen Code fallen auf die Kategorie zurück', () => {
 });
 
 describe('Jede gelieferte Station liegt im gültigen Bereich', () => {
-  it('1 … STEPPER_STATIONS.length oder null', () => {
+  it('1 … Stationszahl oder null', () => {
     for (const s of [
       'beantragt', 'bearbeitungsreif', 'NF gestellt', 'bewilligt', 'Schlussvermerk',
       'abgelehnt', 'Irrläufer', 'völlig unbekannt',
@@ -121,7 +127,55 @@ describe('Jede gelieferte Station liegt im gültigen Bereich', () => {
       const { station } = statusZuStepperPosition(s);
       if (station === null) continue;
       expect(station, s).toBeGreaterThanOrEqual(1);
-      expect(station, s).toBeLessThanOrEqual(STEPPER_STATIONS.length);
+      expect(station, s).toBeLessThanOrEqual(getStepperStations().length);
     }
+  });
+});
+
+/**
+ * Der Schnitt ist seit v2.409 kuratierbar — 3 bis 9 Phasen. Die Leiste war auf
+ * sechs gebaut: `stationVon` rechnete `indexOf + 1` und hätte für eine gelöschte
+ * Phase Station **0** geliefert, und der Kategorie-Fallback nannte feste Ids,
+ * die es in einem anderen Zuschnitt gar nicht gibt.
+ */
+describe('Die Leiste trägt jeden Zuschnitt zwischen 3 und 9 Phasen', () => {
+  /** Ein Zuschnitt aus n Phasen; die letzte ist der Abschluss. */
+  const schnitt = (n: number): ZahPhase[] => Array.from({ length: n }, (_, i) => ({
+    id: `p${i + 1}`,
+    label: `Schritt ${i + 1}`,
+    reihenfolge: (i + 1) * 10,
+    zieltageRelevant: i < n - 1,
+    kategorieVorgabe: i === 0 ? 'offen' as const
+      : i === n - 1 ? 'abgeschlossen' as const : 'in_pruefung' as const,
+  }));
+
+  it('drei Phasen: Stationszahl folgt, terminal landet auf der letzten', () => {
+    setZahPhasenSnapshot(schnitt(3));
+    expect(getStepperStations()).toHaveLength(3);
+    expect(statusZuStepperPosition('abgelehnt/zurückgezogen'))
+      .toEqual({ station: 3, terminal: 'zurueckgezogen' });
+  });
+
+  it('neun Phasen: Stationszahl folgt', () => {
+    setZahPhasenSnapshot(schnitt(9));
+    expect(getStepperStations()).toHaveLength(9);
+    expect(statusZuStepperPosition('abgelehnt/zurückgezogen'))
+      .toEqual({ station: 9, terminal: 'zurueckgezogen' });
+  });
+
+  it('eine Zuordnung auf eine gelöschte Phase gibt KEINE Station 0', () => {
+    // Der Schnitt kennt `p1…p3`; die Codes zeigen weiter auf `eingang` & Co.
+    setZahPhasenSnapshot(schnitt(3));
+    const { station } = statusZuStepperPosition('beantragt');
+    expect(station).not.toBe(0);
+    // Über die Kategorie `offen` landet er auf der ersten Station.
+    expect(station).toBe(1);
+  });
+
+  it('ohne Snapshot gilt wieder die Auslieferung', () => {
+    setZahPhasenSnapshot(schnitt(3));
+    resetZahPhasenSnapshotFuerTests();
+    expect(getStepperStations()).toHaveLength(6);
+    expect(statusZuStepperPosition('beantragt')).toEqual({ station: st('eingang') });
   });
 });

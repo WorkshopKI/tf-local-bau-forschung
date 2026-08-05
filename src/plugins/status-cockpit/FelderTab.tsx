@@ -42,7 +42,7 @@ import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
   betrifftRolle, rollenVonFeld, sortiereRollen, wirkungZeilen, baueLegende,
   type Prominenz, type Rolle, type ZahPhaseId,
-  ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL,
+  zahPhasenVon,
   type StatusFeldEintrag, type StatusKategorie, type TriggerZeile, type WirkungsZeile,
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
@@ -171,8 +171,8 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
               onChange={e => set({ zahPhaseId: e.target.value === '' ? null : e.target.value as ZahPhaseId })}
             >
               <option value="">—</option>
-              {ZAH_PHASEN_REIHENFOLGE.map(p => (
-                <option key={p} value={p}>{ZAH_PHASE_LABEL[p]}</option>
+              {zahPhasenVon(api.entwurf?.zahPhasen).map(p => (
+                <option key={p.id} value={p.id}>{p.label}</option>
               ))}
             </select>
           )}

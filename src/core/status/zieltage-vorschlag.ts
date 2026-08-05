@@ -9,9 +9,13 @@
  * Diese Datei entscheidet, **was** übernommen wird — bewusst getrennt von der
  * Oberfläche, damit die Auswahlregeln prüfbar sind:
  *
- * 1. Nur Statuswerte der **Antragsphasen** (Eingang … Entscheidung). Für
- *    Begleitung und Abgeschlossen ist „liegt zu lange" keine sinnvolle Frage,
- *    und Marker laufen ohnehin neben dem Verfahren.
+ * 1. Nur Statuswerte von Phasen, die als **zieltage-relevant** gepflegt sind
+ *    (ausgeliefert: Eingang … Entscheidung). Für Begleitung und Abgeschlossen
+ *    ist „liegt zu lange" keine sinnvolle Frage, und Marker laufen ohnehin neben
+ *    dem Verfahren. Bis v2.408 stand diese Auswahl als feste Menge hier; seit
+ *    die PL den Phasenschnitt zuschneidet, ist sie ein Feld am Phasen-Eintrag
+ *    (`zieltageRelevant`) — eine neu angelegte Phase muss selbst sagen können,
+ *    ob eine Liegezeit-Vorgabe für sie etwas bedeutet.
  * 2. Nur mit **ausreichender Stichprobe** (`MIN_STICHPROBE`). Ein Median aus
  *    zwei Beobachtungen ist keine Zielvorgabe, sondern eine Zufallszahl — solche
  *    Werte werden NICHT gesetzt, sondern als „zu wenig Daten" ausgewiesen.
@@ -21,7 +25,8 @@
  *
  * Rein: keine IO, keine Uhr.
  */
-import type { StatusWertEintrag, ZahPhaseId } from './typen';
+import { zahPhasenVon } from './zah-phasen';
+import type { StatusWertEintrag, ZahPhase, ZahPhaseId } from './typen';
 
 /**
  * Ab wie vielen Beobachtungen ein Median als Vorschlag taugt.
@@ -30,11 +35,6 @@ import type { StatusWertEintrag, ZahPhaseId } from './typen';
  * „ein einziger, zufällig langer". Wer sie ändert, ändert nur diese Zahl.
  */
 export const MIN_STICHPROBE = 5;
-
-/** Die Phasen, in denen eine Liegezeit-Vorgabe fachlich etwas bedeutet. */
-export const ZIELTAGE_PHASEN: ReadonlySet<ZahPhaseId> = new Set<ZahPhaseId>([
-  'eingang', 'vollstaendigkeit', 'pruefung', 'entscheidung',
-]);
 
 export interface ZieltageUebernahme {
   /** `StatusWertEintrag.id` — der Schlüssel, unter dem gesetzt wird. */
@@ -72,22 +72,27 @@ export interface ZieltageAuswahl {
  * @param werte       Die Statuswerte der Fassung.
  * @param vorschlaege Code → Median + Stichprobengröße (`medianLiegezeit`).
  * @param phaseVon    Wie die Fassung den Code einer ZAH-Phase zuordnet.
+ * @param phasen      Die Phasen der Fassung; ohne Angabe der geltende Schnitt.
  * @param minN        Untergrenze der Stichprobe; Default {@link MIN_STICHPROBE}.
  */
 export function waehleZieltageVorschlaege(
   werte: readonly StatusWertEintrag[],
   vorschlaege: ReadonlyMap<number, { median: number; n: number }>,
   phaseVon: (w: StatusWertEintrag) => ZahPhaseId | null,
+  phasen?: readonly ZahPhase[],
   minN: number = MIN_STICHPROBE,
 ): ZieltageAuswahl {
   const uebernehmen: ZieltageUebernahme[] = [];
   const zuWenigDaten: { code: number; wert: string; n: number }[] = [];
   const gesehen = new Set<number>();
+  const relevant = new Set(
+    zahPhasenVon(phasen).filter(p => p.zieltageRelevant).map(p => p.id),
+  );
 
   for (const w of werte) {
     if (!w.aktiv || w.code === undefined) continue;
     const phase = phaseVon(w);
-    if (phase === null || !ZIELTAGE_PHASEN.has(phase)) continue;
+    if (phase === null || !relevant.has(phase)) continue;
     const v = vorschlaege.get(w.code);
     if (!v) continue;
     // Ein Code kann über mehrere Schreibweisen im Katalog stehen; die Vorschau

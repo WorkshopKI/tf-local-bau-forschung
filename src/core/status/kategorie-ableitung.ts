@@ -33,26 +33,23 @@
  * Rein und deterministisch: keine IO, keine Uhr.
  */
 import { STATUS_CODE_KATALOG, findeStatusCode, type StatusCodeEintrag } from './status-codes';
-import { SEED_CODE_ZU_ZAH_PHASE } from './zah-phasen';
+import { SEED_CODE_ZU_ZAH_PHASE, SEED_ZAH_PHASEN, phaseFuerCode } from './zah-phasen';
 import { normKey } from './normalisierung';
-import type { ZahPhaseId } from './typen';
+import type { ZahPhase, ZahPhaseId } from './typen';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 /**
- * ZAH-Phase → Kategorie, der Regelfall. Die Ausnahmen darunter hängen am Code.
+ * Die beiden Phasen, an denen die Code-Ausnahmen unten hängen.
  *
- * `begleitung` → `begleitung` und nicht `bewilligt`: nach der Bewilligung läuft
- * die VN-/ZB-Prüfung, und die hat eine andere Zuständigkeit (ZTP/PFM statt
- * TIB/BIB) — genau dafür gibt es die Kategorie.
+ * Sie stehen hier als Konstanten, weil sie **Anker** sind und keine Vorgabe:
+ * hängt die PL Code 35 in eine andere Phase, ist er dort keine Nachforderung
+ * mehr, sondern das, was die neue Phase vorgibt. Löscht sie die Phase ganz, hat
+ * sie den Schnitt bewusst umdefiniert — dann greift die Ausnahme nicht mehr und
+ * die Kategorie kommt aus `kategorieVorgabe`. Beides ist getestet
+ * (`kategorie-ableitung.test.ts`), damit es keine stille Änderung wird.
  */
-export const ZAH_PHASE_ZU_KATEGORIE: Readonly<Record<ZahPhaseId, StatusCategory>> = {
-  eingang: 'offen',
-  vollstaendigkeit: 'offen',
-  pruefung: 'in_pruefung',
-  entscheidung: 'entscheidung',
-  begleitung: 'begleitung',
-  abgeschlossen: 'abgeschlossen',
-};
+const ANKER_NACHFORDERUNG: ZahPhaseId = 'vollstaendigkeit';
+const ANKER_BEWILLIGUNG: ZahPhaseId = 'begleitung';
 
 /**
  * Codes der Phase „Vollständigkeit", die fachlich **Nachforderung** sind:
@@ -73,21 +70,50 @@ export const BEWILLIGT_CODE = 59;
  * Kategorie aus **Phase und Code**. `null` als Phase heißt Marker — bewusst ohne
  * Phase, also `sonstige`.
  *
- * Die Phase ist PL-editierbar: hängt sie einen Code um, folgt die Kategorie von
- * selbst. Genau das ist die Zusage „umhängen ist eine Katalog-Zeile, kein
- * Deployment" — sie trägt nur, solange niemand die Kategorie daneben pflegt.
+ * Die Vorgabe kommt seit v2.409 aus der Phasen-Tabelle (`kategorieVorgabe`)
+ * statt aus einer festen Map hier. Hängt die PL einen Code um, folgt die
+ * Kategorie von selbst; legt sie eine Phase an, bestimmt sie deren Arbeitsliste
+ * mit. Genau das ist die Zusage „umhängen ist eine Katalog-Zeile, kein
+ * Deployment".
+ *
+ * **Die Phasen werden hereingereicht, nicht aus dem Register gelesen.** Ohne
+ * Angabe gilt die Auslieferung — das ist der Pfad, über den `CATEGORY_MAP` in
+ * `status-canonical.ts` beim Import entsteht, lange vor jedem Snapshot. Nur
+ * `snapshot.ts` übergibt die Phasen der Fassung.
+ *
+ * Fehlt einer Phase die Vorgabe (Fassung vor v2.409), greift der Seed-Eintrag
+ * gleicher Id — dieselbe Regel wie in `zahPhasenVon`, nur ohne Allokation.
+ *
+ * **Verwaiste Zuordnungen behalten ihre Arbeitsliste, obwohl sie „ohne Phase"
+ * angezeigt werden.** Das sieht widersprüchlich aus und ist Absicht: Beschriftung
+ * und Gruppierung dürfen ehrlich sagen „steht neben dem Verfahren", die
+ * Arbeitsliste der ABs darf davon nicht leerlaufen. Fiele ein gelöschter Schritt
+ * auf `sonstige` durch, verschwänden mit ihm reihenweise Anträge aus Reitern,
+ * Zählern und Kanban — ein stiller Totalausfall statt eines Hinweises. Der
+ * Hinweis steht stattdessen im Kopf des Katalog-Tabs (`verwaisteZuordnungen`).
+ * Nur eine Id, die auch die Auslieferung nicht kennt, wird `sonstige`.
  */
-export function kategorieFuerPhase(phase: ZahPhaseId | null, code: number): StatusCategory {
+export function kategorieFuerPhase(
+  phase: ZahPhaseId | null,
+  code: number,
+  phasen: readonly ZahPhase[] = SEED_ZAH_PHASEN,
+): StatusCategory {
   if (!phase) return 'sonstige';
-  if (phase === 'vollstaendigkeit' && NACHFORDERUNG_CODES.has(code)) return 'nachforderung';
-  if (phase === 'begleitung' && code === BEWILLIGT_CODE) return 'bewilligt';
-  return ZAH_PHASE_ZU_KATEGORIE[phase];
+  if (phase === ANKER_NACHFORDERUNG && NACHFORDERUNG_CODES.has(code)) return 'nachforderung';
+  if (phase === ANKER_BEWILLIGUNG && code === BEWILLIGT_CODE) return 'bewilligt';
+  return phasen.find(p => p.id === phase)?.kategorieVorgabe
+    ?? SEED_ZAH_PHASEN.find(p => p.id === phase)?.kategorieVorgabe
+    ?? 'sonstige';
 }
 
 /**
  * Kategorie eines Status-Codes nach dem **ausgelieferten** Phasen-Schnitt. Codes
  * ohne Phase — die Marker 29/88/93/94 und alles, was die Schnitt-Tabelle nicht
  * führt — sind `sonstige`: sie laufen neben dem Verfahren, nicht darin.
+ *
+ * Bewusst am Seed und nicht am Register: diese Funktion speist `CATEGORY_MAP`
+ * beim Modul-Laden, also den Ohne-Fassung-Pfad, der sich exakt wie zuvor
+ * verhalten muss (`byte-identitaet`).
  */
 export function kategorieFuerCode(code: number): StatusCategory {
   return kategorieFuerPhase(SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null, code);
@@ -152,11 +178,16 @@ export function codeFuerStatusText(text: unknown): number | null {
 }
 
 /**
- * ZAH-Phase eines Rohtexts. `null` heißt **beides**: Marker (bewusst ohne
- * Phase) oder nicht im Katalog. Wer die beiden unterscheiden muss, fragt
- * zusätzlich `codeFuerStatusText` — die Status-Erklärung tut genau das.
+ * ZAH-Phase eines Rohtexts nach dem **geltenden** Schnitt. `null` heißt
+ * **beides**: Marker (bewusst ohne Phase) oder nicht im Katalog. Wer die beiden
+ * unterscheiden muss, fragt zusätzlich `codeFuerStatusText` — die
+ * Status-Erklärung tut genau das.
+ *
+ * Anders als `kategorieFuerCode` liest das den Snapshot: die Funktion läuft je
+ * Interaktion (Verfahrensleiste, Filter), nicht beim Modul-Laden, und ein
+ * umgehängter Code muss hier ankommen.
  */
 export function zahPhaseFuerStatusText(text: unknown): ZahPhaseId | null {
   const code = codeFuerStatusText(text);
-  return code === null ? null : SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null;
+  return code === null ? null : phaseFuerCode(code);
 }

@@ -25,7 +25,7 @@ import {
   ladeAktiveVersion, getAktiveVersion, jederVorgang,
   baueTodoKontext, ermittleTodosAlleRollen, todoWerte, findeStatusCode, leseStatusRolle,
   pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel, REGELSATZ_DEFAULT,
-  fassePlatzhalterZusammen, letzteAenderungJeAntrag, ZAH_PHASEN_REIHENFOLGE,
+  fassePlatzhalterZusammen, letzteAenderungJeAntrag, zahPhasenVon,
   type MappingVersion, type Rolle, type TodoErgebnis, type WaechterErgebnis, type ZahPhaseId,
   type RollenBilanz,
 } from '@/core/status';
@@ -557,11 +557,13 @@ export function useVorgangsBoard(): VorgangsBoardApi {
       ...alle.map(z => z.zahPhase).filter((p): p is ZahPhaseId => p !== null),
       ...phasen,
     ]);
-    return ZAH_PHASEN_REIHENFOLGE.filter(id => vorhanden.has(id)).map(id => ({
-      wert: id,
-      label: zahPhaseLabel(id, version?.zahPhasen),
-      anzahl: phasenZaehler.get(id) ?? 0,
-    }));
+    return zahPhasenVon(version?.zahPhasen)
+      .filter(p => vorhanden.has(p.id))
+      .map(p => ({
+        wert: p.id,
+        label: p.label,
+        anzahl: phasenZaehler.get(p.id) ?? 0,
+      }));
   }, [alle, phasen, phasenZaehler, version]);
 
   return {

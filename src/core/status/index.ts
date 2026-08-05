@@ -55,15 +55,26 @@ export {
 } from './bedingung';
 export { bedingungAlsText, bedingungSatz } from './bedingung-text';
 export { normKey, loseKey } from './normalisierung';
+// Die Snapshot-SETZER sind bewusst NICHT hier: sie haben genau einen Aufrufer
+// (`snapshot.ts`), und was das Barrel anbietet, wird irgendwann benutzt.
 export {
   ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_ZAH_PHASEN,
-  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
-  zahPhaseRang, zahPhaseLabel, zahPhasenVon,
+  SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES, SEED_PHASEN_SCHNITT,
+  zahPhaseRang, zahPhaseLabel, zahPhasenVon, zahPhasenGeneration,
+  geltenderSchnitt, phaseFuerCode, istMarkerCode, kategorieVorgabeVon,
+  type PhasenSchnitt,
 } from './zah-phasen';
+export { schnittVon } from './phasen-schnitt';
+export {
+  MIN_PHASEN, MAX_PHASEN, pruefeZahPhasen, normalisiereReihenfolge,
+  verwaisteZuordnungen, ohneVerwaiste, aendereZahPhase, fuegeZahPhaseHinzu,
+  entferneZahPhase, verschiebeZahPhase, setzeCodePhasen,
+  type VerwaisteZuordnungen,
+} from './zah-phasen-edit';
 export {
   kategorieFuerCode, kategorieFuerPhase, codeFuerStatusText, zahPhaseFuerStatusText,
   baueFoerderKategorieEintraege, baueFoerderSeedEintraege,
-  ZAH_PHASE_ZU_KATEGORIE, NACHFORDERUNG_CODES, BEWILLIGT_CODE,
+  NACHFORDERUNG_CODES, BEWILLIGT_CODE,
   type KategorieEintrag,
 } from './kategorie-ableitung';
 export { indexNachSchreibweise } from './wert-index';
@@ -72,13 +83,13 @@ export {
   bereichWeichtVomSeedAb,
 } from './betrachtungsbereich';
 export {
-  waehleZieltageVorschlaege, MIN_STICHPROBE, ZIELTAGE_PHASEN,
+  waehleZieltageVorschlaege, MIN_STICHPROBE,
   type ZieltageAuswahl, type ZieltageUebernahme,
 } from './zieltage-vorschlag';
 export {
   berechnePhasenVorschlag,
   type PhasenAuswahl, type PhasenVorschlag, type PhasenBeleg, type PhasenKonflikt,
-  type PhasenKennzahlen, type PhasenSchnitt, type QuellenAbweichung,
+  type PhasenKennzahlen, type QuellenAbweichung,
   type PhasenHerkunft, type PhasenQuelle, type OhneGrund,
 } from './feld-phase-vorschlag';
 export {

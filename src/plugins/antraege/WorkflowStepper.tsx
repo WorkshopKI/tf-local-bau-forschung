@@ -15,10 +15,11 @@
  * `collapsible` (Kompakt-/Narrow-Kontext): eingeklappt nur eine Status-Pille +
  * „Alle Schritte ↓"; sonst die volle Leiste.
  */
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { getStatusLabel, getStatusVariant, type BadgeVariant } from '@/core/utils/status-mappings';
-import { STEPPER_STATIONS, statusZuStepperPosition } from './statusZuStepperPosition';
+import { zahPhasenGeneration } from '@/core/status/zah-phasen';
+import { getStepperStations, statusZuStepperPosition } from './statusZuStepperPosition';
 
 function activeClassFor(variant: BadgeVariant): string {
   switch (variant) {
@@ -39,14 +40,22 @@ interface Props {
   status: string;
   /**
    * Eingeklappt-Modus (Kompakt-Layout): Default zeigt nur die Status-Pille
-   * „● <Station>, Schritt n/5" (bzw. „✕ <Status>" bei Terminal) + „Alle
+   * „● <Station>, Schritt n/m" (bzw. „✕ <Status>" bei Terminal) + „Alle
    * Schritte ↓"; aufgeklappt der volle Stepper. Ohne den Prop immer voll.
    */
   collapsible?: boolean;
 }
 
 export function WorkflowStepper({ status, collapsible = false }: Props): React.ReactElement {
-  const { station, terminal, marker } = statusZuStepperPosition(status);
+  // Der Generationszähler ist die Abhängigkeit, nicht die Stationen selbst: die
+  // Liste kommt aus einem Modul-Register, das der Katalog beim Veröffentlichen
+  // neu setzt — ohne ihn zeigte die Leiste ihren Stand vom Mounten.
+  const generation = zahPhasenGeneration();
+  const stationen = useMemo(() => getStepperStations(), [generation]);
+  const { station, terminal, marker } = useMemo(
+    () => statusZuStepperPosition(status),
+    [status, generation],
+  );
   const [open, setOpen] = useState(!collapsible);
 
   /** Kennzeichen neben der Leiste: Marker bzw. „nicht im Katalog". */
@@ -82,7 +91,7 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
           )}
           {terminal || station === null
             ? getStatusLabel(status)
-            : `${STEPPER_STATIONS[station - 1]}, Schritt ${station} / ${STEPPER_STATIONS.length}`}
+            : `${stationen[station - 1]?.label ?? ''}, Schritt ${station} / ${stationen.length}`}
         </span>
         {toggle('Alle Schritte ↓', () => setOpen(true))}
       </div>
@@ -99,7 +108,7 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
           {kennzeichen}
         </span>
       ) : null}
-      {STEPPER_STATIONS.map((label, idx) => {
+      {stationen.map(({ id, label }, idx) => {
         const n = idx + 1;
         // Ohne Station (Marker / nicht im Katalog) ist KEINE Stufe aktiv oder
         // passiert — die Leiste steht gedämpft da. Station 1 zu betonen hieße
@@ -113,7 +122,9 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
         const lineReached = station !== null && n <= station;
 
         return (
-          <Fragment key={label}>
+          // Schlüssel ist die Id, nicht die Beschriftung: die ist seit v2.409
+          // frei und darf sich zwischen zwei Phasen doppeln.
+          <Fragment key={id}>
             {idx > 0 ? (
               <span
                 className="flex-1 h-px min-w-[10px]"

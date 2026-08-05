@@ -52,6 +52,12 @@
  *   - no-hardcoded-kategorie-mapping    → Artefakt-Achse, Kategorie-Einzelquelle:
  *     der typ→kategorie-Map-Identifier TYP_ZU_KATEGORIE nur in kategorien.ts;
  *     Regel-Kategorie sonst immer ueber effektiveKategorie() ableiten.
+ *   - zah-phasen-snapshot-single-writer → ZAH-Phasen sind seit v2.409 kuratierbare
+ *     Daten; welcher Schnitt GILT, steht in zwei Modul-Registern in
+ *     core/status/zah-phasen.ts. Gesetzt werden sie NUR von
+ *     setStatusKatalogSnapshot() in core/status/snapshot.ts (Tests:
+ *     resetZahPhasenSnapshotFuerTests). Zweiter Teil: zahPhasenVon() liefert nie
+ *     eine leere Liste — ein '?? []' daneben ist ein Missverstaendnis.
  *   - keine-elidierte-wortlaut-vorgabe   → Prompt-Hygiene: eine Anweisung, die einen
  *     Wortlaut EXAKT/woertlich verlangt, darf ihn nicht zitiert-und-abgeschnitten
  *     ("… “") zeigen — das Modell kann die String-Grenze nicht bestimmen und
@@ -940,6 +946,62 @@ describe('no-hardcoded-kategorie-mapping (Artefakt-Achse: Kategorie-Einzelquelle
   });
 });
 
+describe('zah-phasen-snapshot-single-writer (ZAH-Phasen: genau ein Setzweg)', () => {
+  // Seit v2.409 ist der Phasenschnitt kuratierbar; welcher Schnitt GILT, steht in
+  // zwei Modul-Registern in core/status/zah-phasen.ts. Weil die Modul-global sind,
+  // gewinnt bei zwei Schreibwegen die Import-Reihenfolge — also gibt es genau
+  // einen: setStatusKatalogSnapshot in core/status/snapshot.ts, dieselbe Stelle
+  // wie die Kategorien-Map. Tests raeumen ueber resetZahPhasenSnapshotFuerTests().
+  const SETZER = ['setZahPhasenSnapshot', 'setCodePhasenSnapshot'];
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}core${sep}status${sep}zah-phasen.ts`,   // Heimat der Register
+    `${sep}core${sep}status${sep}snapshot.ts`,     // der EINE Aufrufer
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('die Phasen-Register werden nur aus snapshot.ts gesetzt', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(
+        file, l => SETZER.some(s => l.includes(s)), 'allow-zah-phasen-setter',
+      ));
+    }
+    if (findings.length > 0) {
+      const msg =
+        `Zweiter Schreibweg auf die ZAH-Phasen-Register verboten.\n` +
+        `Wer die geltenden Phasen setzt, entscheidet fuer die ganze App —\n` +
+        `Sidebar-Gruppierung, Verfahrensleiste, Zieltage, Kategorie-Ableitung.\n` +
+        `Genau ein Aufrufer: setStatusKatalogSnapshot() in core/status/snapshot.ts.\n` +
+        `In Tests: resetZahPhasenSnapshotFuerTests().\n` +
+        `Echte Ausnahme: '// allow-zah-phasen-setter: <grund>'.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+
+  it('kein Leser faellt auf eine leere Phasenliste zurueck', () => {
+    // `zahPhasenVon()` liefert IMMER mindestens den Seed. Ein `?? []` daneben
+    // waere die stille Rueckkehr zu „keine Phasen" — und damit zu einer Leiste
+    // ohne Stationen und einer Sidebar ohne Gruppen.
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(`${sep}__tests__${sep}`) || file.includes('.test.ts')) continue;
+      findings.push(...findInFile(
+        file, l => /zahPhasenVon\([^)]*\)\s*\?\?\s*\[\]/.test(l), 'allow-leere-phasen',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `zahPhasenVon() liefert nie eine leere Liste — ein '?? []' daneben ist\n` +
+        `entweder toter Code oder ein Missverstaendnis.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
 /**
  * Alle Dateien, die Prompt-Text an ein LLM bauen. Der Guard hing frueher am Pfad
  * `skills/` und war damit blind fuer die Mehrheit der Prompts im Repo — Aufbereitung,
@@ -1041,7 +1103,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 38;    // Ist 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2200;       // Ist ~2155 (DIESE Datei; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2280;       // Ist ~2234 (DIESE Datei; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

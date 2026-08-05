@@ -10,7 +10,8 @@
 import { describe, it, expect } from 'vitest';
 import { waehleZieltageVorschlaege, MIN_STICHPROBE } from '@/core/status/zieltage-vorschlag';
 import { setzeZieltage } from '@/core/status/katalog-edit';
-import type { MappingVersion, StatusWertEintrag, ZahPhaseId } from '@/core/status/typen';
+import { SEED_ZAH_PHASEN } from '@/core/status/zah-phasen';
+import type { MappingVersion, StatusWertEintrag, ZahPhase, ZahPhaseId } from '@/core/status/typen';
 
 const wert = (p: Partial<StatusWertEintrag> & { id: string; code: number }): StatusWertEintrag => ({
   feldId: 'status', wert: `Status ${p.code}`, kategorie: 'offen', prominenz: 'normal',
@@ -81,8 +82,34 @@ describe('waehleZieltageVorschlaege', () => {
     expect(mitAlt.uebernehmen[0]).toMatchObject({ alt: 90, neu: 14, n: 120 });
   });
 
+  /**
+   * Die Auswahl hing bis v2.408 an der festen Menge `ZIELTAGE_PHASEN`. Sie ist
+   * jetzt ein Feld am Phasen-Eintrag — eine neu angelegte Phase muss selbst
+   * sagen können, ob eine Liegezeit-Vorgabe für sie etwas bedeutet.
+   */
+  it('folgt `zieltageRelevant` der übergebenen Phasen, nicht einer festen Liste', () => {
+    const umgedreht: ZahPhase[] = SEED_ZAH_PHASEN.map(p => ({
+      ...p, zieltageRelevant: !p.zieltageRelevant,
+    }));
+    const auswahlUmgedreht = waehleZieltageVorschlaege(
+      WERTE, VORSCHLAEGE, phaseVon, umgedreht,
+    );
+    // Jetzt zählen genau die beiden Phasen, die vorher draußen waren.
+    expect(auswahlUmgedreht.uebernehmen.map(u => u.code).sort()).toEqual([59, 99]);
+    // Und die vier Antragsphasen sind draußen.
+    expect(auswahlUmgedreht.uebernehmen.some(u => u.code === 31)).toBe(false);
+  });
+
+  it('eine Phase ohne `zieltageRelevant` (Bestandsfassung) erbt vom Seed', () => {
+    const ohneFeld = SEED_ZAH_PHASEN.map(({ id, label, reihenfolge }) => ({
+      id, label, reihenfolge,
+    }));
+    const gleich = waehleZieltageVorschlaege(WERTE, VORSCHLAEGE, phaseVon, ohneFeld);
+    expect(gleich.uebernehmen.map(u => u.code)).toEqual(auswahl.uebernehmen.map(u => u.code));
+  });
+
   it('respektiert eine abweichende Untergrenze', () => {
-    const streng = waehleZieltageVorschlaege(WERTE, VORSCHLAEGE, phaseVon, 100);
+    const streng = waehleZieltageVorschlaege(WERTE, VORSCHLAEGE, phaseVon, undefined, 100);
     expect(streng.uebernehmen.map(u => u.code)).toEqual([31]);
     // 35 rutscht mit: die Stichprobengröße ist eine Eigenschaft der DATEN, nicht
     // des gepflegten Werts — auch ein schon richtig gesetzter Status hat unter

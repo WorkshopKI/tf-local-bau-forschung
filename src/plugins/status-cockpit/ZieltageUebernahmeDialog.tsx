@@ -16,12 +16,16 @@
  */
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { ZAH_PHASE_LABEL, MIN_STICHPROBE, type ZieltageAuswahl } from '@/core/status';
+import { zahPhaseLabel, MIN_STICHPROBE, type ZahPhase, type ZieltageAuswahl } from '@/core/status';
 
-export function ZieltageUebernahmeDialog({ auswahl, offen, darfSchreiben, onSchliessen, onUebernehmen }: {
+export function ZieltageUebernahmeDialog({
+  auswahl, offen, darfSchreiben, phasen, onSchliessen, onUebernehmen,
+}: {
   auswahl: ZieltageAuswahl;
   offen: boolean;
   darfSchreiben: boolean;
+  /** Die Phasen des ENTWURFS — eine dort umbenannte Phase soll hier so heißen. */
+  phasen: readonly ZahPhase[] | undefined;
   onSchliessen: () => void;
   onUebernehmen: () => void;
 }): React.ReactElement {
@@ -82,7 +86,7 @@ export function ZieltageUebernahmeDialog({ auswahl, offen, darfSchreiben, onSchl
                     <td className="px-2 py-1 text-[var(--tf-text-tertiary)]">
                       {u.feldId === 'verbund_status' ? 'Verbund' : u.feldId === 'status' ? 'Teilvorhaben' : u.feldId}
                     </td>
-                    <td className="px-2 py-1">{ZAH_PHASE_LABEL[u.phase]}</td>
+                    <td className="px-2 py-1">{zahPhaseLabel(u.phase, phasen)}</td>
                     <td className="px-2 py-1 text-right font-mono">n = {u.n}</td>
                     <td className="px-2 py-1 text-right font-mono">{u.alt ?? '—'}</td>
                     <td className="px-2 py-1 text-right font-mono text-[var(--tf-text)]">{u.neu} T</td>

@@ -20,8 +20,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog } from '@/components/ui/dialog';
 import {
-  ZAH_PHASE_LABEL,
+  zahPhaseLabel,
   type OhneGrund, type PhasenKonflikt, type PhasenVorschlag, type QuellenAbweichung,
+  type ZahPhase,
 } from '@/core/status';
 
 /** Warum ein Kürzel keinen Vorschlag bekommt — als Überschrift der Gruppe. */
@@ -38,10 +39,12 @@ const GRUND_REIHENFOLGE: readonly OhneGrund[] = [
 
 export function FeldPhasenUebernahmeDialog({
   titel, einleitung, vorschlaege, uneinheitlich = [], abweichungen = [], ohneVorschlag = [],
-  offen, darfSchreiben, onSchliessen, onUebernehmen,
+  offen, darfSchreiben, phasen, onSchliessen, onUebernehmen,
 }: {
   titel: string;
   einleitung: React.ReactNode;
+  /** Die Phasen des ENTWURFS — eine dort umbenannte Phase soll hier so heißen. */
+  phasen?: readonly ZahPhase[];
   vorschlaege: readonly PhasenVorschlag[];
   uneinheitlich?: readonly PhasenKonflikt[];
   abweichungen?: readonly QuellenAbweichung[];
@@ -133,9 +136,10 @@ export function FeldPhasenUebernahmeDialog({
                         keine" — der Unterschied entscheidet, ob die Übernahme
                         eine Lücke füllt oder eine Entscheidung umstößt. */}
                     <td className="px-2 py-1 text-[var(--tf-text-tertiary)]">
-                      {v.alt === undefined ? '—' : v.alt === null ? 'ohne Phase' : ZAH_PHASE_LABEL[v.alt]}
+                      {v.alt === undefined ? '—'
+                        : v.alt === null ? 'ohne Phase' : zahPhaseLabel(v.alt, phasen)}
                     </td>
-                    <td className="px-2 py-1 text-[var(--tf-text)]">{ZAH_PHASE_LABEL[v.phase]}</td>
+                    <td className="px-2 py-1 text-[var(--tf-text)]">{zahPhaseLabel(v.phase, phasen)}</td>
                     <td className="px-2 py-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
                       {v.belege.map((b, i) => (
                         <div key={`${b.status ?? 'seed'}-${b.quelle}-${i}`}>{b.satz}</div>

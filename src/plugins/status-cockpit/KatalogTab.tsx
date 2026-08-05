@@ -24,7 +24,7 @@ import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { feldLabel, zahPhaseLabel, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
+import { feldLabel, zahPhaseLabel, ohneVerwaiste, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
@@ -40,6 +40,16 @@ function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
+
+/**
+ * Die Phase eines Wert-Eintrags, wie die Fassung sie führt: kuratiert schlägt
+ * Auslieferung, `null` heißt bewusst Marker. Dieselbe dreiwertige Lesung wie in
+ * `schnittVon` und `baueHerleitung`.
+ */
+function phaseVon(w: StatusWertEintrag): string | null {
+  if (w.zahPhaseId !== undefined) return w.zahPhaseId;
+  return w.code !== undefined ? SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null : null;
+}
 
 function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
   w: StatusWertEintrag; feldName: string; csvSpalte: string; api: StatusCockpitApi;
@@ -91,17 +101,17 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
         </select>
       </td>
       {zeigeZieltage && (
-        // Read-only: der Phasenschnitt ist Auslieferung, nicht Kuration (siehe
-        // Modulkopf). Sichtbar ist er trotzdem — an ihm hängen Gruppierung,
-        // Zieltage-Vorschläge und Kategorie-Ableitung, und bis v2.407 stand er
-        // nirgends in der Oberfläche.
+        // Read-only in DIESER Tabelle — kuratiert wird im Baum-Editor. Die Zelle
+        // liest deshalb den Schnitt der FASSUNG und nicht mehr die rohe
+        // Seed-Tabelle: sonst zeigte sie nach dem ersten Umhängen weiter die
+        // ausgelieferte Phase und widerspräche dem Baum daneben.
         <td
           className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] whitespace-nowrap w-[112px]`}
-          title={'Ausgelieferte ZAH-Phase. Nicht hier änderbar — Änderungswünsche laufen über „Zu klären".'}
+          title={'Verfahrensschritt dieses Status. Änderbar im Baum („Phasen und Zuordnung").'}
         >
           {w.code === undefined
             ? '—'
-            : zahPhaseLabel(SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null, api.entwurf?.zahPhasen)}
+            : zahPhaseLabel(phaseVon(w), api.entwurf?.zahPhasen)}
         </td>
       )}
       {zeigeZieltage && (
@@ -195,6 +205,20 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         </p>
       )}
 
+      {/* Verwaist heißt: die Zuordnung zeigt auf einen Verfahrensschritt, den es
+          nicht mehr gibt. Gelesen wird sie wie „ohne Phase" — aber sie wird
+          gezählt, sonst nähme ein gelöschter Schritt still Statuswerte aus
+          Gruppierung, Zieltagen und Wächter. */}
+      {!ohneVerwaiste(api.verwaiste) && (
+        <p className="text-[12.5px] text-[var(--tf-warning-text)]">
+          {api.verwaiste.werte > 0 && `${api.verwaiste.werte} Statuswerte`}
+          {api.verwaiste.werte > 0 && api.verwaiste.felder > 0 && ' und '}
+          {api.verwaiste.felder > 0 && `${api.verwaiste.felder} Datumsfelder`}
+          {' '}zeigen auf einen Verfahrensschritt, den diese Fassung nicht mehr führt.
+          Sie zählen bis auf Weiteres als „ohne Phase".
+        </p>
+      )}
+
       {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
           Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,
           steht vorher in der Vorschau — inklusive dessen, was er NICHT setzt. */}
@@ -216,6 +240,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         auswahl={api.zieltageAuswahl}
         offen={zieltageOffen}
         darfSchreiben={api.darfSchreiben}
+        phasen={entwurf?.zahPhasen}
         onSchliessen={() => setZieltageOffen(false)}
         onUebernehmen={api.zieltageUebernehmen}
       />
@@ -262,7 +287,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               {zeigeZieltage && (
                 <th
                   className={thKlasse}
-                  title={'Ausgelieferte ZAH-Phase. Nur zum Lesen — Änderungswünsche laufen über die Seite „Zu klären".'}
+                  title="Verfahrensschritt dieses Status. Hier nur zum Lesen — geändert wird er im Baum."
                 >
                   ZAH-Phase
                 </th>

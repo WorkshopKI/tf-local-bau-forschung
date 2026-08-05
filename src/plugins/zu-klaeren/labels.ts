@@ -7,7 +7,7 @@
  *
  * Rein darstellend.
  */
-import { ZAH_PHASE_LABEL } from '@/core/status';
+import { SEED_ZAH_PHASEN, zahPhaseLabel } from '@/core/status';
 import { OHNE_PHASE, type Urteil, type ZielWert } from './typen';
 
 export const thKlasse =
@@ -27,10 +27,17 @@ export const URTEIL_LABEL: Record<Urteil, string> = {
 
 export const URTEIL_WAHL: readonly Urteil[] = ['passt', 'andere', 'unklar'];
 
-/** Beschriftung eines Zielwerts — inklusive der ausdrücklichen Nicht-Phase. */
+/**
+ * Beschriftung eines Zielwerts — inklusive der ausdrücklichen Nicht-Phase.
+ *
+ * Bewusst gegen die **Auslieferung** und nicht gegen den geltenden Schnitt:
+ * diese Seite bespricht, ob der ausgelieferte Zuschnitt stimmt, und ihr Export
+ * erzeugt einen Diff gegen genau diesen Seed. Zeigte sie die kuratierten
+ * Beschriftungen, redeten Frage und Antwort über verschiedene Dinge.
+ */
 export function zielLabel(ziel: ZielWert | null | undefined): string {
   if (ziel === undefined || ziel === null) return '—';
-  return ziel === OHNE_PHASE ? 'ohne Phase' : ZAH_PHASE_LABEL[ziel];
+  return ziel === OHNE_PHASE ? 'ohne Phase' : zahPhaseLabel(ziel, SEED_ZAH_PHASEN);
 }
 
 /** Uhrzeit-genaue Stand-Anzeige; der Kalendertag steht daneben im Kopf. */

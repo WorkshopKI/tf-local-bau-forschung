@@ -34,12 +34,13 @@ import {
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   todoRegelDrift, zieheTodoRegelnNach, ENTFALLENE_REGEL_IDS, type TodoRegelDrift,
   setzeZieltage, waehleZieltageVorschlaege, MIN_STICHPROBE, type ZieltageAuswahl,
-  setzeFeldPhasen, berechnePhasenVorschlag,
-  type PhasenAuswahl, type PhasenSchnitt,
+  setzeFeldPhasen, berechnePhasenVorschlag, schnittVon,
+  pruefeZahPhasen, verwaisteZuordnungen, zahPhasenVon, type VerwaisteZuordnungen,
+  type PhasenAuswahl,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
   findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
-  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES,
+  STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE,
   type TriggerStand, type VorgangssystemLuecke,
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
@@ -172,6 +173,12 @@ export interface StatusCockpitApi {
   /** Die ausgewählten Vorschläge in EINEM Schritt in den Entwurf übernehmen. */
   feldPhasenUebernehmen: (feldIds: readonly string[]) => void;
   /**
+   * Zuordnungen auf Phasen, die der Entwurf nicht (mehr) führt. Gelesen werden
+   * sie wie „ohne Phase" — aber gezählt, damit ein gelöschter Verfahrensschritt
+   * nicht still Statuswerte aus jeder Auswertung nimmt.
+   */
+  verwaiste: VerwaisteZuordnungen;
+  /**
    * Programme des Bestands (`FM_NUMMER` → `unterprogramm_id`) mit Antragszahl,
    * absteigend. Der Trigger-Import sagt damit, für welche Programme die Datei
    * schweigt — und wie viele Anträge das trifft.
@@ -250,35 +257,6 @@ interface Bestand {
  *   Bestandsfassung bekam sie nie zu sehen.
  */
 const SEED_FELDER = baueSeedVersion().felder;
-
-/**
- * Code → Phase, wie die FASSUNG sie führt, mit dem Auslieferungs-Schnitt als
- * Rücken. Ein von Hand umgehängter Code muss den Kürzel-Vorschlag mitziehen —
- * sonst schlüge das Band eine Phase vor, die die Fassung an derselben Stelle
- * längst anders sieht.
- *
- * **Erster Wert mit dem Code gewinnt**, genau wie in `statusKurz`
- * (`version.werte.find(w => w.code === code)`): derselbe Code steht an TV- und
- * Verbund-Feld, und zwei Wege zur Phase wären ein zweiter Kategorien-Weg.
- */
-function schnittVon(version: MappingVersion | null): PhasenSchnitt {
-  const codeZuPhase = new Map(SEED_CODE_ZU_ZAH_PHASE);
-  const markerCodes = new Set(SEED_MARKER_CODES);
-  const gesehen = new Set<number>();
-  for (const w of version?.werte ?? []) {
-    if (w.code === undefined || gesehen.has(w.code)) continue;
-    gesehen.add(w.code);
-    if (w.zahPhaseId !== undefined) {
-      if (w.zahPhaseId === null) codeZuPhase.delete(w.code);
-      else codeZuPhase.set(w.code, w.zahPhaseId);
-    }
-    if (w.marker !== undefined) {
-      if (w.marker) markerCodes.add(w.code);
-      else markerCodes.delete(w.code);
-    }
-  }
-  return { codeZuPhase, markerCodes };
-}
 
 export function useStatusCockpit(): StatusCockpitApi {
   const storage = useStorage();
@@ -468,6 +446,14 @@ export function useStatusCockpit(): StatusCockpitApi {
 
   const speichern = useCallback(async (kommentar: string): Promise<void> => {
     if (!entwurf) return;
+    // Vor allem anderen: ein Zuschnitt, der die Grenzen verletzt, wird gemeldet
+    // und NICHT stillschweigend zurechtgebogen. Die Prüfung sitzt hier und nicht
+    // im Editor, weil auch ein JSON-Import über diesen Weg läuft.
+    const phasenFehler = pruefeZahPhasen(zahPhasenVon(entwurf.zahPhasen));
+    if (phasenFehler.length > 0) {
+      setSpeichernFehler(phasenFehler.join(' '));
+      return;
+    }
     setSpeichernBusy(true);
     setSpeichernFehler(null);
     try {
@@ -781,6 +767,7 @@ export function useStatusCockpit(): StatusCockpitApi {
         w => (w.zahPhaseId !== undefined
           ? w.zahPhaseId
           : (w.code !== undefined ? SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null : null)),
+        entwurf.zahPhasen,
       )
       : { uebernehmen: [], zuWenigDaten: [] }),
     [entwurf, liegezeitVorschlag],
@@ -801,7 +788,7 @@ export function useStatusCockpit(): StatusCockpitApi {
   const feldPhasenAuswahl = useMemo(
     () => berechnePhasenVorschlag(
       entwurf?.felder ?? [], trigger.datei?.trigger ?? [], SEED_FELDER,
-      schnittVon(entwurf),
+      schnittVon(entwurf), entwurf?.zahPhasen,
     ),
     [entwurf, trigger],
   );
@@ -815,6 +802,11 @@ export function useStatusCockpit(): StatusCockpitApi {
         .map(p => [p.feldId, p.phase])))
       : v));
   }, [feldPhasenAuswahl]);
+
+  const verwaiste = useMemo(
+    () => (entwurf ? verwaisteZuordnungen(entwurf) : { werte: 0, felder: 0 }),
+    [entwurf],
+  );
 
   const relLuecke = useMemo(
     () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
@@ -896,7 +888,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
     relevanzLueckeRolle, relevanzAusRolle, todoRegelAusPlatzhalter,
     zieltageAuswahl, zieltageUebernehmen,
-    feldPhasenAuswahl, feldPhasenUebernehmen,
+    feldPhasenAuswahl, feldPhasenUebernehmen, verwaiste,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
   };

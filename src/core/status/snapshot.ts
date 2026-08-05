@@ -25,11 +25,22 @@
  * **Die Kategorie wird abgeleitet, nicht aus der Fassung übernommen** — siehe
  * `kategorieAusFassung`. Sonst trüge eine ältere Fassung die Kategorien ihres
  * Seed-Standes weiter, obwohl der Code-Katalog längst etwas anderes sagt.
+ *
+ * **Hier hängen alle drei Register.** Neben der Wert→Kategorie-Map setzt diese
+ * Datei seit v2.409 auch die geltende Phasen-Tabelle und den geltende
+ * Code→Phase-Schnitt (`zah-phasen.ts`). Sie ist deren EINZIGER Schreibweg —
+ * drei Register an einer Stelle können nicht auseinanderlaufen, drei
+ * Schreibwege schon (Konventionstest `zah-phasen-snapshot-single-writer`).
  */
 import { setStatusKatalogSnapshotMap } from '@/core/utils/status-canonical';
-import { normalisiereWert, type MappingVersion, type StatusCategory, type StatusWertEintrag } from './typen';
+import {
+  normalisiereWert,
+  type MappingVersion, type StatusCategory, type StatusWertEintrag, type ZahPhase,
+} from './typen';
 import { indexNachSchreibweise } from './wert-index';
 import { kategorieFuerCode, kategorieFuerPhase } from './kategorie-ableitung';
+import { setCodePhasenSnapshot, setZahPhasenSnapshot } from './zah-phasen';
+import { schnittVon } from './phasen-schnitt';
 import { statusCodeEintrag } from './status-codes';
 
 let aktiveVersion: MappingVersion | null = null;
@@ -40,13 +51,20 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
   aktiveVersion = version;
   if (!version) {
     setStatusKatalogSnapshotMap(null);
+    setZahPhasenSnapshot(null);
+    setCodePhasenSnapshot(null);
     return;
   }
   const kuratiert = version.werte.filter(w => !w.unkuratiert);
   const idx = indexNachSchreibweise(kuratiert.map(mitAmtlichenSchreibweisen));
   const m = new Map<string, StatusCategory>();
-  for (const [key, w] of idx) m.set(key, kategorieAusFassung(w));
+  for (const [key, w] of idx) m.set(key, kategorieAusFassung(w, version.zahPhasen));
   setStatusKatalogSnapshotMap(m);
+  // Erst die Phasen, dann der Schnitt: die Kategorie-Map oben ist schon
+  // gerechnet, aber Sidebar, Verfahrensleiste und Filter fragen die Register
+  // erst beim nächsten Rendern — die Reihenfolge hier ist reine Lesbarkeit.
+  setZahPhasenSnapshot(version.zahPhasen);
+  setCodePhasenSnapshot(schnittVon(version));
 }
 
 /**
@@ -94,9 +112,11 @@ function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintrag {
  * `null` = bewusst Marker, `undefined` = noch nicht zugeordnet ⇒ Auslieferungs-
  * Schnitt (dieselbe Regel wie in `baueHerleitung`).
  */
-function kategorieAusFassung(w: StatusWertEintrag): StatusCategory {
+function kategorieAusFassung(
+  w: StatusWertEintrag, phasen: readonly ZahPhase[] | undefined,
+): StatusCategory {
   if (w.code === undefined) return w.kategorie;   // unkuratierter Wert, kein Code
-  if (w.zahPhaseId !== undefined) return kategorieFuerPhase(w.zahPhaseId, w.code);
+  if (w.zahPhaseId !== undefined) return kategorieFuerPhase(w.zahPhaseId, w.code, phasen);
   return kategorieFuerCode(w.code);
 }
 
