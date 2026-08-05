@@ -202,6 +202,21 @@ export function TodoRegelDetail({
           pruefeFeld={pruefeFeld}
           onChange={(b: Bedingung) => set({ bedingung: b })}
         />
+
+        {/* Steht bewusst UNTER dem Bedingungs-Editor: sie beschreibt, warum die
+            Regel so aussieht, wie sie darüber steht. In einem halben Jahr ist
+            das der einzige Weg zurück zu der Sitzung, in der sie entstand. */}
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] uppercase tracking-wide text-[var(--tf-text-tertiary)]">
+            Begründung
+          </span>
+          <textarea
+            value={r.begruendung ?? ''} rows={2}
+            placeholder="woher stammt diese Regel, wer hat sie beschlossen?"
+            className={`${feldKlasse} resize-y`} style={feldStil}
+            onChange={e => set({ begruendung: e.target.value })}
+          />
+        </label>
       </div>
     </div>
   );

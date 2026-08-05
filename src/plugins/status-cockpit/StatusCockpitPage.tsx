@@ -33,7 +33,11 @@ import {
 } from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel } from '@/core/status';
+import {
+  letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel,
+  REGELSATZ_DEFAULT, type AenderungsGruppe,
+} from '@/core/status';
+import { useRegelAenderung } from './useRegelAenderung';
 
 /** Seitentitel — der Anzeigename des Plugins, an einer Stelle. */
 const SEITEN_TITEL = 'Vorgangs-Regeln';
@@ -209,14 +213,46 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
   );
 }
 
+/** „Kein To-do ermittelt" ist ein Ergebnis und braucht ein Wort, kein leeres Feld. */
+const todoText = (t: string | null): string => t ?? 'kein To-do';
+
+/** Eine Zeile der Änderungs-Bilanz: alt → neu, wie oft, mit Beispielen. */
+function AenderungsZeile({ g }: { g: AenderungsGruppe }): React.ReactElement {
+  return (
+    <li className="flex items-baseline gap-2 flex-wrap text-[11.5px]">
+      <span className="font-mono tabular-nums text-[var(--tf-text)] w-[52px] shrink-0">
+        {g.anzahl.toLocaleString('de-DE')}×
+      </span>
+      <span className="text-[var(--tf-text-secondary)]">
+        „{todoText(g.vorher)}" → <strong className="text-[var(--tf-text)]">„{todoText(g.nachher)}"</strong>
+      </span>
+      <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)]">
+        {g.beispiele.join(', ')}
+      </span>
+    </li>
+  );
+}
+
+/**
+ * Die Speicherleiste — und davor die Frage, die sie aufwirft: **was ändert das
+ * am Bestand?**
+ *
+ * Veröffentlichte Regeln sind sofort für alle scharf. Die Messung blockiert das
+ * Speichern nicht (das wäre Bevormundung bei einer Kuration, die jemand
+ * verantwortet), sie steht nur davor. Gemessen wird der AB-Satz: er ist der
+ * einzige, der heute aktiv ausgewertet wird — die übrigen starten stillgelegt
+ * (Pitfall #47).
+ */
 function SaveBar({ api }: { api: StatusCockpitApi }): React.ReactElement {
   const [kommentar, setKommentar] = useState('');
+  const aenderung = useRegelAenderung(api.aktiveVersion, api.entwurf, REGELSATZ_DEFAULT);
   const speichern = useAsyncAction(async () => {
     await api.speichern(kommentar);
     setKommentar('');
   });
   const busy = speichern.busy || api.speichernBusy;
   const fehler = api.speichernFehler ?? speichern.error;
+  const bilanz = aenderung.bilanz;
   return (
     <div className="shrink-0 border-t border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-6 py-3 flex flex-col gap-1.5">
       <div className="flex items-center gap-2 flex-wrap">
@@ -227,6 +263,13 @@ function SaveBar({ api }: { api: StatusCockpitApi }): React.ReactElement {
           style={feldStil}
           onChange={e => setKommentar(e.target.value)}
         />
+        <Button
+          variant="ghost" size="sm" disabled={aenderung.aktion.busy}
+          title="Beide Fassungen über denselben Bestand auswerten — gemessen, nicht geschätzt"
+          onClick={() => aenderung.aktion.run()}
+        >
+          {aenderung.aktion.busy ? 'Misst …' : 'Änderung am Bestand messen'}
+        </Button>
         <Button variant="primary" size="sm" disabled={busy} onClick={() => speichern.run()}>
           {busy ? 'Speichert …' : 'Für das Team speichern'}
         </Button>
@@ -234,6 +277,44 @@ function SaveBar({ api }: { api: StatusCockpitApi }): React.ReactElement {
           Verwerfen
         </Button>
       </div>
+
+      {aenderung.aktion.error != null && (
+        <p className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {aenderung.aktion.error}</p>
+      )}
+
+      {/* Ohne Lauf steht hier nichts — eine Aussage über den Bestand entsteht
+          nur durch Messen. */}
+      {bilanz !== null && (
+        <div className="flex flex-col gap-1">
+          <p className="text-[12px] text-[var(--tf-text)]">
+            {bilanz.geaendert === 0 ? (
+              <>Keine Änderung am Bestand: bei allen{' '}
+                {bilanz.gesamt.toLocaleString('de-DE')} ausgewerteten Vorgängen bleibt das To-do
+                gleich.</>
+            ) : (
+              <>Bei <strong>{bilanz.geaendert.toLocaleString('de-DE')}</strong> von{' '}
+                {bilanz.gesamt.toLocaleString('de-DE')} Vorgängen ändert sich das To-do
+                {aenderung.bereichText !== null && <> · {aenderung.bereichText}</>}
+                {' '}· Regelsatz AB</>
+            )}
+          </p>
+          {bilanz.gruppen.length > 0 && (
+            <ul className="flex flex-col gap-0.5">
+              {bilanz.gruppen.slice(0, 8).map(g => (
+                <AenderungsZeile key={`${g.vorher ?? ''}>${g.nachher ?? ''}`} g={g} />
+              ))}
+              {/* Was abgeschnitten wird, wird BENANNT — eine stille Kürzung
+                  läse sich wie Vollständigkeit. */}
+              {bilanz.gruppen.length > 8 && (
+                <li className="text-[11px] text-[var(--tf-text-tertiary)]">
+                  … und {bilanz.gruppen.length - 8} weitere Übergänge.
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
+
       {fehler != null && <p className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {fehler}</p>}
     </div>
   );

@@ -278,6 +278,22 @@ describe('Doppelt geführte Codes (kanonisches Feld + eigene D_-Spalte)', () => 
     expect(todoRegelDrift(nachher, seed, ['r23'])).toEqual({ neu: [], geaendert: [], entfallen: [] });
   });
 
+  it('die Begründung einer EIGENEN Regel überlebt das Nachziehen', () => {
+    // Eigene Regeln bleiben unangetastet — also auch ihre Herkunft. An einer
+    // GELIEFERTEN Regel geht sie verloren wie jede andere Änderung daran; das
+    // ist der dokumentierte Zweck des Nachziehens und steht am Feld.
+    const seed = baueTodoRegelSeed();
+    const eigene: TodoRegel = {
+      id: 'pl1', reihenfolge: 900, beschreibung: 'eigene',
+      bedingung: { feldId: 'status', op: 'gefuellt' },
+      todo: 'Eigenes', zustaendig: ['ab'], aktiv: true,
+      begruendung: 'AB-Sitzung 03.08.2026',
+    };
+    const nachher = zieheTodoRegelnNach({ ...altfassung(), todoRegeln: [eigene] }, seed, ['r23']);
+    expect((nachher.todoRegeln ?? []).find(r => r.id === 'pl1')?.begruendung)
+      .toBe('AB-Sitzung 03.08.2026');
+  });
+
   it('Nachziehen des AB-Seeds lässt einen fremden Regelsatz unberührt', () => {
     // `zieheTodoRegelnNach` vergleicht über Ids, nicht über Mengen — eine
     // FB-Regel darf davon weder verschwinden noch stillgelegt werden, sonst

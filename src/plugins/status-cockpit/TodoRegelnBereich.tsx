@@ -33,11 +33,12 @@ import {
 } from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 import type { WirkungsLauf } from './useRegelWirkung';
+import type { ProbeLauf } from './useRegelProbelauf';
 
 export type { TodoRegelnApi } from './todoRegelnAnsicht';
 
 export function TodoRegelnBereich({
-  version, api, platzhalter, onExportieren, satz, onSatzWechsel, wirkung,
+  version, api, platzhalter, onExportieren, satz, onSatzWechsel, wirkung, probe,
 }: {
   version: MappingVersion;
   api: TodoRegelnApi;
@@ -48,6 +49,7 @@ export function TodoRegelnBereich({
   satz: Rolle;
   onSatzWechsel: (r: Rolle) => void;
   wirkung: WirkungsLauf;
+  probe: ProbeLauf;
 }): React.ReactElement {
   const alleRegeln = version.todoRegeln ?? [];
   const [gewaehlt, setGewaehlt] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export function TodoRegelnBereich({
         list={
           <TodoRegelListe
             regeln={regeln} eigeneRegeln={eigeneRegeln} version={version} satz={satz} api={api}
-            platzhalter={platzhalter} onExportieren={onExportieren} wirkung={wirkung}
+            platzhalter={platzhalter} onExportieren={onExportieren} wirkung={wirkung} probe={probe}
             gewaehlt={auswahl?.regel.id ?? null} onWaehlen={setGewaehlt}
             unbekannteJeRegel={unbekannteJeRegel}
           />

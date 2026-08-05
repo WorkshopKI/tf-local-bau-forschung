@@ -114,6 +114,14 @@ export function TodoRegelKarte({
 
       <TodoRegelSatz r={r} version={version} />
 
+      {/* Gedämpfte zweite Zeile: die Herkunft gehört zur Regel, drängt sich aber
+          nicht vor ihren Inhalt. */}
+      {r.begruendung !== undefined && r.begruendung.trim() !== '' && (
+        <p className="text-[11.5px] leading-[1.35] text-[var(--tf-text-tertiary)] italic">
+          {r.begruendung}
+        </p>
+      )}
+
       {/* Der Satz unter der Regel, nicht nur die Zahlen: „153 trifft, 43
           gewinnt" ist erst dann eine Aussage, wenn dabeisteht, was der
           Unterschied bedeutet. Ohne Lauf steht hier nichts. */}

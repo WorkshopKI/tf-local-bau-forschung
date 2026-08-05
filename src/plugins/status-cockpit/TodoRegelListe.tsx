@@ -21,9 +21,11 @@ import { zaehlwort } from '@/core/utils/zaehlwort';
 import type { TodoRegelnApi } from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 import type { WirkungsLauf } from './useRegelWirkung';
+import type { ProbeLauf } from './useRegelProbelauf';
+import { RegelProbelauf } from './RegelProbelauf';
 
 export function TodoRegelListe({
-  regeln, eigeneRegeln, version, satz, api, platzhalter, onExportieren, wirkung,
+  regeln, eigeneRegeln, version, satz, api, platzhalter, onExportieren, wirkung, probe,
   gewaehlt, onWaehlen, unbekannteJeRegel,
 }: {
   regeln: readonly TodoRegel[];
@@ -36,6 +38,8 @@ export function TodoRegelListe({
   onExportieren: (rolle: Rolle) => void;
   /** Der Wirkungs-Lauf am Bestand — auf Knopfdruck, nie automatisch. */
   wirkung: WirkungsLauf;
+  /** Die Probe am Einzelfall — beantwortet „und was passiert bei DIESEM Vorgang?". */
+  probe: ProbeLauf;
   /** Id der geöffneten Regel — `null` schaltet auf die Karten-Ansicht. */
   gewaehlt: string | null;
   onWaehlen: (id: string) => void;
@@ -104,6 +108,8 @@ export function TodoRegelListe({
           {wirkung.aktion.error !== null && (
             <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ {wirkung.aktion.error}</p>
           )}
+
+          <RegelProbelauf satz={satz} lauf={probe} />
 
           {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
               stumm auf dem Stand ihres ersten Seeds stehen. Die Bilanz steht dran,

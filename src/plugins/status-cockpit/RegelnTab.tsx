@@ -25,6 +25,7 @@ import type { StatusCockpitApi } from './useStatusCockpit';
 import { TodoRegelnBereich } from './TodoRegelnBereich';
 import { usePlatzhalterErhebung } from './usePlatzhalterErhebung';
 import { useRegelWirkung } from './useRegelWirkung';
+import { useRegelProbelauf } from './useRegelProbelauf';
 import { exportiereErhebung } from './fbErhebungExport';
 
 export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
@@ -36,6 +37,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   // sonst stünden an einer FB-Regel Zahlen aus der AB-Kaskade.
   const [satz, setSatz] = useState<Rolle>(REGELSATZ_DEFAULT);
   const wirkung = useRegelWirkung(api.entwurf, satz);
+  const probe = useRegelProbelauf(api.entwurf, satz);
   // Reiner Export, deshalb OHNE Schreibrecht-Gate: er nimmt nichts mit auf den
   // Share, er nimmt etwas mit in den Termin.
   const onExportieren = useCallback((rolle: Rolle) => {
@@ -66,7 +68,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
     <div className="flex-1 min-h-0 flex flex-col">
       <TodoRegelnBereich
         version={entwurf} api={api} platzhalter={platzhalter} onExportieren={onExportieren}
-        satz={satz} onSatzWechsel={setSatz} wirkung={wirkung}
+        satz={satz} onSatzWechsel={setSatz} wirkung={wirkung} probe={probe}
       />
     </div>
   );

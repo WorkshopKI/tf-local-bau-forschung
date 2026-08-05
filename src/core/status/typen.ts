@@ -416,6 +416,21 @@ export interface TodoRegel {
    * Bedingung der ausgenommenen Regel ändert.
    */
   sperrtNicht?: string[];
+  /**
+   * **Woher die Regel stammt und wer sie beschlossen hat** — Freitext.
+   *
+   * Die Kaskade wird künftig von AB- und FB-Vertretern selbst gepflegt. Eine
+   * Regel ohne Herkunft ist in einem halben Jahr nicht mehr zu beurteilen: es
+   * steht dann da, WAS gilt, aber nicht, ob es noch gelten soll. Die
+   * ausgelieferten Regeln tragen ihre Herkunft im Quell-Dokument
+   * (`todo-regeln-ab-seed.md`); für alles, was danach entsteht, ist dieses Feld
+   * die einzige Stelle.
+   *
+   * Läuft durch Speichern, Export und Import mit. Beim **Nachziehen** der
+   * Auslieferung geht sie an einer Seed-Regel verloren wie jede andere Änderung
+   * daran — das ist der dokumentierte Zweck von `zieheTodoRegelnNach`.
+   */
+  begruendung?: string;
   aktiv: boolean;
 }
 

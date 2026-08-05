@@ -126,6 +126,10 @@ export {
   type RegelWirkung, type BewerteterLauf, type WirkungsSignatur,
 } from './regel-wirkung';
 export {
+  vergleicheFassungen,
+  type AenderungsBilanz, type AenderungsGruppe, type VerglichenerVorgang,
+} from './regel-aenderung';
+export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
   leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,

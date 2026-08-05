@@ -26,6 +26,22 @@ describe('export-import', () => {
     expect(r.fehler).toContain('unbekanntes Feld');
   });
 
+  it('die Begründung einer Regel überlebt Export und Import', () => {
+    // Sie ist der einzige Weg zurück zu der Sitzung, in der eine Regel entstand
+    // — ein Feld, das beim Austausch verschwindet, wäre schlimmer als keines.
+    const v = baueSeedVersion();
+    const mit = {
+      ...v,
+      todoRegeln: (v.todoRegeln ?? []).map((r, i) => (
+        i === 0 ? { ...r, begruendung: 'AB-Sitzung 03.08.2026, beschlossen von MUE/SCH' } : r
+      )),
+    };
+    const r = validiereImport(exportiereVersion(mit));
+    expect(r.ok).toBe(true);
+    expect(r.version?.todoRegeln?.[0]?.begruendung)
+      .toBe('AB-Sitzung 03.08.2026, beschlossen von MUE/SCH');
+  });
+
   it('lehnt eine Regel mit unbekanntem Feld ab', () => {
     const v = baueSeedVersion();
     const kaputt = {
