@@ -40,8 +40,9 @@ import type { StatusCockpitApi } from './useStatusCockpit';
 import { PhasenBaum } from './PhasenBaum';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { feldLabel, ohneVerwaiste } from '@/core/status';
+import { feldLabel, ohneVerwaiste, SEED_ZAH_PHASEN } from '@/core/status';
 import type { StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
+import { KatalogDriftZeile } from './KatalogDriftZeile';
 import { baueKatalogZeilen, effektiveKategorieVon } from './katalogZeilen';
 import { baueKatalogSpalten } from './katalogSpalten';
 import { exportiereKatalogXlsx } from './katalogExport';
@@ -140,6 +141,17 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 pt-3">
+      {/* Über dem Umschalter, weil die Bilanz für BEIDE Sichten gilt: der Baum
+          zeigt die Phasen, die Tabelle die Werte, und der Abstand zur
+          Auslieferung betrifft beides. Ohne Drift rendert die Zeile nicht. */}
+      {zeigeZieltage && (
+        <KatalogDriftZeile
+          drift={api.katalogDrift}
+          fassungPhasen={zahPhasen}
+          seedPhasen={SEED_ZAH_PHASEN}
+        />
+      )}
+
       {/* Die Umschaltung steht ganz oben: sie entscheidet, was darunter kommt. */}
       {zeigeZieltage && (
         <ScopeTabs

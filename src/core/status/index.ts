@@ -169,6 +169,12 @@ export {
   aendereTodoRegel, verschiebeTodoRegel, fuegeTodoRegelHinzu, codesMitRolle,
 } from './katalog-edit';
 export {
+  katalogDrift, hatDrift, leereKatalogDrift,
+  type KatalogDrift, type PhasenDrift, type PhaseKurz, type PhaseUmbenannt,
+  type PhaseVerschoben, type PhaseVorgabe, type ZuordnungDrift, type ZieltagDrift,
+  type WertKurz, type ProminenzDrift,
+} from './katalog-drift';
+export {
   ermittleTodo, ermittleTodosAlleRollen, baueTodoKontext, todoWerte,
   type TodoErgebnis, type TodoBeleg, type TodoOptionen,
 } from './todo-engine';

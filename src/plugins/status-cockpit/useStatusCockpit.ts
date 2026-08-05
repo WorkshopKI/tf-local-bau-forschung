@@ -33,6 +33,7 @@ import {
   uebernimmStatusCodes, ladeTrigger, speichereTrigger,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed,
   todoRegelDrift, zieheTodoRegelnNach, ENTFALLENE_REGEL_IDS, type TodoRegelDrift,
+  katalogDrift, leereKatalogDrift, type KatalogDrift,
   setzeZieltage, waehleZieltageVorschlaege, MIN_STICHPROBE, type ZieltageAuswahl,
   setzeFeldPhasen, berechnePhasenVorschlag, schnittVon,
   pruefeZahPhasen, verwaisteZuordnungen, zahPhasenVon, type VerwaisteZuordnungen,
@@ -174,6 +175,12 @@ export interface StatusCockpitApi {
   /** Was die Auslieferung gegenüber der gepflegten Kaskade anders sagt. */
   todoDrift: TodoRegelDrift;
   /**
+   * Die Bilanz des Katalogs gegenüber der Auslieferung: Phasen, Zuordnungen,
+   * Zieltage, Stilllegung, Prominenz. Stellt fest, ändert nichts — es gibt
+   * bewusst kein Gegenstück zum Nachziehen.
+   */
+  katalogDrift: KatalogDrift;
+  /**
    * Status-Code → Median-Liegezeit im Bestand (Vorschlag für die Zieltage).
    * Näherung: gemessen wird die Zeit seit der jüngsten Aktivität, nicht die
    * echte Verweildauer im Status — die kennt der Export nicht.
@@ -278,7 +285,10 @@ interface Bestand {
  *   Bezeichnung und Rollen (`ABB` = QS) stehen ebenso in der Zuarbeit; eine
  *   Bestandsfassung bekam sie nie zu sehen.
  */
-const SEED_FELDER = baueSeedVersion().felder;
+const AUSLIEFERUNG = baueSeedVersion();
+
+/** Der Felder-Ausschnitt daraus — siehe oben. */
+const SEED_FELDER = AUSLIEFERUNG.felder;
 
 export function useStatusCockpit(): StatusCockpitApi {
   const storage = useStorage();
@@ -787,6 +797,19 @@ export function useStatusCockpit(): StatusCockpitApi {
   );
 
   /**
+   * Dieselbe Frage für den Katalog: Phasen, Zuordnungen, Zieltage, Stilllegung.
+   *
+   * Gegen den ENTWURF, wie `todoDrift` — der Reiter darunter zeigt den Entwurf,
+   * und eine Bilanz über einen anderen Stand als den sichtbaren wäre irreführend.
+   * Anders als bei der Kaskade folgt hier kein Nachziehen: die Kuration ist der
+   * spätere Stand, die Bilanz ist die Vorbereitung des Code-Abgleichs.
+   */
+  const katalogDriftBilanz = useMemo(
+    () => (entwurf ? katalogDrift(entwurf, AUSLIEFERUNG) : leereKatalogDrift()),
+    [entwurf],
+  );
+
+  /**
    * Der Zieltage-Vorschlag aus dem Ist.
    *
    * **Gezählt werden Verbund- UND Teilvorhaben-Status.** Bis v2.388 speiste sich
@@ -966,6 +989,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     zieltageAuswahl, zieltageUebernehmen,
     feldPhasenAuswahl, feldPhasenUebernehmen, verwaiste,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
+    katalogDrift: katalogDriftBilanz,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
     archivFassungen, archivGeladen, archivLaden,
   };
