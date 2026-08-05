@@ -1,19 +1,21 @@
 /**
- * AppPasswordGate (v2.16).
+ * AppPasswordGate (v2.16, Modul-Passwoerter seit v3.0).
  *
- * Generische Vollbild-Pflicht-Login-Wall fuer die pl- und kurator-Variante,
- * verifiziert gegen den build-time eingebetteten Verifier (`runtimeConfig.auth`)
- * — keine SMB-Abhaengigkeit. Loest den v2.10-KuratorLoginGate ab (vereinheitlicht
- * beide Rollen in einem Mechanismus).
+ * Vollbild-Pflicht-Login-Wall, verifiziert gegen den build-time eingebetteten
+ * Verifier — keine SMB-Abhaengigkeit, greift also VOR jeder Ordner-Freigabe.
+ *
+ * Ein Feld, drei moegliche Passwoerter (`verifyAnyPassword`):
+ *  - das **Basis-Passwort** (`auth`) oeffnet die App,
+ *  - ein **Modul-Passwort** (`moduleAuth.<slot>`) oeffnet die App UND das Modul.
+ *
+ * Wer nur fuer sein Modul ein Passwort bekommen hat, tippt so eines statt zweier.
+ * Ein Modul-Treffer laedt anschliessend neu: Plugin-Registrierung und
+ * onInit-Hooks liefen bereits, als das Modul noch gesperrt war. Der Reload
+ * kostet keinen zweiten Login (Gate-Merker im sessionStorage) und keine
+ * Freischaltung (die liegt in der IndexedDB).
  *
  * Login-Pflicht: kein Abbrechen/Ueberspringen — ohne korrektes Passwort kein
- * App-Zugang. Bei Erfolg:
- *  1) sessionStorage-Flag setzen (Tab-Session, Same-Tab-Reload ueberspringt das Gate),
- *  2) rollenbewusste Eskalation NUR in der kurator-Variante (isKuratorMenusEnabled):
- *     `is_kurator=true` (Menues) + Schreib-Session (activateSynthetic) +
- *     Daten-Share-Handle auf readwrite hochstufen — exakt wie der alte
- *     KuratorLoginGate. Die pl-Variante schaltet nur frei (hat
- *     datenShareSchreibrecht bereits build-time).
+ * App-Zugang.
  */
 
 import { useState } from 'react';
@@ -23,12 +25,13 @@ import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { verifyAppPassword } from '@/core/services/infrastructure/app-password';
+import { verifyAnyPassword } from '@/core/services/infrastructure/app-password';
 import { setAppGateSession } from '@/core/hooks/useAppGateSession';
 import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
-import { isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, hatModulSchloss } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
 
 interface AppPasswordGateProps {
@@ -44,23 +47,54 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
 
   const login = useAsyncAction(async () => {
     setWrong(false);
-    const result = await verifyAppPassword(pw);
+    // Nimmt das Basis-Passwort ODER ein Modul-Passwort an: wer nur fuer sein
+    // Modul ein Passwort bekommen hat, soll nicht zwei nacheinander tippen.
+    const result = await verifyAnyPassword(pw);
     if (!result.ok) {
       setWrong(true);
       return;
     }
     setAppGateSession();
+
+    // Modul-Treffer: App oeffnen UND das Modul freischalten. Danach neu laden —
+    // Plugin-Registrierung und onInit-Hooks sind bereits durchgelaufen, als das
+    // Modul noch gesperrt war. Die Freischaltung liegt in der IndexedDB und der
+    // Gate-Merker im sessionStorage, der Reload kostet also keinen zweiten Login.
+    if (result.slot === 'auslastung') {
+      await useModulFreischaltung.getState().freischalten(storage.idb);
+      window.location.reload();
+      return;
+    }
+    if (result.slot === 'kurator') {
+      await useKuratorSession.getState().aktiviere(storage.idb, `${runtimeConfig.build.label} · Kurator`);
+      await updateProfile({ is_kurator: true });
+      try {
+        const refreshed = await refreshAllPermissions(storage.idb, { isKurator: true });
+        applyRefreshResult(refreshed);
+      } catch {
+        /* best-effort — der naechste Start stuft hoch. */
+      }
+      window.location.reload();
+      return;
+    }
     // v2.61.2: Die Gate läuft jetzt VOR dem StartupScreen/Stepper. Für pl ist hier
     // KEINE Permission-Arbeit mehr nötig — der nachgelagerte Guided-Stepper gibt
     // Datenordner + persönlich + CSV-Quelle Schritt-für-Schritt frei (ein Prompt
     // pro Klick). Der frühere pl-CSV-Re-Grant entfällt damit.
-    // Kurator-Variante: volle Eskalation (wie der v2.10-KuratorLoginGate).
-    if (isKuratorMenusEnabled()) {
+    // Eskalation zum Kurator — aber NUR in Builds OHNE Kurator-Schloss (dev/local).
+    //
+    // Bis v2.x war das an `kuratorMenus` gebunden, und das genuegte, weil nur der
+    // kurator-Build das Flag trug: wer dessen Passwort kannte, WAR Kurator. Im
+    // zusammengelegten pl-Build muss `kuratorMenus` an sein (sonst wuerfe
+    // plugins.config.ts die Kuration-Plugins schon zur Bauzeit raus) — ohne diese
+    // zweite Bedingung machte also JEDES gueltige Basis-Passwort seinen Inhaber
+    // zum Kurator. Dort fuehrt der Weg ueber das eigene Modul-Passwort.
+    if (isKuratorMenusEnabled() && !hatModulSchloss('kurator')) {
       // Menue-Sichtbarkeit freischalten (Gate in ShellLayout liest profile.is_kurator).
       await updateProfile({ is_kurator: true });
-      // Schreib-Session aktivieren (ohne SMB-Lesen von kurator-config.enc) — setzt
-      // isActive (Schreib-Buttons) + kuratorName (Audit-Identitaet = Build-Label).
-      await useKuratorSession.getState().activateSynthetic(storage.idb, runtimeConfig.build.label);
+      // Schreib-Session aktivieren — setzt isActive (Schreib-Buttons) +
+      // kuratorName (Audit-Identitaet = Build-Label).
+      await useKuratorSession.getState().aktiviere(storage.idb, runtimeConfig.build.label);
       // Daten-Share-Handle auf readwrite hochstufen: ein Erst-Login auf diesem
       // Rechner hatte is_kurator=false → StartupScreen gewaehrte nur `read`. Jetzt
       // im selben User-Gesture re-verhandeln (Pitfall #25). Best-effort.

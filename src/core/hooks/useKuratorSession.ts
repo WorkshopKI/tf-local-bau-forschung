@@ -1,21 +1,24 @@
 /**
  * Kurator-Session-Zustand-Store (Phase 1a, Modul C).
  *
- * Nach activate(): 12h TTL (override in Dev-Panel möglich). Activity-Tracking
+ * Nach `aktiviere()`: 12h TTL (override in Dev-Panel möglich). Activity-Tracking
  * ruft extend() → Timer verlängert sich. Der Timer selbst (setInterval jede
- * Minute) wird in Shell.tsx montiert, nicht im Store — Stores bleiben
+ * Minute) wird in ShellLayout montiert, nicht im Store — Stores bleiben
  * reaktiv & react-agnostisch.
+ *
+ * **v3.0: Die Session verifiziert kein Passwort mehr.** Bis v2.x gab es dafuer
+ * ZWEI Wege — `_intern/kurator-config.enc` auf dem Share (setup/activate/
+ * changePassword) und das im Build eingebackene Passwort der Wall
+ * (`activateSynthetic`). Zwei Wege zum selben Ziel driften auseinander; geblieben
+ * ist der Build-Weg, weil er schon VOR der Ordner-Freigabe funktioniert und
+ * dieselbe Krypto nutzt wie das App-Passwort. Die Verifikation liegt jetzt
+ * ausschliesslich beim Aufrufer (`verifyModulPassword`), dieser Store haelt nur
+ * noch den Zustand. Preis: ein Passwortwechsel erfordert einen Rebuild —
+ * konsistent mit Pitfall #28, wo das fuers App-Passwort ohnehin gilt.
  */
 
 import { create } from 'zustand';
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import {
-  isKuratorConfigured,
-  setupKuratorConfig,
-  verifyPassword,
-  changeKuratorPassword,
-  readKuratorName,
-} from '@/core/services/infrastructure/kurator-config';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { DEFAULT_SESSION_TTL_MS, KURATOR_SESSION_META_IDB_KEY } from '@/core/services/infrastructure/types';
 import type { SessionMeta } from '@/core/services/infrastructure/types';
@@ -26,17 +29,15 @@ export interface KuratorSessionState {
   expiresAt: number | null;
   ttlMs: number;
 
-  setup: (idb: IDBStore, name: string, password: string) => Promise<boolean>;
-  activate: (idb: IDBStore, password: string) => Promise<boolean>;
-  /** v2.16: Aktiviert die Session OHNE SMB-Lesen von kurator-config.enc — wird
-   *  vom AppPasswordGate aufgerufen, nachdem das build-time Passwort bereits
-   *  verifiziert wurde. Siehe Implementierung. */
-  activateSynthetic: (idb: IDBStore, name: string) => Promise<void>;
+  /**
+   * Oeffnet die Session. Das Passwort ist zu diesem Zeitpunkt bereits geprueft
+   * (AppPasswordGate / Freischalt-Sektion) — hier wird nur noch der Zustand
+   * gesetzt, die IDB-Meta geschrieben und ein Audit-Eintrag gelegt.
+   */
+  aktiviere: (idb: IDBStore, name: string) => Promise<void>;
   deactivate: (idb: IDBStore) => Promise<void>;
   extend: () => void;
   setTtl: (ms: number) => void;
-  changePassword: (idb: IDBStore, oldPw: string, newPw: string) => Promise<boolean>;
-  isConfigured: (idb: IDBStore) => Promise<boolean>;
   rehydrate: (idb: IDBStore) => Promise<void>;
   tick: (idb: IDBStore) => void;
 }
@@ -52,36 +53,7 @@ export const useKuratorSession = create<KuratorSessionState>((set, get) => ({
   expiresAt: null,
   ttlMs: DEFAULT_SESSION_TTL_MS,
 
-  setup: async (idb, name, password) => {
-    try {
-      await setupKuratorConfig(idb, name, password);
-      await logAudit(idb, { action: 'kurator_setup', user: name });
-      return true;
-    } catch (err) {
-      console.error('KuratorSession.setup failed:', err);
-      return false;
-    }
-  },
-
-  activate: async (idb, password) => {
-    const plain = await verifyPassword(idb, password);
-    if (!plain) return false;
-    const kuratorName = plain.kuratorName;
-    const expiresAt = Date.now() + get().ttlMs;
-    set({ isActive: true, kuratorName, expiresAt });
-    await writeMeta(idb, { kuratorName, expiresAt });
-    await logAudit(idb, { action: 'kurator_login', user: kuratorName });
-    return true;
-  },
-
-  /**
-   * v2.16: Aktiviert die Session ohne SMB-Lesen von kurator-config.enc — wird
-   * vom AppPasswordGate (build-time Passwort bereits verifiziert) aufgerufen.
-   * Schreibt IDB-Meta + Audit analog activate(), damit isActive (Schreib-Buttons)
-   * und kuratorName (Audit-Identitaet) gesetzt sind. Reload restauriert via
-   * rehydrate(). `name` ist bei Shared-Passwort das Build-Label (keine Person).
-   */
-  activateSynthetic: async (idb, name) => {
+  aktiviere: async (idb, name) => {
     const expiresAt = Date.now() + get().ttlMs;
     set({ isActive: true, kuratorName: name, expiresAt });
     await writeMeta(idb, { kuratorName: name, expiresAt });
@@ -105,17 +77,6 @@ export const useKuratorSession = create<KuratorSessionState>((set, get) => ({
     const { isActive } = get();
     set({ ttlMs: ms, expiresAt: isActive ? Date.now() + ms : null });
   },
-
-  changePassword: async (idb, oldPw, newPw) => {
-    const ok = await changeKuratorPassword(idb, oldPw, newPw);
-    if (ok) {
-      const name = get().kuratorName ?? (await readKuratorName(idb));
-      await logAudit(idb, { action: 'kurator_password_changed', user: name ?? 'unknown' });
-    }
-    return ok;
-  },
-
-  isConfigured: async (idb) => isKuratorConfigured(idb),
 
   rehydrate: async (idb) => {
     const meta = await idb.get<SessionMeta & { adminName?: string }>(KURATOR_SESSION_META_IDB_KEY);

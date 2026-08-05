@@ -12,7 +12,7 @@ import { logAudit } from './audit-log';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { BuildLock } from './types';
 import { BUILD_LOCK_PATH, PROGRAMM_DIR_NAME } from './types';
-import { readKuratorName } from './kurator-config';
+import { resolveSnapshotAuthor } from './update-author';
 
 export const STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000;
 
@@ -103,7 +103,7 @@ export async function acquireBuildLock(
   if (existing && !isStale(existing)) {
     return { acquired: false, existing, ageMinutes: ageMinutes(existing.heartbeat) };
   }
-  const kuratorName = (await readKuratorName(idb)) ?? 'dev-user';
+  const kuratorName = await resolveSnapshotAuthor(idb);
   const now = new Date().toISOString();
   const lock: BuildLock = {
     programm_id: opts.programm_id ?? PROGRAMM_DIR_NAME,
@@ -127,7 +127,7 @@ export async function forceLock(
   const parent = await getDatenShareHandle(idb);
   if (!parent) throw new Error('SMB-Handle nicht verfügbar');
   const previous = await readBuildLock(idb);
-  const kuratorName = (await readKuratorName(idb)) ?? 'dev-user';
+  const kuratorName = await resolveSnapshotAuthor(idb);
   const now = new Date().toISOString();
   const lock: BuildLock = {
     programm_id: opts.programm_id ?? PROGRAMM_DIR_NAME,

@@ -10,6 +10,7 @@ import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasSt
 import { ROLLEN, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
 import {
   isKuratorMenusEnabled,
+  hatModulSchloss,
   isMaLoginEnabled,
   isAuslastungEnabled,
   isAssistentProtokollEnabled,
@@ -22,7 +23,7 @@ import {
   Avatar,
   InfoHint,
 } from './_shared/settings-primitives';
-import { KuratorSessionPanel } from './KuratorSessionPanel';
+import { ModulFreischaltungSection } from './ModulFreischaltungSection';
 import { AssistentTab } from './AssistentTab';
 
 const NAME_INPUT_CLASS =
@@ -141,8 +142,12 @@ export function ProfilTab(): React.ReactElement {
         </SettingsRow>
       </section>
 
-      {/* Section 4 — Kurator-Bereich (nur in kurator-Variante) */}
-      {isKuratorMenusEnabled() && (
+      {/* Section 4 — Kurator-Bereich.
+          v3.0: Der freie Schalter erscheint NUR noch, wenn der Build kein
+          Kurator-Schloss traegt (dev/local). Wo eines existiert, waere er die
+          offene Hintertuer neben dem Passwort — dort uebernimmt die
+          Freischalt-Sektion. */}
+      {isKuratorMenusEnabled() && !hatModulSchloss('kurator') && (
         <section id="sec-kurator" className="scroll-mt-20">
           <SettingsSectionHeader label="Kurator-Bereich" />
           <SettingsRow>
@@ -158,9 +163,10 @@ export function ProfilTab(): React.ReactElement {
               />
             </SettingsRowGroup>
           </SettingsRow>
-          <KuratorSessionPanel />
         </section>
       )}
+
+      <ModulFreischaltungSection />
 
       {/* Assistent & Gedächtnis (Assistent Phase 0) — seit v2.235 hier
           gefaltet statt als eigener Menüpunkt. Bringt eigene `sec-assistent-…`-

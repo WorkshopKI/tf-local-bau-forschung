@@ -4,7 +4,7 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { getRecentAudits } from '@/core/services/infrastructure/audit-log';
 import type { AuditEntry } from '@/core/services/infrastructure/types';
-import { KuratorSessionPanel } from '@/plugins/einstellungen/KuratorSessionPanel';
+import { Button } from '@/components/ui/button';
 import { Field, SectionCaption } from './shared';
 
 const TTL_OPTIONS: Array<{ label: string; ms: number }> = [
@@ -32,7 +32,27 @@ export function AdminPanel(): React.ReactElement {
         Eine Session, in der schreibende Aktionen erlaubt sind und das Audit-Log konsistent geführt wird.
       </p>
 
-      <KuratorSessionPanel />
+      {/* v3.0: Der frühere KuratorSessionPanel verifizierte gegen
+          `kurator-config.enc` auf dem Share. Die Datei gibt es nicht mehr — im
+          dev-Build trägt die Config ohnehin kein Schloss, die Session lässt sich
+          also direkt öffnen. */}
+      <Field label="Session">
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] text-[var(--tf-text-secondary)]">
+            {session.isActive ? `aktiv als „${session.kuratorName ?? '—'}"` : 'inaktiv'}
+          </span>
+          <Button
+            type="button"
+            variant={session.isActive ? 'secondary' : 'primary'}
+            size="sm"
+            onClick={() => void (session.isActive
+              ? session.deactivate(storage.idb)
+              : session.aktiviere(storage.idb, 'Dev'))}
+          >
+            {session.isActive ? 'Beenden' : 'Starten'}
+          </Button>
+        </div>
+      </Field>
 
       <Field label="Session-Dauer (TTL)">
         <div className="flex flex-wrap gap-1.5">

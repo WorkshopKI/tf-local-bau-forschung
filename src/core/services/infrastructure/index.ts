@@ -3,7 +3,6 @@ export * from './crypto';
 export * from './smb-handle';
 export * from './atomic-write';
 export * from './audit-log';
-export * from './kurator-config';
 export * from './build-lock';
 export * from './backup';
 export * from './offline-check';

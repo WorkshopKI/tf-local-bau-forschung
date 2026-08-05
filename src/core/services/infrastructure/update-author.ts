@@ -6,20 +6,23 @@
  * Praezedenz best → schlechtest, jeder Schritt defensiv (kein Throw unter
  * `file://`):
  *
- *   1. readKuratorName    — explizit gesetzter Kurator-Name (Kurator-Variante).
+ *   1. Profil-Name       — der im Onboarding eingetragene Anzeigename.
  *   2. echtes Profil-Kuerzel — bearbeiter_kuerzel, getrimmt, nicht leer/"alle".
  *   3. Nachname           — Name des persoenlichen Ordners (getPersoenlichHandle().name).
  *   4. build.label        — generisches Rollen-Label ("ZAH PL").
  *   5. 'unbekannt'.
  *
- * Hintergrund: in den Varianten pl/as ist das Profil-Kuerzel fast immer "alle"
- * (Uebersichts-Modus) und es gibt keinen Kurator-Namen — ohne Schritt 3 landete
- * die Attribution beim generischen Build-Label oder bei "unbekannt", sodass
- * niemand sieht, WER aktualisiert hat. Der persoenliche Ordner heisst auf den
- * Nachnamen des Users.
+ * Hintergrund: das Profil-Kuerzel ist in pl fast immer "alle" (Uebersichts-Modus)
+ * — ohne Schritt 3 landete die Attribution beim generischen Build-Label oder bei
+ * "unbekannt", sodass niemand sieht, WER aktualisiert hat. Der persoenliche
+ * Ordner heisst auf den Nachnamen des Users.
+ *
+ * v3.0: Schritt 1 war der Kurator-Name aus `kurator-config.enc`. Mit dem Wegfall
+ * der Datei tritt der Profil-Name an seine Stelle — inhaltlich ein Gewinn: der
+ * Kurator-Build stempelte bei Shared-Passwort das BUILD-LABEL („ZAH Kurator") in
+ * jeden Eintrag, der Profil-Name benennt dagegen einen Menschen.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { readKuratorName } from './kurator-config';
 import { getPersoenlichHandle } from './smb-handle';
 import { runtimeConfig } from '@/config/runtime-config';
 
@@ -37,15 +40,16 @@ function istEchtesKuerzel(raw: unknown): raw is string {
 }
 
 export async function resolveSnapshotAuthor(idb: IDBStore): Promise<string> {
-  // 1. Kurator-Name (explizit gesetzt; nur Kurator-Variante).
-  const kuratorName = await readKuratorName(idb).catch(() => null);
-  if (kuratorName && kuratorName.trim()) return kuratorName.trim();
+  const profile = await idb.get<Record<string, unknown>>('profile').catch(() => null);
+
+  // 1. Profil-Name — der Mensch, so wie er sich selbst eingetragen hat.
+  const name = profile?.name;
+  if (typeof name === 'string' && name.trim()) return name.trim();
 
   // 2. Echtes Profil-Kuerzel (nicht "alle"/leer). Service-Pfad → direkter
   //    IDB-Read statt useMeinKuerzel() (das ist ein React-Hook); dieser Code
-  //    laeuft nur in pl/kurator/as OHNE MA-Login, wo der Hook ohnehin das
-  //    Profilfeld zurueckgibt — semantisch aequivalent.
-  const profile = await idb.get<Record<string, unknown>>('profile').catch(() => null);
+  //    laeuft nur in pl OHNE MA-Login, wo der Hook ohnehin das Profilfeld
+  //    zurueckgibt — semantisch aequivalent.
   const kuerzel = profile?.bearbeiter_kuerzel; // allow-direct-kuerzel: Service-Pfad ohne MA-Login — useMeinKuerzel ist ein Hook
   if (istEchtesKuerzel(kuerzel)) return kuerzel.trim();
 

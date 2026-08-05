@@ -25,10 +25,6 @@ import {
   pickAndStoreDatenShareHandle,
   ensureFolderStructure,
 } from '@/core/services/infrastructure/smb-handle';
-import {
-  isKuratorConfigured,
-  setupKuratorConfig,
-} from '@/core/services/infrastructure/kurator-config';
 import { istSetupKey } from '@/core/services/storage/setup-keys';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
@@ -107,31 +103,21 @@ export async function ensureSmbHandle(idb: IDBStore): Promise<FileSystemDirector
 }
 
 /**
- * Stellt sicher, dass eine aktive Kurator-Session mit Default-Credentials
- * existiert. Konfiguriert den Kurator beim ersten Aufruf (kurator-config.enc).
- * Setzt TTL vor activate() auf `dev.sessionTtlDays` (Default 30 Tage), damit
- * Session auch nach App-Restart und über mehrere Wochen aktiv bleibt.
+ * Stellt sicher, dass eine aktive Kurator-Session existiert.
+ *
+ * v3.0: Ohne `kurator-config.enc` gibt es kein Setup und kein Passwort mehr —
+ * die Session wird direkt geoeffnet (`aktiviere`). Das ist genau der Weg, den
+ * auch die Passwort-Wall geht, seit die Verifikation im Build steckt statt auf
+ * dem Share. TTL vorher setzen: `aktiviere` liest `get().ttlMs`.
  */
 export async function ensureKuratorSession(idb: IDBStore): Promise<void> {
   assertDevFixtures();
   const dev = getDevConfig();
-  const configured = await isKuratorConfigured(idb);
-  if (!configured) {
-    await setupKuratorConfig(idb, dev.defaultKuratorName, dev.defaultKuratorPassword);
-  }
   const session = useKuratorSession.getState();
-  // TTL überschreiben BEVOR activate() — activate verwendet get().ttlMs.
   const ttlMs = dev.sessionTtlDays * 24 * 60 * 60 * 1000;
   session.setTtl(ttlMs);
   if (!session.isActive) {
-    const ok = await session.activate(idb, dev.defaultKuratorPassword);
-    if (!ok) {
-      throw new Error(
-        'Kurator-Session-Aktivierung fehlgeschlagen. ' +
-        'Vermutlich existiert eine kurator-config.enc mit anderem Passwort — ' +
-        'resetAll() + manuelles Löschen der Datei auf dem Daten-Share könnte helfen.',
-      );
-    }
+    await session.aktiviere(idb, dev.defaultKuratorName);
   }
 }
 

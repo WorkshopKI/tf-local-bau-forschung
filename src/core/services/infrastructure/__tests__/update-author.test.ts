@@ -3,11 +3,12 @@
  *
  * Mock-Strategie analog userFoldersRootPermission.test.ts: minimaler IDBStore-Stub,
  * der `get(key)` rein aus einem In-Memory-Store bedient. So treiben wir alle
- * Präzedenz-Branches, ohne echte SMB-/Crypto-Pfade:
- *   - readKuratorName fällt ohne Daten-Share-Handle (kein SMB_HANDLE_DATEN_SHARE)
- *     direkt auf den IDB-Cache `KURATOR_NAME_LOCAL_IDB_KEY` zurück.
+ * Präzedenz-Branches, ohne echte SMB-Pfade:
+ *   - Profil-Name und -Kürzel kommen aus `idb.get('profile')`.
  *   - getPersoenlichHandle liest `SMB_HANDLE_PERSOENLICH` aus der Handle-Map.
- *   - das Profil-Kürzel kommt aus `idb.get('profile')`.
+ *
+ * v3.0: Stufe 1 war der Kurator-Name aus `kurator-config.enc`. Mit dem Wegfall
+ * der Datei steht dort der Profil-Name — ein Mensch statt eines Build-Labels.
  */
 import { describe, it, expect } from 'vitest';
 import { resolveSnapshotAuthor } from '../update-author';
@@ -15,7 +16,6 @@ import { runtimeConfig } from '@/config/runtime-config';
 import {
   SMB_HANDLES_IDB_KEY,
   SMB_HANDLE_PERSOENLICH,
-  KURATOR_NAME_LOCAL_IDB_KEY,
 } from '../types';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 
@@ -29,10 +29,9 @@ function persHandle(name: string): Record<string, unknown> {
 }
 
 describe('resolveSnapshotAuthor', () => {
-  it('1. Kurator-Name gewinnt vor Kürzel und Nachname', async () => {
+  it('1. Profil-Name gewinnt vor Kürzel und Nachname', async () => {
     const idb = makeIdb({
-      [KURATOR_NAME_LOCAL_IDB_KEY]: '  Maria Müller  ',
-      profile: { bearbeiter_kuerzel: 'MUE' },
+      profile: { name: '  Maria Müller  ', bearbeiter_kuerzel: 'MUE' },
       ...persHandle('Schmidt'),
     });
     expect(await resolveSnapshotAuthor(idb)).toBe('Maria Müller');
@@ -40,7 +39,6 @@ describe('resolveSnapshotAuthor', () => {
 
   it('2. Kürzel „alle" zählt als „kein Kürzel" → Nachname (persönlicher Ordner)', async () => {
     const idb = makeIdb({
-      [KURATOR_NAME_LOCAL_IDB_KEY]: null,
       profile: { bearbeiter_kuerzel: 'Alle' }, // case-insensitive
       ...persHandle('Müller'),
     });
@@ -49,7 +47,6 @@ describe('resolveSnapshotAuthor', () => {
 
   it('3. echtes Kürzel gewinnt vor dem Nachnamen', async () => {
     const idb = makeIdb({
-      [KURATOR_NAME_LOCAL_IDB_KEY]: null,
       profile: { bearbeiter_kuerzel: 'MUE' },
       ...persHandle('Müller'),
     });
@@ -58,7 +55,6 @@ describe('resolveSnapshotAuthor', () => {
 
   it('4. ohne Name/echtes Kürzel/Ordner → Build-Label', async () => {
     const idb = makeIdb({
-      [KURATOR_NAME_LOCAL_IDB_KEY]: null,
       profile: { bearbeiter_kuerzel: 'alle' },
       [SMB_HANDLES_IDB_KEY]: {}, // kein persönlicher Ordner
     });
@@ -71,7 +67,6 @@ describe('resolveSnapshotAuthor', () => {
     runtimeConfig.build.label = '';
     try {
       const idb = makeIdb({
-        [KURATOR_NAME_LOCAL_IDB_KEY]: null,
         profile: null,
         [SMB_HANDLES_IDB_KEY]: {},
       });
