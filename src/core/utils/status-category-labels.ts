@@ -20,6 +20,13 @@
  * Dopplung wird gegebenenfalls über die **Phasen**beschriftung aufgelöst (die
  * ist seit v2.409 frei), nicht über die Kategorie.
  *
+ * **`entscheidung` heißt seit v2.413.1 „Zu entscheiden".** „Entscheidungsreif" war
+ * ein unschrumpfbares Einzelwort von 117 px und passte in die 170-px-Lanes des
+ * Kanban nur mit Ellipse — abgekürzt las es sich wieder wie der
+ * Verfahrensschritt „Entscheidung", also genau die Verwechslung, die v2.409
+ * beseitigt hat. Die Verbform trägt dieselbe Aussage, bricht an der Wortgrenze
+ * und reiht sich neben `offen` („Zu bearbeiten") in dieselbe Frageform ein.
+ *
  * **Die Aggregate tragen eigene Namen.** Reiter und Abschnitte in
  * *Förderanträge* fassen Kategorien zusammen — „Vor Entscheidung" sind drei,
  * „Beendet" zwei. Sie dürfen deshalb NICHT den Namen einer ihrer Kategorien
@@ -46,7 +53,7 @@ export const KATEGORIE_TEXTE: Readonly<Record<StatusCategory, Beschriftung>> = {
   offen: { lang: 'Zu bearbeiten', kurz: 'Zu bearb.' },
   in_pruefung: { lang: 'In Arbeit', kurz: 'In Arbeit' },
   nachforderung: { lang: 'Wartet auf Antragsteller', kurz: 'Bei Antragst.' },
-  entscheidung: { lang: 'Entscheidungsreif', kurz: 'Entsch.-reif' },
+  entscheidung: { lang: 'Zu entscheiden', kurz: 'Zu entsch.' },
   bewilligt: { lang: 'Bewilligt', kurz: 'Bewilligt' },
   begleitung: { lang: 'Begleitung', kurz: 'Begleitung' },
   abgelehnt: { lang: 'Abgelehnt', kurz: 'Abgelehnt' },

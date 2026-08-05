@@ -989,7 +989,7 @@ describe('status-achsen (Arbeitsliste fest, Verfahrensschritt beweglich)', () =>
     // ein Guard, der die mitfaengt, meldet fuer immer Fehlalarm.
     const paare: [string, string][] = [
       ['offen', 'Zu bearbeiten'], ['in_pruefung', 'In Arbeit'],
-      ['nachforderung', 'Wartet auf Antragsteller'], ['entscheidung', 'Entscheidungsreif'],
+      ['nachforderung', 'Wartet auf Antragsteller'], ['entscheidung', 'Zu entscheiden'],
       ['abgeschlossen', 'Erledigt'], ['sonstige', 'Ohne Zuordnung'],
     ];
     const muster = paare.map(([k, v]) => new RegExp(`\\b${k}\\s*:\\s*['"\`]${v}['"\`]`));

@@ -54,12 +54,20 @@ beantwortet:
 | `offen` | Zu bearbeiten | Zu bearb. |
 | `in_pruefung` | In Arbeit | In Arbeit |
 | `nachforderung` | Wartet auf Antragsteller | Bei Antragst. |
-| `entscheidung` | Entscheidungsreif | Entsch.-reif |
+| `entscheidung` | Zu entscheiden | Zu entsch. |
 | `bewilligt` | Bewilligt | Bewilligt |
 | `begleitung` | Begleitung | Begleitung |
 | `abgelehnt` | Abgelehnt | Abgelehnt |
 | `abgeschlossen` | Erledigt | Erledigt |
 | `sonstige` | Ohne Zuordnung | Ohne Zuord. |
+
+**Nachtrag v2.413.1:** `entscheidung` hieß zunächst „Entscheidungsreif". Das war ein
+unschrumpfbares Einzelwort von 117 px und passte in die 170-px-Lanes des Kanban
+nur mit Ellipse — abgekürzt las es sich wieder wie der Verfahrensschritt
+„Entscheidung", also genau die Verwechslung, die v2.409 beseitigt hat. Die
+Verbform „Zu entscheiden" bricht an der Wortgrenze (83 px, zweizeilig) und reiht
+sich neben `offen` in dieselbe Frageform ein. Gemessen bei 1280 und 1024 px über
+sieben Lanes: keine Bezeichnung kürzt mehr ab.
 
 `begleitung` bleibt bewusst stehen, obwohl es mit einem Phasennamen kollidiert:
 es ist das eingeführte Wort der Fachseite. Diese eine Dopplung wird

@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.413.1 — Arbeitsliste entscheidung heisst Zu entscheiden (August 2026)
+
+PATCH — „Entscheidungsreif" war ein unschrumpfbares Einzelwort von 117 px und passte in die 170-px-Lanes des Kanban nur mit Ellipse — abgekürzt las es sich wieder wie der Verfahrensschritt „Entscheidung", also genau die Verwechslung, die v2.409 beseitigt hat. Detail: [status-achsen.md](docs/architecture/status-achsen.md).
+
+- **Arbeitsliste `entscheidung` heißt „Zu entscheiden"** (Kurzform „Zu entsch.") — bricht an der Wortgrenze und reiht sich neben „Zu bearbeiten" in dieselbe Frageform ein ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+- Im Kanban nachgemessen bei 1280 und 1024 px über sieben Lanes: **keine Bezeichnung kürzt mehr ab** (83 px statt 117 in einer 83-px-Spur); die Leitplanken in [KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx) bleiben für die nächste lange Bezeichnung
+
 ### v2.413.0 — Regel-Werkstatt: Wirkung, Probelauf, Straenge (August 2026)
 
 MINOR — Die To-do-Regeln sollen künftig von AB- und FB-Vertretern selbst festgelegt werden. Der Editor trug bereits; es fehlte alles vor und nach dem Bearbeiten: die Wirkung einer Regel am Bestand, die Probe am echten Fall, die Zahl vor dem Scharfschalten. Detail: [vorgangssystem.md §11a](docs/architecture/vorgangssystem.md).

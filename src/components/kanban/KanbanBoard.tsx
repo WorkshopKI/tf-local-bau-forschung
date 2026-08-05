@@ -91,15 +91,21 @@ export function KanbanBoard<T>({ columns, renderCard, dense, layout = 'fest' }: 
           >
             {/* Vollbreite getönte Kopfzeile (style-head).
                 Die Lane ist `overflow-hidden` — was hier nicht passt, ist nicht
-                bloß versetzt, sondern WEG. In der 170-px-Spur der Startseite
-                schob die Bezeichnung „Entscheidungsreif" (117 px, ein Wort, also
-                unschrumpfbar) die Zähler-Pille aus der Lane: die Zahl war
-                vollständig abgeschnitten. Darum: Zähler `shrink-0` (die Zahl
+                bloß versetzt, sondern WEG. Darum: Zähler `shrink-0` (die Zahl
                 weicht nie), Bezeichnung `min-w-0` + Ellipse (weicht als letzte,
-                voller Name im title). `gap-1` statt `gap-2` gibt der Bezeichnung
-                die 8 px zurück, die sie braucht, damit „Wartet auf
-                Antragsteller" (92 px, zweizeilig) nicht NEU eine Ellipse
-                bekommt — gemessen, nicht geschätzt. */}
+                voller Name im title), und `gap-1` statt `gap-2` für die 8 px,
+                die eine zweizeilige Bezeichnung braucht.
+
+                Diese Leitplanken stammen aus zwei gemessenen Fällen: „Wartet auf
+                Antragsteller" (90 px, bricht auf zwei Zeilen) passt nur mit
+                `gap-1`; „Entscheidungsreif" war mit 117 px ein unschrumpfbares
+                EINZELWORT in einer 83-px-Spur und schob die Zähler-Pille ganz
+                aus der Lane. Der zweite Fall ist mit v2.413.1 an der Wurzel
+                behoben — die Arbeitsliste heißt jetzt „Zu entscheiden" und
+                bricht an der Wortgrenze (83 px, zweizeilig). Die Leitplanken
+                bleiben trotzdem: sie schützen die nächste lange Bezeichnung,
+                und eine abgeschnittene Zahl ist der teuerste Fehler hier.
+                Gemessen bei 1280 und 1024 px, sieben Lanes: keine Ellipse. */}
             <div
               className="-mx-3 px-3 py-[11px] flex items-center gap-1 text-[10.5px] font-medium uppercase tracking-[0.07em]"
               style={{ background: mix(9, 'var(--tf-bg)'), borderBottom: `0.5px solid ${mix(15, 'var(--tf-border)')}` }}
