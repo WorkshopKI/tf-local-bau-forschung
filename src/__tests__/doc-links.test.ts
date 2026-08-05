@@ -184,6 +184,14 @@ describe('doc-links', () => {
     // docs/architecture/klaerung.md. Hier bleibt nur, was beim Patchen sofort
     // sichtbar sein muss — allen voran: NICHT auf eine gemeinsame Antwortdatei
     // umbauen, `appendToFile` verliert dann stillschweigend Zeilen.
-    expect(bytes).toBeLessThan(62_100);
+    // 62_100 → 63_600 (v2.409): die beiden Status-Achsen bekommen ihre drei
+    // Zeilen — eine in der „Ich will…"-Tabelle, eine im Pitfall-Themenindex und
+    // Pitfall #50. Der Pitfall ist lang, weil er vier Zusagen bündelt, die man
+    // einzeln bricht: Achse A kuratierbar / Achse B nicht, EIN Schreibweg aufs
+    // Register, Seed statt leerer Liste, und Aggregatnamen ≠ Kategorienamen.
+    // Getrennt wären es vier Nummern für einen Zusammenhang; das Detail (warum
+    // asymmetrisch, welche sieben Abschnitte, welche Namen) steht in
+    // docs/architecture/status-achsen.md.
+    expect(bytes).toBeLessThan(63_600);
   });
 });

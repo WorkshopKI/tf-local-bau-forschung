@@ -40,7 +40,7 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { bearbeiterScopeLabel, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
-import { getStatusCategoryLabel } from '@/plugins/antraege/groupAggregates';
+import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import { WIDGET_KATALOG } from './widgetCatalog';
 import {
   buildAntragKanbanLanes,

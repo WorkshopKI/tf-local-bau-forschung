@@ -946,6 +946,90 @@ describe('no-hardcoded-kategorie-mapping (Artefakt-Achse: Kategorie-Einzelquelle
   });
 });
 
+describe('status-achsen (Arbeitsliste fest, Verfahrensschritt beweglich)', () => {
+  // Die beiden Achsen des Status-Systems sind bewusst verschieden gebaut: der
+  // Verfahrensschnitt (ZAH-Phasen) steht seit v2.409 in der Katalog-Fassung, die
+  // Arbeitsliste (StatusCategory) bleibt im Code — sonst koennte eine Iteration
+  // am Phasenschnitt nebenbei die taegliche Arbeitsliste der ABs leeren.
+  const LABEL_QUELLE = `${sep}core${sep}utils${sep}status-category-labels.ts`;
+
+  it('status-category-not-curated: die Fassung fuehrt keine Kategorien-LISTE', () => {
+    // Der Katalog darf die Kategorie ABLEITEN (ZahPhase.kategorieVorgabe traegt
+    // EINEN Wert je Phase) — aber kein Feld der Fassung darf eine Liste von
+    // StatusCategory fuehren. Das waere die zweite, bewegliche Achse.
+    // Strukturell geprueft am Fassungs-Typ selbst statt per Tree-Grep: nur hier
+    // entstuende so ein Feld.
+    const typen = readFileSync(join(ROOT, 'core', 'status', 'typen.ts'), 'utf8');
+    const block = typen.slice(typen.indexOf('export interface MappingVersion'));
+    const ende = block.indexOf('\n}');
+    const felder = block.slice(0, ende);
+    const treffer = felder.split('\n').filter(l => /StatusCategory\s*\[\]/.test(l));
+    if (treffer.length > 0) {
+      expect.fail(
+        `MappingVersion fuehrt eine Kategorien-Liste:\n${treffer.join('\n')}\n\n` +
+        `Die Arbeitslisten-Achse (StatusCategory) bleibt im Code. Die PL\n` +
+        `entscheidet ueber ZahPhase.kategorieVorgabe, in WELCHE Arbeitsliste ein\n` +
+        `Verfahrensschritt einzahlt — nicht, welche Arbeitslisten es gibt.`,
+      );
+    }
+  });
+
+  it('status-labels-single-source: keine Kategoriebezeichnung als Literal daneben', () => {
+    // Die neun Bezeichnungen leben in status-category-labels.ts. Gesucht wird
+    // die Zuweisungs-Form (`offen: 'Zu bearbeiten'`), nicht der blosse Text.
+    //
+    // Nur die SECHS umbenannten Paare: „Bewilligt", „Begleitung" und
+    // „Abgelehnt" sind blosse Gross-Schreibungen ihres Schluessels und kommen
+    // zu Recht in fremden Domaenen vor (FeedbackStatus, Roh-Status-Labels) —
+    // ein Guard, der die mitfaengt, meldet fuer immer Fehlalarm.
+    const paare: [string, string][] = [
+      ['offen', 'Zu bearbeiten'], ['in_pruefung', 'In Arbeit'],
+      ['nachforderung', 'Wartet auf Antragsteller'], ['entscheidung', 'Entscheidungsreif'],
+      ['abgeschlossen', 'Erledigt'], ['sonstige', 'Ohne Zuordnung'],
+    ];
+    const muster = paare.map(([k, v]) => new RegExp(`\\b${k}\\s*:\\s*['"\`]${v}['"\`]`));
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(LABEL_QUELLE)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.includes('.test.ts')) continue;
+      findings.push(...findInFile(
+        file, l => muster.some(m => m.test(l)), 'allow-kategorie-label',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Kategoriebezeichnung ausserhalb der Einzelquelle.\n` +
+        `Vier Module fuehrten bis v2.409 eigene Vokabulare fuer dieselben neun\n` +
+        `Werte — sie liefen auseinander, sobald eines angefasst wurde.\n` +
+        `Stattdessen: getStatusCategoryLabel() / getStatusCategoryLabelKurz().\n\n` +
+        `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  it('status-label-namensraeume-disjunkt: kein Name auf beiden Ebenen', async () => {
+    // Ein Reiter „Zu bearbeiten", der drei Kategorien meint, von denen eine
+    // ebenfalls so heisst, waere die Verwechslung eine Ebene hoeher — also
+    // genau das, was A3 beseitigt hat. Aggregatnamen muessen eigen sein.
+    const { KATEGORIE_TEXTE, AGGREGAT_TEXTE } =
+      await import('@/core/utils/status-category-labels');
+    const kategorieNamen = new Set(
+      Object.values(KATEGORIE_TEXTE).flatMap(b => [b.lang, b.kurz]),
+    );
+    const kollision = Object.entries(AGGREGAT_TEXTE)
+      .flatMap(([id, b]) => [[id, b.lang], [id, b.kurz]] as [string, string][])
+      .filter(([, name]) => kategorieNamen.has(name));
+    if (kollision.length > 0) {
+      expect.fail(
+        `Aggregatname deckt sich mit einer Kategoriebezeichnung:\n` +
+        kollision.map(([id, name]) => `  ${id} → „${name}"`).join('\n') +
+        `\n\nZusammenfassungen brauchen einen EIGENEN Namen — sonst heisst der\n` +
+        `Reiter wie eine der Kategorien darin.`,
+      );
+    }
+  });
+});
+
 describe('zah-phasen-snapshot-single-writer (ZAH-Phasen: genau ein Setzweg)', () => {
   // Seit v2.409 ist der Phasenschnitt kuratierbar; welcher Schnitt GILT, steht in
   // zwei Modul-Registern in core/status/zah-phasen.ts. Weil die Modul-global sind,
@@ -1103,7 +1187,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 38;    // Ist 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2280;       // Ist ~2234 (DIESE Datei; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2360;       // Ist ~2318 (DIESE Datei; davor 2280 / Ist ~2234; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

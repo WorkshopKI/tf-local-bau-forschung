@@ -6,22 +6,20 @@
  * gemeinsamen Feld-Klassen (aus dem ChecklistenEditor-Muster übernommen).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
+import { KATEGORIE_TEXTE, getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import {
   type StatusCategory, type Prominenz, type Werkzeug,
   type StatusFeldEintrag,
 } from '@/core/status';
 
-export const KATEGORIE_LABEL: Record<StatusCategory, string> = {
-  offen: 'Offen',
-  in_pruefung: 'In Prüfung',
-  nachforderung: 'Nachforderung',
-  entscheidung: 'Entscheidung',
-  bewilligt: 'Bewilligt',
-  begleitung: 'Begleitung',
-  abgelehnt: 'Abgelehnt',
-  abgeschlossen: 'Abgeschlossen',
-  sonstige: 'Sonstige',
-};
+/**
+ * Die Arbeitslisten-Bezeichnungen — **abgeleitet**, nicht hier gepflegt.
+ * Bis v2.409 stand hier eine eigene Tabelle; sie war eines von vier Vokabularen
+ * für dieselben neun Werte (`status-category-labels.ts`).
+ */
+export const KATEGORIE_LABEL: Record<StatusCategory, string> = Object.fromEntries(
+  (Object.keys(KATEGORIE_TEXTE) as StatusCategory[]).map(k => [k, getStatusCategoryLabel(k)]),
+) as Record<StatusCategory, string>;
 
 export const PROMINENZ_LABEL: Record<Prominenz, string> = {
   meilenstein: 'Meilenstein',

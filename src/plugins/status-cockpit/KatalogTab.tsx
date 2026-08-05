@@ -29,9 +29,14 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { PhasenBaum } from './PhasenBaum';
+import {
+  STATUS_SECTIONS, statusSectionLabel, type StatusSectionId,
+} from '@/plugins/antraege/antragGroups';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { feldLabel, zahPhaseLabel, ohneVerwaiste, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
+import {
+  feldLabel, zahPhaseLabel, ohneVerwaiste, kategorieFuerPhase, SEED_CODE_ZU_ZAH_PHASE,
+} from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
@@ -47,6 +52,17 @@ function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
+
+/**
+ * In welchem Abschnitt von *Förderanträge* eine Arbeitsliste landet.
+ *
+ * Dieselbe Zuordnung wie `sectionOf`, nur von der Kategorie aus statt vom
+ * Rohwert — der Rohwert-Schnitt („Abgelehnt/Zurückgezogen") ist von hier aus
+ * nicht erreichbar und bleibt deshalb außen vor.
+ */
+function abschnittFuerKategorie(k: StatusCategory): StatusSectionId {
+  return STATUS_SECTIONS.find(s => s.categories.includes(k))?.id ?? 'ohne-zuordnung';
+}
 
 /**
  * Die Phase eines Wert-Eintrags, wie die Fassung sie führt: kuratiert schlägt
@@ -66,6 +82,10 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
   vorschlag: { median: number; n: number } | undefined;
 }): React.ReactElement {
   const key = wertId(w.feldId, w.wert);
+  // Dieselbe dreiwertige Regel wie `kategorieAusFassung` in snapshot.ts.
+  const effektiveKategorie = w.code === undefined
+    ? w.kategorie
+    : kategorieFuerPhase(phaseVon(w), w.code, api.entwurf?.zahPhasen);
   return (
     <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
       {/* Der kuratierte Feldname, nicht die technische feldId („status" ist der
@@ -91,13 +111,27 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
           onChange={e => api.setWert(w.id, { label: e.target.value })}
         />
       </td>
-      <td className={`${tdKlasse} min-w-[128px]`}>
-        <select
-          value={w.kategorie} className={feldKlasse} style={feldStil}
-          onChange={e => api.setWert(w.id, { kategorie: e.target.value as StatusCategory })}
-        >
-          {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
-        </select>
+      <td className={`${tdKlasse} min-w-[150px]`}>
+        <div className="flex flex-col gap-0.5">
+          <select
+            value={w.kategorie} className={feldKlasse} style={feldStil}
+            onChange={e => api.setWert(w.id, { kategorie: e.target.value as StatusCategory })}
+          >
+            {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
+          </select>
+          {/* Was aus der Zeile FOLGT, statt es raten zu lassen — und zwar die
+              WIRKSAME Arbeitsliste, nicht das gepflegte Feld: bei Werten mit
+              amtlichem Code leitet die App sie aus Verfahrensschritt + Code ab
+              (`kategorieAusFassung`), das Feld daneben stammt aus dem
+              Seed-Stand. Ein Satz, der die Auswahl spiegelt statt das Ergebnis,
+              wäre hier eine Zusage, die die App nicht einhält. */}
+          <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+            erscheint im Abschnitt <em>{statusSectionLabel(abschnittFuerKategorie(effektiveKategorie))}</em>
+            {effektiveKategorie !== w.kategorie && (
+              <> — abgeleitet aus dem Verfahrensschritt, die Auswahl links wirkt nicht</>
+            )}
+          </span>
+        </div>
       </td>
       <td className={`${tdKlasse} min-w-[124px]`}>
         <select
@@ -319,14 +353,29 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               <th className={thKlasse}>CSV-Spalte</th>
               <th className={thKlasse}>Rohwert</th>
               <th className={thKlasse}>Label</th>
-              <th className={thKlasse}>Kategorie</th>
+              {/* Die beiden Achsen tragen ihren ZWECK im Namen. Vier der neun
+                  Arbeitslisten hießen wortgleich wie ein Verfahrensschritt;
+                  zwei Spalten mit halb denselben Wörtern, und keine sagt wozu,
+                  liest jeder als Widerspruch. Die Schlüssel im Datenmodell
+                  (`kategorie`, `zahPhaseId`) bleiben unverändert. */}
+              <th className={thKlasse}>
+                <div className="flex flex-col gap-0.5">
+                  <span>Arbeitsliste</span>
+                  <span className="font-normal normal-case text-[10.5px] text-[var(--tf-text-tertiary)]">
+                    bestimmt Reiter, Gruppierung und Farbe in Förderanträge
+                  </span>
+                </div>
+              </th>
               <th className={thKlasse}>Prominenz</th>
               {zeigeZieltage && (
-                <th
-                  className={thKlasse}
-                  title="Verfahrensschritt dieses Status. Hier nur zum Lesen — geändert wird er im Baum."
-                >
-                  ZAH-Phase
+                <th className={thKlasse}>
+                  <div className="flex flex-col gap-0.5">
+                    <span>Verfahrensschritt</span>
+                    <span className="font-normal normal-case text-[10.5px] text-[var(--tf-text-tertiary)]">
+                      bestimmt Auswertung, Zieltage und Stillstand · Beschriftung
+                      im Baum änderbar
+                    </span>
+                  </div>
                 </th>
               )}
               {zeigeZieltage && (

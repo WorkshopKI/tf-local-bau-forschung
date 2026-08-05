@@ -7,13 +7,19 @@
  *
  * 5 Buckets fassen die 8 sinnvollen Status-Kategorien zusammen:
  *
- * | Chip            | Kategorien                                |
- * |-----------------|-------------------------------------------|
- * | Offen           | offen, in_pruefung, entscheidung          |
- * | Nachforderung   | nachforderung                             |
- * | Bewilligt       | bewilligt                                 |
- * | Begleitung      | begleitung                                |
- * | Abgeschlossen   | abgeschlossen, abgelehnt                  |
+ * | Chip              | Kategorien                              |
+ * |-------------------|-----------------------------------------|
+ * | Vor Entscheidung  | offen, in_pruefung, entscheidung        |
+ * | (1:1)             | nachforderung                           |
+ * | (1:1)             | bewilligt                               |
+ * | (1:1)             | begleitung                              |
+ * | Beendet           | abgeschlossen, abgelehnt                |
+ *
+ * **Die Beschriftungen kommen aus der Einzelquelle** (v2.409): 1:1-Buckets erben
+ * den Kategorienamen, die beiden Zusammenfassungen tragen einen Aggregatnamen,
+ * der mit keiner Kategoriebezeichnung übereinstimmt. Ein Reiter „Zu bearbeiten",
+ * der drei Kategorien meint, von denen eine ebenfalls so heißt, wäre die
+ * Verwechslung eine Ebene höher.
  *
  * Die `sonstige`-Kategorie (Irrläufer/unvollständig) ist KEINEM Chip
  * zugeordnet: sie ist über „Alle" und über die Sidebar erreichbar, hängt sich
@@ -29,16 +35,42 @@ import {
   getStatusValuesByCategory,
   type StatusCategory,
 } from '@/core/utils/status-canonical';
+import {
+  getAggregatLabel, getAggregatLabelKurz,
+  getStatusCategoryLabel, getStatusCategoryLabelKurz,
+} from '@/core/utils/status-category-labels';
 
 export const STATUS_QUICK_CHIPS = [
-  { id: 'offen', label: 'Offen', categories: ['offen', 'in_pruefung', 'entscheidung'] as StatusCategory[] },
-  { id: 'nachforderung', label: 'Nachforderung', categories: ['nachforderung'] as StatusCategory[] },
-  { id: 'bewilligt', label: 'Bewilligt', categories: ['bewilligt'] as StatusCategory[] },
-  { id: 'begleitung', label: 'Begleitung', categories: ['begleitung'] as StatusCategory[] },
-  { id: 'abgeschlossen', label: 'Abgeschlossen', categories: ['abgeschlossen', 'abgelehnt'] as StatusCategory[] },
+  { id: 'offen', categories: ['offen', 'in_pruefung', 'entscheidung'] as StatusCategory[] },
+  { id: 'nachforderung', categories: ['nachforderung'] as StatusCategory[] },
+  { id: 'bewilligt', categories: ['bewilligt'] as StatusCategory[] },
+  { id: 'begleitung', categories: ['begleitung'] as StatusCategory[] },
+  { id: 'abgeschlossen', categories: ['abgeschlossen', 'abgelehnt'] as StatusCategory[] },
 ] as const;
 
 export type StatusQuickChipId = (typeof STATUS_QUICK_CHIPS)[number]['id'];
+
+/** Volle Beschriftung eines Buckets — abgeleitet, nie als Literal geführt. */
+export function chipLabel(id: StatusQuickChipId): string {
+  switch (id) {
+    case 'offen': return getAggregatLabel('vorEntscheidung');
+    case 'abgeschlossen': return getAggregatLabel('beendet');
+    case 'nachforderung': return getStatusCategoryLabel('nachforderung');
+    case 'bewilligt': return getStatusCategoryLabel('bewilligt');
+    case 'begleitung': return getStatusCategoryLabel('begleitung');
+  }
+}
+
+/** Kurzform für die Quickfilter-Pille (Label + Zähler müssen in eine Zeile). */
+export function chipLabelKurz(id: StatusQuickChipId): string {
+  switch (id) {
+    case 'offen': return getAggregatLabelKurz('vorEntscheidung');
+    case 'abgeschlossen': return getAggregatLabelKurz('beendet');
+    case 'nachforderung': return getStatusCategoryLabelKurz('nachforderung');
+    case 'bewilligt': return getStatusCategoryLabelKurz('bewilligt');
+    case 'begleitung': return getStatusCategoryLabelKurz('begleitung');
+  }
+}
 
 /**
  * Die Status-Werte eines Chips — abgeleitet bei jedem Aufruf, nicht gecacht.

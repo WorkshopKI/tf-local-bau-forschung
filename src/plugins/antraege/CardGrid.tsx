@@ -80,9 +80,9 @@ export function CardGrid({
       {effectiveMode === 'status' ? (
         <div className="flex flex-col gap-4">
           {splitByStatusPhase(groups).map(section => (
-            <div key={section.label}>
-              <StatusSectionHeader label={section.label} count={section.groups.length} />
-              {collapsedSet.has(section.label) ? null : renderTiles(section.groups)}
+            <div key={section.id}>
+              <StatusSectionHeader id={section.id} count={section.groups.length} />
+              {collapsedSet.has(section.id) ? null : renderTiles(section.groups)}
             </div>
           ))}
         </div>

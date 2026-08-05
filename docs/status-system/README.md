@@ -92,10 +92,15 @@ beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
   Portabilitätsweg, sondern für Sicherung und Transfer zwischen Installationen.
 - **Event-Log ist append-only** — nie mutieren/löschen (auch kein „Aufräumen"
   ignorierter Felder).
-- **Eine Phasen-Achse**: die ZAH-Phase am amtlichen Code. `STEPPER_STATIONS`
+- **Eine Phasen-Achse**: die ZAH-Phase am amtlichen Code. Die Verfahrensleiste
   speist sich seit v2.384 daraus, statt eine zweite Wirbelsäule zu führen. Das
   Zwei-Achsen-Prinzip bleibt — amtlicher Status **vs. Artefakte** (GA/NF/ABL/RNE),
   nicht amtlicher Status vs. abgeleitete Position.
+- **Der Verfahrensschritt ist kuratierbar, die Arbeitsliste nicht** (seit
+  v2.409): 3 bis 9 Phasen mit freier Beschriftung in der Fassung, `StatusCategory`
+  fest im Code. Warum das so asymmetrisch ist, und wie die Bezeichnungen
+  zusammenhängen: [status-achsen.md](../architecture/status-achsen.md)
+  (Pitfall #50).
 
 ## Weitere Docs
 

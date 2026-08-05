@@ -3,7 +3,7 @@ import { getStatusCategory, type StatusCategory } from '@/core/utils/status-cano
 import { getEingangAmpel, type EingangAmpel } from './eingangAmpel';
 import { daysUntilFristAware } from '@/core/services/csv/frist';
 import { formatFkzRange } from './antragGroups';
-import type { StatusPhaseLabel } from './antragGroups';
+import { sectionOf, type StatusSectionId } from './antragGroups';
 
 /**
  * Reine Aggregator-Helpers für `AntragGroup.tvs[]` — werden von der Card- und
@@ -66,45 +66,6 @@ export function uniqueStatusCategories(tvs: AntragListItem[]): Set<StatusCategor
   return out;
 }
 
-/**
- * CSS-Farbe (Hex) pro Status-Kategorie für die Mini-Dots in der Verbund-Tile.
- * Phase-1-Implementierung mit Hex-Werten — kann später durch Theme-Tokens
- * ersetzt werden. Werte orientieren sich an den Badge-Variants (info/warning/
- * success/error/default), bleiben aber kategoriescharf damit visuell klar
- * ablesbar bleibt, was wo steht.
- */
-export function getStatusCategoryColor(cat: StatusCategory): string {
-  switch (cat) {
-    case 'offen':         return '#94a3b8'; // slate-400 (neutral/eingang)
-    case 'in_pruefung':   return '#3b82f6'; // blue-500
-    case 'nachforderung': return '#f59e0b'; // amber-500
-    case 'entscheidung':  return '#8b5cf6'; // violet-500
-    case 'bewilligt':     return '#10b981'; // emerald-500
-    case 'begleitung':    return '#14b8a6'; // teal-500
-    case 'abgelehnt':     return '#ef4444'; // red-500
-    case 'abgeschlossen': return '#6b7280'; // gray-500
-    case 'sonstige':      return '#d1d5db'; // gray-300
-  }
-}
-
-/**
- * Kurzlabel für die Kategorie (Tooltip). Nicht für UI-Badges — dafür gibt es
- * `getStatusLabel(rawStatus)` in `status-mappings.ts`.
- */
-export function getStatusCategoryLabel(cat: StatusCategory): string {
-  switch (cat) {
-    case 'offen':         return 'Offen';
-    case 'in_pruefung':   return 'In Prüfung';
-    case 'nachforderung': return 'Nachforderung';
-    case 'entscheidung':  return 'Entscheidung';
-    case 'bewilligt':     return 'Bewilligt';
-    case 'begleitung':    return 'Begleitung';
-    case 'abgelehnt':     return 'Abgelehnt';
-    case 'abgeschlossen': return 'Abgeschlossen';
-    case 'sonstige':      return 'Sonstige';
-  }
-}
-
 function trimmedString(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
@@ -141,40 +102,19 @@ export function dominantStatus(
 }
 
 /**
- * Phase-Label für eine Verbund-/Cluster-Gruppe — basiert auf `dominantStatus`.
+ * Der Abschnitt einer Verbund-/Cluster-Gruppe — basiert auf `dominantStatus`.
  * Eingesetzt in `buildAntragGroups({ mode: 'status' })`, damit Verbund-Cluster
- * komplett in eine Phase-Section wandern statt pro TV einzeln verteilt zu
- * werden.
+ * komplett in eine Section wandern statt pro TV einzeln verteilt zu werden.
+ *
+ * Die Zuordnung selbst steht in `sectionOf` (antragGroups.ts). Bis v2.409 stand
+ * hier eine dritte wortgleiche `switch`-Kaskade — sie lief so lange mit, wie
+ * niemand eine der drei anfasste.
  */
 export function statusPhaseForGroup(
   tvs: AntragListItem[],
   verbundStatus?: string | null,
-): StatusPhaseLabel {
-  const raw = dominantStatus(tvs, verbundStatus);
-  // Foerderantrag-Rohwert `abgelehnt/zurückgezogen` bekommt eine eigene
-  // Section (siehe antragGroups.ts STATUS_PHASE_ORDER). Die Kategorie
-  // `abgelehnt` bleibt im default-Switch in "Abgeschlossen".
-  if (typeof raw === 'string' && raw.trim().toLowerCase() === 'abgelehnt/zurückgezogen') {
-    return 'Abgelehnt/Zurückgezogen';
-  }
-  const cat = getStatusCategory(raw);
-  switch (cat) {
-    case 'offen':
-    case 'in_pruefung':
-    case 'entscheidung':
-      return 'Offen';
-    case 'nachforderung':
-      return 'Nachforderung';
-    case 'bewilligt':
-      return 'Bewilligt';
-    case 'begleitung':
-      return 'Begleitung';
-    case 'abgeschlossen':
-    case 'abgelehnt':
-      return 'Abgeschlossen';
-    default:
-      return 'Sonstige';
-  }
+): StatusSectionId {
+  return sectionOf(dominantStatus(tvs, verbundStatus));
 }
 
 /**

@@ -20,7 +20,9 @@ import { getStatusValuesByCategory, setStatusKatalogSnapshotMap, type StatusCate
 import type { AntragListItem } from '@/core/services/csv/types';
 import { REAL_CSV_ANTRAEGE } from '../../__tests__/fixtures/real-csv-antraege';
 import { getPhaseItems, applyPhase, getPhaseFromActive, STATUS_FILTER_ID } from '../phaseQuickfilter';
-import { STATUS_QUICK_CHIPS, chipStatusValues, type StatusQuickChipId } from '../statusQuickChips';
+import {
+  STATUS_QUICK_CHIPS, chipStatusValues, chipLabelKurz, type StatusQuickChipId,
+} from '../statusQuickChips';
 
 const STATUS_DEF: FilterDefinition = {
   id: STATUS_FILTER_ID,
@@ -37,7 +39,10 @@ const STATUS_DEF: FilterDefinition = {
 };
 
 const ANTRAEGE = [...REAL_CSV_ANTRAEGE];
-const PHASEN = ['Offen', 'NF', 'Bewilligt', 'Begleitung', 'Abgeschl.'] as const;
+// Die Beschriftungen kommen aus derselben Einzelquelle wie die Oberflaeche
+// (v2.409). Eine eigene Liste hier waere das siebte Vokabular — und der Test
+// wuerde dann nur noch pruefen, dass zwei Kopien uebereinstimmen.
+const PHASEN = STATUS_QUICK_CHIPS.map(c => chipLabelKurz(c.id));
 
 /** Fährt `applyPhase` und gibt den Filter-Zustand zurück, den die Pille setzt. */
 function filterNachKlick(phase: string): ActiveFilter[] {
@@ -90,11 +95,11 @@ describe('Status-Pille: Zahl == Zeilen', () => {
 
 /** Pille → Chip, gespiegelt aus `PHASE_LABEL_BY_CHIP_ID` (dort modul-privat). */
 const CHIP_ZU_PHASE: Record<StatusQuickChipId, string> = {
-  offen: 'Offen',
-  nachforderung: 'NF',
-  bewilligt: 'Bewilligt',
-  begleitung: 'Begleitung',
-  abgeschlossen: 'Abgeschl.',
+  offen: chipLabelKurz('offen'),
+  nachforderung: chipLabelKurz('nachforderung'),
+  bewilligt: chipLabelKurz('bewilligt'),
+  begleitung: chipLabelKurz('begleitung'),
+  abgeschlossen: chipLabelKurz('abgeschlossen'),
 };
 
 describe('applyPhase schreibt genau die gezählte Wertemenge', () => {
@@ -127,7 +132,7 @@ describe('getPhaseFromActive', () => {
       ...chipStatusValues('nachforderung'),
       ...getStatusValuesByCategory('sonstige'),
     ];
-    expect(getPhaseFromActive([{ filterId: STATUS_FILTER_ID, value: alt }])).toBe('NF');
+    expect(getPhaseFromActive([{ filterId: STATUS_FILTER_ID, value: alt }])).toBe(chipLabelKurz('nachforderung'));
   });
 
   it('gemischte Hand-Auswahl aus der Sidebar bleibt „Alle"', () => {
@@ -150,11 +155,11 @@ describe('Zähler = Filter gilt auch mit gesetztem Katalog-Snapshot', () => {
     setStatusKatalogSnapshotMap(new Map<string, StatusCategory>([
       ['sonderfall xy', 'entscheidung'],
     ]));
-    const gezaehlt = getPhaseItems(daten).find(i => i.label === 'Offen')?.count ?? 0;
+    const gezaehlt = getPhaseItems(daten).find(i => i.label === chipLabelKurz('offen'))?.count ?? 0;
     expect(gezaehlt).toBe(1);
 
     let geschrieben: string[] = [];
-    applyPhase('Offen', (_id, v) => { geschrieben = v; }, () => {});
+    applyPhase(chipLabelKurz('offen'), (_id, v) => { geschrieben = v; }, () => {});
     expect(geschrieben).toContain('sonderfall xy');
   });
 });

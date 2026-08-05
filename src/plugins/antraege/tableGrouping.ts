@@ -21,8 +21,8 @@ import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import {
   buildAntragGroups,
   statusPhaseForAntrag,
-  STATUS_PHASE_ORDER,
-  type StatusPhaseLabel,
+  STATUS_SECTION_ORDER,
+  type StatusSectionId,
 } from './antragGroups';
 import { dominantStatus, sumFoerdersumme, verbundFkz } from './groupAggregates';
 
@@ -93,25 +93,25 @@ export function buildVerbundTableRows(
 }
 
 export interface StatusSectionRows {
-  /** TVs in Section-Reihenfolge (STATUS_PHASE_ORDER), Innen-Reihenfolge =
+  /** TVs in Section-Reihenfolge (STATUS_SECTION_ORDER), Innen-Reihenfolge =
    *  Eingabe (= primärer Sort der `filtered`-Pipeline). Kontiguierlich pro
    *  Phase — die Tabelle zeichnet beim Phasen-Wechsel ein Band. */
   rows: AntragTableRow[];
   /** Phase-Zuordnung pro Zeile (für `sectionKeyOf` der SortableTable). */
-  sectionOf: (row: AntragTableRow) => StatusPhaseLabel;
+  sectionOf: (row: AntragTableRow) => StatusSectionId;
 }
 
 /**
  * Status-Modus: jedes TV einzeln, gebucketet per eigenem Status in
- * STATUS_PHASE_ORDER. Keine Verbund-Zusammenfassung. Leere Phasen werden
+ * STATUS_SECTION_ORDER. Keine Verbund-Zusammenfassung. Leere Phasen werden
  * ausgelassen.
  */
 export function buildStatusSectionRows(filtered: AntragListItem[]): StatusSectionRows {
-  const buckets = new Map<StatusPhaseLabel, AntragListItem[]>();
-  for (const phase of STATUS_PHASE_ORDER) buckets.set(phase, []);
+  const buckets = new Map<StatusSectionId, AntragListItem[]>();
+  for (const phase of STATUS_SECTION_ORDER) buckets.set(phase, []);
   for (const a of filtered) buckets.get(statusPhaseForAntrag(a))!.push(a);
   const rows: AntragTableRow[] = [];
-  for (const phase of STATUS_PHASE_ORDER) {
+  for (const phase of STATUS_SECTION_ORDER) {
     const bucket = buckets.get(phase)!;
     if (bucket.length > 0) rows.push(...bucket);
   }

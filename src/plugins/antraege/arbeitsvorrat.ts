@@ -4,8 +4,16 @@
  * Der „Alle"-Tab mischt aktive Anträge mit längst abgeschlossenen — der
  * Arbeitsvorrat (nicht-terminal) verschwindet im Archiv-Rauschen. Diese
  * pure Schicht teilt die gefilterte Liste in zwei kontiguierliche Sektionen:
- * **In Arbeit** (nicht-terminal, oben) und **Abgeschlossen** (terminal, unten,
+ * **Arbeitsvorrat** (nicht-terminal, oben) und **Beendet** (terminal, unten,
  * default eingeklappt).
+ *
+ * Beide Namen sind **Aggregatnamen** und kommen mit keiner Kategoriebezeichnung
+ * überein (v2.409). Vorher hießen sie „In Arbeit" und „Abgeschlossen" — das
+ * erste kollidiert seit der Umbenennung wortgleich mit der Kategorie
+ * `in_pruefung`, und ein Abschnitt, der sieben Kategorien meint und heißt wie
+ * eine davon, ist genau die Verwechslung, die A3 beseitigt hat. „Beendet" ist
+ * dieselbe Menge wie der gleichnamige Bucket der Status-Pille, also derselbe
+ * Name.
  *
  * Einzelquelle der Terminalität ist `isTerminalStatus` (Kategorie
  * `abgeschlossen` ∪ `abgelehnt`, bewusst OHNE `bewilligt` — nach der
@@ -19,14 +27,15 @@ import {
   isTerminalStatus,
   isAbgelehntZurueckgezogenStatus,
 } from '@/core/utils/status-canonical';
+import { getAggregatLabel } from '@/core/utils/status-category-labels';
 
 /** Die zwei Sektionen des „Alle"-Tabs. */
 export type ArbeitsvorratSection = 'in_arbeit' | 'archiv';
 
-/** Anzeige-Label je Sektion (Header-Band). */
+/** Anzeige-Label je Sektion (Header-Band) — abgeleitet, nicht als Literal. */
 export const ARBEITSVORRAT_LABEL: Record<ArbeitsvorratSection, string> = {
-  in_arbeit: 'In Arbeit',
-  archiv: 'Abgeschlossen',
+  in_arbeit: getAggregatLabel('arbeitsvorrat'),
+  archiv: getAggregatLabel('beendet'),
 };
 
 /** Sektions-Zuordnung eines Antrags: terminal → Archiv, sonst Arbeitsvorrat. */

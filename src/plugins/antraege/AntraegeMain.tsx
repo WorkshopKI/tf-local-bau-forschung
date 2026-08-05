@@ -531,9 +531,9 @@ function GroupedList({
       {effectiveMode === 'status' ? (
         <div className="flex flex-col gap-3">
           {splitByStatusPhase(groups).map(section => (
-            <div key={section.label}>
-              <StatusSectionHeader label={section.label} count={section.groups.length} />
-              {collapsedSet.has(section.label) ? null : (
+            <div key={section.id}>
+              <StatusSectionHeader id={section.id} count={section.groups.length} />
+              {collapsedSet.has(section.id) ? null : (
                 <div className="flex flex-col gap-1">
                   {section.groups.map(renderGroup)}
                 </div>

@@ -19,6 +19,22 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.410 — 2026-08
+
+### Neu
+- Der **Verfahrensschnitt lässt sich jetzt selbst zuschneiden**. Im Status-Katalog steht dafür ein Baum: links die Verfahrensschritte, darunter die Statuswerte. Einen Statuswert zieht man auf einen anderen Schritt, und er hängt dort. Bisher ging das nur mit einer neuen Programmversion.
+- Es dürfen **drei bis neun Schritte** sein, die Beschriftung ist frei. Zu jedem Schritt legt man fest, in welchen Reiter von *Förderanträge* seine Anträge fallen und ob eine Liegezeit-Vorgabe für ihn überhaupt sinnvoll ist.
+- Einen Schritt zu entfernen fragt immer, **wohin seine Statuswerte sollen** — sie verschwinden nie, sie ziehen um. Zeigt eine Zuordnung ins Leere, sagt der Katalog das oben ausdrücklich.
+
+### Verbesserungen
+- Die **Reiter und Abschnitte in Förderanträge heißen jetzt nach der Frage, die sie beantworten**: „Zu bearbeiten", „In Arbeit", „Wartet auf Antragsteller", „Entscheidungsreif", „Erledigt". Vorher trugen vier davon denselben Namen wie ein Verfahrensschritt, was sich las, als widerspreche sich die App.
+- Zusammenfassungen haben eigene Namen bekommen — **Vor Entscheidung** und **Beendet** —, damit ein Reiter nicht so heißt wie eine der Kategorien darin.
+- Im Status-Katalog heißen die beiden Spalten jetzt **Arbeitsliste** und **Verfahrensschritt** und sagen darunter, wofür sie jeweils gelten. Neben der Arbeitsliste steht, in welchem Abschnitt der Status dadurch erscheint.
+
+### Bugfixes
+- Ein umgehängter Statuswert wirkt sofort überall — in der Verfahrensleiste am Antrag, in der Filter-Gruppierung und in den Zieltagen. Vorher blieben diese drei Stellen auf dem ausgelieferten Stand stehen.
+- Der zugeklappte Zustand der Status-Abschnitte in *Förderanträge* stellt sich einmalig auf die Voreinstellung zurück.
+
 ## v2.409 — 2026-08
 
 ### Verbesserungen

@@ -1,5 +1,6 @@
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
-import { getStatusCategory } from '@/core/utils/status-canonical';
+import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
+import { getAggregatLabel, getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import {
   extractNetzwerkId,
   isNetzwerkLead,
@@ -20,33 +21,81 @@ import {
  * - `netzwerk-by-size`: Wie `netzwerk`, aber die Supergruppen werden nach
  *   Mitglieder-Zahl absteigend sortiert (Tie-Break: Netzwerk-ID asc), Solos
  *   wandern ans Ende. Praktisch um „große" Netzwerke schnell zu sehen.
- * - `status`: Flache Solo-Gruppen, sortiert nach Phase (Offen → Nachforderung
- *   → Bewilligt → Begleitung → Abgeschlossen → Sonstige). Jede Gruppe trägt
- *   `statusPhaseLabel` für Header-Rendering in der Listendarstellung.
+ * - `status`: Flache Solo-Gruppen, sortiert nach Abschnitt (Vor Entscheidung →
+ *   Wartet auf Antragsteller → Bewilligt → Begleitung → Beendet →
+ *   Abgelehnt/Zurückgezogen → Ohne Zuordnung). Jede Gruppe trägt
+ *   `statusSectionId` für Header-Rendering in der Listendarstellung.
  * - `none`: Flache Liste, jeder TV ist eine eigene Gruppe.
  */
 export type GroupingMode = 'verbund' | 'netzwerk' | 'netzwerk-by-size' | 'status' | 'none';
 
 /**
- * Phasen-Reihenfolge für `mode='status'` (entspricht Bearbeitungs-Lifecycle).
- * Mapping `StatusCategory` → Phase-Label aus `STATUS_QUICK_CHIPS` (Single
- * Source of Truth in `filter/statusQuickChips.ts`).
+ * Die Abschnitte für `mode='status'` — Bearbeitungs-Reihenfolge.
+ *
+ * **Der Schlüssel ist die `id`, nicht die Beschriftung.** Bis v2.409 waren die
+ * Anzeigenamen selbst der Schlüssel: sie standen so in `localStorage`
+ * (Zuklapp-Zustand), und jede Umbenennung hätte eine Migration gebraucht. Namen
+ * als Schlüssel zu führen war die eigentliche Ursache — deshalb gibt es jetzt
+ * stabile Ids und die Beschriftung ist reine Anzeige.
+ *
+ * **Die Namen erben oder heißen anders, nie beides halb.** Ein Abschnitt, der
+ * genau einer Kategorie entspricht, holt seinen Namen aus
+ * `getStatusCategoryLabel`. Zusammenfassungen bekommen einen Aggregatnamen, der
+ * mit keiner Kategoriebezeichnung übereinstimmt — sonst hieße der Abschnitt wie
+ * eine der Kategorien darin (Konventionstest
+ * `status-label-namensraeume-disjunkt`).
  */
-export const STATUS_PHASE_ORDER = [
-  'Offen',
-  'Nachforderung',
-  'Bewilligt',
-  'Begleitung',
-  'Abgeschlossen',
-  'Abgelehnt/Zurückgezogen',
-  'Sonstige',
-] as const;
-export type StatusPhaseLabel = (typeof STATUS_PHASE_ORDER)[number];
+export interface StatusSection {
+  id: StatusSectionId;
+  /** Die Kategorien, die in diesen Abschnitt fallen. Leer = Rohwert-Schnitt. */
+  categories: readonly StatusCategory[];
+}
+
+export type StatusSectionId =
+  | 'vor-entscheidung'
+  | 'nachforderung'
+  | 'bewilligt'
+  | 'begleitung'
+  | 'beendet'
+  | 'abgelehnt-zurueckgezogen'
+  | 'ohne-zuordnung';
+
+export const STATUS_SECTIONS: readonly StatusSection[] = [
+  { id: 'vor-entscheidung', categories: ['offen', 'in_pruefung', 'entscheidung'] },
+  { id: 'nachforderung', categories: ['nachforderung'] },
+  { id: 'bewilligt', categories: ['bewilligt'] },
+  { id: 'begleitung', categories: ['begleitung'] },
+  { id: 'beendet', categories: ['abgeschlossen', 'abgelehnt'] },
+  // Hängt am ROHWERT, nicht an einer Kategorie — deshalb keine `categories`.
+  { id: 'abgelehnt-zurueckgezogen', categories: [] },
+  { id: 'ohne-zuordnung', categories: ['sonstige'] },
+];
+
+export const STATUS_SECTION_ORDER: readonly StatusSectionId[] = STATUS_SECTIONS.map(s => s.id);
+
+/**
+ * Die Beschriftung eines Abschnitts.
+ *
+ * Drei Herkünfte, alle bewusst: 1:1 erbt von der Kategorie, Zusammenfassungen
+ * tragen einen Aggregatnamen, und der Rohwert-Schnitt zitiert den amtlichen Wert
+ * — er beschreibt weder eine Kategorie noch eine Zusammenfassung davon.
+ */
+export function statusSectionLabel(id: StatusSectionId): string {
+  switch (id) {
+    case 'vor-entscheidung': return getAggregatLabel('vorEntscheidung');
+    case 'beendet': return getAggregatLabel('beendet');
+    case 'abgelehnt-zurueckgezogen': return 'Abgelehnt/Zurückgezogen';
+    case 'nachforderung': return getStatusCategoryLabel('nachforderung');
+    case 'bewilligt': return getStatusCategoryLabel('bewilligt');
+    case 'begleitung': return getStatusCategoryLabel('begleitung');
+    case 'ohne-zuordnung': return getStatusCategoryLabel('sonstige');
+  }
+}
 
 /** Foerderantrag-Rohwert fuer den final-negativen Pfad — wird in eine eigene
  *  Status-Section ausgegliedert (im Workflow am wenigsten relevant, blaeht
- *  sonst "Abgeschlossen" auf). Werte der Kategorie `abgelehnt` bleiben bewusst
- *  in "Abgeschlossen" — die Section haengt am Rohwert, nicht an der Kategorie. */
+ *  sonst "Beendet" auf). Werte der Kategorie `abgelehnt` bleiben bewusst
+ *  in "Beendet" — die Section haengt am Rohwert, nicht an der Kategorie. */
 const STATUS_RAW_ABGELEHNT_ZURUECKGEZOGEN = 'abgelehnt/zurückgezogen';
 
 function isAbgelehntZurueckgezogenRaw(raw: unknown): boolean {
@@ -54,56 +103,30 @@ function isAbgelehntZurueckgezogenRaw(raw: unknown): boolean {
     && raw.trim().toLowerCase() === STATUS_RAW_ABGELEHNT_ZURUECKGEZOGEN;
 }
 
-export function statusPhaseForAntrag(a: AntragListItem): StatusPhaseLabel {
-  if (isAbgelehntZurueckgezogenRaw(a.status)) return 'Abgelehnt/Zurückgezogen';
-  const cat = getStatusCategory(a.status);
-  switch (cat) {
-    case 'offen':
-    case 'in_pruefung':
-    case 'entscheidung':
-      return 'Offen';
-    case 'nachforderung':
-      return 'Nachforderung';
-    case 'bewilligt':
-      return 'Bewilligt';
-    case 'begleitung':
-      return 'Begleitung';
-    case 'abgeschlossen':
-    case 'abgelehnt':
-      return 'Abgeschlossen';
-    default:
-      return 'Sonstige';
-  }
+/**
+ * Der Abschnitt eines rohen Status-Werts. **Die eine Stelle** — bis v2.409 stand
+ * dieselbe `switch`-Kaskade dreimal im Code (zweimal hier, einmal in
+ * `groupAggregates.ts`), was genau so lange gut ging, wie niemand eine davon
+ * anfasste.
+ */
+export function sectionOf(raw: unknown): StatusSectionId {
+  if (isAbgelehntZurueckgezogenRaw(raw)) return 'abgelehnt-zurueckgezogen';
+  const cat = getStatusCategory(raw);
+  return STATUS_SECTIONS.find(s => s.categories.includes(cat))?.id ?? 'ohne-zuordnung';
+}
+
+export function statusPhaseForAntrag(a: AntragListItem): StatusSectionId {
+  return sectionOf(a.status);
 }
 
 /**
- * Phase für einen Verbund-Cluster. Wenn `verbund_status` (CSV-Feld) gepflegt
- * ist, basiert die Phase darauf; sonst Status des Lead-TVs (= erster TV in
+ * Abschnitt für einen Verbund-Cluster. Wenn `verbund_status` (CSV-Feld) gepflegt
+ * ist, basiert er darauf; sonst Status des Lead-TVs (= erster TV in
  * Eingabe-Reihenfolge, Caller-Pipeline sortiert Lead-first).
  */
-function statusPhaseForGroup(tvs: AntragListItem[], verbund?: Verbund): StatusPhaseLabel {
+function statusPhaseForGroup(tvs: AntragListItem[], verbund?: Verbund): StatusSectionId {
   const v = typeof verbund?.status === 'string' ? verbund.status.trim() : '';
-  if (v.length > 0) {
-    if (isAbgelehntZurueckgezogenRaw(v)) return 'Abgelehnt/Zurückgezogen';
-    const cat = getStatusCategory(v);
-    switch (cat) {
-      case 'offen':
-      case 'in_pruefung':
-      case 'entscheidung':
-        return 'Offen';
-      case 'nachforderung':
-        return 'Nachforderung';
-      case 'bewilligt':
-        return 'Bewilligt';
-      case 'begleitung':
-        return 'Begleitung';
-      case 'abgeschlossen':
-      case 'abgelehnt':
-        return 'Abgeschlossen';
-      default:
-        return 'Sonstige';
-    }
-  }
+  if (v.length > 0) return sectionOf(v);
   return statusPhaseForAntrag(tvs[0]!);
 }
 
@@ -135,11 +158,11 @@ export interface AntragGroup {
    *  Einzelanträge innerhalb des Netzwerks. Reihenfolge: Sub-Gruppe mit Lead
    *  zuerst, dann nach erstem-FKZ aufsteigend. */
   subGroups?: AntragGroup[];
-  /** Nur bei `mode='status'` gesetzt: Phase-Label des head-TVs (Offen /
-   *  Nachforderung / Bewilligt / Begleitung / Abgeschlossen / Sonstige). Der
-   *  Renderer (GroupedList) rendert einen Section-Header zwischen aufeinander-
-   *  folgenden Gruppen mit unterschiedlichem Label. */
-  statusPhaseLabel?: StatusPhaseLabel;
+  /** Nur bei `mode='status'` gesetzt: der Abschnitt des head-TVs. Der Renderer
+   *  (GroupedList) rendert einen Section-Header zwischen aufeinanderfolgenden
+   *  Gruppen mit unterschiedlicher Id; die Beschriftung holt er sich ueber
+   *  `statusSectionLabel`. */
+  statusSectionId?: StatusSectionId;
 }
 
 const EN_DASH = '–';
@@ -167,30 +190,30 @@ export function formatFkzRange(tvs: readonly { aktenzeichen: string }[]): string
 }
 
 /**
- * Section für `mode='status'`: ein Phase-Label + die zugehörigen Antrags-
+ * Section für `mode='status'`: eine Abschnitts-Id + die zugehörigen Antrags-
  * Gruppen. Renderer nutzen das, um zwischen Sektionen einen Header zu
  * zeichnen.
  */
 export interface StatusPhaseSection {
-  label: StatusPhaseLabel;
+  id: StatusSectionId;
   groups: AntragGroup[];
 }
 
 /**
  * Teilt eine Status-gruppierte Gruppen-Liste in zusammenhängende Sektionen
- * pro Phase. Reihenfolge bleibt erhalten (= Lifecycle-Reihenfolge aus
- * `buildAntragGroups`). Leere Phasen werden nicht ausgegeben.
- * Wenn keine Gruppe ein `statusPhaseLabel` hat, returnt das Array eine einzige
- * Sektion mit `label='Sonstige'` (defensiv — sollte nie passieren, weil der
+ * pro Abschnitt. Reihenfolge bleibt erhalten (= Lifecycle-Reihenfolge aus
+ * `buildAntragGroups`). Leere Abschnitte werden nicht ausgegeben.
+ * Wenn keine Gruppe eine `statusSectionId` hat, returnt das Array eine einzige
+ * Sektion mit `id='ohne-zuordnung'` (defensiv — sollte nie passieren, weil der
  * Aufrufer nur mit `mode='status'` aufgerufen wird).
  */
 export function splitByStatusPhase(groups: AntragGroup[]): StatusPhaseSection[] {
   const sections: StatusPhaseSection[] = [];
   let current: StatusPhaseSection | null = null;
   for (const g of groups) {
-    const label = g.statusPhaseLabel ?? 'Sonstige';
-    if (!current || current.label !== label) {
-      current = { label, groups: [] };
+    const id = g.statusSectionId ?? 'ohne-zuordnung';
+    if (!current || current.id !== id) {
+      current = { id, groups: [] };
       sections.push(current);
     }
     current.groups.push(g);
@@ -384,18 +407,18 @@ export function buildAntragGroups(
     // GENAU einer Status-Section — TVs werden nicht über mehrere Phasen
     // verteilt, auch wenn ihre individuellen Status-Werte divergieren.
     const clusters = buildVerbundClusters(antraege);
-    const buckets = new Map<StatusPhaseLabel, AntragGroup[]>();
-    for (const phase of STATUS_PHASE_ORDER) buckets.set(phase, []);
+    const buckets = new Map<StatusSectionId, AntragGroup[]>();
+    for (const phase of STATUS_SECTION_ORDER) buckets.set(phase, []);
     for (const cluster of clusters) {
       const verbund = cluster.verbundId !== null
         ? verbundById?.get(cluster.verbundId)
         : undefined;
       const phase = statusPhaseForGroup(cluster.tvs, verbund);
-      cluster.statusPhaseLabel = phase;
+      cluster.statusSectionId = phase;
       buckets.get(phase)!.push(cluster);
     }
     const out: AntragGroup[] = [];
-    for (const phase of STATUS_PHASE_ORDER) {
+    for (const phase of STATUS_SECTION_ORDER) {
       out.push(...buckets.get(phase)!);
     }
     return out;

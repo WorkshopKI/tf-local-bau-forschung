@@ -450,9 +450,9 @@ describe('buildAntragGroups mode=status — Verbund-First', () => {
     const verbundGroup = groups.find(g => g.verbundId === 'V1');
     expect(verbundGroup).toBeDefined();
     expect(verbundGroup!.tvs.map(t => t.aktenzeichen)).toEqual(['A', 'B']);
-    expect(verbundGroup!.statusPhaseLabel).toBe('Offen'); // = Lead-TV-Status
+    expect(verbundGroup!.statusSectionId).toBe('vor-entscheidung'); // = Lead-TV-Status
     const soloGroup = groups.find(g => g.verbundId === null);
-    expect(soloGroup!.statusPhaseLabel).toBe('Bewilligt');
+    expect(soloGroup!.statusSectionId).toBe('bewilligt');
   });
 
   it('Verbund.status (aus verbundById) überschreibt Lead-TV-Status für die Phase', () => {
@@ -471,7 +471,7 @@ describe('buildAntragGroups mode=status — Verbund-First', () => {
     } as import('@/core/services/csv/types').Verbund);
     const groups = buildAntragGroups(input, { mode: 'status', verbundById });
     expect(groups.length).toBe(1);
-    expect(groups[0]!.statusPhaseLabel).toBe('Bewilligt');
+    expect(groups[0]!.statusSectionId).toBe('bewilligt');
   });
 
   it('Solo-Anträge ohne verbund_id bleiben individuelle Gruppen in ihren Phasen', () => {
@@ -482,6 +482,7 @@ describe('buildAntragGroups mode=status — Verbund-First', () => {
     ];
     const groups = buildAntragGroups(input, { mode: 'status' });
     expect(groups.length).toBe(3);
-    expect(groups.map(g => g.statusPhaseLabel)).toEqual(['Offen', 'Nachforderung', 'Bewilligt']);
+    expect(groups.map(g => g.statusSectionId))
+      .toEqual(['vor-entscheidung', 'nachforderung', 'bewilligt']);
   });
 });

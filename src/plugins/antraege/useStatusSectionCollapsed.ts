@@ -1,66 +1,59 @@
 /**
- * Persistenter Collapsed-State pro Status-Section-Label.
+ * Persistenter Zuklapp-Zustand je Status-Abschnitt.
  *
- * Wird vom geteilten `StatusSectionHeader` + den Listen-Renderern
- * (CardGrid, GroupedList) gelesen. Gilt nur bei
- * `Gruppiert: Status` — andere Gruppierungsmodi rendern keine Sections.
+ * Wird vom geteilten `StatusSectionHeader` + den Listen-Renderern (CardGrid,
+ * GroupedList) gelesen. Gilt nur bei `Gruppiert: Status` — andere
+ * Gruppierungsmodi rendern keine Sections. Globale Wahl, nicht pro View: die
+ * Abschnitte sind in allen Sichten dieselben.
  *
- * Persistenz: localStorage unter `teamflow_antraege_status_collapsed`
- * (analog zu den Sort/View-Persistenz-Pattern in `store.ts`). Globale Wahl —
- * nicht pro View, weil die Labels (Offen / NF / Bewilligt / …) identisch sind.
+ * **Gekeyt wird über die Abschnitts-Id, nicht über den Anzeigenamen** (v2.409).
+ * Vorher standen die Namen selbst hier drin („Abgeschlossen",
+ * „Abgelehnt/Zurückgezogen"), samt einer Migration, die beim Hinzukommen eines
+ * Abschnitts nachrüstete. Namen als Schlüssel zu führen war die eigentliche
+ * Ursache dieser Migration — mit stabilen Ids ist eine Umbenennung folgenlos.
+ *
+ * Der Umstieg selbst läuft **ohne** Migration: alte Einträge tragen Namen, die
+ * keiner Id entsprechen, und werden beim Lesen verworfen. Der gespeicherte
+ * Zuklapp-Zustand geht damit einmalig verloren und stellt sich auf die Defaults
+ * zurück. Bei einer Handvoll Erprobungs-Nutzern ist das die ehrlichere Lösung
+ * als eine Migration, die für immer im Code stehen bleibt.
+ *
+ * Persistenz: localStorage unter `teamflow_antraege_status_collapsed`.
  */
 import { create } from 'zustand';
-import type { StatusPhaseLabel } from './antragGroups';
+import { STATUS_SECTION_ORDER, type StatusSectionId } from './antragGroups';
 
 const STORAGE_KEY = 'teamflow_antraege_status_collapsed';
-/** Sentinel-Marker fuer die einmalige Migration auf das neue Phase-Set
- *  (Einfuehrung von 'Abgelehnt/Zurückgezogen'). Existierende User haben
- *  bereits einen STORAGE_KEY-Wert, koennen aber das neue Label dort nicht
- *  drinhaben — wir mergen es einmal beim ersten Load nach Update, danach
- *  greift der normale Toggle-Pfad. Marker bleibt gesetzt = keine Re-Migration. */
-const MIGRATION_MARKER_KEY = 'teamflow_antraege_status_collapsed_v2_migrated';
 
-/** Sections, die beim ersten App-Start fuer einen frischen User
- *  default-collapsed sind. Reihenfolge irrelevant (Set). */
-const FIRST_LOAD_DEFAULTS: StatusPhaseLabel[] = [
-  'Abgeschlossen',
-  'Abgelehnt/Zurückgezogen',
-];
+/** Abschnitte, die beim ersten Start zugeklappt sind. Reihenfolge egal (Set). */
+const FIRST_LOAD_DEFAULTS: StatusSectionId[] = ['beendet', 'abgelehnt-zurueckgezogen'];
 
-function loadCollapsed(): Set<StatusPhaseLabel> {
+function istAbschnittsId(v: unknown): v is StatusSectionId {
+  return typeof v === 'string' && (STATUS_SECTION_ORDER as readonly string[]).includes(v);
+}
+
+function loadCollapsed(): Set<StatusSectionId> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) {
-      // Erst-Initialisierung: defaultmaessig zugeklappte Sections. Die
-      // Sektionen enthalten bei typischer Datenmenge 100+ Antraege und sind
-      // fuer den aktiven Workflow selten relevant. Sobald der User sie
-      // aufklappt, wird sein Wille via saveCollapsed() persistiert und
-      // gewinnt beim naechsten Load.
-      const initial = new Set<StatusPhaseLabel>(FIRST_LOAD_DEFAULTS);
-      try { localStorage.setItem(MIGRATION_MARKER_KEY, '1'); } catch { /* ignore */ }
-      return initial;
+      // Erst-Initialisierung: die beiden Abschnitte enthalten bei typischer
+      // Datenmenge 100+ Anträge und sind für den aktiven Workflow selten
+      // relevant. Sobald der User sie aufklappt, gewinnt sein Wille.
+      return new Set(FIRST_LOAD_DEFAULTS);
     }
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return new Set();
-    const existing = new Set(parsed.filter((v): v is StatusPhaseLabel => typeof v === 'string'));
-    // Einmal-Migration: bestehender User mit gefuelltem STORAGE_KEY hat
-    // die neue Phase noch nie gesehen — einmal default-collapsen, damit
-    // sie auch nach dem Update zugeklappt erscheint.
-    const migrated = localStorage.getItem(MIGRATION_MARKER_KEY) === '1';
-    if (!migrated) {
-      existing.add('Abgelehnt/Zurückgezogen');
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing]));
-        localStorage.setItem(MIGRATION_MARKER_KEY, '1');
-      } catch { /* ignore */ }
-    }
-    return existing;
+    const ids = parsed.filter(istAbschnittsId);
+    // Nur Namen aus der Zeit vor v2.409 im Speicher: wie einen frischen Start
+    // behandeln, statt mit einem leeren Set alles aufgeklappt zu zeigen.
+    if (ids.length === 0 && parsed.length > 0) return new Set(FIRST_LOAD_DEFAULTS);
+    return new Set(ids);
   } catch {
     return new Set();
   }
 }
 
-function saveCollapsed(set: Set<StatusPhaseLabel>): void {
+function saveCollapsed(set: Set<StatusSectionId>): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
   } catch {
@@ -69,19 +62,19 @@ function saveCollapsed(set: Set<StatusPhaseLabel>): void {
 }
 
 interface StatusSectionCollapsedState {
-  collapsed: Set<StatusPhaseLabel>;
-  toggle: (label: StatusPhaseLabel) => void;
-  isCollapsed: (label: StatusPhaseLabel) => boolean;
+  collapsed: Set<StatusSectionId>;
+  toggle: (id: StatusSectionId) => void;
+  isCollapsed: (id: StatusSectionId) => boolean;
 }
 
 export const useStatusSectionCollapsed = create<StatusSectionCollapsedState>((set, get) => ({
   collapsed: loadCollapsed(),
-  toggle: (label) => {
+  toggle: (id) => {
     const next = new Set(get().collapsed);
-    if (next.has(label)) next.delete(label);
-    else next.add(label);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     saveCollapsed(next);
     set({ collapsed: next });
   },
-  isCollapsed: (label) => get().collapsed.has(label),
+  isCollapsed: (id) => get().collapsed.has(id),
 }));

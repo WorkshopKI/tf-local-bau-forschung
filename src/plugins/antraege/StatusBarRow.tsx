@@ -1,7 +1,7 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { getStatusLabel } from '@/core/utils/status-mappings';
-import { getStatusCategoryColor, getStatusCategoryLabel } from './groupAggregates';
+import { getStatusCategoryColor, getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 
 interface Props {
   tvs: AntragListItem[];

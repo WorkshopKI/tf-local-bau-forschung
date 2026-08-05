@@ -13,7 +13,7 @@ import { FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SortableColumn } from '@/components/data-table';
-import { getStatusCategoryColor } from '@/plugins/antraege/groupAggregates';
+import { getStatusCategoryColor } from '@/core/utils/status-category-labels';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 
 export type SearchColumnAppliesTo = 'both' | 'antrag' | 'dokument';

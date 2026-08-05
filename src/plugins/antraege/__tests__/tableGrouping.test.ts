@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildVerbundTableRows, buildStatusSectionRows } from '../tableGrouping';
-import { statusPhaseForAntrag, STATUS_PHASE_ORDER } from '../antragGroups';
+import { statusPhaseForAntrag, STATUS_SECTION_ORDER } from '../antragGroups';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 
@@ -81,12 +81,12 @@ describe('buildStatusSectionRows (Gruppiert: Status)', () => {
     ];
     const { rows, sectionOf } = buildStatusSectionRows(input);
     expect(rows).toHaveLength(3);
-    // Reihenfolge folgt STATUS_PHASE_ORDER: Offen(B) → Nachforderung(C) → Bewilligt(A).
+    // Reihenfolge folgt STATUS_SECTION_ORDER: Vor Entscheidung(B) → NF(C) → Bewilligt(A).
     expect(rows.map(r => r.aktenzeichen)).toEqual(['B', 'C', 'A']);
-    expect(sectionOf(rows[0]!)).toBe('Offen');
+    expect(sectionOf(rows[0]!)).toBe('vor-entscheidung');
 
     // Phasen-Rang ist monoton nicht-fallend (Sections kontiguierlich).
-    const rank = (label: string): number => (STATUS_PHASE_ORDER as readonly string[]).indexOf(label);
+    const rank = (label: string): number => (STATUS_SECTION_ORDER as readonly string[]).indexOf(label);
     let prev = -1;
     for (const r of rows) {
       const k = rank(statusPhaseForAntrag(r));

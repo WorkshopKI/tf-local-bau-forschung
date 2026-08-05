@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.410.0 — Verfahrensschritt kuratierbar, Arbeitsliste unterscheidbar (August 2026)
+
+MINOR — Die Abstimmung mit AB und FB hat ergeben, dass der Phasenzuschnitt strittig ist und mehrfach geändert wird; ein Release je Iteration ist dafür zu langsam. Zugleich hießen vier der neun Arbeitslisten wortgleich wie ein Verfahrensschritt — zwei Spalten mit halb denselben Wörtern, und keine sagte wozu. Detail: [status-achsen.md](docs/architecture/status-achsen.md).
+
+- **ZAH-Phasen sind kuratierbare Daten**: 3 bis 9 Schritte, freie Beschriftung, dazu Arbeitslisten-Vorgabe und Zieltage-Relevanz je Schritt ([zah-phasen.ts](src/core/status/zah-phasen.ts), [zah-phasen-edit.ts](src/core/status/zah-phasen-edit.ts))
+- **Baum-Editor im Status-Katalog** — Statuswert per Zug umhängen, Schritte sortieren und umbenennen; Löschen fragt „wohin mit den n Statuswerten?" ([PhasenBaum.tsx](src/plugins/status-cockpit/PhasenBaum.tsx))
+- **Vier Modul-Ebenen-Leser folgen jetzt der Fassung** statt beim Import einzufrieren: Sidebar-Gruppierung, Verfahrensleiste, Filter, Kategorie-Ableitung ([statusGroups.ts](src/plugins/antraege/filter/statusGroups.ts), [statusZuStepperPosition.ts](src/plugins/antraege/statusZuStepperPosition.ts))
+- **Arbeitslisten umbenannt** (offen → „Zu bearbeiten", abgeschlossen → „Erledigt", …) und aus EINER Quelle bezogen; Reiter und Abschnitte tragen eigene Aggregatnamen ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+- Abschnitte werden über stabile Ids gekeyt statt über Anzeigenamen — **der gespeicherte Zuklapp-Zustand der Status-Abschnitte geht dabei einmalig verloren** ([useStatusSectionCollapsed.ts](src/plugins/antraege/useStatusSectionCollapsed.ts))
+
 ### v2.409.0 — Konfliktschutz beim Veröffentlichen der Katalog-Fassung (August 2026)
 
 MINOR — Der Katalog wird ab sofort von mehreren PL-Personen asynchron gepflegt; der Schreibweg war für einen Schreiber gebaut. `naechsteVersionsnummer` zählte die lokale Liste hoch und `schreibeKatalogAufShare` ersetzte die Datei damit — die fremde Fassung war überschrieben UND aus der Historie verschwunden, ohne Meldung. Detail: [status-system/README.md](docs/status-system/README.md) + [recurring-bug-classes.md §16](docs/architecture/recurring-bug-classes.md).

@@ -22,6 +22,29 @@
  * Vergleich case-insensitive und whitespace-tolerant.
  */
 
+/**
+ * Die **Arbeitslisten-Achse**: "ist dieser Antrag fachlich offen / in Pruefung /
+ * bewilligt / abgeschlossen?" Sie bestimmt Reiter, Gruppierung und Farben in
+ * *Foerderantraege*.
+ *
+ * **Diese Achse ist bewusst NICHT kuratierbar** — anders als die ZAH-Phasen, die
+ * seit v2.409 in der Katalog-Fassung stehen (3 bis 9 Stueck, freie
+ * Beschriftung). Der Grund ist kein technischer:
+ *
+ * - Der **Phasenschnitt ist experimentell**. AB und FB stimmen ihn gerade ab, er
+ *   wird mehrfach geaendert werden, und genau dafuer ist er beweglich geworden.
+ * - Die **taegliche Arbeitsliste der ABs muss dabei stehen bleiben**. Waeren
+ *   beide Achsen frei, koennte eine Iteration am Verfahrensschnitt nebenbei
+ *   ganze Reiter leeren — und niemand saehe den Zusammenhang.
+ *
+ * Zwei frei einstellbare Achsen mit ueberlappenden Woertern waeren ausserdem
+ * genau das Durcheinander, gegen das die Umbenennung von v2.409 geschrieben ist.
+ * Die Verbindung zwischen beiden ist `ZahPhase.kategorieVorgabe`: die PL
+ * entscheidet, in welche Arbeitsliste ein Schritt einzahlt — nicht, welche
+ * Arbeitslisten es gibt. Konventionstest: `status-category-not-curated`.
+ *
+ * Die Bezeichnungen stehen in `status-category-labels.ts`, nicht hier.
+ */
 export type StatusCategory =
   | 'offen'         // Eingang, noch nicht in Pruefung
   | 'in_pruefung'   // Antrags-Pruefung (techn, kaufm, Gutachten) — VOR der Bewilligung
