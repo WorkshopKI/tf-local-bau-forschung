@@ -65,7 +65,7 @@ Verfügung.
   - **Nichts angehakt heißt „alle"**, nicht „nichts". Jedes Menü hat oben einen
     Rücksetzer.
   - **Jahrgänge starten auf den letzten dreien** — und zwar sichtbar angekreuzt,
-    nicht als Sammelwert. Der Schnellweg „Letzte 3 Jahrgänge" stellt sie wieder
+    nicht als Sammelwert. Der Schnellweg „Letzte 3 Jahre" stellt sie wieder
     her, „Alle Jahrgänge" hebt die Auswahl auf.
   - **Die Zahl neben jedem Wert ist eine Zusage**: sie sagt, wie viele Zeilen ein
     Klick brächte, und rechnet dafür unter den *jeweils anderen* aktiven Filtern

@@ -182,7 +182,7 @@ export interface VorgangsBoardApi {
   jahrOptionen: FilterOption[];
   variantenOptionen: FilterOption[];
   phasenOptionen: FilterOption[];
-  /** Die Jahre der Vorbelegung — für den Schnellweg „Letzte 3 Jahrgänge". */
+  /** Die Jahre der Vorbelegung — für den Schnellweg „Letzte 3 Jahre". */
   letzteDrei: string[];
   /** Reicht die Auswahl in den Altbestand? Dann gehört der Hinweis daneben. */
   zeigtAltbestand: boolean;

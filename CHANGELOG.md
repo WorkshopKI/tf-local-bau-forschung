@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.413.2 — Jahres-Filter heisst „Letzte 3 Jahre" (August 2026)
+
+PATCH — Der Jahres-Filter des Vorgangs-Boards nannte sich „Letzte 3 Jahrgänge"; gemeint sind schlicht die letzten drei Jahre des Antragseingangs.
+
+- **Schnellweg + Button-Beschriftung heißen „Letzte 3 Jahre"** statt „Letzte 3 Jahrgänge" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)); die übrigen Beschriftungen des Menüs („Alle Jahrgänge", „N Jahrgänge") bleiben unverändert
+
 ### v2.413.1 — Arbeitsliste entscheidung heisst Zu entscheiden (August 2026)
 
 PATCH — „Entscheidungsreif" war ein unschrumpfbares Einzelwort von 117 px und passte in die 170-px-Lanes des Kanban nur mit Ellipse — abgekürzt las es sich wieder wie der Verfahrensschritt „Entscheidung", also genau die Verwechslung, die v2.409 beseitigt hat. Detail: [status-achsen.md](docs/architecture/status-achsen.md).

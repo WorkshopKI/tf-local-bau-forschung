@@ -244,10 +244,10 @@ export function VorgangsBoardPage(): React.ReactElement {
             onChange={api.setJahre}
             // Die Vorbelegung hat einen Namen — „3 Jahrgänge" wäre richtig, aber
             // nichtssagend.
-            labelOverride={istLetzteDrei ? 'Letzte 3 Jahrgänge' : null}
+            labelOverride={istLetzteDrei ? 'Letzte 3 Jahre' : null}
             aktionen={[
               {
-                label: 'Letzte 3 Jahrgänge',
+                label: 'Letzte 3 Jahre',
                 onClick: () => api.setJahre(api.letzteDrei),
                 aktiv: istLetzteDrei,
               },

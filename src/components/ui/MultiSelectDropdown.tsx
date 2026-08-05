@@ -42,7 +42,7 @@ export interface MultiSelectDropdownProps {
   onChange: (werte: string[]) => void;
   /**
    * Überschreibt die abgeleitete Button-Beschriftung — für Auswahlen, die einen
-   * eigenen Namen haben („Letzte 3 Jahrgänge" statt „3 Jahrgänge").
+   * eigenen Namen haben („Letzte 3 Jahre" statt „3 Jahrgänge").
    */
   labelOverride?: string | null;
   aktionen?: readonly MultiSelectAktion[];

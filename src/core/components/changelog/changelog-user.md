@@ -28,6 +28,7 @@
 - Jede Regel kann eine **Begründung** tragen: woher sie stammt und wer sie beschlossen hat.
 
 ### Verbesserungen
+- Der Jahres-Filter im Vorgangs-Board heißt jetzt **„Letzte 3 Jahre"** statt „Letzte 3 Jahrgänge".
 - Die Arbeitsliste „Entscheidungsreif" heißt jetzt **„Zu entscheiden"**. Der alte Name war zu lang für die Spalten im Kanban und wurde dort abgeschnitten — abgekürzt sah er aus wie der Verfahrensschritt „Entscheidung", und genau die beiden sollte man auseinanderhalten können.
 - Sperren nennen jetzt **Stränge** statt einzelner Regeln („die Stränge PreCheck und Nachforderung ruhen"). Eine neu angelegte Regel gehört damit automatisch zur richtigen Kette, statt still an der Sperre vorbeizulaufen. Am Bestand geprüft: an den ermittelten To-dos ändert sich dadurch nichts.
 
