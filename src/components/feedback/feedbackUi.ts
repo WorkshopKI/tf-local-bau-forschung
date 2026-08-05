@@ -1,6 +1,5 @@
-// Geteilte UI-Helfer für die Feedback-Komponenten.
-// Beide Funktionen lagen zuvor dupliziert in MyFeedbackList.tsx und
-// FeedbackBoardCard.tsx — hier zentralisiert (DRY).
+// Geteilte UI-Helfer für die Feedback-Komponenten — hier zentralisiert (DRY),
+// statt in jedem Karten-/Listen-Baustein erneut ausgeschrieben.
 
 import * as Icons from 'lucide-react';
 import type { FeedbackComment, FeedbackItem } from '@/core/types/feedback';

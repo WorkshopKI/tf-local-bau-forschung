@@ -66,8 +66,9 @@ export const STATUS_LABELS: Record<FeedbackStatus, string> = {
  * Light: z.B. text-red-800 auf bg-red-50 Äquivalent.
  * Dark: --tf-*-bg/text passen sich automatisch an.
  *
- * Verwendet von den Kurator-Bausteinen (FeedbackTicketRow etc.). Das öffentliche
- * Board (Redesign v2.208) nutzt die handoff-treue `STATUS_TINT`/`STATUS_DOT`.
+ * Verwendet von den Kurator-Bausteinen (Verwaltung/Sponsoring-Übersicht). Das
+ * öffentliche Board (Redesign v2.208) nutzt die handoff-treue
+ * `STATUS_TINT`/`STATUS_DOT`.
  */
 export const STATUS_COLORS: Record<FeedbackStatus, string> = {
   neu: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',

@@ -3,7 +3,8 @@
  * Betreff · Absender · Art · Thema · Firma · Name · Status · Aufgenommen · Anhänge.
  * Die intern getaggten Metadaten (Antragsart/Themengruppe/Firma) sind automatisch
  * Spalten-Filter (Header-Dropdown); Spalten-Klick sortiert, Zeilen-Klick öffnet das
- * Detail. Filter-/Sortier-/Breiten-Muster wie `FeedbackBoardListView`.
+ * Detail. Filter-/Sortier-/Breiten-Muster wie die übrigen `SortableTable`-Seiten
+ * (z.B. `KatalogTab`, `AntraegeTable`).
  */
 import { useMemo } from 'react';
 import {

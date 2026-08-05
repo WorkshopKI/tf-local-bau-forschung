@@ -7,9 +7,9 @@
 // Die anklickbare Fläche ist ein `div role="button"`, KEIN <button> — die Vote-Pill
 // sitzt mitten in der Meta-Zeile und ist selbst ein <button>; verschachtelt ist das
 // ungültiges HTML (React meldet es als Hydration-Fehler). Gleiches Muster wie die
-// Board-Karte in FeedbackKanban.tsx. Die Sibling-Lösung aus FeedbackTicketRow.tsx
-// (eigener Knopf NEBEN der Zeile) trägt hier nicht: sie setzt voraus, dass der
-// zweite Knopf am Rand steht, nicht im Textfluss. Klick auf die Pill wählt die
+// Board-Karte in FeedbackKanban.tsx. Die Sibling-Lösung (eigener Knopf NEBEN der
+// Zeile) trägt hier nicht: sie setzt voraus, dass der zweite Knopf am Rand steht,
+// nicht im Textfluss. Klick auf die Pill wählt die
 // Karte nicht mit aus — FeedbackVotePill stoppt die Propagation selbst.
 
 import { MessageSquare, Paperclip } from 'lucide-react';
