@@ -3,6 +3,14 @@
 // [Rechte Spalte: Anhang-Thumbnail + Sponsor-Leiste]. Eigene Einträge tragen einen
 // feinen Akzentstrich links. Hybrid: Sponsor-Leiste bei sponsorbaren Ideen/UX,
 // Vote-Pill sonst (Problem/Frage/Lob).
+//
+// Die anklickbare Fläche ist ein `div role="button"`, KEIN <button> — die Vote-Pill
+// sitzt mitten in der Meta-Zeile und ist selbst ein <button>; verschachtelt ist das
+// ungültiges HTML (React meldet es als Hydration-Fehler). Gleiches Muster wie die
+// Board-Karte in FeedbackKanban.tsx. Die Sibling-Lösung aus FeedbackTicketRow.tsx
+// (eigener Knopf NEBEN der Zeile) trägt hier nicht: sie setzt voraus, dass der
+// zweite Knopf am Rand steht, nicht im Textfluss. Klick auf die Pill wählt die
+// Karte nicht mit aus — FeedbackVotePill stoppt die Propagation selbst.
 
 import { MessageSquare, Paperclip } from 'lucide-react';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
@@ -62,9 +70,11 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
         borderLeft: selected ? '2.5px solid var(--tf-primary)' : mine ? '2.5px solid var(--tf-primary-light)' : '2.5px solid transparent',
       }}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onSelect(ticket)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(ticket); } }}
         className={`flex-1 min-w-0 text-left flex items-start gap-3 cursor-pointer ${dense ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}
       >
         {/* Typ-Icon-Quadrat */}
@@ -130,7 +140,7 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
             </span>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* Rechte Spalte: Thumbnail + Sponsor-Leiste (klick öffnet Detail; Thumbnail
           stoppt Bubbling → Lightbox). Dense: schmale 44px-Spalte, entkleidete Leiste. */}

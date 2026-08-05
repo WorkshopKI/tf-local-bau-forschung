@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.415.2 — Feedback-Karte erzeugt keine verschachtelten Buttons mehr (August 2026)
+
+PATCH — Das Feedback-Board meldete bei jedem Laden zwei React-Fehler: die Vote-Pille (ein `<button>`) saß in der Meta-Zeile innerhalb des Karten-`<button>` — ungültiges HTML.
+
+- Die anklickbare Kartenfläche ist jetzt ein `div role="button"` mit `tabIndex` und Enter-/Leertaste-Handler ([FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx))
+- Gleiches Muster wie die Board-Karte in [FeedbackKanban.tsx](src/components/feedback/FeedbackKanban.tsx); die Sibling-Lösung aus `FeedbackTicketRow.tsx` trägt hier nicht, weil die Pille im Textfluss sitzt statt am Rand
+- Klick auf die Pille wählt die Karte weiterhin nicht mit aus — `FeedbackVotePill` stoppt die Propagation bereits selbst
+- Nachgemessen in `dev:local`: Liste und Board je frisch geladen `__tf.fehler()` = 0 (vorher 2), `document.querySelectorAll('button button')` = 0
+- Geometrie unverändert gegen den Vorher-Wert (Karte 950×96 bei x=259, Titel x=313/w=846, Pille x=1157); Fokusring bleibt (`:focus-visible`), Enter/Leertaste/Klick wählen, Vote zählt hoch und runter
+
 ### v2.415.1 — Kommentarfeld waechst mit und ist ziehbar (August 2026)
 
 PATCH — Das Kommentarfeld im Feedback-Detail war einzeilig und fest: wer mehr als einen Satz schrieb, sah den eigenen Text nicht mehr.
