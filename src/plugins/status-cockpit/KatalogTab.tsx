@@ -11,17 +11,24 @@
  * Zieltage — eine Angabe ÜBER den amtlichen Status, keine, aus der einer
  * errechnet würde (Pitfall #44).
  *
- * **Die ZAH-Phase wird hier NICHT kuratiert.** Ein früherer Modulkopf zählte sie
- * unter den Inline-Feldern auf; ein Bedienelement dafür gab es nie. Der Schnitt
- * ist Auslieferung (`zah-phasen.ts`), sein Änderungsweg läuft über die Seite
- * „Zu klären" → Export → Seed-Änderung → Release.
+ * **Zwei Sichten, ein Katalog** (seit v2.409). Der Verfahrensschritt wird im
+ * BAUM kuratiert (`PhasenBaum.tsx`) — dort ist Umhängen ein Zug und keine
+ * Auswahl in einem Dropdown, das man 30-mal öffnet. Diese Tabelle zeigt ihn nur;
+ * dafür kann sie, was der Baum bewusst nicht kann: Filterchips, Feld- und
+ * CSV-Spalten, alle Zeilen nebeneinander. Sie zu ersetzen wäre ein Rückschritt.
+ *
+ * Ein früherer Modulkopf schrieb hier „Die ZAH-Phase wird NICHT kuratiert" —
+ * mit der Begründung, `prod` lade keine Fassung. Der Einwand gilt weiter und ist
+ * am Modulkopf von `zah-phasen.ts` aufgelöst.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
+import { PhasenBaum } from './PhasenBaum';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { feldLabel, zahPhaseLabel, ohneVerwaiste, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
@@ -157,8 +164,19 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
   );
 }
 
+/**
+ * Baum oder Tabelle — zwei Sichten auf denselben Katalog.
+ *
+ * Der Baum ist vorbelegt, weil er die Handlung abbildet, um die es geht:
+ * umhängen. Die Tabelle bleibt vollständig daneben — sie kann Massen-
+ * bearbeitung, Filterchips und die Feld-Spalten, die der Baum bewusst nicht
+ * zeigt. Sie zu ersetzen wäre ein Rückschritt, kein Fortschritt.
+ */
+type Sicht = 'baum' | 'tabelle';
+
 export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const zeigeZieltage = isVorgangssystemEnabled();
+  const [sicht, setSicht] = useState<Sicht>('baum');
   const [suche, setSuche] = useState('');
   const [katFilter, setKatFilter] = useState<ReadonlySet<StatusCategory>>(() => new Set());
   const [promFilter, setPromFilter] = useState<ReadonlySet<Prominenz>>(() => new Set());
@@ -198,7 +216,26 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   if (!entwurf) return null;
 
   return (
-    <div className="flex flex-col gap-3 pt-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 pt-3">
+      {/* Die Umschaltung steht ganz oben: sie entscheidet, was darunter kommt. */}
+      {zeigeZieltage && (
+        <ScopeTabs
+          variant="segmented"
+          aria-label="Ansicht des Status-Katalogs"
+          className="shrink-0 self-start"
+          activeKey={sicht}
+          onChange={k => setSicht(k as Sicht)}
+          items={[
+            { key: 'baum', label: 'Phasen und Zuordnung' },
+            { key: 'tabelle', label: 'Tabelle', count: werte.length },
+          ]}
+        />
+      )}
+
+      {zeigeZieltage && sicht === 'baum' && <PhasenBaum api={api} />}
+
+      {(!zeigeZieltage || sicht === 'tabelle') && (
+      <>
       {api.unkuratiert.length > 0 && (
         <p className="text-[12.5px] text-[var(--tf-warning-text)]">
           {api.unkuratiert.length} neue Statuswerte seit letztem Import
@@ -351,6 +388,8 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
             </div>
           ))}
         </section>
+      )}
+      </>
       )}
     </div>
   );

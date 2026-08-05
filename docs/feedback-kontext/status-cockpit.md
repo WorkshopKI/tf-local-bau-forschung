@@ -5,11 +5,17 @@ Vollbild-Verwaltungsseite für Kuratoren. Hier wird der **Status-Katalog** gepfl
 
 ## Zweck
 
-Der Katalog ordnet jedem Statuswert seine **ZAH-Phase** (Eingang →
-Vollständigkeit → Prüfung → Entscheidung → Begleitung → Abgeschlossen) und seine
-**Zieltage** zu — mehr wird nicht kuratiert. Die **Kategorie** (offen, in
-Prüfung, Nachforderung …) folgt aus Phase und amtlichem Code; hängt die
+Der Katalog ordnet jedem Statuswert seinen **Verfahrensschritt** (die ZAH-Phase)
+und seine **Zieltage** zu — mehr wird nicht kuratiert. Die **Kategorie** (offen,
+in Prüfung, Nachforderung …) folgt aus Phase und amtlichem Code; hängt die
 Projektleitung einen Code auf eine andere Phase um, zieht sie automatisch nach.
+
+**Der Verfahrensschnitt selbst ist seit v2.409 kuratierbar**: zwischen 3 und 9
+Schritte, Beschriftung frei. Ausgeliefert werden sechs (Eingang → Vollständigkeit
+→ Prüfung → Entscheidung → Begleitung → Abgeschlossen). Jeder Schritt trägt
+zusätzlich, in welche **Arbeitsliste** seine Status fallen und ob **Zieltage**
+für ihn eine sinnvolle Frage sind. Vorher stand beides in fest verdrahteten
+Tabellen, und jede Änderung brauchte ein Release.
 
 **Die App leitet keinen Status ab.** Bis v2.384 rechnete sie aus allen gesetzten
 Datumsfeldern eine eigene Verfahrensposition aus (Rang, terminal-Flag,
@@ -18,11 +24,30 @@ entfallen: angezeigt wird, was das Fachsystem führt.
 
 ## Bereiche
 
-- **Katalog**: alle Statuswerte mit Inline-Bearbeitung (Label, Kategorie,
-  Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt gesehen**, Feldname
-  und **CSV-Spalte** als Herkunft. Leeres Label heißt: Rohwert gilt. Neue Werte
-  erscheinen als **unkuratiert** und werden per „Übernehmen" geholt, nie
-  automatisch.
+- **Katalog** — zwei Sichten, umschaltbar oben; der Baum ist vorbelegt.
+  - **Phasen und Zuordnung** (Baum): Ebene 1 sind die Verfahrensschritte, Ebene 2
+    die Statuswerte darunter. Ein Statuswert wird per **Ziehen** auf einen anderen
+    Schritt gehängt; Schritte selbst werden untereinander sortiert, per F2 oder
+    Doppelklick umbenannt. Ein Blatt steht für einen **Code**, nicht für eine
+    Katalogzeile: derselbe Status steht unter TV- und Verbund-Feld, und beide
+    Zeilen ziehen gemeinsam um. Rechts steht der Editor zum ausgewählten Knoten —
+    bei einem Schritt Beschriftung, Arbeitsliste und Zieltage-Relevanz, bei einem
+    Statuswert Label, Prominenz, Zieltage und aktiv.
+    - **Schritt anlegen** bis zur Obergrenze 9; darüber ist der Knopf mit
+      Begründung deaktiviert. **Entfernen** fragt immer „wohin mit den n
+      Statuswerten?" — sie verschwinden nie, sie ziehen um. Unter 3 Schritten
+      wird nicht mehr entfernt.
+    - Die Gruppe **„Ohne Phase"** steht am Ende und ist abgesetzt: Irrläufer,
+      Sonderstatus und Partner-Kennzeichen laufen bewusst neben dem Verfahren.
+      Das ist ein gültiger Zustand, kein Fehler. Was dort als **verwaist**
+      markiert ist, zeigt dagegen auf einen gelöschten Schritt und gehört zurück
+      ins Verfahren.
+  - **Tabelle**: alle Statuswerte mit Inline-Bearbeitung (Label, Kategorie,
+    Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt gesehen**, Feldname
+    und **CSV-Spalte** als Herkunft, dazu Filterchips und Suche. Der
+    Verfahrensschritt steht hier nur zum Lesen. Leeres Label heißt: Rohwert gilt.
+    Neue Werte erscheinen als **unkuratiert** und werden per „Übernehmen" geholt,
+    nie automatisch.
   - **Zieltage** speisen den Stillstands-Wächter: nach wie vielen Tagen ohne
     Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt „nicht
     bewertbar", nicht „unauffällig". Neben dem Feld steht ein ⌀-Vorschlag aus
