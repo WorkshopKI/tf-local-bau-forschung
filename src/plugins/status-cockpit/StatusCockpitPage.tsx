@@ -26,6 +26,7 @@ import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
 import { feldStil, formatZeitpunkt } from './labels';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
+import { letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel } from '@/core/status';
 
 type TabKey = 'katalog' | 'felder' | 'regeln';
 
@@ -61,6 +62,40 @@ function NurLokalHinweis({ api }: { api: StatusCockpitApi }): React.ReactElement
       </span>
       <Button variant="ghost" size="sm" className="ml-auto" disabled={erneut.busy} onClick={() => erneut.run()}>
         {erneut.busy ? 'Versucht …' : 'Erneut veröffentlichen'}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Der Share-Abgleich setzt den Aktiv-Zeiger auf die Team-Fassung — auch dann,
+ * wenn hier lokal gerade eine ältere Fassung zum Vergleich reaktiviert war. Bis
+ * v2.410 geschah das spurlos; die alte Fassung stand danach zwar noch in der
+ * Liste, aber niemand wusste, warum die Seite plötzlich etwas anderes zeigte.
+ *
+ * Ein Satz, keine Rückfrage: was die App von sich aus tut, sagt sie. Der Wechsel
+ * ist zu diesem Zeitpunkt längst vollzogen (Start der App), rückgängig macht ihn
+ * ein Klick in der Versions-Liste.
+ *
+ * Beim ERSTEN Rendern gelesen und sofort quittiert — der Hinweis gilt für diese
+ * Sitzung einmal, nicht bei jedem Zurückkehren auf die Seite.
+ */
+function AktivWechselHinweis(): React.ReactElement | null {
+  const [wechsel] = useState(() => {
+    const w = letzterKatalogAktivWechsel();
+    quittiereKatalogAktivWechsel();
+    return w;
+  });
+  const [weg, setWeg] = useState(false);
+  if (!wechsel || weg) return null;
+  return (
+    <div className="mx-6 mt-3 rounded px-3 py-2 flex items-center gap-2 flex-wrap text-[12.5px] text-[var(--tf-text-secondary)]" style={feldStil}>
+      <span>
+        Beim Laden wurde auf die Team-Fassung v{wechsel.aktivNachher} gesetzt; Deine zuvor
+        reaktivierte v{wechsel.aktivVorher} steht weiter in der Liste.
+      </span>
+      <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setWeg(true)}>
+        Verstanden
       </Button>
     </div>
   );
@@ -245,6 +280,7 @@ export function StatusCockpitPage(): React.ReactElement {
       )}
 
       {api.nurLokal && <NurLokalHinweis api={api} />}
+      <AktivWechselHinweis />
       <ShareStandHinweis api={api} />
 
       {api.konflikt && (

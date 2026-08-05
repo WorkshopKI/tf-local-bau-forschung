@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { naechsterSchritt, normalisierePrecheck } from '../naechsterSchritt';
+import {
+  setCodePhasenSnapshot, resetZahPhasenSnapshotFuerTests, SEED_PHASEN_SCHNITT,
+} from '@/core/status/zah-phasen';
+
+afterEach(() => resetZahPhasenSnapshotFuerTests());
 
 describe('naechsterSchritt — gemappte Roh-Stati (Kern-Tabelle)', () => {
   const cases: Array<[string, string, string]> = [
@@ -13,7 +18,10 @@ describe('naechsterSchritt — gemappte Roh-Stati (Kern-Tabelle)', () => {
     ['bewilligungsreif', 'Fachprüfung', 'Bewilligung vorbereiten'],
     ['ablehnungsreif', 'Fachprüfung', 'Ablehnungsbescheid erstellen'],
     ['NF gestellt', 'Nachforderung', 'Nachforderung nachhalten'],
-    ['keine weiteren NF', 'Nachforderung', 'Nachforderung nachhalten'],
+    // Zyklus abgeschlossen, Antrag vollständig — nachzuhalten ist nichts mehr
+    // (v2.411). Bis dahin stand hier dieselbe Formel wie bei „NF gestellt".
+    ['keine weiteren NF', 'Vollständigkeit', 'Fachprüfung beginnen'],
+    ['NL eingegangen', 'Vollständigkeit', 'Nachlieferung prüfen'],
   ];
 
   it.each(cases)('%s → %s → %s', (status, phase, aktion) => {
@@ -67,15 +75,53 @@ describe('naechsterSchritt — Abwärtskompatibilität des 2. Arguments', () => 
 });
 
 describe('naechsterSchritt — PreCheck-Regeln (2. Argument gesetzt)', () => {
-  // PreCheck fehlt/ausstehend UND früher Status ⇒ „PreCheck durchführen".
+  // PreCheck fehlt/ausstehend UND Status im Verfahrensschritt „Eingang"
+  // ⇒ „PreCheck durchführen". `beantragt` (Code 31) liegt dort.
   const durchfuehren: Array<[string, string | null]> = [
     ['beantragt', ''],                    // ohne
     ['beantragt', null],                  // ohne (explizit null)
     ['beantragt', 'PreCheck ausstehend'], // offen/pending
-    ['bearbeitungsreif', ''],
   ];
   it.each(durchfuehren)('%s + precheck=%o → PreCheck durchführen', (status, pc) => {
     expect(naechsterSchritt(status, pc)).toEqual({ phase: 'Eingang', aktion: 'PreCheck durchführen' });
+  });
+
+  it('`bearbeitungsreif` liegt in der Vollständigkeit — kein PreCheck-Aufruf mehr', () => {
+    // Bis v2.410 hing die Regel an der Arbeitsliste (`offen`) und traf damit
+    // auch Codes der Vollständigkeit. 33/34 bekommen jetzt ihre kuratierte
+    // Formel statt einer Anweisung aus einem Schritt, in dem sie nicht stehen.
+    expect(naechsterSchritt('bearbeitungsreif', ''))
+      .toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+    // Ohne kuratierte Formel bleibt nur die Phase — keine erratene Aktion.
+    expect(naechsterSchritt('unvollständig', '')).toEqual({ phase: 'Unvollständig', aktion: '' });
+  });
+
+  it('folgt dem VERFAHRENSSCHRITT, nicht der Arbeitsliste — Umhängen wirkt', () => {
+    // Die Zusicherung hinter der Achsen-Korrektur (v2.411): Hängt die PL einen
+    // Code um, wandert die Anweisung mit. Hinge die Regel weiter an der
+    // Kategorie, bliebe sie beim nächsten Phasenschnitt still falsch stehen.
+    expect(naechsterSchritt('beantragt', ''))
+      .toEqual({ phase: 'Eingang', aktion: 'PreCheck durchführen' });
+
+    // Code 31 („beantragt") aus dem Eingang in die Vollständigkeit gehängt:
+    setCodePhasenSnapshot({
+      codeZuPhase: new Map([...SEED_PHASEN_SCHNITT.codeZuPhase, [31, 'vollstaendigkeit']]),
+      markerCodes: SEED_PHASEN_SCHNITT.markerCodes,
+    });
+    expect(naechsterSchritt('beantragt', ''))
+      .toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+  });
+
+  it('kuratierte Formel schlägt die PreCheck-Regel, wenn sie woanders hinzeigt', () => {
+    // Umgekehrter Fall: ein Code der Vollständigkeit wandert in den Eingang.
+    // Seine eigene Formel ist spezifischer als die allgemeine Regel — sonst
+    // stünde bei „NL eingegangen" plötzlich „PreCheck durchführen".
+    setCodePhasenSnapshot({
+      codeZuPhase: new Map([...SEED_PHASEN_SCHNITT.codeZuPhase, [36, 'eingang']]),
+      markerCodes: SEED_PHASEN_SCHNITT.markerCodes,
+    });
+    expect(naechsterSchritt('NL eingegangen', ''))
+      .toEqual({ phase: 'Vollständigkeit', aktion: 'Nachlieferung prüfen' });
   });
 
   it('positiver PreCheck fällt auf die Status-Regel zurück (Eingang → Vollständigkeit prüfen)', () => {

@@ -36,9 +36,9 @@ const WAHRHEIT: ReadonlyArray<readonly [number, StatusCategory]> = [
   [32, 'entscheidung'],   // ablehnungsreif
   [33, 'offen'],          // unvollständig
   [34, 'offen'],          // bearbeitungsreif
-  [35, 'nachforderung'],  // NF gestellt
-  [36, 'nachforderung'],  // NL eingegangen
-  [37, 'nachforderung'],  // keine weiteren NF
+  [35, 'nachforderung'],  // NF gestellt        — wartet auf den Antragsteller
+  [36, 'offen'],          // NL eingegangen     — Nachlieferung ist DA, Ball bei uns
+  [37, 'offen'],          // keine weiteren NF  — Zyklus zu, Antrag vollständig
   [38, 'in_pruefung'],    // techn geprüft
   [39, 'in_pruefung'],    // kaufm geprüft
   [40, 'in_pruefung'],    // Gutachten fertig
@@ -77,14 +77,17 @@ describe('kategorieFuerCode — die Wahrheitstabelle', () => {
   });
 });
 
-describe('Die drei Ausnahmen hängen am Code, nicht an der Phase', () => {
-  it('35–37 sind Nachforderung, obwohl sie in der Vollständigkeit liegen', () => {
+describe('Die zwei Ausnahmen hängen am Code, nicht an der Phase', () => {
+  it('35 wartet auf den Antragsteller, obwohl er in der Vollständigkeit liegt', () => {
     for (const code of NACHFORDERUNG_CODES) {
       expect(SEED_CODE_ZU_ZAH_PHASE.get(code)).toBe('vollstaendigkeit');
       expect(kategorieFuerCode(code)).toBe('nachforderung');
     }
-    // 33 und 34 liegen in derselben Phase und sind es NICHT.
-    for (const code of [33, 34]) {
+    // Die übrigen Codes derselben Phase sind es NICHT — auch 36 und 37 nicht:
+    // bei ihnen liegt der Ball wieder bei der Behörde (v2.411). Solange die
+    // Kategorie „Nachforderung" hieß, war ihre Bündelung mit 35 vertretbar;
+    // unter „Wartet auf Antragsteller" wäre sie eine falsche Zusage.
+    for (const code of [33, 34, 36, 37]) {
       expect(SEED_CODE_ZU_ZAH_PHASE.get(code)).toBe('vollstaendigkeit');
       expect(kategorieFuerCode(code)).toBe('offen');
     }
@@ -162,10 +165,10 @@ describe('Die Nachschlage-Schlüssel', () => {
 });
 
 describe('Die Kategorie-Deltas gegenüber der alten Handtabelle', () => {
-  it('sind genau die sechs dokumentierten — ein siebtes fliegt auf', () => {
+  it('sind genau die fünf dokumentierten — ein sechstes fliegt auf', () => {
     // Die Liste ist abschließend. Wer die Ableitung ändert und hier nichts
     // ergänzt, ändert stillschweigend, wo Anträge in den Arbeitslisten stehen.
-    expect(KATEGORIE_DELTAS).toHaveLength(6);
+    expect(KATEGORIE_DELTAS).toHaveLength(5);
     for (const d of KATEGORIE_DELTAS) {
       expect(getStatusCategory(d.statusRoh), d.statusRoh).toBe(d.neu);
       expect(kategorieFuerCode(d.code), `Code ${d.code}`).toBe(d.neu);
@@ -173,11 +176,11 @@ describe('Die Kategorie-Deltas gegenüber der alten Handtabelle', () => {
     }
   });
 
-  it('kein Delta bei den Schreibweisen, die im Bestand wirklich vorkommen — außer den dreien', () => {
+  it('kein Delta bei den Schreibweisen, die im Bestand wirklich vorkommen — außer den zweien', () => {
     // Die übrigen drei (11/70/71) sind amtliche Texte, die der Export heute
     // nicht schreibt: die Lücke war da, nur unsichtbar.
     const imBestand = KATEGORIE_DELTAS.filter(d => d.anzahl.tv + d.anzahl.vb > 0);
-    expect(imBestand.map(d => d.code).sort((a, b) => a - b)).toEqual([33, 36, 72]);
+    expect(imBestand.map(d => d.code).sort((a, b) => a - b)).toEqual([33, 72]);
   });
 
   it('29 Irrläufer wird NICHT mitkorrigiert — die Asymmetrie zu 33 ist gewollt', () => {

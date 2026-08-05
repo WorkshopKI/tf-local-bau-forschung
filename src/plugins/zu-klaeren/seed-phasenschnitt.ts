@@ -68,9 +68,10 @@ const GRUNDSATZFRAGEN: readonly { titel: string; zusatz: string }[] = [
   },
   {
     titel: 'Gehören 35 NF gestellt und 36 NL eingegangen in die Vollständigkeit?',
-    zusatz: 'Nachforderungen entstehen auch während der Prüfung. Zudem führt der '
-      + 'Katalog „Nachforderung" zugleich als eigene Kategorie — beides nebeneinander '
-      + 'ist erklärungsbedürftig.',
+    zusatz: 'Nachforderungen entstehen auch während der Prüfung. Die Arbeitsliste '
+      + 'daneben ist seit v2.411 entflochten: nur noch 35 steht unter „Wartet auf '
+      + 'Antragsteller", weil bei 36 und 37 der Ball wieder bei uns liegt. Offen ist '
+      + 'damit allein der Verfahrensschritt.',
   },
 ];
 

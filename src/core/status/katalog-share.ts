@@ -213,46 +213,96 @@ export async function umnummeriereEigeneFassung(
 }
 
 /**
+ * Was der Share-Abgleich am Aktiv-Zeiger getan hat.
+ *
+ * Bis v2.410 gab `uebernehmeKatalogVomShare` konstant `true` zurück — die
+ * Signatur trug keine Information, und das Umsetzen des Aktiv-Zeigers geschah
+ * unbemerkt. Wer lokal eine ältere Fassung zum Vergleich reaktiviert hatte,
+ * verlor das beim nächsten Laden spurlos.
+ */
+export interface KatalogUebernahmeErgebnis {
+  /** Lokal aktive Nummer VOR dem Abgleich; `null`, wenn es keine gab. */
+  aktivVorher: number | null;
+  /** Nummer, auf die der Abgleich gesetzt hat. */
+  aktivNachher: number;
+  /** Hat der Abgleich den Zeiger bewegt? */
+  aktivGewechselt: boolean;
+}
+
+/**
  * Übernimmt die Team-Fassung in den lokalen Cache und setzt den Aktiv-Zeiger.
  *
  * Fassungen, die es lokal unter einer Nummer gibt, die der Share nicht kennt,
  * bleiben unangetastet — sie verschwinden nicht, sondern stehen weiter in der
  * Versionsliste. Gleichnummerige werden vom Share überschrieben; genau davor
  * schützt die einmalige Sicherung unter `KATALOG_BACKUP_KEY`.
- *
- * Gibt zurück, ob etwas übernommen wurde.
  */
 export async function uebernehmeKatalogVomShare(
   idb: IDBStore, datei: StatusKatalogDatei,
-): Promise<boolean> {
+): Promise<KatalogUebernahmeErgebnis> {
+  // VOR der Sicherung lesen: der Zweig unten läuft nur beim ersten Mal, der
+  // Vorher-Wert wird aber bei jedem Abgleich gebraucht.
+  const aktivVorher = await getAktiveVersionsnummer(idb);
   const lokal = await listeVersionen(idb);
   const bereitsGesichert = (await idb.get<unknown>(KATALOG_BACKUP_KEY)) != null;
   if (!bereitsGesichert && lokal.length > 0) {
     await idb.set(KATALOG_BACKUP_KEY, {
       gesichertAm: new Date().toISOString(),
-      aktiv: await getAktiveVersionsnummer(idb),
+      aktiv: aktivVorher,
       fassungen: lokal,
     });
   }
 
   for (const fassung of datei.fassungen) await speichereVersion(idb, fassung);
   const aktivVorhanden = datei.fassungen.some(f => f.version === datei.aktiv);
-  await setzeAktiv(idb, aktivVorhanden ? datei.aktiv : datei.fassungen[0]!.version);
-  return true;
+  const aktivNachher = aktivVorhanden ? datei.aktiv : datei.fassungen[0]!.version;
+  await setzeAktiv(idb, aktivNachher);
+  return {
+    aktivVorher,
+    aktivNachher,
+    // Ein erstmalig gesetzter Zeiger (vorher `null`) ist kein Wechsel — da gab
+    // es nichts, was der Nutzer verloren hätte.
+    aktivGewechselt: aktivVorher != null && aktivVorher !== aktivNachher,
+  };
+}
+
+/**
+ * Session-lokale Notiz für die Oberfläche: Der Startup-Abgleich läuft lange,
+ * bevor jemand den Status-Katalog öffnet, deshalb kann der Hinweis nicht am
+ * Aufrufer hängen. Bewusst KEIN persistenter Zustand — die Meldung gilt für
+ * diese Sitzung, nicht für die nächste.
+ */
+let offenerAktivWechsel: KatalogUebernahmeErgebnis | null = null;
+
+/** Liest den letzten Aktiv-Wechsel, ohne ihn zu quittieren. */
+export function letzterKatalogAktivWechsel(): KatalogUebernahmeErgebnis | null {
+  return offenerAktivWechsel;
+}
+
+/** Quittiert den Hinweis — er kommt in dieser Sitzung nicht wieder. */
+export function quittiereKatalogAktivWechsel(): void {
+  offenerAktivWechsel = null;
 }
 
 /**
  * Startup-Abgleich: Team-Fassung holen, wenn es eine gibt. Best-effort — ohne
  * Share (offline, kein Handle, keine Datei) bleibt der lokale Stand maßgeblich,
  * damit die App genauso funktioniert wie vor der Umstellung.
+ *
+ * `null` heißt „nichts übernommen" (keine Datei oder Fehler) — der Ergebnis-Typ
+ * wird durchgereicht, sonst ginge der Aktiv-Wechsel auf halbem Weg verloren.
  */
-export async function synchronisiereKatalogVomShare(idb: IDBStore): Promise<boolean> {
+export async function synchronisiereKatalogVomShare(
+  idb: IDBStore,
+): Promise<KatalogUebernahmeErgebnis | null> {
   try {
     const datei = await leseKatalogVomShare(idb);
-    if (!datei) return false;
-    return await uebernehmeKatalogVomShare(idb, datei);
+    if (!datei) return null;
+    const ergebnis = await uebernehmeKatalogVomShare(idb, datei);
+    if (ergebnis.aktivGewechselt) offenerAktivWechsel = ergebnis;
+    return ergebnis;
   } catch (err) {
     console.warn('[status] synchronisiereKatalogVomShare fehlgeschlagen:', err);
-    return false;
+    return null;
   }
 }

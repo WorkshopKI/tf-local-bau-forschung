@@ -103,10 +103,11 @@ function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintrag {
  * Warum nicht einfach `w.kategorie`: das Feld stammt aus dem Seed-Stand, unter
  * dem die Fassung angelegt wurde. Eine Fassung von gestern trüge damit die
  * Kategorien von gestern und überschriebe die Ableitung — beobachtet an Fassung
- * v7, die `NL eingegangen` noch als `offen` führte, während die eingebaute Map
- * schon `nachforderung` sagte. Ergebnis: Zähler, die auf derselben Seite
- * verschiedene Zahlen zeigten, je nachdem ob sie beim Modul-Laden oder beim
- * Rendern fragten.
+ * v7, die für `NL eingegangen` eine andere Kategorie führte als die eingebaute
+ * Map. Ergebnis: Zähler, die auf derselben Seite verschiedene Zahlen zeigten, je
+ * nachdem ob sie beim Modul-Laden oder beim Rendern fragten. (Derselbe Wert ist
+ * mit v2.411 erneut gewandert — genau deshalb rechnet diese Funktion und liest
+ * nicht ab.)
  *
  * `zahPhaseId` ist dreiwertig und wird auch so gelesen: gesetzt = kuratiert,
  * `null` = bewusst Marker, `undefined` = noch nicht zugeordnet ⇒ Auslieferungs-

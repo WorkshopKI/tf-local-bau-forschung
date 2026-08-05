@@ -121,8 +121,9 @@ export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
   leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,
+  letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel,
   STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY,
-  type StatusKatalogDatei, type KatalogSchreibErgebnis,
+  type StatusKatalogDatei, type KatalogSchreibErgebnis, type KatalogUebernahmeErgebnis,
 } from './katalog-share';
 export {
   planeVereinigung, findeKonflikt, istSelbeFassung, zaehleAbweichungen, leseNummerAusKopf,

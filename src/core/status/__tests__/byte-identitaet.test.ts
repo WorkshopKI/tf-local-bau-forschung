@@ -104,10 +104,12 @@ describe('Byte-Identität Katalog-Snapshot vs. eingebaute CATEGORY_MAP', () => {
   });
 
   it('eine ALTE Fassung schleppt ihre Kategorien nicht mit', () => {
-    // Beobachtet an Fassung v7: sie führte `NL eingegangen` noch als `offen`,
-    // während die eingebaute Map schon `nachforderung` sagte. Konsumenten, die
-    // beim Modul-Laden fragten, sahen das eine, Render-Zeit-Konsumenten das
-    // andere — auf derselben Seite, mit verschiedenen Zahlen.
+    // Beobachtet an Fassung v7: sie führte `NL eingegangen` mit einer anderen
+    // Kategorie als die eingebaute Map. Konsumenten, die beim Modul-Laden
+    // fragten, sahen das eine, Render-Zeit-Konsumenten das andere — auf
+    // derselben Seite, mit verschiedenen Zahlen. Der Test setzt deshalb eine
+    // Fassung, in der ALLE Werte `sonstige` tragen: durchschlagen darf davon
+    // nichts, gerechnet wird aus Code + ZAH-Phase.
     const alt = baueSeedVersion();
     const veraltet = {
       ...alt,
@@ -115,7 +117,8 @@ describe('Byte-Identität Katalog-Snapshot vs. eingebaute CATEGORY_MAP', () => {
     };
     setStatusKatalogSnapshot(veraltet);
     // Die Kategorie kommt aus Code + ZAH-Phase, nicht aus dem gepflegten Feld.
-    expect(getStatusCategory('NL eingegangen')).toBe('nachforderung');
+    expect(getStatusCategory('NL eingegangen')).toBe('offen');
+    expect(getStatusCategory('NF gestellt')).toBe('nachforderung');
     expect(getStatusCategory('bewilligt')).toBe('bewilligt');
     expect(getStatusCategory('Schlussvermerk')).toBe('abgeschlossen');
   });

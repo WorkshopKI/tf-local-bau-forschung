@@ -1,5 +1,8 @@
 import { getStatusLabel } from '@/core/utils/status-mappings';
-import { getStatusCategory, isTerminalStatus } from '@/core/utils/status-canonical';
+import { isTerminalStatus } from '@/core/utils/status-canonical';
+// Direktimport, nicht über das Barrel `@/core/status` — das zöge `snapshot.ts`
+// und damit `status-canonical.ts` zurück (Laufzeit-Zyklus, Zyklen-Wächter).
+import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
 
 /**
  * Handlungs-Formel „Phase → nächster Schritt" — gemeinsame Core-Infrastruktur
@@ -79,8 +82,36 @@ const SCHRITT_BY_STATUS: Record<string, NaechsterSchritt> = {
   bewilligungsreif: { phase: 'Fachprüfung', aktion: 'Bewilligung vorbereiten' },
   ablehnungsreif: { phase: 'Fachprüfung', aktion: 'Ablehnungsbescheid erstellen' },
   'NF gestellt': { phase: 'Nachforderung', aktion: 'Nachforderung nachhalten' },
-  'keine weiteren NF': { phase: 'Nachforderung', aktion: 'Nachforderung nachhalten' },
+  // „keine weiteren NF" heißt: der Zyklus ist ABGESCHLOSSEN und der Antrag
+  // vollständig — nachzuhalten ist da nichts mehr. Was aussteht, ist die
+  // fachliche Prüfung. (Bis v2.410 stand hier dieselbe Formel wie bei 35, was
+  // den Bearbeiter auf eine erledigte Nachforderung zurückschickte.)
+  'keine weiteren NF': { phase: 'Vollständigkeit', aktion: 'Fachprüfung beginnen' },
 };
+
+/**
+ * Ist dieser Status der Punkt, an dem ein PreCheck fällig wäre?
+ *
+ * **Am Verfahrensschritt festgemacht, nicht an der Arbeitsliste.** Bis v2.410
+ * fragte die Regel `getStatusCategory(s) === 'offen'` — eine Arbeitsliste ist
+ * aber eine Aussage über die Zuständigkeit, keine über die Stelle im Verfahren.
+ * Der Unterschied fiel auf, als 36/37 die Kategorie wechselten: „NL
+ * eingegangen" wäre über Nacht zu „PreCheck durchführen" geworden. Am Schritt
+ * hängt die Regel auch dann noch richtig, wenn die PL den Schnitt umhängt —
+ * und genau das ist der Zweck des kuratierbaren Verfahrensschritts.
+ *
+ * **Die kuratierte Formel hat Vorrang.** Trägt ein Status im Eingang eine
+ * eigene Handlungs-Formel, die woanders hinzeigt, gilt sie: eine kuratierte
+ * Anweisung ist immer spezifischer als die allgemeine PreCheck-Regel. Für die
+ * heutigen Eingangs-Codes (11 „Skizze eingegangen" ohne Formel, 31 „beantragt"
+ * mit Formel auf „Eingang") ändert das nichts — der Vorrang ist die Leitplanke
+ * für den Fall, dass die PL einen späteren Code in den Eingang hängt.
+ */
+function istPreCheckFaellig(s: string): boolean {
+  if (zahPhaseFuerStatusText(s) !== 'eingang') return false;
+  const mapped = SCHRITT_BY_STATUS[s];
+  return mapped === undefined || mapped.phase === 'Eingang';
+}
 
 /**
  * Leitet die „Phase → Aktion"-Formel aus dem Roh-Status (+ optional PreCheck)
@@ -88,8 +119,10 @@ const SCHRITT_BY_STATUS: Record<string, NaechsterSchritt> = {
  *
  * **PreCheck-Regeln (vor den Status-Regeln, nur für NICHT-terminale Anträge):**
  * - PreCheck negativ                       → `{ Eingang, 'PreCheck-Ergebnis klären' }`
- * - PreCheck fehlt/ausstehend UND Status in
- *   der Eingangs-Phase (`getStatusCategory === 'offen'`)
+ *   (bewusst OHNE Schritt-Bedingung: ein negatives Ergebnis ist an jeder Stelle
+ *   des Verfahrens zu klären, nicht nur im Eingang)
+ * - PreCheck fehlt/ausstehend UND Status im
+ *   Verfahrensschritt „Eingang" (`istPreCheckFaellig`)
  *                                           → `{ Eingang, 'PreCheck durchführen' }`
  *
  * **Status-Regeln (Fallback):**
@@ -117,7 +150,7 @@ export function naechsterSchritt(
     if (pc === 'negativ') {
       return { phase: 'Eingang', aktion: 'PreCheck-Ergebnis klären' };
     }
-    if ((pc === 'ohne' || pc === 'offen') && getStatusCategory(s) === 'offen') {
+    if ((pc === 'ohne' || pc === 'offen') && istPreCheckFaellig(s)) {
       return { phase: 'Eingang', aktion: 'PreCheck durchführen' };
     }
   }

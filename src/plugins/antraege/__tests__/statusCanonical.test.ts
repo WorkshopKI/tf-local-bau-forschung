@@ -17,10 +17,11 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
   it.each([
     ['beantragt', 'offen'],
     ['bearbeitungsreif', 'offen'],
-    // v2.383: Code 36 liegt in der Phase Vollständigkeit und gehört zum
-    // Nachforderungs-Zyklus (35–37) — 37 „keine weiteren NF" lag schon vorher
-    // dort, 36 zieht nach. Bleibt `isOpenStatus`.
-    ['NL eingegangen', 'nachforderung'],
+    // v2.411: Code 36 liegt in der Phase Vollständigkeit, wartet aber NICHT auf
+    // den Antragsteller — die Nachlieferung ist da, der Ball liegt bei uns.
+    // Folgt damit der Vorgabe seines Verfahrensschritts. `isOpenStatus` deckt
+    // beide Kategorien, an der Reiter-Zugehörigkeit ändert sich also nichts.
+    ['NL eingegangen', 'offen'],
     // Amtliche Schreibweisen, die die alte Handtabelle nicht kannte und die
     // deshalb auf `sonstige` fielen — seit v2.383 über den Code-Katalog.
     ['Skizze eingegangen', 'offen'],
@@ -47,7 +48,9 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['Ablehnung', 'entscheidung'],
     ['Rücknahmeempfehlung', 'entscheidung'],
     ['NF gestellt', 'nachforderung'],
-    ['keine weiteren NF', 'nachforderung'],
+    // Der Zyklus ist abgeschlossen und der Antrag vollständig — zu tun ist das
+    // wieder bei der Behörde (v2.411).
+    ['keine weiteren NF', 'offen'],
     ['bewilligt', 'bewilligt'],
     ['Schlussvermerk', 'abgeschlossen'],
     ['beendet', 'abgeschlossen'],
@@ -150,8 +153,10 @@ describe('isBewilligtStatus', () => {
 
 describe('isNachforderungStatus', () => {
   it('Foerderantrag "NF gestellt" → true', () => expect(isNachforderungStatus('NF gestellt')).toBe(true));
-  it('Foerderantrag "keine weiteren NF" → true', () => expect(isNachforderungStatus('keine weiteren NF')).toBe(true));
-  it('Foerderantrag "NL eingegangen" → true', () => expect(isNachforderungStatus('NL eingegangen')).toBe(true));
+  // Seit v2.411 nur noch 35: bei 36/37 liegt der Ball wieder bei der Behörde,
+  // und die Kategorie heißt „Wartet auf Antragsteller".
+  it('Foerderantrag "keine weiteren NF" → false', () => expect(isNachforderungStatus('keine weiteren NF')).toBe(false));
+  it('Foerderantrag "NL eingegangen" → false', () => expect(isNachforderungStatus('NL eingegangen')).toBe(false));
   it('"techn geprüft" → false', () => expect(isNachforderungStatus('techn geprüft')).toBe(false));
 });
 

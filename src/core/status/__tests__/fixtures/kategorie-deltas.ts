@@ -6,10 +6,10 @@
  * amtlichen Status-Codes unter ihrem amtlichen Namen; seit die Fassade aus
  * Code + ZAH-Phase gespeist wird, trifft jede gepflegte Schreibweise.
  *
- * Sechs Werte haben dabei die Kategorie gewechselt. Die Liste ist **im Test
- * abschließend** (`kategorie-ableitung.test.ts`), damit ein siebtes Delta
- * auffliegt: wer die Ableitung ändert und hier nichts ergänzt, verschiebt
- * stillschweigend, wo Anträge in den Arbeitslisten stehen.
+ * Fünf Werte stehen deshalb heute anders da als unter der Handtabelle. Die
+ * Liste ist **im Test abschließend** (`kategorie-ableitung.test.ts`), damit ein
+ * sechstes Delta auffliegt: wer die Ableitung ändert und hier nichts ergänzt,
+ * verschiebt stillschweigend, wo Anträge in den Arbeitslisten stehen.
  *
  * `alt` ist, was die Handtabelle lieferte — inklusive ihres VN/ZB-Pattern-
  * Fallbacks. Die Zählungen stammen aus dem Bestand vom 02.08.2026 (14 221
@@ -30,13 +30,12 @@ export interface KategorieDelta {
 }
 
 export const KATEGORIE_DELTAS: readonly KategorieDelta[] = [
-  {
-    statusRoh: 'NL eingegangen', code: 36, alt: 'offen', neu: 'nachforderung',
-    anzahl: { tv: 52, vb: 2 },
-    erklaerung:
-      'Folgt aus der Regel „Phase Vollständigkeit, Codes 35–37 = Nachforderung". '
-      + '37 („keine weiteren NF") lag schon vorher dort; 36 zieht nach. Bleibt offen.',
-  },
+  // Ein sechstes Delta stand hier bis v2.410: „NL eingegangen" (36) wanderte
+  // mit der Fassaden-Umstellung von `offen` nach `nachforderung`, weil die
+  // Regel „Phase Vollständigkeit, Codes 35–37" alle drei bündelte. Mit v2.411
+  // ist die Bündelung zurückgenommen (die Arbeitsliste heißt seit A3 „Wartet
+  // auf Antragsteller" und beschreibt damit die Zuständigkeit, nicht die
+  // Vorgangsart) — 36 steht wieder auf `offen`, ist also kein Delta mehr.
   {
     statusRoh: 'Stellungnahme zur Rücknahmeempfehlung', code: 72,
     alt: 'sonstige', neu: 'entscheidung',

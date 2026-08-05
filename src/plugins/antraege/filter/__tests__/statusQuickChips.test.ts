@@ -22,10 +22,15 @@ describe('chipStatusValues', () => {
     expect(values.has('schlussvermerk')).toBe(true);
   });
 
-  it('Nachforderung-Chip enthält "nf gestellt" und "keine weiteren nf"', () => {
+  it('Chip „Wartet auf Antragsteller" enthält nur „nf gestellt"', () => {
     const values = chipStatusValues('nachforderung');
     expect(values.has('nf gestellt')).toBe(true);
-    expect(values.has('keine weiteren nf')).toBe(true);
+    // Seit v2.411 NICHT mehr dabei: bei beiden liegt der Ball wieder bei der
+    // Behörde. Sie stehen jetzt unter „Vor Entscheidung" (Kategorie `offen`).
+    expect(values.has('keine weiteren nf')).toBe(false);
+    expect(values.has('nl eingegangen')).toBe(false);
+    expect(chipStatusValues('offen').has('keine weiteren nf')).toBe(true);
+    expect(chipStatusValues('offen').has('nl eingegangen')).toBe(true);
   });
 
   it('Begleitung-Chip enthält "vn geprüft"', () => {

@@ -135,10 +135,10 @@ export function statusZuStepperPosition(status: unknown): StepperPosition {
  * Fallback für unkuratierte Werte ohne amtlichen Code.
  *
  * Läuft über `kategorieVorgabe` statt über feste Phasen-Ids: welche Phase eine
- * Kategorie trägt, entscheidet seit v2.409 der Katalog. `nachforderung` und
- * `bewilligt` haben keine eigene Phase (sie sind Code-Ausnahmen innerhalb von
- * Vollständigkeit bzw. Begleitung) — sie erben deshalb die Station der Phase,
- * in der sie fachlich stecken.
+ * Kategorie trägt, entscheidet seit v2.409 der Katalog. `nachforderung` (seit
+ * v2.411 allein Code 35 „NF gestellt") und `bewilligt` haben keine eigene Phase
+ * — sie sind Code-Ausnahmen innerhalb von Vollständigkeit bzw. Begleitung und
+ * erben deshalb die Station der Phase, in der sie fachlich stecken.
  */
 function stationAusKategorie(status: unknown): StepperStation {
   const kategorie = getStatusCategory(status);

@@ -13,10 +13,10 @@
  *
  * **Der Weg:** Rohtext → Code (`status-codes.ts`, exakt oder über eine
  * gepflegte Variante) → ZAH-Phase (`zah-phasen.ts`, PL-editierbar) → Kategorie
- * (die kleine Tabelle unten). Drei Ausnahmen hängen am **Code**, nicht an der
+ * (die kleine Tabelle unten). Zwei Ausnahmen hängen am **Code**, nicht an der
  * Phase, weil die Kategorie feiner schneidet als die Phase:
- * 35–37 sind Nachforderung innerhalb der Vollständigkeit, und 59 ist die
- * Bewilligung selbst, nicht schon Begleitung.
+ * 35 wartet auf den Antragsteller, obwohl er in der Vollständigkeit liegt, und
+ * 59 ist die Bewilligung selbst, nicht schon Begleitung.
  *
  * **Flag-unabhängig.** Die Fassade wird von allen Varianten genutzt, auch von
  * prod/as ohne `statusCockpit` — dort wird der Katalog-Snapshot nie gesetzt.
@@ -52,12 +52,22 @@ const ANKER_NACHFORDERUNG: ZahPhaseId = 'vollstaendigkeit';
 const ANKER_BEWILLIGUNG: ZahPhaseId = 'begleitung';
 
 /**
- * Codes der Phase „Vollständigkeit", die fachlich **Nachforderung** sind:
- * 35 NF gestellt, 36 NL eingegangen, 37 keine weiteren NF. Die Kategorie
- * schneidet hier feiner als die Phase — alle drei gehören zum
- * Nachforderungs-Zyklus, 33 (unvollständig) und 34 (bearbeitungsreif) nicht.
+ * Codes der Phase „Vollständigkeit", bei denen der Ball beim **Antragsteller**
+ * liegt: nur **35 NF gestellt**. Die Kategorie schneidet hier feiner als die
+ * Phase — 33 (unvollständig) und 34 (bearbeitungsreif) liegen ebenfalls in der
+ * Vollständigkeit, warten aber nicht auf den Antragsteller.
+ *
+ * **Warum nur 35, seit die Arbeitsliste „Wartet auf Antragsteller" heißt
+ * (v2.411):** 36 „NL eingegangen" sagt, die Nachlieferung ist DA; 37 „keine
+ * weiteren NF", der Zyklus ist abgeschlossen und der Antrag vollständig. Bei
+ * beiden liegt der Ball wieder bei der Behörde. Solange die Kategorie
+ * „Nachforderung" hieß, beschrieb die Bündelung die Vorgangsart und war
+ * vertretbar; unter dem Zuständigkeits-Namen war sie für zwei von drei Codes
+ * schlicht falsch. 36 und 37 fallen seitdem auf die `kategorieVorgabe` ihres
+ * Verfahrensschritts zurück — „Zu bearbeiten", genau der Wert, der im Katalog
+ * ohnehin gepflegt stand und von der Ableitung überschrieben wurde.
  */
-export const NACHFORDERUNG_CODES: ReadonlySet<number> = new Set([35, 36, 37]);
+export const NACHFORDERUNG_CODES: ReadonlySet<number> = new Set([35]);
 
 /**
  * Code 59 „bewilligt" ist die positive Entscheidung selbst und liegt trotzdem in

@@ -29,15 +29,14 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { wertId } from './useStatusCockpit';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { PhasenBaum } from './PhasenBaum';
-import {
-  STATUS_SECTIONS, statusSectionLabel, type StatusSectionId,
-} from '@/plugins/antraege/antragGroups';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   feldLabel, zahPhaseLabel, ohneVerwaiste, kategorieFuerPhase, SEED_CODE_ZU_ZAH_PHASE,
 } from '@/core/status';
-import type { StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
+import type {
+  StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund, ZahPhase,
+} from '@/core/status';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
   feldKlasse, feldKlasseSchmal, feldStil, formatDatum,
@@ -54,17 +53,6 @@ const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary
 const tdKlasse = 'px-2 py-1.5 align-middle';
 
 /**
- * In welchem Abschnitt von *Förderanträge* eine Arbeitsliste landet.
- *
- * Dieselbe Zuordnung wie `sectionOf`, nur von der Kategorie aus statt vom
- * Rohwert — der Rohwert-Schnitt („Abgelehnt/Zurückgezogen") ist von hier aus
- * nicht erreichbar und bleibt deshalb außen vor.
- */
-function abschnittFuerKategorie(k: StatusCategory): StatusSectionId {
-  return STATUS_SECTIONS.find(s => s.categories.includes(k))?.id ?? 'ohne-zuordnung';
-}
-
-/**
  * Die Phase eines Wert-Eintrags, wie die Fassung sie führt: kuratiert schlägt
  * Auslieferung, `null` heißt bewusst Marker. Dieselbe dreiwertige Lesung wie in
  * `schnittVon` und `baueHerleitung`.
@@ -72,6 +60,25 @@ function abschnittFuerKategorie(k: StatusCategory): StatusSectionId {
 function phaseVon(w: StatusWertEintrag): string | null {
   if (w.zahPhaseId !== undefined) return w.zahPhaseId;
   return w.code !== undefined ? SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null : null;
+}
+
+/**
+ * Die Arbeitsliste, die für diesen Wert **wirklich gilt** — dieselbe dreiwertige
+ * Regel wie `kategorieAusFassung` in `snapshot.ts`: Werte mit amtlichem Code
+ * leiten sie aus Verfahrensschritt + Code ab, alle anderen tragen das gepflegte
+ * Feld.
+ *
+ * Steht bewusst auf Modul-Ebene und nicht in der Zeile: Anzeige **und** Filter
+ * müssen dieselbe Kategorie lesen. Solange der Filter `w.kategorie` prüfte,
+ * während die Zelle die abgeleitete zeigte, zählte die Chip-Auswahl ein anderes
+ * Vokabular als die Tabelle darunter — sichtbar wurde das erst, als 36/37 die
+ * Kategorie wechselten und unter „Wartet auf Antragsteller" stehen blieben.
+ */
+function effektiveKategorieVon(
+  w: StatusWertEintrag,
+  phasen: readonly ZahPhase[] | undefined,
+): StatusCategory {
+  return w.code === undefined ? w.kategorie : kategorieFuerPhase(phaseVon(w), w.code, phasen);
 }
 
 function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
@@ -82,10 +89,7 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
   vorschlag: { median: number; n: number } | undefined;
 }): React.ReactElement {
   const key = wertId(w.feldId, w.wert);
-  // Dieselbe dreiwertige Regel wie `kategorieAusFassung` in snapshot.ts.
-  const effektiveKategorie = w.code === undefined
-    ? w.kategorie
-    : kategorieFuerPhase(phaseVon(w), w.code, api.entwurf?.zahPhasen);
+  const effektiveKategorie = effektiveKategorieVon(w, api.entwurf?.zahPhasen);
   return (
     <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
       {/* Der kuratierte Feldname, nicht die technische feldId („status" ist der
@@ -111,26 +115,42 @@ function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
           onChange={e => api.setWert(w.id, { label: e.target.value })}
         />
       </td>
+      {/* Bedienbar ist die Arbeitsliste nur dort, wo sie auch wirkt.
+          Trägt der Wert einen amtlichen Code, leitet die App sie aus
+          Verfahrensschritt + Code ab (`kategorieAusFassung`) — dann stand hier
+          bis v2.410 ein Auswahlfeld, das nichts bewirkte, und darunter ein Satz,
+          der das erklärte. Ein bedienbares Feld ohne Wirkung wird ausprobiert;
+          ein deaktiviertes verspricht die Handlung weiter und belegt Platz.
+          Also: Text statt Attrappe. */}
       <td className={`${tdKlasse} min-w-[150px]`}>
         <div className="flex flex-col gap-0.5">
-          <select
-            value={w.kategorie} className={feldKlasse} style={feldStil}
-            onChange={e => api.setWert(w.id, { kategorie: e.target.value as StatusCategory })}
-          >
-            {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
-          </select>
-          {/* Was aus der Zeile FOLGT, statt es raten zu lassen — und zwar die
-              WIRKSAME Arbeitsliste, nicht das gepflegte Feld: bei Werten mit
-              amtlichem Code leitet die App sie aus Verfahrensschritt + Code ab
-              (`kategorieAusFassung`), das Feld daneben stammt aus dem
-              Seed-Stand. Ein Satz, der die Auswahl spiegelt statt das Ergebnis,
-              wäre hier eine Zusage, die die App nicht einhält. */}
-          <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-            erscheint im Abschnitt <em>{statusSectionLabel(abschnittFuerKategorie(effektiveKategorie))}</em>
-            {effektiveKategorie !== w.kategorie && (
-              <> — abgeleitet aus dem Verfahrensschritt, die Auswahl links wirkt nicht</>
-            )}
-          </span>
+          {w.code === undefined ? (
+            <select
+              value={w.kategorie} className={feldKlasse} style={feldStil}
+              onChange={e => api.setWert(w.id, { kategorie: e.target.value as StatusCategory })}
+            >
+              {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
+            </select>
+          ) : (
+            <span
+              className="text-[12px] text-[var(--tf-text)]"
+              title={'Ergibt sich aus dem amtlichen Code und dem Verfahrensschritt. '
+                + 'Änderbar durch Umhängen im Baum („Phasen und Zuordnung").'}
+            >
+              {KATEGORIE_LABEL[effektiveKategorie]}
+              <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
+                {' · folgt dem Verfahrensschritt'}
+              </span>
+            </span>
+          )}
+          {/* Nur dort eine Zeile, wo sie etwas sagt: die Fassung führt einen
+              anderen gepflegten Wert, als die Ableitung ergibt. Ohne diese
+              Bedingung stand der Satz unter fast jeder der 74 Zeilen. */}
+          {effektiveKategorie !== w.kategorie && (
+            <span className="text-[10.5px] text-[var(--tf-warning-text)]">
+              in dieser Fassung noch als „{KATEGORIE_LABEL[w.kategorie]}" gepflegt
+            </span>
+          )}
         </div>
       </td>
       <td className={`${tdKlasse} min-w-[124px]`}>
@@ -219,6 +239,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
 
   const entwurf = api.entwurf;
   const werte = entwurf?.werte ?? [];
+  const zahPhasen = entwurf?.zahPhasen;
   /** feldId → kuratierter Feldname (eine Quelle: `feldLabel`). */
   const feldName = useCallback(
     (feldId: string): string => (entwurf ? feldLabel(entwurf, feldId) : feldId),
@@ -233,7 +254,9 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   const gefiltert = useMemo(() => {
     const q = suche.trim().toLowerCase();
     return werte.filter(w => {
-      if (katFilter.size > 0 && !katFilter.has(w.kategorie)) return false;
+      // Die WIRKSAME Arbeitsliste, nicht das gepflegte Feld — sonst filtert der
+      // Chip nach einem anderen Vokabular, als die Zelle daneben anzeigt.
+      if (katFilter.size > 0 && !katFilter.has(effektiveKategorieVon(w, zahPhasen))) return false;
       if (promFilter.size > 0 && !promFilter.has(w.prominenz)) return false;
       if (nurUnkuratiert && !w.unkuratiert) return false;
       if (q) {
@@ -245,7 +268,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       }
       return true;
     });
-  }, [werte, suche, katFilter, promFilter, nurUnkuratiert, feldName, csvSpalte]);
+  }, [werte, suche, katFilter, promFilter, nurUnkuratiert, feldName, csvSpalte, zahPhasen]);
 
   if (!entwurf) return null;
 
