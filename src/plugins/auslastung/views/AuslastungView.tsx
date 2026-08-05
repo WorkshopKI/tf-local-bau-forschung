@@ -44,7 +44,6 @@ import { ZuweisungsCockpit } from './ZuweisungsCockpit';
 import { UebersichtView } from './UebersichtView';
 import { KompetenzMatrixView } from './KompetenzMatrixView';
 import { EinstellungenView } from './EinstellungenView';
-import { isAuslastungNurKorpusEnabled } from '@/config/feature-flags';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
 type TabId = 'klassifizierung' | 'zuweisung' | 'uebersicht' | 'kompetenzen' | 'einstellungen';
@@ -83,75 +82,13 @@ function LadeDimmer({ aktiv, children }: { aktiv: boolean; children: React.React
   );
 }
 
-export function AuslastungView(): React.ReactElement {
-  // Build-time-konstante Verzweigung (flippt zur Laufzeit nie → Rules-of-Hooks-
-  // sicher): die kurator-Variante zeigt nur die schlanke Themen-Vektoren-Pflege.
-  return isAuslastungNurKorpusEnabled() ? <AuslastungKorpusView /> : <AuslastungFullView />;
-}
-
 /**
- * Schlanker kurator-View (v2.56): nur die Themen-Vektoren-Korpus-Sektion, damit
- * der Kurator den Embedding-Katalog aktuell halten kann — ohne MA-Auslastung zu
- * sehen oder zuzuweisen. Bewusst OHNE die MA-mutierenden Mount-Hooks des vollen
- * Views (`useReconcileZuweisungen` + `useAutoCollectTeamProfiles` schreiben
- * `auslastung.json`); es laufen nur read-only Frische-Hooks, damit der Centroid-
- * Write des Korpus-Builds keine fremden MA-Edits überschreibt.
+ * v3.0: Der schlanke „Themen-Vektoren"-Sonderview (v2.56, `auslastungNurKorpus`)
+ * ist entfallen. Er existierte nur fuer die kurator-Variante, die es nicht mehr
+ * gibt — die Korpus-Pflege lebt jetzt in der Einstellungen-Sektion des vollen
+ * Moduls, das seinerseits hinter dem Auslastungs-Passwort liegt.
  */
-function AuslastungKorpusView(): React.ReactElement {
-  const storage = useStorage();
-  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
-  const load = useAuslastungData(s => s.load);
-  const loaded = useAuslastungData(s => s.loaded);
-
-  // Nur read-only Sync: hält den Store frisch (Cross-Tab, Fremd-Write am Share,
-  // CSV-Snapshot) — schreibt selbst nichts.
-  useAuslastungCrossTabSync();
-  useAuslastungShareWatcher();
-  useAntraegeCacheSnapshotRefresh();
-
-  useEffect(() => {
-    void load(storage);
-    void useKuerzelMap.getState().load(storage);
-  }, [load, storage]);
-
-  if (!activeProgrammId) {
-    return (
-      <div className="p-6">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] mb-2">Themen-Vektoren</h1>
-        <p className="text-[13.5px] text-[var(--tf-text-secondary)]">
-          Kein Förderprogramm aktiv — bitte zuerst ein Programm einrichten oder auswählen.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6">
-      <div className="flex items-center gap-0 mb-4">
-        <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-none tracking-[-0.01em]">
-          Themen-Vektoren
-        </h1>
-        <p
-          className="text-[12px] text-[var(--tf-text-tertiary)]"
-          style={{ paddingLeft: 14, marginLeft: 14, borderLeft: '0.5px solid var(--tf-border)' }}
-        >
-          Embedding-Katalog für die automatische Klassifizierung aktuell halten
-        </p>
-      </div>
-
-      <ModulLadeStreifen />
-      <AuslastungSaveErrorBanner />
-
-      {loaded && (
-        <div className="mt-5">
-          <EinstellungenView korpusOnly />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AuslastungFullView(): React.ReactElement {
+export function AuslastungView(): React.ReactElement {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const data = useAuslastungData(s => s.data);

@@ -37,7 +37,6 @@ import { getActiveModelId, getModelById } from '@/core/services/search/model-reg
 import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';
 import type { StorageService } from '@/core/services/storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { features } from '@/config/feature-flags';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import {
   loadAntraegeTextCorpus,
@@ -46,14 +45,17 @@ import {
 } from './search-corpus';
 import type { HybridUnavailableSource } from '../store';
 
-/** Substring/Embedding/DMS-Pipeline darf laufen. Schlanke Builds (prod ohne
- *  diese Flags) ueberspringen den Embedding-/DMS-Pfad, der 300 MB ONNX-Modell
- *  wird nicht in den Main-Thread geladen. */
-const SEMANTIC_SOURCES_ENABLED =
-  features.volltextsuche === true
-  || features.auslastung === true
-  || features.dokumentenscan === true
-  || features.suche === true;
+/**
+ * Substring/Embedding/DMS-Pipeline darf laufen.
+ *
+ * v3.0: Die Oder-Kette ist entfallen — `suche` war in JEDER Variante an und hat
+ * die anderen Glieder damit seit jeher ueberstimmt. Die Konstante bleibt als
+ * benannter Anker stehen, weil das Laufzeit-Gate darunter auf sie verweist.
+ *
+ * Bewusst KEIN Bezug zur Modul-Freischaltung: das hier ist eine modul-globale
+ * Konstante, sie wuerde sich sonst mitten in der Sitzung aendern.
+ */
+const SEMANTIC_SOURCES_ENABLED = true;
 
 /**
  * Laufzeit-Gate der semantischen Quellen (v2.62): Build-Flag UND Session-Opt-in.

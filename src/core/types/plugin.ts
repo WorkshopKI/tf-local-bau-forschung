@@ -10,19 +10,15 @@ import type { ModulSlot } from '@/config/runtime-config';
  */
 export type PluginFeatureKey =
   | 'anfragen'
-  | 'antraege'
   | 'auslastung'
   | 'dokumente'
   | 'dokumentenscan'
   | 'devFixtures'
   | 'devInfraPanel'
-  | 'feedback'
   | 'mapFoerderfaehig'
   | 'meilensteinMonitoring'
   | 'skillVerwaltung'
   | 'statusCockpit'
-  | 'suche'
-  | 'volltextsuche'
   | 'vorgangssystem';
 
 /**

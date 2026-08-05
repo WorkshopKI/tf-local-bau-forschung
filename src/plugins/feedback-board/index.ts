@@ -4,7 +4,6 @@ import { FeedbackBoardPage } from './FeedbackBoardPage';
 export const feedbackBoardPlugin: TeamFlowPlugin = {
   id: 'feedback-board',
   route: '/feedback-board',
-  featureFlag: 'feedback',
   name: 'Feedback',
   icon: 'TrendingUp',
   category: 'tools',

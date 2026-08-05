@@ -62,16 +62,8 @@ export function isEndUserProdVariant(): boolean {
   return runtimeConfig.variant === 'production' && !isAppGateRequired();
 }
 
-export function isFeedbackEnabled(): boolean {
-  return features.feedback;
-}
-
 export function isDokumentenscanEnabled(): boolean {
   return features.dokumentenscan;
-}
-
-export function isVolltextsucheEnabled(): boolean {
-  return features.volltextsuche;
 }
 
 export function isDevInfraPanelEnabled(): boolean {
@@ -82,56 +74,48 @@ export function isDevFixturesEnabled(): boolean {
   return features.devFixtures;
 }
 
-export function isAntraegeEnabled(): boolean { return features.antraege; }
 export function isDokumenteEnabled(): boolean { return features.dokumente; }
 /** Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach Bestätigung).
  *  Destruktiv — nur im dev-Build true. `=== true` für Backward-Kompat mit
  *  pre-2.18-Configs ohne den Flag. */
 export function isFeedbackDeleteEnabled(): boolean { return features.feedbackDelete === true; }
+/**
+ * Ist das Auslastungs-Modul EINKOMPILIERT? (Bauzeit)
+ *
+ * Achtung: das ist NICHT „darf der Nutzer es sehen". Seit v3.0 liegt das Modul in
+ * der pl-Variante hinter einem Zusatzpasswort — die Sichtbarkeits-Frage
+ * beantwortet `isAuslastungFreigeschaltet()` in `@/core/modul-freischaltung`.
+ * Ein Convention-Test haelt die wenigen erlaubten Aufrufstellen fest.
+ */
 export function isAuslastungEnabled(): boolean { return features.auslastung === true; }
-/** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil, ohne das
- *  volle Auslastungs-Modul. Für AS (auslastung aus, aber Bearbeiter-Filter wie
- *  PL). Fällt auf `auslastung` zurück → pl/dev/kurator unverändert. */
+/** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil.
+ *
+ *  v3.0: Der eigene `kuerzelDropdown`-Flag ist entfallen. Er existierte nur fuer
+ *  die AS-Variante (Bearbeiter-Filter OHNE Auslastungs-Modul); im gemischten
+ *  pl-Build ist das Modul immer einkompiliert, die Ableitung genuegt also. Bewusst
+ *  am ROHEN Flag: der Bearbeiter-Filter bleibt auch bei gesperrtem Modul nutzbar. */
 export function isKuerzelDropdownEnabled(): boolean {
-  return features.kuerzelDropdown === true || isAuslastungEnabled();
-}
-/** v2.47: Lokaler Themenkorpus-Build erlaubt? Der Build laedt ein ~200-MB-
- *  Embedding-Modell in den Main-Thread-RAM und kann in speicherarmen, geteilten
- *  Umgebungen (Citrix, mehrere User pro Host) den Renderer per Out-of-Memory
- *  crashen ("Aw, Snap"). In der Citrix-pl-Config auf false → die Build-Buttons
- *  ("Corpus aufbauen"/"Inkrementell") sind ausgeblendet, nur "Vom Datenspeicher
- *  laden" bleibt (= dokumentiertes "einer baut, alle laden"-Modell). Default
- *  true (`!== false`: fehlender Flag = erlaubt, Backward-Kompat). */
-export function isEmbeddingCorpusBuildEnabled(): boolean {
-  return features.embeddingCorpusBuild !== false;
-}
-/** v2.56: True wenn das Auslastungs-Modul auf reine Themen-Vektoren-Korpus-
- *  Pflege beschränkt ist (kurator-Variante) — schlanker Korpus-View statt
- *  voller PL-Tabs, MA-mutierende Mount-Hooks (reconcile/autoCollect) bleiben
- *  aus. So kann der Kurator den Embedding-Katalog aktuell halten, ohne MA-
- *  Auslastung zu sehen oder zuzuweisen. Default false. */
-export function isAuslastungNurKorpusEnabled(): boolean {
-  return features.auslastungNurKorpus === true;
+  return isAuslastungEnabled();
 }
 /** v2.59: „Online"-Tab in den Einstellungen (PL sieht zuletzt aktive Team-User).
  *  Nur pl + dev. Default false. */
 export function isOnlineStatusTabEnabled(): boolean {
   return features.onlineStatusTab === true;
 }
-/** Homepage-Selbsteintragung + Banner. End-User-Feature, getrennt vom PL-
- *  Plugin (`auslastung`). Wer das Plugin aktiviert hat, will i.d.R. auch
- *  die Selbsteintragung — wenn der Flag fehlt, fallen wir auf `auslastung`
- *  zurueck (Backwards-Kompat fuer pre-1.17-Configs). */
-export function isAuslastungSelbstEintragungEnabled(): boolean {
-  if (typeof features.auslastungSelbstEintragung === 'boolean') {
-    return features.auslastungSelbstEintragung;
-  }
-  return features.auslastung === true;
-}
-/** v2.5: Klartext-Anzeige der TIB-Kuerzel im Auslastungs-Modul, mit Passwort
- *  freischaltbar (24h-Session). Nur in dev + pl Varianten aktiviert. */
+/** v2.5: Klartext-Anzeige der TIB-Kürzel im Auslastungs-Modul.
+ *
+ *  v3.0: eigener Flag entfallen — alle Konsumenten liegen INNERHALB des Moduls,
+ *  das seit der Varianten-Zusammenlegung selbst hinter einem Passwort liegt. Ein
+ *  zweites Schloss im Tresor pflegte sich nur selbst. */
 export function isDeAnonymisierungEnabled(): boolean {
-  return features.deAnonymisierung === true;
+  return isAuslastungEnabled();
+}
+/** v2.11: PL-UI „Zugangspasswort generieren" in der MA-Verwaltung.
+ *
+ *  v3.0: eigener Flag entfallen, gleiche Begründung wie `deAnonymisierung` —
+ *  beide Konsumenten sitzen im Auslastungs-Modul. */
+export function isMaVerwaltungPasswortEnabled(): boolean {
+  return isAuslastungEnabled();
 }
 /** v2.x: Build erlaubt Schreibzugriff auf den Daten-Share auch ohne Kurator-
  *  Profil (pl-Variante — die PL schreibt die Auslastungs-Klassifizierung nach
@@ -171,10 +155,6 @@ export function canManageFeedback(isKurator: boolean): boolean {
  *  alte Kuerzelfeld). Siehe MaLoginGate + useMAIdentity + App.tsx-Startup-Gate. */
 export function isMaLoginEnabled(): boolean {
   return features.maLogin === true;
-}
-/** v2.11: PL-UI „Zugangspasswort generieren" in der MA-Verwaltung. Nur pl + dev. */
-export function isMaVerwaltungPasswortEnabled(): boolean {
-  return features.maVerwaltungPasswort === true;
 }
 /** Gutachten-Testballon: KI-gestützte Kurzfassung auf der Förderantrags-
  *  Detailseite (erster „Mini-Agent" — Dokumenten-Aufnahme → Skill → Review →
@@ -274,12 +254,6 @@ export function getAufbereitungDrUrls(): AufbereitungDrUrls {
     mistral: c?.mistralUrl || DEFAULT_AUFBEREITUNG_MISTRAL_URL,
   };
 }
-/** In-App Streamlit-Bridge-Installer im KI-Assistent-Tab (Streamlit-URL +
- *  Bookmarklet + Verbindungstest). Zugang zum internen gpt-oss ohne API.
- *  Sichtbar in dev + prod + kurator + pl. Default false. */
-export function isStreamlitBridgeEnabled(): boolean {
-  return features.streamlitBridge === true;
-}
 /** Die Konfig-Fakten für die Registry-Zugangs-Entscheidung an einer Stelle
  *  einsammeln. EINE Quelle für die Ableitung — die reine Logik lebt in
  *  [registry-zugang.ts] und bekommt das Ergebnis als Arg (kein `runtimeConfig`
@@ -376,7 +350,6 @@ export function isVorgangssystemEnabled(): boolean {
   return features.vorgangssystem === true && isStatusCockpitEnabled();
 }
 
-export function isSucheEnabled(): boolean { return features.suche; }
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über
  *  `isKuratorMenusEnabled()` — dieser Flag ist eine *zusätzliche* Bedingung für

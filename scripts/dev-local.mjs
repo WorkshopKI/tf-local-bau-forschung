@@ -13,7 +13,7 @@
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { validateConfig, deepMerge } from './config-schema.mjs';
+import { validateConfig, deepMerge, buildBasis } from './config-schema.mjs';
 
 const SHARED_CONFIG_PATH = resolve('configs/_shared.json');
 
@@ -79,7 +79,10 @@ async function main() {
     process.exit(1);
   }
   const sharedConfig = loadJson(SHARED_CONFIG_PATH, 'configs/_shared.json');
-  const config = sharedConfig ? deepMerge(sharedConfig, variantConfig) : variantConfig;
+  // v3.0: dieselbe neutrale Basis wie `build-with-config.mjs` — sonst drifted
+  // ausgerechnet die Abnahme-Umgebung von dem ab, was gebaut wird.
+  const basis = sharedConfig ? deepMerge(buildBasis(), sharedConfig) : buildBasis();
+  const config = deepMerge(basis, variantConfig);
 
   const { errors, warnings, valid } = validateConfig(config);
   if (warnings.length > 0) {

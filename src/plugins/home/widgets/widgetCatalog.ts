@@ -24,14 +24,11 @@ import {
   TimerOff,
 } from 'lucide-react';
 import {
-  isAuslastungEnabled,
-  isAuslastungSelbstEintragungEnabled,
-  isFeedbackEnabled,
-  isKuratorMenusEnabled,
   isMeilensteinMonitoringEnabled,
   isStatusCockpitEnabled,
   isVorgangssystemEnabled,
 } from '@/config/feature-flags';
+import { isAuslastungFreigeschaltet, isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type { WidgetSpezifischeConfig, WidgetTyp } from './types';
 
@@ -144,7 +141,8 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     icon: Megaphone,
     bereich: 'seite',
     verfuegbar: true,
-    sichtbarWenn: () => isFeedbackEnabled(),
+    // v3.0: `features.feedback` war in jeder Variante an — der Flag ist entfallen.
+    sichtbarWenn: () => true,
     defaultConfig: () => ({ art: 'feedback-news', maxEintraege: 3 }),
   },
   auslastung: {
@@ -156,7 +154,7 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // Schwere Aggregation (13k Anträge) → standardmäßig eingeklappt; der Body
     // rechnet erst beim Ausklappen (Lazy-Guard `aktiv` im Widget).
     defaultEingeklappt: true,
-    sichtbarWenn: () => isAuslastungEnabled(),
+    sichtbarWenn: () => isAuslastungFreigeschaltet(),
     defaultConfig: () => ({ art: 'auslastung', sicht: 'auto' }),
   },
   'registry-aenderungen': {
@@ -166,7 +164,7 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     bereich: 'seite',
     verfuegbar: true,
     hinweisBadge: 'Nur Kurator',
-    sichtbarWenn: () => isKuratorMenusEnabled(),
+    sichtbarWenn: () => isKuratorFreigeschaltet(),
     defaultConfig: () => ({ art: 'registry-aenderungen', maxEintraege: 3 }),
   },
   'neue-antraege': {
@@ -175,10 +173,12 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     icon: Inbox,
     bereich: 'haupt',
     verfuegbar: true,
-    // Flag-gebunden wie die frühere hart verdrahtete Home-Sektion (MA-
-    // Selbsteintragung aus der Auslastung); die Komponente versteckt sich
-    // zusätzlich selbst, wenn keine passenden Anträge offen sind.
-    sichtbarWenn: () => isAuslastungSelbstEintragungEnabled(),
+    // v3.0: `auslastungSelbstEintragung` war nach der Varianten-Zusammenlegung in
+    // allen drei Builds an — der Flag ist entfallen. Die Selbsteintragung ist
+    // bewusst NICHT ans Modul-Schloss gebunden: sie ist die Endnutzer-Seite, die
+    // auch ohne das PL-Modul (prod) funktioniert. Die Komponente versteckt sich
+    // ohnehin selbst, wenn keine passenden Anträge offen sind.
+    sichtbarWenn: () => true,
     defaultConfig: KEINE,
   },
   'status-verlauf': {

@@ -19,29 +19,31 @@ import type { TeamFlowPlugin } from '@/core/types/plugin';
 import type { StorageService } from '@/core/services/storage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
-import { isAuslastungNurKorpusEnabled } from '@/config/feature-flags';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
+import { istModulFrei } from '@/core/modul-freischaltung';
 import { AuslastungView } from './views/AuslastungView';
 import { useAuslastungData } from './hooks/useAuslastungData';
 import { useKuerzelMap } from './hooks/useKuerzelMap';
 import { refreshAntraegeCacheIfStale, warmupAntraegeCache } from './hooks/useAntraegeCache';
 
-// v2.56: Im kurator-Korpus-Modus (auslastungNurKorpus) zeigt das Plugin nur die
-// Themen-Vektoren-Pflege — der Sidebar-Eintrag heißt dann nicht irreführend
-// „Auslastung", sondern „Themen-Vektoren".
-const nurKorpus = isAuslastungNurKorpusEnabled();
-
 export const auslastungPlugin: TeamFlowPlugin = {
   id: 'auslastung',
   route: '/auslastung',
   featureFlag: 'auslastung',
-  name: nurKorpus ? 'Themen-Vektoren' : 'Auslastung',
-  icon: nurKorpus ? 'Boxes' : 'Users',
+  // v3.0: einkompiliert bleibt es immer (sonst koennte kein Passwort es zeigen);
+  // sichtbar wird es erst nach der Freischaltung.
+  modulSchloss: 'auslastung',
+  name: 'Auslastung',
+  icon: 'Users',
   category: 'workflow',
   // Direkt nach Förderanträge (order 2), vor E-Mail Anfragen (order 6).
   order: 4,
   component: AuslastungView,
   onInit: async ({ storage }) => {
+    // Gesperrtes Modul waermt nichts vor: der Antraege-Cache deserialisiert ~13k
+    // volle Records (~450 MB). Unkritisch, weil `useAntraegeCache` beim Mount
+    // ohnehin selbst laedt — der Warmup ist nur Vorarbeit.
+    if (!istModulFrei('auslastung')) return;
     // SMB-Sidecars parallel laden — beide Stores haben Idempotenz-Guards,
     // ein zweiter load() im View-Mount ist no-op.
     await Promise.allSettled([

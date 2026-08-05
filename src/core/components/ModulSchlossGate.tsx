@@ -32,14 +32,14 @@ export function ModulSchlossGate({ frei, bereich, children }: ModulSchlossGatePr
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <div
         className="w-11 h-11 rounded-full flex items-center justify-center mb-4"
-        style={{ background: 'var(--tf-surface)', border: '0.5px solid var(--tf-border)' }}
+        style={{ border: '0.5px solid var(--tf-border)' }}
       >
-        <Lock size={20} className="text-[var(--tf-text-muted)]" />
+        <Lock size={20} className="text-[var(--tf-text-tertiary)]" />
       </div>
       <h2 className="text-[17px] font-medium text-[var(--tf-text)] mb-1.5">
         {bereich} ist gesperrt
       </h2>
-      <p className="text-[13px] text-[var(--tf-text-muted)] max-w-[420px] mb-5 leading-relaxed">
+      <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-[420px] mb-5 leading-relaxed">
         Dieser Bereich lässt sich mit einem Zusatzpasswort freischalten. Die Freischaltung
         gilt anschließend 12 Stunden und übersteht einen Neustart.
       </p>

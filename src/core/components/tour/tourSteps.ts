@@ -40,7 +40,6 @@ const ALL_STEPS: TourStep[] = [
       'Durchsuche alle indexierten Dokumente per Stichwort oder natuerlichsprachiger Frage. Die Suche kombiniert Volltextsuche mit KI-gestuetzter Aehnlichkeitssuche.',
     position: 'bottom',
     navigateTo: 'suche',
-    requiresFeature: 'suche',
   },
   {
     target: 'document-list',

@@ -52,7 +52,6 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { pluginIdToRoute, routeToPluginId } from '@/core/routes';
 import { runtimeConfig } from '@/config/runtime-config';
 import {
-  isFeedbackEnabled,
   isKuratorMenusEnabled,
   isCsvAutoRefreshEnabled,
   isDataShareEnabled,
@@ -648,7 +647,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       {/* „Über die App" — EIN Mount für beide Auslöser (Versionsnummer in der
           Fußzeile, Link in jedem Seiten-Hilfe-Dialog). Siehe useUeberAppDialog. */}
       <UeberDieAppDialog open={ueberAppOffen} onClose={ueberAppSchliessen} />
-      {!tour.isActive && isFeedbackEnabled() && <FeedbackButton />}
+      {!tour.isActive && <FeedbackButton />}
       {/* Schlankes Dock shell-weit — außer auf der Suche, die ihren eigenen
           Voll-Chat (ChatPanelHost) besitzt (kein Doppel-Panel). */}
       {dockAktiv && <AssistentPanelHost />}

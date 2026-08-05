@@ -15,7 +15,7 @@ import {
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
-import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isStreamlitBridgeEnabled, isAntragAufbereitungEnabled } from '@/config/feature-flags';
+import { isOpenRouterEnabled, isDevContext, isDevFixturesEnabled, isLlmKontextSettingEnabled, isAntragAufbereitungEnabled } from '@/config/feature-flags';
 import { AufbereitungEvalPanel } from '@/plugins/antraege/aufbereitung/eval-panel/AufbereitungEvalPanel';
 import { AufbereitungRechercheSettings } from '@/plugins/antraege/aufbereitung/AufbereitungRechercheSettings';
 import { GedaechtnisEvalPanel } from './GedaechtnisEvalPanel';
@@ -262,11 +262,10 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
       </section>
       )}
 
-      {/* Streamlit-Bridge-Installer — sichtbar dev + prod + kurator + pl.
+      {/* Streamlit-Bridge-Installer — in jeder Variante sichtbar (v3.0: der
+          `streamlitBridge`-Flag war nie irgendwo aus und ist entfallen).
           Eigene Save/Ping-Logik, unabhängig vom dev-only Provider-Switcher. */}
-      {isStreamlitBridgeEnabled() && (
-        <StreamlitBridgeSection aiConfig={aiConfig} setAiConfig={setAiConfig} />
-      )}
+      <StreamlitBridgeSection aiConfig={aiConfig} setAiConfig={setAiConfig} />
 
       {/* Provider-Switcher nur im Entwickler-Kontext — in Produktiv-Varianten ist
           der Endpoint via Build-Config fix verdrahtet. */}

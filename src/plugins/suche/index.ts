@@ -4,7 +4,6 @@ import { SuchSeite } from './SuchSeite';
 export const suchePlugin: TeamFlowPlugin = {
   id: 'suche',
   route: '/suche',
-  featureFlag: 'suche',
   name: 'Suche',
   icon: 'Search',
   // Stabil, aber seltener gebraucht als Förderanträge/Auslastung → „Werkzeuge".

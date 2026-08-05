@@ -37,26 +37,29 @@ export interface TeamflowPersonalFolderConfig {
   snapshotAgeWarningDays: number;
 }
 
+/**
+ * Build-Time-Feature-Flags.
+ *
+ * **Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat.**
+ * Mit v3.0 (Zusammenlegung auf dev/pl/prod) sind elf Flags entfallen, die überall
+ * denselben Wert trugen oder nur eine abgeschaffte Variante bedienten:
+ * `feedback`, `suche`, `antraege`, `streamlitBridge` (schon vorher überall an),
+ * `volltextsuche`, `auslastungSelbstEintragung`, `embeddingCorpusBuild` (durch die
+ * Zusammenlegung überall an), `auslastungNurKorpus`, `kuerzelDropdown` (nur für
+ * abgeschaffte Varianten) sowie `deAnonymisierung` und `maVerwaltungPasswort`
+ * (beide gaten nur Oberfläche INNERHALB des Auslastungs-Moduls, das seinerseits
+ * hinter dem Zusatzpasswort liegt — ein Schloss im Tresor).
+ */
 export interface TeamflowFeatures {
   kuratorMenus: boolean;
-  feedback: boolean;
   dokumentenscan: boolean;
-  volltextsuche: boolean;
   devInfraPanel: boolean;
   devFixtures: boolean;
-  antraege: boolean;
   dokumente: boolean;
-  /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung (PL-Tool). */
+  /** Plugin "Auslastung" — automatische Kategorisierung + MA-Zuweisung (PL-Tool).
+   *  Seit v3.0 heisst `true` nur „einkompiliert": in pl liegt das Modul hinter
+   *  einem Zusatzpasswort (`moduleAuth.auslastung`). */
   auslastung: boolean;
-  /** Homepage-Selbsteintragung + Benachrichtigungs-Banner (End-User-Feature).
-   *  Getrennt von `auslastung`, damit prod-Builds nur die Selbsteintragung
-   *  zeigen ohne das volle PL-Plugin in der Sidebar. Optional fuer
-   *  Backwards-Kompat mit pre-1.17-Configs — Fallback ist `auslastung`. */
-  auslastungSelbstEintragung?: boolean;
-  /** v2.5: Klartext-Anzeige der TIB-Kuerzel im Auslastungs-Modul (passwort-
-   *  geschuetzt, 24h-Session). Nur in dev/pl-Varianten aktiviert, die auf
-   *  einem geschuetzten SMB-Bereich liegen. */
-  deAnonymisierung: boolean;
   /** v2.x: Schreibrecht auf den Daten-Share auch fuer Nicht-Kuratoren (hebt das
    *  v2.0-read-only-Hardening gezielt auf, z.B. fuer die PL). Steuert Picker-/
    *  Grant-Mode via `canWriteDatenShare`. Nur dev + pl. */
@@ -67,13 +70,6 @@ export interface TeamflowFeatures {
    *  die Zugangsdatei existiert (sonst Fallback aufs alte Kuerzelfeld). Nur prod
    *  (+ dev zum Testen). */
   maLogin: boolean;
-  /** v2.11: PL-UI „Zugangspasswort generieren" in der MA-Verwaltung. Verschluesselt
-   *  das echte Kuerzel unter einem generierten 2-Wort-Passwort und schreibt den
-   *  Eintrag in die Zugangsdatei. Braucht `datenShareSchreibrecht` +
-   *  `deAnonymisierung`. Nur pl (+ dev zum Testen). */
-  maVerwaltungPasswort: boolean;
-  /** User-Plugin "Suche" (Hybrid-Suche). Trennt sich von `volltextsuche` (das gated den Suchindex-Kurator). */
-  suche: boolean;
   /** Dev-only: Kurator-Dashboard darf Feedback-Tickets löschen (nach Bestätigung).
    *  Destruktiv (entfernt aus localStorage + geteilter feedback.json) — daher
    *  optional + default false (fehlt = aus), nur im dev-Build true. Optional
@@ -85,23 +81,9 @@ export interface TeamflowFeatures {
    *  `lastModified`-Stände; in Nicht-Kurator-Builds verknüpft ein schlanker
    *  Picker die Quelldatei. Braucht `datenShareSchreibrecht`. Nur dev + pl. */
   csvAutoRefresh: boolean;
-  /** v2.47: Lokaler Themenkorpus-Build erlaubt (Embedding-Modell ~200 MB im
-   *  Main-Thread-RAM). In geteilten Citrix-pl-Sitzungen (mehrere User/Host) auf
-   *  false → Build-Buttons ausgeblendet, nur Download. Default true (optional,
-   *  fehlt = erlaubt, kein requiredFlags-Eintrag). */
-  embeddingCorpusBuild?: boolean;
-  /** v2.56: kurator-Variante — Auslastungs-Modul nur als Themen-Vektoren-
-   *  Korpus-Pflege (kein MA-Auslastung/Zuweisung). Schlanker View, MA-
-   *  mutierende Mount-Hooks bleiben aus. Optional, default false. */
-  auslastungNurKorpus?: boolean;
   /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
    *  aus den eingesammelten Heartbeats. Nur pl (+ dev). Optional, default false. */
   onlineStatusTab?: boolean;
-  /** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil, OHNE
-   *  das volle Auslastungs-Modul — für Varianten wie AS, die den Bearbeiter-
-   *  Filter wie PL haben sollen (auslastung aus). Fällt auf `auslastung` zurück,
-   *  pl/dev/kurator bleiben unverändert. Optional, default false. */
-  kuerzelDropdown?: boolean;
   /** Gutachten-Testballon: KI-gestuetzte Kurzfassung-Sektion auf der Foerder-
    *  antrags-Detailseite (Dokumenten-Aufnahme → Skill → Review → DOCX-Vorlage).
    *  Erster „Mini-Agent". Nur dev (Testballon). Optional, default false. */
@@ -133,10 +115,6 @@ export interface TeamflowFeatures {
    *  Export in den externen ZIM FAQ-Assistenten → deterministische Wiedereinsetzung.
    *  Plugin-Flag. Nur dev (Testballon). Optional, default false. */
   anfragen?: boolean;
-  /** In-App „Streamlit Bridge"-Installer (KI-Assistent-Tab): Streamlit-URL +
-   *  Bookmarklet + tf-ping-Test. Zugang zum internen gpt-oss ohne API.
-   *  Sichtbar dev + prod + kurator + pl. Optional, default false. */
-  streamlitBridge?: boolean;
   /** v2.97: Delta-Snapshots SCHREIBEN — der Writer publiziert nur geänderte
    *  antraege-Records (`antraege.delta.<seq>.jsonl`) statt der vollen Datei.
    *  Braucht `datenShareSchreibrecht`; nur pl + kurator (+ dev). Der LESER

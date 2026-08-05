@@ -13,7 +13,6 @@ import {
   isDevContext,
   isDevFixturesEnabled,
   isLlmKontextSettingEnabled,
-  isStreamlitBridgeEnabled,
   isOnlineStatusTabEnabled,
   isKuratorMenusEnabled,
   isAssistentProtokollEnabled,
@@ -164,14 +163,14 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
   });
 
   // KI-Assistent bewusst als letztes System-Panel (Reihenfolge = Push-Reihenfolge in der Gruppe).
-  if (isDevContext() || isLlmKontextSettingEnabled() || isStreamlitBridgeEnabled()) {
+  {
     const sections: SettingsSectionRef[] = [];
     if (isLlmKontextSettingEnabled()) {
       sections.push({ id: 'sec-kontext', label: 'LLM & Reasoning', keywords: 'kontextfenster tokens thinking reasoning ki assistent' });
     }
-    if (isStreamlitBridgeEnabled()) {
-      sections.push({ id: 'sec-internki', label: 'Browser-KI-Verbindung', keywords: 'browser interne ki lesezeichen verbindung testen gpt bridge ki assistent' });
-    }
+    // v3.0: Die Browser-KI-Verbindung ist in jeder Variante da (`streamlitBridge`
+    // war nirgends aus) — damit ist auch das Panel selbst immer vorhanden.
+    sections.push({ id: 'sec-internki', label: 'Browser-KI-Verbindung', keywords: 'browser interne ki lesezeichen verbindung testen gpt bridge ki assistent' });
     if (isDevContext()) {
       sections.push({ id: 'sec-provider', label: 'Provider', keywords: 'openrouter endpoint api key modell konfiguration' });
     }

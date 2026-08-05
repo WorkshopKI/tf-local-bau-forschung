@@ -37,7 +37,7 @@ import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useProfile } from '@/core/hooks/useProfile';
 import { acquireBuildLock, releaseLock, heartbeat } from '@/core/services/infrastructure/build-lock';
-import { isEmbeddingCorpusBuildEnabled, isDevContext } from '@/config/feature-flags';
+import { isDevContext } from '@/config/feature-flags';
 
 interface Props {
   storage: StorageService;
@@ -458,40 +458,35 @@ export function EmbeddingCorpusSection({ storage, antraege, embeddableAz }: Prop
                 Vom Datenspeicher laden (~{mirrorManifest.antraegeCount} Vektoren, ≈10 s)
               </button>
             )}
-            {/* C (v2.47): Build-Buttons nur wenn der lokale Build erlaubt ist.
-                In der Citrix-pl-Config ausgeblendet (embeddingCorpusBuild=false)
-                → der Build (200-MB-Modell im RAM) gehört auf einen ungeteilten
-                Rechner; Citrix-User nutzen nur "Vom Datenspeicher laden".
-                v2.56: Der Vollbuild (~47 min) bleibt zusätzlich dev-exklusiv
-                (`isDevContext`). „Inkrementell" steht damit auch im kurator-
-                Build (embeddingCorpusBuild default true, aber kein devContext)
-                zur Verfügung — der Kurator hält so den Themen-Katalog aktuell,
-                ohne den schweren Vollbuild auf einem Produktiv-Rechner. pl
-                bleibt unverändert (embeddingCorpusBuild=false → beide aus). */}
-            {isEmbeddingCorpusBuildEnabled() && (
-              <>
-                {isDevContext() && (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => void build(false)}
-                    disabled={total === 0}
-                  >
-                    Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void build(true)}
-                  disabled={total === 0 || count >= total}
-                >
-                  Inkrementell
-                </Button>
-              </>
+            {/* v3.0: `embeddingCorpusBuild` ist entfallen — nach der Varianten-
+                Zusammenlegung stand der Flag in allen Builds auf „erlaubt". Die
+                Buttons liegen ohnehin INNERHALB des Auslastungs-Moduls, das in
+                pl hinter dem Zusatzpasswort steckt; wer sie sieht, soll den
+                Katalog auch pflegen dürfen.
+                Der Vollbuild (~47 min, 200-MB-Modell im Main-Thread-RAM) bleibt
+                dev-exklusiv (`isDevContext`) — er gehört auf einen ungeteilten
+                Rechner, nicht auf eine Citrix-Sitzung. „Inkrementell" steht
+                allen Freigeschalteten zur Verfügung. */}
+            {isDevContext() && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => void build(false)}
+                disabled={total === 0}
+              >
+                Corpus aufbauen (~{Math.ceil(total * 0.2 / 60)} min)
+              </Button>
             )}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void build(true)}
+              disabled={total === 0 || count >= total}
+            >
+              Inkrementell
+            </Button>
             <Button
               type="button"
               variant="secondary"

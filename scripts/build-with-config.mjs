@@ -14,7 +14,7 @@
 import { readFileSync, writeFileSync, copyFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
-import { validateConfig, deepMerge } from './config-schema.mjs';
+import { validateConfig, deepMerge, buildBasis } from './config-schema.mjs';
 import { stripInlineWasm } from './strip-inline-wasm.mjs';
 
 const SHARED_CONFIG_PATH = resolve('configs/_shared.json');
@@ -79,7 +79,14 @@ function main() {
   const { configPath } = parseArgs(process.argv);
   const variantConfig = loadConfig(configPath);
   const sharedConfig = loadSharedConfigIfExists();
-  const config = sharedConfig ? deepMerge(sharedConfig, variantConfig) : variantConfig;
+
+  // v3.0: Neutrale Basis UNTER den Configs (alle Features aus, restriktive
+  // Daten-Defaults). Erst dadurch darf eine Variant-Config weglassen, was sie
+  // nicht aendert — vorher wurde jedes fehlende Feld zu `undefined` im Build.
+  // Bewusst `buildBasis()` statt `DEFAULT_CONFIG`: letztere ist die Dev-Server-
+  // Config und haette 14 Flags still eingeschaltet.
+  const basis = sharedConfig ? deepMerge(buildBasis(), sharedConfig) : buildBasis();
+  const config = deepMerge(basis, variantConfig);
 
   if (sharedConfig) {
     console.log(`✓ configs/_shared.json gemergt (Override durch ${configPath})`);

@@ -4,7 +4,6 @@ import { AntraegePage } from './AntraegePage';
 export const antraegePlugin: TeamFlowPlugin = {
   id: 'antraege',
   route: '/antraege',
-  featureFlag: 'antraege',
   name: 'Förderanträge',
   icon: 'FileText',
   category: 'workflow',

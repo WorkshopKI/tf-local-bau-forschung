@@ -18,6 +18,54 @@ export const CONFIG_SCHEMA_VERSION = 2;
 export const MODUL_SLOTS = ['auslastung', 'kurator'];
 
 /**
+ * v3.0: Merge-Basis fuer BUILDS — bewusst NICHT `DEFAULT_CONFIG`.
+ *
+ * `DEFAULT_CONFIG` ist die Dev-Server-Config: dort ist vieles absichtlich AN
+ * (devFixtures, kuratorMenus, anfragen, gutachten* …). Als Basis unter eine
+ * Variant-Config gelegt wuerde sie diese Flags still einschalten — in `prod`
+ * waeren das 14 Stueck. Die Build-Basis ist deshalb neutral: **alle Features aus,
+ * restriktive Daten-Defaults, kein Passwort, kein local-Block.**
+ *
+ * Dadurch enthaelt eine Variant-Config nur noch, was sie vom Standard
+ * UNTERSCHEIDET — und ein neu eingefuehrter Flag wirkt nirgends versehentlich,
+ * sondern muss bewusst eingeschaltet werden.
+ *
+ * `variant` und `build` stehen bewusst NICHT drin: sie identifizieren die
+ * Variante und muessen explizit bleiben, sonst erbte eine Config mit vergessenem
+ * `outputFilename` still den Namen „teamflow".
+ */
+export function buildBasis() {
+  const ausserFeatures = Object.fromEntries(
+    Object.keys(DEFAULT_CONFIG.features).map(k => [k, false]),
+  );
+  return {
+    configVersion: CONFIG_SCHEMA_VERSION,
+    data: {
+      fixedDataSharePath: null,
+      expectedFolderName: null,
+      allowUserToChangePath: false,
+      allowLocalFallback: false,
+      demoDataBundled: false,
+    },
+    personalFolder: { ...DEFAULT_CONFIG.personalFolder },
+    features: ausserFeatures,
+    menuLabels: { ...DEFAULT_CONFIG.menuLabels },
+    ki: {
+      localLlama: { ...DEFAULT_CONFIG.ki.localLlama },
+      // OpenRouter ist in Produktiv-Varianten verboten (validateConfig) — der
+      // neutrale Default ist deshalb „aus".
+      openrouter: { enabled: false, allowedModels: [] },
+    },
+    branding: { ...DEFAULT_CONFIG.branding },
+    scan: { ...DEFAULT_CONFIG.scan },
+    dev: null,
+    auth: null,
+    moduleAuth: null,
+    local: null,
+  };
+}
+
+/**
  * Deep-Merge zweier Plain-Objekte. Override gewinnt; Sub-Objekte werden rekursiv
  * gemergt; Arrays werden ERSETZT (nicht concatenated), weil variant-spezifische
  * Listen wie `scan.file_extensions` sonst stillschweigend wachsen wuerden.
@@ -94,27 +142,13 @@ export const DEFAULT_CONFIG = {
 
   features: {
     kuratorMenus: true,
-    feedback: true,
     dokumentenscan: false,
-    volltextsuche: true,
     devInfraPanel: true,
     devFixtures: true,
-    // Bereichs-Menü: `antraege` (Förderanträge) ist der einzige Bereich und muss
-    // aktiv sein. `dokumente` ist ein Phase-2-Platzhalter.
-    antraege: true,
+    // `dokumente` ist ein Phase-2-Platzhalter. Der Bereich „Förderanträge" hat
+    // seit v3.0 keinen Flag mehr — er existiert in jeder Variante.
     dokumente: false,
     auslastung: false,
-    /** Selbsteintragungs-Sektion + Banner auf der Homepage. Im Gegensatz zu
-     *  `auslastung` (volles PL-Plugin in der Sidebar) ist das ein
-     *  End-User-Feature: jeder Bearbeiter mit gesetztem Kuerzel sieht
-     *  passende Antraege seiner Hauptkategorie auf der Home. Default false,
-     *  damit prod-Builds das Feature explizit aktivieren. */
-    auslastungSelbstEintragung: false,
-    /** v2.5: Klartext-Anzeige der TIB-Kuerzel im Auslastungs-Modul, nach
-     *  Passwort-Eingabe freischaltbar (24h-Session). Nur in dev + pl
-     *  Varianten aktiviert, die auf einem geschuetzten SMB-Bereich liegen
-     *  und nur von der PL aufgerufen werden. */
-    deAnonymisierung: false,
     /** v2.x: Schreibrecht auf den Daten-Share auch fuer Nicht-Kuratoren. Hebt
      *  das v2.0-read-only-Hardening (Pitfall #24) gezielt fuer Rollen auf, die
      *  aktiv in `_intern/*` schreiben muessen — konkret die PL (Auslastungs-
@@ -127,16 +161,6 @@ export const DEFAULT_CONFIG = {
      *  verhindert Fremd-Eintragen. Greift nur wenn die Zugangsdatei existiert
      *  (sonst Fallback aufs alte Kuerzelfeld). Nur prod (+ dev zum Testen). */
     maLogin: true,
-    /** v2.11: PL-Funktion „Zugangspasswort generieren" in der MA-Verwaltung —
-     *  verschluesselt das echte Kuerzel unter einem generierten 2-Wort-Passwort
-     *  und schreibt den Eintrag in `_intern/auslastung-zugang.enc`. Braucht
-     *  `datenShareSchreibrecht` + `deAnonymisierung`. Nur pl (+ dev zum Testen). */
-    maVerwaltungPasswort: true,
-    // User-Plugin-Gate "suche": getrennt vom Master-Flag volltextsuche (das den
-    // Suchindex-Kurator gated), damit Varianten den Kurator-Index freischalten
-    // können, ohne dass das User-Suche-Plugin in der Sidebar erscheint
-    // (vgl. kurator-Variante: Kuration nach Login, Standard-Sidebar bleibt schmal).
-    suche: true,
     /** Dev-only: Löschen von Feedback-Tickets im Kurator-Dashboard (nach
      *  Bestätigung). Destruktiv — default false, nur dev true. */
     feedbackDelete: true,
@@ -148,26 +172,10 @@ export const DEFAULT_CONFIG = {
      *  Braucht `datenShareSchreibrecht` zum Schreiben des Snapshots. Der Kurator-
      *  Banner läuft unabhängig weiter über `kuratorMenus`. */
     csvAutoRefresh: false,
-    /** v2.47: Lokaler Themenkorpus-Build erlaubt (Embedding-Modell ~200 MB im
-     *  RAM). In geteilten Citrix-pl-Sitzungen auf false → Build-Buttons aus,
-     *  nur Download. Optional (kein requiredFlags-Eintrag) — fehlt = erlaubt. */
-    embeddingCorpusBuild: true,
-    /** v2.56: Auslastungs-Modul auf reine Themen-Vektoren-Korpus-Pflege
-     *  beschränken (kurator-Variante). Modul ist aktiv (features.auslastung),
-     *  aber nur der schlanke Korpus-View erscheint — keine MA-Auslastung-/
-     *  Zuweisung-/Kompetenz-Tabs, keine MA-mutierenden Hooks. Default false
-     *  (optional, kein requiredFlags-Eintrag). */
-    auslastungNurKorpus: false,
     /** v2.59: „Online"-Tab in den Einstellungen — zeigt zuletzt aktive Team-User
      *  aus den eingesammelten Heartbeats. Nur pl (+ dev zum Testen). Optional,
      *  default false. */
     onlineStatusTab: false,
-    /** Kürzel-Auswahl als Dropdown (statt Freitext) im Einstellungs-Profil, ohne
-     *  das volle Auslastungs-Modul. Für Varianten wie AS, die den Bearbeiter-
-     *  Filter wie PL haben sollen (auslastung aus). Fällt auf `auslastung` zurück
-     *  → pl/dev/kurator unverändert. Optional, default false (kein requiredFlags-
-     *  Eintrag → fehlt = aus, Backward-Kompat). */
-    kuerzelDropdown: false,
     /** Gutachten-Testballon: KI-gestuetzte Kurzfassung auf der Foerderantrags-
      *  Detailseite (Dokumenten-Aufnahme → Skill → Review/Freigabe → DOCX-Vorlage).
      *  Erster „Mini-Agent" — dev + pl. Optional, default false
@@ -208,12 +216,6 @@ export const DEFAULT_CONFIG = {
      *  Plugin-Flag, dev + pl + as + kurator. Optional, default false
      *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     anfragen: true,
-    /** In-App „Streamlit Bridge"-Installer im KI-Assistent-Tab: Streamlit-URL
-     *  konfigurieren, Bookmarklet in die Lesezeichenleiste ziehen, Verbindung
-     *  (tf-ping → tf-pong) testen. Zugang zum internen gpt-oss ohne API.
-     *  Sichtbar in dev + prod + kurator + pl. Optional, default false
-     *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
-    streamlitBridge: true,
     /** v2.97: Delta-Snapshots SCHREIBEN (nur geänderte antraege-Records
      *  publizieren). Default false (DEFAULT/dev-Server + Tests bleiben auf dem
      *  vollen v1-Write); in pl/kurator-Configs auf true. Der Leser versteht
@@ -437,13 +439,14 @@ export function validateConfig(config) {
   }
 
   const features = config.features ?? {};
+  // v3.0: Nur noch die sicherheits-/zugriffsrelevanten Flags muessen explizit in
+  // JEDER Config stehen. Alles andere erbt aus DEFAULT_CONFIG (build-with-config
+  // mergt sie als Basis) — eine Variant-Config enthaelt damit nur noch, was sie
+  // vom Standard UNTERSCHEIDET. Das war die Ursache der as/pl-Drift: jede Config
+  // wiederholte alles, und eine vergessene Zeile fiel niemandem auf.
   const requiredFlags = [
-    'kuratorMenus', 'feedback', 'dokumentenscan', 'volltextsuche', 'devInfraPanel', 'devFixtures',
-    'antraege', 'dokumente', 'auslastung', 'auslastungSelbstEintragung',
-    'deAnonymisierung', 'datenShareSchreibrecht',
-    'maLogin', 'maVerwaltungPasswort',
-    'suche',
-    'csvAutoRefresh',
+    'kuratorMenus', 'devFixtures', 'auslastung',
+    'datenShareSchreibrecht', 'maLogin', 'dokumentenscan',
   ];
   for (const k of requiredFlags) {
     if (typeof features[k] !== 'boolean') {
@@ -458,11 +461,9 @@ export function validateConfig(config) {
     );
   }
 
-  // Das Bereichs-Menü `antraege` (Förderanträge) ist der einzige Bereich und
-  // muss aktiv sein. `dokumente` zählt nicht — reiner Phase-2-Platzhalter.
-  if (!features.antraege) {
-    errors.push('features.antraege muss aktiv sein (einziges Bereichs-Menü).');
-  }
+  // v3.0: Der frühere `features.antraege`-Zwang („muss aktiv sein") ist entfallen —
+  // ein Flag, der nur einen Wert annehmen darf, ist keiner. Der Bereich existiert
+  // jetzt unbedingt; geprüft wird stattdessen sein Menü-Label (siehe unten).
 
   // Die Assistent-Phasen bauen aufeinander auf: Phase 2 destilliert das Phase-0-
   // Protokoll (Quelle) und speist ausschliesslich den Phase-1-Panel-Kontext (Senke).
@@ -483,8 +484,13 @@ export function validateConfig(config) {
   if (typeof menuLabels !== 'object' || Array.isArray(menuLabels)) {
     errors.push('menuLabels muss Objekt sein');
   } else {
-    const labelKeys = ['antraege', 'dokumente'];
-    for (const key of labelKeys) {
+    // `antraege` hat seit v3.0 keinen Flag mehr (der Bereich ist in jeder Variante
+    // da) — sein Label ist deshalb UNBEDINGT Pflicht, nicht flag-abhaengig.
+    if (typeof menuLabels.antraege !== 'string' || !menuLabels.antraege.trim()) {
+      errors.push('menuLabels.antraege muss ein nicht-leerer String sein (der Bereich existiert in jeder Variante)');
+    }
+    {
+      const key = 'dokumente';
       const flagActive = features[key] === true;
       const label = menuLabels[key];
       if (flagActive) {
@@ -566,16 +572,12 @@ export function validateConfig(config) {
       'Kurator-Menüs deaktiviert, aber fester Daten-Pfad konfiguriert: wer importiert dann Daten?',
     );
   }
-  if (features.feedback === false && features.kuratorMenus === true) {
-    warnings.push(
-      'Feedback-System aus, Kurator-Menüs aber an: Feedback-Verwaltung/-Board im Kurator-UI wird nicht sichtbar sein',
-    );
-  }
-  // v2.11: PL-Passwort-Erzeugung schreibt `_intern/auslastung-zugang.enc` —
+  // v2.11: Die PL-Passwort-Erzeugung schreibt `_intern/auslastung-zugang.enc` —
   // braucht Schreibrecht auf dem Daten-Share, sonst wirft die Aktion NotAllowedError.
-  if (features.maVerwaltungPasswort === true && features.datenShareSchreibrecht !== true) {
+  // v3.0: Der eigene Flag ist entfallen, die Funktion haengt jetzt am Modul selbst.
+  if (features.auslastung === true && features.datenShareSchreibrecht !== true) {
     warnings.push(
-      'features.maVerwaltungPasswort=true ohne datenShareSchreibrecht: die PL kann die Zugangsdatei nicht schreiben (NotAllowedError beim Passwort-Generieren).',
+      'features.auslastung=true ohne datenShareSchreibrecht: die PL kann weder die Klassifizierung noch die Zugangsdatei schreiben (NotAllowedError).',
     );
   }
   // v2.18: CSV-Auto-Refresh (pl-Banner) schreibt beim Aktualisieren den Snapshot
