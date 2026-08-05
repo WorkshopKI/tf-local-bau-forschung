@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.411.0 — Profilhaken benannt, Reitergruppen getrennt, Lane-Zaehler sichtbar (August 2026)
+
+MINOR — Nachlese zu v2.404/v2.410 samt Sichtprüfung am echten Bestand. Der Profilhaken hieß seit der Trennung von Antrags- und Begleitphase falsch, die Reiterleiste zeigte zwei Bestandssichten und drei Zeitschnitte als eine Reihe, und die Prüfung fand zwei Stellen, an denen Text schlicht verschwand. Detail: [status-achsen.md](docs/architecture/status-achsen.md).
+
+- **Profilhaken heißt jetzt „Meine ZTP-/PFM-Zuständigkeiten mitzählen"** und benennt die Folge ohne Haken genau, statt Sichtbarkeit zu suggerieren ([ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx))
+- **Trenner in der Reiterleiste** vor „Diese Woche" — additiver Slot `trennerDavor` am Primitiv, keine zweite Leiste ([ScopeTabs.tsx](src/components/ui/ScopeTabs.tsx), [AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Kanban-Lane „Entscheidungsreif": der Zähler war vollständig abgeschnitten** — die Zahl weicht nie mehr, die Bezeichnung als letzte ([KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx))
+- **Tooltips am rechten Fensterrand** schrumpften auf einen Rest-Streifen (gemessen 151 statt 300 px) statt zu klemmen ([Tooltip.tsx](src/components/ui/Tooltip.tsx))
+- `file://`-Tauglichkeit des `zah-pl`-Builds statisch geprüft: keine absoluten Asset-Pfade, kein relativer `fetch`, kein Datei-Worker; Restrisiken als Prüfliste im Protokoll (Doppelklick-Test bleibt Handtest)
+
 ### v2.410.0 — Verfahrensschritt kuratierbar, Arbeitsliste unterscheidbar (August 2026)
 
 MINOR — Die Abstimmung mit AB und FB hat ergeben, dass der Phasenzuschnitt strittig ist und mehrfach geändert wird; ein Release je Iteration ist dafür zu langsam. Zugleich hießen vier der neun Arbeitslisten wortgleich wie ein Verfahrensschritt — zwei Spalten mit halb denselben Wörtern, und keine sagte wozu. Detail: [status-achsen.md](docs/architecture/status-achsen.md).

@@ -87,14 +87,18 @@ export function ProfilTab(): React.ReactElement {
           </SettingsRowGroup>
           <SettingsRowSeparator />
           <SettingsRowGroup>
+            {/* Seit v2.404 schneidet der Haken nur noch die Spaltenauswahl zu
+                (`spaltenFuer` in antraege/bearbeiterFilter.ts) — er blendet
+                nichts mehr aus. Die alte Beschriftung „Begleitungen
+                einschließen" las sich weiter wie ein Sichtbarkeits-Schalter. */}
             <Switch
               checked={!!profile.bearbeiter_inkl_begleitung}
               onCheckedChange={v => updateProfile({ bearbeiter_inkl_begleitung: v })}
-              aria-label="Begleitungen einschließen"
+              aria-label="Meine ZTP-/PFM-Zuständigkeiten mitzählen"
             />
             <FieldLabel
-              text="Begleitungen einschließen"
-              hint="Zählt Anträge, auf denen Ihr Kürzel in der Begleitung steht (ZTP_KUERZ, PFM_KUERZ), zu Ihren eigenen. Sichtbar ist die Begleitphase unabhängig davon — sie hat einen eigenen Reiter. Frist für VN-Anträge: D_VBE + 6 Monate."
+              text="Meine ZTP-/PFM-Zuständigkeiten mitzählen"
+              hint="Mit Haken gelten Anträge, in denen Ihr Kürzel in der Begleitung steht (ZTP_KUERZ, PFM_KUERZ), als Ihre eigenen. Ohne Haken bleibt der Reiter „Begleitung“ sichtbar, zeigt bei aktivem Kürzel-Filter aber nur die Anträge, in denen Sie direkt als Bearbeiter geführt sind (TIB_KUERZ/BIB_KUERZ, bei gesetzter Rolle nur deren Spalte). Frist für VN-Anträge: D_VBE + 6 Monate."
             />
           </SettingsRowGroup>
           <SettingsRowSeparator />

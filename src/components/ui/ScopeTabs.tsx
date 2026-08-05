@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface ScopeTabItem {
@@ -15,6 +16,29 @@ export interface ScopeTabItem {
   disabled?: boolean;
   /** Nativer title-Tooltip (z.B. Grund der Deaktivierung). */
   title?: string;
+  /**
+   * Dünne senkrechte Linie VOR diesem Tab — trennt Reiter, die verschiedene
+   * Dinge tun, ohne sie umzusortieren oder zu verstecken (Förderanträge:
+   * Bestands-Sichten „Antragsphase | Begleitung" vs. Zeitschnitte darauf).
+   * Wie `leading` ein Slot am Primitiv, weil der Guard `no-parallel-scope-tabs`
+   * eine danebengebaute Leiste verbietet. Am ersten Tab wirkungslos.
+   */
+  trennerDavor?: boolean;
+}
+
+/** Die Trennlinie — je Variante anders eingepasst, überall dasselbe Token. */
+function Trenner({ variant }: { variant: 'tabs' | 'pills' | 'segmented' }): React.ReactElement {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'w-px shrink-0 bg-[var(--tf-border)]',
+        // 'tabs' sind unten bündig (items-end) und tragen pb-2.5 Luft unter der
+        // Schrift: die Linie endet auf Höhe der Grundlinie statt am Container.
+        variant === 'tabs' ? 'h-4 mb-2.5 -mx-1' : 'h-4 self-center mx-0.5',
+      )}
+    />
+  );
 }
 
 export interface ScopeTabsProps {
@@ -63,39 +87,41 @@ export function ScopeTabs({
           className,
         )}
       >
-        {items.map(it => {
+        {items.map((it, i) => {
           const active = it.key === activeKey;
           return (
-            <button
-              key={it.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-disabled={it.disabled || undefined}
-              title={it.title}
-              onClick={() => { if (!it.disabled) onChange(it.key); }}
-              className={cn(
-                'h-7 px-4 rounded-[var(--tf-radius-sm)] inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors',
-                it.disabled
-                  ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
-                  : active
-                    ? 'bg-[var(--tf-primary)] text-[var(--tf-on-primary)] shadow-sm cursor-pointer'
-                    : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
-              )}
-            >
-              {it.leading}
-              {it.label}
-              {it.count != null && (
-                <span
-                  className={cn(
-                    'text-[11px] [font-family:var(--tf-font-mono)]',
-                    active ? 'text-[var(--tf-on-primary)] opacity-75' : 'text-[var(--tf-text-tertiary)]',
-                  )}
-                >
-                  {fmtCount(it.count)}
-                </span>
-              )}
-            </button>
+            <Fragment key={it.key}>
+              {it.trennerDavor && i > 0 && <Trenner variant="segmented" />}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-disabled={it.disabled || undefined}
+                title={it.title}
+                onClick={() => { if (!it.disabled) onChange(it.key); }}
+                className={cn(
+                  'h-7 px-4 rounded-[var(--tf-radius-sm)] inline-flex items-center gap-1.5 text-[13px] font-medium transition-colors',
+                  it.disabled
+                    ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                    : active
+                      ? 'bg-[var(--tf-primary)] text-[var(--tf-on-primary)] shadow-sm cursor-pointer'
+                      : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
+                )}
+              >
+                {it.leading}
+                {it.label}
+                {it.count != null && (
+                  <span
+                    className={cn(
+                      'text-[11px] [font-family:var(--tf-font-mono)]',
+                      active ? 'text-[var(--tf-on-primary)] opacity-75' : 'text-[var(--tf-text-tertiary)]',
+                    )}
+                  >
+                    {fmtCount(it.count)}
+                  </span>
+                )}
+              </button>
+            </Fragment>
           );
         })}
       </div>
@@ -105,39 +131,41 @@ export function ScopeTabs({
   if (variant === 'pills') {
     return (
       <div role="tablist" aria-label={ariaLabel} className={cn('flex gap-1', className)}>
-        {items.map(it => {
+        {items.map((it, i) => {
           const active = it.key === activeKey;
           return (
-            <button
-              key={it.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-disabled={it.disabled || undefined}
-              title={it.title}
-              onClick={() => { if (!it.disabled) onChange(it.key); }}
-              className={cn(
-                'h-[26px] px-[11px] rounded-full inline-flex items-center gap-[5px] text-[12px] transition-colors border-[0.5px]',
-                it.disabled
-                  ? 'bg-[var(--tf-bg)] border-[var(--tf-border)] text-[var(--tf-text-tertiary)] cursor-not-allowed'
-                  : active
-                    ? 'bg-[var(--tf-primary-light)] border-transparent text-[var(--tf-primary)] font-medium cursor-pointer'
-                    : 'bg-[var(--tf-bg)] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer',
-              )}
-            >
-              {it.leading}
-              {it.label}
-              {it.count != null && (
-                <span
-                  className={cn(
-                    'text-[10px] [font-family:var(--tf-font-mono)]',
-                    active ? 'text-[var(--tf-primary)] opacity-75' : 'text-[var(--tf-text-tertiary)]',
-                  )}
-                >
-                  {fmtCount(it.count)}
-                </span>
-              )}
-            </button>
+            <Fragment key={it.key}>
+              {it.trennerDavor && i > 0 && <Trenner variant="pills" />}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-disabled={it.disabled || undefined}
+                title={it.title}
+                onClick={() => { if (!it.disabled) onChange(it.key); }}
+                className={cn(
+                  'h-[26px] px-[11px] rounded-full inline-flex items-center gap-[5px] text-[12px] transition-colors border-[0.5px]',
+                  it.disabled
+                    ? 'bg-[var(--tf-bg)] border-[var(--tf-border)] text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                    : active
+                      ? 'bg-[var(--tf-primary-light)] border-transparent text-[var(--tf-primary)] font-medium cursor-pointer'
+                      : 'bg-[var(--tf-bg)] border-[var(--tf-border-hover)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer',
+                )}
+              >
+                {it.leading}
+                {it.label}
+                {it.count != null && (
+                  <span
+                    className={cn(
+                      'text-[10px] [font-family:var(--tf-font-mono)]',
+                      active ? 'text-[var(--tf-primary)] opacity-75' : 'text-[var(--tf-text-tertiary)]',
+                    )}
+                  >
+                    {fmtCount(it.count)}
+                  </span>
+                )}
+              </button>
+            </Fragment>
           );
         })}
       </div>
@@ -151,32 +179,34 @@ export function ScopeTabs({
       aria-label={ariaLabel}
       className={cn('flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden', className)}
     >
-      {items.map(it => {
+      {items.map((it, i) => {
         const active = it.key === activeKey;
         return (
-          <button
-            key={it.key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-disabled={it.disabled || undefined}
-            title={it.title}
-            onClick={() => { if (!it.disabled) onChange(it.key); }}
-            className={cn(
-              'pb-2.5 text-[14px] whitespace-nowrap transition-colors inline-flex items-center gap-2',
-              it.disabled
-                ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
-                : active
-                  ? 'text-[var(--tf-primary)] font-medium border-b-2 border-[var(--tf-primary)] -mb-px cursor-pointer'
-                  : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
-            )}
-          >
-            {it.leading}
-            {it.label}
-            {it.count != null && (
-              <span className="text-[12px] text-[var(--tf-text-tertiary)]">{fmtCount(it.count)}</span>
-            )}
-          </button>
+          <Fragment key={it.key}>
+            {it.trennerDavor && i > 0 && <Trenner variant="tabs" />}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-disabled={it.disabled || undefined}
+              title={it.title}
+              onClick={() => { if (!it.disabled) onChange(it.key); }}
+              className={cn(
+                'pb-2.5 text-[14px] whitespace-nowrap transition-colors inline-flex items-center gap-2',
+                it.disabled
+                  ? 'text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                  : active
+                    ? 'text-[var(--tf-primary)] font-medium border-b-2 border-[var(--tf-primary)] -mb-px cursor-pointer'
+                    : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
+              )}
+            >
+              {it.leading}
+              {it.label}
+              {it.count != null && (
+                <span className="text-[12px] text-[var(--tf-text-tertiary)]">{fmtCount(it.count)}</span>
+              )}
+            </button>
+          </Fragment>
         );
       })}
     </div>

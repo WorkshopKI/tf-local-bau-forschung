@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.411 — 2026-08
+
+### Verbesserungen
+- In der Reiterleiste der Förderanträge trennt eine feine Linie die beiden Bestandssichten („Antragsphase", „Begleitung") von den Zeitschnitten darauf („Diese Woche", „Überfällig", „Bewilligt 2026").
+- Der Haken in den Einstellungen heißt jetzt „Meine ZTP-/PFM-Zuständigkeiten mitzählen" und erklärt, was ohne ihn passiert: Der Reiter „Begleitung" bleibt sichtbar, zeigt bei aktivem Kürzel-Filter aber nur noch Anträge, in denen Sie direkt als Bearbeiter stehen.
+
+### Bugfixes
+- Im Kanban auf der Startseite war die Anzahl in der Spalte „Entscheidungsreif" nicht zu sehen — die lange Überschrift hatte sie aus der Spalte geschoben.
+- Erklärungs-Tooltips nahe dem rechten Fensterrand wurden zu einer schmalen, sehr hohen Textsäule zusammengedrückt.
+
 ## v2.410 — 2026-08
 
 ### Neu

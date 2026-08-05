@@ -137,7 +137,17 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           {listeSichtbar ? (
             <ScopeTabs
               variant="tabs"
-              items={VIEWS.map(v => ({ key: v.key, label: v.label, count: counts[v.key] }))}
+              // Trenner vor „Diese Woche": links teilen „Antragsphase" und
+              // „Begleitung" den Bestand in zwei Hälften mit je eigener Uhr
+              // (Antragsdatum + 90 Tage vs. VN-Eingang + 6 Monate), rechts
+              // stehen Zeitschnitte darauf und „Alle". Ohne die Linie liest
+              // sich „Begleitung" wie ein weiterer Zeitschnitt.
+              items={VIEWS.map(v => ({
+                key: v.key,
+                label: v.label,
+                count: counts[v.key],
+                trennerDavor: v.key === 'diese_woche_faellig',
+              }))}
               activeKey={activeView}
               onChange={key => setActiveView(key as ViewKey)}
               aria-label="Ansicht"

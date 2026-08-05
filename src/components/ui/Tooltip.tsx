@@ -83,6 +83,14 @@ export function Tooltip({
           style={{
             left: `${pos.x}px`,
             top: `${pos.y}px`,
+            // `width: max-content` ist hier NICHT kosmetisch: ein fixiertes
+            // Element mit `left` bekommt als verfügbare Breite nur den Rest bis
+            // zum rechten Fensterrand. Ohne die Zeile schrumpft ein Tooltip nahe
+            // der rechten Kante auf diesen Rest (gemessen: 151 px statt 300) und
+            // wird zur Textsäule — und die Klemmung unten rechnet mit genau
+            // dieser falschen Breite weiter. Mit `max-content` ist die Breite der
+            // Inhalt (gedeckelt durch maxWidth), die Klemmung schiebt danach.
+            width: 'max-content',
             maxWidth: `${maxWidth}px`,
             transform: pos.above ? 'translate(-50%, -100%)' : 'translateX(-50%)',
             backgroundColor: 'var(--tf-bg-secondary)',
