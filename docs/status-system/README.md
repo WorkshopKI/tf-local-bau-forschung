@@ -114,6 +114,28 @@ unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar
   fest im Code. Warum das so asymmetrisch ist, und wie die Bezeichnungen
   zusammenhängen: [status-achsen.md](../architecture/status-achsen.md)
   (Pitfall #50).
+- **Die Drift gegenüber der Auslieferung wird ausgewiesen, nicht zurückgesetzt**
+  (seit v3.1, [katalog-drift.ts](../../src/core/status/katalog-drift.ts)). Weil der
+  Schnitt seit v2.409 in der App kuratiert wird und `prod` weiter auf dem Seed
+  läuft, wächst der Abstand zwischen beiden — sichtbar war er nirgends.
+  `katalogDrift(fassung, seed)` bilanziert ihn nach Phasen, Zuordnungen,
+  Zieltagen, Statuswerten und Prominenz; angezeigt als ausklappbare Zeile über dem
+  Ansichtsumschalter im Statuswerte-Tab. Drei Regeln:
+  - **Sie stellt fest, sie ändert nichts.** Anders als bei
+    `todoRegelDrift`/`zieheTodoRegelnNach` gibt es **kein** Nachzieh-Gegenstück:
+    hier ist die Kuration der spätere Stand, und „Drift zurücksetzen" verwürfe
+    genau die Arbeit, die die Bilanz sichtbar macht.
+  - **Keine zweite Vergleichslogik**: der Code→Phase-Schnitt kommt für beide
+    Seiten aus `schnittVon`, die Phasenliste aus `zahPhasenVon`. Denselben Aufruf
+    nutzt die Klärungsseite für ihren Ist-Stand-Vermerk
+    ([klaerung.md](../architecture/klaerung.md)).
+  - **Gezählt wird die Sache, nicht die Katalogzeile.** Ein Status steht zweimal
+    im Katalog (TV- und Verbund-Feld); ungefiltert meldete die Bilanz jeden
+    gepflegten Zieltag doppelt. Entdoppelt wird nach Code **und** Aussage — sagen
+    beide Zeilen dasselbe, zählt es einmal; sagen sie Verschiedenes, bleiben
+    beide, sonst verschwiege die Bilanz ein Auseinanderlaufen. `w.kategorie` ist
+    bewusst **nicht** Teil des Vergleichs: das Feld ist abgeleitet und wird vom
+    Snapshot neu gerechnet (Pitfall #45).
 
 ## Weitere Docs
 

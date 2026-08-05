@@ -20,7 +20,7 @@ import { thKlasse, tdKlasse, rahmenStil, kurzDatum } from './labels';
 import { AntwortZelle } from './AntwortZelle';
 import { PunktKommentare } from './PunktKommentare';
 import { beitraegeSortiert, type EintragEingabe } from './fold';
-import { standMarke, zeigtStand, type GruppeAnsicht, type ZeileAnsicht } from './gruppen';
+import { standMarke, zeigtStand, zeigtIstStand, type GruppeAnsicht, type ZeileAnsicht } from './gruppen';
 import type { KlaerungStand } from './typen';
 
 /** Was jede Ebene der Tabelle zum Antworten braucht. */
@@ -41,6 +41,28 @@ function Marke({ zeile }: { zeile: ZeileAnsicht }): React.ReactElement | null {
       className={`text-[11.5px] ${marke.leise ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}
       title={marke.title}
     >• {marke.text}</span>
+  );
+}
+
+/**
+ * Was der Katalog heute führt — Phase und Vermerk übereinander.
+ *
+ * Der Vermerk ist eine **Feststellung**, keine Rüge: „noch offen" heißt, der
+ * Beschluss steht da und ist nicht vollzogen, nicht dass jemand etwas versäumt
+ * hätte. Deshalb dieselbe ruhige Optik wie bei `Marke` — nur die Änderung ohne
+ * passenden Beschluss steht in der normalen Textfarbe, weil genau die sonst
+ * niemandem auffällt.
+ */
+function IstStand({ zeile }: { zeile: ZeileAnsicht }): React.ReactElement | null {
+  const m = zeile.istStand;
+  if (m === null) return null;
+  return (
+    <span className="flex flex-col leading-tight" title={m.title}>
+      <span className="text-[12px] text-[var(--tf-text-secondary)]">{m.phase}</span>
+      <span className={`text-[11px] ${m.leise ? 'text-[var(--tf-text-tertiary)]' : 'text-[var(--tf-text)]'}`}>
+        {m.text}
+      </span>
+    </span>
   );
 }
 
@@ -77,13 +99,14 @@ function GruppenKopf({ gruppe, spalten }: {
 }
 
 function Zeile({
-  zeile, istOffen, umschalten, kontext, mitStand, spalten,
+  zeile, istOffen, umschalten, kontext, mitStand, mitIstStand, spalten,
 }: {
   zeile: ZeileAnsicht;
   istOffen: boolean;
   umschalten: () => void;
   kontext: AntwortKontext;
   mitStand: boolean;
+  mitIstStand: boolean;
   spalten: number;
 }): React.ReactElement {
   const id = zeile.punkt.id;
@@ -96,6 +119,7 @@ function Zeile({
         </td>
         <td className={tdKlasse}>{zeile.punkt.bezeichnung ?? zeile.punkt.titel}</td>
         {mitStand && <td className={tdKlasse}><Marke zeile={zeile} /></td>}
+        {mitIstStand && <td className={tdKlasse}><IstStand zeile={zeile} /></td>}
         <td className={`${tdKlasse} text-right tabular-nums text-[var(--tf-text-secondary)]`}>
           {zeile.vorkommen === null ? '—' : zeile.vorkommen.toLocaleString('de-DE')}
         </td>
@@ -153,7 +177,10 @@ export function PunkteTabelle({
   // Bezeichnung die Breite. Maßstab ist die Marke, nicht „irgendwer hat geklickt":
   // sind sich alle einig, gibt es nichts zu melden — und keine leere Spalte.
   const mitStand = zeigtStand(gruppen);
-  const spalten = mitStand ? 5 : 4;
+  // Dieselbe Regel für den Ist-Stand: steht der Katalog überall auf der
+  // Auslieferung und ist nichts beschlossen, gibt es nichts zu vermerken.
+  const mitIstStand = zeigtIstStand(gruppen);
+  const spalten = 4 + (mitStand ? 1 : 0) + (mitIstStand ? 1 : 0);
 
   if (gruppen.length === 0) {
     return (
@@ -171,6 +198,14 @@ export function PunkteTabelle({
             <th className={`${thKlasse} w-[64px]`}>Code</th>
             <th className={thKlasse}>Bezeichnung</th>
             {mitStand && <th className={`${thKlasse} w-[132px]`}>Stand</th>}
+            {mitIstStand && (
+              <th
+                className={`${thKlasse} w-[150px]`}
+                title="Was der Status-Katalog heute führt — und ob der Beschluss dort schon steht"
+              >
+                Ist-Stand
+              </th>
+            )}
             <th
               className={`${thKlasse} text-right w-[110px]`}
               title={bestandVom === null
@@ -199,6 +234,7 @@ export function PunkteTabelle({
                     umschalten={() => setOffen(offen === zeile.punkt.id ? null : zeile.punkt.id)}
                     kontext={kontext}
                     mitStand={mitStand}
+                    mitIstStand={mitIstStand}
                     spalten={spalten}
                   />
                 </Fragment>

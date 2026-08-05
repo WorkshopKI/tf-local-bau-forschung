@@ -133,22 +133,78 @@ als wer Donnerstag importiert hat — deshalb trägt die Spalte den Bestandsstan
 Stempel. Der Zähl-Lauf startet **nach** dem ersten Rendern; scheitert er, bleiben
 die Zahlen leer („—") und die Klärung funktioniert weiter.
 
+## 5a. Ist-Stand: was der Katalog dazu heute führt (seit v3.1)
+
+Beschlossen wird hier, **vollzogen wird im Baum** — und bis v3.0 war zwischen
+beidem keine Verbindung. In der Klärung stand bei Code 29 „einig → Abgeschlossen",
+im Baum stand er weiterhin ohne Phase; beides stimmte für sich, der Widerspruch
+fiel nirgends auf. Die Spalte **Ist-Stand** stellt ihn daneben: die gepflegte Phase
+des Codes plus einen von drei Vermerken.
+
+| Lage | Vermerk |
+|---|---|
+| Konsens und Fassung stimmen überein | **umgesetzt** |
+| Konsens weicht ab, die Fassung steht noch auf der Auslieferung | **noch offen** |
+| Die Fassung trägt eine Änderung, zu der es keinen oder einen anderen Konsens gibt | **abweichend beschlossen** |
+
+Die drei Lagen sind **disjunkt** ([`istStandVon`](../../src/plugins/zu-klaeren/gruppen.ts)).
+Der Fall Code 29 landet unter *noch offen* — der Beschluss steht da, vollzogen ist
+er nicht; ihn *abweichend* zu nennen unterstellte dem Katalog eine Änderung, die er
+nicht trägt. Beide Lagen zählen zum Filter **„Nicht umgesetzt"**, mit dem sich am
+Ende einer Sitzung in einem Klick zeigen lässt, was noch offen ist.
+
+Zwei Regeln dazu:
+
+- **Nichts wird angeglichen.** Weder wird die Fassung nach dem Konsens geändert
+  noch umgekehrt. Der Vermerk stellt fest; die Entscheidung bleibt beim Menschen.
+- **Verglichen wird genau einmal.** Die gepflegte Phase je Code kommt aus
+  [`katalogDrift`](../../src/core/status/katalog-drift.ts) — dieselbe Funktion, die
+  im Statuswerte-Tab die Bilanz zeigt. Bis v3.0 stand in `useKlaerung` daneben eine
+  eigene Filterschleife über `zahPhaseId`, also eine zweite Wahrheit über dieselbe
+  Frage.
+
+Die Spalte erscheint nur, wenn eine Zeile etwas zu vermerken hat
+(`zeigtIstStand`, dieselbe Mechanik wie bei „Stand"). Ohne geladene Fassung
+schweigt sie ganz, statt „steht auf Auslieferungsstand" zu behaupten. Beschriftet
+wird sie gegen die **Fassung** (`fassungLabel`) und nicht gegen die Auslieferung —
+sonst hieße ein selbst angelegter Verfahrensschritt „Marker (ohne Phase)".
+
 ## 6. Ergebnis mitnehmen
 
-Drei Ausgaben ([export.ts](../../src/plugins/zu-klaeren/export.ts)), weil drei
-verschiedene Leute etwas anderes brauchen:
+Drei Ausgaben, weil drei verschiedene Leute etwas anderes brauchen:
 
-| Ausgabe | Für wen | Inhalt |
-|---|---|---|
-| Arbeitsmappe (XLSX) | den Termin | Zuordnungen mit einer Spalte je Person, Grundsatzfragen, Rohdaten |
-| Kurzfassung (Markdown) | das Protokoll | nur abweichende Zeilen und kommentierte Fragen |
-| Seed-Änderungen (Text) | die Umsetzung | pastefähige `[38, 'entscheidung'],`-Zeilen für `zah-phasen.ts` |
+| Ausgabe | Für wen | Quelle | Inhalt |
+|---|---|---|---|
+| Arbeitsmappe (XLSX) | den Termin | die Antworten | Zuordnungen mit einer Spalte je Person, Grundsatzfragen, Rohdaten |
+| Kurzfassung (Markdown) | das Protokoll | die Antworten | nur abweichende Zeilen und kommentierte Fragen |
+| Seed-Änderungen (Text) | die Umsetzung | die **Fassung** | die neue Phasen-Tabelle und die Zuordnungen, einfügefertig für `zah-phasen.ts` |
 
-Der Seed-Diff enthält **nur einige** Punkte, deren Konsens abweicht. Strittiges
-bleibt ausdrücklich draußen: ein offener Streit ist kein Änderungsauftrag, und wer
-ihn dort fände, übernähme ihn versehentlich. Ein Wechsel auf „ohne Phase" erscheint
-als Entfernung plus `SEED_MARKER_CODES`-Eintrag — die Phasen-Map kennt diesen Wert
-nicht.
+Die ersten beiden liegen in [export.ts](../../src/plugins/zu-klaeren/export.ts), die
+Seed-Änderungen seit v3.1 in [seedExport.ts](../../src/plugins/zu-klaeren/seedExport.ts)
+— andere Quelle, andere Datei.
+
+**Warum die Seed-Änderungen aus der Fassung kommen und nicht aus den Antworten:**
+bis v3.0 baute der Export seine Zeilen aus dem Konsens. Am 05.08. nannte er
+deshalb fünf Änderungen, während der Baum zehn Umhängungen und drei
+Phasenänderungen trug. Nur der Baum ist der Stand, der wirken soll. Was besprochen,
+aber nie vollzogen wurde, steht weiterhin in der Kurzfassung und als „noch offen"
+an der Zeile — aber nicht in einem Änderungsauftrag an den Code.
+
+Der Text hat drei Abschnitte:
+
+1. **Verfahrensschritte** — die **ganze** neue `SEED_ZAH_PHASEN`-Liste, nicht nur
+   die Unterschiede: Entfernung, Umbenennung und Reihenfolge einzeln einzusetzen
+   wären vier Gelegenheiten, eine zu übersehen. Der alte Wert steht als Kommentar
+   an der Zeile, Entfernungen als Kommentar darüber.
+2. **Zuordnungen** — je umgehängtem Code eine `[32, 'pruefung'],`-Zeile mit dem
+   alten Wert. Ein Wechsel auf „ohne Phase" erscheint als Entfernung plus
+   `SEED_MARKER_CODES`-Eintrag; die Phasen-Map kennt diesen Wert nicht.
+3. **Zieltage** — deutlich abgesetzt und ausdrücklich **nicht einfügefertig**: die
+   Auslieferung hat dafür noch keine Struktur, diese Kuration lebt bislang
+   ausschließlich in der Fassung. Information für die Entscheidung, kein Code.
+
+„Nichts zu ändern" und „Fassung nicht geladen" sind zwei verschiedene Ausgaben —
+die falsche davon beruhigt.
 
 Die Arbeitsmappe nutzt [core/status/export/arbeitsmappe.ts](../../src/core/status/export/arbeitsmappe.ts)
 (mit v2.407 aus dem Status-Cockpit hochgezogen, als der zweite Konsument kam).
@@ -171,6 +227,8 @@ kommen, wenn eine Klärung sie braucht — nicht vorher.
 ## 8. Was hier nicht passiert
 
 - **Keine automatische Übernahme** — kein Schreibpfad in Katalog-Fassung oder Seed.
+  Auch der Ist-Stand-Vermerk gleicht nichts an: er sagt, dass Beschluss und Katalog
+  auseinandergehen, und überlässt die Entscheidung dem Menschen.
 - **Kein Live-Sync, kein Polling** — neu gelesen wird bei Fensterfokus und per
   Knopf, mit sichtbarer Stand-Zeit. Mehrere Clients, die ein SMB-Verzeichnis
   pollen, sind ein schlechter Nachbar.

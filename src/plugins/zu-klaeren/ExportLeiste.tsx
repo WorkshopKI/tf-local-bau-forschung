@@ -9,9 +9,8 @@
 import { Table2, FileText, Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import {
-  exportiereArbeitsmappe, exportiereKurzfassung, exportiereSeedDiff, type ExportEingabe,
-} from './export';
+import { exportiereArbeitsmappe, exportiereKurzfassung, type ExportEingabe } from './export';
+import { exportiereSeedDiff } from './seedExport';
 
 export function ExportLeiste({
   baueEingabe,
@@ -43,7 +42,7 @@ export function ExportLeiste({
           <FileText size={13} /> Kurzfassung
         </Button>
         <Button variant="secondary" size="sm" disabled={seed.busy} onClick={() => seed.run()}
-          title="Pastefähige Zeilen für die Phasen-Tabelle; Strittiges bleibt bewusst draußen">
+          title="Pastefähige Zeilen für die Phasen-Tabelle — aus dem gepflegten Katalog, nicht aus den Antworten">
           <Code2 size={13} /> Seed-Änderungen
         </Button>
       </div>

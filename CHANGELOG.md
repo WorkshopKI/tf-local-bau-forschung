@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.2.0 — Tabelle: Ansicht und Gruppierung getrennt (August 2026)
+
+MINOR — Die Pille „Gruppierung" mischte zwei Dinge: „Status" bildete Abschnitte, „Verbund" verdichtete Teilvorhaben zu einer Zeile. Weil beides im selben Schalter saß, schlossen sie sich aus — wer nach Status gruppieren wollte, verlor die Verdichtung. Jetzt sind es zwei Achsen.
+
+- Neue Achse **Ansicht** (`antrag` / `antrag-mit-tv`) mit eigenem Store-Slot; `verbund` ist als Gruppierung entfallen — [tableGrouping.ts](src/plugins/antraege/tableGrouping.ts), [store.ts](src/plugins/antraege/store.ts)
+- Drei neue Gruppierungen: **NW** (reuse der Netzwerk-Engine inkl. Namens-Index), **FB** (`tib_kuerz`) und **AB** (`bib_kuerz`), alphabetisch, „ohne …" als letzter Abschnitt
+- Persistenz-Whitelist kommt aus den Optionen (`istTableGroupingMode`) statt aus einer zweiten Literal-Liste — ein gespeichertes `verbund` fällt dadurch auf `none`
+- **Fix:** die Status-Bänder der Tabelle zeigten die rohe Abschnitts-Id („VOR-ENTSCHEIDUNG"); die Beschriftung kommt jetzt vom Builder — [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)
+- Nachgemessen in `dev:local` (Reiter „Diese Woche", 49 TV): Ansicht „Antrag" → 34 Zeilen, alle Band-Summen = Zeilenzahl, „Ohne Netzwerk" zuletzt, `__tf.fehler()` = 0
+
+### v3.1.0 — Drift-Bilanz und Ist-Stand (August 2026)
+
+MINOR — Der Phasenschnitt wird seit v2.409 in der App kuratiert, prod läuft weiter auf dem Seed — wie weit beide auseinander sind, wusste niemand. Und Beschluss und Umsetzung waren unverbunden: die Klärung sagte bei Code 29 „einig → Abgeschlossen", der Baum hielt ihn ohne Phase, der Widerspruch fiel nirgends auf.
+
+- Neue Bilanz `katalogDrift(fassung, seed)` nach Phasen/Zuordnungen/Zieltagen/Statuswerten/Prominenz, angezeigt als ausklappbare Zeile im Statuswerte-Tab — [katalog-drift.ts](src/core/status/katalog-drift.ts), [README](docs/status-system/README.md). Kein Nachzieh-Knopf: sie stellt fest.
+- Gezählt wird die **Sache**, nicht die Katalogzeile — ein Status steht an TV- und Verbund-Feld; ungefiltert meldete die Bilanz jeden Zieltag doppelt (30 statt 17 im Bestand)
+- „Zu klären" zeigt je Zeile den **Ist-Stand** des Katalogs mit den Vermerken umgesetzt / noch offen / abweichend beschlossen, dazu den Filter „Nicht umgesetzt" — [gruppen.ts](src/plugins/zu-klaeren/gruppen.ts), [klaerung.md](docs/architecture/klaerung.md)
+- Der Export „Seed-Änderungen" kommt aus der **Fassung** statt aus den Antworten ([seedExport.ts](src/plugins/zu-klaeren/seedExport.ts)): am 05.08. nannte er fünf Änderungen, während der Baum zehn Umhängungen und drei Phasenänderungen trug
+- `useKlaerung` verglich Fassung und Auslieferung in einer eigenen Schleife — ersetzt durch dieselbe Bilanz; die Pillen-Zahl „30" kommt jetzt aus den Zeilen statt aus dem Code
+
 ### v3.0.1 — Kommentar geht nicht mehr still verloren (August 2026)
 
 PATCH — Gemeldet: Kommentar schreiben, senden, Ticket schließen, wieder öffnen — Kommentar weg, ohne jede Meldung. Ursache ist eine Verwechslung zwei Ebenen tiefer: `readText` schluckt jeden Lesefehler und liefert `null`, ununterscheidbar von „Datei gibt es nicht".

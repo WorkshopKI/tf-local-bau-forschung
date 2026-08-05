@@ -15,14 +15,21 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { canWriteDatenShare } from '@/config/feature-flags';
-import { ladeAktiveVersion, getAktiveVersion, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
+import { ladeAktiveVersion, getAktiveVersion, baueSeedVersion, katalogDrift } from '@/core/status';
+import type { KatalogDrift, ZahPhase } from '@/core/status';
 import { falte, baueEintrag, type EintragEingabe } from './fold';
 import { autorenVon, istAntwortfaehig } from './konsens';
-import { baueZeilen, baueGruppen, beantwortetVon, type GruppeAnsicht, type ZeilenFilter } from './gruppen';
+import {
+  baueZeilen, baueGruppen, beantwortetVon, nichtUmgesetzt,
+  type GruppeAnsicht, type IstStandKontext, type ZeilenFilter,
+} from './gruppen';
 import { leseKlaerung, haengeEintragAn } from './klaerung-share';
 import { ladeVorkommen } from './vorkommen';
 import { PHASENSCHNITT, bauePunkte } from './seed-phasenschnitt';
 import { OHNE_PHASE, type Klaerung, type KlaerungPunkt, type KlaerungStand } from './typen';
+
+/** Der Auslieferungsstand als Vergleichsmaß — einmal gebaut, nicht je Laden. */
+const AUSLIEFERUNG = baueSeedVersion();
 
 /** Warum das Antworten gesperrt ist — oder `null`, wenn es nicht gesperrt ist. */
 export type Sperre = 'kein-name' | 'kein-schreibrecht' | null;
@@ -42,15 +49,25 @@ export interface KlaerungApi {
   gesamt: number;
   filter: ZeilenFilter;
   setFilter: (f: ZeilenFilter) => void;
-  /** Wie viele Zeilen die beiden engeren Filter zeigen würden. */
+  /** Alle Zuordnungszeilen — die Zahl an der Pille „Alle Zuordnungen". */
+  anzahlZuordnungen: number;
+  /** Wie viele Zeilen die engeren Filter zeigen würden. */
   anzahlStrittig: number;
   anzahlUnklar: number;
+  anzahlNichtUmgesetzt: number;
   laden: boolean;
   /** ISO-Zeit des letzten erfolgreichen Ladens. */
   standIso: string | null;
   fehler: string | null;
   /** Codes, bei denen die geladene Katalog-Fassung vom Auslieferungsschnitt abweicht. */
   fassungWeichtAb: number[];
+  /**
+   * Die volle Bilanz der Fassung gegenüber der Auslieferung — `null`, solange sie
+   * nicht geladen ist. Speist den Ist-Stand je Zeile UND den Seed-Export.
+   */
+  drift: KatalogDrift | null;
+  /** Die Verfahrensschritte der Fassung — Beschriftung des Ist-Stands und Seed-Export. */
+  fassungPhasen: readonly ZahPhase[] | undefined;
   /** Vorkommen je Statuscode; `null`, solange der Zähl-Lauf nicht durch ist. */
   vorkommen: Map<number, number> | null;
   /** ISO-Zeitpunkt des Bestands, auf den sich die Vorkommen-Zahlen berufen. */
@@ -78,7 +95,8 @@ export function useKlaerung(): KlaerungApi {
   const [standIso, setStandIso] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [filter, setFilter] = useState<ZeilenFilter>('alle');
-  const [fassungWeichtAb, setFassungWeichtAb] = useState<number[]>([]);
+  const [drift, setDrift] = useState<KatalogDrift | null>(null);
+  const [fassungPhasen, setFassungPhasen] = useState<readonly ZahPhase[] | undefined>(undefined);
   const [vorkommen, setVorkommen] = useState<Map<number, number> | null>(null);
   const [bestandVom, setBestandVom] = useState<string | null>(null);
   const laufend = useRef(false);
@@ -96,13 +114,14 @@ export function useKlaerung(): KlaerungApi {
       // Ehrlichkeits-Prüfung: die Seite diskutiert den AUSGELIEFERTEN Schnitt.
       // Trüge eine Katalog-Fassung für einen Code etwas anderes, redeten Seite und
       // App aneinander vorbei — dann sagt das die Seite, statt es zu verschweigen.
+      //
+      // Gerechnet wird das NICHT hier: `katalogDrift` ist die eine Stelle, an der
+      // Fassung und Auslieferung verglichen werden (bis v2.417 stand daneben eine
+      // eigene Filterschleife über `zahPhaseId`, also eine zweite Wahrheit über
+      // dieselbe Frage). Aus derselben Bilanz kommt auch der Ist-Stand je Zeile.
       const version = getAktiveVersion() ?? await ladeAktiveVersion(idb);
-      const abweichend = (version.werte ?? [])
-        .filter(w => w.code !== undefined
-          && w.zahPhaseId !== undefined
-          && (w.zahPhaseId ?? OHNE_PHASE) !== (SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? OHNE_PHASE))
-        .map(w => w.code as number);
-      setFassungWeichtAb([...new Set(abweichend)].sort((a, b) => a - b));
+      setDrift(katalogDrift(version, AUSLIEFERUNG));
+      setFassungPhasen(version.zahPhasen);
 
       // Nach dem Stand, nicht davor: die Tabelle soll stehen, bevor der Zähl-Lauf
       // über den ganzen Bestand beginnt. Ein Fragebogen darf nicht auf 14 000
@@ -156,9 +175,16 @@ export function useKlaerung(): KlaerungApi {
   }, [idb, meinName, neuLaden]);
 
   const autoren = useMemo(() => autorenVon(stand), [stand]);
+
+  /** Die abweichenden Codes samt gepflegter Phase — direkt aus der Bilanz. */
+  const istStand = useMemo<IstStandKontext | null>(() => (drift === null ? null : {
+    abweichend: new Map(drift.zuordnungen.map(z => [z.code, z.nachher ?? OHNE_PHASE])),
+    fassungPhasen,
+  }), [drift, fassungPhasen]);
+
   const zeilen = useMemo(
-    () => baueZeilen(punkte, stand, autoren, meinName, vorkommen),
-    [punkte, stand, autoren, meinName, vorkommen],
+    () => baueZeilen(punkte, stand, autoren, meinName, vorkommen, istStand),
+    [punkte, stand, autoren, meinName, vorkommen, istStand],
   );
   const gruppen = useMemo(() => baueGruppen(zeilen, filter), [zeilen, filter]);
 
@@ -168,9 +194,13 @@ export function useKlaerung(): KlaerungApi {
     beantwortet: beantwortetVon(punkte, stand, meinName),
     gesamt: punkte.length,
     filter, setFilter,
+    anzahlZuordnungen: zeilen.length,
     anzahlStrittig: zeilen.filter(z => z.befund.zustand === 'strittig').length,
     anzahlUnklar: zeilen.filter(z => z.befund.unklarVon.length > 0).length,
-    laden, standIso, fehler, fassungWeichtAb, vorkommen, bestandVom,
+    anzahlNichtUmgesetzt: zeilen.filter(nichtUmgesetzt).length,
+    laden, standIso, fehler, vorkommen, bestandVom,
+    drift, fassungPhasen,
+    fassungWeichtAb: (drift?.zuordnungen ?? []).map(z => z.code),
     neuLaden, aeussern,
   };
 }

@@ -10,6 +10,7 @@
  * Rein darstellend.
  */
 import { SEED_ZAH_PHASEN, zahPhaseLabel } from '@/core/status';
+import type { ZahPhase } from '@/core/status';
 import { OHNE_PHASE, type Urteil, type ZielWert } from './typen';
 
 export const thKlasse =
@@ -52,6 +53,21 @@ export const URTEIL_WAHL: readonly Urteil[] = ['passt', 'andere', 'unklar'];
 export function zielLabel(ziel: ZielWert | null | undefined): string {
   if (ziel === undefined || ziel === null) return '—';
   return ziel === OHNE_PHASE ? 'ohne Phase' : zahPhaseLabel(ziel, SEED_ZAH_PHASEN);
+}
+
+/**
+ * Wie {@link zielLabel}, aber gegen die **Fassung** — für die Ist-Stand-Spalte.
+ *
+ * Die Ausnahme von der Regel darüber, und zwar aus demselben Grund: die Spalte
+ * zeigt, was der Katalog HEUTE führt, also muss sie dessen Beschriftung tragen.
+ * Gegen die Auslieferung gelabelt hieße ein selbst angelegter Verfahrensschritt
+ * „Marker (ohne Phase)" — die Spalte behauptete dann, ein Code stehe neben dem
+ * Verfahren, während er in Wahrheit im neuen Schritt liegt.
+ */
+export function fassungLabel(
+  ziel: ZielWert, phasen: readonly ZahPhase[] | undefined,
+): string {
+  return ziel === OHNE_PHASE ? 'ohne Phase' : zahPhaseLabel(ziel, phasen);
 }
 
 /** Uhrzeit-genaue Stand-Anzeige; der Kalendertag steht daneben im Kopf. */

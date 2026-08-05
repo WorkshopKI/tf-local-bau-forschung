@@ -19,6 +19,27 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.2 — 2026-08
+
+### Neu
+- Die Tabelle der Förderanträge hat jetzt zwei getrennte Schalter statt einem. **Ansicht** bestimmt, was eine Zeile ist: „Antrag" fasst einen Verbund zu einer Zeile zusammen, „Antrag mit TV" zeigt jedes Teilvorhaben einzeln. **Gruppierung** bestimmt nur noch die Zwischenüberschriften. Beides lässt sich frei kombinieren — etwa eine Zeile je Antrag, sortiert unter den Zuständigen.
+- Neue Gruppierungen in der Tabelle: nach **Netzwerk** (mit dem Netzwerknamen in der Zwischenüberschrift), nach **FB** und nach **AB**. Anträge ohne Netzwerk bzw. ohne Kürzel stehen gesammelt am Ende.
+
+### Verbesserungen
+- „Verbund" ist aus der Gruppierung verschwunden: es hat nie nach Verbund gruppiert, sondern die Teilvorhaben ausgeblendet. Genau das macht jetzt die Ansicht „Antrag" — und blockiert dabei nicht mehr die Gruppierung nach Status.
+
+### Bugfixes
+- Die Zwischenüberschriften der Status-Gruppierung in der Tabelle zeigten einen internen Schlüssel („VOR-ENTSCHEIDUNG") statt der Bezeichnung („Vor Entscheidung").
+
+## v3.1 — 2026-08
+
+### Neu
+- Die Statuswerte-Seite zeigt jetzt oben, wie weit der gepflegte Katalog vom ausgelieferten Stand entfernt ist: wie viele Verfahrensschritte entfernt oder umbenannt wurden, wie viele Status umgehängt sind, wie viele Zieltage gepflegt sind. Aufklappen zeigt die Einzelheiten. Das ist keine Mängelliste, sondern die Grundlage für die nächste Programm-Fassung — es wird nichts automatisch übernommen oder zurückgesetzt.
+- „Zu klären" stellt neben jeden Beschluss, was der Katalog dazu heute wirklich führt: umgesetzt, noch offen oder abweichend beschlossen. Mit dem neuen Reiter „Nicht umgesetzt" sieht man am Ende einer Sitzung in einem Klick, was noch nachzutragen ist.
+
+### Verbesserungen
+- Der Export „Seed-Änderungen" in „Zu klären" liest jetzt den gepflegten Katalog statt der Antworten und enthält damit auch Umbenennungen und entfernte Verfahrensschritte. Vorher konnte er einen Teil der tatsächlichen Änderungen verschweigen.
+
 ## v3.0 — 2026-08
 
 ### Neu

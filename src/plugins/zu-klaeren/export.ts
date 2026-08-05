@@ -11,17 +11,21 @@
  *   damit jede Zahl nachvollziehbar bleibt;
  * - **Markdown-Kurzfassung** für das Protokoll — nur was abweicht oder
  *   kommentiert wurde;
- * - **Seed-Diff** für die Umsetzung — pastefähige Zeilen für die Phasen-Tabelle.
- *   Ohne ihn wäre „ein Export" etwas, das jemand von Hand abtippt.
+ * - **Seed-Änderungen** für die Umsetzung — pastefähige Zeilen für die
+ *   Phasen-Tabelle. Ohne sie wäre „ein Export" etwas, das jemand abtippt. Sie
+ *   liegen seit v2.417 in `seedExport.ts`, weil sie ihre Zeilen aus der
+ *   **Fassung** bauen und nicht aus den Antworten — eine andere Quelle, eine
+ *   andere Datei.
  *
  * Rein bis auf `schreibeArbeitsmappe`/`ladeHerunter`; alle Zeilen-Erzeugung ist
  * testbar ohne Browser.
  */
 import { schreibeArbeitsmappe, zeitstempel, type Blatt } from '@/core/status/export/arbeitsmappe';
+import type { KatalogDrift, ZahPhase } from '@/core/status';
 import { konsens } from './konsens';
 import { beitraegeSortiert } from './fold';
 import { zielLabel, kurzDatum } from './labels';
-import { urteilSchluessel, type Klaerung, type KlaerungPunkt, type KlaerungStand, type ZielWert } from './typen';
+import { urteilSchluessel, type Klaerung, type KlaerungPunkt, type KlaerungStand } from './typen';
 
 /** Alles, was eine Ausgabe braucht. */
 export interface ExportEingabe {
@@ -33,6 +37,14 @@ export interface ExportEingabe {
   bestandVom: string | null;
   /** ISO-Zeitpunkt des Exports — von außen, nie eine Uhr hier drin. */
   jetztIso: string;
+  /**
+   * Die Bilanz der Katalog-Fassung gegenüber der Auslieferung; `null`, solange
+   * keine Fassung geladen ist. Nur die Seed-Änderungen lesen sie — Arbeitsmappe
+   * und Kurzfassung berichten weiter über die ANTWORTEN.
+   */
+  drift: KatalogDrift | null;
+  /** Die Phasen der Fassung — der Seed-Export schreibt sie als neue Tabelle aus. */
+  fassungPhasen: readonly ZahPhase[] | undefined;
 }
 
 function kopfzeilen(e: ExportEingabe): string[] {
@@ -176,45 +188,14 @@ export function baueKurzfassung(e: ExportEingabe): string {
   return zeilen.join('\n');
 }
 
-/**
- * Der Seed-Diff: die Zeilen, die in `SEED_CODE_ZU_ZAH_PHASE` zu ändern wären.
- *
- * Nur **einige** Punkte, deren Konsens vom Auslieferungsschnitt abweicht.
- * Strittiges gehört ausdrücklich nicht hierher: ein offener Streit ist kein
- * Änderungsauftrag, und wer ihn hier fände, übernähme ihn versehentlich.
- */
-export function baueSeedDiff(e: ExportEingabe): string {
-  const treffer = e.punkte
-    .filter(p => p.art === 'phasenzuordnung')
-    .map(p => ({ p, b: konsens(e.stand, p, e.autoren) }))
-    .filter(({ p, b }) => b.zustand === 'einig' && b.ziel !== null && b.ziel !== p.seedZiel)
-    .sort((x, y) => (x.p.code ?? 0) - (y.p.code ?? 0));
-
-  const kopf = [
-    `// Seed-Änderungen aus „${e.klaerung.titel}"`,
-    `// Export ${kurzDatum(e.jetztIso)} · Grundlage: ${e.autoren.join(', ') || '—'}`,
-    '// Strittige Zeilen sind bewusst NICHT enthalten.',
-    '// Ziel: src/core/status/zah-phasen.ts',
-    '',
-  ];
-  if (treffer.length === 0) return [...kopf, '// Nichts zu ändern.'].join('\n');
-
-  const zeilen = treffer.map(({ p, b }) => (b.ziel === 'ohne-phase'
-    // Marker haben keinen Eintrag in der Phasen-Map — sie stehen in der
-    // Marker-Menge. Deshalb eine Entfernung, keine Zuweisung.
-    ? `// [${p.code}, …] entfernen und ${p.code} zu SEED_MARKER_CODES hinzufügen  (${p.bezeichnung ?? ''})`
-    : `  [${p.code}, '${b.ziel as ZielWert}'],${' '.repeat(Math.max(1, 22 - String(b.ziel).length))}// war: ${zielLabel(p.seedZiel)} — ${p.bezeichnung ?? ''}`));
-
-  return [...kopf, ...zeilen].join('\n');
-}
-
 /** Alle drei Blätter in einer Mappe. */
 export function baueBlaetter(e: ExportEingabe): Blatt[] {
   return [blattZuordnungen(e), blattGrundsatzfragen(e), blattRohdaten(e)];
 }
 
-/** Stößt den Download einer Textdatei an — ohne Netz, `file://`-tauglich. */
-function ladeHerunter(text: string, dateiname: string, typ: string): void {
+/** Stößt den Download einer Textdatei an — ohne Netz, `file://`-tauglich.
+ *  Exportiert, weil `seedExport.ts` denselben Weg nimmt. */
+export function ladeHerunter(text: string, dateiname: string, typ: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: `${typ};charset=utf-8` }));
   const a = document.createElement('a');
   a.href = url;
@@ -232,13 +213,5 @@ export function exportiereKurzfassung(e: ExportEingabe): void {
     baueKurzfassung(e),
     `klaerung-${e.klaerung.klaerungId}-${zeitstempel(new Date(e.jetztIso))}.md`,
     'text/markdown',
-  );
-}
-
-export function exportiereSeedDiff(e: ExportEingabe): void {
-  ladeHerunter(
-    baueSeedDiff(e),
-    `klaerung-${e.klaerung.klaerungId}-seed-${zeitstempel(new Date(e.jetztIso))}.txt`,
-    'text/plain',
   );
 }

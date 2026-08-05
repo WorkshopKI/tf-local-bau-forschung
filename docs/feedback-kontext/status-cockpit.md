@@ -32,6 +32,19 @@ wird.
 
 - **Statuswerte** (bis v2.412 „Katalog") — zwei Sichten, umschaltbar oben; der
   Baum ist vorbelegt.
+  - Ganz oben, über der Umschaltung, steht **„Gegenüber der Auslieferung"** —
+    eine Zeile, die zusammenzählt, wie weit die gepflegte Fassung vom
+    ausgelieferten Stand entfernt ist: entfernte, hinzugefügte, umbenannte oder
+    umsortierte Verfahrensschritte, geänderte Zuordnungen, gepflegte Zieltage,
+    stillgelegte Werte, geänderte Prominenz. Aufgeklappt stehen die Einzelheiten
+    nach Gruppen. Ist alles gleich, erscheint sie gar nicht.
+    - **Das ist keine Mängelliste.** Drift ist der erwartete Zustand: kuratiert
+      wird laufend, ausgeliefert wird nur mit einer neuen Programm-Fassung. Die
+      Zeile ist die Grundlage für den späteren Abgleich mit dem Programm — es
+      gibt dort bewusst keinen Knopf, der etwas zurücksetzt.
+    - Gezählt werden **Status, keine Katalogzeilen**: derselbe Status steht unter
+      TV- und Verbund-Feld. Sagen beide dasselbe, zählt es einmal; sagen sie
+      Verschiedenes, stehen beide da.
   - **Phasen und Zuordnung** (Baum): Ebene 1 sind die Verfahrensschritte, Ebene 2
     die Statuswerte darunter. Ein Statuswert wird per **Ziehen** auf einen anderen
     Schritt gehängt; Schritte selbst werden untereinander sortiert, per F2 oder

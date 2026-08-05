@@ -80,7 +80,9 @@ export function ZuKlaerenPage(): React.ReactElement {
           activeKey={api.filter}
           onChange={k => api.setFilter(k as ZeilenFilter)}
           items={[
-            { key: 'alle', label: 'Alle Zuordnungen', count: 30 },
+            // Die Zahl kommt aus den Zeilen, nicht aus dem Kopf: eine Facetten-Zahl
+            // ist eine Zusage, und ein fester Wert stimmt nur bis zum nächsten Code.
+            { key: 'alle', label: 'Alle Zuordnungen', count: api.anzahlZuordnungen },
             {
               key: 'strittig', label: 'Nur strittige', count: api.anzahlStrittig,
               title: 'Zeilen, für die zwei oder mehr verschiedene Zielphasen genannt wurden',
@@ -88,6 +90,10 @@ export function ZuKlaerenPage(): React.ReactElement {
             {
               key: 'unklar', label: 'Offene Rückfragen', count: api.anzahlUnklar,
               title: 'Zeilen, die jemand nicht beurteilen konnte',
+            },
+            {
+              key: 'nichtUmgesetzt', label: 'Nicht umgesetzt', count: api.anzahlNichtUmgesetzt,
+              title: 'Zeilen, deren Beschluss im Status-Katalog noch nicht (oder anders) steht',
             },
           ]}
         />
@@ -133,6 +139,8 @@ export function ZuKlaerenPage(): React.ReactElement {
           vorkommen: api.vorkommen,
           bestandVom: api.bestandVom,
           jetztIso: new Date().toISOString(),
+          drift: api.drift,
+          fassungPhasen: api.fassungPhasen,
         })} />
       </div>
     </div>

@@ -13,15 +13,22 @@
  */
 // Gegen die AUSLIEFERUNG, nicht gegen den geltenden Schnitt: siehe `zielLabel`.
 import { SEED_ZAH_PHASEN, ZAH_MARKER_LABEL, zahPhaseLabel } from '@/core/status';
-import { zielLabel } from './labels';
+import type { ZahPhase } from '@/core/status';
+import { fassungLabel, zielLabel } from './labels';
 import { konsens, type PunktBefund } from './konsens';
 import {
   OHNE_PHASE, urteilSchluessel, normalisiereAutor,
   type KlaerungPunkt, type KlaerungStand, type UrteilStand, type ZielWert,
 } from './typen';
 
-/** Welche Zeilen die Tabelle zeigt. Dreiwertig, weil `unklar` keine Uneinigkeit ist. */
-export type ZeilenFilter = 'alle' | 'strittig' | 'unklar';
+/**
+ * Welche Zeilen die Tabelle zeigt.
+ *
+ * `unklar` ist keine Uneinigkeit (siehe `konsens.ts`), und `nichtUmgesetzt` ist
+ * keine Aussage über den Konsens, sondern über den Katalog — vier Filter, weil
+ * es vier verschiedene Fragen sind.
+ */
+export type ZeilenFilter = 'alle' | 'strittig' | 'unklar' | 'nichtUmgesetzt';
 
 /** Eine Zeile der Zuordnungstabelle, fertig für die Anzeige. */
 export interface ZeileAnsicht {
@@ -31,6 +38,93 @@ export interface ZeileAnsicht {
   meinUrteil?: UrteilStand;
   kommentarAnzahl: number;
   vorkommen: number | null;
+  /** Was der Katalog heute führt — `null`, solange keine Fassung geladen ist. */
+  istStand: IstStandMarke | null;
+}
+
+/**
+ * Wie Beschluss und Katalog zueinander stehen. Drei Lagen, **disjunkt**:
+ *
+ * - `umgesetzt` — Konsens und Fassung stimmen überein,
+ * - `offen` — Konsens weicht ab, die Fassung steht noch auf der Auslieferung
+ *   (die Entscheidung ist notiert, aber nicht vollzogen),
+ * - `abweichend` — die Fassung trägt eine Änderung, zu der es keinen oder einen
+ *   anderen Konsens gibt.
+ */
+export type IstStandVermerk = 'umgesetzt' | 'offen' | 'abweichend';
+
+/** Der Ist-Stand einer Zeile, fertig beschriftet. */
+export interface IstStandMarke {
+  vermerk: IstStandVermerk;
+  /** Die gepflegte Phase, beschriftet wie die FASSUNG sie führt. */
+  phase: string;
+  /** Kurzform des Vermerks — das, was in der Zelle steht. */
+  text: string;
+  title: string;
+  /** Gedämpft: nur eine Änderung ohne passenden Beschluss verlangt Aufmerksamkeit. */
+  leise: boolean;
+}
+
+/** Was die Zeilen über den Katalog wissen müssen — alles als reine Eingabe. */
+export interface IstStandKontext {
+  /**
+   * Code → gepflegte Phase, **nur für die abweichenden Codes**. Kommt aus
+   * `katalogDrift`; alles, was nicht darin steht, steht auf der Auslieferung.
+   * Damit rechnet diese Datei den Vergleich nicht ein zweites Mal.
+   */
+  abweichend: ReadonlyMap<number, ZielWert>;
+  /** Die Phasen der Fassung — für die Beschriftung, siehe `fassungLabel`. */
+  fassungPhasen: readonly ZahPhase[] | undefined;
+}
+
+const VERMERK_TEXT: Record<IstStandVermerk, string> = {
+  umgesetzt: 'umgesetzt',
+  offen: 'noch offen',
+  abweichend: 'abweichend beschlossen',
+};
+
+/**
+ * Der Ist-Stand einer Zeile — oder `null`, wenn es nichts zu vermerken gibt.
+ *
+ * Ohne Konsens **und** ohne Änderung im Katalog schweigt die Spalte: eine Zeile,
+ * die niemand beantwortet hat und die niemand angefasst hat, ist keine Nachricht.
+ *
+ * Der Fall vom 05.08. (Code 29: einig auf „Abgeschlossen", der Baum hält ihn
+ * weiterhin ohne Phase) landet unter `offen` — der Beschluss steht da, vollzogen
+ * ist er nicht. Ihn `abweichend` zu nennen hieße, dem Katalog eine Änderung zu
+ * unterstellen, die er nicht trägt; sichtbar wird der Widerspruch so oder so,
+ * weil beide Lagen zum Filter „nicht umgesetzt" zählen.
+ */
+export function istStandVon(
+  befund: PunktBefund,
+  seedZiel: ZielWert,
+  fassungZiel: ZielWert,
+  fassungPhasen: readonly ZahPhase[] | undefined,
+): IstStandMarke | null {
+  const phase = fassungLabel(fassungZiel, fassungPhasen);
+  const marke = (vermerk: IstStandVermerk, title: string, leise: boolean): IstStandMarke =>
+    ({ vermerk, phase, text: VERMERK_TEXT[vermerk], title, leise });
+
+  const konsensZiel = befund.zustand === 'einig' ? befund.ziel : null;
+  if (konsensZiel === null) {
+    if (fassungZiel === seedZiel) return null;
+    return marke(
+      'abweichend',
+      'Der Katalog weicht hier von der Auslieferung ab — einen Konsens dazu gibt es nicht.',
+      false,
+    );
+  }
+  if (konsensZiel === fassungZiel) {
+    return marke('umgesetzt', 'Der Konsens steht so auch im Katalog.', true);
+  }
+  if (fassungZiel === seedZiel) {
+    return marke('offen', 'Beschlossen, im Katalog aber noch nicht vollzogen.', true);
+  }
+  return marke(
+    'abweichend',
+    `Der Katalog führt „${phase}“ — beschlossen wurde „${zielLabel(konsensZiel)}“.`,
+    false,
+  );
 }
 
 /** Eine Phasen-Gruppe der Tabelle. */
@@ -52,17 +146,28 @@ export function baueZeilen(
   autoren: readonly string[],
   meinName: string | undefined,
   vorkommen: ReadonlyMap<number, number> | null,
+  /** `null`, solange die Katalog-Fassung nicht geladen ist — dann schweigt die Spalte,
+   *  statt „steht auf Auslieferungsstand" zu behaupten. */
+  istStand: IstStandKontext | null,
 ): ZeileAnsicht[] {
   return punkte.filter(p => p.art === 'phasenzuordnung').map(punkt => {
     const meins = meinName !== undefined
       ? stand.urteile.get(urteilSchluessel(meinName, punkt.id))
       : undefined;
+    const befund = konsens(stand, punkt, autoren);
+    const seedZiel = punkt.seedZiel ?? OHNE_PHASE;
     return {
       punkt,
-      befund: konsens(stand, punkt, autoren),
+      befund,
       ...(meins !== undefined ? { meinUrteil: meins } : {}),
       kommentarAnzahl: stand.kommentare.get(punkt.id)?.length ?? 0,
       vorkommen: vorkommen === null ? null : (vorkommen.get(punkt.code ?? -1) ?? 0),
+      istStand: istStand === null ? null : istStandVon(
+        befund,
+        seedZiel,
+        istStand.abweichend.get(punkt.code ?? -1) ?? seedZiel,
+        istStand.fassungPhasen,
+      ),
     };
   });
 }
@@ -104,10 +209,22 @@ export function zeigtStand(gruppen: readonly GruppeAnsicht[]): boolean {
   return gruppen.some(g => g.zeilen.some(z => standMarke(z) !== null));
 }
 
+/** Dasselbe für den Ist-Stand — dieselbe Quelle für Anzeige und Spalten-Sichtbarkeit. */
+export function zeigtIstStand(gruppen: readonly GruppeAnsicht[]): boolean {
+  return gruppen.some(g => g.zeilen.some(z => z.istStand !== null));
+}
+
+/** Beschlossen, aber (noch) nicht so im Katalog — beide Lagen zählen dazu. */
+export function nichtUmgesetzt(zeile: ZeileAnsicht): boolean {
+  const v = zeile.istStand?.vermerk;
+  return v === 'offen' || v === 'abweichend';
+}
+
 /** Passt eine Zeile zum Filter? */
 export function passtZumFilter(zeile: ZeileAnsicht, filter: ZeilenFilter): boolean {
   if (filter === 'strittig') return zeile.befund.zustand === 'strittig';
   if (filter === 'unklar') return zeile.befund.unklarVon.length > 0;
+  if (filter === 'nichtUmgesetzt') return nichtUmgesetzt(zeile);
   return true;
 }
 

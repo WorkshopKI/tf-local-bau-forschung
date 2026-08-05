@@ -32,11 +32,22 @@ nirgends sichtbar.
   beurteilen. Ein Pfeil zeigt eine Zielphase, auf die sich alle einig sind, die
   aber von der heutigen abweicht. **Die Spalte erscheint erst, wenn eine Zeile
   etwas zu melden hat** — sind sich alle einig, stünde sie nur leer da.
+- **Ist-Stand** — was der Status-Katalog zu diesem Code heute wirklich führt, und
+  ob der Beschluss dort schon angekommen ist. „umgesetzt" heißt, beides stimmt
+  überein. „noch offen" heißt, die Entscheidung ist notiert, aber im Katalog nicht
+  vollzogen. „abweichend beschlossen" heißt, der Katalog trägt eine Änderung, zu
+  der es hier keinen oder einen anderen Beschluss gibt — genau der Fall, der sonst
+  erst beim Vergleich zweier Exporte auffällt. Auch diese Spalte erscheint nur,
+  wenn eine Zeile etwas zu vermerken hat. **Angeglichen wird nichts**: der Vermerk
+  stellt fest, geändert wird von Hand.
 - **Beiträge** — das Sprechblasen-Symbol mit Zähler klappt die Zeile auf. Darunter
   stehen die Beiträge chronologisch mit Namen und Datum, darunter das Eingabefeld.
-- **Reiter über der Tabelle** — „Alle Zuordnungen", „Nur strittige" und „Offene
-  Rückfragen", jeweils mit Zähler. Uneinigkeit ist das erwartete Ergebnis einer
-  Abstimmung, kein Fehler — sie ist deshalb ruhig markiert und filterbar.
+- **Reiter über der Tabelle** — „Alle Zuordnungen", „Nur strittige", „Offene
+  Rückfragen" und „Nicht umgesetzt", jeweils mit Zähler. Uneinigkeit ist das
+  erwartete Ergebnis einer Abstimmung, kein Fehler — sie ist deshalb ruhig
+  markiert und filterbar. „Nicht umgesetzt" zeigt in einem Klick, was beschlossen,
+  aber im Katalog noch nicht (oder anders) vollzogen ist — gedacht für das Ende
+  einer Sitzung.
 - **Grundsatzfragen** — dreizehn Fragen unter der Tabelle, die den Schnitt als
   Ganzes betreffen. Sie werden nur mit Text beantwortet; ein „passt / andere"
   wäre hier Scheinpräzision. Sie sind immer sichtbar und verschwinden nicht
@@ -49,6 +60,12 @@ nirgends sichtbar.
   Zurückgezogene Antworten zählen nicht mit.
 - **Neu laden** — liest die Antworten der anderen frisch. Die Seite aktualisiert
   sich nicht von allein; die Uhrzeit daneben sagt, von wann der Stand ist.
+- **Ergebnis mitnehmen** — drei Ausgaben unter der Tabelle. Arbeitsmappe und
+  Kurzfassung berichten über die **Antworten**: alle Stimmen nebeneinander für den
+  Termin, nur das Abweichende fürs Protokoll. Die **Seed-Änderungen** kommen
+  dagegen aus dem gepflegten **Katalog**, nicht aus den Antworten — beschlossen
+  wird auf dieser Seite, vollzogen wird im Verfahrensschritt-Baum, und nur der
+  Baum ist der Stand, der wirken soll.
 
 ## Typische Aktionen
 
@@ -56,9 +73,13 @@ nirgends sichtbar.
 - Bei „andere" die Zielphase auswählen; „ohne Phase" ist eine gültige Wahl.
 - Eine Zeile aufklappen und begründen, warum man anderer Meinung ist.
 - Auf „Nur strittige" umschalten und die offenen Punkte für den Termin sammeln.
+- Am Ende einer Sitzung auf „Nicht umgesetzt" schalten und sehen, was noch in den
+  Katalog nachzutragen ist.
 - Eine Grundsatzfrage beantworten.
 - Eine eigene Antwort oder einen eigenen Beitrag zurückziehen.
 - „Neu laden" drücken, um zu sehen, was die anderen inzwischen eingetragen haben.
+- Die Seed-Änderungen herunterladen, um den gepflegten Katalog ins Programm zu
+  übernehmen.
 
 ## Wichtig
 
@@ -74,6 +95,9 @@ nirgends sichtbar.
   keinen Konflikt.
 - **„unklar" ist keine Gegenstimme**, sondern eine Rückfrage. Es macht eine Zeile
   nicht strittig, wird aber eigens gezählt.
+- **Beschluss und Umsetzung sind zwei Dinge.** Hier wird entschieden, im
+  Verfahrensschritt-Baum wird es vollzogen. Die Seite gleicht beides nie von
+  selbst an — sie zeigt nur, wo es auseinandergeht.
 
 ## Technik
 
