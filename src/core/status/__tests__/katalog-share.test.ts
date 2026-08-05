@@ -17,21 +17,43 @@ import { IDBStore } from '@/core/services/storage/idb-store';
 import type { StatusKatalogDatei } from '@/core/status/katalog-share';
 import type { MappingVersion } from '@/core/status/typen';
 
-/** Der gespiegelte Share: eine Datei, ein Schreibrecht, ein Beobachtungshaken. */
+const HAUPT = '_intern/status-katalog.json';
+const ARCHIV = '_intern/status-katalog-archiv.json';
+
+/**
+ * Der gespiegelte Share. Seit der Rotation (v2.414) liegen dort ZWEI Dateien,
+ * deshalb ein Ablagefach je Pfad — `datei` bleibt als Kurzform für die
+ * Hauptdatei, damit die älteren Fälle unverändert lesbar sind.
+ *
+ * `archivSchreibrecht` getrennt vom allgemeinen: „das Archiv lässt sich nicht
+ * schreiben" ist der Fall, in dem NICHT rotiert werden darf.
+ */
 const share: {
+  dateien: Map<string, unknown>;
   datei: StatusKatalogDatei | null;
   geschrieben: StatusKatalogDatei[];
   schreibrecht: boolean;
+  archivSchreibrecht: boolean;
   /** Simuliert ein anderes Gerät, das zwischen Vereinigung und Schreiben fertig wird. */
   beimKopfLesen?: () => void;
   kopfLesungen: number;
-} = { datei: null, geschrieben: [], schreibrecht: true, kopfLesungen: 0 };
+} = {
+  dateien: new Map(), datei: null, geschrieben: [],
+  schreibrecht: true, archivSchreibrecht: true, kopfLesungen: 0,
+};
 
 vi.mock('@/core/status/sidecar-datei', () => ({
-  leseSidecar: (): Promise<unknown> => Promise.resolve(share.datei),
-  schreibeSidecar: (_idb: unknown, _pfad: string, daten: unknown): Promise<boolean> => {
+  leseSidecar: (_idb: unknown, pfad: string): Promise<unknown> =>
+    Promise.resolve(pfad === ARCHIV ? (share.dateien.get(ARCHIV) ?? null) : share.datei),
+  schreibeSidecar: (_idb: unknown, pfad: string, daten: unknown): Promise<boolean> => {
+    if (pfad === ARCHIV) {
+      if (!share.schreibrecht || !share.archivSchreibrecht) return Promise.resolve(false);
+      share.dateien.set(ARCHIV, daten);
+      return Promise.resolve(true);
+    }
     if (!share.schreibrecht) return Promise.resolve(false);
     share.datei = daten as StatusKatalogDatei;
+    share.dateien.set(HAUPT, daten);
     share.geschrieben.push(daten as StatusKatalogDatei);
     return Promise.resolve(true);
   },
@@ -47,8 +69,9 @@ vi.mock('@/core/status/sidecar-datei', () => ({
 const {
   istKatalogDatei, uebernehmeKatalogVomShare, synchronisiereKatalogVomShare,
   schreibeKatalogAufShare, vereinigeMitShare, umnummeriereEigeneFassung,
-  KATALOG_BACKUP_KEY,
+  leseKatalogArchiv, KATALOG_BACKUP_KEY,
 } = await import('@/core/status/katalog-share');
+const { FASSUNGEN_IN_HAUPTDATEI } = await import('@/core/status/katalog-rotation');
 const {
   getAktiveVersionsnummer, listeVersionen, setzeAktiv, speichereVersion, naechsteVersionsnummer,
 } = await import('@/core/status/katalog-store');
@@ -58,6 +81,8 @@ beforeEach(async () => {
   const { IDBFactory } = await import('fake-indexeddb');
   (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory();
   share.datei = null;
+  share.dateien = new Map();
+  share.archivSchreibrecht = true;
   share.geschrieben = [];
   share.schreibrecht = true;
   share.beimKopfLesen = undefined;
@@ -306,5 +331,101 @@ describe('Auflösung der beiden Wege', () => {
     expect(alle.find(v => v.version === 13)?.autor, 'die fremde behält ihre Nummer').toBe('TP');
     expect(alle.find(v => v.version === 14)?.autor, 'die eigene wandert nach oben').toBe('AB');
     expect(await getAktiveVersionsnummer(idb), 'aktiv folgt der eigenen').toBe(14);
+  });
+});
+
+describe('Rotation der Fassungsdatei (v2.414)', () => {
+  /** n Fassungen lokal ablegen, die letzte aktiv setzen. */
+  async function lokalerBestand(n: number, aktiv = n): Promise<void> {
+    const idb = await frisch();
+    for (let i = 1; i <= n; i += 1) await speichereVersion(idb, { ...leicht(i, 'MUE') });
+    await setzeAktiv(idb, aktiv);
+  }
+
+  it('unterhalb der Schwelle wird nicht rotiert — kein Archiv angelegt', async () => {
+    const idb = await frisch();
+    await lokalerBestand(FASSUNGEN_IN_HAUPTDATEI);
+    const e = await schreibeKatalogAufShare(idb, {});
+    expect(e.art).toBe('geschrieben');
+    expect(share.datei?.fassungen).toHaveLength(FASSUNGEN_IN_HAUPTDATEI);
+    expect(await leseKatalogArchiv(idb), 'kein Archiv ohne Anlass').toBeNull();
+  });
+
+  it('oberhalb bleiben genau n in der Hauptdatei, der Rest steht im Archiv', async () => {
+    const idb = await frisch();
+    await lokalerBestand(12);
+    await schreibeKatalogAufShare(idb, {});
+    expect(share.datei?.fassungen.map(f => f.version)).toEqual([5, 6, 7, 8, 9, 10, 11, 12]);
+    const archiv = await leseKatalogArchiv(idb);
+    expect(archiv?.fassungen.map(f => f.version)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('Haupt- und Archivdatei zusammen sind lueckenlos', async () => {
+    // Die Invariante, an der alles haengt: die Versionierung existiert, damit
+    // man zurueckkann. Eine Rotation, die das nimmt, waere eine Loeschfunktion.
+    const idb = await frisch();
+    await lokalerBestand(15);
+    await schreibeKatalogAufShare(idb, {});
+    const archiv = await leseKatalogArchiv(idb);
+    const alle = [
+      ...(share.datei?.fassungen ?? []), ...(archiv?.fassungen ?? []),
+    ].map(f => f.version).sort((a, b) => a - b);
+    expect(alle).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));
+    expect(new Set(alle).size).toBe(15);
+  });
+
+  it('ohne Schreibrecht aufs Archiv wird NICHT rotiert', async () => {
+    // Lieber eine grosse Datei als eine verlorene Fassung: es gibt keine
+    // Transaktion ueber zwei Dateien, also bleibt die Hauptdatei vollstaendig.
+    const idb = await frisch();
+    share.archivSchreibrecht = false;
+    await lokalerBestand(12);
+    const e = await schreibeKatalogAufShare(idb, {});
+    expect(e.art).toBe('geschrieben');
+    expect(share.datei?.fassungen).toHaveLength(12);
+    expect(await leseKatalogArchiv(idb)).toBeNull();
+  });
+
+  it('beim naechsten Speichern wird die Rotation erneut versucht', async () => {
+    const idb = await frisch();
+    share.archivSchreibrecht = false;
+    await lokalerBestand(12);
+    await schreibeKatalogAufShare(idb, {});
+    expect(share.datei?.fassungen).toHaveLength(12);
+
+    share.archivSchreibrecht = true;
+    await schreibeKatalogAufShare(idb, {});
+    expect(share.datei?.fassungen).toHaveLength(FASSUNGEN_IN_HAUPTDATEI);
+    expect((await leseKatalogArchiv(idb))?.fassungen).toHaveLength(4);
+  });
+
+  it('die aktive Fassung bleibt in der Hauptdatei, auch wenn sie alt ist', async () => {
+    // Der reale Fall: jemand reaktiviert v2 und veroeffentlicht sie.
+    const idb = await frisch();
+    await lokalerBestand(12, 2);
+    await schreibeKatalogAufShare(idb, {});
+    expect(share.datei?.fassungen.map(f => f.version)).toContain(2);
+    expect((await leseKatalogArchiv(idb))?.fassungen.map(f => f.version)).not.toContain(2);
+  });
+
+  it('ein zweiter Lauf haengt an, statt das Archiv zu ersetzen', async () => {
+    const idb = await frisch();
+    await lokalerBestand(12);
+    await schreibeKatalogAufShare(idb, {});
+    expect((await leseKatalogArchiv(idb))?.fassungen.map(f => f.version)).toEqual([1, 2, 3, 4]);
+
+    await speichereVersion(idb, { ...leicht(13, 'MUE') });
+    await setzeAktiv(idb, 13);
+    await schreibeKatalogAufShare(idb, {});
+    const archiv = await leseKatalogArchiv(idb);
+    expect(archiv?.fassungen.map(f => f.version)).toEqual([1, 2, 3, 4, 5]);
+    expect(share.datei?.fassungen.map(f => f.version)).toEqual([6, 7, 8, 9, 10, 11, 12, 13]);
+  });
+
+  it('die Hauptdatei bleibt nach istKatalogDatei gueltig', async () => {
+    const idb = await frisch();
+    await lokalerBestand(20);
+    await schreibeKatalogAufShare(idb, {});
+    expect(istKatalogDatei(share.datei)).toBe(true);
   });
 });

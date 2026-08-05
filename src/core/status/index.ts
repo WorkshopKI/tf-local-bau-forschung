@@ -130,6 +130,11 @@ export {
   type AenderungsBilanz, type AenderungsGruppe, type VerglichenerVorgang,
 } from './regel-aenderung';
 export {
+  planeRotation, vereinigeArchiv, istKatalogArchiv,
+  FASSUNGEN_IN_HAUPTDATEI, STATUS_KATALOG_ARCHIV_PATH,
+  type StatusKatalogArchiv, type RotationsPlan,
+} from './katalog-rotation';
+export {
   erhebeTerminBefunde,
   type TerminBefunde, type TerminFall, type BefundGruppe,
   type PrecheckLuecke, type FeldPaar, type VerdeckungsBefund,
@@ -137,7 +142,7 @@ export {
 export {
   leseKatalogVomShare, schreibeKatalogAufShare, synchronisiereKatalogVomShare,
   uebernehmeKatalogVomShare, istKatalogDatei,
-  leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung,
+  leseKatalogNummer, vereinigeMitShare, umnummeriereEigeneFassung, leseKatalogArchiv,
   letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel,
   STATUS_KATALOG_PATH, KATALOG_BACKUP_KEY,
   type StatusKatalogDatei, type KatalogSchreibErgebnis, type KatalogUebernahmeErgebnis,

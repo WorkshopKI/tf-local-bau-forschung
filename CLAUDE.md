@@ -373,7 +373,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 20. **Verallgemeinerung von #16: jede Store-Mutationsserie mit Save-Lock = ein `setState` + ein `persist`.** → [auslastung.md](docs/architecture/auslastung.md)
 21. **Feedback-Status nie als Literal vergleichen — `FEEDBACK_STATUS` / Prädikate (`istOffen`/`istUmgesetzt`/`istArchiviert`).** `[test: no-direct-feedback-status-compare]` → [feedback-system.md](docs/architecture/feedback-system.md)
 22. **Umlaut-Kürzel (THÜ/BIB/ZTP) immer `s.normalize('NFC')` vor Map-Lookup/Speicherung.** → [auslastung.md](docs/architecture/auslastung.md)
-23. **Sidecar-Schreib-Profil bewusst wählen (idempotent-overwrite / append-only / atomic-ohne-Backup).** → [add-sidecar-persistence.md](docs/agents/add-sidecar-persistence.md)
+23. **Sidecar-Schreib-Profil bewusst wählen (idempotent-overwrite / append-only / atomic-ohne-Backup / rotierend-mit-Archiv).** → [add-sidecar-persistence.md](docs/agents/add-sidecar-persistence.md)
 24. **MA-Selbst-Daten in den persönlichen Ordner via `writeAuslastungProfil` schreiben, nie direkt nach `auslastung.json` (prod read-only).** → [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md)
 25. **Daten-Share-Modus ausschließlich über `canWriteDatenShare(isKurator)` (nie `isKurator ? 'readwrite' : 'read'` hart kodieren).** `[test: no-hardcoded-datenshare-mode]` → [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md)
 26. **Übernahme-Wünsche über den Personal-Handle (`writeUebernahmeWuensche`), PL sammelt ein — kein Direkt-Write nach `auslastung.json`.** → [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md)

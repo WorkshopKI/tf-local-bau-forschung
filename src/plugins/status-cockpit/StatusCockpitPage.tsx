@@ -35,7 +35,7 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   letzterKatalogAktivWechsel, quittiereKatalogAktivWechsel,
-  REGELSATZ_DEFAULT, type AenderungsGruppe,
+  REGELSATZ_DEFAULT, FASSUNGEN_IN_HAUPTDATEI, type AenderungsGruppe,
 } from '@/core/status';
 import { useRegelAenderung } from './useRegelAenderung';
 
@@ -165,8 +165,31 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
     'status-cockpit:versionen', { defaultOpen: false },
   );
   const laden = useAsyncAction(async (version: number) => { await api.reaktivieren(version); });
-  const versionen = [...api.versionen].sort((a, b) => b.version - a.version);
   const aktivNr = api.aktiveVersion?.version ?? null;
+
+  // Das Archiv wird gelesen, wenn die Liste OFFEN ist — nicht beim App-Start.
+  // Es ist genau die Datei, die aus der Startzeit herausgehalten werden soll;
+  // sie beim Laden mitzulesen machte die Rotation sinnlos.
+  //
+  // Auslöser ist der Zustand, nicht der Klick: `offen` wird gemerkt, wer die
+  // Liste offen gelassen hat findet sie beim nächsten Aufruf offen vor — und
+  // hätte ohne diesen Effekt nie einen Klick, der das Archiv nachlädt.
+  const archiv = useAsyncAction(async () => { await api.archivLaden(); });
+  const archivRun = useRef(archiv.run);
+  archivRun.current = archiv.run;
+  useEffect(() => {
+    if (offen && !api.archivGeladen) void archivRun.current();
+  }, [offen, api.archivGeladen]);
+
+  const lokaleNummern = new Set(api.versionen.map(v => v.version));
+  const nurImArchiv = api.archivFassungen.filter(v => !lokaleNummern.has(v.version));
+  const versionen = [...api.versionen, ...nurImArchiv].sort((a, b) => b.version - a.version);
+  // Archiviert ist, was nicht mehr in der Hauptdatei steht — abgeleitet aus der
+  // Rotationsregel (die jüngsten n), kein zweiter Zustand, der driften könnte.
+  const inHauptdatei = new Set(
+    [...api.versionen].sort((a, b) => a.version - b.version)
+      .slice(-FASSUNGEN_IN_HAUPTDATEI).map(v => v.version),
+  );
 
   return (
     <section className="mt-6 rounded" style={feldStil}>
@@ -178,16 +201,23 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
       >
         <History size={15} />
         Versionen ({versionen.length})
+        {archiv.busy && <span className="text-[11px] text-[var(--tf-text-tertiary)]">Archiv lädt …</span>}
         <span className="ml-auto text-[11px] text-[var(--tf-text-tertiary)]">{offen ? 'einklappen' : 'ausklappen'}</span>
       </button>
       {offen && (
         <div className="flex flex-col divide-y divide-[var(--tf-border)] border-t border-[var(--tf-border)]">
           {versionen.map(v => {
             const istAktiv = v.version === aktivNr;
+            const archiviert = !istAktiv && !inHauptdatei.has(v.version);
             return (
               <div key={v.version} className="flex items-center gap-2 px-3 py-2 flex-wrap">
                 <span className="text-[12.5px] font-mono text-[var(--tf-text)]">v{v.version}</span>
                 {istAktiv && <Badge variant="success">aktiv</Badge>}
+                {archiviert && (
+                  <span title="Steht nicht mehr in der Hauptdatei, sondern im Archiv daneben — erreichbar bleibt sie.">
+                    <Badge variant="default">archiviert</Badge>
+                  </span>
+                )}
                 <span className="text-[12px] text-[var(--tf-text-secondary)]">{v.autor ?? '—'}</span>
                 <span className="text-[11px] text-[var(--tf-text-tertiary)]">{formatZeitpunkt(v.zeitstempel)}</span>
                 {v.kommentar && (
@@ -206,6 +236,11 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
           })}
           {laden.error != null && (
             <p className="text-[11.5px] text-[var(--tf-danger-text)] px-3 py-1.5">⚠ {laden.error}</p>
+          )}
+          {archiv.error != null && (
+            <p className="text-[11.5px] text-[var(--tf-danger-text)] px-3 py-1.5">
+              ⚠ Archiv nicht lesbar: {archiv.error}
+            </p>
           )}
         </div>
       )}

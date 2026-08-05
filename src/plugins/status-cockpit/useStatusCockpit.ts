@@ -47,6 +47,7 @@ import {
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
   wertId, schreibeKatalogAufShare, vereinigeMitShare, leseKatalogVomShare, leseKatalogNummer,
+  leseKatalogArchiv,
   synchronisiereKatalogVomShare, umnummeriereEigeneFassung, zaehleAbweichungen,
   type KatalogKonflikt, type StatusKatalogDatei,
   type MappingVersion, type StatusWertEintrag, type StatusFeldEintrag,
@@ -71,6 +72,15 @@ export interface StatusCockpitApi {
   aktiveVersion: MappingVersion | null;
   entwurf: MappingVersion | null;
   versionen: MappingVersion[];
+  /**
+   * Fassungen, die nur noch im Archiv liegen (nicht in `versionen`). Leer,
+   * solange `archivLaden` nicht gerufen wurde.
+   */
+  archivFassungen: MappingVersion[];
+  /** Ob das Archiv schon gelesen wurde — für „lädt …" gegen „ist leer". */
+  archivGeladen: boolean;
+  /** Archiv nachladen (beim Aufklappen der Versionsliste). */
+  archivLaden: () => Promise<void>;
   unkuratiert: UnkuratierterFund[];
   /** In den CSV-Quellen gefundene Statusspalten, die der Katalog nicht kennt. */
   unkuratierteFelder: StatusFeldEintrag[];
@@ -308,6 +318,9 @@ export function useStatusCockpit(): StatusCockpitApi {
   // Eigene Sidecar, eigener Zustand — die Trigger reisen NICHT in der
   // Katalog-Fassung mit (`trigger-share.ts` erklärt, warum).
   const [trigger, setTrigger] = useState<TriggerStand>({ datei: null, herkunft: 'leer' });
+  // Archivierte Fassungen — erst gelesen, wenn jemand die Versionsliste öffnet.
+  const [archivFassungen, setArchivFassungen] = useState<MappingVersion[]>([]);
+  const [archivGeladen, setArchivGeladen] = useState(false);
 
   const ladeBestand = useCallback(async (version: MappingVersion): Promise<Bestand> => {
     const programme = await listProgramme(idb);
@@ -608,12 +621,36 @@ export function useStatusCockpit(): StatusCockpitApi {
   }, [idb]);
 
   const reaktivieren = useCallback(async (version: number): Promise<void> => {
-    const alt = await getVersion(idb, version);
+    // Erst der lokale Cache, dann das Archiv. Auf einem frisch aufgesetzten
+    // Rechner kennt die IDB nur die Fassungen der Hauptdatei — eine ältere ist
+    // dann ausschließlich über das Archiv erreichbar, und genau dafür ist die
+    // Versionierung da.
+    const alt = (await getVersion(idb, version))
+      ?? (await leseKatalogArchiv(idb))?.fassungen.find(f => f.version === version);
     if (!alt) return;
+    // Ins IDB übernehmen: wer eine archivierte Fassung einmal geholt hat, soll
+    // sie beim nächsten Mal nicht erneut über den Share suchen müssen.
+    await speichereVersion(idb, alt);
+    setVersionen(await listeVersionen(idb));
     // `basisRef` bleibt, wo sie ist: welche Fassung als Entwurf dient, ändert
     // nichts daran, welchen Team-Stand dieses Fenster kennt.
     setEntwurf({ ...alt });
   }, [idb]);
+
+  /**
+   * Die archivierten Fassungen nachladen — auf Anforderung, nicht beim Start.
+   *
+   * Das Archiv ist die Datei, die aus der Startzeit herausgehalten werden soll;
+   * es beim Laden mitzulesen machte die Rotation sinnlos. Das Versions-Panel
+   * ist per Default zu, sein Aufklappen ist der ehrliche Auslöser.
+   */
+  const archivLaden = useCallback(async (): Promise<void> => {
+    if (archivGeladen) return;
+    const archiv = await leseKatalogArchiv(idb);
+    setArchivGeladen(true);
+    if (!archiv || archiv.fassungen.length === 0) return;
+    setArchivFassungen(archiv.fassungen);
+  }, [idb, archivGeladen]);
 
   const exportieren = useCallback((): void => {
     if (!aktiveVersion) return;
@@ -930,6 +967,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     feldPhasenAuswahl, feldPhasenUebernehmen, verwaiste,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
+    archivFassungen, archivGeladen, archivLaden,
   };
 }
 

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v2.414.0 — Rotation der Fassungsdatei mit Archiv (August 2026)
+
+MINOR — `_intern/status-katalog.json` trug 18 Fassungen à ~250 KB und wurde bei **jedem** App-Start vollständig gelesen und geparst; mit der `.backup` daneben waren das ~7 MB auf dem Share. Gelöscht wird nichts — die Versionierung existiert, damit man zurückkann.
+
+- **Die jüngsten acht Fassungen bleiben in der Hauptdatei, ältere wandern nach `_intern/status-katalog-archiv.json`** — reine Aufteilung in [katalog-rotation.ts](src/core/status/katalog-rotation.ts), angewandt im Schreibpfad ([katalog-share.ts](src/core/status/katalog-share.ts))
+- **Archiv zuerst, Hauptdatei danach**: ohne Schreibrecht aufs Archiv wird nicht rotiert und die Hauptdatei bleibt vollständig — lieber eine große Datei als eine verlorene Fassung (viertes Sidecar-Profil in [add-sidecar-persistence.md](docs/agents/add-sidecar-persistence.md), Pitfall #23)
+- **Die aktive Fassung bleibt immer in der Hauptdatei**, auch wenn sie alt ist — sonst müsste jeder Client beim Start doch das Archiv lesen
+- **Das Versions-Panel kennzeichnet archivierte Fassungen und lädt das Archiv nach, sobald es offen ist**; `reaktivieren` fällt auf das Archiv zurück, wenn die lokale IDB die Fassung nicht kennt ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
+- Am echten Share gemessen: Hauptdatei 3,47 → 2,07 MB, Archiv 2,28 MB, 18 Fassungen lückenlos; v3 aus der IDB gelöscht und über den Archivpfad reaktiviert (`__tf.fehler()` = 0)
+
 ### v2.413.4 — Zu-klaeren-Tabelle vertikal verdichtet (August 2026)
 
 PATCH — Die Tabelle wird im Fachtermin per Bildschirmfreigabe durchgegangen; 30 Zeilen à 58,5 px passten auf keinen Bildschirm. Treiber war das einzige zweizeilige Label: „gehört nach …" machte jede Zeile 46 px hoch statt 28 px. Reine Darstellung, kein Verhalten.

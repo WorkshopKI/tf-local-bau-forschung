@@ -11,6 +11,19 @@ stattfand, sodass entweder niemand kuratierte oder jeder neu. Das Event-Log
 wandert bewusst NICHT mit: es hält fest, wann *diese Installation* eine Änderung
 beobachtet hat, und ergäbe zusammengeführt eine widersprüchliche Historie.
 
+**Die Fassungsdatei rotiert (seit v2.414).** Eine `MappingVersion` wiegt rund
+250 KB; ungebremst wuchs die Datei, die bei jedem App-Start vollständig gelesen
+und geparst wird. Die jüngsten
+[`FASSUNGEN_IN_HAUPTDATEI`](../../src/core/status/katalog-rotation.ts) = 8
+bleiben in der Hauptdatei, ältere wandern nach
+`_intern/status-katalog-archiv.json` — **gelöscht wird nichts**, und die aktive
+Fassung bleibt immer in der Hauptdatei, damit kein Client zum Start das Archiv
+braucht. Geschrieben wird Archiv zuerst; scheitert das (kein Schreibrecht, IO),
+wird nicht rotiert und die Hauptdatei bleibt vollständig. Das Versions-Panel
+lädt das Archiv nach, sobald es offen ist, und `reaktivieren` fällt darauf
+zurück — sonst wäre eine Fassung auf einem frisch aufgesetzten Rechner
+unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar-persistence.md).
+
 ## Zwei Schichten
 
 1. **Katalog** ([katalog-store.ts](../../src/core/status/katalog-store.ts), Seed

@@ -102,9 +102,13 @@ Direkter `FileSystemWritableFileStream` umgeht die `.tmp`+Rename+`.backup`-Rotat
 
 ### Pitfall #23 — Sidecar-Schreib-Profil bewusst wählen
 
-Drei Profile (kombiniert mit #10), je nach Datei-Charakter:
+Vier Profile (kombiniert mit #10), je nach Datei-Charakter:
 - **Idempotent-overwrite** (Standard, Single-Source-of-Truth): `atomicWrite()` mit Backup-Rotation. Beispiel: `_intern/auslastung.json`, `_intern/feedback/feedback.json`.
 - **Append-only** (immutable History, Order matters): `appendToFile()` ohne Rotation, mit `version`-Feld im Schema. Beispiel: `_intern/audit-log.jsonl`, `_intern/auslastung-kuerzel-map.json` (Pitfall #18 erzwingt diese Append-Semantik).
 - **Atomic ohne Backup** (große Binär-Files, Recovery via Re-Build): `atomicWrite(..., { skipBackup: true })`. Beispiel: `_intern/auslastung-embedding-corpus.bin` (~40 MB; Backup-Rotation würde die Share-Quota fluten).
+- **Rotierend mit Archiv** (wachsende Historie, die beim Start vollständig gelesen wird): die jüngsten *n* Einträge bleiben in der Hauptdatei, ältere wandern in eine Nachbardatei. Beispiel: `_intern/status-katalog.json` + `-archiv.json` (v2.414, `katalog-rotation.ts`). Drei Regeln, sonst wird daraus eine Löschfunktion:
+  1. **Rotieren beim SCHREIBEN**, nie beim Lesen — der Schreiber serialisiert den vollen lokalen Stand, ein Filter anderswo würde vom nächsten Client überschrieben.
+  2. **Archiv zuerst, Hauptdatei danach.** Es gibt keine Transaktion über zwei Dateien: lässt sich das Archiv nicht schreiben, wird **gar nicht** rotiert. Lieber eine große Datei als ein verlorener Eintrag.
+  3. **Ein Lesepfad ins Archiv muss bleiben.** Ein frisch aufgesetzter Rechner kennt nur die Hauptdatei; ohne diesen Weg wäre der ausgelagerte Teil unerreichbar — und genau dafür gab es die Historie.
 
 Entscheidung beim Anlegen einer neuen Sidecar als Header-Kommentar in der Datei festhalten.

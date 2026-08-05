@@ -19,10 +19,12 @@
  * die fremde Fassung samt ihres Rückwegs. Erkannt wird der Konflikt optimistisch
  * wie im Journal; gelöst wird er nicht automatisch, sondern von einem Menschen.
  *
- * Sidecar-Profil (Pitfall #23): idempotent-overwrite mit Backup-Rotation,
- * self-gated über `queryPermission` — ohne Schreibrecht ein No-op statt eines
- * Fehlers. Kein DB-Version-Bump: der bestehende Store `status_katalog` wird zum
- * Cache umgedeutet, nicht ersetzt.
+ * Sidecar-Profil (Pitfall #23): **rotierend mit Archiv** — idempotent-overwrite
+ * mit Backup-Rotation, dazu seit v2.414 eine Nachbardatei für alte Fassungen
+ * (`katalog-rotation.ts`). Self-gated über `queryPermission`: ohne Schreibrecht
+ * ein No-op statt eines Fehlers, und ohne schreibbares Archiv wird gar nicht
+ * erst rotiert. Kein DB-Version-Bump: der bestehende Store `status_katalog`
+ * wird zum Cache umgedeutet, nicht ersetzt.
  *
  * Die eigentliche Datei-Mechanik wohnt seit dem Vorgangssystem in
  * `sidecar-datei.ts` und wird mit der Trigger-Tabelle geteilt — zwei Dateien,
@@ -33,6 +35,10 @@ import type { MappingVersion } from './typen';
 import { leseSidecar, leseSidecarKopf, schreibeSidecar } from './sidecar-datei';
 import { getAktiveVersionsnummer, listeVersionen, setzeAktiv, speichereVersion } from './katalog-store';
 import { findeKonflikt, leseNummerAusKopf, planeVereinigung, type KatalogKonflikt } from './katalog-konflikt';
+import {
+  istKatalogArchiv, planeRotation, vereinigeArchiv,
+  STATUS_KATALOG_ARCHIV_PATH, type StatusKatalogArchiv,
+} from './katalog-rotation';
 
 export const STATUS_KATALOG_PATH = '_intern/status-katalog.json';
 
@@ -124,6 +130,40 @@ export async function vereinigeMitShare(
   return { datei, uebernommen: zuUebernehmen.map(f => f.version) };
 }
 
+/** Liest das Archiv; `null` = keins da oder nicht lesbar (beides gleich zu behandeln). */
+export async function leseKatalogArchiv(idb: IDBStore): Promise<StatusKatalogArchiv | null> {
+  return await leseSidecar(idb, STATUS_KATALOG_ARCHIV_PATH, istKatalogArchiv);
+}
+
+/**
+ * Lagert alte Fassungen aus und liefert, was in die Hauptdatei gehört.
+ *
+ * **Archiv zuerst, Hauptdatei danach — und bei Fehlschlag gar nicht.** Es gibt
+ * keine Transaktion über zwei Dateien. Ließe sich das Archiv nicht schreiben
+ * (kein Handle, kein Recht, IO-Fehler) und die Hauptdatei würde trotzdem
+ * gekürzt, wären die abgeschälten Fassungen weg. Lieber eine große Datei als
+ * eine verlorene Fassung; deshalb gibt die Funktion dann die volle Liste
+ * zurück, und beim nächsten Speichern wird es erneut versucht.
+ */
+async function rotiere(
+  idb: IDBStore, fassungen: readonly MappingVersion[], aktiv: number,
+): Promise<MappingVersion[]> {
+  const plan = planeRotation(fassungen, aktiv);
+  if (plan.auslagern.length === 0) return plan.behalten;
+
+  const bisher = await leseKatalogArchiv(idb);
+  const archiv: StatusKatalogArchiv = {
+    version: 1,
+    fassungen: vereinigeArchiv(bisher?.fassungen ?? [], plan.auslagern),
+    updatedAt: new Date().toISOString(),
+  };
+  if (!(await schreibeSidecar(idb, STATUS_KATALOG_ARCHIV_PATH, archiv))) {
+    console.warn('[status] Archiv nicht schreibbar — es wird nicht rotiert.');
+    return [...fassungen];
+  }
+  return plan.behalten;
+}
+
 /**
  * Schreibt den lokalen Katalog-Stand als Team-Fassung — **read-before-write**.
  *
@@ -175,10 +215,16 @@ export async function schreibeKatalogAufShare(
     const fassungen = await listeVersionen(idb);
     const aktiv = await getAktiveVersionsnummer(idb);
     if (fassungen.length === 0 || aktiv == null) return { art: 'nur-lokal' };
+
+    // Rotation VOR dem Schreiben: der Schreiber serialisiert die komplette
+    // lokale Liste, ein Filter irgendwo anders würde vom nächsten Client wieder
+    // überschrieben (siehe `katalog-rotation.ts`).
+    const geschrieben = await rotiere(idb, fassungen, aktiv);
+
     const datei: StatusKatalogDatei = {
       version: 1,
       aktiv,
-      fassungen,
+      fassungen: geschrieben,
       updatedAt: new Date().toISOString(),
     };
     return (await schreibeSidecar(idb, STATUS_KATALOG_PATH, datei))
