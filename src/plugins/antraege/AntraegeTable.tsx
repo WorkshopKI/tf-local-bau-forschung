@@ -67,11 +67,24 @@ type ArchivMeta = {
  *  **Ohne Trennlinie**, anders als die List-View-Variante: in der Tabelle sitzt
  *  das Band auf grauem Grund, der die Abgrenzung schon leistet. Die auslaufende
  *  Linie war eine zweite Aussage zur selben Sache — und stieß beim ersten Band
- *  direkt auf die Unterkante des Tabellenkopfes. */
-function StatusBand({ label, count }: { label: string; count: number }): React.ReactElement {
+ *  direkt auf die Unterkante des Tabellenkopfes.
+ *
+ *  `grossbuchstaben` trennt zwei Sorten Beschriftung: die Status-Abschnitte sind
+ *  feste Rubriken und stehen wie eh in Versalien. Netzwerk, FB und AB tragen
+ *  dagegen ECHTE Bezeichner — Versalien verfälschen sie (`AAt` las sich als
+ *  `AAT`, `SprayCloth · Phase 2` als `SPRAYCLOTH · PHASE 2`). */
+function StatusBand({
+  label,
+  count,
+  grossbuchstaben = true,
+}: { label: string; count: number; grossbuchstaben?: boolean }): React.ReactElement {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] tracking-[0.08em] uppercase font-medium text-[var(--tf-text-tertiary)]">
+      <span
+        className={`text-[11px] tracking-[0.08em] font-medium text-[var(--tf-text-tertiary)] ${
+          grossbuchstaben ? 'uppercase' : ''
+        }`}
+      >
         {label}
       </span>
       <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
@@ -265,7 +278,15 @@ export function AntraegeTable({
           // Gruppierungs-Bänder: der Schlüssel ist eine stabile Id (Abschnitt,
           // Netzwerk-Id, Kürzel) — die Beschriftung kommt vom Builder. Bis v3.0
           // stand der Schlüssel roh im Band („VOR-ENTSCHEIDUNG").
-          if (labelOf !== null) return <StatusBand label={labelOf(key)} count={count} />;
+          if (labelOf !== null) {
+            return (
+              <StatusBand
+                label={labelOf(key)}
+                count={count}
+                grossbuchstaben={grouping === 'status'}
+              />
+            );
+          }
           // Arbeitsvorrat/Archiv: eigene Bänder. Zähler kommen aus archivMeta
           // (Gesamt der Sektion), nicht aus dem Slice-Count der SortableTable —
           // sonst wüchse „ABGESCHLOSSEN · n" erst beim Scrollen. Das Archiv-Band

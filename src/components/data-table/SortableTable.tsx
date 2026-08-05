@@ -446,15 +446,20 @@ export function SortableTable<T>({
               && (idx === 0 || sectionKeyOf!(rows[idx - 1]!) !== sectionKey);
             return (
               <Fragment key={rowKey(row)}>
-                {/* Der graue Grund IST die Abgrenzung — eine zusaetzliche
-                    Oberkante stiess beim ersten Band direkt auf die Unterkante
-                    des Tabellenkopfes und las sich dort als doppelte Linie. */}
+                {/* `borderTop` MUSS bleiben: der `thead` traegt selbst keine
+                    Unterkante und denselben grauen Grund wie dieses Band. Steht
+                    ein Band als erste Zeile, ist diese Oberkante die einzige
+                    Trennung zum Tabellenkopf — ohne sie verschmelzen beide zu
+                    einem grauen Block. */}
                 {showSection ? (
                   <tr>
                     <td
                       colSpan={columns.length}
                       className="px-3 py-1.5"
-                      style={{ background: 'var(--tf-bg-secondary)' }}
+                      style={{
+                        background: 'var(--tf-bg-secondary)',
+                        borderTop: '0.5px solid var(--tf-border)',
+                      }}
                     >
                       {renderSectionHeader!(sectionKey!, sectionCounts?.get(sectionKey!) ?? 0)}
                     </td>
