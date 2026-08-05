@@ -17,6 +17,7 @@
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { zahPhaseLabel, MIN_STICHPROBE, type ZahPhase, type ZieltageAuswahl } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 export function ZieltageUebernahmeDialog({
   auswahl, offen, darfSchreiben, phasen, onSchliessen, onUebernehmen,
@@ -45,7 +46,7 @@ export function ZieltageUebernahmeDialog({
             title={darfSchreiben ? undefined : 'Nur mit Schreibrecht auf den Daten-Share'}
             onClick={() => { onUebernehmen(); onSchliessen(); }}
           >
-            {uebernehmen.length} Werte übernehmen
+            {zaehlwort(uebernehmen.length, 'Wert', 'Werte')} übernehmen
           </Button>
           <Button variant="ghost" size="sm" onClick={onSchliessen}>Abbrechen</Button>
         </div>

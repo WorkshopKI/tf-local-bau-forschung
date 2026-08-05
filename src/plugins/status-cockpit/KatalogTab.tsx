@@ -2,7 +2,7 @@
  * Katalog-Tab — die Statuswerte kuratieren.
  *
  * Volle Tabelle der Wert-Einträge des Entwurfs mit Inline-Bearbeitung (Label,
- * Kategorie, Prominenz, Zieltage, aktiv), darüber Filter-Chips + Suche, darunter
+ * Kategorie, Prominenz, Zieltage, aktiv), darüber Suche + Filter-Chips, darunter
  * die Übernahme neu entdeckter (unkuratierter) Funde. Rein darstellend — jede
  * Änderung geht über `api.setWert` in den Entwurf.
  *
@@ -14,8 +14,13 @@
  * **Zwei Sichten, ein Katalog** (seit v2.409). Der Verfahrensschritt wird im
  * BAUM kuratiert (`PhasenBaum.tsx`) — dort ist Umhängen ein Zug und keine
  * Auswahl in einem Dropdown, das man 30-mal öffnet. Diese Tabelle zeigt ihn nur;
- * dafür kann sie, was der Baum bewusst nicht kann: Filterchips, Feld- und
- * CSV-Spalten, alle Zeilen nebeneinander. Sie zu ersetzen wäre ein Rückschritt.
+ * dafür kann sie, was der Baum bewusst nicht kann: Filterchips, Sortierung,
+ * Spaltenfilter, alle Zeilen nebeneinander. Sie zu ersetzen wäre ein Rückschritt.
+ *
+ * Die Tabelle selbst ist seit v2.411 der geteilte `SortableTable`; Zeilen-Modell
+ * und Spalten liegen daneben (`katalogZeilen.ts`, `katalogSpalten.tsx`), der
+ * Export in `katalogExport.ts`. Diese Datei hält nur noch Filterzustand und
+ * Seitenaufbau.
  *
  * Ein früherer Modulkopf schrieb hier „Die ZAH-Phase wird NICHT kuratiert" —
  * mit der Begründung, `prod` lade keine Fassung. Der Einwand gilt weiter und ist
@@ -24,22 +29,25 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
-import { wertId } from './useStatusCockpit';
+import {
+  SortableTable, useTableSort, useColumnFilters, useColumnWidths,
+} from '@/components/data-table';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { PhasenBaum } from './PhasenBaum';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import {
-  feldLabel, zahPhaseLabel, ohneVerwaiste, kategorieFuerPhase, SEED_CODE_ZU_ZAH_PHASE,
-} from '@/core/status';
-import type {
-  StatusWertEintrag, StatusCategory, Prominenz, UnkuratierterFund, ZahPhase,
-} from '@/core/status';
+import { feldLabel, ohneVerwaiste } from '@/core/status';
+import type { StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
+import { baueKatalogZeilen, effektiveKategorieVon } from './katalogZeilen';
+import { baueKatalogSpalten } from './katalogSpalten';
+import { exportiereKatalogXlsx } from './katalogExport';
 import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
-  feldKlasse, feldKlasseSchmal, feldStil, formatDatum,
+  feldStil, formatDatum,
 } from './labels';
 
 function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
@@ -49,182 +57,12 @@ function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
   return next;
 }
 
-const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
-const tdKlasse = 'px-2 py-1.5 align-middle';
-
-/**
- * Die Phase eines Wert-Eintrags, wie die Fassung sie führt: kuratiert schlägt
- * Auslieferung, `null` heißt bewusst Marker. Dieselbe dreiwertige Lesung wie in
- * `schnittVon` und `baueHerleitung`.
- */
-function phaseVon(w: StatusWertEintrag): string | null {
-  if (w.zahPhaseId !== undefined) return w.zahPhaseId;
-  return w.code !== undefined ? SEED_CODE_ZU_ZAH_PHASE.get(w.code) ?? null : null;
-}
-
-/**
- * Die Arbeitsliste, die für diesen Wert **wirklich gilt** — dieselbe dreiwertige
- * Regel wie `kategorieAusFassung` in `snapshot.ts`: Werte mit amtlichem Code
- * leiten sie aus Verfahrensschritt + Code ab, alle anderen tragen das gepflegte
- * Feld.
- *
- * Steht bewusst auf Modul-Ebene und nicht in der Zeile: Anzeige **und** Filter
- * müssen dieselbe Kategorie lesen. Solange der Filter `w.kategorie` prüfte,
- * während die Zelle die abgeleitete zeigte, zählte die Chip-Auswahl ein anderes
- * Vokabular als die Tabelle darunter — sichtbar wurde das erst, als 36/37 die
- * Kategorie wechselten und unter „Wartet auf Antragsteller" stehen blieben.
- */
-function effektiveKategorieVon(
-  w: StatusWertEintrag,
-  phasen: readonly ZahPhase[] | undefined,
-): StatusCategory {
-  return w.code === undefined ? w.kategorie : kategorieFuerPhase(phaseVon(w), w.code, phasen);
-}
-
-function WertZeile({ w, feldName, csvSpalte, api, zeigeZieltage, vorschlag }: {
-  w: StatusWertEintrag; feldName: string; csvSpalte: string; api: StatusCockpitApi;
-  /** Zieltage-Spalte nur im Vorgangssystem — sonst hätte sie keinen Konsumenten. */
-  zeigeZieltage: boolean;
-  /** Median-Liegezeit dieses Status aus dem Bestand, falls messbar. */
-  vorschlag: { median: number; n: number } | undefined;
-}): React.ReactElement {
-  const key = wertId(w.feldId, w.wert);
-  const effektiveKategorie = effektiveKategorieVon(w, api.entwurf?.zahPhasen);
-  return (
-    <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
-      {/* Der kuratierte Feldname, nicht die technische feldId („status" ist der
-          TV-Status). Die feldId bleibt im Tooltip — sie ist der Record-Key. */}
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] whitespace-nowrap`} title={w.feldId}>
-        {feldName}
-      </td>
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] font-mono whitespace-nowrap`}>
-        {csvSpalte}
-      </td>
-      <td className={`${tdKlasse} text-[12px] text-[var(--tf-text)]`}>
-        <div className="flex items-center gap-1.5">
-          <span>{w.wert}</span>
-          {w.unkuratiert && <Badge variant="warning">unkuratiert</Badge>}
-        </div>
-      </td>
-      <td className={`${tdKlasse} min-w-[130px]`}>
-        {/* Leeres Label heißt: es gilt der Rohwert. Der Platzhalter sagt das,
-            statt den Rohwert zu spiegeln — sonst sehen beide Spalten gleich aus
-            und man hält das ungesetzte Label für einen gesetzten Wert. */}
-        <input
-          value={w.label ?? ''} placeholder="wie Rohwert" className={feldKlasse} style={feldStil}
-          onChange={e => api.setWert(w.id, { label: e.target.value })}
-        />
-      </td>
-      {/* Bedienbar ist die Arbeitsliste nur dort, wo sie auch wirkt.
-          Trägt der Wert einen amtlichen Code, leitet die App sie aus
-          Verfahrensschritt + Code ab (`kategorieAusFassung`) — dann stand hier
-          bis v2.410 ein Auswahlfeld, das nichts bewirkte, und darunter ein Satz,
-          der das erklärte. Ein bedienbares Feld ohne Wirkung wird ausprobiert;
-          ein deaktiviertes verspricht die Handlung weiter und belegt Platz.
-          Also: Text statt Attrappe. */}
-      <td className={`${tdKlasse} min-w-[150px]`}>
-        <div className="flex flex-col gap-0.5">
-          {w.code === undefined ? (
-            <select
-              value={w.kategorie} className={feldKlasse} style={feldStil}
-              onChange={e => api.setWert(w.id, { kategorie: e.target.value as StatusCategory })}
-            >
-              {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
-            </select>
-          ) : (
-            <span
-              className="text-[12px] text-[var(--tf-text)]"
-              title={'Ergibt sich aus dem amtlichen Code und dem Verfahrensschritt. '
-                + 'Änderbar durch Umhängen im Baum („Phasen und Zuordnung").'}
-            >
-              {KATEGORIE_LABEL[effektiveKategorie]}
-              <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-                {' · folgt dem Verfahrensschritt'}
-              </span>
-            </span>
-          )}
-          {/* Nur dort eine Zeile, wo sie etwas sagt: die Fassung führt einen
-              anderen gepflegten Wert, als die Ableitung ergibt. Ohne diese
-              Bedingung stand der Satz unter fast jeder der 74 Zeilen. */}
-          {effektiveKategorie !== w.kategorie && (
-            <span className="text-[10.5px] text-[var(--tf-warning-text)]">
-              in dieser Fassung noch als „{KATEGORIE_LABEL[w.kategorie]}" gepflegt
-            </span>
-          )}
-        </div>
-      </td>
-      <td className={`${tdKlasse} min-w-[124px]`}>
-        <select
-          value={w.prominenz} className={feldKlasse} style={feldStil}
-          onChange={e => api.setWert(w.id, { prominenz: e.target.value as Prominenz })}
-        >
-          {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
-        </select>
-      </td>
-      {zeigeZieltage && (
-        // Read-only in DIESER Tabelle — kuratiert wird im Baum-Editor. Die Zelle
-        // liest deshalb den Schnitt der FASSUNG und nicht mehr die rohe
-        // Seed-Tabelle: sonst zeigte sie nach dem ersten Umhängen weiter die
-        // ausgelieferte Phase und widerspräche dem Baum daneben.
-        <td
-          className={`${tdKlasse} text-[12px] text-[var(--tf-text-tertiary)] whitespace-nowrap w-[112px]`}
-          title={'Verfahrensschritt dieses Status. Änderbar im Baum („Phasen und Zuordnung").'}
-        >
-          {w.code === undefined
-            ? '—'
-            : zahPhaseLabel(phaseVon(w), api.entwurf?.zahPhasen)}
-        </td>
-      )}
-      {zeigeZieltage && (
-        <td className={`${tdKlasse} w-[132px]`}>
-          <div className="flex items-center gap-1">
-            <input
-              type="number" min={0} value={w.zieltage ?? ''} placeholder="—"
-              className={`${feldKlasseSchmal} w-[58px]`} style={feldStil}
-              title="Nach wie vielen Tagen ohne Aktivität gilt dieser Status als hängend? Leer = nicht bewertbar."
-              onChange={e => api.setWert(w.id, {
-                zieltage: e.target.value === '' ? null
-                  : (Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : null),
-              })}
-            />
-            {/* Der Vorschlag wird ZEILENWEISE übernommen, nie im Block: er ist
-                eine Näherung aus dem Ist, kein Sollwert. */}
-            {vorschlag !== undefined && w.zieltage !== vorschlag.median && (
-              <button
-                type="button"
-                onClick={() => api.setWert(w.id, { zieltage: vorschlag.median })}
-                title={`Median der Ist-Liegezeiten: ${vorschlag.median} Tage (n = ${vorschlag.n})`}
-                className="text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline whitespace-nowrap"
-              >
-                ⌀{vorschlag.median}
-              </button>
-            )}
-          </div>
-        </td>
-      )}
-      <td className={`${tdKlasse} text-center`}>
-        <input
-          type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={w.aktiv}
-          onChange={e => api.setWert(w.id, { aktiv: e.target.checked })}
-        />
-      </td>
-      <td className={`${tdKlasse} text-right text-[12px] text-[var(--tf-text-secondary)] font-mono`}>
-        {api.vorkommen.get(key) ?? 0}
-      </td>
-      <td className={`${tdKlasse} text-right text-[12px] text-[var(--tf-text-tertiary)] whitespace-nowrap`}>
-        {formatDatum(api.zuletzt.get(key))}
-      </td>
-    </tr>
-  );
-}
-
 /**
  * Baum oder Tabelle — zwei Sichten auf denselben Katalog.
  *
  * Der Baum ist vorbelegt, weil er die Handlung abbildet, um die es geht:
  * umhängen. Die Tabelle bleibt vollständig daneben — sie kann Massen-
- * bearbeitung, Filterchips und die Feld-Spalten, die der Baum bewusst nicht
- * zeigt. Sie zu ersetzen wäre ein Rückschritt, kein Fortschritt.
+ * bearbeitung, Filter und Sortierung, die der Baum bewusst nicht zeigt.
  */
 type Sicht = 'baum' | 'tabelle';
 
@@ -238,7 +76,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   const [zieltageOffen, setZieltageOffen] = useState(false);
 
   const entwurf = api.entwurf;
-  const werte = entwurf?.werte ?? [];
+  const werte = useMemo(() => entwurf?.werte ?? [], [entwurf]);
   const zahPhasen = entwurf?.zahPhasen;
   /** feldId → kuratierter Feldname (eine Quelle: `feldLabel`). */
   const feldName = useCallback(
@@ -261,7 +99,8 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       if (nurUnkuratiert && !w.unkuratiert) return false;
       if (q) {
         // Suche greift auf alles, wonach man einen Status sucht: technischer
-        // Key, Feldname, CSV-Spalte, Rohwert, Label.
+        // Key, Feldname, CSV-Spalte, Rohwert, Label. Die CSV-Spalte steht seit
+        // v2.411 nur noch im Tooltip — gesucht wird sie unverändert.
         const hay = `${w.feldId} ${feldName(w.feldId)} ${csvSpalte(w.feldId)} ${w.wert} ${w.label ?? ''}`
           .toLowerCase();
         if (!hay.includes(q)) return false;
@@ -269,6 +108,33 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       return true;
     });
   }, [werte, suche, katFilter, promFilter, nurUnkuratiert, feldName, csvSpalte, zahPhasen]);
+
+  const zeilen = useMemo(
+    () => baueKatalogZeilen(gefiltert, {
+      feldName,
+      csvSpalte,
+      phasen: zahPhasen,
+      vorkommen: api.vorkommen,
+      zuletzt: api.zuletzt,
+      liegezeitVorschlag: api.liegezeitVorschlag,
+    }),
+    [gefiltert, feldName, csvSpalte, zahPhasen, api.vorkommen, api.zuletzt, api.liegezeitVorschlag],
+  );
+
+  const spalten = useMemo(
+    () => baueKatalogSpalten({ zeigeZieltage, setWert: api.setWert }),
+    [zeigeZieltage, api.setWert],
+  );
+  const standardBreiten = useMemo(
+    () => Object.fromEntries(spalten.map(c => [c.key, c.width ?? 120])),
+    [spalten],
+  );
+  const { widths, setWidth } = useColumnWidths('teamflow_status_katalog_col_widths', standardBreiten);
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
+    useColumnFilters(zeilen, spalten);
+  const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
+    filteredRows, spalten, null, 'asc', 'teamflow_status_katalog_sort',
+  );
 
   if (!entwurf) return null;
 
@@ -293,59 +159,27 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
 
       {(!zeigeZieltage || sicht === 'tabelle') && (
       <>
-      {api.unkuratiert.length > 0 && (
-        <p className="text-[12.5px] text-[var(--tf-warning-text)]">
-          {api.unkuratiert.length} neue Statuswerte seit letztem Import
-        </p>
-      )}
-
-      {/* Verwaist heißt: die Zuordnung zeigt auf einen Verfahrensschritt, den es
-          nicht mehr gibt. Gelesen wird sie wie „ohne Phase" — aber sie wird
-          gezählt, sonst nähme ein gelöschter Schritt still Statuswerte aus
-          Gruppierung, Zieltagen und Wächter. */}
-      {!ohneVerwaiste(api.verwaiste) && (
-        <p className="text-[12.5px] text-[var(--tf-warning-text)]">
-          {api.verwaiste.werte > 0 && `${api.verwaiste.werte} Statuswerte`}
-          {api.verwaiste.werte > 0 && api.verwaiste.felder > 0 && ' und '}
-          {api.verwaiste.felder > 0 && `${api.verwaiste.felder} Datumsfelder`}
-          {' '}zeigen auf einen Verfahrensschritt, den diese Fassung nicht mehr führt.
-          Sie zählen bis auf Weiteres als „ohne Phase".
-        </p>
-      )}
-
-      {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
-          Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,
-          steht vorher in der Vorschau — inklusive dessen, was er NICHT setzt. */}
-      {zeigeZieltage && api.zieltageAuswahl.uebernehmen.length > 0 && (
-        <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
-          <span className="text-[12.5px] text-[var(--tf-text)]">
-            Für {api.zieltageAuswahl.uebernehmen.length} Statuswerte der Phasen Eingang bis
-            Entscheidung liegt ein Zieltage-Vorschlag aus dem Ist vor
-            {api.zieltageAuswahl.zuWenigDaten.length > 0
-              && ` (${api.zieltageAuswahl.zuWenigDaten.length} weitere haben zu wenig Daten)`}.
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => setZieltageOffen(true)}>
-            Vorschläge ansehen
+      {/* Suche und Filter stehen direkt unter dem Umschalter. Bis v2.410 lagen
+          sie unter drei Hinweisblöcken — wer die Tabelle filtern wollte, musste
+          erst an Meldungen vorbeiscrollen, die ihn nichts angingen. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={suche} placeholder="Feld, CSV-Spalte, Rohwert oder Label suchen …"
+            className="w-full max-w-[360px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
+            style={feldStil}
+            onChange={e => setSuche(e.target.value)}
+          />
+          <Button
+            variant="secondary" size="sm" className="ml-auto"
+            disabled={sortedRows.length === 0}
+            title={`${zaehlwort(sortedRows.length, 'Zeile', 'Zeilen')} — genau diese Ansicht `
+              + 'inklusive Filter und Sortierung, dazu die rohe CSV-Spalte als eigene Spalte.'}
+            onClick={() => exportiereKatalogXlsx(sortedRows, spalten, entwurf.version)}
+          >
+            <Download size={13} /> Tabelle exportieren
           </Button>
         </div>
-      )}
-
-      <ZieltageUebernahmeDialog
-        auswahl={api.zieltageAuswahl}
-        offen={zieltageOffen}
-        darfSchreiben={api.darfSchreiben}
-        phasen={entwurf?.zahPhasen}
-        onSchliessen={() => setZieltageOffen(false)}
-        onUebernehmen={api.zieltageUebernehmen}
-      />
-
-      <div className="flex flex-col gap-2">
-        <input
-          value={suche} placeholder="Feld, CSV-Spalte, Rohwert oder Label suchen …"
-          className="w-full max-w-[360px] text-[12.5px] rounded px-2.5 py-1.5 bg-[var(--tf-bg)] text-[var(--tf-text)]"
-          style={feldStil}
-          onChange={e => setSuche(e.target.value)}
-        />
         <div className="flex flex-wrap gap-1.5">
           {KATEGORIE_WERTE.map(k => (
             <ToggleChip
@@ -368,69 +202,91 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded" style={feldStil}>
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
-              <th className={thKlasse}>Feld</th>
-              <th className={thKlasse}>CSV-Spalte</th>
-              <th className={thKlasse}>Rohwert</th>
-              <th className={thKlasse}>Label</th>
-              {/* Die beiden Achsen tragen ihren ZWECK im Namen. Vier der neun
-                  Arbeitslisten hießen wortgleich wie ein Verfahrensschritt;
-                  zwei Spalten mit halb denselben Wörtern, und keine sagt wozu,
-                  liest jeder als Widerspruch. Die Schlüssel im Datenmodell
-                  (`kategorie`, `zahPhaseId`) bleiben unverändert. */}
-              <th className={thKlasse}>
-                <div className="flex flex-col gap-0.5">
-                  <span>Arbeitsliste</span>
-                  <span className="font-normal normal-case text-[10.5px] text-[var(--tf-text-tertiary)]">
-                    bestimmt Reiter, Gruppierung und Farbe in Förderanträge
-                  </span>
-                </div>
-              </th>
-              <th className={thKlasse}>Prominenz</th>
-              {zeigeZieltage && (
-                <th className={thKlasse}>
-                  <div className="flex flex-col gap-0.5">
-                    <span>Verfahrensschritt</span>
-                    <span className="font-normal normal-case text-[10.5px] text-[var(--tf-text-tertiary)]">
-                      bestimmt Auswertung, Zieltage und Stillstand · Beschriftung
-                      im Baum änderbar
-                    </span>
-                  </div>
-                </th>
-              )}
-              {zeigeZieltage && (
-                <th
-                  className={thKlasse}
-                  title="Nach wie vielen Tagen ohne Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt: nicht bewertbar — nicht: unauffällig."
-                >
-                  Zieltage
-                </th>
-              )}
-              <th className={`${thKlasse} text-center`}>aktiv</th>
-              <th className={`${thKlasse} text-right`}>Vorkommen</th>
-              <th className={`${thKlasse} text-right`}>zuletzt gesehen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gefiltert.map(w => (
-              <WertZeile
-                key={w.id} w={w} api={api}
-                feldName={feldName(w.feldId)} csvSpalte={csvSpalte(w.feldId)}
-                zeigeZieltage={zeigeZieltage}
-                vorschlag={w.code !== undefined ? api.liegezeitVorschlag.get(w.code) : undefined}
-              />
-            ))}
-          </tbody>
-        </table>
-        {gefiltert.length === 0 && (
-          <p className="text-[12.5px] text-[var(--tf-text-tertiary)] px-3 py-4">
-            Keine Statuswerte für die aktuellen Filter.
-          </p>
+      {api.unkuratiert.length > 0 && (
+        <p className="text-[12.5px] text-[var(--tf-warning-text)]">
+          {zaehlwort(api.unkuratiert.length, 'neuer Statuswert', 'neue Statuswerte')}
+          {' '}seit letztem Import
+        </p>
+      )}
+
+      {/* Verwaist heißt: die Zuordnung zeigt auf einen Verfahrensschritt, den es
+          nicht mehr gibt. Gelesen wird sie wie „ohne Phase" — aber sie wird
+          gezählt, sonst nähme ein gelöschter Schritt still Statuswerte aus
+          Gruppierung, Zieltagen und Wächter. */}
+      {!ohneVerwaiste(api.verwaiste) && (
+        <p className="text-[12.5px] text-[var(--tf-warning-text)]">
+          Verwaiste Zuordnung bei{' '}
+          {api.verwaiste.werte > 0 && zaehlwort(api.verwaiste.werte, 'Statuswert', 'Statuswerten')}
+          {api.verwaiste.werte > 0 && api.verwaiste.felder > 0 && ' und '}
+          {api.verwaiste.felder > 0 && zaehlwort(api.verwaiste.felder, 'Datumsfeld', 'Datumsfeldern')}
+          {' '}— der Verfahrensschritt existiert in dieser Fassung nicht mehr.
+          Bewertet wird bis auf Weiteres als „ohne Phase".
+        </p>
+      )}
+
+      {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
+          Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,
+          steht vorher in der Vorschau — inklusive dessen, was er NICHT setzt. */}
+      {zeigeZieltage && api.zieltageAuswahl.uebernehmen.length > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
+          <span className="text-[12.5px] text-[var(--tf-text)]">
+            Für {zaehlwort(api.zieltageAuswahl.uebernehmen.length, 'Statuswert', 'Statuswerte')}
+            {' '}der Phasen Eingang bis Entscheidung liegt ein Zieltage-Vorschlag aus dem Ist vor
+            {api.zieltageAuswahl.zuWenigDaten.length > 0
+              && ` (bei ${zaehlwort(api.zieltageAuswahl.zuWenigDaten.length,
+                'weiterem Statuswert', 'weiteren Statuswerten')} reichen die Daten nicht)`}.
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => setZieltageOffen(true)}>
+            Vorschläge ansehen
+          </Button>
+        </div>
+      )}
+
+      <ZieltageUebernahmeDialog
+        auswahl={api.zieltageAuswahl}
+        offen={zieltageOffen}
+        darfSchreiben={api.darfSchreiben}
+        phasen={entwurf?.zahPhasen}
+        onSchliessen={() => setZieltageOffen(false)}
+        onUebernehmen={api.zieltageUebernehmen}
+      />
+
+      {/* Die beiden Achsen tragen ihren ZWECK hier, nicht als Unterzeile in zwei
+          Spaltenköpfen: vier der neun Arbeitslisten heißen wortgleich wie ein
+          Verfahrensschritt, und zwei Spalten mit halb denselben Wörtern liest
+          jeder als Widerspruch. Die Schlüssel im Datenmodell (`kategorie`,
+          `zahPhaseId`) bleiben unverändert. */}
+      <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+        <strong className="font-medium">Arbeitsliste</strong> bestimmt Reiter, Gruppierung und
+        Farbe in Förderanträge
+        {zeigeZieltage && (
+          <>
+            {' · '}
+            <strong className="font-medium">Verfahrensschritt</strong> bestimmt Auswertung,
+            Zieltage und Stillstand — umgehängt wird er im Baum.
+          </>
         )}
-      </div>
+      </p>
+
+      <SortableTable
+        rows={sortedRows}
+        columns={spalten}
+        sortKey={sortKey}
+        sortDirection={sortDirection}
+        onSort={toggleSort}
+        rowKey={z => z.w.id}
+        columnFilters={columnFilters}
+        onColumnFilterChange={setColumnFilter}
+        filterCandidates={filterCandidates}
+        columnWidths={widths}
+        onColumnWidthChange={setWidth}
+        // Zehn Spalten, davon vier mit Eingabefeld: in den Container gestaucht
+        // brach schon der Spaltenkopf mitten im Wort um („Verfahrens-schritt"
+        // über drei Zeilen, Kopfzeile 60 px). Lieber die Wunschbreite halten und
+        // waagerecht scrollen — wie in der Suche.
+        fitContentWidth
+        emptyContent="Keine Statuswerte für die aktuellen Filter."
+      />
 
       {api.unkuratiert.length > 0 && (
         <section className="flex flex-col gap-1.5 mt-2">

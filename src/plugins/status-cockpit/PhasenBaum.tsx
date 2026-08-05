@@ -24,6 +24,7 @@ import {
 import { MasterDetailLayout } from '@/components/master-detail';
 import { TfTree, type TfTreeNodeRenderProps } from '@/components/tree';
 import { MAX_PHASEN, phaseFuerCode, zahPhasenVon } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import { wertId, type StatusCockpitApi } from './useStatusCockpit';
 import {
   bauePhasenBaum, OHNE_PHASE_ID, WURZEL_ID, type PhasenBaumKnoten,
@@ -35,8 +36,8 @@ import { PhaseLoeschenDialog } from './PhaseLoeschenDialog';
 const zahl = (n: number): string => n.toLocaleString('de-DE');
 
 /** „1 Wert" / „5 Werte" — die Zahl steht an jeder Zeile, der Fehler fiele auf. */
-const werteWort = (n: number): string => `${n} ${n === 1 ? 'Wert' : 'Werte'}`;
-const vorgangWort = (n: number): string => `${zahl(n)} ${n === 1 ? 'Vorgang' : 'Vorgänge'}`;
+const werteWort = (n: number): string => zaehlwort(n, 'Wert', 'Werte');
+const vorgangWort = (n: number): string => zaehlwort(n, 'Vorgang', 'Vorgänge');
 
 export function PhasenBaum({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const entwurf = api.entwurf;
@@ -85,8 +86,9 @@ export function PhasenBaum({ api }: { api: StatusCockpitApi }): React.ReactEleme
 
       {verwaiste > 0 && (
         <p className="shrink-0 text-[12px] text-[var(--tf-warning-text)]">
-          {verwaiste} Statuswerte zeigen auf einen Schritt, den es nicht mehr gibt. Sie stehen
-          unten unter „Ohne Phase" und sind dort als <em>verwaist</em> markiert.
+          Auf einen Schritt, den es nicht mehr gibt, zeigen
+          {' '}{zaehlwort(verwaiste, 'Statuswert', 'Statuswerte')}. Zu finden unten unter
+          {' '}„Ohne Phase", dort als <em>verwaist</em> markiert.
         </p>
       )}
 

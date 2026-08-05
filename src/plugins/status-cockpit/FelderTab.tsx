@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
   betrifftRolle, rollenVonFeld, sortiereRollen, wirkungZeilen, baueLegende,
@@ -122,7 +123,7 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
             {vorgangssystem && wirkung.length > 0 && (
               <button
                 type="button" onClick={() => setOffen(v => !v)} aria-expanded={offen}
-                title={`${wirkung.length} Trigger-Zeile${wirkung.length === 1 ? '' : 'n'} anzeigen`}
+                title={`${zaehlwort(wirkung.length, 'Trigger-Zeile', 'Trigger-Zeilen')} anzeigen`}
                 className="inline-flex items-center gap-0.5 text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
               >
                 <Zap size={11} />
@@ -361,8 +362,9 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   return (
     <div className="flex flex-col gap-3 pt-3">
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-        {entwurf.felder.length} Kürzel in {kategorien.length} Ordnern · {mitPhase} davon tragen eine
-        ZAH-Phase. Ein Kürzel ohne Phase wird erfasst und angezeigt, erklärt aber kein „seit wann".
+        {entwurf.felder.length} Kürzel in {zaehlwort(kategorien.length, 'Ordner', 'Ordnern')}
+        {' · '}davon mit ZAH-Phase: {mitPhase}. Ein Kürzel ohne Phase wird erfasst und angezeigt,
+        erklärt aber kein „seit wann".
         {vorgangssystem && (
           <>
             {' '}{relevanteAnzahl} als relevant markiert

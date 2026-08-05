@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { MIN_PHASEN, type GeltendeZahPhase } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import { feldKlasse, feldStil } from './labels';
 
 /** Sentinel für „ohne Phase" — `null` lässt sich nicht als `<option>`-Wert führen. */
@@ -66,8 +67,9 @@ export function PhaseLoeschenDialog({
             <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
               {codeAnzahl === 0
                 ? 'Dieser Schritt ist leer — es hängt kein Statuswert daran.'
-                : `An diesem Schritt hängen ${codeAnzahl} Statuswerte. Sie verschwinden nicht, `
-                  + 'sondern ziehen um — wohin, entscheiden Sie hier.'}
+                : `An diesem Schritt hängen: ${zaehlwort(codeAnzahl, 'Statuswert', 'Statuswerte')}. `
+                  + 'Verschwinden wird davon nichts — die Zuordnung zieht um, und wohin, '
+                  + 'entscheiden Sie hier.'}
             </p>
             {codeAnzahl > 0 && (
               <label className="flex flex-col gap-1">

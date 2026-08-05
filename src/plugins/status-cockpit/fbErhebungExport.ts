@@ -15,6 +15,7 @@ import {
   type KuerzelKarteZeile, type PlatzhalterErhebung, type Rolle,
 } from '@/core/status';
 import { schreibeArbeitsmappe, zeitstempel, type Blatt } from '@/core/status/export/arbeitsmappe';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 /**
  * Der eine Satz, der die zwei Platzhalter-Zahlen auseinanderhält.
@@ -130,7 +131,7 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
   z.push(`# Erhebung ${rolle}-Regelsatz`);
   z.push('');
   z.push(`Stand ${k.stichtag.slice(0, 10)} · Betrachtungsbereich: ${k.bereichText} · `
-    + `${d.platzhalter.gesamt} Vorgänge, alle Jahrgänge.`);
+    + `${zaehlwort(d.platzhalter.gesamt, 'Vorgang', 'Vorgänge')}, alle Jahrgänge.`);
   z.push('');
   z.push(`Die To-do-Kaskade der App kennt heute nur den AB-Regelsatz. Für ${ROLLE_LANG[k.rolle]} `
     + 'gibt es keine Mappe zum Transkribieren — diese Erhebung ersetzt sie: sie zeigt, wo die '
@@ -142,7 +143,8 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
   if (eigene.length === 0) {
     z.push('Keine — im ausgewerteten Bestand wartet derzeit keine Regel auf diese Rolle.');
   } else {
-    z.push(`${bilanz?.abgeleitet ?? 0} Vorgänge tragen heute ein geliehenes To-do. Je Zeile: `
+    z.push('Heute mit geliehenem To-do: '
+      + `${zaehlwort(bilanz?.abgeleitet ?? 0, 'Vorgang', 'Vorgänge')}. Je Zeile: `
       + 'was die App anzeigt, aus welcher Regel es stammt, wie oft.');
     z.push('');
     z.push('| Als Platzhalter sichtbar | Bedingung trifft | To-do | Herkunftsregel |');
@@ -189,7 +191,7 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
   z.push('');
   const gesetzt = d.karte.filter(x => x.vorkommen > 0);
   z.push(`Die Zuarbeit führt ${d.karte.length} Kürzel, die ${rolle} setzt; `
-    + `${gesetzt.length} davon kommen im Bestand tatsächlich vor. Die häufigsten:`);
+    + `davon im Bestand tatsächlich vorhanden: ${gesetzt.length}. Die häufigsten:`);
   z.push('');
   z.push('| Kürzel | Bezeichnung | Vorkommen |');
   z.push('|---|---|---:|');

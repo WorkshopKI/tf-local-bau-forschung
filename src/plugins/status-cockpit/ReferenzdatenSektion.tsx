@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import { pickXlsxFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import {
   importiereStatusKatalog, importiereTriggerTabelle, diffZusammenfassung,
@@ -61,14 +62,15 @@ const FORMAT_LABEL: Record<string, string> = {
   kopf: 'Kopfzeilen-Tabelle (Code/Text)',
 };
 
-/** „30 Statuscodes übernommen · übersprungen: 12 Textbausteine, 5 Bearbeiter". */
+/** „30 Statuscodes übernommen · übersprungen: 12 Textbausteine, 5 Bearbeiter".
+ *  „Bearbeiter" bleibt ohne Zählwort-Hilfe — Singular und Plural sind gleich. */
 function bilanzSatz(uebernommen: number, b: ZeilenBilanz): string {
   const rest: string[] = [];
-  if (b.textbaustein > 0) rest.push(`${b.textbaustein} Textbausteine`);
+  if (b.textbaustein > 0) rest.push(zaehlwort(b.textbaustein, 'Textbaustein', 'Textbausteine'));
   if (b.bearbeiter > 0) rest.push(`${b.bearbeiter} Bearbeiter`);
-  if (b.zuordnung > 0) rest.push(`${b.zuordnung} Zuordnungen`);
+  if (b.zuordnung > 0) rest.push(zaehlwort(b.zuordnung, 'Zuordnung', 'Zuordnungen'));
   if (b.unklar > 0) rest.push(`${b.unklar} ohne erkennbare Art`);
-  return `${uebernommen} Statuscodes übernommen`
+  return `${zaehlwort(uebernommen, 'Statuscode', 'Statuscodes')} übernommen`
     + (rest.length > 0 ? ` · übersprungen: ${rest.join(', ')}` : '');
 }
 
@@ -132,7 +134,7 @@ function VorschauKarte({ v, onVerwerfen, darfSchreiben }: {
           {v.jeProgramm.map(p => (
             <span key={p.programm} className="text-[11.5px] text-[var(--tf-text-secondary)]">
               <span className="font-mono text-[var(--tf-text)]">{p.programm}</span>
-              {' '}{p.zeilen} Zeilen · {p.kuerzel} Kürzel
+              {' '}{zaehlwort(p.zeilen, 'Zeile', 'Zeilen')} · {p.kuerzel} Kürzel
             </span>
           ))}
         </div>
@@ -164,7 +166,7 @@ function VorschauKarte({ v, onVerwerfen, darfSchreiben }: {
             ))}
             {v.zeilen.length > sichtbar.length && (
               <li className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                … {v.zeilen.length - sichtbar.length} weitere Änderungen
+                … {zaehlwort(v.zeilen.length - sichtbar.length, 'weitere Änderung', 'weitere Änderungen')}
               </li>
             )}
           </ul>
@@ -200,10 +202,12 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
   /** Was der Fassung fehlt — als Liste, damit der Satz immer aufgeht. */
   const l = api.vorgangssystemLuecke;
   const luecken: string[] = [
-    ...(l.werteOhneCode > 0 ? [`${l.werteOhneCode} Statuswerte ohne Code`] : []),
+    ...(l.werteOhneCode > 0
+      ? [`${zaehlwort(l.werteOhneCode, 'Statuswert', 'Statuswerte')} ohne Code`] : []),
     ...(l.phasenFehlen ? ['keine ZAH-Phasen'] : []),
     ...(l.todoRegelnFehlen ? ['keine To-do-Regeln'] : []),
-    ...(l.doppelteCodes > 0 ? [`${l.doppelteCodes} doppelt geführte Kürzel`] : []),
+    ...(l.doppelteCodes > 0
+      ? [zaehlwort(l.doppelteCodes, 'doppelt geführtes Kürzel', 'doppelt geführte Kürzel')] : []),
   ];
 
   // WICHTIG: `pickXlsxFile` ist der erste `await` — kein weiterer davor, sonst
@@ -254,7 +258,8 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
     if (e.programmeOhneTrigger.length > 0) {
       warnungen.push(
         'Für diese Programme des Bestands führt die Datei keine Trigger: '
-        + `${e.programmeOhneTrigger.map(p => `${p.programm} (${p.antraege} Anträge)`).join(', ')}. `
+        + `${e.programmeOhneTrigger
+          .map(p => `${p.programm} (${zaehlwort(p.antraege, 'Antrag', 'Anträge')})`).join(', ')}. `
         + 'Dort bleiben Navigator und Erklärung stumm — das ist Absicht, kein Ausfall.',
       );
     }
@@ -267,13 +272,16 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
         .join(' · ');
       warnungen.push(
         `${e.nichtInterpretiert.length} von ${e.zeilen.length} Zeilen konnte der Parser nicht `
-        + `deuten — sie werden mit Rohtext übernommen. ${liste}`
-        + (e.nichtInterpretiert.length > 8 ? ` … und ${e.nichtInterpretiert.length - 8} weitere` : ''),
+        + `deuten — übernommen wird dort der Rohtext. ${liste}`
+        + (e.nichtInterpretiert.length > 8
+          ? ` … und ${zaehlwort(e.nichtInterpretiert.length - 8, 'weitere Zeile', 'weitere Zeilen')}`
+          : ''),
       );
     }
     if (e.unbekannteKuerzel.length > 0) {
       warnungen.push(
-        `${e.unbekannteKuerzel.length} referenzierte Kürzel stehen nicht im Katalog `
+        `Nicht im Katalog: ${zaehlwort(e.unbekannteKuerzel.length,
+          'referenziertes Kürzel', 'referenzierte Kürzel')} `
         + `(${e.unbekannteKuerzel.slice(0, 12).join(', ')}${e.unbekannteKuerzel.length > 12 ? ' …' : ''}). `
         + 'Die Trigger können trotzdem übernommen werden; die Erklärung zeigt dann „unbekanntes Kürzel".',
       );
@@ -281,7 +289,9 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
     setVorschau({
       art: 'trigger',
       titel: `Trigger-Tabelle · ${datei.name}`,
-      zusammenfassung: `${e.zeilen.length} Zeilen in ${e.jeProgramm.length} Programmen · `
+      // Dativ: die Hilfe dekliniert nicht, der Aufrufer übergibt „Programmen".
+      zusammenfassung: `${zaehlwort(e.zeilen.length, 'Zeile', 'Zeilen')} in `
+        + `${zaehlwort(e.jeProgramm.length, 'Programm', 'Programmen')} · `
         + diffZusammenfassung(e.diff),
       zeilen: diffZeilen<TriggerZeile>(
         e.diff,
@@ -326,7 +336,7 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
         <FileSpreadsheet size={15} />
         Referenzdaten (Vorgangssystem)
         <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-          {mitCode} Statuswerte mit Code · {trigger.length} Trigger
+          {zaehlwort(mitCode, 'Statuswert', 'Statuswerte')} mit Code · {trigger.length} Trigger
         </span>
         {/* Steht in der KOPFZEILE, nicht nur im aufgeklappten Bereich: die
             Sektion ist per Default zu, und eine Warnung, die man erst
@@ -370,9 +380,10 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                   <>
                     {' '}
                     <span className="text-[var(--tf-warning-text)]">
-                      {api.vorgangssystemLuecke.doppelteCodes} Kürzel werden doppelt geführt
-                      (kanonisches Feld und eigene Spalte) — das Nachziehen entfernt die
-                      überzählige Spalte, sonst gilt das Kürzel überall als nie gesetzt.
+                      Doppelt geführt (kanonisches Feld und eigene Spalte):
+                      {' '}{api.vorgangssystemLuecke.doppelteCodes} Kürzel. Das Nachziehen
+                      entfernt die überzählige Spalte — sonst gilt das Kürzel überall als
+                      nie gesetzt.
                     </span>
                   </>
                 )}
@@ -396,7 +407,7 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                 {statusImport.busy ? 'Liest …' : 'Parametertabelle (XLSX)'}
               </Button>
               <span className="text-[12px] text-[var(--tf-text-tertiary)]">
-                {mitCode} Werte zugeordnet
+                {zaehlwort(mitCode, 'Wert', 'Werte')} zugeordnet
                 {ohneCode > 0 && (
                   <> · <span className="text-[var(--tf-warning-text)]">{ohneCode} ohne Code</span></>
                 )}
@@ -413,8 +424,8 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
               <span className="text-[12px] text-[var(--tf-text-tertiary)]">
                 {trigger.length === 0
                   ? HERKUNFT_LABEL[api.trigger.herkunft]
-                  : `Stand v${api.trigger.datei?.version} · ${trigger.length} Zeilen`
-                    + ` · ${programme.length} Programme (${programme.join(', ')})`
+                  : `Stand v${api.trigger.datei?.version} · ${zaehlwort(trigger.length, 'Zeile', 'Zeilen')}`
+                    + ` · ${zaehlwort(programme.length, 'Programm', 'Programme')} (${programme.join(', ')})`
                     + ` · ${HERKUNFT_LABEL[api.trigger.herkunft]}`}
                 {triggerOffen > 0 && (
                   <> · <span className="text-[var(--tf-warning-text)]">{triggerOffen} nicht interpretiert</span></>
@@ -428,15 +439,16 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                 stillschweigend weiterbenutzt. */}
             {ohneProgramm > 0 && (
               <p className="text-[11.5px] text-[var(--tf-warning-text)]">
-                ⚠ {ohneProgramm} der {trigger.length} Zeilen tragen keine Programm-Angabe — sie
-                stammen aus einem Import vor v2.380, der alle Programme auf das erste eingedampft
-                hat. Sie greifen an keinem Antrag. Bitte die Trigger-XLSX neu einlesen.
+                ⚠ Programm-Angabe fehlt in {ohneProgramm} von {trigger.length} Zeilen — Ursache
+                ist ein Import vor v2.380, der alle Programme auf das erste eingedampft hat.
+                Betroffene Zeilen greifen an keinem Antrag; bitte die Trigger-XLSX neu einlesen.
               </p>
             )}
 
             {api.antraegeOhneProgramm > 0 && (
               <p className="text-[11.5px] text-[var(--tf-warning-text)]">
-                ⚠ {api.antraegeOhneProgramm} Anträge im Bestand tragen keine Programm-Nummer
+                ⚠ Programm-Nummer fehlt bei
+                {' '}{zaehlwort(api.antraegeOhneProgramm, 'Antrag', 'Anträgen')} im Bestand
                 (Spalte FM_NUMMER nicht gemappt) — dort kann das Vorgangssystem keine Trigger
                 zuordnen.
               </p>
@@ -446,9 +458,9 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
                 entschiede die Zeilenreihenfolge, welche Trigger gelten. */}
             {api.programmUneinheitlich.length > 0 && (
               <p className="text-[11.5px] text-[var(--tf-warning-text)]">
-                ⚠ {api.programmUneinheitlich.length} Verbünde tragen an ihren Teilvorhaben
-                verschiedene Programm-Nummern — die Trigger-Auswahl hängt dort an der
-                Zeilenreihenfolge. Beispiele:{' '}
+                ⚠ Verschiedene Programm-Nummern an den Teilvorhaben von
+                {' '}{zaehlwort(api.programmUneinheitlich.length, 'Verbund', 'Verbünden')} — die
+                Trigger-Auswahl hängt dort an der Zeilenreihenfolge. Beispiele:{' '}
                 {api.programmUneinheitlich.slice(0, 3)
                   .map(v => `${v.verbundId} (${v.nummern.join('/')})`).join(', ')}
                 {api.programmUneinheitlich.length > 3 && ' …'}

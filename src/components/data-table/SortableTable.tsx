@@ -362,6 +362,14 @@ export function SortableTable<T>({
                       : undefined
                   }
                 >
+                  {/* Kein `min-w-0`/`break-words` hier: eine Überschrift aus
+                      EINEM Wort behält als Flex-Element die Breite dieses
+                      Wortes und läuft bei zu schmaler Spalte über den Rand.
+                      Der naheliegende Umbruch macht es schlimmer — gemessen an
+                      der Antrags-Tabelle, deren 72-px-Spalte „TIB" dann mitten
+                      im Wort trennte und die Kopfzeile um 16 px wachsen ließ.
+                      Die Spaltenbreite ist die richtige Stellschraube; im
+                      Status-Katalog gibt der längste Kopf sie vor. */}
                   <div className="flex items-center gap-1">
                     {c.sortable ? (
                       <button

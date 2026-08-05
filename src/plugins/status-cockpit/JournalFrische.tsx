@@ -23,6 +23,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import {
   journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE, type JournalFrische as Frische,
 } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 export interface FrischeLage {
   /** `null` = kein Stand auf dem Share (noch kein Baseline-Lauf). */
@@ -62,7 +63,7 @@ function tagDe(iso: string): string {
 /** „heute" · „1 Tag" · „14 Tage" — eine Diagnose-Zeile mit Grammatikfehler wird nicht ernst genommen. */
 function alter(tage: number): string {
   if (tage === 0) return 'heute';
-  return tage === 1 ? '1 Tag' : `${tage} Tage`;
+  return zaehlwort(tage, 'Tag', 'Tage');
 }
 
 /** Die Kurzform für die Kopfzeile der eingeklappten Sektion. */
@@ -116,7 +117,7 @@ export function JournalFrischeBlock({ lage, darfSchreiben }: {
       <p className="text-[12px] text-[var(--tf-text)]">
         <strong>Journal:</strong> letzter Stempel vom {tagDe(stempel.datum)}
         {tageAlt === 0 ? ' (heute)' : ` (${alter(tageAlt)} alt)`}
-        {' · '}{eintraegeImMonat.toLocaleString('de-DE')} Einträge im Monat {monat}
+        {' · '}{zaehlwort(eintraegeImMonat, 'Eintrag', 'Einträge')} im Monat {monat}
         {' · '}Historie ab {tagDe(journalAb)}
       </p>
       {veraltet && (

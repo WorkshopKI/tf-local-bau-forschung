@@ -22,6 +22,7 @@ import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/compo
 import { TfTree, type TfTreeNodeRenderProps } from '@/components/tree';
 import type { StatusKategorie } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import { EBENE_LABEL, feldKlasse, feldKlasseSchmal, feldStil } from './labels';
 import { darfAblegen, naechsteReihenfolge } from './ordnerDrag';
 import {
@@ -248,7 +249,7 @@ function Steuerung({ p, api }: {
       onDoubleClick={e => e.stopPropagation()}
     >
       <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">
-        {p.data.belegt} Felder
+        {zaehlwort(p.data.belegt, 'Feld', 'Felder')}
       </span>
       <input
         type="number"
@@ -290,7 +291,7 @@ function Menue({ p, onUmbenennen, api }: {
   const k = p.data.kategorie;
   return (
     <>
-      <ContextMenuLabel>{k.id} · {p.data.belegt} Felder</ContextMenuLabel>
+      <ContextMenuLabel>{k.id} · {zaehlwort(p.data.belegt, 'Feld', 'Felder')}</ContextMenuLabel>
       <ContextMenuItem onSelect={onUmbenennen}>Umbenennen …</ContextMenuItem>
       <ContextMenuItem onSelect={() => api.setKategorie(k.id, { aktiv: !k.aktiv })}>
         {k.aktiv ? 'Stilllegen' : 'Wieder aktivieren'}

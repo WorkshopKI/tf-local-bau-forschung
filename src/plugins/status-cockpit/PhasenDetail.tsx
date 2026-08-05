@@ -17,6 +17,7 @@ import type { StatusCockpitApi } from './useStatusCockpit';
 import type { PhasenBaumKnoten } from './phasenKnoten';
 import { KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels';
 import type { Prominenz, StatusCategory, StatusWertEintrag } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 const feldLabelKlasse = 'text-[11px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
 
@@ -43,7 +44,8 @@ function PhaseDetail({ knoten, api }: {
       <div className="flex flex-col gap-0.5">
         <h3 className="text-[14px] font-medium text-[var(--tf-text)]">{p.label}</h3>
         <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)]">
-          {p.id} · {knoten.codeAnzahl} Statuswerte · {knoten.vorkommen.toLocaleString('de-DE')} Vorgänge
+          {p.id} · {zaehlwort(knoten.codeAnzahl, 'Statuswert', 'Statuswerte')}
+          {' · '}{zaehlwort(knoten.vorkommen, 'Vorgang', 'Vorgänge')}
         </span>
       </div>
 
@@ -102,7 +104,7 @@ function CodeDetail({ knoten, api }: {
       <div className="flex flex-col gap-0.5">
         <h3 className="text-[14px] font-medium text-[var(--tf-text)]">{knoten.label ?? knoten.wert}</h3>
         <span className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] text-[var(--tf-text-tertiary)]">
-          Code {knoten.code} · {knoten.vorkommen.toLocaleString('de-DE')} Vorgänge
+          Code {knoten.code} · {zaehlwort(knoten.vorkommen, 'Vorgang', 'Vorgänge')}
           {knoten.verwaist && <Badge variant="warning">verwaist</Badge>}
         </span>
       </div>
@@ -180,10 +182,11 @@ export function PhasenDetail({ knoten, api }: {
       <div className="flex flex-col gap-2 p-3">
         <h3 className="text-[14px] font-medium text-[var(--tf-text)]">Ohne Phase</h3>
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-          {knoten.codeAnzahl} Statuswerte laufen <strong>neben</strong> dem Verfahren:
-          Irrläufer, Sonderstatus, Partner-Kennzeichen. Das ist ein gültiger Zustand und
-          kein Fehler — sie bekommen bewusst keine Position im Ablauf und tauchen deshalb
-          in Leiste, Zieltagen und Stillstands-Wächter nicht auf.
+          <strong>Neben</strong> dem Verfahren laufen hier
+          {' '}{zaehlwort(knoten.codeAnzahl, 'Statuswert', 'Statuswerte')}: Irrläufer,
+          Sonderstatus, Partner-Kennzeichen. Das ist ein gültiger Zustand und kein Fehler —
+          eine Position im Ablauf bekommen sie bewusst nicht und tauchen deshalb in Leiste,
+          Zieltagen und Stillstands-Wächter nicht auf.
         </p>
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
           Ein Eintrag, der hier <em>versehentlich</em> liegt, wird per Zug in die richtige

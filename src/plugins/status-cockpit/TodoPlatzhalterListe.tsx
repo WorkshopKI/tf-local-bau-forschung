@@ -15,6 +15,7 @@
  */
 import { Button } from '@/components/ui/button';
 import { ROLLE_LABEL, type PlatzhalterGruppe, type Rolle } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import { feldStil } from './labels';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 
@@ -54,7 +55,7 @@ export function TodoPlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen
               drei, diese Erhebung alle. Ohne den Satz rechnet jemand die 43
               hier gegen die 38 dort und sucht einen Fehler, der keiner ist. */}
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            {lauf.erhebung.platzhalter.gesamt.toLocaleString('de-DE')} Vorgänge ausgewertet
+            {zaehlwort(lauf.erhebung.platzhalter.gesamt, 'Vorgang', 'Vorgänge')} ausgewertet
             {lauf.bereichText !== null && <> · Betrachtungsbereich: {lauf.bereichText}</>}
             {' '}· <strong>alle Jahrgänge</strong> (das Board zeigt vorbelegt die letzten drei und
             kommt deshalb auf kleinere Zahlen)
@@ -110,8 +111,10 @@ export function TodoPlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen
                 <li key={g.quellRegelId} className="flex items-baseline gap-2 flex-wrap">
                   <span
                     className="text-[12px] font-mono text-[var(--tf-text-tertiary)] w-[228px] shrink-0"
-                    title={`${g.alsPlatzhalter} Vorgänge sehen das To-do heute geliehen · `
-                      + `${g.bedingungTrifft} Vorgänge erfüllen die Bedingung der Herkunftsregel`}
+                    title={'Sieht das To-do heute geliehen: '
+                      + `${zaehlwort(g.alsPlatzhalter, 'Vorgang', 'Vorgänge')} · `
+                      + 'erfüllt die Bedingung der Herkunftsregel: '
+                      + `${zaehlwort(g.bedingungTrifft, 'Vorgang', 'Vorgänge')}`}
                   >
                     {g.alsPlatzhalter.toLocaleString('de-DE')}× sichtbar
                     <span className="text-[var(--tf-text)]">

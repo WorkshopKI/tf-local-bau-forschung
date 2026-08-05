@@ -10,6 +10,7 @@ import {
   ROLLE_LABEL, bedingungSatz, ALLE_STRAENGE,
   type MappingVersion, type TodoRegel,
 } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 /** Was eine Sperre stilllegt — und was sie bewusst durchlässt. */
 export function sperrSatz(r: TodoRegel): string {
@@ -18,7 +19,7 @@ export function sperrSatz(r: TodoRegel): string {
   const rest = ausnahmen ? ` — außer ${ausnahmen}` : '';
   return ids.includes(ALLE_STRAENGE)
     ? `kein To-do mehr${rest}`
-    : `${ids.length} Regeln überspringen (${ids.join(', ')})${rest}`;
+    : `${zaehlwort(ids.length, 'Regel', 'Regeln')} überspringen (${ids.join(', ')})${rest}`;
 }
 
 export function TodoRegelSatz({ r, version, className = '' }: {

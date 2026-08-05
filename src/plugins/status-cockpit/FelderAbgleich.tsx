@@ -98,8 +98,9 @@ function UnkuratierteFelder({ api }: { api: StatusCockpitApi }): React.ReactElem
           die dem Feld noch Bezeichnung und Rollen schuldig bleibt. */}
       <p className="text-[12.5px] text-[var(--tf-warning-text)]">
         {api.unkuratierteFelder.length} Kürzel im Export ohne Katalog-Eintrag — Zuarbeit-CSV
-        aktualisieren und Build erneuern. Bis dahin lassen sie sich einzeln übernehmen; sie
-        kommen dann ohne Bezeichnung aus der Zuarbeit und ohne Rollen (= neutral).
+        aktualisieren und Build erneuern. Bis dahin bleibt die Einzelübernahme unten die
+        Zwischenlösung; übernommene Kürzel kommen ohne Bezeichnung aus der Zuarbeit und ohne
+        Rollen (= neutral).
       </p>
       {api.unkuratierteFelder.map(f => (
         <div key={f.feldId} className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
@@ -134,8 +135,9 @@ function RelevanzVorschlag({ api }: { api: StatusCockpitApi }): React.ReactEleme
   return (
     <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
       <span className="text-[12.5px] text-[var(--tf-text)]">
-        {api.relevanzLuecke} der {AB_DASHBOARD_RELEVANZ.length} Kürzel des AB-Dashboards sind noch
-        nicht als relevant markiert. Die Relevanz-Liste grenzt Navigator und Wächter ein.
+        Noch nicht als relevant markiert: {api.relevanzLuecke} der
+        {' '}{AB_DASHBOARD_RELEVANZ.length} Kürzel des AB-Dashboards. Die Relevanz-Liste grenzt
+        Navigator und Wächter ein.
       </span>
       <Button variant="secondary" size="sm" onClick={api.relevanzAusAbDashboard}>
         AB-Spalten markieren
@@ -204,8 +206,8 @@ function PhasenAusTrigger({ api }: { api: StatusCockpitApi }): React.ReactElemen
         {/* Nur nennen, wenn es sie gibt — „0 uneinheitlich" meldet ein Problem,
             das keines ist. */}
         {uneinheitlich.length > 0
-          && `; ${uneinheitlich.length} sind über die Richtlinien hinweg uneinheitlich`}
-        {ohneVorschlag.length > 0 && `. ${ohneVorschlag.length} setzen keinen Status`}.
+          && `; davon ${uneinheitlich.length} über die Richtlinien hinweg uneinheitlich`}
+        {ohneVorschlag.length > 0 && `. Ohne Status-Wirkung: ${ohneVorschlag.length}`}.
       </span>
       <Button variant="secondary" size="sm" onClick={() => setOffen(true)}>
         Vorschläge ansehen
@@ -250,8 +252,8 @@ function PhasenAusAuslieferung({ api }: { api: StatusCockpitApi }): React.ReactE
   return (
     <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
       <span className="text-[12.5px] text-[var(--tf-text)]">
-        {ausSeed.length} Kürzel tragen in der Auslieferung eine hand-kuratierte ZAH-Phase, die
-        dieser Fassung fehlt
+        In der Auslieferung: {ausSeed.length} Kürzel mit hand-kuratierter ZAH-Phase, die dieser
+        Fassung fehlt
         {quellenAbweichungen.length > 0
           && `; bei ${quellenAbweichungen.length} widerspricht ihr die Trigger-Tabelle`}.
       </span>

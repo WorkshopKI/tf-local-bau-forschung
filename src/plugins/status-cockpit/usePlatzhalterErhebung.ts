@@ -15,6 +15,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useBereich } from '@/core/hooks/useBereich';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { generationenVon } from '@/core/status/betrachtungsbereich';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 import {
   jederVorgang, baueTodoKontext, ermittleTodosAlleRollen, fassePlatzhalterZusammen,
   erhebeBlindeFlecken, erhebeKuerzelKarte, istImBereich, normKey, ladeTrigger,
@@ -83,7 +84,7 @@ export function usePlatzhalterErhebung(version: MappingVersion | null): Platzhal
     if (bereich.menge === null) {
       setBereichText('alle Richtlinien');
     } else {
-      const zahl = `${bereich.programme.length} Programme`;
+      const zahl = zaehlwort(bereich.programme.length, 'Programm', 'Programme');
       const { jahre, exakt } = generationenVon(bereich.programme);
       const kopf = exakt ? `Richtlinien ${jahre.join(' + ')} · ${zahl}` : zahl;
       setBereichText(`${kopf} (${bereich.programme.join(', ')})`);
