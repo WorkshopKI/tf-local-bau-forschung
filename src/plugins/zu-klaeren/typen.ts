@@ -87,7 +87,10 @@ export interface KlaerungEintrag {
    * nicht diese Zahl (siehe Modulkopf von `fold.ts`).
    */
   ts: string;
-  /** Bearbeiter-Kürzel, normalisiert über `normalisiereAutor`. */
+  /**
+   * Der **Name der Person** (`UserProfile.name`) in der Schreibweise ihres
+   * Profils — nicht ihr Bearbeiter-Kürzel. Siehe `normalisiereAutor`.
+   */
   autor: string;
   punktId: string;
   urteil?: Urteil;
@@ -117,19 +120,34 @@ export interface UrteilStand {
  *
  * `urteile` ist nach `autor|punktId` gekeyt, weil genau das die Einheit ist, die
  * ein späteres Urteil ersetzt. `kommentare` sammelt je Punkt alle Beiträge.
+ * `namen` hält zu jeder Vergleichsform die zuletzt gesehene Schreibweise — sonst
+ * stünde in Spaltenköpfen und Tooltips „THOMAS HÜBSCH" statt „Thomas Hübsch".
  */
 export interface KlaerungStand {
   urteile: Map<string, UrteilStand>;
   kommentare: Map<string, Beitrag[]>;
+  /** Vergleichsform → Anzeigename. Siehe `normalisiereAutor` / `anzeigeAutor`. */
+  namen: Map<string, string>;
 }
 
 /**
- * Die kanonische Schreibweise eines Kürzels. NFC zuerst (Pitfall #22): sonst
- * zerfällt `Ü` in U + Kombizeichen, und `THÜ` aus zwei Quellen wäre zweimal
- * derselbe Mensch mit zwei Faltungsfächern.
+ * Die **Vergleichsform** eines Autornamens — nur Schlüssel, nie Anzeige.
+ *
+ * NFC zuerst (Pitfall #22): sonst zerfällt `ü` in u + Kombizeichen, und
+ * „Hübsch" aus zwei Quellen wäre zweimal derselbe Mensch mit zwei
+ * Faltungsfächern. Großschreibung, damit auch eine getippte Kleinschreibung
+ * dasselbe Fach trifft; innere Mehrfach-Leerzeichen fallen zusammen, weil ein
+ * Doppelblank im Profilnamen sonst eine zweite Person erzeugte.
+ *
+ * Die Anzeige läuft über {@link anzeigeAutor} und `KlaerungStand.namen`.
  */
-export function normalisiereAutor(kuerzel: string): string {
-  return kuerzel.normalize('NFC').trim().toUpperCase();
+export function normalisiereAutor(name: string): string {
+  return anzeigeAutor(name).toUpperCase();
+}
+
+/** Die **Anzeigeform**: getrimmt, NFC, innere Leerzeichen vereinheitlicht. */
+export function anzeigeAutor(name: string): string {
+  return name.normalize('NFC').trim().replace(/\s+/g, ' ');
 }
 
 /** Der Schlüssel, unter dem ein Urteil im Stand liegt. */

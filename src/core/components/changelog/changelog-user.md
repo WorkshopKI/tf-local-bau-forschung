@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v2.415 — 2026-08
+
+### Verbesserungen
+- Bei „Zu klären" steht jetzt **Dein Name** an Deinen Antworten, nicht mehr Dein Bearbeiter-Kürzel. Zum Mitmachen genügt damit ein Name im Profil — wer kein Kürzel im Fachsystem hat (Projektleitung, Kuration) oder das Sammel-Kürzel „alle" benutzt, konnte bisher nicht antworten.
+- Die Fassungsliste der Vorgangs-Regeln lädt schneller: Ältere Fassungen liegen in einem **Archiv daneben** und werden erst geholt, wenn Du die Liste aufklappst. Verloren geht nichts — archivierte Fassungen sind gekennzeichnet und lassen sich weiterhin als Entwurf laden.
+
 ## v2.413 — 2026-08
 
 ### Neu

@@ -33,7 +33,7 @@ nirgends sichtbar.
   aber von der heutigen abweicht. **Die Spalte erscheint erst, wenn eine Zeile
   etwas zu melden hat** — sind sich alle einig, stünde sie nur leer da.
 - **Beiträge** — das Sprechblasen-Symbol mit Zähler klappt die Zeile auf. Darunter
-  stehen die Beiträge chronologisch mit Kürzel und Datum, darunter das Eingabefeld.
+  stehen die Beiträge chronologisch mit Namen und Datum, darunter das Eingabefeld.
 - **Reiter über der Tabelle** — „Alle Zuordnungen", „Nur strittige" und „Offene
   Rückfragen", jeweils mit Zähler. Uneinigkeit ist das erwartete Ergebnis einer
   Abstimmung, kein Fehler — sie ist deshalb ruhig markiert und filterbar.
@@ -62,9 +62,10 @@ nirgends sichtbar.
 
 ## Wichtig
 
-- **Zum Antworten braucht es das eigene Kürzel** im Profil. Ein Sammel-Kürzel
-  („alle") oder eine Vertretungsliste reicht nicht — sonst ließe sich nicht
-  auseinanderhalten, wer was gesagt hat. Mitlesen kann jeder.
+- **Zum Antworten braucht es den eigenen Namen** im Profil — sonst ließe sich
+  nicht auseinanderhalten, wer was gesagt hat. Das Bearbeiter-Kürzel spielt hier
+  keine Rolle: Autorschaft ist eine Person, nicht eine Rolle im Fachsystem, und
+  Projektleitung und Kuration haben gar kein Kürzel. Mitlesen kann jeder.
 - **Nichts wird überschrieben.** Jede Äußerung wird angehängt; jeder schreibt in
   seine eigene Datei. Zurückziehen löscht nichts, es nimmt die Aussage nur aus der
   Auswertung.

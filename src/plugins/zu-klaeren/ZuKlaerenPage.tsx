@@ -5,8 +5,8 @@
  * Ganzem; sie ist Evidenz, nicht Arbeitsvorrat (Pitfall #46). Ein Chip behauptete
  * einen Filter, den es hier nicht gibt.
  *
- * **Sperren stehen als Satz da, nicht als grauer Knopf.** Wer kein Kürzel gesetzt
- * hat oder kein Schreibrecht besitzt, soll den Grund lesen können — ein
+ * **Sperren stehen als Satz da, nicht als grauer Knopf.** Wer keinen Namen im
+ * Profil hat oder kein Schreibrecht besitzt, soll den Grund lesen können — ein
  * deaktiviertes Bedienelement ohne Begründung ist eine Sackgasse.
  */
 import { RefreshCw } from 'lucide-react';
@@ -22,11 +22,11 @@ import { ExportLeiste } from './ExportLeiste';
 import { standZeit } from './labels';
 import type { ZeilenFilter } from './gruppen';
 
-const SPERR_TEXT: Record<'kein-kuerzel' | 'kein-schreibrecht', string> = {
-  'kein-kuerzel':
-    'Zum Antworten fehlt Dein eigenes Kürzel: bitte in den Einstellungen im Profil '
-    + 'eintragen. Ein Sammel-Kürzel („alle") oder eine Vertretungsliste geht nicht — '
-    + 'sonst ließe sich nicht auseinanderhalten, wer was gesagt hat. Mitlesen kannst Du.',
+const SPERR_TEXT: Record<'kein-name' | 'kein-schreibrecht', string> = {
+  'kein-name':
+    'Zum Antworten fehlt Dein Name: bitte in den Einstellungen im Profil eintragen. '
+    + 'Er steht als Autor an Deinen Antworten — sonst ließe sich nicht '
+    + 'auseinanderhalten, wer was gesagt hat. Mitlesen kannst Du.',
   'kein-schreibrecht':
     'Dieser Build darf den Daten-Share nicht beschreiben. Du kannst alles mitlesen, '
     + 'aber nicht antworten.',
@@ -38,7 +38,7 @@ export function ZuKlaerenPage(): React.ReactElement {
 
   const kontext: AntwortKontext = {
     stand: api.stand,
-    meinKuerzel: api.meinKuerzel,
+    meinName: api.meinName,
     gesperrt: api.sperre !== null,
     sperrGrund: api.sperre !== null ? SPERR_TEXT[api.sperre] : '',
     aeussern: api.aeussern,

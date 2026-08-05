@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useProfile } from '@/core/hooks/useProfile';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { canWriteDatenShare } from '@/config/feature-flags';
 import { ladeAktiveVersion, getAktiveVersion, SEED_CODE_ZU_ZAH_PHASE } from '@/core/status';
@@ -25,7 +25,7 @@ import { PHASENSCHNITT, bauePunkte } from './seed-phasenschnitt';
 import { OHNE_PHASE, type Klaerung, type KlaerungPunkt, type KlaerungStand } from './typen';
 
 /** Warum das Antworten gesperrt ist — oder `null`, wenn es nicht gesperrt ist. */
-export type Sperre = 'kein-kuerzel' | 'kein-schreibrecht' | null;
+export type Sperre = 'kein-name' | 'kein-schreibrecht' | null;
 
 export interface KlaerungApi {
   klaerung: Klaerung;
@@ -34,7 +34,8 @@ export interface KlaerungApi {
   gruppen: GruppeAnsicht[];
   stand: KlaerungStand;
   autoren: string[];
-  meinKuerzel: string | undefined;
+  /** Der eigene Anzeigename aus dem Profil — die Autorschaft dieser Seite. */
+  meinName: string | undefined;
   sperre: Sperre;
   /** Anzahl eigener Antworten und Gesamtzahl der Punkte. */
   beantwortet: number;
@@ -61,7 +62,11 @@ export interface KlaerungApi {
 export function useKlaerung(): KlaerungApi {
   const storage = useStorage();
   const idb = storage.idb;
-  const meinKuerzel = useMeinKuerzel();
+  // Autorschaft ist eine PERSON, nicht die Rolle im Fachsystem: der Profilname,
+  // nicht `bearbeiter_kuerzel` (das haben PL und Kurator gar nicht). Siehe
+  // `istAntwortfaehig`.
+  const { profile } = useProfile();
+  const meinName = profile?.name;
   const istKurator = useKuratorSession(s => s.isActive);
   const darfSchreiben = canWriteDatenShare(istKurator);
 
@@ -131,15 +136,15 @@ export function useKlaerung(): KlaerungApi {
     };
   }, [neuLaden]);
 
-  const sperre: Sperre = !istAntwortfaehig(meinKuerzel)
-    ? 'kein-kuerzel'
+  const sperre: Sperre = !istAntwortfaehig(meinName)
+    ? 'kein-name'
     : (darfSchreiben ? null : 'kein-schreibrecht');
 
   const aeussern = useCallback(async (eingabe: Omit<EintragEingabe, 'autor'>): Promise<void> => {
-    if (meinKuerzel === undefined || !istAntwortfaehig(meinKuerzel)) {
-      throw new Error('Ohne eigenes Kürzel im Profil lässt sich nichts eintragen.');
+    if (meinName === undefined || !istAntwortfaehig(meinName)) {
+      throw new Error('Ohne Namen im Profil lässt sich nichts eintragen.');
     }
-    const eintrag = baueEintrag({ ...eingabe, autor: meinKuerzel }, new Date().toISOString());
+    const eintrag = baueEintrag({ ...eingabe, autor: meinName }, new Date().toISOString());
     const ok = await haengeEintragAn(idb, PHASENSCHNITT.klaerungId, eintrag);
     if (!ok) {
       // Der Share-Schreiber wirft nie; `false` ist das einzige Signal. Würde es
@@ -148,19 +153,19 @@ export function useKlaerung(): KlaerungApi {
       throw new Error('Nicht gespeichert — der Daten-Share war nicht beschreibbar.');
     }
     await neuLaden();
-  }, [idb, meinKuerzel, neuLaden]);
+  }, [idb, meinName, neuLaden]);
 
   const autoren = useMemo(() => autorenVon(stand), [stand]);
   const zeilen = useMemo(
-    () => baueZeilen(punkte, stand, autoren, meinKuerzel, vorkommen),
-    [punkte, stand, autoren, meinKuerzel, vorkommen],
+    () => baueZeilen(punkte, stand, autoren, meinName, vorkommen),
+    [punkte, stand, autoren, meinName, vorkommen],
   );
   const gruppen = useMemo(() => baueGruppen(zeilen, filter), [zeilen, filter]);
 
   return {
     klaerung: PHASENSCHNITT,
-    punkte, fragen, gruppen, stand, autoren, meinKuerzel, sperre,
-    beantwortet: beantwortetVon(punkte, stand, meinKuerzel),
+    punkte, fragen, gruppen, stand, autoren, meinName, sperre,
+    beantwortet: beantwortetVon(punkte, stand, meinName),
     gesamt: punkte.length,
     filter, setFilter,
     anzahlStrittig: zeilen.filter(z => z.befund.zustand === 'strittig').length,

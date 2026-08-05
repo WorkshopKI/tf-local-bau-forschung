@@ -25,7 +25,7 @@ import type { EintragEingabe } from './fold';
 interface Props {
   punktId: string;
   meinUrteil?: UrteilStand;
-  /** Gesperrt: kein eindeutiges Kürzel oder kein Schreibrecht. */
+  /** Gesperrt: kein Name im Profil oder kein Schreibrecht. */
   gesperrt: boolean;
   sperrGrund: string;
   aeussern: (eingabe: Omit<EintragEingabe, 'autor'>) => Promise<void>;

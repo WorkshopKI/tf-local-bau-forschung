@@ -2,6 +2,140 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.372.2 — Startseite: Zahlen eindeutig, Layout entdichtet, Abnahme-Regel (August 2026)
+
+PATCH — Stufe 3+4 des Startseiten-Reviews. „Offen" ist jetzt festgelegt: **909 = offene Vorgänge mit gültigem Eingangsdatum** (die Antragsliste zeigt unter „Offen" dieselbe Zahl). Konkurrierende Zahlen und dreifache Wiederholungen sind aufgelöst, die Seite füllt wieder ihren Platz.
+
+- Kopfzeile trägt nur noch die Gesamtzahl — die Aufteilung stand wortgleich als Kachel im Hero-Band und als Zeile im Antragseingang-Widget ([homeSubtitle.ts](src/plugins/home/homeSubtitle.ts), [HomePage.tsx](src/plugins/home/HomePage.tsx)).
+- „638 Anträge · 930 TVS" las sich als zweite Gesamtzahl; jetzt „638 Einträge · 930 Teilvorhaben" mit erklärendem Titel, und der doppelte Knopf „Zu meinen Anträgen →" ist weg (er tat dasselbe wie „Alle →" im Kartenkopf) — [MeineAntraegeBalken.tsx](src/plugins/home/MeineAntraegeBalken.tsx).
+- Seitenspalte 260 → 300 px (das Widget schnitt seinen eigenen Titel ab) und „Meine Anträge" startet mit 10 statt 5 Zeilen — die Seite endete bei 43 % Leerraum ([HomeZweiSpalten.tsx](src/plugins/home/HomeZweiSpalten.tsx), [HomePage.tsx](src/plugins/home/HomePage.tsx)).
+- Das schmalste Balken-Segment zeigt seine Zahl wieder (Schwelle 8 % → 4 %, darunter wandert sie in die Legende); die Segment-Tooltips nennen das Kalenderquartal ([DistributionBar.tsx](src/components/ui/DistributionBar.tsx), [quartalBuckets.ts](src/plugins/home/quartalBuckets.ts)).
+- **Abnahme-Regel neu**: sichtbare Änderungen prüft Claude Code selbst in der Variante „local"; beim Nutzer bleibt nur, was der Dev-Server nicht zeigen kann ([CLAUDE.md](CLAUDE.md), [local-variante.md](docs/architecture/local-variante.md)).
+
+### v2.372.1 — Wortwahl Startseite: Eingangsalter statt Frist, KI statt AI (August 2026)
+
+PATCH — Stufe 2 des Startseiten-Reviews (v2.371.1). Der 90-Tage-Wert ist ein **Alter**, keine Frist — „über der 90-Tage-Frist" las sich als versäumter Termin, „nähern sich" hatte kein Objekt. Stellen, die eine echte Frist meinen (`frist_datum`, Meilensteine), behalten das Wort.
+
+- Kopfzeile + Hero-Kacheln sprechen jetzt Alter („älter als 90 Tage" / „zwischen 31 und 90 Tagen") und leiten die Grenzen aus der Widget-Config ab — bis hierher stand „90" im Text, während nach der Config gezählt wurde ([homeSubtitle.ts](src/plugins/home/homeSubtitle.ts), [HomeHero.tsx](src/plugins/home/HomeHero.tsx)).
+- „AI-Assistent" war die einzige englische Schreibweise der Oberfläche — direkt über dem „KI-Variante"-Umschalter derselben Karte; jetzt „KI-Assistent" ([widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts), [AiAssistantCard.tsx](src/plugins/home/AiAssistantCard.tsx)).
+- Vier Kopien von „vor N T" (neben ausgeschriebenen „≤ 30 Tage") laufen über den geteilten `alterInTagen` ([relativeZeit.ts](src/core/utils/relativeZeit.ts)).
+
+### v2.372.0 — Prompt sichtbar, Prompt-Defekte behoben, Kontext-Warnung, Zweitfassung mit der anderen KI (August 2026)
+
+MINOR — Die KI-Kurzfassung eines 60-seitigen Antrags war unbrauchbar, und niemand konnte nachsehen, warum: der Skill-Editor zeigt die Vorlage, nicht den Lauf. Dazwischen lagen neun angehängte Blöcke, eine am Kontextfenster gekappte Vorhabensbeschreibung und drei Widersprüche. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **Prompt-Ansicht** an der Karte und vor dem ersten Lauf: Maße, Bausteine, Wortlaut — als Vorschau und als das zuletzt Gesendete, aus derselben Kette wie der Lauf ([PromptAnsichtDialog.tsx](src/plugins/antraege/gutachten/PromptAnsichtDialog.tsx), [renderSkillPrompt](src/core/services/skills/run/run-skill.ts)).
+- **Bugfix:** Der unsichtbare JSON-Ausgabe-Block widersprach jeder kuratierten Teil-Reihenfolge und wurde vom automatischen Feinschliff ohnehin verworfen — aus allen Gutachten-Skills entfernt ([Migration `ga-teilstruktur-entfernen-2026-08`](src/core/services/skills/registry/migrations.ts)).
+- **Bugfix:** Zeichenlimit und Satzvorgaben waren gemeinsam nicht erfüllbar; der Prompt benennt jetzt den Vorrang, der Skill-Editor meldet Widerspruch und Dopplung ([check-engine.ts](src/core/services/skills/registry/check-engine.ts)).
+- **Kontext-Warnung vor dem Lauf** statt Vermerk danach, inkl. Empfehlung zur anderen KI; `kontextBedarf` je Schritt kuratierbar ([kontextWarnung.ts](src/plugins/antraege/gutachten/kontextWarnung.ts), [WorkflowEditor.tsx](src/plugins/skill-verwaltung-kuration/WorkflowEditor.tsx)).
+- **Zweitfassung mit der anderen internen KI** in den vorhandenen Versionsverlauf (Diff + Übernehmen), je Fassung mit ihrer KI beschriftet ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts), [VersionVerlauf.tsx](src/plugins/antraege/kurzfassung/VersionVerlauf.tsx)).
+
+### v2.371.1 — Startseiten-Review: Sidebar-Latch, Dark-Mode-Persistenz, tote QS-Kachel (August 2026)
+
+PATCH — Erster Sicht-Check der Startseite über die Variante „local" (v2.371). Fünf Befunde, die im Bild messbar waren; die übrigen (widersprüchliche Zahlen, sechs Namen für einen Sachverhalt, Layout) brauchen fachliche Entscheidungen und folgen getrennt.
+
+- **Bugfix:** Ein einmal schmales Fenster rastete die Icon-Leiste dauerhaft ein — der erzwungene Mobil-Modus schrieb in denselben State, der persistiert wird. Wahl und Zwang sind jetzt getrennt ([sidebarModus.ts](src/core/nav/sidebarModus.ts), [ShellLayout.tsx](src/core/ShellLayout.tsx)).
+- **Bugfix:** Dark Mode überlebte den Neustart nur über die Einstellungen, nicht über Strg+Umschalt+D oder die Command Palette — jetzt EIN Weg für beides ([useDarkMode.ts](src/core/hooks/useDarkMode.ts)), bewacht von `no-raw-set-dark-mode`.
+- Hero-Kacheln mit Zähler 0 entfallen; „QS-Freigaben offen" springt in einen echten offenen Entwurf statt in die ungefilterte Antragsliste ([heroChips.ts](src/plugins/home/heroChips.ts), [HomeHero.tsx](src/plugins/home/HomeHero.tsx)).
+- Die Seitenleiste zeigte zweimal „E-Mail Anfragen" mit gleichem Icon und verschiedenen Zielen; der Kurations-Eintrag heißt jetzt „E-Mail Anfragen: Einstellungen" ([anfragen/index.ts](src/plugins/anfragen/index.ts)).
+
+### v2.371.0 — Variante local: App ohne Ordner-Picker, fahrbar durch Claude Code (Juli 2026)
+
+MINOR — Der Ordner-Picker der File System Access API ist per Browser-Sicherheit nicht skriptbar; ohne Handle blieb die App im WelcomeScreen, jede visuelle Prüfung war Handarbeit. `npm run dev:local` (Port 5175) startet sie stattdessen gegen die feste lokale Share-Kopie — kein Dialog, echte Daten. Detail: [local-variante.md](docs/architecture/local-variante.md).
+
+- Dev-only Vite-Plugin legt eine HTTP-Brücke über die festen Ordner ([scripts/local-fs/](scripts/local-fs/)); der Client-Adapter spricht dagegen das FSAPI-Subset ([local-fs/](src/core/services/infrastructure/local-fs/)) und hängt an EINER Stelle ein: `readAll`/`writeAll` in [smb-handle.ts](src/core/services/infrastructure/smb-handle.ts).
+- Drei Schichten halten den Zweig aus Builds: `__TEAMFLOW_LOCAL_FS__` hängt an `command === 'serve'` ([vite.config.ts](vite.config.ts)), `validateConfig` verbietet den `local`-Block in `variant: "production"` ([config-schema.mjs](scripts/config-schema.mjs)), Guard `local-fs-gate-eingegrenzt`.
+- `window.__tf` macht die vorhandenen Dev-Fixtures programmatisch steuerbar ([window-hook.ts](src/dev-fixtures/window-hook.ts)) — `bereit()` wartet auf Mount UND abgeschlossenen Datenlauf, sonst screenshotet eine Automation die leere Tabelle.
+- **Bugfix (bestand länger):** StartupScreen blieb unter StrictMode dauerhaft auf „Berechtigungen werden geprüft…" — Ref-Guard und cancelled-Flag blockierten sich gegenseitig ([StartupScreen.tsx](src/core/StartupScreen.tsx)); in gebauten Varianten unsichtbar, weil StrictMode Effekte nur im React-Dev-Build doppelt.
+- Gemessen an der echten Kopie (14.221 Anträge): `/read` einer 67-MB-CSV in 188 ms, `__tf.bereit()` bei warmer IDB ~3,7 s.
+
+### v2.370.0 — Bearbeiten mit KI: freie Ueberarbeitungs-Anweisung am Gutachten-Abschnitt (Juli 2026)
+
+MINOR — Neu/Kürzer/Länger sind drei fertige Antworten auf eine Frage, die der Gutachter selbst stellen will: „technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen". Bisher blieb dafür nur mehrfach „Neu" würfeln oder von Hand umschreiben. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- Vierter Knopf „Bearbeiten mit KI" in der Werkzeugzeile; die Anweisung wird inline **anstelle** der Zeile eingegeben ([AnweisungLeiste.tsx](src/plugins/antraege/gutachten/AnweisungLeiste.tsx)) — der Abschnittstext bleibt beim Formulieren sichtbar.
+- Technisch ein Modifier-Lauf **ohne** Modifier: neuer Prompt-Block `buildAnweisungBlock` ([run-skill.ts](src/core/services/skills/run/run-skill.ts)), ohne Anweisung byte-identisch zum Bestand.
+- Die Anweisung zieht den bisherigen Text in den Prompt und schließt die Teil-Generierung aus ([workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)) — sonst entstünde Abschnitt B frisch in Teilen statt fortgeschrieben.
+- Vorfassungen tragen „Überarbeitet: „…"" statt „Sprachlich überarbeitet" ([kurzfassung-verlauf.ts](src/plugins/antraege/kurzfassung/kurzfassung-verlauf.ts)); additive `anweisung`-Felder an `StepRun`/`KurzfassungVersion`.
+- Die letzten 5 Anweisungen liegen als Chips gerätelokal bereit ([anweisungVerlauf.ts](src/plugins/antraege/gutachten/anweisungVerlauf.ts)) — nie auf dem Share, nie im Snapshot.
+
+### v2.369.1 — Hilfe-Kopfzeile: Tour-Erklaerung am Knopf statt am Info-Icon (Juli 2026)
+
+PATCH — Nachlese am Gegenlesen von v2.369.0: das ⓘ war ein zweites Ziel für dieselbe Auskunft, die Abschnitts-Label rendern so groß wie fetter Fließtext (also keine Überschriften), und drei Docs standen noch als Wand da — `auslastung.md` mit 1151 Zeichen knapp unter der zu lasch gesetzten Schwelle.
+
+- ⓘ entfällt; der Erklärtext hängt als Tooltip am Tour-Knopf selbst ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)) — Wortlaut und 340px-Breite unverändert.
+- Abschnitte sind in allen Docs `##`-Überschriften statt `**Fett-Label:**` — dieselbe Größenhierarchie, die `status-cockpit.md`/`meilensteine.md` schon hatten; am Renderer ändert sich dafür nichts.
+- Verschachtelte Aufzählungen bekommen eigene Marker/Abstände ([MarkdownRenderer.tsx](src/components/ui/MarkdownRenderer.tsx)) — die Unterpunkte je UI-Bereich erbten sonst `list-disc` + `mb-3` von der ersten Ebene.
+- Die letzten drei Wände aufgebrochen ([auslastung.md](docs/feedback-kontext/auslastung.md) je Tab, [suche.md](docs/feedback-kontext/suche.md) und [dokumente.md](docs/feedback-kontext/dokumente.md) je Bedienelement).
+- Absatz-Schwelle des Guards von 1200 auf **700** gesenkt ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)); Schablone an allen drei Fundstellen auf Überschriften umgestellt.
+
+### v2.369.0 — Hilfe-Dialog: Tour und Ueber die App in die Kopfzeile, Kontext-Docs strukturiert (Juli 2026)
+
+MINOR — „Einführungs-Tour" und „Über die App" standen in der Fußzeile eines `h-[92vh]`-Dialogs: unterhalb einer Textwand am Bildschirmrand, wo sie niemand sucht. Und diese Textwand war real — neun der siebzehn Kontext-Docs hatten keine Leerzeile und verschmolzen im Renderer (`breaks: false`) zu EINEM Absatz. Schablone + Guard: [feedback-kontext/README.md](docs/feedback-kontext/README.md).
+
+- `Dialog` bekommt den optionalen Slot `headerActions` (Titelzeile, links vom Schließen-X) ([dialog.tsx](src/components/ui/dialog.tsx)); die Seiten-Hilfe hängt Tour + ⓘ + „Über die App" als ghost-Knöpfe dorthin, die Fußzeile trägt nur noch „Text stimmt nicht" ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)).
+- Neun Docs von Bleiwüste auf Struktur umgebaut (Absätze, Unterpunkte je UI-Bereich, „Typische Aktionen" als Liste) — Vorbild war das bereits strukturierte `auslastung.md`.
+- Technik-Teile (Datenmodell, Code, Route, Flag) stehen jetzt in **allen** Docs unter `## Technik` am Ende; damit verschwinden die sichtbaren Reste, u.a. `**Datenmodell:**` samt kv-Keys in [map-foerderfaehig.md](docs/feedback-kontext/map-foerderfaehig.md) und Route+Flag in [status-cockpit.md](docs/feedback-kontext/status-cockpit.md).
+- Neuer Struktur-Guard je Doc ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)): keine Routen/Flags/Komponentennamen sichtbar, kein Technik-Fett-Label, kein Absatz über 1200 Zeichen, „Typische Aktionen" als Aufzählung, nichts hinter `## Technik`.
+- Schablone an allen drei Fundstellen nachgezogen ([update-screen-context.md](docs/agents/update-screen-context.md), [SKILL.md](.claude/skills/feedback-kontext-pflege/SKILL.md), README) — sonst schreibt die nächste Runde wieder im alten Stil.
+
+### v2.368.0 — Über die App: Spaltenteilung ziehbar (Juli 2026)
+
+MINOR — Nachzug zu v2.366: die feste Aufteilung passte nicht zu jedem Lesebedürfnis, und „Alle aufklappen" war ein Knopf, der eine Liste mit 685 Einträgen komplett entfaltet — praktisch nie das, was jemand will.
+
+- Spaltenteilung startet 50:50 und ist per Griff ziehbar ([UeberDieAppDialog.tsx](src/core/components/changelog/UeberDieAppDialog.tsx)) — über die geteilte `ZweiSpaltenResizable` statt eigener Drag-Logik, damit es keine dritte Resize-Implementierung gibt.
+- Breite wird gerätelokal gemerkt (`teamflow_ueber_app_spalten_breite`), Doppelklick auf den Griff stellt 50:50 wieder her; Griff ist auch per Tastatur bedienbar.
+- `ZweiSpaltenResizable` nimmt eine optionale `className` fürs Grid ([ZweiSpaltenResizable.tsx](src/components/zwei-spalten/ZweiSpaltenResizable.tsx)) — nötig für Konsumenten mit fester Container-Höhe (`h-full min-h-0`), sonst unverändert.
+- Knopf „Alle aufklappen" entfällt samt `expandAll`-Zustand; die Aufklapp-Logik (aktuelle Hauptnummer + erste 3 Versionen offen) bleibt.
+
+### v2.367.0 — Kopieren und Stil in der Werkzeugzeile (Juli 2026)
+
+MINOR — „Text kopieren" und „Persönlicher Stil" lagen seit dem Vier-Ebenen-Umbau (v2.337) im ⋯-Menü der Abschnitts-Kopfzeile, dem Ort für „alles Seltenere". Beides ist aber Alltag — den fertigen Abschnitt in Mail/Word ziehen, den eigenen Stil setzen —, also gehören sie sichtbar unter den Text. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- Werkzeugzeile führt jetzt „Persönlicher Stil" (links bei Neu/Kürzer/Länger) und ein Kopier-Icon neben „Bearbeiten" ([WerkzeugZeile.tsx](src/plugins/antraege/gutachten/WerkzeugZeile.tsx)) — beides auch am freigegebenen Abschnitt.
+- Aktiver persönlicher Stil zeigt sich am Knopf selbst (Kontur statt ghost), nicht nur als Vermerk in der Kopfzeile.
+- Die noch leere Abschnitts-Karte bekommt „Persönlicher Stil" neben „… generieren" ([GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)) — dort wirkt er, dort war er bisher gar nicht erreichbar (kein ⋯-Menü).
+- ⋯-Menü führt nur noch Feinschliff · Vorfassungen · Verwerfen ([SectionReviewCard.tsx](src/plugins/antraege/gutachten/SectionReviewCard.tsx)); `MenuAktion.offenLassen` entfällt mit seinem einzigen Nutzer ([AbschnittKopf.tsx](src/plugins/antraege/gutachten/AbschnittKopf.tsx)).
+- Kopier-Zustand kommt aus `useKopierAktion` (Icon-Dreiklang, Fehler schlägt Erfolg — v2.301.3), kein zweiter Zwischenablage-Weg.
+
+### v2.366.0 — Über die App: zweispaltig und größer (Juli 2026)
+
+MINOR — Der Dialog startete 672 px breit mit drei Abschnitten untereinander; der Überblick allein füllt gut eine Bildschirmhöhe, „Änderungen & Updates" lag unerreichbar darunter. Dazu beschrieb der Was-Satz die App als Infrastruktur-Thema statt über ihren Nutzen.
+
+- Dialog „Über die App" zweispaltig: links Überblick + Version, rechts „Änderungen & Updates" mit stehender Filterleiste, jede Spalte scrollt für sich ([UeberDieAppDialog.tsx](src/core/components/changelog/UeberDieAppDialog.tsx)); `flex-wrap` stapelt bei schmal gezogenem Dialog.
+- Neue Größenstufe `2xl` (1120 px) + resizable-Starthöhe 92vh statt 80vh ([dialog.tsx](src/components/ui/dialog.tsx)) — die Höhe entspricht dem Seiten-Hilfe-Dialog.
+- `resizeStorageKey` gebumpt (`…_size_v2`): eine gemerkte 672er-Größe hätte den neuen Default bei allen Bestandsnutzern überstimmt.
+- Was-Satz + Doc-Überschrift benennen die App als **ZAH (ZIM-Arbeitshilfe)** — Textarbeit an Förderanträgen + Controlling der eigenen Anträge ([_app.md](docs/feedback-kontext/_app.md)); dasselbe Doc speist die Feedback-KI.
+
+### v2.365.0 — KI-Variante Standard schaltet den Streamlit-Tab wirklich um (Juli 2026)
+
+MINOR — Der Umschalter zurück auf die Standard-KI war wirkungslos: für „Standard" reichte die App `undefined` durch, und das heisst an der Bridge nicht „Standard-Tab", sondern „aktiver Tab". Nach dem ersten agentischen Lauf blieb jede Anfrage im agentischen Chat — während die Kontext-Warnung korrekt umsprang. Rein app-seitig, kein `BRIDGE_REV`-Bump. Detail: [streamlit-bridge.md](docs/architecture/streamlit-bridge.md).
+
+- `aktivesZielFuerLauf()` nennt sein Ziel immer ausdrücklich, auch `'standard'` ([ki-ziel.ts](src/core/services/ai/ki-ziel.ts)) — wirkt für Gutachten, Chat, Kurzfassung, Nachforderungen und Batch zugleich.
+- Der Ziel-Fallback wechselt jetzt wirklich die KI: Retry auf `'standard'` statt `undefined` ([ziel-fallback.ts](src/core/services/ai/ziel-fallback.ts)), Ergebnis trägt das tatsächlich genutzte `ziel`.
+- Relevanz-Map erbt das Ziel des Laufs für Reset UND Submit ([relevanz-map.ts](src/plugins/antraege/gutachten/relevanz-map.ts)) — sie lief sonst gegen eine andere KI als der Abschnitt, den sie vorbereitet.
+- Kontext-Cap folgt dem Lauf-Ziel statt der globalen Präferenz (`kontextZielFuer`, [workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)) — nach einem Fallback wurde sonst gegen 774k gemessen und gegen 174k gefahren.
+- Abschnitts-Fußzeile weist die verwendete KI aus (`StepRun.ziel`, [AbschnittFuss.tsx](src/plugins/antraege/gutachten/AbschnittFuss.tsx)) — bisher war nirgends ablesbar, welche KI geantwortet hat.
+
+### v2.364.0 — Feedback: Verwaltung im Board, Statuswechsel im Widget, eigenes Feedback fortschreiben (Juli 2026)
+
+MINOR — Feedback lief über zwei Oberflächen, und die PL kam an keine: `kuratorMenus: false` filterte die ganze `kuration`-Kategorie, obwohl der Service-Layer PL-Schreibrechte längst kannte. Ein Statuswechsel war nirgends sichtbar — das Home-Widget meldete nur neue Antworttexte. Und wer sein Feedback präzisieren wollte, musste ein zweites Ticket aufmachen. Ziel: EINE Feedback-Oberfläche, ein Ticket je Themenkomplex, das man fortschreibt. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
+
+- Verwaltungsrecht über `canManageFeedback` ([feature-flags.ts](src/config/feature-flags.ts), komponiert aus `canWriteDatenShare` — kein neuer Flag): Verwaltungs-Block am Ticket ([FeedbackVerwaltungBlock.tsx](src/components/feedback/FeedbackVerwaltungBlock.tsx)) + Zahnrad-Dialog für Inbox/FAQ/Sponsoring/Einstellungen ([FeedbackVerwaltungDialog.tsx](src/plugins/feedback-board/verwaltung/FeedbackVerwaltungDialog.tsx)); `feedbackDelete` jetzt auch für pl.
+- Menüpunkt Kuration → Feedback entfällt: `feedback-kuration` ist nur noch ein `hideFromNav`-Redirect ([FeedbackKurationRedirect.tsx](src/plugins/feedback/FeedbackKurationRedirect.tsx)); `useAutoCollectFeedback` wandert ins Board ([FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)) — es war der einzige Pfad, über den prod-Feedback ankommt.
+- Statuswechsel im Home-Widget, auch an fremden Tickets mit eigener Beteiligung (Stimme/Kommentar/Sponsoring) — vierte Ereignisart + `statusStand` am gerätelokalen Anker ([feedbackNews.ts](src/plugins/home/widgets/feedbackNews.ts)); Klick öffnet jetzt das Ticket.
+- Autoren ergänzen ihr abgesendetes Feedback nachträglich — Titel, typspezifische Felder, weitere Screenshots/Dateien ([FeedbackErgaenzenForm.tsx](src/components/feedback/FeedbackErgaenzenForm.tsx), `appendAttachments` in [feedbackService.ts](src/core/services/feedback/feedbackService.ts)).
+- Latenter Datenverlust behoben: `mergeItems` ließ lokalen Nutzertext bedingungslos gewinnen, obwohl `addComment` eine Vollkopie fremder Tickets lokal ablegt — jetzt entscheidet `updated_at` ([feedbackSharedFile.ts](src/core/services/feedback/feedbackSharedFile.ts)); Filter/Sortierung des Boards sind als reine Funktionen node-getestet ([boardFilter.ts](src/plugins/feedback-board/boardFilter.ts)).
+
+### v2.363.0 — FKZ in der Tabelle per Klick kopieren (Juli 2026)
+
+MINOR — Das FKZ ist die Kennung, mit der ein Antrag ins Fachsystem, in eine Mail oder nach Excel weitergereicht wird — bisher ging das nur per Maus-Markierung, und die kollidiert in einer Zeile, deren Klick das Detail öffnet. Bei einer Verbund-Sammelzeile war es gar nicht markierbar.
+
+- Kopier-Icon in der FKZ-Spalte, sichtbar beim Überfahren der Zeile ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)); Verbund-Zeile kopiert das Verbund-FKZ.
+- Geteilter `KopierIconButton` ([KopierIconButton.tsx](src/components/ui/KopierIconButton.tsx)) — dritte Kopie desselben Knopfes vermieden, `TvTitelCopyButton` ist jetzt nur noch dessen TV-Hülle.
+- `SortableTable`-Zeilen tragen die benannte Hover-Gruppe `group/row` ([SortableTable.tsx](src/components/data-table/SortableTable.tsx)) — Zell-Renderer können Aktionen bei Zeilen-Hover einblenden.
+- FKZ-Spalte 132 → 156 px, Kopier-Slot belegt dauerhaft Platz (kein Layout-Sprung beim Hover, Pitfall #14).
+
 ### v2.362.1 — Dokumentablage legt fehlenden Suchindex selbst an (Juli 2026)
 
 PATCH — Eine per Drag-and-drop abgelegte PDF scheiterte mit rotem „Fehler: Orama not initialized". Ursache: die Orama-DB legten bisher nur der Dev-Seed und der Kurator-Vollindexlauf an — auf einer frischen Variant-IDB ohne Index vom Share blieb `db` die ganze Sitzung `null`, und in prod/pl gab es ohne Kurator-Rolle gar keinen Weg, sie je anzulegen. Der Wurf traf zudem erst NACH dem Speichern, riss also die schon gelungene Aufnahme mit (kein `docId`, kein `onIngested`).

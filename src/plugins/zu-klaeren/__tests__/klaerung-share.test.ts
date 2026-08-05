@@ -93,9 +93,32 @@ describe('haengeEintragAn (Fehlschlag ist ein Rückgabewert, kein Wurf)', () => 
     expect(Object.keys(share.dateien).sort()).toEqual([`${DIR}/MUE.jsonl`, `${DIR}/SCH.jsonl`]);
   });
 
-  it('legt Umlaut-Kürzel unter einem lesbaren ASCII-Namen ab', async () => {
+  it('legt Umlaute unter einem lesbaren ASCII-Dateinamen ab', async () => {
     await haengeEintragAn(IDB, KL, baueEintrag({ autor: 'THÜ', punktId: 'code-38', urteil: 'passt' }, 'T'));
     expect(Object.keys(share.dateien)).toEqual([`${DIR}/THUE.jsonl`]);
+  });
+
+  it('ein Personenname wird zu einem Dateinamen, der die Person noch nennt', async () => {
+    // Der Autor ist seit v2.414 der Profilname. Ein Dateiname wie `_1.jsonl`
+    // machte die Ablage unlesbar — wer nachsehen will, wem eine Datei gehört,
+    // soll das am Namen erkennen.
+    await haengeEintragAn(
+      IDB, KL, baueEintrag({ autor: 'Thomas Hübsch', punktId: 'code-38', urteil: 'passt' }, 'T'),
+    );
+    expect(Object.keys(share.dateien)).toEqual([`${DIR}/THOMAS_HUEBSCH.jsonl`]);
+  });
+
+  it('zwei Schreibweisen desselben Namens landen in DERSELBEN Datei', async () => {
+    // Sonst hätte eine Person zwei Dateien, und die Auswertung sähe zwei Stimmen.
+    await haengeEintragAn(
+      IDB, KL, baueEintrag({ autor: 'Thomas Hübsch', punktId: 'code-38', urteil: 'passt' }, 'T1'),
+    );
+    await haengeEintragAn(
+      IDB, KL, baueEintrag({ autor: 'thomas  hübsch', punktId: 'code-11', urteil: 'unklar' }, 'T2'),
+    );
+    expect(Object.keys(share.dateien)).toEqual([`${DIR}/THOMAS_HUEBSCH.jsonl`]);
+    const { stand } = await leseKlaerung(IDB, KL);
+    expect(stand.namen.size).toBe(1);
   });
 
   it('gibt false zurück, wenn das Schreibrecht fehlt', async () => {

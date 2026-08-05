@@ -101,7 +101,7 @@ export function blattGrundsatzfragen(e: ExportEingabe): Blatt {
   return {
     name: 'Grundsatzfragen',
     kopf: kopfzeilen(e),
-    spalten: ['Frage', 'Begründung', 'Kürzel', 'Datum', 'Beitrag'],
+    spalten: ['Frage', 'Begründung', 'Name', 'Datum', 'Beitrag'],
     zeilen,
   };
 }
@@ -123,7 +123,7 @@ export function blattRohdaten(e: ExportEingabe): Blatt {
   return {
     name: 'Rohdaten',
     kopf: kopfzeilen(e),
-    spalten: ['Punkt', 'Titel', 'Kürzel', 'Art', 'Wert', 'Zielphase', 'Datum'],
+    spalten: ['Punkt', 'Titel', 'Name', 'Art', 'Wert', 'Zielphase', 'Datum'],
     zeilen,
   };
 }

@@ -52,7 +52,7 @@ export function GrundsatzFragen({
                 <PunktKommentare
                   punktId={frage.id}
                   beitraege={beitraege}
-                  meinKuerzel={kontext.meinKuerzel}
+                  meinName={kontext.meinName}
                   gesperrt={kontext.gesperrt}
                   sperrGrund={kontext.sperrGrund}
                   aeussern={kontext.aeussern}

@@ -26,7 +26,7 @@ import type { KlaerungStand } from './typen';
 /** Was jede Ebene der Tabelle zum Antworten braucht. */
 interface AntwortKontext {
   stand: KlaerungStand;
-  meinKuerzel: string | undefined;
+  meinName: string | undefined;
   gesperrt: boolean;
   sperrGrund: string;
   aeussern: (eingabe: Omit<EintragEingabe, 'autor'>) => Promise<void>;
@@ -128,7 +128,7 @@ function Zeile({
             <PunktKommentare
               punktId={id}
               beitraege={beitraegeSortiert(kontext.stand, id)}
-              meinKuerzel={kontext.meinKuerzel}
+              meinName={kontext.meinName}
               gesperrt={kontext.gesperrt}
               sperrGrund={kontext.sperrGrund}
               aeussern={kontext.aeussern}

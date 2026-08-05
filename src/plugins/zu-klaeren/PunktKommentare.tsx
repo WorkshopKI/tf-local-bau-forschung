@@ -20,18 +20,19 @@ import type { EintragEingabe } from './fold';
 interface Props {
   punktId: string;
   beitraege: readonly Beitrag[];
-  meinKuerzel: string | undefined;
+  meinName: string | undefined;
   gesperrt: boolean;
   sperrGrund: string;
   aeussern: (eingabe: Omit<EintragEingabe, 'autor'>) => Promise<void>;
 }
 
 export function PunktKommentare({
-  punktId, beitraege, meinKuerzel, gesperrt, sperrGrund, aeussern,
+  punktId, beitraege, meinName, gesperrt, sperrGrund, aeussern,
 }: Props): React.ReactElement {
   const [text, setText] = useState('');
-  const ich = meinKuerzel === undefined ? undefined : normalisiereAutor(meinKuerzel);
-  const habeEigenen = beitraege.some(b => b.autor === ich);
+  // Beiträge tragen die Schreibweise des Profils; verglichen wird normalisiert.
+  const ich = meinName === undefined ? undefined : normalisiereAutor(meinName);
+  const habeEigenen = beitraege.some(b => normalisiereAutor(b.autor) === ich);
 
   const senden = useAsyncAction(async () => {
     const t = text.trim();

@@ -25,9 +25,9 @@ export interface PunktBefund {
   zustand: PunktZustand;
   /** Der gemeinsame Zielwert — nur bei `einig`, sonst `null`. */
   ziel: ZielWert | null;
-  /** Kürzel derer, die den Punkt nicht beurteilen konnten. */
+  /** Namen derer, die den Punkt nicht beurteilen konnten. */
   unklarVon: string[];
-  /** Kürzel derer, die ein zählendes Urteil abgegeben haben. */
+  /** Namen derer, die ein zählendes Urteil abgegeben haben. */
   urteilVon: string[];
 }
 
@@ -64,29 +64,30 @@ export function konsens(
   return { zustand: 'strittig', ziel: null, unklarVon, urteilVon };
 }
 
-/** Alle Kürzel, die im Stand vorkommen — in stabiler Reihenfolge. */
+/**
+ * Alle Namen, die im Stand vorkommen — in stabiler Reihenfolge, in der
+ * Schreibweise ihres Profils.
+ *
+ * Gelesen wird `stand.namen`, nicht der Schlüssel-Präfix: der trägt die
+ * Vergleichsform (`THOMAS HÜBSCH`), und sie stünde sonst als Spaltenkopf in der
+ * Tabelle und im Export. Die zurückgegebenen Namen treffen über
+ * `urteilSchluessel` wieder ihr Fach — die Normalisierung sitzt dort.
+ */
 export function autorenVon(stand: KlaerungStand): string[] {
-  const namen = new Set<string>();
-  for (const schluessel of stand.urteile.keys()) {
-    const autor = schluessel.split('|')[0];
-    if (autor !== undefined && autor !== '') namen.add(autor);
-  }
-  for (const liste of stand.kommentare.values()) for (const b of liste) namen.add(b.autor);
-  return [...namen].sort();
+  return [...stand.namen.values()].sort((a, b) => a.localeCompare(b, 'de'));
 }
 
 /**
- * Ob ein Kürzel eine Person meint.
+ * Ob jemand antworten kann — dafür braucht es genau eines: einen Namen.
  *
- * Das Profilfeld trägt legitim auch `alle` (kein Bearbeiter-Filter) oder eine
- * Vertretungsliste wie `MUE,SCH` — beides sind keine Absender. Ließe man sie
- * durch, teilten sich zwei Menschen ein Faltungsfach und überschrieben einander,
- * und die Auswertung sähe eine Stimme, wo zwei sind. Lesen bleibt für alle offen;
- * gesperrt ist nur das Antworten, und zwar mit Hinweissatz statt als grauer Knopf.
+ * **Autorschaft ist eine Person, kein Kürzel.** Bis v2.414 hing die Klärung am
+ * `bearbeiter_kuerzel`; damit waren PL und Kurator ausgesperrt, weil sie im
+ * Fachsystem keine Bearbeiterrolle haben, und die Sammelwerte `alle` /
+ * `MUE,SCH` mussten eigens abgewehrt werden. Ein Profilname meint immer genau
+ * einen Menschen, also fällt beides weg. Lesen bleibt ohnehin für alle offen;
+ * gesperrt ist nur das Antworten, und zwar mit Hinweissatz statt als grauer
+ * Knopf.
  */
-export function istAntwortfaehig(kuerzel: string | undefined): boolean {
-  if (kuerzel === undefined) return false;
-  const t = kuerzel.trim();
-  if (t === '' || t.includes(',')) return false;
-  return t.toLowerCase() !== 'alle';
+export function istAntwortfaehig(name: string | undefined): boolean {
+  return name !== undefined && name.trim() !== '';
 }

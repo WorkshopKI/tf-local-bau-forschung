@@ -102,13 +102,37 @@ describe('falte (Dateireihenfolge entscheidet, nicht der Zeitstempel)', () => {
     expect(stand.urteile.get(urteilSchluessel('SCH', 'code-11'))?.urteil).toBe('unklar');
   });
 
-  it('dasselbe Kürzel in anderer Schreibweise ist derselbe Mensch', () => {
+  it('derselbe Name in anderer Schreibweise ist derselbe Mensch', () => {
     const stand = falte(parseEintraege([
       z({ autor: 'mue', punktId: 'code-11', urteil: 'passt' }),
       z({ autor: ' MUE ', punktId: 'code-11', urteil: 'unklar' }),
     ].join('\n')));
     expect(stand.urteile.size).toBe(1);
     expect(stand.urteile.get(k)?.urteil).toBe('unklar');
+  });
+
+  it('… auch bei einem Personennamen samt Doppel-Leerzeichen', () => {
+    const stand = falte(parseEintraege([
+      z({ autor: 'Thomas  Hübsch', punktId: 'code-11', urteil: 'passt' }),
+      z({ autor: 'thomas hübsch', punktId: 'code-11', urteil: 'unklar' }),
+    ].join('\n')));
+    expect(stand.urteile.size).toBe(1);
+    expect(stand.namen.size).toBe(1);
+  });
+
+  it('`namen` hält die zuletzt gesehene Schreibweise für die Anzeige', () => {
+    const stand = falte(parseEintraege([
+      z({ autor: 'Thomas Hübsch', punktId: 'code-11', urteil: 'passt' }),
+    ].join('\n')));
+    expect([...stand.namen.values()]).toEqual(['Thomas Hübsch']);
+    expect([...stand.namen.keys()]).toEqual(['THOMAS HÜBSCH']);
+  });
+
+  it('Beiträge tragen die Anzeigeform, nicht die Vergleichsform', () => {
+    const stand = falte(parseEintraege([
+      z({ autor: 'Thomas Hübsch', punktId: 'code-11', kommentar: 'dazu' }),
+    ].join('\n')));
+    expect(stand.kommentare.get('code-11')?.[0]?.autor).toBe('Thomas Hübsch');
   });
 
   it('alle Kommentare bleiben erhalten, auch mehrere je Autor', () => {
@@ -129,6 +153,17 @@ describe('falte (Dateireihenfolge entscheidet, nicht der Zeitstempel)', () => {
       z({ autor: 'MUE', punktId: 'code-11', kommentarZurueck: true }),
     ].join('\n')));
     expect(stand.kommentare.get('code-11')?.map(b => b.text)).toEqual(['erstens', 'fremd']);
+  });
+
+  it('… und findet den eigenen Beitrag auch bei anderer Schreibweise', () => {
+    // Der Beitrag steht in der Anzeigeform in der Liste, der Widerruf kommt
+    // normalisiert an. Verglichen der Code roh, bliebe der Beitrag stehen und
+    // das Zurückziehen wäre eine Attrappe.
+    const stand = falte(parseEintraege([
+      z({ autor: 'Thomas Hübsch', punktId: 'code-11', kommentar: 'weg damit' }),
+      z({ autor: 'THOMAS HÜBSCH', punktId: 'code-11', kommentarZurueck: true }),
+    ].join('\n')));
+    expect(stand.kommentare.get('code-11')).toEqual([]);
   });
 
   it('beitraegeSortiert mischt die Autor-Dateien nach Zeitstempel', () => {
@@ -196,8 +231,11 @@ describe('baueEintrag (die Uhr kommt von außen)', () => {
     expect(e.ts).toBe('2026-01-02T03:04:05.678Z');
   });
 
-  it('normalisiert das Kürzel beim Schreiben', () => {
-    expect(baueEintrag({ autor: ' mue ', punktId: 'p' }, 'T').autor).toBe('MUE');
+  it('schreibt den Namen in der ANZEIGEFORM, nicht in Großbuchstaben', () => {
+    // Die Datei wird im Zweifel von einem Menschen gelesen; „THOMAS HÜBSCH"
+    // wäre dort eine Verschlechterung ohne Gegenwert.
+    expect(baueEintrag({ autor: ' Thomas  Hübsch ', punktId: 'p' }, 'T').autor)
+      .toBe('Thomas Hübsch');
   });
 
   it('lässt nicht gesetzte Felder weg, statt undefined oder null zu schreiben', () => {

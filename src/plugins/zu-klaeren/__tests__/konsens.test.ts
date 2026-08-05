@@ -7,7 +7,10 @@
  * 3. Zurückgezogene Urteile zählen wie nie abgegeben.
  * 4. Freitext-Punkte sind nie strittig — sonst versteckte „nur strittige"
  *    ausgerechnet die Grundsatzfragen.
- * 5. Ein Sammel- oder Vertretungs-Kürzel darf nicht antworten.
+ * 5. Zum Antworten genügt ein Name — Autorschaft ist eine Person, keine Rolle
+ *    im Fachsystem.
+ * 6. Die Autorenliste trägt die Schreibweise des Profils, nicht die
+ *    Vergleichsform.
  */
 import { describe, it, expect } from 'vitest';
 import { konsens, istAntwortfaehig, autorenVon } from '@/plugins/zu-klaeren/konsens';
@@ -117,31 +120,46 @@ describe('konsens (Einigkeit misst den Zielwert, nicht den Knopf)', () => {
 describe('autorenVon (wer hat sich überhaupt geäußert)', () => {
   it('sammelt Urteilende und Kommentierende, sortiert und ohne Dubletten', () => {
     const s = falte([
-      { ts: 'T1', autor: 'SCH', punktId: 'code-38', urteil: 'passt' },
-      { ts: 'T2', autor: 'MUE', punktId: 'code-38', kommentar: 'Hinweis' },
-      { ts: 'T3', autor: 'SCH', punktId: 'code-38', kommentar: 'noch was' },
+      { ts: 'T1', autor: 'Sara Schmidt', punktId: 'code-38', urteil: 'passt' },
+      { ts: 'T2', autor: 'Max Müller', punktId: 'code-38', kommentar: 'Hinweis' },
+      { ts: 'T3', autor: 'Sara Schmidt', punktId: 'code-38', kommentar: 'noch was' },
     ]);
-    expect(autorenVon(s)).toEqual(['MUE', 'SCH']);
+    expect(autorenVon(s)).toEqual(['Max Müller', 'Sara Schmidt']);
+  });
+
+  it('liefert die SCHREIBWEISE des Profils, nicht die Vergleichsform', () => {
+    // Sonst stünde „MAX MÜLLER" als Spaltenkopf in der Tabelle und im Export.
+    const s = falte([{ ts: 'T1', autor: 'Max Müller', punktId: 'code-38', urteil: 'passt' }]);
+    expect(autorenVon(s)).toEqual(['Max Müller']);
+  });
+
+  it('zwei Schreibweisen desselben Namens sind EINE Person', () => {
+    const s = falte([
+      { ts: 'T1', autor: 'max müller', punktId: 'code-38', urteil: 'passt' },
+      { ts: 'T2', autor: 'Max Müller', punktId: 'code-11', urteil: 'passt' },
+    ]);
+    expect(autorenVon(s)).toHaveLength(1);
   });
 });
 
-describe('istAntwortfaehig (ein Kürzel muss eine Person meinen)', () => {
-  it('ein leeres oder fehlendes Kürzel darf nicht antworten', () => {
+describe('istAntwortfaehig (Autorschaft ist eine Person)', () => {
+  it('ohne Namen darf niemand antworten', () => {
     expect(istAntwortfaehig(undefined)).toBe(false);
     expect(istAntwortfaehig('   ')).toBe(false);
   });
 
-  it('das Sammel-Kürzel „alle" darf nicht antworten', () => {
-    expect(istAntwortfaehig('alle')).toBe(false);
-    expect(istAntwortfaehig('Alle')).toBe(false);
+  it('ein Name genügt — auch für Rollen ohne Bearbeiter-Kürzel', () => {
+    // PL und Kurator haben im Fachsystem keine Bearbeiterrolle; sie hier
+    // auszusperren hieße, die Klärung an einer Rolle statt an einer Person
+    // festzumachen.
+    expect(istAntwortfaehig('Thomas Hübsch')).toBe(true);
+    expect(istAntwortfaehig('Projektleitung Nord')).toBe(true);
   });
 
-  it('ein Vertretungs-Kürzel mit Komma darf nicht antworten', () => {
-    expect(istAntwortfaehig('MUE,SCH')).toBe(false);
-  });
-
-  it('ein normales Kürzel darf antworten', () => {
-    expect(istAntwortfaehig('MUE')).toBe(true);
-    expect(istAntwortfaehig('THÜ')).toBe(true);
+  it('die alten Kürzel-Sonderfälle sind KEINE Sperre mehr', () => {
+    // „alle" und „MUE,SCH" waren Sammelwerte des Kürzel-Felds. Als Name sind sie
+    // ungewöhnlich, aber sie sind kein Grund, jemanden nicht antworten zu lassen.
+    expect(istAntwortfaehig('alle')).toBe(true);
+    expect(istAntwortfaehig('Müller, Schmidt')).toBe(true);
   });
 });

@@ -36,13 +36,14 @@ export function klaerungDir(klaerungId: string): string {
 }
 
 /**
- * Der Dateiname eines Autors.
+ * Der Dateiname eines Autors — abgeleitet aus seinem **Namen** (`UserProfile.name`),
+ * nicht aus einem Bearbeiter-Kürzel: „Thomas Hübsch" → `THOMAS_HUEBSCH.jsonl`.
  *
- * Umlaute werden transliteriert (THÜ → THUE), bevor der Rest auf `[A-Z0-9]`
+ * Umlaute werden transliteriert (Hübsch → HUEBSCH), bevor der Rest auf `[A-Z0-9]`
  * reduziert wird. Ein bloßes Ersetzen aller Nicht-ASCII-Zeichen durch `_` ließe
- * `THÜ` und `TH-` auf denselben Namen fallen — zwei Personen teilten sich dann
- * eine Datei und hätten genau das Schreib-Rennen zurück, das die Aufteilung
- * beseitigt. Vorher NFC (Pitfall #22), sonst zerfällt `Ü` in U + Kombizeichen und
+ * `Hübsch` und `Hu-bsch` auf denselben Namen fallen — zwei Personen teilten sich
+ * dann eine Datei und hätten genau das Schreib-Rennen zurück, das die Aufteilung
+ * beseitigt. Vorher NFC (Pitfall #22), sonst zerfällt `ü` in u + Kombizeichen und
  * die Transliteration greift nicht.
  */
 export function autorDateiName(autor: string): string {

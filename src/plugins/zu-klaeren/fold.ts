@@ -21,7 +21,7 @@
  */
 import { ALT_PUNKT_IDS } from './seed-phasenschnitt';
 import {
-  urteilSchluessel, normalisiereAutor,
+  urteilSchluessel, normalisiereAutor, anzeigeAutor,
   type Beitrag, type KlaerungEintrag, type KlaerungStand, type Urteil, type ZielWert,
 } from './typen';
 
@@ -66,9 +66,14 @@ export function parseEintraege(roh: string): KlaerungEintrag[] {
 export function falte(eintraege: readonly KlaerungEintrag[]): KlaerungStand {
   const urteile = new Map<string, { urteil: Urteil; zielWert?: ZielWert; ts: string }>();
   const kommentare = new Map<string, Beitrag[]>();
+  const namen = new Map<string, string>();
 
   for (const e of eintraege) {
+    // Zwei Formen desselben Namens: der SCHLÜSSEL vergleicht (damit „Hübsch" und
+    // „HÜBSCH" ein Fach teilen), die ANZEIGE trägt die Schreibweise des Profils.
     const autor = normalisiereAutor(e.autor);
+    const anzeige = anzeigeAutor(e.autor);
+    namen.set(autor, anzeige);
     const punktId = ALT_PUNKT_IDS.get(e.punktId) ?? e.punktId;
 
     if (e.urteil !== undefined) {
@@ -81,7 +86,7 @@ export function falte(eintraege: readonly KlaerungEintrag[]): KlaerungStand {
 
     const liste = kommentare.get(punktId);
     if (typeof e.kommentar === 'string' && e.kommentar.trim() !== '') {
-      const beitrag: Beitrag = { autor, ts: e.ts, text: e.kommentar };
+      const beitrag: Beitrag = { autor: anzeige, ts: e.ts, text: e.kommentar };
       if (liste) liste.push(beitrag); else kommentare.set(punktId, [beitrag]);
     }
     if (e.kommentarZurueck === true && liste) {
@@ -89,12 +94,16 @@ export function falte(eintraege: readonly KlaerungEintrag[]): KlaerungStand {
       // eines Autors in seiner Datei und damit in dieser Liste in Schreibreihen-
       // folge stehen. Die Datei behält beide Zeilen; gelöscht wird nie.
       for (let i = liste.length - 1; i >= 0; i -= 1) {
-        if (liste[i]?.autor === autor) { liste.splice(i, 1); break; }
+        const b = liste[i];
+        if (b !== undefined && normalisiereAutor(b.autor) === autor) {
+          liste.splice(i, 1);
+          break;
+        }
       }
     }
   }
 
-  return { urteile, kommentare };
+  return { urteile, kommentare, namen };
 }
 
 /** Setzt die Beiträge mehrerer Autor-Dateien zur Anzeige zusammen. */
@@ -117,11 +126,15 @@ export interface EintragEingabe {
  * `new Date().toISOString()`, damit zwei Läufe über dieselben Daten dasselbe
  * ergeben. Nicht gesetzte Felder werden **weggelassen**, nie als `null`
  * geschrieben (siehe Modulkopf von `typen.ts`).
+ *
+ * Geschrieben wird die **Anzeigeform** des Namens: die Datei wird im Zweifel von
+ * einem Menschen gelesen, und „THOMAS HÜBSCH" wäre dort eine Verschlechterung
+ * ohne Gegenwert — verglichen wird beim Falten ohnehin normalisiert.
  */
 export function baueEintrag(eingabe: EintragEingabe, jetztIso: string): KlaerungEintrag {
   return {
     ts: jetztIso,
-    autor: normalisiereAutor(eingabe.autor),
+    autor: anzeigeAutor(eingabe.autor),
     punktId: eingabe.punktId,
     ...(eingabe.urteil !== undefined ? { urteil: eingabe.urteil } : {}),
     ...(eingabe.zielWert !== undefined ? { zielWert: eingabe.zielWert } : {}),

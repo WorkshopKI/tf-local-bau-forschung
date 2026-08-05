@@ -50,12 +50,12 @@ export function baueZeilen(
   punkte: readonly KlaerungPunkt[],
   stand: KlaerungStand,
   autoren: readonly string[],
-  meinKuerzel: string | undefined,
+  meinName: string | undefined,
   vorkommen: ReadonlyMap<number, number> | null,
 ): ZeileAnsicht[] {
   return punkte.filter(p => p.art === 'phasenzuordnung').map(punkt => {
-    const meins = meinKuerzel !== undefined
-      ? stand.urteile.get(urteilSchluessel(meinKuerzel, punkt.id))
+    const meins = meinName !== undefined
+      ? stand.urteile.get(urteilSchluessel(meinName, punkt.id))
       : undefined;
     return {
       punkt,
@@ -155,15 +155,16 @@ export function baueGruppen(
  *   nicht.
  */
 export function beantwortetVon(
-  punkte: readonly KlaerungPunkt[], stand: KlaerungStand, meinKuerzel: string | undefined,
+  punkte: readonly KlaerungPunkt[], stand: KlaerungStand, meinName: string | undefined,
 ): number {
-  if (meinKuerzel === undefined) return 0;
-  const ich = normalisiereAutor(meinKuerzel);
+  if (meinName === undefined) return 0;
+  const ich = normalisiereAutor(meinName);
   return punkte.filter(p => {
     if (p.art === 'freitext') {
-      return (stand.kommentare.get(p.id) ?? []).some(b => b.autor === ich);
+      // Beiträge tragen die Anzeigeform — verglichen wird trotzdem normalisiert.
+      return (stand.kommentare.get(p.id) ?? []).some(b => normalisiereAutor(b.autor) === ich);
     }
-    const u = stand.urteile.get(urteilSchluessel(meinKuerzel, p.id));
+    const u = stand.urteile.get(urteilSchluessel(meinName, p.id));
     if (u === undefined || u.urteil === 'zurueckgezogen') return false;
     return u.urteil !== 'andere' || u.zielWert !== undefined;
   }).length;

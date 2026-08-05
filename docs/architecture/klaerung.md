@@ -45,10 +45,26 @@ echt schlechter: ein zweiter Voll-Read je Antwort, und das Fenster wird kleiner,
 ohne je zu schließen. Das Journal kommt mit einer Datei aus, weil es genau einen
 Schreiber hat (den Nachtlauf).
 
-Der Dateiname transliteriert Umlaute (`THÜ` → `THUE.jsonl`), bevor der Rest auf
-`[A-Z0-9]` reduziert wird — ein bloßes `_` für alles Nicht-ASCII ließe `THÜ` und
-`TH-` auf denselben Namen fallen und brächte das Rennen für diese zwei zurück. Der
-maßgebliche Autor steht ohnehin **in** jeder Zeile, nicht im Dateinamen.
+Der Dateiname transliteriert Umlaute (`Thomas Hübsch` → `THOMAS_HUEBSCH.jsonl`),
+bevor der Rest auf `[A-Z0-9]` reduziert wird — ein bloßes `_` für alles
+Nicht-ASCII ließe `Hübsch` und `Hu-bsch` auf denselben Namen fallen und brächte
+das Rennen für diese zwei zurück. Der maßgebliche Autor steht ohnehin **in** jeder
+Zeile, nicht im Dateinamen.
+
+### Der Autor ist eine Person, keine Rolle (seit v2.414)
+
+Autorschaft kommt aus `UserProfile.name`, **nicht** aus `bearbeiter_kuerzel`. Das
+Kürzel ist eine Rolle im Fachsystem: PL und Kurator haben keines und waren damit
+von der Klärung ausgesperrt — ausgerechnet die zwei Rollen, die den Phasenschnitt
+kuratieren. Es zwang außerdem zu Sonderfällen (`alle`, `MUE,SCH`), weil das Feld
+legitim auch Sammelwerte trägt. Ein Name meint immer genau einen Menschen; für die
+Klärung spielt das Kürzel keine Rolle mehr.
+
+Name und Schlüssel sind zwei Formen: `normalisiereAutor` (NFC, getrimmt,
+Großbuchstaben, innere Leerzeichen vereinheitlicht) ist die **Vergleichsform** und
+keyt Faltung und Dateinamen; `anzeigeAutor` ist die **Schreibweise des Profils**
+und steht in der Datei, in den Spaltenköpfen und im Export. `KlaerungStand.namen`
+hält die Zuordnung — ohne sie stünde „THOMAS HÜBSCH" in der Tabelle.
 
 ## 3. Faltung: Dateireihenfolge, nicht Zeitstempel
 
@@ -100,9 +116,9 @@ Rückfrage, nicht eine Entscheidung. Der Zeilen-Filter ist deshalb dreiwertig
 (`alle | strittig | unklar`), kein Häkchen. Freitext-Punkte sind nie strittig —
 sonst versteckte „nur strittige" ausgerechnet die Grundsatzfragen.
 
-Antworten darf nur, wessen Kürzel **eine Person** meint (`istAntwortfaehig`): leer,
-`alle` oder eine Vertretungsliste mit Komma sind gesperrt, sonst teilten sich zwei
-Menschen ein Faltungsfach. Lesen bleibt für alle offen.
+Antworten darf, wer einen **Namen** im Profil hat (`istAntwortfaehig`) — mehr
+verlangt die Sperre nicht. Lesen bleibt für alle offen; der Grund steht als Satz
+auf der Seite, nicht als grauer Knopf.
 
 ## 5. Zahlen und ihr Stempel
 
@@ -160,8 +176,8 @@ kommen, wenn eine Klärung sie braucht — nicht vorher.
   pollen, sind ein schlechter Nachbar.
 - **Kein Löschen** — Zurückziehen nimmt eine Aussage aus der Auswertung, die Zeile
   bleibt in der Datei.
-- **Keine anonymen Einträge und kein stiller No-op** — fehlt das Kürzel oder das
-  Schreibrecht, steht das als Satz über der Tabelle; ein fehlgeschlagener
+- **Keine anonymen Einträge und kein stiller No-op** — fehlt der Name im Profil
+  oder das Schreibrecht, steht das als Satz über der Tabelle; ein fehlgeschlagener
   Share-Write wird angezeigt, statt Erfolg vorzutäuschen.
 
 ## Technik
