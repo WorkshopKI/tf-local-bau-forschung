@@ -20,6 +20,8 @@
  */
 import type { FeedbackCategory, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { signatureOf } from '@/components/feedback/useUnreadReplies';
+import { istMeineId, istMeinTicket } from '@/core/services/feedback/feedbackIdentitaet';
+import type { MeineIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import {
   CATEGORY_LABELS,
   CATEGORY_TEXT_VAR,
@@ -73,12 +75,12 @@ const STIMMEN_COLOR = 'var(--tf-fb-ux)';    // violett (Zuspruch)
  * Statuswechsel gemeldet wird — der Sinn eines Sammel-Tickets ist, dass mehrere
  * Leute einem Thema folgen, nicht nur der Einreicher.
  */
-export function istBeteiligt(t: FeedbackItem, meId: string | undefined): boolean {
-  if (!meId) return false;
-  if (t.user_id === meId) return true;
-  if (t.votes?.some(v => v.user_id === meId)) return true;
-  if (t.comments?.some(c => c.user_id === meId)) return true;
-  if (t.sponsors?.some(s => s.user_id === meId)) return true;
+export function istBeteiligt(t: FeedbackItem, ich: MeineIdentitaet): boolean {
+  if (!ich.schreibId) return false;
+  if (istMeinTicket(t, ich)) return true;
+  if (t.votes?.some(v => istMeineId(v.user_id, ich))) return true;
+  if (t.comments?.some(c => istMeineId(c.user_id, ich))) return true;
+  if (t.sponsors?.some(s => istMeineId(s.user_id, ich))) return true;
   return false;
 }
 
@@ -99,16 +101,16 @@ function typLabel(cat: FeedbackCategory | undefined): string {
  */
 export function schnappschuss(
   items: FeedbackItem[],
-  meId: string | undefined,
+  ich: MeineIdentitaet,
   nowIso: string,
 ): FeedbackNewsAnker {
   const stimmenStand: Record<string, number> = {};
   const antwortStand: Record<string, string> = {};
   const statusStand: Record<string, FeedbackStatus> = {};
-  if (meId) {
+  if (ich.schreibId) {
     for (const t of items) {
-      if (istBeteiligt(t, meId)) statusStand[t.id] = t.kurator_status;
-      if (t.user_id !== meId) continue;
+      if (istBeteiligt(t, ich)) statusStand[t.id] = t.kurator_status;
+      if (!istMeinTicket(t, ich)) continue;
       stimmenStand[t.id] = t.votes?.length ?? 0;
       const reply = t.kurator_response?.trim();
       if (reply) antwortStand[t.id] = signatureOf(reply);
@@ -129,13 +131,13 @@ export function schnappschuss(
 export function ergaenzeUnbekannte(
   anker: FeedbackNewsAnker,
   items: FeedbackItem[],
-  meId: string | undefined,
+  ich: MeineIdentitaet,
 ): FeedbackNewsAnker | null {
-  if (!meId) return null;
+  if (!ich.schreibId) return null;
   const zusatz: Record<string, FeedbackStatus> = {};
   for (const t of items) {
     if (anker.statusStand[t.id] !== undefined) continue;
-    if (!istBeteiligt(t, meId)) continue;
+    if (!istBeteiligt(t, ich)) continue;
     zusatz[t.id] = t.kurator_status;
   }
   if (Object.keys(zusatz).length === 0) return null;
@@ -145,7 +147,7 @@ export function ergaenzeUnbekannte(
 /** Leitet die Neuigkeiten ab (neueste zuerst, gekappt auf `maxEintraege`). */
 export function berechneFeedbackNews(
   items: FeedbackItem[],
-  meId: string | undefined,
+  ich: MeineIdentitaet,
   anker: FeedbackNewsAnker,
   maxEintraege: number,
   nowMs: number,
@@ -156,8 +158,8 @@ export function berechneFeedbackNews(
   for (const t of items) {
     if (t.category === 'praise') continue; // Lob hat keinen Workflow
     const titel = feedbackTitle(t, 90);
-    const eigen = !!meId && t.user_id === meId;
-    const beteiligt = istBeteiligt(t, meId);
+    const eigen = istMeinTicket(t, ich);
+    const beteiligt = istBeteiligt(t, ich);
     // Nennt die Antwortzeile den Status schon, entfällt die Statuszeile — sonst
     // stünden zwei Zeilen zum selben Ticket in einem 3-Zeilen-Widget.
     let antwortGemeldet = false;

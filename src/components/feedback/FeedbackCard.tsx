@@ -20,6 +20,7 @@ import { istUmgesetzt } from '@/core/services/feedback/feedback-status';
 import { CATEGORY_COLORS, CATEGORY_ICONS, EFFORT_SIZE_LABELS, STATUS_DOT, STATUS_LABELS, STATUS_TINT } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, feedbackQaSegments, formatShortDate, getLucideIcon } from './feedbackUi';
 import { FeedbackAvatar } from './FeedbackAvatar';
+import { FeedbackAntwortHover } from './FeedbackAntwortHover';
 import { FeedbackCommentHover } from './FeedbackCommentHover';
 import { FeedbackVotePill } from './FeedbackVotePill';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
@@ -55,6 +56,8 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
   const done = istUmgesetzt(ticket.kurator_status);
   const isPraise = ticket.category === 'praise';
   const commentCount = ticket.comments?.length ?? 0;
+  const antwort = ticket.kurator_response?.trim();
+  const antwortUngelesen = !!mine && !!unread;
   const hasShot = (ticket.attachments ?? []).some(a => a.kind !== 'file');
   const fileCount = (ticket.attachments ?? []).filter(a => a.kind === 'file').length;
   const effort = ticket.effort_estimate;
@@ -91,10 +94,20 @@ export function FeedbackCard({ ticket, config, selected, mine, meId, meName, unr
             {/* Voll umbrechend — der Titel wird bewusst nie gekürzt (der Nutzer
                 soll ihn ganz lesen können); break-words fängt lange Wörter/URLs. */}
             <span className={`flex-1 min-w-0 break-words font-medium ${dense ? 'text-[13.5px]' : 'text-[14px]'} ${done ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>{title}</span>
-            {mine && unread && (
-              <span className="shrink-0 text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]" title="Neue Antwort vom Team">
-                Antwort
-              </span>
+            {/* Team-Antwort (v3.7): sichtbar, solange es eine gibt — rot nur bei
+                ungelesener Antwort auf ein eigenes Ticket. Text im Hover. */}
+            {antwort && (
+              <FeedbackAntwortHover antwort={antwort} ungelesen={antwortUngelesen}>
+                <span
+                  className={`shrink-0 text-[10.5px] font-medium px-2 py-0.5 rounded-full cursor-pointer ${
+                    antwortUngelesen
+                      ? 'bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]'
+                      : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                  }`}
+                >
+                  Antwort
+                </span>
+              </FeedbackAntwortHover>
             )}
             {neueKommentare > 0 && (
               <span

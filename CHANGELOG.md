@@ -5,6 +5,26 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.10.0 — Team-Antwort im Board, Verwaltung fuer alle PL (August 2026)
+
+MINOR — Eine öffentliche Team-Antwort war im Board unsichtbar: `kurator_response` lag in jedem Kanban-Item, wurde aber nirgends gerendert, und das einzige Signal war ein Badge hinter `mine && unread`. `mine` wiederum war kaputt — erfasst wurde unter `profile.name`, verglichen gegen das Kürzel, also galt jedes eigene Ticket als fremd („Von mir" leer, keine Glocke, kein „Ergänzen").
+
+- „Antwort"-Pill auf Karte und Listenzeile, solange eine Antwort existiert; Wortlaut im Hover, Antworttext ist mitsuchbar — [FeedbackAntwortHover.tsx](src/components/feedback/FeedbackAntwortHover.tsx)
+- Zugehörigkeit über eine tolerante Identität (Kürzel UND Profilname), Schreiben behält EINE kanonische Id; Guard `no-direct-feedback-user-id-compare` — [feedbackIdentitaet.ts](src/core/services/feedback/feedbackIdentitaet.ts)
+- „Ergänzen" hängt nur noch am Schreibrecht: jedes PL-Mitglied darf jedes Ticket fortschreiben (Beta) — [FeedbackBoardDetail.tsx](src/components/feedback/FeedbackBoardDetail.tsx)
+- Schreib-Lage `geschrieben|kein-schreibrecht|fehler`: „Gespeichert" nur noch bei echtem Write, und ein unlesbarer Stand dampft den Teambestand nicht mehr auf ein Ticket ein — [feedbackSharedFile.ts](src/core/services/feedback/feedbackSharedFile.ts)
+- Einstellungen-Reiter fragt die Datei-Lage statt der nie gefüllten Legacy-Registrierung; System-Prompt kommt endlich vom Share — [FeedbackConfigPanel.tsx](src/plugins/feedback-board/verwaltung/FeedbackConfigPanel.tsx)
+
+### v3.9.0 — Tabelle: Ueberschuss an abgeschnittene Spalten, Filter-Chevron on demand, FKZ-Kopierknopf ueberlagert (August 2026)
+
+MINOR — Schmale Spalten waren breiter als ihr Inhalt: `min-width:100%` streckte im Scroll-Modus ALLE Prozent-`<col>` proportional (nachgemessen +25 % je Spalte), der Kopf reservierte 38 px für Sortierpfeil und Filter-Chevron, und der FKZ-Kopierknopf belegte 28 px für etwas, das nur beim Hover erscheint. Ergebnis: FKZ 179→111, die vier Kürzel-Spalten 101→64, Frist 116→90.
+
+- Freier Platz geht nur noch an Spalten, deren Text `maxWidth` kürzt; ein gezogener Override schützt seine Spalte, der Rest parkt in einer zellenlosen Füller-`<col>` — [tableSizing.ts](src/components/data-table/tableSizing.ts)
+- Filter-Chevron verlässt den Textfluss und erscheint beim Überfahren; dauerhaft sichtbar (und im Kopf eingerechnet) nur, wo ein Filter liegt — [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx)
+- FKZ-Kopierknopf liegt im rechten Zellpolster statt in einem reservierten Slot — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+- Kopf-Messmodell korrigiert: `<th>` ist fett, und `button` hebt `uppercase` auf („Status und nächster Schritt" war 31 px zu breit veranschlagt, ZTP 1,2 px zu schmal) — [textMessung.ts](src/components/data-table/messung/textMessung.ts)
+- Drag-Rückrechnung deckelt `scale` auf 1 — mit verteiltem Überschuss hätte ein Zug an einer unverteilten Spalte ihre Breite durch 1,4 geteilt gespeichert — [useColumnResize.ts](src/components/data-table/useColumnResize.ts)
+
 ### v3.8.0 — Projektart: Einzel- und Kooperationsprojekt als eigene Achse (August 2026)
 
 MINOR — Einzel- vs. Kooperationsprojekt war fachlich längst da (die Aufbereitung beschriftet den 1-TV-Fall so), aber nirgends filterbar. Einzelprojekt = FuE/DS mit genau einem Teilvorhaben, Kooperationsprojekt mit mehreren; der Netzwerkbezug (16KN/16EP) liegt als zwei Unterstufen darin.

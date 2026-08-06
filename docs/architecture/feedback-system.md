@@ -14,9 +14,11 @@ Bis v2.363 gab es zwei Oberflächen: das Board für alle und ein Kurator-Plugin 
 - **Archivierte** sind für Verwalter per Checkbox einblendbar (Key `teamflow_feedback_show_archived` — dieselbe Vorliebe wie im früheren Dashboard).
 - **Filter/Sortierung des Boards** liegen als reine, node-getestete Funktionen in [boardFilter.ts](../../src/plugins/feedback-board/boardFilter.ts) (`matchesBoardFilter`/`compareBoardTickets`/`filterAndSortBoard`) — herausgezogen beim Anfassen der Seite, ersetzt die mit dem Dashboard entfallene `feedback-filter.ts`.
 
-## Eigenes Feedback fortschreiben (v2.364)
+## Feedback fortschreiben (v2.364, seit v3.7 an jedem Ticket)
 
-Ziel: **ein** Ticket je Themenkomplex, das der Autor fortschreibt, statt eines neuen Tickets für jede Präzisierung. [FeedbackErgaenzenForm.tsx](../../src/components/feedback/FeedbackErgaenzenForm.tsx), erreichbar über „Ergänzen" neben dem Titel — sichtbar wenn `mine && darfVerwalten` (read-only prod würde nur lokal schreiben, dort bleibt der Kommentar-Thread der Weg).
+Ziel: **ein** Ticket je Themenkomplex, das fortgeschrieben wird, statt eines neuen Tickets für jede Präzisierung. [FeedbackErgaenzenForm.tsx](../../src/components/feedback/FeedbackErgaenzenForm.tsx), erreichbar über „Ergänzen" neben dem Titel — sichtbar wenn `darfVerwalten` (read-only prod würde nur lokal schreiben, dort bleibt der Kommentar-Thread der Weg).
+
+Die Beschränkung auf den Autor (`mine && darfVerwalten`) ist mit **v3.7** gefallen (Beta-Entscheidung): wer Status, Team-Antwort und **Löschen** an fremden Tickets darf, darf auch deren Text nachziehen. Eine Fremd-Bearbeitung setzt `updated_at`, damit greift die Merge-Regel unten — der lokale Altstand des Autors spielt die alte Fassung nicht zurück.
 
 - Felder + Reihenfolge kommen aus **derselben** Quelle wie das Erfassungs-Formular (`FEEDBACK_TYPES`), `text` wird mit **demselben** `composeFeedbackText` neu zusammengesetzt — sonst driften Erfassung und Nachbearbeitung auseinander (Board/Liste/Suche rendern auf `text`). Alt-Tickets ohne `structured` bekommen ein einziges Freitext-Feld statt geratener Feldwerte.
 - Anhänge nachreichen über `appendAttachments` ([feedbackService.ts](../../src/core/services/feedback/feedbackService.ts)): Bytes zuerst per `writeSharedAttachment`, **dann** die Referenzen ins Ticket — schlägt der Share-Write fehl, wirft die Funktion, statt Referenzen auf nicht existierende Dateien zu hinterlassen.
@@ -43,6 +45,8 @@ Neue Präsentations-Bausteine (`src/components/feedback/`): `FeedbackCard` (List
 
 Regel seither: **wer schreibt, liest `readSharedFileLage`** (`ok` | `leer` | `unlesbar`) und bricht bei `unlesbar` ab. `leer` (kein Share verbunden oder Datei existiert noch nicht) bleibt ein gültiger Startzustand, `unlesbar` nie. Unterschieden wird über `fileExists` — existiert die Datei, war `null` ein Lesefehler. `readSharedFile` behält seine Signatur für alle **lesenden** Aufrufer.
 
+**v3.7 zieht `updateFeedback`, `deleteFeedback` und `submitFeedback` nach** — sie standen noch auf dem alten Muster, und `updateFeedback` baute aus „unlesbar" eine geteilte Datei aus dem EINEN lokalen Item (Teambestand auf ein Ticket eingedampft). Dazu die Schwester der Lese-Lage: **`writeSharedFileLage`** (`geschrieben` | `kein-schreibrecht` | `fehler`; `writeSharedFile` bleibt als boolesche Hülle). `kein-schreibrecht` ist der erwartete Zustand read-only-Clients und bleibt still; `fehler`/`unlesbar` **werfen**, damit `useAsyncAction` im Verwaltungs-Block sie zeigt — „Gespeichert" erscheint nur noch, wenn wirklich geschrieben wurde. `[test: updateFeedbackLage.test.ts]`
+
 Dazu die UI-Regel: ein fehlgeschlagener Kommentar ist sichtbar und der Text bleibt im Feld stehen — er ist die einzige Kopie. `useAsyncAction` fängt nur *geworfene* Fehler; ein `ok:false` muss der Aufrufer selbst auswerten (Pitfall #15 deckt nur die halbe Strecke ab). `[test: addComment.test.ts]`
 
 ## Kommentare: Hover-Vorschau + Neu-Marker (v2.416)
@@ -56,6 +60,29 @@ Die Diskussion war bis dahin unsichtbar: die Karte zeigte `💬 3` als stumme Za
 - Verdrahtung in [FeedbackBoardPage.tsx](../../src/plugins/feedback-board/FeedbackBoardPage.tsx): eine **komponierte** `markSeen` (Antwort + Kommentare), damit das Detail-Panel weiter genau einen Rückkanal kennt; es friert die Zahl beim Öffnen ein (Muster `highlightReply`) und reicht sie an den Thread.
 
 Glocke, Startseiten-Widget „Neuigkeiten" und eine Sortierung nach Diskussion bleiben bewusst außen vor; sie hingen nur an `zaehleNeueKommentare`, das deshalb frei von React und localStorage ist.
+
+## Wem gehört ein Ticket? (v3.7)
+
+Die Zugehörigkeit entscheidet die **tolerante Identität** aus [feedbackIdentitaet.ts](../../src/core/services/feedback/feedbackIdentitaet.ts) (`istMeinTicket`/`istMeineId`), gespeist vom Hook [useMeineFeedbackIdentitaet](../../src/core/hooks/useMeineFeedbackIdentitaet.ts). Vergleich NFC-normalisiert, getrimmt, case-insensitiv (Pitfall #22); `'anonymous'` zählt nicht als Identität.
+
+Der Grund: erfasst wurde ein Ticket unter `profile.name`, verglichen wurde gegen `useMeinKuerzel() ?? profile.name`. Sobald ein Bearbeiter-Kürzel im Profil steht (Normalfall in pl), passte nichts zusammen — **jedes eigene Ticket galt als fremd**: „Von mir" leer, keine Glocke, kein „Du", kein Mini-Stepper, kein „Antwort"-Marker und kein „Ergänzen".
+
+Die Auflösung ist bewusst asymmetrisch:
+
+- **Schreiben** trägt GENAU EINE kanonische Id (`schreibId` = Kürzel → sonst Profilname). Stimmen, Kommentare und Sponsoren werden per `user_id` unioniert; zwei Schreibweisen verdoppelten die Einträge. Auch `submitFeedback` schreibt seit v3.7 diese Id (Drift an der Quelle geschlossen), `user_display_name` bleibt der Profilname.
+- **Lesen** ist tolerant (`leseIds` = Kürzel UND Profilname). Bestandsdaten tragen die alte Schreibweise; eine Migration der geteilten `feedback.json` wäre der falsche Hebel, weil sie nicht weiß, wer hinter einem fremden Namen steckt.
+
+Gerätelokale Speicher (Glocken-Map, Kommentar-Stand, Widget-Anker) hängen weiter an der `schreibId` — der gemerkte Stand eines Nutzers bleibt damit stabil.
+
+**Bewusst außen vor**: Stimmen/Sponsoring/Kommentar-Autorschaft vergleichen weiter gegen die eine kanonische Id. Tolerantes Lesen ohne tolerantes Entfernen erzeugte eine nicht abwählbare Stimme. Rest-Risiko unverändert zu vorher: wer sein Kürzel wechselt, kann zweimal stimmen. `[test: feedbackIdentitaet.test.ts, Guard no-direct-feedback-user-id-compare]`
+
+## Team-Antwort auf der Karte (v3.7)
+
+`kurator_response` lag in jedem Board-Item (`getFeedbackList` liefert volle `FeedbackItem`s, keine Slim-Projektion), wurde aber **nirgends gerendert**. Einziges Signal war ein rotes „Antwort"-Badge, doppelt gegated auf `mine && unread` — nach dem ersten Öffnen des Details verschwand mit ihm jeder Hinweis darauf, dass das Ticket überhaupt beantwortet ist.
+
+- **Pill, solange es eine Antwort gibt** — nicht nur solange sie ungelesen ist. Die Antwort ist per Datenmodell öffentlich („für alle auf dem Board sichtbar"). Rot (`--tf-fb-problem`) = ungelesene Antwort auf ein eigenes Ticket wie bisher; sonst neutral (`--tf-text` auf `--tf-bg-secondary`; `--tf-text-secondary` fiel im Dark Mode auf 3,58:1 durch). Beide Karten: [FeedbackKanban.tsx](../../src/components/feedback/FeedbackKanban.tsx) + [FeedbackCard.tsx](../../src/components/feedback/FeedbackCard.tsx).
+- **Text im Hover** — [FeedbackAntwortHover.tsx](../../src/components/feedback/FeedbackAntwortHover.tsx), Zwilling zu `FeedbackCommentHover` (dieselbe Radix-HoverCard-Begründung, 340 px, Innen-Scroll bei 280 px, Klick perlt zur Karte durch). Das Pill trägt **kein** `title` — zwei Popups über einem Trigger war die Falle aus v2.416.
+- **Suchbar** — `kurator_response` zählt zum Heuhaufen in [boardFilter.ts](../../src/plugins/feedback-board/boardFilter.ts): wonach man auf der Karte sieht, muss man auch suchen können.
 
 ## User-Komponenten (`src/components/feedback/`)
 

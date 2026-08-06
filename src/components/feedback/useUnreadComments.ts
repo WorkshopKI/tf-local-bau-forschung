@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { FeedbackItem } from '@/core/types/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import {
   ergaenzeKommentarStand,
   standNach,
@@ -54,7 +55,14 @@ export interface UnreadComments {
   markSeen: (item: FeedbackItem) => void;
 }
 
-export function useUnreadComments(items: FeedbackItem[], meId?: string): UnreadComments {
+/**
+ * `ich` statt einer Id: WESSEN Kommentar es ist, entscheidet die tolerante
+ * Identität (Bestandsbeiträge tragen ggf. die frühere Schreibweise) — der
+ * localStorage-Key hängt weiter an der kanonischen `schreibId`, damit der
+ * gemerkte Stand eines Nutzers stabil bleibt.
+ */
+export function useUnreadComments(items: FeedbackItem[], ich: MeineIdentitaet): UnreadComments {
+  const meId = ich.schreibId;
   const [stand, setStand] = useState<KommentarStand>(() => ladeStand(meId));
 
   // Nutzer-Wechsel (Login): Stand neu aus dem localStorage laden.
@@ -69,29 +77,29 @@ export function useUnreadComments(items: FeedbackItem[], meId?: string): UnreadC
   useEffect(() => {
     if (!meId) return;
     setStand(prev => {
-      const next = ergaenzeKommentarStand(prev, items, meId);
+      const next = ergaenzeKommentarStand(prev, items, ich);
       if (!next) return prev;
       speichere(meId, next);
       return next;
     });
-  }, [items, meId]);
+  }, [items, ich, meId]);
 
   const neuFuer = useCallback(
-    (item: FeedbackItem): number => zaehleNeueKommentare(item, stand, meId),
-    [stand, meId],
+    (item: FeedbackItem): number => zaehleNeueKommentare(item, stand, ich),
+    [stand, ich],
   );
 
   const markSeen = useCallback(
     (item: FeedbackItem): void => {
       if (!meId) return;
       setStand(prev => {
-        const next = standNach(prev, item, meId);
+        const next = standNach(prev, item, ich);
         if (!next) return prev;
         speichere(meId, next);
         return next;
       });
     },
-    [meId],
+    [ich, meId],
   );
 
   return { neuFuer, markSeen };

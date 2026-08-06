@@ -7,7 +7,8 @@
  * sortierte Liste raus. `getSponsoringProgress` wird als Wert-Funktion genutzt
  * (deterministisch aus Ticket + Config).
  */
-import { getSponsoringProgress } from '@/core/services/feedback';
+import { getSponsoringProgress, istMeinTicket } from '@/core/services/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback';
 import { feedbackTitle } from '@/components/feedback/feedbackUi';
 import type { FeedbackSort } from '@/components/feedback/FeedbackSortSelect';
 import type { FeedbackStatusFilter } from '@/components/feedback/FeedbackStatusSelect';
@@ -18,8 +19,12 @@ export type BoardScope = 'alle' | 'mir' | 'team';
 
 export interface BoardFilterState {
   scope: BoardScope;
-  /** Eigene Identität (Kürzel bzw. Profilname); ohne sie greifen die Scopes nicht. */
-  meId: string | undefined;
+  /**
+   * Eigene Identität (Kürzel UND Profilname, siehe `feedbackIdentitaet`); ohne
+   * sie greifen die Scopes nicht. Bewusst die ganze Identität statt einer Id:
+   * Bestands-Tickets tragen die frühere Schreibweise.
+   */
+  ich: MeineIdentitaet;
   kategorie: FeedbackCategory | '';
   status: FeedbackStatusFilter;
   /** Freitext-Suche (wird getrimmt + kleingeschrieben). */
@@ -29,9 +34,10 @@ export interface BoardFilterState {
 
 /** Passt ein Ticket auf den Filterzustand? */
 export function matchesBoardFilter(t: FeedbackItem, f: BoardFilterState): boolean {
-  const { scope, meId } = f;
-  if (scope === 'mir' && !(meId && t.user_id === meId)) return false;
-  if (scope === 'team' && meId && t.user_id === meId) return false;
+  const { scope, ich } = f;
+  const mein = istMeinTicket(t, ich);
+  if (scope === 'mir' && !mein) return false;
+  if (scope === 'team' && mein) return false;
   if (f.kategorie && t.category !== f.kategorie) return false;
   if (f.status !== 'alle') {
     if (f.status === 'lob') {
@@ -41,7 +47,9 @@ export function matchesBoardFilter(t: FeedbackItem, f: BoardFilterState): boolea
   const q = f.query.trim().toLowerCase();
   if (q) {
     // Voller Titel (Infinity) — sonst wäre bei langen Titeln das Ende nicht suchbar.
-    const hay = `${feedbackTitle(t, Infinity)} ${t.text} ${t.context?.page ?? ''}`.toLowerCase();
+    // Die Team-Antwort zählt mit (v3.7): sie ist öffentlich und steht seit dem
+    // Board-Marker sichtbar an der Karte — wonach man sieht, muss man suchen können.
+    const hay = `${feedbackTitle(t, Infinity)} ${t.text} ${t.context?.page ?? ''} ${t.kurator_response ?? ''}`.toLowerCase();
     if (!hay.includes(q)) return false;
   }
   return true;

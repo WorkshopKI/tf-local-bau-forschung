@@ -18,7 +18,9 @@ import type { FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/
 import {
   getSponsoringProgress,
   isSponsorableCategory,
+  istMeinTicket,
 } from '@/core/services/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback';
 import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
 import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
 import { feedbackLaneAccent, type FeedbackLane } from './feedbackLanes';
@@ -30,6 +32,7 @@ import {
 } from './constants';
 import { feedbackAuthorLabel, feedbackTitle, formatShortDate, getLucideIcon } from './feedbackUi';
 import { FeedbackAvatar } from './FeedbackAvatar';
+import { FeedbackAntwortHover } from './FeedbackAntwortHover';
 import { FeedbackCommentHover } from './FeedbackCommentHover';
 import { FeedbackScreenshots } from './FeedbackScreenshots';
 import { FeedbackVotePill } from './FeedbackVotePill';
@@ -62,7 +65,8 @@ export function buildBoardColumns(tickets: FeedbackItem[], lanes: FeedbackLane[]
 interface Props {
   tickets: FeedbackItem[];
   config: FeedbackConfig;
-  meineUserId?: string;
+  /** Meine Identität — entscheidet die „Du"-Kennzeichnung (feedbackIdentitaet). */
+  ich: MeineIdentitaet;
   meId?: string;
   meName?: string;
   /** Ungelesene Team-Antwort auf ein eigenes Feedback → „Antwort"-Badge. */
@@ -79,7 +83,7 @@ interface Props {
   farbmodus: LaneFarbmodus;
 }
 
-export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isUnread, neueKommentare, onSelect, onChanged, dense, lanes, farbmodus }: Props): React.ReactElement {
+export function FeedbackKanban({ tickets, config, ich, meId, meName, isUnread, neueKommentare, onSelect, onChanged, dense, lanes, farbmodus }: Props): React.ReactElement {
   const columns = useMemo(() => buildBoardColumns(tickets, lanes), [tickets, lanes]);
   const boardCount = columns.reduce((n, c) => n + c.items.length, 0);
 
@@ -111,7 +115,7 @@ export function FeedbackKanban({ tickets, config, meineUserId, meId, meName, isU
           key={t.id}
           ticket={t}
           config={config}
-          mine={!!meineUserId && t.user_id === meineUserId}
+          mine={istMeinTicket(t, ich)}
           unread={!!isUnread?.(t)}
           neueKommentare={neueKommentare?.(t) ?? 0}
           meId={meId}
@@ -135,6 +139,8 @@ function MiniCard({ ticket, config, mine, unread, neueKommentare, meId, meName, 
 }): React.ReactElement {
   const accent = ticket.category ? CATEGORY_TEXT_VAR[ticket.category] : 'var(--tf-text-tertiary)';
   const typeLabel = ticket.category ? CATEGORY_LABELS[ticket.category] : 'Feedback';
+  const antwort = ticket.kurator_response?.trim();
+  const antwortUngelesen = mine && unread;
   const author = mine ? 'Du' : (feedbackAuthorLabel(ticket) ?? '—');
   const commentCount = ticket.comments?.length ?? 0;
   const fileCount = (ticket.attachments ?? []).filter(a => a.kind === 'file').length;
@@ -156,10 +162,21 @@ function MiniCard({ ticket, config, mine, unread, neueKommentare, meId, meName, 
           {typeLabel}
         </span>
         <span className="ml-auto flex items-center gap-2 shrink-0">
-          {mine && unread && (
-            <span className="text-[9.5px] font-semibold px-2 py-0.5 rounded-full bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)] whitespace-nowrap" title="Neue Antwort vom Team">
-              Antwort
-            </span>
+          {/* Team-Antwort (v3.7): sichtbar, SOLANGE es eine gibt — nicht nur
+              solange sie ungelesen ist. Rot = ungelesene Antwort auf mein
+              eigenes Ticket (wie bisher), sonst neutral. Text im Hover. */}
+          {antwort && (
+            <FeedbackAntwortHover antwort={antwort} ungelesen={antwortUngelesen}>
+              <span
+                className={`text-[9.5px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer ${
+                  antwortUngelesen
+                    ? 'bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]'
+                    : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                }`}
+              >
+                Antwort
+              </span>
+            </FeedbackAntwortHover>
           )}
           {/* Neue Kommentare gehören nach OBEN: die Fuß-Metrik bei 11 px erfüllt
               „besser sichtbar" nicht, hier ist die Aufmerksamkeitszone der Karte.

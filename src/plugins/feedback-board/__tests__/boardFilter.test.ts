@@ -6,10 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
+import { KEINE_IDENTITAET, baueIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import { filterAndSortBoard, matchesBoardFilter, type BoardFilterState } from '../boardFilter';
 
 const CONFIG: FeedbackConfig = DEFAULT_FEEDBACK_CONFIG;
 const ME = 'THU';
+/** Kürzel + Profilname — beide Schreibweisen gehören mir (feedbackIdentitaet). */
+const ME_ALIAS = 'TH PL';
+const ICH = baueIdentitaet(ME, ME_ALIAS);
 
 function fb(id: string, over: Partial<FeedbackItem> = {}): FeedbackItem {
   return {
@@ -28,7 +32,7 @@ function fb(id: string, over: Partial<FeedbackItem> = {}): FeedbackItem {
 }
 
 const BASIS: BoardFilterState = {
-  scope: 'alle', meId: ME, kategorie: '', status: 'alle', query: '', sort: 'neu',
+  scope: 'alle', ich: ICH, kategorie: '', status: 'alle', query: '', sort: 'neu',
 };
 
 describe('matchesBoardFilter', () => {
@@ -42,9 +46,17 @@ describe('matchesBoardFilter', () => {
   });
 
   it('ohne Identität liefert „mir" nichts und „team" alles', () => {
-    const ohneId: BoardFilterState = { ...BASIS, meId: undefined };
+    const ohneId: BoardFilterState = { ...BASIS, ich: KEINE_IDENTITAET };
     expect(matchesBoardFilter(fb('A'), { ...ohneId, scope: 'mir' })).toBe(false);
     expect(matchesBoardFilter(fb('A'), { ...ohneId, scope: 'team' })).toBe(true);
+  });
+
+  it('„mir" findet auch ein Ticket, das unter dem PROFILNAMEN erfasst wurde', () => {
+    // Der Kern-Defekt bis v3.7: erfasst unter profile.name, verglichen gegen das
+    // Kürzel — „Von mir" war deshalb dauerhaft leer.
+    const alt = fb('ALT', { user_id: ME_ALIAS });
+    expect(matchesBoardFilter(alt, { ...BASIS, scope: 'mir' })).toBe(true);
+    expect(matchesBoardFilter(alt, { ...BASIS, scope: 'team' })).toBe(false);
   });
 
   it('Kategorie- und Status-Filter greifen einzeln', () => {
@@ -65,6 +77,13 @@ describe('matchesBoardFilter', () => {
     expect(matchesBoardFilter(t, { ...BASIS, query: 'FKZ' })).toBe(true);
     expect(matchesBoardFilter(t, { ...BASIS, query: 'förderanträge' })).toBe(true); // context.page
     expect(matchesBoardFilter(t, { ...BASIS, query: 'gibtesnicht' })).toBe(false);
+  });
+
+  it('Suche greift auch auf die Team-Antwort', () => {
+    // Seit v3.7 steht die Antwort als Marker auf der Karte — wonach man sieht,
+    // muss man auch suchen können.
+    const t = fb('A', { kurator_response: 'Kommt mit dem nächsten Sprint' });
+    expect(matchesBoardFilter(t, { ...BASIS, query: 'sprint' })).toBe(true);
   });
 
   it('leere Suche (nur Leerzeichen) filtert nicht', () => {

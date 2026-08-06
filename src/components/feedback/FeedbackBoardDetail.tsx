@@ -2,14 +2,16 @@
 // Redesign v2.208). Lesend für die Feedback-Inhalte + interaktiv für
 // Sponsoring/Votes/Kommentare. Seit v2.364 ist es die EINZIGE Feedback-
 // Bearbeitungsstelle: mit Verwaltungsrecht (`canManageFeedback`) hängt der
-// Verwaltungs-Block darunter, dem Autor steht „Ergänzen" offen. Dateloser
+// Verwaltungs-Block darunter und „Ergänzen" steht offen (seit v3.7 an JEDEM
+// Ticket, nicht nur am eigenen — Beta-Entscheidung). Dateloser
 // Fortschritts-Stepper, Sponsoring-Panel (großes X/Y + +/− + Budget-Hinweis),
 // hervorgehobene Team-Antwort (ungelesen → rot + „Neu"). Bringt eigenes Scrollen
 // mit (das MasterDetailLayout-Detail-Pane ist overflow-hidden).
 
 import { useEffect, useState } from 'react';
 import { MessageSquare, Pencil, X } from 'lucide-react';
-import { isSponsorableCategory } from '@/core/services/feedback';
+import { isSponsorableCategory, istMeinTicket } from '@/core/services/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback';
 import { EFFORT_LABELS } from '@/core/types/feedback';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
@@ -40,6 +42,8 @@ interface Props {
   onChanged: () => void;
   meId?: string;
   meName?: string;
+  /** Meine Identität — entscheidet, ob das Ticket mir gehört (feedbackIdentitaet). */
+  ich: MeineIdentitaet;
   /** Ungelesene Team-Antwort auf dieses (eigene) Feedback beim Öffnen. */
   unread?: boolean;
   /** Neue Kommentare beim Öffnen → im Thread hervorgehoben. */
@@ -56,9 +60,9 @@ function SectionLabel({ children }: { children: React.ReactNode }): React.ReactE
   );
 }
 
-export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, meName, unread, neueKommentare, markSeen, darfVerwalten }: Props): React.ReactElement {
+export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, meName, ich, unread, neueKommentare, markSeen, darfVerwalten }: Props): React.ReactElement {
   const Icon = getLucideIcon(ticket.category ? CATEGORY_ICONS[ticket.category] : 'MessageCircle');
-  const mine = !!meId && ticket.user_id === meId;
+  const mine = istMeinTicket(ticket, ich);
   const author = mine ? 'Du' : (feedbackAuthorLabel(ticket) ?? 'Unbekannt');
   const response = ticket.kurator_response?.trim();
   const isFeature = isSponsorableCategory(ticket.category);
@@ -75,11 +79,17 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
   const [highlightKommentare] = useState(neueKommentare ?? 0);
   useEffect(() => { markSeen?.(ticket); }, [ticket, markSeen]);
 
-  // „Ergänzen" (v2.364): nur der Autor, und nur auf Clients, die den Daten-Share
-  // schreiben können (`darfVerwalten`) — read-only prod würde sonst lokal
-  // editieren, ohne dass es beim Team ankommt. Dort bleibt der Kommentar-Thread.
+  // „Ergänzen": nur auf Clients, die den Daten-Share schreiben können
+  // (`darfVerwalten`) — read-only prod würde sonst lokal editieren, ohne dass es
+  // beim Team ankommt. Dort bleibt der Kommentar-Thread.
+  //
+  // Seit v3.7 NICHT mehr auf den Autor beschränkt (Beta-Entscheidung): wer
+  // Status, Team-Antwort und Löschen an fremden Tickets darf, darf auch deren
+  // Text nachziehen. Fremd-Bearbeitungen setzen `updated_at` — damit gewinnt in
+  // `mergeItems` der geteilte Stand, der lokale Altstand des Autors spielt die
+  // alte Fassung also nicht zurück.
   const [bearbeiten, setBearbeiten] = useState(false);
-  const darfErgaenzen = mine && !!darfVerwalten;
+  const darfErgaenzen = !!darfVerwalten;
   useEffect(() => { setBearbeiten(false); }, [ticket.id]);
 
   return (
@@ -120,7 +130,9 @@ export function FeedbackBoardDetail({ ticket, config, onClose, onChanged, meId, 
               <button
                 type="button"
                 onClick={() => setBearbeiten(true)}
-                title="Eigenes Feedback ergänzen — Titel, Felder, weitere Anhänge"
+                title={mine
+                  ? 'Eigenes Feedback ergänzen — Titel, Felder, weitere Anhänge'
+                  : 'Ticket ergänzen — Titel, Felder, weitere Anhänge'}
                 className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-[var(--tf-radius)] text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer transition-colors"
                 style={{ border: '0.5px solid var(--tf-border)' }}
               >

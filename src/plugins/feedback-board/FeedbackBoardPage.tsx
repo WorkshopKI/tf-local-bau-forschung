@@ -10,6 +10,7 @@ import { List, Columns3, Rows3, Search, Settings2 } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentitaet';
 import { MasterDetailLayout } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
@@ -36,6 +37,7 @@ import {
   isSponsorableCategory,
   loadFeedbackConfig,
   istArchiviert,
+  istMeinTicket,
 } from '@/core/services/feedback';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
@@ -98,8 +100,11 @@ export function FeedbackBoardPage(): React.ReactElement {
   useAutoCollectFeedback();
   const { profile } = useProfile();
   const kuerzel = useMeinKuerzel();
-  // Identität für Scope + Votes + Kommentare + Budget: Kürzel (Login) → sonst Profilname.
-  const meId = kuerzel ?? (profile?.name && profile.name !== 'anonymous' ? profile.name : undefined);
+  // Identität (v3.7): `schreibId` (Kürzel → sonst Profilname) trägt NEUE Stimmen,
+  // Kommentare und Budget-Keys; `ich` erkennt zusätzlich Bestands-Tickets unter
+  // der jeweils anderen Schreibweise (feedbackIdentitaet.ts).
+  const ich = useMeineFeedbackIdentitaet();
+  const meId = ich.schreibId;
   const meName = profile?.name && profile.name !== 'anonymous' ? profile.name : kuerzel;
   // Verwaltungsrecht (v2.364): Kurator-Profil ODER Build mit Share-Schreibrecht
   // (pl/kurator/as/dev). Ersetzt den früheren Menüpunkt Kuration → Feedback.
@@ -192,9 +197,9 @@ export function FeedbackBoardPage(): React.ReactElement {
   );
 
   // Ungelesene Team-Antworten auf eigene Feedbacks (Glocke + Marker + „Neu"-Hervorhebung).
-  const { count: unread, isUnread, markSeen: markAntwortSeen } = useUnreadReplies(base, meId);
+  const { count: unread, isUnread, markSeen: markAntwortSeen } = useUnreadReplies(base, ich);
   // Neue Kommentare an BELIEBIGEN Tickets (Marker + Hervorhebung im Hover).
-  const { neuFuer, markSeen: markKommentareSeen } = useUnreadComments(base, meId);
+  const { neuFuer, markSeen: markKommentareSeen } = useUnreadComments(base, ich);
   // Eine komponierte „gesehen"-Meldung: das Detail-Panel kennt weiterhin genau
   // einen Rückkanal, und beide Teile ignorieren selbst, was sie nichts angeht.
   const markSeen = useCallback((t: FeedbackItem): void => {
@@ -207,7 +212,7 @@ export function FeedbackBoardPage(): React.ReactElement {
     ideen: base.filter(isFeature).length,
   }), [base, isBug]);
 
-  const ownItems = useMemo(() => (meId ? base.filter(t => t.user_id === meId) : []), [base, meId]);
+  const ownItems = useMemo(() => base.filter(t => istMeinTicket(t, ich)), [base, ich]);
 
   const scopeItems = useMemo(() => [
     { key: 'alle', label: 'Alle', count: base.length },
@@ -225,10 +230,10 @@ export function FeedbackBoardPage(): React.ReactElement {
   const filteredSorted = useMemo(
     () => filterAndSortBoard(
       base,
-      { scope, meId, kategorie: filterKategorie, status: statusFilter, query, sort },
+      { scope, ich, kategorie: filterKategorie, status: statusFilter, query, sort },
       config,
     ),
-    [base, scope, meId, filterKategorie, statusFilter, query, sort, config],
+    [base, scope, ich, filterKategorie, statusFilter, query, sort, config],
   );
 
   const selectedTicket = useMemo(
@@ -251,7 +256,7 @@ export function FeedbackBoardPage(): React.ReactElement {
         <FeedbackKanban
           tickets={filteredSorted}
           config={config}
-          meineUserId={meId}
+          ich={ich}
           meId={meId}
           meName={meName ?? undefined}
           isUnread={isUnread}
@@ -272,7 +277,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             ticket={t}
             config={config}
             selected={selectedId === t.id}
-            mine={!!meId && t.user_id === meId}
+            mine={istMeinTicket(t, ich)}
             unread={isUnread(t)}
             neueKommentare={neuFuer(t)}
             meId={meId}
@@ -426,6 +431,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             onChanged={handleChanged}
             meId={meId}
             meName={meName ?? undefined}
+            ich={ich}
             unread={isUnread(selectedTicket)}
             neueKommentare={neuFuer(selectedTicket)}
             markSeen={markSeen}

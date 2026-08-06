@@ -12,6 +12,8 @@ import type {
   LLMClassification,
 } from '@/core/types/feedback';
 import { FEEDBACK_PROMPT_FILE } from '@/core/types/feedback';
+import { atomicWrite, fileExists, readText } from '@/core/services/infrastructure/atomic-write';
+import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { getAppOverview } from './screenContext';
 
 export const DEFAULT_SYSTEM_PROMPT = `Du bist der Feedback-Assistent für TeamFlow Local.
@@ -59,25 +61,45 @@ Zu (a) — ANTWORT-FORMAT FÜR RÜCKFRAGEN:
 Max. 4 Optionen, jede max. 10 Wörter. Letzte Option kann "Etwas anderes" sein.
 Die finale Zusammenfassung ist IMMER natürlicher deutscher Text mit \`\`\`json-Block — NIEMALS das options-Format für die Zusammenfassung verwenden.`;
 
-/** Liest feedback/system-prompt.md aus dem Datenverzeichnis. Fallback auf DEFAULT_SYSTEM_PROMPT. */
+/**
+ * Liest `_intern/feedback/system-prompt.md` vom Daten-Share. Fallback auf
+ * DEFAULT_SYSTEM_PROMPT.
+ *
+ * Geht seit v3.7 über den Infrastruktur-Handle (`getDatenShareHandle` +
+ * `readText`) statt über den Legacy-`storage.fs`-FileServerStore — der ist im
+ * modernen Welcome/Startup-Flow nie gesetzt (siehe die gleiche Begründung in
+ * feedbackSharedFile.ts). Folge des alten Wegs: die gepflegte Prompt-Datei auf
+ * dem Share wurde NIE gelesen, der Chatbot lief still auf dem eingebauten
+ * Default — sichtbar nur daran, dass „Vorschau" immer denselben Text zeigte.
+ */
 export async function loadSystemPrompt(storage: StorageService): Promise<string> {
-  if (!storage.fs) return DEFAULT_SYSTEM_PROMPT;
-  try {
-    const content = await storage.fs.readFile(FEEDBACK_PROMPT_FILE);
-    return content.trim() ? content : DEFAULT_SYSTEM_PROMPT;
-  } catch {
-    return DEFAULT_SYSTEM_PROMPT;
-  }
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return DEFAULT_SYSTEM_PROMPT;
+  const content = await readText(handle, FEEDBACK_PROMPT_FILE);
+  return content && content.trim() ? content : DEFAULT_SYSTEM_PROMPT;
 }
 
-/** Schreibt das Default-Template ins Datenverzeichnis (für "System-Prompt initialisieren"-Button). */
+/** Liegt die Prompt-Datei auf dem Share? (`null` = kein Share verbunden.) */
+export async function systemPromptFileExists(storage: StorageService): Promise<boolean | null> {
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return null;
+  return fileExists(handle, FEEDBACK_PROMPT_FILE);
+}
+
+/**
+ * Schreibt das Default-Template auf den Share (Knopf „Initialisieren").
+ * Self-gated wie `writeSharedFile`: ohne readwrite-Berechtigung ein No-op.
+ * Sidecar-Profil idempotent-overwrite → `atomicWrite` mit Backup (Pitfall #10).
+ */
 export async function initSystemPromptFile(storage: StorageService): Promise<boolean> {
-  if (!storage.fs || storage.fs.isReadOnly()) return false;
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return false;
+  if ((await queryPermission(handle)) !== 'granted') return false;
   try {
-    await storage.fs.ensureDir('feedback');
-    await storage.fs.writeFile(FEEDBACK_PROMPT_FILE, DEFAULT_SYSTEM_PROMPT);
+    await atomicWrite(handle, FEEDBACK_PROMPT_FILE, DEFAULT_SYSTEM_PROMPT);
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[feedbackLlm] initSystemPromptFile failed:', err);
     return false;
   }
 }

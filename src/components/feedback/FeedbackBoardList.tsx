@@ -3,17 +3,19 @@
 // im Seiten-Header (FeedbackBoardPage), hier nur die Zeilen.
 
 import type { FeedbackItem } from '@/core/types/feedback';
+import { istMeinTicket } from '@/core/services/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback';
 import { FeedbackTicketRow } from './FeedbackTicketRow';
 
 interface Props {
   tickets: FeedbackItem[];
   selectedId?: string;
   onSelect: (ticket: FeedbackItem) => void;
-  /** Board: user_id des angemeldeten Nutzers → eigene Zeilen werden markiert. */
-  meineUserId?: string;
+  /** Board: Identitaet des angemeldeten Nutzers → eigene Zeilen werden markiert. */
+  ich: MeineIdentitaet;
 }
 
-export function FeedbackBoardList({ tickets, selectedId, onSelect, meineUserId }: Props): React.ReactElement {
+export function FeedbackBoardList({ tickets, selectedId, onSelect, ich }: Props): React.ReactElement {
   if (tickets.length === 0) {
     return (
       <p className="text-[12px] text-[var(--tf-text-tertiary)] text-center py-8">
@@ -30,7 +32,7 @@ export function FeedbackBoardList({ tickets, selectedId, onSelect, meineUserId }
           ticket={ticket}
           selected={selectedId === ticket.id}
           onSelect={onSelect}
-          mine={!!meineUserId && ticket.user_id === meineUserId}
+          mine={istMeinTicket(ticket, ich)}
         />
       ))}
     </div>

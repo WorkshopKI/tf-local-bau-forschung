@@ -5,6 +5,7 @@ export * from './feedbackService';
 export * from './feedbackOutboxCollect';
 export * from './feedbackStorage';
 export * from './feedbackSharedFile';
+export * from './feedbackIdentitaet';
 export * from './feedbackFaq';
 export * from './feedbackSponsoring';
 export * from './feedbackSponsorOutbox';

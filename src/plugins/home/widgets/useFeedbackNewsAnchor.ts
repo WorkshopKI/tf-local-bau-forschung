@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import { ergaenzeUnbekannte, schnappschuss, type FeedbackNewsAnker } from './feedbackNews';
 
 const ANKER_KEY_PREFIX = 'teamflow_feedback_news_anchor_v1';
@@ -62,7 +63,9 @@ export interface FeedbackNewsAnkerApi {
   ergaenzeAnker: (items: FeedbackItem[]) => void;
 }
 
-export function useFeedbackNewsAnchor(meId: string | undefined): FeedbackNewsAnkerApi {
+/** Key an der kanonischen `schreibId`, Beteiligung an der ganzen Identität. */
+export function useFeedbackNewsAnchor(ich: MeineIdentitaet): FeedbackNewsAnkerApi {
+  const meId = ich.schreibId;
   const [anker, setAnker] = useState<FeedbackNewsAnker | null>(() => ladeFeedbackNewsAnker(meId));
 
   // Nutzer-Wechsel (Login): Anker neu laden.
@@ -72,21 +75,21 @@ export function useFeedbackNewsAnchor(meId: string | undefined): FeedbackNewsAnk
 
   const markiereGelesen = useCallback((items: FeedbackItem[]): void => {
     if (!meId) return;
-    const next = schnappschuss(items, meId, new Date().toISOString());
+    const next = schnappschuss(items, ich, new Date().toISOString());
     speichere(meId, next);
     setAnker(next);
-  }, [meId]);
+  }, [ich, meId]);
 
   const ergaenzeAnker = useCallback((items: FeedbackItem[]): void => {
     if (!meId) return;
     setAnker(prev => {
       if (!prev) return prev;
-      const next = ergaenzeUnbekannte(prev, items, meId);
+      const next = ergaenzeUnbekannte(prev, items, ich);
       if (!next) return prev; // nichts Neues → kein Write, kein Re-Render
       speichere(meId, next);
       return next;
     });
-  }, [meId]);
+  }, [ich, meId]);
 
   return { anker, markiereGelesen, ergaenzeAnker };
 }

@@ -77,15 +77,27 @@ export async function readSharedFile(storage: StorageService): Promise<SharedFee
   return lage.status === 'ok' ? lage.datei : null;
 }
 
-export async function writeSharedFile(
+/**
+ * Ausgang eines Schreibversuchs — die Unterscheidung, die ein `false` nicht
+ * treffen kann (v3.7, Schwester von {@link SharedFileLage}).
+ *
+ * `kein-schreibrecht` ist der ERWARTETE Zustand read-only-Clients (prod): kein
+ * Share verbunden bzw. keine readwrite-Berechtigung. Das ist per Design ein
+ * No-op und darf still bleiben. `fehler` heißt „ich hätte schreiben dürfen, es
+ * ging trotzdem schief" — das muss der Aufrufer melden, sonst quittiert die
+ * Oberfläche ein „Gespeichert", das nirgends ankam.
+ */
+export type SchreibLage = 'geschrieben' | 'kein-schreibrecht' | 'fehler';
+
+export async function writeSharedFileLage(
   storage: StorageService,
   items: FeedbackItem[],
-): Promise<boolean> {
+): Promise<SchreibLage> {
   const handle = await getDatenShareHandle(storage.idb);
-  if (!handle) return false;
+  if (!handle) return 'kein-schreibrecht';
   // Self-Gate (Ersatz für das alte storage.fs.isReadOnly()): nur Clients mit
   // readwrite-Berechtigung auf dem Daten-Share schreiben (Kurator/PL/dev).
-  if ((await queryPermission(handle)) !== 'granted') return false;
+  if ((await queryPermission(handle)) !== 'granted') return 'kein-schreibrecht';
   try {
     const payload: SharedFeedbackFile = {
       version: 1,
@@ -93,11 +105,19 @@ export async function writeSharedFile(
       items,
     };
     await atomicWrite(handle, FEEDBACK_SHARED_FILE, JSON.stringify(payload, null, 2));
-    return true;
+    return 'geschrieben';
   } catch (err) {
     console.error('[feedbackSharedFile] writeSharedFile failed:', err);
-    return false;
+    return 'fehler';
   }
+}
+
+/** Boolesche Hülle für Aufrufer, denen „geschrieben ja/nein" genügt. */
+export async function writeSharedFile(
+  storage: StorageService,
+  items: FeedbackItem[],
+): Promise<boolean> {
+  return (await writeSharedFileLage(storage, items)) === 'geschrieben';
 }
 
 /**

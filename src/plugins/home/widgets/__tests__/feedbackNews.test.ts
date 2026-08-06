@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { signatureOf } from '@/components/feedback/useUnreadReplies';
+import { KEINE_IDENTITAET, baueIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import {
   berechneFeedbackNews,
   ergaenzeUnbekannte,
@@ -19,6 +20,8 @@ import {
 
 const NOW = Date.parse('2026-07-13T00:00:00.000Z');
 const ME = 'THU';
+/** Identität statt roher Id (v3.7) — Bestandsdaten unter dem Profilnamen zählen mit. */
+const ICH = baueIdentitaet(ME, 'TH PL');
 
 function fb(partial: Partial<FeedbackItem> & { id: string }): FeedbackItem {
   return {
@@ -42,7 +45,7 @@ describe('berechneFeedbackNews — Ereignisarten', () => {
   it('Antwort: eigenes Ticket mit neuer Team-Antwort (Signatur ungleich Anker)', () => {
     const news = berechneFeedbackNews(
       [fb({ id: 'A', kurator_status: 'umgesetzt', category: 'problem', kurator_response: 'Erledigt!' })],
-      ME, LEER_ANKER, 3, NOW,
+      ICH, LEER_ANKER, 3, NOW,
     );
     expect(news.map(n => n.art)).toEqual(['antwort']);
     expect(news[0]!.text).toContain('wurde umgesetzt');
@@ -53,7 +56,7 @@ describe('berechneFeedbackNews — Ereignisarten', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, antwortStand: { A: signatureOf('Erledigt!') } };
     const news = berechneFeedbackNews(
       [fb({ id: 'A', kurator_status: 'umgesetzt', kurator_response: 'Erledigt!' })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news).toEqual([]);
   });
@@ -63,7 +66,7 @@ describe('berechneFeedbackNews — Ereignisarten', () => {
       fb({ id: 'T', user_id: 'AND', created_at: '2026-05-01T00:00:00.000Z', category: 'idea', votes: [{ user_id: 'x', created_at: '' }] }),
       fb({ id: 'ALT', user_id: 'AND', created_at: '2025-12-01T00:00:00.000Z' }), // vor Anker → raus
       fb({ id: 'LOB', user_id: 'AND', created_at: '2026-05-01T00:00:00.000Z', category: 'praise' }), // Lob → raus
-    ], ME, LEER_ANKER, 3, NOW);
+    ], ICH, LEER_ANKER, 3, NOW);
     expect(news.map(n => n.ticketId)).toEqual(['T']);
     expect(news[0]!.art).toBe('neu-team');
     expect(news[0]!.meta).toContain('1 Stimmen');
@@ -74,7 +77,7 @@ describe('berechneFeedbackNews — Ereignisarten', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, stimmenStand: { S: 1 } };
     const news = berechneFeedbackNews(
       [fb({ id: 'S', kurator_status: 'geplant', votes: [{ user_id: 'a', created_at: '' }, { user_id: 'b', created_at: '' }, { user_id: 'c', created_at: '' }] })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news.map(n => n.art)).toEqual(['stimmen']);
     expect(news[0]!.text).toContain('+2 Stimmen');
@@ -85,7 +88,7 @@ describe('berechneFeedbackNews — Ereignisarten', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, stimmenStand: { S: 2 } };
     const news = berechneFeedbackNews(
       [fb({ id: 'S', kurator_status: 'geplant', votes: [{ user_id: 'a', created_at: '' }, { user_id: 'b', created_at: '' }] })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news).toEqual([]);
   });
@@ -96,7 +99,7 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { A: 'neu' } };
     const news = berechneFeedbackNews(
       [fb({ id: 'A', category: 'problem', kurator_status: 'in_bearbeitung' })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news.map(n => n.art)).toEqual(['status']);
     expect(news[0]!.text).toBe('Dein Problem „Ticket A" ist jetzt In Bearbeitung');
@@ -107,14 +110,14 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
   it('UNBEKANNTER Vorwert feuert nicht (kein Schwall bei Alt-Ankern)', () => {
     const news = berechneFeedbackNews(
       [fb({ id: 'A', kurator_status: 'umgesetzt' })],
-      ME, LEER_ANKER, 3, NOW,
+      ICH, LEER_ANKER, 3, NOW,
     );
     expect(news).toEqual([]);
   });
 
   it('gleicher Status feuert nicht', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { A: 'geplant' } };
-    const news = berechneFeedbackNews([fb({ id: 'A', kurator_status: 'geplant' })], ME, anker, 3, NOW);
+    const news = berechneFeedbackNews([fb({ id: 'A', kurator_status: 'geplant' })], ICH, anker, 3, NOW);
     expect(news).toEqual([]);
   });
 
@@ -126,7 +129,7 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { F: 'neu' } };
     const news = berechneFeedbackNews(
       [fb({ id: 'F', user_id: 'AND', user_display_name: 'Andrea', kurator_status: 'umgesetzt', ...beteiligung })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news.map(n => n.art)).toEqual(['status']);
     expect(news[0]!.text).toBe('„Ticket F" ist jetzt Umgesetzt');
@@ -137,7 +140,7 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { F: 'neu' } };
     const news = berechneFeedbackNews(
       [fb({ id: 'F', user_id: 'AND', created_at: '2025-01-01T00:00:00.000Z', kurator_status: 'umgesetzt' })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news).toEqual([]);
   });
@@ -146,7 +149,7 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { A: 'neu' } };
     const news = berechneFeedbackNews(
       [fb({ id: 'A', kurator_status: 'umgesetzt', kurator_response: 'Erledigt!' })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news.map(n => n.art)).toEqual(['antwort']);
   });
@@ -159,7 +162,7 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
         id: 'F', user_id: 'AND', created_at: '2026-05-01T00:00:00.000Z',
         kurator_status: 'geplant', votes: [{ user_id: ME, created_at: '' }],
       })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news.map(n => n.art)).toEqual(['status']);
   });
@@ -168,7 +171,7 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { L: 'neu' } };
     const news = berechneFeedbackNews(
       [fb({ id: 'L', category: 'praise', kurator_status: 'umgesetzt' })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news).toEqual([]);
   });
@@ -176,14 +179,14 @@ describe('berechneFeedbackNews — Statuswechsel (v2.364)', () => {
 
 describe('istBeteiligt', () => {
   it('erkennt eigenes Ticket, eigene Stimme, eigenen Kommentar, eigenes Sponsoring', () => {
-    expect(istBeteiligt(fb({ id: 'A' }), ME)).toBe(true);
-    expect(istBeteiligt(fb({ id: 'B', user_id: 'AND', votes: [{ user_id: ME, created_at: '' }] }), ME)).toBe(true);
-    expect(istBeteiligt(fb({ id: 'C', user_id: 'AND', comments: [{ id: 'c', user_id: ME, text: 'x', created_at: '' }] }), ME)).toBe(true);
-    expect(istBeteiligt(fb({ id: 'D', user_id: 'AND' }), ME)).toBe(false);
+    expect(istBeteiligt(fb({ id: 'A' }), ICH)).toBe(true);
+    expect(istBeteiligt(fb({ id: 'B', user_id: 'AND', votes: [{ user_id: ME, created_at: '' }] }), ICH)).toBe(true);
+    expect(istBeteiligt(fb({ id: 'C', user_id: 'AND', comments: [{ id: 'c', user_id: ME, text: 'x', created_at: '' }] }), ICH)).toBe(true);
+    expect(istBeteiligt(fb({ id: 'D', user_id: 'AND' }), ICH)).toBe(false);
   });
 
-  it('ohne meId nie beteiligt', () => {
-    expect(istBeteiligt(fb({ id: 'A' }), undefined)).toBe(false);
+  it('ohne Identität nie beteiligt', () => {
+    expect(istBeteiligt(fb({ id: 'A' }), KEINE_IDENTITAET)).toBe(false);
   });
 });
 
@@ -194,24 +197,24 @@ describe('ergaenzeUnbekannte', () => {
       fb({ id: 'F', user_id: 'AND', kurator_status: 'umgesetzt', votes: [{ user_id: ME, created_at: '' }] }),
       fb({ id: 'X', user_id: 'AND', kurator_status: 'neu' }),                            // nicht beteiligt
     ];
-    const next = ergaenzeUnbekannte(LEER_ANKER, items, ME);
+    const next = ergaenzeUnbekannte(LEER_ANKER, items, ICH);
     expect(next?.statusStand).toEqual({ A: 'geplant', F: 'umgesetzt' });
     expect(next?.anker).toBe(LEER_ANKER.anker); // „gelesen bis" bleibt stehen
     // Der nachgetragene Stand macht das Ticket still — erst der NÄCHSTE Wechsel meldet.
-    expect(berechneFeedbackNews(items, ME, next!, 3, NOW).some(n => n.art === 'status')).toBe(false);
+    expect(berechneFeedbackNews(items, ICH, next!, 3, NOW).some(n => n.art === 'status')).toBe(false);
   });
 
   it('bestehende Stände bleiben unangetastet', () => {
     const anker: FeedbackNewsAnker = { ...LEER_ANKER, statusStand: { A: 'neu' } };
-    const next = ergaenzeUnbekannte(anker, [fb({ id: 'A', kurator_status: 'umgesetzt' })], ME);
+    const next = ergaenzeUnbekannte(anker, [fb({ id: 'A', kurator_status: 'umgesetzt' })], ICH);
     expect(next).toBeNull(); // A ist bekannt → nichts nachzutragen
   });
 
   it('idempotent + null ohne Identität', () => {
     const items = [fb({ id: 'A', kurator_status: 'neu' })];
-    const eins = ergaenzeUnbekannte(LEER_ANKER, items, ME);
-    expect(ergaenzeUnbekannte(eins!, items, ME)).toBeNull();
-    expect(ergaenzeUnbekannte(LEER_ANKER, items, undefined)).toBeNull();
+    const eins = ergaenzeUnbekannte(LEER_ANKER, items, ICH);
+    expect(ergaenzeUnbekannte(eins!, items, ICH)).toBeNull();
+    expect(ergaenzeUnbekannte(LEER_ANKER, items, KEINE_IDENTITAET)).toBeNull();
   });
 });
 
@@ -222,18 +225,18 @@ describe('berechneFeedbackNews — Kappung, Sortierung, Leerzustand', () => {
       fb({ id: 'N2', user_id: 'AND', created_at: '2026-05-01T00:00:00.000Z' }),
       fb({ id: 'N3', user_id: 'AND', created_at: '2026-04-01T00:00:00.000Z' }),
     ];
-    const news = berechneFeedbackNews(items, ME, LEER_ANKER, 2, NOW);
+    const news = berechneFeedbackNews(items, ICH, LEER_ANKER, 2, NOW);
     expect(news.map(n => n.ticketId)).toEqual(['N2', 'N3']); // neueste zuerst, gekappt
   });
 
   it('Leerzustand: keine Änderungen → []', () => {
     const anker = schnappschuss(
       [fb({ id: 'A', kurator_status: 'geplant', votes: [{ user_id: 'x', created_at: '' }] })],
-      ME, '2026-07-01T00:00:00.000Z',
+      ICH, '2026-07-01T00:00:00.000Z',
     );
     const news = berechneFeedbackNews(
       [fb({ id: 'A', kurator_status: 'geplant', votes: [{ user_id: 'x', created_at: '' }] })],
-      ME, anker, 3, NOW,
+      ICH, anker, 3, NOW,
     );
     expect(news).toEqual([]);
   });
@@ -244,7 +247,7 @@ describe('schnappschuss — Stände der eigenen Tickets', () => {
     const anker = schnappschuss([
       fb({ id: 'A', kurator_status: 'umgesetzt', votes: [{ user_id: 'x', created_at: '' }], kurator_response: 'Danke!' }),
       fb({ id: 'FREMD', user_id: 'AND', kurator_status: 'neu' }),
-    ], ME, '2026-07-13T00:00:00.000Z');
+    ], ICH, '2026-07-13T00:00:00.000Z');
     expect(anker.stimmenStand).toEqual({ A: 1 });
     expect(anker.antwortStand).toEqual({ A: signatureOf('Danke!') });
     expect(anker.anker).toBe('2026-07-13T00:00:00.000Z');
@@ -255,14 +258,14 @@ describe('schnappschuss — Stände der eigenen Tickets', () => {
       fb({ id: 'A', kurator_status: 'umgesetzt' }),
       fb({ id: 'MIT', user_id: 'AND', kurator_status: 'geplant', comments: [{ id: 'c', user_id: ME, text: 'x', created_at: '' }] }),
       fb({ id: 'FREMD', user_id: 'AND', kurator_status: 'neu' }),
-    ], ME, '2026-07-13T00:00:00.000Z');
+    ], ICH, '2026-07-13T00:00:00.000Z');
     expect(anker.statusStand).toEqual({ A: 'umgesetzt', MIT: 'geplant' });
     // Stimmen/Antwort bleiben bewusst auf eigene Tickets beschränkt.
     expect(anker.stimmenStand).toEqual({ A: 0 });
   });
 
-  it('ohne meId: keine Stände (nichts als „eigen")', () => {
-    const anker = schnappschuss([fb({ id: 'A', kurator_status: 'neu', votes: [{ user_id: 'x', created_at: '' }] })], undefined, 'x');
+  it('ohne Identität: keine Stände (nichts als „eigen")', () => {
+    const anker = schnappschuss([fb({ id: 'A', kurator_status: 'neu', votes: [{ user_id: 'x', created_at: '' }] })], KEINE_IDENTITAET, 'x');
     expect(anker.stimmenStand).toEqual({});
     expect(anker.antwortStand).toEqual({});
     expect(anker.statusStand).toEqual({});
@@ -273,7 +276,7 @@ describe('berechneFeedbackNews — ohne Identität (kein meId)', () => {
   it('behandelt eigene Tickets NICHT als Antwort/Stimmen (kein eigen-Zweig)', () => {
     const news = berechneFeedbackNews(
       [fb({ id: 'A', kurator_status: 'umgesetzt', created_at: '2026-05-01T00:00:00.000Z', kurator_response: 'x', votes: [{ user_id: 'v', created_at: '' }] })],
-      undefined, LEER_ANKER, 3, NOW,
+      KEINE_IDENTITAET, LEER_ANKER, 3, NOW,
     );
     // Ohne meId ist alles „vom Team" (kein Antwort/Stimmen-Ereignis)
     expect(news.every(n => n.art === 'neu-team')).toBe(true);

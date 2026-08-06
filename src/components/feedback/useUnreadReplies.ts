@@ -9,6 +9,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FeedbackItem } from '@/core/types/feedback';
+import { istMeinTicket } from '@/core/services/feedback/feedbackIdentitaet';
+import type { MeineIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 
 const SEEN_KEY_PREFIX = 'teamflow_feedback_seen_replies_v1';
 
@@ -52,9 +54,15 @@ export interface UnreadReplies {
 
 /**
  * Ungelesen-Status der Team-Antworten für den aktuellen Nutzer.
- * `meId` = Kürzel/Name (wie Scope/Votes). Ohne `meId` ist alles „gelesen" (count 0).
+ *
+ * Die Zugehörigkeit entscheidet die tolerante Identität (`istMeinTicket`) — bis
+ * v3.7 stand hier `item.user_id !== meId`, und weil Tickets unter dem Profilnamen
+ * erfasst, aber gegen das Kürzel verglichen wurden, war die Glocke dauerhaft bei
+ * 0. Der localStorage-Key bleibt an der kanonischen `schreibId`.
+ * Ohne Identität ist alles „gelesen" (count 0).
  */
-export function useUnreadReplies(items: FeedbackItem[], meId?: string): UnreadReplies {
+export function useUnreadReplies(items: FeedbackItem[], ich: MeineIdentitaet): UnreadReplies {
+  const meId = ich.schreibId;
   const [seen, setSeen] = useState<SeenMap>(() => loadSeen(meId));
 
   // Nutzer-Wechsel (Login): Map neu aus localStorage laden.
@@ -64,17 +72,17 @@ export function useUnreadReplies(items: FeedbackItem[], meId?: string): UnreadRe
 
   const isUnread = useCallback(
     (item: FeedbackItem): boolean => {
-      if (!meId || item.user_id !== meId) return false;
+      if (!meId || !istMeinTicket(item, ich)) return false;
       const reply = item.kurator_response?.trim();
       if (!reply) return false;
       return seen[item.id] !== signatureOf(reply);
     },
-    [meId, seen],
+    [ich, meId, seen],
   );
 
   const markSeen = useCallback(
     (item: FeedbackItem): void => {
-      if (!meId || item.user_id !== meId) return;
+      if (!meId || !istMeinTicket(item, ich)) return;
       const reply = item.kurator_response?.trim();
       if (!reply) return;
       const sig = signatureOf(reply);
@@ -85,7 +93,7 @@ export function useUnreadReplies(items: FeedbackItem[], meId?: string): UnreadRe
         return next;
       });
     },
-    [meId],
+    [ich, meId],
   );
 
   const count = useMemo(() => items.filter(isUnread).length, [items, isUnread]);

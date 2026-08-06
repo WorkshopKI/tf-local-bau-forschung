@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { FeedbackComment, FeedbackItem } from '@/core/types/feedback';
+import { KEINE_IDENTITAET, baueIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import {
   ergaenzeKommentarStand,
   standNach,
@@ -12,7 +13,10 @@ import {
   zaehleNeueKommentare,
 } from '../kommentarStand';
 
-const ICH = 'THÜ';
+/** Kürzel = kanonische Schreib-Id, Profilname = Lese-Alias (feedbackIdentitaet). */
+const ICH_NAME = 'THÜ';
+const ICH_ALIAS = 'TH PL';
+const ICH = baueIdentitaet(ICH_NAME, ICH_ALIAS);
 
 function kommentar(id: string, user_id: string): FeedbackComment {
   return { id, user_id, text: `Text ${id}`, created_at: '2026-07-07T10:00:00Z' };
@@ -35,12 +39,17 @@ function ticket(id: string, comments: FeedbackComment[]): FeedbackItem {
 
 describe('zaehleFremdKommentare', () => {
   it('lässt die eigenen Kommentare aus', () => {
-    const t = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH), kommentar('c3', 'BIB')]);
+    const t = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH_NAME), kommentar('c3', 'BIB')]);
     expect(zaehleFremdKommentare(t, ICH)).toBe(2);
   });
 
+  it('erkennt auch einen ALT-Kommentar unter dem Profilnamen als eigenen', () => {
+    const t = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH_ALIAS)]);
+    expect(zaehleFremdKommentare(t, ICH)).toBe(1);
+  });
+
   it('zählt ohne Identität alles', () => {
-    expect(zaehleFremdKommentare(ticket('t1', [kommentar('c1', 'AM')]), undefined)).toBe(1);
+    expect(zaehleFremdKommentare(ticket('t1', [kommentar('c1', 'AM')]), KEINE_IDENTITAET)).toBe(1);
   });
 });
 
@@ -61,11 +70,11 @@ describe('zaehleNeueKommentare', () => {
   });
 
   it('ist ohne Identität still', () => {
-    expect(zaehleNeueKommentare(t, { t1: 0 }, undefined)).toBe(0);
+    expect(zaehleNeueKommentare(t, { t1: 0 }, KEINE_IDENTITAET)).toBe(0);
   });
 
   it('zählt eigene Kommentare nicht als neu', () => {
-    const eigen = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH)]);
+    const eigen = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH_NAME)]);
     expect(zaehleNeueKommentare(eigen, { t1: 1 }, ICH)).toBe(0);
   });
 });
@@ -91,7 +100,7 @@ describe('ergaenzeKommentarStand', () => {
   });
 
   it('ist ohne Identität ein No-Op', () => {
-    expect(ergaenzeKommentarStand({}, items, undefined)).toBeNull();
+    expect(ergaenzeKommentarStand({}, items, KEINE_IDENTITAET)).toBeNull();
   });
 
   it('macht nach dem Nachtrag NICHTS neu (die Erst-Start-Zusage)', () => {
@@ -112,7 +121,7 @@ describe('standNach', () => {
   });
 
   it('verschiebt den Stand nach einem EIGENEN Kommentar nicht', () => {
-    const t = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH)]);
+    const t = ticket('t1', [kommentar('c1', 'AM'), kommentar('c2', ICH_NAME)]);
     expect(standNach({ t1: 1 }, t, ICH)).toBeNull();
   });
 });

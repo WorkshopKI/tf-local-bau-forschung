@@ -19,6 +19,33 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.10 — 2026-08
+
+### Neu
+- Beantwortete Tickets tragen im Feedback-Board den Marker „Antwort" — in Board und Liste, dauerhaft und für jeden. Wer mit der Maus darauf stehen bleibt, liest die Antwort des Teams, ohne das Ticket zu öffnen.
+- In der Beta-Phase darf jedes PL-Mitglied jedes Ticket nachträglich ergänzen, nicht mehr nur das selbst gemeldete.
+
+### Verbesserungen
+- Die Suche im Feedback-Board findet Tickets jetzt auch über den Wortlaut der Team-Antwort.
+- Der Reiter „Einstellungen" der Feedback-Verwaltung zeigt zur geteilten Datei die Zahl der Einträge und das Datum der letzten Änderung, statt fälschlich „Datenverzeichnis nicht verbunden" zu melden.
+
+### Bugfixes
+- Eigene Tickets wurden nicht mehr als eigene erkannt, sobald im Profil ein Bearbeiter-Kürzel stand: „Von mir" blieb leer, die Glocke zählte nichts, und „Ergänzen" fehlte. Sie werden jetzt unter beiden Schreibweisen gefunden.
+- Änderungen in der Feedback-Verwaltung meldeten „Gespeichert", auch wenn sie den gemeinsamen Datenspeicher nie erreichten. Fehlschläge werden jetzt angezeigt.
+- War die geteilte Feedback-Datei kurz nicht lesbar, konnte ein Speichern den Bestand des Teams auf ein einzelnes Ticket zusammenstreichen. Das Speichern bricht in diesem Fall ab.
+- Der gepflegte System-Prompt des Feedback-Assistenten wurde nie vom Datenspeicher gelesen; der Assistent lief still auf der eingebauten Fassung.
+
+## v3.9 — 2026-08
+
+### Verbesserungen
+- Die Spalten der Fördertabelle sind jetzt so breit wie ihr Inhalt und nicht breiter. Schmale Spalten wie FKZ, TIB/BIB oder Frist brauchen deutlich weniger Platz; der frei werdende Platz geht an die Spalten, deren Text vorher abgeschnitten war (etwa Antragsteller).
+- Der Filter-Pfeil im Spaltenkopf erscheint erst beim Überfahren — sichtbar bleibt er dort, wo ein Filter gesetzt ist. Das schafft in jeder filterbaren Spalte Platz für den eigentlichen Inhalt.
+- Der Kopier-Knopf in der FKZ-Spalte belegt keinen festen Platz mehr; er erscheint wie bisher beim Überfahren der Zeile.
+
+### Bugfixes
+- Eine Spalte, die man am Rand schmaler gezogen hat, wird nicht mehr ungefragt wieder mit aufgeblasen.
+- Sehr schmale Spaltenüberschriften liefen um wenige Pixel über ihren Rand hinaus.
+
 ## v3.8 — 2026-08
 
 ### Neu

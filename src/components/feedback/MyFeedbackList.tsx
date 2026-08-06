@@ -1,8 +1,9 @@
-// Eigener Feedback-Verlauf — gefiltert nach user_id == profile.name.
+// Eigener Feedback-Verlauf — gefiltert über die tolerante Identität
+// (Kürzel ODER Profilname, siehe feedbackIdentitaet).
 
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
+import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentitaet';
 import { getMyFeedback, FEEDBACK_STATUS } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_ICONS, CATEGORY_LABELS, STATUS_COLORS, STATUS_LABELS } from './constants';
@@ -10,13 +11,12 @@ import { formatShortDate, getLucideIcon } from './feedbackUi';
 
 export function MyFeedbackList(): React.ReactElement {
   const storage = useStorage();
-  const { profile } = useProfile();
+  const ich = useMeineFeedbackIdentitaet();
   const [items, setItems] = useState<FeedbackItem[] | null>(null);
 
   const load = useCallback((): void => {
-    const userId = profile?.name ?? 'anonymous';
-    void getMyFeedback(storage, userId).then(setItems);
-  }, [storage, profile?.name]);
+    void getMyFeedback(storage, ich).then(setItems);
+  }, [storage, ich]);
 
   useEffect(() => { load(); }, [load]);
 

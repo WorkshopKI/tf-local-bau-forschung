@@ -8,7 +8,8 @@
 // Spalten-Filter greifen ZUSÄTZLICH zu den Top-Chips (UND-kombiniert).
 
 import { useMemo } from 'react';
-import { getSponsoringProgress, isSponsorableCategory } from '@/core/services/feedback';
+import { getSponsoringProgress, isSponsorableCategory, istMeinTicket } from '@/core/services/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback';
 import { EFFORT_HOURS } from '@/core/types/feedback';
 import type { EffortEstimate, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import {
@@ -32,11 +33,11 @@ interface Props {
   tickets: FeedbackItem[];
   config: FeedbackConfig;
   /** Board: user_id des angemeldeten Nutzers → eigene Zeilen bekommen ein „Du"-Chip. */
-  meineUserId?: string;
+  ich: MeineIdentitaet;
 }
 
-export function FeedbackBoardListView({ tickets, config, meineUserId }: Props): React.ReactElement {
-  const columns = useMemo(() => buildColumns(config, meineUserId), [config, meineUserId]);
+export function FeedbackBoardListView({ tickets, config, ich }: Props): React.ReactElement {
+  const columns = useMemo(() => buildColumns(config, ich), [config, ich]);
   const defaultWidths = useMemo(
     () => Object.fromEntries(columns.map(c => [c.key, c.width ?? 120])),
     [columns],
@@ -68,7 +69,7 @@ function effortRank(e?: EffortEstimate): number {
   return e ? EFFORT_HOURS[e] : 0;
 }
 
-function buildColumns(config: FeedbackConfig, meineUserId?: string): SortableColumn<FeedbackItem>[] {
+function buildColumns(config: FeedbackConfig, ich: MeineIdentitaet): SortableColumn<FeedbackItem>[] {
   return [
     {
       key: 'typ', label: 'Typ', defaultVisible: true, sortable: true, filterable: true, width: 96, wrap: false,
@@ -98,7 +99,7 @@ function buildColumns(config: FeedbackConfig, meineUserId?: string): SortableCol
       filterAccessor: t => feedbackAuthorLabel(t) ?? '(unbekannt)',
       render: t => {
         const author = feedbackAuthorLabel(t);
-        const mine = !!meineUserId && t.user_id === meineUserId;
+        const mine = istMeinTicket(t, ich);
         return (
           <span className="inline-flex items-center gap-1.5">
             {mine && (

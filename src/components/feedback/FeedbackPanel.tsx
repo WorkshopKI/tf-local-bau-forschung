@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentitaet';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
@@ -59,6 +60,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
   const storage = useStorage();
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
+  const ich = useMeineFeedbackIdentitaet();
   const { activeId, activeName: activePluginName, navigate } = useNavigation();
   const bridge = useAIBridge();
   const kiVerfuegbar = useBridgeStatus(s => s.status) === 'connected';
@@ -133,7 +135,11 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
     if (!payload.text.trim() || !context) return;
     setSubmitting(payload.verbessern ? 'verbessern' : 'speichern');
     try {
-      const userId = profile?.name ?? 'anonymous';
+      // Kanonische Schreib-Id (v3.7): dieselbe, die Stimmen und Kommentare
+      // tragen. Bis hierher stand hier `profile.name`, verglichen wurde aber
+      // gegen das Kürzel — damit war jedes eigene Ticket fremd. Bestandsdaten
+      // heilt der tolerante Lesepfad (feedbackIdentitaet), nicht eine Migration.
+      const userId = ich.schreibId ?? 'anonymous';
       const areaInfo = TEAMFLOW_AREAS.find(a => a.ref === areaRef);
       const fullContext: FeedbackContext = {
         ...context,
@@ -193,7 +199,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
     } finally {
       setSubmitting(null);
     }
-  }, [activeId, areaRef, context, profile, meinKuerzel, storage, bridge]);
+  }, [activeId, areaRef, context, profile, ich, meinKuerzel, storage, bridge]);
 
   if (!open) return null;
 

@@ -10,8 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentitaet';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { getFeedbackList } from '@/core/services/feedback';
 import { formatShortDate } from '@/components/feedback/feedbackUi';
@@ -27,10 +26,10 @@ const DEFAULT_MAX = 3;
 export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const storage = useStorage();
   const { navigate } = useNavigation();
-  const { profile } = useProfile();
-  const kuerzel = useMeinKuerzel();
-  // Identität wie im Board: Kürzel (Login) → sonst Profilname (nicht „anonymous").
-  const meId = kuerzel ?? (profile?.name && profile.name !== 'anonymous' ? profile.name : undefined);
+  // Identität wie im Board: Kürzel (Login) → sonst Profilname; Bestands-Tickets
+  // unter der jeweils anderen Schreibweise zählen mit (feedbackIdentitaet).
+  const ich = useMeineFeedbackIdentitaet();
+  const meId = ich.schreibId;
 
   const maxEintraege = instanz.config.art === 'feedback-news' ? instanz.config.maxEintraege : DEFAULT_MAX;
 
@@ -44,7 +43,7 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
     return () => { cancelled = true; };
   }, [storage]);
 
-  const { anker, markiereGelesen, ergaenzeAnker } = useFeedbackNewsAnchor(meId);
+  const { anker, markiereGelesen, ergaenzeAnker } = useFeedbackNewsAnchor(ich);
 
   // Erst-Anker nach dem ersten Item-Load setzen (aus den AKTUELLEN Ständen —
   // nichts ist rückwirkend „neu"). Läuft genau einmal (danach anker != null).
@@ -60,8 +59,8 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
   }, [loaded, meId, anker, items, ergaenzeAnker]);
 
   const news = useMemo(
-    () => (anker ? berechneFeedbackNews(items, meId, anker, maxEintraege, Date.now()) : []),
-    [items, meId, anker, maxEintraege],
+    () => (anker ? berechneFeedbackNews(items, ich, anker, maxEintraege, Date.now()) : []),
+    [items, ich, anker, maxEintraege],
   );
 
   const gelesen = useAsyncAction(async () => { markiereGelesen(items); });

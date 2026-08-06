@@ -17,15 +17,17 @@
  * leuchtete beim ersten Start schlagartig jedes Bestands-Ticket auf.
  */
 import type { FeedbackItem } from '@/core/types/feedback';
+import { istMeineId } from '@/core/services/feedback/feedbackIdentitaet';
+import type { MeineIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 
 /** ticketId → Anzahl fremder Kommentare beim letzten Ansehen. */
 export type KommentarStand = Record<string, number>;
 
 /** Kommentare anderer Leute an diesem Ticket. */
-export function zaehleFremdKommentare(t: FeedbackItem, meId: string | undefined): number {
+export function zaehleFremdKommentare(t: FeedbackItem, ich: MeineIdentitaet): number {
   const comments = t.comments ?? [];
-  if (!meId) return comments.length;
-  return comments.filter(c => c.user_id !== meId).length;
+  if (!ich.schreibId) return comments.length;
+  return comments.filter(c => !istMeineId(c.user_id, ich)).length;
 }
 
 /**
@@ -36,12 +38,12 @@ export function zaehleFremdKommentare(t: FeedbackItem, meId: string | undefined)
 export function zaehleNeueKommentare(
   t: FeedbackItem,
   stand: KommentarStand,
-  meId: string | undefined,
+  ich: MeineIdentitaet,
 ): number {
-  if (!meId) return 0;
+  if (!ich.schreibId) return 0;
   const gemerkt = stand[t.id];
   if (gemerkt === undefined) return 0;
-  return Math.max(0, zaehleFremdKommentare(t, meId) - gemerkt);
+  return Math.max(0, zaehleFremdKommentare(t, ich) - gemerkt);
 }
 
 /**
@@ -55,13 +57,13 @@ export function zaehleNeueKommentare(
 export function ergaenzeKommentarStand(
   stand: KommentarStand,
   items: readonly FeedbackItem[],
-  meId: string | undefined,
+  ich: MeineIdentitaet,
 ): KommentarStand | null {
-  if (!meId) return null;
+  if (!ich.schreibId) return null;
   const zusatz: KommentarStand = {};
   for (const t of items) {
     if (stand[t.id] !== undefined) continue;
-    zusatz[t.id] = zaehleFremdKommentare(t, meId);
+    zusatz[t.id] = zaehleFremdKommentare(t, ich);
   }
   if (Object.keys(zusatz).length === 0) return null;
   return { ...stand, ...zusatz };
@@ -71,10 +73,10 @@ export function ergaenzeKommentarStand(
 export function standNach(
   stand: KommentarStand,
   t: FeedbackItem,
-  meId: string | undefined,
+  ich: MeineIdentitaet,
 ): KommentarStand | null {
-  if (!meId) return null;
-  const jetzt = zaehleFremdKommentare(t, meId);
+  if (!ich.schreibId) return null;
+  const jetzt = zaehleFremdKommentare(t, ich);
   if (stand[t.id] === jetzt) return null;
   return { ...stand, [t.id]: jetzt };
 }

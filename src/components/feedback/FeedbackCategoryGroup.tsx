@@ -4,6 +4,8 @@
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import { istMeinTicket } from '@/core/services/feedback';
+import type { MeineIdentitaet } from '@/core/services/feedback';
 import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_LABELS } from './constants';
 import { getLucideIcon } from './feedbackUi';
 import { FeedbackBoardCard } from './FeedbackBoardCard';
@@ -18,7 +20,7 @@ interface Props {
   onToggle: () => void;
   onChanged: () => void;
   /** Board: user_id des angemeldeten Nutzers → eigene Karten werden markiert. */
-  meineUserId?: string;
+  ich: MeineIdentitaet;
 }
 
 export function FeedbackCategoryGroup({
@@ -28,7 +30,7 @@ export function FeedbackCategoryGroup({
   collapsed,
   onToggle,
   onChanged,
-  meineUserId,
+  ich,
 }: Props): React.ReactElement {
   const isUnclassified = categoryKey === 'unclassified';
   const Icon = getLucideIcon(isUnclassified ? 'MessageCircle' : CATEGORY_ICONS[categoryKey]);
@@ -65,7 +67,7 @@ export function FeedbackCategoryGroup({
               ticket={t}
               config={config}
               onChanged={onChanged}
-              mine={!!meineUserId && t.user_id === meineUserId}
+              mine={istMeinTicket(t, ich)}
             />
           ))}
         </div>

@@ -35,11 +35,17 @@ import {
 import {
   mergeItems,
   readSharedFile,
+  readSharedFileLage,
   writeSharedAttachment,
   writeSharedFile,
+  writeSharedFileLage,
 } from './feedbackSharedFile';
+import type { SchreibLage } from './feedbackSharedFile';
+import { istMeinTicket } from './feedbackIdentitaet';
+import type { MeineIdentitaet } from './feedbackIdentitaet';
 import { isAuslastungFeedback } from './feedbackClassification';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
+import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { submitFeedback as submitToOutbox } from '@/core/services/personal-storage';
 
 // ── Public CRUD API ─────────────────────────────────────────────────────────
@@ -183,8 +189,16 @@ export async function submitFeedback(
   for (const a of blobs) {
     await writeSharedAttachment(storage, a.filename, a.blob);
   }
-  const shared = await readSharedFile(storage);
-  const merged = shared ? mergeItems([item], shared.items) : [item];
+  // `unlesbar` NICHT als „nichts Geteiltes" behandeln (v3.7): sonst überschriebe
+  // der Write den gesamten Teambestand mit diesem einen neuen Ticket. Das lokale
+  // Item ist zu diesem Zeitpunkt schon gespeichert und geht nicht verloren.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die geteilte Feedback-Datei ist gerade nicht lesbar — dein Feedback liegt lokal, ist aber noch nicht beim Team. Bitte gleich noch einmal versuchen.',
+    );
+  }
+  const merged = lage.status === 'ok' ? mergeItems([item], lage.datei.items) : [item];
   await writeSharedFile(storage, merged);
   emitFeedbackUpdated();
   return item;
@@ -214,9 +228,16 @@ export async function getFeedbackList(
   });
 }
 
-export async function getMyFeedback(storage: StorageService, userId: string): Promise<FeedbackItem[]> {
+/**
+ * Eigener Verlauf. Nimmt die ganze Identität, nicht eine Id: Bestands-Tickets
+ * tragen die frühere Schreibweise (siehe `feedbackIdentitaet`).
+ */
+export async function getMyFeedback(
+  storage: StorageService,
+  ich: MeineIdentitaet,
+): Promise<FeedbackItem[]> {
   const all = await getFeedbackList(storage);
-  return all.filter(item => item.user_id === userId);
+  return all.filter(item => istMeinTicket(item, ich));
 }
 
 export async function updateFeedback(
@@ -237,6 +258,17 @@ export async function updateFeedback(
     | 'effort_estimate' | 'effort_hours' | 'votes' | 'comments'
   >>,
 ): Promise<void> {
+  // ZUERST die Lage des geteilten Stands (v3.7). Auf `unlesbar` darf hier nichts
+  // weiterlaufen: der frühere Code machte daraus „nichts Geteiltes" und schrieb
+  // eine geteilte Datei aus dem EINEN lokalen Item — der Teambestand wäre damit
+  // auf ein Ticket eingedampft. Gleiche Klasse wie der Kommentar-Verlust v3.0.1.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die geteilte Feedback-Datei ist gerade nicht lesbar — es wurde nichts gespeichert. Bitte gleich noch einmal versuchen.',
+    );
+  }
+
   // Update local
   const items = loadLocalItems();
   const idx = items.findIndex(i => i.id === id);
@@ -245,8 +277,11 @@ export async function updateFeedback(
     items[idx] = { ...localItem, ...updates };
     saveLocalItems(items);
   }
-  // Update shared (best-effort; writeSharedFile ist self-gated → no-op ohne readwrite)
-  const shared = await readSharedFile(storage);
+  // Update shared. `kein-schreibrecht` bleibt still (read-only prod ist per
+  // Design ein No-op), ein echter Schreibfehler wird gemeldet statt als Erfolg
+  // quittiert — useAsyncAction der Aufrufer zeigt ihn dann von selbst.
+  const shared = lage.status === 'ok' ? lage.datei : null;
+  let schreib: SchreibLage = 'kein-schreibrecht';
   if (shared) {
     const sharedIdx = shared.items.findIndex(i => i.id === id);
     const sharedItem = sharedIdx >= 0 ? shared.items[sharedIdx] : undefined;
@@ -255,11 +290,14 @@ export async function updateFeedback(
     } else if (localItem) {
       shared.items.unshift({ ...localItem, ...updates });
     }
-    await writeSharedFile(storage, shared.items);
+    schreib = await writeSharedFileLage(storage, shared.items);
   } else if (localItem) {
-    await writeSharedFile(storage, [{ ...localItem, ...updates }]);
+    schreib = await writeSharedFileLage(storage, [{ ...localItem, ...updates }]);
   }
   emitFeedbackUpdated();
+  if (schreib === 'fehler') {
+    throw new Error('Änderung konnte nicht auf den Daten-Share geschrieben werden.');
+  }
 }
 
 /**
@@ -292,15 +330,26 @@ export async function appendAttachments(
 }
 
 export async function deleteFeedback(storage: StorageService, id: string): Promise<void> {
+  // Erst die Lage: auf einem unlesbaren Stand verschwände das Ticket nur lokal,
+  // während es beim Team stehen bliebe — und der Nutzer hielte es für gelöscht.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die geteilte Feedback-Datei ist gerade nicht lesbar — es wurde nichts gelöscht. Bitte gleich noch einmal versuchen.',
+    );
+  }
   const items = loadLocalItems().filter(i => i.id !== id);
   saveLocalItems(items);
-  // writeSharedFile self-gated → no-op ohne readwrite
-  const shared = await readSharedFile(storage);
-  if (shared) {
-    const remaining = shared.items.filter(i => i.id !== id);
-    await writeSharedFile(storage, remaining);
+  // Schreiben ist self-gated → no-op ohne readwrite; ein echter Fehler wird gemeldet.
+  let schreib: SchreibLage = 'kein-schreibrecht';
+  if (lage.status === 'ok') {
+    const remaining = lage.datei.items.filter(i => i.id !== id);
+    schreib = await writeSharedFileLage(storage, remaining);
   }
   emitFeedbackUpdated();
+  if (schreib === 'fehler') {
+    throw new Error('Löschen konnte nicht auf den Daten-Share geschrieben werden.');
+  }
 }
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -324,15 +373,36 @@ export async function saveFeedbackConfig(_storage: StorageService, cfg: Feedback
   }
 }
 
-export async function getSharedFileStatus(
-  storage: StorageService,
-): Promise<{ path: string; exists: boolean; itemCount: number; updatedAt?: string }> {
-  const shared = await readSharedFile(storage);
-  if (!shared) return { path: FEEDBACK_SHARED_FILE, exists: false, itemCount: 0 };
+export interface SharedFileStatus {
+  path: string;
+  /** `ok` = gelesen · `fehlt` = Share da, Datei noch nicht · `unlesbar` = Datei da, aber nicht lesbar · `kein-share` = kein Daten-Share verbunden. */
+  lage: 'ok' | 'fehlt' | 'unlesbar' | 'kein-share';
+  exists: boolean;
+  itemCount: number;
+  updatedAt?: string;
+}
+
+/**
+ * Status der geteilten Datei für den Einstellungen-Reiter. Unterscheidet seit
+ * v3.7 „kein Share verbunden" von „Datei noch nicht angelegt" von „Datei da,
+ * aber gerade nicht lesbar" — vorher war alles drei ein `exists: false`, und die
+ * Oberfläche riet daneben mit einem eigenen (falschen) Verbunden-Check.
+ */
+export async function getSharedFileStatus(storage: StorageService): Promise<SharedFileStatus> {
+  const handle = await getDatenShareHandle(storage.idb);
+  if (!handle) return { path: FEEDBACK_SHARED_FILE, lage: 'kein-share', exists: false, itemCount: 0 };
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    return { path: FEEDBACK_SHARED_FILE, lage: 'unlesbar', exists: true, itemCount: 0 };
+  }
+  if (lage.status === 'leer') {
+    return { path: FEEDBACK_SHARED_FILE, lage: 'fehlt', exists: false, itemCount: 0 };
+  }
   return {
     path: FEEDBACK_SHARED_FILE,
+    lage: 'ok',
     exists: true,
-    itemCount: shared.items.length,
-    updatedAt: shared.updated_at,
+    itemCount: lage.datei.items.length,
+    updatedAt: lage.datei.updated_at,
   };
 }
