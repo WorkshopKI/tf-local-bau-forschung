@@ -62,6 +62,7 @@ export {
   SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES, SEED_PHASEN_SCHNITT,
   zahPhaseRang, zahPhaseLabel, zahPhasenVon, zahPhasenGeneration,
   geltenderSchnitt, phaseFuerCode, istMarkerCode, kategorieVorgabeVon,
+  fristLaeuftVon,
   type PhasenSchnitt,
 } from './zah-phasen';
 export { schnittVon } from './phasen-schnitt';
@@ -97,6 +98,10 @@ export {
   type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
   type VerlaufSchritt, type LetzterVorgang, type TriggerWirkungSatz,
 } from './herleitung';
+export {
+  ermittleHaltedatum,
+  type Haltedatum, type HaltedatumEingabe, type HaltedatumHerkunft,
+} from './haltedatum';
 export {
   erklaereSegmente, erklaerKatalog, kuerzelErklaerung, statusErklaerung,
   ebeneErklaerung, empfaengerErklaerung,

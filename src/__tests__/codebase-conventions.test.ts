@@ -24,6 +24,10 @@
  *   - no-raw-clipboard                  → v2.301.3, Zwischenablage nur ueber
  *     kopiereText() aus src/core/utils/kopieren.ts (execCommand-Rueckfall +
  *     wirft statt still zu scheitern); "kopieren und oeffnen" erst kopieren.
+ *   - no-inline-frist-arithmetik        → v3.6, keine literale 90/84 in Frist-Naehe
+ *     ausserhalb von csv/frist.ts + csv/frist-ergebnis.ts. Die Konstante
+ *     ANTRAG_SLA_DAYS zu benutzen ist ausdruecklich erwuenscht; sie zu
+ *     ABSCHREIBEN war der Fehler (drei Achsen mit eigenen Literalen).
  *   - no-headless-tree-outside-wrapper  → Tree-Basis (v2.393): @headless-tree/*
  *     nur in src/components/tree/; Verbraucher nutzen TfTree statt einen zweiten
  *     Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten zu bauen.
@@ -284,6 +288,65 @@ describe('no-raw-clipboard (v2.301.3 — „Document is not focused")', () => {
         `Bei "kopieren und oeffnen": erst await kopiereText(...), DANN window.open().\n` +
         `Braucht die Stelle wirklich die rohe API (z.B. ClipboardItem fuer text/html),\n` +
         `Zeile mit '// allow-raw-clipboard: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-inline-frist-arithmetik (v3.6 — die Uhr hat EINE Heimat)', () => {
+  // Die 90-Tage-Bearbeitungsfrist rechnete bis v3.6 fuer JEDEN Antrag weiter,
+  // auch fuer einen 2018 abgelehnten („seit 2 760 T"). Der Fix sitzt in der
+  // BERECHNUNG (`frist-ergebnis.ts`), nicht im Renderer — sonst bliebe die
+  // falsche Zahl in Export, Board und Widgets stehen, waehrend die Tabelle
+  // stimmt. Genau das war der Zustand davor: drei Achsen mit eigenen Literalen.
+  //
+  // Der Guard trifft BEWUSST NICHT jede Tages-Differenz — es gibt ~30 legitime
+  // (Liegezeiten, Journal-Alter, Meilenstein-Abstaende). Er trifft die LITERALE
+  // 90 (und ihre Woche-davor-Schwester 84) in Frist-Naehe.
+  //
+  // `ANTRAG_SLA_DAYS` ist ausdruecklich NICHT verboten — die Konstante ist
+  // exportiert, damit man sie benutzt. Die Regel lautet „schreib die Zahl
+  // nicht", nicht „fass die Frist nicht an": eine 90 im Tooltip luegt beim
+  // naechsten Wechsel, die Konstante nicht.
+  const zahl = /(?<![\w.])(?:90|84)(?![\w.])/;
+  const fristNah = /frist|sla|ueberfaellig|überfällig|faellig|fällig|deadline/i;
+
+  const HEIMAT = [
+    `${sep}core${sep}services${sep}csv${sep}frist.ts`,
+    `${sep}core${sep}services${sep}csv${sep}frist-ergebnis.ts`,
+  ];
+
+  /** Prosa erklaert die Regel, sie fuehrt sie nicht aus — ein Guard gegen
+   *  RECHNEN darf nicht am Kommentar haengenbleiben, der sie begruendet. */
+  const istKommentar = (l: string): boolean => /^\s*(?:\/\/|\/?\*)/.test(l);
+
+  it('keine 90-Tage-Rechnung ausserhalb des Fristmoduls', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (HEIMAT.some(h => file.endsWith(h))) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      // `src/generated/` traegt das inline-gzippte ORT-WASM als base64-Zeile
+      // (~19 MB). Jede Ziffernfolge kommt darin vor; ohne diesen Ausschluss
+      // meldet der Guard sie und die Fehlermeldung sprengt jede Konsole.
+      if (file.includes(`${sep}src${sep}generated${sep}`)) continue;
+      findings.push(...findInFile(
+        file,
+        l => !istKommentar(l) && zahl.test(l) && fristNah.test(l),
+        'allow-inline-frist-arithmetik',
+      ));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Frist-Arithmetik gehoert in src/core/services/csv/frist-ergebnis.ts (v3.6).\n` +
+        `Stattdessen:\n` +
+        `  import { berechneFrist } from '@/core/services/csv/frist-ergebnis';\n` +
+        `  // in den Antraegen: fristErgebnisVon(a) / fristTageVon(a) / fristAnzeige(a)\n` +
+        `Ein Renderer, der selbst rechnet, ist die zweite Ableitung — und die lief\n` +
+        `bisher jedes Mal auseinander (Tab-Zaehler 84/90 vs. Frist-Spalte).\n` +
+        `Misst die Stelle etwas ANDERES als die Bearbeitungsfrist (Eingangsalter,\n` +
+        `Liegezeit, Meilenstein-Soll), Zeile mit\n` +
+        `'// allow-inline-frist-arithmetik: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });
@@ -1240,7 +1303,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 27 — v3.0 (Varianten-Zusammenlegung 5→3) hat ELF Flags entfernt: 'feedback'/'suche'/'antraege'/'streamlitBridge' (standen in JEDER Variante auf true), 'volltextsuche'/'auslastungSelbstEintragung'/'embeddingCorpusBuild' (durch die Zusammenlegung ueberall true), 'auslastungNurKorpus'/'kuerzelDropdown' (bedienten nur die abgeschafften Varianten kurator/as) sowie 'deAnonymisierung'/'maVerwaltungPasswort' (gaten nur Oberflaeche INNERHALB des Auslastungs-Moduls, das selbst hinter dem Zusatzpasswort liegt — ein Schloss im Tresor; beide jetzt aus 'auslastung' abgeleitet). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat. Davor 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2460;       // Ist ~2412 (DIESE Datei; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2510;       // Ist ~2470 (DIESE Datei; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

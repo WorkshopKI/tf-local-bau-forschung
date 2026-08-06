@@ -166,6 +166,10 @@ export function fuegeZahPhaseHinzu(
       reihenfolge: 0,   // gleich überschrieben
       zieltageRelevant: false,
       kategorieVorgabe,
+      // Ausdrücklich statt weggelassen, obwohl `normalisiere` denselben Wert
+      // ergänzte: eine neue Phase steht im Verfahren, und die Uhr anzuhalten
+      // ist die Entscheidung, die jemand treffen muss — nicht der Default.
+      fristLaeuft: true,
     }]),
   };
 }

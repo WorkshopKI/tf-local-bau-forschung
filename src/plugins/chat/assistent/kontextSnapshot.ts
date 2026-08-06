@@ -10,10 +10,10 @@
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
 import { isTerminalStatus } from '@/core/utils/status-canonical';
-import { MS_PER_DAY, computeVerbundFristDatum, daysUntilFristAware } from '@/core/services/csv/frist';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { EingangAmpel } from '@/plugins/antraege/eingangAmpel';
-import { fristAnzeigeFromDays } from '@/plugins/antraege/fristAnzeige';
+import { fristAnzeigeFromDays, fristTageVon } from '@/plugins/antraege/fristAnzeige';
+import { criticalFristErgebnis } from '@/plugins/antraege/groupAggregates';
 import type { KontextEntitaet } from '@/core/services/assistent/kontext';
 import { baueArbeitsvorratUebersicht } from './arbeitsvorratUebersicht';
 import type { AssistentTurnKontext } from './turn';
@@ -47,12 +47,6 @@ function fristHinweis(status: string | undefined, days: number | null): string |
   return anz ? `${anz.text} (${AMPEL_WORT[anz.ampel]})` : undefined;
 }
 
-function daysBis(iso: string | null, now: number): number | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime();
-  return Number.isNaN(ms) ? null : Math.ceil((ms - now) / MS_PER_DAY);
-}
-
 function stammdatenZeilen(rows: Array<[string, string | null]>): Array<{ label: string; wert: string }> {
   return rows
     .filter((r): r is [string, string] => typeof r[1] === 'string' && r[1].trim().length > 0)
@@ -61,7 +55,7 @@ function stammdatenZeilen(rows: Array<[string, string | null]>): Array<{ label: 
 
 function antragEntitaet(a: AntragListItem, now: number): KontextEntitaet {
   const laufzeit = a.laufzeitbeginn && a.laufzeitende ? `${a.laufzeitbeginn} – ${a.laufzeitende}` : null;
-  const hinweis = fristHinweis(a.status, daysUntilFristAware(a, now));
+  const hinweis = fristHinweis(a.status, fristTageVon(a, now));
   return {
     art: 'antrag',
     id: a.aktenzeichen,
@@ -86,9 +80,11 @@ function verbundEntitaet(verbundId: string, now: number): KontextEntitaet {
   const tvs = st.antraege.filter(a => a.verbund_id === verbundId);
   const rep = tvs[0];
   const status = v?.status ?? rep?.status;
-  const fristDatum = rep ? computeVerbundFristDatum(tvs, rep) : null;
-  const hinweis = fristHinweis(status, daysBis(fristDatum, now));
-  const offeneFristen = tvs.filter(t => !isTerminalStatus(t.status) && daysUntilFristAware(t, now) !== null).length;
+  // Die dringendste LAUFENDE Frist im Verbund — nicht die aus dem spätesten
+  // Antragsdatum gerechnete. Wo keine Uhr läuft, sagt der Assistent nichts,
+  // statt eine Zahl zu melden, die die Liste nicht zeigt.
+  const hinweis = fristHinweis(status, criticalFristErgebnis(tvs, now).tageRest ?? null);
+  const offeneFristen = tvs.filter(t => fristTageVon(t, now) !== null).length;
   const summe = tvs.reduce((s, t) => s + (typeof t.foerdersumme === 'number' ? t.foerdersumme : 0), 0);
   return {
     art: 'verbund',

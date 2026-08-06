@@ -18,16 +18,17 @@ import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { formatGermanDate, formatDatumsWert } from '@/core/services/csv/dateParse';
-import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
-import { isBegleitungStatus, isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
+import { ANTRAG_SLA_DAYS } from '@/core/services/csv/frist';
+import { FRIST_GRUND, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
+import { isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { HerleitungPopover } from './status/HerleitungPopover';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
-import { worstAmpel, criticalFristAware } from './groupAggregates';
-import { fristAnzeige, fristAnzeigeFromDays } from './fristAnzeige';
+import { worstAmpel, criticalFristAware, criticalFristErgebnis } from './groupAggregates';
+import { fristAnzeigeVon, fristErgebnisVon, fristTageVon } from './fristAnzeige';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -65,17 +66,41 @@ function yearOfOrEmpty(v: string | undefined): string {
   return yearOf(v) || FILTER_EMPTY_LABEL;
 }
 
-/** Absolutes Frist-Datum + Berechnungsbasis als Tooltip-Text — macht die
- *  Tage-Differenz (z.B. "-74d") nachvollziehbar. Phasen-bewusst (Pitfall #12). */
-function fristTooltip(
-  r: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
-): string | undefined {
-  const iso = computeFristDatum(r);
-  if (!iso) return undefined;
-  const datum = new Date(iso).toLocaleDateString('de-DE');
-  return isBegleitungStatus(r.status)
-    ? `VN-Frist: ${datum} (VN-Eingang + 6 Monate)`
-    : `Bearbeitungsfrist: ${datum} (Antragseingang + 90 Tage)`;
+/**
+ * Der Frist-Zustand einer Tabellenzeile — Verbund-Aggregat oder Einzel-TV.
+ *
+ * Die eine Weiche zwischen beiden Fällen; vorher stand sie dreimal in der
+ * Spalte (accessor, exportValue, render) und musste dreimal gleich gepflegt
+ * werden.
+ */
+function fristErgebnisFuer(r: AntragListItem & { _verbund?: { tvs: AntragListItem[] } }): FristErgebnis {
+  return r._verbund ? criticalFristErgebnis(r._verbund.tvs) : fristErgebnisVon(r);
+}
+
+/**
+ * Der Tooltip zur Frist-Zelle: was da steht und woher es kommt.
+ *
+ * Die drei Zustände bekommen drei Sätze — der Sinn der ganzen Übung. Vorher
+ * hatte eine leere Zelle gar keinen Tooltip, und „keine Basis" sah aus wie
+ * „keine Frist nötig".
+ */
+function fristTooltip(e: FristErgebnis, verbund: boolean): string | undefined {
+  const vorsatz = verbund ? 'Dringendste Frist im Verbund — ' : '';
+  if (e.zustand === 'angehalten') {
+    const seit = e.bezugsZeitpunkt
+      ? ` (seit ${new Date(e.bezugsZeitpunkt).toLocaleDateString('de-DE')})`
+      : ` (${e.grund ?? 'Haltedatum unbekannt'})`;
+    return `${vorsatz}In diesem Verfahrensschritt läuft keine Frist${seit}`;
+  }
+  if (e.zustand === 'nicht_berechenbar') {
+    return `${vorsatz}Keine Frist berechenbar: ${e.grund ?? FRIST_GRUND.ohneEingang}`;
+  }
+  if (!e.zielDatum) return undefined;
+  const datum = new Date(e.zielDatum).toLocaleDateString('de-DE');
+  const basis = e.basisFeld === 'D_XTE' ? 'alle Anträge eingegangen' : 'Antragseingang';
+  return e.basisFeld === undefined
+    ? `${vorsatz}VN-Frist: ${datum} (VN-Eingang + 6 Monate)`
+    : `${vorsatz}Bearbeitungsfrist: ${datum} (${basis} + ${ANTRAG_SLA_DAYS} Tage)`;
 }
 
 /** EUR ohne Nachkommastellen — lokal gehalten (wie `suche/columns.tsx`). */
@@ -574,32 +599,37 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     // leeren Anzeige in `render`/`fristAnzeige`). Verbund-Zeile: dringendste
     // Frist über alle TVs (kritischster TV), sonst per-TV.
     accessor: r => {
-      if (r._verbund) return criticalFristAware(r._verbund.tvs) ?? Number.MAX_SAFE_INTEGER;
-      if (isTerminalStatus(r.status)) return Number.MAX_SAFE_INTEGER;
-      return daysUntilFristAware(r) ?? Number.MAX_SAFE_INTEGER;
+      // Nur laufende Uhren tragen eine Restzeit. Angehaltene und unberechenbare
+      // sinken ans Ende — sonst stünde ein seit Jahren entschiedener Vorgang
+      // mit „853 T über" an der Spitze der nach Frist sortierten Liste.
+      const tage = r._verbund ? criticalFristAware(r._verbund.tvs) : fristTageVon(r);
+      return tage ?? Number.MAX_SAFE_INTEGER;
     },
-    // Export = lesbarer relativer Text ("in 45 T"/"seit 12 T"/"heute"), leere/
-    // terminale Frist → leere Zelle (nie der Sortier-Sentinel).
-    exportValue: r => {
-      const a = r._verbund ? fristAnzeigeFromDays(criticalFristAware(r._verbund.tvs)) : fristAnzeige(r);
-      return a?.text ?? '';
-    },
+    // Export = lesbarer Text („in 45 T" / „seit 12 T" / „angehalten" / „—"),
+    // nie der Sortier-Sentinel. Die drei Zustände stehen auch im XLSX: wer die
+    // Liste weiterreicht, soll dieselbe Aussage haben wie am Bildschirm.
+    exportValue: r => fristAnzeigeVon(fristErgebnisFuer(r)).text,
     render: r => {
-      const a = r._verbund ? fristAnzeigeFromDays(criticalFristAware(r._verbund.tvs)) : fristAnzeige(r);
-      if (!a) return null;
+      const e = fristErgebnisFuer(r);
+      const a = fristAnzeigeVon(e);
       const overdue = a.ampel === 'rot';
+      // Angehalten und unberechenbar sind keine Warnung, sondern eine Auskunft:
+      // grau, kein Punkt. Ein Ampelpunkt an einer stehenden Uhr behauptete eine
+      // Dringlichkeit, die es nicht gibt.
       return (
         <span
           className={`inline-flex items-center gap-1.5 tabular-nums text-[11px] ${
             overdue ? 'text-[var(--tf-danger-text)] font-medium' : 'text-[var(--tf-text-tertiary)]'
           }`}
-          title={r._verbund ? 'Dringendste Frist im Verbund' : fristTooltip(r)}
+          title={fristTooltip(e, r._verbund !== undefined)}
         >
-          <span
-            className="shrink-0 w-1.5 h-1.5 rounded-full"
-            style={{ background: AMPEL_COLOR[a.ampel] }}
-            aria-hidden="true"
-          />
+          {a.ampel !== null && (
+            <span
+              className="shrink-0 w-1.5 h-1.5 rounded-full"
+              style={{ background: AMPEL_COLOR[a.ampel] }}
+              aria-hidden="true"
+            />
+          )}
           {a.text}
         </span>
       );

@@ -15,8 +15,7 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { ArbeitsvorratFrist, ArbeitsvorratUebersicht } from '@/core/services/assistent/kontext';
 import { partitionArbeitsvorrat } from '@/plugins/antraege/arbeitsvorrat';
-import { fristAnzeigeFromDays } from '@/plugins/antraege/fristAnzeige';
-import { daysUntilFristAware } from '@/core/services/csv/frist';
+import { fristAnzeigeFromDays, fristTageVon } from '@/plugins/antraege/fristAnzeige';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import type { EingangAmpel } from '@/plugins/antraege/eingangAmpel';
 
@@ -43,8 +42,11 @@ export function baueArbeitsvorratUebersicht(
   const { inArbeit } = partitionArbeitsvorrat(antraege);
 
   // Frist-tragende Teilmenge, nächste Frist zuerst (überfällig = negativ → ganz vorn).
+  // `fristTageVon` liefert `null`, wo die Uhr steht — der Assistent zählt damit
+  // dieselben Vorgänge wie die Liste. Mit der alten, zustandslosen Rechnung
+  // meldete er „überfällig" für Vorgänge, die die Liste als angehalten zeigt.
   const mitFrist = inArbeit
-    .map(a => ({ a, tage: daysUntilFristAware(a, now) }))
+    .map(a => ({ a, tage: fristTageVon(a, now) }))
     .filter((x): x is { a: AntragListItem; tage: number } => x.tage !== null)
     .sort((x, y) => x.tage - y.tage);
 

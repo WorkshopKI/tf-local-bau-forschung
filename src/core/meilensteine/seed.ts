@@ -31,7 +31,7 @@ export const SEED_STAND = '2026-07-25T00:00:00.000Z';
 
 /** Gesamt-Bearbeitungsfrist ab Antragseingang. Deckungsgleich mit
  *  `ANTRAG_SLA_DAYS` — der Meilenstein-Plan erfindet keine zweite Frist. */
-export const SEED_GESAMTFRIST_TAGE = 90;
+export const SEED_GESAMTFRIST_TAGE = 90; // allow-inline-frist-arithmetik: per Test an ANTRAG_SLA_DAYS gekoppelt (seed.test.ts) — eigene Achse, KEINE zweite Frist
 
 /** Bedingung, die nie direkt zutrifft: `some` über eine leere Liste ist `false`.
  *  Für Sammel-Knoten, die ausschließlich über ihre Kinder erfüllt werden, und

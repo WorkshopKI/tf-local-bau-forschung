@@ -171,9 +171,12 @@ export function KompaktListe({
                   : 'border-transparent text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
               }`}
             >
+              {/* Punkt nur bei laufender Uhr. Angehalten und unberechenbar
+                  bekommen den neutralen Rahmen-Ton — kein Ampelwert, weil es
+                  nichts zu ampeln gibt. */}
               <span
                 className="shrink-0 w-1.5 h-1.5 rounded-full"
-                style={{ background: g.frist ? AMPEL_COLOR[g.frist.ampel] : 'var(--tf-border)' }}
+                style={{ background: g.frist.ampel ? AMPEL_COLOR[g.frist.ampel] : 'var(--tf-border)' }}
                 aria-hidden="true"
               />
               <span className="flex-1 min-w-0 truncate text-[13px]">{g.label}</span>
@@ -185,14 +188,16 @@ export function KompaktListe({
                   {g.tvCount}
                 </span>
               ) : null}
-              {g.frist ? (
-                <span
-                  className="shrink-0 text-[11px] tabular-nums whitespace-nowrap"
-                  style={{ color: AMPEL_COLOR[g.frist.ampel] }}
-                >
-                  {g.frist.text}
-                </span>
-              ) : null}
+              <span
+                className="shrink-0 text-[11px] tabular-nums whitespace-nowrap"
+                style={{
+                  color: g.frist.ampel
+                    ? AMPEL_COLOR[g.frist.ampel]
+                    : 'var(--tf-text-tertiary)',
+                }}
+              >
+                {g.frist.text}
+              </span>
             </button>
           ))
         )}

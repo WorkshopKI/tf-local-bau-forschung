@@ -2,10 +2,10 @@ import { Badge } from '@/components/ui/badge';
 import type { AntragGroup } from './antragGroups';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
 import { AMPEL_COLOR, AMPEL_TOOLTIP } from './eingangAmpel';
-import { daysUntilFristAware } from '@/core/services/csv/frist';
+import { fristAnzeigeVon, fristErgebnisVon } from './fristAnzeige';
 import {
   worstAmpel,
-  criticalFristAware,
+  criticalFristErgebnis,
   dominantStatus,
   verbundFkz,
 } from './groupAggregates';
@@ -27,15 +27,6 @@ function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t.length === 0 ? null : t;
-}
-
-/** Tage bis zur Frist (Phase-abhaengig). Positiv = Zeit uebrig ("+45d"),
- *  0 = heute, negativ = ueberfaellig ("-12d"). */
-function formatFrist(d: number | null): string {
-  if (d === null) return '';
-  if (d === 0) return 'heute';
-  if (d > 0) return `+${d}d`;
-  return `${d}d`;
 }
 
 /**
@@ -95,14 +86,15 @@ export function AntragTile({
     }
   };
 
-  // Ampel + Frist (phase-abhaengig via csv/frist.ts):
-  // - Antragsphase: antragsdatum + 90 Tage
-  // - Begleitphase: vn_eingang_datum + 6 Monate
-  // Negativ = ueberfaellig = rot.
+  // Ampel + Frist. Die Kachel schreibt den Text NICHT selbst: bis v3.6 hatte
+  // sie ein eigenes `formatFrist` mit Roh-`+45d`/`-12d`, während die Tabelle
+  // daneben „in 45 T"/„seit 12 T" zeigte. Eine Anzeige, eine Quelle.
   const ampel = worstAmpel(group.tvs);
-  const frist = isVerbund ? criticalFristAware(group.tvs) : daysUntilFristAware(headTv);
-  const fristTxt = formatFrist(frist);
-  const fristCritical = frist !== null && frist < 0;
+  const fristAnz = fristAnzeigeVon(
+    isVerbund ? criticalFristErgebnis(group.tvs) : fristErgebnisVon(headTv),
+  );
+  const fristTxt = fristAnz.zustand === 'nicht_berechenbar' ? '' : fristAnz.text;
+  const fristCritical = fristAnz.ampel === 'rot';
 
   // Dominanter Status für die Card-Pill (immer einheitlich, keine Dot-Row mehr —
   // die granularen TV-Stati sind über die StatusBarRow oben kodiert).

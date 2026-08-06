@@ -1,7 +1,8 @@
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { getEingangAmpel, type EingangAmpel } from './eingangAmpel';
-import { daysUntilFristAware } from '@/core/services/csv/frist';
+import type { FristErgebnis } from '@/core/services/csv/frist-ergebnis';
+import { fristErgebnisVon, fristTageVon } from './fristAnzeige';
 import { formatFkzRange } from './antragGroups';
 import { sectionOf, type StatusSectionId } from './antragGroups';
 
@@ -38,21 +39,56 @@ export function worstAmpel(tvs: AntragListItem[]): EingangAmpel | null {
 }
 
 /**
- * Kritischste Frist aller TVs (kleinster `daysUntilFristAware`). Der Verbund
- * ist so kritisch wie sein dringendster TV (am staerksten negativer/kleinster
- * Wert). Phase-abhaengig: Antragsphase-TV vs. Begleit-TV mischen ist OK,
- * weil beide auf das gleiche "Tage bis zur Frist"-Mass normalisiert sind.
+ * Kritischste Frist aller TVs (kleinste Restzeit). Der Verbund ist so kritisch
+ * wie sein dringendster TV (am staerksten negativer/kleinster Wert).
+ * Phase-abhaengig: Antragsphase-TV vs. Begleit-TV mischen ist OK, weil beide
+ * auf das gleiche "Tage bis zur Frist"-Mass normalisiert sind.
  *
- * Liefert `null` wenn kein TV eine berechenbare Frist hat.
+ * Liefert `null`, wenn bei keinem TV eine Uhr laeuft — angehaltene und
+ * unberechenbare zaehlen hier NICHT als 0 oder als grosse Zahl mit, sonst
+ * sortierte ein stillstehender Verbund zwischen die dringenden.
  */
 export function criticalFristAware(tvs: AntragListItem[]): number | null {
   let min: number | null = null;
   for (const tv of tvs) {
-    const d = daysUntilFristAware(tv);
+    const d = fristTageVon(tv);
     if (d === null) continue;
     if (min === null || d < min) min = d;
   }
   return min;
+}
+
+/**
+ * Der Frist-ZUSTAND des Verbundes — die Aggregat-Fassung von `berechneFrist`.
+ *
+ * Reihenfolge der Aussagen, absteigend nach Dringlichkeit dessen, was der
+ * Nutzer wissen muss:
+ *
+ * 1. Laeuft irgendwo eine Uhr, gilt die knappste. Ein Verbund mit einem
+ *    laufenden und vier angehaltenen TVs hat eine Frist.
+ * 2. Sonst: steht mindestens eine Uhr still, ist der Verbund angehalten.
+ * 3. Sonst gibt es keine Grundlage — und die Anzeige sagt das, statt leer zu
+ *    bleiben.
+ *
+ * `tvs` leer (dazu kommt es bei einem Pseudo-Verbund) ⇒ `nicht_berechenbar`.
+ */
+export function criticalFristErgebnis(
+  tvs: AntragListItem[], nowMs: number = Date.now(),
+): FristErgebnis {
+  let bester: FristErgebnis | null = null;
+  let angehalten: FristErgebnis | null = null;
+  let ohne: FristErgebnis | null = null;
+  for (const tv of tvs) {
+    const e = fristErgebnisVon(tv, nowMs);
+    if (e.zustand === 'laeuft') {
+      if (bester === null || (e.tageRest ?? Infinity) < (bester.tageRest ?? Infinity)) bester = e;
+    } else if (e.zustand === 'angehalten') {
+      angehalten ??= e;
+    } else {
+      ohne ??= e;
+    }
+  }
+  return bester ?? angehalten ?? ohne ?? { zustand: 'nicht_berechenbar' };
 }
 
 /**

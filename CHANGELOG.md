@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.11.0 — Fristen-Stoppuhr: die Uhr haelt mit der Erstentscheidung an (August 2026)
+
+MINOR — Die 90-Tage-Uhr rechnete für **jeden** Antrag bis heute weiter, auch für einen 2018 abgelehnten: CRISPROMIC zeigte „seit 2 760 T" — exakt Eingang + 90 Tage. Die Arithmetik stimmte, das Kriterium fehlte. Ebenso schwer wog die Gegenrichtung: „keine Basis", „keine Frist nötig" und „terminal" waren alle dieselbe leere Zelle. Das Haltekriterium existierte bereits — aber nur im Vorgangs-Board, als feste Code-Menge.
+
+- Frist liefert einen **Zustand** statt einer Zahl (`laeuft` / `angehalten` / `nicht_berechenbar`), jeder mit eigener Anzeige und eigenem Grund — [frist-ergebnis.ts](src/core/services/csv/frist-ergebnis.ts)
+- Das Haltekriterium ist **Katalogdatum am Verfahrensschritt** (`fristLaeuft`) und damit ohne Release änderbar; Seed hält ab „Entscheidung" an — [zah-phasen.ts](src/core/status/zah-phasen.ts)
+- Haltedatum als Kaskade Journal → Datumsfeld derselben Phase → „unbekannt"; nie ersatzweise weiterlaufen lassen — [haltedatum.ts](src/core/status/haltedatum.ts)
+- Tab-Zähler „Überfällig"/„Diese Woche" fragen dieselbe Engine wie die Spalte daneben (vorher Eingangsalter mit eigenen 84/90-Literalen) — [views.ts](src/plugins/antraege/views.ts)
+- Guard `no-inline-frist-arithmetik`: die Zahl 90 gehört ins Fristmodul, `ANTRAG_SLA_DAYS` benutzen ist erwünscht — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+
 ### v3.10.0 — Team-Antwort im Board, Verwaltung fuer alle PL (August 2026)
 
 MINOR — Eine öffentliche Team-Antwort war im Board unsichtbar: `kurator_response` lag in jedem Kanban-Item, wurde aber nirgends gerendert, und das einzige Signal war ein Badge hinter `mine && unread`. `mine` wiederum war kaputt — erfasst wurde unter `profile.name`, verglichen gegen das Kürzel, also galt jedes eigene Ticket als fremd („Von mir" leer, keine Glocke, kein „Ergänzen").

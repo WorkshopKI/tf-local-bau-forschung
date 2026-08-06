@@ -87,6 +87,24 @@ function PhaseDetail({ knoten, api }: {
           </span>
         </span>
       </label>
+
+      <label className="flex items-start gap-2">
+        <input
+          type="checkbox" className="mt-0.5 accent-[var(--tf-primary)] cursor-pointer"
+          checked={p.fristLaeuft}
+          onChange={e => api.setZahPhase(p.id, { fristLaeuft: e.target.checked })}
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-[12.5px] text-[var(--tf-text)]">
+            Die Bearbeitungsfrist läuft hier weiter
+          </span>
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Abgehakt zählt die 90-Tage-Uhr; sonst steht sie still und die Anzeige nennt
+            das Haltedatum statt einer Restzeit. Ohne Haken rechnete sie auch für längst
+            entschiedene Vorgänge weiter — im Bestand bis „seit 2 760 T".
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

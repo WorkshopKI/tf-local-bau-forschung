@@ -1,39 +1,36 @@
 /**
- * Relative, ampel-gefärbte Frist-Anzeige für die Förderanträge-Tabelle
- * (Journey-Paket 2 Phase 4).
+ * Relative, ampel-gefärbte Frist-Anzeige für die Förderanträge-Tabelle.
  *
- * Ersetzt den Roh-Tage-Text (`+45d` / `-2807d`) durch eine humanisierte
- * relative Angabe (`in 45 T` / `seit 2807 T` / `heute`) plus einen Ampel-Punkt.
+ * **Drei Zustände, drei Aussagen** (seit v3.6). Vorher war die Zelle entweder
+ * eine Zahl oder leer — und leer hieß gleichzeitig „keine Basis", „keine Frist
+ * nötig" und „terminal". Jetzt:
  *
- * **Frist-Quelle (bewusst gewählte Priorität):** die einzige, phasen-bewusste
- * Frist aus `computeFristDatum`/`daysUntilFristAware` (csv-Layer) —
- * Antragsphase = `antragsdatum + 90 Tage`, Begleitphase = `vn_eingang_datum +
- * 6 Monate`. Es gibt in der Liste keinen zweiten „expliziten" Frist-Wert; die
- * phasen-aware Frist IST die explizite Frist. Ist sie nicht berechenbar
- * (Begleitphase ohne VN-Eingang, fehlendes Antragsdatum) → `null` = leere
- * Zelle (ehrlich: unbekannte Frist wird nicht erfunden).
+ * - `laeuft` → „in 26 T" / „seit 12 T" / „heute", mit Ampelpunkt
+ * - `angehalten` → „34 T bis Entscheidung" bzw. nur „angehalten", grau, **ohne**
+ *   Punkt — es gibt nichts zu ampeln, wo nichts läuft
+ * - `nicht_berechenbar` → „—" mit dem Grund im Tooltip
  *
- * **Terminal-Anträge** (`isTerminalStatus`: abgeschlossen/abgelehnt) → `null`:
- * für erledigte Arbeit läuft keine Frist mehr.
- *
- * Sowohl Text als auch Ampel werden aus **denselben** „Tage bis zur Frist"
- * abgeleitet (statt Text aus der Frist + Farbe aus dem Eingangsalter) — so
- * bleibt die Aussage über beide Phasentypen (90-Tage-SLA und VN-Frist) kohärent.
- * Die Ampel-Stufen sind die bestehenden `EingangAmpel`-Werte, die Punkt-Farbe
- * kommt aus dem bestehenden `AMPEL_COLOR` (keine neuen Tokens).
+ * **Die Rechnung steht nicht hier.** `berechneFrist` (csv-Layer) liefert den
+ * Zustand, dieses Modul übersetzt ihn in Text und Farbe. Ein Renderer, der
+ * nachrechnet, ist die zweite Ableitung, die irgendwann auseinanderläuft.
  */
 
 import type { AntragListItem } from '@/core/services/csv/types';
-import { isTerminalStatus } from '@/core/utils/status-canonical';
-import { daysUntilFristAware } from '@/core/services/csv/frist';
+import {
+  berechneFrist, FRIST_GRUND, type FristErgebnis, type FristZustand,
+} from '@/core/services/csv/frist-ergebnis';
+import type { ZahPhase } from '@/core/status/typen';
 import type { EingangAmpel } from './eingangAmpel';
 
 export interface FristAnzeige {
-  /** Relative Anzeige: `in {n} T` (Frist läuft), `seit {n} T` (überfällig),
-   *  `heute` (Frist heute). */
+  /** Relative Anzeige: `in {n} T`, `seit {n} T`, `heute`, `angehalten`, `—`. */
   text: string;
-  /** Ampel-Stufe für den farbigen Punkt — Farbe via `AMPEL_COLOR`. */
-  ampel: EingangAmpel;
+  /** Ampel-Stufe für den farbigen Punkt — `null` heißt: keinen Punkt zeichnen. */
+  ampel: EingangAmpel | null;
+  /** Zustand für die Formatierung (grau bei angehalten/unberechenbar). */
+  zustand: FristZustand;
+  /** Was im Tooltip zusätzlich stehen soll; `undefined` = nichts zu sagen. */
+  hinweis?: string;
 }
 
 /** Relative Tages-Anzeige aus vorzeichenbehafteten „Tagen bis zur Frist".
@@ -56,23 +53,122 @@ export function fristAmpelFromDays(d: number): EingangAmpel {
   return 'gruen';
 }
 
-/** Anzeige aus vorberechneten „Tagen bis zur Frist" (z.B. der kritischsten
- *  Verbund-Frist via `criticalFristAware`). `null` → leere Zelle. */
-export function fristAnzeigeFromDays(d: number | null): FristAnzeige | null {
+/**
+ * Anzeige aus vorberechneten „Tagen bis zur Frist" — für Aggregate, die schon
+ * eine Zahl haben (die kritischste Verbund-Frist via `criticalFristAware`).
+ * `null` → keine laufende Uhr.
+ *
+ * Der engere Rückgabetyp ist Absicht: wer eine Zahl hereingibt, hat per
+ * Definition eine laufende Uhr und bekommt garantiert eine Ampelstufe — sonst
+ * müsste jeder Aufrufer einen Fall behandeln, den es hier nicht gibt.
+ */
+export function fristAnzeigeFromDays(
+  d: number | null,
+): (FristAnzeige & { ampel: EingangAmpel }) | null {
   if (d === null) return null;
-  return { text: fristTextFromDays(d), ampel: fristAmpelFromDays(d) };
+  return { text: fristTextFromDays(d), ampel: fristAmpelFromDays(d), zustand: 'laeuft' };
+}
+
+/** Wie lange steht die Uhr schon still? Nur wenn das Haltedatum belegt ist. */
+function stillstandText(ergebnis: FristErgebnis, nowMs: number): string {
+  const halt = ergebnis.bezugsZeitpunkt;
+  if (halt === undefined) return 'angehalten';
+  const ms = new Date(halt).getTime();
+  if (Number.isNaN(ms)) return 'angehalten';
+  const tage = Math.floor((nowMs - ms) / 86_400_000);
+  if (tage < 0) return 'angehalten';
+  return `${tage} T angehalten`;
 }
 
 /**
- * Relative Frist-Anzeige eines einzelnen Antrags. `null` (leere Zelle) für
- * terminale Anträge und für Anträge ohne berechenbare Frist.
+ * Übersetzt ein {@link FristErgebnis} in Text, Ampel und Tooltip-Hinweis.
  *
- * `nowMs` injizierbar für deterministische Tests (statt `Date.now()`).
+ * Die eine Stelle, an der aus dem Zustand eine Anzeige wird — Tabelle,
+ * Kompaktliste, Kachel und Band nehmen alle diese.
+ */
+export function fristAnzeigeVon(
+  ergebnis: FristErgebnis, nowMs: number = Date.now(),
+): FristAnzeige {
+  if (ergebnis.zustand === 'laeuft') {
+    const rest = ergebnis.tageRest;
+    if (rest === undefined) {
+      return { text: '—', ampel: null, zustand: 'nicht_berechenbar', hinweis: FRIST_GRUND.ohneEingang };
+    }
+    return { text: fristTextFromDays(rest), ampel: fristAmpelFromDays(rest), zustand: 'laeuft' };
+  }
+  if (ergebnis.zustand === 'angehalten') {
+    return {
+      text: stillstandText(ergebnis, nowMs),
+      ampel: null,
+      zustand: 'angehalten',
+      hinweis: ergebnis.grund ?? 'in diesem Verfahrensschritt läuft keine Frist',
+    };
+  }
+  return {
+    text: '—',
+    ampel: null,
+    zustand: 'nicht_berechenbar',
+    hinweis: ergebnis.grund ?? FRIST_GRUND.ohneEingang,
+  };
+}
+
+/** Was die Listen-Projektion für eine Frist hergibt. */
+export type FristQuelle = Pick<
+  AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'
+>;
+
+/**
+ * Der Frist-Zustand eines Antrags aus der Listen-Projektion — die Brücke
+ * zwischen `AntragListItem` und der reinen Engine.
+ *
+ * Genau EINE Stelle kennt die Feldnamen der Projektion. Wer sie umgeht und
+ * `berechneFrist` selbst füttert, baut die zweite Ableitung.
+ *
+ * **`D_XTE` steht hier nicht zur Verfügung.** Die Spalte („alle Anträge
+ * eingegangen") ist in den Schemas custom gemappt und nicht in der schlanken
+ * Projektion — der Record-Key wird hier NICHT geraten (recurring-bug-classes
+ * Klasse 5). Die Liste rechnet deshalb ab `D_AAE`, also genau wie bisher. Wer
+ * den Wert hat, weil er ihn über das Schema aufgelöst hat (Vorgangs-Board,
+ * FristenBand), ruft `berechneFrist` direkt und reicht ihn herein — dieselbe
+ * Engine, tiefere Eingabe.
+ */
+export function fristErgebnisVon(
+  antrag: FristQuelle,
+  nowMs: number = Date.now(),
+  phasen?: readonly ZahPhase[],
+): FristErgebnis {
+  return berechneFrist({
+    status: antrag.status,
+    antragsdatum: typeof antrag.antragsdatum === 'string' ? antrag.antragsdatum : null,
+    vnEingangDatum: typeof antrag.vn_eingang_datum === 'string' ? antrag.vn_eingang_datum : null,
+    stichtag: new Date(nowMs).toISOString(),
+    ...(phasen ? { phasen } : {}),
+  });
+}
+
+/**
+ * Relative Frist-Anzeige eines einzelnen Antrags aus der Listen-Projektion.
+ *
+ * `nowMs` injizierbar für deterministische Tests (statt `Date.now()`). Das
+ * Haltedatum wird hier NICHT ermittelt — dafür bräuchte es Fassung und
+ * Vorkommen aus der IndexedDB, und die hat eine Tabellenzeile nicht. Angehaltene
+ * Vorgänge stehen deshalb in der Liste als „angehalten" ohne Dauer; die Dauer
+ * steht im aufgeklappten Bereich und im FristenBand.
  */
 export function fristAnzeige(
-  antrag: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
-  nowMs: number = Date.now(),
-): FristAnzeige | null {
-  if (isTerminalStatus(antrag.status)) return null;
-  return fristAnzeigeFromDays(daysUntilFristAware(antrag, nowMs));
+  antrag: FristQuelle, nowMs: number = Date.now(), phasen?: readonly ZahPhase[],
+): FristAnzeige {
+  return fristAnzeigeVon(fristErgebnisVon(antrag, nowMs, phasen), nowMs);
+}
+
+/**
+ * Tage bis zur Frist für **Sortierung und Aggregate**. `null`, wo keine Uhr
+ * läuft — angehaltene und unberechenbare Vorgänge haben keine Restzeit, und
+ * eine erfundene sortierte sie mitten unter die dringenden.
+ */
+export function fristTageVon(
+  antrag: FristQuelle, nowMs: number = Date.now(), phasen?: readonly ZahPhase[],
+): number | null {
+  const e = fristErgebnisVon(antrag, nowMs, phasen);
+  return e.zustand === 'laeuft' ? (e.tageRest ?? null) : null;
 }

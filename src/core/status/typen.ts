@@ -80,6 +80,19 @@ export interface ZahPhase {
    * Fehlt in Fassungen vor v2.409 — `zahPhasenVon` ergänzt aus dem Seed.
    */
   kategorieVorgabe?: StatusCategory;
+  /**
+   * Läuft die Bearbeitungsfrist (90 Tage) in dieser Phase überhaupt noch?
+   *
+   * Die Uhr rechnet sonst für JEDEN Antrag weiter — auch für einen, der vor
+   * Jahren entschieden wurde. Sie bedeutet dort nur nichts mehr: im Bestand
+   * stand „seit 2 760 T" an einem Vorgang von 2018, exakt Eingang + 90 Tage
+   * bis heute. Bis v3.6 kannte nur das Vorgangs-Board dieses Kriterium (als
+   * feste Menge `ANTRAGSPHASE`); hier ist es Katalogdatum und damit ohne
+   * Release änderbar — der Zuschnitt ist fachlich strittig.
+   *
+   * Fehlt in Fassungen vor v3.6 — `zahPhasenVon` ergänzt aus dem Seed.
+   */
+  fristLaeuft?: boolean;
 }
 
 /**

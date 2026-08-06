@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.11 — 2026-08
+
+### Bugfixes
+- Die Bearbeitungsfrist läuft nicht mehr weiter, wenn der Vorgang entschieden ist. Bisher zeigten längst abgeschlossene Anträge Werte wie „seit 2 760 T" — die Uhr rechnete auch dann, wenn niemand mehr an ihnen arbeitete.
+- Die Zähler „Überfällig" und „Diese Woche" oben in den Förderanträgen messen jetzt dasselbe wie die Frist-Spalte. Vorher zählten sie das Alter des Antragseingangs und konnten deshalb von der Liste abweichen.
+
+### Verbesserungen
+- Eine leere Frist-Spalte sagt jetzt, warum sie leer ist: „angehalten" (im aktuellen Schritt läuft keine Frist) oder „—" mit dem Hinweis, dass kein Eingangsdatum hinterlegt ist. Bisher sahen beide Fälle gleich aus.
+- Der Tooltip an der Frist nennt das Fristdatum und woraus es gerechnet ist.
+- In welchen Verfahrensschritten die Frist läuft, ist jetzt in den Vorgangs-Regeln einstellbar (Reiter „Verfahrensschritte") — dafür braucht es kein neues Programm mehr.
+
 ## v3.10 — 2026-08
 
 ### Neu

@@ -57,33 +57,48 @@ import type { GeltendeZahPhase, StatusCategory, ZahPhase, ZahPhaseId } from './t
  * `begleitung` → `begleitung` und nicht `bewilligt`: nach der Bewilligung läuft
  * die VN-/ZB-Prüfung, und die hat eine andere Zuständigkeit (ZTP/PFM statt
  * TIB/BIB) — genau dafür gibt es die Kategorie.
+ *
+ * **`fristLaeuft` bildet die Auslieferung NICHT ab** — es ist die eine Stelle,
+ * an der v3.6 das Verhalten ändert. Das Vorgangs-Board zählte `entscheidung`
+ * bisher als laufend; die Antragsfrist misst aber die Bearbeitung bis zur
+ * Entscheidung, und danach läuft sie ins Leere. Zwischen Bewilligung und
+ * Verwendungsnachweis läuft ohnehin keine.
  */
 export const SEED_ZAH_PHASEN: readonly GeltendeZahPhase[] = [
   {
     id: 'eingang', reihenfolge: 10, label: 'Eingang',
-    zieltageRelevant: true, kategorieVorgabe: 'offen',
+    zieltageRelevant: true, kategorieVorgabe: 'offen', fristLaeuft: true,
   },
   {
+    // Im Auftrag zur Stoppuhr nicht belegt (er kannte fünf Phasen, es sind
+    // sechs). `true`, weil sie zur Antragsphase gehört: Nachforderung und
+    // Vollständigkeitsprüfung sind laufende Bearbeitung.
     id: 'vollstaendigkeit', reihenfolge: 20, label: 'Vollständigkeit',
-    zieltageRelevant: true, kategorieVorgabe: 'offen',
+    zieltageRelevant: true, kategorieVorgabe: 'offen', fristLaeuft: true,
   },
   {
     // „Prüfung" heißt bewusst nicht „Fachprüfung": sie umfasst den fachlichen
     // UND den administrativen Strang (siehe Modulkopf).
     id: 'pruefung', reihenfolge: 30, label: 'Prüfung',
-    zieltageRelevant: true, kategorieVorgabe: 'in_pruefung',
+    zieltageRelevant: true, kategorieVorgabe: 'in_pruefung', fristLaeuft: true,
   },
   {
+    // Offener Punkt der Fachabstimmung: die Phase bündelt „bewilligungsreif"
+    // (wartet auf uns) mit „Ablehnung"/„Widerruf" (Entscheidung gefallen).
+    // Angehalten gilt für beide. Wer sie trennen will, teilt die Phase — genau
+    // dafür ist der Schnitt kuratierbar.
     id: 'entscheidung', reihenfolge: 40, label: 'Entscheidung',
-    zieltageRelevant: true, kategorieVorgabe: 'entscheidung',
+    zieltageRelevant: true, kategorieVorgabe: 'entscheidung', fristLaeuft: false,
   },
   {
+    // `false` heißt hier nicht „keine Frist": die Begleitphase hat ihre eigene
+    // (VN-Eingang + 6 Monate), und die rechnet `berechneFrist` getrennt.
     id: 'begleitung', reihenfolge: 50, label: 'Begleitung',
-    zieltageRelevant: false, kategorieVorgabe: 'begleitung',
+    zieltageRelevant: false, kategorieVorgabe: 'begleitung', fristLaeuft: false,
   },
   {
     id: 'abgeschlossen', reihenfolge: 60, label: 'Abgeschlossen',
-    zieltageRelevant: false, kategorieVorgabe: 'abgeschlossen',
+    zieltageRelevant: false, kategorieVorgabe: 'abgeschlossen', fristLaeuft: false,
   },
 ];
 
@@ -220,6 +235,11 @@ export function resetZahPhasenSnapshotFuerTests(): void {
  * Eine Phase mit unbekannter Id und ohne Angaben bekommt `sonstige` und
  * `zieltageRelevant: false` — „wir wissen es nicht" statt einer geratenen
  * Einordnung in eine Arbeitsliste.
+ *
+ * `fristLaeuft` fällt dagegen auf `true` zurück, und zwar in dieselbe Richtung,
+ * die das Vorgangs-Board schon fuhr („Phase unbekannt → altes Kriterium"): eine
+ * laufende Uhr ist sichtbar und korrigierbar, eine stillschweigend angehaltene
+ * nimmt Arbeit aus jeder Liste, ohne dass es jemand merkt.
  */
 function normalisiere(phasen: readonly ZahPhase[]): GeltendeZahPhase[] {
   const seed = new Map(SEED_ZAH_PHASEN.map(p => [p.id, p]));
@@ -231,6 +251,7 @@ function normalisiere(phasen: readonly ZahPhase[]): GeltendeZahPhase[] {
         ...p,
         zieltageRelevant: p.zieltageRelevant ?? s?.zieltageRelevant ?? false,
         kategorieVorgabe: p.kategorieVorgabe ?? s?.kategorieVorgabe ?? sonstige,
+        fristLaeuft: p.fristLaeuft ?? s?.fristLaeuft ?? true,
       };
     })
     .sort((a, b) => a.reihenfolge - b.reihenfolge);
@@ -294,4 +315,18 @@ export function kategorieVorgabeVon(
 ): StatusCategory {
   if (!id) return 'sonstige';
   return zahPhasenVon(phasen).find(p => p.id === id)?.kategorieVorgabe ?? 'sonstige';
+}
+
+/**
+ * Läuft in dieser Phase die Bearbeitungsfrist?
+ *
+ * `null`/`undefined` (Marker, kein Katalog-Treffer) und verwaiste Ids liefern
+ * `true` — dieselbe Richtung wie {@link normalisiere}: nicht wissen heißt nicht
+ * anhalten. Wer die Uhr anhalten will, sagt es im Katalog.
+ */
+export function fristLaeuftVon(
+  id: ZahPhaseId | null | undefined, phasen?: readonly ZahPhase[],
+): boolean {
+  if (!id) return true;
+  return zahPhasenVon(phasen).find(p => p.id === id)?.fristLaeuft ?? true;
 }

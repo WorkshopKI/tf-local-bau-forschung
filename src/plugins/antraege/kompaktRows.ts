@@ -23,15 +23,16 @@ export type KompaktItem = Pick<
   'aktenzeichen' | 'akronym' | 'status' | 'antragsdatum' | 'vn_eingang_datum' | 'verbund_id'
 >;
 
-/** Anzeige-VM einer Kompakt-Zeile: Label (Akronym/Aktenzeichen) + relative
- *  Frist (`null` = terminal/fristlos → leerer rechter Slot). */
+/** Anzeige-VM einer Kompakt-Zeile: Label (Akronym/Aktenzeichen) + Frist-Zustand.
+ *  Seit v3.6 immer gesetzt — angehalten und unberechenbar sind eigene Aussagen
+ *  („angehalten" / „—") und nicht mehr derselbe leere Slot. */
 export interface KompaktRowVM {
   aktenzeichen: string;
   /** Verbund des Antrags (falls gesetzt) — für die Aktiv-Markierung, wenn ein
    *  Verbund (statt eines einzelnen TV) selektiert ist. */
   verbundId: string | null;
   label: string;
-  frist: FristAnzeige | null;
+  frist: FristAnzeige;
 }
 
 /** Sichtbares Label: Akronym (getrimmt), sonst Aktenzeichen als Fallback. */
@@ -65,9 +66,9 @@ export function filterKompaktItems<T extends Pick<AntragListItem, 'akronym' | 'a
 }
 
 /**
- * Zeilen-VM: Label + relative Frist. Terminale/fristlose Anträge → `frist:
- * null` (leerer rechter Slot, wie in der Frist-Spalte). `nowMs` injizierbar
- * für deterministische Tests.
+ * Zeilen-VM: Label + Frist-Zustand. Angehaltene und unberechenbare Anträge
+ * tragen ihre eigene Aussage statt eines leeren Slots — wie in der Frist-Spalte.
+ * `nowMs` injizierbar für deterministische Tests.
  */
 export function buildKompaktRow(item: KompaktItem, nowMs?: number): KompaktRowVM {
   return {
@@ -97,8 +98,8 @@ export interface KompaktGroupVM {
   label: string;
   /** Anzahl Teilvorhaben im Cluster (`> 1` ⇒ Verbund). */
   tvCount: number;
-  /** Relative Frist des Clusters (Lead-TV; terminal/fristlos → `null`). */
-  frist: FristAnzeige | null;
+  /** Frist-Zustand des Clusters (Lead-TV). */
+  frist: FristAnzeige;
 }
 
 /**

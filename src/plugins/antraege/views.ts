@@ -6,7 +6,7 @@ import {
   isBegleitungStatus,
 } from '@/core/utils/status-canonical';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
-import { daysSinceEingang } from './eingangAmpel';
+import { fristTageVon } from './fristAnzeige';
 
 export type ViewKey =
   | 'meine_offenen'
@@ -62,29 +62,37 @@ export const VIEWS: AntragView[] = [
     predicate: a => isBegleitungStatus(a.status),
   },
   {
-    // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) erreicht diese Woche.
-    // Nur Antragsphase — Begleit-Antraege haben einen anderen Lebenszyklus
-    // (VN-Frist = vn_eingang_datum + 6 Monate) und gehoeren NICHT in diese
-    // antragsdatum-basierte View.
+    // Die Frist faellt in den naechsten sieben Tagen.
+    //
+    // Bis v3.6 zaehlte diese Sicht das EINGANGSALTER (84–90 Tage seit
+    // `antragsdatum`) — waehrend die Frist-Spalte daneben die Frist zeigte. Zwei
+    // Antworten auf dieselbe Frage, und die Zaehler stimmten mit der Liste nur
+    // zufaellig ueberein. Jetzt fragen beide dieselbe Engine.
+    //
+    // Begleitphase bleibt aussen vor: sie hat ihre eigene Sicht und mit 3–4
+    // Jahren Laufzeit einen anderen Takt.
     key: 'diese_woche_faellig',
     label: 'Diese Woche',
     predicate: a => {
-      if (!isOpenStatus(a.status)) return false;
       if (isBegleitungStatus(a.status)) return false;
-      const d = daysSinceEingang(a);
-      return d !== null && d >= 84 && d <= 90;
+      const t = fristTageVon(a);
+      return t !== null && t >= 0 && t <= 6;
     },
   },
   {
-    // Bearbeitungs-SLA: rote Eingangs-Ampel (>90 Tage) bereits erreicht.
-    // Begleitphase explizit ausgeschlossen (siehe diese_woche_faellig).
+    // Die Frist ist ueberschritten UND die Uhr laeuft noch. Ein angehaltener
+    // Vorgang ist nicht ueberfaellig, sondern fertig oder wartend — das war der
+    // Grund, warum hier jahrelang Vorgaenge von 2018 mitzaehlten.
+    //
+    // `isOpenStatus` ist entfallen: eine stehende Uhr kann per Definition nicht
+    // ueberfaellig sein, der Zustand sagt es schon. Ein zweiter Filter davor
+    // waere eine zweite Regel, die irgendwann auseinanderlaeuft.
     key: 'ueberfaellig',
     label: 'Überfällig',
     predicate: a => {
-      if (!isOpenStatus(a.status)) return false;
       if (isBegleitungStatus(a.status)) return false;
-      const d = daysSinceEingang(a);
-      return d !== null && d > 90;
+      const t = fristTageVon(a);
+      return t !== null && t < 0;
     },
   },
   {
@@ -169,11 +177,11 @@ export function viewCounts(
     if (open && !begl) counts.meine_offenen++;
     if (begl) counts.begleitung++;
 
-    if (open && !begl) {
-      const d = daysSinceEingang(a);
-      if (d !== null) {
-        if (d >= 84 && d <= 90) counts.diese_woche_faellig++;
-        if (d > 90) counts.ueberfaellig++;
+    if (!begl) {
+      const t = fristTageVon(a);
+      if (t !== null) {
+        if (t >= 0 && t <= 6) counts.diese_woche_faellig++;
+        if (t < 0) counts.ueberfaellig++;
       }
     }
 

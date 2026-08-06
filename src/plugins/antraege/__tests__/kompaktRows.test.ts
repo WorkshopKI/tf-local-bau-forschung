@@ -85,17 +85,20 @@ describe('buildKompaktRow — Zeilen-VM (Label + relative Frist)', () => {
   it('offener Antrag mit Rest-Frist → Frist gesetzt (gefärbt wie Punkt)', () => {
     const vm = buildKompaktRow(item({ akronym: 'SCULPT' }), nowFor(6));
     expect(vm.label).toBe('SCULPT');
-    expect(vm.frist).toEqual({ text: 'in 6 T', ampel: 'orange' });
+    expect(vm.frist).toMatchObject({ text: 'in 6 T', ampel: 'orange' });
   });
 
-  it('terminaler Status → Frist null (leerer rechter Slot)', () => {
+  it('terminaler Status → angehalten ohne Punkt (nicht mehr leer)', () => {
     const vm = buildKompaktRow(item({ akronym: 'ALT', status: 'Schlussvermerk' }), nowFor(6));
     expect(vm.label).toBe('ALT');
-    expect(vm.frist).toBeNull();
+    expect(vm.frist.zustand).toBe('angehalten');
+    expect(vm.frist.ampel).toBeNull();
   });
 
-  it('offen ohne Antragsdatum → Frist null (nicht erfunden)', () => {
-    expect(buildKompaktRow(item({ antragsdatum: '' }), nowFor(6)).frist).toBeNull();
+  it('offen ohne Antragsdatum → „—" mit Grund, unterscheidbar vom Fall darüber', () => {
+    const vm = buildKompaktRow(item({ antragsdatum: '' }), nowFor(6));
+    expect(vm.frist.zustand).toBe('nicht_berechenbar');
+    expect(vm.frist.text).toBe('—');
   });
 
   it('Verbund-Id abgeleitet (leer → null)', () => {
@@ -141,14 +144,14 @@ describe('buildKompaktGroups — ein Eintrag pro Verbund', () => {
     expect(groups[0]).toMatchObject({ verbundId: null, tvCount: 1, leadAktenzeichen: 'AZ-9' });
   });
 
-  it('Frist kommt vom Lead-TV (terminal → null)', () => {
+  it('Frist kommt vom Lead-TV (terminal → angehalten)', () => {
     const rest = buildKompaktGroups([
       av('AZ-1', { akronym: 'X', verbund_id: 'VB-1' }),
       av('AZ-2', { akronym: 'X', verbund_id: 'VB-1' }),
     ], nowFor(6));
-    expect(rest[0]!.frist).toEqual({ text: 'in 6 T', ampel: 'orange' });
+    expect(rest[0]!.frist).toMatchObject({ text: 'in 6 T', ampel: 'orange' });
     const term = buildKompaktGroups([av('AZ-3', { status: 'Schlussvermerk' })], nowFor(6));
-    expect(term[0]!.frist).toBeNull();
+    expect(term[0]!.frist.zustand).toBe('angehalten');
   });
 });
 
