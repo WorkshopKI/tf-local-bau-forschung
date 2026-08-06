@@ -338,6 +338,9 @@ export function AntraegeTable({
         // FKZ bleibt beim Blättern nach rechts stehen — sonst weiß man bei
         // 25 Spalten nicht mehr, welche Zeile man gerade liest.
         stickyFirstColumn
+        // Rubrik-Bänder über den Spaltenköpfen. Trägt erst, seit die Registry
+        // nach Rubrik geordnet ist — vorher zerfiel „Antrag" in fünf Strecken.
+        showGroupHeader
         measureRows={allRows}
         measureSignature={`${allRows[0]?.aktenzeichen ?? ''}|${allRows[allRows.length - 1]?.aktenzeichen ?? ''}`}
         columnWidths={widths}

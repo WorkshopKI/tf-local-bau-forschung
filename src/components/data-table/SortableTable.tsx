@@ -132,6 +132,11 @@ export interface SortableTableProps<T> {
    *  waagerechten Überlauf ist die Wirkung null, die Kosten (Schatten statt
    *  Rahmen, eigener Stapelkontext) bleiben. Default `false`. */
   stickyFirstColumn?: boolean;
+  /** Opt-in: zusätzliche erste Kopfzeile, die zusammenhängende Spalten unter
+   *  ihrer `gruppe` bündelt. Lohnt sich erst, wenn die Spaltenreihenfolge nach
+   *  Rubrik geordnet ist — sonst zerfällt jede Rubrik in mehrere Strecken und
+   *  die Zeile liest sich als Wiederholung. Default `false`. */
+  showGroupHeader?: boolean;
 }
 
 export function SortableTable<T>({
@@ -163,6 +168,7 @@ export function SortableTable<T>({
   measureRows,
   measureSignature,
   stickyFirstColumn = false,
+  showGroupHeader = false,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   // „Gesamt-Breite"-Griff: `enabled` = Griff wird gerendert; `active` = eine
@@ -255,6 +261,7 @@ export function SortableTable<T>({
               onColumnFilterChange={onColumnFilterChange}
               filterCandidates={filterCandidates}
               stickyFirstColumn={stickyFirstColumn}
+              showGroupHeader={showGroupHeader}
             />
             <TableBody
               rows={rows}

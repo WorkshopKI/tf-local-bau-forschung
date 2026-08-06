@@ -82,9 +82,22 @@ describe('Rubriken des Spalten-Pickers', () => {
     expect(ohne.map(c => c.key)).toEqual([]);
   });
 
-  it('haelt die Rubrik-Reihenfolge Antrag → Zustaendigkeit → Status → Termine', () => {
+  it('haelt die Rubrik-Reihenfolge Antrag → Zustaendigkeit → Antragsdaten → Status → Termine', () => {
+    // Seit v3.5 ist die Registry nach Rubrik geordnet (RUBRIK_ORDNUNG), damit
+    // die Rubrik-Kopfzeile der Tabelle zusammenhaengende Baender zeigt. „Antrag"
+    // traegt nur noch das FKZ; die Sachdaten stehen als „Antragsdaten" HINTER
+    // der Zustaendigkeit, sonst ruecken TIB/BIB hinter neun Spalten.
     const rubriken = gruppiereSpalten(ANTRAG_TABLE_COLUMNS);
-    expect(rubriken.map(r => r.name)).toEqual(['Antrag', 'Zuständigkeit', 'Status', 'Termine']);
+    expect(rubriken.map(r => r.name))
+      .toEqual(['Antrag', 'Zuständigkeit', 'Antragsdaten', 'Status', 'Termine']);
+  });
+
+  it('laesst das FKZ als einzige Spalte der Rubrik „Antrag" ganz vorne', () => {
+    // Die Rubrik-Kopfzeile darf nur dann mit der FKZ-Spalte mitkleben, wenn ihre
+    // erste Strecke GENAU eine Spalte umfasst.
+    const antrag = gruppiereSpalten(ANTRAG_TABLE_COLUMNS)[0]!;
+    expect(antrag.columns.map(c => c.key)).toEqual(['aktenzeichen']);
+    expect(ANTRAG_TABLE_COLUMNS[0]!.key).toBe('aktenzeichen');
   });
 
   it('legt die vier Kuerzel-Spalten in EINE Rubrik', () => {
@@ -105,9 +118,25 @@ describe('Rubriken des Spalten-Pickers', () => {
       ]),
     ]);
     expect(rubriken.slice(-2).map(r => [r.name, r.columns.length])).toEqual([
-      [G_ORDNER_TV, 1],
       [G_ORDNER_VB, 2],
+      [G_ORDNER_TV, 1],
     ]);
+  });
+
+  it('ordnet die Ordner-Rubriken Verbund → Teilvorhaben, egal wie der Katalog liefert', () => {
+    // Bis v3.5 folgte die Reihenfolge dem ersten Auftreten — sie hing also an
+    // der Katalog-Sortierung. Eine gemischte Lieferung zerriss die
+    // Rubrik-Kopfzeile in abwechselnde Ein-Spalten-Strecken.
+    const gemischt = kategorieStatusColumns([
+      { kategorieId: 'tv.a', label: 'A' },
+      { kategorieId: 'vb.b', label: 'B' },
+      { kategorieId: 'tv.c', label: 'C' },
+      { kategorieId: 'vb.d', label: 'D' },
+    ]);
+    expect(gemischt.map(c => c.gruppe))
+      .toEqual([G_ORDNER_VB, G_ORDNER_VB, G_ORDNER_TV, G_ORDNER_TV]);
+    // Innerhalb einer Ebene bleibt die Katalog-Reihenfolge erhalten.
+    expect(gemischt.map(c => c.label)).toEqual(['B', 'D', 'A', 'C']);
   });
 
   it('faengt eine Ordner-Id ohne bekannte Ebene in einer Sammelrubrik auf', () => {

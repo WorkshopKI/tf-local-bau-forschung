@@ -138,6 +138,11 @@ export const MA_COLUMN_KEY = 'tib_kuerz';
  * muss.
  */
 const G_ANTRAG = 'Antrag';
+/** Die Sachdaten des Antrags — getrennt von `G_ANTRAG`, das nur noch das FKZ
+ *  trägt. Ohne diese Trennung stünde die Zuständigkeit hinter neun
+ *  Antragsdaten-Spalten, und die gewohnte Lesefolge FKZ · TIB · BIB · … wäre
+ *  dahin. */
+const G_ANTRAGSDATEN = 'Antragsdaten';
 const G_ZUSTAENDIGKEIT = 'Zuständigkeit';
 const G_STATUS = 'Status';
 const G_TERMINE = 'Termine';
@@ -249,7 +254,40 @@ function statusDatumColumn(opts: {
   };
 }
 
-export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
+/**
+ * Reihenfolge der Rubriken in der Tabelle — und damit auch im XLSX-Export und
+ * im Spalten-Picker (dessen Rubrik-Folge dem ersten Auftreten folgt).
+ *
+ * Erst mit dieser Ordnung wird die Rubrik-Kopfzeile lesbar: vorher zerfiel
+ * „Antrag" in fünf und „Termine" in drei Strecken, die Zeile las sich als
+ * „Antrag | Zuständigkeit | Antrag | Status | Termine | Antrag | …".
+ */
+const RUBRIK_ORDNUNG: readonly string[] = [
+  G_ANTRAG, G_ZUSTAENDIGKEIT, G_ANTRAGSDATEN, G_STATUS, G_TERMINE,
+];
+
+/**
+ * Stabil nach `RUBRIK_ORDNUNG` sortieren — innerhalb einer Rubrik bleibt die
+ * Reihenfolge der Definition unten erhalten.
+ *
+ * Bewusst sortiert statt die 24 Einträge von Hand umzustellen: so bleiben die
+ * Spalten unten thematisch beieinander definiert, und die Lesefolge ist eine
+ * Liste, die man in einer Zeile ändern kann. Unbekannte Rubriken landen hinten.
+ */
+function ordneNachRubrik(
+  spalten: readonly SortableColumn<AntragTableRow>[],
+): SortableColumn<AntragTableRow>[] {
+  const rang = (c: SortableColumn<AntragTableRow>): number => {
+    const i = RUBRIK_ORDNUNG.indexOf(c.gruppe ?? '');
+    return i < 0 ? RUBRIK_ORDNUNG.length : i;
+  };
+  return spalten
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => rang(a.c) - rang(b.c) || a.i - b.i)
+    .map(x => x.c);
+}
+
+const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
   {
     key: 'aktenzeichen',
     label: 'FKZ',
@@ -343,7 +381,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'akronym',
     label: 'Akronym',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: true,
     sortable: true,
     filterable: true,
@@ -358,7 +396,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'antragsteller',
     label: 'Antragsteller',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: true,
     sortable: true,
     filterable: true,
@@ -558,7 +596,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'titel',
     label: 'TV Titel',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     width: 260,
@@ -571,7 +609,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'verbund_titel',
     label: 'VB Titel',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     width: 280,
@@ -586,7 +624,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'vb_phase',
     label: 'Typ',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -644,7 +682,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'ort_ast',
     label: 'Ort AST',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -657,7 +695,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'foerdersumme',
     label: 'Zuwendung',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     width: 124,
@@ -704,7 +742,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'branche',
     label: 'Branche',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -717,7 +755,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'foerdergeber',
     label: 'Fördergeber',
-    gruppe: G_ANTRAG,
+    gruppe: G_ANTRAGSDATEN,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -728,6 +766,9 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     render: r => textCell(strOrNull(r.foerdergeber)),
   },
 ];
+
+/** Die Registry in Lesefolge — Single Source für Tabelle, Export und Picker. */
+export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = ordneNachRubrik(ROH_SPALTEN);
 
 export const DEFAULT_VISIBLE_COLUMN_KEYS: string[] =
   ANTRAG_TABLE_COLUMNS.filter(c => c.defaultVisible).map(c => c.key);
@@ -767,14 +808,34 @@ export const KATEGORIE_COLUMN_PREFIX = 'katstatus:';
 export function kategorieStatusColumns(
   kategorien: readonly { kategorieId: string; label: string }[],
 ): SortableColumn<AntragTableRow>[] {
-  return kategorien.map(k => statusDatumColumn({
+  // Nach Rubrik sortieren: die Katalog-Liste sichert keine `vb.`/`tv.`-
+  // Gruppierung zu, und eine gemischte Folge zerrisse die Rubrik-Kopfzeile in
+  // abwechselnde Ein-Spalten-Strecken.
+  return ordneNachOrdnerRubrik(kategorien.map(k => statusDatumColumn({
     key: `${KATEGORIE_COLUMN_PREFIX}${k.kategorieId}`,
     label: k.label,
     gruppe: ordnerRubrik(k.kategorieId),
     variant: 'default',
     getLabel: r => r.kat_status?.[k.kategorieId]?.l,
     getDatum: r => r.kat_status?.[k.kategorieId]?.d,
-  }));
+  })));
+}
+
+/** Reihenfolge der drei Ordner-Rubriken. Stabil — innerhalb einer Rubrik bleibt
+ *  die Katalog-Reihenfolge. */
+const ORDNER_RUBRIK_ORDNUNG: readonly string[] = [G_ORDNER_VB, G_ORDNER_TV, G_ORDNER];
+
+function ordneNachOrdnerRubrik(
+  spalten: SortableColumn<AntragTableRow>[],
+): SortableColumn<AntragTableRow>[] {
+  const rang = (c: SortableColumn<AntragTableRow>): number => {
+    const i = ORDNER_RUBRIK_ORDNUNG.indexOf(c.gruppe ?? '');
+    return i < 0 ? ORDNER_RUBRIK_ORDNUNG.length : i;
+  };
+  return spalten
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => rang(a.c) - rang(b.c) || a.i - b.i)
+    .map(x => x.c);
 }
 
 /**

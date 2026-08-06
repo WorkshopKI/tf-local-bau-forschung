@@ -5,10 +5,11 @@
  * Der Zustand des Filter-Dropdowns (welche Spalte offen, an welchem Anker) lebt
  * hier — außerhalb des Kopfes braucht ihn niemand.
  */
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { SortIcon } from './SortIcon';
 import { ColumnFilterDropdown } from './ColumnFilterDropdown';
+import { baueRubrikSpannen } from './rubrikSpannen';
 import type { SortDirection, SortableColumn } from './types';
 
 export interface TableHeadRowsProps<T> {
@@ -29,6 +30,9 @@ export interface TableHeadRowsProps<T> {
   filterCandidates?: Record<string, string[]>;
   /** Erste Spalte beim waagerechten Scrollen stehen lassen. */
   stickyFirstColumn?: boolean;
+  /** Zusätzliche erste Kopfzeile, die zusammenhängende Spalten unter ihrer
+   *  Rubrik bündelt. */
+  showGroupHeader?: boolean;
 }
 
 /** Stapelreihenfolge der klebenden Zellen. Der Kopf muss über den Datenzellen
@@ -50,12 +54,49 @@ export function TableHeadRows<T>({
   onColumnFilterChange,
   filterCandidates,
   stickyFirstColumn = false,
+  showGroupHeader = false,
 }: TableHeadRowsProps<T>): React.ReactElement {
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
+  const spannen = useMemo(
+    () => (showGroupHeader ? baueRubrikSpannen(columns) : []),
+    [showGroupHeader, columns],
+  );
 
   return (
     <thead>
+      {showGroupHeader && (
+        <tr
+          className="text-left text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]"
+          style={{ background: 'var(--tf-bg-secondary)' }}
+        >
+          {spannen.map((s, i) => {
+            // Die erste Strecke darf nur dann mitkleben, wenn sie GENAU eine
+            // Spalte umfasst — sonst zöge sie die halbe Kopfzeile mit.
+            const sticky = stickyFirstColumn && i === 0 && s.span === 1;
+            return (
+              <th
+                key={s.startKey}
+                colSpan={s.span}
+                className={
+                  sticky
+                    ? 'px-3 pt-1.5 pb-0.5 align-bottom bg-[var(--tf-bg-secondary)]'
+                    : 'px-3 pt-1.5 pb-0.5 align-bottom'
+                }
+                style={{
+                  // Trennlinie nur ZWISCHEN Rubriken, nicht nach der letzten.
+                  borderRight: i < spannen.length - 1 ? '0.5px solid var(--tf-border)' : undefined,
+                  ...(sticky ? { position: 'sticky', left: 0, zIndex: Z_KOPF_STICKY } : null),
+                }}
+              >
+                {/* Namenlose Strecken bleiben leer, statt eine Ersatz-Beschriftung
+                    zu erfinden. */}
+                <span className="block truncate">{s.name ?? ''}</span>
+              </th>
+            );
+          })}
+        </tr>
+      )}
       <tr
         className="text-left text-[10.5px] uppercase tracking-wider text-[var(--tf-text-tertiary)]"
         style={{ background: 'var(--tf-bg-secondary)' }}
