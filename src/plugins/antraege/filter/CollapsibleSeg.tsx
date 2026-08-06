@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
+import { segAnzeige } from './segAnzeige';
 
 /**
  * Kollabierbare Filter-Pille. Default-Zustand: nur "{label}: {value} ▸" sichtbar.
@@ -197,11 +199,10 @@ export function SegGroup({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      // `overflow-hidden` nur ohne Menü: es würde ein aufgeklapptes Untermenü
-      // am Rand der Gruppe abschneiden.
-      className={`inline-flex rounded-[8px] bg-[var(--tf-bg)] ${
-        items.some(i => i.unterpunkte?.length) ? '' : 'overflow-hidden'
-      }`}
+      // `overflow-hidden` darf bleiben, auch wenn ein Segment ein Menü hat: das
+      // Menü hängt am `document.body` (siehe `SegItem`) und wird hier nicht
+      // geclippt.
+      className="inline-flex rounded-[8px] bg-[var(--tf-bg)] overflow-hidden"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
       {items.map((it, i) => (
@@ -217,6 +218,9 @@ export function SegGroup({
     </div>
   );
 }
+
+/** Mindestbreite des Untermenüs — auch die Grundlage der Rand-Klemmung. */
+const MENUE_BREITE = 190;
 
 /** Ein Segment-Knopf, optional mit Untermenü. Eigene Komponente, weil das Menü
  *  Zustand braucht — Hooks gehen nicht in einem `map`-Rückruf. */
@@ -237,15 +241,41 @@ function SegItem({
   const hatMenue = unterpunkte.length > 0;
   const [offen, setOffen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   useClickOutside(ref, () => setOffen(false), offen);
 
-  // Ein aktiver Unterpunkt färbt den Oberpunkt mit — sonst sähe „Einzelprojekt"
-  // unbeteiligt aus, während genau darunter gefiltert wird.
-  const aktiverUnterpunkt = unterpunkte.find(u => u.label === value) ?? null;
-  const active = value === item.label || aktiverUnterpunkt !== null;
-  // Angezeigt wird, was gerade gilt: bei aktivem Unterpunkt dessen Zahl, nicht
-  // die des Oberpunkts — der Knopf soll sagen, was er filtert.
-  const gezeigt = aktiverUnterpunkt ?? item;
+  // Das Menü hängt am `document.body`, nicht im Segment: die aufgeklappte Pille
+  // trägt eine CSS-Animation mit `transform` und ist damit ein eigener
+  // Stacking-Context — ein `z-index` DARIN gilt nur innerhalb der Pille, und die
+  // Tabelle darunter malte über das offene Menü. Gleiches Muster wie im
+  // `ColumnFilterDropdown`.
+  useLayoutEffect(() => {
+    if (!offen) { setPos(null); return; }
+    const messe = (): void => {
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const RAND = 8;
+      setPos({
+        left: Math.max(RAND, Math.min(r.left, window.innerWidth - MENUE_BREITE - RAND)),
+        top: r.bottom + 4,
+      });
+    };
+    messe();
+    // Mitwandern statt einfrieren — die Toolbar scrollt mit der Seite, ein
+    // fixiertes Menü stünde sonst irgendwo im Nichts.
+    window.addEventListener('scroll', messe, true);
+    window.addEventListener('resize', messe);
+    return () => {
+      window.removeEventListener('scroll', messe, true);
+      window.removeEventListener('resize', messe);
+    };
+  }, [offen]);
+
+  // Was der Knopf anzeigt (aktiv? welche Zahl? welcher Zusatz?) entscheidet das
+  // reine `segAnzeige` — inklusive der Falle, dass der Oberpunkt im Menü noch
+  // einmal steht und sich sonst selbst als „aktiven Unterpunkt" findet.
+  const { aktiverUnterpunkt, gezeigt, active } = segAnzeige(item, value);
 
   const ecken = `${erstes ? 'rounded-l-[8px] ' : ''}${letztes ? 'rounded-r-[8px] ' : ''}`;
 
@@ -295,11 +325,20 @@ function SegItem({
           >
             <ChevronDown size={11} />
           </button>
-          {offen ? (
+          {offen && pos ? createPortal(
             <div
               role="menu"
-              className="absolute top-full left-0 mt-1 z-[100] min-w-[190px] rounded-[8px] bg-[var(--tf-bg)] shadow-md overflow-hidden"
-              style={{ border: '0.5px solid var(--tf-border)' }}
+              className="fixed z-[1000] rounded-[8px] bg-[var(--tf-bg)] shadow-md overflow-hidden"
+              style={{
+                border: '0.5px solid var(--tf-border)',
+                left: pos.left,
+                top: pos.top,
+                minWidth: MENUE_BREITE,
+              }}
+              // Der Außen-Klick-Wächter hört am `document`; ohne das käme sein
+              // `pointerdown` VOR dem `click` und das Menü wäre weg, bevor die
+              // Auswahl ankommt.
+              onPointerDown={(e) => e.stopPropagation()}
             >
               {unterpunkte.map(u => {
                 const gewaehlt = value === u.label;
@@ -328,7 +367,8 @@ function SegItem({
                   </button>
                 );
               })}
-            </div>
+            </div>,
+            document.body,
           ) : null}
         </>
       ) : null}

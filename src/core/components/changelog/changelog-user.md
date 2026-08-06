@@ -30,6 +30,10 @@
 - **Man sieht einer zugeklappten Pille an, ob sie filtert** — sie bekommt einen farbigen Rahmen und hinterlegt ihren Wert. Aufgeklappt ist die Beschriftung farbig.
 - **Kürzere Beschriftung:** „· mit Netzwerkbezug" heißt jetzt „mit NW Bezug".
 
+### Bugfixes
+- **Das „Einzelprojekt"-Menü lag hinter der Tabelle** und war dadurch kaum bedienbar. Es liegt jetzt darüber und bleibt beim Scrollen an seinem Knopf.
+- **Der Knopf las sich „Einzelprojekt · Einzelprojekt"**, sobald man im Menü „alle Einzelprojekte" wählte.
+
 ## v3.12 — 2026-08
 
 ### Verbesserungen

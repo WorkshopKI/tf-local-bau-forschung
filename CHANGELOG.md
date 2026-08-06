@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.13.1 — Projektart-Menue liegt vor der Tabelle (August 2026)
+
+PATCH — Das neue Untermenü lag hinter der Tabelle: die aufgeklappte Pille trägt eine Animation mit `transform` und ist damit ein eigener Stacking-Context — ein `z-index` darin gilt nur innerhalb der Pille. Dazu las sich der Knopf „Einzelprojekt · Einzelprojekt 397", weil der Oberpunkt im Menü noch einmal steht und sich selbst als aktiven Unterpunkt fand.
+
+- Untermenü hängt am `document.body` und wandert beim Scrollen mit dem Anker mit (Muster aus `ColumnFilterDropdown`) — [CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)
+- Was der Segment-Knopf anzeigt (aktiv? welche Zahl? welcher Zusatz?) entscheidet ein reines, geprüftes Modul — [segAnzeige.ts](src/plugins/antraege/filter/segAnzeige.ts)
+
 ### v3.13.0 — Projektart-Filter: Einzelprojekt mit Menue, Zaehler folgen dem Antragstyp (August 2026)
 
 MINOR — Die Projektart brachte fünf Segmente in eine Leiste, die schon vier Pillen trägt, und zwei davon lasen sich wie eine Aufteilung von „Einzelprojekt" (397 = 38 + 192), die sie nicht sind. Dazu zählten die Stufen den vollen Bestand, während der Antragstyp-Filter davor schon geschnitten hatte.
