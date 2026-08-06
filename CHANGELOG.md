@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.6.1 — Abschnitts-Bänder zählen den Abschnitt, nicht die Seite (August 2026)
+
+PATCH — Die Zahl an einem Abschnittskopf kam aus den GERENDERTEN Zeilen, nicht aus dem Abschnitt: sie wuchs beim Nachladen, und ihre Summe ergab exakt die Seitengröße (gemessen: „AAt 48" + „AM 12" = 60). Betraf Tabelle (status/netzwerk/fb/ab) und die Status-Abschnitte in Listen- und Karten-Ansicht.
+
+- Abschnitts-Zahlen kommen aus dem vollen Satz statt aus der Seite — eine Zählung für alle drei Ansichten — [zaehleJeAbschnitt](src/plugins/antraege/antragGroups.ts)
+- Abschnitts-Id einer Gruppe hat eine Heimat (`statusSectionIdOf`); Zähler und Sektionierung können nicht mehr verschiedene Schlüssel bilden — [antragGroups.ts](src/plugins/antraege/antragGroups.ts)
+- Der Arbeitsvorrat/Beendet-Zweig braucht dafür keine Sonderbehandlung mehr — er läuft über denselben Weg — [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)
+
 ### v3.6.0 — Beendet-Schalter: eigene Achse statt Kopplung an die Gruppierung (August 2026)
 
 MINOR — Der Arbeitsvorrat/Beendet-Split hing an „Gruppierung: Keine". Das war eine stille Kopplung: wer gruppierte, verlor die Trennung. Als die Verbund-Verdichtung mit v3.4 aus der Gruppierung auf die Ansicht-Achse wanderte, tauchte der Split unangekündigt bei allen auf, die zuvor „Gruppierung: Verbund" stehen hatten.

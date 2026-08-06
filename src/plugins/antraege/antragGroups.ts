@@ -207,11 +207,39 @@ export interface StatusPhaseSection {
  * Sektion mit `id='ohne-zuordnung'` (defensiv — sollte nie passieren, weil der
  * Aufrufer nur mit `mode='status'` aufgerufen wird).
  */
+/** Abschnitts-Id einer Gruppe — die EINE Stelle, an der der Fallback für
+ *  Gruppen ohne Zuordnung steht. Zähler und Sektionierung müssen denselben
+ *  Schlüssel bilden, sonst zählt der Kopf eine andere Menge als er überschreibt. */
+export function statusSectionIdOf(g: AntragGroup): StatusSectionId {
+  return g.statusSectionId ?? 'ohne-zuordnung';
+}
+
+/**
+ * Wie viele Einträge je Abschnitt — gebildet über die VOLLE Liste, nicht über
+ * die gerade gerenderte Seite.
+ *
+ * Die Zahl an einem Abschnittskopf ist eine Aussage über den Abschnitt, nicht
+ * über den Bildausschnitt. Wer sie aus den paginierten Zeilen zieht, schreibt
+ * eine Zahl hin, die beim Nachladen wächst und deren Summe zufällig die
+ * Seitengröße ergibt (gemessen v3.6.0: „AAt 48" + „AM 12" = 60).
+ */
+export function zaehleJeAbschnitt<T>(
+  items: readonly T[],
+  keyOf: (item: T) => string,
+): Map<string, number> {
+  const zaehler = new Map<string, number>();
+  for (const item of items) {
+    const k = keyOf(item);
+    zaehler.set(k, (zaehler.get(k) ?? 0) + 1);
+  }
+  return zaehler;
+}
+
 export function splitByStatusPhase(groups: AntragGroup[]): StatusPhaseSection[] {
   const sections: StatusPhaseSection[] = [];
   let current: StatusPhaseSection | null = null;
   for (const g of groups) {
-    const id = g.statusSectionId ?? 'ohne-zuordnung';
+    const id = statusSectionIdOf(g);
     if (!current || current.id !== id) {
       current = { id, groups: [] };
       sections.push(current);

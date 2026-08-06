@@ -5,6 +5,8 @@ import {
   buildAntragGroups,
   takeGroupsUntil,
   splitByStatusPhase,
+  statusSectionIdOf,
+  zaehleJeAbschnitt,
   type AntragGroup,
   type GroupingMode,
 } from './antragGroups';
@@ -54,6 +56,12 @@ export function CardGrid({
   );
   const groups = useMemo(() => takeGroupsUntil(allGroups, visibleRows), [allGroups, visibleRows]);
   const hasMoreGroups = groups.length < allGroups.length;
+  // Abschnitts-Zahlen über den VOLLEN Satz — aus `groups` gezogen wüchsen sie
+  // beim Nachladen und summierten sich zur Seitengröße statt zum Bestand.
+  const abschnittsGesamt = useMemo(
+    () => zaehleJeAbschnitt(allGroups, statusSectionIdOf),
+    [allGroups],
+  );
   const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
 
   const renderTiles = (gs: AntragGroup[]): React.ReactElement => (
@@ -81,7 +89,10 @@ export function CardGrid({
         <div className="flex flex-col gap-4">
           {splitByStatusPhase(groups).map(section => (
             <div key={section.id}>
-              <StatusSectionHeader id={section.id} count={section.groups.length} />
+              <StatusSectionHeader
+                id={section.id}
+                count={abschnittsGesamt.get(section.id) ?? section.groups.length}
+              />
               {collapsedSet.has(section.id) ? null : renderTiles(section.groups)}
             </div>
           ))}

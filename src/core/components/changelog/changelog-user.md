@@ -28,6 +28,9 @@
 - **Der Abschnitt „Arbeitsvorrat" erscheint nur noch, wo er etwas trennt.** Bisher hing die Trennung daran, dass keine Gruppierung eingestellt war — deshalb tauchte sie mit der letzten Version plötzlich bei allen auf, die zuvor nach Verbund gruppiert hatten. Jetzt entscheidet allein der neue Schalter; die beiden Bänder stehen nur noch da, wenn das Beendete eingeblendet und nichts gruppiert ist.
 - **Eine laufende Suche zeigt den ausgeblendeten Teil weiterhin** — sonst fehlten Treffer, ohne dass man es merkt.
 
+### Bugfixes
+- **Die Zahl an einem Abschnittskopf meint jetzt den Abschnitt.** Bisher zählte sie nur die gerade geladenen Zeilen: „AAt 48" hieß „48 davon sind sichtbar", nicht „AAt hat 48" — und die Zahl wuchs beim Weiterscrollen. Betraf die Bänder in der Tabelle (Status/NW/FB/AB) genauso wie die Status-Abschnitte in Listen- und Kartenansicht.
+
 ## v3.5 — 2026-08
 
 ### Neu

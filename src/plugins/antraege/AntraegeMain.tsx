@@ -17,6 +17,8 @@ import {
   buildAntragGroups,
   takeGroupsUntil,
   splitByStatusPhase,
+  statusSectionIdOf,
+  zaehleJeAbschnitt,
   type AntragGroup,
   type GroupingMode,
 } from './antragGroups';
@@ -500,6 +502,12 @@ function GroupedList({
     [filtered, effectiveMode, netzwerkNames, verbundById],
   );
   const collapsedSet = useStatusSectionCollapsed(s => s.collapsed);
+  // Abschnitts-Zahlen über den VOLLEN Satz — aus den paginierten `groups`
+  // gezogen wüchsen sie beim Nachladen und summierten sich zur Seitengröße.
+  const abschnittsGesamt = useMemo(
+    () => zaehleJeAbschnitt(allGroups, statusSectionIdOf),
+    [allGroups],
+  );
 
   // An die Toolbar melden, was hier steht. Jeder Modus außer `none` bündelt
   // Verbund-Cluster zu EINER Karte (auch `status` — siehe buildAntragGroups),
@@ -587,7 +595,10 @@ function GroupedList({
         <div className="flex flex-col gap-3">
           {splitByStatusPhase(groups).map(section => (
             <div key={section.id}>
-              <StatusSectionHeader id={section.id} count={section.groups.length} />
+              <StatusSectionHeader
+                id={section.id}
+                count={abschnittsGesamt.get(section.id) ?? section.groups.length}
+              />
               {collapsedSet.has(section.id) ? null : (
                 <div className="flex flex-col gap-1">
                   {section.groups.map(renderGroup)}

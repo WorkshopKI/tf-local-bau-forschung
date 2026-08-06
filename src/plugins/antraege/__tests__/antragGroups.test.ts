@@ -3,7 +3,10 @@ import {
   applyVerbundClustering,
   buildAntragGroups,
   formatFkzRange,
+  splitByStatusPhase,
+  statusSectionIdOf,
   takeGroupsUntil,
+  zaehleJeAbschnitt,
 } from '../antragGroups';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -486,3 +489,71 @@ describe('buildAntragGroups mode=status — Verbund-First', () => {
       .toEqual(['vor-entscheidung', 'nachforderung', 'bewilligt']);
   });
 });
+
+describe('zaehleJeAbschnitt', () => {
+  it('zählt je Schlüssel über die volle Liste', () => {
+    const zahlen = zaehleJeAbschnitt(['a', 'b', 'a', 'c', 'a'], s => s);
+    expect([...zahlen]).toEqual([['a', 3], ['b', 1], ['c', 1]]);
+  });
+
+  it('leere Eingabe → leere Karte', () => {
+    expect(zaehleJeAbschnitt([], String).size).toBe(0);
+  });
+
+  it('Summenprobe: die Zahlen ergeben zusammen die Eingabelänge', () => {
+    const items = Array.from({ length: 37 }, (_, i) => i);
+    const zahlen = zaehleJeAbschnitt(items, n => `rest-${n % 5}`);
+    expect([...zahlen.values()].reduce((s, n) => s + n, 0)).toBe(37);
+  });
+
+  it('bleibt seiten-unabhängig — genau das war der Defekt (v3.6.1)', () => {
+    // Die Bandzahl kam bis v3.6.0 aus den GERENDERTEN Zeilen: „AAt 48" + „AM 12"
+    // summierten sich exakt zur Seitengröße 60 und wuchsen beim Nachladen.
+    const alle = [
+      ...Array.from({ length: 80 }, (_, i) => ({ id: `a${i}`, k: 'AAt' })),
+      ...Array.from({ length: 40 }, (_, i) => ({ id: `b${i}`, k: 'AM' })),
+    ];
+    const seite = alle.slice(0, 60); // was die Tabelle gerade rendert
+    const gesamt = zaehleJeAbschnitt(alle, r => r.k);
+    const seitenlokal = zaehleJeAbschnitt(seite, r => r.k);
+    expect(gesamt.get('AAt')).toBe(80);
+    expect(gesamt.get('AM')).toBe(40);
+    // Der alte Weg lieferte die Seitengröße als Summe — der Beleg des Defekts.
+    expect([...seitenlokal.values()].reduce((s, n) => s + n, 0)).toBe(60);
+    // Der neue Weg die Gesamtzahl.
+    expect([...gesamt.values()].reduce((s, n) => s + n, 0)).toBe(120);
+  });
+});
+
+describe('statusSectionIdOf', () => {
+  function mitStatus(az: string, status: string): AntragListItem {
+    return {
+      aktenzeichen: az,
+      programm_id: 'P',
+      _updated_at: '2026-01-01T00:00:00Z',
+      status: asAntragStatusRaw(status),
+    };
+  }
+
+  it('ist die EINE Quelle des Fallbacks — Zähler und Sektionierung bilden denselben Schlüssel', () => {
+    const input: AntragListItem[] = [
+      mitStatus('A', 'beantragt'),
+      mitStatus('B', 'beantragt'),
+      mitStatus('C', 'bewilligt'),
+    ];
+    const gruppen = buildAntragGroups(input, { mode: 'status' });
+    const gesamt = zaehleJeAbschnitt(gruppen, statusSectionIdOf);
+    // Was `splitByStatusPhase` als Abschnitt aufmacht, muss die Karte kennen —
+    // sonst zählt der Kopf eine andere Menge, als er überschreibt.
+    for (const abschnitt of splitByStatusPhase(gruppen)) {
+      expect(gesamt.get(abschnitt.id)).toBe(abschnitt.groups.length);
+    }
+  });
+
+  it('Gruppe ohne Zuordnung bekommt denselben Ersatz-Schlüssel wie die Sektionierung', () => {
+    const [gruppe] = buildAntragGroups([mk('A')], { mode: 'none' });
+    expect(statusSectionIdOf(gruppe!)).toBe('ohne-zuordnung');
+    expect(splitByStatusPhase([gruppe!])[0]!.id).toBe('ohne-zuordnung');
+  });
+});
+

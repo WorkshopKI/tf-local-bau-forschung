@@ -5,6 +5,7 @@ import { resolveAntragTableColumns } from './tableColumns';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeStore } from './store';
+import { zaehleJeAbschnitt } from './antragGroups';
 import {
   buildVerbundTableRows,
   buildStatusSectionRows,
@@ -222,6 +223,16 @@ export function AntraegeTable({
     return { allRows: sichtbar, sectionOf: null, labelOf: null };
   }, [grouping, beendetVersteckt, inArbeit, archiv, baseRows, netzwerkNameById]);
 
+  // Abschnitts-Gesamtzahlen über `allRows` (= vor Header-Sort und Pagination).
+  // NICHT der Zähler, den `SortableTable` an `renderSectionHeader` reicht: der
+  // kommt aus dem gerenderten Slice und wüchse beim Nachladen — seine Summe war
+  // exakt die Seitengröße. Der Arbeitsvorrat-Zweig umging das schon einzeln;
+  // jetzt gilt es für alle Bänder über denselben Weg.
+  const abschnittsGesamt = useMemo(
+    () => (sectionOf === null ? null : zaehleJeAbschnitt(allRows, sectionOf)),
+    [allRows, sectionOf],
+  );
+
   // An die Toolbar melden, was hier steht. Effekt statt direktem Aufruf, weil
   // setState eines Eltern-Elements im Render verboten ist.
   //
@@ -276,7 +287,10 @@ export function AntraegeTable({
   const sectionProps = sectionOf !== null
     ? {
         sectionKeyOf: (r: AntragTableRow) => sectionOf(r),
-        renderSectionHeader: (key: string, count: number): React.ReactNode => {
+        renderSectionHeader: (key: string, slice: number): React.ReactNode => {
+          // `slice` ist bewusst nur der Rückfall: er zählt die gerenderten
+          // Zeilen, die Gesamtzahl steht in `abschnittsGesamt`.
+          const count = abschnittsGesamt?.get(key) ?? slice;
           // Gruppierungs-Bänder: der Schlüssel ist eine stabile Id (Abschnitt,
           // Netzwerk-Id, Kürzel) — die Beschriftung kommt vom Builder. Bis v3.0
           // stand der Schlüssel roh im Band („VOR-ENTSCHEIDUNG").
@@ -289,15 +303,13 @@ export function AntraegeTable({
               />
             );
           }
-          // Arbeitsvorrat/Beendet: eigene Bänder. Zähler sind die Sektions-
-          // Gesamtzahlen, nicht der Slice-Count der SortableTable — sonst wüchse
-          // „BEENDET · n" erst beim Scrollen. Das Beendet-Band ist hier immer
+          // Arbeitsvorrat/Beendet: eigene Bänder. Das Beendet-Band ist hier immer
           // aufgeklappt (ausgeblendet → Streifen unter der Tabelle).
           if (key === 'archiv') {
             return (
               <ArbeitsvorratSectionHeader
                 section="archiv"
-                count={archiv.length || count}
+                count={count}
                 collapsed={false}
                 onToggle={() => setBeendetAusgeblendet(true)}
                 breakdown={beendetAufschluesselung}
@@ -305,13 +317,7 @@ export function AntraegeTable({
               />
             );
           }
-          return (
-            <ArbeitsvorratSectionHeader
-              section="in_arbeit"
-              count={inArbeit.length || count}
-              linie={false}
-            />
-          );
+          return <ArbeitsvorratSectionHeader section="in_arbeit" count={count} linie={false} />;
         },
       }
     : {};
