@@ -28,7 +28,7 @@ import {
   type FeldVorkommen, type MappingVersion, type NavigatorKandidat, type Rolle,
   type TriggerZeile,
 } from '@/core/status';
-import { ErklaerterSatz } from './ErklaerterSatz';
+import { ErklaerterSatz } from '@/components/vorgang/ErklaerterSatz';
 
 /** Mehr als das überblickt niemand; der Rest wird gezählt, nicht verschwiegen. */
 const MAX_ANZEIGE = 12;

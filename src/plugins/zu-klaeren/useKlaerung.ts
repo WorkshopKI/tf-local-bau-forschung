@@ -24,7 +24,7 @@ import {
   type GruppeAnsicht, type IstStandKontext, type ZeilenFilter,
 } from './gruppen';
 import { leseKlaerung, haengeEintragAn } from './klaerung-share';
-import { ladeVorkommen } from './vorkommen';
+import { ladeVorkommen } from '@/core/status';
 import { PHASENSCHNITT, bauePunkte } from './seed-phasenschnitt';
 import { OHNE_PHASE, type Klaerung, type KlaerungPunkt, type KlaerungStand } from './typen';
 

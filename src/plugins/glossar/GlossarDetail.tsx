@@ -8,7 +8,11 @@
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import { GLOSSAR_BEGRIFFE, type GlossarBegriff } from '@/core/glossar';
+import type { MappingVersion, TriggerStand } from '@/core/status';
 import { verwandteIds, type GlossarEintrag } from './glossarSuche';
+import { DetailKopf } from './GlossarFelder';
+import { StatuswertDetail } from './StatuswertDetail';
+import { KuerzelDetail } from './KuerzelDetail';
 
 /** Der Verweis auf den Ort, an dem wirklich kuriert wird. */
 function KurationsHinweis(): React.ReactElement {
@@ -92,21 +96,39 @@ function Verwandte({ b, onWaehlen }: {
   );
 }
 
-export function GlossarDetail({ eintrag, onWaehlen }: {
-  eintrag: GlossarEintrag;
+function BegriffDetail({ b, onWaehlen }: {
+  b: GlossarBegriff;
   onWaehlen: (id: string) => void;
 }): React.ReactElement {
-  const b = eintrag.begriff;
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto px-6 py-5">
-      <header className="flex flex-col gap-0.5">
-        <h2 className="text-[18px] font-semibold text-[var(--tf-text)]">{b.begriff}</h2>
-        {b.lang !== undefined && (
-          <p className="text-[13px] text-[var(--tf-text-secondary)]">{b.lang}</p>
-        )}
-      </header>
+      <DetailKopf titel={b.begriff} unter={b.lang} />
       <p className="text-[13px] leading-relaxed text-[var(--tf-text)]">{b.erklaerung}</p>
       <Verwandte b={b} onWaehlen={onWaehlen} />
     </div>
   );
+}
+
+export function GlossarDetail({ eintrag, version, trigger, onWaehlen }: {
+  eintrag: GlossarEintrag;
+  /** `null` = kein Katalog geladen; dann gibt es die datengetriebenen Arten gar nicht. */
+  version: MappingVersion | null;
+  trigger: TriggerStand | null;
+  onWaehlen: (id: string) => void;
+}): React.ReactElement | null {
+  switch (eintrag.art) {
+    case 'begriff':
+      return <BegriffDetail b={eintrag.begriff} onWaehlen={onWaehlen} />;
+    case 'statuswert':
+      return version === null ? null : (
+        <StatuswertDetail zeile={eintrag.zeile} version={version} trigger={trigger} />
+      );
+    case 'kuerzel':
+      return version === null ? null : (
+        <KuerzelDetail
+          zeile={eintrag.zeile} version={version} trigger={trigger}
+          onStatus={code => onWaehlen(`statuswert:${code}`)}
+        />
+      );
+  }
 }

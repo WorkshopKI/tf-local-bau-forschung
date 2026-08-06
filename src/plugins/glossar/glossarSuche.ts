@@ -8,6 +8,7 @@
  * Art, mit einem Zähler je Gruppe.
  */
 import type { GlossarBegriff } from '@/core/glossar';
+import type { KuerzelZeile, StatuswertZeile } from './glossarZeilen';
 
 /** Die Arten von Einträgen, in der Reihenfolge, in der sie in der Liste stehen. */
 export type GlossarArt = 'begriff' | 'statuswert' | 'kuerzel' | 'regel';
@@ -37,7 +38,10 @@ interface Basis {
   suchtext: string;
 }
 
-export type GlossarEintrag = Basis & { art: 'begriff'; begriff: GlossarBegriff };
+export type GlossarEintrag =
+  | (Basis & { art: 'begriff'; begriff: GlossarBegriff })
+  | (Basis & { art: 'statuswert'; zeile: StatuswertZeile })
+  | (Basis & { art: 'kuerzel'; zeile: KuerzelZeile });
 
 export interface GlossarGruppe {
   art: GlossarArt;
@@ -54,6 +58,31 @@ export function begriffAlsEintrag(b: GlossarBegriff): GlossarEintrag {
     unter: b.lang ?? b.erklaerung,
     suchtext: `${b.begriff} ${b.lang ?? ''} ${b.erklaerung}`.toLowerCase(),
     begriff: b,
+  };
+}
+
+/** Ein Statuswert als Listeneintrag. */
+export function statuswertAlsEintrag(z: StatuswertZeile): GlossarEintrag {
+  return {
+    art: 'statuswert',
+    id: `statuswert:${z.code}`,
+    titel: `${z.code} · ${z.label}`,
+    unter: `${z.phaseLabel} · ${z.kategorieLabel}`,
+    // Der Code auch nackt: wer „34" tippt, sucht den Statuswert 34.
+    suchtext: `${z.code} ${z.label} ${z.phaseLabel} ${z.kategorieLabel}`.toLowerCase(),
+    zeile: z,
+  };
+}
+
+/** Ein Kürzel als Listeneintrag. */
+export function kuerzelAlsEintrag(z: KuerzelZeile): GlossarEintrag {
+  return {
+    art: 'kuerzel',
+    id: `kuerzel:${z.code}`,
+    titel: z.code,
+    unter: z.label,
+    suchtext: `${z.code} ${z.label} ${z.csvSpalte} ${z.ordner}`.toLowerCase(),
+    zeile: z,
   };
 }
 

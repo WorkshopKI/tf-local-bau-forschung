@@ -17,7 +17,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import type { PhasenBaumKnoten } from './phasenKnoten';
-import { StatusHerkunftBlock } from './StatusHerkunftBlock';
+import { StatusHerkunftBlock } from '@/components/vorgang/StatusHerkunftBlock';
 import { KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels';
 import type { Prominenz, StatusCategory, StatusWertEintrag } from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';

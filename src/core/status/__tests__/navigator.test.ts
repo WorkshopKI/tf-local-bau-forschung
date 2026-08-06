@@ -10,7 +10,8 @@
  * - Trigger eines FREMDEN Programms zeigen, wenn das eigene keine hat
  */
 import { describe, it, expect } from 'vitest';
-import { navigatorKandidaten, wirkungZeilen } from '@/core/status/navigator';
+import { navigatorKandidaten, wirkungGruppen, wirkungZeilen } from '@/core/status/navigator';
+import { alsText } from '@/core/status/trigger-satz';
 import { parseTriggerZeile } from '@/core/status/trigger-parser';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type { Rolle, StatusFeldEintrag, TriggerZeile } from '@/core/status/typen';
@@ -288,5 +289,64 @@ describe('wirkungZeilen', () => {
 
   it('liefert eine leere Liste für ein Kürzel ohne Trigger', () => {
     expect(wirkungZeilen(TRIGGER, 'XYZ')).toEqual([]);
+  });
+});
+
+describe('wirkungGruppen (fürs Glossar: nach Wortlaut gebündelt)', () => {
+  const katalog = { felder: FELDER };
+
+  it('fasst gleich lautende Zeilen zu EINER Aussage mit allen Richtlinien zusammen', () => {
+    // Dieselbe Prozedur in drei Richtlinien: der Leser will den Satz einmal
+    // sehen, nicht dreimal untereinander.
+    const mehrfach = [
+      zeile('ABA', 1, 'TRG.Status.TV.VB', '211|74', '131'),
+      zeile('ABA', 1, 'TRG.Status.TV.VB', '211|74', '133'),
+      zeile('ABA', 1, 'TRG.Status.TV.VB', '211|74', '137'),
+    ];
+    const g = wirkungGruppen(mehrfach, 'ABA', katalog);
+    expect(g).toHaveLength(1);
+    expect(g[0]?.programme).toEqual(['131', '133', '137']);
+  });
+
+  it('trennt Zeilen, die verschieden lauten', () => {
+    const g = wirkungGruppen(TRIGGER, 'AAR', katalog);
+    expect(g).toHaveLength(2);
+  });
+
+  it('sortiert die Richtlinien numerisch, nicht alphabetisch', () => {
+    const bunt = [
+      zeile('ABA', 1, 'TRG.Status.TV.VB', '211|74', '9'),
+      zeile('ABA', 1, 'TRG.Status.TV.VB', '211|74', '131'),
+      zeile('ABA', 1, 'TRG.Status.TV.VB', '211|74', '76'),
+    ];
+    expect(wirkungGruppen(bunt, 'ABA', katalog)[0]?.programme).toEqual(['9', '76', '131']);
+  });
+
+  it('nennt denselben Zielstatus fuer TV und VB nur EINMAL', () => {
+    // `31|31` setzt beide Ebenen auf 59 bzw. hier 31 — zwei gleiche Sprungmarken
+    // nebeneinander saehen aus, als fuehrten sie woandershin.
+    const g = wirkungGruppen(TRIGGER, 'AAE', katalog);
+    expect(g.find(x => x.zielStatus.length > 0)?.zielStatus).toEqual([31]);
+  });
+
+  it('nennt beide Zielstatus, wenn TV und VB verschieden gesetzt werden', () => {
+    const geteilt = [zeile('ABA', 1, 'TRG_TVs_Status_TV_VB', '<59|||||| 73|75')];
+    expect(wirkungGruppen(geteilt, 'ABA', katalog)[0]?.zielStatus).toEqual([73, 75]);
+  });
+
+  it('nennt keinen Zielstatus, wo keiner gesetzt wird', () => {
+    // Eine Mail ändert den Status nicht — ein Sprung ins Leere wäre eine Lüge.
+    const nurMail = [zeile('AAR', 2, 'TRG.VorgEintragMail', 'TIB|!.055.VorgInfo.01|BIB')];
+    expect(wirkungGruppen(nurMail, 'AAR', katalog)[0]?.zielStatus).toEqual([]);
+  });
+
+  it('behält dieselbe Satzform wie überall sonst', () => {
+    // Der Nutzer soll den Satz wiedererkennen, den er am Antrag gesehen hat.
+    const g = wirkungGruppen(TRIGGER, 'ABA', katalog);
+    expect(alsText(g[0]?.segmente ?? [])).toBe(wirkungZeilen(TRIGGER, 'ABA')[0]?.satz);
+  });
+
+  it('liefert nichts für ein Kürzel ohne Trigger', () => {
+    expect(wirkungGruppen(TRIGGER, 'XYZ', katalog)).toEqual([]);
   });
 });

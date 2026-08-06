@@ -414,3 +414,67 @@ export function wirkungZeilen(
     ))
     .map(z => ({ programm: z.programm, folge: z.folge, satz: triggerSatzVon(z, legende) }));
 }
+
+/** Eine Wirkung, die in mehreren Richtlinien gleich lautet — mit Erklärungen. */
+export interface WirkungsGruppe {
+  /** Die Segmente EINER der zusammengefassten Zeilen — alle tragen denselben Satz. */
+  segmente: ErklaertesSegment[];
+  /** Die Richtlinien, in denen sie so lautet, aufsteigend. */
+  programme: string[];
+  /**
+   * Die Zielstatus dieser Wirkung — für den Sprung ins Glossar. Leer bei
+   * Mail-Triggern. **Entdoppelt:** setzt ein Trigger TV und VB auf denselben
+   * Code, ist das EIN Ziel; zwei gleiche Sprungmarken nebeneinander sähen aus,
+   * als führten sie woandershin.
+   */
+  zielStatus: number[];
+}
+
+/**
+ * Die Trigger-Wirkung eines Kürzels, nach WORTLAUT gebündelt statt je Programm.
+ *
+ * `wirkungZeilen` liefert eine Zeile je (Richtlinie, Folge) — im Kürzel-Katalog
+ * richtig, weil dort der Unterschied zwischen den Richtlinien die Frage ist. Im
+ * Glossar ist es die Erklärung, und dieselbe Aussage zwölfmal untereinander liest
+ * niemand. Gleich lautende Zeilen stehen deshalb einmal da, mit „in 131, 133 und
+ * 137" daneben (`richtlinienSatz` in `trigger-herkunft.ts`).
+ *
+ * Bewusst dieselbe Satzform und dieselbe Erklärung wie überall sonst — der Nutzer
+ * soll den Satz wiedererkennen, den er am Antrag gesehen hat.
+ */
+export function wirkungGruppen(
+  trigger: readonly TriggerZeile[], kuerzel: string,
+  katalog: ErklaerKatalog, legende?: TextbausteinLegende,
+): WirkungsGruppe[] {
+  const key = normKey(kuerzel);
+  const jeSatz = new Map<string, WirkungsGruppe>();
+
+  for (const z of trigger) {
+    if (normKey(z.kuerzel) !== key) continue;
+    const segmente = erklaereSegmente(katalog, triggerSegmenteVon(z, legende));
+    const satz = alsText(segmente);
+    let gruppe = jeSatz.get(satz);
+    if (!gruppe) {
+      gruppe = { segmente, programme: [], zielStatus: zielStatusVon(z.geparst) };
+      jeSatz.set(satz, gruppe);
+    }
+    if (z.programm !== '' && !gruppe.programme.includes(z.programm)) {
+      gruppe.programme.push(z.programm);
+    }
+  }
+
+  for (const g of jeSatz.values()) {
+    g.programme.sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
+  }
+  return [...jeSatz.values()];
+}
+
+/** Welche Statuscodes ein Trigger setzt — entdoppelt, leer wenn er keinen setzt. */
+function zielStatusVon(p: TriggerParam | null): number[] {
+  if (p === null) return [];
+  if (p.art === 'statusSetzen') return [p.status];
+  if (p.art === 'statusTvVb') {
+    return [...new Set([p.statusTv, p.statusVb].filter((c): c is number => c !== null))];
+  }
+  return [];
+}

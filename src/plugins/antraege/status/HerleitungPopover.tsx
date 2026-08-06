@@ -28,7 +28,7 @@ import {
   herleitungAlsText, sortiereRollen, ROLLE_LABEL, ROLLE_LANG,
   type Herleitung, type VerlaufSchritt,
 } from '@/core/status';
-import { ErklaerterSatz } from './ErklaerterSatz';
+import { ErklaerterSatz } from '@/components/vorgang/ErklaerterSatz';
 import { useHerleitung, type AbweichendeEbene, type StatusEbene } from './useHerleitung';
 import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 

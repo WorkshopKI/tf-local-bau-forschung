@@ -16,7 +16,7 @@
  */
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { ErklaerterSatz } from '@/plugins/antraege/status/ErklaerterSatz';
+import { ErklaerterSatz } from './ErklaerterSatz';
 import {
   baueLegende, erklaerKatalog, herkunftZuStatus, richtlinienSatz,
   type HerkunftEbene, type MappingVersion, type TriggerStand,
@@ -62,9 +62,11 @@ export function StatusHerkunftBlock({ code, version, trigger }: {
     return (
       <Rahmen>
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
-          Die Trigger-Tabelle ist nicht eingelesen. Sie steht unter{' '}
-          <strong>Referenzdaten</strong> auf dieser Seite — ohne sie lässt sich nicht sagen,
-          welche Kürzel diesen Status setzen.
+          {/* Neutral formuliert: der Block steht seit v3.2 auch im Glossar, wo
+              „Referenzdaten" nicht auf DIESER Seite liegt. */}
+          Die Trigger-Tabelle ist nicht eingelesen — sie wird unter{' '}
+          <strong>Vorgangs-Regeln</strong> bei den Referenzdaten eingelesen. Ohne sie lässt
+          sich nicht sagen, welche Kürzel diesen Status setzen.
         </p>
       </Rahmen>
     );

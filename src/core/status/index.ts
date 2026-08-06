@@ -183,6 +183,9 @@ export {
   regelsatzVon, sperreGiltFuer, sperrEintragTrifft, strangAusEintrag,
 } from './regelsatz';
 export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
+export {
+  ladeVorkommen, zaehleCodes, codeAusSatz, kuerzelEinesVorgangs, type VorkommenStand,
+} from './vorkommen';
 // Das Import-Diff-Journal hat ein eigenes Barrel (`./journal`); hier stehen nur
 // die Stellen, die andere Module ohnehin über `@/core/status` beziehen.
 export {
@@ -209,9 +212,9 @@ export {
   type AnstehenderTermin, type Zeitachse,
 } from './waechter';
 export {
-  navigatorKandidaten, wirkungZeilen,
+  navigatorKandidaten, wirkungZeilen, wirkungGruppen,
   type NavigatorEingabe, type NavigatorErgebnis, type NavigatorKandidat,
-  type TriggerWirkung, type BedingungsUrteil, type WirkungsZeile,
+  type TriggerWirkung, type BedingungsUrteil, type WirkungsZeile, type WirkungsGruppe,
 } from './navigator';
 export { leseSidecar, schreibeSidecar } from './sidecar-datei';
 export {

@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ErklaerterSatz } from '../ErklaerterSatz';
+import { ErklaerterSatz } from '@/components/vorgang/ErklaerterSatz';
 import { erklaereSegmente, erklaerKatalog, type ErklaertesSegment } from '@/core/status/trigger-erklaerung';
 import { baueSeedVersion } from '@/core/status/seed';
 import { parseTriggerZeile } from '@/core/status/trigger-parser';
