@@ -41,7 +41,7 @@ export function FeedbackBoardListView({ tickets, config, meineUserId }: Props): 
     () => Object.fromEntries(columns.map(c => [c.key, c.width ?? 120])),
     [columns],
   );
-  const { widths, setWidth } = useColumnWidths('tf-feedback-board-list-widths', defaultWidths);
+  const { widths, setWidth, resetWidth } = useColumnWidths('tf-feedback-board-list-widths', defaultWidths);
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } = useColumnFilters(tickets, columns);
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(filteredRows, columns, null, 'desc');
 
@@ -58,6 +58,7 @@ export function FeedbackBoardListView({ tickets, config, meineUserId }: Props): 
       filterCandidates={filterCandidates}
       columnWidths={widths}
       onColumnWidthChange={setWidth}
+      onColumnWidthReset={resetWidth}
       emptyContent="Keine Einträge."
     />
   );
