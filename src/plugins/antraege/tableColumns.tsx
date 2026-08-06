@@ -17,7 +17,7 @@ import { KopierIconButton } from '@/components/ui/KopierIconButton';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
-import { formatGermanDate } from '@/core/services/csv/dateParse';
+import { formatGermanDate, formatDatumsWert } from '@/core/services/csv/dateParse';
 import { daysUntilFristAware, computeFristDatum } from '@/core/services/csv/frist';
 import { isBegleitungStatus, isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
@@ -86,8 +86,13 @@ function textCell(v: string | null): ReactNode {
   return v ? <span className="text-[12px] text-[var(--tf-text)]" title={v}>{v}</span> : null;
 }
 
+/** Datums-Zelle in deutscher Schreibweise. Der Rohwert kommt als ISO aus der
+ *  CSV-Projektion; `formatDatumsWert` ist die vorhandene Anzeige-Kette und lässt
+ *  alles unangetastet, was sich nicht als Datum lesen lässt. Der Sortier-Wert
+ *  bleibt der ISO-`accessor` — die Spalten sortieren weiter chronologisch. */
 function dateCell(v: string | null): ReactNode {
-  return v ? <span className="font-mono text-[11.5px] text-[var(--tf-text)]">{v}</span> : null;
+  const text = formatDatumsWert(v);
+  return text ? <span className="font-mono text-[11.5px] text-[var(--tf-text)]">{text}</span> : null;
 }
 
 /**
@@ -211,6 +216,11 @@ function statusDatumColumn(opts: {
     width: 150,
     wrap: false,
     accessor: r => strOrNull(getDatum(r)) ?? '',
+    // Sortiert wird nach DATUM, angezeigt wird das LABEL — ohne eigenen
+    // Export-Wert schriebe der XLSX-Export unter „FB Status" ein ISO-Datum
+    // (`exportValue ?? accessor`). Gilt über diese Factory auch für alle
+    // kuratierten Ordner-Spalten (`katstatus:*`).
+    exportValue: r => strOrNull(getLabel(r)) ?? '',
     render: r => {
       const lbl = strOrNull(getLabel(r));
       if (!lbl) return null;

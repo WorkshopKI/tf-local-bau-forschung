@@ -24,9 +24,10 @@
 ### Neu
 <!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
 ### Verbesserungen
-<!-- - … -->
+- Datumsangaben in der Tabelle stehen jetzt in deutscher Schreibweise: **30.07.2018** statt `2018-07-30`. Sortiert wird weiterhin chronologisch.
 ### Bugfixes
-<!-- - … -->
+- Im Excel-Export standen unter „FB Status", „PreCheck Status" und den Ordner-Spalten Datumswerte, obwohl die Spalten in der Tabelle einen Status anzeigen. Jetzt steht dort derselbe Text wie auf dem Bildschirm.
+- Ein einfacher Klick auf die Trennlinie zwischen zwei Spaltenköpfen hat die Spaltenbreite verändert, ohne dass man gezogen hat. Erst ein echtes Ziehen ändert die Breite.
 
 ## v3.4 — 2026-08
 

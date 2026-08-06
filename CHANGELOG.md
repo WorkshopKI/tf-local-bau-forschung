@@ -10,6 +10,7 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 MINOR — Seit v3.3.0 sind 24 Spalten plus die Ordner-Spalten des Statuskatalogs wählbar; die Tabelle war dafür nicht gebaut. Die Breiten stammten aus handgepflegten Pixelwerten statt aus dem Inhalt, der Griff für die Gesamtbreite lag im Scroll-Zustand außerhalb des Sichtfelds (gemessen: 731 px rechts daneben), und beim Scrollen verschwanden Kopfzeile und FKZ.
 
 - Tabellen-Baustein entlang seiner Verantwortungen zerlegt — Layout-Rechnung, Resize, Griff, Kopf, Körper je eigene Datei; die drei Größen-Modi sind erstmals testbar statt nur im Dateikopf beschrieben — [tableLayout.ts](src/components/data-table/tableLayout.ts)
+- Datumsspalten zeigen `30.07.2018` statt `2018-07-30`; der XLSX-Export schrieb unter „FB Status", „PreCheck Status" und allen Ordner-Spalten das ISO-Datum statt des Labels — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
 - Ein Klick ohne Ziehen auf den Spaltengriff schrieb bisher eine Spaltenbreite (im gestauchten Modus sogar eine verrechnete) — [useColumnResize.ts](src/components/data-table/useColumnResize.ts)
 
 ### v3.4.0 — Glossar (August 2026)
