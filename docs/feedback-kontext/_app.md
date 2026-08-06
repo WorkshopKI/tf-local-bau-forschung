@@ -44,13 +44,7 @@ Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die
 
 ## Begriffe
 
-- **Antrag** — ein Förderantrag, identifiziert über FKZ (Förderkennzeichen, Format `16KN######` oder `16EP######`)
-- **Verbund vs. Teilvorhaben** — ein Verbundprojekt bündelt mehrere Teilvorhaben (Teilanträge) unter einer gemeinsamen Projektbeschreibung; Anträge können Teil eines Verbunds oder eigenständig sein
-- **Ausgabe und Berechtigung** — welche Fassung der App jemand benutzt und was er darin ändern darf: die normale Ausgabe liest mit und schreibt nur in die eigenen Bereiche, die Projektleitung (PL) pflegt zusätzlich die Kurations-Daten des Teams, der Kurator kommt nach Passwort-Login an die Verwaltung
-- **Fachrolle** — wer im Verfahren zuständig ist: AB (administrative Bearbeitung), FB (fachliche Bearbeitung), PA (Projektadministration), QS (Qualitätssicherung), Juristen. Die Fachrolle stammt aus dem Kürzel-Katalog des Fachsystems und steuert, welche Aufgaben als eigene und welche als „wartet auf …" erscheinen; Einträge ohne Rollenvermerk darf jeder setzen und sie bleiben unter jeder Rollenwahl sichtbar. Beide Achsen sind unabhängig: dieselbe Person kann AB sein und zugleich die Projektleitungs-Ausgabe benutzen
-- **Status** — der amtliche Zustand eines Antrags im Fachsystem. Dort wird er nicht von Hand gesetzt: jemand trägt ein Kürzel ein, und eine Regel des Fachsystems setzt daraufhin den Status. Die App liest nur das Ergebnis und kann über die Trigger-Tabelle zeigen, wodurch es entstanden ist. Unabhängig davon können Artefakte wie Gutachten oder Nachforderungen existieren
-- **Verfahrensschritt** — die Gliederung des Verfahrens, die die App über die Status legt: Eingang, In Prüfung, Erstentscheidung, Begleitung, Abgeschlossen; einige Statuswerte laufen bewusst ohne Schritt daneben her. Das ist keine amtliche Einteilung, sondern eine Lesebrille — mit der Fachseite abgestimmt und im Katalog änderbar. Sie bestimmt Auswertung, Zieltage und Stillstandserkennung
-- **Arbeitsliste** — die gröbere Einteilung danach, wer am Zug ist; sie bestimmt Reiter, Gruppierung und Farbe in „Förderanträge". Sie steht fest, während der Verfahrensschritt beweglich ist — genau darin unterscheiden sich die beiden
+Abkürzungen und Begriffe des Verfahrens — Antrag, Verbund und Teilvorhaben, Fachrolle, Status, Verfahrensschritt, Arbeitsliste und die Kurzformen wie NF, RNE oder ZuwB — stehen im **Glossar** unter „Werkzeuge", mit einem Suchfeld darüber. Dort erklären sie sich einmal und nicht an drei Stellen nebeneinander.
 
 ## Technik
 

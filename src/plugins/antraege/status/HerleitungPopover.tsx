@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
+import { useNavigation } from '@/core/hooks/useNavigation';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import {
   herleitungAlsText, sortiereRollen, ROLLE_LABEL, ROLLE_LANG,
@@ -111,6 +112,27 @@ function AndereEbeneZeile({ a }: { a: AbweichendeEbene }): React.ReactElement {
           : s.zahPhase !== null
             && <span className="text-[var(--tf-text-tertiary)]">· ZAH-Phase {s.zahPhaseLabel}</span>}
     </div>
+  );
+}
+
+/**
+ * Der Weg vom Statuscode ins Glossar — dorthin, wo der Code seine Bezeichnung,
+ * seinen Verfahrensschritt und seine Zieltage hat. Steht in der Fußzeile neben
+ * „Herleitung kopieren", nicht als vierter Knopf oben: die Frage entsteht beim
+ * LESEN, aber sie ist nicht die dringlichste.
+ */
+function GlossarLink({ code }: { code: number | null }): React.ReactElement | null {
+  const { navigate } = useNavigation();
+  if (code === null) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => navigate('glossar')}
+      title={`Status ${code} im Glossar nachschlagen`}
+      className="text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline"
+    >
+      im Glossar
+    </button>
   );
 }
 
@@ -261,14 +283,17 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
             ? ` · Trigger v${h.datenstand.triggerVersion}`
             : ' · Trigger nicht importiert'}
         </span>
-        <button
-          type="button"
-          onClick={() => { void kopieren.run(); }}
-          title={kopieren.titel}
-          className="ml-auto text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline"
-        >
-          {kopieren.fehler ? '⚠ nicht kopiert' : kopieren.kopiert ? 'kopiert' : 'Herleitung kopieren'}
-        </button>
+        <span className="ml-auto flex items-center gap-2.5">
+          <GlossarLink code={h.code} />
+          <button
+            type="button"
+            onClick={() => { void kopieren.run(); }}
+            title={kopieren.titel}
+            className="text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline"
+          >
+            {kopieren.fehler ? '⚠ nicht kopiert' : kopieren.kopiert ? 'kopiert' : 'Herleitung kopieren'}
+          </button>
+        </span>
       </div>
     </div>
   );

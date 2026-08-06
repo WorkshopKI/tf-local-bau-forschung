@@ -8,7 +8,7 @@
  * Art, mit einem Zähler je Gruppe.
  */
 import type { GlossarBegriff } from '@/core/glossar';
-import type { KuerzelZeile, StatuswertZeile } from './glossarZeilen';
+import type { KuerzelZeile, RegelZeile, StatuswertZeile } from './glossarZeilen';
 
 /** Die Arten von Einträgen, in der Reihenfolge, in der sie in der Liste stehen. */
 export type GlossarArt = 'begriff' | 'statuswert' | 'kuerzel' | 'regel';
@@ -41,7 +41,8 @@ interface Basis {
 export type GlossarEintrag =
   | (Basis & { art: 'begriff'; begriff: GlossarBegriff })
   | (Basis & { art: 'statuswert'; zeile: StatuswertZeile })
-  | (Basis & { art: 'kuerzel'; zeile: KuerzelZeile });
+  | (Basis & { art: 'kuerzel'; zeile: KuerzelZeile })
+  | (Basis & { art: 'regel'; zeile: RegelZeile });
 
 export interface GlossarGruppe {
   art: GlossarArt;
@@ -82,6 +83,18 @@ export function kuerzelAlsEintrag(z: KuerzelZeile): GlossarEintrag {
     titel: z.code,
     unter: z.label,
     suchtext: `${z.code} ${z.label} ${z.csvSpalte} ${z.ordner}`.toLowerCase(),
+    zeile: z,
+  };
+}
+
+/** Eine To-do-Regel als Listeneintrag. */
+export function regelAlsEintrag(z: RegelZeile): GlossarEintrag {
+  return {
+    art: 'regel',
+    id: `regel:${z.regel.id}`,
+    titel: z.regel.beschreibung,
+    unter: z.sperre ? 'Sperre — legt Stränge still' : z.regel.todo,
+    suchtext: `${z.regel.id} ${z.regel.beschreibung} ${z.regel.todo} ${z.satz}`.toLowerCase(),
     zeile: z,
   };
 }

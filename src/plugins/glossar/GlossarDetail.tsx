@@ -13,6 +13,8 @@ import { verwandteIds, type GlossarEintrag } from './glossarSuche';
 import { DetailKopf } from './GlossarFelder';
 import { StatuswertDetail } from './StatuswertDetail';
 import { KuerzelDetail } from './KuerzelDetail';
+import { RegelDetail } from './RegelDetail';
+import type { RegelZeile } from './glossarZeilen';
 
 /** Der Verweis auf den Ort, an dem wirklich kuriert wird. */
 function KurationsHinweis(): React.ReactElement {
@@ -109,10 +111,11 @@ function BegriffDetail({ b, onWaehlen }: {
   );
 }
 
-export function GlossarDetail({ eintrag, version, trigger, onWaehlen }: {
+export function GlossarDetail({ eintrag, version, regeln, trigger, onWaehlen }: {
   eintrag: GlossarEintrag;
   /** `null` = kein Katalog geladen; dann gibt es die datengetriebenen Arten gar nicht. */
   version: MappingVersion | null;
+  regeln: readonly RegelZeile[];
   trigger: TriggerStand | null;
   onWaehlen: (id: string) => void;
 }): React.ReactElement | null {
@@ -126,9 +129,12 @@ export function GlossarDetail({ eintrag, version, trigger, onWaehlen }: {
     case 'kuerzel':
       return version === null ? null : (
         <KuerzelDetail
-          zeile={eintrag.zeile} version={version} trigger={trigger}
+          zeile={eintrag.zeile} version={version} regeln={regeln} trigger={trigger}
           onStatus={code => onWaehlen(`statuswert:${code}`)}
+          onRegel={onWaehlen}
         />
       );
+    case 'regel':
+      return <RegelDetail zeile={eintrag.zeile} />;
   }
 }

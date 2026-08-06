@@ -23,7 +23,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { BookOpen, Compass, HelpCircle, MessageSquarePlus, PanelRight } from 'lucide-react';
+import { BookA, BookOpen, Compass, HelpCircle, MessageSquarePlus, PanelRight } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -31,6 +31,7 @@ import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getSeitenHilfe } from '@/core/services/feedback/screenContext';
 import { oeffneHilfeFenster } from '@/components/help/hilfeFenster';
+import { useNavigation } from '@/core/hooks/useNavigation';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useUeberAppDialog } from '@/core/components/changelog/useUeberAppDialog';
 // Direkt am Quellmodul statt am Feedback-Barrel: das Barrel zieht `FeedbackPanel`
@@ -46,6 +47,11 @@ const FENSTER_DETAIL =
   'so lesen Sie mit und probieren die Schritte direkt aus, statt den Dialog dafür zu ' +
   'schließen. Das Fenster läuft beim Seitenwechsel mit und lässt sich festhalten.';
 
+const GLOSSAR_DETAIL =
+  'Glossar — nachschlagen, was die Abkürzungen und Begriffe des Verfahrens bedeuten: ' +
+  'NF, RNE, ZuwB, dazu Statuswerte, Kürzel und die Regeln, die sie prüfen. Lesend; ' +
+  'geändert wird weiterhin unter „Vorgangs-Regeln".';
+
 const TOUR_DETAIL =
   'Die Einführungs-Tour zeigt den Rahmen der App — Startseite, Navigation, Suche, ' +
   'Vorgangsliste. Touren durch die einzelnen Seiten kommen, sobald sich die Seiten ' +
@@ -56,6 +62,7 @@ const TOUR_DETAIL =
 export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.ReactElement | null {
   const hilfe = useMemo(() => getSeitenHilfe(pluginId), [pluginId]);
   const tour = useTourContext();
+  const { navigate } = useNavigation();
   const ueberAppOeffnen = useUeberAppDialog(s => s.openDialog);
   const [offen, setOffen] = useState(false);
   const [fensterBlockiert, setFensterBlockiert] = useState(false);
@@ -158,6 +165,19 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
               <Button variant="ghost" size="sm" icon={Compass} onClick={tourStarten}>
                 Einführungs-Tour
               </Button>
+            </Tooltip>
+            {/* Neben „Über die App", weil beide dieselbe Frage bedienen: „was
+                heißt das eigentlich?". Nur das Icon plus Tooltip — vier
+                beschriftete Knöpfe drängten den Titel bei den langen
+                Kuration-Überschriften auf drei Zeilen. */}
+            <Tooltip text={GLOSSAR_DETAIL} maxWidth={340} wrapperClassName="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={BookA}
+                aria-label="Glossar öffnen"
+                onClick={() => { setOffen(false); navigate('glossar'); }}
+              />
             </Tooltip>
             <Button
               variant="ghost"

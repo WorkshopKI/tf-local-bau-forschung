@@ -11,9 +11,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import type {
-  MappingVersion, StatusFeldEintrag, StatusWertEintrag, VorkommenStand,
+  Bedingung, MappingVersion, StatusFeldEintrag, StatusWertEintrag, TodoRegel, VorkommenStand,
 } from '@/core/status';
-import { kuerzelZeilen, rollenSicht, sonderErklaerung, statuswertZeilen } from '../glossarZeilen';
+import {
+  kuerzelZeilen, regelZeilen, regelnZuKuerzel, rollenSicht, sonderErklaerung, statuswertZeilen,
+} from '../glossarZeilen';
 
 const wert = (o: Partial<StatusWertEintrag> & { feldId: string; wert: string }): StatusWertEintrag => ({
   id: `${o.feldId}::${o.wert}`, kategorie: 'sonstige', prominenz: 'normal',
@@ -151,6 +153,91 @@ describe('rollenSicht', () => {
         feld({ feldId: 'D_B', code: 'B', rollen: ['ab'] })],
     }), stand({ proKuerzel: new Map([['B', 3]]) }));
     expect(rollenSicht(ohne, 'ab').eigene.map(z => z.code)).toEqual(['B', 'A']);
+  });
+});
+
+describe('regelnZuKuerzel (Rückwärts-Index Kürzel → Regel)', () => {
+  const regel = (id: string, bedingung: Bedingung): TodoRegel => ({
+    id, reihenfolge: 10, beschreibung: `Regel ${id}`, bedingung,
+    todo: `tu ${id}`, zustaendig: ['ab'], aktiv: true,
+  });
+
+  const v = fassung({
+    felder: [
+      feld({ feldId: 'bewilligung_datum', code: 'ABB', label: 'Bewilligung' }),
+      feld({ feldId: 'D_ALS', code: 'ALS', label: 'ohne weitere Nachforderungen' }),
+    ],
+    todoRegeln: [
+      // ABB haengt an einem KANONISCHEN Feld — `D_ABB` gaebe es nie.
+      regel('r-kanonisch', { feldId: 'bewilligung_datum', op: 'gefuellt' }),
+      regel('r-praefix', { feldId: 'D_ALS', op: 'gefuellt' }),
+      regel('r-verschachtelt', {
+        alle: [
+          { feldId: 'D_ALS', op: 'leer' },
+          { einige: [{ feldId: 'bewilligung_datum', op: 'gefuellt' }] },
+        ],
+      }),
+      regel('r-fremd', { feldId: 'D_XYZ', op: 'gefuellt' }),
+    ],
+  });
+  const zeilen = regelZeilen(v);
+
+  it('findet ein Kuerzel, das an einem kanonischen Feld haengt (Pitfall #44)', () => {
+    // Wer stattdessen auf `D_ABB` suchte, bekaeme „0 Regeln" — und merkte nichts
+    // davon, weil eine leere Liste wie eine Antwort aussieht.
+    expect(regelnZuKuerzel(zeilen, 'ABB').map(z => z.regel.id))
+      .toEqual(['r-kanonisch', 'r-verschachtelt']);
+  });
+
+  it('findet ein Kuerzel mit gewoehnlichem Spalten-Praefix', () => {
+    expect(regelnZuKuerzel(zeilen, 'ALS').map(z => z.regel.id))
+      .toEqual(['r-praefix', 'r-verschachtelt']);
+  });
+
+  it('steigt in UND/ODER-Gruppen hinab', () => {
+    expect(regelnZuKuerzel(zeilen, 'ABB').map(z => z.regel.id)).toContain('r-verschachtelt');
+  });
+
+  it('liefert eine leere Liste, wo keine Regel prueft', () => {
+    expect(regelnZuKuerzel(zeilen, 'AAE')).toEqual([]);
+  });
+});
+
+describe('regelZeilen', () => {
+  it('formuliert die Bedingung ueber den EINEN Formatierer', () => {
+    const v = fassung({
+      felder: [feld({ feldId: 'D_ABB', code: 'ABB', label: 'Bewilligung' })],
+      todoRegeln: [{
+        id: 'r1', reihenfolge: 10, beschreibung: 'R1', aktiv: true,
+        bedingung: { feldId: 'D_ABB', op: 'gefuellt' }, todo: 'tu was', zustaendig: [],
+      }],
+    });
+    // Das kuratierte Label, nicht die Feld-Id — sonst laese der Nutzer `D_ABB`.
+    expect(regelZeilen(v)[0]?.satz).toContain('Bewilligung');
+  });
+
+  it('liest den fehlenden Regelsatz als AB, nicht als „keiner"', () => {
+    const v = fassung({
+      todoRegeln: [{
+        id: 'r1', reihenfolge: 10, beschreibung: 'R1', aktiv: true,
+        bedingung: { feldId: 'x', op: 'gefuellt' }, todo: '', zustaendig: [],
+      }],
+    });
+    expect(regelZeilen(v)[0]?.regelsatz).toBe('ab');
+  });
+
+  it('erkennt eine Sperre an ihrem sperrt-Eintrag', () => {
+    const v = fassung({
+      todoRegeln: [{
+        id: 's0', reihenfolge: 1, beschreibung: 'S0', aktiv: true,
+        bedingung: { feldId: 'x', op: 'gefuellt' }, todo: '', zustaendig: [], sperrt: ['*'],
+      }],
+    });
+    expect(regelZeilen(v)[0]?.sperre).toBe(true);
+  });
+
+  it('liefert nichts, wenn die Fassung keine Kaskade fuehrt', () => {
+    expect(regelZeilen(fassung({}))).toEqual([]);
   });
 });
 

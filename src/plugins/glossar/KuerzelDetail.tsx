@@ -14,8 +14,9 @@ import {
   baueLegende, erklaerKatalog, richtlinienSatz, wirkungGruppen,
   type MappingVersion, type TriggerStand,
 } from '@/core/status';
-import { sonderErklaerung, type KuerzelZeile } from './glossarZeilen';
+import { regelnZuKuerzel, sonderErklaerung, type KuerzelZeile, type RegelZeile } from './glossarZeilen';
 import { Abschnitt, DetailKopf, Feld, Felder } from './GlossarFelder';
+import { RegelnVerweis } from './RegelnVerweis';
 
 /** Was das Kürzel im Fachsystem auslöst — oder warum hier nichts steht. */
 function Wirkung({ zeile, version, trigger, onStatus }: {
@@ -86,14 +87,61 @@ function Wirkung({ zeile, version, trigger, onStatus }: {
   );
 }
 
-export function KuerzelDetail({ zeile, version, trigger, onStatus }: {
+/**
+ * Welche To-do-Regeln dieses Kürzel prüfen — reine Auflistung.
+ *
+ * **Keine Vorhersage.** Was am Ende als To-do erscheint, hinge an der ganzen
+ * Kaskade samt Sperren; eine solche Behauptung wäre genau dann falsch, wenn sie
+ * interessant wird. Hier steht nur, WO das Kürzel vorkommt.
+ */
+function Verwendung({ regeln, onRegel }: {
+  regeln: readonly RegelZeile[];
+  onRegel: (id: string) => void;
+}): React.ReactElement {
+  if (regeln.length === 0) {
+    return (
+      <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+        Keine To-do-Regel prüft dieses Kürzel.
+      </p>
+    );
+  }
+  return (
+    <>
+      <ul className="flex flex-col gap-1.5">
+        {regeln.map(r => (
+          <li key={r.regel.id} className="flex flex-col">
+            <button
+              type="button"
+              onClick={() => onRegel(`regel:${r.regel.id}`)}
+              className="cursor-pointer text-left text-[12.5px] text-[var(--tf-primary)] underline underline-offset-2"
+            >
+              {r.regel.beschreibung}
+            </button>
+            <span className="text-[11.5px] leading-[1.35] text-[var(--tf-text-tertiary)]">
+              wenn {r.satz}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+        Wo es geprüft wird — nicht, welches To-do daraus folgt: das entscheidet die
+        ganze Kaskade samt ihren Sperren.
+      </p>
+    </>
+  );
+}
+
+export function KuerzelDetail({ zeile, version, regeln, trigger, onStatus, onRegel }: {
   zeile: KuerzelZeile;
   version: MappingVersion;
+  regeln: readonly RegelZeile[];
   trigger: TriggerStand | null;
   /** Sprung auf den Zielstatus — Kürzel → Status → Verfahrensschritt in zwei Klicks. */
   onStatus: (code: number) => void;
+  onRegel: (id: string) => void;
 }): React.ReactElement {
   const sonder = sonderErklaerung(zeile.code);
+  const verwendet = useMemo(() => regelnZuKuerzel(regeln, zeile.code), [regeln, zeile.code]);
 
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto px-6 py-5">
@@ -126,6 +174,11 @@ export function KuerzelDetail({ zeile, version, trigger, onStatus }: {
 
       <Abschnitt titel="Löst aus">
         <Wirkung zeile={zeile} version={version} trigger={trigger} onStatus={onStatus} />
+      </Abschnitt>
+
+      <Abschnitt titel="Wird verwendet von">
+        <Verwendung regeln={verwendet} onRegel={onRegel} />
+        {verwendet.length > 0 && <RegelnVerweis />}
       </Abschnitt>
     </div>
   );

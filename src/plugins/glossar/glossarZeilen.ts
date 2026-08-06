@@ -9,10 +9,11 @@
  * Kuration auseinander (Pitfalls #43/#45).
  */
 import {
-  istNeutral, kategorieFuerPhase, kategoriePfadLabel, phaseFuerCode, rollenLabel,
-  rollenVonFeld, sonderKuerzel, zahPhaseLabel, zahPhaseRang, zahPhasenVon, zieltageFuer,
+  bedingungFeldRefs, bedingungSatz, istNeutral, kategorieFuerPhase, kategoriePfadLabel,
+  phaseFuerCode, regelsatzVon, rollenLabel, rollenVonFeld, sonderKuerzel, todoFeld,
+  zahPhaseLabel, zahPhaseRang, zahPhasenVon, zieltageFuer,
   type MappingVersion, type Rolle, type StatusFeldEintrag, type StatusKategorie,
-  type VorkommenStand, type ZahPhaseId,
+  type TodoRegel, type VorkommenStand, type ZahPhaseId,
 } from '@/core/status';
 import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import type { StatusCategory } from '@/core/utils/status-canonical';
@@ -140,6 +141,45 @@ function ordnerPfad(
 export function sonderErklaerung(code: string): string | null {
   const s = sonderKuerzel(code);
   return s === null ? null : `${s.label} — ${s.zusatz}`;
+}
+
+export interface RegelZeile {
+  regel: TodoRegel;
+  /** Die Bedingung als Satz — aus dem EINEN Formatierer (Pitfall #41). */
+  satz: string;
+  /** Welcher Regelsatz sie abarbeitet; fehlend heißt AB. */
+  regelsatz: Rolle;
+  /** Eine Sperre erzeugt kein To-do, sondern legt Stränge still. */
+  sperre: boolean;
+}
+
+/** Die To-do-Regeln der Fassung als Glossar-Zeilen. */
+export function regelZeilen(version: MappingVersion): RegelZeile[] {
+  return (version.todoRegeln ?? []).map(r => ({
+    regel: r,
+    satz: bedingungSatz(r.bedingung, version),
+    regelsatz: regelsatzVon(r),
+    sperre: (r.sperrt ?? []).length > 0,
+  }));
+}
+
+/**
+ * Der Rückwärts-Index Kürzel → Regeln: welche To-do-Regeln prüfen dieses Kürzel?
+ *
+ * Die Übersetzung über `todoFeld()` ist PFLICHT (Pitfall #44): vier Kürzel hängen
+ * an kanonischen Feldern (`ABB` → `bewilligung_datum`). Wer stattdessen auf
+ * `D_ABB` sucht, bekommt „0 Regeln", obwohl mehrere es prüfen — und merkt nichts
+ * davon, weil eine leere Liste wie eine Antwort aussieht.
+ *
+ * Reine Auflistung. Welches To-do am Ende erscheint, sagt das Glossar
+ * ausdrücklich NICHT: das hinge an der ganzen Kaskade samt Sperren und wäre
+ * falsch, sobald es interessant wird.
+ */
+export function regelnZuKuerzel(
+  zeilen: readonly RegelZeile[], code: string,
+): RegelZeile[] {
+  const feldId = todoFeld(code);
+  return zeilen.filter(z => bedingungFeldRefs(z.regel.bedingung).includes(feldId));
 }
 
 /**

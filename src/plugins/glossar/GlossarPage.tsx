@@ -24,10 +24,10 @@ import { GlossarListe } from './GlossarListe';
 import { GlossarDetail, GlossarLeer } from './GlossarDetail';
 import { RollenSicht } from './RollenSicht';
 import { useGlossar } from './useGlossar';
-import { kuerzelZeilen, statuswertZeilen } from './glossarZeilen';
+import { kuerzelZeilen, regelZeilen, statuswertZeilen } from './glossarZeilen';
 import {
-  begriffAlsEintrag, gruppiere, gesamtZahl, kuerzelAlsEintrag, statuswertAlsEintrag,
-  waehleEintrag,
+  begriffAlsEintrag, gruppiere, gesamtZahl, kuerzelAlsEintrag, regelAlsEintrag,
+  statuswertAlsEintrag, waehleEintrag,
 } from './glossarSuche';
 
 type Sicht = 'nachschlagen' | 'rolle';
@@ -42,12 +42,16 @@ export function GlossarPage(): React.ReactElement {
     () => (version === null ? [] : kuerzelZeilen(version, vorkommen)),
     [version, vorkommen],
   );
+  // Einmal je Fassung, nicht je Kürzel-Detail: `bedingungFeldRefs` läuft
+  // rekursiv über jeden Bedingungsbaum.
+  const regeln = useMemo(() => (version === null ? [] : regelZeilen(version)), [version]);
 
   const alle = useMemo(() => [
     ...GLOSSAR_BEGRIFFE.map(begriffAlsEintrag),
     ...(version === null ? [] : statuswertZeilen(version, vorkommen).map(statuswertAlsEintrag)),
     ...kuerzel.map(kuerzelAlsEintrag),
-  ], [version, vorkommen, kuerzel]);
+    ...regeln.map(regelAlsEintrag),
+  ], [version, vorkommen, kuerzel, regeln]);
 
   const gruppen = useMemo(() => gruppiere(alle, suche), [alle, suche]);
   const auswahl = waehleEintrag(gruppen, gewaehlt);
@@ -138,7 +142,7 @@ export function GlossarPage(): React.ReactElement {
               auswahl
                 ? <GlossarDetail
                     key={auswahl.id} eintrag={auswahl}
-                    version={version} trigger={trigger} onWaehlen={springeZu}
+                    version={version} regeln={regeln} trigger={trigger} onWaehlen={springeZu}
                   />
                 : <GlossarLeer />
             }

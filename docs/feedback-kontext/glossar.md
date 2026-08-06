@@ -14,19 +14,41 @@ Wahrheit wären schlimmer als ein umständlicher Weg.
 - **Suchfeld** — steht oben und hat beim Öffnen den Fokus. Es sucht über alles
   gleichzeitig: wer nachschlägt, weiß meist noch nicht, ob das Gesuchte eine
   Abkürzung, ein Kürzel oder ein Statuswert ist.
+- **Reiter „Nachschlagen" und „Für meine Rolle wichtig"** — die eine Sicht sucht
+  über alles, die andere zeigt die Kürzel einer Fachrolle.
 - **Liste links** — die Treffer, nach Art gruppiert, jede Gruppe mit Zähler.
   Gruppen ohne Treffer fallen weg.
   - **Abkürzungen & Begriffe** — der einzige eigene Bestand der Seite. Was hier
     steht, steht nirgends sonst.
+  - **Statuswerte** — Code, Bezeichnung, Verfahrensschritt, Arbeitsliste,
+    Zieltage und wie oft der Status im Bestand vorkommt.
+  - **Kürzel** — Spalte, wer es setzt, Ordner, Vorkommen.
+  - **To-do-Regeln** — unter welcher Bedingung eine Regel greift und was sie
+    dann sagt.
 - **Erklärung rechts** — der gewählte Eintrag. Ohne Auswahl steht dort, was das
   Glossar ist und was es nicht ist, mit dem Weg zur Kuration.
 - **Siehe auch** — verwandte Einträge als Knöpfe unter der Erklärung. Ein Klick
   springt hin und leert dabei die Suche, damit das Ziel auch sichtbar ist.
+- **Wodurch dieser Status entsteht** — im Statuswert: welche Kürzel ihn setzen,
+  in welchen Richtlinien.
+- **Löst aus** — im Kürzel: was es im Fachsystem bewirkt, gleich lautende
+  Aussagen zusammengefasst („in 131, 133 und 137"). Setzt es einen Status,
+  führt ein Sprung dorthin.
+- **Wird verwendet von** — im Kürzel: welche To-do-Regeln es prüfen. Nur wo es
+  geprüft wird, nicht welches To-do daraus folgt — das entscheidet die ganze
+  Kaskade samt ihren Sperren.
+- **Für meine Rolle wichtig** — die Kürzel einer Fachrolle, nach Vorkommen
+  sortiert, mit einem Filter auf die Richtlinie. Kürzel ohne Rollen-Vermerk
+  stehen abgesetzt darunter: die darf jeder setzen.
 
 ## Typische Aktionen
 
 - Eine Abkürzung nachschlagen, die in einer Mail oder Tabelle steht
 - Von einem Eintrag über „Siehe auch" zum verwandten Begriff springen
+- Von einem Kürzel zum Status springen, den es setzt, und von dort zum
+  Verfahrensschritt
+- Nachsehen, welche Kürzel in der aktuellen Richtlinie für die eigene Rolle
+  häufig gesetzt werden
 - Aus dem Glossar heraus zur Kuration wechseln, wenn ein Eintrag geändert
   gehört
 
