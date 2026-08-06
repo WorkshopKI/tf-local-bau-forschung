@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.2.2 — Favicon prod auf ZIM-Lila (August 2026)
+
+PATCH — Das Schiefer-Blau aus v3.2.1 war ein Platzhalter meiner Wahl; prod trägt jetzt die Hausfarbe.
+
+- `build.faviconColor` der prod-Variante auf `#5C2483` — [prod.config.json](configs/prod.config.json); Weiß darauf 10,3:1
+- Farbliste im Branding-Runbook nachgezogen, inklusive der Ansage, dass der Fallback `#506786` bewusst keiner Variante gehört — [change-app-branding.md](docs/agents/change-app-branding.md)
+
 ### v3.2.1 — Tab-Titel auf ZIM umgestellt + Favicon je Variante (August 2026)
 
 PATCH — Der prod-Tab hieß „ZAH prod" — ein Bauzeit-Etikett vor Endnutzern, während die Datei längst `zim-dashboard.html` heißt. Und die App hatte überhaupt kein Favicon: unter `file://` läuft die `favicon.ico`-Anfrage ins Leere, im Tab stand das generische Blatt.

@@ -25,7 +25,7 @@ Im `build`-Block:
 }
 ```
 
-Belegte Favicon-Farben (pro Variante verschieden, ein Guard-Test hält das fest): prod `#506786`, pl `#3f7a5a`, dev `#b5651d`, local `#6b6b6b`.
+Belegte Favicon-Farben (pro Variante verschieden, ein Guard-Test hält das fest): prod `#5C2483` (ZIM-Lila), pl `#3f7a5a`, dev `#b5651d`, local `#6b6b6b`. Der Fallback `#506786` gehört bewusst keiner Variante — wer ihn im Tab sieht, hat eine Config ohne `faviconColor` gebaut.
 
 ## Validierungs-Regeln (`scripts/config-schema.mjs`)
 
