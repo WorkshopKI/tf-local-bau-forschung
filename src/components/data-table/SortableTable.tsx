@@ -24,11 +24,18 @@
  * Resize ist opt-in: nur wenn `onColumnWidthChange` gesetzt ist, rendert der
  * Header Drag-Handles.
  *
+ * **Zwei Scroll-Zuschnitte.** Normal scrollt dieser Kasten nur waagerecht und
+ * wächst senkrecht mit dem Inhalt — wer ihn einbettet, scrollt selbst. Mit
+ * `stickyHeader` übernimmt er auch das senkrechte Scrollen; nur so kann der Kopf
+ * stehen bleiben (Begründung am Prop). Das ist eine Absprache mit dem
+ * Verbraucher, kein Schalter: er muss die Höhe begrenzen und Scroll-Stand,
+ * Beobachtungs-Bereich und Fußzeile hier hereinreichen.
+ *
  * Fuer komplexere Tabellen mit Filter-Dropdowns + Virtualisierung (Suche-Plugin)
  * gibt es eine eigene Implementation — `src/plugins/suche/SearchResultsTable.tsx`,
  * das Vorbild fuer die Prozent-Spalten. Diese hier ist die schlanke Variante.
  */
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { computeTableSizing, FUELLER_KEY, RESPONSIVE_MIN_WIDTH } from './tableSizing';
 import { leiteModus, leiteTabellenStil, wrapperKlassen } from './tableLayout';
 import { useAutoColumnWidths } from './messung/useAutoColumnWidths';
@@ -166,6 +173,31 @@ export interface SortableTableProps<T> {
    *  Rubrik geordnet ist — sonst zerfällt jede Rubrik in mehrere Strecken und
    *  die Zeile liest sich als Wiederholung. Default `false`. */
   showGroupHeader?: boolean;
+  /**
+   * Opt-in: die Kopfzeile(n) bleiben beim senkrechten Scrollen stehen.
+   *
+   * **Das ist kein reiner Stil-Schalter.** Der Kasten wird damit selbst zum
+   * senkrechten Scroller — anders geht es nicht: `overflow-x: auto` macht den
+   * Scroll-Container per Spec auf BEIDEN Achsen zum Scrollport, er ist also
+   * schon heute der nächste scrollende Vorfahr des `<thead>`. Solange er
+   * `height: auto` hat und senkrecht nie scrollt, klebt der Kopf an einer Kante,
+   * die sich nie bewegt: wirkungslos.
+   *
+   * Der Verbraucher muss dem Kasten deshalb eine BEGRENZTE Höhe geben (Kette aus
+   * `flex-1 min-h-0`) und den Scroll-Stand, den er bisher am eigenen Container
+   * hatte, über `scrollContainerRef`/`onScroll` hier hereinreichen. Alles, was
+   * unter der Tabelle mitscrollen soll — allen voran ein Pagination-Sentinel —
+   * gehört in `footerSlot`; außerhalb stünde es im nicht scrollenden Elternteil
+   * und wäre dauerhaft sichtbar.
+   */
+  stickyHeader?: boolean;
+  /** Zugriff auf den Scroll-Container von außen (Scroll-Stand erhalten,
+   *  `IntersectionObserver`-Root). Nur mit `stickyHeader` sinnvoll — ohne ihn
+   *  scrollt dieser Kasten senkrecht nicht. */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  /** Inhalt UNTER der Tabelle, aber INNERHALB des Scrollers. */
+  footerSlot?: ReactNode;
 }
 
 export function SortableTable<T>({
@@ -198,6 +230,10 @@ export function SortableTable<T>({
   measureSignature,
   stickyFirstColumn = false,
   showGroupHeader = false,
+  stickyHeader = false,
+  scrollContainerRef,
+  onScroll,
+  footerSlot,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   // „Gesamt-Breite"-Griff: `enabled` = Griff wird gerendert; `active` = eine
@@ -233,6 +269,13 @@ export function SortableTable<T>({
   const gemessen = auto?.breiten;
   const modus = leiteModus(totalWidthActive, fitContentWidth);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Der Scroller wird an ZWEI Stellen gebraucht: intern für die Breitenmessung,
+  // extern für Scroll-Stand und Beobachtungs-Bereich. `useCallback`, damit React
+  // die Referenz nicht bei jedem Rendern löst und neu setzt.
+  const setScrollEl = useCallback((el: HTMLDivElement | null) => {
+    scrollRef.current = el;
+    if (scrollContainerRef) scrollContainerRef.current = el;
+  }, [scrollContainerRef]);
   // Nur im Scroll-Modus gibt es einen Überschuss zu verteilen: im Einpass-Modus
   // ist die Tabelle ohnehin containerbreit, und bei gepinnter Gesamtbreite hat
   // der Nutzer die Breite gesetzt — beides darf die Verteilung nicht anfassen.
@@ -277,10 +320,29 @@ export function SortableTable<T>({
   // unberührt. Rahmen + Radius trägt deshalb der äußere Wrapper.
   return (
     <div
-      className="w-full flex items-stretch rounded-[12px] overflow-hidden"
+      className={
+        'w-full flex items-stretch rounded-[12px] overflow-hidden'
+        // Der Kasten nimmt die Resthöhe seines Elternteils, statt mit dem Inhalt
+        // zu wachsen — sonst hätte der Scroller keine Kante, an der etwas kleben
+        // könnte.
+        + (stickyHeader ? ' flex-1 min-h-0' : '')
+      }
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div ref={scrollRef} className="flex-1 min-w-0 overflow-x-auto">
+      <div
+        ref={setScrollEl}
+        onScroll={onScroll}
+        className={`flex-1 min-w-0 ${stickyHeader ? 'overflow-auto' : 'overflow-x-auto'}`}
+        // Platz für den senkrechten Scrollbalken FEST reservieren. Ohne ihn
+        // erscheint der Balken erst, wenn die Zeilen da sind — und verengt damit
+        // genau das Element, dessen `clientWidth` die Spaltenbreiten trägt
+        // (`useContainerBreite`). Die Folge wäre eine Tabelle, die um die
+        // Balkenbreite zu breit ist, bis ein `ResizeObserver`-Durchlauf sie
+        // nachzieht. Mit reserviertem Platz stimmt die Messung ab dem ersten
+        // Bild. Nur im stehenden Modus — sonst scrollt dieser Kasten senkrecht
+        // gar nicht und der Streifen wäre grundlos.
+        style={stickyHeader ? { scrollbarGutter: 'stable' } : undefined}
+      >
         <div className={wrapperKlassen(modus)}>
           <table ref={tableRef} className="text-[12.5px]" style={tableStyle}>
             <colgroup>
@@ -330,6 +392,7 @@ export function SortableTable<T>({
               filterCandidates={filterCandidates}
               stickyFirstColumn={stickyFirstColumn}
               showGroupHeader={showGroupHeader}
+              stickyHeader={stickyHeader}
             />
             <TableBody
               rows={rows}
@@ -344,6 +407,13 @@ export function SortableTable<T>({
             />
           </table>
         </div>
+        {/* `sticky left-0` + volle Container-Breite: als gewöhnlicher Block
+            säße der Streifen bei waagerecht gescrollter Tabelle links außerhalb
+            des Sichtfelds — und ein Pagination-Sentinel dort schneidet den
+            Beobachtungs-Bereich nie mehr, das Nachladen bliebe stehen. */}
+        {footerSlot ? (
+          <div className="sticky left-0 w-full">{footerSlot}</div>
+        ) : null}
       </div>
       {onTotalWidthChange !== undefined ? (
         <TotalWidthGrip

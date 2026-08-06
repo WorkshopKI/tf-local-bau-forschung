@@ -17,10 +17,10 @@
  *   kein Filter-Chip, siehe `precheckQuickfilter.ts`)
  * - Sort → `useAntraegeStore` (per-View)
  *
- * Die **Gruppieren**-Steuerung ist seit Phase 2 kein Segment mehr, sondern ein
- * Dropdown rechts in `AntraegeMain` (`GruppierenDropdown`).
+ * Die **Gruppieren**-Steuerung ist seit Phase 2 kein Segment mehr, sondern eine
+ * Achse im „Darstellung"-Menü rechts in `AntraegeMain` (`DarstellungDropdown`).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveViewMode } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
@@ -51,7 +51,19 @@ import {
   type QuickfilterSegId,
 } from './quickfilterExpanded';
 
-export function QuickfilterToolbar(): React.ReactElement {
+interface Props {
+  /** Wird als LETZTES, rechtsbündiges Element in DENSELBEN Umbruch-Fluss wie die
+   *  Segmente gehängt.
+   *
+   *  Als Geschwister neben der Toolbar gerendert nützt das nichts: die Segmente
+   *  liegen in diesem inneren `flex-wrap`-Container, der nach außen EIN Flex-Item
+   *  ist. Ein Nachbar bricht deshalb immer auf eine eigene Zeile um, egal wie viel
+   *  Platz neben der letzten Segment-Zeile frei ist (in der App nachgemessen).
+   *  Der Slot ist die Stelle, an der er mitreitet. */
+  abschluss?: ReactNode;
+}
+
+export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElement {
   // Counts auf der "Kürzel-gefilterten" Basis berechnen, nicht auf der
   // Roh-Liste — sonst zeigen die Pillen Counts der gesamten Kohorte
   // obwohl die Tabs oben (Offen / Alle …) bereits den Kürzel-Filter
@@ -182,6 +194,7 @@ export function QuickfilterToolbar(): React.ReactElement {
           onExpandToggle={() => handleToggle('sort')}
         />
       )}
+      {abschluss}
     </div>
   );
 }

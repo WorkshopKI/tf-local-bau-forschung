@@ -8,7 +8,8 @@ import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
-import { GruppierenDropdown } from './filter/GruppierenDropdown';
+import { DarstellungDropdown } from './DarstellungDropdown';
+import { baueDarstellungsAchsen, type DarstellungAchseId } from './darstellungsAchsen';
 import { getPhaseFromActive, STATUS_FILTER_ID } from './filter/phaseQuickfilter';
 import { getKategorieFromActive, KATEGORIE_FILTER_ID } from './filter/kategorieQuickfilter';
 import { AntragGroupCard } from './AntragGroupCard';
@@ -23,10 +24,8 @@ import {
   type GroupingMode,
 } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
-import { sortDisablesGrouping, GROUPING_OPTIONS } from './sort';
+import { sortDisablesGrouping } from './sort';
 import {
-  TABLE_GROUPING_OPTIONS,
-  TABLE_ANSICHT_OPTIONS,
   type TableGroupingMode,
   type TabellenAnsicht,
 } from './tableGrouping';
@@ -40,8 +39,6 @@ import {
   arbeitsvorratSectionOf,
   archivAufschluesselung,
   formatArchivAufschluesselung,
-  ARBEITSVORRAT_LABEL,
-  BEENDET_OPTIONS,
 } from './arbeitsvorrat';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
@@ -65,7 +62,7 @@ import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
-import { AlertTriangle, Settings, PanelLeftClose, Rows3, Archive } from 'lucide-react';
+import { AlertTriangle, Settings, PanelLeftClose } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
@@ -112,6 +109,26 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Achse „Beendet" — eigener Schalter statt Kopplung an „Gruppierung: Keine".
   const beendetAusgeblendet = useBeendetSichtbarkeit(s => s.ausgeblendet);
   const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
+  // Die drei Darstellungs-Achsen teilen sich EIN Menü. Welche davon im aktuellen
+  // Zustand gilt, entscheidet die pure `darstellungsAchsen.ts` — hier bleibt nur
+  // das Verteilen der Wahl auf die drei Store-Slots.
+  const darstellungsAchsen = useMemo(
+    () => baueDarstellungsAchsen({
+      viewMode,
+      activeView,
+      tableAnsicht,
+      tableGruppierung: tableGrouping,
+      listGruppierung: listGrouping,
+      beendetAusgeblendet,
+    }),
+    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, beendetAusgeblendet],
+  );
+  const setzeDarstellung = (id: DarstellungAchseId, key: string): void => {
+    if (id === 'ansicht') setTableAnsichtForView(activeView, key as TabellenAnsicht);
+    else if (id === 'beendet') setBeendetAusgeblendet(key === 'aus');
+    else if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
+    else setGroupingForView(activeView, key as GroupingMode);
+  };
   // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
   // teilt den State reaktiv mit der Tabelle über den globalen Store.
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
@@ -157,6 +174,16 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Zurückschalten wieder her.
   const wideScrollRef = useRef<HTMLDivElement | null>(null);
   const wideScrollTop = useRef(0);
+  // Stehende Kopfzeile: NUR die Tabellen-Ansicht. Sie ist die einzige mit einer
+  // Kopfzeile, die stehen bleiben könnte — und der Umbau ist keiner der
+  // Darstellung, sondern des Scroll-Containers: statt der ganzen Spalte scrollt
+  // dann der Tabellenkasten. Karten- und Listen-Ansicht bleiben deshalb, wie sie
+  // sind; ihre Toolbar festzunageln ist eine eigene Entscheidung, nach der
+  // niemand gefragt hat.
+  const stickyKopf = !narrow && viewMode === 'compact';
+  const merkeScroll = (e: React.UIEvent<HTMLDivElement>): void => {
+    wideScrollTop.current = e.currentTarget.scrollTop;
+  };
   useLayoutEffect(() => {
     if (!narrow && wideScrollRef.current) {
       wideScrollRef.current.scrollTop = wideScrollTop.current;
@@ -181,15 +208,21 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     if (!node) return;
     if (visibleRows >= filtered.length) return;
     const step = pageSizeForMode(viewMode);
+    // Bei stehendem Kopf scrollt der Tabellenkasten, nicht die Spalte. `root:
+    // null` (Viewport) funktionierte zwar weiter — die Spec rechnet alle
+    // dazwischenliegenden Scroll-Container mit —, aber `rootMargin` bezöge sich
+    // dann auf den Viewport und liefe ins Leere: der Sentinel wird vom inneren
+    // Kasten geklippt, lange bevor der Viewport-Rand erreicht ist. Nachgeladen
+    // würde erst, wenn die Zeile wirklich sichtbar ist, statt 600px vorher.
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) setVisibleRows((v) => v + step);
       },
-      { rootMargin: '600px' },
+      { root: stickyKopf ? wideScrollRef.current : null, rootMargin: '600px' },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [filtered.length, visibleRows, viewMode]);
+  }, [filtered.length, visibleRows, viewMode, stickyKopf, narrow]);
 
   const containerStyle: React.CSSProperties = narrow
     ? { width: KOMPAKT_WIDTH, flexShrink: 0, position: 'relative' }
@@ -203,20 +236,27 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Nur die List-View trägt den max-w-6xl-Lesbarkeits-Cap; Tabelle (Compact)
   // + Cards nutzen die volle Breite → Toolbar-Box muss denselben Cap-Zustand
   // wie der Content darunter haben. narrow px-4.
-  const toolbarClass = narrow
-    ? 'px-4 pt-3'
+  const toolbarClass = (narrow
+    ? 'px-4 pt-3 pb-3'
     : viewMode === 'list'
-      ? 'px-8 pt-3 max-w-6xl'
-      : 'px-8 pt-3';
+      ? 'px-8 pt-3 pb-3 max-w-6xl'
+      : 'px-8 pt-3 pb-3')
+    // Bei stehendem Kopf scrollt die Spalte nicht mehr — die Toolbar bleibt
+    // dann von sich aus oben und darf nur nicht mitschrumpfen.
+    + (stickyKopf ? ' shrink-0' : '');
   // Karten- UND Tabellen-View nutzen die volle Browserbreite, damit auf breiten
   // Monitoren alle Spalten/Anträge mit wenig Scrollen sichtbar sind. Nur die
   // List-View behält max-w-6xl als Lesbarkeits-Cap für die Listen-Zeilen
   // (Text-Zeilen werden sonst unangenehm lang).
-  const contentClass = narrow
+  const contentClass = (narrow
     ? 'px-4 pb-4'
     : viewMode === 'list'
       ? 'px-8 pb-6 max-w-6xl'
-      : 'px-8 pb-6';
+      : 'px-8 pb-6')
+    // Die Tabelle bekommt die Resthöhe. `min-h-0` ist Pflicht: ohne sie wächst
+    // ein Flex-Kind bis zu seiner Inhaltshöhe und der Scroller darin bekäme nie
+    // eine Kante.
+    + (stickyKopf ? ' flex-1 min-h-0 flex flex-col' : '');
 
   // Trefferzahl nach Filterung — Basis immer TV-Ebene, dazu die Zeilenzahl,
   // wenn eine Gruppierung verdichtet. Details + Guards in `trefferZahl.ts`.
@@ -259,16 +299,23 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
 
   return (
     <div className={containerClass} style={containerStyle}>
+      {/* Bei stehendem Kopf scrollt nicht mehr diese Spalte, sondern der
+          Tabellenkasten weiter unten — `wideScrollRef` und der Scroll-Merker
+          wandern deshalb mit dorthin (an EINER Stelle gesetzt, nie an beiden). */}
       <div
-        ref={wideScrollRef}
-        onScroll={e => { wideScrollTop.current = e.currentTarget.scrollTop; }}
-        className="flex-1 min-w-0 h-full overflow-y-auto"
+        ref={stickyKopf ? undefined : wideScrollRef}
+        onScroll={stickyKopf ? undefined : merkeScroll}
+        className={stickyKopf
+          ? 'flex-1 min-w-0 h-full flex flex-col overflow-hidden'
+          : 'flex-1 min-w-0 h-full overflow-y-auto'}
       >
-        {/* Zeile A: Quickfilter-Akkordeon (Status/Antragstyp/PreCheck/Sort) links,
-            Gruppierung + (nur Tabelle) Spalten-Picker rechts. Zeile B darunter:
-            aktive Sidebar-Filter-Chips links, Trefferzähler rechts. Toolbar in
-            eigenem Container ohne max-w-*, damit die volle Viewport-Breite genutzt
-            wird. Bearbeiter-Pill sitzt im Header neben dem Titel. */}
+        {/* EINE Toolbar-Zeile: links das Quickfilter-Akkordeon, rechts
+            „Darstellung" + (nur Tabelle) der Spalten-Picker. Die Trefferzahl
+            reitet im UMBRUCH der Quickfilter mit (siehe unten), die aktiven
+            Sidebar-Chips bekommen nur dann eine eigene Zeile, wenn es welche
+            gibt. Toolbar in eigenem Container ohne max-w-*, damit die volle
+            Viewport-Breite genutzt wird. Bearbeiter-Pill sitzt im Header neben
+            dem Titel. */}
         <div className={toolbarClass}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
@@ -283,41 +330,29 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   <PanelLeftClose size={16} />
                 </button>
               )}
-              <QuickfilterToolbar />
+              {/* Die Trefferzahl reitet im Umbruch-Fluss der Quickfilter mit
+                  (deshalb der `abschluss`-Slot und kein Geschwister-Element):
+                  passt alles nebeneinander, sitzt sie rechts daneben; brechen
+                  die Pillen um, landet sie rechts auf deren letzter Zeile —
+                  genau dort, wo der rechte Block ohnehin nichts mehr belegt.
+                  Schlimmstenfalls nimmt sie wie früher eine eigene Zeile. */}
+              <QuickfilterToolbar
+                abschluss={treffer.tv > 0 ? (
+                  <span
+                    className="ml-auto pl-2 shrink-0 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
+                    title={trefferZahlTitel(treffer)}
+                  >
+                    {formatTrefferZahl(treffer)}
+                  </span>
+                ) : null}
+              />
             </div>
             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
-              {/* Zeilen-Körnung — nur die Tabelle kennt diese Achse; Karten- und
-                  Listen-Ansicht verdichten Verbünde nicht. */}
-              {viewMode === 'compact' ? (
-                <GruppierenDropdown
-                  label="Ansicht:"
-                  icon={Rows3}
-                  options={TABLE_ANSICHT_OPTIONS}
-                  value={tableAnsicht}
-                  onChange={(key) => setTableAnsichtForView(activeView, key as TabellenAnsicht)}
-                />
-              ) : null}
-              <GruppierenDropdown
-                options={viewMode === 'compact' ? TABLE_GROUPING_OPTIONS : GROUPING_OPTIONS}
-                value={viewMode === 'compact' ? tableGrouping : listGrouping}
-                onChange={(key) => {
-                  if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
-                  else setGroupingForView(activeView, key as GroupingMode);
-                }}
-              />
-              {/* Sichtbarkeit der beendeten Anträge — unabhängig von Ansicht
-                  und Gruppierung. Nur im „Alle"-Reiter (anderswo praktisch
-                  nichts Terminales) und nicht in der Karten-Ansicht, die den
-                  Split noch nie kannte. */}
-              {hatBeendetAchse(activeView) && viewMode !== 'cards' ? (
-                <GruppierenDropdown
-                  label={`${ARBEITSVORRAT_LABEL.archiv}:`}
-                  icon={Archive}
-                  options={BEENDET_OPTIONS}
-                  value={beendetAusgeblendet ? 'aus' : 'ein'}
-                  onChange={(key) => setBeendetAusgeblendet(key === 'aus')}
-                />
-              ) : null}
+              {/* Ansicht, Gruppierung und Beendet-Sichtbarkeit teilen sich EIN
+                  Menü — als drei Dropdowns belegten sie rund 640px und drängten
+                  die Quickfilter in einen Umbruch. Welche Achse gerade gilt,
+                  entscheidet `baueDarstellungsAchsen`. */}
+              <DarstellungDropdown achsen={darstellungsAchsen} onChange={setzeDarstellung} />
               {viewMode === 'compact' ? (
                 <ColumnPicker
                   columns={pickerColumns}
@@ -337,43 +372,35 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               ) : null}
             </div>
           </div>
-          {(chipActive.length > 0 || ampelQuickfilter !== null || treffer.tv > 0) ? (
-            <div className="mt-2 mb-3 flex items-center justify-between gap-3 flex-wrap">
-              <div className="min-w-0 flex items-center flex-wrap gap-1.5">
-                {ampelQuickfilter !== null ? (
-                  <FilterChip
-                    label="Antragseingang"
-                    value={`${AMPEL_BUCKET_LABEL[ampelQuickfilter.bucket]} (${
-                      ampelQuickfilter.bucket === 'frisch'
-                        ? `≤ ${ampelQuickfilter.schwellen.warnschwelleTage} T`
-                        : ampelQuickfilter.bucket === 'warnung'
-                          ? `${ampelQuickfilter.schwellen.warnschwelleTage + 1}–${ampelQuickfilter.schwellen.kritischSchwelleTage} T`
-                          : `> ${ampelQuickfilter.schwellen.kritischSchwelleTage} T`
-                    })`}
-                    onRemove={() => setAmpelQuickfilter(null)}
-                  />
-                ) : null}
-                {chipActive.length > 0 ? (
-                  <ActiveFilterChips
-                    active={chipActive}
-                    definitions={definitions}
-                    onRemove={clearFilter}
-                    className="flex flex-wrap gap-1.5"
-                  />
-                ) : null}
-              </div>
-              {treffer.tv > 0 ? (
-                <span
-                  className="shrink-0 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
-                  title={trefferZahlTitel(treffer)}
-                >
-                  {formatTrefferZahl(treffer)}
-                </span>
+          {/* Eigene Zeile NUR für aktive Filter-Chips. Ohne Chips entfiel sie
+              früher nicht, weil die Trefferzahl darin saß — das war die
+              Leerzeile über der Tabelle. Der Abstand zur Tabelle steht jetzt am
+              Container (`pb-3`), damit er in beiden Fällen derselbe ist. */}
+          {(chipActive.length > 0 || ampelQuickfilter !== null) ? (
+            <div className="mt-2 min-w-0 flex items-center flex-wrap gap-1.5">
+              {ampelQuickfilter !== null ? (
+                <FilterChip
+                  label="Antragseingang"
+                  value={`${AMPEL_BUCKET_LABEL[ampelQuickfilter.bucket]} (${
+                    ampelQuickfilter.bucket === 'frisch'
+                      ? `≤ ${ampelQuickfilter.schwellen.warnschwelleTage} T`
+                      : ampelQuickfilter.bucket === 'warnung'
+                        ? `${ampelQuickfilter.schwellen.warnschwelleTage + 1}–${ampelQuickfilter.schwellen.kritischSchwelleTage} T`
+                        : `> ${ampelQuickfilter.schwellen.kritischSchwelleTage} T`
+                  })`}
+                  onRemove={() => setAmpelQuickfilter(null)}
+                />
+              ) : null}
+              {chipActive.length > 0 ? (
+                <ActiveFilterChips
+                  active={chipActive}
+                  definitions={definitions}
+                  onRemove={clearFilter}
+                  className="flex flex-wrap gap-1.5"
+                />
               ) : null}
             </div>
-          ) : (
-            <div className="mb-3" />
-          )}
+          ) : null}
         </div>
         <div className={contentClass}>
           {bearbeiterKuerzelMissing && antraege.length > 0 ? (
@@ -425,6 +452,9 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
               onZeilenMeldung={setZeilenMeldung}
+              stickyHeader={stickyKopf}
+              scrollContainerRef={stickyKopf ? wideScrollRef : undefined}
+              onScroll={stickyKopf ? merkeScroll : undefined}
             />
           ) : viewMode === 'cards' ? (
             <CardGrid

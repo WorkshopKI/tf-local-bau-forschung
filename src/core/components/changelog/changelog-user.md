@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.12 — 2026-08
+
+### Verbesserungen
+- In der Tabellen-Ansicht der Förderanträge bleibt die Kopfzeile beim Blättern nach unten stehen — man sieht also auch weit unten noch, welche Spalte man liest. Die Reiter, die Suche und die Filter darüber bleiben ebenfalls sichtbar; gescrollt wird nur noch die Tabelle.
+- Die drei Schalter „Ansicht", „Gruppierung" und „Beendet" stehen jetzt zusammen in einem Menü „Darstellung". Der Knopf zeigt weiterhin an, was gerade vom Normalfall abweicht — er nimmt nur deutlich weniger Platz weg.
+- Der Kopf der Seite ist zwei Zeilen kürzer: die Trefferzahl („403 Teilvorhaben · 183 Verbund-Zeilen") rückt ans Ende der Filter-Zeile, statt eine eigene, halb leere Zeile zu belegen. Dadurch beginnt die Liste rund 70 Pixel weiter oben.
+
 ## v3.11 — 2026-08
 
 ### Bugfixes

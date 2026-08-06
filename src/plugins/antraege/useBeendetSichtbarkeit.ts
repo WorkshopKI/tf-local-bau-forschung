@@ -19,16 +19,22 @@
  * Wunsch stillschweigend verworfen.
  */
 import { create } from 'zustand';
+import { DEFAULT_BEENDET_SICHT } from './arbeitsvorrat';
 
 const STORAGE_KEY = 'teamflow_antraege_archiv_collapsed';
+
+/** Die Standardstellung wohnt bei den Optionen (`arbeitsvorrat.ts`) — sonst
+ *  behauptete das Darstellungs-Menü „weicht ab", wo dieser Store „Standard"
+ *  meint. */
+const STANDARD_AUSGEBLENDET = DEFAULT_BEENDET_SICHT === 'aus';
 
 function loadAusgeblendet(): boolean {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === null) return true; // Default: Beendetes ausgeblendet
+    if (raw === null) return STANDARD_AUSGEBLENDET;
     return raw === '1';
   } catch {
-    return true;
+    return STANDARD_AUSGEBLENDET;
   }
 }
 

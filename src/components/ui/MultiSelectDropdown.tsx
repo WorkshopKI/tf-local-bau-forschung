@@ -7,7 +7,7 @@
  * `onChange` durch. **Leere Auswahl heißt „kein Filter"** (alle Werte) — die
  * übliche Facetten-Semantik, nicht „nichts anzeigen".
  *
- * Visuelle Familie = `GruppierenDropdown` + `ColumnPicker` (gerahmter Button,
+ * Visuelle Familie = `DarstellungDropdown` + `ColumnPicker` (gerahmter Button,
  * `--tf-*`-Theming, `useClickOutside`), damit alle Toolbar-Steuerungen der App
  * fluchten. Ein natives `<select>` gehört in Formulare, nicht in eine
  * Filter-Leiste: es zeichnet ein Betriebssystem-Menü in fremden Farben und kann

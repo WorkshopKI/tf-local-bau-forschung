@@ -41,6 +41,15 @@ interface Props {
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
+  /** Der Tabellenkasten wird selbst zum senkrechten Scroller, damit die
+   *  Kopfzeile stehen bleibt (siehe `SortableTable.stickyHeader`). Dann wandert
+   *  auch der Pagination-Sentinel MIT hinein — außerhalb stünde er im nicht
+   *  scrollenden Elternteil, wäre dauerhaft sichtbar und lüde sofort alles nach. */
+  stickyHeader?: boolean;
+  /** Scroll-Container der Tabelle nach außen reichen (Scroll-Stand über den
+   *  Detail-Split, `IntersectionObserver`-Root). Nur mit `stickyHeader`. */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   /** Meldet der Toolbar in AntraegeMain, was die Tabelle gerade zeigt: die
    *  spaltengefilterte TV-Anzahl und die Zeilen, die daraus werden. */
   onZeilenMeldung?: (m: ZeilenMeldung) => void;
@@ -119,6 +128,9 @@ export function AntraegeTable({
   onOpenVerbund,
   sentinelRef,
   onZeilenMeldung,
+  stickyHeader = false,
+  scrollContainerRef,
+  onScroll,
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -322,8 +334,14 @@ export function AntraegeTable({
       }
     : {};
 
+  const ladeStreifen = hasMore ? (
+    <div ref={sentinelRef} className="py-3 text-center text-[11px] text-[var(--tf-text-tertiary)]">
+      Lade weitere Einträge …
+    </div>
+  ) : null;
+
   return (
-    <div className="flex flex-col">
+    <div className={stickyHeader ? 'flex flex-col flex-1 min-h-0' : 'flex flex-col'}>
       <SortableTable<AntragTableRow>
         rows={rows}
         columns={columns}
@@ -359,13 +377,15 @@ export function AntraegeTable({
         columnFilters={columnFilters}
         onColumnFilterChange={setColumnFilter}
         filterCandidates={filterCandidates}
+        // Der Kopf bleibt stehen — dafür wird dieser Kasten der senkrechte
+        // Scroller, und der Lade-Streifen muss MIT hinein.
+        stickyHeader={stickyHeader}
+        scrollContainerRef={scrollContainerRef}
+        onScroll={onScroll}
+        footerSlot={stickyHeader ? ladeStreifen : undefined}
         {...sectionProps}
       />
-      {hasMore ? (
-        <div ref={sentinelRef} className="py-3 text-center text-[11px] text-[var(--tf-text-tertiary)]">
-          Lade weitere Einträge …
-        </div>
-      ) : null}
+      {stickyHeader ? null : ladeStreifen}
       {/* Ausgeblendetes Beendet: Streifen unter der Tabelle (seine Zeilen sind
           bewusst nicht Teil der Tabelle → keine Pagination). Klick blendet ein
           und setzt damit denselben Schalter wie die Toolbar. Er steht unter

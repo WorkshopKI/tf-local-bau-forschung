@@ -117,6 +117,12 @@ export const BEENDET_OPTIONS: readonly { key: BeendetSicht; label: string }[] = 
   { key: 'ein', label: 'eingeblendet' },
 ];
 
+/** Standardstellung: Beendetes steht nicht in der Liste — der Arbeitsvorrat
+ *  oben, das Archiv einen Klick entfernt. Der Store persistiert einen Boolean,
+ *  hier steht dieselbe Aussage als Schlüssel der Options-Liste (das
+ *  Darstellungs-Menü braucht sie, um „weicht ab" zu erkennen). */
+export const DEFAULT_BEENDET_SICHT: BeendetSicht = 'aus';
+
 /**
  * Der „Beendet"-Schalter existiert nur im „Alle"-Tab: alle anderen Reiter sind
  * bereits über ihre Status-Sicht geschnitten und enthalten praktisch nichts

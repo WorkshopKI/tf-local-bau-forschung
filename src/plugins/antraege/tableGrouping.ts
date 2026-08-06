@@ -79,6 +79,10 @@ export const TABLE_GROUPING_OPTIONS: readonly { key: TableGroupingMode; label: s
   { key: 'ab', label: 'AB' },
 ];
 
+/** Standard-Gruppierung der Tabelle — flach. Gelesen vom Store-Selektor UND vom
+ *  Darstellungs-Menü (das daran erkennt, ob die Achse vom Standard abweicht). */
+export const DEFAULT_TABLE_GROUPING: TableGroupingMode = 'none';
+
 const TABLE_GROUPING_KEYS: ReadonlySet<string> = new Set(TABLE_GROUPING_OPTIONS.map(o => o.key));
 
 /**

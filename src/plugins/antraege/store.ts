@@ -21,6 +21,7 @@ import {
 import type { GroupingMode } from './antragGroups';
 import {
   DEFAULT_TABLE_ANSICHT,
+  DEFAULT_TABLE_GROUPING,
   istTableGroupingMode,
   istTabellenAnsicht,
   type TableGroupingMode,
@@ -316,7 +317,7 @@ export function getEffectiveTableGroupingMode(
   view: ViewKey,
   overrides: Partial<Record<ViewKey, TableGroupingMode>>,
 ): TableGroupingMode {
-  return overrides[view] ?? 'none';
+  return overrides[view] ?? DEFAULT_TABLE_GROUPING;
 }
 
 export function getEffectiveTableAnsicht(

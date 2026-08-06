@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.12.0 — Tabelle: stehende Kopfzeile, Darstellungs-Menue, verdichteter Seitenkopf (August 2026)
+
+MINOR — Der Seitenkopf der Fördertabelle war auf fünf Zeilen gewachsen: die drei Schalter „Ansicht", „Gruppierung" und „Beendet" belegten rechts rund 640 px und drängten die Quickfilter in einen Umbruch, unter dem die Trefferzahl noch eine eigene, links leere Zeile bekam. Nachgemessen bei 1.226 px Inhaltsbreite: 70 px weniger Kopf, zwei Zeilen weg. Und beim Blättern nach unten verschwand die Kopfzeile — bei 21 Spalten weiß dann niemand mehr, welche Spalte er liest.
+
+- Die drei Achsen teilen sich ein Menü „Darstellung"; der Knopf nennt nur, was vom Standard abweicht — [darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts)
+- Trefferzahl reitet im Umbruch der Quickfilter mit (Slot in der Toolbar, kein Geschwister — als Nachbar bricht sie immer eigenständig um) — [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx)
+- Kopf- und Rubrikzeile bleiben stehen; dafür wird der Tabellenkasten selbst der senkrechte Scroller — [SortableTable.tsx](src/components/data-table/SortableTable.tsx)
+- Lade-Streifen wandert MIT in den Scroller (`footerSlot`, `sticky left-0`) und der Beobachtungs-Bereich auf den Kasten — sonst lädt die Seite sofort alles nach oder gar nichts mehr — [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)
+- Platz für den senkrechten Scrollbalken fest reserviert: er erschien sonst erst nach der Breitenmessung und verengte genau das gemessene Element — [SortableTable.tsx](src/components/data-table/SortableTable.tsx)
+
 ### v3.11.0 — Fristen-Stoppuhr: die Uhr haelt mit der Erstentscheidung an (August 2026)
 
 MINOR — Die 90-Tage-Uhr rechnete für **jeden** Antrag bis heute weiter, auch für einen 2018 abgelehnten: CRISPROMIC zeigte „seit 2 760 T" — exakt Eingang + 90 Tage. Die Arithmetik stimmte, das Kriterium fehlte. Ebenso schwer wog die Gegenrichtung: „keine Basis", „keine Frist nötig" und „terminal" waren alle dieselbe leere Zelle. Das Haltekriterium existierte bereits — aber nur im Vorgangs-Board, als feste Code-Menge.

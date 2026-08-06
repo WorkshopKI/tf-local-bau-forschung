@@ -33,6 +33,10 @@ export interface TableHeadRowsProps<T> {
   /** Zusätzliche erste Kopfzeile, die zusammenhängende Spalten unter ihrer
    *  Rubrik bündelt. */
   showGroupHeader?: boolean;
+  /** Kopf bleibt beim senkrechten Scrollen stehen (setzt voraus, dass der
+   *  Verbraucher den Tabellenkasten zum Scroller gemacht hat — siehe
+   *  `SortableTable`). */
+  stickyHeader?: boolean;
 }
 
 /** Stapelreihenfolge der klebenden Zellen. Der Kopf muss über den Datenzellen
@@ -40,6 +44,18 @@ export interface TableHeadRowsProps<T> {
  *  schiebt sich beim Scrollen ein Spaltenkopf über die stehende Ecke. */
 const Z_KOPF_STICKY = 40;
 const Z_KOPF = 30;
+/** Der stehende Kopf als Ganzes liegt über den Datenzellen (deren klebende
+ *  erste Spalte auf 10 steht). Der `zIndex` am `<thead>` öffnet einen eigenen
+ *  Stapelkontext — die 30/40 oben gelten dann INNERHALB des Kopfes, was genau
+ *  die gewünschte Ordnung ist. */
+const Z_KOPF_ZEILE = 20;
+
+/** Unterkante des stehenden Kopfes. Sie kann nicht am Rahmen hängen: die
+ *  Trennung zur ersten Datenzeile liefert sonst deren `borderTop` — und die
+ *  scrollt unter dem Kopf durch, sobald er steht. `box-shadow` statt `border`,
+ *  weil Chrome Rahmen an klebenden Zellen unter `border-collapse: collapse`
+ *  verliert (dieselbe Stelle wie bei der klebenden ersten Spalte). */
+const STICKY_KOPF_UNTERKANTE = 'inset 0 -0.5px 0 var(--tf-border)';
 
 export function TableHeadRows<T>({
   columns,
@@ -55,6 +71,7 @@ export function TableHeadRows<T>({
   filterCandidates,
   stickyFirstColumn = false,
   showGroupHeader = false,
+  stickyHeader = false,
 }: TableHeadRowsProps<T>): React.ReactElement {
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
@@ -66,7 +83,14 @@ export function TableHeadRows<T>({
   const rubrikHoehe = useRubrikHoehe(rubrikRef, showGroupHeader);
 
   return (
-    <thead>
+    <thead
+      // Am `<thead>` statt an jedem `<th>`: so trägt EIN Element beide
+      // Kopfzeilen, ohne dass die zweite ihre Oberkante gegen die Höhe der
+      // ersten rechnen müsste — und die grauen `<tr>`-Gründe bleiben gültig
+      // (klebende Zellen sind durchsichtig, per `<th>` bräuchte jede einen
+      // eigenen Grund).
+      style={stickyHeader ? { position: 'sticky', top: 0, zIndex: Z_KOPF_ZEILE } : undefined}
+    >
       {showGroupHeader && (
         <tr
           ref={rubrikRef}
@@ -129,6 +153,7 @@ export function TableHeadRows<T>({
               }
               aria-sort={ariaSort}
               style={{
+                ...(stickyHeader ? { boxShadow: STICKY_KOPF_UNTERKANTE } : null),
                 ...(resizeEnabled && !isLastCol
                   ? { borderRight: '0.5px solid var(--tf-border)' }
                   : null),
