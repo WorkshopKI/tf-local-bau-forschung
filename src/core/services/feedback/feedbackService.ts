@@ -304,6 +304,60 @@ export async function updateFeedback(
 }
 
 /**
+ * Dieselbe Änderung auf VIELE Tickets (v3.18, Bulk-Leiste des Boards).
+ *
+ * Bewusst eine eigene Funktion statt `updateFeedback` in einer Schleife: die
+ * Einzelfassung liest und schreibt die geteilte Datei je Ticket. Bei fünfzig
+ * markierten Tickets wären das fünfzig Lese-/Schreibrunden über SMB — langsam,
+ * und jede Runde ein eigenes Zeitfenster, in dem ein zweiter Client dazwischen
+ * schreiben kann (last-writer-wins). Hier: EINMAL die Lage lesen, alle Patches
+ * anwenden, EINMAL schreiben.
+ *
+ * Die Invarianten bleiben die der Einzelfassung: bei `unlesbar` wird nichts
+ * angefasst, `kein-schreibrecht` bleibt still (read-only prod ist per Design ein
+ * No-op), ein echter Schreibfehler wirft.
+ */
+export async function updateFeedbackMany(
+  storage: StorageService,
+  ids: readonly string[],
+  updates: Partial<Pick<
+    FeedbackItem,
+    'kurator_status' | 'effort_estimate' | 'effort_hours' | 'assignee' | 'bereich'
+  >>,
+): Promise<void> {
+  if (ids.length === 0) return;
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die geteilte Feedback-Datei ist gerade nicht lesbar — es wurde nichts gespeichert. Bitte gleich noch einmal versuchen.',
+    );
+  }
+  const idSet = new Set(ids);
+
+  const items = loadLocalItems();
+  let lokalGeaendert = false;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item && idSet.has(item.id)) {
+      items[i] = { ...item, ...updates };
+      lokalGeaendert = true;
+    }
+  }
+  if (lokalGeaendert) saveLocalItems(items);
+
+  const shared = lage.status === 'ok' ? lage.datei : null;
+  let schreib: SchreibLage = 'kein-schreibrecht';
+  if (shared) {
+    shared.items = shared.items.map(i => (idSet.has(i.id) ? { ...i, ...updates } : i));
+    schreib = await writeSharedFileLage(storage, shared.items);
+  }
+  emitFeedbackUpdated();
+  if (schreib === 'fehler') {
+    throw new Error('Änderung konnte nicht auf den Daten-Share geschrieben werden.');
+  }
+}
+
+/**
  * Hängt weitere Screenshots/Dateien an ein BESTEHENDES Ticket (v2.364,
  * „Ergänzen"-Ablauf des Autors). Schreibt die Bytes ins Shared-Attachment-
  * Verzeichnis und ergänzt danach die Referenzliste des Tickets.

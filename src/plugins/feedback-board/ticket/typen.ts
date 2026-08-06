@@ -4,6 +4,7 @@
  * nicht in dem, was sie dürfen.
  */
 import type { EffortEstimate, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
+import type { Auswahl } from '../auswahl';
 import type { BoardRolle } from '../smartViews';
 
 /**
@@ -35,8 +36,28 @@ export interface TicketKontext {
   meineId: string | undefined;
   /** Feld ändern + Toast mit Rückgängig. Fire-and-forget: Fehler landen im Toast. */
   aendere: (t: FeedbackItem, patch: TicketPatch, meldung: string) => void;
+  /** Dieselbe Änderung auf mehrere Tickets (Bulk-Leiste, Drag&Drop einer Auswahl). */
+  aendereViele: (tickets: readonly FeedbackItem[], patch: TicketPatch, meldung: string) => void;
+  /** Einen Kommentar anhängen; `rueckfrage` setzt zusätzlich den Status. */
+  kommentiere: (t: FeedbackItem, text: string, art: KommentarArt) => void;
   /** Ticket im Detail-Panel öffnen. */
   oeffne: (t: FeedbackItem) => void;
   /** Welches Ticket ist gerade offen? */
   offeneId: string | undefined;
+  // ── Mehrfachauswahl ───────────────────────────────────────────────────────
+  /** Ids der markierten Tickets. */
+  auswahl: Auswahl;
+  /** Markierung eines Tickets umschalten. */
+  schalteAuswahl: (id: string) => void;
+  /**
+   * Status auf mehrere Tickets ziehen (Board-Drop). Getrennt von `aendereViele`,
+   * weil hier die Auswahl-Regel gilt: eine markierte Karte nimmt die ganze
+   * Auswahl mit, eine unmarkierte nur sich selbst.
+   */
+  ziehePer: (gezogeneId: string, zielStatus: FeedbackStatus) => void;
+  /** Darf gezogen werden? (Entwickler-Sicht mit Schreibrecht.) */
+  darfZiehen: boolean;
 }
+
+/** Art eines Beitrags im Verlauf — `rueckfrage` setzt zusätzlich den Status. */
+export type KommentarArt = 'kommentar' | 'ergaenzung' | 'rueckfrage';

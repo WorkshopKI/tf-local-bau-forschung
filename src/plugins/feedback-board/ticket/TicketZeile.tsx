@@ -7,11 +7,12 @@
  * (Container-Query in ticketsystem.css) — sobald das Detail-Panel aufgeht,
  * bleibt der Titel und geht zuletzt.
  */
+import { useState } from 'react';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_DOT, CATEGORY_LABELS, STATUS_DOT, STATUS_LABELS } from '@/components/feedback/constants';
 import { FeedbackAvatar } from '@/components/feedback/FeedbackAvatar';
 import { feedbackAuthorLabel, feedbackNummer, feedbackTitle, formatShortDate } from '@/components/feedback/feedbackUi';
-import { InlineChip } from './InlineChip';
+import { AuswahlHaken, InlineChip } from './InlineChip';
 import { TicketMenue } from './TicketMenue';
 import { aufwandMenue, statusMenue, ticketBereichLabel } from './chipMenues';
 import type { TicketKontext } from './typen';
@@ -22,7 +23,9 @@ function einzeilig(text: string): string {
 }
 
 export function TicketZeile({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext }): React.ReactElement {
+  const [menueOffen, setMenueOffen] = useState(false);
   const meins = ctx.istMeins(t);
+  const gewaehlt = ctx.auswahl.has(t.id);
   const autor = feedbackAuthorLabel(t);
   const darf = ctx.darfVerwalten && ctx.rolle === 'entwickler';
 
@@ -32,12 +35,19 @@ export function TicketZeile({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
         'fb-zeile',
         meins ? 'meins' : '',
         ctx.offeneId === t.id ? 'aktiv' : '',
+        gewaehlt ? 'gewaehlt' : '',
       ].filter(Boolean).join(' ')}
       role="button"
       tabIndex={0}
       onClick={() => ctx.oeffne(t)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ctx.oeffne(t); } }}
+      onContextMenu={e => { e.preventDefault(); setMenueOffen(true); }}
     >
+      <AuswahlHaken
+        gewaehlt={gewaehlt}
+        label={`Ticket ${feedbackNummer(t)} auswählen`}
+        onToggle={() => ctx.schalteAuswahl(t.id)}
+      />
       <span
         className="fb-typdot"
         style={{ background: t.category ? CATEGORY_DOT[t.category] : 'var(--tf-text-tertiary)' }}
@@ -79,7 +89,7 @@ export function TicketZeile({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
 
       <div className="fb-sp-d">{formatShortDate(t.updated_at ?? t.created_at)}</div>
 
-      <TicketMenue t={t} ctx={ctx} />
+      <TicketMenue t={t} ctx={ctx} offen={menueOffen} setOffen={setMenueOffen} />
     </div>
   );
 }

@@ -16,7 +16,7 @@
 // (smartViews/boardFilter/boardZahlen/boardSpalten), gemerkt in useBoardAnsicht.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Columns3, List, Rows3, Search, Settings2, SlidersHorizontal, Plus } from 'lucide-react';
+import { Columns3, Group, List, Rows3, Search, Settings2, SlidersHorizontal, Plus } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -42,8 +42,10 @@ import { feedbackAuthorLabel } from '@/components/feedback/feedbackUi';
 import {
   getFeedbackList, istArchiviert, istMeineId, istMeinTicket, loadFeedbackConfig,
 } from '@/core/services/feedback';
-import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
+import { STATUS_LABELS } from '@/components/feedback/constants';
+import { feedbackNummer } from '@/components/feedback/feedbackUi';
 import { canManageFeedback } from '@/config/feature-flags';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { FeedbackVerwaltungDialog } from './verwaltung/FeedbackVerwaltungDialog';
@@ -51,7 +53,11 @@ import { useAutoCollectFeedback } from './verwaltung/useAutoCollectFeedback';
 import { filterAndSortBoard, scopeBoard } from './boardFilter';
 import { kopfZaehler, zaehleFacetten } from './boardZahlen';
 import { findeView, startViewKey, viewsFuerRolle, type BoardRolle } from './smartViews';
+import { beschraenkeAuf, LEERE_AUSWAHL, schalte, zuBewegen, type Auswahl } from './auswahl';
+import { achsenLabel, GRUPPIER_ACHSEN, gruppiere } from './gruppierung';
 import { useBoardAnsicht } from './useBoardAnsicht';
+import { BulkLeiste } from './ticket/BulkLeiste';
+import { Swimlane } from './ticket/Swimlane';
 import { DICHTE_OPTIONEN, dichteLabel } from './ticket/dichte';
 import { FacettenLeiste, type FacettenAuswahl } from './ticket/FacettenLeiste';
 import { TicketBoard } from './ticket/TicketBoard';
@@ -86,6 +92,7 @@ export function FeedbackBoardPage(): React.ReactElement {
   const [facetten, setFacetten] = useState<FacettenAuswahl>(LEERE_FACETTEN);
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const [auswahl, setAuswahl] = useState<Auswahl>(LEERE_AUSWAHL);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [verwaltungOffen, setVerwaltungOffen] = useState(false);
@@ -133,7 +140,7 @@ export function FeedbackBoardPage(): React.ReactElement {
     void reload(true);
   }, [reload]);
 
-  const aktionen = useTicketAktionen(handleChanged);
+  const aktionen = useTicketAktionen(handleChanged, meId, meName ?? undefined);
 
   // Archivierte sind für alle unsichtbar; Verwalter dürfen sie zum Aufräumen einblenden.
   const archivSichtbar = darfVerwalten && ansicht.zeigeArchiv;
@@ -211,6 +218,32 @@ export function FeedbackBoardPage(): React.ReactElement {
 
   const oeffne = useCallback((t: FeedbackItem) => setSelectedId(t.id), []);
   const istMeins = useCallback((t: FeedbackItem) => istMeinTicket(t, ich), [ich]);
+  const schalteAuswahl = useCallback((id: string) => setAuswahl(a => schalte(a, id)), []);
+  const leereAuswahl = useCallback(() => setAuswahl(LEERE_AUSWAHL), []);
+
+  // Was nicht mehr sichtbar ist, kann auch nicht mehr gemeint sein: sonst
+  // änderte die Bulk-Leiste Tickets, die niemand vor sich hat. `beschraenkeAuf`
+  // liefert bei „nichts entfernt" die EINGABE zurück — sonst entstünde hier bei
+  // jedem Render eine neue Menge und der Effekt liefe endlos.
+  const sichtbareIds = useMemo(() => gefiltert.map(t => t.id), [gefiltert]);
+  useEffect(() => {
+    setAuswahl(a => beschraenkeAuf(a, sichtbareIds));
+  }, [sichtbareIds]);
+
+  const darfZiehen = darfVerwalten && rolle === 'entwickler';
+
+  const ziehePer = useCallback((gezogeneId: string, zielStatus: FeedbackStatus): void => {
+    const ids = zuBewegen(auswahl, gezogeneId);
+    const tickets = gefiltert.filter(t => ids.includes(t.id) && t.kurator_status !== zielStatus);
+    if (tickets.length === 0) return;
+    const label = STATUS_LABELS[zielStatus];
+    if (tickets.length === 1 && tickets[0]) {
+      aktionen.aendere(tickets[0], { kurator_status: zielStatus }, `#${feedbackNummer(tickets[0])} → ${label}`);
+      return;
+    }
+    aktionen.aendereViele(tickets, { kurator_status: zielStatus }, `${tickets.length} Tickets → ${label}`);
+    leereAuswahl();
+  }, [auswahl, gefiltert, aktionen, leereAuswahl]);
 
   const ctx: TicketKontext = useMemo(() => ({
     rolle,
@@ -221,9 +254,43 @@ export function FeedbackBoardPage(): React.ReactElement {
     personen,
     meineId: meId,
     aendere: aktionen.aendere,
+    aendereViele: aktionen.aendereViele,
+    kommentiere: aktionen.kommentiere,
     oeffne,
     offeneId: selectedId,
-  }), [rolle, darfVerwalten, istMeins, isUnread, neuFuer, personen, meId, aktionen.aendere, oeffne, selectedId]);
+    auswahl,
+    schalteAuswahl,
+    ziehePer,
+    darfZiehen,
+  }), [
+    rolle, darfVerwalten, istMeins, isUnread, neuFuer, personen, meId,
+    aktionen.aendere, aktionen.aendereViele, aktionen.kommentiere,
+    oeffne, selectedId, auswahl, schalteAuswahl, ziehePer, darfZiehen,
+  ]);
+
+  const gewaehlteTickets = useMemo(
+    () => gefiltert.filter(t => auswahl.has(t.id)),
+    [gefiltert, auswahl],
+  );
+
+  // Esc-Kaskade: erst die Auswahl, dann das Detail-Panel. Ohne Reihenfolge
+  // schlösse ein Esc beides und man müsste die Auswahl neu treffen.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const ziel = e.target as HTMLElement | null;
+      if (ziel && (ziel.tagName === 'INPUT' || ziel.tagName === 'TEXTAREA' || ziel.isContentEditable)) return;
+      if (e.key === 'Escape') {
+        if (auswahl.size > 0) { leereAuswahl(); return; }
+        if (selectedId) setSelectedId(undefined);
+        return;
+      }
+      if (!selectedId) return;
+      if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); blaettere(1); }
+      if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); blaettere(-1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const index = gefiltert.findIndex(t => t.id === selectedId);
   const selected = index >= 0 ? gefiltert[index] : undefined;
@@ -233,6 +300,25 @@ export function FeedbackBoardPage(): React.ReactElement {
   }, [gefiltert, index]);
 
   const filterAktiv = !!(query || facetten.typ || facetten.status || facetten.bereich);
+
+  const gruppen = useMemo(
+    () => gruppiere(gefiltert, ansicht.gruppierung),
+    [gefiltert, ansicht.gruppierung],
+  );
+
+  const zeigeMenge = (menge: readonly FeedbackItem[]): React.ReactNode => (
+    ansicht.ansicht === 'board'
+      ? (
+        <TicketBoard
+          tickets={menge}
+          lanes={ansicht.kanban.lanes}
+          farbmodus={ansicht.kanban.farbmodus}
+          dichte={ansicht.dichte}
+          ctx={ctx}
+        />
+      )
+      : <TicketListe tickets={menge} ctx={ctx} />
+  );
 
   const inhalt = ((): React.ReactNode => {
     if (loading) {
@@ -254,17 +340,18 @@ export function FeedbackBoardPage(): React.ReactElement {
         </div>
       );
     }
-    return ansicht.ansicht === 'board'
-      ? (
-        <TicketBoard
-          tickets={gefiltert}
-          lanes={ansicht.kanban.lanes}
-          farbmodus={ansicht.kanban.farbmodus}
-          dichte={ansicht.dichte}
-          ctx={ctx}
-        />
-      )
-      : <TicketListe tickets={gefiltert} ctx={ctx} />;
+    if (gruppen.length > 0) {
+      return (
+        <div className="fb-lanes">
+          {gruppen.map(g => (
+            <Swimlane key={g.key} label={g.label} anzahl={g.tickets.length}>
+              {zeigeMenge(g.tickets)}
+            </Swimlane>
+          ))}
+        </div>
+      );
+    }
+    return zeigeMenge(gefiltert);
   })();
 
   return (
@@ -357,6 +444,32 @@ export function FeedbackBoardPage(): React.ReactElement {
           </span>
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="Gruppieren — schneidet quer zum Status"
+                  className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-[var(--tf-radius)] cursor-pointer text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                >
+                  <Group size={14} aria-hidden />
+                  {achsenLabel(ansicht.gruppierung)}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto min-w-[176px] p-[5px]">
+                <div className="fb-pop-lbl">Gruppieren</div>
+                {GRUPPIER_ACHSEN.map(a => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={`fb-pop-i${ansicht.gruppierung === a.key ? ' an' : ''}`}
+                    onClick={() => ansicht.setGruppierung(a.key)}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
             <FeedbackSortSelect value={ansicht.sort} onChange={ansicht.setSort} />
             <Popover>
               <PopoverTrigger asChild>
@@ -442,7 +555,7 @@ export function FeedbackBoardPage(): React.ReactElement {
           />
         ) : undefined}
         list={(
-          <div className="fb-ticket">
+          <div className={`fb-ticket${auswahl.size > 0 ? ' auswahl' : ''}`}>
             {ansicht.facettenOffen && (
               <FacettenLeiste
                 zaehler={facettenZahlen}
@@ -450,7 +563,12 @@ export function FeedbackBoardPage(): React.ReactElement {
                 onChange={teil => setFacetten(a => ({ ...a, ...teil }))}
               />
             )}
-            <div className="flex-1 min-w-0 flex flex-col">{inhalt}</div>
+            <div className="flex-1 min-w-0 flex flex-col relative">
+              {inhalt}
+              {gewaehlteTickets.length > 0 && (
+                <BulkLeiste gewaehlt={gewaehlteTickets} ctx={ctx} onLeeren={leereAuswahl} />
+              )}
+            </div>
           </div>
         )}
       />

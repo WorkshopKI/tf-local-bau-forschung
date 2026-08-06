@@ -17,9 +17,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
-import { updateFeedback } from '@/core/services/feedback';
+import { addComment, FEEDBACK_STATUS, updateFeedback, updateFeedbackMany } from '@/core/services/feedback';
+import { feedbackNummer } from '@/components/feedback/feedbackUi';
 import type { FeedbackItem } from '@/core/types/feedback';
-import type { TicketPatch } from './typen';
+import type { KommentarArt, TicketPatch } from './typen';
 
 const TOAST_MS = 4200;
 
@@ -32,6 +33,9 @@ export interface ToastZustand {
 
 export interface TicketAktionen {
   aendere: (t: FeedbackItem, patch: TicketPatch, meldung: string) => void;
+  /** Dieselbe Änderung auf mehrere Tickets — ein Share-Lauf, ein Toast, ein Rückweg. */
+  aendereViele: (tickets: readonly FeedbackItem[], patch: TicketPatch, meldung: string) => void;
+  kommentiere: (t: FeedbackItem, text: string, art: KommentarArt) => void;
   busy: boolean;
   toast: ToastZustand | null;
   schliesseToast: () => void;
@@ -49,7 +53,12 @@ function vorherigeWerte(t: FeedbackItem, patch: TicketPatch): TicketPatch {
   return vorher;
 }
 
-export function useTicketAktionen(onChanged: () => void): TicketAktionen {
+export function useTicketAktionen(
+  onChanged: () => void,
+  /** Eigene kanonische Schreib-Id + Anzeigename — für Kommentare. */
+  meId: string | undefined,
+  meName: string | undefined,
+): TicketAktionen {
   const storage = useStorage();
   const [toast, setToast] = useState<ToastZustand | null>(null);
   const timer = useRef<number | null>(null);
@@ -104,5 +113,84 @@ export function useTicketAktionen(onChanged: () => void): TicketAktionen {
     });
   }, [storage, onChanged, zeige]);
 
-  return { aendere, busy: lauf.busy, toast, schliesseToast };
+  const aendereViele = useCallback((
+    tickets: readonly FeedbackItem[],
+    patch: TicketPatch,
+    meldung: string,
+  ): void => {
+    if (tickets.length === 0) return;
+    // Je Ticket den EIGENEN Vorher-Zustand merken: „alle zurück auf X" wäre
+    // kein Rückgängig, sondern eine zweite Massenänderung.
+    const vorher = tickets.map(t => ({ id: t.id, werte: vorherigeWerte(t, patch) }));
+    const ids = tickets.map(t => t.id);
+    void runRef.current(async () => {
+      await updateFeedbackMany(storage, ids, patch);
+      onChanged();
+      zeige({
+        text: meldung,
+        ton: 'info',
+        rueckgaengig: () => {
+          void runRef.current(async () => {
+            // Gruppiert nach identischem Vorher-Zustand, damit auch das
+            // Zurücknehmen mit wenigen Share-Läufen auskommt.
+            const gruppen = new Map<string, { werte: TicketPatch; ids: string[] }>();
+            for (const v of vorher) {
+              const schluessel = JSON.stringify(v.werte);
+              const g = gruppen.get(schluessel);
+              if (g) g.ids.push(v.id);
+              else gruppen.set(schluessel, { werte: v.werte, ids: [v.id] });
+            }
+            for (const g of gruppen.values()) {
+              await updateFeedbackMany(storage, g.ids, g.werte);
+            }
+            onChanged();
+            zeige({ text: `${tickets.length} Tickets zurückgesetzt.`, ton: 'info' });
+          });
+        },
+      });
+    });
+  }, [storage, onChanged, zeige]);
+
+  const kommentiere = useCallback((
+    t: FeedbackItem,
+    text: string,
+    art: KommentarArt,
+  ): void => {
+    if (!meId || !text.trim()) return;
+    void runRef.current(async () => {
+      // `addComment` liefert `ok:false` statt zu werfen — das muss der Aufrufer
+      // auswerten (Pitfall #15 deckt nur geworfene Fehler ab). Ein verlorener
+      // Kommentar ohne Meldung wäre der schlimmste Fall: der Text ist die
+      // einzige Kopie.
+      const res = await addComment(storage, t.id, meId, text, meName, art);
+      if (!res.ok) {
+        throw new Error(
+          res.error === 'share_unreadable'
+            ? 'Die geteilte Feedback-Datei ist gerade nicht lesbar.'
+            : 'Der Kommentar konnte nicht gespeichert werden.',
+        );
+      }
+      // „Als Rückfrage" ist beides in einem Zug: Beitrag UND Zustandswechsel.
+      // Zuerst der Kommentar — wäre der Status gesetzt und der Text verloren,
+      // stünde das Ticket auf „wartet auf dich", ohne zu sagen worauf.
+      if (art === 'rueckfrage') {
+        await updateFeedback(storage, t.id, { kurator_status: FEEDBACK_STATUS.rueckfrage });
+      }
+      onChanged();
+      zeige({
+        text: art === 'rueckfrage'
+          ? `#${feedbackNummer(t)} → Rückfrage · Ersteller benachrichtigt`
+          : 'Kommentar gesendet.',
+        ton: 'info',
+      });
+      if (res.warning === 'no_personal_folder') {
+        zeige({
+          text: 'Kommentar lokal gespeichert — ohne verbundenen persönlichen Ordner erreicht er das Team noch nicht.',
+          ton: 'fehler',
+        });
+      }
+    });
+  }, [storage, meId, meName, onChanged, zeige]);
+
+  return { aendere, aendereViele, kommentiere, busy: lauf.busy, toast, schliesseToast };
 }

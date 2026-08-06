@@ -27,6 +27,17 @@ Die Seite bedient zwei Blickwinkel auf denselben Bestand: der **Ersteller** will
 - **„Board anpassen"** (nur in der Board-Ansicht): eine Zeile je Spalte — Häkchen blendet sie ein/aus, rechts ein 1/2-Schalter für die Kartenspalten; darunter „Farben der Köpfe" Bunt/Einfarbig. Ausgeblendete Spalten zeigen ihre Tickets nicht im Board, wohl aber in der Liste. Die Einstellung gilt nur auf diesem Gerät.
 - **Feedback geben** liegt zusätzlich auf dem globalen Button unten rechts.
 
+## Mehrere Tickets auf einmal
+
+- Links an jeder Karte und Zeile sitzt ein **Häkchen**. Sobald eines gesetzt ist, erscheinen alle anderen mit, und unten schwebt eine dunkle Leiste: „n ausgewählt · Status · Aufwand · Zuweisen · Archivieren". Auch hier lässt sich jede Aktion zurücknehmen — jedes Ticket kehrt auf seinen eigenen vorherigen Wert zurück, nicht auf einen gemeinsamen.
+- Wechselt man Sicht oder Filter, bleibt nur markiert, was noch sichtbar ist.
+- **Karten lassen sich zwischen den Spalten ziehen** (mit Schreibrecht, Entwickler-Sicht). Ist die gezogene Karte markiert, wandert die ganze Auswahl mit; ist sie es nicht, nur sie.
+- **Rechtsklick** auf Karte oder Zeile öffnet dasselbe Menü wie der `⋯`-Knopf.
+- Im Menü steht **„Kommentar schreiben"**: ein Textfeld mit Bausteinen (Umsetzung · Rückfrage · Erledigt · Nicht möglich bzw. Ergänzung · Antwort), `Strg+↵` sendet. **„Als Rückfrage"** schickt den Text und setzt das Ticket gleichzeitig auf Rückfrage.
+- **Gruppieren** (Werkzeugleiste) teilt die Treffer in klappbare Bänder nach Bereich, Aufwand oder Ersteller — quer zur Statusachse des Boards. Beim Aufwand laufen die Bänder von XS nach Epic, Ungeschätztes steht am Ende.
+- **Tastatur:** `Esc` hebt erst die Auswahl auf und schließt beim zweiten Mal das Detail-Panel; bei offenem Panel blättern `J`/`K` (oder ↓/↑) durch die Treffer.
+- Im Verlauf sind **Ergänzungen** (gelb) und **Rückfragen** (rot) als solche gekennzeichnet.
+
 ## Der Status „Rückfrage"
 
 Braucht das Team eine Antwort vom Melder, setzt es das Ticket auf **Rückfrage**. Es bekommt eine eigene Board-Spalte, und beim Ersteller taucht es in der Sicht **„Wartet auf mich"** auf — samt Klartext im Detail. Vorher versandete so eine Nachfrage als Kommentar, den niemand bemerkte.
@@ -58,4 +69,4 @@ Braucht das Team eine Antwort vom Melder, setzt es das Ticket auf **Rückfrage**
 
 **Zugehörigkeit:** ob ein Ticket „mir" gehört, entscheidet `istMeinTicket` (`core/services/feedback/feedbackIdentitaet.ts`) gegen Kürzel UND Profilname — neue Einträge tragen die kanonische `schreibId` aus `useMeineFeedbackIdentitaet`.
 
-**Code:** `plugins/feedback-board/` — `FeedbackBoardPage.tsx` (Zustand + Verdrahtung), reine Module `smartViews.ts` / `boardFilter.ts` / `boardZahlen.ts` / `boardSpalten.ts`, Ansichtszustand `useBoardAnsicht.ts`, Oberfläche in `ticket/` (`TicketKarte`, `TicketZeile`, `TicketBoard`, `TicketListe`, `TicketDetail`, `InlineChip`, `chipMenues`, `FacettenLeiste`, `DauerStreifen`, `TicketToast`, `useTicketAktionen`), Stile in `ticketsystem.css`, Verwaltung in `verwaltung/`. Geteilte Bausteine weiter in `components/feedback/` (Stepper, SponsorPanel, VotePill, CommentThread, ErgaenzenForm, Hovers). Service `core/services/feedback/` (Schreib-Lagen in `feedbackSharedFile.ts`); Rechte-Gate `canManageFeedback` in `config/feature-flags.ts`.
+**Code:** `plugins/feedback-board/` — `FeedbackBoardPage.tsx` (Zustand + Verdrahtung), reine Module `smartViews.ts` / `boardFilter.ts` / `boardZahlen.ts` / `boardSpalten.ts` / `auswahl.ts` / `gruppierung.ts`, Ansichtszustand `useBoardAnsicht.ts`, Oberfläche in `ticket/` (`TicketKarte`, `TicketZeile`, `TicketBoard`, `TicketListe`, `TicketDetail`, `InlineChip`, `chipMenues`, `TicketMenue`, `FacettenLeiste`, `DauerStreifen`, `BulkLeiste`, `Swimlane`, `TicketToast`, `useTicketAktionen`), Stile in `ticketsystem.css`, Verwaltung in `verwaltung/`. Geteilte Bausteine weiter in `components/feedback/` (Stepper, SponsorPanel, VotePill, CommentThread, ErgaenzenForm, Hovers). Service `core/services/feedback/` (Schreib-Lagen in `feedbackSharedFile.ts`); Rechte-Gate `canManageFeedback` in `config/feature-flags.ts`.

@@ -50,6 +50,7 @@ function Spalte({ spalte, akzent, ctx }: {
   ctx: TicketKontext;
 }): React.ReactElement {
   const [limit, setLimit] = useState(START_LIMIT);
+  const [ueber, setUeber] = useState(false);
   // Beim Wechsel der Sicht/Filter wieder oben anfangen — sonst zeigt eine frisch
   // gefilterte Spalte mit drei Treffern noch das aufgeklappte Limit von vorhin.
   useEffect(() => { setLimit(START_LIMIT); }, [spalte.tickets.length]);
@@ -58,7 +59,29 @@ function Spalte({ spalte, akzent, ctx }: {
   const { stunden, ungeschaetzt } = spalte.summe;
 
   return (
-    <div className="fb-col" style={{ '--fb-c': akzent } as React.CSSProperties}>
+    <div
+      className={`fb-col${ueber ? ' ueber' : ''}`}
+      style={{ '--fb-c': akzent } as React.CSSProperties}
+      onDragOver={e => {
+        if (!ctx.darfZiehen) return;
+        // Ohne preventDefault lehnt der Browser den Drop ab — das ist die
+        // Zusage „hier darf abgelegt werden", nicht bloß Kosmetik.
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setUeber(true);
+      }}
+      onDragLeave={e => {
+        // Nur reagieren, wenn der Zeiger die Spalte wirklich verlässt: das
+        // Überfahren einer Karte darin feuert sonst ein dragleave je Kind.
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setUeber(false);
+      }}
+      onDrop={e => {
+        e.preventDefault();
+        setUeber(false);
+        const id = e.dataTransfer.getData('text/plain');
+        if (id) ctx.ziehePer(id, spalte.status);
+      }}
+    >
       <div className="fb-col-kopf">
         <span className="fb-typdot" style={{ background: akzent }} aria-hidden />
         <span className="fb-nm">{STATUS_LABELS[spalte.status]}</span>

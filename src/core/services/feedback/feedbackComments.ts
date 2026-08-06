@@ -42,6 +42,9 @@ export async function addComment(
   userId: string,
   text: string,
   userDisplayName?: string,
+  /** Art des Beitrags (v3.18). Fehlend = normaler Kommentar — so lesen sich alle
+   *  Bestandsdaten. Steuert nur die Darstellung im Verlauf. */
+  kind?: FeedbackComment['kind'],
 ): Promise<AddCommentResult> {
   const trimmed = text.trim();
   if (!ticketId || !userId || !trimmed) return { ok: false, error: 'invalid' };
@@ -64,6 +67,7 @@ export async function addComment(
     user_display_name: userDisplayName,
     text: trimmed,
     created_at: new Date().toISOString(),
+    ...(kind && kind !== 'kommentar' ? { kind } : {}),
   };
   const newComments = [...(target.comments ?? []), comment];
 

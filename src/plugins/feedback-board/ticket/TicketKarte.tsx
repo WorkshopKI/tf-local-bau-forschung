@@ -12,6 +12,7 @@
  * Zeile Höhe, und bei 15 Karten je Spalte entscheidet Höhe darüber, wie viel man
  * ohne Scrollen sieht.
  */
+import { useState } from 'react';
 import { MessageSquare, ArrowUp } from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_DOT, CATEGORY_LABELS } from '@/components/feedback/constants';
@@ -20,7 +21,7 @@ import { FeedbackScreenshots } from '@/components/feedback/FeedbackScreenshots';
 import { FeedbackCommentHover } from '@/components/feedback/FeedbackCommentHover';
 import { FeedbackAntwortHover } from '@/components/feedback/FeedbackAntwortHover';
 import { feedbackAuthorLabel, feedbackNummer, feedbackTitle, formatShortDate } from '@/components/feedback/feedbackUi';
-import { InlineChip } from './InlineChip';
+import { AuswahlHaken, InlineChip } from './InlineChip';
 import { TicketMenue } from './TicketMenue';
 import {
   AufwandIcon, ZustaendigIcon, aufwandChipLabel, aufwandMenue, ticketBereichLabel, zustaendigMenue,
@@ -28,7 +29,9 @@ import {
 import type { TicketKontext } from './typen';
 
 export function TicketKarte({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext }): React.ReactElement {
+  const [menueOffen, setMenueOffen] = useState(false);
   const meins = ctx.istMeins(t);
+  const gewaehlt = ctx.auswahl.has(t.id);
   const ungelesen = ctx.istUngelesen(t);
   const neueKmt = ctx.neueKommentare(t);
   const autor = feedbackAuthorLabel(t);
@@ -44,13 +47,25 @@ export function TicketKarte({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
         'fb-karte',
         meins ? 'meins' : '',
         ctx.offeneId === t.id ? 'aktiv' : '',
+        gewaehlt ? 'gewaehlt' : '',
       ].filter(Boolean).join(' ')}
       role="button"
       tabIndex={0}
+      draggable={ctx.darfZiehen}
+      onDragStart={e => {
+        e.dataTransfer.setData('text/plain', t.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       onClick={() => ctx.oeffne(t)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ctx.oeffne(t); } }}
+      onContextMenu={e => { e.preventDefault(); setMenueOffen(true); }}
     >
       <div className="fb-karte-kopf">
+        <AuswahlHaken
+          gewaehlt={gewaehlt}
+          label={`Ticket ${feedbackNummer(t)} auswählen`}
+          onToggle={() => ctx.schalteAuswahl(t.id)}
+        />
         <span
           className="fb-typdot"
           style={{ background: t.category ? CATEGORY_DOT[t.category] : 'var(--tf-text-tertiary)' }}
@@ -63,7 +78,7 @@ export function TicketKarte({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
             <span className={`fb-antwort${ungelesen && meins ? '' : ' neutral'}`}>Antwort</span>
           </FeedbackAntwortHover>
         )}
-        <TicketMenue t={t} ctx={ctx} />
+        <TicketMenue t={t} ctx={ctx} offen={menueOffen} setOffen={setMenueOffen} />
       </div>
 
       <div className="fb-titel">{feedbackTitle(t)}</div>

@@ -19,6 +19,7 @@ import {
   loadBoardKanbanConfig, saveBoardKanbanConfig, type BoardKanbanConfig,
 } from '@/components/feedback/boardKanbanConfig';
 import { istDichte, type Dichte } from './ticket/dichte';
+import { istGruppierAchse, type GruppierAchse } from './gruppierung';
 
 export type Ansicht = 'board' | 'liste';
 
@@ -33,6 +34,7 @@ const KEY_SORT = 'tf-feedback-board-sort-v4';
 const KEY_DICHTE = 'tf-feedback-board-density-v2';
 const KEY_FACETTEN = 'tf-feedback-board-facetten-v1';
 const KEY_ROLLE_VORSCHAU = 'tf-feedback-board-nutzersicht-v1';
+const KEY_GRUPPIERUNG = 'tf-feedback-board-gruppierung-v1';
 // Derselbe Key wie bisher — die Vorliebe zieht unverändert mit.
 const KEY_ARCHIV = 'teamflow_feedback_show_archived';
 
@@ -57,6 +59,8 @@ export interface BoardAnsicht {
   setNutzerVorschau: (v: boolean) => void;
   zeigeArchiv: boolean;
   setZeigeArchiv: (v: boolean) => void;
+  gruppierung: GruppierAchse;
+  setGruppierung: (a: GruppierAchse) => void;
   kanban: BoardKanbanConfig;
   setKanban: (c: BoardKanbanConfig) => void;
 }
@@ -80,6 +84,10 @@ export function useBoardAnsicht(): BoardAnsicht {
     () => lies(KEY_ROLLE_VORSCHAU) === '1',
   );
   const [zeigeArchiv, setZeigeArchivState] = useState<boolean>(() => lies(KEY_ARCHIV) === '1');
+  const [gruppierung, setGruppierungState] = useState<GruppierAchse>(() => {
+    const roh = lies(KEY_GRUPPIERUNG);
+    return istGruppierAchse(roh) ? roh : 'keine';
+  });
   const [kanban, setKanbanState] = useState<BoardKanbanConfig>(loadBoardKanbanConfig);
 
   const setAnsicht = useCallback((a: Ansicht) => { setAnsichtState(a); schreib(KEY_ANSICHT, a); }, []);
@@ -94,6 +102,9 @@ export function useBoardAnsicht(): BoardAnsicht {
   const setZeigeArchiv = useCallback((v: boolean) => {
     setZeigeArchivState(v); schreib(KEY_ARCHIV, v ? '1' : '0');
   }, []);
+  const setGruppierung = useCallback((a: GruppierAchse) => {
+    setGruppierungState(a); schreib(KEY_GRUPPIERUNG, a);
+  }, []);
   const setKanban = useCallback((c: BoardKanbanConfig) => {
     setKanbanState(c); saveBoardKanbanConfig(c);
   }, []);
@@ -105,6 +116,7 @@ export function useBoardAnsicht(): BoardAnsicht {
     facettenOffen, toggleFacetten,
     nutzerVorschau, setNutzerVorschau,
     zeigeArchiv, setZeigeArchiv,
+    gruppierung, setGruppierung,
     kanban, setKanban,
   };
 }

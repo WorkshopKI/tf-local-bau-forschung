@@ -19,6 +19,28 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.19 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
+## v3.18 — 2026-08
+
+### Neu
+- Mehrere Tickets auf einmal bearbeiten: Häkchen setzen, unten erscheint eine Leiste für Status, Aufwand, Zuweisung und Archivieren. Auch das lässt sich zurücknehmen — jedes Ticket kehrt auf seinen eigenen vorherigen Wert zurück.
+- Karten lassen sich zwischen den Spalten ziehen. Ist die gezogene Karte markiert, wandert die ganze Auswahl mit.
+- Rechtsklick auf eine Karte oder Zeile öffnet dasselbe Menü wie der `⋯`-Knopf.
+- Kommentieren, ohne das Ticket zu öffnen: im Menü ein Textfeld mit Bausteinen. „Als Rückfrage" schickt den Text und stellt das Ticket gleichzeitig auf Rückfrage.
+- Gruppieren nach Bereich, Aufwand oder Ersteller — klappbare Bänder quer zur Statusachse des Boards.
+
+### Verbesserungen
+- Tastatur: `Esc` hebt erst die Auswahl auf und schließt beim zweiten Mal das Detail; bei offenem Detail blättern `J`/`K` durch die Treffer.
+- Im Verlauf sind Ergänzungen und Rückfragen jetzt als solche gekennzeichnet.
+
 ## v3.17 — 2026-08
 
 ### Neu

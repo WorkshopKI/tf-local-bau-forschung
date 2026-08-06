@@ -5,6 +5,22 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.19.0 — Verlaufsableitung (August 2026)
+
+MINOR — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+
+- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+
+### v3.18.0 — Feedback-Tickets: Mehrfachauswahl, Ziehen, Kontextmenue, Swimlanes (August 2026)
+
+MINOR — Etappe 2 des Feedback-Redesigns: alles, was MEHRERE Tickets betrifft. Nach Etappe 1 war jede Änderung ein Klick weit entfernt — aber vierzig Tickets an einen Bearbeiter zu geben blieben vierzig Einzelklicks.
+
+- Mehrfachauswahl mit Häkchen + dunkle Bulk-Leiste (Status · Aufwand · Zuweisen · Archivieren); jede Aktion mit Sammel-Toast und Rückgängig je Ticket — [auswahl.ts](src/plugins/feedback-board/auswahl.ts), [BulkLeiste.tsx](src/plugins/feedback-board/ticket/BulkLeiste.tsx)
+- `updateFeedbackMany`: ein Lese-/Schreiblauf statt n — fünfzig Einzelaufrufe wären fünfzig SMB-Runden und fünfzig Rennen um dieselbe Datei — [feedbackService.ts](src/core/services/feedback/feedbackService.ts)
+- Karten zwischen den Spalten ziehen; eine markierte Karte nimmt die Auswahl mit, eine unmarkierte nur sich selbst — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
+- Rechtsklick öffnet dasselbe Menü wie `⋯`; darin ein Schnell-Kommentar mit Bausteinen, `Strg+↵` und „Als Rückfrage" (Beitrag + Statuswechsel in einem Zug) — [TicketMenue.tsx](src/plugins/feedback-board/ticket/TicketMenue.tsx)
+- Gruppierung in klappbare Bänder nach Bereich/Aufwand/Ersteller (Aufwand fachlich sortiert), Esc-Kaskade und `J`/`K` — [gruppierung.ts](src/plugins/feedback-board/gruppierung.ts)
+
 ### v3.17.0 — Feedback-Tickets: Verwaltung an der Karte, Status Rueckfrage, Sichten und Facetten (August 2026)
 
 MINOR — Das Board hatte drei Defekte, die erst bei realer Ticketmenge greifen: die Verwaltungsfelder lagen vier Ebenen tief in einem eingeklappten Akkordeon, eine Entwickler-Rückfrage versandete als Kommentar, den niemand sah, und ab etwa hundert Tickets gab es keinen Einstieg außer „alle". Umbau nach Handoff `_design/handoff/feedback-redesign`; Etappe 1 von 2 (Massenbearbeitung folgt).

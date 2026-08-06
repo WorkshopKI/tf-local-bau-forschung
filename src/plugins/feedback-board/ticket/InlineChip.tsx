@@ -12,7 +12,7 @@
  * Board-Spalte das Menü ab.
  */
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { IconComponent } from '@/components/feedback/feedbackUi';
 
@@ -101,6 +101,36 @@ export function PopZeile({ label, sub, dot, icon: Icon, aktiv, gefahr, onClick }
 
 export function PopLabel({ children }: { children: React.ReactNode }): React.ReactElement {
   return <div className="fb-pop-lbl">{children}</div>;
+}
+
+/**
+ * Auswahl-Häkchen an Karte und Zeile. Sichtbar bei Hover, bei eigener Markierung
+ * und sobald überhaupt etwas markiert ist — sonst müsste man im Auswahl-Modus
+ * jede Karte erst anfahren, um zu sehen, ob sie dazugehört.
+ *
+ * Kein `<input type=checkbox>`: das Element sitzt in einem Klickziel, das das
+ * Detail öffnet, und braucht ein eigenes `stopPropagation` samt Beschriftung.
+ */
+export function AuswahlHaken({ gewaehlt, label, onToggle }: {
+  gewaehlt: boolean;
+  label: string;
+  onToggle: () => void;
+}): React.ReactElement {
+  return (
+    <span
+      role="checkbox"
+      aria-checked={gewaehlt}
+      aria-label={label}
+      tabIndex={0}
+      className={`fb-chk${gewaehlt ? ' an' : ''}`}
+      onClick={e => { e.stopPropagation(); onToggle(); }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onToggle(); }
+      }}
+    >
+      {gewaehlt && <Check size={11} strokeWidth={2.5} aria-hidden />}
+    </span>
+  );
 }
 
 export function PopTrenner(): React.ReactElement {
