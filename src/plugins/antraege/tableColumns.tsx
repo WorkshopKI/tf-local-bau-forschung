@@ -117,7 +117,72 @@ function renderHerleitung(r: AntragListItem): ReactNode {
  *  deren Toggle ohne Wirkung bliebe, weil die Spalte dort erzwungen wird). */
 export const MA_COLUMN_KEY = 'tib_kuerz';
 
+/**
+ * Rubriken des Spalten-Pickers. Reine Anzeige-Ordnung im Menü — die Reihenfolge
+ * der Spalten in der Tabelle bleibt die Registry-Reihenfolge unten. Welche
+ * Rubrik zuerst steht, entscheidet ebenfalls die Registry (erstes Auftreten,
+ * siehe `gruppiereSpalten`), damit hier keine zweite Liste mitgepflegt werden
+ * muss.
+ */
+const G_ANTRAG = 'Antrag';
+const G_ZUSTAENDIGKEIT = 'Zuständigkeit';
+const G_STATUS = 'Status';
+const G_TERMINE = 'Termine';
+export const G_ORDNER = 'Ordner des Fachsystems';
+export const G_ORDNER_VB = 'Ordner · Verbund';
+export const G_ORDNER_TV = 'Ordner · Teilvorhaben';
+
+/**
+ * Rubrik einer Ordner-Spalte. Verbund und Teilvorhaben führen teils
+ * gleichnamige Ordner („Antragsbearbeitung", „Kommunikation") — in EINER
+ * Rubrik stünden sie doppelt und ununterscheidbar. Die Ebene steckt im
+ * kuratierten Id-Präfix (`vb.`/`tv.`, Pitfall #42); alles andere landet in der
+ * neutralen Sammelrubrik, statt still zu verschwinden.
+ */
+function ordnerRubrik(kategorieId: string): string {
+  if (kategorieId.startsWith('vb.')) return G_ORDNER_VB;
+  if (kategorieId.startsWith('tv.')) return G_ORDNER_TV;
+  return G_ORDNER;
+}
+
 type BadgeVariant = ComponentProps<typeof Badge>['variant'];
+
+/**
+ * Factory für die vier Kürzel-Spalten der Fördertabelle. Das Fachsystem führt
+ * die Zuständigkeit je Rolle UND je Phase in einer eigenen Spalte:
+ * Antragsphase FB `TIB_KUERZ` / AB `BIB_KUERZ`, Begleitphase FB `ZTP_KUERZ` /
+ * AB `PFM_KUERZ` (dieselbe Aufteilung wie `ROLLEN_SPALTEN` in
+ * `bearbeiterFilter.ts`). Erst alle vier nebeneinander machen sichtbar, dass
+ * der Reiter „Begleitung" nach der ANTRAGSPHASEN-Spalte filtert.
+ *
+ * Breite: `bib_kuerz`/`ztp_kuerz` führen im Bestand auch Doppel-Einträge
+ * („StE / CoS"), deshalb breiter als die vierstelligen TIB-/PFM-Kürzel.
+ */
+function kuerzelColumn(opts: {
+  key: 'tib_kuerz' | 'bib_kuerz' | 'ztp_kuerz' | 'pfm_kuerz';
+  label: string;
+  rolle: string;
+  defaultVisible: boolean;
+  width: number;
+}): SortableColumn<AntragTableRow> {
+  const { key, label, rolle, defaultVisible, width } = opts;
+  return {
+    key,
+    label,
+    gruppe: G_ZUSTAENDIGKEIT,
+    defaultVisible,
+    sortable: true,
+    filterable: true,
+    filterAccessor: r => strOrNull(r[key]) ?? FILTER_EMPTY_LABEL,
+    width,
+    wrap: false,
+    accessor: r => strOrNull(r[key]) ?? '',
+    render: r => {
+      const v = strOrNull(r[key]);
+      return v ? <MaKuerzelBadge kuerzel={v} title={`${rolle}: ${v}`} /> : null;
+    },
+  };
+}
 
 /**
  * Factory für eine „Datums-Status"-Spalte (FB Status / PreCheck Status): Badge
@@ -129,14 +194,16 @@ type BadgeVariant = ComponentProps<typeof Badge>['variant'];
 function statusDatumColumn(opts: {
   key: string;
   label: string;
+  gruppe: string;
   variant: BadgeVariant;
   getLabel: (r: AntragTableRow) => string | undefined;
   getDatum: (r: AntragTableRow) => string | undefined;
 }): SortableColumn<AntragTableRow> {
-  const { key, label, variant, getLabel, getDatum } = opts;
+  const { key, label, gruppe, variant, getLabel, getDatum } = opts;
   return {
     key,
     label,
+    gruppe,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -163,6 +230,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'aktenzeichen',
     label: 'FKZ',
+    gruppe: G_ANTRAG,
     defaultVisible: true,
     locked: true,
     sortable: true,
@@ -218,25 +286,33 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
       );
     },
   },
-  {
-    // Bearbeiter-Kürzel (TIB) — regulär im Spalten-Picker wählbar (off by
-    // default). Zeigt je Antrag, von welchem TIB er stammt; v.a. nützlich bei
-    // „Auch außerhalb meiner Anträge suchen" (Bearbeiter-Filter aktiv →
-    // Auto-Show aus, aber fremde TIBs in der Trefferliste). Im „alle"-/
-    // Übersichtsmodus zusätzlich automatisch erzwungen (showMaColumn).
-    key: MA_COLUMN_KEY,
-    label: 'TIB',
-    defaultVisible: false,
-    sortable: true,
-    filterable: true,
-    width: 72,
-    wrap: false,
-    accessor: r => strOrNull(r.tib_kuerz) ?? '',
-    render: r => <MaKuerzelBadge kuerzel={r.tib_kuerz} />,
-  },
+  // Zuständigkeit, vier Spalten in der Lesefolge des Verfahrens: erst die
+  // Antragsphase (TIB/BIB), dann die Begleitphase (ZTP/PFM).
+  //
+  // TIB ist zusätzlich die MA-Spalte: im „alle"-/Übersichtsmodus wird sie auch
+  // ohne Picker-Auswahl erzwungen (showMaColumn) und ist dann aus dem Picker
+  // ausgeblendet. Regulär wählbar bleibt sie für „auch außerhalb meiner Anträge
+  // suchen" — dann stehen fremde TIBs in der Trefferliste.
+  kuerzelColumn({
+    key: MA_COLUMN_KEY, label: 'TIB', rolle: 'FB (Antragsphase)',
+    defaultVisible: false, width: 72,
+  }),
+  kuerzelColumn({
+    key: 'bib_kuerz', label: 'BIB', rolle: 'AB (Antragsphase)',
+    defaultVisible: true, width: 96,
+  }),
+  kuerzelColumn({
+    key: 'ztp_kuerz', label: 'ZTP', rolle: 'FB (Begleitphase)',
+    defaultVisible: false, width: 96,
+  }),
+  kuerzelColumn({
+    key: 'pfm_kuerz', label: 'PFM', rolle: 'AB (Begleitphase)',
+    defaultVisible: false, width: 76,
+  }),
   {
     key: 'akronym',
     label: 'Akronym',
+    gruppe: G_ANTRAG,
     defaultVisible: true,
     sortable: true,
     filterable: true,
@@ -251,6 +327,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'antragsteller',
     label: 'Antragsteller',
+    gruppe: G_ANTRAG,
     defaultVisible: true,
     sortable: true,
     filterable: true,
@@ -271,6 +348,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     // gefaltet (Rang 2-stellig gepolstert → dominiert, Aktion tie-break).
     key: 'status_naechster_schritt',
     label: 'Status und nächster Schritt',
+    gruppe: G_STATUS,
     defaultVisible: true,
     sortable: true,
     width: 320,
@@ -338,6 +416,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     // unangetastet, nur der Default ändert sich).
     key: 'status',
     label: 'Status',
+    gruppe: G_STATUS,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -369,6 +448,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   statusDatumColumn({
     key: 'fb_status',
     label: 'FB Status',
+    gruppe: G_STATUS,
     variant: 'info',
     getLabel: r => r.fb_status_label,
     getDatum: r => r.fb_status_datum,
@@ -376,6 +456,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   statusDatumColumn({
     key: 'precheck_status',
     label: 'PreCheck Status',
+    gruppe: G_STATUS,
     variant: 'default',
     getLabel: r => r.precheck_status_label,
     getDatum: r => r.precheck_status_datum,
@@ -383,6 +464,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'frist',
     label: 'Frist',
+    gruppe: G_TERMINE,
     defaultVisible: true,
     sortable: true,
     width: 96,
@@ -426,6 +508,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'titel',
     label: 'TV Titel',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     width: 260,
@@ -436,6 +519,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'verbund_titel',
     label: 'VB Titel',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     width: 280,
@@ -448,6 +532,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'vb_phase',
     label: 'Typ',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -462,6 +547,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'bewilligung_datum',
     label: 'Bewilligungsdatum',
+    gruppe: G_TERMINE,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -474,6 +560,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'erstentscheidung',
     label: 'Erstentscheidung',
+    gruppe: G_TERMINE,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -486,6 +573,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'antragsdatum',
     label: 'Antragseingang',
+    gruppe: G_TERMINE,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -498,6 +586,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'ort_ast',
     label: 'Ort AST',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -509,6 +598,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'foerdersumme',
     label: 'Zuwendung',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     width: 124,
@@ -522,6 +612,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'laufzeitbeginn',
     label: 'Laufzeitbeginn',
+    gruppe: G_TERMINE,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -534,6 +625,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'laufzeitende',
     label: 'Laufzeitende',
+    gruppe: G_TERMINE,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -546,6 +638,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'branche',
     label: 'Branche',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -557,6 +650,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
   {
     key: 'foerdergeber',
     label: 'Fördergeber',
+    gruppe: G_ANTRAG,
     defaultVisible: false,
     sortable: true,
     filterable: true,
@@ -569,6 +663,21 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
 
 export const DEFAULT_VISIBLE_COLUMN_KEYS: string[] =
   ANTRAG_TABLE_COLUMNS.filter(c => c.defaultVisible).map(c => c.key);
+
+/**
+ * Zusatz-Hinweis im Spalten-Picker. Die Spaltenköpfe tragen die Kürzel des
+ * Fachsystems (TIB/BIB/ZTP/PFM) — kurz genug für eine schmale Spalte, aber
+ * nicht selbsterklärend. Im Picker ist Platz für die Rolle dahinter.
+ */
+export function spaltenHinweis(key: string): string | null {
+  switch (key) {
+    case 'tib_kuerz': return 'FB';
+    case 'bib_kuerz': return 'AB';
+    case 'ztp_kuerz': return 'FB · Begleitung';
+    case 'pfm_kuerz': return 'AB · Begleitung';
+    default: return null;
+  }
+}
 
 export const LOCKED_COLUMN_KEYS: string[] =
   ANTRAG_TABLE_COLUMNS.filter(c => c.locked === true).map(c => c.key);
@@ -593,6 +702,7 @@ export function kategorieStatusColumns(
   return kategorien.map(k => statusDatumColumn({
     key: `${KATEGORIE_COLUMN_PREFIX}${k.kategorieId}`,
     label: k.label,
+    gruppe: ordnerRubrik(k.kategorieId),
     variant: 'default',
     getLabel: r => r.kat_status?.[k.kategorieId]?.l,
     getDatum: r => r.kat_status?.[k.kategorieId]?.d,

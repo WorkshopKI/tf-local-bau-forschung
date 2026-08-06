@@ -11,7 +11,12 @@ export { useColumnVisibility, type UseColumnVisibilityResult } from './useColumn
 export { useColumnWidths, type UseColumnWidthsResult } from './useColumnWidths';
 export { useTotalTableWidth, type UseTotalTableWidthResult } from './useTotalTableWidth';
 export { SortIcon, type SortIconProps } from './SortIcon';
-export { ColumnPicker, type ColumnPickerProps } from './ColumnPicker';
+export {
+  ColumnPicker,
+  gruppiereSpalten,
+  type ColumnPickerProps,
+  type SpaltenRubrik,
+} from './ColumnPicker';
 export { SortableTable, type SortableTableProps } from './SortableTable';
 export { ColumnFilterDropdown, type ColumnFilterDropdownProps } from './ColumnFilterDropdown';
 export { useColumnFilters, type UseColumnFiltersResult } from './useColumnFilters';

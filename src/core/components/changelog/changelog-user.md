@@ -19,6 +19,27 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.4 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
+## v3.3 — 2026-08
+
+### Neu
+- Die Tabelle der Förderanträge zeigt jetzt alle vier Zuständigkeiten: **TIB** und **BIB** für die Antragsphase, **ZTP** und **PFM** für die Begleitphase. **BIB** ist ab sofort standardmäßig eingeblendet, die übrigen lassen sich unter „Spalten" dazuschalten. Damit ist im Reiter „Begleitung" auf einen Blick zu sehen, wer einen Antrag tatsächlich begleitet — bisher stand dort nur, wer ihn im Antragsverfahren betreut hat.
+- Nach jedem der vier Kürzel lässt sich auch filtern und sortieren (Pfeil bzw. Trichter im Spaltenkopf).
+
+### Verbesserungen
+- Das Menü „Spalten" ist gegliedert: **Antrag**, **Zuständigkeit**, **Status**, **Termine** und die Ordner des Fachsystems — letztere getrennt nach Teilvorhaben und Verbund, weil beide Ebenen gleichnamige Ordner führen. Die Überschriften bleiben beim Scrollen stehen, und das Menü nutzt jetzt die volle Fensterhöhe.
+
+### Bugfixes
+- Kürzel wurden in Großbuchstaben angezeigt und damit verfälscht: aus „StE" wurde „STE". Sie stehen jetzt so da, wie sie geschrieben werden.
+
 ## v3.2 — 2026-08
 
 ### Neu

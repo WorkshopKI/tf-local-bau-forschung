@@ -24,6 +24,51 @@ const VISIBLE_COLUMNS_KEY = 'teamflow_antraege_table_columns';
 const STATISCHE_KEYS: ReadonlySet<string> = new Set(ANTRAG_TABLE_COLUMNS.map(c => c.key));
 
 /**
+ * Nachträglich in den Standard gewanderte Spalten.
+ *
+ * Eine gespeicherte Auswahl schlägt den Code-Default: wer die Tabelle schon
+ * einmal benutzt hat, hat eine Liste im localStorage und bekäme eine neue
+ * `defaultVisible: true`-Spalte NIE zu sehen. Deshalb wird sie einmalig
+ * nachgereicht, festgehalten über eine Revisionsnummer. Wer sie danach
+ * abwählt, behält das — die Revision ist dann bereits fortgeschrieben.
+ *
+ * Kein Key-Bump: der würde die gesamte persönliche Spaltenwahl verwerfen.
+ */
+const SPALTEN_REV_KEY = 'teamflow_antraege_table_columns_rev';
+const NACHZUEGLER: readonly { rev: number; keys: readonly string[] }[] = [
+  // v3.3 — das AB-Kürzel (BIB) gehört ab Werk neben das FB-Kürzel.
+  { rev: 1, keys: ['bib_kuerz'] },
+];
+const AKTUELLE_REV: number = NACHZUEGLER.reduce((max, n) => Math.max(max, n.rev), 0);
+
+/**
+ * Rein: hängt die seit `gespeicherteRev` neu hinzugekommenen Standardspalten an
+ * (ohne Duplikate, Reihenfolge der übrigen bleibt) und meldet die neue Revision.
+ */
+export function reicheNeueStandardspaltenNach(
+  gespeichert: readonly string[],
+  gespeicherteRev: number,
+): { keys: string[]; rev: number } {
+  const keys = [...gespeichert];
+  for (const n of NACHZUEGLER) {
+    if (n.rev <= gespeicherteRev) continue;
+    for (const k of n.keys) if (!keys.includes(k)) keys.push(k);
+  }
+  return { keys, rev: Math.max(gespeicherteRev, AKTUELLE_REV) };
+}
+
+function loadRev(): number {
+  try {
+    const n = Number(localStorage.getItem(SPALTEN_REV_KEY));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch { return 0; }
+}
+
+function saveRev(rev: number): void {
+  try { localStorage.setItem(SPALTEN_REV_KEY, String(rev)); } catch { /* ignore */ }
+}
+
+/**
  * Gültig sind die festen Spalten UND die Ordner-Spalten des Statuskatalogs.
  * Letztere sind nicht im Code aufzählbar — welche es gibt, entscheidet die
  * Kuration. Eine feste Schlüsselliste würde sie beim Laden herausfiltern, und
@@ -36,12 +81,21 @@ function istGueltigerKey(key: string): boolean {
 function loadVisibleColumns(): string[] {
   try {
     const raw = localStorage.getItem(VISIBLE_COLUMNS_KEY);
-    if (!raw) return [...DEFAULT_VISIBLE_COLUMN_KEYS];
+    // Noch nie etwas gewählt → Defaults. Die Revision wird trotzdem gestempelt:
+    // sonst bekäme ein Nutzer, der eine dieser Spalten gleich wieder abwählt,
+    // sie beim nächsten Start wieder untergeschoben.
+    if (!raw) { saveRev(AKTUELLE_REV); return [...DEFAULT_VISIBLE_COLUMN_KEYS]; }
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [...DEFAULT_VISIBLE_COLUMN_KEYS];
-    const keys = parsed.filter((k): k is string => typeof k === 'string' && istGueltigerKey(k));
+    if (!Array.isArray(parsed)) { saveRev(AKTUELLE_REV); return [...DEFAULT_VISIBLE_COLUMN_KEYS]; }
+    const gefiltert = parsed.filter((k): k is string => typeof k === 'string' && istGueltigerKey(k));
+    const vorherigeRev = loadRev();
+    const { keys, rev } = reicheNeueStandardspaltenNach(gefiltert, vorherigeRev);
     for (const lockedKey of LOCKED_COLUMN_KEYS) {
       if (!keys.includes(lockedKey)) keys.push(lockedKey);
+    }
+    if (rev !== vorherigeRev) {
+      saveVisibleColumns(keys);
+      saveRev(rev);
     }
     return keys;
   } catch {

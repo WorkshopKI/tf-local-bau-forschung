@@ -16,6 +16,10 @@ export interface SortableColumn<T> {
   key: string;
   /** Anzeige-Label im Header und im Spalten-Picker. */
   label: string;
+  /** Optionale Rubrik im Spalten-Picker (z.B. „Termine"). Wer sie nicht setzt,
+   *  bekommt die Liste wie zuvor — ohne Überschriften. Die Reihenfolge der
+   *  Rubriken folgt dem ersten Auftreten in der Spaltenliste. */
+  gruppe?: string;
   /** Sichtbar bei erstem Laden (kann vom User toggelt werden, ausser `locked`). */
   defaultVisible: boolean;
   /** Wenn `true`, kann die Spalte nicht ausgeblendet werden (z.B. Aktenzeichen). */

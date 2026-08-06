@@ -50,7 +50,12 @@ import {
   type ZeilenMeldung,
 } from './trefferZahl';
 import { ColumnPicker } from '@/components/data-table';
-import { ANTRAG_TABLE_COLUMNS, MA_COLUMN_KEY, kategorieStatusColumns } from './tableColumns';
+import {
+  ANTRAG_TABLE_COLUMNS,
+  MA_COLUMN_KEY,
+  kategorieStatusColumns,
+  spaltenHinweis,
+} from './tableColumns';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
@@ -298,6 +303,14 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   columns={pickerColumns}
                   visibleKeys={visibleColumns}
                   onToggleColumn={toggleColumn}
+                  renderColumnExtra={c => {
+                    const hinweis = spaltenHinweis(c.key);
+                    return hinweis ? (
+                      <span className="ml-auto pl-2 text-[10px] text-[var(--tf-text-tertiary)]">
+                        {hinweis}
+                      </span>
+                    ) : null;
+                  }}
                 />
               ) : null}
             </div>

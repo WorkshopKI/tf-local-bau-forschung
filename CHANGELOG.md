@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.4.0 — Glossar (August 2026)
+
+MINOR — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+
+- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+
+### v3.3.0 — Zuständigkeits-Spalten und geordneter Spalten-Picker (August 2026)
+
+MINOR — Der Reiter „Begleitung" filtert nach den Antragsphasen-Kürzeln (TIB/BIB), zeigt aber Anträge in der Begleitphase — wer sie begleitet (ZTP/PFM), stand nirgends. Und der Spalten-Picker war eine ungegliederte Liste von 37 Einträgen.
+
+- Vier Zuständigkeits-Spalten statt einer: TIB · BIB · ZTP · PFM, BIB ab Werk eingeblendet — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+- Spalten-Picker nach Rubriken (Antrag/Zuständigkeit/Status/Termine/Ordner je Ebene), Überschriften bleiben beim Scrollen stehen — [ColumnPicker.tsx](src/components/data-table/ColumnPicker.tsx), opt-in über `SortableColumn.gruppe`
+- Neue Standardspalten werden bestehenden Auswahlen einmalig nachgereicht statt still zu fehlen — [useAntraegeColumnsStore.ts](src/plugins/antraege/useAntraegeColumnsStore.ts)
+- Kürzel-Pills ohne Versalien: „StE" bleibt „StE" — [MaKuerzelBadge.tsx](src/plugins/antraege/MaKuerzelBadge.tsx)
+
 ### v3.2.2 — Favicon prod auf ZIM-Lila (August 2026)
 
 PATCH — Das Schiefer-Blau aus v3.2.1 war ein Platzhalter meiner Wahl; prod trägt jetzt die Hausfarbe.
