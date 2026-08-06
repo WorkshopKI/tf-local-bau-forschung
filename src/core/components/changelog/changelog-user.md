@@ -22,11 +22,7 @@
 ## v3.19 — 2026-08
 
 ### Neu
-<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
-### Verbesserungen
-<!-- - … -->
-### Bugfixes
-<!-- - … -->
+- Interne Vorarbeit: Die App kann jetzt aus den Datumsspalten eines Vorgangs rekonstruieren, welche Statusabschnitte er durchlaufen hat und wie lange er in jedem stand. Zu sehen ist davon noch nichts — die Darstellung kommt in einem späteren Schritt.
 
 ## v3.18 — 2026-08
 

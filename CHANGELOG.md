@@ -7,9 +7,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 ### v3.19.0 — Verlaufsableitung (August 2026)
 
-MINOR — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+MINOR — Das Vorgangssystem erklärt den aktuellen Status, aber nicht den Weg dorthin. Das Import-Diff-Journal beginnt erst am 05.08.2026 und kennt null Statuswechsel — eine Spur, die nur beobachten kann, erklärt bei jedem Vorgang nur ihre eigene Blindheit. Also wird abgeleitet, mit Herkunft an jeder Spur. Reines Modul, keine UI (Band und Ausklappmechanik folgen).
 
-- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+- `baueVerlauf` baut je Teilvorhaben und Verbund eine Spur aus den `D_`-Spalten und den Statuswechsel-Regeln der Kürzel-Zuarbeit; Kürzel-Nachschlag immer × Projektform, historische Formen doppelt geführt — [verlauf/](src/core/status/verlauf/)
+- Vier Spurzustände statt einer leeren Zeile, und Abweichungen zum Export in zwei Arten getrennt: 11.134 „gar nicht ableitbar" gegen **152** echte Widersprüche — [typen.ts](src/core/status/verlauf/typen.ts)
+- Bestandslauf im Reiter *Kürzel* der Vorgangs-Regeln: 12.356 Teilvorhaben in 6.614 Vorhaben, 86,1 % mit Verlauf, aber nur 21,0 % der Verbünde mit abgeleitetem Statuswechsel — [VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)
+- Zwei Guards halten Pitfall #44: der Status-Pfad kennt das Verlaufs-Modul nicht, und die durchweg `aktiv: false`-Regeln der Zuarbeit haben genau einen Konsumenten — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+- Gemessen und richtiggestellt: `Sonderstatus` und die Partner-Werte kommen im Antragsbestand **null**-mal vor — sie stehen nur auf Roh-Exportzeilen ohne Förderkennzeichen — [vorgangssystem.md §14](docs/architecture/vorgangssystem.md)
 
 ### v3.18.0 — Feedback-Tickets: Mehrfachauswahl, Ziehen, Kontextmenue, Swimlanes (August 2026)
 

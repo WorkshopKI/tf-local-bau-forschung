@@ -66,9 +66,20 @@ export interface StatusCodeEintrag {
  * aus echten CSV-Importen kennt — dort steht „Ablehnung" ohne „versandt" und
  * „VN techn. geprüft" mit Punkt.
  *
- * Die `kurz`-Spalte wurde am 06.08.2026 gegen den Produktivbestand freigegeben
- * (43 131 TV-Zeilen). Die vier Codes ohne bisheriges Kurzlabel tragen zusammen
- * 65 % des Bestands: 88 allein 48 %.
+ * Die `kurz`-Spalte wurde am 06.08.2026 gegen die **Roh-Exportzeilen**
+ * freigegeben — 43 135 Zeilen aus `9052-prjbsp`, nicht 43 131 „TV-Zeilen": die
+ * Datei führt eine Zeile je Projektbeteiligung. Nachgemessen (Phase 1b):
+ *
+ * - Die vier Codes ohne bisheriges Kurzlabel tragen dort zusammen 65 %
+ *   (88 allein 48 %) — aber **ausschließlich auf Zeilen OHNE Förderkennzeichen**
+ *   (24 701 von 28 914). Es sind assoziierte und internationale Partner sowie
+ *   Sonderfälle ohne eigenen Antrag.
+ * - Im **Antragsbestand** (14 222 Anträge / 7 534 Verbünde) kommen `Sonderstatus`,
+ *   `assoziierter Partner` und `internationaler Partner` **null**-mal vor. Dort
+ *   führt `Schlussvermerk` mit 48,0 %.
+ *
+ * Die Kurzformen bleiben trotzdem gepflegt: der Katalog beschreibt, was das
+ * Fachsystem kennt, nicht nur, was gerade importiert ist.
  */
 export const STATUS_CODE_KATALOG: readonly StatusCodeEintrag[] = [
   { code: 11, text: 'Skizze eingegangen', kurz: 'Skizze eing.', varianten: [] },

@@ -259,6 +259,10 @@ export {
   baueChronik, gruppiereNachMonat,
   type ChronikEintrag, type ChronikMonat,
 } from './chronik';
+// Die Verlaufsableitung hat ein eigenes Barrel (`./verlauf`), wie das Journal.
+// Sie steht bewusst NICHT hier: dieses Barrel speist auch den Pfad, der den
+// GELTENDEN Status bestimmt, und die Rekonstruktion der Vergangenheit darf dort
+// nie hineinreichen (Pitfall #44, Guard `verlauf-leitet-keinen-status-ab`).
 
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';

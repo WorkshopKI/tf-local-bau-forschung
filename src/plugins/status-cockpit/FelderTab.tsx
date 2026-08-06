@@ -53,6 +53,8 @@ import {
 } from './labels';
 import { KategorieEditor } from './KategorieEditor';
 import { FelderAbgleich } from './FelderAbgleich';
+import { VerlaufBefundeBlock } from './VerlaufBefundeBlock';
+import { useVerlaufErhebung } from './useVerlaufErhebung';
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
@@ -310,6 +312,9 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   );
   const suchModus = suche.trim() !== '';
   const vorgangssystem = isVorgangssystemEnabled();
+  // Vor dem Early-Return: die Hook-Reihenfolge hängt an der Aufrufreihenfolge,
+  // und `tsc` fängt einen Verstoß nicht (React #310).
+  const verlauf = useVerlaufErhebung(api.entwurf);
 
   const entwurf = api.entwurf;
   const kategorien = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
@@ -387,6 +392,11 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       )}
 
       <FelderAbgleich api={api} />
+
+      {/* Der Bestandslauf der Verlaufsableitung sitzt hier, weil er über die
+          Kürzel und ihre Statuswirkung Auskunft gibt — dieselbe Sache wie der
+          Rest des Reiters, nur über den Bestand statt über den Katalog. */}
+      {vorgangssystem && <VerlaufBefundeBlock lauf={verlauf} />}
 
       <div className="flex flex-col gap-2">
         <input

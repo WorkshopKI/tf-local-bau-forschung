@@ -112,6 +112,15 @@
  *     ein eigenes Kontext-Doc oder ist Mitglied von KURATION_PLUGIN_IDS (teilt
  *     kuration.md). KEIN Zeichen-Budget mehr, nur eine Reissleine (10000) gegen
  *     ausufernde Docs — die Disziplin ist inhaltlich (WAS statt WIE), nicht numerisch.
+ *   - verlauf-leitet-keinen-status-ab   → Pitfall #44 / Phase 1b: die Verlaufsableitung
+ *     rekonstruiert die VERGANGENHEIT; der Pfad, der den GELTENDEN Status bestimmt
+ *     (status-canonical, snapshot, kategorie-ableitung, zah-phasen, phasen-schnitt),
+ *     darf sie nicht importieren. Sonst entsteht die zweite Ableitung wieder, die
+ *     mit v2.385 zurueckgebaut wurde. Die Richtung ist verlauf/ → status, nie zurueck.
+ *   - trigger-regeln-nur-im-verlauf     → Phase 1b: KUERZEL_TRIGGER_REGELN sind
+ *     ausnahmslos `aktiv: false` (erfasst, nicht wirksam). Gelesen werden sie nur in
+ *     src/core/status/verlauf/; ein zweiter Konsument waere der Weg, sie versehentlich
+ *     scharf zu schalten.
  *   - no-index-punkt-id                 → Klaerung (v2.412): eine Punkt-Id im Seed von
  *     src/plugins/zu-klaeren/ darf NIE aus einem Schleifenindex entstehen. Die Antworten
  *     liegen append-only auf dem Share und zeigen auf die Id; ein eingefuegter Punkt
@@ -332,6 +341,84 @@ describe('kuerzel-nie-flach (v3.13 — Kürzel × Projektform)', () => {
         `  if (!a.eindeutig) { /* Kuerzel zeigen, keine geratene Bedeutung */ }\n` +
         `Flach nachgeschlagen zeigt die App fuer 78,9 % der Antraege den falschen\n` +
         `Klartext — das war der Zustand bis v3.13.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('verlauf-leitet-keinen-status-ab (Phase 1b — Pitfall #44)', () => {
+  // Die Verlaufsableitung rekonstruiert die VERGANGENHEIT aus den `D_`-Spalten.
+  // Der GELTENDE Status kommt weiter aus dem Export und wird nie berechnet —
+  // genau das war die Ableitungs-Engine, die mit v2.385 zurueckgebaut wurde
+  // (485 von 7 534 Verbuenden sagten etwas anderes als das Fachsystem).
+  //
+  // Der Guard haelt die Trennung an der einzigen Stelle, an der sie mechanisch
+  // pruefbar ist: der Pfad, der den geltenden Status bestimmt, darf das
+  // Verlaufs-Modul nicht kennen. Umgekehrt ist erlaubt.
+  const verlaufImport = /from\s+['"][^'"]*(?:core\/status\/verlauf|\.\/verlauf|\.\.\/verlauf)['"]/;
+  const STATUS_PFAD = [
+    `${sep}core${sep}utils${sep}status-canonical.ts`,
+    `${sep}core${sep}status${sep}snapshot.ts`,
+    `${sep}core${sep}status${sep}kategorie-ableitung.ts`,
+    `${sep}core${sep}status${sep}zah-phasen.ts`,
+    `${sep}core${sep}status${sep}phasen-schnitt.ts`,
+  ];
+
+  it('der Status-Pfad kennt das Verlaufs-Modul nicht', () => {
+    const findings: Finding[] = [];
+    let gescannt = 0;
+    for (const file of ALL_TS_FILES) {
+      if (!STATUS_PFAD.some(p => file.endsWith(p))) continue;
+      gescannt++;
+      findings.push(...findInFile(file, l => verlaufImport.test(l), 'allow-verlauf-im-status-pfad'));
+    }
+    expect(gescannt, 'Pfad-Filter trifft keine Datei — der Guard prueft nichts')
+      .toBe(STATUS_PFAD.length);
+
+    if (findings.length > 0) {
+      const msg =
+        `Die App leitet keinen geltenden Status ab (Pitfall #44).\n` +
+        `src/core/status/verlauf/ rekonstruiert die Vergangenheit; wer den\n` +
+        `AKTUELLEN Status bestimmt, darf davon nichts wissen — sonst entsteht\n` +
+        `die zweite Ableitung wieder, die mit v2.385 zurueckgebaut wurde.\n` +
+        `Die Abhaengigkeit laeuft nur in eine Richtung: verlauf/ → status.\n\n` +
+        `Treffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('trigger-regeln-nur-im-verlauf (Phase 1b)', () => {
+  // `KUERZEL_TRIGGER_REGELN` sind ausnahmslos `aktiv: false`: importiert heisst
+  // erfasst und pruefbar, nicht wirksam. Ihr erster und einziger Konsument ist
+  // die Verlaufsableitung — die sie fuer die VERGANGENHEIT liest und dabei nie
+  // einen geltenden Status setzt. Ein zweiter Konsument waere der Weg, sie
+  // versehentlich scharf zu schalten.
+  const rohImport = /from\s+['"](?:[^'"]*\/)?kuerzel-trigger\.data['"]/;
+  const ERLAUBT = `${sep}core${sep}status${sep}verlauf${sep}`;
+
+  it('die Regeln der Zuarbeit werden nur im Verlaufs-Modul gelesen', () => {
+    const findings: Finding[] = [];
+    let gescannt = 0;
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(ERLAUBT)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      // Der Cockpit-Hook stoesst den Bestandslauf an und reicht die Regeln
+      // durch — er wertet sie nicht aus.
+      if (file.endsWith(`${sep}status-cockpit${sep}useVerlaufErhebung.ts`)) continue;
+      gescannt++;
+      findings.push(...findInFile(file, l => rohImport.test(l), 'allow-trigger-regeln'));
+    }
+    expect(gescannt, 'Pfad-Filter trifft keine Datei — der Guard prueft nichts')
+      .toBeGreaterThan(100);
+
+    if (findings.length > 0) {
+      const msg =
+        `KUERZEL_TRIGGER_REGELN sind alle aktiv:false — erfasst, nicht wirksam.\n` +
+        `Gelesen werden sie nur in src/core/status/verlauf/, und dort nur fuer\n` +
+        `die Rekonstruktion der Vergangenheit. Wer sie anderswo auswertet, baut\n` +
+        `die Status-Ableitung nach, die Pitfall #44 ausschliesst.\n\n` +
+        `Treffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });
@@ -1497,7 +1584,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 27 — v3.0 (Varianten-Zusammenlegung 5→3) hat ELF Flags entfernt: 'feedback'/'suche'/'antraege'/'streamlitBridge' (standen in JEDER Variante auf true), 'volltextsuche'/'auslastungSelbstEintragung'/'embeddingCorpusBuild' (durch die Zusammenlegung ueberall true), 'auslastungNurKorpus'/'kuerzelDropdown' (bedienten nur die abgeschafften Varianten kurator/as) sowie 'deAnonymisierung'/'maVerwaltungPasswort' (gaten nur Oberflaeche INNERHALB des Auslastungs-Moduls, das selbst hinter dem Zusatzpasswort liegt — ein Schloss im Tresor; beide jetzt aus 'auslastung' abgeleitet). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat. Davor 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2720;       // Ist ~2669 (DIESE Datei; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2810;       // Ist ~2756 (DIESE Datei; davor 2720 / +verlauf-leitet-keinen-status-ab + trigger-regeln-nur-im-verlauf (Phase 1b) — die Verlaufsableitung rekonstruiert die Vergangenheit aus den `D_`-Spalten und darf dem Pfad, der den GELTENDEN Status bestimmt, nie bekannt werden; und die Regeln der Kuerzel-Zuarbeit sind alle `aktiv: false` und haben genau einen Konsumenten; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

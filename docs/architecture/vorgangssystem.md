@@ -21,6 +21,7 @@ Stand: 03.08.2026 · **P0–P6 umgesetzt + Fachabstimmung eingearbeitet**
 | — | Zieltage-Sammelübernahme (A2) | v2.388.0 |
 | — | **Betrachtungsbereich** — Arbeitsvorrat folgt dem Bereich, Evidenz nicht | v2.389.0 → [Abschnitt 10](#10-betrachtungsbereich-arbeitsvorrat-folgt-dem-bereich-evidenz-nicht) |
 | — | Phasenvorschlag für Kürzel (Trigger-Tabelle + Auslieferung) | v2.408.0 → [Abschnitt 13](#13-phasenvorschlag-für-kürzel-v2408) |
+| — | **Verlaufsableitung** — Statusabschnitte aus den `D_`-Spalten, reines Modul ohne UI | v3.17.0 → [Abschnitt 14](#14-verlaufsableitung-v317) |
 
 **Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
 
@@ -803,3 +804,100 @@ Endstand nach beiden Übernahmen: **46 von 508** Feldern mit Phase, verteilt üb
 alle sechs ZAH-Phasen (Eingang 3 · Vollständigkeit 10 · Prüfung 6 ·
 Entscheidung 10 · Begleitung 8 · Abgeschlossen 9). Alle 46 sind Datumsfelder —
 genau die Sorte, die `bestimmeSeit` auswertet.
+
+## 14. Verlaufsableitung (v3.17)
+
+Modul [src/core/status/verlauf/](../../src/core/status/verlauf/), rein und ohne
+UI: `baueVerlauf(bezug, version, triggerRegeln, journal)` liefert je
+Teilvorhaben eine **Spur** und eine für den Verbund — Statusabschnitte
+(`VerlaufsSegment`), die Kürzel dazwischen (`VerlaufsUebergang`) und den
+Zustand, wenn es keine Bahn gibt.
+
+### 14.1 Warum abgeleitet und nicht beobachtet
+
+Das Import-Diff-Journal (Abschnitt 12) beginnt am 05.08.2026; alle 12 356
+Anträge des Bereichs hatten ihren letzten Statuswechsel davor. Eine Spur, die
+nur beobachten kann, sagt bei jedem Vorgang „nicht beobachtet" und erklärt damit
+nur ihre eigene Blindheit. Die App rekonstruiert deshalb aus den `D_`-Spalten
+und den Statuswechsel-Regeln der Kürzel-Zuarbeit und führt an jeder Spur
+`herkunft` mit; sobald das Journal trägt, steigt sie auf `beobachtet`.
+
+**Pitfall #44 bleibt unberührt**: rekonstruiert wird die *Vergangenheit*. Das
+letzte Segment jeder Spur trägt immer den **importierten** Wert. Zwei Guards
+halten das — der Status-Pfad kennt das Modul nicht, und die (durchweg
+`aktiv: false`) Regeln der Zuarbeit haben genau einen Konsumenten.
+
+### 14.2 Die vier Spurzustände
+
+`verlauf` · `kein_bearbeitungsstand` (Marker/Rolle im Verbund) ·
+`kein_wert_im_csv` · `nicht_beobachtet` (Status da, kein Übergang erklärt ihn).
+Jeder Zustand ≠ `verlauf` trägt eine Begründung im Klartext.
+
+Weicht die Ableitung vom Export ab, ist das ein Befund mit **zwei Arten** —
+und die Unterscheidung ist der Unterschied zwischen einer Warnung und Lärm:
+
+| Art | Bedeutung | gemessen |
+|---|---:|---:|
+| `nicht_ableitbar` | keine Regel dieser Projektform setzt den Status; die Ableitung *konnte* ihn nicht erreichen | **11 134** |
+| `widerspruch` | es gäbe eine Regel, sie ist an diesem Vorgang nur nicht belegt | **152** |
+
+### 14.3 Was der Bestandslauf ergeben hat
+
+Knopf im Reiter *Kürzel* der Vorgangs-Regeln
+([VerlaufBefundeBlock.tsx](../../src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)),
+gemessen am 06.08.2026 über **12 356 Teilvorhaben in 6 614 Vorhaben**
+(Richtlinien 2015 + 2020 + 2025, 12 Programme), Laufzeit 6,5–7,8 s:
+
+| | |
+|---|---:|
+| Teilvorhaben mit Verlauf | **10 640 (86,1 %)** |
+| ohne erklärten Statuswechsel | 1 652 |
+| ohne Bearbeitungsstand (Irrläufer) | 64 |
+| **Verbünde mit abgeleitetem Statuswechsel** | **1 388 (21,0 %)** |
+| Verbünde mit Terminen auf der Bahn (Obermenge) | 6 015 |
+| gesetzte Termine | 490 153 |
+| davon mit belegtem Statuswechsel | 29 602 (**6,0 %**) |
+| Segmente · davon Dauer unsicher | 45 616 · 31 135 (68,3 %) |
+| mehrdeutig (gleichtägig) | 1 150 |
+| umbenannte Kürzel im Bestand | 1 277 (`MVA→ÄA` 989, `LBN→LBNx` 288) |
+| längste Spur | 87 Übergänge, 4 Segmente |
+
+Drei Aussagen daraus:
+
+- **`kein_kuerzel` ist der Normalfall, nicht die Ausnahme** (94 % der Termine).
+  Ein Band zeigt überwiegend Termine ohne bekannten Statuswechsel; die Abschnitte
+  entstehen aus median zwei Übergängen. Es trägt — schmal.
+- **Die Verbundspur ist die schwache Stelle** (21 %). Grund ist nicht der Code,
+  sondern die Datenlage: von 41 Regeln berühren fünf den Verbund, jede gilt für
+  **genau eine** Projektform, und `XIZ`/`XVE` haben im Bestand keine gemappte
+  Spalte. 3 241 Verbünde tragen ein VB-Kürzel, für dessen Projektform die
+  Zuarbeit nichts führt (`ABB/FuE` 2 650, `AB/FuE` 2 319 …).
+- **Die Projektform ist der Hebel.** 58 % der Verbünde sind FuE, und für FuE
+  führt die Zuarbeit 11 Regeln — für NW (21 %) sind es 25. Eine
+  Trigger-Nachlieferung für FuE hätte mehr Wirkung als jede Codeänderung.
+
+**Zum Vergleich, nur gezählt und nicht abgeleitet**: die importierte
+C16-Trigger-Tabelle würde 54 587 Termine (11,1 %) und **4 183 von 6 614
+Verbünden (63,2 %)** erklären — das Dreifache der Zuarbeit. Abgeleitet wird
+trotzdem aus einer Quelle; zwei Regelwerke in einer Spur wären die zweite
+Wahrheit, gegen die Pitfall #45 geschrieben ist. Die Zahl steht da, damit die
+Entscheidung für Phase 2/3 eine Entscheidung ist.
+
+### 14.4 Offene Punkte für die Fachabstimmung
+
+1. **`XPC+`/`XPC?` setzen den TV-Status, nicht den Verbundstatus** — so steht es
+   in der Zuarbeit (`scope: tv`, *„Stw TV auf bearbeitungsreif, wenn alle TV PC+
+   haben"*). Es sind Verbund-Kürzel mit Wirkung auf die Teilvorhaben. Die App
+   folgt den Daten; zu bestätigen.
+2. **Zwei Zielstatus lösen nicht auf**: `AB/NW` → *„bewilligungseif"* (Tippfehler
+   der Quelle) und `XHSP/FuE` → *„Bewilligungsentwurf"* (der Katalog führt
+   „Bewilligungsentwurf VDI/VDE-IT"). Beide betreffen zusammen 1 384 Verbünde.
+3. **DL und EP haben gar keine Verbund-Regel.**
+4. **12 der 41 Regeln lassen die Ebene offen** (`scope: null`) — 5 718 Termine
+   tragen deshalb „Regel vorhanden, Ebene unbestimmt".
+5. **Die Marker-Werte kommen im Antragsbestand nicht vor.** `Sonderstatus`,
+   `assoziierter Partner` und `internationaler Partner` stehen ausschließlich auf
+   Roh-Exportzeilen **ohne** Förderkennzeichen (24 701 von 28 914 in
+   `9052-prjbsp`) — sie sind keine Anträge. Der Spurzustand
+   `kein_bearbeitungsstand` bleibt im Modell, greift heute aber nur bei
+   *Irrläufer* (64 Fälle).
