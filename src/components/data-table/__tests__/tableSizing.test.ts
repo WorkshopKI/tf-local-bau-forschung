@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeTableSizing,
   effectiveColumnWidth,
+  verteileUeberschuss,
   DEFAULT_COLUMN_WIDTH,
   RESPONSIVE_MIN_WIDTH,
 } from '../tableSizing';
@@ -143,5 +144,123 @@ describe('gemessene Inhaltsbreiten — Rang in der Kette', () => {
     });
     expect(s.desiredWidth).toBe(1284 - 220 - 80 + 400 + 200);
     expect(pctNumber(s.colPercent.version)).toBeCloseTo((200 / s.desiredWidth) * 100, 3);
+  });
+});
+
+describe('verteileUeberschuss', () => {
+  const basis = (...t: [string, number, number][]): { key: string; breite: number; hunger: number }[] =>
+    t.map(([key, breite, hunger]) => ({ key, breite, hunger }));
+
+  it('rührt nichts an, wenn der Container schmaler ist als die Spaltensumme', () => {
+    const r = verteileUeberschuss(basis(['a', 200, 50], ['b', 300, 0]), 400);
+    expect(r.breiten).toEqual({ a: 200, b: 300 });
+    expect(r.fueller).toBe(0);
+  });
+
+  it('gibt jeder hungrigen Spalte genau ihren Fehlbetrag, wenn der Platz reicht', () => {
+    // Summe 500, Container 700 → 200 Überschuss, Hunger 30+20 = 50.
+    const r = verteileUeberschuss(basis(['a', 200, 30], ['b', 300, 20]), 700);
+    expect(r.breiten).toEqual({ a: 230, b: 320 });
+    // Was keine Spalte brauchen kann, bleibt liegen — es fließt NICHT zurück in
+    // die Verteilung, sonst wären wir wieder beim proportionalen Aufblasen.
+    expect(r.fueller).toBe(150);
+  });
+
+  it('teilt anteilig und deckelt bei knappem Platz auf den eigenen Bedarf', () => {
+    // Überschuss 60, Hunger 90+30 = 120 → a bekommt 45, b bekommt 15.
+    const r = verteileUeberschuss(basis(['a', 100, 90], ['b', 100, 30]), 260);
+    expect(r.breiten.a).toBeCloseTo(145, 6);
+    expect(r.breiten.b).toBeCloseTo(115, 6);
+    expect(r.fueller).toBeCloseTo(0, 6);
+  });
+
+  it('lässt satte Spalten unangetastet — der Platz geht nur an abgeschnittene', () => {
+    const r = verteileUeberschuss(basis(['schmal', 80, 0], ['breit', 300, 200]), 700);
+    expect(r.breiten.schmal).toBe(80);
+    expect(r.breiten.breit).toBe(500);
+  });
+
+  it('parkt alles im Füller, wenn keine Spalte hungrig ist', () => {
+    const r = verteileUeberschuss(basis(['a', 100, 0], ['b', 100, 0]), 500);
+    expect(r.breiten).toEqual({ a: 100, b: 100 });
+    expect(r.fueller).toBe(300);
+  });
+
+  it('behandelt negativen Hunger wie keinen', () => {
+    const r = verteileUeberschuss(basis(['a', 100, -40], ['b', 100, 50]), 300);
+    expect(r.breiten.a).toBe(100);
+    expect(r.breiten.b).toBe(150);
+  });
+});
+
+describe('Überschuss in computeTableSizing', () => {
+  const COLS = [col('fkz', 140), col('name', 300), col('frist', 60)];
+
+  it('bläst schmale Spalten nicht mehr auf — der Platz geht an die abgeschnittene', () => {
+    // Ohne containerBreite bekäme jede Spalte proportional mehr.
+    const s = computeTableSizing(COLS, undefined, {
+      gemessen: { fkz: 140, name: 300, frist: 60 },
+      wunsch: { fkz: 140, name: 420, frist: 60 },
+      containerBreite: 700,
+    });
+    // Bezug ist der Container: 140/700, 420/700, 60/700 … plus Füller.
+    expect(pctNumber(s.colPercent.fkz)).toBeCloseTo((140 / 700) * 100, 3);
+    expect(pctNumber(s.colPercent.frist)).toBeCloseTo((60 / 700) * 100, 3);
+    expect(pctNumber(s.colPercent.name)).toBeCloseTo((420 / 700) * 100, 3);
+  });
+
+  it('summiert Spalten UND Füller auf 100 % — darunter bläst der Browser wieder auf', () => {
+    const s = computeTableSizing(COLS, undefined, {
+      gemessen: { fkz: 140, name: 300, frist: 60 },
+      wunsch: { fkz: 140, name: 420, frist: 60 },
+      containerBreite: 900,
+    });
+    const summe = COLS.reduce((n, c) => n + pctNumber(s.colPercent[c.key]), 0)
+      + pctNumber(s.fuellerPercent);
+    expect(summe).toBeCloseTo(100, 2);
+  });
+
+  it('schützt eine gezogene Spalte: ein Override zählt nie als hungrig', () => {
+    const s = computeTableSizing(COLS, { name: 200 }, {
+      gemessen: { fkz: 140, name: 300, frist: 60 },
+      wunsch: { fkz: 140, name: 420, frist: 60 },
+      containerBreite: 900,
+    });
+    // Die schmal gezogene Spalte bleibt bei 200 — der ganze Überschuss wird Füller.
+    expect(pctNumber(s.colPercent.name)).toBeCloseTo((200 / 900) * 100, 3);
+    expect(pctNumber(s.fuellerPercent)).toBeCloseTo((500 / 900) * 100, 3);
+  });
+
+  it('setzt keinen Füller, wenn der Container schmaler ist als die Spalten', () => {
+    const s = computeTableSizing(COLS, undefined, {
+      gemessen: { fkz: 140, name: 300, frist: 60 },
+      wunsch: { fkz: 140, name: 420, frist: 60 },
+      containerBreite: 300,
+    });
+    expect(s.fuellerPercent).toBeUndefined();
+    expect(pctNumber(s.colPercent.fkz)).toBeCloseTo((140 / 500) * 100, 3);
+  });
+
+  it('lässt ohne wunsch-Map jede Spalte auf ihrer Pixelbreite stehen', () => {
+    // Ohne Hunger-Wissen kann keine Spalte etwas gebrauchen → alles wird Füller.
+    // Die Prozente ändern sich (Bezug ist jetzt der Container), die PIXEL nicht —
+    // und genau das ist die Zusage.
+    const s = computeTableSizing(COLS, undefined, { containerBreite: 900 });
+    for (const c of COLS) {
+      expect((pctNumber(s.colPercent[c.key]) / 100) * 900).toBeCloseTo(c.width!, 2);
+    }
+    expect(pctNumber(s.fuellerPercent)).toBeCloseTo((400 / 900) * 100, 3);
+  });
+
+  it('zieht die gerade gezogene Spalte aus der Hunger-Rechnung heraus', () => {
+    // Sonst zöge die Verteilung während des Zugs gegen den Cursor.
+    const s = computeTableSizing(COLS, undefined, {
+      gemessen: { fkz: 140, name: 300, frist: 60 },
+      wunsch: { fkz: 140, name: 420, frist: 60 },
+      containerBreite: 900,
+      draggedKey: 'name',
+      draggedWidth: 250,
+    });
+    expect(pctNumber(s.colPercent.name)).toBeCloseTo((250 / 900) * 100, 3);
   });
 });

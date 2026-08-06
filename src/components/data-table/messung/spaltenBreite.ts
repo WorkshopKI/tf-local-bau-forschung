@@ -38,13 +38,18 @@ export interface MessOptionen {
   kopfSortIcon?: number;
   /** Filter-Chevron im Kopf (Icon + `p-0.5` + Abstand). */
   kopfFilterIcon?: number;
-  /** Ob der Verbraucher überhaupt Spalten-Filter durchreicht — das weiß nur er,
-   *  nicht die Spalte. Ohne das bekäme jede `filterable`-Spalte Platz für ein
-   *  Icon, das nie erscheint. */
-  filterAktiv?: boolean;
+  /** Spalten, auf denen gerade ein Filter LIEGT.
+   *
+   *  Nur für sie ist der Chevron dauerhaft sichtbar und braucht deshalb Platz
+   *  im Kopf. Bei allen anderen liegt er außerhalb des Textflusses und erscheint
+   *  erst beim Überfahren — Platz zu reservieren, den man nur beim Hover sieht,
+   *  war der teuerste Posten des alten Kopfes (38 px Beiwerk je Spalte, bei
+   *  dreibuchstabigen Überschriften mehr als der Inhalt selbst). */
+  gefilterteKeys?: readonly string[];
 }
 
-export const MESS_DEFAULTS: Required<Omit<MessOptionen, 'filterAktiv'>> & { filterAktiv: boolean } = {
+export const MESS_DEFAULTS: Required<Omit<MessOptionen, 'gefilterteKeys'>>
+  & { gefilterteKeys: readonly string[] } = {
   scanFenster: 2000,
   kandidaten: 3,
   minBreite: 64,
@@ -52,7 +57,7 @@ export const MESS_DEFAULTS: Required<Omit<MessOptionen, 'filterAktiv'>> & { filt
   zellPolster: 24,
   kopfSortIcon: 17,
   kopfFilterIcon: 21,
-  filterAktiv: false,
+  gefilterteKeys: [],
 };
 
 function mitDefaults(o: MessOptionen | undefined): typeof MESS_DEFAULTS {
@@ -118,6 +123,10 @@ export function waehleMesskandidaten<T>(
  * Platzbedarf der Kopfzelle. Sie ist der BODEN jeder Spalte — eine Spalte
  * schmaler als ihre Überschrift zu rendern, bringt nichts: der Kopf bricht dann
  * über den Rand (siehe Kommentar in `TableHeadRows.tsx`).
+ *
+ * Der Sortierpfeil zählt IMMER mit (er steht im Textfluss und ist dauerhaft
+ * sichtbar), der Filter-Chevron NUR bei einer gerade gefilterten Spalte — sonst
+ * liegt er außerhalb des Flusses und erscheint erst beim Überfahren.
  */
 export function kopfBreite<T>(
   spalte: SortableColumn<T>,
@@ -125,28 +134,51 @@ export function kopfBreite<T>(
   optionen?: MessOptionen,
 ): number {
   const o = mitDefaults(optionen);
-  // Der Kopf rendert `uppercase` — gemessen wird deshalb die Großschreibung.
-  let b = messeBreite(spalte.label.toLocaleUpperCase('de-DE'), 'kopf') + o.zellPolster;
+  // Gemessen wird, was WIRKLICH dasteht: die Kopfzeile trägt `uppercase`, aber
+  // bei einer sortierbaren Spalte steht die Beschriftung in einem `<button>` —
+  // und Tailwinds Preflight setzt dort `text-transform: none`. Solche Spalten
+  // zeigen also Gemischtschreibung. Mit pauschaler Großschreibung gemessen war
+  // „Status und nächster Schritt" 31 px zu breit veranschlagt (im Browser
+  // nachgemessen: Modell 178, gerendert 147).
+  const text = spalte.sortable ? spalte.label : spalte.label.toLocaleUpperCase('de-DE');
+  let b = messeBreite(text, 'kopf') + o.zellPolster;
   if (spalte.sortable) b += o.kopfSortIcon;
-  if (o.filterAktiv && spalte.filterable) b += o.kopfFilterIcon;
+  if (spalte.filterable && o.gefilterteKeys.includes(spalte.key)) b += o.kopfFilterIcon;
   return b;
+}
+
+export interface AutoBreite {
+  /** Geklemmte Breite — das, was die Spalte bekommt. */
+  breite: number;
+  /** UNGEKLEMMTER Wunsch — das, was der Inhalt ohne `maxWidth` bräuchte.
+   *
+   *  Die Differenz zur `breite` ist der „Hunger" einer Spalte: nur wo sie
+   *  positiv ist, wird gerade Text abgeschnitten, und nur solche Spalten können
+   *  freien Platz überhaupt gebrauchen (siehe `verteileUeberschuss` in
+   *  `tableSizing.ts`). Ohne diesen Wert wüsste die Tabelle nur, wie breit jede
+   *  Spalte IST, nicht wie breit sie sein WOLLTE. */
+  wunsch: number;
 }
 
 /**
  * Wunschbreite je Spalte — Stufe 2 (teuer, echte Messung der Kandidaten).
  *
+ * Liefert geklemmte Breite UND ungeklemmten Wunsch; die einzige Stelle, an der
+ * die Aggregation stattfindet (`berechneAutoBreiten` ist nur die Sicht darauf,
+ * die den Wunsch wegwirft).
+ *
  * Spalten mit `autoWidth: false` fehlen im Ergebnis und fallen damit auf ihre
  * gepflegte `width` zurück (für Zellen, deren Platzbedarf kein Text ist —
  * Eingabefelder, Auswahlmenüs).
  */
-export function berechneAutoBreiten<T>(
+export function berechneAutoBreitenDetail<T>(
   spalten: readonly SortableColumn<T>[],
   kandidaten: Record<string, string[]>,
   messeBreite: MesseBreite,
   optionen?: MessOptionen,
-): Record<string, number> {
+): Record<string, AutoBreite> {
   const o = mitDefaults(optionen);
-  const out: Record<string, number> = {};
+  const out: Record<string, AutoBreite> = {};
   for (const s of spalten) {
     if (s.autoWidth === false) continue;
     let roh = 0;
@@ -161,7 +193,25 @@ export function berechneAutoBreiten<T>(
     // `Math.max(min, max)`: eine Spalte mit min > max soll ihren Mindestbedarf
     // behalten, nicht darunter geklemmt werden.
     const max = Math.max(min, s.maxWidth ?? o.maxBreite);
-    out[s.key] = Math.round(Math.min(Math.max(wunsch, min), max));
+    out[s.key] = {
+      breite: Math.round(Math.min(Math.max(wunsch, min), max)),
+      // Die Untergrenze zählt auch zum Wunsch — sonst wäre eine per `minWidth`
+      // hochgezogene Spalte rechnerisch „übersättigt" und der Hunger negativ.
+      wunsch: Math.round(Math.max(wunsch, min)),
+    };
   }
+  return out;
+}
+
+/** Nur die geklemmten Breiten — die Sicht, die der Renderpfad braucht. */
+export function berechneAutoBreiten<T>(
+  spalten: readonly SortableColumn<T>[],
+  kandidaten: Record<string, string[]>,
+  messeBreite: MesseBreite,
+  optionen?: MessOptionen,
+): Record<string, number> {
+  const detail = berechneAutoBreitenDetail(spalten, kandidaten, messeBreite, optionen);
+  const out: Record<string, number> = {};
+  for (const [key, d] of Object.entries(detail)) out[key] = d.breite;
   return out;
 }

@@ -42,12 +42,17 @@ export function leiteTabellenStil(o: TabellenStilOptionen): CSSProperties {
     return { ...basis, width: `${o.totalWidth}px`, flex: '0 0 auto' };
   }
   if (o.modus === 'scroll') {
+    // `renderWidth`, nicht `desiredWidth`: die `<col>`-Prozente beziehen sich
+    // auf genau diese Zahl (bei verteiltem Überschuss die Containerbreite). Wer
+    // hier die Spaltensumme setzte, gäbe jeder Spalte ihren Prozentsatz von
+    // einer anderen Grundlage, als aus der er gerechnet wurde.
+    //
     // `100%` meint hier den Scroll-Container, der bereits um die Griffbreite
     // schmaler ist (der Griff steht daneben, nicht darin) — deshalb keine
     // `calc()`-Korrektur mehr und damit auch kein Phantom-Scroll.
     return {
       ...basis,
-      width: `${o.sizing.desiredWidth}px`,
+      width: `${o.sizing.renderWidth}px`,
       minWidth: '100%',
       flex: '0 0 auto',
     };

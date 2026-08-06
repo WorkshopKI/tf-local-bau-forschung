@@ -12,6 +12,7 @@ import {
   waehleMesskandidaten,
   kopfBreite,
   berechneAutoBreiten,
+  berechneAutoBreitenDetail,
   type MesseBreite,
 } from '../messung/spaltenBreite';
 import type { SortableColumn } from '../types';
@@ -105,9 +106,21 @@ describe('waehleMesskandidaten — Stufe 1 (billig)', () => {
 });
 
 describe('kopfBreite — der Boden jeder Spalte', () => {
-  it('misst die GROSSSCHREIBUNG, weil der Kopf uppercase rendert', () => {
-    // 'abc' → 'ABC', 3 Zeichen × 20 + 24 Polster
-    expect(kopfBreite(col({ key: 'a', label: 'abc' }), messe, { zellPolster: 24 })).toBe(84);
+  /** Attrappe, die Versalien breiter macht — nur so ist überhaupt prüfbar, in
+   *  welcher Schreibweise gemessen wurde. */
+  const messeMitCase: MesseBreite = t =>
+    [...t].reduce((n, z) => n + (z === z.toUpperCase() && z !== z.toLowerCase() ? 30 : 20), 0);
+
+  it('misst eine NICHT sortierbare Spalte in Großschreibung — so rendert sie', () => {
+    // 'abc' → 'ABC', 3 Versalien × 30 + 24 Polster
+    expect(kopfBreite(col({ key: 'a', label: 'abc' }), messeMitCase, { zellPolster: 24 })).toBe(114);
+  });
+
+  it('misst eine SORTIERBARE Spalte gemischt — der Sortier-Knopf hebt das uppercase auf', () => {
+    // Tailwind-Preflight setzt `button { text-transform: none }`. Pauschale
+    // Großschreibung veranschlagte „Status und nächster Schritt" 31 px zu breit.
+    const c = col({ key: 'a', label: 'abc', sortable: true });
+    expect(kopfBreite(c, messeMitCase, { zellPolster: 24, kopfSortIcon: 0 })).toBe(84);
   });
 
   it('macht Platz für den Sortier-Pfeil, aber nur bei sortierbaren Spalten', () => {
@@ -119,8 +132,12 @@ describe('kopfBreite — der Boden jeder Spalte', () => {
   it('macht Platz für den Filter-Chevron nur, wenn der Verbraucher Filter durchreicht', () => {
     const c = col({ key: 'a', label: 'ab', filterable: true });
     const o = { zellPolster: 0, kopfFilterIcon: 21 };
-    expect(kopfBreite(c, messe, { ...o, filterAktiv: true })).toBe(61);
-    expect(kopfBreite(c, messe, { ...o, filterAktiv: false })).toBe(40);
+    // Platz für den Chevron bekommt NUR eine wirklich gefilterte Spalte — bei
+    // allen anderen liegt er außerhalb des Flusses und erscheint erst beim
+    // Überfahren.
+    expect(kopfBreite(c, messe, { ...o, gefilterteKeys: [c.key] })).toBe(61);
+    expect(kopfBreite(c, messe, { ...o, gefilterteKeys: [] })).toBe(40);
+    expect(kopfBreite(c, messe, { ...o, gefilterteKeys: ['andere'] })).toBe(40);
   });
 });
 
@@ -191,5 +208,53 @@ describe('berechneAutoBreiten — Stufe 2 (Aggregation + Klemmung)', () => {
     const messeKrumm: MesseBreite = t => t.length * 7.3333;
     const b = berechneAutoBreiten([col({ key: 'a', label: '' })], { a: ['abc'] }, messeKrumm, basis);
     expect(Number.isInteger(b.a)).toBe(true);
+  });
+});
+
+describe('berechneAutoBreitenDetail — der ungeklemmte Wunsch', () => {
+  const basis = { zellPolster: 0, minBreite: 0, maxBreite: 10_000 };
+
+  it('hält fest, was maxWidth der Spalte weggenommen hat', () => {
+    const d = berechneAutoBreitenDetail(
+      [col({ key: 'a', label: '', maxWidth: 50 })],
+      { a: ['abcdefghij'] },   // 10 Zeichen × 10 = 100
+      messe,
+      basis,
+    );
+    expect(d.a).toEqual({ breite: 50, wunsch: 100 });
+  });
+
+  it('setzt Wunsch == Breite, wo nichts geklemmt wurde — solche Spalten sind nicht hungrig', () => {
+    const d = berechneAutoBreitenDetail(
+      [col({ key: 'a', label: '' })],
+      { a: ['abcde'] },
+      messe,
+      basis,
+    );
+    expect(d.a!.wunsch).toBe(d.a!.breite);
+  });
+
+  it('zählt die Untergrenze zum Wunsch — eine hochgezogene Spalte ist nicht „übersättigt"', () => {
+    // Ohne das wäre der Wunsch (30) kleiner als die Breite (80) und der Hunger
+    // negativ; die Spalte würde beim Verteilen als Geberin missverstanden.
+    const d = berechneAutoBreitenDetail(
+      [col({ key: 'a', label: '', minWidth: 80 })],
+      { a: ['abc'] },
+      messe,
+      basis,
+    );
+    expect(d.a).toEqual({ breite: 80, wunsch: 80 });
+  });
+
+  it('deckt sich in der Breite exakt mit berechneAutoBreiten', () => {
+    const spalten = [
+      col({ key: 'a', label: 'Kopf', maxWidth: 40 }),
+      col({ key: 'b', label: '', minWidth: 90 }),
+      col({ key: 'c', label: '', autoWidth: false }),
+    ];
+    const kandidaten = { a: ['abcdef'], b: ['xy'], c: ['egal'] };
+    const d = berechneAutoBreitenDetail(spalten, kandidaten, messe, basis);
+    const b = berechneAutoBreiten(spalten, kandidaten, messe, basis);
+    expect(Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v.breite]))).toEqual(b);
   });
 });

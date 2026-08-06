@@ -18,6 +18,7 @@ import type { TableSizing } from '../tableSizing';
 const SIZING: TableSizing = {
   colPercent: { a: '50.0000%', b: '50.0000%' },
   desiredWidth: 1284,
+  renderWidth: 1284,
   floorWidth: 720,
 };
 
@@ -61,6 +62,16 @@ describe('leiteTabellenStil', () => {
     expect(s.width).toBe('1284px');
     expect(s.minWidth).toBe('100%');
     expect(s.flex).toBe('0 0 auto');
+  });
+
+  it('scroll: nimmt die BEZUGSGRÖSSE der Prozente, nicht die Spaltensumme', () => {
+    // Bei verteiltem Überschuss beziehen sich die `<col>`-Prozente auf den
+    // Container. Stünde hier die Spaltensumme, bekäme jede Spalte ihren
+    // Prozentsatz von einer anderen Zahl — alle wären um denselben Faktor zu
+    // schmal (nachgemessen: 1147/1602).
+    const mitUeberschuss: TableSizing = { ...SIZING, desiredWidth: 1147, renderWidth: 1602 };
+    const s = leiteTabellenStil({ modus: 'scroll', sizing: mitUeberschuss, totalWidth: null });
+    expect(s.width).toBe('1602px');
   });
 
   it('rechnet die Griffbreite NICHT mehr heraus — der Griff steht neben dem Scroller', () => {

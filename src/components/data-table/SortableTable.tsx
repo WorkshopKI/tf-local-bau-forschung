@@ -28,8 +28,8 @@
  * gibt es eine eigene Implementation — `src/plugins/suche/SearchResultsTable.tsx`,
  * das Vorbild fuer die Prozent-Spalten. Diese hier ist die schlanke Variante.
  */
-import { useMemo, useRef, type ReactNode } from 'react';
-import { computeTableSizing, RESPONSIVE_MIN_WIDTH } from './tableSizing';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { computeTableSizing, FUELLER_KEY, RESPONSIVE_MIN_WIDTH } from './tableSizing';
 import { leiteModus, leiteTabellenStil, wrapperKlassen } from './tableLayout';
 import { useAutoColumnWidths } from './messung/useAutoColumnWidths';
 import { useColumnResize } from './useColumnResize';
@@ -39,6 +39,35 @@ import { TableBody } from './TableBody';
 import type { SortDirection, SortableColumn } from './types';
 
 const DEFAULT_MIN_COLUMN_WIDTH = 60;
+
+/**
+ * Innenbreite des Scroll-Containers — Grundlage der Überschuss-Verteilung
+ * (`verteileUeberschuss` in `tableSizing.ts`).
+ *
+ * Keine Rückkopplung mit der Tabellenbreite: der Container ist `flex-1 min-w-0`,
+ * seine Breite hängt am Elternteil, nicht am Inhalt. Ein waagerechter
+ * Scrollbalken nimmt Höhe weg, nicht `clientWidth`.
+ *
+ * `undefined` heißt „nicht anwendbar" (Einpass-/gepinnter Modus) und schaltet
+ * die Verteilung ab — nicht „noch nicht gemessen".
+ */
+function useContainerBreite(
+  ref: React.RefObject<HTMLDivElement | null>,
+  aktiv: boolean,
+): number | undefined {
+  const [breite, setBreite] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!aktiv || !el) { setBreite(undefined); return; }
+    const messen = (): void => setBreite(el.clientWidth);
+    messen();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(messen);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, aktiv]);
+  return breite;
+}
 
 export interface SortableTableProps<T> {
   rows: T[];
@@ -184,19 +213,41 @@ export function SortableTable<T>({
   // Inhaltsabhängige Wunschbreiten. Gemessen wird an `measureRows` (dem vollen
   // Satz), nicht an `rows` (der dargestellten Seite) — sonst rechnete jede
   // nachgeladene Seite neu und die Spalten sprängen beim Scrollen.
-  const gemessen = useAutoColumnWidths({
+  // Nur eine WIRKLICH gefilterte Spalte zeigt ihren Chevron dauerhaft und
+  // braucht dafür Platz im Kopf; bei allen anderen liegt er außerhalb des
+  // Flusses. Sortiert, damit die Mess-Signatur nicht an der Schlüsselreihenfolge
+  // hängt.
+  const gefilterteKeys = useMemo(
+    () => (filtersEnabled
+      ? Object.entries(columnFilters!).filter(([, v]) => v.size > 0).map(([k]) => k).sort()
+      : []),
+    [filtersEnabled, columnFilters],
+  );
+  const auto = useAutoColumnWidths({
     spalten: columns,
     zeilen: measureRows ?? rows,
     aktiv: autoColumnWidth,
     signatur: measureSignature,
-    optionen: { filterAktiv: filtersEnabled },
+    optionen: { gefilterteKeys },
   });
+  const gemessen = auto?.breiten;
+  const modus = leiteModus(totalWidthActive, fitContentWidth);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Nur im Scroll-Modus gibt es einen Überschuss zu verteilen: im Einpass-Modus
+  // ist die Tabelle ohnehin containerbreit, und bei gepinnter Gesamtbreite hat
+  // der Nutzer die Breite gesetzt — beides darf die Verteilung nicht anfassen.
+  const containerBreite = useContainerBreite(scrollRef, modus === 'scroll');
   // Prozent-Breiten der `<col>` + Wunsch-/Bodenbreite der Tabelle (siehe
   // `tableSizing.ts`). Die Pixel-Summe ist die Wunschbreite, nicht die
   // erzwungene — nur so kann die Tabelle unter ihre Spaltensumme schrumpfen.
   const sizing = useMemo(
-    () => computeTableSizing(columns, columnWidths, { responsiveMin: responsiveMinWidth, gemessen }),
-    [columns, columnWidths, responsiveMinWidth, gemessen],
+    () => computeTableSizing(columns, columnWidths, {
+      responsiveMin: responsiveMinWidth,
+      gemessen,
+      wunsch: auto?.wunsch,
+      containerBreite,
+    }),
+    [columns, columnWidths, responsiveMinWidth, gemessen, auto?.wunsch, containerBreite],
   );
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
   const tableRef = useRef<HTMLTableElement | null>(null);
@@ -205,6 +256,8 @@ export function SortableTable<T>({
     columns,
     columnWidths,
     gemessen,
+    wunsch: auto?.wunsch,
+    containerBreite,
     sizing,
     responsiveMinWidth,
     fitContentWidth,
@@ -215,7 +268,6 @@ export function SortableTable<T>({
     tableRef,
   });
 
-  const modus = leiteModus(totalWidthActive, fitContentWidth);
   const tableStyle = leiteTabellenStil({ modus, sizing, totalWidth });
 
   // Der Griff steht NEBEN dem Scroll-Container, nicht darin — sonst wandert er
@@ -228,7 +280,7 @@ export function SortableTable<T>({
       className="w-full flex items-stretch rounded-[12px] overflow-hidden"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div className="flex-1 min-w-0 overflow-x-auto">
+      <div ref={scrollRef} className="flex-1 min-w-0 overflow-x-auto">
         <div className={wrapperKlassen(modus)}>
           <table ref={tableRef} className="text-[12.5px]" style={tableStyle}>
             <colgroup>
@@ -247,6 +299,22 @@ export function SortableTable<T>({
                   />
                 );
               })}
+              {/* Parkplatz für Platz, den keine Spalte gebrauchen kann. Eine
+                  `<col>` OHNE zugehörige Zellen erzeugt trotzdem eine Spalte
+                  (im Browser nachgemessen) — deshalb braucht es keine leere
+                  Zelle je Zeile. Ohne ihn summierten sich die Prozente auf
+                  weniger als 100 % und Chrome bliese alle Spalten wieder
+                  proportional auf (ebenfalls nachgemessen: 20/30/20 % werden
+                  zu 28,6/42,9/28,6 %). */}
+              {sizing.fuellerPercent ? (
+                <col
+                  ref={el => {
+                    if (el) colRefs.current.set(FUELLER_KEY, el);
+                    else colRefs.current.delete(FUELLER_KEY);
+                  }}
+                  style={{ width: sizing.fuellerPercent }}
+                />
+              ) : null}
             </colgroup>
             <TableHeadRows
               columns={columns}

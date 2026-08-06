@@ -296,16 +296,16 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     defaultVisible: true,
     locked: true,
     sortable: true,
-    // 156 statt der urspruenglichen 132: der Kopier-Slot rechts belegt dauerhaft
-    // ~22px (Layout-stabil, s.u.) — bei 132 wuerde das FKZ sonst abgeschnitten.
-    width: 156,
+    // Rückfall ohne Messung (kein Canvas): grob die gemessene Breite.
+    width: 132,
     wrap: false,
     // Gemessen wird das, was die Zelle WIRKLICH zeigt: bei einer Verbund-Zeile
     // die FKZ-Range plus den `·N`-Zähler, nicht das Einzel-Aktenzeichen des
-    // `accessor`. Zuschlag: Ampelpunkt 8 + gap 6 + Kopier-Slot 22 + gap 6.
+    // `accessor`. Zuschlag: nur Ampelpunkt 8 + gap 6 — der Kopier-Knopf liegt
+    // ÜBER der Zelle statt in ihr (s.u.) und kostet keine Breite mehr.
     messSchrift: 'monoKlein',
-    messZuschlag: 42,
-    minWidth: 140,
+    messZuschlag: 14,
+    minWidth: 96,
     maxWidth: 220,
     messText: r => (r._verbund ? `${r._verbund.fkzRange} ·${r._verbund.tvCount}` : r.aktenzeichen),
     accessor: r => r.aktenzeichen,
@@ -319,8 +319,9 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
       return (
         // `max-w-full min-w-0`: die Zelle clippt (overflow:hidden) — ohne das
         // schoebe ein langer FKZ-Range den Kopier-Knopf aus dem Sichtfeld,
-        // statt den Text zu kuerzen.
-        <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
+        // statt den Text zu kuerzen. `relative` traegt den ueberlagerten
+        // Kopier-Knopf, `w-full` gibt ihm den rechten Zellrand als Anker.
+        <span className="relative inline-flex w-full max-w-full min-w-0 items-center gap-1.5">
           <span className="shrink-0 w-2 h-2 inline-flex items-center justify-center">
             {ampel !== null ? (
               <span
@@ -340,12 +341,22 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
               ·{meta.tvCount}
             </span>
           ) : null}
-          {/* Kopier-Slot: belegt IMMER Platz (nur die Sichtbarkeit schaltet um),
-              sonst spraenge die Zelle beim Hover (Pitfall #14). `focus-within`,
-              damit der per Tab erreichbare Knopf nicht unsichtbar bleibt.
+          {/* Kopier-Knopf: liegt UEBER der Zelle, nicht in ihr. Als Slot im
+              Textfluss reservierte er in jeder Zeile dauerhaft ~28px (Punkt 22
+              + gap 6) fuer etwas, das nur beim Hover zu sehen ist — bei einer
+              Spalte, deren Text 60px braucht, war das fast ein Drittel. Der
+              Sprung, den Pitfall #14 verbietet, entsteht trotzdem nicht: ein
+              absolut positionierter Knopf veraendert das Layout nie.
+
+              `-right-3` schiebt ihn in das rechte Zellpolster (`px-3`), das
+              ohnehin leer bleibt — nachgemessen deckte er sonst schon bei einem
+              gewoehnlichen FKZ die letzten 10px des Textes ab, nicht erst bei
+              den langen Verbund-Ranges. Der deckende Grund haelt ihn dort
+              lesbar, wo er doch ueber Zeichen liegt. `focus-within` bleibt,
+              damit der per Tab erreichbare Knopf nicht unsichtbar ist.
               Kopiert wird der ANGEZEIGTE Wert — bei einer Verbund-Zeile also das
               gepflegte Verbund-FKZ (ersatzweise die TV-Range, s. `verbundFkz`). */}
-          <span className="shrink-0 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity">
+          <span className="absolute -right-3 top-1/2 -translate-y-1/2 rounded bg-[var(--tf-bg)] group-hover/row:bg-[var(--tf-bg-secondary)] opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity">
             <KopierIconButton
               text={fkzText}
               title={meta ? 'Verbund-FKZ kopieren' : 'FKZ kopieren'}
