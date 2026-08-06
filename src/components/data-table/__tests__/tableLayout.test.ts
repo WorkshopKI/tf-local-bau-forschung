@@ -12,7 +12,6 @@ import {
   leiteTabellenStil,
   wrapperKlassen,
   istScrollModus,
-  TOTAL_GRIP_WIDTH,
 } from '../tableLayout';
 import type { TableSizing } from '../tableSizing';
 
@@ -43,14 +42,14 @@ describe('leiteModus', () => {
 describe('leiteTabellenStil', () => {
   it('rendert in jedem Modus fixed + collapse', () => {
     for (const modus of ['gepinnt', 'scroll', 'einpassen'] as const) {
-      const s = leiteTabellenStil({ modus, sizing: SIZING, totalWidth: 900, totalWidthEnabled: true });
+      const s = leiteTabellenStil({ modus, sizing: SIZING, totalWidth: 900 });
       expect(s.tableLayout).toBe('fixed');
       expect(s.borderCollapse).toBe('collapse');
     }
   });
 
   it('gepinnt: exakte Pixelbreite, kein Schrumpfen, KEIN min-width', () => {
-    const s = leiteTabellenStil({ modus: 'gepinnt', sizing: SIZING, totalWidth: 900, totalWidthEnabled: true });
+    const s = leiteTabellenStil({ modus: 'gepinnt', sizing: SIZING, totalWidth: 900 });
     expect(s.width).toBe('900px');
     expect(s.flex).toBe('0 0 auto');
     // Ein min-width hier hielte die Tabelle über der gezogenen Breite fest.
@@ -58,19 +57,19 @@ describe('leiteTabellenStil', () => {
   });
 
   it('scroll: Wunschbreite in Pixeln, füllt den Container als Untergrenze', () => {
-    const s = leiteTabellenStil({ modus: 'scroll', sizing: SIZING, totalWidth: null, totalWidthEnabled: false });
+    const s = leiteTabellenStil({ modus: 'scroll', sizing: SIZING, totalWidth: null });
     expect(s.width).toBe('1284px');
     expect(s.minWidth).toBe('100%');
     expect(s.flex).toBe('0 0 auto');
   });
 
-  it('scroll mit Griff: hält dessen Breite frei, sonst entstünde ein Phantom-Scroll', () => {
-    const s = leiteTabellenStil({ modus: 'scroll', sizing: SIZING, totalWidth: null, totalWidthEnabled: true });
-    expect(s.minWidth).toBe(`calc(100% - ${TOTAL_GRIP_WIDTH}px)`);
+  it('rechnet die Griffbreite NICHT mehr heraus — der Griff steht neben dem Scroller', () => {
+    const s = leiteTabellenStil({ modus: 'scroll', sizing: SIZING, totalWidth: null });
+    expect(String(s.minWidth)).not.toContain('calc');
   });
 
   it('einpassen: Wunschbreite, aber schrumpfbar bis zum Boden', () => {
-    const s = leiteTabellenStil({ modus: 'einpassen', sizing: SIZING, totalWidth: null, totalWidthEnabled: false });
+    const s = leiteTabellenStil({ modus: 'einpassen', sizing: SIZING, totalWidth: null });
     expect(s.width).toBe('1284px');
     expect(s.minWidth).toBe('720px');
     // `0 1 auto` ist der Unterschied zu den Scroll-Modi: nur hier greift flex-shrink.
@@ -79,7 +78,7 @@ describe('leiteTabellenStil', () => {
 
   it('rendert die Tabellenbreite NIE prozentual — das löst in der w-max-Zeile zirkulär auf', () => {
     for (const modus of ['gepinnt', 'scroll', 'einpassen'] as const) {
-      const s = leiteTabellenStil({ modus, sizing: SIZING, totalWidth: 900, totalWidthEnabled: true });
+      const s = leiteTabellenStil({ modus, sizing: SIZING, totalWidth: 900 });
       expect(String(s.width)).not.toContain('%');
     }
   });

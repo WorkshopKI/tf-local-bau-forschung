@@ -5,6 +5,12 @@
  * `table-layout: fixed` skaliert alle Spalten proportional mit. Doppelklick
  * setzt zurück auf „Container füllen".
  *
+ * Er sitzt NEBEN dem Scroll-Container, nicht darin. Innen wandert er mit der
+ * Tabelle aus dem Sichtfeld, sobald die Spalten breiter sind als der Container —
+ * genau dann, wenn man ihn braucht. Der Preis dieser Entscheidung: der Griff
+ * folgt dem Cursor beim Ziehen nicht mehr sichtbar mit. Die Arithmetik
+ * (`startWidth + Δx`) bleibt davon unberührt.
+ *
  * Der Startwert kommt aus der aktuell GERENDERTEN Tabellenbreite
  * (`offsetWidth`) — kein Sprung beim Greifen, egal ob vorher Default oder schon
  * gepinnt. Beim Greifen schaltet die Tabelle sofort auf eine explizite Breite
@@ -69,7 +75,11 @@ export function TotalWidthGrip({
       title="Ziehen: Tabelle breiter/schmaler · Doppelklick: auf Fensterbreite zurücksetzen"
       onMouseDown={startTotalResize}
       onDoubleClick={() => onTotalWidthChange(null)}
-      className="shrink-0 h-full w-[12px] flex items-center justify-center cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)] z-20"
+      // KEIN `h-full`: als Flex-Kind eines `items-stretch`-Wrappers ohne feste
+      // Höhe löst `height:100%` auf `auto` auf — der Griff war damit 15px hoch
+      // (die Höhe seiner drei Punkte) statt so hoch wie die Tabelle. Das
+      // Strecken macht `align-items: stretch` von selbst.
+      className="shrink-0 w-[12px] flex items-center justify-center cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)]"
       style={{ borderLeft: '0.5px solid var(--tf-border)', touchAction: 'none' }}
     >
       <GriffPunkte />

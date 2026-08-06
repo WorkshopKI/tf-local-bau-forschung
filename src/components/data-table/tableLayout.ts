@@ -17,11 +17,6 @@
 import type { CSSProperties } from 'react';
 import type { TableSizing } from './tableSizing';
 
-/** Breite des „Gesamt-Breite"-Griffs (px). Muss mit der `w-[12px]`-Klasse des
- *  Griff-Elements übereinstimmen — im Scroll-Modus lässt die Tabelle per
- *  `calc(100% - Npx)` genau diesen Platz frei, sonst entstünde ein Phantom-Scroll. */
-export const TOTAL_GRIP_WIDTH = 12;
-
 export type TabellenModus = 'gepinnt' | 'scroll' | 'einpassen';
 
 export function leiteModus(totalWidthActive: boolean, fitContentWidth: boolean): TabellenModus {
@@ -39,8 +34,6 @@ export interface TabellenStilOptionen {
   sizing: TableSizing;
   /** Nur im Modus `gepinnt` ausgewertet. */
   totalWidth: number | null;
-  /** Ob der Gesamtbreiten-Griff mitgerendert wird (hält sich im Scroll-Modus Platz frei). */
-  totalWidthEnabled: boolean;
 }
 
 export function leiteTabellenStil(o: TabellenStilOptionen): CSSProperties {
@@ -49,10 +42,13 @@ export function leiteTabellenStil(o: TabellenStilOptionen): CSSProperties {
     return { ...basis, width: `${o.totalWidth}px`, flex: '0 0 auto' };
   }
   if (o.modus === 'scroll') {
+    // `100%` meint hier den Scroll-Container, der bereits um die Griffbreite
+    // schmaler ist (der Griff steht daneben, nicht darin) — deshalb keine
+    // `calc()`-Korrektur mehr und damit auch kein Phantom-Scroll.
     return {
       ...basis,
       width: `${o.sizing.desiredWidth}px`,
-      minWidth: o.totalWidthEnabled ? `calc(100% - ${TOTAL_GRIP_WIDTH}px)` : '100%',
+      minWidth: '100%',
       flex: '0 0 auto',
     };
   }

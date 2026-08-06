@@ -187,66 +187,71 @@ export function SortableTable<T>({
   });
 
   const modus = leiteModus(totalWidthActive, fitContentWidth);
-  const tableStyle = leiteTabellenStil({ modus, sizing, totalWidth, totalWidthEnabled });
+  const tableStyle = leiteTabellenStil({ modus, sizing, totalWidth });
 
-  // Tabelle (+ optionaler Griff) in einer Flex-Zeile. Die Zeile MUSS zum Modus
-  // passen — siehe `tableLayout.ts`.
+  // Der Griff steht NEBEN dem Scroll-Container, nicht darin — sonst wandert er
+  // mit der Tabelle aus dem Sichtfeld, sobald mehr Spalten da sind als hinein-
+  // passen (gemessen: 731px rechts außerhalb). Preis: er folgt dem Cursor beim
+  // Ziehen nicht mehr mit; die Drag-Arithmetik (`startWidth + Δx`) bleibt
+  // unberührt. Rahmen + Radius trägt deshalb der äußere Wrapper.
   return (
     <div
-      className="w-full overflow-x-auto rounded-[12px]"
+      className="w-full flex items-stretch rounded-[12px] overflow-hidden"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div className={wrapperKlassen(modus)}>
-        <table ref={tableRef} className="text-[12.5px]" style={tableStyle}>
-          <colgroup>
-            {columns.map(c => {
-              // Prozent statt Pixel — sonst ist die Spalten-Summe ein harter Boden
-              // für die Tabellenbreite (siehe `tableSizing.ts`).
-              const colWidth = sizing.colPercent[c.key];
-              return (
-                <col
-                  key={c.key}
-                  ref={el => {
-                    if (el) colRefs.current.set(c.key, el);
-                    else colRefs.current.delete(c.key);
-                  }}
-                  style={{ width: colWidth }}
-                />
-              );
-            })}
-          </colgroup>
-          <TableHeadRows
-            columns={columns}
-            sortKey={sortKey}
-            sortDirection={sortDirection}
-            onSort={onSort}
-            resizeEnabled={resizeEnabled}
-            startResize={startResize}
-            filtersEnabled={filtersEnabled}
-            columnFilters={columnFilters}
-            onColumnFilterChange={onColumnFilterChange}
-            filterCandidates={filterCandidates}
-          />
-          <TableBody
-            rows={rows}
-            columns={columns}
-            rowKey={rowKey}
-            onRowClick={onRowClick}
-            isRowSelected={isRowSelected}
-            emptyContent={emptyContent}
-            sectionKeyOf={sectionKeyOf}
-            renderSectionHeader={renderSectionHeader}
-          />
-        </table>
-        {onTotalWidthChange !== undefined ? (
-          <TotalWidthGrip
-            onTotalWidthChange={onTotalWidthChange}
-            minTotalWidth={minTotalWidth}
-            maxTotalWidth={maxTotalWidth}
-            tableRef={tableRef}
-          />
-        ) : null}
+      <div className="flex-1 min-w-0 overflow-x-auto">
+        <div className={wrapperKlassen(modus)}>
+          <table ref={tableRef} className="text-[12.5px]" style={tableStyle}>
+            <colgroup>
+              {columns.map(c => {
+                // Prozent statt Pixel — sonst ist die Spalten-Summe ein harter
+                // Boden für die Tabellenbreite (siehe `tableSizing.ts`).
+                const colWidth = sizing.colPercent[c.key];
+                return (
+                  <col
+                    key={c.key}
+                    ref={el => {
+                      if (el) colRefs.current.set(c.key, el);
+                      else colRefs.current.delete(c.key);
+                    }}
+                    style={{ width: colWidth }}
+                  />
+                );
+              })}
+            </colgroup>
+            <TableHeadRows
+              columns={columns}
+              sortKey={sortKey}
+              sortDirection={sortDirection}
+              onSort={onSort}
+              resizeEnabled={resizeEnabled}
+              startResize={startResize}
+              filtersEnabled={filtersEnabled}
+              columnFilters={columnFilters}
+              onColumnFilterChange={onColumnFilterChange}
+              filterCandidates={filterCandidates}
+            />
+            <TableBody
+              rows={rows}
+              columns={columns}
+              rowKey={rowKey}
+              onRowClick={onRowClick}
+              isRowSelected={isRowSelected}
+              emptyContent={emptyContent}
+              sectionKeyOf={sectionKeyOf}
+              renderSectionHeader={renderSectionHeader}
+            />
+          </table>
+        </div>
       </div>
+      {onTotalWidthChange !== undefined ? (
+        <TotalWidthGrip
+          onTotalWidthChange={onTotalWidthChange}
+          minTotalWidth={minTotalWidth}
+          maxTotalWidth={maxTotalWidth}
+          tableRef={tableRef}
+        />
+      ) : null}
     </div>
   );
 }

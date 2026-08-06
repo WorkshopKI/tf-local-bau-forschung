@@ -43,7 +43,6 @@ export {
   leiteTabellenStil,
   wrapperKlassen,
   istScrollModus,
-  TOTAL_GRIP_WIDTH,
   type TabellenModus,
   type TabellenStilOptionen,
 } from './tableLayout';
