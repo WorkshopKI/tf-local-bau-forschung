@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.14.0 — Kuerzelkatalog je Projektform aus der Zuarbeit (August 2026)
+
+MINOR — Die Kürzeltabelle war flach: ein Kürzel, eine Bezeichnung. 77 Kürzel bedeuten aber je nach Projektform etwas anderes — `AB` ist in DL die „Bewilligungsempfehlung durch Haushaltsbeauftragte", sonst „bewilligungsreif/Akte an Euronorm". Am Produktivbestand gemessen: **11 216 von 14 222 Anträgen (78,9 %)** tragen mindestens ein Kürzel, dessen angezeigter Klartext für ihre Projektform falsch ist.
+
+- Katalog mit Schlüssel **Kürzel × Projektform** (608 Kürzel, 1 350 Paare) aus der Zuarbeit generiert — [gen-kuerzel-katalog.mjs](scripts/gen-kuerzel-katalog.mjs)
+- Nachschlagen nur über `kuerzelAuskunft(kuerzel, projektform)`; unbekannte Projektform + uneinige Formen ⇒ `eindeutig: false` statt geratener Bedeutung — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- Historische Kürzel bleiben über `ersetztDurch` auflösbar (83 Umbenennungen), damit Altfälle lesbar bleiben — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- 41 Trigger-Regeln importiert, **alle `aktiv: false`**; Benachrichtigung und Statuswechsel als getrennte Felder, 15 unauflösbare Zielstatus markiert statt geraten — [kuerzel-trigger.data.ts](src/core/status/kuerzel-trigger.data.ts)
+- Guard `kuerzel-nie-flach` verbietet den direkten Zugriff auf die Rohtabelle — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+
 ### v3.13.1 — Projektart-Menue liegt vor der Tabelle (August 2026)
 
 PATCH — Das neue Untermenü lag hinter der Tabelle: die aufgeklappte Pille trägt eine Animation mit `transform` und ist damit ein eigener Stacking-Context — ein `z-index` darin gilt nur innerhalb der Pille. Dazu las sich der Knopf „Einzelprojekt · Einzelprojekt 397", weil der Oberpunkt im Menü noch einmal steht und sich selbst als aktiven Unterpunkt fand.

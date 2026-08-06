@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.14 — 2026-08
+
+### Neu
+- Der Kürzelkatalog aus der Zuarbeit ist eingelesen: 608 Kürzel, jeweils getrennt nach Projektform (NW, FuE, DL, EP), samt Rollen, Zuordnung zu Verbund oder Teilvorhaben und einer Gliederung fürs Glossar.
+- Umbenannte Kürzel bleiben auflösbar. Ein Antrag von 2018 trägt noch `AAW`; dass das heute `ARW` heißt, weiß die App jetzt.
+
+### Bugfixes
+- Kürzel bedeuten je nach Projektform Verschiedenes — das war bisher nicht berücksichtigt. `AB` heißt bei Dienstleistungsprojekten „Bewilligungsempfehlung durch Haushaltsbeauftragte", bei allen anderen „bewilligungsreif/Akte an Euronorm"; angezeigt wurde immer dieselbe Fassung. Die Grundlage dafür ist jetzt gelegt.
+
 ## v3.13 — 2026-08
 
 ### Neu

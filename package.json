@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "3.13.1",
+  "version": "3.14.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -44,6 +44,8 @@
     "eval:gedaechtnis": "vite-node --config vitest.config.mts src/core/services/skill-eval/gedaechtnis-eval.ts --",
     "map": "node scripts/generate-code-map.mjs",
     "gen:status-codes": "node scripts/gen-status-codes.mjs",
+    "gen:kuerzel-katalog": "node scripts/gen-kuerzel-katalog.mjs",
+    "gen:kuerzel-trigger": "node scripts/gen-kuerzel-trigger.mjs",
     "cycles": "node scripts/check-cycles.mjs",
     "precheck": "npm run map",
     "check:quick": "npm run typecheck && npm run lint && npm run test:changed",

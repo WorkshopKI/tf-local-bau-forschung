@@ -102,6 +102,14 @@ export {
   ermittleHaltedatum,
   type Haltedatum, type HaltedatumEingabe, type HaltedatumHerkunft,
 } from './haltedatum';
+// Die Rohtabelle `kuerzel-katalog.data` ist bewusst NICHT hier: nachgeschlagen
+// wird nur über `kuerzelAuskunft`, weil ein flacher Zugriff für 78,9 % der
+// Anträge den falschen Klartext liefert (Guard `kuerzel-nie-flach`).
+export {
+  kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase,
+  projektformAbhaengigeKuerzel, strittigeKuerzel, kuerzelKategorien,
+  type Projektform, type KuerzelAuskunft, type KuerzelForm, type KuerzelEintrag,
+} from './kuerzel-katalog';
 export {
   erklaereSegmente, erklaerKatalog, kuerzelErklaerung, statusErklaerung,
   ebeneErklaerung, empfaengerErklaerung,

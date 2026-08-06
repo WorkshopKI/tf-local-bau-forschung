@@ -67,6 +67,10 @@ _design/
 # bleibt bewusst UNGETRACKT — Zuarbeit bleibt lokal, auch wenn sie nur
 # Prozess-Vokabular führt. `npm run gen:status-codes` liest sie von der
 # Dev-Maschine; ihr Inhalt steht versioniert in src/core/status/seed-codes.data.ts.
+# Dieselbe Regel für die „Gelbe Karte" (Kürzel × Projektform, v3.14): der Ordner
+# bleibt lokal, versioniert ist die generierte src/core/status/kuerzel-katalog.data.ts.
+# Die .json fällt nicht unter *.csv und braucht deshalb eine eigene Zeile.
+docs/status-system/kuerzel-zuarbeit/
 
 # Lokale Eval-Ausgaben (CLI --out) + generierte Fixtures
 skill-eval-*/
