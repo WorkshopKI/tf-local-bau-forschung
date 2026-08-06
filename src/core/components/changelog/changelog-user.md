@@ -24,6 +24,8 @@
 ### Neu
 - **Spalten passen sich dem Inhalt an.** Bisher hatte jede Spalte eine fest eingestellte Breite — bei mittlerweile über 30 wählbaren Spalten passte die selten. Jetzt richtet sich die Breite nach dem, was tatsächlich drinsteht. Lange Freitexte wie „Antragsteller" bekommen eine Obergrenze, damit sie die Tabelle nicht auseinanderziehen. Eine von Ihnen selbst gezogene Breite bleibt unangetastet.
 
+- **Doppelklick setzt eine Spalte zurück.** Haben Sie eine Spalte selbst breiter oder schmaler gezogen und wollen das rückgängig machen: Doppelklick auf die Trennlinie im Spaltenkopf. Die Spalte richtet sich danach wieder nach ihrem Inhalt.
+
 ### Verbesserungen
 - **Der Griff zum Stauchen der Tabelle ist immer erreichbar.** Der schmale Streifen am rechten Tabellenrand, mit dem sich die ganze Tabelle schmaler ziehen lässt, saß bisher am Ende der Spalten — bei vielen Spalten also außerhalb des Bildschirms. Jetzt steht er fest am rechten Rand und ist so hoch wie die Tabelle. Ziehen ändert die Breite, ein Doppelklick setzt sie zurück.
 - Datumsangaben in der Tabelle stehen jetzt in deutscher Schreibweise: **30.07.2018** statt `2018-07-30`. Sortiert wird weiterhin chronologisch.

@@ -84,6 +84,9 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
       defaultVisible: true,
       sortable: false,
       width: 150,
+      // Der Platzbedarf ist das EINGABEFELD, nicht der Text darin — eine
+      // Messung am Inhalt fiele auf leere Zellen herein.
+      autoWidth: false,
       accessor: z => z.w.label ?? '',
       render: z => (
         <input
@@ -104,6 +107,8 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
       defaultVisible: true,
       sortable: true,
       width: 172,
+      // Auswahlfeld: Breite folgt dem Bauteil, nicht dem gewählten Wert.
+      autoWidth: false,
       // Verfahrensreihenfolge, nicht Alphabet: „Abgeschlossen" vor „Eingang"
       // liest niemand als Sortierung.
       accessor: z => z.kategorieRang,
@@ -147,6 +152,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
       sortable: true,
       width: 130,
       wrap: false,
+      autoWidth: false,
       accessor: z => PROMINENZ_WERTE.indexOf(z.w.prominenz),
       exportValue: z => PROMINENZ_LABEL[z.w.prominenz],
       render: z => (
@@ -196,6 +202,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
         sortable: true,
         width: 120,
         wrap: false,
+        autoWidth: false,
         accessor: z => z.w.zieltage ?? ZIELTAGE_LEER,
         exportValue: z => z.w.zieltage ?? '',
         render: z => (
@@ -235,6 +242,8 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
       sortable: false,
       width: 62,
       wrap: false,
+      // Kontrollkästchen: fester Platzbedarf, kein Text.
+      autoWidth: false,
       accessor: z => (z.w.aktiv ? 1 : 0),
       exportValue: z => (z.w.aktiv ? 'ja' : 'nein'),
       render: z => (

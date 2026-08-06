@@ -34,6 +34,9 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
       // Sortiert nach der fachlichen SKILL_KATEGORIE_ORDER (Zahl), nicht
       // alphabetisch nach Label — der Export-Wert liefert trotzdem den Klartext.
       key: 'kategorie', label: 'Kategorie', defaultVisible: true, sortable: true, width: 150, wrap: false,
+      // Gemessen wird über `exportValue` (der `accessor` ist ein Rang); die Pille
+      // bringt ihr eigenes Polster mit.
+      messSchrift: 'badge', messZuschlag: 20,
       accessor: s => skillKategorieRang(s),
       exportValue: s => skillKategorieLabel(s),
       filterAccessor: s => skillKategorieLabel(s),
@@ -41,6 +44,9 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
     },
     {
       key: 'status', label: 'Status', defaultVisible: true, sortable: true, width: 130, wrap: false,
+      // Der `accessor` ist ein Sortier-Rang, die Zelle zeigt mehrere Badges —
+      // messbar ist daran nichts. Die gepflegte Breite gilt.
+      autoWidth: false,
       accessor: s => skillStatusRang(s),
       render: s => <SkillStatusBadges skill={s} />,
     },
@@ -63,6 +69,9 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
     },
     {
       key: 'regeln', label: 'Regeln', defaultVisible: true, sortable: true, width: 110, wrap: false,
+      // Der `accessor` ist die blanke Anzahl, die Zelle schreibt „3 Regeln".
+      messSchrift: 'badge', messZuschlag: 20,
+      messText: s => `${s.regelIds.length} ${s.regelIds.length === 1 ? 'Regel' : 'Regeln'}`,
       accessor: s => s.regelIds.length,
       render: s => <Badge variant="default">{s.regelIds.length} {s.regelIds.length === 1 ? 'Regel' : 'Regeln'}</Badge>,
     },
@@ -79,6 +88,9 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
     },
     {
       key: 'aktionen', label: '', defaultVisible: true, locked: true, sortable: false, width: 124, wrap: false,
+      // Knopfleiste ohne Text und ohne Überschrift: gemessen käme die globale
+      // Untergrenze heraus, und die Knöpfe fielen aus der Spalte.
+      autoWidth: false,
       accessor: () => '',
       render: s => (
         <div className="flex items-center gap-0.5">

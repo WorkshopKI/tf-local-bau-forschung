@@ -367,7 +367,7 @@ function SkillsTableView({
   // gespeicherte Liste — ohne Bump blieben die neuen Default-Spalten (Kategorie,
   // Status) für jeden unsichtbar, der die Tabelle schon einmal geöffnet hatte.
   const { visibleKeys, toggleColumn } = useColumnVisibility('teamflow_skills_table_columns_v2', columns);
-  const { widths, setWidth } = useColumnWidths('teamflow_skills_table_col_widths', {});
+  const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_skills_table_col_widths', {});
   // Gesamtbreiten-Griff am rechten Rand (wie in der Förderanträge-Tabelle): die
   // Default-Spalten summieren sich auf ~1.280px und scrollen sonst horizontal
   // aus der Content-Box. Ziehen skaliert alle Spalten proportional, Doppelklick
@@ -398,6 +398,7 @@ function SkillsTableView({
         emptyContent="Keine Skills."
         columnWidths={widths}
         onColumnWidthChange={setWidth}
+        onColumnWidthReset={resetWidth}
         totalWidth={totalWidth}
         onTotalWidthChange={setTotalWidth}
       />

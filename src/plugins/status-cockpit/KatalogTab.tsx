@@ -130,7 +130,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
     () => Object.fromEntries(spalten.map(c => [c.key, c.width ?? 120])),
     [spalten],
   );
-  const { widths, setWidth } = useColumnWidths('teamflow_status_katalog_col_widths', standardBreiten);
+  const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_status_katalog_col_widths', standardBreiten);
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
     useColumnFilters(zeilen, spalten);
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
@@ -292,6 +292,10 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         filterCandidates={filterCandidates}
         columnWidths={widths}
         onColumnWidthChange={setWidth}
+        onColumnWidthReset={resetWidth}
+        // Die vier Spalten mit Eingabe-/Auswahlfeld sind per `autoWidth: false`
+        // ausgenommen — dort ist das Bauteil der Platzbedarf, nicht sein Inhalt.
+        autoColumnWidth
         // Zehn Spalten, davon vier mit Eingabefeld: in den Container gestaucht
         // brach schon der Spaltenkopf mitten im Wort um („Verfahrens-schritt"
         // über drei Zeilen, Kopfzeile 60 px). Lieber die Wunschbreite halten und

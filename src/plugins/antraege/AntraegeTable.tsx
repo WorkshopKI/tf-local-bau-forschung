@@ -135,7 +135,7 @@ export function AntraegeTable({
   const toggleArchiv = useArbeitsvorratCollapsed(s => s.toggle);
   const arbeitsvorratEnabled = isArbeitsvorratView(activeView, grouping);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
-  const { widths, setWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
+  const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
   // Persistierte Gesamt-Tabellenbreite (Griff am rechten Rand). null = Default
   // (Tabelle füllt die Content-Box); Zahl = gepinnt, Spalten skalieren proportional.
   const { totalWidth, setTotalWidth } = useTotalTableWidth('teamflow_antraege_table_total_width');
@@ -339,6 +339,7 @@ export function AntraegeTable({
         measureSignature={`${allRows[0]?.aktenzeichen ?? ''}|${allRows[allRows.length - 1]?.aktenzeichen ?? ''}`}
         columnWidths={widths}
         onColumnWidthChange={setWidth}
+        onColumnWidthReset={resetWidth}
         totalWidth={totalWidth}
         onTotalWidthChange={setTotalWidth}
         columnFilters={columnFilters}

@@ -19,6 +19,9 @@ export interface TableHeadRowsProps<T> {
   /** Rendert die Drag-Handles. */
   resizeEnabled: boolean;
   startResize: (key: string, e: React.MouseEvent<HTMLDivElement>) => void;
+  /** Doppelklick auf den Griff: gezogene Breite verwerfen. Ohne diesen Callback
+   *  bleibt der Doppelklick wirkungslos (und der Titel verspricht ihn nicht). */
+  onColumnWidthReset?: (key: string) => void;
   /** Nur aktiv, wenn der Verbraucher alle drei Filter-Props durchreicht. */
   filtersEnabled: boolean;
   columnFilters?: Record<string, Set<string>>;
@@ -33,6 +36,7 @@ export function TableHeadRows<T>({
   onSort,
   resizeEnabled,
   startResize,
+  onColumnWidthReset,
   filtersEnabled,
   columnFilters,
   onColumnFilterChange,
@@ -124,7 +128,13 @@ export function TableHeadRows<T>({
                   anchorEl={filterAnchor}
                 />
               )}
-              {resizeEnabled && <ResizeGriff label={c.label} onMouseDown={e => startResize(c.key, e)} />}
+              {resizeEnabled && (
+                <ResizeGriff
+                  label={c.label}
+                  onMouseDown={e => startResize(c.key, e)}
+                  onDoubleClick={onColumnWidthReset ? () => onColumnWidthReset(c.key) : undefined}
+                />
+              )}
             </th>
           );
         })}
@@ -136,16 +146,23 @@ export function TableHeadRows<T>({
 function ResizeGriff({
   label,
   onMouseDown,
+  onDoubleClick,
 }: {
   label: string;
   onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onDoubleClick?: () => void;
 }): ReactNode {
+  const titel = onDoubleClick
+    ? `Ziehen: Spalte „${label}" breiter/schmaler · Doppelklick: an den Inhalt anpassen`
+    : `Ziehen: Spalte „${label}" breiter/schmaler`;
   return (
     <div
       role="separator"
       aria-orientation="vertical"
       aria-label={`Spaltenbreite ${label} anpassen`}
+      title={titel}
       onMouseDown={onMouseDown}
+      onDoubleClick={onDoubleClick}
       className="absolute right-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
       style={{ touchAction: 'none' }}
     />

@@ -220,7 +220,7 @@ interface TableViewProps {
 function RegelnTableView({
   regeln, columns, visibleKeys, onEdit,
 }: TableViewProps): React.ReactElement {
-  const { widths, setWidth } = useColumnWidths('teamflow_regeln_table_col_widths', {});
+  const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_regeln_table_col_widths', {});
   // Gesamtbreiten-Griff wie in der Skills-Tabelle — dieselbe Seite, dieselbe
   // Ursache (Spaltensumme > Content-Box).
   const { totalWidth, setTotalWidth } = useTotalTableWidth('teamflow_regeln_table_total_width');
@@ -244,6 +244,7 @@ function RegelnTableView({
       emptyContent="Keine Regeln."
       columnWidths={widths}
       onColumnWidthChange={setWidth}
+      onColumnWidthReset={resetWidth}
       totalWidth={totalWidth}
       onTotalWidthChange={setTotalWidth}
     />

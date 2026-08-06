@@ -60,6 +60,9 @@ export interface SortableTableProps<T> {
   columnWidths?: Record<string, number>;
   /** Finaler Commit on mouseup nach einem Resize-Drag. */
   onColumnWidthChange?: (key: string, width: number) => void;
+  /** Doppelklick auf den Spaltengriff: gezogene Breite VERWERFEN (nicht die
+   *  gemessene festschreiben) — die Spalte folgt danach wieder dem Inhalt. */
+  onColumnWidthReset?: (key: string) => void;
   /** Untergrenze beim Drag. Default 60px. */
   minColumnWidth?: number;
   /** Optionaler Spalten-Filter (Header-Dropdown). Aktiv nur wenn ALLE drei
@@ -102,7 +105,17 @@ export interface SortableTableProps<T> {
   responsiveMinWidth?: number;
   /** Opt-in: Spaltenbreiten aus dem INHALT messen statt aus den gepflegten
    *  `column.width` (siehe `messung/spaltenBreite.ts`). Gezogene Breiten
-   *  gewinnen weiterhin. Default `false`. */
+   *  gewinnen weiterhin. Default `false`.
+   *
+   *  NUR SINNVOLL IN DEN SCROLL-MODI. Im Einpass-Modus wird die Tabelle ohnehin
+   *  auf den Container gestaucht — die Messung ändert dort nicht den Platz,
+   *  sondern nur seine Verteilung, und gewichtet dabei jede Spalte nach ihrem
+   *  LÄNGSTEN Eintrag. Eine Spalte mit einem einzelnen Ausreißer zieht so Platz
+   *  von allen anderen ab. Nachgemessen an der Skill-Tabelle (Container 928px):
+   *  abgeschnittene Zellen 74 → 83, auch nachdem die Bauteil-Spalten
+   *  ausgenommen waren. Deshalb tragen es nur `AntraegeTable` und `KatalogTab`
+   *  (beide `fitContentWidth`); die vier stauchenden Tabellen behalten ihre
+   *  gepflegten Breiten. */
   autoColumnWidth?: boolean;
   /** Basis der Messung. Default: `rows`. Wer paginiert, MUSS hier den vollen
    *  Satz übergeben — sonst misst jede nachgeladene Seite neu und die Spalten
@@ -125,6 +138,7 @@ export function SortableTable<T>({
   emptyContent,
   columnWidths,
   onColumnWidthChange,
+  onColumnWidthReset,
   minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH,
   columnFilters,
   onColumnFilterChange,
@@ -226,6 +240,7 @@ export function SortableTable<T>({
               onSort={onSort}
               resizeEnabled={resizeEnabled}
               startResize={startResize}
+              onColumnWidthReset={onColumnWidthReset}
               filtersEnabled={filtersEnabled}
               columnFilters={columnFilters}
               onColumnFilterChange={onColumnFilterChange}
