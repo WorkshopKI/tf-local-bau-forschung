@@ -175,9 +175,13 @@ body {
 main { flex: 1 1 auto; overflow-y: auto; }
 .tf-spalte { width: 100%; }
 main .tf-spalte { padding: 16px 28px 40px; line-height: 1.625; }
-main h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.75rem; }
-main h2 { font-size: 1.25rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
-main h3 { font-size: 1.125rem; font-weight: 500; margin: 1.25rem 0 0.5rem; }
+/* Eine Stufe unter dem Fenstertitel (tf-kopf h1, 1.125rem/600) — dieselbe Leiter
+   wie im Hilfe-Dialog (MarkdownRenderer, Stufe "unterTitel"): 18 / 16 / 14 px.
+   Der Text steht hier unter einer Ueberschrift, die schon da ist; groessere
+   Abschnittszeilen stellten die Hierarchie auf den Kopf. */
+main h1 { font-size: 1.125rem; font-weight: 600; margin: 0 0 0.75rem; }
+main h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+main h3 { font-size: 0.875rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 main h2:first-child, main h3:first-child { margin-top: 0; }
 main p { margin: 0 0 0.75rem; }
 main ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.75rem; }

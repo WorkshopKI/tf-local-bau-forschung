@@ -132,6 +132,10 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
         open={offen}
         onClose={() => setOffen(false)}
         title={titel}
+        // Der Titel IST die Ueberschrift dieses Textes. Im Default-Dialog steht er
+        // mit 15px unter der ersten `##`-Zeile des Inhalts (20px) — die Hierarchie
+        // stuende auf dem Kopf. Titel 18, `##` 16, `###` 14 (MarkdownRenderer).
+        titleClassName="text-lg font-semibold"
         description="Kurzanleitung zu dieser Seite"
         // Breit + fast bildschirmhoch, damit die Seite ohne Scrollen lesbar ist.
         // `center` statt `top`: bei dieser Höhe bleiben oben und unten je ~4vh —
@@ -183,7 +187,7 @@ export function SeitenHilfeButton({ pluginId }: { pluginId: string }): React.Rea
             im Dialog lesbar.
           </Alert>
         )}
-        <MarkdownRenderer content={hilfe.markdown} />
+        <MarkdownRenderer content={hilfe.markdown} ueberschriften="unterTitel" />
       </Dialog>
     </>
   );

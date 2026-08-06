@@ -61,6 +61,14 @@ interface DialogProps {
    * Erwartet kompakte Bauteile (`Button size="sm"` = h-7, passend zum Schliessen-X).
    */
   headerActions?: React.ReactNode
+  /**
+   * Zusatz-Klassen fuer die Titelzeile — fuer Dialoge, deren Inhalt eigene
+   * Ueberschriften traegt. Der Default (`text-[15px] font-medium`) ist kleiner
+   * gesetzt als eine `##`-Ueberschrift im Markdown-Inhalt; wo beides zusammen
+   * steht (Seiten-Hilfe), stuende die Hierarchie sonst auf dem Kopf. Wird per
+   * `cn()` gemischt, ueberschreibt also gezielt Groesse/Gewicht.
+   */
+  titleClassName?: string
   className?: string
   /**
    * Klick auf das Overlay (graue Flaeche) schliesst den Dialog. Default `true`.
@@ -99,6 +107,7 @@ function Dialog({
   children,
   footer,
   headerActions,
+  titleClassName,
   className,
   dismissOnOverlayClick = true,
   size = "md",
@@ -184,7 +193,7 @@ function Dialog({
       >
         {title || headerActions ? (
           <div className="flex-shrink-0 flex items-start gap-3 px-6 pt-6 mb-2">
-            <div className="flex-1 min-w-0 text-[15px] font-medium text-[var(--tf-text)]">{title}</div>
+            <div className={cn("flex-1 min-w-0 text-[15px] font-medium text-[var(--tf-text)]", titleClassName)}>{title}</div>
             {/* `-mt-1 h-7` spiegelt die Geometrie des Schliessen-X: Titel, Aktionen und X
                 liegen in einem 28px-Band, obwohl die Zeile `items-start` bleibt (lange
                 Titel duerfen weiter umbrechen). */}
