@@ -106,9 +106,10 @@ export {
 // wird nur über `kuerzelAuskunft`, weil ein flacher Zugriff für 78,9 % der
 // Anträge den falschen Klartext liefert (Guard `kuerzel-nie-flach`).
 export {
-  kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase,
+  kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase, projektformLage,
   projektformAbhaengigeKuerzel, strittigeKuerzel, kuerzelKategorien,
-  type Projektform, type KuerzelAuskunft, type KuerzelForm, type KuerzelEintrag,
+  type Projektform, type ProjektformLage,
+  type KuerzelAuskunft, type KuerzelForm, type KuerzelEintrag,
 } from './kuerzel-katalog';
 export {
   erklaereSegmente, erklaerKatalog, kuerzelErklaerung, statusErklaerung,

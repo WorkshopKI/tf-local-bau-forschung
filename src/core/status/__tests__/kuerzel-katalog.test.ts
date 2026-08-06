@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase,
+  kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase, projektformLage,
   projektformAbhaengigeKuerzel, strittigeKuerzel, kuerzelKategorien,
 } from '../kuerzel-katalog';
 
@@ -29,6 +29,34 @@ describe('projektformVonVbPhase — die Achsen decken sich nicht vollständig', 
     expect(projektformVonVbPhase(9)).toBeNull();
     expect(projektformVonVbPhase(undefined)).toBeNull();
     expect(projektformVonVbPhase('quatsch')).toBeNull();
+  });
+});
+
+describe('projektformLage — zwei Gründe hinter demselben `null`', () => {
+  it('DS ist eine echte Projektform, die die Zuarbeit noch nicht kennt', () => {
+    // Nachlieferbar: eine neuere Zuarbeit schließt die Lücke. Wer DS auf FuE
+    // mappt, verankert eine Vermutung als Wert.
+    expect(projektformLage(5)).toEqual({ art: 'zuarbeit-aelter', label: 'DS' });
+  });
+
+  it('Irrläufer ist begrifflich KEINE Projektform', () => {
+    // „An uns gesendet, aber nicht unsere Zuständigkeit." Hier gibt es nichts
+    // nachzuliefern — die Lücke soll bleiben.
+    expect(projektformLage(9)).toEqual({ art: 'keine-projektform', label: 'Irrläufer' });
+  });
+
+  it('trennt die beiden Fälle — sie dürfen nie zu einem `unbekannt` verschmelzen', () => {
+    expect(projektformLage(5).art).not.toBe(projektformLage(9).art);
+  });
+
+  it('nennt die Projektform, wo es eine gibt', () => {
+    expect(projektformLage(3)).toEqual({ art: 'bekannt', form: 'FuE' });
+    expect(projektformLage(1)).toEqual({ art: 'bekannt', form: 'NW' });
+  });
+
+  it('wirklich Unbekanntes bleibt `unbekannt`', () => {
+    expect(projektformLage(42).art).toBe('unbekannt');
+    expect(projektformLage(null).art).toBe('unbekannt');
   });
 });
 

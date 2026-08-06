@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.14.1 — DS und Irrlaeufer sind zwei verschiedene Luecken (August 2026)
+
+PATCH — Hinter dem fehlenden Projektform-Treffer standen zwei ganz verschiedene Sachverhalte, die als ein „unbekannt" verschmolzen waren: **DS** ist eine echte Projektform, die nur nach der Zuarbeit entstanden ist (nachlieferbar), **Irrläufer** ist begrifflich gar keine — an uns gesendet, aber nicht unsere Zuständigkeit (nie nachlieferbar).
+
+- `projektformLage()` unterscheidet `zuarbeit-aelter` von `keine-projektform`, damit niemand das eine mit der Lösung des anderen „repariert" (etwa DS auf FuE mappt) — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- `projektformVonVbPhase()` bleibt unverändert die schlanke Frage „kann ich nachschlagen?" und liest nur noch aus der Lage ab — kein zweiter Weg
+
 ### v3.14.0 — Kuerzelkatalog je Projektform aus der Zuarbeit (August 2026)
 
 MINOR — Die Kürzeltabelle war flach: ein Kürzel, eine Bezeichnung. 77 Kürzel bedeuten aber je nach Projektform etwas anderes — `AB` ist in DL die „Bewilligungsempfehlung durch Haushaltsbeauftragte", sonst „bewilligungsreif/Akte an Euronorm". Am Produktivbestand gemessen: **11 216 von 14 222 Anträgen (78,9 %)** tragen mindestens ein Kürzel, dessen angezeigter Klartext für ihre Projektform falsch ist.

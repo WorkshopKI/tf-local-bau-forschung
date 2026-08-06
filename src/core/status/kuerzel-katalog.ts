@@ -10,11 +10,22 @@
  * Projektform falsch ist. Das ist kein Randfall, sondern der Normalfall.
  *
  * **Die Projektform kommt aus `vb_phase`** und deckt sich nicht vollständig mit
- * der Zuarbeit: `DS` (935 Anträge) und `Irrläufer` (82) haben dort keine
- * Entsprechung, `EP` ist umgekehrt keine `vb_phase`. Für diese Anträge wird
- * **nicht geraten**: sagen alle Projektformen dasselbe, gilt es auch für sie;
- * weichen sie ab, liefert der Nachschlag `eindeutig: false` und der Aufrufer
- * zeigt das Kürzel statt einer der vier möglichen Bedeutungen.
+ * der Zuarbeit. Dahinter stehen aber **zwei verschiedene Gründe**, und sie
+ * dürfen nicht zu einem stillen „unbekannt" verschmelzen:
+ *
+ * - **DS** (935 Anträge) ist eine echte Projektform — die Zuarbeit ist nur
+ *   älter als sie. Eine Lücke, die sich mit der nächsten Zuarbeit schließt.
+ *   Wer hier „DS ist doch fast FuE" mappt, verankert eine Vermutung als Wert.
+ * - **Irrläufer** (82) ist **gar keine** Projektform, sondern der Vermerk „an
+ *   uns gesendet, aber nicht unsere Zuständigkeit". Hier gibt es nichts
+ *   nachzuliefern; die Lücke schließt sich nie und soll es auch nicht.
+ * - **EP** führt die Zuarbeit umgekehrt, ohne dass es eine `vb_phase` wäre —
+ *   bleibt vorerst, wie es ist.
+ *
+ * Für alle diese Anträge wird **nicht geraten**: sagen alle Projektformen
+ * dasselbe, gilt es auch für sie; weichen sie ab, liefert der Nachschlag
+ * `eindeutig: false` und der Aufrufer zeigt das Kürzel statt einer der vier
+ * möglichen Bedeutungen.
  *
  * Rein und deterministisch: keine IO, keine Uhr.
  */
@@ -27,8 +38,8 @@ export type { Projektform, KuerzelForm, KuerzelEintrag };
  * `vb_phase` → Projektform der Zuarbeit.
  *
  * `NW 1` und `NW 2` sind beide Netzwerk — die Zuarbeit unterscheidet die Stufen
- * nicht. `DS` (5) und `Irrläufer` (9) haben keine Entsprechung und liefern
- * `null`; das ist eine Aussage („wir wissen es nicht") und keine Lücke.
+ * nicht. `DS` (5) und `Irrläufer` (9) fehlen bewusst; **warum** sie fehlen,
+ * sagt {@link projektformLage}.
  */
 const VB_PHASE_ZU_PROJEKTFORM: Readonly<Record<number, Projektform>> = {
   1: 'NW',
@@ -37,10 +48,49 @@ const VB_PHASE_ZU_PROJEKTFORM: Readonly<Record<number, Projektform>> = {
   4: 'DL',
 };
 
-export function projektformVonVbPhase(vbPhase: unknown): Projektform | null {
+/**
+ * Warum liefert `vb_phase` keine Projektform?
+ *
+ * Zwei Gründe, die man nicht verwechseln darf — sonst „repariert" jemand den
+ * einen mit der Lösung des anderen:
+ *
+ * - `zuarbeit-aelter` — die Projektform gibt es, die Zuarbeit kennt sie nur noch
+ *   nicht. **Nachlieferbar**: eine neuere Zuarbeit schließt die Lücke.
+ * - `keine-projektform` — der Wert IST keine Projektform (Irrläufer: an uns
+ *   gesendet, aber nicht unsere Zuständigkeit). **Nicht nachlieferbar**, und das
+ *   ist richtig so.
+ */
+export type ProjektformLage =
+  | { art: 'bekannt'; form: Projektform }
+  | { art: 'zuarbeit-aelter'; label: string }
+  | { art: 'keine-projektform'; label: string }
+  | { art: 'unbekannt' };
+
+/** `vb_phase`-Werte, die eine echte Projektform meinen, die der Zuarbeit fehlt. */
+const NACH_ZUARBEIT_ENTSTANDEN: Readonly<Record<number, string>> = { 5: 'DS' };
+
+/** `vb_phase`-Werte, die schon begrifflich keine Projektform sind. */
+const KEINE_PROJEKTFORM: Readonly<Record<number, string>> = { 9: 'Irrläufer' };
+
+export function projektformLage(vbPhase: unknown): ProjektformLage {
   const n = typeof vbPhase === 'number' ? vbPhase : Number(vbPhase);
-  if (!Number.isFinite(n)) return null;
-  return VB_PHASE_ZU_PROJEKTFORM[n] ?? null;
+  if (!Number.isFinite(n)) return { art: 'unbekannt' };
+  const form = VB_PHASE_ZU_PROJEKTFORM[n];
+  if (form) return { art: 'bekannt', form };
+  const spaeter = NACH_ZUARBEIT_ENTSTANDEN[n];
+  if (spaeter) return { art: 'zuarbeit-aelter', label: spaeter };
+  const keine = KEINE_PROJEKTFORM[n];
+  if (keine) return { art: 'keine-projektform', label: keine };
+  return { art: 'unbekannt' };
+}
+
+/**
+ * Die Projektform, oder `null`. Für die Frage „warum nicht?" gibt es
+ * {@link projektformLage} — hier interessiert nur, ob nachgeschlagen werden kann.
+ */
+export function projektformVonVbPhase(vbPhase: unknown): Projektform | null {
+  const lage = projektformLage(vbPhase);
+  return lage.art === 'bekannt' ? lage.form : null;
 }
 
 const INDEX: ReadonlyMap<string, KuerzelEintrag> = new Map(
