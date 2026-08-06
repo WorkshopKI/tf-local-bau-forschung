@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.16.1 — Gesamtbreiten-Griff auf 4px (August 2026)
+
+PATCH — Der Griff am rechten Tabellenrand war auch nach 12 → 8 px noch zu breit für das, was er ist: eine Kante, kein Bedienelement mit Fläche.
+
+- Griff 8 → 4 px, Griffpunkte 2 → 1,5 px (2 px füllten die 3 px Innenbreite fast randlos und lasen sich als Strich) — [TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx)
+- Ziehen und Doppelklick-Reset in der 4-px-Rinne nachgemessen: 1.132 → 912 px gepinnt, Doppelklick zurück auf 1.132 und Eintrag gelöscht
+
 ### v3.16.0 — Kurzlabel aus einer Quelle (August 2026)
 
 MINOR — Die Kurzform eines Statuswerts lag dreifach hartkodiert und war auseinandergelaufen: die Suche schrieb „Wiederspr. zur Ablehn." (Tippfehler), das Archiv-Kopfband „abgelehnt/zurückgez.", die Antragsliste „abgel./zurückgez.". Die Fassung für Code 72 war zudem auf eine Schreibweise geschlüsselt, die im Bestand gar nicht vorkommt — sie hat dort nie gegriffen (29 Fälle), und 65 % des Bestands (Sonderstatus, Skizze, Partner) hatten überhaupt keine Kurzform.

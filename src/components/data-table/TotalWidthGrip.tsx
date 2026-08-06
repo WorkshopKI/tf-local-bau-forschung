@@ -79,7 +79,11 @@ export function TotalWidthGrip({
       // Höhe löst `height:100%` auf `auto` auf — der Griff war damit 15px hoch
       // (die Höhe seiner drei Punkte) statt so hoch wie die Tabelle. Das
       // Strecken macht `align-items: stretch` von selbst.
-      className="shrink-0 w-[8px] flex items-center justify-center cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)]"
+      // 4px: der Griff ist eine Kante, kein Bedienelement mit Fläche. Weniger
+      // geht nicht sinnvoll — darunter bliebe neben der 0.5px-Linie kein Grund
+      // mehr übrig, auf dem der Hover-Wechsel sichtbar wäre, und die Greifzone
+      // liegt schon jetzt unter den 6px der Spaltengriffe.
+      className="shrink-0 w-[4px] flex items-center justify-center cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)]"
       style={{ borderLeft: '0.5px solid var(--tf-border)', touchAction: 'none' }}
     >
       <GriffPunkte />
@@ -89,10 +93,12 @@ export function TotalWidthGrip({
 
 function GriffPunkte(): ReactNode {
   return (
+    // Punkte mit der Rinne mitgeschrumpft: 2px füllten die 3.5px Innenbreite
+    // fast randlos aus und lasen sich als durchgehender Strich statt als Griff.
     <span className="flex flex-col gap-[3px]" aria-hidden="true">
-      <span className="w-[2px] h-[2px] rounded-full bg-[var(--tf-text-tertiary)]" />
-      <span className="w-[2px] h-[2px] rounded-full bg-[var(--tf-text-tertiary)]" />
-      <span className="w-[2px] h-[2px] rounded-full bg-[var(--tf-text-tertiary)]" />
+      <span className="w-[1.5px] h-[1.5px] rounded-full bg-[var(--tf-text-tertiary)]" />
+      <span className="w-[1.5px] h-[1.5px] rounded-full bg-[var(--tf-text-tertiary)]" />
+      <span className="w-[1.5px] h-[1.5px] rounded-full bg-[var(--tf-text-tertiary)]" />
     </span>
   );
 }
