@@ -236,11 +236,6 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         </p>
       )}
 
-      {/* Zwischen den Bestands-Meldungen und dem Zieltage-Sammelweg: dieselbe
-          Zone „Bestands-Aussage, die zu einer Kuration führt". Die Liste
-          sortiert nach Vorkommen, damit oben angefangen werden kann. */}
-      <KurzLabelPflege api={api} />
-
       {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
           Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,
           steht vorher in der Vorschau — inklusive dessen, was er NICHT setzt. */}
