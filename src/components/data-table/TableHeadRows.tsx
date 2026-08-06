@@ -188,6 +188,7 @@ export function TableHeadRows<T>({
                   }}
                   onClose={() => { setOpenFilterKey(null); setFilterAnchor(null); }}
                   formatLabel={c.formatFilterLabel}
+                  groupOf={c.filterGroupOf}
                   anchorEl={filterAnchor}
                 />
               )}

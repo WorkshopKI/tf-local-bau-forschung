@@ -35,6 +35,17 @@ describe('deriveFilterCandidates', () => {
     // filterAccessor-Fallback fuer fehlenden Bereich → '(kein)'
     expect(cands.bereich).toEqual(['(kein)', 'Home', 'Suche']);
   });
+
+  it('respektiert filterSort der Spalte statt der de-Collation', () => {
+    const umgekehrt: SortableColumn<Row>[] = [{
+      ...COLUMNS[0]!, filterSort: (a, b) => b.localeCompare(a),
+    }];
+    expect(deriveFilterCandidates(ROWS, umgekehrt).typ).toEqual(['Lob', 'Idee', 'Bug']);
+  });
+
+  it('ohne filterSort bleibt es bei der bisherigen Reihenfolge', () => {
+    expect(deriveFilterCandidates(ROWS, COLUMNS).typ).toEqual(['Bug', 'Idee', 'Lob']);
+  });
 });
 
 describe('applyColumnFilters', () => {

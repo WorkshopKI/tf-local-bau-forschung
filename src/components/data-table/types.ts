@@ -50,6 +50,14 @@ export interface SortableColumn<T> {
   filterAccessor?: (row: T) => string;
   /** Anzeige-Mapper fuer die Filter-Dropdown-Werte. Default: Identitaet. */
   formatFilterLabel?: (value: string) => string;
+  /** Reihenfolge der Filter-Kandidaten. Default: `DATA_TABLE_COLLATOR.compare`
+   *  (alphabetisch, de-Collation). Die Sortier-Hoheit liegt damit an EINER
+   *  Stelle — der Spaltendefinition; das Filter-Dropdown ordnet nichts um. */
+  filterSort?: (a: string, b: string) => number;
+  /** Gruppe eines Filterwerts; der Gruppenschluessel ist zugleich seine
+   *  Beschriftung. `null` = ungruppiert (haengt hinter den Gruppen). Gesetzt,
+   *  rendert das Dropdown eine zweistufige Checkbox-Liste statt einer flachen. */
+  filterGroupOf?: (value: string) => string | null;
   /** Export-spezifischer Zellwert (XLSX/CSV). Default: `accessor(row)`. Noetig wenn
    *  der Sort-`accessor` export-untauglich ist (z.B. ein Sentinel-Wert fuer leere
    *  Felder, der in Excel als grosse Zahl erscheinen wuerde). */

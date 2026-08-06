@@ -29,7 +29,8 @@ export function columnFilterValue<T>(col: SortableColumn<T>, row: T): string {
   return v === undefined || v === null ? '' : String(v);
 }
 
-/** Distinct Werte je filterbarer Spalte, alphabetisch (de-Collation). Pure. */
+/** Distinct Werte je filterbarer Spalte, alphabetisch (de-Collation) oder in der
+ *  von der Spalte vorgegebenen Reihenfolge (`filterSort`). Pure. */
 export function deriveFilterCandidates<T>(
   rows: T[],
   columns: SortableColumn<T>[],
@@ -42,7 +43,7 @@ export function deriveFilterCandidates<T>(
       const v = columnFilterValue(col, r);
       if (v) set.add(v);
     }
-    out[col.key] = Array.from(set).sort(DATA_TABLE_COLLATOR.compare);
+    out[col.key] = Array.from(set).sort(col.filterSort ?? DATA_TABLE_COLLATOR.compare);
   }
   return out;
 }

@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.7 — 2026-08
+
+### Verbesserungen
+- Der Filter der Spalte „Antragseingang" gliedert jetzt nach **Jahr und Monat**, mit dem jüngsten Jahr oben. Die Jahre sind zugeklappt; ein Klick auf den Pfeil zeigt die Monate, ein Häkchen am Jahr wählt alle seine Monate.
+- „Werte suchen…" findet dort Monatsnamen ebenso wie Jahreszahlen und klappt die Treffer vorübergehend auf.
+
+### Bugfixes
+- Anträge ohne lesbares Eingangsdatum verschwanden aus der Tabelle, sobald man im Filter ein Jahr anhakte. Sie stehen jetzt als „(leer)" am Ende der Liste und lassen sich gezielt anzeigen.
+
 ## v3.6 — 2026-08
 
 ### Neu

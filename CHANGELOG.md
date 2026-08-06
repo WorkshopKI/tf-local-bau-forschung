@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.7.0 — Antragseingang-Filter nach Monaten, neueste zuerst (August 2026)
+
+MINOR — Der Spaltenfilter bucketete auf das Jahr und sortierte aufsteigend: die Liste startete bei 2018, das aktuelle Jahr stand hinter einer Scroll-Strecke. Nebenbefund: Zeilen ohne lesbares Datum lieferten `''`, waren nicht anwählbar und fielen still aus der Tabelle, sobald ein Jahr angehakt war.
+
+- Filterwert ist der Monat, das Jahr die Gruppe; neueste zuerst, Jahre zugeklappt — [spaltenFilterWerte.ts](src/plugins/antraege/spaltenFilterWerte.ts)
+- Das Dropdown wird mit `groupOf` zweistufig (`TfTree`, Tri-State); ohne die Prop bleibt es die flache Liste wie bisher — [ColumnFilterDropdown.tsx](src/components/data-table/ColumnFilterDropdown.tsx)
+- Reiner Baum-Adapter; Werte außerhalb der Suchtreffer überleben einen Klick — [filterBaum.ts](src/components/data-table/filterBaum.ts)
+- `SortableColumn.filterSort` / `.filterGroupOf`: Reihenfolge-Hoheit liegt bei der Spalte, nicht beim Dropdown — [types.ts](src/components/data-table/types.ts)
+- Zeilen ohne Datum stehen als „(leer)" am Ende und bleiben wählbar — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+
 ### v3.6.1 — Abschnitts-Bänder zählen den Abschnitt, nicht die Seite (August 2026)
 
 PATCH — Die Zahl an einem Abschnittskopf kam aus den GERENDERTEN Zeilen, nicht aus dem Abschnitt: sie wuchs beim Nachladen, und ihre Summe ergab exakt die Seitengröße (gemessen: „AAt 48" + „AM 12" = 60). Betraf Tabelle (status/netzwerk/fb/ab) und die Status-Abschnitte in Listen- und Karten-Ansicht.

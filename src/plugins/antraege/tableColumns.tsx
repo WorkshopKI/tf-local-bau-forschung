@@ -34,6 +34,9 @@ import {
   AMPEL_COLOR,
   AMPEL_TOOLTIP,
 } from './eingangAmpel';
+import {
+  FILTER_EMPTY_LABEL, jahrGruppe, monatsFilterLabel, monatsWertOderLeer, neuesteZuerst,
+} from './spaltenFilterWerte';
 
 function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
@@ -52,11 +55,9 @@ function yearOf(v: string | undefined): string {
   return de ? de[1]! : '';
 }
 
-/** Filter-Label für Zeilen ohne Wert. Ein nicht-leerer Sentinel macht „leere"
- *  Einträge im Spaltenfilter wählbar — sonst überspringt `deriveFilterCandidates`
- *  den leeren String als „kein Kandidat". `applyColumnFilters` matcht denselben
- *  Sentinel zurück (gleicher `filterAccessor`-Pfad). */
-const FILTER_EMPTY_LABEL = '(leer)';
+// `FILTER_EMPTY_LABEL` (der „(leer)"-Sentinel) wohnt in `spaltenFilterWerte.ts`,
+// zusammen mit der Monats-Ableitung, die ihn ebenfalls setzt — ein Sentinel,
+// eine Heimat.
 
 /** Jahr fürs Datums-Spaltenfilter, leere/datumslose Zeilen als „(leer)"
  *  wählbar (z.B. „Anträge ohne Erstentscheidung"). */
@@ -672,7 +673,13 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     defaultVisible: false,
     sortable: true,
     filterable: true,
-    filterAccessor: r => yearOf(r.antragsdatum),
+    // Zweistufig: Monat als Filterwert, Jahr als Gruppe, neueste zuerst. Der
+    // Sentinel macht Zeilen ohne lesbares Datum wählbar — mit dem blossen
+    // `yearOf` fielen sie still aus der Tabelle, sobald ein Jahr angehakt war.
+    filterAccessor: r => monatsWertOderLeer(r.antragsdatum),
+    formatFilterLabel: monatsFilterLabel,
+    filterGroupOf: jahrGruppe,
+    filterSort: neuesteZuerst,
     width: 140,
     wrap: false,
     ...MESS_DATUM,
