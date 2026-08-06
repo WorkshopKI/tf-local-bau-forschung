@@ -7,9 +7,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 ### v3.4.0 — Glossar (August 2026)
 
-MINOR — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+MINOR — Statuswerte, Kürzel, Trigger-Herkunft und Zieltage sind gepflegt, waren aber nur über „Vorgangs-Regeln" erreichbar — ein Kurationswerkzeug voller Eingabefelder. Wer wissen will, was RNE heißt, öffnet es nicht. Dazu beschrieb der Begriffs-Abschnitt in „Über die App" einen Stand vor dem Vorgangssystem.
 
-- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+- Neues Modul „Glossar" unter Werkzeuge, ohne Feature-Flag: ein Suchfeld über Abkürzungen, Statuswerte, Kürzel und To-do-Regeln — [src/plugins/glossar/](src/plugins/glossar/), Seed in [abkuerzungen.seed.ts](src/core/glossar/abkuerzungen.seed.ts)
+- Kürzel-Detail zeigt „Löst aus" (Trigger-Wirkung nach Wortlaut gebündelt) und „Wird verwendet von" (prüfende Regeln) — [navigator.ts](src/core/status/navigator.ts) `wirkungGruppen`, Rückwärts-Index über `todoFeld()` (Pitfall #44)
+- Rollensicht „Für meine Rolle wichtig": Kürzel je Fachrolle nach Vorkommen, Filter auf die Richtlinie, neutrale Kürzel abgesetzt — [RollenSicht.tsx](src/plugins/glossar/RollenSicht.tsx)
+- Begriffe richtiggestellt und ins Glossar umgezogen: „Rollen" getrennt in Ausgabe/Berechtigung und Fachrolle, Verfahrensschritt und Arbeitsliste ergänzt — [_app.md](docs/feedback-kontext/_app.md)
+- Hilfe-Dialog: Titel 18 px über Abschnitten mit 16 px — die Hierarchie stand auf dem Kopf; dazu ein Weg ins Glossar aus Hilfe-Kopfzeile und Herleitungs-Popover
 
 ### v3.3.0 — Zuständigkeits-Spalten und geordneter Spalten-Picker (August 2026)
 

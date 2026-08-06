@@ -22,9 +22,16 @@
 ## v3.4 — 2026-08
 
 ### Neu
-<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+- Neu unter „Werkzeuge": das **Glossar**. Ein Suchfeld über alles — Abkürzungen wie NF, RNE oder ZuwB, dazu die Statuswerte, die Kürzel des Fachsystems und die To-do-Regeln. Wer wissen will, was ein Kürzel bedeutet, muss dafür nicht mehr die Vorgangs-Regeln öffnen.
+- Zu jedem Statuswert steht dort, in welchem Verfahrensschritt er liegt, in welche Arbeitsliste er fällt, wie viele Zieltage gepflegt sind, wie oft er im Bestand vorkommt — und **wodurch er entsteht**, also welche Kürzel ihn setzen.
+- Zu jedem Kürzel steht, was es auslöst und **welche To-do-Regeln es prüfen**. Damit lässt sich die Kette Kürzel → Status → Verfahrensschritt in zwei Klicks nachgehen.
+- **„Für meine Rolle wichtig"**: die Kürzel Ihrer Fachrolle, das häufigste zuerst, mit einem Filter auf die Richtlinie. Kürzel ohne Rollen-Vermerk stehen abgesetzt darunter — die darf jeder setzen.
+
 ### Verbesserungen
-<!-- - … -->
+- Der Begriffs-Abschnitt in „Über die App" war überholt. „Rollen" vermischte zwei Dinge, die gleichzeitig gelten: welche Ausgabe der App jemand benutzt, und welche Fachrolle er im Verfahren hat. Beides steht jetzt getrennt im Glossar, zusammen mit Verfahrensschritt und Arbeitsliste.
+- Im Hilfe-Dialog war die Überschrift der Seite kleiner gesetzt als die Zwischenüberschriften darin. Die Größen stimmen jetzt.
+- Aus jedem Hilfe-Dialog und aus dem Info-Punkt am Status führt ein Weg direkt ins Glossar.
+
 ### Bugfixes
 <!-- - … -->
 
