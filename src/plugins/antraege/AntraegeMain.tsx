@@ -31,13 +31,15 @@ import {
 import { StatusSectionHeader } from './StatusSectionHeader';
 import { useStatusSectionCollapsed } from './useStatusSectionCollapsed';
 import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
-import { useArbeitsvorratCollapsed } from './useArbeitsvorratCollapsed';
+import { useBeendetSichtbarkeit } from './useBeendetSichtbarkeit';
 import {
-  isArbeitsvorratView,
-  isArchivCollapsedEffective,
+  hatBeendetAchse,
+  istBeendetVersteckt,
   arbeitsvorratSectionOf,
   archivAufschluesselung,
   formatArchivAufschluesselung,
+  ARBEITSVORRAT_LABEL,
+  BEENDET_OPTIONS,
 } from './arbeitsvorrat';
 import { AntraegeTable } from './AntraegeTable';
 import { CardGrid } from './CardGrid';
@@ -61,7 +63,7 @@ import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
-import { AlertTriangle, Settings, PanelLeftClose, Rows3 } from 'lucide-react';
+import { AlertTriangle, Settings, PanelLeftClose, Rows3, Archive } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
@@ -105,6 +107,9 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
   const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
   const setTableAnsichtForView = useAntraegeStore(s => s.setTableAnsichtForView);
+  // Achse „Beendet" — eigener Schalter statt Kopplung an „Gruppierung: Keine".
+  const beendetAusgeblendet = useBeendetSichtbarkeit(s => s.ausgeblendet);
+  const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
   // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
   // teilt den State reaktiv mit der Tabelle über den globalen Store.
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
@@ -298,6 +303,19 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   else setGroupingForView(activeView, key as GroupingMode);
                 }}
               />
+              {/* Sichtbarkeit der beendeten Anträge — unabhängig von Ansicht
+                  und Gruppierung. Nur im „Alle"-Reiter (anderswo praktisch
+                  nichts Terminales) und nicht in der Karten-Ansicht, die den
+                  Split noch nie kannte. */}
+              {hatBeendetAchse(activeView) && viewMode !== 'cards' ? (
+                <GruppierenDropdown
+                  label={`${ARBEITSVORRAT_LABEL.archiv}:`}
+                  icon={Archive}
+                  options={BEENDET_OPTIONS}
+                  value={beendetAusgeblendet ? 'aus' : 'ein'}
+                  onChange={(key) => setBeendetAusgeblendet(key === 'aus')}
+                />
+              ) : null}
               {viewMode === 'compact' ? (
                 <ColumnPicker
                   columns={pickerColumns}
@@ -467,8 +485,8 @@ function GroupedList({
   const verbundById = useAntraegeStore(s => s.verbundById);
   const activeView = useAntraegeStore(s => s.activeView);
   const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
-  const archivPersistedCollapsed = useArbeitsvorratCollapsed(s => s.archivCollapsed);
-  const toggleArchiv = useArbeitsvorratCollapsed(s => s.toggle);
+  const beendetWunsch = useBeendetSichtbarkeit(s => s.ausgeblendet);
+  const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
   // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller
   // soll direkt nebeneinander stehen, nicht durch Cluster-Header zerrissen.
   const effectiveMode: GroupingMode = sortDisablesGrouping(sortKey) ? 'none' : userGroupingMode;
@@ -495,42 +513,45 @@ function GroupedList({
     });
   }, [filtered.length, allGroups.length, effectiveMode, onZeilenMeldung]);
 
-  // Arbeitsvorrat/Archiv-Split greift nur im „Alle"-Tab ohne aktive Gruppierung
-  // (Status/NW ersetzen die Sektionierung). In `none`-Modus ist jede Gruppe ein
-  // Solo-Antrag → Sektions-Zuordnung über das einzige TV.
-  const arbeitsvorratEnabled = isArbeitsvorratView(activeView, effectiveMode);
-  const inArbeitGroups = useMemo(
-    () => (arbeitsvorratEnabled ? allGroups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'in_arbeit') : []),
-    [arbeitsvorratEnabled, allGroups],
-  );
-  const archivGroups = useMemo(
-    () => (arbeitsvorratEnabled ? allGroups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'archiv') : []),
-    [arbeitsvorratEnabled, allGroups],
-  );
-  const arbeitsvorratActive = arbeitsvorratEnabled && archivGroups.length > 0;
+  // Achse „Beendet": eigener Schalter, unabhängig von der Gruppierung — bis v3.5
+  // hing die Trennung an „Gruppierung: Keine" und fiel damit still weg, sobald
+  // gruppiert wurde. Jede Gruppe im `none`-Modus ist ein Solo-Antrag bzw. ein
+  // Cluster → Sektions-Zuordnung über das erste TV (dominanter Status).
+  const beendetAchse = hatBeendetAchse(activeView);
+  const { inArbeitGroups, archivGroups } = useMemo(() => {
+    if (!beendetAchse) return { inArbeitGroups: allGroups, archivGroups: [] as AntragGroup[] };
+    const inArbeitGroups: AntragGroup[] = [];
+    const archivGroups: AntragGroup[] = [];
+    for (const g of allGroups) {
+      (arbeitsvorratSectionOf(g.tvs[0]!) === 'archiv' ? archivGroups : inArbeitGroups).push(g);
+    }
+    return { inArbeitGroups, archivGroups };
+  }, [beendetAchse, allGroups]);
   const inArbeitTvCount = useMemo(() => inArbeitGroups.reduce((s, g) => s + g.tvs.length, 0), [inArbeitGroups]);
   const archivTvCount = useMemo(() => archivGroups.reduce((s, g) => s + g.tvs.length, 0), [archivGroups]);
-  const archivBreakdown = useMemo(
-    () => (arbeitsvorratActive ? formatArchivAufschluesselung(archivAufschluesselung(archivGroups.flatMap(g => g.tvs))) : ''),
-    [arbeitsvorratActive, archivGroups],
+  const beendetVersteckt = istBeendetVersteckt({
+    wunsch: beendetWunsch,
+    suchAktiv: searchActive,
+    beendet: archivGroups.length,
+    arbeitsvorrat: inArbeitGroups.length,
+  });
+  const beendetAufschluesselung = useMemo(
+    () => formatArchivAufschluesselung(archivAufschluesselung(archivGroups.flatMap(g => g.tvs))),
+    [archivGroups],
   );
-  // Bei leerem Arbeitsvorrat (nur terminale Anträge im „Alle"-Tab) das Archiv
-  // immer aufklappen — sonst wäre die Liste optisch leer.
-  const archivCollapsedEff = arbeitsvorratActive
-    ? (inArbeitGroups.length === 0
-        ? false
-        : isArchivCollapsedEffective(archivPersistedCollapsed, searchActive, archivTvCount))
-    : false;
+  // Die zwei Bänder trennen die Hälften nur dort, wo keine Gruppierung schon
+  // Abschnitte setzt — verschachtelte Sektionen kennt die Liste nicht.
+  const zweiBaender = effectiveMode === 'none' && !beendetVersteckt && archivGroups.length > 0;
 
-  // Pagination auf der (ggf. arbeitsvorrat-umsortierten) Gruppenliste. Bei
-  // eingeklapptem Archiv bleiben dessen Gruppen aus der Pagination draußen.
+  // Pagination auf der (ggf. umsortierten) Gruppenliste. Ausgeblendete Gruppen
+  // bleiben aus der Pagination draußen.
   const { groups, hasMoreGroups } = useMemo(() => {
-    const ordered = arbeitsvorratActive
-      ? (archivCollapsedEff ? inArbeitGroups : [...inArbeitGroups, ...archivGroups])
-      : allGroups;
+    const ordered = beendetVersteckt
+      ? inArbeitGroups
+      : (zweiBaender ? [...inArbeitGroups, ...archivGroups] : allGroups);
     const g = takeGroupsUntil(ordered, visibleRows);
     return { groups: g, hasMoreGroups: g.length < ordered.length };
-  }, [arbeitsvorratActive, archivCollapsedEff, inArbeitGroups, archivGroups, allGroups, visibleRows]);
+  }, [beendetVersteckt, zweiBaender, inArbeitGroups, archivGroups, allGroups, visibleRows]);
 
   const renderGroup = (g: AntragGroup): React.ReactElement => {
     const isNetzwerkSuper = g.netzwerkId !== null && (g.subGroups?.length ?? 0) > 0;
@@ -575,7 +596,7 @@ function GroupedList({
             </div>
           ))}
         </div>
-      ) : arbeitsvorratActive ? (
+      ) : zweiBaender ? (
         <div className="flex flex-col gap-3">
           {inArbeitGroups.length > 0 ? (
             <div>
@@ -589,15 +610,13 @@ function GroupedList({
             <ArbeitsvorratSectionHeader
               section="archiv"
               count={archivTvCount}
-              collapsed={archivCollapsedEff}
-              onToggle={toggleArchiv}
-              breakdown={archivBreakdown}
+              collapsed={false}
+              onToggle={() => setBeendetAusgeblendet(true)}
+              breakdown={beendetAufschluesselung}
             />
-            {archivCollapsedEff ? null : (
-              <div className="flex flex-col gap-1 mt-1.5">
-                {groups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'archiv').map(renderGroup)}
-              </div>
-            )}
+            <div className="flex flex-col gap-1 mt-1.5">
+              {groups.filter(g => arbeitsvorratSectionOf(g.tvs[0]!) === 'archiv').map(renderGroup)}
+            </div>
           </div>
         </div>
       ) : (
@@ -608,6 +627,20 @@ function GroupedList({
       {hasMoreGroups ? (
         <div ref={sentinelRef} className="py-4 text-center text-[11.5px] text-[var(--tf-text-tertiary)]">
           Lade weitere Einträge …
+        </div>
+      ) : null}
+      {/* Ausgeblendetes Beendet: Streifen unter der Liste — steht unter JEDER
+          Gruppierung, damit abzählbar bleibt, was gerade fehlt. */}
+      {beendetVersteckt ? (
+        <div className="px-3 py-2 mt-3 rounded-[10px]" style={{ border: '0.5px solid var(--tf-border)' }}>
+          <ArbeitsvorratSectionHeader
+            section="archiv"
+            count={archivTvCount}
+            collapsed
+            onToggle={() => setBeendetAusgeblendet(false)}
+            breakdown={beendetAufschluesselung}
+            linie={false}
+          />
         </div>
       ) : null}
     </div>

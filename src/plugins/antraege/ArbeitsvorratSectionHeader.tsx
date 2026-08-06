@@ -9,10 +9,12 @@ import { ARBEITSVORRAT_LABEL } from './arbeitsvorrat';
  * gerendert — die Komponente ist layout-neutral (nur die innere Flex-Zeile).
  *
  * - `in_arbeit`: statisches Band (kein Toggle) — der Arbeitsvorrat ist immer
- *   offen.
- * - `archiv`: einklappbarer Button (Chevron), rechts die Kurz-Aufschlüsselung
- *   („Schlussvermerk 12 · abgelehnt/zurückgez. 3"). `collapsed` ist der
- *   *effektive* Zustand (bei aktiver Suche mit Archiv-Treffern zwangs-offen).
+ *   sichtbar.
+ * - `archiv`: Button (Chevron), rechts die Kurz-Aufschlüsselung
+ *   („Schlussvermerk 12 · abgelehnt/zurückgez. 3"). Er bedient denselben
+ *   Schalter wie die Toolbar-Achse „Beendet"; `collapsed` ist der *effektive*
+ *   Zustand (bei aktiver Suche mit Treffern im ausgeblendeten Teil erzwungen
+ *   sichtbar, siehe `istBeendetVersteckt`).
  *
  * Farben/Typo spiegeln `StatusSectionHeader`/`StatusBand` — keine neuen Tokens.
  */
@@ -66,7 +68,7 @@ export function ArbeitsvorratSectionHeader({
       type="button"
       onClick={onToggle}
       aria-expanded={!collapsed}
-      aria-label={`Abgeschlossene Anträge ${collapsed ? 'ausklappen' : 'einklappen'}`}
+      aria-label={`${label}: ${collapsed ? 'einblenden' : 'ausblenden'}`}
       className="w-full flex items-center gap-2 cursor-pointer bg-transparent border-0 p-0 text-left hover:opacity-80 transition-opacity"
     >
       <Icon size={12} className="text-[var(--tf-text-tertiary)] shrink-0" />

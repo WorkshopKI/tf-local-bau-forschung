@@ -1,11 +1,19 @@
 /**
- * Arbeitsvorrat/Archiv-Split für den „Alle"-Tab (Journey-Paket 2 Phase 5).
+ * Arbeitsvorrat/Beendet-Split für den „Alle"-Tab (Journey-Paket 2 Phase 5).
  *
  * Der „Alle"-Tab mischt aktive Anträge mit längst abgeschlossenen — der
  * Arbeitsvorrat (nicht-terminal) verschwindet im Archiv-Rauschen. Diese
  * pure Schicht teilt die gefilterte Liste in zwei kontiguierliche Sektionen:
  * **Arbeitsvorrat** (nicht-terminal, oben) und **Beendet** (terminal, unten,
- * default eingeklappt).
+ * default ausgeblendet).
+ *
+ * **Eigene Achse seit v3.5** — bis dahin hing der Split an „Gruppierung: Keine".
+ * Das war eine stille Kopplung: wer nach etwas gruppierte, verlor die Trennung,
+ * und als die Verbund-Verdichtung aus der Gruppierung heraus auf die
+ * Ansicht-Achse wanderte (v3.4), tauchte der Split bei allen auf, die vorher
+ * „Gruppierung: Verbund" stehen hatten. Ob beendete Anträge in der Liste stehen,
+ * ist eine EIGENE Frage — sie hat jetzt einen eigenen Schalter („Beendet:
+ * ausgeblendet | eingeblendet") und ist von Ansicht und Gruppierung unabhängig.
  *
  * Beide Namen sind **Aggregatnamen** und kommen mit keiner Kategoriebezeichnung
  * überein (v2.409). Vorher hießen sie „In Arbeit" und „Abgeschlossen" — das
@@ -99,26 +107,51 @@ export function formatArchivAufschluesselung(a: ArchivAufschluesselung): string 
   return parts.join(' · ');
 }
 
+/** Die zwei Stellungen des „Beendet"-Schalters. */
+export type BeendetSicht = 'aus' | 'ein';
+
+/** Optionen des Toolbar-Schalters. Der Wert steht hinter der Beschriftung —
+ *  gelesen wird „Beendet: ausgeblendet". */
+export const BEENDET_OPTIONS: readonly { key: BeendetSicht; label: string }[] = [
+  { key: 'aus', label: 'ausgeblendet' },
+  { key: 'ein', label: 'eingeblendet' },
+];
+
 /**
- * Effektiver Archiv-Collapsed-Zustand: der persistierte Wunsch, ABER bei
- * aktiver Suche mit Archiv-Treffern zwangs-aufgeklappt — sonst wirken
- * Treffer im (eingeklappten) Archiv wie „verschwunden".
+ * Der „Beendet"-Schalter existiert nur im „Alle"-Tab: alle anderen Reiter sind
+ * bereits über ihre Status-Sicht geschnitten und enthalten praktisch nichts
+ * Terminales — dort wäre der Schalter eine Attrappe.
+ *
+ * Bewusst OHNE Gruppierungs-Parameter: die Sichtbarkeit beendeter Anträge ist
+ * unabhängig davon, ob und wonach gruppiert wird (siehe Kopfkommentar).
  */
-export function isArchivCollapsedEffective(
-  persistedCollapsed: boolean,
-  searchActive: boolean,
-  archivHitCount: number,
-): boolean {
-  if (searchActive && archivHitCount > 0) return false;
-  return persistedCollapsed;
+export function hatBeendetAchse(activeView: string): boolean {
+  return activeView === 'alle';
+}
+
+export interface BeendetSichtbarkeit {
+  /** Schalter-Stellung: `true` = „Beendet: ausgeblendet". */
+  wunsch: boolean;
+  suchAktiv: boolean;
+  /** Terminale Zeilen im aktuellen Filterergebnis. */
+  beendet: number;
+  /** Nicht-terminale Zeilen im aktuellen Filterergebnis. */
+  arbeitsvorrat: number;
 }
 
 /**
- * Arbeitsvorrat-Sektionierung greift nur im „Alle"-Tab und nur ohne aktive
- * Gruppierung (Verbund/Status/Netzwerk ersetzen die Sektionierung, statt sie
- * zu verschachteln). Grouping als String, weil Tabelle (`TableGroupingMode`)
- * und Liste (`GroupingMode`) beide `'none'` kennen.
+ * Effektive Sichtbarkeit: der Wunsch des Nutzers, mit drei Notbremsen, die
+ * verhindern, dass Ausblenden zu „da ist nichts" wird.
+ *
+ * Die Notbremsen setzen den Wunsch NICHT zurück — sie überstimmen ihn nur für
+ * diesen Zustand. Sobald die Suche endet, gilt wieder, was der Schalter sagt.
  */
-export function isArbeitsvorratView(activeView: string, grouping: string): boolean {
-  return activeView === 'alle' && grouping === 'none';
+export function istBeendetVersteckt(s: BeendetSichtbarkeit): boolean {
+  // Nichts zu verstecken — dann auch keinen Streifen „0 ausgeblendet" zeigen.
+  if (s.beendet === 0) return false;
+  // Ausschließlich Beendetes: sonst stünde „Keine Anträge" trotz Daten.
+  if (s.arbeitsvorrat === 0) return false;
+  // Suchtreffer im ausgeblendeten Teil wirkten wie „verschwunden".
+  if (s.suchAktiv) return false;
+  return s.wunsch;
 }

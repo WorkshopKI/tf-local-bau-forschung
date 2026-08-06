@@ -1,10 +1,10 @@
 /**
- * Arbeitsvorrat/Archiv-Split (Journey-Paket 2 Phase 5).
+ * Arbeitsvorrat/Beendet-Split (Journey-Paket 2 Phase 5, eigene Achse seit v3.5).
  *
  * Reine Sektionierungs-Logik des „Alle"-Tabs: terminale Anträge (Kategorie
- * abgeschlossen ∪ abgelehnt, OHNE bewilligt) ins Archiv, der Rest in den
- * Arbeitsvorrat. Plus Archiv-Aufschlüsselung, effektiver Collapsed-Zustand
- * (Auto-Aufklappen bei Suche) und das View-/Gruppierungs-Gate.
+ * abgeschlossen ∪ abgelehnt, OHNE bewilligt) ins Beendete, der Rest in den
+ * Arbeitsvorrat. Plus Aufschlüsselung, effektive Sichtbarkeit (Notbremsen gegen
+ * „da ist nichts") und das View-Gate.
  */
 import { describe, it, expect } from 'vitest';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
@@ -13,8 +13,9 @@ import {
   partitionArbeitsvorrat,
   archivAufschluesselung,
   formatArchivAufschluesselung,
-  isArchivCollapsedEffective,
-  isArbeitsvorratView,
+  istBeendetVersteckt,
+  hatBeendetAchse,
+  BEENDET_OPTIONS,
 } from '../arbeitsvorrat';
 
 function a(status: string): { status: ReturnType<typeof asAntragStatusRaw> } {
@@ -83,30 +84,53 @@ describe('formatArchivAufschluesselung', () => {
   });
 });
 
-describe('isArchivCollapsedEffective', () => {
-  it('ohne Suche gilt der persistierte Wunsch', () => {
-    expect(isArchivCollapsedEffective(true, false, 5)).toBe(true);
-    expect(isArchivCollapsedEffective(false, false, 5)).toBe(false);
+describe('istBeendetVersteckt', () => {
+  const voll = { wunsch: true, suchAktiv: false, beendet: 5, arbeitsvorrat: 7 };
+
+  it('ohne Notbremse gilt die Schalter-Stellung', () => {
+    expect(istBeendetVersteckt(voll)).toBe(true);
+    expect(istBeendetVersteckt({ ...voll, wunsch: false })).toBe(false);
   });
-  it('aktive Suche mit Archiv-Treffern klappt zwangs-auf', () => {
-    expect(isArchivCollapsedEffective(true, true, 5)).toBe(false);
+  it('nichts Beendetes → nie versteckt (kein Streifen „0 ausgeblendet")', () => {
+    expect(istBeendetVersteckt({ ...voll, beendet: 0 })).toBe(false);
   });
-  it('aktive Suche ohne Archiv-Treffer bleibt eingeklappt', () => {
-    expect(isArchivCollapsedEffective(true, true, 0)).toBe(true);
+  it('nur Beendetes → sichtbar, sonst stünde „Keine Anträge" trotz Daten', () => {
+    expect(istBeendetVersteckt({ ...voll, arbeitsvorrat: 0 })).toBe(false);
   });
-  it('persistiert offen bleibt offen (Suche ändert nichts)', () => {
-    expect(isArchivCollapsedEffective(false, true, 5)).toBe(false);
+  it('aktive Suche zeigt den ausgeblendeten Teil — Treffer dürfen nicht fehlen', () => {
+    expect(istBeendetVersteckt({ ...voll, suchAktiv: true })).toBe(false);
+  });
+  it('Suche ohne Beendetes ändert nichts am Ergebnis', () => {
+    expect(istBeendetVersteckt({ ...voll, suchAktiv: true, beendet: 0 })).toBe(false);
+  });
+  it('die Notbremse setzt den Wunsch nicht zurück — sie überstimmt ihn nur', () => {
+    // Reine Funktion: derselbe Wunsch, ohne Suche wieder wirksam.
+    expect(istBeendetVersteckt({ ...voll, suchAktiv: true })).toBe(false);
+    expect(istBeendetVersteckt(voll)).toBe(true);
   });
 });
 
-describe('isArbeitsvorratView', () => {
-  it('nur im „Alle"-Tab ohne aktive Gruppierung', () => {
-    expect(isArbeitsvorratView('alle', 'none')).toBe(true);
-    expect(isArbeitsvorratView('alle', 'status')).toBe(false);
-    expect(isArbeitsvorratView('alle', 'netzwerk')).toBe(false);
-    expect(isArbeitsvorratView('alle', 'fb')).toBe(false);
-    expect(isArbeitsvorratView('alle', 'ab')).toBe(false);
-    expect(isArbeitsvorratView('meine_offenen', 'none')).toBe(false);
-    expect(isArbeitsvorratView('bewilligt_jahr', 'none')).toBe(false);
+describe('hatBeendetAchse', () => {
+  it('nur im „Alle"-Tab', () => {
+    expect(hatBeendetAchse('alle')).toBe(true);
+    expect(hatBeendetAchse('meine_offenen')).toBe(false);
+    expect(hatBeendetAchse('bewilligt_jahr')).toBe(false);
+  });
+
+  it('kennt die Gruppierung NICHT — genau das war bis v3.5 die stille Kopplung', () => {
+    // Regressionsgatter: sobald jemand wieder ein Gruppierungs-Argument
+    // einführt, verschwindet die Achse bei jeder Gruppierung ≠ 'none'. Die
+    // Signatur ist einstellig, das Ergebnis hängt an nichts sonst.
+    expect(hatBeendetAchse.length).toBe(1);
+    for (const g of ['none', 'status', 'netzwerk', 'fb', 'ab']) {
+      expect((hatBeendetAchse as (v: string, g?: string) => boolean)('alle', g)).toBe(true);
+    }
+  });
+});
+
+describe('BEENDET_OPTIONS', () => {
+  it('trägt genau die zwei Stellungen, „ausgeblendet" zuerst (= Standard)', () => {
+    expect(BEENDET_OPTIONS.map(o => o.key)).toEqual(['aus', 'ein']);
+    expect(BEENDET_OPTIONS[0]!.label).toBe('ausgeblendet');
   });
 });

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.6.0 — Beendet-Schalter: eigene Achse statt Kopplung an die Gruppierung (August 2026)
+
+MINOR — Der Arbeitsvorrat/Beendet-Split hing an „Gruppierung: Keine". Das war eine stille Kopplung: wer gruppierte, verlor die Trennung. Als die Verbund-Verdichtung mit v3.4 aus der Gruppierung auf die Ansicht-Achse wanderte, tauchte der Split unangekündigt bei allen auf, die zuvor „Gruppierung: Verbund" stehen hatten.
+
+- Dritter Toolbar-Schalter „Beendet: ausgeblendet | eingeblendet" im Reiter „Alle", unabhängig von Ansicht und Gruppierung — [arbeitsvorrat.ts](src/plugins/antraege/arbeitsvorrat.ts)
+- Ausgeblendete Zeilen bleiben unter **jeder** Gruppierung abzählbar: Streifen unter der Liste mit Zahl und Aufschlüsselung — [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)
+- Die zwei Bänder (Arbeitsvorrat/Beendet) erscheinen nur noch, wo sie etwas trennen — bei „Gruppierung: Keine" und eingeblendetem Beendet-Teil — [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)
+- Drei Notbremsen in EINER reinen Funktion statt verstreut: nichts Beendetes, nur Beendetes, laufende Suche — [istBeendetVersteckt](src/plugins/antraege/arbeitsvorrat.ts)
+- Schalter-Zustand behält seinen localStorage-Schlüssel — ein neuer hätte jeden bestehenden Wunsch verworfen — [useBeendetSichtbarkeit.ts](src/plugins/antraege/useBeendetSichtbarkeit.ts)
+
 ### v3.5.0 — Tabelle: Auto-Spaltenbreiten, sichtbarer Breiten-Griff, Sticky-Kopf, Spalten-Sets (August 2026)
 
 MINOR — Seit v3.3.0 sind 24 Spalten plus die Ordner-Spalten des Statuskatalogs wählbar; die Tabelle war dafür nicht gebaut. Die Breiten stammten aus handgepflegten Pixelwerten statt aus dem Inhalt, der Griff für die Gesamtbreite lag im Scroll-Zustand außerhalb des Sichtfelds (gemessen: 731 px rechts daneben), und beim Scrollen verschwanden Kopfzeile und FKZ.

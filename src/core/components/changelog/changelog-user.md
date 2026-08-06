@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.6 — 2026-08
+
+### Neu
+- **Ein eigener Schalter für die beendeten Anträge.** Im Reiter „Alle" steht über der Liste jetzt „Beendet: ausgeblendet" — abgeschlossene und abgelehnte Anträge sind standardmäßig aus dem Weg, ein Streifen unter der Liste nennt ihre Zahl („Beendet 2.474 · Schlussvermerk 1.364 · abgelehnt/zurückgez. 1.110") und blendet sie auf Klick wieder ein. Neu ist vor allem, dass das **zusammen mit jeder Gruppierung** funktioniert: Sie können nach FB gruppieren *und* das Beendete ausblenden.
+
+### Verbesserungen
+- **Der Abschnitt „Arbeitsvorrat" erscheint nur noch, wo er etwas trennt.** Bisher hing die Trennung daran, dass keine Gruppierung eingestellt war — deshalb tauchte sie mit der letzten Version plötzlich bei allen auf, die zuvor nach Verbund gruppiert hatten. Jetzt entscheidet allein der neue Schalter; die beiden Bänder stehen nur noch da, wenn das Beendete eingeblendet und nichts gruppiert ist.
+- **Eine laufende Suche zeigt den ausgeblendeten Teil weiterhin** — sonst fehlten Treffer, ohne dass man es merkt.
+
 ## v3.5 — 2026-08
 
 ### Neu

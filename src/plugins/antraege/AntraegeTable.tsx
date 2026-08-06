@@ -19,11 +19,11 @@ import {
   arbeitsvorratSectionOf,
   archivAufschluesselung,
   formatArchivAufschluesselung,
-  isArchivCollapsedEffective,
-  isArbeitsvorratView,
+  istBeendetVersteckt,
+  hatBeendetAchse,
 } from './arbeitsvorrat';
 import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
-import { useArbeitsvorratCollapsed } from './useArbeitsvorratCollapsed';
+import { useBeendetSichtbarkeit } from './useBeendetSichtbarkeit';
 import type { ZeilenMeldung } from './trefferZahl';
 
 interface Props {
@@ -51,15 +51,6 @@ type SectionOf = ((row: AntragTableRow) => string) | null;
 /** Beschriftung eines Abschnitts-Schlüssels. `null`, wo der Renderer den
  *  Schlüssel selbst deutet (Arbeitsvorrat/Archiv). */
 type LabelOf = ((key: string) => string) | null;
-/** Archiv-Metadaten für den Arbeitsvorrat/Archiv-Split (nur View „Alle", ohne
- *  aktive Gruppierung). `null` außerhalb dieses Falls. */
-type ArchivMeta = {
-  count: number;
-  inArbeitCount: number;
-  /** Effektiver Collapsed-Zustand (bei aktiver Suche mit Archiv-Treffern offen). */
-  collapsedEff: boolean;
-  breakdown: string;
-} | null;
 
 /** Band-Header der Gruppierung in der Tabelle — wie `StatusSectionHeader` der
  *  List-View, aber nicht-kollabierbar (eingebettet in einer Tabellen-Zeile).
@@ -99,14 +90,18 @@ function StatusBand({
  * Header-Tabelle mit konfigurierbaren Spalten (Spalten-Picker im Header) +
  * Klick-auf-Header-Sortierung, gebaut auf der generischen `SortableTable`.
  *
- * Zwei Toolbar-Achsen, in dieser Reihenfolge ausgewertet (siehe Kopfkommentar
- * von `tableGrouping.ts`):
+ * Drei unabhängige Toolbar-Achsen, in dieser Reihenfolge ausgewertet (siehe
+ * Kopfkommentar von `tableGrouping.ts`):
  *
  * 1. **Ansicht** — `antrag`: pro Verbund eine Zeile (Multi-TV kollabiert, Solo
  *    unverändert). `antrag-mit-tv`: jedes Teilvorhaben eine eigene Zeile.
- * 2. **Gruppierung** — `none`: flach (im Reiter „Alle" mit Arbeitsvorrat/Archiv-
- *    Split). `status`/`netzwerk`/`fb`/`ab`: Bänder über den Zeilen; Header-Sort
- *    wirkt section-stabil (innerhalb der Bänder).
+ * 2. **Beendet** (nur Reiter „Alle") — terminale Zeilen ausgeblendet (Streifen
+ *    unter der Tabelle) oder eingeblendet. Läuft NACH der Verdichtung, damit ein
+ *    Verbund als Ganzes beurteilt wird.
+ * 3. **Gruppierung** — `none`: flach; sind beendete Zeilen sichtbar, trennen
+ *    zwei Bänder (Arbeitsvorrat/Beendet) die Hälften. `status`/`netzwerk`/`fb`/
+ *    `ab`: Bänder über den Zeilen; Header-Sort wirkt section-stabil (innerhalb
+ *    der Bänder).
  *
  * Header-Sort (`useTableSort`) läuft VOR dem Pagination-Slice, damit die
  * Sortierung über die ganze Liste greift, nicht nur die sichtbare Seite.
@@ -128,12 +123,12 @@ export function AntraegeTable({
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Netzwerk-Namen für die NW-Bänder (Cross-Programm-Index, einmal pro Session).
   const netzwerkNameById = useAntraegeStore(s => s.netzwerkNameById);
-  // Arbeitsvorrat/Archiv-Split greift nur im „Alle"-Tab ohne aktive Gruppierung.
+  // Achse 3 (Beendet): eigener Schalter, nur im „Alle"-Tab.
   const activeView = useAntraegeStore(s => s.activeView);
   const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
-  const archivPersistedCollapsed = useArbeitsvorratCollapsed(s => s.archivCollapsed);
-  const toggleArchiv = useArbeitsvorratCollapsed(s => s.toggle);
-  const arbeitsvorratEnabled = isArbeitsvorratView(activeView, grouping);
+  const beendetWunsch = useBeendetSichtbarkeit(s => s.ausgeblendet);
+  const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
+  const beendetAchse = hatBeendetAchse(activeView);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
   const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
   // Persistierte Gesamt-Tabellenbreite (Griff am rechten Rand). null = Default
@@ -175,60 +170,67 @@ export function AntraegeTable({
     [ansicht, filteredRows, verbundById],
   );
 
-  // Achse 2 (Gruppierung): Abschnitts-Bänder über den Basis-Zeilen (vor
+  // Achse 3 (Beendet): terminale Zeilen sind eine EIGENE Sichtbarkeits-Frage,
+  // unabhängig von Ansicht und Gruppierung. Getrennt wird nach der Verdichtung
+  // — eine Verbund-Zeile trägt den dominanten Status ihres Verbundes, und den
+  // erst nach dem Zusammenfassen zu kennen ist der Punkt.
+  const { inArbeit, archiv } = useMemo(
+    () => (beendetAchse
+      ? partitionArbeitsvorrat(baseRows)
+      : { inArbeit: baseRows, archiv: [] as AntragTableRow[] }),
+    [beendetAchse, baseRows],
+  );
+  const beendetVersteckt = istBeendetVersteckt({
+    wunsch: beendetWunsch,
+    suchAktiv: searchActive,
+    beendet: archiv.length,
+    arbeitsvorrat: inArbeit.length,
+  });
+  const beendetAufschluesselung = useMemo(
+    () => formatArchivAufschluesselung(archivAufschluesselung(archiv)),
+    [archiv],
+  );
+
+  // Achse 2 (Gruppierung): Abschnitts-Bänder über den sichtbaren Zeilen (vor
   // Header-Sort + Slice).
-  const { allRows, sectionOf, labelOf, archivMeta } = useMemo<{
+  const { allRows, sectionOf, labelOf } = useMemo<{
     allRows: AntragTableRow[];
     sectionOf: SectionOf;
     labelOf: LabelOf;
-    archivMeta: ArchivMeta;
   }>(() => {
+    // Versteckte Zeilen bleiben aus der Tabelle draußen (kein Pagination-
+    // Verbrauch); ihr Kopf wird als Streifen unter der Tabelle gerendert.
+    const sichtbar = beendetVersteckt ? inArbeit : baseRows;
     if (grouping === 'status' || grouping === 'netzwerk' || grouping === 'fb' || grouping === 'ab') {
       const built = grouping === 'status'
-        ? buildStatusSectionRows(baseRows)
+        ? buildStatusSectionRows(sichtbar)
         : grouping === 'netzwerk'
-          ? buildNetzwerkSectionRows(baseRows, netzwerkNameById)
-          : buildKuerzelSectionRows(baseRows, grouping === 'fb' ? 'tib_kuerz' : 'bib_kuerz');
-      return { allRows: built.rows, sectionOf: built.sectionOf, labelOf: built.labelOf, archivMeta: null };
+          ? buildNetzwerkSectionRows(sichtbar, netzwerkNameById)
+          : buildKuerzelSectionRows(sichtbar, grouping === 'fb' ? 'tib_kuerz' : 'bib_kuerz');
+      return { allRows: built.rows, sectionOf: built.sectionOf, labelOf: built.labelOf };
     }
-    if (arbeitsvorratEnabled) {
-      const { inArbeit, archiv } = partitionArbeitsvorrat(baseRows);
-      // Sektionieren nur, wenn es überhaupt etwas zu archivieren gibt.
-      if (archiv.length > 0) {
-        // Bei leerem Arbeitsvorrat (nur terminale Anträge) das Archiv immer
-        // aufklappen — sonst zeigt die Tabelle „Keine Anträge" trotz Daten.
-        const collapsedEff = inArbeit.length === 0
-          ? false
-          : isArchivCollapsedEffective(archivPersistedCollapsed, searchActive, archiv.length);
-        // Eingeklapptes Archiv → seine Zeilen bleiben aus der Tabelle draußen
-        // (kein Pagination-Verbrauch); der Kopf wird als Streifen unter der
-        // Tabelle gerendert.
-        const rows = collapsedEff ? inArbeit : [...inArbeit, ...archiv];
-        return {
-          allRows: rows,
-          sectionOf: (r: AntragTableRow) => arbeitsvorratSectionOf(r),
-          labelOf: null,
-          archivMeta: {
-            count: archiv.length,
-            inArbeitCount: inArbeit.length,
-            collapsedEff,
-            breakdown: formatArchivAufschluesselung(archivAufschluesselung(archiv)),
-          },
-        };
-      }
+    // Ohne Gruppierung und mit sichtbarem Beendet-Teil: die zwei Bänder. Sie
+    // sind hier keine dritte Gruppierung, sondern die Grenze zwischen den zwei
+    // Hälften — ohne sie wäre nicht zu sehen, wo der Arbeitsvorrat endet.
+    if (archiv.length > 0 && !beendetVersteckt) {
+      return {
+        allRows: [...inArbeit, ...archiv],
+        sectionOf: (r: AntragTableRow) => arbeitsvorratSectionOf(r),
+        labelOf: null,
+      };
     }
-    return { allRows: baseRows, sectionOf: null, labelOf: null, archivMeta: null };
-  }, [grouping, arbeitsvorratEnabled, baseRows, netzwerkNameById, archivPersistedCollapsed, searchActive]);
+    return { allRows: sichtbar, sectionOf: null, labelOf: null };
+  }, [grouping, beendetVersteckt, inArbeit, archiv, baseRows, netzwerkNameById]);
 
   // An die Toolbar melden, was hier steht. Effekt statt direktem Aufruf, weil
   // setState eines Eltern-Elements im Render verboten ist.
   //
   // Eine abweichende Zeilenzahl gibt es NUR in der Ansicht „Antrag" — nur dort
   // fasst die Tabelle mehrere TV zu einer Zeile zusammen. Gezählt wird auf
-  // `baseRows`, nicht auf `allRows`: im Arbeitsvorrat-Modus ist `allRows` bei
-  // eingeklapptem Archiv ebenfalls kürzer, aber das ist keine Verdichtung,
-  // sondern ein zugeklappter Abschnitt (dessen Kopf unter der Tabelle steht);
-  // als „Zeilen" ausgewiesen wäre es eine Falschaussage.
+  // `baseRows`, nicht auf `allRows`: bei ausgeblendetem Beendet-Teil ist
+  // `allRows` ebenfalls kürzer, aber das ist keine Verdichtung, sondern ein
+  // ausgeblendeter Abschnitt (dessen Streifen unter der Tabelle steht und seine
+  // Zahl selbst nennt); als „Zeilen" ausgewiesen wäre es eine Falschaussage.
   const zeilen = ansicht === 'antrag' ? baseRows.length : filteredRows.length;
   useEffect(() => {
     onZeilenMeldung?.({
@@ -287,18 +289,18 @@ export function AntraegeTable({
               />
             );
           }
-          // Arbeitsvorrat/Archiv: eigene Bänder. Zähler kommen aus archivMeta
-          // (Gesamt der Sektion), nicht aus dem Slice-Count der SortableTable —
-          // sonst wüchse „ABGESCHLOSSEN · n" erst beim Scrollen. Das Archiv-Band
-          // in der Tabelle ist immer aufgeklappt (eingeklappt → Streifen unten).
+          // Arbeitsvorrat/Beendet: eigene Bänder. Zähler sind die Sektions-
+          // Gesamtzahlen, nicht der Slice-Count der SortableTable — sonst wüchse
+          // „BEENDET · n" erst beim Scrollen. Das Beendet-Band ist hier immer
+          // aufgeklappt (ausgeblendet → Streifen unter der Tabelle).
           if (key === 'archiv') {
             return (
               <ArbeitsvorratSectionHeader
                 section="archiv"
-                count={archivMeta?.count ?? count}
+                count={archiv.length || count}
                 collapsed={false}
-                onToggle={toggleArchiv}
-                breakdown={archivMeta?.breakdown}
+                onToggle={() => setBeendetAusgeblendet(true)}
+                breakdown={beendetAufschluesselung}
                 linie={false}
               />
             );
@@ -306,7 +308,7 @@ export function AntraegeTable({
           return (
             <ArbeitsvorratSectionHeader
               section="in_arbeit"
-              count={archivMeta?.inArbeitCount ?? count}
+              count={inArbeit.length || count}
               linie={false}
             />
           );
@@ -358,16 +360,18 @@ export function AntraegeTable({
           Lade weitere Einträge …
         </div>
       ) : null}
-      {/* Eingeklapptes Archiv: Kopf-Streifen unter der Tabelle (seine Zeilen sind
-          bewusst nicht Teil der Tabelle → keine Pagination). Klick klappt auf. */}
-      {archivMeta?.collapsedEff && archivMeta.count > 0 ? (
+      {/* Ausgeblendetes Beendet: Streifen unter der Tabelle (seine Zeilen sind
+          bewusst nicht Teil der Tabelle → keine Pagination). Klick blendet ein
+          und setzt damit denselben Schalter wie die Toolbar. Er steht unter
+          JEDER Gruppierung — was ausgeblendet ist, bleibt abzählbar. */}
+      {beendetVersteckt ? (
         <div className="px-3 py-2 mt-1 rounded-[10px]" style={{ border: '0.5px solid var(--tf-border)' }}>
           <ArbeitsvorratSectionHeader
             section="archiv"
-            count={archivMeta.count}
+            count={archiv.length}
             collapsed
-            onToggle={toggleArchiv}
-            breakdown={archivMeta.breakdown}
+            onToggle={() => setBeendetAusgeblendet(false)}
+            breakdown={beendetAufschluesselung}
           />
         </div>
       ) : null}
