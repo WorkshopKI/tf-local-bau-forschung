@@ -27,7 +27,15 @@ export interface TableHeadRowsProps<T> {
   columnFilters?: Record<string, Set<string>>;
   onColumnFilterChange?: (key: string, values: Set<string>) => void;
   filterCandidates?: Record<string, string[]>;
+  /** Erste Spalte beim waagerechten Scrollen stehen lassen. */
+  stickyFirstColumn?: boolean;
 }
+
+/** Stapelreihenfolge der klebenden Zellen. Der Kopf muss über den Datenzellen
+ *  liegen, und in ihm die klebende Spalte über den scrollenden Köpfen — sonst
+ *  schiebt sich beim Scrollen ein Spaltenkopf über die stehende Ecke. */
+const Z_KOPF_STICKY = 40;
+const Z_KOPF = 30;
 
 export function TableHeadRows<T>({
   columns,
@@ -41,6 +49,7 @@ export function TableHeadRows<T>({
   columnFilters,
   onColumnFilterChange,
   filterCandidates,
+  stickyFirstColumn = false,
 }: TableHeadRowsProps<T>): React.ReactElement {
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
@@ -59,16 +68,29 @@ export function TableHeadRows<T>({
           // (Linie deckt sich pixelgenau mit der Greifzone) und nicht bei der
           // letzten Spalte. Spiegelt das Muster aus SearchTableHeader.
           const isLastCol = i === columns.length - 1;
+          const sticky = stickyFirstColumn && i === 0;
           return (
             <th
               key={c.key}
-              className="px-3 py-1.5 align-middle relative"
-              aria-sort={ariaSort}
-              style={
-                resizeEnabled && !isLastCol
-                  ? { borderRight: '0.5px solid var(--tf-border)' }
-                  : undefined
+              // Der graue Grund sitzt normalerweise am `<tr>`; eine klebende
+              // Zelle braucht ihn selbst, sonst scrollt der Nachbarinhalt
+              // sichtbar dahinter durch.
+              className={
+                sticky
+                  ? 'px-3 py-1.5 align-middle relative bg-[var(--tf-bg-secondary)]'
+                  : 'px-3 py-1.5 align-middle relative'
               }
+              aria-sort={ariaSort}
+              style={{
+                ...(resizeEnabled && !isLastCol
+                  ? { borderRight: '0.5px solid var(--tf-border)' }
+                  : null),
+                ...(sticky
+                  ? { position: 'sticky', left: 0, zIndex: Z_KOPF_STICKY }
+                  : stickyFirstColumn
+                    ? { position: 'relative', zIndex: Z_KOPF }
+                    : null),
+              }}
             >
               {/* Kein `min-w-0`/`break-words` hier: eine Überschrift aus
                   EINEM Wort behält als Flex-Element die Breite dieses

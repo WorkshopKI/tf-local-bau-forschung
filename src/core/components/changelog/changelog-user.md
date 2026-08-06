@@ -24,6 +24,7 @@
 ### Neu
 - **Spalten passen sich dem Inhalt an.** Bisher hatte jede Spalte eine fest eingestellte Breite — bei mittlerweile über 30 wählbaren Spalten passte die selten. Jetzt richtet sich die Breite nach dem, was tatsächlich drinsteht. Lange Freitexte wie „Antragsteller" bekommen eine Obergrenze, damit sie die Tabelle nicht auseinanderziehen. Eine von Ihnen selbst gezogene Breite bleibt unangetastet.
 
+- **Die FKZ-Spalte bleibt stehen.** Beim Blättern nach rechts scrollen die übrigen Spalten unter der FKZ-Spalte hindurch — man sieht also immer, zu welchem Antrag die Zeile gehört. Bei einer Gruppierung bleibt auch die Band-Beschriftung (z. B. „THÜ") links sichtbar.
 - **Doppelklick setzt eine Spalte zurück.** Haben Sie eine Spalte selbst breiter oder schmaler gezogen und wollen das rückgängig machen: Doppelklick auf die Trennlinie im Spaltenkopf. Die Spalte richtet sich danach wieder nach ihrem Inhalt.
 
 ### Verbesserungen

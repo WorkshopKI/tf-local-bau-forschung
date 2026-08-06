@@ -124,6 +124,14 @@ export interface SortableTableProps<T> {
   /** Diskriminator für die Mess-Signatur, wo `measureRows.length` zwei Zustände
    *  nicht trennt (zwei Filterergebnisse gleicher Länge). O(1) bilden. */
   measureSignature?: string;
+  /** Opt-in: die erste Spalte bleibt beim waagerechten Scrollen stehen (die
+   *  Identitäts-Spalte, damit man beim Blättern nach rechts weiß, welche Zeile
+   *  man liest). Bewusst pro Verbraucher: der undurchsichtige Grund der
+   *  klebenden Zelle setzt voraus, dass die Tabelle auf der Grundfläche sitzt —
+   *  das ist eine Eigenschaft der Umgebung, nicht der Tabelle. Ohne
+   *  waagerechten Überlauf ist die Wirkung null, die Kosten (Schatten statt
+   *  Rahmen, eigener Stapelkontext) bleiben. Default `false`. */
+  stickyFirstColumn?: boolean;
 }
 
 export function SortableTable<T>({
@@ -154,6 +162,7 @@ export function SortableTable<T>({
   autoColumnWidth = false,
   measureRows,
   measureSignature,
+  stickyFirstColumn = false,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   // „Gesamt-Breite"-Griff: `enabled` = Griff wird gerendert; `active` = eine
@@ -245,6 +254,7 @@ export function SortableTable<T>({
               columnFilters={columnFilters}
               onColumnFilterChange={onColumnFilterChange}
               filterCandidates={filterCandidates}
+              stickyFirstColumn={stickyFirstColumn}
             />
             <TableBody
               rows={rows}
@@ -255,6 +265,7 @@ export function SortableTable<T>({
               emptyContent={emptyContent}
               sectionKeyOf={sectionKeyOf}
               renderSectionHeader={renderSectionHeader}
+              stickyFirstColumn={stickyFirstColumn}
             />
           </table>
         </div>

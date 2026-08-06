@@ -335,6 +335,9 @@ export function AntraegeTable({
         // `orderedRows` jeder Sortierklick. Die Signatur trennt zusätzlich zwei
         // Filterergebnisse gleicher Länge (zwei O(1)-Zugriffe).
         autoColumnWidth
+        // FKZ bleibt beim Blättern nach rechts stehen — sonst weiß man bei
+        // 25 Spalten nicht mehr, welche Zeile man gerade liest.
+        stickyFirstColumn
         measureRows={allRows}
         measureSignature={`${allRows[0]?.aktenzeichen ?? ''}|${allRows[allRows.length - 1]?.aktenzeichen ?? ''}`}
         columnWidths={widths}

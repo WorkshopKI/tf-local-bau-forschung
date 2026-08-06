@@ -19,7 +19,39 @@ export interface TableBodyProps<T> {
   emptyContent?: ReactNode;
   sectionKeyOf?: (row: T) => string;
   renderSectionHeader?: (sectionKey: string, count: number) => ReactNode;
+  /** Erste Spalte beim waagerechten Scrollen stehen lassen. */
+  stickyFirstColumn?: boolean;
 }
+
+/**
+ * Grund der sticky-Zelle — NUR über Klassen.
+ *
+ * Sticky-Zellen sind durchsichtig; ohne eigenen Grund scrollt der Inhalt der
+ * Nachbarspalten sichtbar dahinter durch. Die Zeile setzt ihre Selektion aber
+ * per INLINE-Style und ihren Hover per Klasse. Ein Inline-`background` auf der
+ * Zelle schlüge jede Hover-Klasse; deshalb werden beide Fälle hier
+ * gegenseitig ausschließend gewählt (Tailwind v4 entscheidet kollidierende
+ * Utilities über die Quellreihenfolge, nicht über Spezifität — beides
+ * gleichzeitig anzuhängen wäre Glücksspiel).
+ */
+function stickyZellGrund(selected: boolean): string {
+  return selected
+    ? 'bg-[var(--tf-bg-secondary)]'
+    : 'bg-[var(--tf-bg)] group-hover/row:bg-[var(--tf-bg-secondary)]';
+}
+
+/**
+ * Ersatz für die Rahmen, die Chrome an sticky-Zellen bei
+ * `border-collapse: collapse` verliert: die Oberkante der Zeile und eine
+ * Trennkante zur scrollenden Fläche.
+ */
+const STICKY_ZELL_KANTEN = 'inset 0 0.5px 0 var(--tf-border), 1px 0 0 var(--tf-border)';
+
+/** Waagerechtes Zell-Polster (`px-3`) in Pixeln. Der klebende Band-Inhalt muss
+ *  darauf ausgerichtet werden: `left: 0` misst ab dem Scrollport-Rand und zöge
+ *  die Beschriftung um genau dieses Polster nach links aus der Flucht der
+ *  übrigen Zellen. */
+const ZELL_POLSTER_PX = 12;
 
 export function TableBody<T>({
   rows,
@@ -30,6 +62,7 @@ export function TableBody<T>({
   emptyContent,
   sectionKeyOf,
   renderSectionHeader,
+  stickyFirstColumn = false,
 }: TableBodyProps<T>): React.ReactElement {
   const sectionsEnabled = sectionKeyOf !== undefined && renderSectionHeader !== undefined;
   const sectionCounts = useMemo(() => {
@@ -69,7 +102,17 @@ export function TableBody<T>({
                     borderTop: '0.5px solid var(--tf-border)',
                   }}
                 >
-                  {renderSectionHeader!(sectionKey!, sectionCounts?.get(sectionKey!) ?? 0)}
+                  {/* Die `colSpan`-Zelle selbst darf NICHT sticky werden — sie
+                      spannt die ganze Breite und zöge das Band mit. Nur die
+                      Beschriftung bleibt links stehen; der graue Grund spannt
+                      weiter über alle Spalten. */}
+                  {stickyFirstColumn ? (
+                    <div style={{ position: 'sticky', left: ZELL_POLSTER_PX, width: 'max-content' }}>
+                      {renderSectionHeader!(sectionKey!, sectionCounts?.get(sectionKey!) ?? 0)}
+                    </div>
+                  ) : (
+                    renderSectionHeader!(sectionKey!, sectionCounts?.get(sectionKey!) ?? 0)
+                  )}
                 </td>
               </tr>
             ) : null}
@@ -86,19 +129,27 @@ export function TableBody<T>({
                 background: selected ? 'var(--tf-bg-secondary)' : undefined,
               }}
             >
-              {columns.map(c => {
+              {columns.map((c, ci) => {
                 // Default: Umbruch. Explizit `wrap: false` → kompakt mit ellipsis.
                 const noWrap = c.wrap === false;
+                const sticky = stickyFirstColumn && ci === 0;
                 return (
                   <td
                     key={c.key}
-                    className="px-3 py-1 align-top leading-tight"
+                    className={
+                      sticky
+                        ? `px-3 py-1 align-top leading-tight ${stickyZellGrund(selected)}`
+                        : 'px-3 py-1 align-top leading-tight'
+                    }
                     style={{
                       whiteSpace: noWrap ? 'nowrap' : 'normal',
                       wordBreak: noWrap ? undefined : 'break-word',
                       overflow: 'hidden',
                       textOverflow: noWrap ? 'ellipsis' : undefined,
-                      borderBottom: !isLast ? '0.5px solid var(--tf-border)' : undefined,
+                      borderBottom: !isLast && !sticky ? '0.5px solid var(--tf-border)' : undefined,
+                      ...(sticky
+                        ? { position: 'sticky', left: 0, zIndex: 10, boxShadow: STICKY_ZELL_KANTEN }
+                        : null),
                     }}
                   >
                     {c.render(row)}
