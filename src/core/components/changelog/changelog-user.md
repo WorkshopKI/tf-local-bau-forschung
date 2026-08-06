@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.16 — 2026-08
+
+### Verbesserungen
+- Statusbezeichnungen sind überall gleich. Bisher hieß derselbe Status je nach Ansicht anders — in der Suche stand sogar ein Schreibfehler.
+- Neben jeder abgekürzten Statusbezeichnung liegt jetzt ein Tooltip mit dem vollen amtlichen Namen.
+- Statuswerte, die bisher gar keine Kurzform hatten (Sonderstatus, Skizze eingegangen, assoziierter/internationaler Partner), haben eine bekommen.
+- In den Vorgangs-Regeln lassen sich die Kurzformen pflegen — sortiert danach, wie oft ein Status im Bestand vorkommt.
+
+### Bugfixes
+- „Stellungnahme zur Rücknahmeempfehlung" wurde in der Antragsliste ungekürzt ausgeschrieben; die vorgesehene Abkürzung passte auf eine Schreibweise, die im Export nicht vorkommt.
+<!-- - … -->
+
 ## v3.15 — 2026-08
 
 ### Neu

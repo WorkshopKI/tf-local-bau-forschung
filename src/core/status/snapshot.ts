@@ -26,13 +26,25 @@
  * `kategorieAusFassung`. Sonst trüge eine ältere Fassung die Kategorien ihres
  * Seed-Standes weiter, obwohl der Code-Katalog längst etwas anderes sagt.
  *
- * **Hier hängen alle drei Register.** Neben der Wert→Kategorie-Map setzt diese
+ * **Hier hängen alle vier Register.** Neben der Wert→Kategorie-Map setzt diese
  * Datei seit v2.409 auch die geltende Phasen-Tabelle und den geltende
- * Code→Phase-Schnitt (`zah-phasen.ts`). Sie ist deren EINZIGER Schreibweg —
- * drei Register an einer Stelle können nicht auseinanderlaufen, drei
+ * Code→Phase-Schnitt (`zah-phasen.ts`), seit v3.15 zusätzlich die
+ * Beschriftungen (`status-wert-labels.ts`). Sie ist deren EINZIGER Schreibweg —
+ * vier Register an einer Stelle können nicht auseinanderlaufen, vier
  * Schreibwege schon (Konventionstest `zah-phasen-snapshot-single-writer`).
+ *
+ * **Das Beschriftungs-Register trägt nur die KURATION.** Es füllt `lang`/`kurz`
+ * ausschließlich aus `label`/`kurzLabel` der Fassung und lässt sie sonst leer;
+ * die Auslieferung steht in `status-wert-labels.ts` selbst und wird pro
+ * Schlüssel dahintergeschaltet. Würde diese Datei die Auslieferung mit
+ * einbacken, nähme eine Fassung, die eine Schreibweise nicht führt, ihr die
+ * Kurzform weg — derselbe Fehler, den `mitAmtlichenSchreibweisen` unten für die
+ * Kategorie beheben musste.
  */
 import { setStatusKatalogSnapshotMap } from '@/core/utils/status-canonical';
+import {
+  setStatusLabelSnapshot, type StatusBeschriftung,
+} from '@/core/utils/status-wert-labels';
 import {
   normalisiereWert,
   type MappingVersion, type StatusCategory, type StatusWertEintrag, type ZahPhase,
@@ -51,6 +63,7 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
   aktiveVersion = version;
   if (!version) {
     setStatusKatalogSnapshotMap(null);
+    setStatusLabelSnapshot(null);
     setZahPhasenSnapshot(null);
     setCodePhasenSnapshot(null);
     return;
@@ -58,8 +71,13 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
   const kuratiert = version.werte.filter(w => !w.unkuratiert);
   const idx = indexNachSchreibweise(kuratiert.map(mitAmtlichenSchreibweisen));
   const m = new Map<string, StatusCategory>();
-  for (const [key, w] of idx) m.set(key, kategorieAusFassung(w, version.zahPhasen));
+  const beschriftung = new Map<string, StatusBeschriftung>();
+  for (const [key, w] of idx) {
+    m.set(key, kategorieAusFassung(w, version.zahPhasen));
+    beschriftung.set(key, { lang: w.label ?? '', kurz: w.kurzLabel ?? '' });
+  }
   setStatusKatalogSnapshotMap(m);
+  setStatusLabelSnapshot(beschriftung);
   // Erst die Phasen, dann der Schnitt: die Kategorie-Map oben ist schon
   // gerechnet, aber Sidebar, Verfahrensleiste und Filter fragen die Register
   // erst beim nächsten Rendern — die Reihenfolge hier ist reine Lesbarkeit.

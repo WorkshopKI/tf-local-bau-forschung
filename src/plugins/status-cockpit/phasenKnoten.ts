@@ -79,7 +79,7 @@ interface CodeZeile {
 /**
  * Faltet die Wert-Einträge auf eine Zeile je Code.
  *
- * **Erster Eintrag gewinnt** — dieselbe Regel wie `schnittVon` und `statusKurz`.
+ * **Erster Eintrag gewinnt** — dieselbe Regel wie `schnittVon` und `statusHerleitungKopf`.
  * Die Vorkommen werden dagegen SUMMIERT: ein Status, den TV- und Verbund-Feld
  * je 40-mal tragen, liegt 80-mal im Bestand, und die Zahl an der Phase soll das
  * Gewicht der Entscheidung zeigen, nicht die Hälfte davon.

@@ -40,6 +40,9 @@ const ISOLATED_TESTS = [
   // Mockt dieselbe Share-Schicht (`sidecar-datei`) wie die Journal-Tests.
   'src/core/status/__tests__/katalog-share.test.ts',
   'src/core/status/__tests__/katalog-store.test.ts',
+  // Setzt dieselben Modul-Register wie byte-identitaet (Snapshot in
+  // status-canonical.ts + status-wert-labels.ts).
+  'src/core/status/__tests__/label-identitaet.test.ts',
   'src/core/status/__tests__/reconcile-store.test.ts',
   'src/core/status/__tests__/trigger-share.test.ts',
   'src/plugins/auslastung/__tests__/assign-verbund.test.ts',

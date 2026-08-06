@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  baueHerleitung, herleitungAlsText, statusKurz, type Datenstand,
+  baueHerleitung, herleitungAlsText, statusHerleitungKopf, type Datenstand,
 } from '@/core/status/herleitung';
 import { baueSeedVersion } from '@/core/status/seed';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
@@ -311,7 +311,7 @@ describe('baueHerleitung — Trigger und Datenstand', () => {
   });
 });
 
-describe('statusKurz — die Ebene benennen', () => {
+describe('statusHerleitungKopf — die Ebene benennen', () => {
   // Realer Fall: ein Verbund mit genau EINEM Teilvorhaben, dessen TV-Status weit
   // vor dem Verbund-Status liegt. Wer nur eine Zahl sah, hielt sie für „den"
   // Status des Vorhabens — bei Ein-TV-Verbünden am ehesten.
@@ -319,8 +319,8 @@ describe('statusKurz — die Ebene benennen', () => {
   const TV = 'Stellungnahme zur Rücknahmeempfehlung';
 
   it('löst beide Ebenen unabhängig auf', () => {
-    const vb = statusKurz(seed, VB);
-    const tv = statusKurz(seed, TV);
+    const vb = statusHerleitungKopf(seed, VB);
+    const tv = statusHerleitungKopf(seed, TV);
     expect(vb.code).toBe(31);
     expect(vb.zahPhaseLabel).toBe('Eingang');
     expect(tv.code).toBe(72);
@@ -328,12 +328,12 @@ describe('statusKurz — die Ebene benennen', () => {
   });
 
   it('trifft auch die abgekürzte Export-Schreibweise', () => {
-    expect(statusKurz(seed, 'Stellungnahme zur Rücknahmeempf.').code).toBe(72);
+    expect(statusHerleitungKopf(seed, 'Stellungnahme zur Rücknahmeempf.').code).toBe(72);
   });
 
   it('ist dieselbe Quelle wie der Kopf der Herleitung', () => {
     const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: TV });
-    const k = statusKurz(seed, TV);
+    const k = statusHerleitungKopf(seed, TV);
     expect(h.code).toBe(k.code);
     expect(h.statusText).toBe(k.statusText);
     expect(h.zahPhase).toBe(k.zahPhase);
@@ -345,7 +345,7 @@ describe('statusKurz — die Ebene benennen', () => {
     const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: VB });
     const text = herleitungAlsText(h, {
       ebeneLabel: 'Verbund-Status',
-      abweichend: [{ label: 'TV-Status', kurz: statusKurz(seed, TV), anzahl: 1 }],
+      abweichend: [{ label: 'TV-Status', kurz: statusHerleitungKopf(seed, TV), anzahl: 1 }],
     });
     expect(text).toContain('Verbund-Status: 31 · beantragt');
     expect(text).toContain('TV-Status: 72 · Stellungnahme zur Rücknahmeempfehlung');
@@ -358,7 +358,7 @@ describe('statusKurz — die Ebene benennen', () => {
     const h = baueHerleitung({ ...basis, vorkommen: [], statusRoh: VB });
     const text = herleitungAlsText(h, {
       ebeneLabel: 'Verbund-Status',
-      abweichend: [{ label: 'TV-Status', kurz: statusKurz(seed, 'bewilligt'), anzahl: 4 }],
+      abweichend: [{ label: 'TV-Status', kurz: statusHerleitungKopf(seed, 'bewilligt'), anzahl: 4 }],
       weitere: 2,
     });
     expect(text).toContain('(4 TV)');

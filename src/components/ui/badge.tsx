@@ -9,6 +9,9 @@ interface BadgeProps {
    *  für uniforme Pillen-Breite in Listen. Wird hinten angehängt, sodass
    *  z.B. ein eigenes `min-w-[…]` das Default-Auto-Width überschreibt. */
   className?: string;
+  /** Tooltip. Pflicht überall dort, wo der Pillentext eine Kurzform ist
+   *  (`statusKurzLabel`) — die Kurzform allein ist nicht selbsterklärend. */
+  title?: string;
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
@@ -19,9 +22,12 @@ const variantClasses: Record<BadgeVariant, string> = {
   error: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
 };
 
-export function Badge({ variant = 'default', children, className }: BadgeProps): React.ReactElement {
+export function Badge({
+  variant = 'default', children, className, title,
+}: BadgeProps): React.ReactElement {
   return (
     <span
+      title={title}
       className={`inline-flex items-center text-[11px] font-normal px-2.5 py-[3px] rounded-full ${variantClasses[variant] ?? ''}${className ? ` ${className}` : ''}`}
     >
       {children}

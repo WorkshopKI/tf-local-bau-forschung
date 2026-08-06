@@ -35,6 +35,24 @@ export interface StatusCodeEintrag {
   /** Amtliche Bezeichnung — wortgetreu aus der Parametertabelle. */
   text: string;
   /**
+   * Die **ausgelieferte Kurzform** für enge Flächen (Status-Pille, Kanban-Lane,
+   * 90-px-Spalte der Suche). Zweites Feld derselben Quelle statt einer zweiten
+   * Tabelle — genau daran liefen bis v3.15 drei Kopien auseinander
+   * (`STATUS_LABELS`, `STATUS_LABEL_OVERRIDES`, ein Literal im Arbeitsvorrat),
+   * eine davon mit Tippfehler und eine, die Code 72 unter der falschen
+   * Schreibweise schlüsselte und deshalb im Bestand nie griff.
+   *
+   * Hier steht **unsere Beschriftung**, nicht die Fremddaten aus der
+   * Parametertabelle: sie ist deshalb groß geschrieben, wo `text` amtlich klein
+   * ist (`bewilligt` → `Bewilligt`). Wer das für einen Fehler hält, verwechselt
+   * die beiden Felder — `text` bleibt wortgetreu (Pitfall #43).
+   *
+   * Richtwert 14 Zeichen, ab 18 warnt die Kuration. Die PL kann je Code
+   * überschreiben (`StatusWertEintrag.kurzLabel`); hier steht, was ohne Kuration
+   * gilt — auch in prod, wo es keinen Katalog-Snapshot gibt.
+   */
+  kurz: string;
+  /**
    * Weitere Schreibweisen, unter denen derselbe Status im Export auftaucht.
    * Erweiterbar: eine neue Variante ist ein Listeneintrag, kein Code-Umbau.
    */
@@ -47,43 +65,84 @@ export interface StatusCodeEintrag {
  * Die `varianten` sind gegen die Rohwerte gestellt, die `status-canonical.ts`
  * aus echten CSV-Importen kennt — dort steht „Ablehnung" ohne „versandt" und
  * „VN techn. geprüft" mit Punkt.
+ *
+ * Die `kurz`-Spalte wurde am 06.08.2026 gegen den Produktivbestand freigegeben
+ * (43 131 TV-Zeilen). Die vier Codes ohne bisheriges Kurzlabel tragen zusammen
+ * 65 % des Bestands: 88 allein 48 %.
  */
 export const STATUS_CODE_KATALOG: readonly StatusCodeEintrag[] = [
-  { code: 11, text: 'Skizze eingegangen', varianten: [] },
-  { code: 29, text: 'Irrläufer', varianten: [] },
-  { code: 31, text: 'beantragt', varianten: [] },
-  { code: 32, text: 'ablehnungsreif', varianten: [] },
-  { code: 33, text: 'unvollständig', varianten: [] },
-  { code: 34, text: 'bearbeitungsreif', varianten: [] },
-  { code: 35, text: 'NF gestellt', varianten: ['Nachforderung gestellt'] },
-  { code: 36, text: 'NL eingegangen', varianten: ['Nachlieferung eingegangen'] },
-  { code: 37, text: 'keine weiteren NF', varianten: ['keine weiteren Nachforderungen'] },
-  { code: 38, text: 'techn geprüft', varianten: ['techn. geprüft', 'technisch geprüft'] },
-  { code: 39, text: 'kaufm geprüft', varianten: ['kaufm. geprüft', 'kaufmännisch geprüft'] },
-  { code: 40, text: 'Gutachten fertig', varianten: [] },
-  { code: 50, text: 'Bewilligungsentwurf VDI/VDE-IT', varianten: ['Bewilligungsentwurf'] },
-  { code: 51, text: 'bewilligungsreif', varianten: [] },
-  { code: 59, text: 'bewilligt', varianten: [] },
-  { code: 70, text: 'Ablehnung versandt', varianten: ['Ablehnung'] },
-  { code: 71, text: 'Rücknahmeempfehlung versandt', varianten: ['Rücknahmeempfehlung', 'RNE versandt'] },
+  { code: 11, text: 'Skizze eingegangen', kurz: 'Skizze eing.', varianten: [] },
+  { code: 29, text: 'Irrläufer', kurz: 'Irrläufer', varianten: [] },
+  { code: 31, text: 'beantragt', kurz: 'Beantragt', varianten: [] },
+  { code: 32, text: 'ablehnungsreif', kurz: 'Ablehnungsreif', varianten: [] },
+  { code: 33, text: 'unvollständig', kurz: 'Unvollständig', varianten: [] },
+  { code: 34, text: 'bearbeitungsreif', kurz: 'Bearbeitungsreif', varianten: [] },
+  { code: 35, text: 'NF gestellt', kurz: 'NF gestellt', varianten: ['Nachforderung gestellt'] },
+  {
+    code: 36, text: 'NL eingegangen', kurz: 'NL eingegangen',
+    varianten: ['Nachlieferung eingegangen'],
+  },
+  {
+    code: 37, text: 'keine weiteren NF', kurz: 'keine weiteren NF',
+    varianten: ['keine weiteren Nachforderungen'],
+  },
+  {
+    code: 38, text: 'techn geprüft', kurz: 'techn. geprüft',
+    varianten: ['techn. geprüft', 'technisch geprüft'],
+  },
+  {
+    code: 39, text: 'kaufm geprüft', kurz: 'kaufm. geprüft',
+    varianten: ['kaufm. geprüft', 'kaufmännisch geprüft'],
+  },
+  { code: 40, text: 'Gutachten fertig', kurz: 'Gutachten fertig', varianten: [] },
+  {
+    code: 50, text: 'Bewilligungsentwurf VDI/VDE-IT', kurz: 'Bewilligungsentw.',
+    varianten: ['Bewilligungsentwurf'],
+  },
+  { code: 51, text: 'bewilligungsreif', kurz: 'Bewilligungsreif', varianten: [] },
+  { code: 59, text: 'bewilligt', kurz: 'Bewilligt', varianten: [] },
+  { code: 70, text: 'Ablehnung versandt', kurz: 'Ablehnung', varianten: ['Ablehnung'] },
+  {
+    code: 71, text: 'Rücknahmeempfehlung versandt', kurz: 'Rücknahmeempf.',
+    varianten: ['Rücknahmeempfehlung', 'RNE versandt'],
+  },
   {
     code: 72,
     text: 'Stellungnahme zur Rücknahmeempfehlung',
+    // „Stelln. Rücknahme" (die alte Fassung) las sich als Rücknahme DER
+    // Stellungnahme — das „zur" hält die Richtung fest, RNE ist die in der App
+    // eingeführte Abkürzung (Artefakt-Typ `rne`).
+    kurz: 'Stelln. zur RNE',
     varianten: ['Stellungnahme zur Rücknahmeempf.'],
   },
-  { code: 73, text: 'abgelehnt/zurückgezogen', varianten: [] },
-  { code: 75, text: 'Widerspruch zur Ablehnung', varianten: [] },
-  { code: 88, text: 'Sonderstatus', varianten: [] },
-  { code: 89, text: 'Anhörung zum Widerruf', varianten: [] },
-  { code: 90, text: 'abgebrochen', varianten: [] },
-  { code: 91, text: 'beendet', varianten: [] },
-  { code: 92, text: 'Widerruf', varianten: [] },
-  { code: 93, text: 'assoziierter Partner', varianten: [] },
-  { code: 94, text: 'internationaler Partner', varianten: [] },
-  { code: 95, text: 'VN technisch geprüft', varianten: ['VN techn. geprüft', 'VN techn geprüft'] },
-  { code: 97, text: 'VN geprüft', varianten: [] },
-  { code: 99, text: 'Schlussvermerk', varianten: [] },
+  { code: 73, text: 'abgelehnt/zurückgezogen', kurz: 'abgel./zurückgez.', varianten: [] },
+  { code: 75, text: 'Widerspruch zur Ablehnung', kurz: 'Widerspruch Abl.', varianten: [] },
+  { code: 88, text: 'Sonderstatus', kurz: 'Sonderstatus', varianten: [] },
+  { code: 89, text: 'Anhörung zum Widerruf', kurz: 'Anhörung Widerruf', varianten: [] },
+  { code: 90, text: 'abgebrochen', kurz: 'Abgebrochen', varianten: [] },
+  { code: 91, text: 'beendet', kurz: 'Beendet', varianten: [] },
+  { code: 92, text: 'Widerruf', kurz: 'Widerruf', varianten: [] },
+  { code: 93, text: 'assoziierter Partner', kurz: 'Assoz. Partner', varianten: [] },
+  // NICHT „intern." — das liest sich in einer Verwaltungsoberfläche als
+  // „intern" (= nicht extern) und sagt damit das Gegenteil.
+  { code: 94, text: 'internationaler Partner', kurz: 'Intl. Partner', varianten: [] },
+  {
+    code: 95, text: 'VN technisch geprüft', kurz: 'VN techn. gepr.',
+    varianten: ['VN techn. geprüft', 'VN techn geprüft'],
+  },
+  { code: 97, text: 'VN geprüft', kurz: 'VN geprüft', varianten: [] },
+  { code: 99, text: 'Schlussvermerk', kurz: 'Schlussvermerk', varianten: [] },
 ];
+
+/**
+ * Ab wie vielen Zeichen die Kuration ein Kurzlabel anmeckert. Der Richtwert
+ * liegt bei 14 — bei 18 bricht die 90-px-Statusspalte der Suche um.
+ *
+ * Eine **Warnung**, kein Fehler: sie steht neben dem Eingabefeld und in der
+ * Pflegeliste, blockiert aber weder das Speichern einer Fassung noch den
+ * JSON-Import (beides liefe über denselben Weg).
+ */
+export const KURZLABEL_MAX = 18;
 
 /** Nachschlage-Index über einen Code-Katalog (exakt + nachrangig lose). */
 export interface StatusCodeIndex {

@@ -71,7 +71,7 @@ export function kuerzelErklaerung(index: KuerzelIndex, code: string): SegmentErk
  * Statuscode → amtliche Bezeichnung und ZAH-Phase.
  *
  * **Die Fassung schlägt die Auslieferung** — dieselbe Reihenfolge wie in
- * `statusKurz`: was die PL kuratiert (eine umgehängte Phase, ein gepflegtes
+ * `statusHerleitungKopf`: was die PL kuratiert (eine umgehängte Phase, ein gepflegtes
  * Label), gewinnt gegen den Seed-Schnitt. Bestandsfassungen tragen noch keine
  * Codes an den Werten; dort greift der Seed, damit nicht wochenlang „keine
  * Phase" dasteht, obwohl der Code längst einer zugeordnet ist.

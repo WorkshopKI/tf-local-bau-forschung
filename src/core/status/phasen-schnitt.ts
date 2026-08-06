@@ -25,7 +25,7 @@ import type { MappingVersion } from './typen';
  * `zahPhaseId` ist dreiwertig und wird auch so gelesen: gesetzt = kuratiert,
  * `null` = bewusst Marker, `undefined` = noch nicht zugeordnet ⇒ Auslieferung.
  *
- * **Erster Wert mit dem Code gewinnt**, genau wie in `statusKurz`
+ * **Erster Wert mit dem Code gewinnt**, genau wie in `statusHerleitungKopf`
  * (`version.werte.find(w => w.code === code)`): derselbe Code steht am TV- und
  * am Verbund-Feld, und zwei Wege zur Phase wären ein zweiter Kategorien-Weg.
  */

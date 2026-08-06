@@ -11,7 +11,8 @@
 import { useMemo } from 'react';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { Badge } from '@/components/ui/badge';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import { useAntraegeStore } from './store';
 import {
@@ -131,8 +132,8 @@ export function NetzwerkMitgliederSection({
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     {status ? (
-                      <Badge variant={getStatusVariant(status)}>
-                        {getStatusLabel(status)}
+                      <Badge variant={getStatusVariant(status)} title={statusLabel(status)}>
+                        {statusKurzLabel(status)}
                       </Badge>
                     ) : (
                       <span className="text-[var(--tf-text-tertiary)]">—</span>

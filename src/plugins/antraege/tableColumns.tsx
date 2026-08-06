@@ -16,7 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { KopierIconButton } from '@/components/ui/KopierIconButton';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { formatGermanDate, formatDatumsWert } from '@/core/services/csv/dateParse';
 import { ANTRAG_SLA_DAYS } from '@/core/services/csv/frist';
 import { FRIST_GRUND, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
@@ -473,16 +474,19 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
       const s = strOrNull(r.status);
       if (!s) return '99'; // leerer Status ans Ende
       const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
-      const aktion = (schritt?.aktion || getStatusLabel(s)).toLowerCase();
+      const aktion = (schritt?.aktion || statusKurzLabel(s)).toLowerCase();
       return `${String(statusRang(s)).padStart(2, '0')} ${aktion}`;
     },
     // Export lesbar halten (nicht den Rang-Sortier-String) — „{Status} → {Aktion}".
+    // Der VOLLE Bezeichner: eine Tabellenzelle hat keine Breitenbeschränkung und
+    // keinen Tooltip, und der Export ist das Einzige, was die App verlässt —
+    // eine Abkürzung dort ist ohne Rückweg.
     exportValue: r => {
       const s = strOrNull(r.status);
       if (!s) return '';
       const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
       const aktion = isTerminalStatus(s) ? '' : (schritt?.aktion ?? '');
-      return aktion ? `${getStatusLabel(s)} → ${aktion}` : getStatusLabel(s);
+      return aktion ? `${statusLabel(s)} → ${aktion}` : statusLabel(s);
     },
     render: r => {
       const s = strOrNull(r.status);
@@ -495,8 +499,8 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
       // Terminal: Arbeit erledigt → kein farbiges Badge, nur ruhiger Status-Text.
       if (isTerminalStatus(s)) {
         return (
-          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={getStatusLabel(s)}>
-            {getStatusLabel(s)}
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={statusLabel(s)}>
+            {statusKurzLabel(s)}
             {renderHerleitung(r)}
           </span>
         );
@@ -509,13 +513,13 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
       return (
         <span
           className="text-[11.5px]"
-          title={aktion ? `${getStatusLabel(s)} → ${aktion}` : getStatusLabel(s)}
+          title={aktion ? `${statusLabel(s)} → ${aktion}` : statusLabel(s)}
         >
           <Badge
             variant={getStatusVariant(s)}
             className="align-middle justify-center whitespace-nowrap text-[10.5px]"
           >
-            {getStatusLabel(s)}
+            {statusKurzLabel(s)}
           </Badge>
           {renderHerleitung(r)}
           {aktion ? (
@@ -543,19 +547,26 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     messSchrift: 'badge',
     messZuschlag: 42,
     minWidth: 142,
+    // Der Accessor speist Sortierung, Filter-Kandidaten UND die Breitenmessung
+    // derselben Spalte — er MUSS dieselbe Zeichenkette liefern wie das Render.
+    // Sonst filtert man nach einem Vokabular, das in der Zelle nicht steht.
     accessor: r => {
       const s = strOrNull(r.status);
-      return s ? getStatusLabel(s) : '';
+      return s ? statusKurzLabel(s) : '';
+    },
+    exportValue: r => {
+      const s = strOrNull(r.status);
+      return s ? statusLabel(s) : '';
     },
     render: r => {
       const s = strOrNull(r.status);
       return s ? (
-        <span className="inline-flex items-center">
+        <span className="inline-flex items-center" title={statusLabel(s)}>
           <Badge
             variant={getStatusVariant(s)}
             className="min-w-[100px] justify-center whitespace-nowrap text-[10.5px]"
           >
-            {getStatusLabel(s)}
+            {statusKurzLabel(s)}
           </Badge>
           {renderHerleitung(r)}
         </span>

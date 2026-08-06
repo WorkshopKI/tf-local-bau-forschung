@@ -9,7 +9,7 @@
  * — der Assembler erfindet keine neuen.
  */
 import { getStatusCategory } from '@/core/utils/status-canonical';
-import { getStatusLabel } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { QUELLENTREUE_REGELN } from '@/core/services/skills/registry/grundsatz';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
@@ -95,7 +95,9 @@ function entitaetZeilen(e: KontextEntitaet): string[] {
 
   const status = typeof e.status === 'string' ? e.status.trim() : '';
   if (status.length > 0) {
-    zeilen.push(`Status: ${getStatusLabel(status)} (${getStatusCategory(status)})`);
+    // Der VOLLE Bezeichner: ein Prompt hat keine Breite und keinen Tooltip,
+    // und „VN techn. gepr." ist genau die Art Kürzel, die ein Modell rät.
+    zeilen.push(`Status: ${statusLabel(status)} (${getStatusCategory(status)})`);
   }
   if (e.phaseLabel) zeilen.push(`Phase: ${e.phaseLabel}`);
 
@@ -222,7 +224,10 @@ export function beschreibeKontext(entitaet: KontextEntitaet | null, routeBeschre
   const artLabel = entitaet.art === 'verbund' ? 'Verbund' : 'Antrag';
   const teile: string[] = [`${artLabel} ${entitaet.titel}`];
   const status = typeof entitaet.status === 'string' ? entitaet.status.trim() : '';
-  const lage = entitaet.phaseLabel ?? (status ? getStatusLabel(status) : undefined);
+  // Kurzform: der Vorrangwert `phaseLabel` ist ebenfalls ein kurzer
+  // Phasenname, und die Chips im Panel sind schmal. Den vollen Bezeichner
+  // trägt derselbe Prompt oben schon.
+  const lage = entitaet.phaseLabel ?? (status ? statusKurzLabel(status) : undefined);
   if (lage) teile.push(lage);
   if (entitaet.fristenAnzahl && entitaet.fristenAnzahl > 0) {
     teile.push(`${entitaet.fristenAnzahl} ${entitaet.fristenAnzahl === 1 ? 'Frist' : 'Fristen'}`);

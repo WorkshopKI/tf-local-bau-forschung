@@ -1,4 +1,4 @@
-import { getStatusLabel } from '@/core/utils/status-mappings';
+import { statusKurzLabel } from '@/core/utils/status-wert-labels';
 import { isTerminalStatus } from '@/core/utils/status-canonical';
 // Direktimport, nicht über das Barrel `@/core/status` — das zöge `snapshot.ts`
 // und damit `status-canonical.ts` zurück (Laufzeit-Zyklus, Zyklen-Wächter).
@@ -127,7 +127,9 @@ function istPreCheckFaellig(s: string): boolean {
  *
  * **Status-Regeln (Fallback):**
  * - Gemappter Status → kuratierte `{ phase, aktion }`.
- * - Nicht gemappter, aber gesetzter Status → `{ phase: getStatusLabel(s), aktion: '' }`.
+ * - Nicht gemappter, aber gesetzter Status → `{ phase: statusKurzLabel(s), aktion: '' }`.
+ *   Die KURZform: `phase` landet in den 170-px-Kanban-Lanes und in der
+ *   Home-Zeile, nie auf einer breiten Fläche.
  * - Leerer / fehlender Status → `null` (der Renderer zeigt gar keine Formel).
  *
  * Abwärtskompatibel: Wird das 2. Argument **weggelassen** (`undefined`),
@@ -158,5 +160,5 @@ export function naechsterSchritt(
   // --- Status-Regeln (bisheriges Verhalten) ---
   const mapped = SCHRITT_BY_STATUS[s];
   if (mapped) return mapped;
-  return { phase: getStatusLabel(s), aktion: '' };
+  return { phase: statusKurzLabel(s), aktion: '' };
 }

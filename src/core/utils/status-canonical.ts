@@ -186,6 +186,13 @@ export function isBewilligtStatus(raw: unknown): boolean {
   return getStatusCategory(raw) === 'bewilligt';
 }
 
+/**
+ * Der Rohwert des final-negativen Abschlusses (Code 73), normalisiert.
+ * Exportiert, damit ihn niemand ein zweites Mal tippt — er ist zugleich der
+ * Nachschlage-Schluessel fuer seine Beschriftung (`statusKurzLabel`).
+ */
+export const ABGELEHNT_ZURUECKGEZOGEN = 'abgelehnt/zurückgezogen';
+
 /** True fuer final negativ ausgegangene Antraege: der amtliche Wert
  *  `abgelehnt/zurückgezogen` (in der Map als Kategorie `abgeschlossen` gefuehrt,
  *  weil der Foerder-Katalog keinen separaten `abgelehnt`-Endzustand hat) ODER
@@ -195,7 +202,7 @@ export function isBewilligtStatus(raw: unknown): boolean {
  *  abgelehnt/zurueckgezogen?". */
 export function isAbgelehntZurueckgezogenStatus(raw: unknown): boolean {
   if (getStatusCategory(raw) === 'abgelehnt') return true;
-  return normalize(raw) === 'abgelehnt/zurückgezogen';
+  return normalize(raw) === ABGELEHNT_ZURUECKGEZOGEN;
 }
 
 /** True, wenn final entschieden (bewilligt, abgelehnt, abgeschlossen). */

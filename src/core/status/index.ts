@@ -94,7 +94,7 @@ export {
   type PhasenHerkunft, type PhasenQuelle, type OhneGrund,
 } from './feld-phase-vorschlag';
 export {
-  baueHerleitung, herleitungAlsText, statusKurz,
+  baueHerleitung, herleitungAlsText, statusHerleitungKopf,
   type Herleitung, type HerleitungEingabe, type Datenstand, type StatusKurz,
   type VerlaufSchritt, type LetzterVorgang, type TriggerWirkungSatz,
 } from './herleitung';
@@ -117,7 +117,7 @@ export {
   type ErklaertesSegment, type SegmentErklaerung, type ErklaerKatalog,
 } from './trigger-erklaerung';
 export {
-  STATUS_CODE_KATALOG, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
+  STATUS_CODE_KATALOG, KURZLABEL_MAX, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
   reichereWerteAn, zaehleOhneCode,
   type StatusCodeEintrag, type StatusCodeIndex, type StatusCodeTreffer, type JoinArt,
 } from './status-codes';
@@ -177,7 +177,7 @@ export {
   uebernimmStatusCodes, aktuellerStatusCodeKatalog,
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
   todoRegelDrift, zieheTodoRegelnNach, type TodoRegelDrift,
-  setzeZieltage, setzeFeldPhasen,
+  setzeZieltage, setzeFeldPhasen, setzeKurzLabel,
   relevanzLuecke, markiereRelevanz,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
   aendereTodoRegel, verschiebeTodoRegel, fuegeTodoRegelHinzu, codesMitRolle,

@@ -24,6 +24,7 @@
  * `datenstand` reicht der Aufrufer herein.
  */
 import { formatDatumsWert as tagDe } from '@/core/services/csv/dateParse';
+import { statusKurzLabelMit, type LabelHerkunft } from '@/core/utils/status-wert-labels';
 import { baueChronik, type ChronikEintrag } from './chronik';
 import type { FeldVorkommen } from './feld-aufloesung';
 import { findeStatusCode, type StatusCodeIndex, type StatusCodeTreffer } from './status-codes';
@@ -77,7 +78,7 @@ export interface TriggerWirkungSatz {
 }
 
 /**
- * Der Kopf einer Status-Erklärung: Code, amtlicher Text, ZAH-Phase.
+ * Der Kopf einer Status-Erklärung: Code, amtlicher Text, ZAH-Phase, Kurzform.
  *
  * Eigener Typ, weil er **ohne** die teure Vorkommen-Auswertung zu haben ist —
  * die zweite Ebene im Popover („TV-Status: 72 · … · ZAH-Phase Entscheidung")
@@ -98,6 +99,11 @@ export interface StatusKurz {
   marker: boolean;
   /** Warnung, wenn der Statuswert nicht im Katalog steht. */
   nichtImKatalog: boolean;
+  /** Die Kurzform, die überall in der Oberfläche in der Pille steht. */
+  kurzLabel: string;
+  /** Woher sie kommt — die Auskunft, die ein Kurator hier braucht: steht in
+   *  der Pille eure Fassung, die Auslieferung, oder ist nichts gepflegt? */
+  kurzLabelHerkunft: LabelHerkunft;
 }
 
 export interface Herleitung extends StatusKurz {
@@ -193,13 +199,21 @@ function bestimmeSeit(
 }
 
 /**
- * Code, amtlicher Text und ZAH-Phase eines Rohstatus. Rein, ohne Vorkommen.
+ * Code, amtlicher Text, ZAH-Phase und Kurzform eines Rohstatus. Rein, ohne
+ * Vorkommen.
  *
  * Die **eine** Stelle, an der ein Statustext auf seine Einordnung gebracht wird —
  * `baueHerleitung` baut darauf auf, und die zweite Ebene im Popover benutzt sie
  * allein. Ein zweiter Weg liefe beim ersten Umhängen eines Codes auseinander.
+ *
+ * Hieß bis v3.15 `statusKurz`. Der Name las sich wie „kurzes Label" und stand
+ * damit genau dem im Weg, was `statusKurzLabel` in `status-wert-labels.ts` jetzt
+ * liefert; die Funktion hier liefert den **Kopf einer Erklärung**.
+ *
+ * Die Kurzform holt sie sich aus derselben Quelle wie die Oberfläche — der
+ * Popover soll erklären, was in der Pille steht, nicht etwas Zweites.
  */
-export function statusKurz(
+export function statusHerleitungKopf(
   version: MappingVersion, roh: unknown, index?: StatusCodeIndex,
 ): StatusKurz {
   const statusRoh = typeof roh === 'string' ? roh.trim() : '';
@@ -217,6 +231,8 @@ export function statusKurz(
   const marker = wertEintrag?.marker === true
     || (code !== null && wertEintrag?.marker === undefined && SEED_MARKER_CODES.has(code));
 
+  const kurz = statusKurzLabelMit(statusRoh);
+
   return {
     statusRoh,
     code,
@@ -226,6 +242,8 @@ export function statusKurz(
     zahPhaseLabel: zahPhaseLabel(zahPhase, version.zahPhasen),
     marker,
     nichtImKatalog: statusRoh !== '' && treffer === null,
+    kurzLabel: kurz.text,
+    kurzLabelHerkunft: kurz.herkunft,
   };
 }
 
@@ -237,7 +255,7 @@ export function statusKurz(
  * ohne dass eine leere Relevanz-Liste sie leer laufen ließe.
  */
 export function baueHerleitung(e: HerleitungEingabe): Herleitung {
-  const kurz = statusKurz(e.version, e.statusRoh, e.index);
+  const kurz = statusHerleitungKopf(e.version, e.statusRoh, e.index);
 
   // Relevanz filtert, sobald die Fassung überhaupt welche kennt. Nachgeschlagen
   // wird in der FASSUNG, nicht am Feld-Objekt im Vorkommen: das kann aus einer

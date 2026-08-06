@@ -12,7 +12,8 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { Antrag } from '@/core/services/csv/types';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { isNetzwerkLead } from './netzwerk';
 import { TvDetailBlock } from './TvDetailBlock';
 import { TvTitelCopyButton } from './TvTitelCopyButton';
@@ -136,8 +137,9 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
                   <Badge
                     variant={getStatusVariant(tvStatus)}
                     className="shrink-0 min-w-[100px] justify-center whitespace-nowrap"
+                    title={statusLabel(tvStatus)}
                   >
-                    {getStatusLabel(tvStatus)}
+                    {statusKurzLabel(tvStatus)}
                   </Badge>
                 ) : null}
                 <span className="shrink-0 text-[var(--tf-text-tertiary)] pt-0.5">

@@ -1,5 +1,5 @@
 import { DistributionBar, type DistributionSegment } from '@/components/ui/DistributionBar';
-import { getStatusLabel } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { formatGermanDate } from '@/core/services/csv';
 import type { AntragVorgang } from './useDashboardData';
 import {
@@ -86,12 +86,18 @@ function QuartalTooltip({ bucket, kalender }: { bucket: QuartalBucket; kalender:
       <ul className="flex flex-col gap-y-0.5">
         {shown.map((v) => {
           const label = v.acronym || v.verbund_titel || v.title || '—';
-          const statusLabel = v.status ? getStatusLabel(v.status) : '';
+          const kurz = v.status ? statusKurzLabel(v.status) : '';
           return (
             <li key={v.id} className={`${TT_GRID} text-[11px]`}>
               <span className="font-mono truncate" style={{ color: 'var(--tf-text-tertiary)' }}>{v.id}</span>
               <span className="truncate" style={{ color: 'var(--tf-text)' }}>{label}</span>
-              <span className="truncate" style={{ color: 'var(--tf-text-secondary)' }}>{statusLabel}</span>
+              <span
+                className="truncate"
+                style={{ color: 'var(--tf-text-secondary)' }}
+                title={v.status ? statusLabel(v.status) : undefined}
+              >
+                {kurz}
+              </span>
               <span className="font-mono tabular-nums" style={{ color: 'var(--tf-text-tertiary)' }}>{formatGermanDate(v.antragsdatum)}</span>
               <span className="tabular-nums text-right" style={{ color: 'var(--tf-text-secondary)' }}>{v.tv_count ?? 1}</span>
             </li>

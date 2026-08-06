@@ -192,7 +192,11 @@ export async function importiereStatusKatalog(
       varianten.push(v);
     }
 
-    const eintrag: StatusCodeEintrag = { code, text, varianten };
+    // Die Zuarbeit führt keine Kurzform — sie ist unsere Beschriftung. Der
+    // Import darf sie deshalb nicht wegnehmen; ein wirklich neuer Code kommt
+    // leer durch und steht damit in der Kurzlabel-Pflegeliste.
+    const kurz = bestandNachCode.get(code)?.kurz ?? '';
+    const eintrag: StatusCodeEintrag = { code, text, kurz, varianten };
     gesehen.set(code, eintrag);
     eintraege.push(eintrag);
   }

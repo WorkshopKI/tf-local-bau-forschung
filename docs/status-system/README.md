@@ -114,6 +114,13 @@ unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar
   fest im Code. Warum das so asymmetrisch ist, und wie die Bezeichnungen
   zusammenhängen: [status-achsen.md](../architecture/status-achsen.md)
   (Pitfall #50).
+- **Wie ein Rohstatus heißt, steht an einer Stelle** (seit v3.16): die Kurzform
+  für enge Flächen kommt aus `StatusCodeEintrag.kurz` (Auslieferung), überlagert
+  von `StatusWertEintrag.kurzLabel` (Kuration, je **Code**); gelesen über
+  `statusKurzLabel()` / `statusLabel()`. Bis dahin lag sie dreifach hartkodiert —
+  eine Kopie mit Tippfehler, eine auf eine Schreibweise geschlüsselt, die im
+  Bestand nicht vorkommt. Gepflegt wird sie im Reiter *Statuswerte* (Spalte
+  „Kurzform" + Pflegeliste nach Vorkommen).
 - **Die Drift gegenüber der Auslieferung wird ausgewiesen, nicht zurückgesetzt**
   (seit v3.1, [katalog-drift.ts](../../src/core/status/katalog-drift.ts)). Weil der
   Schnitt seit v2.409 in der App kuratiert wird und `prod` weiter auf dem Seed

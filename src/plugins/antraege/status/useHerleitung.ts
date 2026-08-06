@@ -17,7 +17,7 @@ import {
 } from '@/core/services/csv/idb-csv';
 import {
   getAktiveVersion, ladeAktiveVersion, baueFeldAufloesung, sammleVorkommen,
-  baueHerleitung, ladeTrigger, statusKurz, normalisiereWert,
+  baueHerleitung, ladeTrigger, statusHerleitungKopf, normalisiereWert,
   type Herleitung, type StatusKurz,
 } from '@/core/status';
 import { programmNummer } from './programmNummer';
@@ -41,7 +41,7 @@ export interface HerleitungStand {
   herleitung: Herleitung | null;
   /**
    * Die andere Ebene (Code, Text, ZAH-Phase) — nur die Werte, die vom erklärten
-   * Status **abweichen**. Sie kommen aus `statusKurz` und kosten keinen zweiten
+   * Status **abweichen**. Sie kommen aus `statusHerleitungKopf` und kosten keinen zweiten
    * Lauf über die Vorkommen. Leer heißt „beide Ebenen sagen dasselbe".
    */
   abweichend: AbweichendeEbene[];
@@ -152,7 +152,7 @@ export function useHerleitung(
           .sort((a, b) => b.anzahl - a.anzahl || a.roh.localeCompare(b.roh, 'de'));
         const abweichend: AbweichendeEbene[] = sortiert
           .slice(0, MAX_ABWEICHUNGEN)
-          .map(x => ({ ebene: andereEbene, kurz: statusKurz(version, x.roh), anzahl: x.anzahl }));
+          .map(x => ({ ebene: andereEbene, kurz: statusHerleitungKopf(version, x.roh), anzahl: x.anzahl }));
 
         if (!abgebrochen) {
           setStand({

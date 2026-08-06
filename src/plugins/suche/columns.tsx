@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SortableColumn } from '@/components/data-table';
 import { getStatusCategoryColor } from '@/core/utils/status-category-labels';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 
 export type SearchColumnAppliesTo = 'both' | 'antrag' | 'dokument';
@@ -85,20 +86,6 @@ const METHOD_LABELS: Record<string, string> = {
   fulltext: 'Stichwort', vector: 'Bedeutung', hybrid: 'Stichwort + Bedeutung',
 };
 
-/** Abkuerzungen fuer ueberlange Status-Labels — Cell + Filter-Dropdown zeigen
- *  die kurze Variante, Tooltip / Filter-State arbeiten weiterhin mit dem
- *  Roh-Status. */
-const STATUS_LABEL_OVERRIDES: Record<string, string> = {
-  'Widerspruch zur Ablehnung': 'Wiederspr. zur Ablehn.',
-  'Stellungnahme zur Rücknahmeempfehlung': 'Stellungnahme zur RNE',
-  'abgelehnt/zurückgezogen': 'abgelehnt/zurückgez.',
-  'Bewilligungsentwurf VDI/VDE-IT': 'Bewilligungsentwurf',
-};
-
-function shortStatus(s: string): string {
-  return STATUS_LABEL_OVERRIDES[s] ?? s;
-}
-
 function safeString(v: unknown): string {
   if (v === null || v === undefined) return '';
   return String(v);
@@ -145,9 +132,9 @@ const StatusBadge = memo(function StatusBadge({ r }: { r: UnifiedSearchResult })
     <span
       className="inline-block text-[11px] px-2 py-0.5 rounded truncate max-w-full"
       style={{ backgroundColor: `${color}22`, color, border: `0.5px solid ${color}44` }}
-      title={r.status}
+      title={statusLabel(r.status)}
     >
-      {shortStatus(r.status)}
+      {statusKurzLabel(r.status)}
     </span>
   );
 });
@@ -233,7 +220,9 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.status),
     render: r => <StatusBadge r={r} />,
-    formatFilterLabel: shortStatus,
+    // Dieselbe Zeichenkette wie in der Zelle — sonst filtert man nach einem
+    // Vokabular, das in der Tabelle darunter nicht steht.
+    formatFilterLabel: statusKurzLabel,
   },
   {
     key: 'score', label: 'Score', width: 80, defaultVisible: true,

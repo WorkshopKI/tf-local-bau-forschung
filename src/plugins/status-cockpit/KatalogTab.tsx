@@ -43,6 +43,7 @@ import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { feldLabel, ohneVerwaiste, SEED_ZAH_PHASEN } from '@/core/status';
 import type { StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import { KatalogDriftZeile } from './KatalogDriftZeile';
+import { KurzLabelPflege } from './KurzLabelPflege';
 import { baueKatalogZeilen, effektiveKategorieVon } from './katalogZeilen';
 import { baueKatalogSpalten } from './katalogSpalten';
 import { exportiereKatalogXlsx } from './katalogExport';
@@ -123,8 +124,10 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   );
 
   const spalten = useMemo(
-    () => baueKatalogSpalten({ zeigeZieltage, setWert: api.setWert }),
-    [zeigeZieltage, api.setWert],
+    () => baueKatalogSpalten({
+      zeigeZieltage, setWert: api.setWert, setKurzLabel: api.setKurzLabel,
+    }),
+    [zeigeZieltage, api.setWert, api.setKurzLabel],
   );
   const standardBreiten = useMemo(
     () => Object.fromEntries(spalten.map(c => [c.key, c.width ?? 120])),
@@ -235,6 +238,11 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
           Bewertet wird bis auf Weiteres als „ohne Phase".
         </p>
       )}
+
+      {/* Zwischen den Bestands-Meldungen und dem Zieltage-Sammelweg: dieselbe
+          Zone „Bestands-Aussage, die zu einer Kuration führt". Die Liste
+          sortiert nach Vorkommen, damit oben angefangen werden kann. */}
+      <KurzLabelPflege api={api} />
 
       {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
           Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,

@@ -18,6 +18,7 @@
  */
 import { Badge } from '@/components/ui/badge';
 import type { SortableColumn } from '@/components/data-table';
+import { KURZLABEL_MAX, statusCodeEintrag } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, Prominenz } from '@/core/status';
 import type { KatalogZeile } from './katalogZeilen';
 import {
@@ -29,14 +30,21 @@ import {
  *  bewertbar" ist keine besonders kurze Frist. Im Export steht dafür nichts. */
 const ZIELTAGE_LEER = Number.MAX_SAFE_INTEGER;
 
+/** Die ausgelieferte Kurzform eines Codes — Platzhalter und Export-Fallback. */
+function kurzAusKatalog(code: number | undefined): string {
+  return code === undefined ? '' : statusCodeEintrag(code)?.kurz ?? '';
+}
+
 export interface SpaltenKontext {
   /** Zieltage + Verfahrensschritt nur im Vorgangssystem — sonst ohne Konsument. */
   zeigeZieltage: boolean;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
+  /** Kurzform je CODE (nicht je Wert-Id) — siehe `setzeKurzLabel`. */
+  setKurzLabel: (code: number, kurz: string) => void;
 }
 
 export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZeile>[] {
-  const { zeigeZieltage, setWert } = ctx;
+  const { zeigeZieltage, setWert, setKurzLabel } = ctx;
   const spalten: SortableColumn<KatalogZeile>[] = [
     {
       // Der kuratierte Feldname, nicht die technische feldId („status" ist der
@@ -94,6 +102,51 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
           onChange={e => setWert(z.w.id, { label: e.target.value })}
         />
       ),
+    },
+    {
+      // Die Kurzform für enge Flächen (Status-Pille, Kanban-Lane, 90-px-Spalte
+      // der Suche). Leer heißt „es gilt die Auslieferung" — der Platzhalter
+      // zeigt sie deshalb an, statt leer zu bleiben: sonst hielte man eine
+      // ausgelieferte Kurzform für eine fehlende.
+      //
+      // Gepflegt wird je CODE, nicht je Zeile: derselbe Code steht unter
+      // `status` UND `verbund_status`, und der Snapshot kollabiert beide auf
+      // einen Schlüssel. Werte ohne Code haben nichts zu kuratieren.
+      key: 'kurzLabel',
+      label: 'Kurzform',
+      defaultVisible: true,
+      sortable: false,          // wie beim Label: die Zeile spränge beim Tippen weg
+      width: 150,
+      autoWidth: false,
+      accessor: z => z.w.kurzLabel ?? '',
+      exportValue: z => z.w.kurzLabel ?? kurzAusKatalog(z.w.code),
+      render: z => (z.w.code === undefined ? (
+        <span
+          className="text-[11px] text-[var(--tf-text-tertiary)]"
+          title="Ohne amtlichen Code gibt es keine Kurzform zu pflegen — die App zeigt den gekürzten Rohwert."
+        >
+          —
+        </span>
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          <input
+            value={z.w.kurzLabel ?? ''}
+            placeholder={kurzAusKatalog(z.w.code) || `max. ${KURZLABEL_MAX} Zeichen`}
+            className={feldKlasse}
+            style={feldStil}
+            onChange={e => setKurzLabel(z.w.code!, e.target.value)}
+          />
+          {/* Gemeldet, nicht erzwungen: eine Fassung darf an einer
+              Kosmetikregel nicht scheitern (dieselbe Zusage wie in der
+              Speicherleiste). */}
+          {(z.w.kurzLabel ?? '').trim().length > KURZLABEL_MAX && (
+            <span className="text-[10.5px] text-[var(--tf-warning-text)]">
+              {z.w.kurzLabel!.trim().length} Zeichen — ab {KURZLABEL_MAX} bricht die Pille um.
+              Richtwert 14.
+            </span>
+          )}
+        </div>
+      )),
     },
     {
       // Bedienbar ist die Arbeitsliste nur dort, wo sie auch wirkt. Trägt der

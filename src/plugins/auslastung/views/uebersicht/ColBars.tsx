@@ -21,7 +21,7 @@
  */
 import { memo } from 'react';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { getStatusLabel } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { formatGermanDate } from '@/core/services/csv';
 import type { AuslastungVerbund } from '../../services/kapazitaet';
 import {
@@ -131,14 +131,20 @@ function AltlastSegmentTooltip({ band, rows }: {
         {shown.map((v, i) => {
           const extra = v.aktenzeichen.length - 1;
           const label = v.akronym || v.titel || '—';
-          const statusLabel = v.status ? getStatusLabel(v.status) : '';
+          const kurz = v.status ? statusKurzLabel(v.status) : '';
           return (
             <li key={`${v.verbundId ?? v.aktenzeichen[0] ?? i}`} className={`${TT_GRID} text-[11px]`}>
               <span className="font-mono truncate" style={{ color: 'var(--tf-text-tertiary)' }}>
                 {v.aktenzeichen[0]}{extra > 0 ? ` +${extra}` : ''}
               </span>
               <span className="truncate" style={{ color: 'var(--tf-text)' }}>{label}</span>
-              <span className="truncate" style={{ color: 'var(--tf-text-secondary)' }}>{statusLabel}</span>
+              <span
+                className="truncate"
+                style={{ color: 'var(--tf-text-secondary)' }}
+                title={v.status ? statusLabel(v.status) : undefined}
+              >
+                {kurz}
+              </span>
               <span className="font-mono tabular-nums" style={{ color: 'var(--tf-text-tertiary)' }}>{formatGermanDate(v.antragsdatum)}</span>
               <span className="tabular-nums text-right" style={{ color: 'var(--tf-text-secondary)' }}>{v.tvCount}</span>
             </li>

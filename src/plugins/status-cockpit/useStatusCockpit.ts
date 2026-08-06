@@ -35,6 +35,7 @@ import {
   todoRegelDrift, zieheTodoRegelnNach, ENTFALLENE_REGEL_IDS, type TodoRegelDrift,
   katalogDrift, leereKatalogDrift, type KatalogDrift,
   setzeZieltage, waehleZieltageVorschlaege, MIN_STICHPROBE, type ZieltageAuswahl,
+  setzeKurzLabel,
   setzeFeldPhasen, berechnePhasenVorschlag, schnittVon,
   pruefeZahPhasen, verwaisteZuordnungen, zahPhasenVon, type VerwaisteZuordnungen,
   aendereZahPhase, fuegeZahPhaseHinzu, entferneZahPhase, verschiebeZahPhase, setzeCodePhasen,
@@ -131,6 +132,13 @@ export interface StatusCockpitApi {
    */
   neueFassungAufShare: number | null;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
+  /**
+   * Die kuratierte Kurzform je CODE (leer = Kuration zurücknehmen, dann gilt
+   * wieder die Auslieferung). Nicht je Wert-Id: derselbe Code steht unter
+   * `status` und `verbund_status`, und der Snapshot kollabiert beide auf einen
+   * Schlüssel (siehe `setzeKurzLabel`).
+   */
+  setKurzLabel: (code: number, kurz: string) => void;
   setFeld: (feldId: string, patch: Partial<StatusFeldEintrag>) => void;
   setKategorie: (id: string, patch: Partial<StatusKategorie>) => void;
   addKategorie: (kategorie: StatusKategorie) => void;
@@ -682,6 +690,9 @@ export function useStatusCockpit(): StatusCockpitApi {
   const setWert = useCallback((id: string, patch: Partial<StatusWertEintrag>) => {
     setEntwurf(v => (v ? aendereWert(v, id, patch) : v));
   }, []);
+  const setKurzLabel = useCallback((code: number, kurz: string) => {
+    setEntwurf(v => (v ? setzeKurzLabel(v, new Map([[code, kurz]])) : v));
+  }, []);
   const setFeld = useCallback((feldId: string, patch: Partial<StatusFeldEintrag>) => {
     setEntwurf(v => (v ? aendereFeld(v, feldId, patch) : v));
   }, []);
@@ -974,7 +985,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     konfliktOeffnen: () => setKonfliktOffen(true),
     konfliktSchliessen: () => setKonfliktOffen(false),
     trotzdemVeroeffentlichen, fremdeFassungLaden, neueFassungAufShare,
-    setWert, setFeld, setKategorie, addKategorie, removeKategorie,
+    setWert, setKurzLabel, setFeld, setKategorie, addKategorie, removeKategorie,
     setZahPhase, addZahPhase, removeZahPhase, moveZahPhase, setCodePhase,
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,

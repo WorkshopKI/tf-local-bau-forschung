@@ -61,23 +61,28 @@ describe('accessor — Sortier-String (Rang + Aktion)', () => {
 });
 
 describe('exportValue — lesbarer Text statt Sortier-String', () => {
+  // Seit v3.15 der VOLLE Bezeichner statt der Kurzform: eine Tabellenzelle hat
+  // keine Breitenbeschränkung und keinen Tooltip, und der Export ist das
+  // Einzige, was die App verlässt — eine Abkürzung dort ist ohne Rückweg. Die
+  // Kleinschreibung ist die amtliche Bezeichnung aus der Parametertabelle
+  // (Fremddaten, Pitfall #43); groß geschrieben ist nur unsere Kurzform.
   it('nicht-terminal ohne PreCheck → „{Status} → {Aktion}"', () => {
-    expect(col.exportValue!(row('beantragt', ''))).toBe('Beantragt → PreCheck durchführen');
+    expect(col.exportValue!(row('beantragt', ''))).toBe('beantragt → PreCheck durchführen');
   });
 
   it('PreCheck-Stand fließt in die Aktion ein (positiv → Status-Regel statt PreCheck-Regel)', () => {
     expect(col.exportValue!(row('beantragt', 'PreCheck positiv - Verbund')))
-      .toBe('Beantragt → Vollständigkeit prüfen');
+      .toBe('beantragt → Vollständigkeit prüfen');
   });
 
   it('PreCheck negativ → Klärungs-Aktion', () => {
     expect(col.exportValue!(row('beantragt', 'PreCheck negativ - Verbund')))
-      .toBe('Beantragt → PreCheck-Ergebnis klären');
+      .toBe('beantragt → PreCheck-Ergebnis klären');
   });
 
-  it('terminaler Status → nur das Status-Label (keine Aktion)', () => {
+  it('terminaler Status → nur der volle Bezeichner (keine Aktion)', () => {
     expect(col.exportValue!(row('Schlussvermerk'))).toBe('Schlussvermerk');
-    expect(col.exportValue!(row('abgelehnt/zurückgezogen'))).toBe('abgel./zurückgez.');
+    expect(col.exportValue!(row('abgelehnt/zurückgezogen'))).toBe('abgelehnt/zurückgezogen');
   });
 
   it('leerer Status → leerer Export', () => {
@@ -91,10 +96,12 @@ describe('render — Badge+Aktion vs. terminaler Grau-Text', () => {
     expect(col.render(row(''))).toBeNull();
   });
 
-  it('nicht-terminal → Tooltip trägt „{Status} → {Aktion}"', () => {
+  it('nicht-terminal → Tooltip trägt den VOLLEN Bezeichner + Aktion', () => {
+    // Der Tooltip ist die Auflösung der Kurzform in der Pille daneben — er muss
+    // deshalb mehr sagen als sie, nicht dasselbe.
     const el = col.render(row('beantragt', '')) as ReactElement<{ title?: string }>;
     expect(el).not.toBeNull();
-    expect(el.props.title).toBe('Beantragt → PreCheck durchführen');
+    expect(el.props.title).toBe('beantragt → PreCheck durchführen');
   });
 
   it('terminal → Tooltip trägt nur das Status-Label (kein Pfeil)', () => {

@@ -225,6 +225,18 @@ export interface StatusWertEintrag {
   /** Default: `wert`. */
   label?: string;
   /**
+   * Kuratierte **Kurzform** für enge Flächen — schlägt die ausgelieferte
+   * `StatusCodeEintrag.kurz`. Leer/fehlend heißt „nicht kuratiert", nicht
+   * „leeres Label": die Auflösung fällt dann auf die Auslieferung zurück und
+   * erst danach auf den gekürzten Bezeichner.
+   *
+   * Gepflegt wird **je Code**, nicht je Wert-Id (`setzeKurzLabel`): derselbe
+   * Code steht unter `status` UND `verbund_status`, und der Snapshot kollabiert
+   * beide auf einen Schlüssel. Nur eine der Zeilen zu setzen hieße, dass die
+   * Sortierung entscheidet, welche Beschriftung gilt.
+   */
+  kurzLabel?: string;
+  /**
    * Kanonische Kategorie. **Abgeleitet, nicht kuratiert**: für Werte mit
    * amtlichem Code entsteht sie aus Code + ZAH-Phase
    * (`kategorie-ableitung.ts`), und der Snapshot rechnet sie beim Laden neu.

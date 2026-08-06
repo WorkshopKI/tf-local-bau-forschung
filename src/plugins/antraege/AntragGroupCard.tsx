@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { getVbPhaseLabel, getVbPhaseVariant } from '@/core/utils/vb-phase-mappings';
 import {
   getEingangAmpel,
@@ -227,8 +228,12 @@ function TvRow({ tv, showLine, showMa, selected, onClick, narrow }: TvRowProps):
           <span className="flex-1" />
           {showMa ? <MaKuerzelBadge kuerzel={tv.tib_kuerz} /> : null}
           {status ? (
-            <Badge variant={getStatusVariant(status)} className="min-w-[110px] justify-center whitespace-nowrap shrink-0">
-              {getStatusLabel(status)}
+            <Badge
+              variant={getStatusVariant(status)}
+              className="min-w-[110px] justify-center whitespace-nowrap shrink-0"
+              title={statusLabel(status)}
+            >
+              {statusKurzLabel(status)}
             </Badge>
           ) : null}
         </div>

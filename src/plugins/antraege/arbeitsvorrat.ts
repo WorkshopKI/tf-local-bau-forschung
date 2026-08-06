@@ -34,8 +34,10 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import {
   isTerminalStatus,
   isAbgelehntZurueckgezogenStatus,
+  ABGELEHNT_ZURUECKGEZOGEN,
 } from '@/core/utils/status-canonical';
 import { getAggregatLabel } from '@/core/utils/status-category-labels';
+import { statusKurzLabel } from '@/core/utils/status-wert-labels';
 
 /** Die zwei Sektionen des „Alle"-Tabs. */
 export type ArbeitsvorratSection = 'in_arbeit' | 'archiv';
@@ -93,16 +95,25 @@ export function archivAufschluesselung(
 
 /**
  * Menschenlesbare Kurz-Aufschlüsselung fürs Archiv-Kopf-Rechts:
- * „Schlussvermerk 12 · abgelehnt/zurückgez. 3". Leere Buckets werden
- * weggelassen; beide null → leerer String.
+ * „Schlussvermerk 12 · abgel./zurückgez. 3". Leere Buckets werden weggelassen;
+ * beide null → leerer String.
+ *
+ * Beide Buckets sind nach ihrem dominanten Status benannt und holen ihre
+ * Beschriftung deshalb **aus derselben Quelle wie die Status-Pille**
+ * (`statusKurzLabel`). Bis v3.15 stand hier eine dritte, wortwörtliche Kopie —
+ * sie schrieb `abgelehnt/zurückgez.`, während die Antragsliste daneben
+ * `abgel./zurückgez.` zeigte.
  */
 export function formatArchivAufschluesselung(a: ArchivAufschluesselung): string {
   const parts: string[] = [];
   if (a.schlussvermerk > 0) {
-    parts.push(`Schlussvermerk ${a.schlussvermerk.toLocaleString('de-DE')}`);
+    parts.push(`${statusKurzLabel('Schlussvermerk')} ${a.schlussvermerk.toLocaleString('de-DE')}`);
   }
   if (a.abgelehntZurueckgezogen > 0) {
-    parts.push(`abgelehnt/zurückgez. ${a.abgelehntZurueckgezogen.toLocaleString('de-DE')}`);
+    parts.push(
+      `${statusKurzLabel(ABGELEHNT_ZURUECKGEZOGEN)} `
+      + `${a.abgelehntZurueckgezogen.toLocaleString('de-DE')}`,
+    );
   }
   return parts.join(' · ');
 }

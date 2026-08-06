@@ -1,11 +1,18 @@
 /**
- * Zentrale Status-Labels und Badge-Variants fuer die **Anzeige** eines rohen
- * Antrags-Status: CSV-Rohwerte aus dem C16-Quellsystem (`beantragt`,
- * `VN geprüft`, `NF gestellt`, `bewilligt`, ...). Unbekanntes faellt auf den
- * Rohwert bzw. `'default'` zurueck.
+ * Badge-**Variante** (Pillenfarbe) fuer einen rohen Antrags-Status: CSV-Rohwerte
+ * aus dem C16-Quellsystem (`beantragt`, `VN geprüft`, `NF gestellt`,
+ * `bewilligt`, ...). Unbekanntes faellt auf `'default'` zurueck.
  *
- * Fuer fachliche Vergleiche (offen / bewilligt / nachforderung / etc.) NICHT diese
- * Maps nutzen — stattdessen die Kategorie-Helper aus `status-canonical.ts`.
+ * **Die Beschriftung steht NICHT mehr hier** (v3.15). `STATUS_LABELS` und
+ * `getStatusLabel` sind entfallen; wie ein Status heisst, beantwortet
+ * `status-wert-labels.ts` aus dem Code-Katalog (`statusKurzLabel` fuer enge
+ * Flaechen, `statusLabel` fuer Tooltip/Export/Prompt). Bis dahin fuehrten drei
+ * Module ihre eigene Kurzform desselben Werts — eine davon mit Tippfehler, eine
+ * unter einer Schreibweise, die im Bestand nicht vorkommt. Der Konventionstest
+ * `status-kurzlabel-single-source` haelt die Datei kuenftig frei davon.
+ *
+ * Fuer fachliche Vergleiche (offen / bewilligt / nachforderung / etc.) NICHT
+ * diese Map nutzen — stattdessen die Kategorie-Helper aus `status-canonical.ts`.
  *
  * NICHT fuer Feedback-Status verwenden — die haben eine andere Semantik
  * (`neu`, `geplant`, `in_bearbeitung`, `umgesetzt`, `abgelehnt`, `archiviert`)
@@ -13,37 +20,6 @@
  */
 
 export type BadgeVariant = 'info' | 'warning' | 'success' | 'error' | 'default';
-
-export const STATUS_LABELS: Record<string, string> = {
-  // Labels gekuerzt, damit die Status-Pille mit einheitlicher Breite ohne
-  // Umbruch passt. Vergleich case-sensitive (CSV-Werte sind so).
-  beantragt: 'Beantragt',
-  bewilligt: 'Bewilligt',
-  bearbeitungsreif: 'Bearbeitungsreif',
-  'NL eingegangen': 'NL eingegangen',
-  'VN geprüft': 'VN geprüft',
-  'VN techn. geprüft': 'VN techn. gepr.',
-  'techn geprüft': 'techn. geprüft',
-  'kaufm geprüft': 'kaufm. geprüft',
-  'Gutachten fertig': 'Gutachten fertig',
-  bewilligungsreif: 'Bewilligungsreif',
-  'Bewilligungsentwurf VDI/VDE-IT': 'Bewilligungsentwurf',
-  ablehnungsreif: 'Ablehnungsreif',
-  Ablehnung: 'Ablehnung',
-  Widerruf: 'Widerruf',
-  'Anhörung zum Widerruf': 'Anhörung Widerruf',
-  Rücknahmeempfehlung: 'Rücknahmeempf.',
-  'Stellungnahme zur Rücknahmeempf.': 'Stelln. Rücknahme',
-  'Widerspruch zur Ablehnung': 'Widerspruch Abl.',
-  'NF gestellt': 'NF gestellt',
-  'keine weiteren NF': 'keine weiteren NF',
-  Schlussvermerk: 'Schlussvermerk',
-  beendet: 'Beendet',
-  'abgelehnt/zurückgezogen': 'abgel./zurückgez.',
-  abgebrochen: 'Abgebrochen',
-  Irrläufer: 'Irrläufer',
-  unvollständig: 'Unvollständig',
-};
 
 export const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   // Variants nach fachlicher Kategorie.
@@ -83,10 +59,6 @@ export const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   Irrläufer: 'default',
   unvollständig: 'default',
 };
-
-export function getStatusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status;
-}
 
 export function getStatusVariant(status: string): BadgeVariant {
   return STATUS_VARIANTS[status] ?? 'default';

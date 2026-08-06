@@ -116,6 +116,42 @@ function AndereEbeneZeile({ a }: { a: AbweichendeEbene }): React.ReactElement {
 }
 
 /**
+ * Was in der Pille steht — und woher es kommt.
+ *
+ * Die Zeile beantwortet die Frage, die ein Kurator hier stellt: ist diese
+ * Kurzform von uns, kommt sie mit der Auslieferung, oder ist gar keine gepflegt
+ * und die App behilft sich mit dem gekürzten Bezeichner? Der dritte Fall ist
+ * bewusst als **unfertig** benannt und nicht kaschiert — er gehört auf die
+ * Kurzlabel-Pflegeliste in den Vorgangs-Regeln.
+ *
+ * Weggelassen, wo sie nichts sagt: deckt sich die Kurzform mit dem vollen
+ * Bezeichner darüber, wäre sie eine Wiederholung.
+ */
+function KurzformZeile({ h }: { h: Herleitung }): React.ReactElement | null {
+  if (h.statusRoh === '') return null;
+  const voll = h.statusText || h.statusRoh;
+  if (h.kurzLabelHerkunft === 'katalog' && h.kurzLabel === voll) return null;
+  const herkunft = h.kurzLabelHerkunft === 'fassung'
+    ? `aus der Katalog-Fassung v${h.datenstand.katalogVersion}`
+    : h.kurzLabelHerkunft === 'katalog'
+      ? 'aus der Auslieferung'
+      : 'kein Kurzlabel gepflegt — gekürzter Bezeichner';
+  return (
+    <div className="flex items-baseline gap-1.5 flex-wrap text-[11.5px]">
+      <span className="text-[var(--tf-text-tertiary)]">Kurzform:</span>
+      <span className="text-[var(--tf-text-secondary)]">{h.kurzLabel}</span>
+      <span
+        className={h.kurzLabelHerkunft === 'ohne'
+          ? 'text-[var(--tf-warning-text)]'
+          : 'text-[var(--tf-text-tertiary)]'}
+      >
+        · {herkunft}
+      </span>
+    </div>
+  );
+}
+
+/**
  * Der Weg vom Statuscode ins Glossar — dorthin, wo der Code seine Bezeichnung,
  * seinen Verfahrensschritt und seine Zieltage hat. Steht in der Fußzeile neben
  * „Herleitung kopieren", nicht als vierter Knopf oben: die Frage entsteht beim
@@ -172,6 +208,7 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
             </span>
           )}
         </div>
+        <KurzformZeile h={h} />
         {abweichend.map(a => (
           <AndereEbeneZeile key={`${a.ebene}-${a.kurz.statusRoh}`} a={a} />
         ))}

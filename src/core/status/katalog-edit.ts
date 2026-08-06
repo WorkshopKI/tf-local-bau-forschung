@@ -31,6 +31,37 @@ export function aendereFeld(
   };
 }
 
+/**
+ * Setzt die kuratierte **Kurzform** je Status-CODE (leerer String = Kuration
+ * zurücknehmen, dann gilt wieder die Auslieferung).
+ *
+ * **Der Schlüssel ist der Code, nicht die Wert-Id** — aus demselben Grund wie
+ * bei `setzeCodePhasen`: derselbe Code steht im Katalog unter `status` UND
+ * `verbund_status`, und `snapshot.ts` kollabiert beide Zeilen auf einen
+ * Schlüssel („letzter gewinnt"). Nur eine davon zu beschriften hieße, dass die
+ * Sortierung der Werteliste entscheidet, welche Kurzform die App zeigt.
+ *
+ * Sammelform, damit die Pflegeliste mehrere Eingaben in EINEM `setState`
+ * bündeln kann (Pitfall #16/#20).
+ */
+export function setzeKurzLabel(
+  version: MappingVersion, kurz: ReadonlyMap<number, string>,
+): MappingVersion {
+  if (kurz.size === 0) return version;
+  return {
+    ...version,
+    werte: version.werte.map(w => {
+      if (w.code === undefined || !kurz.has(w.code)) return w;
+      const wert = kurz.get(w.code)!.trim();
+      if (wert === '') {
+        const { kurzLabel: _weg, ...ohne } = w;
+        return ohne;
+      }
+      return { ...w, kurzLabel: wert };
+    }),
+  };
+}
+
 /** Übernimmt einen kuratierten Wert (aus dem Unkuratiert-Puffer promoted). */
 export function fuegeWertHinzu(version: MappingVersion, wert: StatusWertEintrag): MappingVersion {
   if (version.werte.some(w => w.id === wert.id)) return aendereWert(version, wert.id, wert);
@@ -447,7 +478,8 @@ export function zieheTodoRegelnNach(
 
 /**
  * Der Code-Katalog, gegen den ein Import verglichen wird: die **Auslieferung**,
- * überlagert von dem, was die Fassung inzwischen pflegt (zusätzliche Varianten).
+ * überlagert von dem, was die Fassung inzwischen pflegt (zusätzliche Varianten,
+ * kuratierte Kurzform).
  *
  * Bewusst nicht nur aus `version.werte` abgeleitet: dort stehen nur Codes, für
  * die im Bestand auch ein Statuswert beobachtet wurde. Codes wie 11 (Skizze),
@@ -468,6 +500,9 @@ export function aktuellerStatusCodeKatalog(
     proCode.set(w.code, {
       code: w.code,
       text: bestand?.text ?? w.wert,
+      // Kuratiert schlägt Auslieferung; leer heißt „nicht kuratiert" und darf
+      // die ausgelieferte Kurzform nicht wegnehmen.
+      kurz: w.kurzLabel?.trim() || bestand?.kurz || '',
       varianten: [...varianten],
     });
   }

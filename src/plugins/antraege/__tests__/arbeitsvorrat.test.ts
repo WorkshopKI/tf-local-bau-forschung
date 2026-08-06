@@ -67,9 +67,13 @@ describe('archivAufschluesselung', () => {
 });
 
 describe('formatArchivAufschluesselung', () => {
-  it('beide Buckets → „Schlussvermerk n · abgelehnt/zurückgez. m"', () => {
+  // Die Bucket-Namen kommen seit v3.15 aus derselben Quelle wie die
+  // Status-Pille (`statusKurzLabel`). Vorher stand hier eine eigene Kopie, die
+  // `abgelehnt/zurückgez.` schrieb, während die Antragsliste daneben
+  // `abgel./zurückgez.` zeigte — dasselbe Kopf-Band, zwei Schreibweisen.
+  it('beide Buckets → „Schlussvermerk n · abgel./zurückgez. m"', () => {
     expect(formatArchivAufschluesselung({ schlussvermerk: 12, abgelehntZurueckgezogen: 3 }))
-      .toBe('Schlussvermerk 12 · abgelehnt/zurückgez. 3');
+      .toBe('Schlussvermerk 12 · abgel./zurückgez. 3');
   });
   it('nur Schlussvermerk → abgelehnt-Teil weggelassen', () => {
     expect(formatArchivAufschluesselung({ schlussvermerk: 5, abgelehntZurueckgezogen: 0 }))
@@ -77,7 +81,7 @@ describe('formatArchivAufschluesselung', () => {
   });
   it('nur Ablehnungen → Schlussvermerk-Teil weggelassen', () => {
     expect(formatArchivAufschluesselung({ schlussvermerk: 0, abgelehntZurueckgezogen: 7 }))
-      .toBe('abgelehnt/zurückgez. 7');
+      .toBe('abgel./zurückgez. 7');
   });
   it('beide null → leerer String', () => {
     expect(formatArchivAufschluesselung({ schlussvermerk: 0, abgelehntZurueckgezogen: 0 })).toBe('');

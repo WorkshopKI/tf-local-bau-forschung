@@ -105,11 +105,52 @@ Festgehalten von `status-labels-single-source` (keine Kategoriebezeichnung als
 Literal außerhalb der Einzelquelle) und `status-label-namensraeume-disjunkt`
 (Aggregatnamen decken sich mit keiner Kategoriebezeichnung).
 
+## Die dritte Beschriftung: der ROHSTATUS (v3.16)
+
+Unter beiden Achsen liegt der rohe Statuswert aus dem Export — und der hatte
+dieselbe Krankheit eine Ebene tiefer. Bis v3.16 führten **drei** Module ihre
+eigene Kurzform desselben Werts: `STATUS_LABELS` (26 Paare),
+`STATUS_LABEL_OVERRIDES` in der Suche (4 Paare, abweichende Schreibweise, ein
+Tippfehler „Wiederspr.") und ein Literal im Arbeitsvorrat. Derselbe Status sah
+je nach Ansicht anders aus, und die `STATUS_LABELS`-Fassung für Code 72 war auf
+eine Schreibweise geschlüsselt, die im Produktivbestand gar nicht vorkommt — sie
+hat dort **nie** gegriffen (29 Fälle).
+
+Dieselbe Auflösung wie bei den Kategorien, nur mit einer Kurationsstufe mehr:
+
+| Stufe | Wo | Wer pflegt |
+|---|---|---|
+| `fassung` | `StatusWertEintrag.kurzLabel` | die PL, je **Code** (`setzeKurzLabel`) |
+| `katalog` | `StatusCodeEintrag.kurz` | wir, mit der Auslieferung |
+| `ohne` | gekürzter Bezeichner + „…" | niemand — sichtbar unfertig |
+
+Gelesen wird über **`statusKurzLabel()`** (enge Flächen) und **`statusLabel()`**
+(Tooltip, Export, Prompt) aus [status-wert-labels.ts](../../src/core/utils/status-wert-labels.ts).
+Zwei Eigenschaften unterscheiden das von der Kategorie-Fassade:
+
+- **Je Schlüssel durchfallen**, nicht die ganze Map tauschen. Sonst nähme eine
+  Fassung, die eine Schreibweise nicht führt, ihr die Kurzform weg — der Fehler,
+  den `mitAmtlichenSchreibweisen` für die Kategorie beheben musste.
+- **Kuratiert wird am CODE**, nicht an der Wert-Id: derselbe Code steht unter
+  `status` UND `verbund_status`, und `snapshot.ts` kollabiert beide auf einen
+  Schlüssel („letzter gewinnt"). Dieselbe Begründung wie bei `setzeCodePhasen`.
+
+Die Kurzform ist **unsere** Beschriftung und deshalb groß geschrieben, wo `text`
+amtlich klein ist (`bewilligt` → `Bewilligt`). Der Tooltip zeigt den amtlichen
+Text — das ist kein Fehler, sondern die Trennung von Fremddaten und Kuration
+(Pitfall #43). Wer die Schreibweise im Tooltip ändern will, pflegt das
+kuratierte `label` am Statuswert.
+
+Festgehalten von `status-kurzlabel-single-source` (Herkunft + Literal-Sperre) und
+`label-identitaet.test.ts` (Snapshot-Pfad = eingebauter Pfad).
+
 ## Wo was steht
 
 | Was | Wo |
 |---|---|
 | Die neun Bezeichnungen + Farben | [status-category-labels.ts](../../src/core/utils/status-category-labels.ts) |
+| Die Rohstatus-Beschriftung (kurz + voll) | [status-wert-labels.ts](../../src/core/utils/status-wert-labels.ts) |
+| Die ausgelieferten Kurzformen | [status-codes.ts](../../src/core/status/status-codes.ts) |
 | Die Kategorie-Achse selbst | [status-canonical.ts](../../src/core/utils/status-canonical.ts) |
 | Die Phasen-Tabelle + das Register | [zah-phasen.ts](../../src/core/status/zah-phasen.ts) |
 | Grenzen, Umhängen, Verwaiste | [zah-phasen-edit.ts](../../src/core/status/zah-phasen-edit.ts) |

@@ -17,7 +17,8 @@
  */
 import { Fragment, useMemo, useState } from 'react';
 import { Check, X } from 'lucide-react';
-import { getStatusLabel, getStatusVariant, type BadgeVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant, type BadgeVariant } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { zahPhasenGeneration } from '@/core/status/zah-phasen';
 import { getStepperStations, statusZuStepperPosition } from './statusZuStepperPosition';
 
@@ -58,12 +59,13 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
   );
   const [open, setOpen] = useState(!collapsible);
 
-  /** Kennzeichen neben der Leiste: Marker bzw. „nicht im Katalog". */
-  const kennzeichen = marker
-    ? `${getStatusLabel(status)} · läuft neben dem Verfahren`
-    : station === null && !terminal
-      ? `${getStatusLabel(status)} · keiner Phase zugeordnet`
-      : null;
+  /** Kennzeichen neben der Leiste: Marker bzw. „nicht im Katalog". Der Chip
+   *  zeigt die Kurzform, der Tooltip den vollen Bezeichner. */
+  const zusatz = marker
+    ? 'läuft neben dem Verfahren'
+    : station === null && !terminal ? 'keiner Phase zugeordnet' : null;
+  const kennzeichen = zusatz === null ? null : `${statusKurzLabel(status)} · ${zusatz}`;
+  const kennzeichenVoll = zusatz === null ? undefined : `${statusLabel(status)} · ${zusatz}`;
 
   const toggle = (label: string, onClick: () => void): React.ReactElement => (
     <button
@@ -83,6 +85,7 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
       <div className="flex items-center gap-2.5 flex-wrap">
         <span
           className={`inline-flex items-center gap-1.5 h-[26px] px-3 rounded-full text-[12px] font-medium whitespace-nowrap ${badgeClass}`}
+          title={statusLabel(status)}
         >
           {terminal ? (
             <X size={13} aria-hidden="true" />
@@ -90,7 +93,7 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
             <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />
           )}
           {terminal || station === null
-            ? getStatusLabel(status)
+            ? statusKurzLabel(status)
             : `${stationen[station - 1]?.label ?? ''}, Schritt ${station} / ${stationen.length}`}
         </span>
         {toggle('Alle Schritte ↓', () => setOpen(true))}
@@ -103,7 +106,7 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
       {kennzeichen !== null ? (
         <span
           className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] whitespace-nowrap bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]"
-          title={kennzeichen}
+          title={kennzeichenVoll}
         >
           {kennzeichen}
         </span>
@@ -134,8 +137,11 @@ export function WorkflowStepper({ status, collapsible = false }: Props): React.R
             ) : null}
             <div className="flex items-center gap-1.5 shrink-0">
               <StepperDot state={isTerminal ? 'terminal' : isActive ? 'active' : isDone ? 'done' : 'future'} />
-              <span className={`text-[13px] whitespace-nowrap ${labelClass(isTerminal, isActive, isDone)}`}>
-                {isTerminal ? getStatusLabel(status) : label}
+              <span
+                className={`text-[13px] whitespace-nowrap ${labelClass(isTerminal, isActive, isDone)}`}
+                title={isTerminal ? statusLabel(status) : undefined}
+              >
+                {isTerminal ? statusKurzLabel(status) : label}
               </span>
             </div>
           </Fragment>

@@ -58,6 +58,14 @@
  *   - no-hardcoded-kategorie-mapping    → Artefakt-Achse, Kategorie-Einzelquelle:
  *     der typ→kategorie-Map-Identifier TYP_ZU_KATEGORIE nur in kategorien.ts;
  *     Regel-Kategorie sonst immer ueber effektiveKategorie() ableiten.
+ *   - status-kurzlabel-single-source   → die Kurzform eines Rohstatus hat EINE
+ *     Quelle (StatusCodeEintrag.kurz + kuratiertes StatusWertEintrag.kurzLabel),
+ *     gelesen ueber statusKurzLabel()/statusLabel() in core/utils/
+ *     status-wert-labels.ts. Bis v3.15 waren es drei Kopien — eine mit
+ *     Tippfehler, eine auf eine Schreibweise geschluesselt, die im Bestand nicht
+ *     vorkommt. Geprueft wird die Herkunft (kein STATUS_LABEL_OVERRIDES/
+ *     shortStatus, kein Import der entfernten Symbole, status-mappings.ts
+ *     beschriftet nicht mehr) plus eine kuratierte Literal-Sperre.
  *   - zah-phasen-snapshot-single-writer → ZAH-Phasen sind seit v2.409 kuratierbare
  *     Daten; welcher Schnitt GILT, steht in zwei Modul-Registern in
  *     core/status/zah-phasen.ts. Gesetzt werden sie NUR von
@@ -1182,6 +1190,156 @@ describe('status-achsen (Arbeitsliste fest, Verfahrensschritt beweglich)', () =>
   });
 });
 
+describe('status-kurzlabel-single-source (Rohstatus-Beschriftung: eine Quelle)', () => {
+  // Bis v3.15 fuehrten DREI Module ihre eigene Kurzform desselben Statuswerts:
+  // STATUS_LABELS in core/utils/status-mappings.ts, STATUS_LABEL_OVERRIDES in
+  // plugins/suche/columns.tsx (abweichende Schreibweise, Tippfehler
+  // „Wiederspr.") und ein Literal in plugins/antraege/arbeitsvorrat.ts.
+  // Derselbe Status sah je nach Ansicht anders aus; die STATUS_LABELS-Fassung
+  // fuer Code 72 war zudem auf eine Schreibweise geschluesselt, die im
+  // Produktivbestand gar nicht vorkommt, und griff deshalb nie.
+  //
+  // Die Quelle ist jetzt StatusCodeEintrag.kurz (Auslieferung) +
+  // StatusWertEintrag.kurzLabel (Kuration), gelesen ueber statusKurzLabel() /
+  // statusLabel() in core/utils/status-wert-labels.ts.
+  //
+  // Bewusst NICHT ueber eine Pfad-Allowlist fuer die gleichnamige
+  // Feedback-Map: `STATUS_LABELS` aus components/feedback/constants.ts wird in
+  // 16 Dateien genutzt, vier davon ausserhalb von feedback/ — eine
+  // `${sep}feedback`-Allowlist meldete Fehlalarme und deckte zugleich ganze
+  // Plugin-Baeume ab. Geprueft wird stattdessen die HERKUNFT.
+  const KURZLABEL_QUELLE = `${sep}core${sep}status${sep}status-codes.ts`;
+  const istTest = (file: string): boolean =>
+    file.includes(`${sep}__tests__${sep}`) || file.includes('.test.ts');
+  // Kommentarzeilen bleiben aussen vor: die Begruendungen, WARUM es die eine
+  // Quelle gibt, nennen die alten Namen und die Kurzformen zwangslaeufig beim
+  // Wort. Ein Guard, der seine eigene Dokumentation anmeckert, wird abgeschaltet.
+  const istKommentar = (l: string): boolean => /^\s*(\/\/|\/\*|\*)/.test(l);
+  // Generierte Fremddaten der Kuerzel-Zuarbeit (Pitfall #43): dort steht
+  // „techn. geprüft" als Teil einer amtlichen Kuerzel-Bezeichnung, nicht als
+  // unsere Beschriftung. Von Hand wird da ohnehin nichts eingetragen.
+  const istGeneriert = (file: string): boolean => file.endsWith('.data.ts');
+
+  it('kein zweiter Kurzform-Lookup (STATUS_LABEL_OVERRIDES / shortStatus)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (istTest(file)) continue;
+      findings.push(...findInFile(
+        file,
+        l => !istKommentar(l)
+          && (l.includes('STATUS_LABEL_OVERRIDES') || /\bshortStatus\b/.test(l)),
+        'allow-status-kurzlabel',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Zweiter Kurzform-Lookup fuer Antragsstatus verboten.\n` +
+        `Genau eine Quelle: StatusCodeEintrag.kurz (+ kuratiertes kurzLabel),\n` +
+        `gelesen ueber statusKurzLabel() aus core/utils/status-wert-labels.ts.\n` +
+        `Echte Ausnahme: '// allow-status-kurzlabel: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  it('status-mappings.ts fuehrt keine Beschriftung mehr, nur noch die Farbe', () => {
+    // Strukturell an der Datei geprueft (Muster: status-category-not-curated):
+    // nur hier entstuende die Map erneut, und ein Grep nach `STATUS_LABELS`
+    // kollidierte mit der gleichnamigen Feedback-Map.
+    const src = readFileSync(join(ROOT, 'core', 'utils', 'status-mappings.ts'), 'utf8');
+    const treffer = [
+      /export\s+const\s+STATUS_LABELS\b/,
+      /export\s+function\s+getStatusLabel\b/,
+    ].filter(m => m.test(src)).map(m => m.source);
+    if (treffer.length > 0) {
+      expect.fail(
+        `status-mappings.ts beschriftet wieder Status:\n  ${treffer.join('\n  ')}\n\n` +
+        `Die Datei haelt seit v3.15 nur noch STATUS_VARIANTS (Pillenfarbe).\n` +
+        `Wie ein Status heisst, beantwortet core/utils/status-wert-labels.ts.`,
+      );
+    }
+  });
+
+  it('niemand importiert die entfernten Symbole aus status-mappings', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (istTest(file)) continue;
+      findings.push(...findInFile(
+        file,
+        l => /from\s+['"]@\/core\/utils\/status-mappings['"]/.test(l)
+          && /\b(getStatusLabel|STATUS_LABELS)\b/.test(l),
+        'allow-status-kurzlabel',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `getStatusLabel/STATUS_LABELS gibt es nicht mehr.\n` +
+        `Kurzform: statusKurzLabel() · voller Bezeichner: statusLabel()\n` +
+        `(beide aus @/core/utils/status-wert-labels).\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  /**
+   * Die echten ABKUERZUNGEN — kuratiert, nicht abgeleitet.
+   *
+   * Ein programmatisch aus STATUS_CODE_KATALOG gezogener Satz meldete dauerhaft
+   * Fehlalarm: „Bewilligt"/„Beendet"/„Abgebrochen" sind blosse Gross-
+   * Schreibungen ihres Rohwerts und stehen zu Recht in fremden Domaenen
+   * (status-category-labels.ts, batch-indexer.ts), „Ablehnung" und
+   * „Bewilligungsentwurf" sind amtliche Varianten. Dieselbe Entscheidung wie
+   * bei status-labels-single-source oben. Der Test darunter haelt die Liste
+   * vollstaendig.
+   */
+  const ABKUERZUNGEN = [
+    'Skizze eing.', 'techn. geprüft', 'kaufm. geprüft', 'Bewilligungsentw.',
+    'Rücknahmeempf.', 'Stelln. zur RNE', 'abgel./zurückgez.', 'Widerspruch Abl.',
+    'Anhörung Widerruf', 'Assoz. Partner', 'Intl. Partner', 'VN techn. gepr.',
+  ];
+  // Als GANZES String-Literal, nicht als Teilkette: „Rücknahmeempf." steckt in
+  // der amtlichen Variante „Stellungnahme zur Rücknahmeempf." (Code 72), und die
+  // ist ein legitimer Rohwert — u.a. im Meilenstein-Seed als Bedingung.
+  const ALS_LITERAL = ABKUERZUNGEN.map(a => new RegExp(
+    `(['"\`])${a.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}\\1`,
+  ));
+
+  it('keine Kurzform als Literal ausserhalb des Katalogs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (istTest(file) || istGeneriert(file) || file.includes(KURZLABEL_QUELLE)) continue;
+      findings.push(...findInFile(
+        file,
+        l => !istKommentar(l) && ALS_LITERAL.some(m => m.test(l)),
+        'allow-status-kurzlabel',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Status-Kurzform als Literal ausserhalb von status-codes.ts.\n` +
+        `Das ist die vierte Kopie — genau die Klasse, die v3.15 aufgeloest hat.\n` +
+        `Stattdessen: statusKurzLabel(rohwert).\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  it('die Liste bleibt vollstaendig: jede abgekuerzte Kurzform steht drin', async () => {
+    // Maschinelle Untergrenze, damit die Handliste nicht verwaist: eine
+    // Kurzform mit Punkt IST eine Abkuerzung. Kapitalisierungen ohne Punkt
+    // („Bewilligt") bleiben bewusst draussen, siehe oben.
+    const { STATUS_CODE_KATALOG } = await import('@/core/status/status-codes');
+    const fehlend = STATUS_CODE_KATALOG
+      .filter(e => e.kurz.includes('.') && !ABKUERZUNGEN.includes(e.kurz))
+      .map(e => `${e.code}: „${e.kurz}"`);
+    if (fehlend.length > 0) {
+      expect.fail(
+        `Neue Kurzform, die der Guard noch nicht schuetzt:\n  ${fehlend.join('\n  ')}\n\n` +
+        `In ABKUERZUNGEN aufnehmen (codebase-conventions.test.ts) — sonst kann\n` +
+        `sie unbemerkt ein zweites Mal getippt werden.`,
+      );
+    }
+  });
+});
+
 describe('zah-phasen-snapshot-single-writer (ZAH-Phasen: genau ein Setzweg)', () => {
   // Seit v2.409 ist der Phasenschnitt kuratierbar; welcher Schnitt GILT, steht in
   // zwei Modul-Registern in core/status/zah-phasen.ts. Weil die Modul-global sind,
@@ -1339,7 +1497,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 27 — v3.0 (Varianten-Zusammenlegung 5→3) hat ELF Flags entfernt: 'feedback'/'suche'/'antraege'/'streamlitBridge' (standen in JEDER Variante auf true), 'volltextsuche'/'auslastungSelbstEintragung'/'embeddingCorpusBuild' (durch die Zusammenlegung ueberall true), 'auslastungNurKorpus'/'kuerzelDropdown' (bedienten nur die abgeschafften Varianten kurator/as) sowie 'deAnonymisierung'/'maVerwaltungPasswort' (gaten nur Oberflaeche INNERHALB des Auslastungs-Moduls, das selbst hinter dem Zusatzpasswort liegt — ein Schloss im Tresor; beide jetzt aus 'auslastung' abgeleitet). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat. Davor 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2560;       // Ist ~2511 (DIESE Datei; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2720;       // Ist ~2669 (DIESE Datei; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

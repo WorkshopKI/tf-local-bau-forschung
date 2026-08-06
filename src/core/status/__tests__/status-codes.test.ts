@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  STATUS_CODE_KATALOG, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
+  STATUS_CODE_KATALOG, KURZLABEL_MAX, baueStatusCodeIndex, findeStatusCode, statusCodeEintrag,
   reichereWerteAn, zaehleOhneCode,
 } from '@/core/status/status-codes';
 import { normKey, loseKey } from '@/core/status/normalisierung';
@@ -90,8 +90,8 @@ describe('findeStatusCode', () => {
 
   it('verwirft mehrdeutige lose Schlüssel, statt einen der Kandidaten zu wählen', () => {
     const index = baueStatusCodeIndex([
-      { code: 1, text: 'A-B', varianten: [] },
-      { code: 2, text: 'A B', varianten: [] },
+      { code: 1, text: 'A-B', kurz: 'A-B', varianten: [] },
+      { code: 2, text: 'A B', kurz: 'A B', varianten: [] },
     ]);
     // Beide fallen auf denselben losen Schlüssel „a b" — exakt trifft nur „A B".
     expect(findeStatusCode('A B', index)?.eintrag.code).toBe(2);
@@ -119,6 +119,29 @@ describe('STATUS_CODE_KATALOG', () => {
   it('statusCodeEintrag findet über die Nummer zurück', () => {
     expect(statusCodeEintrag(59)?.text).toBe('bewilligt');
     expect(statusCodeEintrag(1)).toBeNull();
+  });
+
+  it('jeder Code trägt eine Kurzform — der Katalog startet nicht mit Lücken', () => {
+    const ohne = STATUS_CODE_KATALOG.filter(e => e.kurz.trim() === '');
+    expect(ohne.map(e => e.code), 'Codes ohne Kurzform').toEqual([]);
+  });
+
+  it('keine Kurzform reißt die Grenze, ab der die Kuration warnt', () => {
+    // Der Katalog darf nicht mit Werten ausliefern, die seine eigene
+    // Oberflaeche anmeckert. Die 20- und 21-Zeichen-Fassungen aus der Suche
+    // („abgelehnt/zurückgez.", „Stellungnahme zur RNE") sind genau daran
+    // gescheitert und deshalb nicht uebernommen worden.
+    const zuLang = STATUS_CODE_KATALOG
+      .filter(e => e.kurz.length > KURZLABEL_MAX)
+      .map(e => `${e.code}: „${e.kurz}" (${e.kurz.length})`);
+    expect(zuLang, `Ueber ${KURZLABEL_MAX} Zeichen`).toEqual([]);
+  });
+
+  it('Kurzformen sind NFC — sonst greift der Vergleich mit der Fassung daneben', () => {
+    const nichtNfc = STATUS_CODE_KATALOG
+      .filter(e => e.kurz !== e.kurz.normalize('NFC'))
+      .map(e => e.code);
+    expect(nichtNfc).toEqual([]);
   });
 });
 

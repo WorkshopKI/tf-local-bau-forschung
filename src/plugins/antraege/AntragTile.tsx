@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { AntragGroup } from './antragGroups';
-import { getStatusLabel, getStatusVariant } from '@/core/utils/status-mappings';
+import { getStatusVariant } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { AMPEL_COLOR, AMPEL_TOOLTIP } from './eingangAmpel';
 import { fristAnzeigeVon, fristErgebnisVon } from './fristAnzeige';
 import {
@@ -106,11 +107,11 @@ export function AntragTile({
         .map(tv => {
           const az = tv.aktenzeichen;
           const s = strOrNull(tv.status);
-          return s ? `${az} — ${getStatusLabel(s)}` : az;
+          return s ? `${az} — ${statusLabel(s)}` : az;
         })
         .join('\n')
     : status
-      ? `${headTv.aktenzeichen} — ${getStatusLabel(status)}`
+      ? `${headTv.aktenzeichen} — ${statusLabel(status)}`
       : headTv.aktenzeichen;
 
   return (
@@ -178,7 +179,7 @@ export function AntragTile({
             variant={getStatusVariant(status)}
             className="text-[9px] px-1.5 py-0 leading-tight max-w-full whitespace-nowrap overflow-hidden text-ellipsis"
           >
-            {getStatusLabel(status)}
+            {statusKurzLabel(status)}
           </Badge>
         ) : null}
       </div>

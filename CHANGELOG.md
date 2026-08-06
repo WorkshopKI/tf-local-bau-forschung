@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.16.0 — Kurzlabel aus einer Quelle (August 2026)
+
+MINOR — Die Kurzform eines Statuswerts lag dreifach hartkodiert und war auseinandergelaufen: die Suche schrieb „Wiederspr. zur Ablehn." (Tippfehler), das Archiv-Kopfband „abgelehnt/zurückgez.", die Antragsliste „abgel./zurückgez.". Die Fassung für Code 72 war zudem auf eine Schreibweise geschlüsselt, die im Bestand gar nicht vorkommt — sie hat dort nie gegriffen (29 Fälle), und 65 % des Bestands (Sonderstatus, Skizze, Partner) hatten überhaupt keine Kurzform.
+
+- Eine Quelle: `kurz` am Code-Katalog (30 Werte, gegen den Produktivbestand freigegeben) + kuratierbares `kurzLabel` je Code — [status-codes.ts](src/core/status/status-codes.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)
+- Ein Lookup: `statusKurzLabel()` für enge Flächen, `statusLabel()` für Tooltip/Export/Prompt; fehlt beides, steht der gekürzte Bezeichner mit „…" da statt einer stillen Ersetzung — [status-wert-labels.ts](src/core/utils/status-wert-labels.ts)
+- 15 Anzeigestellen tragen jetzt Kurzform **und** Tooltip mit dem vollen Bezeichner; `STATUS_LABELS`/`getStatusLabel` und die beiden anderen Kopien sind entfallen — [status-mappings.ts](src/core/utils/status-mappings.ts)
+- Pflegeliste + Spalte „Kurzform" im Reiter *Statuswerte*, nach Vorkommen im Bestand sortiert; Längenhinweis meldet, blockiert aber kein Speichern — [KurzLabelPflege.tsx](src/plugins/status-cockpit/KurzLabelPflege.tsx)
+- `statusKurz` heißt `statusHerleitungKopf`; das Herleitungs-Popover nennt die Kurzform und ihre Herkunft (Fassung / Auslieferung / nicht gepflegt) — [herleitung.ts](src/core/status/herleitung.ts)
+
 ### v3.15.0 — Spaltenfilter zeigen Trefferzahlen (August 2026)
 
 MINOR — Die Spalten-Filter listeten nur die Werte auf; wie viele Zeilen hinter einem stehen, sah man erst nach dem Anwenden. Bei 605 Akronymen oder 33 FB-Kürzeln ist das ein Blindflug.

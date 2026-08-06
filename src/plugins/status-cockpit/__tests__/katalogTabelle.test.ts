@@ -80,7 +80,9 @@ describe('baueKatalogZeilen', () => {
 });
 
 describe('Katalog-Export', () => {
-  const spalten = baueKatalogSpalten({ zeigeZieltage: true, setWert: () => {} });
+  const spalten = baueKatalogSpalten({
+    zeigeZieltage: true, setWert: () => {}, setKurzLabel: () => {},
+  });
 
   it('führt die rohe CSV-Spalte als eigene Spalte direkt hinter „Feld"', () => {
     const keys = exportSpalten(spalten).map(c => c.key);

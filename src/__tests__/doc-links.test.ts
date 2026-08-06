@@ -200,6 +200,16 @@ describe('doc-links', () => {
     // die Prädikate nicht in feature-flags.ts leben, welche Aufrufstellen roh
     // bleiben) steht in docs/architecture/modul-freischaltung.md. Hier bleibt
     // nur, was beim Patchen sofort sichtbar sein muss.
-    expect(bytes).toBeLessThan(65_100);
+    // 65_100 → 65_900 (v3.16): die Rohstatus-Beschriftung wird an Pitfall #50
+    // angehängt statt als #52 danebengesetzt — es ist dieselbe Regel eine Ebene
+    // tiefer. Zwei Dinge macht man ohne den Hinweis garantiert falsch: die
+    // Kurzform an der Wert-Id kuratieren statt am Code (derselbe Code steht
+    // unter beiden Wert-Feldern, der Snapshot kollabiert sie, und dann
+    // entscheidet die Sortierung, welche Beschriftung gilt) und die ganze Map
+    // tauschen statt je Schlüssel durchzufallen (eine Fassung, die eine
+    // Schreibweise nicht führt, nähme ihr sonst die Kurzform weg). Das Detail —
+    // die drei Stufen, warum die Kurzform groß und der amtliche Text klein
+    // geschrieben ist — steht in docs/architecture/status-achsen.md.
+    expect(bytes).toBeLessThan(65_900);
   });
 });

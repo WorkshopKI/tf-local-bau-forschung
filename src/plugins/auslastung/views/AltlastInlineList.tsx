@@ -16,7 +16,7 @@
  * weiter über den Größen-Richtwert (~400–500) wächst (CLAUDE.md → File Size Limit).
  */
 import { Info } from 'lucide-react';
-import { getStatusLabel } from '@/core/utils/status-mappings';
+import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { formatGermanDate } from '@/core/services/csv';
 import type { MaAltlastBucket } from '../services/kapazitaet';
 import { altlastBandColor, ALTLAST_BAND_LABELS } from './uebersicht/altlast-colors';
@@ -67,7 +67,7 @@ export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): R
           const extra = v.aktenzeichen.length - 1;
           const allAz = v.aktenzeichen.join(', ');
           const label = v.akronym || v.titel || '';
-          const statusLabel = v.status ? getStatusLabel(v.status) : '';
+          const kurz = v.status ? statusKurzLabel(v.status) : '';
           return (
             <li key={`${v.verbundId ?? v.aktenzeichen[0] ?? i}`} className={`${GRID} text-[11.5px]`}>
               <span className="flex items-center gap-1.5 min-w-0">
@@ -94,8 +94,11 @@ export function AltlastInlineList({ altlast }: { altlast?: MaAltlastBucket }): R
               <span className="truncate text-[var(--tf-text-secondary)]" title={label}>
                 {label}
               </span>
-              <span className="truncate text-[var(--tf-text-secondary)]" title={statusLabel}>
-                {statusLabel}
+              <span
+                className="truncate text-[var(--tf-text-secondary)]"
+                title={v.status ? statusLabel(v.status) : undefined}
+              >
+                {kurz}
               </span>
               <span className="font-mono text-[var(--tf-text-tertiary)] tabular-nums">
                 {formatGermanDate(v.antragsdatum)}

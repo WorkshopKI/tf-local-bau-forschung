@@ -71,12 +71,23 @@ wird.
       Das ist ein gültiger Zustand, kein Fehler. Was dort als **verwaist**
       markiert ist, zeigt dagegen auf einen gelöschten Schritt und gehört zurück
       ins Verfahren.
-  - **Tabelle**: alle Statuswerte mit Inline-Bearbeitung (Label, Kategorie,
-    Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt gesehen**, Feldname
-    und **CSV-Spalte** als Herkunft, dazu Filterchips und Suche. Der
-    Verfahrensschritt steht hier nur zum Lesen. Leeres Label heißt: Rohwert gilt.
-    Neue Werte erscheinen als **unkuratiert** und werden per „Übernehmen" geholt,
-    nie automatisch.
+  - **Tabelle**: alle Statuswerte mit Inline-Bearbeitung (Label, **Kurzform**,
+    Kategorie, Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt
+    gesehen**, Feldname und **CSV-Spalte** als Herkunft, dazu Filterchips und
+    Suche. Der Verfahrensschritt steht hier nur zum Lesen. Leeres Label heißt:
+    Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
+    „Übernehmen" geholt, nie automatisch.
+  - **Kurzform** ist die Beschriftung für enge Flächen — Status-Pille,
+    Kanban-Lane, die 90-px-Spalte der Suche. Leeres Feld heißt „es gilt die
+    Auslieferung"; der Platzhalter zeigt sie an. Gepflegt wird je **Code**, also
+    für TV- und Verbund-Zeile gemeinsam.
+    - Richtwert 14 Zeichen; über 18 steht ein Hinweis darunter — gemeldet, nicht
+      erzwungen, das Speichern bleibt möglich.
+    - Wo nichts gepflegt ist, zeigt die App den gekürzten vollen Bezeichner mit
+      „…", also sichtbar unfertig, statt still etwas zu erfinden.
+    - Über der Tabelle steht die **Kurzlabel-Pflegeliste**: dieselben Angaben,
+      aber **nach Vorkommen im Bestand sortiert**, damit oben angefangen werden
+      kann. Vorbelegt zeigt sie nur Offenes und lässt sich aufklappen.
   - **Zieltage** speisen den Stillstands-Wächter: nach wie vielen Tagen ohne
     Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt „nicht
     bewertbar", nicht „unauffällig". Neben dem Feld steht ein ⌀-Vorschlag aus

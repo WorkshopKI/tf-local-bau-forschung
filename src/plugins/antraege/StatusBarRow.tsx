@@ -1,6 +1,6 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
-import { getStatusLabel } from '@/core/utils/status-mappings';
+import { statusLabel } from '@/core/utils/status-wert-labels';
 import { getStatusCategoryColor, getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 
 interface Props {
@@ -26,16 +26,18 @@ export function StatusBarRow({ tvs, maxVisible = 5 }: Props): React.ReactElement
     <div className="flex items-center gap-[2px]">
       {visible.map(tv => {
         const cat = getStatusCategory(tv.status);
-        const statusLabel = typeof tv.status === 'string' && tv.status.trim().length > 0
-          ? getStatusLabel(tv.status.trim())
+        // Der Balken ist 10 px breit und trägt keinen sichtbaren Text — hier
+        // steht deshalb der VOLLE Bezeichner, nicht die Kurzform.
+        const beschriftung = typeof tv.status === 'string' && tv.status.trim().length > 0
+          ? statusLabel(tv.status.trim())
           : getStatusCategoryLabel(cat);
         return (
           <span
             key={tv.aktenzeichen}
             className="inline-block w-[10px] h-[3px] rounded-[1px]"
             style={{ background: getStatusCategoryColor(cat) }}
-            title={`${tv.aktenzeichen} — ${statusLabel}`}
-            aria-label={statusLabel}
+            title={`${tv.aktenzeichen} — ${beschriftung}`}
+            aria-label={beschriftung}
           />
         );
       })}
