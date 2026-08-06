@@ -107,3 +107,41 @@ describe('computeTableSizing', () => {
     expect(s.floorWidth).toBe(0);
   });
 });
+
+describe('gemessene Inhaltsbreiten — Rang in der Kette', () => {
+  it('schlägt die gepflegte column.width', () => {
+    expect(effectiveColumnWidth(col('x', 200), undefined, { x: 260 })).toBe(260);
+  });
+
+  it('unterliegt aber dem gezogenen User-Override', () => {
+    expect(effectiveColumnWidth(col('x', 200), { x: 150 }, { x: 260 })).toBe(150);
+  });
+
+  it('greift nicht für Spalten, die nicht gemessen wurden', () => {
+    expect(effectiveColumnWidth(col('y', 200), undefined, { x: 260 })).toBe(200);
+  });
+
+  it('ignoriert unbrauchbare Messwerte (0, negativ, NaN) und fällt auf die width zurück', () => {
+    for (const bad of [0, -50, Number.NaN]) {
+      expect(effectiveColumnWidth(col('x', 200), undefined, { x: bad })).toBe(200);
+    }
+  });
+
+  it('fließt in die Wunschbreite und damit in die Prozent-Verteilung ein', () => {
+    const s = computeTableSizing(SKILL_COLUMNS, undefined, { gemessen: { name: 300 } });
+    expect(s.desiredWidth).toBe(1284 - 220 + 300);
+    expect(pctNumber(s.colPercent.name)).toBeCloseTo((300 / s.desiredWidth) * 100, 3);
+  });
+
+  it('gilt auch während eines Drags für die NICHT gezogenen Spalten', () => {
+    // Ohne `gemessen` im Live-Aufruf fielen die Nachbarn mitten im Zug auf ihre
+    // gepflegte Breite zurück und sprängen sichtbar.
+    const s = computeTableSizing(SKILL_COLUMNS, undefined, {
+      gemessen: { name: 300, version: 200 },
+      draggedKey: 'name',
+      draggedWidth: 400,
+    });
+    expect(s.desiredWidth).toBe(1284 - 220 - 80 + 400 + 200);
+    expect(pctNumber(s.colPercent.version)).toBeCloseTo((200 / s.desiredWidth) * 100, 3);
+  });
+});

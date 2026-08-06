@@ -31,6 +31,7 @@
 import { useMemo, useRef, type ReactNode } from 'react';
 import { computeTableSizing, RESPONSIVE_MIN_WIDTH } from './tableSizing';
 import { leiteModus, leiteTabellenStil, wrapperKlassen } from './tableLayout';
+import { useAutoColumnWidths } from './messung/useAutoColumnWidths';
 import { useColumnResize } from './useColumnResize';
 import { TotalWidthGrip } from './TotalWidthGrip';
 import { TableHeadRows } from './TableHeadRows';
@@ -99,6 +100,17 @@ export interface SortableTableProps<T> {
   /** Untergrenze beim responsiven Stauchen (Einpass-Modus). Darunter greift der
    *  horizontale Scrollbalken. Default `RESPONSIVE_MIN_WIDTH` (720px). */
   responsiveMinWidth?: number;
+  /** Opt-in: Spaltenbreiten aus dem INHALT messen statt aus den gepflegten
+   *  `column.width` (siehe `messung/spaltenBreite.ts`). Gezogene Breiten
+   *  gewinnen weiterhin. Default `false`. */
+  autoColumnWidth?: boolean;
+  /** Basis der Messung. Default: `rows`. Wer paginiert, MUSS hier den vollen
+   *  Satz übergeben — sonst misst jede nachgeladene Seite neu und die Spalten
+   *  springen beim Scrollen. */
+  measureRows?: readonly T[];
+  /** Diskriminator für die Mess-Signatur, wo `measureRows.length` zwei Zustände
+   *  nicht trennt (zwei Filterergebnisse gleicher Länge). O(1) bilden. */
+  measureSignature?: string;
 }
 
 export function SortableTable<T>({
@@ -125,6 +137,9 @@ export function SortableTable<T>({
   minTotalWidth = 360,
   maxTotalWidth = 6000,
   responsiveMinWidth = RESPONSIVE_MIN_WIDTH,
+  autoColumnWidth = false,
+  measureRows,
+  measureSignature,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   // „Gesamt-Breite"-Griff: `enabled` = Griff wird gerendert; `active` = eine
@@ -134,22 +149,33 @@ export function SortableTable<T>({
   const totalWidthActive = totalWidthEnabled
     && typeof totalWidth === 'number'
     && Number.isFinite(totalWidth);
+  const filtersEnabled = onColumnFilterChange !== undefined
+    && columnFilters !== undefined
+    && filterCandidates !== undefined;
+  // Inhaltsabhängige Wunschbreiten. Gemessen wird an `measureRows` (dem vollen
+  // Satz), nicht an `rows` (der dargestellten Seite) — sonst rechnete jede
+  // nachgeladene Seite neu und die Spalten sprängen beim Scrollen.
+  const gemessen = useAutoColumnWidths({
+    spalten: columns,
+    zeilen: measureRows ?? rows,
+    aktiv: autoColumnWidth,
+    signatur: measureSignature,
+    optionen: { filterAktiv: filtersEnabled },
+  });
   // Prozent-Breiten der `<col>` + Wunsch-/Bodenbreite der Tabelle (siehe
   // `tableSizing.ts`). Die Pixel-Summe ist die Wunschbreite, nicht die
   // erzwungene — nur so kann die Tabelle unter ihre Spaltensumme schrumpfen.
   const sizing = useMemo(
-    () => computeTableSizing(columns, columnWidths, { responsiveMin: responsiveMinWidth }),
-    [columns, columnWidths, responsiveMinWidth],
+    () => computeTableSizing(columns, columnWidths, { responsiveMin: responsiveMinWidth, gemessen }),
+    [columns, columnWidths, responsiveMinWidth, gemessen],
   );
-  const filtersEnabled = onColumnFilterChange !== undefined
-    && columnFilters !== undefined
-    && filterCandidates !== undefined;
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
   const tableRef = useRef<HTMLTableElement | null>(null);
 
   const { startResize } = useColumnResize({
     columns,
     columnWidths,
+    gemessen,
     sizing,
     responsiveMinWidth,
     fitContentWidth,

@@ -29,6 +29,9 @@ export const DRAG_SCHWELLE = 3;
 export interface ColumnResizeParams<T> {
   columns: SortableColumn<T>[];
   columnWidths: Record<string, number> | undefined;
+  /** Gemessene Inhaltsbreiten — MUSS durchgereicht werden, sonst fallen die
+   *  ungezogenen Spalten während des Zugs auf `column.width` zurück. */
+  gemessen: Record<string, number> | undefined;
   sizing: TableSizing;
   responsiveMinWidth: number;
   fitContentWidth: boolean;
@@ -46,7 +49,7 @@ export interface ColumnResizeResult {
 
 export function useColumnResize<T>(p: ColumnResizeParams<T>): ColumnResizeResult {
   const {
-    columns, columnWidths, sizing, responsiveMinWidth, fitContentWidth,
+    columns, columnWidths, gemessen, sizing, responsiveMinWidth, fitContentWidth,
     totalWidthActive, minColumnWidth, onColumnWidthChange, colRefs, tableRef,
   } = p;
   const resizeEnabled = onColumnWidthChange !== undefined;
@@ -78,6 +81,7 @@ export function useColumnResize<T>(p: ColumnResizeParams<T>): ColumnResizeResult
         // DOM — `parseFloat('14%')` läse 14 als Pixel.
         const live = computeTableSizing(columns, columnWidths, {
           responsiveMin: responsiveMinWidth,
+          gemessen,
           draggedKey: key,
           draggedWidth: scale > 0 ? next / scale : next,
         });
@@ -110,7 +114,7 @@ export function useColumnResize<T>(p: ColumnResizeParams<T>): ColumnResizeResult
       document.body.style.userSelect = 'none';
     },
     [
-      resizeEnabled, minColumnWidth, onColumnWidthChange, columns, columnWidths,
+      resizeEnabled, minColumnWidth, onColumnWidthChange, columns, columnWidths, gemessen,
       totalWidthActive, sizing, responsiveMinWidth, fitContentWidth, colRefs, tableRef,
     ],
   );

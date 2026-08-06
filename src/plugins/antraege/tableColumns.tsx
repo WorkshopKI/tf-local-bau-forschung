@@ -86,6 +86,14 @@ function textCell(v: string | null): ReactNode {
   return v ? <span className="text-[12px] text-[var(--tf-text)]" title={v}>{v}</span> : null;
 }
 
+/**
+ * Mess-Profile der beiden geteilten Zell-Renderer — damit die Schrift für die
+ * Breiten-Messung an EINER Stelle je Renderer steht und nicht an 14 Spalten.
+ * Wer `textCell`/`dateCell` benutzt, spreizt das passende Profil mit hinein.
+ */
+const MESS_TEXT = { messSchrift: 'zelleKlein' } as const;
+const MESS_DATUM = { messSchrift: 'mono' } as const;
+
 /** Datums-Zelle in deutscher Schreibweise. Der Rohwert kommt als ISO aus der
  *  CSV-Projektion; `formatDatumsWert` ist die vorhandene Anzeige-Kette und lässt
  *  alles unangetastet, was sich nicht als Datum lesen lässt. Der Sortier-Wert
@@ -181,6 +189,9 @@ function kuerzelColumn(opts: {
     filterAccessor: r => strOrNull(r[key]) ?? FILTER_EMPTY_LABEL,
     width,
     wrap: false,
+    // Badge mit `px-1.5`-Polster; gemessen wird der Kürzel-Text im Badge-Schnitt.
+    messSchrift: 'badge',
+    messZuschlag: 12,
     accessor: r => strOrNull(r[key]) ?? '',
     render: r => {
       const v = strOrNull(r[key]);
@@ -215,6 +226,8 @@ function statusDatumColumn(opts: {
     filterAccessor: r => strOrNull(getLabel(r)) ?? FILTER_EMPTY_LABEL,
     width: 150,
     wrap: false,
+    messSchrift: 'badge',
+    messZuschlag: 20,
     accessor: r => strOrNull(getDatum(r)) ?? '',
     // Sortiert wird nach DATUM, angezeigt wird das LABEL — ohne eigenen
     // Export-Wert schriebe der XLSX-Export unter „FB Status" ein ISO-Datum
@@ -248,6 +261,14 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     // ~22px (Layout-stabil, s.u.) — bei 132 wuerde das FKZ sonst abgeschnitten.
     width: 156,
     wrap: false,
+    // Gemessen wird das, was die Zelle WIRKLICH zeigt: bei einer Verbund-Zeile
+    // die FKZ-Range plus den `·N`-Zähler, nicht das Einzel-Aktenzeichen des
+    // `accessor`. Zuschlag: Ampelpunkt 8 + gap 6 + Kopier-Slot 22 + gap 6.
+    messSchrift: 'monoKlein',
+    messZuschlag: 42,
+    minWidth: 140,
+    maxWidth: 220,
+    messText: r => (r._verbund ? `${r._verbund.fkzRange} ·${r._verbund.tvCount}` : r.aktenzeichen),
     accessor: r => r.aktenzeichen,
     render: r => {
       // Verbund-Zeile (Gruppiert: Verbund) → FKZ-Range + Count-Chip + worst-
@@ -343,6 +364,10 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterable: true,
     width: 260,
     wrap: false,
+    // Institutsnamen laufen im Bestand über 120 Zeichen — ohne Deckel bliese
+    // eine einzige Zeile die Tabelle auf.
+    messSchrift: 'zelleKlein',
+    maxWidth: 300,
     accessor: r => strOrNull(r.antragsteller) ?? '',
     render: r => {
       const v = strOrNull(r.antragsteller);
@@ -363,6 +388,12 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     sortable: true,
     width: 320,
     wrap: false,
+    // Badge (`px-2.5`) + Info-Icon des Herleitungs-Popovers. Untergrenze so
+    // gesetzt, dass bei Platznot die Aktion zuerst gekürzt wird, nicht der
+    // Status; `exportValue` liefert bereits den lesbaren Text (der `accessor`
+    // ist ein Rang-Sortier-String und wäre als Messquelle unbrauchbar).
+    messZuschlag: 42,
+    minWidth: 240,
     accessor: r => {
       const s = strOrNull(r.status);
       if (!s) return '99'; // leerer Status ans Ende
@@ -432,6 +463,11 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterable: true,
     width: 140,
     wrap: false,
+    // Badge trägt `min-w-[100px]` + `px-2.5`, dazu das Info-Icon — darunter
+    // wird die Zelle nicht schmaler, egal wie kurz das Label ist.
+    messSchrift: 'badge',
+    messZuschlag: 42,
+    minWidth: 142,
     accessor: r => {
       const s = strOrNull(r.status);
       return s ? getStatusLabel(s) : '';
@@ -479,6 +515,10 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     sortable: true,
     width: 96,
     wrap: false,
+    // Ampelpunkt (`w-1.5`) + gap. Gemessen wird der `exportValue` („in 45 T"),
+    // nicht der `accessor` — der ist die Tage-Zahl mit MAX_SAFE_INTEGER-Sentinel.
+    messSchrift: 'badge',
+    messZuschlag: 12,
     // Sortier-Wert bleibt der numerische „Tage bis zur Frist" (asc = dringendste
     // zuerst). Terminale/leere Fristen ans Ende → große Zahl (deckt sich mit der
     // leeren Anzeige in `render`/`fristAnzeige`). Verbund-Zeile: dringendste
@@ -523,6 +563,8 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     sortable: true,
     width: 260,
     wrap: false,
+    ...MESS_TEXT,
+    maxWidth: 320,
     accessor: r => strOrNull(r.titel) ?? '',
     render: r => textCell(strOrNull(r.titel)),
   },
@@ -534,6 +576,8 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     sortable: true,
     width: 280,
     wrap: false,
+    ...MESS_TEXT,
+    maxWidth: 320,
     // Verbund-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld);
     // `AntraegeTable` reichert die Row vorab aus `verbundById` an (siehe dort).
     accessor: r => strOrNull(r.verbund_titel) ?? '',
@@ -548,6 +592,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterable: true,
     width: 76,
     wrap: false,
+    ...MESS_TEXT,
     accessor: r => getKategorieLabel(r.vb_phase) ?? '',
     render: r => {
       const v = getKategorieLabel(r.vb_phase);
@@ -564,6 +609,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterAccessor: r => yearOf(r.bewilligung_datum),
     width: 148,
     wrap: false,
+    ...MESS_DATUM,
     accessor: r => strOrNull(r.bewilligung_datum) ?? '',
     render: r => dateCell(strOrNull(r.bewilligung_datum)),
   },
@@ -577,6 +623,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterAccessor: r => yearOfOrEmpty(r.erstentscheidung),
     width: 148,
     wrap: false,
+    ...MESS_DATUM,
     accessor: r => strOrNull(r.erstentscheidung) ?? '',
     render: r => dateCell(strOrNull(r.erstentscheidung)),
   },
@@ -590,6 +637,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterAccessor: r => yearOf(r.antragsdatum),
     width: 140,
     wrap: false,
+    ...MESS_DATUM,
     accessor: r => strOrNull(r.antragsdatum) ?? '',
     render: r => dateCell(strOrNull(r.antragsdatum)),
   },
@@ -602,6 +650,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterable: true,
     width: 140,
     wrap: false,
+    ...MESS_TEXT,
     accessor: r => strOrNull(r.ort_ast) ?? '',
     render: r => textCell(strOrNull(r.ort_ast)),
   },
@@ -613,6 +662,11 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     sortable: true,
     width: 124,
     wrap: false,
+    // Der `accessor` liefert bewusst die ROHE Zahl (Excel soll damit rechnen
+    // können) — gemessen werden muss aber der formatierte Betrag der Zelle.
+    messSchrift: 'mono',
+    minWidth: 110,
+    messText: r => (typeof r.foerdersumme === 'number' ? formatEur(r.foerdersumme) : ''),
     accessor: r => (typeof r.foerdersumme === 'number' ? r.foerdersumme : 0),
     render: r =>
       typeof r.foerdersumme === 'number' ? (
@@ -629,6 +683,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterAccessor: r => yearOf(r.laufzeitbeginn),
     width: 132,
     wrap: false,
+    ...MESS_DATUM,
     accessor: r => strOrNull(r.laufzeitbeginn) ?? '',
     render: r => dateCell(strOrNull(r.laufzeitbeginn)),
   },
@@ -642,6 +697,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterAccessor: r => yearOf(r.laufzeitende),
     width: 132,
     wrap: false,
+    ...MESS_DATUM,
     accessor: r => strOrNull(r.laufzeitende) ?? '',
     render: r => dateCell(strOrNull(r.laufzeitende)),
   },
@@ -654,6 +710,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterable: true,
     width: 150,
     wrap: false,
+    ...MESS_TEXT,
     accessor: r => strOrNull(r.branche) ?? '',
     render: r => textCell(strOrNull(r.branche)),
   },
@@ -666,6 +723,7 @@ export const ANTRAG_TABLE_COLUMNS: SortableColumn<AntragTableRow>[] = [
     filterable: true,
     width: 150,
     wrap: false,
+    ...MESS_TEXT,
     accessor: r => strOrNull(r.foerdergeber) ?? '',
     render: r => textCell(strOrNull(r.foerdergeber)),
   },

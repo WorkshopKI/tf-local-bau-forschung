@@ -22,7 +22,8 @@
 ## v3.5 — 2026-08
 
 ### Neu
-<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+- **Spalten passen sich dem Inhalt an.** Bisher hatte jede Spalte eine fest eingestellte Breite — bei mittlerweile über 30 wählbaren Spalten passte die selten. Jetzt richtet sich die Breite nach dem, was tatsächlich drinsteht. Lange Freitexte wie „Antragsteller" bekommen eine Obergrenze, damit sie die Tabelle nicht auseinanderziehen. Eine von Ihnen selbst gezogene Breite bleibt unangetastet.
+
 ### Verbesserungen
 - Datumsangaben in der Tabelle stehen jetzt in deutscher Schreibweise: **30.07.2018** statt `2018-07-30`. Sortiert wird weiterhin chronologisch.
 ### Bugfixes

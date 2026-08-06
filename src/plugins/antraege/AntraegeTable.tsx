@@ -329,6 +329,14 @@ export function AntraegeTable({
         }
         emptyContent="Keine Anträge."
         fitContentWidth
+        // Spaltenbreiten aus dem Inhalt. Gemessen wird `allRows` — der volle
+        // gefilterte Satz VOR Header-Sortierung und Pagination. Auf `rows`
+        // gemessen würde jede nachgeladene Seite die Breiten neu setzen, auf
+        // `orderedRows` jeder Sortierklick. Die Signatur trennt zusätzlich zwei
+        // Filterergebnisse gleicher Länge (zwei O(1)-Zugriffe).
+        autoColumnWidth
+        measureRows={allRows}
+        measureSignature={`${allRows[0]?.aktenzeichen ?? ''}|${allRows[allRows.length - 1]?.aktenzeichen ?? ''}`}
         columnWidths={widths}
         onColumnWidthChange={setWidth}
         totalWidth={totalWidth}

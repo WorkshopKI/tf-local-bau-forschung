@@ -11,6 +11,12 @@ import type { ReactNode } from 'react';
 
 export type SortDirection = 'asc' | 'desc';
 
+/** Schrift-Profil einer Zelle für die Breiten-Messung. Welche Pixel dahinter
+ *  stehen, sagt `messung/textMessung.ts` — hier ist es nur ein Etikett. Der Typ
+ *  wohnt bei `SortableColumn`, damit die Messung von den Typen abhängt und
+ *  nicht umgekehrt. */
+export type MessSchrift = 'zelle' | 'zelleKlein' | 'mono' | 'monoKlein' | 'badge' | 'kopf';
+
 export interface SortableColumn<T> {
   /** Stabiler Identifier — wird als Key, fuer Persistenz und Sort-State genutzt. */
   key: string;
@@ -48,4 +54,25 @@ export interface SortableColumn<T> {
    *  der Sort-`accessor` export-untauglich ist (z.B. ein Sentinel-Wert fuer leere
    *  Felder, der in Excel als grosse Zahl erscheinen wuerde). */
   exportValue?: (row: T) => string | number;
+
+  // — Inhaltsabhängige Spaltenbreite (siehe `messung/spaltenBreite.ts`). Alle
+  //   optional; ohne sie misst die Spalte über `exportValue ?? accessor`.
+
+  /** Text, an dem die Spaltenbreite gemessen wird. Nur nötig, wo Anzeige und
+   *  Export auseinandergehen (z.B. eine Geldspalte, deren Export bewusst die
+   *  rohe Zahl liefert, während die Zelle `1.234.567 €` zeigt). */
+  messText?: (row: T) => string;
+  /** Schrift-Profil der Zelle. Default `'zelle'` (12,5px sans). */
+  messSchrift?: MessSchrift;
+  /** Pixel für Nicht-Text in der Zelle (Ampelpunkt, Badge-Polster, Icon-Knopf),
+   *  die `measureText` nicht sieht. */
+  messZuschlag?: number;
+  /** Untergrenze der gemessenen Breite. Default: globale Untergrenze. */
+  minWidth?: number;
+  /** Obergrenze der gemessenen Breite — hält Freitext davon ab, die Tabelle
+   *  aufzublasen. Default: globale Obergrenze. */
+  maxWidth?: number;
+  /** `false`: nicht messen, die gepflegte `width` gilt. Für Zellen, deren
+   *  Platzbedarf kein Text ist (Eingabefelder, Auswahlmenüs). */
+  autoWidth?: boolean;
 }

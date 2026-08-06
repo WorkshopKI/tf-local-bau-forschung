@@ -44,15 +44,31 @@ export interface TableSizingOptions {
    *  mit ihrer gespeicherten Breite (Live-Vorschau ohne React-Re-Render). */
   draggedKey?: string;
   draggedWidth?: number;
+  /** Gemessene Inhaltsbreiten (`messung/useAutoColumnWidths`). Steht zwischen
+   *  User-Override und `column.width`. MUSS auch beim Live-Drag mitgegeben
+   *  werden — sonst fielen die ungezogenen Spalten mitten im Zug auf ihre
+   *  gepflegte Breite zurück und die Nachbarn sprängen. */
+  gemessen?: Record<string, number>;
 }
 
-/** Bevorzugte Pixelbreite einer Spalte: User-Override > `column.width` > Default. */
+/**
+ * Bevorzugte Pixelbreite einer Spalte:
+ * **User-Override > gemessene Inhaltsbreite > `column.width` > Default.**
+ *
+ * Die gemessene Breite (siehe `messung/spaltenBreite.ts`) verdrängt nur den
+ * gepflegten Standardwert, nie eine vom Nutzer gezogene Breite — und die
+ * gepflegten Werte bleiben als Erst-Frame-Wert und als Rückfall ohne Messung
+ * erhalten.
+ */
 export function effectiveColumnWidth<T>(
   column: SortableColumn<T>,
   overrides: Record<string, number> | undefined,
+  gemessen?: Record<string, number>,
 ): number {
   const o = overrides?.[column.key];
   if (typeof o === 'number' && Number.isFinite(o) && o > 0) return o;
+  const g = gemessen?.[column.key];
+  if (typeof g === 'number' && Number.isFinite(g) && g > 0) return g;
   return column.width ?? DEFAULT_COLUMN_WIDTH;
 }
 
@@ -65,7 +81,7 @@ export function computeTableSizing<T>(
   const widthOf = (c: SortableColumn<T>): number =>
     c.key === opts.draggedKey && typeof opts.draggedWidth === 'number' && opts.draggedWidth > 0
       ? opts.draggedWidth
-      : effectiveColumnWidth(c, overrides);
+      : effectiveColumnWidth(c, overrides, opts.gemessen);
 
   const desiredWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
   const colPercent: Record<string, string> = {};

@@ -4,7 +4,17 @@
  * compareValues + SortIcon + ColumnPicker), Auslastungs-Plugin
  * (Klassifizierungs-Tabelle).
  */
-export type { SortableColumn, SortDirection } from './types';
+export type { SortableColumn, SortDirection, MessSchrift } from './types';
+export {
+  berechneAutoBreiten,
+  kopfBreite,
+  messTextVon,
+  waehleMesskandidaten,
+  MESS_DEFAULTS,
+  type MessOptionen,
+  type MesseBreite,
+} from './messung/spaltenBreite';
+export { useAutoColumnWidths, type AutoColumnWidthsParams } from './messung/useAutoColumnWidths';
 export { compareValues, DATA_TABLE_COLLATOR } from './compareValues';
 export { useTableSort, type UseTableSortResult } from './useTableSort';
 export { useColumnVisibility, type UseColumnVisibilityResult } from './useColumnVisibility';
