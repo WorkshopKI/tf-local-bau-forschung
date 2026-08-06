@@ -110,8 +110,13 @@ describe('getProjektartItems — Zaehler und Filter sind EIN Vokabular', () => {
   ];
   const tv = tvCountOf({ V1: 1, V2: 2 });
 
+  /** Alle Stufen, egal ob Segment oder Menü-Unterpunkt. */
+  function flach(items: ReturnType<typeof getProjektartItems>): typeof items {
+    return items.flatMap(i => [i, ...(i.unterpunkte ?? [])]);
+  }
+
   it('jede Stufe zaehlt genau das, was sie auch filtert', () => {
-    const items = getProjektartItems(LISTE, tv);
+    const items = flach(getProjektartItems(LISTE, tv));
     for (const art of PROJEKTART_ORDER) {
       const item = items.find(i => i.label === PROJEKTART_LABELS[art]);
       expect(item, `Stufe ${art} fehlt in den Items`).toBeDefined();
@@ -119,14 +124,35 @@ describe('getProjektartItems — Zaehler und Filter sind EIN Vokabular', () => {
     }
   });
 
+  it('die Netzwerkbezug-Stufen haengen im Menue unter „Einzelprojekt"', () => {
+    const items = getProjektartItems(LISTE, tv);
+    expect(items.map(i => i.label)).toEqual([
+      PROJEKTART_LABELS.alle, PROJEKTART_LABELS.einzel, PROJEKTART_LABELS.kooperation,
+    ]);
+    const einzel = items.find(i => i.label === PROJEKTART_LABELS.einzel)!;
+    expect(einzel.unterpunkte?.map(u => u.label)).toEqual([
+      PROJEKTART_LABELS.einzel, PROJEKTART_LABELS.einzel_mit_nb, PROJEKTART_LABELS.einzel_ohne_nb,
+    ]);
+    // Der Oberpunkt steht im Menue nochmal — dort aber unter eigenem Namen,
+    // sonst hiesse der Eintrag wie der Knopf, unter dem er haengt.
+    expect(einzel.unterpunkte![0]!.menuLabel).toBe('alle Einzelprojekte');
+  });
+
   it('die Netzwerkbezug-Stufen summieren sich NICHT auf „Einzelprojekt"', () => {
     // Dokumentierte Luecke, kein Defekt: das DS-Einzelprojekt traegt 16DS und
     // gehoert in keine der beiden Unterstufen. Wer das „repariert", weitet
     // „ohne Netzwerkbezug" still zu „alles ausser 16KN" auf.
-    const items = getProjektartItems(LISTE, tv);
+    const items = flach(getProjektartItems(LISTE, tv));
     const zahl = (art: Projektart): number =>
       items.find(i => i.label === PROJEKTART_LABELS[art])!.count!;
     expect(zahl('einzel_mit_nb') + zahl('einzel_ohne_nb')).toBeLessThan(zahl('einzel'));
+  });
+
+  it('die Kurzform bleibt kurz — sonst sprengt sie die Segment-Leiste', () => {
+    // Der Nutzer hat die Langform („· mit Netzwerkbezug") ausdruecklich
+    // abgekuerzt haben wollen; ein spaeteres Zurueckwachsen faellt hier auf.
+    expect(PROJEKTART_LABELS.einzel_mit_nb).toBe('mit NW Bezug');
+    expect(PROJEKTART_LABELS.einzel_ohne_nb).toBe('ohne NW Bezug');
   });
 
   it('„Alle" zaehlt die ganze Grundmenge', () => {
@@ -134,8 +160,8 @@ describe('getProjektartItems — Zaehler und Filter sind EIN Vokabular', () => {
   });
 
   it('jede Stufe traegt einen erklaerenden Tooltip', () => {
-    expect(getProjektartItems(LISTE, tv).every(i => typeof i.title === 'string' && i.title.length > 0))
-      .toBe(true);
+    const items = getProjektartItems(LISTE, tv).flatMap(i => [i, ...(i.unterpunkte ?? [])]);
+    expect(items.every(i => typeof i.title === 'string' && i.title.length > 0)).toBe(true);
   });
 });
 

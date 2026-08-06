@@ -1,29 +1,40 @@
 /**
- * Persistenz + Reducer für das **Quickfilter-Akkordeon** der Förderanträge-Liste.
+ * Persistenz + Reducer für die **offenen Quickfilter-Pillen** der
+ * Förderanträge-Liste.
  *
- * Die Toolbar zeigt mehrere Filter-Pillen (Status / Antragstyp / PreCheck /
- * Sortiert-nach) in EINER Zeile. Es ist immer höchstens **eine** Pille
- * aufgeklappt — die „nie zwei offen"-Invariante ist strukturell garantiert,
- * weil der Zustand ein einzelner `QuickfilterSegId | null` ist.
+ * Die Toolbar zeigt mehrere Filter-Pillen (Status / Antragstyp / Projektart /
+ * PreCheck / Sortiert-nach) in EINER Zeile. Bis v3.12 war es ein Akkordeon:
+ * höchstens EINE Pille offen, strukturell garantiert durch einen Einzelwert.
+ * Das war eine Einschränkung ohne Nutzen — wer nach Antragstyp UND Projektart
+ * eingrenzt, will beide Leisten sehen, gerade weil die Zahlen der einen von der
+ * Auswahl der anderen abhängen. Der Zustand ist deshalb eine **Menge**.
  *
- * Persistenz pro View (`teamflow_antraege_quickfilter_expanded_{viewId}`), Muster
- * 1:1 aus `useAntraegeColumnsStore.ts` (try/parse/validate/Default). Reines
- * Modul (kein React/Store-Import) → testbar.
+ * Persistenz pro View (`teamflow_antraege_quickfilter_expanded_{viewId}`) als
+ * kommagetrennte Liste; ein alter Einzelwert liest sich als einelementige Menge,
+ * ein bestehender Stand geht also nicht verloren. Reines Modul (kein
+ * React/Store-Import) → testbar.
  */
 
 /** Die aufklappbaren Segmente der Quickfilter-Zeile. */
 export type QuickfilterSegId = 'status' | 'antragstyp' | 'projektart' | 'precheck' | 'sort';
 
-const VALID_SEGS: ReadonlySet<QuickfilterSegId> = new Set<QuickfilterSegId>([
+/** Reihenfolge = Anzeige-Reihenfolge in der Toolbar; sie bestimmt auch, wie der
+ *  persistierte String sortiert wird. */
+const SEG_ORDER: readonly QuickfilterSegId[] = [
   'status',
   'antragstyp',
   'projektart',
   'precheck',
   'sort',
-]);
+];
+
+const VALID_SEGS: ReadonlySet<QuickfilterSegId> = new Set<QuickfilterSegId>(SEG_ORDER);
 
 /** Erstnutzung: Status-Segment offen (Design-Vorgabe). */
 export const DEFAULT_EXPANDED_SEG: QuickfilterSegId = 'status';
+
+/** Erstnutzung als Menge. */
+export const DEFAULT_EXPANDED_SEGS: ReadonlySet<QuickfilterSegId> = new Set([DEFAULT_EXPANDED_SEG]);
 
 const KEY_PREFIX = 'teamflow_antraege_quickfilter_expanded_';
 
@@ -39,41 +50,46 @@ function isSeg(v: unknown): v is QuickfilterSegId {
 }
 
 /**
- * Liest das offene Segment für eine View.
- * - Schlüssel fehlt (Erstnutzung) → `DEFAULT_EXPANDED_SEG` (`'status'`).
- * - Schlüssel = `''` (User hat alles zugeklappt) → `null`.
- * - Gültige Seg-ID → diese.
- * - Ungültig/kaputt → Default.
+ * Liest die offenen Segmente einer View.
+ * - Schlüssel fehlt (Erstnutzung) → `DEFAULT_EXPANDED_SEGS` (`{status}`).
+ * - Schlüssel = `''` (User hat alles zugeklappt) → leere Menge.
+ * - Kommaliste → deren gültige Einträge (unbekannte werden still verworfen,
+ *   nicht auf den Default zurückgeworfen: eine umbenannte Seg-Id soll nicht die
+ *   übrige Auswahl mitreißen).
+ * - Nur ungültige Einträge / kaputt → Default.
  */
-export function loadExpandedSeg(viewId: string): QuickfilterSegId | null {
+export function loadExpandedSegs(viewId: string): Set<QuickfilterSegId> {
   try {
     const raw = localStorage.getItem(storageKey(viewId));
-    if (raw === null) return DEFAULT_EXPANDED_SEG;
-    if (raw === NONE_SENTINEL) return null;
-    return isSeg(raw) ? raw : DEFAULT_EXPANDED_SEG;
+    if (raw === null) return new Set(DEFAULT_EXPANDED_SEGS);
+    if (raw === NONE_SENTINEL) return new Set();
+    const segs = raw.split(',').map(s => s.trim()).filter(isSeg);
+    return segs.length > 0 ? new Set(segs) : new Set(DEFAULT_EXPANDED_SEGS);
   } catch {
-    return DEFAULT_EXPANDED_SEG;
+    return new Set(DEFAULT_EXPANDED_SEGS);
   }
 }
 
-/** Persistiert das offene Segment (bzw. `null` = alles zu). */
-export function saveExpandedSeg(viewId: string, seg: QuickfilterSegId | null): void {
+/** Persistiert die offenen Segmente (leere Menge = alles zu). Geschrieben wird
+ *  in `VALID_SEGS`-Reihenfolge, damit derselbe Zustand denselben String ergibt. */
+export function saveExpandedSegs(viewId: string, segs: ReadonlySet<QuickfilterSegId>): void {
   try {
-    localStorage.setItem(storageKey(viewId), seg ?? NONE_SENTINEL);
+    const geordnet = SEG_ORDER.filter(s => segs.has(s));
+    localStorage.setItem(storageKey(viewId), geordnet.join(','));
   } catch {
     /* ignore */
   }
 }
 
 /**
- * Akkordeon-Reducer: Klick auf ein Segment.
- * - Klick auf das bereits offene Segment → zuklappen (`null`).
- * - Klick auf ein anderes Segment → dieses öffnen (schließt das vorherige
- *   implizit, weil der Zustand ein Einzelwert ist).
+ * Klick auf ein Segment: auf/zu, ohne die anderen anzufassen.
+ * Gibt eine NEUE Menge zurück (React-State darf nicht mutiert werden).
  */
 export function toggleExpandedSeg(
-  current: QuickfilterSegId | null,
+  current: ReadonlySet<QuickfilterSegId>,
   clicked: QuickfilterSegId,
-): QuickfilterSegId | null {
-  return current === clicked ? null : clicked;
+): Set<QuickfilterSegId> {
+  const next = new Set(current);
+  if (!next.delete(clicked)) next.add(clicked);
+  return next;
 }

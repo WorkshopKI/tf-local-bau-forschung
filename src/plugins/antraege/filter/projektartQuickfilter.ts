@@ -43,19 +43,40 @@ export const PROJEKTART_ORDER: readonly Projektart[] = [
 export const PROJEKTART_LABELS: Record<Projektart, string> = {
   alle: 'Alle',
   einzel: 'Einzelprojekt',
-  einzel_mit_nb: '· mit Netzwerkbezug',
-  einzel_ohne_nb: '· ohne Netzwerkbezug',
+  einzel_mit_nb: 'mit NW Bezug',
+  einzel_ohne_nb: 'ohne NW Bezug',
   kooperation: 'Kooperationsprojekt',
+};
+
+/** Beschriftung im Einzelprojekt-Menü. Nur wo sie vom Segment-Label abweicht —
+ *  im Menü steht der Oberpunkt für „ohne Einschränkung", und „Einzelprojekt"
+ *  hieße dort dasselbe wie der Knopf, unter dem das Menü hängt. */
+export const PROJEKTART_MENU_LABELS: Partial<Record<Projektart, string>> = {
+  einzel: 'alle Einzelprojekte',
 };
 
 /** Die Regel im Klartext — als Tooltip am Knopf, damit die Zahl erklärbar ist. */
 export const PROJEKTART_TITEL: Record<Projektart, string> = {
   alle: 'Alle Anträge, ohne Einschränkung auf die Projektart',
   einzel: 'FuE- oder DS-Antrag, dessen Verbund genau ein Teilvorhaben hat',
-  einzel_mit_nb: 'Einzelprojekt mit Netzwerkbezug (FKZ beginnt mit 16KN)',
-  einzel_ohne_nb: 'Einzelprojekt ohne Netzwerkbezug (FKZ beginnt mit 16EP)',
+  einzel_mit_nb:
+    'Einzelprojekt mit Netzwerkbezug (FKZ beginnt mit 16KN). '
+    + 'Mit + ohne ergibt WENIGER als alle Einzelprojekte: ein DS-Einzelprojekt trägt 16DS und damit keines der beiden Präfixe.',
+  einzel_ohne_nb:
+    'Einzelprojekt ohne Netzwerkbezug (FKZ beginnt mit 16EP). '
+    + 'Mit + ohne ergibt WENIGER als alle Einzelprojekte: ein DS-Einzelprojekt trägt 16DS und damit keines der beiden Präfixe.',
   kooperation: 'FuE- oder DS-Antrag, dessen Verbund mehr als ein Teilvorhaben hat',
 };
+
+/** Die Stufen, die im Einzelprojekt-Menü hängen (Reihenfolge = Anzeige). */
+export const EINZEL_UNTERPUNKTE: readonly Projektart[] = [
+  'einzel', 'einzel_mit_nb', 'einzel_ohne_nb',
+];
+
+/** Gehört die Stufe unter „Einzelprojekt"? */
+export function istEinzelStufe(art: Projektart): boolean {
+  return EINZEL_UNTERPUNKTE.includes(art);
+}
 
 /** Teilvorhaben-Zahl des Verbunds eines Antrags. Injiziert, damit dieses Modul
  *  rein bleibt und ohne Store testbar ist. */
@@ -104,9 +125,9 @@ export function applyProjektart(
  * Jede Stufe läuft durch `matchesProjektart`; ein zweiter Zählweg könnte von der
  * Filterwirkung abweichen, ohne dass es jemand merkt.
  */
-export function getProjektartItems(
+export function zaehleProjektarten(
   countBase: AntragListItem[], tvCountOf: TvCountOf,
-): CollapsibleSegItem[] {
+): Map<Projektart, number> {
   const counts = new Map<Projektart, number>(PROJEKTART_ORDER.map(a => [a, 0]));
   for (const a of countBase) {
     const tv = tvCountOf(a);
@@ -114,11 +135,34 @@ export function getProjektartItems(
       if (matchesProjektart(a, art, tv)) counts.set(art, counts.get(art)! + 1);
     }
   }
-  return PROJEKTART_ORDER.map(art => ({
+  return counts;
+}
+
+/**
+ * Drei Segmente — `Alle · Einzelprojekt ⌄ · Kooperationsprojekt`. Die beiden
+ * Netzwerkbezug-Stufen hängen als **Menü** unter „Einzelprojekt", statt als
+ * eigene Segmente daneben zu stehen.
+ *
+ * Grund ist nicht nur die Breite: nebeneinander lasen sich die drei Zahlen wie
+ * eine Aufteilung (397 = 38 + 192), und das stimmt nicht — ein DS-Einzelprojekt
+ * trägt weder 16KN noch 16EP. Im Menü ist die Verschachtelung sichtbar, und der
+ * Tooltip nennt den Rest.
+ */
+export function getProjektartItems(
+  countBase: AntragListItem[], tvCountOf: TvCountOf,
+): CollapsibleSegItem[] {
+  const counts = zaehleProjektarten(countBase, tvCountOf);
+  const item = (art: Projektart): CollapsibleSegItem => ({
     label: PROJEKTART_LABELS[art],
     count: counts.get(art) ?? 0,
     title: PROJEKTART_TITEL[art],
-  }));
+    ...(PROJEKTART_MENU_LABELS[art] ? { menuLabel: PROJEKTART_MENU_LABELS[art] } : {}),
+  });
+  return [
+    item('alle'),
+    { ...item('einzel'), unterpunkte: EINZEL_UNTERPUNKTE.map(item) },
+    item('kooperation'),
+  ];
 }
 
 /** Label (das, was `CollapsibleSeg` meldet) → Stufe. Unbekanntes → `'alle'`. */

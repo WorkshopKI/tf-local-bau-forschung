@@ -3,10 +3,9 @@
  * Zeile (Journey-Paket 2 Phase 2).
  *
  * Segmente (`CollapsibleSeg`, controlled): Status · Antragstyp · Projektart ·
- * PreCheck · (nur List-/Karten-Ansicht) Sortiert-nach. Es ist immer höchstens **eine**
- * Pille offen — der Zustand ist ein einzelner `QuickfilterSegId | null`, pro
- * View persistiert (`quickfilterExpanded.ts`). Öffnen einer Pille schließt die
- * jeweils andere implizit.
+ * PreCheck · (nur List-/Karten-Ansicht) Sortiert-nach. **Mehrere Pillen dürfen
+ * gleichzeitig offen sein** (seit v3.13); der Zustand ist eine Menge offener
+ * Segment-Ids, pro View persistiert (`quickfilterExpanded.ts`).
  *
  * Filter-Backend:
  * - Status  → `useFilterState` (`system-status`, `phaseQuickfilter.ts`)
@@ -36,6 +35,7 @@ import {
   getKategorieFromActive,
   getKategorieItems,
   applyKategorie,
+  matchesKategorie,
   type KategorieLabel,
 } from './kategorieQuickfilter';
 import { getPrecheckItems, asPrecheckBucket } from './precheckQuickfilter';
@@ -45,8 +45,8 @@ import {
   projektartVonLabel,
 } from './projektartQuickfilter';
 import {
-  loadExpandedSeg,
-  saveExpandedSeg,
+  loadExpandedSegs,
+  saveExpandedSegs,
   toggleExpandedSeg,
   type QuickfilterSegId,
 } from './quickfilterExpanded';
@@ -88,15 +88,19 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
   const projektart = useAntraegeStore(s => s.projektart);
   const setProjektart = useAntraegeStore(s => s.setProjektart);
 
-  // Akkordeon-Zustand: höchstens ein offenes Segment, pro View persistiert.
-  const [expandedSeg, setExpandedSeg] = useState<QuickfilterSegId | null>(() => loadExpandedSeg(activeView));
+  // Offene Segmente, pro View persistiert. Mehrere dürfen gleichzeitig offen
+  // sein — seit die Projektart-Zähler dem Antragstyp folgen, ist das Nebeneinander
+  // die Stelle, an der man die Kaskade überhaupt sieht.
+  const [expandedSegs, setExpandedSegs] = useState<ReadonlySet<QuickfilterSegId>>(
+    () => loadExpandedSegs(activeView),
+  );
   useEffect(() => {
-    setExpandedSeg(loadExpandedSeg(activeView));
+    setExpandedSegs(loadExpandedSegs(activeView));
   }, [activeView]);
   const handleToggle = (seg: QuickfilterSegId): void => {
-    setExpandedSeg(prev => {
+    setExpandedSegs(prev => {
       const next = toggleExpandedSeg(prev, seg);
-      saveExpandedSeg(activeView, next);
+      saveExpandedSegs(activeView, next);
       return next;
     });
   };
@@ -118,8 +122,19 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
   // Projektart (abgeleitet aus Antragstyp + TV-Zahl, eigener Store-Slot). Die
   // Zähler laufen über dieselbe `tvCountOf` wie der Filter — siehe
   // `projektartQuickfilter.ts`.
+  //
+  // EINSEITIGE KASKADE: die Basis folgt dem gewählten Antragstyp, nicht der
+  // eigenen Auswahl. „FuE" oben heißt, dass hier nur noch FuE gezählt wird —
+  // sonst behauptet „Einzelprojekt 397" eine Menge, die der Klick gar nicht
+  // liefern kann, weil der Antragstyp-Filter davor liegt. Umgekehrt wirkt es
+  // NICHT: eine Achse, die ihre eigenen Zähler beschneidet, springt bei jedem
+  // Klick und macht die Auswahl unumkehrbar (Stabilitäts-Regel).
+  const projektartBase = useMemo(
+    () => (kategorie === 'Alle' ? countBase : countBase.filter(a => matchesKategorie(a, kategorie))),
+    [countBase, kategorie],
+  );
   const projektartItems = useMemo(
-    () => getProjektartItems(countBase, tvCountOf), [countBase, tvCountOf],
+    () => getProjektartItems(projektartBase, tvCountOf), [projektartBase, tvCountOf],
   );
   const onProjektartChange = (label: string): void => {
     setProjektart(projektartVonLabel(label));
@@ -152,7 +167,7 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
         value={phase}
         items={phaseItems}
         onChange={onPhaseChange}
-        expanded={expandedSeg === 'status'}
+        expanded={expandedSegs.has('status')}
         onExpandToggle={() => handleToggle('status')}
       />
       <CollapsibleSeg
@@ -160,19 +175,20 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
         value={kategorie}
         items={kategorieItems}
         onChange={onKategorieChange}
-        expanded={expandedSeg === 'antragstyp'}
+        expanded={expandedSegs.has('antragstyp')}
         onExpandToggle={() => handleToggle('antragstyp')}
       />
-      {/* Einzel-/Kooperationsprojekt. Die beiden Netzwerkbezug-Stufen liegen
-          INNERHALB von „Einzelprojekt" — ihre Zähler summieren sich deshalb
-          nicht auf dessen Zahl (ein DS-Einzelprojekt trägt weder 16KN noch
-          16EP). Die Tooltips am Knopf nennen die Regel im Klartext. */}
+      {/* Einzel-/Kooperationsprojekt. Die beiden Netzwerkbezug-Stufen hängen im
+          MENÜ unter „Einzelprojekt" — sie liegen fachlich darin, und
+          nebeneinander lasen sich die Zahlen wie eine Aufteilung, die sie nicht
+          sind (ein DS-Einzelprojekt trägt weder 16KN noch 16EP). Die Zähler
+          folgen dem gewählten Antragstyp (`projektartBase`). */}
       <CollapsibleSeg
         label="Projektart"
         value={PROJEKTART_LABELS[projektart]}
         items={projektartItems}
         onChange={onProjektartChange}
-        expanded={expandedSeg === 'projektart'}
+        expanded={expandedSegs.has('projektart')}
         onExpandToggle={() => handleToggle('projektart')}
       />
       <CollapsibleSeg
@@ -180,7 +196,7 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
         value={precheckBucket}
         items={precheckItems}
         onChange={onPrecheckChange}
-        expanded={expandedSeg === 'precheck'}
+        expanded={expandedSegs.has('precheck')}
         onExpandToggle={() => handleToggle('precheck')}
       />
       {viewMode === 'compact' ? null : (
@@ -190,7 +206,7 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
           defaultValue={sortSeg.defaultLabel}
           items={sortSeg.items}
           onChange={onSortChange}
-          expanded={expandedSeg === 'sort'}
+          expanded={expandedSegs.has('sort')}
           onExpandToggle={() => handleToggle('sort')}
         />
       )}

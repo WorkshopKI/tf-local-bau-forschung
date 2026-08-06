@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.13 — 2026-08
+
+### Neu
+- **„Einzelprojekt" hat jetzt ein Menü.** Der kleine Pfeil daneben öffnet die Auswahl **alle Einzelprojekte · mit NW Bezug · ohne NW Bezug**. Vorher standen die beiden Netzwerkbezug-Stufen als eigene Knöpfe daneben — das machte die Leiste breit und ließ die Zahlen wie eine Aufteilung von „Einzelprojekt" aussehen, die sie nicht sind (ein DS-Einzelprojekt trägt weder 16KN noch 16EP und zählt in keiner der beiden mit).
+
+### Verbesserungen
+- **Mehrere Filter dürfen gleichzeitig offen bleiben.** Bisher schloss das Aufklappen einer Pille die vorherige. Welche offen sind, merkt sich die App je Reiter.
+- **Die Projektart-Zahlen folgen jetzt dem Antragstyp.** Wählen Sie oben „FuE", zählt die Projektart darunter nur noch FuE-Anträge (aus „Alle 889" wird „Alle 619"). Vorher zeigte sie Zahlen aus dem vollen Bestand, die ein Klick gar nicht liefern konnte.
+- **Man sieht einer zugeklappten Pille an, ob sie filtert** — sie bekommt einen farbigen Rahmen und hinterlegt ihren Wert. Aufgeklappt ist die Beschriftung farbig.
+- **Kürzere Beschriftung:** „· mit Netzwerkbezug" heißt jetzt „mit NW Bezug".
+
 ## v3.12 — 2026-08
 
 ### Verbesserungen

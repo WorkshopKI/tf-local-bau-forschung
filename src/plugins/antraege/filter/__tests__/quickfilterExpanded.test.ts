@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  loadExpandedSeg,
-  saveExpandedSeg,
+  loadExpandedSegs,
+  saveExpandedSegs,
   toggleExpandedSeg,
   DEFAULT_EXPANDED_SEG,
+  DEFAULT_EXPANDED_SEGS,
   type QuickfilterSegId,
 } from '../quickfilterExpanded';
 
@@ -20,62 +21,96 @@ function installLocalStorageStub(): void {
   } as Storage;
 }
 
-describe('toggleExpandedSeg — Akkordeon-Reducer', () => {
+const menge = (...ids: QuickfilterSegId[]): Set<QuickfilterSegId> => new Set(ids);
+const sortiert = (s: ReadonlySet<QuickfilterSegId>): string[] => [...s].sort();
+
+describe('toggleExpandedSeg — auf/zu, ohne die anderen anzufassen', () => {
   it('Klick auf ein geschlossenes Segment öffnet es', () => {
-    expect(toggleExpandedSeg(null, 'antragstyp')).toBe('antragstyp');
+    expect(sortiert(toggleExpandedSeg(menge(), 'antragstyp'))).toEqual(['antragstyp']);
   });
-  it('Klick auf ein ANDERES Segment wechselt (schließt das vorherige implizit)', () => {
-    expect(toggleExpandedSeg('status', 'precheck')).toBe('precheck');
+
+  it('Klick auf ein ANDERES Segment lässt das erste OFFEN — das war bis v3.12 anders', () => {
+    expect(sortiert(toggleExpandedSeg(menge('status'), 'precheck')))
+      .toEqual(['precheck', 'status']);
   });
-  it('Klick auf das bereits offene Segment schließt es', () => {
-    expect(toggleExpandedSeg('status', 'status')).toBeNull();
+
+  it('Klick auf das bereits offene Segment schließt nur dieses', () => {
+    expect(sortiert(toggleExpandedSeg(menge('status', 'precheck'), 'status')))
+      .toEqual(['precheck']);
   });
-  it('Invariante: das Ergebnis ist immer höchstens EIN Segment (nie zwei offen)', () => {
-    // Der Zustand ist ein Einzelwert → „zwei offen" ist strukturell unmöglich.
-    const segs: QuickfilterSegId[] = ['status', 'antragstyp', 'precheck', 'sort'];
-    let state: QuickfilterSegId | null = null;
-    for (const s of segs) {
-      state = toggleExpandedSeg(state, s);
-      expect(state === null || segs.includes(state)).toBe(true);
-    }
+
+  it('gibt eine NEUE Menge zurück (React-State darf nicht mutiert werden)', () => {
+    const vorher = menge('status');
+    const nachher = toggleExpandedSeg(vorher, 'sort');
+    expect(nachher).not.toBe(vorher);
+    expect(sortiert(vorher)).toEqual(['status']);
+  });
+
+  it('alle nacheinander geöffnet → alle offen', () => {
+    const segs: QuickfilterSegId[] = ['status', 'antragstyp', 'projektart', 'precheck', 'sort'];
+    let state: ReadonlySet<QuickfilterSegId> = menge();
+    for (const s of segs) state = toggleExpandedSeg(state, s);
+    expect(state.size).toBe(segs.length);
   });
 });
 
-describe('loadExpandedSeg / saveExpandedSeg — Persistenz', () => {
+describe('loadExpandedSegs / saveExpandedSegs — Persistenz', () => {
   beforeEach(() => { installLocalStorageStub(); });
   afterEach(() => { delete (globalThis as { localStorage?: Storage }).localStorage; });
 
   it('Erstnutzung (kein Schlüssel) → Default „status"', () => {
-    expect(loadExpandedSeg('meine_offenen')).toBe(DEFAULT_EXPANDED_SEG);
+    expect(sortiert(loadExpandedSegs('meine_offenen'))).toEqual(['status']);
     expect(DEFAULT_EXPANDED_SEG).toBe('status');
+    expect(sortiert(DEFAULT_EXPANDED_SEGS)).toEqual(['status']);
   });
 
-  it('Round-Trip: gespeichertes Segment wird wieder geladen', () => {
-    saveExpandedSeg('alle', 'precheck');
-    expect(loadExpandedSeg('alle')).toBe('precheck');
+  it('Round-Trip: mehrere offene Segmente überleben', () => {
+    saveExpandedSegs('alle', menge('precheck', 'antragstyp'));
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['antragstyp', 'precheck']);
   });
 
-  it('„alles zugeklappt" (null) persistiert als eigener Zustand (nicht Default)', () => {
-    saveExpandedSeg('alle', null);
-    expect(loadExpandedSeg('alle')).toBeNull();
+  it('„alles zugeklappt" persistiert als eigener Zustand (nicht Default)', () => {
+    saveExpandedSegs('alle', menge());
+    expect(loadExpandedSegs('alle').size).toBe(0);
+  });
+
+  it('ein ALTER Einzelwert liest sich als einelementige Menge', () => {
+    // Bestand aus der Akkordeon-Zeit — darf nicht auf den Default zurückfallen.
+    globalThis.localStorage.setItem('teamflow_antraege_quickfilter_expanded_alle', 'precheck');
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['precheck']);
   });
 
   it('pro View getrennt', () => {
-    saveExpandedSeg('alle', 'sort');
-    saveExpandedSeg('meine_offenen', 'antragstyp');
-    expect(loadExpandedSeg('alle')).toBe('sort');
-    expect(loadExpandedSeg('meine_offenen')).toBe('antragstyp');
+    saveExpandedSegs('alle', menge('sort'));
+    saveExpandedSegs('meine_offenen', menge('antragstyp'));
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['sort']);
+    expect(sortiert(loadExpandedSegs('meine_offenen'))).toEqual(['antragstyp']);
   });
 
-  it('kaputter/ungültiger Wert → Default', () => {
+  it('unbekannter Eintrag reißt die übrigen nicht mit', () => {
+    globalThis.localStorage.setItem(
+      'teamflow_antraege_quickfilter_expanded_alle', 'gruppieren,precheck',
+    );
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['precheck']);
+  });
+
+  it('nur Ungültiges → Default', () => {
     globalThis.localStorage.setItem('teamflow_antraege_quickfilter_expanded_alle', 'gruppieren');
-    expect(loadExpandedSeg('alle')).toBe(DEFAULT_EXPANDED_SEG);
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['status']);
+  });
+
+  it('derselbe Zustand ergibt denselben String (stabile Reihenfolge)', () => {
+    saveExpandedSegs('a', menge('sort', 'status'));
+    const ersterStand = globalThis.localStorage.getItem('teamflow_antraege_quickfilter_expanded_a');
+    saveExpandedSegs('a', menge('status', 'sort'));
+    expect(globalThis.localStorage.getItem('teamflow_antraege_quickfilter_expanded_a'))
+      .toBe(ersterStand);
   });
 });
 
-describe('loadExpandedSeg — ohne localStorage (Node)', () => {
+describe('loadExpandedSegs — ohne localStorage (Node)', () => {
   it('fällt sauber auf den Default zurück (kein Throw)', () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
-    expect(loadExpandedSeg('alle')).toBe(DEFAULT_EXPANDED_SEG);
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['status']);
   });
 });

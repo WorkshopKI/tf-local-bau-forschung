@@ -74,6 +74,19 @@ export function getKategorieLabel(vbPhase: unknown): AntragstypBucket | null {
   return getAntragstypBucket(vbPhase);
 }
 
+/**
+ * Fällt der Antrag in die gewählte Kategorie? `'Alle'` matcht immer.
+ *
+ * Für Anzeige-Kaskaden gedacht (die Projektart-Zähler zählen nur noch innerhalb
+ * des gewählten Antragstyps), NICHT als Ersatz für den echten Filter: der läuft
+ * weiterhin über die Filter-Engine (`applyKategorie` → `system-vb-phase`), damit
+ * es nicht zwei Wege gibt, dieselbe Menge zu bilden.
+ */
+export function matchesKategorie(a: AntragListItem, kategorie: KategorieLabel): boolean {
+  if (kategorie === 'Alle') return true;
+  return getAntragstypBucket(a.vb_phase) === kategorie;
+}
+
 /** Liefert die Items für `CollapsibleSeg`: Alle + 4 Kategorien mit Counts. */
 export function getKategorieItems(antraege: AntragListItem[]): CollapsibleSegItem[] {
   const counts: Record<KategorieLabel, number> = {

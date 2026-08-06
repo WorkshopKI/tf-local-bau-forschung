@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.13.0 — Projektart-Filter: Einzelprojekt mit Menue, Zaehler folgen dem Antragstyp (August 2026)
+
+MINOR — Die Projektart brachte fünf Segmente in eine Leiste, die schon vier Pillen trägt, und zwei davon lasen sich wie eine Aufteilung von „Einzelprojekt" (397 = 38 + 192), die sie nicht sind. Dazu zählten die Stufen den vollen Bestand, während der Antragstyp-Filter davor schon geschnitten hatte.
+
+- Die Netzwerkbezug-Stufen hängen im **Menü** unter „Einzelprojekt" statt daneben; Kurzform „mit / ohne NW Bezug" — [projektartQuickfilter.ts](src/plugins/antraege/filter/projektartQuickfilter.ts)
+- Segment-Knöpfe können ein Untermenü tragen (`unterpunkte`, opt-in — die fünf anderen Nutzer von `SegGroup` bleiben unverändert) — [CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)
+- Projektart-Zähler folgen dem gewählten Antragstyp (einseitig: „FuE" schneidet mit, die eigene Auswahl nicht) — [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx)
+- Mehrere Filter-Pillen dürfen gleichzeitig offen sein; der Zustand ist eine Menge statt eines Einzelwerts, alter Einzelwert wird gelesen — [quickfilterExpanded.ts](src/plugins/antraege/filter/quickfilterExpanded.ts)
+- Eine filternde Pille ist markiert — zugeklappt Rahmen + Grund, aufgeklappt die Beschriftung — [CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)
+
 ### v3.12.0 — Tabelle: stehende Kopfzeile, Darstellungs-Menue, verdichteter Seitenkopf (August 2026)
 
 MINOR — Der Seitenkopf der Fördertabelle war auf fünf Zeilen gewachsen: die drei Schalter „Ansicht", „Gruppierung" und „Beendet" belegten rechts rund 640 px und drängten die Quickfilter in einen Umbruch, unter dem die Trefferzahl noch eine eigene, links leere Zeile bekam. Nachgemessen bei 1.226 px Inhaltsbreite: 70 px weniger Kopf, zwei Zeilen weg. Und beim Blättern nach unten verschwand die Kopfzeile — bei 21 Spalten weiß dann niemand mehr, welche Spalte er liest.
