@@ -54,6 +54,7 @@ export const CATEGORY_ICONS: Record<FeedbackCategory, string> = {
 
 export const STATUS_LABELS: Record<FeedbackStatus, string> = {
   neu: 'Neu',
+  rueckfrage: 'Rückfrage',
   geplant: 'Geplant',
   in_bearbeitung: 'In Bearbeitung',
   umgesetzt: 'Umgesetzt',
@@ -66,11 +67,12 @@ export const STATUS_LABELS: Record<FeedbackStatus, string> = {
  * Light: z.B. text-red-800 auf bg-red-50 Äquivalent.
  * Dark: --tf-*-bg/text passen sich automatisch an.
  *
- * Verwendet von den Kurator-Bausteinen (FeedbackTicketRow etc.). Das öffentliche
- * Board (Redesign v2.208) nutzt die handoff-treue `STATUS_TINT`/`STATUS_DOT`.
+ * Verwendet von den Verwaltungs-Bausteinen (Inbox-Tab, Verwaltungs-Block). Das
+ * Board nutzt die handoff-treue `STATUS_TINT`/`STATUS_DOT`.
  */
 export const STATUS_COLORS: Record<FeedbackStatus, string> = {
   neu: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]',
+  rueckfrage: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]',
   geplant: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]',
   in_bearbeitung: 'bg-[var(--tf-info-bg)] text-[var(--tf-info-text)]',
   umgesetzt: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]',
@@ -86,6 +88,7 @@ export const STATUS_COLORS: Record<FeedbackStatus, string> = {
  */
 export const STATUS_TINT: Record<FeedbackStatus, string> = {
   neu: 'bg-[var(--tf-fb-status-neu-bg)] text-[var(--tf-fb-status-neu-text)]',
+  rueckfrage: 'bg-[var(--tf-fb-problem-bg)] text-[var(--tf-fb-problem)]',
   geplant: 'bg-[var(--tf-fb-frage-bg)] text-[var(--tf-fb-frage)]',
   in_bearbeitung: 'bg-[var(--tf-fb-ux-bg)] text-[var(--tf-fb-ux)]',
   umgesetzt: 'bg-[var(--tf-fb-lob-bg)] text-[var(--tf-fb-lob)]',
@@ -96,6 +99,7 @@ export const STATUS_TINT: Record<FeedbackStatus, string> = {
 /** Weicher Tint je Status (`-bg`-Token) — Ring der aktiven Stepper-Station. */
 export const STATUS_SOFT: Record<FeedbackStatus, string> = {
   neu: 'var(--tf-fb-status-neu-bg)',
+  rueckfrage: 'var(--tf-fb-problem-bg)',
   geplant: 'var(--tf-fb-frage-bg)',
   in_bearbeitung: 'var(--tf-fb-ux-bg)',
   umgesetzt: 'var(--tf-fb-lob-bg)',
@@ -106,6 +110,7 @@ export const STATUS_SOFT: Record<FeedbackStatus, string> = {
 /** Farb-Dot je Status (Stepper-Punkte + Status-Pill-Dot, Board-Spaltenkopf). */
 export const STATUS_DOT: Record<FeedbackStatus, string> = {
   neu: 'var(--tf-fb-status-neu-text)',
+  rueckfrage: 'var(--tf-fb-problem)',
   geplant: 'var(--tf-fb-frage)',
   in_bearbeitung: 'var(--tf-fb-ux)',
   umgesetzt: 'var(--tf-fb-lob)',
@@ -118,10 +123,11 @@ export const STATUS_DOT: Record<FeedbackStatus, string> = {
  * Kräftiger als STATUS_DOT: „Neu" + „Abgelehnt" haben eigene Lane-Tokens, die
  * Pipeline-Status teilen sich die übrigen Akzent-Tokens (frage/ux/lob — `--tf-fb-ux`
  * ist seit v2.289 reine Status-Farbe, die Kategorie gibt es nicht mehr). Tönungen (Kopf,
- * Rand, Badge) mischt FeedbackKanban per color-mix aus diesem Akzent.
+ * Rand, Badge) mischt das Board per color-mix aus diesem Akzent.
  */
 export const STATUS_LANE_ACCENT: Record<FeedbackStatus, string> = {
   neu: 'var(--tf-fb-lane-neu)',
+  rueckfrage: 'var(--tf-fb-problem)',
   geplant: 'var(--tf-fb-frage)',
   in_bearbeitung: 'var(--tf-fb-ux)',
   umgesetzt: 'var(--tf-fb-lob)',
@@ -132,6 +138,7 @@ export const STATUS_LANE_ACCENT: Record<FeedbackStatus, string> = {
 /** Status-Glyphe je Kanban-Spaltenkopf (lucide-Namen, Auflösung via getLucideIcon). */
 export const STATUS_COLUMN_ICONS: Record<FeedbackStatus, string> = {
   neu: 'CirclePlus',
+  rueckfrage: 'MessageCircleQuestion',
   geplant: 'Calendar',
   in_bearbeitung: 'Clock',
   umgesetzt: 'CircleCheck',

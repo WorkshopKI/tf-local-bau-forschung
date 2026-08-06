@@ -12,6 +12,13 @@ export interface ScopeTabItem {
    * einer nachgebauten Tab-Leiste (Guard `no-parallel-scope-tabs`).
    */
   leading?: React.ReactNode;
+  /**
+   * Optionales Nachsatz-Element HINTER dem Zähler — z.B. der rote Alarm-Punkt
+   * der Feedback-Smart-Views („2 neue Antworten"). Wie `leading` ein Slot am
+   * Primitiv statt einer zweiten, danebengebauten Leiste (Guard
+   * `no-parallel-scope-tabs`).
+   */
+  trailing?: React.ReactNode;
   /** Deaktiviert den Tab: nicht klickbar, gedimmt (Auswahl bleibt möglich per Tooltip-Hinweis). */
   disabled?: boolean;
   /** Nativer title-Tooltip (z.B. Grund der Deaktivierung). */
@@ -27,7 +34,7 @@ export interface ScopeTabItem {
 }
 
 /** Die Trennlinie — je Variante anders eingepasst, überall dasselbe Token. */
-function Trenner({ variant }: { variant: 'tabs' | 'pills' | 'segmented' }): React.ReactElement {
+function Trenner({ variant }: { variant: ScopeTabsVariant }): React.ReactElement {
   return (
     <span
       aria-hidden
@@ -41,15 +48,18 @@ function Trenner({ variant }: { variant: 'tabs' | 'pills' | 'segmented' }): Reac
   );
 }
 
+/** 'tabs' = breit/unterstrichen (Default — Förderanträge-Scope-Tabs);
+ *  'pills' = kompakt und dezent (Chat-Historie-Filter);
+ *  'pills-solid' = freistehende Pillen, aktiv gefüllt (Feedback-Smart-Views);
+ *  'segmented' = gefülltes Segmented-Control auf grauem Track.
+ *  EIN Bauteil, vier Darstellungen. */
+export type ScopeTabsVariant = 'tabs' | 'pills' | 'pills-solid' | 'segmented';
+
 export interface ScopeTabsProps {
   items: ScopeTabItem[];
   activeKey: string;
   onChange: (key: string) => void;
-  /** 'tabs' = breit/unterstrichen (Default — Förderanträge-Scope-Tabs);
-   *  'pills' = kompakt (Chat-Historie-Filter);
-   *  'segmented' = gefülltes Segmented-Control (aktiv = --tf-primary, Feedback-Board).
-   *  EIN Bauteil, drei Darstellungen. */
-  variant?: 'tabs' | 'pills' | 'segmented';
+  variant?: ScopeTabsVariant;
   className?: string;
   'aria-label'?: string;
 }
@@ -120,6 +130,60 @@ export function ScopeTabs({
                     {fmtCount(it.count)}
                   </span>
                 )}
+                {it.trailing}
+              </button>
+            </Fragment>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (variant === 'pills-solid') {
+    // Freistehende Pillen ohne Track (Handoff feedback-redesign): die Leiste ist
+    // der Haupteinstieg der Seite, deshalb trägt der aktive Eintrag den vollen
+    // Primärton statt nur einen Tint. Kein `hover:opacity` auf dem gefüllten
+    // Zustand (Guard `no-raw-cta-fill`), Kontrast über --tf-on-primary.
+    return (
+      <div
+        role="tablist"
+        aria-label={ariaLabel}
+        className={cn('flex items-center gap-[7px] flex-wrap', className)}
+      >
+        {items.map((it, i) => {
+          const active = it.key === activeKey;
+          return (
+            <Fragment key={it.key}>
+              {it.trennerDavor && i > 0 && <Trenner variant="pills-solid" />}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-disabled={it.disabled || undefined}
+                title={it.title}
+                onClick={() => { if (!it.disabled) onChange(it.key); }}
+                className={cn(
+                  'h-[30px] px-[13px] rounded-full inline-flex items-center gap-2 text-[12.5px] transition-colors border-[0.5px]',
+                  it.disabled
+                    ? 'bg-transparent border-[var(--tf-border)] text-[var(--tf-text-tertiary)] cursor-not-allowed'
+                    : active
+                      ? 'bg-[var(--tf-primary)] border-[var(--tf-primary)] text-[var(--tf-on-primary)] font-medium shadow-sm cursor-pointer'
+                      : 'bg-transparent border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:border-[var(--tf-border-hover)] hover:text-[var(--tf-text)] cursor-pointer',
+                )}
+              >
+                {it.leading}
+                {it.label}
+                {it.count != null && (
+                  <span
+                    className={cn(
+                      'text-[11px] [font-family:var(--tf-font-mono)]',
+                      active ? 'text-[var(--tf-on-primary)] opacity-75' : 'text-[var(--tf-text-tertiary)]',
+                    )}
+                  >
+                    {fmtCount(it.count)}
+                  </span>
+                )}
+                {it.trailing}
               </button>
             </Fragment>
           );
@@ -164,6 +228,7 @@ export function ScopeTabs({
                     {fmtCount(it.count)}
                   </span>
                 )}
+                {it.trailing}
               </button>
             </Fragment>
           );
@@ -205,6 +270,7 @@ export function ScopeTabs({
               {it.count != null && (
                 <span className="text-[12px] text-[var(--tf-text-tertiary)]">{fmtCount(it.count)}</span>
               )}
+              {it.trailing}
             </button>
           </Fragment>
         );

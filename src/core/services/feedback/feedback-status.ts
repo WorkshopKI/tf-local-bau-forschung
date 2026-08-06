@@ -17,6 +17,7 @@ import type { FeedbackStatus } from '@/core/types/feedback';
  */
 export const FEEDBACK_STATUS: Record<FeedbackStatus, FeedbackStatus> = {
   neu: 'neu',
+  rueckfrage: 'rueckfrage',
   geplant: 'geplant',
   in_bearbeitung: 'in_bearbeitung',
   umgesetzt: 'umgesetzt',
@@ -24,13 +25,20 @@ export const FEEDBACK_STATUS: Record<FeedbackStatus, FeedbackStatus> = {
   archiviert: 'archiviert',
 };
 
-/** „Offen" im Board-Sinn: neu / geplant / in Bearbeitung (noch nicht umgesetzt). */
+/** „Offen" im Board-Sinn: alles vor „umgesetzt" — inklusive `rueckfrage`, denn
+ *  ein Ticket, auf dessen Antwort das Team wartet, ist unerledigt, nicht fertig. */
 export function istOffen(status: FeedbackStatus): boolean {
   return (
     status === FEEDBACK_STATUS.neu ||
+    status === FEEDBACK_STATUS.rueckfrage ||
     status === FEEDBACK_STATUS.geplant ||
     status === FEEDBACK_STATUS.in_bearbeitung
   );
+}
+
+/** Wartet auf den Ersteller: das Team hat gefragt, es geht erst nach der Antwort weiter. */
+export function istRueckfrage(status: FeedbackStatus): boolean {
+  return status === FEEDBACK_STATUS.rueckfrage;
 }
 
 /** Umgesetzt (= „Done" im Board-Filter). */

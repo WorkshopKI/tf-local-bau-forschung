@@ -14,23 +14,28 @@ Feedback-Status ist **bewusst getrennt** von Antrag-Status (CLAUDE.md Pitfall #9
      | 'in_review';   // ← neu
    ```
 
-2. **UI-Konstanten** in [src/components/feedback/constants.ts](../../src/components/feedback/constants.ts):
-   - `STATUS_LABELS` — sichtbares Label (`'In Review'`).
-   - `STATUS_COLORS` — Badge-Klassen, eine bestehende Theme-Var wiederverwenden (z.B. `bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]`), **nicht** eigene Hex-Farben.
-   Beide sind `Record<FeedbackStatus, …>` — TypeScript erzwingt nach Step 1 die Vollständigkeit.
+2. **Prädikate** in [src/core/services/feedback/feedback-status.ts](../../src/core/services/feedback/feedback-status.ts):
+   - `FEEDBACK_STATUS` ergänzen (`Record<FeedbackStatus, …>` — der Compiler erzwingt es).
+   - Entscheiden, ob `istOffen` den neuen Status mitzählt. Das ist keine Formalie: „offen" steuert die Entwickler-Sicht „Alles offen".
 
-3. **Kurator-Filter** in [src/plugins/feedback/sections/FeedbackTicketList.tsx](../../src/plugins/feedback/sections/FeedbackTicketList.tsx):
-   - Wenn dort eine Status-Filter-Reihe mit hartcodierter Liste existiert (statt `STATUS_LABELS`-Iteration), die Liste ergänzen.
-   - Sortierreihenfolge im Dropdown beachten (typischerweise: aktive Stati zuerst, archivierte am Ende).
+3. **UI-Konstanten** in [src/components/feedback/constants.ts](../../src/components/feedback/constants.ts) — **sieben** `Record<FeedbackStatus, …>`, alle vom Compiler erzwungen:
+   `STATUS_LABELS` · `STATUS_COLORS` (Verwaltungs-Badges) · `STATUS_TINT` · `STATUS_SOFT` · `STATUS_DOT` · `STATUS_LANE_ACCENT` (Board-Spaltenfarbe) · `STATUS_COLUMN_ICONS` (lucide-Name).
+   Bestehende Theme-Vars wiederverwenden (`--tf-fb-*`, `--tf-{warning,danger,…}-*`), **nie** eigene Hex-Farben (Guard `theme-token-contract`).
 
-4. **Kurator-Aktionen** in [src/plugins/feedback/sections/FeedbackTicketDetail.tsx](../../src/plugins/feedback/sections/FeedbackTicketDetail.tsx):
-   - Falls dort ein Status-Wechsel-Dropdown existiert — entweder iteriert es über `STATUS_LABELS` (dann nichts zu tun) oder hat eine eigene Liste (ergänzen).
+4. **Board-Spalte** in [src/components/feedback/feedbackLanes.ts](../../src/components/feedback/feedbackLanes.ts):
+   - `FEEDBACK_LANE_STATUS` ist die Spaltenreihenfolge des Boards UND der Katalog wählbarer Lanes. Fehlt der Status hier, gibt es keine Spalte dafür.
+   - **Key-Bump nicht vergessen**: `BOARD_KANBAN_KEY` in [boardKanbanConfig.ts](../../src/components/feedback/boardKanbanConfig.ts) hochzählen. Ein persistierter Wert schlägt jeden Code-Default — ohne Bump sieht niemand mit gespeicherter Einstellung die neue Spalte, und die Tickets darin sind unsichtbar statt bloß unsortiert.
+   - Das Startseiten-Widget hat eine eigene Default-Lane-Liste ([feedbackKanbanLanes.ts](../../src/plugins/home/widgets/feedbackKanbanLanes.ts)); bestehende Widget-Instanzen behalten bewusst ihre persönliche Konfiguration.
+
+5. **Stepper** in [feedbackStepper.ts](../../src/core/services/feedback/feedbackStepper.ts): `FEEDBACK_PIPELINE` sind nur die vier Fortschritts-Stationen. Ein Seitenzustand gehört **nicht** hinein — er bekommt in `feedbackStepperPosition` einen expliziten Zweig (Vorbild `abgelehnt`, `rueckfrage`).
+
+6. **Klartext für den Ersteller** in [ticket/dauerText.ts](../../src/plugins/feedback-board/ticket/dauerText.ts): `dauerAussage` muss für JEDEN Status einen Satz liefern — ein Test erzwingt das. Schweigen wäre die schlechteste Antwort.
 
 ## Optional, je nach Status-Semantik
 
-- **Counter** auf der Sidebar-Tab: wenn der neue Status zum Tab-Badge zählen soll, in `FeedbackAdminPage.tsx` die Filter-Logik anpassen (`tickets.length` zählt aktuell alle).
-- **Sponsoring-Workflow**: Stati `umgesetzt` und `abgelehnt` lösen Punkte-Rückbuchung in [budgetService.ts](../../src/core/services/feedback/budgetService.ts) aus. Wenn der neue Status auch eine Rückbuchung triggern soll, dort ergänzen.
-- **Board-Sichtbarkeit**: das öffentliche Board (`feedback-board`-Plugin) filtert standardmäßig `archiviert` aus. Wenn der neue Status auch versteckt werden soll, in der Board-Filter-Logik ergänzen.
+- **Sponsoring**: `isSponsoringOpen` ([feedbackSponsoring.ts](../../src/core/services/feedback/feedbackSponsoring.ts)) zählt auf, in welchen Status noch unterstützt werden darf.
+- **Smart Views**: braucht der neue Status eine eigene Sicht (wie `rueckfrage` → „Wartet auf mich" / „Rückfragen offen")? → [smartViews.ts](../../src/plugins/feedback-board/smartViews.ts).
+- **Board-Sichtbarkeit**: die Board-Basis blendet `archiviert` aus ([FeedbackBoardPage.tsx](../../src/plugins/feedback-board/FeedbackBoardPage.tsx), `istArchiviert`). Soll der neue Status ebenfalls verborgen sein, dort ergänzen.
 
 ## Nicht ändern
 
@@ -38,6 +43,6 @@ Feedback-Status ist **bewusst getrennt** von Antrag-Status (CLAUDE.md Pitfall #9
 
 ## Verifikation
 
-- `npm run typecheck` — TS prüft die `Record<FeedbackStatus, …>`-Vollständigkeit.
-- `npm run test` — vorhandene Feedback-Tests fangen Mapping-Lücken.
-- Manuell: Feedback-Plugin im Kurator-Tab öffnen, Test-Ticket erstellen, Status setzen, Badge rendert mit dem neuen Label + Farbe.
+- `npm run typecheck` — TS prüft die `Record<FeedbackStatus, …>`-Vollständigkeit. Das fängt die meisten Stellen, aber **nicht** die Lane-Liste und nicht den Key-Bump.
+- `npm run test` — die Board-Tests fangen Reihenfolge und Bucketing.
+- Selbst ansehen (`npm run dev:local`): Board zeigt die neue Spalte samt Summenzeile, die Status-Facette zählt sie, der Chip setzt sie, und im Detail steht der passende Klartext-Streifen.

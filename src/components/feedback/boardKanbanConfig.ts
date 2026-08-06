@@ -14,7 +14,11 @@ import type { FeedbackStatus } from '@/core/types/feedback';
 import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from './feedbackLanes';
 
-export const BOARD_KANBAN_KEY = 'tf-feedback-board-kanban-v1';
+// Key-Bump `_v2` (v3.12): die Default-Lane-Liste hat mit `rueckfrage` eine Spalte
+// mehr und Abgelehnt ist ans Ende gewandert. Ein persistierter `_v1`-Wert schlägt
+// jeden Code-Default — ohne Bump sähe niemand mit gespeicherter Einstellung die
+// neue Spalte, und die Rückfrage-Tickets wären unsichtbar statt bloß unsortiert.
+export const BOARD_KANBAN_KEY = 'tf-feedback-board-kanban-v2';
 
 export interface BoardKanbanConfig {
   lanes: FeedbackLane[];
@@ -22,9 +26,8 @@ export interface BoardKanbanConfig {
 }
 
 /**
- * Default = das Verhalten VOR dieser Einstellung: alle fünf Lanes in
- * Design-Reihenfolge, einspaltig, bunt. Wer nichts einstellt, sieht das
- * gewohnte Board.
+ * Default = alle Lanes des Katalogs in Design-Reihenfolge, einspaltig, bunt.
+ * Wer nichts einstellt, sieht das vollständige Board.
  */
 export function defaultBoardKanbanConfig(): BoardKanbanConfig {
   return {

@@ -1,19 +1,29 @@
 /**
- * Tests der reinen Board-Filter-/Sortier-Logik (v2.364, herausgezogen aus
- * FeedbackBoardPage). Deckt die Kombination Scope × Kategorie × Status × Suche
- * sowie alle fünf Ordnungen ab — der Gleichstand fällt immer auf „neueste zuerst".
+ * Tests der reinen Board-Filter-/Sortier-Logik. Deckt die zwei Stufen
+ * (Smart View → Facetten × Suche) und alle acht Ordnungen ab; der Gleichstand
+ * fällt immer auf „neueste zuerst".
  */
 import { describe, expect, it } from 'vitest';
 import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
-import { KEINE_IDENTITAET, baueIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
-import { filterAndSortBoard, matchesBoardFilter, type BoardFilterState } from '../boardFilter';
+import { baueIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
+import {
+  filterAndSortBoard,
+  matchesBoardFilter,
+  scopeBoard,
+  suchHeuhaufen,
+  type BoardFilterState,
+} from '../boardFilter';
+import { SMART_VIEWS_ENTWICKLER, SMART_VIEWS_NUTZER, type SmartViewKontext } from '../smartViews';
+import { TYP_UNKLASSIFIZIERT } from '../boardZahlen';
 
 const CONFIG: FeedbackConfig = DEFAULT_FEEDBACK_CONFIG;
 const ME = 'THU';
 /** Kürzel + Profilname — beide Schreibweisen gehören mir (feedbackIdentitaet). */
 const ME_ALIAS = 'TH PL';
 const ICH = baueIdentitaet(ME, ME_ALIAS);
+
+const KTX: SmartViewKontext = { ich: ICH, heute: '2026-08-06', istUngelesen: () => false };
 
 function fb(id: string, over: Partial<FeedbackItem> = {}): FeedbackItem {
   return {
@@ -31,125 +41,155 @@ function fb(id: string, over: Partial<FeedbackItem> = {}): FeedbackItem {
   };
 }
 
+const view = (key: string) =>
+  SMART_VIEWS_NUTZER.find(v => v.key === key) ?? SMART_VIEWS_ENTWICKLER.find(v => v.key === key)!;
+
 const BASIS: BoardFilterState = {
-  scope: 'alle', ich: ICH, kategorie: '', status: 'alle', query: '', sort: 'neu',
+  view: view('alle'), ctx: KTX, typ: '', status: '', bereich: '', query: '', sort: 'neu',
 };
 
-describe('matchesBoardFilter', () => {
-  it('Scope „mir" behält nur eigene, „team" nur fremde Tickets', () => {
-    const eigen = fb('A');
-    const fremd = fb('B', { user_id: 'AND' });
-    expect(matchesBoardFilter(eigen, { ...BASIS, scope: 'mir' })).toBe(true);
-    expect(matchesBoardFilter(fremd, { ...BASIS, scope: 'mir' })).toBe(false);
-    expect(matchesBoardFilter(eigen, { ...BASIS, scope: 'team' })).toBe(false);
-    expect(matchesBoardFilter(fremd, { ...BASIS, scope: 'team' })).toBe(true);
+describe('Smart Views', () => {
+  it('„Meine Tickets" erkennt beide Schreibweisen der eigenen Identität', () => {
+    const unterKuerzel = fb('A', { user_id: ME });
+    const unterName = fb('B', { user_id: ME_ALIAS });
+    const fremd = fb('C', { user_id: 'XYZ' });
+    const f = { ...BASIS, view: view('meine') };
+    expect([unterKuerzel, unterName, fremd].filter(t => matchesBoardFilter(t, f)).map(t => t.id))
+      .toEqual(['A', 'B']);
   });
 
-  it('ohne Identität liefert „mir" nichts und „team" alles', () => {
-    const ohneId: BoardFilterState = { ...BASIS, ich: KEINE_IDENTITAET };
-    expect(matchesBoardFilter(fb('A'), { ...ohneId, scope: 'mir' })).toBe(false);
-    expect(matchesBoardFilter(fb('A'), { ...ohneId, scope: 'team' })).toBe(true);
+  it('„Wartet auf mich" nimmt nur EIGENE Tickets im Status Rückfrage', () => {
+    const meineRueckfrage = fb('A', { kurator_status: 'rueckfrage' });
+    const fremdeRueckfrage = fb('B', { user_id: 'XYZ', kurator_status: 'rueckfrage' });
+    const meinNeu = fb('C');
+    const f = { ...BASIS, view: view('wartet') };
+    expect([meineRueckfrage, fremdeRueckfrage, meinNeu].filter(t => matchesBoardFilter(t, f)).map(t => t.id))
+      .toEqual(['A']);
   });
 
-  it('„mir" findet auch ein Ticket, das unter dem PROFILNAMEN erfasst wurde', () => {
-    // Der Kern-Defekt bis v3.7: erfasst unter profile.name, verglichen gegen das
-    // Kürzel — „Von mir" war deshalb dauerhaft leer.
-    const alt = fb('ALT', { user_id: ME_ALIAS });
-    expect(matchesBoardFilter(alt, { ...BASIS, scope: 'mir' })).toBe(true);
-    expect(matchesBoardFilter(alt, { ...BASIS, scope: 'team' })).toBe(false);
+  it('„Neu diese Woche" schneidet bei sieben Tagen', () => {
+    const frisch = fb('A', { created_at: '2026-08-02T10:00:00Z' }); // 4 Tage
+    const grenze = fb('B', { created_at: '2026-07-30T09:00:00Z' }); // 7 Tage
+    const alt = fb('C', { created_at: '2026-07-20T10:00:00Z' });
+    const f = { ...BASIS, view: view('neu7') };
+    expect([frisch, grenze, alt].filter(t => matchesBoardFilter(t, f)).map(t => t.id))
+      .toEqual(['A', 'B']);
   });
 
-  it('Kategorie- und Status-Filter greifen einzeln', () => {
-    expect(matchesBoardFilter(fb('A', { category: 'problem' }), { ...BASIS, kategorie: 'problem' })).toBe(true);
-    expect(matchesBoardFilter(fb('A', { category: 'idea' }), { ...BASIS, kategorie: 'problem' })).toBe(false);
-    expect(matchesBoardFilter(fb('A', { kurator_status: 'geplant' }), { ...BASIS, status: 'geplant' })).toBe(true);
-    expect(matchesBoardFilter(fb('A', { kurator_status: 'neu' }), { ...BASIS, status: 'geplant' })).toBe(false);
+  it('„Alles offen" enthält Rückfragen — ein wartendes Ticket ist unerledigt, nicht fertig', () => {
+    const items = [
+      fb('A', { kurator_status: 'neu' }),
+      fb('B', { kurator_status: 'rueckfrage' }),
+      fb('C', { kurator_status: 'in_bearbeitung' }),
+      fb('D', { kurator_status: 'umgesetzt' }),
+      fb('E', { kurator_status: 'abgelehnt' }),
+    ];
+    expect(scopeBoard(items, view('offen'), KTX).map(t => t.id)).toEqual(['A', 'B', 'C']);
   });
 
-  it('Status „lob" ist ein Kategorie-Filter, kein Statuswert', () => {
-    expect(matchesBoardFilter(fb('A', { category: 'praise' }), { ...BASIS, status: 'lob' })).toBe(true);
-    expect(matchesBoardFilter(fb('A', { category: 'idea' }), { ...BASIS, status: 'lob' })).toBe(false);
+  it('„Mir zugewiesen" vergleicht den Assignee tolerant gegen die eigene Identität', () => {
+    const items = [
+      fb('A', { assignee: ME }),
+      fb('B', { assignee: ME_ALIAS }),
+      fb('C', { assignee: 'XYZ' }),
+      fb('D'),
+    ];
+    expect(scopeBoard(items, view('mir'), KTX).map(t => t.id)).toEqual(['A', 'B']);
   });
 
-  it('Suche greift auf Titel, Text und Seite — und ignoriert Groß/Kleinschreibung', () => {
-    const t = fb('A', { title: 'Zwischenablage kopieren', text: 'FKZ per Klick' });
-    expect(matchesBoardFilter(t, { ...BASIS, query: 'zwischenablage' })).toBe(true);
-    expect(matchesBoardFilter(t, { ...BASIS, query: 'FKZ' })).toBe(true);
-    expect(matchesBoardFilter(t, { ...BASIS, query: 'förderanträge' })).toBe(true); // context.page
-    expect(matchesBoardFilter(t, { ...BASIS, query: 'gibtesnicht' })).toBe(false);
+  it('„Triage" zeigt nur ungeschätzte NEUE Tickets', () => {
+    const items = [
+      fb('A'),
+      fb('B', { effort_estimate: 'M' }),
+      fb('C', { kurator_status: 'geplant' }),
+    ];
+    expect(scopeBoard(items, view('triage'), KTX).map(t => t.id)).toEqual(['A']);
   });
 
-  it('Suche greift auch auf die Team-Antwort', () => {
-    // Seit v3.7 steht die Antwort als Marker auf der Karte — wonach man sieht,
-    // muss man auch suchen können.
-    const t = fb('A', { kurator_response: 'Kommt mit dem nächsten Sprint' });
-    expect(matchesBoardFilter(t, { ...BASIS, query: 'sprint' })).toBe(true);
-  });
-
-  it('leere Suche (nur Leerzeichen) filtert nicht', () => {
-    expect(matchesBoardFilter(fb('A'), { ...BASIS, query: '   ' })).toBe(true);
+  it('„Meiste Unterstützer" erzwingt seine Ordnung gegen die Toolbar-Wahl', () => {
+    const wenig = fb('A', { votes: [{ user_id: 'x', created_at: '2026-07-01T00:00:00Z' }] });
+    const viel = fb('B', {
+      created_at: '2026-06-01T10:00:00Z',
+      votes: [
+        { user_id: 'x', created_at: '2026-07-01T00:00:00Z' },
+        { user_id: 'y', created_at: '2026-07-01T00:00:00Z' },
+      ],
+    });
+    // sort: 'neu' würde A zuerst zeigen — die Sicht überschreibt das.
+    const f = { ...BASIS, view: view('top'), sort: 'neu' as const };
+    expect(filterAndSortBoard([wenig, viel], f, CONFIG).map(t => t.id)).toEqual(['B', 'A']);
   });
 });
 
-describe('filterAndSortBoard — Ordnungen', () => {
-  const alt = fb('ALT', { created_at: '2026-06-01T10:00:00Z' });
-  const neu = fb('NEU', { created_at: '2026-07-20T10:00:00Z' });
-
-  it('„neu": neueste zuerst', () => {
-    expect(filterAndSortBoard([alt, neu], BASIS, CONFIG).map(t => t.id)).toEqual(['NEU', 'ALT']);
+describe('Facetten', () => {
+  it('Typ-Facette trennt klassifiziert von unklassifiziert', () => {
+    const idee = fb('A', { category: 'idea' });
+    const ohne = fb('B', { category: undefined });
+    expect(matchesBoardFilter(idee, { ...BASIS, typ: 'idea' })).toBe(true);
+    expect(matchesBoardFilter(ohne, { ...BASIS, typ: 'idea' })).toBe(false);
+    expect(matchesBoardFilter(ohne, { ...BASIS, typ: TYP_UNKLASSIFIZIERT })).toBe(true);
+    expect(matchesBoardFilter(idee, { ...BASIS, typ: TYP_UNKLASSIFIZIERT })).toBe(false);
   });
 
-  it('„kmt": meiste Kommentare zuerst, Gleichstand → neueste', () => {
-    const viel = fb('VIEL', {
-      created_at: '2026-06-01T10:00:00Z',
-      comments: [
-        { id: 'c1', user_id: 'a', text: 'x', created_at: '' },
-        { id: 'c2', user_id: 'b', text: 'y', created_at: '' },
-      ],
-    });
-    expect(filterAndSortBoard([neu, viel], { ...BASIS, sort: 'kmt' }, CONFIG).map(t => t.id))
-      .toEqual(['VIEL', 'NEU']);
+  it('Status-Facette vergleicht exakt', () => {
+    const t = fb('A', { kurator_status: 'rueckfrage' });
+    expect(matchesBoardFilter(t, { ...BASIS, status: 'rueckfrage' })).toBe(true);
+    expect(matchesBoardFilter(t, { ...BASIS, status: 'neu' })).toBe(false);
   });
 
-  it('„pkt": mehr Sponsoring-Punkte zuerst', () => {
-    const gesponsert = fb('SPON', {
-      created_at: '2026-06-01T10:00:00Z', effort_estimate: 'S',
-      sponsors: [{ user_id: 'a', user_display_name: 'A', type: 'points', amount: 4, created_at: '' }],
-      sponsor_points_total: 4,
+  it('Bereichs-Facette nimmt das kuratierte Feld VOR der Meldung des Erstellers', () => {
+    const korrigiert = fb('A', {
+      bereich: 'suche',
+      context: { ...fb('x').context, screenRef: 'antraege' },
     });
-    expect(filterAndSortBoard([neu, gesponsert], { ...BASIS, sort: 'pkt' }, CONFIG).map(t => t.id))
-      .toEqual(['SPON', 'NEU']);
+    expect(matchesBoardFilter(korrigiert, { ...BASIS, bereich: 'suche' })).toBe(true);
+    expect(matchesBoardFilter(korrigiert, { ...BASIS, bereich: 'antraege' })).toBe(false);
+  });
+});
+
+describe('Suche', () => {
+  it('findet Titel, Text, Team-Antwort, Autor und Zuständigen', () => {
+    const t = fb('A', {
+      title: 'Spaltenbreiten gehen verloren',
+      text: 'Nach dem Reload steht alles zurück',
+      kurator_response: 'Kommt mit dem Hotfix',
+      user_display_name: 'Petra Vogt',
+      assignee: 'MKE',
+    });
+    for (const q of ['spaltenbreiten', 'reload', 'hotfix', 'petra', 'mke']) {
+      expect(matchesBoardFilter(t, { ...BASIS, query: q }), q).toBe(true);
+    }
+    expect(matchesBoardFilter(t, { ...BASIS, query: 'kaffee' })).toBe(false);
   });
 
-  it('„sup": mehr Sponsoren zuerst', () => {
-    const zwei = fb('ZWEI', {
-      created_at: '2026-06-01T10:00:00Z', effort_estimate: 'S',
-      sponsors: [
-        { user_id: 'a', user_display_name: 'A', type: 'points', amount: 1, created_at: '' },
-        { user_id: 'b', user_display_name: 'B', type: 'points', amount: 1, created_at: '' },
-      ],
-    });
-    expect(filterAndSortBoard([neu, zwei], { ...BASIS, sort: 'sup' }, CONFIG).map(t => t.id))
-      .toEqual(['ZWEI', 'NEU']);
+  it('findet das Kurz-Handle mit und ohne Raute', () => {
+    const t = fb('fb-1754300000000-a7k2z');
+    const nummer = suchHeuhaufen(t).slice(-4);
+    expect(matchesBoardFilter(t, { ...BASIS, query: nummer })).toBe(true);
+    expect(matchesBoardFilter(t, { ...BASIS, query: `#${nummer.toUpperCase()}` })).toBe(true);
+  });
+});
+
+describe('compareBoardTickets', () => {
+  it('„Zuletzt bewegt" nutzt updated_at, fällt auf created_at zurück', () => {
+    const alt = fb('A', { created_at: '2026-01-01T10:00:00Z', updated_at: '2026-08-05T10:00:00Z' });
+    const neu = fb('B', { created_at: '2026-07-01T10:00:00Z' });
+    expect(filterAndSortBoard([neu, alt], { ...BASIS, sort: 'bewegt' }, CONFIG).map(t => t.id))
+      .toEqual(['A', 'B']);
   });
 
-  it('„naht": kurz vors Ziel zuerst, ERREICHTE Ziele sinken nach unten', () => {
-    // Schwelle S = 5 Punkte (DEFAULT_SPONSORING_THRESHOLDS).
-    const knapp = fb('KNAPP', {
-      effort_estimate: 'S',
-      sponsors: [{ user_id: 'a', user_display_name: 'A', type: 'points', amount: 4, created_at: '' }],
-    });
-    const erreicht = fb('ERREICHT', {
-      effort_estimate: 'S',
-      sponsors: [{ user_id: 'b', user_display_name: 'B', type: 'points', amount: 9, created_at: '' }],
-    });
-    expect(filterAndSortBoard([erreicht, knapp], { ...BASIS, sort: 'naht' }, CONFIG).map(t => t.id))
-      .toEqual(['KNAPP', 'ERREICHT']);
+  it('„Kleinster Aufwand" sortiert ungeschätzte ans Ende', () => {
+    const gross = fb('A', { effort_estimate: 'XL' });
+    const klein = fb('B', { effort_estimate: 'XS' });
+    const ohne = fb('C');
+    expect(filterAndSortBoard([gross, ohne, klein], { ...BASIS, sort: 'aufwand' }, CONFIG).map(t => t.id))
+      .toEqual(['B', 'A', 'C']);
   });
 
-  it('lässt die Eingabeliste unangetastet', () => {
-    const eingabe = [alt, neu];
-    filterAndSortBoard(eingabe, BASIS, CONFIG);
-    expect(eingabe.map(t => t.id)).toEqual(['ALT', 'NEU']);
+  it('bei Gleichstand entscheidet „neueste zuerst"', () => {
+    const aelter = fb('A', { created_at: '2026-06-01T10:00:00Z' });
+    const juenger = fb('B', { created_at: '2026-07-15T10:00:00Z' });
+    expect(filterAndSortBoard([aelter, juenger], { ...BASIS, sort: 'stimmen' }, CONFIG).map(t => t.id))
+      .toEqual(['B', 'A']);
   });
 });

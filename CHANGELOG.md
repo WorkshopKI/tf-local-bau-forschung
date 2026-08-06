@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.17.0 — Feedback-Tickets: Verwaltung an der Karte, Status Rueckfrage, Sichten und Facetten (August 2026)
+
+MINOR — Das Board hatte drei Defekte, die erst bei realer Ticketmenge greifen: die Verwaltungsfelder lagen vier Ebenen tief in einem eingeklappten Akkordeon, eine Entwickler-Rückfrage versandete als Kommentar, den niemand sah, und ab etwa hundert Tickets gab es keinen Einstieg außer „alle". Umbau nach Handoff `_design/handoff/feedback-redesign`; Etappe 1 von 2 (Massenbearbeitung folgt).
+
+- Status, Aufwand, Zuständigkeit und Bereich sind Inline-Chips an Karte, Zeile und in einer festen Aktionsleiste im Detail — jede Änderung mit Toast und „Rückgängig" — [ticket/](src/plugins/feedback-board/ticket/)
+- Neuer Status **Rückfrage** mit eigener Board-Spalte, Sicht „Wartet auf mich" und Klartext-Streifen, der Aufwand in Dauer übersetzt — [dauerText.ts](src/plugins/feedback-board/ticket/dauerText.ts)
+- Rollenabhängige Sichten mit Zählern, Facetten-Leiste (Typ · Status · Bereich), Spalten-Kappung, Spaltenkopf-Summen, drei Dichte-Stufen — [smartViews.ts](src/plugins/feedback-board/smartViews.ts), [boardZahlen.ts](src/plugins/feedback-board/boardZahlen.ts)
+- Neue Felder `assignee`/`bereich` + `FeedbackComment.kind` (additiv, Kurator-Felder shared-wins); Autor darf sein eigenes Ticket ändern, solange es auf „Neu" steht — [feedback.ts](src/core/types/feedback.ts)
+- Zwölf abgelöste bzw. tote Bausteine entfernt (−1.400 LOC), `ScopeTabs` um Variante `pills-solid` + `trailing`-Slot erweitert — [feedback-system.md](docs/architecture/feedback-system.md)
+
 ### v3.16.1 — Gesamtbreiten-Griff auf 4px (August 2026)
 
 PATCH — Der Griff am rechten Tabellenrand war auch nach 12 → 8 px noch zu breit für das, was er ist: eine Kante, kein Bedienelement mit Fläche.

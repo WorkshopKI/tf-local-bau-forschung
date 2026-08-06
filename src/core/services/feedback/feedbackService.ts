@@ -256,6 +256,9 @@ export async function updateFeedback(
     | 'llm_summary' | 'llm_classification' | 'user_confirmed'
     | 'is_faq' | 'faq_answer' | 'faq_keywords' | 'faq_ask_count'
     | 'effort_estimate' | 'effort_hours' | 'votes' | 'comments'
+    // `assignee`/`bereich` (v3.12): Kurator-Felder der Inline-Verwaltung am
+    // Board — shared-wins beim Merge, deshalb NICHT im Nutzerfeld-Block.
+    | 'assignee' | 'bereich'
   >>,
 ): Promise<void> {
   // ZUERST die Lage des geteilten Stands (v3.7). Auf `unlesbar` darf hier nichts

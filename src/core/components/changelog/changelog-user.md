@@ -19,6 +19,21 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.17 — 2026-08
+
+### Neu
+- Das Feedback-Board hat jetzt Sichten wie „Meine Tickets", „Wartet auf mich" oder „Neu diese Woche" — mit Trefferzahl, damit man nicht mehr bei „alle" anfangen muss.
+- Links steht eine Filterleiste nach Typ, Status und Bereich; jede Zeile zeigt, wie viele Tickets sie trifft.
+- Neuer Status **Rückfrage**: Wenn das Team etwas von dir wissen will, taucht dein Ticket unter „Wartet auf mich" auf, statt dass die Frage als Kommentar untergeht.
+- Im Detail steht jetzt im Klartext, woran du bist: „Noch nicht geschätzt", „Aufwand M · Umsetzung 8 h · ist eingeplant" oder „Wartet auf dich".
+- Solange noch niemand dein Ticket angefasst hat, kannst du Titel und Text selbst nachbessern.
+
+### Verbesserungen
+- Status, Aufwand, Zuständigkeit und Bereich lassen sich direkt an der Karte ändern — ein Klick statt vier. Jede Änderung meldet sich unten kurz und lässt sich zurücknehmen.
+- Das Board zeigt je Spalte, wie viel Arbeit darin steckt („384 h geschätzt · 44 ungeschätzt") und lädt lange Spalten erst auf Klick nach.
+- Das Board bleibt beim Öffnen eines Tickets stehen, statt in die Listenansicht zu springen; die Liste blendet stattdessen Spalten aus, wenn der Platz knapp wird.
+- Neue Anzeigestufe „Sehr kompakt" für den Überblick über viele Tickets.
+
 ## v3.16 — 2026-08
 
 ### Verbesserungen

@@ -28,12 +28,16 @@ export interface FeedbackStepperPosition {
 /**
  * Bildet einen Feedback-Status auf die Stepper-Position ab.
  * - `abgelehnt` → `{ index: 0, rejected: true }` (Seitenpfad).
+ * - `rueckfrage` → Station „Neu": die Rückfrage hält das Ticket vor der Planung
+ *   an, sie bringt es nicht weiter. Dass jemand wartet, sagt der Dauer-Streifen
+ *   im Detail — der Stepper zeigt nur den Fortschritt.
  * - `archiviert` → wie `umgesetzt` (letzte Station; wird i.d.R. gar nicht angezeigt,
  *   da die Board-Basis Archiviertes ausblendet).
  * - sonst → 0-basierter Index in der Pipeline (unbekannt/nicht gefunden → 0).
  */
 export function feedbackStepperPosition(status: FeedbackStatus): FeedbackStepperPosition {
   if (status === FEEDBACK_STATUS.abgelehnt) return { index: 0, rejected: true };
+  if (status === FEEDBACK_STATUS.rueckfrage) return { index: 0, rejected: false };
   if (status === FEEDBACK_STATUS.archiviert) {
     return { index: FEEDBACK_PIPELINE.length - 1, rejected: false };
   }

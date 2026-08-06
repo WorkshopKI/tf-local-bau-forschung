@@ -1,10 +1,10 @@
-// Geteilte UI-Helfer für die Feedback-Komponenten.
-// Beide Funktionen lagen zuvor dupliziert in MyFeedbackList.tsx und
-// FeedbackBoardCard.tsx — hier zentralisiert (DRY).
+// Geteilte UI-Helfer für die Feedback-Komponenten — Titel-Ableitung, Kurz-Q&A,
+// Datumsformat, Kommentar-Vorschau. Reine Funktionen, kein React: jede Karte,
+// jede Zeile und das Detail-Panel lesen dieselbe Quelle.
 
 import * as Icons from 'lucide-react';
 import type { FeedbackComment, FeedbackItem } from '@/core/types/feedback';
-import { FEEDBACK_TYPES } from './constants';
+import { FEEDBACK_TYPES, TEAMFLOW_AREAS } from './constants';
 
 export type IconComponent = React.ComponentType<{ size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
 
@@ -30,6 +30,43 @@ export function feedbackAuthorLabel(item: { user_display_name?: string; user_id?
   const raw = (item.user_display_name || item.user_id || '').trim();
   if (!raw || raw.toLowerCase() === 'anonymous') return undefined;
   return raw;
+}
+
+/**
+ * Kurzes, aussprechbares Handle eines Tickets für Karte, Zeile, Menükopf und
+ * Suche (v3.12) — z.B. `A7K2`.
+ *
+ * Der Handoff zeigt fortlaufende Nummern (`#1083`); die gibt es hier nicht und
+ * sie ließen sich auch nicht nachrüsten: Tickets entstehen auf mehreren Geräten
+ * gleichzeitig (Share-Write UND persönliche Outbox), ein zentraler Zähler hätte
+ * keinen Ort. Stattdessen die letzten vier Stellen der ohnehin eindeutigen Id —
+ * stabil über die Lebenszeit des Tickets, kurz genug zum Vorlesen, und in der
+ * Suche auffindbar (mit und ohne `#`).
+ */
+export function feedbackNummer(item: { id: string }): string {
+  const kompakt = item.id.replace(/[^a-z0-9]/gi, '');
+  return kompakt.slice(-4).toUpperCase() || '????';
+}
+
+/**
+ * Bereich eines Tickets als `TEAMFLOW_AREAS.ref`. Reihenfolge der Quellen:
+ * kuratiertes `bereich`-Feld (v3.12, von einem Verwalter gesetzt) → die Auswahl
+ * des Melders bei der Erfassung (`context.screenRef`) → `'sonstiges'`.
+ * `context.route` bleibt bewusst außen vor: das ist die Plugin-Id der offenen
+ * Seite, nicht zwingend der Bereich, um den es geht.
+ */
+export function ticketBereich(item: FeedbackItem): string {
+  const kuratiert = (item.bereich ?? '').trim();
+  if (kuratiert) return kuratiert;
+  const gemeldet = (item.context?.screenRef ?? '').trim();
+  if (gemeldet) return gemeldet;
+  return 'sonstiges';
+}
+
+/** Anzeigename eines Bereichs-Refs. Unbekannte Refs (aus Bestandsdaten, die Liste
+ *  ist append-only) geben den Ref selbst zurück, statt zu verschwinden. */
+export function bereichLabel(ref: string): string {
+  return TEAMFLOW_AREAS.find(a => a.ref === ref)?.label ?? ref;
 }
 
 /** Ein Frage-/Antwort-Paar eines Feedbacks für die Listen-Vorschau. `frage` fehlt

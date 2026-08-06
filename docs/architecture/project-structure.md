@@ -193,7 +193,6 @@ src/
 │       ├── FeedbackConfirmCard.tsx
 │       ├── FaqSuggestions.tsx
 │       ├── MyFeedbackList.tsx
-│       ├── FeedbackBoardCard.tsx <- Phase 3: Board-Karte mit Sponsoring-Progress
 │       ├── SponsorButton.tsx     <- Phase 3: Punkte/Stunden-Sponsor-UI
 │       ├── BudgetBadge.tsx       <- Phase 3: X/Y Punkte (Q.) mit Ampelfarbe
 │       ├── constants.ts

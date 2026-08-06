@@ -1,51 +1,61 @@
-# Feedback
+# Feedback-Tickets
 
 ## Zweck
 
-Öffentliche Übersicht aller gemeldeten Probleme, Ideen und Lob: Fortschritt verfolgen, per Stimme („Ich auch") Nachfrage zeigen, kommentieren und Ideen mit einem Punkte-Budget sponsern (priorisieren). Seit v2.364 **die einzige Feedback-Seite** — der frühere Menüpunkt „Kuration → Feedback" ist hier aufgegangen: Verwalten, Ergänzen und Löschen passieren direkt auf dieser Seite.
+Öffentliche Übersicht aller gemeldeten Probleme, Ideen und Lob: Fortschritt verfolgen, per Stimme („Ich auch") Nachfrage zeigen, kommentieren und Ideen mit einem Punkte-Budget sponsern (priorisieren). **Die einzige Feedback-Seite** — Verwalten, Ergänzen und Löschen passieren direkt hier.
+
+Die Seite bedient zwei Blickwinkel auf denselben Bestand: der **Ersteller** will wissen, was mit seinem Ticket ist und wie lange es dauert; die **Entwicklung** will Status, Aufwand und Zuständigkeit setzen, ohne die Ansicht zu wechseln. Welchen Blick man bekommt, entscheidet das Schreibrecht; wer verwalten darf, kann oben rechts zwischen **Nutzer** und **Entwickler** umschalten, um zu sehen, was beim Melder ankommt.
 
 ## UI-Elemente & Begriffe
 
-- **Kopf:** Titel „Feedback", Zähler (Probleme/Ideen), Benachrichtigungs-Glocke (ungelesene Team-Antworten → springt zu „Von mir"), Budget-Badge „Budget Q3 · N/10 Pkt".
-- **Filterzeile:** Scope-Segmente „Alle / Von mir / Vom Team", Suchfeld, Sortier-Dropdown (5 Ordnungen), Umschalter Board (Standard)/Liste, Dichte-Knopf (Komfort/Kompakt, gerätelokal gemerkt), Typ-Filter-Chips „Alle · Problem · Idee · Lob · Frage", Status-Filter (Liste), Checkbox **„Archivierte einblenden"** (Aufräum-Sicht). In „Von mir" zusätzlich eine „Dein Fortschritt"-Leiste.
-- **Liste:** Karten mit Typ-Icon, Titel (+ „Antwort"-Marker sobald eine Team-Antwort vorliegt, + blauer „+N"-Marker bei neuen Kommentaren), Vorschauzeile (kompakt: einzeilig), Status-Pill, Mini-Stepper (eigene), Bereich, Autor, Aufwand, Kommentare; rechts Sponsoring-Leiste „X/Y Pkt · N Sponsoren" (Ideen mit Aufwand) oder Vote-Pill + Screenshot-Thumbnail (Lightbox). Eigenes Feedback trägt einen Akzentstrich.
-- **Board:** farbige Kanban-Spalten mit Status-Symbol (Neu · Abgelehnt · Geplant · In Bearbeitung · Umgesetzt); Lob hat keinen Workflow und erscheint nur in der Liste; leere Spalten klappen zusammen. Board-Karten: Typ-Farbkante + Typ-Label, oben rechts „Antwort"- und „+N"-Marker, Datum, Titel, optionales Vorschaubild, unten Autor („Du" bei eigenen) + Datei-/Kommentar-Zähler + Punkte bzw. Vote-Pill.
-- **Antwort vom Team auf der Karte:** Sobald das Team auf ein Ticket geantwortet hat, trägt die Karte den Marker „Antwort" — in Board und Liste, bei jedem Ticket und dauerhaft, nicht nur solange die Antwort ungelesen ist. Wer mit der Maus darauf stehen bleibt, liest die vollständige Antwort, ohne das Ticket zu öffnen; bei viel Text lässt sich die Anzeige scrollen. Rot heißt „neue Antwort auf dein eigenes Feedback", die neutrale Färbung heißt „beantwortet". Die Suche findet Tickets auch über den Wortlaut der Antwort.
-- **Kommentare beim Überfahren:** Wer mit der Maus auf dem Sprechblasen-Zähler einer Karte stehen bleibt, sieht die letzten vier Kommentare (Name, Datum, Text; lange Beiträge gekürzt, ältere als „+N ältere Kommentare" angedeutet) — ohne die Karte zu öffnen. Bei viel Text lässt sich die Vorschau scrollen; ein Klick öffnet weiterhin das Detail.
-- **Neue Kommentare:** Tickets, an denen seit dem letzten Öffnen jemand anderes kommentiert hat, tragen ein blaues **„+N"** (Kopfzeile der Karte bzw. neben dem Titel), und der Sprechblasen-Zähler färbt sich blau. In der Vorschau und im Kommentar-Thread sind die neuen Beiträge blau hinterlegt und mit „neu" beschriftet. Der Marker verschwindet, sobald das Ticket geöffnet wurde. Eigene Kommentare zählen nicht mit; wer die App zum ersten Mal öffnet, bekommt keinen Schwall — gemerkt wird ab dem ersten Besuch, gerätelokal.
-- **„Board anpassen"** (Regler-Knopf rechts neben dem Dichte-Knopf, nur in der Board-Ansicht): Popover mit einer Zeile je Lane — Häkchen blendet die Lane ein/aus, rechts ein 1/2-Schalter für die Kartenspalten innerhalb der Lane (zweispaltig = doppelt so breite Spur, halbiert das Scrollen bei vollen Lanes wie „Neu"); darunter „Farben der Köpfe" Bunt/Einfarbig.
-  - Ausgeblendete Lanes zeigen ihre Tickets nicht im Board, wohl aber in der Liste (Hinweiszeile im Popover).
-  - Die Einstellung gilt nur auf diesem Gerät und ist unabhängig vom Kanban-Widget der Startseite.
-- **Detail-Panel rechts** (Klick auf eine Karte): voller Stepper, alle Antworten, Downloads, „Antwort vom Team" (ungelesen rot + „Neu"), Sponsoring-Panel (X/Y Pkt, +/−, Budget-Hinweis), Kommentar-Thread + Vote.
-  - Das Kommentar-Eingabefeld ist drei Zeilen hoch und wächst beim Schreiben mit (Return macht eine neue Zeile, gesendet wird über den Pfeil-Knopf). Am Anfasser unten rechts lässt es sich größer ziehen; diese Höhe gilt dann als Mindesthöhe und bleibt auf diesem Gerät erhalten.
-- **Feedback geben** liegt auf dem globalen Button unten rechts (optionaler Titel + Datei-Anhänge).
+- **Kopf:** Titel „Feedback-Tickets", Zähler „N gesamt · N neu · N in Arbeit", Benachrichtigungs-Glocke (ungelesene Team-Antworten → springt zu „Meine Tickets"), Budget-Badge „Budget Q3 · N/10 Pkt", Rollen-Umschalter (nur mit Schreibrecht), Zahnrad für die Verwaltung, Hilfe, Knopf **„Neues Ticket"**.
+- **Sichten** (Pillen mit Trefferzahl, je nach Rolle andere):
+  - Nutzer: *Alles · Meine Tickets · Wartet auf mich · Neu diese Woche · Zuletzt umgesetzt*. An „Meine Tickets" hängt ein roter Punkt mit der Zahl der ungelesenen Antworten.
+  - Entwicklung: *Alles offen · Mir zugewiesen · Triage · ungeschätzt · Rückfragen offen · Meiste Unterstützer · Alles*.
+- **Werkzeugleiste:** Schalter für die Filterleiste, Suchfeld (Titel, Text, Nummer, Person), Ergebniszähler „24 von 312", Sortierung (Zuletzt bewegt · Neueste · Meiste Unterstützer · Kleinster Aufwand · Meiste Punkte · Kurz vor dem Ziel · Meiste Sponsoren · Meiste Kommentare), Anzeige-Dichte (Komfortabel · Kompakt · Sehr kompakt), Umschalter Board/Liste, „Board anpassen", Checkbox „Archivierte".
+- **Filterleiste links (206 px):** drei Gruppen — **Typ** (Problem · Idee · Lob · Frage · Unklassifiziert), **Status**, **Bereich** — jede Zeile mit Farbpunkt und Trefferzahl, je Gruppe ein „zurücksetzen". Die Zahlen gelten **innerhalb der gewählten Sicht**: was dort steht, bekommt man beim Klick auch.
+- **Board:** Spalten in der Reihenfolge **Neu · Rückfrage · Geplant · In Bearbeitung · Umgesetzt · Abgelehnt**, farbige Oberkante, Kopf mit Zähler und darunter die Summenzeile „384 h geschätzt · 44 ungeschätzt". Je Spalte werden 15 Karten gezeigt, der Rest hängt hinter „+ N weitere". Lob läuft mit (es steht in der Spalte seines Status).
+- **Karte:** Farbpunkt für den Typ, Kurz-Nummer (z. B. `#A7K2`), „Antwort"-Marker, `⋯`-Menü, Titel, optionales Vorschaubild, darunter die Chips **Bereich · Aufwand · Zuständig**, im Fuß Autor, Stimmen, Kommentare und wann sich zuletzt etwas bewegt hat. Eigene Tickets tragen links eine Akzentkante.
+- **Liste:** feste Kopfzeile, Spalten Typ · Nr. · Ticket (Titel + „Bereich · Text") · Status · Aufwand · Ersteller · Bewegt · `⋯`; 60 Zeilen auf einmal, dann „Weitere N laden". Wird die Liste schmaler (Detail offen), fallen Spalten in fester Reihenfolge weg — zuerst Ersteller, dann Bewegt, dann Aufwand, zuletzt Status und der Untertext.
+- **Chips ändern direkt.** Status, Aufwand, Zuständigkeit und Bereich sind anklickbar; ein Klick öffnet die Auswahl. Der Aufwand steht als T-Shirt-Größe da (XS bis Epic) und zeigt in der Auswahl gleich die Dauer dazu. Jede Änderung meldet sich unten als kurze Rückmeldung mit **„Rückgängig"**.
+- **Detail-Panel rechts** (Klick auf Karte oder Zeile): Kopf mit Typ, Nummer, Blättern (‹ ›) und Schließen.
+  - Mit Schreibrecht in der Entwickler-Sicht steht direkt darunter eine feste Leiste mit **Status · Aufwand · Zuständig · Bereich** — kein Aufklappen nötig.
+  - In der Nutzer-Sicht steht der Status als Pille im Kopf und im Körper ein **Fortschritt** samt Klartext-Streifen: „Noch nicht geschätzt", „Aufwand M · Umsetzung 8 h · ist eingeplant", „**Wartet auf dich.** Das Team hat eine Rückfrage gestellt", „**Umgesetzt.**", „Wird nicht umgesetzt".
+  - Darunter Beschreibung, Anhänge, Antwort vom Team, Sponsoring, Kommentar-Thread; ganz unten die Stimme.
+- **Antwort vom Team auf der Karte:** Sobald das Team geantwortet hat, trägt die Karte den Marker „Antwort" — dauerhaft, nicht nur solange sie ungelesen ist. Wer mit der Maus darauf stehen bleibt, liest sie ganz. Rot heißt „neue Antwort auf dein eigenes Feedback", neutral heißt „beantwortet". Die Suche findet Tickets auch über den Wortlaut der Antwort.
+- **Kommentare beim Überfahren:** Auf dem Sprechblasen-Zähler erscheinen die letzten vier Kommentare. Tickets mit neuen fremden Beiträgen tragen ein blaues **„+N"**; es verschwindet, sobald man das Ticket geöffnet hat. Eigene Kommentare zählen nicht mit.
+- **„Board anpassen"** (nur in der Board-Ansicht): eine Zeile je Spalte — Häkchen blendet sie ein/aus, rechts ein 1/2-Schalter für die Kartenspalten; darunter „Farben der Köpfe" Bunt/Einfarbig. Ausgeblendete Spalten zeigen ihre Tickets nicht im Board, wohl aber in der Liste. Die Einstellung gilt nur auf diesem Gerät.
+- **Feedback geben** liegt zusätzlich auf dem globalen Button unten rechts.
 
-## Feedback ergänzen
+## Der Status „Rückfrage"
 
-- Neben dem Titel steht **„Ergänzen"** (Stift). Damit lassen sich Titel und die Antwortfelder nachträglich überarbeiten und weitere Screenshots oder Dateien anhängen — gedacht für **ein** Ticket je Themenkomplex, das man fortschreibt, statt für jede Präzisierung ein neues aufzumachen.
-- In der Beta-Phase darf jeder mit Schreibrecht **jedes** Ticket ergänzen, nicht nur das eigene — passend dazu, dass Status, Team-Antwort und Löschen ohnehin an fremden Tickets offenstehen.
-- Unter dem Autor steht dann „bearbeitet <Datum>". Der Diskussionsverlauf bleibt der Kommentar-Thread.
-- Wer nur Leserechte auf dem Datenspeicher hat, sieht „Ergänzen" nicht und schreibt seine Ergänzung als Kommentar.
+Braucht das Team eine Antwort vom Melder, setzt es das Ticket auf **Rückfrage**. Es bekommt eine eigene Board-Spalte, und beim Ersteller taucht es in der Sicht **„Wartet auf mich"** auf — samt Klartext im Detail. Vorher versandete so eine Nachfrage als Kommentar, den niemand bemerkte.
+
+## Eigenes Ticket ändern
+
+- Solange **noch niemand das Ticket angefasst hat** (Status „Neu"), kann der Autor Titel und Text frei überarbeiten — Knopf **„Ticket bearbeiten"**.
+- Sobald das Team daran arbeitet, bleibt der ursprüngliche Text stehen: er ist die Bezugsgröße der Diskussion. Neues gehört dann als **Ergänzung** in den Kommentar-Verlauf; ein Hinweis an Ort und Stelle erklärt das.
+- Wer Schreibrecht auf dem Datenspeicher hat, darf **jedes** Ticket nachziehen (Titel, Antwortfelder, weitere Anhänge) — passend dazu, dass Status, Team-Antwort und Löschen ohnehin an fremden Tickets offenstehen. Unter dem Autor steht dann „bearbeitet <Datum>".
 
 ## Verwalten (nur mit Schreibrecht — PL, Kurator, Entwicklung)
 
-- Am geöffneten Ticket ein ausklappbarer Abschnitt **„Verwaltung"**: Status, Kategorie, Priorität, Aufwand, interne Notizen, öffentliche Antwort („für alle auf dem Board sichtbar"), FAQ-Markierung mit Antwort und Stichwörtern, „Claude Code Prompt" (kopieren / .md-Export) und — wo freigeschaltet — „Löschen" mit Rückfrage.
-- Bei Ideen mit Aufwand steht darüber der Sponsoring-Fortschritt samt Hinweis „Schwelle erreicht".
+- Status, Aufwand, Zuständigkeit und Bereich stehen als Chips an Karte, Zeile und im Detail. Alles Übrige (Kategorie, Priorität, interne Notizen, öffentliche Antwort, FAQ-Markierung, „Claude Code Prompt", Löschen) liegt im Detail unter **„Weitere Verwaltung"**.
+- Das `⋯`-Menü an jeder Karte: mir zuweisen, als umgesetzt markieren, auf Rückfrage setzen, archivieren, Details öffnen.
 - Im Seitenkopf ein **Zahnrad** → Dialog „Feedback-Verwaltung" mit vier Reitern: **Inbox** (Feedback der Nutzer ohne Schreibrecht einsammeln, einmaliger Ordner-Connect), **FAQ**, **Sponsoring** (Ranking, Schwellen, Budget), **Einstellungen** (Modell, System-Prompt, Status der geteilten Datei).
-- Der Reiter „Einstellungen" zeigt zur geteilten Datei die Zahl der Einträge und das Datum der letzten Änderung. Steht dort „nicht verbunden", fehlt tatsächlich der Zugriff auf den gemeinsamen Datenspeicher; „vorhanden, aber nicht lesbar" heißt, dass Änderungen bewusst abgelehnt werden, statt den Bestand zu überschreiben.
-- Schlägt ein Speichern fehl, sagt die Verwaltung das jetzt — vorher meldete sie auch dann „Gespeichert", wenn nichts beim Team ankam.
+- Der Reiter „Einstellungen" zeigt zur geteilten Datei die Zahl der Einträge und das Datum der letzten Änderung. „nicht verbunden" heißt, der Zugriff auf den gemeinsamen Datenspeicher fehlt; „vorhanden, aber nicht lesbar" heißt, dass Änderungen bewusst abgelehnt werden, statt den Bestand zu überschreiben.
+- Schlägt ein Speichern fehl, sagt die Seite das — als Meldung an der Stelle, an der man geklickt hat.
 
 ## Typische Aktionen
 
-- Filtern, sortieren, Ansicht/Dichte wechseln, Board-Lanes und deren Kartenspalten anpassen
-- Fortschritt/Antworten verfolgen, stimmen, kommentieren, Idee sponsern
-- Detail öffnen, eigenes Feedback ergänzen, neues Feedback melden
-- Mit Schreibrecht zusätzlich: Status/Antwort/Aufwand setzen, als FAQ markieren, löschen, Nutzer-Feedback einsammeln, Sponsoring-Schwellen pflegen
+- Sicht wählen, filtern, suchen, sortieren, Ansicht/Dichte wechseln, Board-Spalten anpassen
+- Fortschritt und Antworten verfolgen, stimmen, kommentieren, Idee sponsern
+- Detail öffnen, mit ‹ › durch die Treffer blättern, eigenes Ticket bearbeiten oder ergänzen, neues melden
+- Mit Schreibrecht zusätzlich: Status/Aufwand/Zuständigkeit/Bereich am Chip setzen, auf Rückfrage stellen, archivieren, als FAQ markieren, löschen, Nutzer-Feedback einsammeln, Sponsoring-Schwellen pflegen
 
 ## Technik
 
-**Datenmodell dahinter:** `FeedbackItem` (title, category, kurator_status, context.page, effort_estimate, votes[], comments[], sponsors[], kurator_response, updated_at); Titel notfalls aus der Hauptantwort abgeleitet; Votes/Kommentare team-geteilt (Merge + Outbox), getrennt vom Sponsoring. Stepper aus `kurator_status` abgeleitet (kein Verlauf); Ungelesen-Status gerätelokal.
+**Datenmodell dahinter:** `FeedbackItem` (title, category, kurator_status inkl. `rueckfrage`, `assignee`, `bereich`, context.page, effort_estimate, votes[], comments[], sponsors[], kurator_response, updated_at); Titel notfalls aus der Hauptantwort abgeleitet; Votes/Kommentare team-geteilt (Merge + Outbox), getrennt vom Sponsoring. Stepper aus `kurator_status` abgeleitet (kein Verlauf); Ungelesen-Status gerätelokal. Die Kurz-Nummer ist kein Zähler, sondern die letzten vier Stellen der Ticket-Id.
 
 **Zugehörigkeit:** ob ein Ticket „mir" gehört, entscheidet `istMeinTicket` (`core/services/feedback/feedbackIdentitaet.ts`) gegen Kürzel UND Profilname — neue Einträge tragen die kanonische `schreibId` aus `useMeineFeedbackIdentitaet`.
 
-**Code:** `plugins/feedback-board/FeedbackBoardPage.tsx` + `boardFilter.ts` (Filter/Sortierung) + `verwaltung/` (Dialog, Inbox/FAQ/Sponsoring/Einstellungen, `useAutoCollectFeedback`); Komponenten `components/feedback/` (`FeedbackCard`, `FeedbackKanban`, `FeedbackAntwortHover`, `FeedbackBoardDetail`, `FeedbackVerwaltungBlock`, `FeedbackErgaenzenForm`, Stepper/SponsorBar/VotePill u.a.); Service `core/services/feedback/` (Schreib-Lagen in `feedbackSharedFile.ts`); Rechte-Gate `canManageFeedback` in `config/feature-flags.ts`.
+**Code:** `plugins/feedback-board/` — `FeedbackBoardPage.tsx` (Zustand + Verdrahtung), reine Module `smartViews.ts` / `boardFilter.ts` / `boardZahlen.ts` / `boardSpalten.ts`, Ansichtszustand `useBoardAnsicht.ts`, Oberfläche in `ticket/` (`TicketKarte`, `TicketZeile`, `TicketBoard`, `TicketListe`, `TicketDetail`, `InlineChip`, `chipMenues`, `FacettenLeiste`, `DauerStreifen`, `TicketToast`, `useTicketAktionen`), Stile in `ticketsystem.css`, Verwaltung in `verwaltung/`. Geteilte Bausteine weiter in `components/feedback/` (Stepper, SponsorPanel, VotePill, CommentThread, ErgaenzenForm, Hovers). Service `core/services/feedback/` (Schreib-Lagen in `feedbackSharedFile.ts`); Rechte-Gate `canManageFeedback` in `config/feature-flags.ts`.

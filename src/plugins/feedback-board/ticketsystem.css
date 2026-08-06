@@ -1,0 +1,684 @@
+/* ============================================================================
+   Feedback-Ticketsystem — Design-Handoff-Port.
+   Quelle: _design/handoff/feedback-redesign/{ticket.css, *.jsx}.
+
+   Alles unter `.fb-ticket` gescopt (kein Leak in andere Plugins), Klassen mit
+   Präfix `fb-`. Vorbild: src/plugins/chat/chat.css.
+
+   TOKEN-MAPPING — der Prototyp bringt eine eigene `--surf-*`/`--t-*`-Familie
+   mit, die es hier NICHT gibt und auch nicht geben soll (DESIGN_GUIDE Kap. 4 +
+   Guard `theme-token-contract`: kein lokaler --tf-*-Lückenfüller). Die App hat
+   für dieselben Flächen längst Tokens, teils bit-identisch:
+
+     --surf-app          → --tf-desk            (beide #F4F4F4)
+     --surf-main         → --tf-bg
+     --surf-card         → --tf-card-surface    (beide #FBFBFB)
+     --surf-text/-sec/-tert → --tf-text / --tf-text-secondary / --tf-text-tertiary
+     --surf-border       → --tf-border
+     --surf-border-hover → --tf-border-hover
+     --surf-hover        → --tf-hover
+     --t-problem/-idee/-frage/-lob (+ -bg) → --tf-fb-problem/-idee/-frage/-lob (+ -bg)
+     --ease              → --tf-ease
+
+   Zwei Regeln, die daraus folgen:
+   - `--tf-primary` wird NICHT auf den Handoff-Wert hsl(215 32% 40%) fixiert: die
+     Primärfarbe ist in den Einstellungen wählbar (--tf-primary-h/-s/-l), und
+     `preset-contrast-contract` hängt daran.
+   - Jedes `color-mix(… , #fff)` des Handoffs mischt hier gegen `var(--tf-bg)`.
+     Gegen hartes Weiß gemischt wäre der Dark Mode kaputt.
+
+   BEWUSSTE ABWEICHUNGEN vom DESIGN_GUIDE (Präzedenz: das farbige Kanban seit
+   v2.225, das aus demselben Grund existiert):
+   - Karten-Hover wirft einen Schatten. Der Guide erlaubt Schatten nur für
+     Dialoge; hier trägt er die Greifbarkeit der Karte, die man ziehen können
+     soll (E2), und trennt die überlappenden Spalten voneinander.
+   - Spaltenköpfe sind getönt. Der Guide will Farbe nur punktuell; ein Kanban,
+     dessen Spalten sich nicht unterscheiden, ist keins.
+
+   NICHT portiert: der Prototyp-Rahmen (.blatt/.tb/.views/.tools) — Seitenkopf,
+   Smart-Views und Toolbar bauen auf PageHeader / ScopeTabs / Button / Select
+   auf. Ebenso nicht der Detail-Rahmen `.dpane`: den Split stellt
+   MasterDetailLayout, hier stehen nur die Innereien.
+   ========================================================================== */
+
+/* `height: 100%` statt `flex: 1`: das Listen-Pane des MasterDetailLayout ist ein
+   Block mit `h-full overflow-y-auto`, kein Flex-Container. Ohne feste Höhe wüchse
+   die Wurzel mit dem Inhalt, das Board bekäme keinen Boden — und statt der
+   Spalten scrollte die ganze Seite. */
+.fb-ticket {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  font-size: var(--tf-text-base);
+  color: var(--tf-text);
+}
+
+/* ---------------- Facetten-Leiste ---------------- */
+.fb-facetten {
+  flex: none;
+  width: 206px;
+  border-right: var(--tf-border-thin) solid var(--tf-border);
+  overflow-y: auto;
+  padding: 14px 10px 30px;
+  background: var(--tf-card-surface);
+}
+.fb-fgruppe { margin-bottom: 18px; }
+.fb-flabel {
+  font-size: 10px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--tf-text-tertiary);
+  padding: 0 8px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+}
+.fb-flabel .fb-reset {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 10.5px;
+  color: var(--tf-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.fb-fzeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 27px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+.fb-fzeile:hover { background: var(--tf-hover); }
+.fb-fzeile.an {
+  background: var(--tf-bg-secondary);
+  color: var(--tf-text);
+  font-weight: var(--tf-weight-medium);
+}
+.fb-fzeile .fb-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.fb-fzeile .fb-lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-fzeile .fb-n {
+  font-size: 10.5px;
+  color: var(--tf-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.fb-fzeile.an .fb-n { color: var(--tf-text-secondary); }
+
+/* ---------------- Board ---------------- */
+.fb-board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 14px 18px;
+  align-items: stretch;
+}
+.fb-col {
+  flex: none;
+  width: 262px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--tf-radius-lg);
+  background: var(--tf-card-surface);
+  border: var(--tf-border-thin) solid var(--tf-border);
+  border-top: 3px solid var(--fb-c);
+  overflow: hidden;
+}
+.fb-col-kopf { display: flex; align-items: center; gap: 8px; padding: 9px 11px 8px; flex: none; }
+.fb-col-kopf .fb-nm {
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--fb-c) 58%, var(--tf-text));
+}
+.fb-col-kopf .fb-n {
+  min-width: 20px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: var(--tf-radius-pill);
+  display: inline-grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  background: color-mix(in srgb, var(--fb-c) 15%, var(--tf-bg));
+  color: color-mix(in srgb, var(--fb-c) 80%, var(--tf-text));
+  font-variant-numeric: tabular-nums;
+}
+.fb-col-summe {
+  padding: 0 11px 8px;
+  font-size: 10.5px;
+  color: var(--tf-text-tertiary);
+  display: flex;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.fb-col-karten {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.fb-col-mehr {
+  margin: 2px 9px 10px;
+  height: 28px;
+  border: var(--tf-border-thin) dashed var(--tf-border-hover);
+  border-radius: var(--tf-radius);
+  background: none;
+  color: var(--tf-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.fb-col-mehr:hover { background: var(--tf-hover); color: var(--tf-text); }
+.fb-col-leer {
+  padding: 14px 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--tf-text-tertiary);
+  font-style: italic;
+}
+
+/* ---------------- Karte ---------------- */
+.fb-karte {
+  background: var(--tf-bg);
+  border: var(--tf-border-thin) solid var(--tf-border);
+  border-radius: 9px;
+  padding: 9px 10px;
+  cursor: pointer;
+  position: relative;
+  text-align: left;
+  width: 100%;
+  transition: box-shadow var(--tf-duration-fast) var(--tf-ease),
+              border-color var(--tf-duration-fast) var(--tf-ease);
+}
+.fb-karte:hover {
+  border-color: var(--tf-border-hover);
+  box-shadow: 0 3px 10px hsl(0 0% 30% / 0.09);
+}
+.fb-karte.aktiv {
+  border-color: var(--tf-primary);
+  box-shadow: 0 0 0 2px var(--tf-primary-light);
+}
+/* Eigenes Ticket: schmale Primärkante links. Der Guide reserviert die linke
+   Borderlinie fürs Callout — hier ist sie kein Schmuck, sondern das einzige
+   Signal „das ist deins" auf einer sonst gleichförmigen Kartenwand. */
+.fb-karte.meins { border-left: 2.5px solid var(--tf-primary); }
+
+.fb-karte-kopf { display: flex; align-items: center; gap: 6px; }
+.fb-typdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.fb-nr {
+  font-size: 10.5px;
+  color: var(--tf-text-tertiary);
+  font-family: var(--tf-font-mono);
+  letter-spacing: 0.02em;
+}
+.fb-antwort {
+  font-size: 9.5px;
+  font-weight: var(--tf-weight-medium);
+  color: var(--tf-on-primary);
+  background: var(--tf-fb-problem);
+  border-radius: var(--tf-radius-pill);
+  padding: 1px 6px;
+}
+.fb-antwort.neutral {
+  background: var(--tf-bg-secondary);
+  color: var(--tf-text-secondary);
+}
+.fb-mehr {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--tf-text-tertiary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  flex: none;
+}
+.fb-karte:hover .fb-mehr,
+.fb-zeile:hover .fb-mehr,
+.fb-mehr.offen { opacity: 1; }
+.fb-mehr:hover { background: var(--tf-hover); color: var(--tf-text); }
+
+.fb-titel {
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: var(--tf-weight-medium);
+  line-height: 1.35;
+  letter-spacing: -0.004em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.fb-thumb {
+  margin-top: 7px;
+  height: 48px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: var(--tf-border-thin) solid var(--tf-border);
+}
+.fb-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+.fb-chips { margin-top: 8px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.fb-fuss {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: var(--tf-border-thin) solid var(--tf-border);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.fb-fuss .fb-wer {
+  font-size: 11px;
+  color: var(--tf-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fb-fuss .fb-met {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--tf-text-tertiary);
+  font-size: 10.5px;
+  flex: none;
+}
+.fb-fuss .fb-met > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Inline-Chip (Verwaltung direkt an der Karte) ---------------- */
+.fb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 21px;
+  padding: 0 8px;
+  border-radius: var(--tf-radius-pill);
+  border: var(--tf-border-thin) solid var(--tf-border);
+  background: var(--tf-bg);
+  font-size: 10.5px;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  transition: border-color var(--tf-duration-fast) var(--tf-ease),
+              background var(--tf-duration-fast) var(--tf-ease);
+}
+.fb-chip:hover { border-color: var(--tf-border-hover); background: var(--tf-hover); color: var(--tf-text); }
+.fb-chip .fb-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.fb-chip .fb-chip-text { overflow: hidden; text-overflow: ellipsis; }
+.fb-chip.leer { border-style: dashed; color: var(--tf-text-tertiary); }
+.fb-chip.bereich { background: var(--tf-card-surface); }
+.fb-chip.ro { cursor: default; }
+.fb-chip.ro:hover { border-color: var(--tf-border); background: var(--tf-bg); color: var(--tf-text-secondary); }
+
+/* ---------------- Dichte ---------------- */
+.fb-board.dicht .fb-karte { padding: 7px 9px; border-radius: var(--tf-radius); }
+.fb-board.dicht .fb-titel { font-size: 12px; margin-top: 5px; -webkit-line-clamp: 2; }
+.fb-board.dicht .fb-thumb { display: none; }
+.fb-board.dicht .fb-chips { margin-top: 6px; }
+.fb-board.dicht .fb-fuss { margin-top: 6px; padding-top: 5px; }
+.fb-board.ultra .fb-karte { padding: 6px 8px; }
+.fb-board.ultra .fb-titel { font-size: 11.5px; -webkit-line-clamp: 1; margin-top: 4px; }
+.fb-board.ultra .fb-thumb,
+.fb-board.ultra .fb-fuss { display: none; }
+.fb-board.ultra .fb-chips { margin-top: 5px; }
+
+/* ---------------- Liste ---------------- */
+.fb-liste {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 30px;
+  container-type: inline-size;
+}
+.fb-liste-kopf {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 20px;
+  background: var(--tf-bg);
+  border-bottom: var(--tf-border-thin) solid var(--tf-border);
+  font-size: 10px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--tf-text-tertiary);
+}
+.fb-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  border-bottom: var(--tf-border-thin) solid var(--tf-border);
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  text-align: left;
+  background: none;
+}
+.fb-zeile:hover { background: var(--tf-hover); }
+.fb-zeile.aktiv { background: var(--tf-primary-light); }
+.fb-zeile.meins::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2.5px;
+  background: var(--tf-primary);
+  opacity: 0.55;
+}
+.fb-sp-t { flex: 1; min-width: 280px; }
+.fb-z-titel {
+  font-size: 13px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: -0.004em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fb-z-sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--tf-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fb-sp-s { width: 126px; flex: none; }
+.fb-sp-e { width: 96px; flex: none; }
+.fb-sp-a {
+  width: 120px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--tf-text-secondary);
+  overflow: hidden;
+}
+.fb-sp-d {
+  width: 74px;
+  flex: none;
+  text-align: right;
+  font-size: 11px;
+  color: var(--tf-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Spalten fallen in fester Prioritätsreihenfolge weg, sobald der Container
+   schmaler wird (Detail-Panel offen). Container-Query statt Media-Query: es
+   zählt die Breite der LISTE, nicht die des Fensters. */
+@container (max-width: 900px) { .fb-sp-a { display: none; } }
+@container (max-width: 790px) { .fb-sp-d { display: none; } }
+@container (max-width: 690px) { .fb-sp-e { display: none; } }
+@container (max-width: 590px) {
+  .fb-sp-t { min-width: 0; }
+  .fb-sp-s { display: none; }
+  .fb-z-sub { display: none; }
+  .fb-zeile, .fb-liste-kopf { padding-left: 14px; padding-right: 14px; }
+}
+
+.fb-mehr-laden {
+  display: block;
+  margin: 16px auto;
+  height: 32px;
+  padding: 0 18px;
+  border: var(--tf-border-thin) solid var(--tf-border-hover);
+  border-radius: 9px;
+  background: var(--tf-bg);
+  color: var(--tf-text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.fb-mehr-laden:hover { background: var(--tf-hover); color: var(--tf-text); }
+.fb-leer { padding: 70px 20px; text-align: center; color: var(--tf-text-tertiary); font-size: 13px; }
+
+/* ---------------- Popover-Inhalt (Chip-Menüs, ⋯-Menü) ---------------- */
+.fb-pop-lbl {
+  font-size: 9.5px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--tf-text-tertiary);
+  padding: 7px 9px 5px;
+}
+.fb-pop-i {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.fb-pop-i:hover { background: var(--tf-hover); color: var(--tf-text); }
+.fb-pop-i.an { color: var(--tf-text); font-weight: var(--tf-weight-medium); background: var(--tf-hover); }
+.fb-pop-i .fb-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.fb-pop-i .fb-sub { margin-left: auto; font-size: 10.5px; color: var(--tf-text-tertiary); }
+.fb-pop-i.gefahr { color: var(--tf-danger-text); }
+.fb-pop-sep { height: var(--tf-border-thin); background: var(--tf-border); margin: 4px 2px; }
+
+/* ---------------- Detail-Panel (Innereien; Rahmen = MasterDetailLayout) ------ */
+.fb-d-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border-bottom: var(--tf-border-thin) solid var(--tf-border);
+  flex: none;
+}
+.fb-d-aktionen {
+  flex: none;
+  padding: 11px 16px;
+  background: var(--tf-card-surface);
+  border-bottom: var(--tf-border-thin) solid var(--tf-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fb-abtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 11px;
+  border: var(--tf-border-thin) solid var(--tf-border-hover);
+  border-radius: var(--tf-radius);
+  background: var(--tf-bg);
+  font-size: 12px;
+  color: var(--tf-text);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+.fb-abtn:hover { background: var(--tf-hover); }
+.fb-abtn .fb-pre { color: var(--tf-text-tertiary); font-size: 11px; flex: none; }
+.fb-abtn .fb-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.fb-abtn .fb-chip-text { overflow: hidden; text-overflow: ellipsis; }
+.fb-abtn.leer { border-style: dashed; color: var(--tf-text-tertiary); }
+
+.fb-d-body { flex: 1; overflow-y: auto; padding: 18px 20px 30px; }
+.fb-d-titel {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--tf-weight-medium);
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+}
+.fb-d-meta {
+  margin-top: 9px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--tf-text-tertiary);
+  flex-wrap: wrap;
+}
+.fb-d-meta b { color: var(--tf-text-secondary); font-weight: var(--tf-weight-medium); }
+.fb-d-block { margin-top: 22px; }
+.fb-d-label {
+  font-size: 10px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--tf-text-tertiary);
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fb-d-label .fb-edit {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tf-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+}
+.fb-d-text { font-size: 13.5px; line-height: 1.6; color: var(--tf-text); white-space: pre-wrap; }
+.fb-sperrhinweis {
+  margin-top: 9px;
+  font-size: 11.5px;
+  color: var(--tf-text-tertiary);
+  line-height: 1.5;
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+}
+
+/* Dauer-Streifen: übersetzt Status + Aufwand in Klartext für den Ersteller. */
+.fb-eta {
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--tf-radius-lg);
+  background: var(--tf-fb-idee-bg);
+  border: var(--tf-border-thin) solid color-mix(in srgb, var(--tf-fb-idee) 25%, transparent);
+  font-size: 12.5px;
+  color: var(--tf-text);
+  line-height: 1.45;
+}
+.fb-eta svg { color: var(--tf-fb-idee); flex: none; }
+.fb-eta b { font-weight: var(--tf-weight-medium); }
+.fb-eta.warnung {
+  background: var(--tf-fb-frage-bg);
+  border-color: color-mix(in srgb, var(--tf-fb-frage) 30%, transparent);
+}
+.fb-eta.warnung svg { color: var(--tf-fb-frage); }
+.fb-eta.wartet {
+  background: var(--tf-fb-problem-bg);
+  border-color: color-mix(in srgb, var(--tf-fb-problem) 30%, transparent);
+}
+.fb-eta.wartet svg { color: var(--tf-fb-problem); }
+.fb-eta.fertig {
+  background: var(--tf-fb-lob-bg);
+  border-color: color-mix(in srgb, var(--tf-fb-lob) 25%, transparent);
+}
+.fb-eta.fertig svg { color: var(--tf-fb-lob); }
+.fb-eta.neutral {
+  background: var(--tf-card-surface);
+  border-color: var(--tf-border);
+  color: var(--tf-text-secondary);
+}
+.fb-eta.neutral svg { color: var(--tf-text-tertiary); }
+
+/* ---------------- Status-Pill ---------------- */
+.fb-spill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--tf-radius-pill);
+  font-size: 11.5px;
+  font-weight: var(--tf-weight-medium);
+  background: color-mix(in srgb, var(--fb-c) 13%, var(--tf-bg));
+  color: color-mix(in srgb, var(--fb-c) 78%, var(--tf-text));
+  border: var(--tf-border-thin) solid color-mix(in srgb, var(--fb-c) 22%, transparent);
+  white-space: nowrap;
+}
+.fb-spill .fb-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fb-c); }
+
+/* ---------------- Toast mit Rückgängig ---------------- */
+.fb-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 60;
+  background: var(--tf-text);
+  color: var(--tf-bg);
+  border-radius: var(--tf-radius-lg);
+  padding: 10px 16px;
+  font-size: 12.5px;
+  box-shadow: var(--tf-shadow-dialog);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: fb-toast-ein var(--tf-duration-med) var(--tf-ease);
+}
+@keyframes fb-toast-ein {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.fb-toast button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 12.5px;
+  font-weight: var(--tf-weight-medium);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}

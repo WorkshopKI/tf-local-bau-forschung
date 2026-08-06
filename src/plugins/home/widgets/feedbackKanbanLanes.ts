@@ -95,10 +95,19 @@ export function buildFeedbackKanbanLanes(
   return { lanes: ergebnis, gesamt };
 }
 
-/** Default-Lanes eines Feedback-Kanbans (Quellenwechsel-Reset). */
+/**
+ * Default-Lanes eines Feedback-Kanbans (Quellenwechsel-Reset). `rueckfrage`
+ * steht bewusst weit vorn: das Widget soll zeigen, wo jemand auf eine Antwort
+ * wartet. BESTEHENDE Widget-Instanzen behalten ihre gespeicherte Lane-Liste —
+ * dort bleiben Rückfrage-Tickets unsichtbar, bis der Nutzer die Spur zuschaltet.
+ * Das ist gewollt: die Widget-Config ist eine persönliche Entscheidung und wird
+ * nicht von einem Release überschrieben (anders als die Board-Ansicht, die einen
+ * Key-Bump bekommt).
+ */
 export function defaultFeedbackKanbanLanes(): FeedbackKanbanLane[] {
   return [
     { status: FEEDBACK_STATUS.neu, spalten: 1 },
+    { status: FEEDBACK_STATUS.rueckfrage, spalten: 1 },
     { status: FEEDBACK_STATUS.in_bearbeitung, spalten: 2 },
     { status: FEEDBACK_STATUS.geplant, spalten: 1 },
     { status: FEEDBACK_STATUS.umgesetzt, spalten: 1 },

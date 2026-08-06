@@ -7,6 +7,11 @@ export type FeedbackCategory = 'praise' | 'problem' | 'idea' | 'question';
 
 export type FeedbackStatus =
   | 'neu'
+  /** Das Team hat eine Rückfrage gestellt und wartet auf den Ersteller (v3.12,
+   *  Handoff feedback-redesign). Vorher versandete so eine Rückfrage als
+   *  Kommentar, den niemand bemerkte — jetzt ist sie ein eigener Zustand mit
+   *  eigener Board-Spalte und der Smart View „Wartet auf mich". */
+  | 'rueckfrage'
   | 'geplant'
   | 'in_bearbeitung'
   | 'umgesetzt'
@@ -76,6 +81,14 @@ export interface FeedbackComment {
   user_display_name?: string;
   text: string;
   created_at: string;
+  /**
+   * Art des Beitrags (v3.12, additiv — fehlend = `'kommentar'`, so lesen sich
+   * alle Bestandsdaten). Steuert ausschließlich die Darstellung im Verlauf:
+   * `ergaenzung` = Nachtrag des Erstellers (gelb getönt, Badge „Ergänzung"),
+   * `rueckfrage` = Rückfrage des Teams (rot getönt) — die begleitet den
+   * Statuswechsel auf `rueckfrage`, ersetzt ihn aber nicht.
+   */
+  kind?: 'kommentar' | 'ergaenzung' | 'rueckfrage';
 }
 
 export interface UserBudget {
@@ -212,6 +225,22 @@ export interface FeedbackItem {
   /** Öffentliche Antwort des Kurators/devs — wird ALLEN Usern auf dem Board angezeigt
    *  (im Gegensatz zu kurator_notes, das intern bzw. nur bei „abgelehnt" sichtbar ist). */
   kurator_response?: string;
+  /**
+   * Wer das Ticket bearbeitet (v3.12). Trägt dieselbe kanonische Id wie
+   * `user_id` (Kürzel → sonst Profilname, siehe `feedbackIdentitaet`), damit
+   * „Mir zugewiesen" gegen `schreibId` vergleichbar bleibt. Kurator-Feld ⇒
+   * shared-wins beim Merge. `undefined` = niemandem zugewiesen.
+   */
+  assignee?: string;
+  /**
+   * Bereich der App, um den es geht (ein `TEAMFLOW_AREAS.ref`, v3.12). Bewusst
+   * ein eigenes Feld statt einer Mutation von `context.screenRef`: `context` ist
+   * der unveränderte Erfassungs-Beleg (was der Nutzer beim Melden ausgewählt und
+   * welche Seite er offen hatte), `bereich` ist die kuratierte Zuordnung, die
+   * ein Verwalter später korrigieren darf. Leser fallen auf `context.screenRef`
+   * zurück, solange das Feld fehlt.
+   */
+  bereich?: string;
   /** @deprecated Legacy-Alias vor v1.9 — wird beim Laden auf kurator_status gemappt. */
   admin_status?: FeedbackStatus;
   /** @deprecated */ admin_priority?: number;

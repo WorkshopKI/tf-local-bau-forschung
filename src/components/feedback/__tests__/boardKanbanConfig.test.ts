@@ -1,8 +1,8 @@
 /**
  * Guard für die persönliche Kanban-Einstellung des Feedback-Boards: der Default
- * muss dem Verhalten VOR der Anpassbarkeit entsprechen (alle fünf Lanes,
- * einspaltig, bunt), und das Lesen muss fremde/kaputte Werte still auffangen —
- * eine defekte localStorage-Zeile darf die Seite nie kippen.
+ * zeigt den vollen Lane-Katalog in Design-Reihenfolge (einspaltig, bunt), und das
+ * Lesen muss fremde/kaputte Werte still auffangen — eine defekte localStorage-Zeile
+ * darf die Seite nie kippen.
  */
 import { describe, expect, it } from 'vitest';
 import { FEEDBACK_STATUS } from '@/core/services/feedback';
@@ -12,14 +12,17 @@ import {
 } from '../boardKanbanConfig';
 
 describe('defaultBoardKanbanConfig', () => {
-  it('zeigt alle fünf Lanes in Design-Reihenfolge, einspaltig und bunt', () => {
+  // Reihenfolge = Fortschritt von links nach rechts, Abgelehnt als Endzustand
+  // ganz rechts (v3.12, Handoff feedback-redesign). Rückfrage folgt auf Neu.
+  it('zeigt alle sechs Lanes in Design-Reihenfolge, einspaltig und bunt', () => {
     const cfg = defaultBoardKanbanConfig();
     expect(cfg.lanes.map(l => l.status)).toEqual([
       FEEDBACK_STATUS.neu,
-      FEEDBACK_STATUS.abgelehnt,
+      FEEDBACK_STATUS.rueckfrage,
       FEEDBACK_STATUS.geplant,
       FEEDBACK_STATUS.in_bearbeitung,
       FEEDBACK_STATUS.umgesetzt,
+      FEEDBACK_STATUS.abgelehnt,
     ]);
     expect(cfg.lanes.every(l => l.spalten === 1)).toBe(true);
     expect(cfg.farbmodus).toBe('bunt');

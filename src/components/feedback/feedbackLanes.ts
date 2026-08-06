@@ -16,16 +16,21 @@ import { monoLaneAccent, type LaneFarbmodus } from '@/components/kanban/laneAcce
 import { STATUS_LANE_ACCENT } from './constants';
 
 /**
- * Wählbare Feedback-Lanes in Design-Reihenfolge: Abgelehnt steht bewusst an
- * Position 2 (daher explizit statt aus FEEDBACK_PIPELINE abgeleitet).
+ * Wählbare Feedback-Lanes in Design-Reihenfolge — die Spalten laufen von links
+ * nach rechts mit dem Fortschritt, Abgelehnt steht als Endzustand ganz rechts
+ * (Handoff feedback-redesign; bis v3.11 saß es an Position 2). `rueckfrage`
+ * folgt direkt auf `neu`: dort landen Tickets, die nach der Sichtung
+ * zurückgestellt wurden. Explizit statt aus FEEDBACK_PIPELINE abgeleitet, weil
+ * die Pipeline die beiden Seitenzustände nicht kennt.
  * Gleichzeitig die Default-Spaltenfolge des Boards.
  */
 export const FEEDBACK_LANE_STATUS: readonly FeedbackStatus[] = [
   FEEDBACK_STATUS.neu,
-  FEEDBACK_STATUS.abgelehnt,
+  FEEDBACK_STATUS.rueckfrage,
   FEEDBACK_STATUS.geplant,
   FEEDBACK_STATUS.in_bearbeitung,
   FEEDBACK_STATUS.umgesetzt,
+  FEEDBACK_STATUS.abgelehnt,
 ];
 
 /** Eine konfigurierte Lane: welcher Status, wie viele Kartenspalten. */

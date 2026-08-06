@@ -89,11 +89,17 @@ export function isSponsorableCategory(category: FeedbackCategory | undefined): b
   return category === 'idea';
 }
 
-/** Sponsoring ist nur für sponsorbare Kategorien mit gesetztem Aufwand + offenem Status möglich. */
+/** Sponsoring ist nur für sponsorbare Kategorien mit gesetztem Aufwand + offenem
+ *  Status möglich. `rueckfrage` zählt wie `neu`: das Ticket ist noch nicht
+ *  eingeplant, es fehlt nur eine Antwort — Unterstützung bleibt dort sinnvoll. */
 export function isSponsoringOpen(ticket: FeedbackItem): boolean {
   if (!isSponsorableCategory(ticket.category)) return false;
   if (!ticket.effort_estimate) return false;
-  return ticket.kurator_status === FEEDBACK_STATUS.neu || ticket.kurator_status === FEEDBACK_STATUS.geplant;
+  return (
+    ticket.kurator_status === FEEDBACK_STATUS.neu ||
+    ticket.kurator_status === FEEDBACK_STATUS.rueckfrage ||
+    ticket.kurator_status === FEEDBACK_STATUS.geplant
+  );
 }
 
 export interface SponsorResult {

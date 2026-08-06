@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { appendAttachments, updateFeedback } from '@/core/services/feedback';
+import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
+import { updateOutboxFeedback } from '@/core/services/personal-storage';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_TYPES, composeFeedbackText } from './constants';
 import { FeedbackScreenshotInput } from './FeedbackScreenshotInput';
@@ -28,13 +30,21 @@ interface Props {
   ticket: FeedbackItem;
   onFertig: () => void;
   onChanged: () => void;
+  /**
+   * Ohne Daten-Share-Schreibrecht (prod-Endnutzer) schreibt `updateFeedback` nur
+   * lokal — der Team-Stand bliebe der Roh-Text aus der Outbox. Ist das Ticket
+   * dort noch nicht eingesammelt, wird es zusätzlich überschrieben, damit die
+   * Bearbeitung des Autors wirklich beim Team ankommt (Muster aus
+   * `FeedbackVerbessernFlow`, v2.207.1). Bei Schreibrecht `false`/weggelassen.
+   */
+  nurLokal?: boolean;
 }
 
 const inputClass =
   'w-full px-2.5 py-1.5 text-[13px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
-export function FeedbackErgaenzenForm({ ticket, onFertig, onChanged }: Props): React.ReactElement {
+export function FeedbackErgaenzenForm({ ticket, onFertig, onChanged, nurLokal }: Props): React.ReactElement {
   const storage = useStorage();
   const typeDef = ticket.category ? FEEDBACK_TYPES.find(t => t.category === ticket.category) : undefined;
   // Alt-Tickets (und Tickets, deren Text die KI-Verbesserung ersetzt hat) haben
@@ -55,12 +65,27 @@ export function FeedbackErgaenzenForm({ ticket, onFertig, onChanged }: Props): R
 
   const speichern = useAsyncAction(async () => {
     const text = strukturiert && typeDef ? composeFeedbackText(typeDef, werte) : freitext.trim();
+    const titelWert = titel.trim() || undefined;
     await updateFeedback(storage, ticket.id, {
-      title: titel.trim() || undefined,
+      title: titelWert,
       text,
       ...(strukturiert ? { structured: werte } : {}),
       updated_at: new Date().toISOString(),
     });
+    // Ohne Schreibrecht liegt die einzige Fassung, die das Team je sieht, in der
+    // persönlichen Outbox. Best-effort: `updateOutboxFeedback` wirft nie und ist
+    // ein No-op, sobald der Kurator den Eintrag eingesammelt hat (Status ≠
+    // 'pending') — ein Resurrect gelöschter Einträge ist damit ausgeschlossen.
+    if (nurLokal) {
+      const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
+      if (persHandle) {
+        await updateOutboxFeedback(persHandle, ticket.id, {
+          title: titelWert,
+          text,
+          ...(strukturiert ? { structured: werte } : {}),
+        });
+      }
+    }
     // Anhänge separat: die Bytes müssen erst auf dem Share liegen, bevor die
     // Referenzen ins Ticket wandern (appendAttachments wirft, wenn das misslingt —
     // dann bleibt der Text-Edit erhalten und der Fehler ist sichtbar).

@@ -1,12 +1,22 @@
-// Öffentliches Feedback-Board (Redesign v2.208 feedback-optimiert, Lanes +
-// Dichte v2.225 feedback-kanban): scannbare Karten-Liste + farbiges Kanban
-// (Lob nur in der Liste), gefüllte Scope-Segmente, Typ-Filter-Chips, Suche,
-// 5-fach-Sortierung + Status-Filter, Dichte-Umschalter (Komfort/Kompakt),
-// Benachrichtigungs-Glocke, „Dein Fortschritt"-Leiste und ein Detail-Panel
-// (Master-Detail-Split) mit Stepper, Sponsoring-Panel, Votes + Kommentaren.
+// Feedback-Tickets (Redesign v3.12, Handoff _design/handoff/feedback-redesign).
+//
+// Drei Nutzerziele, an denen sich der Aufbau ausrichtet:
+//   1. Ersteller: Was ist mit MEINEM Ticket, wie lange dauert es, wie ändere ich es?
+//   2. Entwickler: Status/Aufwand/Zuständigkeit setzen, ohne die Ansicht zu wechseln.
+//   3. Beide: funktioniert auch bei 100–500 Tickets.
+//
+// Der Aufbau von oben nach unten:
+//   Kopf        Titel · Zähler gesamt/neu/in Arbeit · Glocke · Budget ·
+//               [Rollen-Umschalter] · Verwaltung · Hilfe · „Neues Ticket"
+//   Smart Views rollenabhängige Pillen mit Zähler + rotem Alarmpunkt
+//   Toolbar     Filter-Schalter · Suche · „24 von 312" · Sortieren · Anzeige · Board/Liste
+//   Inhalt      Facetten (206px) | Board bzw. Liste | Detail-Panel
+//
+// Die Seite hält Zustand und verdrahtet — gerechnet wird in den reinen Modulen
+// (smartViews/boardFilter/boardZahlen/boardSpalten), gemerkt in useBoardAnsicht.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { List, Columns3, Rows3, Search, Settings2 } from 'lucide-react';
+import { Columns3, List, Rows3, Search, Settings2, SlidersHorizontal, Plus } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -15,81 +25,44 @@ import { MasterDetailLayout } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 // Direkt an den Quellmodulen statt am Barrel: das Barrel zieht `FeedbackPanel` mit,
 // und das laedt `@/plugins.config` — die Plugin-Liste fuehrt zurueck auf diese Seite
 // (Laufzeit-Zyklus). Ohne die Sammel-Zeile ist der Weg jedes Symbols direkt.
 import { BudgetBadge } from '@/components/feedback/BudgetBadge';
-import { FeedbackBoardDetail } from '@/components/feedback/FeedbackBoardDetail';
-import { FeedbackCard } from '@/components/feedback/FeedbackCard';
-import { FeedbackKanban } from '@/components/feedback/FeedbackKanban';
-import { FeedbackTypeChips, type TypeChipItem } from '@/components/feedback/FeedbackTypeChips';
-import { FeedbackSortSelect, type FeedbackSort } from '@/components/feedback/FeedbackSortSelect';
-import { FeedbackStatusSelect, type FeedbackStatusFilter } from '@/components/feedback/FeedbackStatusSelect';
+import { FeedbackSortSelect } from '@/components/feedback/FeedbackSortSelect';
 import { NotificationBell } from '@/components/feedback/NotificationBell';
-import { MyProgressBar } from '@/components/feedback/MyProgressBar';
 import { useUnreadReplies } from '@/components/feedback/useUnreadReplies';
 import { useUnreadComments } from '@/components/feedback/useUnreadComments';
 import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
-import { CATEGORY_DOT } from '@/components/feedback/constants';
+import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
+import { FeedbackKanbanEinstellungen } from '@/components/feedback/FeedbackKanbanEinstellungen';
+import { feedbackAuthorLabel } from '@/components/feedback/feedbackUi';
 import {
-  getFeedbackList,
-  isClassifiedAs,
-  isSponsorableCategory,
-  loadFeedbackConfig,
-  istArchiviert,
-  istMeinTicket,
+  getFeedbackList, istArchiviert, istMeineId, istMeinTicket, loadFeedbackConfig,
 } from '@/core/services/feedback';
-import type { FeedbackCategory, FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackConfig, FeedbackItem } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 import { canManageFeedback } from '@/config/feature-flags';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
-import { FeedbackKanbanEinstellungen } from '@/components/feedback/FeedbackKanbanEinstellungen';
-import {
-  loadBoardKanbanConfig,
-  saveBoardKanbanConfig,
-  type BoardKanbanConfig,
-} from '@/components/feedback/boardKanbanConfig';
 import { FeedbackVerwaltungDialog } from './verwaltung/FeedbackVerwaltungDialog';
 import { useAutoCollectFeedback } from './verwaltung/useAutoCollectFeedback';
-import { filterAndSortBoard, type BoardScope } from './boardFilter';
+import { filterAndSortBoard, scopeBoard } from './boardFilter';
+import { kopfZaehler, zaehleFacetten } from './boardZahlen';
+import { findeView, startViewKey, viewsFuerRolle, type BoardRolle } from './smartViews';
+import { useBoardAnsicht } from './useBoardAnsicht';
+import { DICHTE_OPTIONEN, dichteLabel } from './ticket/dichte';
+import { FacettenLeiste, type FacettenAuswahl } from './ticket/FacettenLeiste';
+import { TicketBoard } from './ticket/TicketBoard';
+import { TicketListe } from './ticket/TicketListe';
+import { TicketDetail } from './ticket/TicketDetail';
+import { TicketToast } from './ticket/TicketToast';
+import { useTicketAktionen } from './ticket/useTicketAktionen';
+import type { TicketKontext } from './ticket/typen';
+import './ticketsystem.css';
 
-type ViewMode = 'liste' | 'board';
-
-// Key-Bump `_v3`: Standard ist jetzt „Board" (Fortschritt auf einen Blick);
-// gewonnen hätte sonst der alte, in localStorage gespeicherte 'liste'-Eintrag.
-const VIEW_MODE_KEY = 'tf-feedback-board-view-v3';
-const SORT_KEY = 'tf-feedback-board-sort-v3';
-const DENSITY_KEY = 'tf-feedback-board-density-v1';
-// Derselbe Key wie im früheren Kurator-Dashboard — die Vorliebe zieht mit um.
-const ARCHIV_KEY = 'teamflow_feedback_show_archived';
-const SORT_VALUES: readonly FeedbackSort[] = ['neu', 'pkt', 'naht', 'sup', 'kmt'];
-
-function loadViewMode(): ViewMode {
-  try { const r = localStorage.getItem(VIEW_MODE_KEY); if (r === 'liste' || r === 'board') return r; } catch { /* ignore */ }
-  return 'board';
-}
-function loadSort(): FeedbackSort {
-  try {
-    const r = localStorage.getItem(SORT_KEY);
-    if (r && (SORT_VALUES as readonly string[]).includes(r)) return r as FeedbackSort;
-  } catch { /* ignore */ }
-  return 'neu';
-}
-function loadDense(): boolean {
-  try { return localStorage.getItem(DENSITY_KEY) === 'dense'; } catch { /* ignore */ }
-  return false;
-}
-function loadZeigeArchiv(): boolean {
-  try { return localStorage.getItem(ARCHIV_KEY) === '1'; } catch { /* ignore */ }
-  return false;
-}
-
-const CATEGORY_CHIPS: Array<{ key: FeedbackCategory; label: string }> = [
-  { key: 'problem', label: 'Problem' },
-  { key: 'idea', label: 'Idee' },
-  { key: 'praise', label: 'Lob' },
-  { key: 'question', label: 'Frage' },
-];
+const LEERE_FACETTEN: FacettenAuswahl = { typ: '', status: '', bereich: '' };
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
@@ -100,55 +73,32 @@ export function FeedbackBoardPage(): React.ReactElement {
   useAutoCollectFeedback();
   const { profile } = useProfile();
   const kuerzel = useMeinKuerzel();
-  // Identität (v3.7): `schreibId` (Kürzel → sonst Profilname) trägt NEUE Stimmen,
-  // Kommentare und Budget-Keys; `ich` erkennt zusätzlich Bestands-Tickets unter
-  // der jeweils anderen Schreibweise (feedbackIdentitaet.ts).
   const ich = useMeineFeedbackIdentitaet();
   const meId = ich.schreibId;
   const meName = profile?.name && profile.name !== 'anonymous' ? profile.name : kuerzel;
-  // Verwaltungsrecht (v2.364): Kurator-Profil ODER Build mit Share-Schreibrecht
-  // (pl/kurator/as/dev). Ersetzt den früheren Menüpunkt Kuration → Feedback.
   const darfVerwalten = canManageFeedback(profile?.is_kurator === true || profile?.is_admin === true);
+  const oeffneErfassung = useFeedbackDialog(s => s.openDialog);
 
+  const ansicht = useBoardAnsicht();
   const [tickets, setTickets] = useState<FeedbackItem[]>([]);
   const [config, setConfig] = useState<FeedbackConfig>(DEFAULT_FEEDBACK_CONFIG);
-  const [scope, setScope] = useState<BoardScope>('alle');
-  const [filterKategorie, setFilterKategorie] = useState<FeedbackCategory | ''>('');
-  const [statusFilter, setStatusFilter] = useState<FeedbackStatusFilter>('alle');
+  const [viewKey, setViewKey] = useState<string>('');
+  const [facetten, setFacetten] = useState<FacettenAuswahl>(LEERE_FACETTEN);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<FeedbackSort>(loadSort);
-  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
-  const [dense, setDense] = useState<boolean>(loadDense);
-  const [zeigeArchiv, setZeigeArchiv] = useState<boolean>(loadZeigeArchiv);
-  const [kanbanConfig, setKanbanConfig] = useState<BoardKanbanConfig>(loadBoardKanbanConfig);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [verwaltungOffen, setVerwaltungOffen] = useState(false);
 
-  const changeViewMode = useCallback((m: ViewMode): void => {
-    setViewMode(m);
-    try { localStorage.setItem(VIEW_MODE_KEY, m); } catch { /* ignore */ }
-  }, []);
-  const changeSort = useCallback((s: FeedbackSort): void => {
-    setSort(s);
-    try { localStorage.setItem(SORT_KEY, s); } catch { /* ignore */ }
-  }, []);
-  const changeKanbanConfig = useCallback((cfg: BoardKanbanConfig): void => {
-    setKanbanConfig(cfg);
-    saveBoardKanbanConfig(cfg);
-  }, []);
-  const toggleDense = useCallback((): void => {
-    setDense(d => {
-      const next = !d;
-      try { localStorage.setItem(DENSITY_KEY, next ? 'dense' : 'comfort'); } catch { /* ignore */ }
-      return next;
-    });
-  }, []);
-  const changeZeigeArchiv = useCallback((v: boolean): void => {
-    setZeigeArchiv(v);
-    try { localStorage.setItem(ARCHIV_KEY, v ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
+  // Rolle: aus dem Recht abgeleitet. Wer verwalten darf, sieht die
+  // Entwickler-Sicht und kann per Umschalter in die Nutzer-Sicht schauen, um zu
+  // prüfen, was beim Ersteller ankommt. Ohne Recht gibt es den Umschalter nicht —
+  // eine Dev-Sicht mit wirkungslosen Bedienelementen wäre irreführend.
+  const rolle: BoardRolle = darfVerwalten && !ansicht.nutzerVorschau ? 'entwickler' : 'nutzer';
+  const views = viewsFuerRolle(rolle);
+  const view = findeView(rolle, viewKey || startViewKey(rolle));
+  // Rollenwechsel: die Sichten heißen anders — zurück auf die Startsicht der Rolle.
+  useEffect(() => { setViewKey(startViewKey(rolle)); }, [rolle]);
 
   const reload = useCallback(async (silent = false): Promise<void> => {
     if (!silent) setLoading(true);
@@ -162,9 +112,7 @@ export function FeedbackBoardPage(): React.ReactElement {
   }, [storage]);
 
   useEffect(() => { void reload(); }, [reload]);
-  // Deep-Link von einem read-only Widget (z.B. Feedback-Kanban der Startseite):
-  // einmalig beim Mount das vorgemerkte Ticket öffnen (selectedTicket löst sich
-  // reaktiv auf, sobald die Tickets geladen sind).
+  // Deep-Link von einem read-only Widget (z.B. Feedback-Kanban der Startseite).
   useEffect(() => {
     const pending = useFeedbackNavStore.getState().consumePendingTicket();
     if (pending) setSelectedId(pending);
@@ -185,131 +133,168 @@ export function FeedbackBoardPage(): React.ReactElement {
     void reload(true);
   }, [reload]);
 
-  const isBug = isClassifiedAs('problem');
-  const isFeature = (t: FeedbackItem): boolean => isSponsorableCategory(t.category);
+  const aktionen = useTicketAktionen(handleChanged);
 
-  // Nicht-archivierte Basis für Zähler + Filter. Verwalter dürfen die Archivierten
-  // einblenden (Aufräum-Sicht) — für alle anderen bleiben sie unsichtbar.
-  const archivSichtbar = darfVerwalten && zeigeArchiv;
-  const base = useMemo(
+  // Archivierte sind für alle unsichtbar; Verwalter dürfen sie zum Aufräumen einblenden.
+  const archivSichtbar = darfVerwalten && ansicht.zeigeArchiv;
+  const basis = useMemo(
     () => (archivSichtbar ? tickets : tickets.filter(t => !istArchiviert(t.kurator_status))),
     [tickets, archivSichtbar],
   );
 
-  // Ungelesene Team-Antworten auf eigene Feedbacks (Glocke + Marker + „Neu"-Hervorhebung).
-  const { count: unread, isUnread, markSeen: markAntwortSeen } = useUnreadReplies(base, ich);
-  // Neue Kommentare an BELIEBIGEN Tickets (Marker + Hervorhebung im Hover).
-  const { neuFuer, markSeen: markKommentareSeen } = useUnreadComments(base, ich);
-  // Eine komponierte „gesehen"-Meldung: das Detail-Panel kennt weiterhin genau
-  // einen Rückkanal, und beide Teile ignorieren selbst, was sie nichts angeht.
+  const { count: unread, isUnread, markSeen: markAntwortSeen } = useUnreadReplies(basis, ich);
+  const { neuFuer, markSeen: markKommentareSeen } = useUnreadComments(basis, ich);
   const markSeen = useCallback((t: FeedbackItem): void => {
     markAntwortSeen(t);
     markKommentareSeen(t);
   }, [markAntwortSeen, markKommentareSeen]);
 
-  const counts = useMemo(() => ({
-    probleme: base.filter(isBug).length,
-    ideen: base.filter(isFeature).length,
-  }), [base, isBug]);
+  // „heute" einmal je Render-Zyklus statt in der reinen Sicht-Logik: die bleibt
+  // damit ohne Uhr und testbar.
+  const heute = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const smartCtx = useMemo(
+    () => ({ ich, heute, istUngelesen: isUnread }),
+    [ich, heute, isUnread],
+  );
 
-  const ownItems = useMemo(() => base.filter(t => istMeinTicket(t, ich)), [base, ich]);
+  const zaehler = useMemo(() => kopfZaehler(basis), [basis]);
 
-  const scopeItems = useMemo(() => [
-    { key: 'alle', label: 'Alle', count: base.length },
-    { key: 'mir', label: 'Von mir', count: ownItems.length },
-    { key: 'team', label: 'Vom Team', count: base.length - ownItems.length },
-  ], [base, ownItems]);
+  // Die Sicht-Menge: Grundlage für Facettenzahlen UND das „von 312" im Zähler.
+  const inSicht = useMemo(() => scopeBoard(basis, view, smartCtx), [basis, view, smartCtx]);
+  const facettenZahlen = useMemo(() => zaehleFacetten(inSicht), [inSicht]);
 
-  const typeChips: TypeChipItem[] = useMemo(() => [
-    { key: '', label: 'Alle', count: base.length },
-    ...CATEGORY_CHIPS.map(c => ({
-      key: c.key, label: c.label, count: base.filter(t => t.category === c.key).length, dot: CATEGORY_DOT[c.key],
-    })),
-  ], [base]);
-
-  const filteredSorted = useMemo(
+  const gefiltert = useMemo(
     () => filterAndSortBoard(
-      base,
-      { scope, ich, kategorie: filterKategorie, status: statusFilter, query, sort },
+      inSicht,
+      { view, ctx: smartCtx, ...facetten, query, sort: ansicht.sort },
       config,
     ),
-    [base, scope, ich, filterKategorie, statusFilter, query, sort, config],
+    [inSicht, view, smartCtx, facetten, query, ansicht.sort, config],
   );
 
-  const selectedTicket = useMemo(
-    () => filteredSorted.find(t => t.id === selectedId),
-    [filteredSorted, selectedId],
-  );
+  const viewItems = useMemo(() => views.map(v => {
+    const treffer = basis.filter(t => v.passt(t, smartCtx));
+    const alarm = v.alert ? treffer.filter(t => v.alert!(t, smartCtx)).length : 0;
+    return {
+      key: v.key,
+      label: v.label,
+      count: treffer.length,
+      trailing: alarm > 0
+        ? (
+          <span className="min-w-[17px] h-[17px] px-[5px] rounded-full bg-[var(--tf-fb-problem)] text-[var(--tf-on-primary)] text-[10px] font-medium inline-grid place-items-center">
+            {alarm}
+          </span>
+        )
+        : undefined,
+    };
+  }), [views, basis, smartCtx]);
 
-  const emptyHint = (
-    <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-12">
-      Kein Feedback für diese Filter. Nutze den Feedback-Button unten rechts, um Ideen oder Bugs zu melden.
-    </p>
-  );
-  const loadingHint = <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-8">Lade…</p>;
+  // Wählbare Zuständige: wer im Bestand schon vorkommt (Autoren + bereits
+  // Zugewiesene). Bewusst kein Personen-Verzeichnis — das Feedback-System kennt
+  // keins, und eine gepflegte Liste wäre sofort veraltet.
+  //
+  // Die EIGENEN Schreibweisen fallen raus: ein Bestand enthält denselben Menschen
+  // als Profilnamen, als Kürzel und als Kürzel-mit-Leerzeichen. Ungefiltert stand
+  // ich dreimal in der Liste — einmal als „Mir zuweisen" und dreimal als Fremder.
+  // `istMeineId` erkennt alle drei (NFC, getrimmt, case-insensitiv).
+  const personen = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tickets) {
+      if (t.assignee) set.add(t.assignee);
+      const a = feedbackAuthorLabel(t);
+      if (a) set.add(a);
+    }
+    return [...set]
+      .filter(p => !istMeineId(p, ich))
+      .sort((a, b) => a.localeCompare(b, 'de'));
+  }, [tickets, ich]);
 
-  const listContent = (narrow: boolean): React.ReactNode => {
-    if (loading) return loadingHint;
-    if (filteredSorted.length === 0) return emptyHint;
-    if (viewMode === 'board' && !narrow) {
+  const oeffne = useCallback((t: FeedbackItem) => setSelectedId(t.id), []);
+  const istMeins = useCallback((t: FeedbackItem) => istMeinTicket(t, ich), [ich]);
+
+  const ctx: TicketKontext = useMemo(() => ({
+    rolle,
+    darfVerwalten,
+    istMeins,
+    istUngelesen: isUnread,
+    neueKommentare: neuFuer,
+    personen,
+    meineId: meId,
+    aendere: aktionen.aendere,
+    oeffne,
+    offeneId: selectedId,
+  }), [rolle, darfVerwalten, istMeins, isUnread, neuFuer, personen, meId, aktionen.aendere, oeffne, selectedId]);
+
+  const index = gefiltert.findIndex(t => t.id === selectedId);
+  const selected = index >= 0 ? gefiltert[index] : undefined;
+  const blaettere = useCallback((schritt: number) => {
+    const naechstes = gefiltert[index + schritt];
+    if (naechstes) setSelectedId(naechstes.id);
+  }, [gefiltert, index]);
+
+  const filterAktiv = !!(query || facetten.typ || facetten.status || facetten.bereich);
+
+  const inhalt = ((): React.ReactNode => {
+    if (loading) {
+      return <p className="text-[12.5px] text-[var(--tf-text-tertiary)] text-center py-8">Lade…</p>;
+    }
+    if (gefiltert.length === 0) {
       return (
-        <FeedbackKanban
-          tickets={filteredSorted}
-          config={config}
-          ich={ich}
-          meId={meId}
-          meName={meName ?? undefined}
-          isUnread={isUnread}
-          neueKommentare={neuFuer}
-          onSelect={t => setSelectedId(t.id)}
-          onChanged={handleChanged}
-          dense={dense}
-          lanes={kanbanConfig.lanes}
-          farbmodus={kanbanConfig.farbmodus}
-        />
+        <div className="fb-leer">
+          Keine Tickets in dieser Sicht.
+          {filterAktiv && (
+            <button
+              type="button"
+              className="fb-mehr-laden"
+              onClick={() => { setQuery(''); setFacetten(LEERE_FACETTEN); }}
+            >
+              Filter zurücksetzen
+            </button>
+          )}
+        </div>
       );
     }
-    return (
-      <div>
-        {filteredSorted.map(t => (
-          <FeedbackCard
-            key={t.id}
-            ticket={t}
-            config={config}
-            selected={selectedId === t.id}
-            mine={istMeinTicket(t, ich)}
-            unread={isUnread(t)}
-            neueKommentare={neuFuer(t)}
-            meId={meId}
-            meName={meName ?? undefined}
-            onSelect={x => setSelectedId(x.id)}
-            onChanged={handleChanged}
-            narrow={narrow}
-            dense={dense}
-          />
-        ))}
-      </div>
-    );
-  };
+    return ansicht.ansicht === 'board'
+      ? (
+        <TicketBoard
+          tickets={gefiltert}
+          lanes={ansicht.kanban.lanes}
+          farbmodus={ansicht.kanban.farbmodus}
+          dichte={ansicht.dichte}
+          ctx={ctx}
+        />
+      )
+      : <TicketListe tickets={gefiltert} ctx={ctx} />;
+  })();
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
-      {/* Kopf */}
       <div className="shrink-0 px-8 pt-6">
         <PageHeader
-          title="Feedback"
+          title="Feedback-Tickets"
           subtitle={
             <>
-              <b className="text-[var(--tf-text-secondary)]">{counts.probleme}</b> Probleme{'  ·  '}
-              <b className="text-[var(--tf-text-secondary)]">{counts.ideen}</b> Ideen
+              <b className="text-[var(--tf-text-secondary)]">{zaehler.gesamt}</b> gesamt{'  ·  '}
+              <b className="text-[var(--tf-text-secondary)]">{zaehler.neu}</b> neu{'  ·  '}
+              <b className="text-[var(--tf-text-secondary)]">{zaehler.inArbeit}</b> in Arbeit
             </>
           }
           actions={
             <div className="flex items-center gap-3">
-              <NotificationBell count={unread} onClick={() => setScope('mir')} />
+              <NotificationBell count={unread} onClick={() => setViewKey('meine')} />
               <BudgetBadge refreshKey={refreshKey} bar />
-              {/* Verwaltung (Inbox/FAQ/Sponsoring/Einstellungen) — löst den
-                  früheren Menüpunkt Kuration → Feedback ab. */}
+              {darfVerwalten && (
+                <ScopeTabs
+                  variant="segmented"
+                  items={[
+                    { key: 'nutzer', label: 'Nutzer' },
+                    { key: 'entwickler', label: 'Entwickler' },
+                  ]}
+                  activeKey={rolle}
+                  onChange={k => ansicht.setNutzerVorschau(k === 'nutzer')}
+                  aria-label="Sicht"
+                />
+              )}
               {darfVerwalten && (
                 <button
                   type="button"
@@ -323,130 +308,157 @@ export function FeedbackBoardPage(): React.ReactElement {
                 </button>
               )}
               <SeitenHilfeButton pluginId="feedback-board" />
+              <Button size="sm" onClick={() => oeffneErfassung()}>
+                <Plus size={13} aria-hidden /> Neues Ticket
+              </Button>
             </div>
           }
           className="mb-4"
         />
 
-        {/* Scope-Segmente (links) + Suche/Sort/View (rechts) */}
-        <div className="flex items-center gap-3 flex-wrap mb-3">
+        {/* Smart Views — der Einstieg ist nie „alle 500" */}
+        <div className="mb-3">
           <ScopeTabs
-            variant="segmented"
-            items={scopeItems}
-            activeKey={scope}
-            onChange={k => setScope(k as BoardScope)}
-            aria-label="Feedback-Sicht"
+            variant="pills-solid"
+            items={viewItems}
+            activeKey={view.key}
+            onChange={setViewKey}
+            aria-label="Sicht"
           />
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          <button
+            type="button"
+            onClick={ansicht.toggleFacetten}
+            aria-pressed={ansicht.facettenOffen}
+            title={ansicht.facettenOffen ? 'Filterleiste ausblenden' : 'Filterleiste einblenden'}
+            className={`h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
+              ansicht.facettenOffen
+                ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+            }`}
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          >
+            <SlidersHorizontal size={15} />
+          </button>
+          <div className="relative flex-1 min-w-[260px] max-w-[520px]">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
+            <Input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Suchen: Titel, Text, #Nummer, Person …"
+              className="pl-7 h-8 w-full text-[12.5px]"
+            />
+          </div>
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap">
+            {gefiltert.length} von {inSicht.length}
+          </span>
+
           <div className="ml-auto flex items-center gap-2 shrink-0">
-            <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
-              <Input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Feedback durchsuchen"
-                className="pl-7 h-8 w-[200px] text-[12.5px]"
-              />
-            </div>
-            <FeedbackSortSelect value={sort} onChange={changeSort} />
+            <FeedbackSortSelect value={ansicht.sort} onChange={ansicht.setSort} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title="Anzeige-Dichte"
+                  className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-[var(--tf-radius)] cursor-pointer text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                >
+                  <Rows3 size={14} aria-hidden />
+                  {dichteLabel(ansicht.dichte)}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto min-w-[176px] p-[5px]">
+                <div className="fb-pop-lbl">Anzeige</div>
+                {DICHTE_OPTIONEN.map(o => (
+                  <button
+                    key={o.key || 'komfort'}
+                    type="button"
+                    className={`fb-pop-i${ansicht.dichte === o.key ? ' an' : ''}`}
+                    onClick={() => ansicht.setDichte(o.key)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
             <div className="flex items-center gap-0.5 rounded-[var(--tf-radius)] p-0.5" style={{ border: '0.5px solid var(--tf-border)' }}>
-              {([['liste', List, 'Liste'], ['board', Columns3, 'Board']] as const).map(([m, Icon, title]) => (
+              {([['liste', List, 'Liste'], ['board', Columns3, 'Board']] as const).map(([m, Icon, titel]) => (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => changeViewMode(m)}
-                  title={title}
+                  onClick={() => ansicht.setAnsicht(m)}
+                  title={titel}
+                  aria-pressed={ansicht.ansicht === m}
                   className={`p-1.5 rounded-[var(--tf-radius-sm)] cursor-pointer transition-colors ${
-                    viewMode === m ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]' : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
+                    ansicht.ansicht === m
+                      ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
+                      : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
                   }`}
                 >
                   <Icon size={15} />
                 </button>
               ))}
             </div>
-            {/* Dichte-Umschalter (v2.225): Komfort ↔ Kompakt, gerätelokal persistiert. */}
-            <button
-              type="button"
-              onClick={toggleDense}
-              aria-pressed={dense}
-              title={dense ? 'Komfortable Ansicht' : 'Kompakte Ansicht — mehr auf einen Blick'}
-              className={`h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-                dense
-                  ? 'bg-[var(--tf-primary)] text-[var(--tf-on-primary)] shadow-sm'
-                  : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]'
-              }`}
-              style={dense ? undefined : { border: '0.5px solid var(--tf-border-hover)' }}
-            >
-              <Rows3 size={15} />
-            </button>
-            {/* Lanes/Kartenspalten/Farben — nur relevant, solange das Board sichtbar
-                ist (analog zum Status-Select, das nur die Liste zeigt). */}
-            {viewMode === 'board' && (
-              <FeedbackKanbanEinstellungen config={kanbanConfig} onChange={changeKanbanConfig} />
+            {ansicht.ansicht === 'board' && (
+              <FeedbackKanbanEinstellungen config={ansicht.kanban} onChange={ansicht.setKanban} />
             )}
-          </div>
-        </div>
-
-        {/* Typ-Filter-Chips (links) + Status-Filter (rechts, nur Liste) */}
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
-          <div className="min-w-0 flex-1">
-            <FeedbackTypeChips items={typeChips} activeKey={filterKategorie} onChange={k => setFilterKategorie(k as FeedbackCategory | '')} />
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Aufräum-Sicht der Verwalter — Archivierte sind sonst überall aus. */}
             {darfVerwalten && (
               <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={zeigeArchiv}
-                  onChange={e => changeZeigeArchiv(e.target.checked)}
+                  checked={ansicht.zeigeArchiv}
+                  onChange={e => ansicht.setZeigeArchiv(e.target.checked)}
                   className="cursor-pointer accent-[var(--tf-primary)]"
                 />
-                Archivierte einblenden
+                Archivierte
               </label>
-            )}
-            {viewMode !== 'board' && (
-              <FeedbackStatusSelect value={statusFilter} onChange={setStatusFilter} />
             )}
           </div>
         </div>
-
-        {/* Dein Fortschritt (nur eigene Sicht) */}
-        {scope === 'mir' && ownItems.length > 0 && (
-          <div className="mb-3">
-            <MyProgressBar items={ownItems} unread={unread} />
-          </div>
-        )}
       </div>
 
-      {/* Inhalt: Master-Detail-Split */}
+      {/* Inhalt: Facetten | Board/Liste | Detail */}
       <MasterDetailLayout
         listWidthKey="teamflow_feedback_board_narrow_width"
         onCloseDetail={() => setSelectedId(undefined)}
-        detail={selectedTicket ? (
-          <FeedbackBoardDetail
-            key={selectedTicket.id}
-            ticket={selectedTicket}
+        detail={selected ? (
+          <TicketDetail
+            key={selected.id}
+            t={selected}
+            ctx={ctx}
             config={config}
-            onClose={() => setSelectedId(undefined)}
-            onChanged={handleChanged}
             meId={meId}
             meName={meName ?? undefined}
-            ich={ich}
-            unread={isUnread(selectedTicket)}
-            neueKommentare={neuFuer(selectedTicket)}
+            onClose={() => setSelectedId(undefined)}
+            onChanged={handleChanged}
+            onPrev={index > 0 ? () => blaettere(-1) : undefined}
+            onNext={index >= 0 && index < gefiltert.length - 1 ? () => blaettere(1) : undefined}
+            unread={isUnread(selected)}
+            neueKommentare={neuFuer(selected)}
             markSeen={markSeen}
-            darfVerwalten={darfVerwalten}
           />
         ) : undefined}
         list={(
-          <div className={selectedTicket ? 'px-2 py-2' : 'px-8 py-2'}>
-            {listContent(!!selectedTicket)}
+          <div className="fb-ticket">
+            {ansicht.facettenOffen && (
+              <FacettenLeiste
+                zaehler={facettenZahlen}
+                auswahl={facetten}
+                onChange={teil => setFacetten(a => ({ ...a, ...teil }))}
+              />
+            )}
+            <div className="flex-1 min-w-0 flex flex-col">{inhalt}</div>
           </div>
         )}
       />
 
-      {/* Verwaltung: die vier Aufgaben ohne Ticket-Bezug. `tickets` (nicht `base`)
-          — FAQ + Sponsoring brauchen auch die archivierten. */}
+      {aktionen.toast && (
+        <TicketToast toast={aktionen.toast} onClose={aktionen.schliesseToast} />
+      )}
+
       {darfVerwalten && (
         <FeedbackVerwaltungDialog
           open={verwaltungOffen}
