@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.5.0 — Tabelle: Auto-Spaltenbreiten, sichtbarer Breiten-Griff, Sticky-Kopf, Spalten-Sets (August 2026)
+
+MINOR — Seit v3.3.0 sind 24 Spalten plus die Ordner-Spalten des Statuskatalogs wählbar; die Tabelle war dafür nicht gebaut. Die Breiten stammten aus handgepflegten Pixelwerten statt aus dem Inhalt, der Griff für die Gesamtbreite lag im Scroll-Zustand außerhalb des Sichtfelds (gemessen: 731 px rechts daneben), und beim Scrollen verschwanden Kopfzeile und FKZ.
+
+- Tabellen-Baustein entlang seiner Verantwortungen zerlegt — Layout-Rechnung, Resize, Griff, Kopf, Körper je eigene Datei; die drei Größen-Modi sind erstmals testbar statt nur im Dateikopf beschrieben — [tableLayout.ts](src/components/data-table/tableLayout.ts)
+- Ein Klick ohne Ziehen auf den Spaltengriff schrieb bisher eine Spaltenbreite (im gestauchten Modus sogar eine verrechnete) — [useColumnResize.ts](src/components/data-table/useColumnResize.ts)
+
 ### v3.4.0 — Glossar (August 2026)
 
 MINOR — Statuswerte, Kürzel, Trigger-Herkunft und Zieltage sind gepflegt, waren aber nur über „Vorgangs-Regeln" erreichbar — ein Kurationswerkzeug voller Eingabefelder. Wer wissen will, was RNE heißt, öffnet es nicht. Dazu beschrieb der Begriffs-Abschnitt in „Über die App" einen Stand vor dem Vorgangssystem.

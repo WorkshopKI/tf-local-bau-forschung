@@ -28,3 +28,12 @@ export {
   type TableSizing,
   type TableSizingOptions,
 } from './tableSizing';
+export {
+  leiteModus,
+  leiteTabellenStil,
+  wrapperKlassen,
+  istScrollModus,
+  TOTAL_GRIP_WIDTH,
+  type TabellenModus,
+  type TabellenStilOptionen,
+} from './tableLayout';

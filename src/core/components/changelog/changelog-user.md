@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.5 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v3.4 — 2026-08
 
 ### Neu
