@@ -2,6 +2,152 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.383.0 — Fassade aus Code-Join und ZAH-Phase (August 2026)
+
+MINOR — Die Kategorie-Fassade hielt eine zweite, handgeschriebene Werteliste neben dem Code-Katalog. Sie kannte nur 21 der 30 amtlichen Statuscodes unter ihrem amtlichen Namen; bei Code 72 ging das schon schief — der Export schreibt „Stellungnahme zur Rücknahmeempfehlung" aus, die Tabelle kannte nur die Abkürzung, und 16 Vorgänge lagen deshalb unter `sonstige`.
+
+- `getStatusCategory` wird intern aus Rohtext → Code → ZAH-Phase → Kategorie gespeist; flag-unabhängig in der eingebauten Map, nicht nur im Snapshot ([kategorie-ableitung.ts](src/core/status/kategorie-ableitung.ts), [status-canonical.ts](src/core/utils/status-canonical.ts)).
+- Varianten-Auflösung an **einer** Stelle statt in dreien — Snapshot, Phasen-Vergleich und Ableitung schlagen über dieselbe Regel nach ([wert-index.ts](src/core/status/wert-index.ts)).
+- Der Snapshot leitet die Kategorie aus Phase + Code ab, statt sie aus der Fassung zu übernehmen: eine ältere Fassung schleppte sonst ihre Kategorien mit, und eine PL-Umhängung wirkte nicht ([snapshot.ts](src/core/status/snapshot.ts)).
+- Golden Test friert die zwölf Abweichungs-Muster ein; die Dev-Diagnose kopiert die Bilanz als Text, ohne Verbund-IDs ([phasen-vergleich-golden.test.ts](src/core/status/__tests__/phasen-vergleich-golden.test.ts), [DiagnoseSektion.tsx](src/plugins/status-cockpit/DiagnoseSektion.tsx)).
+- Sechs dokumentierte Kategorie-Deltas, drei davon im Bestand wirksam: `unvollständig` (+6), `NL eingegangen` (52 → Nachforderung), Code 72 (+16) — Details in [phasen-vergleich-muster.ts](src/core/status/__tests__/fixtures/phasen-vergleich-muster.ts).
+
+### v2.382.0 — Vorab-Fixes vor dem Ableitungs-Rückbau (August 2026)
+
+MINOR — Drei kleine Korrekturen an genau den Flächen, die nach dem Rückbau der alten Statusableitung (P6) die einzigen sind: der Wächter zählte Termine als Bearbeitung, das Herleitungs-Popover sagte nicht, welchen Status es erklärt, und dieselbe Seite zeigte drei Datumsformate nebeneinander.
+
+- Zukunftsdaten zählen nicht mehr als „letzte Aktivität" und werden als anstehender Termin gesondert ausgewiesen; eine zweite Liegezeit-Rechnung im Cockpit entfällt zugunsten von `letzteAktivitaetVon` ([waechter.ts](src/core/status/waechter.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts)).
+- Das Herleitungs-Popover benennt die Ebene („Verbund-Status: 31 · beantragt") und stellt einen abweichenden Status der Gegenseite darunter, mit Stückzahl bei mehreren Teilvorhaben ([HerleitungPopover.tsx](src/plugins/antraege/status/HerleitungPopover.tsx), [useHerleitung.ts](src/plugins/antraege/status/useHerleitung.ts)).
+- `statusKurz` als geteilter Kopf beider Ebenen; „Herleitung kopieren" trägt dieselbe Ebenen-Angabe wie der Bildschirm ([herleitung.ts](src/core/status/herleitung.ts)).
+- Eine Datums-Anzeigekette (`formatDatumsWert`) ersetzt vier lokale Formatierer; das Alle-Felder-Panel formatiert feldnamens-unabhängig, auch uneinheitliche Verbund-Werte („29.08.2025 / 01.09.2025") ([dateParse.ts](src/core/services/csv/dateParse.ts), [buildDisplayRows.ts](src/plugins/antraege/alleFelder/buildDisplayRows.ts)).
+- Der Meilenstein-Streifen schreibt Daten mit führender Null wie der Rest der Detailseite ([meilensteine/labels.ts](src/plugins/meilensteine/labels.ts)).
+
+### v2.381.0 — Parametertabelle im Legenden-Format (August 2026)
+
+MINOR — Der zweite Import derselben Mappe scheiterte an der echten Datei: „Erklärung Parameter" ist eine Legende ohne Kopfzeile (Wert · Erklärung · Kategorie), der Import verlangte einen `Code`/`Text`-Kopf und brach ab — der Statuscode-Katalog kam nie aus der amtlichen Quelle. Und hätte er gelesen, wären die Bezugsdatei-Nummern 210/211 als Statuscodes im Katalog gelandet.
+
+- Beide Formate über einen Parser: Legende (Spaltenschnitt über die Kategorie-Spalte gesucht, Beschriftungszeile verworfen) und die bisherige Kopfzeilen-Tabelle ([parameter-blatt.ts](src/core/status/import/parameter-blatt.ts)).
+- Im Legenden-Format entscheidet die Kategorie-Spalte, nicht der Inhalt — Codes nur aus „Status"-Zeilen, 210/211 bleiben draußen ([status-katalog-import.ts](src/core/status/import/status-katalog-import.ts)).
+- Übersprungene Zeilen werden je Art gezählt und in der Vorschau benannt, als Auskunft statt als Warnung ([ReferenzdatenSektion.tsx](src/plugins/status-cockpit/ReferenzdatenSektion.tsx)).
+- Bearbeiter-Kürzel und die Nummern 210/211 werden gegen `MAIL_ROLLE` bzw. `ebeneVonNummer` geprüft, nicht gespeichert — die Zuarbeit belegt damit eine bisher nur erschlossene Lesart ([trigger-parser.ts](src/core/status/trigger-parser.ts)).
+- XLSX-Leser in IO (`leseMappe`) und reine Kopfsuche (`findeKopfInMappe`) getrennt; die Mappe wird einmal gelesen ([xlsx-tabelle.ts](src/core/status/import/xlsx-tabelle.ts)).
+
+### v2.380.0 — Trigger-Import je Programm (August 2026)
+
+MINOR — Der erste echte Import zeigte, dass die Trigger-Zuarbeit ~2450 Zeilen über neun Richtlinien führt, der Importer aber nur nach (Kürzel, Folge) schlüsselte: 362 Zeilen blieben übrig, der Rest fiel als „Dublette" weg — und jeder Antrag bekam danach die Trigger der ersten Richtlinie. Dieselbe Datei widerlegte drei weitere Screenshot-Annahmen aus P0.
+
+- Programm ist Teil des Schlüssels und wird je Antrag über `FM_NUMMER` aufgelöst; fehlt die Spalte, bricht der Import ab statt teilweise zu laden ([trigger-import.ts](src/core/status/import/trigger-import.ts), [trigger-share.ts](src/core/status/trigger-share.ts)).
+- Argumente von `TRG_TVs_Status_TV_VB` stehen an acht festen Positionen und werden von vorn gelesen; Komma-Listen sind UND-Listen ([trigger-parser.ts](src/core/status/trigger-parser.ts)) — kehrt die P0-Lesart „von beiden Enden" um, die auf einem Screenshot beruhte.
+- Blätter werden namentlich gewählt („Trigger-Prozeduren", „Erklärung Parameter"), sonst die ganze Mappe durchsucht ([xlsx-tabelle.ts](src/core/status/import/xlsx-tabelle.ts)).
+- „Erklärung Parameter" liefert zusätzlich die Textbaustein-Legende der Mail-Trigger und prüft die Bearbeiter-Kürzel gegen `MAIL_ROLLE` ([status-katalog-import.ts](src/core/status/import/status-katalog-import.ts)).
+- **Migrationsnotiz:** die Trigger-XLSX muss einmal neu eingelesen werden — Zeilen ohne Programm greifen an keinem Antrag, die Referenzdaten-Sektion sagt es ([vorgangssystem.md](docs/architecture/vorgangssystem.md)).
+
+### v2.379.1 — Vorgangssystem: P6-Inventar und Doku (August 2026)
+
+PATCH — Abschluss des Vorgangssystem-Laufs P0–P5. P6 (Rückbau der alten Ableitung) bekommt sein Inventar mit gemessenen Zahlen statt einer Schätzung; Konzept und CLAUDE.md ziehen auf den Ist-Stand nach.
+
+- P6-Inventar: 99 `SpinePhase`-Stellen in 20 Dateien, je Datei ein Vorschlag, Reihenfolge und Abnahme-Kriterium ([vorgangssystem-p6-inventar.md](docs/architecture/vorgangssystem-p6-inventar.md)).
+- Abnahme-Kriterium präzisiert: nicht „null Abweichungen" (unerreichbar), sondern **null unerklärte** — die 490 zerfallen in 12 Muster mit zwei Ursachen.
+- Konzept-Doc auf Ist-Zustand: Umsetzungsstand je Phase, vier begründete Abweichungen, sechs Messwerte aus dem Bestand ([vorgangssystem.md](docs/architecture/vorgangssystem.md)).
+- Pitfall #44 + Decision-Tree-Zeile; CLAUDE.md-Ceiling mit Begründung angehoben ([doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+
+### v2.379.0 — Fristen-Cockpit mit wirksamem Eingang (August 2026)
+
+MINOR — Bearbeiter und PL führen ihre Fristenlisten heute per Hand in Excel. Zwei zusätzliche Sichten im Vorgangs-Board ersetzen sie: Restfrist je Antrag ab wirksamem Eingang, und die Bestandsauswertung für die PL — beide als XLSX exportierbar.
+
+- `wirksamerEingang` = spätestes von Antragseingang und „alle Anträge da"; bewusst additiv, `computeFristDatum` bleibt unangetastet ([frist.ts](src/core/services/csv/frist.ts)).
+- Bearbeiter-Sicht: Restfrist mit Ampel (rot ≤ 14, gelb ≤ 30 Tage), Bezugsdatum in eigener Spalte, To-do und Wächter-Urteil daneben ([CockpitSichten.tsx](src/plugins/vorgangs-board/CockpitSichten.tsx)).
+- PL-Sicht: Verteilung über die ZAH-Phasen, Liegezeit je Status mit Median, p90 und n, Fristrisiko-Liste, Stau je Rolle ([CockpitSichten.tsx](src/plugins/vorgangs-board/CockpitSichten.tsx)).
+- XLSX-Export beider Sichten — genau die Zeilen, die auf dem Bildschirm stehen ([cockpit-export.ts](src/plugins/vorgangs-board/cockpit-export.ts)).
+- Fix: die Antragsfrist läuft nur in der Antragsphase. Ohne dieses Kriterium führte die Liste 2 850 abgeschlossene Vorgänge mit „853 T über" an ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts)).
+
+### v2.378.0 — Stillstands-Wächter mit Zieltagen und Rollen-Stau (August 2026)
+
+MINOR — Ein vergessenes Kürzel fällt heute niemandem auf: der Vorgang steht einfach still. Der Wächter misst die Zeit seit der letzten Vorgangs-Aktivität gegen Zieltage je Status und benennt, wo möglich, auf wessen Schreibtisch es liegt.
+
+- Wächter mit zwei Stufen: generische Liegezeit und, wo ein Kürzel-Paar halb offen ist, die hängende Rolle ([waechter.ts](src/core/status/waechter.ts)).
+- „unbewertet" ist ein eigenes Urteil, nie „ok": ohne gepflegte Zieltage fehlt die Grundlage, und das steht dann auch da ([waechter.ts](src/core/status/waechter.ts)).
+- Zieltage-Spalte im Katalog-Tab, je Zeile mit Vorschlag aus der Ist-Verteilung samt Stichprobengröße ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)).
+- Home-Widget „Hängt fest" (Opt-in): eigene Vorgänge nach Liegezeit, mit Grund und Rolle ([HaengtFestWidget.tsx](src/plugins/home/widgets/HaengtFestWidget.tsx)).
+- Board: Filter „hängt fest" plus Stau je Rolle im Kopf — die unbewerteten stehen daneben, nie darin ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)).
+
+### v2.377.0 — To-do-Engine mit AB-Regelsatz und Vorgangs-Board (August 2026)
+
+MINOR — Die AB-Kolleginnen rechnen ihr „was steht an?" heute als verschachtelte WENN-Formel in einer privaten XLSX-Mappe. Dieselbe Kaskade läuft jetzt als versionierte Team-Regelmenge, und ein Board zeigt das Ergebnis — mit der Regel und den gelesenen Feldwerten daneben, damit ein To-do nachvollziehbar bleibt statt behauptet.
+
+- To-do-Engine: geordnete Kaskade, erste zutreffende Regel gewinnt, Sperren legen ganze Stränge still; kein Treffer ist ein sichtbares Ergebnis ([todo-engine.ts](src/core/status/todo-engine.ts)).
+- AB-Regelsatz als Auslieferung: 25 Regeln + 2 Sperren aus der Mappe transkribiert, je Regel ein positives Fixture im Test ([todo-regeln.seed.ts](src/core/status/todo-regeln.seed.ts)).
+- Neues Plugin „Vorgangs-Board" (erprobung, dev+pl): drei Sichten desselben Regelsatzes — eigene Aufgaben, Warten auf andere, kein To-do ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)).
+- Regel-Pflege im Status-Katalog: jede Regel als deutscher Satz, Reihenfolge über Pfeile, Bedingung über den geteilten Editor der Meilensteine ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx)).
+- Vorbelegung „letzte 3 Jahrgänge": über alle Jahre meldete allein „ZuwB erstellen" 6 607 Aufgaben — Altbestand, der die Spalte nie geführt hat ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts)).
+
+### v2.376.0 — Kürzel-Glossar, Relevanz, Nächster-Schritt-Navigator (August 2026)
+
+MINOR — „Viele kennen die Kürzel nicht" war der meistgenannte Einstiegshemmnis. Der Kürzel-Tab wird zum Glossar (Bezeichnung, Rolle, Trigger-Wirkung in Satzform), die Relevanz-Häkchen grenzen die 505 Kürzel auf die ~30 der Antragsbearbeitung ein, und am Verbund steht, welche davon unter dem aktuellen Status überhaupt greifen würden.
+
+- „Nächste Schritte (in C16 zu setzen)" am Verbund: Kandidaten aus den Trigger-Vorbedingungen, mit Wirkung, Rolle und Grund, wo eine Bedingung nicht prüfbar war ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx), [navigator.ts](src/core/status/navigator.ts)).
+- Kürzel-Tab (vormals „Felder"): Relevanz-Häkchen, aufklappbare Trigger-Wirkung, Filter „nur relevante"/„nur mit CSV-Spalte"; Abgleich-Banner in eigene Datei ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx), [FelderAbgleich.tsx](src/plugins/status-cockpit/FelderAbgleich.tsx)).
+- Relevanz-Startvorschlag aus den 31 Spalten des AB-Dashboards — setzt nur Häkchen, nimmt nie welche weg ([seed-codes.ts](src/core/status/seed-codes.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)).
+- Fix: „Nachziehen" legte vier Kürzel doppelt an (kanonisches Feld **und** eigene Spalte); das Kürzel galt dadurch überall als nie gesetzt — kritisch bei `ABB`, das fast jede Trigger-Bedingung prüft ([seed.ts](src/core/status/seed.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)).
+- Fix: kanonisch gemappte Spalten (`D_AAE` → `antragsdatum`) waren unter ihrem Kürzel-Namen nicht auffindbar — der Tab meldete für zwei Kernspalten „nicht im Export" ([cockpit-berechnung.ts](src/core/status/cockpit-berechnung.ts)).
+
+### v2.375.0 — Status-Erklärung mit Herleitungs-Popover (August 2026)
+
+MINOR — „Warum steht der Antrag auf diesem Status, und was ist zuletzt passiert?" beantwortete bisher niemand — die Kürzel des Fachsystems kennen nicht alle. Ein graues Info-Icon an jeder Status-Anzeige rendert die Antwort vollständig aus Daten, ohne handgepflegten Text, der veralten könnte.
+
+- Herleitungs-Popover an Liste und Verbund-Detail: Code + Text + ZAH-Phase, letzter Vorgang mit Rolle, Verlaufs-Näherung, Datenstand, „Herleitung kopieren" ([HerleitungPopover.tsx](src/plugins/antraege/status/HerleitungPopover.tsx)).
+- Reiner Aufbau mit injiziertem Stichtag; „seit wann" bleibt LEER, wenn kein passendes Datum existiert, statt das jüngste beliebige zu nehmen ([herleitung.ts](src/core/status/herleitung.ts)).
+- Inhalt lädt erst beim Öffnen — sonst ginge jede der 13 000 Listenzeilen beim Rendern auf die IndexedDB ([useHerleitung.ts](src/plugins/antraege/status/useHerleitung.ts)).
+- Die Phase greift auf den Auslieferungs-Schnitt zurück, solange eine Bestandsfassung noch keine Codes trägt — sonst stünde dort wochenlang „keine Phase" ([herleitung.ts](src/core/status/herleitung.ts)).
+- Guard: alle 25 im Bestand vorkommenden Statuswerte lösen auf einen Code auf; er sichert vor allem die Export-Varianten „Ablehnung"/„Rücknahmeempfehlung"/„VN techn. geprüft" ([status-codes.test.ts](src/core/status/__tests__/status-codes.test.ts)).
+
+### v2.374.0 — Vorgangssystem-Fundament: Status-Codes, ZAH-Phasen, Trigger-Parser, Referenz-Importe (August 2026)
+
+MINOR — Die App soll **Companion** des Fachsystems werden statt zweiter Workflow-Engine: `STATUS_TV`/`STATUS_VB` werden angezeigt wie importiert, alles Neue (Erklärung, Navigation, Warnung) steht daneben. Phase 0 legt das Fundament — Codes, Phasen, Trigger — additiv im bestehenden `src/core/status/`, ohne die alte Ableitung anzufassen.
+
+- Status-Code-Katalog (11 Skizze … 99 Schlussvermerk) + NFC-Join Text→Code mit Varianten und ehrlichem „nicht im Katalog" ([status-codes.ts](src/core/status/status-codes.ts), [normalisierung.ts](src/core/status/normalisierung.ts)).
+- ZAH-Phasen als eigene Achse neben der alten Spine-Phase; Marker (29/88/93/94) bewusst ohne Phase ([zah-phasen.ts](src/core/status/zah-phasen.ts)).
+- Trigger-Parser für die vier Legacy-Prozeduren mit deutscher Satzform; Unlesbares bleibt als „nicht interpretiert" erhalten ([trigger-parser.ts](src/core/status/trigger-parser.ts)).
+- Zwei XLSX-Referenz-Importe mit Diff-Vorschau; Trigger als Geschwister-Sidecar, weil sie in der Katalog-Datei zehnmal mitgereist wären (2,4 → 6,8 MB gemessen) ([import/](src/core/status/import/), [trigger-share.ts](src/core/status/trigger-share.ts)).
+- Dev-Diagnose „Phasen-Vergleich": 490 Abweichungen im Bestand, verdichtet auf 12 systematische Muster — Entscheidungsgrundlage für den späteren Rückbau ([phasen-vergleich.ts](src/core/status/phasen-vergleich.ts)).
+
+### v2.373.1 — Temperatur gemessen statt geraten (August 2026)
+
+PATCH — v2.373.0 senkte den Standard auf 0,4, weil ein quellentreuer Text wenig Streuung brauche — belegt war das mit sechs Läufen an einer VB. 125 Läufe über 25 fiktive Vorhabensbeschreibungen zeigen: zwischen 0,2 und 1,0 gibt es keinen messbaren Unterschied in der Regeltreue, der ganze Abstand liegt unter dem Standardfehler.
+
+- `TEMPERATUR_STANDARD = 1.0` schreibt die Server-Voreinstellung fest statt sie zu erben — Reproduzierbarkeit, keine Qualitätsaussage; ein Test hält den Wert ([sampling.ts](src/core/services/ai/sampling.ts)).
+- `TEMPERATUR_SICHER`/`TEMPERATUR_MUTIG` → `TEMPERATUR_STANDARD`/`TEMPERATUR_ZWEITFASSUNG`; die Namen behaupteten eine Wirkung, die es nicht gibt ([zweitfassung.ts](src/plugins/antraege/gutachten/zweitfassung.ts)).
+- Zweitfassung heißt jetzt „mit anderer Einstellung"; der v2.373.0-Marker `'mutig'` wird nur noch gelesen, statt gespeicherte Fassungen durchfallen zu lassen ([sampling.ts](src/core/services/ai/sampling.ts)).
+- Mess-Aufbau + die beiden Fallen (Denkprozess an statt aus, zweiter Prozess am selben Server) dokumentiert ([gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)).
+
+### v2.373.0 — Sampling-Temperatur steuerbar, Zweitfassung auch ohne Bridge (August 2026)
+
+MINOR — Die App sendete bisher **keinen** Sampling-Parameter: jeder Skill-Lauf fuhr still auf der Server-Voreinstellung (internes llama.cpp `temperature: 1.0`), während die Node-Eval derselben Skills auf 0 maß. Damit fehlte auch die naheliegende Zweitfassung an einer direkt angebundenen KI, wo es keinen zweiten Tab gibt.
+
+- Zwei Temperatur-Konstanten, fest im Code, ohne Einstellung in der Oberfläche; `runSkill` setzt sie immer, DirectLLM schreibt sie in den Body ([sampling.ts](src/core/services/ai/sampling.ts), [direct-llm.ts](src/core/services/ai/transports/direct-llm.ts)).
+- „Zweitfassung mit mutigerer Einstellung" — der Menü-Eintrag entfällt ohne Bridge nicht mehr, was er variiert steht in der Beschriftung ([zweitfassung.ts](src/plugins/antraege/gutachten/zweitfassung.ts)).
+- `StepRun.fassung` hält die mutigere Einstellung am Lauf fest → Fußzeile, Verlaufs-Tabs und Meta-Zeilen unterscheiden die beiden Fassungen ([runner.ts](src/plugins/antraege/gutachten/runner.ts), [VersionVerlauf.tsx](src/plugins/antraege/kurzfassung/VersionVerlauf.tsx)).
+- Die Prompt-Ansicht nennt die Temperatur in der Fußzeile — sonst wäre der Wert wieder unsichtbar ([PromptAnsichtDialog.tsx](src/plugins/antraege/gutachten/PromptAnsichtDialog.tsx)).
+- **Gemessen, nicht bestätigt**: 3 Läufe bei ~1.0 hielten das Zeichenlimit, 3 bei 0,4/0,9 rissen es um 42–73 Zeichen — die erwartete bessere Regeltreue zeigte sich nicht ([gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)).
+
+### v2.372.4 — Sortier-Auswahl aus einer Quelle, drei Journey-Korrekturen (August 2026)
+
+PATCH — Beim Nachtesten des Startseiten-Reviews fiel auf, dass die „Sortiert nach"-Pille eine **zweite** Options-Liste führte: in der Sicht „Bewilligt" zeigte sie „Neueste zuerst", während nach Bewilligungsdatum sortiert wurde — und dieser Schlüssel war nicht anwählbar. Dazu die drei offenen Journey-Befunde D2–D4.
+
+- Sortier-Optionen kommen nur noch aus [sort.ts](src/plugins/antraege/sort.ts); die Pille liest sie über das reine [sortSeg.ts](src/plugins/antraege/filter/sortSeg.ts), die Doppel-Liste in [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx) ist entfallen.
+- Beschriftungen benennen das Feld statt der Richtung allein: „Eingang (neueste)" / „Bewilligung (älteste)" / „Frist (kürzeste)" — letztere hieß im Katalog „Älteste Eingänge zuerst" und beschrieb damit einen anderen Vergleich ([sort.ts](src/plugins/antraege/sort.ts)).
+- Der „Hilfe"-Knopf nennt die Einführungs-Tour, solange sie offen ist — der pulsende Punkt daneben war `aria-hidden` und ohne Tooltip ([SeitenHilfeButton.tsx](src/components/help/SeitenHilfeButton.tsx)).
+- „+10 mehr anzeigen" nennt jetzt den Rest, den es nicht zeigt („+10 anzeigen (628 weitere)"), und der doppelte Zähler unter der Liste ist weg ([MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx)).
+- Der Sync-Punkt behauptet keine Aktualität mehr, die er nicht kennt — er meldete „Anträge sind aktuell", während der CSV-Punkt daneben offene Importe zeigte ([SyncStatusIndicator.tsx](src/components/ui/SyncStatusIndicator.tsx)).
+
+### v2.372.3 — Kontext-Warnung und Fusszeile benennen nur eine KI, die es gibt (August 2026)
+
+PATCH — Beim Testlauf gegen einen fiktiven Antrag am lokalen llama.cpp benannten zwei Stellen eine KI, die es dort gar nicht gibt: die Kontext-Warnung sprach vom „Fenster der Standard-KI", und die Fußzeile schrieb „· Standard-KI" unter einen Text, der nie über die Bridge lief. Ohne Bridge existieren weder Standard- noch agentischer Tab.
+
+- Kontext-Warnung sagt jetzt „ins Fenster des Modells", wo kein Bridge-Ziel wirkt (`KontextBefund.fensterLabel`, [kontextWarnung.ts](src/plugins/antraege/gutachten/kontextWarnung.ts), [GutachtenSection.tsx](src/plugins/antraege/gutachten/GutachtenSection.tsx)).
+- `applyLaufZiel(..., null)` **entfernt** den KI-Stempel statt ihn zu überspringen — der Schritt wird fortgeschrieben, ein Rest aus einem früheren Bridge-Lauf überlebte sonst ([runner.ts](src/plugins/antraege/gutachten/runner.ts), [workflow-generierung.ts](src/plugins/antraege/gutachten/workflow-generierung.ts)).
+- Gesichtet an einem echten Lauf: fiktive VB (77.023 Zeichen) auf einem Verbund der local-Kopie, Abschnitt A dreimal über das lokale Qwen — Vorschau und „Zuletzt gesendet" byte-identisch, 6 von 6 Regeln erfüllt ([gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)).
+
 ### v2.372.2 — Startseite: Zahlen eindeutig, Layout entdichtet, Abnahme-Regel (August 2026)
 
 PATCH — Stufe 3+4 des Startseiten-Reviews. „Offen" ist jetzt festgelegt: **909 = offene Vorgänge mit gültigem Eingangsdatum** (die Antragsliste zeigt unter „Offen" dieselbe Zahl). Konkurrierende Zahlen und dreifache Wiederholungen sind aufgelöst, die Seite füllt wieder ihren Platz.

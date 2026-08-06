@@ -19,6 +19,7 @@ import {
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
 import { applyPrecheckBucket } from './filter/precheckQuickfilter';
+import { applyProjektart, type TvCountOf } from './filter/projektartQuickfilter';
 import { filtereAmpelQuickfilter } from './eingangAmpel';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -56,6 +57,12 @@ export interface FilteredAntraegeResult {
    * Kürzel-Filter widerspiegeln und stabil bleiben gegen Quickfilter-Wechsel.
    */
   countBase: AntragListItem[];
+  /**
+   * Teilvorhaben-Zahl des Verbunds eines Antrags, aus dem VOLLEN Bestand.
+   * Herausgereicht, damit die Projektart-Pille ihre Zähler über dieselbe
+   * Funktion bildet, die auch filtert — zwei Wege driften sonst auseinander.
+   */
+  tvCountOf: TvCountOf;
   /**
    * Zähler JE SICHT auf derselben Grundmenge wie die Liste — Bereich,
    * Inaktiv-Ausschluss und Irrläufer-Schalter inklusive. Alle Oberflächen, die
@@ -100,6 +107,8 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const precheckBucket = useAntraegeStore(s => s.precheckBucket);
+  const projektart = useAntraegeStore(s => s.projektart);
+  const verbundById = useAntraegeStore(s => s.verbundById);
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
@@ -121,6 +130,23 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     () => parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
     [meinKuerzel, profile?.bearbeiter_inkl_begleitung],
   );
+
+  /**
+   * Teilvorhaben-Zahl des Verbunds — aus `verbundById`, also aus dem VOLLEN
+   * Bestand und nicht aus der gefilterten Liste. Nur so bleibt die Projektart
+   * filter-unabhängig: zöge man sie aus den sichtbaren Zeilen, machte ein
+   * Statusfilter, der ein TV eines 2-TV-Verbunds ausblendet, daraus ein
+   * „Einzelprojekt".
+   *
+   * Ohne (oder mit unbekannter) `verbund_id` gilt 1 — ein Antrag ohne Verbund
+   * hat faktisch ein Teilvorhaben, sich selbst.
+   */
+  const tvCountOf = useMemo<TvCountOf>(() => (a) => {
+    const vid = typeof a.verbund_id === 'string' ? a.verbund_id.trim() : '';
+    if (!vid) return 1;
+    const anzahl = verbundById.get(vid)?.teilantrags_ids?.length;
+    return typeof anzahl === 'number' && anzahl > 0 ? anzahl : 1;
+  }, [verbundById]);
 
   return useMemo(() => {
     const end = tfPerfStart('useFilteredAntraege memo');
@@ -157,7 +183,11 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // PreCheck-Quickfilter (abgeleitete Klassifikation, eigener Store-Slot) VOR
     // den Sidebar-Filtern — analog Status/Antragstyp; `countBase` (= byInaktive)
     // bleibt bewusst davor, damit die PreCheck-Pillen-Counts stabil sind.
-    const byPrecheck = applyPrecheckBucket(byInaktive, precheckBucket);
+    // Projektart-Quickfilter (abgeleitet aus Antragstyp + TV-Zahl des Verbunds),
+    // wie PreCheck ein eigener Schritt VOR den Sidebar-Filtern und NACH
+    // `countBase` — damit die Zähler der Pille stabil bleiben.
+    const byProjektart = applyProjektart(byInaktive, projektart, tvCountOf);
+    const byPrecheck = applyPrecheckBucket(byProjektart, precheckBucket);
     // Ampel-Quickfilter (v2.229, Klick auf eine Antragseingang-Widget-Zeile):
     // transient wie PreCheck, VOR den Sidebar-Filtern; nutzt die konfigurierten
     // Schwellen aus dem Widget → Liste zählt identisch zum Widget.
@@ -197,8 +227,9 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       bearbeiterFilter,
       bearbeiterKuerzelMissing,
       countBase: byInaktive,
+      tvCountOf,
       counts,
       ausgeblendet: alleAntraege.length - antraege.length,
     };
-  }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
+  }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
 }

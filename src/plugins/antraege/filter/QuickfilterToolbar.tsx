@@ -2,8 +2,8 @@
  * Quickfilter-Toolbar für die Förderanträge-Liste — **Akkordeon** in EINER
  * Zeile (Journey-Paket 2 Phase 2).
  *
- * Segmente (`CollapsibleSeg`, controlled): Status · Antragstyp · PreCheck ·
- * (nur List-/Karten-Ansicht) Sortiert-nach. Es ist immer höchstens **eine**
+ * Segmente (`CollapsibleSeg`, controlled): Status · Antragstyp · Projektart ·
+ * PreCheck · (nur List-/Karten-Ansicht) Sortiert-nach. Es ist immer höchstens **eine**
  * Pille offen — der Zustand ist ein einzelner `QuickfilterSegId | null`, pro
  * View persistiert (`quickfilterExpanded.ts`). Öffnen einer Pille schließt die
  * jeweils andere implizit.
@@ -11,6 +11,8 @@
  * Filter-Backend:
  * - Status  → `useFilterState` (`system-status`, `phaseQuickfilter.ts`)
  * - Antragstyp → `useFilterState` (`system-vb-phase`, `kategorieQuickfilter.ts`)
+ * - Projektart → eigener Store-Slot `projektart` (abgeleitet aus Antragstyp +
+ *   TV-Zahl des Verbunds, kein Filter-Chip, siehe `projektartQuickfilter.ts`)
  * - PreCheck → eigener Store-Slot `precheckBucket` (abgeleitete Klassifikation,
  *   kein Filter-Chip, siehe `precheckQuickfilter.ts`)
  * - Sort → `useAntraegeStore` (per-View)
@@ -38,6 +40,11 @@ import {
 } from './kategorieQuickfilter';
 import { getPrecheckItems, asPrecheckBucket } from './precheckQuickfilter';
 import {
+  PROJEKTART_LABELS,
+  getProjektartItems,
+  projektartVonLabel,
+} from './projektartQuickfilter';
+import {
   loadExpandedSeg,
   saveExpandedSeg,
   toggleExpandedSeg,
@@ -50,7 +57,7 @@ export function QuickfilterToolbar(): React.ReactElement {
   // obwohl die Tabs oben (Offen / Alle …) bereits den Kürzel-Filter
   // anwenden. countBase = View + Irrläufer-Pre-Filter + Bearbeiter-Filter,
   // ohne die Sidebar-Active-Filter (Stabilität).
-  const { countBase } = useFilteredAntraege();
+  const { countBase, tvCountOf } = useFilteredAntraege();
   const activeView = useAntraegeStore(s => s.activeView);
   const sortByView = useAntraegeStore(s => s.sortByView);
   const setSortForView = useAntraegeStore(s => s.setSortForView);
@@ -66,6 +73,8 @@ export function QuickfilterToolbar(): React.ReactElement {
 
   const precheckBucket = useAntraegeStore(s => s.precheckBucket);
   const setPrecheckBucket = useAntraegeStore(s => s.setPrecheckBucket);
+  const projektart = useAntraegeStore(s => s.projektart);
+  const setProjektart = useAntraegeStore(s => s.setProjektart);
 
   // Akkordeon-Zustand: höchstens ein offenes Segment, pro View persistiert.
   const [expandedSeg, setExpandedSeg] = useState<QuickfilterSegId | null>(() => loadExpandedSeg(activeView));
@@ -92,6 +101,16 @@ export function QuickfilterToolbar(): React.ReactElement {
   const kategorie = getKategorieFromActive(active);
   const onKategorieChange = (label: string): void => {
     applyKategorie(label as KategorieLabel, (id, v) => setActiveValue(id, v), clearFilter);
+  };
+
+  // Projektart (abgeleitet aus Antragstyp + TV-Zahl, eigener Store-Slot). Die
+  // Zähler laufen über dieselbe `tvCountOf` wie der Filter — siehe
+  // `projektartQuickfilter.ts`.
+  const projektartItems = useMemo(
+    () => getProjektartItems(countBase, tvCountOf), [countBase, tvCountOf],
+  );
+  const onProjektartChange = (label: string): void => {
+    setProjektart(projektartVonLabel(label));
   };
 
   // PreCheck (abgeleiteter Bucket, eigener Store-Slot)
@@ -131,6 +150,18 @@ export function QuickfilterToolbar(): React.ReactElement {
         onChange={onKategorieChange}
         expanded={expandedSeg === 'antragstyp'}
         onExpandToggle={() => handleToggle('antragstyp')}
+      />
+      {/* Einzel-/Kooperationsprojekt. Die beiden Netzwerkbezug-Stufen liegen
+          INNERHALB von „Einzelprojekt" — ihre Zähler summieren sich deshalb
+          nicht auf dessen Zahl (ein DS-Einzelprojekt trägt weder 16KN noch
+          16EP). Die Tooltips am Knopf nennen die Regel im Klartext. */}
+      <CollapsibleSeg
+        label="Projektart"
+        value={PROJEKTART_LABELS[projektart]}
+        items={projektartItems}
+        onChange={onProjektartChange}
+        expanded={expandedSeg === 'projektart'}
+        onExpandToggle={() => handleToggle('projektart')}
       />
       <CollapsibleSeg
         label="PreCheck"

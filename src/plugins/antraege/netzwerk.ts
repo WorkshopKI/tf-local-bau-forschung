@@ -33,6 +33,21 @@ export function extractNetzwerkId(aktenzeichen: string): string | null {
   return m ? m[1]! : null;
 }
 
+/** Regex für ein kanonisches 16EP-FKZ — das Gegenstück ohne Netzwerkbezug. */
+const EP_FKZ_PATTERN = /^16EP\d{6}$/;
+
+/**
+ * `true` für ein 16EP-FKZ, also einen Antrag **ohne** Netzwerkbezug.
+ *
+ * Bewusst nicht als „alles, was nicht 16KN ist" formuliert: ein DS-Antrag trägt
+ * `16DS…` und ist damit weder das eine noch das andere. Wer die Frage stellt,
+ * meint die beiden ausgeschriebenen Präfixe — nicht deren Komplement.
+ */
+export function istEinzelFkz(aktenzeichen: string): boolean {
+  if (typeof aktenzeichen !== 'string') return false;
+  return EP_FKZ_PATTERN.test(aktenzeichen.trim());
+}
+
 /**
  * Liefert das 2-stellige Suffix nach den 4 Netzwerk-Ziffern (z. B. `"01"`,
  * `"27"`), oder `null` für nicht-16KN-FKZs.

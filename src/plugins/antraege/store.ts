@@ -27,6 +27,7 @@ import {
   type TabellenAnsicht,
 } from './tableGrouping';
 import { asPrecheckBucket, type PrecheckBucket } from './filter/precheckQuickfilter';
+import { asProjektart, type Projektart } from './filter/projektartQuickfilter';
 import type { AmpelQuickfilter } from './eingangAmpel';
 import {
   DEFAULT_VIEW_MODE,
@@ -37,6 +38,7 @@ import {
 
 const ACTIVE_VIEW_KEY = 'teamflow_antraege_active_view';
 const PRECHECK_BUCKET_KEY = 'teamflow_antraege_precheck_bucket';
+const PROJEKTART_KEY = 'teamflow_antraege_projektart';
 const SORT_BY_VIEW_KEY = 'teamflow_antraege_sort_by_view';
 const GROUPING_BY_VIEW_KEY = 'teamflow_antraege_grouping_by_view';
 const TABLE_GROUPING_BY_VIEW_KEY = 'teamflow_antraege_table_grouping_by_view';
@@ -62,6 +64,15 @@ function loadPrecheckBucket(): PrecheckBucket {
     return asPrecheckBucket(localStorage.getItem(PRECHECK_BUCKET_KEY));
   } catch {
     return 'Alle';
+  }
+}
+
+/** Projektart-Quickfilter aus localStorage (persistierte UI-Preference). */
+function loadProjektart(): Projektart {
+  try {
+    return asProjektart(localStorage.getItem(PROJEKTART_KEY));
+  } catch {
+    return 'alle';
   }
 }
 
@@ -206,6 +217,12 @@ interface AntraegeState {
    *  `useFilterState`, weil PreCheck eine abgeleitete Klassifikation ist und
    *  keinen Filter-Chip erzeugen soll (siehe `precheckQuickfilter.ts`). */
   precheckBucket: PrecheckBucket;
+  /** Projektart-Quickfilter (Alle / Einzelprojekt ± Netzwerkbezug / Kooperations-
+   *  projekt). Global wie `precheckBucket`, in localStorage persistiert
+   *  (`teamflow_antraege_projektart`). Eigener Store-Slot statt `useFilterState`,
+   *  weil die Projektart abgeleitet ist (Antragstyp + TV-Zahl des Verbunds) und
+   *  keinen Filter-Chip erzeugen soll (siehe `projektartQuickfilter.ts`). */
+  projektart: Projektart;
   /** Ampel-Quickfilter (v2.229): Klick auf eine Zeile des Antragseingang-
    *  Widgets. Transient (in-memory, wie precheckBucket) und trägt die
    *  konfigurierten Schwellen mit, damit die Liste identisch zum Widget
@@ -248,6 +265,7 @@ interface AntraegeState {
   setSearch: (s: string) => void;
   setSearchIgnoreBearbeiterFilter: (v: boolean) => void;
   setPrecheckBucket: (bucket: PrecheckBucket) => void;
+  setProjektart: (art: Projektart) => void;
   /** `null` = Filter entfernen. NACH `setActiveView` aufrufen (das resettet). */
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => void;
   /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
@@ -327,6 +345,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   searchIgnoreBearbeiterFilter: false,
   hybridSearch: { matchedAkz: null, loading: false, unavailable: [], downloadingCorpus: false },
   precheckBucket: loadPrecheckBucket(),
+  projektart: loadProjektart(),
   ampelQuickfilter: null,
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
@@ -425,6 +444,11 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   setPrecheckBucket: (bucket: PrecheckBucket) => {
     try { localStorage.setItem(PRECHECK_BUCKET_KEY, bucket); } catch { /* ignore */ }
     set({ precheckBucket: bucket });
+  },
+
+  setProjektart: (art: Projektart) => {
+    try { localStorage.setItem(PROJEKTART_KEY, art); } catch { /* ignore */ }
+    set({ projektart: art });
   },
 
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => set({ ampelQuickfilter: quick }),

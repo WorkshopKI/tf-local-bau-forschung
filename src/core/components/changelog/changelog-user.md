@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.8 — 2026-08
+
+### Neu
+- Neuer Schalter **„Projektart"** über der Liste, neben „Antragstyp": **Einzelprojekt** (FuE- oder DS-Antrag mit genau einem Teilvorhaben) oder **Kooperationsprojekt** (mit mehreren) — oder wie bisher alles.
+- Einzelprojekte lassen sich zusätzlich nach **Netzwerkbezug** trennen: „mit" sind die mit Förderkennzeichen 16KN, „ohne" die mit 16EP.
+
+Zwei Hinweise zu den Zahlen: DL- und NW-Anträge haben keine Projektart und erscheinen nur unter „Alle". Und die beiden Netzwerkbezug-Zahlen ergeben zusammen weniger als „Einzelprojekt", weil ein DS-Einzelprojekt das Kennzeichen 16DS trägt und damit in keine der beiden Gruppen fällt.
+
 ## v3.7 — 2026-08
 
 ### Verbesserungen

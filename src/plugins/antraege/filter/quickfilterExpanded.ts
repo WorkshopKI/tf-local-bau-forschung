@@ -12,11 +12,12 @@
  */
 
 /** Die aufklappbaren Segmente der Quickfilter-Zeile. */
-export type QuickfilterSegId = 'status' | 'antragstyp' | 'precheck' | 'sort';
+export type QuickfilterSegId = 'status' | 'antragstyp' | 'projektart' | 'precheck' | 'sort';
 
 const VALID_SEGS: ReadonlySet<QuickfilterSegId> = new Set<QuickfilterSegId>([
   'status',
   'antragstyp',
+  'projektart',
   'precheck',
   'sort',
 ]);
