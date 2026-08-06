@@ -109,6 +109,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // teilt den State reaktiv mit der Tabelle über den globalen Store.
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
+  const setVisibleColumns = useAntraegeColumnsStore(s => s.setVisibleColumns);
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
@@ -120,22 +121,21 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Im „alle"-/Übersichtsmodus (pl/dev) wird je Antrag das MA-Kürzel angezeigt,
   // damit sichtbar ist, welcher Bearbeiter zuständig ist.
   const showMa = isAuslastungFreigeschaltet() && !bearbeiterFilter.active;
-  // MA-Spalte (TIB-Kürzel) ist regulär im Picker wählbar — AUSSER im „alle"-/
-  // Übersichtsmodus, wo sie ohnehin erzwungen wird (showMa): dort raus aus dem
-  // Picker, damit keine wirkungslose Checkbox erscheint. In „meine Anträge"
-  // bleibt sie wählbar (Use-Case: „auch außerhalb meiner Anträge suchen").
+  // MA-Spalte (TIB-Kürzel) ist regulär im Picker wählbar. Im „alle"-/
+  // Übersichtsmodus wird sie ohnehin erzwungen (showMa) — dort stand sie bis
+  // v3.5 gar nicht im Picker, „damit keine wirkungslose Checkbox erscheint".
+  // Mit dem Spalten-Zähler wurde daraus ein Widerspruch: die Tabelle zeigte eine
+  // Spalte mehr, als der Picker kannte. Jetzt steht sie drin, angehakt und
+  // deaktiviert mit der Marke „auto" — der Einwand (keine wirkungslose
+  // ANKLICKBARE Checkbox) bleibt gewahrt, der Zähler stimmt wieder.
   // Die kuratierten Ordner-Spalten stehen nicht in der Registry — sie folgen dem
   // Statuskatalog und kommen deshalb hier dazu.
   const kategorieSpalten = useKategorieSpalten();
   const pickerColumns = useMemo(
-    () => {
-      const basis = showMa
-        ? ANTRAG_TABLE_COLUMNS.filter(c => c.key !== MA_COLUMN_KEY)
-        : ANTRAG_TABLE_COLUMNS;
-      return [...basis, ...kategorieStatusColumns(kategorieSpalten)];
-    },
-    [showMa, kategorieSpalten],
+    () => [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorieSpalten)],
+    [kategorieSpalten],
   );
+  const erzwungeneSpalten = useMemo(() => (showMa ? [MA_COLUMN_KEY] : []), [showMa]);
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   // Tabelle und gruppierte Liste melden hierher, was sie zeigen (TV-Anzahl nach
   // Spaltenfiltern + daraus entstandene Zeilen). Die Karten-Ansicht meldet
@@ -303,6 +303,8 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   columns={pickerColumns}
                   visibleKeys={visibleColumns}
                   onToggleColumn={toggleColumn}
+                  onSetColumns={setVisibleColumns}
+                  erzwungeneKeys={erzwungeneSpalten}
                   renderColumnExtra={c => {
                     const hinweis = spaltenHinweis(c.key);
                     return hinweis ? (
