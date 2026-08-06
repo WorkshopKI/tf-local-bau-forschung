@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.15 — 2026-08
+
+### Neu
+- **Die Spaltenfilter zeigen jetzt Trefferzahlen.** Hinter jedem Wert steht, wie viele Zeilen er liefert — beim Antragseingang zusätzlich am Jahr die Summe seiner Monate. Bei 605 Akronymen oder 33 Kürzeln muss man dafür nicht mehr erst filtern.
+  - Die Zahl berücksichtigt Filter aus **anderen** Spalten, den eigenen nicht: die Zahlen springen also nicht, während man in derselben Spalte auswählt.
+  - Ein Wert, den die anderen Filter auf **0** drücken, verschwindet nicht, sondern wird nur blasser — sonst könnte man ihn nicht mehr abwählen.
+  - Gezählt werden Teilvorhaben. In der Ansicht „Antrag" fasst die Tabelle Verbünde danach zu einer Zeile zusammen, dort stehen unter einer Zahl von 48 also z. B. 25 Zeilen.
+
 ## v3.14 — 2026-08
 
 ### Neu

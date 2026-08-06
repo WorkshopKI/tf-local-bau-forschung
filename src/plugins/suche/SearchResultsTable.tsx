@@ -61,6 +61,8 @@ export interface SearchResultsTableProps {
   columnFilters: Record<string, Set<string>>;
   onColumnFilterChange: (key: string, values: Set<string>) => void;
   filterCandidatesByColumn: Record<string, string[]>;
+  /** Trefferzahl je Wert der Spalte — gerufen nur fuer das offene Dropdown. */
+  filterCountsByColumn?: (key: string) => ReadonlyMap<string, number>;
   /** User-Override fuer Spaltenbreiten (per Drag-Handle gesetzt). Falls leer →
    *  Default-Width aus `SearchColumn.width`. */
   columnWidths: Record<string, number>;
@@ -71,7 +73,7 @@ export interface SearchResultsTableProps {
 function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactElement {
   const {
     results, columns, sortKey, sortDirection, onSort,
-    columnFilters, onColumnFilterChange, filterCandidatesByColumn,
+    columnFilters, onColumnFilterChange, filterCandidatesByColumn, filterCountsByColumn,
     columnWidths, onColumnWidthChange, onRowClick,
   } = props;
 
@@ -165,6 +167,7 @@ function SearchResultsTableInner(props: SearchResultsTableProps): React.ReactEle
           columnFilters={columnFilters}
           onColumnFilterChange={onColumnFilterChange}
           filterCandidatesByColumn={filterCandidatesByColumn}
+          filterCountsByColumn={filterCountsByColumn}
           onColumnWidthChange={onColumnWidthChange}
           onColumnWidthDrag={applyLiveColumnWidth}
         />

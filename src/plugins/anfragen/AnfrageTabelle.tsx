@@ -111,7 +111,7 @@ export function AnfrageTabelle({ anfragen, selectedId, onSelect }: Props): React
     [columns],
   );
   const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_anfragen_table_widths', defaultWidths);
-  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } = useColumnFilters(anfragen, columns);
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows, filterCounts } = useColumnFilters(anfragen, columns);
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(filteredRows, columns, 'datum', 'desc');
 
   return (
@@ -127,6 +127,7 @@ export function AnfrageTabelle({ anfragen, selectedId, onSelect }: Props): React
       columnFilters={columnFilters}
       onColumnFilterChange={setColumnFilter}
       filterCandidates={filterCandidates}
+      filterCounts={filterCounts}
       columnWidths={widths}
       onColumnWidthChange={setWidth}
       onColumnWidthReset={resetWidth}

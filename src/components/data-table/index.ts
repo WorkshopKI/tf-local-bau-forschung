@@ -29,7 +29,13 @@ export {
 } from './ColumnPicker';
 export { SortableTable, type SortableTableProps } from './SortableTable';
 export { ColumnFilterDropdown, type ColumnFilterDropdownProps } from './ColumnFilterDropdown';
-export { useColumnFilters, type UseColumnFiltersResult } from './useColumnFilters';
+export {
+  useColumnFilters,
+  facettenBasis,
+  zaehleFacette,
+  type UseColumnFiltersResult,
+  type FilterWertVon,
+} from './useColumnFilters';
 export {
   computeTableSizing,
   effectiveColumnWidth,

@@ -131,7 +131,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
     [spalten],
   );
   const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_status_katalog_col_widths', standardBreiten);
-  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows, filterCounts } =
     useColumnFilters(zeilen, spalten);
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(
     filteredRows, spalten, null, 'asc', 'teamflow_status_katalog_sort',
@@ -236,6 +236,11 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         </p>
       )}
 
+      {/* Zwischen den Bestands-Meldungen und dem Zieltage-Sammelweg: dieselbe
+          Zone „Bestands-Aussage, die zu einer Kuration führt". Die Liste
+          sortiert nach Vorkommen, damit oben angefangen werden kann. */}
+      <KurzLabelPflege api={api} />
+
       {/* Sammel-Weg neben dem zeilenweisen: 74 Werte einzeln zu setzen war der
           Grund, warum der Wächter für den halben Bestand schweigt. Was er setzt,
           steht vorher in der Vorschau — inklusive dessen, was er NICHT setzt. */}
@@ -290,6 +295,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         columnFilters={columnFilters}
         onColumnFilterChange={setColumnFilter}
         filterCandidates={filterCandidates}
+        filterCounts={filterCounts}
         columnWidths={widths}
         onColumnWidthChange={setWidth}
         onColumnWidthReset={resetWidth}

@@ -173,7 +173,7 @@ export function AntraegeTable({
   // Spaltenkopf-Filter (Header-Dropdown, wie in der Suche). Kandidaten aus der
   // EINGABE-Liste `enriched` (= Segment-/Sidebar-/Such-gefiltert) → view-scoped
   // und stabil; angewandt VOR der Gruppierung, also pro Einzel-Antrag.
-  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } =
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows, filterCounts } =
     useColumnFilters(enriched, columns);
 
   // Achse 1 (Ansicht): Zeilen-Körnung. Läuft VOR der Gruppierung — eine
@@ -377,6 +377,7 @@ export function AntraegeTable({
         columnFilters={columnFilters}
         onColumnFilterChange={setColumnFilter}
         filterCandidates={filterCandidates}
+        filterCounts={filterCounts}
         // Der Kopf bleibt stehen — dafür wird dieser Kasten der senkrechte
         // Scroller, und der Lade-Streifen muss MIT hinein.
         stickyHeader={stickyHeader}

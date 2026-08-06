@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   FILTER_BAUM_ROOT, baueFilterBaum, checkedAusWerten, gruppenKnotenId, werteAusChecked,
-  wertKnotenId,
+  wertKnotenId, type FilterBaum,
 } from '../filterBaum';
 
 /** Jahr-vor-Bindestrich, sonst ungruppiert — das Muster der Datumsspalte. */
@@ -36,6 +36,49 @@ describe('baueFilterBaum', () => {
     const { items, rootId } = baueFilterBaum([], jahr, identisch);
     expect(rootId).toBe(FILTER_BAUM_ROOT);
     expect(items[FILTER_BAUM_ROOT]?.children).toEqual([]);
+  });
+});
+
+describe('baueFilterBaum — die Zahlen', () => {
+  const KANDIDATEN = ['2024-08', '2024-07', '2023-12', '(leer)'];
+  const ZAHLEN = new Map([['2024-08', 3], ['2024-07', 5], ['(leer)', 2]]);
+
+  /** Die Wurzel traegt keine Zahl — dieselbe Verengung wie im `trailing`-Slot. */
+  const anzahl = (baum: FilterBaum, id: string): number | undefined => {
+    const d = baum.items[id]?.data;
+    return d && d.art !== 'wurzel' ? d.anzahl : undefined;
+  };
+
+  it('das Blatt traegt seine Zahl, ein fehlender Eintrag zaehlt als 0', () => {
+    const baum = baueFilterBaum(KANDIDATEN, jahr, identisch, ZAHLEN);
+    expect(anzahl(baum, wertKnotenId('2024-08'))).toBe(3);
+    // '2023-12' steht in keiner Zahl-Map — der Wert bleibt trotzdem waehlbar.
+    expect(anzahl(baum, wertKnotenId('2023-12'))).toBe(0);
+  });
+
+  it('der Ordner traegt die Summe seiner Kinder', () => {
+    const baum = baueFilterBaum(KANDIDATEN, jahr, identisch, ZAHLEN);
+    expect(anzahl(baum, gruppenKnotenId('2024'))).toBe(8);
+    expect(anzahl(baum, gruppenKnotenId('2023'))).toBe(0);
+  });
+
+  it('bei gefilterter Kandidatenliste zaehlt der Ordner nur die SICHTBAREN Kinder', () => {
+    // Das Suchfeld im Dropdown verkleinert die Liste; die Jahreszahl soll zu dem
+    // passen, was unter ihr steht — nicht zum Gesamtjahr.
+    const baum = baueFilterBaum(['2024-08'], jahr, identisch, ZAHLEN);
+    expect(anzahl(baum, gruppenKnotenId('2024'))).toBe(3);
+  });
+
+  it('der ungruppierte Sentinel traegt seine eigene Zahl und geht in keine Summe ein', () => {
+    const baum = baueFilterBaum(KANDIDATEN, jahr, identisch, ZAHLEN);
+    expect(anzahl(baum, wertKnotenId('(leer)'))).toBe(2);
+    expect(anzahl(baum, gruppenKnotenId('2024'))).toBe(8);
+  });
+
+  it('ohne Zahlen bleibt `anzahl` ueberall undefined (Rueckwaerts-Kompatibilitaet)', () => {
+    const baum = baueFilterBaum(KANDIDATEN, jahr, identisch);
+    expect(anzahl(baum, wertKnotenId('2024-08'))).toBeUndefined();
+    expect(anzahl(baum, gruppenKnotenId('2024'))).toBeUndefined();
   });
 });
 

@@ -28,6 +28,8 @@ export interface TableHeadRowsProps<T> {
   columnFilters?: Record<string, Set<string>>;
   onColumnFilterChange?: (key: string, values: Set<string>) => void;
   filterCandidates?: Record<string, string[]>;
+  /** Trefferzahl je Wert — gerufen NUR fuer die gerade offene Spalte. */
+  filterCounts?: (key: string) => ReadonlyMap<string, number>;
   /** Erste Spalte beim waagerechten Scrollen stehen lassen. */
   stickyFirstColumn?: boolean;
   /** Zusätzliche erste Kopfzeile, die zusammenhängende Spalten unter ihrer
@@ -69,12 +71,18 @@ export function TableHeadRows<T>({
   columnFilters,
   onColumnFilterChange,
   filterCandidates,
+  filterCounts,
   stickyFirstColumn = false,
   showGroupHeader = false,
   stickyHeader = false,
 }: TableHeadRowsProps<T>): React.ReactElement {
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
+  // Einmal je Render, VOR der Spaltenschleife: so rechnet garantiert nur die
+  // Spalte, deren Dropdown gerade offen ist.
+  const offeneZahlen = openFilterKey !== null && filterCounts
+    ? filterCounts(openFilterKey)
+    : undefined;
   const spannen = useMemo(
     () => (showGroupHeader ? baueRubrikSpannen(columns) : []),
     [showGroupHeader, columns],
@@ -240,6 +248,7 @@ export function TableHeadRows<T>({
                   onClose={() => { setOpenFilterKey(null); setFilterAnchor(null); }}
                   formatLabel={c.formatFilterLabel}
                   groupOf={c.filterGroupOf}
+                  counts={offeneZahlen}
                   anchorEl={filterAnchor}
                 />
               )}

@@ -37,11 +37,21 @@ export interface ColumnFilterDropdownProps {
   /** Gruppe eines Werts (Schluessel = Beschriftung), `null` = ungruppiert.
    *  Gesetzt, rendert das Dropdown einen zweistufigen Checkbox-Baum. */
   groupOf?: (value: string) => string | null;
+  /** Trefferzahl je Wert (Facette: andere Spaltenfilter angewandt, die eigene
+   *  nicht — siehe `useColumnFilters`). Ein fehlender Eintrag heisst 0. Ohne
+   *  diese Prop sieht das Dropdown exakt aus wie zuvor. */
+  counts?: ReadonlyMap<string, number>;
   anchorEl: HTMLElement | null;
 }
 
+/** Ein Wert, den die anderen Filter auf 0 gedrueckt haben, bleibt stehen (die
+ *  Kandidatenliste kollabiert nie) — aber gedimmt. `opacity` statt Textfarbe,
+ *  weil die Baum-Beschriftung ihre Farbe hart traegt und Haekchen + Zahl
+ *  mitgedimmt gehoeren. */
+const LEERE_FACETTE = { opacity: 0.55 };
+
 export function ColumnFilterDropdown(props: ColumnFilterDropdownProps): React.ReactElement {
-  const { candidates, selected, onApply, onClose, formatLabel, groupOf, anchorEl } = props;
+  const { candidates, selected, onApply, onClose, formatLabel, groupOf, counts, anchorEl } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [local, setLocal] = useState<Set<string>>(
@@ -131,18 +141,30 @@ export function ColumnFilterDropdown(props: ColumnFilterDropdownProps): React.Re
               groupOf={groupOf}
               display={display}
               search={search}
+              counts={counts}
               onChange={setLocal}
             />
           )
-          : visible.map(v => (
-            <label
-              key={v}
-              className="flex items-center gap-2 px-3 py-1.5 text-[12px] cursor-pointer hover:bg-[var(--tf-hover)] text-[var(--tf-text)]"
-            >
-              <input type="checkbox" checked={local.has(v)} onChange={() => toggle(v)} />
-              <span className="truncate" title={display(v)}>{display(v)}</span>
-            </label>
-          ))}
+          : visible.map(v => {
+            const anzahl = counts?.get(v) ?? 0;
+            return (
+              <label
+                key={v}
+                className="flex items-center justify-between gap-2 px-3 py-1.5 text-[12px] cursor-pointer hover:bg-[var(--tf-hover)] text-[var(--tf-text)]"
+                style={counts && anzahl === 0 ? LEERE_FACETTE : undefined}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <input type="checkbox" checked={local.has(v)} onChange={() => toggle(v)} />
+                  <span className="truncate" title={display(v)}>{display(v)}</span>
+                </span>
+                {counts && (
+                  <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">
+                    {anzahl.toLocaleString('de-DE')}
+                  </span>
+                )}
+              </label>
+            );
+          })}
       </div>
       <div className="flex gap-2 p-2" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
         <Button
@@ -179,6 +201,7 @@ interface GruppierteWerteProps {
   groupOf: (value: string) => string | null;
   display: (value: string) => string;
   search: string;
+  counts?: ReadonlyMap<string, number>;
   onChange: (next: Set<string>) => void;
 }
 
@@ -194,12 +217,12 @@ interface GruppierteWerteProps {
  * der gemerkte Zustand zurueck (gleiches Muster wie im Status-Filter).
  */
 function GruppierteWerte({
-  visible, local, groupOf, display, search, onChange,
+  visible, local, groupOf, display, search, counts, onChange,
 }: GruppierteWerteProps): React.ReactElement {
   const { items, rootId } = useMemo(
-    () => baueFilterBaum(visible, groupOf, display),
+    () => baueFilterBaum(visible, groupOf, display, counts),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visible, groupOf, display],
+    [visible, groupOf, display, counts],
   );
   const checked = useMemo(() => checkedAusWerten(visible, local), [visible, local]);
 
@@ -241,7 +264,26 @@ function GruppierteWerte({
         onExpandedChange={setOffen}
         checkedItems={checked}
         onCheckedChange={ids => onChange(werteAusChecked(visible, ids, local))}
+        slots={{
+          // Die Entscheidung „gar keine Zahl" faellt IM Slot (Regel 1 der
+          // Baum-Doku): ein Element, das intern `null` rendert, ist fuer den
+          // Baum trotzdem Inhalt.
+          trailing: p => {
+            const n = anzahlVon(p.data);
+            return n === undefined ? null : (
+              <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">
+                {n.toLocaleString('de-DE')}
+              </span>
+            );
+          },
+          zeilenStil: p => (anzahlVon(p.data) === 0 ? LEERE_FACETTE : undefined),
+        }}
       />
     </div>
   );
+}
+
+/** Zahl eines Knotens — die Wurzel hat keine, und ohne `counts` hat sie niemand. */
+function anzahlVon(knoten: FilterKnoten): number | undefined {
+  return knoten.art === 'wurzel' ? undefined : knoten.anzahl;
 }

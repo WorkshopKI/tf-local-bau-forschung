@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.15.0 — Spaltenfilter zeigen Trefferzahlen (August 2026)
+
+MINOR — Die Spalten-Filter listeten nur die Werte auf; wie viele Zeilen hinter einem stehen, sah man erst nach dem Anwenden. Bei 605 Akronymen oder 33 FB-Kürzeln ist das ein Blindflug.
+
+- Hinter jedem Wert steht seine Trefferzahl — **einseitige Facette**: andere aktive Spaltenfilter zählen mit, der eigene nicht — [useColumnFilters.ts](src/components/data-table/useColumnFilters.ts)
+- Ein Wert, den die anderen Filter auf 0 drücken, bleibt wählbar (ausgegraut statt weg) — [ColumnFilterDropdown.tsx](src/components/data-table/ColumnFilterDropdown.tsx)
+- Im Jahr→Monat-Baum trägt auch der Ordner seine Summe; die Zahl steckt im Knoten, nicht im Render — [filterBaum.ts](src/components/data-table/filterBaum.ts)
+- Gerechnet wird nur für die gerade geöffnete Spalte (ein Durchlauf beim Öffnen statt ~25 bei jedem Klick) — [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx)
+- Die Suche zieht mit, über ihren eigenen Wert-Zugriff (`filterType: 'year'`) — [useSearchResults.ts](src/plugins/suche/useSearchResults.ts)
+
 ### v3.14.1 — DS und Irrlaeufer sind zwei verschiedene Luecken (August 2026)
 
 PATCH — Hinter dem fehlenden Projektform-Treffer standen zwei ganz verschiedene Sachverhalte, die als ein „unbekannt" verschmolzen waren: **DS** ist eine echte Projektform, die nur nach der Zuarbeit entstanden ist (nachlieferbar), **Irrläufer** ist begrifflich gar keine — an uns gesendet, aber nicht unsere Zuständigkeit (nie nachlieferbar).

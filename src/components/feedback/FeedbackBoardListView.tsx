@@ -43,7 +43,7 @@ export function FeedbackBoardListView({ tickets, config, ich }: Props): React.Re
     [columns],
   );
   const { widths, setWidth, resetWidth } = useColumnWidths('tf-feedback-board-list-widths', defaultWidths);
-  const { columnFilters, setColumnFilter, filterCandidates, filteredRows } = useColumnFilters(tickets, columns);
+  const { columnFilters, setColumnFilter, filterCandidates, filteredRows, filterCounts } = useColumnFilters(tickets, columns);
   const { sortKey, sortDirection, toggleSort, sortedRows } = useTableSort(filteredRows, columns, null, 'desc');
 
   return (
@@ -57,6 +57,7 @@ export function FeedbackBoardListView({ tickets, config, ich }: Props): React.Re
       columnFilters={columnFilters}
       onColumnFilterChange={setColumnFilter}
       filterCandidates={filterCandidates}
+      filterCounts={filterCounts}
       columnWidths={widths}
       onColumnWidthChange={setWidth}
       onColumnWidthReset={resetWidth}

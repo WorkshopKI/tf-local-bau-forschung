@@ -28,6 +28,9 @@ export interface SearchTableHeaderProps {
   onColumnFilterChange: (key: string, values: Set<string>) => void;
   /** Pre-column-filter-Set: alle pillFiltered Ergebnisse (vor Spaltenfiltern). */
   filterCandidatesByColumn: Record<string, string[]>;
+  /** Trefferzahl je Wert — gerufen NUR fuer die gerade offene Spalte. Muss
+   *  `useCallback`-stabil sein, sonst ist das `memo()` unten wertlos. */
+  filterCountsByColumn?: (key: string) => ReadonlyMap<string, number>;
   /** Finaler Commit (mouseup) — schreibt State + localStorage. */
   onColumnWidthChange: (key: string, width: number) => void;
   /** Live-Update waehrend des Drags — mutiert DOM direkt, kein React-Re-Render. */
@@ -39,11 +42,15 @@ const MIN_RESIZE_WIDTH = 60;
 function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactElement {
   const {
     columns, sortKey, sortDirection, onSort,
-    columnFilters, onColumnFilterChange, filterCandidatesByColumn,
+    columnFilters, onColumnFilterChange, filterCandidatesByColumn, filterCountsByColumn,
     onColumnWidthChange, onColumnWidthDrag,
   } = props;
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLButtonElement | null>(null);
+  // Einmal je Render, vor der Spaltenschleife: nur die offene Spalte rechnet.
+  const offeneZahlen = openFilterKey !== null && filterCountsByColumn
+    ? filterCountsByColumn(openFilterKey)
+    : undefined;
 
   /** Drag-Handle Mousedown — Live-DOM-Mutation per mousemove (kein React-
    *  Re-Render der 80+ Zeilen × 10+ Spalten), finaler Commit on mouseup. */
@@ -133,6 +140,7 @@ function SearchTableHeaderInner(props: SearchTableHeaderProps): React.ReactEleme
                   }}
                   onClose={() => { setOpenFilterKey(null); setFilterAnchor(null); }}
                   formatLabel={c.formatFilterLabel}
+                  counts={offeneZahlen}
                   anchorEl={filterAnchor}
                 />
               )}

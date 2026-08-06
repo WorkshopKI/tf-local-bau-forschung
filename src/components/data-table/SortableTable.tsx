@@ -108,6 +108,10 @@ export interface SortableTableProps<T> {
   onColumnFilterChange?: (key: string, values: Set<string>) => void;
   /** Distinct Werte je filterbarer Spalte (z.B. aus `useColumnFilters`). */
   filterCandidates?: Record<string, string[]>;
+  /** Trefferzahl je Wert der Spalte (z.B. `useColumnFilters().filterCounts`).
+   *  Unabhaengig von den drei oben: ohne sie zeigt das Dropdown wie bisher
+   *  keine Zahlen. Gerufen wird nur fuer die gerade geoeffnete Spalte. */
+  filterCounts?: (key: string) => ReadonlyMap<string, number>;
   /** Optionale Section-Header: liefert den Section-Key pro Zeile. Die Rows
    *  MÜSSEN bereits nach Section gruppiert (kontiguierlich) übergeben werden —
    *  beim Wechsel des Keys (inkl. erster Zeile) wird eine volle-Breite-Header-
@@ -217,6 +221,7 @@ export function SortableTable<T>({
   columnFilters,
   onColumnFilterChange,
   filterCandidates,
+  filterCounts,
   sectionKeyOf,
   renderSectionHeader,
   fitContentWidth = false,
@@ -390,6 +395,7 @@ export function SortableTable<T>({
               columnFilters={columnFilters}
               onColumnFilterChange={onColumnFilterChange}
               filterCandidates={filterCandidates}
+              filterCounts={filterCounts}
               stickyFirstColumn={stickyFirstColumn}
               showGroupHeader={showGroupHeader}
               stickyHeader={stickyHeader}

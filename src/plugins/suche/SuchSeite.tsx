@@ -164,7 +164,7 @@ export function SuchSeite(): React.ReactElement {
     typeFilter, setTypeFilter,
     antragstypFilter, setAntragstypFilter,
     filterChips, antragstypItems, antragstypApplicable,
-    sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn,
+    sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
     sortKey, sortDirection, handleSort,
     columnFilters, handleColumnFilterChange,
     columnWidths, handleColumnWidthChange,
@@ -461,6 +461,7 @@ export function SuchSeite(): React.ReactElement {
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
           filterCandidatesByColumn={filterCandidatesByColumn}
+          filterCountsByColumn={filterCountsByColumn}
           columnWidths={columnWidths}
           onColumnWidthChange={handleColumnWidthChange}
           onRowClick={handleRowClick}

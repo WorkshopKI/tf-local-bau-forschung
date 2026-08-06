@@ -8,7 +8,8 @@
  * Verhaltens-invariant: reine Verschiebung der bisherigen SuchSeite-Logik, keine
  * Änderung der Berechnung.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { facettenBasis, zaehleFacette, type SortableColumn } from '@/components/data-table';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import {
@@ -64,6 +65,8 @@ export interface UseSearchResultsReturn {
   analyseResults: UnifiedSearchResult[];
   visibleColumnDefs: SearchColumn[];
   filterCandidatesByColumn: Record<string, string[]>;
+  /** Trefferzahl je Wert der Spalte — gerufen nur fuer das offene Dropdown. */
+  filterCountsByColumn: (key: string) => ReadonlyMap<string, number>;
   sortKey: string | null;
   sortDirection: 'asc' | 'desc';
   handleSort: (key: string) => void;
@@ -131,7 +134,14 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
   // Per-Result-Spalten-Cache fuer Filter-Werte (WeakMap → GC mit den Results).
   const filterValueCacheRef = useRef<WeakMap<UnifiedSearchResult, Map<string, string>>>(new WeakMap());
 
-  const cachedFilterValue = (col: SearchColumn, r: UnifiedSearchResult): string => {
+  // Nimmt bewusst die BREITERE `SortableColumn`: so passt die Funktion in den
+  // `FilterWertVon`-Vertrag der geteilten Facetten-Rechnung. Alle Spalten hier
+  // stammen aus `SEARCH_COLUMNS`; eine Spalte ohne `filterType` fiele in
+  // `getColumnFilterValue` ohnehin auf den Accessor zurueck.
+  const cachedFilterValue = (
+    spalte: SortableColumn<UnifiedSearchResult>, r: UnifiedSearchResult,
+  ): string => {
+    const col = spalte as SearchColumn;
     const cache = filterValueCacheRef.current;
     let perResult = cache.get(r);
     if (!perResult) {
@@ -160,6 +170,35 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
   }, [pillFiltered, allColumns]);
+
+  // Facetten-Zahlen fuer das gerade geoeffnete Spalten-Dropdown. Gerechnet wird
+  // gegen `antragstypFiltered` — Pill und Antragstyp bleiben nach dem Anwenden
+  // aktiv, also gehoeren sie in die Zusage. Die KANDIDATEN kommen weiter aus
+  // `pillFiltered` (bewusst breiter): ein Wert kann darum allein wegen des
+  // Antragstyp-Filters auf 0 stehen — er bleibt sichtbar, nur ausgegraut.
+  //
+  // Der Wert-Zugriff MUSS der der Suche sein (`filterType: 'year'|'type'`),
+  // sonst zaehlt die Facette andere Werte als der Filter darunter filtert.
+  const facettenCache = useMemo(
+    () => new Map<string, Map<string, number>>(),
+    [antragstypFiltered, columnFilters],
+  );
+  const filterCountsByColumn = useCallback((key: string): ReadonlyMap<string, number> => {
+    let treffer = facettenCache.get(key);
+    if (!treffer) {
+      const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
+      treffer = col
+        ? zaehleFacette(
+          facettenBasis(antragstypFiltered, allColumns, columnFilters, key, cachedFilterValue),
+          col,
+          cachedFilterValue,
+        )
+        : new Map<string, number>();
+      facettenCache.set(key, treffer);
+    }
+    return treffer;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
+  }, [facettenCache, antragstypFiltered, columnFilters, allColumns]);
 
   const columnFiltered = useMemo(() => {
     const entries = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
@@ -212,7 +251,7 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
     typeFilter, setTypeFilter,
     antragstypFilter, setAntragstypFilter,
     filterChips, antragstypItems, antragstypApplicable,
-    sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn,
+    sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
     sortKey, sortDirection, handleSort,
     columnFilters, handleColumnFilterChange,
     columnWidths, handleColumnWidthChange,
