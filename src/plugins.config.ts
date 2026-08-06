@@ -21,6 +21,7 @@ import { statusCockpitPlugin } from '@/plugins/status-cockpit';
 import { meilensteinePlugin } from '@/plugins/meilensteine';
 import { vorgangsBoardPlugin } from '@/plugins/vorgangs-board';
 import { zuKlaerenPlugin } from '@/plugins/zu-klaeren';
+import { glossarPlugin } from '@/plugins/glossar';
 import { features } from '@/config/feature-flags';
 
 const allPlugins: TeamFlowPlugin[] = [
@@ -34,6 +35,7 @@ const allPlugins: TeamFlowPlugin[] = [
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,
+  glossarPlugin,
   zuKlaerenPlugin,
   feedbackBoardPlugin,
   skillVerwaltungPlugin,
