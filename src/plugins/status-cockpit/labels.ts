@@ -56,10 +56,10 @@ export const PROMINENZ_WERTE: readonly Prominenz[] = [
   'meilenstein', 'normal', 'nebensaechlich', 'ignoriert',
 ];
 
-/** Die drei Reiter der Seite. Der Schlüssel ist stabil, die Beschriftung nicht. */
-export type TabKey = 'katalog' | 'felder' | 'regeln';
+/** Die Reiter der Seite. Der Schlüssel ist stabil, die Beschriftung nicht. */
+export type TabKey = 'katalog' | 'felder' | 'regeln' | 'klaerfragen';
 
-const TAB_KEYS: readonly TabKey[] = ['katalog', 'felder', 'regeln'];
+const TAB_KEYS: readonly TabKey[] = ['katalog', 'felder', 'regeln', 'klaerfragen'];
 
 /**
  * Der Reiter aus `?tab=` — für Deep-Links von außerhalb (`/status-cockpit?tab=regeln`
@@ -82,6 +82,7 @@ export const TAB_LABEL: Record<TabKey, string> = {
   katalog: 'Statuswerte',
   felder: 'Kürzel',
   regeln: 'To-do-Regeln',
+  klaerfragen: 'Klärfragen',
 };
 
 /**
@@ -97,6 +98,12 @@ export const TAB_ZWECK: Record<TabKey, string> = {
     + 'er dauern darf.',
   felder: 'Die Felder des Fachsystems, wer sie setzt und welche als Aktivität zählen.',
   regeln: 'Die geordnete Kaskade, die bestimmt, welche Aufgabe an einem Vorgang ansteht.',
+  // „Klärfragen" gegen „Zu klären": dort ein Fragebogen, den das Team IN der App
+  // beantwortet; hier eine Ableitung aus dem Bestand, die als Datei herausgeht.
+  // Der Satz muss den Unterschied tragen, sonst liest sich der Reiter wie eine
+  // Dublette des Moduls nebenan.
+  klaerfragen: 'Was am Katalog fachlich offen ist — aus dem Bestand abgeleitet und als '
+    + 'Arbeitsmappe zum Herumreichen. Beantwortet wird außerhalb der App.',
 };
 
 /**

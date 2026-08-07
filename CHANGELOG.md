@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.26.0 — Klaerfragen als Arbeitsmappe (August 2026)
+
+MINOR — Was am Status- und Kürzelkatalog fachlich offen ist, stand bisher nur in `vorgangssystem.md` — als Handmessungen aus einer Konsolensitzung, die mit jedem Nacht-Export veralten und die niemand nachrechnen konnte. Die Befragung läuft Wochen und braucht eine Datei, die reihum geht. **70 Klärfragen** aus 14.222 Vorgängen, in sechs Herkünften mit je eigener Zuständigkeit.
+
+- Neuer Reiter „Klärfragen" mit Bestandslauf, Zähler je Herkunft und XLSX-Export; read-only, kein Rückweg (das ist „Zu klären") — [KlaerfragenTab.tsx](src/plugins/status-cockpit/KlaerfragenTab.tsx)
+- Die Ableitung entsteht bei jedem Lauf neu und ist rein; die drei Wert-Herkünfte sind disjunkt geordnet, Ids kommen aus Daten — [klaerfragen/](src/core/status/klaerfragen/)
+- Fixierte Kopfzeile, Zeilenumbruch, entsperrte Antwortzellen und Auswahllisten kann der XLSX-Writer nicht; ein Nachschritt über `jszip` ergänzt sie und bricht ab, wenn seine Formatannahme nicht mehr stimmt — [arbeitsmappe-veredelung.ts](src/core/status/export/arbeitsmappe-veredelung.ts)
+- `uneinigeKuerzel()` liefert erstmals, WELCHE Projektform was sagt — bisher nur die Namensliste — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- §14.4 ist bis auf die DS-Lücke abgearbeitet; `AB` → 51 und `XHSP` → 50 sind fachlich bestätigt und decken sich mit C16 — der erste direkte Beleg für die Güte des Exports — [vorgangssystem.md](docs/architecture/vorgangssystem.md)
+
 ### v3.25.0 — Arbeitsliste folgt dem Phasenschnitt nicht mehr (August 2026)
 
 MINOR — Katalog-Fassung 19 löste die Phase „Vollständigkeit" auf und hängte deren Codes an „Prüfung" — ein gewollter Schnitt, der nebenbei **448 Anträge** die Arbeitsliste wechseln ließ: „Wartet auf Antragsteller" fiel von 52 auf 0, der Altanträge-Balken der Auslastung von 395 auf 22 Teilvorhaben (leer bei 22 von 32 MAs). Entschieden hatte das niemand; in den Reitern blieb es unsichtbar, weil das Aggregat „Vor Entscheidung" drei Kategorien bündelt.

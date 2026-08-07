@@ -46,7 +46,10 @@ const ISOLATED_TESTS = [
   'src/core/status/__tests__/katalog-share.test.ts',
   'src/core/status/__tests__/katalog-store.test.ts',
   // Setzt dieselben Modul-Register wie byte-identitaet (Snapshot in
-  // status-canonical.ts + status-wert-labels.ts).
+  // status-canonical.ts + status-wert-labels.ts) — die Klärfragen, weil
+  // `bezeichnungsAbweichungen` liest, was die ANZEIGE liefert, und das hängt am
+  // Snapshot: ohne Isolation entschiede die Ladereihenfolge über das Ergebnis.
+  'src/core/status/__tests__/klaerfragen.test.ts',
   'src/core/status/__tests__/label-identitaet.test.ts',
   'src/core/status/__tests__/reconcile-store.test.ts',
   'src/core/status/__tests__/trigger-share.test.ts',

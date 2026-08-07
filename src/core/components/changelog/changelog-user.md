@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.26 — 2026-08
+
+### Neu
+- Die Vorgangs-Regeln haben einen Reiter **Klärfragen**: er sammelt aus dem Bestand, was am Status- und Kürzelkatalog fachlich offen ist, und sagt zu jeder Frage, wer sie beantwortet.
+- Daraus entsteht auf Knopfdruck eine **Excel-Arbeitsmappe zum Herumreichen** — mit fixierter Kopfzeile, Filter, vorbereiteten Antwortfeldern und Auswahllisten. Beantwortet wird außerhalb der App; die Vorgabespalten sind gegen Verrutschen geschützt.
+
+### Verbesserungen
+- Der Kürzel-Katalog sagt jetzt nicht nur, *dass* eine Bedeutung je Projektform verschieden ist, sondern *welche* Projektform was sagt.
+
 ## v3.25 — 2026-08
 
 ### Bugfixes

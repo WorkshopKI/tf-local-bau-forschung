@@ -922,25 +922,56 @@ Drei Aussagen daraus:
 
 ### 14.4 Offene Punkte für die Fachabstimmung
 
-Mit dem Quellenwechsel (14.7) sind die Punkte 2, 3 und 4 **erledigt** — sie
-hingen alle an der Zuarbeit als Regelquelle. Sie bleiben stehen, weil Code,
-Commits und ältere Notizen sie nummeriert referenzieren.
+Mit dem Quellenwechsel (14.7) und der Fachabstimmung im August 2026 sind die
+Punkte **1 bis 5 erledigt**; offen bleibt allein Punkt 6 (DS). Sie bleiben
+stehen, weil Code, Commits und ältere Notizen sie nummeriert referenzieren.
 
-1. **`XPC+`/`XPC?`/`XPC-`: TV- oder Verbund-Wirkung?** Die Zuarbeit sagt TV
-   (*„Stw TV auf bearbeitungsreif, wenn alle TV PC+ haben"*), C16 führt einen
-   **Verbund**-Status und gar keinen TV-Status. **Der einzige verbliebene
-   Widerspruch zwischen den Quellen** — und genau die drei Regeln, die der
-   Klärfall-Abgleich übrigbehält (14.7). Die App folgt C16; zu klären bleibt, ob
-   die Zuarbeit hier etwas weiß, was der Export nicht ausdrückt.
-2. ~~Zwei Zielstatus lösen nicht auf~~ — **erledigt**. C16 führt Zahlen statt
-   Wortlaute: `AB` → 51 *bewilligungsreif* (der Tippfehler „bewilligungseif" ist
-   damit gelesen), `XHSP` → 50 *Bewilligungsentwurf VDI/VDE-IT*. Im Bestand
+**Quellenbewertung, einmal festgehalten.** C16 ist ein Export aus dem laufenden
+Fachsystem und damit dessen tatsächliche Konfiguration — eine Beobachtung des
+Systems, nicht über das System. Jannes Zuarbeit ist die private Ableitung einer
+AB für ein Excel-Dashboard: erklärtermaßen unvollständig und nur für NW, weil
+diese Person NW bearbeitet hat. Als **Regelquelle** entfällt sie ganz (nicht
+nachrangig, sondern weg); wo sie über C16 hinausgeht, ist sie unbelegt. Für
+**Bezeichnungen, Rollen, Kategorien, Scope und Glossargliederung** bleibt sie
+unverändert gültig — dort hat sie keine Konkurrenz und wird nicht angefasst.
+Damit ist auch die Deckungstabelle aus 14.3 vollständig erklärt: dass alle
+abgeleiteten Verbund-Statuswechsel aus NW kamen, war kein Systemfehler. **Die
+FuE-Lücke war keine.**
+
+1. ~~`XPC+`/`XPC?`/`XPC-`: TV- oder Verbund-Wirkung?~~ — **erledigt, kein
+   Klärfall.** Die Ebene entscheidet das X-Präfix: X heißt Verbundebene, und das
+   Fachsystem verbietet die Mischung in beide Richtungen. Die Bedingung
+   entscheidet C16, das `XPC+` als Verbundstatus ohne TV-Bezug führt; die
+   Aggregationsbedingung (*„wenn alle TV PC+ haben"*) stammt aus dem
+   Excel-Dashboard einer einzelnen Bearbeiterin und ist unbelegt. Damit ist der
+   letzte Widerspruch zwischen den Quellen aufgelöst, und
+   `klaerfaelleAusQuellen` (14.7) behält **keinen** offenen Fall übrig.
+2. ~~Zwei Zielstatus lösen nicht auf~~ — **erledigt, und zwar doppelt belegt**.
+   C16 führt Zahlen statt Wortlaute: `AB` → 51 *bewilligungsreif* (der Tippfehler
+   „bewilligungseif" ist damit gelesen), `XHSP` → 50 *Bewilligungsentwurf
+   VDI/VDE-IT*. Beide Auflösungen sind inzwischen **fachlich bestätigt** und
+   decken sich mit dem Export — zwei voneinander unabhängige Quellen sagen
+   dasselbe. Das ist mehr als ein geschlossener Punkt: es ist der bislang
+   einzige direkte Beleg für die **Güte des C16-Exports**, der sonst nur deshalb
+   als Regelquelle gilt, weil er aus dem laufenden Fachsystem stammt. Im Bestand
    bleiben **16** Übergänge mit einem Zielcode, den der Statuskatalog nicht
    beschriftet — die stehen als Zahl da, nicht als Loch.
+
+   Dass der Katalog die bestätigten Wortlaute auch **führt**, ist seit v3.24
+   keine Annahme mehr: die Herkunft `bezeichnung-weicht-ab` der Klärfragen-
+   Erhebung hält `FACHLICH_BESTAETIGT` gegen `StatusCodeEintrag.text` **und**
+   gegen die geladene Fassung. Verglichen wird nur der amtliche Text, nie `kurz`
+   (Pitfall #43). Heute: null Abweichungen — 50 und 51 stehen wortgleich.
 3. ~~DL und EP haben gar keine Verbund-Regel~~ — **erledigt**. DL: 305 von 514
    Verbünden mit abgeleitetem VB-Statuswechsel. EP hat keine `vb_phase`-
    Zuordnung und wird aus den Daten nie als Projektform erreicht; das betrifft
    nur die Bezeichnung, nicht die Regel.
+
+   **Einelementige Verbünde sind Modell, kein Fehler.** DL und EP sind im
+   Fachsystem einzelunternehmerisch; die App modelliert sie **bewusst** als
+   Verbünde mit einem Teilvorhaben, damit sie gleich gerendert werden — und auch
+   das Fachsystem führt für beide eine Verbundansicht. Deshalb **kein
+   Invariant-Guard** dagegen: er würde eine Absicht als Datenfehler melden.
 4. ~~12 der 41 Regeln lassen die Ebene offen~~ — **entfällt**. C16 nennt TV- und
    Verbund-Status an festen Positionen; welches Feld gefüllt ist, **ist** die
    Wirkungsebene. `scope: null` und `VerlaufsUebergang.scopeUnbestimmt` gibt es
@@ -955,6 +986,13 @@ Commits und ältere Notizen sie nummeriert referenzieren.
    Codes haben einen DS-Eintrag. Die App zeigt dort eine geliehene Bezeichnung;
    bei 53 Codes widersprechen die Formen einander. Braucht eine Quelle, die es
    noch nicht gibt (14.7).
+
+   **Warum die Lücke existiert, ist geklärt** — nur nicht, wer sie schließt:
+   Durchführbarkeitsstudien kamen mit der **Richtlinie 2020** hinzu, die Zuarbeit
+   ist älter und kennt die Projektform schlicht nicht. Die fehlenden
+   Katalogeinträge sind daraus vollständig erklärt; es ist keine Auslassung,
+   sondern ein Altersunterschied. Der **einzige verbliebene offene Punkt**, und
+   er steht als Klärfrage im Export (Herkunft `ds-ohne-quelle`, 14.8).
 
 ### 14.5 Zweite Regelquelle: was C16 zusätzlich erklärt
 
@@ -1259,3 +1297,88 @@ Auf den Share ging nichts. Die Regelbasis IST C16, und C16 wird ausschließlich
 gelesen ([trigger-share.ts](../../src/core/status/trigger-share.ts)); geschrieben
 wird sie nur vom XLSX-Import im Cockpit. Der STOPP vor einem Regelbasis-Write
 hatte damit keinen Anlass.
+
+### 14.8 Klärfragen als Arbeitsmappe (v3.26)
+
+Die Befunde aus 14.7 waren **Handmessungen ohne Code-Heimat**: 851 DS-Verbünde,
+53 strittige Codes, 6 436 Vorkommen — einmal in einer Konsolensitzung gezählt,
+in diese Datei geschrieben, danach unreproduzierbar und mit jedem Nacht-Export
+veraltend. Seit v3.26 leitet die App sie bei jedem Lauf neu ab
+([klaerfragen/](../../src/core/status/klaerfragen/)) und gibt sie als
+Arbeitsmappe heraus.
+
+**Das ist NICHT das Modul „Zu klären"** ([klaerung.md](klaerung.md), Pitfall #49).
+Dort ein Fragebogen: feste Punkte, das Team antwortet in der App, die Antworten
+liegen je Autor auf dem Share. Hier eine Ableitung: der Code rechnet aus, was
+offen ist, und gibt es als Datei heraus — kein Rückweg, keine Zustandsverwaltung,
+kein Schreibpfad. Die Antworten kommen zunächst außerhalb der App zurück.
+
+#### Neun Herkünfte, sechs davon besetzt
+
+Gemessen am 07.08.2026 (Bestand vom 05.08., 14 222 Vorgänge, ganzer Bestand ohne
+Betrachtungsbereich, Durchlauf ~6 s): **70 Klärfragen**.
+
+| Herkunft | Fälle | Adressat |
+|---|---:|---|
+| Bedeutung widersprüchlich (NW/FuE) | 29 | Fachbereich (Kürzelkatalog) |
+| Bedeutung geliehen (DS) | 25 | Fachbereich (Kürzelkatalog) |
+| Amtlicher Text kleingeschrieben | 12 | Fachbereich (Parametertabelle) |
+| Statuswert fehlt in der Fassung | 2 | Kuration (PL) |
+| Marker „strittig" | 1 | Fachbereich (Kürzelkatalog) |
+| DS ohne Kürzel-Quelle | 1 | Fachbereich / Leitung |
+| Statuswert ohne amtlichen Code · Kurzlabel fehlt · Bezeichnung weicht ab | 0 | — |
+
+**Gefragt wird nur, wo eine Antwort etwas ändert.** Ein Kürzel, dessen Bedeutung
+zwischen NW und FuE auseinandergeht, ist unschön — aber solange beide Formen
+einen eigenen Eintrag haben, zeigt die App jedem Vorgang die richtige. Falsch
+wird die Anzeige erst, wo **geliehen** wird, und das ist im Bestand DS. Aus
+demselben Grund entfallen Codes ohne Vorkommen: 93/94 („assoziierter/
+internationaler Partner") stehen laut 14.4 Punkt 5 nur auf Roh-Exportzeilen ohne
+Förderkennzeichen, und 14 kleingeschriebene Katalogtexte werden dadurch zu 12.
+
+**Drei Nullen sind Ergebnisse, keine Lücken.** *Kurzlabel fehlt* ist leer, weil
+die Kuration aus v3.16 abgeschlossen ist — die unabhängige Bilanz des
+Statuswerte-Reiters sagt „alle 26 Statuscodes tragen eine Kurzform".
+*Bezeichnung weicht ab* ist leer, weil Katalog und Fassung die bestätigten
+Wortlaute 50/51 wortgleich führen (14.4 Punkt 2). *Ohne amtlichen Code* ist leer,
+weil der einzige Kandidat eine Stufe früher greift:
+
+#### Die drei Wert-Herkünfte sind geordnet, nicht nebeneinander
+
+Vom Grundsätzlichen zum Kosmetischen — kennt die Fassung den Wert überhaupt →
+lässt er sich einem Code zuordnen → trägt er eine Kurzform. **Der erste Treffer
+gewinnt.** Sonst läge derselbe Rohwert in mehreren Töpfen und würde in einer nach
+Vorkommen sortierten Liste mehrfach gewogen.
+
+Der Realfall ist `VN gegrüft` (5 Vorgänge, Tippfehler zu `VN geprüft`): erwartet
+worden war er als „Wert ohne Code" — er landet aber eine Stufe höher, weil die
+Fassung ihn gar nicht führt. Damit die Frage dort ihren Tippfehler-Hinweis nicht
+verliert, schlägt auch diese Herkunft die nächstliegenden bekannten Wortlaute
+vor. Die Ähnlichkeit **sortiert nur die Auswahlliste**; eingestuft wird nichts —
+das bleibt die Antwortspalte. Der zweite Fall ist
+`Stellungnahme zur Rücknahmeempfehlung` (16 Vorgänge).
+
+#### Warum die Datei einen Nachschritt braucht
+
+Von dem, was eine herumgereichte Datei braucht, schreibt der gebündelte
+XLSX-Writer (SheetJS Community) nur Autofilter, Spaltenbreiten und mehrere
+Blätter. Fixierte Kopfzeile, Zeilenumbruch, Zellfüllung, entsperrte Zellen und
+Datenvalidierung kann er nicht — `dataValidations` ist dort ein leerer
+Kommentar, `sheetView` wird ohne `<pane>` geschrieben, die Stiltabelle ist auf
+einen Eintrag festverdrahtet. Ohne entsperrte Zellen wäre Blattschutz sogar
+schädlich: er sperrte die Antwortspalte mit.
+
+[arbeitsmappe-veredelung.ts](../../src/core/status/export/arbeitsmappe-veredelung.ts)
+öffnet deshalb das erzeugte ZIP (`jszip` liegt ohnehin im Bündel — eine zweite
+Bibliothek wäre der teurere Weg zum selben Ergebnis), ersetzt `xl/styles.xml` und
+ergänzt das Blatt-XML. Zwei Feinheiten, die man einmal falsch macht:
+`sheetProtection` verbietet Sortieren und Filtern per **Vorgabe**, beides muss
+ausdrücklich freigegeben werden — sonst ist der Autofilter darüber tot; und
+`<dataValidations>` hat im Schema eine feste Position, hinter dem falschen
+Nachbarn öffnet Excel die Datei nicht mehr.
+
+**Die Formatannahme wird geprüft, nicht gehofft.** Passt die erzeugte
+Stiltabelle nicht auf die erwartete Gestalt, bricht der Export mit einem Satz ab.
+Eine Formatierung, die still ausfällt, merkt niemand — außer daran, dass der
+Kontext abgeschnitten ist und geraten wird. Der Test packt das Archiv wieder aus
+und liest das XML; der letzte Beweis bleibt ein Doppelklick in Excel.

@@ -176,14 +176,51 @@ export function heutigesKuerzel(kuerzel: string): string | null {
   return INDEX.get(kuerzel.trim().toUpperCase())?.ersetztDurch ?? null;
 }
 
-/** Alle Kürzel, deren Bedeutung von der Projektform abhängt. */
-export function projektformAbhaengigeKuerzel(): string[] {
-  const out: string[] = [];
+/** Was eine einzelne Projektform zu einem Kürzel sagt. */
+export interface FormBedeutung {
+  form: Projektform;
+  bezeichnung: string;
+}
+
+/** Ein Kürzel, dessen Bedeutung zwischen den Projektformen auseinandergeht. */
+export interface UneinigesKuerzel {
+  kuerzel: string;
+  /** Je geführter Projektform eine Bedeutung, in Katalogreihenfolge. */
+  bedeutungen: readonly FormBedeutung[];
+  /**
+   * Trägt der Katalog dafür schon `strittig`? Das misst etwas ANDERES — ein
+   * Schreibvarianten-Patt des Generators, nicht einen Bedeutungsunterschied.
+   * Beide Angaben stehen deshalb nebeneinander statt übereinander.
+   */
+  strittig: boolean;
+}
+
+/**
+ * Alle Kürzel, deren Bedeutung von der Projektform abhängt — **mit der Angabe,
+ * welche Form was sagt**.
+ *
+ * {@link projektformAbhaengigeKuerzel} liefert nur die Namen; das reicht für
+ * eine Warnung, nicht für eine Frage. Wer klären will, ob `DMB` „Anzahl der
+ * Bescheinigungen" oder „Bescheinigung an ZE versandt" heißt, braucht beide
+ * Wortlaute samt Herkunft.
+ */
+export function uneinigeKuerzel(): UneinigesKuerzel[] {
+  const out: UneinigesKuerzel[] = [];
   for (const e of KUERZEL_KATALOG) {
-    const b = new Set(Object.values(e.formen).map(f => f.bezeichnung));
-    if (b.size > 1) out.push(e.kuerzel);
+    const formen = Object.entries(e.formen) as [Projektform, KuerzelForm][];
+    if (new Set(formen.map(([, f]) => f.bezeichnung)).size <= 1) continue;
+    out.push({
+      kuerzel: e.kuerzel,
+      bedeutungen: formen.map(([form, f]) => ({ form, bezeichnung: f.bezeichnung })),
+      strittig: e.strittig === true,
+    });
   }
   return out;
+}
+
+/** Alle Kürzel, deren Bedeutung von der Projektform abhängt. */
+export function projektformAbhaengigeKuerzel(): string[] {
+  return uneinigeKuerzel().map(u => u.kuerzel);
 }
 
 /** Die Kuratorenliste: Schreibvarianten, bei denen keine Mehrheit entschied. */

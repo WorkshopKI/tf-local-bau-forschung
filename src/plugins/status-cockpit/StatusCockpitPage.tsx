@@ -25,6 +25,7 @@ import { Download, Upload, History } from 'lucide-react';
 import { useStatusCockpit, type StatusCockpitApi } from './useStatusCockpit';
 import { KatalogTab } from './KatalogTab';
 import { FelderTab } from './FelderTab';
+import { KlaerfragenTab } from './KlaerfragenTab';
 import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
 import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
@@ -408,6 +409,9 @@ export function StatusCockpitPage(): React.ReactElement {
             { key: 'katalog', label: TAB_LABEL.katalog, count: werteCount },
             { key: 'felder', label: TAB_LABEL.felder, count: felderCount },
             { key: 'regeln', label: TAB_LABEL.regeln, count: api.entwurf?.todoRegeln?.length ?? 0 },
+            // Ohne Zähler: die Zahl entsteht erst durch einen Bestandslauf, und
+            // eine „0" an der Lasche läse sich als „nichts offen".
+            { key: 'klaerfragen', label: TAB_LABEL.klaerfragen },
           ]}
         />
         {/* Der Zwecksatz steht als eigene Zeile unter der Leiste, nicht als
@@ -451,6 +455,7 @@ export function StatusCockpitPage(): React.ReactElement {
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
           {tab === 'katalog' && <KatalogTab api={api} />}
           {tab === 'felder' && <FelderTab api={api} />}
+          {tab === 'klaerfragen' && <KlaerfragenTab api={api} />}
           {isVorgangssystemEnabled() && <ReferenzdatenSektion api={api} />}
           <VersionsPanel api={api} />
         </div>
