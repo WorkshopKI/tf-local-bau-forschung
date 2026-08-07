@@ -137,7 +137,7 @@ describe('fristAnzeige — die drei Zustände sind unterscheidbar', () => {
     const halt = '2026-01-01T00:00:00.000Z';
     const jetzt = new Date('2026-02-01T00:00:00.000Z').getTime();
     const a = fristAnzeigeVon(
-      { zustand: 'angehalten', bezugsZeitpunkt: halt }, jetzt,
+      { zustand: 'angehalten', bezugsZeitpunkt: halt, haltedatumQuelle: 'verlauf_bestaetigt' }, jetzt,
     );
     expect(a.text).toBe('31 T angehalten');
     expect(a.ampel).toBeNull();

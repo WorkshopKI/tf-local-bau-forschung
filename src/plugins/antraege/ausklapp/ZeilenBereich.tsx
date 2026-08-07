@@ -102,10 +102,8 @@ export function ZeilenBereich({
         />
       ) : (
         <FristenReiter
-          quelle={daten.quelle}
-          aktenzeichen={zeilenKey}
+          daten={daten}
           istVerbundZeile={istVerbundZeile}
-          statusRoh={statusRoh}
           stichtag={stichtag}
           verbundId={verbundId}
         />

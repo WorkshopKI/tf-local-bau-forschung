@@ -29,6 +29,10 @@ import { isBegleitungStatus, isTerminalStatus } from '@/core/utils/status-canoni
 import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
 import { fristLaeuftVon } from '@/core/status/zah-phasen';
 import type { ZahPhase } from '@/core/status/typen';
+// TYP-only: `haltedatum.ts` importiert nichts von hier, und `check-cycles.mjs`
+// zählt `import type` nicht als Laufzeit-Kante. Die Herkunft an zwei Stellen zu
+// definieren wäre die Alternative — und die erste Erweiterung liefe auseinander.
+import type { HaltedatumHerkunft, HaltedatumQuelle } from '@/core/status/haltedatum';
 import { MS_PER_DAY, addDays, addMonths, ANTRAG_SLA_DAYS, VN_SLA_MONTHS, wirksamerEingang } from './frist';
 
 /**
@@ -58,6 +62,16 @@ export interface FristErgebnis {
   /** Bei `nicht_berechenbar` die fehlende Grundlage; bei `angehalten` der
    *  Grund, WARUM kein Haltedatum dabeisteht. Sonst nicht gesetzt. */
   grund?: string;
+  /**
+   * Woher das Haltedatum kam. **Immer gesetzt**, damit die Anzeige nie raten
+   * muss: `'unbekannt'` heißt „keins bekannt" — das gilt auch bei laufender
+   * Uhr, wo es keins geben soll.
+   *
+   * Belastbar (`journal`, `verlauf_bestaetigt`) und hergeleitet (`datumsfeld`,
+   * `verlauf_bedingt`) müssen unterscheidbar bleiben: ein Datum aus einer
+   * bedingten Kante trägt eine Regel, deren Vorbedingungen nicht prüfbar waren.
+   */
+  haltedatumQuelle: HaltedatumQuelle;
 }
 
 /** Grund-Texte an einer Stelle — sie stehen im Tooltip und im kopierten Text. */
@@ -85,6 +99,8 @@ export interface FristEingabe {
    * einen Laufzeit-Zyklus auslösten.
    */
   haltedatum?: string | null;
+  /** Woher es kam. Fehlt ⇒ `'unbekannt'`; geraten wird die Herkunft NIE. */
+  haltedatumHerkunft?: HaltedatumHerkunft;
   /** ISO — injiziert, nie `Date.now()` hier drin. */
   stichtag: string;
   /** Die geltenden Phasen (aus der Fassung). Fehlt = Snapshot bzw. Seed. */
@@ -132,16 +148,25 @@ export function berechneFrist(e: FristEingabe): FristErgebnis {
   if (isBegleitungStatus(e.status)) {
     const vn = alsDatum(e.vnEingangDatum);
     if (!vn) {
-      return { zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneVnEingang };
+      return {
+        zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneVnEingang,
+        haltedatumQuelle: 'unbekannt',
+      };
     }
     const ziel = addMonths(vn, VN_SLA_MONTHS);
-    if (!ziel) return { zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneVnEingang };
+    if (!ziel) {
+      return {
+        zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneVnEingang,
+        haltedatumQuelle: 'unbekannt',
+      };
+    }
     const rest = tageBis(ziel, stichtag);
     return {
       zustand: 'laeuft',
       basisDatum: vn,
       zielDatum: ziel,
       bezugsZeitpunkt: stichtag,
+      haltedatumQuelle: 'unbekannt',
       ...(rest !== null ? { tageRest: rest } : {}),
     };
   }
@@ -154,8 +179,14 @@ export function berechneFrist(e: FristEingabe): FristErgebnis {
   if (!laeuft) {
     const halt = alsDatum(e.haltedatum);
     return halt !== null
-      ? { zustand: 'angehalten', bezugsZeitpunkt: halt }
-      : { zustand: 'angehalten', grund: FRIST_GRUND.haltedatumUnbekannt };
+      ? {
+        zustand: 'angehalten', bezugsZeitpunkt: halt,
+        haltedatumQuelle: e.haltedatumHerkunft ?? 'unbekannt',
+      }
+      : {
+        zustand: 'angehalten', grund: FRIST_GRUND.haltedatumUnbekannt,
+        haltedatumQuelle: 'unbekannt',
+      };
   }
 
   // 3. Der wirksame Eingang trägt die laufende Uhr.
@@ -163,11 +194,17 @@ export function berechneFrist(e: FristEingabe): FristErgebnis {
   const xte = alsDatum(e.alleAntraegeDa);
   const basis = wirksamerEingang(aae, xte);
   if (!basis) {
-    return { zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneEingang };
+    return {
+      zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneEingang,
+      haltedatumQuelle: 'unbekannt',
+    };
   }
   const ziel = addDays(basis, ANTRAG_SLA_DAYS);
   if (!ziel) {
-    return { zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneEingang };
+    return {
+      zustand: 'nicht_berechenbar', grund: FRIST_GRUND.ohneEingang,
+      haltedatumQuelle: 'unbekannt',
+    };
   }
   const rest = tageBis(ziel, stichtag);
   return {
@@ -176,6 +213,7 @@ export function berechneFrist(e: FristEingabe): FristErgebnis {
     basisDatum: basis,
     zielDatum: ziel,
     bezugsZeitpunkt: stichtag,
+    haltedatumQuelle: 'unbekannt',
     ...(rest !== null ? { tageRest: rest } : {}),
   };
 }

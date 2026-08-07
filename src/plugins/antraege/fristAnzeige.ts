@@ -20,6 +20,7 @@ import {
   berechneFrist, FRIST_GRUND, type FristErgebnis, type FristZustand,
 } from '@/core/services/csv/frist-ergebnis';
 import type { ZahPhase } from '@/core/status/typen';
+import type { HaltedatumHerkunft } from '@/core/status/haltedatum';
 import type { EingangAmpel } from './eingangAmpel';
 
 export interface FristAnzeige {
@@ -42,16 +43,47 @@ export function fristTextFromDays(d: number): string {
   return `seit ${-d} T`;
 }
 
+/**
+ * Die Ampel-Stufen als **Tabelle**, damit die Erklärung im FristenBand nicht
+ * eine zweite daneben aufschreibt.
+ *
+ * Schwellen bewusst frist-relativ (nicht eingangs-relativ), damit sie für
+ * Antrags- wie VN-Frist gleich lesen. `bis` ist die Obergrenze der Stufe.
+ */
+export const FRIST_AMPEL_STUFEN: readonly {
+  bis: number; ampel: EingangAmpel; text: string;
+}[] = [
+  { bis: -1, ampel: 'rot', text: 'überfällig' },
+  { bis: 14, ampel: 'orange', text: 'noch ≤ 14 T' },
+  { bis: 30, ampel: 'gelb', text: 'noch ≤ 30 T' },
+  { bis: Number.POSITIVE_INFINITY, ampel: 'gruen', text: 'mehr als 30 T' },
+];
+
 /** Ampel-Stufe aus „Tagen bis zur Frist" — überfällig → rot, sonst je näher
- *  die Frist rückt, desto wärmer. Schwellen bewusst frist-relativ (nicht
- *  eingangs-relativ), damit sie für Antrags- wie VN-Frist gleich lesen:
- *  ≤ 0 rot · ≤ 14 orange · ≤ 30 gelb · sonst grün. */
+ *  die Frist rückt, desto wärmer. Liest {@link FRIST_AMPEL_STUFEN}, statt die
+ *  Schwellen ein zweites Mal hinzuschreiben. */
 export function fristAmpelFromDays(d: number): EingangAmpel {
-  if (d < 0) return 'rot';
-  if (d <= 14) return 'orange';
-  if (d <= 30) return 'gelb';
-  return 'gruen';
+  return (FRIST_AMPEL_STUFEN.find(s => d <= s.bis) ?? FRIST_AMPEL_STUFEN[3]!).ampel;
 }
+
+/**
+ * Woher das Haltedatum kam, in einem Halbsatz — **eine Quelle für Reiter und
+ * Band**. Belastbar (Journal, bestätigte Kante) und hergeleitet (Datumsfeld,
+ * bedingte Kante) müssen sich lesen lassen, ohne die Herkunft zu kennen.
+ */
+export const HALT_HERKUNFT: Readonly<Record<HaltedatumHerkunft, string>> = {
+  journal: 'aus dem Journal belegt',
+  datumsfeld: 'aus einem Datumsfeld genähert',
+  verlauf_bestaetigt: 'aus dem Verlauf, Regel bestätigt',
+  verlauf_bedingt: 'aus dem Verlauf, Regel bedingt — hergeleitet',
+};
+
+/** Ist die Herkunft belastbar oder hergeleitet? Entscheidet die Darstellung. */
+export function haltBelastbar(h: HaltedatumHerkunft): boolean {
+  return h === 'journal' || h === 'verlauf_bestaetigt';
+}
+
+export const HALT_OHNE = 'weder Journal noch Datumsfeld noch Verlauf — nicht geraten';
 
 /**
  * Anzeige aus vorberechneten „Tagen bis zur Frist" — für Aggregate, die schon

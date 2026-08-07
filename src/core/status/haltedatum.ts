@@ -6,7 +6,7 @@
  * Phase kam. Nur dann kann die Anzeige „34 T bis Entscheidung" sagen statt
  * „seit 2 760 T" — dieselbe Zahl, die vorher falsch war, wird hier richtig.
  *
- * **Zwei Quellen, in dieser Reihenfolge, und eine dritte Antwort.**
+ * **Drei Quellen, in dieser Reihenfolge, und eine vierte Antwort.**
  *
  * 1. **Belegt** — das Import-Diff-Journal führt `TV_STATUS`/`VB_STATUS` mit
  *    und weiß, wann der Wert gewechselt hat. Das ist Beobachtung, keine
@@ -15,27 +15,64 @@
  *    zuordnet wie den aktuellen Status. Exakt die Regel, mit der die
  *    Status-Erklärung ihr „seit" bestimmt (`bestimmeSeit` in `herleitung.ts`) —
  *    bewusst dieselbe und nicht eine zweite.
- * 3. **Gar nicht** — Altbestand ohne Historie und ohne passendes Datumsfeld.
- *    Dann bleibt es bei „angehalten, Haltedatum unbekannt". Auf keinen Fall
- *    ersatzweise weiterlaufen lassen: eine erfundene Zahl ist schlimmer als
- *    eine fehlende, weil man ihr nicht ansieht, dass sie erfunden ist.
+ * 3. **Rekonstruiert** — die Verlaufsableitung (v3.30). Sie kennt den Übergang
+ *    in den heutigen Status samt Datum, und für einen angehaltenen Vorgang ist
+ *    genau das sein Haltedatum. Zuletzt, weil sie eine Rekonstruktion ist —
+ *    im Bestand aber die einzige, die überhaupt antwortet: Stufe 1 reicht nicht
+ *    weit genug zurück, und an der Phase eines Endstatus hängt kein Datumsfeld
+ *    (§14.9). Die Konfidenz der datierenden Kante wandert in die Herkunft mit.
+ * 4. **Gar nicht** — Altbestand ohne Historie, ohne passendes Datumsfeld und
+ *    ohne erklärenden Verlauf. Dann bleibt es bei „angehalten, Haltedatum
+ *    unbekannt". Auf keinen Fall ersatzweise weiterlaufen lassen: eine
+ *    erfundene Zahl ist schlimmer als eine fehlende, weil man ihr nicht
+ *    ansieht, dass sie erfunden ist.
  *
- * Rein und deterministisch: die Journal-Einträge werden hereingereicht, nicht
- * gelesen. Wer sie nicht hat (Liste, Board), ruft die Funktion ohne sie und
- * bekommt Stufe 2 oder 3.
+ * Rein und deterministisch: Journal-Einträge UND Verlaufs-Kante werden
+ * hereingereicht, nicht gelesen. Wer sie nicht hat (Liste, Board), ruft die
+ * Funktion ohne sie und bekommt die nächste Stufe.
  */
 import { baueChronik } from './chronik';
 import type { FeldVorkommen } from './feld-aufloesung';
 import type { JournalEintrag } from './journal/typen';
 import type { MappingVersion, ZahPhaseId } from './typen';
 
-/** Woher das Haltedatum kam — gehört an die Anzeige, nicht nur ins Ergebnis. */
-export type HaltedatumHerkunft = 'journal' | 'datumsfeld';
+/**
+ * Woher das Haltedatum kam — gehört an die Anzeige, nicht nur ins Ergebnis.
+ *
+ * Belastbar sind `journal` und `verlauf_bestaetigt` (beobachtet bzw. eine Regel,
+ * deren Vorbedingungen aufgingen); hergeleitet sind `datumsfeld` (nur die Phase
+ * passt, nicht der Status) und `verlauf_bedingt` (die Regel griff, ihre
+ * Vorbedingungen ließen sich aber nicht prüfen). Die Anzeige muss beides
+ * unterscheiden.
+ */
+export type HaltedatumHerkunft =
+  | 'journal' | 'datumsfeld' | 'verlauf_bestaetigt' | 'verlauf_bedingt';
+
+/** Was `FristErgebnis` mitführt — inklusive der vierten Antwort „gar nicht". */
+export type HaltedatumQuelle = HaltedatumHerkunft | 'unbekannt';
 
 export interface Haltedatum {
   /** ISO-Tag. */
   tag: string;
   herkunft: HaltedatumHerkunft;
+}
+
+/**
+ * Ein Statuswechsel, den die Verlaufsableitung belegt.
+ *
+ * **Wird hereingereicht, nie hier gerechnet.** Die Übergänge brauchen die
+ * C16-Tabelle und den Kürzel-Katalog; diese Datei ist ein Blatt und bleibt es.
+ * Gebaut wird der Wert in `verlauf/haltedatum-aus-verlauf.ts`, das seinerseits
+ * nur diesen Typ importiert — eine Typ-Kante, keine Laufzeit-Kante.
+ */
+export interface VerlaufHalt {
+  /** ISO-Tag. */
+  tag: string;
+  konfidenz: 'trigger_bestaetigt' | 'trigger_bedingt';
+  /** Das Kürzel, das den Wechsel belegt — gehört an jede Anzeige. */
+  kuerzel: string;
+  /** Der Statuscode, in den gewechselt wurde. */
+  code: number;
 }
 
 export interface HaltedatumEingabe {
@@ -49,6 +86,11 @@ export interface HaltedatumEingabe {
    * beliebig. Grundlage von Stufe 1; fehlt, wo kein IDB-Zugriff möglich ist.
    */
   statusJournal?: readonly JournalEintrag[];
+  /**
+   * Der Statuswechsel aus der Verlaufsableitung — Stufe 3. Fehlt, wo die
+   * C16-Regeln nicht vorliegen; dann verhält sich die Kaskade wie vor v3.30.
+   */
+  verlauf?: VerlaufHalt | null;
 }
 
 /** Die beiden Spalten, die einen Statuswechsel belegen. Gross geschrieben wie
@@ -107,6 +149,17 @@ export function ermittleHaltedatum(e: HaltedatumEingabe): Haltedatum | null {
 
   const genaehert = e.vorkommen ? ausDatumsfeld(e.version, e.vorkommen, e.zahPhase) : null;
   if (genaehert !== null) return { tag: genaehert, herkunft: 'datumsfeld' };
+
+  // Stufe 3: der abgeleitete Verlauf. Zuletzt, weil er eine Rekonstruktion ist —
+  // aber im Bestand ist er der einzige, der überhaupt antwortet: das Journal
+  // reicht nur bis zu seinem Nullpunkt zurück, und an der Phase eines
+  // Endstatus hängt kein Datumsfeld (§14.9).
+  if (e.verlauf) {
+    return {
+      tag: e.verlauf.tag,
+      herkunft: e.verlauf.konfidenz === 'trigger_bestaetigt' ? 'verlauf_bestaetigt' : 'verlauf_bedingt',
+    };
+  }
 
   return null;
 }

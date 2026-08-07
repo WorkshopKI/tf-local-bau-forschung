@@ -19,7 +19,7 @@
  */
 import { berechneFrist, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
-import { ermittleHaltedatum, type Haltedatum } from './haltedatum';
+import { ermittleHaltedatum, type Haltedatum, type VerlaufHalt } from './haltedatum';
 import { statusHerleitungKopf } from './herleitung';
 import type { FeldVorkommen } from './feld-aufloesung';
 import type { MappingVersion } from './typen';
@@ -56,6 +56,16 @@ export interface FristBezug {
   bezugsZeitpunkt: string;
 }
 
+export interface FristOptionen {
+  /**
+   * Der Statuswechsel aus der Verlaufsableitung — dritte Haltedatum-Quelle
+   * (`haltedatumAusSpuren`). Fehlt er, verhält sich die Rechnung **byte-gleich
+   * zu v3.29**: Aufrufer ohne C16-Regeln (Tabellenzelle, Board, Widgets)
+   * bekommen unverändert Stufe 1 oder 2.
+   */
+  verlauf?: VerlaufHalt | null;
+}
+
 /**
  * Fristrechnung eines Vorgangs aus seinen Statusvorkommen.
  *
@@ -68,9 +78,13 @@ export function fristFuerVorkommen(
   vorkommen: readonly FeldVorkommen[],
   statusRoh: unknown,
   stichtag: string,
+  opts: FristOptionen = {},
 ): FristBezug {
   const kopf = statusHerleitungKopf(version, statusRoh);
-  const halt = ermittleHaltedatum({ version, zahPhase: kopf.zahPhase, vorkommen });
+  const halt = ermittleHaltedatum({
+    version, zahPhase: kopf.zahPhase, vorkommen,
+    ...(opts.verlauf !== undefined ? { verlauf: opts.verlauf } : {}),
+  });
   const antragsdatum = spaetestes(vorkommen, 'AAE');
   const alleAntraegeDa = spaetestes(vorkommen, 'XTE');
   const vnEingangDatum = spaetestes(vorkommen, 'VBE');
@@ -80,6 +94,7 @@ export function fristFuerVorkommen(
     alleAntraegeDa,
     vnEingangDatum,
     haltedatum: halt?.tag ?? null,
+    ...(halt ? { haltedatumHerkunft: halt.herkunft } : {}),
     stichtag,
     ...(version.zahPhasen ? { phasen: version.zahPhasen } : {}),
   });
@@ -108,6 +123,7 @@ export function bezugsZeitpunktFuerVorkommen(
   vorkommen: readonly FeldVorkommen[],
   statusRoh: unknown,
   stichtag: string,
+  opts: FristOptionen = {},
 ): string {
-  return fristFuerVorkommen(version, vorkommen, statusRoh, stichtag).bezugsZeitpunkt;
+  return fristFuerVorkommen(version, vorkommen, statusRoh, stichtag, opts).bezugsZeitpunkt;
 }

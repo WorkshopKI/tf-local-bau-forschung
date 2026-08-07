@@ -199,6 +199,45 @@ describe('berechneFrist — die Uhr steht (der eigentliche Fix)', () => {
     });
     expect(r.grund).toBe(FRIST_GRUND.haltedatumUnbekannt);
     expect(r.bezugsZeitpunkt).toBeUndefined();
+    expect(r.haltedatumQuelle).toBe('unbekannt');
+  });
+
+  it('reicht die Herkunft des Haltedatums durch, ohne sie zu raten', () => {
+    const mit = berechneFrist({
+      status: STATUS.ablehnung, antragsdatum: '2018-10-17T00:00:00.000Z',
+      haltedatum: '2019-02-11', haltedatumHerkunft: 'verlauf_bedingt', stichtag: HEUTE,
+    });
+    expect(mit.haltedatumQuelle).toBe('verlauf_bedingt');
+    // Ein Datum OHNE Herkunft bekommt keine erfundene.
+    const ohne = berechneFrist({
+      status: STATUS.ablehnung, antragsdatum: '2018-10-17T00:00:00.000Z',
+      haltedatum: '2019-02-11', stichtag: HEUTE,
+    });
+    expect(ohne.haltedatumQuelle).toBe('unbekannt');
+  });
+
+  it('**der Zustand ist gegen das Haltedatum invariant** — Teil B ist additiv', () => {
+    // `berechneFrist` liest das Haltedatum erst IM `angehalten`-Zweig, nachdem
+    // der Zustand feststeht. Eine neue Haltedatum-Quelle kann deshalb keinen
+    // Vorgang zwischen den Zuständen verschieben. Genau darauf steht die
+    // Diagonalprüfung des Bestandslaufs — sie bestätigt diese Zusage, sie
+    // beweist sie nicht.
+    const faelle = [
+      { status: STATUS.ablehnung, antragsdatum: '2018-10-17T00:00:00.000Z' },
+      { status: STATUS.beantragt, antragsdatum: '2026-06-01T00:00:00.000Z' },
+      { status: STATUS.beantragt, antragsdatum: null },
+      { status: STATUS.schlussvermerk, antragsdatum: '2020-01-01T00:00:00.000Z' },
+    ];
+    for (const f of faelle) {
+      const ohne = berechneFrist({ ...f, stichtag: HEUTE });
+      for (const h of ['journal', 'datumsfeld', 'verlauf_bestaetigt', 'verlauf_bedingt'] as const) {
+        const mit = berechneFrist({
+          ...f, haltedatum: '2019-02-11', haltedatumHerkunft: h, stichtag: HEUTE,
+        });
+        expect(mit.zustand, `${String(f.status)} / ${h}`).toBe(ohne.zustand);
+        expect(mit.tageRest, `${String(f.status)} / ${h}`).toBe(ohne.tageRest);
+      }
+    }
   });
 
   it('hält bei terminalen Status an — unabhängig davon, was der Katalog sagt', () => {

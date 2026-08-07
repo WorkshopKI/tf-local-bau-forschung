@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.30 — 2026-08
+
+### Neu
+- Bei angehaltenen Vorgängen steht jetzt meistens da, **seit wann** die Uhr steht — die App liest das Datum aus dem abgeleiteten Verlauf, wenn weder Journal noch Datumsfeld es hergeben. Rund 1.600 Vorhaben bekommen damit erstmals ein Haltedatum.
+- Daneben steht immer, **woher** das Datum kommt: belegt (Journal, bestätigte Regel) oder hergeleitet (Datumsfeld, bedingte Regel). Eine hergeleitete Zahl sieht man ihr an.
+
 ## v3.29 — 2026-08
 
 ### Verbesserungen

@@ -55,6 +55,8 @@ import { KategorieEditor } from './KategorieEditor';
 import { FelderAbgleich } from './FelderAbgleich';
 import { VerlaufBefundeBlock } from './VerlaufBefundeBlock';
 import { useVerlaufErhebung } from './useVerlaufErhebung';
+import { FristBefundeBlock } from './FristBefundeBlock';
+import { useFristErhebung } from './useFristErhebung';
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
@@ -315,6 +317,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   // Vor dem Early-Return: die Hook-Reihenfolge hängt an der Aufrufreihenfolge,
   // und `tsc` fängt einen Verstoß nicht (React #310).
   const verlauf = useVerlaufErhebung(api.entwurf);
+  const frist = useFristErhebung(api.entwurf);
 
   const entwurf = api.entwurf;
   const kategorien = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
@@ -397,6 +400,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
           Kürzel und ihre Statuswirkung Auskunft gibt — dieselbe Sache wie der
           Rest des Reiters, nur über den Bestand statt über den Katalog. */}
       {vorgangssystem && <VerlaufBefundeBlock lauf={verlauf} />}
+      {vorgangssystem && <FristBefundeBlock lauf={frist} />}
 
       <div className="flex flex-col gap-2">
         <input

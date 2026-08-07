@@ -88,7 +88,8 @@ export function criticalFristErgebnis(
       ohne ??= e;
     }
   }
-  return bester ?? angehalten ?? ohne ?? { zustand: 'nicht_berechenbar' };
+  return bester ?? angehalten ?? ohne
+    ?? { zustand: 'nicht_berechenbar', haltedatumQuelle: 'unbekannt' };
 }
 
 /**

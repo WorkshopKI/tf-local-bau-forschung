@@ -12,13 +12,12 @@
  * schlechtere Rechnung wäre schlimmer als eine offen benannte.
  */
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
-import { fristFuerVorkommen } from '@/core/status/frist-bezug';
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { MeilensteinLeiste } from '@/plugins/meilensteine/MeilensteinLeiste';
 import { PROGNOSE_FARBE, PROGNOSE_LABEL, formatDatum } from '@/plugins/meilensteine/labels';
 import { useVerbundMeilensteine } from '../meilensteine/useVerbundMeilensteine';
-import { fristAnzeigeVon } from '../fristAnzeige';
-import type { StatusVerlauf } from '../status/useStatusVerlauf';
+import { fristAnzeigeVon, HALT_HERKUNFT, HALT_OHNE } from '../fristAnzeige';
+import type { ZeilenVerlauf } from './useZeilenVerlauf';
 
 const leise = 'text-[11px] text-[var(--tf-text-tertiary)]';
 
@@ -56,29 +55,25 @@ function MeilensteinBlock({ verbundId }: { verbundId: string }): React.ReactElem
   );
 }
 
-export function FristenReiter({ quelle, aktenzeichen, istVerbundZeile, statusRoh, stichtag, verbundId }: {
-  quelle: StatusVerlauf;
-  aktenzeichen: string;
+export function FristenReiter({ daten, istVerbundZeile, stichtag, verbundId }: {
+  /** Der fertige Zeilen-Zustand — **inklusive der einen Fristrechnung**. */
+  daten: ZeilenVerlauf;
   /** Verdichtete Verbund-Zeile? Dann zählen alle Teilvorhaben, sonst nur dieses. */
   istVerbundZeile: boolean;
-  statusRoh: unknown;
   /** ISO-Tag. */
   stichtag: string;
   verbundId: string | null;
 }): React.ReactElement {
-  const { version, jeTeilvorhaben } = quelle;
+  const { quelle, frist } = daten;
   if (quelle.laden) return <p className={leise}>Lädt …</p>;
-  if (!version) return <p className={leise}>Kein Statuskatalog geladen.</p>;
+  if (!quelle.version || !frist) return <p className={leise}>Kein Statuskatalog geladen.</p>;
 
-  const relevante = istVerbundZeile
-    ? jeTeilvorhaben
-    : jeTeilvorhaben.filter(t => t.aktenzeichen === aktenzeichen);
-  const vorkommen = relevante.flatMap(t => t.vorkommen);
+  const teilvorhaben = quelle.jeTeilvorhaben.length;
 
-  // Dieselbe Rechnung wie für den Bezugszeitpunkt der Bahn — EIN Ausdruck in
-  // `frist-bezug.ts`, nicht zwei Fassungen desselben Gedankens (v3.26).
-  const { ergebnis, antragsdatum, alleAntraegeDa, halt } =
-    fristFuerVorkommen(version, vorkommen, statusRoh, stichtag);
+  // Gerechnet hat `useZeilenVerlauf` — EINMAL, samt der Verlaufsquelle fürs
+  // Haltedatum. Hier wird nur gelesen: bis v3.29 rief dieser Reiter
+  // `fristFuerVorkommen` ein zweites Mal mit denselben Eingaben.
+  const { ergebnis, antragsdatum, alleAntraegeDa, halt } = frist;
   const anzeige = fristAnzeigeVon(ergebnis, new Date(stichtag).getTime());
 
   return (
@@ -126,9 +121,7 @@ export function FristenReiter({ quelle, aktenzeichen, istVerbundZeile, statusRoh
             <Zeile
               label="Haltedatum"
               wert={halt ? formatDatumsWert(halt.tag) : 'unbekannt'}
-              hinweis={halt
-                ? (halt.herkunft === 'journal' ? 'aus dem Journal belegt' : 'aus einem Datumsfeld genähert')
-                : 'weder Journal noch passendes Datumsfeld — nicht geraten'}
+              hinweis={halt ? HALT_HERKUNFT[halt.herkunft] : HALT_OHNE}
             />
           )}
         </ul>
@@ -139,8 +132,8 @@ export function FristenReiter({ quelle, aktenzeichen, istVerbundZeile, statusRoh
               ? 'Gerechnet ab D_AAE — D_XTE führt das Programm-Schema für dieses Vorhaben nicht.'
               : 'Gerechnet mit D_XTE aus dem Schema — die Tabellenzelle kann das nicht.')
             : 'Der Zustand steht fest, bevor die Basis gebraucht wird — deshalb keine Ziel-Rechnung.'}
-          {istVerbundZeile && relevante.length > 1
-            && ` Über alle ${relevante.length} Teilvorhaben; maßgeblich ist das späteste Eingangsdatum.`}
+          {istVerbundZeile && teilvorhaben > 1
+            && ` Über alle ${teilvorhaben} Teilvorhaben; maßgeblich ist das späteste Eingangsdatum.`}
         </p>
       </div>
 

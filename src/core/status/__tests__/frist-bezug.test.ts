@@ -17,14 +17,16 @@ const STICHTAG = '2026-08-07';
 
 describe('bezugsZeitpunktVon', () => {
   it('endet am Haltedatum, wenn die Uhr steht', () => {
-    const e: FristErgebnis = { zustand: 'angehalten', bezugsZeitpunkt: '2018-06-01' };
+    const e: FristErgebnis = {
+      zustand: 'angehalten', bezugsZeitpunkt: '2018-06-01', haltedatumQuelle: 'journal',
+    };
     expect(bezugsZeitpunktVon(e, STICHTAG)).toBe('2018-06-01');
   });
 
   it('läuft bis zum Stichtag, solange die Uhr läuft', () => {
     const e: FristErgebnis = {
       zustand: 'laeuft', basisDatum: '2026-05-01', zielDatum: '2026-07-30',
-      bezugsZeitpunkt: STICHTAG, tageRest: -8,
+      bezugsZeitpunkt: STICHTAG, tageRest: -8, haltedatumQuelle: 'unbekannt',
     };
     expect(bezugsZeitpunktVon(e, STICHTAG)).toBe(STICHTAG);
   });
@@ -33,12 +35,16 @@ describe('bezugsZeitpunktVon', () => {
     // „Wir wissen nicht, wann sie stehen blieb" — die Achse dort abzuschneiden
     // erfände einen Zeitpunkt. Bis heute laufen zu lassen ist die schwächere,
     // aber belegbare Aussage; erfunden wird nichts.
-    const e: FristErgebnis = { zustand: 'angehalten', grund: 'Haltedatum unbekannt' };
+    const e: FristErgebnis = {
+      zustand: 'angehalten', grund: 'Haltedatum unbekannt', haltedatumQuelle: 'unbekannt',
+    };
     expect(bezugsZeitpunktVon(e, STICHTAG)).toBe(STICHTAG);
   });
 
   it('fällt auch bei nicht berechenbarer Frist auf den Stichtag zurück', () => {
-    const e: FristErgebnis = { zustand: 'nicht_berechenbar', grund: 'kein Eingangsdatum' };
+    const e: FristErgebnis = {
+      zustand: 'nicht_berechenbar', grund: 'kein Eingangsdatum', haltedatumQuelle: 'unbekannt',
+    };
     expect(bezugsZeitpunktVon(e, STICHTAG)).toBe(STICHTAG);
   });
 });

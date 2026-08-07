@@ -311,6 +311,26 @@ describe('TV-Spuren aus den Datumsspalten', () => {
   });
 });
 
+describe('Der Bezugszeitpunkt bewegt die Kanten nicht', () => {
+  it('liefert dieselben Übergänge, egal bis wann die Achse läuft', () => {
+    // **Die Zusage, auf der die zweistufige Auflösung des Haltedatums steht**
+    // (v3.30): ein erster Lauf mit dem nackten Stichtag darf die Kanten
+    // liefern, aus denen das Haltedatum kommt, und ein zweiter mit diesem
+    // Haltedatum die Segmente. Nähme `baueUebergaenge` den Bezugszeitpunkt
+    // entgegen, wäre das ein Zirkelschluss — und niemand sähe es.
+    const tvs = [tv('TV1', 'bewilligt', [
+      vk('AAE', '01.03.2024'), vk('ABB', '15.06.2024'), vk('AK4', '02.09.2024'),
+    ])];
+    const frueh = tvSpur(lauf(bezug(tvs, { bezugsZeitpunkt: '2025-01-01' })), 'TV1');
+    const spaet = tvSpur(lauf(bezug(tvs, { bezugsZeitpunkt: '2026-08-06' })), 'TV1');
+    expect(frueh.uebergaenge).toEqual(spaet.uebergaenge);
+    // Die Segmente DÜRFEN sich unterscheiden — genau dafür gibt es den zweiten Lauf.
+    const letztes = (s: VerlaufsSpur): string | null | undefined =>
+      s.segmente[s.segmente.length - 1]?.bisDatum;
+    expect(letztes(frueh)).not.toBe(letztes(spaet));
+  });
+});
+
 describe('Kürzel × Projektform — niemals flach (Bezeichnung, nicht Regel)', () => {
   it('liest dieselbe Abkürzung je Projektform verschieden', () => {
     const mit = (phase: number): string | null => tvSpur(lauf(bezug(

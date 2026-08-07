@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.30.0 — Haltedatum aus dem Verlauf (August 2026)
+
+MINOR — Die Fristen-Stoppuhr aus v3.11 wusste seit jeher, dass ein Vorgang steht — nur nicht, seit wann. Journal und Datumsfeld schweigen bei genau den Fällen, um die es geht. Die Verlaufsableitung kennt den Übergang samt Datum; gemessen am Bestand bekommen **1.638 von 5.623** angehaltenen Vorhaben erstmals ein Haltedatum.
+
+- Dritte Quelle in der Kaskade, nach Journal und Datumsfeld: der Übergang in den heutigen Status — [haltedatum-aus-verlauf.ts](src/core/status/verlauf/haltedatum-aus-verlauf.ts)
+- `FristErgebnis.haltedatumQuelle` unterscheidet belastbar (Journal, bestätigte Kante) von hergeleitet (Datumsfeld, bedingte Kante) — [frist-ergebnis.ts](src/core/services/csv/frist-ergebnis.ts)
+- **Kein Zyklus, kein Wegwerf-Verlauf**: `baueUebergaenge` braucht den Bezugszeitpunkt gar nicht, der zweite Lauf entfällt, wo kein Haltedatum herauskam — [useZeilenVerlauf.ts](src/plugins/antraege/ausklapp/useZeilenVerlauf.ts)
+- Bestandslauf im Cockpit rechnet jeden Vorgang zweimal und prüft die Diagonale: der Frist-Zustand darf sich nicht bewegen — [FristBefundeBlock.tsx](src/plugins/status-cockpit/FristBefundeBlock.tsx)
+- Der Frist-Reiter rechnet nicht mehr nach, was der Hook schon gerechnet hat — dieselbe Zahl kam bis hierher aus zwei Aufrufen — [FristenReiter.tsx](src/plugins/antraege/ausklapp/FristenReiter.tsx)
+
 ### v3.29.0 — Antwortrunde 1 eingefaltet (August 2026)
 
 MINOR — Die erste Klärrunde kam beantwortet zurück: 70 Fragen, 69 beantwortet. Die Antworten liegen jetzt im Code statt in einer Mappe, und die Ableitung stellt sie nicht mehr. Am Bestand vom 05.08. bleibt **eine** Frage übrig — dass es für DS keine Kürzel-Quelle gibt.
