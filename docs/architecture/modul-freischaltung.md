@@ -15,6 +15,35 @@ Kein `required` je Slot, kein Default „zu". Das hält `dev` und `local` unange
 keinen `moduleAuth`-Block, also ist dort nichts gesperrt — sonst wäre das Modul ausgerechnet in
 der Umgebung unsichtbar, in der `npm run dev:local` die Abnahme fährt.
 
+## Die zweite Regel (v3.27)
+
+> **Die Anmeldung legt den Freischalt-Zustand fest — sie ergänzt ihn nicht.**
+
+Steht beim Start eine Anmeldung an, wird jedes Modul mit Schloss zuerst **geschlossen**
+(`schliesseGesperrteModule`, [modul-freischaltung.ts](../../src/core/modul-freischaltung.ts)).
+Erst danach öffnet die Wall genau den Slot, dessen Passwort getroffen hat:
+
+| Passwort an der Wall | Auslastung | Kuration |
+| --- | --- | --- |
+| Basis (`auth`) | zu | zu |
+| `moduleAuth.auslastung` | **offen** | zu |
+| `moduleAuth.kurator` | zu | **offen** |
+
+Ohne diesen Schnitt zeigte eine Anmeldung mit dem Basis-Passwort weiter, was eine frühere Sitzung
+mit einem Modul-Passwort geöffnet hatte: in `zah-pl` v3.25 erschienen beide Menüs, unabhängig vom
+getippten Passwort, weil beide 12-h-Einträge aus früheren Tests noch gültig waren.
+
+Der Schnitt sitzt in [App.tsx](../../src/core/App.tsx) an derselben Stelle wie der `rehydrate` —
+**vor** den `onInit`-Hooks und vor der Gate-Entscheidung. Später wäre zu spät: Plugin-Registrierung,
+Warmup und modul-globale Konstanten hätten den alten Zustand längst aufgelöst.
+
+Die Profil-Flagge `is_kurator` folgt derselben Regel, aber im Gate
+([AppPasswordGate.tsx](../../src/core/AppPasswordGate.tsx)) statt beim Init — sie überlebt
+Neustarts und öffnet im `StartupScreen` den Daten-Share mit Schreibrecht.
+
+Module **ohne** Schloss bleiben unberührt: in `dev`/`local` gibt es nichts zu schützen, und ein
+Rücksetzen würfe nur die laufende Kurator-Session der Abnahme-Umgebung weg.
+
 ## Konfiguration
 
 ```jsonc
@@ -67,8 +96,13 @@ Login (Gate-Merker im sessionStorage) und keine Freischaltung (die liegt in der 
 
 ## Gültigkeit
 
-12 Stunden, überlebt Reload und Neustart. Die Freischaltung ist **gerätelokal** — sie gehört nie
-in Snapshot, Share oder Personal-Mirror, denn sie ist eine Aussage über dieses Gerät.
+12 Stunden **innerhalb der Browser-Sitzung**. Sie überlebt jeden Reload (der Gate-Merker liegt im
+sessionStorage, die Freischaltung in der IndexedDB) — aber keine neue Anmeldung: die legt den
+Zustand neu fest (zweite Regel oben). In Builds ohne Wall (`dev`, `local`, `prod`) gilt sie
+unverändert über Neustarts hinweg, weil es dort nichts zu entscheiden gibt.
+
+Die Freischaltung ist **gerätelokal** — sie gehört nie in Snapshot, Share oder Personal-Mirror,
+denn sie ist eine Aussage über dieses Gerät.
 
 - `auslastung` → [useModulFreischaltung.ts](../../src/core/hooks/useModulFreischaltung.ts),
   IDB-Key `modul-freischaltung`
@@ -77,8 +111,9 @@ in Snapshot, Share oder Personal-Mirror, denn sie ist eine Aussage über dieses 
   Session, und ~35 Aufrufstellen lesen ihr `isActive` für Schreib-Buttons.
 
 Beide `rehydrate` laufen in [App.tsx](../../src/core/App.tsx) **vor** den Plugin-`onInit`-Hooks
-und vor der Gate-Entscheidung. Steht der Rehydrate später, sieht das Auslastungs-`onInit`
-fälschlich „gesperrt" und der Warmup unterbleibt trotz gültiger Freischaltung.
+und vor der Gate-Entscheidung — und werden dort durch den Schnitt ersetzt, wenn eine Anmeldung
+ansteht. Steht der Rehydrate später, sieht das Auslastungs-`onInit` fälschlich „gesperrt" und der
+Warmup unterbleibt trotz gültiger Freischaltung.
 
 ## Sichtbarkeit der Plugins
 
@@ -117,3 +152,12 @@ Pitfall #28.
 - „Inaktive einblenden" (ProfilTab) und `useInaktiveKuerzelSet` müssen am **selben** Prädikat
   hängen. Filterte die Liste, während das Häkchen fehlt, verschwänden die Anträge ehemaliger
   Kolleg:innen ohne Weg, sie wieder einzublenden.
+- **Ein Passwort nie zweimal vergeben.** `verifyGegenEbenen` prüft Basis → `auslastung` →
+  `kurator` und nimmt den **ersten** Treffer. Wer denselben String für zwei Ebenen einsetzt,
+  bekommt still nur die vordere — ohne Meldung, warum das Modul zubleibt.
+  ([Test](../../src/core/services/infrastructure/__tests__/app-password-slots.test.ts))
+- Abschnitte, die nur unter Schloss existieren, gehören **auch in die Registry**
+  ([settingsPanels.tsx](../../src/plugins/einstellungen/settingsPanels.tsx)) und mit derselben
+  Bedingung wie die Sektion selbst — sonst zeigt die Navigation einen Abschnitt, den es auf der
+  Seite nicht gibt (`sec-kurator`), oder verschweigt den einzigen Weg zur Freischaltung
+  (`sec-freischaltung`).

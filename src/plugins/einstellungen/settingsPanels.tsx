@@ -18,6 +18,8 @@ import {
   isAssistentProtokollEnabled,
   isAssistentGedaechtnisEnabled,
   isAntragAufbereitungEnabled,
+  hatModulSchloss,
+  hatIrgendeinModulSchloss,
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilTab } from './ProfilTab';
@@ -80,8 +82,17 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       { id: 'sec-account', label: 'Account', keywords: 'name avatar kurator profil' },
       { id: 'sec-filter', label: 'Bearbeiter-Filter', keywords: 'kürzel inaktive begleitungen filter' },
       { id: 'sec-home', label: 'Initial sichtbare Anträge', keywords: 'home dashboard anzahl startseite' },
-      ...(isKuratorMenusEnabled()
+      // Der freie Kurator-Schalter existiert nur in Builds OHNE Kurator-Schloss
+      // (ProfilTab) — die zweite Bedingung muss mit, sonst bietet die Navigation
+      // in `pl` einen Abschnitt an, den es auf der Seite nicht gibt.
+      ...(isKuratorMenusEnabled() && !hatModulSchloss('kurator')
         ? [{ id: 'sec-kurator', label: 'Kurator-Bereich', keywords: 'anmelden menüs ttl session kuration' }]
+        : []),
+      // Wo Schlösser existieren, ist das hier der einzige Weg hinein — und das
+      // Ziel, auf das ModulSchlossGate verweist. Ohne Eintrag ist die Sektion
+      // weder über die Sprungmarken noch über die Einstellungs-Suche auffindbar.
+      ...(hatIrgendeinModulSchloss()
+        ? [{ id: 'sec-freischaltung', label: 'Module freischalten', keywords: 'passwort zusatzpasswort auslastung kuration sperren entsperren modul freischalten' }]
         : []),
       // Assistent & Gedächtnis (Assistent Phase 0) — gerätelokales, opt-in
       // Arbeitsprotokoll. Seit v2.235 nicht mehr als eigener Menüpunkt, sondern in

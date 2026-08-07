@@ -11,6 +11,10 @@
  * der IndexedDB und uebersteht das, und dadurch bleiben alle Sichtbarkeits-
  * Praedikate schlichte Konstanten, die beim Start EINMAL aufgeloest werden.
  *
+ * Die naechste ANMELDUNG setzt den Zustand dagegen neu (v3.27,
+ * `schliesseGesperrteModule`) — hier freigeschaltet heisst „fuer diese
+ * Browser-Sitzung", nicht „fuer die naechsten 12 Stunden".
+ *
  * Rendert nichts, wenn der Build keine Schloesser traegt (dev/local/prod).
  */
 import { useEffect, useState } from 'react';
@@ -173,7 +177,8 @@ export function ModulFreischaltungSection(): React.ReactElement | null {
       <SettingsSectionHeader label="Module freischalten" />
       <p className="text-[12.5px] text-[var(--tf-text-secondary)] mb-1">
         Diese Bereiche sind mit einem Zusatzpasswort geschützt. Eine Freischaltung gilt
-        12 Stunden und übersteht einen Neustart der App.
+        12 Stunden und übersteht das Neuladen der Seite. Die nächste Anmeldung setzt sie
+        neu — dann zählt wieder, welches Passwort eingegeben wurde.
       </p>
       {MODUL_SLOTS.map(slot => <ModulZeile key={slot} slot={slot} />)}
     </section>

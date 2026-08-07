@@ -210,6 +210,13 @@ describe('doc-links', () => {
     // Schreibweise nicht führt, nähme ihr sonst die Kurzform weg). Das Detail —
     // die drei Stufen, warum die Kurzform groß und der amtliche Text klein
     // geschrieben ist — steht in docs/architecture/status-achsen.md.
-    expect(bytes).toBeLessThan(65_900);
+    // 65_900 → 66_200 (v3.27): Pitfall #51 bekommt zwei Halbsätze statt einer
+    // eigenen Nummer — es ist dieselbe Regel, nur zur Anmeldezeit. Beides rät man
+    // sonst falsch: der Schnitt gehört VOR den `rehydrate` (nach dem Login haben
+    // Plugin-Registrierung und `onInit` den alten Zustand längst aufgelöst), und
+    // ein zweimal vergebenes Passwort öffnet still nur die vordere Ebene. Warum
+    // die Anmeldung überhaupt festlegt statt zu ergänzen, und die Tabelle, welches
+    // Passwort was öffnet, stehen in docs/architecture/modul-freischaltung.md.
+    expect(bytes).toBeLessThan(66_200);
   });
 });

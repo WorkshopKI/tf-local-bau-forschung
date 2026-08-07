@@ -19,7 +19,13 @@
  */
 
 import { deriveKey, decrypt } from './crypto';
-import { runtimeConfig, MODUL_SLOTS, type ModulSlot, type TeamflowModuleAuthEntry } from '@/config/runtime-config';
+import {
+  runtimeConfig,
+  MODUL_SLOTS,
+  type ModulSlot,
+  type TeamflowModuleAuth,
+  type TeamflowModuleAuthEntry,
+} from '@/config/runtime-config';
 
 export interface AppPasswordResult {
   ok: boolean;
@@ -42,7 +48,7 @@ function b64ToBytes(b64: string): Uint8Array {
  * Bewusst als eigene Funktion (Muster `registry-zugang.ts`): Vitest verdrahtet
  * `__TEAMFLOW_CONFIG__` fest, ueber die echte Config waere das nicht testbar.
  *
- * `erwarteteRolle` NUR fuer Modul-Slots setzen — siehe `verifyAppPassword`.
+ * `erwarteteRolle` NUR fuer Modul-Slots setzen — siehe `verifyGegenEbenen`.
  */
 export async function verifyGegenEintrag(
   entry: { salt: string; verifier: string } | undefined | null,
@@ -63,22 +69,6 @@ export async function verifyGegenEintrag(
 }
 
 /**
- * Verifiziert `password` gegen `runtimeConfig.auth` (die App-Wall).
- *
- * **Ohne Rollenpruefung, und das ist Absicht:** `dev` und `pl` teilen sich
- * denselben Verifier (dokumentiert in scripts/set-app-password.mjs), dessen
- * Sentinel `role: "pl"` traegt. Wuerde hier die Rolle erzwungen, naehme
- * `zah-dev.html` sein eigenes Passwort nicht mehr an.
- *
- * Liefert `{ok:false}` bei falschem Passwort, fehlendem auth-Block oder korruptem
- * Verifier — alle ununterscheidbar (die UI zeigt schlicht "Passwort falsch").
- */
-export async function verifyAppPassword(password: string): Promise<AppPasswordResult> {
-  const r = await verifyGegenEintrag(runtimeConfig.auth, password);
-  return r.ok ? { ...r, slot: 'base' } : r;
-}
-
-/**
  * Verifiziert gegen das Schloss EINES Moduls.
  *
  * Hier greift die Rollenpruefung: der Sentinel traegt den Slot-Namen, damit ein
@@ -92,21 +82,44 @@ export async function verifyModulPassword(slot: ModulSlot, password: string): Pr
 }
 
 /**
- * Probiert Basis-Passwort, dann jeden Modul-Slot — fuer die Start-Wall, die beides
- * annimmt.
+ * Probiert Basis-Passwort, dann jeden Modul-Slot — rein, ohne `runtimeConfig`.
  *
- * Reihenfolge = `MODUL_SLOTS` nach der Basis: der haeufige Fall (normales
+ * An dieser Funktion haengt, WELCHES Modul eine Anmeldung oeffnet; sie ist
+ * deshalb bewusst von der Config getrennt (Muster `verifyGegenEintrag`): Vitest
+ * verdrahtet `__TEAMFLOW_CONFIG__` fest auf eine Config ohne `moduleAuth`, ueber
+ * die echte waere der interessante Fall nicht testbar.
+ *
+ * **Die Basis wird OHNE Rollenpruefung geprueft, und das ist Absicht:** `dev` und
+ * `pl` teilen sich denselben Verifier (dokumentiert in
+ * scripts/set-app-password.mjs), dessen Sentinel `role: "pl"` traegt. Wuerde hier
+ * die Rolle erzwungen, naehme `zah-dev.html` sein eigenes Passwort nicht mehr an.
+ * Die Modul-Slots pruefen sie dagegen sehr wohl (`verifyModulPassword`).
+ *
+ * Reihenfolge = Basis, dann `MODUL_SLOTS`: der haeufige Fall (normales
  * Team-Passwort) kostet damit genau EINE PBKDF2-Ableitung; ein Fehlversuch kostet
  * eine pro konfiguriertem Slot (200k Iterationen, auf Citrix spuerbar — die UI
  * zeigt waehrenddessen „Anmelden…" via useAsyncAction).
+ *
+ * Folge fuer die Passwortvergabe: der ERSTE Treffer gewinnt. Ein Passwort, das
+ * zweimal vergeben wurde, oeffnet still nur die vordere Ebene.
  */
-export async function verifyAnyPassword(password: string): Promise<AppPasswordResult> {
-  const basis = await verifyAppPassword(password);
-  if (basis.ok) return basis;
+export async function verifyGegenEbenen(
+  auth: { salt: string; verifier: string } | null | undefined,
+  moduleAuth: TeamflowModuleAuth | null | undefined,
+  password: string,
+): Promise<AppPasswordResult> {
+  const basis = await verifyGegenEintrag(auth, password);
+  if (basis.ok) return { ...basis, slot: 'base' };
 
   for (const slot of MODUL_SLOTS) {
-    if (!runtimeConfig.moduleAuth?.[slot]) continue;
-    if (await verifyModulPassword(slot, password)) return { ok: true, role: slot, slot };
+    const eintrag = moduleAuth?.[slot];
+    if (!eintrag) continue;
+    if ((await verifyGegenEintrag(eintrag, password, slot)).ok) return { ok: true, role: slot, slot };
   }
   return { ok: false };
+}
+
+/** `verifyGegenEbenen` gegen die echte Build-Config — was die Start-Wall aufruft. */
+export async function verifyAnyPassword(password: string): Promise<AppPasswordResult> {
+  return verifyGegenEbenen(runtimeConfig.auth, runtimeConfig.moduleAuth, password);
 }

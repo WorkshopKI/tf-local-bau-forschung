@@ -9,6 +9,12 @@
  *  - ein **Modul-Passwort** (`moduleAuth.<slot>`) oeffnet die App UND das Modul.
  *
  * Wer nur fuer sein Modul ein Passwort bekommen hat, tippt so eines statt zweier.
+ *
+ * **Die Anmeldung LEGT den Zustand FEST** (v3.27): geschlossen wurde schon vor dem
+ * Rendern (`schliesseGesperrteModule` in App.tsx), hier wird nur noch geoeffnet,
+ * was zum getippten Passwort gehoert. Sonst zeigte ein Login mit dem
+ * Basis-Passwort weiter, was eine fruehere Sitzung offengelassen hat.
+ *
  * Ein Modul-Treffer laedt anschliessend neu: Plugin-Registrierung und
  * onInit-Hooks liefen bereits, als das Modul noch gesperrt war. Der Reload
  * kostet keinen zweiten Login (Gate-Merker im sessionStorage) und keine
@@ -31,7 +37,7 @@ import { verifyAnyPassword } from '@/core/services/infrastructure/app-password';
 import { setAppGateSession } from '@/core/hooks/useAppGateSession';
 import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
-import { isKuratorMenusEnabled, hatModulSchloss } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, hatModulSchloss, hatIrgendeinModulSchloss } from '@/config/feature-flags';
 import { runtimeConfig } from '@/config/runtime-config';
 
 interface AppPasswordGateProps {
@@ -55,6 +61,15 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
       return;
     }
     setAppGateSession();
+
+    // Die Anmeldung legt auch die ROLLE fest. Die Profil-Flagge ueberlebt
+    // Neustarts und oeffnet im StartupScreen den Daten-Share mit Schreibrecht —
+    // ohne diesen Schnitt fordert eine Standard-Anmeldung weiter Schreibrechte an,
+    // obwohl die Kurator-Session laengst geschlossen ist. Ueber den Hook, damit
+    // React-Zustand und IDB uebereinstimmen (der Gate rendert vor dem StartupScreen).
+    if (hatModulSchloss('kurator') && result.slot !== 'kurator') {
+      await updateProfile({ is_kurator: false });
+    }
 
     // Modul-Treffer: App oeffnen UND das Modul freischalten. Danach neu laden —
     // Plugin-Registrierung und onInit-Hooks sind bereits durchgelaufen, als das
@@ -123,6 +138,9 @@ export function AppPasswordGate({ onSuccess }: AppPasswordGateProps): React.Reac
         </div>
         <p className="text-[13px] text-[var(--tf-text-secondary)] mb-6 leading-relaxed">
           Diese Variante ist zugangsbeschränkt. Bitte das Passwort eingeben, um fortzufahren.
+          {/* Nur wo es Modul-Passwoerter ueberhaupt gibt: wer eines besitzt, soll
+              nicht raten muessen, ob es hier gilt. */}
+          {hatIrgendeinModulSchloss() && ' Ein Modul-Passwort öffnet die App und den zugehörigen Bereich gleich mit.'}
         </p>
 
         <Input

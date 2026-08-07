@@ -13,9 +13,9 @@
  * zwischen Build-Tool und Laufzeit (Pitfall #28).
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { deriveKey, encrypt, randomBytes } from '../crypto';
-import { verifyGegenEintrag } from '../app-password';
+import { verifyGegenEbenen, verifyGegenEintrag } from '../app-password';
 
 const SALT_BYTES = 16;
 
@@ -67,5 +67,58 @@ describe('verifyGegenEintrag', () => {
     expect((await verifyGegenEintrag(null, 'egal', 'auslastung')).ok).toBe(false);
     expect((await verifyGegenEintrag({ salt: '', verifier: '' }, 'egal', 'auslastung')).ok).toBe(false);
     expect((await verifyGegenEintrag({ salt: eintrag.salt, verifier: 'kaputt!!' }, 'richtig', 'auslastung')).ok).toBe(false);
+  }, 30_000);
+});
+
+/**
+ * Die Anmelde-Wall nimmt DREI Passwoerter an und muss sie unterscheiden — daran
+ * haengt, welches Modul die Anmeldung oeffnet. Geprueft wird die reine Ebenen-
+ * Orchestrierung, weil Vitest `__TEAMFLOW_CONFIG__` fest auf eine Config OHNE
+ * `moduleAuth` verdrahtet; `verifyAnyPassword` ist nur ihr duenner Wrapper.
+ */
+describe('verifyGegenEbenen — welches Passwort oeffnet welche Ebene', () => {
+  let basis: { salt: string; verifier: string };
+  let auslastung: { salt: string; verifier: string };
+  let kurator: { salt: string; verifier: string };
+
+  // Einmal bauen: jede Ableitung kostet 200k PBKDF2-Runden.
+  beforeAll(async () => {
+    basis = await baueEintrag('team-passwort', 'pl');
+    auslastung = await baueEintrag('pw-auslastung', 'auslastung');
+    kurator = await baueEintrag('pw-kurator', 'kurator');
+  }, 30_000);
+
+  it('Basis-Passwort trifft die App-Wall', async () => {
+    const r = await verifyGegenEbenen(basis, { auslastung, kurator }, 'team-passwort');
+    expect(r).toMatchObject({ ok: true, slot: 'base' });
+  }, 30_000);
+
+  it('Auslastungs-Passwort trifft NUR den Auslastungs-Slot', async () => {
+    const r = await verifyGegenEbenen(basis, { auslastung, kurator }, 'pw-auslastung');
+    expect(r).toMatchObject({ ok: true, slot: 'auslastung' });
+  }, 30_000);
+
+  it('Kurator-Passwort trifft NUR den Kurator-Slot', async () => {
+    const r = await verifyGegenEbenen(basis, { auslastung, kurator }, 'pw-kurator');
+    expect(r).toMatchObject({ ok: true, slot: 'kurator' });
+  }, 30_000);
+
+  it('nicht konfigurierte Slots werden uebersprungen', async () => {
+    // dev/local tragen kein moduleAuth — die Wall darf trotzdem oeffnen.
+    expect(await verifyGegenEbenen(basis, null, 'team-passwort')).toMatchObject({ ok: true, slot: 'base' });
+    // Und ein Modul-Passwort oeffnet dort nichts, weil es die Ebene nicht gibt.
+    expect((await verifyGegenEbenen(basis, {}, 'pw-auslastung')).ok).toBe(false);
+  }, 30_000);
+
+  it('die Basis gewinnt vor den Slots — ein doppelt vergebenes Passwort oeffnet still nur die erste Ebene', async () => {
+    // Warnung fuer die Passwortvergabe: wer denselben String zweimal einsetzt,
+    // bekommt das Modul NICHT, ohne dass irgendetwas meldet, warum.
+    const doppelt = await baueEintrag('team-passwort', 'auslastung');
+    const r = await verifyGegenEbenen(basis, { auslastung: doppelt }, 'team-passwort');
+    expect(r.slot).toBe('base');
+  }, 30_000);
+
+  it('unbekanntes Passwort oeffnet gar nichts', async () => {
+    expect((await verifyGegenEbenen(basis, { auslastung, kurator }, 'raten')).ok).toBe(false);
   }, 30_000);
 });

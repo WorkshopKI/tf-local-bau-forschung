@@ -25,6 +25,7 @@ import { modulSichtbar, type ModulSlot } from '@/config/modul-schloss';
 import { hatModulSchloss, isAuslastungEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
+import type { IDBStore } from '@/core/services/storage/idb-store';
 
 export type { ModulSlot };
 
@@ -40,6 +41,38 @@ export function istModulFrei(slot: ModulSlot): boolean {
   return slot === 'kurator'
     ? useKuratorSession.getState().isActive
     : useModulFreischaltung.getState().auslastungFrei;
+}
+
+/**
+ * Schliesst jedes Modul, das ein Schloss traegt — aufgerufen, BEVOR die
+ * Anmelde-Wall erscheint (v3.27).
+ *
+ * **Die Anmeldung LEGT den Freischalt-Zustand FEST, sie ergaenzt ihn nicht.** Eine
+ * Freischaltung ist eine Aussage ueber das zuletzt getippte Passwort, nicht ueber
+ * die naechsten 12 Stunden. Ohne diesen Schnitt zeigte eine Anmeldung mit dem
+ * Basis-Passwort weiter, was eine fruehere Sitzung mit einem Modul-Passwort
+ * geoeffnet hatte — genau das war in zah-pl v3.25 zu sehen. Der Gate oeffnet
+ * danach genau den Slot, dessen Passwort getroffen hat.
+ *
+ * Warum hier und nicht im Gate: laeuft der Schnitt erst nach dem Login, haben
+ * Plugin-Registrierung, `onInit`-Warmup und modul-globale Konstanten den alten
+ * Zustand laengst aufgeloest.
+ *
+ * Module OHNE Schloss bleiben unberuehrt (dev/local) — dort gibt es nichts zu
+ * schuetzen, und ein Ruecksetzen wuerfe nur die Kurator-Session der
+ * Abnahme-Umgebung weg. `hatSchloss` ist injizierbar, weil Vitest
+ * `__TEAMFLOW_CONFIG__` fest auf eine Config ohne `moduleAuth` verdrahtet.
+ */
+export async function schliesseGesperrteModule(
+  idb: IDBStore,
+  hatSchloss: (slot: ModulSlot) => boolean = hatModulSchloss,
+): Promise<void> {
+  if (hatSchloss('auslastung')) {
+    await useModulFreischaltung.getState().sperren(idb);
+  }
+  if (hatSchloss('kurator')) {
+    await useKuratorSession.getState().deactivate(idb);
+  }
 }
 
 /** Auslastungs-Modul sichtbar? (einkompiliert UND freigeschaltet) */

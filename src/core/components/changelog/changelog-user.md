@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.27 — 2026-08
+
+### Verbesserungen
+- Das Passwort, mit dem du dich anmeldest, entscheidet jetzt allein darüber, welche Bereiche du siehst. Vorher blieb offen, was eine frühere Anmeldung geöffnet hatte — auch wenn du dich danach mit dem allgemeinen Passwort angemeldet hast.
+- Die Anmeldemaske sagt, dass ein Bereichs-Passwort dort ebenfalls gilt: wer nur eines davon hat, tippt weiterhin genau ein Passwort.
+- „Module freischalten" ist in den Einstellungen auffindbar, und der Menüpunkt „Kurator-Bereich" verschwindet dort, wo es die zugehörige Einstellung gar nicht gibt.
+
 ## v3.26 — 2026-08
 
 ### Neu

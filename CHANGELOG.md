@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.27.0 — Anmeldung legt den Freischalt-Zustand fest (August 2026)
+
+MINOR — In `zah-pl` erschienen **beide** Modul-Menüs, egal welches Passwort an der Wall getippt wurde. Kein Code-Defekt: eine Freischaltung galt 12 h und überlebte jede Anmeldung, also blieb offen, was ein früherer Login geöffnet hatte. Für den Kurator-Slot existierte zudem nie ein benutzbares Passwort — der einzige Weg hinein war ein Überbleibsel aus einem pl-Stand vor dem Schloss.
+
+- Steht eine Anmeldung an, wird jedes Modul mit Schloss VOR dem `rehydrate` geschlossen; die Wall öffnet danach genau den getroffenen Slot — [modul-freischaltung.ts](src/core/modul-freischaltung.ts), [App.tsx](src/core/App.tsx)
+- Die Profil-Flagge `is_kurator` folgt dem getippten Passwort, sonst fordert eine Standard-Anmeldung weiter Schreibrechte auf dem Share an — [AppPasswordGate.tsx](src/core/AppPasswordGate.tsx)
+- Die Ebenen-Prüfung ist als reine Funktion testbar (Basis → `auslastung` → `kurator`, erster Treffer gewinnt) und erstmals abgedeckt — [app-password.ts](src/core/services/infrastructure/app-password.ts)
+- Die Wall nennt Modul-Passwörter, die Freischalt-Sektion sagt jetzt die Wahrheit über ihre Geltung — [AppPasswordGate.tsx](src/core/AppPasswordGate.tsx), [ModulFreischaltungSection.tsx](src/plugins/einstellungen/ModulFreischaltungSection.tsx)
+- Einstellungs-Registry: „Module freischalten" ist auffindbar, der in `pl` tote Eintrag „Kurator-Bereich" ist weg — [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx), [modul-freischaltung.md](docs/architecture/modul-freischaltung.md)
+
 ### v3.26.0 — Klaerfragen als Arbeitsmappe (August 2026)
 
 MINOR — Was am Status- und Kürzelkatalog fachlich offen ist, stand bisher nur in `vorgangssystem.md` — als Handmessungen aus einer Konsolensitzung, die mit jedem Nacht-Export veralten und die niemand nachrechnen konnte. Die Befragung läuft Wochen und braucht eine Datei, die reihum geht. **70 Klärfragen** aus 14.222 Vorgängen, in sechs Herkünften mit je eigener Zuständigkeit.

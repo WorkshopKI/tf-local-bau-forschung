@@ -11,7 +11,20 @@
  * laeuft parallel weiter und wird beim Reload via rehydrate() restauriert.
  */
 
+import { runtimeConfig } from '@/config/runtime-config';
+
 const APP_GATE_SESSION_KEY = 'tf-app-gate';
+
+/**
+ * Kommt beim Start die Anmelde-Wall? Genau dann, wenn der Build eine verlangt und
+ * diese Browser-Sitzung noch keine bestanden hat.
+ *
+ * Eigene Funktion, weil zwei Stellen dieselbe Frage stellen und auseinanderlaufen
+ * duerften: die Gate-Entscheidung und der Freischalt-Schnitt davor (App.tsx).
+ */
+export function anmeldungSteht(): boolean {
+  return runtimeConfig.auth?.required === true && !getAppGateSession();
+}
 
 export function getAppGateSession(): boolean {
   try {
