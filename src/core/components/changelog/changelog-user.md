@@ -28,6 +28,8 @@
 - Gleiche Bedeutung, gleiches Symbol: Filter, Board-Ansicht, Verwaltung, „Board anpassen" und die Zustimmung tragen jetzt überall in der App dasselbe Zeichen.
 
 ### Bugfixes
+- **Ein freigeschaltetes Modul bleibt jetzt freigeschaltet.** Nach der Eingabe des Zusatzpassworts lädt die App neu — dabei konnte die eben gespeicherte Freischaltung verloren gehen, und der Bereich stand danach wieder auf „gesperrt". Ein zweiter Versuch half meist, deshalb fiel es nur auf langsamen Rechnern auf. Betraf ebenso alles andere, was die App unmittelbar vor einem Neuladen speichert.
+- Schlägt eine Freischaltung fehl, steht der Grund jetzt darunter. Bisher passierte sichtbar nichts.
 - Die Menüs beim Sponsern schließen sich jetzt mit Esc und beim Klick daneben; beide hatten zuvor leicht unterschiedliche Schriftgrößen.
 
 ## v3.23 — 2026-08

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.24.1 — Freischaltung ueberlebt den Reload (August 2026)
+
+PATCH — Auf dem Produktivsystem verlor die Modul-Freischaltung nach dem erzwungenen Reload ihren Eintrag: Slot wieder „gesperrt", kein Menüpunkt, keine Meldung — ein zweiter Versuch klappte. Ein Wettlauf, den nur langsame Maschinen verlieren, deshalb im Dev nie sichtbar.
+
+- Schreiben löst erst beim **Commit** der Transaktion auf statt beim Request; `onabort` lehnt ab, damit aus stillem Verlust kein stiller Hänger wird — [idb-store.ts](src/core/services/storage/idb-store.ts)
+- `updateProfile` schreibt nicht mehr im `setState`-Updater und ist damit tatsächlich abwartbar (betraf `is_kurator` vor dem Reload) — [useProfile.ts](src/core/hooks/useProfile.ts)
+- Der Store behauptet die Freischaltung erst nach dem Schreiben, und Fehler nach der Passwortprüfung stehen sichtbar da statt geschluckt zu werden — [useModulFreischaltung.ts](src/core/hooks/useModulFreischaltung.ts), [ModulFreischaltungSection.tsx](src/plugins/einstellungen/ModulFreischaltungSection.tsx)
+- Regressionsgatter „Commit vor Aufloesung" für `set`/`delete` samt Abbruch-Fall — [idb-store.test.ts](src/core/services/storage/__tests__/idb-store.test.ts)
+- Bug-Klasse 18 „Schreiben und sofort neu laden" festgehalten — [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
+
 ### v3.24.0 — Feedback-Werkzeugleiste an Förderanträge angeglichen (August 2026)
 
 MINOR — In einer Toolbar-Zeile standen fünf Bauformen für dieselbe Art Aufgabe, und drei Icons trugen eine Bedeutung, die sie in der übrigen App nicht haben. Was Förderanträge schon konnte, war hier nachgebaut statt benutzt.

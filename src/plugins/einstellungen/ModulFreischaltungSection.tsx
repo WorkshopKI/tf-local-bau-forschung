@@ -147,7 +147,19 @@ function ModulZeile({ slot }: { slot: ModulSlot }): React.ReactElement | null {
         </div>
       )}
 
-      {falsch && <p className="text-[12px] text-rose-700 mt-1.5">Passwort falsch.</p>}
+      {falsch && <p className="text-[12px] text-[var(--tf-danger-text)] mt-1.5">Passwort falsch.</p>}
+      {/* Fehler NACH der Passwortpruefung (z.B. IDB-Schreibfehler). Ohne diese
+          Zeile bricht die Aktion stumm ab und sieht aus wie „Klick tut nichts". */}
+      {freischalten.error && (
+        <p className="text-[12px] text-[var(--tf-danger-text)] mt-1.5">
+          Freischaltung konnte nicht gespeichert werden: {freischalten.error}
+        </p>
+      )}
+      {sperren.error && (
+        <p className="text-[12px] text-[var(--tf-danger-text)] mt-1.5">
+          Sperren fehlgeschlagen: {sperren.error}
+        </p>
+      )}
       {!frei && hinweis && <p className="text-[12px] text-[var(--tf-text-tertiary)] mt-1.5">{hinweis}</p>}
     </div>
   );

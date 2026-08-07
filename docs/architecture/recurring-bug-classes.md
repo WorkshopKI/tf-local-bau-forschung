@@ -317,3 +317,22 @@ Ein transienter Lesefehler ist auf einem geteilten Laufwerk normal: ein zweiter 
 
 **Prüffrage beim Review:** Schreibt dieser Pfad einen Stand, den er zuvor über einen fehlertoleranten Leser geholt hat? Dann: was passiert bei `null`?
 
+---
+
+## 18. Schreiben und sofort neu laden — der Reload verwirft die offene Transaktion
+
+**Symptom:** Eine Einstellung ist nach dem Neuladen wieder weg, **sporadisch** und nur auf langsamen Maschinen. Gemessen an der Modul-Freischaltung (v3.24.1): Zusatzpasswort eingeben → die App lädt neu → der Slot steht wieder auf „gesperrt", der Menüpunkt fehlt. Ein zweiter Versuch mit demselben Passwort klappt. Im Dev-System nie reproduzierbar.
+
+**Root-Cause:** `IDBStore.set()` löste bis v3.24.1 bei **`req.onsuccess`** auf. Das ist der Erfolg des *Requests*, nicht der **Commit** der Transaktion — dafür gibt es nur `tx.oncomplete`. Wer direkt danach `window.location.reload()` ruft, reißt die Seite ab, während die Transaktion noch offen ist; der Browser **verwirft sie**. Kein Fehler, kein Log, kein Eintrag.
+
+Es ist ein Wettlauf, kein Determinismus — und genau das führt bei der Diagnose in die Irre: auf der Dev-Maschine (schnell, localhost, kleine DB) gewinnt der Commit immer, unter Citrix/SMB mit großer Varianten-DB verliert er manchmal. Die Sporadik ist dabei der eigentliche Befund: **ein falsches Passwort, ein fehlender Flag oder ein Filter wären reproduzierbar.** Wenn ein zweiter Versuch hilft, ist die Ursache ein Wettlauf oder ein transienter Fehler — nicht die Konfiguration.
+
+**Fix-Pattern:**
+- **Schreiben löst erst beim Commit auf.** `tx.oncomplete` statt `req.onsuccess`, zentral in [idb-store.ts](../../src/core/services/storage/idb-store.ts) (`schreibe`) — damit sind alle Aufrufer versorgt, statt jeden Reload-Pfad einzeln zu flicken. Ablehnen muss auch `tx.onabort`: ein Abbruch feuert **kein** `onerror`, sonst tauscht der Fix stillen Datenverlust gegen stillen Hänger.
+- **`await` muss echtes Warten bedeuten.** Ein Schreibvorgang im `setState`-Updater (React ruft den nicht garantiert synchron auf, in StrictMode zweimal) ist weder abwartbar noch einmalig — der Wert gehört über eine Ref aus dem Updater heraus. Fall: `updateProfile` in [useProfile.ts](../../src/core/hooks/useProfile.ts), das `is_kurator` vor dem Reload verlieren konnte.
+- **Fehler nach der Erfolgsprüfung anzeigen.** In [ModulFreischaltungSection.tsx](../../src/plugins/einstellungen/ModulFreischaltungSection.tsx) war nur „Passwort falsch." sichtbar; `freischalten.error` wurde nie gerendert. Jeder Schreibfehler sah dadurch aus wie „der Knopf tut nichts" — die Diagnose-Lücke, die den Defekt jahrelang unsichtbar hielt (Positivbeispiel im selben Repo: [AppPasswordGate.tsx](../../src/core/AppPasswordGate.tsx) rendert seinen `login.error`).
+
+**Prüffrage beim Review:** Folgt auf einen Schreibvorgang ein `window.location.reload()` (oder ein anderer Navigations-/Unload-Pfad)? Dann: löst der Schreibvorgang beim Commit auf — und wird sein Fehler angezeigt?
+
+**Kanonische Dateien:** [idb-store.ts](../../src/core/services/storage/idb-store.ts) (`schreibe`, `set`, `delete`), [idb-store.test.ts](../../src/core/services/storage/__tests__/idb-store.test.ts) (Regressionsgatter „Commit vor Aufloesung"), [ModulFreischaltungSection.tsx](../../src/plugins/einstellungen/ModulFreischaltungSection.tsx), [useProfile.ts](../../src/core/hooks/useProfile.ts).
+

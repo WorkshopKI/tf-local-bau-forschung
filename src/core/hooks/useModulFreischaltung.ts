@@ -43,17 +43,24 @@ export const useModulFreischaltung = create<ModulFreischaltungState>((set, get) 
   auslastungBis: null,
   ttlMs: DEFAULT_SESSION_TTL_MS,
 
-  /** Nach erfolgreicher Passwortpruefung (die passiert im Aufrufer, nicht hier). */
+  /**
+   * Nach erfolgreicher Passwortpruefung (die passiert im Aufrufer, nicht hier).
+   *
+   * ERST schreiben, dann den State setzen: eine Freischaltung, die nicht in der
+   * IDB steht, ueberlebt den unmittelbar folgenden Reload nicht — der Store
+   * duerfte sie also gar nicht erst behaupten. Scheitert der Schreibvorgang,
+   * bleibt der Slot gesperrt und der Fehler erreicht den Aufrufer.
+   */
   freischalten: async (idb) => {
     const bis = Date.now() + get().ttlMs;
-    set({ auslastungFrei: true, auslastungBis: bis });
     const meta: FreischaltungMeta = { auslastungBis: bis };
     await idb.set(MODUL_FREISCHALTUNG_IDB_KEY, meta);
+    set({ auslastungFrei: true, auslastungBis: bis });
   },
 
   sperren: async (idb) => {
-    set({ auslastungFrei: false, auslastungBis: null });
     await idb.delete(MODUL_FREISCHALTUNG_IDB_KEY);
+    set({ auslastungFrei: false, auslastungBis: null });
   },
 
   /**

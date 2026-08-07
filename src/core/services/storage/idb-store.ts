@@ -274,26 +274,42 @@ export class IDBStore {
     });
   }
 
-  async set(key: string, value: unknown): Promise<void> {
+  /**
+   * Schreiben — loest ERST beim Commit der Transaktion auf, nicht beim Request.
+   *
+   * `req.onsuccess` feuert, waehrend die Transaktion noch offen ist. Wer danach
+   * sofort neu laedt (Modul-Freischaltung, App-Wall: `window.location.reload()`
+   * direkt nach dem Schreiben), reisst die Seite ab, bevor committet wurde — der
+   * Browser verwirft die Transaktion dann still. Nur `tx.oncomplete` heisst
+   * „steht auf der Platte". Der Unterschied ist ein Wettlauf: auf schnellen
+   * Maschinen faellt er nie auf, unter Citrix/SMB sporadisch schon.
+   *
+   * Ablehnen auch bei `onabort` — ein Abbruch feuert KEIN `onerror`, sonst
+   * bliebe die Promise fuer immer offen (stiller Haenger statt stillem Verlust).
+   */
+  private schreibe(op: (store: IDBObjectStore) => IDBRequest, was: string): Promise<void> {
     const db = this.getDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.storeName, 'readwrite');
-      const store = tx.objectStore(this.storeName);
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      const req = op(tx.objectStore(this.storeName));
+      // Der Request kennt die praezise Ursache, die Transaktion nur „abgebrochen".
+      let ursache: DOMException | null = null;
+      req.onerror = () => { ursache = req.error; };
+      tx.oncomplete = () => resolve();
+      const scheitern = (grund: string) => (): void => {
+        reject(ursache ?? tx.error ?? new Error(`IDB ${was} ${grund}`));
+      };
+      tx.onerror = scheitern('fehlgeschlagen');
+      tx.onabort = scheitern('abgebrochen');
     });
   }
 
+  async set(key: string, value: unknown): Promise<void> {
+    return this.schreibe(store => store.put(value, key), `set(${key})`);
+  }
+
   async delete(key: string): Promise<void> {
-    const db = this.getDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(this.storeName, 'readwrite');
-      const store = tx.objectStore(this.storeName);
-      const req = store.delete(key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    return this.schreibe(store => store.delete(key), `delete(${key})`);
   }
 
   async keys(prefix?: string): Promise<string[]> {

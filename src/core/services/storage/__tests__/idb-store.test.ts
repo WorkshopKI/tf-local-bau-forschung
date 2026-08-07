@@ -133,6 +133,83 @@ describe('IDBStore.get/set/delete/keys', () => {
   });
 });
 
+/**
+ * Regressionsgatter: Schreiben muss den COMMIT abwarten, nicht den Request.
+ *
+ * `req.onsuccess` feuert, waehrend die Transaktion noch offen ist. Wer danach
+ * sofort `window.location.reload()` ruft (Modul-Freischaltung, App-Wall), reisst
+ * die Seite ab, bevor committet wurde — der Browser verwirft die Transaktion
+ * still. Symptom: die Freischaltung ist nach dem Reload wieder weg.
+ */
+describe('IDBStore.set/delete — Commit vor Aufloesung', () => {
+  /**
+   * Haengt sich an jede readwrite-Transaktion und zaehlt Commits.
+   * `addEventListener` statt `oncomplete`, damit der Handler des Stores daneben
+   * bestehen bleibt — und weil der Test frueher registriert, feuert er zuerst.
+   */
+  function commitWaechter(): { alleCommittet: () => boolean; restore: () => void } {
+    const original = IDBDatabase.prototype.transaction;
+    let erzeugt = 0;
+    let committet = 0;
+    IDBDatabase.prototype.transaction = function (
+      this: IDBDatabase,
+      ...args: Parameters<IDBDatabase['transaction']>
+    ): IDBTransaction {
+      const tx = original.apply(this, args);
+      if (args[1] === 'readwrite') {
+        erzeugt++;
+        tx.addEventListener('complete', () => { committet++; });
+      }
+      return tx;
+    } as IDBDatabase['transaction'];
+    return {
+      alleCommittet: () => erzeugt > 0 && committet === erzeugt,
+      restore: () => { IDBDatabase.prototype.transaction = original; },
+    };
+  }
+
+  it('set() loest erst auf, wenn die Transaktion committet ist', async () => {
+    const store = await freshStore();
+    const w = commitWaechter();
+    try {
+      await store.set('k', 1);
+      expect(w.alleCommittet()).toBe(true);
+    } finally {
+      w.restore();
+    }
+  });
+
+  it('delete() loest erst auf, wenn die Transaktion committet ist', async () => {
+    const store = await freshStore();
+    await store.set('k', 1);
+    const w = commitWaechter();
+    try {
+      await store.delete('k');
+      expect(w.alleCommittet()).toBe(true);
+    } finally {
+      w.restore();
+    }
+  });
+
+  it('abgebrochene Transaktion lehnt ab, statt haengen zu bleiben', async () => {
+    const store = await freshStore();
+    const original = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (
+      this: IDBDatabase,
+      ...args: Parameters<IDBDatabase['transaction']>
+    ): IDBTransaction {
+      const tx = original.apply(this, args);
+      if (args[1] === 'readwrite') queueMicrotask(() => { try { tx.abort(); } catch { /* schon fertig */ } });
+      return tx;
+    } as IDBDatabase['transaction'];
+    try {
+      await expect(store.set('abbruch', 1)).rejects.toBeDefined();
+    } finally {
+      IDBDatabase.prototype.transaction = original;
+    }
+  });
+});
+
 describe('IDBStore.entries — Bulk-Read via Cursor', () => {
   it('liefert alle Key/Value-Paare ohne Prefix', async () => {
     const store = await freshStore();

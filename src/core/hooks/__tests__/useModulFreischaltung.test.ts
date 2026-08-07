@@ -64,6 +64,20 @@ describe('useModulFreischaltung', () => {
     expect(await idb.get(MODUL_FREISCHALTUNG_IDB_KEY)).toBeNull();
   });
 
+  it('ein gescheiterter Schreibvorgang schaltet NICHT frei', async () => {
+    // Sonst meldet die Oberflaeche „frei — noch 11 h 59 m", waehrend nichts
+    // gespeichert wurde: nach dem naechsten Start ist der Slot wieder gesperrt.
+    const kaputt = {
+      set: () => Promise.reject(new Error('IDB weg')),
+      delete: () => Promise.resolve(),
+    } as unknown as IDBStore;
+
+    await expect(useModulFreischaltung.getState().freischalten(kaputt)).rejects.toThrow('IDB weg');
+
+    expect(useModulFreischaltung.getState().auslastungFrei).toBe(false);
+    expect(useModulFreischaltung.getState().auslastungBis).toBeNull();
+  });
+
   it('tick sperrt, sobald die Frist ueberschritten ist', async () => {
     await useModulFreischaltung.getState().freischalten(idb);
     // Frist kuenstlich in die Vergangenheit ziehen.
