@@ -29,7 +29,14 @@ const SPALTEN = [
   'ID', 'Herkunft', 'Betrifft', 'Frage', 'Kontext', 'Vorkommen', 'Antwort', 'Name', 'Datum',
 ] as const;
 
-const BREITEN = [30, 24, 22, 44, 70, 11, 34, 16, 12];
+/**
+ * Zeichenbreiten je Spalte. Der Kontext bekommt am meisten: er trägt die
+ * Begründung, und wer eine herumgereichte Datei öffnet, zieht keine Spalten auf.
+ * „Betrifft" darf schmal sein (Kürzel und kurze Bezeichner, der Rest bricht um),
+ * „Vorkommen" braucht Platz für die eigene Überschrift PLUS den Filterpfeil —
+ * zu knapp stand dort „Vorkomme".
+ */
+const BREITEN = [30, 24, 16, 44, 92, 14, 34, 16, 12];
 /**
  * 1-basiert: alles Textliche außer der Zahlenspalte.
  *

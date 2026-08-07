@@ -82,9 +82,13 @@ const STIL_KOPF = 3;
  */
 const STIL_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`
+  // 11 pt statt der 12, die die Bibliothek setzt: in einer Mappe, die vor allem
+  // aus langen Kontextsätzen besteht, entscheidet die Zeilenhöhe darüber, wie
+  // viele Fälle gleichzeitig auf den Bildschirm passen. 11 pt ist zugleich
+  // Excels eigene Vorgabe für „Normal".
   + '<fonts count="2">'
-  + '<font><sz val="12"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'
-  + '<font><b/><sz val="12"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'
+  + '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'
+  + '<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'
   + '</fonts>'
   + '<fills count="3">'
   + '<fill><patternFill patternType="none"/></fill>'
