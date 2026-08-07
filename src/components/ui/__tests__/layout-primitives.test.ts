@@ -108,14 +108,27 @@ describe('ScopeTabs', () => {
 });
 
 describe('DarstellungDropdown', () => {
-  const achsen: DarstellungAchse<'gruppierung'>[] = [{
+  const achsen: DarstellungAchse<'gruppierung' | 'archiv'>[] = [{
     id: 'gruppierung',
-    label: 'Gruppierung',
-    hinweis: 'Bänder quer zur Statusachse',
+    art: 'segment',
+    label: 'Gruppieren nach',
     options: [{ key: 'keine', label: 'Keine' }, { key: 'bereich', label: 'Bereich' }],
     value: 'keine',
     standard: 'keine',
   }];
+
+  const mitSchalter: DarstellungAchse<'gruppierung' | 'archiv'>[] = [
+    { ...achsen[0]!, value: 'bereich' },
+    {
+      id: 'archiv',
+      art: 'schalter',
+      anKey: 'ein',
+      label: 'Archivierte zeigen',
+      options: [{ key: 'aus', label: 'ausgeblendet' }, { key: 'ein', label: 'eingeblendet' }],
+      value: 'ein',
+      standard: 'aus',
+    },
+  ];
 
   it('trägt im Standardzustand nur seinen Namen — der Knopf bleibt schmal', () => {
     const html = renderToStaticMarkup(h(DarstellungDropdown, { achsen, onChange: noop }));
@@ -131,11 +144,25 @@ describe('DarstellungDropdown', () => {
     }));
     expect(html).toContain('Darstellung:');
     expect(html).toContain('Bereich');
+    // Eine einzelne Abweichung bekommt keinen Zähler.
+    expect(html).not.toContain('+1');
   });
 
-  it('rendert das Menü erst beim Öffnen (geschlossen kein role="menu")', () => {
+  it('zählt weitere Abweichungen als „+N" in der Primärfarbe, statt sie aufzureihen', () => {
+    const html = renderToStaticMarkup(h(DarstellungDropdown, {
+      achsen: mitSchalter, onChange: noop,
+    }));
+    expect(html).toContain('Bereich');
+    expect(html).toContain('+1');
+    expect(html).toContain('text-[var(--tf-primary)]');
+    // Der zweite Wert steht NICHT ausgeschrieben am Knopf.
+    expect(html).not.toContain('eingeblendet');
+  });
+
+  it('rendert das Menü erst beim Öffnen (geschlossen keine Kopfzeile)', () => {
     const html = renderToStaticMarkup(h(DarstellungDropdown, { achsen, onChange: noop }));
     expect(html).toContain('aria-expanded="false"');
-    expect(html).not.toContain('role="menu"');
+    expect(html).not.toContain('role="dialog"');
+    expect(html).not.toContain('Zurücksetzen');
   });
 });

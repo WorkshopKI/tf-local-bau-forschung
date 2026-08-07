@@ -61,16 +61,19 @@ export function baueBoardAchsen(e: BoardDarstellung): DarstellungAchse<BoardAchs
   const achsen: DarstellungAchse<BoardAchseId>[] = [
     {
       id: 'gruppierung',
+      art: 'segment',
+      // „Gruppierung", nicht „Gruppieren nach": die vier Werte sind das breiteste
+      // Segment beider Seiten (251 px), mit der längeren Beschriftung bricht die
+      // Zeile um. Gemessen: 349 px von 378 px Innenbreite.
       label: 'Gruppierung',
-      hinweis: 'Bänder quer zur Statusachse',
       options: GRUPPIER_ACHSEN,
       value: e.gruppierung,
       standard: 'keine',
     },
     {
       id: 'dichte',
+      art: 'segment',
       label: 'Dichte',
-      hinweis: 'Wie viel eine Karte zeigt',
       options: DICHTE_OPTIONEN.map(o => ({ key: dichteNachAussen(o.key), label: o.label })),
       value: dichteNachAussen(e.dichte),
       standard: 'dicht',
@@ -79,8 +82,9 @@ export function baueBoardAchsen(e: BoardDarstellung): DarstellungAchse<BoardAchs
   if (e.darfVerwalten) {
     achsen.push({
       id: 'archiv',
-      label: 'Archivierte',
-      hinweis: 'Archivierte Tickets in der Liste',
+      art: 'schalter',
+      anKey: 'ein',
+      label: 'Archivierte zeigen',
       options: [
         { key: 'aus', label: 'ausgeblendet' },
         { key: 'ein', label: 'eingeblendet' },

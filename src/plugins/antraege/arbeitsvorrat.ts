@@ -128,6 +128,17 @@ export const BEENDET_OPTIONS: readonly { key: BeendetSicht; label: string }[] = 
   { key: 'ein', label: 'eingeblendet' },
 ];
 
+/**
+ * Beschriftung der Schalter-Zeile im Darstellungs-Menü.
+ *
+ * Abgeleitet aus dem Aggregatnamen statt als zweites Literal danebengestellt
+ * (Pitfall #50) — die Zeile braucht aber ein Verb: der blanke Name („Beendet")
+ * neben einem Schalter liest sich als Zustand, nicht als Frage. Ein Test hält
+ * beides zusammen, damit eine Umbenennung des Aggregats hier laut auffällt
+ * statt still eine schiefe Beugung zu erzeugen.
+ */
+export const BEENDET_ACHSE_LABEL = `${ARBEITSVORRAT_LABEL.archiv}e zeigen`;
+
 /** Standardstellung: Beendetes steht nicht in der Liste — der Arbeitsvorrat
  *  oben, das Archiv einen Klick entfernt. Der Store persistiert einen Boolean,
  *  hier steht dieselbe Aussage als Schlüssel der Options-Liste (das

@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   baueDarstellungsAchsen,
   darstellungsZusammenfassung,
+  schalterAn,
   type DarstellungEingabe,
 } from '../darstellungsAchsen';
 import { TABLE_GROUPING_OPTIONS, TABLE_ANSICHT_OPTIONS } from '../tableGrouping';
 import { GROUPING_OPTIONS } from '../sort';
-import { ARBEITSVORRAT_LABEL } from '../arbeitsvorrat';
+import { ARBEITSVORRAT_LABEL, BEENDET_ACHSE_LABEL } from '../arbeitsvorrat';
 
 /** Alles auf Standard, Tabellen-Ansicht im „Alle"-Reiter — also der Zustand mit
  *  allen drei Achsen. */
@@ -60,9 +61,31 @@ describe('Optionen kommen aus der bestehenden Quelle', () => {
     expect(achsen.find(a => a.id === 'gruppierung')!.options).toBe(GROUPING_OPTIONS);
   });
 
-  it('beschriftet die Beendet-Achse mit dem Aggregatnamen, nicht mit einem Literal', () => {
+  it('beschriftet die Beendet-Achse aus dem Aggregatnamen, nicht mit einem Literal', () => {
     const beendet = baueDarstellungsAchsen(STANDARD).find(a => a.id === 'beendet')!;
-    expect(beendet.label).toBe(ARBEITSVORRAT_LABEL.archiv);
+    expect(beendet.label).toBe(BEENDET_ACHSE_LABEL);
+    // Die Zeile braucht ein Verb („… zeigen"), bleibt aber an den Aggregatnamen
+    // gebunden: wird der umbenannt, fällt hier die Beugung auf.
+    expect(BEENDET_ACHSE_LABEL.startsWith(ARBEITSVORRAT_LABEL.archiv)).toBe(true);
+    expect(BEENDET_ACHSE_LABEL).toBe('Beendete zeigen');
+  });
+
+  it('deklariert je Achse die Bedienform — geraten wird nichts', () => {
+    const achsen = baueDarstellungsAchsen(STANDARD);
+    // „Antrag / Antrag mit TV" ist zweiwertig und trotzdem KEIN Schalter.
+    expect(achsen.find(a => a.id === 'ansicht')!.art).toBe('segment');
+    expect(achsen.find(a => a.id === 'gruppierung')!.art).toBe('segment');
+    expect(achsen.find(a => a.id === 'beendet')!.art).toBe('schalter');
+  });
+
+  it('schaltet die Beendet-Achse in die richtige Richtung', () => {
+    // Der Menü-Schlüssel `aus` heißt „ausgeblendet" — ein aus der Reihenfolge
+    // geratener Schalter stünde also genau verkehrt herum.
+    const aus = baueDarstellungsAchsen(STANDARD).find(a => a.id === 'beendet')!;
+    expect(schalterAn(aus)).toBe(false);
+    const ein = baueDarstellungsAchsen({ ...STANDARD, beendetAusgeblendet: false })
+      .find(a => a.id === 'beendet')!;
+    expect(schalterAn(ein)).toBe(true);
   });
 
   it('jede Achse steht auf einem Wert, den ihre Options-Liste kennt', () => {
@@ -75,27 +98,28 @@ describe('Optionen kommen aus der bestehenden Quelle', () => {
 
 describe('Zusammenfassung am Knopf', () => {
   it('ist leer, solange alles auf Standard steht', () => {
-    expect(darstellungsZusammenfassung(baueDarstellungsAchsen(STANDARD))).toBe('');
+    expect(darstellungsZusammenfassung(baueDarstellungsAchsen(STANDARD)))
+      .toEqual({ text: '', weitere: 0 });
   });
 
-  it('nennt nur die abweichenden Achsen, mit ihrem Anzeige-Label', () => {
+  it('nennt die abweichende Achse mit ihrem Anzeige-Label', () => {
     const achsen = baueDarstellungsAchsen({ ...STANDARD, tableAnsicht: 'antrag-mit-tv' });
-    expect(darstellungsZusammenfassung(achsen)).toBe('Antrag mit TV');
+    expect(darstellungsZusammenfassung(achsen)).toEqual({ text: 'Antrag mit TV', weitere: 0 });
   });
 
-  it('reiht mehrere Abweichungen in Achsen-Reihenfolge', () => {
+  it('schreibt bei mehreren Abweichungen nur die erste aus und zählt den Rest', () => {
     const achsen = baueDarstellungsAchsen({
       ...STANDARD,
       tableAnsicht: 'antrag-mit-tv',
       tableGruppierung: 'status',
       beendetAusgeblendet: false,
     });
-    expect(darstellungsZusammenfassung(achsen)).toBe('Antrag mit TV · Status · eingeblendet');
+    expect(darstellungsZusammenfassung(achsen)).toEqual({ text: 'Antrag mit TV', weitere: 2 });
   });
 
   it('eine unbekannte (z.B. veraltete) Wahl fällt auf ihren Schlüssel zurück statt zu verschwinden', () => {
     const achsen = baueDarstellungsAchsen({ ...STANDARD, tableGruppierung: 'verbund' });
-    expect(darstellungsZusammenfassung(achsen)).toBe('verbund');
+    expect(darstellungsZusammenfassung(achsen)).toEqual({ text: 'verbund', weitere: 0 });
   });
 
   it('zählt die Beendet-Achse nur, wo es sie gibt', () => {
@@ -106,6 +130,6 @@ describe('Zusammenfassung am Knopf', () => {
       activeView: 'meine_offenen',
       beendetAusgeblendet: false,
     });
-    expect(darstellungsZusammenfassung(achsen)).toBe('');
+    expect(darstellungsZusammenfassung(achsen)).toEqual({ text: '', weitere: 0 });
   });
 });

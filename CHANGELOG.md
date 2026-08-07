@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.35.0 — Darstellungs-Menue: Zeilen-Pattern statt Optionsliste (August 2026)
+
+MINOR — Das Menü kostete je Achse zwei Beschriftungszeilen plus eine 30-px-Zeile pro Wert; drei Achsen ergaben rund 430 px, und die Erklärzeile darunter liest niemand ein zweites Mal. Design-Handoff `_design/handoff/dropdown/`: eine Achse = eine Zeile, Beschriftung links, Auswahl rechts. Gemessen jetzt 380 × 182 px auf beiden Seiten.
+
+- Zeilen-Pattern mit Kopfzeile + „Zurücksetzen"; Erklärzeilen und Häkchen-Liste sind weg — [DarstellungDropdown.tsx](src/components/ui/DarstellungDropdown.tsx)
+- Jede Achse deklariert ihre Bedienform (`art`), An/Aus-Achsen tragen `anKey` — zwei Werte heißen nicht An/Aus — [darstellungsAchsen.ts](src/components/ui/darstellungsAchsen.ts)
+- Der Knopf nennt die erste Abweichung und zählt die übrigen („Darstellung: Antrag mit TV +2") statt einer wachsenden `·`-Kette — [darstellungsAchsen.ts](src/components/ui/darstellungsAchsen.ts)
+- „Beendet" und „Archivierte" sind Schalter; „Beendete zeigen" bleibt an den Aggregatnamen gebunden — [arbeitsvorrat.ts](src/plugins/antraege/arbeitsvorrat.ts)
+- Das Segment kommt aus dem geteilten Bauteil, erweitert um `rolle='auswahl'` + `breit` — kein zweites Segment daneben — [SegmentedToggle.tsx](src/components/ui/SegmentedToggle.tsx)
+
+### v3.34.0 — Alle Status-Spalten klappen den Verlauf auf; Unterzeile bindet an ihren Balken (August 2026)
+
+MINOR — Zwei der vier Status-Spalten reagierten auf einen Klick, zwei nicht — nicht erklärbar. Und die neue Unterzeile aus v3.32 band optisch an nichts: ein Strich in Rahmenfarbe, zwei Pixel unter dem Balken schwebend, ließ „keine weiteren NF" zum Balken „NF gestellt" darüber gehören.
+
+- Die ganze Rubrik **Status** klappt den Verlauf auf (auch FB Status und PreCheck Status) — über die Rubrik statt über eine Schlüsselliste, damit eine künftige Status-Spalte das erbt: [klickzonen.tsx](src/plugins/antraege/ausklapp/klickzonen.tsx)
+- Der Anker der Unterzeile sitzt bündig an der Balken-Unterkante und trägt **dessen Farbe** — er liest sich als Fortsetzung des eigenen Abschnitts: [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+- `G_STATUS` ist exportiert, die Zuordnung Spalte→Reiter läuft über `ausklappReiter(key, gruppe)`: [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+
 ### v3.33.0 — Glossar: Suche links, breiter, in beiden Reitern (August 2026)
 
 MINOR — „Im Glossar fehlt eine Suchmöglichkeit" — es gab sie, rechts neben den Reitern, auf 340 px gedeckelt und nur im ersten Reiter. Die Breite schnitt den eigenen Platzhalter ab („Abkürzung, Begriff, Statusw…"), also verschwieg das Feld, was es kann. Dazu fehlte alles, was man von einem Suchfeld erwartet.

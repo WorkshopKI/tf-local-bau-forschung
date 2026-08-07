@@ -37,12 +37,21 @@ import {
 import {
   BEENDET_OPTIONS,
   DEFAULT_BEENDET_SICHT,
-  ARBEITSVORRAT_LABEL,
+  BEENDET_ACHSE_LABEL,
   hatBeendetAchse,
 } from './arbeitsvorrat';
 
-export type { DarstellungAchse, DarstellungOption } from '@/components/ui/darstellungsAchsen';
-export { darstellungsZusammenfassung } from '@/components/ui/darstellungsAchsen';
+export type {
+  DarstellungAchse,
+  DarstellungOption,
+  DarstellungArt,
+  DarstellungKurzfassung,
+} from '@/components/ui/darstellungsAchsen';
+export {
+  darstellungsZusammenfassung,
+  schalterAn,
+  zuruecksetzenAufrufe,
+} from '@/components/ui/darstellungsAchsen';
 
 export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'beendet';
 
@@ -65,8 +74,9 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
   if (e.viewMode === 'compact') {
     achsen.push({
       id: 'ansicht',
-      label: 'Ansicht',
-      hinweis: 'Was eine Zeile zeigt',
+      art: 'segment',
+      // Zweiwertig, aber KEIN An/Aus — beide Werte sind eigene Zeilen-Körnungen.
+      label: 'Zeile zeigt',
       options: TABLE_ANSICHT_OPTIONS,
       value: e.tableAnsicht,
       standard: DEFAULT_TABLE_ANSICHT,
@@ -75,8 +85,12 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
   const tabelle = e.viewMode === 'compact';
   achsen.push({
     id: 'gruppierung',
+    art: 'segment',
+    // Beschriftung wie auf dem Feedback-Board — dieselbe Sache, und sie war
+    // schon selbsterklärend. Gemessen passt die breiteste Fassung (fünf Werte
+    // in der Tabelle) mit 312 px in die 378 px Innenbreite; die Listen-Fassung
+    // mit „NW-Größe" braucht 319 px. Kein Stapeln nötig.
     label: 'Gruppierung',
-    hinweis: 'Abschnitts-Bänder über den Zeilen',
     options: tabelle ? TABLE_GROUPING_OPTIONS : GROUPING_OPTIONS,
     value: tabelle ? e.tableGruppierung : e.listGruppierung,
     standard: tabelle ? DEFAULT_TABLE_GROUPING : DEFAULT_GROUPING_BY_VIEW[e.activeView],
@@ -84,8 +98,11 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
   if (hatBeendetAchse(e.activeView) && e.viewMode !== 'cards') {
     achsen.push({
       id: 'beendet',
-      label: ARBEITSVORRAT_LABEL.archiv,
-      hinweis: 'Terminale Anträge in der Liste',
+      art: 'schalter',
+      // `aus` ist der ERSTE Schlüssel und heißt „ausgeblendet" — der Schalter
+      // steht also auf an, wenn der Wert `ein` ist. Deshalb explizit.
+      anKey: 'ein',
+      label: BEENDET_ACHSE_LABEL,
       options: BEENDET_OPTIONS,
       value: e.beendetAusgeblendet ? 'aus' : 'ein',
       standard: DEFAULT_BEENDET_SICHT,

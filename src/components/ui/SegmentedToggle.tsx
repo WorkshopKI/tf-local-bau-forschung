@@ -7,6 +7,16 @@
  * Layout-Konvention (aus Handoff-Design):
  *   Container: border 0.5px / radius 8px / padding 2px / bg-secondary
  *   Buttons:   height 26px / padding 0 10px / font 12px / radius 6px
+ *
+ * **Aktiv wird ueber Flaeche + Rand markiert, nie ueber `font-weight`** — ein
+ * Fett-Sprung verbreitert das Label und ruckelt bei jedem Wechsel den ganzen
+ * Track (Pitfall #14, dieselbe Regel wie beim Haken-Slot der Toggle-Pills).
+ *
+ * Zwei additive Props fuer das Darstellungs-Menue (`DarstellungDropdown`), beide
+ * mit dem bisherigen Verhalten als Default — die Bestandsaufrufer
+ * (`FarbmodusToggle`, `MaListFilterBar`) bleiben unveraendert:
+ * `rolle='auswahl'` fuer eine Einfachauswahl, die kein Tabpanel oeffnet, und
+ * `breit` fuer die gestapelte Zeile, in der das Segment die Breite fuellt.
  */
 export interface SegmentedToggleOption<T extends string> {
   id: T;
@@ -19,16 +29,25 @@ interface Props<T extends string> {
   onChange: (id: T) => void;
   options: Array<SegmentedToggleOption<T>>;
   ariaLabel?: string;
+  /**
+   * `tabs` (Default) = Ansichts-Umschalter, der einen Bereich daneben tauscht.
+   * `auswahl` = Einfachauswahl einer Einstellung (`radiogroup`/`radio`) — es
+   * gibt kein zugehoeriges `tabpanel`, `tablist` waere dort eine Falschaussage.
+   */
+  rolle?: 'tabs' | 'auswahl';
+  /** Fuellt die verfuegbare Breite, Optionen zu gleichen Teilen. */
+  breit?: boolean;
 }
 
 export function SegmentedToggle<T extends string>({
-  value, onChange, options, ariaLabel,
+  value, onChange, options, ariaLabel, rolle = 'tabs', breit = false,
 }: Props<T>): React.ReactElement {
+  const auswahl = rolle === 'auswahl';
   return (
     <div
-      role="tablist"
+      role={auswahl ? 'radiogroup' : 'tablist'}
       aria-label={ariaLabel}
-      className="inline-flex items-center"
+      className={breit ? 'flex w-full items-center' : 'inline-flex items-center'}
       style={{
         border: '0.5px solid var(--tf-border)',
         borderRadius: 8,
@@ -43,10 +62,12 @@ export function SegmentedToggle<T extends string>({
           <button
             key={opt.id}
             type="button"
-            role="tab"
-            aria-selected={active}
+            role={auswahl ? 'radio' : 'tab'}
+            {...(auswahl ? { 'aria-checked': active } : { 'aria-selected': active })}
             onClick={() => onChange(opt.id)}
-            className="inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+            className={`inline-flex items-center justify-center gap-1.5 cursor-pointer transition-colors${
+              breit ? ' flex-1 min-w-0' : ''
+            } focus-visible:outline-2 focus-visible:outline-[var(--tf-primary)] focus-visible:outline-offset-1`}
             style={{
               height: 26,
               padding: '0 10px',

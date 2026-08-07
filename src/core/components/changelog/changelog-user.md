@@ -19,6 +19,22 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.35 — 2026-08
+
+### Verbesserungen
+- Das Menü **„Darstellung"** (Förderanträge und Feedback-Board) ist deutlich kürzer: jede Einstellung steht in **einer** Zeile — Beschriftung links, Auswahl rechts. Statt drei Bildschirmzentimetern Optionsliste sieht man alles auf einen Blick.
+- Ja/Nein-Einstellungen wie „Beendete zeigen" oder „Archivierte zeigen" sind jetzt **Schalter**; man sieht die Stellung, ohne zwei Zeilen zu vergleichen.
+- Neu in der Kopfzeile: **„Zurücksetzen"** stellt alle Einstellungen des Menüs auf einmal zurück.
+- Der Knopf bleibt schmal: er nennt die erste Abweichung vom Standard und zählt die übrigen („Darstellung: Antrag mit TV +2") statt sie alle aufzureihen.
+
+## v3.34 — 2026-08
+
+### Verbesserungen
+- **Jede** Status-Spalte klappt jetzt den Verlauf auf — auch „FB Status" und „PreCheck Status". Vorher reagierten nur zwei der vier, was niemand erraten konnte.
+
+### Bugfixes
+- Steht ein Statusname **unter** seinem Balken, ist jetzt erkennbar, zu welchem er gehört: der kleine Strich sitzt direkt an der Unterkante des Balkens und hat dessen Farbe. Vorher konnte man ihn dem Balken darüber zuordnen — etwa „keine weiteren NF" dem Balken „NF gestellt".
+
 ## v3.33 — 2026-08
 
 ### Verbesserungen

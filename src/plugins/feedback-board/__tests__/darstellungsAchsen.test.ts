@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { darstellungsZusammenfassung } from '@/components/ui/darstellungsAchsen';
+import { darstellungsZusammenfassung, schalterAn } from '@/components/ui/darstellungsAchsen';
 import { GRUPPIER_ACHSEN } from '../gruppierung';
 import { DICHTE_OPTIONEN } from '../ticket/dichte';
 import {
@@ -34,18 +34,35 @@ describe('baueBoardAchsen', () => {
     const achse = baueBoardAchsen(STANDARD)[1];
     expect(achse?.options.map(o => o.label)).toEqual(DICHTE_OPTIONEN.map(o => o.label));
   });
+
+  it('macht aus „Archivierte" einen Schalter, der in die richtige Richtung zeigt', () => {
+    const aus = baueBoardAchsen(STANDARD).find(a => a.id === 'archiv')!;
+    expect(aus.art).toBe('schalter');
+    expect(schalterAn(aus)).toBe(false);
+    const ein = baueBoardAchsen({ ...STANDARD, zeigeArchiv: true }).find(a => a.id === 'archiv')!;
+    expect(schalterAn(ein)).toBe(true);
+  });
 });
 
 describe('Zusammenfassung am Knopf', () => {
   it('ist im Startzustand leer — der Knopf trägt dann nur seinen Namen', () => {
-    expect(darstellungsZusammenfassung(baueBoardAchsen(STANDARD))).toBe('');
+    expect(darstellungsZusammenfassung(baueBoardAchsen(STANDARD)))
+      .toEqual({ text: '', weitere: 0 });
   });
 
-  it('nennt nur die abweichenden Achsen, in Menü-Reihenfolge', () => {
+  it('schreibt die erste Abweichung aus und zählt die übrigen', () => {
     const achsen = baueBoardAchsen({
       ...STANDARD, gruppierung: 'bereich', dichte: 'ultra', zeigeArchiv: true,
     });
-    expect(darstellungsZusammenfassung(achsen)).toBe('Bereich · Sehr kompakt · eingeblendet');
+    expect(darstellungsZusammenfassung(achsen)).toEqual({ text: 'Bereich', weitere: 2 });
+  });
+
+  it('nennt den Archiv-Schalter bei seinem Achsen-Label, nicht bei seinem Wert', () => {
+    // „Darstellung: eingeblendet" sagt nichts darüber, WAS eingeblendet ist.
+    const achsen = baueBoardAchsen({ ...STANDARD, zeigeArchiv: true });
+    expect(darstellungsZusammenfassung(achsen)).toEqual({
+      text: 'Archivierte zeigen', weitere: 0,
+    });
   });
 
   it('meldet die komfortable Dichte als Abweichung — sie ist NICHT der Startwert', () => {
@@ -53,7 +70,7 @@ describe('Zusammenfassung am Knopf', () => {
     // als Standard, stünde dauerhaft „Kompakt" am Knopf, ohne dass jemand etwas
     // verstellt hat.
     const achsen = baueBoardAchsen({ ...STANDARD, dichte: '' });
-    expect(darstellungsZusammenfassung(achsen)).toBe('Komfortabel');
+    expect(darstellungsZusammenfassung(achsen)).toEqual({ text: 'Komfortabel', weitere: 0 });
   });
 });
 
