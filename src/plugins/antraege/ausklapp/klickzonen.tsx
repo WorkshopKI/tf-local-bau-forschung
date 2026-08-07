@@ -16,14 +16,35 @@
  */
 import { ChevronDown } from 'lucide-react';
 import type { SortableColumn } from '@/components/data-table/types';
+import { G_STATUS } from '../tableColumns';
 import { bereichsId, type ReiterId } from './ausklappZustand';
 
-/** Welche Spalte welchen Reiter vorwählt. */
-export const AUSKLAPP_SPALTEN: Readonly<Record<string, ReiterId>> = {
-  status_naechster_schritt: 'verlauf',
-  status: 'verlauf',
+/**
+ * Welche Spalte welchen Reiter vorwählt — **Rubrik zuerst, Einzelfall danach**.
+ *
+ * Die ganze Rubrik „Status" klappt den Verlauf auf: wer auf irgendeine
+ * Status-Angabe klickt, will wissen, wie sie zustande kam, und es wäre nicht
+ * erklärbar, dass zwei der vier Spalten reagieren und zwei nicht. Über die
+ * Rubrik statt über eine Schlüsselliste, damit eine künftige Status-Spalte das
+ * erbt, ohne dass jemand hier nachträgt.
+ */
+const AUSKLAPP_GRUPPEN: Readonly<Record<string, ReiterId>> = {
+  [G_STATUS]: 'verlauf',
+};
+
+/** Einzelspalten außerhalb ihrer Rubrik. `frist` steht unter „Termine", öffnet
+ *  aber den Fristen-Reiter — die übrigen Termin-Spalten sind bloße Daten. */
+const AUSKLAPP_SPALTEN: Readonly<Record<string, ReiterId>> = {
   frist: 'fristen',
 };
+
+/** Der Reiter, den ein Klick auf diese Spalte vorwählt; `undefined` = kein
+ *  Ausklappen. Die Einzelspalte gewinnt gegen ihre Rubrik. */
+export function ausklappReiter(
+  key: string, gruppe: string | undefined,
+): ReiterId | undefined {
+  return AUSKLAPP_SPALTEN[key] ?? (gruppe === undefined ? undefined : AUSKLAPP_GRUPPEN[gruppe]);
+}
 
 /**
  * Die Spalten, aus denen heraus navigiert wird.
@@ -112,7 +133,7 @@ export function machKlickbar<T>(
   columns: readonly SortableColumn<T>[], api: KlickzonenApi<T>,
 ): SortableColumn<T>[] {
   return columns.map(c => {
-    const reiter = api.ausklappbar ? AUSKLAPP_SPALTEN[c.key] : undefined;
+    const reiter = api.ausklappbar ? ausklappReiter(c.key, c.gruppe) : undefined;
     if (reiter !== undefined) {
       return {
         ...c,

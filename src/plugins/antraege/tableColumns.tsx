@@ -183,7 +183,10 @@ const G_ANTRAG = 'Antrag';
  *  dahin. */
 const G_ANTRAGSDATEN = 'Antragsdaten';
 const G_ZUSTAENDIGKEIT = 'Zuständigkeit';
-const G_STATUS = 'Status';
+/** Exportiert, weil die Klickzonen die ganze Rubrik aufklappbar machen
+ *  (`klickzonen.tsx`) — eine neue Status-Spalte soll das erben, ohne dass
+ *  jemand eine zweite Liste pflegt. */
+export const G_STATUS = 'Status';
 const G_TERMINE = 'Termine';
 export const G_ORDNER = 'Ordner des Fachsystems';
 export const G_ORDNER_VB = 'Ordner · Verbund';

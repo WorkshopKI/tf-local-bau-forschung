@@ -1525,11 +1525,19 @@ gilt Stufe 2 mit der alten Schwelle — **nie unter den Stand von v3.31**.
 Abschnitte durch Breite allein nie beschriftbar. Unter dem Balken darf ihr Name
 unter den Balken der *Nachbarn* hinweglaufen, ohne etwas zu verdecken — die
 liegen eine Etage höher. Nur Unter-Beschriftungen konkurrieren miteinander, und
-die prüft der Algorithmus von links nach rechts; ein Führungsstrich am linken
-Rand sagt, zu welchem Abschnitt sie gehört. Nur das **letzte** Segment (der
+die prüft der Algorithmus von links nach rechts. Nur das **letzte** Segment (der
 aktuelle Stand) rückt nach innen, wenn es sonst rechts hinausliefe — dann wandert
-der Strich mit auf die andere Seite. Gegen eine bloße Kollision hilft das nicht:
+der Anker mit auf die andere Seite. Gegen eine bloße Kollision hilft das nicht:
 Ausweichen führte das Label weit weg von seinem eigenen Abschnitt.
+
+**Die Zuordnung ist dabei das eigentliche Risiko** — und der erste Entwurf ist
+daran gescheitert: ein Name, der links an seinem schmalen Abschnitt beginnt und
+weit nach rechts reicht, liegt unter FREMDEN Balken, und das Auge paart ihn mit
+dem, was direkt darüber steht („warum steht unter *NF gestellt* der Text *keine
+weiteren NF*?"). Ein 1-px-Strich in Rahmenfarbe, zwei Pixel unter dem Balken
+schwebend, band an nichts. Er sitzt jetzt **bündig an der Unterkante** und trägt
+**die Farbe seines Balkens**: so liest er sich als dessen Fortsetzung nach unten
+statt als Linie irgendwo im Feld.
 
 **Die Legende nummeriert nur bei Bedarf.** Bis v3.31 war es eine feste Schwelle
 (ab sechs Einträgen), auch wenn jeder Balken seinen Namen trug — dann waren die

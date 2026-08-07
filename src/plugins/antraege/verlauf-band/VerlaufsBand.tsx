@@ -181,22 +181,33 @@ function lageText(spur: VerlaufsSpur): string | null {
 /**
  * Die Beschriftung eines Segments, die nicht in seinen Balken passte. Sie steht
  * in der zweiten Etage und darf unter den Balken ihrer Nachbarn hinweglaufen —
- * die liegen höher, es wird nichts verdeckt. Der Führungsstrich sagt, zu welchem
- * Abschnitt sie gehört.
+ * die liegen höher, es wird nichts verdeckt.
+ *
+ * **Die Zuordnung ist das ganze Problem dieser Etage.** Ein Text, der links an
+ * seinem schmalen Abschnitt beginnt und weit nach rechts reicht, liegt unter
+ * FREMDEN Balken, und das Auge paart ihn mit dem, was direkt darüber steht
+ * („warum steht unter *NF gestellt* der Text *keine weiteren NF*?"). Deshalb
+ * beginnt der Strich bündig an der Unterkante des Balkens und trägt DESSEN
+ * Farbe: er liest sich als Fortsetzung des eigenen Abschnitts nach unten, nicht
+ * als Trennlinie irgendwo im Feld.
  */
-function UnterLabel({ s }: { s: SegmentBeschriftung }): React.ReactElement {
+function UnterLabel({ s, farbton }: {
+  s: SegmentBeschriftung; farbton: string;
+}): React.ReactElement {
   return (
     <span
       className={`absolute text-[10px] leading-3 whitespace-nowrap pointer-events-none
-        text-[var(--tf-text-secondary)] ${s.rechtsBuendig ? 'pr-[3px]' : 'pl-[3px]'}`}
+        text-[var(--tf-text-secondary)] ${s.rechtsBuendig ? 'pr-1' : 'pl-1'}`}
       style={{
         left: s.x,
-        top: 22,
+        // Bündig an der Balken-Unterkante (Balken: top 4, Höhe 16) — jeder
+        // Abstand macht aus dem Strich eine freistehende Linie.
+        top: 20,
         // Nach innen gerückt zeigt der Strich nach rechts: links stünde er in
         // einem fremden Abschnitt.
         ...(s.rechtsBuendig
-          ? { borderRight: '1px solid var(--tf-border)' }
-          : { borderLeft: '1px solid var(--tf-border)' }),
+          ? { borderRight: `2px solid ${farbton}` }
+          : { borderLeft: `2px solid ${farbton}` }),
       }}
     >
       {s.text}
@@ -253,7 +264,12 @@ function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
             {/* Die zweite Etage NACH den Balken, damit sie im Zweifel obenauf
                 liegt — sie läuft absichtlich unter fremde Balken hinweg. */}
             {schrift.map((s, i) => (s.lage === 'unter-balken'
-              ? <UnterLabel key={`u-${i}`} s={s} />
+              ? (
+                <UnterLabel
+                  key={`u-${i}`} s={s}
+                  farbton={farbe(b.segmente[i]?.segment.statusRef?.roh)}
+                />
+              )
               : null))}
             {/* Je Übergang eine Kante an seinem Tag. Die Konfidenz gehört hierher,
                 nicht auf die Fläche daneben. */}
