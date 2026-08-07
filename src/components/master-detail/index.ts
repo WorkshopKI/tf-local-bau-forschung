@@ -5,6 +5,7 @@ export {
   clampDragWidth,
   listPaneClass,
   listPaneStyle,
+  fokusIstTippziel,
   shouldCloseOnEscape,
   parseCollapsedFlag,
   serializeCollapsedFlag,

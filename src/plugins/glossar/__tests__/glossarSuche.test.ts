@@ -1,11 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { GLOSSAR_BEGRIFFE } from '@/core/glossar';
+import type { StatusFeldEintrag } from '@/core/status';
+import type { KuerzelZeile } from '../glossarZeilen';
 import {
-  ART_REIHENFOLGE, begriffAlsEintrag, gruppiere, gesamtZahl, rang, verwandteIds,
+  ART_REIHENFOLGE, begriffAlsEintrag, flacheIds, gruppiere, gesamtZahl,
+  kuerzelAlsEintrag, markiere, naechsteId, passtKuerzel, rang, verwandteIds,
   waehleEintrag,
 } from '../glossarSuche';
 
 const ALLE = GLOSSAR_BEGRIFFE.map(begriffAlsEintrag);
+
+const feld = (feldId: string): StatusFeldEintrag => ({
+  feldId, label: feldId, typ: 'datum', ebene: 'tv',
+  prominenzDefault: 'normal', aktiv: true, unkuratiert: false,
+});
+
+const kuerzel = (o: Partial<KuerzelZeile> & { code: string }): KuerzelZeile => ({
+  feld: feld(`D_${o.code}`), label: '', csvSpalte: `D_${o.code}`,
+  rollen: [], rollenText: '', neutral: true, ordner: '', vorkommen: null, ...o,
+});
 
 describe('Glossar-Seed', () => {
   it('vergibt jede Id genau einmal', () => {
@@ -98,6 +111,101 @@ describe('waehleEintrag', () => {
   it('gibt null, wenn der gewaehlte Eintrag weggefiltert wurde', () => {
     // Genau der Fall „Detail schliesst sich beim Weitertippen von selbst".
     expect(waehleEintrag(gruppiere(ALLE, 'zuwb'), 'begriff:nf')).toBeNull();
+  });
+});
+
+describe('flacheIds', () => {
+  it('reiht die Eintraege ueber die Gruppen hinweg in Anzeigereihenfolge', () => {
+    const ids = flacheIds(gruppiere(ALLE, ''));
+    expect(ids).toHaveLength(GLOSSAR_BEGRIFFE.length);
+    expect(ids[0]).toBe(gruppiere(ALLE, '')[0]?.eintraege[0]?.id);
+  });
+
+  it('ist leer, wenn nichts sichtbar ist', () => {
+    expect(flacheIds(gruppiere(ALLE, 'gibtesnicht'))).toEqual([]);
+  });
+});
+
+describe('naechsteId', () => {
+  const ids = ['a', 'b', 'c'];
+
+  it('steigt ohne Auswahl am passenden Ende ein', () => {
+    expect(naechsteId(ids, null, 1)).toBe('a');
+    expect(naechsteId(ids, null, -1)).toBe('c');
+  });
+
+  it('geht einen Schritt in die gewuenschte Richtung', () => {
+    expect(naechsteId(ids, 'b', 1)).toBe('c');
+    expect(naechsteId(ids, 'b', -1)).toBe('a');
+  });
+
+  it('klemmt an den Enden, statt umzubrechen', () => {
+    expect(naechsteId(ids, 'c', 1)).toBe('c');
+    expect(naechsteId(ids, 'a', -1)).toBe('a');
+  });
+
+  it('faengt eine weggefilterte Auswahl am Ende auf', () => {
+    // Genau der Fall „weitergetippt, Auswahl verschwunden, dann Pfeil".
+    expect(naechsteId(ids, 'weg', 1)).toBe('a');
+    expect(naechsteId([], 'a', 1)).toBeNull();
+  });
+});
+
+describe('markiere', () => {
+  const text = (s: readonly { text: string }[]): string => s.map(t => t.text).join('');
+
+  it('zeichnet ALLE Vorkommen aus, nicht nur das erste', () => {
+    const s = markiere('NF an ASt, NF an BB', 'nf');
+    expect(s.filter(t => t.treffer)).toHaveLength(2);
+    expect(text(s)).toBe('NF an ASt, NF an BB');
+  });
+
+  it('gibt den Text unveraendert zurueck, wenn nichts gesucht wird', () => {
+    expect(markiere('Brief NF', '')).toEqual([{ text: 'Brief NF', treffer: false }]);
+    expect(markiere('Brief NF', '   ')).toEqual([{ text: 'Brief NF', treffer: false }]);
+  });
+
+  it('gibt den Text unveraendert zurueck, wenn nichts trifft', () => {
+    expect(markiere('Brief NF', 'xyz')).toEqual([{ text: 'Brief NF', treffer: false }]);
+  });
+
+  it('behaelt die Schreibweise des Originals, nicht die der Eingabe', () => {
+    const s = markiere('Brief NF von BB', 'nf');
+    expect(s.find(t => t.treffer)?.text).toBe('NF');
+  });
+
+  it('verliert kein Zeichen — auch nicht am Anfang oder Ende', () => {
+    for (const q of ['b', 'brief', 'f von', 'bb']) {
+      expect(text(markiere('Brief NF von BB', q))).toBe('Brief NF von BB');
+    }
+  });
+});
+
+describe('passtKuerzel', () => {
+  const z = kuerzel({
+    code: 'ALT', label: 'Brief NF von BB angelegt/ergaenzt',
+    csvSpalte: 'D_ALT', ordner: 'Antragsbearbeitung',
+  });
+
+  it('trifft ueber Code, Label, Spalte und Ordner', () => {
+    expect(passtKuerzel(z, 'alt')).toBe(true);
+    expect(passtKuerzel(z, 'brief nf')).toBe(true);
+    expect(passtKuerzel(z, 'd_alt')).toBe(true);
+    expect(passtKuerzel(z, 'antragsbearbeitung')).toBe(true);
+  });
+
+  it('laesst ohne Suchbegriff alles stehen', () => {
+    expect(passtKuerzel(z, '')).toBe(true);
+    expect(passtKuerzel(z, '  ')).toBe(true);
+  });
+
+  it('urteilt gleich wie die Liste im Reiter „Nachschlagen"', () => {
+    // Eine Formel für beide Reiter: sonst findet dieselbe Eingabe hier etwas
+    // und dort nichts, ohne dass sich das erklären liesse.
+    for (const q of ['alt', 'd_alt', 'brief', 'antrags', 'gibtesnicht']) {
+      const inListe = gesamtZahl(gruppiere([kuerzelAlsEintrag(z)], q)) > 0;
+      expect(passtKuerzel(z, q), q).toBe(inListe);
+    }
   });
 });
 

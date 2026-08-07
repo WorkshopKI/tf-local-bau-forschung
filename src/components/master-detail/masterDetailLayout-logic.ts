@@ -126,6 +126,23 @@ export function shouldShowList(hasDetail: boolean, collapsed: boolean): boolean 
 const EDITABLE_TAGS: ReadonlySet<string> = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 
 /**
+ * Tippt der Nutzer gerade irgendwo hinein? Die Frage stellt jede Seite, die
+ * einen Tastendruck global abfängt — sonst schluckt der Kurzbefehl ein Zeichen,
+ * das jemand schreiben wollte.
+ *
+ * Hier, weil `shouldCloseOnEscape` sie ohnehin schon beantwortete; sie ein
+ * zweites Mal danebenzuschreiben hieße, zwei Definitionen von „Eingabefeld" zu
+ * pflegen.
+ */
+export function fokusIstTippziel(
+  targetTagName: string | null | undefined,
+  isContentEditable: boolean,
+): boolean {
+  if (isContentEditable) return true;
+  return Boolean(targetTagName) && EDITABLE_TAGS.has(String(targetTagName).toUpperCase());
+}
+
+/**
  * Soll ein Escape-Tastendruck das Detail schließen? Nein, wenn der Fokus in
  * einem Eingabefeld liegt (Tippen im Editor soll nicht das ganze Detail
  * zuklappen) — sonst ja.
@@ -134,7 +151,5 @@ export function shouldCloseOnEscape(
   targetTagName: string | null | undefined,
   isContentEditable: boolean,
 ): boolean {
-  if (isContentEditable) return false;
-  if (targetTagName && EDITABLE_TAGS.has(targetTagName.toUpperCase())) return false;
-  return true;
+  return !fokusIstTippziel(targetTagName, isContentEditable);
 }

@@ -11,11 +11,21 @@ Wahrheit wären schlimmer als ein umständlicher Weg.
 
 ## UI-Elemente & Begriffe
 
-- **Suchfeld** — steht oben und hat beim Öffnen den Fokus. Es sucht über alles
-  gleichzeitig: wer nachschlägt, weiß meist noch nicht, ob das Gesuchte eine
-  Abkürzung, ein Kürzel oder ein Statuswert ist.
+- **Suchfeld** — steht oben **links**, vor den Reitern, und hat beim Öffnen den
+  Fokus. Es sucht über alles gleichzeitig: wer nachschlägt, weiß meist noch
+  nicht, ob das Gesuchte eine Abkürzung, ein Kürzel oder ein Statuswert ist. Es
+  wirkt in **beiden** Reitern, und der Suchbegriff bleibt beim Wechsel stehen.
+  Gesucht wird über Abkürzung, Begriff, Erklärung, Statuscode, Kürzel,
+  Spaltenname und Ordner — Groß-/Kleinschreibung egal.
+  - **Bedienung** — „/" springt ins Feld, Pfeil hoch/runter wandert durch die
+    Treffer (die Erklärung rechts wechselt mit), Enter nimmt den ersten Treffer,
+    Escape oder das ×-Zeichen leert.
+  - **Markierung** — die Fundstelle ist im Treffer farbig hervorgehoben. Steht
+    sie in Text, den die Liste nicht zeigt (Erklärung, Ordner), bleibt die Zeile
+    unmarkiert; gefunden wurde sie trotzdem darüber.
 - **Reiter „Nachschlagen" und „Für meine Rolle wichtig"** — die eine Sicht sucht
-  über alles, die andere zeigt die Kürzel einer Fachrolle.
+  über alles, die andere zeigt die Kürzel einer Fachrolle. Die Zahl am zweiten
+  Reiter zählt die Kürzel, die die laufende Suche übrig lässt.
 - **Liste links** — die Treffer, nach Art gruppiert, jede Gruppe mit Zähler.
   Gruppen ohne Treffer fallen weg.
   - **Abkürzungen & Begriffe** — der einzige eigene Bestand der Seite. Was hier
@@ -39,11 +49,14 @@ Wahrheit wären schlimmer als ein umständlicher Weg.
   Kaskade samt ihren Sperren.
 - **Für meine Rolle wichtig** — die Kürzel einer Fachrolle, nach Vorkommen
   sortiert, mit einem Filter auf die Richtlinie. Kürzel ohne Rollen-Vermerk
-  stehen abgesetzt darunter: die darf jeder setzen.
+  stehen abgesetzt darunter: die darf jeder setzen. Rolle und Richtlinien-Wahl
+  bleiben beim Reiterwechsel stehen.
 
 ## Typische Aktionen
 
 - Eine Abkürzung nachschlagen, die in einer Mail oder Tabelle steht
+- Tippen und mit den Pfeiltasten durch die Treffer gehen, ohne zur Maus zu greifen
+- In der Rollensicht ein bestimmtes Kürzel suchen, statt 585 durchzublättern
 - Von einem Eintrag über „Siehe auch" zum verwandten Begriff springen
 - Von einem Kürzel zum Status springen, den es setzt, und von dort zum
   Verfahrensschritt

@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.33 — 2026-08
+
+### Verbesserungen
+- Die Suche im Glossar steht jetzt ganz links und ist breit genug, dass man sie
+  nicht mehr übersieht.
+- Sie gilt in beiden Reitern — auch unter „Für meine Rolle wichtig", wo man
+  vorher 585 Kürzel durchblättern musste.
+- Mit der Tastatur: „/" springt ins Suchfeld, Pfeil hoch/runter geht durch die
+  Treffer, Enter nimmt den ersten, Escape leert. Die Fundstelle ist im Treffer
+  farbig hervorgehoben.
+- Rolle und Richtlinien-Auswahl bleiben stehen, wenn man den Reiter wechselt.
+
 ## v3.32 — 2026-08
 
 ### Verbesserungen

@@ -9,26 +9,35 @@
  * **Neutrale Kürzel stehen abgesetzt darunter.** Sie unter die Rolle zu mischen
  * behauptete eine Zuständigkeit, die die Zuarbeit nicht vergibt; sie
  * wegzulassen verschwiege die Hälfte des Alltags.
+ *
+ * **Die Suche der Seite gilt auch hier.** 585 Kürzel in zwei Abschnitten sind
+ * genau die Sicht, in der man sucht; ein Feld, das beim Reiterwechsel wirkungslos
+ * wird, wäre die schlechtere Antwort als eines, das überall greift.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
-import { useProfile } from '@/core/hooks/useProfile';
 import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 import {
-  ROLLEN, ROLLE_LABEL, ROLLE_LANG, leseStatusRolle, normKey, programmeInTrigger,
+  ROLLEN, ROLLE_LABEL, ROLLE_LANG, normKey, programmeInTrigger,
   type Rolle, type TriggerStand,
 } from '@/core/status';
 import { rollenSicht, type KuerzelZeile } from './glossarZeilen';
+import { Markiert } from './Markiert';
 
-function KuerzelListe({ zeilen, onWaehlen }: {
+function KuerzelListe({ zeilen, suche, onWaehlen }: {
   zeilen: readonly KuerzelZeile[];
+  suche: string;
   onWaehlen: (id: string) => void;
 }): React.ReactElement {
   if (zeilen.length === 0) {
     return (
+      // Den richtigen Grund nennen: bei laufender Suche liegt es an ihr, nicht
+      // an der Richtlinie — sonst zeigt die Seite auf die falsche Stellschraube.
       <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
-        Kein Kürzel — unter der gewählten Richtlinie kommt hier keines vor.
+        {suche.trim() === ''
+          ? 'Kein Kürzel — unter der gewählten Richtlinie kommt hier keines vor.'
+          : `Kein Kürzel zu „${suche.trim()}" — hier gefiltert nach Rolle und Richtlinie.`}
       </p>
     );
   }
@@ -42,10 +51,10 @@ function KuerzelListe({ zeilen, onWaehlen }: {
             className="flex w-full cursor-pointer items-baseline gap-2 rounded-[var(--tf-radius-sm)] px-2 py-1 text-left transition hover:bg-[var(--tf-hover)]"
           >
             <span className="w-[64px] shrink-0 font-mono text-[12px] text-[var(--tf-text)]">
-              {z.code}
+              <Markiert text={z.code} suche={suche} />
             </span>
             <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--tf-text-secondary)]">
-              {z.label}
+              <Markiert text={z.label} suche={suche} />
             </span>
             <span className="shrink-0 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
               {z.vorkommen !== null ? z.vorkommen.toLocaleString('de-DE') : '—'}
@@ -57,17 +66,22 @@ function KuerzelListe({ zeilen, onWaehlen }: {
   );
 }
 
-export function RollenSicht({ zeilen, trigger, onWaehlen }: {
+export function RollenSicht({
+  zeilen, trigger, suche, rolle, onRolle, programme, onProgramme, onWaehlen,
+}: {
+  /** Bereits nach der Suche gefiltert — die Seite besitzt den Suchbegriff. */
   zeilen: readonly KuerzelZeile[];
   trigger: TriggerStand | null;
+  /** Nur zum Auszeichnen der Fundstelle und für den Leertext. */
+  suche: string;
+  // Rolle und Richtlinien liegen bei der SEITE: dieser Reiter wird beim Wechsel
+  // ausgehängt, und eine Auswahl, die jedes Mal zurückspringt, ist keine.
+  rolle: Rolle | 'alle';
+  onRolle: (r: Rolle | 'alle') => void;
+  programme: readonly string[];
+  onProgramme: (p: string[]) => void;
   onWaehlen: (id: string) => void;
 }): React.ReactElement {
-  const { profile } = useProfile();
-  // Als Initialwert, nicht als Bindung: die Profil-Rolle ist eine Vorauswahl.
-  const [rolle, setRolle] = useState<Rolle | 'alle'>(
-    () => leseStatusRolle(profile?.status_rolle),
-  );
-  const [programme, setProgramme] = useState<string[]>([]);
   const labels = useRichtlinienLabels();
 
   /** Je Richtlinie: welche KATALOG-Kürzel darin überhaupt einen Trigger haben. */
@@ -112,7 +126,7 @@ export function RollenSicht({ zeilen, trigger, onWaehlen }: {
           variant="pills"
           aria-label="Fachrolle"
           activeKey={rolle}
-          onChange={k => setRolle(k as Rolle | 'alle')}
+          onChange={k => onRolle(k as Rolle | 'alle')}
           items={[
             { key: 'alle', label: 'Alle Rollen' },
             ...ROLLEN.map(r => ({ key: r, label: ROLLE_LABEL[r], title: ROLLE_LANG[r] })),
@@ -124,7 +138,7 @@ export function RollenSicht({ zeilen, trigger, onWaehlen }: {
             alleLabel="Alle Richtlinien"
             optionen={optionen}
             ausgewaehlt={programme}
-            onChange={setProgramme}
+            onChange={onProgramme}
           />
         )}
       </div>
@@ -141,7 +155,7 @@ export function RollenSicht({ zeilen, trigger, onWaehlen }: {
             ? `Mit Rollen-Vermerk · ${eigene.length}`
             : `${ROLLE_LANG[rolle]} · ${eigene.length}`}
         </h3>
-        <KuerzelListe zeilen={eigene} onWaehlen={onWaehlen} />
+        <KuerzelListe zeilen={eigene} suche={suche} onWaehlen={onWaehlen} />
       </section>
 
       <section className="flex flex-col gap-1.5 border-t border-[var(--tf-border)] pt-3">
@@ -152,7 +166,7 @@ export function RollenSicht({ zeilen, trigger, onWaehlen }: {
           Diese Kürzel darf jeder setzen. Sie stehen getrennt, weil sie zu keiner Rolle
           gehören — nicht, weil sie unwichtiger wären.
         </p>
-        <KuerzelListe zeilen={neutrale} onWaehlen={onWaehlen} />
+        <KuerzelListe zeilen={neutrale} suche={suche} onWaehlen={onWaehlen} />
       </section>
     </div>
   );

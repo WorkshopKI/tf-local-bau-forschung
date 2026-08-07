@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.33.0 — Glossar: Suche links, breiter, in beiden Reitern (August 2026)
+
+MINOR — „Im Glossar fehlt eine Suchmöglichkeit" — es gab sie, rechts neben den Reitern, auf 340 px gedeckelt und nur im ersten Reiter. Die Breite schnitt den eigenen Platzhalter ab („Abkürzung, Begriff, Statusw…"), also verschwieg das Feld, was es kann. Dazu fehlte alles, was man von einem Suchfeld erwartet.
+
+- Das Feld steht **links vor den Reitern**, 520 px breit, mit ×-Knopf — [GlossarPage.tsx](src/plugins/glossar/GlossarPage.tsx)
+- Es wirkt in **beiden** Reitern; „Für meine Rolle wichtig" filtert mit und behält Rolle + Richtlinien-Wahl über den Wechsel — [RollenSicht.tsx](src/plugins/glossar/RollenSicht.tsx)
+- Tastatur: „/" fokussiert, Pfeil hoch/runter wandert (Liste scrollt nach), Enter nimmt den ersten Treffer, Escape leert — neue reine `flacheIds`/`naechsteId` in [glossarSuche.ts](src/plugins/glossar/glossarSuche.ts)
+- Die Fundstelle ist im Treffer markiert — `markiere()` liefert Segmente, [Markiert.tsx](src/plugins/glossar/Markiert.tsx) rendert sie
+- `fokusIstTippziel` löst die dritte Kopie der „tippt gerade jemand?"-Prüfung ab — [masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts)
+
 ### v3.32.0 — VerlaufsBand nutzt die sichtbare Tabellenbreite; Balken tragen ausgeschriebene Namen (August 2026)
 
 MINOR — Die Bahn war auf 620 px festgenagelt, während die Tabelle 1300 zeigte; schmale Abschnitte trugen eine Legendennummer, und der Leser sprang zwischen Balken und Legende. Der 24-px-Boden der Achse macht die kürzesten Abschnitte durch Breite allein nie beschriftbar — deshalb kommt zur Breite eine zweite Etage.

@@ -4,15 +4,28 @@
  * Einträge tragen zu verschiedene Felder, als dass eine gemeinsame Spaltenachse
  * ehrlich wäre.
  */
+import { useEffect, useRef } from 'react';
 import type { GlossarGruppe } from './glossarSuche';
+import { Markiert } from './Markiert';
 
-export function GlossarListe({ gruppen, gewaehlt, onWaehlen, leerText }: {
+export function GlossarListe({ gruppen, gewaehlt, suche, onWaehlen, leerText }: {
   gruppen: readonly GlossarGruppe[];
   gewaehlt: string | null;
+  /** Nur zum Auszeichnen der Fundstelle — gefiltert ist schon. */
+  suche: string;
   onWaehlen: (id: string) => void;
   /** Was statt der Liste steht, wenn nichts passt — nie eine leere Fläche. */
   leerText: string;
 }): React.ReactElement {
+  const aktivRef = useRef<HTMLButtonElement | null>(null);
+
+  // Wer mit den Pfeiltasten wandert, muss sehen, wo er ist. `nearest` scrollt
+  // nur, wenn der Eintrag wirklich außerhalb liegt — ein Mausklick auf eine
+  // sichtbare Zeile ruckelt also nicht.
+  useEffect(() => {
+    aktivRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [gewaehlt]);
+
   if (gruppen.length === 0) {
     return (
       <p className="px-3 py-4 text-[12.5px] text-[var(--tf-text-tertiary)]">{leerText}</p>
@@ -33,6 +46,7 @@ export function GlossarListe({ gruppen, gewaehlt, onWaehlen, leerText }: {
               return (
                 <li key={e.id}>
                   <button
+                    ref={aktiv ? aktivRef : undefined}
                     type="button"
                     onClick={() => onWaehlen(e.id)}
                     aria-current={aktiv ? 'true' : undefined}
@@ -43,10 +57,10 @@ export function GlossarListe({ gruppen, gewaehlt, onWaehlen, leerText }: {
                     }`}
                   >
                     <span className="block truncate text-[13px] font-medium text-[var(--tf-text)]">
-                      {e.titel}
+                      <Markiert text={e.titel} suche={suche} />
                     </span>
                     <span className="block truncate text-[11.5px] text-[var(--tf-text-secondary)]">
-                      {e.unter}
+                      <Markiert text={e.unter} suche={suche} />
                     </span>
                   </button>
                 </li>

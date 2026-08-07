@@ -5,6 +5,7 @@ import {
   keyboardWidthStep,
   listPaneClass,
   listPaneStyle,
+  fokusIstTippziel,
   maxListWidth,
   shouldCloseOnEscape,
   startListWidth,
@@ -106,6 +107,28 @@ describe('masterDetailLayout-logic', () => {
     });
     it('schließt NICHT bei contentEditable', () => {
       expect(shouldCloseOnEscape('DIV', true)).toBe(false);
+    });
+  });
+
+  describe('fokusIstTippziel', () => {
+    it('erkennt Eingabefelder (case-insensitive) und contentEditable', () => {
+      expect(fokusIstTippziel('INPUT', false)).toBe(true);
+      expect(fokusIstTippziel('textarea', false)).toBe(true);
+      expect(fokusIstTippziel('SELECT', false)).toBe(true);
+      expect(fokusIstTippziel('DIV', true)).toBe(true);
+    });
+    it('sieht in Knopf, Fläche oder Nichts kein Tippziel', () => {
+      expect(fokusIstTippziel('BUTTON', false)).toBe(false);
+      expect(fokusIstTippziel('DIV', false)).toBe(false);
+      expect(fokusIstTippziel(undefined, false)).toBe(false);
+      expect(fokusIstTippziel(null, false)).toBe(false);
+    });
+    it('ist die Gegenfrage zu shouldCloseOnEscape — eine Definition, nicht zwei', () => {
+      for (const tag of ['INPUT', 'textarea', 'SELECT', 'BUTTON', 'DIV', null, undefined]) {
+        for (const editierbar of [true, false]) {
+          expect(fokusIstTippziel(tag, editierbar)).toBe(!shouldCloseOnEscape(tag, editierbar));
+        }
+      }
     });
   });
 });

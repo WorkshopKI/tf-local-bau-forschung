@@ -75,6 +75,15 @@ export function statuswertAlsEintrag(z: StatuswertZeile): GlossarEintrag {
   };
 }
 
+/**
+ * Worauf die Kürzel-Suche greift — EINE Formel für beide Reiter. „Nachschlagen"
+ * und „Für meine Rolle wichtig" zeigen dieselben Kürzel; träfe dieselbe Eingabe
+ * dort unterschiedlich, wäre nicht zu erklären, warum.
+ */
+function kuerzelSuchtext(z: KuerzelZeile): string {
+  return `${z.code} ${z.label} ${z.csvSpalte} ${z.ordner}`.toLowerCase();
+}
+
 /** Ein Kürzel als Listeneintrag. */
 export function kuerzelAlsEintrag(z: KuerzelZeile): GlossarEintrag {
   return {
@@ -82,9 +91,18 @@ export function kuerzelAlsEintrag(z: KuerzelZeile): GlossarEintrag {
     id: `kuerzel:${z.code}`,
     titel: z.code,
     unter: z.label,
-    suchtext: `${z.code} ${z.label} ${z.csvSpalte} ${z.ordner}`.toLowerCase(),
+    suchtext: kuerzelSuchtext(z),
     zeile: z,
   };
+}
+
+/**
+ * Trifft die Suche dieses Kürzel? Für die Rollensicht, die keine
+ * `GlossarEintrag`e baut, sondern direkt auf den Zeilen filtert.
+ */
+export function passtKuerzel(z: KuerzelZeile, suche: string): boolean {
+  const q = suche.trim().toLowerCase();
+  return q === '' || kuerzelSuchtext(z).includes(q);
 }
 
 /** Eine To-do-Regel als Listeneintrag. */
@@ -153,6 +171,70 @@ export function waehleEintrag(
     if (t) return t;
   }
   return null;
+}
+
+/**
+ * Die sichtbaren Einträge über alle Gruppen hinweg, in Anzeigereihenfolge —
+ * die Achse, auf der die Pfeiltasten wandern. Die Gruppierung ist eine Frage der
+ * Darstellung; wer tippt und dann nach unten drückt, meint „der nächste".
+ */
+export function flacheIds(gruppen: readonly GlossarGruppe[]): string[] {
+  return gruppen.flatMap(g => g.eintraege.map(e => e.id));
+}
+
+/**
+ * Ein Schritt hoch (`-1`) oder runter (`+1`).
+ *
+ * An den Enden wird GEKLEMMT, nicht umgebrochen: in einer nach Art gruppierten
+ * Liste führt der Sprung vom letzten Kürzel zurück zur ersten Abkürzung nur zu
+ * der Frage, was gerade passiert ist. Ohne Auswahl (oder wenn die Auswahl gerade
+ * weggefiltert wurde) steigt man am passenden Ende ein.
+ */
+export function naechsteId(
+  ids: readonly string[], aktuell: string | null, richtung: 1 | -1,
+): string | null {
+  if (ids.length === 0) return null;
+  const i = aktuell === null ? -1 : ids.indexOf(aktuell);
+  if (i === -1) return (richtung === 1 ? ids[0] : ids[ids.length - 1]) ?? null;
+  return ids[Math.min(ids.length - 1, Math.max(0, i + richtung))] ?? null;
+}
+
+/** Ein Stück Text mit der Auskunft, ob es die Fundstelle ist. */
+export interface Segment {
+  text: string;
+  treffer: boolean;
+}
+
+/**
+ * Den Suchbegriff im Text auszeichnen — ALLE Vorkommen, nicht nur das erste:
+ * bei „Brief NF von BB angelegt/ergänzt" markiert eine Suche nach „e" sonst
+ * ausgerechnet die erste, beliebige Stelle.
+ *
+ * Gibt Segmente zurück, kein JSX — die Vitest-Projekte laufen ohne DOM, und die
+ * Auszeichnung gehört ohnehin der Liste (vgl. `anfragen/highlight.ts`).
+ *
+ * Gerechnet wird auf `toLowerCase()`, damit die Positionen 1:1 zum Original
+ * passen. Verschiebt eine Sonderform die Länge doch (`'İ'` wird zu zwei
+ * Zeichen), zeigt die Zeile lieber unmarkiert als zerschnitten.
+ */
+export function markiere(text: string, suche: string): Segment[] {
+  const ganz: Segment[] = [{ text, treffer: false }];
+  const q = suche.trim().toLowerCase();
+  if (q === '' || text === '') return ganz;
+
+  const heu = text.toLowerCase();
+  if (heu.length !== text.length) return ganz;
+
+  const segmente: Segment[] = [];
+  let ab = 0;
+  for (let i = heu.indexOf(q, ab); i !== -1; i = heu.indexOf(q, ab)) {
+    if (i > ab) segmente.push({ text: text.slice(ab, i), treffer: false });
+    segmente.push({ text: text.slice(i, i + q.length), treffer: true });
+    ab = i + q.length;
+  }
+  if (segmente.length === 0) return ganz;
+  if (ab < text.length) segmente.push({ text: text.slice(ab), treffer: false });
+  return segmente;
 }
 
 /**
