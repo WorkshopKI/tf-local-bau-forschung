@@ -29,6 +29,7 @@ import { StatusChronik } from './StatusChronik';
 import { StatusCodeListe } from './StatusCodeListe';
 import { useTimelinePrefs } from './timelinePrefs';
 import { VerbundBand } from '../verlauf-band/VerbundBand';
+import { VerbundFristenBand } from '../fristen-band/VerbundFristenBand';
 
 export function StatusDetailSection({ verbundId, statusRoh }: {
   verbundId: string;
@@ -82,6 +83,13 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         {isVorgangssystemEnabled() && (
           <HerleitungPopover verbundId={verbundId} statusRoh={statusRoh} ebene="verbund" />
         )}
+      </div>
+
+      {/* Die Bearbeitungsfrist steht VOR dem Aufklapp-Rumpf und AUSSERHALB der
+          drei Verlaufs-Sichten: sie ist ein anderer Gegenstand als „wann war
+          was", und wer die Seite öffnet, will sie sehen, ohne erst aufzuklappen. */}
+      <div className="mb-4 max-w-[640px]">
+        <VerbundFristenBand verbundId={verbundId} statusRoh={statusRoh} stichtag={stichtag} />
       </div>
 
       <div className={open ? undefined : 'hidden'}>

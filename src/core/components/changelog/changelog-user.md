@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.31 — 2026-08
+
+### Neu
+- Der Reiter **„Fristen und Meilensteine"** zeigt die Bearbeitungsfrist jetzt als **Band**: eine Achse von der Basis über heute bis zum Ziel, darunter die Zahlen im Klartext.
+- Man sieht endlich, **welches Eingangsdatum die Uhr trägt** — `D_AAE` oder `D_XTE` — und warum das andere nicht zählt.
+- Der **farbige Punkt** in der Frist-Spalte wird erklärt: welche Schwellen es gibt, welche hier greift, und warum bei angehaltenen Vorgängen gar keiner steht.
+- Auf der **Vorhaben-Seite** steht dasselbe Band ganz oben — man muss „Status & Verlauf" nicht mehr aufklappen, um die Frist zu sehen.
+
+### Bugfixes
+- Im aufgeklappten Bereich einer Teilvorhaben-Zeile kamen Frist und Zieltage aus verschiedenen Vorgängen (Teilvorhaben bzw. Verbund) — korrigiert.
+
 ## v3.30 — 2026-08
 
 ### Neu

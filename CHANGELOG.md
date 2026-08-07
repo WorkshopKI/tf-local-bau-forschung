@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.31.0 — FristenBand (August 2026)
+
+MINOR — Die Frist stand als Liste da und ihre Zahl als Behauptung: welches Eingangsdatum gewonnen hat, warum der Punkt in der Spalte diese Farbe trägt, woher das Haltedatum kam — nichts davon war ablesbar. Das Band zeigt die Lage und nennt darunter jede Zahl.
+
+- Achse Basis → Bezugszeitpunkt → Ziel plus beschriftete Herleitung in **einem** Bauteil; ersetzt die schlichte Liste aus Phase 2 — [FristenBand.tsx](src/plugins/antraege/fristen-band/FristenBand.tsx)
+- Das gewinnende Basisfeld steht sichtbar da (`D_AAE` vs. `D_XTE`), das andere leiser; fehlt `D_XTE`, steht warum — [fristenBandModell.ts](src/plugins/antraege/fristen-band/fristenBandModell.ts)
+- Die Punktfarbe der Frist-Spalte wird hergeleitet, aus **derselben** Stufentabelle, aus der `fristAmpelFromDays` liest — [fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts)
+- Zweiter Ort: die Verbund-Detailseite, oberhalb des Aufklapp-Rumpfs — die Frist ist kein Nachschlagen — [StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx)
+- **Fix aus der Abnahme**: im Ausklappbereich rechnete die Frist mit dem Zeilen-Status, Wächter und Zieltage aber mit dem Verbund-Status — ein Band über zwei Vorgänge — [useZeilenVerlauf.ts](src/plugins/antraege/ausklapp/useZeilenVerlauf.ts)
+
 ### v3.30.0 — Haltedatum aus dem Verlauf (August 2026)
 
 MINOR — Die Fristen-Stoppuhr aus v3.11 wusste seit jeher, dass ein Vorgang steht — nur nicht, seit wann. Journal und Datumsfeld schweigen bei genau den Fällen, um die es geht. Die Verlaufsableitung kennt den Übergang samt Datum; gemessen am Bestand bekommen **1.638 von 5.623** angehaltenen Vorhaben erstmals ein Haltedatum.

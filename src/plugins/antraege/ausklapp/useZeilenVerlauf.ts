@@ -23,6 +23,7 @@ import { fristFuerVorkommen, type FristBezug } from '@/core/status/frist-bezug';
 import { baueVerlaufFuerVorgang } from '@/core/status/verlauf/fuer-vorgang';
 import { haltedatumAusSpuren } from '@/core/status/verlauf/haltedatum-aus-verlauf';
 import type { VerlaufsBezug, VerlaufsSpur } from '@/core/status/verlauf';
+import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import { useStatusVerlauf, type StatusVerlauf } from '../status/useStatusVerlauf';
 
 export interface ZeilenVerlauf {
@@ -37,6 +38,17 @@ export interface ZeilenVerlauf {
    * solange die Fassung fehlt.
    */
   frist: FristBezug | null;
+  /**
+   * Die Statuseinträge, die **diese Zeile** trägt — bei einer Verbundzeile alle
+   * Teilvorhaben, sonst nur das eigene.
+   *
+   * Steht in der Ausgabe, weil Wächter und Zieltage dieselbe Menge brauchen wie
+   * die Frist. Wer sie sich selbst zusammensucht, nimmt leicht die falsche: der
+   * Verbund-Status und der eines Teilvorhabens gehen im Bestand regelmäßig
+   * auseinander (Pitfall #44), und dann stünde im selben Band die Frist des
+   * einen neben den Zieltagen des anderen.
+   */
+  vorkommen: readonly FeldVorkommen[];
   /**
    * Bis wann die Achse läuft — Haltedatum bei angehaltener Uhr, sonst der
    * Stichtag. Steht in der Ausgabe, weil die Bahn ihn beschriftet.
@@ -192,6 +204,7 @@ export function useZeilenVerlauf(
     laden: quelle.laden,
     spuren,
     frist,
+    vorkommen,
     bezugsZeitpunkt,
     journalAb: chronik?.journalAb ?? null,
     journalGenutzt: einTv && chronik !== null,
