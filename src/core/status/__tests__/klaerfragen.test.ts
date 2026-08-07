@@ -212,7 +212,9 @@ describe('Die drei Wert-Herkünfte', () => {
       fassungsWerte: fassungMit('bewilligt'),
     });
     const f = fragen.find(x => x.herkunft === 'wert-nicht-in-fassung')!;
-    expect(f.optionen).toContain('Schreibfehler — gemeint ist „VN geprüft"');
+    // Typografisches Schlusszeichen: gerade Anführungszeichen ersetzt der Export
+    // (Excels Inline-Liste kennt dafür kein Escape) und zerlegte das Zitat.
+    expect(f.optionen).toContain('Schreibfehler — gemeint ist „VN geprüft“');
     expect(f.kontext).toContain('kennt den Wortlaut NICHT');
   });
 

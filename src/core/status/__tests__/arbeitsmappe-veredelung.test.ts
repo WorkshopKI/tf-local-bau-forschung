@@ -16,7 +16,7 @@ import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import type { Blatt } from '@/core/status/export/arbeitsmappe';
 import {
-  baueVeredelteMappe, veredeleBlattXml, spaltenName,
+  baueVeredelteMappe, veredeleBlattXml, spaltenName, worksheetKinder, WORKSHEET_FOLGE,
   type BlattVeredelung,
 } from '@/core/status/export/arbeitsmappe-veredelung';
 
@@ -122,23 +122,43 @@ describe('Was im Archiv ankommt', () => {
 });
 
 describe('Schema-Reihenfolge', () => {
+  const nurValidierung = (xml: string): string => veredeleBlattXml(xml, {
+    ...V, kopfZeile: 1, letzteZeile: 1, letzteSpalte: 1, breiten: [], umbruch: [], antwort: [],
+    validierungen: [{ zeile: 2, spalte: 1, optionen: ['a'] }],
+  }).xml;
+
   it('setzt dataValidations VOR das nächste zulässige Element', () => {
-    const xml = '<worksheet><sheetData/><pageMargins left="0"/></worksheet>';
-    const { xml: out } = veredeleBlattXml(xml, {
-      ...V, kopfZeile: 1, letzteZeile: 1, letzteSpalte: 1, breiten: [], umbruch: [], antwort: [],
-      validierungen: [{ zeile: 2, spalte: 1, optionen: ['a'] }],
-    });
-    // Falsche Reihenfolge macht die Datei für Excel unlesbar — deshalb explizit.
+    const out = nurValidierung('<worksheet><sheetData/><pageMargins left="0"/></worksheet>');
     expect(out.indexOf('<dataValidations')).toBeLessThan(out.indexOf('<pageMargins'));
   });
 
+  it('setzt es auch vor ein Element, das SCHEMATISCH später kommt (Regression)', () => {
+    // Der Fehler, der Excel die Datei verweigern ließ: SheetJS schreibt
+    // `<ignoredErrors>` immer, im Schema kommt es NEUN Plätze nach
+    // dataValidations — und weil es in der Ankerliste fehlte, landete der Block
+    // dahinter. Excel meldete „Problem bei einigen Inhalten".
+    const out = nurValidierung(
+      '<worksheet><sheetData/><ignoredErrors><ignoredError sqref="A1"/></ignoredErrors></worksheet>',
+    );
+    expect(out.indexOf('<dataValidations')).toBeLessThan(out.indexOf('<ignoredErrors'));
+  });
+
   it('fällt auf das Dokumentende zurück, wenn kein Nachfolger da ist', () => {
-    const xml = '<worksheet><sheetData/></worksheet>';
-    const { xml: out } = veredeleBlattXml(xml, {
-      ...V, kopfZeile: 1, letzteZeile: 1, letzteSpalte: 1, breiten: [], umbruch: [], antwort: [],
-      validierungen: [{ zeile: 2, spalte: 1, optionen: ['a'] }],
-    });
+    const out = nurValidierung('<worksheet><sheetData/></worksheet>');
     expect(out.indexOf('<dataValidations')).toBeLessThan(out.indexOf('</worksheet>'));
+  });
+
+  it('hält die ganze Sequenz der ECHTEN Ausgabe schema-konform', async () => {
+    // Der Test, der gefehlt hat. Die Fälle oben laufen gegen selbstgebautes XML
+    // und sehen nie, was SheetJS wirklich schreibt; erst diese Prüfung an der
+    // erzeugten Datei fängt ein Element, an das niemand gedacht hat.
+    const { blatt } = await baue();
+    const kinder = worksheetKinder(blatt);
+    expect(kinder).toContain('dataValidations');
+    expect(kinder).toContain('ignoredErrors');
+    const raenge = kinder.map(k => WORKSHEET_FOLGE.indexOf(k));
+    expect(raenge).not.toContain(-1);                       // nichts Unbekanntes
+    expect(raenge).toEqual([...raenge].sort((a, b) => a - b));
   });
 });
 

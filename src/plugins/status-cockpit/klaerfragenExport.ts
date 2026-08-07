@@ -29,9 +29,18 @@ const SPALTEN = [
   'ID', 'Herkunft', 'Betrifft', 'Frage', 'Kontext', 'Vorkommen', 'Antwort', 'Name', 'Datum',
 ] as const;
 
-const BREITEN = [16, 28, 24, 48, 72, 12, 36, 16, 12];
-/** 1-basiert: Frage und Kontext. */
-const UMBRUCH = [4, 5];
+const BREITEN = [30, 24, 22, 44, 70, 11, 34, 16, 12];
+/**
+ * 1-basiert: alles Textliche außer der Zahlenspalte.
+ *
+ * Anfangs brachen nur Frage und Kontext um — im geöffneten Excel schnitt das die
+ * **ID** ab (`bedeutung-nw-fue:A…`) und die Herkunft mitten im Wort. Die ID ist
+ * der Schlüssel, über den die Antworten zurückgeordnet werden; sie halb
+ * anzuzeigen lädt dazu ein, sie „aufzuräumen". Breiter machen ginge auch, drängte
+ * aber die Antwortspalte aus dem Bild — und wer eine herumgereichte Datei öffnet,
+ * scrollt nicht erst nach rechts.
+ */
+const UMBRUCH = [1, 2, 3, 4, 5];
 /** 1-basiert: Antwort, Name, Datum. */
 const ANTWORT = [7, 8, 9];
 /** 1-basiert: die Antwortspalte, an der die Auswahllisten hängen. */

@@ -29,9 +29,16 @@ function zahl(n: number): string {
   return n.toLocaleString('de-DE');
 }
 
-/** Anführungszeichen, wie sie im ganzen Projekt stehen. */
+/**
+ * Anführungszeichen, wie sie im ganzen Projekt stehen.
+ *
+ * Das schließende Zeichen ist ausdrücklich das typografische `“`, nicht das
+ * gerade `"`: die Auswahllisten des Exports müssen gerade Anführungszeichen
+ * ersetzen (Excels Inline-Liste kennt dafür kein Escape), und ein gerades
+ * Schlusszeichen käme dort als `„VN geprüft'` heraus — auf halbem Weg ersetzt.
+ */
 function zitat(s: string): string {
-  return `„${s}"`;
+  return `„${s}“`;
 }
 
 /**

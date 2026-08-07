@@ -116,6 +116,24 @@ const ERWARTETE_STILTABELLE = '<cellXfs count="1"';
 
 // --- Hilfen ---------------------------------------------------------------
 
+/**
+ * Die Kindelemente eines `<worksheet>` in Dokumentreihenfolge — die Grundlage
+ * dafür, die Schema-Sequenz **an der echten Ausgabe** zu prüfen statt an einer
+ * Attrappe. Genau dort war die Lücke: der Anker-Test lief gegen selbstgebautes
+ * XML und sah nie, was SheetJS wirklich schreibt.
+ */
+export function worksheetKinder(xml: string): string[] {
+  const kinder: string[] = [];
+  let tiefe = 0;
+  for (const m of xml.matchAll(/<(\/?)([a-zA-Z]+)([^>]*?)(\/?)>/g)) {
+    const [, schraeg, name, , selbst] = m;
+    if (schraeg === '/') { tiefe--; continue; }
+    if (tiefe === 1) kinder.push(name!);
+    if (selbst !== '/') tiefe++;
+  }
+  return kinder;
+}
+
 /** 1 → `A`, 27 → `AA`. */
 export function spaltenName(n: number): string {
   let s = '';
@@ -143,21 +161,37 @@ function auswahlFormel(optionen: readonly string[]): string | null {
 }
 
 /**
- * Wohin `<dataValidations>` im Blatt gehört. Das Schema schreibt eine feste
- * Reihenfolge vor; landet der Block hinter einem Element, das nach ihm kommen
- * müsste, öffnet Excel die Datei nicht mehr. Erster passender Anker gewinnt.
+ * Die Kindelemente von `<worksheet>` **in Schema-Reihenfolge** (ECMA-376,
+ * CT_Worksheet). Excel liest die Sequenz streng: steht ein Element hinter einem,
+ * das ihm folgen müsste, verweigert es die Datei mit „Problem bei einigen
+ * Inhalten" und bietet Reparatur an.
+ *
+ * Die Liste steht vollständig da, nicht nur bis zum ersten erwarteten Nachbarn.
+ * Eine gekürzte Fassung hat genau diesen Fehler schon einmal erzeugt:
+ * `<ignoredErrors>` fehlte darin, SheetJS schreibt es aber **immer**
+ * (`xlsx.mjs`, `opts.ignoreEC` ist per Vorgabe undefined) — und weil kein Anker
+ * passte, landete die Datenvalidierung am Dokumentende, hinter einem Element,
+ * das im Schema neun Plätze später kommt.
  */
-const NACHFOLGER = [
-  '<hyperlinks', '<printOptions', '<pageMargins', '<pageSetup', '<headerFooter',
-  '<rowBreaks', '<colBreaks', '<drawing', '<legacyDrawing', '</worksheet>',
+export const WORKSHEET_FOLGE: readonly string[] = [
+  'sheetPr', 'dimension', 'sheetViews', 'sheetFormatPr', 'cols', 'sheetData',
+  'sheetCalcPr', 'sheetProtection', 'protectedRanges', 'scenarios', 'autoFilter',
+  'sortState', 'dataConsolidate', 'customSheetViews', 'mergeCells', 'phoneticPr',
+  'conditionalFormatting', 'dataValidations', 'hyperlinks', 'printOptions',
+  'pageMargins', 'pageSetup', 'headerFooter', 'rowBreaks', 'colBreaks',
+  'customProperties', 'cellWatches', 'ignoredErrors', 'smartTags', 'drawing',
+  'legacyDrawing', 'legacyDrawingHF', 'picture', 'oleObjects', 'controls',
+  'webPublishItems', 'tableParts', 'extLst',
 ];
 
-function setzeVor(xml: string, block: string): string {
-  for (const anker of NACHFOLGER) {
-    const i = xml.indexOf(anker);
+/** Setzt `block` vor das erste Element, das im Schema NACH `name` kommt. */
+function setzeVor(xml: string, name: string, block: string): string {
+  const ab = WORKSHEET_FOLGE.indexOf(name);
+  for (const folger of WORKSHEET_FOLGE.slice(ab + 1)) {
+    const i = xml.search(new RegExp(`<${folger}[ />]`));
     if (i >= 0) return xml.slice(0, i) + block + xml.slice(i);
   }
-  return xml + block;
+  return xml.replace('</worksheet>', `${block}</worksheet>`);
 }
 
 // --- Der Eingriff ---------------------------------------------------------
@@ -203,7 +237,8 @@ export function veredeleBlattXml(
     );
   }
   if (regeln.length > 0) {
-    out = setzeVor(out, `<dataValidations count="${regeln.length}">${regeln.join('')}</dataValidations>`);
+    out = setzeVor(out, 'dataValidations',
+      `<dataValidations count="${regeln.length}">${regeln.join('')}</dataValidations>`);
   }
   return { xml: out, ausgelassen };
 }
