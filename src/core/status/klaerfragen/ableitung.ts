@@ -14,8 +14,9 @@
  */
 import { statusKurzLabelMit } from '@/core/utils/status-wert-labels';
 import { normalisiereWert } from '../typen';
-import { uneinigeKuerzel } from '../kuerzel-katalog';
+import { offeneBedeutungen, uneinigeKuerzel, type UneinigesKuerzel } from '../kuerzel-katalog';
 import { STATUS_CODE_KATALOG, KURZLABEL_MAX, findeStatusCode } from '../status-codes';
+import { normalisiereSchreibfehler } from '../schreibfehler';
 import { bezeichnungsAbweichungen } from './fachlich-bestaetigt';
 import type { Klaerfrage, KlaerfragenBestand, KlaerfragenEingabe } from './typen';
 
@@ -75,9 +76,18 @@ function naechsteSchreibweisen(roh: string): string[] {
 
 // --- Bedeutung ------------------------------------------------------------
 
-export function bedeutungsFragen(b: KlaerfragenBestand): Klaerfrage[] {
+/**
+ * `offen` ist ein Parameter mit Vorgabe — dieselbe Mechanik wie bei
+ * `bezeichnungsAbweichungen`. Am heutigen Katalog geht die Menge **leer** aus
+ * (jedes uneinige Kürzel führt eine FuE-Form, aus der die Sammelregel schöpft),
+ * und eine Ableitung, die immer nichts liefert, ist ohne Gegenprobe nicht von
+ * einer kaputten zu unterscheiden.
+ */
+export function bedeutungsFragen(
+  b: KlaerfragenBestand, offen: readonly UneinigesKuerzel[] = offeneBedeutungen(),
+): Klaerfrage[] {
   const out: Klaerfrage[] = [];
-  for (const u of uneinigeKuerzel()) {
+  for (const u of offen) {
     const dsVorkommen = b.proKuerzelDs.get(u.kuerzel) ?? 0;
     if (dsVorkommen === 0) continue;
 
@@ -116,33 +126,20 @@ export function bedeutungsFragen(b: KlaerfragenBestand): Klaerfrage[] {
 }
 
 // --- Marker ---------------------------------------------------------------
-
-export function markerFrage(b: KlaerfragenBestand): Klaerfrage[] {
-  const betroffen = uneinigeKuerzel().filter(u => (b.proKuerzelDs.get(u.kuerzel) ?? 0) > 0);
-  if (betroffen.length === 0) return [];
-  const markiert = betroffen.filter(u => u.strittig);
-  const offen = betroffen.filter(u => !u.strittig);
-  const gewicht = offen.reduce((n, u) => n + (b.proKuerzelDs.get(u.kuerzel) ?? 0), 0);
-
-  return [{
-    id: 'strittig-marker',
-    herkunft: 'strittig-marker',
-    betrifft: 'Marker „strittig"',
-    frage: 'Soll der Marker „strittig" auch Bedeutungsunterschiede zwischen Projektformen kennzeichnen?',
-    kontext: `${zahl(betroffen.length)} im DS-Bestand vorkommende Kürzel führen je Projektform `
-      + `verschiedene Bedeutungen; davon tragen ${zahl(markiert.length)} den Marker. Er misst heute `
-      + `etwas anderes — ein Patt bei SCHREIBVARIANTEN desselben Textes, vom Generator gesetzt, `
-      + `nicht von Hand. Solange das so bleibt, kennzeichnet nichts die inhaltlichen `
-      + `Widersprüche: ${zahl(offen.length)} Kürzel mit zusammen ${zahl(gewicht)} DS-Vorgängen `
-      + `stehen unmarkiert da.`,
-    optionen: [
-      'ja — der Marker soll beides kennzeichnen',
-      'nein — Bedeutungsunterschiede brauchen ein eigenes Kennzeichen',
-      'nein — der Marker bleibt wie er ist, kein zusätzliches Kennzeichen',
-    ],
-    vorkommen: gewicht,
-  }];
-}
+//
+// Die Frage `strittig-marker` ist **entschieden und deshalb entfallen**. Sie
+// lautete: „Soll der Marker `strittig` auch Bedeutungsunterschiede zwischen
+// Projektformen kennzeichnen?" Die Antwortspalte blieb leer; entschieden wurde
+// sie als Vorgabe, und zwar auf die Option „nein — Bedeutungsunterschiede
+// brauchen ein eigenes Kennzeichen".
+//
+// Seitdem gibt es `bedeutungsdivergenz` neben `strittig`: zwei Marker, zwei
+// Aussagen. Dasselbe Feld für beides machte die Auswertung unbrauchbar — der
+// eine misst ein Patt bei SCHREIBVARIANTEN desselben Textes (vom Generator
+// gesetzt), der andere einen inhaltlichen Widerspruch. `YW` trägt beide.
+//
+// Die Id `strittig-marker` bleibt vergeben (`STILLGELEGTE_HERKUENFTE` in
+// `typen.ts` führt sie mit) — sie steht in einer Datei, die zurückkam.
 
 // --- DS ohne Quelle -------------------------------------------------------
 
@@ -181,7 +178,11 @@ export function wertFragen(e: KlaerfragenEingabe): Klaerfrage[] {
   const ohneKurz: { roh: string; n: number }[] = [];
 
   for (const [roh, n] of b.rohStatus) {
-    const k = normalisiereWert(roh);
+    // Ein belegter Schreibfehler des Quellsystems ist beantwortet: die App löst
+    // ihn auf und zeigt den Rohwert daneben. Gefragt wird nach dem GEMEINTEN
+    // Wortlaut — sonst meldete sich derselbe Wert als „kennt die Fassung
+    // nicht", obwohl sie ihn kennt.
+    const k = normalisiereWert(normalisiereSchreibfehler(roh));
     if (k === '') continue;
     const verbuende = b.rohStatusVerbuende.get(roh) ?? 0;
     const wo = verbuende > 0
@@ -254,39 +255,15 @@ export function wertFragen(e: KlaerfragenEingabe): Klaerfrage[] {
 }
 
 // --- Amtliche Texte -------------------------------------------------------
-
-/** Beginnt der amtliche Text mit einem Kleinbuchstaben? */
-function beginntKlein(text: string): boolean {
-  const c = text.trim().charAt(0);
-  return c !== '' && c.toLowerCase() === c && c.toUpperCase() !== c;
-}
-
-export function textFragen(b: KlaerfragenBestand): Klaerfrage[] {
-  const out: Klaerfrage[] = [];
-  for (const e of STATUS_CODE_KATALOG) {
-    if (!beginntKlein(e.text)) continue;
-    const n = b.rohStatus.get(e.text) ?? 0;
-    // Ein Code, der im Bestand nicht vorkommt, erzeugt keine Anzeige und damit
-    // keine falsche — er gehört nach demselben Kriterium nicht in die Liste wie
-    // die Kürzel ohne DS-Vorkommen. Die Marker-Werte (93/94) stehen laut §14.4
-    // ausschließlich auf Roh-Exportzeilen ohne Förderkennzeichen; sie hier zu
-    // fragen kostete den Fachbereich Zeit an Zeilen, die keine Anträge sind.
-    if (n === 0) continue;
-    out.push({
-      id: `amtlicher-text-klein:code-${e.code}`,
-      herkunft: 'amtlicher-text-klein',
-      betrifft: `${e.code} ${e.text}`,
-      frage: `Ist ${zitat(e.text)} der amtliche Wortlaut, oder ist die Kleinschreibung ein Erfassungsfehler in der Parametertabelle?`,
-      kontext: `Code ${e.code}, ${zahl(n)} Vorgänge. Die App gibt den amtlichen Text wortgetreu `
-        + `aus (Tooltip, Export, Prompt); die Pille daneben sagt ${zitat(e.kurz)} — das ist `
-        + `unsere Beschriftung und bleibt davon unberührt. Gefragt ist allein, ob der amtliche `
-        + `Wortlaut so stimmt.`,
-      optionen: ['amtlich korrekt — bleibt klein', 'Erfassungsfehler — beginnt groß', 'unklar'],
-      vorkommen: n,
-    });
-  }
-  return out;
-}
+//
+// `textFragen` ist **entfallen**. Zwölf amtliche Texte beginnen klein; die
+// Antwortrunde hat alle zwölf bestätigt („amtlich korrekt — bleibt klein").
+// Damit ist die Frageklasse beantwortet, nicht bloß eine Liste abgearbeitet:
+// der amtliche Text ist Fremddatum und wird nie korrigiert, auch nicht bei
+// künftigen Fällen, die falsch aussehen. Darstellungswünsche gehen über
+// `StatusCodeEintrag.kurz` bzw. `StatusWertEintrag.kurzLabel`.
+//
+// Siehe `STILLGELEGTE_HERKUENFTE` in `typen.ts` und Pitfall #43 in CLAUDE.md.
 
 // --- Bestätigte Wortlaute -------------------------------------------------
 

@@ -127,9 +127,17 @@ describe('heutigesKuerzel — Altfälle bleiben lesbar', () => {
 
 describe('Kuration + Glossar', () => {
   it('meldet die projektform-abhängigen Kürzel — das ist der Bestandsfehler', () => {
+    // 81 vor der Klärrunde, 58 danach: 23 Widersprüche sind vereinheitlicht und
+    // damit KEINE mehr. Die Untergrenze hält fest, dass die Liste noch trägt;
+    // die Obergrenze, dass die Kuration nicht versehentlich alles glattbügelt.
     const liste = projektformAbhaengigeKuerzel();
-    expect(liste.length).toBeGreaterThan(60);
+    expect(liste.length).toBeGreaterThan(40);
+    expect(liste.length).toBeLessThan(70);
+    // `AB` bleibt drin: DL sagt weiter etwas anderes als NW/FuE/EP — für DS ist
+    // das entschieden, zwischen den Formen bleibt es ein echter Unterschied.
     expect(liste).toContain('AB');
+    // Vereinheitlicht ⇒ nicht mehr uneinig.
+    expect(liste).not.toContain('AK4');
   });
 
   it('die Kuratorenliste bleibt klein und ist NICHT stillschweigend entschieden', () => {

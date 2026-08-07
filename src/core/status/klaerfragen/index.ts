@@ -5,17 +5,24 @@
 export type {
   Herkunft, Klaerfrage, KlaerfragenBestand, KlaerfragenEingabe, BedeutungsZeile,
 } from './typen';
-export { HERKUENFTE, HERKUNFT_LABEL, HERKUNFT_ADRESSAT } from './typen';
+export {
+  HERKUENFTE, HERKUNFT_LABEL, HERKUNFT_ADRESSAT, STILLGELEGTE_HERKUENFTE,
+} from './typen';
 export { KURZLABEL_SPITZE } from './ableitung';
 export {
   FACHLICH_BESTAETIGT, bezeichnungsAbweichungen,
   type Bestaetigung, type BezeichnungsAbweichung,
 } from './fachlich-bestaetigt';
+export {
+  ktPaare, ktVerstoesse, ktFragen,
+  type KtPaar, type KtVerstoss, type KtSeite,
+} from './kt-konvention';
 export { ladeKlaerfragenBestand } from './bestand';
 
 import {
-  abweichungsFragen, bedeutungsFragen, dsFrage, markerFrage, textFragen, wertFragen,
+  abweichungsFragen, bedeutungsFragen, dsFrage, wertFragen,
 } from './ableitung';
+import { ktFragen } from './kt-konvention';
 import { HERKUENFTE, type Klaerfrage, type KlaerfragenEingabe } from './typen';
 
 const RANG: ReadonlyMap<string, number> = new Map(HERKUENFTE.map((h, i) => [h, i]));
@@ -29,11 +36,10 @@ const RANG: ReadonlyMap<string, number> = new Map(HERKUENFTE.map((h, i) => [h, i
  */
 export function baueKlaerfragen(e: KlaerfragenEingabe): Klaerfrage[] {
   const alle = [
-    ...bedeutungsFragen(e.bestand),
-    ...markerFrage(e.bestand),
+    ...bedeutungsFragen(e.bestand, e.offeneBedeutungen),
     ...dsFrage(e.bestand),
+    ...ktFragen(),
     ...wertFragen(e),
-    ...textFragen(e.bestand),
     ...abweichungsFragen(e.bestand),
   ];
   return alle.sort((a, b) =>

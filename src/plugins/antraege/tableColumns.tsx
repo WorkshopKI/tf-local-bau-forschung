@@ -17,7 +17,7 @@ import { KopierIconButton } from '@/components/ui/KopierIconButton';
 import type { SortableColumn } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { getStatusVariant } from '@/core/utils/status-mappings';
-import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
+import { statusKurzLabel, statusLabel, statusLabelMitQuelle } from '@/core/utils/status-wert-labels';
 import { formatGermanDate, formatDatumsWert } from '@/core/services/csv/dateParse';
 import { ANTRAG_SLA_DAYS } from '@/core/services/csv/frist';
 import { FRIST_GRUND, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
@@ -511,7 +511,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
       // Terminal: Arbeit erledigt → kein farbiges Badge, nur ruhiger Status-Text.
       if (isTerminalStatus(s)) {
         return (
-          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={statusLabel(s)}>
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={statusLabelMitQuelle(s)}>
             {statusKurzLabel(s)}
             {renderHerleitung(r)}
           </span>
@@ -525,7 +525,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
       return (
         <span
           className="text-[11.5px]"
-          title={aktion ? `${statusLabel(s)} → ${aktion}` : statusLabel(s)}
+          title={aktion ? `${statusLabelMitQuelle(s)} → ${aktion}` : statusLabelMitQuelle(s)}
         >
           <Badge
             variant={getStatusVariant(s)}
@@ -573,7 +573,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     render: r => {
       const s = strOrNull(r.status);
       return s ? (
-        <span className="inline-flex items-center" title={statusLabel(s)}>
+        <span className="inline-flex items-center" title={statusLabelMitQuelle(s)}>
           <Badge
             variant={getStatusVariant(s)}
             className="min-w-[100px] justify-center whitespace-nowrap text-[10.5px]"

@@ -41,6 +41,7 @@
  * `@/core/status` — das zöge `snapshot.ts` und damit dieses Modul zurück.
  */
 import { STATUS_CODE_KATALOG, KURZLABEL_MAX } from '@/core/status/status-codes';
+import { normalisiereSchreibfehler, quellsystemZusatz } from '@/core/status/schreibfehler';
 import { normalisiereWert } from '@/core/status/typen';
 
 /** Lange und kurze Schreibweise eines Statuswerts. */
@@ -96,9 +97,17 @@ export function setStatusLabelSnapshot(
   snapshotLabels = m;
 }
 
+/**
+ * Der Nachschlage-Schlüssel eines Rohwerts.
+ *
+ * **Belegte Schreibfehler des Quellsystems werden hier aufgelöst** — an genau
+ * einer Stelle, damit `statusLabel` und `statusKurzLabelMit` gemeinsam greifen
+ * (Pitfall #50: eine Quelle). Die Bestandsdaten bleiben unberührt; wer den
+ * Rohwert sehen will, bekommt ihn über `quellsystemZusatz`.
+ */
 function schluessel(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  const k = normalisiereWert(raw);
+  const k = normalisiereWert(normalisiereSchreibfehler(raw));
   return k.length === 0 ? null : k;
 }
 
@@ -113,6 +122,19 @@ export function statusLabel(raw: unknown): string {
   return snapshotLabels?.get(k)?.lang.trim()
     || EINGEBAUT.get(k)?.lang
     || (raw as string);
+}
+
+/**
+ * Der volle Bezeichner **samt Rohwert**, wo ein Schreibfehler des Quellsystems
+ * aufgelöst wurde: `VN geprüft (im Quellsystem: „VN gegrüft“)`.
+ *
+ * Gehört in jeden Tooltip, der den Status ausschreibt. Ohne den Zusatz sähe
+ * jemand „VN geprüft" und suchte im Fachsystem vergeblich danach.
+ */
+export function statusLabelMitQuelle(raw: unknown): string {
+  const lang = statusLabel(raw);
+  const zusatz = quellsystemZusatz(raw);
+  return zusatz === null ? lang : `${lang} (${zusatz})`;
 }
 
 /**

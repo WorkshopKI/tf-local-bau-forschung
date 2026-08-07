@@ -22,7 +22,7 @@ describe('statusLabel — der volle Bezeichner', () => {
 
   it('lässt einen katalogfremden Wert stehen, statt etwas zu erfinden', () => {
     // Echter Fall aus dem Bestand: ein Tippfehler in der Quelle (7 Zeilen).
-    expect(statusLabel('VN gegrüft')).toBe('VN gegrüft');
+    expect(statusLabel('VN gepürft')).toBe('VN gepürft');
     expect(statusLabel('')).toBe('');
     expect(statusLabel(null)).toBe('');
     expect(statusLabel(42)).toBe('');
@@ -86,8 +86,8 @@ describe('fehlendes Kurzlabel ist sichtbar unfertig, nicht heimlich ersetzt', ()
   });
 
   it('kürzt NICHT, was ohnehin passt — dann gibt es nichts zu kürzen', () => {
-    const r = statusKurzLabelMit('VN gegrüft');
-    expect(r).toEqual({ text: 'VN gegrüft', herkunft: 'ohne', gekuerzt: false });
+    const r = statusKurzLabelMit('VN gepürft');
+    expect(r).toEqual({ text: 'VN gepürft', herkunft: 'ohne', gekuerzt: false });
   });
 
   it('lässt keine Satzzeichen vor dem Auslassungspunkt stehen', () => {

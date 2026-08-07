@@ -16,7 +16,11 @@ import { ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { zaehlwort } from '@/core/utils/zaehlwort';
-import { HERKUENFTE, HERKUNFT_ADRESSAT, HERKUNFT_LABEL, type Klaerfrage } from '@/core/status/klaerfragen';
+import {
+  HERKUENFTE, HERKUNFT_ADRESSAT, HERKUNFT_LABEL,
+  type Klaerfrage, type KlaerfragenBestand,
+} from '@/core/status/klaerfragen';
+import { SCHREIBFEHLER } from '@/core/status/schreibfehler';
 import { exportiereKlaerfragen } from './klaerfragenExport';
 import { useKlaerfragen } from './useKlaerfragen';
 import { feldStil } from './labels';
@@ -95,6 +99,42 @@ function Gruppe({ herkunft, fragen }: { herkunft: string; fragen: readonly Klaer
   );
 }
 
+/**
+ * Was **im Fachsystem** korrigiert gehört, nicht bei uns.
+ *
+ * Die App normalisiert diese Wortlaute beim Lesen und zeigt den Rohwert
+ * daneben — geschrieben wird nichts. Damit die Korrektur trotzdem nicht
+ * vergessen wird, steht sie hier mit ihrem gemessenen Gewicht.
+ */
+function SchreibfehlerBlock({ bestand }: { bestand: KlaerfragenBestand }): React.ReactElement | null {
+  const zeilen = SCHREIBFEHLER
+    .map(s => ({ s, n: bestand.rohStatus.get(s.roh) ?? 0 }))
+    .filter(x => x.n > 0);
+  if (zeilen.length === 0) return null;
+  return (
+    <div className="rounded px-2.5 py-2 flex flex-col gap-1" style={feldStil}>
+      <span className="text-[12.5px] text-[var(--tf-text)]">
+        Bekannte Schreibfehler im Quellsystem
+      </span>
+      <span className={leise}>
+        Die App liest sie richtig und zeigt den Rohwert daneben. Korrigiert gehören
+        sie im Fachsystem — hier steht nur, wie viel daran hängt.
+      </span>
+      <ul className="flex flex-col gap-0.5 pt-0.5">
+        {zeilen.map(({ s, n }) => (
+          <li key={s.roh} className="flex items-baseline gap-2 text-[12px]">
+            <span className="font-mono tabular-nums text-[11.5px] text-[var(--tf-text-tertiary)] w-[64px] shrink-0 text-right">
+              {zahl(n)}×
+            </span>
+            <span className="text-[var(--tf-text)]">„{s.roh}“</span>
+            <span className={leise}>gelesen als „{s.gemeint}“ (Code {s.code})</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function KlaerfragenTab({ api }: { api: StatusCockpitApi }): React.ReactElement {
   const lauf = useKlaerfragen(api.entwurf);
   const [bericht, setBericht] = useState<string | null>(null);
@@ -156,6 +196,8 @@ export function KlaerfragenTab({ api }: { api: StatusCockpitApi }): React.ReactE
           Nichts offen — der Katalog beantwortet alles, was der Bestand aufwirft.
         </p>
       )}
+
+      {lauf.bestand !== null && <SchreibfehlerBlock bestand={lauf.bestand} />}
 
       {fragen !== null && HERKUENFTE.map(h => {
         const gruppe = fragen.filter(f => f.herkunft === h);

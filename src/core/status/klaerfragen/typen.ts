@@ -18,7 +18,7 @@
  * Rein und deterministisch: keine IO, keine Uhr. Der Bestand kommt als
  * Parameter ({@link KlaerfragenBestand}), gemessen in `bestand.ts`.
  */
-import type { Projektform } from '../kuerzel-katalog';
+import type { Projektform, UneinigesKuerzel } from '../kuerzel-katalog';
 
 /**
  * Woher ein Befund stammt — zugleich die Zuständigkeit: die Datei geht reihum,
@@ -36,37 +36,53 @@ export type Herkunft =
   | 'bedeutung-nw-fue'
   /** DS leiht eine Bezeichnung aus einer Form, der eine andere widerspricht. */
   | 'bedeutung-ds-anleihe'
-  /** Deckt der `strittig`-Marker die richtige Sache ab? Eine Frage, kein Fall je Code. */
-  | 'strittig-marker'
   /** Für Durchführbarkeitsstudien gibt es gar keine Kürzel-Quelle. */
   | 'ds-ohne-quelle'
+  /** Ein K/T-Kürzelpaar widerspricht der Konvention — Verdacht, keine Korrektur. */
+  | 'kt-konvention'
   /** Die Fassung führt diesen Rohstatus nicht, obwohl er im Bestand steht. */
   | 'wert-nicht-in-fassung'
   /** Die Fassung führt ihn, aber kein amtlicher Code lässt sich zuordnen. */
   | 'wert-ohne-code'
   /** Code bekannt, aber keine Kurzform greift — im Band sichtbar unfertig. */
   | 'kurzlabel'
-  /** Ein amtlicher Text beginnt kleingeschrieben. Fremddaten oder Erfassungsfehler? */
-  | 'amtlicher-text-klein'
   /** Der Katalog weicht von einem fachlich bestätigten Wortlaut ab. */
   | 'bezeichnung-weicht-ab';
 
+/**
+ * Herkünfte, die es gab und die **entschieden** sind. Ihre Id-Präfixe bleiben
+ * vergeben und werden nie neu belegt — sie stehen in einer Datei, die zurückkam.
+ *
+ * - `amtlicher-text-klein` — zwölf Codes beginnen kleingeschrieben, alle zwölf
+ *   als amtlich korrekt bestätigt. Damit ist nicht eine Liste abgearbeitet,
+ *   sondern die **Frageklasse** beantwortet: der amtliche Text ist Fremddatum
+ *   und wird nie korrigiert, auch nicht bei künftigen Fällen, die falsch
+ *   aussehen (CLAUDE.md, Pitfall #43). Eine wachsende Bestätigungsliste wäre
+ *   Buchhaltung ohne Entscheidung.
+ * - `strittig-marker` — blieb unbeantwortet und wurde als **Vorgabe**
+ *   entschieden: `bedeutungsdivergenz` steht jetzt neben `strittig`, zwei
+ *   Marker für zwei Aussagen. Die Frage weiter zu stellen, nachdem ihre
+ *   Antwort implementiert ist, wäre Theater.
+ */
+export const STILLGELEGTE_HERKUENFTE: readonly string[] = [
+  'amtlicher-text-klein', 'strittig-marker',
+];
+
 /** Reihenfolge im Export und in der Anzeige — vom Fachlichen zum Kuratorischen. */
 export const HERKUENFTE: readonly Herkunft[] = [
-  'bedeutung-nw-fue', 'bedeutung-ds-anleihe', 'strittig-marker', 'ds-ohne-quelle',
-  'wert-nicht-in-fassung', 'wert-ohne-code', 'kurzlabel', 'amtlicher-text-klein',
+  'bedeutung-nw-fue', 'bedeutung-ds-anleihe', 'ds-ohne-quelle',
+  'kt-konvention', 'wert-nicht-in-fassung', 'wert-ohne-code', 'kurzlabel',
   'bezeichnung-weicht-ab',
 ];
 
 export const HERKUNFT_LABEL: Readonly<Record<Herkunft, string>> = {
   'bedeutung-nw-fue': 'Bedeutung widersprüchlich (NW/FuE)',
   'bedeutung-ds-anleihe': 'Bedeutung geliehen (DS)',
-  'strittig-marker': 'Marker „strittig"',
   'ds-ohne-quelle': 'DS ohne Kürzel-Quelle',
+  'kt-konvention': 'K/T-Paar gegen die Konvention',
   'wert-nicht-in-fassung': 'Statuswert fehlt in der Fassung',
   'wert-ohne-code': 'Statuswert ohne amtlichen Code',
   'kurzlabel': 'Kurzlabel fehlt',
-  'amtlicher-text-klein': 'Amtlicher Text kleingeschrieben',
   'bezeichnung-weicht-ab': 'Bezeichnung weicht von der Fachaussage ab',
 };
 
@@ -74,12 +90,11 @@ export const HERKUNFT_LABEL: Readonly<Record<Herkunft, string>> = {
 export const HERKUNFT_ADRESSAT: Readonly<Record<Herkunft, string>> = {
   'bedeutung-nw-fue': 'Fachbereich (Kürzelkatalog)',
   'bedeutung-ds-anleihe': 'Fachbereich (Kürzelkatalog)',
-  'strittig-marker': 'Fachbereich (Kürzelkatalog)',
   'ds-ohne-quelle': 'Fachbereich / Leitung',
+  'kt-konvention': 'Fachbereich (Kürzelkatalog)',
   'wert-nicht-in-fassung': 'Kuration (PL)',
   'wert-ohne-code': 'Kuration (PL)',
   'kurzlabel': 'Kuration (PL)',
-  'amtlicher-text-klein': 'Fachbereich (Parametertabelle)',
   'bezeichnung-weicht-ab': 'Kuration (PL)',
 };
 
@@ -157,6 +172,14 @@ export interface KlaerfragenEingabe {
    * behaupten — „nichts zu melden" und „nicht geprüft" sind zwei Aussagen.
    */
   fassungsWerte: ReadonlySet<string> | null;
+  /**
+   * Uneinige Kürzel ohne Antwort. Fehlt = aus dem Katalog abgeleitet
+   * (`offeneBedeutungen()`). Ausschliesslich der Gegenprobe wegen ein
+   * Parameter: die Menge geht am heutigen Katalog leer aus, und eine
+   * Ableitung, die immer nichts liefert, ist ohne Positivkontrolle nicht von
+   * einer kaputten zu unterscheiden.
+   */
+  offeneBedeutungen?: readonly UneinigesKuerzel[];
 }
 
 /** Eine Bedeutung samt Herkunftsform — für die Kontextspalte. */

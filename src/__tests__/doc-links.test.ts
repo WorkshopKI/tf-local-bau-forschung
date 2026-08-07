@@ -217,6 +217,17 @@ describe('doc-links', () => {
     // ein zweimal vergebenes Passwort öffnet still nur die vordere Ebene. Warum
     // die Anmeldung überhaupt festlegt statt zu ergänzen, und die Tabelle, welches
     // Passwort was öffnet, stehen in docs/architecture/modul-freischaltung.md.
-    expect(bytes).toBeLessThan(66_200);
+    // 66_200 → 66_700 (v3.29): die Antwortrunde 1 hängt drei Halbsätze an
+    // Pitfall #43 statt eine eigene Nummer danebenzusetzen — es ist dieselbe
+    // Regel („Fremddaten bleiben wortgetreu"), jetzt mit ihren zwei belegten
+    // Ausnahmen. Ohne den Hinweis macht man beides falsch: den amtlichen Text
+    // „reparieren", der nur falsch AUSSIEHT (zwölf kleingeschriebene Codes sind
+    // als amtlich bestätigt, die Frageklasse ist abgeschafft), und eine
+    // Korrektur IN die generierte Tabelle schreiben, wo die nächste Zuarbeit
+    // sie stillschweigend überfährt. Das Detail — die vier Kurationslisten, die
+    // Auflösungsreihenfolge für DS, warum der Schreibfehler des Quellsystems
+    // nicht als `varianten` taugt — steht in
+    // docs/architecture/vorgangssystem.md §15 und docs/status-system/KATALOG-CODES.md.
+    expect(bytes).toBeLessThan(66_700);
   });
 });

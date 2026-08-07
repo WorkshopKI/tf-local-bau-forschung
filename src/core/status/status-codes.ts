@@ -25,6 +25,7 @@
  * Rein und deterministisch: keine IO, keine Uhr, feste Reihenfolge.
  */
 import { normKey, loseKey } from './normalisierung';
+import { SCHREIBFEHLER } from './schreibfehler';
 import { SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
 import type { StatusWertEintrag, ZahPhaseId } from './typen';
 
@@ -189,6 +190,15 @@ export function baueStatusCodeIndex(
   for (const [k, e] of loseZaehler) {
     // Ein loser Schlüssel, der schon exakt trifft, bringt nichts Neues.
     if (e && !exakt.has(k)) lose.set(k, e);
+  }
+
+  // Belegte Schreibfehler des Quellsystems treffen ihren Code EXAKT — sie sind
+  // keine losen Kandidaten, sondern zugeordnet. Sie überschreiben nie eine
+  // amtliche Schreibweise: ein Wortlaut, der schon trifft, bleibt, wie er ist.
+  for (const s of SCHREIBFEHLER) {
+    const ziel = nachCode.get(s.code);
+    const k = normKey(s.roh);
+    if (ziel && k && !exakt.has(k)) exakt.set(k, ziel);
   }
   return { exakt, lose, nachCode };
 }

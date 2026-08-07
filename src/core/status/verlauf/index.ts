@@ -29,7 +29,7 @@
  * Datenstand-Hash.
  */
 import { schnittVon } from '../phasen-schnitt';
-import { projektformLage } from '../kuerzel-katalog';
+import { nachschlageformVonLage, projektformLage } from '../kuerzel-katalog';
 import { baueChronik } from '../chronik';
 import { kuerzelIndex } from '../feld-zugriff';
 import { normKey } from '../normalisierung';
@@ -237,7 +237,9 @@ function baueSpur(
 
   const uebergaenge = baueUebergaenge({
     vorkommen,
-    projektform: ctx.projektform.art === 'bekannt' ? ctx.projektform.form : null,
+    // Seit der Klärrunde antwortet die Kuration auch für DS — deshalb die
+    // Nachschlageform statt der Projektform der Zuarbeit.
+    projektform: nachschlageformVonLage(ctx.projektform),
     art,
     regeln: ctx.regeln.index,
     felderNachCode: ctx.felderNachCode,

@@ -112,10 +112,23 @@ export {
 // Anträge den falschen Klartext liefert (Guard `kuerzel-nie-flach`).
 export {
   kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase, projektformLage,
-  projektformAbhaengigeKuerzel, strittigeKuerzel, kuerzelKategorien,
-  type Projektform, type ProjektformLage,
+  nachschlageformVonVbPhase, nachschlageformVonLage,
+  projektformAbhaengigeKuerzel, strittigeKuerzel, uneinigeKuerzel,
+  offeneBedeutungen, kuerzelKategorien,
+  type Projektform, type ProjektformLage, type Nachschlageform,
+  type BezeichnungsHerkunft, type UneinigesKuerzel,
   type KuerzelAuskunft, type KuerzelForm, type KuerzelEintrag,
 } from './kuerzel-katalog';
+// Die Entscheidungen der Klärrunde — Daten, keine Tür. Nachgeschlagen wird
+// weiterhin über `kuerzelAuskunft`; diese Exporte tragen den BELEG in die
+// Anzeige („Antwortrunde 1 · AnMa · 07.08.2026") und in den Bericht.
+export {
+  VEREINHEITLICHT, DIVERGENZ_BESTAETIGT, DS_BEDEUTUNG, QUELLKORREKTUREN,
+  belegText, divergenzBestaetigt, dsBedeutungFuer, vereinheitlichtFuer,
+  type KurationsBeleg, type KurationsStand,
+  type VereinheitlichteBedeutung, type BestaetigteDivergenz,
+  type DsBedeutung, type Quellkorrektur,
+} from './kuerzel-kuration';
 export {
   erklaereSegmente, erklaerKatalog, kuerzelErklaerung, statusErklaerung,
   ebeneErklaerung, empfaengerErklaerung,

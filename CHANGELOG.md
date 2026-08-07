@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.29.0 — Antwortrunde 1 eingefaltet (August 2026)
+
+MINOR — Die erste Klärrunde kam beantwortet zurück: 70 Fragen, 69 beantwortet. Die Antworten liegen jetzt im Code statt in einer Mappe, und die Ableitung stellt sie nicht mehr. Am Bestand vom 05.08. bleibt **eine** Frage übrig — dass es für DS keine Kürzel-Quelle gibt.
+
+- Kuration neben Generat: 23 Vereinheitlichungen, 6 bestätigte Divergenzen, 8 DS-Wortlaute, 5 Quellkorrekturen — überleben `gen:kuerzel-katalog` samt Drift-Gatter auf jeden Wortlaut — [kuerzel-kuration.ts](src/core/status/kuerzel-kuration.ts)
+- DS wird beantwortet statt geliehen: eigener Wortlaut schlägt die Sammelregel „DS = FuE", beides als Herkunft erkennbar — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- „VN gegrüft" wird beim Lesen aufgelöst, der Rohwert bleibt im Tooltip sichtbar; Bestandsdaten unangetastet — [schreibfehler.ts](src/core/status/schreibfehler.ts)
+- Zwei entschiedene Frageklassen entfallen (amtliche Kleinschreibung, `strittig`-Marker), eine kommt dazu: die K/T-Konvention prüft sich künftig selbst — [kt-konvention.ts](src/core/status/klaerfragen/kt-konvention.ts)
+- **Fehler in der Ableitung behoben**: „führt die Fassung diesen Wert?" prüfte nur `wert`, nicht Varianten und amtliche Schreibweisen — Code 72 galt als fehlend, obwohl die App ihn auflöst — [useKlaerfragen.ts](src/plugins/status-cockpit/useKlaerfragen.ts)
+
 ### v3.28.1 — Zugangs-Passwoerter der pl-Variante neu gesetzt (August 2026)
 
 PATCH — Alle drei Zugänge der pl-Variante sind frisch erzeugt: App-Wall, Auslastung, Kuration. Damit trägt jede Ebene ein eigenes Salt/Verifier-Paar aus einem Lauf, statt teils aus dem Varianten-Merge vom 05.08. zu stammen.

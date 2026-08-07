@@ -29,7 +29,7 @@
  * Rein: keine IO, keine Uhr.
  */
 import { baueChronik } from '../chronik';
-import { heutigesKuerzel, kuerzelAuskunft, type Projektform } from '../kuerzel-katalog';
+import { heutigesKuerzel, kuerzelAuskunft, type Nachschlageform } from '../kuerzel-katalog';
 import { normKey } from '../normalisierung';
 import { pruefeTriggerBedingungen, type BedingungsUrteil, type TriggerKontext } from '../trigger-bedingung';
 import type { FeldVorkommen } from '../feld-aufloesung';
@@ -47,10 +47,11 @@ export interface GesetztesKuerzel {
 
 export interface UebergangsEingabe {
   vorkommen: readonly FeldVorkommen[];
-  /** `null` = Projektform unbekannt; dann liefert der Katalog nur bei
-   *  formübergreifender Übereinstimmung eine Bedeutung. Betrifft ausschliesslich
-   *  die BEZEICHNUNG — die Regel hängt seit v3.23 am Programm. */
-  projektform: Projektform | null;
+  /** `null` = Form unbekannt; dann liefert der Katalog nur bei
+   *  formübergreifender Übereinstimmung eine Bedeutung. `'DS'` ist keine Form
+   *  der Zuarbeit, sondern eine, für die die Kuration antwortet. Betrifft
+   *  ausschliesslich die BEZEICHNUNG — die Regel hängt seit v3.23 am Programm. */
+  projektform: Nachschlageform | null;
   art: SpurArt;
   /** Die C16-Zeilen des Programms, nach Kürzel. */
   regeln: C16Index;

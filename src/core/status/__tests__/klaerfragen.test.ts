@@ -24,11 +24,15 @@ import { describe, it, expect, afterAll } from 'vitest';
 import { setStatusKatalogSnapshot } from '@/core/status/snapshot';
 import { baueSeedVersion } from '@/core/status/seed';
 import { normalisiereWert } from '@/core/status/typen';
-import { uneinigeKuerzel, projektformAbhaengigeKuerzel } from '@/core/status/kuerzel-katalog';
+import {
+  uneinigeKuerzel, projektformAbhaengigeKuerzel, offeneBedeutungen,
+  type UneinigesKuerzel,
+} from '@/core/status/kuerzel-katalog';
 import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
 import {
   baueKlaerfragen, bezeichnungsAbweichungen, zaehleJeHerkunft,
-  FACHLICH_BESTAETIGT, KURZLABEL_SPITZE,
+  ktFragen, ktPaare, ktVerstoesse,
+  FACHLICH_BESTAETIGT, KURZLABEL_SPITZE, HERKUENFTE, STILLGELEGTE_HERKUENFTE,
   type KlaerfragenBestand, type Klaerfrage,
 } from '@/core/status/klaerfragen';
 
@@ -58,10 +62,43 @@ function ids(fragen: readonly Klaerfrage[], herkunft: string): string[] {
   return fragen.filter(f => f.herkunft === herkunft).map(f => f.betrifft);
 }
 
+/**
+ * Zwei erfundene uneinige Kürzel — die **Positivkontrolle** der
+ * Bedeutungs-Herkünfte.
+ *
+ * Am echten Katalog geht `offeneBedeutungen()` seit der Klärrunde leer aus:
+ * jedes uneinige Kürzel führt eine FuE-Form, aus der die Sammelregel für DS
+ * schöpft, also muss nichts mehr geliehen werden. Die Ableitung deshalb nur
+ * noch gegen Leere zu prüfen hieße, eine kaputte Ableitung nicht von einer
+ * erfolgreichen unterscheiden zu können.
+ *
+ * `NWFUE` widerspricht schon zwischen NW und FuE; `ANLEIHE` nicht — damit die
+ * Trennung der beiden Herkünfte prüfbar bleibt.
+ */
+const ERFUNDEN: readonly UneinigesKuerzel[] = [
+  {
+    kuerzel: 'NWFUE',
+    bedeutungen: [
+      { form: 'NW', bezeichnung: 'Erfundene Bedeutung A' },
+      { form: 'FuE', bezeichnung: 'Erfundene Bedeutung B' },
+    ],
+    strittig: false, bestaetigt: false, beleg: null,
+  },
+  {
+    kuerzel: 'ANLEIHE',
+    bedeutungen: [
+      { form: 'NW', bezeichnung: 'Erfundene Bedeutung C' },
+      { form: 'FuE', bezeichnung: 'Erfundene Bedeutung C' },
+      { form: 'DL', bezeichnung: 'Erfundene Bedeutung D' },
+    ],
+    strittig: false, bestaetigt: false, beleg: null,
+  },
+];
+
 describe('uneinigeKuerzel', () => {
   it('liefert je Kürzel, welche Projektform was sagt', () => {
     const alle = uneinigeKuerzel();
-    expect(alle.length).toBeGreaterThan(60);       // Positivkontrolle
+    expect(alle.length).toBeGreaterThan(40);       // Positivkontrolle (58 nach der Klärrunde)
     for (const u of alle) {
       expect(u.bedeutungen.length).toBeGreaterThan(1);
       // Die Uneinigkeit muss in den mitgelieferten Bedeutungen SICHTBAR sein —
@@ -83,15 +120,33 @@ describe('uneinigeKuerzel', () => {
 });
 
 describe('Bedeutungs-Herkünfte', () => {
+  it('sind am heutigen Katalog beantwortet — keine einzige Frage bleibt', () => {
+    // Nicht unterdrückt, sondern erschöpft: jedes uneinige Kürzel führt eine
+    // FuE-Form, aus der die Sammelregel für DS schöpft. Geliehen wird nichts
+    // mehr, also gibt es nichts mehr zu fragen. Der Bestand ist dabei bewusst
+    // GROSSZÜGIG gefüllt — die Leere kommt vom Katalog, nicht von fehlenden
+    // Vorkommen.
+    expect(offeneBedeutungen()).toEqual([]);
+    const voll = new Map(uneinigeKuerzel().map(u => [u.kuerzel, 500] as const));
+    const fragen = baueKlaerfragen({
+      bestand: bestand({ proKuerzelDs: voll, dsVorgaenge: 935 }),
+      fassungsWerte: null,
+    });
+    expect(ids(fragen, 'bedeutung-nw-fue')).toEqual([]);
+    expect(ids(fragen, 'bedeutung-ds-anleihe')).toEqual([]);
+  });
+
   it('fragt nur zu Kürzeln, die in DS-Vorgängen vorkommen', () => {
-    const eines = uneinigeKuerzel()[0]!;
-    const ohne = baueKlaerfragen({ bestand: bestand(), fassungsWerte: null });
+    const eines = ERFUNDEN[0]!;
+    const ohne = baueKlaerfragen({
+      bestand: bestand(), fassungsWerte: null, offeneBedeutungen: ERFUNDEN,
+    });
     expect(ids(ohne, 'bedeutung-nw-fue')).toHaveLength(0);
     expect(ids(ohne, 'bedeutung-ds-anleihe')).toHaveLength(0);
 
     const mit = baueKlaerfragen({
       bestand: bestand({ proKuerzelDs: new Map([[eines.kuerzel, 12]]), dsVorgaenge: 12 }),
-      fassungsWerte: null,
+      fassungsWerte: null, offeneBedeutungen: ERFUNDEN,
     });
     const treffer = mit.filter(f => f.betrifft === eines.kuerzel);
     expect(treffer).toHaveLength(1);
@@ -99,55 +154,42 @@ describe('Bedeutungs-Herkünfte', () => {
   });
 
   it('trennt NW-gegen-FuE von der reinen DS-Anleihe', () => {
-    const nwFue = uneinigeKuerzel().find(u => {
-      const nw = u.bedeutungen.find(b => b.form === 'NW');
-      const fue = u.bedeutungen.find(b => b.form === 'FuE');
-      return nw !== undefined && fue !== undefined && nw.bezeichnung !== fue.bezeichnung;
-    });
-    const nurAnleihe = uneinigeKuerzel().find(u => {
-      const nw = u.bedeutungen.find(b => b.form === 'NW');
-      const fue = u.bedeutungen.find(b => b.form === 'FuE');
-      return nw === undefined || fue === undefined || nw.bezeichnung === fue.bezeichnung;
-    });
-    expect(nwFue).toBeDefined();
-    expect(nurAnleihe).toBeDefined();
-
+    const [nwFue, nurAnleihe] = ERFUNDEN;
     const fragen = baueKlaerfragen({
       bestand: bestand({
         proKuerzelDs: new Map([[nwFue!.kuerzel, 5], [nurAnleihe!.kuerzel, 7]]),
         dsVorgaenge: 12,
       }),
-      fassungsWerte: null,
+      fassungsWerte: null, offeneBedeutungen: ERFUNDEN,
     });
-    expect(ids(fragen, 'bedeutung-nw-fue')).toContain(nwFue!.kuerzel);
-    expect(ids(fragen, 'bedeutung-ds-anleihe')).toContain(nurAnleihe!.kuerzel);
+    expect(ids(fragen, 'bedeutung-nw-fue')).toEqual([nwFue!.kuerzel]);
+    expect(ids(fragen, 'bedeutung-ds-anleihe')).toEqual([nurAnleihe!.kuerzel]);
     // Nie beides: zwei Fragen zu einem Kürzel wären zwei Antworten auf eine Sache.
     expect(fragen.filter(f => f.betrifft === nwFue!.kuerzel)).toHaveLength(1);
   });
 
   it('bietet die konkurrierenden Wortlaute als Auswahl an', () => {
-    const eines = uneinigeKuerzel()[0]!;
+    const eines = ERFUNDEN[0]!;
     const fragen = baueKlaerfragen({
       bestand: bestand({ proKuerzelDs: new Map([[eines.kuerzel, 1]]), dsVorgaenge: 1 }),
-      fassungsWerte: null,
+      fassungsWerte: null, offeneBedeutungen: ERFUNDEN,
     });
     const f = fragen.find(x => x.betrifft === eines.kuerzel)!;
     for (const b of eines.bedeutungen) expect(f.optionen).toContain(b.bezeichnung);
   });
 });
 
-describe('Marker- und DS-Frage', () => {
-  it('entstehen genau einmal, nicht je Kürzel', () => {
-    const zwei = uneinigeKuerzel().slice(0, 2);
+describe('DS-Frage', () => {
+  it('entsteht genau einmal, nicht je Kürzel', () => {
     const fragen = baueKlaerfragen({
       bestand: bestand({
-        proKuerzelDs: new Map(zwei.map(u => [u.kuerzel, 3] as const)),
+        proKuerzelDs: new Map(ERFUNDEN.map(u => [u.kuerzel, 3] as const)),
         dsVerbuende: 851, dsVorgaenge: 900,
       }),
-      fassungsWerte: null,
+      fassungsWerte: null, offeneBedeutungen: ERFUNDEN,
     });
-    expect(zaehleJeHerkunft(fragen).get('strittig-marker')).toBe(1);
     expect(zaehleJeHerkunft(fragen).get('ds-ohne-quelle')).toBe(1);
+    expect(zaehleJeHerkunft(fragen).get('bedeutung-ds-anleihe')).toBe(1);
   });
 
   it('schweigen, wenn es keinen DS-Bestand gibt', () => {
@@ -172,31 +214,31 @@ describe('Die drei Wert-Herkünfte', () => {
   it('sind disjunkt — ein Rohwert erzeugt höchstens eine Frage', () => {
     const roh = new Map([
       ['Ein Wert, den niemand führt', 40],
-      ['VN gegrüft', 30],
+      ['VN gepürft', 30],
       ['bewilligt', 20],
     ]);
     const fragen = baueKlaerfragen({
       bestand: bestand({ rohStatus: roh }),
-      fassungsWerte: fassungMit('VN gegrüft', 'bewilligt'),
+      fassungsWerte: fassungMit('VN gepürft', 'bewilligt'),
     });
     const wertFragen = fragen.filter(f => f.herkunft.startsWith('wert-') || f.herkunft === 'kurzlabel');
     expect(new Set(wertFragen.map(f => f.betrifft)).size).toBe(wertFragen.length);
   });
 
   it('ordnet jeden Wert der grundsätzlichsten offenen Frage zu', () => {
-    const roh = new Map([['Ein Wert, den niemand führt', 40], ['VN gegrüft', 30]]);
+    const roh = new Map([['Ein Wert, den niemand führt', 40], ['VN gepürft', 30]]);
     const fragen = baueKlaerfragen({
       bestand: bestand({ rohStatus: roh }),
-      fassungsWerte: fassungMit('VN gegrüft'),
+      fassungsWerte: fassungMit('VN gepürft'),
     });
     expect(ids(fragen, 'wert-nicht-in-fassung')).toEqual(['Ein Wert, den niemand führt']);
-    expect(ids(fragen, 'wert-ohne-code')).toEqual(['VN gegrüft']);
+    expect(ids(fragen, 'wert-ohne-code')).toEqual(['VN gepürft']);
   });
 
   it('schlägt für einen Wert ohne Code die nächstliegenden Wortlaute vor', () => {
     const fragen = baueKlaerfragen({
-      bestand: bestand({ rohStatus: new Map([['VN gegrüft', 7]]) }),
-      fassungsWerte: fassungMit('VN gegrüft'),
+      bestand: bestand({ rohStatus: new Map([['VN gepürft', 7]]) }),
+      fassungsWerte: fassungMit('VN gepürft'),
     });
     const f = fragen.find(x => x.herkunft === 'wert-ohne-code')!;
     expect(f.optionen).toContain('VN geprüft');
@@ -205,10 +247,12 @@ describe('Die drei Wert-Herkünfte', () => {
   });
 
   it('bietet auch einem unbekannten Wert den nächstliegenden Wortlaut an', () => {
-    // Der Realfall: `VN gegrüft` fällt in die GRUNDSÄTZLICHERE Herkunft (die
-    // Fassung führt ihn nicht) und verlöre dort sonst den Tippfehler-Hinweis.
+    // Ein Verschreiber, den noch niemand gemeldet hat, fällt in die
+    // GRUNDSÄTZLICHERE Herkunft (die Fassung führt ihn nicht) und verlöre dort
+    // sonst den Tippfehler-Hinweis. Der Realfall `VN gegrüft` ist inzwischen
+    // beantwortet und steht in `schreibfehler.ts` — er erzeugt keine Frage mehr.
     const fragen = baueKlaerfragen({
-      bestand: bestand({ rohStatus: new Map([['VN gegrüft', 5]]) }),
+      bestand: bestand({ rohStatus: new Map([['VN gepürft', 5]]) }),
       fassungsWerte: fassungMit('bewilligt'),
     });
     const f = fragen.find(x => x.herkunft === 'wert-nicht-in-fassung')!;
@@ -241,34 +285,77 @@ describe('Die drei Wert-Herkünfte', () => {
   });
 });
 
-describe('Amtliche Texte in Kleinschreibung', () => {
-  /** Alle kleinbeginnenden Katalogtexte — die Obermenge, aus der gefiltert wird. */
+describe('Entschiedene Frageklassen kommen nicht zurück', () => {
+  /** Alle kleinbeginnenden Katalogtexte — die Obermenge von einst. */
   const KLEIN = STATUS_CODE_KATALOG
     .filter(e => { const c = e.text.trim().charAt(0); return c.toLowerCase() === c && c.toUpperCase() !== c; });
 
-  it('fragt nur zu Texten, die im Bestand auch vorkommen', () => {
-    expect(KLEIN.length).toBeGreaterThan(5);       // Positivkontrolle
-    // Ohne Bestand keine Frage: ein Code, der nirgends steht, erzeugt keine
-    // Anzeige und damit keine falsche.
-    expect(ids(baueKlaerfragen({ bestand: bestand(), fassungsWerte: null }), 'amtlicher-text-klein'))
-      .toHaveLength(0);
-
-    const zwei = KLEIN.slice(0, 2);
+  it('fragt nie wieder nach der Kleinschreibung amtlicher Texte', () => {
+    // Positivkontrolle: die Fälle sind noch da — es wird nur nicht mehr
+    // gefragt. Zwölf davon sind bestätigt; die Regel gilt seitdem ausnahmslos,
+    // auch für künftige Fälle, die falsch aussehen (Pitfall #43).
+    expect(KLEIN.length).toBeGreaterThan(5);
     const fragen = baueKlaerfragen({
-      bestand: bestand({ rohStatus: new Map(zwei.map(e => [e.text, 9] as const)) }),
-      fassungsWerte: null,
+      bestand: bestand({ rohStatus: new Map(KLEIN.map(e => [e.text, 900] as const)) }),
+      fassungsWerte: fassungMit(...KLEIN.map(e => e.text)),
     });
-    expect(ids(fragen, 'amtlicher-text-klein')).toEqual(zwei.map(e => `${e.code} ${e.text}`));
+    expect(fragen.some(f => f.id.startsWith('amtlicher-text-klein'))).toBe(false);
   });
 
-  it('stellt die Kurzform daneben, statt sie als Fehler zu melden', () => {
+  it('fragt nie wieder nach dem strittig-Marker', () => {
+    const eines = uneinigeKuerzel()[0]!;
     const fragen = baueKlaerfragen({
-      bestand: bestand({ rohStatus: new Map([['bewilligt', 900]]) }),
-      fassungsWerte: fassungMit('bewilligt'),
+      bestand: bestand({ proKuerzelDs: new Map([[eines.kuerzel, 99]]), dsVorgaenge: 99 }),
+      fassungsWerte: null,
     });
-    const f = fragen.find(x => x.herkunft === 'amtlicher-text-klein' && x.betrifft.startsWith('59 '))!;
-    expect(f.frage).toContain('bewilligt');
-    expect(f.kontext).toContain('Bewilligt');     // unsere Beschriftung, Pitfall #43
+    expect(fragen.some(f => f.id === 'strittig-marker')).toBe(false);
+  });
+
+  it('fragt nicht mehr nach einem beantworteten Schreibfehler des Quellsystems', () => {
+    // `VN gegrüft` ist als Schreibfehler belegt: die App löst ihn auf, zeigt
+    // den Rohwert daneben und schreibt nichts zurück. Eine Frage danach wäre
+    // eine zweite Antwort auf dieselbe Sache.
+    const fragen = baueKlaerfragen({
+      bestand: bestand({ rohStatus: new Map([['VN gegrüft', 5]]) }),
+      fassungsWerte: fassungMit('VN geprüft'),
+    });
+    expect(fragen.filter(f => f.betrifft === 'VN gegrüft')).toEqual([]);
+  });
+
+  it('hält die stillgelegten Präfixe fest, damit sie nie neu belegt werden', () => {
+    expect(STILLGELEGTE_HERKUENFTE).toEqual(['amtlicher-text-klein', 'strittig-marker']);
+    for (const alt of STILLGELEGTE_HERKUENFTE) expect(HERKUENFTE).not.toContain(alt);
+  });
+});
+
+describe('K/T-Konvention', () => {
+  it('geht am Katalog leer aus — die eine Vertauschung ist korrigiert', () => {
+    expect(ktVerstoesse()).toEqual([]);
+  });
+
+  it('prüft überhaupt etwas: 19 Paare tragen die Konvention', () => {
+    // Ohne diese Zahl wäre eine leere Verstoßliste auch mit einer kaputten
+    // Prüfung zu erklären.
+    const stämme = new Set(ktPaare().map(p => p.stamm));
+    expect(stämme.size).toBeGreaterThanOrEqual(15);
+  });
+
+  it('meldet eine Vertauschung (Positivkontrolle)', () => {
+    const v = ktVerstoesse([{
+      stamm: 'XY', form: 'NW',
+      kBezeichnung: 'Vereinbarung technisch geprüft',
+      tBezeichnung: 'Vereinbarung kaufmännisch geprüft',
+    }]);
+    expect(v).toEqual([expect.objectContaining({ stamm: 'XY', seite: 'beide' })]);
+    expect(ktFragen(v)[0]!.kontext).toContain('vertauscht');
+  });
+
+  it('schweigt, wo eine Bezeichnung gar kein Zuständigkeitswort trägt', () => {
+    // Kein Befund ist kein Verstoß — sonst meldete die Prüfung jede
+    // Bezeichnung, die die Zuständigkeit schlicht nicht nennt.
+    expect(ktVerstoesse([{
+      stamm: 'XY', form: 'NW', kBezeichnung: 'Eingang Vereinbarung', tBezeichnung: 'Vereinbarung technisch geprüft',
+    }])).toEqual([]);
   });
 });
 
@@ -332,11 +419,11 @@ describe('Sortierung und Ids', () => {
     const eines = uneinigeKuerzel()[0]!;
     const fragen = baueKlaerfragen({
       bestand: bestand({
-        rohStatus: new Map([['VN gegrüft', 7]]),
+        rohStatus: new Map([['VN gepürft', 7]]),
         proKuerzelDs: new Map([[eines.kuerzel, 3]]),
         dsVorgaenge: 3,
       }),
-      fassungsWerte: fassungMit('VN gegrüft'),
+      fassungsWerte: fassungMit('VN gepürft'),
     });
     // Genau zwei Herkünfte sind Einzelfragen und tragen deshalb keinen
     // Gegenstand in der Id; alle anderen müssen einen tragen.
@@ -352,11 +439,11 @@ describe('Sortierung und Ids', () => {
     const eines = uneinigeKuerzel()[0]!;
     const bau = (rohStatus: Map<string, number>): Klaerfrage[] => baueKlaerfragen({
       bestand: bestand({ rohStatus, proKuerzelDs: new Map([[eines.kuerzel, 3]]), dsVorgaenge: 3 }),
-      fassungsWerte: fassungMit('VN gegrüft'),
+      fassungsWerte: fassungMit('VN gepürft'),
     });
-    const vorher = bau(new Map([['VN gegrüft', 7], ['bewilligt', 900]]));
-    const nachher = bau(new Map([['VN gegrüft', 7]]));
-    const id = (fs: Klaerfrage[]): string => fs.find(f => f.betrifft === 'VN gegrüft')!.id;
+    const vorher = bau(new Map([['VN gepürft', 7], ['bewilligt', 900]]));
+    const nachher = bau(new Map([['VN gepürft', 7]]));
+    const id = (fs: Klaerfrage[]): string => fs.find(f => f.betrifft === 'VN gepürft')!.id;
     expect(id(nachher)).toBe(id(vorher));
   });
 });

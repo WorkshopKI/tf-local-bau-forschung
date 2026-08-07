@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.29 — 2026-08
+
+### Verbesserungen
+- Die **Antworten der ersten Klärrunde** stecken jetzt in der App. Wo zwei Projektformen dasselbe Kürzel verschieden benannt haben, steht ab sofort der Wortlaut, den der Fachbereich bestätigt hat.
+- **Durchführbarkeitsstudien** bekommen endlich eine eigene Auskunft: acht Kürzel haben eine eigens abgestimmte Bedeutung, der Rest folgt der Regel „wie FuE". Beides ist im Verlauf erkennbar.
+- In der Übersicht der offenen Punkte stehen jetzt auch die **Schreibfehler des Fachsystems** — die App liest sie richtig, korrigiert gehören sie aber dort.
+
+### Bugfixes
+- `XVK` und `XVT` waren bei Netzwerken vertauscht (kaufmännisch/technisch) — korrigiert.
+- Ein Statuswert galt fälschlich als „nicht im Katalog", obwohl die App ihn längst richtig anzeigte.
+
 ## v3.28 — 2026-08
 
 ### Neu

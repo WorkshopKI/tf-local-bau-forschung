@@ -329,7 +329,8 @@ describe('Kürzel × Projektform — niemals flach (Bezeichnung, nicht Regel)', 
     expect(eigen.uebergaenge[0]?.bezeichnungQuelle).toBe('NW');
 
     // DS führt der Katalog gar nicht (0 von 143 Kürzeln, §14.7) — die
-    // Bezeichnung kommt dann aus einer fremden Form und sagt das.
+    // Bezeichnung kommt aus der Kuration bzw. aus FuE und ist NICHT die der
+    // eigenen Form. `bezeichnungQuelle` bleibt deshalb leer.
     const geliehen = tvSpur(lauf(bezug(
       [tv('TV1', 'bewilligt', [vk('AB', '01.03.2024')])], { vbPhaseRoh: DS },
     )), 'TV1');
@@ -337,11 +338,27 @@ describe('Kürzel × Projektform — niemals flach (Bezeichnung, nicht Regel)', 
     expect(geliehen.uebergaenge[0]?.bezeichnung).not.toBeNull();
   });
 
-  it('sagt bei unbekannter Projektform „nicht eindeutig", statt eine zu raten', () => {
+  it('beantwortet DS aus der Kuration, statt die erstgeführte Form zu nehmen', () => {
+    // Vor der Klärrunde zeigte ein DS-Vorgang mit `AB` die NW-Bezeichnung
+    // („bewilligungsreif/Akte an Euronorm") und musste sie als unsicher
+    // ausweisen. Die Antwortrunde hat für DS den DL-Wortlaut festgestellt —
+    // seitdem wird nicht mehr geliehen, sondern beantwortet.
     const s = tvSpur(lauf(bezug(
       [tv('TV1', 'bewilligt', [vk('AB', '01.03.2024')])], { vbPhaseRoh: DS },
     )), 'TV1');
     expect(s.projektform.art).toBe('zuarbeit-aelter');
+    expect(s.uebergaenge[0]?.bezeichnung)
+      .toBe('Bewilligungsempfehlung durch Haushaltsbeauftrage/Titelverantwortliche');
+    expect(s.uebergaenge[0]?.bezeichnungEindeutig).toBe(true);
+  });
+
+  it('sagt bei unbekannter Projektform „nicht eindeutig", statt eine zu raten', () => {
+    // Irrläufer ist begrifflich KEINE Projektform — hier gibt es nichts
+    // nachzuliefern und nichts zu kuratieren, also bleibt es beim Nicht-Raten.
+    const s = tvSpur(lauf(bezug(
+      [tv('TV1', 'bewilligt', [vk('AB', '01.03.2024')])], { vbPhaseRoh: 9 },
+    )), 'TV1');
+    expect(s.projektform.art).toBe('keine-projektform');
     expect(s.uebergaenge[0]?.bezeichnungEindeutig).toBe(false);
     expect(s.uebergaenge[0]?.rollenLage).toBe('unbekannt');
   });

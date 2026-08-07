@@ -126,7 +126,17 @@ function meldeEbenenKonflikte(version: MappingVersion): void {
  *
  * Rein: das Ergebnis wird NICHT zurückgeschrieben (Pitfall #45).
  */
-function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintrag {
+/**
+ * Ein Fassungseintrag samt **allen** Schreibweisen, unter denen er gilt:
+ * seinen eigenen Varianten plus dem amtlichen Text und dessen Varianten.
+ *
+ * Exportiert, weil die Klärfragen-Ableitung dieselbe Auflösung braucht: sie
+ * fragt „führt die Fassung diesen Wert?", und die Antwort muss dieselbe sein,
+ * die die Anzeige gibt. Ohne das fragte sie nach Werten, die die App längst
+ * auflöst — Code 72 steht in der Fassung unter der Abkürzung und im Bestand
+ * ausgeschrieben.
+ */
+export function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintrag {
   if (w.code === undefined) return w;
   const amtlich = statusCodeEintrag(w.code);
   if (!amtlich) return w;

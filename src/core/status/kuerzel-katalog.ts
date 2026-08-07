@@ -27,12 +27,51 @@
  * `eindeutig: false` und der Aufrufer zeigt das Kürzel statt einer der vier
  * möglichen Bedeutungen.
  *
+ * **Seit der Klärrunde antwortet die Kuration für DS** ([kuerzel-kuration.ts]).
+ * Die Zuarbeit ist unverändert älter als die Projektform — geraten wird
+ * weiterhin nichts, aber wo eine Antwort vorliegt, gilt sie. Die Reihenfolge
+ * steht in {@link kuerzelAuskunft} und ist der Grund, warum es **keinen**
+ * pauschalen Alias DS → FuE als Dateneintrag gibt.
+ *
  * Rein und deterministisch: keine IO, keine Uhr.
  */
 import { KUERZEL_KATALOG, type KuerzelEintrag, type KuerzelForm, type Projektform } from './kuerzel-katalog.data';
+import {
+  QUELLKORREKTUREN, belegText, divergenzBestaetigt, dsBedeutungFuer, vereinheitlichtFuer,
+  type KurationsStand,
+} from './kuerzel-kuration';
 import type { Rolle } from './typen';
 
 export type { Projektform, KuerzelForm, KuerzelEintrag };
+
+/**
+ * Womit nachgeschlagen wird.
+ *
+ * `DS` ist **keine `Projektform` der Zuarbeit** — dort gibt es sie nicht.
+ * Sie ist eine Form, für die unsere Kuration antwortet; deshalb ein eigener
+ * Typ statt einer fünften `Projektform`. Wer `Projektform` erweiterte, machte
+ * aus einer offenen Frage stillschweigend einen Katalogeintrag.
+ */
+export type Nachschlageform = Projektform | 'DS';
+
+/**
+ * Woher die gelieferte Bezeichnung kommt. Die Anzeige unterscheidet damit
+ * belegt von hergeleitet, ohne `quelle` und `eindeutig` gegeneinander auslegen
+ * zu müssen.
+ */
+export type BezeichnungsHerkunft =
+  /** Der Katalog führt genau diese Projektform. */
+  | 'form'
+  /** Klärrunde: EIN Wortlaut für alle Formen. */
+  | 'einheitlich'
+  /** Klärrunde: eigener DS-Wortlaut, weil die Sammelregel hier nicht gilt. */
+  | 'ds-kuratiert'
+  /** Sammelregel „DS = FuE": abgeleitet, nicht eigens bestätigt. */
+  | 'ds-aus-fue'
+  /** Erstgeführte Form, weil nichts Besseres da ist — gilt NICHT sicher. */
+  | 'geliehen'
+  /** Der Katalog kennt das Kürzel nicht. */
+  | 'unbekannt';
 
 /**
  * `vb_phase` → Projektform der Zuarbeit.
@@ -93,9 +132,56 @@ export function projektformVonVbPhase(vbPhase: unknown): Projektform | null {
   return lage.art === 'bekannt' ? lage.form : null;
 }
 
-const INDEX: ReadonlyMap<string, KuerzelEintrag> = new Map(
-  KUERZEL_KATALOG.map(e => [e.kuerzel.toUpperCase(), e]),
-);
+/**
+ * Womit nachgeschlagen wird — inklusive `'DS'`, für das die Kuration antwortet.
+ *
+ * Getrennt von {@link projektformVonVbPhase}, weil beide etwas anderes fragen:
+ * dort „welche Form führt die Zuarbeit?", hier „womit kann ich nachschlagen?".
+ * Irrläufer bleiben `null`; für sie gibt es nichts nachzuliefern.
+ */
+export function nachschlageformVonLage(lage: ProjektformLage): Nachschlageform | null {
+  if (lage.art === 'bekannt') return lage.form;
+  return lage.art === 'zuarbeit-aelter' && lage.label === 'DS' ? 'DS' : null;
+}
+
+export function nachschlageformVonVbPhase(vbPhase: unknown): Nachschlageform | null {
+  return nachschlageformVonLage(projektformLage(vbPhase));
+}
+
+/**
+ * Der Katalog, **wie er nach der Klärrunde gilt**: Quellkorrekturen angewandt,
+ * dann Vereinheitlichungen.
+ *
+ * Einmal beim Modul-Laden gebaut. Alles Weitere liest nur noch diesen Index —
+ * sonst müsste jede Auswertung die Reihenfolge für sich kennen, und die erste,
+ * die es vergisst, meldet einen längst entschiedenen Widerspruch erneut.
+ */
+function baueEffektiv(): ReadonlyMap<string, KuerzelEintrag> {
+  const out = new Map<string, KuerzelEintrag>();
+  for (const e of KUERZEL_KATALOG) {
+    const einheitlich = vereinheitlichtFuer(e.kuerzel);
+    const korrekturen = QUELLKORREKTUREN.filter(q => q.kuerzel === e.kuerzel);
+    if (!einheitlich && korrekturen.length === 0) {
+      out.set(e.kuerzel.toUpperCase(), e);
+      continue;
+    }
+    const formen: Partial<Record<Projektform, KuerzelForm>> = {};
+    for (const [form, f] of Object.entries(e.formen) as [Projektform, KuerzelForm][]) {
+      const q = korrekturen.find(x => x.formen.includes(form) && x.falsch === f.bezeichnung);
+      const bezeichnung = einheitlich?.bezeichnung ?? q?.richtig ?? f.bezeichnung;
+      formen[form] = bezeichnung === f.bezeichnung ? f : { ...f, bezeichnung };
+    }
+    out.set(e.kuerzel.toUpperCase(), { ...e, formen });
+  }
+  return out;
+}
+
+const INDEX: ReadonlyMap<string, KuerzelEintrag> = baueEffektiv();
+
+/** Der Katalog nach der Klärrunde, in Katalogreihenfolge. */
+function effektiveEintraege(): KuerzelEintrag[] {
+  return KUERZEL_KATALOG.map(e => INDEX.get(e.kuerzel.toUpperCase()) ?? e);
+}
 
 /** Was der Katalog zu einem Kürzel sagt — mit der Angabe, wie sicher das ist. */
 export interface KuerzelAuskunft {
@@ -119,13 +205,34 @@ export interface KuerzelAuskunft {
   strittig?: boolean;
   /** Aus welcher Projektform die Auskunft stammt; `null` = über alle gleich. */
   quelle: Projektform | null;
+  /** Wie die Bezeichnung zustande kam. Siehe {@link BezeichnungsHerkunft}. */
+  herkunft: BezeichnungsHerkunft;
+  /** Die Entscheidung wirkt, ist aber nicht gegengezeichnet. */
+  bestaetigungOffen?: true;
+  /** Die Zuarbeit ist an dieser Stelle belegt falsch und wurde korrigiert. */
+  quellkorrigiert?: true;
+  /** Die geführten Formen sagen Verschiedenes — der eigene Marker (≠ `strittig`). */
+  bedeutungsdivergenz?: true;
 }
 
 function leer(kuerzel: string): KuerzelAuskunft {
-  return { kuerzel, bezeichnung: null, eindeutig: false, rollen: [], scope: [], kategorien: [], quelle: null };
+  return {
+    kuerzel, bezeichnung: null, eindeutig: false,
+    rollen: [], scope: [], kategorien: [], quelle: null, herkunft: 'unbekannt',
+  };
 }
 
-function ausForm(e: KuerzelEintrag, f: KuerzelForm, quelle: Projektform | null, eindeutig: boolean): KuerzelAuskunft {
+/** Sagen die geführten Formen Verschiedenes? Auf dem EFFEKTIVEN Eintrag. */
+function divergent(e: KuerzelEintrag): boolean {
+  const werte = Object.values(e.formen).map(f => f.bezeichnung);
+  return new Set(werte).size > 1;
+}
+
+function ausForm(
+  e: KuerzelEintrag, f: KuerzelForm,
+  quelle: Projektform | null, eindeutig: boolean,
+  herkunft: BezeichnungsHerkunft, stand?: KurationsStand,
+): KuerzelAuskunft {
   return {
     kuerzel: e.kuerzel,
     bezeichnung: f.bezeichnung,
@@ -136,33 +243,70 @@ function ausForm(e: KuerzelEintrag, f: KuerzelForm, quelle: Projektform | null, 
     ...(e.ersetztDurch ? { ersetztDurch: e.ersetztDurch } : {}),
     ...(e.strittig ? { strittig: true } : {}),
     quelle,
+    herkunft,
+    ...(stand === 'bestaetigung_offen' ? { bestaetigungOffen: true as const } : {}),
+    ...(QUELLKORREKTUREN.some(q => q.kuerzel === e.kuerzel) ? { quellkorrigiert: true as const } : {}),
+    ...(divergent(e) ? { bedeutungsdivergenz: true as const } : {}),
   };
 }
 
 /**
- * Schlägt ein Kürzel nach. **Die Projektform ist Pflicht** — auch als `null`,
- * denn „ich weiß sie nicht" ist eine andere Frage als „egal".
+ * Schlägt ein Kürzel nach. **Die Form ist Pflicht** — auch als `null`, denn
+ * „ich weiß sie nicht" ist eine andere Frage als „egal".
  *
- * Ohne Projektform gilt: stimmen alle geführten Formen überein, ist die Antwort
- * eindeutig; sonst kommt sie mit `eindeutig: false` heraus.
+ * Reihenfolge, und zwar in dieser:
+ *
+ * 1. **Vereinheitlicht** — die Klärrunde hat einen Wortlaut für alle Formen
+ *    festgestellt. Er steckt schon im effektiven Index, hier wird nur die
+ *    Herkunft benannt.
+ * 2. **Die Form selbst**, wenn der Katalog sie führt.
+ * 3. **DS mit eigener Antwort** — schlägt die Sammelregel. Genau deshalb ist
+ *    die Sammelregel eine Reihenfolge und kein Dateneintrag: als Eintrag würde
+ *    sie diese acht überschreiben, sobald jemand sie scharf schaltet.
+ * 4. **DS ohne eigene Antwort** — Sammelregel „DS = FuE", als abgeleitet
+ *    gekennzeichnet.
+ * 5. **Geliehen** — erstgeführte Form. `eindeutig` nur, wenn ohnehin alle
+ *    dasselbe sagen; sonst zeigt der Aufrufer das Kürzel statt einer Bedeutung.
  */
-export function kuerzelAuskunft(kuerzel: string, projektform: Projektform | null): KuerzelAuskunft {
+export function kuerzelAuskunft(kuerzel: string, form: Nachschlageform | null): KuerzelAuskunft {
   const k = kuerzel.trim().toUpperCase();
   const e = INDEX.get(k);
   if (!e) return leer(kuerzel.trim());
 
-  if (projektform !== null) {
-    const f = e.formen[projektform];
-    if (f) return ausForm(e, f, projektform, true);
-    // Die Zuarbeit führt das Kürzel, aber nicht für diese Projektform. Dann
-    // gilt dieselbe Regel wie ohne Projektform — nicht eine fremde Form raten.
-  }
-
   const formen = Object.entries(e.formen) as [Projektform, KuerzelForm][];
   if (formen.length === 0) return leer(e.kuerzel);
+
+  const einheitlich = vereinheitlichtFuer(e.kuerzel);
+  if (einheitlich) {
+    // Jede Form trägt denselben Wortlaut; welche gelesen wird, ist gleichgültig.
+    return ausForm(e, formen[0]![1], null, true, 'einheitlich', einheitlich.stand);
+  }
+
+  if (form !== null && form !== 'DS') {
+    const f = e.formen[form];
+    if (f) return ausForm(e, f, form, true, 'form');
+    // Die Zuarbeit führt das Kürzel, aber nicht für diese Projektform. Dann
+    // gilt dieselbe Regel wie ohne Form — nicht eine fremde raten.
+  }
+
+  if (form === 'DS') {
+    const ds = dsBedeutungFuer(e.kuerzel);
+    if (ds) {
+      const quelle = e.formen[ds.entsprichtForm];
+      // Der Wortlaut kommt aus der Kuration, Rollen und Scope aus der Form, die
+      // ihn führt — sonst stünde die Bedeutung ohne ihren Kontext da.
+      const basis: KuerzelForm = quelle
+        ? { ...quelle, bezeichnung: ds.bezeichnung }
+        : { bezeichnung: ds.bezeichnung, rollen: [], scope: [], kategorien: [] };
+      return ausForm(e, basis, null, true, 'ds-kuratiert', ds.stand);
+    }
+    const fue = e.formen.FuE;
+    if (fue) return ausForm(e, fue, null, true, 'ds-aus-fue');
+  }
+
   const ersteEintrag = formen[0]!;
-  const alleGleich = formen.every(([, f]) => f.bezeichnung === ersteEintrag[1].bezeichnung);
-  return ausForm(e, ersteEintrag[1], null, alleGleich);
+  const alleGleich = !divergent(e);
+  return ausForm(e, ersteEintrag[1], null, alleGleich, 'geliehen');
 }
 
 /**
@@ -191,8 +335,19 @@ export interface UneinigesKuerzel {
    * Trägt der Katalog dafür schon `strittig`? Das misst etwas ANDERES — ein
    * Schreibvarianten-Patt des Generators, nicht einen Bedeutungsunterschied.
    * Beide Angaben stehen deshalb nebeneinander statt übereinander.
+   *
+   * `YW` trägt beides („Wichtig" / „Wichtig:" im Patt, und der Fachbereich hat
+   * den Unterschied als projektformabhängig bestätigt) — der beste Beleg
+   * dafür, dass die zwei Marker nicht verschmelzen dürfen.
    */
   strittig: boolean;
+  /**
+   * Hat die Klärrunde den Unterschied als **richtig** bestätigt? Dann ist der
+   * Fall geklärt und wird nicht erneut gefragt — er war nie ein Fehler.
+   */
+  bestaetigt: boolean;
+  /** Beleg der Bestätigung, für Anzeige und Bericht; `null` = unentschieden. */
+  beleg: string | null;
 }
 
 /**
@@ -206,13 +361,19 @@ export interface UneinigesKuerzel {
  */
 export function uneinigeKuerzel(): UneinigesKuerzel[] {
   const out: UneinigesKuerzel[] = [];
-  for (const e of KUERZEL_KATALOG) {
+  for (const e of effektiveEintraege()) {
+    // Auf dem EFFEKTIVEN Eintrag: ein vereinheitlichtes Kürzel ist nicht mehr
+    // uneinig, und ohne diesen Schritt meldete jede Auswertung den längst
+    // entschiedenen Widerspruch weiter.
+    if (!divergent(e)) continue;
     const formen = Object.entries(e.formen) as [Projektform, KuerzelForm][];
-    if (new Set(formen.map(([, f]) => f.bezeichnung)).size <= 1) continue;
+    const bestaetigt = divergenzBestaetigt(e.kuerzel);
     out.push({
       kuerzel: e.kuerzel,
       bedeutungen: formen.map(([form, f]) => ({ form, bezeichnung: f.bezeichnung })),
       strittig: e.strittig === true,
+      bestaetigt: bestaetigt !== null,
+      beleg: bestaetigt ? belegText(bestaetigt.beleg) : null,
     });
   }
   return out;
@@ -221,6 +382,30 @@ export function uneinigeKuerzel(): UneinigesKuerzel[] {
 /** Alle Kürzel, deren Bedeutung von der Projektform abhängt. */
 export function projektformAbhaengigeKuerzel(): string[] {
   return uneinigeKuerzel().map(u => u.kuerzel);
+}
+
+/**
+ * Uneinige Kürzel, zu denen **noch keine Antwort** vorliegt — die Menge, aus
+ * der die Klärfragen zur Bedeutung entstehen.
+ *
+ * Ein Widerspruch zwischen den Formen ist für sich noch kein Problem: solange
+ * jede Form ihren eigenen Eintrag hat, zeigt die App jedem Vorgang die richtige
+ * Bedeutung. Falsch wird es erst, wo **geliehen** werden muss — und das ist
+ * seit der Klärrunde nur noch dort, wo weder eine DS-Antwort noch eine
+ * FuE-Fassung existiert, aus der die Sammelregel schöpfen könnte.
+ *
+ * Gemessen am heutigen Katalog: **leer**. Jedes uneinige Kürzel führt eine
+ * FuE-Form. Das ist kein Grund, die Ableitung zu entfernen — die nächste
+ * Zuarbeit kann ein Kürzel bringen, das nur NW und DL kennt.
+ */
+export function offeneBedeutungen(): UneinigesKuerzel[] {
+  return uneinigeKuerzel().filter(u =>
+    !u.bestaetigt && kuerzelAuskunft(u.kuerzel, 'DS').herkunft === 'geliehen');
+}
+
+/** Alle geführten Kürzel, in Katalogreihenfolge. */
+export function alleKuerzel(): string[] {
+  return KUERZEL_KATALOG.map(e => e.kuerzel);
 }
 
 /** Die Kuratorenliste: Schreibvarianten, bei denen keine Mehrheit entschied. */

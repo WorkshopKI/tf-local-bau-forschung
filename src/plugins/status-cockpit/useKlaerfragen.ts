@@ -14,7 +14,9 @@
 import { useCallback, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
-import { normalisiereWert, type MappingVersion } from '@/core/status';
+import type { MappingVersion } from '@/core/status';
+import { indexNachSchreibweise } from '@/core/status/wert-index';
+import { mitAmtlichenSchreibweisen } from '@/core/status/snapshot';
 import {
   baueKlaerfragen, ladeKlaerfragenBestand,
   type Klaerfrage, type KlaerfragenBestand,
@@ -41,7 +43,16 @@ export function useKlaerfragen(version: MappingVersion | null): KlaerfragenLauf 
     // Die Fassung führt einen Wert, wenn sie ihn unter IRGENDEINEM Feld führt —
     // die Frage lautet „kennt sie den Wert", nicht „kennt sie ihn an dieser
     // Spalte". Feld-skopiert gefragt meldete derselbe Wert sich zweimal.
-    const fassungsWerte = new Set(version.werte.map(w => normalisiereWert(w.wert)));
+    //
+    // Und sie führt ihn unter JEDER Schreibweise, unter der die Anzeige ihn
+    // auflöst: eigene Varianten plus amtlicher Text samt Varianten
+    // (`mitAmtlichenSchreibweisen`, dieselbe Funktion wie im Snapshot). Nur
+    // `w.wert` zu prüfen fragte nach etwas, das die App längst kennt — Code 72
+    // steht in der Fassung als „Stellungnahme zur Rücknahmeempf.", im Bestand
+    // ausgeschrieben.
+    const fassungsWerte = new Set(
+      indexNachSchreibweise(version.werte.map(mitAmtlichenSchreibweisen)).keys(),
+    );
     setBestand(gemessen);
     setFragen(baueKlaerfragen({ bestand: gemessen, fassungsWerte }));
     setDauerMs(Math.round(performance.now() - begonnen));
