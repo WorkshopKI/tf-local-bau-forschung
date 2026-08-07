@@ -15,36 +15,49 @@
  * dort, wo jemand mit dem Fachsystem spricht. In der Bahn wäre `AK4` eine
  * Vokabel, die nur die Hälfte des Teams kennt.
  *
- * Gerechnet wird in `bandGeometrie.ts` (rein, node-testbar); diese Datei zeichnet.
+ * Gerechnet wird nebenan (alles rein und node-testbar): `bandGeometrie.ts`
+ * platziert, `bandBeschriftung.ts` beschriftet, `bandKanten.ts` bündelt die
+ * Übergänge je Tag. Diese Datei zeichnet; `BandFuss.tsx` steht darunter.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Hand } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
 // Direkt, nicht über das Barrel: `textMessung` hängt nur an `data-table/types`,
 // der Umweg zöge die halbe Tabellen-Schicht in dieses Bauteil.
 import {
   aktuelleSchriftGeneration, messeBreite, warteAufSchriften,
 } from '@/components/data-table/messung/textMessung';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useElementBreite } from '@/core/hooks/useElementBreite';
-import { kopiereText } from '@/core/utils/kopieren';
-import { getStatusCategory } from '@/core/utils/status-canonical';
-import { KANBAN_LANE_ACCENT } from '@/plugins/home/widgets/kanbanLanes';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import type { Konfidenz, VerlaufsSpur } from '@/core/status/verlauf';
 import { KONFIDENZ_TEXT, SpurListe, leise, spurTitel } from '../ausklapp/SpurListe';
 import {
-  baueBandGeometrie, dauerText, type BandSegment, type BandSpur,
+  baueBandGeometrie, buendle, dauerText, type BandSegment, type BandSpur,
 } from './bandGeometrie';
 import { verteileBeschriftung, type SegmentBeschriftung } from './bandBeschriftung';
-import { baueVerlaufsText } from './bandText';
+import { baueKanten, type BandKante } from './bandKanten';
+import { segmentFarbe } from './bandFarbe';
+import { BandFuss, BandLegende, type LegendenEintrag } from './BandFuss';
 
-/** Höhe einer Bahn inklusive Beschriftungszeile. */
-const SPUR_H = 30;
+/** Oberkante des Balkens in seiner Bahn. */
+const BALKEN_OBEN = 4;
+/**
+ * Höhe des Balkens. Seit v3.36 20 statt 16 px: die Beschriftung steht bei
+ * 11 px (vorher 10), und darunter wirkte der Balken wie ein Strich mit Text
+ * darauf statt wie eine Fläche.
+ */
+const BALKEN_H = 20;
+/** Höhe des Balken-Kastens einer Bahn — Balken plus etwas Luft darunter. */
+const KASTEN_H = BALKEN_OBEN + BALKEN_H + 4;
+/** Höhe einer Bahn inklusive Abstand zur nächsten. */
+const SPUR_H = KASTEN_H + 6;
 /** Zusatzhöhe einer Bahn, die eine zweite Beschriftungs-Etage trägt. */
-const UNTER_H = 12;
-/** Breite der Spur-Beschriftung links. */
-const LABEL_W = 128;
+const UNTER_H = 16;
+/** Untergrenze der Spur-Beschriftung links — das Maß bis v3.35. */
+const LABEL_MIN = 128;
+/** Obergrenze: ab hier frisst die Beschriftung die Bahn, und `truncate` greift. */
+const LABEL_MAX = 260;
+/** Abstand zwischen Spur-Beschriftung und Bahn (`pr-2`). */
+const LABEL_POLSTER = 8;
 /** Unter diese Bahnbreite geht es nie, egal wie eng der Container wird. */
 const MIN_BAHN = 320;
 /**
@@ -63,29 +76,53 @@ const LEER_LABEL: SegmentBeschriftung = {
 };
 
 /**
- * Wie eine Kante gezeichnet wird. Vier Stufen, vier Aussagen — kein stiller
- * Fallback: „unsicher" und „von Hand" sind verschiedene Dinge.
+ * Wie eine Kante gezeichnet wird — **eine** Rampe, kein Sortiment: die drei
+ * belegten Stufen tragen ein volles Muster, die unbelegte einen halbdurch-
+ * sichtigen Haarstrich.
+ *
+ * **Der Strich hat die Farbe des Hintergrunds, nicht der Schrift** — er ist ein
+ * Schnitt durch den Balken. Eine Schriftfarbe funktionierte nur im hellen
+ * Modus: dort sind die Balken satt und die Schrift dunkel, im dunklen Modus
+ * aber sind die Balken pastellhell UND die Schrift hell (gemessen: #cccac4 auf
+ * rgb(142,168,204), rund 1,3:1 — unsichtbar). Der Hintergrund ist in beiden
+ * Modi die Gegenfarbe der Balken und trägt darum in beiden.
+ *
+ * Bis v3.35 trug `kein_kuerzel` statt eines Strichs ein Handsymbol. Es war
+ * 9 px groß, lag in Tertiärfarbe auf einem gesättigten Balken und deckte den
+ * Strich zu, der an derselben Stelle schon stand (siehe `bandKanten.ts`) —
+ * niemand konnte es lesen, und rückgefragt wurde nach dem „mini Pfeil".
  */
-const KANTE: Record<Konfidenz, { stil: string; symbol: boolean }> = {
-  trigger_bestaetigt: { stil: 'solid', symbol: false },
-  trigger_bedingt: { stil: 'dashed', symbol: false },
-  zeitliche_naehe: { stil: 'dotted', symbol: false },
-  kein_kuerzel: { stil: 'solid', symbol: true },
+const KANTE: Record<Konfidenz, { stil: string; staerke: string; deckung: number }> = {
+  trigger_bestaetigt: { stil: 'solid', staerke: '2px', deckung: 1 },
+  trigger_bedingt: { stil: 'dashed', staerke: '2px', deckung: 1 },
+  zeitliche_naehe: { stil: 'dotted', staerke: '2px', deckung: 1 },
+  kein_kuerzel: { stil: 'solid', staerke: '1px', deckung: 0.45 },
 };
 
-function farbe(roh: string | undefined): string {
-  return KANBAN_LANE_ACCENT[getStatusCategory(roh ?? '')];
+/**
+ * Tooltip-Inhalt mit echten Zeilen. Der `text`-Weg des {@link Tooltip} kann das
+ * nicht: sein Kasten steht auf `white-space: normal`, ein `\n` darin fällt zu
+ * einem Leerzeichen zusammen.
+ */
+function Zeilen({ zeilen }: { zeilen: readonly string[] }): React.ReactElement {
+  return (
+    <span className="flex flex-col gap-0.5">
+      {zeilen.map(z => <span key={z}>{z}</span>)}
+    </span>
+  );
 }
 
-function segmentTooltip(b: BandSegment): string {
+function segmentZeilen(b: BandSegment): string[] {
   const s = b.segment;
   const zeitraum = `${s.vonDatum ? formatDatumsWert(s.vonDatum) : 'Anfang unbekannt'}`
     + ` – ${s.bisDatum ? formatDatumsWert(s.bisDatum) : 'offen'}`;
-  const herkunft = s.statusRef?.labelHerkunft === 'ohne'
-    ? ' · Kurzform nicht gepflegt'
-    : (s.statusRef?.labelHerkunft === 'fassung' ? ' · Kurzform aus eurer Fassung' : '');
-  return `${s.statusRef?.lang ?? 'ohne Status'}\n${zeitraum} · ${dauerText(s.dauerTage)}`
-    + `${s.dauerUnsicher ? ' (unsicher)' : ''}${herkunft}`;
+  const zeilen = [
+    s.statusRef?.lang ?? 'ohne Status',
+    `${zeitraum} · ${dauerText(s.dauerTage)}${s.dauerUnsicher ? ' (unsicher)' : ''}`,
+  ];
+  if (s.statusRef?.labelHerkunft === 'ohne') zeilen.push('Kurzform nicht gepflegt');
+  if (s.statusRef?.labelHerkunft === 'fassung') zeilen.push('Kurzform aus eurer Fassung');
+  return zeilen;
 }
 
 function Segment({ b, schrift }: {
@@ -96,8 +133,8 @@ function Segment({ b, schrift }: {
   // geraten. Steht der Text unter dem Balken, bleibt der Balken selbst leer.
   const label = schrift.lage === 'im-balken' || schrift.lage === 'nummer' ? schrift.text : '';
   return (
-    <Tooltip text={segmentTooltip(b)} wrapperClassName="absolute" wrapperStyle={{
-      left: b.links, width: b.breite, top: 4, height: 16,
+    <Tooltip content={<Zeilen zeilen={segmentZeilen(b)} />} wrapperClassName="absolute" wrapperStyle={{
+      left: b.links, width: b.breite, top: BALKEN_OBEN, height: BALKEN_H,
     }}>
       <span
         // `data-band-label`: Anker für die Gegenprobe im Abnahmelauf — läuft ein
@@ -108,10 +145,10 @@ function Segment({ b, schrift }: {
         // (das `px-1` eines Blocks lässt sich nicht unterschreiten) und ein auf
         // die Mindestbreite kollabiertes Segment ragte achtfach über sein Maß
         // hinaus — sichtbar als Scrollbalken am rechten Bahnrand.
-        className={`block h-full rounded-[2px] overflow-hidden text-[10px] leading-4 text-white whitespace-nowrap${
+        className={`block h-full rounded-[2px] overflow-hidden text-[11px] leading-5 text-white whitespace-nowrap${
           label === '' ? '' : ' px-1'}`}
         style={{
-          background: farbe(s.statusRef?.roh),
+          background: segmentFarbe(s.statusRef?.roh),
           // Angeschnittene Kante statt Ersatzbreite: wo eine Grenze fehlt, endet
           // das Segment im Nichts — eine gerade Kante behauptete ein Datum.
           ...(b.offenLinks
@@ -127,8 +164,8 @@ function Segment({ b, schrift }: {
       {/* Bruchzeichen: hier ist der Zeitmaßstab gerissen, die Länge sagt nichts. */}
       {b.gestaucht && b.breite >= 18 && (
         <span
-          className="absolute top-0 text-[9px] leading-[24px] text-[var(--tf-text-tertiary)] pointer-events-none"
-          style={{ left: b.breite / 2 - 5 }}
+          className="absolute top-0 text-[9px] text-[var(--tf-text-tertiary)] pointer-events-none"
+          style={{ left: b.breite / 2 - 5, lineHeight: `${BALKEN_H}px` }}
         >
           ⁄⁄
         </span>
@@ -137,22 +174,37 @@ function Segment({ b, schrift }: {
   );
 }
 
-/** Die Kante zwischen zwei Segmenten — Träger der Konfidenz. */
-function Kante({ x, konfidenz, titel }: {
-  x: number; konfidenz: Konfidenz; titel: string;
-}): React.ReactElement {
-  const k = KANTE[konfidenz];
+/**
+ * Die Kante an einer Segmentgrenze — Trägerin der Konfidenz.
+ *
+ * **Eine je Tag**, nicht eine je Kürzel: was an einem Tag zusammenfällt, steht
+ * an derselben x-Position und lag vorher übereinander (`bandKanten.ts`). Der
+ * Strich zeigt die beste Konfidenz des Tages, der Tooltip nennt jedes Kürzel
+ * einzeln.
+ */
+function Kante({ k }: { k: BandKante }): React.ReactElement {
+  const stil = KANTE[k.konfidenz];
   return (
-    <Tooltip text={titel} wrapperClassName="absolute" wrapperStyle={{ left: x - 4, top: 0, width: 8, height: 24 }}>
-      <span className="block relative w-2 h-6">
-        {k.symbol
-          ? <Hand size={9} className="absolute left-0 top-[7px] text-[var(--tf-text-tertiary)]" />
-          : (
-            <span
-              className="absolute top-[2px] bottom-[2px] left-1/2"
-              style={{ borderLeft: `1.5px ${k.stil} var(--tf-text-secondary)` }}
-            />
-          )}
+    <Tooltip
+      content={(
+        <Zeilen zeilen={[
+          formatDatumsWert(k.datum),
+          ...k.uebergaenge.map(u => `${u.kuerzel} · ${KONFIDENZ_TEXT[u.konfidenz]}`),
+        ]} />
+      )}
+      wrapperClassName="absolute"
+      wrapperStyle={{ left: k.x - 4, top: BALKEN_OBEN, width: 8, height: BALKEN_H }}
+    >
+      <span className="block relative w-2 h-full">
+        {/* Genau so hoch wie der Balken: außerhalb wäre der Strich
+            hintergrundfarben auf Hintergrund, also nicht da. */}
+        <span
+          className="absolute inset-y-0 left-1/2"
+          style={{
+            borderLeft: `${stil.staerke} ${stil.stil} var(--tf-bg)`,
+            opacity: stil.deckung,
+          }}
+        />
       </span>
     </Tooltip>
   );
@@ -196,13 +248,13 @@ function UnterLabel({ s, farbton }: {
 }): React.ReactElement {
   return (
     <span
-      className={`absolute text-[10px] leading-3 whitespace-nowrap pointer-events-none
+      className={`absolute text-[11px] leading-4 whitespace-nowrap pointer-events-none
         text-[var(--tf-text-secondary)] ${s.rechtsBuendig ? 'pr-1' : 'pl-1'}`}
       style={{
         left: s.x,
-        // Bündig an der Balken-Unterkante (Balken: top 4, Höhe 16) — jeder
-        // Abstand macht aus dem Strich eine freistehende Linie.
-        top: 20,
+        // Bündig an der Balken-Unterkante — jeder Abstand macht aus dem Strich
+        // eine freistehende Linie.
+        top: BALKEN_OBEN + BALKEN_H,
         // Nach innen gerückt zeigt der Strich nach rechts: links stünde er in
         // einem fremden Abschnitt.
         ...(s.rechtsBuendig
@@ -215,8 +267,9 @@ function UnterLabel({ s, farbton }: {
   );
 }
 
-function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
-  b: BandSpur; breite: number; eigenes: string; offen: boolean; onToggle: () => void;
+function Bahn({ b, breite, labelBreite, eigenes, offen, onToggle, schrift, unterzeile }: {
+  b: BandSpur; breite: number; labelBreite: number; eigenes: string;
+  offen: boolean; onToggle: () => void;
   /** Beschriftungsentscheidung je Segment, indexgleich zu `b.segmente`. */
   schrift: readonly SegmentBeschriftung[];
   /** Trägt diese Bahn eine zweite Etage? Dann wächst sie um deren Höhe. */
@@ -225,6 +278,7 @@ function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
   const spur = b.spur;
   const lage = lageText(spur);
   const gruppe = b.gleiche.length > 0 ? ` +${b.gleiche.length}` : '';
+  const kanten = useMemo(() => baueKanten(b.segmente, spur.uebergaenge), [b.segmente, spur.uebergaenge]);
   // Höhe JE BAHN, nicht global: ein Verbund mit acht Teilvorhaben soll nicht
   // überall Platz verschenken, weil eine einzige Bahn eine zweite Etage braucht.
   // Die Zusage „derselbe Tag, dieselbe x-Position" bricht davon nicht — die
@@ -238,20 +292,23 @@ function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
         aria-expanded={offen}
         className={`shrink-0 text-left text-[11.5px] truncate pr-2 cursor-pointer ${
           offen ? 'text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)]'}`}
-        style={{ width: LABEL_W }}
+        style={{ width: labelBreite, lineHeight: `${KASTEN_H}px` }}
         title={spurTitel(spur, eigenes) + (gruppe ? ` (und ${b.gleiche.length} weitere mit gleichem Verlauf)` : '')}
       >
         {spurTitel(spur, eigenes)}{gruppe}
       </button>
-      <div className="relative" style={{ width: breite, height: 24 + zusatz }}>
+      <div className="relative" style={{ width: breite, height: KASTEN_H + zusatz }}>
         {/* Die Lage steht DANEBEN, nicht statt der Bahn: ein Vorgang ohne
             erklärten Wechsel trägt trotzdem seinen Status, und der gehört
             gezeichnet. Nur wenn es gar kein Segment gibt, tritt der Satz an
             seine Stelle. */}
         {lage !== null && (
           <span
-            className={`absolute top-[5px] ${leise} italic whitespace-nowrap pointer-events-none z-[1]`}
-            style={b.segmente.length === 0 ? { left: 0 } : { left: 6 }}
+            className={`absolute ${leise} italic whitespace-nowrap pointer-events-none z-[1]`}
+            style={{
+              top: BALKEN_OBEN, lineHeight: `${BALKEN_H}px`,
+              ...(b.segmente.length === 0 ? { left: 0 } : { left: 6 }),
+            }}
           >
             {lage}
           </span>
@@ -267,24 +324,13 @@ function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
               ? (
                 <UnterLabel
                   key={`u-${i}`} s={s}
-                  farbton={farbe(b.segmente[i]?.segment.statusRef?.roh)}
+                  farbton={segmentFarbe(b.segmente[i]?.segment.statusRef?.roh)}
                 />
               )
               : null))}
-            {/* Je Übergang eine Kante an seinem Tag. Die Konfidenz gehört hierher,
-                nicht auf die Fläche daneben. */}
-            {spur.uebergaenge.map((u, i) => {
-              const treffer = b.segmente.find(s => s.segment.vonDatum === u.datum);
-              if (treffer === undefined) return null;
-              return (
-                <Kante
-                  key={`${u.kuerzel}-${u.datum}-${i}`}
-                  x={treffer.links}
-                  konfidenz={u.konfidenz}
-                  titel={`${u.kuerzel} · ${formatDatumsWert(u.datum)}\n${KONFIDENZ_TEXT[u.konfidenz]}`}
-                />
-              );
-            })}
+            {/* Je Tag eine Kante. Die Konfidenz gehört hierher, nicht auf die
+                Fläche daneben. */}
+            {kanten.map(k => <Kante key={k.datum} k={k} />)}
           </>
         )}
       </div>
@@ -293,7 +339,8 @@ function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
 }
 
 export function VerlaufsBand({
-  spuren, eigenes, bezugsZeitpunkt, breite = 620, fassung = null, journalAb = null,
+  spuren, eigenes, bezugsZeitpunkt, breite = 620,
+  fassung = null, journalAb = null, journalGenutzt = false,
 }: {
   spuren: readonly VerlaufsSpur[];
   eigenes: string;
@@ -306,6 +353,8 @@ export function VerlaufsBand({
   /** Beschriftung der geladenen Katalogfassung — gehört in den kopierten Text. */
   fassung?: string | null;
   journalAb?: string | null;
+  /** Ob das Journal für DIESE Bahn herangezogen wurde (Fußzeile). */
+  journalGenutzt?: boolean;
 }): React.ReactElement {
   const [offen, setOffen] = useState<string | null>(null);
   // Gemessen wird der Scroll-Behälter der Bahn: seine Breite kommt von OBEN
@@ -314,18 +363,42 @@ export function VerlaufsBand({
   // voraus, dass kein Vorfahr shrink-to-fit ist; `TableBody` gibt dem Bereich
   // seit v3.32 die sichtbare Tabellenbreite (`portBreite`).
   const [scroll, gemessen] = useElementBreite<HTMLDivElement>('inhalt');
-  const kopieren = useAsyncAction(async () => {
-    await kopiereText(baueVerlaufsText(spuren, {
-      bezug: eigenes || spuren.find(s => s.art === 'verbund')?.id || '—',
-      fassung, journalAb, bezugsZeitpunkt,
-    }));
-  });
+
+  // Die Webschriften laden asynchron. Wer vorher misst, bekommt die Metrik der
+  // Ersatzschrift und bleibt dabei — die Beschriftungen wären systematisch zu
+  // schmal gemessen und liefen über ihre Balken hinaus. Genau eine Neumessung,
+  // sobald sie stehen (`textMessung.ts` zählt die Generation hoch).
+  const [schriftGen, setSchriftGen] = useState(() => aktuelleSchriftGeneration());
+  useEffect(() => {
+    let lebt = true;
+    void warteAufSchriften().then(() => {
+      if (lebt) setSchriftGen(aktuelleSchriftGeneration());
+    });
+    return () => { lebt = false; };
+  }, []);
+
+  // Die Spur-Beschriftung bekommt die Breite, die ihr längster Titel braucht.
+  // Sie hing bis v3.35 an einer festen Zahl, und `16KN073848 (diese Zeile)`
+  // brauchte 137 px — abgeschnitten wurde ausgerechnet der Zusatz, der die
+  // eigene Zeile benennt. Gemessen wird über `buendle`, also über GENAU die
+  // Titel, die die Geometrie später zeichnet (die Bündelung hängt nicht an der
+  // Breite, es entsteht kein Ringschluss).
+  const labelBreite = useMemo(() => {
+    let max = 0;
+    for (const b of buendle(spuren)) {
+      const gruppe = b.gleiche.length > 0 ? ` +${b.gleiche.length}` : '';
+      max = Math.max(max, messeBreite(spurTitel(b.spur, eigenes) + gruppe, 'bandSpur'));
+    }
+    return Math.min(LABEL_MAX, Math.max(LABEL_MIN, Math.ceil(max) + LABEL_POLSTER));
+    // `schriftGen`: siehe unten — die Signatur des modulweiten Messcaches.
+  }, [spuren, eigenes, schriftGen]);
+
   // `gemessen === null`: erster Rahmen, verborgene Pane oder kein
   // `ResizeObserver` — dann gilt der Prop. Die Spur-Beschriftung links geht vom
   // gemessenen Platz ab, sie steht neben der Bahn, nicht darin.
   const vorgabe = Math.max(
     MIN_BAHN,
-    gemessen === null ? breite : gemessen - LABEL_W - RAND_LUFT,
+    gemessen === null ? breite : gemessen - labelBreite - RAND_LUFT,
   );
   const geo = useMemo(
     () => baueBandGeometrie(spuren, bezugsZeitpunkt, vorgabe),
@@ -337,7 +410,7 @@ export function VerlaufsBand({
   // die Nummern gebraucht werden.
   const legende = useMemo(() => {
     const gesehen = new Set<string>();
-    const out: { kurz: string; lang: string; roh: string }[] = [];
+    const out: LegendenEintrag[] = [];
     for (const b of geo.spuren) {
       for (const s of b.segmente) {
         const r = s.segment.statusRef;
@@ -353,19 +426,6 @@ export function VerlaufsBand({
     () => new Map(legende.map((l, i) => [l.kurz, i + 1] as const)),
     [legende],
   );
-
-  // Die Webschriften laden asynchron. Wer vorher misst, bekommt die Metrik der
-  // Ersatzschrift und bleibt dabei — die Beschriftungen wären systematisch zu
-  // schmal gemessen und liefen über ihre Balken hinaus. Genau eine Neumessung,
-  // sobald sie stehen (`textMessung.ts` zählt die Generation hoch).
-  const [schriftGen, setSchriftGen] = useState(() => aktuelleSchriftGeneration());
-  useEffect(() => {
-    let lebt = true;
-    void warteAufSchriften().then(() => {
-      if (lebt) setSchriftGen(aktuelleSchriftGeneration());
-    });
-    return () => { lebt = false; };
-  }, []);
 
   const beschriftung = useMemo(
     () => verteileBeschriftung(geo.spuren, {
@@ -388,9 +448,9 @@ export function VerlaufsBand({
     <div className="flex flex-col gap-2">
       {/* Die Bahn scrollt in ihrem EIGENEN Container — der Seiten-Body nie. */}
       <div ref={scroll} className="overflow-x-auto">
-        <div style={{ width: LABEL_W + geo.breite + RAND_LUFT }}>
+        <div style={{ width: labelBreite + geo.breite + RAND_LUFT }}>
           {/* Achsenmarken oben, damit die Stauchung ablesbar bleibt. */}
-          <div className="relative" style={{ height: 12, marginLeft: LABEL_W }}>
+          <div className="relative" style={{ height: 12, marginLeft: labelBreite }}>
             {geo.marken.map(m => (
               <span key={m.label} className={`absolute top-0 ${leise}`} style={{ left: m.x }}>
                 {m.label}
@@ -401,7 +461,7 @@ export function VerlaufsBand({
             const key = `${b.spur.art}-${b.spur.id}`;
             return (
               <Bahn
-                key={key} b={b} breite={geo.breite} eigenes={eigenes}
+                key={key} b={b} breite={geo.breite} labelBreite={labelBreite} eigenes={eigenes}
                 schrift={beschriftung.segmente[i] ?? []}
                 unterzeile={beschriftung.unterzeile[i] ?? false}
                 offen={offen === key}
@@ -412,37 +472,14 @@ export function VerlaufsBand({
         </div>
       </div>
 
-      {/* Fußzeile: worauf die Bahn beruht — und der Weg, sie mitzunehmen. Der
-          kopierte Text trägt die CODES mit; in der Bahn stehen sie nicht, aber
-          eine Rückfrage ans Fachsystem lässt sich ohne sie nicht stellen. */}
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <span className={leise}>
-          Rekonstruiert aus den Datumsspalten · Achse bis {formatDatumsWert(bezugsZeitpunkt)}
-          {fassung !== null && ` · Katalogfassung ${fassung}`}
-        </span>
-        <button
-          type="button"
-          onClick={kopieren.run}
-          disabled={kopieren.busy}
-          className={`${leise} underline underline-offset-2 cursor-pointer`}
-        >
-          {kopieren.busy ? 'kopiert …' : 'Verlauf kopieren'}
-        </button>
-        {kopieren.error != null && (
-          <span className="text-[11px] text-[var(--tf-danger-text)]">{String(kopieren.error)}</span>
-        )}
-      </div>
+      {/* Erst die Legende — sie erklärt das Bild darüber und gehört an dessen
+          Kante. Die Herkunft ist eine Fußnote und steht darunter. */}
+      <BandLegende eintraege={legende} nummeriert={nummeriert} />
 
-      {legende.length > 0 && (
-        <p className="text-[11px] text-[var(--tf-text-secondary)] leading-5">
-          {legende.map((l, i) => (
-            <span key={l.kurz} className="mr-3 whitespace-nowrap">
-              {nummeriert && <span className={leise}>{i + 1} </span>}
-              {l.lang}
-            </span>
-          ))}
-        </p>
-      )}
+      <BandFuss
+        spuren={spuren} eigenes={eigenes}
+        angabe={{ bezugsZeitpunkt, fassung, journalAb, journalGenutzt }}
+      />
 
       {/* Höchstens eine Spur offen — die schlichte Liste aus Phase 2 als
           Aufklappstufe, nicht als Ersatz. */}

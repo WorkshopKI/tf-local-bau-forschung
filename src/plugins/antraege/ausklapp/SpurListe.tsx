@@ -166,21 +166,3 @@ export function SpurListe({ spur, eigenes, ohneKopf }: {
     </div>
   );
 }
-
-/** Der Nullpunkt-Hinweis — gehört unter JEDE Verlaufs-Anzeige (Abschnitt 12.2). */
-export function JournalFuss({ journalAb, journalGenutzt }: {
-  journalAb: string | null; journalGenutzt: boolean;
-}): React.ReactElement {
-  return (
-    <p className={leise}>
-      Aus den Datumsspalten abgeleitet — die `D_`-Spalten tragen je Kürzel nur das
-      zuletzt gesetzte Datum.{' '}
-      {journalAb === null
-        ? 'Kein Import-Diff-Journal geführt.'
-        : `Belegte Änderungen führt das Journal ab ${tagDe(journalAb)}`}
-      {journalAb !== null && !journalGenutzt
-        && ' — hier nicht herangezogen, weil es je Teilvorhaben geführt wird und dieses Vorhaben mehrere hat'}
-      {journalAb !== null && '.'}
-    </p>
-  );
-}

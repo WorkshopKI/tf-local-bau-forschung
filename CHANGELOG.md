@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.37.0 — VerlaufsBand: hoehere Balken, Legende am Bild, eine Fusszeile, eine Kante je Tag (August 2026)
+
+MINOR — Die Bahn hatte nach v3.32 Platz, gab ihn aber nicht weiter: `16KN073848 (diese Zeile)` brauchte 137 px in einer 128-px-Spalte, unter der Bahn standen zwei Sätze über dieselben Datumsspalten, und die Legende lag hinter einem davon. Dazu ein gemessener Befund: **51 Kanten auf 26 Tagen** — mehr als die Hälfte lag exakt übereinander, und obenauf ein 9-px-Handsymbol, nach dem als „mini Pfeil" rückgefragt wurde.
+
+- Eine Kante je **Tag** statt je Übergang, Stil vom best belegten des Tages, Tooltip nennt jedes Kürzel — neu [bandKanten.ts](src/plugins/antraege/verlauf-band/bandKanten.ts)
+- Balken 20 statt 16 px, Beschriftung 11 statt 10 — Messprofil `bandLabel` zieht mit ([textMessung.ts](src/components/data-table/messung/textMessung.ts))
+- Spur-Beschriftung misst sich selbst (Profil `bandSpur`, 128–260 px) statt fester 128 — [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+- Legende direkt unter der Bahn, gerahmt, mit Farbmarke und Nummer darin — neu [BandFuss.tsx](src/plugins/antraege/verlauf-band/BandFuss.tsx)
+- Eine Fußzeile statt zweier: Kurzauskunft + Info-Zeichen, `JournalFuss` entfällt — neu [herkunftsText.ts](src/plugins/antraege/verlauf-band/herkunftsText.ts)
+
 ### v3.36.0 — Glossar-Suche: Umlaute egal, mehrere Woerter (August 2026)
 
 MINOR — Nachtrag zu v3.33: die Suche verglich eine Zeichenkette am Stück. „Prufung" fand „Prüfung" nicht, und „brief nf" traf nur, wer die Wortstellung des Bestands erriet — was gerade der nicht kann, der nachschlägt. Beides scheiterte bisher an der Treffer-Markierung: Falten verschiebt Positionen, `NFD` zerlegt „ü", „ß" wird zu „ss".

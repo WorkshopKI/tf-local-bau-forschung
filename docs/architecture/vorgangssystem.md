@@ -1462,16 +1462,35 @@ Vier Stufen, vier Aussagen, kein stiller Fallback:
 
 | Stufe | Kante | heißt |
 |---|---|---|
-| `trigger_bestaetigt` | durchgezogen | Regel greift, Vorbedingung am Tag des Kürzels erfüllt |
-| `trigger_bedingt` | gestrichelt | Regel greift, Vorbedingung nicht prüfbar oder verletzt |
-| `zeitliche_naehe` | gepunktet | Kürzel passt zeitlich, keine Regel deckt es |
-| `kein_kuerzel` | Handsymbol | kein Kürzel gefunden |
+| `trigger_bestaetigt` | durchgezogen, 2 px | Regel greift, Vorbedingung am Tag des Kürzels erfüllt |
+| `trigger_bedingt` | gestrichelt, 2 px | Regel greift, Vorbedingung nicht prüfbar oder verletzt |
+| `zeitliche_naehe` | gepunktet, 2 px | Kürzel passt zeitlich, keine Regel deckt es |
+| `kein_kuerzel` | Haarstrich, halbdurchsichtig | kein bekannter Statuswechsel |
 
 **Nie am Statusfeld.** Der Status ist beobachtete Tatsache — er steht so im
 Export. Unsicher ist die Zuschreibung: ob ein Kürzel den Wechsel ausgelöst hat.
 Ein Segment einzufärben, weil sein Übergang unsicher ist, verwechselte beides.
 Die Stufe `trigger_bedingt` ist dabei kein Randfall: 981 Verbünde (23,6 %) tragen
 ausschließlich bedingte Übergänge.
+
+**Ein Tag, eine Kante** ([bandKanten.ts](../../src/plugins/antraege/verlauf-band/bandKanten.ts),
+v3.37). Bis v3.36 zeichnete die Bahn je *Übergang* einen Strich. Weil mehrere
+Kürzel auf denselben Tag fallen, lagen sie exakt übereinander — gemessen an
+einem Verbund **51 Striche auf 26 Tagen**, an einer Grenze bis zu drei. Sichtbar
+war der zuletzt gezeichnete. Der Stil kommt jetzt vom **best belegten** Übergang
+des Tages: belegt ein Kürzel den Wechsel, ist die Grenze erklärt, auch wenn
+daneben ein unerklärtes steht. Verschwiegen wird nichts — der Tooltip zählt jedes
+Kürzel des Tages einzeln auf, die Klartext-Liste ohnehin.
+
+**Der Strich hat die Farbe des Hintergrunds**, nicht der Schrift: er ist ein
+Schnitt durch den Balken. Eine Schriftfarbe trug nur im hellen Modus; im dunklen
+sind die Balken pastellhell UND die Schrift hell (gemessen #cccac4 auf
+rgb(142,168,204) — rund 1,3:1, also nichts). Der Hintergrund ist in beiden Modi
+die Gegenfarbe der Balken. `kein_kuerzel` trug bis v3.36 statt eines Strichs ein
+**Handsymbol**: 9 px, Tertiärfarbe, auf einem gesättigten Balken, und es deckte
+den Strich zu, der an derselben Stelle schon stand. Rückgefragt wurde nach dem
+„mini Pfeil" — niemand konnte es lesen. Mit 92,7 % ist die Stufe ohnehin der
+Normalfall; ein Sondersymbol für den Normalfall stellt die Rampe auf den Kopf.
 
 #### Zwei leere Zustände, zwei Sätze
 
@@ -1549,6 +1568,40 @@ gibt dagegen **Labels UND Codes** heraus, dazu Bestandsstand, Katalogfassung und
 den Hinweis, dass die Bahn rekonstruiert ist. Dieser Text geht an die Fachseite,
 und dort ist der Code das einzige, worüber sich eindeutig reden lässt. Ein
 abgeleiteter Verlauf, den jemand als Beobachtung weitergibt, wird zur Behauptung.
+
+#### Lesbarkeit statt Sparsamkeit (v3.37)
+
+Die Bahn hatte nach v3.32 Platz, gab ihn aber nicht weiter. Fünf Nachzüge, alle
+aus dem Gebrauch heraus:
+
+- **Balken 20 statt 16 px, Beschriftung 11 statt 10.** Das Messprofil
+  `bandLabel` zieht mit — eine gerenderte Größe, die die Messung nicht kennt,
+  ist eine falsche Messung. Es gilt für **beide** Etagen; zwei Größen bräuchten
+  zwei Profile, und die Beschriftungsschicht misst mit einem.
+- **Die Spur-Beschriftung misst sich selbst** (Profil `bandSpur`, zwischen 128
+  und 260 px statt fester 128). `16KN073848 (diese Zeile)` brauchte 137 px, und
+  abgeschnitten wurde ausgerechnet der Zusatz, der die eigene Zeile benennt.
+  **Der Zusatz bleibt**: im Ausklappbereich ist er das Einzige, was sagt, welche
+  der Bahnen die geklickte Zeile ist. Auf der Verbund-Detailseite gibt es ihn
+  nicht — dort ist keine Zeile geklickt, und die Beschriftung fällt von selbst
+  auf ihr Mindestmaß zurück.
+- **Die Legende steht direkt unter der Bahn**, gerahmt, mit der Farbmarke ihres
+  Abschnitts; wo nummeriert wird, steht die Nummer **in** der Marke — genau das
+  Bild, das im Balken steht. Vorher lag die Herkunftszeile dazwischen, und wer
+  eine Nummer nachschlug, sprang über einen Satz hinweg, der nichts mit ihr zu
+  tun hat.
+- **Eine Fußzeile statt zweier**
+  ([herkunftsText.ts](../../src/plugins/antraege/verlauf-band/herkunftsText.ts)):
+  „Rekonstruiert aus den Datumsspalten · belegt ab …", die Begründung hinter dem
+  Info-Zeichen. Vorher standen zwei Sätze über dieselben Datumsspalten
+  untereinander, in zwei Formulierungen — beim zweiten Lesen überspringt man
+  beide. Der `D_`-Vorbehalt geht dabei nicht verloren, er wandert nur; ein Test
+  hält fest, dass er in **jeder** Journal-Lage hinter dem Zeichen steht
+  (Abschnitt 12.2 verlangt ihn unter jeder Verlaufs-Anzeige). Weil der Fuß jetzt
+  im Band selbst sitzt, kann ein neuer Aufrufer ihn auch nicht mehr vergessen.
+- **Die Tooltips der Bahn tragen echte Zeilen.** Der Kasten des `Tooltip` steht
+  auf `white-space: normal` — ein `\n` im `text`-Prop fällt zu einem Leerzeichen
+  zusammen. Die Bahn nutzt deshalb `content` mit je einem Element pro Zeile.
 
 #### Der Bezugszeitpunkt — richtig verdrahtet, heute folgenlos
 

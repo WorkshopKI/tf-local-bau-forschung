@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.37 — 2026-08
+
+### Verbesserungen
+- Der Statusverlauf einer Zeile ist leichter zu lesen: höhere Balken, größere Schrift, und die Beschriftung links wird nicht mehr abgeschnitten.
+- Die Legende steht jetzt direkt unter der Bahn — mit einer Farbmarke je Eintrag, die die Nummer aus dem Balken trägt.
+- Unter der Bahn steht nur noch ein kurzer Satz, woher der Verlauf kommt; die ausführliche Erklärung liegt hinter dem Info-Zeichen daneben.
+
+### Bugfixes
+- An einem Tag mit mehreren Kürzeln zeichnete die Bahn mehrere Markierungen übereinander; die oberste war ein kaum sichtbares Symbol. Jetzt steht dort eine Markierung, und ihr Tooltip nennt alle Kürzel des Tages.
+
 ## v3.36 — 2026-08
 
 ### Verbesserungen

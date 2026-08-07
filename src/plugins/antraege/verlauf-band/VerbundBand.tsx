@@ -12,7 +12,7 @@
  * wie breit der erste Rahmen ist — und der ist nach einem Wimpernschlag vorbei.
  */
 import { useZeilenVerlauf } from '../ausklapp/useZeilenVerlauf';
-import { JournalFuss, leise } from '../ausklapp/SpurListe';
+import { leise } from '../ausklapp/SpurListe';
 import { VerlaufsBand } from './VerlaufsBand';
 
 export function VerbundBand({ verbundId, statusRoh, stichtag }: {
@@ -28,15 +28,13 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
     return <p className={leise}>Kein Statuskatalog geladen — ohne ihn gibt es keine Bahn.</p>;
   }
   return (
-    <div className="flex flex-col gap-2">
-      <VerlaufsBand
-        spuren={daten.spuren}
-        eigenes={verbundId}
-        bezugsZeitpunkt={daten.bezugsZeitpunkt}
-        fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
-        journalAb={daten.journalAb}
-      />
-      <JournalFuss journalAb={daten.journalAb} journalGenutzt={daten.journalGenutzt} />
-    </div>
+    <VerlaufsBand
+      spuren={daten.spuren}
+      eigenes={verbundId}
+      bezugsZeitpunkt={daten.bezugsZeitpunkt}
+      fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
+      journalAb={daten.journalAb}
+      journalGenutzt={daten.journalGenutzt}
+    />
   );
 }

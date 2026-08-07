@@ -1745,8 +1745,16 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // beim alten 2500er-Limit beschreibt. Die urspruengliche Begruendung „rund das
   // Vierfache des groessten Docs" war mitgewandert und stimmte nicht mehr; der
   // Unfall, den die Zahl faengt, liegt bei 30000+.
+  //
+  // Angehoben von 20000 auf 24000 (v3.37): jetzt steht antraege.md an der Wand —
+  // dieselbe Ursache, eine Ebene groesser. Die Seite traegt fuenf Ansichten,
+  // Quickfilter, Spaltenfilter, den Ausklappbereich mit zwei Reitern, das
+  // VerlaufsBand und die Vorgangs-Bloecke; jede Runde legt WAS-Text nach, kein
+  // WIE. Gegengeprueft: die Rationale-Saetze („warum sitzt der Anker am
+  // Balken") sind beim Anheben aus dem Doc GEFLOGEN, sie stehen im
+  // Architektur-Doc. Die 30000er-Unfallgrenze bleibt unangetastet.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 20000;
+  const REISSLEINE_DOC_CHARS = 24000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

@@ -15,7 +15,7 @@
  */
 import type { VerlaufsSpur } from '@/core/status/verlauf';
 import { VerlaufsBand } from '../verlauf-band/VerlaufsBand';
-import { JournalFuss, leise } from './SpurListe';
+import { leise } from './SpurListe';
 
 export function VerlaufReiter({
   spuren, eigenes, journalAb, journalGenutzt, laden, bezugsZeitpunkt, fassung,
@@ -35,13 +35,12 @@ export function VerlaufReiter({
   if (spuren.length === 0) {
     return <p className={leise}>Kein Statuskatalog geladen — ohne ihn gibt es keine Bahn.</p>;
   }
+  // Die Herkunftsangabe steht seit v3.36 IM Fuß des Bands, nicht als zweite
+  // Zeile daneben: sie sagte dasselbe wie die Zeile darüber, nur länger.
   return (
-    <div className="flex flex-col gap-3">
-      <VerlaufsBand
-        spuren={spuren} eigenes={eigenes} bezugsZeitpunkt={bezugsZeitpunkt}
-        fassung={fassung} journalAb={journalAb}
-      />
-      <JournalFuss journalAb={journalAb} journalGenutzt={journalGenutzt} />
-    </div>
+    <VerlaufsBand
+      spuren={spuren} eigenes={eigenes} bezugsZeitpunkt={bezugsZeitpunkt}
+      fassung={fassung} journalAb={journalAb} journalGenutzt={journalGenutzt}
+    />
   );
 }
