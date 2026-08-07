@@ -1,9 +1,15 @@
 // Sponsoring-UI: Punkte-Dropdown + Stunden-Dialog + "Zurückziehen"-Option.
 // compact-Modus: "+1 Punkt" Quick-Action + "Mehr…" Popover.
+//
+// Das Punkte-Menü stand bis v3.23 ZWEIMAL in dieser Datei als handgebautes
+// `absolute`-Div — einmal je Layout, mit 12px hier und 12,5px dort. Jetzt ist es
+// EIN `PunkteMenue` auf dem geteilten `Popover`: damit kommen Esc, Klick-daneben
+// und die Portal-Platzierung mit, die beide Kopien nicht hatten.
 
 import { useState } from 'react';
 import { Check, Clock, Coins, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -21,6 +27,54 @@ interface Props {
 }
 
 const POINT_OPTIONS = [1, 2, 3, 5];
+
+/** Das Punkte-Menü beider Layouts. `onStunden` fehlt im Standard-Layout — dort
+ *  steht „Stunden" als eigener Knopf daneben. */
+function PunkteMenue({ offen, setOffen, ausloeser, zeigePunkte, uebrig, onPunkte, onStunden }: {
+  offen: boolean;
+  setOffen: (v: boolean) => void;
+  ausloeser: React.ReactNode;
+  zeigePunkte: boolean;
+  uebrig: number;
+  onPunkte: (p: number) => void;
+  onStunden?: () => void;
+}): React.ReactElement {
+  const zeile = 'w-full text-left px-3 py-1.5 text-[12.5px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer';
+  return (
+    <Popover open={offen} onOpenChange={setOffen}>
+      <PopoverTrigger asChild>{ausloeser}</PopoverTrigger>
+      <PopoverContent align="start" className="w-auto min-w-[160px] p-0 py-1">
+        {zeigePunkte && POINT_OPTIONS.map(p => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => { if (p <= uebrig) onPunkte(p); }}
+            disabled={p > uebrig}
+            className={zeile}
+          >
+            <Plus size={11} className="inline mr-1" />{p} Punkt{p > 1 ? 'e' : ''}
+          </button>
+        ))}
+        {onStunden && (
+          <button
+            type="button"
+            onClick={onStunden}
+            className={zeile}
+            style={zeigePunkte ? { borderTop: '0.5px solid var(--tf-border)' } : undefined}
+          >
+            <Clock size={11} className="inline mr-1" />Stunden anbieten
+          </button>
+        )}
+        <div
+          className="px-3 py-1 text-[10.5px] text-[var(--tf-text-tertiary)]"
+          style={{ borderTop: '0.5px solid var(--tf-border)' }}
+        >
+          Noch {uebrig} Pkt übrig
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function SponsorButton({ ticket, config, open, onChanged, compact }: Props): React.ReactElement | null {
   const { profile } = useProfile();
@@ -144,46 +198,23 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
             </span>
           )}
           {/* Mehr… öffnet vollständiges Menü */}
-          <div className="relative inline-block">
-            <button
-              type="button"
-              onClick={() => { setShowPointsMenu(v => !v); setShowHoursDialog(false); }}
-              className="text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-              style={{ border: '0.5px solid var(--tf-border)', borderRadius: 'var(--tf-radius)', padding: '4px 8px' }}
-            >
-              Mehr…
-            </button>
-            {showPointsMenu && (
-              <div
-                className="absolute z-10 top-full left-0 mt-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)] py-1 min-w-[160px]"
-                style={{ border: '0.5px solid var(--tf-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+          <PunkteMenue
+            offen={showPointsMenu}
+            setOffen={v => { setShowPointsMenu(v); if (v) setShowHoursDialog(false); }}
+            zeigePunkte={!mineP}
+            uebrig={remainingPoints}
+            onPunkte={p => { void doSponsorPoints(p); }}
+            onStunden={mineH ? undefined : () => { setShowHoursDialog(true); setShowPointsMenu(false); }}
+            ausloeser={(
+              <button
+                type="button"
+                className="text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+                style={{ border: '0.5px solid var(--tf-border)', borderRadius: 'var(--tf-radius)', padding: '4px 8px' }}
               >
-                {!mineP && POINT_OPTIONS.map(p => (
-                  <button
-                    key={p} type="button"
-                    onClick={() => !( p > remainingPoints) && doSponsorPoints(p)}
-                    disabled={p > remainingPoints}
-                    className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    <Plus size={11} className="inline mr-1" />{p} Punkt{p > 1 ? 'e' : ''}
-                  </button>
-                ))}
-                {!mineH && (
-                  <button
-                    type="button"
-                    onClick={() => { setShowHoursDialog(true); setShowPointsMenu(false); }}
-                    className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
-                    style={{ borderTop: '0.5px solid var(--tf-border)' }}
-                  >
-                    <Clock size={11} className="inline mr-1" />Stunden anbieten
-                  </button>
-                )}
-                <div className="px-3 py-1 text-[10.5px] text-[var(--tf-text-tertiary)]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-                  Noch {remainingPoints} Pkt übrig
-                </div>
-              </div>
+                Mehr…
+              </button>
             )}
-          </div>
+          />
         </div>
 
         {/* Stunden-Dialog (compact) */}
@@ -204,34 +235,25 @@ export function SponsorButton({ ticket, config, open, onChanged, compact }: Prop
           <button type="button" onClick={() => doUnsponsor('points')} className="ml-1 cursor-pointer hover:opacity-70" aria-label="Zurückziehen"><X size={11} /></button>
         </span>
       ) : (
-        <div className="relative inline-block">
-          <Button
-            type="button" onClick={() => setShowPointsMenu(v => !v)}
-            disabled={remainingPoints <= 0}
-            title={remainingPoints <= 0 ? 'Kein Budget übrig dieses Quartal' : `Noch ${remainingPoints} Pkt übrig`}
-            variant="primary"
-            size="sm"
-            icon={Plus}
-          >
-            Punkte
-          </Button>
-          {showPointsMenu && (
-            <div
-              className="absolute z-10 top-full left-0 mt-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)] py-1 min-w-[140px]"
-              style={{ border: '0.5px solid var(--tf-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+        <PunkteMenue
+          offen={showPointsMenu}
+          setOffen={setShowPointsMenu}
+          zeigePunkte
+          uebrig={remainingPoints}
+          onPunkte={p => { void doSponsorPoints(p); }}
+          ausloeser={(
+            <Button
+              type="button"
+              disabled={remainingPoints <= 0}
+              title={remainingPoints <= 0 ? 'Kein Budget übrig dieses Quartal' : `Noch ${remainingPoints} Pkt übrig`}
+              variant="primary"
+              size="sm"
+              icon={Plus}
             >
-              {POINT_OPTIONS.map(p => (
-                <button key={p} type="button" onClick={() => !(p > remainingPoints) && doSponsorPoints(p)} disabled={p > remainingPoints}
-                  className="w-full text-left px-3 py-1.5 text-[12.5px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
-                  +{p} Punkt{p > 1 ? 'e' : ''}
-                </button>
-              ))}
-              <div className="px-3 py-1 text-[10.5px] text-[var(--tf-text-tertiary)]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-                Noch {remainingPoints} Pkt übrig
-              </div>
-            </div>
+              Punkte
+            </Button>
           )}
-        </div>
+        />
       )}
 
       {mineH ? (

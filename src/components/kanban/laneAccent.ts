@@ -11,11 +11,15 @@
 /** Farbmodus der Lane-Köpfe: Status-/Kategorie-Töne vs. Primär-Hue-Rampe. */
 export type LaneFarbmodus = 'bunt' | 'monochrom';
 
-const MONO_ACCENTS = [
+/** Die Rampe selbst — auch die Vorschau im Farbmodus-Umschalter liest sie hier,
+ *  damit die drei Punkte nicht von dem abweichen, was das Board dann zeichnet. */
+export const MONO_LANE_ACCENTS = [
   'var(--tf-kanban-mono-1)',
   'var(--tf-kanban-mono-2)',
   'var(--tf-kanban-mono-3)',
 ] as const;
+
+const MONO_ACCENTS = MONO_LANE_ACCENTS;
 
 /** Monochrom-Akzent zyklisch nach Lane-Index. */
 export function monoLaneAccent(laneIndex: number): string {

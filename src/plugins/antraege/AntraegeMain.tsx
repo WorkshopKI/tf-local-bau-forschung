@@ -8,7 +8,7 @@ import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
-import { DarstellungDropdown } from './DarstellungDropdown';
+import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { baueDarstellungsAchsen, type DarstellungAchseId } from './darstellungsAchsen';
 import { getPhaseFromActive, STATUS_FILTER_ID } from './filter/phaseQuickfilter';
 import { getKategorieFromActive, KATEGORIE_FILTER_ID } from './filter/kategorieQuickfilter';
@@ -352,7 +352,11 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   Menü — als drei Dropdowns belegten sie rund 640px und drängten
                   die Quickfilter in einen Umbruch. Welche Achse gerade gilt,
                   entscheidet `baueDarstellungsAchsen`. */}
-              <DarstellungDropdown achsen={darstellungsAchsen} onChange={setzeDarstellung} />
+              <DarstellungDropdown
+                achsen={darstellungsAchsen}
+                onChange={setzeDarstellung}
+                titel="Ansicht, Gruppierung und Sichtbarkeit beendeter Anträge"
+              />
               {viewMode === 'compact' ? (
                 <ColumnPicker
                   columns={pickerColumns}

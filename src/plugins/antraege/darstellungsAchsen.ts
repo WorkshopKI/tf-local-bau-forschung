@@ -17,7 +17,14 @@
  * Welche Achse gilt, ist ebenfalls nicht neu erfunden: die Zeilen-Körnung kennt
  * nur die Tabelle, und der Beendet-Schalter nur der „Alle"-Reiter
  * (`hatBeendetAchse`) außerhalb der Karten-Ansicht.
+ *
+ * **Die Form der Achse ist seit v3.24 geteilt** (`@/components/ui/
+ * darstellungsAchsen`) — hier bleibt die Frage, WELCHE Achsen im aktuellen
+ * Zustand gelten, denn die hängt am Antrags-Datenmodell. Die drei gehobenen
+ * Symbole werden re-exportiert, damit die Aufrufer und der Test ihre Importwege
+ * behalten.
  */
+import type { DarstellungAchse } from '@/components/ui/darstellungsAchsen';
 import type { ViewKey } from './views';
 import type { ViewMode } from './viewModes';
 import { GROUPING_OPTIONS, DEFAULT_GROUPING_BY_VIEW } from './sort';
@@ -34,25 +41,10 @@ import {
   hatBeendetAchse,
 } from './arbeitsvorrat';
 
+export type { DarstellungAchse, DarstellungOption } from '@/components/ui/darstellungsAchsen';
+export { darstellungsZusammenfassung } from '@/components/ui/darstellungsAchsen';
+
 export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'beendet';
-
-export interface DarstellungOption {
-  key: string;
-  label: string;
-}
-
-export interface DarstellungAchse {
-  id: DarstellungAchseId;
-  /** Überschrift des Abschnitts im Menü. */
-  label: string;
-  /** Ein Halbsatz darunter, der die Achse von den beiden anderen abgrenzt. */
-  hinweis: string;
-  options: readonly DarstellungOption[];
-  value: string;
-  /** Der Wert, der als „unverändert" gilt — er taucht nicht in der
-   *  Zusammenfassung am Knopf auf. */
-  standard: string;
-}
 
 export interface DarstellungEingabe {
   viewMode: ViewMode;
@@ -66,8 +58,8 @@ export interface DarstellungEingabe {
 
 /** Die im aktuellen Zustand geltenden Achsen, in Menü-Reihenfolge. Nie leer —
  *  die Gruppierung gibt es in jeder Ansicht. */
-export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse[] {
-  const achsen: DarstellungAchse[] = [];
+export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<DarstellungAchseId>[] {
+  const achsen: DarstellungAchse<DarstellungAchseId>[] = [];
   // Zeilen-Körnung kennt nur die Tabelle: Karten- und Listen-Ansicht verdichten
   // Verbünde nicht, dort wäre der Schalter eine Attrappe.
   if (e.viewMode === 'compact') {
@@ -100,18 +92,4 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse[
     });
   }
   return achsen;
-}
-
-/**
- * Die abweichenden Werte als „Antrag mit TV · Status" für den Knopf.
- *
- * Leer, solange alles auf Standard steht — dann trägt der Knopf nur seinen
- * Namen und bleibt schmal. Das ist der Normalfall und der Grund, warum die drei
- * Achsen überhaupt in ein Menü passen.
- */
-export function darstellungsZusammenfassung(achsen: readonly DarstellungAchse[]): string {
-  return achsen
-    .filter(a => a.value !== a.standard)
-    .map(a => a.options.find(o => o.key === a.value)?.label ?? a.value)
-    .join(' · ');
 }

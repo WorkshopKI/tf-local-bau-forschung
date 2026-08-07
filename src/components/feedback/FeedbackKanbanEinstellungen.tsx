@@ -6,9 +6,14 @@
  * Read-modify-write auf der `BoardKanbanConfig` — die Seite persistiert
  * (localStorage), diese Komponente hält keinen eigenen Zustand.
  */
-import { Lock, SlidersHorizontal } from 'lucide-react';
+// `Pencil` statt `SlidersHorizontal`: der Dateikopf nennt `WidgetQuickEdit` als
+// Vorbild, und der trägt einen Stift. `SlidersHorizontal` heißt app-weit
+// „Darstellung" und sitzt seit v3.24 am Darstellungs-Menü der Toolbar daneben —
+// zweimal dasselbe Icon in einer Leiste wäre nicht zu unterscheiden.
+import { Lock, Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LaneListe } from '@/components/ui/LaneListe';
+import { FarbmodusToggle } from '@/components/kanban/FarbmodusToggle';
 import { STATUS_LABELS, STATUS_LANE_ACCENT } from './constants';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from './feedbackLanes';
 import type { BoardKanbanConfig } from './boardKanbanConfig';
@@ -49,7 +54,7 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
           className="h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer transition-colors text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]"
           style={{ border: '0.5px solid var(--tf-border-hover)' }}
         >
-          <SlidersHorizontal size={15} />
+          <Pencil size={15} />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[340px] p-4">
@@ -80,28 +85,11 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
 
           <div>
             <FeldLabel>Farben der Köpfe</FeldLabel>
-            <div
-              className="inline-flex rounded-[var(--tf-radius)] overflow-hidden"
-              style={{ border: '0.5px solid var(--tf-border-hover)' }}
-            >
-              <FarbmodusOption
-                aktiv={config.farbmodus === 'bunt'}
-                dots={['var(--tf-fb-lane-neu)', 'var(--tf-fb-ux)', 'var(--tf-fb-lob)']}
-                label="Bunt"
-                onClick={() => {
-                  if (config.farbmodus !== 'bunt') onChange({ ...config, farbmodus: 'bunt' });
-                }}
-              />
-              <FarbmodusOption
-                aktiv={config.farbmodus === 'monochrom'}
-                dots={['var(--tf-kanban-mono-1)', 'var(--tf-kanban-mono-2)', 'var(--tf-kanban-mono-3)']}
-                label="Einfarbig"
-                trennlinie
-                onClick={() => {
-                  if (config.farbmodus !== 'monochrom') onChange({ ...config, farbmodus: 'monochrom' });
-                }}
-              />
-            </div>
+            <FarbmodusToggle
+              value={config.farbmodus}
+              onChange={m => { if (config.farbmodus !== m) onChange({ ...config, farbmodus: m }); }}
+              buntDots={['var(--tf-fb-lane-neu)', 'var(--tf-fb-ux)', 'var(--tf-fb-lob)']}
+            />
           </div>
         </div>
 
@@ -123,31 +111,3 @@ function FeldLabel({ children }: { children: React.ReactNode }): React.ReactElem
   );
 }
 
-/** Segment-Knopf des Farbmodus (drei Farbpunkte + Label) — visuell identisch
- *  zum Pendant im Home-Widget-Formular. */
-function FarbmodusOption({ aktiv, dots, label, onClick, trennlinie }: {
-  aktiv: boolean;
-  dots: string[];
-  label: string;
-  onClick: () => void;
-  trennlinie?: boolean;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={aktiv}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] cursor-pointer ${
-        aktiv ? 'bg-[var(--tf-bg-secondary)] font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'
-      }`}
-      style={trennlinie ? { borderLeft: '0.5px solid var(--tf-border)' } : undefined}
-    >
-      <span className="inline-flex gap-0.5" aria-hidden>
-        {dots.map(d => (
-          <span key={d} className="w-2 h-2 rounded-full" style={{ background: d }} />
-        ))}
-      </span>
-      {label}
-    </button>
-  );
-}

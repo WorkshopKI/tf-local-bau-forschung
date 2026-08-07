@@ -5,6 +5,15 @@
 // die vier Sponsoring-Ordnungen, die es seit v2.208 gibt. Bewusst keine Trennung
 // in zwei Bedienelemente: es ist EINE Frage („in welcher Reihenfolge?"), nur mit
 // mehr Antworten als in den Handoff passten.
+//
+// Der Trigger trägt seit v3.24 die Beschriftung „Sortiert nach:" — dieselbe wie
+// auf den Förderanträgen. Ohne sie stand dort „Zuletzt bewegt" als Rätsel: ein
+// Wert ohne Frage. Aus demselben Grund heißt der Wert jetzt „Letzte Änderung";
+// der Schlüssel `bewegt` bleibt, damit gemerkte Vorlieben mitziehen.
+//
+// KEINE feste Breite am Trigger: er ist `justify-between`, eine feste Breite
+// schöbe den Chevron an den rechten Rand und ließe zwischen Wert und Pfeil ein
+// Loch.
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -16,7 +25,7 @@ export const FEEDBACK_SORT_VALUES: readonly FeedbackSort[] = [
 ];
 
 const SORT_OPTIONS: ReadonlyArray<{ key: FeedbackSort; label: string }> = [
-  { key: 'bewegt', label: 'Zuletzt bewegt' },
+  { key: 'bewegt', label: 'Letzte Änderung' },
   { key: 'neu', label: 'Neueste zuerst' },
   { key: 'stimmen', label: 'Meiste Unterstützer' },
   { key: 'aufwand', label: 'Kleinster Aufwand' },
@@ -32,7 +41,11 @@ export function FeedbackSortSelect({ value, onChange }: {
 }): React.ReactElement {
   return (
     <Select value={value} onValueChange={v => onChange(v as FeedbackSort)}>
-      <SelectTrigger size="sm" className="h-8 w-[176px] text-[12.5px]" aria-label="Sortierung">
+      {/* `size="default"` und nicht `sm`: die sm-Variante ist 28px hoch und
+          stünde als einziges Element der Leiste tiefer als die 32px daneben
+          (`data-[size=sm]:h-7` schlägt jedes `h-8` in className). */}
+      <SelectTrigger className="text-[12.5px]" aria-label="Sortierung">
+        <span className="text-[var(--tf-text-tertiary)]">Sortiert nach:</span>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

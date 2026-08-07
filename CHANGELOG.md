@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.24.0 — Feedback-Werkzeugleiste an Förderanträge angeglichen (August 2026)
+
+MINOR — In einer Toolbar-Zeile standen fünf Bauformen für dieselbe Art Aufgabe, und drei Icons trugen eine Bedeutung, die sie in der übrigen App nicht haben. Was Förderanträge schon konnte, war hier nachgebaut statt benutzt.
+
+- Das „Darstellung"-Menü der Förderanträge ist geteilt und trägt am Board Gruppierung · Dichte · Archivierte — aus drei Bedienelementen wird eines — [DarstellungDropdown.tsx](src/components/ui/DarstellungDropdown.tsx)
+- Liste/Board läuft über den geteilten `ViewModeToggle` (Modi jetzt als Prop) statt über eine eigene Segmentgruppe — [ViewModeToggle.tsx](src/components/ui/ViewModeToggle.tsx)
+- Der Rollen-Umschalter ist eine Kopf-Pille im Stil von „Profil: THÜ"; die Hilfe steht wie überall als letztes Element — [RollenPille.tsx](src/plugins/feedback-board/RollenPille.tsx)
+- Icon-Vokabular vereinheitlicht (`Filter`, `SquareKanban`, `Inbox`, `Pencil`, `ThumbsUp`) und in der Muster-Doku festgehalten — [ui-muster.md](docs/architecture/ui-muster.md)
+- Zwei Doppelbauten aufgelöst: `FarbmodusOption` (2×) → [FarbmodusToggle.tsx](src/components/kanban/FarbmodusToggle.tsx), zwei handgebaute Punkte-Menüs → ein `Popover` in [SponsorButton.tsx](src/components/feedback/SponsorButton.tsx)
+
 ### v3.23.0 — C16 als alleinige Regelquelle, Bedingungen ausgewertet (August 2026)
 
 MINOR — Die Verlaufsableitung rechnete gegen 41 Regeln, die eine einzelne Bearbeiterin für ihr eigenes Excel-Dashboard notiert hatte: unvollständig und nur für NW. C16 ist der Export aus dem laufenden Fachsystem und damit die tatsächliche Konfiguration. Der Wechsel hebt die Verbund-Deckung von 21,0 % auf 62,9 % und die messbaren Verweildauern von 16.200 auf 62.396 Abschnitte.

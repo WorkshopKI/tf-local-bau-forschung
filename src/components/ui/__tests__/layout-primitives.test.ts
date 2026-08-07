@@ -5,6 +5,8 @@ import { PageHeader } from '../PageHeader';
 import { StatusBadge, StatusDot } from '../StatusBadge';
 import { FilterChip } from '../FilterChip';
 import { ScopeTabs, type ScopeTabItem } from '../ScopeTabs';
+import { DarstellungDropdown } from '../DarstellungDropdown';
+import type { DarstellungAchse } from '../darstellungsAchsen';
 
 // Smoke-/Render-Tests der Layout-Primitive (Phase 2). Die Test-Suite läuft im
 // node-Env ohne DOM und ohne JSX (Konvention: nur *.test.ts) → React.createElement
@@ -102,5 +104,38 @@ describe('ScopeTabs', () => {
     expect(tabs).toContain('role="tablist"');
     expect(tabs).toContain('role="tab"');
     expect(pills).toContain('role="tablist"');
+  });
+});
+
+describe('DarstellungDropdown', () => {
+  const achsen: DarstellungAchse<'gruppierung'>[] = [{
+    id: 'gruppierung',
+    label: 'Gruppierung',
+    hinweis: 'Bänder quer zur Statusachse',
+    options: [{ key: 'keine', label: 'Keine' }, { key: 'bereich', label: 'Bereich' }],
+    value: 'keine',
+    standard: 'keine',
+  }];
+
+  it('trägt im Standardzustand nur seinen Namen — der Knopf bleibt schmal', () => {
+    const html = renderToStaticMarkup(h(DarstellungDropdown, { achsen, onChange: noop }));
+    expect(html).toContain('Darstellung');
+    expect(html).not.toContain('Darstellung:');
+    expect(html).not.toContain('Bereich');
+  });
+
+  it('hängt die abweichende Achse an den Knopf', () => {
+    const html = renderToStaticMarkup(h(DarstellungDropdown, {
+      achsen: [{ ...achsen[0]!, value: 'bereich' }],
+      onChange: noop,
+    }));
+    expect(html).toContain('Darstellung:');
+    expect(html).toContain('Bereich');
+  });
+
+  it('rendert das Menü erst beim Öffnen (geschlossen kein role="menu")', () => {
+    const html = renderToStaticMarkup(h(DarstellungDropdown, { achsen, onChange: noop }));
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('role="menu"');
   });
 });

@@ -36,7 +36,7 @@ export function TicketListe({ tickets, ctx }: {
         <span className="fb-sp-s">Status</span>
         <span className="fb-sp-e">Aufwand</span>
         <span className="fb-sp-a">Ersteller</span>
-        <span className="fb-sp-d">Bewegt</span>
+        <span className="fb-sp-d">Geändert</span>
         <span style={{ width: 22, flex: 'none' }} aria-hidden />
       </div>
       {tickets.slice(0, limit).map(t => (

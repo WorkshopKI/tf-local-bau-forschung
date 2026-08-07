@@ -16,7 +16,12 @@
 // (smartViews/boardFilter/boardZahlen/boardSpalten), gemerkt in useBoardAnsicht.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Columns3, Group, List, Rows3, Search, Settings2, SlidersHorizontal, Plus } from 'lucide-react';
+// Icon-Vokabular der App (docs/architecture/ui-muster.md): `Filter` = Filter,
+// `List`/`SquareKanban` = Ansichten, `Inbox` = Eingang/Verwaltung. Bis v3.23
+// stand hier `SlidersHorizontal` für den Filter (heißt app-weit „Darstellung"),
+// `Columns3` für die Board-Ansicht (heißt app-weit „Spaltenauswahl") und
+// `Settings2` für die Verwaltung (verspricht Seiten-Einstellungen).
+import { Filter, Inbox, List, Search, SquareKanban, Plus } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
@@ -26,7 +31,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
+import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeToggle';
 // Direkt an den Quellmodulen statt am Barrel: das Barrel zieht `FeedbackPanel` mit,
 // und das laedt `@/plugins.config` — die Plugin-Liste fuehrt zurueck auf diese Seite
 // (Laufzeit-Zyklus). Ohne die Sammel-Zeile ist der Weg jedes Symbols direkt.
@@ -54,11 +60,14 @@ import { filterAndSortBoard, scopeBoard } from './boardFilter';
 import { kopfZaehler, zaehleFacetten } from './boardZahlen';
 import { findeView, startViewKey, viewsFuerRolle, type BoardRolle } from './smartViews';
 import { beschraenkeAuf, LEERE_AUSWAHL, schalte, zuBewegen, type Auswahl } from './auswahl';
-import { achsenLabel, GRUPPIER_ACHSEN, gruppiere } from './gruppierung';
-import { useBoardAnsicht } from './useBoardAnsicht';
+import { gruppiere } from './gruppierung';
+import {
+  baueBoardAchsen, dichteAusSchluessel, gruppierungAusSchluessel, type BoardAchseId,
+} from './darstellungsAchsen';
+import { useBoardAnsicht, type Ansicht } from './useBoardAnsicht';
+import { RollenPille } from './RollenPille';
 import { BulkLeiste } from './ticket/BulkLeiste';
 import { Swimlane } from './ticket/Swimlane';
-import { DICHTE_OPTIONEN, dichteLabel } from './ticket/dichte';
 import { FacettenLeiste, type FacettenAuswahl } from './ticket/FacettenLeiste';
 import { TicketBoard } from './ticket/TicketBoard';
 import { TicketListe } from './ticket/TicketListe';
@@ -69,6 +78,11 @@ import type { TicketKontext } from './ticket/typen';
 import './ticketsystem.css';
 
 const LEERE_FACETTEN: FacettenAuswahl = { typ: '', status: '', bereich: '' };
+
+const ANSICHT_MODI: readonly ViewModeOption<Ansicht>[] = [
+  { mode: 'liste', label: 'Liste', Icon: List },
+  { mode: 'board', label: 'Board', Icon: SquareKanban },
+];
 
 export function FeedbackBoardPage(): React.ReactElement {
   const storage = useStorage();
@@ -299,7 +313,23 @@ export function FeedbackBoardPage(): React.ReactElement {
     if (naechstes) setSelectedId(naechstes.id);
   }, [gefiltert, index]);
 
-  const filterAktiv = !!(query || facetten.typ || facetten.status || facetten.bereich);
+  const facettenAktiv = !!(facetten.typ || facetten.status || facetten.bereich);
+  const filterAktiv = !!query || facettenAktiv;
+
+  const darstellungsAchsen = useMemo(
+    () => baueBoardAchsen({
+      gruppierung: ansicht.gruppierung,
+      dichte: ansicht.dichte,
+      zeigeArchiv: ansicht.zeigeArchiv,
+      darfVerwalten,
+    }),
+    [ansicht.gruppierung, ansicht.dichte, ansicht.zeigeArchiv, darfVerwalten],
+  );
+  const setzeDarstellung = useCallback((id: BoardAchseId, key: string): void => {
+    if (id === 'gruppierung') ansicht.setGruppierung(gruppierungAusSchluessel(key));
+    else if (id === 'dichte') ansicht.setDichte(dichteAusSchluessel(key));
+    else ansicht.setZeigeArchiv(key === 'ein');
+  }, [ansicht]);
 
   const gruppen = useMemo(
     () => gruppiere(gefiltert, ansicht.gruppierung),
@@ -359,6 +389,12 @@ export function FeedbackBoardPage(): React.ReactElement {
       <div className="shrink-0 px-8 pt-6">
         <PageHeader
           title="Feedback-Tickets"
+          meta={darfVerwalten && (
+            <RollenPille
+              nutzerVorschau={ansicht.nutzerVorschau}
+              onChange={ansicht.setNutzerVorschau}
+            />
+          )}
           subtitle={
             <>
               <b className="text-[var(--tf-text-secondary)]">{zaehler.gesamt}</b> gesamt{'  ·  '}
@@ -371,18 +407,6 @@ export function FeedbackBoardPage(): React.ReactElement {
               <NotificationBell count={unread} onClick={() => setViewKey('meine')} />
               <BudgetBadge refreshKey={refreshKey} bar />
               {darfVerwalten && (
-                <ScopeTabs
-                  variant="segmented"
-                  items={[
-                    { key: 'nutzer', label: 'Nutzer' },
-                    { key: 'entwickler', label: 'Entwickler' },
-                  ]}
-                  activeKey={rolle}
-                  onChange={k => ansicht.setNutzerVorschau(k === 'nutzer')}
-                  aria-label="Sicht"
-                />
-              )}
-              {darfVerwalten && (
                 <button
                   type="button"
                   onClick={() => setVerwaltungOffen(true)}
@@ -391,13 +415,16 @@ export function FeedbackBoardPage(): React.ReactElement {
                   className="h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors"
                   style={{ border: '0.5px solid var(--tf-border-hover)' }}
                 >
-                  <Settings2 size={15} />
+                  <Inbox size={15} />
                 </button>
               )}
-              <SeitenHilfeButton pluginId="feedback-board" />
               <Button size="sm" onClick={() => oeffneErfassung()}>
                 <Plus size={13} aria-hidden /> Neues Ticket
               </Button>
+              {/* Hilfe als LETZTES Element der Kopf-Aktionen — so wie auf jeder
+                  anderen Seite (docs/architecture/ui-muster.md). Das Board war
+                  bis v3.23 der einzige Ausreißer. */}
+              <SeitenHilfeButton pluginId="feedback-board" />
             </div>
           }
           className="mb-4"
@@ -416,20 +443,28 @@ export function FeedbackBoardPage(): React.ReactElement {
 
         {/* Toolbar */}
         <div className="flex items-center gap-2 flex-wrap mb-3">
-          <button
-            type="button"
+          {/* Derselbe Filter-Auslöser wie auf den Förderanträgen: `Filter`, 32×32,
+              gefüllt solange die Leiste offen ist, und ein Punkt, wenn bei
+              geschlossener Leiste Facetten gesetzt sind. Der Suchtext zählt NICHT
+              mit — er hat sein eigenes sichtbares Feld daneben. */}
+          <Button
+            variant={ansicht.facettenOffen ? 'default' : 'outline'}
+            size="sm"
             onClick={ansicht.toggleFacetten}
             aria-pressed={ansicht.facettenOffen}
+            aria-label={facettenAktiv ? 'Filter (aktiv)' : 'Filter'}
             title={ansicht.facettenOffen ? 'Filterleiste ausblenden' : 'Filterleiste einblenden'}
-            className={`h-8 w-8 grid place-items-center rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
-              ansicht.facettenOffen
-                ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-                : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-            }`}
-            style={{ border: '0.5px solid var(--tf-border)' }}
+            className="relative h-8 w-8 p-0"
           >
-            <SlidersHorizontal size={15} />
-          </button>
+            <Filter size={13} />
+            {facettenAktiv && !ansicht.facettenOffen ? (
+              <span
+                aria-hidden="true"
+                className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full"
+                style={{ background: 'var(--tf-primary)' }}
+              />
+            ) : null}
+          </Button>
           <div className="relative flex-1 min-w-[260px] max-w-[520px]">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none" />
             <Input
@@ -443,91 +478,26 @@ export function FeedbackBoardPage(): React.ReactElement {
             {gefiltert.length} von {inSicht.length}
           </span>
 
+          {/* Rechte Gruppe, von links nach rechts nach Häufigkeit: der
+              Ansichtswechsel ist der tägliche Griff und steht deshalb vorn;
+              Gruppierung, Dichte und „Archivierte" fasst EIN Menü zusammen,
+              wie auf den Förderanträgen. */}
           <div className="ml-auto flex items-center gap-2 shrink-0">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  title="Gruppieren — schneidet quer zum Status"
-                  className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-[var(--tf-radius)] cursor-pointer text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors"
-                  style={{ border: '0.5px solid var(--tf-border)' }}
-                >
-                  <Group size={14} aria-hidden />
-                  {achsenLabel(ansicht.gruppierung)}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-auto min-w-[176px] p-[5px]">
-                <div className="fb-pop-lbl">Gruppieren</div>
-                {GRUPPIER_ACHSEN.map(a => (
-                  <button
-                    key={a.key}
-                    type="button"
-                    className={`fb-pop-i${ansicht.gruppierung === a.key ? ' an' : ''}`}
-                    onClick={() => ansicht.setGruppierung(a.key)}
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
+            <ViewModeToggle
+              value={ansicht.ansicht}
+              onChange={ansicht.setAnsicht}
+              options={ANSICHT_MODI}
+              ariaLabel="Board oder Liste"
+            />
             <FeedbackSortSelect value={ansicht.sort} onChange={ansicht.setSort} />
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  title="Anzeige-Dichte"
-                  className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-[var(--tf-radius)] cursor-pointer text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] transition-colors"
-                  style={{ border: '0.5px solid var(--tf-border)' }}
-                >
-                  <Rows3 size={14} aria-hidden />
-                  {dichteLabel(ansicht.dichte)}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-auto min-w-[176px] p-[5px]">
-                <div className="fb-pop-lbl">Anzeige</div>
-                {DICHTE_OPTIONEN.map(o => (
-                  <button
-                    key={o.key || 'komfort'}
-                    type="button"
-                    className={`fb-pop-i${ansicht.dichte === o.key ? ' an' : ''}`}
-                    onClick={() => ansicht.setDichte(o.key)}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-            <div className="flex items-center gap-0.5 rounded-[var(--tf-radius)] p-0.5" style={{ border: '0.5px solid var(--tf-border)' }}>
-              {([['liste', List, 'Liste'], ['board', Columns3, 'Board']] as const).map(([m, Icon, titel]) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => ansicht.setAnsicht(m)}
-                  title={titel}
-                  aria-pressed={ansicht.ansicht === m}
-                  className={`p-1.5 rounded-[var(--tf-radius-sm)] cursor-pointer transition-colors ${
-                    ansicht.ansicht === m
-                      ? 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)]'
-                      : 'text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)]'
-                  }`}
-                >
-                  <Icon size={15} />
-                </button>
-              ))}
-            </div>
+            <DarstellungDropdown
+              achsen={darstellungsAchsen}
+              onChange={setzeDarstellung}
+              titel="Gruppierung, Anzeige-Dichte und archivierte Tickets"
+              className="h-8"
+            />
             {ansicht.ansicht === 'board' && (
               <FeedbackKanbanEinstellungen config={ansicht.kanban} onChange={ansicht.setKanban} />
-            )}
-            {darfVerwalten && (
-              <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={ansicht.zeigeArchiv}
-                  onChange={e => ansicht.setZeigeArchiv(e.target.checked)}
-                  className="cursor-pointer accent-[var(--tf-primary)]"
-                />
-                Archivierte
-              </label>
             )}
           </div>
         </div>

@@ -1,38 +1,43 @@
 /**
- * EIN Menü für die Darstellungs-Achsen der Antragsliste (Ansicht · Gruppierung ·
- * Beendet) — Nachfolger der drei einzelnen „…: …"-Dropdowns.
+ * EIN Menü für mehrere Darstellungs-Achsen einer Liste (Gruppierung, Dichte,
+ * Sichtbarkeit …) — statt je Achse ein eigenes „…: …"-Dropdown in der Toolbar.
  *
  * Der Knopf trägt im Normalfall nur „Darstellung" und ist damit schmaler als
- * jeder einzelne der drei Vorgänger. Weicht eine Achse vom Standard ab, steht ihr
- * Wert dahinter („Darstellung: Antrag mit TV · Status") — was gerade anders ist,
+ * jeder einzelne Vorgänger. Weicht eine Achse vom Standard ab, steht ihr Wert
+ * dahinter („Darstellung: Antrag mit TV · Status") — was gerade anders ist,
  * bleibt also sichtbar, ohne dass der Dauerzustand Platz kostet.
  *
- * **Das Menü bleibt nach einer Wahl offen.** Es ist kein Einzel-Schalter mehr,
- * sondern drei nebeneinander; nach jedem Klick zu schließen zwänge zum
+ * **Das Menü bleibt nach einer Wahl offen.** Es ist kein Einzel-Schalter,
+ * sondern mehrere nebeneinander; nach jedem Klick zu schließen zwänge zum
  * Wiederöffnen, sobald jemand zwei Achsen stellt. Geschlossen wird per Klick
- * daneben (`useClickOutside`), wie bei den Vorgängern.
+ * daneben (`useClickOutside`).
  *
- * Welche Achsen gelten und was als Standard zählt, rechnet die pure
- * `darstellungsAchsen.ts` — hier steht nur die Darstellung.
+ * Welche Achsen gelten und was als Standard zählt, rechnet der Aufrufer in
+ * einem reinen Modul (`darstellungsAchsen.ts` je Seite) — hier steht nur die
+ * Darstellung.
  *
- * Visuelle Familie = `ColumnPicker` (gerahmter Knopf + Menü, `--tf-*`-Theming),
- * damit die beiden verbliebenen rechten Toolbar-Steuerungen fluchten.
+ * Visuelle Familie = `ColumnPicker`/`MultiSelectDropdown` (gerahmter Knopf +
+ * Menü, `--tf-*`-Theming), damit die Toolbar-Steuerungen einer Seite fluchten.
+ * Geteilt seit v3.24 (vorher `plugins/antraege/`), Aufrufer: Förderanträge und
+ * Feedback-Board.
  */
 import { useRef, useState } from 'react';
 import { Check, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
-import {
-  darstellungsZusammenfassung,
-  type DarstellungAchse,
-  type DarstellungAchseId,
-} from './darstellungsAchsen';
+import { darstellungsZusammenfassung, type DarstellungAchse } from './darstellungsAchsen';
 
-interface Props {
-  achsen: readonly DarstellungAchse[];
-  onChange: (id: DarstellungAchseId, key: string) => void;
+interface Props<Id extends string> {
+  achsen: readonly DarstellungAchse<Id>[];
+  onChange: (id: Id, key: string) => void;
+  /** Tooltip des Knopfes — er nennt die Achsen dieser Seite beim Namen. */
+  titel?: string;
+  /** Auf den Trigger gemergt (z.B. `h-8`, wo die Toolbar 32px fährt). */
+  className?: string;
 }
 
-export function DarstellungDropdown({ achsen, onChange }: Props): React.ReactElement {
+export function DarstellungDropdown<Id extends string>({
+  achsen, onChange, titel, className,
+}: Props<Id>): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   useClickOutside(containerRef, () => setOpen(false), open);
@@ -46,8 +51,8 @@ export function DarstellungDropdown({ achsen, onChange }: Props): React.ReactEle
         onClick={() => setOpen(o => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Ansicht, Gruppierung und Sichtbarkeit beendeter Anträge"
-        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] whitespace-nowrap"
+        title={titel ?? 'Darstellung der Liste'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] whitespace-nowrap${className ? ` ${className}` : ''}`}
         style={{ border: '0.5px solid var(--tf-border)' }}
       >
         <SlidersHorizontal size={14} className="text-[var(--tf-text-tertiary)]" />

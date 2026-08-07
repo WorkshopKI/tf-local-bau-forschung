@@ -17,10 +17,27 @@ Die App hat eine **geteilte, domänenfreie Layout-Schicht** in `src/components/`
 | Caps-Abschnitts-Label | `SectionHeader` ([src/components/ui/SectionHeader.tsx](../../src/components/ui/SectionHeader.tsx)) |
 | Status als Pill / farbiger Punkt | `StatusBadge` / `StatusDot` ([src/components/ui/StatusBadge.tsx](../../src/components/ui/StatusBadge.tsx)) — Farbe kommt vom Aufrufer |
 | Filter-Chip „Label: Wert" (optional entfernbar) | `FilterChip` ([src/components/ui/FilterChip.tsx](../../src/components/ui/FilterChip.tsx)) |
+| **Mehrere Darstellungs-Achsen** einer Liste (Gruppierung, Dichte, Sichtbarkeit …) | `DarstellungDropdown` ([src/components/ui/DarstellungDropdown.tsx](../../src/components/ui/DarstellungDropdown.tsx)) — EIN Knopf statt je Achse ein Dropdown; er trägt nur „Darstellung", solange alles auf Standard steht, und hängt sonst die Abweichung an. Das Menü **bleibt nach einer Wahl offen** (man stellt meist zwei Achsen). Welche Achsen gelten, rechnet ein **reines** Modul je Seite (`darstellungsAchsen.ts`), das seine Optionen aus der bestehenden Quelle zieht statt sie aufzuzählen. Nutzer: Förderanträge, Feedback-Board |
+| Ansichts-Umschalter (2–3 Icons, z.B. Liste/Board) | `ViewModeToggle` ([src/components/ui/ViewModeToggle.tsx](../../src/components/ui/ViewModeToggle.tsx)) — Modi als Prop; Aktiv-Zustand als Primary-Underline via `box-shadow` (kein Layout-Shift) |
 | Filter-Dropdown mit **Mehrfachauswahl** (>6 Werte oder Werte aus den Daten) | `MultiSelectDropdown` ([src/components/ui/MultiSelectDropdown.tsx](../../src/components/ui/MultiSelectDropdown.tsx)) — leere Auswahl = kein Filter; optionale Trefferzahl je Wert, optionale Schnellwege über der Liste. **Kein natives `<select>` in einer Filter-Leiste**: es zeichnet ein Betriebssystem-Menü in fremden Farben und kann keine Mehrfachauswahl (in Kurations-/Editor-Formularen bleibt `<select>` dagegen richtig) |
 | Primär-CTA | shadcn `Button` `variant='default'` ([src/components/ui/button.tsx](../../src/components/ui/button.tsx)) — trägt seit v2.144 die wählbare `--tf-primary` |
 
 **Tabellenbreite:** `SortableTable` rendert die `<col>` als **Prozent** ihrer Pixel-Summe und passt sich damit der Container-Breite an — erst unter der Lesbarkeitsgrenze (`RESPONSIVE_MIN_WIDTH`, 720px) scrollt sie horizontal. Pixel-`<col>` wären ein harter Boden für die Tabellenbreite (CSS 2.1 §17.5.2.1: genutzte Breite = das Größere aus `width` und Spaltensumme); Begründung + Messung in [tableSizing.ts](../../src/components/data-table/tableSizing.ts). Wer bewusst **scrollen statt stauchen** will (viele Spalten, z.B. Förderanträge), setzt `fitContentWidth`; wer den Nutzer die Gesamtbreite pinnen lassen will, reicht `totalWidth`/`onTotalWidthChange` aus `useTotalTableWidth` durch.
+
+**Icon-Vokabular** (v3.24, aus der Feedback-Nachlese — dieselbe Bedeutung, dieselbe Glyphe):
+
+| Bedeutung | Icon | Nicht verwechseln mit |
+|---|---|---|
+| Filter / Filterleiste | `Filter` | `SlidersHorizontal` |
+| Darstellung, Optionen einer Liste | `SlidersHorizontal` | — |
+| Spaltenauswahl einer Tabelle | `Columns3` | — |
+| Ansichten | `List` · `Table` · `LayoutGrid` · `SquareKanban` (Board) | `Columns3` für „Board" |
+| Anpassen / bearbeiten (Popover mit Formular) | `Pencil` | `Settings`, `SlidersHorizontal` |
+| App-Einstellungen | `Settings` | `Settings2` |
+| Eingang / Verwaltungs-Dialog | `Inbox` | `Settings2` |
+| Zustimmung, Stimme, „Ich auch" | `ThumbsUp` | `ArrowUp` (= Richtung/Sortierung) |
+
+**Rollen-/Kontext-Umschalter im Seitenkopf** gehören als **Pille** in den `meta`-Slot des `PageHeader` (Klassenkette von [BearbeiterFilterPill](../../src/plugins/antraege/filter/BearbeiterFilterPill.tsx) / [BereichChip](../../src/components/bereich/BereichChip.tsx)), nicht als `ScopeTabs`. Sie zeigen den **Ist-Zustand** („Sicht: Entwickler", „Profil: THÜ"), nicht das Klickziel. Eine gefüllte Segmentleiste liest sich als Haupt-Bedienelement und konkurriert mit dem CTA daneben; `ScopeTabs` ist für **Listen-Sichten mit Zähler** reserviert.
 
 **Harte Regel:** Neue Module bauen **KEIN** eigenes Layout. Kein paralleles Master/Detail, **keine eigene Listen-Sicht-Tab-Leiste** (gehört in `ScopeTabs`), kein eigener Page-Header/Badge. Förderanträge (reich) und Auslastung (schlank) sind dieselbe `MasterDetailLayout`. Der Guard `no-parallel-scope-tabs` ([codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts)) fängt neue hand-gebaute Unterstrich-Tabs.
 

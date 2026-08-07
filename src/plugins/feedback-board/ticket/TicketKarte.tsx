@@ -13,7 +13,11 @@
  * ohne Scrollen sieht.
  */
 import { useState } from 'react';
-import { MessageSquare, ArrowUp } from 'lucide-react';
+// `ThumbsUp` und nicht `ArrowUp`: dieselbe Bedeutung wie in der interaktiven
+// `FeedbackVotePill` im Detail-Panel („Hilfreich / Ich auch"). Zwei Glyphen für
+// eine Aussage lesen sich als zwei Metriken. `ArrowUp` ist app-weit ein
+// Richtungs-/Sortierpfeil.
+import { MessageSquare, ThumbsUp } from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { CATEGORY_DOT, CATEGORY_LABELS } from '@/components/feedback/constants';
 import { FeedbackAvatar } from '@/components/feedback/FeedbackAvatar';
@@ -111,7 +115,7 @@ export function TicketKarte({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
         <FeedbackAvatar name={autor ?? '—'} size={18} />
         <span className="fb-wer">{meins ? 'Du' : (autor ?? '—')}</span>
         <span className="fb-met">
-          {stimmen > 0 && <span title={`${stimmen} Unterstützer`}><ArrowUp size={11} aria-hidden />{stimmen}</span>}
+          {stimmen > 0 && <span title={`${stimmen} Unterstützer`}><ThumbsUp size={11} aria-hidden />{stimmen}</span>}
           {kommentare > 0 && (
             <FeedbackCommentHover comments={t.comments ?? []} neueKommentare={neueKmt}>
               <span title={undefined}><MessageSquare size={11} aria-hidden />{kommentare}</span>

@@ -16,6 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { LaneListe } from '@/components/ui/LaneListe';
+import { FarbmodusToggle } from '@/components/kanban/FarbmodusToggle';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
@@ -151,21 +152,11 @@ function KanbanConfigForm({
 
       <div>
         <FeldLabel>Farben der Köpfe</FeldLabel>
-        <div className="inline-flex rounded-[var(--tf-radius)] overflow-hidden" style={{ border: '0.5px solid var(--tf-border-hover)' }}>
-          <FarbmodusOption
-            aktiv={cfg.farbmodus === 'bunt'}
-            dots={['var(--tf-kanban-offen)', 'var(--tf-kanban-nachforderung)', 'var(--tf-kanban-bewilligt)']}
-            label="Bunt"
-            onClick={() => { if (cfg.farbmodus !== 'bunt') void onUpdate({ ...cfg, farbmodus: 'bunt' }); }}
-          />
-          <FarbmodusOption
-            aktiv={cfg.farbmodus === 'monochrom'}
-            dots={['var(--tf-kanban-mono-1)', 'var(--tf-kanban-mono-2)', 'var(--tf-kanban-mono-3)']}
-            label="Einfarbig"
-            trennlinie
-            onClick={() => { if (cfg.farbmodus !== 'monochrom') void onUpdate({ ...cfg, farbmodus: 'monochrom' }); }}
-          />
-        </div>
+        <FarbmodusToggle
+          value={cfg.farbmodus}
+          onChange={m => { if (cfg.farbmodus !== m) void onUpdate({ ...cfg, farbmodus: m }); }}
+          buntDots={['var(--tf-kanban-offen)', 'var(--tf-kanban-nachforderung)', 'var(--tf-kanban-bewilligt)']}
+        />
       </div>
     </div>
   );
@@ -256,36 +247,6 @@ function FeedbackLaneChips({ cfg, onUpdate }: {
   );
 }
 
-function FarbmodusOption({
-  aktiv,
-  dots,
-  label,
-  onClick,
-  trennlinie,
-}: {
-  aktiv: boolean;
-  dots: string[];
-  label: string;
-  onClick: () => void;
-  trennlinie?: boolean;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={aktiv}
-      onClick={onClick}
-      className={`px-3 py-1.5 text-[12px] cursor-pointer inline-flex items-center gap-1.5 ${aktiv ? 'bg-[var(--tf-bg-secondary)] font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}`}
-      style={trennlinie ? { borderLeft: '0.5px solid var(--tf-border)' } : undefined}
-    >
-      <span className="inline-flex gap-0.5" aria-hidden>
-        {dots.map((d, i) => (
-          <span key={i} className="w-2 h-2 rounded-full" style={{ background: d }} />
-        ))}
-      </span>
-      {label}
-    </button>
-  );
-}
 
 // ── Ampel ─────────────────────────────────────────────────────────────────
 

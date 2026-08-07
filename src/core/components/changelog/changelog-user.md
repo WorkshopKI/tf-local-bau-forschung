@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.24 — 2026-08
+
+### Verbesserungen
+- **Die Werkzeugleiste der Feedback-Tickets sieht jetzt aus wie die der Förderanträge.** Ganz links in der rechten Gruppe steht der Umschalter **Liste/Board** — der Griff, den man am häufigsten braucht. Alles Seltene ist in **ein** Menü „Darstellung" gewandert: Gruppierung, Anzeige-Dichte und ob archivierte Tickets mitlaufen. Es ist dasselbe Menü wie auf den Förderanträgen und bleibt offen, solange man mehrere Dinge einstellt.
+- Die Sortierung sagt jetzt, was sie sortiert: **„Sortiert nach: Letzte Änderung"** statt eines allein stehenden „Zuletzt bewegt". Die Listen-Spalte heißt passend dazu **„Geändert"**.
+- Der Umschalter zwischen **Nutzer- und Entwickler-Sicht** ist eine unaufdringliche Pille neben dem Seitentitel — dieselbe Form wie die Profil-Anzeige auf den Förderanträgen. Die **Hilfe** steht wie auf jeder anderen Seite ganz rechts außen.
+- Gleiche Bedeutung, gleiches Symbol: Filter, Board-Ansicht, Verwaltung, „Board anpassen" und die Zustimmung tragen jetzt überall in der App dasselbe Zeichen.
+
+### Bugfixes
+- Die Menüs beim Sponsern schließen sich jetzt mit Esc und beim Klick daneben; beide hatten zuvor leicht unterschiedliche Schriftgrößen.
+
 ## v3.23 — 2026-08
 
 ### Verbesserungen

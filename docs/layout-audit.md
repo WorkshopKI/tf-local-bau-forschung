@@ -88,6 +88,12 @@ In [src/theme.css](../src/theme.css):
 - `StatusDot` ← [StatusDotRow.tsx](../src/plugins/antraege/StatusDotRow.tsx)
 - `FilterChip` ← [ActiveFilterChips.tsx](../src/plugins/antraege/filter/ActiveFilterChips.tsx)
 - `MasterDetailLayout` ← To-do-Regeln im Status-Katalog ([TodoRegelnBereich.tsx](../src/plugins/status-cockpit/TodoRegelnBereich.tsx)) — Split **innerhalb eines Reiters**: der Tab-Zweig der Seite ist ein eigener `flex-1 min-h-0 flex flex-col` ohne Seiten-Scroll, der Bereichs-Kopf darüber `shrink-0`
+- `DarstellungDropdown` ← Förderanträge (v3.24 aus `plugins/antraege/` gehoben, dort byte-gleich weiterbenutzt; der Anträge-Test blieb unangetastet grün) → adoptiert vom **Feedback-Board** für Gruppierung · Dichte · Archivierte
+- `ViewModeToggle` ← Feedback-Board (v3.24): die hand-gebaute Liste/Board-Segmentgruppe ist weg, die Modi sind jetzt eine Prop des geteilten Bausteins. Die vier Bestandsaufrufer blieben wortgleich
+
+**Migriert mit bewusstem, kleinem Sicht-Delta:**
+- `SegmentedToggle` ← `FarbmodusOption`, die **zweimal wortgleich** existierte ([FeedbackKanbanEinstellungen](../src/components/feedback/FeedbackKanbanEinstellungen.tsx) + [WidgetConfigForm](../src/plugins/home/widgets/WidgetConfigForm.tsx)) → gemeinsamer [FarbmodusToggle](../src/components/kanban/FarbmodusToggle.tsx). Nicht byte-invariant: vorher zusammengezogene Segmentgruppe mit Trennlinie und `--tf-bg-secondary`-Füllung, jetzt Track + heller Aktiv-Chip. Beide Stellen zusammen umgestellt, sonst wandert die Verdopplung nur.
+- `Popover` ← die zwei hand-gebauten `absolute`-Dropdowns in [SponsorButton](../src/components/feedback/SponsorButton.tsx) (dieselbe Datei, 12 px vs. 12,5 px). Gewinn: Esc, Klick-daneben und Portal-Platzierung, die keine der Kopien hatte.
 
 **Gebaut, aber (noch) NICHT adoptiert — bewusst, weil nicht 1:1 invariant:**
 - `PageHeader` an **Auslastung** ([AuslastungView.tsx](../src/plugins/auslastung/views/AuslastungView.tsx)) + **Einstellungen** ([EinstellungenPage.tsx](../src/plugins/einstellungen/EinstellungenPage.tsx)): deren H1 nutzt abweichendes `leading-none`/`tracking-[-0.01em]`/`gap-0` bzw. ein nacktes `<h1>` ohne `leading` — eine Umstellung würde das Aussehen minimal ändern (verboten außer Chat-Pills). Adoption erst, wenn `PageHeader` die nötigen Props bekommt oder eine bewusste Normalisierung beauftragt wird.
