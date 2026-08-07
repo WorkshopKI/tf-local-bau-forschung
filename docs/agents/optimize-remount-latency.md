@@ -121,7 +121,7 @@ Referenzen:
 2. **A danach** — kostet ~10 Zeilen, halbiert die wahrgenommene Latenz auch in Edge-Cases.
 3. **B1 optional** — verbessert primär den Initial-Load nach App-Start. Lohnt sich vor allem in Build-Varianten wo das Plugin eine Haupt-Funktion ist (z.B. `pl.config.json` für das Auslastungs-Modul).
 
-Pro Hebel ein eigener Commit (CLAUDE.md-User-Memory: `auto-commit + build:devprod` pro Schritt), damit bei Regression einzeln revertbar.
+Pro Hebel ein eigener Commit (CLAUDE.md-User-Memory: `auto-commit + build:devpl` pro Schritt), damit bei Regression einzeln revertbar.
 
 ## Verifikation
 

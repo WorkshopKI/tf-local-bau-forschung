@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.27.1 — Build-Ziel devpl statt devprod (August 2026)
+
+PATCH — Die Zusammenlegung auf drei Varianten (v3.0) hat `build:all` mitgezogen, das Standard-Paar aber nicht: `build:devprod` baute weiter dev + prod, obwohl der Fach-Stack seit v3.0 komplett in `pl` liegt und der End-User-Build ihn gar nicht kompiliert. Wer der Default-Regel folgte, baute die Variante nicht, aus der getestet wird.
+
+- `build:devprod` → **`build:devpl`** (dev + pl); `build:all`, `build:dev`, `build:pl`, `build:prod` bleiben, wie sie sind — [package.json](package.json)
+- Die Default-Regel im Cheatsheet dreht sich entsprechend: dev + pl immer, `build:prod` zusätzlich bei geteiltem Code — [which-build-to-run.md](docs/agents/which-build-to-run.md)
+- Drei Cheatsheets nannten `build:devprod` als Abnahme-Schritt — [add-embedding-model.md](docs/agents/add-embedding-model.md), [add-auslastung-tab.md](docs/agents/add-auslastung-tab.md), [optimize-remount-latency.md](docs/agents/optimize-remount-latency.md)
+
 ### v3.27.0 — Anmeldung legt den Freischalt-Zustand fest (August 2026)
 
 MINOR — In `zah-pl` erschienen **beide** Modul-Menüs, egal welches Passwort an der Wall getippt wurde. Kein Code-Defekt: eine Freischaltung galt 12 h und überlebte jede Anmeldung, also blieb offen, was ein früherer Login geöffnet hatte. Für den Kurator-Slot existierte zudem nie ein benutzbares Passwort — der einzige Weg hinein war ein Überbleibsel aus einem pl-Stand vor dem Schloss.

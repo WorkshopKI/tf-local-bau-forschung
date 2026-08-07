@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "3.27.0",
+  "version": "3.27.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -29,8 +29,8 @@
     "build:pl": "node scripts/build-with-config.mjs --config configs/pl.config.json",
     "prebuild:all": "npm run generate:test-assets",
     "build:all": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/pl.config.json && node scripts/build-with-config.mjs --config configs/prod.config.json",
-    "prebuild:devprod": "npm run generate:test-assets",
-    "build:devprod": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/prod.config.json",
+    "prebuild:devpl": "npm run generate:test-assets",
+    "build:devpl": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/pl.config.json",
     "config-ui": "node scripts/serve-config-ui.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --build",

@@ -36,4 +36,4 @@ Das Auslastungs-Plugin (`src/plugins/auslastung/`) hat aktuell 5 Tabs (Klassifiz
 
 - `npm run typecheck` — `TabId`-Union erzwingt die drei `display`-Checks.
 - `npm run test` — vorhandene Auslastungs-Tests bleiben grün.
-- `npm run build:devprod` + dev-HTML öffnen — Auslastungs-Plugin → neuer Tab sichtbar, Wechsel ist <100 ms (CSS-Toggle), kein Re-Mount.
+- `npm run build:devpl` + dev-HTML öffnen — Auslastungs-Plugin → neuer Tab sichtbar, Wechsel ist <100 ms (CSS-Toggle), kein Re-Mount.

@@ -81,6 +81,7 @@ darunter `devFixtures` und `maLogin`.
 npm run build:dev       # → dist-single/dev/zah-dev.html
 npm run build:pl        # → dist-single/zah-pl.html
 npm run build:prod      # → dist-single/zim-dashboard.html
+npm run build:devpl     # dev + pl — das Standard-Paar nach jedem Patch
 npm run build:all       # alle drei
 npm run build:variant -- --config configs/<datei>.config.json   # beliebige Variante
 npm run config-ui       # HTML-Konfigurator auf http://localhost:5174

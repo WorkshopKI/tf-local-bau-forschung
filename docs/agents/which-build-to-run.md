@@ -6,26 +6,28 @@ Entscheidungs-Cheatsheet nach dem Patchen. Die Sichtbarkeits-**Matrix** (welches
 
 | Angefasst | Bauen |
 |-----------|-------|
-| **Immer** (jeder nicht-triviale Patch) | `npm run build:devprod` (dev + prod) |
-| **zusätzlich** Fach-Stack: `src/plugins/auslastung/**`, Kuration-Plugins, Gutachten-/Artefakt-Kette, Erprobungs-Bereiche | `npm run build:pl` |
+| **Immer** (jeder nicht-triviale Patch) | `npm run build:devpl` (dev + pl) |
+| **zusätzlich** Code, der auch im schlanken End-User-Build läuft: `src/core/**`, `src/components/**`, `home`/`antraege`/`einstellungen` | `npm run build:prod` |
 | alle drei | `npm run build:all` |
 
-**Warum „zusätzlich"?** Der prod-Build (`zim-dashboard.html`) ist bewusst schlank — Auslastung,
-Kuration, Gutachten und die Erprobungs-Bereiche werden dort gar nicht kompiliert oder gerendert.
-Ein grüner `build:prod` beweist für diesen Code also nichts. Seit v3.0 liegt der ganze Fach-Stack
-in **einer** Variante (`pl`); ein eigener kurator-Build existiert nicht mehr.
+**Warum dev + pl als Standard?** Aus diesen beiden Builds testet der User
+(`dist-single/dev/zah-dev.html` + `dist-single/zah-pl.html`); seit v3.0 liegt der ganze Fach-Stack
+in **einer** Variante (`pl`) — Auslastung, Kuration, Gutachten und die Erprobungs-Bereiche werden
+im prod-Build gar nicht kompiliert. Ein grüner `build:prod` beweist für diesen Code also nichts.
+Umgekehrt beweist ein grüner `build:pl` nichts über prod, sobald geteilter Code angefasst wurde:
+prod schaltet andere Flags, und was dort nicht mitkompiliert, fällt erst im prod-Build auf.
 
 ## So entscheidest du „welche Variante zeigt das?"
 
 1. In welchem Plugin/welcher UI liegt der Code? → Zeile in der Sichtbarkeits-Matrix (CLAUDE.md).
 2. Hängt das Rendering an einem `features.*`-Flag? → [feature-flags.ts](../../src/config/feature-flags.ts) + welche `configs/*.config.json` das Flag auf `true` setzen.
-3. Diese Variante(n) bauen — plus immer `build:devprod` als Basis.
+3. Diese Variante(n) bauen — plus immer `build:devpl` als Basis.
 
 ## Faustregeln nach Pfad
 
-- `src/plugins/auslastung/**` → **pl**. (Memory-Feedback: wird oft vergessen.)
+- `src/plugins/auslastung/**` → **pl**, also von `build:devpl` schon abgedeckt. (Memory-Feedback: wurde früher oft vergessen — deshalb steckt pl jetzt im Standard-Paar.)
 - `src/plugins/{feedback,csv-sources-kuration,programme-kuration,dokumentenquellen-kuration,filter-kuration,dokument-review,kurator}/**` oder etwas hinter `features.kuratorMenus` → **pl** (dort liegt die Kuration seit v3.0).
-- `src/plugins/{home,antraege,einstellungen}/**`, `src/core/**`, `src/components/**` → meist nur **devprod**; aber wenn die Änderung ein variant-gegatetes Verhalten berührt (z.B. `csvAutoRefresh`, `maLogin`, `auth`, `moduleAuth`, `datenShareSchreibrecht`), auch **pl** bauen.
+- `src/plugins/{home,antraege,einstellungen}/**`, `src/core/**`, `src/components/**` → `build:devpl` **plus** `build:prod`: dieser Code läuft auch im End-User-Build, und ein variant-gegatetes Verhalten (z.B. `csvAutoRefresh`, `maLogin`, `auth`, `moduleAuth`, `datenShareSchreibrecht`) schaltet dort anders.
 
 ## Achtung: gesperrte Module im pl-Build
 
