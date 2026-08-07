@@ -17,7 +17,36 @@ export function effectiveListWidth(
   narrowMinWidth: number,
   detailMinWidth: number,
 ): number {
-  return Math.min(width, maxListWidth(viewportWidth, narrowMinWidth, detailMinWidth));
+  // Der Boden wird MIT geklemmt (bis v3.19 nur das Cap): mit einer Vorgabe von
+  // rechts (`startListWidth`) kann die Rechnung „Fenster − Detailbreite" an
+  // einem engen Fenster unter `narrowMinWidth` fallen. Für die bisherigen
+  // Aufrufer ändert sich nichts — deren Werte lagen schon immer darüber.
+  const cap = maxListWidth(viewportWidth, narrowMinWidth, detailMinWidth);
+  return Math.min(Math.max(width, narrowMinWidth), cap);
+}
+
+/**
+ * Startbreite der Liste, solange niemand am Trenner gezogen hat.
+ *
+ * Zwei Vorgabe-RICHTUNGEN, weil es zwei Sorten Seiten gibt:
+ * - von LINKS (`narrowDefaultWidth`): die Liste ist eine schmale Sidebar, das
+ *   Detail bekommt den Rest — der Normalfall (Tabelle + Editor).
+ * - von RECHTS (`detailDefaultWidth`): das Detail ist die schmale Spur, die
+ *   Liste bekommt den Rest — für Master-Ansichten, die selbst Platz brauchen
+ *   (Board mit Spalten). Ohne gespeicherte Breite wächst die Liste dann mit dem
+ *   Fenster, statt bei einem einmal gesetzten Pixelwert stehenzubleiben.
+ *
+ * Das Ergebnis geht durch `effectiveListWidth` und wird dort geklemmt.
+ */
+export function startListWidth(
+  stored: number | null,
+  viewportWidth: number,
+  narrowDefaultWidth: number,
+  detailDefaultWidth?: number,
+): number {
+  if (stored !== null) return stored;
+  if (detailDefaultWidth === undefined) return narrowDefaultWidth;
+  return viewportWidth - detailDefaultWidth;
 }
 
 /**

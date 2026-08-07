@@ -7,11 +7,31 @@ import {
   listPaneStyle,
   maxListWidth,
   shouldCloseOnEscape,
+  startListWidth,
 } from '../masterDetailLayout-logic';
 
 describe('masterDetailLayout-logic', () => {
   const MIN = 320;
   const DETAIL_MIN = 300;
+
+  describe('startListWidth', () => {
+    it('nimmt die gespeicherte Nutzerbreite, sobald es eine gibt', () => {
+      expect(startListWidth(640, 1440, 460)).toBe(640);
+      expect(startListWidth(640, 1440, 460, 452)).toBe(640);
+    });
+    it('ohne Vorgabe von rechts: der Sidebar-Default (bisheriges Verhalten)', () => {
+      expect(startListWidth(null, 1440, 460)).toBe(460);
+    });
+    it('mit Vorgabe von rechts: die Liste bekommt den Rest und WÄCHST mit dem Fenster', () => {
+      expect(startListWidth(null, 1440, 460, 452)).toBe(988);
+      expect(startListWidth(null, 1920, 460, 452)).toBe(1468);
+    });
+    it('am engen Fenster übernimmt danach die Klemme in effectiveListWidth', () => {
+      // 600 − 452 = 148 → unter narrowMinWidth, effectiveListWidth hebt an.
+      expect(startListWidth(null, 600, 460, 452)).toBe(148);
+      expect(effectiveListWidth(148, 600, MIN, DETAIL_MIN)).toBe(320);
+    });
+  });
 
   describe('effectiveListWidth', () => {
     it('gibt die Wunschbreite zurück, wenn der Viewport genug Platz lässt', () => {

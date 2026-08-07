@@ -38,8 +38,12 @@ export interface TicketKontext {
   aendere: (t: FeedbackItem, patch: TicketPatch, meldung: string) => void;
   /** Dieselbe Änderung auf mehrere Tickets (Bulk-Leiste, Drag&Drop einer Auswahl). */
   aendereViele: (tickets: readonly FeedbackItem[], patch: TicketPatch, meldung: string) => void;
-  /** Einen Kommentar anhängen; `rueckfrage` setzt zusätzlich den Status. */
-  kommentiere: (t: FeedbackItem, text: string, art: KommentarArt) => void;
+  /**
+   * Einen Kommentar anhängen; `rueckfrage` setzt zusätzlich den Status.
+   * Liefert `false`, wenn nichts geschrieben wurde — der Aufrufer darf den
+   * Entwurf dann NICHT verwerfen, er ist die einzige Kopie.
+   */
+  kommentiere: (t: FeedbackItem, text: string, art: KommentarArt) => Promise<boolean>;
   /** Ticket im Detail-Panel öffnen. */
   oeffne: (t: FeedbackItem) => void;
   /** Welches Ticket ist gerade offen? */

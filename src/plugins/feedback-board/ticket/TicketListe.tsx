@@ -27,7 +27,10 @@ export function TicketListe({ tickets, ctx }: {
   return (
     <div className="fb-liste">
       <div className="fb-liste-kopf">
-        <span style={{ width: 8, flex: 'none' }} aria-hidden />
+        {/* Platzhalter für die Auswahl-Checkbox der Zeile — ohne ihn stünden
+            alle Überschriften um 25px gegen ihre Spalte versetzt. */}
+        <span style={{ width: 15, flex: 'none' }} aria-hidden />
+        <span className="fb-sp-typ">Typ</span>
         <span style={{ width: 44, flex: 'none' }}>Nr.</span>
         <span className="fb-sp-t">Ticket</span>
         <span className="fb-sp-s">Status</span>

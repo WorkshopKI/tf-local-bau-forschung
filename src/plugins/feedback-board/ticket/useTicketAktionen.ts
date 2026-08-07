@@ -35,7 +35,8 @@ export interface TicketAktionen {
   aendere: (t: FeedbackItem, patch: TicketPatch, meldung: string) => void;
   /** Dieselbe Änderung auf mehrere Tickets — ein Share-Lauf, ein Toast, ein Rückweg. */
   aendereViele: (tickets: readonly FeedbackItem[], patch: TicketPatch, meldung: string) => void;
-  kommentiere: (t: FeedbackItem, text: string, art: KommentarArt) => void;
+  /** `false` = nichts geschrieben; der Entwurf des Aufrufers muss stehenbleiben. */
+  kommentiere: (t: FeedbackItem, text: string, art: KommentarArt) => Promise<boolean>;
   busy: boolean;
   toast: ToastZustand | null;
   schliesseToast: () => void;
@@ -151,13 +152,19 @@ export function useTicketAktionen(
     });
   }, [storage, onChanged, zeige]);
 
-  const kommentiere = useCallback((
+  // Liefert, OB geschrieben wurde. Der Aufrufer hält den Entwurf in einem
+  // Textfeld — leert er ihn auf Verdacht, ist der Text bei einem Share-Fehler
+  // weg, und die Fehlermeldung im Toast sagt ihm nur, dass er ihn neu tippen
+  // darf. `run` verschluckt die Rejection (Toast via onError), deshalb wird der
+  // Erfolg im Abschluss festgehalten statt am geworfenen Fehler abgelesen.
+  const kommentiere = useCallback(async (
     t: FeedbackItem,
     text: string,
     art: KommentarArt,
-  ): void => {
-    if (!meId || !text.trim()) return;
-    void runRef.current(async () => {
+  ): Promise<boolean> => {
+    if (!meId || !text.trim()) return false;
+    let geschrieben = false;
+    await runRef.current(async () => {
       // `addComment` liefert `ok:false` statt zu werfen — das muss der Aufrufer
       // auswerten (Pitfall #15 deckt nur geworfene Fehler ab). Ein verlorener
       // Kommentar ohne Meldung wäre der schlimmste Fall: der Text ist die
@@ -176,6 +183,7 @@ export function useTicketAktionen(
       if (art === 'rueckfrage') {
         await updateFeedback(storage, t.id, { kurator_status: FEEDBACK_STATUS.rueckfrage });
       }
+      geschrieben = true;
       onChanged();
       zeige({
         text: art === 'rueckfrage'
@@ -190,6 +198,7 @@ export function useTicketAktionen(
         });
       }
     });
+    return geschrieben;
   }, [storage, meId, meName, onChanged, zeige]);
 
   return { aendere, aendereViele, kommentiere, busy: lauf.busy, toast, schliesseToast };

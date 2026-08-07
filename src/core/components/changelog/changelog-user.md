@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.22 — 2026-08
+
+### Neu
+- Im Ticket-Detail gibt es unter dem **Verlauf** jetzt ein eigenes Eingabefeld mit Textbausteinen. Das Team kann von dort „Als Rückfrage senden" (der Text geht raus und das Ticket wandert zugleich auf *Rückfrage*), der Ersteller „Als Ergänzung". `Strg+↵` sendet.
+- Am eigenen Ticket führen **„Ergänzung hinzufügen"** und **„Kommentar"** direkt zu diesem Feld — vorher stand dort nur der Hinweis, man möge weiter unten suchen.
+
+### Verbesserungen
+- **Das Board behält seinen Platz, wenn rechts ein Ticket aufgeht.** Bisher blieb von sechs Spalten weniger als eine übrig. Jetzt ist das Detail die schmale Spur; am Trenner lässt sich das verschieben, ein Doppelklick stellt den Ausgangszustand her.
+- **Leere Spalten klappen wieder ein** und stehen als schmaler Streifen da. Ein Klick faltet einen auf; beim Ziehen einer Karte öffnen sich alle, damit man überall ablegen kann. Die übrigen Spalten teilen sich die frei gewordene Breite.
+- In der Listen-Ansicht steht der Typ als beschriftetes Kennzeichen (**Problem · Idee · Lob · Frage**) statt als kaum unterscheidbarer Farbpunkt.
+
+### Bugfixes
+- Schlägt das Speichern eines Kommentars fehl, bleibt der geschriebene Text jetzt stehen, statt mit der Fehlermeldung zu verschwinden.
+
 ## v3.21 — 2026-08
 
 ### Neu

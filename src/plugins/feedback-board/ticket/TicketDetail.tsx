@@ -31,13 +31,13 @@ import { FeedbackAvatar } from '@/components/feedback/FeedbackAvatar';
 import { FeedbackScreenshots } from '@/components/feedback/FeedbackScreenshots';
 import { FeedbackFiles } from '@/components/feedback/FeedbackFiles';
 import { FeedbackVotePill } from '@/components/feedback/FeedbackVotePill';
-import { FeedbackCommentThread } from '@/components/feedback/FeedbackCommentThread';
 import { FeedbackStepper } from '@/components/feedback/FeedbackStepper';
 import { FeedbackSponsorPanel } from '@/components/feedback/FeedbackSponsorPanel';
 import { FeedbackVerwaltungBlock } from '@/components/feedback/FeedbackVerwaltungBlock';
 import { FeedbackErgaenzenForm } from '@/components/feedback/FeedbackErgaenzenForm';
 import { InlineChip } from './InlineChip';
 import { DauerStreifen } from './DauerStreifen';
+import { VerlaufBlock } from './VerlaufBlock';
 import {
   AufwandIcon, ZustaendigIcon, aufwandChipLabel, aufwandMenue, bereichMenue, statusMenue,
   ticketBereichLabel, zustaendigMenue,
@@ -95,6 +95,12 @@ export function TicketDetail({
   //   bleibt stehen — Neues gehört als Ergänzung in den Verlauf.
   const [bearbeiten, setBearbeiten] = useState(false);
   useEffect(() => { setBearbeiten(false); }, [t.id]);
+
+  // Die Knöpfe der Aktionsleiste zeigen auf das Eingabefeld weiter unten im
+  // Körper. Ein hochgezählter Zähler statt einer imperativen Handle: er lässt
+  // sich mehrfach auslösen und braucht kein `useImperativeHandle`.
+  const [fokusSignal, setFokusSignal] = useState(0);
+  const fokussiereVerlauf = (): void => setFokusSignal(n => n + 1);
   const autorDarfEditieren = meins && t.kurator_status === FEEDBACK_STATUS.neu;
   const darfBearbeiten = ctx.darfVerwalten || autorDarfEditieren;
 
@@ -180,17 +186,29 @@ export function TicketDetail({
               <Pencil size={13} aria-hidden /> Ticket bearbeiten
             </button>
           ) : (
-            <span className="fb-abtn leer" style={{ cursor: 'default' }}>
-              <Plus size={13} aria-hidden /> Ergänzung unten anhängen
-            </span>
+            // Kein toter Hinweis: der Knopf springt ins Eingabefeld des
+            // Verlaufs. „Ergänzung unten anhängen" stand hier bis v3.19 als
+            // Text da und ließ den Ersteller selbst nach dem Feld suchen.
+            <button type="button" className="fb-abtn" onClick={fokussiereVerlauf}>
+              <Plus size={13} aria-hidden /> Ergänzung hinzufügen
+            </button>
           )}
+          <button type="button" className="fb-abtn" onClick={fokussiereVerlauf}>
+            <MessageSquare size={13} aria-hidden /> Kommentar
+          </button>
           <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)]">
             {autorDarfEditieren
               ? 'Noch nicht angefasst — frei bearbeitbar.'
               : 'In Bearbeitung — Änderungen gehen als Ergänzung an das Team.'}
           </span>
         </div>
-      ) : null}
+      ) : (
+        <div className="fb-d-aktionen">
+          <button type="button" className="fb-abtn" onClick={fokussiereVerlauf}>
+            <MessageSquare size={13} aria-hidden /> Kommentar
+          </button>
+        </div>
+      )}
 
       {/* Körper */}
       <div className="fb-d-body">
@@ -292,15 +310,13 @@ export function TicketDetail({
           </div>
         )}
 
-        <div className="fb-d-block">
-          <FeedbackCommentThread
-            ticket={t}
-            meId={meId}
-            meName={meName}
-            onChanged={onChanged}
-            neueKommentare={kmtNeu}
-          />
-        </div>
+        <VerlaufBlock
+          t={t}
+          ctx={ctx}
+          meName={meName}
+          neueKommentare={kmtNeu}
+          fokusSignal={fokusSignal}
+        />
 
         {/* Die selten gebrauchten Felder bleiben eingeklappt am Ende: Kategorie,
             Priorität, interne Notiz, Team-Antwort, FAQ, Claude-Prompt, Löschen.

@@ -11,6 +11,7 @@ import {
   parseCollapsedFlag,
   serializeCollapsedFlag,
   shouldShowList,
+  startListWidth,
 } from './masterDetailLayout-logic';
 
 /** Steuer-API, die `list` als Render-Funktion bekommt — damit ein Collapse-
@@ -37,6 +38,12 @@ export interface MasterDetailLayoutProps {
   narrowDefaultWidth?: number;
   narrowMinWidth?: number;
   detailMinWidth?: number;
+  /** Startbreite von RECHTS her vorgegeben: das DETAIL startet mit dieser
+   *  Breite, die Liste bekommt den Rest — und behält ihn beim Fenster-Resize,
+   *  solange niemand am Trenner gezogen hat. Für Master-Ansichten, die selbst
+   *  Platz brauchen (Board mit Spalten). Schlägt `narrowDefaultWidth`, sobald
+   *  gesetzt; eine gespeicherte Nutzerbreite schlägt beides. */
+  detailDefaultWidth?: number;
   /** Opt-in: erlaubt das vollständige Einklappen der Liste auf eine schmale
    *  vertikale Leiste im Detail-Modus (additiv neben dem Resize). Default aus —
    *  bestehende Konsumenten bleiben unverändert. Der Collapse-Trigger gehört in
@@ -49,13 +56,14 @@ export interface MasterDetailLayoutProps {
   collapsedRailLabel?: string;
 }
 
-function loadStoredWidth(key: string | undefined, defaultWidth: number, minWidth: number): number {
-  if (!key) return defaultWidth;
+/** Gespeicherte Nutzerbreite — `null` heißt „noch nie gezogen" (nicht „0"). */
+function loadStoredWidth(key: string | undefined, minWidth: number): number | null {
+  if (!key) return null;
   try {
     const v = Number(localStorage.getItem(key));
     if (Number.isFinite(v) && v >= minWidth) return v;
   } catch { /* ignore */ }
-  return defaultWidth;
+  return null;
 }
 
 /**
@@ -75,6 +83,7 @@ export function MasterDetailLayout({
   narrowDefaultWidth = 460,
   narrowMinWidth = 320,
   detailMinWidth = 300,
+  detailDefaultWidth,
   collapsible = false,
   listCollapsedKey,
   collapsedRailLabel = 'Einblenden',
@@ -91,8 +100,10 @@ export function MasterDetailLayout({
   }, [collapsed, listCollapsedKey]);
   const toggleCollapsed = useCallback(() => setCollapsed(c => !c), []);
 
-  const [listWidth, setListWidth] = useState(() =>
-    loadStoredWidth(listWidthKey, narrowDefaultWidth, narrowMinWidth),
+  // `null` = niemand hat gezogen → die Startbreite kommt aus den Vorgaben und
+  // folgt (bei `detailDefaultWidth`) dem Fenster.
+  const [listWidth, setListWidth] = useState<number | null>(() =>
+    loadStoredWidth(listWidthKey, narrowMinWidth),
   );
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440,
@@ -106,7 +117,10 @@ export function MasterDetailLayout({
 
   useEffect(() => {
     if (!listWidthKey) return;
-    try { localStorage.setItem(listWidthKey, String(listWidth)); } catch { /* ignore */ }
+    try {
+      if (listWidth === null) localStorage.removeItem(listWidthKey);
+      else localStorage.setItem(listWidthKey, String(listWidth));
+    } catch { /* ignore */ }
   }, [listWidth, listWidthKey]);
 
   // Escape schließt das Detail — außer der Fokus liegt in einem Eingabefeld.
@@ -125,12 +139,19 @@ export function MasterDetailLayout({
     return () => window.removeEventListener('keydown', onKey);
   }, [hasDetail]);
 
-  const effectiveWidth = effectiveListWidth(listWidth, viewportWidth, narrowMinWidth, detailMinWidth);
+  const effectiveWidth = effectiveListWidth(
+    startListWidth(listWidth, viewportWidth, narrowDefaultWidth, detailDefaultWidth),
+    viewportWidth,
+    narrowMinWidth,
+    detailMinWidth,
+  );
 
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const onResizePointerDown = useCallback((e: React.PointerEvent): void => {
     e.preventDefault(); // kein Textselektieren/Fokus-Flackern während des Ziehens
-    dragRef.current = { startX: e.clientX, startWidth: listWidth };
+    // Basis ist die ANGEZEIGTE Breite — vor dem ersten Ziehen gibt es noch
+    // keinen gespeicherten Wert, von dem aus man rechnen könnte.
+    dragRef.current = { startX: e.clientX, startWidth: effectiveWidth };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     const onMove = (ev: PointerEvent): void => {
@@ -148,7 +169,7 @@ export function MasterDetailLayout({
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [listWidth, narrowMinWidth, detailMinWidth]);
+  }, [effectiveWidth, narrowMinWidth, detailMinWidth]);
 
   // Tastatur-Alternative zum Ziehen: Basis ist die ANGEZEIGTE (geklemmte) Breite,
   // sonst liefen erste Tastendrücke an einem gekappten Wert ins Leere.
@@ -194,7 +215,7 @@ export function MasterDetailLayout({
               tabIndex={0}
               onPointerDown={onResizePointerDown}
               onKeyDown={onResizeKeyDown}
-              onDoubleClick={() => setListWidth(narrowDefaultWidth)}
+              onDoubleClick={() => setListWidth(null)}
               title="Ziehen zum Anpassen · Doppelklick setzt zurück"
               className="group relative shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors focus:outline-none"
               style={{ borderLeft: '0.5px solid var(--tf-border)' }}

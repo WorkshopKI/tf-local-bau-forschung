@@ -9,7 +9,9 @@
  */
 import { useState } from 'react';
 import type { FeedbackItem } from '@/core/types/feedback';
-import { CATEGORY_DOT, CATEGORY_LABELS, STATUS_DOT, STATUS_LABELS } from '@/components/feedback/constants';
+import {
+  CATEGORY_COLORS, CATEGORY_DOT, CATEGORY_LABELS, STATUS_DOT, STATUS_LABELS,
+} from '@/components/feedback/constants';
 import { FeedbackAvatar } from '@/components/feedback/FeedbackAvatar';
 import { feedbackAuthorLabel, feedbackNummer, feedbackTitle, formatShortDate } from '@/components/feedback/feedbackUi';
 import { AuswahlHaken, InlineChip } from './InlineChip';
@@ -48,12 +50,19 @@ export function TicketZeile({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
         label={`Ticket ${feedbackNummer(t)} auswählen`}
         onToggle={() => ctx.schalteAuswahl(t.id)}
       />
-      <span
-        className="fb-typdot"
-        style={{ background: t.category ? CATEGORY_DOT[t.category] : 'var(--tf-text-tertiary)' }}
-        title={t.category ? CATEGORY_LABELS[t.category] : 'Unklassifiziert'}
-        aria-hidden
-      />
+      {/* Der Typ als beschriftetes Badge, nicht als bloßer Punkt: vier
+          Farbpunkte nebeneinander sind in einer langen Liste nicht
+          auseinanderzuhalten, und die Bedeutung stünde nur im Tooltip. */}
+      <span className="fb-sp-typ">
+        <span className={`fb-typ ${t.category ? CATEGORY_COLORS[t.category] : 'fb-typ-leer'}`}>
+          <span
+            className="fb-typdot"
+            style={{ background: t.category ? CATEGORY_DOT[t.category] : 'var(--tf-text-tertiary)' }}
+            aria-hidden
+          />
+          {t.category ? CATEGORY_LABELS[t.category] : 'Offen'}
+        </span>
+      </span>
       <span className="fb-nr" style={{ width: 44, flex: 'none' }}>#{feedbackNummer(t)}</span>
 
       <div className="fb-sp-t">

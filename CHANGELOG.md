@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.22.0 — Feedback-Board: Platz für das Board, Typ-Badge, Verlauf im Panel (August 2026)
+
+MINOR — Nachlese aus der Benutzung des Redesigns: neben dem Detail-Panel blieben dem Board 250 px, drei leere Lanes belegten die Hälfte der Breite, der Typ war in der Liste nur ein Farbpunkt, und die Kommentar-Spur war noch die alte von v2.199. Vier Stellen, an denen der Handoff nicht die bessere Vorgabe war.
+
+- `MasterDetailLayout` misst die Startbreite wahlweise von RECHTS (`detailDefaultWidth`): das Detail startet schmal, die Liste bekommt den Rest und behält ihn beim Fenster-Resize — [masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts)
+- Board-Spalten wachsen mit (`flex: 1 1 262px`, 228–340 px) statt fest 262 px zu bleiben — [ticketsystem.css](src/plugins/feedback-board/ticketsystem.css)
+- Leere Lanes klappen wieder zur 44-px-Schmalschiene ein (ging beim Redesign verloren) und bleiben Drop-Ziel: Ziehen faltet alle auf, Klick eine einzelne — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
+- Der Typ steht in der Liste als beschriftetes Badge statt als Farbpunkt; die Container-Query-Schwellen wandern um die neue Spalte mit — [TicketZeile.tsx](src/plugins/feedback-board/ticket/TicketZeile.tsx)
+- Eigener „Verlauf" im Detail-Panel mit Bausteinen, „Als Rückfrage senden" / „Als Ergänzung"; `ctx.kommentiere` meldet Erfolg zurück, damit der Entwurf bei einem Share-Fehler stehenbleibt — [VerlaufBlock.tsx](src/plugins/feedback-board/ticket/VerlaufBlock.tsx)
+
 ### v3.21.0 — Ausklappbarer Bereich an der Tabellenzeile (August 2026)
 
 MINOR — Die Verlaufsableitung aus v3.19 hatte noch keinen Ort, an dem sie ankommt: sichtbar waren nur Bilanzzahlen im Kurator-Panel. Jetzt geht unter einer Tabellenzeile ein Bereich auf, der zeigt, wie der Vorgang zu seinem Status kam — und was seine Frist wirklich trägt.

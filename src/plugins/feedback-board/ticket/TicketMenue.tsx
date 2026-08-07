@@ -22,20 +22,10 @@ import { FEEDBACK_STATUS } from '@/core/services/feedback';
 import { STATUS_LABELS } from '@/components/feedback/constants';
 import { feedbackNummer } from '@/components/feedback/feedbackUi';
 import type { FeedbackItem } from '@/core/types/feedback';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { PopLabel, PopTrenner, PopZeile } from './InlineChip';
+import { bausteineFuer } from './bausteine';
 import type { KommentarArt, TicketKontext } from './typen';
-
-/** Textbausteine — sie sparen nicht das Denken, sondern den Anfang. */
-const BAUSTEINE_DEV: ReadonlyArray<readonly [string, string]> = [
-  ['Umsetzung', 'Umsetzung: '],
-  ['Rückfrage', 'Kurze Rückfrage, bevor ich anfange: '],
-  ['Erledigt', 'Ist umgesetzt und ab dem nächsten Release verfügbar. '],
-  ['Nicht möglich', 'Das lässt sich so nicht umsetzen, weil '],
-];
-const BAUSTEINE_NUTZER: ReadonlyArray<readonly [string, string]> = [
-  ['Ergänzung', 'Ergänzung: '],
-  ['Antwort', ''],
-];
 
 export function TicketMenue({ t, ctx, offen, setOffen }: {
   t: FeedbackItem;
@@ -160,15 +150,17 @@ function SchnellKommentar({ t, ctx, zurueck, fertig }: {
   useEffect(() => { ref.current?.focus(); }, []);
 
   const dev = ctx.darfVerwalten && ctx.rolle === 'entwickler';
-  const bausteine = dev ? BAUSTEINE_DEV : BAUSTEINE_NUTZER;
+  const bausteine = bausteineFuer(dev);
   const meins = ctx.istMeins(t);
   const leer = !text.trim();
 
-  const senden = (art: KommentarArt): void => {
+  // Das Popover schließt erst, wenn wirklich geschrieben wurde — sonst wäre der
+  // Text mit dem Popover verschwunden und die Fehlermeldung im Toast hätte
+  // niemandem geholfen.
+  const senden = useAsyncAction(async (art: KommentarArt) => {
     if (leer) return;
-    ctx.kommentiere(t, text, art);
-    fertig();
-  };
+    if (await ctx.kommentiere(t, text, art)) fertig();
+  });
 
   return (
     <div>
@@ -193,7 +185,7 @@ function SchnellKommentar({ t, ctx, zurueck, fertig }: {
         onChange={e => setText(e.target.value)}
         placeholder={dev ? 'Was wurde umgesetzt / was fehlt noch?' : 'Was möchtest du ergänzen?'}
         onKeyDown={e => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); senden('kommentar'); }
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void senden.run('kommentar'); }
           // Esc schließt sonst nur das Popover und der Text wäre weg — erst
           // zurück ins Menü, den Entwurf verwirft der Nutzer selbst.
           if (e.key === 'Escape' && text) { e.preventDefault(); e.stopPropagation(); zurueck(); }
@@ -202,16 +194,16 @@ function SchnellKommentar({ t, ctx, zurueck, fertig }: {
       <div className="fb-kmt-zeile">
         <span className="fb-kmt-hinweis">Strg+↵ sendet</span>
         {dev && (
-          <Button size="sm" variant="secondary" disabled={leer} onClick={() => senden('rueckfrage')}>
+          <Button size="sm" variant="secondary" disabled={leer || senden.busy} onClick={() => senden.run('rueckfrage')}>
             Als Rückfrage
           </Button>
         )}
         {!dev && meins && (
-          <Button size="sm" variant="secondary" disabled={leer} onClick={() => senden('ergaenzung')}>
+          <Button size="sm" variant="secondary" disabled={leer || senden.busy} onClick={() => senden.run('ergaenzung')}>
             Als Ergänzung
           </Button>
         )}
-        <Button size="sm" disabled={leer} onClick={() => senden('kommentar')}>
+        <Button size="sm" disabled={leer || senden.busy} onClick={() => senden.run('kommentar')}>
           <Send size={13} aria-hidden /> Senden
         </Button>
       </div>

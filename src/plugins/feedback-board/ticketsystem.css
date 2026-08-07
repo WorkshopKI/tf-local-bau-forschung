@@ -126,9 +126,16 @@
   padding: 14px 18px;
   align-items: stretch;
 }
+/* Die Spalte teilt sich die Breite, statt auf 262px zu beharren (der Handoff
+   setzt sie fest und scrollt — bei offenem Detail-Panel bleibt davon weniger
+   als EINE Spalte übrig). 262px ist jetzt der Wunsch, nicht das Maß:
+   - `flex: 1 1 262px` → wächst in freie Breite, schrumpft bei Enge;
+   - `min-width` = Boden, darunter scrollt das Board waagerecht;
+   - `max-width` = Deckel, sonst wird eine einzelne Lane armlang. */
 .fb-col {
-  flex: none;
-  width: 262px;
+  flex: 1 1 262px;
+  min-width: 228px;
+  max-width: 340px;
   display: flex;
   flex-direction: column;
   border-radius: var(--tf-radius-lg);
@@ -137,6 +144,46 @@
   border-top: 3px solid var(--fb-c);
   overflow: hidden;
 }
+/* Leere Lane: Schmalschiene mit gedrehter Beschriftung (dieselbe Sprache wie
+   die geteilte `KanbanBoard`-Shell). Drei leere Spalten à 262px verdrängten
+   sonst die drei, in denen tatsächlich etwas steht. */
+.fb-col.leer {
+  flex: 0 0 44px;
+  min-width: 44px;
+  max-width: 44px;
+  background: none;
+  border-style: dashed;
+  border-top-width: var(--tf-border-thin);
+  border-color: color-mix(in srgb, var(--fb-c) 30%, var(--tf-border));
+  align-items: center;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.fb-col.leer .fb-schiene {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--tf-text-tertiary);
+  white-space: nowrap;
+}
+.fb-col.leer .fb-schiene .fb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fb-c);
+  flex: none;
+}
+.fb-col.leer .fb-schiene .fb-n {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.fb-col.leer:hover { background: var(--tf-hover); }
 .fb-col-kopf { display: flex; align-items: center; gap: 8px; padding: 9px 11px 8px; flex: none; }
 .fb-col-kopf .fb-nm {
   font-size: 10.5px;
@@ -396,6 +443,25 @@
   background: var(--tf-primary);
   opacity: 0.55;
 }
+.fb-sp-typ { width: 86px; flex: none; }
+.fb-typ {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: var(--tf-radius-pill);
+  font-size: 11px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.fb-typ.fb-typ-leer {
+  background: var(--tf-bg-secondary);
+  color: var(--tf-text-tertiary);
+}
 .fb-sp-t { flex: 1; min-width: 280px; }
 .fb-z-titel {
   font-size: 13px;
@@ -437,9 +503,10 @@
 /* Spalten fallen in fester Prioritätsreihenfolge weg, sobald der Container
    schmaler wird (Detail-Panel offen). Container-Query statt Media-Query: es
    zählt die Breite der LISTE, nicht die des Fensters. */
-@container (max-width: 900px) { .fb-sp-a { display: none; } }
-@container (max-width: 790px) { .fb-sp-d { display: none; } }
-@container (max-width: 690px) { .fb-sp-e { display: none; } }
+@container (max-width: 980px) { .fb-sp-a { display: none; } }
+@container (max-width: 870px) { .fb-sp-d { display: none; } }
+@container (max-width: 760px) { .fb-sp-e { display: none; } }
+@container (max-width: 660px) { .fb-sp-typ { display: none; } }
 @container (max-width: 590px) {
   .fb-sp-t { min-width: 0; }
   .fb-sp-s { display: none; }
@@ -677,6 +744,17 @@
   background: color-mix(in srgb, var(--fb-c) 10%, var(--tf-bg));
   border-color: var(--fb-c);
 }
+/* Während eines Ziehens klappen die Schienen zu vollen Spalten auf — sonst
+   wäre die einzige leere Ziel-Lane ein 44px-Streifen. */
+.fb-board.zieht .fb-col.leer {
+  flex: 1 1 262px;
+  min-width: 228px;
+  max-width: 340px;
+  align-items: stretch;
+  padding: 0;
+  background: var(--tf-card-surface);
+}
+.fb-board.zieht .fb-col.leer .fb-schiene { display: none; }
 .fb-karte[draggable='true'] { cursor: grab; }
 .fb-karte[draggable='true']:active { cursor: grabbing; }
 
@@ -769,6 +847,28 @@
 }
 .fb-kmt-feld:focus { border-color: var(--tf-primary); }
 .fb-kmt-zeile { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+/* Verlauf im Detail-Panel */
+.fb-d-label .fb-d-zahl {
+  font-weight: var(--tf-weight-regular);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 11px;
+}
+.fb-verlauf-leer {
+  font-size: 12.5px;
+  color: var(--tf-text-tertiary);
+  font-style: italic;
+  margin: 0 0 12px;
+}
+.fb-compose { margin-top: 14px; }
+.fb-compose-feld { display: flex; align-items: flex-start; gap: 9px; }
+.fb-compose-feld .fb-kmt-feld { flex: 1; min-width: 0; }
+/* Im Panel ist die Zeile schmaler als im Popover: passen Hinweis und die zwei
+   Knöpfe nicht nebeneinander, rutscht der Hinweis auf eine eigene Zeile,
+   statt zusammengequetscht zu werden. */
+.fb-compose .fb-kmt-zeile { flex-wrap: wrap; justify-content: flex-end; }
+.fb-compose .fb-kmt-hinweis { min-width: 180px; }
 .fb-kmt-hinweis { flex: 1; font-size: 10.5px; color: var(--tf-text-tertiary); }
 
 /* ---------------- Verlauf: Ergänzung und Rückfrage ---------------- */

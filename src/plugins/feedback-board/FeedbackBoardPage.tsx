@@ -534,8 +534,15 @@ export function FeedbackBoardPage(): React.ReactElement {
       </div>
 
       {/* Inhalt: Facetten | Board/Liste | Detail */}
+      {/* Die Breiten-Vorgabe kommt von RECHTS: das Detail ist die schmale Spur,
+          das Board bekommt den Rest — und behält ihn beim Fenster-Resize.
+          Andersherum (Liste = 460px-Sidebar, der Default des Shells) blieb dem
+          Board neben den 206px Facetten weniger als EINE Spaltenbreite.
+          Schlüssel-Bump, weil eine gemerkte 460 den neuen Weg sonst überstimmt. */}
       <MasterDetailLayout
-        listWidthKey="teamflow_feedback_board_narrow_width"
+        listWidthKey="teamflow_feedback_board_list_width_v2"
+        detailDefaultWidth={452}
+        detailMinWidth={380}
         onCloseDetail={() => setSelectedId(undefined)}
         detail={selected ? (
           <TicketDetail
