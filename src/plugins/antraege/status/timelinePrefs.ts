@@ -7,8 +7,14 @@ import { useStorage } from '@/core/hooks/useStorage';
 
 export type ZeitraumPreset = 'gesamt' | '12m' | '90t';
 
-/** Welche Verlaufs-Ansicht offen ist — Chronik (senkrecht) oder Lanes (waagerecht). */
-export type VerlaufAnsicht = 'chronik' | 'zeitstrahl';
+/**
+ * Welche Verlaufs-Ansicht offen ist — Chronik (senkrecht), Lanes (waagerecht,
+ * aus dem Ereignis-Protokoll) oder das abgeleitete Band (waagerecht, aus den
+ * Datumsspalten). Der Standard bleibt `chronik`: sie steht in jedem Import zur
+ * Verfügung, und ein geänderter Default verwirft keine gespeicherte Wahl —
+ * er überschreibt sie nur für die, die noch keine haben.
+ */
+export type VerlaufAnsicht = 'chronik' | 'zeitstrahl' | 'band';
 
 export interface TimelinePrefs {
   zeigeNebensaechlich: boolean;
@@ -35,7 +41,7 @@ function normalisiere(roh: unknown): TimelinePrefs {
     zeigeNebensaechlich: p.zeigeNebensaechlich === true,
     preset: p.preset === '12m' || p.preset === '90t' ? p.preset : 'gesamt',
     eingeklappt: Array.isArray(p.eingeklappt) ? p.eingeklappt.filter(x => typeof x === 'string') : [],
-    ansicht: p.ansicht === 'zeitstrahl' ? 'zeitstrahl' : 'chronik',
+    ansicht: p.ansicht === 'zeitstrahl' || p.ansicht === 'band' ? p.ansicht : 'chronik',
   };
 }
 

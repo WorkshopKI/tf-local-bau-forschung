@@ -26,6 +26,7 @@ import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsync
 import { generationenVon } from '@/core/status/betrachtungsbereich';
 import { zaehlwort } from '@/core/utils/zaehlwort';
 import { jederVorgang, istImBereich, ladeTrigger, type MappingVersion } from '@/core/status';
+import { bezugsZeitpunktFuerVorkommen } from '@/core/status/frist-bezug';
 import {
   leereBefunde, nimmAuf, c16Treffer,
   type VerlaufsBefunde, type VerlaufsBezug, type VerlaufsBezugTv,
@@ -101,17 +102,23 @@ export function useVerlaufErhebung(version: MappingVersion | null): VerlaufLauf 
     for (const [schluessel, tvs] of jeVerbund) {
       const erstes = tvs[0];
       if (!erstes) continue;
+      // Bis wann die Achse läuft, entscheidet die Frist-Uhr je Vorhaben: bei
+      // angehaltener das Haltedatum. Bis v3.26 stand hier der nackte Stichtag,
+      // und jeder entschiedene Altfall streckte seinen letzten Status bis heute
+      // — was die Verweildauer-Zahlen dieses Laufs verzerrte.
+      const alleVorkommen = tvs.flatMap(t => t.vorkommen);
+      const statusVbRoh = erstes.vorkommen.find(v => v.feld.feldId === 'verbund_status')?.wert ?? '';
       const bezug: VerlaufsBezug = {
         verbundId: schluessel.startsWith('einzel:') ? null : schluessel,
         // Der Verbund-Record führt den VB-Status; er steht auf jeder TV-Zeile
         // nicht mit, deshalb kommt er hier aus dem Vorkommen des Katalogfeldes.
-        statusVbRoh: erstes.vorkommen.find(v => v.feld.feldId === 'verbund_status')?.wert ?? '',
+        statusVbRoh,
         vbPhaseRoh: erstes.vbPhaseRoh,
         // Die Richtlinie des ERSTEN Teilvorhabens. Tragen die TVs eines Verbunds
         // verschiedene, meldet das `programmNummer` an der Detailseite — hier
         // liefe eine zweite Prüfung über 6 600 Vorhaben, ohne mehr zu sagen.
         programm: erstes.programm || null,
-        bezugsZeitpunkt: stichtag,
+        bezugsZeitpunkt: bezugsZeitpunktFuerVorkommen(version, alleVorkommen, statusVbRoh, stichtag),
         teilvorhaben: tvs,
       };
       nimmAuf(bilanz, baueVerlaufFuerVorgang(bezug, version, trigger, null));

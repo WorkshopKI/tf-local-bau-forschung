@@ -28,6 +28,7 @@ import { StatusTimeline } from './StatusTimeline';
 import { StatusChronik } from './StatusChronik';
 import { StatusCodeListe } from './StatusCodeListe';
 import { useTimelinePrefs } from './timelinePrefs';
+import { VerbundBand } from '../verlauf-band/VerbundBand';
 
 export function StatusDetailSection({ verbundId, statusRoh }: {
   verbundId: string;
@@ -98,16 +99,31 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           selected={prefsApi.prefs.ansicht === 'zeitstrahl'}
           onToggle={() => prefsApi.setAnsicht('zeitstrahl')}
         />
+        {/* Die dritte Sicht: die ABGELEITETE Bahn aus den Datumsspalten. Der
+            Zeitstrahl daneben zeigt das gerätelokale Ereignis-Protokoll und ist
+            damit erst ab dessen Nullpunkt vollständig — das Band reicht so weit
+            zurück wie die Termine. Zwei Antworten auf „wann", zwei Quellen. */}
+        {isVorgangssystemEnabled() && (
+          <ToggleChip
+            label="Band"
+            selected={prefsApi.prefs.ansicht === 'band'}
+            onToggle={() => prefsApi.setAnsicht('band')}
+          />
+        )}
       </div>
-      {prefsApi.prefs.ansicht === 'chronik' ? (
+      {prefsApi.prefs.ansicht === 'chronik' && (
         <StatusChronik
           vorkommen={v.vorkommen}
           version={version}
           zeigeNebensaechlich={prefsApi.prefs.zeigeNebensaechlich}
           onToggleNebensaechlich={() => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich)}
         />
-      ) : (
+      )}
+      {prefsApi.prefs.ansicht === 'zeitstrahl' && (
         <StatusTimeline events={v.events} version={version} grenze={v.grenze} prefsApi={prefsApi} />
+      )}
+      {prefsApi.prefs.ansicht === 'band' && (
+        <VerbundBand verbundId={verbundId} statusRoh={statusRoh} stichtag={stichtag.slice(0, 10)} />
       )}
 
       {/* Was steht an — dieselbe Kaskade wie im Board, je Teilvorhaben und je

@@ -58,7 +58,7 @@ export function ZeilenBereich({
   reiter, onReiter, onSchliessen, stichtag,
 }: ZeilenBereichProps): React.ReactElement {
   const verlaufAn = isVorgangssystemEnabled();
-  const daten = useZeilenVerlauf(verbundId, zeilenKey, stichtag);
+  const daten = useZeilenVerlauf(verbundId, zeilenKey, stichtag, istVerbundZeile, statusRoh);
   // Der Reiter *Verlauf* existiert nur mit Flag; ohne ihn ist „Fristen" der
   // einzige — und dann braucht es keine Leiste.
   const reiterListe = useMemo(
@@ -97,6 +97,8 @@ export function ZeilenBereich({
           journalAb={daten.journalAb}
           journalGenutzt={daten.journalGenutzt}
           laden={daten.laden}
+          bezugsZeitpunkt={daten.bezugsZeitpunkt}
+          fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
         />
       ) : (
         <FristenReiter

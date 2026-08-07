@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.28.0 — VerlaufsBand (August 2026)
+
+MINOR — Seit v3.19 liegt der Verlauf als Daten vor — je Spur lückenlose Abschnitte mit Dauer, 82,4 % zweiseitig verankert. Gezeichnet wurde er nie: der Reiter zeigte eine Aufzählung, ausdrücklich als Sicherheitsnetz, solange die Bauform offen war. Jetzt steht die Bahn, und die Liste ist eine Stufe tiefer gerückt — geteilt, nicht ersetzt.
+
+- Mehrspurige Statusbahn (Verbund + je Teilvorhaben) auf **einer gewarpten Zeitachse**: derselbe Tag sitzt in jeder Spur an derselben Stelle, kurze Abschnitte bleiben über der Klickgrenze — [bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts)
+- Konfidenz sitzt an den **Kanten**, nie am Statusfeld: der Status ist beobachtete Tatsache, unsicher ist die Zuschreibung — [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+- Zwei leere Spurzustände sprechen verschieden („für diese Richtlinie keine Regeln" ≠ „kein Bearbeitungsstand"), dafür neu `VerlaufsSpur.regelLage` — [typen.ts](src/core/status/verlauf/typen.ts)
+- „Verlauf kopieren" gibt Labels **und** Codes heraus, samt Katalogfassung und Rekonstruktions-Hinweis — [bandText.ts](src/plugins/antraege/verlauf-band/bandText.ts)
+- `bezugsZeitpunkt` liest endlich die Frist-Uhr statt des nackten Stichtags; am Bestand heute folgenlos, weil kein Haltedatum belegt ist — [frist-bezug.ts](src/core/status/frist-bezug.ts), [vorgangssystem.md §14.9](docs/architecture/vorgangssystem.md)
+
 ### v3.27.2 — Kurator-Passwort im pl-Build gesetzt (August 2026)
 
 PATCH — Der Slot `moduleAuth.kurator` trug seit seiner Einführung nur einen Platzhalter-Verifier: die Kurations-Rolle war in `pl` gar nicht erreichbar, der einzige Weg hinein war ein Überbleibsel aus einem Stand vor dem Schloss (v3.27.0). Mit dem gesetzten Passwort greift die dritte Regel erstmals wirklich.

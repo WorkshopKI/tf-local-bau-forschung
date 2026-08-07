@@ -1382,3 +1382,108 @@ Stiltabelle nicht auf die erwartete Gestalt, bricht der Export mit einem Satz ab
 Eine Formatierung, die still ausfällt, merkt niemand — außer daran, dass der
 Kontext abgeschnitten ist und geraten wird. Der Test packt das Archiv wieder aus
 und liest das XML; der letzte Beweis bleibt ein Doppelklick in Excel.
+
+### 14.9 Das VerlaufsBand (v3.27)
+
+Seit 14.3 liegt die Bahn als Daten vor — je Spur lückenlose Segmente mit Dauer,
+82,4 % davon zweiseitig verankert. Gezeichnet wurde sie nicht; der Reiter zeigte
+eine Aufzählung, ausdrücklich als Sicherheitsnetz, solange die Bauform offen war.
+Seit v3.27 zeichnet [VerlaufsBand](../../src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+sie, und die Liste ist eine Stufe tiefer gerückt: ein Klick auf eine Bahn klappt
+genau diese Spur im Klartext auf. **Sie wurde nicht ersetzt, sondern geteilt** —
+eine Grafik kann Zahlen unterschlagen, ein Listeneintrag nicht.
+
+#### Eine gewarpte Achse, die für alle Spuren gilt
+
+Die Bahn will zwei Dinge gleichzeitig, die einander widersprechen: Segmentbreite
+= Verweildauer (sonst ist sie ein Ablaufdiagramm) und eine gemeinsame Achse über
+Verbund und alle Teilvorhaben (sonst lässt sich nichts vergleichen). Ein Wechsel
+am Folgetag wäre 0,2 px breit, ein Abschnitt über sieben Jahre frisst den Rest.
+
+[bandGeometrie.ts](../../src/plugins/antraege/verlauf-band/bandGeometrie.ts) löst
+das über **eine Kantenliste aus den Segmentgrenzen sämtlicher Spuren**. Jedes
+Intervall dazwischen bekommt seine Breite proportional zur Dauer, aber mindestens
+24 px; der Überschuss wird den breiten Intervallen **anteilig an ihrem Überhang**
+abgezogen, nicht an ihrer Gesamtbreite — sonst rutschten knapp über dem
+Mindestmaß liegende in der nächsten Runde darunter. Weil dieselbe Kantenliste
+jede Spur abbildet, sitzt derselbe Tag überall an derselben x-Position. Das ist
+die eine Zusage, die den Vergleich trägt, und sie steht als Test.
+
+**Die Stauchung wird markiert.** Eine nicht-lineare Achse, die so tut als wäre
+sie linear, lügt über Verhältnisse: stark gestauchte Intervalle tragen ein
+Bruchzeichen. Die Schwelle liegt bei einem Achtel der proportionalen Breite —
+darüber ist die Verzerrung mild und eine Marke wäre Rauschen. Die Bahn darf über
+ihren Container hinauswachsen und scrollt dann in ihrem **eigenen** Behälter;
+lieber scrollen als Abschnitte unter die Klickgrenze drücken.
+
+#### Konfidenz sitzt an den Kanten
+
+Vier Stufen, vier Aussagen, kein stiller Fallback:
+
+| Stufe | Kante | heißt |
+|---|---|---|
+| `trigger_bestaetigt` | durchgezogen | Regel greift, Vorbedingung am Tag des Kürzels erfüllt |
+| `trigger_bedingt` | gestrichelt | Regel greift, Vorbedingung nicht prüfbar oder verletzt |
+| `zeitliche_naehe` | gepunktet | Kürzel passt zeitlich, keine Regel deckt es |
+| `kein_kuerzel` | Handsymbol | kein Kürzel gefunden |
+
+**Nie am Statusfeld.** Der Status ist beobachtete Tatsache — er steht so im
+Export. Unsicher ist die Zuschreibung: ob ein Kürzel den Wechsel ausgelöst hat.
+Ein Segment einzufärben, weil sein Übergang unsicher ist, verwechselte beides.
+Die Stufe `trigger_bedingt` ist dabei kein Randfall: 981 Verbünde (23,6 %) tragen
+ausschließlich bedingte Übergänge.
+
+#### Zwei leere Zustände, zwei Sätze
+
+Eine Bahn ohne Verlauf schweigt nie. `regelLage` (neu an `VerlaufsSpur`) trennt
+die beiden Fälle, die vorher nur als Fließtext in `begruendung` unterscheidbar
+waren:
+
+- **„für diese Richtlinie keine Regeln"** — Richtlinie 2015 (Programme 46–48),
+  die C16 nicht führt; 552 NW-Verbünde. Die Bahn zeigt trotzdem das
+  Statussegment, über die volle Breite mit **zwei angeschnittenen Kanten**:
+  Status bekannt, Zeitraum nicht.
+- **„kein Bearbeitungsstand"** — Irrläufer (64 Fälle). Gar kein Segment, weil der
+  Statuswert kein Bearbeitungsstand ist.
+
+Ein Segment ohne datierte Grenzen fiel dabei zunächst auf einen 1-px-Strich
+zusammen (die Achse hatte keine Ausdehnung). Ein Strich ist die schlechteste
+aller Aussagen — die Achse bekommt jetzt einen synthetischen Tag Ausdehnung, und
+das Segment spannt sichtbar über die volle Breite.
+
+#### Keine Codes in der Bahn — aber im kopierten Text
+
+In der Oberfläche wäre `AK4` eine Vokabel, die nur die Hälfte des Teams kennt;
+die Bahn zeigt Kurzformen (`statusKurzLabel`, Pitfall #50) und eine Legende mit
+den vollen Bezeichnern. Ab sechs Einträgen wird sie nummeriert, **und die
+schmalen Segmente tragen dann ihre Nummer** — ohne das wäre die Nummerierung
+unbrauchbar, denn nachschlagen will man genau die, für die kein Label passt.
+
+„Verlauf kopieren" ([bandText.ts](../../src/plugins/antraege/verlauf-band/bandText.ts))
+gibt dagegen **Labels UND Codes** heraus, dazu Bestandsstand, Katalogfassung und
+den Hinweis, dass die Bahn rekonstruiert ist. Dieser Text geht an die Fachseite,
+und dort ist der Code das einzige, worüber sich eindeutig reden lässt. Ein
+abgeleiteter Verlauf, den jemand als Beobachtung weitergibt, wird zur Behauptung.
+
+#### Der Bezugszeitpunkt — richtig verdrahtet, heute folgenlos
+
+`baueVerlauf` verlangt seit v3.17 ausdrücklich `FristErgebnis.bezugsZeitpunkt`
+(„bei entschiedenen Vorgängen das Entscheidungsdatum aus Phase 0, nicht heute");
+alle drei Aufrufer reichten stattdessen den nackten Tagesstichtag durch. Als
+Liste fiel das kaum auf, als Bahn verschluckt ein Schlusssegment über acht Jahre
+die ganze Achse. [frist-bezug.ts](../../src/core/status/frist-bezug.ts) hält die
+Rechnung jetzt an **einer** Stelle; Bahn, Liste und Bestandslauf lesen denselben
+Ausdruck.
+
+**Gemessen ändert das heute nichts** — die Erhebung liefert bit-identische
+Zahlen. Der Grund steht in der Anzeige: „Haltedatum unbekannt — weder Journal
+noch passendes Datumsfeld — nicht geraten". Das Import-Diff-Journal ist erst Tage
+alt, und kein Datumsfeld hängt an der Phase eines Endstatus; also fällt der
+Bezugszeitpunkt überall auf den Stichtag zurück. Die Verdrahtung greift, sobald
+das Journal Statuswechsel belegt — dann stimmt die Achse ohne weiteres Zutun.
+
+**`frist-bezug` steht bewusst NICHT im Barrel** `@/core/status`. Dort exportiert
+zog es die Frist-Engine aus `core/services/csv` in jeden Barrel-Import und
+verschob die Modul-Auswertung vor `idb.open()` — 20 `IDBStore not opened` beim
+Seitenstart. Aufrufer importieren das Modul direkt, wie `vorkommen.ts` es für
+seine Nachbarn ohnehin verlangt.

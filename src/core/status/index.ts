@@ -102,6 +102,11 @@ export {
   ermittleHaltedatum,
   type Haltedatum, type HaltedatumEingabe, type HaltedatumHerkunft,
 } from './haltedatum';
+// `frist-bezug` steht bewusst NICHT im Barrel: es zieht die Frist-Engine aus
+// `core/services/csv` in jeden `@/core/status`-Import und verschiebt damit die
+// Modul-Auswertung vor `idb.open()` — 20 `IDBStore not opened` beim Seitenstart.
+// Aufrufer importieren `@/core/status/frist-bezug` direkt (wie `vorkommen.ts`
+// es für seine Nachbarn ohnehin verlangt).
 // Die Rohtabelle `kuerzel-katalog.data` ist bewusst NICHT hier: nachgeschlagen
 // wird nur über `kuerzelAuskunft`, weil ein flacher Zugriff für 78,9 % der
 // Anträge den falschen Klartext liefert (Guard `kuerzel-nie-flach`).

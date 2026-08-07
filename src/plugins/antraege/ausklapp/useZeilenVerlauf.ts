@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { chronikFuerAntrag, type AntragsChronik } from '@/core/status';
+import { bezugsZeitpunktFuerVorkommen } from '@/core/status/frist-bezug';
 import { baueVerlaufFuerVorgang } from '@/core/status/verlauf/fuer-vorgang';
 import type { VerlaufsBezug, VerlaufsSpur } from '@/core/status/verlauf';
 import { useStatusVerlauf, type StatusVerlauf } from '../status/useStatusVerlauf';
@@ -26,6 +27,11 @@ import { useStatusVerlauf, type StatusVerlauf } from '../status/useStatusVerlauf
 export interface ZeilenVerlauf {
   laden: boolean;
   spuren: VerlaufsSpur[];
+  /**
+   * Bis wann die Achse läuft — Haltedatum bei angehaltener Uhr, sonst der
+   * Stichtag. Steht in der Ausgabe, weil die Bahn ihn beschriftet.
+   */
+  bezugsZeitpunkt: string;
   /** Nullpunkt des Import-Diff-Journals; `null` = kein Journal geführt. */
   journalAb: string | null;
   /** `false` = die Chronik gehört zu EINEM Teilvorhaben eines Mehr-TV-Vorhabens
@@ -58,15 +64,37 @@ function ausCache(schluessel: string, rechne: () => VerlaufsSpur[]): VerlaufsSpu
 }
 
 export function useZeilenVerlauf(
-  verbundId: string | null, aktenzeichen: string, bezugsZeitpunkt: string,
+  /**
+   * Das Aktenzeichen der geklickten Zeile — oder `null` für „das ganze
+   * Vorhaben" (Verbund-Detailseite). Bei `null` entfällt die Antrags-Chronik:
+   * das Journal wird je Teilvorhaben geführt, und eines davon auf den Verbund
+   * anzuwenden hieße, Beobachtungen zu behaupten, die es nicht gibt.
+   */
+  verbundId: string | null, aktenzeichen: string | null, stichtag: string,
+  istVerbundZeile: boolean, statusRoh: unknown,
 ): ZeilenVerlauf {
   const idb = useStorage().idb;
   const quelle = useStatusVerlauf(verbundId);
   const [chronik, setChronik] = useState<AntragsChronik | null>(null);
 
+  // Nicht der nackte Stichtag: bei angehaltener Uhr endet die Achse am
+  // HALTEDATUM. Sonst streckt ein 2018 entschiedener Altfall seinen letzten
+  // Status über acht Jahre und verschluckt die ganze Bahn (`frist-bezug.ts`).
+  const bezugsZeitpunkt = useMemo(() => {
+    const { version, jeTeilvorhaben } = quelle;
+    if (!version || jeTeilvorhaben.length === 0) return stichtag;
+    const relevante = istVerbundZeile || aktenzeichen === null
+      ? jeTeilvorhaben
+      : jeTeilvorhaben.filter(t => t.aktenzeichen === aktenzeichen);
+    return bezugsZeitpunktFuerVorkommen(
+      version, relevante.flatMap(t => t.vorkommen), statusRoh, stichtag,
+    );
+  }, [quelle, aktenzeichen, istVerbundZeile, statusRoh, stichtag]);
+
   useEffect(() => {
     let abgebrochen = false;
     setChronik(null);
+    if (aktenzeichen === null) return;
     void (async () => {
       try {
         const c = await chronikFuerAntrag(idb, aktenzeichen, bezugsZeitpunkt);
@@ -99,7 +127,7 @@ export function useZeilenVerlauf(
     const journal = einTv ? chronik : null;
     // Der Trigger-Stand gehört in den Schlüssel: ein Neu-Import ändert die
     // Regeln, und ein Cache, der das nicht sieht, zeigt die alte Bahn weiter.
-    const schluessel = `${verbundId ?? aktenzeichen}|${version.version}|${bezugsZeitpunkt}`
+    const schluessel = `${verbundId ?? aktenzeichen ?? '-'}|${version.version}|${bezugsZeitpunkt}`
       + `|${quelle.triggerVersion ?? '-'}|${journal ? 'j' : '-'}`;
     return ausCache(schluessel, () => baueVerlaufFuerVorgang(bezug, version, quelle.trigger, journal));
   }, [quelle, verbundId, aktenzeichen, bezugsZeitpunkt, chronik, einTv]);
@@ -107,6 +135,7 @@ export function useZeilenVerlauf(
   return {
     laden: quelle.laden,
     spuren,
+    bezugsZeitpunkt,
     journalAb: chronik?.journalAb ?? null,
     journalGenutzt: einTv && chronik !== null,
     quelle,

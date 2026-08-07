@@ -269,6 +269,9 @@ function baueSpur(
     segmente,
     uebergaenge,
     ...(ohneWechsel ? { begruendung: ohneWechselGrund(ctx.regeln, uebergaenge.length) } : {}),
+    // Dieselbe Unterscheidung wie im Begründungstext, aber als Wert: die Bahn
+    // zeichnet „keine Regelquelle" anders als „kein Bearbeitungsstand".
+    ...(ohneWechsel && ctx.regeln.lage !== 'regeln' ? { regelLage: ctx.regeln.lage } : {}),
     ...(abweichung ? { abweichung } : {}),
   };
 }

@@ -11,10 +11,8 @@
  * Fehlt eine der beiden Eingaben, **steht das da**. Eine stillschweigend
  * schlechtere Rechnung wäre schlimmer als eine offen benannte.
  */
-import { berechneFrist, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
-import { formatDatumsWert, parseGermanDate } from '@/core/services/csv/dateParse';
-import { ermittleHaltedatum, statusHerleitungKopf } from '@/core/status';
-import type { FeldVorkommen } from '@/core/status';
+import { formatDatumsWert } from '@/core/services/csv/dateParse';
+import { fristFuerVorkommen } from '@/core/status/frist-bezug';
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { MeilensteinLeiste } from '@/plugins/meilensteine/MeilensteinLeiste';
 import { PROGNOSE_FARBE, PROGNOSE_LABEL, formatDatum } from '@/plugins/meilensteine/labels';
@@ -23,17 +21,6 @@ import { fristAnzeigeVon } from '../fristAnzeige';
 import type { StatusVerlauf } from '../status/useStatusVerlauf';
 
 const leise = 'text-[11px] text-[var(--tf-text-tertiary)]';
-
-/** Jüngstes bzw. spätestes ISO-Datum dieses Codes über die gegebenen Vorkommen. */
-function spaetestes(vorkommen: readonly FeldVorkommen[], code: string): string | null {
-  let out: string | null = null;
-  for (const v of vorkommen) {
-    if (v.feld.typ !== 'datum' || v.feld.code !== code) continue;
-    const iso = parseGermanDate(v.wert);
-    if (iso !== null && (out === null || iso > out)) out = iso;
-  }
-  return out;
-}
 
 function Zeile({ label, wert, hinweis }: {
   label: string; wert: string; hinweis?: string;
@@ -88,24 +75,10 @@ export function FristenReiter({ quelle, aktenzeichen, istVerbundZeile, statusRoh
     : jeTeilvorhaben.filter(t => t.aktenzeichen === aktenzeichen);
   const vorkommen = relevante.flatMap(t => t.vorkommen);
 
-  // Die Codes stehen am Feld (`feld.code`), nie als `D_<code>`-Literal — die
-  // vier kanonischen Datumsfelder tragen ihren Code mit (Pitfall #44).
-  const antragsdatum = spaetestes(vorkommen, 'AAE');
-  const alleAntraegeDa = spaetestes(vorkommen, 'XTE');
-  const vnEingangDatum = spaetestes(vorkommen, 'VBE');
-
-  const kopf = statusHerleitungKopf(version, statusRoh);
-  const halt = ermittleHaltedatum({ version, zahPhase: kopf.zahPhase, vorkommen });
-
-  const ergebnis: FristErgebnis = berechneFrist({
-    status: statusRoh,
-    antragsdatum,
-    alleAntraegeDa,
-    vnEingangDatum,
-    haltedatum: halt?.tag ?? null,
-    stichtag,
-    ...(version.zahPhasen ? { phasen: version.zahPhasen } : {}),
-  });
+  // Dieselbe Rechnung wie für den Bezugszeitpunkt der Bahn — EIN Ausdruck in
+  // `frist-bezug.ts`, nicht zwei Fassungen desselben Gedankens (v3.26).
+  const { ergebnis, antragsdatum, alleAntraegeDa, halt } =
+    fristFuerVorkommen(version, vorkommen, statusRoh, stichtag);
   const anzeige = fristAnzeigeVon(ergebnis, new Date(stichtag).getTime());
 
   return (

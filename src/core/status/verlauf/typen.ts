@@ -206,4 +206,16 @@ export interface VerlaufsSpur {
   abweichung?: VerlaufsAbweichung;
   /** Warum der Kürzel-Nachschlag eindeutig ist (oder nicht). */
   projektform: ProjektformLage;
+  /**
+   * Fehlt der Bahn die REGELQUELLE (Richtlinie unbekannt oder von C16 nicht
+   * geführt)? Nur gesetzt, wenn das der Grund für die fehlende Bahn ist.
+   *
+   * Bis v3.26 stand die Lage ausschließlich als Klartext in `begruendung`. Eine
+   * Bahn muss „für diese Richtlinie gibt es keine Regeln" aber anders zeichnen
+   * als „dieser Vorgang trägt keinen Bearbeitungsstand" — beides sind leere
+   * Spuren, und beide zu einer grauen Zeile zu verschmelzen wäre der stille
+   * Fallback, den das Modul nirgends macht. Prosa dafür zu parsen wäre die
+   * schlechtere Kopplung.
+   */
+  regelLage?: 'programm-unbekannt' | 'programm-ohne-regeln';
 }

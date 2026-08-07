@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.28 — 2026-08
+
+### Neu
+- Der **Verlauf** eines Vorhabens ist jetzt eine **Bahn**: oben der Verbund, darunter je Teilvorhaben eine Spur, alle auf derselben Zeitachse. Wie breit ein Abschnitt ist, sagt, wie lange der Status gestanden hat.
+- Ein Klick auf eine Spur klappt darunter ihre Abschnitte und Kürzel im Klartext auf — die bisherige Liste ist also nicht weg, sie steckt eine Ebene tiefer.
+- An den Übergängen steht, **wie sicher** ein Kürzel den Statuswechsel belegt. Wo die App gar keinen Verlauf ableiten kann, sagt sie den Grund — „für diese Richtlinie keine Regeln" ist etwas anderes als „kein Bearbeitungsstand".
+- **„Verlauf kopieren"** legt den ganzen Verlauf als Text in die Zwischenablage, mit den Statuscodes des Fachsystems — gedacht für Rückfragen dorthin.
+- Auf der Verbund-Seite gibt es die Bahn als dritte Ansicht neben Chronik und Zeitstrahl.
+
 ## v3.27 — 2026-08
 
 ### Verbesserungen
