@@ -23,11 +23,12 @@ import {
   type Rolle, type TriggerStand,
 } from '@/core/status';
 import { rollenSicht, type KuerzelZeile } from './glossarZeilen';
+import type { Suchbegriff } from './glossarSuche';
 import { Markiert } from './Markiert';
 
-function KuerzelListe({ zeilen, suche, onWaehlen }: {
+function KuerzelListe({ zeilen, begriff, onWaehlen }: {
   zeilen: readonly KuerzelZeile[];
-  suche: string;
+  begriff: Suchbegriff;
   onWaehlen: (id: string) => void;
 }): React.ReactElement {
   if (zeilen.length === 0) {
@@ -35,9 +36,9 @@ function KuerzelListe({ zeilen, suche, onWaehlen }: {
       // Den richtigen Grund nennen: bei laufender Suche liegt es an ihr, nicht
       // an der Richtlinie — sonst zeigt die Seite auf die falsche Stellschraube.
       <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
-        {suche.trim() === ''
+        {begriff.roh === ''
           ? 'Kein Kürzel — unter der gewählten Richtlinie kommt hier keines vor.'
-          : `Kein Kürzel zu „${suche.trim()}" — hier gefiltert nach Rolle und Richtlinie.`}
+          : `Kein Kürzel zu „${begriff.roh}" — hier gefiltert nach Rolle und Richtlinie.`}
       </p>
     );
   }
@@ -51,10 +52,10 @@ function KuerzelListe({ zeilen, suche, onWaehlen }: {
             className="flex w-full cursor-pointer items-baseline gap-2 rounded-[var(--tf-radius-sm)] px-2 py-1 text-left transition hover:bg-[var(--tf-hover)]"
           >
             <span className="w-[64px] shrink-0 font-mono text-[12px] text-[var(--tf-text)]">
-              <Markiert text={z.code} suche={suche} />
+              <Markiert text={z.code} begriff={begriff} />
             </span>
             <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--tf-text-secondary)]">
-              <Markiert text={z.label} suche={suche} />
+              <Markiert text={z.label} begriff={begriff} />
             </span>
             <span className="shrink-0 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
               {z.vorkommen !== null ? z.vorkommen.toLocaleString('de-DE') : '—'}
@@ -67,13 +68,13 @@ function KuerzelListe({ zeilen, suche, onWaehlen }: {
 }
 
 export function RollenSicht({
-  zeilen, trigger, suche, rolle, onRolle, programme, onProgramme, onWaehlen,
+  zeilen, trigger, begriff, rolle, onRolle, programme, onProgramme, onWaehlen,
 }: {
   /** Bereits nach der Suche gefiltert — die Seite besitzt den Suchbegriff. */
   zeilen: readonly KuerzelZeile[];
   trigger: TriggerStand | null;
   /** Nur zum Auszeichnen der Fundstelle und für den Leertext. */
-  suche: string;
+  begriff: Suchbegriff;
   // Rolle und Richtlinien liegen bei der SEITE: dieser Reiter wird beim Wechsel
   // ausgehängt, und eine Auswahl, die jedes Mal zurückspringt, ist keine.
   rolle: Rolle | 'alle';
@@ -155,7 +156,7 @@ export function RollenSicht({
             ? `Mit Rollen-Vermerk · ${eigene.length}`
             : `${ROLLE_LANG[rolle]} · ${eigene.length}`}
         </h3>
-        <KuerzelListe zeilen={eigene} suche={suche} onWaehlen={onWaehlen} />
+        <KuerzelListe zeilen={eigene} begriff={begriff} onWaehlen={onWaehlen} />
       </section>
 
       <section className="flex flex-col gap-1.5 border-t border-[var(--tf-border)] pt-3">
@@ -166,7 +167,7 @@ export function RollenSicht({
           Diese Kürzel darf jeder setzen. Sie stehen getrennt, weil sie zu keiner Rolle
           gehören — nicht, weil sie unwichtiger wären.
         </p>
-        <KuerzelListe zeilen={neutrale} suche={suche} onWaehlen={onWaehlen} />
+        <KuerzelListe zeilen={neutrale} begriff={begriff} onWaehlen={onWaehlen} />
       </section>
     </div>
   );

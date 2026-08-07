@@ -3,12 +3,20 @@ import { GLOSSAR_BEGRIFFE } from '@/core/glossar';
 import type { StatusFeldEintrag } from '@/core/status';
 import type { KuerzelZeile } from '../glossarZeilen';
 import {
-  ART_REIHENFOLGE, begriffAlsEintrag, flacheIds, gruppiere, gesamtZahl,
-  kuerzelAlsEintrag, markiere, naechsteId, passtKuerzel, rang, verwandteIds,
-  waehleEintrag,
+  ART_REIHENFOLGE, begriffAlsEintrag, flacheIds, gruppiere as gruppiereRoh,
+  gesamtZahl, kuerzelAlsEintrag, leseSuche, markiere as markiereRoh, naechsteId,
+  passtKuerzel as passtKuerzelRoh, rang as rangRoh, verwandteIds, waehleEintrag,
+  type GlossarEintrag,
 } from '../glossarSuche';
 
 const ALLE = GLOSSAR_BEGRIFFE.map(begriffAlsEintrag);
+
+// Die Prüflinge nehmen einen gelesenen `Suchbegriff`; die Tests sollen aber
+// lesbar bleiben und die EINGABE zeigen, nicht deren Zerlegung.
+const gruppiere = (e: readonly GlossarEintrag[], q: string) => gruppiereRoh(e, leseSuche(q));
+const markiere = (t: string, q: string) => markiereRoh(t, leseSuche(q));
+const rang = (e: GlossarEintrag, q: string) => rangRoh(e, leseSuche(q));
+const passtKuerzel = (z: KuerzelZeile, q: string) => passtKuerzelRoh(z, leseSuche(q));
 
 const feld = (feldId: string): StatusFeldEintrag => ({
   feldId, label: feldId, typ: 'datum', ebene: 'tv',
@@ -114,6 +122,73 @@ describe('waehleEintrag', () => {
   });
 });
 
+describe('leseSuche', () => {
+  it('faltet und zerlegt in Woerter', () => {
+    expect(leseSuche('  Brief   NF ')).toEqual({
+      roh: 'Brief   NF', ganz: 'brief   nf', woerter: ['brief', 'nf'],
+    });
+  });
+
+  it('meldet den leeren Begriff als leere Wortliste', () => {
+    expect(leseSuche('').woerter).toEqual([]);
+    expect(leseSuche('   ').woerter).toEqual([]);
+  });
+});
+
+describe('Faltung in der Suche', () => {
+  const nf = begriffAlsEintrag(GLOSSAR_BEGRIFFE.find(b => b.id === 'nf')!);
+  const pruefung = [begriffAlsEintrag({
+    id: 'p', begriff: 'Prüfung', erklaerung: 'Die fachliche Prüfung eines Antrags.',
+  })];
+
+  it('findet Umlaute ohne Umlaut getippt', () => {
+    // Der eigentliche Zweck: „Prufung" soll „Prüfung" finden.
+    expect(gesamtZahl(gruppiere(pruefung, 'prüfung'))).toBe(1);
+    expect(gesamtZahl(gruppiere(pruefung, 'prufung'))).toBe(1);
+    expect(gesamtZahl(gruppiere(pruefung, 'PRUFUNG'))).toBe(1);
+  });
+
+  it('faellt „ss" und „ß" aufeinander', () => {
+    const z = kuerzel({ code: 'STR', label: 'Straße im Vorhaben' });
+    expect(passtKuerzel(z, 'strasse')).toBe(true);
+    expect(passtKuerzel(z, 'straße')).toBe(true);
+  });
+
+  it('wertet den Titel-Treffer weiter am hoechsten, auch gefaltet', () => {
+    expect(rang(nf, 'nf')).toBe(0);
+  });
+});
+
+describe('Mehrwort-Suche', () => {
+  const z = kuerzel({
+    code: 'ALT', label: 'Brief NF von BB angelegt/ergaenzt',
+    csvSpalte: 'D_ALT', ordner: 'Antragsbearbeitung',
+  });
+
+  it('verknuepft die Woerter mit UND', () => {
+    expect(passtKuerzel(z, 'brief bb')).toBe(true);
+    expect(passtKuerzel(z, 'brief gibtesnicht')).toBe(false);
+  });
+
+  it('ignoriert die Reihenfolge — wer nachschlaegt, kennt sie nicht', () => {
+    expect(passtKuerzel(z, 'bb brief')).toBe(true);
+  });
+
+  it('darf die Woerter aus VERSCHIEDENEN Feldern nehmen', () => {
+    // „alt" steht im Code, „antrags" im Ordner — zusammen ein Treffer.
+    expect(passtKuerzel(z, 'alt antrags')).toBe(true);
+  });
+
+  it('stellt den woertlichen Anfang vor den blossen Wort-Treffer', () => {
+    // Beim Kürzel IST der Titel der Code — also über Begriffe geprüft, deren
+    // Titel der Fließtext ist.
+    const anfang = begriffAlsEintrag({ id: 'a', begriff: 'Brief NF an ASt', erklaerung: '.' });
+    const verstreut = begriffAlsEintrag({ id: 'b', begriff: 'NF ohne Brief', erklaerung: '.' });
+    expect(rang(anfang, 'brief nf')).toBe(1);
+    expect(rang(verstreut, 'brief nf')).toBe(2);
+  });
+});
+
 describe('flacheIds', () => {
   it('reiht die Eintraege ueber die Gruppen hinweg in Anzeigereihenfolge', () => {
     const ids = flacheIds(gruppiere(ALLE, ''));
@@ -175,9 +250,41 @@ describe('markiere', () => {
   });
 
   it('verliert kein Zeichen — auch nicht am Anfang oder Ende', () => {
-    for (const q of ['b', 'brief', 'f von', 'bb']) {
+    for (const q of ['b', 'brief', 'bb', 'brief bb']) {
       expect(text(markiere('Brief NF von BB', q))).toBe('Brief NF von BB');
     }
+  });
+
+  it('markiert JEDES Wort der Eingabe, nicht nur das erste', () => {
+    const s = markiere('Brief NF von BB', 'bb brief');
+    expect(s.filter(t => t.treffer).map(t => t.text)).toEqual(['Brief', 'BB']);
+  });
+
+  it('markiert das Wort, das hier gar nicht vorkommt, einfach nicht', () => {
+    // Es hat den Eintrag über einen anderen Text getroffen (Ordner, Erklärung).
+    const s = markiere('Brief NF', 'brief antragsbearbeitung');
+    expect(s.filter(t => t.treffer).map(t => t.text)).toEqual(['Brief']);
+  });
+
+  it('trifft trotz Faltung die richtigen Zeichen im Original', () => {
+    // „ü" wird beim Falten zerlegt — eine Markierung, die auf dem gefalteten
+    // Text schneidet, säße hier um ein Zeichen daneben.
+    const s = markiere('Vor Prüfung danach', 'prufung');
+    expect(s.filter(t => t.treffer).map(t => t.text)).toEqual(['Prüfung']);
+    expect(text(s)).toBe('Vor Prüfung danach');
+  });
+
+  it('markiert ein ganzes „ß", auch wenn nur dessen halbe Faltung getroffen ist', () => {
+    // „ß" faltet auf „ss"; „stras" endet mitten drin. Ein halbes „ß" gibt es
+    // nicht — markiert wird das ganze Zeichen.
+    const s = markiere('Die Straße', 'stras');
+    expect(s.filter(t => t.treffer).map(t => t.text)).toEqual(['Straß']);
+    expect(text(s)).toBe('Die Straße');
+  });
+
+  it('verschmilzt ueberlappende und angrenzende Treffer zu einem Feld', () => {
+    const s = markiere('Brief', 'brie rief');
+    expect(s).toEqual([{ text: 'Brief', treffer: true }]);
   });
 });
 

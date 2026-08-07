@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.36 — 2026-08
+
+### Verbesserungen
+- Die Glossar-Suche nimmt es mit Umlauten nicht mehr genau: „Prufung" findet
+  „Prüfung", „Strasse" auch „Straße".
+- Mehrere Wörter lassen sich kombinieren, in beliebiger Reihenfolge — „brief nf"
+  findet „Brief NF von BB angelegt". Die Wörter dürfen aus verschiedenen Feldern
+  stammen, etwa eines aus dem Kürzel und eines aus dem Ordner.
+- Auch die Spaltensuche in den Tabellen ist jetzt unempfindlich gegen „ß" und
+  „ss".
+
 ## v3.35 — 2026-08
 
 ### Verbesserungen

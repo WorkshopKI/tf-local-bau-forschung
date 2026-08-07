@@ -8,7 +8,49 @@
  * Art, mit einem Zähler je Gruppe.
  */
 import type { GlossarBegriff } from '@/core/glossar';
+import { falte, falteText, ursprung } from '@/core/utils/textFaltung';
 import type { KuerzelZeile, RegelZeile, StatuswertZeile } from './glossarZeilen';
+
+/**
+ * Die Eingabe, einmal aufbereitet.
+ *
+ * **Warum ein eigener Typ statt der rohen Zeichenkette.** Jeder Vergleich
+ * bräuchte sonst dieselbe Faltung, und die Liste vergleicht bei jedem
+ * Tastendruck über den ganzen Bestand — 604 Einträge mal zweimal falten wäre
+ * Arbeit, die einmal reicht. Wichtiger noch: so gibt es GENAU EINE Lesart der
+ * Eingabe. Ein zweiter Aufrufer, der selbst `split(' ')` macht, hätte sonst
+ * seine eigene.
+ */
+export interface Suchbegriff {
+  /** Getrimmt, ungefaltet — für Meldungen, die die Eingabe zitieren. */
+  roh: string;
+  /** Gefaltet am Stück — für „der Titel IST die Eingabe". */
+  ganz: string;
+  /** Die gefalteten Wörter. ALLE müssen vorkommen; leer heißt „kein Filter". */
+  woerter: string[];
+}
+
+/**
+ * Eingabe lesen: falten, in Wörter zerlegen.
+ *
+ * **Mehrere Wörter werden UND-verknüpft, und die Reihenfolge zählt nicht.**
+ * „brief nf" soll „Brief NF von BB angelegt" finden. Als ein Literal gesucht,
+ * traf die Eingabe nur, wenn man die Wortstellung des Bestands erriet — was
+ * gerade der nicht kann, der nachschlägt.
+ */
+export function leseSuche(roh: string): Suchbegriff {
+  const getrimmt = roh.trim();
+  const ganz = falteText(getrimmt);
+  return { roh: getrimmt, ganz, woerter: ganz.split(/\s+/).filter(w => w.length > 0) };
+}
+
+/** Der leere Begriff — filtert nichts. */
+export const KEINE_SUCHE: Suchbegriff = { roh: '', ganz: '', woerter: [] };
+
+/** Trifft der Begriff diesen (bereits gefalteten) Suchtext? */
+function trifft(suchtext: string, begriff: Suchbegriff): boolean {
+  return begriff.woerter.every(w => suchtext.includes(w));
+}
 
 /** Die Arten von Einträgen, in der Reihenfolge, in der sie in der Liste stehen. */
 export type GlossarArt = 'begriff' | 'statuswert' | 'kuerzel' | 'regel';
@@ -32,10 +74,12 @@ interface Basis {
   /** Die Zeile darunter — kurz, sonst trägt die schmale Spalte sie nicht. */
   unter: string;
   /**
-   * Worauf die Suche greift. Vorberechnet und klein geschrieben: die Liste
-   * filtert bei jedem Tastendruck über den ganzen Bestand.
+   * Worauf die Suche greift. Vorberechnet und GEFALTET: die Liste filtert bei
+   * jedem Tastendruck über den ganzen Bestand.
    */
   suchtext: string;
+  /** Der gefaltete Titel allein — die Trefferwertung fragt nur ihn. */
+  titelSuch: string;
 }
 
 export type GlossarEintrag =
@@ -57,7 +101,8 @@ export function begriffAlsEintrag(b: GlossarBegriff): GlossarEintrag {
     id: `begriff:${b.id}`,
     titel: b.begriff,
     unter: b.lang ?? b.erklaerung,
-    suchtext: `${b.begriff} ${b.lang ?? ''} ${b.erklaerung}`.toLowerCase(),
+    suchtext: falteText(`${b.begriff} ${b.lang ?? ''} ${b.erklaerung}`),
+    titelSuch: falteText(b.begriff),
     begriff: b,
   };
 }
@@ -70,7 +115,8 @@ export function statuswertAlsEintrag(z: StatuswertZeile): GlossarEintrag {
     titel: `${z.code} · ${z.label}`,
     unter: `${z.phaseLabel} · ${z.kategorieLabel}`,
     // Der Code auch nackt: wer „34" tippt, sucht den Statuswert 34.
-    suchtext: `${z.code} ${z.label} ${z.phaseLabel} ${z.kategorieLabel}`.toLowerCase(),
+    suchtext: falteText(`${z.code} ${z.label} ${z.phaseLabel} ${z.kategorieLabel}`),
+    titelSuch: falteText(`${z.code} · ${z.label}`),
     zeile: z,
   };
 }
@@ -81,7 +127,7 @@ export function statuswertAlsEintrag(z: StatuswertZeile): GlossarEintrag {
  * dort unterschiedlich, wäre nicht zu erklären, warum.
  */
 function kuerzelSuchtext(z: KuerzelZeile): string {
-  return `${z.code} ${z.label} ${z.csvSpalte} ${z.ordner}`.toLowerCase();
+  return falteText(`${z.code} ${z.label} ${z.csvSpalte} ${z.ordner}`);
 }
 
 /** Ein Kürzel als Listeneintrag. */
@@ -92,6 +138,7 @@ export function kuerzelAlsEintrag(z: KuerzelZeile): GlossarEintrag {
     titel: z.code,
     unter: z.label,
     suchtext: kuerzelSuchtext(z),
+    titelSuch: falteText(z.code),
     zeile: z,
   };
 }
@@ -100,9 +147,8 @@ export function kuerzelAlsEintrag(z: KuerzelZeile): GlossarEintrag {
  * Trifft die Suche dieses Kürzel? Für die Rollensicht, die keine
  * `GlossarEintrag`e baut, sondern direkt auf den Zeilen filtert.
  */
-export function passtKuerzel(z: KuerzelZeile, suche: string): boolean {
-  const q = suche.trim().toLowerCase();
-  return q === '' || kuerzelSuchtext(z).includes(q);
+export function passtKuerzel(z: KuerzelZeile, begriff: Suchbegriff): boolean {
+  return trifft(kuerzelSuchtext(z), begriff);
 }
 
 /** Eine To-do-Regel als Listeneintrag. */
@@ -112,7 +158,8 @@ export function regelAlsEintrag(z: RegelZeile): GlossarEintrag {
     id: `regel:${z.regel.id}`,
     titel: z.regel.beschreibung,
     unter: z.sperre ? 'Sperre — legt Stränge still' : z.regel.todo,
-    suchtext: `${z.regel.id} ${z.regel.beschreibung} ${z.regel.todo} ${z.satz}`.toLowerCase(),
+    suchtext: falteText(`${z.regel.id} ${z.regel.beschreibung} ${z.regel.todo} ${z.satz}`),
+    titelSuch: falteText(z.regel.beschreibung),
     zeile: z,
   };
 }
@@ -121,14 +168,18 @@ export function regelAlsEintrag(z: RegelZeile): GlossarEintrag {
  * Trefferwertung: Wer „NF" tippt, will den Eintrag NF oben sehen, nicht die
  * sieben Erklärungen, in denen das Wort vorkommt.
  *
- * 0 = der Titel IST die Eingabe · 1 = Titel beginnt damit · 2 = Titel enthält es
- * · 3 = nur der Fließtext.
+ * 0 = der Titel IST die Eingabe · 1 = Titel beginnt damit · 2 = der Titel trägt
+ * ALLE Wörter · 3 = nur der Fließtext.
+ *
+ * Stufe 0 und 1 messen die Eingabe am Stück: „brief nf" soll einen Eintrag, der
+ * wörtlich so beginnt, über einen stellen, bei dem die beiden Wörter nur
+ * irgendwo im Titel stehen.
  */
-export function rang(e: GlossarEintrag, q: string): number {
-  const titel = e.titel.toLowerCase();
-  if (titel === q) return 0;
-  if (titel.startsWith(q)) return 1;
-  if (titel.includes(q)) return 2;
+export function rang(e: GlossarEintrag, begriff: Suchbegriff): number {
+  const titel = e.titelSuch;
+  if (titel === begriff.ganz) return 0;
+  if (titel.startsWith(begriff.ganz)) return 1;
+  if (trifft(titel, begriff)) return 2;
   return 3;
 }
 
@@ -138,17 +189,17 @@ export function rang(e: GlossarEintrag, q: string): number {
  * sagen was.
  */
 export function gruppiere(
-  eintraege: readonly GlossarEintrag[], suche: string,
+  eintraege: readonly GlossarEintrag[], begriff: Suchbegriff,
 ): GlossarGruppe[] {
-  const q = suche.trim().toLowerCase();
-  const treffer = q === '' ? [...eintraege] : eintraege.filter(e => e.suchtext.includes(q));
+  const leer = begriff.woerter.length === 0;
+  const treffer = leer ? [...eintraege] : eintraege.filter(e => trifft(e.suchtext, begriff));
 
   const gruppen: GlossarGruppe[] = [];
   for (const art of ART_REIHENFOLGE) {
     const eigene = treffer.filter(e => e.art === art);
     if (eigene.length === 0) continue;
     eigene.sort((a, b) => (
-      (q === '' ? 0 : rang(a, q) - rang(b, q))
+      (leer ? 0 : rang(a, begriff) - rang(b, begriff))
       || a.titel.localeCompare(b.titel, 'de', { numeric: true })
     ));
     gruppen.push({ art, label: ART_LABEL[art], eintraege: eigene });
@@ -205,34 +256,54 @@ export interface Segment {
   treffer: boolean;
 }
 
+/** Halboffene Bereiche `[von, bis)` im ORIGINAL-Text, aufsteigend verschmolzen. */
+function verschmelze(bereiche: { von: number; bis: number }[]): { von: number; bis: number }[] {
+  bereiche.sort((a, b) => a.von - b.von || a.bis - b.bis);
+  const out: { von: number; bis: number }[] = [];
+  for (const b of bereiche) {
+    const letzter = out[out.length - 1];
+    // `<=` statt `<`: zwei Wörter, die nahtlos aneinanderstoßen, sollen EIN
+    // Markierungsfeld ergeben, keine zwei mit unsichtbarer Fuge dazwischen.
+    if (letzter && b.von <= letzter.bis) letzter.bis = Math.max(letzter.bis, b.bis);
+    else out.push({ von: b.von, bis: b.bis });
+  }
+  return out;
+}
+
 /**
- * Den Suchbegriff im Text auszeichnen — ALLE Vorkommen, nicht nur das erste:
- * bei „Brief NF von BB angelegt/ergänzt" markiert eine Suche nach „e" sonst
- * ausgerechnet die erste, beliebige Stelle.
+ * Den Suchbegriff im Text auszeichnen — JEDES Wort, an JEDER Stelle.
  *
  * Gibt Segmente zurück, kein JSX — die Vitest-Projekte laufen ohne DOM, und die
  * Auszeichnung gehört ohnehin der Liste (vgl. `anfragen/highlight.ts`).
  *
- * Gerechnet wird auf `toLowerCase()`, damit die Positionen 1:1 zum Original
- * passen. Verschiebt eine Sonderform die Länge doch (`'İ'` wird zu zwei
- * Zeichen), zeigt die Zeile lieber unmarkiert als zerschnitten.
+ * **Gesucht wird im gefalteten Text, markiert wird im Original.** Die Faltung
+ * verschiebt Positionen („ü" wird zerlegt, „ß" verdoppelt); ohne die Herkunft
+ * aus `falte()` säße die Markierung daneben. Ein Wort, das hier gar nicht
+ * vorkommt, trägt nichts bei — es hat den Eintrag über einen anderen Text
+ * getroffen, und das ist kein Grund, hier etwas zu erfinden.
  */
-export function markiere(text: string, suche: string): Segment[] {
+export function markiere(text: string, begriff: Suchbegriff): Segment[] {
   const ganz: Segment[] = [{ text, treffer: false }];
-  const q = suche.trim().toLowerCase();
-  if (q === '' || text === '') return ganz;
+  if (begriff.woerter.length === 0 || text === '') return ganz;
 
-  const heu = text.toLowerCase();
-  if (heu.length !== text.length) return ganz;
+  const f = falte(text);
+  const roh: { von: number; bis: number }[] = [];
+  for (const wort of begriff.woerter) {
+    // Schrittweite 1, nicht `wort.length`: „aa" in „aaa" überlappt sich selbst,
+    // und das Verschmelzen unten räumt das ohnehin auf.
+    for (let i = f.text.indexOf(wort); i !== -1; i = f.text.indexOf(wort, i + 1)) {
+      roh.push(ursprung(f, i, i + wort.length));
+    }
+  }
+  if (roh.length === 0) return ganz;
 
   const segmente: Segment[] = [];
   let ab = 0;
-  for (let i = heu.indexOf(q, ab); i !== -1; i = heu.indexOf(q, ab)) {
-    if (i > ab) segmente.push({ text: text.slice(ab, i), treffer: false });
-    segmente.push({ text: text.slice(i, i + q.length), treffer: true });
-    ab = i + q.length;
+  for (const { von, bis } of verschmelze(roh)) {
+    if (von > ab) segmente.push({ text: text.slice(ab, von), treffer: false });
+    segmente.push({ text: text.slice(von, bis), treffer: true });
+    ab = bis;
   }
-  if (segmente.length === 0) return ganz;
   if (ab < text.length) segmente.push({ text: text.slice(ab), treffer: false });
   return segmente;
 }

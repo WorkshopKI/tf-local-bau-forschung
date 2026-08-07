@@ -5,14 +5,14 @@
  * ehrlich wäre.
  */
 import { useEffect, useRef } from 'react';
-import type { GlossarGruppe } from './glossarSuche';
+import type { GlossarGruppe, Suchbegriff } from './glossarSuche';
 import { Markiert } from './Markiert';
 
-export function GlossarListe({ gruppen, gewaehlt, suche, onWaehlen, leerText }: {
+export function GlossarListe({ gruppen, gewaehlt, begriff, onWaehlen, leerText }: {
   gruppen: readonly GlossarGruppe[];
   gewaehlt: string | null;
   /** Nur zum Auszeichnen der Fundstelle — gefiltert ist schon. */
-  suche: string;
+  begriff: Suchbegriff;
   onWaehlen: (id: string) => void;
   /** Was statt der Liste steht, wenn nichts passt — nie eine leere Fläche. */
   leerText: string;
@@ -57,10 +57,10 @@ export function GlossarListe({ gruppen, gewaehlt, suche, onWaehlen, leerText }: 
                     }`}
                   >
                     <span className="block truncate text-[13px] font-medium text-[var(--tf-text)]">
-                      <Markiert text={e.titel} suche={suche} />
+                      <Markiert text={e.titel} begriff={begriff} />
                     </span>
                     <span className="block truncate text-[11.5px] text-[var(--tf-text-secondary)]">
-                      <Markiert text={e.unter} suche={suche} />
+                      <Markiert text={e.unter} begriff={begriff} />
                     </span>
                   </button>
                 </li>

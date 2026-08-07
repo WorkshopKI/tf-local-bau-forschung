@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.36.0 — Glossar-Suche: Umlaute egal, mehrere Woerter (August 2026)
+
+MINOR — Nachtrag zu v3.33: die Suche verglich eine Zeichenkette am Stück. „Prufung" fand „Prüfung" nicht, und „brief nf" traf nur, wer die Wortstellung des Bestands erriet — was gerade der nicht kann, der nachschlägt. Beides scheiterte bisher an der Treffer-Markierung: Falten verschiebt Positionen, `NFD` zerlegt „ü", „ß" wird zu „ss".
+
+- Faltung mit **Herkunfts-Abbildung**: gesucht wird gefaltet, markiert im Original — neu [textFaltung.ts](src/core/utils/textFaltung.ts) (`falte`/`ursprung`)
+- „ß" fällt auf „ss"; ein Treffer auf der halben Ausweitung markiert das ganze Zeichen
+- Mehrere Wörter werden UND-verknüpft, reihenfolgeunabhängig, über verschiedene Felder hinweg — `leseSuche`/`Suchbegriff` in [glossarSuche.ts](src/plugins/glossar/glossarSuche.ts)
+- Die Markierung zeichnet jedes Wort an jeder Stelle aus und verschmilzt überlappende Bereiche
+- `normalisiereSuche` delegiert auf dieselbe Faltung — eine Definition von „vergleichbar" statt zwei — [columnPickerLogik.ts](src/components/data-table/columnPickerLogik.ts)
+
 ### v3.35.0 — Darstellungs-Menue: Zeilen-Pattern statt Optionsliste (August 2026)
 
 MINOR — Das Menü kostete je Achse zwei Beschriftungszeilen plus eine 30-px-Zeile pro Wert; drei Achsen ergaben rund 430 px, und die Erklärzeile darunter liest niemand ein zweites Mal. Design-Handoff `_design/handoff/dropdown/`: eine Achse = eine Zeile, Beschriftung links, Auswahl rechts. Gemessen jetzt 380 × 182 px auf beiden Seiten.

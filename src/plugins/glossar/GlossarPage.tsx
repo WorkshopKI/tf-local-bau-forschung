@@ -33,7 +33,8 @@ import { useGlossar } from './useGlossar';
 import { kuerzelZeilen, regelZeilen, statuswertZeilen } from './glossarZeilen';
 import {
   begriffAlsEintrag, flacheIds, gruppiere, gesamtZahl, kuerzelAlsEintrag,
-  naechsteId, passtKuerzel, regelAlsEintrag, statuswertAlsEintrag, waehleEintrag,
+  leseSuche, naechsteId, passtKuerzel, regelAlsEintrag, statuswertAlsEintrag,
+  waehleEintrag,
 } from './glossarSuche';
 
 type Sicht = 'nachschlagen' | 'rolle';
@@ -58,9 +59,12 @@ export function GlossarPage(): React.ReactElement {
     () => (version === null ? [] : kuerzelZeilen(version, vorkommen)),
     [version, vorkommen],
   );
+  // Die Eingabe wird EINMAL gelesen (gefaltet, in Wörter zerlegt) — nicht je
+  // Eintrag neu. Alle Vergleicher bekommen dasselbe Ergebnis.
+  const begriff = useMemo(() => leseSuche(suche), [suche]);
   const kuerzelGefiltert = useMemo(
-    () => kuerzel.filter(z => passtKuerzel(z, suche)),
-    [kuerzel, suche],
+    () => kuerzel.filter(z => passtKuerzel(z, begriff)),
+    [kuerzel, begriff],
   );
   // Einmal je Fassung, nicht je Kürzel-Detail: `bedingungFeldRefs` läuft
   // rekursiv über jeden Bedingungsbaum.
@@ -73,7 +77,7 @@ export function GlossarPage(): React.ReactElement {
     ...regeln.map(regelAlsEintrag),
   ], [version, vorkommen, kuerzel, regeln]);
 
-  const gruppen = useMemo(() => gruppiere(alle, suche), [alle, suche]);
+  const gruppen = useMemo(() => gruppiere(alle, begriff), [alle, begriff]);
   const auswahl = waehleEintrag(gruppen, gewaehlt);
 
   /**
@@ -208,7 +212,7 @@ export function GlossarPage(): React.ReactElement {
           <RollenSicht
             zeilen={kuerzelGefiltert}
             trigger={trigger}
-            suche={suche}
+            begriff={begriff}
             rolle={rolle}
             onRolle={setRolle}
             programme={programme}
@@ -226,9 +230,9 @@ export function GlossarPage(): React.ReactElement {
               <GlossarListe
                 gruppen={gruppen}
                 gewaehlt={auswahl?.id ?? null}
-                suche={suche}
+                begriff={begriff}
                 onWaehlen={setGewaehlt}
-                leerText={`Kein Eintrag zu „${suche.trim()}". Was hier fehlt, fehlt im Glossar — sagen Sie es über „Hilfe → Text stimmt nicht".`}
+                leerText={`Kein Eintrag zu „${begriff.roh}". Was hier fehlt, fehlt im Glossar — sagen Sie es über „Hilfe → Text stimmt nicht".`}
               />
             }
             detail={

@@ -10,15 +10,15 @@
  * gerendert. Trifft nichts, kommt genau ein Segment zurück und die Zeile ist
  * Zeichen für Zeichen die alte.
  */
-import { markiere } from './glossarSuche';
+import { markiere, type Suchbegriff } from './glossarSuche';
 
-export function Markiert({ text, suche }: {
+export function Markiert({ text, begriff }: {
   text: string;
-  suche: string;
+  begriff: Suchbegriff;
 }): React.ReactElement {
   return (
     <>
-      {markiere(text, suche).map((s, i) => (
+      {markiere(text, begriff).map((s, i) => (
         s.treffer
           ? (
             <mark

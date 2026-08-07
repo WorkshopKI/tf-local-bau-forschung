@@ -4,6 +4,7 @@
  * Getrennt von `ColumnPicker.tsx`, weil Vitest hier node-only läuft und keine
  * `.tsx` einsammelt. Alles hier ist ohne DOM prüfbar.
  */
+import { falteText } from '@/core/utils/textFaltung';
 import type { SortableColumn } from './types';
 
 export interface SpaltenRubrik<T> {
@@ -38,17 +39,17 @@ export function gruppiereSpalten<T>(columns: readonly SortableColumn<T>[]): Spal
   return rubriken;
 }
 
-/** Kombinierende Diakritika (U+0300–U+036F), die `normalize('NFD')` abspaltet.
- *  Bewusst als Escape-Sequenz: die Zeichen selbst sind unsichtbar und
- *  überstehen kein Copy-Paste. */
-const DIAKRITIKA = new RegExp('[\\u0300-\\u036f]', 'g');
-
 /**
  * Suchbegriff und Spaltenname vergleichbar machen: Kleinschreibung + Diakritika
  * weg. „Fordergeber" soll „Fördergeber" finden, „Prufung" auch „Prüfung".
+ *
+ * Die Regel selbst steht in `core/utils/textFaltung.ts` — dieselbe, die auch die
+ * Glossar-Suche benutzt. Zwei Definitionen von „vergleichbar" drifteten sonst
+ * auseinander, und man erführe es erst an einem Wort, das hier trifft und dort
+ * nicht.
  */
 export function normalisiereSuche(s: string): string {
-  return s.trim().toLocaleLowerCase('de-DE').normalize('NFD').replace(DIAKRITIKA, '');
+  return falteText(s.trim());
 }
 
 /**

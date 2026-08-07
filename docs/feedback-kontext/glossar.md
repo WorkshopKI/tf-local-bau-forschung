@@ -17,6 +17,12 @@ Wahrheit wären schlimmer als ein umständlicher Weg.
   wirkt in **beiden** Reitern, und der Suchbegriff bleibt beim Wechsel stehen.
   Gesucht wird über Abkürzung, Begriff, Erklärung, Statuscode, Kürzel,
   Spaltenname und Ordner — Groß-/Kleinschreibung egal.
+  - **Umlaute egal** — „Prufung" findet „Prüfung", „Strasse" auch „Straße".
+    Nicht abgedeckt ist die Umschreibung: „Foerdergeber" findet „Fördergeber"
+    nicht.
+  - **Mehrere Wörter** werden mit UND verknüpft, die Reihenfolge zählt nicht:
+    „brief nf" findet „Brief NF von BB angelegt". Die Wörter dürfen aus
+    verschiedenen Feldern stammen — eines aus dem Kürzel, eines aus dem Ordner.
   - **Bedienung** — „/" springt ins Feld, Pfeil hoch/runter wandert durch die
     Treffer (die Erklärung rechts wechselt mit), Enter nimmt den ersten Treffer,
     Escape oder das ×-Zeichen leert.
