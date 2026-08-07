@@ -88,20 +88,41 @@ describe('verlauf/erhebung — die Bilanz', () => {
     nimmAuf(b, [spur({
       art: 'tv', zustand: 'verlauf',
       uebergaenge: [
-        uebergang({ konfidenz: 'trigger_bestaetigt', setztStatus: { roh: 'x', code: null, kurz: 'x', lang: 'x', labelHerkunft: 'ohne' } }),
-        uebergang({ scopeUnbestimmt: true }),
+        // Zielcode ohne Katalog-Eintrag: die Beschriftung fällt auf die Zahl zurück.
+        uebergang({ konfidenz: 'trigger_bestaetigt', setztStatus: { roh: '777', code: 777, kurz: '777', lang: '777', labelHerkunft: 'ohne' } }),
+        uebergang({ konfidenz: 'trigger_bedingt', bedingung: { urteil: 'unpruefbar', gruende: ['x'] } }),
         uebergang({ kuerzelHistorisch: 'MVA', kuerzel: 'ÄA' }),
-        uebergang({ ausAggregation: { quantor: 'alle', kuerzel: 'PC+', erfuellt: false } }),
-        uebergang({ ausAggregation: { quantor: 'kein', kuerzel: 'PC-', erfuellt: null } }),
+        uebergang({ bedingung: { urteil: 'verletzt', gruende: ['ABB war gesetzt.'] } }),
+        uebergang({ konfidenz: 'trigger_bestaetigt', bedingung: { urteil: 'erfuellt', gruende: [] } }),
       ],
     })]);
-    expect(b.ohneZielcode).toBe(1);
-    expect(b.scopeUnbestimmt).toBe(1);
+    expect(b.zielCodeUnbekannt).toBe(1);
     expect(b.historischeKuerzel).toBe(1);
-    expect(b.aggregationNichtErfuellt).toBe(1);
-    expect(b.aggregationNichtPruefbar).toBe(1);
-    expect(b.konfidenz.trigger_bestaetigt).toBe(1);
-    expect(b.konfidenz.kein_kuerzel).toBe(4);
+    expect(b.bedingungUnpruefbar).toBe(1);
+    expect(b.bedingungVerletzt).toBe(1);
+    expect(b.bedingungErfuellt).toBe(1);
+    expect(b.konfidenz.trigger_bestaetigt).toBe(2);
+    expect(b.konfidenz.trigger_bedingt).toBe(1);
+    expect(b.konfidenz.kein_kuerzel).toBe(2);
+  });
+
+  it('trennt geliehene von uneindeutigen Bezeichnungen', () => {
+    const b = leereBefunde();
+    nimmAuf(b, [spur({
+      art: 'tv', zustand: 'verlauf',
+      uebergaenge: [
+        // Eigene Form: nicht geliehen.
+        uebergang({ bezeichnung: 'Antragseingang', bezeichnungQuelle: 'NW', bezeichnungEindeutig: true }),
+        // Geliehen, aber alle Formen sagen dasselbe — harmlos.
+        uebergang({ bezeichnung: 'Antragseingang', bezeichnungEindeutig: true }),
+        // Geliehen UND die Formen widersprechen sich — hier gilt sie nicht sicher.
+        uebergang({ bezeichnung: 'Frist', bezeichnungEindeutig: false }),
+        // Gar keine Bezeichnung ist etwas anderes als eine geliehene.
+        uebergang({ bezeichnung: null, bezeichnungEindeutig: false }),
+      ],
+    })]);
+    expect(b.bezeichnungGeliehen).toBe(2);
+    expect(b.bezeichnungGeliehenUneindeutig).toBe(1);
   });
 
   it('zählt C16-Treffer je (Programm, Kürzel) — nicht programmübergreifend', () => {

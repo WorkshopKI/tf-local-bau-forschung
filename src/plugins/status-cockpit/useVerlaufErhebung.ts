@@ -63,12 +63,16 @@ export function useVerlaufErhebung(version: MappingVersion | null): VerlaufLauf 
     if (!version) return;
     const begonnen = performance.now();
 
-    // Die C16-Tabelle wird NUR gezählt, nie abgeleitet: Schlüssel (Programm,
-    // Kürzel), getrennt nach TV- und VB-Statuswechsel (Argumentposition 6/7).
+    // Seit v3.23 ist die C16-Tabelle die REGELQUELLE, nicht mehr die
+    // Vergleichszahl daneben. Die Obergrenzen-Zählung (Schlüssel Programm|Kürzel,
+    // getrennt nach TV- und VB-Statuswechsel, Bedingungen ignoriert) bleibt
+    // trotzdem stehen: sie ist der Vergleichswert, gegen den sich die
+    // tatsächliche Deckung messen lässt — 4 183 Verbünde in §14.5.
     const stand = await ladeTrigger(idb);
+    const trigger = stand.datei?.trigger ?? [];
     const c16Tv = new Set<string>();
     const c16Vb = new Set<string>();
-    for (const z of stand.datei?.trigger ?? []) {
+    for (const z of trigger) {
       const g = z.geparst;
       if (!g || g.art !== 'statusTvVb') continue;
       const k = `${z.programm}|${z.kuerzel.normalize('NFC').toUpperCase()}`;
@@ -103,10 +107,14 @@ export function useVerlaufErhebung(version: MappingVersion | null): VerlaufLauf 
         // nicht mit, deshalb kommt er hier aus dem Vorkommen des Katalogfeldes.
         statusVbRoh: erstes.vorkommen.find(v => v.feld.feldId === 'verbund_status')?.wert ?? '',
         vbPhaseRoh: erstes.vbPhaseRoh,
+        // Die Richtlinie des ERSTEN Teilvorhabens. Tragen die TVs eines Verbunds
+        // verschiedene, meldet das `programmNummer` an der Detailseite — hier
+        // liefe eine zweite Prüfung über 6 600 Vorhaben, ohne mehr zu sagen.
+        programm: erstes.programm || null,
         bezugsZeitpunkt: stichtag,
         teilvorhaben: tvs,
       };
-      nimmAuf(bilanz, baueVerlaufFuerVorgang(bezug, version, null));
+      nimmAuf(bilanz, baueVerlaufFuerVorgang(bezug, version, trigger, null));
 
       let vbTreffer = false;
       for (const tv of tvs) {

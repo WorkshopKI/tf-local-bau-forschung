@@ -4,6 +4,11 @@
  *
  * **Abweichungen von der ursprünglichen Signatur**, jeweils mit Grund:
  *
+ * **Regelquelle ist C16** (seit v3.23), nicht mehr die Kürzel-Zuarbeit: der
+ * Aufrufer reicht die importierte Trigger-Tabelle herein, ausgewählt wird über
+ * `VerlaufsBezug.programm`. Die Zuarbeit bleibt für **Bezeichnung, Rollen und
+ * Kategorien** zuständig — nur ihre 41 Statuswechsel-Regeln sind abgelöst.
+ *
  * - **Kein `kuerzelKatalog`-Parameter.** Nachgeschlagen wird über
  *   `kuerzelAuskunft(kuerzel, projektform)`; der Guard `kuerzel-nie-flach`
  *   verbietet jeden Zugriff auf die Rohtabelle, und ihn durchzureichen hieße,
@@ -24,14 +29,19 @@
  * Datenstand-Hash.
  */
 import { schnittVon } from '../phasen-schnitt';
-import { projektformLage, type Projektform } from '../kuerzel-katalog';
+import { projektformLage } from '../kuerzel-katalog';
+import { baueChronik } from '../chronik';
+import { kuerzelIndex } from '../feld-zugriff';
+import { normKey } from '../normalisierung';
 import type { FeldVorkommen } from '../feld-aufloesung';
-import type { KuerzelTriggerRegel } from '../kuerzel-trigger.data';
 import type { JournalEintrag } from '../journal/typen';
 import type { AntragsChronik, FeldChronik } from '../journal/lesen';
-import type { MappingVersion } from '../typen';
+import type { MappingVersion, TriggerZeile } from '../typen';
 import { beurteileStand } from './bearbeitungsstand';
-import { baueRegelIndex, baueUebergaenge, type RegelIndex } from './uebergaenge';
+import { baueUebergaenge, type GesetztesKuerzel } from './uebergaenge';
+import {
+  baueC16Regeln, erreichbareCodes as c16ErreichbareCodes, wirktAufVerbund, type C16Regeln,
+} from './c16-regeln';
 import { baueSegmente } from './segmente';
 import type { SpurArt, VerlaufsSpur, VerlaufsUebergang } from './typen';
 
@@ -41,8 +51,12 @@ export * from './typen';
 // Laufzeit-Zyklus (`cycles` hat eine leere Allowlist). Aufrufer importieren direkt
 // aus `@/core/status/verlauf/fuer-vorgang`.
 export { beurteileStand, type StandUrteil } from './bearbeitungsstand';
-export { statusRefVonText, statusRefVonRegel, gleicherStatus } from './status-ref';
-export { baueRegelIndex, baueUebergaenge, type RegelIndex } from './uebergaenge';
+export { statusRefVonText, statusRefVonCode, gleicherStatus } from './status-ref';
+export { baueUebergaenge, type GesetztesKuerzel, type UebergangsEingabe } from './uebergaenge';
+export {
+  baueC16Regeln, zeilenFuer, zielStatusFuer, wirktAufVerbund,
+  type C16Index, type C16Regeln,
+} from './c16-regeln';
 export { baueSegmente, type SegmentErgebnis } from './segmente';
 export {
   leereBefunde, nimmAuf, c16Treffer, anteil,
@@ -68,8 +82,15 @@ export interface VerlaufsBezug {
   verbundId: string | null;
   /** Roher `STATUS_VB`, wie importiert. */
   statusVbRoh: unknown;
-  /** `vb_phase` — Grundlage der Projektform (Kürzel × Projektform, nie flach). */
+  /** `vb_phase` — Grundlage der **Bezeichnung** (Kürzel × Projektform, nie flach).
+   *  Die REGEL hängt seit v3.23 am Programm, nicht mehr an der Projektform. */
   vbPhaseRoh: unknown;
+  /**
+   * Richtlinien-Nummer (`FM_NUMMER` → `unterprogramm_id`) — der Schlüssel der
+   * Regelquelle. `null` = unbekannt; dann greift KEINE Regel, statt die eines
+   * fremden Programms zu nehmen (Pitfall #44).
+   */
+  programm: string | null;
   teilvorhaben: readonly VerlaufsBezugTv[];
   /** ISO-Tag, an dem die Achse endet. Bei entschiedenen Vorgängen das
    *  Entscheidungsdatum aus Phase 0, nicht heute. */
@@ -84,9 +105,6 @@ export interface VerlaufsOptionen {
 /** Die Journal-Spalte, die einen Statuswechsel dieser Ebene belegt. */
 const JOURNAL_FELD: Record<SpurArt, string> = { tv: 'STATUS_TV', verbund: 'STATUS_VB' };
 
-/** Ohne Projektform greift keine Regel — also ist auch kein Status erreichbar. */
-const LEER: ReadonlySet<number> = new Set();
-
 function alsText(roh: unknown): string {
   return typeof roh === 'string' ? roh.trim() : roh === undefined || roh === null ? '' : String(roh).trim();
 }
@@ -94,28 +112,27 @@ function alsText(roh: unknown): string {
 /**
  * Was auf die Verbundspur gehört — und warum das mehr ist als die `X`-Codes.
  *
- * Zwei Quellen:
+ * Zwei Quellen, und der Unterschied ist genau der zwischen **Setzebene** und
+ * **Wirkungsebene**:
  *
- * 1. **Verbund-Einträge** (`ebene: 'verbund'`, die `X`-Codes). Sie stehen
- *    identisch auf jeder TV-Zeile; `sammleVorkommen` meldet sie je
+ * 1. **Verbund-Einträge** (`ebene: 'verbund'`, die `X`-Codes) — Setzebene.
+ *    Sie stehen identisch auf jeder TV-Zeile; `sammleVorkommen` meldet sie je
  *    Teilvorhaben-Aufruf einmal, über mehrere Aufrufe also mehrfach. Entdoppelt
  *    über die `feldId` — sonst stünde ein Verbund-Termin so oft in der Bahn, wie
  *    das Vorhaben Teilvorhaben hat.
- * 2. **Teilvorhaben-Kürzel, die den Verbund umsetzen.** `ABB` und `AB` sind
- *    TV-Felder (kein `X`-Präfix), ihre Regel trägt aber `scope: 'tv+verbund'` —
- *    ein Teilvorhaben wird bewilligt, und der Verbund kippt mit. Ohne sie bliebe
- *    die Verbundspur für die Projektform NW **vollständig** leer.
+ * 2. **Teilvorhaben-Kürzel, die den Verbund umsetzen** — Wirkungsebene. `ABB`
+ *    und `AB` tragen kein `X`, werden am Teilvorhaben gesetzt, füllen in C16
+ *    aber `statusVb`: ein Teilvorhaben wird bewilligt, und der Verbund kippt mit.
+ *    Ohne sie bliebe die Verbundspur weitgehend leer.
  *
- * Aufgenommen wird ein TV-Kürzel nur, wenn die Regel **dieser Projektform** ihm
- * Verbund-Wirkung gibt — nicht, wenn irgendeine andere Form das täte. Sonst
+ * Aufgenommen wird ein TV-Kürzel nur, wenn eine Zeile **dieses Programms** ihm
+ * Verbund-Wirkung gibt — nicht, wenn irgendeine andere Richtlinie das täte. Sonst
  * wanderten TV-Termine als Vermutung auf die Verbundbahn.
  *
  * Setzen mehrere Teilvorhaben dasselbe Kürzel an verschiedenen Tagen, sind das
  * mehrere Übergänge; am selben Tag fasst `baueChronik` sie zu einem zusammen.
  */
-function verbundVorkommen(
-  bezug: VerlaufsBezug, regeln: RegelIndex, projektform: Projektform | null,
-): FeldVorkommen[] {
+function verbundVorkommen(bezug: VerlaufsBezug, regeln: C16Regeln): FeldVorkommen[] {
   const gesehen = new Set<string>();
   const out: FeldVorkommen[] = [];
   for (const tv of bezug.teilvorhaben) {
@@ -126,34 +143,34 @@ function verbundVorkommen(
         out.push(v);
         continue;
       }
-      if (projektform === null || !v.feld.code) continue;
-      const regel = regeln.get(`${v.feld.code.normalize('NFC').toUpperCase()}|${projektform}`);
-      if (regel && (regel.scope === 'verbund' || regel.scope === 'tv+verbund')) out.push(v);
+      if (v.feld.code && wirktAufVerbund(regeln.index, v.feld.code)) out.push(v);
     }
   }
   return out;
 }
 
 /**
- * Prüft `XPC+`/`XPC?` über die Teilvorhaben.
+ * Alle Kürzel des Verbunds mit ihrem Tag — über **alle** Teilvorhaben.
  *
- * `null` heißt „nicht prüfbar": das Kürzel steht in keinem Datumsfeld der
- * Fassung, es ist also gar nicht lesbar. Bekannte Grenze: eine Spalte, die die
- * Fassung führt, das Programm-Schema aber nicht mappt, sieht hier aus wie
- * „nirgends gesetzt" — im Bestandslauf ausgewiesen, nicht stillschweigend.
+ * Grundlage der „kein Teilvorhaben trägt X"-Bedingungen. Dasselbe Kürzel an
+ * mehreren Teilvorhaben zählt mit dem **frühesten** Tag: gefragt ist, ab wann es
+ * im Verbund gesetzt war, nicht wann das letzte nachzog.
  */
-function baueAggregationsPruefung(
-  bezug: VerlaufsBezug, bekannteCodes: ReadonlySet<string>,
-): (kuerzel: string, quantor: 'alle' | 'kein') => boolean | null {
-  return (kuerzel, quantor) => {
-    const code = kuerzel.normalize('NFC').toUpperCase();
-    if (!bekannteCodes.has(code) || bezug.teilvorhaben.length === 0) return null;
-    const hat = (tv: VerlaufsBezugTv): boolean => tv.vorkommen.some(
-      v => v.feld.code?.normalize('NFC').toUpperCase() === code && v.wert.trim() !== '');
-    return quantor === 'alle'
-      ? bezug.teilvorhaben.every(hat)
-      : !bezug.teilvorhaben.some(hat);
-  };
+function verbundKuerzel(bezug: VerlaufsBezug): GesetztesKuerzel[] {
+  const alle: FeldVorkommen[] = [];
+  for (const tv of bezug.teilvorhaben) alle.push(...tv.vorkommen);
+  // Über `baueChronik`, nicht über die Rohwerte: der Export führt deutsche
+  // Datumsformate, die Übergänge ISO-Tage. Zwei Schreibweisen gegeneinander zu
+  // vergleichen ergäbe eine Reihenfolge, die keine ist.
+  const frueheste = new Map<string, string>();
+  for (const e of baueChronik(alle, { zeigeNebensaechlich: false })) {
+    const code = e.feld.code;
+    if (!code) continue;
+    const key = normKey(code);
+    const bisher = frueheste.get(key);
+    if (bisher === undefined || e.tag < bisher) frueheste.set(key, e.tag);
+  }
+  return [...frueheste].map(([key, tag]) => ({ key, tag }));
 }
 
 /** Statuswechsel dieser Ebene, die das Journal belegt. */
@@ -196,11 +213,12 @@ function baueSpur(
   bezug: VerlaufsBezug,
   ctx: {
     projektform: ReturnType<typeof projektformLage>;
-    regeln: RegelIndex;
+    regeln: C16Regeln;
+    felderNachCode: ReturnType<typeof kuerzelIndex>;
+    verbundKuerzel: readonly GesetztesKuerzel[];
     markerCodes: ReadonlySet<number>;
     journal: AntragsChronik | null;
-    pruefeAggregation: (k: string, q: 'alle' | 'kein') => boolean | null;
-    erreichbareCodes: (art: SpurArt, form: Projektform | null) => ReadonlySet<number>;
+    erreichbareCodes: (art: SpurArt) => ReadonlySet<number>;
   },
 ): VerlaufsSpur {
   const journalAb = ctx.journal?.journalAb ?? null;
@@ -221,8 +239,9 @@ function baueSpur(
     vorkommen,
     projektform: ctx.projektform.art === 'bekannt' ? ctx.projektform.form : null,
     art,
-    regeln: ctx.regeln,
-    pruefeAggregation: ctx.pruefeAggregation,
+    regeln: ctx.regeln.index,
+    felderNachCode: ctx.felderNachCode,
+    verbundKuerzel: ctx.verbundKuerzel,
   });
 
   const urteil = beurteileStand(statusRoh, ctx.markerCodes);
@@ -237,9 +256,8 @@ function baueSpur(
   const eintraege = statusEintraege(ctx.journal, art);
   abgleichMitJournal(uebergaenge, eintraege);
 
-  const form = ctx.projektform.art === 'bekannt' ? ctx.projektform.form : null;
   const { segmente, abweichung, belegteWechsel } = baueSegmente(
-    uebergaenge, statusRoh, bezug.bezugsZeitpunkt, ctx.erreichbareCodes(art, form),
+    uebergaenge, statusRoh, bezug.bezugsZeitpunkt, ctx.erreichbareCodes(art),
   );
 
   const beobachtet = eintraege.length > 0;
@@ -250,14 +268,28 @@ function baueSpur(
     zustand: ohneWechsel ? 'nicht_beobachtet' : 'verlauf',
     segmente,
     uebergaenge,
-    ...(ohneWechsel
-      ? {
-        begruendung: `Kein Übergang erklärt diesen Status — ${uebergaenge.length} `
-          + `${uebergaenge.length === 1 ? 'Termin' : 'Termine'} ohne bekannten Statuswechsel.`,
-      }
-      : {}),
+    ...(ohneWechsel ? { begruendung: ohneWechselGrund(ctx.regeln, uebergaenge.length) } : {}),
     ...(abweichung ? { abweichung } : {}),
   };
+}
+
+/**
+ * Warum keine Bahn entstand — und die drei Fälle sind nicht derselbe.
+ *
+ * Ohne diese Unterscheidung läse sich „kein Übergang erklärt diesen Status" auch
+ * dort, wo die App gar keine Regeln hat: eine Aussage über den Vorgang, wo eine
+ * über die Datenlage hingehört. Programm 46/47/48 (Richtlinie 2015) führt C16
+ * nicht — dort ist das der Regelfall, nicht der Befund.
+ */
+function ohneWechselGrund(regeln: C16Regeln, termine: number): string {
+  const zaehlwort = `${termine} ${termine === 1 ? 'Termin' : 'Termine'}`;
+  if (regeln.lage === 'programm-unbekannt') {
+    return `Die Richtlinie des Vorgangs ist unbekannt — ohne sie greift keine Regel (${zaehlwort}).`;
+  }
+  if (regeln.lage === 'programm-ohne-regeln') {
+    return `Die Trigger-Tabelle führt für diese Richtlinie keine Regeln (${zaehlwort}).`;
+  }
+  return `Kein Übergang erklärt diesen Status — ${zaehlwort} ohne bekannten Statuswechsel.`;
 }
 
 /**
@@ -271,52 +303,40 @@ function baueSpur(
 export function baueVerlauf(
   bezug: VerlaufsBezug,
   version: MappingVersion,
-  triggerRegeln: readonly KuerzelTriggerRegel[],
+  trigger: readonly TriggerZeile[],
   journal: AntragsChronik | null,
   opts: VerlaufsOptionen = {},
 ): VerlaufsSpur[] {
-  const regeln = baueRegelIndex(triggerRegeln);
+  const regeln = baueC16Regeln(trigger, bezug.programm);
   const markerCodes = opts.ohneBearbeitungsstand ?? schnittVon(version).markerCodes;
-  const bekannteCodes = new Set<string>();
-  for (const f of version.felder) {
-    if (f.typ === 'datum' && f.code) bekannteCodes.add(f.code.normalize('NFC').toUpperCase());
-  }
-  const pruefeAggregation = baueAggregationsPruefung(bezug, bekannteCodes);
+  const felderNachCode = kuerzelIndex(version.felder);
+  const kuerzel = verbundKuerzel(bezug);
 
-  // Welche Statuscodes kann die Ableitung je Ebene und Projektform überhaupt
-  // erreichen? Die Frage entscheidet, ob eine Abweichung ein Widerspruch ist
-  // oder nur eine Lücke im Regelwerk — und gemessen ist fast alles Letzteres.
-  const erreichbarCache = new Map<string, ReadonlySet<number>>();
-  const erreichbareCodes = (art: SpurArt, form: Projektform | null): ReadonlySet<number> => {
-    if (form === null) return LEER;
-    const k = `${art}|${form}`;
-    const bekannt = erreichbarCache.get(k);
-    if (bekannt) return bekannt;
-    const menge = new Set<number>();
-    for (const r of triggerRegeln) {
-      if (r.projektform !== form || r.zielStatus?.code == null) continue;
-      const passt = art === 'tv'
-        ? r.scope === 'tv' || r.scope === 'tv+verbund'
-        : r.scope === 'verbund' || r.scope === 'tv+verbund';
-      if (passt) menge.add(r.zielStatus.code);
-    }
-    erreichbarCache.set(k, menge);
-    return menge;
+  // Welche Statuscodes kann die Ableitung je Ebene überhaupt erreichen? Die
+  // Frage entscheidet, ob eine Abweichung ein Widerspruch ist oder nur eine
+  // Lücke im Regelwerk — und gemessen ist fast alles Letzteres. Einmal je Ebene,
+  // nicht je Spur: der Index steht für den ganzen Vorgang.
+  const erreichbar = {
+    tv: c16ErreichbareCodes(regeln.index, 'tv'),
+    verbund: c16ErreichbareCodes(regeln.index, 'verbund'),
+  };
+  const erreichbareCodes = (art: SpurArt): ReadonlySet<number> => erreichbar[art];
+  const gemeinsam = {
+    regeln, felderNachCode, verbundKuerzel: kuerzel, markerCodes, journal, erreichbareCodes,
   };
 
   const spuren: VerlaufsSpur[] = [];
   for (const tv of bezug.teilvorhaben) {
     spuren.push(baueSpur('tv', tv.aktenzeichen, alsText(tv.statusTvRoh), tv.vorkommen, bezug, {
       projektform: projektformLage(tv.vbPhaseRoh ?? bezug.vbPhaseRoh),
-      regeln, markerCodes, journal, pruefeAggregation, erreichbareCodes,
+      ...gemeinsam,
     }));
   }
 
-  const vbLage = projektformLage(bezug.vbPhaseRoh);
   spuren.push(baueSpur(
     'verbund', bezug.verbundId ?? '', alsText(bezug.statusVbRoh),
-    verbundVorkommen(bezug, regeln, vbLage.art === 'bekannt' ? vbLage.form : null), bezug,
-    { projektform: vbLage, regeln, markerCodes, journal, pruefeAggregation, erreichbareCodes },
+    verbundVorkommen(bezug, regeln), bezug,
+    { projektform: projektformLage(bezug.vbPhaseRoh), ...gemeinsam },
   ));
 
   return spuren;

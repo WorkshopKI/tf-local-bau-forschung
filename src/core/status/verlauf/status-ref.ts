@@ -54,6 +54,20 @@ export function statusRefVonRegel(roh: string, code: number | null): StatusRef {
   return { roh, code, kurz: kurz.text, lang: statusLabel(amtlich), labelHerkunft: kurz.herkunft };
 }
 
+/**
+ * Aus dem Zielstatus einer **C16**-Zeile: dort steht nur die Zahl.
+ *
+ * Anders als bei der Zuarbeit gibt es keinen Wortlaut, den man danebenstellen
+ * könnte — der Code IST die Angabe. Kennt der Katalog ihn nicht, bleibt die Zahl
+ * als `roh` stehen; sie zu verschweigen machte aus einer Lücke im Katalog eine
+ * Lücke in der Bahn.
+ */
+export function statusRefVonCode(code: number): StatusRef {
+  const amtlich = statusCodeEintrag(code)?.text ?? String(code);
+  const kurz = statusKurzLabelMit(amtlich);
+  return { roh: amtlich, code, kurz: kurz.text, lang: statusLabel(amtlich), labelHerkunft: kurz.herkunft };
+}
+
 /** Zwei Statuswerte meinen dasselbe? Über den Code, sonst über den Rohtext. */
 export function gleicherStatus(a: StatusRef | null, b: StatusRef | null): boolean {
   if (a === null || b === null) return a === b;

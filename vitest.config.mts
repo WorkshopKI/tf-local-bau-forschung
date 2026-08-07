@@ -26,6 +26,11 @@ const ISOLATED_TESTS = [
   // nicht mehr (die Prompts kamen ohne APP-OVERVIEW-Marker an).
   'src/core/services/feedback/__tests__/feedbackImprove.test.ts',
   'src/core/services/feedback/__tests__/sponsorTicketUpsert.test.ts',
+  // Dieselben zwei Module wie `addComment.test.ts` — die Datei war bis v3.22 nur
+  // nicht an der Reihe. Mit den drei neuen Verlaufs-Testdateien (v3.23) kippte
+  // die Ladereihenfolge, und der Mock griff nicht mehr (`idb.get is not a
+  // function`, weil die echte Storage-Schicht durchkam). Einzeln immer grün.
+  'src/core/services/feedback/__tests__/updateFeedbackLage.test.ts',
   'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
   'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',
   'src/core/services/search/__tests__/ort-wasm-init.test.ts',

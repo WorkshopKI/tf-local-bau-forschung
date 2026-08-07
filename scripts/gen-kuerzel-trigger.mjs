@@ -114,6 +114,7 @@ for (const z of zeilen) {
     ...(bed ? { bedingung: bed } : {}),
     benachrichtigt: empfaenger(z.benachrichtigt),
     original: z.original ?? '',
+    quelle: 'zuarbeit',
     aktiv: false,
   });
 }
@@ -124,11 +125,19 @@ const kopf = `/**
  * Quelle: \`docs/status-system/kuerzel-zuarbeit/trigger-regeln.csv\`
  * Erzeuger: \`scripts/gen-kuerzel-trigger.mjs\` (\`npm run gen:kuerzel-trigger\`)
  *
- * Die Statuswechsel-Regeln des Fachsystems, wie sie in der Bemerkungsspalte der
- * Kürzel-Zuarbeit stehen. **Alle mit \`aktiv: false\`**: importiert heißt hier
- * erfasst und prüfbar, nicht wirksam. Sie zu aktivieren ist eine eigene
- * Entscheidung — die App leitet keinen Status ab (Pitfall #44), und eine
- * versehentlich scharf geschaltete Regel täte genau das.
+ * Die Statuswechsel-Regeln, wie sie in der Bemerkungsspalte der Kürzel-Zuarbeit
+ * stehen. **Seit v3.23 KEINE Regelquelle mehr** — die Verlaufsableitung rechnet
+ * gegen die C16-Trigger-Tabelle, den Export aus dem laufenden Fachsystem.
+ *
+ * **Erhalten, nicht gelöscht.** Diese 41 Regeln hat eine einzelne Bearbeiterin
+ * für ein eigenes Excel-Dashboard aufgestellt; sie sind erklärtermaßen
+ * unvollständig und decken gemessen genau eine Projektform (NW). Wo sie über C16
+ * hinausgehen, sind sie unbelegt — aber es soll nachvollziehbar bleiben, was
+ * einmal abgeleitet wurde. Deshalb \`quelle: 'zuarbeit'\` und \`aktiv: false\`.
+ *
+ * Was von der Zuarbeit WEITER gilt: Bezeichnung, Rollen, Kategorien, Scope und
+ * Glossargliederung der Kürzel — die stehen in \`kuerzel-katalog.data.ts\` und
+ * haben keine Konkurrenz.
  *
  * \`benachrichtigt\` und \`zielStatus\` sind getrennt, weil die Prosa sie
  * vermischt: „trigger an AB, Stw TV auf abgebrochen" ist eine Nachricht UND ein
@@ -159,7 +168,10 @@ export interface KuerzelTriggerRegel {
   benachrichtigt: readonly string[];
   /** Der Originalsatz. Bei Zweifeln gilt er, nicht der Parser. */
   original: string;
-  /** Immer \`false\` beim Import. */
+  /** Woher die Regel kommt. Genau ein Wert — die C16-Zeilen leben als
+   *  \`TriggerZeile\` in einer anderen Welt und mischen sich hier nicht ein. */
+  quelle: 'zuarbeit';
+  /** Immer \`false\`: erfasst und prüfbar, nicht wirksam. */
   aktiv: false;
 }
 

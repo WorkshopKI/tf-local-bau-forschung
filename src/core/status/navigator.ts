@@ -41,18 +41,18 @@
  * welche Vorkommen geprüft wird — auf der Verbund-Seite sind das die Einträge
  * ALLER Teilvorhaben, und genau das muss die Anzeige dann auch sagen.
  */
-import { kuerzelIndex, type KuerzelIndex } from './feld-zugriff';
+import { kuerzelIndex } from './feld-zugriff';
 import { normKey } from './normalisierung';
 import { betrifftRolle, rollenLabel, rollenVonFeld } from './rollen';
 import { istTestKuerzel, sonderKuerzel } from './sonderkuerzel';
 import { triggerFuerProgramm } from './trigger-share';
 import { triggerSegmenteVon, triggerSatzVon, alsText, type TextbausteinLegende } from './trigger-satz';
 import { erklaereSegmente, type ErklaerKatalog, type ErklaertesSegment } from './trigger-erklaerung';
+import { pruefeTriggerBedingungen, type BedingungsUrteil, type TriggerKontext } from './trigger-bedingung';
 import type { FeldVorkommen } from './feld-aufloesung';
 import type { Rolle, StatusFeldEintrag, TriggerParam, TriggerZeile } from './typen';
 
-/** Wie eine einzelne Vorbedingung ausgegangen ist. */
-export type BedingungsUrteil = 'erfuellt' | 'verletzt' | 'unpruefbar';
+export type { BedingungsUrteil } from './trigger-bedingung';
 
 /** Eine Trigger-Zeile in der Kandidaten-Ansicht. */
 export interface TriggerWirkung {
@@ -153,62 +153,25 @@ function platzhalterAus(p: TriggerParam): string[] {
   return quelle.match(PLATZHALTER_RE) ?? [];
 }
 
-/** Verletzt schlägt unprüfbar schlägt erfüllt — das schlechteste Urteil gewinnt. */
-function schlechtestes(urteile: readonly BedingungsUrteil[]): BedingungsUrteil {
-  if (urteile.includes('verletzt')) return 'verletzt';
-  if (urteile.includes('unpruefbar')) return 'unpruefbar';
-  return 'erfuellt';
-}
-
 /** Setzt die Zeile einen Status? Nur solche Kandidaten bewegen das Verfahren. */
 function aendertStatus(p: TriggerParam): boolean {
   if (p.art === 'statusSetzen') return true;
   return p.art === 'statusTvVb' && (p.statusTv !== null || p.statusVb !== null);
 }
 
-interface Kontext {
-  /** normKey(Kürzel) → Katalog-Feld. */
-  felderNachCode: KuerzelIndex;
-  /** normKey(Kürzel) der Einträge, die im Bestand ein Datum tragen. */
-  gesetzt: ReadonlySet<string>;
-  statusCode: number | null;
+/**
+ * Der Prüfkontext des Navigators: der {@link TriggerKontext} plus die Quelle der
+ * Zeichen-Erklärungen. Letztere gehört nicht ins Prädikat — sie ist Anzeige.
+ */
+interface Kontext extends TriggerKontext {
   /** Quelle der Zeichen-Erklärungen; fehlt sie, bleiben die Segmente unerklärt. */
   katalog?: ErklaerKatalog;
 }
 
 /**
- * Eine Negativ-Bedingung („TV hat kein ABB") auswerten.
- *
- * Kennt der Katalog das Kürzel nicht, ist die Bedingung **nicht prüfbar** — und
- * zwar in beide Richtungen: ein fehlender Katalog-Eintrag heißt nicht, dass die
- * Spalte leer ist, sondern nur, dass wir sie nicht lesen können.
+ * Eine Trigger-Zeile in der Kandidaten-Ansicht: Satzform vom Navigator, Urteil
+ * vom geteilten Auswerter ({@link pruefeTriggerBedingungen}).
  */
-function pruefeOhne(kuerzel: string, art: 'TV' | 'Verbund', k: Kontext): {
-  urteil: BedingungsUrteil; grund: string | null;
-} {
-  const key = normKey(kuerzel);
-  if (!k.felderNachCode.has(key)) {
-    // Ein katalogfremdes Kürzel, das die Fachseite erklärt hat, bleibt ebenfalls
-    // unprüfbar — es gibt keine Spalte, in die man sehen könnte. Nur der Grund
-    // ist ein anderer, und der gehört dann auch dagestanden.
-    const sonder = sonderKuerzel(kuerzel);
-    return {
-      urteil: 'unpruefbar',
-      grund: sonder
-        ? `${kuerzel}: ${sonder.label} — „ohne ${kuerzel}" nicht prüfbar.`
-        : `Kürzel ${kuerzel} steht nicht im Katalog — „ohne ${kuerzel}" nicht prüfbar.`,
-    };
-  }
-  if (k.gesetzt.has(key)) {
-    return {
-      urteil: 'verletzt',
-      grund: art === 'TV' ? `${kuerzel} ist bereits gesetzt.` : `${kuerzel} ist im Verbund bereits gesetzt.`,
-    };
-  }
-  return { urteil: 'erfuellt', grund: null };
-}
-
-/** Die Vorbedingungen EINER Trigger-Zeile auswerten. */
 function pruefeZeile(zeile: TriggerZeile, k: Kontext, legende?: TextbausteinLegende): TriggerWirkung {
   const p = zeile.geparst;
   const roh = triggerSegmenteVon(zeile, legende);
@@ -222,46 +185,8 @@ function pruefeZeile(zeile: TriggerZeile, k: Kontext, legende?: TextbausteinLege
     // als „erfüllt" mitzuzählen erfände eine Wirkung, die wir nicht kennen.
     return { ...basis, urteil: 'unpruefbar', gruende: ['Zeile nicht interpretiert.'], aendertStatus: false };
   }
-
-  const urteile: BedingungsUrteil[] = [];
-  const gruende: string[] = [];
-  const nimm = (u: BedingungsUrteil, grund: string | null): void => {
-    urteile.push(u);
-    if (grund) gruende.push(grund);
-  };
-
-  if (p.art === 'statusTvVb') {
-    if (p.status) {
-      if (k.statusCode === null) {
-        nimm('unpruefbar', 'Aktueller Status steht nicht im Katalog — Status-Bedingung nicht prüfbar.');
-      } else {
-        const { op, code } = p.status;
-        const ok = op === '<' ? k.statusCode < code : op === '>' ? k.statusCode > code : k.statusCode === code;
-        const wort = op === '<' ? 'vor' : op === '>' ? 'nach' : 'gleich';
-        nimm(ok ? 'erfuellt' : 'verletzt', ok ? null : `Status ${k.statusCode} ist nicht ${wort} ${code}.`);
-      }
-    }
-    // Komma-Listen sind UND-Listen: jedes Kürzel ist eine eigene Bedingung mit
-    // eigenem Urteil. Ein unbekanntes macht nur SEINEN Teil unprüfbar, nicht die
-    // ganze Zeile — sonst nähme ein einziger Katalog-Ausreißer dem Nutzer auch
-    // die Aussage über die übrigen.
-    for (const kuerzel of p.ohneTvKuerzel) {
-      const r = pruefeOhne(kuerzel, 'TV', k);
-      nimm(r.urteil, r.grund);
-    }
-    for (const kuerzel of p.ohneVerbundKuerzel) {
-      const r = pruefeOhne(kuerzel, 'Verbund', k);
-      nimm(r.urteil, r.grund);
-    }
-    for (const w of p.weitere) {
-      const sonder = sonderKuerzel(w);
-      nimm('unpruefbar', sonder
-        ? `Weiteres Argument „${w}": ${sonder.label} — seine Wirkung an dieser Stelle ist ungedeutet.`
-        : `Weiteres Argument „${w}" ist nicht gedeutet.`);
-    }
-  }
-
-  return { ...basis, urteil: schlechtestes(urteile), gruende, aendertStatus: aendertStatus(p) };
+  const befund = pruefeTriggerBedingungen(p, k);
+  return { ...basis, urteil: befund.urteil, gruende: befund.gruende, aendertStatus: aendertStatus(p) };
 }
 
 /**
@@ -299,8 +224,12 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
   }
   const relevanzGefiltert = relevante.size > 0;
 
+  // Der Navigator kennt nur EINE Menge gesetzter Kürzel: `vorkommen` ist auf der
+  // Verbund-Seite bereits die Vereinigung aller Teilvorhaben. Die Trennung
+  // TV/Verbund braucht erst die Verlaufsableitung, die je Spur fragt.
   const kontext: Kontext = {
-    felderNachCode, gesetzt, statusCode: e.statusCode, ...(e.katalog ? { katalog: e.katalog } : {}),
+    felderNachCode, gesetztTv: gesetzt, gesetztVerbund: gesetzt,
+    statusCode: e.statusCode, ...(e.katalog ? { katalog: e.katalog } : {}),
   };
   const rolle = e.rolle ?? 'alle';
 

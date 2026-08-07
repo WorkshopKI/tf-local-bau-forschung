@@ -81,6 +81,10 @@ function Bilanz({ b, c16Vorhanden }: {
 }): React.ReactElement {
   const spurenTv = b.teilvorhaben;
   const mitVerlauf = b.zustaendeTv.verlauf;
+  // Grundgesamtheit der Bedingungs-Zahlen: nur Übergänge, für die C16 auf
+  // dieser Ebene überhaupt eine Zeile führt. Gegen ALLE Termine gerechnet
+  // sähe „erfüllt" nach 3 % aus, obwohl es fast jede geprüfte Zeile ist.
+  const geprueft = b.bedingungErfuellt + b.bedingungVerletzt + b.bedingungUnpruefbar;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-0.5">
@@ -120,17 +124,62 @@ function Bilanz({ b, c16Vorhanden }: {
             wert={zahl(b.konfidenz.trigger_bestaetigt)}
             hinweis={anteil(b.konfidenz.trigger_bestaetigt, b.uebergaenge)}
           />
+          {/* Der Wechsel gilt, aber eine Bedingung war nicht lesbar. Eigene
+              Zeile, weil er weder „bestätigt" noch „kein Wechsel" ist. */}
+          <Zeile
+            label="Wechsel mit unprüfbarer Bedingung"
+            wert={zahl(b.konfidenz.trigger_bedingt)}
+            hinweis={anteil(b.konfidenz.trigger_bedingt, b.uebergaenge)}
+          />
           <Zeile
             label="ohne bekannten Statuswechsel"
             wert={zahl(b.konfidenz.kein_kuerzel)}
             hinweis={anteil(b.konfidenz.kein_kuerzel, b.uebergaenge)}
           />
-          <Zeile label="Zielstatus nicht auflösbar" wert={zahl(b.ohneZielcode)} />
-          <Zeile label="Regel ohne Ebenen-Angabe" wert={zahl(b.scopeUnbestimmt)} />
+          <Zeile label="Zielcode ohne Katalog-Eintrag" wert={zahl(b.zielCodeUnbekannt)} />
           <Zeile label="umbenannte Kürzel" wert={zahl(b.historischeKuerzel)} />
+        </ul>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <p className={`uppercase tracking-wider ${leise}`}>Bedingungen der C16-Zeilen</p>
+        <ul className="flex flex-col gap-0.5">
+          {/* Die drei Zahlen sind der Unterschied zwischen Obergrenze und
+              Deckung: `verletzt` heisst „die Regel griff damals nicht" und
+              setzt keinen Status, `unpruefbar` heisst „wir können es nicht
+              lesen" und setzt ihn trotzdem. */}
           <Zeile
-            label="Aggregation nicht erfüllt / nicht prüfbar"
-            wert={`${zahl(b.aggregationNichtErfuellt)} / ${zahl(b.aggregationNichtPruefbar)}`}
+            label="erfüllt"
+            wert={zahl(b.bedingungErfuellt)}
+            hinweis={anteil(b.bedingungErfuellt, geprueft)}
+          />
+          <Zeile
+            label="verletzt (kein Wechsel)"
+            wert={zahl(b.bedingungVerletzt)}
+            hinweis={anteil(b.bedingungVerletzt, geprueft)}
+          />
+          <Zeile
+            label="nicht prüfbar"
+            wert={zahl(b.bedingungUnpruefbar)}
+            hinweis={anteil(b.bedingungUnpruefbar, geprueft)}
+          />
+        </ul>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <p className={`uppercase tracking-wider ${leise}`}>Bezeichnung aus fremder Projektform</p>
+        <ul className="flex flex-col gap-0.5">
+          {/* DS führt der Kürzelkatalog gar nicht — dort ist JEDE Bezeichnung
+              geliehen. Zählt, wie oft die Anleihe auch noch strittig ist. */}
+          <Zeile
+            label="geliehen"
+            wert={zahl(b.bezeichnungGeliehen)}
+            hinweis={anteil(b.bezeichnungGeliehen, b.uebergaenge)}
+          />
+          <Zeile
+            label="… davon strittig (gilt nicht sicher)"
+            wert={zahl(b.bezeichnungGeliehenUneindeutig)}
+            hinweis={anteil(b.bezeichnungGeliehenUneindeutig, b.bezeichnungGeliehen)}
           />
         </ul>
       </div>

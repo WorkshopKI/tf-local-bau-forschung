@@ -24,6 +24,7 @@ const tagDe = formatDatumsWert;
 /** Wie sicher ein Übergang einen Statuswechsel belegt — im Klartext. */
 const KONFIDENZ_TEXT: Record<Konfidenz, string> = {
   trigger_bestaetigt: 'Regel belegt den Wechsel',
+  trigger_bedingt: 'Regel greift, eine Bedingung war nicht prüfbar',
   zeitliche_naehe: 'Journal belegt einen Wechsel in der Nähe',
   kein_kuerzel: 'kein bekannter Statuswechsel',
 };
@@ -86,14 +87,11 @@ function Uebergang({ u }: { u: VerlaufsUebergang }): React.ReactElement {
           → {u.setztStatus.code === null ? `„${u.setztStatus.roh}" (kein Code)` : u.setztStatus.kurz}
         </span>
       )}
-      {u.scopeUnbestimmt && <span className={leise}>Ebene unbestimmt</span>}
-      {u.ausAggregation && (
-        <span className={leise}>
-          aus {u.ausAggregation.kuerzel} ·{' '}
-          {u.ausAggregation.erfuellt === null
-            ? 'Bedingung nicht prüfbar'
-            : u.ausAggregation.erfuellt ? 'Bedingung trägt heute' : 'Bedingung trägt heute nicht'}
-        </span>
+      {/* Warum die Regel nicht (oder nicht sicher) griff — im Wortlaut der
+          Bedingung, nicht als Symbol. `erfuellt` schweigt: dass eine Regel
+          greift, sagt schon die Konfidenz daneben. */}
+      {u.bedingung && u.bedingung.urteil !== 'erfuellt' && u.bedingung.gruende.length > 0 && (
+        <span className={leise}>{u.bedingung.gruende.join(' · ')}</span>
       )}
     </li>
   );

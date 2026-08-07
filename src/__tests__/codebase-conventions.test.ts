@@ -133,6 +133,8 @@ import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
 import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
 import { KANONISCHE_CODE_FELDER } from '../core/status/seed-kanonisch';
+import { ebenenKonflikte } from '../core/status/seed-codes';
+import { baueSeedVersion } from '../core/status/seed';
 import { JOURNAL_AUSGESCHLOSSEN } from '../core/status/journal/felder';
 // Datei-Walk + Such-Primitive liegen in der Lib; die REGELN bleiben hier
 // (CLAUDE.md Doku-Konvention 4: alle Konventionen in EINER Datei).
@@ -388,12 +390,39 @@ describe('verlauf-leitet-keinen-status-ab (Phase 1b — Pitfall #44)', () => {
   });
 });
 
+describe('status-ebene-folgt-x-praefix (Phase 2a)', () => {
+  // Die SETZEBENE eines Statusfeldes steht nicht frei: das Fachsystem erzwingt
+  // sie ueber das Kuerzel selbst — `X` am Anfang heisst Verbund, alles andere
+  // Teilvorhaben. `ebeneVonCode` leitet das beim Katalogbau ab; wer die `ebene`
+  // eines Seed-Eintrags spaeter von Hand setzt, haengt den Termin an die falsche
+  // Bahn und die Verlaufsableitung rechnet ihn dem falschen Objekt zu.
+  //
+  // Hier bricht der Build, weil der Seed UNSERE Daten sind. Eine kuratierte
+  // Fassung meldet sich stattdessen zur Laufzeit laut (`snapshot.ts`): ein Wurf
+  // beim Aktivieren naehme dem Team die ganze App statt ihm den Datenfehler zu
+  // zeigen — dieselbe Abwaegung wie in `programmNummer.ts`.
+  //
+  // NICHT zu verwechseln mit der WIRKUNGSEBENE: `ABB` traegt kein `X`, wird am
+  // Teilvorhaben gesetzt und kippt ueber seine C16-Zeile trotzdem den
+  // Verbundstatus. Zwei Felder, nie eines.
+  it('kein Seed-Statusfeld widerspricht seinem Code', () => {
+    const konflikte = ebenenKonflikte(baueSeedVersion().felder);
+    const felder = baueSeedVersion().felder.filter(f => f.code).length;
+    expect(felder, 'Seed traegt keine Code-Felder — der Guard prueft nichts')
+      .toBeGreaterThan(400);
+    expect(
+      konflikte.map(k => `${k.feldId} (${k.code}: ist ${k.ist}, soll ${k.soll})`),
+      'X am Codeanfang heisst Verbund-Ebene, alles andere Teilvorhaben',
+    ).toEqual([]);
+  });
+});
+
 describe('trigger-regeln-nur-im-verlauf (Phase 1b)', () => {
   // `KUERZEL_TRIGGER_REGELN` sind ausnahmslos `aktiv: false`: importiert heisst
-  // erfasst und pruefbar, nicht wirksam. Ihr erster und einziger Konsument ist
-  // die Verlaufsableitung — die sie fuer die VERGANGENHEIT liest und dabei nie
-  // einen geltenden Status setzt. Ein zweiter Konsument waere der Weg, sie
-  // versehentlich scharf zu schalten.
+  // erfasst und pruefbar, nicht wirksam. Seit v3.23 sind sie ueberhaupt keine
+  // Regelquelle mehr (die Verlaufsableitung rechnet gegen C16) — der Guard
+  // bleibt trotzdem scharf: er verhindert, dass sie ueber eine Hintertuer
+  // zurueckkommen.
   //
   // Seit v3.21 OHNE Ausnahme: `verlauf/fuer-vorgang.ts` haelt die Regeln fuer
   // alle Aufrufer, der Cockpit-Hook reicht sie nicht mehr durch. Wer eine neue

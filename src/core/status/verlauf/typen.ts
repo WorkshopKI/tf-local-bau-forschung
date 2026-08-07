@@ -8,8 +8,8 @@
  * Statuswechsel davor. Eine Spur, die nur beobachten kann, sagt bei jedem
  * Vorgang „nicht beobachtet" und erklärt damit nur ihre eigene Blindheit. Also
  * rekonstruiert die App den Weg aus den `D_`-Datumsspalten und den
- * Statuswechsel-Regeln der Kürzel-Zuarbeit — und schreibt an jede Spur, woher
- * sie kommt.
+ * Statuswechsel-Regeln der **C16-Trigger-Tabelle** — und schreibt an jede Spur,
+ * woher sie kommt.
  *
  * **Das ändert nichts an Pitfall #44.** Die App leitet keinen *geltenden* Status
  * ab: das letzte Segment jeder Spur trägt immer den **importierten** Wert. Weicht
@@ -20,7 +20,8 @@
  * Trigger-Regeln reicht der Aufrufer herein.
  */
 import type { Rolle } from '../typen';
-import type { ProjektformLage } from '../kuerzel-katalog';
+import type { BedingungsUrteil } from '../trigger-bedingung';
+import type { Projektform, ProjektformLage } from '../kuerzel-katalog';
 import type { LabelHerkunft } from '@/core/utils/status-wert-labels';
 
 /** Ebene, über die eine Spur spricht. */
@@ -46,14 +47,21 @@ export type SpurHerkunft = 'abgeleitet' | 'beobachtet';
 /**
  * Wie sicher ein Übergang einen Statuswechsel belegt.
  *
- * - `trigger_bestaetigt` — eine Regel der Zuarbeit greift für (Kürzel,
- *   Projektform) und die Ebene passt.
+ * - `trigger_bestaetigt` — eine C16-Zeile des Programms greift, und **alle**
+ *   ihre Vorbedingungen waren zum Zeitpunkt des Kürzels erfüllt.
+ * - `trigger_bedingt` — die Zeile greift, mindestens eine ihrer Vorbedingungen
+ *   liess sich aber nicht auswerten (Status am Kettenanfang unbekannt, Kürzel
+ *   nicht im Katalog, ungedeutetes Argument). Der Termin steht in den Daten, das
+ *   Kürzel WURDE gesetzt — ihm den Wechsel abzusprechen, weil wir eine Bedingung
+ *   nicht lesen können, wäre eine Behauptung über die Vergangenheit. Ihn als
+ *   bestätigt zu führen wäre die andere.
  * - `zeitliche_naehe` — das Journal belegt einen Wechsel in der Nähe des Termins.
  *   Erst ab dem Journal-Nullpunkt möglich.
  * - `kein_kuerzel` — kein Statuswechsel belegt. Gemessen am Bestand ist das mit
  *   92,7 % der **Normalfall**, nicht die Ausnahme.
  */
-export type Konfidenz = 'trigger_bestaetigt' | 'zeitliche_naehe' | 'kein_kuerzel';
+export type Konfidenz =
+  | 'trigger_bestaetigt' | 'trigger_bedingt' | 'zeitliche_naehe' | 'kein_kuerzel';
 
 /**
  * Warum ein Übergang keine Rolle nennt — `neutral` und `unbekannt` sähen als
@@ -122,23 +130,30 @@ export interface VerlaufsUebergang {
   /** `false` = die Projektformen sagen Verschiedenes; dann gilt die Bezeichnung
    *  nicht sicher für diesen Vorgang. */
   bezeichnungEindeutig: boolean;
+  /**
+   * Aus WELCHER Projektform die Bezeichnung stammt — gesetzt nur, wenn der
+   * Katalog die Form des Vorgangs selbst führt.
+   *
+   * Fehlt sie, ist die Bezeichnung **geliehen**: der Katalog kennt das Kürzel,
+   * aber nicht für diese Form, und `kuerzelAuskunft` nimmt die erste geführte
+   * (`kuerzel-katalog.ts`, Stufe 3). Für DS ist das der Regelfall — die
+   * Projektform kam mit der Richtlinie 2020 und steht in der Zuarbeit nicht.
+   * Zusammen mit `bezeichnungEindeutig: false` heisst das: die angezeigte
+   * Bedeutung gilt für diesen Vorgang nicht sicher.
+   */
+  bezeichnungQuelle?: Projektform;
   /** Der Statuswechsel, den die Regel setzt. Fehlt bei `kein_kuerzel`. */
   setztStatus?: StatusRef;
   /**
-   * Die Zuarbeit führt eine Regel, sagt aber nicht, auf welcher Ebene der
-   * Wechsel gilt (`scope: null`, 12 der 41 Regeln). Eine eigene Aussage — nicht
-   * dasselbe wie „keine Regel".
-   */
-  scopeUnbestimmt?: true;
-  /**
-   * Aggregationsregel über die Teilvorhaben (`XPC+`: „wenn alle TV PC+ haben",
-   * `XPC?`: „wenn kein TV PC- hat"). `erfuellt: null` = nicht prüfbar.
+   * Wie die Vorbedingungen der greifenden C16-Zeile ausgegangen sind. Fehlt,
+   * wenn C16 für dieses Kürzel auf dieser Ebene gar keine Zeile führt — „keine
+   * Regel" und „Regel, aber Bedingung verletzt" sind zwei Aussagen.
    *
-   * Die Bedingung wird gegen den **heutigen** Datenstand geprüft, der Termin ist
-   * von damals — ein `false` ist deshalb ein Befund, kein Veto: gesetzt wurde
-   * das Kürzel trotzdem.
+   * Geprüft wird gegen den Stand **am Tag des Kürzels**, nicht gegen heute
+   * (`uebergaenge.ts`). Ein `verletzt` heisst deshalb wirklich „die Regel griff
+   * damals nicht" — und dann setzt das Kürzel auch keinen Status.
    */
-  ausAggregation?: { quantor: 'alle' | 'kein'; kuerzel: string; erfuellt: boolean | null };
+  bedingung?: { urteil: BedingungsUrteil; gruende: string[] };
 }
 
 /**

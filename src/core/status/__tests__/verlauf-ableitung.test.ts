@@ -1,23 +1,28 @@
 /**
- * Die **Verbundspur**: abgeleitet, nicht beobachtet — samt Aggregationsregeln,
- * Journalabgleich und der Herkunfts-Auskunft.
+ * Die **Verbundspur** und der **Vorwärtslauf**: Wirkungsebene, Bedingungen,
+ * Journalabgleich.
  *
- * Gemessen am Bestand (06.08.2026) trägt diese Ableitung 1 694 von 7 534
- * Verbünden; 3 241 tragen ein VB-Kürzel, für dessen Projektform die Zuarbeit
- * keine Regel führt. Die Tests halten fest, dass beide Fälle **benannt**
- * herauskommen und nicht als leere Zeile.
+ * Seit v3.23 rechnet die Ableitung gegen C16 statt gegen die Kürzel-Zuarbeit.
+ * Zwei Dinge, die die Tests hier festhalten und die vorher nicht gingen:
+ *
+ * - Eine Bedingung gilt für den **Zeitpunkt des Kürzels**, nicht für heute.
+ *   Gegen den heutigen Stand geprüft verletzte jeder bewilligte Vorgang
+ *   rückwirkend seine eigene Eingangsregel.
+ * - Was sich nicht auswerten lässt, bekommt ein **eigenes** Urteil
+ *   (`trigger_bedingt`) — nicht „bestätigt" und nicht „keine Regel".
  */
 import { describe, it, expect } from 'vitest';
 import { baueVerlauf, type VerlaufsBezug, type VerlaufsSpur } from '@/core/status/verlauf';
-import { KUERZEL_TRIGGER_REGELN } from '@/core/status/kuerzel-trigger.data';
+import { parseTriggerZeile } from '@/core/status/trigger-parser';
 import type { AntragsChronik } from '@/core/status/journal/lesen';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
-import type { MappingVersion, StatusFeldEintrag } from '@/core/status/typen';
+import type { MappingVersion, StatusFeldEintrag, TriggerZeile } from '@/core/status/typen';
 
 const NW = 1;
 const FUE = 3;
 const DL = 4;
 const BEZUG = '2026-08-06';
+const PROGRAMM = '76';
 
 function feld(code: string, ebene: StatusFeldEintrag['ebene']): StatusFeldEintrag {
   return {
@@ -27,7 +32,7 @@ function feld(code: string, ebene: StatusFeldEintrag['ebene']): StatusFeldEintra
 }
 
 const FELDER = new Map<string, StatusFeldEintrag>([
-  ...(['AAE', 'AB', 'ABB', 'AT4', 'PC+', 'PC-'] as const).map(
+  ...(['AAE', 'AB', 'ABB', 'AT4', 'PC+', 'PC-', 'YIRR'] as const).map(
     c => [c, feld(c, 'tv')] as [string, StatusFeldEintrag]),
   ...(['XHSP', 'XIZ', 'XVE', 'XPC+', 'XPC?'] as const).map(
     c => [c, feld(c, 'verbund')] as [string, StatusFeldEintrag]),
@@ -48,12 +53,29 @@ const VERSION: MappingVersion = {
   felder: [...FELDER.values()], werte: [],
 };
 
+const z = (
+  kuerzel: string, folge: number, parameter: string,
+  prozedur = 'TRG_TVs_Status_TV_VB', programm = PROGRAMM,
+): TriggerZeile => parseTriggerZeile({ programm, kuerzel, folge, prozedur, parameter });
+
+/** `Status-Vergleich | ohne-TV | ohne-Verbund | · · | TV-Status | VB-Status`. */
+const TRIGGER: TriggerZeile[] = [
+  z('AAE', 1, '<59|ABB|YIRR||||31|'),        // nur TV
+  z('ABB', 1, '<59||||||59|59'),             // beide Ebenen
+  z('AT4', 1, '<59||||||38|'),               // nur TV
+  z('XVE', 1, '|||||||91'),                  // nur Verbund, unbedingt
+  z('XPC+', 1, '<59||||||34|'),              // Verbund-Kürzel, TV-Wirkung
+  z('XHSP', 1, '<59|||||||50'),              // nur Verbund
+  z('AB', 1, '<59||||||51|'),
+];
+
 function lauf(b: Partial<VerlaufsBezug> & Pick<VerlaufsBezug, 'teilvorhaben'>,
-  journal: AntragsChronik | null = null): VerlaufsSpur[] {
+  journal: AntragsChronik | null = null,
+  trigger: readonly TriggerZeile[] = TRIGGER): VerlaufsSpur[] {
   return baueVerlauf({
-    verbundId: 'VB1', statusVbRoh: 'bewilligt', vbPhaseRoh: NW,
+    verbundId: 'VB1', statusVbRoh: 'bewilligt', vbPhaseRoh: NW, programm: PROGRAMM,
     bezugsZeitpunkt: BEZUG, ...b,
-  }, VERSION, KUERZEL_TRIGGER_REGELN, journal);
+  }, VERSION, trigger, journal);
 }
 
 const vb = (s: VerlaufsSpur[]): VerlaufsSpur => {
@@ -62,8 +84,8 @@ const vb = (s: VerlaufsSpur[]): VerlaufsSpur => {
   return treffer;
 };
 
-describe('Verbundspur — direkte VB-Trigger', () => {
-  it('nimmt ABB, obwohl es ein TV-Feld ist: die Regel gibt ihm Verbund-Wirkung', () => {
+describe('Verbundspur — die Wirkungsebene entscheidet', () => {
+  it('nimmt ABB, obwohl es ein TV-Feld ist: seine Zeile füllt statusVb', () => {
     const s = vb(lauf({
       statusVbRoh: 'bewilligt', vbPhaseRoh: NW,
       teilvorhaben: [{
@@ -73,12 +95,11 @@ describe('Verbundspur — direkte VB-Trigger', () => {
     }));
     expect(s.zustand).toBe('verlauf');
     expect(s.uebergaenge.map(u => u.kuerzel)).toEqual(['ABB']);
-    expect(s.uebergaenge[0]?.konfidenz).toBe('trigger_bestaetigt');
     expect(s.segmente.map(x => x.statusRef?.code)).toEqual([59]);
     expect(s.herkunft).toBe('abgeleitet');
   });
 
-  it('nimmt AAE NICHT auf die Verbundbahn — die Regel gilt nur dem Teilvorhaben', () => {
+  it('nimmt AAE NICHT auf die Verbundbahn — seine Zeile füllt nur statusTv', () => {
     const s = vb(lauf({
       statusVbRoh: 'beantragt', vbPhaseRoh: NW,
       teilvorhaben: [{
@@ -89,48 +110,32 @@ describe('Verbundspur — direkte VB-Trigger', () => {
     expect(s.zustand).toBe('nicht_beobachtet');
   });
 
-  it('führt einen unauflösbaren Zielstatus als Übergang MIT Rohtext, nicht als Loch', () => {
-    // XHSP/FuE → „Bewilligungsentwurf": der Katalog führt
-    // „Bewilligungsentwurf VDI/VDE-IT", der Wortlaut der Zuarbeit löst nicht auf.
-    const s = vb(lauf({
-      statusVbRoh: 'bewilligt', vbPhaseRoh: FUE,
-      teilvorhaben: [{
-        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt', vorkommen: [vk('XHSP', '01.03.2024')],
-      }],
-    }));
-    const u = s.uebergaenge.find(x => x.kuerzel === 'XHSP');
-    expect(u?.konfidenz).toBe('trigger_bestaetigt');
-    expect(u?.setztStatus?.code).toBeNull();
-    expect(u?.setztStatus?.roh).toBe('Bewilligungsentwurf');
+  it('leitet für JEDE Projektform ab — die Regel hängt an der Richtlinie', () => {
+    // Bis v3.22 blieb dieselbe Konstellation auf FuE und DL leer, weil die
+    // Zuarbeit ihre 41 Regeln nach Projektform schlägt und nur NW deckt.
+    for (const phase of [FUE, DL]) {
+      const s = vb(lauf({
+        statusVbRoh: 'bewilligt', vbPhaseRoh: phase,
+        teilvorhaben: [{
+          aktenzeichen: 'TV1', statusTvRoh: 'bewilligt', vorkommen: [vk('ABB', '01.06.2024')],
+        }],
+      }));
+      expect(s.zustand, `Projektform ${phase}`).toBe('verlauf');
+      expect(s.segmente.map(x => x.statusRef?.code)).toEqual([59]);
+    }
   });
 
-  it('sagt bei fehlender Regel für die Projektform „nicht beobachtet", statt zu raten', () => {
-    // ABB trägt eine Regel NUR für NW. Auf einem FuE-Verbund (76,5 % des
-    // Bestands) greift sie nicht — der häufigste Fall überhaupt.
+  it('trägt den importierten Status auch dort, wo keine Regel greift', () => {
     const s = vb(lauf({
       statusVbRoh: 'bewilligt', vbPhaseRoh: FUE,
       teilvorhaben: [{
-        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt', vorkommen: [vk('ABB', '01.06.2024')],
+        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt', vorkommen: [vk('AT4', '01.06.2024')],
       }],
     }));
     expect(s.zustand).toBe('nicht_beobachtet');
-    expect(s.uebergaenge).toEqual([]);
     expect(s.begruendung).toContain('Kein Übergang');
-    // Die Bahn trägt trotzdem den importierten Status.
     expect(s.segmente[0]?.statusRef?.roh).toBe('bewilligt');
     expect(s.segmente[0]?.vonDatum).toBeNull();
-  });
-
-  it('lässt DL ganz ohne Verbund-Regel — und sagt es', () => {
-    const s = vb(lauf({
-      statusVbRoh: 'bewilligt', vbPhaseRoh: DL,
-      teilvorhaben: [{
-        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt',
-        vorkommen: [vk('AB', '01.05.2024'), vk('ABB', '01.06.2024')],
-      }],
-    }));
-    expect(s.projektform).toEqual({ art: 'bekannt', form: 'DL' });
-    expect(s.zustand).toBe('nicht_beobachtet');
   });
 });
 
@@ -146,7 +151,6 @@ describe('Verbund mit fünf Teilvorhaben', () => {
       vbPhaseRoh: FUE, statusVbRoh: 'bewilligt',
       teilvorhaben: fuenf(['01.06.2024', '01.06.2024', '01.06.2024', '01.06.2024', '01.06.2024']),
     }));
-    // XPC+ ist ein Verbund-Feld und steht fünfmal in den Vorkommen.
     expect(s.uebergaenge.filter(u => u.kuerzel === 'XPC+')).toHaveLength(1);
   });
 
@@ -156,7 +160,6 @@ describe('Verbund mit fünf Teilvorhaben', () => {
       teilvorhaben: fuenf(['01.06.2024', '02.06.2024', '03.06.2024', '04.06.2024', '05.06.2024']),
     }));
     expect(s.uebergaenge.filter(u => u.kuerzel === 'ABB')).toHaveLength(5);
-    expect(s.segmente).toHaveLength(5);
     expect(s.segmente[s.segmente.length - 1]?.bisDatum).toBe(BEZUG);
   });
 
@@ -171,46 +174,92 @@ describe('Verbund mit fünf Teilvorhaben', () => {
   });
 });
 
-describe('Aggregationsregeln über die Teilvorhaben', () => {
-  const mitPc = (pc: (string | null)[]): VerlaufsBezug['teilvorhaben'] =>
-    pc.map((p, i) => ({
-      aktenzeichen: `TV${i + 1}`, statusTvRoh: 'bearbeitungsreif',
-      vorkommen: [vk('XPC+', '01.03.2024'), ...(p ? [vk('PC+', p)] : [])],
-    }));
+describe('Vorwärtslauf — der Status wandert mit', () => {
+  const eins = (vorkommen: FeldVorkommen[], status = 'bewilligt'): VerlaufsSpur =>
+    lauf({ teilvorhaben: [{ aktenzeichen: 'TV1', statusTvRoh: status, vorkommen }] })
+      .find(s => s.id === 'TV1')!;
 
-  it('setzt den TV-Status, nicht den Verbundstatus — so steht es in der Zuarbeit', () => {
-    const spuren = lauf({ vbPhaseRoh: FUE, statusVbRoh: 'bearbeitungsreif', teilvorhaben: mitPc(['01.02.2024', '01.02.2024']) });
-    const tv1 = spuren.find(s => s.id === 'TV1');
-    expect(tv1?.uebergaenge.find(u => u.kuerzel === 'XPC+')?.setztStatus?.code).toBe(34);
-    // Auf der Verbundbahn steht derselbe Termin — aber ohne Statuswechsel.
-    expect(vb(spuren).uebergaenge.find(u => u.kuerzel === 'XPC+')?.setztStatus).toBeUndefined();
+  it('prüft `<59` gegen den Status VOR dem Kürzel, nicht gegen den heutigen', () => {
+    // Der Kern der Rückschau: nach ABB steht der Vorgang auf 59. Gegen den
+    // HEUTIGEN Stand geprüft wäre AT4 danach verletzt — es kam aber vorher.
+    const s = eins([vk('AAE', '01.02.2024'), vk('AT4', '01.03.2024'), vk('ABB', '01.06.2024')]);
+    expect(s.segmente.map(x => x.statusRef?.code)).toEqual([31, 38, 59]);
+    expect(s.uebergaenge.find(u => u.kuerzel === 'AT4')?.konfidenz).toBe('trigger_bestaetigt');
   });
 
-  it('prüft den Quantor gegen die Teilvorhaben und meldet das Ergebnis', () => {
-    const alle = lauf({ vbPhaseRoh: FUE, teilvorhaben: mitPc(['01.02.2024', '01.02.2024']) });
-    const nichtAlle = lauf({ vbPhaseRoh: FUE, teilvorhaben: mitPc(['01.02.2024', null]) });
-    const holen = (s: VerlaufsSpur[]): { quantor: string; kuerzel: string; erfuellt: boolean | null } | undefined =>
-      s.find(x => x.id === 'TV1')?.uebergaenge.find(u => u.kuerzel === 'XPC+')?.ausAggregation;
-    expect(holen(alle)).toEqual({ quantor: 'alle', kuerzel: 'PC+', erfuellt: true });
-    expect(holen(nichtAlle)).toEqual({ quantor: 'alle', kuerzel: 'PC+', erfuellt: false });
+  it('verletzt die Bedingung, wenn das Kürzel NACH dem sperrenden Status kam', () => {
+    // AT4 nach ABB: der laufende Status ist dann 59, `<59` trägt nicht mehr.
+    const s = eins([vk('AAE', '01.02.2024'), vk('ABB', '01.06.2024'), vk('AT4', '01.07.2024')]);
+    const at4 = s.uebergaenge.find(u => u.kuerzel === 'AT4');
+    expect(at4?.setztStatus).toBeUndefined();
+    expect(at4?.bedingung?.urteil).toBe('verletzt');
+    expect(at4?.bedingung?.gruende[0]).toContain('Status 59 ist nicht vor 59');
+    expect(s.segmente.map(x => x.statusRef?.code)).toEqual([31, 59]);
   });
 
-  it('erzeugt das Segment auch bei nicht erfüllter Bedingung — der Termin ist die Tatsache', () => {
-    const s = lauf({ vbPhaseRoh: FUE, teilvorhaben: mitPc(['01.02.2024', null]) })
-      .find(x => x.id === 'TV1');
-    expect(s?.uebergaenge.find(u => u.kuerzel === 'XPC+')?.setztStatus?.code).toBe(34);
-    expect(s?.zustand).toBe('verlauf');
+  it('macht den Kettenanfang unprüfbar, statt einen Startstatus zu erfinden', () => {
+    const s = eins([vk('AAE', '01.02.2024')], 'beantragt');
+    const aae = s.uebergaenge[0];
+    expect(aae?.konfidenz).toBe('trigger_bedingt');
+    expect(aae?.bedingung?.urteil).toBe('unpruefbar');
+    expect(aae?.bedingung?.gruende[0]).toContain('Vor diesem Termin ist kein Statuswechsel belegt');
+    // Der Wechsel gilt trotzdem: das Kürzel WURDE gesetzt.
+    expect(aae?.setztStatus?.code).toBe(31);
   });
 
-  it('sagt „nicht prüfbar", wenn die Fassung das Bezugs-Kürzel gar nicht führt', () => {
-    const ohnePc: MappingVersion = { ...VERSION, felder: VERSION.felder.filter(x => x.code !== 'PC+') };
-    const spuren = baueVerlauf({
-      verbundId: 'VB1', statusVbRoh: 'bearbeitungsreif', vbPhaseRoh: FUE, bezugsZeitpunkt: BEZUG,
+  it('prüft „ohne ABB" gegen den Tag des Kürzels — sonst verlöre jeder Bewilligte seine Kette', () => {
+    // AAE trägt „TV hat kein ABB". ABB steht im Bestand, aber vier Monate SPÄTER.
+    const s = eins([vk('AAE', '01.02.2024'), vk('ABB', '01.06.2024')]);
+    const aae = s.uebergaenge.find(u => u.kuerzel === 'AAE');
+    expect(aae?.setztStatus?.code).toBe(31);
+    expect(aae?.bedingung?.gruende.some(g => g.includes('ABB'))).toBe(false);
+  });
+
+  it('sagt bei einem früher gesetzten Sperr-Kürzel, an welchem Tag es stand', () => {
+    const s = eins([vk('ABB', '01.01.2024'), vk('AAE', '01.02.2024')], 'beantragt');
+    const aae = s.uebergaenge.find(u => u.kuerzel === 'AAE');
+    expect(aae?.bedingung?.urteil).toBe('verletzt');
+    expect(aae?.bedingung?.gruende).toContain('ABB war am 2024-02-01 bereits gesetzt.');
+  });
+
+  it('liest „ohne Verbund-Kürzel" über ALLE Teilvorhaben, nicht nur über das eigene', () => {
+    const spuren = lauf({
+      statusVbRoh: 'beantragt',
+      teilvorhaben: [
+        { aktenzeichen: 'TV1', statusTvRoh: 'beantragt', vorkommen: [vk('AAE', '01.02.2024')] },
+        { aktenzeichen: 'TV2', statusTvRoh: 'beantragt', vorkommen: [vk('YIRR', '01.01.2024')] },
+      ],
+    });
+    const aae = spuren.find(s => s.id === 'TV1')?.uebergaenge[0];
+    expect(aae?.bedingung?.urteil).toBe('verletzt');
+    expect(aae?.bedingung?.gruende.some(g => g.includes('im Verbund'))).toBe(true);
+  });
+
+  it('macht ein katalogfremdes Bedingungs-Kürzel unprüfbar, nicht verletzt', () => {
+    const s = lauf({
       teilvorhaben: [{
-        aktenzeichen: 'TV1', statusTvRoh: 'bearbeitungsreif', vorkommen: [vk('XPC+', '01.03.2024')],
+        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt', vorkommen: [vk('AT4', '01.03.2024')],
       }],
-    }, ohnePc, KUERZEL_TRIGGER_REGELN, null);
-    expect(spuren[0]?.uebergaenge[0]?.ausAggregation?.erfuellt).toBeNull();
+    }, null, [z('AT4', 1, '||FREMDLING||||38|')]).find(x => x.id === 'TV1');
+    const at4 = s?.uebergaenge[0];
+    expect(at4?.konfidenz).toBe('trigger_bedingt');
+    expect(at4?.bedingung?.urteil).toBe('unpruefbar');
+    expect(at4?.setztStatus?.code).toBe(38);
+  });
+
+  it('nimmt die erste ERFÜLLTE von mehreren Zeilen, nicht die erste überhaupt', () => {
+    // Folge 1 ist verletzt (ABB steht schon), Folge 2 greift.
+    const s = lauf({
+      teilvorhaben: [{
+        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt',
+        vorkommen: [vk('ABB', '01.01.2024'), vk('AT4', '01.03.2024')],
+      }],
+    }, null, [
+      z('ABB', 1, '||||||59|'),
+      z('AT4', 1, '|ABB|||||38|'),
+      z('AT4', 2, '||||||40|'),
+    ]).find(x => x.id === 'TV1');
+    expect(s?.uebergaenge.find(u => u.kuerzel === 'AT4')?.setztStatus?.code).toBe(40);
   });
 });
 
@@ -236,7 +285,7 @@ describe('Journalabgleich', () => {
     expect(s?.journalAb).toBe('2026-08-05');
   });
 
-  it('hebt einen Termin auf zeitliche_naehe, wenn er in die Spanne des Eintrags fällt', () => {
+  it('überschreibt eine Regel nicht mit zeitlicher Nähe', () => {
     const j = chronik([{
       feld: 'STATUS_TV',
       eintraege: [{
@@ -248,10 +297,9 @@ describe('Journalabgleich', () => {
     const s = lauf({
       teilvorhaben: [{
         aktenzeichen: 'TV1', statusTvRoh: 'bewilligt',
-        vorkommen: [vk('AT4', '04.08.2026'), vk('AAE', '01.02.2024')],
+        vorkommen: [vk('AAE', '01.02.2024'), vk('AT4', '04.08.2026')],
       }],
     }, j).find(x => x.id === 'TV1');
-    // AT4/NW hat eine eigene Regel — die bleibt bestehen, die Nähe überschreibt nicht.
     expect(s?.uebergaenge.find(u => u.kuerzel === 'AT4')?.konfidenz).toBe('trigger_bestaetigt');
   });
 
@@ -266,12 +314,13 @@ describe('Journalabgleich', () => {
     const s = vb(lauf({
       vbPhaseRoh: FUE, statusVbRoh: 'bewilligt',
       teilvorhaben: [{
-        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt', vorkommen: [vk('XVE', '01.03.2026')],
+        aktenzeichen: 'TV1', statusTvRoh: 'bewilligt',
+        vorkommen: [vk('XIZ', '01.03.2026')],
       }],
     }, j));
-    // XVE/FuE setzt 91 „beendet"; hier prüfen wir den Nachbarn ohne Regel.
-    const xve = s.uebergaenge.find(u => u.kuerzel === 'XVE');
-    expect(xve?.konfidenz).toBe('trigger_bestaetigt');
+    // XIZ trägt in dieser Fixture-Menge keine Zeile — genau der Nachbar ohne Regel.
+    const xiz = s.uebergaenge.find(u => u.kuerzel === 'XIZ');
+    expect(xiz?.konfidenz).toBe('zeitliche_naehe');
     expect(s.herkunft).toBe('beobachtet');
   });
 

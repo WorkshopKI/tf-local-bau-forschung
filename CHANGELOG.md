@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.23.0 — C16 als alleinige Regelquelle, Bedingungen ausgewertet (August 2026)
+
+MINOR — Die Verlaufsableitung rechnete gegen 41 Regeln, die eine einzelne Bearbeiterin für ihr eigenes Excel-Dashboard notiert hatte: unvollständig und nur für NW. C16 ist der Export aus dem laufenden Fachsystem und damit die tatsächliche Konfiguration. Der Wechsel hebt die Verbund-Deckung von 21,0 % auf 62,9 % und die messbaren Verweildauern von 16.200 auf 62.396 Abschnitte.
+
+- C16 ist alleinige Regelquelle: Nachschlag je Richtlinie statt je Projektform, `statusTv`/`statusVb` als getrennte Wirkungsebenen — [c16-regeln.ts](src/core/status/verlauf/c16-regeln.ts)
+- Vorbedingungen werden ausgewertet, und zwar gegen den Stand **am Tag des Kürzels**: laufender Status plus damals gesetzte Kürzel; 3.193 Übergänge scheitern daran — [uebergaenge.ts](src/core/status/verlauf/uebergaenge.ts)
+- Der Bedingungs-Auswerter des Navigators bekommt eine Heimat und einen zweiten Aufrufer statt einer Kopie; `navigator.test.ts` blieb ohne Änderung grün — [trigger-bedingung.ts](src/core/status/trigger-bedingung.ts)
+- Nicht auswertbar ist weder wahr noch falsch: neue Konfidenz `trigger_bedingt` samt Grund im aufgeklappten Bereich — [typen.ts](src/core/status/verlauf/typen.ts)
+- Die Zuarbeit-Regeln bleiben erhalten (`quelle: 'zuarbeit'`); drei von 41 bleiben als Klärfall übrig, alle drei die `XPC`-Familie — [klaerfaelle.ts](src/core/status/verlauf/klaerfaelle.ts), [§14.7](docs/architecture/vorgangssystem.md)
+
 ### v3.22.0 — Feedback-Board: Platz für das Board, Typ-Badge, Verlauf im Panel (August 2026)
 
 MINOR — Nachlese aus der Benutzung des Redesigns: neben dem Detail-Panel blieben dem Board 250 px, drei leere Lanes belegten die Hälfte der Breite, der Typ war in der Liste nur ein Farbpunkt, und die Kommentar-Spur war noch die alte von v2.199. Vier Stellen, an denen der Handoff nicht die bessere Vorgabe war.

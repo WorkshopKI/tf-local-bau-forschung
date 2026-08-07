@@ -54,6 +54,7 @@ import { kategorieFuerCode, kategorieFuerPhase } from './kategorie-ableitung';
 import { setCodePhasenSnapshot, setZahPhasenSnapshot } from './zah-phasen';
 import { schnittVon } from './phasen-schnitt';
 import { statusCodeEintrag } from './status-codes';
+import { ebenenKonflikte } from './seed-codes';
 
 let aktiveVersion: MappingVersion | null = null;
 
@@ -83,6 +84,32 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
   // erst beim nächsten Rendern — die Reihenfolge hier ist reine Lesbarkeit.
   setZahPhasenSnapshot(version.zahPhasen);
   setCodePhasenSnapshot(schnittVon(version));
+  meldeEbenenKonflikte(version);
+}
+
+/**
+ * Invariant-Guard: die **Setzebene** eines Katalog-Feldes muss zu seinem Code
+ * passen (`X`-Präfix = Verbund). Der Seed und die Spalten-Entdeckung leiten sie
+ * daraus ab; brechen kann sie nur eine kuratierte Fassung.
+ *
+ * **Gemeldet, nicht geworfen** — und nicht geheilt: eine kuratierte Fassung ist
+ * Team-Arbeit, kein Autorenfehler. Ein Wurf beim Aktivieren nähme dem Nutzer die
+ * ganze App, statt ihm einen Datenfehler zu zeigen; dieselbe Abwägung wie in
+ * `programmNummer.ts`. Was WIR schreiben (der Seed), bricht dagegen den Build:
+ * dafür gibt es den Convention-Test `status-ebene-folgt-x-praefix`.
+ *
+ * Gemessen am Bestand (Fassung 19, 505 Code-Felder): null Konflikte. Der Guard
+ * ist ein Regressionsgatter, kein Fundbüro.
+ */
+function meldeEbenenKonflikte(version: MappingVersion): void {
+  const konflikte = ebenenKonflikte(version.felder);
+  if (konflikte.length === 0) return;
+  console.error(
+    `[status-ebene] Invariante verletzt — Fassung ${version.version}: ${konflikte.length} `
+    + `Statusfelder tragen eine Ebene, die ihrem Code widerspricht (X = Verbund). `
+    + `Betroffen sind Verlaufsableitung und Timeline-Zuordnung. Beispiele: `
+    + konflikte.slice(0, 10).map(k => `${k.feldId} (${k.code}: ist ${k.ist}, soll ${k.soll})`).join(', '),
+  );
 }
 
 /**

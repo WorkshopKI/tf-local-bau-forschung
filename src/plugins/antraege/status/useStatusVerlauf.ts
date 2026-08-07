@@ -8,8 +8,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { getVerbund, listAntraegeByVerbund, listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import {
   getAktiveVersion, ladeAktiveVersion, getStatusEvents, baueFeldAufloesung,
-  sammleVorkommen, aufzeichnungsGrenze,
-  type MappingVersion, type StatusEvent, type FeldVorkommen,
+  sammleVorkommen, aufzeichnungsGrenze, ladeTrigger,
+  type MappingVersion, type StatusEvent, type FeldVorkommen, type TriggerZeile,
 } from '@/core/status';
 import { programmNummer } from './programmNummer';
 
@@ -48,11 +48,21 @@ export interface StatusVerlauf {
    * wenn die Spalte im Schema nicht gemappt ist — dann sagt die Anzeige das.
    */
   programm: string | null;
+  /**
+   * Die importierte C16-Trigger-Tabelle, **ungefiltert**. Seit v3.23 die
+   * Regelquelle der Verlaufsableitung; die Auswahl auf das Programm macht
+   * `baueVerlauf`, damit sie an einer Stelle liegt.
+   */
+  trigger: readonly TriggerZeile[];
+  /** Import-Zähler des Trigger-Stands; `null` = keine Tabelle geladen. Geht in
+   *  den Memo-Schlüssel, sonst überlebt ein Neu-Import den Cache. */
+  triggerVersion: number | null;
 }
 
 const LEER: StatusVerlauf = {
   laden: true, version: null, events: [], grenze: null, vorkommen: [],
   jeTeilvorhaben: [], statusVbRoh: undefined, vbPhaseRoh: undefined, programm: null,
+  trigger: [], triggerVersion: null,
 };
 
 export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
@@ -67,10 +77,11 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
     void (async () => {
       try {
         const version = getAktiveVersion() ?? await ladeAktiveVersion(idb);
-        const [verbund, antraege, events] = await Promise.all([
+        const [verbund, antraege, events, triggerStand] = await Promise.all([
           getVerbund(idb, verbundId),
           listAntraegeByVerbund(idb, verbundId),
           getStatusEvents(idb, verbundId),
+          ladeTrigger(idb),
         ]);
         if (abgebrochen) return;
         // Die Code-Felder tragen den rohen Spaltennamen; wo die Spalte im Record
@@ -98,6 +109,8 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
           vbPhaseRoh: (verbund as unknown as Record<string, unknown> | undefined)?.vb_phase
             ?? antraege[0]?.vb_phase,
           programm: programmNummer(antraege, verbundId),
+          trigger: triggerStand.datei?.trigger ?? [],
+          triggerVersion: triggerStand.datei?.version ?? null,
         });
       } catch {
         if (!abgebrochen) setState({ ...LEER, laden: false });

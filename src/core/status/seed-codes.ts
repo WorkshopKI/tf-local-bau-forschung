@@ -287,6 +287,43 @@ export function ebeneVonCode(code: string): 'verbund' | 'tv' {
   return code.startsWith('X') ? 'verbund' : 'tv';
 }
 
+/** Ein Feld, dessen `ebene` nicht zu seinem Code passt. */
+export interface EbenenKonflikt {
+  feldId: string;
+  code: string;
+  ist: 'verbund' | 'tv';
+  soll: 'verbund' | 'tv';
+}
+
+/**
+ * Felder, deren **Setzebene** dem X-Präfix widerspricht.
+ *
+ * Das Fachsystem erzwingt die Trennung: ein Kürzel mit führendem `X` wird auf
+ * Verbundebene gesetzt und ist am Teilvorhaben gar nicht setzbar, alle anderen
+ * umgekehrt. Beim Katalogbau ({@link ebeneVonCode}) und beim Entdecken neuer
+ * Spalten wird das materialisiert — brechen kann es deshalb nur durch
+ * **Kuration**: die PL ändert `ebene` im Cockpit, oder eine Bestandsfassung
+ * trägt eine Zuordnung aus der Zeit vor dieser Regel.
+ *
+ * Nicht zu verwechseln mit der **Wirkungsebene**: `ABB` trägt kein `X`, wird am
+ * Teilvorhaben gesetzt und kippt über die C16-Zeile trotzdem den Verbundstatus.
+ * Zwei Felder, nie eines — diese Prüfung meint nur das erste.
+ *
+ * Rein und ohne Konsole, damit der Test sie ohne Attrappe prüfen kann (Muster
+ * von `programmNummer.ts`).
+ */
+export function ebenenKonflikte(
+  felder: readonly Pick<StatusFeldEintrag, 'feldId' | 'code' | 'ebene'>[],
+): EbenenKonflikt[] {
+  const out: EbenenKonflikt[] = [];
+  for (const f of felder) {
+    if (!f.code) continue;
+    const soll = ebeneVonCode(f.code);
+    if (f.ebene !== soll) out.push({ feldId: f.feldId, code: f.code, ist: f.ebene, soll });
+  }
+  return out;
+}
+
 /** Rohtabelle für Tests und Doku-Prüfungen (Reihenfolge = Anzeige-Reihenfolge). */
 export const SEED_CODE_TABELLE: readonly { kategorieId: string; codes: readonly string[] }[] =
   Object.entries(KURATION).map(([kategorieId, codes]) => ({ kategorieId, codes: Object.keys(codes) }));

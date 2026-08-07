@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.23 — 2026-08
+
+### Verbesserungen
+- **Der Verlauf eines Vorgangs ist jetzt für alle Projektformen da.** Bisher konnte die App nur bei Netzwerk-Vorhaben sagen, welches Kürzel welchen Statuswechsel ausgelöst hat — bei FuE, Durchführbarkeitsstudien und Dienstleistungen blieb der Bereich unter der Tabellenzeile leer. Grundlage sind jetzt die Trigger-Regeln aus C16 selbst, und die gelten je Richtlinie.
+- **Die Abschnitte haben Zeiträume statt Lücken.** Weil deutlich mehr Statuswechsel belegt sind, lässt sich für vier von fünf Abschnitten sagen, wie lange der Vorgang darin stand — vorher war es gut ein Drittel.
+- **Wo eine Regel-Bedingung nicht überprüfbar ist, steht das da** („Regel greift, eine Bedingung war nicht prüfbar") samt Grund. Ein Wechsel, den die App nicht absichern kann, wird weder verschwiegen noch als sicher ausgegeben.
+
+### Bekannte Lücke
+- Bei **Durchführbarkeitsstudien** stammt der Klartext eines Kürzels aus einer anderen Projektform — für DS gibt es keine eigene Liste. Wo die Formen sich widersprechen, steht „je Projektform verschieden" daneben. Das ist zur Klärung gemeldet.
+
 ## v3.22 — 2026-08
 
 ### Neu

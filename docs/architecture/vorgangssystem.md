@@ -845,95 +845,116 @@ und die Unterscheidung ist der Unterschied zwischen einer Warnung und Lärm:
 
 Knopf im Reiter *Kürzel* der Vorgangs-Regeln
 ([VerlaufBefundeBlock.tsx](../../src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)),
-gemessen am 06.08.2026 über **12 356 Teilvorhaben in 6 614 Vorhaben**
-(Richtlinien 2015 + 2020 + 2025, 12 Programme), Laufzeit 6,5–7,8 s:
+gemessen über **12 356 Teilvorhaben in 6 614 Vorhaben** (Richtlinien 2015 + 2020
++ 2025, 12 Programme), Laufzeit 6,2–7,8 s.
 
-| | |
-|---|---:|
-| Teilvorhaben mit Verlauf | **10 640 (86,1 %)** |
-| ohne erklärten Statuswechsel | 1 652 |
-| ohne Bearbeitungsstand (Irrläufer) | 64 |
-| **Verbünde mit abgeleitetem Statuswechsel** | **1 388 (21,0 %)** |
-| Verbünde mit Terminen auf der Bahn (Obermenge) | 6 015 |
-| gesetzte Termine | 490 153 |
-| davon mit belegtem Statuswechsel | 29 602 (**6,0 %**) |
-| Segmente · davon Dauer unsicher | 45 616 · 31 135 (68,3 %) |
-| mehrdeutig (gleichtägig) | 1 150 |
-| umbenannte Kürzel im Bestand | 1 277 (`MVA→ÄA` 989, `LBN→LBNx` 288) |
-| längste Spur | 87 Übergänge, 4 Segmente |
+Die Spalte „Zuarbeit" ist der Stand v3.19–v3.22 (41 Regeln, Schlüssel Kürzel ×
+Projektform), die Spalte „C16" der heutige (v3.23, Trigger-Tabelle je Richtlinie
+mit ausgewerteten Bedingungen — 14.7). Der Quellenwechsel ist die einzige
+Änderung dazwischen; die Codepfade darunter sind dieselben.
 
-**Warum die Dauer unsicher ist** (Phase 2, v3.20 — bis dahin steckte alles in der
-einen 68,3-%-Zahl). Die vier Auslöser sind disjunkt und summieren sich exakt auf
-`segmenteUnsicher`; ein Test hält das fest:
-
-| Auslöser | Abschnitte | Anteil an 31 135 |
+| | Zuarbeit (v3.22) | **C16 (v3.23)** |
 |---|---:|---:|
-| Anfang unbekannt (kein belegter Wechsel bzw. nachgeschobener Status) | 18 130 | 58,2 % |
-| Ende offen (Abweichungsfall) | 11 286 | 36,2 % |
-| Datum unlesbar | 0 | — |
-| **gemessen ≤ 1 Tag** | **1 719** | **5,5 %** |
+| Teilvorhaben mit Verlauf | 10 640 (86,1 %) | 7 229 (58,5 %) |
+| ohne erklärten Statuswechsel | 1 652 | 5 063 |
+| ohne Bearbeitungsstand (Irrläufer) | 64 | 64 |
+| **Verbünde mit abgeleitetem Statuswechsel** | 1 388 (21,0 %) | **4 163 (62,9 %)** |
+| Verbünde mit Terminen auf der Bahn (Obermenge) | 6 015 | 6 240 |
+| gesetzte Termine | 490 153 | 500 984 |
+| davon mit belegtem Statuswechsel | 29 602 (6,0 %) | **72 345 (14,4 %)** |
+| … davon Bedingung erfüllt / nicht prüfbar | — | 35 053 / 37 292 |
+| Segmente · davon Dauer unsicher | 45 616 · 31 135 (68,3 %) | **75 682 · 17 678 (23,4 %)** |
+| Abschnitte mit **zwei** Grenzen (messbar) | 16 200 (35,5 %) | **62 396 (82,4 %)** |
+| mehrdeutig (gleichtägig) | 1 150 | 5 809 |
+| umbenannte Kürzel im Bestand | 1 277 | 1 277 (`MVA→ÄA` 989, `LBN→LBNx` 288) |
+| längste Spur | 87 Übergänge, 4 Segmente | 87 Übergänge, **16** Segmente |
 
-**Nur der letzte Fall misst Verweildauer.** 94,5 % der „Unsicherheit" sind eine
-**offene Grenze** — „wir wissen nicht, wann es anfing" ist keine kurze Dauer.
-Gemessene Ein-Tages-Abschnitte sind 3,8 % aller 45 616 Abschnitte.
+**Die TV-Zahl fällt und ist trotzdem die bessere.** 86,1 % kamen zustande, weil
+die Zuarbeit für fast jedes TV-Kürzel *irgendeinen* Zielstatus führte — auch
+ohne Bedingungsprüfung. C16 prüft, und 3 193 Übergänge (4,2 % der geprüften)
+scheitern an einer Vorbedingung, die zum Zeitpunkt des Kürzels nachweislich
+nicht trug. Was übrigbleibt, ist belegt statt behauptet.
 
-Die 16 200 Abschnitte mit zwei Grenzen (35,5 %) tragen eine Verteilung mit
-echter Spreizung: **Median 10 T**, p25 4 T, p75 37 T, p90 91 T; **28,9 % länger
+**Für Phase 3 ist die vorletzte Zeile die wichtige.** v3.20 schloss: „die
+dauerskalierte Bahn bleibt die Grundform — sie misst kein Rauschen, sie hat für
+zwei Drittel der Abschnitte nur keine Achse." Jetzt haben **82,4 %** eine.
+
+**Warum die Dauer unsicher ist.** Die vier Auslöser sind disjunkt und summieren
+sich exakt auf `segmenteUnsicher`; ein Test hält das fest. Die Aufteilung stammt
+aus v3.20 und gilt unverändert — nur die Grundgesamtheit ist geschrumpft:
+
+| Auslöser | v3.22 (von 31 135) | **v3.23 (von 17 678)** |
+|---|---:|---:|
+| Anfang unbekannt (kein belegter Wechsel bzw. nachgeschobener Status) | 18 130 (58,2 %) | 10 383 (58,7 %) |
+| Ende offen (Abweichungsfall) | 11 286 (36,2 %) | 2 903 (16,4 %) |
+| Datum unlesbar | 0 | 0 |
+| **gemessen ≤ 1 Tag** | 1 719 (5,5 %) | **4 392 (24,8 %)** |
+
+**Nur der letzte Fall misst Verweildauer.** Eine offene Grenze heißt „wir wissen
+nicht, wann es anfing" — das ist keine kurze Dauer. Gemessene Ein-Tages-
+Abschnitte sind auch jetzt nur **5,8 %** aller 75 682 Abschnitte; ihre Zahl
+steigt, weil die Kette länger wurde, ihr Anteil bleibt klein.
+
+Die 62 396 Abschnitte mit zwei Grenzen (82,4 %) tragen eine Verteilung mit
+echter Spreizung: **Median 26 T**, p25 7 T, p75 86 T, p90 421 T; **45,9 % länger
 als 30 Tage**. Keine negative Dauer im Bestand. Termine verteilen sich auf
 **1,77 je Tag und Vorhaben** (465 551 gesetzte Felder auf 263 761 verschiedene
 Tage) — die Tagesgranularität ist also nicht bloß Vorsicht, sondern nötig.
 
-⇒ **Für Phase 3**: die dauerskalierte Statusbahn bleibt die Grundform. Sie misst
-kein Rauschen — sie hat für zwei Drittel der Abschnitte nur keine Achse. Diese
-brauchen eine eigene Darstellung (angeschnittene Kante „vor dem ersten Beleg"
-bzw. „läuft weiter"), keine Ersatzbreite. Eine Doppelspur ohne Dauerskalierung
-wäre eine Antwort auf ein Problem, das die Messung nicht bestätigt.
+⇒ **Für Phase 3**: die dauerskalierte Statusbahn ist die Grundform, und sie hat
+jetzt für vier Fünftel der Abschnitte eine Achse. Die übrigen brauchen eine
+eigene Darstellung (angeschnittene Kante „vor dem ersten Beleg" bzw. „läuft
+weiter"), keine Ersatzbreite.
 
 Drei Aussagen daraus:
 
-- **`kein_kuerzel` ist der Normalfall, nicht die Ausnahme** (94 % der Termine).
-  Ein Band zeigt überwiegend Termine ohne bekannten Statuswechsel; die Abschnitte
-  entstehen aus median zwei Übergängen. Es trägt — schmal.
-- **Die Verbundspur ist die schwache Stelle** (21 %). Grund ist nicht der Code,
-  sondern die Datenlage: von 41 Regeln berühren fünf den Verbund, jede gilt für
-  **genau eine** Projektform, und `XIZ`/`XVE` haben im Bestand keine gemappte
-  Spalte. 3 241 Verbünde tragen ein VB-Kürzel, für dessen Projektform die
-  Zuarbeit nichts führt (`ABB/FuE` 2 650, `AB/FuE` 2 319 …).
-- **Die Projektform ist der Hebel.** 58 % der Verbünde sind FuE, und für FuE
-  führt die Zuarbeit 11 Regeln — für NW (21 %) sind es 25. Eine
-  Trigger-Nachlieferung für FuE hätte mehr Wirkung als jede Codeänderung.
-
-**Zum Vergleich, nur gezählt und nicht abgeleitet**: die importierte
-C16-Trigger-Tabelle würde 54 587 Termine (11,1 %) und **4 183 von 6 614
-Verbünden (63,2 %)** erklären — das Dreifache der Zuarbeit. Abgeleitet wird
-trotzdem aus einer Quelle; zwei Regelwerke in einer Spur wären die zweite
-Wahrheit, gegen die Pitfall #45 geschrieben ist. Was der Vergleich im Detail
-ergibt, steht in 14.5.
+- **`kein_kuerzel` bleibt der Normalfall** — 85,6 % der Termine (vorher 94 %).
+  Ein Band zeigt überwiegend Termine ohne bekannten Statuswechsel; es trägt,
+  aber schmal.
+- **Die Verbundspur war die schwache Stelle und ist es nicht mehr**: 21,0 % →
+  62,9 %. Der Grund war nie der Code, sondern die Quelle — von den 41
+  Zuarbeit-Regeln berührten fünf den Verbund, jede für **genau eine**
+  Projektform.
+- **Die Projektform ist nicht mehr der Hebel.** Sie war es, solange die Regel an
+  ihr hing. C16 schlüsselt nach Richtlinie; FuE springt damit von 0 auf 2 320
+  Verbünde, DS von 0 auf 851. Was an der Projektform hängen bleibt, ist die
+  **Bezeichnung** — und dort ist die Lücke offen (14.7).
 
 ### 14.4 Offene Punkte für die Fachabstimmung
 
-1. **`XPC+`/`XPC?` setzen den TV-Status, nicht den Verbundstatus** — so steht es
-   in der Zuarbeit (`scope: tv`, *„Stw TV auf bearbeitungsreif, wenn alle TV PC+
-   haben"*). Es sind Verbund-Kürzel mit Wirkung auf die Teilvorhaben. Die App
-   folgt den Daten. **Die C16-Tabelle sagt das Gegenteil** (14.5): für `XPC+`
-   führt sie einen **Verbund**-Status 34 und gar keinen TV-Status. Zu klären,
-   welche Quelle recht hat.
-2. **Zwei Zielstatus lösen nicht auf**: `AB/NW` → *„bewilligungseif"* (Tippfehler
-   der Quelle) und `XHSP/FuE` → *„Bewilligungsentwurf"*. Zusammen 285 Verbünde,
-   deren einziger VB-Übergang deshalb ohne Code bleibt. **C16 löst beide auf**
-   (14.5): `AB` → 51 *bewilligungsreif* in allen neun geführten Programmen,
-   `XHSP` → 50 *Bewilligungsentwurf VDI/VDE-IT*. Zu bestätigen, dann in die
-   Zuarbeit nachziehen.
-3. **DL und EP haben gar keine Verbund-Regel** — gemessen: DL 514 Verbünde,
-   davon **0** mit abgeleitetem VB-Statuswechsel (14.5).
-4. **12 der 41 Regeln lassen die Ebene offen** (`scope: null`) — 5 718 Termine
-   tragen deshalb „Regel vorhanden, Ebene unbestimmt".
+Mit dem Quellenwechsel (14.7) sind die Punkte 2, 3 und 4 **erledigt** — sie
+hingen alle an der Zuarbeit als Regelquelle. Sie bleiben stehen, weil Code,
+Commits und ältere Notizen sie nummeriert referenzieren.
+
+1. **`XPC+`/`XPC?`/`XPC-`: TV- oder Verbund-Wirkung?** Die Zuarbeit sagt TV
+   (*„Stw TV auf bearbeitungsreif, wenn alle TV PC+ haben"*), C16 führt einen
+   **Verbund**-Status und gar keinen TV-Status. **Der einzige verbliebene
+   Widerspruch zwischen den Quellen** — und genau die drei Regeln, die der
+   Klärfall-Abgleich übrigbehält (14.7). Die App folgt C16; zu klären bleibt, ob
+   die Zuarbeit hier etwas weiß, was der Export nicht ausdrückt.
+2. ~~Zwei Zielstatus lösen nicht auf~~ — **erledigt**. C16 führt Zahlen statt
+   Wortlaute: `AB` → 51 *bewilligungsreif* (der Tippfehler „bewilligungseif" ist
+   damit gelesen), `XHSP` → 50 *Bewilligungsentwurf VDI/VDE-IT*. Im Bestand
+   bleiben **16** Übergänge mit einem Zielcode, den der Statuskatalog nicht
+   beschriftet — die stehen als Zahl da, nicht als Loch.
+3. ~~DL und EP haben gar keine Verbund-Regel~~ — **erledigt**. DL: 305 von 514
+   Verbünden mit abgeleitetem VB-Statuswechsel. EP hat keine `vb_phase`-
+   Zuordnung und wird aus den Daten nie als Projektform erreicht; das betrifft
+   nur die Bezeichnung, nicht die Regel.
+4. ~~12 der 41 Regeln lassen die Ebene offen~~ — **entfällt**. C16 nennt TV- und
+   Verbund-Status an festen Positionen; welches Feld gefüllt ist, **ist** die
+   Wirkungsebene. `scope: null` und `VerlaufsUebergang.scopeUnbestimmt` gibt es
+   nicht mehr.
 5. **Die Marker-Werte kommen im Antragsbestand nicht vor.** `Sonderstatus`,
    `assoziierter Partner` und `internationaler Partner` stehen ausschließlich auf
    Roh-Exportzeilen **ohne** Förderkennzeichen (24 701 von 28 914 in
    `9052-prjbsp`) — sie sind keine Anträge. Der Spurzustand
    `kein_bearbeitungsstand` bleibt im Modell, greift heute aber nur bei
    *Irrläufer* (64 Fälle).
+6. **Der Kürzelkatalog kennt DS nicht** — 0 von 143 im Bestand vorkommenden
+   Codes haben einen DS-Eintrag. Die App zeigt dort eine geliehene Bezeichnung;
+   bei 53 Codes widersprechen die Formen einander. Braucht eine Quelle, die es
+   noch nicht gibt (14.7).
 
 ### 14.5 Zweite Regelquelle: was C16 zusätzlich erklärt
 
@@ -1020,8 +1041,10 @@ Bedingungsauswertung, und nicht in Phase 2/3.** In dieser Reihenfolge:
    disjunkt. Pitfall #45 verbietet eine zweite **Handtabelle** neben derselben
    Aussage, nicht zwei benannte Quellen mit ausgewiesener Herkunft.
 
-Für Phase 2 und 3 bleibt es bei der Zuarbeit. Das Band zeigt, was eine Quelle
-hergibt; die Deckung ist eine Datenfrage und keine Bauform-Frage.
+**Nachtrag v3.23**: die fachliche Klärung hat Punkt 3 überholt, bevor er
+gebaut wurde. Zwei Quellen mit Herkunftskennzeichen braucht es nicht — die
+Zuarbeit ist gar keine gleichrangige Quelle, sondern die Notiz einer einzelnen
+Bearbeiterin. Punkt 1 und 2 sind umgesetzt (14.7).
 
 ### 14.6 Wo der Verlauf ankommt (v3.21)
 
@@ -1048,11 +1071,12 @@ v3.6; `ermittleHaltedatum` bekommt hier seinen ersten Produktions-Aufrufer.
 
 Drei Regeln, die den Rest tragen:
 
-- **Die Regeln der Zuarbeit haben weiter genau einen Leser.** Statt einer zweiten
-  Guard-Ausnahme hält [verlauf/fuer-vorgang.ts](../../src/core/status/verlauf/fuer-vorgang.ts)
-  sie für alle Aufrufer; die namentliche Ausnahme für den Cockpit-Hook ist
-  entfallen. Der Guard `trigger-regeln-nur-im-verlauf` ist damit strenger als
-  vorher, nicht lockerer.
+- **Es gibt einen Einstieg, nicht zwei.**
+  [verlauf/fuer-vorgang.ts](../../src/core/status/verlauf/fuer-vorgang.ts) nimmt
+  den Bezug und gibt Spuren zurück; wie die Regeln indiziert werden, sehen die
+  Aufrufer nicht. Bis v3.22 hielt die Fassade die Regeln der Zuarbeit selbst
+  (und ersparte damit eine zweite Guard-Ausnahme) — seit dem Quellenwechsel
+  reicht der Aufrufer die geladene C16-Tabelle herein.
 - **Das Journal hängt am Antrag, die Spuren am Verbund.** `chronikFuerAntrag`
   wird nur bei einem Ein-TV-Vorhaben in die Ableitung gegeben — die Chronik eines
   Teilvorhabens auf die Spuren seiner Nachbarn anzuwenden hieße, Beobachtungen zu
@@ -1067,3 +1091,171 @@ fünf von durchschnittlich 33 Terminen waren ein Ausschnitt ohne Auswahlregel. A
 ihrer Stelle steht „Ganzen Verlauf zeigen", das denselben Bereich öffnet. Die
 Engine rechnet den Verlauf weiter; der kopierte Text ist ein Protokoll und
 behält ihn.
+
+### 14.7 C16 wird alleinige Regelquelle (v3.23)
+
+Fünf fachlich geklärte Punkte haben die Bewertung der Quellen gedreht:
+
+1. **Die 41 Regeln der Zuarbeit sind kein Regelwerk.** Eine einzelne Bearbeiterin
+   hat sie für ihr eigenes Excel-Dashboard aufgestellt; sie sind erklärtermaßen
+   unvollständig und decken NW, weil diese Person NW bearbeitet hat. Für
+   Fachbearbeiter existiert nichts Vergleichbares.
+2. **C16 ist der Export aus dem laufenden Fachsystem** — die tatsächliche
+   Konfiguration, keine Beobachtung.
+3. **DS kam mit der Richtlinie 2020.** Die Zuarbeit kennt die Projektform nicht.
+4. **EP und DL sind bewusst einelementige Verbünde**, damit sie in der App gleich
+   gerendert werden; auch das Fachsystem führt für beide eine Verbundansicht.
+   Kein Invariant-Guard dagegen.
+5. **Alle 287 statussetzenden C16-Zeilen sind bedingt.** Für ein Fachsystem
+   erwartbar — die Bedingungsauswertung ist der Kern der Regelbasis, nicht ihre
+   Verfeinerung.
+
+Damit erklärt sich die Deckungstabelle aus 14.5 vollständig: dass alle
+abgeleiteten Verbund-Statuswechsel aus NW kamen, war kein Systemmangel. **Die
+FuE-Lücke war keine.**
+
+#### Die DS-Lücke — gemessen, bevor etwas umgestellt wurde
+
+Der Kürzelkatalog hat den Schlüssel Kürzel × Projektform und führt vier Formen
+(`NW` 437, `FuE` 450, `DL` 267, `EP` 196 von 608 Einträgen). **DS: null.** Die
+Erwartung war zu falsifizieren und ließ sich nicht falsifizieren.
+
+Im Bestand (851 DS-Verbünde, 143 verschiedene Kürzel, 24 430 Vorkommen):
+
+| | Codes | Vorkommen |
+|---|---:|---:|
+| im Katalog geführt | 140 / 143 | — |
+| davon **mit eigenem DS-Eintrag** | **0** | — |
+| geliehen, alle Formen einig (harmlos) | 87 | 17 987 (73,6 %) |
+| **geliehen und strittig** | **53** | **6 436 (26,3 %)** |
+| gar nicht im Katalog | 3 | 7 |
+
+**Was die App heute zeigt**, ist kein leerer Klartext und kein Rohkürzel, sondern
+ein **Fallback auf eine fremde Projektform**: `kuerzelAuskunft` nimmt ohne
+passende Form die erste geführte ([kuerzel-katalog.ts](../../src/core/status/kuerzel-katalog.ts),
+Stufe 3). Bei 87 Codes ist das folgenlos, bei 53 nicht — dort widersprechen die
+Formen einander, und `eindeutig: false` ist die einzige Warnung.
+
+Die 53 zerfallen weiter, und das relativiert die Zahl: **28 streiten schon
+zwischen NW und FuE** (2 137 Vorkommen) — das ist keine DS-Frage, sondern eine
+allgemeine; 9 weichen nur in DL ab (3 369); 16 sonstige (930). Meist sind es
+Wortlaut-Varianten (`AK4`: *„kaufmännisch erledigt"* gegen *„kaufmännisch
+fertig"*), gelegentlich echte Bedeutungsunterschiede (`DMB`: *„Anzahl der
+de-minimis-Bescheinigungen"* gegen *„Bescheinigung an ZE versandt"*). Der
+kuratierte `strittig`-Marker deckt davon **1 von 53** — das Problem ist bisher
+nicht markiert.
+
+**Nur DS ist strukturell betroffen**: FuE hat für 185 von 198 Codes eine eigene
+Form und **null** strittige Anleihen, NW 188 von 197 und ebenfalls null. DL hat
+116 von 136 und sechs Anleihen (die `VOB*`-Familie). *Irrläufer* stehen wie DS da.
+
+⇒ **Klärfall für Phase 2b.** Die Auflösung braucht eine Quelle, die es nicht gibt
+— ein DS-Kürzelblatt oder die Bestätigung, dass DS die FuE-Bedeutungen erbt.
+
+#### Was der Wechsel kostet — fast nichts
+
+Der Klärfall-Abgleich ([klaerfaelle.ts](../../src/core/status/verlauf/klaerfaelle.ts))
+stellt alle 41 Zuarbeit-Regeln mit Zielstatus gegen die 2 447 C16-Zeilen (über
+**alle** Richtlinien, weil die Schlüssel sich nicht decken). Übrig bleiben
+**drei**: `XPC+`, `XPC-`, `XPC?` für FuE. Alle drei sind derselbe Fall — die
+Zuarbeit behauptet TV-Wirkung, C16 führt einen Verbund-Status. Das ist 14.4
+Punkt 1 und der **einzige** verbliebene Widerspruch.
+
+Erhalten statt gelöscht: die Regeln tragen jetzt `quelle: 'zuarbeit'` neben dem
+unveränderten `aktiv: false`. Der Guard `trigger-regeln-nur-im-verlauf` bleibt
+scharf und läuft ins Leere — genau richtig.
+
+**Richtlinie 2015 verliert ihre einzige Regelquelle.** C16 führt neun Programme
+(76–79, 131, 136–139), nicht 46/47/48. Das eine Paar, das nur die Zuarbeit kannte
+(`ABB`/NW in Programm 46, 552 Verbünde), fällt damit weg. Die Spur sagt das
+ausdrücklich: *„Die Trigger-Tabelle führt für diese Richtlinie keine Regeln"* —
+nicht „kein Übergang erklärt diesen Status". Eine Aussage über die Datenlage
+gehört nicht als Aussage über den Vorgang gelesen.
+
+#### Bedingungen: ein Auswerter, zwei Blickrichtungen
+
+Den Auswerter gab es schon. Der Nächster-Schritt-Navigator prüft C16-
+Vorbedingungen seit v2.386 dreiwertig (`erfuellt`/`verletzt`/`unpruefbar`); für
+Phase 2a ist er nach [trigger-bedingung.ts](../../src/core/status/trigger-bedingung.ts)
+herausgehoben worden. Ein zweiter wäre der Fehler, den Pitfall #41 für die
+`Bedingung`-Bäume schon einmal benennt. Beweis, dass es derselbe ist: die
+bestehende `navigator.test.ts` blieb **ohne Änderung** grün.
+
+Verschieden ist nur, womit man ihn füttert:
+
+| | Navigator (vorwärts) | Verlauf (rückwärts) |
+|---|---|---|
+| Frage | „welches Kürzel dürfte **jetzt** gesetzt werden?" | „hat die Regel gegriffen, **als** es gesetzt wurde?" |
+| gesetzte Kürzel | heutiger Stand | Stand **am Tag** des Übergangs |
+| Status | aktueller Wert | laufender Status des Vorwärtslaufs |
+
+**Der Vorwärtslauf** ([uebergaenge.ts](../../src/core/status/verlauf/uebergaenge.ts))
+geht die Chronik chronologisch durch und führt beides mit. Der Status startet
+`null` — vor dem ersten Beleg weiß niemand, worauf der Vorgang stand — und
+übernimmt danach, was die letzte greifende Regel gesetzt hat. Am Kettenanfang ist
+die Status-Bedingung deshalb `unpruefbar`, **nie erfunden**.
+
+Beide Richtungen sind nötig, und das ist keine Feinheit: gegen den heutigen Stand
+geprüft verletzte jeder bewilligte Vorgang rückwirkend seine eigene Eingangsregel
+(`AAE` fordert „kein ABB", und ABB steht am Ende jedes bewilligten Vorgangs).
+
+**Was nicht auswertbar ist, bekommt ein eigenes Urteil.** Ein Übergang mit
+unprüfbarer Bedingung setzt seinen Status trotzdem — der Termin steht in den
+Daten, das Kürzel WURDE gesetzt —, aber mit `konfidenz: 'trigger_bedingt'` statt
+`trigger_bestaetigt`. Ihm den Wechsel abzusprechen wäre eine Behauptung über die
+Vergangenheit; ihn als bestätigt zu führen die andere.
+
+Am Bestand (75 538 geprüfte Übergänge):
+
+| Urteil | | |
+|---|---:|---:|
+| erfüllt | 35 053 | 46,4 % |
+| **verletzt** (setzt keinen Status) | **3 193** | **4,2 %** |
+| nicht prüfbar | 37 292 | 49,4 % |
+
+#### Deckung: die Obergrenze war fast die Deckung
+
+| Projektform | Verbünde | Obergrenze (14.5) | **gemessen** |
+|---|---:|---:|---:|
+| FuE | 3 841 | 2 320 | **2 320** |
+| NW | 1 374 | 687 | **687** |
+| DS | 851 | 851 | **851** |
+| DL | 514 | 305 | **305** |
+| Irrläufer | 34 | 20 | **0** |
+| **gesamt** | **6 614** | **4 183 (63,2 %)** | **4 163 (62,9 %)** |
+
+**Die Differenz ist 20 Verbünde, und sie liegt vollständig bei den Irrläufern** —
+deren Statuswert ist ein Marker ohne Bearbeitungsstand, sie bekommen also keine
+Bahn (14.4 Punkt 5). Die Obergrenze hat sie mitgezählt, weil sie nur fragte, ob
+es eine Zeile gäbe. **Bedingungen kosten Deckung: null.**
+
+Was sie kosten, ist Sicherheit, und das ist der ehrlichere Preis: 981 der 4 163
+Verbünde (23,6 %) tragen auf ihrer Verbundbahn **keinen einzigen** bestätigten
+Übergang, nur bedingte — DS 375, FuE 567, NW 35, DL 4.
+
+#### Setzebene und Wirkungsebene
+
+Zwei Felder, nie eines:
+
+- **Setzebene** = das X-Präfix. `ebeneVonCode` friert es beim Katalogbau in
+  `StatusFeldEintrag.ebene` ein; zur Laufzeit liest niemand mehr das Präfix.
+- **Wirkungsebene** = welches von `statusTv`/`statusVb` die C16-Zeile füllt.
+  `ABB` trägt kein X, wird am Teilvorhaben gesetzt und kippt trotzdem den
+  Verbund.
+
+Die Invariante `X ⟺ ebene: 'verbund'` kann deshalb nur durch **Kuration**
+brechen. Gemessen: **0 Konflikte** über alle 505 Code-Felder der laufenden
+Fassung 19. Der Guard ist ein Regressionsgatter, kein Fundbüro — und er ist
+zweigeteilt: der Seed (unsere Daten) bricht den Build über den Convention-Test
+`status-ebene-folgt-x-praefix`, eine kuratierte Fassung meldet sich zur Laufzeit
+laut ([snapshot.ts](../../src/core/status/snapshot.ts)). Ein Wurf beim Aktivieren
+nähme dem Team die ganze App statt ihm den Datenfehler zu zeigen — dieselbe
+Abwägung, die [programmNummer.ts](../../src/plugins/antraege/status/programmNummer.ts)
+schon einmal getroffen hat.
+
+#### Nicht geschrieben
+
+Auf den Share ging nichts. Die Regelbasis IST C16, und C16 wird ausschließlich
+gelesen ([trigger-share.ts](../../src/core/status/trigger-share.ts)); geschrieben
+wird sie nur vom XLSX-Import im Cockpit. Der STOPP vor einem Regelbasis-Write
+hatte damit keinen Anlass.

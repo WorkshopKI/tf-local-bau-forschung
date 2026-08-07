@@ -17,7 +17,7 @@ import type { Konfidenz, SpurArt, SpurZustand, VerlaufsSpur } from './typen';
 const ZUSTAENDE: readonly SpurZustand[] =
   ['verlauf', 'kein_bearbeitungsstand', 'kein_wert_im_csv', 'nicht_beobachtet'];
 const KONFIDENZEN: readonly Konfidenz[] =
-  ['trigger_bestaetigt', 'zeitliche_naehe', 'kein_kuerzel'];
+  ['trigger_bestaetigt', 'trigger_bedingt', 'zeitliche_naehe', 'kein_kuerzel'];
 
 export type ZustandsZaehler = Record<SpurZustand, number>;
 export type KonfidenzZaehler = Record<Konfidenz, number>;
@@ -68,15 +68,40 @@ export interface VerlaufsBefunde {
   /** Termine über alle Spuren. */
   uebergaenge: number;
   konfidenz: KonfidenzZaehler;
-  /** Übergänge mit Regel, deren Zielstatus nicht auf einen Code auflöst. */
-  ohneZielcode: number;
-  /** Übergänge, deren Regel die Ebene offenlässt (`scope: null`). */
-  scopeUnbestimmt: number;
+  /**
+   * Übergänge, deren Zielcode der Statuskatalog nicht beschriftet.
+   *
+   * Nachfolger von `ohneZielcode`: die Zuarbeit führte einen **Wortlaut**, der
+   * manchmal nicht auf einen Code auflöste (285 Verbünde). C16 führt Zahlen —
+   * der Code ist immer da, aber nicht jeder steht im Katalog. Erkennbar daran,
+   * dass die Beschriftung auf die nackte Zahl zurückfällt.
+   */
+  zielCodeUnbekannt: number;
   /** Übergänge, die ein umbenanntes Kürzel tragen. */
   historischeKuerzel: number;
-  /** Übergänge aus einer Aggregationsregel, deren Bedingung heute nicht trägt. */
-  aggregationNichtErfuellt: number;
-  aggregationNichtPruefbar: number;
+  /**
+   * Wie die Vorbedingungen der C16-Zeilen ausgegangen sind — die drei Zahlen,
+   * die den Unterschied zwischen Obergrenze und Deckung ausmachen.
+   *
+   * `verletzt` heißt „die Regel griff damals nicht" und setzt keinen Status;
+   * `unpruefbar` heißt „wir können es nicht lesen" und setzt ihn trotzdem, nur
+   * mit gesenkter Konfidenz. Zusammengezählt wären beide eine Zahl, die zwei
+   * Dinge mischt — genau der Fehler aus v3.20.
+   */
+  bedingungErfuellt: number;
+  bedingungVerletzt: number;
+  bedingungUnpruefbar: number;
+  /**
+   * Übergänge, deren Bezeichnung aus einer FREMDEN Projektform geliehen ist —
+   * der Katalog kennt das Kürzel, aber nicht für die Form dieses Vorgangs.
+   *
+   * `geliehenUneindeutig` ist die Teilmenge, in der die Formen sich auch noch
+   * widersprechen: dort gilt die angezeigte Bedeutung für diesen Vorgang **nicht
+   * sicher**. Für DS ist das der Regelfall, weil die Projektform mit der
+   * Richtlinie 2020 kam und in der Zuarbeit fehlt (§14.7).
+   */
+  bezeichnungGeliehen: number;
+  bezeichnungGeliehenUneindeutig: number;
   segmente: number;
   segmenteUnsicher: number;
   segmenteMehrdeutig: number;
@@ -145,8 +170,9 @@ export function leereBefunde(): VerlaufsBefunde {
     teilvorhaben: 0, verbuende: 0,
     zustaendeTv: leererZaehler(ZUSTAENDE), zustaendeVb: leererZaehler(ZUSTAENDE),
     uebergaenge: 0, konfidenz: leererZaehler(KONFIDENZEN),
-    ohneZielcode: 0, scopeUnbestimmt: 0, historischeKuerzel: 0,
-    aggregationNichtErfuellt: 0, aggregationNichtPruefbar: 0,
+    zielCodeUnbekannt: 0, historischeKuerzel: 0,
+    bedingungErfuellt: 0, bedingungVerletzt: 0, bedingungUnpruefbar: 0,
+    bezeichnungGeliehen: 0, bezeichnungGeliehenUneindeutig: 0,
     segmente: 0, segmenteUnsicher: 0, segmenteMehrdeutig: 0,
     unsicher: { ohneAnfang: 0, ohneEnde: 0, unlesbar: 0, kurz: 0 },
     segmenteRueckwaerts: 0, dauerHistogramm: new Map(),
@@ -184,11 +210,19 @@ export function nimmAuf(b: VerlaufsBefunde, spuren: readonly VerlaufsSpur[]): vo
     for (const u of spur.uebergaenge) {
       b.uebergaenge++;
       b.konfidenz[u.konfidenz]++;
-      if (u.setztStatus && u.setztStatus.code === null) b.ohneZielcode++;
-      if (u.scopeUnbestimmt) b.scopeUnbestimmt++;
+      const ziel = u.setztStatus;
+      if (ziel && ziel.code !== null && ziel.roh === String(ziel.code)) b.zielCodeUnbekannt++;
       if (u.kuerzelHistorisch) b.historischeKuerzel++;
-      if (u.ausAggregation?.erfuellt === false) b.aggregationNichtErfuellt++;
-      if (u.ausAggregation?.erfuellt === null) b.aggregationNichtPruefbar++;
+      if (u.bedingung?.urteil === 'erfuellt') b.bedingungErfuellt++;
+      if (u.bedingung?.urteil === 'verletzt') b.bedingungVerletzt++;
+      if (u.bedingung?.urteil === 'unpruefbar') b.bedingungUnpruefbar++;
+      // Geliehen heißt: der Katalog kennt das Kürzel, aber nicht für DIESE Form.
+      // Ohne Bezeichnung ist etwas anderes (das Kürzel fehlt ganz) und zählt hier
+      // nicht mit — sonst stünde eine Lücke neben einer Anleihe unter einer Zahl.
+      if (u.bezeichnung !== null && u.bezeichnungQuelle === undefined) {
+        b.bezeichnungGeliehen++;
+        if (!u.bezeichnungEindeutig) b.bezeichnungGeliehenUneindeutig++;
+      }
     }
 
     for (const s of spur.segmente) {

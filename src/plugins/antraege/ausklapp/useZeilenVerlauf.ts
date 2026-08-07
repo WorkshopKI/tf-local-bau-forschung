@@ -87,6 +87,7 @@ export function useZeilenVerlauf(
       verbundId,
       statusVbRoh: quelle.statusVbRoh,
       vbPhaseRoh: quelle.vbPhaseRoh,
+      programm: quelle.programm,
       bezugsZeitpunkt,
       teilvorhaben: jeTeilvorhaben.map(tv => ({
         aktenzeichen: tv.aktenzeichen,
@@ -96,9 +97,11 @@ export function useZeilenVerlauf(
       })),
     };
     const journal = einTv ? chronik : null;
+    // Der Trigger-Stand gehört in den Schlüssel: ein Neu-Import ändert die
+    // Regeln, und ein Cache, der das nicht sieht, zeigt die alte Bahn weiter.
     const schluessel = `${verbundId ?? aktenzeichen}|${version.version}|${bezugsZeitpunkt}`
-      + `|${journal ? 'j' : '-'}`;
-    return ausCache(schluessel, () => baueVerlaufFuerVorgang(bezug, version, journal));
+      + `|${quelle.triggerVersion ?? '-'}|${journal ? 'j' : '-'}`;
+    return ausCache(schluessel, () => baueVerlaufFuerVorgang(bezug, version, quelle.trigger, journal));
   }, [quelle, verbundId, aktenzeichen, bezugsZeitpunkt, chronik, einTv]);
 
   return {
