@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.28.1 — Zugangs-Passwoerter der pl-Variante neu gesetzt (August 2026)
+
+PATCH — Alle drei Zugänge der pl-Variante sind frisch erzeugt: App-Wall, Auslastung, Kuration. Damit trägt jede Ebene ein eigenes Salt/Verifier-Paar aus einem Lauf, statt teils aus dem Varianten-Merge vom 05.08. zu stammen.
+
+- `auth` + beide `moduleAuth`-Slots neu gesetzt (nur Salt + Verifier; die Passwörter selbst liegen nirgends im Repo) — [pl.config.json](configs/pl.config.json)
+- **`dev` spiegelt den `auth`-Block von pl nicht mehr**: die dev-Variante hält weiter ihre eigene Kopie und öffnet nur, wenn das Standardpasswort unverändert blieb — [dev.config.json](configs/dev.config.json)
+
 ### v3.28.0 — VerlaufsBand (August 2026)
 
 MINOR — Seit v3.19 liegt der Verlauf als Daten vor — je Spur lückenlose Abschnitte mit Dauer, 82,4 % zweiseitig verankert. Gezeichnet wurde er nie: der Reiter zeigte eine Aufzählung, ausdrücklich als Sicherheitsnetz, solange die Bauform offen war. Jetzt steht die Bahn, und die Liste ist eine Stufe tiefer gerückt — geteilt, nicht ersetzt.

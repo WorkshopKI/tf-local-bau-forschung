@@ -82,19 +82,19 @@
   "auth": {
     "required": true,
     "hint": "Bei Fragen zum Zugang: Projektleitung.",
-    "salt": "NEJGDL5AQE5Pk1/auJWKmg==",
-    "verifier": "8zJuKh0MGo2TACVApCSNzjEgBcPlhHZZMsMKZyXLsR29MjdlYeuQ5RNQVb8hGNc="
+    "salt": "pCATVUevjl5ds62Mw55C1g==",
+    "verifier": "TtyiTB7zdSp9WfN58IGDwuJqpM2vg+PuB5c3dTNb4NwfXtWLMvS5AijZakY2ljo="
   },
   "moduleAuth": {
     "auslastung": {
       "hint": "Zugang zum Auslastungs-Modul: Projektleitung.",
-      "salt": "MdUAOEVeenoBxERFE2o2cg==",
-      "verifier": "Z/qgSspUm0mXk3kcKH4eZe2RTRD8gQxqQ0p7DrmiXDTqS4om56TzU0TtDMfL2C2YpMj/LRdQWg=="
+      "salt": "/+13tUs7v+bCqX5XnM75tg==",
+      "verifier": "L+KOWhMnlp0BHBmr//RvgSs2lYDT+5iqwXa5OfVxFOzOGZywY25S1LmkMaOML6kV32Cjz60M3Q=="
     },
     "kurator": {
       "hint": "Zugang zur Kuration: IT-Koordination.",
-      "salt": "IYcCyejXDdZ2px1jwOR2tA==",
-      "verifier": "ISckhI3TV1qJcSBA+YBCA/wn3lKjpt/RHNaqvIBlySC0sp2CD7494JI5DdhX63veoyI53Q=="
+      "salt": "VIV9goxWXOJfsP9/Dh3nfQ==",
+      "verifier": "KXgFk/2fNj9lhN61dXNIa3WPVaNvDz/FeYUE+Be4Z5H2tqhSboKTaT7xCKGA0S310ktGxQ=="
     }
   }
 }
