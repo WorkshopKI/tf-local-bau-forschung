@@ -22,6 +22,35 @@ const KONFIDENZEN: readonly Konfidenz[] =
 export type ZustandsZaehler = Record<SpurZustand, number>;
 export type KonfidenzZaehler = Record<Konfidenz, number>;
 
+/**
+ * **Warum** ein Abschnitt „Dauer unsicher" trägt — vier Fälle, die in einer Zahl
+ * stecken und Verschiedenes bedeuten.
+ *
+ * `dauerUnsicher` ist `dauerTage === null || dauerTage <= 1` (`segmente.ts`).
+ * Zusammengezählt ergibt das am Bestand zwei Drittel aller Abschnitte, und
+ * daraus liest sich „die Verweildauern sind wertlos". Das stimmt nur für den
+ * letzten Fall: eine **offene Grenze** heißt „wir wissen nicht, wann es anfing",
+ * nicht „es dauerte einen Tag". Für die Frage, ob eine dauerskalierte Bahn
+ * trägt, ist das der Unterschied zwischen Rauschen und fehlender Achse.
+ *
+ * Die vier Fälle sind **disjunkt** (in dieser Priorität geprüft); ihre Summe ist
+ * exakt `segmenteUnsicher` — ein Test hält das fest.
+ */
+export interface UnsicherAufschluesselung {
+  /** `vonDatum === null` — kein belegter Wechsel, oder der nachgeschobene
+   *  Abschnitt des importierten Status im Abweichungsfall. */
+  ohneAnfang: number;
+  /** `bisDatum === null` — nur der Abweichungsfall: die abgeleitete Strecke
+   *  bekommt ein offenes Ende, weil der Export etwas anderes sagt. */
+  ohneEnde: number;
+  /** Beide Grenzen gesetzt, `tageZwischen` liefert trotzdem nichts — ein
+   *  unlesbares Datum. Bisher von den anderen Fällen nicht unterscheidbar. */
+  unlesbar: number;
+  /** Beide Grenzen gesetzt, Differenz 0 oder 1 Tag. Der EINZIGE Fall, in dem
+   *  „unsicher" wirklich eine gemessene Verweildauer meint. */
+  kurz: number;
+}
+
 /** Die größte Spur — sie sagt, womit die Anzeige im schlimmsten Fall rechnet. */
 export interface LaengsteSpur {
   id: string;
@@ -51,6 +80,25 @@ export interface VerlaufsBefunde {
   segmente: number;
   segmenteUnsicher: number;
   segmenteMehrdeutig: number;
+  /** Woran die unsichere Dauer liegt — siehe {@link UnsicherAufschluesselung}. */
+  unsicher: UnsicherAufschluesselung;
+  /**
+   * Abschnitte mit **negativer** Dauer: ein Termin liegt nach dem
+   * Bezugszeitpunkt. `tageZwischen` hat keine Untergrenze, solche Abschnitte
+   * fallen deshalb stillschweigend in denselben Topf wie „stand einen Tag".
+   * Nicht disjunkt zu {@link UnsicherAufschluesselung.kurz} — ein eigener
+   * Befund, kein Teil der Aufteilung.
+   */
+  segmenteRueckwaerts: number;
+  /**
+   * Verteilung der **messbaren** Dauern: Tage → Anzahl Abschnitte, über alle
+   * Segmente mit gesetzten Grenzen und `dauerTage >= 0`.
+   *
+   * Ein Histogramm statt eines Arrays über 45 000 Zahlen — der Modulkopf
+   * verbietet das Sammeln aus gutem Grund, und für Median, Quartile und
+   * „über 30 Tage" reicht die Verteilung exakt aus.
+   */
+  dauerHistogramm: Map<number, number>;
   /**
    * Abweichungen, nach Art getrennt. Zusammengezählt wären sie eine große Zahl,
    * die nichts sagt: `nichtAbleitbar` heißt „kein Regelwerk führt dorthin"
@@ -85,6 +133,13 @@ function leererZaehler<T extends string>(schluessel: readonly T[]): Record<T, nu
   return Object.fromEntries(schluessel.map(k => [k, 0])) as Record<T, number>;
 }
 
+/**
+ * Obergrenze des Histogramms in Tagen (~27 Jahre). Alles darüber landet in
+ * diesem Eimer — ein Datum jenseits davon ist ein Tippfehler im Export, kein
+ * Verlauf, und soll die Verteilung nicht in die Länge ziehen.
+ */
+export const DAUER_HIST_MAX = 10_000;
+
 export function leereBefunde(): VerlaufsBefunde {
   return {
     teilvorhaben: 0, verbuende: 0,
@@ -93,6 +148,8 @@ export function leereBefunde(): VerlaufsBefunde {
     ohneZielcode: 0, scopeUnbestimmt: 0, historischeKuerzel: 0,
     aggregationNichtErfuellt: 0, aggregationNichtPruefbar: 0,
     segmente: 0, segmenteUnsicher: 0, segmenteMehrdeutig: 0,
+    unsicher: { ohneAnfang: 0, ohneEnde: 0, unlesbar: 0, kurz: 0 },
+    segmenteRueckwaerts: 0, dauerHistogramm: new Map(),
     abweichungNichtAbleitbar: 0, abweichungWiderspruch: 0,
     verbuendeMitStatuswechsel: 0, verbuendeMitTermin: 0, laengsteSpur: null,
     projektform: new Map(),
@@ -136,8 +193,21 @@ export function nimmAuf(b: VerlaufsBefunde, spuren: readonly VerlaufsSpur[]): vo
 
     for (const s of spur.segmente) {
       b.segmente++;
-      if (s.dauerUnsicher) b.segmenteUnsicher++;
       if (s.mehrdeutig) b.segmenteMehrdeutig++;
+      if (s.dauerTage !== null && s.dauerTage < 0) b.segmenteRueckwaerts++;
+      if (s.dauerUnsicher) {
+        b.segmenteUnsicher++;
+        // Reihenfolge ist die Aussage: eine offene Grenze schlägt jede
+        // Tages-Differenz, weil sie eine andere Frage beantwortet.
+        if (s.vonDatum === null) b.unsicher.ohneAnfang++;
+        else if (s.bisDatum === null) b.unsicher.ohneEnde++;
+        else if (s.dauerTage === null) b.unsicher.unlesbar++;
+        else b.unsicher.kurz++;
+      }
+      if (s.dauerTage !== null && s.dauerTage >= 0) {
+        const k = Math.min(s.dauerTage, DAUER_HIST_MAX);
+        b.dauerHistogramm.set(k, (b.dauerHistogramm.get(k) ?? 0) + 1);
+      }
     }
 
     if (b.laengsteSpur === null || spur.uebergaenge.length > b.laengsteSpur.uebergaenge) {
@@ -173,4 +243,42 @@ export function c16Treffer(
 /** Anteil als Prozent-Text mit einer Nachkommastelle; `'—'` ohne Grundgesamtheit. */
 export function anteil(teil: number, ganzes: number): string {
   return ganzes === 0 ? '—' : `${((100 * teil) / ganzes).toFixed(1)} %`;
+}
+
+/** Wie viele Abschnitte das Histogramm insgesamt zählt. */
+export function histogrammSumme(hist: ReadonlyMap<number, number>): number {
+  let n = 0;
+  for (const anzahl of hist.values()) n += anzahl;
+  return n;
+}
+
+/**
+ * Quantil aus dem Histogramm nach der **nächsten Rangzahl** (nearest rank):
+ * der kleinste Wert, unter dem mindestens `p` der Beobachtungen liegen.
+ *
+ * Keine Interpolation — Tage sind ganzzahlig, und ein interpolierter „Median von
+ * 12,5 Tagen" behauptete eine Genauigkeit, die die Tagesgranularität nicht
+ * hergibt. `null` bei leerem Histogramm.
+ */
+export function quantilAusHistogramm(
+  hist: ReadonlyMap<number, number>, p: number,
+): number | null {
+  const n = histogrammSumme(hist);
+  if (n === 0) return null;
+  const rang = Math.max(1, Math.ceil(p * n));
+  let kumuliert = 0;
+  for (const tage of [...hist.keys()].sort((a, b) => a - b)) {
+    kumuliert += hist.get(tage) ?? 0;
+    if (kumuliert >= rang) return tage;
+  }
+  return null;
+}
+
+/** Beobachtungen mit mehr als `grenze` Tagen. */
+export function histogrammUeber(
+  hist: ReadonlyMap<number, number>, grenze: number,
+): number {
+  let n = 0;
+  for (const [tage, anzahl] of hist) if (tage > grenze) n += anzahl;
+  return n;
 }

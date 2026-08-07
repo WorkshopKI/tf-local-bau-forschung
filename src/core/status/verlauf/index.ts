@@ -42,7 +42,9 @@ export { baueRegelIndex, baueUebergaenge, type RegelIndex } from './uebergaenge'
 export { baueSegmente, type SegmentErgebnis } from './segmente';
 export {
   leereBefunde, nimmAuf, c16Treffer, anteil,
+  histogrammSumme, quantilAusHistogramm, histogrammUeber, DAUER_HIST_MAX,
   type VerlaufsBefunde, type LaengsteSpur, type ZustandsZaehler, type KonfidenzZaehler,
+  type UnsicherAufschluesselung,
 } from './erhebung';
 
 /** Ein Teilvorhaben, so wie die Ableitung es braucht. */

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.20.0 — Verlaufs-Segmente: warum die Dauer unsicher ist (August 2026)
+
+MINOR — 68,3 % der Abschnitte trugen „Dauer unsicher", und daraus las sich „die Verweildauern sind wertlos". Die Zahl mischte zwei Dinge: eine offene Grenze und eine gemessene Ein-Tages-Dauer. Vor dem Band in Phase 3 muss klar sein, welches davon überwiegt.
+
+- Vier disjunkte Auslöser hinter `dauerUnsicher` (Summe = `segmenteUnsicher`, per Test): **nur 1.719 von 31.135 (5,5 %)** sind gemessene ≤ 1-Tages-Dauern, 94,5 % sind offene Grenzen — [erhebung.ts](src/core/status/verlauf/erhebung.ts)
+- Verteilung der 16.200 messbaren Dauern aus einem Histogramm statt eines Sammel-Arrays: Median 10 T, p75 37 T, 28,9 % über 30 Tagen — die Dauerachse trägt — [VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)
+- Negative Dauern (Termin nach dem Bezugszeitpunkt) sind ein eigener Befund statt stiller Teil von „stand einen Tag" — im Bestand null Fälle
+- C16-Vergleich gemessen: **null Widersprüche** bei zwei Überlappungs-Paaren; die Zuarbeit deckt FuE, DS und DL mit **0** Verbünden, C16 löst `AB` → 51 und `XHSP` → 50 auf — [vorgangssystem.md §14.5](docs/architecture/vorgangssystem.md)
+- Die 63,2 % C16-Deckung sind eine **Obergrenze**: alle 287 statusetzenden Zeilen tragen eine Bedingung, keine einzige ist bedingungsfrei
+
 ### v3.19.0 — Verlaufsableitung (August 2026)
 
 MINOR — Das Vorgangssystem erklärt den aktuellen Status, aber nicht den Weg dorthin. Das Import-Diff-Journal beginnt erst am 05.08.2026 und kennt null Statuswechsel — eine Spur, die nur beobachten kann, erklärt bei jedem Vorgang nur ihre eigene Blindheit. Also wird abgeleitet, mit Herkunft an jeder Spur. Reines Modul, keine UI (Band und Ausklappmechanik folgen).

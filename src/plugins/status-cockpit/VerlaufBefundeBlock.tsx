@@ -13,12 +13,16 @@
  * Reine Anzeige; gerechnet wird in `verlauf/erhebung.ts` und `useVerlaufErhebung`.
  */
 import { Button } from '@/components/ui/button';
-import { anteil, type VerlaufsBefunde } from '@/core/status/verlauf';
+import {
+  anteil, histogrammSumme, histogrammUeber, quantilAusHistogramm,
+  type VerlaufsBefunde,
+} from '@/core/status/verlauf';
 import { feldStil } from './labels';
 import type { VerlaufLauf } from './useVerlaufErhebung';
 
 const leise = 'text-[11.5px] text-[var(--tf-text-tertiary)]';
 const zahl = (n: number): string => n.toLocaleString('de-DE');
+const tage = (n: number | null): string => (n === null ? '—' : `${zahl(n)} T`);
 
 function Zeile({ label, wert, hinweis }: {
   label: string; wert: string; hinweis?: string;
@@ -31,6 +35,44 @@ function Zeile({ label, wert, hinweis }: {
       <span className="text-[var(--tf-text-secondary)]">{label}</span>
       {hinweis !== undefined && <span className={leise}>{hinweis}</span>}
     </li>
+  );
+}
+
+/**
+ * Die Verteilung der **messbaren** Dauern — die Grundgesamtheit ist hier eine
+ * andere als bei „Segmente": nur Abschnitte mit zwei gesetzten Grenzen tragen
+ * eine Zahl bei. Steht die Zahl nicht daneben, liest sich der Median als Aussage
+ * über alle Abschnitte, und das wäre er nicht.
+ */
+function Verweildauern({ b }: { b: VerlaufsBefunde }): React.ReactElement {
+  const n = histogrammSumme(b.dauerHistogramm);
+  const ueber30 = histogrammUeber(b.dauerHistogramm, 30);
+  return (
+    <div className="flex flex-col gap-0.5">
+      <p className={`uppercase tracking-wider ${leise}`}>Verweildauern (messbar)</p>
+      <ul className="flex flex-col gap-0.5">
+        <Zeile
+          label="Abschnitte mit zwei Grenzen"
+          wert={zahl(n)}
+          hinweis={`${anteil(n, b.segmente)} aller Abschnitte`}
+        />
+        <Zeile
+          label="Median · Quartile"
+          wert={tage(quantilAusHistogramm(b.dauerHistogramm, 0.5))}
+          hinweis={`p25 ${tage(quantilAusHistogramm(b.dauerHistogramm, 0.25))} · `
+            + `p75 ${tage(quantilAusHistogramm(b.dauerHistogramm, 0.75))} · `
+            + `p90 ${tage(quantilAusHistogramm(b.dauerHistogramm, 0.9))}`}
+        />
+        <Zeile label="länger als 30 Tage" wert={zahl(ueber30)} hinweis={anteil(ueber30, n)} />
+        {b.segmenteRueckwaerts > 0 && (
+          <Zeile
+            label="Dauer negativ"
+            wert={zahl(b.segmenteRueckwaerts)}
+            hinweis="Termin nach dem Bezugszeitpunkt — nicht in der Verteilung"
+          />
+        )}
+      </ul>
+    </div>
   );
 }
 
@@ -102,6 +144,29 @@ function Bilanz({ b, c16Vorhanden }: {
             wert={zahl(b.segmenteUnsicher)}
             hinweis={anteil(b.segmenteUnsicher, b.segmente)}
           />
+          {/* Die Aufteilung ist der eigentliche Befund: eine offene Grenze
+              heisst „wir wissen nicht, wann es anfing", nicht „es dauerte
+              einen Tag". Nur der letzte Fall misst wirklich Verweildauer. */}
+          <Zeile
+            label="… davon: Anfang unbekannt"
+            wert={zahl(b.unsicher.ohneAnfang)}
+            hinweis={anteil(b.unsicher.ohneAnfang, b.segmenteUnsicher)}
+          />
+          <Zeile
+            label="… davon: Ende offen (Abweichung)"
+            wert={zahl(b.unsicher.ohneEnde)}
+            hinweis={anteil(b.unsicher.ohneEnde, b.segmenteUnsicher)}
+          />
+          <Zeile
+            label="… davon: Datum unlesbar"
+            wert={zahl(b.unsicher.unlesbar)}
+            hinweis={anteil(b.unsicher.unlesbar, b.segmenteUnsicher)}
+          />
+          <Zeile
+            label="… davon: gemessen ≤ 1 Tag"
+            wert={zahl(b.unsicher.kurz)}
+            hinweis={anteil(b.unsicher.kurz, b.segmenteUnsicher)}
+          />
           <Zeile label="mehrdeutig (gleichtägig)" wert={zahl(b.segmenteMehrdeutig)} />
           <Zeile
             label="Abweichung: Ziel gar nicht ableitbar"
@@ -122,6 +187,8 @@ function Bilanz({ b, c16Vorhanden }: {
           )}
         </ul>
       </div>
+
+      <Verweildauern b={b} />
 
       <div className="flex flex-col gap-0.5">
         <p className={`uppercase tracking-wider ${leise}`}>Projektform der Verbünde</p>

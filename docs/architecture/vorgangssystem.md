@@ -862,6 +862,33 @@ gemessen am 06.08.2026 über **12 356 Teilvorhaben in 6 614 Vorhaben**
 | umbenannte Kürzel im Bestand | 1 277 (`MVA→ÄA` 989, `LBN→LBNx` 288) |
 | längste Spur | 87 Übergänge, 4 Segmente |
 
+**Warum die Dauer unsicher ist** (Phase 2, v3.20 — bis dahin steckte alles in der
+einen 68,3-%-Zahl). Die vier Auslöser sind disjunkt und summieren sich exakt auf
+`segmenteUnsicher`; ein Test hält das fest:
+
+| Auslöser | Abschnitte | Anteil an 31 135 |
+|---|---:|---:|
+| Anfang unbekannt (kein belegter Wechsel bzw. nachgeschobener Status) | 18 130 | 58,2 % |
+| Ende offen (Abweichungsfall) | 11 286 | 36,2 % |
+| Datum unlesbar | 0 | — |
+| **gemessen ≤ 1 Tag** | **1 719** | **5,5 %** |
+
+**Nur der letzte Fall misst Verweildauer.** 94,5 % der „Unsicherheit" sind eine
+**offene Grenze** — „wir wissen nicht, wann es anfing" ist keine kurze Dauer.
+Gemessene Ein-Tages-Abschnitte sind 3,8 % aller 45 616 Abschnitte.
+
+Die 16 200 Abschnitte mit zwei Grenzen (35,5 %) tragen eine Verteilung mit
+echter Spreizung: **Median 10 T**, p25 4 T, p75 37 T, p90 91 T; **28,9 % länger
+als 30 Tage**. Keine negative Dauer im Bestand. Termine verteilen sich auf
+**1,77 je Tag und Vorhaben** (465 551 gesetzte Felder auf 263 761 verschiedene
+Tage) — die Tagesgranularität ist also nicht bloß Vorsicht, sondern nötig.
+
+⇒ **Für Phase 3**: die dauerskalierte Statusbahn bleibt die Grundform. Sie misst
+kein Rauschen — sie hat für zwei Drittel der Abschnitte nur keine Achse. Diese
+brauchen eine eigene Darstellung (angeschnittene Kante „vor dem ersten Beleg"
+bzw. „läuft weiter"), keine Ersatzbreite. Eine Doppelspur ohne Dauerskalierung
+wäre eine Antwort auf ein Problem, das die Messung nicht bestätigt.
+
 Drei Aussagen daraus:
 
 - **`kein_kuerzel` ist der Normalfall, nicht die Ausnahme** (94 % der Termine).
@@ -880,19 +907,25 @@ Drei Aussagen daraus:
 C16-Trigger-Tabelle würde 54 587 Termine (11,1 %) und **4 183 von 6 614
 Verbünden (63,2 %)** erklären — das Dreifache der Zuarbeit. Abgeleitet wird
 trotzdem aus einer Quelle; zwei Regelwerke in einer Spur wären die zweite
-Wahrheit, gegen die Pitfall #45 geschrieben ist. Die Zahl steht da, damit die
-Entscheidung für Phase 2/3 eine Entscheidung ist.
+Wahrheit, gegen die Pitfall #45 geschrieben ist. Was der Vergleich im Detail
+ergibt, steht in 14.5.
 
 ### 14.4 Offene Punkte für die Fachabstimmung
 
 1. **`XPC+`/`XPC?` setzen den TV-Status, nicht den Verbundstatus** — so steht es
    in der Zuarbeit (`scope: tv`, *„Stw TV auf bearbeitungsreif, wenn alle TV PC+
    haben"*). Es sind Verbund-Kürzel mit Wirkung auf die Teilvorhaben. Die App
-   folgt den Daten; zu bestätigen.
+   folgt den Daten. **Die C16-Tabelle sagt das Gegenteil** (14.5): für `XPC+`
+   führt sie einen **Verbund**-Status 34 und gar keinen TV-Status. Zu klären,
+   welche Quelle recht hat.
 2. **Zwei Zielstatus lösen nicht auf**: `AB/NW` → *„bewilligungseif"* (Tippfehler
-   der Quelle) und `XHSP/FuE` → *„Bewilligungsentwurf"* (der Katalog führt
-   „Bewilligungsentwurf VDI/VDE-IT"). Beide betreffen zusammen 1 384 Verbünde.
-3. **DL und EP haben gar keine Verbund-Regel.**
+   der Quelle) und `XHSP/FuE` → *„Bewilligungsentwurf"*. Zusammen 285 Verbünde,
+   deren einziger VB-Übergang deshalb ohne Code bleibt. **C16 löst beide auf**
+   (14.5): `AB` → 51 *bewilligungsreif* in allen neun geführten Programmen,
+   `XHSP` → 50 *Bewilligungsentwurf VDI/VDE-IT*. Zu bestätigen, dann in die
+   Zuarbeit nachziehen.
+3. **DL und EP haben gar keine Verbund-Regel** — gemessen: DL 514 Verbünde,
+   davon **0** mit abgeleitetem VB-Statuswechsel (14.5).
 4. **12 der 41 Regeln lassen die Ebene offen** (`scope: null`) — 5 718 Termine
    tragen deshalb „Regel vorhanden, Ebene unbestimmt".
 5. **Die Marker-Werte kommen im Antragsbestand nicht vor.** `Sonderstatus`,
@@ -901,3 +934,91 @@ Entscheidung für Phase 2/3 eine Entscheidung ist.
    `9052-prjbsp`) — sie sind keine Anträge. Der Spurzustand
    `kein_bearbeitungsstand` bleibt im Modell, greift heute aber nur bei
    *Irrläufer* (64 Fälle).
+
+### 14.5 Zweite Regelquelle: was C16 zusätzlich erklärt
+
+Gemessen am 07.08.2026, derselbe Bereich wie 14.3 (6 614 Vorhaben, Richtlinien
+2015 + 2020 + 2025, 12 Programme). Read-only, nichts aktiviert.
+
+**Was die Tabelle ist.** `_intern/status-trigger.json`, Share-Sidecar ohne
+Seed ([trigger-share.ts](../../src/core/status/trigger-share.ts)); Import per
+XLSX-Blatt „Trigger-Prozeduren", Schlüssel Programm#Kürzel#Folge, Import-Zähler
+statt Fassungs-Historie; `geparst` wird bei jedem Laden neu abgeleitet, nie aus
+der Datei übernommen. Stand: **2 447 Zeilen, Fassung 1, neun Programme**
+(76–79, 131, 136–139). Die Richtlinien-Generation 2015 (**46, 47, 48**) führt sie
+**nicht** — das ist die eine Stelle, an der nur die Zuarbeit etwas weiß.
+
+Prozeduren: `vorgEintragMail` 1 948 · `statusTvVb` 287 · `statusSetzen` 112
+(82 auf TV-, 30 auf Verbund-Ebene) · `vorgEintragNeu` 93 · **7 nicht
+interpretiert**.
+
+#### Deckung je Projektform — die Zuarbeit deckt genau eine
+
+| Projektform | Verbünde | Zuarbeit | C16 |
+|---|---:|---:|---:|
+| FuE | 3 841 (58,1 %) | **0** | 2 320 (60,4 %) |
+| NW | 1 374 (20,8 %) | **1 103 (80,3 %)** | 687 (50,0 %) |
+| DS (`zuarbeit-aelter`) | 851 | **0** | 851 (100 %) |
+| DL | 514 | **0** | 305 (59,3 %) |
+| Irrläufer | 34 | **0** | 20 |
+| **gesamt** | **6 614** | **1 103 (16,7 %)** | **4 183 (63,2 %)** |
+
+Die 1b-Vermutung war zu milde: FuE ist nicht schlecht abgedeckt, sondern **gar
+nicht**. Jeder abgeleitete Verbund-Statuswechsel im Bestand kommt aus NW. (Die
+21,0 % aus 14.3 sind dieselbe Menge plus 285 Verbünde, deren einziger
+VB-Übergang einen **nicht auflösbaren** Zielstatus trägt: 1 103 + 285 = 1 388.)
+
+#### Überlappung: null Widersprüche — und fast keine Überschneidung
+
+Wo beide Quellen zum selben (Kürzel, Projektform, Programm) etwas sagen, sagen
+sie **dasselbe**: zwei Paare, `ABB/NW` in Programm 76 (445 Verbünde) und 136
+(106 Verbünde), beide → 59 *bewilligt*. **Kein einziger Widerspruch.**
+
+- **Nur die Zuarbeit**: ein einziges Paar — `ABB/NW` in Programm **46**
+  (552 Verbünde). Genau das Programm, das C16 nicht führt.
+- **Nur C16**: 80 Paare über 20 Kürzel (`AAE`, `AB`, `ABB`, `XKS`, `XPC+`, `VV`,
+  `VZK`, `XHSP`, `ABLW` …).
+
+C16 beantwortet dabei drei offene Punkte aus 14.4 unmittelbar: `AB` → **51**
+(*bewilligungsreif* — der Tippfehler „bewilligungseif" ist damit gelesen),
+`XHSP` → **50** (*Bewilligungsentwurf VDI/VDE-IT*), und `XPC+` trägt einen
+**Verbund**-Status 34 ohne jeden TV-Status.
+
+#### Drei Genauigkeitsgrenzen der 63,2 % — zwei sind harmlos, eine nicht
+
+1. **Untererfassung, ohne Wirkung**: der Vergleichs-Index nimmt nur
+   `statusTvVb`; die 112 `statusSetzen`-Zeilen fehlen. Mit ihnen wächst der
+   VB-Index von 82 auf 105 Schlüssel — die Verbund-Deckung bleibt bei **4 183**.
+   Die Zeilen betreffen Kürzel, die ohnehin erfasst sind.
+2. **Programm-Match ohne `normKey`**: gemessen **null** Fehlschläge. Die
+   Programm-Ids sind reine Zahl-Zeichenketten; die Abweichung zur sonstigen
+   Konvention ist real, aber am Bestand folgenlos.
+3. **Übererfassung — und die ist groß**: **alle 287** `statusTvVb`-Zeilen tragen
+   eine Bedingung (276 einen Status-Vergleich wie `<59`, 230 eine
+   „ohne-TV-Kürzel"-Liste, 9 eine „ohne-Verbund-Kürzel"-Liste); **keine einzige**
+   ist bedingungsfrei. Gezählt wurde bisher „es gäbe eine Zeile", nicht „sie
+   trüge". **63,2 % ist damit eine Obergrenze, keine Deckung.**
+
+#### Empfehlung
+
+**Ja zu zwei Quellen mit Herkunftskennzeichen — aber erst nach der
+Bedingungsauswertung, und nicht in Phase 2/3.** In dieser Reihenfolge:
+
+1. **Die drei Kürzel-Klärungen in die Fachabstimmung** (14.4 Punkte 1 und 2).
+   Sie kosten nichts und machen die *eine* Quelle besser: `AB` und `XHSP`
+   bekämen einen Code, `XPC+` seine Ebene. Dafür braucht es keinen zweiten
+   Ableitungspfad.
+2. **Bedingungen auswerten, bevor C16 ableitet.** Ohne sie wäre C16 als Quelle
+   ein Rückschritt: die Zuarbeit sagt „dieses Kürzel setzt diesen Status", C16
+   sagt „unter diesen Umständen" — und die Umstände wegzulassen produziert
+   Aussagen, die im Einzelfall falsch sind. Das ist teurer als es klingt (der
+   Parser hat die Bedingungen bereits strukturiert, die Auswertung gegen einen
+   Vorgang fehlt).
+3. **Dann** beide Quellen mit `herkunft: 'zuarbeit' | 'c16'` an jedem Übergang
+   führen und die Konfidenz daran hängen. Der Befund „null Widersprüche" trägt
+   diese Bauart — die Quellen konkurrieren nicht, sie ergänzen sich fast
+   disjunkt. Pitfall #45 verbietet eine zweite **Handtabelle** neben derselben
+   Aussage, nicht zwei benannte Quellen mit ausgewiesener Herkunft.
+
+Für Phase 2 und 3 bleibt es bei der Zuarbeit. Das Band zeigt, was eine Quelle
+hergibt; die Deckung ist eine Datenfrage und keine Bauform-Frage.
