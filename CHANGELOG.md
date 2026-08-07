@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.27.2 — Kurator-Passwort im pl-Build gesetzt (August 2026)
+
+PATCH — Der Slot `moduleAuth.kurator` trug seit seiner Einführung nur einen Platzhalter-Verifier: die Kurations-Rolle war in `pl` gar nicht erreichbar, der einzige Weg hinein war ein Überbleibsel aus einem Stand vor dem Schloss (v3.27.0). Mit dem gesetzten Passwort greift die dritte Regel erstmals wirklich.
+
+- Beide Modul-Slots tragen echte Salt/Verifier-Paare, der Platzhalter-Hinweis ist raus — [pl.config.json](configs/pl.config.json)
+- Damit gilt in `zah-pl.html`: Standard → beide Module zu · Auslastungs-Passwort → nur Auslastung · Kurations-Passwort → nur Kuration — [modul-freischaltung.md](docs/architecture/modul-freischaltung.md)
+
 ### v3.27.1 — Build-Ziel devpl statt devprod (August 2026)
 
 PATCH — Die Zusammenlegung auf drei Varianten (v3.0) hat `build:all` mitgezogen, das Standard-Paar aber nicht: `build:devprod` baute weiter dev + prod, obwohl der Fach-Stack seit v3.0 komplett in `pl` liegt und der End-User-Build ihn gar nicht kompiliert. Wer der Default-Regel folgte, baute die Variante nicht, aus der getestet wird.
