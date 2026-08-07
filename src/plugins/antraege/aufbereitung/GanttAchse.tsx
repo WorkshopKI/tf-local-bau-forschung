@@ -8,7 +8,8 @@
  * `plotLeft + (m − 1) · monatBreite`. `x` akzeptiert auch **fraktionale**
  * Positionen (`posStart`/`posEnde`) — ein Balken belegt `[x(p1) … x(p2))`.
  */
-import { useLayoutEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
+import type { ReactElement, RefObject } from 'react';
+import { useElementBreite } from '@/core/hooks/useElementBreite';
 
 export const GANTT_W = 1000;
 export const GANTT_ROW_H = 30;
@@ -76,28 +77,12 @@ export function zeichenBreite(gemessen: number | null, standard: number = GANTT_
  * typischerweise das `<svg>` selbst (dessen Breite hängt an `width="100%"`,
  * nicht am viewBox; es entsteht also keine Rückkopplung).
  *
- * `useLayoutEffect` statt `useEffect`: die Messung landet noch vor dem ersten
- * Anstrich, sonst blitzt ein Rahmen lang die Standardbreite auf.
+ * Gemessen wird das RAHMEN-Maß, nicht `clientWidth`: bei einem `<svg>` als
+ * beobachtetem Element ist letzteres nicht überall belastbar. Die Messung selbst
+ * liegt in {@link useElementBreite} — eine Implementierung für die ganze App.
  */
 export function useGanttBreite<T extends Element>(): [RefObject<T | null>, number] {
-  const ref = useRef<T | null>(null);
-  const [gemessen, setGemessen] = useState<number | null>(null);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    // Gemessen wird über `getBoundingClientRect`, nicht über `contentRect`:
-    // bei einem `<svg>` als beobachtetem Element ist letzteres nicht überall
-    // belastbar. Eine 0-Breite (noch nicht im Layout) bleibt `null` und fällt
-    // damit auf das feste Maß zurück, statt die Zeichnung zu zerquetschen.
-    const ro = new ResizeObserver(() => {
-      const b = el.getBoundingClientRect().width;
-      setGemessen(b > 0 ? b : null);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
+  const [ref, gemessen] = useElementBreite<T>('rahmen');
   return [ref, zeichenBreite(gemessen)];
 }
 

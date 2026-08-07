@@ -27,6 +27,9 @@ export interface TableBodyProps<T> {
   /** Inhalt des aufgeklappten Bereichs — eine zweite, volle-Breite-`<tr>`
    *  direkt unter der Datenzeile. */
   renderRowDetail?: (row: T) => ReactNode;
+  /** Innenbreite des Scrollports in px — der Deckel des aufgeklappten Bereichs.
+   *  `undefined` = nicht gemessen; dann bleibt der Bereich inhaltsbreit. */
+  portBreite?: number;
 }
 
 /**
@@ -71,6 +74,7 @@ export function TableBody<T>({
   stickyFirstColumn = false,
   isRowExpanded,
   renderRowDetail,
+  portBreite,
 }: TableBodyProps<T>): React.ReactElement {
   const detailEnabled = isRowExpanded !== undefined && renderRowDetail !== undefined;
   const sectionsEnabled = sectionKeyOf !== undefined && renderSectionHeader !== undefined;
@@ -183,14 +187,23 @@ export function TableBody<T>({
                   {/* Wie beim Abschnitts-Band: die `colSpan`-Zelle selbst darf
                       nicht kleben (sie zoege die ganze Breite mit), der INHALT
                       schon — sonst steht der Bereich beim waagerechten Blaettern
-                      links ausserhalb des Sichtfelds. */}
-                  {stickyFirstColumn ? (
-                    <div style={{ position: 'sticky', left: 0, width: 'max-content' }}>
-                      {renderRowDetail!(row)}
-                    </div>
-                  ) : (
-                    renderRowDetail!(row)
-                  )}
+                      links ausserhalb des Sichtfelds.
+
+                      `min(100%, port)` statt `max-content`: `100 %` loest gegen
+                      die `colSpan`-Zelle auf (unter `table-layout: fixed` steht
+                      deren Breite vor dem Inhalt fest, es gibt also keinen
+                      Zirkelschluss), `min()` deckelt auf das, was man wirklich
+                      sieht. Ist die Tabelle GEPINNT schmaler als der Port,
+                      gewinnt `100 %` — richtig, dort gibt es nichts zu scrollen.
+                      Ohne Messung bleibt es inhaltsbreit wie bis v3.31. */}
+                  <div
+                    style={{
+                      width: portBreite !== undefined ? `min(100%, ${portBreite}px)` : 'max-content',
+                      ...(stickyFirstColumn ? { position: 'sticky', left: 0 } : null),
+                    }}
+                  >
+                    {renderRowDetail!(row)}
+                  </div>
                 </td>
               </tr>
             ) : null}

@@ -2,6 +2,158 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.406.0 — Katalogfremde Kürzel geklärt (ID, Testkürzel) (August 2026)
+
+MINOR — Von 221 Kürzeln, welche die Trigger-Zuarbeit referenziert, fehlten genau vier im Katalog; die Fachabstimmung hat sie am 04.08.2026 benannt (V6): `ID` = Rollenvergabe, `TTV1`/`TTV2`/`TVB1` = Testkürzel. Bis dahin standen die drei Testkürzel als mögliche nächste Schritte in 78 und 138 (5337 Anträge), und die Import-Warnung zählte jedes Mal dieselben vier Namen auf.
+
+- **Eine Tabelle, drei Konsumenten** — Navigator, Erklärung und Import lesen dieselbe Antwort ([sonderkuerzel.ts](src/core/status/sonderkuerzel.ts))
+- **Testkürzel sind kein Arbeitsschritt** und fallen vor jedem anderen Filter aus der Kandidatenliste — gezählt und in der Fußzeile benannt ([navigator.ts](src/core/status/navigator.ts), [NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx))
+- **`ID` steht mit seiner Bedeutung** statt nackt da und behält den Hinweis „nicht im Katalog" — es IST ein Vorgang, nur keiner mit Katalog-Eintrag
+- **Import-Warnung nur noch für wirklich Unbekanntes**; die vier stehen als Auskunft in der Vorschau ([trigger-import.ts](src/core/status/import/trigger-import.ts), [ReferenzdatenSektion.tsx](src/plugins/status-cockpit/ReferenzdatenSektion.tsx))
+- **Kein Raten nach Muster**: `TTV3` bliebe unbekannt — der fünfte Fall soll auffallen ([sonderkuerzel.test.ts](src/core/status/__tests__/sonderkuerzel.test.ts))
+
+### v2.405.0 — To-do-Regeln: geteilte Ansicht + kompakte Karten (August 2026)
+
+MINOR — Der Editor klappte IN der Karte auf und schob die folgenden Regeln nach unten — beim Bearbeiten verlor man damit genau den Überblick, auf den es ankommt: die Reihenfolge IST das Ergebnis. Gemessen: die Kaskade war 3017 px hoch, jede Karte 89 px.
+
+- **Karte 89 → 57 px**, Kaskade 3017 → 1919 px: drei Zeilen wurden zwei, „Bearbeiten" steht in der Titelzeile ([TodoRegelKarte.tsx](src/plugins/status-cockpit/TodoRegelKarte.tsx))
+- **Geteilte Ansicht bei Auswahl** über das geteilte `MasterDetailLayout` — links schlanke Zeilen, rechts Kopf + Editor, Trenner ziehbar und gemerkt ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx))
+- **Positions-Pfeile im Regel-Kopf** („Position 5 von 27"), weil die Auswahl-Zeilen selbst Knöpfe sind und keine weiteren tragen dürfen ([TodoRegelDetail.tsx](src/plugins/status-cockpit/TodoRegelDetail.tsx))
+- **Auswahl wird abgeleitet, nicht synchronisiert**: verschwindet die Regel, schließt sich das Detail von selbst — geprüft in [todoRegelnAnsicht.test.ts](src/plugins/status-cockpit/__tests__/todoRegelnAnsicht.test.ts)
+- **Reiter To-dos füllt die Höhe**; Referenzdaten und Versionen stehen in Katalog/Kürzel ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
+
+### v2.404.1 — Guard gegen as/pl-Feature-Drift (August 2026)
+
+PATCH — Die as/pl-Angleichung aus v2.403.0 war eine Aufräumarbeit, die sich jederzeit wiederholen kann: kein Test verglich zwei Varianten miteinander, deshalb konnte as über acht Flags hinweg unbemerkt hinter pl zurückfallen. Der Nachtrag schließt die Lücke, statt sich auf Aufmerksamkeit zu verlassen.
+
+- **Guard `variant-drift`** mergt beide Configs wie der Build und vergleicht die *effektiven* Flag-Werte; ein nur in pl gesetztes Flag macht ihn rot und nennt den Namen ([variant-drift.test.ts](src/config/__tests__/variant-drift.test.ts))
+- **Vier erlaubte Abweichungen** stehen benannt und begründet in `ERWARTETE_ABWEICHUNGEN` — wer sie ändert, ändert die Definition der as-Variante
+- **`kuerzelDropdown` gilt nicht als Drift**: roh verschieden (as explizit, pl abgeleitet), effektiv gleich — der Guard rechnet die Ableitungen aus [feature-flags.ts](src/config/feature-flags.ts) nach, statt roh zu vergleichen
+- **Gegen den echten Vorher-Stand geprüft**: mit `as.config.json` aus 75725a46^ meldet der Guard exakt die acht historisch gedrifteten Flags
+- [build-varianten.md](docs/architecture/build-varianten.md) hält fest, dass die Vier-Flag-Differenz jetzt maschinell abgesichert ist
+
+### v2.404.0 — Begleitphase als eigene Sicht (August 2026)
+
+MINOR — Der Reiter „Offen" bündelte Antragsphase (TIB/BIB, 3–9 Monate) und Begleitphase (ZTP/PFM, 3–4 Jahre) mit zwei verschiedenen Fristuhren in einer Sicht; ein Profil-Haken blendete die Begleitphase zusätzlich app-weit aus, solange niemand ihn aktivierte. Zwei Nachzieh-Fixes hoben außerdem 15 Anträge in ihre korrekte Sicht, die zuvor an einem eingefrorenen Seed bzw. einer unvollständigen Fassung vorbeifielen.
+
+- **Antragsphase und Begleitung als eigene Reiter**, je eigene Frist-Uhr (`antragsdatum` + 90 Tage bzw. `vn_eingang_datum` + 6 Monate) ([views.ts](src/plugins/antraege/views.ts))
+- **Profil-Haken „Begleitungen einschließen" blendet nichts mehr aus** — steuert nur noch das Kürzel-Matching ([bearbeiterFilter.ts](src/plugins/antraege/bearbeiterFilter.ts))
+- **Status-Pille leitet ihre Wertemengen bei jedem Aufruf aus dem kuratierten Katalog ab** statt aus einem beim Modul-Laden eingefrorenen Seed ([statusQuickChips.ts](src/plugins/antraege/filter/statusQuickChips.ts))
+- **Snapshot-Bau ergänzt amtliche Schreibweisen codierter Werte aus dem Code-Katalog**, bevor er indiziert ([snapshot.ts](src/core/status/snapshot.ts))
+
+### v2.403.0 — as-Variante an pl angeglichen (ohne Auslastungs-Modul) (August 2026)
+
+MINOR — Die as-Variante sollte laut Definition „pl ohne Auslastungs-Modul" sein, war aber in **zwölf** Feature-Flags verschieden: pl bekam über die letzten Versionen neue Opt-in-Features, `as.config.json` wurde nie nachgezogen. AS-Nutzern fehlten dadurch drei komplette Sidebar-Bereiche und die halbe Artefakt-Kette.
+
+- **Acht gedriftete Flags nachgezogen** — `statusCockpit`, `vorgangssystem`, `mapFoerderfaehig`, `nfNachforderungen`, `artefaktWerkbank`, `antragAufbereitung`, `workflowEntwuerfe`, `feedbackDelete` ([as.config.json](configs/as.config.json))
+- **Differenz as↔pl jetzt genau vier Flags**, alle aus der Auslastungs-Domäne (`auslastung`, `auslastungSelbstEintragung`, `deAnonymisierung`, `maVerwaltungPasswort`) — gemessen über `deepMerge` + `validateConfig`, beide Varianten fehlerfrei
+- **Auslastung bleibt vollständig aus**: nicht nur Menü + Route, auch MA-Kürzel-Spalte, Home-Widget „Neue Anträge für dich", Kaltstart-Korpus-Download und Auslastungs-Feedback ([build-varianten.md](docs/architecture/build-varianten.md))
+- **Sichtbarkeits-Matrix auf den Ist-Zustand gezogen** — Erprobungs-Bereiche ergänzt, Flag-Spalte dazu; die stale „Chat"-Zeile (seit v2.394 kein Plugin) und das falsche `–` bei prod/Suche korrigiert ([build-varianten.md](docs/architecture/build-varianten.md))
+- Reine Config-Änderung, kein Code-Pfad angefasst
+
+### v2.402.0 — Vorgangs-Board: Mehrfachauswahl-Filter (August 2026)
+
+MINOR — Jahrgänge, Fördervarianten und ZAH-Phasen ließen je nur EINEN Wert zu: „2024 und 2025" war nicht wählbar, man musste auf „Alle" ausweichen und bekam den Altbestand dazu. Die drei Filter waren zugleich die einzigen nativen `<select>` in einer Filter-Leiste der App — daher das Betriebssystem-Menü in fremden Farben. Beides hat dieselbe Lösung.
+
+- **`MultiSelectDropdown`** in der Layout-Schicht: Mehrfachauswahl, leere Auswahl = kein Filter, Schnellwege über der Liste; visuelle Familie von `GruppierenDropdown`/`ColumnPicker` (gemessen: identische Rahmen-, Radius-, Schrift-, Padding- und Höhenwerte) ([MultiSelectDropdown.tsx](src/components/ui/MultiSelectDropdown.tsx))
+- **Trefferzahl je Wert als Facetten-Zahl** — gerechnet unter den jeweils anderen Filtern, die eigene Achse ausgespart; Filter-Logik dafür rein und geprüft aus dem Hook gelöst ([boardFilter.ts](src/plugins/vorgangs-board/boardFilter.ts))
+- **Vorbelegung „Letzte 3 Jahrgänge" steht jetzt angekreuzt da** statt als Sammelwert; die Zahlen bleiben unverändert (gemessen: 3 881 nach Filter, wie zuvor) ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
+- **Altbestands-Hinweis greift genauer**: schon bei einem einzeln gewählten alten Jahrgang, nicht erst bei „alle" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- **Fachliche Ordnung der Menüs**: ZAH-Phasen entlang des Verfahrens (statt nach Auftreten), Fördervarianten nach `VB_PHASE`-Nummer (statt alphabetisch „DL" vor „FuE" vor „NW 1") ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
+
+### v2.401.1 — Fachsystem heisst C16 (August 2026)
+
+PATCH — Das Legacy-Fachsystem, das die Vorgangskürzel führt und den Nacht-Export liefert, heißt **C16**; die App nannte es durchgängig „Foyer" und schickte Nutzer damit zum falschen System. Das ZIM-Foyer (Antragsportal) ist ein anderes System und bleibt unverändert.
+
+- **Nutzersichtbar**: Abschnittsüberschrift „Nächste Schritte (in C16 zu setzen)" ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx)) und drei Seiten-Hilfe-Docs, die zugleich das App-Wissen der Feedback-KI speisen ([docs/feedback-kontext/](docs/feedback-kontext/))
+- **Zweitname beseitigt**: das Substantiv „Legacy" für dasselbe System wurde mit umbenannt; die Komposita (`Legacy-Trigger`, `Legacy-Doku`) und das unverwandte Legacy im Sinne alter Schemata/Props bleiben ([vorgangssystem.md](docs/architecture/vorgangssystem.md))
+- **Fremddaten unberührt**: die amtlichen Kürzel-Labels der Zuarbeit („Eingang Foyer", „Antragsimport aus ZIM-Foyer …") bleiben wortgetreu, Pitfall #43 ([seed-codes.data.ts](src/core/status/seed-codes.data.ts))
+- **CSV-Label-Matcher unberührt**: `'ZIM-Foyer Vorgangscode'` und `'Antragsimport aus ZIM-Foyer'` vergleichen gegen echte Spaltenüberschriften ([felderKuration.ts](src/plugins/antraege/alleFelder/felderKuration.ts), [felderGruppen.ts](src/plugins/antraege/alleFelder/felderGruppen.ts))
+- `T_AAI` trägt den Identcode des **Portals** und heißt deshalb jetzt explizit `ZIM-Foyer-Identcode` ([vorgangssystem.md](docs/architecture/vorgangssystem.md))
+
+### v2.401.0 — Gemeinsame Tree-Basis für Status-Filter, Textbausteine, Ordner und Meilensteine (August 2026)
+
+MINOR — Vier Module bauten Baum-Verhalten je selbst nach: eigenes Aufklapp-Set, im Ordner-Editor dazu hand-geschriebenes HTML5-Drag. Keines davon konnte Tastatur. Eine gemeinsame Basis ersetzt alle vier — sieben eigene Zustandsstücke fallen weg.
+
+- **Tree-Basis `src/components/tree/`** auf `@headless-tree` (1.7.0, MIT, keine Runtime-Deps): Aufklappen, Pfeiltasten/Home/End, Tri-State-Checkboxen, Umbenennen, Ziehen, HoverCard und Kontextmenü — einziger erlaubter Ort für den Lib-Import (Guard `no-headless-tree-outside-wrapper`) ([TfTree.tsx](src/components/tree/TfTree.tsx))
+- **Status-Filter als Checkbox-Baum** mit echtem Tri-State an der Phase; die Übersetzung Baum ↔ Filter-Store ist rein und erhält fremde Preset-Werte ([statusTreeAdapter.ts](src/plugins/antraege/filter/statusTreeAdapter.ts))
+- **Textbaustein-Katalog als Hierarchie** Bereich → Überkategorie → Thema → Baustein, mit Umbenennen, Ziehen und Kontextmenü; kein Löschen, weil der Katalog keins kennt ([bausteinBaum.ts](src/plugins/skill-verwaltung-kuration/bausteinBaum.ts))
+- **Status-Ordnerbaum** ohne die fünf eigenen Zustandsstücke und ohne den `umhaengen`-Zweitweg; gezogen wird am Griff, weil die Zeile ein Zahlenfeld trägt ([kategorieBaum.ts](src/plugins/status-cockpit/kategorieBaum.ts))
+- **Meilenstein-Konfiguration**: Chevron klappt Unter-Meilensteine auf, der Bedingungs-Editor hängt am ausgewählten Knoten, Umsortieren per Ziehen über die neue reine `haengeKnotenUm` ([knoten-edit.ts](src/core/meilensteine/knoten-edit.ts))
+
+### v2.400.1 — Sicht-Zähler auf eine Grundmenge (August 2026)
+
+PATCH — Dieselbe Sicht trug zwei Zahlen: Tab „Bewilligt 2026" 541, Schnellauswahl-Chip 555. Der Kopf zählte über die Grundmenge der Liste (Bereich, inaktive MAs, Irrläufer-Schalter), die Chips über die rohe Store-Liste — genau der Fehlermodus, den Pitfall #46 benennt.
+
+- **`useFilteredAntraege` liefert die Zähler mit** (`counts` je Sicht) — gerechnet dort, wo die Liste entsteht; Tab-Leiste und Chips lesen nur noch ([useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts))
+- **Der Kopf rechnet nichts mehr nach**: eigene Bereichs-Filterung, Inaktiv-Ausschluss und Ausblend-Zahl entfallen ersatzlos ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Guard `Sicht-Zaehler kommen aus EINER Grundmenge`** — außerhalb der Pipeline zählt niemand mehr selbst, inklusive Positiv-Kontrolle gegen einen ins Leere laufenden Pfad-Filter ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
+
+### v2.400.0 — Kürzel und Codes im Herleitungs-Popover erklärt (August 2026)
+
+MINOR — „Wenn VB-Status vor 59, TV hat kein ABB → setze TV-Status 31." ist für den Eingearbeiteten präzise und für alle anderen Geheimschrift. Die Zeichen tragen jetzt ihre Bedeutung im Tooltip — und nur die belegten, damit der fehlende Unterstrich selbst eine Aussage bleibt.
+
+- **Der Satz entsteht als Segment-Liste, nicht als String**; `triggerSatz` ist nur noch deren Verkettung, Kopie und Bildschirm können damit nicht auseinanderlaufen ([trigger-satz.ts](src/core/status/trigger-satz.ts), abgespalten von [trigger-parser.ts](src/core/status/trigger-parser.ts))
+- **Erklärt wird gegen die Katalog-Fassung**: Kürzel → Bezeichnung + Rolle, Statuscode → amtlicher Text + ZAH-Phase, Bezugsdatei-Nummer, Mail-Empfänger ([trigger-erklaerung.ts](src/core/status/trigger-erklaerung.ts))
+- **Beide Flächen** — Herleitungs-Popover und „Nächste Schritte" auf derselben Seite ([ErklaerterSatz.tsx](src/plugins/antraege/status/ErklaerterSatz.tsx))
+- **Geteilter `kuerzelIndex`** statt der dritten Kopie derselben Map ([feld-zugriff.ts](src/core/status/feld-zugriff.ts))
+- Belegt am echten Bestand (2447 Trigger-Zeilen): `ABB` → „Bewilligung / wird gesetzt von QS", `211` → Ebene statt Statuscode, nicht interpretierte Zeilen ohne jede Geste
+
+### v2.399.0 — Sicht-Tab NF entfällt (August 2026)
+
+MINOR — Die Sicht-Tabs trugen mit „NF" eine Auswahl, die der Phasen-Quickfilter direkt darunter deckungsgleich trifft (beide über `isNachforderungStatus`). Zwei Bedienwege für dieselbe Menge; der obere fällt weg. „Bewilligt <Jahr>" bleibt — der Quickfilter „Bewilligt" ist jahrgangsübergreifend und damit kein Ersatz.
+
+- **`VIEWS` ohne `nachforderungen`** — Tab-Leiste und Schnellauswahl-Chips der Filter-Sidebar leiten sich beide daraus ab, der Eintrag verschwindet in einem Zug ([views.ts](src/plugins/antraege/views.ts))
+- **Persistierte Sicht wird gegen `VIEWS` validiert** statt gegen eine zweite Literal-Liste: ein Altwert fällt auf „Offen" zurück, statt die Seite ohne aktiven Tab auf eine ungefilterte Liste zu stellen ([store.ts](src/plugins/antraege/store.ts))
+- Belegt am echten Bestand: Quickfilter „NF" liefert dieselben 105 Teilvorhaben, die der Tab zeigte
+
+### v2.398.0 — Anweisung, Regeln und Prompt am offenen Antrag bearbeiten (August 2026)
+
+MINOR — Wer ein Gutachten schreibt, merkt am Abschnitt, dass die Anweisung nicht passt — und musste dafür bisher das Plugin wechseln. Die Inline-Werkstatt gab es seit v2.247, aber nur hinter `isDevContext()`; pl und as durften die Registry längst schreiben und sahen den kurzen Weg trotzdem nicht.
+
+- **Zugang als reine Funktion** statt zweier Prädikate nebeneinander: `registryEditierbar`/`werkstattZugang` — dev/local + pl/as + Kurator-mit-Session, prod raus; `canEditSkillRegistry` delegiert dorthin, kein neuer Flag ([registry-zugang.ts](src/config/registry-zugang.ts))
+- **Regeln des Abschnitts inline bearbeitbar** (Stift je Zeile, „+ Neue Regel") über die geteilte Fabrik `buildRegelMutations` — dieselbe, die die Verwaltungsseite nutzt ([regelMutations.ts](src/plugins/skill-verwaltung-kuration/regelMutations.ts))
+- **„Was daraus wirklich an die KI geht"** unter der Vorlage: Maße, Baustein-Reihenfolge und Wortlaut gegen den ungespeicherten Entwurf, rein gerechnet ohne KI-Aufruf ([PromptVorschauSpalte.tsx](src/plugins/antraege/gutachten/PromptVorschauSpalte.tsx))
+- **Warnung bei entferntem Inhalts-Slot** — nicht primär DSGVO (die ist fail-safe), sondern: der Lauf sieht die Vorhabensbeschreibung nicht mehr und schreibt trotzdem ([promptSlotWarnung.ts](src/plugins/skill-verwaltung-kuration/promptSlotWarnung.ts))
+- **Bugfix `promptMasse`**: die VB zählte auch dann als Anteil, wenn das Template ihren Slot nicht führt — die Anzeige meldete 78.040 VB-Zeichen bei 2.028 Gesamtzeichen ([promptAnsicht.ts](src/plugins/antraege/gutachten/promptAnsicht.ts))
+
+### v2.397.0 — Betrachtungsbereich: alle drei ZIM-Richtlinien ab 2015 (August 2026)
+
+MINOR — Der Chip versprach „letzte 3 Richtlinien", zeigte aber zwei Generationen: v2.389 hatte den Bereich nach der Trigger-Abdeckung geschnitten (neun Programme) und trotzdem als Generationszahl beschriftet. Die Generation 2015 fehlte — 5.086 Anträge, 47 allein 4.190.
+
+- **Standard-Bereich sind die drei jüngsten Richtlinien-Generationen** (2015 + 2020 + 2025 = 12 Programme, 12.355 von 14.221 Anträgen); außerhalb bleibt nur die Generation 2012 ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts))
+- **`RICHTLINIEN_GENERATIONEN` als Datenstruktur**, Seed ist `slice(-3)` davon — ein Richtlinien-Wechsel ist ein angehängter Listeneintrag, die älteste Generation rollt von selbst heraus
+- **Chip-Beschriftung abgeleitet statt danebengeschrieben** (`bereichsLabel`): keine hartcodierte „3" mehr, Singular korrekt, und wo sich keine Generation belegen lässt, wird keine behauptet ([BereichChip.tsx](src/components/bereich/BereichChip.tsx))
+- **Auswahl-Panel nach Generation gruppiert** (jüngste oben) + Hinweis, wenn eine eigene Auswahl vom Standard abweicht — der Ersatz für einen localStorage-Key-Bump ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+- **Gemessen** ([§10.2](docs/architecture/vorgangssystem.md)): nur „Alle" bewegt sich (5.542 → 7.468), Offen 892 / Überfällig 478 / NF 105 identisch; Board rechnet 12.355 statt 7.269 Vorgänge; Kompetenz-Basis der Auslastung bleibt 14.221
+
+### v2.396.0 — Erhebungs-Fallzahl, Paar-Alter und Journal-Frische (August 2026)
+
+MINOR — Drei Nachzüge aus den Protokollen zu v2.391/v2.392. Die FB-Erhebung nannte dem Termin die falsche Größenordnung, der Alterssplit fehlte, und ein ausgefallener Journal-Lauf war nur in der Konsole sichtbar.
+
+- **Zweite Kennzahl `bedingungTrifft`** je Platzhalter — die Bedingung ohne Kaskaden-Vorrang ausgewertet; gemessen 10 sichtbar vs. 222 betroffen bei R16 ([fb-erhebung.ts](src/core/status/fb-erhebung.ts))
+- **Alterssplit `PAAR_ALTBESTAND_TAGE = 400`** in den blinden Flecken, je Block Anzahl, Median-Standzeit und Median der letzten Aktivität — 952 aktuelle gegen 4.868 alte Fälle
+- **Beide Zahlen und beide Blöcke** in Regeln-Tab, XLSX und Kurzfassung ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx), [fbErhebungExport.ts](src/plugins/status-cockpit/fbErhebungExport.ts))
+- **Journal-Frische im Bereich „Referenzdaten"** mit Warnschwelle 3 Tage, die die Folge nennt statt des Zustands ([JournalFrische.tsx](src/plugins/status-cockpit/JournalFrische.tsx), [lesen.ts](src/core/status/journal/lesen.ts))
+- **Rollout-Sperre testgesichert** + Warnzeile, sobald ein Regelsatz ≠ AB aktive Regeln führt — deckt auch den Katalog-Import ab, der an keinem Dialog vorbeikommt
+
+### v2.395.2 — Avatar traegt das Kuerzel, Begruessung nur den Vornamen (August 2026)
+
+PATCH — Der Profil-Avatar trug die Namens-Initialen; das eigentlich identitätsstiftende Kürzel war nirgends sichtbar. Die Startseite sprach mit dem vollen Namen an statt nur dem Vornamen.
+
+- **Profil-Avatar zeigt das Kürzel** wenn eines gewählt ist (z.B. „THÜ"), sonst weiter Namens-Initialen ([settings-primitives.tsx](src/plugins/einstellungen/_shared/settings-primitives.tsx), [ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx), [MeineTechnologienTab.tsx](src/plugins/einstellungen/MeineTechnologienTab.tsx))
+- **Startseiten-Begrüßung nur noch mit Vornamen** — „Guten Tag, Thomas" statt „Guten Tag, Thomas Hollerith" ([HomePage.tsx](src/plugins/home/HomePage.tsx))
+- **`profilAvatarText` / `vornameVon` / `initialenVon` / `kuerzelFuerAnzeige`** als gemeinsame Basis in [profil-anzeige.ts](src/core/utils/profil-anzeige.ts) (zuvor drei unterschiedliche Inline-Varianten)
+
+### v2.395.1 — Doku auf den Ist-Zustand nach dem Bauantrag-Endausbau (August 2026)
+
+PATCH — Nachtrag zu v2.395: sechs lebende Docs beschrieben noch „zwei Status-Domänen" und verwiesen auf die gelöschte Fixture. Docs beschreiben den Ist-Zustand (Doku-Konvention 1), also werden sie umgeschrieben statt ergänzt.
+
+- [antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) neu geschnitten: „Rohwert vs. Kategorie" statt zwei Domänen, inkl. der unbesetzten Kategorie `abgelehnt` und der Messung aus dem echten Bestand.
+- [add-view.md](docs/agents/add-view.md) + [add-filter-facet.md](docs/agents/add-filter-facet.md): keine Doppelfixture-Pflicht mehr.
+- [CLAUDE.md](CLAUDE.md), [project-structure.md](docs/architecture/project-structure.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md) auf `VorgangStatus = string` bzw. die entfallene Handliste gezogen.
+- **Nicht angefasst:** `prompt-vorgangssystem.md` (Auftragsdokument einer vergangenen Runde) und `KATALOG-V1.md` (im README bereits als historisch markiert) — beides Archiv-Kandidaten für eine spätere Runde.
+
 ### v2.395.0 — Bauantrag-Endausbau: das Vokabular der entfernten Demo-Domaene raus (August 2026)
 
 MINOR — Die Bauantrag-Demo-Domäne ist seit v2.88 weg, ihr Vokabular lief weiter: eine handgepflegte Statusliste neben dem Code-Katalog, eine erfundene Status-Union, eine zweite Test-Fixture, 16 Search-Eval-Fälle und ein Dokumenttyp in zwei LLM-Prompts.

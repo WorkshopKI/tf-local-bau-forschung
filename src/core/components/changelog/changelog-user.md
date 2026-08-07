@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.32 — 2026-08
+
+### Verbesserungen
+- Der **aufgeklappte Bereich** unter einer Antragszeile nutzt jetzt die ganze sichtbare Breite der Tabelle statt eines schmalen Streifens.
+- Im **VerlaufsBand** stehen dadurch **ausgeschriebene Statusnamen** in den Balken — „Ablehnung versandt" statt einer Ziffer, für die man in die Legende schauen musste.
+- Passt ein Name nicht in seinen Balken, steht er **darunter**, mit einem Strich zu seinem Abschnitt. Das betrifft die ganz kurzen Abschnitte, die auch bei viel Platz schmal bleiben.
+- Die **Legende bekommt ihre Nummern nur noch**, wenn wirklich ein Abschnitt eine trägt — sonst sind sie weg.
+- Der Reiter **„Fristen und Meilensteine"** behält seine schmalere Lesebreite; lange Textzeilen bleiben lesbar.
+
 ## v3.31 — 2026-08
 
 ### Neu

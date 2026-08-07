@@ -1419,6 +1419,43 @@ darüber ist die Verzerrung mild und eine Marke wäre Rauschen. Die Bahn darf ü
 ihren Container hinauswachsen und scrollt dann in ihrem **eigenen** Behälter;
 lieber scrollen als Abschnitte unter die Klickgrenze drücken.
 
+**Der 24-px-Boden ist auch eine Grenze.** Ein Ein-Tages-Abschnitt sitzt auf ihm
+und bleibt dort, **egal wie breit die Bahn wird** — die Verteilung wächst nur
+oberhalb des Mindestmaßes. Mehr Breite beschriftet also die mittleren
+Abschnitte, nie die kürzesten. Das ist der Grund für die zweite Etage weiter
+unten; ohne sie schickte jede Verbreiterung den Leser für genau die Abschnitte
+in die Legende, die er nachschlagen will.
+
+#### Der Ausklappbereich nimmt die sichtbare Tabellenbreite (v3.32)
+
+Bis v3.31 war die Bahn auf 620 px festgenagelt, in einem Bereich von ~772 px,
+während die Tabelle ~1300 px zeigte. Drei Deckel lagen übereinander, und der
+unterste war der `max-content`-Kasten der `colSpan`-Zelle: darin ist `w-full`
+ein Zirkelbezug, die Breite kam also vom Inhalt, nicht vom Platz.
+
+Jetzt misst [SortableTable](../../src/components/data-table/SortableTable.tsx)
+den Scrollport ohnehin (für die Überschuss-Verteilung) und reicht die Zahl an
+[TableBody](../../src/components/data-table/TableBody.tsx) durch; der klebende
+Wrapper bekommt **`width: min(100%, port)`**. `100 %` löst gegen die
+`colSpan`-Zelle auf — unter `table-layout: fixed` steht deren Breite vor dem
+Inhalt fest, es gibt keinen Zirkelschluss — und `min()` deckelt auf das, was man
+wirklich sieht. Ist die Tabelle **gepinnt schmaler** als der Port, gewinnt
+`100 %`: dort gibt es nichts zu scrollen. Ohne Messung bleibt `max-content`, also
+das Verhalten bis v3.31.
+
+Der Deckel gegen unlesbar lange Zeilen ist damit **umgezogen**: er sitzt jetzt am
+[FristenReiter](../../src/plugins/antraege/ausklapp/FristenReiter.tsx), wo
+Fließtext steht, nicht mehr am ganzen Bereich. Die Bahn ist eine Grafik und will
+jeden Pixel; ein Absatz über 1200 px will das Gegenteil.
+
+Die Bahn selbst misst ihren eigenen Behälter
+([useElementBreite](../../src/core/hooks/useElementBreite.ts), eine
+Implementierung für die App statt bisher zwei privater Kopien). Gemessen wird
+**synchron vor** dem `ResizeObserver` — sonst blitzt ein Rahmen lang das feste
+Maß auf, und in einer nicht gezeichneten Umgebung (verborgenes Pane) käme nie
+etwas an. Eine 0-Breite bleibt `null` und fällt auf den Prop zurück, statt die
+Zeichnung zu zerquetschen.
+
 #### Konfidenz sitzt an den Kanten
 
 Vier Stufen, vier Aussagen, kein stiller Fallback:
@@ -1457,10 +1494,47 @@ das Segment spannt sichtbar über die volle Breite.
 #### Keine Codes in der Bahn — aber im kopierten Text
 
 In der Oberfläche wäre `AK4` eine Vokabel, die nur die Hälfte des Teams kennt;
-die Bahn zeigt Kurzformen (`statusKurzLabel`, Pitfall #50) und eine Legende mit
-den vollen Bezeichnern. Ab sechs Einträgen wird sie nummeriert, **und die
-schmalen Segmente tragen dann ihre Nummer** — ohne das wäre die Nummerierung
-unbrauchbar, denn nachschlagen will man genau die, für die kein Label passt.
+die Bahn zeigt Namen (`statusLabel`/`statusKurzLabel`, Pitfall #50) und eine
+Legende mit den vollen Bezeichnern.
+
+#### Vier Stufen, gemessen (v3.32)
+
+Was an einem Abschnitt steht, entscheidet
+[bandBeschriftung.ts](../../src/plugins/antraege/verlauf-band/bandBeschriftung.ts)
+— rein und node-testbar, **Schwester** der Geometrie, nicht Teil von ihr: die
+Geometrie ist im ersten Rahmen fertig, das Textmaß liegt frühestens vor, wenn die
+Webschriften stehen. Zwei Fragen, zwei Rechnungen; die Geometrie wird dabei nicht
+angefasst, und das steht als Test.
+
+| Stufe | wann | wo |
+|---|---|---|
+| voller Bezeichner | er passt in den Balken | im Balken |
+| Kurzform | nur sie passt | im Balken |
+| voller Bezeichner, sonst Kurzform | keins passt hinein | **unter** dem Balken |
+| Legendennummer | auch darunter kein Platz | im Balken |
+
+**Gemessen, nicht geraten.** Bis v3.31 entschied eine geratene Konstante
+(46 px gegen `text-[10px]`). Jetzt liefert
+[textMessung.ts](../../src/components/data-table/messung/textMessung.ts) die
+Breite — dieselbe Canvas-Messung wie für die Spaltenbreiten, samt ihres
+Generationszählers gegen die Webfont-Falle (wer vor `document.fonts.ready` misst,
+bekommt die Metrik der Ersatzschrift und bleibt dabei). Fällt die Messung aus,
+gilt Stufe 2 mit der alten Schwelle — **nie unter den Stand von v3.31**.
+
+**Die zweite Etage ist der Kern.** Der 24-px-Boden der Achse macht kurze
+Abschnitte durch Breite allein nie beschriftbar. Unter dem Balken darf ihr Name
+unter den Balken der *Nachbarn* hinweglaufen, ohne etwas zu verdecken — die
+liegen eine Etage höher. Nur Unter-Beschriftungen konkurrieren miteinander, und
+die prüft der Algorithmus von links nach rechts; ein Führungsstrich am linken
+Rand sagt, zu welchem Abschnitt sie gehört. Nur das **letzte** Segment (der
+aktuelle Stand) rückt nach innen, wenn es sonst rechts hinausliefe — dann wandert
+der Strich mit auf die andere Seite. Gegen eine bloße Kollision hilft das nicht:
+Ausweichen führte das Label weit weg von seinem eigenen Abschnitt.
+
+**Die Legende nummeriert nur bei Bedarf.** Bis v3.31 war es eine feste Schwelle
+(ab sechs Einträgen), auch wenn jeder Balken seinen Namen trug — dann waren die
+Ziffern Rauschen. Eine Nummer ist eine Brücke; ohne Abschnitt, der sie braucht,
+führt sie nirgendwohin.
 
 „Verlauf kopieren" ([bandText.ts](../../src/plugins/antraege/verlauf-band/bandText.ts))
 gibt dagegen **Labels UND Codes** heraus, dazu Bestandsstand, Katalogfassung und

@@ -14,8 +14,12 @@ export type SortDirection = 'asc' | 'desc';
 /** Schrift-Profil einer Zelle für die Breiten-Messung. Welche Pixel dahinter
  *  stehen, sagt `messung/textMessung.ts` — hier ist es nur ein Etikett. Der Typ
  *  wohnt bei `SortableColumn`, damit die Messung von den Typen abhängt und
- *  nicht umgekehrt. */
-export type MessSchrift = 'zelle' | 'zelleKlein' | 'mono' | 'monoKlein' | 'badge' | 'kopf';
+ *  nicht umgekehrt.
+ *
+ *  `'bandLabel'` gehört keiner Spalte: es ist die Balkenschrift des
+ *  VerlaufsBands, der erste Verbraucher der Messung außerhalb der Tabelle. */
+export type MessSchrift =
+  | 'zelle' | 'zelleKlein' | 'mono' | 'monoKlein' | 'badge' | 'kopf' | 'bandLabel';
 
 export interface SortableColumn<T> {
   /** Stabiler Identifier — wird als Key, fuer Persistenz und Sort-State genutzt. */

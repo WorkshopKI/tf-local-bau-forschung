@@ -6,6 +6,10 @@
  * keine geklickte Zeile, also läuft `useZeilenVerlauf` mit `aktenzeichen: null`
  * über das ganze Vorhaben. Die Ableitung bleibt dieselbe — hier entsteht keine
  * zweite.
+ *
+ * **Keine eigene Breite mehr** (v3.32): die Bahn misst ihren Container selbst.
+ * Eine zweite feste Zahl neben dem Rückfallwert des Bands erklärte nur noch,
+ * wie breit der erste Rahmen ist — und der ist nach einem Wimpernschlag vorbei.
  */
 import { useZeilenVerlauf } from '../ausklapp/useZeilenVerlauf';
 import { JournalFuss, leise } from '../ausklapp/SpurListe';
@@ -29,7 +33,6 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
         spuren={daten.spuren}
         eigenes={verbundId}
         bezugsZeitpunkt={daten.bezugsZeitpunkt}
-        breite={760}
         fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
         journalAb={daten.journalAb}
       />

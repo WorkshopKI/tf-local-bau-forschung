@@ -17,10 +17,16 @@
  *
  * Gerechnet wird in `bandGeometrie.ts` (rein, node-testbar); diese Datei zeichnet.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Hand } from 'lucide-react';
 import { Tooltip } from '@/components/ui/Tooltip';
+// Direkt, nicht über das Barrel: `textMessung` hängt nur an `data-table/types`,
+// der Umweg zöge die halbe Tabellen-Schicht in dieses Bauteil.
+import {
+  aktuelleSchriftGeneration, messeBreite, warteAufSchriften,
+} from '@/components/data-table/messung/textMessung';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useElementBreite } from '@/core/hooks/useElementBreite';
 import { kopiereText } from '@/core/utils/kopieren';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { KANBAN_LANE_ACCENT } from '@/plugins/home/widgets/kanbanLanes';
@@ -30,16 +36,31 @@ import { KONFIDENZ_TEXT, SpurListe, leise, spurTitel } from '../ausklapp/SpurLis
 import {
   baueBandGeometrie, dauerText, type BandSegment, type BandSpur,
 } from './bandGeometrie';
+import { verteileBeschriftung, type SegmentBeschriftung } from './bandBeschriftung';
 import { baueVerlaufsText } from './bandText';
 
 /** Höhe einer Bahn inklusive Beschriftungszeile. */
 const SPUR_H = 30;
+/** Zusatzhöhe einer Bahn, die eine zweite Beschriftungs-Etage trägt. */
+const UNTER_H = 12;
 /** Breite der Spur-Beschriftung links. */
 const LABEL_W = 128;
-/** Ab dieser Segmentbreite passt eine Kurzform hinein. */
-const LABEL_AB = 46;
-/** Ab so vielen Segmenten wird die Legende nummeriert. */
-const NUMMERN_AB = 6;
+/** Unter diese Bahnbreite geht es nie, egal wie eng der Container wird. */
+const MIN_BAHN = 320;
+/**
+ * Luft rechts neben der Achse. Am Achsenende sitzt Tinte, die über `geo.breite`
+ * hinausragt: eine Kante wird um ihre halbe Breite nach links versetzt gezeichnet
+ * (`x − 4`, 8 px breit), und ein auf die Mindestbreite kollabiertes Segment endet
+ * einen Pixel dahinter. Ohne diese Luft scrollt die Bahn um genau diese vier
+ * Pixel — ein Scrollbalken für nichts.
+ */
+const RAND_LUFT = 4;
+
+/** Ein Segment ohne eigene Entscheidung — kann nur auftreten, wenn Geometrie
+ *  und Beschriftung auseinanderliefen; dann lieber leer als falsch. */
+const LEER_LABEL: SegmentBeschriftung = {
+  lage: 'keine', text: '', x: 0, breite: 0, rechtsBuendig: false,
+};
 
 /**
  * Wie eine Kante gezeichnet wird. Vier Stufen, vier Aussagen — kein stiller
@@ -67,21 +88,28 @@ function segmentTooltip(b: BandSegment): string {
     + `${s.dauerUnsicher ? ' (unsicher)' : ''}${herkunft}`;
 }
 
-function Segment({ b, nummer }: { b: BandSegment; nummer?: number }): React.ReactElement {
+function Segment({ b, schrift }: {
+  b: BandSegment; schrift: SegmentBeschriftung;
+}): React.ReactElement {
   const s = b.segment;
-  // Passt die Kurzform nicht, tritt die Legendennummer an ihre Stelle. Ohne sie
-  // wäre die nummerierte Legende unbrauchbar: die schmalen Segmente sind genau
-  // die, die man nachschlagen will, und ein leeres Kästchen verweist auf nichts.
-  const zeigeLabel = b.breite >= LABEL_AB;
-  const label = zeigeLabel
-    ? (s.statusRef?.kurz ?? '—')
-    : (nummer !== undefined && b.breite >= 16 ? String(nummer) : '');
+  // Was hier steht, hat `bandBeschriftung.ts` entschieden — gemessen, nicht
+  // geraten. Steht der Text unter dem Balken, bleibt der Balken selbst leer.
+  const label = schrift.lage === 'im-balken' || schrift.lage === 'nummer' ? schrift.text : '';
   return (
     <Tooltip text={segmentTooltip(b)} wrapperClassName="absolute" wrapperStyle={{
       left: b.links, width: b.breite, top: 4, height: 16,
     }}>
       <span
-        className="block h-full rounded-[2px] overflow-hidden text-[10px] leading-4 px-1 text-white whitespace-nowrap"
+        // `data-band-label`: Anker für die Gegenprobe im Abnahmelauf — läuft ein
+        // gemessener Text doch über seinen Balken, ist `scrollWidth` größer als
+        // der Kasten, und das Messmodell ist widerlegt.
+        data-band-label=""
+        // Polster NUR mit Text: ein leerer Balken hätte sonst 8 px Mindestbreite
+        // (das `px-1` eines Blocks lässt sich nicht unterschreiten) und ein auf
+        // die Mindestbreite kollabiertes Segment ragte achtfach über sein Maß
+        // hinaus — sichtbar als Scrollbalken am rechten Bahnrand.
+        className={`block h-full rounded-[2px] overflow-hidden text-[10px] leading-4 text-white whitespace-nowrap${
+          label === '' ? '' : ' px-1'}`}
         style={{
           background: farbe(s.statusRef?.roh),
           // Angeschnittene Kante statt Ersatzbreite: wo eine Grenze fehlt, endet
@@ -150,16 +178,49 @@ function lageText(spur: VerlaufsSpur): string | null {
   return null;
 }
 
-function Bahn({ b, breite, eigenes, offen, onToggle, nummern }: {
+/**
+ * Die Beschriftung eines Segments, die nicht in seinen Balken passte. Sie steht
+ * in der zweiten Etage und darf unter den Balken ihrer Nachbarn hinweglaufen —
+ * die liegen höher, es wird nichts verdeckt. Der Führungsstrich sagt, zu welchem
+ * Abschnitt sie gehört.
+ */
+function UnterLabel({ s }: { s: SegmentBeschriftung }): React.ReactElement {
+  return (
+    <span
+      className={`absolute text-[10px] leading-3 whitespace-nowrap pointer-events-none
+        text-[var(--tf-text-secondary)] ${s.rechtsBuendig ? 'pr-[3px]' : 'pl-[3px]'}`}
+      style={{
+        left: s.x,
+        top: 22,
+        // Nach innen gerückt zeigt der Strich nach rechts: links stünde er in
+        // einem fremden Abschnitt.
+        ...(s.rechtsBuendig
+          ? { borderRight: '1px solid var(--tf-border)' }
+          : { borderLeft: '1px solid var(--tf-border)' }),
+      }}
+    >
+      {s.text}
+    </span>
+  );
+}
+
+function Bahn({ b, breite, eigenes, offen, onToggle, schrift, unterzeile }: {
   b: BandSpur; breite: number; eigenes: string; offen: boolean; onToggle: () => void;
-  /** Kurzform → Legendennummer; leer, solange die Legende nicht nummeriert ist. */
-  nummern: ReadonlyMap<string, number>;
+  /** Beschriftungsentscheidung je Segment, indexgleich zu `b.segmente`. */
+  schrift: readonly SegmentBeschriftung[];
+  /** Trägt diese Bahn eine zweite Etage? Dann wächst sie um deren Höhe. */
+  unterzeile: boolean;
 }): React.ReactElement {
   const spur = b.spur;
   const lage = lageText(spur);
   const gruppe = b.gleiche.length > 0 ? ` +${b.gleiche.length}` : '';
+  // Höhe JE BAHN, nicht global: ein Verbund mit acht Teilvorhaben soll nicht
+  // überall Platz verschenken, weil eine einzige Bahn eine zweite Etage braucht.
+  // Die Zusage „derselbe Tag, dieselbe x-Position" bricht davon nicht — die
+  // Achse ist waagerecht geteilt, nicht senkrecht.
+  const zusatz = unterzeile ? UNTER_H : 0;
   return (
-    <div className="flex items-start" style={{ height: SPUR_H }}>
+    <div className="flex items-start" style={{ height: SPUR_H + zusatz }}>
       <button
         type="button"
         onClick={onToggle}
@@ -171,7 +232,7 @@ function Bahn({ b, breite, eigenes, offen, onToggle, nummern }: {
       >
         {spurTitel(spur, eigenes)}{gruppe}
       </button>
-      <div className="relative" style={{ width: breite, height: 24 }}>
+      <div className="relative" style={{ width: breite, height: 24 + zusatz }}>
         {/* Die Lage steht DANEBEN, nicht statt der Bahn: ein Vorgang ohne
             erklärten Wechsel trägt trotzdem seinen Status, und der gehört
             gezeichnet. Nur wenn es gar kein Segment gibt, tritt der Satz an
@@ -187,13 +248,13 @@ function Bahn({ b, breite, eigenes, offen, onToggle, nummern }: {
         {b.segmente.length === 0 ? null : (
           <>
             {b.segmente.map((s, i) => (
-              <Segment
-                key={`${s.segment.vonDatum}-${i}`} b={s}
-                {...(nummern.get(s.segment.statusRef?.kurz ?? '') !== undefined
-                  ? { nummer: nummern.get(s.segment.statusRef?.kurz ?? '') }
-                  : {})}
-              />
+              <Segment key={`${s.segment.vonDatum}-${i}`} b={s} schrift={schrift[i] ?? LEER_LABEL} />
             ))}
+            {/* Die zweite Etage NACH den Balken, damit sie im Zweifel obenauf
+                liegt — sie läuft absichtlich unter fremde Balken hinweg. */}
+            {schrift.map((s, i) => (s.lage === 'unter-balken'
+              ? <UnterLabel key={`u-${i}`} s={s} />
+              : null))}
             {/* Je Übergang eine Kante an seinem Tag. Die Konfidenz gehört hierher,
                 nicht auf die Fläche daneben. */}
             {spur.uebergaenge.map((u, i) => {
@@ -221,27 +282,43 @@ export function VerlaufsBand({
   spuren: readonly VerlaufsSpur[];
   eigenes: string;
   bezugsZeitpunkt: string;
-  /** Vorgabebreite; die Bahn darf darüber hinauswachsen und scrollt dann. */
+  /**
+   * Breite für den ERSTEN Rahmen, bevor die Messung greift — danach folgt die
+   * Bahn dem Container. Die Bahn darf über ihn hinauswachsen und scrollt dann.
+   */
   breite?: number;
   /** Beschriftung der geladenen Katalogfassung — gehört in den kopierten Text. */
   fassung?: string | null;
   journalAb?: string | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState<string | null>(null);
-  const scroll = useRef<HTMLDivElement>(null);
+  // Gemessen wird der Scroll-Behälter der Bahn: seine Breite kommt von OBEN
+  // (Block in einer Flex-Spalte), sein Inhalt fließt daran vorbei in den Scroll
+  // — es gibt also keine Rückkopplung Inhalt → Container → Inhalt. Das setzt
+  // voraus, dass kein Vorfahr shrink-to-fit ist; `TableBody` gibt dem Bereich
+  // seit v3.32 die sichtbare Tabellenbreite (`portBreite`).
+  const [scroll, gemessen] = useElementBreite<HTMLDivElement>('inhalt');
   const kopieren = useAsyncAction(async () => {
     await kopiereText(baueVerlaufsText(spuren, {
       bezug: eigenes || spuren.find(s => s.art === 'verbund')?.id || '—',
       fassung, journalAb, bezugsZeitpunkt,
     }));
   });
+  // `gemessen === null`: erster Rahmen, verborgene Pane oder kein
+  // `ResizeObserver` — dann gilt der Prop. Die Spur-Beschriftung links geht vom
+  // gemessenen Platz ab, sie steht neben der Bahn, nicht darin.
+  const vorgabe = Math.max(
+    MIN_BAHN,
+    gemessen === null ? breite : gemessen - LABEL_W - RAND_LUFT,
+  );
   const geo = useMemo(
-    () => baueBandGeometrie(spuren, bezugsZeitpunkt, breite),
-    [spuren, bezugsZeitpunkt, breite],
+    () => baueBandGeometrie(spuren, bezugsZeitpunkt, vorgabe),
+    [spuren, bezugsZeitpunkt, vorgabe],
   );
 
-  // Die Legende: volle Bezeichner in Verlaufsreihenfolge, entdoppelt. Die Bahn
-  // selbst zeigt nur Kurzformen — hier steht, was sie bedeuten.
+  // Die Legende: volle Bezeichner in Verlaufsreihenfolge, entdoppelt. Ihre
+  // REIHENFOLGE steht unabhängig von der Beschriftung fest — offen ist nur, ob
+  // die Nummern gebraucht werden.
   const legende = useMemo(() => {
     const gesehen = new Set<string>();
     const out: { kurz: string; lang: string; roh: string }[] = [];
@@ -256,18 +333,46 @@ export function VerlaufsBand({
     return out;
   }, [geo]);
 
-  const nummeriert = legende.length >= NUMMERN_AB;
   const nummern = useMemo(
-    () => new Map(nummeriert ? legende.map((l, i) => [l.kurz, i + 1] as const) : []),
-    [legende, nummeriert],
+    () => new Map(legende.map((l, i) => [l.kurz, i + 1] as const)),
+    [legende],
   );
+
+  // Die Webschriften laden asynchron. Wer vorher misst, bekommt die Metrik der
+  // Ersatzschrift und bleibt dabei — die Beschriftungen wären systematisch zu
+  // schmal gemessen und liefen über ihre Balken hinaus. Genau eine Neumessung,
+  // sobald sie stehen (`textMessung.ts` zählt die Generation hoch).
+  const [schriftGen, setSchriftGen] = useState(() => aktuelleSchriftGeneration());
+  useEffect(() => {
+    let lebt = true;
+    void warteAufSchriften().then(() => {
+      if (lebt) setSchriftGen(aktuelleSchriftGeneration());
+    });
+    return () => { lebt = false; };
+  }, []);
+
+  const beschriftung = useMemo(
+    () => verteileBeschriftung(geo.spuren, {
+      bahnBreite: geo.breite,
+      messeText: (t: string) => messeBreite(t, 'bandLabel'),
+      nummerVon: (k: string) => nummern.get(k),
+    }),
+    // `schriftGen` ist kein Argument der Rechnung, sondern die Signatur des
+    // modulweiten Messcaches: wechselt sie, ist jede vorherige Messung ungültig.
+    [geo, nummern, schriftGen],
+  );
+
+  // Nummeriert wird genau dann, wenn ein Segment eine Nummer TRÄGT. Eine Nummer
+  // ist eine Brücke; ohne Segment, das sie braucht, führt sie nirgendwohin und
+  // wäre in der Legende nur Rauschen.
+  const nummeriert = beschriftung.nummernGenutzt;
   const offeneSpur = geo.spuren.find(b => `${b.spur.art}-${b.spur.id}` === offen);
 
   return (
     <div className="flex flex-col gap-2">
       {/* Die Bahn scrollt in ihrem EIGENEN Container — der Seiten-Body nie. */}
       <div ref={scroll} className="overflow-x-auto">
-        <div style={{ width: LABEL_W + geo.breite }}>
+        <div style={{ width: LABEL_W + geo.breite + RAND_LUFT }}>
           {/* Achsenmarken oben, damit die Stauchung ablesbar bleibt. */}
           <div className="relative" style={{ height: 12, marginLeft: LABEL_W }}>
             {geo.marken.map(m => (
@@ -276,11 +381,13 @@ export function VerlaufsBand({
               </span>
             ))}
           </div>
-          {geo.spuren.map(b => {
+          {geo.spuren.map((b, i) => {
             const key = `${b.spur.art}-${b.spur.id}`;
             return (
               <Bahn
-                key={key} b={b} breite={geo.breite} eigenes={eigenes} nummern={nummern}
+                key={key} b={b} breite={geo.breite} eigenes={eigenes}
+                schrift={beschriftung.segmente[i] ?? []}
+                unterzeile={beschriftung.unterzeile[i] ?? false}
                 offen={offen === key}
                 onToggle={() => setOffen(offen === key ? null : key)}
               />

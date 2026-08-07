@@ -49,14 +49,21 @@ const DEFAULT_MIN_COLUMN_WIDTH = 60;
 
 /**
  * Innenbreite des Scroll-Containers — Grundlage der Überschuss-Verteilung
- * (`verteileUeberschuss` in `tableSizing.ts`).
+ * (`verteileUeberschuss` in `tableSizing.ts`) UND Deckel des aufgeklappten
+ * Zeilen-Bereichs (`TableBody.portBreite`).
  *
  * Keine Rückkopplung mit der Tabellenbreite: der Container ist `flex-1 min-w-0`,
  * seine Breite hängt am Elternteil, nicht am Inhalt. Ein waagerechter
  * Scrollbalken nimmt Höhe weg, nicht `clientWidth`.
  *
- * `undefined` heißt „nicht anwendbar" (Einpass-/gepinnter Modus) und schaltet
- * die Verteilung ab — nicht „noch nicht gemessen".
+ * Über die HÖHE gäbe es einen: ein wachsender Ausklappbereich könnte im
+ * stehenden Modus einen senkrechten Balken hervorrufen, der `clientWidth`
+ * verengt, was den Bereich schmaler und damit höher machte. Genau dagegen steht
+ * `scrollbarGutter: 'stable'` weiter unten — es darf deshalb nicht weg.
+ *
+ * `undefined` heißt hier „noch nicht gemessen"; die Bedeutung „nicht anwendbar"
+ * (Einpass-/gepinnter Modus) entsteht erst beim Aufrufer, der die Zahl für die
+ * Verteilung mode-abhängig weiterreicht.
  */
 function useContainerBreite(
   ref: React.RefObject<HTMLDivElement | null>,
@@ -66,7 +73,10 @@ function useContainerBreite(
   useLayoutEffect(() => {
     const el = ref.current;
     if (!aktiv || !el) { setBreite(undefined); return; }
-    const messen = (): void => setBreite(el.clientWidth);
+    // Gerundet: `clientWidth` liefert zwar ganze Pixel, aber der Rueckweg ueber
+    // Layout-Aenderungen tut es nicht immer — ein Sub-Pixel-Zittern loeste sonst
+    // Renderrunden aus, die nichts bewegen.
+    const messen = (): void => setBreite(Math.round(el.clientWidth));
     messen();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(messen);
@@ -297,10 +307,18 @@ export function SortableTable<T>({
     scrollRef.current = el;
     if (scrollContainerRef) scrollContainerRef.current = el;
   }, [scrollContainerRef]);
+  const detailAktiv = isRowExpanded !== undefined && renderRowDetail !== undefined;
+  // Gemessen wird, wo die Zahl gebraucht wird: für die Überschuss-Verteilung
+  // (nur Scroll-Modus) ODER als Deckel des aufgeklappten Bereichs. Das Gatter
+  // wird erweitert, nicht aufgehoben — sonst haengt jede Tabelle einen
+  // `ResizeObserver` an, die ihn gar nicht braucht.
+  const portBreite = useContainerBreite(scrollRef, modus === 'scroll' || detailAktiv);
   // Nur im Scroll-Modus gibt es einen Überschuss zu verteilen: im Einpass-Modus
   // ist die Tabelle ohnehin containerbreit, und bei gepinnter Gesamtbreite hat
   // der Nutzer die Breite gesetzt — beides darf die Verteilung nicht anfassen.
-  const containerBreite = useContainerBreite(scrollRef, modus === 'scroll');
+  // Die Modus-Abhaengigkeit bleibt ALLEIN hier: fuer `computeTableSizing` heisst
+  // `undefined` weiterhin „nicht anwendbar", nicht „noch nicht gemessen".
+  const containerBreite = modus === 'scroll' ? portBreite : undefined;
   // Prozent-Breiten der `<col>` + Wunsch-/Bodenbreite der Tabelle (siehe
   // `tableSizing.ts`). Die Pixel-Summe ist die Wunschbreite, nicht die
   // erzwungene — nur so kann die Tabelle unter ihre Spaltensumme schrumpfen.
@@ -428,6 +446,7 @@ export function SortableTable<T>({
               stickyFirstColumn={stickyFirstColumn}
               isRowExpanded={isRowExpanded}
               renderRowDetail={renderRowDetail}
+              portBreite={portBreite}
             />
           </table>
         </div>

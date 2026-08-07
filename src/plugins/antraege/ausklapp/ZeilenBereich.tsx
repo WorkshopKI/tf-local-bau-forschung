@@ -75,11 +75,12 @@ export function ZeilenBereich({
       role="region"
       aria-label={`Details zu ${zeilenKey}`}
       onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onSchliessen(); } }}
-      // Der Kasten sitzt in einer `colSpan`-Zelle, die über die ganze — womöglich
-      // sehr breite — Tabelle spannt. Ohne Deckel liefe der Text bis zum rechten
-      // Tabellenrand und wäre unlesbar. `w-full` mit Deckel statt fixer Breite:
-      // eine schmale Tabelle soll er nicht aufblasen.
-      className="w-full max-w-[820px] px-3 py-2.5"
+      // Der Kasten füllt, was `TableBody` ihm gibt — die SICHTBARE Tabellen-
+      // breite (`portBreite`), nie die volle, womöglich weit nach rechts
+      // laufende Tabelle. Der Deckel gegen unlesbar lange Zeilen sitzt seit
+      // v3.32 dort, wo Fließtext steht (`FristenReiter`), nicht hier: die Bahn
+      // im Verlaufs-Reiter ist eine Grafik und will jeden Pixel.
+      className="w-full px-3 py-2.5"
     >
       <div className="flex items-center gap-1 border-b border-[var(--tf-border)] mb-2" role="tablist">
         {reiterListe.map(r => (

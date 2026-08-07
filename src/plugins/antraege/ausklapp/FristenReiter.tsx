@@ -93,7 +93,11 @@ export function FristenReiter({ daten, istVerbundZeile, statusRoh, stichtag, ver
     return <p className={leise}>Kein Statuskatalog geladen.</p>;
   }
   return (
-    <div className="flex flex-col gap-3">
+    // Die Lesebreite sitzt HIER, nicht am `ZeilenBereich`: seit v3.32 spannt der
+    // Bereich über die sichtbare Tabellenbreite, damit die Verlaufs-Bahn sie
+    // nutzen kann. Fließtext über 1200 px wäre unlesbar — der Deckel gehört
+    // deshalb an den Reiter, der Text zeigt.
+    <div className="flex flex-col gap-3 max-w-[820px]">
       {verbundId !== null
         ? (
           <MitMeilensteinen
