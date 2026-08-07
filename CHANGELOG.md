@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.31.1 — Antwortrunde 1 dokumentiert (August 2026)
+
+PATCH — Was die Antwortrunde offen gelassen hat, steht jetzt mit Zahlen und Belegen da — sodass ein Wiedereinstieg ohne Chatverlauf auskommt. Kein Code, kein Reimport, kein neuer Export.
+
+- Neuer Abschnitt §15 „Antwortrunde 1": gemessene Zahlen, wo die Antworten leben, warum die Sammelregel kein Alias ist — [vorgangssystem.md](docs/architecture/vorgangssystem.md)
+- Offen festgehalten: DS-Grundregel (8 Abweichungen, 6× DL / 2× EP), `ÄZ`/`ÄZX` mit Bedeutungsumkehr, `VN gegrüft` fürs Fachsystem, 3.193 Vorbedingungen samt Prüf-Hypothese
+- Erledigt festgehalten: 12 Kleinschreibungen als Frageklasse abgeschafft, 29 NW/FuE-Widersprüche entschieden, `strittig`-Marker per Vorgabe geklärt
+- Fürs Hinweisblatt der nächsten Mappe notiert: **bei einer Sammelregel bleiben die Einzelzeilen leer** — genau dieser Konflikt hat den Widerspruch erzeugt
+
 ### v3.31.0 — FristenBand (August 2026)
 
 MINOR — Die Frist stand als Liste da und ihre Zahl als Behauptung: welches Eingangsdatum gewonnen hat, warum der Punkt in der Spalte diese Farbe trägt, woher das Haltedatum kam — nichts davon war ablesbar. Das Band zeigt die Lage und nennt darunter jede Zahl.

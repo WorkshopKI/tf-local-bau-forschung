@@ -22,6 +22,9 @@ Stand: 03.08.2026 · **P0–P6 umgesetzt + Fachabstimmung eingearbeitet**
 | — | **Betrachtungsbereich** — Arbeitsvorrat folgt dem Bereich, Evidenz nicht | v2.389.0 → [Abschnitt 10](#10-betrachtungsbereich-arbeitsvorrat-folgt-dem-bereich-evidenz-nicht) |
 | — | Phasenvorschlag für Kürzel (Trigger-Tabelle + Auslieferung) | v2.408.0 → [Abschnitt 13](#13-phasenvorschlag-für-kürzel-v2408) |
 | — | **Verlaufsableitung** — Statusabschnitte aus den `D_`-Spalten, reines Modul ohne UI | v3.17.0 → [Abschnitt 14](#14-verlaufsableitung-v317) |
+| — | **Antwortrunde 1 eingefaltet** — Kuration neben Generat, zwei Frageklassen entschieden, 70 → 1 offene Frage | v3.29.0 → [Abschnitt 15](#15-antwortrunde-1-v329--v331) |
+| — | **Haltedatum aus dem Verlauf** — dritte Quelle, 1 638 Vorhaben erstmals datiert | v3.30.0 → [15.4](#154-das-haltedatum-kommt-aus-dem-verlauf-v330) |
+| — | **FristenBand** — Achse plus Herleitung, ersetzt die Liste aus Phase 2 | v3.31.0 → [15.7](#157-das-fristenband-v331) |
 
 **Abweichungen von der ursprünglichen Planung**, jeweils mit Grund:
 
@@ -1487,3 +1490,223 @@ zog es die Frist-Engine aus `core/services/csv` in jeden Barrel-Import und
 verschob die Modul-Auswertung vor `idb.open()` — 20 `IDBStore not opened` beim
 Seitenstart. Aufrufer importieren das Modul direkt, wie `vorkommen.ts` es für
 seine Nachbarn ohnehin verlangt.
+
+> **Nachtrag v3.30**: der Absatz oben beschreibt den Stand von v3.28 — „heute
+> folgenlos, weil kein Haltedatum belegt ist". Genau diese Lücke schließt
+> [§15.4](#154-das-haltedatum-kommt-aus-dem-verlauf-v330): die Verlaufsableitung
+> ist selbst die dritte Quelle geworden, und 1 638 Vorhaben haben seitdem einen
+> Bezugszeitpunkt vor dem Stichtag.
+
+---
+
+## 15. Antwortrunde 1 (v3.29 – v3.31)
+
+Die erste Klärrunde ging als Arbeitsmappe hinaus ([§14.8](#148-klärfragen-als-arbeitsmappe-v326))
+und kam beantwortet zurück: **70 Fragen, 69 beantwortet**, ausgefüllt vom
+Fachbereich (Spalte „Name": AnMa, 07.08.2026). Dieser Abschnitt hält fest, was
+daraus wurde und was offen blieb — mit Zahlen und Belegen, damit ein
+Wiedereinstieg ohne Chatverlauf auskommt.
+
+### 15.1 Gemessen statt übernommen
+
+Die Zahlen der Vorlage stimmten nicht ganz. Gemessen an der zurückgekommenen
+Mappe:
+
+| Herkunft | Vorlage sagte | gemessen |
+|---|---|---|
+| `bedeutung-nw-fue` | 30 | **29** — davon 23 „ein Wortlaut gewählt", 6 „beide gelten" |
+| `bedeutung-ds-anleihe` | 23 | **25** — davon **17** wortgleich mit FuE, 8 abweichend |
+| `amtlicher-text-klein` | 14 | **12** |
+| `strittig-marker` | unbeantwortet | **unbeantwortet** (Antwortspalte leer) |
+| `wert-nicht-in-fassung` | 2 | 2 |
+
+Nach der Übernahme bleibt am Bestand vom 05.08.2026 (14 222 Vorgänge) **eine**
+Klärfrage übrig: `ds-ohne-quelle`. Für Durchführbarkeitsstudien gibt es weiterhin
+keine Kürzel-Quelle; die Antwort darauf war eine Regel, kein Katalog.
+
+### 15.2 Wo die Antworten leben
+
+In [kuerzel-kuration.ts](../../src/core/status/kuerzel-kuration.ts), **neben**
+dem Generat, nicht darin: `kuerzel-katalog.data.ts` entsteht aus
+`npm run gen:kuerzel-katalog` und wird von der nächsten Zuarbeit überschrieben.
+Dasselbe Muster wie `seed-codes.ts` neben `seed-codes.data.ts` (Pitfall #43).
+
+Vier Listen, weil sie vier verschiedene Dinge sagen — 23 Vereinheitlichungen,
+6 bestätigte Divergenzen, 8 DS-Wortlaute, 5 Quellkorrekturen. Jeder Eintrag
+trägt einen Beleg mit Runde, Name, Datum und der **Frage-Id**; zwei Drift-Gatter
+im Test halten die Kuration regenerationsfest (jeder übernommene Wortlaut und
+jede Korrektur muss wortgleich in der Zuarbeit stehen, sonst greift sie ins
+Leere).
+
+**Kein Reimport der Mappe.** Die Antworten sind eine Release-Entscheidung, kein
+Laufzeit-Zustand — dieselbe Trennlinie wie in [klaerung.md](klaerung.md)
+(Pitfall #49: kein Rückschreiben in Seed oder Fassung).
+
+### 15.3 Die Sammelregel ist kein Alias
+
+Die Antwort auf `ds-ohne-quelle` lautet: „Die Kürzel für DS sind die gleichen wie
+für FuE. Keine eigene Quelle nötig." Umgesetzt ist das als **Auflösungs­reihenfolge**
+in `kuerzelAuskunft`, nicht als 130 kopierte Einträge:
+
+1. vereinheitlicht (ein Wortlaut für alle Formen) →
+2. die Form selbst, wo der Katalog sie führt →
+3. **DS mit eigener Antwort** (`ds-kuratiert`) →
+4. DS ohne eigene Antwort: FuE (`ds-aus-fue`, als abgeleitet gekennzeichnet) →
+5. geliehen (erstgeführte Form, `eindeutig: false`).
+
+Ein pauschaler Alias als Dateneintrag würde Stufe 3 überschreiben, sobald ihn
+jemand scharf schaltet; als Reihenfolge kann er das strukturell nicht.
+`formen.DS` entsteht nie, `projektformLage(5)` bleibt `zuarbeit-aelter`.
+
+**Gemessen ändert die Sammelregel keine einzige Anzeige**: bei allen 17
+übereinstimmenden Fällen ist die erstgeführte Form NW, und NW deckt sich dort
+mit FuE. Sie ist bestätigend, nicht korrigierend — das ganze Gewicht der Frage
+liegt bei den acht Abweichungen.
+
+### 15.4 Das Haltedatum kommt aus dem Verlauf (v3.30)
+
+Die Fristen-Stoppuhr wusste seit v3.11, **dass** ein Vorgang steht, nicht seit
+wann. Beide Quellen schweigen bei genau den Fällen, um die es geht: das Journal
+reicht nur bis zu seinem Nullpunkt zurück, und an der Phase eines Endstatus
+hängt kein Datumsfeld. Die Verlaufsableitung kennt den Übergang samt Datum und
+ist jetzt Stufe 3 der Kaskade.
+
+**Kein Zyklus, kein Wegwerf-Verlauf.** `baueUebergaenge` nimmt den
+Bezugszeitpunkt gar nicht entgegen — nur `baueSegmente` tut das. Ein erster Lauf
+mit dem Stichtag liefert deshalb dieselben Kanten wie der endgültige; der zweite
+entfällt, wo kein Haltedatum herauskam. Ein Test in `verlauf.test.ts` hält die
+Kanten-Invarianz fest; ohne sie wäre die Auflösung ein Zirkelschluss.
+
+Bestandslauf (6 614 Vorhaben, Richtlinien 2015 + 2020 + 2025, 14,5 s):
+
+| | |
+|---|---|
+| Zustandsmatrix | **diagonal** — kein Vorgang wechselt den Frist-Zustand |
+| erstmals ein Haltedatum | **1 638** (1 584 aus bedingter Kante, 54 aus bestätigter) |
+| umdatiert | 0 |
+| Achse endet woanders | 1 638 |
+| bleiben ohne Datum | 3 985 |
+
+Die Diagonale ist eine **Zusage**, keine Statistik: `berechneFrist` liest das
+Haltedatum erst im `angehalten`-Zweig, nachdem der Zustand feststeht. Ein
+Unit-Test in `frist-ergebnis.test.ts` hält dieselbe Invarianz fest; der
+Bestandslauf bestätigt sie nur.
+
+Die 3 985 ohne Datum sind kein Versäumnis: dort erklärt die Ableitung den
+importierten Status nicht, und ein Datum von einer fremden Kante wäre eine
+Aussage über einen anderen Status (Pitfall #44).
+
+### 15.5 Was offen bleibt
+
+**DS-Grundregel** — die Sammelantwort „DS = FuE" steht gegen acht abweichende
+Einzelantworten. Sechs folgen DL, zwei EP:
+
+| Kürzel | FuE-Fassung | gewählte Antwort | entspricht |
+|---|---|---|---|
+| `AB` | bewilligungsreif/Akte an Euronorm | Bewilligungsempfehlung durch Haushaltsbeauftrage/Titelverantwortliche | DL |
+| `ALSB` | BB ohne Nachforderungen | BB ohne (weitere) Nachforderungen | DL |
+| `ALS` | TB ohne Nachforderungen | TB ohne (weitere) Nachforderungen | DL |
+| `ABE` | Empfangsbestätigung im IT | Eingang Empfangsbestätigung | DL |
+| `GN` | Nachforderung/okay | Nachforderung/Rückfragen zur ZA | DL |
+| `LZ` | Laufzeitänderung an ZE | Änderungsbescheid Laufzeit an ZE | DL |
+| `ARR` | Termin Rücknahmeempfehlung | Termin Rücknahmeempfehlung rechtskräftig | EP |
+| `WRZ` | Widerruf an ZE (Art) | Widerrufsbescheid an ZE | EP |
+
+Beides sind Einzelvorhabenformen, und eine Durchführbarkeitsstudie ist ebenfalls
+ein Einzelvorhaben — **benannte Option**: DS steht strukturell näher an DL als an
+FuE. Zu klären ist die Grundregel, nicht die acht Einträge: gilt „DS = FuE mit
+acht Ausnahmen", oder wäre „DS = DL" die bessere Grundregel? Alle acht tragen
+`bestaetigung_offen` und wirken bis dahin.
+
+**Zwei Vereinheitlichungen mit Bedeutungsumkehr** — ebenfalls
+`bestaetigung_offen`, aus einem anderen Grund: hier benennt der verworfene
+Wortlaut eine **andere Handlung**, nicht dieselbe anders geschrieben.
+
+- `ÄZX` → „Bewilligung ohne Bescheid" (NW und DL sagen das). Verworfen: FuE
+  „Ablehnung des Änderungsantrags an ZE", EP „Aktennotiz zur Ablehnung des
+  Änderungsantrages an EN". Zwei Formen sagen *Bewilligung*, zwei *Ablehnung*.
+- `ÄZ` → „Änderungsbescheid an ZE". Überschreibt das EP-Muster „Aktennotiz … an
+  EuroNorm", das EP auch bei `LZ` und `ÄZX` führt.
+
+**K/T-Konvention** — geprüft, kein weiterer Verdacht. 19 Kürzelpaare
+unterscheiden sich nur im Schluss-`K`/`T`; genau **eines** war verdreht
+(`XVK`/`XVT` in der Spalte NW, wo FuE dasselbe Paar richtig herum führt). Das
+ist korrigiert und als Quellkorrektur ausgewiesen. Die Prüfung läuft ab jetzt
+als Klärfragen-Herkunft `kt-konvention` mit — heute leer, mit Positivkontrolle
+im Test; ein künftiger Fall muss nicht wieder von Hand gefunden werden.
+
+**`VN gegrüft`** — 5 Vorgänge / 4 Verbünde. Die Korrektur gehört ins
+**Fachsystem**; die App normalisiert nur beim Lesen
+([schreibfehler.ts](../../src/core/status/schreibfehler.ts)) und zeigt den
+Rohwert daneben („im Quellsystem: „VN gegrüft""). Der Klärfragen-Reiter führt die
+bekannten Fälle mit ihrem gemessenen Gewicht als Hinweis für die Fachseite.
+
+**3 193 gescheiterte Vorbedingungen** — unverändert zurückgestellt
+([§14.5](#145-zweite-regelquelle-was-c16-zusätzlich-erklärt)). Hypothese: es
+könnte historisch korrektes Verhalten unter einer **früheren Regelfassung** sein
+— C16 führt nur den aktuellen Stand, und ein 2018 gesetztes Kürzel wird gegen die
+Regel von heute geprüft. Ein späterer Prüfschritt wäre, ob sich die Verstöße in
+bestimmten Richtlinien, Programmen oder Jahren häufen; häufen sie sich, ist es
+eine Regeländerung, verteilen sie sich gleichmäßig, ein Datenproblem.
+
+**Kürzel ohne Rollenangabe** — zurückgestellt. Leere Rollen heißen „jeder darf
+setzen", nie „niemand" (Pitfall #43); die Frage ist, wo das Absicht ist.
+
+**Reimport und zweite Klärrunde** — zurückgestellt. Fürs Hinweisblatt der
+nächsten Mappe gehört ein Satz, der diesmal gefehlt hat: **bei einer Sammelregel
+bleiben die Einzelzeilen leer.** Genau dieser Konflikt hat den Widerspruch aus
+§15.5 erzeugt — die Sammelfrage und 23 Einzelfragen wurden beide beantwortet,
+und acht Antworten widersprachen einander.
+
+### 15.6 Was erledigt ist
+
+- **12 amtliche Kleinschreibungen** bestätigt. Damit ist nicht eine Liste
+  abgearbeitet, sondern die **Frageklasse** beantwortet: der amtliche Text ist
+  Fremddatum und wird nie korrigiert, auch nicht bei künftigen Fällen, die
+  falsch aussehen (CLAUDE.md, Pitfall #43). Die Herkunft `amtlicher-text-klein`
+  ist entfallen, ihr Id-Präfix bleibt vergeben.
+- **29 NW/FuE-Widersprüche** entschieden, davon 6 als „beide gelten — je
+  Projektform verschieden". Die sechs bestätigen den Schlüssel Kürzel ×
+  Projektform: der Unterschied war nie ein Fehler.
+- **Der `strittig`-Marker** blieb unbeantwortet und wurde als **Vorgabe**
+  entschieden — auf die Option „Bedeutungsunterschiede brauchen ein eigenes
+  Kennzeichen". Seitdem steht `bedeutungsdivergenz` neben `strittig`: zwei
+  Marker, zwei Aussagen. Der eine misst ein Patt bei Schreibvarianten desselben
+  Textes (vom Generator gesetzt), der andere einen inhaltlichen Widerspruch.
+  `YW` („Wichtig" / „Wichtig:") trägt beide — der beste Beleg, warum sie nicht
+  verschmelzen dürfen. Die Frage wird nicht mehr gestellt; sie zu stellen,
+  nachdem ihre Antwort implementiert ist, wäre Theater.
+- **Ein Fehler in der Ableitung**, gefunden beim Übernehmen: `useKlaerfragen`
+  prüfte „führt die Fassung diesen Wert?" nur gegen `wert`, nicht gegen
+  `varianten` und die amtlichen Schreibweisen — anders als `snapshot.ts`, das
+  genau dafür `mitAmtlichenSchreibweisen` hat. Code 72 („Stellungnahme zur
+  Rücknahmeempfehlung") galt deshalb als fehlend, obwohl die App ihn längst
+  auflöst. Die naheliegende Cockpit-Übernahme hätte eine **zweite Zeile
+  desselben Codes** angelegt, ohne `code` und mit `kategorie: 'sonstige'` — die
+  kuratierbare Doppelzeile, vor der `status-canonical.ts` warnt.
+
+### 15.7 Das FristenBand (v3.31)
+
+Die Frist stand als Liste da und ihre Zahl als Behauptung. Das Band zeigt die
+Lage — Achse von der Basis über den Bezugszeitpunkt zum Ziel — und nennt
+darunter jede Zahl: welches Eingangsdatum gewonnen hat (`D_AAE` vs. `D_XTE`),
+woher das Haltedatum kam und wie belastbar es ist, welche Zieltage der Schritt
+hat, warum der Punkt in der Frist-Spalte diese Farbe trägt.
+
+**Band UND Liste in einem Bauteil.** Der Verlaufs-Reiter hält fest: „Eine Grafik
+kann Zahlen unterschlagen; ein Listeneintrag nicht." Deshalb ersetzt das Band
+die Liste aus Phase 2, statt sich danebenzustellen.
+
+**Keine zweite Rechnung, keine zweite Schwelle**: die Frist kommt aus
+`useZeilenVerlauf`, der Stillstand aus `pruefeStillstand`, die Zieltage aus dem
+Katalog, die Ampelstufen aus derselben Tabelle, aus der `fristAmpelFromDays`
+liest. Ein neuer Guard `frist-eine-rechnung` hält fest, dass
+`fristFuerVorkommen` nur in den drei Rechnern steht.
+
+Die Abnahme hat dabei einen Fehler gefunden, den kein Test gesehen hätte: im
+Ausklappbereich rechnete die Frist mit dem Status **der Zeile**, Wächter und
+Zieltage aber mit dem **Verbund**-Status. Bei `16DS262011` stand „9 T
+angehalten" (Teilvorhaben, terminal) neben „Zieltage 14 T" (Verbund, beantragt)
+— ein Band über zwei verschiedene Vorgänge. Verbund- und TV-Status gehen im
+Bestand regelmäßig auseinander (Pitfall #44); `ZeilenVerlauf` gibt die Vorkommen
+der Zeile jetzt mit heraus, damit beides aus derselben Menge kommt.
