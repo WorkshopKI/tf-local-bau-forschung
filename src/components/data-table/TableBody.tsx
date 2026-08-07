@@ -21,6 +21,12 @@ export interface TableBodyProps<T> {
   renderSectionHeader?: (sectionKey: string, count: number) => ReactNode;
   /** Erste Spalte beim waagerechten Scrollen stehen lassen. */
   stickyFirstColumn?: boolean;
+  /** Trägt diese Zeile einen aufgeklappten Bereich? Nur zusammen mit
+   *  `renderRowDetail` wirksam. */
+  isRowExpanded?: (row: T) => boolean;
+  /** Inhalt des aufgeklappten Bereichs — eine zweite, volle-Breite-`<tr>`
+   *  direkt unter der Datenzeile. */
+  renderRowDetail?: (row: T) => ReactNode;
 }
 
 /**
@@ -63,7 +69,10 @@ export function TableBody<T>({
   sectionKeyOf,
   renderSectionHeader,
   stickyFirstColumn = false,
+  isRowExpanded,
+  renderRowDetail,
 }: TableBodyProps<T>): React.ReactElement {
+  const detailEnabled = isRowExpanded !== undefined && renderRowDetail !== undefined;
   const sectionsEnabled = sectionKeyOf !== undefined && renderSectionHeader !== undefined;
   const sectionCounts = useMemo(() => {
     if (!sectionKeyOf) return null;
@@ -157,6 +166,34 @@ export function TableBody<T>({
                 );
               })}
             </tr>
+            {detailEnabled && isRowExpanded!(row) ? (
+              <tr>
+                {/* `colSpan={columns.length}` — NICHT `+1`: die Fueller-`<col>`
+                    rechts hat bewusst keine Zelle je Zeile (tableSizing.ts).
+                    Kein `zIndex`: der Bereich muss UNTER die stehende Kopfzeile
+                    scrollen (thead 20, klebende erste Zelle 10). */}
+                <td
+                  colSpan={columns.length}
+                  style={{
+                    padding: 0,
+                    background: 'var(--tf-bg-secondary)',
+                    borderTop: '0.5px solid var(--tf-border)',
+                  }}
+                >
+                  {/* Wie beim Abschnitts-Band: die `colSpan`-Zelle selbst darf
+                      nicht kleben (sie zoege die ganze Breite mit), der INHALT
+                      schon — sonst steht der Bereich beim waagerechten Blaettern
+                      links ausserhalb des Sichtfelds. */}
+                  {stickyFirstColumn ? (
+                    <div style={{ position: 'sticky', left: 0, width: 'max-content' }}>
+                      {renderRowDetail!(row)}
+                    </div>
+                  ) : (
+                    renderRowDetail!(row)
+                  )}
+                </td>
+              </tr>
+            ) : null}
           </Fragment>
         );
       })}

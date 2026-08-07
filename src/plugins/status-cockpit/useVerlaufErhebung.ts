@@ -27,10 +27,10 @@ import { generationenVon } from '@/core/status/betrachtungsbereich';
 import { zaehlwort } from '@/core/utils/zaehlwort';
 import { jederVorgang, istImBereich, ladeTrigger, type MappingVersion } from '@/core/status';
 import {
-  baueVerlauf, leereBefunde, nimmAuf, c16Treffer,
+  leereBefunde, nimmAuf, c16Treffer,
   type VerlaufsBefunde, type VerlaufsBezug, type VerlaufsBezugTv,
 } from '@/core/status/verlauf';
-import { KUERZEL_TRIGGER_REGELN } from '@/core/status/kuerzel-trigger.data';
+import { baueVerlaufFuerVorgang } from '@/core/status/verlauf/fuer-vorgang';
 
 export interface VerlaufLauf {
   befunde: VerlaufsBefunde | null;
@@ -106,7 +106,7 @@ export function useVerlaufErhebung(version: MappingVersion | null): VerlaufLauf 
         bezugsZeitpunkt: stichtag,
         teilvorhaben: tvs,
       };
-      nimmAuf(bilanz, baueVerlauf(bezug, version, KUERZEL_TRIGGER_REGELN, null));
+      nimmAuf(bilanz, baueVerlaufFuerVorgang(bezug, version, null));
 
       let vbTreffer = false;
       for (const tv of tvs) {

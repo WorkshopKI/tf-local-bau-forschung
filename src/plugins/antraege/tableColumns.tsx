@@ -25,6 +25,7 @@ import { isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { HerleitungPopover } from './status/HerleitungPopover';
+import { useAusklappSteuerung } from './ausklapp/kontext';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
@@ -138,17 +139,28 @@ function dateCell(v: string | null): ReactNode {
  * beim Öffnen (`useHerleitung`), sonst ginge jede der 13 000 Zeilen beim
  * Rendern auf die IndexedDB.
  */
-function renderHerleitung(r: AntragListItem): ReactNode {
-  if (!isVorgangssystemEnabled()) return null;
+function HerleitungZelle({ r }: { r: AntragListItem }): React.ReactElement | null {
+  // Der Verweis „Ganzen Verlauf zeigen" braucht ein Ziel; das gibt es nur in
+  // einer Tabelle mit Ausklappbereich (Provider). Ohne ihn zeigt das Popover
+  // ihn nicht — siehe `ausklapp/kontext.ts`.
+  const steuerung = useAusklappSteuerung();
   const vbid = typeof r.verbund_id === 'string' && r.verbund_id ? r.verbund_id : null;
   if (!vbid) return null;
   return (
     <span className="ml-1 inline-flex align-middle">
       {/* Die Status-Spalte der Liste zeigt den TV-Status — das steht seit v2.382
           auch im Popover-Kopf, statt dass man es wissen muss. */}
-      <HerleitungPopover verbundId={vbid} statusRoh={r.status} ebene="tv" />
+      <HerleitungPopover
+        verbundId={vbid} statusRoh={r.status} ebene="tv"
+        {...(steuerung ? { onGanzenVerlauf: () => steuerung.oeffne(r.aktenzeichen, 'verlauf') } : {})}
+      />
     </span>
   );
+}
+
+function renderHerleitung(r: AntragListItem): ReactNode {
+  if (!isVorgangssystemEnabled()) return null;
+  return <HerleitungZelle r={r} />;
 }
 
 /** Key der MA-Spalte (TIB-Bearbeiter-Kürzel) — Konstante für die Auto-Show im

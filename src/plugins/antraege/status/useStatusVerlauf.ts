@@ -30,7 +30,18 @@ export interface StatusVerlauf {
    * wäre es falsch: sie lesen überwiegend TV-Spalten, und ein fertiges
    * Teilvorhaben bekäme das To-do seines Nachbarn.
    */
-  jeTeilvorhaben: { aktenzeichen: string; titel: string; vorkommen: FeldVorkommen[] }[];
+  jeTeilvorhaben: {
+    aktenzeichen: string; titel: string; vorkommen: FeldVorkommen[];
+    /** Roher `STATUS_TV`, wie importiert — die Verlaufsableitung braucht ihn
+     *  ungefiltert, und geraten wird er nirgends (Pitfall #44). */
+    statusTvRoh: unknown;
+    /** `vb_phase` des Teilvorhabens; Grundlage der Projektform. */
+    vbPhaseRoh: unknown;
+  }[];
+  /** Roher `STATUS_VB` aus dem Verbund-Record. */
+  statusVbRoh: unknown;
+  /** `vb_phase` des Verbunds; Rückfall, wo das TV keine eigene führt. */
+  vbPhaseRoh: unknown;
   /**
    * Programm-/Richtlinien-Nummer des Vorhabens (`FM_NUMMER` →
    * `unterprogramm_id`). Wählt die Trigger-Menge des Navigators aus; `null`,
@@ -41,7 +52,7 @@ export interface StatusVerlauf {
 
 const LEER: StatusVerlauf = {
   laden: true, version: null, events: [], grenze: null, vorkommen: [],
-  jeTeilvorhaben: [], programm: null,
+  jeTeilvorhaben: [], statusVbRoh: undefined, vbPhaseRoh: undefined, programm: null,
 };
 
 export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
@@ -80,7 +91,12 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
             aktenzeichen: a.aktenzeichen,
             titel: typeof a.titel === 'string' && a.titel ? a.titel : (a.akronym ?? ''),
             vorkommen: sammleVorkommen(version.felder, vbRecord, [tvs[i]!], aufloesung),
+            statusTvRoh: a.status,
+            vbPhaseRoh: a.vb_phase,
           })),
+          statusVbRoh: verbund?.status,
+          vbPhaseRoh: (verbund as unknown as Record<string, unknown> | undefined)?.vb_phase
+            ?? antraege[0]?.vb_phase,
           programm: programmNummer(antraege, verbundId),
         });
       } catch {

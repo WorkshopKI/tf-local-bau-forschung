@@ -202,6 +202,20 @@ export interface SortableTableProps<T> {
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   /** Inhalt UNTER der Tabelle, aber INNERHALB des Scrollers. */
   footerSlot?: ReactNode;
+  /**
+   * Opt-in: aufklappbarer Bereich unter einer Zeile (`isRowExpanded` +
+   * `renderRowDetail`, nur zusammen wirksam).
+   *
+   * Der Bereich ist eine volle-Breite-`<tr>` im selben `<Fragment>` wie die
+   * Datenzeile — dieselbe Mechanik wie die Abschnitts-Bänder. Er geht **nicht**
+   * in die Breitenmessung ein (die läuft über `columns × measureRows`), und bei
+   * `table-layout: fixed` beeinflusst sein Inhalt die Spaltenbreiten nicht.
+   *
+   * Wer mehr als eine Zeile gleichzeitig offen haben will, liefert das über
+   * `isRowExpanded` — die Tabelle kennt keinen Akkordeon-Zustand.
+   */
+  isRowExpanded?: (row: T) => boolean;
+  renderRowDetail?: (row: T) => ReactNode;
 }
 
 export function SortableTable<T>({
@@ -239,6 +253,8 @@ export function SortableTable<T>({
   scrollContainerRef,
   onScroll,
   footerSlot,
+  isRowExpanded,
+  renderRowDetail,
 }: SortableTableProps<T>): React.ReactElement {
   const resizeEnabled = onColumnWidthChange !== undefined;
   // „Gesamt-Breite"-Griff: `enabled` = Griff wird gerendert; `active` = eine
@@ -410,6 +426,8 @@ export function SortableTable<T>({
               sectionKeyOf={sectionKeyOf}
               renderSectionHeader={renderSectionHeader}
               stickyFirstColumn={stickyFirstColumn}
+              isRowExpanded={isRowExpanded}
+              renderRowDetail={renderRowDetail}
             />
           </table>
         </div>

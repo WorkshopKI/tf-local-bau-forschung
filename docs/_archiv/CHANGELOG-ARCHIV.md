@@ -2,6 +2,163 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.395.0 — Bauantrag-Endausbau: das Vokabular der entfernten Demo-Domaene raus (August 2026)
+
+MINOR — Die Bauantrag-Demo-Domäne ist seit v2.88 weg, ihr Vokabular lief weiter: eine handgepflegte Statusliste neben dem Code-Katalog, eine erfundene Status-Union, eine zweite Test-Fixture, 16 Search-Eval-Fälle und ein Dokumenttyp in zwei LLM-Prompts.
+
+- **`BAUANTRAG_STATUSES` entfernt** — die Kategorie-Fassade speist sich nur noch aus dem Code-Katalog ([status-canonical.ts](src/core/utils/status-canonical.ts)); `isAbgelehntStatus` (0 Konsumenten) gelöscht, Snake-Case-Hälfte aus [status-mappings.ts](src/core/utils/status-mappings.ts) raus.
+- **`VorgangStatus` ist `string`** statt Snake-Case-Union — der Wert war schon immer der rohe CSV-Status, nur hineingecastet ([vorgang.ts](src/core/types/vorgang.ts), Pitfall #12 gilt unverändert).
+- **Fixture A gelöscht**, die vier Doppelläufe (`views`, `dashboardCounts`, `eingangAmpel`, `filterViewInteraction`) laufen nur noch gegen die CSV-Rohwert-Fixture.
+- **Search-Eval 40 → 24 Fälle**: 16 mit Bauantrags-Korpus raus, `bau`-Suite entfernt. Die Baseline 90 % / 36 von 40 ist damit ungültig und muss **manuell in der App** neu gezogen werden ([README](src/core/services/search/eval/README.md)).
+- **Gemessen im echten Bestand** (14 221 Anträge, 26 Status-Werte): kein einziger der elf entfernten Werte kommt vor, 0 Anträge ohne Status — Home-Kacheln, Quartalsbalken und Ampel unverändert.
+
+### v2.394.0 — Dead Code: Orphan-Dateien, Redirect-Plugins, tote Code-Bruecke (August 2026)
+
+MINOR — Acht Dateien ohne einen einzigen Import, zwei Plugins, die nur noch weiterleiten, und eine `@deprecated`-Funktion ohne Aufrufer. Feld-Bookmarks auf `/chat` und `/kuration/feedback` sind laut Fachseite nicht mehr im Umlauf.
+
+- **8 Orphan-Dateien gelöscht** (`ui/label`, `ui/slider`, `ArtefaktBreadcrumb`, `antraege/status/labels`, `klassifizierung-columns`) inkl. drei konsumentenloser Barrel-Indizes (`src/ui`, `auslastung/services`, `home/widgets`).
+- **Chat-Redirect entfernt** — `src/plugins/chat/` bleibt und hostet weiter `ChatPanelHost` + `assistent/` ([plugins.config.ts](src/plugins.config.ts)).
+- **`src/plugins/feedback/` entfernt** (nur noch Redirect seit v2.364); das Board ist die einzige Feedback-Oberfläche.
+- Einzige `@deprecated`-Brücke ohne Konsument entfernt: `pickAndStoreDokumentenquelleHandle` ([smb-handle.ts](src/core/services/infrastructure/smb-handle.ts)). Alle übrigen 27 Stellen parsen persistierte Alt-Daten und **bleiben**.
+- Verifiziert in `dev:local`: `#/chat`, `#/kuration/feedback` und eine Fantasie-Route landen auf `/`, Suche + Assistent-Panel unversehrt, keine Konsolenfehler.
+
+### v2.393.1 — Docs-Archiv: Momentaufnahmen von lebender Referenz getrennt (August 2026)
+
+PATCH — In `docs/` lagen erledigte Protokolle, Audits und Pläne neben der lebenden Referenz. Wer dort sucht, findet mit gleicher Wahrscheinlichkeit einen Stand von Juni wie den von heute. Die Momentaufnahmen liegen jetzt getrennt und stehen in der Ignorierliste.
+
+- `docs/_archiv/` mit Inventar-README angelegt; 11 Momentaufnahmen + `superpowers/` + die Paket-4-Eval-Artefakte verschoben ([README](docs/_archiv/README.md)).
+- **Bewusst draußen geblieben:** `audit-akzeptiert.md`, `layout-audit.md`, `map-testleitfaden.md`, `fachabstimmung-2026-08.md` — sie werden fortgeschrieben und beantworten je eine Decision-Tree-Zeile.
+- **Aus `eval/` nur die Paket-4-Artefakte** — `eval-goldset-aspekte.json` wird per `?raw` vom Code geladen, die teilStruktur-Pilotdateien sind lebendes Mess-Gate.
+- Rotationsziel von `version:bump` auf den neuen Archiv-Pfad gezogen ([version-bump.mjs](scripts/version-bump.mjs)); Verweise in 6 lebenden Docs + einem Code-Kommentar nachgezogen.
+- Ignorierliste + neue Doku-Konvention in [CLAUDE.md](CLAUDE.md); die Datei bleibt trotz zweier neuer Zeilen unter dem Diät-Ceiling (60 994 B).
+
+### v2.393.0 — Changelog-Archiv nicht mehr im Bundle (August 2026)
+
+MINOR — Das Changelog-Archiv (~916 KB) lag per `?raw` in **jeder** Single-File-Variante — ohne dev-Guard, ohne Nutzen: die kuratierte `changelog-user.md` deckt v2.98 aufwärts ab und gewinnt je Version ohnehin. Es ist jetzt draußen; der Dialog nennt nur noch den Repo-Pfad.
+
+- `?raw`-Import von `docs/CHANGELOG-ARCHIV.md` entfernt, Fußzeile „Ältere Versionen: … im Repo" ([UeberDieAppDialog.tsx](src/core/components/changelog/UeberDieAppDialog.tsx)).
+- **Gemessen:** `zah-dev.html` 20 822 492 → 19 879 328 Bytes (−943 164 / −0,92 MB) — dieselbe Ersparnis in prod/pl/as/kurator.
+- **Bewusster Verlust:** 43 Minor-Versionen v2.2–v2.97 erscheinen nicht mehr im Dialog; v2.98–v2.393 bleiben vollständig (616 Einträge, in der App gegengeprüft).
+- Dritter Dev-Server-Slot `local-c` (Port 5177) für parallele Sessions ([launch.json](.claude/launch.json)).
+
+### v2.392.1 — Repo-Hygiene: echte Triage-Dokumente und Worktree-Reste aus dem Git-Index (August 2026)
+
+PATCH — Elf echte DMS-Dokumente (DOCX/PDF) und fünf transiente Worktree-Einträge lagen im Git-Index eines öffentlichen Repos. Sie werden weiterhin lokal für manuelle Triage-Tests gebraucht und bleiben im Arbeitsverzeichnis liegen — nur der Index wird bereinigt.
+
+- `docs/phase-2/triage-beispiele/` gitignored + aus dem Index genommen; Dateien bleiben lokal ([.gitignore](.gitignore)).
+- `.claude/worktrees/` (5 vor der Ignore-Regel committete Einträge) aus dem Index genommen.
+- Ignorierliste in [CLAUDE.md](CLAUDE.md) benennt die Beispieldokumente jetzt als „gitignored, echte Dokumente".
+- Geprüft und **behalten**: `docs/phase-2/dms-sample.csv` ist synthetisch (`SAMPLE001`, `KU1`, `16XX0001`) und bleibt getrackt.
+- **Offen (manuell, koordiniert):** History-Purge auf GitHub per `git filter-repo` + Force-Push — die Dateien stehen weiter in der Historie.
+
+### v2.392.0 — Import-Diff-Journal: belegter Verlauf statt Näherung (August 2026)
+
+MINOR — Der Nacht-Export wird überschrieben; eine `D_`-Setzung, die in C16 korrigiert oder erneut gesetzt wird, ist danach spurlos (Verifikation V9). Die App führt jetzt einen eigenen Stand mit und hält fest, was sich zwischen zwei Exporten geändert hat — ab dem Nullpunkt ist der Verlauf belegt statt genähert.
+
+- **Journal-Kern** unter `_intern/vorgangssystem/journal/` (Stand + Monats-JSONL, nie in IDB): Stempel-Idempotenz, Baseline ohne Einträge, optimistische Sperre, fünf Eintragsarten inkl. `geleert` ([journal/](src/core/status/journal/), [vorgangssystem.md §12](docs/architecture/vorgangssystem.md)).
+- **Verlauf am Teilvorhaben** mit dauerhaftem Nullpunkt-Satz und Zeitraum-Darstellung bei unscharfer Spanne ([JournalVerlauf.tsx](src/plugins/antraege/status/JournalVerlauf.tsx)).
+- **Stillstands-Wächter** nutzt die belegte Änderung, wo es eine gibt; sonst bleibt die Näherung und trägt sichtbar „≥" bzw. „mindestens" ([waechter.ts](src/core/status/waechter.ts)).
+- **Widget „Änderungen der letzten Nacht"** (opt-in), gruppiert nach Feld — **keine Personen-Achse**, weder in der Projektion noch in einer Ansicht (Pitfall #48, Konventionstest).
+- Gemessen: `stand.json` 3,38 MB bei 7 269 Anträgen und 110 Spalten (kein Sharding nötig); mit drei journalisierten Anträgen fällt der Stau von 304 auf 303 bei AB — einer verliert sein „hängt 52 T", weil das Journal eine Aktivität belegt, die der Export nicht mehr zeigt.
+
+### v2.391.0 — FB-Regelsätze: mehrspurige To-do-Engine und Erhebungsmaterial (August 2026)
+
+MINOR — Die To-do-Kaskade war durchgängig AB-zentriert: der FB sah seine Arbeit nur als Spiegelbild („wartet auf FB"). Jede Rolle bekommt jetzt einen eigenen Regelsatz. Der FB-Satz bleibt leer — er entsteht in einem Fachtermin, für den es auf FB-Seite nichts zu transkribieren gibt; diese Runde baut die Fähigkeit und das Erhebungsmaterial.
+
+- **Regelsatz je Rolle** an `TodoRegel.regelsatz` (fehlend ⇒ AB), Sperren mit `giltFuer`; bei leerem FB-Satz bitgenau das bisherige Verhalten ([todo-engine.ts](src/core/status/todo-engine.ts), [regelsatz.ts](src/core/status/regelsatz.ts)).
+- **Abgeleitete Platzhalter**: eine Rolle ohne eigene Regel leiht sich die Aussage der fremden Regel, die auf sie wartet — im Board als „geliehen" markiert, verdrängt von jedem echten Treffer ([vorgangssystem.md](docs/architecture/vorgangssystem.md)).
+- **Rollout-Sperre**: Nicht-AB-Regeln entstehen `aktiv: false`, Aktivieren nur nach Bestätigung — `status-katalog.json` ist für alle Varianten gleichzeitig live ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx)).
+- **Erhebung für den Termin**: Platzhalter, blinde Flecken (Vorgänge ohne jedes To-do mit einseitig offenem Kürzel-Paar) und Kürzel-Landkarte als XLSX + Markdown ([fb-erhebung.ts](src/core/status/fb-erhebung.ts), [fbErhebungExport.ts](src/plugins/status-cockpit/fbErhebungExport.ts)).
+- Gemessen: 68 FB- und 130 QS-Platzhalter; 6 017 von 7 269 Vorgängen ohne To-do, davon 2 261 mit offenem Paar (ALT/ALU 662×, Median 746 Tage). Eine Testregel traf 153 statt der 38 Platzhalter — die Platzhalter-Zahl ist eine Untergrenze, das steht jetzt in UI und Export.
+
+### v2.390.0 — Assistent-Phasen 0-2 fuer die as-Variante freigeschaltet (August 2026)
+
+MINOR — DSB und Personalrat haben das Assistent-Gedächtnis ohne Auflagen freigegeben, `as` bekommt es damit wie pl. Beim Nachsehen fiel auf: für pl und kurator ist es seit v2.346.0 an, das Themen-Doc behauptete weiterhin „wartet auf DSB/Personalrat" — genau diese Drift hat die Freischaltung angefragt, die längst bestand.
+
+- `as` führt jetzt alle drei Assistent-Phasen ([as.config.json](configs/as.config.json)); `prod` bleibt bewusst ohne.
+- **Abhängigkeit maschinell erzwungen**: Gedächtnis ohne Panel/Protokoll bricht den Build ab, statt eine unerreichbare UI auszuliefern ([config-schema.mjs](scripts/config-schema.mjs), [config-schema-assistent.test.ts](src/config/__tests__/config-schema-assistent.test.ts)).
+- Abschnitt „Aktivierung" in [assistent-gedaechtnis.md](docs/architecture/assistent-gedaechtnis.md) und [assistent-panel.md](docs/architecture/assistent-panel.md) auf den Ist-Zustand — die alten Fassungen erklärten Schritte, die seit v2.346.0 erledigt waren.
+- Sieben JSDoc-/Kommentar-Stellen sagten „nur dev" ([runtime-config.ts](src/config/runtime-config.ts), [feature-flags.ts](src/config/feature-flags.ts), `plugins/einstellungen/*`).
+
+### v2.389.1 — Fachabstimmung dokumentiert, Betrachtungsbereich im Konzept (August 2026)
+
+PATCH — Die Entscheidungen der AB-Abstimmung lagen bisher nur in Commit-Messages und Code-Kommentaren. Sie gehören an eine Stelle, an der man sie in einem Jahr wiederfindet.
+
+- **[fachabstimmung-2026-08.md](docs/architecture/fachabstimmung-2026-08.md)** neu: A1–A5 mit Begründung, V1–V10 mit Antwort und Umsetzung, gemessene Wirkung je Entscheidung, zwei neu aufgeworfene Fachfragen.
+- [vorgangssystem.md](docs/architecture/vorgangssystem.md) Abschnitt 10: der Betrachtungsbereich mit der Tabelle „folgt dem Bereich / folgt nicht" und dem Warum je Zeile.
+- **Pitfall #46** neu (Arbeitsvorrat vs. Evidenz) + zwei Decision-Tree-Zeilen; CLAUDE.md-Ceiling begründet auf 58 000 ([doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+- Kontext-Docs `antraege`, `status-cockpit`, `vorgangs-board`, `meilensteine`, `auslastung` auf den Ist-Zustand ([docs/feedback-kontext/](docs/feedback-kontext/)).
+- Nutzer-Changelog für v2.389 geglättet ([changelog-user.md](src/core/components/changelog/changelog-user.md)).
+
+### v2.389.0 — Betrachtungsbereich (August 2026)
+
+MINOR — Von 14 221 Anträgen gehören 6 952 zu stillgelegten Altprogrammen. Sie verzerrten jede Arbeitsliste und jede Rechenzeit — unsichtbar. Der Bereich macht daraus einen sichtbaren, umschaltbaren Parameter.
+
+- Seed im Code (neun Richtlinien), Katalog-Fassung überschreibt ihn — dieselbe Reihenfolge wie die Kategorie-Fassade, damit der Bereich auch in prod/as gilt ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts)).
+- **Chip im Kopf jeder Datensicht**: „Anzeige: letzte 3 Richtlinien (9 Programme) · 6 952 ausgeblendet", Klick öffnet die Auswahl mit Klartext-Labels ([BereichChip.tsx](src/components/bereich/BereichChip.tsx)).
+- Arbeitsvorrat folgt dem Bereich (Liste, Board, Meilensteine, Home, Auslastung); **Suche bleibt am Vollbestand**, Treffer außerhalb werden gekennzeichnet, Deep-Links öffnen jeden Antrag (Pitfall #46).
+- Gemessen: Board-Rechenzeit 6,5 s → 4,7 s über den Bestand; von den sichtbaren Zahlen ändert sich **nur** „Alle" (9 316 → 5 542) — kein Arbeitsvorrat-Zähler.
+- Das Board verlinkte auf `?az=`, das niemand liest — ein toter Link auf leere Liste, jetzt der Pfad ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)).
+
+### v2.388.0 — Zieltage-Sammelübernahme (August 2026)
+
+MINOR — Der Stillstands-Wächter braucht je Status eine Zielvorgabe; gepflegt waren 7 von 74 Werten, weil jeder einzeln zu setzen war. Die Sammel-Übernahme macht daraus einen Schritt — mit Vorschau, und ohne zu raten, wo die Datengrundlage fehlt.
+
+- „Vorschläge ansehen" im Katalog-Tab: Tabelle mit Status, Ebene, Phase, Stichprobe und alt → neu; Übernahme in **einem** `setState` ([ZieltageUebernahmeDialog.tsx](src/plugins/status-cockpit/ZieltageUebernahmeDialog.tsx), [zieltage-vorschlag.ts](src/core/status/zieltage-vorschlag.ts)).
+- Nur die Phasen Eingang bis Entscheidung, nur ab 5 Beobachtungen — kleinere Stichproben werden benannt statt gesetzt.
+- **Die Stichprobe zählte nur den Verbund-Status**: „NF gestellt" kam auf n = 2 und fiel durch die Grenze. Mit den TV-Status sind es n = 51 ([useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts)).
+- Gemessen am Bestand: „nicht bewertbar" 1937 → **1679**; von den verbleibenden 1982 (Vollbestand) sind 1769 der Status 59 „bewilligt", innerhalb der Antragsphasen bleiben **7**.
+
+### v2.387.0 — Regelwerk aus der Fachabstimmung (August 2026)
+
+MINOR — Die To-do-Kaskade kannte die fixierten Slicer der AB-Mappe nicht und meldete deshalb über den ganzen Altbestand („in QS": 1756). Mit den beiden Populations-Sperren steht die Arbeitsliste auf der Menge, die die ABs tatsächlich ansehen.
+
+- **S0/S0b**: Schlussvermerk bzw. Zuwendungsbescheid beenden die Aufgabenliste eines Vorgangs; `sperrt: ['*']` erfasst auch später ergänzte Regeln, `sperrtNicht` nimmt „ZuwB erstellen" aus ([todo-regeln.seed.ts](src/core/status/todo-regeln.seed.ts), [todo-engine.ts](src/core/status/todo-engine.ts)).
+- Gemessen am Bestand: „in QS" 1756 → **75**, „Meine Aufgaben" 1117 → 477, echte Regellücken 520 → **120**.
+- **V1** (`D_XKS`-Gate am RNE-Strang) ist als Absicht bestätigt und jetzt Bedingung von R6–R9; **V2**: R23 ist nach Rollen in R23a (wartet auf AB) und R23b (wartet auf FB) geteilt.
+- Das Board trennt „keine Regel traf" von „Verfahren abgeschlossen" — eine greifende Sperre ist ein Ergebnis, keine Lücke ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts)).
+- Ein gewachsener Regelsatz erreicht bestehende Fassungen: der Status-Katalog zeigt die Drift und zieht sie nach (`zieheTodoRegelnNach`, [katalog-edit.ts](src/core/status/katalog-edit.ts)).
+
+### v2.386.0 — Technische Sammel-Nacharbeit am Vorgangssystem (August 2026)
+
+MINOR — Fünf Reste aus dem P6-Rückbau, die keine Fachabstimmung brauchten. Der größte war unsichtbar: die Trigger-Sidecar speicherte ihre eigene Deutung mit, sodass eine Parser-Verbesserung erst beim nächsten XLSX-Import gewirkt hätte.
+
+- Zulässigkeits-Trigger (leere Zielstatus in `TRG_TVs_Status_TV_VB`) werden gedeutet statt verworfen — „nicht interpretiert" fällt am Bestand von 30 auf 7 ([trigger-parser.ts](src/core/status/trigger-parser.ts)).
+- `geparst`/`satz` werden beim Laden neu abgeleitet statt aus der Datei übernommen — abgeleitete Werte werden nicht daneben persistiert (Pitfall #45, [trigger-share.ts](src/core/status/trigger-share.ts)).
+- Der To-do-Regel-Editor arbeitet auf dem Katalog-Vokabular und meldet nicht referenzierbare Spalten sichtbar, statt eine stumme Regel zuzulassen ([todoFeldVorrat.ts](src/plugins/status-cockpit/todoFeldVorrat.ts), [bedingung.ts](src/core/status/bedingung.ts)).
+- Neuer Konventionstest `kuerzel-genau-ein-speicherort` gegen die v2.376-Doppelfeld-Regression ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)).
+- Import-Diffs zeigen die Original-Schreibweise (`76#AAE#1`), und ein Verbund mit uneinheitlicher `FM_NUMMER` wird gemeldet statt still geheilt ([programmNummer.ts](src/plugins/antraege/status/programmNummer.ts)).
+
+### v2.385.1 — P6-Doku: Rückbau abgeschlossen (August 2026)
+
+PATCH — Die Docs beschrieben noch die Ableitung, die es seit v2.385 nicht mehr gibt. Ist-Zustand nachgezogen, das Inventar als Protokoll geschlossen.
+
+- [vorgangssystem.md](docs/architecture/vorgangssystem.md) Abschnitt 7 auf „umgesetzt": Vorher/Nachher-Tabelle, die vier Funde am Bestand, was bleibt und warum.
+- [vorgangssystem-p6-inventar.md](docs/architecture/vorgangssystem-p6-inventar.md) auf erledigt — inkl. der vier Plan-Abweichungen (Prominenz bleibt, Code 73 bleibt `abgeschlossen`, `byte-identitaet` bleibt, Diagnose entfällt statt umgewidmet).
+- **Pitfall #45** neu: Fassade aus Code+ZAH-Phase, Varianten über `indexNachSchreibweise`, Abgeleitetes nicht daneben persistieren ([CLAUDE.md](CLAUDE.md)).
+- Kontext-Docs `status-cockpit` und `antraege` auf den Ist-Zustand ([docs/feedback-kontext/](docs/feedback-kontext/)); [status-system/README.md](docs/status-system/README.md) von drei auf zwei Schichten.
+- Das CLAUDE.md-Diät-Ceiling steigt begründet auf 56 400 Bytes ([doc-links.test.ts](src/__tests__/doc-links.test.ts)).
+
+### v2.385.0 — Rückbau der alten Statusableitung (August 2026)
+
+MINOR — Die App rechnete aus dem ganzen `D_`-Feld-Ensemble eine eigene Verfahrensposition aus (höchster Rang gewinnt, `terminal` schlägt Rang) und lief dem amtlichen Status damit regelmäßig voraus. Sie tut es nicht mehr: das Fachsystem führt den Status, die App liest ihn (Pitfall #44).
+
+- `ableitung.ts`, `spine-kategorie.ts`, `phasen-vergleich.ts` und die Diagnose-Sektion entfallen; mit ihnen `SpinePhase`, `rang`, `terminal` und die Ergebnistypen ([typen.ts](src/core/status/typen.ts)).
+- Die Feld-Phase wandert von der Spine- auf die ZAH-Achse (24 Felder, je Feld begründet) — sie speist „seit wann gilt der Status" und die Chronik-Marke ([seed-codes.ts](src/core/status/seed-codes.ts), [herleitung.ts](src/core/status/herleitung.ts)).
+- Katalog-Tab ohne Spine-Phase/Rang/terminal, Kürzel-Tab mit ZAH-Phase statt Rang, Simulations-Leiste entfällt ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx), [FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx)).
+- Die fünf alten „Nächste-Schritte-Regeln" entfallen; sie gehen im AB-To-do-Regelsatz auf — die Zuordnung steht im Kopf von [RegelnTab.tsx](src/plugins/status-cockpit/RegelnTab.tsx).
+- Der Import prüft die To-do-Kaskade statt der Alt-Regeln und lässt dabei Begleit-Textspalten (`T_XPC+`) als Referenz zu ([export-import.ts](src/core/status/export-import.ts)).
+
+### v2.384.0 — Anzeige auf ZAH-Phasen umgehängt (August 2026)
+
+MINOR — Die Oberfläche zeigte drei verschiedene Antworten auf dieselbe Frage „wo steht dieser Antrag?": die abgeleitete Spine-Phase im Verbund-Kopf, eine handgeschriebene Phasen-Liste in der Filter-Sidebar und die ZAH-Phase im Popover. Ab hier ist es eine — die des Status-Katalogs.
+
+- Der Verbund-Kopf zeigt die sechs ZAH-Phasen; Marker (Irrläufer, Sonderstatus) stehen als Kennzeichen **neben** der Leiste, und ein Status ohne Katalog-Treffer betont keine Station mehr ([statusZuStepperPosition.ts](src/plugins/antraege/statusZuStepperPosition.ts), [WorkflowStepper.tsx](src/plugins/antraege/WorkflowStepper.tsx)).
+- Die Filter-Sidebar gruppiert nach ZAH-Phasen auf Code-Ebene: eine Zeile je Code, Schreibweisen kollabieren mit Summen-Zählung, Marker als eigene Gruppe ([statusGroups.ts](src/plugins/antraege/filter/statusGroups.ts), [StatusFilterFacet.tsx](src/plugins/antraege/filter/facets/StatusFilterFacet.tsx)).
+- „Warum dieser Status?" und das Konflikt-Badge entfallen — beide erklärten eine Ableitung, die es nicht mehr gibt; die Frage beantwortet das Herleitungs-Popover ([StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx)).
+- Home-Widget „Status & Verlauf" zeigt ZAH-Phase + To-do aus der Kaskade statt abgeleiteter Phase + Alt-Regel-Schritt ([StatusVerlaufWidget.tsx](src/plugins/home/widgets/StatusVerlaufWidget.tsx)).
+- Das Artefakt-Gate hängt an der Phase statt an einer Stations-Nummer — die alte Station 3 deckte Prüfung UND Entscheidung ab ([useArtefaktLeiste.ts](src/plugins/antraege/artefakte/useArtefaktLeiste.ts)).
+
 ### v2.383.0 — Fassade aus Code-Join und ZAH-Phase (August 2026)
 
 MINOR — Die Kategorie-Fassade hielt eine zweite, handgeschriebene Werteliste neben dem Code-Katalog. Sie kannte nur 21 der 30 amtlichen Statuscodes unter ihrem amtlichen Namen; bei Code 72 ging das schon schief — der Export schreibt „Stellungnahme zur Rücknahmeempfehlung" aus, die Tabelle kannte nur die Abkürzung, und 16 Vorgänge lagen deshalb unter `sonstige`.

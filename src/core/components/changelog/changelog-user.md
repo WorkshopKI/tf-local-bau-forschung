@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.21 — 2026-08
+
+### Neu
+- In der Tabellen-Ansicht der Förderanträge klappt ein Klick auf die **Status-Zelle** oder die **Frist-Zelle** unter der Zeile einen Bereich auf: der Reiter *Verlauf* zeigt, welche Kürzel wann gesetzt wurden und welche Statusabschnitte daraus entstanden sind, der Reiter *Fristen und Meilensteine* die Frist-Kennzahlen samt Meilenstein-Leiste. Es ist immer nur eine Zeile offen; jede Änderung an Sortierung, Filter oder Ansicht schließt sie wieder.
+- Der Frist-Reiter rechnet vollständiger als die Frist-Spalte: er kennt das Datum „alle Anträge da" und, wo die Uhr steht, seit wann sie steht.
+
+### Verbesserungen
+- **Klicks in der Tabelle sind jetzt eindeutig**: Förderkennzeichen und Akronym öffnen den Antrag, Status und Frist klappen auf, alles andere tut nichts. Klickbare Zellen sind beim Überfahren an der gepunkteten Unterstreichung und dem kleinen Pfeil zu erkennen und lassen sich auch mit der Tastatur bedienen.
+- Das Info-Popover am Status zeigt keine abgeschnittene Verlaufs-Liste mehr, sondern führt mit „Ganzen Verlauf zeigen" in den neuen Bereich — dort steht der vollständige Verlauf statt der ersten fünf Einträge.
+
 ## v3.19 — 2026-08
 
 ### Neu

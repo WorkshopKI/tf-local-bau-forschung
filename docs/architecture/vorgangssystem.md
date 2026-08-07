@@ -1022,3 +1022,48 @@ Bedingungsauswertung, und nicht in Phase 2/3.** In dieser Reihenfolge:
 
 Für Phase 2 und 3 bleibt es bei der Zuarbeit. Das Band zeigt, was eine Quelle
 hergibt; die Deckung ist eine Datenfrage und keine Bauform-Frage.
+
+### 14.6 Wo der Verlauf ankommt (v3.21)
+
+Ein Bereich, der unter einer Tabellenzeile aufgeht
+([ausklapp/](../../src/plugins/antraege/ausklapp/)) — der erste Renderer der
+Spuren. **Nur in der Tabellen-Ansicht**; Karten und Liste haben keine Zellen,
+und eine zweite Bedienlogik für dieselbe Sache wäre keine.
+
+**Die Zeile hat keine einheitliche Klickbedeutung mehr.** FKZ und Akronym
+navigieren, Status- und Frist-Zelle klappen auf, alles andere tut nichts. Zwei
+Navigationsziele statt einem: die Akronym-Spalte lässt sich ausblenden, die
+FKZ-Spalte nicht (`locked`) — mit nur einem Ziel ließe sich die Tabelle über den
+Spalten-Picker versehentlich in einen Zustand ohne Ausweg bringen. Die Zonen
+sind `role="button"`/`role="link"` mit eigener Tastaturbehandlung, keine
+`<button>`: die Status-Zelle enthält bereits das Info-Icon als Button, und
+verschachtelte Buttons sind ungültig.
+
+**Der Bereich rechnet nichts nach.** Der Verlaufs-Reiter zeigt `baueVerlauf`,
+der Frist-Reiter ruft dieselbe `berechneFrist` wie die Zelle — nur mit der
+tieferen Eingabe, die die schlanke Listen-Projektion nicht hat (`D_XTE` aus dem
+Schema, Haltedatum über `ermittleHaltedatum`). Genau darauf verweist der
+Modulkopf von [fristAnzeige.ts](../../src/plugins/antraege/fristAnzeige.ts) seit
+v3.6; `ermittleHaltedatum` bekommt hier seinen ersten Produktions-Aufrufer.
+
+Drei Regeln, die den Rest tragen:
+
+- **Die Regeln der Zuarbeit haben weiter genau einen Leser.** Statt einer zweiten
+  Guard-Ausnahme hält [verlauf/fuer-vorgang.ts](../../src/core/status/verlauf/fuer-vorgang.ts)
+  sie für alle Aufrufer; die namentliche Ausnahme für den Cockpit-Hook ist
+  entfallen. Der Guard `trigger-regeln-nur-im-verlauf` ist damit strenger als
+  vorher, nicht lockerer.
+- **Das Journal hängt am Antrag, die Spuren am Verbund.** `chronikFuerAntrag`
+  wird nur bei einem Ein-TV-Vorhaben in die Ableitung gegeben — die Chronik eines
+  Teilvorhabens auf die Spuren seiner Nachbarn anzuwenden hieße, Beobachtungen zu
+  behaupten. Der Nullpunkt steht trotzdem immer da (12.2).
+- **Höchstens eine Zeile offen, nichts persistiert.** Der Bereich schließt bei
+  jedem Wechsel von Sortierung, Spaltenfilter, Gruppierung, Körnung, Sicht und
+  Betrachtungsbereich: er hängt am Zeilenschlüssel, nicht an einer
+  Bildschirmposition, und stünde sonst unter einem fremden Vorgang.
+
+Die „Verlaufs-Näherung (max. 5)" ist aus dem Herleitungs-Popover verschwunden —
+fünf von durchschnittlich 33 Terminen waren ein Ausschnitt ohne Auswahlregel. An
+ihrer Stelle steht „Ganzen Verlauf zeigen", das denselben Bereich öffnet. Die
+Engine rechnet den Verlauf weiter; der kopierte Text ist ein Protokoll und
+behält ihn.

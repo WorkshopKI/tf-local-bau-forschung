@@ -394,6 +394,10 @@ describe('trigger-regeln-nur-im-verlauf (Phase 1b)', () => {
   // die Verlaufsableitung — die sie fuer die VERGANGENHEIT liest und dabei nie
   // einen geltenden Status setzt. Ein zweiter Konsument waere der Weg, sie
   // versehentlich scharf zu schalten.
+  //
+  // Seit v3.21 OHNE Ausnahme: `verlauf/fuer-vorgang.ts` haelt die Regeln fuer
+  // alle Aufrufer, der Cockpit-Hook reicht sie nicht mehr durch. Wer eine neue
+  // Ausnahme braucht, ruft stattdessen `baueVerlaufFuerVorgang`.
   const rohImport = /from\s+['"](?:[^'"]*\/)?kuerzel-trigger\.data['"]/;
   const ERLAUBT = `${sep}core${sep}status${sep}verlauf${sep}`;
 
@@ -403,9 +407,6 @@ describe('trigger-regeln-nur-im-verlauf (Phase 1b)', () => {
     for (const file of ALL_TS_FILES) {
       if (file.includes(ERLAUBT)) continue;
       if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
-      // Der Cockpit-Hook stoesst den Bestandslauf an und reicht die Regeln
-      // durch — er wertet sie nicht aus.
-      if (file.endsWith(`${sep}status-cockpit${sep}useVerlaufErhebung.ts`)) continue;
       gescannt++;
       findings.push(...findInFile(file, l => rohImport.test(l), 'allow-trigger-regeln'));
     }

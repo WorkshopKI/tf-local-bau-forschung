@@ -36,6 +36,10 @@ import { baueSegmente } from './segmente';
 import type { SpurArt, VerlaufsSpur, VerlaufsUebergang } from './typen';
 
 export * from './typen';
+// `baueVerlaufFuerVorgang` wird hier bewusst NICHT re-exportiert: diese Datei ist
+// Barrel UND Implementierung von `baueVerlauf`, ein Re-Export machte daraus einen
+// Laufzeit-Zyklus (`cycles` hat eine leere Allowlist). Aufrufer importieren direkt
+// aus `@/core/status/verlauf/fuer-vorgang`.
 export { beurteileStand, type StandUrteil } from './bearbeitungsstand';
 export { statusRefVonText, statusRefVonRegel, gleicherStatus } from './status-ref';
 export { baueRegelIndex, baueUebergaenge, type RegelIndex } from './uebergaenge';

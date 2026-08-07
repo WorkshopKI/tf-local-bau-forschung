@@ -25,6 +25,11 @@ import {
 } from './arbeitsvorrat';
 import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
 import { useBeendetSichtbarkeit } from './useBeendetSichtbarkeit';
+import { useZeilenAusklapp } from './ausklapp/useZeilenAusklapp';
+import { machKlickbar } from './ausklapp/klickzonen';
+import { ZeilenBereich } from './ausklapp/ZeilenBereich';
+import { istAusklappbar } from './ausklapp/verfuegbar';
+import { AusklappKontext } from './ausklapp/kontext';
 import type { ZeilenMeldung } from './trefferZahl';
 
 interface Props {
@@ -152,7 +157,7 @@ export function AntraegeTable({
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
-  const columns = useMemo(
+  const rohSpalten = useMemo(
     () => resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten),
     [visibleColumns, showMaColumn, kategorieSpalten],
   );
@@ -174,7 +179,7 @@ export function AntraegeTable({
   // EINGABE-Liste `enriched` (= Segment-/Sidebar-/Such-gefiltert) → view-scoped
   // und stabil; angewandt VOR der Gruppierung, also pro Einzel-Antrag.
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows, filterCounts } =
-    useColumnFilters(enriched, columns);
+    useColumnFilters(enriched, rohSpalten);
 
   // Achse 1 (Ansicht): Zeilen-Körnung. Läuft VOR der Gruppierung — eine
   // Verbund-Zeile wird also nach den Werten ihres Lead-TVs einsortiert.
@@ -268,7 +273,7 @@ export function AntraegeTable({
   // wechsel (Nutzer-Wunsch). Global (nicht per-View), konsistent mit den
   // ebenfalls global persistierten Spaltenbreiten oben.
   const { sortKey, sortDirection, toggleSort, sortedRows } =
-    useTableSort(allRows, columns, null, 'desc', 'teamflow_antraege_table_sort');
+    useTableSort(allRows, rohSpalten, null, 'desc', 'teamflow_antraege_table_sort');
 
   // Sektionierte Modi (Status-Gruppierung ODER Arbeitsvorrat/Archiv): section-
   // stabile Sortierung — Section-Reihenfolge bleibt, nur INNERHALB jeder Section
@@ -277,7 +282,7 @@ export function AntraegeTable({
   const orderedRows = useMemo(() => {
     if (sectionOf === null) return sortedRows;
     if (!sortKey) return allRows;
-    const col = columns.find(c => c.key === sortKey);
+    const col = rohSpalten.find(c => c.key === sortKey);
     if (!col) return allRows;
     const out: AntragTableRow[] = [];
     let i = 0;
@@ -291,10 +296,40 @@ export function AntraegeTable({
       i = j;
     }
     return out;
-  }, [sectionOf, sortedRows, allRows, columns, sortKey, sortDirection]);
+  }, [sectionOf, sortedRows, allRows, rohSpalten, sortKey, sortDirection]);
 
   const rows = useMemo(() => orderedRows.slice(0, visibleRows), [orderedRows, visibleRows]);
   const hasMore = visibleRows < orderedRows.length;
+
+  // Aufklappbarer Bereich. Die Signatur bündelt alles, dessen Wechsel die Zeile
+  // verschiebt oder verschwinden lässt — der Bereich hängt am Zeilenschlüssel,
+  // nicht an einer Bildschirmposition. `bereichSignatur` ist bewusst grob: ein
+  // Schließen zu viel ist harmlos, ein Bereich unter dem falschen Vorgang nicht.
+  const bereichSignatur = [
+    activeView, grouping, ansicht, String(searchActive), String(beendetVersteckt),
+    sortKey ?? '', sortDirection,
+    Object.entries(columnFilters).filter(([, v]) => v.size > 0).map(([k, v]) => `${k}:${v.size}`).sort().join(','),
+    String(filtered.length),
+  ].join('|');
+  const ausklapp = useZeilenAusklapp(bereichSignatur);
+  const ausklappbar = istAusklappbar();
+  const stichtag = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Der Draht zum Info-Icon: es steckt tief in der statischen Spaltenregistry
+  // und kommt an den Zeilen-Zustand nur über den Context.
+  const steuerung = useMemo(() => ({ oeffne: ausklapp.oeffne }), [ausklapp.oeffne]);
+
+  const columns = useMemo(
+    () => machKlickbar(rohSpalten, {
+      zeilenKey: (r: AntragTableRow) => r.aktenzeichen,
+      istOffen: (r: AntragTableRow) => ausklapp.istOffen(r.aktenzeichen),
+      offenerReiter: (r: AntragTableRow) => ausklapp.reiterVon(r.aktenzeichen),
+      umschalten: (r: AntragTableRow, reiter) => ausklapp.umschalten(r.aktenzeichen, reiter),
+      oeffnenDetail: (r: AntragTableRow) =>
+        (r._verbund ? onOpenVerbund(r._verbund.verbundId) : onOpenAntrag(r.aktenzeichen)),
+      ausklappbar,
+    }),
+    [rohSpalten, ausklapp, ausklappbar, onOpenAntrag, onOpenVerbund],
+  );
 
   const sectionProps = sectionOf !== null
     ? {
@@ -341,6 +376,7 @@ export function AntraegeTable({
   ) : null;
 
   return (
+    <AusklappKontext.Provider value={steuerung}>
     <div className={stickyHeader ? 'flex flex-col flex-1 min-h-0' : 'flex flex-col'}>
       <SortableTable<AntragTableRow>
         rows={rows}
@@ -349,7 +385,9 @@ export function AntraegeTable({
         sortDirection={sortDirection}
         onSort={toggleSort}
         rowKey={r => r.aktenzeichen}
-        onRowClick={r => (r._verbund ? onOpenVerbund(r._verbund.verbundId) : onOpenAntrag(r.aktenzeichen))}
+        // KEIN `onRowClick`: die Zeile trägt jetzt zwei verschiedene Klick-
+        // Bedeutungen (Akronym/FKZ navigieren, Status/Frist klappen auf). Ein
+        // Klick auf die Zeile bliebe daneben ein drittes, unsichtbares Ziel.
         isRowSelected={r =>
           r._verbund ? r._verbund.verbundId === selectedVerbundId : r.aktenzeichen === selectedAktenzeichen
         }
@@ -384,6 +422,19 @@ export function AntraegeTable({
         scrollContainerRef={scrollContainerRef}
         onScroll={onScroll}
         footerSlot={stickyHeader ? ladeStreifen : undefined}
+        isRowExpanded={ausklappbar ? (r => ausklapp.istOffen(r.aktenzeichen)) : undefined}
+        renderRowDetail={ausklappbar ? (r => (
+          <ZeilenBereich
+            zeilenKey={r.aktenzeichen}
+            verbundId={r._verbund?.verbundId ?? (typeof r.verbund_id === 'string' ? r.verbund_id : null)}
+            istVerbundZeile={r._verbund !== undefined}
+            statusRoh={r.status}
+            reiter={ausklapp.reiterVon(r.aktenzeichen) ?? 'verlauf'}
+            onReiter={ausklapp.setzeReiter}
+            onSchliessen={ausklapp.schliessen}
+            stichtag={stichtag}
+          />
+        )) : undefined}
         {...sectionProps}
       />
       {stickyHeader ? null : ladeStreifen}
@@ -403,5 +454,6 @@ export function AntraegeTable({
         </div>
       ) : null}
     </div>
+    </AusklappKontext.Provider>
   );
 }

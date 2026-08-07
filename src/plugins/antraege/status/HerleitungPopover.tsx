@@ -75,22 +75,6 @@ function Rollen({ s }: { s: VerlaufSchritt }): React.ReactElement {
   );
 }
 
-function Zeile({ s }: { s: VerlaufSchritt }): React.ReactElement {
-  return (
-    <li className="flex items-baseline gap-1.5 min-w-0">
-      <span className="shrink-0 text-[11px] font-mono text-[var(--tf-text-tertiary)] w-[68px]">
-        {tagDe(s.tag)}
-      </span>
-      <span className="min-w-0 truncate text-[var(--tf-text-secondary)]" title={s.label}>
-        {s.label}
-      </span>
-      {s.code && (
-        <span className="shrink-0 text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">{s.code}</span>
-      )}
-    </li>
-  );
-}
-
 /**
  * Die andere Ebene: nur Code, Text und Phase — kein „seit", weil die Liegezeit
  * an den Vorkommen der ERKLÄRTEN Ebene hängt und hier geraten wäre.
@@ -172,11 +156,14 @@ function GlossarLink({ code }: { code: number | null }): React.ReactElement | nu
   );
 }
 
-function Inhalt({ h, ebene, abweichend, weitere }: {
+function Inhalt({ h, ebene, abweichend, weitere, onGanzenVerlauf }: {
   h: Herleitung;
   ebene: StatusEbene;
   abweichend: AbweichendeEbene[];
   weitere: number;
+  /** Öffnet den aufgeklappten Bereich der Zeile. Fehlt auf der Detailseite —
+   *  dort steht die Verlaufs-Sektion ohnehin auf der Seite. */
+  onGanzenVerlauf?: () => void;
 }): React.ReactElement {
   const kopieren = useKopierAktion(
     () => herleitungAlsText(h, {
@@ -293,21 +280,22 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
         )}
       </div>
 
-      {h.verlauf.length > 0 && (
+      {/* Die „Verlaufs-Näherung (max. 5)" ist mit v3.21 hier raus. Fünf von
+          durchschnittlich 33 Terminen waren ein Ausschnitt ohne Auswahlregel —
+          und die Eskalationsleiter ist jetzt eindeutig: das Popover sagt, WAS
+          der Status ist, der aufgeklappte Bereich sagt, WIE es dazu kam. Die
+          Engine rechnet `verlauf` weiter (der kopierte Text ist ein Protokoll
+          und behält ihn), nur angezeigt wird er nicht mehr. */}
+      {onGanzenVerlauf !== undefined && h.verlaufGesamt > 0 && (
         <div className="border-t border-[var(--tf-border)] pt-1.5">
-          <ul className="flex flex-col gap-0.5">
-            {h.verlauf.map(s => <Zeile key={`${s.tag}-${s.label}`} s={s} />)}
-          </ul>
-          {/* Der Satz trennt jetzt belegt von genähert: DIESER Verlauf bleibt
-              die Näherung aus den Datumsspalten. Was sich seit dem Nullpunkt
-              wirklich geändert hat, steht unter „Belegte Änderungen" auf der
-              Vorhaben-Seite — aus dem Import-Diff-Journal. */}
-          <p className="mt-1 text-[10.5px] text-[var(--tf-text-tertiary)]">
-            {h.verlaufGesamt > h.verlauf.length && `${h.verlaufGesamt - h.verlauf.length} weitere · `}
-            Dieser Verlauf ist eine Näherung: die `D_`-Spalten tragen je Kürzel das zuletzt gesetzte
-            Datum, frühere Setzungen sind im Export überschrieben. Belegte Änderungen ab dem
-            Journal-Nullpunkt stehen auf der Vorhaben-Seite unter „Status &amp; Verlauf".
-          </p>
+          <button
+            type="button"
+            onClick={onGanzenVerlauf}
+            className="text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer underline"
+          >
+            Ganzen Verlauf zeigen ({h.verlaufGesamt}{' '}
+            {h.verlaufGesamt === 1 ? 'Termin' : 'Termine'})
+          </button>
         </div>
       )}
 
@@ -342,10 +330,13 @@ function Inhalt({ h, ebene, abweichend, weitere }: {
  *              Verbund-Status; das Bauteil rät nicht. Die jeweils andere Ebene
  *              liest der Hook selbst aus den geladenen Records.
  */
-export function HerleitungPopover({ verbundId, statusRoh, ebene }: {
+export function HerleitungPopover({ verbundId, statusRoh, ebene, onGanzenVerlauf }: {
   verbundId: string | null;
   statusRoh: unknown;
   ebene: StatusEbene;
+  /** Öffnet den ausklappbaren Bereich der Tabellenzeile. Ohne die Prop zeigt
+   *  das Popover keinen Verweis — auf der Detailseite gäbe es kein Ziel. */
+  onGanzenVerlauf?: () => void;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
   const stand = useHerleitung(verbundId, statusRoh, offen, ebene);
@@ -382,6 +373,9 @@ export function HerleitungPopover({ verbundId, statusRoh, ebene }: {
           <Inhalt
             h={stand.herleitung} ebene={ebene}
             abweichend={stand.abweichend} weitere={stand.weitere}
+            {...(onGanzenVerlauf
+              ? { onGanzenVerlauf: () => { setOffen(false); onGanzenVerlauf(); } }
+              : {})}
           />
         )}
       </PopoverContent>
