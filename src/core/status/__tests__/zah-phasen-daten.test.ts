@@ -109,19 +109,40 @@ describe('Die Kategorie kommt aus `kategorieVorgabe`', () => {
   });
 
   /**
-   * Die vier Code-Ausnahmen hängen an den Phasen `vollstaendigkeit` und
-   * `begleitung`. Das ist eine Setzung, kein Zufall — sie steht hier, damit ihr
-   * Wegfall bei einem umdefinierten Schnitt nicht als Regression durchgeht.
+   * Die verankerten Codes hingen bis v3.24 an den Phasen `vollstaendigkeit` und
+   * `begleitung` — „35 ist eine Nachforderung, WENN er in der Vollständigkeit
+   * liegt". Die Katalog-Fassung 19 vom 05.08.2026 löste diese Phase auf und
+   * hängte ihre Codes an „Prüfung"; der Anker griff ins Leere, und vier der fünf
+   * Status der täglichen Arbeit rutschten nach `in_pruefung` — 448 Anträge im
+   * Bestand, die Lane „Wartet auf Antragsteller" fiel auf 0. Seitdem hängt die
+   * Arbeitsliste dieser Codes am CODE: der Verfahrensschritt bleibt beweglich,
+   * die Arbeitsliste steht still (Pitfall #50).
    */
-  it('35–37 sind Nachforderung, solange sie in „Vollständigkeit" liegen', () => {
+  it('die verankerten Codes behalten ihre Arbeitsliste in JEDER Phase', () => {
     expect(kategorieFuerPhase('vollstaendigkeit', 35)).toBe('nachforderung');
     expect(kategorieFuerPhase('vollstaendigkeit', 34)).toBe('offen');
-    // Umgehängt gilt die Vorgabe der neuen Phase, nicht mehr die Ausnahme.
-    expect(kategorieFuerPhase('pruefung', 35)).toBe('in_pruefung');
+    // Der Fall, der v3.24 den Altanträge-Balken geleert hat: umgehängt nach
+    // „Prüfung" gilt die Vorgabe der neuen Phase für die verankerten Codes NICHT.
+    expect(kategorieFuerPhase('pruefung', 35)).toBe('nachforderung');
+    expect(kategorieFuerPhase('pruefung', 34)).toBe('offen');
+    expect(kategorieFuerPhase('pruefung', 36)).toBe('offen');
+    expect(kategorieFuerPhase('pruefung', 37)).toBe('offen');
+    // Auch ein gelöschter Phasenbezug nimmt sie ihnen nicht — sonst führte der
+    // Marker-Weg dasselbe Loch ein Stockwerk tiefer wieder ein.
+    expect(kategorieFuerPhase(null, 35)).toBe('nachforderung');
   });
 
-  it('59 ist die Bewilligung selbst, solange sie in „Begleitung" liegt', () => {
+  it('nicht verankerte Codes folgen weiter dem kuratierten Schnitt', () => {
+    // Die Gegenprobe zum Test darüber: der Anker ist eine Untergrenze für das
+    // fachlich Feste, kein Ausschalter für die Kuration.
+    expect(kategorieFuerPhase('pruefung', 38)).toBe('in_pruefung');
+    expect(kategorieFuerPhase('eingang', 38)).toBe('offen');
+    expect(kategorieFuerPhase(null, 38)).toBe('sonstige');
+  });
+
+  it('59 ist die Bewilligung selbst, auch außerhalb von „Begleitung"', () => {
     expect(kategorieFuerPhase('begleitung', 59)).toBe('bewilligt');
+    expect(kategorieFuerPhase('entscheidung', 59)).toBe('bewilligt');
     expect(kategorieFuerPhase('begleitung', 89)).toBe('begleitung');
   });
 

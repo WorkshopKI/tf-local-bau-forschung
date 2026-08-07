@@ -13,10 +13,9 @@
  *
  * **Der Weg:** Rohtext → Code (`status-codes.ts`, exakt oder über eine
  * gepflegte Variante) → ZAH-Phase (`zah-phasen.ts`, PL-editierbar) → Kategorie
- * (die kleine Tabelle unten). Zwei Ausnahmen hängen am **Code**, nicht an der
- * Phase, weil die Kategorie feiner schneidet als die Phase:
- * 35 wartet auf den Antragsteller, obwohl er in der Vollständigkeit liegt, und
- * 59 ist die Bewilligung selbst, nicht schon Begleitung.
+ * (die kleine Tabelle unten). Sechs Codes hängen am **Code** statt an der Phase
+ * ({@link KATEGORIE_ANKER}), weil ihre Arbeitsliste fachlich feststeht, während
+ * der Verfahrensschnitt beweglich ist.
  *
  * **Flag-unabhängig.** Die Fassade wird von allen Varianten genutzt, auch von
  * prod/as ohne `statusCockpit` — dort wird der Katalog-Snapshot nie gesetzt.
@@ -39,46 +38,72 @@ import type { ZahPhase, ZahPhaseId } from './typen';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 /**
- * Die beiden Phasen, an denen die Code-Ausnahmen unten hängen.
+ * Codes, deren **Arbeitsliste am Code hängt** statt am Verfahrensschritt.
  *
- * Sie stehen hier als Konstanten, weil sie **Anker** sind und keine Vorgabe:
- * hängt die PL Code 35 in eine andere Phase, ist er dort keine Nachforderung
- * mehr, sondern das, was die neue Phase vorgibt. Löscht sie die Phase ganz, hat
- * sie den Schnitt bewusst umdefiniert — dann greift die Ausnahme nicht mehr und
- * die Kategorie kommt aus `kategorieVorgabe`. Beides ist getestet
- * (`kategorie-ableitung.test.ts`), damit es keine stille Änderung wird.
- */
-const ANKER_NACHFORDERUNG: ZahPhaseId = 'vollstaendigkeit';
-const ANKER_BEWILLIGUNG: ZahPhaseId = 'begleitung';
-
-/**
- * Codes der Phase „Vollständigkeit", bei denen der Ball beim **Antragsteller**
- * liegt: nur **35 NF gestellt**. Die Kategorie schneidet hier feiner als die
- * Phase — 33 (unvollständig) und 34 (bearbeitungsreif) liegen ebenfalls in der
- * Vollständigkeit, warten aber nicht auf den Antragsteller.
+ * **Warum es diese Tabelle gibt.** Bis v3.24 hingen die beiden Ausnahmen (35,
+ * 59) an einer Phasen-Id: „35 ist eine Nachforderung, *wenn* er in der
+ * Vollständigkeit liegt". Das las sich wie eine Feinheit und war eine
+ * Sollbruchstelle. Die **Katalog-Fassung 19** vom 05.08.2026 löste die Phase
+ * „Vollständigkeit" auf und hängte ihre Codes 33–37 an „Prüfung" — ein gewollter
+ * Schnitt (fünf statt sechs Phasen), beschlossen in der AB/FB-Abstimmung. Der
+ * Anker griff damit ins Leere, und weil `pruefung` die Arbeitsliste
+ * `in_pruefung` vorgibt, wanderten vier der fünf Status, an denen die tägliche
+ * Arbeit hängt, aus „Zu bearbeiten" und „Wartet auf Antragsteller" heraus.
  *
- * **Warum nur 35, seit die Arbeitsliste „Wartet auf Antragsteller" heißt
- * (v2.411):** 36 „NL eingegangen" sagt, die Nachlieferung ist DA; 37 „keine
- * weiteren NF", der Zyklus ist abgeschlossen und der Antrag vollständig. Bei
- * beiden liegt der Ball wieder bei der Behörde. Solange die Kategorie
- * „Nachforderung" hieß, beschrieb die Bündelung die Vorgangsart und war
- * vertretbar; unter dem Zuständigkeits-Namen war sie für zwei von drei Codes
- * schlicht falsch. 36 und 37 fallen seitdem auf die `kategorieVorgabe` ihres
- * Verfahrensschritts zurück — „Zu bearbeiten", genau der Wert, der im Katalog
- * ohnehin gepflegt stand und von der Ableitung überschrieben wurde.
+ * Am Bestand gemessen (14 222 Anträge): **448 Anträge** wechselten die
+ * Arbeitsliste, die Lane „Wartet auf Antragsteller" fiel von 52 auf **0**, und
+ * der Altanträge-Balken der Auslastung blieb bei 22 von 32 MAs leer (395 → 22
+ * gezählte Teilvorhaben). In den Reitern fiel es nicht auf, weil das Aggregat
+ * „Vor Entscheidung" `offen`, `in_pruefung` und `entscheidung` bündelt — die
+ * Verschiebung lief innerhalb eines Aggregats.
+ *
+ * Genau davor warnt Pitfall #50: der Verfahrensschritt ist beweglich, die
+ * **Arbeitsliste steht still**. `kategorieVorgabe` war das Schlupfloch, durch das
+ * eine Phasen-Iteration die Arbeitsliste doch verschieben konnte. Für die sechs
+ * Codes, deren Zuständigkeit fachlich feststeht, ist es hiermit zu.
+ *
+ * **Der Anker greift VOR der Phase** — auch, wenn eine Fassung den Code zum
+ * Marker macht. Sonst nähme ein gelöschter Phasenbezug demselben Code seine
+ * Arbeitsliste wieder weg, nur auf einem anderen Weg.
+ *
+ * **Die Werte sind der Ist-Stand, keine Neubewertung**: sie sind identisch mit
+ * dem, was die Auslieferung heute liefert (`vollstaendigkeit`→`offen` plus die
+ * beiden alten Anker). `CATEGORY_MAP` und damit die Variante ohne Fassung
+ * (`prod`) ändern sich dadurch nicht — festgehalten in `byte-identitaet`.
+ *
+ * Was NICHT hier steht, kuratiert die PL weiter über `kategorieVorgabe` (38/39/40
+ * „Prüfung", die Entscheidungs- und Abschluss-Codes). Die Tabelle ist eine
+ * Untergrenze für das fachlich Feste, kein Ersatz für den Schnitt.
  */
-export const NACHFORDERUNG_CODES: ReadonlySet<number> = new Set([35]);
+export const KATEGORIE_ANKER: ReadonlyMap<number, StatusCategory> = new Map<number, StatusCategory>([
+  // 33–37: der Vollständigkeits-Zyklus. Nur bei 35 liegt der Ball beim
+  // Antragsteller — 36 „NL eingegangen" sagt, die Nachlieferung ist DA, und 37
+  // „keine weiteren NF", der Zyklus ist zu. Bei beiden ist wieder die Behörde am
+  // Zug, deshalb `offen` und nicht `nachforderung` (v2.411).
+  [33, 'offen'],          // unvollständig
+  [34, 'offen'],          // bearbeitungsreif
+  [35, 'nachforderung'],  // NF gestellt — wartet auf den Antragsteller
+  [36, 'offen'],          // NL eingegangen
+  [37, 'offen'],          // keine weiteren NF
+  // 59 „bewilligt" ist die positive Entscheidung selbst und liegt trotzdem in
+  // der Begleitphase — die beginnt fachlich mit ihr. `isBewilligtStatus` hängt
+  // an dem Unterschied.
+  [59, 'bewilligt'],
+]);
 
-/**
- * Code 59 „bewilligt" ist die positive Entscheidung selbst und liegt trotzdem in
- * der Phase „Begleitung" — die beginnt fachlich mit ihr. Die Kategorie muss den
- * Unterschied halten, weil `isBewilligtStatus` daran hängt.
- */
+/** Die verankerten Codes der Kategorie `nachforderung` — abgeleitete Sicht auf
+ *  {@link KATEGORIE_ANKER}, damit es keine zweite Liste gibt. */
+export const NACHFORDERUNG_CODES: ReadonlySet<number> = new Set(
+  [...KATEGORIE_ANKER].filter(([, kategorie]) => kategorie === 'nachforderung').map(([code]) => code),
+);
+
+/** Der Code der positiven Entscheidung. Siehe {@link KATEGORIE_ANKER}. */
 export const BEWILLIGT_CODE = 59;
 
 /**
- * Kategorie aus **Phase und Code**. `null` als Phase heißt Marker — bewusst ohne
- * Phase, also `sonstige`.
+ * Kategorie aus **Phase und Code**. Ein Code aus {@link KATEGORIE_ANKER} bekommt
+ * seine Arbeitsliste unabhängig von der Phase; für alle übrigen heißt `null` als
+ * Phase Marker — bewusst ohne Phase, also `sonstige`.
  *
  * Die Vorgabe kommt seit v2.409 aus der Phasen-Tabelle (`kategorieVorgabe`)
  * statt aus einer festen Map hier. Hängt die PL einen Code um, folgt die
@@ -108,9 +133,9 @@ export function kategorieFuerPhase(
   code: number,
   phasen: readonly ZahPhase[] = SEED_ZAH_PHASEN,
 ): StatusCategory {
+  const anker = KATEGORIE_ANKER.get(code);
+  if (anker) return anker;
   if (!phase) return 'sonstige';
-  if (phase === ANKER_NACHFORDERUNG && NACHFORDERUNG_CODES.has(code)) return 'nachforderung';
-  if (phase === ANKER_BEWILLIGUNG && code === BEWILLIGT_CODE) return 'bewilligt';
   return phasen.find(p => p.id === phase)?.kategorieVorgabe
     ?? SEED_ZAH_PHASEN.find(p => p.id === phase)?.kategorieVorgabe
     ?? 'sonstige';

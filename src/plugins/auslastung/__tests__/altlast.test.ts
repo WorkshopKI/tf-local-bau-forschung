@@ -9,8 +9,11 @@
  *  4. Verbund-Aggregation analog zu computeQuartalsAuslastung
  *  5. tib_kuerz/anonymMap-Mapping
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import type { Antrag } from '@/core/services/csv/types';
+import { setStatusKatalogSnapshot } from '@/core/status/snapshot';
+import { resetZahPhasenSnapshotFuerTests } from '@/core/status/zah-phasen';
+import type { MappingVersion, StatusWertEintrag, ZahPhase } from '@/core/status/typen';
 import { computeAltlasten, EMPTY_ALTLAST, quartalBand } from '../services/kapazitaet';
 
 /** Test-Helper: nimmt `status` als plain string und castet im Output auf
@@ -280,4 +283,112 @@ describe('quartalBand', () => {
   it('Jahres-Wechsel: Q-1 ueber Jahresgrenze', () => expect(quartalBand('2025-Q4', '2026-Q1')).toBe(1));
   it('ungueltiges Antrags-Quartal → null', () => expect(quartalBand('kaputt', CURR)).toBeNull());
   it('ungueltiges aktuelles Quartal → null', () => expect(quartalBand('2026-Q1', 'kaputt')).toBeNull());
+});
+
+// ─── Regressionsgatter: ein Phasen-Umbau darf die Altlast nicht leeren ───────
+
+/**
+ * Die Katalog-Fassung 19 (05.08.2026) hat die ZAH-Phase „Vollstaendigkeit"
+ * aufgeloest und ihre Codes 33–37 an „Pruefung" gehaengt — eine gewollte
+ * fachliche Entscheidung (5-Phasen-Schnitt der AB/FB-Abstimmung). Weil
+ * `pruefung` die Arbeitsliste `in_pruefung` vorgibt und `snapshot.ts` die
+ * Kategorie aus Phase + Code NEU rechnet, verloren dabei vier der fuenf
+ * Altlast-Status ihre Kategorie (`offen`/`nachforderung`): der Altanträge-Balken
+ * fiel im Bestand von 395 auf 22 Teilvorhaben und war bei 22 von 32 MAs ganz
+ * leer, obwohl sich an den Antraegen nichts geaendert hatte.
+ *
+ * Diese Tests halten die Trennung fest: der **Verfahrensschritt** ist beweglich,
+ * die **Arbeitsliste** steht still (Pitfall #50). Sie muessen unter JEDEM
+ * Phasenschnitt gruen sein — deshalb setzen sie den Schnitt hier aktiv, statt
+ * (wie die Tests oben) auf dem Seed zu laufen, wo die Luecke unsichtbar bleibt.
+ */
+const FASSUNG19_PHASEN: ZahPhase[] = [
+  { id: 'eingang', reihenfolge: 10, label: 'Eingang', kategorieVorgabe: 'offen' },
+  { id: 'pruefung', reihenfolge: 20, label: 'In Prüfung', kategorieVorgabe: 'in_pruefung' },
+  { id: 'entscheidung', reihenfolge: 30, label: 'Erstentscheidung', kategorieVorgabe: 'entscheidung' },
+  { id: 'begleitung', reihenfolge: 40, label: 'Begleitung', kategorieVorgabe: 'begleitung' },
+  { id: 'abgeschlossen', reihenfolge: 50, label: 'Abgeschlossen', kategorieVorgabe: 'abgeschlossen' },
+];
+
+/** Ein Wert-Eintrag, wie die Fassung ihn fuehrt (Code + kuratierte Phase). */
+function wertEintrag(code: number, wert: string, zahPhaseId: string): StatusWertEintrag {
+  return {
+    id: `status::${wert.toLowerCase()}`,
+    feldId: 'status',
+    wert,
+    kategorie: 'sonstige',   // bewusst falsch: der Snapshot rechnet neu (Pitfall #45)
+    prominenz: 'normal',
+    aktiv: true,
+    unkuratiert: false,
+    code,
+    zahPhaseId: zahPhaseId as StatusWertEintrag['zahPhaseId'],
+  };
+}
+
+/** Die Fassung 19, auf die fuer die Altlast relevanten Codes eingedampft. */
+function fassung19(): MappingVersion {
+  return {
+    version: 19,
+    autor: null,
+    zeitstempel: '2026-08-05T19:45:50.206Z',
+    felder: [],
+    zahPhasen: FASSUNG19_PHASEN,
+    werte: [
+      wertEintrag(31, 'beantragt', 'eingang'),
+      wertEintrag(33, 'unvollständig', 'pruefung'),
+      wertEintrag(34, 'bearbeitungsreif', 'pruefung'),
+      wertEintrag(35, 'NF gestellt', 'pruefung'),
+      wertEintrag(36, 'NL eingegangen', 'pruefung'),
+      wertEintrag(37, 'keine weiteren NF', 'pruefung'),
+      wertEintrag(38, 'techn geprüft', 'pruefung'),
+      wertEintrag(59, 'bewilligt', 'begleitung'),
+    ],
+  };
+}
+
+describe('computeAltlasten unter einem geaenderten Phasenschnitt (Fassung 19)', () => {
+  afterEach(() => {
+    setStatusKatalogSnapshot(null);
+    resetZahPhasenSnapshotFuerTests();
+  });
+
+  it('alle 5 User-Status zaehlen weiter, obwohl „Vollständigkeit" aufgeloest ist', () => {
+    setStatusKatalogSnapshot(fassung19());
+    const userStatuses = ['beantragt', 'bearbeitungsreif', 'NL eingegangen', 'NF gestellt', 'keine weiteren NF'];
+    for (const status of userStatuses) {
+      const antraege = [
+        makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'MUE', antragsdatum: '2026-01-15', status }),
+      ];
+      const m = computeAltlasten(antraege, new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+      expect(
+        m.get('MA01')?.antraege,
+        `Status "${status}" muss auch unter dem 5-Phasen-Schnitt als Altlast zaehlen`,
+      ).toBe(1);
+    }
+  });
+
+  it('die Abgrenzung nach oben haelt: „techn geprueft" und „bewilligt" zaehlen weiterhin NICHT', () => {
+    setStatusKatalogSnapshot(fassung19());
+    for (const status of ['techn geprüft', 'bewilligt']) {
+      const antraege = [
+        makeAntrag({ aktenzeichen: 'A1', tib_kuerz: 'MUE', antragsdatum: '2026-01-15', status }),
+      ];
+      const m = computeAltlasten(antraege, new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+      expect(m.size, `Status "${status}" darf keine Altlast sein`).toBe(0);
+    }
+  });
+
+  it('Baender und Verbund-Aggregation bleiben vom Phasenschnitt unberuehrt', () => {
+    setStatusKatalogSnapshot(fassung19());
+    const antraege = [
+      makeAntrag({ aktenzeichen: 'V1-TV1', tib_kuerz: 'MUE', antragsdatum: '2026-01-15', status: 'NF gestellt', verbund_id: 'V1' }),
+      makeAntrag({ aktenzeichen: 'V1-TV2', tib_kuerz: 'MUE', antragsdatum: '2026-01-15', status: 'NL eingegangen', verbund_id: 'V1' }),
+      makeAntrag({ aktenzeichen: 'A3', tib_kuerz: 'MUE', antragsdatum: '2025-11-15', status: 'bearbeitungsreif' }),
+    ];
+    const m = computeAltlasten(antraege, new Map([['MUE', 'MA01']]), '2026-Q2', STD);
+    const a = m.get('MA01')!;
+    expect(a.antraege).toBe(2);          // 1 Verbund + 1 Einzelantrag
+    expect(a.tvs).toBe(3);
+    expect(a.tvsProBand).toEqual([2, 1, 0]);
+  });
 });

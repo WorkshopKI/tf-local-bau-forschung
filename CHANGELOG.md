@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.25.0 — Arbeitsliste folgt dem Phasenschnitt nicht mehr (August 2026)
+
+MINOR — Katalog-Fassung 19 löste die Phase „Vollständigkeit" auf und hängte deren Codes an „Prüfung" — ein gewollter Schnitt, der nebenbei **448 Anträge** die Arbeitsliste wechseln ließ: „Wartet auf Antragsteller" fiel von 52 auf 0, der Altanträge-Balken der Auslastung von 395 auf 22 Teilvorhaben (leer bei 22 von 32 MAs). Entschieden hatte das niemand; in den Reitern blieb es unsichtbar, weil das Aggregat „Vor Entscheidung" drei Kategorien bündelt.
+
+- Codes mit fachlich fester Arbeitsliste (33–37, 59) hängen jetzt am **Code** statt an einer Phasen-Id — `kategorieVorgabe` bleibt für alle übrigen wirksam — [kategorie-ableitung.ts](src/core/status/kategorie-ableitung.ts)
+- „Altlast" ist an die fünf amtlichen Codes gebunden statt an zwei Kategorien der beweglichen Achse, mit Rückfall für unbekannte Schreibweisen — [altlast.ts](src/plugins/auslastung/services/kapazitaet/altlast.ts)
+- Regressionsgatter setzt den Phasenschnitt der Fassung 19 aktiv, statt auf dem Seed zu laufen, wo die Lücke unsichtbar blieb — [altlast.test.ts](src/plugins/auslastung/__tests__/altlast.test.ts)
+- Gegenprobe hält fest, dass nicht verankerte Codes weiter dem kuratierten Schnitt folgen — [zah-phasen-daten.test.ts](src/core/status/__tests__/zah-phasen-daten.test.ts)
+- Warum `status-category-not-curated` allein nicht reichte, steht bei den Achsen — [status-achsen.md](docs/architecture/status-achsen.md), Pitfall #50
+
 ### v3.24.1 — Freischaltung ueberlebt den Reload (August 2026)
 
 PATCH — Auf dem Produktivsystem verlor die Modul-Freischaltung nach dem erzwungenen Reload ihren Eintrag: Slot wieder „gesperrt", kein Menüpunkt, keine Meldung — ein zweiter Versuch klappte. Ein Wettlauf, den nur langsame Maschinen verlieren, deshalb im Dev nie sichtbar.

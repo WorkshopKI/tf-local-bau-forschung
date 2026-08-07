@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.25 — 2026-08
+
+### Bugfixes
+- **Der Balken „Altlasten (Rückstand)" in der Auslastung ist zurück.** Er war bei den meisten Mitarbeitenden leer, obwohl sich an den Anträgen nichts geändert hatte: Als der Verfahrensschritt „Vollständigkeit" im Statuskatalog mit „Prüfung" zusammengelegt wurde, galten vier der fünf Status, die einen Altantrag ausmachen, plötzlich als „In Arbeit". Gezählt wurden zuletzt nur noch 22 statt 395 Teilvorhaben.
+- **Die Arbeitsliste „Wartet auf Antragsteller" ist wieder gefüllt.** Aus demselben Grund stand sie auf null, obwohl 52 Anträge auf eine Nachlieferung warteten.
+- Damit so etwas nicht wiederkehrt: Bei den Status, deren Zuständigkeit fachlich feststeht, hängt die Arbeitsliste jetzt am Status selbst. Der Verfahrensschnitt bleibt frei einstellbar — er kann die täglichen Arbeitslisten aber nicht mehr nebenbei umräumen.
+
 ## v3.24 — 2026-08
 
 ### Verbesserungen

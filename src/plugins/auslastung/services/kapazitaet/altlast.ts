@@ -2,9 +2,10 @@
  * Altlast-Service — informativer Indikator (NICHT ranking-relevant).
  *
  * Liefert pro MA die noch offenen Antraege aus bis zu 7 Vorquartalen (exklusiv
- * aktuelles), die noch in einem der 5 vom User definierten Status-Werte sind:
+ * aktuelles), die noch in einem der 5 vom Fachbereich benannten Status-Werte
+ * sind:
  *   beantragt, bearbeitungsreif, NL eingegangen, NF gestellt, keine weiteren NF
- * (technisch: getStatusCategory ∈ {offen, nachforderung}).
+ * (technisch: der amtliche Code steht in {@link ALTLAST_CODES}).
  *
  * **Dringlichkeits-Baender** (`quartalBand`): jeder Antrag wird nach seinem Alter
  * relativ zum aktuellen Quartal eingestuft —
@@ -27,6 +28,9 @@
  */
 import type { AntragOderSlim } from '@/core/services/csv/types';
 import { getStatusCategory } from '@/core/utils/status-canonical';
+// Direktimport statt Barrel `@/core/status`: das zoege `snapshot.ts` nach und
+// damit einen Laufzeit-Zyklus (Zyklen-Waechter).
+import { codeFuerStatusText } from '@/core/status/kategorie-ableitung';
 import { dateToQuartal } from '../verbund/externe-zuweisungen';
 import type { AltlastBand, AuslastungVerbund } from './quartals-auslastung';
 
@@ -99,8 +103,42 @@ function readField(a: AntragOderSlim, key: string): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-/** True wenn der Status in einem der 5 vom User benannten "offen"-Status ist. */
+/**
+ * Die 5 Altlast-Status als **amtliche Codes** des Fachsystems C16.
+ *
+ * Bis v3.24 fragte der Filter stattdessen die Kategorie ab
+ * (`getStatusCategory ∈ {offen, nachforderung}`) — eine Abkuerzung, die genau
+ * solange trug, wie die Kategorien dieser fuenf Status stillhielten. Die
+ * Katalog-Fassung 19 vom 05.08.2026 loeste die ZAH-Phase „Vollstaendigkeit" auf
+ * und haengte ihre Codes an „Pruefung"; damit rutschten vier der fuenf nach
+ * `in_pruefung`. Gemessen am Bestand fiel der Altanträge-Balken von 395 auf 22
+ * Teilvorhaben und blieb bei 22 von 32 MAs ganz leer — ohne dass sich an einem
+ * einzigen Antrag etwas geaendert haette.
+ *
+ * „Altlast" ist eine **Fach-Festlegung dieses Moduls**, keine Ableitung aus der
+ * bewusst beweglichen Phasen-Achse. Sie haengt deshalb am Code, den das
+ * Fachsystem vergibt — den kann keine Katalog-Fassung verschieben. Wer die Menge
+ * aendern will, aendert sie hier, sichtbar und mit Test.
+ */
+const ALTLAST_CODES: ReadonlySet<number> = new Set([
+  31,  // beantragt
+  34,  // bearbeitungsreif
+  35,  // NF gestellt
+  36,  // NL eingegangen
+  37,  // keine weiteren NF
+]);
+
+/**
+ * True wenn der Status einer der 5 Altlast-Status ist.
+ *
+ * **Rueckfall mit Absicht:** kennt der Code-Katalog eine Schreibweise nicht,
+ * greift weiter die alte Kategorien-Pruefung. Eine nur in der Fassung gepflegte
+ * Variante faellt so nicht still aus der Altlast — die Bindung an den Code ist
+ * eine zusaetzliche Sicherung, nie eine Verengung gegenueber vorher.
+ */
 function isAltlastStatus(status: unknown): boolean {
+  const code = codeFuerStatusText(status);
+  if (code !== null) return ALTLAST_CODES.has(code);
   const c = getStatusCategory(status);
   return c === 'offen' || c === 'nachforderung';
 }

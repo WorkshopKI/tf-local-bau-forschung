@@ -19,9 +19,15 @@ einzahlt, nicht **welche** Arbeitslisten es gibt.
 
 ```
 Rohtext → amtlicher Code → Verfahrensschritt → Arbeitsliste
-          (status-codes)    (zahPhasen,         (kategorieVorgabe,
-                             kuratierbar)        + 4 Code-Ausnahmen)
+          (status-codes)    (zahPhasen,         (KATEGORIE_ANKER am Code,
+                             kuratierbar)        sonst kategorieVorgabe)
 ```
+
+Sechs Codes gehen den zweiten Pfeil **nicht** mit: 33–37 (der
+Vollständigkeits-Zyklus) und 59 (bewilligt) tragen ihre Arbeitsliste am Code,
+nicht an der Phase — `KATEGORIE_ANKER` in
+[kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts). Warum,
+steht unten.
 
 ## Warum die eine beweglich ist
 
@@ -40,6 +46,39 @@ Umbenennung unten geschrieben ist.
 
 Festgehalten von `status-category-not-curated`: kein Feld der Fassung führt eine
 Liste von `StatusCategory`.
+
+## Was v3.25 gelehrt hat: `kategorieVorgabe` war das Schlupfloch
+
+Der Absatz darüber beschreibt genau den Schaden, der am 05.08.2026 eintrat — der
+Wächter stand nur an der falschen Tür. Er verbot der Fassung eine **Liste** von
+Kategorien; verschoben wurde die Arbeitsliste aber über den erlaubten Weg, den
+Phasenschnitt.
+
+Die **Katalog-Fassung 19** löste die Phase „Vollständigkeit" auf und hängte ihre
+Codes 33–37 an „Prüfung" — ein gewollter Schnitt (fünf statt sechs Phasen) aus
+der AB/FB-Abstimmung. Weil `pruefung` die Arbeitsliste `in_pruefung` vorgibt und
+`snapshot.ts` die Kategorie aus Phase + Code neu rechnet, wanderten **448
+Anträge** mit: „Wartet auf Antragsteller" fiel von 52 auf **0**, „Zu bearbeiten"
+verlor rund 400 seiner Einträge. Niemand hatte das entschieden; es war die
+Nebenwirkung einer Entscheidung über etwas anderes.
+
+Zwei Dinge machten es unsichtbar:
+
+- Die Reiter zeigten nichts, weil das Aggregat „Vor Entscheidung" `offen`,
+  `in_pruefung` und `entscheidung` bündelt — die Verschiebung lief **innerhalb**
+  eines Aggregats. Auffällig wurde nur, wo eine Kategorie allein steht.
+- Der Anker für Code 35 hing an der Phasen-**Id** `'vollstaendigkeit'`. Mit der
+  Phase verschwand er, ohne dass irgendwo etwas fehlschlug.
+
+Gemeldet hat es am Ende der **Altanträge-Balken der Auslastung** (395 → 22
+Teilvorhaben, bei 22 von 32 MAs ganz leer) — ein Modul, das die Kategorie nur
+mitbenutzte.
+
+**Die Lehre:** Wessen Arbeitsliste fachlich feststeht, hängt am Code, nicht an
+der Phase. Ein Anker, der eine Phasen-Id nennt, ist kein Anker, sondern eine
+Sollbruchstelle. Die Kuration bleibt für alle übrigen Codes unberührt — die
+Anker-Tabelle ist eine Untergrenze, kein Ausschalter (Gegenprobe im Test
+`nicht verankerte Codes folgen weiter dem kuratierten Schnitt`).
 
 ## Die Umbenennung von v2.409
 
