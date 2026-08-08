@@ -1,14 +1,14 @@
 /**
- * Die **Beschriftung** des VerlaufsBands — vier Stufen, eine Entscheidung je
- * Segment.
+ * Die **Beschriftung** des VerlaufsBands — was im Balken steht, was darunter.
  *
  * Geprüft wird die ENTSCHEIDUNG, nicht die Schrift: die Messfunktion ist eine
  * Attrappe mit runden Zahlen. Ob das echte Modell die Glyphen richtig trifft,
  * beantwortet keine Attrappe — das prüft der Abnahmelauf im Browser gegen das
  * Gerenderte (`scrollWidth` je `[data-band-label]`).
  *
- * Die tragende Zusage dieser Datei: **eine Unter-Beschriftung überlappt keine
- * andere**, und **ohne Messung passiert exakt das, was bis v3.31 passierte**.
+ * Die tragenden Zusagen dieser Datei: **eine Unter-Beschriftung überlappt keine
+ * andere**, **eine Dauer verdrängt nie einen Namen**, und **ohne Messung
+ * passiert exakt das, was bis v3.31 passierte**.
  */
 import { describe, it, expect } from 'vitest';
 import type { VerlaufsSpur } from '@/core/status/verlauf';
@@ -24,11 +24,12 @@ const messe = (s: string): number => s.length * 6;
 
 function bandSeg(
   links: number, breite: number, kurz: string, lang: string, gestaucht = false,
+  dauerTage: number | null = null, dauerUnsicher = false,
 ): BandSegment {
   return {
     segment: {
       statusRef: { roh: lang, code: null, kurz, lang, labelHerkunft: 'katalog' },
-      vonDatum: null, bisDatum: null, dauerTage: null, dauerUnsicher: false,
+      vonDatum: null, bisDatum: null, dauerTage, dauerUnsicher,
     },
     links, breite, offenLinks: false, offenRechts: false, gestaucht,
   };
@@ -51,8 +52,18 @@ const NUMMERN = new Map([['NF', 7], ['AB', 8], ['BR', 3], ['KW', 4], ['NFGESTELL
 const nummerVon = (k: string): number | undefined => NUMMERN.get(k);
 const OPT = { messeText: messe, nummerVon };
 
-function lagen(b: SegmentBeschriftung[]): string[] {
-  return b.map(s => s.lage);
+/**
+ * Wo der Text eines Segments gelandet ist — eine Zeichenkette je Segment, damit
+ * die Erwartungen lesbar bleiben. `im-balken+unten` heißt: Name oben, Dauer
+ * darunter.
+ */
+function ort(s: SegmentBeschriftung): string {
+  if (s.unten === null) return s.lage;
+  return s.lage === 'keine' ? 'unten' : `${s.lage}+unten`;
+}
+
+function orte(b: SegmentBeschriftung[]): string[] {
+  return b.map(ort);
 }
 
 describe('Vier Stufen je Segment', () => {
@@ -79,11 +90,11 @@ describe('Vier Stufen je Segment', () => {
       [bahn([bandSeg(24, 16, 'NF', 'NF gestellt')])], { ...OPT, bahnBreite: 400 },
     );
     // Der volle Bezeichner gewinnt auch hier — er ist der Grund für die Etage.
-    expect(r.segmente[0]![0]).toMatchObject({
-      lage: 'unter-balken', text: 'NF gestellt', x: 24, rechtsBuendig: false,
+    expect(r.segmente[0]![0]).toMatchObject({ lage: 'keine', text: '' });
+    expect(r.segmente[0]![0]!.unten).toEqual({
+      // 66 px Text + 3 px Führungsstrich + 2 px Sicherheit.
+      text: 'NF gestellt', x: 24, breite: 71, rechtsBuendig: false,
     });
-    // 66 px Text + 3 px Führungsstrich + 2 px Sicherheit.
-    expect(r.segmente[0]![0]!.breite).toBe(71);
   });
 
   it('fällt auf die Legendennummer zurück, wenn auch darunter kein Platz ist', () => {
@@ -92,7 +103,7 @@ describe('Vier Stufen je Segment', () => {
     const r = verteileBeschriftung(
       [bahn([bandSeg(0, 16, 'NF', 'NF gestellt')])], { ...OPT, bahnBreite: 16 },
     );
-    expect(r.segmente[0]![0]).toMatchObject({ lage: 'nummer', text: '7' });
+    expect(r.segmente[0]![0]).toMatchObject({ lage: 'nummer', text: '7', unten: null });
     expect(r.nummernGenutzt).toBe(true);
   });
 
@@ -101,7 +112,7 @@ describe('Vier Stufen je Segment', () => {
     const r = verteileBeschriftung(
       [bahn([bandSeg(0, 10, 'NF', 'NF gestellt')])], { ...OPT, bahnBreite: 10 },
     );
-    expect(r.segmente[0]![0]).toMatchObject({ lage: 'keine', text: '' });
+    expect(r.segmente[0]![0]).toMatchObject({ lage: 'keine', text: '', unten: null });
     expect(r.nummernGenutzt).toBe(false);
   });
 });
@@ -113,7 +124,7 @@ describe('Die zweite Etage kollidiert nicht mit sich selbst', () => {
       bandSeg(16, 16, 'AB', 'Ablehnung'),    // will ab x=16 — überlappt
     ])], { ...OPT, bahnBreite: 400 });
 
-    expect(lagen(r.segmente[0]!)).toEqual(['unter-balken', 'nummer']);
+    expect(orte(r.segmente[0]!)).toEqual(['unten', 'nummer']);
     expect(r.nummernGenutzt).toBe(true);
   });
 
@@ -123,9 +134,9 @@ describe('Die zweite Etage kollidiert nicht mit sich selbst', () => {
       bandSeg(77, 16, 'AB', 'Ablehnung'),    // 77 >= 71 + 6 → passt
     ])], { ...OPT, bahnBreite: 400 });
 
-    expect(lagen(r.segmente[0]!)).toEqual(['unter-balken', 'unter-balken']);
+    expect(orte(r.segmente[0]!)).toEqual(['unten', 'unten']);
     const [a, b] = r.segmente[0]!;
-    expect(a!.x + a!.breite).toBeLessThanOrEqual(b!.x);
+    expect(a!.unten!.x + a!.unten!.breite).toBeLessThanOrEqual(b!.unten!.x);
   });
 
   it('weicht auf die Kurzform aus, bevor es über den rechten Bahnrand liefe', () => {
@@ -137,11 +148,9 @@ describe('Die zweite Etage kollidiert nicht mit sich selbst', () => {
     // Der volle Bezeichner liefe ab x=100 bis 201; nach innen gerückt (49) stieße
     // er auf das erste Label (0 … 71). Also die Kurzform an Ort und Stelle —
     // besser als eine Nummer, und ehrlicher als ein verrückter Anker.
-    expect(r.segmente[0]!.map(s => [s.lage, s.text])).toEqual([
-      ['unter-balken', 'NF gestellt'], ['unter-balken', 'BR'],
-    ]);
+    expect(r.segmente[0]!.map(s => s.unten?.text)).toEqual(['NF gestellt', 'BR']);
     for (const s of r.segmente[0]!) {
-      if (s.lage === 'unter-balken') expect(s.x + s.breite).toBeLessThanOrEqual(150);
+      if (s.unten !== null) expect(s.unten.x + s.unten.breite).toBeLessThanOrEqual(150);
     }
   });
 
@@ -153,7 +162,7 @@ describe('Die zweite Etage kollidiert nicht mit sich selbst', () => {
       bandSeg(16, 16, 'ABLEHNUNGSREIF', 'Ablehnung wurde versandt'),
     ])], { ...OPT, bahnBreite: 400 });
 
-    expect(lagen(r.segmente[0]!)).toEqual(['unter-balken', 'keine']);
+    expect(orte(r.segmente[0]!)).toEqual(['unten', 'keine']);
   });
 
   it('rückt das LETZTE Segment nach innen statt es verschwinden zu lassen', () => {
@@ -161,10 +170,143 @@ describe('Die zweite Etage kollidiert nicht mit sich selbst', () => {
     const r = verteileBeschriftung(
       [bahn([bandSeg(120, 16, 'AB', 'Ablehnung')])], { ...OPT, bahnBreite: 150 },
     );
-    expect(r.segmente[0]![0]).toMatchObject({
-      lage: 'unter-balken', text: 'Ablehnung', x: 91, rechtsBuendig: true,
+    expect(r.segmente[0]![0]!.unten).toEqual({
+      text: 'Ablehnung', x: 91, breite: 59, rechtsBuendig: true,
     });
-    expect(r.segmente[0]![0]!.x + r.segmente[0]![0]!.breite).toBe(150);
+  });
+});
+
+describe('Die Dauer steht in derselben Etage', () => {
+  it('setzt sie unter den Balken, wenn der Name darin Platz hat', () => {
+    // 'NF gestellt' passt in 90 px; die Etage darunter ist damit frei.
+    const r = verteileBeschriftung(
+      [bahn([bandSeg(0, 90, 'NF', 'NF gestellt', false, 28)])], { ...OPT, bahnBreite: 400 },
+    );
+    expect(r.segmente[0]![0]).toMatchObject({ lage: 'im-balken', text: 'NF gestellt' });
+    // '28 T' = 4 Zeichen → 24 px + 3 + 2.
+    expect(r.segmente[0]![0]!.unten).toEqual({
+      text: '28 T', x: 0, breite: 29, rechtsBuendig: false,
+    });
+  });
+
+  it('hängt sie an den Namen, wenn der schon unter dem Balken steht', () => {
+    const r = verteileBeschriftung(
+      [bahn([bandSeg(0, 16, 'NF', 'NF gestellt', false, 28)])], { ...OPT, bahnBreite: 400 },
+    );
+    expect(r.segmente[0]![0]!.unten?.text).toBe('NF gestellt · 28 T');
+  });
+
+  it('lässt den Namen vor, wenn beides zusammen nicht mehr passt', () => {
+    // 'NF gestellt · 28 T' = 18 Zeichen → 108+5 = 113 px, ab x=300 zu viel für
+    // eine 400er Bahn. 'NF gestellt' allein (71 px) passt. Der Abschnitt ist
+    // bewusst NICHT der letzte — sonst dürfte er nach rechts ausweichen, und
+    // die volle Zeichenkette bekäme doch noch ihren Platz.
+    const r = verteileBeschriftung([bahn([
+      bandSeg(300, 16, 'NF', 'NF gestellt', false, 28),
+      bandSeg(316, 84, 'AB', 'Ablehnung'),
+    ])], { ...OPT, bahnBreite: 400 });
+    expect(r.segmente[0]![0]!.unten?.text).toBe('NF gestellt');
+  });
+
+  it('schweigt bei unsicherer Dauer — „1 T" wäre eine Behauptung', () => {
+    const unsicher = verteileBeschriftung(
+      [bahn([bandSeg(0, 90, 'NF', 'NF gestellt', false, 1, true)])],
+      { ...OPT, bahnBreite: 400 },
+    );
+    expect(unsicher.segmente[0]![0]!.unten).toBeNull();
+    expect(unsicher.unterzeile).toEqual([false]);
+
+    // Gegenprobe: ohne das Kennzeichen steht dieselbe Zahl da.
+    const sicher = verteileBeschriftung(
+      [bahn([bandSeg(0, 90, 'NF', 'NF gestellt', false, 1, false)])],
+      { ...OPT, bahnBreite: 400 },
+    );
+    expect(sicher.segmente[0]![0]!.unten?.text).toBe('1 T');
+  });
+
+  it('verdrängt nie einen Namen — die Namen werden ZUERST gesetzt', () => {
+    // Der schmale Abschnitt links braucht die Etage für seinen Namen
+    // (0 … 101); die Dauer des breiten Nachbarn wollte ab x=16 dorthin.
+    const r = verteileBeschriftung([bahn([
+      bandSeg(0, 16, 'BR', 'bearbeitungsreif'),
+      bandSeg(16, 384, 'AB', 'Ablehnung', false, 400),
+    ])], { ...OPT, bahnBreite: 400 });
+
+    expect(orte(r.segmente[0]!)).toEqual(['unten', 'im-balken']);
+    expect(r.segmente[0]![0]!.unten?.text).toBe('bearbeitungsreif');
+    expect(r.segmente[0]![1]!.unten).toBeNull();
+  });
+
+  it('setzt dieselbe Dauer, sobald der Name sie nicht mehr blockiert', () => {
+    // Gegenprobe zum vorigen Fall bei GLEICHER Geometrie: nur der Name des
+    // ersten Abschnitts ist kurz genug für seinen Balken (6 px Budget), also
+    // belegt er die Etage nicht.
+    const r = verteileBeschriftung([bahn([
+      bandSeg(0, 16, 'B', 'B'),
+      bandSeg(16, 384, 'AB', 'Ablehnung', false, 400),
+    ])], { ...OPT, bahnBreite: 400 });
+
+    expect(r.segmente[0]![1]!.unten?.text).toBe('1.1 J');
+  });
+});
+
+describe('Die Endmarke am Achsenende', () => {
+  const marke = (bahnIndex: number): string | null => (bahnIndex === 0 ? 'hängt fest' : null);
+
+  it('sitzt rechtsbündig am Bahnende', () => {
+    const r = verteileBeschriftung(
+      [bahn([bandSeg(0, 90, 'NF', 'NF gestellt')])],
+      { ...OPT, bahnBreite: 400, endMarke: marke },
+    );
+    // 'hängt fest' = 10 Zeichen → 60 px + 3 + 2 = 65.
+    expect(r.endMarken[0]).toEqual({
+      text: 'hängt fest', x: 335, breite: 65, rechtsBuendig: true,
+    });
+    expect(r.unterzeile[0]).toBe(true);
+  });
+
+  it('bekommt nur die benannte Bahn eine', () => {
+    const r = verteileBeschriftung([
+      bahn([bandSeg(0, 90, 'NF', 'NF gestellt')]),
+      bahn([bandSeg(0, 90, 'AB', 'Ablehnung')]),
+    ], { ...OPT, bahnBreite: 400, endMarke: marke });
+
+    expect(r.endMarken[0]).not.toBeNull();
+    expect(r.endMarken[1]).toBeNull();
+  });
+
+  it('weicht KEINEM Namen — sie wird zuerst gesetzt', () => {
+    // Der Name des letzten Abschnitts wollte rechtsbündig genau dorthin
+    // (siehe „rückt das LETZTE Segment nach innen"): jetzt ist der Platz weg,
+    // und er muss auf die Kurzform bzw. die Nummer ausweichen.
+    const ohne = verteileBeschriftung(
+      [bahn([bandSeg(120, 16, 'AB', 'Ablehnung')])], { ...OPT, bahnBreite: 150 },
+    );
+    expect(ohne.segmente[0]![0]!.unten?.text).toBe('Ablehnung');
+
+    const mit = verteileBeschriftung(
+      [bahn([bandSeg(120, 16, 'AB', 'Ablehnung')])],
+      { ...OPT, bahnBreite: 150, endMarke: marke },
+    );
+    expect(mit.endMarken[0]!.text).toBe('hängt fest');
+    expect(mit.segmente[0]![0]).toMatchObject({ lage: 'nummer', text: '8', unten: null });
+  });
+
+  it('entfällt, wenn sie nicht einmal allein in die Bahn passt', () => {
+    const r = verteileBeschriftung(
+      [bahn([bandSeg(0, 40, 'NF', 'NF gestellt')])],
+      { ...OPT, bahnBreite: 40, endMarke: marke },
+    );
+    expect(r.endMarken[0]).toBeNull();
+  });
+
+  it('erscheint ohne Messung nicht — dann gibt es die Etage gar nicht', () => {
+    const r = verteileBeschriftung(
+      [bahn([bandSeg(0, 90, 'NF', 'NF gestellt')])],
+      { messeText: null, nummerVon, bahnBreite: 400, endMarke: marke },
+    );
+    expect(r.endMarken[0]).toBeNull();
+    expect(r.unterzeile).toEqual([false]);
   });
 });
 
@@ -223,8 +365,7 @@ describe('Nummern erscheinen nur, wo sie gebraucht werden', () => {
       [bahn(segmente)], { messeText: messe, nummerVon: () => undefined, bahnBreite: 400 },
     );
     const unter = (r: typeof mit): unknown[] => r.segmente[0]!
-      .filter(s => s.lage === 'unter-balken')
-      .map(s => ({ x: s.x, breite: s.breite, text: s.text }));
+      .map(s => s.unten).filter(u => u !== null);
     expect(unter(ohne)).toEqual(unter(mit));
     expect(mit.nummernGenutzt).toBe(true);
     expect(ohne.nummernGenutzt).toBe(false);
@@ -247,11 +388,14 @@ describe('Ohne Messung bleibt alles wie bis v3.31', () => {
     ]);
   });
 
-  it('baut keine zweite Etage — ihre Kollision wäre nicht prüfbar', () => {
+  it('baut keine zweite Etage — auch nicht für eine Dauer', () => {
+    // Ohne Maß ließe sich keine Kollision prüfen. Die Dauer ist die Zugabe, die
+    // als erste entfällt; der Rückfall bleibt Stück für Stück der von v3.31.
     const r = verteileBeschriftung(
-      [bahn([bandSeg(0, 20, 'NF', 'NF gestellt')])], ohneMass,
+      [bahn([bandSeg(0, 90, 'NF', 'NF gestellt', false, 28)])], ohneMass,
     );
     expect(r.unterzeile).toEqual([false]);
+    expect(r.segmente[0]![0]!.unten).toBeNull();
   });
 });
 
@@ -310,7 +454,7 @@ describe('Der Vertrag mit der Geometrie', () => {
 
     const b = verteileBeschriftung(geo.spuren, { ...OPT, bahnBreite: geo.breite });
     b.segmente.forEach((bahnSeg, i) => {
-      expect(b.unterzeile[i]).toBe(bahnSeg.some(s => s.lage === 'unter-balken'));
+      expect(b.unterzeile[i]).toBe(bahnSeg.some(s => s.unten !== null));
     });
   });
 });

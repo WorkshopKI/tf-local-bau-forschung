@@ -12,6 +12,7 @@
  * wie breit der erste Rahmen ist — und der ist nach einem Wimpernschlag vorbei.
  */
 import { useZeilenVerlauf } from '../ausklapp/useZeilenVerlauf';
+import { useZeilenWaechter } from '../ausklapp/useZeilenWaechter';
 import { leise } from '../ausklapp/SpurListe';
 import { VerlaufsBand } from './VerlaufsBand';
 
@@ -22,6 +23,17 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
   stichtag: string;
 }): React.ReactElement {
   const daten = useZeilenVerlauf(verbundId, null, stichtag, true, statusRoh);
+  // Dieselbe Rechnung, die das Fristen-Band der Seite anstellt (`VerbundFristenBand`):
+  // hier gibt es keine gemeinsame Hülle, an der sie einmal hinge — beide Bauteile
+  // ziehen ihren Zeilen-Zustand selbst. Sie bleibt deterministisch und rein, es
+  // entsteht also keine zweite Wahrheit, nur eine zweite Auswertung.
+  const waechter = useZeilenWaechter({
+    version: daten.quelle.version,
+    vorkommen: daten.vorkommen,
+    statusRoh,
+    stichtag,
+    journalAenderung: daten.journalAb,
+  });
 
   if (daten.laden) return <p className={leise}>Lädt …</p>;
   if (daten.spuren.length === 0) {
@@ -35,6 +47,9 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
       fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
       journalAb={daten.journalAb}
       journalGenutzt={daten.journalGenutzt}
+      // Die Seite zeigt IMMER das ganze Vorhaben — die Marke gehört deshalb an
+      // die Verbundbahn, nie an eine der Teilvorhaben-Bahnen.
+      haengtFest={waechter?.urteil === 'haengt' ? { art: 'verbund', id: verbundId } : null}
     />
   );
 }

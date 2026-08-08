@@ -1419,12 +1419,23 @@ darüber ist die Verzerrung mild und eine Marke wäre Rauschen. Die Bahn darf ü
 ihren Container hinauswachsen und scrollt dann in ihrem **eigenen** Behälter;
 lieber scrollen als Abschnitte unter die Klickgrenze drücken.
 
-**Der 24-px-Boden ist auch eine Grenze.** Ein Ein-Tages-Abschnitt sitzt auf ihm
-und bleibt dort, **egal wie breit die Bahn wird** — die Verteilung wächst nur
-oberhalb des Mindestmaßes. Mehr Breite beschriftet also die mittleren
-Abschnitte, nie die kürzesten. Das ist der Grund für die zweite Etage weiter
-unten; ohne sie schickte jede Verbreiterung den Leser für genau die Abschnitte
-in die Legende, die er nachschlagen will.
+**Der Boden wächst mit der Bahn** (`bodenFuer`, v3.38). Bis v3.37 waren es feste
+24 px — eine Zahl aus der Zeit, als die Bahn 620 px breit war. Sie klebte auch
+bei 1000 px, und im Bestand war zu sehen, was das heißt: sechs Abschnitte
+drängten sich auf ~130 px, während ein einziger ~700 bekam. Jedes Intervall
+bekommt jetzt einen **Anteil** der verfügbaren Breite, gedeckelt nach beiden
+Seiten (24 … 56 px): bei sechs Grenzen auf 1000 px sind es 56, bei
+sechsundzwanzig fällt er auf 24 zurück. Gemessen am selben Verbund trug danach
+**kein** Abschnitt mehr nur seine Legendennummer — und die Legende hörte von
+selbst auf zu nummerieren.
+
+**Ein Boden ist kein Deckel.** Er hebt nur an, was proportional darunter läge;
+ein kurzer Abschnitt neben einem langen behält seinen Anteil. Genau das rettet
+die Aussage „Breite = Dauer" — und es ist der Grund, warum der Boden auch
+gedeckelt ist: höher gesetzt nähme er den langen Intervallen so viel, dass die
+Achse nur noch aus Bruchzeichen bestünde. Wo er bei 24 landet, macht Breite die
+kürzesten Abschnitte weiterhin nicht beschriftbar; dafür gibt es die zweite Etage
+weiter unten.
 
 #### Der Ausklappbereich nimmt die sichtbare Tabellenbreite (v3.32)
 
@@ -1482,15 +1493,22 @@ des Tages: belegt ein Kürzel den Wechsel, ist die Grenze erklärt, auch wenn
 daneben ein unerklärtes steht. Verschwiegen wird nichts — der Tooltip zählt jedes
 Kürzel des Tages einzeln auf, die Klartext-Liste ohnehin.
 
-**Der Strich hat die Farbe des Hintergrunds**, nicht der Schrift: er ist ein
-Schnitt durch den Balken. Eine Schriftfarbe trug nur im hellen Modus; im dunklen
-sind die Balken pastellhell UND die Schrift hell (gemessen #cccac4 auf
-rgb(142,168,204) — rund 1,3:1, also nichts). Der Hintergrund ist in beiden Modi
-die Gegenfarbe der Balken. `kein_kuerzel` trug bis v3.36 statt eines Strichs ein
-**Handsymbol**: 9 px, Tertiärfarbe, auf einem gesättigten Balken, und es deckte
-den Strich zu, der an derselben Stelle schon stand. Rückgefragt wurde nach dem
-„mini Pfeil" — niemand konnte es lesen. Mit 92,7 % ist die Stufe ohnehin der
-Normalfall; ein Sondersymbol für den Normalfall stellt die Rampe auf den Kopf.
+**Der Strich trägt den satten Akzent des Abschnitts, der hier beginnt** (v3.38).
+Damit ist er zweierlei in einem Element: Träger der Konfidenz *und* sichtbare
+Segmentgrenze. Beides braucht er, seit die Flächen getönt sind — ihr
+Farbunterschied allein trennt zu schwach. Zwei verworfene Vorgänger stehen hier,
+damit sie nicht wiederkommen: eine **Schrift**farbe trug nur im hellen Modus (im
+dunklen sind Balken UND Schrift hell, gemessen #cccac4 auf rgb(142,168,204) ≈
+1,3:1); die **Hintergrund**farbe (v3.36–v3.37) war der richtige Schnitt durch
+eine *satte* Fläche, auf einer getönten aber Hintergrund auf Fast-Hintergrund.
+Am Bestand gemessen: je Bahn genau so viele Streifen wie Segmentgrenzen, keine
+zwei auf derselben Koordinate.
+
+`kein_kuerzel` trug bis v3.36 statt eines Strichs ein **Handsymbol**: 9 px,
+Tertiärfarbe, auf einem gesättigten Balken, und es deckte den Strich zu, der an
+derselben Stelle schon stand. Rückgefragt wurde nach dem „mini Pfeil" — niemand
+konnte es lesen. Mit 92,7 % ist die Stufe ohnehin der Normalfall; ein
+Sondersymbol für den Normalfall stellt die Rampe auf den Kopf.
 
 #### Zwei leere Zustände, zwei Sätze
 
@@ -1510,11 +1528,21 @@ zusammen (die Achse hatte keine Ausdehnung). Ein Strich ist die schlechteste
 aller Aussagen — die Achse bekommt jetzt einen synthetischen Tag Ausdehnung, und
 das Segment spannt sichtbar über die volle Breite.
 
-#### Keine Codes in der Bahn — aber im kopierten Text
+#### Die Kürzel stehen über der Bahn (v3.38, Widerruf)
 
-In der Oberfläche wäre `AK4` eine Vokabel, die nur die Hälfte des Teams kennt;
-die Bahn zeigt Namen (`statusLabel`/`statusKurzLabel`, Pitfall #50) und eine
-Legende mit den vollen Bezeichnern.
+Bis v3.37 galt „keine Codes in der Bahn": `AK4` sei eine Vokabel, die nur die
+Hälfte des Teams kenne. Dagegen steht, dass das Kürzel der **Griff zum Gespräch
+mit C16** ist — wer nachfragt, nennt es. Die Etage über dem Balken stand ohnehin
+leer, die Statusnamen bleiben unverändert dort, wo sie waren
+(`statusLabel`/`statusKurzLabel`, Pitfall #50), und die Legende führt weiter die
+vollen Bezeichner.
+
+Gesetzt wird **gemessen**, mittig über der Kante, von links nach rechts:
+**was kollidiert, entfällt** — ein gekürztes Kürzel wäre ein *anderes* Kürzel,
+und eine Reihe überlappender Codes wäre schlechter als keiner. Fällt ein Tag mit
+mehreren zusammen, steht das best belegte da und dahinter `+n`; alle nennt der
+Tooltip der Kante. Am Bestand zeigen sich so acht von zehn möglichen, bei
+schmalem Behälter sechs.
 
 #### Vier Stufen, gemessen (v3.32)
 
@@ -1532,6 +1560,22 @@ angefasst, und das steht als Test.
 | voller Bezeichner, sonst Kurzform | keins passt hinein | **unter** dem Balken |
 | Legendennummer | auch darunter kein Platz | im Balken |
 
+**In derselben Etage stehen Dauer und Warnung** (v3.38). Passt der Name in den
+Balken, ist die Etage darunter frei und nimmt die Dauer; passt er nicht, hängt
+sie an ihn an („beantragt · 29 T"). Am Achsenende steht die Endmarke „hängt
+fest", wenn der Stillstands-Wächter für **diese Zeile** anschlägt.
+
+Vergeben wird in **drei Durchgängen, und die Reihenfolge ist die Rangfolge**:
+erst die Warnung (der Grund, warum jemand hinsieht), dann die Namen (die
+Auskunft, die er sucht), zuletzt die Dauern (die Zugabe). Andersherum verdrängte
+Beiwerk das Wesentliche — eine Dauer bei x = 0 nähme einem Namen bei x = 40 den
+Platz. Ein Test hält genau das fest.
+
+**Eine unsichere Dauer trägt keine Zahl.** `dauerUnsicher` fasst vier Lagen
+zusammen (Abschnitt 14.4), darunter die offene Grenze; ein „1 T" darunter wäre
+eine Behauptung über etwas, das niemand kennt. Der Tooltip sagt dort weiter
+„(unsicher)".
+
 **Gemessen, nicht geraten.** Bis v3.31 entschied eine geratene Konstante
 (46 px gegen `text-[10px]`). Jetzt liefert
 [textMessung.ts](../../src/components/data-table/messung/textMessung.ts) die
@@ -1540,8 +1584,8 @@ Generationszählers gegen die Webfont-Falle (wer vor `document.fonts.ready` miss
 bekommt die Metrik der Ersatzschrift und bleibt dabei). Fällt die Messung aus,
 gilt Stufe 2 mit der alten Schwelle — **nie unter den Stand von v3.31**.
 
-**Die zweite Etage ist der Kern.** Der 24-px-Boden der Achse macht kurze
-Abschnitte durch Breite allein nie beschriftbar. Unter dem Balken darf ihr Name
+**Die zweite Etage ist der Kern.** Wo der Boden der Achse auf seinem Mindestmaß
+liegt, macht Breite allein kurze Abschnitte nie beschriftbar. Unter dem Balken darf ihr Name
 unter den Balken der *Nachbarn* hinweglaufen, ohne etwas zu verdecken — die
 liegen eine Etage höher. Nur Unter-Beschriftungen konkurrieren miteinander, und
 die prüft der Algorithmus von links nach rechts. Nur das **letzte** Segment (der
@@ -1602,6 +1646,39 @@ aus dem Gebrauch heraus:
 - **Die Tooltips der Bahn tragen echte Zeilen.** Der Kasten des `Tooltip` steht
   auf `white-space: normal` — ein `\n` im `text`-Prop fällt zu einem Leerzeichen
   zusammen. Die Bahn nutzt deshalb `content` mit je einem Element pro Zeile.
+
+#### Getönte Flächen — der Kontrast war messbar zu klein (v3.38)
+
+Die Balken trugen den **satten** `--tf-kanban-*`-Akzent mit weißer Schrift.
+Gerechnet über alle neun Kategorien:
+
+| | hell | dunkel |
+|---|---|---|
+| Kontrast weiß gegen Füllung | 3,02 – 5,06 | 2,14 – 2,92 |
+| unter 4,5 (AA, 11 px = kleine Schrift) | **6 von 9** | **9 von 9** |
+
+Die Tokens sind Lane-Akzente für kleine Farbchips im Kanban-Kopf, nie für
+Textuntergrund gedacht; im dunklen Modus sind es Pastelltöne (Helligkeit
+58–70 %), und dort fiel **jede** Beschriftung durch. `segmentFuellung()` tönt den
+Akzent jetzt zu 30 % auf `--tf-bg`, geschrieben wird in `--tf-text`. Am
+gerenderten Element nachgemessen: **12,98 – 14,32:1 hell**, **4,99 – 5,18:1
+dunkel**. Der Guard `band-fuellung-kontrast` rechnet das an den echten Werten aus
+`theme.css` nach — mit einem zweiten Testfall, der festhält, dass er den alten
+Entwurf verworfen hätte.
+
+Der Preis ist real und gemessen: getönt rücken die Kategorien zusammen (`offen`
+und `in Prüfung` liegen satt 37 RGB-Einheiten auseinander, getönt 11). Deshalb
+überlebt der satte Ton am **Grenzstreifen** (siehe oben) und an der Farbmarke der
+Legende — beides klein genug, dass Sättigung dort trägt.
+
+Dazu vier Nachzüge am Bild: der Balken wird nur **außen** gerundet (innen
+gerundete Segmente lasen sich als Kachelreihe statt als eine Zeitleiste), die
+Jahreszahlen bekommen eine **Haarlinie** unter den Bahnen (sie schwebten über dem
+Nichts; die Linie sitzt pixelgenau unter ihrer Beschriftung und fängt keine
+Klicks), der **letzte Abschnitt** trägt `font-medium` plus einen Abschlussstreifen
+am Achsenende („bis hier gemessen" — er entfällt bei offenem Ende, dort behauptete
+er eine Grenze), und **ein Rahmen** fasst Achse, Bahnen, Legende und Fuß zusammen;
+der eigene Rahmen der Legende wird dafür zur Trennlinie.
 
 #### Der Bezugszeitpunkt — richtig verdrahtet, heute folgenlos
 

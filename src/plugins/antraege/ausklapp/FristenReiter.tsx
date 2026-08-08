@@ -8,6 +8,7 @@
  * plus beschriftete Herleitung in einem Bauteil.
  */
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
+import type { WaechterErgebnis } from '@/core/status/waechter';
 import { useVerbundMeilensteine } from '../meilensteine/useVerbundMeilensteine';
 import { FristenBand } from '../fristen-band/FristenBand';
 import { useFristenBandModell } from '../fristen-band/useFristenBand';
@@ -19,25 +20,26 @@ const leise = 'text-[11px] text-[var(--tf-text-tertiary)]';
  * Der Meilenstein-Teil — eigene Komponente, damit sein Hook nicht bedingt läuft
  * und der Reiter ohne Verbund-Id gar nicht erst danach fragt.
  */
-function MitMeilensteinen({ verbundId, daten, statusRoh, stichtag, istVerbundZeile }: {
+function MitMeilensteinen({ verbundId, daten, statusRoh, stichtag, istVerbundZeile, waechter }: {
   verbundId: string;
   daten: ZeilenVerlauf;
   statusRoh: unknown;
   stichtag: string;
   istVerbundZeile: boolean;
+  waechter: WaechterErgebnis | null;
 }): React.ReactElement | null {
   const api = useVerbundMeilensteine(verbundId);
   const an = isMeilensteinMonitoringEnabled();
   const modell = useFristenBandModell({
     version: daten.quelle.version,
     frist: daten.frist,
-    // Status UND Vorkommen dieser Zeile — nicht die des Verbunds. Die beiden
-    // gehen im Bestand regelmäßig auseinander; die Frist des einen neben den
-    // Zieltagen des anderen wäre ein Band über zwei verschiedene Vorgänge.
-    vorkommen: daten.vorkommen,
+    // Der Status dieser Zeile — nicht der des Verbunds. Die beiden gehen im
+    // Bestand regelmäßig auseinander; die Frist des einen neben den Zieltagen
+    // des anderen wäre ein Band über zwei verschiedene Vorgänge. (Dieselbe
+    // Zeile speist auch den Wächter, der von oben hereinkommt.)
     statusRoh,
     stichtag,
-    journalAenderung: daten.journalAb,
+    waechter,
     meilensteine: an ? api.bewertung : null,
   });
   if (modell === null) return null;
@@ -59,25 +61,24 @@ function MitMeilensteinen({ verbundId, daten, statusRoh, stichtag, istVerbundZei
 }
 
 /** Dieselbe Anzeige ohne Verbund — dann gibt es keine Meilensteine. */
-function OhneMeilensteine({ daten, statusRoh, stichtag }: {
+function OhneMeilensteine({ daten, statusRoh, stichtag, waechter }: {
   daten: ZeilenVerlauf; statusRoh: unknown; stichtag: string;
+  waechter: WaechterErgebnis | null;
 }): React.ReactElement | null {
   const modell = useFristenBandModell({
     version: daten.quelle.version,
     frist: daten.frist,
-    // Status UND Vorkommen dieser Zeile — nicht die des Verbunds. Die beiden
-    // gehen im Bestand regelmäßig auseinander; die Frist des einen neben den
-    // Zieltagen des anderen wäre ein Band über zwei verschiedene Vorgänge.
-    vorkommen: daten.vorkommen,
     statusRoh,
     stichtag,
-    journalAenderung: daten.journalAb,
+    waechter,
     meilensteine: null,
   });
   return modell === null ? null : <FristenBand modell={modell} meilensteine={null} knoten={[]} />;
 }
 
-export function FristenReiter({ daten, istVerbundZeile, statusRoh, stichtag, verbundId }: {
+export function FristenReiter({
+  daten, istVerbundZeile, statusRoh, stichtag, verbundId, waechter,
+}: {
   /** Der fertige Zeilen-Zustand — **inklusive der einen Fristrechnung**. */
   daten: ZeilenVerlauf;
   /** Verdichtete Verbund-Zeile? Dann zählen alle Teilvorhaben, sonst nur dieses. */
@@ -87,6 +88,8 @@ export function FristenReiter({ daten, istVerbundZeile, statusRoh, stichtag, ver
   /** ISO-Tag. */
   stichtag: string;
   verbundId: string | null;
+  /** Der eine Wächter dieser Zeile — auch die Verlaufs-Bahn liest ihn. */
+  waechter: WaechterErgebnis | null;
 }): React.ReactElement {
   if (daten.quelle.laden) return <p className={leise}>Lädt …</p>;
   if (!daten.quelle.version || !daten.frist) {
@@ -102,10 +105,14 @@ export function FristenReiter({ daten, istVerbundZeile, statusRoh, stichtag, ver
         ? (
           <MitMeilensteinen
             verbundId={verbundId} daten={daten} statusRoh={statusRoh}
-            stichtag={stichtag} istVerbundZeile={istVerbundZeile}
+            stichtag={stichtag} istVerbundZeile={istVerbundZeile} waechter={waechter}
           />
         )
-        : <OhneMeilensteine daten={daten} statusRoh={statusRoh} stichtag={stichtag} />}
+        : (
+          <OhneMeilensteine
+            daten={daten} statusRoh={statusRoh} stichtag={stichtag} waechter={waechter}
+          />
+        )}
     </div>
   );
 }

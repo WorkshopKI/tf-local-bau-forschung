@@ -6,17 +6,29 @@
  * „was steht dran" und braucht dafür ein Textmaß, das frühestens vorliegt, wenn
  * die Webschriften stehen. Zwei Fragen, zwei Rechnungen, zwei Memo-Signaturen.
  *
- * **Das Problem.** Die Achse gibt jedem Intervall mindestens
- * `MIN_INTERVALL` px — ein Ein-Tages-Abschnitt sitzt auf diesem Boden und bleibt
- * dort, egal wie breit die Bahn wird. Breite allein macht solche Segmente also
- * nie beschriftbar. Wer nur im Balken beschriftet, schickt den Leser für genau
- * die Abschnitte in die Legende, die er nachschlagen will.
+ * **Das Problem.** Die Achse gibt jedem Intervall einen Boden (`bodenFuer`); ein
+ * Ein-Tages-Abschnitt sitzt darauf. Seit v3.38 wächst der Boden mit der Bahn und
+ * trägt damit in mittleren Lagen wieder eine Kurzform — aber gedeckelt ist er
+ * auch: bei sechsundzwanzig Grenzen fällt er auf `MIN_INTERVALL` zurück, und
+ * dann macht Breite allein solche Segmente nie beschriftbar. Wer nur im Balken
+ * beschriftet, schickt den Leser für genau die Abschnitte in die Legende, die er
+ * nachschlagen will.
  *
  * **Die Lösung ist eine zweite Etage.** Passt der Text nicht IN den Balken,
  * steht er DARUNTER, ab dem linken Rand des Abschnitts. Dort darf er unter den
  * Balken seiner breiten Nachbarn hinweglaufen, ohne etwas zu verdecken — die
  * liegen eine Etage höher. Nur Unter-Beschriftungen untereinander konkurrieren,
  * und die prüfen wir.
+ *
+ * **In derselben Etage stehen Dauer und Warnung** (v3.38). Passt der Name in den
+ * Balken, ist die Etage darunter frei und nimmt die Dauer; passt er nicht, hängt
+ * sie an ihn an („beantragt · 28 T"). Dazu kommt am Achsenende die **Endmarke**
+ * („hängt fest").
+ *
+ * Vergeben wird in **drei Durchgängen, und die Reihenfolge ist die Rangfolge**:
+ * erst die Warnung (sie ist der Grund, warum jemand hinsieht), dann die Namen
+ * (die Auskunft, die er sucht), zuletzt die Dauern (die Zugabe). Andersherum
+ * verdrängte Beiwerk das Wesentliche.
  *
  * **Gemessen, nicht geraten.** Die Textbreite kommt als Funktion herein
  * ({@link BeschriftungsOptionen.messeText}); die Datei bleibt rein und
@@ -28,7 +40,7 @@
  * beidem, tritt die Legendennummer an ihre Stelle — nie ein selbst
  * abgeschnittener Text.
  */
-import type { BandSpur } from './bandGeometrie';
+import { dauerText, type BandSegment, type BandSpur } from './bandGeometrie';
 
 /** Waagerechtes Polster im Balken (`px-1` links + rechts). */
 const POLSTER_BALKEN = 8;
@@ -59,28 +71,50 @@ const UNTER_ABSTAND = 6;
 const LABEL_AB_RUECKFALL = 46;
 const NUMMER_AB_RUECKFALL = 16;
 
-/** Wo die Beschriftung eines Segments landet. */
-export type LabelLage = 'im-balken' | 'unter-balken' | 'nummer' | 'keine';
+/** Was im BALKEN steht. Die zweite Etage hängt daneben ({@link UnterEintrag}). */
+export type LabelLage = 'im-balken' | 'nummer' | 'keine';
+
+/** Ein Eintrag der zweiten Etage — unter dem Balken. */
+export interface UnterEintrag {
+  text: string;
+  /** px ab dem linken Bahnrand. */
+  x: number;
+  /** Belegte Breite — macht die Kollision testbar. */
+  breite: number;
+  /**
+   * Der Eintrag musste nach links rücken, um ins Bild zu passen. Sein
+   * Führungsstrich gehört dann an die RECHTE Seite — links zeigte er in einen
+   * fremden Abschnitt.
+   */
+  rechtsBuendig: boolean;
+}
 
 export interface SegmentBeschriftung {
   lage: LabelLage;
-  /** Der anzuzeigende Text; `''` bei `'keine'`, die Ziffer bei `'nummer'`. */
+  /** Der Text IM Balken; `''` bei `'keine'`, die Ziffer bei `'nummer'`. */
   text: string;
-  /** Nur bei `'unter-balken'`: px ab dem linken Bahnrand. */
-  x: number;
-  /** Nur bei `'unter-balken'`: belegte Breite — macht die Kollision testbar. */
-  breite: number;
   /**
-   * Nur bei `'unter-balken'`: die Beschriftung musste nach links rücken, um ins
-   * Bild zu passen. Ihr Führungsstrich gehört dann an die RECHTE Seite — links
-   * zeigte er in einen fremden Abschnitt.
+   * Die zweite Etage: der Name, der nicht in den Balken passte — oder, wenn er
+   * passte, die **Dauer** des Abschnitts. `null` = für dieses Segment bleibt sie
+   * leer.
+   *
+   * Bis v3.37 war das eine dritte {@link LabelLage}. Seit die Dauer dazukommt,
+   * kann ein Segment beides tragen (Name im Balken, Dauer darunter) — ein
+   * einzelnes `lage`-Feld könnte das nicht ausdrücken, und zwei Wege zum selben
+   * Ziel wären zwei Wahrheiten.
    */
-  rechtsBuendig: boolean;
+  unten: UnterEintrag | null;
 }
 
 export interface BandBeschriftung {
   /** `[spurIndex][segmentIndex]`, deckungsgleich mit `geo.spuren[i].segmente`. */
   segmente: SegmentBeschriftung[][];
+  /**
+   * Je Bahn die **Endmarke** am Achsenende, oder `null` — heute die Warnung
+   * „hängt fest". Sie steht in derselben Etage wie Namen und Dauern und wird
+   * vor beiden gesetzt.
+   */
+  endMarken: (UnterEintrag | null)[];
   /** Je Bahn: trägt sie mindestens eine Unter-Beschriftung? Steuert ihre Höhe. */
   unterzeile: boolean[];
   /**
@@ -98,108 +132,200 @@ export interface BeschriftungsOptionen {
   messeText: ((text: string) => number) | null;
   /** Kurzform → Legendennummer; `undefined`, wo keine vergeben ist. */
   nummerVon: (kurz: string) => number | undefined;
+  /**
+   * Text der **Endmarke** einer Bahn (heute „hängt fest"); `null` = keine.
+   *
+   * WELCHE Bahn eine bekommt, entscheidet der Aufrufer — der Stillstands-Wächter
+   * urteilt über einen **Vorgang**, nicht über eine Spur, und nur der Aufrufer
+   * weiß, welche Bahn dieser Vorgang ist. Diese Datei bleibt domänenfrei: sie
+   * bekommt einen Text und sucht ihm einen Platz.
+   */
+  endMarke?: (bahnIndex: number) => string | null;
 }
 
-const LEER: SegmentBeschriftung = {
-  lage: 'keine', text: '', x: 0, breite: 0, rechtsBuendig: false,
-};
+const LEER: SegmentBeschriftung = { lage: 'keine', text: '', unten: null };
+
+/**
+ * Die Dauer eines Abschnitts als Beschriftung — `null`, wo sie nichts aussagt.
+ *
+ * `dauerUnsicher` heißt `dauerTage === null || dauerTage <= 1` und fasst vier
+ * verschiedene Lagen zusammen (`erhebung.ts`), darunter die **offene Grenze**.
+ * Ein „1 T" darunter wäre eine Behauptung über etwas, das niemand weiß. Der
+ * Tooltip sagt an dieser Stelle weiter „(unsicher)" — die Auskunft geht also
+ * nicht verloren, sie steht nur nicht als Zahl in der Bahn.
+ *
+ * Der Wortlaut kommt aus {@link dauerText}, damit Bahn und Tooltip dieselbe
+ * Einheit runden.
+ */
+function dauerLabel(b: BandSegment): string | null {
+  const s = b.segment;
+  return s.dauerUnsicher || s.dauerTage === null ? null : dauerText(s.dauerTage);
+}
 
 function imBalken(text: string): SegmentBeschriftung {
-  return { lage: 'im-balken', text, x: 0, breite: 0, rechtsBuendig: false };
+  return { lage: 'im-balken', text, unten: null };
+}
+
+/**
+ * Die belegten Strecken der zweiten Etage. Bis v3.37 genügte ein einzelner
+ * Endwert, weil nur Namen dort landeten und streng von links nach rechts
+ * vergeben wurden. Mit den Dauern gibt es **zwei** Durchgänge (siehe
+ * {@link beschrifteBahn}), und der zweite füllt Lücken, die der erste gelassen
+ * hat — dafür braucht es die Strecken, nicht nur ihr Ende.
+ */
+class Etage {
+  private readonly belegt: { von: number; bis: number }[] = [];
+
+  frei(x: number, w: number): boolean {
+    return !this.belegt.some(s => x < s.bis + UNTER_ABSTAND && s.von < x + w + UNTER_ABSTAND);
+  }
+
+  belege(x: number, w: number): void {
+    this.belegt.push({ von: x, bis: x + w });
+  }
+
+  get benutzt(): boolean {
+    return this.belegt.length > 0;
+  }
+}
+
+/**
+ * Setzt einen Text in die zweite Etage — oder gibt `null` zurück, wenn er nicht
+ * hinpasst.
+ *
+ * `rechtsRuecken` erlaubt das Ausweichen an den rechten Bahnrand. Es hilft nur
+ * gegen den RAND, nicht gegen eine Kollision: wer wegen des Nachbarn ausweicht,
+ * landete weit rechts von seinem eigenen Abschnitt, und der Führungsstrich
+ * zeigte ins Leere. Nur das LETZTE Segment darf es — es ist der aktuelle Stand.
+ */
+function setzeUnten(
+  etage: Etage, x: number, text: string, o: { messe: (t: string) => number; bahnBreite: number },
+  rechtsRuecken: boolean,
+): UnterEintrag | null {
+  const w = o.messe(text) + POLSTER_UNTER + SICHERHEIT;
+  const passtLinks = x + w <= o.bahnBreite;
+  if (passtLinks && etage.frei(x, w)) {
+    etage.belege(x, w);
+    return { text, x, breite: w, rechtsBuendig: false };
+  }
+  const rechts = o.bahnBreite - w;
+  if (!passtLinks && rechtsRuecken && rechts >= 0 && etage.frei(rechts, w)) {
+    etage.belege(rechts, w);
+    return { text, x: rechts, breite: w, rechtsBuendig: true };
+  }
+  return null;
 }
 
 /**
  * Verteilt die Beschriftungen einer ganzen Bahn. Von links nach rechts, also
  * chronologisch: bei knappem Platz gewinnt der frühere Abschnitt die Unterzeile.
  * Eine Reihenfolge nach Wichtigkeit gäbe es nicht — alle Abschnitte sind gleich
- * wahr, nur der letzte ist als aktueller Stand hervorgehoben (siehe unten).
+ * wahr, nur der letzte ist als aktueller Stand hervorgehoben (siehe oben).
+ *
+ * **Zwei Durchgänge, und die Reihenfolge ist der Punkt.** Erst bekommen alle
+ * Namen ihren Platz, dann füllen die Dauern die Lücken. Andersherum könnte eine
+ * Dauer bei x = 0 einen Namen bei x = 40 verdrängen — ein Name ist aber die
+ * Auskunft, nach der jemand sucht, eine Dauer die Zugabe.
  */
 function beschrifteBahn(
-  bahn: BandSpur, o: BeschriftungsOptionen,
-): { segmente: SegmentBeschriftung[]; unterzeile: boolean } {
-  const out: SegmentBeschriftung[] = [];
-  let unterEnde = Number.NEGATIVE_INFINITY;
-  let unterzeile = false;
+  bahn: BandSpur, o: BeschriftungsOptionen, markeText: string | null,
+): { segmente: SegmentBeschriftung[]; endMarke: UnterEintrag | null; unterzeile: boolean } {
+  const etage = new Etage();
+  const letzterIndex = bahn.segmente.length - 1;
 
-  bahn.segmente.forEach((b, i) => {
+  const nummerOderNichts = (b: BandSegment): SegmentBeschriftung => {
+    const ref = b.segment.statusRef;
+    const nummer = ref ? o.nummerVon(ref.kurz) : undefined;
+    if (nummer === undefined) return LEER;
+    const passt = o.messeText === null
+      ? b.breite >= NUMMER_AB_RUECKFALL
+      : o.messeText(String(nummer)) <= b.breite - POLSTER_BALKEN - SICHERHEIT;
+    return passt ? { lage: 'nummer', text: String(nummer), unten: null } : LEER;
+  };
+
+  if (o.messeText === null) {
+    // Kein Textmaß: genau das Verhalten bis v3.31 — Kurzform ab der geratenen
+    // Schwelle, sonst die Nummer. Keine Unterzeile, denn ohne Maß ließe sich
+    // ihre Kollision nicht prüfen; und ohne Unterzeile auch keine Dauer.
+    return {
+      segmente: bahn.segmente.map(b => (b.breite >= LABEL_AB_RUECKFALL
+        ? imBalken(b.segment.statusRef?.kurz ?? '—')
+        : nummerOderNichts(b))),
+      endMarke: null,
+      unterzeile: false,
+    };
+  }
+  const messe = o.messeText;
+  const setz = { messe, bahnBreite: o.bahnBreite };
+
+  // --- Durchgang 0: die Endmarke ----------------------------------------
+  // Sie steht am ACHSENENDE, weil sie über das Jetzt spricht — dort endet die
+  // Achse. Und sie wird ZUERST gesetzt: eine Warnung weicht keinem Namen und
+  // keiner Dauer, sondern umgekehrt.
+  let endMarke: UnterEintrag | null = null;
+  if (markeText !== null) {
+    const w = messe(markeText) + POLSTER_UNTER + SICHERHEIT;
+    const x = o.bahnBreite - w;
+    if (x >= 0) {
+      etage.belege(x, w);
+      endMarke = { text: markeText, x, breite: w, rechtsBuendig: true };
+    }
+  }
+
+  // --- Durchgang 1: die Namen -------------------------------------------
+  const out: SegmentBeschriftung[] = bahn.segmente.map((b, i) => {
     const ref = b.segment.statusRef;
     // Ohne Statusbezug bleibt „—" — dieselbe Auskunft wie bis v3.31: es gibt
     // einen Abschnitt, aber keinen Namen dafür.
     const lang = ref?.lang ?? '—';
     const kurz = ref?.kurz ?? '—';
-    const nummer = ref ? o.nummerVon(ref.kurz) : undefined;
+    const platzText = b.breite - POLSTER_BALKEN - SICHERHEIT
+      - (b.gestaucht ? BRUCH_BREITE : 0);
 
-    const platzNummer = b.breite - POLSTER_BALKEN - SICHERHEIT;
-    const platzText = platzNummer - (b.gestaucht ? BRUCH_BREITE : 0);
-
-    const nummerOderNichts = (): SegmentBeschriftung => {
-      if (nummer === undefined) return LEER;
-      const passt = o.messeText === null
-        ? b.breite >= NUMMER_AB_RUECKFALL
-        : o.messeText(String(nummer)) <= platzNummer;
-      return passt
-        ? { lage: 'nummer', text: String(nummer), x: 0, breite: 0, rechtsBuendig: false }
-        : LEER;
-    };
-
-    if (o.messeText === null) {
-      // Kein Textmaß: genau das Verhalten bis v3.31 — Kurzform ab der geratenen
-      // Schwelle, sonst die Nummer. Keine Unterzeile, denn ohne Maß ließe sich
-      // ihre Kollision nicht prüfen.
-      out.push(b.breite >= LABEL_AB_RUECKFALL ? imBalken(kurz) : nummerOderNichts());
-      return;
-    }
-    const messe = o.messeText;
-
-    if (messe(lang) <= platzText) { out.push(imBalken(lang)); return; }
-    if (messe(kurz) <= platzText) { out.push(imBalken(kurz)); return; }
+    if (messe(lang) <= platzText) return imBalken(lang);
+    if (messe(kurz) <= platzText) return imBalken(kurz);
 
     // Zweite Etage. Erst der volle Bezeichner — er ist der Grund, warum es sie
-    // gibt; passt er nicht, die Kurzform.
-    const letztes = i === bahn.segmente.length - 1;
-    for (const text of [lang, kurz]) {
-      const w = messe(text) + POLSTER_UNTER + SICHERHEIT;
-      const frei = (x: number): boolean => x >= unterEnde + UNTER_ABSTAND;
-      const passtLinks = b.links + w <= o.bahnBreite;
-      if (passtLinks && frei(b.links)) {
-        unterEnde = b.links + w;
-        unterzeile = true;
-        out.push({ lage: 'unter-balken', text, x: b.links, breite: w, rechtsBuendig: false });
-        return;
-      }
-      // Nach innen rücken hilft nur gegen den RECHTEN RAND, nicht gegen eine
-      // Kollision: wer wegen des Nachbarn ausweicht, landete weit rechts von
-      // seinem eigenen Abschnitt, und der Führungsstrich zeigte ins Leere. Und
-      // nur das LETZTE Segment darf es — es ist der aktuelle Stand, das Label,
-      // nach dem am häufigsten gesucht wird.
-      const rechts = o.bahnBreite - w;
-      if (!passtLinks && letztes && rechts >= 0 && frei(rechts)) {
-        unterEnde = o.bahnBreite;
-        unterzeile = true;
-        out.push({ lage: 'unter-balken', text, x: rechts, breite: w, rechtsBuendig: true });
-        return;
-      }
+    // gibt; passt er nicht, die Kurzform. Die Dauer hängt sich hier direkt an,
+    // weil ein zweiter Eintrag für dasselbe Segment doppelt Platz kostete.
+    const dauer = dauerLabel(b);
+    const kandidaten = dauer === null
+      ? [lang, kurz]
+      : [`${lang} · ${dauer}`, lang, `${kurz} · ${dauer}`, kurz];
+    for (const text of kandidaten) {
+      const unten = setzeUnten(etage, b.links, text, setz, i === letzterIndex);
+      if (unten !== null) return { lage: 'keine', text: '', unten };
     }
-
-    out.push(nummerOderNichts());
+    return nummerOderNichts(b);
   });
 
-  return { segmente: out, unterzeile };
+  // --- Durchgang 2: die Dauern der Abschnitte, deren Name im Balken steht --
+  bahn.segmente.forEach((b, i) => {
+    const eintrag = out[i];
+    if (eintrag === undefined || eintrag.lage !== 'im-balken') return;
+    const dauer = dauerLabel(b);
+    if (dauer === null) return;
+    eintrag.unten = setzeUnten(etage, b.links, dauer, setz, i === letzterIndex);
+  });
+
+  return { segmente: out, endMarke, unterzeile: etage.benutzt };
 }
 
 export function verteileBeschriftung(
   spuren: readonly BandSpur[], o: BeschriftungsOptionen,
 ): BandBeschriftung {
   const segmente: SegmentBeschriftung[][] = [];
+  const endMarken: (UnterEintrag | null)[] = [];
   const unterzeile: boolean[] = [];
   let nummernGenutzt = false;
 
-  for (const bahn of spuren) {
-    const r = beschrifteBahn(bahn, o);
+  spuren.forEach((bahn, i) => {
+    const r = beschrifteBahn(bahn, o, o.endMarke?.(i) ?? null);
     segmente.push(r.segmente);
+    endMarken.push(r.endMarke);
     unterzeile.push(r.unterzeile);
     if (r.segmente.some(s => s.lage === 'nummer')) nummernGenutzt = true;
-  }
+  });
 
-  return { segmente, unterzeile, nummernGenutzt };
+  return { segmente, endMarken, unterzeile, nummernGenutzt };
 }

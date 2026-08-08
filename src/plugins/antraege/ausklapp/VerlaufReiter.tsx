@@ -18,7 +18,7 @@ import { VerlaufsBand } from '../verlauf-band/VerlaufsBand';
 import { leise } from './SpurListe';
 
 export function VerlaufReiter({
-  spuren, eigenes, journalAb, journalGenutzt, laden, bezugsZeitpunkt, fassung,
+  spuren, eigenes, journalAb, journalGenutzt, laden, bezugsZeitpunkt, fassung, haengtFest,
 }: {
   spuren: readonly VerlaufsSpur[];
   /** Aktenzeichen der geklickten Zeile — ihre Spur wird benannt. */
@@ -30,6 +30,8 @@ export function VerlaufReiter({
   bezugsZeitpunkt: string;
   /** Beschriftung der geladenen Katalogfassung — für den kopierten Text. */
   fassung: string | null;
+  /** Die Bahn, an der die Stillstands-Marke sitzt; `null` = keine. */
+  haengtFest?: { art: 'verbund' | 'tv'; id: string } | null;
 }): React.ReactElement {
   if (laden) return <p className={leise}>Lädt …</p>;
   if (spuren.length === 0) {
@@ -41,6 +43,7 @@ export function VerlaufReiter({
     <VerlaufsBand
       spuren={spuren} eigenes={eigenes} bezugsZeitpunkt={bezugsZeitpunkt}
       fassung={fassung} journalAb={journalAb} journalGenutzt={journalGenutzt}
+      haengtFest={haengtFest}
     />
   );
 }

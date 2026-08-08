@@ -12,6 +12,7 @@
  * deshalb bekommt das Band hier keine Bewertung hereingereicht.
  */
 import { useZeilenVerlauf } from '../ausklapp/useZeilenVerlauf';
+import { useZeilenWaechter } from '../ausklapp/useZeilenWaechter';
 import { FristenBand } from './FristenBand';
 import { useFristenBandModell } from './useFristenBand';
 
@@ -24,13 +25,19 @@ export function VerbundFristenBand({ verbundId, statusRoh, stichtag }: {
   stichtag: string;
 }): React.ReactElement | null {
   const daten = useZeilenVerlauf(verbundId, null, stichtag.slice(0, 10), true, statusRoh);
-  const modell = useFristenBandModell({
+  const waechter = useZeilenWaechter({
     version: daten.quelle.version,
-    frist: daten.frist,
     vorkommen: daten.vorkommen,
     statusRoh,
     stichtag: stichtag.slice(0, 10),
     journalAenderung: daten.journalAb,
+  });
+  const modell = useFristenBandModell({
+    version: daten.quelle.version,
+    frist: daten.frist,
+    statusRoh,
+    stichtag: stichtag.slice(0, 10),
+    waechter,
     meilensteine: null,
   });
   if (daten.laden) return <p className={leise}>Lädt …</p>;

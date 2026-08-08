@@ -121,6 +121,11 @@
  *     ausnahmslos `aktiv: false` (erfasst, nicht wirksam). Gelesen werden sie nur in
  *     src/core/status/verlauf/; ein zweiter Konsument waere der Weg, sie versehentlich
  *     scharf zu schalten.
+ *   - band-fuellung-kontrast           → VerlaufsBand (v3.38): jedes --tf-kanban-*
+ *     Token, zu TOENUNG auf --tf-bg gemischt, muss >= 4,5:1 gegen --tf-text erreichen —
+ *     in BEIDEN Modi, an den echten Werten aus theme.css. Der Stand bis v3.37 (satte
+ *     Fuellung, weisse Schrift) lag bei 3,02-5,06:1 hell und 2,14-2,92:1 dunkel; ein
+ *     zweiter Testfall haelt fest, dass der Guard genau den verworfen haette.
  *   - no-index-punkt-id                 → Klaerung (v2.412): eine Punkt-Id im Seed von
  *     src/plugins/zu-klaeren/ darf NIE aus einem Schleifenindex entstehen. Die Antworten
  *     liegen append-only auf dem Share und zeigen auf die Id; ein eingefuegter Punkt
@@ -141,7 +146,8 @@ import { JOURNAL_AUSGESCHLOSSEN } from '../core/status/journal/felder';
 import {
   ROOT, ALL_TS_FILES, ALL_SOURCE_FILES,
   relPath, findInFile, fmt, findFilesViolating,
-  type Finding,
+  hslToRgb, relLuminance, kontrast, mische, parseCssFarbe, themeFarbTokens,
+  type Finding, type ThemeFarbSatz,
 } from './conventions-lib';
 
 
@@ -1648,7 +1654,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 27 — v3.0 (Varianten-Zusammenlegung 5→3) hat ELF Flags entfernt: 'feedback'/'suche'/'antraege'/'streamlitBridge' (standen in JEDER Variante auf true), 'volltextsuche'/'auslastungSelbstEintragung'/'embeddingCorpusBuild' (durch die Zusammenlegung ueberall true), 'auslastungNurKorpus'/'kuerzelDropdown' (bedienten nur die abgeschafften Varianten kurator/as) sowie 'deAnonymisierung'/'maVerwaltungPasswort' (gaten nur Oberflaeche INNERHALB des Auslastungs-Moduls, das selbst hinter dem Zusatzpasswort liegt — ein Schloss im Tresor; beide jetzt aus 'auslastung' abgeleitet). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat. Davor 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2850;       // Ist ~2820 (DIESE Datei; davor 2810 / +frist-eine-rechnung v3.31 — die 90 stand nie zweimal da, die RECHNUNG schon: `useZeilenVerlauf` rief `fristFuerVorkommen`, der Frist-Reiter gleich darauf noch einmal, und das fiel erst auf, als die eine Seite die Verlaufsquelle fuers Haltedatum bekam und die andere nicht; davor 2756 / +verlauf-leitet-keinen-status-ab + trigger-regeln-nur-im-verlauf (Phase 1b) — die Verlaufsableitung rekonstruiert die Vergangenheit aus den `D_`-Spalten und darf dem Pfad, der den GELTENDEN Status bestimmt, nie bekannt werden; und die Regeln der Kuerzel-Zuarbeit sind alle `aktiv: false` und haben genau einen Konsumenten; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 2900;       // Ist ~2882 (DIESE Datei; davor 2850 / +band-fuellung-kontrast v3.38 — das VerlaufsBand schrieb WEISS auf den satten --tf-kanban-Akzent: gemessen 3,02-5,06:1 hell (sechs von neun unter AA) und 2,14-2,92:1 dunkel (alle neun), weil die Tokens als kleine Farbchips fuer Lane-Koepfe gedacht waren, nie als Textuntergrund; beim Anheben ist das Parsen von theme.css in die Lib gewandert und hat den zweiten Parser von `theme-token-contract` gleich mit abgeloest (-27); davor 2810 / +frist-eine-rechnung v3.31 — die 90 stand nie zweimal da, die RECHNUNG schon: `useZeilenVerlauf` rief `fristFuerVorkommen`, der Frist-Reiter gleich darauf noch einmal, und das fiel erst auf, als die eine Seite die Verlaufsquelle fuers Haltedatum bekam und die andere nicht; davor 2756 / +verlauf-leitet-keinen-status-ab + trigger-regeln-nur-im-verlauf (Phase 1b) — die Verlaufsableitung rekonstruiert die Vergangenheit aus den `D_`-Spalten und darf dem Pfad, der den GELTENDEN Status bestimmt, nie bekannt werden; und die Regeln der Kuerzel-Zuarbeit sind alle `aktiv: false` und haben genau einen Konsumenten; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -1949,14 +1955,12 @@ describe('theme-token-contract (CLAUDE.md Doku-Konvention #4; v2.67.1-"nackt"-Fa
   const LOCAL_TOKEN_ALLOWLIST = new Set<string>();
 
   // Global in src/theme.css definierte --tf-*-Tokens (Light + Dark) einsammeln.
+  // Gelesen wird die Datei EINMAL, in der Lib — `band-fuellung-kontrast` braucht
+  // dieselben Deklarationen samt Werten.
   function readGlobalTfTokens(): Set<string> {
-    const themeCss = ALL_SOURCE_FILES.find(f => relPath(f) === 'src/theme.css');
-    expect(themeCss, 'src/theme.css nicht gefunden').toBeTruthy();
-    const defined = new Set<string>();
-    for (const line of readFileSync(themeCss!, 'utf-8').split(/\r?\n/)) {
-      const m = line.match(/^\s*(--tf-[a-z0-9-]+)\s*:/);
-      if (m) defined.add(m[1]!);
-    }
+    const [hell, dunkel] = themeFarbTokens();
+    const defined = new Set([...hell.werte.keys(), ...dunkel.werte.keys()]);
+    expect(defined.size, 'src/theme.css: keine --tf-*-Tokens gefunden').toBeGreaterThan(0);
     return defined;
   }
 
@@ -2079,26 +2083,6 @@ describe('preset-contrast-contract (CTA-Primaerfarbe lesbar gegen weissen Vorder
   // Luminanz->Kontrast; Schwelle 4,5. Dark veraendert nur Bg/Text, nicht --tf-primary.)
   const THRESHOLD = 4.5;
 
-  function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-    const c = (1 - Math.abs(2 * l - 1)) * s;
-    const hp = ((h % 360) + 360) % 360 / 60;
-    const x = c * (1 - Math.abs((hp % 2) - 1));
-    let r = 0, g = 0, b = 0;
-    if (hp < 1) [r, g, b] = [c, x, 0];
-    else if (hp < 2) [r, g, b] = [x, c, 0];
-    else if (hp < 3) [r, g, b] = [0, c, x];
-    else if (hp < 4) [r, g, b] = [0, x, c];
-    else if (hp < 5) [r, g, b] = [x, 0, c];
-    else [r, g, b] = [c, 0, x];
-    const m = l - c / 2;
-    return [r + m, g + m, b + m];
-  }
-
-  function relLuminance([r, g, b]: [number, number, number]): number {
-    const lin = (v: number): number => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  }
-
   // Kontrast gegen Weiss (relative Luminanz 1,0).
   function contrastVsWhite(h: number, s: number, l: number): number {
     const lum = relLuminance(hslToRgb(h, s, l));
@@ -2122,6 +2106,76 @@ describe('preset-contrast-contract (CTA-Primaerfarbe lesbar gegen weissen Vorder
         `bis der Kontrast >= ${THRESHOLD}:1 ist (vgl. Bernstein 42% -> 40%).`,
       );
     }
+  });
+});
+
+describe('band-fuellung-kontrast (Balkenschrift des VerlaufsBands lesbar)', () => {
+  // Der Befund, der diesen Guard begruendet (v3.38): das VerlaufsBand fuellte
+  // seine Balken mit dem SATTEN --tf-kanban-*-Akzent und schrieb weiss darauf.
+  // Gemessen ergab das 3,02-5,06:1 im hellen Modus (sechs von neun unter den
+  // 4,5:1, die AA fuer kleine Schrift verlangt) und 2,14-2,92:1 im dunklen —
+  // dort sind die Tokens Pastelltoene, und JEDE Beschriftung fiel durch. Sie
+  // waren als kleine Farbchips fuer Kanban-Lane-Koepfe gedacht, nie als
+  // Textuntergrund.
+  //
+  // Seit v3.38 toent `segmentFuellung()` den Akzent auf --tf-bg und schreibt in
+  // --tf-text. Dieser Guard rechnet genau das nach — an den ECHTEN Werten aus
+  // theme.css, in BEIDEN Modi. Wer ein Kanban-Token aendert (es gehoert auch
+  // dem Home-Widget) oder die Toenung "satter" dreht, merkt es hier.
+  const THRESHOLD = 4.5;
+  // Muss zu TOENUNG in src/plugins/antraege/verlauf-band/bandFarbe.ts passen.
+  const TOENUNG = 0.30;
+
+  const farbe = (satz: ThemeFarbSatz, name: string): [number, number, number] => {
+    const rgb = parseCssFarbe(satz.werte.get(name) ?? '');
+    expect(rgb, `${name} (${satz.modus}) fehlt oder ist nicht lesbar`).toBeTruthy();
+    return rgb!;
+  };
+
+  /** Die neun Lane-Akzente; die Mono-Rampe haengt an --tf-primary-h und faerbt
+   *  keinen Balken. */
+  const akzente = (satz: ThemeFarbSatz): string[] => [...satz.werte.keys()]
+    .filter(n => n.startsWith('--tf-kanban-') && !n.includes('mono'));
+
+  it(`jede getoente --tf-kanban-Fuellung hat >= ${THRESHOLD}:1 gegen --tf-text`, () => {
+    const schlecht: string[] = [];
+    for (const satz of themeFarbTokens()) {
+      const namen = akzente(satz);
+      expect(namen.length, `keine --tf-kanban-Tokens fuer "${satz.modus}"`).toBeGreaterThan(0);
+      const grund = farbe(satz, '--tf-bg');
+      const tinte = farbe(satz, '--tf-text');
+      for (const name of namen) {
+        const v = kontrast(mische(farbe(satz, name), grund, TOENUNG), tinte);
+        if (v < THRESHOLD) schlecht.push(`  - ${satz.modus} ${name}: ${v.toFixed(2)}:1`);
+      }
+    }
+    if (schlecht.length > 0) {
+      expect.fail(
+        `Balkenfuellung(en) mit zu geringem Kontrast (Schwelle ${THRESHOLD}:1):\n` +
+        schlecht.join('\n') +
+        `\nFix: TOENUNG in src/plugins/antraege/verlauf-band/bandFarbe.ts senken ` +
+        `(weniger Akzent = mehr Kontrast) ODER das Token in src/theme.css anpassen. ` +
+        `NICHT die Schwelle senken — 4,5:1 ist AA fuer Text unter 18,66 px, und die ` +
+        `Balkenschrift misst 11 px.`,
+      );
+    }
+  });
+
+  it('haette den Stand bis v3.37 (satte Fuellung, weisse Schrift) verworfen', () => {
+    // Ein Guard, der nicht fehlschlagen KANN, ist keiner. Dieselbe Rechnung auf
+    // den alten Entwurf angewandt muss durchfallen — und zwar breit: sechs von
+    // neun im hellen Modus, alle neun im dunklen. Das haelt zugleich den Befund
+    // fest, der die Umstellung ausgeloest hat.
+    const WEISS: [number, number, number] = [1, 1, 1];
+    const durchgefallen = themeFarbTokens().map(satz => ({
+      modus: satz.modus,
+      anzahl: akzente(satz).filter(n => kontrast(farbe(satz, n), WEISS) < THRESHOLD).length,
+      gesamt: akzente(satz).length,
+    }));
+    expect(durchgefallen).toEqual([
+      { modus: 'hell', anzahl: 6, gesamt: 9 },
+      { modus: 'dunkel', anzahl: 9, gesamt: 9 },
+    ]);
   });
 });
 

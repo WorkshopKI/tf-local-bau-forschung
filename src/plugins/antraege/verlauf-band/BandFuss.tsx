@@ -36,8 +36,11 @@ export function BandLegende({ eintraege, nummeriert }: {
 }): React.ReactElement | null {
   if (eintraege.length === 0) return null;
   return (
+    // Trennlinie statt eigenem Rahmen (v3.38): das Band trägt seit dieser
+    // Fassung einen gemeinsamen Rahmen, und zwei geschachtelte wären ein Kasten
+    // zu viel. Die Linie tut dasselbe — sie setzt die Legende vom Bild ab.
     <div
-      className="flex items-center gap-x-3 gap-y-1 flex-wrap rounded px-2 py-1.5 border"
+      className="flex items-center gap-x-3 gap-y-1 flex-wrap border-t pt-2"
       style={{ borderColor: 'var(--tf-border)' }}
     >
       <span className={`uppercase tracking-wider ${leise}`}>Legende</span>

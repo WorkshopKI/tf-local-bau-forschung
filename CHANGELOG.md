@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.38.0 — VerlaufsBand: lesbare Flaechen, Dauern am Balken, weniger Gedraenge (August 2026)
+
+MINOR — Ein Entwurfsvergleich legte einen messbaren Defekt frei: die Balken trugen den **satten** `--tf-kanban-*`-Akzent mit weißer Schrift, gerechnet **3,02–5,06:1 hell** (sechs von neun unter AA für 11-px-Text) und **2,14–2,92:1 dunkel** (alle neun). Die Tokens sind Farbchips für Kanban-Lane-Köpfe, nie Textuntergrund. Dazu klebte der Achsen-Boden seit v3.27 bei 24 px, auch wenn 1000 zur Verfügung standen.
+
+- Getönte Flächen (30 % auf `--tf-bg`) statt satter, Schrift in `--tf-text`; der Akzent überlebt am Grenzstreifen — [bandFarbe.ts](src/plugins/antraege/verlauf-band/bandFarbe.ts), Guard `band-fuellung-kontrast`
+- Achsen-Boden wächst mit der Bahn (`bodenFuer`, 24–56 px): kein Abschnitt trägt am Bestand mehr nur seine Nummer — [bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts)
+- Dauer je Abschnitt und die Warnung „hängt fest" in der zweiten Etage, in drei Durchgängen nach Rang vergeben — [bandBeschriftung.ts](src/plugins/antraege/verlauf-band/bandBeschriftung.ts)
+- Kürzel über den Grenzen (widerruft „keine Codes in der Bahn"), gemessen gesetzt, Kollidierendes entfällt — [bandKanten.ts](src/plugins/antraege/verlauf-band/bandKanten.ts)
+- Der Stillstands-Wächter wird je Zeile **einmal** gerechnet und von beiden Reitern gelesen — neu [useZeilenWaechter.ts](src/plugins/antraege/ausklapp/useZeilenWaechter.ts), Wortlaut aus [waechterLabels.ts](src/plugins/antraege/waechterLabels.ts)
+
 ### v3.37.0 — VerlaufsBand: hoehere Balken, Legende am Bild, eine Fusszeile, eine Kante je Tag (August 2026)
 
 MINOR — Die Bahn hatte nach v3.32 Platz, gab ihn aber nicht weiter: `16KN073848 (diese Zeile)` brauchte 137 px in einer 128-px-Spalte, unter der Bahn standen zwei Sätze über dieselben Datumsspalten, und die Legende lag hinter einem davon. Dazu ein gemessener Befund: **51 Kanten auf 26 Tagen** — mehr als die Hälfte lag exakt übereinander, und obenauf ein 9-px-Handsymbol, nach dem als „mini Pfeil" rückgefragt wurde.

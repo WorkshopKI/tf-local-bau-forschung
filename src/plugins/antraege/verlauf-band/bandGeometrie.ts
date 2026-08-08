@@ -11,8 +11,9 @@
  * **Die Lösung ist eine stückweise gestauchte Achse, die für ALLE gilt.** Aus
  * den Segmentgrenzen sämtlicher Spuren entsteht eine Kantenliste; jedes
  * Intervall dazwischen bekommt seine Breite proportional zur Dauer, aber
- * mindestens {@link MIN_INTERVALL}. Weil dieselbe Kantenliste jede Spur
- * abbildet, sitzt derselbe Tag überall an derselben x-Position — die
+ * mindestens den Boden aus {@link bodenFuer} — der mit der Bahn wächst, damit
+ * gedrängte Abschnitte wieder ihren Namen tragen. Weil dieselbe Kantenliste
+ * jede Spur abbildet, sitzt derselbe Tag überall an derselben x-Position — die
  * Vergleichbarkeit bleibt, obwohl die Achse nicht mehr linear ist.
  *
  * **Warum die Stauchung markiert wird.** Eine nicht-lineare Achse, die so tut
@@ -27,6 +28,27 @@ import type { VerlaufsSegment, VerlaufsSpur } from '@/core/status/verlauf';
 
 /** Kleinste Breite eines Achsen-Intervalls in px. Darunter ist nichts mehr klickbar. */
 export const MIN_INTERVALL = 24;
+
+/** Obergrenze des Bodens — darüber frisst er die Proportion, die die Bahn zeigt. */
+const MAX_BODEN = 56;
+
+/**
+ * Der Boden **wächst mit der Bahn**: jedes Intervall bekommt mindestens einen
+ * Anteil der verfügbaren Breite, gedeckelt nach beiden Seiten.
+ *
+ * Bis v3.37 stand hier die feste {@link MIN_INTERVALL} — eine Zahl aus der Zeit,
+ * als die Bahn 620 px breit war. Sie klebte auch bei 1000 px, und die Folge war
+ * im Bestand zu sehen: sechs Abschnitte drängten sich auf ~130 px, während ein
+ * einziger ~700 px bekam. Wer nur den Boden anhebt, macht die Achse ungenauer;
+ * wer ihn kleben lässt, schickt den Leser für die halbe Bahn in die Legende.
+ * Der Anteil trifft die Mitte: bei sechs Grenzen auf 1000 px sind es 56 px (eine
+ * Kurzform passt), bei 26 Grenzen fällt er auf 24 zurück — dort passt ohnehin
+ * nichts, und ein hoher Boden schöbe die Bahn nur in den Scroll.
+ */
+export function bodenFuer(n: number, breite: number): number {
+  if (n <= 0) return MIN_INTERVALL;
+  return Math.min(MAX_BODEN, Math.max(MIN_INTERVALL, Math.floor(breite / (n * 2))));
+}
 
 /**
  * Ab welchem Anteil seiner proportionalen Breite ein Intervall als „gestaucht"
@@ -87,7 +109,7 @@ export interface BandGeometrie {
 
 /**
  * Verteilt die Breite auf die Intervalle: proportional zur Dauer, aber jedes
- * mindestens {@link MIN_INTERVALL}.
+ * mindestens `boden` (siehe {@link bodenFuer}).
  *
  * Der Überschuss wird den Intervallen abgezogen, die über dem Mindestmaß
  * liegen — **anteilig an ihrem Überhang**, nicht an ihrer Gesamtbreite. Zöge man
@@ -95,7 +117,7 @@ export interface BandGeometrie {
  * Intervalle darunter und die nächste Runde müsste sie wieder anheben. Wenige
  * Durchläufe genügen; danach bleibt ein Rest, den die Gesamtbreite aufnimmt.
  */
-function verteile(dauern: readonly number[], breite: number): number[] {
+function verteile(dauern: readonly number[], breite: number, boden: number): number[] {
   const n = dauern.length;
   if (n === 0) return [];
   const gesamt = dauern.reduce((s, d) => s + d, 0);
@@ -103,17 +125,17 @@ function verteile(dauern: readonly number[], breite: number): number[] {
 
   const px = dauern.map(d => (d / gesamt) * breite);
   for (let runde = 0; runde < 4; runde++) {
-    const fehlend = px.reduce((s, w) => s + Math.max(0, MIN_INTERVALL - w), 0);
+    const fehlend = px.reduce((s, w) => s + Math.max(0, boden - w), 0);
     if (fehlend <= 0.01) break;
-    const ueberhang = px.reduce((s, w) => s + Math.max(0, w - MIN_INTERVALL), 0);
+    const ueberhang = px.reduce((s, w) => s + Math.max(0, w - boden), 0);
     if (ueberhang <= 0) break;
     const faktor = Math.min(1, fehlend / ueberhang);
     for (let i = 0; i < n; i++) {
       const w = px[i]!;
-      px[i] = w < MIN_INTERVALL ? MIN_INTERVALL : w - (w - MIN_INTERVALL) * faktor;
+      px[i] = w < boden ? boden : w - (w - boden) * faktor;
     }
   }
-  return px.map(w => Math.max(MIN_INTERVALL, w));
+  return px.map(w => Math.max(boden, w));
 }
 
 /** Die Achse: Kanten in ms, ihre x-Positionen und die Stauchung je Intervall. */
@@ -137,15 +159,22 @@ function baueAchse(grenzen: readonly number[], vorgabeBreite: number): Achse {
     kanten = [bis - MS_TAG, bis];
   }
   const dauern = kanten.slice(1).map((k, i) => Math.max(1, k - kanten[i]!));
+  // Der Boden folgt der VERFÜGBAREN Breite, nicht der am Ende gescrollten:
+  // sonst hübe er sich selbst hoch (breitere Bahn → höherer Boden → breitere
+  // Bahn). Ein Ringschluss, den `vorgabeBreite` als feste Bezugsgröße bricht.
+  const boden = bodenFuer(dauern.length, vorgabeBreite);
   // Die Bahn darf breiter werden als ihr Container: lieber scrollen als
   // Abschnitte unter die Klickgrenze drücken (Muster von `StatusTimeline`).
-  const breite = Math.max(vorgabeBreite, dauern.length * MIN_INTERVALL);
-  const px = verteile(dauern, breite);
+  const breite = Math.max(vorgabeBreite, dauern.length * boden);
+  const px = verteile(dauern, breite, boden);
 
   const gesamt = dauern.reduce((s, d) => s + d, 0);
   const gestaucht = dauern.map((d, i) => {
     const proportional = (d / gesamt) * breite;
-    return proportional > MIN_INTERVALL && px[i]! / proportional < STAUCH_SCHWELLE;
+    // Gemessen wird gegen den GELTENDEN Boden: ein höherer Boden nimmt den
+    // langen Intervallen mehr weg, die Achse ist also stärker gerissen — genau
+    // das soll das Bruchzeichen sagen.
+    return proportional > boden && px[i]! / proportional < STAUCH_SCHWELLE;
   });
 
   const x = [0];

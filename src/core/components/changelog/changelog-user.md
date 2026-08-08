@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.38 — 2026-08
+
+### Neu
+- Der Statusverlauf zeigt jetzt, **wie lange** ein Abschnitt gedauert hat („beantragt · 29 T"). Wo die Dauer nicht belastbar ist, steht bewusst keine Zahl.
+- Über den Übergängen stehen die **Kürzel** aus dem Fachsystem (AAE, XPB …) — dort, wo Platz dafür ist. So lässt sich ein Wechsel direkt benennen, wenn man nachfragt.
+- Hängt ein Vorgang fest, sagt das jetzt auch die Bahn selbst: „hängt fest" am rechten Ende.
+
+### Verbesserungen
+- Die Balken sind heller und die Schrift dunkel — vorher war weiße Schrift auf farbigen Balken schwer zu lesen, im dunklen Modus durchgehend zu blass.
+- Gedrängte Abschnitte am Anfang eines Verlaufs bekommen mehr Platz und tragen wieder ihren Namen statt einer Nummer, die man in der Legende nachschlagen musste.
+- Die Bahn liest sich als eine durchgehende Zeitleiste: gemeinsamer Rahmen, Hilfslinien an den Jahreszahlen, und der aktuelle Abschnitt ist hervorgehoben.
+
 ## v3.37 — 2026-08
 
 ### Verbesserungen

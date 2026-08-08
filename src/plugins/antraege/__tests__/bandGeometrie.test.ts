@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import type { VerlaufsSegment, VerlaufsSpur } from '@/core/status/verlauf';
 import {
   baueBandGeometrie, buendle, spurSignatur, dauerText, tageZwischen,
-  MIN_INTERVALL, BUENDEL_AB,
+  MIN_INTERVALL, BUENDEL_AB, bodenFuer,
 } from '@/plugins/antraege/verlauf-band/bandGeometrie';
 
 const BEZUG = '2026-08-07';
@@ -99,6 +99,45 @@ describe('Eine Achse für alle Spuren', () => {
     const g = baueBandGeometrie([spur('tv1', 'tv', segmente)], BEZUG, 300);
     expect(g.breite).toBeGreaterThan(300);
     expect(g.breite).toBeGreaterThanOrEqual(30 * MIN_INTERVALL);
+  });
+
+  it('gibt den Abschnitten mehr Boden, wenn die Bahn breiter wird', () => {
+    // Der Kern von v3.38: bis dahin klebte der Boden bei 24 px, auch wenn 1000
+    // zur Verfügung standen — sechs Abschnitte drängten sich auf ~130 px,
+    // während einer ~700 bekam.
+    const segmente = [
+      seg('2019-01-01', '2026-01-01'),
+      seg('2026-01-01', '2026-01-02'),
+      seg('2026-01-02', '2026-01-03'),
+      seg('2026-01-03', BEZUG),
+    ];
+    const kleinstes = (vorgabe: number): number => Math.min(
+      ...baueBandGeometrie([spur('tv1', 'tv', segmente)], BEZUG, vorgabe)
+        .spuren[0]!.segmente.map(s => s.breite),
+    );
+    expect(kleinstes(1000)).toBeGreaterThan(kleinstes(300));
+    expect(kleinstes(300)).toBeGreaterThanOrEqual(MIN_INTERVALL);
+  });
+
+  it('fällt bei vielen Grenzen auf das Mindestmaß zurück', () => {
+    // Dort passt ohnehin kein Text mehr, und ein hoher Boden schöbe die Bahn
+    // nur in den Scroll. Der Deckel ist also keine Sparsamkeit, sondern die
+    // Einsicht, dass Breite dieses Problem nicht löst.
+    const viele = Array.from({ length: 25 }, (_, i) =>
+      seg(`2026-01-${String(i + 1).padStart(2, '0')}`, `2026-01-${String(i + 2).padStart(2, '0')}`));
+    const g = baueBandGeometrie([spur('tv1', 'tv', viele)], BEZUG, 1000);
+    expect(Math.min(...g.spuren[0]!.segmente.map(s => s.breite))).toBeCloseTo(MIN_INTERVALL, 1);
+  });
+
+  it('bodenFuer: Anteil der Bahn, an beiden Enden gedeckelt', () => {
+    // **Der Boden ist ein Boden, kein Deckel.** Er hebt nur an, was proportional
+    // darunter läge; ein kurzer Abschnitt neben einem langen bleibt sonst bei
+    // seinem Anteil. Das ist die Eigenschaft, die „Breite = Dauer" rettet.
+    expect(bodenFuer(4, 1000)).toBe(56);    // 125 → auf den Deckel
+    expect(bodenFuer(10, 1000)).toBe(50);   // im Anteilsbereich
+    expect(bodenFuer(26, 1000)).toBe(24);   // 19 → auf das Mindestmaß
+    expect(bodenFuer(4, 300)).toBe(37);
+    expect(bodenFuer(0, 1000)).toBe(MIN_INTERVALL);
   });
 
   it('ist monoton — x wächst mit der Zeit', () => {

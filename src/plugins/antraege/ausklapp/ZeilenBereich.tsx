@@ -13,6 +13,7 @@
 import { useMemo } from 'react';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { useZeilenVerlauf } from './useZeilenVerlauf';
+import { useZeilenWaechter } from './useZeilenWaechter';
 import { VerlaufReiter } from './VerlaufReiter';
 import { FristenReiter } from './FristenReiter';
 import { bereichsId, type ReiterId } from './ausklappZustand';
@@ -59,6 +60,27 @@ export function ZeilenBereich({
 }: ZeilenBereichProps): React.ReactElement {
   const verlaufAn = isVorgangssystemEnabled();
   const daten = useZeilenVerlauf(verbundId, zeilenKey, stichtag, istVerbundZeile, statusRoh);
+  // EINE Rechnung für beide Reiter (v3.38): der Fristen-Reiter zeigt den
+  // Stillstand ausführlich, die Verlaufs-Bahn markiert damit ihren aktuellen
+  // Abschnitt. Zweimal gerechnet liefen sie beim ersten Sonderfall auseinander.
+  const waechter = useZeilenWaechter({
+    version: daten.quelle.version,
+    vorkommen: daten.vorkommen,
+    statusRoh,
+    stichtag,
+    journalAenderung: daten.journalAb,
+  });
+  // Der Wächter urteilt über den VORGANG dieser Zeile. Die Marke gehört deshalb
+  // an genau die Bahn, die diese Zeile IST — bei einer verdichteten Verbundzeile
+  // an die Verbundbahn, sonst an die des Teilvorhabens.
+  const haengtFest = useMemo(
+    () => (waechter?.urteil !== 'haengt'
+      ? null
+      : istVerbundZeile && verbundId !== null
+        ? { art: 'verbund' as const, id: verbundId }
+        : { art: 'tv' as const, id: zeilenKey }),
+    [waechter, istVerbundZeile, verbundId, zeilenKey],
+  );
   // Der Reiter *Verlauf* existiert nur mit Flag; ohne ihn ist „Fristen" der
   // einzige — und dann braucht es keine Leiste.
   const reiterListe = useMemo(
@@ -100,6 +122,7 @@ export function ZeilenBereich({
           laden={daten.laden}
           bezugsZeitpunkt={daten.bezugsZeitpunkt}
           fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
+          haengtFest={haengtFest}
         />
       ) : (
         <FristenReiter
@@ -108,6 +131,7 @@ export function ZeilenBereich({
           statusRoh={statusRoh}
           stichtag={stichtag}
           verbundId={verbundId}
+          waechter={waechter}
         />
       )}
     </div>

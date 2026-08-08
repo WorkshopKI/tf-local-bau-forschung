@@ -17,20 +17,12 @@ import { ZUSTAND_FARBE, ZUSTAND_LABEL } from '@/plugins/meilensteine/labels';
 import type { MeilensteinKnoten, VerbundMeilensteine } from '@/core/meilensteine/typen';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import { AMPEL_COLOR } from '../eingangAmpel';
+// Der Wortlaut liegt seit v3.38 daneben: die Verlaufs-Bahn markiert dasselbe
+// Urteil am Achsenende und muss dieselbe Vokabel nennen.
+import { URTEIL_FARBE, URTEIL_LABEL } from '../waechterLabels';
 import type { BandMarke, FristenBandModell } from './fristenBandModell';
 
 const leise = 'text-[11px] text-[var(--tf-text-tertiary)]';
-
-const URTEIL_FARBE: Record<string, string> = {
-  ok: 'var(--tf-success-text)',
-  haengt: 'var(--tf-danger-text)',
-  unbewertet: 'var(--tf-text-tertiary)',
-};
-const URTEIL_LABEL: Record<string, string> = {
-  ok: 'läuft',
-  haengt: 'hängt fest',
-  unbewertet: 'nicht prüfbar',
-};
 
 /** Die Achse. Ohne Spanne (kein Basis- oder Zieldatum) gibt es nichts zu zeichnen. */
 function Achse({ marken }: { marken: readonly BandMarke[] }): React.ReactElement | null {

@@ -16,12 +16,12 @@ export type SortDirection = 'asc' | 'desc';
  *  wohnt bei `SortableColumn`, damit die Messung von den Typen abhängt und
  *  nicht umgekehrt.
  *
- *  `'bandLabel'` und `'bandSpur'` gehören keiner Spalte: das sind die
- *  Balkenschrift und die Spur-Beschriftung des VerlaufsBands, der erste
- *  Verbraucher der Messung außerhalb der Tabelle. */
+ *  Die drei `band*`-Profile gehören keiner Spalte: Balkenschrift,
+ *  Spur-Beschriftung und Kürzel-Etage des VerlaufsBands, des ersten
+ *  Verbrauchers der Messung außerhalb der Tabelle. */
 export type MessSchrift =
   | 'zelle' | 'zelleKlein' | 'mono' | 'monoKlein' | 'badge' | 'kopf'
-  | 'bandLabel' | 'bandSpur';
+  | 'bandLabel' | 'bandSpur' | 'bandKuerzel';
 
 export interface SortableColumn<T> {
   /** Stabiler Identifier — wird als Key, fuer Persistenz und Sort-State genutzt. */

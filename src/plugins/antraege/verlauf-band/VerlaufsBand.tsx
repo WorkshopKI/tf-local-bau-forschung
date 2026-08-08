@@ -11,9 +11,13 @@
  * ob ein Kürzel den Wechsel wirklich ausgelöst hat. Ein Segment einzufärben,
  * weil sein Übergang unsicher ist, verwechselte beides.
  *
- * **Keine Codes in der Bahn.** Sie stehen im Popover und im kopierten Text —
- * dort, wo jemand mit dem Fachsystem spricht. In der Bahn wäre `AK4` eine
- * Vokabel, die nur die Hälfte des Teams kennt.
+ * **Die Kürzel stehen ÜBER der Bahn** — seit v3.38, und das widerruft eine
+ * Entscheidung: bis dahin galt „keine Codes in der Bahn", weil `AK4` eine
+ * Vokabel ist, die nur die Hälfte des Teams kennt. Dagegen steht, dass das
+ * Kürzel der **Griff zum Gespräch mit C16** ist: wer nachfragt, nennt es. Die
+ * Etage über dem Balken stand ohnehin leer, und der volle Statusname bleibt
+ * dort, wo er war. Was nicht ohne Überlappung passt, entfällt (`bandKanten.ts`)
+ * — im Bestand mit sechsundzwanzig Grenzen zeigt sich deshalb nur ein Teil.
  *
  * Gerechnet wird nebenan (alles rein und node-testbar): `bandGeometrie.ts`
  * platziert, `bandBeschriftung.ts` beschriftet, `bandKanten.ts` bündelt die
@@ -30,12 +34,15 @@ import { useElementBreite } from '@/core/hooks/useElementBreite';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import type { Konfidenz, VerlaufsSpur } from '@/core/status/verlauf';
 import { KONFIDENZ_TEXT, SpurListe, leise, spurTitel } from '../ausklapp/SpurListe';
+import { URTEIL_FARBE, URTEIL_LABEL } from '../waechterLabels';
 import {
   baueBandGeometrie, buendle, dauerText, type BandSegment, type BandSpur,
 } from './bandGeometrie';
-import { verteileBeschriftung, type SegmentBeschriftung } from './bandBeschriftung';
-import { baueKanten, type BandKante } from './bandKanten';
-import { segmentFarbe } from './bandFarbe';
+import {
+  verteileBeschriftung, type SegmentBeschriftung, type UnterEintrag,
+} from './bandBeschriftung';
+import { baueKanten, verteileKuerzel, type BandKante } from './bandKanten';
+import { segmentFarbe, segmentFuellung } from './bandFarbe';
 import { BandFuss, BandLegende, type LegendenEintrag } from './BandFuss';
 
 /** Oberkante des Balkens in seiner Bahn. */
@@ -52,6 +59,8 @@ const KASTEN_H = BALKEN_OBEN + BALKEN_H + 4;
 const SPUR_H = KASTEN_H + 6;
 /** Zusatzhöhe einer Bahn, die eine zweite Beschriftungs-Etage trägt. */
 const UNTER_H = 16;
+/** Zusatzhöhe einer Bahn, die Kürzel ÜBER dem Balken trägt. */
+const KUERZEL_H = 14;
 /** Untergrenze der Spur-Beschriftung links — das Maß bis v3.35. */
 const LABEL_MIN = 128;
 /** Obergrenze: ab hier frisst die Beschriftung die Bahn, und `truncate` greift. */
@@ -71,26 +80,26 @@ const RAND_LUFT = 4;
 
 /** Ein Segment ohne eigene Entscheidung — kann nur auftreten, wenn Geometrie
  *  und Beschriftung auseinanderliefen; dann lieber leer als falsch. */
-const LEER_LABEL: SegmentBeschriftung = {
-  lage: 'keine', text: '', x: 0, breite: 0, rechtsBuendig: false,
-};
+const LEER_LABEL: SegmentBeschriftung = { lage: 'keine', text: '', unten: null };
 
 /**
  * Wie eine Kante gezeichnet wird — **eine** Rampe, kein Sortiment: die drei
  * belegten Stufen tragen ein volles Muster, die unbelegte einen halbdurch-
  * sichtigen Haarstrich.
  *
- * **Der Strich hat die Farbe des Hintergrunds, nicht der Schrift** — er ist ein
- * Schnitt durch den Balken. Eine Schriftfarbe funktionierte nur im hellen
- * Modus: dort sind die Balken satt und die Schrift dunkel, im dunklen Modus
- * aber sind die Balken pastellhell UND die Schrift hell (gemessen: #cccac4 auf
- * rgb(142,168,204), rund 1,3:1 — unsichtbar). Der Hintergrund ist in beiden
- * Modi die Gegenfarbe der Balken und trägt darum in beiden.
+ * **Der Strich trägt den satten Akzent des Abschnitts, der hier beginnt**
+ * (v3.38). Damit ist er zweierlei in einem Element: Träger der Konfidenz *und*
+ * sichtbare Segmentgrenze. Beides braucht er, seit die Flächen getönt sind —
+ * ihr Farbunterschied allein trennt zu schwach (`offen`/`in Prüfung` liegen
+ * getönt nur noch 11 RGB-Einheiten auseinander).
  *
- * Bis v3.35 trug `kein_kuerzel` statt eines Strichs ein Handsymbol. Es war
- * 9 px groß, lag in Tertiärfarbe auf einem gesättigten Balken und deckte den
- * Strich zu, der an derselben Stelle schon stand (siehe `bandKanten.ts`) —
- * niemand konnte es lesen, und rückgefragt wurde nach dem „mini Pfeil".
+ * Zwei verworfene Vorgänger, damit sie nicht wiederkommen: eine **Schrift**farbe
+ * war im dunklen Modus unsichtbar (Balken UND Schrift hell, gemessen #cccac4
+ * auf rgb(142,168,204) ≈ 1,3:1); die **Hintergrund**farbe (v3.36–v3.37) war der
+ * richtige Schnitt durch eine SATTE Fläche, auf einer getönten aber
+ * Hintergrund auf Fast-Hintergrund. Und bis v3.35 trug `kein_kuerzel` statt
+ * eines Strichs ein 9-px-Handsymbol, das den Strich zudeckte, der an derselben
+ * Stelle schon stand — rückgefragt wurde nach dem „mini Pfeil".
  */
 const KANTE: Record<Konfidenz, { stil: string; staerke: string; deckung: number }> = {
   trigger_bestaetigt: { stil: 'solid', staerke: '2px', deckung: 1 },
@@ -125,13 +134,16 @@ function segmentZeilen(b: BandSegment): string[] {
   return zeilen;
 }
 
-function Segment({ b, schrift }: {
+function Segment({ b, schrift, erstes, letztes }: {
   b: BandSegment; schrift: SegmentBeschriftung;
+  /** Randlage in der Bahn — nur außen wird gerundet (siehe unten). */
+  erstes: boolean; letztes: boolean;
 }): React.ReactElement {
   const s = b.segment;
   // Was hier steht, hat `bandBeschriftung.ts` entschieden — gemessen, nicht
-  // geraten. Steht der Text unter dem Balken, bleibt der Balken selbst leer.
-  const label = schrift.lage === 'im-balken' || schrift.lage === 'nummer' ? schrift.text : '';
+  // geraten. Steht der Text unter dem Balken, bleibt der Balken selbst leer
+  // (`text` ist dann `''`).
+  const label = schrift.text;
   return (
     <Tooltip content={<Zeilen zeilen={segmentZeilen(b)} />} wrapperClassName="absolute" wrapperStyle={{
       left: b.links, width: b.breite, top: BALKEN_OBEN, height: BALKEN_H,
@@ -145,10 +157,18 @@ function Segment({ b, schrift }: {
         // (das `px-1` eines Blocks lässt sich nicht unterschreiten) und ein auf
         // die Mindestbreite kollabiertes Segment ragte achtfach über sein Maß
         // hinaus — sichtbar als Scrollbalken am rechten Bahnrand.
-        className={`block h-full rounded-[2px] overflow-hidden text-[11px] leading-5 text-white whitespace-nowrap${
-          label === '' ? '' : ' px-1'}`}
+        // Gerundet wird nur AUSSEN (v3.38): innen gerundete Segmente lasen sich
+        // als Kachelreihe, nicht als eine Zeitleiste. Eine angeschnittene Kante
+        // (`offenLinks`/`offenRechts`) bleibt eckig — die Maske blendet sie
+        // ohnehin aus, und eine Rundung darauf behauptete einen Abschluss.
+        className={`block h-full overflow-hidden text-[11px] leading-5 text-[var(--tf-text)] whitespace-nowrap${
+          erstes && !b.offenLinks ? ' rounded-l-[3px]' : ''}${
+          letztes && !b.offenRechts ? ' rounded-r-[3px]' : ''}${
+          label === '' ? '' : ' px-1'}${
+          // Der letzte Abschnitt IST der geltende Stand — das darf man sehen.
+          letztes ? ' font-medium' : ''}`}
         style={{
-          background: segmentFarbe(s.statusRef?.roh),
+          background: segmentFuellung(s.statusRef?.roh),
           // Angeschnittene Kante statt Ersatzbreite: wo eine Grenze fehlt, endet
           // das Segment im Nichts — eine gerade Kante behauptete ein Datum.
           ...(b.offenLinks
@@ -196,12 +216,12 @@ function Kante({ k }: { k: BandKante }): React.ReactElement {
       wrapperStyle={{ left: k.x - 4, top: BALKEN_OBEN, width: 8, height: BALKEN_H }}
     >
       <span className="block relative w-2 h-full">
-        {/* Genau so hoch wie der Balken: außerhalb wäre der Strich
-            hintergrundfarben auf Hintergrund, also nicht da. */}
+        {/* Genau so hoch wie der Balken — er ist dessen Kante, keine Linie
+            daneben. */}
         <span
           className="absolute inset-y-0 left-1/2"
           style={{
-            borderLeft: `${stil.staerke} ${stil.stil} var(--tf-bg)`,
+            borderLeft: `${stil.staerke} ${stil.stil} ${segmentFarbe(k.roh)}`,
             opacity: stil.deckung,
           }}
         />
@@ -243,13 +263,16 @@ function lageText(spur: VerlaufsSpur): string | null {
  * Farbe: er liest sich als Fortsetzung des eigenen Abschnitts nach unten, nicht
  * als Trennlinie irgendwo im Feld.
  */
-function UnterLabel({ s, farbton }: {
-  s: SegmentBeschriftung; farbton: string;
+function UnterLabel({ s, farbton, warnung = false }: {
+  s: UnterEintrag; farbton: string;
+  /** Endmarke statt Beschriftung — sie spricht über das Jetzt und warnt. */
+  warnung?: boolean;
 }): React.ReactElement {
   return (
     <span
-      className={`absolute text-[11px] leading-4 whitespace-nowrap pointer-events-none
-        text-[var(--tf-text-secondary)] ${s.rechtsBuendig ? 'pr-1' : 'pl-1'}`}
+      className={`absolute text-[11px] leading-4 whitespace-nowrap pointer-events-none ${
+        warnung ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-secondary)]'
+      } ${s.rechtsBuendig ? 'pr-1' : 'pl-1'}`}
       style={{
         left: s.x,
         // Bündig an der Balken-Unterkante — jeder Abstand macht aus dem Strich
@@ -267,72 +290,130 @@ function UnterLabel({ s, farbton }: {
   );
 }
 
-function Bahn({ b, breite, labelBreite, eigenes, offen, onToggle, schrift, unterzeile }: {
+function Bahn({
+  b, breite, labelBreite, eigenes, offen, onToggle, schrift, unterzeile, endMarke, schriftGen,
+}: {
   b: BandSpur; breite: number; labelBreite: number; eigenes: string;
   offen: boolean; onToggle: () => void;
   /** Beschriftungsentscheidung je Segment, indexgleich zu `b.segmente`. */
   schrift: readonly SegmentBeschriftung[];
   /** Trägt diese Bahn eine zweite Etage? Dann wächst sie um deren Höhe. */
   unterzeile: boolean;
+  /** Warnung am Achsenende („hängt fest"); `null` = keine. */
+  endMarke: UnterEintrag | null;
+  /** Signatur des Messcaches — siehe {@link VerlaufsBand}. */
+  schriftGen: number;
 }): React.ReactElement {
   const spur = b.spur;
   const lage = lageText(spur);
   const gruppe = b.gleiche.length > 0 ? ` +${b.gleiche.length}` : '';
   const kanten = useMemo(() => baueKanten(b.segmente, spur.uebergaenge), [b.segmente, spur.uebergaenge]);
+  const kuerzel = useMemo(
+    () => verteileKuerzel(kanten, {
+      bahnBreite: breite,
+      messeText: (t: string) => messeBreite(t, 'bandKuerzel'),
+    }),
+    // `schriftGen`: die Signatur des modulweiten Messcaches, kein Argument.
+    [kanten, breite, schriftGen],
+  );
   // Höhe JE BAHN, nicht global: ein Verbund mit acht Teilvorhaben soll nicht
   // überall Platz verschenken, weil eine einzige Bahn eine zweite Etage braucht.
   // Die Zusage „derselbe Tag, dieselbe x-Position" bricht davon nicht — die
   // Achse ist waagerecht geteilt, nicht senkrecht.
   const zusatz = unterzeile ? UNTER_H : 0;
+  const obenH = kuerzel.length > 0 ? KUERZEL_H : 0;
+  const letztes = b.segmente[b.segmente.length - 1];
+  const abschluss = letztes === undefined || letztes.offenRechts
+    ? null
+    : segmentFarbe(letztes.segment.statusRef?.roh);
   return (
-    <div className="flex items-start" style={{ height: SPUR_H + zusatz }}>
+    <div className="flex items-start" style={{ height: SPUR_H + zusatz + obenH }}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={offen}
         className={`shrink-0 text-left text-[11.5px] truncate pr-2 cursor-pointer ${
           offen ? 'text-[var(--tf-text)] font-medium' : 'text-[var(--tf-text-secondary)]'}`}
-        style={{ width: labelBreite, lineHeight: `${KASTEN_H}px` }}
+        // Die Beschriftung folgt dem BALKEN nach unten, nicht dem Kasten: sonst
+        // stünde sie zwischen Kürzel-Etage und Bahn und gehörte sichtbar zu
+        // keinem von beiden.
+        style={{ width: labelBreite, lineHeight: `${KASTEN_H}px`, marginTop: obenH }}
         title={spurTitel(spur, eigenes) + (gruppe ? ` (und ${b.gleiche.length} weitere mit gleichem Verlauf)` : '')}
       >
         {spurTitel(spur, eigenes)}{gruppe}
       </button>
-      <div className="relative" style={{ width: breite, height: KASTEN_H + zusatz }}>
-        {/* Die Lage steht DANEBEN, nicht statt der Bahn: ein Vorgang ohne
-            erklärten Wechsel trägt trotzdem seinen Status, und der gehört
-            gezeichnet. Nur wenn es gar kein Segment gibt, tritt der Satz an
-            seine Stelle. */}
-        {lage !== null && (
+      <div className="relative" style={{ width: breite, height: obenH + KASTEN_H + zusatz }}>
+        {/* Die Kürzel-Etage ganz oben, als eigene Schicht. Die Balkenschicht
+            darunter behält dadurch ihr eigenes Koordinatensystem — jedes `top`
+            in `Segment`, `Kante` und `UnterLabel` bleibt, wie es war. */}
+        {kuerzel.map(m => (
           <span
-            className={`absolute ${leise} italic whitespace-nowrap pointer-events-none z-[1]`}
-            style={{
-              top: BALKEN_OBEN, lineHeight: `${BALKEN_H}px`,
-              ...(b.segmente.length === 0 ? { left: 0 } : { left: 6 }),
-            }}
+            key={m.datum}
+            className="absolute text-[10px] leading-none text-[var(--tf-text-tertiary)]
+              whitespace-nowrap pointer-events-none text-center"
+            style={{ left: m.links, width: m.breite, top: 3 }}
           >
-            {lage}
+            {m.text}
           </span>
-        )}
-        {b.segmente.length === 0 ? null : (
-          <>
-            {b.segmente.map((s, i) => (
-              <Segment key={`${s.segment.vonDatum}-${i}`} b={s} schrift={schrift[i] ?? LEER_LABEL} />
-            ))}
-            {/* Die zweite Etage NACH den Balken, damit sie im Zweifel obenauf
-                liegt — sie läuft absichtlich unter fremde Balken hinweg. */}
-            {schrift.map((s, i) => (s.lage === 'unter-balken'
-              ? (
-                <UnterLabel
-                  key={`u-${i}`} s={s}
-                  farbton={segmentFarbe(b.segmente[i]?.segment.statusRef?.roh)}
+        ))}
+        <div className="absolute inset-x-0" style={{ top: obenH, height: KASTEN_H + zusatz }}>
+          {/* Die Lage steht DANEBEN, nicht statt der Bahn: ein Vorgang ohne
+              erklärten Wechsel trägt trotzdem seinen Status, und der gehört
+              gezeichnet. Nur wenn es gar kein Segment gibt, tritt der Satz an
+              seine Stelle. */}
+          {lage !== null && (
+            <span
+              className={`absolute ${leise} italic whitespace-nowrap pointer-events-none z-[1]`}
+              style={{
+                top: BALKEN_OBEN, lineHeight: `${BALKEN_H}px`,
+                ...(b.segmente.length === 0 ? { left: 0 } : { left: 6 }),
+              }}
+            >
+              {lage}
+            </span>
+          )}
+          {b.segmente.length === 0 ? null : (
+            <>
+              {b.segmente.map((s, i) => (
+                <Segment
+                  key={`${s.segment.vonDatum}-${i}`} b={s} schrift={schrift[i] ?? LEER_LABEL}
+                  erstes={i === 0} letztes={i === b.segmente.length - 1}
                 />
-              )
-              : null))}
-            {/* Je Tag eine Kante. Die Konfidenz gehört hierher, nicht auf die
-                Fläche daneben. */}
-            {kanten.map(k => <Kante key={k.datum} k={k} />)}
-          </>
-        )}
+              ))}
+              {/* Abschlussstreifen am Achsenende: „bis hier gemessen". Er
+                  entfällt bei offenem Ende — dort endet die Bahn im Nichts, und
+                  ein Strich behauptete eine Grenze. */}
+              {abschluss !== null && (
+                <span
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: breite - 2, top: BALKEN_OBEN, width: 2, height: BALKEN_H,
+                    background: abschluss, borderRadius: '0 3px 3px 0',
+                  }}
+                />
+              )}
+              {/* Die zweite Etage NACH den Balken, damit sie im Zweifel obenauf
+                  liegt — sie läuft absichtlich unter fremde Balken hinweg. */}
+              {schrift.map((s, i) => (s.unten === null
+                ? null
+                : (
+                  <UnterLabel
+                    key={`u-${i}`} s={s.unten}
+                    farbton={segmentFarbe(b.segmente[i]?.segment.statusRef?.roh)}
+                  />
+                )))}
+              {/* Je Tag eine Kante. Die Konfidenz gehört hierher, nicht auf die
+                  Fläche daneben. */}
+              {kanten.map(k => <Kante key={k.datum} k={k} />)}
+            </>
+          )}
+          {/* Die Warnung steht am Achsenende, weil sie über das JETZT spricht —
+              und außerhalb der Segment-Bedingung, weil ein Vorgang auch ohne
+              zeichenbare Bahn festhängen kann. */}
+          {endMarke !== null && (
+            <UnterLabel s={endMarke} farbton={URTEIL_FARBE.haengt} warnung />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -340,7 +421,7 @@ function Bahn({ b, breite, labelBreite, eigenes, offen, onToggle, schrift, unter
 
 export function VerlaufsBand({
   spuren, eigenes, bezugsZeitpunkt, breite = 620,
-  fassung = null, journalAb = null, journalGenutzt = false,
+  fassung = null, journalAb = null, journalGenutzt = false, haengtFest = null,
 }: {
   spuren: readonly VerlaufsSpur[];
   eigenes: string;
@@ -355,6 +436,14 @@ export function VerlaufsBand({
   journalAb?: string | null;
   /** Ob das Journal für DIESE Bahn herangezogen wurde (Fußzeile). */
   journalGenutzt?: boolean;
+  /**
+   * Die Bahn, die festhängt — vom Aufrufer benannt, nicht hier abgeleitet: der
+   * Stillstands-Wächter urteilt über einen **Vorgang**, und nur der Aufrufer
+   * weiß, welche Spur dieser Vorgang ist (bei einer verdichteten Verbundzeile
+   * die Verbundbahn, sonst die des Teilvorhabens). Auf der Verbund-Detailseite
+   * gibt es keinen Wächter — dort bleibt es bei `null`.
+   */
+  haengtFest?: { art: 'verbund' | 'tv'; id: string } | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState<string | null>(null);
   // Gemessen wird der Scroll-Behälter der Bahn: seine Breite kommt von OBEN
@@ -432,10 +521,17 @@ export function VerlaufsBand({
       bahnBreite: geo.breite,
       messeText: (t: string) => messeBreite(t, 'bandLabel'),
       nummerVon: (k: string) => nummern.get(k),
+      endMarke: (i: number) => {
+        const s = geo.spuren[i]?.spur;
+        return s !== undefined && haengtFest !== null
+          && s.art === haengtFest.art && s.id === haengtFest.id
+          ? URTEIL_LABEL.haengt
+          : null;
+      },
     }),
     // `schriftGen` ist kein Argument der Rechnung, sondern die Signatur des
     // modulweiten Messcaches: wechselt sie, ist jede vorherige Messung ungültig.
-    [geo, nummern, schriftGen],
+    [geo, nummern, schriftGen, haengtFest],
   );
 
   // Nummeriert wird genau dann, wenn ein Segment eine Nummer TRÄGT. Eine Nummer
@@ -445,7 +541,13 @@ export function VerlaufsBand({
   const offeneSpur = geo.spuren.find(b => `${b.spur.art}-${b.spur.id}` === offen);
 
   return (
-    <div className="flex flex-col gap-2">
+    // EIN Rahmen um Achse, Bahnen, Legende und Fuß (v3.38): bis dahin war nur
+    // die Legende gerahmt, und das Bild darüber, das sie erklärt, stand nackt
+    // daneben. Der Rahmen sagt, was zusammengehört.
+    <div
+      className="flex flex-col gap-2 rounded border p-2"
+      style={{ borderColor: 'var(--tf-border)' }}
+    >
       {/* Die Bahn scrollt in ihrem EIGENEN Container — der Seiten-Body nie. */}
       <div ref={scroll} className="overflow-x-auto">
         <div style={{ width: labelBreite + geo.breite + RAND_LUFT }}>
@@ -457,18 +559,39 @@ export function VerlaufsBand({
               </span>
             ))}
           </div>
-          {geo.spuren.map((b, i) => {
-            const key = `${b.spur.art}-${b.spur.id}`;
-            return (
-              <Bahn
-                key={key} b={b} breite={geo.breite} labelBreite={labelBreite} eigenes={eigenes}
-                schrift={beschriftung.segmente[i] ?? []}
-                unterzeile={beschriftung.unterzeile[i] ?? false}
-                offen={offen === key}
-                onToggle={() => setOffen(offen === key ? null : key)}
-              />
-            );
-          })}
+          <div className="relative">
+            {/* Das Jahresgitter — VOR den Bahnen gezeichnet, also darunter. Die
+                Balken sind deckend; sichtbar bleibt es in den Zwischenräumen,
+                und genau dort verankert es die Jahreszahlen, die bis v3.37 über
+                dem Nichts schwebten. */}
+            <div
+              className="absolute inset-y-0 pointer-events-none"
+              style={{ left: labelBreite, width: geo.breite }}
+              aria-hidden="true"
+            >
+              {geo.marken.map(m => (
+                <span
+                  key={m.label}
+                  className="absolute inset-y-0 w-px"
+                  style={{ left: m.x, background: 'var(--tf-border)' }}
+                />
+              ))}
+            </div>
+            {geo.spuren.map((b, i) => {
+              const key = `${b.spur.art}-${b.spur.id}`;
+              return (
+                <Bahn
+                  key={key} b={b} breite={geo.breite} labelBreite={labelBreite} eigenes={eigenes}
+                  schrift={beschriftung.segmente[i] ?? []}
+                  unterzeile={beschriftung.unterzeile[i] ?? false}
+                  endMarke={beschriftung.endMarken[i] ?? null}
+                  schriftGen={schriftGen}
+                  offen={offen === key}
+                  onToggle={() => setOffen(offen === key ? null : key)}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
