@@ -88,7 +88,7 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
             {/* Die Regel steht dort, wo sie entschieden wird: automatisch
                 einklappen betrifft nur LEERE Lanes, das Häkchen schlägt sie. */}
             <p className="mt-1.5 text-[11px] leading-[1.45] text-[var(--tf-text-tertiary)]">
-              Leere Lanes klappen von selbst zur Schiene ein; abgewählte bleiben weg, auch mit Tickets.
+              Leere Lanes klappen von selbst zur Schiene ein, volle per Klick auf den Spaltenkopf; abgewählte bleiben weg, auch mit Tickets.
               {ausgeblendet > 0
                 ? ` Zurzeit ausgeblendet: ${ausgeblendet} — in der Listen-Ansicht sind die Tickets weiterhin sichtbar.`
                 : null}

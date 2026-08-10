@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.43 — 2026-08
+
+### Neu
+- Im Feedback-Board lässt sich jetzt **jede Spalte vorübergehend schmal stellen** — ein Klick auf den Spaltenkopf legt sie als Streifen an den Rand, ein Klick auf den Streifen holt sie zurück. Die Nachbarn werden dadurch breiter und besser lesbar. Die eingeklappte Spalte behält ihre Zahl und bleibt Ablageziel; nach dem Neuladen stehen alle Spalten wieder offen. Dauerhaft ausblenden geht weiterhin über „Board anpassen".
+
 ## v3.42 — 2026-08
 
 ### Neu

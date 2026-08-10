@@ -5,7 +5,10 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from '@/components/feedback/feedbackLanes';
-import { baueSpalten, spaltenAnsicht, type BoardSpalte } from '../boardSpalten';
+import {
+  baueSpalten, istSchiene, spaltenAnsicht,
+  type BoardSpalte, type SpaltenAnsicht, type SpaltenWunsch,
+} from '../boardSpalten';
 
 const LANES: FeedbackLane[] = FEEDBACK_LANE_STATUS.map(status => ({ status, spalten: 1 as const }));
 
@@ -94,9 +97,10 @@ describe('baueSpalten', () => {
 });
 
 // Der gemeldete Fehler (v3.41.1): eine leere Bahn per Klick aufgeklappt — und
-// kein Weg zurück. Die drei Zustände lagen als Boolean-Ausdruck in der
-// Komponente; kein Test konnte sehen, dass „aufgeklappt und leer" ein eigener
-// Zustand ist, der eine eigene Bedienung braucht.
+// kein Weg zurück. Die Zustände lagen als Boolean-Ausdruck in der Komponente;
+// kein Test konnte sehen, dass „aufgeklappt und leer" ein eigener Zustand ist,
+// der eine eigene Bedienung braucht. Seit v3.43 gilt dasselbe in der anderen
+// Richtung: auch eine GEFÜLLTE Bahn lässt sich vorübergehend schmal stellen.
 describe('spaltenAnsicht', () => {
   function spalte(over: Partial<BoardSpalte> = {}): BoardSpalte {
     return {
@@ -105,36 +109,55 @@ describe('spaltenAnsicht', () => {
       ...over,
     };
   }
+  const voll = (): BoardSpalte => spalte({ tickets: [fb('A'), fb('B')] });
 
-  it('zeigt eine gefüllte Spalte voll — der Entfaltet-Zustand ändert daran nichts', () => {
-    expect(spaltenAnsicht(spalte({ tickets: [fb('A')] }), false)).toBe('voll');
-    expect(spaltenAnsicht(spalte({ tickets: [fb('A')] }), true)).toBe('voll');
+  it('zeigt eine gefüllte Spalte voll, solange niemand sie eingeklappt hat', () => {
+    expect(spaltenAnsicht(voll(), 'auto')).toBe('voll');
+    // `offen` kann eine volle Spalte nicht „noch offener" machen.
+    expect(spaltenAnsicht(voll(), 'offen')).toBe('voll');
+  });
+
+  it('legt eine gefüllte Spalte auf Wunsch auf die Schiene', () => {
+    expect(spaltenAnsicht(voll(), 'zu')).toBe('voll-schiene');
   });
 
   it('faltet eine leere Bahn zur Schiene, bis jemand sie aufklappt', () => {
-    expect(spaltenAnsicht(spalte(), false)).toBe('schiene');
-    expect(spaltenAnsicht(spalte(), true)).toBe('leer-offen');
+    expect(spaltenAnsicht(spalte(), 'auto')).toBe('schiene');
+    expect(spaltenAnsicht(spalte(), 'offen')).toBe('leer-offen');
+    // Eine leere Bahn einklappen zu wollen ist keine Aussage — sie ist es schon.
+    expect(spaltenAnsicht(spalte(), 'zu')).toBe('schiene');
   });
 
-  // `leer-offen` ist der einzige Zustand OHNE Schiene und OHNE Karte: nur hier
-  // muss die Spalte selbst den Rückweg tragen.
-  it('kennt genau einen Zustand, der einen Weg zurück braucht', () => {
-    const alle = [
-      spaltenAnsicht(spalte({ tickets: [fb('A')] }), true),
-      spaltenAnsicht(spalte(), false),
-      spaltenAnsicht(spalte(), true),
+  // Beide Zustände, die eine GESTE erzeugt, müssen wieder zu erreichen sein:
+  // `leer-offen` trägt den Rückweg in der Spalte, `voll-schiene` auf der
+  // Schiene selbst. Der Rückweg ist in beiden Fällen `auto`.
+  it('nimmt jede von Hand erzeugte Ansicht mit „auto" wieder zurück', () => {
+    const gesten: Array<[BoardSpalte, SpaltenWunsch, SpaltenAnsicht]> = [
+      [spalte(), 'offen', 'leer-offen'],
+      [voll(), 'zu', 'voll-schiene'],
     ];
-    expect(alle.filter(a => a === 'leer-offen')).toHaveLength(1);
+    for (const [s, wunsch, erzeugt] of gesten) {
+      expect(spaltenAnsicht(s, wunsch)).toBe(erzeugt);
+      expect(spaltenAnsicht(s, 'auto')).not.toBe(erzeugt);
+    }
+  });
+
+  it('zählt beide Schienen als Schiene — sie teilen sich Geometrie und Drop-Ziel', () => {
+    expect(istSchiene(spaltenAnsicht(spalte(), 'auto'))).toBe(true);
+    expect(istSchiene(spaltenAnsicht(voll(), 'zu'))).toBe(true);
+    expect(istSchiene(spaltenAnsicht(voll(), 'auto'))).toBe(false);
+    expect(istSchiene(spaltenAnsicht(spalte(), 'offen'))).toBe(false);
   });
 
   // Regressionsgatter zu v3.39: die unerreichbare Bahn darf sich nicht
   // aufklappen lassen — leer und offen behauptete sie erneut „hier ist nichts".
-  it('hält eine Bahn außerhalb der Sicht als Schiene, auch nach einem Klick', () => {
-    expect(spaltenAnsicht(spalte({ ausserhalbDerSicht: true }), true)).toBe('schiene');
-    expect(spaltenAnsicht(spalte({ ausserhalbDerSicht: true }), false)).toBe('schiene');
+  it('hält eine Bahn außerhalb der Sicht als Schiene, egal was der Nutzer wünscht', () => {
+    for (const wunsch of ['auto', 'offen', 'zu'] as const) {
+      expect(spaltenAnsicht(spalte({ ausserhalbDerSicht: true }), wunsch)).toBe('schiene');
+    }
   });
 
   it('lässt Tickets vorgehen, falls eine Bahn außerhalb der Sicht doch welche trägt', () => {
-    expect(spaltenAnsicht(spalte({ tickets: [fb('A')], ausserhalbDerSicht: true }), false)).toBe('voll');
+    expect(spaltenAnsicht(spalte({ tickets: [fb('A')], ausserhalbDerSicht: true }), 'auto')).toBe('voll');
   });
 });

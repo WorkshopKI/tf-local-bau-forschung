@@ -25,6 +25,13 @@ const ISOLATED_TESTS = [
   // Ladereihenfolge im gemeinsamen Modul-Register verschiebt, greift der Mock
   // nicht mehr (die Prompts kamen ohne APP-OVERVIEW-Marker an).
   'src/core/services/feedback/__tests__/feedbackImprove.test.ts',
+  // Dritter Fall derselben Familie (v3.43): mockt `feedbackSharedFile` +
+  // `feedbackStorage` wie `addComment`/`updateFeedbackLage` und reicht ein
+  // absichtlich leeres `storage` durch. Greift der Modul-Mock wegen der
+  // Ladereihenfolge nicht, läuft der ECHTE `readSharedFile` und stolpert über
+  // `storage.idb` (`Cannot read properties of undefined (reading 'get')`).
+  // Einzeln immer grün.
+  'src/core/services/feedback/__tests__/feedbackOutboxCollect.test.ts',
   'src/core/services/feedback/__tests__/sponsorTicketUpsert.test.ts',
   // Dieselben zwei Module wie `addComment.test.ts` — die Datei war bis v3.22 nur
   // nicht an der Reihe. Mit den drei neuen Verlaufs-Testdateien (v3.23) kippte

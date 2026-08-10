@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.43.0 — Jede Board-Lane voruebergehend einklappbar (August 2026)
+
+MINOR — Gewünscht: „User soll eine Lane egal ob sie voll ist oder nicht vorübergehend einklappen können (um die anderen besser lesen zu können)". Bis v3.42.1 konnte das nur eine LEERE Bahn; für eine gefüllte gab es allein das dauerhafte Ausblenden über die Lane-Auswahl. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
+
+- `spaltenAnsicht` nimmt einen Wunsch (`auto` · `offen` · `zu`) statt eines Booleans und kennt den vierten Zustand `voll-schiene` — [boardSpalten.ts](src/plugins/feedback-board/boardSpalten.ts)
+- Der Spaltenkopf ist der Einklapp-Schalter (`PanelLeftClose`, app-weit „Fläche einklappen"); die Schiene trägt den echten Bestand statt einer Null — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
+- Eingeklappt ≠ ausgeblendet: die Bahn bleibt Drop-Ziel, behält die volle Akzentkante und bleibt beim Ziehen schmal — [ticketsystem.css](src/plugins/feedback-board/ticketsystem.css)
+- Nicht persistiert (Komponenten-State) — der Zustand beantwortet „was schaue ich gerade an", nicht „wie soll mein Board aussehen"; letzteres bleibt die Lane-Auswahl unter „Board anpassen"
+- Gatter: jeder von Hand erzeugte Zustand kommt mit `auto` zurück, unerreichbare Bahnen bleiben unter JEDEM Wunsch Schiene (v3.39) — [boardSpalten.test.ts](src/plugins/feedback-board/__tests__/boardSpalten.test.ts)
+
 ### v3.42.1 — Aufgeklappte leere Lane wieder einklappbar (August 2026)
 
 PATCH — Gemeldet: „habe eine Lane gerade ausgeklappt, wie kann ich sie wieder einklappen, ich sehe kein Menü". Es gab keins: `setEntfaltet` kannte nur `true`, und die aufgeklappte leere Bahn verlor mit der Schiene auch Klick, Rolle und Titel — nur ein Neuladen faltete sie zurück. Detail: [feedback-system.md](docs/architecture/feedback-system.md).

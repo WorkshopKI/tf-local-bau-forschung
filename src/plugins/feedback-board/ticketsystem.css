@@ -199,7 +199,47 @@
   font-size: 10.5px;
 }
 .fb-col.leer:hover { background: var(--tf-hover); }
-.fb-col-kopf { display: flex; align-items: center; gap: 8px; padding: 9px 11px 8px; flex: none; }
+/* Von HAND eingeklappte volle Bahn (v3.43): dieselbe 44px-Geometrie wie die
+   leere Schiene, aber nicht deren Sprache. Gestrichelt + tertiär heißt auf
+   diesem Board „hier ist nichts" — hier sind Tickets, sie sind nur schmal
+   gestellt. Also durchgezogener Rand, die volle Akzentkante der offenen Spalte
+   und der sekundäre Ton, den auch die Auskunfts-Schiene trägt.
+   KEINE Kartenfläche: darauf fiel derselbe sekundäre Ton im Dunkelmodus auf
+   3,7:1: Auf dem Board-Grund (wie jede andere Schiene) misst er 4,1:1. Die
+   Unterscheidung trägt ohnehin die Kante, nicht die Füllung. */
+.fb-col.zu {
+  border-style: solid;
+  border-color: var(--tf-border);
+  border-top: 3px solid var(--fb-c);
+}
+.fb-col.zu .fb-schiene { color: var(--tf-text-secondary); }
+.fb-col.zu .fb-schiene .fb-n { opacity: 1; }
+/* Der Spaltenkopf ist ein Knopf, sieht aber wie eine Kopfzeile aus: die
+   Browser-Voreinstellungen (Rahmen, Fläche, zentrierter Text, eigene Schrift)
+   müssen weg, sonst zerfällt die Zeile. */
+.fb-col-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px 8px;
+  flex: none;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fb-col-kopf:hover { background: var(--tf-hover); }
+/* Das Einklapp-Zeichen steht IMMER da, nicht erst auf Hover: ein eingeblendetes
+   Symbol beantwortet die Frage nicht, die diese Funktion ausgelöst hat („ich
+   sehe kein Menü"), und Pitfall #14 verbietet den Breitensprung ohnehin.
+   Sekundär, nicht tertiär — wie am Leer-Hinweis und an „+ N weitere": tertiär
+   maß auf der Kartenfläche 2,5:1 und las sich als Verzierung, sekundär misst
+   5,2:1 hell / 3,7:1 dunkel (Zeichen, kein Text: die Schwelle ist 3:1).
+   Hover geht auf den vollen Textton. */
+.fb-col-kopf .fb-zu { margin-left: auto; flex: none; color: var(--tf-text-secondary); }
+.fb-col-kopf:hover .fb-zu { color: var(--tf-text); }
 .fb-col-kopf .fb-nm {
   font-size: 10.5px;
   font-weight: var(--tf-weight-medium);
@@ -770,8 +810,11 @@
   border-color: var(--fb-c);
 }
 /* Während eines Ziehens klappen die Schienen zu vollen Spalten auf — sonst
-   wäre die einzige leere Ziel-Lane ein 44px-Streifen. */
-.fb-board.zieht .fb-col.leer {
+   wäre die einzige leere Ziel-Lane ein 44px-Streifen. NICHT die von Hand
+   eingeklappte (`.zu`): die ist als Schiene schon ein gültiges Ziel, und wer
+   sein Board gerade zurechtgelegt hat, will es nicht bei jeder Karte
+   auseinanderspringen sehen. */
+.fb-board.zieht .fb-col.leer:not(.zu) {
   flex: 1 1 262px;
   min-width: 228px;
   max-width: 340px;
@@ -779,7 +822,7 @@
   padding: 0;
   background: var(--tf-card-surface);
 }
-.fb-board.zieht .fb-col.leer .fb-schiene { display: none; }
+.fb-board.zieht .fb-col.leer:not(.zu) .fb-schiene { display: none; }
 .fb-karte[draggable='true'] { cursor: grab; }
 .fb-karte[draggable='true']:active { cursor: grabbing; }
 
