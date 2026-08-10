@@ -58,7 +58,9 @@ import { FeedbackVerwaltungDialog } from './verwaltung/FeedbackVerwaltungDialog'
 import { useAutoCollectFeedback } from './verwaltung/useAutoCollectFeedback';
 import { filterAndSortBoard, scopeBoard } from './boardFilter';
 import { kopfZaehler, zaehleFacetten } from './boardZahlen';
-import { findeView, startViewKey, viewsFuerRolle, type BoardRolle } from './smartViews';
+import {
+  SICHT_ALLE, findeView, sichtKannStatus, startViewKey, viewsFuerRolle, type BoardRolle,
+} from './smartViews';
 import { beschraenkeAuf, LEERE_AUSWAHL, schalte, zuBewegen, type Auswahl } from './auswahl';
 import { gruppiere } from './gruppierung';
 import {
@@ -69,12 +71,12 @@ import { RollenPille } from './RollenPille';
 import { BulkLeiste } from './ticket/BulkLeiste';
 import { Swimlane } from './ticket/Swimlane';
 import { FacettenLeiste, type FacettenAuswahl } from './ticket/FacettenLeiste';
-import { TicketBoard } from './ticket/TicketBoard';
+import { TicketBoard, type BoardSicht } from './ticket/TicketBoard';
 import { TicketListe } from './ticket/TicketListe';
 import { TicketDetail } from './ticket/TicketDetail';
 import { TicketToast } from './ticket/TicketToast';
 import { useTicketAktionen } from './ticket/useTicketAktionen';
-import type { TicketKontext } from './ticket/typen';
+import type { TicketKontext, TicketPatch } from './ticket/typen';
 import './ticketsystem.css';
 
 const LEERE_FACETTEN: FacettenAuswahl = { typ: '', status: '', bereich: '' };
@@ -155,6 +157,27 @@ export function FeedbackBoardPage(): React.ReactElement {
   }, [reload]);
 
   const aktionen = useTicketAktionen(handleChanged, meId, meName ?? undefined);
+
+  // Eine Statusänderung kann das Ticket aus der aktiven Sicht TRAGEN — in
+  // „Alles offen" ist genau das der Normalfall für „umgesetzt". Ohne diesen
+  // Zusatz sah die Karte aus wie verloren: sie verließ ihre Bahn und tauchte in
+  // keiner anderen auf. Der Hinweis sitzt hier, weil nur die Seite die Sicht
+  // kennt — Karten-Menü, Ziehen, Bulk-Leiste und Detail teilen ihn sich dadurch.
+  const mitSichtHinweis = useCallback((patch: TicketPatch, meldung: string): string => {
+    const ziel = patch.kurator_status;
+    if (!ziel || sichtKannStatus(view, ziel)) return meldung;
+    return `${meldung} · nicht in der Sicht „${view.label}"`;
+  }, [view]);
+
+  const aendere = useCallback((t: FeedbackItem, patch: TicketPatch, meldung: string): void => {
+    aktionen.aendere(t, patch, mitSichtHinweis(patch, meldung));
+  }, [aktionen.aendere, mitSichtHinweis]);
+
+  const aendereViele = useCallback((
+    ts: readonly FeedbackItem[], patch: TicketPatch, meldung: string,
+  ): void => {
+    aktionen.aendereViele(ts, patch, mitSichtHinweis(patch, meldung));
+  }, [aktionen.aendereViele, mitSichtHinweis]);
 
   // Archivierte sind für alle unsichtbar; Verwalter dürfen sie zum Aufräumen einblenden.
   const archivSichtbar = darfVerwalten && ansicht.zeigeArchiv;
@@ -252,12 +275,12 @@ export function FeedbackBoardPage(): React.ReactElement {
     if (tickets.length === 0) return;
     const label = STATUS_LABELS[zielStatus];
     if (tickets.length === 1 && tickets[0]) {
-      aktionen.aendere(tickets[0], { kurator_status: zielStatus }, `#${feedbackNummer(tickets[0])} → ${label}`);
+      aendere(tickets[0], { kurator_status: zielStatus }, `#${feedbackNummer(tickets[0])} → ${label}`);
       return;
     }
-    aktionen.aendereViele(tickets, { kurator_status: zielStatus }, `${tickets.length} Tickets → ${label}`);
+    aendereViele(tickets, { kurator_status: zielStatus }, `${tickets.length} Tickets → ${label}`);
     leereAuswahl();
-  }, [auswahl, gefiltert, aktionen, leereAuswahl]);
+  }, [auswahl, gefiltert, aendere, aendereViele, leereAuswahl]);
 
   const ctx: TicketKontext = useMemo(() => ({
     rolle,
@@ -267,8 +290,8 @@ export function FeedbackBoardPage(): React.ReactElement {
     neueKommentare: neuFuer,
     personen,
     meineId: meId,
-    aendere: aktionen.aendere,
-    aendereViele: aktionen.aendereViele,
+    aendere,
+    aendereViele,
     kommentiere: aktionen.kommentiere,
     oeffne,
     offeneId: selectedId,
@@ -278,7 +301,7 @@ export function FeedbackBoardPage(): React.ReactElement {
     darfZiehen,
   }), [
     rolle, darfVerwalten, istMeins, isUnread, neuFuer, personen, meId,
-    aktionen.aendere, aktionen.aendereViele, aktionen.kommentiere,
+    aendere, aendereViele, aktionen.kommentiere,
     oeffne, selectedId, auswahl, schalteAuswahl, ziehePer, darfZiehen,
   ]);
 
@@ -336,6 +359,14 @@ export function FeedbackBoardPage(): React.ReactElement {
     [gefiltert, ansicht.gruppierung],
   );
 
+  // Was die aktive Sicht überhaupt zeigen kann — damit eine Bahn wie UMGESETZT
+  // in „Alles offen" sagen kann, dass sie unerreichbar ist, statt „0" zu melden.
+  const boardSicht: BoardSicht = useMemo(() => ({
+    label: view.label,
+    kannStatus: (status: FeedbackStatus) => sichtKannStatus(view, status),
+    zeigeAlle: () => setViewKey(SICHT_ALLE),
+  }), [view]);
+
   const zeigeMenge = (menge: readonly FeedbackItem[]): React.ReactNode => (
     ansicht.ansicht === 'board'
       ? (
@@ -345,6 +376,7 @@ export function FeedbackBoardPage(): React.ReactElement {
           farbmodus={ansicht.kanban.farbmodus}
           dichte={ansicht.dichte}
           ctx={ctx}
+          sicht={boardSicht}
         />
       )
       : <TicketListe tickets={menge} ctx={ctx} />

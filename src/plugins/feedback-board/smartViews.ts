@@ -12,7 +12,7 @@
  * Bestandstickets tragen die jeweils andere Schreibweise. Zuweisung dagegen
  * gegen die EINE kanonische `schreibId`, denn `assignee` wird von uns geschrieben.
  */
-import type { FeedbackItem } from '@/core/types/feedback';
+import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import {
   FEEDBACK_STATUS,
   istMeineId,
@@ -23,6 +23,11 @@ import {
   type MeineIdentitaet,
 } from '@/core/services/feedback';
 import type { FeedbackSort } from '@/components/feedback/FeedbackSortSelect';
+
+/** Die offenen Status — aus `istOffen` abgeleitet statt danebengeschrieben.
+ *  Eine zweite Handliste liefe beim nächsten Status auseinander (Pitfall #21). */
+const OFFENE_STATUS: readonly FeedbackStatus[] =
+  Object.values(FEEDBACK_STATUS).filter(istOffen);
 
 /** Welche Sichten und Karteninhalte gelten — abgeleitet aus `canManageFeedback`,
  *  für Verwalter per Vorschau-Umschalter auf `'nutzer'` stellbar. */
@@ -46,6 +51,23 @@ export interface SmartView {
   alert?: (t: FeedbackItem, ctx: SmartViewKontext) => boolean;
   /** Erzwingt eine Ordnung — die Sicht bringt ihre eigene Frage mit. */
   sort?: FeedbackSort;
+  /**
+   * Welche Status kann diese Sicht ÜBERHAUPT enthalten? Nur zu setzen, wo das
+   * strukturell gilt — nicht als Abbild dessen, was der Bestand gerade hergibt.
+   *
+   * Das Board baut seine Bahnen aus der bereits gefilterten Menge. Ohne diese
+   * Angabe kann es nicht unterscheiden, ob eine leere Bahn „hier ist nichts"
+   * oder „hier KANN nichts sein" bedeutet — und meldete in der Sicht „Alles
+   * offen" ein glattes „0" für UMGESETZT, während dort drei Tickets lagen.
+   */
+  statusRaum?: readonly FeedbackStatus[];
+}
+
+/** Kann die Sicht ein Ticket in diesem Status zeigen? Ohne deklarierten Raum
+ *  lautet die Antwort ja — „Mir zugewiesen" filtert nicht nach Status, eine
+ *  leere Bahn ist dort eine ehrliche Null. */
+export function sichtKannStatus(view: SmartView, status: FeedbackStatus): boolean {
+  return !view.statusRaum || view.statusRaum.includes(status);
 }
 
 /** Alter in Tagen, positiv = Vergangenheit. Rein über die ISO-Präfixe zu rechnen
@@ -78,6 +100,7 @@ export const SMART_VIEWS_NUTZER: Sichten = [
     key: 'wartet',
     label: 'Wartet auf mich',
     passt: (t, ctx) => istMeinTicket(t, ctx.ich) && istRueckfrage(t.kurator_status),
+    statusRaum: [FEEDBACK_STATUS.rueckfrage],
   },
   {
     key: 'neu7',
@@ -89,11 +112,17 @@ export const SMART_VIEWS_NUTZER: Sichten = [
     label: 'Zuletzt umgesetzt',
     passt: t => istUmgesetzt(t.kurator_status),
     sort: 'bewegt',
+    statusRaum: [FEEDBACK_STATUS.umgesetzt],
   },
 ];
 
 export const SMART_VIEWS_ENTWICKLER: Sichten = [
-  { key: 'offen', label: 'Alles offen', passt: t => istOffen(t.kurator_status) },
+  {
+    key: 'offen',
+    label: 'Alles offen',
+    passt: t => istOffen(t.kurator_status),
+    statusRaum: OFFENE_STATUS,
+  },
   {
     key: 'mir',
     label: 'Mir zugewiesen',
@@ -103,11 +132,13 @@ export const SMART_VIEWS_ENTWICKLER: Sichten = [
     key: 'triage',
     label: 'Triage · ungeschätzt',
     passt: t => !t.effort_estimate && t.kurator_status === FEEDBACK_STATUS.neu,
+    statusRaum: [FEEDBACK_STATUS.neu],
   },
   {
     key: 'rueck',
     label: 'Rückfragen offen',
     passt: t => istRueckfrage(t.kurator_status),
+    statusRaum: [FEEDBACK_STATUS.rueckfrage],
   },
   {
     // Bewusst „hat überhaupt Zuspruch" statt einer Zahlenschwelle: bei fünf bis
@@ -123,6 +154,14 @@ export const SMART_VIEWS_ENTWICKLER: Sichten = [
 export function viewsFuerRolle(rolle: BoardRolle): Sichten {
   return rolle === 'entwickler' ? SMART_VIEWS_ENTWICKLER : SMART_VIEWS_NUTZER;
 }
+
+/**
+ * Die Sicht ohne Status-Grenze — Ziel des Sprungs aus einer Bahn, die die
+ * aktive Sicht nicht füllen kann. Muss in BEIDEN Rollen-Listen vorkommen und
+ * dort ohne `statusRaum` stehen, sonst führte der Klick ins Leere
+ * (Guard: `smartViews.test.ts`).
+ */
+export const SICHT_ALLE = 'alle';
 
 /** Startsicht je Rolle: der Nutzer will sein eigenes Ticket, der Entwickler den Vorrat. */
 export function startViewKey(rolle: BoardRolle): string {

@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.39 — 2026-08
+
+### Bugfixes
+- Ein Ticket auf „umgesetzt" zu setzen sah im Feedback-Board aus, als ginge es verloren: Es verschwand aus seiner Spalte und tauchte in „Umgesetzt" nicht auf. Gespeichert war es immer richtig — die Sicht „Alles offen" zeigt nur eben keine fertigen Tickets, und die Spalte daneben meldete trotzdem „0".
+
+### Verbesserungen
+- Spalten, die die gewählte Sicht gar nicht füllen kann, schreiben jetzt „nicht in dieser Sicht" statt einer Null. Ein Klick darauf wechselt zu „Alles" und zeigt sie.
+- Verlässt eine Änderung die aktuelle Sicht, sagt die Meldung unten das dazu — samt „Rückgängig" wie bisher.
+
 ## v3.38 — 2026-08
 
 ### Neu

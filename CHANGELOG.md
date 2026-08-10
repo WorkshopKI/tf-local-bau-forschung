@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.39.0 — Umgesetzte Tickets verschwinden nicht mehr spurlos (August 2026)
+
+MINOR — Gemeldet: „als umgesetzt markiert, sofort aus seiner Lane verschwunden, aber nicht in der Lane Umgesetzt aufgetaucht". Der Schreibvorgang war korrekt — belegt am Bestand, gleiches Board, nur Sicht gewechselt: UMGESETZT meldete in „Alles offen" 0, in „Alles" 3. Die Bahnen bilden die ganze Pipeline ab, die Sicht (`istOffen`) schneidet die Endzustände weg; die Bahn stand daneben und behauptete „0".
+
+- Eine Sicht deklariert ihren `statusRaum` (aus `istOffen` **abgeleitet**, keine zweite Handliste); `sichtKannStatus()` beantwortet „kann hier überhaupt etwas stehen?" — [smartViews.ts](src/plugins/feedback-board/smartViews.ts)
+- Unerreichbare Bahn sagt „nicht in dieser Sicht" statt „0" und springt per Klick nach `SICHT_ALLE` — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx), `BoardSpalte.ausserhalbDerSicht`
+- Die Meldung nennt den Verlust („#A7K2 → Umgesetzt · nicht in der Sicht „Alles offen""), einmal umhüllt für Menü, Ziehen, Bulk und Detail — [FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)
+- Schiene der unerreichbaren Bahn in `--tf-text-secondary` (5,3:1 hell / 4,1:1 dunkel) statt tertiär-gedimmt (1,99:1) — sie trägt eine Auskunft, keine Null
+- Neue Guards: `smartViews.test.ts` (Raum deckt sich mit `passt`, Sprungziel existiert in beiden Rollen), `boardSpalten.test.ts` um die Markierung erweitert
+
 ### v3.38.0 — VerlaufsBand: lesbare Flaechen, Dauern am Balken, weniger Gedraenge (August 2026)
 
 MINOR — Ein Entwurfsvergleich legte einen messbaren Defekt frei: die Balken trugen den **satten** `--tf-kanban-*`-Akzent mit weißer Schrift, gerechnet **3,02–5,06:1 hell** (sechs von neun unter AA für 11-px-Text) und **2,14–2,92:1 dunkel** (alle neun). Die Tokens sind Farbchips für Kanban-Lane-Köpfe, nie Textuntergrund. Dazu klebte der Achsen-Boden seit v3.27 bei 24 px, auch wenn 1000 zur Verfügung standen.

@@ -20,6 +20,11 @@ export interface BoardSpalte {
   spalten: 1 | 2;
   tickets: FeedbackItem[];
   summe: SpaltenSumme;
+  /**
+   * Kann die aktive Sicht diesen Status überhaupt enthalten? `true` heißt: die
+   * Bahn ist nicht leer, sondern unerreichbar — ihre „0" wäre eine Falschaussage.
+   */
+  ausserhalbDerSicht: boolean;
 }
 
 /**
@@ -29,10 +34,17 @@ export interface BoardSpalte {
  *
  * Tickets in einem Status ohne sichtbare Lane fallen heraus; das ist die
  * gewollte Wirkung der Lane-Auswahl. Sichtbar bleibt der Bestand in der Liste.
+ *
+ * `kannStatus` kommt aus der aktiven Smart View (`sichtKannStatus`): die Lanes
+ * bilden die ganze Pipeline ab, die Sicht schneidet sie aber zu. Ohne diese
+ * Auskunft sähe eine Bahn, die die Sicht nie füllen kann, exakt so aus wie eine
+ * ehrlich leere — der Grund, warum ein auf „umgesetzt" gesetztes Ticket spurlos
+ * verschwand (v3.39).
  */
 export function baueSpalten(
   tickets: readonly FeedbackItem[],
   lanes: readonly FeedbackLane[],
+  kannStatus?: (status: FeedbackStatus) => boolean,
 ): BoardSpalte[] {
   const proStatus = new Map<FeedbackStatus, FeedbackItem[]>();
   for (const t of tickets) {
@@ -47,6 +59,7 @@ export function baueSpalten(
       spalten: lane.spalten,
       tickets: eigene,
       summe: spaltenSumme(eigene),
+      ausserhalbDerSicht: kannStatus ? !kannStatus(lane.status) : false,
     };
   });
 }

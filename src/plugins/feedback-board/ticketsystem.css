@@ -183,6 +183,21 @@
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
+/* Bahn, die die aktive Sicht gar nicht füllen kann (z.B. UMGESETZT in „Alles
+   offen"). Sie trägt statt der Null einen Satz — kleingeschrieben und ohne
+   Versalspreizung, damit man ihn als Erklärung liest und nicht als Rubrik.
+   Diese Schiene ist NICHT blasser als eine bloß leere, sondern klarer: sie
+   trägt eine Auskunft, keine Null. Tertiär (der Ton der leeren Schiene) maß am
+   Hinweis 1,99:1 gegen die Fläche, sekundär misst 5,3:1 hell / 4,1:1 dunkel —
+   derselbe Ton, den die Seite überall für Zweitzeilen verwendet. */
+.fb-col.ausserhalb { border-style: dotted; }
+.fb-col.ausserhalb .fb-schiene { color: var(--tf-text-secondary); }
+.fb-col.leer .fb-schiene .fb-aus {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: var(--tf-weight-regular);
+  font-size: 10.5px;
+}
 .fb-col.leer:hover { background: var(--tf-hover); }
 .fb-col-kopf { display: flex; align-items: center; gap: 8px; padding: 9px 11px 8px; flex: none; }
 .fb-col-kopf .fb-nm {

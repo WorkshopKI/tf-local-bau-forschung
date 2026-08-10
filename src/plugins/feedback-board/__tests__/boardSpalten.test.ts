@@ -66,6 +66,25 @@ describe('baueSpalten', () => {
     expect(spalten[0]?.summe).toEqual({ stunden: 10, ungeschaetzt: 1 });
   });
 
+  // Der gemeldete Fehler (v3.39): In der Sicht „Alles offen" meldete die Bahn
+  // UMGESETZT ein glattes „0", während drei Tickets in diesem Status lagen. Die
+  // Bahn muss unterscheiden können zwischen „hier ist nichts" und „hier KANN
+  // nichts sein".
+  it('markiert die Bahn, die die aktive Sicht gar nicht füllen kann', () => {
+    const kannStatus = (s: string): boolean => s !== 'umgesetzt' && s !== 'abgelehnt';
+    const spalten = baueSpalten([fb('A')], LANES, kannStatus as never);
+    expect(spalten.find(s => s.status === 'umgesetzt')?.ausserhalbDerSicht).toBe(true);
+    expect(spalten.find(s => s.status === 'abgelehnt')?.ausserhalbDerSicht).toBe(true);
+    // Leer, aber erreichbar: das bleibt eine ehrliche Null.
+    expect(spalten.find(s => s.status === 'rueckfrage')?.ausserhalbDerSicht).toBe(false);
+    expect(spalten.find(s => s.status === 'neu')?.ausserhalbDerSicht).toBe(false);
+  });
+
+  it('ohne Angabe ist keine Bahn außerhalb — die Sicht schränkt dann nicht nach Status ein', () => {
+    const spalten = baueSpalten([fb('A')], LANES);
+    expect(spalten.every(s => s.ausserhalbDerSicht === false)).toBe(true);
+  });
+
   it('lässt Tickets fallen, deren Status keine sichtbare Lane hat — das ist der Zweck der Lane-Auswahl', () => {
     const nurNeu: FeedbackLane[] = [{ status: 'neu', spalten: 1 }];
     const spalten = baueSpalten([fb('A'), fb('B', { kurator_status: 'umgesetzt' })], nurNeu);
