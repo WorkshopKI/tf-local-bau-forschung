@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.41 — 2026-08
+
+### Neu
+- Im Feedback-Board lässt sich die **Reihenfolge der Spalten** selbst festlegen: im Stift-Menü „Board anpassen" schiebt ein Pfeilpaar jede Spalte vor oder zurück.
+
+### Verbesserungen
+- Das Menü zeigt die Spalten jetzt **so, wie sie im Board stehen** — nicht mehr in einer festen Liste, die etwas anderes behauptete.
+- **Ausgeblendete Spalten behalten ihren Platz.** Wer eine wieder einblendet, findet sie dort, wo sie war, statt ganz rechts.
+- Wann eine Spalte verschwindet, steht jetzt dabei: **leere klappen von selbst zum Streifen ein, abgewählte bleiben weg** — auch wenn Tickets darin liegen. Die sind weiterhin in der Listen-Ansicht zu sehen.
+
 ## v3.40 — 2026-08
 
 ### Neu

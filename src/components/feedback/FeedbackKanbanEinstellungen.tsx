@@ -14,25 +14,27 @@ import { Lock, Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LaneListe } from '@/components/ui/LaneListe';
 import { FarbmodusToggle } from '@/components/kanban/FarbmodusToggle';
+import type { FeedbackStatus } from '@/core/types/feedback';
 import { STATUS_LABELS, STATUS_LANE_ACCENT } from './constants';
-import { FEEDBACK_LANE_STATUS, type FeedbackLane } from './feedbackLanes';
-import type { BoardKanbanConfig } from './boardKanbanConfig';
+import { verschiebeLane, type BoardKanbanConfig } from './boardKanbanConfig';
 
 export function FeedbackKanbanEinstellungen({ config, onChange }: {
   config: BoardKanbanConfig;
   onChange: (cfg: BoardKanbanConfig) => void;
 }): React.ReactElement {
+  // Nur sichtbare Lanes gelten als „gewählt" — die ausgeblendeten stehen
+  // weiterhin in der Liste, damit ihr Platz in der Folge sichtbar bleibt.
   const spaltenProKey = new Map<string, 1 | 2>(
-    config.lanes.map(l => [l.status as string, l.spalten]),
+    config.lanes.filter(l => l.sichtbar).map(l => [l.status as string, l.spalten]),
   );
 
+  // Ein-/Ausblenden verschiebt NICHT: bis v3.40 hängte das Wiedereinblenden die
+  // Lane hinten an, und „Geplant" landete rechts von „Abgelehnt".
   const toggleLane = (key: string): void => {
-    const status = key as FeedbackLane['status'];
-    const lanes = spaltenProKey.has(key)
-      ? config.lanes.filter(l => l.status !== status)
-      : // Neue Lane hinten anhängen (wie im Home-Widget), einspaltig starten.
-        [...config.lanes, { status, spalten: 1 as const }];
-    onChange({ ...config, lanes });
+    onChange({
+      ...config,
+      lanes: config.lanes.map(l => (l.status === key ? { ...l, sichtbar: !l.sichtbar } : l)),
+    });
   };
 
   const setSpalten = (key: string, spalten: 1 | 2): void => {
@@ -42,7 +44,13 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
     });
   };
 
-  const ausgeblendet = FEEDBACK_LANE_STATUS.length - config.lanes.length;
+  const verschiebe = (key: string, richtung: -1 | 1): void => {
+    const lanes = verschiebeLane(config.lanes, key as FeedbackStatus, richtung);
+    // Am Rand liefert der Helfer dieselbe Liste zurück — dann kein Schreibvorgang.
+    if (lanes !== config.lanes) onChange({ ...config, lanes });
+  };
+
+  const ausgeblendet = config.lanes.filter(l => !l.sichtbar).length;
 
   return (
     <Popover>
@@ -65,22 +73,26 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
         <div className="space-y-4">
           <div>
             <FeldLabel>Lanes (aus Feedback-Status)</FeldLabel>
+            {/* Zeilenfolge = Spaltenfolge des Boards, ausgeblendete mitten drin. */}
             <LaneListe
-              options={FEEDBACK_LANE_STATUS.map(s => ({
-                key: s,
-                label: STATUS_LABELS[s],
-                akzent: STATUS_LANE_ACCENT[s],
+              options={config.lanes.map(l => ({
+                key: l.status,
+                label: STATUS_LABELS[l.status],
+                akzent: STATUS_LANE_ACCENT[l.status],
               }))}
               spaltenProKey={spaltenProKey}
               onToggle={toggleLane}
               onSpalten={setSpalten}
+              onVerschiebe={verschiebe}
             />
-            {ausgeblendet > 0 ? (
-              <p className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
-                {ausgeblendet === 1 ? '1 Lane ausgeblendet' : `${ausgeblendet} Lanes ausgeblendet`}
-                {' '}— die Tickets bleiben in der Listen-Ansicht sichtbar.
-              </p>
-            ) : null}
+            {/* Die Regel steht dort, wo sie entschieden wird: automatisch
+                einklappen betrifft nur LEERE Lanes, das Häkchen schlägt sie. */}
+            <p className="mt-1.5 text-[11px] leading-[1.45] text-[var(--tf-text-tertiary)]">
+              Leere Lanes klappen von selbst zur Schiene ein; abgewählte bleiben weg, auch mit Tickets.
+              {ausgeblendet > 0
+                ? ` Zurzeit ausgeblendet: ${ausgeblendet} — in der Listen-Ansicht sind die Tickets weiterhin sichtbar.`
+                : null}
+            </p>
           </div>
 
           <div>

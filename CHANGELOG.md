@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.41.0 — Lanes selbst ordnen und ausblenden (August 2026)
+
+MINOR — Gewünscht: Reihenfolge der Board-Lanes selbst bestimmen, einzelne ausblenden, und automatisch nur einklappen, was leer ist. Ausblenden konnte das Board schon — aber es kostete den Platz: `lanes` führte nur die sichtbaren, Wiedereinblenden hängte hinten an (so stand „Geplant" rechts von „Abgelehnt"), und das Popover zeigte trotzdem Katalogfolge. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
+
+- `BoardKanbanConfig.lanes` führt ALLE Lanes in Board-Reihenfolge, ausgeblendet per `sichtbar: false` — [boardKanbanConfig.ts](src/components/feedback/boardKanbanConfig.ts)
+- Alt-Stand ohne Key-Bump: fehlende Lanes kommen ausgeblendet dazu, fehlendes `sichtbar` heißt sichtbar, ein unsichtbares Board heilt — `parseBoardKanbanConfig`
+- Popover zeigt die ECHTE Spaltenfolge, je Zeile ein Pfeilpaar (Ränder gedämpft) unter der neuen Überschrift „Sichtbar · Folge · Spalten" — [FeedbackKanbanEinstellungen.tsx](src/components/feedback/FeedbackKanbanEinstellungen.tsx)
+- Pfeile sind opt-in an der geteilten [LaneListe](src/components/ui/LaneListe.tsx) (`onVerschiebe`) — die Home-Widgets bleiben, wie sie waren
+- Die Regel steht im Popover: leere Lanes klappen von selbst ein, abgewählte bleiben weg — auch mit Tickets
+
 ### v3.40.0 — Aufgeklappte Antragszeile nach dem Entwurf (August 2026)
 
 MINOR — Umsetzung des Handoffs `_design/handoff/status-fristen-detail-ansicht/`. Der aufgeklappte Bereich beantwortete bisher „wie steht die Frist?", nicht „woran hängt es und was tue ich?". Er ordnet sich jetzt nach diesen drei Fragen; der Nachweis liegt darunter in zwei Reitern. Detail: [vorgangssystem.md §16](docs/architecture/vorgangssystem.md).

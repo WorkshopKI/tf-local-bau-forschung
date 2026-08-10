@@ -7,6 +7,7 @@ import { FilterChip } from '../FilterChip';
 import { ScopeTabs, type ScopeTabItem } from '../ScopeTabs';
 import { DarstellungDropdown } from '../DarstellungDropdown';
 import type { DarstellungAchse } from '../darstellungsAchsen';
+import { LaneListe } from '../LaneListe';
 
 // Smoke-/Render-Tests der Layout-Primitive (Phase 2). Die Test-Suite läuft im
 // node-Env ohne DOM und ohne JSX (Konvention: nur *.test.ts) → React.createElement
@@ -166,3 +167,55 @@ describe('DarstellungDropdown', () => {
     expect(html).not.toContain('Zurücksetzen');
   });
 });
+
+describe('LaneListe', () => {
+  const optionen = [
+    { key: 'neu', label: 'Neu', akzent: 'var(--tf-fb-lane-neu)' },
+    { key: 'geplant', label: 'Geplant' },
+    { key: 'fertig', label: 'Fertig' },
+  ];
+  // Gewählt = im Map, der Wert ist die Kartenspaltenzahl. „geplant" fehlt hier
+  // absichtlich: eine abgewählte Zeile bleibt sichtbar, nur ohne Häkchen.
+  const spaltenProKey = new Map<string, 1 | 2>([['neu', 1], ['fertig', 2]]);
+
+  it('rendert eine Zeile je Lane mit Sichtbar-Überschrift und Spalten-Schalter', () => {
+    const html = renderToStaticMarkup(h(LaneListe, {
+      options: optionen, spaltenProKey, onToggle: noop, onSpalten: noop,
+    }));
+    expect(html).toContain('Sichtbar');
+    expect(html).toContain('Spalten');
+    expect(html).toContain('Neu');
+    expect(html).toContain('Geplant');
+    // Häkchen-Slot ist auch bei abgewählter Zeile da, nur unsichtbar (Pitfall #14).
+    expect(html).toContain('invisible');
+  });
+
+  // Ohne `onVerschiebe` bleibt die Liste, was sie für die Home-Widgets war:
+  // keine Pfeile, keine „Folge"-Spalte, keine zusätzliche Zeilenbreite.
+  it('zeigt ohne onVerschiebe keine Pfeile', () => {
+    const html = renderToStaticMarkup(h(LaneListe, {
+      options: optionen, spaltenProKey, onToggle: noop, onSpalten: noop,
+    }));
+    expect(html).not.toContain('Folge');
+    expect(html).not.toContain('nach vorn');
+    expect(html).not.toContain('nach hinten');
+  });
+
+  it('gibt mit onVerschiebe je Zeile ein Pfeilpaar und dämpft die Ränder', () => {
+    const html = renderToStaticMarkup(h(LaneListe, {
+      options: optionen, spaltenProKey, onToggle: noop, onSpalten: noop, onVerschiebe: noop,
+    }));
+    expect(html).toContain('Folge');
+    // Ein Pfeilpaar je Zeile — drei Lanes, sechs beschriftete Knöpfe.
+    expect(html.match(/aria-label="Lane /g)?.length).toBe(6);
+    // Erste Zeile kann nicht weiter nach vorn, letzte nicht weiter nach hinten —
+    // gedämpft statt entfernt, sonst rutschte die Zeile an den Rändern.
+    // `title` steht in einem Attribut — das schließende Anführungszeichen ist
+    // dort escaped.
+    expect(html).toContain('„Neu&quot; steht schon ganz vorn');
+    expect(html).toContain('„Fertig&quot; steht schon ganz hinten');
+    // Die Zeile in der Mitte kann in beide Richtungen.
+    expect(html).not.toContain('„Geplant&quot; steht schon');
+  });
+});
+

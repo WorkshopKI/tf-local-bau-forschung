@@ -44,6 +44,7 @@ import { useUnreadComments } from '@/components/feedback/useUnreadComments';
 import { useFeedbackNavStore } from '@/components/feedback/feedbackNavStore';
 import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 import { FeedbackKanbanEinstellungen } from '@/components/feedback/FeedbackKanbanEinstellungen';
+import { sichtbareLanes } from '@/components/feedback/boardKanbanConfig';
 import { feedbackAuthorLabel } from '@/components/feedback/feedbackUi';
 import {
   getFeedbackList, istArchiviert, istMeineId, istMeinTicket, loadFeedbackConfig,
@@ -367,12 +368,17 @@ export function FeedbackBoardPage(): React.ReactElement {
     zeigeAlle: () => setViewKey(SICHT_ALLE),
   }), [view]);
 
+  // Die Config führt ALLE Lanes (auch die ausgeblendeten, damit sie ihren Platz
+  // behalten); gezeichnet werden nur die sichtbaren — bei Gruppierung einmal
+  // berechnet statt je Band.
+  const boardLanes = useMemo(() => sichtbareLanes(ansicht.kanban), [ansicht.kanban]);
+
   const zeigeMenge = (menge: readonly FeedbackItem[]): React.ReactNode => (
     ansicht.ansicht === 'board'
       ? (
         <TicketBoard
           tickets={menge}
-          lanes={ansicht.kanban.lanes}
+          lanes={boardLanes}
           farbmodus={ansicht.kanban.farbmodus}
           dichte={ansicht.dichte}
           ctx={ctx}
