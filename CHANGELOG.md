@@ -5,6 +5,21 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.42.1 — Aufgeklappte leere Lane wieder einklappbar (August 2026)
+
+PATCH — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+
+- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+
+### v3.42.0 — To-do-Kaskade in der Kopfkarte, drei Ebenen-Pillen (August 2026)
+
+MINOR — Die Kopfkarte beantwortete „was ist zu tun?" nur mit Knöpfen; die Antwort selbst stand seit v2.390 in der To-do-Engine, zu sehen aber nur im Vorgangs-Board. Sie wird jetzt am Antrag gelesen — und füllt nebenbei „Liegt bei", das allein aus dem Kürzel-Paar meist leer blieb (Bestand: 35,4 % → 55,0 % ableitbare Adressen). Detail: [vorgangssystem.md §16.3 + §16.8](docs/architecture/vorgangssystem.md).
+
+- Aufgaben-Zeile in der Kopfkarte: To-do des eigenen Regelsatzes, „geliehen"-Marke, „warum?" mit Regel und gelesenen Feldern — [AufgabenZeile.tsx](src/plugins/antraege/ausklapp/kopfkarte/AufgabenZeile.tsx), [aufgabe.ts](src/plugins/antraege/ausklapp/kopfkarte/aufgabe.ts)
+- Ausgewertet wird je Teilvorhaben (Verbundzeile faltet und nennt abweichende TVs mit Aktenzeichen); die Adresse für den Wächter kommt immer aus dem AB-Satz — [useZeilenTodo.ts](src/plugins/antraege/ausklapp/useZeilenTodo.ts)
+- „Liegt bei" hat zwei Quellen und nennt im Tooltip, welche; uneinige Teilvorhaben bekommen ein eigenes Urteil statt einer ausgewählten Rolle — [liegtBei.ts](src/plugins/antraege/ausklapp/kopfkarte/liegtBei.ts)
+- Ebenen-Pillen jetzt drei: Verbund (an) · Kürzel (an) · Meilensteine (aus); „Phasen" entfällt — die TV-Bahnen sind der Zeitverlauf, nicht eine Ebene darin — [ebenen.ts](src/plugins/antraege/ausklapp/zeitverlauf/ebenen.ts)
+
 ### v3.41.0 — Lanes selbst ordnen und ausblenden (August 2026)
 
 MINOR — Gewünscht: Reihenfolge der Board-Lanes selbst bestimmen, einzelne ausblenden, und automatisch nur einklappen, was leer ist. Ausblenden konnte das Board schon — aber es kostete den Platz: `lanes` führte nur die sichtbaren, Wiedereinblenden hängte hinten an (so stand „Geplant" rechts von „Abgelehnt"), und das Popover zeigte trotzdem Katalogfolge. Detail: [feedback-system.md](docs/architecture/feedback-system.md).

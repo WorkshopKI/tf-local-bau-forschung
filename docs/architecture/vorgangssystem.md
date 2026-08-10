@@ -1933,8 +1933,8 @@ Was ist zu tun?* — und legt den Nachweis darunter.
 
 1. **Kopfkarte** ([KopfKarte](../../src/plugins/antraege/ausklapp/kopfkarte/KopfKarte.tsx)) —
    Urteil zur Frist samt Herleitung, drei Fakten (Bewegung · Meilensteine ·
-   Liegt bei), **ein** Blocker mit den Stufen, die deshalb mitwarten, und die
-   Aktionen.
+   Liegt bei), darunter die **Aufgabe** aus der To-do-Kaskade samt Aktionen und
+   **ein** Blocker mit den Stufen, die deshalb mitwarten.
 2. **Zwei Reiter** (`SegmentedToggle`): **Vorgangsverlauf** (die Fristrechnung
    als Raster, Voreinstellung) und **Zeitverlauf** (die Bahn).
 3. Im Zeitverlauf: **Ebenen-Pillen**, das Band, die **Meilenstein-Ebene** auf
@@ -1966,13 +1966,25 @@ sechs Gründe, keinen zu finden. Eine Karte, die hier schweigt, liest sich als
 ### 16.3 Die Zuständigkeit hängt am Vorgang, nicht am Meilenstein
 
 Der Meilenstein-Plan kennt kein Rollenfeld. „Liegt bei" kommt aus dem
-Stillstands-Wächter: ein halb offenes Kürzel-Paar (`AK4` gesetzt, `AT4` fehlt)
-nennt die Rolle des fehlenden Gegenstücks. Ohne Paar wird nichts geraten — dann
-steht dort, dass die Quelle fehlt.
+Stillstands-Wächter, und der liest **zwei** Quellen in dieser Reihenfolge
+(`pruefeStillstand`, Stufe 2):
+
+1. das halb offene **Kürzel-Paar** (`AK4` gesetzt, `AT4` fehlt) — es nennt die
+   Rolle des fehlenden Gegenstücks und trägt als einzige Quelle eine Liegezeit;
+2. das `wartetAuf` der treffenden **To-do-Regel**, ersatzweise ihr erstes
+   `zustaendig` (seit v3.41, siehe 16.8).
 
 Die **Liegezeit** kommt ausschließlich aus dem Paar. Als Ersatz bliebe die Zeit
 seit der letzten Aktivität, und die steht schon als „Bewegung" daneben; dieselbe
 Zahl unter zwei Überschriften läse sich als zwei Messungen.
+
+Ohne Quelle wird nichts geraten — und der Grund, der dasteht, ist der zutreffende:
+*keine Regeln in der Fassung*, *uneinige Teilvorhaben* und *nichts Belegbares*
+sind drei verschiedene Lagen ([liegtBei](../../src/plugins/antraege/ausklapp/kopfkarte/liegtBei.ts)).
+
+**Gemessen am Bestand (14 222 Vorgänge, August 2026):** allein aus dem Paar waren
+5 034 Adressen ableitbar (35,4 %), mit der Kaskade 7 818 (55,0 %) — 2 784
+zusätzlich, davon fast alle `fb`. Das Paar liefert praktisch nur `ab`.
 
 ### 16.4 Eine Achse, mehrere Schichten
 
@@ -1992,6 +2004,13 @@ Die rechte Reserve für „1.4.3 · 327 T" wird **gemessen**, nicht geschätzt: 
 60 px des Entwurfs reichen für „3 · 299 T", nicht für die dreistellige Nummer in
 Mono. Gemessen wird vor der Geometrie — die Reserve geht in die Bahnbreite ein,
 die Bahnbreite in die Achse (Profil `bandVerzug`).
+
+**Drei Pillen, nicht vier** (v3.41, [ebenen.ts](../../src/plugins/antraege/ausklapp/zeitverlauf/ebenen.ts)):
+*Verbund* (an) · *Kürzel* (an) · *Meilensteine* (aus). „Phasen" ist keine Ebene —
+die Bahnen der Teilvorhaben **sind** der Zeitverlauf, und eine Pille, die den
+Inhalt einer Ansicht wegnimmt, ist ein Ausschalter. Die Meilenstein-Ebene startet
+zu, weil sie eine **zweite Datenquelle** auf dieselbe Achse bringt (den Plan, nicht
+den Export) und rechts Platz für ihre Verzugslabels fordert.
 
 ### 16.5 Aktionen: nur echte Züge
 
@@ -2025,3 +2044,42 @@ Drei Knöpfe, die nichts tun, wären schlimmer als keine.
   der Karte und „6 Stufen · 3 gerissen" in der Gliederung. Beide Zahlen kommen
   aus **einer** Funktion; die Überschrift zählt, was darunter steht — auch die
   nicht relevanten Stufen, sonst nennte sie weniger, als das Auge sieht.
+
+### 16.8 Die To-do-Kaskade im Ausklapp (v3.41)
+
+Bis v3.40 beantwortete die Karte „was ist zu tun?" nur mit Knöpfen; die Antwort
+selbst stand seit v2.390 in der Engine und war im Vorgangs-Board zu sehen, nicht
+am Antrag. Sie wird jetzt **gelesen**, nicht neu gerechnet — dieselbe Kaskade,
+derselbe Bedingungs-Evaluator, dieselben Sperren (Pitfall #47).
+
+**Die Einheit ist das Teilvorhaben.** Die Regeln lesen überwiegend TV-Spalten;
+alle Teilvorhaben eines Verbunds in einen Topf geworfen bekäme ein fertiges TV
+das To-do seines Nachbarn. [useZeilenTodo](../../src/plugins/antraege/ausklapp/useZeilenTodo.ts)
+wertet deshalb je Teilvorhaben aus (`StatusVerlauf.jeTeilvorhaben` — Verbund-Felder
+plus die eigenen, dieselbe Menge, die `jederVorgang` dem Board gibt) und
+[baueAufgabe](../../src/plugins/antraege/ausklapp/kopfkarte/aufgabe.ts) faltet
+danach: die häufigste Aufgabe groß, abweichende **mit Aktenzeichen** darunter.
+Eine Faltung, die ihre Minderheit verschweigt, wäre eine Behauptung über den
+ganzen Verbund. *(Bestand: 3 450 der 7 534 Verbünde führen mehr als ein TV, in 41
+davon tragen sie verschiedene Aufgaben.)*
+
+**Zwei Regelsätze, zwei Fragen.** Angezeigt wird der Satz der eigenen Rolle
+(`leseStatusRolle(profile.status_rolle)`, `'alle'` ⇒ AB — dieselbe Auflösung wie
+`sichtVon` im Board). Die **Adresse** für „Liegt bei" kommt dagegen immer aus dem
+**AB-Satz**: das Urteil des Wächters hängt gar nicht am To-do, und es soll sich
+nicht verschieben, nur weil jemand seine Anzeige umschaltet.
+
+`adresseFuerWaechter` liefert **keine** Adresse, wenn die Teilvorhaben auf
+verschiedene Rollen warten — die Zeile hat dann keine, und das ist ein eigenes
+Urteil, kein Schweigen (8 Fälle im Bestand). Kein Regeltreffer ist ebenso ein
+Ergebnis: eine greifende Sperre (`S0`) heißt „keine Aufgabe mehr", nicht „keine
+Aufgabe gefunden".
+
+**Kein Widerspruch zur Tabellenzeile.** Deren „→ …" ist `naechsterSchritt(status,
+precheck)` — ein Hinweis, der allein am Status hängt. Die Aufgabe kommt aus der
+Kaskade, die Datumsspalten liest. Die Überschrift nennt den Regelsatz, ihr
+Tooltip den Unterschied.
+
+Ohne das Vorgangssystem läuft die Kaskade nicht: dann fehlt die Aufgaben-Zeile,
+der Blocker rückt an ihre Stelle (die Aktionen sollen nicht allein stehen), und
+„Liegt bei" nennt den Flag als fehlende Quelle.

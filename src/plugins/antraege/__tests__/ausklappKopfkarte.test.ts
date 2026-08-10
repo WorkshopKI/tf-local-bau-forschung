@@ -19,6 +19,9 @@ import { ergebnis as mstErgebnis, knoten, lageDa } from './fixtures/meilensteinL
 
 const HEUTE = '2026-08-05';
 
+/** Die Kopfkarte prüft die Frist, nicht die Kaskade — hier steuert sie nichts bei. */
+const OHNE_AUFGABE = { ohneRegeln: false, uneinig: false, herkunft: null };
+
 function frist(p: Partial<FristErgebnis> = {}): FristErgebnis {
   return {
     zustand: 'laeuft',
@@ -61,7 +64,7 @@ function baue(b: FristBezug, lage: MeilensteinLage = LAGE, w = waechter()) {
     waechter: w,
     lage,
     befund: findeBlocker(lage, HEUTE),
-    liegtBei: liegtBei(w, { vorgangssystemAn: true }),
+    liegtBei: liegtBei({ waechter: w, vorgangssystemAn: true, aufgabe: OHNE_AUFGABE }),
   });
 }
 
@@ -141,7 +144,8 @@ describe('baueKopfModell — die drei Fakten', () => {
   it('sagt ohne Wächter „nicht prüfbar" — nie „ok"', () => {
     const m = baueKopfModell({
       bezug: bezug(), stichtag: HEUTE, waechter: null, lage: LAGE,
-      befund: findeBlocker(LAGE, HEUTE), liegtBei: liegtBei(null, { vorgangssystemAn: true }),
+      befund: findeBlocker(LAGE, HEUTE),
+      liegtBei: liegtBei({ waechter: null, vorgangssystemAn: true, aufgabe: OHNE_AUFGABE }),
     });
     const bewegung = m.fakten.find(f => f.id === 'bewegung');
     expect(bewegung?.wert).toBe('nicht prüfbar');

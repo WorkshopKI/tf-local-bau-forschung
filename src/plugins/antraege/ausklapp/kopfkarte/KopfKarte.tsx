@@ -2,8 +2,14 @@
  * Die Kopfkarte **„Woran es hängt"** — reine Anzeige.
  *
  * Sie beantwortet die Fragen des Entwurfs in ihrer Reihenfolge: *Wie weit über
- * der Frist?* (Urteilszeile + Herleitung), *woran hängt es?* (drei Fakten und
- * **ein** Blocker), *was ist zu tun?* (die Aktionen daneben).
+ * der Frist?* (Urteilszeile + Herleitung), *was ist zu tun?* (die Aufgabe aus
+ * der To-do-Kaskade, daneben die Aktionen), *woran hängt es?* (drei Fakten und
+ * **ein** Blocker).
+ *
+ * **Zwei Antworten, zwei Achsen.** Die Aufgabe redet über den VORGANG (welche
+ * Regel greift, wer ist dran), der Blocker über den MEILENSTEIN-Plan. Sie
+ * stehen deshalb untereinander und nicht ineinander — die eine kann fehlen,
+ * ohne dass die andere schweigt.
  *
  * **Nur ein Blocker, nie eine Liste.** Wer eine überfällige Zeile aufklappt,
  * sucht den Ansatzpunkt. Die übrigen gerissenen Stufen stehen darunter als
@@ -13,6 +19,8 @@
  * Blocker steht (Pitfall #44).
  */
 import { formatDatum } from '@/plugins/meilensteine/labels';
+import { AufgabenZeile } from './AufgabenZeile';
+import type { Aufgabe } from './aufgabe';
 import { BLOCKIERT_MAX, type BlockerBefund } from './blocker';
 import type { Fakt, KopfModell } from './kopfkarteModell';
 
@@ -53,13 +61,38 @@ function FaktKachel({ fakt }: { fakt: Fakt }): React.ReactElement {
   );
 }
 
-export function KopfKarte({ modell, befund, aktionen }: {
+/** Der Blocker aus dem Meilenstein-Plan — oder der Grund, warum keiner dasteht. */
+function BlockerZeile({ befund }: { befund: BlockerBefund }): React.ReactElement {
+  const b = befund.blocker;
+  if (b === null) {
+    return <p className="text-[12.5px] text-[var(--tf-text-secondary)] min-w-0">{befund.satz}</p>;
+  }
+  return (
+    <div className="flex items-start gap-3 min-w-0">
+      <span className="shrink-0 font-mono text-[10.5px] text-[var(--tf-text-tertiary)] pt-[3px]">
+        {b.nummer}
+      </span>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-[14px] font-medium text-[var(--tf-danger-text)]">{b.label}</span>
+        <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
+          Soll {formatDatum(b.sollDatum)}
+          {b.offenTage !== null && (
+            <> · <span className="text-[var(--tf-danger-text)]">{b.offenTage} T offen</span></>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function KopfKarte({ modell, befund, aufgabe, aktionen }: {
   modell: KopfModell;
   befund: BlockerBefund;
+  /** Die Aufgabe aus der To-do-Kaskade; `null` ohne Vorgangssystem. */
+  aufgabe: Aufgabe | null;
   /** Die Aktionsknöpfe — als Slot, damit die Karte selbst nichts navigiert. */
   aktionen: React.ReactNode;
 }): React.ReactElement {
-  const b = befund.blocker;
   return (
     <div
       className="px-[18px] pt-[15px] pb-4 bg-[var(--tf-bg)]"
@@ -94,27 +127,21 @@ export function KopfKarte({ modell, befund, aktionen }: {
       </div>
 
       <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--tf-border)' }}>
+        {/* Oben steht, was zu tun ist — dorthin gehören auch die Aktionen. Ohne
+            Vorgangssystem rückt der Blocker an diese Stelle, damit die Knöpfe
+            nicht allein in einer leeren Zeile stehen. */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          {b !== null ? (
-            <div className="flex items-start gap-3 min-w-0">
-              <span className="shrink-0 font-mono text-[10.5px] text-[var(--tf-text-tertiary)] pt-[3px]">
-                {b.nummer}
-              </span>
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-[14px] font-medium text-[var(--tf-danger-text)]">{b.label}</span>
-                <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
-                  Soll {formatDatum(b.sollDatum)}
-                  {b.offenTage !== null && (
-                    <> · <span className="text-[var(--tf-danger-text)]">{b.offenTage} T offen</span></>
-                  )}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-[12.5px] text-[var(--tf-text-secondary)] min-w-0">{befund.satz}</p>
-          )}
+          {aufgabe !== null
+            ? <AufgabenZeile aufgabe={aufgabe} />
+            : <BlockerZeile befund={befund} />}
           <div className="shrink-0">{aktionen}</div>
         </div>
+
+        {aufgabe !== null && (
+          <div className="mt-2.5">
+            <BlockerZeile befund={befund} />
+          </div>
+        )}
 
         {befund.blockiert.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap mt-2.5">

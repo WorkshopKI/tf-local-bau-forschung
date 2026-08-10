@@ -56,7 +56,6 @@ export function ZeitverlaufReiter({
   const verfuegbar = useMemo(() => verfuegbareEbenen({
     hatVerbundSpur: spuren.some(s => s.art === 'verbund'),
     istVerbundZeile,
-    hatTvSpur: spuren.some(s => s.art === 'tv'),
     hatMeilensteine,
   }), [spuren, istVerbundZeile, hatMeilensteine]);
 
@@ -124,8 +123,11 @@ export function ZeitverlaufReiter({
       )}
 
       {sichtbareSpuren.length === 0 ? (
+        // Erreichbar nur dort, wo der Vorgang gar keine Teilvorhaben-Bahn führt
+        // und die Verbundbahn abgeschaltet ist. Ein leerer Kasten wäre auch dann
+        // die schlechtere Antwort.
         <p className={leise}>
-          Alle Bahnen ausgeblendet — mindestens eine Ebene einschalten.
+          Verbundbahn ausgeblendet — es gibt hier keine weitere Bahn.
         </p>
       ) : (
         <VerlaufsBand

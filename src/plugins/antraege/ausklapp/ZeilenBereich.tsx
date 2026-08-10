@@ -27,6 +27,7 @@ import { AusklappInhalt } from './AusklappInhalt';
 import type { MeilensteinLage } from './meilensteinLage';
 import { useZeilenVerlauf, type ZeilenVerlauf } from './useZeilenVerlauf';
 import { useZeilenWaechter } from './useZeilenWaechter';
+import { useZeilenTodo, type ZeilenTodo } from './useZeilenTodo';
 import { bereichsId, type ReiterId } from './ausklappZustand';
 
 export interface ZeilenBereichProps {
@@ -51,6 +52,7 @@ interface InhaltBasis {
   istVerbundZeile: boolean;
   daten: ZeilenVerlauf;
   waechter: WaechterErgebnis | null;
+  todo: ZeilenTodo;
   zieltage: number | null;
   haengtFest: { art: 'verbund' | 'tv'; id: string } | null;
   stichtag: string;
@@ -100,6 +102,12 @@ export function ZeilenBereich({
 }: ZeilenBereichProps): React.ReactElement {
   const zeitverlaufAn = isVorgangssystemEnabled();
   const daten = useZeilenVerlauf(verbundId, zeilenKey, stichtag, istVerbundZeile, statusRoh);
+  // Die To-do-Kaskade läuft VOR dem Wächter: sein `rolle` ist Stufe 2, und die
+  // speist seit v3.41 nicht mehr nur das halb offene Kürzel-Paar, sondern auch
+  // die Engine. Ohne sie blieb „Liegt bei" im Bestand fast immer leer.
+  const todo = useZeilenTodo({
+    quelle: daten.quelle, aktenzeichen: zeilenKey, istVerbundZeile, stichtag, an: zeitverlaufAn,
+  });
   // EINE Rechnung für beide Reiter (v3.38): die Kopfkarte zeigt den Stillstand
   // als Faktum, die Verlaufs-Bahn markiert damit ihren aktuellen Abschnitt.
   // Zweimal gerechnet liefen sie beim ersten Sonderfall auseinander.
@@ -109,6 +117,7 @@ export function ZeilenBereich({
     statusRoh,
     stichtag,
     journalAenderung: daten.journalAb,
+    todo: todo.adresse.todo,
   });
   const zieltage = useMemo(
     () => (daten.quelle.version === null
@@ -129,7 +138,7 @@ export function ZeilenBereich({
   );
 
   const basis: InhaltBasis = {
-    zeilenKey, verbundId, istVerbundZeile, daten, waechter, zieltage, haengtFest,
+    zeilenKey, verbundId, istVerbundZeile, daten, waechter, todo, zieltage, haengtFest,
     stichtag, reiter, onReiter, zeitverlaufAn,
   };
 

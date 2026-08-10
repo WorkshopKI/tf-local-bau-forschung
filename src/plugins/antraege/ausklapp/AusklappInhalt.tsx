@@ -19,6 +19,8 @@ import { KopfKarte } from './kopfkarte/KopfKarte';
 import { baueKopfModell } from './kopfkarte/kopfkarteModell';
 import { findeBlocker } from './kopfkarte/blocker';
 import { liegtBei } from './kopfkarte/liegtBei';
+import { baueAufgabe } from './kopfkarte/aufgabe';
+import type { ZeilenTodo } from './useZeilenTodo';
 import { baueStufen, type MeilensteinLage } from './meilensteinLage';
 import { VorgangsRaster } from './vorgangsverlauf/VorgangsRaster';
 import { baueVorgangsverlauf } from './vorgangsverlauf/vorgangsverlaufModell';
@@ -32,6 +34,8 @@ export interface AusklappInhaltProps {
   istVerbundZeile: boolean;
   daten: ZeilenVerlauf;
   waechter: WaechterErgebnis | null;
+  /** Die To-do-Auswertung der Zeile — Aufgabe und Adresse. */
+  todo: ZeilenTodo;
   /** Zieltage des laufenden Schritts aus dem Statuskatalog. */
   zieltage: number | null;
   haengtFest: { art: 'verbund' | 'tv'; id: string } | null;
@@ -46,14 +50,28 @@ export interface AusklappInhaltProps {
 }
 
 export function AusklappInhalt({
-  zeilenKey, verbundId, istVerbundZeile, daten, waechter, zieltage, haengtFest,
+  zeilenKey, verbundId, istVerbundZeile, daten, waechter, todo, zieltage, haengtFest,
   stichtag, reiter, onReiter, zeitverlaufAn, lage, melden, nurLokal,
 }: AusklappInhaltProps): React.ReactElement {
   const stufen = useMemo(() => baueStufen(lage), [lage]);
   const befund = useMemo(() => findeBlocker(lage, stichtag), [lage, stichtag]);
+  // Ohne Vorgangssystem gibt es die Kaskade in dieser Variante nicht — dann
+  // steht keine Aufgaben-Zeile da, und „Liegt bei" nennt genau diesen Grund.
+  const aufgabe = useMemo(
+    () => (zeitverlaufAn ? baueAufgabe(todo) : null),
+    [zeitverlaufAn, todo],
+  );
   const zustaendig = useMemo(
-    () => liegtBei(waechter, { vorgangssystemAn: zeitverlaufAn }),
-    [waechter, zeitverlaufAn],
+    () => liegtBei({
+      waechter,
+      vorgangssystemAn: zeitverlaufAn,
+      aufgabe: {
+        ohneRegeln: todo.ohneRegeln,
+        uneinig: todo.adresse.uneinig,
+        herkunft: todo.adresse.todo?.beschreibung ?? todo.adresse.todo?.regelId ?? null,
+      },
+    }),
+    [waechter, zeitverlaufAn, todo],
   );
   const kopf = useMemo(
     () => (daten.frist === null ? null : baueKopfModell({
@@ -85,6 +103,7 @@ export function AusklappInhalt({
       <KopfKarte
         modell={kopf}
         befund={befund}
+        aufgabe={aufgabe}
         aktionen={(
           <KopfAktionen
             zeilenKey={zeilenKey}

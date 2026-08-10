@@ -18,6 +18,7 @@ import { useMemo } from 'react';
 import { findeStatusCode, type MappingVersion } from '@/core/status';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import { pruefeStillstand, type WaechterErgebnis } from '@/core/status/waechter';
+import type { TodoErgebnis } from '@/core/status/todo-engine';
 
 export interface WaechterQuelle {
   version: MappingVersion | null;
@@ -27,6 +28,16 @@ export interface WaechterQuelle {
   /** ISO-Tag. */
   stichtag: string;
   journalAenderung?: string | null;
+  /**
+   * Das To-do des **AB-Satzes** — Stufe 2 des Wächters, wo kein Kürzel-Paar
+   * greift.
+   *
+   * Bewusst der AB-Satz und nicht die gewählte Sicht: sein Urteil (ok / hängt /
+   * unbewertet) hängt gar nicht am To-do, und die Adresse soll sich nicht
+   * verschieben, nur weil jemand seine Anzeige umschaltet (dieselbe Begründung
+   * wie in `useVorgangsBoard`). `null`, wo es keine EINE Adresse gibt.
+   */
+  todo?: TodoErgebnis | null;
 }
 
 /** `null`, solange kein Katalog geladen ist — dann gibt es nichts zu beurteilen. */
@@ -39,6 +50,7 @@ export function useZeilenWaechter(q: WaechterQuelle): WaechterErgebnis | null {
       statusCode: findeStatusCode(q.statusRoh)?.eintrag.code ?? null,
       stichtag: q.stichtag,
       ...(q.journalAenderung !== undefined ? { journalAenderung: q.journalAenderung } : {}),
+      ...(q.todo !== undefined ? { todo: q.todo } : {}),
     });
-  }, [q.version, q.vorkommen, q.statusRoh, q.stichtag, q.journalAenderung]);
+  }, [q.version, q.vorkommen, q.statusRoh, q.stichtag, q.journalAenderung, q.todo]);
 }

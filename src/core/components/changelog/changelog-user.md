@@ -19,6 +19,25 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.42 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
+## v3.42 — 2026-08
+
+### Neu
+- Der aufgeklappte Bereich einer Antragszeile zeigt jetzt auch **die Aufgabe**: was an diesem Antrag ansteht, nach denselben Regeln wie im Vorgangs-Board. „warum?" daneben nennt die Regel und die Felder, aus denen sie das ableitet.
+- Bei einem Vorhaben mit mehreren Teilvorhaben steht die häufigste Aufgabe oben; tragen einzelne eine andere, stehen sie mit ihrem Aktenzeichen darunter.
+
+### Verbesserungen
+- **Liegt bei** ist jetzt viel öfter beantwortet: bisher kam die Auskunft nur aus einem halb offenen Kürzel-Paar, jetzt zusätzlich aus der Aufgaben-Regel. Der Tooltip sagt, woher. Warten mehrere Teilvorhaben auf verschiedene Stellen, steht genau das da — statt einer ausgewählten.
+- Die Ebenen über der Zeitachse sind jetzt **Verbund · Kürzel · Meilensteine**; Verbund und Kürzel starten eingeschaltet. „Phasen" ist weg — die Balken der Teilvorhaben sind die Zeitachse selbst und lassen sich nicht mehr versehentlich ausblenden.
+
 ## v3.41 — 2026-08
 
 ### Neu
