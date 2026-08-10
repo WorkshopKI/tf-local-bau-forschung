@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.43.1 — Spaltenkopf ohne Einklapp-Zeichen; Dunkelmodus kein Abnahme-Kriterium (August 2026)
+
+PATCH — Zwei Ansagen: „das Einklapp-Icon kann weg, Tooltip reicht" und „Dunkelmodus wird gar nicht genutzt, muss ab jetzt nicht mehr optimiert werden". Letzteres rückwirkend relevant: die Füllung der eingeklappten Bahn (v3.43.0) wich allein einem Dunkel-Kontrast von 3,7:1.
+
+- Kein `PanelLeftClose` mehr in der Kopfzeile — sie IST die Klickfläche, der Titel sagt, was ein Klick tut; die Hover-Fläche bleibt der Hinweis — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx), [ticketsystem.css](src/plugins/feedback-board/ticketsystem.css)
+- Dunkelmodus ist **kein Abnahme-Kriterium** mehr: Checkliste durchgestrichen, hell entscheidet bei Widerspruch — [DESIGN_GUIDE.md](DESIGN_GUIDE.md)
+- Unverändert Pflicht: Tokens statt Hex, Guard `theme-token-contract`, Palette in DESIGN_GUIDE Kap. 9 — der Dunkelmodus soll funktionieren, nur nicht mehr optimiert werden
+
 ### v3.43.0 — Jede Board-Lane voruebergehend einklappbar (August 2026)
 
 MINOR — Gewünscht: „User soll eine Lane egal ob sie voll ist oder nicht vorübergehend einklappen können (um die anderen besser lesen zu können)". Bis v3.42.1 konnte das nur eine LEERE Bahn; für eine gefüllte gab es allein das dauerhafte Ausblenden über die Lane-Auswahl. Detail: [feedback-system.md](docs/architecture/feedback-system.md).

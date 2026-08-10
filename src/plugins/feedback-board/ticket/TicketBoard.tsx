@@ -37,7 +37,6 @@
  * umgesetztes Ticket aus wie verloren (v3.39).
  */
 import { useEffect, useState } from 'react';
-import { PanelLeftClose } from 'lucide-react';
 import type { FeedbackLane } from '@/components/feedback/feedbackLanes';
 import { STATUS_LABELS } from '@/components/feedback/constants';
 import { feedbackLaneAccent } from '@/components/feedback/feedbackLanes';
@@ -177,7 +176,10 @@ function Spalte({ spalte, akzent, ctx, sicht }: {
       )}
       {/* Der Kopf IST der Einklapp-Schalter (v3.43): ein Ziel statt eines
           zusätzlichen Knopfs neben der Zahl, und dieselbe Geste wie auf der
-          Schiene — dort klickt man die ganze Fläche, hier die ganze Zeile. */}
+          Schiene — dort klickt man die ganze Fläche, hier die ganze Zeile.
+          Ohne Symbol (v3.43.1): die Kopfzeile trug ein Einklapp-Zeichen als
+          Hinweis, aber sie ist die Fläche, auf der man ohnehin landet — der
+          Titel sagt, was ein Klick tut. */}
       {!schiene && (
       <button
         type="button"
@@ -188,7 +190,6 @@ function Spalte({ spalte, akzent, ctx, sicht }: {
         <span className="fb-typdot" style={{ background: akzent }} aria-hidden />
         <span className="fb-nm">{name}</span>
         <span className="fb-n">{anzahl}</span>
-        <PanelLeftClose className="fb-zu" size={13} aria-hidden />
       </button>
       )}
       {!schiene && (stunden > 0 || ungeschaetzt > 0) && (

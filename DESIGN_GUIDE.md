@@ -847,7 +847,7 @@ Bevor eine neue UI-Komponente committed wird, prüfe:
 - [ ] Bei mehreren Filter-Dimensionen: Label-Spalte links (STATUS / KATEGORIE)
 - [ ] Volle Breite für Daten-Layouts, max-w nur für Lese-Layouts
 - [ ] Farbe transportiert Information, nicht Dekoration
-- [ ] Dark Mode funktioniert (data-theme="dark" testen)
+- ~~Dark Mode funktioniert (data-theme="dark" testen)~~ — **entfällt** (Team-Entscheid August 2026): der Dunkelmodus wird nicht genutzt und ist kein Abnahme-Kriterium mehr. Die Palette bleibt (Kapitel 9), sie wird nur nicht mehr gegen sie optimiert; Tokens statt Hex gilt unverändert.
 - [ ] Text-Hierarchie stimmt (primary/secondary/tertiary)
 - [ ] Genug Whitespace (im Zweifel mehr)
 - [ ] Eine kohärente Verantwortung pro Datei; ab ~400–500 Zeilen auf Mehrfach-Verantwortung prüfen (siehe CLAUDE.md → File Size Limit)

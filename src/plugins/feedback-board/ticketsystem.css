@@ -230,16 +230,10 @@
   text-align: left;
   cursor: pointer;
 }
+/* Die Hover-Fläche ist der ganze Hinweis (v3.43.1): ein Einklapp-Zeichen stand
+   hier bis v3.43 rechts in der Zeile — überflüssig, weil die Kopfzeile die
+   Fläche IST, auf der man landet, und der Titel sagt, was ein Klick tut. */
 .fb-col-kopf:hover { background: var(--tf-hover); }
-/* Das Einklapp-Zeichen steht IMMER da, nicht erst auf Hover: ein eingeblendetes
-   Symbol beantwortet die Frage nicht, die diese Funktion ausgelöst hat („ich
-   sehe kein Menü"), und Pitfall #14 verbietet den Breitensprung ohnehin.
-   Sekundär, nicht tertiär — wie am Leer-Hinweis und an „+ N weitere": tertiär
-   maß auf der Kartenfläche 2,5:1 und las sich als Verzierung, sekundär misst
-   5,2:1 hell / 3,7:1 dunkel (Zeichen, kein Text: die Schwelle ist 3:1).
-   Hover geht auf den vollen Textton. */
-.fb-col-kopf .fb-zu { margin-left: auto; flex: none; color: var(--tf-text-secondary); }
-.fb-col-kopf:hover .fb-zu { color: var(--tf-text); }
 .fb-col-kopf .fb-nm {
   font-size: 10.5px;
   font-weight: var(--tf-weight-medium);
