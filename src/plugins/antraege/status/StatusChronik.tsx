@@ -16,7 +16,7 @@
 import { Milestone } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import {
-  baueChronik, gruppiereNachMonat, kategoriePfadLabel, zahPhaseLabel,
+  baueChronik, gruppiereNachMonat, kategoriePfadLabel, traegerLabel, zahPhaseLabel,
   type ChronikEintrag, type FeldVorkommen, type MappingVersion,
 } from '@/core/status';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
@@ -63,23 +63,31 @@ function Punkt({ eintrag }: { eintrag: ChronikEintrag }): React.ReactElement {
   );
 }
 
-/** Wer trägt den Eintrag: der Verbund oder N Teilvorhaben. */
-function traegerLabel(tvIds: readonly string[]): string {
-  if (tvIds.length === 0) return 'Verbund';
-  if (tvIds.length === 1) return tvIds[0] ?? '';
-  return `${tvIds.length} Teilvorhaben`;
-}
-
 export function StatusChronik({
   vorkommen,
   version,
   zeigeNebensaechlich,
   onToggleNebensaechlich,
+  maxHoehe,
 }: {
-  vorkommen: FeldVorkommen[];
+  /** `readonly`, weil der Ausklapp seine Vorkommen unveränderlich durchreicht
+   *  (`ZeilenVerlauf.vorkommen`) — gelesen wird hier ohnehin nur. */
+  vorkommen: readonly FeldVorkommen[];
   version: MappingVersion;
   zeigeNebensaechlich: boolean;
   onToggleNebensaechlich: () => void;
+  /**
+   * Höhendeckel in px für die Monatsblöcke — nur für den aufgeklappten Bereich
+   * der Tabelle, wo die Chronik nicht die Seite ist, sondern eine Zeile darin.
+   *
+   * Gemessen im Bestand: der Median liegt bei **22 Terminen**, p90 bei 31, das
+   * Maximum bei 47. Ungebremst wüchse der Ausklapp auf ~1 700 px im Regelfall
+   * und schöbe die Tabelle darunter zwei Bildschirme weit weg. Gedeckelt wird
+   * die **Liste**, nicht der Kopf: Schalter und Zähler („22 Termine aus den
+   * Datumsfeldern") bleiben stehen, damit niemand die sichtbaren Zeilen für
+   * alle hält. Ohne Wert (Detailseite) bleibt die Chronik ungedeckelt.
+   */
+  maxHoehe?: number;
 }): React.ReactElement {
   const eintraege = baueChronik(vorkommen, { zeigeNebensaechlich });
   const monate = gruppiereNachMonat(eintraege);
@@ -103,7 +111,10 @@ export function StatusChronik({
           Keine datierten Statuseinträge. Wert- und Textfelder stehen unten in der Ordner-Ansicht.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div
+          className="flex flex-col gap-3"
+          style={maxHoehe === undefined ? undefined : { maxHeight: maxHoehe, overflowY: 'auto' }}
+        >
           {monate.map(m => (
             <div key={m.monat}>
               <div className="mb-1 text-[11.5px] font-medium uppercase tracking-wide text-[var(--tf-text-tertiary)]">

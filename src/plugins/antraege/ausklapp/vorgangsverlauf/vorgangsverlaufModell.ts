@@ -1,6 +1,10 @@
 /**
- * Der **Vorgangsverlauf** — die Fristrechnung als nachprüfbare Aufstellung.
- * Rein, ohne React.
+ * Die **Fristrechnung** als nachprüfbare Aufstellung. Rein, ohne React.
+ *
+ * Nur der dritte Block des Reiters „Vorgangsverlauf" — über ihr stehen die
+ * Chronik und die terminlosen Einträge ({@link VorgangsverlaufReiter}). Bis
+ * v3.43 war diese Rechnung der ganze Reiter, und das war die Verwechslung: sie
+ * beantwortet „warum diese Zahl", nicht „was ist wann passiert".
  *
  * **Was hier gezeigt wird, ist eine Herleitung, keine Aussage.** Jede Zeile
  * nennt einen Eingabewert samt Herkunft, die letzten beiden das Ergebnis. Wer

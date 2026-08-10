@@ -77,6 +77,22 @@ export function baueChronik(
     || a.feld.label.localeCompare(b.feld.label, 'de'));
 }
 
+/**
+ * Wer einen Eintrag trägt: der Verbund, ein benanntes Teilvorhaben oder mehrere.
+ *
+ * Steht hier und nicht in der Anzeige, weil zwei Oberflächen dieselbe Auskunft
+ * geben — die Chronik der Detailseite und der Vorgangsverlauf im Ausklapp. Zwei
+ * Formulierungen für dieselbe Menge wären zwei Aussagen.
+ *
+ * Leere Liste heißt **Verbund**, nicht „niemand": Verbund-Felder liefern
+ * bewusst genau einen Eintrag ohne `tvId` (`sammleVorkommen`).
+ */
+export function traegerLabel(tvIds: readonly string[]): string {
+  if (tvIds.length === 0) return 'Verbund';
+  if (tvIds.length === 1) return tvIds[0] ?? '';
+  return `${tvIds.length} Teilvorhaben`;
+}
+
 /** Ein Monatsblock der Chronik (`YYYY-MM`), Einträge in Tagesfolge. */
 export interface ChronikMonat {
   monat: string;

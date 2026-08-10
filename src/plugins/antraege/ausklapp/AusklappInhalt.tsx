@@ -22,7 +22,7 @@ import { liegtBei } from './kopfkarte/liegtBei';
 import { baueAufgabe } from './kopfkarte/aufgabe';
 import type { ZeilenTodo } from './useZeilenTodo';
 import { baueStufen, type MeilensteinLage } from './meilensteinLage';
-import { VorgangsRaster } from './vorgangsverlauf/VorgangsRaster';
+import { VorgangsverlaufReiter } from './vorgangsverlauf/VorgangsverlaufReiter';
 import { baueVorgangsverlauf } from './vorgangsverlauf/vorgangsverlaufModell';
 import { ZeitverlaufReiter } from './zeitverlauf/ZeitverlaufReiter';
 import type { ReiterId } from './ausklappZustand';
@@ -137,9 +137,11 @@ export function AusklappInhalt({
         // Der Deckel gegen unlesbar lange Zeilen sitzt am Fließtext, nicht am
         // Bereich: die Bahn im Zeitverlauf ist eine Grafik und will jeden Pixel.
         <div className="max-w-[820px]">
-          <VorgangsRaster
+          <VorgangsverlaufReiter
             modell={raster}
             onZeitverlauf={zeitverlaufAn ? () => onReiter('zeitverlauf') : null}
+            vorkommen={daten.vorkommen}
+            version={daten.quelle.version}
           />
         </div>
       ) : (

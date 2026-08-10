@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.44.0 — Vorgangsverlauf zeigt die Chronik (August 2026)
+
+MINOR — Der Reiter hieß wie das C16-Fenster und zeigte die **Fristrechnung** — darin genau zwei Feldkürzel (`D_AAE`, `D_XTE`). Wer ihn wegen seines Namens öffnete, fand keinen Verlauf; die Chronik gab es nur auf der Verbund-Detailseite. Detail: [vorgangssystem.md §16.9](docs/architecture/vorgangssystem.md).
+
+- Drei Blöcke statt einem: Chronik · Ohne Termin im Export · Fristrechnung — [VorgangsverlaufReiter.tsx](src/plugins/antraege/ausklapp/vorgangsverlauf/VorgangsverlaufReiter.tsx)
+- Die Chronik ist die **wiederverwendete** [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx) der Detailseite, kein zweiter Renderer; neu ist nur ihr optionaler Höhendeckel
+- Codes, die der Export nur als Wert führt (`T_ABK`, `T_AMA`, …), stehen als eigener Block — Begleitnotizen zu Datumsfeldern (`T_AAI`) ausdrücklich nicht — [ohneDatum.ts](src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts)
+- Gemessen: Median 22 Termine je Vorgang (p90 31, max 47) → Liste im Ausklapp auf 320 px gedeckelt, Zähler bleibt stehen; Detailseite unverändert ungedeckelt
+- Gegen C16 gemessen: von 25 Protokollzeilen liefert der Export 15 datiert, 6 nur als Wert, 4 gar nicht (`AA`, `XARF`, `ID` zweimal) — eine Frage an die Export-Definition, kein Code-Fehler
+
 ### v3.43.2 — Stillstands-Waechter: Zeile und Board sagen wieder dasselbe (August 2026)
 
 PATCH — Gemeldet als Nebenbefund: das Board sagt für `16EP250140` „hängt ≥23 T", der Fristen-Reiter derselben Zeile „läuft". Ursache war kein zweiter Evaluator, sondern eine vertauschte Eingabe — der Ausklappbereich reichte den **Nullpunkt** des Journals als **letzte Änderung** durch (seit v3.31). Detail: [vorgangssystem.md §12.2](docs/architecture/vorgangssystem.md).

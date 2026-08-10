@@ -1759,8 +1759,17 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // WIE. Gegengeprueft: die Rationale-Saetze („warum sitzt der Anker am
   // Balken") sind beim Anheben aus dem Doc GEFLOGEN, sie stehen im
   // Architektur-Doc. Die 30000er-Unfallgrenze bleibt unangetastet.
+  //
+  // Angehoben von 24000 auf 26000 (v3.44): wieder antraege.md, wieder dieselbe
+  // Ursache — der Ausklapp-Reiter „Vorgangsverlauf" traegt jetzt drei Bloecke
+  // statt einem (Chronik, terminlose Eintraege, Fristrechnung), und jeder davon
+  // ist etwas, das der Nutzer sieht und benennt. Das Doc stand vor der Runde bei
+  // ~23700; die Ergaenzung wurde zweimal zusammengezogen (1540 → ~1000 Zeichen)
+  // und traegt kein WIE — die Messungen (Median 22 Termine, Deckel 320 px) und
+  // die Export-Grenze stehen im Architektur-Doc, nicht hier. Auch diese
+  // Anhebung laesst die 30000er-Unfallgrenze in Ruhe.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 24000;
+  const REISSLEINE_DOC_CHARS = 26000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

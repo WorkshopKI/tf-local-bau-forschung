@@ -1966,8 +1966,9 @@ Was ist zu tun?* — und legt den Nachweis darunter.
    Urteil zur Frist samt Herleitung, drei Fakten (Bewegung · Meilensteine ·
    Liegt bei), darunter die **Aufgabe** aus der To-do-Kaskade samt Aktionen und
    **ein** Blocker mit den Stufen, die deshalb mitwarten.
-2. **Zwei Reiter** (`SegmentedToggle`): **Vorgangsverlauf** (die Fristrechnung
-   als Raster, Voreinstellung) und **Zeitverlauf** (die Bahn).
+2. **Zwei Reiter** (`SegmentedToggle`): **Vorgangsverlauf** (Chronik, terminlose
+   Einträge, Fristrechnung — Voreinstellung, siehe 16.9) und **Zeitverlauf**
+   (die Bahn).
 3. Im Zeitverlauf: **Ebenen-Pillen**, das Band, die **Meilenstein-Ebene** auf
    derselben Achse und darunter die **Gliederung** (standardmäßig zu).
 
@@ -2114,3 +2115,66 @@ Tooltip den Unterschied.
 Ohne das Vorgangssystem läuft die Kaskade nicht: dann fehlt die Aufgaben-Zeile,
 der Blocker rückt an ihre Stelle (die Aktionen sollen nicht allein stehen), und
 „Liegt bei" nennt den Flag als fehlende Quelle.
+
+### 16.9 Der Vorgangsverlauf trägt jetzt einen Verlauf (v3.44)
+
+Der Reiter hieß wie das C16-Fenster und zeigte etwas anderes: die
+**Fristrechnung**. Darin stehen genau zwei Feldkürzel — `D_AAE` und `D_XTE`, die
+beiden Kandidaten für das maßgebliche Datum. Wer ihn wegen seines Namens öffnete,
+fand keinen Verlauf. Jetzt drei Blöcke
+([VorgangsverlaufReiter](../../src/plugins/antraege/ausklapp/vorgangsverlauf/VorgangsverlaufReiter.tsx)):
+
+1. **Chronik** — dieselbe [StatusChronik](../../src/plugins/antraege/status/StatusChronik.tsx)
+   wie auf der Detailseite, **wiederverwendet, nicht nachgebaut**: zwei Renderer
+   über denselben Daten wären zwei Wahrheiten, und die Zeile soll zeigen, was der
+   Nutzer dort kennt.
+2. **Ohne Termin im Export** ([ohneDatum.ts](../../src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts)).
+3. **Fristrechnung** — unverändert, nur mit Überschrift.
+
+**Drei Sichten, drei Fragen** — sie zeigen absichtlich verschieden viel:
+
+| Sicht | zeigt | für 16EP260076 |
+|---|---|---|
+| Chronik (Vorgangsverlauf) | **alle** datierten Einträge | 15 |
+| Kürzel über der Bahn (Zeitverlauf) | nur die an **Statusgrenzen**; gleichtägige gebündelt als `+n` | 3 Marken |
+| Klick auf die Bahn → `SpurListe` | alle Übergänge **dieser Bahn** | TV 15 · Verbund 4 |
+
+Chronik und TV-Spur stimmen überein — beide hängen an `baueChronik`. Die
+Verbundbahn zeigt weniger, weil sie eine andere Bahn ist, nicht eine andere
+Summe: die vier `X`-Codes des Verbunds sind eine Teilmenge derselben 15.
+[bandKanten.ts](../../src/plugins/antraege/verlauf-band/bandKanten.ts) wirft jeden
+Übergang weg, an dessen Tag kein Abschnitt beginnt — auf der Achse hat er keine
+Stelle. Das ist die richtige Auskunft, kein Mangel.
+
+**`D_` ist das Datum, `T_` der Text — und daran hängen zwei verschiedene Fälle**
+([seed-codes.ts](../../src/core/status/seed-codes.ts):
+`typ: spalte.startsWith('T_') ? 'text' : 'datum'`):
+
+- `spalte: 'T_ABK'` — die **eigene** Spalte des Codes ist eine Textspalte, im
+  Export gibt es zu ihm nie einen Termin ⇒ Block „Ohne Termin".
+- `text: 'T_AAI'` — eine **Begleitnotiz** zum Datumsfeld `D_AAI`. Sie ist kein
+  eigenes Vorkommen, sondern `FeldVorkommen.text`, und steht als zweite Zeile
+  unter dem datierten Eintrag.
+
+Wer die beiden verwechselt, schreibt dasselbe Ereignis zweimal hin — einmal mit
+Termin, einmal ohne. Ein Test hält den Fall fest.
+
+**Die Grenze liegt im Export, nicht in der Oberfläche.** Gegen das C16-Fenster
+desselben Vorgangs gemessen: von 25 Zeilen haben 15 eine `D_`-Spalte, 6 nur eine
+`T_`-Spalte (`XAT`, `XAT+`, `ABK`, `AMA`, `AVU`, `AVB` — in C16 datiert), und 4
+gar keine (`AA` und `XARF` kennt der Katalog, die Spalte fehlt; `ID` steht
+zweimal im Protokoll, und eine Breittabellen-Spalte trägt nur einen Termin). Die
+App erfindet dafür nichts; der Zähler „N Termine aus den Datumsfeldern" benennt,
+worüber die Liste spricht.
+
+**Die Höhe ist gedeckelt, weil sie sonst die Tabelle wegschöbe.** Gemessen über
+12 357 ANB-Zeilen: Median **22** Termine je Vorgang, p90 = 31, max 47 — bei ~29 px
+je Zeile also 640 px im Regelfall. Die Chronik-**Liste** bekommt im Ausklapp
+deshalb `maxHoehe = 320` und scrollt darin; Schalter und Zähler bleiben stehen,
+damit niemand die sichtbaren Zeilen für alle hält. Auf der Detailseite bleibt sie
+ungedeckelt — dort ist sie die Seite, nicht eine Zeile darin.
+
+Der Schalter „Nebensächliches" hängt im Ausklapp an einem lokalen `useState`,
+**nicht** an `useTimelinePrefs`: der aufgeklappte Bereich persistiert nichts, und
+das Aufklappen einer Tabellenzeile darf die Voreinstellung der Detailseite nicht
+umschreiben.
