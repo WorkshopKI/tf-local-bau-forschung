@@ -22,11 +22,12 @@
 ## v3.44 — 2026-08
 
 ### Neu
-- Der Reiter **Vorgangsverlauf** im aufgeklappten Bereich der Fördertabelle zeigt jetzt den Verlauf: alle Termine aus den Datumsfeldern, nach Monat sortiert, mit Bezeichnung und dem Teilvorhaben, das sie trägt — dieselbe Chronik wie auf der Antragsseite, nur direkt in der Zeile.
+- Der Reiter **Vorgangsverlauf** im aufgeklappten Bereich der Fördertabelle zeigt jetzt den Verlauf: alle Termine aus den Datumsfeldern, nach Monat sortiert, mit Bezeichnung und dem Teilvorhaben, das sie trägt — dieselbe Chronik wie auf der Antragsseite, nur direkt in der Zeile. Sie steht vollständig da, ohne eigenen Scrollbereich.
 - Codes, zu denen das Fachsystem gar kein Datum liefert (beantragte Kosten, Mitarbeiterzahl, erwartete Teilvorhaben), stehen darunter in einem eigenen Block. Im Fachsystem sind sie datiert; im Export bleibt nur der Wert übrig.
 
 ### Verbesserungen
 - Die Fristrechnung steht weiterhin im selben Reiter, jetzt mit eigener Überschrift — sie beantwortet „warum diese Zahl", nicht „was ist wann passiert".
+- Beide Blöcke unter der Chronik — die terminlosen Codes und die Fristrechnung — fangen **zugeklappt** an. Man schlägt sie nach, wenn man sie braucht; die Überschrift der terminlosen sagt schon zu, wie viele es sind.
 
 ## v3.43 — 2026-08
 

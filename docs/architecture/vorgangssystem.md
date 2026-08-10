@@ -2128,8 +2128,9 @@ fand keinen Verlauf. Jetzt drei Blöcke
    wie auf der Detailseite, **wiederverwendet, nicht nachgebaut**: zwei Renderer
    über denselben Daten wären zwei Wahrheiten, und die Zeile soll zeigen, was der
    Nutzer dort kennt.
-2. **Ohne Termin im Export** ([ohneDatum.ts](../../src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts)).
-3. **Fristrechnung** — unverändert, nur mit Überschrift.
+2. **Ohne Termin im Export** ([ohneDatum.ts](../../src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts)) —
+   standardmäßig zu, Anzahl in der Überschrift.
+3. **Fristrechnung** — unverändert, nur mit Überschrift; ebenfalls zu.
 
 **Drei Sichten, drei Fragen** — sie zeigen absichtlich verschieden viel:
 
@@ -2167,14 +2168,18 @@ zweimal im Protokoll, und eine Breittabellen-Spalte trägt nur einen Termin). Di
 App erfindet dafür nichts; der Zähler „N Termine aus den Datumsfeldern" benennt,
 worüber die Liste spricht.
 
-**Die Höhe ist gedeckelt, weil sie sonst die Tabelle wegschöbe.** Gemessen über
-12 357 ANB-Zeilen: Median **22** Termine je Vorgang, p90 = 31, max 47 — bei ~29 px
-je Zeile also 640 px im Regelfall. Die Chronik-**Liste** bekommt im Ausklapp
-deshalb `maxHoehe = 320` und scrollt darin; Schalter und Zähler bleiben stehen,
-damit niemand die sichtbaren Zeilen für alle hält. Auf der Detailseite bleibt sie
-ungedeckelt — dort ist sie die Seite, nicht eine Zeile darin.
+**Die Länge fangen die Blöcke ab, nicht ein Scrollbereich in der Chronik**
+(v3.44.1). Gemessen über 12 357 ANB-Zeilen: Median **22** Termine je Vorgang,
+p90 = 31, max 47 — bei ~29 px je Zeile also 640 px im Regelfall. Der erste
+Versuch deckelte die Chronik-Liste auf 320 px; das war die falsche Stelle. Der
+Reiter wird **wegen** des Verlaufs geöffnet, und ein Kasten, der zehn von 22
+Terminen zeigt, liest sich als der ganze Verlauf. Die Chronik steht deshalb
+offen und ungekürzt; **zugeklappt anfangen die beiden Blöcke darunter** — „Ohne
+Termin im Export" (mit der Anzahl in der Überschrift) und die Fristrechnung. Das
+sind Nachschlagen und Nachrechnen, nicht das, weswegen jemand aufklappt.
 
-Der Schalter „Nebensächliches" hängt im Ausklapp an einem lokalen `useState`,
-**nicht** an `useTimelinePrefs`: der aufgeklappte Bereich persistiert nichts, und
-das Aufklappen einer Tabellenzeile darf die Voreinstellung der Detailseite nicht
+Weder die beiden Klapp-Zustände noch der Schalter „Nebensächliches" werden
+persistiert: alle drei hängen an einem lokalen `useState`, **nicht** an
+`useTimelinePrefs`. Der aufgeklappte Bereich merkt sich nichts, und das
+Aufklappen einer Tabellenzeile darf die Voreinstellung der Detailseite nicht
 umschreiben.

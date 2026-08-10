@@ -2,6 +2,157 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v2.416.0 — Kommentare im Hover lesen, neue Kommentare sichtbar (August 2026)
+
+MINOR — Die Diskussion an einem Ticket war unsichtbar: das Board zeigte `💬 3` als stumme Zahl, den Inhalt gab es nur nach einem Klick im Detail-Panel. Genau die Tickets mit laufender Diskussion sind aber die wichtigen.
+
+- Hover über den Kommentar-Zähler zeigt die letzten vier Kommentare direkt (gekürzt, scrollbar, „+N ältere") — [FeedbackCommentHover.tsx](src/components/feedback/FeedbackCommentHover.tsx); Klick öffnet weiterhin das Detail
+- Thread und Vorschau teilen sich eine Darstellung ([FeedbackCommentList.tsx](src/components/feedback/FeedbackCommentList.tsx)) und eine reine Auswahl-Funktion (`waehleKommentarVorschau` in [feedbackUi.ts](src/components/feedback/feedbackUi.ts))
+- Neue Kommentare tragen ein blaues **„+N"** im Kopf der Karte (neben „Antwort") und sind in Vorschau + Thread hinterlegt — [FeedbackKanban.tsx](src/components/feedback/FeedbackKanban.tsx) / [FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx)
+- Gelesen-Stand gerätelokal je Ticket ([kommentarStand.ts](src/components/feedback/kommentarStand.ts) + [useUnreadComments.ts](src/components/feedback/useUnreadComments.ts)); Details + Invarianten in [feedback-system.md](docs/architecture/feedback-system.md)
+- Nachgemessen in `dev:local`: Erststart setzt die Baseline und zeigt **kein** „+N"; nach zwei fremden Kommentaren „+2", nach dem Öffnen weg; Vorschau 340×282 mit Innen-Scroll (464 px Inhalt), am schmalen Rand vollständig im Bild; dense-Kopfzeile ohne Überlauf (Antwort + „+1" + Datum in 200 px); `__tf.fehler()` = 0
+- `feedbackImprove.test.ts` nach `ISOLATED_TESTS` ([vitest.config.mts](vitest.config.mts)) — sein `screenContext`-Mock hielt der neuen Ladereihenfolge im geteilten Modul-Register nicht stand
+
+### v2.415.2 — Feedback-Karte erzeugt keine verschachtelten Buttons mehr (August 2026)
+
+PATCH — Das Feedback-Board meldete bei jedem Laden zwei React-Fehler: die Vote-Pille (ein `<button>`) saß in der Meta-Zeile innerhalb des Karten-`<button>` — ungültiges HTML.
+
+- Die anklickbare Kartenfläche ist jetzt ein `div role="button"` mit `tabIndex` und Enter-/Leertaste-Handler ([FeedbackCard.tsx](src/components/feedback/FeedbackCard.tsx))
+- Gleiches Muster wie die Board-Karte in [FeedbackKanban.tsx](src/components/feedback/FeedbackKanban.tsx); die Sibling-Lösung aus `FeedbackTicketRow.tsx` trägt hier nicht, weil die Pille im Textfluss sitzt statt am Rand
+- Klick auf die Pille wählt die Karte weiterhin nicht mit aus — `FeedbackVotePill` stoppt die Propagation bereits selbst
+- Nachgemessen in `dev:local`: Liste und Board je frisch geladen `__tf.fehler()` = 0 (vorher 2), `document.querySelectorAll('button button')` = 0
+- Geometrie unverändert gegen den Vorher-Wert (Karte 950×96 bei x=259, Titel x=313/w=846, Pille x=1157); Fokusring bleibt (`:focus-visible`), Enter/Leertaste/Klick wählen, Vote zählt hoch und runter
+
+### v2.415.1 — Kommentarfeld waechst mit und ist ziehbar (August 2026)
+
+PATCH — Das Kommentarfeld im Feedback-Detail war einzeilig und fest: wer mehr als einen Satz schrieb, sah den eigenen Text nicht mehr.
+
+- Feld startet auf **drei Zeilen** und **wächst beim Schreiben mit** (Rezept aus dem Chat-Composer), gedeckelt bei 320 px — darüber scrollt es intern ([FeedbackCommentThread.tsx](src/components/feedback/FeedbackCommentThread.tsx))
+- Zusätzlich am nativen Anfasser ziehbar (`resize-y`); die gezogene Höhe wird gerätelokal gemerkt, weil das Detail-Panel je Ticket neu mountet
+- Auto-Wachsen und Anfasser schreiben beide `style.height` — deshalb setzt das Ziehen die **Mindest**höhe, nicht eine feste Höhe ([berechneKommentarHoehe](src/components/feedback/feedbackUi.ts))
+- Erkannt wird das Ziehen an der Zeiger-Geste, nicht per `ResizeObserver`: der könnte Tipp-Wachstum nicht unterscheiden und würde die Mindesthöhe beim Schreiben hochratschen
+- Nachgemessen in `dev:local`: leer 70 px, 4 Zeilen 87 px, 20 Zeilen gedeckelt auf 320 px mit internem Scrollen; gezogene 200 px überleben Tastendruck, Ticket-Wechsel und Reload; ohne Ziehen bleibt der Schlüssel leer
+
+### v2.415.0 — Autorschaft der Klaerung ist der Profilname (August 2026)
+
+MINOR — Autorschaft ist eine Person, das Bearbeiter-Kürzel eine Rolle im Fachsystem. Projektleitung und Kuration haben keines und waren damit von der Klärung ausgesperrt — ausgerechnet die zwei Rollen, die den Phasenschnitt kuratieren.
+
+- **Der Autor kommt aus `UserProfile.name`**, nicht mehr aus `bearbeiter_kuerzel`; gesperrt wird nur noch, wenn der Name leer ist ([useKlaerung.ts](src/plugins/zu-klaeren/useKlaerung.ts), `istAntwortfaehig` in [konsens.ts](src/plugins/zu-klaeren/konsens.ts))
+- **Die Sonderfälle `alle` und `MUE,SCH` entfallen** — sie waren Sammelwerte des Kürzel-Felds; ein Profilname meint immer genau einen Menschen
+- **Zwei Formen statt einer**: `normalisiereAutor` keyt Faltung und Dateiname, `anzeigeAutor` steht in der Datei, in Spaltenköpfen und im Export — sonst läse man „THOMAS HÜBSCH" ([typen.ts](src/plugins/zu-klaeren/typen.ts), `KlaerungStand.namen`)
+- Der Share trug vorher **eine** Autor-Datei mit zwei Zeilen, beide von derselben Abnahme und die zweite ein Widerruf — kein wirksames Urteil, kein Kommentar, also keine Migration nötig ([klaerung.md](docs/architecture/klaerung.md))
+- Nachgemessen in `dev:local` mit Profil „Local Dev" (Kürzel `alle`, bisher gesperrt): Urteil und Beitrag geschrieben, `LOCAL_DEV.jsonl` trägt `"autor":"Local Dev"`, Anzeige „Rückfrage von Local Dev", beides zurückgezogen — `__tf.fehler()` = 0
+
+### v2.414.0 — Rotation der Fassungsdatei mit Archiv (August 2026)
+
+MINOR — `_intern/status-katalog.json` trug 18 Fassungen à ~250 KB und wurde bei **jedem** App-Start vollständig gelesen und geparst; mit der `.backup` daneben waren das ~7 MB auf dem Share. Gelöscht wird nichts — die Versionierung existiert, damit man zurückkann.
+
+- **Die jüngsten acht Fassungen bleiben in der Hauptdatei, ältere wandern nach `_intern/status-katalog-archiv.json`** — reine Aufteilung in [katalog-rotation.ts](src/core/status/katalog-rotation.ts), angewandt im Schreibpfad ([katalog-share.ts](src/core/status/katalog-share.ts))
+- **Archiv zuerst, Hauptdatei danach**: ohne Schreibrecht aufs Archiv wird nicht rotiert und die Hauptdatei bleibt vollständig — lieber eine große Datei als eine verlorene Fassung (viertes Sidecar-Profil in [add-sidecar-persistence.md](docs/agents/add-sidecar-persistence.md), Pitfall #23)
+- **Die aktive Fassung bleibt immer in der Hauptdatei**, auch wenn sie alt ist — sonst müsste jeder Client beim Start doch das Archiv lesen
+- **Das Versions-Panel kennzeichnet archivierte Fassungen und lädt das Archiv nach, sobald es offen ist**; `reaktivieren` fällt auf das Archiv zurück, wenn die lokale IDB die Fassung nicht kennt ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
+- Am echten Share gemessen: Hauptdatei 3,47 → 2,07 MB, Archiv 2,28 MB, 18 Fassungen lückenlos; v3 aus der IDB gelöscht und über den Archivpfad reaktiviert (`__tf.fehler()` = 0)
+
+### v2.413.4 — Zu-klaeren-Tabelle vertikal verdichtet (August 2026)
+
+PATCH — Die Tabelle wird im Fachtermin per Bildschirmfreigabe durchgegangen; 30 Zeilen à 58,5 px passten auf keinen Bildschirm. Treiber war das einzige zweizeilige Label: „gehört nach …" machte jede Zeile 46 px hoch statt 28 px. Reine Darstellung, kein Verhalten.
+
+- **Mittlerer Antwortknopf heißt „andere"** (Tooltip trägt den ganzen Satz) — drei gleich kurze Wörter, kein Umbruch ([labels.ts](src/plugins/zu-klaeren/labels.ts))
+- **Die drei Knöpfe sitzen als Streifen auf gemeinsamer Kante** statt einzeln mit Zwischenraum: 254 → 207 px breit, 46 → 22 px hoch ([AntwortZelle.tsx](src/plugins/zu-klaeren/AntwortZelle.tsx)); das geteilte `ToggleChip` bleibt unangetastet
+- **Keine Linie je Datenzeile mehr** (Gruppenkopf gliedert, `hover` führt), kleineres Zeilenpolster ([PunkteTabelle.tsx](src/plugins/zu-klaeren/PunkteTabelle.tsx))
+- **Spalte „Stand" erscheint erst, wenn eine Zeile etwas meldet** — eine Quelle für Anzeige und Sichtbarkeit (`standMarke`/`zeigtStand` in [gruppen.ts](src/plugins/zu-klaeren/gruppen.ts)); die 132 px gehen an die Bezeichnung
+- Nachgemessen in `dev:local` bei 1440×900: Zeile 58,5 → 30 px, Gruppenkopf 33 → 25 px, Tabelle 2042 → 1122 px (−45 %); für einen Bildschirm ohne Scrollen fehlen weiter 328 px — nicht durch kleinere Schrift erzwungen (12 px bleibt)
+
+### v2.413.3 — Jahres-Menue heisst durchgaengig „Jahre" (August 2026)
+
+PATCH — Nachzug zu v2.413.2: „Letzte 3 Jahre" neben „Alle Jahrgänge" im selben Menü war halb umbenannt.
+
+- **Alle Beschriftungen des Jahres-Menüs sprechen von „Jahren"** — leere Auswahl „Alle Jahre", Mehrfachauswahl „N Jahre" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- Nachgemessen in `dev:local` über alle vier Zustände: Vorbelegung „Letzte 3 Jahre", leer „Alle Jahre", ein Jahr „2026", zwei Jahre „2 Jahre" (Tooltip „2026, 2025")
+
+### v2.413.2 — Jahres-Filter heisst „Letzte 3 Jahre" (August 2026)
+
+PATCH — Der Jahres-Filter des Vorgangs-Boards nannte sich „Letzte 3 Jahrgänge"; gemeint sind schlicht die letzten drei Jahre des Antragseingangs.
+
+- **Schnellweg + Button-Beschriftung heißen „Letzte 3 Jahre"** statt „Letzte 3 Jahrgänge" ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx)); die übrigen Beschriftungen des Menüs („Alle Jahrgänge", „N Jahrgänge") bleiben unverändert
+
+### v2.413.1 — Arbeitsliste entscheidung heisst Zu entscheiden (August 2026)
+
+PATCH — „Entscheidungsreif" war ein unschrumpfbares Einzelwort von 117 px und passte in die 170-px-Lanes des Kanban nur mit Ellipse — abgekürzt las es sich wieder wie der Verfahrensschritt „Entscheidung", also genau die Verwechslung, die v2.409 beseitigt hat. Detail: [status-achsen.md](docs/architecture/status-achsen.md).
+
+- **Arbeitsliste `entscheidung` heißt „Zu entscheiden"** (Kurzform „Zu entsch.") — bricht an der Wortgrenze und reiht sich neben „Zu bearbeiten" in dieselbe Frageform ein ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+- Im Kanban nachgemessen bei 1280 und 1024 px über sieben Lanes: **keine Bezeichnung kürzt mehr ab** (83 px statt 117 in einer 83-px-Spur); die Leitplanken in [KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx) bleiben für die nächste lange Bezeichnung
+
+### v2.413.0 — Regel-Werkstatt: Wirkung, Probelauf, Straenge (August 2026)
+
+MINOR — Die To-do-Regeln sollen künftig von AB- und FB-Vertretern selbst festgelegt werden. Der Editor trug bereits; es fehlte alles vor und nach dem Bearbeiten: die Wirkung einer Regel am Bestand, die Probe am echten Fall, die Zahl vor dem Scharfschalten. Detail: [vorgangssystem.md §11a](docs/architecture/vorgangssystem.md).
+
+- **Wirkung je Regel am Bestand messen** — „trifft 153 · gewinnt 43" macht die Kaskade sichtbar; Sperren zählen, wie oft sie greifen ([regel-wirkung.ts](src/core/status/regel-wirkung.ts), [useRegelWirkung.ts](src/plugins/status-cockpit/useRegelWirkung.ts))
+- **Probe am Fall**: Aktenzeichen eingeben, Ergebnis der Engine samt Sperren und Feldwerten — dieselbe Ansicht wie am Antrag ([RegelProbelauf.tsx](src/plugins/status-cockpit/RegelProbelauf.tsx))
+- **Änderungsmessung vor dem Speichern**: beide Fassungen über denselben Bestand, gruppiert alt → neu — gemessen, nicht geschätzt ([regel-aenderung.ts](src/core/status/regel-aenderung.ts))
+- **Sperren greifen nach Strang** statt nach sieben Regel-Ids; eine später ergänzte Regel gehört automatisch dazu ([regelsatz.ts](src/core/status/regelsatz.ts), Pitfall #51)
+- **Begründung je Regel** — Herkunft und Beschluss, überlebt Speichern, Export/Import und Nachziehen ([typen.ts](src/core/status/typen.ts))
+
+### v2.412.0 — Vorgangs-Regeln: Klaerung, Trigger-Herkunft, Benennung (August 2026)
+
+MINOR — Vor der AB-Sitzung fehlten zwei Dinge: die Antworten der Klärung hingen an einer Id, die sich beim nächsten eingefügten Punkt verschoben hätte, und in der App ließ sich nicht nachsehen, wodurch ein Status überhaupt entsteht. Dazu die Benennung: unter „Status-Katalog" vermutete niemand die Regeln. Detail: [klaerung.md](docs/architecture/klaerung.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md).
+
+- **Grundsatzfragen tragen stabile Ids**; bereits geschriebene Antworten werden beim Lesen übersetzt, nicht migriert (append-only Ablage) ([seed-phasenschnitt.ts](src/plugins/zu-klaeren/seed-phasenschnitt.ts), [fold.ts](src/plugins/zu-klaeren/fold.ts), Guard `no-index-punkt-id`)
+- **Vier neue Grundsatzfragen** aus der Bestands-Erhebung: PreCheck jenseits „beantragt", PreCheck-Vollständigkeit, Zieltage als Soll oder Ist, Abgrenzung 31/33/34
+- **„Wodurch dieser Status entsteht"** am Statuswert — setzende Kürzel mit Rolle, Ebene und Richtlinien, gebündelt statt neunmal derselbe Satz ([trigger-herkunft.ts](src/core/status/trigger-herkunft.ts), [StatusHerkunftBlock.tsx](src/plugins/status-cockpit/StatusHerkunftBlock.tsx))
+- **Reiter benannt und erklärt**: Statuswerte / Kürzel / To-do-Regeln, je mit einem Zwecksatz ([labels.ts](src/plugins/status-cockpit/labels.ts))
+- **Plugin heißt „Vorgangs-Regeln"** und ist mit dem Vorgangs-Board in beide Richtungen verknüpft; Route, Ordner und Id bleiben `status-cockpit` ([index.ts](src/plugins/status-cockpit/index.ts))
+
+### v2.411.0 — Profilhaken benannt, Reitergruppen getrennt, Lane-Zaehler sichtbar (August 2026)
+
+MINOR — Nachlese zu v2.404/v2.410 samt Sichtprüfung am echten Bestand. Der Profilhaken hieß seit der Trennung von Antrags- und Begleitphase falsch, die Reiterleiste zeigte zwei Bestandssichten und drei Zeitschnitte als eine Reihe, und die Prüfung fand zwei Stellen, an denen Text schlicht verschwand. Detail: [status-achsen.md](docs/architecture/status-achsen.md).
+
+- **Profilhaken heißt jetzt „Meine ZTP-/PFM-Zuständigkeiten mitzählen"** und benennt die Folge ohne Haken genau, statt Sichtbarkeit zu suggerieren ([ProfilTab.tsx](src/plugins/einstellungen/ProfilTab.tsx))
+- **Trenner in der Reiterleiste** vor „Diese Woche" — additiver Slot `trennerDavor` am Primitiv, keine zweite Leiste ([ScopeTabs.tsx](src/components/ui/ScopeTabs.tsx), [AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Kanban-Lane „Entscheidungsreif": der Zähler war vollständig abgeschnitten** — die Zahl weicht nie mehr, die Bezeichnung als letzte ([KanbanBoard.tsx](src/components/kanban/KanbanBoard.tsx))
+- **Tooltips am rechten Fensterrand** schrumpften auf einen Rest-Streifen (gemessen 151 statt 300 px) statt zu klemmen ([Tooltip.tsx](src/components/ui/Tooltip.tsx))
+- `file://`-Tauglichkeit des `zah-pl`-Builds statisch geprüft: keine absoluten Asset-Pfade, kein relativer `fetch`, kein Datei-Worker; Restrisiken als Prüfliste im Protokoll (Doppelklick-Test bleibt Handtest)
+
+### v2.410.0 — Verfahrensschritt kuratierbar, Arbeitsliste unterscheidbar (August 2026)
+
+MINOR — Die Abstimmung mit AB und FB hat ergeben, dass der Phasenzuschnitt strittig ist und mehrfach geändert wird; ein Release je Iteration ist dafür zu langsam. Zugleich hießen vier der neun Arbeitslisten wortgleich wie ein Verfahrensschritt — zwei Spalten mit halb denselben Wörtern, und keine sagte wozu. Detail: [status-achsen.md](docs/architecture/status-achsen.md).
+
+- **ZAH-Phasen sind kuratierbare Daten**: 3 bis 9 Schritte, freie Beschriftung, dazu Arbeitslisten-Vorgabe und Zieltage-Relevanz je Schritt ([zah-phasen.ts](src/core/status/zah-phasen.ts), [zah-phasen-edit.ts](src/core/status/zah-phasen-edit.ts))
+- **Baum-Editor im Status-Katalog** — Statuswert per Zug umhängen, Schritte sortieren und umbenennen; Löschen fragt „wohin mit den n Statuswerten?" ([PhasenBaum.tsx](src/plugins/status-cockpit/PhasenBaum.tsx))
+- **Vier Modul-Ebenen-Leser folgen jetzt der Fassung** statt beim Import einzufrieren: Sidebar-Gruppierung, Verfahrensleiste, Filter, Kategorie-Ableitung ([statusGroups.ts](src/plugins/antraege/filter/statusGroups.ts), [statusZuStepperPosition.ts](src/plugins/antraege/statusZuStepperPosition.ts))
+- **Arbeitslisten umbenannt** (offen → „Zu bearbeiten", abgeschlossen → „Erledigt", …) und aus EINER Quelle bezogen; Reiter und Abschnitte tragen eigene Aggregatnamen ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+- Abschnitte werden über stabile Ids gekeyt statt über Anzeigenamen — **der gespeicherte Zuklapp-Zustand der Status-Abschnitte geht dabei einmalig verloren** ([useStatusSectionCollapsed.ts](src/plugins/antraege/useStatusSectionCollapsed.ts))
+
+### v2.409.0 — Konfliktschutz beim Veröffentlichen der Katalog-Fassung (August 2026)
+
+MINOR — Der Katalog wird ab sofort von mehreren PL-Personen asynchron gepflegt; der Schreibweg war für einen Schreiber gebaut. `naechsteVersionsnummer` zählte die lokale Liste hoch und `schreibeKatalogAufShare` ersetzte die Datei damit — die fremde Fassung war überschrieben UND aus der Historie verschwunden, ohne Meldung. Detail: [status-system/README.md](docs/status-system/README.md) + [recurring-bug-classes.md §16](docs/architecture/recurring-bug-classes.md).
+
+- **Read-before-write mit Vereinigung der Fassungsliste** — fremde Fassungen kommen vor dem Schreiben in den Cache, auch wenn der Konflikt bewusst übergangen wird; Inhalte werden nie gemischt ([katalog-konflikt.ts](src/core/status/katalog-konflikt.ts))
+- **Optimistisch geprüft wie im Journal**: `aktiv > basisVersion` plus Nummern-Kollision, nachgeprüft unmittelbar vor dem Schreiben ([katalog-share.ts](src/core/status/katalog-share.ts))
+- **Konflikt kommt vor den Menschen** — Nummer, Autor, Zeitpunkt, Zahl abweichender Einträge, zwei Wege; beide lassen beide Fassungen in der Datei ([KatalogKonfliktDialog.tsx](src/plugins/status-cockpit/KatalogKonfliktDialog.tsx))
+- **Frühwarnung beim Fensterfokus** aus 4 KB Dateikopf statt 2,9 MB, kein Polling, kein automatisches Umschalten ([sidecar-datei.ts](src/core/status/sidecar-datei.ts))
+- Reißleine für Kontext-Docs 10000 → 20000 Zeichen: `status-cockpit.md` stand bei 9992 an der Wand ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
+
+### v2.408.0 — Phasenvorschlag für Kürzel aus Trigger-Tabelle und Auslieferung (August 2026)
+
+MINOR — Kein einziges der 508 Kürzel trug eine ZAH-Phase, also lieferte `bestimmeSeit` für den gesamten Bestand `null` — die „seit"-Zeile der Status-Erklärung war tot. 508 Zuordnungen von Hand sind keine Option; Trigger-Tabelle und Auslieferung wissen es bereits. Detail: [vorgangssystem.md §13](docs/architecture/vorgangssystem.md).
+
+- **Zwei Quellen, getrennte Bänder** — 33 Vorschläge aus der Trigger-Tabelle, 13 aus der Auslieferung, Endstand 46 von 508 ([feld-phase-vorschlag.ts](src/core/status/feld-phase-vorschlag.ts))
+- **Kein Vorschlag bei Uneinigkeit**: verschiedene Phasen über die Richtlinien oder Widerspruch zwischen den Quellen werden benannt statt geglättet ([FeldPhasenUebernahmeDialog.tsx](src/plugins/status-cockpit/FeldPhasenUebernahmeDialog.tsx))
+- **Kein Vorschlag ist eine Antwort**: 472 Kürzel nach Grund gruppiert, und die Kopfzeile sagt, warum mehr nicht ableitbar ist ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx))
+- **Zeilenweise Auswahl** statt alles-oder-nichts, übernommen in EINEM `setState` ([katalog-edit.ts](src/core/status/katalog-edit.ts))
+- **Filterchip „ohne Phase"** für den Rest von Hand ([FelderAbgleich.tsx](src/plugins/status-cockpit/FelderAbgleich.tsx))
+
+### v2.407.0 — Modul Zu klären: Export, Phasen-Lesespalte und Doku (August 2026)
+
+MINOR — Zweiter Teil des Klärungs-Moduls: die Klärung war beantwortbar, aber ihr Ergebnis kam nicht heraus, und die Vorkommen-Spalte stand leer. Dazu die Nachlese am Phasenschnitt selbst — er ist jetzt auch im Katalog-Tab sichtbar, statt nur zu wirken.
+
+- **Drei Ausgaben statt einer**: Arbeitsmappe für den Termin, Markdown-Kurzfassung fürs Protokoll, pastefähiger Seed-Diff für die Umsetzung — Strittiges bleibt aus dem Diff draußen ([export.ts](src/plugins/zu-klaeren/export.ts))
+- **Vorkommen je Statuscode** mit Bestandsstempel, über den ganzen Bestand ohne Betrachtungsbereich ([vorkommen.ts](src/plugins/zu-klaeren/vorkommen.ts))
+- **Neu gelesen bei Fensterfokus** und per Knopf, kein Polling ([useKlaerung.ts](src/plugins/zu-klaeren/useKlaerung.ts))
+- **ZAH-Phase als Lesespalte** im Katalog-Tab — sichtbar, nicht änderbar ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx))
+- **Arbeitsmappen-Helfer hochgezogen** zum zweiten Konsumenten, doppeltes `zeitstempel` eingesammelt ([arbeitsmappe.ts](src/core/status/export/arbeitsmappe.ts))
+
 ### v2.406.0 — Katalogfremde Kürzel geklärt (ID, Testkürzel) (August 2026)
 
 MINOR — Von 221 Kürzeln, welche die Trigger-Zuarbeit referenziert, fehlten genau vier im Katalog; die Fachabstimmung hat sie am 04.08.2026 benannt (V6): `ID` = Rollenvergabe, `TTV1`/`TTV2`/`TVB1` = Testkürzel. Bis dahin standen die drei Testkürzel als mögliche nächste Schritte in 78 und 138 (5337 Anträge), und die Import-Warnung zählte jedes Mal dieselben vier Namen auf.

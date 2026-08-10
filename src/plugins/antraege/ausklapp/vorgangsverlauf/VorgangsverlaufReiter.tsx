@@ -17,30 +17,25 @@
  * 3. **Fristrechnung** — unverändert, nur mit Überschrift, damit sie nicht als
  *    Teil der Chronik gelesen wird.
  *
- * **Der Ausklapp persistiert nichts** (`ausklappZustand.ts`), auch nicht den
- * Schalter „Nebensächliches": er hängt an einem lokalen `useState`, nicht an
- * `useTimelinePrefs`. Sonst schriebe das Aufklappen einer Tabellenzeile die
- * Voreinstellung der Detailseite um.
+ * **Die Chronik steht offen und ungekürzt, die beiden anderen Blöcke sind zu.**
+ * Der Reiter wird wegen des Verlaufs geöffnet — der gehört vollständig da, ohne
+ * eigenen Scrollbereich, in dem die sichtbaren Zeilen für alle gehalten werden.
+ * Die Länge fangen stattdessen die beiden Blöcke darunter auf: Nachschlagen
+ * (terminlose Codes) und Nachrechnen (Frist) klappt auf, wer sie braucht.
+ *
+ * **Der Ausklapp persistiert nichts** (`ausklappZustand.ts`) — weder die beiden
+ * Klapp-Zustände noch den Schalter „Nebensächliches": alle drei hängen an einem
+ * lokalen `useState`, nicht an `useTimelinePrefs`. Sonst schriebe das Aufklappen
+ * einer Tabellenzeile die Voreinstellung der Detailseite um.
  */
 import { useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import type { FeldVorkommen, MappingVersion } from '@/core/status';
 import { StatusChronik } from '../../status/StatusChronik';
 import { VorgangsRaster } from './VorgangsRaster';
 import { OhneDatumBlock } from './OhneDatumBlock';
 import { baueOhneDatum } from './ohneDatum';
 import type { VorgangsverlaufModell } from './vorgangsverlaufModell';
-
-/**
- * Höhendeckel der Chronik-Liste im Ausklapp.
- *
- * Gemessen im Bestand (12 357 ANB-Zeilen): Median **22** Termine je Vorgang,
- * p90 = 31, max 47 — bei ~29 px je Zeile also 640 px im Regelfall und 1 350 px
- * im Extrem, in einer Tabellenzeile bei 720–900 px Bildschirmhöhe. 320 px zeigt
- * gut zehn Zeilen; der Zähler darüber bleibt stehen und sagt, wie viele es
- * insgesamt sind. Auf der Detailseite bleibt die Chronik ungedeckelt — dort ist
- * sie die Seite, nicht eine Zeile darin.
- */
-const CHRONIK_MAX_HOEHE = 320;
 
 export interface VorgangsverlaufReiterProps {
   modell: VorgangsverlaufModell;
@@ -52,15 +47,51 @@ export interface VorgangsverlaufReiterProps {
   version: MappingVersion | null;
 }
 
+const EYEBROW = 'uppercase tracking-wider text-[11px] text-[var(--tf-text-tertiary)]';
+
 function Abschnitt({ titel, children }: {
   titel: string; children: React.ReactNode;
 }): React.ReactElement {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="uppercase tracking-wider text-[11px] text-[var(--tf-text-tertiary)]">
-        {titel}
-      </span>
+      <span className={EYEBROW}>{titel}</span>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Abschnitt, der zugeklappt anfängt — für alles, was man **nachschlägt**, statt
+ * es beim Aufklappen der Zeile lesen zu wollen.
+ *
+ * Der `hinweis` steht im geschlossenen Zustand und sagt, was drinsteckt; ohne
+ * ihn wäre die Überschrift eine Tür ohne Schild. Inhalt wird bei „zu" nicht
+ * gerendert — diese Blöcke haben keinen Zustand, den ein Unmount verlöre.
+ */
+function KlappAbschnitt({ titel, hinweis, children }: {
+  titel: string; hinweis?: string; children: React.ReactNode;
+}): React.ReactElement {
+  const [offen, setOffen] = useState(false);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => setOffen(o => !o)}
+        aria-expanded={offen}
+        className="flex w-full items-center gap-1.5 cursor-pointer text-left"
+      >
+        <ChevronRight
+          size={11}
+          aria-hidden="true"
+          className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform duration-150"
+          style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+        <span className={EYEBROW}>{titel}</span>
+        {hinweis !== undefined && (
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">{hinweis}</span>
+        )}
+      </button>
+      {offen && children}
     </div>
   );
 }
@@ -80,20 +111,22 @@ export function VorgangsverlaufReiter({
             version={version}
             zeigeNebensaechlich={zeigeNebensaechlich}
             onToggleNebensaechlich={() => setZeigeNebensaechlich(v => !v)}
-            maxHoehe={CHRONIK_MAX_HOEHE}
           />
         </Abschnitt>
       )}
 
       {ohneDatum.length > 0 && (
-        <Abschnitt titel="Ohne Termin im Export">
+        <KlappAbschnitt
+          titel="Ohne Termin im Export"
+          hinweis={`${ohneDatum.length} ${ohneDatum.length === 1 ? 'Eintrag' : 'Einträge'}`}
+        >
           <OhneDatumBlock eintraege={ohneDatum} />
-        </Abschnitt>
+        </KlappAbschnitt>
       )}
 
-      <Abschnitt titel="Wie die Bearbeitungsfrist zustande kommt">
+      <KlappAbschnitt titel="Wie die Bearbeitungsfrist zustande kommt">
         <VorgangsRaster modell={modell} onZeitverlauf={onZeitverlauf} />
-      </Abschnitt>
+      </KlappAbschnitt>
     </div>
   );
 }

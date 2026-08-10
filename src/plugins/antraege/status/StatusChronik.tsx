@@ -11,6 +11,12 @@
  * Zeile mit Datum, Bezeichnung und Begleittext bekommt statt eines Punktes mit
  * Tooltip.
  *
+ * **Ungekürzt, überall.** Die Liste bekommt keinen Höhendeckel und keinen
+ * eigenen Scrollbereich — auch nicht im aufgeklappten Bereich der Tabelle, wo
+ * sie länger wird als die Zeile. Ein Kasten, der zehn von 22 Terminen zeigt,
+ * liest sich als der ganze Verlauf; die Länge fangen dort die Blöcke darunter
+ * ab, indem sie zugeklappt anfangen ({@link VorgangsverlaufReiter}).
+ *
  * Rein darstellend: `baueChronik` liefert die Daten, hier wird nur gerendert.
  */
 import { Milestone } from 'lucide-react';
@@ -68,7 +74,6 @@ export function StatusChronik({
   version,
   zeigeNebensaechlich,
   onToggleNebensaechlich,
-  maxHoehe,
 }: {
   /** `readonly`, weil der Ausklapp seine Vorkommen unveränderlich durchreicht
    *  (`ZeilenVerlauf.vorkommen`) — gelesen wird hier ohnehin nur. */
@@ -76,18 +81,6 @@ export function StatusChronik({
   version: MappingVersion;
   zeigeNebensaechlich: boolean;
   onToggleNebensaechlich: () => void;
-  /**
-   * Höhendeckel in px für die Monatsblöcke — nur für den aufgeklappten Bereich
-   * der Tabelle, wo die Chronik nicht die Seite ist, sondern eine Zeile darin.
-   *
-   * Gemessen im Bestand: der Median liegt bei **22 Terminen**, p90 bei 31, das
-   * Maximum bei 47. Ungebremst wüchse der Ausklapp auf ~1 700 px im Regelfall
-   * und schöbe die Tabelle darunter zwei Bildschirme weit weg. Gedeckelt wird
-   * die **Liste**, nicht der Kopf: Schalter und Zähler („22 Termine aus den
-   * Datumsfeldern") bleiben stehen, damit niemand die sichtbaren Zeilen für
-   * alle hält. Ohne Wert (Detailseite) bleibt die Chronik ungedeckelt.
-   */
-  maxHoehe?: number;
 }): React.ReactElement {
   const eintraege = baueChronik(vorkommen, { zeigeNebensaechlich });
   const monate = gruppiereNachMonat(eintraege);
@@ -111,10 +104,7 @@ export function StatusChronik({
           Keine datierten Statuseinträge. Wert- und Textfelder stehen unten in der Ordner-Ansicht.
         </div>
       ) : (
-        <div
-          className="flex flex-col gap-3"
-          style={maxHoehe === undefined ? undefined : { maxHeight: maxHoehe, overflowY: 'auto' }}
-        >
+        <div className="flex flex-col gap-3">
           {monate.map(m => (
             <div key={m.monat}>
               <div className="mb-1 text-[11.5px] font-medium uppercase tracking-wide text-[var(--tf-text-tertiary)]">
