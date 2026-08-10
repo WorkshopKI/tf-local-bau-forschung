@@ -17,30 +17,30 @@ const B = '16KN002';
 
 describe('ausklappZustand — Akkordeon mit zwei Reitern', () => {
   it('öffnet aus dem Nichts mit dem geklickten Reiter', () => {
-    expect(naechsterZustand(null, A, 'verlauf')).toEqual({ key: A, reiter: 'verlauf' });
-    expect(naechsterZustand(null, A, 'fristen')).toEqual({ key: A, reiter: 'fristen' });
+    expect(naechsterZustand(null, A, 'zeitverlauf')).toEqual({ key: A, reiter: 'zeitverlauf' });
+    expect(naechsterZustand(null, A, 'vorgangsverlauf')).toEqual({ key: A, reiter: 'vorgangsverlauf' });
   });
 
   it('schließt beim zweiten Klick auf DIESELBE Zelle', () => {
-    const offen: AusklappZustand = { key: A, reiter: 'verlauf' };
-    expect(naechsterZustand(offen, A, 'verlauf')).toBeNull();
+    const offen: AusklappZustand = { key: A, reiter: 'zeitverlauf' };
+    expect(naechsterZustand(offen, A, 'zeitverlauf')).toBeNull();
   });
 
   it('schaltet den Reiter um, statt zu stapeln', () => {
-    const offen: AusklappZustand = { key: A, reiter: 'verlauf' };
-    expect(naechsterZustand(offen, A, 'fristen')).toEqual({ key: A, reiter: 'fristen' });
+    const offen: AusklappZustand = { key: A, reiter: 'zeitverlauf' };
+    expect(naechsterZustand(offen, A, 'vorgangsverlauf')).toEqual({ key: A, reiter: 'vorgangsverlauf' });
     // und wieder zurück — nicht zu.
-    expect(naechsterZustand({ key: A, reiter: 'fristen' }, A, 'verlauf'))
-      .toEqual({ key: A, reiter: 'verlauf' });
+    expect(naechsterZustand({ key: A, reiter: 'vorgangsverlauf' }, A, 'zeitverlauf'))
+      .toEqual({ key: A, reiter: 'zeitverlauf' });
   });
 
   it('lässt höchstens eine Zeile offen', () => {
-    const offen: AusklappZustand = { key: A, reiter: 'fristen' };
-    expect(naechsterZustand(offen, B, 'verlauf')).toEqual({ key: B, reiter: 'verlauf' });
+    const offen: AusklappZustand = { key: A, reiter: 'vorgangsverlauf' };
+    expect(naechsterZustand(offen, B, 'zeitverlauf')).toEqual({ key: B, reiter: 'zeitverlauf' });
   });
 
   it('`istOffen` fragt nach der Zeile, nicht nach dem Reiter', () => {
-    const offen: AusklappZustand = { key: A, reiter: 'fristen' };
+    const offen: AusklappZustand = { key: A, reiter: 'vorgangsverlauf' };
     expect(istOffen(offen, A)).toBe(true);
     expect(istOffen(offen, B)).toBe(false);
     expect(istOffen(null, A)).toBe(false);

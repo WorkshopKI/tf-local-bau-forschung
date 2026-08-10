@@ -136,6 +136,14 @@ export interface TfTreeCallbacks<T> {
    * (Shift-Klick o. Ä.), ohne dass der Wrapper sie kennen muss.
    */
   onZeilenKlick?: (id: string, data: T, e: React.MouseEvent) => void;
+  /**
+   * Maus betritt (`ein: true`) bzw. verlässt eine Zeile.
+   *
+   * Im Wrapper, nicht per `renderNode`: wer für einen Hover die ganze Zeile
+   * ersetzt, baut Chevron, Einzug, Fokus und ARIA nach — und genau das soll die
+   * gemeinsame Basis verhindern. Ohne Callback wird kein Listener gehängt.
+   */
+  onZeilenHover?: (id: string, data: T, ein: boolean) => void;
 
   /** Darf diese Zeile umbenannt werden? Ohne Angabe: ja (mit `renaming`). */
   canRename?: (id: string, data: T) => boolean;

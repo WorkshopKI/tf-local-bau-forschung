@@ -152,7 +152,7 @@ function HerleitungZelle({ r }: { r: AntragListItem }): React.ReactElement | nul
           auch im Popover-Kopf, statt dass man es wissen muss. */}
       <HerleitungPopover
         verbundId={vbid} statusRoh={r.status} ebene="tv"
-        {...(steuerung ? { onGanzenVerlauf: () => steuerung.oeffne(r.aktenzeichen, 'verlauf') } : {})}
+        {...(steuerung ? { onGanzenVerlauf: () => steuerung.oeffne(r.aktenzeichen, 'zeitverlauf') } : {})}
       />
     </span>
   );

@@ -21,7 +21,7 @@ export type SortDirection = 'asc' | 'desc';
  *  Verbrauchers der Messung außerhalb der Tabelle. */
 export type MessSchrift =
   | 'zelle' | 'zelleKlein' | 'mono' | 'monoKlein' | 'badge' | 'kopf'
-  | 'bandLabel' | 'bandSpur' | 'bandKuerzel';
+  | 'bandLabel' | 'bandSpur' | 'bandKuerzel' | 'bandVerzug';
 
 export interface SortableColumn<T> {
   /** Stabiler Identifier — wird als Key, fuer Persistenz und Sort-State genutzt. */

@@ -32,7 +32,17 @@ export interface VerbundMeilensteinApi {
   erledigen: (id: string) => Promise<void>;
 }
 
-export function useVerbundMeilensteine(verbundId: string): VerbundMeilensteinApi {
+/**
+ * @param stichtag ISO — der Tag, gegen den bewertet wird. Ohne Angabe die Uhr.
+ *
+ * Der aufgeklappte Bereich stempelt seinen Stichtag einmal je Tabelle und
+ * reicht ihn durch: sonst rechnete die Frist gegen den gestempelten Tag und die
+ * Meilensteine gegen `new Date()`, und „271 Tage über der Frist" stünde neben
+ * „326 T offen" aus zwei verschiedenen Gegenwarten.
+ */
+export function useVerbundMeilensteine(
+  verbundId: string, stichtag?: string,
+): VerbundMeilensteinApi {
   const idb = useStorage().idb;
   const kuerzel = (useMeinKuerzel() ?? '').trim();
 
@@ -79,7 +89,7 @@ export function useVerbundMeilensteine(verbundId: string): VerbundMeilensteinApi
             aufloesung, (verbund ?? {}) as unknown as Record<string, unknown>, records,
           ),
           terminal: isTerminalStatus(verbund?.status ?? antraege[0]?.status),
-        }, new Date().toISOString()));
+        }, stichtag ?? new Date().toISOString()));
       } catch {
         if (!abgebrochen) { setPlan(null); setBewertung(null); }
       } finally {
@@ -87,7 +97,7 @@ export function useVerbundMeilensteine(verbundId: string): VerbundMeilensteinApi
       }
     })();
     return () => { abgebrochen = true; };
-  }, [idb, verbundId]);
+  }, [idb, verbundId, stichtag]);
 
   const speichern = useCallback(async (naechste: MeilensteinRisiko[]) => {
     setAlleRisiken(naechste);

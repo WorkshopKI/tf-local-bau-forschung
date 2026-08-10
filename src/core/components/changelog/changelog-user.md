@@ -19,6 +19,23 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.40 — 2026-08
+
+### Neu
+- Klappt man eine Zeile in der Antragsliste auf, steht jetzt ganz oben, **woran es hängt**: wie weit der Antrag über der Frist ist, wann zuletzt etwas passierte, wie viele Meilensteine gerissen sind — und der eine Meilenstein, an dem es gerade festsitzt, samt den Stufen, die deshalb mitwarten.
+- Daneben drei Knöpfe: ein Risiko zu diesem Meilenstein melden (der Meilenstein ist schon vorausgewählt), die Detailseite bei „Fristen & Meilensteine" öffnen, oder den Verlauf als Text kopieren.
+- Der Zeitverlauf zeigt die Meilensteine jetzt **auf derselben Zeitachse** wie die Bearbeitungsphasen: Erreichtes als grüner Punkt, Gerissenes als schraffierter Balken vom Soll-Termin bis heute, mit den Verzugstagen daneben.
+- Darunter eine aufklappbare Gliederung aller Meilensteine mit Zustand, Soll- und Ist-Datum; Teilschritte klappen einzeln nach. Fährt man über eine Zeile, leuchtet ihre Marke auf der Zeitachse auf — und umgekehrt.
+- Mit den Pillen „Phasen / Meilensteine / Kürzel / Verbund" lässt sich einstellen, was die Zeitachse zeigt.
+
+### Verbesserungen
+- Die beiden Reiter heißen jetzt **Vorgangsverlauf** (die Fristrechnung zum Nachlesen) und **Zeitverlauf** (das Bild). Wie bisher entscheidet die geklickte Zelle, welcher zuerst aufgeht.
+- Der Vorgangsverlauf trennt sauber zwischen der **Bearbeitungsfrist** (die 90-Tage-Regelfrist) und den **Zieltagen des Schritts** (aus dem Statuskatalog) — die beiden wurden leicht verwechselt.
+- Steht ein Antrag noch **in** der Frist, heißt die Karte „Wo der Antrag steht" und ist nicht mehr rot umrandet. Wo etwas nicht ableitbar ist, steht der Grund statt einer leeren Stelle.
+
+### Bugfixes
+- Frist und Meilensteine rechneten gegen zwei verschiedene „heute" — die Tage über der Frist und die offenen Tage eines Meilensteins konnten deshalb um einen Tag auseinanderliegen.
+
 ## v3.39 — 2026-08
 
 ### Bugfixes

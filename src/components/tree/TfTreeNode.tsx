@@ -24,9 +24,13 @@ export interface TfTreeNodeProps<T> {
   indent: number;
   /** Capture-Phase, vor der Baum-Reaktion (siehe `TfTreeCallbacks`). */
   onZeilenKlick?: (e: React.MouseEvent) => void;
+  /** Maus betritt/verlässt die Zeile. Ohne Callback wird nichts gehängt. */
+  onZeilenHover?: (ein: boolean) => void;
 }
 
-export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNodeProps<T>): React.ReactElement {
+export function TfTreeNode<T>({
+  node, slots, indent, onZeilenKlick, onZeilenHover,
+}: TfTreeNodeProps<T>): React.ReactElement {
   const {
     zeilenProps, level, isFolder, isExpanded, isFocused, checked, name,
     isRenaming, renameProps, isDropZiel,
@@ -56,6 +60,10 @@ export function TfTreeNode<T>({ node, slots, indent, onZeilenKlick }: TfTreeNode
     <div
       {...zeilenProps}
       onClickCapture={onZeilenKlick}
+      {...(onZeilenHover ? {
+        onMouseEnter: () => onZeilenHover(true),
+        onMouseLeave: () => onZeilenHover(false),
+      } : {})}
       onDoubleClick={node.starteUmbenennen}
       className={`flex items-center gap-1.5 rounded-sm cursor-pointer select-none outline-none
         hover:bg-[var(--tf-hover)] focus-visible:ring-1 focus-visible:ring-[var(--tf-primary)]

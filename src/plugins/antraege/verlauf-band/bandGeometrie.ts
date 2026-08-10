@@ -94,6 +94,23 @@ export interface AchsenMarke {
   label: string;
 }
 
+/**
+ * Die x-Skala der Achse, nach außen gereicht.
+ *
+ * **Wozu.** Die Bahn ist nicht die einzige Schicht auf dieser Achse — die
+ * Meilenstein-Ebene setzt Punkte und Verzugsbalken auf DIESELBE Zeit. Sie darf
+ * die Zeit dafür nicht ein zweites Mal auf Pixel abbilden: die Achse ist
+ * stückweise gestaucht, und eine nachgebaute lineare Abbildung setzte den
+ * 17.09.2025 an eine andere Stelle als der Balken, der dort endet.
+ *
+ * Absichtlich schmaler als die interne Achse: Stauchung und Gesamtbreite gehen
+ * niemanden von außen etwas an, die Position schon.
+ */
+export interface ZeitAchse {
+  readonly kanten: readonly number[];
+  readonly x: readonly number[];
+}
+
 export interface BandGeometrie {
   /** Gesamtbreite der Bahn in px — kann die Containerbreite übersteigen (Scroll). */
   breite: number;
@@ -103,6 +120,8 @@ export interface BandGeometrie {
   von: string | null;
   /** Rechtes Ende der Achse — der Bezugszeitpunkt. */
   bis: string;
+  /** Die x-Skala für weitere Schichten auf derselben Achse. */
+  achse: ZeitAchse;
 }
 
 // --- Die Achse ------------------------------------------------------------
@@ -183,7 +202,7 @@ function baueAchse(grenzen: readonly number[], vorgabeBreite: number): Achse {
 }
 
 /** Stückweise lineare Abbildung Zeit → px. Außerhalb wird geklemmt. */
-function xOf(achse: Achse, ms: number): number {
+function xOf(achse: ZeitAchse, ms: number): number {
   const { kanten, x } = achse;
   if (kanten.length === 0) return 0;
   if (ms <= kanten[0]!) return 0;
@@ -194,6 +213,31 @@ function xOf(achse: Achse, ms: number): number {
   const bis = kanten[i + 1]!;
   const anteil = bis > von ? (ms - von) / (bis - von) : 0;
   return x[i]! + (x[i + 1]! - x[i]!) * anteil;
+}
+
+/**
+ * px-Position eines ISO-Tags auf der Achse — der öffentliche Mantel um `xOf`,
+ * damit weitere Schichten dieselbe Rechnung nutzen statt einer zweiten.
+ * Außerhalb des Fensters wird geklemmt; wer das nicht will, fragt vorher
+ * {@link imFenster}.
+ */
+export function xFuerTag(achse: ZeitAchse, isoTag: string): number {
+  return xOf(achse, tagMs(isoTag.slice(0, 10)));
+}
+
+/**
+ * Liegt der Tag im Achsenfenster?
+ *
+ * Ohne diese Frage rutschte ein Datum vor dem Achsenanfang stillschweigend auf
+ * x = 0 und behauptete dort einen Termin, den es nicht gibt. Wer klemmt, muss
+ * wissen, dass er klemmt.
+ */
+export function imFenster(achse: ZeitAchse, isoTag: string): boolean {
+  const { kanten } = achse;
+  if (kanten.length === 0) return false;
+  const ms = tagMs(isoTag.slice(0, 10));
+  if (Number.isNaN(ms)) return false;
+  return ms >= kanten[0]! && ms <= kanten[kanten.length - 1]!;
 }
 
 /** Trägt das Segment über ein Intervall, das stark gestaucht ist? */
@@ -305,6 +349,7 @@ export function baueBandGeometrie(
     marken: jahresMarken(achse),
     von: frueheste,
     bis: bezugsZeitpunkt,
+    achse: { kanten: achse.kanten, x: achse.x },
   };
 }
 

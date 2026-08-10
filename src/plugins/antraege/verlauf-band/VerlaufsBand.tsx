@@ -36,7 +36,8 @@ import type { Konfidenz, VerlaufsSpur } from '@/core/status/verlauf';
 import { KONFIDENZ_TEXT, SpurListe, leise, spurTitel } from '../ausklapp/SpurListe';
 import { URTEIL_FARBE, URTEIL_LABEL } from '../waechterLabels';
 import {
-  baueBandGeometrie, buendle, dauerText, type BandSegment, type BandSpur,
+  baueBandGeometrie, buendle, dauerText,
+  type BandSegment, type BandSpur, type ZeitAchse,
 } from './bandGeometrie';
 import {
   verteileBeschriftung, type SegmentBeschriftung, type UnterEintrag,
@@ -292,9 +293,12 @@ function UnterLabel({ s, farbton, warnung = false }: {
 
 function Bahn({
   b, breite, labelBreite, eigenes, offen, onToggle, schrift, unterzeile, endMarke, schriftGen,
+  kuerzelEbene,
 }: {
   b: BandSpur; breite: number; labelBreite: number; eigenes: string;
   offen: boolean; onToggle: () => void;
+  /** Trägt die Bahn ihre Kürzel-Etage? */
+  kuerzelEbene: boolean;
   /** Beschriftungsentscheidung je Segment, indexgleich zu `b.segmente`. */
   schrift: readonly SegmentBeschriftung[];
   /** Trägt diese Bahn eine zweite Etage? Dann wächst sie um deren Höhe. */
@@ -309,12 +313,14 @@ function Bahn({
   const gruppe = b.gleiche.length > 0 ? ` +${b.gleiche.length}` : '';
   const kanten = useMemo(() => baueKanten(b.segmente, spur.uebergaenge), [b.segmente, spur.uebergaenge]);
   const kuerzel = useMemo(
-    () => verteileKuerzel(kanten, {
-      bahnBreite: breite,
-      messeText: (t: string) => messeBreite(t, 'bandKuerzel'),
-    }),
+    () => (kuerzelEbene
+      ? verteileKuerzel(kanten, {
+        bahnBreite: breite,
+        messeText: (t: string) => messeBreite(t, 'bandKuerzel'),
+      })
+      : []),
     // `schriftGen`: die Signatur des modulweiten Messcaches, kein Argument.
-    [kanten, breite, schriftGen],
+    [kanten, breite, schriftGen, kuerzelEbene],
   );
   // Höhe JE BAHN, nicht global: ein Verbund mit acht Teilvorhaben soll nicht
   // überall Platz verschenken, weil eine einzige Bahn eine zweite Etage braucht.
@@ -422,6 +428,7 @@ function Bahn({
 export function VerlaufsBand({
   spuren, eigenes, bezugsZeitpunkt, breite = 620,
   fassung = null, journalAb = null, journalGenutzt = false, haengtFest = null,
+  kuerzelEbene = true, randRechts = RAND_LUFT, zusatzBahn = null,
 }: {
   spuren: readonly VerlaufsSpur[];
   eigenes: string;
@@ -444,6 +451,30 @@ export function VerlaufsBand({
    * gibt es keinen Wächter — dort bleibt es bei `null`.
    */
   haengtFest?: { art: 'verbund' | 'tv'; id: string } | null;
+  /**
+   * Trägt jede Bahn ihre Kürzel-Etage? Default an — die Verbund-Detailseite und
+   * jeder Bestandsaufrufer bleiben dadurch unverändert.
+   */
+  kuerzelEbene?: boolean;
+  /**
+   * Reserve rechts neben der Bahn in px. Eine zusätzliche Schicht kann rechts
+   * hinausragen (die Verzugslabels der Meilenstein-Ebene); ohne Reserve
+   * schnitte der Scroll-Container sie ab.
+   */
+  randRechts?: number;
+  /**
+   * Eine weitere Schicht auf **derselben** Achse — als eigene Zeile unter den
+   * Bahnen, mit derselben Beschriftungsspalte links.
+   *
+   * Bewusst ein Slot und kein Eingriff in `Bahn`: das Koordinatensystem der
+   * Balken, Kanten und Unter-Label ist in v3.37/v3.38 mühsam sortiert worden
+   * und bleibt unangetastet. Die Schicht bekommt die x-Skala und die Breite und
+   * zeichnet selbst.
+   */
+  zusatzBahn?: {
+    label: string;
+    render: (o: { achse: ZeitAchse; breite: number }) => React.ReactNode;
+  } | null;
 }): React.ReactElement {
   const [offen, setOffen] = useState<string | null>(null);
   // Gemessen wird der Scroll-Behälter der Bahn: seine Breite kommt von OBEN
@@ -487,7 +518,7 @@ export function VerlaufsBand({
   // gemessenen Platz ab, sie steht neben der Bahn, nicht darin.
   const vorgabe = Math.max(
     MIN_BAHN,
-    gemessen === null ? breite : gemessen - labelBreite - RAND_LUFT,
+    gemessen === null ? breite : gemessen - labelBreite - randRechts,
   );
   const geo = useMemo(
     () => baueBandGeometrie(spuren, bezugsZeitpunkt, vorgabe),
@@ -550,7 +581,7 @@ export function VerlaufsBand({
     >
       {/* Die Bahn scrollt in ihrem EIGENEN Container — der Seiten-Body nie. */}
       <div ref={scroll} className="overflow-x-auto">
-        <div style={{ width: labelBreite + geo.breite + RAND_LUFT }}>
+        <div style={{ width: labelBreite + geo.breite + randRechts }}>
           {/* Achsenmarken oben, damit die Stauchung ablesbar bleibt. */}
           <div className="relative" style={{ height: 12, marginLeft: labelBreite }}>
             {geo.marken.map(m => (
@@ -586,11 +617,30 @@ export function VerlaufsBand({
                   unterzeile={beschriftung.unterzeile[i] ?? false}
                   endMarke={beschriftung.endMarken[i] ?? null}
                   schriftGen={schriftGen}
+                  kuerzelEbene={kuerzelEbene}
                   offen={offen === key}
                   onToggle={() => setOffen(offen === key ? null : key)}
                 />
               );
             })}
+            {/* Die Zusatzschicht als eigene Zeile: gleiche Achse, gleiche
+                Beschriftungsspalte — aber eigenes Koordinatensystem. */}
+            {zusatzBahn !== null && (
+              // Ohne feste Höhe: was die Schicht braucht, weiß erst sie selbst —
+              // ihre Bahnzahl steht erst mit der Achse fest, und die gibt es
+              // nicht, bevor die Geometrie gerechnet ist.
+              <div className="flex items-start pt-1">
+                <span
+                  className="shrink-0 text-left text-[11.5px] truncate pr-2 text-[var(--tf-text-secondary)]"
+                  style={{ width: labelBreite, lineHeight: '16px' }}
+                >
+                  {zusatzBahn.label}
+                </span>
+                <div style={{ width: geo.breite }}>
+                  {zusatzBahn.render({ achse: geo.achse, breite: geo.breite })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.40.0 — Aufgeklappte Antragszeile nach dem Entwurf (August 2026)
+
+MINOR — Umsetzung des Handoffs `_design/handoff/status-fristen-detail-ansicht/`. Der aufgeklappte Bereich beantwortete bisher „wie steht die Frist?", nicht „woran hängt es und was tue ich?". Er ordnet sich jetzt nach diesen drei Fragen; der Nachweis liegt darunter in zwei Reitern. Detail: [vorgangssystem.md §16](docs/architecture/vorgangssystem.md).
+
+- Kopfkarte „Woran es hängt": Urteil + drei Fakten (Bewegung · Meilensteine · Liegt bei) + **ein** Blocker mit den mitwartenden Stufen — [KopfKarte.tsx](src/plugins/antraege/ausklapp/kopfkarte/KopfKarte.tsx), [blocker.ts](src/plugins/antraege/ausklapp/kopfkarte/blocker.ts)
+- Reiter heißen „Vorgangsverlauf" (Fristrechnung als Raster) und „Zeitverlauf"; die Klickzone wählt weiter vor — [AusklappInhalt.tsx](src/plugins/antraege/ausklapp/AusklappInhalt.tsx)
+- Ebenen-Pillen (Phasen · Meilensteine · Kürzel · Verbund) und die Meilenstein-Ebene auf DERSELBEN Achse; die x-Skala kommt vom Band — [msEbene.ts](src/plugins/antraege/ausklapp/zeitverlauf/msEbene.ts), `ZeitAchse` in [bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts)
+- Meilenstein-Gliederung über `TfTree`, mit beidseitiger Hervorhebung zur Achse; `onZeilenHover` im Wrapper statt eigener Zeile — [GliederungSektion.tsx](src/plugins/antraege/ausklapp/gliederung/GliederungSektion.tsx)
+- Aktionen sind echte Züge (Risiko melden · Detailseite · Verlauf kopieren) statt der drei Attrappen des Entwurfs; zwei Sachfehler des Handoffs korrigiert (Herkunft der 90 T, Ebene von „liegt bei") — [KopfAktionen.tsx](src/plugins/antraege/ausklapp/kopfkarte/KopfAktionen.tsx)
+- Mitgefixt: `useVerbundMeilensteine` bewertete gegen `new Date()` statt gegen den gestempelten Stichtag — zwei Uhren in einer Karte
+
 ### v3.39.0 — Umgesetzte Tickets verschwinden nicht mehr spurlos (August 2026)
 
 MINOR — Gemeldet: „als umgesetzt markiert, sofort aus seiner Lane verschwunden, aber nicht in der Lane Umgesetzt aufgetaucht". Der Schreibvorgang war korrekt — belegt am Bestand, gleiches Board, nur Sicht gewechselt: UMGESETZT meldete in „Alles offen" 0, in „Alles" 3. Die Bahnen bilden die ganze Pipeline ab, die Sicht (`istOffen`) schneidet die Endzustände weg; die Bahn stand daneben und behauptete „0".

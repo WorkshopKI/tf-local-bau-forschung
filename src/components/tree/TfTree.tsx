@@ -82,7 +82,7 @@ export function TfTree<T>({
   expandedItems, onExpandedChange,
   checkedItems, onCheckedChange,
   selectedItems, onSelectedChange,
-  onPrimaryAction, onZeilenKlick,
+  onPrimaryAction, onZeilenKlick, onZeilenHover,
   canRename, onRename, canDrag, canDrop, onDrop,
   indent = STANDARD_EINZUG,
   className,
@@ -238,6 +238,7 @@ export function TfTree<T>({
                 slots={slots}
                 indent={indent}
                 {...(onZeilenKlick ? { onZeilenKlick: (e: React.MouseEvent) => onZeilenKlick(p.id, p.data, e) } : {})}
+                {...(onZeilenHover ? { onZeilenHover: (ein: boolean) => onZeilenHover(p.id, p.data, ein) } : {})}
               />
             )}
           </Fragment>

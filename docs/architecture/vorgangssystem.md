@@ -1455,9 +1455,9 @@ wirklich sieht. Ist die Tabelle **gepinnt schmaler** als der Port, gewinnt
 das Verhalten bis v3.31.
 
 Der Deckel gegen unlesbar lange Zeilen ist damit **umgezogen**: er sitzt jetzt am
-[FristenReiter](../../src/plugins/antraege/ausklapp/FristenReiter.tsx), wo
-Fließtext steht, nicht mehr am ganzen Bereich. Die Bahn ist eine Grafik und will
-jeden Pixel; ein Absatz über 1200 px will das Gegenteil.
+Vorgangsverlauf-Reiter ([AusklappInhalt](../../src/plugins/antraege/ausklapp/AusklappInhalt.tsx)),
+wo Fließtext steht, nicht mehr am ganzen Bereich. Die Bahn ist eine Grafik und
+will jeden Pixel; ein Absatz über 1200 px will das Gegenteil.
 
 Die Bahn selbst misst ihren eigenen Behälter
 ([useElementBreite](../../src/core/hooks/useElementBreite.ts), eine
@@ -1922,3 +1922,106 @@ angehalten" (Teilvorhaben, terminal) neben „Zieltage 14 T" (Verbund, beantragt
 — ein Band über zwei verschiedene Vorgänge. Verbund- und TV-Status gehen im
 Bestand regelmäßig auseinander (Pitfall #44); `ZeilenVerlauf` gibt die Vorkommen
 der Zeile jetzt mit heraus, damit beides aus derselben Menge kommt.
+
+## 16. Der aufgeklappte Bereich nach dem Entwurf (v3.40)
+
+Grundlage ist der Handoff `_design/handoff/status-fristen-detail-ansicht/`. Er
+ordnet den Bereich nach drei Fragen: *Wie weit über der Frist? · Woran hängt es? ·
+Was ist zu tun?* — und legt den Nachweis darunter.
+
+### 16.1 Aufbau
+
+1. **Kopfkarte** ([KopfKarte](../../src/plugins/antraege/ausklapp/kopfkarte/KopfKarte.tsx)) —
+   Urteil zur Frist samt Herleitung, drei Fakten (Bewegung · Meilensteine ·
+   Liegt bei), **ein** Blocker mit den Stufen, die deshalb mitwarten, und die
+   Aktionen.
+2. **Zwei Reiter** (`SegmentedToggle`): **Vorgangsverlauf** (die Fristrechnung
+   als Raster, Voreinstellung) und **Zeitverlauf** (die Bahn).
+3. Im Zeitverlauf: **Ebenen-Pillen**, das Band, die **Meilenstein-Ebene** auf
+   derselben Achse und darunter die **Gliederung** (standardmäßig zu).
+
+Die Karte steht **über** beiden Reitern, nicht in einem: sie beantwortet die
+Frage, wegen der jemand aufklappt; der Reiter darunter beantwortet nur, warum
+die Antwort stimmt.
+
+### 16.2 Ein Blocker, keine Liste
+
+Eine Aufzählung aller gerissenen Meilensteine beantwortet nicht, wo man ansetzt.
+[findeBlocker](../../src/plugins/antraege/ausklapp/kopfkarte/blocker.ts) nimmt
+die **früheste gerissene Blatt-Stufe** — Blatt in genau der Definition der Engine
+(`bewertung.ts`: ein Sammel-Knoten aggregiert seine Kinder und zählt nicht
+doppelt). Eine zweite Blattregel liefe beim ersten typgefilterten Plan
+auseinander.
+
+**„Blockiert" ist eine Annahme, keine Tatsache.** Der Plan kennt `elternId` und
+Soll-Wochen, aber **keine** Vorgänger-Relation. Genannt werden deshalb nur die
+gerissenen Sammel-Knoten über dem Blocker (Roll-up-Regel der Engine) und die
+übrigen gerissenen Stufen. Wer eine echte Reihenfolge braucht, pflegt sie im
+Plan.
+
+Der Befund trägt **immer** einen Satz — auch bei einem Treffer, und für jeden der
+sechs Gründe, keinen zu finden. Eine Karte, die hier schweigt, liest sich als
+„alles in Ordnung" (Pitfall #44).
+
+### 16.3 Die Zuständigkeit hängt am Vorgang, nicht am Meilenstein
+
+Der Meilenstein-Plan kennt kein Rollenfeld. „Liegt bei" kommt aus dem
+Stillstands-Wächter: ein halb offenes Kürzel-Paar (`AK4` gesetzt, `AT4` fehlt)
+nennt die Rolle des fehlenden Gegenstücks. Ohne Paar wird nichts geraten — dann
+steht dort, dass die Quelle fehlt.
+
+Die **Liegezeit** kommt ausschließlich aus dem Paar. Als Ersatz bliebe die Zeit
+seit der letzten Aktivität, und die steht schon als „Bewegung" daneben; dieselbe
+Zahl unter zwei Überschriften läse sich als zwei Messungen.
+
+### 16.4 Eine Achse, mehrere Schichten
+
+Die Meilenstein-Ebene bekommt die x-Skala vom Band gereicht
+(`ZeitAchse`/`xFuerTag` in [bandGeometrie](../../src/plugins/antraege/verlauf-band/bandGeometrie.ts)).
+Eine eigene Abbildung setzte den 17.09. neben den Balken, der dort endet — die
+Achse ist stückweise gestaucht.
+
+Sie ist eine **eigene Schicht** (`zusatzBahn`), kein Eingriff in `Bahn`: das
+Koordinatensystem der Balken, Kanten und Unter-Label ist in v3.37/v3.38 sortiert
+worden und bleibt unangetastet.
+
+Was nicht ins Achsenfenster passt, wird **gezählt** statt geklemmt; endet die
+Achse vor dem Stichtag (angehaltene Uhr), sagt das ein Satz unter der Ebene.
+
+Die rechte Reserve für „1.4.3 · 327 T" wird **gemessen**, nicht geschätzt: die
+60 px des Entwurfs reichen für „3 · 299 T", nicht für die dreistellige Nummer in
+Mono. Gemessen wird vor der Geometrie — die Reserve geht in die Bahnbreite ein,
+die Bahnbreite in die Achse (Profil `bandVerzug`).
+
+### 16.5 Aktionen: nur echte Züge
+
+Der Entwurf zeigt „QS anstoßen", „Zuständigkeit ändern" und „Verzug begründen"
+und nennt sie selbst Annahmen. Keine davon existiert in der App. An ihrer Stelle
+stehen die drei Züge, die es wirklich gibt: **Risiko melden** (das bestehende
+Formular, mit dem Blocker vorgewählt; schreibt in den persönlichen Ordner),
+**Auf der Detailseite öffnen** (`?ziel=meilensteine`) und **Verlauf kopieren**.
+Drei Knöpfe, die nichts tun, wären schlimmer als keine.
+
+### 16.6 Zwei Korrekturen am Handoff
+
+- **„Bearbeitungsfrist 90 T aus dem Statuskatalog"** stimmt nicht: die 90 sind
+  `ANTRAG_SLA_DAYS` (Regelfrist für alle Anträge), aus dem Katalog kommen die
+  *Zieltage des Schritts*. Beide Zeilen stehen mit ihrer eigenen Herkunft da; die
+  Zahl wird als Differenz Basis→Ziel abgeleitet, nie verdrahtet.
+- **„liegt bei QS"** am Blocker ist eine Aussage über den Vorgang, nicht über die
+  Stufe — sie steht deshalb als eigenes Faktum (16.3).
+
+### 16.7 Was die Abnahme gefunden hat
+
+- **Zwei Uhren.** `useVerbundMeilensteine` bewertete gegen `new Date()`, die
+  Fristkette gegen den gestempelten Stichtag: „272 Tage über der Frist" neben
+  „327 T offen" aus zwei Gegenwarten. Der Stichtag geht jetzt mit hinein.
+- **Zwei Ableitungen für dieselbe Frage.** „Ziel **war** 11.11.2025" verglich
+  Zieldatum und Stichtag, das Urteil daneben las `tageRest`. Beide lesen jetzt
+  dasselbe Signal — gefunden hat es der Test, nicht der Bildschirm.
+- **Das Verzugslabel lief aus dem Container** (9 px), weil die Reserve pauschal
+  war (16.4).
+- **Zwei Zählweisen nebeneinander**: „3 gerissen von 8" (relevante Blätter) in
+  der Karte und „6 Stufen · 3 gerissen" in der Gliederung. Beide Zahlen kommen
+  aus **einer** Funktion; die Überschrift zählt, was darunter steht — auch die
+  nicht relevanten Stufen, sonst nennte sie weniger, als das Auge sieht.

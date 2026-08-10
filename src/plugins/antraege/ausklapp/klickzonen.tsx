@@ -29,13 +29,13 @@ import { bereichsId, type ReiterId } from './ausklappZustand';
  * erbt, ohne dass jemand hier nachträgt.
  */
 const AUSKLAPP_GRUPPEN: Readonly<Record<string, ReiterId>> = {
-  [G_STATUS]: 'verlauf',
+  [G_STATUS]: 'zeitverlauf',
 };
 
 /** Einzelspalten außerhalb ihrer Rubrik. `frist` steht unter „Termine", öffnet
- *  aber den Fristen-Reiter — die übrigen Termin-Spalten sind bloße Daten. */
+ *  aber die Fristrechnung — die übrigen Termin-Spalten sind bloße Daten. */
 const AUSKLAPP_SPALTEN: Readonly<Record<string, ReiterId>> = {
-  frist: 'fristen',
+  frist: 'vorgangsverlauf',
 };
 
 /** Der Reiter, den ein Klick auf diese Spalte vorwählt; `undefined` = kein

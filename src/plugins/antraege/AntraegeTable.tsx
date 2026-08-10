@@ -429,7 +429,7 @@ export function AntraegeTable({
             verbundId={r._verbund?.verbundId ?? (typeof r.verbund_id === 'string' ? r.verbund_id : null)}
             istVerbundZeile={r._verbund !== undefined}
             statusRoh={r.status}
-            reiter={ausklapp.reiterVon(r.aktenzeichen) ?? 'verlauf'}
+            reiter={ausklapp.reiterVon(r.aktenzeichen) ?? 'vorgangsverlauf'}
             onReiter={ausklapp.setzeReiter}
             onSchliessen={ausklapp.schliessen}
             stichtag={stichtag}

@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import type { VerlaufsSegment, VerlaufsSpur } from '@/core/status/verlauf';
 import {
   baueBandGeometrie, buendle, spurSignatur, dauerText, tageZwischen,
-  MIN_INTERVALL, BUENDEL_AB, bodenFuer,
+  imFenster, xFuerTag, MIN_INTERVALL, BUENDEL_AB, bodenFuer,
 } from '@/plugins/antraege/verlauf-band/bandGeometrie';
 
 const BEZUG = '2026-08-07';
@@ -227,6 +227,41 @@ describe('Leere Spuren', () => {
     expect(g.spuren[0]!.segmente).toHaveLength(0);
     expect(g.von).toBeNull();
     expect(Number.isFinite(g.breite)).toBe(true);
+  });
+});
+
+describe('Die x-Skala nach außen', () => {
+  /** Zwei Segmente, also drei Kanten — die Achse ist stückweise gestaucht. */
+  const geo = () => baueBandGeometrie(
+    [spur('tv1', 'tv', [seg('2024-01-01', '2024-02-01'), seg('2024-02-01', BEZUG)])],
+    BEZUG, 800,
+  );
+
+  it('setzt einen Tag genau dorthin, wo der Balken ihn hat', () => {
+    const g = geo();
+    const kante = g.spuren[0]!.segmente[1]!.links;
+    expect(xFuerTag(g.achse, '2024-02-01')).toBeCloseTo(kante, 6);
+  });
+
+  it('trifft dieselbe Stelle auch mit voller ISO-Zeitangabe', () => {
+    const g = geo();
+    expect(xFuerTag(g.achse, '2024-02-01T00:00:00.000Z'))
+      .toBeCloseTo(xFuerTag(g.achse, '2024-02-01'), 6);
+  });
+
+  it('klemmt außerhalb — und `imFenster` widerspricht dem', () => {
+    const g = geo();
+    expect(xFuerTag(g.achse, '2000-01-01')).toBe(0);
+    expect(xFuerTag(g.achse, '2099-01-01')).toBeCloseTo(g.breite, 6);
+    expect(imFenster(g.achse, '2000-01-01')).toBe(false);
+    expect(imFenster(g.achse, '2099-01-01')).toBe(false);
+    expect(imFenster(g.achse, '2024-02-01')).toBe(true);
+  });
+
+  it('zählt die Ränder als drin', () => {
+    const g = geo();
+    expect(imFenster(g.achse, '2024-01-01')).toBe(true);
+    expect(imFenster(g.achse, BEZUG)).toBe(true);
   });
 });
 

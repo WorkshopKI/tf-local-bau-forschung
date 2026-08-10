@@ -16,8 +16,14 @@
  * Vorgabe): ein Bereich ist eine Nachfrage, kein Zustand des Vorgangs.
  */
 
-/** Welcher Reiter des Bereichs vorgewählt ist. */
-export type ReiterId = 'verlauf' | 'fristen';
+/**
+ * Welcher Reiter des Bereichs vorgewählt ist.
+ *
+ * `vorgangsverlauf` ist die Fristrechnung als Aufstellung, `zeitverlauf` die
+ * Bahn. Beide heißen „Verlauf", weil beide dieselbe Geschichte erzählen — die
+ * eine in Zahlen, die andere auf einer Achse.
+ */
+export type ReiterId = 'vorgangsverlauf' | 'zeitverlauf';
 
 export interface AusklappZustand {
   /** Zeilenschlüssel — das Aktenzeichen der Zeile (bei Verbund-Körnung das des
