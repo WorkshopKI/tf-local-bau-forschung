@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from '@/components/feedback/feedbackLanes';
-import { baueSpalten } from '../boardSpalten';
+import { baueSpalten, spaltenAnsicht, type BoardSpalte } from '../boardSpalten';
 
 const LANES: FeedbackLane[] = FEEDBACK_LANE_STATUS.map(status => ({ status, spalten: 1 as const }));
 
@@ -90,5 +90,51 @@ describe('baueSpalten', () => {
     const spalten = baueSpalten([fb('A'), fb('B', { kurator_status: 'umgesetzt' })], nurNeu);
     expect(spalten).toHaveLength(1);
     expect(spalten[0]?.tickets.map(t => t.id)).toEqual(['A']);
+  });
+});
+
+// Der gemeldete Fehler (v3.41.1): eine leere Bahn per Klick aufgeklappt — und
+// kein Weg zurück. Die drei Zustände lagen als Boolean-Ausdruck in der
+// Komponente; kein Test konnte sehen, dass „aufgeklappt und leer" ein eigener
+// Zustand ist, der eine eigene Bedienung braucht.
+describe('spaltenAnsicht', () => {
+  function spalte(over: Partial<BoardSpalte> = {}): BoardSpalte {
+    return {
+      status: 'neu', spalten: 1, tickets: [],
+      summe: { stunden: 0, ungeschaetzt: 0 }, ausserhalbDerSicht: false,
+      ...over,
+    };
+  }
+
+  it('zeigt eine gefüllte Spalte voll — der Entfaltet-Zustand ändert daran nichts', () => {
+    expect(spaltenAnsicht(spalte({ tickets: [fb('A')] }), false)).toBe('voll');
+    expect(spaltenAnsicht(spalte({ tickets: [fb('A')] }), true)).toBe('voll');
+  });
+
+  it('faltet eine leere Bahn zur Schiene, bis jemand sie aufklappt', () => {
+    expect(spaltenAnsicht(spalte(), false)).toBe('schiene');
+    expect(spaltenAnsicht(spalte(), true)).toBe('leer-offen');
+  });
+
+  // `leer-offen` ist der einzige Zustand OHNE Schiene und OHNE Karte: nur hier
+  // muss die Spalte selbst den Rückweg tragen.
+  it('kennt genau einen Zustand, der einen Weg zurück braucht', () => {
+    const alle = [
+      spaltenAnsicht(spalte({ tickets: [fb('A')] }), true),
+      spaltenAnsicht(spalte(), false),
+      spaltenAnsicht(spalte(), true),
+    ];
+    expect(alle.filter(a => a === 'leer-offen')).toHaveLength(1);
+  });
+
+  // Regressionsgatter zu v3.39: die unerreichbare Bahn darf sich nicht
+  // aufklappen lassen — leer und offen behauptete sie erneut „hier ist nichts".
+  it('hält eine Bahn außerhalb der Sicht als Schiene, auch nach einem Klick', () => {
+    expect(spaltenAnsicht(spalte({ ausserhalbDerSicht: true }), true)).toBe('schiene');
+    expect(spaltenAnsicht(spalte({ ausserhalbDerSicht: true }), false)).toBe('schiene');
+  });
+
+  it('lässt Tickets vorgehen, falls eine Bahn außerhalb der Sicht doch welche trägt', () => {
+    expect(spaltenAnsicht(spalte({ tickets: [fb('A')], ausserhalbDerSicht: true }), false)).toBe('voll');
   });
 });

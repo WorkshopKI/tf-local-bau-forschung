@@ -247,13 +247,23 @@
   cursor: pointer;
 }
 .fb-col-mehr:hover { background: var(--tf-hover); color: var(--tf-text); }
+/* Der Leer-Hinweis der aufgeklappten Bahn IST der Weg zurück (v3.41.1) — bis
+   dahin stand hier ein stummer, kursiver Gedankenstrich, und eine einmal
+   aufgeklappte leere Lane ließ sich nur noch per Neuladen einklappen. Optik
+   wie `.fb-col-mehr`, der andere leise Spalten-Knopf: gestrichelt, sekundär
+   (tertiär läse sich in einer sonst leeren Spalte nicht als bedienbar). */
 .fb-col-leer {
-  padding: 14px 6px;
+  width: 100%;
+  padding: 11px 6px;
+  border: var(--tf-border-thin) dashed var(--tf-border-hover);
+  border-radius: var(--tf-radius);
+  background: none;
   text-align: center;
   font-size: 11px;
-  color: var(--tf-text-tertiary);
-  font-style: italic;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
 }
+.fb-col-leer:hover { background: var(--tf-hover); color: var(--tf-text); }
 
 /* ---------------- Karte ---------------- */
 .fb-karte {

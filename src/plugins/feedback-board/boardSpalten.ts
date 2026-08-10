@@ -41,6 +41,21 @@ export interface BoardSpalte {
  * ehrlich leere — der Grund, warum ein auf „umgesetzt" gesetztes Ticket spurlos
  * verschwand (v3.39).
  */
+/**
+ * Wie eine Spalte dasteht. `leer-offen` entsteht NUR durch den Klick auf eine
+ * Schiene — und ist damit der einzige Zustand, der einen Weg zurück anbieten
+ * muss: bis v3.41 klappte eine leere Bahn auf und blieb es bis zum Neuladen.
+ */
+export type SpaltenAnsicht = 'voll' | 'schiene' | 'leer-offen';
+
+export function spaltenAnsicht(spalte: BoardSpalte, entfaltet: boolean): SpaltenAnsicht {
+  if (spalte.tickets.length > 0) return 'voll';
+  // Eine unerreichbare Bahn bleibt Schiene, auch nach einem Klick: aufgeklappt
+  // behauptete sie ein zweites Mal „hier ist nichts" (v3.39).
+  if (spalte.ausserhalbDerSicht) return 'schiene';
+  return entfaltet ? 'leer-offen' : 'schiene';
+}
+
 export function baueSpalten(
   tickets: readonly FeedbackItem[],
   lanes: readonly FeedbackLane[],

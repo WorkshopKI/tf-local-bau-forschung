@@ -9,7 +9,13 @@
  * - Eine LEERE Lane klappt zur Schmalschiene ein — dieselbe Lösung wie in der
  *   geteilten `KanbanBoard`-Shell, aus der das Feedback-Board kam. Sie bleibt
  *   ein vollwertiges Drop-Ziel: während eines Ziehens klappen alle Schienen
- *   auf (`.fb-board.zieht`), und ein Klick faltet eine einzelne dauerhaft aus.
+ *   auf (`.fb-board.zieht`), und ein Klick faltet eine einzelne aus.
+ *
+ * Aufklappen ist umkehrbar (v3.41.1). Bis dahin war es eine Einbahnstraße: die
+ * aufgeklappte leere Bahn verlor mit der Schiene auch ihren Klick, ihre Rolle
+ * und ihren Titel — sie ließ sich nur noch durch Neuladen einklappen. Der Weg
+ * zurück steht dort, wo der Blick in einer leeren Spalte landet: statt eines
+ * stummen Gedankenstrichs trägt der Leer-Hinweis jetzt das Einklappen.
  *
  * Je Spalte werden zunächst 15 Karten gerendert, der Rest hängt hinter „+ N
  * weitere". Bei 500 Tickets wären es sonst mehrere hundert DOM-Knoten je Spalte,
@@ -26,7 +32,7 @@ import { STATUS_LABELS } from '@/components/feedback/constants';
 import { feedbackLaneAccent } from '@/components/feedback/feedbackLanes';
 import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
 import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
-import { baueSpalten, type BoardSpalte } from '../boardSpalten';
+import { baueSpalten, spaltenAnsicht, type BoardSpalte } from '../boardSpalten';
 import type { Dichte } from './dichte';
 import { TicketKarte } from './TicketKarte';
 import type { TicketKontext } from './typen';
@@ -92,9 +98,8 @@ function Spalte({ spalte, akzent, ctx, sicht }: {
   const { stunden, ungeschaetzt } = spalte.summe;
   const aus = spalte.ausserhalbDerSicht;
   const name = STATUS_LABELS[spalte.status];
-  // Eine unerreichbare Bahn bleibt IMMER Schiene: aufgeklappt zeigte sie eine
-  // leere Spalte und behauptete damit erneut, hier sei nichts.
-  const schiene = spalte.tickets.length === 0 && (aus || !entfaltet);
+  const ansicht = spaltenAnsicht(spalte, entfaltet);
+  const schiene = ansicht === 'schiene';
   // Klick: die erreichbar-leere Bahn klappt auf, die unerreichbare wechselt in
   // eine Sicht, die ihren Inhalt zeigt — das ist die Frage, die sie auslöst.
   const beiKlick = aus
@@ -163,9 +168,18 @@ function Spalte({ spalte, akzent, ctx, sicht }: {
         </div>
       )}
       <div className="fb-col-karten">
-        {/* Der Gedankenstrich gehört zur AUFGEKLAPPTEN Spalte. In der 44px-Schiene
-            stand er unter der Beschriftung und sagte ein zweites Mal „nichts da". */}
-        {spalte.tickets.length === 0 && !schiene && <div className="fb-col-leer">—</div>}
+        {/* Nur die von Hand aufgeklappte leere Bahn kommt hier an — und sie ist
+            die einzige, aus der ohne diesen Knopf kein Weg zurückführt. */}
+        {ansicht === 'leer-offen' && (
+          <button
+            type="button"
+            className="fb-col-leer"
+            title={`${name} — leer, zum Einklappen klicken`}
+            onClick={() => setEntfaltet(false)}
+          >
+            leer — einklappen
+          </button>
+        )}
         {spalte.tickets.slice(0, limit).map(t => (
           <TicketKarte key={t.id} t={t} ctx={ctx} />
         ))}

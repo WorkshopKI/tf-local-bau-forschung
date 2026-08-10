@@ -7,9 +7,11 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 ### v3.42.1 — Aufgeklappte leere Lane wieder einklappbar (August 2026)
 
-PATCH — <!-- Motivation: max. 3 Zeilen. Detail gehört ins Themen-Doc, nicht hierher. -->
+PATCH — Gemeldet: „habe eine Lane gerade ausgeklappt, wie kann ich sie wieder einklappen, ich sehe kein Menü". Es gab keins: `setEntfaltet` kannte nur `true`, und die aufgeklappte leere Bahn verlor mit der Schiene auch Klick, Rolle und Titel — nur ein Neuladen faltete sie zurück. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
 
-- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+- Die drei Spalten-Zustände als reine `spaltenAnsicht()` (`voll` · `schiene` · `leer-offen`) statt als Boolean in der Komponente — [boardSpalten.ts](src/plugins/feedback-board/boardSpalten.ts)
+- Der Leer-Hinweis der aufgeklappten Bahn IST der Rückweg: aus dem stummen Gedankenstrich wird „leer — einklappen" — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
+- Unerreichbare Bahnen bleiben Schiene, auch nach einem Klick; beim Ziehen taucht der Knopf nicht auf (Regressionsgatter zu v3.39) — [boardSpalten.test.ts](src/plugins/feedback-board/__tests__/boardSpalten.test.ts)
 
 ### v3.42.0 — To-do-Kaskade in der Kopfkarte, drei Ebenen-Pillen (August 2026)
 
