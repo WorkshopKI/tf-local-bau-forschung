@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.43.2 — Stillstands-Waechter: Zeile und Board sagen wieder dasselbe (August 2026)
+
+PATCH — Gemeldet als Nebenbefund: das Board sagt für `16EP250140` „hängt ≥23 T", der Fristen-Reiter derselben Zeile „läuft". Ursache war kein zweiter Evaluator, sondern eine vertauschte Eingabe — der Ausklappbereich reichte den **Nullpunkt** des Journals als **letzte Änderung** durch (seit v3.31). Detail: [vorgangssystem.md §12.2](docs/architecture/vorgangssystem.md).
+
+- `ZeilenVerlauf.journalAenderung` neu: die belegte letzte Änderung DIESER Zeile, `null` wo die Chronik sie nicht deckt — [useZeilenVerlauf.ts](src/plugins/antraege/ausklapp/useZeilenVerlauf.ts)
+- Die drei Aufrufer lesen sie statt `journalAb` — [ZeilenBereich.tsx](src/plugins/antraege/ausklapp/ZeilenBereich.tsx), [VerbundFristenBand.tsx](src/plugins/antraege/fristen-band/VerbundFristenBand.tsx), [VerbundBand.tsx](src/plugins/antraege/verlauf-band/VerbundBand.tsx)
+- Am Bestand gemessen: 1 056 von 1 057 hängenden Vorgängen meldeten in der Zeile „läuft"; Wortlaut und Zahl decken sich jetzt mit dem Board (25 T, Ziel 14)
+- Guard `kein-nullpunkt-als-letzte-aenderung` — beide Werte sind `string | null`, der Typ konnte sie nie trennen — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+- Nebenwirkung: die Stillstands-Marke der Verlaufs-Bahn (v3.38) ist erstmals am echten Bestand zu sehen, nicht nur über eine invertierte Bedingung
+
 ### v3.43.1 — Spaltenkopf ohne Einklapp-Zeichen; Dunkelmodus kein Abnahme-Kriterium (August 2026)
 
 PATCH — Zwei Ansagen: „das Einklapp-Icon kann weg, Tooltip reicht" und „Dunkelmodus wird gar nicht genutzt, muss ab jetzt nicht mehr optimiert werden". Letzteres rückwirkend relevant: die Füllung der eingeklappten Bahn (v3.43.0) wich allein einem Dunkel-Kontrast von 3,7:1.

@@ -24,6 +24,9 @@
 ### Neu
 - Im Feedback-Board lässt sich jetzt **jede Spalte vorübergehend schmal stellen** — ein Klick auf den Spaltenkopf legt sie als Streifen an den Rand, ein Klick auf den Streifen holt sie zurück. Die Nachbarn werden dadurch breiter und besser lesbar. Die eingeklappte Spalte behält ihre Zahl und bleibt Ablageziel; nach dem Neuladen stehen alle Spalten wieder offen. Dauerhaft ausblenden geht weiterhin über „Board anpassen".
 
+### Bugfixes
+- **Der aufgeklappte Bereich einer Antragszeile meldete fast nie einen Stillstand.** „Bewegung" zeigte dort das Alter des Änderungs-Journals statt der letzten Bewegung des Vorgangs — dadurch sah jeder Antrag frisch aus, und wo das Vorgangs-Board „hängt fest" sagte, stand in der Zeile „läuft". Am Bestand gemessen betraf das 1 056 von 1 057 hängenden Vorgängen. Beide Ansichten rechnen jetzt mit derselben Zahl; wo nichts belegt ist, steht wie bisher „seit mindestens …".
+
 ## v3.42 — 2026-08
 
 ### Neu

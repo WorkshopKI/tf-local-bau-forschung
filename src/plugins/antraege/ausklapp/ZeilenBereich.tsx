@@ -116,7 +116,7 @@ export function ZeilenBereich({
     vorkommen: daten.vorkommen,
     statusRoh,
     stichtag,
-    journalAenderung: daten.journalAb,
+    journalAenderung: daten.journalAenderung,
     todo: todo.adresse.todo,
   });
   const zieltage = useMemo(

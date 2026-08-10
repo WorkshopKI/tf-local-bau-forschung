@@ -15,6 +15,12 @@
  * sie nur bei einem Ein-TV-Vorhaben durchgereicht — der Nullpunkt `journalAb`
  * dagegen immer, denn ohne ihn liest sich eine unvollständige Chronik als
  * vollständige (Abschnitt 12.2).
+ *
+ * **Nullpunkt und letzte Änderung sind zwei Dinge.** `journalAb` sagt, ab wann
+ * das Journal überhaupt spricht (eine Zahl für den ganzen Bestand);
+ * `journalAenderung` sagt, wann sich an DIESER Zeile zuletzt belegt etwas
+ * bewegt hat. Beide sind `string | null`, weshalb der Typ ihre Verwechslung
+ * nicht fangen konnte — der Guard `kein-nullpunkt-als-letzte-aenderung` tut es.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -56,6 +62,24 @@ export interface ZeilenVerlauf {
   bezugsZeitpunkt: string;
   /** Nullpunkt des Import-Diff-Journals; `null` = kein Journal geführt. */
   journalAb: string | null;
+  /**
+   * Die **belegte letzte Änderung dieser Zeile** — was der Stillstands-Wächter
+   * als `journalAenderung` braucht. `null` heißt „nichts belegt"; dann bleibt er
+   * bei seiner Näherung aus `max(D_)` und schreibt „seit mindestens".
+   *
+   * Nicht zu verwechseln mit {@link journalAb}: der Nullpunkt ist für den ganzen
+   * Bestand **dieselbe** Zahl und sagt nur, ab wann das Journal überhaupt
+   * Aussagen macht. Als Änderungsmeldung übergeben (v3.31–v3.43.1) machte er jeden
+   * Vorgang gleich frisch — 1 056 von 1 057 hängenden meldeten „läuft", während
+   * das Board dieselbe reine Funktion mit der richtigen Quelle fütterte und
+   * weiter „hängt fest" sagte. Der Guard `kein-nullpunkt-als-letzte-aenderung`
+   * hält die beiden auseinander.
+   *
+   * `null` auch dort, wo die geladene Chronik die Zeile nicht deckt (siehe
+   * {@link ZeilenVerlauf.journalGenutzt}) — eine fremde Beobachtung ist kein
+   * Beleg für diese.
+   */
+  journalAenderung: string | null;
   /** `false` = die Chronik gehört zu EINEM Teilvorhaben eines Mehr-TV-Vorhabens
    *  und wurde deshalb nicht in die Ableitung gegeben. */
   journalGenutzt: boolean;
@@ -136,13 +160,33 @@ export function useZeilenVerlauf(
 
   const einTv = quelle.jeTeilvorhaben.length === 1;
 
-  /** Die Vorkommen, die diese Zeile trägt — Verbundzeile: alle Teilvorhaben. */
-  const vorkommen = useMemo(() => {
-    const relevante = istVerbundZeile || aktenzeichen === null
+  /**
+   * Die Teilvorhaben, die **diese Zeile** trägt — Verbundzeile: alle.
+   *
+   * Eine Liste, zwei Ableitungen: die Vorkommen, über die geurteilt wird, und
+   * die Frage, ob die geladene Chronik dieselbe Menge beschreibt. Getrennt
+   * gerechnet gingen sie beim ersten Mehr-TV-Vorhaben auseinander.
+   */
+  const relevante = useMemo(
+    () => (istVerbundZeile || aktenzeichen === null
       ? quelle.jeTeilvorhaben
-      : quelle.jeTeilvorhaben.filter(t => t.aktenzeichen === aktenzeichen);
-    return relevante.flatMap(t => t.vorkommen);
-  }, [quelle.jeTeilvorhaben, aktenzeichen, istVerbundZeile]);
+      : quelle.jeTeilvorhaben.filter(t => t.aktenzeichen === aktenzeichen)),
+    [quelle.jeTeilvorhaben, aktenzeichen, istVerbundZeile],
+  );
+
+  /** Die Vorkommen, die diese Zeile trägt — Verbundzeile: alle Teilvorhaben. */
+  const vorkommen = useMemo(() => relevante.flatMap(t => t.vorkommen), [relevante]);
+
+  /**
+   * Deckt die geladene Chronik genau das, worüber hier geurteilt wird?
+   *
+   * Sie gehört EINEM Teilvorhaben (`chronikFuerAntrag(aktenzeichen)`). Nur wenn
+   * die Zeile genau dieses eine trägt, ist ihre letzte Änderung auch die der
+   * Zeile — bei einem Mehr-TV-Verbund wäre sie die Beobachtung eines Nachbarn.
+   * Dieselbe Grenze, an der schon die Verlaufsableitung haltmacht.
+   */
+  const journalDeckt = aktenzeichen !== null
+    && relevante.length === 1 && relevante[0]?.aktenzeichen === aktenzeichen;
 
   /**
    * **Erster Durchgang, mit dem nackten Stichtag.** `baueUebergaenge` nimmt den
@@ -207,6 +251,7 @@ export function useZeilenVerlauf(
     vorkommen,
     bezugsZeitpunkt,
     journalAb: chronik?.journalAb ?? null,
+    journalAenderung: journalDeckt ? (chronik?.letzteAenderung ?? null) : null,
     journalGenutzt: einTv && chronik !== null,
     quelle,
   };

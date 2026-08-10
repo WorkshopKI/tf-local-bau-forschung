@@ -127,6 +127,13 @@ export interface WaechterEingabe {
    * Optional, damit `pruefeStillstand` rein bleibt und ohne Journal exakt
    * weiterrechnet wie bisher. Ist sie gesetzt, gewinnt sie gegen die Näherung
    * aus `max(D_)`: sie kennt auch Änderungen, die der Export überschrieben hat.
+   *
+   * **Nicht der Nullpunkt `journalAb`.** Der ist für jeden Antrag derselbe Tag;
+   * hier übergeben ersetzt er jede Liegezeit durch das Alter des Journals und
+   * dreht das Urteil auf „ok" — gemessen bei 1 056 von 1 057 hängenden
+   * Vorgängen (v3.31–v3.43.1, Guard `kein-nullpunkt-als-letzte-aenderung`).
+   * Wer nichts Belegtes hat, übergibt `null`: die Näherung ist ehrlich und wird
+   * als solche beschriftet.
    */
   journalAenderung?: string | null;
   /** ISO — injiziert, nie `new Date()` hier drin. */

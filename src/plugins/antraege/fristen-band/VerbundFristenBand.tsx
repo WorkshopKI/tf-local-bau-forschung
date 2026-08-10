@@ -30,7 +30,7 @@ export function VerbundFristenBand({ verbundId, statusRoh, stichtag }: {
     vorkommen: daten.vorkommen,
     statusRoh,
     stichtag: stichtag.slice(0, 10),
-    journalAenderung: daten.journalAb,
+    journalAenderung: daten.journalAenderung,
   });
   const modell = useFristenBandModell({
     version: daten.quelle.version,

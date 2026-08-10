@@ -32,7 +32,7 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
     vorkommen: daten.vorkommen,
     statusRoh,
     stichtag,
-    journalAenderung: daten.journalAb,
+    journalAenderung: daten.journalAenderung,
   });
 
   if (daten.laden) return <p className={leise}>Lädt …</p>;

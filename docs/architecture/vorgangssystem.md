@@ -262,6 +262,8 @@ Zwei Stufen, beide ohne Ketten-Pflege:
 
 Ausgabe: Home-Widget „Hängt fest" pro Bearbeiter (`useMeinKuerzel` + Meine Rolle), PL-Gesamtliste mit Grund, Tagen und hängender Rolle. Immer mit Begründung und immer ehrlich („kein Zieltage-Wert für Status 88 definiert").
 
+**Ein Evaluator, aber jeder Aufrufer schneidet seine Eingaben selbst.** `pruefeStillstand` ist rein — zwei Ansichten können ihm trotzdem Verschiedenes vorlegen und dann gegenteilig antworten. Welche Quelle die „letzte belegte Änderung" ist und warum der Nullpunkt es nicht sein darf: [§12.2](#122-der-nullpunkt).
+
 ### 6.4 Fristen-Cockpit
 
 Ersetzt die individuellen XLSX-Listen. Alles aus vorhandenen Daten:
@@ -646,6 +648,35 @@ gelesen, und ausgerechnet bei einem Verlauf ist das der teuerste Irrtum.
 
 Der Baseline-Lauf erzeugt **keine** Einträge. Täte er es, stünden beim ersten Mal
 über hunderttausend Phantom-„gesetzt" in der Datei.
+
+**Der Nullpunkt ist keine Änderungsmeldung** (v3.43.2). Das Journal liefert zwei
+Daten, die beide `string | null` heißen und beide nach „Journal" klingen:
+
+| | Aussage | Reichweite |
+|---|---|---|
+| `journalAb` | „ab hier sprechen wir überhaupt" | EINE Zahl für den ganzen Bestand |
+| `letzteAenderung` | „hier hat sich zuletzt belegt etwas bewegt" | je Antrag, `null` = nichts belegt |
+
+Nur die zweite beantwortet die Frage des Stillstands-Wächters. Von v3.31 bis
+v3.43.1 bekam er im Ausklappbereich die erste: damit galt jede Zeile als seit dem
+Baseline-Tag aktiv, `belegt` sprang auf `true`, und aus einer Näherung wurde
+scheinbar eine Messung. Am Bestand gemessen meldeten **1 056 von 1 057** hängenden
+Vorgängen „läuft" — der Wächter war dort praktisch abgeschaltet, während das
+Board dieselbe reine Funktion mit der richtigen Quelle fütterte und weiter „hängt
+fest" sagte. Zwei Ansichten, ein Evaluator, gegenteilige Aussage; aufgefallen ist
+es an genau einem Antrag, dem man beides nebeneinander ansah.
+
+Zwei Lehren, beide über den Einzelfall hinaus:
+
+1. **Gleicher Typ ist keine gleiche Bedeutung.** `string | null` gegen
+   `string | null` prüft kein Compiler. Wo zwei Werte dieselbe Form und
+   verwandte Namen tragen, hält sie nur ein Guard auseinander —
+   `kein-nullpunkt-als-letzte-aenderung`.
+2. **Eine Chronik gehört einem Teilvorhaben.** `useZeilenVerlauf` gibt ihre
+   letzte Änderung nur heraus, wenn die Zeile genau dieses eine TV trägt; bei
+   einem Mehr-TV-Verbund wäre sie die Beobachtung eines Nachbarn. Dieselbe
+   Grenze, an der schon die Verlaufsableitung haltmacht (`journalGenutzt`).
+   Sonst `null` — und die Näherung sagt ehrlich „seit mindestens".
 
 ### 12.3 Fünf Aussagen, nicht eine
 
