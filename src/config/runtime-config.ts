@@ -27,6 +27,19 @@ export interface TeamflowDataConfig {
    * erneut geoeffnet mit Hinweis.
    */
   expectedFolderName: string | null;
+  /**
+   * v4.0: Generation des Ablageorts (ganze Zahl >= 1). Zieht der Daten-Share
+   * um, wird sie zusammen mit `fixedDataSharePath` hochgezaehlt. Die App merkt
+   * sich die zuletzt verbundene Generation unter `SHARE_GENERATION_IDB_KEY` und
+   * erzwingt beim Start einen Re-Pick, solange die gespeicherte kleiner ist.
+   */
+  shareGeneration: number;
+  /**
+   * v4.0: Pfad des CSV-Import-Ordners. Liegt AUSSERHALB des Daten-Shares und
+   * zieht nicht mit um. Wird beim Verknuepfen nur angezeigt und ist kopierbar —
+   * die File System Access API erlaubt keine programmatische Vorauswahl.
+   */
+  fixedCsvImportPfad: string | null;
   allowUserToChangePath: boolean;
   allowLocalFallback: boolean;
   demoDataBundled: boolean;

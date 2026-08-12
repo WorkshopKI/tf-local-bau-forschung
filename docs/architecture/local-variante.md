@@ -238,16 +238,24 @@ auf NFC — eine NFD-Anfrage findet den Ordner also ebenfalls.
 
 ## Konfiguration
 
-[configs/local.config.json](../../configs/local.config.json). Die vier
+[configs/local.config.json](../../configs/local.config.json). Die fünf
 Abweichungen von `dev.config.json`, die beißen:
 
 - `fixedDataSharePath: null` + `expectedFolderName: null` — sonst mergt
   `_shared.json` den N:\-Pfad und den Ordnernamen-Check zurück.
+- `fixedCsvImportPfad: null` — dieselbe Falle: sonst zeigt die local-Variante
+  den P:\-Pfad der Produktion an, obwohl sie den CSV-Picker über
+  `lokalerSlotHandle(SLOT_CSV_SOURCE_DIR)` ohnehin umgeht.
 - **kein `auth`-Block** — `dev.config.json` hat salt+verifier; mitkopiert stünde
   eine Passwort-Wall vor dem Start.
 - `maLogin: false` — die Share-Kopie enthält `_intern/auslastung-zugang.enc`,
   das sonst das MaLoginGate auslöst.
 - `demoDataBundled: false` — sonst seedet `seedTestData` Fixtures in die echte Kopie.
+
+`data.shareGeneration` wird bewusst **nicht** überschrieben: das Umzugs-Banner
+feuert dadurch beim ersten Start einer frischen local-IDB einmal und ist damit
+überhaupt prüfbar. Ein Klick genügt — der Picker ist hier ein synthetisches
+Handle, es öffnet sich kein Dialog.
 
 Pfade ändern: Datei anpassen und den Dev-Server **neu starten** — die Config wird
 beim Start einmal als `TEAMFLOW_CONFIG` eingefroren, HMR reicht nicht.

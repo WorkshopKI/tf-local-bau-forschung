@@ -48,6 +48,9 @@ export async function kopiereText(text: string): Promise<void> {
     return;
   } catch {
     if (kopiereUeberTextfeld(text)) return;
-    throw new Error('Kopieren in die Zwischenablage fehlgeschlagen — bitte den Auftragstext von Hand markieren und kopieren.');
+    // Bewusst ohne Nennung des Inhalts: der Helfer kopiert längst nicht mehr nur
+    // Deep-Research-Aufträge, sondern auch Kürzel, Titel und seit v4.0 Ordner-
+    // pfade. „Auftragstext" stand dann wörtlich unter einem Pfad-Knopf.
+    throw new Error('Kopieren in die Zwischenablage fehlgeschlagen — bitte den Text von Hand markieren und kopieren.');
   }
 }

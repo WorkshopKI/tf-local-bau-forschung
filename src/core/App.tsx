@@ -23,6 +23,7 @@ import {
   needsDatenShareDowngrade,
 } from '@/core/services/infrastructure/smb-handle';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
+import { brauchtShareUmzug, leseShareGeneration } from '@/core/services/infrastructure/share-generation';
 import { sorgeFuerLokalesProfil } from '@/core/services/infrastructure/local-fs/boot';
 import { installiereTfHook } from '@/dev-fixtures/window-hook';
 import { listProgramme } from '@/core/services/csv';
@@ -57,6 +58,7 @@ function AppProviders({
   showMaLoginGate, setShowMaLoginGate,
   needsDowngrade,
   needsInitialPick,
+  needsShareUmzug, onUmzugFertig,
   initialProfile,
   seedToast, setSeedToast,
   syncToast, setSyncToast,
@@ -78,6 +80,12 @@ function AppProviders({
   setShowMaLoginGate: (v: boolean) => void;
   needsDowngrade: boolean;
   needsInitialPick: boolean;
+  /** v4.0: Der Daten-Share ist umgezogen — Re-Pick erzwingen (Umzugs-Banner). */
+  needsShareUmzug: boolean;
+  /** v4.0: laeuft nach erfolgreichem Umzugs-Re-Pick. Statt direkt weiterzugehen
+   *  wird das Handle-Gate erneut ausgewertet, damit der uebersprungene
+   *  Downgrade-Check im selben Start nachgeholt wird. */
+  onUmzugFertig: () => void;
   initialProfile: UserProfile | null;
   seedToast: string | null;
   setSeedToast: (v: string | null) => void;
@@ -131,6 +139,8 @@ function AppProviders({
                   profile={profileValue.profile ?? initialProfile}
                   needsDowngrade={needsDowngrade}
                   needsInitialPick={needsInitialPick}
+                  needsShareUmzug={needsShareUmzug}
+                  onUmzugFertig={onUmzugFertig}
                   onReady={onStartupReady}
                 />
               ) : showMaLoginGate ? (
@@ -225,6 +235,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
   const [showStartup, setShowStartup] = useState(false);
   const [needsDowngrade, setNeedsDowngrade] = useState(false);
   const [needsInitialPick, setNeedsInitialPick] = useState(false);
+  // v4.0: Der Daten-Share ist umgezogen (Config-Generation > gespeicherte).
+  const [needsShareUmzug, setNeedsShareUmzug] = useState(false);
   const [initialProfile, setInitialProfile] = useState<UserProfile | null>(null);
   const [seedToast, setSeedToast] = useState<string | null>(null);
   const [syncToast, setSyncToast] = useState<string | null>(null);
@@ -272,6 +284,20 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
 
     setShowWelcome(false);
     setNeedsInitialPick(false);
+
+    // v4.0: Umzugs-Gate VOR dem Downgrade-Block. Ein FSAPI-Handle haengt am
+    // Dateisystem-Objekt, nicht am Anzeigepfad — ein neuer `fixedDataSharePath`
+    // allein wuerde von einer bestehenden Installation schlicht ignoriert und
+    // sie schriebe weiter in den alten Ordner. Der Handle bleibt dabei stehen:
+    // bricht der Anwender den Picker ab, landet er im alten, funktionierenden
+    // Zustand statt in einem leeren.
+    if (brauchtShareUmzug(await leseShareGeneration(storage.idb), dataConfig.shareGeneration)) {
+      setNeedsShareUmzug(true);
+      setNeedsDowngrade(false);
+      setShowStartup(true);
+      return;
+    }
+    setNeedsShareUmzug(false);
 
     // v2.0: StartupScreen anzeigen, damit Permissions in einem User-Gesture-
     // Handler aktualisiert werden koennen.
@@ -504,6 +530,14 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
     await refreshHandleGate(profile);
   }, [refreshHandleGate, storage]);
 
+  // v4.0: Nach dem Umzugs-Re-Pick nicht direkt durchstarten, sondern das
+  // Handle-Gate erneut auswerten — der Downgrade-Check wurde beim Umzug
+  // uebersprungen und soll im selben Start nachgeholt werden.
+  const handleUmzugFertig = useCallback(async (): Promise<void> => {
+    const profile = await storage.idb.get<UserProfile>('profile');
+    await refreshHandleGate(profile);
+  }, [refreshHandleGate, storage]);
+
   // Wenn der Welcome-Screen Daten-Share verbindet, soll danach der Startup-
   // Screen die Permissions in einer User-Gesture-Kette aushandeln.
   const handleWelcomeComplete = useCallback(async () => {
@@ -634,6 +668,8 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       setShowWelcome={handleWelcomeComplete as unknown as (v: boolean) => void}
       showStartup={showStartup}
       onStartupReady={() => void handleStartupReady()}
+      needsShareUmzug={needsShareUmzug}
+      onUmzugFertig={() => void handleUmzugFertig()}
       showAppGate={showAppGate}
       setShowAppGate={setShowAppGate}
       showMaLoginGate={showMaLoginGate}

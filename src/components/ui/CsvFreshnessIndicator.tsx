@@ -13,7 +13,8 @@ import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
 import { deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
 import { getCsvSourceDirHandle, requestCsvSourceDirPermission, pickAndLinkCsvFolder } from '@/plugins/csv-sources-kuration/csv-source-handle';
-import { isDevFixturesEnabled } from '@/config/feature-flags';
+import { isDevFixturesEnabled, dataConfig } from '@/config/feature-flags';
+import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
@@ -424,6 +425,13 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
             >
               {linkAction.busy ? 'Verknüpfe…' : 'CSV-Ordner verknüpfen'}
             </Button>
+          )}
+
+          {/* v4.0: Nur der Kopier-Knopf — das Widget ist zu eng fuer den Pfad-Text.
+             Getrennter Knopf, weil ein `await` vor dem Picker unter file:// die
+             User-Activation verbrennen wuerde. */}
+          {state === 'needs_link' && dataConfig.fixedCsvImportPfad && (
+            <PfadKopierZeile pfad={dataConfig.fixedCsvImportPfad} nurKnopf knopfText="Pfad kopieren" />
           )}
 
           {/* Erzwungen — umgeht die „unverändert"-Erkennung (Citrix-False-Negative).

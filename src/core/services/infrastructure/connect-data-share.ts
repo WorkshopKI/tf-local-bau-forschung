@@ -22,11 +22,13 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
 import {
   pickAndStoreDatenShareHandle,
+  setDatenShareHandle,
   refreshAllPermissions,
   ensureReadme,
   type RefreshAllResult,
 } from './smb-handle';
 import { validateSelectedFolder } from './migration';
+import { SHARE_GENERATION_IDB_KEY } from './types';
 
 export type ConnectDataShareResult =
   | { ok: true; refresh: RefreshAllResult; handle: FileSystemDirectoryHandle }
@@ -51,9 +53,18 @@ export async function connectDataShare(
     };
   }
 
+  // v4.0: Der Picker hat sein Ergebnis bereits persistiert. Besteht der gewaehlte
+  // Ordner die folgenden Pruefungen NICHT, wird der vorherige Handle
+  // wiederhergestellt — sonst haette ein Fehlgriff (typisch beim Umzugs-Re-Pick)
+  // den alten, funktionierenden Zustand still zerstoert.
+  const zurueckrollen = async (): Promise<void> => {
+    await setDatenShareHandle(idb, res.vorher);
+  };
+
   // Name-Check (v2.0): erwarteter Ordner-Name aus dem Build (z.B. "ZAH").
   const expectedName = dataConfig.expectedFolderName;
   if (expectedName && res.handle.name !== expectedName) {
+    await zurueckrollen();
     return {
       ok: false,
       reason: 'name-mismatch',
@@ -65,6 +76,7 @@ export async function connectDataShare(
   // ein versehentlich gewaehlter Unterordner?
   const validation = await validateSelectedFolder(res.handle);
   if (validation.kind === 'subfolder') {
+    await zurueckrollen();
     return {
       ok: false,
       reason: 'subfolder',
@@ -77,6 +89,12 @@ export async function connectDataShare(
   // Bei 'empty' / 'legacy' uebernehmen Kuratoren das Setup spaeter — hier nur den
   // Handle persistieren (oben geschehen) und Permissions in einem User-Gesture
   // aushandeln.
+
+  // v4.0: Die Verbindung steht — damit ist diese Installation auf der aktuellen
+  // Generation des Ablageorts. Der Stempel sitzt hier statt im Umzugs-Zweig,
+  // weil sonst schon die ERSTE Verknuepfung einer frischen Installation beim
+  // naechsten Start ins Umzugs-Gate liefe.
+  await idb.set(SHARE_GENERATION_IDB_KEY, dataConfig.shareGeneration);
 
   const refresh = await refreshAllPermissions(idb, { isKurator: opts.isKurator });
   return { ok: true, refresh, handle: res.handle };

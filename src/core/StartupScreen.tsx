@@ -1,7 +1,10 @@
 /**
- * StartupScreen (v2.0 + v2.0.1).
+ * StartupScreen (v2.0 + v2.0.1 + v4.0).
  *
- * Drei Render-Branches:
+ * Vier Render-Branches:
+ *  - `needsShareUmzug` (v4.0): der Daten-Share ist auf einen neuen Ablageort
+ *    umgezogen (Config-Generation > gespeicherte). Zeigt den neuen Pfad und
+ *    erzwingt EINEN Re-Pick — der alte Handle bleibt bis dahin stehen.
  *  - `needsInitialPick` (v2.0.1): Variante hat fixedDataSharePath aber kein Handle
  *    in IDB. Zeigt Pfad-Hint + "Datenordner verbinden"-Button (Picker mit
  *    mode = isKurator ? 'readwrite' : 'read').
@@ -11,8 +14,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ArrowRight, Check, ClipboardCopy, FolderOpen, ShieldCheck } from 'lucide-react';
+import { ArrowRight, FolderOpen, PackageOpen, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
 import { useStorage } from '@/core/hooks/useStorage';
 import { GuidedGrantSteps } from '@/core/components/GuidedGrantSteps';
 import {
@@ -28,7 +32,6 @@ import { useConnectionState } from '@/core/services/connection-status';
 import { NEEDS_HANDLE_DOWNGRADE_IDB_KEY } from '@/core/services/infrastructure/types';
 import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
 import type { UserProfile } from '@/core/types/config';
-import { kopiereText } from '@/core/utils/kopieren';
 
 interface StartupScreenProps {
   profile: UserProfile | null;
@@ -36,6 +39,10 @@ interface StartupScreenProps {
   needsDowngrade: boolean;
   /** v2.0.1: true wenn kein Daten-Share-Handle in IDB liegt (Initial-Setup-Pfad). */
   needsInitialPick?: boolean;
+  /** v4.0: true wenn der Daten-Share umgezogen ist (Umzugs-Banner + Re-Pick). */
+  needsShareUmzug?: boolean;
+  /** v4.0: laeuft nach erfolgreichem Umzugs-Re-Pick (statt `onReady`). */
+  onUmzugFertig?: () => void;
   onReady: () => void;
 }
 
@@ -43,13 +50,14 @@ export function StartupScreen({
   profile,
   needsDowngrade,
   needsInitialPick = false,
+  needsShareUmzug = false,
+  onUmzugFertig,
   onReady,
 }: StartupScreenProps): React.ReactElement {
   const storage = useStorage();
   const applyRefreshResult = useConnectionState(s => s.applyRefreshResult);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
   const fixedPath = dataConfig.fixedDataSharePath;
@@ -89,7 +97,7 @@ export function StartupScreen({
   // `listPendingGrants` ist ein reiner queryPermission-Sweep ohne Prompt —
   // ein doppelter Lauf im Dev-Modus ist folgenlos.
   useEffect(() => {
-    if (needsInitialPick || needsDowngrade) return;
+    if (needsInitialPick || needsDowngrade || needsShareUmzug) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -106,20 +114,7 @@ export function StartupScreen({
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsInitialPick, needsDowngrade]);
-
-  const copyPath = async (): Promise<void> => {
-    if (!fixedPath) return;
-    try {
-      await kopiereText(fixedPath);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
-      // Vorher still verschluckt — der Nutzer hielt den Pfad fuer kopiert und fand
-      // beim Einfuegen den alten Inhalt der Zwischenablage vor.
-      setError(e instanceof Error ? e.message : 'Kopieren fehlgeschlagen.');
-    }
-  };
+  }, [needsInitialPick, needsDowngrade, needsShareUmzug]);
 
   const handleStart = async (): Promise<void> => {
     setError(null);
@@ -181,6 +176,34 @@ export function StartupScreen({
     }
   };
 
+  // v4.0: Umzugs-Re-Pick. Derselbe Helfer wie beim Initial-Pick — er bringt den
+  // Ordnernamen-Check mit, und genau der ist hier der Schutz gegen den falschen
+  // Ordner. `connectDataShare` stempelt bei Erfolg die neue Generation und
+  // rollt bei Namens-/Struktur-Fehlern auf den ALTEN Handle zurueck; scheitert
+  // der Pick, bleibt dieser Zweig stehen und der Anwender kann es erneut
+  // versuchen. Danach nicht direkt weiter, sondern zurueck ins Handle-Gate
+  // (der Downgrade-Check wurde beim Umzug uebersprungen).
+  const handleUmzugPick = async (): Promise<void> => {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await connectDataShare(storage.idb, { isKurator });
+      if (!res.ok) {
+        if (res.reason !== 'aborted') {
+          setError(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
+        }
+        return;
+      }
+      applyRefreshResult(res.refresh);
+      if (onUmzugFertig) onUmzugFertig();
+      else onReady();
+    } catch (err) {
+      setError((err as Error).message ?? 'Verbindung fehlgeschlagen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const display = profile?.name
     ? `${profile.name}${profile.bearbeiter_kuerzel ? ` (${profile.bearbeiter_kuerzel})` : ''}` // allow-direct-kuerzel: Startup laeuft VOR der MaLoginGate — Profilfeld ist hier die einzige Identitaetsquelle (Session existiert noch nicht)
     : 'Unbekannt';
@@ -191,7 +214,7 @@ export function StartupScreen({
   // Karte direkt unter die Popup-Zone setzen (fixer px-Wert: die Bubble ist ~200px
   // hoch und skaliert NICHT mit der Fenstergröße). Initial-Pick/Downgrade bleiben
   // zentriert — dort kommt kein Permission-Popup, sondern der Ordner-Picker.
-  const unterPopupZone = !needsInitialPick && !needsDowngrade && stepperPending !== null;
+  const unterPopupZone = !needsInitialPick && !needsDowngrade && !needsShareUmzug && stepperPending !== null;
 
   // `overflow-y-auto` ist Pflicht: mit dem Top-Offset ragt die Karte auf niedrigen
   // Viewports sonst unerreichbar aus dem Bild (gleiches Muster wie WelcomeScreen).
@@ -208,29 +231,40 @@ export function StartupScreen({
           Angemeldet als: <span className="text-[var(--tf-text)]">{display}</span>
         </p>
 
-        {needsInitialPick ? (
+        {needsShareUmzug ? (
+          <>
+            <div className="flex items-start gap-2.5 mb-3">
+              <PackageOpen size={16} className="mt-0.5 shrink-0 text-[var(--tf-text-secondary)]" />
+              <div>
+                <p className="font-medium text-[13px] text-[var(--tf-text)] mb-1">Der Datenordner ist umgezogen</p>
+                <p className="text-[12.5px] text-[var(--tf-text-secondary)] leading-relaxed">
+                  Bitte verbinden Sie die App einmalig mit dem neuen Ordner. Bis dahin
+                  bleibt die bisherige Verbindung bestehen. Der neue Pfad lautet:
+                </p>
+              </div>
+            </div>
+            {fixedPath && <PfadKopierZeile pfad={fixedPath} className="mb-4" />}
+            <ol className="text-[12.5px] text-[var(--tf-text-secondary)] space-y-1 mb-5 pl-5 list-decimal leading-relaxed">
+              <li>Pfad oben kopieren</li>
+              <li>Unten „Neuen Datenordner verbinden" klicken</li>
+              <li>Im Dialog den Pfad einfügen und Enter drücken</li>
+              {expectedName && (
+                <li>
+                  Ordner <code>{expectedName}</code> auswählen und bestätigen
+                </li>
+              )}
+            </ol>
+            <Button icon={FolderOpen} onClick={handleUmzugPick} disabled={busy} className="w-full">
+              Neuen Datenordner verbinden
+            </Button>
+          </>
+        ) : needsInitialPick ? (
           <>
             <p className="text-[13px] text-[var(--tf-text-secondary)] mb-3 leading-relaxed">
               Bevor es losgeht, verbinden Sie die App einmalig mit dem Datenspeicher.
               Der vorgegebene Pfad lautet:
             </p>
-            {fixedPath && (
-              <div className="flex items-stretch gap-2 mb-4">
-                <code className="flex-1 px-3 py-2 rounded-[var(--tf-radius)] text-[12.5px] font-mono bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] overflow-x-auto">
-                  {fixedPath}
-                </code>
-                <button
-                  type="button"
-                  onClick={copyPath}
-                  className="px-3 py-2 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer inline-flex items-center gap-1.5"
-                  style={{ border: '0.5px solid var(--tf-border)' }}
-                  title="Pfad in Zwischenablage kopieren"
-                >
-                  {copied ? <Check size={13} /> : <ClipboardCopy size={13} />}
-                  {copied ? 'Kopiert' : 'Kopieren'}
-                </button>
-              </div>
-            )}
+            {fixedPath && <PfadKopierZeile pfad={fixedPath} className="mb-4" />}
             <ol className="text-[12.5px] text-[var(--tf-text-secondary)] space-y-1 mb-5 pl-5 list-decimal leading-relaxed">
               <li>Pfad oben kopieren</li>
               <li>Unten „Datenordner verbinden" klicken</li>

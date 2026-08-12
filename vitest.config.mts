@@ -82,7 +82,7 @@ export default defineConfig({
       configVersion: 1,
       variant: 'development',
       build: { label: 'Test', outputFilename: 'test', browserTabTitle: 'Test' },
-      data: { fixedDataSharePath: null, allowUserToChangePath: true, allowLocalFallback: true, demoDataBundled: false },
+      data: { fixedDataSharePath: null, shareGeneration: 1, fixedCsvImportPfad: null, allowUserToChangePath: true, allowLocalFallback: true, demoDataBundled: false },
       features: {
         kuratorMenus: true, feedback: true, dokumentenscan: true, volltextsuche: true,
         devInfraPanel: true, devFixtures: true, antraege: true, bauantraege: false, dokumente: false,

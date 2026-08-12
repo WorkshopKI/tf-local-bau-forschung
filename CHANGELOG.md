@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.0.0 — Ablageort-Umzug + CSV-Pfad-Anzeige (August 2026)
+
+MAJOR — Der Datenordner zieht um. Ein neuer Pfad in der Config allein bewirkt dabei **nichts**: ein FSAPI-Handle hängt am Dateisystem-Objekt, nicht am Anzeigepfad — bestehende Installationen hätten still im alten Ordner weitergeschrieben, halbes Team auf neu, halbes auf alt, bei live geteilter `registry.json`. Also ein explizites Gate. Detail: [build-varianten.md](docs/architecture/build-varianten.md).
+
+- **Umzugs-Gate**: `data.shareGeneration` in der Config gegen die zuletzt verbundene Generation in der IDB; liegt sie zurück, zeigt der Start den neuen Pfad und erzwingt EIN Neu-Verbinden — [share-generation.ts](src/core/services/infrastructure/share-generation.ts), [StartupScreen.tsx](src/core/StartupScreen.tsx)
+- Der alte Handle bleibt dabei **stehen**; `connectDataShare` rollt bei falschem Ordnernamen oder gewähltem Unterordner auf ihn zurück (der Picker persistiert VOR der Prüfung) und stempelt die Generation nur am Erfolg — [connect-data-share.ts](src/core/services/infrastructure/connect-data-share.ts)
+- **CSV-Import-Pfad** (`data.fixedCsvImportPfad`) wird beim Verknüpfen angezeigt und ist kopierbar — die FSAPI erlaubt keine Vorauswahl; Kopieren und Picken bleiben zwei Knöpfe (User-Activation) — [SpeicherTab.tsx](src/plugins/einstellungen/SpeicherTab.tsx), [CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)
+- Der doppelt nachgebaute Pfad-Kopier-Block ist **ein** Bauteil auf `useKopierAktion` — [PfadKopierZeile.tsx](src/components/ui/PfadKopierZeile.tsx); der Beispielpfad im WelcomeScreen nennt keinen echt aussehenden Ordner mehr
+- Die Fehlermeldung des Kopier-Helfers sprach vom „Auftragstext" und stand damit wörtlich unter einem Pfad-Knopf — [kopieren.ts](src/core/utils/kopieren.ts)
+
+**Migration**: Keine Datenmigration. Beim ersten Start nach dem Rollout erscheint einmalig das Umzugs-Banner; ein Klick auf „Neuen Datenordner verbinden" genügt. Reihenfolge beim Ausrollen: **erst** den Ordner auf dem Share umziehen, **dann** die Builds mit `shareGeneration: 2` verteilen — umgekehrt landen alle im Gate, während das Ziel noch nicht existiert. Den alten Ordner nicht löschen, sondern schreibgeschützt setzen.
+
 ### v3.49.0 — Kanban-Bahnen einklappbar, Kanban im eigenen Fenster (August 2026)
 
 MINOR — Gewünscht: Bahnen einklappen wie im Feedback-Board, und ein Vollbild-Zeichen, das alle eigenen Anträge in einem eigenen Fenster zeigt. Das Einklappen war ein Flag am Primitiv, das die Widgets nie gesetzt hatten — leere Bahnen waren dort 44 px, die aussahen wie ein Knopf und keiner waren. Detail: [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md) + [board-komponente.md](docs/architecture/board-komponente.md).

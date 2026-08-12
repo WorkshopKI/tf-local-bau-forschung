@@ -94,6 +94,10 @@ describe('configs/local.config.json', () => {
     const data = LOCAL.data as Config;
     expect(data.fixedDataSharePath).toBeNull();
     expect(data.expectedFolderName).toBeNull();
+    // v4.0: dieselbe Falle beim CSV-Import-Pfad — ohne den Override zeigte die
+    // local-Variante den P:\-Pfad der Produktion an, obwohl sie den Picker
+    // ueber `lokalerSlotHandle(SLOT_CSV_SOURCE_DIR)` ohnehin umgeht.
+    expect(data.fixedCsvImportPfad).toBeNull();
   });
 
   it('hat KEINEN auth-Block (sonst stuende eine Passwort-Wall vor dem Start)', () => {

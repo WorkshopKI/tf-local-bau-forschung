@@ -7,7 +7,15 @@ TeamFlow wird pro Einsatz-Kontext als eigene Variante gebaut. Configs liegen unt
 - `configs/pl.config.json` — Produktion (Team), der volle Fach-Stack. **Auslastung und Kuration liegen hier hinter je einem Zusatzpasswort** (siehe [modul-freischaltung.md](modul-freischaltung.md)); wer keins hat, sieht Förderanträge + Erprobungs-Bereiche + Suche + Skill-Verwaltung
 - `configs/local.config.json` (v2.371) — **wird nie gebaut**: reine Dev-Server-Variante (`npm run dev:local`, Port 5175), die statt des Ordner-Pickers feste lokale Ordner verdrahtet. Für Sicht-Checks und automatisiertes Bedienen. `validateConfig` verbietet den `local`-Block in `variant: "production"`, das Gate `__TEAMFLOW_LOCAL_FS__` hängt an `command === 'serve'`. Siehe [local-variante.md](local-variante.md)
 - `configs/_template.config.jsonc` — kommentierte Referenz (nicht direkt bauen)
-- `configs/_shared.json` (v2.0.2) — **Org-weite invariante Defaults** (aktuell: `data.fixedDataSharePath` + `data.expectedFolderName`)
+- `configs/_shared.json` (v2.0.2) — **Org-weite invariante Defaults** (aktuell: `data.fixedDataSharePath` + `data.expectedFolderName` + `data.shareGeneration` + `data.fixedCsvImportPfad`)
+
+### Umzug des Daten-Shares (`data.shareGeneration`, v4.0)
+
+Ein neuer `fixedDataSharePath` allein bewirkt für bestehende Installationen **nichts**: ein FSAPI-Handle hängt am Dateisystem-Objekt, nicht am Anzeigepfad — die App würde still in den alten Ordner weiterschreiben. Beim Umzug deshalb **beides** ändern: den Pfad **und** `data.shareGeneration` um eins hoch. Die App merkt sich die zuletzt verbundene Generation (`SHARE_GENERATION_IDB_KEY`) und zeigt beim Start ein Umzugs-Banner mit dem neuen Pfad, bis einmal neu verbunden wurde; der alte Handle bleibt bis dahin stehen (Abbruch = alter, funktionierender Zustand).
+
+Rollout-Reihenfolge: **erst** den Ordner auf dem Share umziehen, **dann** die Builds verteilen — umgekehrt landen alle im Gate, während das Ziel noch nicht existiert. Den alten Ordner danach nicht löschen, sondern schreibgeschützt setzen.
+
+`data.fixedCsvImportPfad` ist davon unabhängig: der CSV-Import-Ordner liegt außerhalb des Datenordners und zieht nicht mit. Er wird beim Verknüpfen nur **angezeigt** und ist kopierbar ([PfadKopierZeile](../../src/components/ui/PfadKopierZeile.tsx)) — die File System Access API erlaubt keine programmatische Vorauswahl.
 
 ## Warum nur noch drei
 

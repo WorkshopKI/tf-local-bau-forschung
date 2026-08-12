@@ -11,6 +11,7 @@
   "data": {
     "fixedDataSharePath": null,
     "expectedFolderName": null,
+    "fixedCsvImportPfad": null,
     "allowUserToChangePath": true,
     "allowLocalFallback": true,
     "demoDataBundled": false

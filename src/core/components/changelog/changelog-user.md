@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.0 — 2026-08
+
+### Neu
+- Der Datenordner ist umgezogen. Beim ersten Start zeigt die App den neuen Pfad und bittet einmalig darum, den Ordner neu zu verbinden — bis dahin bleibt die bisherige Verbindung bestehen.
+### Verbesserungen
+- Beim Verknüpfen der CSV-Quellen steht der vorgegebene Ordnerpfad jetzt daneben und lässt sich mit einem Klick kopieren, um ihn in die Adresszeile des Dialogs einzufügen.
+- Wird beim Verbinden versehentlich der falsche Ordner gewählt, bleibt die bisherige Verbindung erhalten statt verloren zu gehen.
+### Bugfixes
+<!-- - … -->
+
 ## v3.49 — 2026-08
 
 ### Neu

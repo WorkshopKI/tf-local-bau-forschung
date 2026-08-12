@@ -8,7 +8,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
-import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled, canWriteDatenShare } from '@/config/feature-flags';
+import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled, canWriteDatenShare, dataConfig } from '@/config/feature-flags';
+import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import {
   clearDatenShareHandle,
@@ -438,6 +439,20 @@ export function SpeicherTab(): React.ReactElement {
               </>
             }
           />
+        )}
+
+        {/* v4.0: Der Import-Ordner liegt ausserhalb des Datenordners und ist beim
+           ersten Verknuepfen schwer zu finden. Die File System Access API erlaubt
+           keine Vorauswahl — also anzeigen und kopierbar machen, damit der Pfad in
+           die Adresszeile des Ordner-Dialogs passt. Kopieren und Picken bleiben
+           bewusst zwei Knoepfe (User-Activation, siehe handlePickCsvFolder). */}
+        {showCsvFolder && dataConfig.fixedCsvImportPfad && (
+          <div className="pb-4 pl-[42px]">
+            <p className="text-[12px] text-[var(--tf-text-secondary)] mb-1.5">
+              Vorgegebener Ordner — Pfad kopieren und im Dialog in die Adresszeile einfügen:
+            </p>
+            <PfadKopierZeile pfad={dataConfig.fixedCsvImportPfad} />
+          </div>
         )}
       </section>
 

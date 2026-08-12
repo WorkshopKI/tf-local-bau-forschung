@@ -5,18 +5,19 @@
  */
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, Check, ClipboardCopy, FolderOpen } from 'lucide-react';
+import { ArrowRight, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   ensureFolderStructure,
   ensureReadme,
   pickAndStoreDatenShareHandle,
+  setDatenShareHandle,
 } from '@/core/services/infrastructure/smb-handle';
 import { validateSelectedFolder, migrateLegacyStructure } from '@/core/services/infrastructure/migration';
-import type { FolderValidationResult } from '@/core/services/infrastructure/types';
+import { SHARE_GENERATION_IDB_KEY, type FolderValidationResult } from '@/core/services/infrastructure/types';
 import { dataConfig, canWriteDatenShare } from '@/config/feature-flags';
-import { kopiereText } from '@/core/utils/kopieren';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -47,28 +48,29 @@ type Dialog =
 
 export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenProps): React.ReactElement {
   const storage = useStorage();
-  // Priorität: Build-Time-Config (fester Pfad) > Hash-URL-Override > Default-Beispiel.
+  // Priorität: Build-Time-Config (fester Pfad) > Hash-URL-Override > neutraler
+  // Platzhalter. Der Platzhalter greift nur in Builds OHNE festen Pfad (dev,
+  // local) — er darf deshalb keinen echt aussehenden Ordnernamen nennen, sonst
+  // liest er sich wie eine Vorgabe (Pitfall „Platzhalter liest sich als Wert").
   const examplePath = useMemo(
-    () => dataConfig.fixedDataSharePath ?? parsePathFromHash() ?? '\\\\server\\teamflow-forschungsfoerderung\\',
+    () => dataConfig.fixedDataSharePath ?? parsePathFromHash() ?? '\\\\<server>\\<datenordner>\\',
     [],
   );
   const pathIsLocked = dataConfig.fixedDataSharePath !== null && !dataConfig.allowUserToChangePath;
   const expectedFolderName = dataConfig.expectedFolderName ?? null;
   const pickerMode: 'read' | 'readwrite' = canWriteDatenShare(isKurator) ? 'readwrite' : 'read';
-  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>({ kind: 'none' });
   const [migrationProgress, setMigrationProgress] = useState<string | null>(null);
 
-  const copyPath = async (): Promise<void> => {
-    try {
-      await kopiereText(examplePath);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Kopieren fehlgeschlagen. Bitte manuell markieren und kopieren.');
-    }
+  // v4.0: Die Verbindung steht — Generation des Ablageorts stempeln, sonst
+  // liefe die frisch verknuepfte Installation beim naechsten Start ins
+  // Umzugs-Gate (siehe `SHARE_GENERATION_IDB_KEY`). Der Gegenpart fuer alle
+  // anderen Einstiege sitzt in `connectDataShare`.
+  const abschliessen = async (): Promise<void> => {
+    await storage.idb.set(SHARE_GENERATION_IDB_KEY, dataConfig.shareGeneration);
+    onComplete();
   };
 
   const handleSelect = async (): Promise<void> => {
@@ -84,6 +86,9 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
       }
       // v2.0: Erwarteter Ordner-Name-Check (z.B. 'teamflow-forschungsfoerderung').
       if (expectedFolderName && res.handle.name !== expectedFolderName) {
+        // v4.0: Der Picker hat sein Ergebnis schon persistiert — zurueckrollen,
+        // damit ein Fehlgriff nicht die bisherige Verbindung ersetzt.
+        await setDatenShareHandle(storage.idb, res.vorher);
         setDialog({
           kind: 'name-mismatch',
           pickedName: res.handle.name,
@@ -93,7 +98,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
         return;
       }
       const validation = await validateSelectedFolder(res.handle);
-      await handleValidation(res.handle, validation);
+      await handleValidation(res.handle, validation, res.vorher);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -104,13 +109,15 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
   const handleValidation = async (
     handle: FileSystemDirectoryHandle,
     validation: FolderValidationResult,
+    vorher: FileSystemDirectoryHandle | null = null,
   ): Promise<void> => {
     if (validation.kind === 'current') {
       await ensureReadme(handle);
-      onComplete();
+      await abschliessen();
       return;
     }
     if (validation.kind === 'subfolder') {
+      await setDatenShareHandle(storage.idb, vorher);
       setDialog({ kind: 'subfolder', detected: validation.kind });
       return;
     }
@@ -122,7 +129,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
           setBusy(true);
           try {
             await ensureFolderStructure(handle);
-            onComplete();
+            await abschliessen();
           } catch (err) {
             setError((err as Error).message);
           } finally {
@@ -150,7 +157,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
           setMigrationProgress(
             `Migration abgeschlossen: ${result.filesMoved} verschoben, ${result.filesDeleted} gelöscht, ${result.foldersRemoved.length} Ordner entfernt.`,
           );
-          setTimeout(() => { onComplete(); }, 1500);
+          setTimeout(() => { void abschliessen(); }, 1500);
         } catch (err) {
           setError((err as Error).message);
           setBusy(false);
@@ -172,21 +179,7 @@ export function WelcomeScreen({ onComplete, isKurator = false }: WelcomeScreenPr
             : 'Bevor es losgeht, verbinden Sie die App einmalig mit dem Datenspeicher. Der Datenspeicher liegt auf dem SMB-Share. Den Pfad haben Sie vom Kurator erhalten, z.B.:'}
         </p>
 
-        <div className="flex items-stretch gap-2 mb-4">
-          <code className="flex-1 px-3 py-2 rounded-[var(--tf-radius)] text-[12.5px] font-mono bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] overflow-x-auto">
-            {examplePath}
-          </code>
-          <button
-            type="button"
-            onClick={copyPath}
-            className="px-3 py-2 rounded-[var(--tf-radius)] text-[12px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer inline-flex items-center gap-1.5"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-            title="Pfad in Zwischenablage kopieren"
-          >
-            {copied ? <Check size={13} /> : <ClipboardCopy size={13} />}
-            {copied ? 'Kopiert' : 'Pfad kopieren'}
-          </button>
-        </div>
+        <PfadKopierZeile pfad={examplePath} knopfText="Pfad kopieren" className="mb-4" />
 
         <ol className="text-[12.5px] text-[var(--tf-text-secondary)] space-y-1.5 mb-6 pl-5 list-decimal leading-relaxed">
           <li>Pfad oben kopieren (oder aus E-Mail des Kurators)</li>

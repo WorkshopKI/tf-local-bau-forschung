@@ -117,11 +117,22 @@ async function pickDirectory(
  * Nicht-Kurator-Pfad nicht in den Daten-Share). Default bleibt `readwrite` für
  * Backwards-Kompatibilitaet; explizit `{ mode: 'read' }` setzen wenn die App
  * den Nicht-Kurator-Pfad fahren soll.
+ *
+ * v4.0: Im Erfolgsfall wird zusätzlich das ZUVOR gespeicherte Handle
+ * zurückgegeben (`vorher`). Der Picker persistiert sein Ergebnis nämlich sofort
+ * — die nachgelagerten Prüfungen in `connectDataShare` (Ordnername, Struktur)
+ * laufen erst danach. Ohne diesen Rückgabewert hätte ein Fehlgriff beim
+ * Umzugs-Re-Pick den alten, funktionierenden Handle bereits überschrieben.
+ * `vorher` ist `null`, wenn es keinen gab.
  */
+export type PickDatenShareResult =
+  | { ok: true; handle: FileSystemDirectoryHandle; vorher: FileSystemDirectoryHandle | null }
+  | { ok: false; reason: 'unsupported' | 'aborted' | 'error'; message?: string };
+
 export async function pickAndStoreDatenShareHandle(
   idb: IDBStore,
   opts: { mode?: 'read' | 'readwrite' } = {},
-): Promise<PickResult> {
+): Promise<PickDatenShareResult> {
   const mode = opts.mode ?? 'readwrite';
   const res = await pickDirectory(mode, SMB_HANDLE_DATEN_SHARE);
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
@@ -129,11 +140,28 @@ export async function pickAndStoreDatenShareHandle(
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
   }
   const map = await readAll(idb);
+  const vorher = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM] ?? null;
   map[SMB_HANDLE_DATEN_SHARE] = res;
   // Legacy-Slot aufräumen falls noch gesetzt.
   delete map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
   await writeAll(idb, map);
-  return { ok: true, handle: res };
+  return { ok: true, handle: res, vorher };
+}
+
+/**
+ * Setzt das Daten-Share-Handle direkt (ohne Picker) — bzw. entfernt es bei
+ * `null`. Einziger Anwendungsfall ist der Rollback in `connectDataShare`, wenn
+ * der frisch gepickte Ordner die Prüfungen NICHT besteht: der Anwender muss im
+ * alten, funktionierenden Zustand landen, nicht in einem halb gewechselten.
+ */
+export async function setDatenShareHandle(
+  idb: IDBStore,
+  handle: FileSystemDirectoryHandle | null,
+): Promise<void> {
+  const map = await readAll(idb);
+  if (handle) map[SMB_HANDLE_DATEN_SHARE] = handle;
+  else delete map[SMB_HANDLE_DATEN_SHARE];
+  await writeAll(idb, map);
 }
 
 /**

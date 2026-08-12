@@ -45,6 +45,8 @@ export function buildBasis() {
     data: {
       fixedDataSharePath: null,
       expectedFolderName: null,
+      shareGeneration: 1,
+      fixedCsvImportPfad: null,
       allowUserToChangePath: false,
       allowLocalFallback: false,
       demoDataBundled: false,
@@ -127,6 +129,21 @@ export const DEFAULT_CONFIG = {
      * handle.name gegen diesen Wert und verweigert den Pick bei Mismatch.
      */
     expectedFolderName: null,
+    /**
+     * v4.0: Generation des Ablageorts. Zieht der Daten-Share um, wird der Wert
+     * zusammen mit `fixedDataSharePath` hochgezaehlt. Die App merkt sich die
+     * zuletzt verbundene Generation in der IDB und erzwingt beim Start einen
+     * Re-Pick, solange die gespeicherte kleiner ist — sonst schreibt eine
+     * bestehende Installation still in den ALTEN Ordner weiter (FSAPI-Handles
+     * haengen am Dateisystem-Objekt, nicht am Anzeigepfad).
+     */
+    shareGeneration: 1,
+    /**
+     * v4.0: Pfad des CSV-Import-Ordners (liegt AUSSERHALB des Daten-Shares und
+     * zieht nicht mit um). Wird beim Verknuepfen nur ANGEZEIGT und ist kopierbar
+     * — die File System Access API erlaubt keine programmatische Vorauswahl.
+     */
+    fixedCsvImportPfad: null,
     allowUserToChangePath: true,
     allowLocalFallback: false,
     demoDataBundled: false,
@@ -415,6 +432,14 @@ export function validateConfig(config) {
   }
   if (data.expectedFolderName != null && typeof data.expectedFolderName !== 'string') {
     errors.push('data.expectedFolderName muss string oder null sein');
+  }
+  if (data.shareGeneration != null) {
+    if (typeof data.shareGeneration !== 'number' || !Number.isInteger(data.shareGeneration) || data.shareGeneration < 1) {
+      errors.push('data.shareGeneration muss eine ganze Zahl >= 1 sein');
+    }
+  }
+  if (data.fixedCsvImportPfad != null && typeof data.fixedCsvImportPfad !== 'string') {
+    errors.push('data.fixedCsvImportPfad muss string oder null sein');
   }
   if (data.fixedDataSharePath && data.allowUserToChangePath) {
     warnings.push(

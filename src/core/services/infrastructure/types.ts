@@ -191,6 +191,25 @@ export const PERSOENLICH_SKILL_TWEAKS_FILE = 'ZAH/skill-tweaks.json';
 export const NEEDS_HANDLE_DOWNGRADE_IDB_KEY = 'needs-handle-downgrade';
 
 /**
+ * v4.0: Die Generation des Ablageorts (`data.shareGeneration`), mit der diese
+ * Installation zuletzt erfolgreich verbunden war. Fehlt der Wert, gilt `1`.
+ *
+ * Zieht der Daten-Share auf einen neuen Ordner um, reicht ein Config-Rollout
+ * NICHT: ein FSAPI-Handle haengt am Dateisystem-Objekt, nicht am Anzeigepfad.
+ * `App.tsx` wertet `fixedDataSharePath` nur aus, wenn ueberhaupt kein Handle in
+ * der IDB liegt — bestehende Installationen wuerden still in den ALTEN Ordner
+ * weiterschreiben (`isSmbAvailable` prueft nur, ob `_intern/` existiert). Ist
+ * die gespeicherte Generation kleiner als die der Config, rendert der
+ * StartupScreen deshalb ein Umzugs-Banner und erzwingt einen Re-Pick. Der alte
+ * Handle bleibt dabei stehen, bis der neue erfolgreich gewaehlt wurde.
+ *
+ * Geschrieben wird ausschliesslich nach einem GELUNGENEN Verbinden — also in
+ * `connectDataShare` (deckt Erstverknuepfung, Umzug, In-App-CTA und
+ * Offline-Recovery) und im eigenen Pick-Pfad des `WelcomeScreen`.
+ */
+export const SHARE_GENERATION_IDB_KEY = 'share-generation';
+
+/**
  * IDB-Key für die pro-CsvSchema gespeicherten `FileSystemFileHandle`s
  * (Auto-Refresh-Quelldateien). In Core definiert (zentrale IDB-Key-Registry),
  * genutzt vom csv-sources-kuration-Plugin UND vom Start-Re-Grant in
