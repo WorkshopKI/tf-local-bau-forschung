@@ -14,9 +14,22 @@
  * Score gewaehlt.
  */
 import type { StatusCategory } from '@/core/utils/status-canonical';
+import type { Trefferfeld, RelevanzStufe } from '@/core/services/search/trefferstelle';
 
 export type SearchResultType = 'antrag' | 'dokument';
 export type SearchMethod = 'fulltext' | 'vector' | 'hybrid';
+
+/**
+ * Belegstelle aus einem Dokument, unter seinen Antrag gefaltet.
+ *
+ * `quelle` ist Dateiname bzw. Abschnittsüberschrift — eine SEITENZAHL steht
+ * nicht zur Verfügung: der Orama-Index führt je Abschnitt nur
+ * `id/text/title/source/tags/type` ([orama-store.ts](src/core/services/search/orama-store.ts)).
+ */
+export interface Textstelle {
+  quelle: string;
+  text: string;
+}
 
 export interface UnifiedSearchResult {
   /** Stabile ID innerhalb des Result-Sets. Antraege: Aktenzeichen.
@@ -32,6 +45,17 @@ export interface UnifiedSearchResult {
   title: string;
   /** Kurzer Vorschautext (~250–300 Zeichen). */
   snippet: string;
+
+  // ----- Herkunft des Treffers (v4.5) -----
+  /** In welchen Feldern der Treffer lag — Grundlage der Trefferstellen-Tags,
+   *  der Relevanz und der Facette „Trefferstelle". */
+  trefferfelder?: Trefferfeld[];
+  /** Drei Stufen aus `score`. Vorberechnet, damit Liste und Tabelle dieselbe
+   *  Stufe zeigen und niemand die Schwellen ein zweites Mal führt. */
+  relevanzStufe?: RelevanzStufe;
+  /** Belegstelle aus einem Dokument, das zu diesem Antrag gehört. Nur gesetzt,
+   *  wenn ein Dokumenttreffer unter den Antrag gefaltet wurde. */
+  textstelle?: Textstelle;
 
   // ----- Antrags-spezifisch (nur wenn type === 'antrag') -----
   /** Foerderkennzeichen / Aktenzeichen. */

@@ -12,11 +12,20 @@
  *
  * Debounce 300 ms; vorheriger Lauf wird via AbortController abgebrochen.
  *
- * Score-Strategie (siehe Plan): pragmatisch pro Quelle.
- *  - Antrags-Substring → 1.0 / fulltext
- *  - Antrags-Embedding → cosine 0.55..1.0 / vector
- *  - Antrags-DMS-Match → orama-Score 0..1 / hybrid
- *  - Dokumente-Treffer → orama-Score 0..1 / method wie von Orama
+ * Score-Strategie (v4.5): EINE Zahl je Antrag, aus seinen Fundstellen gerechnet.
+ * Die Quellen liefern Belege, nicht Urteile — sie sammeln sich in einem
+ * `AntragAkku`, aus dem am Ende `berechneRelevanz` die Relevanz bildet
+ * ([trefferstelle.ts](src/plugins/antraege/services/trefferstelle.ts)).
+ * Wortlaut schlägt Bedeutung: ein reiner Ähnlichkeitstreffer ist gedeckelt.
+ *
+ * Vorher bekam jeder Wortlaut-Treffer den festen Score 1.0. Da die
+ * Ähnlichkeitssuche opt-in ist und der Dokumentenindex oft leer, hatten im
+ * Normalfall ALLE Treffer denselben Score — die Sortierung „nach Score" gab
+ * damit die Reihenfolge des IDB-Cursors aus.
+ *
+ * Dokumenttreffer mit bekanntem Antrag werden zur **Textstelle** dieses Antrags
+ * gefaltet statt eine zweite Zeile zu erzeugen; Dokumente ohne zugeordneten
+ * Antrag bleiben eigene Treffer.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from './useStorage';
@@ -25,6 +34,8 @@ import { useActiveProgramm } from './useActiveProgramm';
 import { useSearch } from './useSearch';
 import { useSemanticSearchMode } from './useSemanticSearchMode';
 import { useSuchVerknuepfung, verknuepfungAlsThreshold } from './useSuchVerknuepfung';
+import { useSuchOptionen } from './useSuchOptionen';
+import { bereichNutztDokumente } from '@/core/services/search/suchbereich';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -34,15 +45,20 @@ import {
   type OramaSearchResult,
 } from '@/core/services/search/orama-store';
 import {
-  searchAntraegeSubstring,
+  searchAntraegeWortlaut,
   searchAntraegeVector,
-  searchAntraegeDms,
   getProgrammCaches,
   getEmbeddings,
   STREAMING_CONSTS,
   isSemanticSearchActive,
-  type AntragSearchHit,
 } from '@/plugins/antraege/services/antraege-search-service';
+import {
+  berechneRelevanz,
+  relevanzAusAehnlichkeit,
+  relevanzStufe,
+  sortiereFelder,
+  type Trefferfeld,
+} from '@/core/services/search/trefferstelle';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
 import {
@@ -54,7 +70,7 @@ import { getStatusCategory } from '@/core/utils/status-canonical';
 import { useUnterprogrammLabels } from '@/plugins/antraege/useUnterprogrammLabels';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
-import type { UnifiedSearchResult } from '@/core/types/search-result';
+import type { UnifiedSearchResult, Textstelle } from '@/core/types/search-result';
 
 const DEBOUNCE_MS = 300;
 const DOC_HIT_LIMIT = 50;
@@ -93,6 +109,10 @@ export interface UseUnifiedSearchResult {
   searchPhase: SearchPhase;
   /** Warum die Ähnlichkeits-Stage ggf. keine Treffer liefern konnte. */
   semanticStatus: SemanticStatus;
+  /** Wörter, die der Bestand über den Wortstamm beigesteuert hat — die
+   *  abwählbaren Chips der Deutungszeile. Leer, wenn „ähnliche Begriffe" aus
+   *  ist oder nichts dazukam. */
+  varianten: string[];
 }
 
 interface AntraegeListCache {
@@ -115,6 +135,14 @@ async function getAntraegeListCache(
   return cachedAntraegeListCache;
 }
 
+/** Vorschaulänge einer Textstelle. Eine Zahl für Snippet und Belegstelle —
+ *  zwei Deckel für dieselbe Sache wären zwei Wahrheiten. */
+const TEXTSTELLE_MAX = 300;
+
+function kuerze(text: string): string {
+  return text.length > TEXTSTELLE_MAX ? `${text.slice(0, TEXTSTELLE_MAX)}…` : text;
+}
+
 function makeAntragSnippet(item: AntragListItem | undefined): string {
   if (!item) return '';
   const parts: string[] = [];
@@ -124,19 +152,67 @@ function makeAntragSnippet(item: AntragListItem | undefined): string {
   return parts.join(' · ');
 }
 
-function mapAntragHit(
-  hit: AntragSearchHit,
+/**
+ * Was die drei Stufen über EINEN Antrag zusammentragen, bevor daraus eine Zahl
+ * wird. Die Stufen liefern Belege — die Relevanz entsteht erst hier, aus der
+ * Vereinigung aller Fundstellen. Genau deshalb hebt ein Dokumenttreffer die
+ * Bewertung seines Antrags, statt als zweite Zeile danebenzustehen.
+ */
+interface AntragAkku {
+  /** Alle Fundstellen inkl. `dokument`/`aehnlichkeit`. */
+  felder: Set<Trefferfeld>;
+  /** Anteil der Suchwörter mit wörtlicher Fundstelle (0..1). */
+  wortAbdeckung: number;
+  /** Relevanz aus der Ähnlichkeit, gedeckelt. 0 = kein Vektortreffer. */
+  aehnlichkeit: number;
+  textstelle?: Textstelle;
+}
+
+function leererAkku(): AntragAkku {
+  return { felder: new Set(), wortAbdeckung: 0, aehnlichkeit: 0 };
+}
+
+/**
+ * Rechnet den Sammler in einen Treffer um. `'aehnlichkeit'` zählt bewusst NICHT
+ * als Beleg-Feld: sonst höbe ein Modellurteil die Breite und damit die Relevanz
+ * eines Treffers, für den kein einziges Suchwort im Text steht.
+ */
+function baueAntragTreffer(
+  akz: string,
+  akku: AntragAkku,
+  item: AntragListItem | undefined,
+  programmNameById: Map<string, string>,
+): UnifiedSearchResult {
+  const belege = sortiereFelder(akku.felder).filter(f => f !== 'aehnlichkeit');
+  const wortlaut = berechneRelevanz(belege, akku.wortAbdeckung);
+  const score = Math.max(wortlaut, akku.aehnlichkeit);
+  const method: UnifiedSearchResult['method'] =
+    belege.length > 0 && akku.aehnlichkeit > 0 ? 'hybrid'
+      : belege.length > 0 ? 'fulltext'
+        : 'vector';
+  return {
+    ...basisAntrag(akz, item, programmNameById),
+    score,
+    method,
+    trefferfelder: sortiereFelder(akku.felder),
+    relevanzStufe: relevanzStufe(score),
+    textstelle: akku.textstelle,
+  };
+}
+
+function basisAntrag(
+  aktenzeichen: string,
   item: AntragListItem | undefined,
   programmNameById: Map<string, string>,
 ): UnifiedSearchResult {
   return {
-    id: hit.aktenzeichen,
+    id: aktenzeichen,
     type: 'antrag',
-    score: hit.score,
-    method: hit.method,
-    title: item?.titel ?? item?.akronym ?? hit.aktenzeichen,
+    score: 0,
+    method: 'fulltext',
+    title: item?.titel ?? item?.akronym ?? aktenzeichen,
     snippet: makeAntragSnippet(item),
-    fkz: hit.aktenzeichen,
+    fkz: aktenzeichen,
     programm: item ? (programmNameById.get(item.programm_id) ?? item.programm_id) : undefined,
     // Roher Unterprogramm-Code; das sprechende Label wird erst nach dem Mappen
     // via useUnterprogrammLabels aufgeloest (Fallback = Code).
@@ -163,12 +239,17 @@ function mapDokumentHit(
 ): UnifiedSearchResult {
   const akz = filenameToAkz.get(hit.source);
   const linkedItem = akz ? antraegeByAkz.get(akz) : undefined;
-  const snippet = hit.text.length > 300 ? `${hit.text.slice(0, 300)}…` : hit.text;
+  const snippet = kuerze(hit.text);
+  // Orama-Score ist längennormalisiert, aber nicht garantiert ≤ 1. Seit die
+  // Antrags-Relevanz auf 0..1 lebt, würde ein Ausreißer die ganze Liste anführen.
+  const score = Math.min(1, hit.score);
   return {
     id: hit.id,
     type: 'dokument',
-    score: hit.score,
+    score,
     method: hit.method,
+    trefferfelder: ['dokument'],
+    relevanzStufe: relevanzStufe(score),
     title: hit.title || hit.source,
     snippet,
     dateiname: hit.source,
@@ -209,6 +290,11 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   // Dep-Array des Such-Effekts, damit das Umschalten die LAUFENDE Suche neu
   // ausführt statt bis zum nächsten Tastendruck zu warten.
   const verknuepfung = useSuchVerknuepfung(s => s.verknuepfung);
+  // Dieselbe Falle wie bei `semanticEnabled`: ohne Abo im Dep-Array unten
+  // wirkte ein Umschalten erst beim nächsten Tastendruck.
+  const stammSuche = useSuchOptionen(s => s.stammSuche);
+  const bereich = useSuchOptionen(s => s.bereich);
+  const abgewaehlteVarianten = useSuchOptionen(s => s.abgewaehlteVarianten);
   // Code→Name-Map der Unterprogramme des aktiven Programms (Modul-gecacht).
   // Die Suche ist immer auf EIN Programm gescoped, daher genuegt eine Map.
   const unterprogrammLabels = useUnterprogrammLabels(activeProgrammId);
@@ -223,6 +309,17 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   // Assistent-Protokoll: dedupe je abgeschlossener Query (der Effekt läuft pro
   // Tastendruck, aber nur der zuletzt fertige Lauf soll ein Ereignis erzeugen).
   const zuletztProtokollierteSuche = useRef<string | null>(null);
+  /** Die im Bestand gefundenen Stamm-Varianten (Chips der Deutungszeile). */
+  const [varianten, setVarianten] = useState<string[]>([]);
+  /**
+   * Dieselbe Liste als Ref. Sobald der Nutzer eine Variante abwählt, sucht der
+   * nächste Lauf mit AUSDRÜCKLICHEN Nadeln statt mit dem Stamm — er findet dann
+   * keine neuen Varianten mehr und dürfte die gefundenen nicht überschreiben,
+   * sonst verschwänden die Chips beim ersten Klick auf einen von ihnen.
+   */
+  const gefundeneVarianten = useRef<string[]>([]);
+  /** Query des letzten Laufs — der Wechsel räumt die Variantenwahl. */
+  const letzteQuery = useRef<string>('');
 
   const programmNameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -248,6 +345,14 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   //   Stage 3 (orama)     — sync, ~150-300ms, ergaenzt Dokument-Treffer + DMS
   useEffect(() => {
     const q = query.trim();
+    // Neue Anfrage ⇒ die Varianten der alten sind hinfällig. Eine abgewählte
+    // „Normung" darf eine spätere Suche nach etwas anderem nicht beschneiden.
+    if (letzteQuery.current !== q) {
+      letzteQuery.current = q;
+      gefundeneVarianten.current = [];
+      setVarianten([]);
+      useSuchOptionen.getState().setzeVariantenZurueck();
+    }
     if (!q) {
       setResults([]);
       setLoading(false);
@@ -265,26 +370,33 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
 
     const timer = setTimeout(() => {
       void (async () => {
-        const merged = new Map<string, UnifiedSearchResult>();
+        // Zwei Sammler statt einer Ergebnis-Map: Anträge werden über die Stufen
+        // hinweg ANGEREICHERT (Fundstellen vereinigen sich), Dokumente ohne
+        // zugeordneten Antrag bleiben eigenständige Treffer.
+        const antraege = new Map<string, AntragAkku>();
+        const dokumente = new Map<string, UnifiedSearchResult>();
+        let byAkz = new Map<string, AntragListItem>();
         const tStart = performance.now();
 
         function isCancelled(): boolean {
           return cancelled || abort.signal.aborted;
         }
 
-        function emit(): void {
-          if (isCancelled()) return;
-          setResults(Array.from(merged.values()).sort((a, b) => b.score - a.score));
+        function akkuFuer(akz: string): AntragAkku {
+          let a = antraege.get(akz);
+          if (!a) { a = leererAkku(); antraege.set(akz, a); }
+          return a;
         }
 
-        function upsertAntrag(
-          hit: AntragSearchHit,
-          byAkz: Map<string, AntragListItem>,
-        ): void {
-          const key = `antrag:${hit.aktenzeichen}`;
-          const next = mapAntragHit(hit, byAkz.get(hit.aktenzeichen), programmNameById);
-          const prev = merged.get(key);
-          if (!prev || next.score > prev.score) merged.set(key, next);
+        function emit(): void {
+          if (isCancelled()) return;
+          const out: UnifiedSearchResult[] = [];
+          for (const [akz, akku] of antraege) {
+            out.push(baueAntragTreffer(akz, akku, byAkz.get(akz), programmNameById));
+          }
+          for (const d of dokumente.values()) out.push(d);
+          out.sort((a, b) => b.score - a.score);
+          setResults(out);
         }
 
         try {
@@ -298,17 +410,33 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
             : [null, null];
           if (isCancelled()) return;
 
-          const byAkz = listCache?.byAkz ?? new Map<string, AntragListItem>();
+          byAkz = listCache?.byAkz ?? new Map<string, AntragListItem>();
           const filenameToAkz = programmCaches?.filenameToAkz ?? new Map<string, string>();
 
-          // Stage 1: Substring (sync) — sofort sichtbare Treffer.
+          // Stage 1: Wortlaut (sync) — sofort sichtbare Treffer, inkl. der
+          // Fundstellen, aus denen Relevanz und Trefferstellen-Tags entstehen.
           if (programmCaches) {
             const tStage1 = performance.now();
-            const subAkz = searchAntraegeSubstring(q, programmCaches.textCorpus, verknuepfung);
-            for (const akz of subAkz) {
-              upsertAntrag({ aktenzeichen: akz, score: 1.0, method: 'fulltext' }, byAkz);
+            // Ohne Abwahl genügt der Stamm; mit Abwahl wird ausdrücklich nach
+            // den verbliebenen Varianten gesucht — nur so hat der Klick auf
+            // einen Chip eine Wirkung auf die Treffermenge.
+            const abgewaehlt = new Set(abgewaehlteVarianten);
+            const aktiveVarianten = abgewaehlt.size === 0
+              ? undefined
+              : gefundeneVarianten.current.filter(v => !abgewaehlt.has(v.toLowerCase()));
+            const wortlaut = searchAntraegeWortlaut(q, programmCaches.textCorpus, {
+              verknuepfung, stammSuche, bereich, aktiveVarianten,
+            });
+            for (const [akz, treffer] of wortlaut.treffer) {
+              const akku = akkuFuer(akz);
+              for (const f of treffer.felder) akku.felder.add(f);
+              akku.wortAbdeckung = Math.max(akku.wortAbdeckung, treffer.abdeckung);
             }
-            pipelineLog.info('Suche', `Stage 1 (Substring): ${subAkz.length} Treffer in ${Math.round(performance.now() - tStage1)}ms`);
+            if (aktiveVarianten === undefined) {
+              gefundeneVarianten.current = wortlaut.varianten;
+              setVarianten(wortlaut.varianten);
+            }
+            pipelineLog.info('Suche', `Stage 1 (Wortlaut): ${wortlaut.treffer.size} Treffer in ${Math.round(performance.now() - tStage1)}ms`);
             emit();
           }
           if (isCancelled()) return;
@@ -353,7 +481,9 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
                 const vecHits = await searchAntraegeVector(queryVec, embeddings, abort.signal);
                 if (isCancelled()) return;
                 for (const h of vecHits) {
-                  upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'vector' }, byAkz);
+                  const akku = akkuFuer(h.akz);
+                  akku.felder.add('aehnlichkeit');
+                  akku.aehnlichkeit = Math.max(akku.aehnlichkeit, relevanzAusAehnlichkeit(h.score));
                 }
                 setSemanticStatus('ok');
                 console.info(
@@ -370,38 +500,54 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           // Stage 3: Orama — Dokumente + DMS-Antraege-Match.
           setSearchPhase('orama');
           const tStage3 = performance.now();
-          const dokumenteHits: OramaSearchResult[] = getOramaDB() !== null
-            ? hybridSearch(q, queryVec, {
-                limit: DOC_HIT_LIMIT,
-                threshold: verknuepfungAlsThreshold(verknuepfung),
-              })
-            : [];
+          const dokumenteHits: OramaSearchResult[] =
+            getOramaDB() !== null && bereichNutztDokumente(bereich)
+              ? hybridSearch(q, queryVec, {
+                  limit: DOC_HIT_LIMIT,
+                  threshold: verknuepfungAlsThreshold(verknuepfung),
+                })
+              : [];
+          // Faltung: ein Dokumenttreffer, dessen Antrag bekannt ist, wird zur
+          // BELEGSTELLE dieses Antrags — eine Zeile je Vorhaben statt zweier
+          // Zeilen, die dasselbe meinen. Nur Dokumente ohne zugeordneten Antrag
+          // (Manifest kennt keinen Match) bleiben eigenständige Treffer.
+          //
+          // Der frühere zweite Orama-Lauf (`searchAntraegeDms`) entfällt hier: er
+          // fragte denselben Index ein zweites Mal, nur um dieselbe Zuordnung zu
+          // bilden — 150–300 ms für ein Ergebnis, das schon vorlag.
+          let gefaltet = 0;
           for (const h of dokumenteHits) {
-            const r = mapDokumentHit(h, filenameToAkz, byAkz, programmNameById);
-            const key = `${r.type}:${r.id}`;
-            const prev = merged.get(key);
-            if (!prev || r.score > prev.score) merged.set(key, r);
-          }
-
-          // DMS-Antraege-Match (via filenameToAkz aus Orama-Hits).
-          if (programmCaches) {
-            const dmsAntragHits = searchAntraegeDms(q, queryVec, programmCaches.filenameToAkz, verknuepfung);
-            for (const h of dmsAntragHits) {
-              upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'hybrid' }, byAkz);
+            const akz = filenameToAkz.get(h.source);
+            if (akz) {
+              const akku = akkuFuer(akz);
+              akku.felder.add('dokument');
+              // Kein wörtlicher Treffer in den Stammdaten? Dann trägt allein das
+              // Dokument den Beleg — Orama hat die Anfrage dort gefunden.
+              if (akku.wortAbdeckung === 0) akku.wortAbdeckung = 1;
+              // Orama liefert absteigend sortiert: die erste Fundstelle ist die
+              // stärkste, spätere überschreiben sie nicht.
+              akku.textstelle ??= { quelle: h.title || h.source, text: kuerze(h.text) };
+              gefaltet++;
+              continue;
             }
+            const r = mapDokumentHit(h, filenameToAkz, byAkz, programmNameById);
+            const key = `dokument:${r.id}`;
+            const prev = dokumente.get(key);
+            if (!prev || r.score > prev.score) dokumente.set(key, r);
           }
-          pipelineLog.info('Suche', `Stage 3 (Orama): ${dokumenteHits.length} Dok-Treffer in ${Math.round(performance.now() - tStage3)}ms`);
+          pipelineLog.info('Suche', `Stage 3 (Orama): ${dokumenteHits.length} Dok-Treffer (${gefaltet} unter ihren Antrag gefaltet) in ${Math.round(performance.now() - tStage3)}ms`);
           emit();
 
           if (isCancelled()) return;
           setSearchPhase('done');
           setLoading(false);
-          pipelineLog.info('Suche', `Pipeline gesamt: ${Math.round(performance.now() - tStart)}ms, ${merged.size} Treffer`);
+          const trefferzahl = antraege.size + dokumente.size;
+          pipelineLog.info('Suche', `Pipeline gesamt: ${Math.round(performance.now() - tStart)}ms, ${trefferzahl} Treffer`);
           if (zuletztProtokollierteSuche.current !== q) {
             zuletztProtokollierteSuche.current = q;
             void protokolliereEreignis({
               typ: 'suche_ausgefuehrt',
-              detail: { query: q, trefferanzahl: merged.size },
+              detail: { query: q, trefferanzahl: trefferzahl },
             });
           }
         } catch (err) {
@@ -421,7 +567,8 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
       abort.abort();
       clearTimeout(timer);
     };
-  }, [query, activeProgrammId, storage, programmNameById, semanticEnabled, verknuepfung]);
+  }, [query, activeProgrammId, storage, programmNameById, semanticEnabled,
+    verknuepfung, stammSuche, bereich, abgewaehlteVarianten]);
 
   const counts = useMemo<UnifiedSearchCounts>(() => {
     let antraege = 0;
@@ -467,5 +614,6 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     vectorReady,
     searchPhase,
     semanticStatus,
+    varianten,
   };
 }

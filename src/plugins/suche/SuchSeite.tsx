@@ -1,8 +1,21 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+/**
+ * Die Suchseite.
+ *
+ * Aufbau von oben nach unten (Handoff `_design/handoff/suche`):
+ * Kopf · Suchfeld · Optionen · Deutung („Gesucht wird") · Facetten ·
+ * Ergebniskopf · Liste ODER Tabelle · Assistent rechts.
+ *
+ * Diese Datei ORCHESTRIERT nur. Jede Zeile hat ihre eigene Komponente, jede
+ * Rechnung ihr eigenes reines Modul — die Seite war mit 532 Zeilen schon an der
+ * Grenze, und der Umbau hätte sie verdreifacht.
+ */
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from 'zustand';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Bookmark, Download, List, Table } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeToggle';
+import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { isDokumentenscanEnabled } from '@/config/feature-flags';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
@@ -16,11 +29,13 @@ import { SearchResultsTable } from './SearchResultsTable';
 import { exportCSV, exportClipboard, exportXLSX } from './export';
 import { useAnalysePipeline } from './useAnalysePipeline';
 import { AnalysePromptDialog } from './AnalysePromptDialog';
-import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
-import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import { SearchInput } from './SearchInput';
-import { SucheLeerzustand } from './SucheLeerzustand';
-import { IndexInfoZeile } from './IndexInfoZeile';
+import { SucheStartzustand, type StartEintrag } from './SucheStartzustand';
+import { KeinTrefferZustand } from './KeinTrefferZustand';
+import { TrefferListe } from './TrefferListe';
+import { SuchOptionenZeile } from './SuchOptionenZeile';
+import { DeutungsZeile } from './DeutungsZeile';
+import { FacettenZeile } from './FacettenZeile';
 import { ANALYSE_MAX_RESULTS, useSearchResults } from './useSearchResults';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
@@ -29,10 +44,13 @@ import {
   isSemanticSearchActive,
   autoBootstrapEmbeddingMirror,
   invalidateEmbeddingsCache,
+  searchAntraegeSubstring,
 } from '@/plugins/antraege/services/antraege-search-service';
+import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { useSuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
+import { useSuchOptionen } from '@/core/hooks/useSuchOptionen';
 import { ChatPanelHost } from '@/plugins/chat/ChatPanelHost';
 import {
   clampAssistentWidth,
@@ -41,62 +59,95 @@ import {
 } from './assistentPanel';
 import { VON_SUCHE_STATE_KEY } from './herkunft';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+// Direkt am Quellmodul statt am Feedback-Barrel: das Barrel zieht `FeedbackPanel`
+// mit, und das lädt die Plugin-Config nach (siehe SeitenHilfeButton.tsx).
+import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
+import { wendeFacettenAn, aktiveFilterTexte, LEERE_WAHL, type FacettenId } from './facetten';
+import { markierWoerter, wirksameAnfrage } from './deutung';
+import { baueSucheDarstellungsAchsen, vergleiche, type SucheAchsenId } from './darstellungsAchsen';
+import { berechneAuswege, type Ausweg } from './auswege';
+import {
+  ladeGespeicherte, speichereGespeicherte, merkeSuche, entferneSuche, vermerkeLauf,
+  type GespeicherteSuche,
+} from './gespeicherteSuchen';
+import { haeufigsteSuchen } from './suchseite-utils';
 
 /** UI-Text fuer die Search-Phase-Badge. */
 const PHASE_LABELS: Record<SearchPhase, string | null> = {
   idle: null,
-  substring: 'Substring-Treffer…',
-  vector: 'Embedding-Treffer…',
+  substring: 'Wortlaut-Treffer…',
+  vector: 'Ähnlichkeits-Treffer…',
   orama: 'Dokumente…',
   done: null,
   error: null,
 };
 
+/** Wie viele Einträge der Startzustand je Spalte zeigt. */
+const START_MAX = 5;
+
+/** Nur zwei Ansichten — Karten hätten hier nichts zu zeigen, was die Liste
+ *  nicht besser zeigt. */
+const ANSICHT_OPTIONEN: ViewModeOption<'liste' | 'tabelle'>[] = [
+  { mode: 'liste', label: 'Liste', Icon: List },
+  { mode: 'tabelle', label: 'Tabelle', Icon: Table },
+];
+
 export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
   const visibleColumns = useSucheStore(s => s.visibleColumns);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
+  const recentSearches = useSucheStore(s => s.recentSearches);
+  const removeRecentSearch = useSucheStore(s => s.removeRecentSearch);
   const analysePrompt = useSucheStore(s => s.analysePrompt);
   const setAnalysePrompt = useSucheStore(s => s.setAnalysePrompt);
   const analyse = useAnalysePipeline();
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
-  // v2.62: Ähnlichkeitssuche ist opt-in (Session-Schalter, geteilt mit dem
-  // Förderanträge-Suchfeld). Default „Ohne" — Modell lädt erst nach Umschalten.
+
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
   const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
-  // Verknüpfung mehrerer Stichwörter (UND/ODER) — wirkt auf die Wortlaut-Stages.
   const verknuepfung = useSuchVerknuepfung(s => s.verknuepfung);
   const setVerknuepfung = useSuchVerknuepfung(s => s.setVerknuepfung);
-  // Die Suchseite besitzt ihren eigenen vollen Assistenten (ChatPanelHost, mit
-  // „+"-Menü/Verlauf/Anhängen). Das schlanke shell-weite Assistent-Panel (Phase 1)
-  // ist auf `/suche` bewusst NICHT gemountet (ShellLayout `activeId !== 'suche'`),
-  // damit hier kein Doppel-Panel entsteht — der lokale Chat unten ist die Quelle.
-  // Die SPINE am rechten Blattrand rendert seit v3.50 das ShellLayout (ein
-  // Streifen auf jeder Seite); sie schaltet über `sucheAssistentUiStore` genau
-  // dieses Panel. Deshalb steht hier kein eigener „Assistent"-Knopf mehr.
+  const stammSuche = useSuchOptionen(s => s.stammSuche);
+  const setStammSuche = useSuchOptionen(s => s.setStammSuche);
+  const bereich = useSuchOptionen(s => s.bereich);
+  const setBereich = useSuchOptionen(s => s.setBereich);
+  const abgewaehlteVarianten = useSuchOptionen(s => s.abgewaehlteVarianten);
+  const toggleVariante = useSuchOptionen(s => s.toggleVariante);
 
-  // Die Query liegt im Store (sitzungs-lokal, siehe store.ts): mit `useState`
-  // war sie beim Zurückkommen aus der Antrags-Detailseite weg — der Klick auf
-  // einen Treffer war eine Einbahnstraße.
   const query = useSucheStore(s => s.query);
   const setQuery = useSucheStore(s => s.setQuery);
-  // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
-  // frame-perfect bleibt waehrend Orama+Embedding+Filter+Sort durchlaufen.
-  const deferredQuery = useDeferredValue(query);
+  const abgewaehlteWoerter = useSucheStore(s => s.abgewaehlteWoerter);
+  const toggleWort = useSucheStore(s => s.toggleWort);
+  const facettenWahl = useSucheStore(s => s.facettenWahl);
+  const setFacettenWahl = useSucheStore(s => s.setFacettenWahl);
+  const ansicht = useSucheStore(s => s.ansicht);
+  const setAnsicht = useSucheStore(s => s.setAnsicht);
+  const sortierung = useSucheStore(s => s.sortierung);
+  const setSortierung = useSucheStore(s => s.setSortierung);
+  const dichte = useSucheStore(s => s.dichte);
+  const setDichte = useSucheStore(s => s.setDichte);
+
+  // Die Suche läuft auf der WIRKSAMEN Anfrage — ohne die in der Deutungszeile
+  // abgewählten Wörter. Was im Feld steht, bleibt unangetastet: der Nutzer soll
+  // seine Eingabe wiedererkennen und die Abwahl zurücknehmen können.
+  const wirksam = useMemo(
+    () => wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter),
+    [query, verknuepfung, abgewaehlteWoerter],
+  );
+  const deferredQuery = useDeferredValue(wirksam);
   const [toast, setToast] = useState<string | null>(null);
   const [promptDialogOpen, setPromptDialogOpen] = useState(false);
+  const [ausgeklappt, setAusgeklappt] = useState<ReadonlySet<string>>(new Set());
+  const [auswahl, setAuswahl] = useState<ReadonlySet<string>>(new Set());
+  const [gespeichert, setGespeichert] = useState<GespeicherteSuche[]>(() => ladeGespeicherte());
+  const [gespeicherteMenuOffen, setGespeicherteMenuOffen] = useState(false);
 
-  // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4). Offen-Flag +
-  // Breite liegen im `sucheAssistentUiStore` (localStorage-gespiegelt), damit
-  // die Spine im ShellLayout denselben Schalter bedient.
+  // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4).
   const [searchParams, setSearchParams] = useSearchParams();
   const assistentOpen = useStore(sucheAssistentUiStore, s => s.open);
   const assistentWidth = useStore(sucheAssistentUiStore, s => s.width);
   const assistentDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  // Fensterbreite tracken → dynamischer Panel-Max + Render-Klemme (analog
-  // MasterDetailLayout): eine breit gespeicherte Breite passt sich einem
-  // kleineren Fenster an, statt die Tabelle zu verdrängen.
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1440);
   useEffect(() => {
@@ -105,9 +156,6 @@ export function SuchSeite(): React.ReactElement {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  // `?assistent=1` (Redirect von `/chat` bzw. Command „Assistent öffnen") einmalig
-  // konsumieren: Panel öffnen und den Param entfernen, damit ein manuelles
-  // Schließen nicht rückgängig gemacht wird.
   useEffect(() => {
     if (searchParams.get('assistent') !== '1') return;
     sucheAssistentUiStore.getState().setOpen(true);
@@ -128,7 +176,6 @@ export function SuchSeite(): React.ReactElement {
     const onMove = (ev: MouseEvent): void => {
       const drag = assistentDragRef.current;
       if (!drag) return;
-      // Panel rechts: nach links draggen → breiter (Delta invertiert).
       sucheAssistentUiStore.getState().setWidth(
         clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX), window.innerWidth),
       );
@@ -144,42 +191,61 @@ export function SuchSeite(): React.ReactElement {
     window.addEventListener('mouseup', onUp);
   }, [assistentWidth]);
 
-  const { results: searchResults, loading, counts, indexInfo, vectorReady, searchPhase, semanticStatus } = useUnifiedSearch(deferredQuery);
+  const {
+    results: searchResults, loading, counts, indexInfo, vectorReady,
+    searchPhase, semanticStatus, varianten,
+  } = useUnifiedSearch(deferredQuery);
   const deferredPhase = useDeferredValue(searchPhase);
   const phaseLabel = PHASE_LABELS[deferredPhase];
   const queryNotEmpty = query.trim() !== '';
   const showSpinner = loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error');
-  // „aktiv" = es gibt ein Begründung-Overlay (läuft gerade ODER fertig).
   const analyseActive = analyse.begruendungById !== null;
   const analyseDone = analyse.result !== null && !analyse.running;
 
-  // Filter-/Sort-/Spalten-Pipeline (extrahiert nach useSearchResults.ts).
+  // Facetten stehen VOR der Tabellen-Pipeline: sie gelten für Liste UND Tabelle.
+  const nachFacetten = useMemo(
+    () => wendeFacettenAn(searchResults, facettenWahl),
+    [searchResults, facettenWahl],
+  );
+
   const {
-    typeFilter, setTypeFilter,
-    antragstypFilter, setAntragstypFilter,
-    filterChips, antragstypItems, antragstypApplicable,
+    dataSource,
     sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
     sortKey, sortDirection, handleSort,
     columnFilters, handleColumnFilterChange,
     columnWidths, handleColumnWidthChange,
   } = useSearchResults({
-    searchResults,
+    searchResults: nachFacetten,
     begruendungById: analyse.begruendungById,
     analyseActive,
     visibleColumns,
   });
 
-  // Eager Preload beim Mount der Suche-Seite (Hintergrund, idle). Der
-  // Substring-Korpus (~1-1.5s) laedt immer — er traegt die Default-Suche.
-  // Modell + Embedding-Korpus laden seit v2.62 NUR nach Opt-in.
+  // Die Liste sortiert nach der Darstellungs-Achse, die Tabelle nach ihrer
+  // Spalte. Zwei Ansichten, zwei Bedienarten — eine gemeinsame Sortierung wäre
+  // in einer der beiden immer die falsche.
+  const listeSortiert = useMemo(
+    () => [...dataSource].sort((a, b) => vergleiche(a, b, sortierung)),
+    [dataSource, sortierung],
+  );
+  const sichtbar = ansicht === 'liste' ? listeSortiert : sorted;
+
+  const markWoerter = useMemo(
+    () => markierWoerter(query, verknuepfung, abgewaehlteWoerter),
+    [query, verknuepfung, abgewaehlteWoerter],
+  );
+  const aktiveVariantenChips = useMemo(
+    () => varianten.filter(v => !abgewaehlteVarianten.includes(v.toLowerCase())),
+    [varianten, abgewaehlteVarianten],
+  );
+
+  // Eager Preload beim Mount (Hintergrund, idle).
   useEffect(() => {
     if (!activeProgrammId) return;
     const cancel = scheduleIdle(() => {
       void getProgrammCaches(storage.idb, activeProgrammId).catch(() => { /* best effort */ });
       if (!semanticEnabled || !isSemanticSearchActive()) return;
       void ensureEmbeddingReady(storage.idb).catch(() => { /* best effort */ });
-      // v2.62.2: Korpus-Bootstrap auch hier — sonst bleibt die Vector-Stage auf
-      // einem Rechner mit leerem lokalen Embedding-Cache dauerhaft leer.
       void (async () => {
         try {
           await autoBootstrapEmbeddingMirror(storage, status => {
@@ -195,19 +261,84 @@ export function SuchSeite(): React.ReactElement {
     return cancel;
   }, [activeProgrammId, storage, semanticEnabled]);
 
+  // ---- Probelauf für Startzustand und Kein-Treffer-Auswege -------------------
+  //
+  // Nur die WORTLAUT-Stufe, synchron und ~10–30 ms. Orama blockiert je Lauf
+  // 150–300 ms, die Vektorstufe bräuchte je Variante ein neues Embedding — beides
+  // wäre bei mehreren Probeläufen hintereinander deutlich spürbar.
+  const korpusRef = useRef<Map<string, AntragTextEntry> | null>(null);
+  const [korpusBereit, setKorpusBereit] = useState(false);
+  useEffect(() => {
+    if (!activeProgrammId) return;
+    let abgebrochen = false;
+    void getProgrammCaches(storage.idb, activeProgrammId)
+      .then(c => {
+        if (abgebrochen) return;
+        korpusRef.current = c.textCorpus;
+        setKorpusBereit(true);
+      })
+      .catch(() => { /* best effort — ohne Korpus entfallen die Zahlen */ });
+    return () => { abgebrochen = true; };
+  }, [activeProgrammId, storage]);
+
+  const probelauf = useCallback((
+    q: string,
+    opt: { verknuepfung: typeof verknuepfung; stammSuche: boolean; bereich: typeof bereich },
+  ): number => {
+    const korpus = korpusRef.current;
+    if (!korpus || q.trim().length === 0) return 0;
+    return searchAntraegeSubstring(q, korpus, opt).length;
+  }, []);
+
+  const auswege = useMemo<Ausweg[]>(() => {
+    if (!korpusBereit || sichtbar.length > 0 || !queryNotEmpty || showSpinner) return [];
+    return berechneAuswege({
+      query: wirksam,
+      verknuepfung,
+      stammSuche,
+      bereich,
+      aktiveFilter: aktiveFilterTexte(facettenWahl),
+    }, probelauf);
+  }, [korpusBereit, sichtbar.length, queryNotEmpty, showSpinner, wirksam,
+    verknuepfung, stammSuche, bereich, facettenWahl, probelauf]);
+
+  const startEintraege = useMemo<{ letzte: StartEintrag[]; haeufig: StartEintrag[] }>(() => {
+    const zahl = (q: string): number | null =>
+      korpusBereit ? probelauf(q, { verknuepfung, stammSuche, bereich }) : null;
+    return {
+      letzte: recentSearches.slice(0, START_MAX).map(q => ({ query: q, treffer: zahl(q) })),
+      haeufig: haeufigsteSuchen(recentSearches, START_MAX).map(q => ({ query: q, treffer: zahl(q) })),
+    };
+  }, [recentSearches, korpusBereit, probelauf, verknuepfung, stammSuche, bereich]);
+
+  const gespeicherteTreffer = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!korpusBereit) return m;
+    for (const g of gespeichert) {
+      m.set(g.id, probelauf(g.query, {
+        verknuepfung: g.verknuepfung, stammSuche: g.stammSuche, bereich: g.bereich,
+      }));
+    }
+    return m;
+  }, [gespeichert, korpusBereit, probelauf]);
+
+  // ---- Aktionen -------------------------------------------------------------
+
   const handleQueryChange = (next: string): void => {
     setQuery(next);
+    setFacettenWahl(LEERE_WAHL);
+    setAuswahl(new Set());
+    setAusgeklappt(new Set());
     if (analyseActive) analyse.reset();
   };
 
-  // Beispiel-Chip im Leerzustand: identisch zu getippter Suche — dieselbe
-  // deferredQuery-Pipeline PLUS Verlaufs-Eintrag (bei getippter Suche käme der
-  // sonst erst bei Enter/Blur).
-  const runExampleSearch = useCallback((q: string): void => {
+  const starteSuche = useCallback((q: string): void => {
     setQuery(q);
     addRecentSearch(q);
+    setFacettenWahl(LEERE_WAHL);
+    setAuswahl(new Set());
     if (analyseActive) analyse.reset();
-  }, [addRecentSearch, analyseActive, analyse]);
+  }, [setQuery, addRecentSearch, setFacettenWahl, analyseActive, analyse]);
 
   useEffect(() => {
     if (!toast) return;
@@ -215,315 +346,542 @@ export function SuchSeite(): React.ReactElement {
     return () => clearTimeout(t);
   }, [toast]);
 
-  function handleRowClick(r: UnifiedSearchResult): void {
-    // Herkunft mitgeben: die Detailseite blendet dann „Zurück zur Suche" ein.
-    // Der Suchzustand selbst liegt im Store und wartet dort (siehe store.ts).
+  function oeffneTreffer(r: UnifiedSearchResult): void {
     if (r.type === 'antrag' && r.fkz) {
       navigate(`/antraege/${encodeURIComponent(r.fkz)}`, { state: { [VON_SUCHE_STATE_KEY]: true } });
     }
   }
 
-  /** „Mit KI analysieren": öffnet den Assistenten mit den aktuellen Treffern als
-   *  Kontext (`contextResults` hängt schon am Panel). Die zeilenweise
-   *  Begründungs-Analyse ist ein eigener Einstieg — sie sitzt bei ihrem
-   *  Gegenstück „Begründungen entfernen" in der Chip-Zeile. */
+  /** „Warum?": klappt auf und startet — falls noch keine Begründung da ist —
+   *  einen Lauf für GENAU DIESE Zeile über dieselbe Pipeline wie der Batch. */
+  function warum(r: UnifiedSearchResult): void {
+    setAusgeklappt(prev => {
+      const next = new Set(prev);
+      if (next.has(r.id)) next.delete(r.id); else next.add(r.id);
+      return next;
+    });
+    const schonDa = analyse.begruendungById?.[r.id] !== undefined;
+    if (!schonDa && !analyse.running && wirksam.trim().length > 0) {
+      analyse.start(wirksam.trim(), [r], analysePrompt);
+    }
+  }
+
+  function aehnlicheAntraege(r: UnifiedSearchResult): void {
+    starteSuche(r.title);
+    setSemanticEnabled(true);
+  }
+
+  /**
+   * „Als unpassend melden" öffnet das FEEDBACK-Panel der App, vorbefüllt.
+   *
+   * Bewusst der vorhandene Weg statt eines eigenen Kanals: ein zweiter
+   * Rückmeldeweg hätte kein Board, keine Antwort und keinen Empfänger. Und
+   * bewusst ehrlich beschriftet — die Meldung ändert kein Ranking, sie sagt dem
+   * Team Bescheid.
+   */
+  function alsUnpassendMelden(r: UnifiedSearchResult): void {
+    useFeedbackDialog.getState().openDialog({
+      vorbelegung: {
+        kategorie: 'problem',
+        titel: `Suchtreffer „${r.title}"${r.fkz ? ` (${r.fkz})` : ''} passt nicht zu „${wirksam}"`,
+      },
+    });
+  }
+
+  function waehle(r: UnifiedSearchResult): void {
+    setAuswahl(prev => {
+      const next = new Set(prev);
+      if (next.has(r.id)) next.delete(r.id); else next.add(r.id);
+      return next;
+    });
+  }
+
   const openAssistentMitTreffern = (): void => {
-    if (sorted.length === 0) return;
+    if (sichtbar.length === 0) return;
     sucheAssistentUiStore.getState().setOpen(true);
   };
 
   const openAnalysePrompt = (): void => {
-    const q = query.trim();
-    if (!q || analyse.running || sorted.length === 0) return;
+    if (!wirksam.trim() || analyse.running || sichtbar.length === 0) return;
     setPromptDialogOpen(true);
   };
 
   const confirmAnalyse = (): void => {
-    const q = query.trim();
+    const q = wirksam.trim();
     if (!q || analyseResults.length === 0) return;
     setPromptDialogOpen(false);
     addRecentSearch(q);
     analyse.start(q, analyseResults, analysePrompt);
   };
 
-  // „Mit KI analysieren" öffnet nur das Panel — kein Provider-Kontakt, also auch
-  // kein `ping()` beim Mount (das würde die Streamlit-Bridge ihr Fenster öffnen
-  // lassen). Ohne Treffer wäre „diese Treffer analysieren" sinnlos; erreichbar
-  // bleibt der Assistent dann über die Spine am rechten Rand.
-  const aiButtonDisabled = sorted.length === 0;
-  const aiButtonTooltip = 'Assistent öffnen — er kennt die aktuellen Treffer als Kontext';
-  // Die zeilenweise Begründungs-Analyse: optimistisch enabled, die echte
-  // Provider-Prüfung passiert lazy in `analyse.start()`.
-  const begruendenTooltip = `Erzeugt je Trefferzeile eine KI-Begründung (max. ${ANALYSE_MAX_RESULTS}, Provider: ${analyse.providerName})`;
+  function wendeAuswegAn(a: Ausweg): void {
+    if (a.aenderung.filterLeeren) setFacettenWahl(LEERE_WAHL);
+    if (a.aenderung.query !== undefined) setQuery(a.aenderung.query);
+    if (a.aenderung.verknuepfung !== undefined) setVerknuepfung(a.aenderung.verknuepfung);
+    if (a.aenderung.stammSuche !== undefined) setStammSuche(a.aenderung.stammSuche);
+    if (a.aenderung.bereich !== undefined) setBereich(a.aenderung.bereich);
+    setToast(`Angepasst: ${a.text}`);
+  }
 
-  const noQuery = !query.trim();
-  const showResults = !noQuery && sorted.length > 0;
+  function diesenSuchlaufMerken(): void {
+    const q = query.trim();
+    if (!q) return;
+    const eintrag: GespeicherteSuche = {
+      id: q.toLowerCase(),
+      name: q,
+      query: q,
+      verknuepfung,
+      stammSuche,
+      bereich,
+      letzteTrefferzahl: sichtbar.length,
+      zuletzt: new Date().toISOString().slice(0, 10),
+    };
+    const naechste = merkeSuche(gespeichert, eintrag);
+    setGespeichert(naechste);
+    speichereGespeicherte(naechste);
+    setToast(`„${q}" gemerkt`);
+  }
+
+  function fuehreGespeicherteAus(g: GespeicherteSuche): void {
+    setVerknuepfung(g.verknuepfung);
+    setStammSuche(g.stammSuche);
+    setBereich(g.bereich);
+    starteSuche(g.query);
+    const naechste = vermerkeLauf(
+      gespeichert, g.id, gespeicherteTreffer.get(g.id) ?? 0, new Date().toISOString().slice(0, 10),
+    );
+    setGespeichert(naechste);
+    speichereGespeicherte(naechste);
+    setGespeicherteMenuOffen(false);
+  }
+
+  function loescheGespeicherte(id: string): void {
+    const naechste = entferneSuche(gespeichert, id);
+    setGespeichert(naechste);
+    speichereGespeicherte(naechste);
+  }
+
+  const darstellungsAchsen = useMemo(
+    () => baueSucheDarstellungsAchsen({ sortierung, dichte }),
+    [sortierung, dichte],
+  );
+
+  const noQuery = !queryNotEmpty;
+  const showResults = !noQuery && sichtbar.length > 0;
   const analyseProgressLabel = analyse.running
     ? (analyse.progress?.totalBatches
         ? `KI erstellt Begründungen… Batch ${analyse.progress.currentBatch ?? 0}/${analyse.progress.totalBatches}`
         : 'KI erstellt Begründungen…')
     : null;
+  const laufendeBegruendung = useMemo<ReadonlySet<string>>(
+    () => (analyse.running ? new Set(ausgeklappt) : new Set<string>()),
+    [analyse.running, ausgeklappt],
+  );
 
   return (
     <div className="flex h-full min-h-0">
       <div className="flex-1 min-w-0 overflow-y-auto">
         <div className="px-8 pt-4 pb-6">
-      <div className="flex flex-col items-start mb-4">
-        <div className="flex w-full max-w-4xl items-center gap-3 mb-4">
-          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
-          <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="suche" /></div>
-        </div>
-        {/* `flex-wrap` + weitere Deckelung als die Zeilen darunter: das Suchfeld
-            ist ziehbar — wächst es über die Zeile hinaus, rutschen die
-            Bedienelemente sauber in die nächste Zeile, statt gequetscht zu
-            werden. `items-start`, damit sie beim hohen Feld oben bleiben. */}
-        <div className="flex flex-wrap items-start gap-2 w-full max-w-6xl">
-          <SearchInput
-            value={query}
-            onValueChange={handleQueryChange}
-            disabled={analyse.running}
-            showSpinner={showSpinner}
+
+          {/* ── Kopf ─────────────────────────────────────────────────────── */}
+          <div className="mb-4 flex w-full max-w-6xl items-center gap-3">
+            <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setGespeicherteMenuOffen(o => !o)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                >
+                  <Bookmark size={13} aria-hidden />
+                  Gespeicherte Suchen
+                  <span className="text-[var(--tf-text-tertiary)]">{gespeichert.length}</span>
+                </button>
+                {gespeicherteMenuOffen && (
+                  <div
+                    className="absolute right-0 top-full z-20 mt-1 w-[320px] rounded-[11px] py-1"
+                    style={{
+                      background: 'var(--tf-sheet)',
+                      border: '0.5px solid var(--tf-border)',
+                      boxShadow: 'var(--tf-shadow-dialog)',
+                    }}
+                  >
+                    {gespeichert.length === 0
+                      ? (
+                        <p className="px-3 py-2 text-[12.5px] text-[var(--tf-text-tertiary)]">
+                          Noch nichts gemerkt.
+                        </p>
+                      )
+                      : gespeichert.map(g => (
+                        <div key={g.id} className="group flex items-center gap-2 px-1">
+                          <button
+                            type="button"
+                            onClick={() => fuehreGespeicherteAus(g)}
+                            className="min-w-0 flex-1 rounded-[6px] px-2 py-1.5 text-left hover:bg-[var(--tf-hover)] cursor-pointer"
+                          >
+                            <span className="block truncate text-[13px] text-[var(--tf-text)]">{g.name}</span>
+                            <span className="block text-[11px] text-[var(--tf-text-tertiary)]">
+                              {gespeicherteTreffer.get(g.id) ?? '—'} Treffer
+                              {g.zuletzt ? ` · zuletzt ${g.zuletzt}` : ''}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => loescheGespeicherte(g.id)}
+                            title="Aus den gespeicherten Suchen entfernen"
+                            className="mr-1 rounded p-1 text-[var(--tf-text-tertiary)] opacity-0 hover:text-[var(--tf-text)] group-hover:opacity-100 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={diesenSuchlaufMerken}
+                disabled={!queryNotEmpty}
+                title="Diese Anfrage samt Optionen merken (nur auf diesem Gerät)"
+                className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Diese Suche speichern
+              </button>
+              <SeitenHilfeButton pluginId="suche" />
+            </div>
+          </div>
+
+          {/* ── Suchfeld ─────────────────────────────────────────────────── */}
+          <div className="flex w-full max-w-6xl flex-wrap items-start gap-2">
+            <SearchInput
+              value={query}
+              onValueChange={handleQueryChange}
+              disabled={analyse.running}
+              showSpinner={showSpinner}
+            />
+          </div>
+
+          {/* ── Optionen ─────────────────────────────────────────────────── */}
+          <div className="mt-2 w-full max-w-6xl">
+            <SuchOptionenZeile
+              verknuepfung={verknuepfung}
+              onVerknuepfung={setVerknuepfung}
+              stammSuche={stammSuche}
+              onStammSuche={setStammSuche}
+              bereich={bereich}
+              onBereich={setBereich}
+              semantischAn={semanticEnabled}
+              onSemantisch={setSemanticEnabled}
+              semantischLaedt={semanticEnabled && !vectorReady}
+              indexHinweis={`Index: ${indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge · ${indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte`}
+            />
+          </div>
+
+          {semanticEnabled && (semanticStatus === 'corpus-empty' || semanticStatus === 'model-failed') && (
+            <div className="mt-2 flex w-full max-w-4xl items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
+              <span aria-hidden="true">ⓘ</span>
+              <span>
+                {semanticStatus === 'corpus-empty'
+                  ? 'Ähnlichkeitssuche ohne Wirkung: Auf diesem Rechner liegen keine Embedding-Vektoren (Korpus). Er wird beim Start automatisch vom Datenspeicher geladen, sofern dort vorhanden — sonst im Auslastungs-Modul „Vom Datenspeicher laden".'
+                  : 'Ähnlichkeitssuche ohne Wirkung: Das Embedding-Modell konnte nicht geladen werden (Details in der Browser-Konsole, F12). Es werden nur Wortlaut-Treffer angezeigt.'}
+              </span>
+            </div>
+          )}
+
+          {/* ── Deutung ──────────────────────────────────────────────────── */}
+          {queryNotEmpty && (
+            <div className="mt-2.5 w-full max-w-6xl">
+              <DeutungsZeile
+                query={query}
+                verknuepfung={verknuepfung}
+                abgewaehlteWoerter={abgewaehlteWoerter}
+                onToggleWort={toggleWort}
+                varianten={varianten}
+                abgewaehlteVarianten={abgewaehlteVarianten}
+                onToggleVariante={toggleVariante}
+                stammSuche={stammSuche}
+                onStammSucheAn={() => setStammSuche(true)}
+              />
+            </div>
+          )}
+
+          {/* ── Facetten ─────────────────────────────────────────────────── */}
+          {queryNotEmpty && (
+            <div className="mt-2.5 w-full max-w-6xl">
+              <FacettenZeile
+                results={searchResults}
+                wahl={facettenWahl}
+                onWahl={(id: FacettenId, werte) => setFacettenWahl({ ...facettenWahl, [id]: werte })}
+                onLeeren={() => setFacettenWahl(LEERE_WAHL)}
+              />
+            </div>
+          )}
+
+          {/* ── Ergebniskopf ─────────────────────────────────────────────── */}
+          {queryNotEmpty && (
+            <div className="mt-3 flex w-full max-w-6xl flex-wrap items-center gap-2">
+              <span className="text-[13px] text-[var(--tf-text)]">
+                <b className="font-medium">{sichtbar.length.toLocaleString('de-DE')} Treffer</b>
+                <span className="text-[var(--tf-text-secondary)]">
+                  {' '}in {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträgen
+                </span>
+              </span>
+
+              {!vectorReady && semanticEnabled && !analyseActive && (
+                <Badge variant="default">Embedding-Modell lädt…</Badge>
+              )}
+              {phaseLabel && !analyseActive && (
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] text-[var(--tf-text-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
+                  <Loader2 size={11} className="animate-spin" />
+                  {phaseLabel}
+                </span>
+              )}
+              {analyse.running && (
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] text-[var(--tf-text-secondary)]" style={{ border: '0.5px solid var(--tf-border)' }}>
+                  <Loader2 size={11} className="animate-spin" />
+                  {analyseProgressLabel}
+                  <button type="button" onClick={analyse.cancel} className="ml-1 underline hover:text-[var(--tf-text)]">
+                    Abbrechen
+                  </button>
+                </span>
+              )}
+
+              <div className="ml-auto flex items-center gap-2">
+                <DarstellungDropdown
+                  achsen={darstellungsAchsen}
+                  onChange={(id: SucheAchsenId, key: string) => {
+                    if (id === 'sortierung') setSortierung(key as typeof sortierung);
+                    else setDichte(key as typeof dichte);
+                  }}
+                  titel="Sortierung und Dichte"
+                  className="h-8"
+                />
+                <ViewModeToggle
+                  value={ansicht}
+                  onChange={setAnsicht}
+                  options={ANSICHT_OPTIONEN}
+                  ariaLabel="Ansicht"
+                />
+                {ansicht === 'tabelle' && <ColumnPicker typeFilter="" />}
+                <button
+                  type="button"
+                  onClick={openAssistentMitTreffern}
+                  disabled={sichtbar.length === 0}
+                  title="Assistent öffnen — er kennt die aktuellen Treffer als Kontext"
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  style={{ border: '0.5px solid var(--tf-border)' }}
+                >
+                  <Sparkles size={13} />
+                  Mit KI analysieren
+                </button>
+                {!analyseActive && !analyse.running && sichtbar.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={openAnalysePrompt}
+                    title={`Erzeugt je Trefferzeile eine KI-Begründung (max. ${ANALYSE_MAX_RESULTS}, Provider: ${analyse.providerName})`}
+                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                    style={{ border: '0.5px solid var(--tf-border)' }}
+                  >
+                    Alle begründen
+                  </button>
+                )}
+                {analyseDone && (
+                  <button
+                    type="button"
+                    onClick={() => analyse.reset()}
+                    className="inline-flex h-8 items-center rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                    style={{ border: '0.5px solid var(--tf-border)' }}
+                    title="Entfernt die KI-Begründungen; Treffer bleiben erhalten"
+                  >
+                    Begründungen entfernen
+                  </button>
+                )}
+                <SearchDownloadMenu
+                  disabled={sichtbar.length === 0}
+                  onExportCSV={() => exportCSV(sichtbar, visibleColumnDefs, query)}
+                  onExportXLSX={() => exportXLSX(sichtbar, visibleColumnDefs, query)}
+                  onExportClipboard={() => {
+                    void (async () => {
+                      try {
+                        await exportClipboard(sichtbar, visibleColumnDefs);
+                        setToast(`${sichtbar.length} Ergebnisse in Zwischenablage kopiert`);
+                      } catch (err) {
+                        setToast(`Kopieren fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+                      }
+                    })();
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {analyse.error && (
+            <div className="mt-3 rounded px-3 py-2 text-[12px] text-[var(--tf-text)]"
+              style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
+              KI-Analyse fehlgeschlagen: {analyse.error}
+            </div>
+          )}
+
+          {analyseDone && analyse.result && analyse.result.warnings.length > 0 && (
+            <div className="mt-3 rounded px-3 py-2 text-[12px] text-[var(--tf-text)]"
+              style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
+              {analyse.result.warnings.join(' · ')}
+            </div>
+          )}
+
+          {toast && (
+            <div role="status" className="mt-3 rounded px-3 py-2 text-[12px] text-[var(--tf-text)]"
+              style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
+              {toast}
+            </div>
+          )}
+
+          {loading && sichtbar.length === 0 && (
+            <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-[var(--tf-text-secondary)]">
+              <Loader2 size={14} className="animate-spin" />
+              <span>Suche läuft{phaseLabel ? ` · ${phaseLabel}` : '…'}</span>
+            </div>
+          )}
+
+          {/* ── Startzustand ─────────────────────────────────────────────── */}
+          {noQuery && !loading && (
+            <SucheStartzustand
+              antraegeGeladen={indexInfo.antraegeGeladen}
+              textabschnitteImIndex={indexInfo.textabschnitteImIndex}
+              letzte={startEintraege.letzte}
+              haeufig={startEintraege.haeufig}
+              gespeichert={gespeichert}
+              gespeicherteTreffer={gespeicherteTreffer}
+              onSuche={starteSuche}
+              onEntferneLetzte={removeRecentSearch}
+              onEntferneGespeicherte={loescheGespeicherte}
+              kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}
+              onOpenDokumentenquellen={() => navigate('/kuration/dokumentenquellen')}
+            />
+          )}
+
+          {/* ── Kein Treffer ─────────────────────────────────────────────── */}
+          {!noQuery && !loading && !showSpinner && sichtbar.length === 0 && (
+            <KeinTrefferZustand
+              query={query}
+              woerter={markWoerter}
+              auswege={auswege}
+              hatFilter={aktiveFilterTexte(facettenWahl).length > 0}
+              onAnwenden={wendeAuswegAn}
+            />
+          )}
+
+          {/* ── Ergebnis ─────────────────────────────────────────────────── */}
+          {showResults && ansicht === 'liste' && (
+            <div className="mt-3 w-full max-w-6xl">
+              <TrefferListe
+                treffer={listeSortiert}
+                woerter={markWoerter}
+                varianten={aktiveVariantenChips}
+                kompakt={dichte === 'kompakt'}
+                ausgeklappt={ausgeklappt}
+                auswahl={auswahl}
+                laufendeBegruendung={laufendeBegruendung}
+                onOeffnen={oeffneTreffer}
+                onWarum={warum}
+                onAehnliche={aehnlicheAntraege}
+                onUnpassend={alsUnpassendMelden}
+                onWaehlen={waehle}
+              />
+            </div>
+          )}
+
+          {showResults && ansicht === 'tabelle' && (
+            <div className="mt-3">
+              <SearchResultsTable
+                results={sorted}
+                columns={visibleColumnDefs}
+                sortKey={sortKey}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                columnFilters={columnFilters}
+                onColumnFilterChange={handleColumnFilterChange}
+                filterCandidatesByColumn={filterCandidatesByColumn}
+                filterCountsByColumn={filterCountsByColumn}
+                columnWidths={columnWidths}
+                onColumnWidthChange={handleColumnWidthChange}
+                onRowClick={oeffneTreffer}
+              />
+            </div>
+          )}
+
+          <span className="sr-only">{`unified-search: total=${counts.total} antraege=${counts.antraege} dokumente=${counts.dokumente}`}</span>
+
+          <AnalysePromptDialog
+            open={promptDialogOpen}
+            query={wirksam.trim()}
+            results={analyseResults}
+            totalCount={sichtbar.length}
+            instruction={analysePrompt}
+            onInstructionChange={setAnalysePrompt}
+            providerName={analyse.providerName}
+            onConfirm={confirmAnalyse}
+            onCancel={() => setPromptDialogOpen(false)}
           />
-          <select
-            value={semanticEnabled ? 'mit' : 'ohne'}
-            onChange={e => setSemanticEnabled(e.target.value === 'mit')}
-            aria-label="Ähnlichkeitssuche"
-            title={semanticEnabled
-              ? 'Ähnlichkeitssuche aktiv — semantische Treffer (Embedding-Modell geladen).'
-              : 'Nur Wortlaut-Treffer. „Mit Ähnlichkeitssuche" lädt das Embedding-Modell (~einmalig 5–10 s, deutlich mehr Arbeitsspeicher) und findet auch inhaltlich ähnliche Anträge.'}
-            className="h-10 shrink-0 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[12.5px] text-[var(--tf-text)] cursor-pointer"
-          >
-            <option value="ohne">Ohne Ähnlichkeitssuche</option>
-            <option value="mit">Mit Ähnlichkeitssuche</option>
-          </select>
-          <select
-            value={verknuepfung}
-            onChange={e => setVerknuepfung(e.target.value === 'oder' ? 'oder' : 'und')}
-            aria-label="Verknüpfung mehrerer Wörter"
-            title={'Bei mehreren Stichwörtern: „Alle Wörter" findet nur Vorhaben, in denen jedes Wort vorkommt (auch an verschiedenen Stellen), „Irgendein Wort" schon bei einem.'
-              + (semanticEnabled
-                ? ' Gilt für Wortlaut-Treffer — die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt.'
-                : '')}
-            className="h-10 shrink-0 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[12.5px] text-[var(--tf-text)] cursor-pointer"
-          >
-            <option value="und">Alle Wörter</option>
-            <option value="oder">Irgendein Wort</option>
-          </select>
+        </div>
+      </div>
+
+      {/* ── Mehrfachauswahl ─────────────────────────────────────────────── */}
+      {auswahl.size > 0 && (
+        <div
+          role="toolbar"
+          aria-label="Auswahl"
+          className="fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-[10px] px-3 py-2"
+          style={{ background: 'var(--tf-text)', boxShadow: 'var(--tf-shadow-dialog)' }}
+        >
+          <span className="text-[12.5px] text-[var(--tf-sheet)]">
+            {auswahl.size} ausgewählt
+          </span>
           <button
             type="button"
-            onClick={openAssistentMitTreffern}
-            disabled={aiButtonDisabled}
-            title={aiButtonTooltip}
-            className="flex items-center gap-1.5 h-10 px-3 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <Sparkles size={14} />
-            <span>Mit KI analysieren</span>
-          </button>
-          <SearchDownloadMenu
-            disabled={sorted.length === 0}
-            onExportCSV={() => exportCSV(sorted, visibleColumnDefs, query)}
-            onExportXLSX={() => exportXLSX(sorted, visibleColumnDefs, query)}
-            onExportClipboard={() => {
-              void (async () => {
-                try {
-                  await exportClipboard(sorted, visibleColumnDefs);
-                  setToast(`${sorted.length} Ergebnisse in Zwischenablage kopiert`);
-                  // Grund mitgeben statt verwerfen: „fehlgeschlagen" allein sagt dem
-                  // Nutzer nicht, ob er es gleich nochmal versuchen kann.
-                } catch (err) {
-                  setToast(`Kopieren fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
-                }
-              })();
+            onClick={() => {
+              const gewaehlt = sichtbar.filter(r => auswahl.has(r.id));
+              exportXLSX(gewaehlt, visibleColumnDefs, query);
             }}
-          />
-        </div>
-        {semanticEnabled && (semanticStatus === 'corpus-empty' || semanticStatus === 'model-failed') ? (
-          <div className="flex items-center gap-1.5 w-full max-w-4xl mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
-            <span aria-hidden="true">ⓘ</span>
-            <span>
-              {semanticStatus === 'corpus-empty'
-                ? 'Ähnlichkeitssuche ohne Wirkung: Auf diesem Rechner liegen keine Embedding-Vektoren (Korpus). Er wird beim Start automatisch vom Datenspeicher geladen, sofern dort vorhanden — sonst im Auslastungs-Modul „Vom Datenspeicher laden".'
-                : 'Ähnlichkeitssuche ohne Wirkung: Das Embedding-Modell konnte nicht geladen werden (Details in der Browser-Konsole, F12). Es werden nur Wortlaut-Treffer angezeigt.'}
-            </span>
-          </div>
-        ) : null}
-        {showResults && (
-          <div className="flex items-center gap-2 w-full max-w-4xl mt-2 text-[11px] text-[var(--tf-text-tertiary)]">
-            <span>
-              {sorted.length} Ergebnisse{analyseActive ? ' (KI-Analyse)' : ''}
-            </span>
-            <span aria-hidden="true">·</span>
-            <IndexInfoZeile
-              textabschnitteImIndex={indexInfo.textabschnitteImIndex}
-              antraegeGeladen={indexInfo.antraegeGeladen}
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2 mt-3 flex-wrap w-full">
-          {filterChips.map(chip => {
-            const active = typeFilter === chip.id;
-            return (
-              <button
-                key={chip.id}
-                onClick={() => setTypeFilter(chip.id)}
-                disabled={analyse.running}
-                aria-pressed={active}
-                className={`px-3 py-1 text-[12px] rounded-full cursor-pointer transition-colors border-[0.5px] disabled:opacity-50 ${
-                  active
-                    ? 'bg-[var(--tf-primary-light)] border-transparent text-[var(--tf-primary)] font-medium'
-                    : 'border-[var(--tf-border)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]'
-                }`}
-              >
-                {chip.label} <span className="opacity-70">{chip.count}</span>
-              </button>
-            );
-          })}
-          {showResults && antragstypApplicable && (
-            <CollapsibleSeg
-              label="Antragstyp"
-              value={antragstypFilter}
-              items={antragstypItems}
-              onChange={label => setAntragstypFilter(label as KategorieLabel)}
-            />
-          )}
-          {!vectorReady && !analyseActive && <Badge variant="default">Embedding-Modell laedt…</Badge>}
-          {phaseLabel && !analyseActive && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] text-[var(--tf-text-secondary)] rounded-full" style={{ border: '0.5px solid var(--tf-border)' }}>
-              <Loader2 size={11} className="animate-spin" />
-              {phaseLabel}
-            </span>
-          )}
-          {analyse.running && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] text-[var(--tf-text-secondary)] rounded-full" style={{ border: '0.5px solid var(--tf-border)' }}>
-              <Loader2 size={11} className="animate-spin" />
-              {analyseProgressLabel}
-              <button type="button" onClick={analyse.cancel} className="ml-1 underline hover:text-[var(--tf-text)]">
-                Abbrechen
-              </button>
-            </span>
-          )}
-          {/* Zeilenweise KI-Begründung: sitzt bei ihrem Gegenstück
-              „Begründungen entfernen", damit Starten und Abräumen an derselben
-              Stelle wohnen. */}
-          {showResults && !analyseActive && !analyse.running && (
-            <button
-              type="button"
-              onClick={openAnalysePrompt}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)]"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-              title={begruendenTooltip}
-            >
-              <Sparkles size={11} />
-              Treffer begründen
-            </button>
-          )}
-          {analyseDone && (
-            <button
-              type="button"
-              onClick={() => analyse.reset()}
-              className="px-3 py-1 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)]"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-              title="Entfernt die KI-Begründung-Spalte; Treffer bleiben erhalten"
-            >
-              Begründungen entfernen
-            </button>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <ColumnPicker typeFilter={typeFilter} />
-          </div>
-        </div>
-      </div>
-
-      {analyse.error && (
-        <div className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
-          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
-          KI-Analyse fehlgeschlagen: {analyse.error}
+            className="inline-flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-[12px] text-[var(--tf-sheet)] hover:opacity-80 cursor-pointer"
+            style={{ border: '0.5px solid var(--tf-sheet)' }}
+          >
+            <Download size={12} aria-hidden />
+            Exportieren
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              sucheAssistentUiStore.getState().setOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-[12px] text-[var(--tf-sheet)] hover:opacity-80 cursor-pointer"
+            style={{ border: '0.5px solid var(--tf-sheet)' }}
+          >
+            <Sparkles size={12} aria-hidden />
+            Mit KI vergleichen
+          </button>
+          <button
+            type="button"
+            onClick={() => setAuswahl(new Set())}
+            className="rounded-[7px] px-2 py-1 text-[12px] text-[var(--tf-sheet)] hover:opacity-80 cursor-pointer"
+          >
+            Auswahl leeren
+          </button>
         </div>
       )}
 
-      {analyseDone && analyse.result && analyse.result.warnings.length > 0 && (
-        <div className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
-          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
-          {analyse.result.warnings.join(' · ')}
-        </div>
-      )}
-
-      {toast && (
-        <div role="status" className="mb-3 px-3 py-2 text-[12px] text-[var(--tf-text)] rounded"
-          style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
-          {toast}
-        </div>
-      )}
-
-      {loading && sorted.length === 0 && (
-        <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-[var(--tf-text-secondary)]">
-          <Loader2 size={14} className="animate-spin" />
-          <span>Suche laeuft{phaseLabel ? ` · ${phaseLabel}` : '…'}</span>
-        </div>
-      )}
-
-      {noQuery && !loading && (
-        <SucheLeerzustand
-          antraegeGeladen={indexInfo.antraegeGeladen}
-          textabschnitteImIndex={indexInfo.textabschnitteImIndex}
-          onExample={runExampleSearch}
-          kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}
-          onOpenDokumentenquellen={() => navigate('/kuration/dokumentenquellen')}
-        />
-      )}
-
-      {!noQuery && !loading && !showSpinner && sorted.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-[var(--tf-text-secondary)]">Keine Ergebnisse fuer &quot;{query}&quot;</p>
-        </div>
-      )}
-
-      {showResults && (
-        <SearchResultsTable
-          results={sorted}
-          columns={visibleColumnDefs}
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          columnFilters={columnFilters}
-          onColumnFilterChange={handleColumnFilterChange}
-          filterCandidatesByColumn={filterCandidatesByColumn}
-          filterCountsByColumn={filterCountsByColumn}
-          columnWidths={columnWidths}
-          onColumnWidthChange={handleColumnWidthChange}
-          onRowClick={handleRowClick}
-        />
-      )}
-
-      {/* searchResults-Counts (top-line via useUnifiedSearch) bleiben verfuegbar im Hover/Debug */}
-      <span className="sr-only">{`unified-search: total=${counts.total} antraege=${counts.antraege} dokumente=${counts.dokumente}`}</span>
-
-      <AnalysePromptDialog
-        open={promptDialogOpen}
-        query={query.trim()}
-        results={analyseResults}
-        totalCount={sorted.length}
-        instruction={analysePrompt}
-        onInstructionChange={setAnalysePrompt}
-        providerName={analyse.providerName}
-        onConfirm={confirmAnalyse}
-        onCancel={() => setPromptDialogOpen(false)}
-      />
-        </div>
-      </div>
       {assistentOpen && (
-        <aside className="shrink-0 h-full min-h-0 overflow-hidden flex" style={{ width: effectiveAssistentWidth(assistentWidth, viewportWidth) }}>
+        <aside className="flex h-full min-h-0 shrink-0 overflow-hidden" style={{ width: effectiveAssistentWidth(assistentWidth, viewportWidth) }}>
           <div
             role="separator"
             aria-orientation="vertical"
             aria-label="Assistent-Panel-Breite ändern"
             onMouseDown={onAssistentResize}
-            className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
+            className="h-full w-[4px] shrink-0 cursor-col-resize transition-colors hover:bg-[var(--tf-border-hover)]"
             style={{ borderLeft: '0.5px solid var(--tf-border)' }}
           />
-          <div className="flex-1 min-w-0 h-full">
-            <ChatPanelHost onClose={closeAssistent} contextResults={sorted} contextQuery={query.trim()} />
+          <div className="h-full min-w-0 flex-1">
+            <ChatPanelHost onClose={closeAssistent} contextResults={sichtbar} contextQuery={wirksam.trim()} />
           </div>
         </aside>
       )}

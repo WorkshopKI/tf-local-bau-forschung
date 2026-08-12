@@ -58,25 +58,25 @@ describe('zerlegeAnfrage', () => {
 
 describe('searchAntraegeSubstring — Verknüpfung', () => {
   it('UND findet auch Wörter, die in verschiedenen Feldern stehen (der Defekt)', () => {
-    const treffer = searchAntraegeSubstring('laser schweißen', KORPUS, 'und');
+    const treffer = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'und' });
     expect(treffer.sort()).toEqual(['A1', 'A2']);
   });
 
   it('ODER genügt ein Wort', () => {
-    const treffer = searchAntraegeSubstring('laser schweißen', KORPUS, 'oder');
+    const treffer = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'oder' });
     expect(treffer.sort()).toEqual(['A1', 'A2', 'A3']);
   });
 
   it('ODER liefert nie weniger als UND', () => {
-    const und = searchAntraegeSubstring('laser schweißen', KORPUS, 'und');
-    const oder = searchAntraegeSubstring('laser schweißen', KORPUS, 'oder');
+    const und = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'und' });
+    const oder = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'oder' });
     expect(oder.length).toBeGreaterThanOrEqual(und.length);
     for (const t of und) expect(oder).toContain(t);
   });
 
   it('Ein-Wort-Anfrage verhält sich in beiden Modi gleich (kein Verhaltensbruch)', () => {
-    const und = searchAntraegeSubstring('schweißen', KORPUS, 'und').sort();
-    const oder = searchAntraegeSubstring('schweißen', KORPUS, 'oder').sort();
+    const und = searchAntraegeSubstring('schweißen', KORPUS, { verknuepfung: 'und' }).sort();
+    const oder = searchAntraegeSubstring('schweißen', KORPUS, { verknuepfung: 'oder' }).sort();
     expect(und).toEqual(['A1', 'A2', 'A3']);
     expect(oder).toEqual(und);
   });
@@ -278,5 +278,105 @@ describe('searchAntraegeSubstring — Standort', () => {
       // `''.includes('')` wäre `true` — die leere Nadel muss verworfen werden.
       expect(searchAntraegeSubstring('-', FALLEN)).toEqual([]);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v4.5: dritte Verknüpfung, Wortstämme, Suchbereich
+// ---------------------------------------------------------------------------
+
+describe('searchAntraegeSubstring — genaue Wortfolge', () => {
+  it('findet nur die zusammenhängende Wortfolge', () => {
+    expect(searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'wortfolge' }))
+      .toEqual(['A2']);
+  });
+
+  it('ist strenger als UND, UND strenger als ODER', () => {
+    const folge = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'wortfolge' });
+    const und = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'und' });
+    const oder = searchAntraegeSubstring('laser schweißen', KORPUS, { verknuepfung: 'oder' });
+    expect(folge.length).toBeLessThanOrEqual(und.length);
+    expect(und.length).toBeLessThanOrEqual(oder.length);
+  });
+
+  it('ein einzelnes Wort verhält sich in allen drei Modi gleich', () => {
+    const felder = { verknuepfung: 'wortfolge' } as const;
+    expect(searchAntraegeSubstring('schweißen', KORPUS, felder).sort())
+      .toEqual(searchAntraegeSubstring('schweißen', KORPUS).sort());
+  });
+
+  it('umschließende Leerzeichen ändern nichts', () => {
+    expect(searchAntraegeSubstring('  laser schweißen  ', KORPUS, { verknuepfung: 'wortfolge' }))
+      .toEqual(['A2']);
+  });
+});
+
+const STAMM_KORPUS = new Map<string, AntragTextEntry>([
+  ['N1', eintrag('Normung technischer Regelwerke')],
+  ['N2', eintrag('Prüfnormen für Messverfahren')],
+  ['K1', eintrag('Kalibrierstandards für die Analytik')],
+  ['X1', eintrag('Bilderkennung in der Fertigung')],
+]);
+
+describe('searchAntraegeSubstring — ähnliche Begriffe (Wortstamm)', () => {
+  it('ohne Stammsuche findet „Normen" die „Normung" nicht', () => {
+    // „Prüfnormen" enthält das Suchwort als Teilwort und kommt auch ohne
+    // Stammsuche — die Suche matcht frei im Wort. „Normung" tut es nicht.
+    expect(searchAntraegeSubstring('normen', STAMM_KORPUS)).toEqual(['N2']);
+  });
+
+  it('mit Stammsuche kommt die „Normung" dazu', () => {
+    expect(searchAntraegeSubstring('normen', STAMM_KORPUS, { stammSuche: true }).sort())
+      .toEqual(['N1', 'N2']);
+  });
+
+  it('„Kalibrierung" findet „Kalibrierstandards"', () => {
+    expect(searchAntraegeSubstring('kalibrierung', STAMM_KORPUS, { stammSuche: true }))
+      .toEqual(['K1']);
+  });
+
+  it('erweitert die Treffermenge, verkleinert sie nie', () => {
+    const ohne = searchAntraegeSubstring('normen', STAMM_KORPUS);
+    const mit = searchAntraegeSubstring('normen', STAMM_KORPUS, { stammSuche: true });
+    for (const akz of ohne) expect(mit).toContain(akz);
+  });
+});
+
+const BEREICH_KORPUS = new Map<string, AntragTextEntry>([
+  // Das Wort steht im Titel — ein fachlicher Treffer.
+  ['T1', eintrag('Prüfung technischer Standards', '', '', '', 'NormFlow', '16KN1', 'Meier GmbH', 'Berlin')],
+  // Das Wort steht NUR im Firmennamen — der Fall aus dem Handoff.
+  ['O1', eintrag('Analytik von Mykotoxinen', '', '', '', 'Myko', '16KN2', 'HPC Standards GmbH', 'Hamburg')],
+]);
+
+describe('searchAntraegeSubstring — Suchen in', () => {
+  it('„alles" findet beide — auch den Treffer im Firmennamen', () => {
+    expect(searchAntraegeSubstring('standards', BEREICH_KORPUS).sort()).toEqual(['O1', 'T1']);
+  });
+
+  it('„nur Titel & Kurzbeschreibung" schließt den Firmennamen aus', () => {
+    expect(searchAntraegeSubstring('standards', BEREICH_KORPUS, { bereich: 'inhalt' }))
+      .toEqual(['T1']);
+  });
+
+  it('„nur Einrichtung & Ort" dreht es um', () => {
+    expect(searchAntraegeSubstring('standards', BEREICH_KORPUS, { bereich: 'einrichtung' }))
+      .toEqual(['O1']);
+  });
+
+  it('das Aktenzeichen bleibt im Inhalts-Bereich erreichbar', () => {
+    expect(searchAntraegeSubstring('16kn1', BEREICH_KORPUS, { bereich: 'inhalt' })).toEqual(['T1']);
+  });
+
+  it('„nur Dokumente" liefert aus dem Antragskorpus GAR nichts', () => {
+    // Sonst stünde unter „nur Dokumente" ein Antrag, der über sein Akronym kam.
+    expect(searchAntraegeSubstring('normflow', BEREICH_KORPUS, { bereich: 'dokumente' }))
+      .toEqual([]);
+  });
+
+  it('der Ort bleibt dem Einrichtungs-Bereich erhalten', () => {
+    expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'einrichtung' }))
+      .toEqual(['T1']);
+    expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'inhalt' })).toEqual([]);
   });
 });

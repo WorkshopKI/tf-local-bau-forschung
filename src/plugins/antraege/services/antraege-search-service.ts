@@ -3,7 +3,8 @@
  *
  * Vereinigt drei Treffer-Quellen zu einer score-tragenden Liste:
  *  1. **Substring** auf VB-/TV-/Abstract-/Deskriptor-Volltext
- *     (synchron, Score = 1.0, method = 'fulltext')
+ *     (synchron, Score = Relevanz aus den Fundstellen, method = 'fulltext';
+ *     bis v4.4.4 war das ein fester 1.0 — siehe `trefferstelle.ts`)
  *  2. **Embedding-Cosine** gegen den Auslastungs-Korpus (768d)
  *     (asynchron, Score = cosine, adaptive Schwelle Floor 0.35 + 90% der
  *     besten Cosine — siehe EMBEDDING_SCORE_FLOOR, method = 'vector')
@@ -45,6 +46,9 @@ import {
   standortNadel,
   type AntragTextEntry,
 } from './search-corpus';
+import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/trefferstelle';
+import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
+import { suchNadel, sammleVarianten } from '@/core/services/search/wortstamm';
 import type { HybridUnavailableSource } from '../store';
 
 /**
@@ -96,9 +100,22 @@ export type SearchMethod = 'fulltext' | 'vector' | 'hybrid';
 
 export interface AntragSearchHit {
   aktenzeichen: string;
-  /** 0..1 normalisiert. Substring=1.0, Embedding=cosine, DMS=orama-Score. */
+  /** 0..1 normalisiert. Wortlaut=Relevanz aus den Fundstellen,
+   *  Embedding=cosine (gedeckelt), DMS=orama-Score. */
   score: number;
   method: SearchMethod;
+}
+
+/**
+ * Was die Wortlaut-Stufe über einen Treffer weiß: in welchen Feldern er lag und
+ * wie viele der Suchwörter überhaupt eine Fundstelle hatten. Aus beidem rechnet
+ * [trefferstelle.ts](src/plugins/antraege/services/trefferstelle.ts) die
+ * Relevanz — die Stufe liefert die Belege, nicht das Urteil.
+ */
+export interface WortlautTreffer {
+  felder: Set<Trefferfeld>;
+  /** Anteil der Suchwörter mit Fundstelle (0..1). Bei UND immer 1. */
+  abdeckung: number;
 }
 
 export interface AntraegeSearchResult {
@@ -273,28 +290,184 @@ export function zerlegeAnfrage(query: string): string[] {
 function substringMatches(
   query: string,
   textCorpus: Map<string, AntragTextEntry>,
-  verknuepfung: SuchVerknuepfung = 'und',
-): Set<string> {
-  const out = new Set<string>();
-  const woerter = zerlegeAnfrage(query);
-  if (woerter.length === 0) return out;
-  const teile = woerter.map(wort => ({ wort, ortNadel: standortNadel(wort) }));
+  optionen: WortlautOptionen = {},
+): WortlautErgebnis {
+  const {
+    verknuepfung = 'und',
+    stammSuche = false,
+    bereich = 'alles',
+  } = optionen;
+  const out = new Map<string, WortlautTreffer>();
+  const leer: WortlautErgebnis = { treffer: out, varianten: [] };
+  const felder = bereichFelder(bereich);
+  if (felder.size === 0) return leer;
+
+  // „Genaue Wortfolge" sucht die Anfrage als EINE Zeichenkette — das Verhalten,
+  // das bis v3.49 der einzige Weg war. Als ausdrücklich gewählte Option ist es
+  // richtig; als stiller Standard war es der Defekt.
+  const woerter = verknuepfung === 'wortfolge'
+    ? [query.trim().toLowerCase()].filter(w => w.length > 0)
+    : zerlegeAnfrage(query);
+  if (woerter.length === 0) return leer;
+
+  const teile: SuchTeil[] = woerter.map(wort => ({
+    wort,
+    nadeln: baueNadeln(wort, stammSuche, optionen.aktiveVarianten),
+    ortNadel: standortNadel(wort),
+  }));
+
+  const varianten = new Map<string, string>();
+  let gescannt = 0;
+
   for (const [akz, entry] of textCorpus.entries()) {
-    const trifft = (t: { wort: string; ortNadel: string }): boolean =>
-      entry.vbLower.includes(t.wort)
-      || entry.tvLower.includes(t.wort)
-      || entry.absLower.includes(t.wort)
-      || entry.descriptorsLower.includes(t.wort)
-      || entry.akronymLower.includes(t.wort)
-      || entry.akzLower.includes(t.wort)
-      || entry.organisationLower.includes(t.wort)
+    const trifft = (t: SuchTeil): boolean => t.nadeln.some(nadel => (
+      (felder.has('titel') && (entry.vbLower.includes(nadel) || entry.tvLower.includes(nadel)))
+      || (felder.has('kurzbeschreibung') && entry.absLower.includes(nadel))
+      || (felder.has('deskriptoren') && entry.descriptorsLower.includes(nadel))
+      || (felder.has('akronym') && entry.akronymLower.includes(nadel))
+      || (felder.has('aktenzeichen') && entry.akzLower.includes(nadel))
+      || (felder.has('organisation') && entry.organisationLower.includes(nadel))
+    ))
       // Leere Nadel verwerfen: `''.includes('')` wäre `true` und träfe alles.
-      || (t.ortNadel.length > 0 && entry.standortSuchform.includes(t.ortNadel));
+      // Der Standort vergleicht bewusst das ROHE Wort, nicht den Stamm: seine
+      // Suchform ist am Wortanfang verankert, ein gekürzter Stamm holte über
+      // dieselbe Verankerung genau die Nachbarorte herein, die v4.4.4
+      // ausgeschlossen hat.
+      || (felder.has('standort') && t.ortNadel.length > 0
+        && entry.standortSuchform.includes(t.ortNadel));
     if (verknuepfung === 'oder' ? teile.some(trifft) : teile.every(trifft)) {
-      out.add(akz);
+      out.set(akz, feldZuordnung(entry, teile, felder));
+      if (stammSuche && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
+        gescannt++;
+        sammleAusEintrag(entry, teile, varianten);
+      }
     }
   }
-  return out;
+  return { treffer: out, varianten: Array.from(varianten.values()) };
+}
+
+/** Ein zerlegtes Suchwort: der Wortlaut (für Anzeige und Zählung), die Nadeln
+ *  (Wortlaut, Stamm oder ausgewählte Varianten) und die am Wortanfang
+ *  verankerte Standort-Nadel. */
+interface SuchTeil { wort: string; nadeln: string[]; ortNadel: string }
+
+/**
+ * Wonach im Volltext gesucht wird.
+ *
+ * Drei Fälle, und der dritte ist der Grund für dieses ganze Konstrukt: sobald
+ * der Nutzer eine Stamm-Variante ABWÄHLT, genügt der Stamm nicht mehr — er
+ * fände sie ja weiterhin. Dann wird ausdrücklich nach dem getippten Wort und
+ * den verbliebenen Varianten gesucht. Nur so hat das Abwählen eine Wirkung auf
+ * die Treffermenge und ist nicht bloß eine Einfärbung.
+ */
+function baueNadeln(
+  wort: string,
+  stammSuche: boolean,
+  aktiveVarianten: readonly string[] | undefined,
+): string[] {
+  if (!stammSuche) return [wort];
+  if (aktiveVarianten === undefined) return [suchNadel(wort, true)];
+  const stamm = suchNadel(wort, true);
+  const passend = aktiveVarianten
+    .map(v => v.toLowerCase())
+    .filter(v => v.includes(stamm));
+  return [wort, ...passend];
+}
+
+/**
+ * Wie viele Varianten EINGESAMMELT werden — bewusst deutlich mehr, als die
+ * Deutungszeile anzeigt.
+ *
+ * Der Grund ist keine Kosmetik: sobald der Nutzer eine Variante abwählt, sucht
+ * die Stufe mit ausdrücklichen Nadeln (Wort + verbliebene Varianten) statt mit
+ * dem Stamm. Was nie eingesammelt wurde, fehlt dann in den Nadeln — und der
+ * Klick auf EINEN Chip nähme auch Treffer mit, die mit ihm nichts zu tun haben.
+ * Am Bestand gemessen: mit Deckel 8 fiel „Normen" beim Abwählen einer Variante
+ * von 28 auf 15 Treffer.
+ */
+const VARIANTEN_MAX = 64;
+/** Wie viele Treffer dafür durchsucht werden. Das Einsammeln läuft mit einem
+ *  Regex über den Volltext — bei einer ODER-Anfrage mit tausenden Treffern wäre
+ *  das ohne Deckel der teuerste Teil der Suche. */
+const VARIANTEN_SCAN_MAX = 200;
+
+/** Sammelt die Wörter, die dieser Eintrag über den Stamm mitbringt. Aus den
+ *  ROHEN Feldern, damit die Chips die Schreibweise des Antrags zeigen. */
+function sammleAusEintrag(
+  entry: AntragTextEntry,
+  teile: readonly SuchTeil[],
+  ziel: Map<string, string>,
+): void {
+  const text = `${entry.vb} ${entry.tv} ${entry.abstract} ${entry.descriptors}`;
+  for (const t of teile) {
+    const stamm = suchNadel(t.wort, true);
+    if (stamm === t.wort) continue; // nichts abgelöst — keine Varianten möglich
+    for (const v of sammleVarianten(text, stamm, t.wort, VARIANTEN_MAX)) {
+      const key = v.toLowerCase();
+      if (!ziel.has(key)) ziel.set(key, v);
+      if (ziel.size >= VARIANTEN_MAX) return;
+    }
+  }
+}
+
+/** Was die Wortlaut-Stufe wissen muss. Ein Objekt statt vier Stellungsparameter,
+ *  weil sonst niemand mehr sieht, welches `true` welche Option meint. */
+export interface WortlautOptionen {
+  verknuepfung?: SuchVerknuepfung;
+  /** Wortstamm-Varianten mitsuchen. */
+  stammSuche?: boolean;
+  /** Worin gesucht wird. */
+  bereich?: Suchbereich;
+  /**
+   * Die NICHT abgewählten Stamm-Varianten. `undefined` heißt „der Nutzer hat
+   * noch nichts abgewählt" — dann genügt der Stamm. Eine leere Liste heißt „alle
+   * abgewählt" und ist etwas anderes.
+   */
+  aktiveVarianten?: readonly string[];
+}
+
+/** Was ein Wortlaut-Lauf liefert: die Treffer und die Wörter, die der Bestand
+ *  über den Stamm beigesteuert hat. */
+export interface WortlautErgebnis {
+  treffer: Map<string, WortlautTreffer>;
+  varianten: string[];
+}
+
+/**
+ * Zweiter Durchgang, NUR für bereits bestätigte Treffer: welche Felder trafen,
+ * und wie viele der Suchwörter fanden überhaupt eine Fundstelle.
+ *
+ * Bewusst getrennt vom Match-Durchgang oben. Dort steht eine Oder-Kette, die
+ * beim ersten Treffer abbricht — über 14 000 Einträge ist genau dieser
+ * Kurzschluss der Grund, warum die Wortlaut-Stufe in ~10–30 ms durchläuft. Hier
+ * werden alle acht Felder geprüft, aber nur für die Handvoll Einträge, die
+ * ohnehin in der Ergebnisliste landen.
+ */
+function feldZuordnung(
+  entry: AntragTextEntry,
+  teile: readonly SuchTeil[],
+  erlaubt: ReadonlySet<Trefferfeld>,
+): WortlautTreffer {
+  const felder = new Set<Trefferfeld>();
+  let getroffen = 0;
+  for (const t of teile) {
+    let trifftIrgendwo = false;
+    const merke = (feld: Trefferfeld, bedingung: boolean): void => {
+      if (!bedingung || !erlaubt.has(feld)) return;
+      felder.add(feld);
+      trifftIrgendwo = true;
+    };
+    const in_ = (feld: string): boolean => t.nadeln.some(n => feld.includes(n));
+    merke('titel', in_(entry.vbLower) || in_(entry.tvLower));
+    merke('kurzbeschreibung', in_(entry.absLower));
+    merke('deskriptoren', in_(entry.descriptorsLower));
+    merke('akronym', in_(entry.akronymLower));
+    merke('aktenzeichen', in_(entry.akzLower));
+    merke('organisation', in_(entry.organisationLower));
+    merke('standort', t.ortNadel.length > 0 && entry.standortSuchform.includes(t.ortNadel));
+    if (trifftIrgendwo) getroffen++;
+  }
+  return { felder, abdeckung: teile.length > 0 ? getroffen / teile.length : 0 };
 }
 
 /** Effektiver Score-Cutoff fuer einen Lauf: nie unter dem absoluten Floor,
@@ -371,8 +544,12 @@ export async function searchAntraege(
   if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
 
   // Quelle 1: Substring (sync)
-  for (const akz of substringMatches(query, caches.textCorpus)) {
-    mergeHit(merged, { aktenzeichen: akz, score: 1.0, method: 'fulltext' });
+  for (const [akz, treffer] of substringMatches(query, caches.textCorpus).treffer) {
+    mergeHit(merged, {
+      aktenzeichen: akz,
+      score: berechneRelevanz(treffer.felder, treffer.abdeckung),
+      method: 'fulltext',
+    });
   }
 
   // Ohne Opt-in enden wir nach der Substring-Quelle — bewusst auch ohne
@@ -480,15 +657,28 @@ export function _getCachedEmbeddingsDim(): number | null {
 // Substring + Vector + DMS in einem Aufruf) und wird weiter von
 // `useAntraegeHybridSearch` genutzt.
 
-/** Stage 1: Substring-Match (sync). Akz-Liste von Antraegen deren Volltext die
- *  Anfrage-Wörter enthaelt (Verknüpfung siehe `substringMatches`).
- *  Score = 1.0, method = 'fulltext'. */
+/**
+ * Stage 1: Wortlaut-Match (sync). Je Aktenzeichen die getroffenen Felder und die
+ * Wort-Abdeckung — die Belege, aus denen die Suchseite Relevanz, Trefferstellen-
+ * Tags und die Facette „Trefferstelle" bildet.
+ */
+export function searchAntraegeWortlaut(
+  query: string,
+  textCorpus: Map<string, AntragTextEntry>,
+  optionen: WortlautOptionen = {},
+): WortlautErgebnis {
+  return substringMatches(query, textCorpus, optionen);
+}
+
+/** Stage 1, schlanke Fassung: nur die Aktenzeichen. Für Konsumenten, die die
+ *  Fundstellen nicht anzeigen (Förderanträge-Liste, Probeläufe der
+ *  Kein-Treffer-Auswege). */
 export function searchAntraegeSubstring(
   query: string,
   textCorpus: Map<string, AntragTextEntry>,
-  verknuepfung: SuchVerknuepfung = 'und',
+  optionen: WortlautOptionen = {},
 ): string[] {
-  return Array.from(substringMatches(query, textCorpus, verknuepfung));
+  return Array.from(substringMatches(query, textCorpus, optionen).treffer.keys());
 }
 
 /** Stage 2: Embedding-Cosine-Match (async, mit Yield-Loop). Braucht einen

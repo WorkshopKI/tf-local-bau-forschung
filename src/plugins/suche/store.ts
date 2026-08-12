@@ -5,16 +5,17 @@
  * localStorage ist hier ausreichend (Daten klein, OK unter `file://`, siehe
  * CLAUDE.md "localStorage OK for simple flags").
  *
- * AUSNAHME seit v3.50: die drei Felder `query` / `typeFilter` /
- * `antragstypFilter` sind SITZUNGS-lokal und bewusst NICHT in localStorage. Sie
- * liegen hier statt in `useState`, weil der Klick auf einen Treffer die
- * Suchseite ausbaut — mit lokalem State war der Weg zurück eine Sackgasse
- * (leeres Feld, keine Treffer). Nicht persistiert, damit ein Kaltstart weiter
- * auf dem Leerzustand landet und nicht in einer Suche von vorgestern.
+ * AUSNAHME seit v3.50: `query`, die Facettenwahl und die abgewählten Wörter sind
+ * SITZUNGS-lokal und bewusst NICHT in localStorage. Sie liegen hier statt in
+ * `useState`, weil der Klick auf einen Treffer die Suchseite ausbaut — mit
+ * lokalem State war der Weg zurück eine Sackgasse (leeres Feld, keine Treffer).
+ * Nicht persistiert, damit ein Kaltstart weiter auf dem Leerzustand landet und
+ * nicht in einer Suche von vorgestern.
+ *
+ * Ansicht, Sortierung und Dichte sind das Gegenteil: sie beschreiben, wie
+ * jemand ARBEITET, nicht wonach er gerade sucht — die überleben den Neustart.
  */
 import { create } from 'zustand';
-import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
-import type { SuchePillFilterId } from './suchseite-utils';
 import {
   SEARCH_COLUMNS,
   DEFAULT_VISIBLE_COLUMN_KEYS,
@@ -22,10 +23,18 @@ import {
 } from './columns';
 import { pushRecentSearch, MAX_RECENT_SEARCHES } from './suchseite-utils';
 import { DEFAULT_BEGRUENDUNG_INSTRUCTION } from './analyse/stages/begruendung';
+import {
+  parseSortierung, parseDichte,
+  type SucheSortierung, type SucheDichte,
+} from './darstellungsAchsen';
+import { LEERE_WAHL, type FacettenWahl } from './facetten';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_suche_visible_columns';
 const RECENT_SEARCHES_KEY = 'teamflow_suche_recent_queries';
 const ANALYSE_PROMPT_KEY = 'teamflow_suche_analyse_prompt';
+const ANSICHT_KEY = 'teamflow_suche_ansicht';
+const SORTIERUNG_KEY = 'teamflow_suche_sortierung';
+const DICHTE_KEY = 'teamflow_suche_dichte';
 
 const VALID_KEYS: ReadonlySet<string> = new Set(SEARCH_COLUMNS.map(c => c.key));
 
@@ -96,12 +105,22 @@ interface SucheState {
   /** Aktuelle Suchanfrage — sitzungs-lokal, siehe Modul-Kopf. */
   query: string;
   setQuery: (q: string) => void;
-  /** Treffer-Typ-Pille — sitzungs-lokal, überlebt den Sprung ins Detail. */
-  typeFilter: SuchePillFilterId;
-  setTypeFilter: (id: SuchePillFilterId) => void;
-  /** Antragstyp-Segment — sitzungs-lokal, überlebt den Sprung ins Detail. */
-  antragstypFilter: KategorieLabel;
-  setAntragstypFilter: (label: KategorieLabel) => void;
+  /** Gesetzte Facetten — sitzungs-lokal, überlebt den Sprung ins Detail. */
+  facettenWahl: FacettenWahl;
+  setFacettenWahl: (w: FacettenWahl) => void;
+  /**
+   * In der Deutungszeile abgewählte Suchwörter, klein geschrieben.
+   * Sitzungs-lokal und an DIESE Anfrage gebunden — `setQuery` räumt sie mit.
+   */
+  abgewaehlteWoerter: string[];
+  toggleWort: (wort: string) => void;
+  /** Liste oder Tabelle. Persistiert: eine Arbeitsgewohnheit. */
+  ansicht: 'liste' | 'tabelle';
+  setAnsicht: (a: 'liste' | 'tabelle') => void;
+  sortierung: SucheSortierung;
+  setSortierung: (s: SucheSortierung) => void;
+  dichte: SucheDichte;
+  setDichte: (d: SucheDichte) => void;
 }
 
 export const useSucheStore = create<SucheState>((set, get) => ({
@@ -157,11 +176,50 @@ export const useSucheStore = create<SucheState>((set, get) => ({
 
   // Sitzungs-lokal (kein localStorage) — Begründung siehe Modul-Kopf.
   query: '',
-  setQuery: (query: string) => set({ query }),
+  setQuery: (query: string) => {
+    // Neue Anfrage ⇒ die Wort-Abwahl der alten ist hinfällig. Sonst schnitte ein
+    // vor zwei Suchen abgewähltes Wort still an der neuen Anfrage mit.
+    const woerter = get().abgewaehlteWoerter;
+    set(woerter.length > 0 ? { query, abgewaehlteWoerter: [] } : { query });
+  },
 
-  typeFilter: '',
-  setTypeFilter: (typeFilter: SuchePillFilterId) => set({ typeFilter }),
+  facettenWahl: LEERE_WAHL,
+  setFacettenWahl: (facettenWahl: FacettenWahl) => set({ facettenWahl }),
 
-  antragstypFilter: 'Alle',
-  setAntragstypFilter: (antragstypFilter: KategorieLabel) => set({ antragstypFilter }),
+  abgewaehlteWoerter: [],
+  toggleWort: (wort: string) => {
+    const klein = wort.toLowerCase();
+    const aktuell = get().abgewaehlteWoerter;
+    set({
+      abgewaehlteWoerter: aktuell.includes(klein)
+        ? aktuell.filter(w => w !== klein)
+        : [...aktuell, klein],
+    });
+  },
+
+  ansicht: ladeAnsicht(),
+  setAnsicht: (ansicht) => {
+    try { localStorage.setItem(ANSICHT_KEY, ansicht); } catch { /* ignore */ }
+    set({ ansicht });
+  },
+
+  sortierung: parseSortierung(lies(SORTIERUNG_KEY)),
+  setSortierung: (sortierung) => {
+    try { localStorage.setItem(SORTIERUNG_KEY, sortierung); } catch { /* ignore */ }
+    set({ sortierung });
+  },
+
+  dichte: parseDichte(lies(DICHTE_KEY)),
+  setDichte: (dichte) => {
+    try { localStorage.setItem(DICHTE_KEY, dichte); } catch { /* ignore */ }
+    set({ dichte });
+  },
 }));
+
+function lies(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function ladeAnsicht(): 'liste' | 'tabelle' {
+  return lies(ANSICHT_KEY) === 'tabelle' ? 'tabelle' : 'liste';
+}

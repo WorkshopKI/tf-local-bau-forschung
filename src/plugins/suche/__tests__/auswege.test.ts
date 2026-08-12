@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest';
+import { berechneAuswege, type AuswegLage, type Probelauf } from '../auswege';
+
+const LAGE: AuswegLage = {
+  query: 'additive Fertigung Quantenkryptografie',
+  verknuepfung: 'und',
+  stammSuche: false,
+  bereich: 'alles',
+  aktiveFilter: [],
+};
+
+/** Probelauf, der nur für bestimmte Anfragen/Optionen etwas liefert. */
+function probeFuer(regel: (q: string, o: { verknuepfung: string; stammSuche: boolean; bereich: string }) => number): Probelauf {
+  return (q, o) => regel(q, o);
+}
+
+describe('berechneAuswege', () => {
+  it('bietet NUR an, was tatsächlich Treffer bringt', () => {
+    const probe = probeFuer(q => (q === 'additive Fertigung' ? 570 : 0));
+    const auswege = berechneAuswege(LAGE, probe);
+    expect(auswege).toHaveLength(1);
+    expect(auswege[0]?.text).toContain('Quantenkryptografie');
+    expect(auswege[0]?.treffer).toBe(570);
+  });
+
+  it('trägt die ECHTE Trefferzahl, nicht eine Schätzung', () => {
+    const probe = probeFuer(q => (q === 'additive Fertigung' ? 42 : 0));
+    expect(berechneAuswege(LAGE, probe)[0]?.treffer).toBe(42);
+  });
+
+  it('bietet ODER an, wenn das Lockern hilft', () => {
+    const probe = probeFuer((_q, o) => (o.verknuepfung === 'oder' ? 963 : 0));
+    const ids = berechneAuswege(LAGE, probe).map(a => a.id);
+    expect(ids).toContain('oder');
+  });
+
+  it('bietet die Wortstämme an, wenn sie helfen', () => {
+    const probe = probeFuer((_q, o) => (o.stammSuche ? 12 : 0));
+    expect(berechneAuswege(LAGE, probe).map(a => a.id)).toContain('stamm');
+  });
+
+  it('bietet als ERSTES an, gesetzte Filter zu lösen', () => {
+    const probe = probeFuer(() => 5);
+    const auswege = berechneAuswege({ ...LAGE, aktiveFilter: ['Jahr: 2013'] }, probe);
+    expect(auswege[0]?.id).toBe('filter');
+    expect(auswege[0]?.text).toContain('Jahr: 2013');
+  });
+
+  it('fasst mehrere Filter zu einer Zahl zusammen', () => {
+    const probe = probeFuer(() => 5);
+    const auswege = berechneAuswege(
+      { ...LAGE, aktiveFilter: ['Jahr: 2013', 'Status: Bewilligt'] }, probe,
+    );
+    expect(auswege[0]?.text).toContain('2 Filter');
+  });
+
+  it('bietet die Kombination erst an, wenn einzeln nichts hilft', () => {
+    // Nur wenn ODER UND Stammsuche gemeinsam gesetzt sind, gibt es Treffer.
+    const probe = probeFuer((_q, o) => (o.verknuepfung === 'oder' && o.stammSuche ? 7 : 0));
+    const auswege = berechneAuswege(LAGE, probe);
+    expect(auswege).toHaveLength(1);
+    expect(auswege[0]?.id).toBe('kombiniert');
+    expect(auswege[0]?.treffer).toBe(7);
+  });
+
+  it('sagt nichts zu, wenn wirklich nichts hilft', () => {
+    expect(berechneAuswege(LAGE, () => 0)).toEqual([]);
+  });
+
+  it('schlägt bei EINEM Wort kein Weglassen vor', () => {
+    const probe = probeFuer(() => 3);
+    const auswege = berechneAuswege({ ...LAGE, query: 'Quantenkryptografie' }, probe);
+    expect(auswege.some(a => a.id.startsWith('ohne:'))).toBe(false);
+  });
+
+  it('bietet bei genauer Wortfolge das Lockern an', () => {
+    const probe = probeFuer((_q, o) => (o.verknuepfung === 'und' ? 4 : 0));
+    const auswege = berechneAuswege({ ...LAGE, verknuepfung: 'wortfolge' }, probe);
+    expect(auswege.map(a => a.id)).toContain('und');
+  });
+
+  it('bietet an, den Suchbereich zu öffnen', () => {
+    const probe = probeFuer((_q, o) => (o.bereich === 'alles' ? 9 : 0));
+    const auswege = berechneAuswege({ ...LAGE, bereich: 'inhalt' }, probe);
+    expect(auswege.map(a => a.id)).toContain('bereich');
+  });
+
+  it('überflutet nicht — höchstens eine Handvoll Vorschläge', () => {
+    const probe = probeFuer(() => 1);
+    expect(berechneAuswege(
+      { ...LAGE, aktiveFilter: ['a', 'b'], bereich: 'inhalt', verknuepfung: 'wortfolge' }, probe,
+    ).length).toBeLessThanOrEqual(4);
+  });
+});

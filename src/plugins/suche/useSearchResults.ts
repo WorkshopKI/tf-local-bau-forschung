@@ -2,26 +2,23 @@
  * Filter-/Sort-/Spalten-Pipeline der Suche (Konsolidierung 2026-07 aus SuchSeite.tsx
  * extrahiert — die zweite der drei TODO-Verantwortungs-Grenzen). Kapselt den
  * gesamten abgeleiteten Zustand: von den rohen `searchResults` (+ optionaler
- * KI-Begründung) über Pill-/Antragstyp-/Spalten-Filter und Sortierung bis zur
+ * KI-Begründung) über die Spalten-Filter und die Sortierung bis zur
  * `sorted`-Liste, den sichtbaren Spalten und den Analyse-Kandidaten.
  *
- * Verhaltens-invariant: reine Verschiebung der bisherigen SuchSeite-Logik, keine
- * Änderung der Berechnung.
+ * Die früheren Treffer-Pillen (Alle/Förderanträge/Dokumente) und der
+ * Antragstyp-Umschalter sind mit v4.5 entfallen: beides beantwortet jetzt die
+ * FACETTENZEILE über dem Ergebnis, und sie gilt für Liste UND Tabelle. Zwei
+ * Filtersysteme für dieselbe Frage nebeneinander wären genau die Drift, gegen
+ * die die Layout-Regel steht — die Facetten stehen deshalb VOR diesem Hook, ihre
+ * Ergebnisse kommen hier als `searchResults` an.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { facettenBasis, zaehleFacette, type SortableColumn } from '@/components/data-table';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
-import { useSucheStore } from './store';
 import {
   SEARCH_COLUMNS, BEGRUENDUNG_COLUMN, getColumnByKey, getColumnFilterValue, type SearchColumn,
 } from './columns';
-import {
-  matchesPillFilter, compareValues, countResultsByType, SUCHE_COLLATOR,
-  getSucheAntragstypItems, matchesSucheAntragstyp, type SuchePillFilterId,
-} from './suchseite-utils';
-
-type FilterId = SuchePillFilterId;
+import { compareValues, SUCHE_COLLATOR } from './suchseite-utils';
 
 const DEFAULT_SORT_KEY = 'score';
 const COLUMN_WIDTHS_KEY = 'teamflow_suche_column_widths';
@@ -56,13 +53,6 @@ export interface UseSearchResultsParams {
 
 export interface UseSearchResultsReturn {
   dataSource: UnifiedSearchResult[];
-  typeFilter: FilterId;
-  setTypeFilter: (id: FilterId) => void;
-  antragstypFilter: KategorieLabel;
-  setAntragstypFilter: (label: KategorieLabel) => void;
-  filterChips: Array<{ id: FilterId; label: string; count: number }>;
-  antragstypItems: ReturnType<typeof getSucheAntragstypItems>;
-  antragstypApplicable: boolean;
   sorted: UnifiedSearchResult[];
   analyseResults: UnifiedSearchResult[];
   visibleColumnDefs: SearchColumn[];
@@ -81,13 +71,8 @@ export interface UseSearchResultsReturn {
 export function useSearchResults(params: UseSearchResultsParams): UseSearchResultsReturn {
   const { searchResults, begruendungById, analyseActive, visibleColumns } = params;
 
-  // Die beiden Trefferfilter liegen im Store statt in `useState`: sie sollen den
-  // Sprung auf die Antrags-Detailseite überleben (siehe store.ts). Sortierung
-  // und Spaltenfilter bleiben lokal — sie sind Feinarbeit an EINER Trefferliste.
-  const typeFilter = useSucheStore(s => s.typeFilter);
-  const setTypeFilter = useSucheStore(s => s.setTypeFilter);
-  const antragstypFilter = useSucheStore(s => s.antragstypFilter);
-  const setAntragstypFilter = useSucheStore(s => s.setAntragstypFilter);
+  // Sortierung und Spaltenfilter bleiben lokal — sie sind Feinarbeit an EINER
+  // Trefferliste, nicht an der Suche.
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
@@ -110,31 +95,6 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
       : searchResults,
     [searchResults, begruendungById],
   );
-
-  const filterChips = useMemo(() => {
-    const pillCounts = countResultsByType(dataSource);
-    const base: Array<{ id: FilterId; label: string; count: number }> = [
-      { id: '', label: 'Alle', count: dataSource.length },
-      { id: 'antrag', label: 'Foerderantraege', count: pillCounts.antraege },
-      { id: 'dokument', label: 'Dokumente', count: pillCounts.dokumente },
-    ];
-    return base;
-  }, [dataSource]);
-
-  const pillFiltered = useMemo(
-    () => dataSource.filter(r => matchesPillFilter(r, typeFilter)),
-    [dataSource, typeFilter],
-  );
-
-  // Antragstyp ist ein Foerderantrag-Konzept (vb_phase → FuE/DS/DL/NW). Counts
-  // ueber die gesamte Treffer-Liste (stabil). Sichtbar/aktiv nur fuer die
-  // Antrag-Pills ('' = Alle, 'antrag').
-  const antragstypItems = useMemo(() => getSucheAntragstypItems(dataSource), [dataSource]);
-  const antragstypApplicable = typeFilter === '' || typeFilter === 'antrag';
-  const antragstypFiltered = useMemo(() => {
-    if (antragstypFilter === 'Alle' || !antragstypApplicable) return pillFiltered;
-    return pillFiltered.filter(r => matchesSucheAntragstyp(r, antragstypFilter));
-  }, [pillFiltered, antragstypFilter, antragstypApplicable]);
 
   const allColumns = SEARCH_COLUMNS;
 
@@ -168,7 +128,7 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
     for (const col of allColumns) {
       if (!col.filterable) continue;
       const set = new Set<string>();
-      for (const r of pillFiltered) {
+      for (const r of dataSource) {
         const s = cachedFilterValue(col, r);
         if (s) set.add(s);
       }
@@ -176,19 +136,15 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
-  }, [pillFiltered, allColumns]);
+  }, [dataSource, allColumns]);
 
-  // Facetten-Zahlen fuer das gerade geoeffnete Spalten-Dropdown. Gerechnet wird
-  // gegen `antragstypFiltered` — Pill und Antragstyp bleiben nach dem Anwenden
-  // aktiv, also gehoeren sie in die Zusage. Die KANDIDATEN kommen weiter aus
-  // `pillFiltered` (bewusst breiter): ein Wert kann darum allein wegen des
-  // Antragstyp-Filters auf 0 stehen — er bleibt sichtbar, nur ausgegraut.
+  // Facetten-Zahlen fuer das gerade geoeffnete Spalten-Dropdown.
   //
   // Der Wert-Zugriff MUSS der der Suche sein (`filterType: 'year'|'type'`),
   // sonst zaehlt die Facette andere Werte als der Filter darunter filtert.
   const facettenCache = useMemo(
     () => new Map<string, Map<string, number>>(),
-    [antragstypFiltered, columnFilters],
+    [dataSource, columnFilters],
   );
   const filterCountsByColumn = useCallback((key: string): ReadonlyMap<string, number> => {
     let treffer = facettenCache.get(key);
@@ -196,7 +152,7 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
       const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
       treffer = col
         ? zaehleFacette(
-          facettenBasis(antragstypFiltered, allColumns, columnFilters, key, cachedFilterValue),
+          facettenBasis(dataSource, allColumns, columnFilters, key, cachedFilterValue),
           col,
           cachedFilterValue,
         )
@@ -205,18 +161,18 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
     }
     return treffer;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
-  }, [facettenCache, antragstypFiltered, columnFilters, allColumns]);
+  }, [facettenCache, dataSource, columnFilters, allColumns]);
 
   const columnFiltered = useMemo(() => {
     const entries = Object.entries(columnFilters).filter(([, set]) => set.size > 0);
-    if (entries.length === 0) return antragstypFiltered;
-    return antragstypFiltered.filter(r => entries.every(([key, set]) => {
+    if (entries.length === 0) return dataSource;
+    return dataSource.filter(r => entries.every(([key, set]) => {
       const col = allColumns.find(c => c.key === key) ?? getColumnByKey(key);
       if (!col) return true;
       return set.has(cachedFilterValue(col, r));
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cachedFilterValue ist stable per ref
-  }, [antragstypFiltered, columnFilters, allColumns]);
+  }, [dataSource, columnFilters, allColumns]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return columnFiltered;
@@ -255,9 +211,6 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
 
   return {
     dataSource,
-    typeFilter, setTypeFilter,
-    antragstypFilter, setAntragstypFilter,
-    filterChips, antragstypItems, antragstypApplicable,
     sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
     sortKey, sortDirection, handleSort,
     columnFilters, handleColumnFilterChange,

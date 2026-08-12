@@ -19,6 +19,23 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.6 — 2026-08
+
+### Neu
+- Die Suche zeigt Treffer wahlweise als Liste: mit der Textstelle, in der das Suchwort steht, und der Angabe, woher sie kommt.
+- Unter dem Suchfeld steht jetzt, wie die Anfrage gelesen wurde. Ein Klick auf ein Wort nimmt es aus der Suche, ohne dass Sie im Feld editieren müssen.
+- „Genaue Wortfolge" als dritte Möglichkeit neben „alle Wörter" und „irgendein Wort" — für Begriffe, die zusammengehören.
+- „Ähnliche Begriffe mitsuchen" findet verwandte Wortformen: „Normen" findet auch „Normung". Welche dazugekommen sind, steht daneben und lässt sich einzeln abwählen.
+- Filter für Status, Antragstyp, Jahr und Trefferstelle — mit der Zahl, die Sie nach dem Klick bekommen.
+- Suchen lassen sich speichern und später mit einem Klick erneut ausführen.
+### Verbesserungen
+- Die Relevanz sagt jetzt etwas aus: ein Treffer im Titel wiegt schwerer als einer im Firmennamen. Vorher hatten alle Treffer denselben Wert, und „nach Relevanz sortieren" tat nichts.
+- Treffer aus Dokumenten stehen nicht mehr als eigene Zeile daneben, sondern beim zugehörigen Antrag.
+- Der Einstieg zeigt Ihre letzten, gespeicherten und häufigen Suchen — jeweils mit der aktuellen Trefferzahl.
+- „Warum?" an jeder Zeile erklärt den einzelnen Treffer, statt gleich alle begründen zu lassen.
+### Bugfixes
+- Findet eine Suche nichts, stehen jetzt geprüfte Vorschläge da — jeder mit der Trefferzahl, die er tatsächlich bringt. Vorher endete die Suche in einer Sackgasse.
+
 ## v4.4 — 2026-08
 
 ### Neu

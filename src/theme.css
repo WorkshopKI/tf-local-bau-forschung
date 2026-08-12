@@ -204,6 +204,11 @@
   /* Flüchtiges Beleg↔Satz-Highlight (Hover, Journey-Paket 4) — Amber, klar vom „Anzeigen"-Gelb getrennt. */
   --tf-beleg-highlight: hsl(38, 92%, 82%);
 
+  /* Suchtreffer über den WORTSTAMM („Normen" → „Normung") — Türkis, damit auf
+     einen Blick unterscheidbar bleibt, was getippt wurde und was die Suche
+     dazugenommen hat. Bewusst kalt gegen das warme Treffer-Gelb. */
+  --tf-highlight-aehnlich: hsl(190, 55%, 88%);
+
   /* ── shadcn-Konvention: Text/Icon auf primärer Fläche ── */
   --tf-primary-foreground: #ffffff;
   /* CTA-Fläche (Default-Button): immer weißer Text — bewusst OHNE Dark-Flip
@@ -254,26 +259,38 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* ── Dark-Satz (v4.6, Design-Handoff `homepage-anpassen` §4) ──
+   Vier gestufte Flächen statt einer: #161718 (Desk) → #1e1f21 (Blatt) →
+   #232427 (Karte) → #26272a. Die Tiefe kommt damit aus der Helligkeit, nicht
+   aus Rahmenlinien. Zwei Folgeregeln:
+   · Kein reines Schwarz, kein reines Weiß (#161718 / #f2f2f2) — senkt das
+     Nachleuchten an harten Kanten und die Blendung bei langem Lesen.
+   · Der Rahmen ist im Dunkeln eine HELLE Kante (weiße Alpha-Werte). Ein
+     abgedunkelter Rahmen verschwindet auf dunklem Grund; Karten wirkten
+     deshalb bis v4.5 randlos.
+   Der Satz ist neutral-grau statt warm-grau — Teil desselben Vorschlags.
+   Farbige Token (Status, Ampel, Lanes) bleiben unangetastet: nur die Flächen
+   wechseln, damit die Ampel im Dunkeln so liest wie im Hellen. ── */
 [data-theme="dark"] {
-  --tf-bg: #2a2a28;
-  --tf-bg-secondary: #333330;
-  --tf-bg-sidebar: #222220;
-  --tf-text: #cccac4;
-  --tf-text-secondary: #8a8884;
-  --tf-text-tertiary: #605e5a;
-  --tf-border: rgba(200, 195, 180, 0.08);
-  --tf-border-hover: rgba(200, 195, 180, 0.14);
-  --tf-hover: rgba(200, 195, 180, 0.05);
+  --tf-bg: #1e1f21;
+  --tf-bg-secondary: #26272a;
+  --tf-bg-sidebar: #161718;
+  --tf-text: #f2f2f2;
+  --tf-text-secondary: #a8a8a8;
+  --tf-text-tertiary: #767676;
+  --tf-border: hsl(0 0% 100% / 0.09);
+  --tf-border-hover: hsl(0 0% 100% / 0.18);
+  --tf-hover: hsl(0 0% 100% / 0.05);
   --tf-primary-light: hsl(var(--tf-primary-h), calc(var(--tf-primary-s) * 0.3), 22%);
 
-  /* Desk & Blatt (Dark): Desk dunkler als das Blatt (--tf-bg #2a2a28) → das Blatt
+  /* Desk & Blatt (Dark): Desk dunkler als das Blatt (--tf-bg #1e1f21) → das Blatt
      schwebt heller darüber, wie im Light-Mode. --tf-sheet / --tf-nav-active-bg
      tracken --tf-bg und brauchen keinen eigenen Dark-Wert. */
-  --tf-desk: #222220;                         /* warm-grau, dunkler als das Blatt */
-  --tf-sheet-border: rgba(200, 195, 180, 0.10);
-  --tf-sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
-  --tf-card-surface: #31302e;                 /* Karte leicht heller als das Blatt */
-  --tf-nav-active-border: rgba(200, 195, 180, 0.14);
+  --tf-desk: #161718;                         /* neutral, dunkler als das Blatt */
+  --tf-sheet-border: #2a2b2e;
+  --tf-sheet-shadow: 0 1px 2px hsl(0 0% 0% / 0.35), 0 12px 34px hsl(0 0% 0% / 0.45);
+  --tf-card-surface: #232427;                 /* Karte leicht heller als das Blatt */
+  --tf-nav-active-border: hsl(0 0% 100% / 0.18);
 
   --tf-info-bg: hsl(210, 18%, 22%);
   --tf-info-text: hsl(210, 30%, 66%);
@@ -288,6 +305,8 @@
   --tf-highlight: hsl(48, 45%, 32%);
   /* Beleg↔Satz-Hover-Highlight (Dark): gedämpftes Amber, Lightness geflippt. */
   --tf-beleg-highlight: hsl(38, 42%, 30%);
+  /* Wortstamm-Treffer (Dark): gedämpftes Türkis, Lightness geflippt. */
+  --tf-highlight-aehnlich: hsl(190, 32%, 30%);
   /* Accent (Violett) — Dark: Lightness flippt, Hue/Sat bleiben (vgl. semantische Farben). */
   --tf-accent-bg: hsl(265, 22%, 25%);
   --tf-accent-text: hsl(265, 35%, 72%);
@@ -359,7 +378,9 @@
   /* ── Design-Handoff-Token-Vertrag (v2.119) — Dark: nur die theme-abhängigen
      Werte überschreiben. Die Skala-Tokens (Typo/Spacing/Radius/Motion) sind
      geometrisch konstant und kaskadieren aus :root. ── */
-  --tf-shadow-dialog: 0 8px 30px rgba(0, 0, 0, 0.5);
+  /* Im Dunkeln trägt ein schwacher Schatten nicht — Menüs brauchen mehr, um
+     sichtbar über der Seite zu schweben (Handoff §4.4). */
+  --tf-shadow-dialog: 0 14px 40px hsl(0 0% 0% / 0.55);
   --tf-info-border: hsl(210, 20%, 38%);
   --tf-success-border: hsl(145, 18%, 36%);
   --tf-warning-border: hsl(40, 22%, 38%);

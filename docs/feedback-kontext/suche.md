@@ -2,35 +2,45 @@
 
 ## Zweck
 
-Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden Suche (Wortlaut + optional semantische Ähnlichkeit) und kann Treffer per KI mit Begründungen anreichern lassen.
+Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden Suche (Wortlaut + optional Wortstämme + optional semantische Ähnlichkeit), sieht je Treffer die Fundstelle mit Relevanz und kann Treffer per KI begründen lassen.
 
 ## UI-Elemente & Begriffe
 
+- **Kopfzeile:** Titel „Suche" · **Gespeicherte Suchen** (Menü, gerätelokal, mit Trefferzahl und letztem Lauf) · **Diese Suche speichern** · Hilfe.
 - **Suchfeld** oben — mehrzeilig und an der Ecke in beide Richtungen ziehbar (die Größe wird gemerkt). Enter startet/übernimmt, Shift+Enter macht einen Zeilenumbruch.
-- **Dropdown „Ohne/Mit Ähnlichkeitssuche":** lädt bei Bedarf das Embedding-Modell.
-- **Dropdown „Alle Wörter / Irgendein Wort":** verknüpft mehrere Stichwörter (UND ist Standard). Wirkt auf Wortlaut-Treffer; die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt.
-- **„Mit KI analysieren":** öffnet den Assistenten rechts, der die aktuellen Treffer als Kontext kennt.
-- **„Treffer begründen":** in der Filterzeile, sobald es Treffer gibt — Begründungs-Overlay je Treffer; „Begründungen entfernen" räumt sie wieder ab.
+- **Optionszeile** darunter, vier Elemente:
+  - **„Wortverknüpfung":** alle Wörter (UND, Standard) · irgendein Wort (ODER) · genaue Wortfolge. Wirkt auf Wortlaut-Treffer.
+  - **„Ähnliche Begriffe mitsuchen":** deterministischer Wortstamm-Vergleich („Normen" findet „Normung"). Kostenlos, lädt nichts nach.
+  - **„Suchen in":** Titel/Beschreibung/Dokumente · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung & Ort.
+  - **„Ähnlichkeitssuche":** semantische Treffer, lädt beim ersten Mal ein Embedding-Modell (~200 MB).
+  - Rechts der **Index-Hinweis** („Index: 14.225 Anträge · n Textabschnitte").
+- **Deutungszeile „Gesucht wird":** die Suchwörter als **abwählbare** Chips (gelb), dazwischen der Operator (UND/ODER/„gefolgt von"), dahinter die gefundenen Wortstamm-Varianten (türkis, ebenfalls abwählbar). Ein abgewähltes Wort fällt aus der Suche — das Feld bleibt unverändert.
+- **Facettenzeile:** Status · Antragstyp · Jahr · Trefferstelle, je mit Trefferzahl. Gesetzte Filter erscheinen zusätzlich als entfernbarer Chip, daneben „Filter zurücksetzen".
+- **Ergebniskopf:** „n Treffer in m Anträgen" · **Darstellung** (Sortierung + Dichte in einem Menü) · **Liste/Tabelle** · **Spalten** (nur in der Tabelle) · **Mit KI analysieren** (öffnet den Assistenten) · **Alle begründen** · **Begründungen entfernen** · **Export-Menü** (CSV / XLSX / Zwischenablage).
+- **Trefferliste** (Standard): je Zeile FKZ · Status · Bewilligungsdatum · Titel (Suchwörter markiert) · Textstelle mit Quellenangabe · Trefferstellen-Tags mit Anzahl · Relevanzbalken (hoch/mittel/gering) · **„Warum?"**. „Warum?" klappt die KI-Begründung unter der Zeile auf, mit den Aktionen **Antrag öffnen** · **Ähnliche Anträge** · **Als unpassend melden** (öffnet das Feedback-Formular vorbefüllt; ändert kein Ranking).
+- **Ergebnistabelle** (Alternative): sortier-/filterbare, konfigurierbare Spalten wie bisher.
+- **Mehrfachauswahl:** Kästchen je Zeile, dunkle Leiste unten mit Exportieren · Mit KI vergleichen · Auswahl leeren.
 - **ASSISTENT-Streifen** am rechten Rand (auf jeder Seite): schaltet hier das andockende KI-Chat-Panel mit den Treffern als Kontext.
-- **Export-Menü:** CSV / XLSX / Zwischenablage.
-- **Filter:** Filter-Chips nach Treffer-Typ und ein „Antragstyp"-Filter.
-- **Ergebnistabelle:** sortier-/filterbare, konfigurierbare Spalten (Spalten-Auswahl über das Spalten-Menü).
-- **Status-Badges:** „Embedding-Modell lädt…" sowie die Lade-Phasen (Substring-/Embedding-/Dokumente-Treffer).
-- **Leerzustand** (noch nichts getippt): Titel „{n} Anträge durchsuchbar" + kurze Feld-Erklärung + drei klickbare Beispiel-Chips (starten sofort eine Suche) + zwei dezente Hinweise. Fehlt der Dokumentenindex, steht ganz unten eine gedämpfte Info-Zeile „Volltextsuche … noch nicht eingerichtet" (kein Button — der Index ist Kurator-Aufgabe).
+- **Startzustand** (noch nichts getippt): vier Spalten — letzte Suchen, gespeicherte Suchen, häufig gesucht (je mit echter Trefferzahl) und „Aus dem Index" mit den Beispiel-Chips. Fehlt der Dokumentenindex, steht unten eine gedämpfte Info-Zeile (kein Button — der Index ist Kurator-Aufgabe).
+- **Kein-Treffer-Zustand:** „Keine Treffer für …" plus geprüfte Anpassungen mit ihrer echten Trefferzahl (Wort weglassen, ODER statt UND, Wortstämme an, Filter entfernen). Hilft nichts, sagt der Zustand das offen.
+- **Status-Badges:** „Embedding-Modell lädt…", die Lade-Phasen (Wortlaut-/Ähnlichkeits-/Dokumente-Treffer) und der laufende Begründungs-Batch mit „Abbrechen".
 
 ## Typische Aktionen
 
-- Suchbegriff eingeben (oder Beispiel-Chip im Leerzustand klicken), Treffer aus Anträgen/Dokumenten durchsehen
-- Mehrere Stichwörter eingeben und zwischen „Alle Wörter" und „Irgendein Wort" umschalten
-- Ähnlichkeitssuche ein-/ausschalten für semantische Treffer
-- Treffer nach Typ oder Antragstyp filtern, Spalten anpassen
+- Suchbegriff eingeben (oder Beispiel-Chip im Startzustand klicken), Treffer durchsehen
+- In der Deutungszeile ein Wort oder eine Stamm-Variante abwählen und die Treffermenge korrigieren
+- Zwischen „alle Wörter", „irgendein Wort" und „genaue Wortfolge" umschalten
+- Den Suchbereich einschränken, z. B. den Firmennamen ausschließen
+- Nach Status, Antragstyp, Jahr oder Trefferstelle filtern
+- Zwischen Liste und Tabelle wechseln, Sortierung und Dichte im Darstellungs-Menü einstellen
+- Einen Treffer per „Warum?" begründen lassen oder alle auf einmal
 - Assistenten öffnen (Streifen rechts oder „Mit KI analysieren") und zu den Treffern fragen
-- Treffer per KI begründen lassen (Begründungstext je Zeile)
+- Eine Suche speichern und später aus dem Menü oder dem Startzustand erneut ausführen
 - Ergebnisse als CSV/XLSX exportieren oder in die Zwischenablage kopieren
-- Auf einen Antrags-Treffer klicken → springt zur Antrags-Detailseite; von dort führt „Zurück zur Suche" (oder der Browser-Zurück-Knopf) auf dieselben Treffer zurück
+- Auf einen Treffer klicken → springt zur Antrags-Detailseite; von dort führt „Zurück zur Suche" (oder der Browser-Zurück-Knopf) auf dieselben Treffer zurück
 
 ## Technik
 
-**Datenmodell dahinter:** Orama-Hybrid-Index (BM25 + Vektor via EmbeddingGemma) über Anträge + Dokumente; Ergebnisse als `UnifiedSearchResult`. Sucheinstellungen/Recent-Searches im `useSucheStore` (Zustand); Anfrage + Trefferfilter liegen dort sitzungs-lokal, damit sie den Sprung ins Antrags-Detail überleben. Die Wort-Verknüpfung steht in `useSuchVerknuepfung` (UND ⇒ alle Wörter im Substring-Korpus + Orama-`threshold` 0). Embedding-Korpus wird programmweit aus IndexedDB/Share geladen (`getEmbeddings`, `autoBootstrapEmbeddingMirror`).
+**Datenmodell dahinter:** Orama-Hybrid-Index (BM25 + Vektor via EmbeddingGemma) über Anträge + Dokumente; Ergebnisse als `UnifiedSearchResult` mit `trefferfelder`, `relevanzStufe` und optionaler `textstelle`. Dokumenttreffer mit bekanntem Antrag werden unter diesen gefaltet. Der Score trägt die berechnete Relevanz (Feldgewicht × Breite × Wort-Abdeckung) — Details in [suche-relevanz.md](../architecture/suche-relevanz.md). Sucheinstellungen in `useSuchVerknuepfung` + `useSuchOptionen`; Anfrage, Facettenwahl und abgewählte Wörter liegen sitzungs-lokal im `useSucheStore`, Ansicht/Sortierung/Dichte persistiert.
 
-**Code:** `src/plugins/suche/` — Hauptdateien: `index.ts` (Plugin-Registrierung), `SuchSeite.tsx` (Haupt-UI), `useSearchResults.ts` (Filter/Sort/Spalten), `SearchResultsTable.tsx` (Spalten-Menü = `ColumnPicker`), `analyse/pipeline.ts` (KI-Begründungs-Pipeline), `herkunft.ts` (Rückweg aus dem Antrags-Detail).
+**Code:** `src/plugins/suche/` — `SuchSeite.tsx` (Orchestrator), `SuchOptionenZeile`/`DeutungsZeile`/`FacettenZeile`/`TrefferListe`/`TrefferZeile`/`SucheStartzustand`/`KeinTrefferZustand` (Ansicht), `deutung.ts`/`facetten.ts`/`auswege.ts`/`gespeicherteSuchen.ts`/`darstellungsAchsen.ts` (reine Logik), `analyse/pipeline.ts` (KI-Begründungen), `herkunft.ts` (Rückweg aus dem Antrags-Detail). Such-Schicht: `src/core/services/search/trefferstelle.ts`, `wortstamm.ts`, `suchbereich.ts`, `markierung.ts`.
