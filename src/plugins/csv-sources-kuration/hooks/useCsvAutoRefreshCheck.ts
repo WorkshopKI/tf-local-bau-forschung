@@ -23,6 +23,7 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
 import { resolveSnapshotAuthor } from '@/core/services/infrastructure/update-author';
+import type { LockBesitz } from '@/core/services/infrastructure/build-lock';
 import { loadSchema } from '@/core/services/csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import {
@@ -63,8 +64,12 @@ export interface AutoRefreshCheckState {
   refreshProgress: RefreshProgress | null;
   /** Letzter Refresh-Report (gefuellt nach Lauf-Ende). */
   report: RefreshReport | null;
-  /** Konflikt-Info, wenn anderer Kurator gerade aktualisiert. */
-  lockConflict: { blockingKurator: string; ageMinutes: number } | null;
+  /**
+   * Konflikt-Info, wenn ein anderer Schreiber den Lock hält. `besitz` trennt den
+   * echten Fremd-Lock von „anderes Fenster unter deinem Namen" und „dieses
+   * Fenster selbst" — der Banner formuliert danach (`beschreibeLockKonflikt`).
+   */
+  lockConflict: { blockingKurator: string; ageMinutes: number; besitz: LockBesitz } | null;
   /** Allgemeiner Fehler im Refresh-Lauf (nicht-Lock-Konflikt). */
   refreshError: string | null;
 
@@ -114,7 +119,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshProgress, setRefreshProgress] = useState<RefreshProgress | null>(null);
   const [report, setReport] = useState<RefreshReport | null>(null);
-  const [lockConflict, setLockConflict] = useState<{ blockingKurator: string; ageMinutes: number } | null>(null);
+  const [lockConflict, setLockConflict] = useState<AutoRefreshCheckState['lockConflict']>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const checkedRef = useRef(false);
@@ -245,7 +250,13 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
       }
     } catch (err) {
       if (err instanceof BuildLockBusyError) {
-        if (mountedRef.current) setLockConflict({ blockingKurator: err.blockingKurator, ageMinutes: err.ageMinutes });
+        if (mountedRef.current) {
+          setLockConflict({
+            blockingKurator: err.blockingKurator,
+            ageMinutes: err.ageMinutes,
+            besitz: err.besitz,
+          });
+        }
       } else if (mountedRef.current) {
         setRefreshError((err as Error).message);
       }

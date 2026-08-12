@@ -28,6 +28,7 @@ import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature
 import { invalidateAggregateCache } from '@/core/services/skill-feedback/cache';
 import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { runAutoRefresh, collectCandidates, BuildLockBusyError, type RefreshReport } from './auto-refresh';
+import type { LockBesitz } from '@/core/services/infrastructure/build-lock';
 
 const LAST_TIMING_KEY = 'teamflow_last_data_update_timing';
 
@@ -47,7 +48,7 @@ export interface DataUpdateResult {
   /** CSV-Auto-Refresh-Report (nur gesetzt, wenn die CSV-Phase lief + importierte). */
   csvReport?: RefreshReport;
   /** Anderer Schreiber hielt den Build-Lock — CSV-Import übersprungen. */
-  lockBusy?: { blockingKurator: string; ageMinutes: number };
+  lockBusy?: { blockingKurator: string; ageMinutes: number; besitz: LockBesitz };
   /** Gesamt-Wall-Clock (ms). */
   totalMs: number;
 }
@@ -272,8 +273,14 @@ export async function runDataUpdate(
           if (err instanceof BuildLockBusyError) {
             // Paralleler Schreiber gewinnt — kein Fehler. Dieser Client hat den
             // (älteren) Snapshot-Stand; den neueren holt der nächste Start/Watcher.
-            result.lockBusy = { blockingKurator: err.blockingKurator, ageMinutes: err.ageMinutes };
-            console.info(`[data-update] csv-import: Build-Lock besetzt von ${err.blockingKurator}, übersprungen`);
+            result.lockBusy = {
+              blockingKurator: err.blockingKurator,
+              ageMinutes: err.ageMinutes,
+              besitz: err.besitz,
+            };
+            console.info(
+              `[data-update] csv-import: Build-Lock besetzt (${err.besitz}: ${err.blockingKurator}), übersprungen`,
+            );
           } else {
             console.warn('[data-update] csv-import fehlgeschlagen', err);
           }

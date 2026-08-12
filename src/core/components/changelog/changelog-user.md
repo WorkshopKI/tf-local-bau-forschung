@@ -26,6 +26,7 @@
 - Über der Liste steht jetzt auch die **Zeitspanne** („28 Termine aus den Datumsfeldern · Aug. 2025 – Juli 2026"). Und wo zwei oder mehr Monate ohne jeden Termin verstrichen sind, sagt die Monatsspalte das ausdrücklich („4 Monate ohne Termin") — Stillstand musste man sich bisher aus den Überschriften zusammenrechnen.
 
 ### Bugfixes
+- Beim Aktualisieren mehrerer Export-CSVs blieb der Lauf manchmal **nach der ersten Quelle stehen**, und die Meldung nannte dabei den eigenen Namen als angeblich blockierenden Kollegen („… aktualisiert gerade, bitte in 2-3 Min erneut versuchen") — obwohl niemand sonst in der App war. Die App hielt sich selbst auf; das passierte vor allem auf Citrix und deshalb nur gelegentlich. Der Datenbestand wird jetzt in einem Zug aktualisiert, und wenn wirklich jemand anderes gerade schreibt, sagt die Meldung das auch richtig.
 - Der Schalter **Nebensächliches** über der Chronik bewirkte nichts. Grund: als nebensächlich gelten nur Kommunikations-Termine (Brief, E-Mail, Fax, Telefon), und die liefert das Fachsystem in der Tagesdatei gar nicht mit. Der Schalter erscheint deshalb nur noch, wenn es solche Termine wirklich gibt, und nennt dann ihre Anzahl. Im Reiter „Zeitstrahl" wirkt er wie bisher.
 
 ## v3.45 — 2026-08

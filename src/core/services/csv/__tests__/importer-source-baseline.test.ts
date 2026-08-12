@@ -22,8 +22,10 @@ vi.mock('../../infrastructure/build-lock', () => ({
   releaseLock: vi.fn(async () => undefined),
   readBuildLock: vi.fn(async () => null),
   isStale: vi.fn(() => false),
-  // v2.61.5: Importer hält den Lock jetzt per Heartbeat frisch.
+  // v2.61.5: Importer hält den Lock per Heartbeat frisch. v3.46.1: über einen
+  // Runner, dessen stop() den laufenden Schlag abwartet.
   heartbeat: vi.fn(async () => undefined),
+  startHeartbeat: vi.fn(() => ({ stop: vi.fn(async () => undefined) })),
   HEARTBEAT_INTERVAL_MS: 15_000,
 }));
 

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.46.1 — Ein Lock je Aktualisierungslauf — kein Abbruch am eigenen Nachhall (August 2026)
+
+PATCH — Gemeldet (nur Citrix, tagelang unauffällig): zwei neue CSV-Quellen, erste importiert, dann brach der Lauf ab und das Banner meldete **„THü (PL) aktualisiert gerade"** — der Nutzer war allein in der App. Der Lock wurde pro Quelle genommen; im Freigabe-Fenster dazwischen legte ein noch laufender Heartbeat-Schlag die gelöschte Lock-Datei neu an. Beweis im Audit-Log: zweimal ein `build_lock_force` gegen den **eigenen** Namen, eine Sekunde nach dem eigenen Release. Detail: [recurring-bug-classes §19](docs/architecture/recurring-bug-classes.md) + Pitfall #52.
+
+- **Ein Lock je Lauf** statt je Quelle: gehalten über alle Quellen **plus** Snapshot-Write (`lockHeldByCaller`) — aus N Freigabe-Fenstern wird eines ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts))
+- `startHeartbeat(idb).stop()` **wartet den laufenden Schlag ab**; `heartbeat` prüft sein Stopp-Flag direkt vor dem Write und hält keinen fremden Lock frisch ([build-lock.ts](src/core/services/infrastructure/build-lock.ts))
+- Der Lock trägt eine Tab-Kennung (`owner_id`, nicht persistiert): ein eigenes Überbleibsel wird übernommen, ein fremder Lock nie — Alt-Locks verhalten sich unverändert
+- Freigabe wird **verifiziert** statt behauptet: nachlesen, einmal nachfassen, sonst `build_lock_release_failed` — der Erfolgs-Eintrag log bisher auch bei fehlgeschlagenem Löschen
+- Banner nennt nicht mehr den eigenen Namen als Fremd-Blockierer (`fremd` / `gleicher-name` / `eigener-tab`, [lockKonfliktText.ts](src/plugins/csv-sources-kuration/components/lockKonfliktText.ts)); Abbruch durch echten Fremd-Lock passiert jetzt **vor** dem ersten Import, hinterlässt also keine gemergten-aber-unpublizierten Quellen
+
 ### v3.46.0 — Chronik zweispaltig, Schalter nur mit Inhalt (August 2026)
 
 MINOR — Gemeldet: der Schalter „Nebensächliches" zeigt keine Wirkung — er ist **gegenstandslos**, keine der 15 nebensächlichen Kommunikations-Spalten existiert in einem der acht Import-CSVs. Dazu die gewünschte Verdichtung: der Verlauf soll auf einen Blick dastehen. Detail: [vorgangssystem.md §16.10](docs/architecture/vorgangssystem.md). Code bereits in `ba77c447`.

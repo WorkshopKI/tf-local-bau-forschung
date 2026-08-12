@@ -246,6 +246,16 @@ export interface BuildLock {
   gestartet: string;
   heartbeat: string;
   geschaetzt_fertig?: string;
+  /**
+   * Wer haelt den Lock TECHNISCH — diese Modul-Ladung (= dieses Tab), unabhaengig
+   * vom menschlichen `kurator_name`. Erst damit ist „das ist mein eigenes
+   * Ueberbleibsel" von „da arbeitet jemand" unterscheidbar: derselbe Mensch in
+   * einem zweiten Fenster ist NICHT derselbe Halter (v3.46.1).
+   *
+   * Optional: Locks aus aelteren Builds tragen das Feld nicht und gelten dann
+   * nie als „meiner" — sie verhalten sich exakt wie bisher.
+   */
+  owner_id?: string;
 }
 
 export interface BackupEntry {

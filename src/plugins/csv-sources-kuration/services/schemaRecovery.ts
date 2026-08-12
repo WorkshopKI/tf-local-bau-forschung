@@ -28,8 +28,7 @@ import {
   acquireBuildLock,
   forceLock,
   releaseLock,
-  heartbeat,
-  HEARTBEAT_INTERVAL_MS,
+  startHeartbeat,
 } from '@/core/services/infrastructure/build-lock';
 import { BUILD_LOCK_STUFE } from '@/core/services/csv/constants';
 import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
@@ -130,7 +129,7 @@ export async function republishSnapshot(
   const author = await resolveSnapshotAuthor(idb);
   const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, {});
   if (!lockRes.acquired) await forceLock(idb, BUILD_LOCK_STUFE, {});
-  const hb = setInterval(() => void heartbeat(idb).catch(() => undefined), HEARTBEAT_INTERVAL_MS);
+  const hb = startHeartbeat(idb);
   try {
     if (isDeltaSnapshotWriteEnabled()) {
       const r = await writeProgrammSnapshotDelta(idb, handle, programmId, author, { touchedAz: [], removedAz: [] });
@@ -141,7 +140,9 @@ export async function republishSnapshot(
     await logAudit(idb, { action: 'snapshot_written', user: author, details: { programmId, source: 'schema_recovery' } }).catch(() => undefined);
     return { status: 'written', mode: 'v1', snapshotVersion: r.snapshotVersion };
   } finally {
-    clearInterval(hb);
+    // stop() wartet den laufenden Schlag ab — sonst legt er die freigegebene
+    // Lock-Datei hinterher neu an (Pitfall #52).
+    await hb.stop();
     await releaseLock(idb).catch(() => undefined);
   }
 }

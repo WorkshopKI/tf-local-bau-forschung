@@ -11,6 +11,8 @@ import {
   readBuildLock,
   setHeartbeatAge,
   isStale,
+  bestimmeLockBesitz,
+  eigeneOwnerId,
 } from '@/core/services/infrastructure/build-lock';
 import type { BuildLock } from '@/core/services/infrastructure/types';
 import { ActionRow, Archive, Danger, Field, SectionCaption, StatusPill } from './shared';
@@ -88,6 +90,9 @@ export function LockPanel(): React.ReactElement {
 
   const ageLabel = current ? `${Math.round((Date.now() - Date.parse(current.heartbeat)) / 60_000)}min alt` : '-';
   const stale = current ? isStale(current) : false;
+  // v3.46.1: technischer Halter — „meiner" heisst DIESE Modul-Ladung (dieses Tab),
+  // nicht „mein Name". Genau die Unterscheidung, die bei der Nachhall-Diagnose fehlte.
+  const besitz = current ? bestimmeLockBesitz(current, eigeneOwnerId()) : null;
 
   return (
     <div className="px-8 py-6 max-w-[760px]">
@@ -102,6 +107,10 @@ export function LockPanel(): React.ReactElement {
             <>
               <StatusPill label={current.stufe} tone="neutral" />
               <StatusPill label={current.kurator_name} tone="neutral" />
+              <StatusPill
+                label={besitz === 'eigener-tab' ? 'dieses Fenster' : 'anderer Halter'}
+                tone="neutral"
+              />
               <StatusPill label={`Heartbeat ${ageLabel}`} tone={stale ? 'bad' : 'ok'} />
             </>
           ) : (

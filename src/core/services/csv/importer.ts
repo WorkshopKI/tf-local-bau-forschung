@@ -1,6 +1,6 @@
 import type { IDBStore } from '../storage/idb-store';
 import { logAudit } from '../infrastructure/audit-log';
-import { acquireBuildLock, forceLock, releaseLock, heartbeat, HEARTBEAT_INTERVAL_MS } from '../infrastructure/build-lock';
+import { acquireBuildLock, forceLock, releaseLock, startHeartbeat } from '../infrastructure/build-lock';
 import { getDatenShareHandle } from '../infrastructure/smb-handle';
 import { resolveSnapshotAuthor } from '../infrastructure/update-author';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from './snapshot';
@@ -84,6 +84,20 @@ export interface ImportOptions {
    * gemerged — nur das Publizieren auf den Share wird gebündelt.
    */
   deferSnapshotWrite?: boolean;
+  /**
+   * Der AUFRUFER hält den Build-Lock bereits über den ganzen Lauf (heute nur
+   * `runAutoRefresh`). Dann übernimmt der Importer weder Acquire/Force noch
+   * Heartbeat noch Release.
+   *
+   * Grund (v3.46.1): pro Quelle neu zu locken erzeugt pro Quelle ein
+   * Freigabe-Fenster. Ein noch laufender Heartbeat-Schlag legte die gerade
+   * gelöschte Lock-Datei darin neu an → die NÄCHSTE Quelle lief gegen den
+   * eigenen Nachhall und der Lauf brach ab (belegt im Audit-Log: `release`,
+   * eine Sekunde später ein `force` gegen den eigenen Namen). Die vier
+   * Dialog-Aufrufer setzen das NICHT — sie sind Einzel-Importe und locken
+   * weiterhin selbst.
+   */
+  lockHeldByCaller?: boolean;
 }
 
 /**
@@ -114,25 +128,27 @@ export async function importCsvSource(
   const schema = await loadSchema(idb, schemaId);
   if (!schema) throw new Error(`Schema ${schemaId} nicht gefunden`);
 
-  // Build-Lock erwerben (mit Force-Dialog)
-  const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, { programm_id: schema.programm_id });
-  if (!lockRes.acquired) {
-    const decision = opts.onLockConflict ? await opts.onLockConflict(lockRes.ageMinutes) : 'abort';
-    if (decision === 'abort') {
-      throw new Error('Anderer Import läuft bereits. Abgebrochen.');
+  // Build-Lock erwerben (mit Force-Dialog) — außer der Aufrufer hält ihn schon
+  // über den ganzen Lauf (`lockHeldByCaller`).
+  if (!opts.lockHeldByCaller) {
+    const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, { programm_id: schema.programm_id });
+    if (!lockRes.acquired) {
+      const decision = opts.onLockConflict ? await opts.onLockConflict(lockRes.ageMinutes) : 'abort';
+      if (decision === 'abort') {
+        throw new Error('Anderer Import läuft bereits. Abgebrochen.');
+      }
+      await forceLock(idb, BUILD_LOCK_STUFE, { programm_id: schema.programm_id });
     }
-    await forceLock(idb, BUILD_LOCK_STUFE, { programm_id: schema.programm_id });
   }
 
-  // Heartbeat-Timer: hält den Lock während des (langen) Imports frisch, damit
+  // Heartbeat-Takt: hält den Lock während des (langen) Imports frisch, damit
   // ein parallel laufender Import nicht durch die kurze csv-import-Stale-Schwelle
   // (3 Min) fälschlich als abgestürzt übernommen wird. Stürzt DIESER Tab ab,
   // stoppt der Heartbeat → der Lock altert und gibt sich nach ~3 Min selbst frei
   // (Crash-Recovery, v2.61.5). Best-effort: Heartbeat-Fehler dürfen den Import
-  // nicht abbrechen.
-  const heartbeatTimer = setInterval(() => {
-    void heartbeat(idb).catch(() => undefined);
-  }, HEARTBEAT_INTERVAL_MS);
+  // nicht abbrechen. `startHeartbeat().stop()` wartet den laufenden Schlag ab —
+  // siehe build-lock.ts.
+  const hb = opts.lockHeldByCaller ? null : startHeartbeat(idb);
 
   try {
     // SHA-1 der Datei berechnen
@@ -423,8 +439,10 @@ export async function importCsvSource(
     }
     return result;
   } finally {
-    clearInterval(heartbeatTimer);
-    await releaseLock(idb).catch(() => undefined);
+    if (hb) {
+      await hb.stop();
+      await releaseLock(idb).catch(() => undefined);
+    }
   }
 }
 

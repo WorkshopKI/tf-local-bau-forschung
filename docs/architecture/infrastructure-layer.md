@@ -33,7 +33,13 @@ Legacy-Slot `test-programm` wird beim Lesen als Fallback verwendet.
 
 ## Build-Lock
 
-[build-lock.ts](../../src/core/services/infrastructure/build-lock.ts): Heartbeat-basierter Lock in `_intern/build-lock.json` verhindert parallele Builds. Schema: `{ programm_id, stufe, hostname, kurator_name, gestartet, heartbeat }`. Stale-Detection: Heartbeat > 2h → auto-discard. Actions: `acquireBuildLock`, `forceLock`, `heartbeat`, `releaseLock`. Legacy-Feld `admin_name` wird beim Lesen auf `kurator_name` gemappt (Content-Level, defense-in-depth).
+[build-lock.ts](../../src/core/services/infrastructure/build-lock.ts): Heartbeat-basierter Lock in `_intern/build-lock.json` verhindert parallele Builds. Schema: `{ programm_id, stufe, hostname, kurator_name, owner_id?, gestartet, heartbeat }`. Stale-Detection: Heartbeat > 2h, für `stufe: 'csv-import'` > 3 Min (`staleThresholdForStufe`). Actions: `acquireBuildLock`, `forceLock`, `heartbeat`, `startHeartbeat`, `releaseLock`. Legacy-Feld `admin_name` wird beim Lesen auf `kurator_name` gemappt (Content-Level, defense-in-depth).
+
+Drei Zusagen seit v3.46.1 (Pitfall #52, [recurring-bug-classes §19](recurring-bug-classes.md)):
+
+- **`owner_id`** ist die technische Kennung DIESER Modul-Ladung (= dieses Tabs), erzeugt per `uuid()` und bewusst **nicht persistiert** — nach einem Reload ist es absichtlich ein anderer Halter. Erst damit ist ein eigenes Überbleibsel von einem fremden Schreiber unterscheidbar: `acquireBuildLock` übernimmt einen aktiven Lock, wenn `darfEigenenLockUebernehmen` gilt (eigene `owner_id` **und** dieses Modul hält gerade nicht selbst), sonst blockiert es und meldet `besitz` (`fremd` / `gleicher-name` / `eigener-tab`). Locks ohne das Feld verhalten sich wie vorher.
+- **`startHeartbeat(idb) → { stop(): Promise<void> }`** ist der einzige zulässige Takt (Guard `no-raw-lock-heartbeat-interval`). `stop()` wartet den laufenden Schlag ab; `heartbeat` prüft sein Stopp-Flag unmittelbar vor dem Write und hält **keinen fremden** Lock frisch.
+- **`releaseLock` verifiziert.** Nach dem Löschen wird erneut gelesen (`bewerteFreigabe`), einmal nachgefasst und im Zweifel `build_lock_release_failed` protokolliert — vorher meldete der Erfolgs-Eintrag auch dann Erfolg, wenn das Löschen scheiterte.
 
 ## Backup
 

@@ -43,12 +43,23 @@ Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gege
   `{ ignore: true }` adoptiert (`isNewColumnsOnlyDrift` → `adoptNewColumnsAsIgnored`) und importiert weiter —
   der tägliche Import blockiert nicht (v2.153.1). **`missingFromCsv > 0`** bleibt **blockierend**
   (`report.drift` → Modal), weil eine verschwundene gemappte Spalte echte Felder leeren kann.
+- **EIN Lock je Lauf** (v3.46.1): `runAutoRefresh` nimmt den Build-Lock **einmal** vor der Schleife und hält
+  ihn über alle Quellen **plus** den Snapshot-Write; `importCsvSource` bekommt `lockHeldByCaller: true` und
+  fasst weder Lock noch Heartbeat an. Vorher lockte jede Quelle selbst — und in jedem Freigabe-Fenster
+  dazwischen konnte ein noch laufender Heartbeat-Schlag die gelöschte Lock-Datei neu anlegen, sodass die
+  nächste Quelle gegen den **eigenen** Nachhall lief (Pitfall #52,
+  [recurring-bug-classes #19](recurring-bug-classes.md)).
 - **Gebündelter Snapshot-Write**: bei N Quellen wird der (sekundenlange) Snapshot **einmal pro betroffenem
-  Programm** nach dem Batch geschrieben (`deferSnapshotWrite`, v2.96.2), unter Build-Lock + Heartbeat;
+  Programm** nach dem Batch geschrieben (`deferSnapshotWrite`, v2.96.2) — unter dem Lauf-Lock, ohne eigenen
+  Acquire (der frühere `forceLock`-Notbehelf dort ist mit v3.46.1 entfallen);
   Delta-Snapshots wenn `isDeltaSnapshotWriteEnabled()`. `onAfterMerge` aktualisiert den lokalen Store **vor**
   dem Publish (der lokale User sieht neue Anträge sofort, v2.96.3).
-- **Lock-Konflikt**: hält ein anderer Kurator den Build-Lock → `BuildLockBusyError` bricht den Lauf sauber ab
-  („Kurator X aktualisiert seit Y Min", „Trotzdem aktualisieren" = `forceRefresh`).
+- **Lock-Konflikt**: hält ein anderer Schreiber den Build-Lock → `BuildLockBusyError` bricht den Lauf ab,
+  **bevor** die erste Quelle importiert (und damit `source_last_modified` gestempelt) ist — es bleiben keine
+  gemergten, aber unpublizierten Quellen liegen. `besitz` trennt drei Fälle, der Banner formuliert danach
+  (`beschreibeLockKonflikt`): `fremd` („X aktualisiert seit Y Min"), `gleicher-name` (anderes Fenster desselben
+  Menschen) und `eigener-tab` (eigenes Überbleibsel — läuft von selbst ab). „Trotzdem aktualisieren" =
+  `forceRefresh`; beim eigenen Überbleibsel ohne Rückfrage.
 - **`skippedInactiveUnterprogramm`**: aufsummierte Zeilen, die der Master-Import wegen inaktivem/unbekanntem
   Unterprogramm-Code verwarf. `>0` heißt: die Unterprogramm-Allowlist greift und schluckt Anträge — bei
   leerem `unterprogramme`-Store der stille Datenverlust (Prod-Vorfall 2026-07, v2.156). Sichtbar für Diagnose.

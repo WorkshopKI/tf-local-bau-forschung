@@ -8,16 +8,22 @@
  * Ablauf pro Quelle (sequenziell):
  *   1. Datei via gespeichertem File-Handle laden (kein User-Picker).
  *   2. Header gegen Schema validieren — bei Drift: skip, sammeln, weiter.
- *   3. `importCsvSource()` aufrufen (laeuft inkl. BuildLock-Acquire,
- *      Snapshot-Write, Phase-2-Rematch).
+ *   3. `importCsvSource()` aufrufen (Merge, Phase-2-Rematch; der Snapshot-Write
+ *      ist gebuendelt und laeuft einmal nach der Schleife).
  *   4. `source_last_modified` + `source_file_name` im Schema nachziehen,
  *      damit der naechste Background-Check die Quelle nicht erneut
  *      flaggt.
  *
- * Lock-Konflikte: `importCsvSource` macht selbst `acquireBuildLock`. Wenn
- * gleichzeitig ein anderer Kurator importiert, wirft der Importer den
- * Lock-Konflikt nach oben — wir fangen das ab und beenden den ganzen
- * Refresh-Lauf mit einem strukturierten Fehler (`BuildLockBusyError`).
+ * EIN Lock je Lauf (v3.46.1): `runAutoRefresh` nimmt den Build-Lock EINMAL vor
+ * der Schleife und haelt ihn ueber alle Quellen plus den gebuendelten
+ * Snapshot-Write (`lockHeldByCaller` am Importer). Vorher lockte jede Quelle
+ * selbst — und in jedem Freigabe-Fenster dazwischen konnte ein noch laufender
+ * Heartbeat-Schlag die geloeschte Lock-Datei neu anlegen, sodass die naechste
+ * Quelle gegen den EIGENEN Nachhall lief und der Lauf abbrach (Pitfall #52).
+ *
+ * Lock-Konflikte: ein echter Fremd-Lock beendet den Lauf mit
+ * `BuildLockBusyError`, BEVOR die erste Quelle importiert ist — es bleiben
+ * also keine gestempelten, aber unpublizierten Quellen zurueck.
  *
  * Permission-Verlust / fehlende Datei: kommt in `errors[]`, blockt aber
  * den Rest der Pipeline nicht.
@@ -35,13 +41,11 @@ import {
 import type { CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import {
-  readBuildLock,
-  isStale,
   acquireBuildLock,
   forceLock,
   releaseLock,
-  heartbeat,
-  HEARTBEAT_INTERVAL_MS,
+  startHeartbeat,
+  type LockBesitz,
 } from '@/core/services/infrastructure/build-lock';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from '@/core/services/csv/snapshot';
@@ -265,22 +269,22 @@ export interface RunAutoRefreshOptions {
 }
 
 /**
- * Geworfen wenn ein anderer Kurator gerade einen Lock haelt.
+ * Geworfen wenn ein anderer Schreiber gerade einen Lock haelt.
  * Banner zeigt: "Kurator X aktualisiert gerade seit Y Min".
+ *
+ * `besitz` trennt den echten Fremd-Lock von „anderes Fenster unter deinem
+ * Namen" und „dieses Fenster selbst" — ohne diese Unterscheidung beschuldigte
+ * der Banner den Nutzer mit seinem eigenen Namen (v3.46.1).
  */
 export class BuildLockBusyError extends Error {
-  constructor(public blockingKurator: string, public ageMinutes: number) {
+  constructor(
+    public blockingKurator: string,
+    public ageMinutes: number,
+    public besitz: LockBesitz = 'fremd',
+  ) {
     super(`Lock besetzt von ${blockingKurator} seit ${Math.round(ageMinutes)} Min`);
     this.name = 'BuildLockBusyError';
   }
-}
-
-async function probeLock(idb: IDBStore, ownKuratorName: string | undefined): Promise<void> {
-  const existing = await readBuildLock(idb);
-  if (!existing || isStale(existing)) return;
-  if (existing.kurator_name && existing.kurator_name === ownKuratorName) return;
-  const ageMs = Date.now() - Date.parse(existing.heartbeat);
-  throw new BuildLockBusyError(existing.kurator_name ?? 'unbekannt', ageMs / 60_000);
 }
 
 async function persistSourceMeta(
@@ -347,11 +351,12 @@ async function adoptNewColumnsAsIgnored(
 }
 
 /**
- * Faehrt eine Liste von Refresh-Kandidaten sequenziell ab. Wirft
- * `BuildLockBusyError`, wenn ein anderer Kurator gerade laeuft (vor dem
- * ersten Import). Innerhalb der Pipeline werden Lock-Konflikte ebenfalls
- * als `BuildLockBusyError` re-thrown, damit der Caller einheitlich
- * reagieren kann.
+ * Faehrt eine Liste von Refresh-Kandidaten sequenziell ab — unter EINEM
+ * Build-Lock fuer den ganzen Lauf (Schleife + gebuendelter Snapshot-Write).
+ *
+ * Wirft `BuildLockBusyError`, wenn ein fremder Schreiber den Lock haelt. Das
+ * passiert VOR dem ersten Import: es bleiben keine Quellen zurueck, die schon
+ * gestempelt (`source_last_modified`), aber nie publiziert wurden.
  */
 export async function runAutoRefresh(
   idb: IDBStore,
@@ -365,16 +370,49 @@ export async function runAutoRefresh(
   };
   if (candidates.length === 0) return report;
 
+  // force = User-„Trotzdem aktualisieren": bestehenden Lock uebernehmen.
+  // Kein `programm_id`: die Kandidaten koennen ueber Programme hinweg gehen,
+  // und die Lock-Datei ist ohnehin share-weit.
+  if (opts.force) {
+    await forceLock(idb, BUILD_LOCK_STUFE, {});
+  } else {
+    const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, {});
+    if (!lockRes.acquired) {
+      throw new BuildLockBusyError(
+        lockRes.existing.kurator_name ?? 'unbekannt',
+        lockRes.ageMinutes,
+        lockRes.besitz,
+      );
+    }
+  }
+
+  const hb = startHeartbeat(idb);
+  try {
+    return await laufeKandidatenAb(idb, candidates, opts, report);
+  } finally {
+    // Erst den laufenden Heartbeat-Schlag abwarten, DANN freigeben — sonst legt
+    // er die geloeschte Lock-Datei hinterher neu an (Pitfall #52).
+    await hb.stop();
+    await releaseLock(idb).catch(() => undefined);
+  }
+}
+
+/**
+ * Der eigentliche Lauf. Laeuft unter dem Lock, den `runAutoRefresh` haelt —
+ * weder die Einzel-Importe noch der Snapshot-Write locken selbst.
+ */
+async function laufeKandidatenAb(
+  idb: IDBStore,
+  candidates: RefreshCandidate[],
+  opts: RunAutoRefreshOptions,
+  report: RefreshReport,
+): Promise<RefreshReport> {
   // Programme, deren Snapshot nach dem Batch EINMAL geschrieben werden muss
   // (statt pro importierter Quelle, v2.96.2).
   const programmeToPublish = new Set<string>();
   // Pro Programm: Vereinigung der geänderten/entfernten Aktenzeichen über alle
   // importierten Quellen — Basis für EINEN Delta-Snapshot-Write (v2.97).
   const changeByProgramm = new Map<string, { touched: Set<string>; removed: Set<string> }>();
-
-  // force = User-„Trotzdem aktualisieren": Lock-Probe überspringen, der
-  // Importer übernimmt den Lock unten per onLockConflict → 'force'.
-  if (!opts.force) await probeLock(idb, opts.kuratorName);
 
   await logAudit(idb, {
     action: 'csv_auto_refresh_started',
@@ -443,7 +481,8 @@ export async function runAutoRefresh(
       // Store-Refresh erfolgt gebuendelt im aufrufenden Hook useCsvAutoRefreshCheck
       // nach Abschluss der N-Quellen-Pipeline — ein Refresh pro Quelle waere redundant.
       const result = await importCsvSource(idb, schemaId, file, { // allow-import-no-refresh: Refresh erfolgt gebuendelt im Caller-Hook useCsvAutoRefreshCheck
-        onLockConflict: async () => (opts.force ? 'force' : 'abort'),
+        // Der Lock haengt am LAUF, nicht an der Quelle — siehe Datei-Kopf.
+        lockHeldByCaller: true,
         // Das Journal sieht den EXPORT, nicht das gemergte Ergebnis. Die Zeilen
         // liegen an dieser Stelle ohnehin im Speicher; Fehler bleiben folgenlos
         // (das Journal begleitet den Import, es bedingt ihn nicht).
@@ -494,33 +533,11 @@ export async function runAutoRefresh(
         ...(autoAdopted.length > 0 ? { autoAdoptedColumns: autoAdopted } : {}),
       });
     } catch (err) {
-      const msg = (err as Error).message;
-      // Wenn der Importer-interne Lock auf einen Fremd-Kurator stoesst,
-      // wird die Pipeline komplett abgebrochen — sonst laufen wir gegen
-      // den naechsten Lock und produzieren N Fehler in Folge.
-      if (msg.includes('Anderer Import läuft')) {
-        const existing = await readBuildLock(idb);
-        await logAudit(idb, {
-          action: 'csv_auto_refresh_lock_conflict',
-          user: opts.kuratorName,
-          details: { blocking_kurator: existing?.kurator_name ?? 'unbekannt', schemaId },
-        });
-        await logAudit(idb, {
-          action: 'csv_auto_refresh_complete',
-          user: opts.kuratorName,
-          details: {
-            processed: report.processed.length,
-            drift: report.drift.length,
-            errors: report.errors.length,
-            aborted_reason: 'lock_conflict',
-          },
-        });
-        throw new BuildLockBusyError(
-          existing?.kurator_name ?? 'unbekannt',
-          existing ? (Date.now() - Date.parse(existing.heartbeat)) / 60_000 : 0,
-        );
-      }
-      report.errors.push({ schemaId, schemaName: name, message: msg });
+      // Der frühere Sonderfall „Anderer Import läuft" ist entfallen: der
+      // Importer lockt hier nicht mehr (der Lauf hält den Lock), ein
+      // Lock-Konflikt kann also nur noch VOR der Schleife auftreten. Eine
+      // kaputte Quelle stoppt den Lauf damit nicht mehr.
+      report.errors.push({ schemaId, schemaName: name, message: (err as Error).message });
     }
   }
 
@@ -533,27 +550,15 @@ export async function runAutoRefresh(
   }
 
   // Gebündelter Snapshot-Write: EINMAL pro betroffenem Programm statt pro Quelle
-  // (v2.96.2). Unter Build-Lock, mit Heartbeat (ein Write kann ~25 s dauern).
+  // (v2.96.2). Laeuft unter dem Lauf-Lock des Aufrufers — der frühere
+  // Eigen-Acquire mit `forceLock`-Notbehelf ist entfallen (v3.46.1): er existierte
+  // nur, weil die Einzel-Importe den Lock je einzeln hielten und freigaben, und
+  // er hätte im Zweifel einen ECHTEN Fremd-Lock gestampft.
   if (programmeToPublish.size > 0) {
     opts.onProgress?.({ index: 0, total: programmeToPublish.size, schemaName: 'Datenbestand', phase: 'publishing' });
     const handle = await getDatenShareHandle(idb);
     if (handle) {
       const tSnap = Date.now();
-      // Lock holen — die Einzel-Importe hatten ihn je gehalten+freigegeben, hier
-      // sollte er frei sein. Falls nicht (Fremd-Schreiber im Mikro-Fenster):
-      // übernehmen, weil WIR die frisch gemergten Daten besitzen und publizieren
-      // müssen (sonst bliebe der Merge lokal, da source_last_modified schon
-      // gestempelt ist → kein Re-Import). Single-Team-Trust-Modell.
-      const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, {});
-      if (!lockRes.acquired) {
-        await forceLock(idb, BUILD_LOCK_STUFE, {});
-        await logAudit(idb, {
-          action: 'csv_auto_refresh_snapshot_force',
-          user: opts.kuratorName,
-          details: { blocking_kurator: lockRes.existing.kurator_name },
-        });
-      }
-      const hb = setInterval(() => void heartbeat(idb).catch(() => undefined), HEARTBEAT_INTERVAL_MS);
       try {
         const identity = opts.kuratorName ?? 'unbekannt';
         const deltaMode = isDeltaSnapshotWriteEnabled();
@@ -573,9 +578,6 @@ export async function runAutoRefresh(
           details: { error: (e as Error).message, source: 'csv_auto_refresh_batch' },
         }).catch(() => undefined);
         console.warn('[csv-auto-refresh] Snapshot-Batch-Write fehlgeschlagen:', e);
-      } finally {
-        clearInterval(hb);
-        await releaseLock(idb).catch(() => undefined);
       }
       report.importTimings.snapshotWriteMs += Date.now() - tSnap;
     }

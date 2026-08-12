@@ -11,6 +11,7 @@ import path from 'path';
 // mit Standard-Isolation. Neue Wackelkandidaten hier ergänzen (Verfahren: CLAUDE.md).
 const ISOLATED_TESTS = [
   'src/core/services/assistent/protokoll/__tests__/recorder.test.ts',
+  'src/core/services/csv/__tests__/importer-lock-held-by-caller.test.ts',
   'src/core/services/csv/__tests__/importer-source-baseline.test.ts',
   'src/core/services/csv/__tests__/merger-scoped-load.test.ts',
   'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',
@@ -38,6 +39,9 @@ const ISOLATED_TESTS = [
   // die Ladereihenfolge, und der Mock griff nicht mehr (`idb.get is not a
   // function`, weil die echte Storage-Schicht durchkam). Einzeln immer grün.
   'src/core/services/feedback/__tests__/updateFeedbackLage.test.ts',
+  // Mockt smb-handle/atomic-write/audit-log modulweit und faehrt den echten
+  // Lock-Kern dagegen (Heartbeat-Takt, Freigabe-Verifikation).
+  'src/core/services/infrastructure/__tests__/build-lock-freigabe.test.ts',
   'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
   'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',
   'src/core/services/search/__tests__/ort-wasm-init.test.ts',
@@ -68,6 +72,8 @@ const ISOLATED_TESTS = [
   'src/plugins/auslastung/__tests__/persist-debounce.test.ts',
   'src/plugins/auslastung/__tests__/reconcile-zuweisungen.test.ts',
   'src/plugins/auslastung/__tests__/verbund-aggregation-livecache.test.ts',
+  // Mockt den halben CSV-Service + den Lock-Kern modulweit.
+  'src/plugins/csv-sources-kuration/services/__tests__/auto-refresh-ein-lock.test.ts',
 ];
 
 export default defineConfig({

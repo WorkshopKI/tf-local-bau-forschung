@@ -28,6 +28,7 @@ import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { useDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
 import { pluginIdToRoute } from '@/core/routes';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { beschreibeLockKonflikt } from './lockKonfliktText';
 import type { RefreshProgress } from '../services/auto-refresh';
 
 /** Kurzes Verb je Pipeline-Phase fuer das Banner. */
@@ -77,6 +78,9 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
 
   const hasReport = state.report !== null;
   const reportHasDrift = (state.report?.drift.length ?? 0) > 0;
+  // Wortlaut kommt aus der reinen `beschreibeLockKonflikt` — der Banner nennt
+  // nie den eigenen Namen als Fremd-Blockierer (v3.46.1).
+  const lockAnzeige = state.lockConflict ? beschreibeLockKonflikt(state.lockConflict) : null;
   const total =
     state.candidates.length +
     (showLinkPicker ? state.unlinked.length + state.permissionNeeded.length : state.permissionNeeded.length);
@@ -124,11 +128,14 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
           ) : (
             <span className="flex-1">Aktualisierung startet…</span>
           )
-        ) : state.lockConflict ? (
+        ) : lockAnzeige ? (
           <span className="flex-1 inline-flex items-center gap-1.5">
             <AlertTriangle size={13} className="shrink-0" />
-            <strong>{state.lockConflict.blockingKurator}</strong> aktualisiert gerade
-            (seit {Math.round(state.lockConflict.ageMinutes)} Min). Bitte in 2-3 Min erneut versuchen.
+            <span>
+              {lockAnzeige.vorText}
+              {lockAnzeige.name ? <strong>{lockAnzeige.name}</strong> : null}
+              {lockAnzeige.nachText}
+            </span>
           </span>
         ) : state.refreshError ? (
           <span className="flex-1 inline-flex items-center gap-1.5">
@@ -175,18 +182,14 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
           </button>
         ) : null}
 
-        {state.lockConflict && !state.refreshing && state.candidates.length > 0 ? (
+        {lockAnzeige?.kannUebernehmen && !state.refreshing && state.candidates.length > 0 ? (
           <button
             type="button"
             onClick={() => {
-              const lc = state.lockConflict;
-              if (!lc) return;
-              const ok = window.confirm(
-                `„${lc.blockingKurator}" hält den Aktualisierungs-Lock (seit ${Math.round(lc.ageMinutes)} Min).\n\n` +
-                `Falls dort nichts mehr läuft (z.B. nach einem abgestürzten Tab), kannst du den Lock übernehmen. ` +
-                `Läuft dort jedoch ein echter Import parallel, drohen Daten-Konflikte.\n\nTrotzdem jetzt aktualisieren?`,
-              );
-              if (ok) { void state.forceRefresh(); }
+              const frage = lockAnzeige.bestaetigung;
+              // `null` = eigenes Ueberbleibsel, Uebernahme gefahrlos.
+              if (frage && !window.confirm(frage)) return;
+              void state.forceRefresh();
             }}
             disabled={busy}
             title={busy ? 'Andere Aktualisierung läuft…' : undefined}
