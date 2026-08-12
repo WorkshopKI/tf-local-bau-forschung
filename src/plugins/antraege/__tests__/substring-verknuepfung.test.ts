@@ -11,13 +11,14 @@ import { describe, it, expect } from 'vitest';
 import { searchAntraegeSubstring, zerlegeAnfrage } from '../services/antraege-search-service';
 import type { AntragTextEntry } from '../services/search-corpus';
 
-function eintrag(vb: string, tv = '', abs = '', descr = '', akronym = ''): AntragTextEntry {
+function eintrag(vb: string, tv = '', abs = '', descr = '', akronym = '', akz = ''): AntragTextEntry {
   return {
     vbLower: vb.toLowerCase(),
     tvLower: tv.toLowerCase(),
     absLower: abs.toLowerCase(),
     descriptorsLower: descr.toLowerCase(),
     akronymLower: akronym.toLowerCase(),
+    akzLower: akz.toLowerCase(),
   } as AntragTextEntry;
 }
 
@@ -109,5 +110,36 @@ describe('searchAntraegeSubstring — Akronym', () => {
 
   it('grenzt weiterhin ab — ein fremdes Akronym trifft nicht', () => {
     expect(searchAntraegeSubstring('qualicam', AKRONYM_KORPUS)).toEqual(['X1']);
+  });
+});
+
+/**
+ * Der Leerzustand der Suche verspricht „Nach Titel, Akronym, FKZ oder
+ * Stammdaten" — das Aktenzeichen war bis v4.4.2 als einziges dieser drei
+ * nicht durchsucht. Es steht im Korpus vorberechnet klein, weil es sonst pro
+ * Eintrag und Wort neu alloziert werden müsste.
+ */
+describe('searchAntraegeSubstring — Aktenzeichen', () => {
+  const FKZ_KORPUS = new Map<string, AntragTextEntry>([
+    ['16KN083001', eintrag('Mobile Messtechnik', '', '', '', 'mobiInspec', '16KN083001')],
+    ['16KN083020', eintrag('mobiInspec - MagPV', '', '', '', 'MagPV', '16KN083020')],
+    ['16EP123456', eintrag('Bilderkennung', '', '', '', 'QualiCam', '16EP123456')],
+  ]);
+
+  it('findet den Antrag über sein volles Aktenzeichen', () => {
+    expect(searchAntraegeSubstring('16KN083001', FKZ_KORPUS)).toEqual(['16KN083001']);
+  });
+
+  it('Groß-/Kleinschreibung der Eingabe ist egal', () => {
+    expect(searchAntraegeSubstring('16kn083001', FKZ_KORPUS)).toEqual(['16KN083001']);
+  });
+
+  it('Teil-Aktenzeichen findet das ganze Netzwerk', () => {
+    expect(searchAntraegeSubstring('16KN0830', FKZ_KORPUS).sort())
+      .toEqual(['16KN083001', '16KN083020']);
+  });
+
+  it('grenzt ab — ein fremdes Präfix trifft nicht', () => {
+    expect(searchAntraegeSubstring('16EP', FKZ_KORPUS)).toEqual(['16EP123456']);
   });
 });

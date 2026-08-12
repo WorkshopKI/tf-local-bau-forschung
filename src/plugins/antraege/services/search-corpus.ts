@@ -7,8 +7,8 @@
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
  *    suchrelevanten Text-Felder (`verbund_titel`, `titel`,
- *    `projektbeschreibung_text`, Deskriptoren, `akronym`) und cached
- *    zusaetzlich die lowercase-Variante
+ *    `projektbeschreibung_text`, Deskriptoren, `akronym`, Aktenzeichen) und
+ *    cached zusaetzlich die lowercase-Variante
  *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
  *
  *  - `loadDmsFilenameToAkz` — Umkehr-Lookup fuer Phase-2-Treffer: Orama
@@ -46,6 +46,12 @@ export interface AntragTextEntry {
   absLower: string;
   descriptorsLower: string;
   akronymLower: string;
+  /** Aktenzeichen klein geschrieben. Als einziges Feld OHNE Roh-Variante: der
+   *  Rohwert ist bereits der Schluessel dieser Map. Er liegt trotzdem hier,
+   *  weil `substringMatches` sonst pro Eintrag und Wort ein
+   *  `akz.toLowerCase()` allozieren muesste — genau der GC-Druck, den die
+   *  vorberechneten Felder vermeiden. */
+  akzLower: string;
 }
 
 /**
@@ -154,6 +160,7 @@ export async function loadAntraegeTextCorpus(
           absLower: ab.toLowerCase(),
           descriptorsLower: descriptors.toLowerCase(),
           akronymLower: ak.toLowerCase(),
+          akzLower: a.aktenzeichen.toLowerCase(),
         });
       }
       cursor.continue();

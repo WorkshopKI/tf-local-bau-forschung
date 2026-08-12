@@ -30,6 +30,7 @@
 ### Bugfixes
 - „Unter-Meilenstein anlegen" zeigte den neuen Meilenstein nicht — er erschien erst nach dem nächsten Öffnen der Seite. Jetzt klappt die Zeile auf, und der Cursor steht gleich in der Bezeichnung.
 - Die Suche findet ein Vorhaben jetzt auch über sein Akronym. Bisher wurde nur der Titel durchsucht — das Netzwerk „mobiInspec" (16KN083001) war unter genau diesem Stichwort nicht zu finden, weil sein Titel das Kürzel als einziger nicht trägt.
+- Ebenso über das Aktenzeichen: „16KN083001" führt direkt zum Antrag, „16KN0830" zeigt alle 32 Anträge dieses Netzwerks.
 - Ein Netzwerkantrag, der nach einer Ablehnung erneut eingereicht wurde, zählt wieder als Netzwerkantrag (47 Fälle im Bestand). 18 Netzwerke tragen dadurch den Namen der gültigen Einreichung statt den der zurückgezogenen — „Telemedizin" statt „(Telemedizin)".
 
 ## v4.3 — 2026-08

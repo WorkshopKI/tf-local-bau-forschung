@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.4.2 — Aktenzeichen wird durchsucht (August 2026)
+
+PATCH — Der Leerzustand der Suche verspricht „Nach Titel, Akronym, FKZ oder Stammdaten". Das Akronym kam mit v4.4.1 dazu, das Aktenzeichen war der letzte Teil dieser Zusage, den die Wortlaut-Stufe nie eingelöst hat — ein FKZ fand bis hierher nur, wer ein Dokument mit dieser Nummer im Index hatte.
+
+- **Aktenzeichen im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): „16KN083001" liefert den Antrag, „16KN0830" die 32 Sätze des ganzen Netzwerks
+- **Als einziges Feld ohne Roh-Variante** (`akzLower`) — der Rohwert ist der Schlüssel der Korpus-Map; vorberechnet, weil ein `toLowerCase()` je Eintrag und Wort genau den GC-Druck erzeugte, den die anderen Felder vermeiden
+- Gemessen: alle 14 225 Anträge stehen im Korpus, keiner bleibt per FKZ unerreichbar
+
 ### v4.4.1 — Wiedereinreichungen zählen als Netzwerkantrag, Akronym wird durchsucht (August 2026)
 
 PATCH — Gemeldet war ein Suchfehler („MobiInspec Phase 1 nicht gefunden") mit vermuteter Ursache im FKZ-Suffix. Am Bestand gemessen sind es zwei Befunde: die Suffix-Regel greift tatsächlich zu eng (47 Netzwerkanträge), der gemeldete Treffer fehlte aber aus einem anderen Grund — sein Titel trägt als einziger des Netzwerks das Akronym nicht, und das Akronym stand nicht im Suchkorpus.
