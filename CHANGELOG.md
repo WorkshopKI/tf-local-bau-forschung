@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.4.4 — Ort und Bundesland werden durchsucht (August 2026)
+
+PATCH — „Welche Vorhaben wurden 2026 in Berlin gefördert?" war bisher nicht zu beantworten. Der Standort kam als freier Substring aber nicht durch die Messung: „essen" holte 439 zusätzliche Anträge herein — fast alle aus H·essen, nicht aus Essen. Ortsangaben werden deshalb als einziges Feld am Wortanfang verglichen.
+
+- **Ort + Bundesland im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)): „Berlin" → 1 392 Treffer, mit der Sicht „Bewilligt 2026" kombiniert → 68; beide Spalten je Seite, weil Firmensitz und Arbeitsort in 1 052 Sätzen auseinandergehen
+- **Bundesland aus dem Kürzel aufgelöst** (`bundeslandName`): der Export kennt nur „SN"/„BW" — als Suchwort wertlos, weil ein zweistelliges Feld nur von einer zweistelligen Anfrage getroffen wird
+- **Wortanfang statt freier Substring** (`standortSuchform`/`standortNadel`, [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): „essen" 684 → 255, „sachsen" 4 048 → 3 286 (Niedersachsen fällt raus, Sachsen-Anhalt bleibt); Präfix-Tippen bleibt, „dresd" findet Dresden
+- **Beschriftungen nachgezogen** ([SucheLeerzustand.tsx](src/plugins/suche/SucheLeerzustand.tsx), [AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx)): „Nach Titel, Akronym, FKZ, Antragsteller oder Ort" statt des unbestimmten „Stammdaten", vierter Beispiel-Chip zeigt die Ortssuche
+- Regression unverändert: „mobiinspec" 30, „16KN083001" 1
+
 ### v4.4.3 — Organisation wird durchsucht (August 2026)
 
 PATCH — „Stammdaten" war der letzte offene Teil der Zusage aus dem Leerzustand der Suche. Am Bestand gemessen war eine Einrichtung über ihren Namen praktisch unauffindbar: 3 von 14 224 Anträgen ließen sich so finden, denn der Organisationsname steht so gut wie nie im Titel oder in der Kurzbeschreibung.

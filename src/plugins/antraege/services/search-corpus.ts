@@ -69,6 +69,25 @@ export interface AntragTextEntry {
    *  Trennstelle enthaelt immer das Leerzeichen, ein Suchwort nie. */
   organisation: string;
   organisationLower: string;
+  /** Ort + Bundesland (Klartext), beide Seiten zusammengezogen — „welche
+   *  Vorhaben wurden in Berlin gefoerdert". */
+  standort: string;
+  /** Suchform des Standorts — ANDERS gebaut als die uebrigen `*Lower`-Felder:
+   *  klein, Trennzeichen zu Leerraum, von Leerzeichen eingerahmt. Verglichen
+   *  wird gegen `standortNadel(wort)`, ein Treffer muss also am WORTANFANG
+   *  beginnen.
+   *
+   *  Grund, am Bestand gemessen: als freier Substring holte „essen" 439
+   *  zusaetzliche Antraege herein — fast alle aus H·essen, nicht aus Essen (23).
+   *  Ortsangaben sind kurz und stecken ineinander; freies Substring-Matching
+   *  taugt hier nicht, waehrend es in Fliesstext genau richtig ist („laser"
+   *  soll „Laserquelle" finden). Nebenwirkung, erwuenscht: „sachsen" trifft
+   *  Sachsen und Sachsen-Anhalt, aber nicht mehr Niedersachsen.
+   *
+   *  Was bleibt, ist Praefix-Verhalten am Wortanfang: „regen" findet auch
+   *  Regensburg. Das ist die normale Erwartung an ein Suchfeld, das mit jedem
+   *  Tastendruck sucht — „dresd" soll Dresden schon finden. */
+  standortSuchform: string;
 }
 
 /**
@@ -113,6 +132,89 @@ const ORG_AFS_NORMALIZED: ReadonlySet<string> = new Set(
 const ORG_AST_NORMALIZED: ReadonlySet<string> = new Set(
   ['org_ast', 'org ast'].map(normalizeKey),
 );
+/** Sitz der Rechtsperson bzw. der ausfuehrenden Stelle. Beide Spalten, weil sie
+ *  am Bestand gemessen in 1 052 von 14 224 Saetzen (7,4 %) auseinandergehen —
+ *  Firmensitz Hamburg, gearbeitet wird in Wedel. */
+const ORT_AST_NORMALIZED: ReadonlySet<string> = new Set(
+  ['ort_ast', 'ort ast'].map(normalizeKey),
+);
+const ORT_AFS_NORMALIZED: ReadonlySet<string> = new Set(
+  ['ort_afs', 'ort afs'].map(normalizeKey),
+);
+/** Bundesland — im Export NUR als Kuerzel (`SN`, `BW`). Gemessene Abweichung
+ *  zwischen den beiden Spalten: 621 Saetze. `buland_ast` und `bl_ast` sind
+ *  dieselbe Angabe unter zwei Spaltennamen (je nach Quelldatei). */
+const LAND_AST_NORMALIZED: ReadonlySet<string> = new Set(
+  ['buland_ast', 'buland ast', 'bl_ast', 'bl ast'].map(normalizeKey),
+);
+const LAND_AFS_NORMALIZED: ReadonlySet<string> = new Set(
+  ['buland_afs', 'buland afs', 'bl_afs', 'bl afs'].map(normalizeKey),
+);
+
+/**
+ * Bundesland-Kuerzel → Klartext. Das Kuerzel allein taugt nicht als Suchwort:
+ * die Suche fragt `feld.includes(wort)`, ein zwei Zeichen langes Feld kann also
+ * nur von einer ein- bis zweibuchstabigen Anfrage getroffen werden — niemand
+ * sucht „SN", wenn er Sachsen meint.
+ *
+ * Alle 16 Laender sind im Bestand belegt (Stand 2026-08, 14 224 Saetze mit
+ * Angabe); `bundeslandName` faellt fuer Unbekanntes auf das Kuerzel zurueck,
+ * damit nie eine Angabe verschwindet.
+ */
+const BUNDESLAND_NAMEN: Readonly<Record<string, string>> = {
+  BW: 'Baden-Württemberg',
+  BY: 'Bayern',
+  BE: 'Berlin',
+  BB: 'Brandenburg',
+  HB: 'Bremen',
+  HH: 'Hamburg',
+  HE: 'Hessen',
+  MV: 'Mecklenburg-Vorpommern',
+  NI: 'Niedersachsen',
+  NW: 'Nordrhein-Westfalen',
+  RP: 'Rheinland-Pfalz',
+  SL: 'Saarland',
+  SN: 'Sachsen',
+  ST: 'Sachsen-Anhalt',
+  SH: 'Schleswig-Holstein',
+  TH: 'Thüringen',
+};
+
+/**
+ * Klartext-Name zu einem Bundesland-Kuerzel. Unbekanntes Kuerzel → das Kuerzel
+ * selbst (nie leer, nie geraten). Pure — testbar ohne IDB.
+ */
+export function bundeslandName(kuerzel: string): string {
+  const k = kuerzel.trim().toUpperCase();
+  if (k.length === 0) return '';
+  return BUNDESLAND_NAMEN[k] ?? kuerzel.trim();
+}
+
+/** Alles ausser Buchstaben und Ziffern trennt Woerter — „Sachsen-Anhalt" und
+ *  „Ellwangen (Jagst)" zerfallen damit in zwei suchbare Woerter. */
+const STANDORT_TRENNER = /[^\p{L}\p{N}]+/gu;
+
+/**
+ * Speicherform einer Ortsangabe: klein, Trennzeichen zu Leerraum, VORN UND
+ * HINTEN von einem Leerzeichen eingerahmt. Der Rahmen macht aus einem
+ * `includes` einen Vergleich am Wortanfang. Leere Angabe → leeres Feld (nicht
+ * `' '`, sonst traefe jede Nadel jeden Eintrag). Pure.
+ */
+export function standortSuchform(text: string): string {
+  const kern = text.toLowerCase().replace(STANDORT_TRENNER, ' ').trim();
+  return kern.length === 0 ? '' : ` ${kern} `;
+}
+
+/**
+ * Anfrageform eines Suchworts: dieselbe Normalisierung, aber nur VORN
+ * eingerahmt — sonst faende „dresd" das fertige „Dresden" nicht mehr, und die
+ * Suche bei jedem Tastendruck waere kaputt. Leeres Wort → leere Nadel, die der
+ * Aufrufer verwerfen muss (`''.includes('')` ist `true`). Pure.
+ */
+export function standortNadel(wort: string): string {
+  const kern = wort.toLowerCase().replace(STANDORT_TRENNER, ' ').trim();
+  return kern.length === 0 ? '' : ` ${kern}`;
+}
 
 function pickByNormalized(
   record: Record<string, unknown>,
@@ -128,13 +230,22 @@ function pickByNormalized(
 }
 
 /**
- * Zieht ausfuehrende Stelle und Rechtsperson zu EINEM Suchfeld zusammen.
- * Sind beide gleich (97,5 % der Saetze), steht der Name nur einmal darin.
- * Pure — testbar ohne IDB.
+ * Zieht mehrere Angaben derselben Art zu EINEM Suchfeld zusammen und laesst
+ * Wiederholungen weg — Antragsteller/ausfuehrende Stelle sind in 97,5 % der
+ * Saetze identisch, Ort und Bundesland in ueber 90 %. Reihenfolge bleibt
+ * erhalten, Leeres faellt raus. Pure — testbar ohne IDB.
+ *
+ * Die Wort-fuer-Wort-Suche kann an den Fugen keinen falschen Treffer erzeugen:
+ * ein Substring ueber eine Trennstelle enthaelt immer das Leerzeichen, ein
+ * Suchwort nie (`zerlegeAnfrage` trennt an Leerraum).
  */
-export function verbindeOrganisation(orgAfs: string, orgAst: string): string {
-  if (orgAst.length === 0 || orgAst === orgAfs) return orgAfs;
-  return `${orgAfs} ${orgAst}`.trim();
+export function verbindeEindeutig(...werte: string[]): string {
+  const gesehen: string[] = [];
+  for (const w of werte) {
+    const t = w.trim();
+    if (t.length > 0 && !gesehen.includes(t)) gesehen.push(t);
+  }
+  return gesehen.join(' ');
 }
 
 export interface LoadCorpusOptions {
@@ -185,11 +296,18 @@ export async function loadAntraegeTextCorpus(
       const ak = pickByNormalized(rec, AKRONYM_NORMALIZED);
       const orgAfs = pickByNormalized(rec, ORG_AFS_NORMALIZED);
       const orgAst = pickByNormalized(rec, ORG_AST_NORMALIZED);
-      const organisation = verbindeOrganisation(orgAfs, orgAst);
+      const organisation = verbindeEindeutig(orgAfs, orgAst);
+      const standort = verbindeEindeutig(
+        pickByNormalized(rec, ORT_AFS_NORMALIZED),
+        pickByNormalized(rec, ORT_AST_NORMALIZED),
+        bundeslandName(pickByNormalized(rec, LAND_AFS_NORMALIZED)),
+        bundeslandName(pickByNormalized(rec, LAND_AST_NORMALIZED)),
+      );
       if (
         includeEmpty
         || vb.length > 0 || tv.length > 0 || ab.length > 0
-        || descriptors.length > 0 || ak.length > 0 || organisation.length > 0
+        || descriptors.length > 0 || ak.length > 0
+        || organisation.length > 0 || standort.length > 0
       ) {
         result.set(a.aktenzeichen, {
           vb,
@@ -205,6 +323,8 @@ export async function loadAntraegeTextCorpus(
           akzLower: a.aktenzeichen.toLowerCase(),
           organisation,
           organisationLower: organisation.toLowerCase(),
+          standort,
+          standortSuchform: standortSuchform(standort),
         });
       }
       cursor.continue();

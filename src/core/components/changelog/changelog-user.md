@@ -32,6 +32,7 @@
 - Die Suche findet ein Vorhaben jetzt auch über sein Akronym. Bisher wurde nur der Titel durchsucht — das Netzwerk „mobiInspec" (16KN083001) war unter genau diesem Stichwort nicht zu finden, weil sein Titel das Kürzel als einziger nicht trägt.
 - Ebenso über das Aktenzeichen: „16KN083001" führt direkt zum Antrag, „16KN0830" zeigt alle 32 Anträge dieses Netzwerks.
 - Und über den Antragsteller: 5 461 Einrichtungen sind jetzt über ihren Namen zu finden. Bisher ging das praktisch nie, weil der Firmenname weder im Titel noch in der Kurzbeschreibung steht. Gesucht wird sowohl die Rechtsperson als auch die ausführende Stelle — „Universität Münster" und „Universitätsklinikum Münster" führen zum selben Antrag.
+- Ebenso über Ort und Bundesland: „Berlin" zeigt alle dortigen Vorhaben, zusammen mit der Sicht „Bewilligt 2026" die 68 Berliner Bewilligungen dieses Jahres. Auch Firmensitz **und** Arbeitsort zählen, wenn sie auseinanderfallen. Ortsnamen werden dabei ab Wortanfang verglichen — „essen" bringt daher nicht die hessischen Anträge mit.
 - Ein Netzwerkantrag, der nach einer Ablehnung erneut eingereicht wurde, zählt wieder als Netzwerkantrag (47 Fälle im Bestand). 18 Netzwerke tragen dadurch den Namen der gültigen Einreichung statt den der zurückgezogenen — „Telemedizin" statt „(Telemedizin)".
 
 ## v4.3 — 2026-08

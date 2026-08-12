@@ -42,6 +42,7 @@ import { verknuepfungAlsThreshold, type SuchVerknuepfung } from '@/core/hooks/us
 import {
   loadAntraegeTextCorpus,
   loadDmsFilenameToAkz,
+  standortNadel,
   type AntragTextEntry,
 } from './search-corpus';
 import type { HybridUnavailableSource } from '../store';
@@ -262,6 +263,12 @@ export function zerlegeAnfrage(query: string): string[] {
  * `verknuepfung` ist ein EXPLIZITER Parameter, kein Griff in den Store: der
  * Aufrufer entscheidet, ob die Wahl des Nutzers auf seiner Seite gilt (die
  * Suchseite reicht sie durch, die Förderanträge-Liste bleibt beim Standard).
+ *
+ * Die Ortsangabe wird als EINZIGES Feld am Wortanfang verglichen statt als
+ * freier Substring (siehe `standortSuchform` in `search-corpus.ts`) — sonst
+ * holt „essen" die hessischen Anträge herein. Die Nadeln dafür entstehen einmal
+ * je Anfrage, nicht je Eintrag; über 14 000 Einträge wäre das sonst genau der
+ * GC-Druck, den die vorberechneten Felder vermeiden.
  */
 function substringMatches(
   query: string,
@@ -271,16 +278,19 @@ function substringMatches(
   const out = new Set<string>();
   const woerter = zerlegeAnfrage(query);
   if (woerter.length === 0) return out;
+  const teile = woerter.map(wort => ({ wort, ortNadel: standortNadel(wort) }));
   for (const [akz, entry] of textCorpus.entries()) {
-    const trifft = (w: string): boolean =>
-      entry.vbLower.includes(w)
-      || entry.tvLower.includes(w)
-      || entry.absLower.includes(w)
-      || entry.descriptorsLower.includes(w)
-      || entry.akronymLower.includes(w)
-      || entry.akzLower.includes(w)
-      || entry.organisationLower.includes(w);
-    if (verknuepfung === 'oder' ? woerter.some(trifft) : woerter.every(trifft)) {
+    const trifft = (t: { wort: string; ortNadel: string }): boolean =>
+      entry.vbLower.includes(t.wort)
+      || entry.tvLower.includes(t.wort)
+      || entry.absLower.includes(t.wort)
+      || entry.descriptorsLower.includes(t.wort)
+      || entry.akronymLower.includes(t.wort)
+      || entry.akzLower.includes(t.wort)
+      || entry.organisationLower.includes(t.wort)
+      // Leere Nadel verwerfen: `''.includes('')` wäre `true` und träfe alles.
+      || (t.ortNadel.length > 0 && entry.standortSuchform.includes(t.ortNadel));
+    if (verknuepfung === 'oder' ? teile.some(trifft) : teile.every(trifft)) {
       out.add(akz);
     }
   }

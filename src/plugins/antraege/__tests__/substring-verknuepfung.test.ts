@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { searchAntraegeSubstring, zerlegeAnfrage } from '../services/antraege-search-service';
-import type { AntragTextEntry } from '../services/search-corpus';
+import { standortSuchform, type AntragTextEntry } from '../services/search-corpus';
 
 function eintrag(
   vb: string,
@@ -19,6 +19,7 @@ function eintrag(
   akronym = '',
   akz = '',
   organisation = '',
+  standort = '',
 ): AntragTextEntry {
   return {
     vbLower: vb.toLowerCase(),
@@ -28,6 +29,7 @@ function eintrag(
     akronymLower: akronym.toLowerCase(),
     akzLower: akz.toLowerCase(),
     organisationLower: organisation.toLowerCase(),
+    standortSuchform: standortSuchform(standort),
   } as AntragTextEntry;
 }
 
@@ -189,5 +191,92 @@ describe('searchAntraegeSubstring — Organisation', () => {
 
   it('grenzt ab — eine fremde Einrichtung trifft nicht', () => {
     expect(searchAntraegeSubstring('mogic', ORG_KORPUS)).toEqual(['G1']);
+  });
+});
+
+/**
+ * Standort — die Frage, für die das Feld da ist: „welche Vorhaben wurden 2026
+ * in Berlin gefördert?" Ort und Bundesland weichen zwischen Rechtsperson und
+ * ausführender Stelle in 1 052 bzw. 621 Sätzen voneinander ab, deshalb stehen
+ * beide Seiten im Feld.
+ */
+describe('searchAntraegeSubstring — Standort', () => {
+  const ORT_KORPUS = new Map<string, AntragTextEntry>([
+    ['B1', eintrag('Quantensensorik', '', '', '', '', '16KN010001', 'Qant GmbH', 'Berlin')],
+    // Firmensitz und Arbeitsort verschieden — der gemessene Wedel/Hamburg-Fall.
+    ['W1', eintrag('Schiffsantriebe', '', '', '', '', '16KN010002', 'Marine AG',
+      'Wedel Hamburg Schleswig-Holstein')],
+    ['S1', eintrag('Textilveredelung', '', '', '', '', '16KN010003', 'Webe GmbH',
+      'Chemnitz Sachsen')],
+  ]);
+
+  it('findet die Vorhaben einer Stadt', () => {
+    expect(searchAntraegeSubstring('berlin', ORT_KORPUS)).toEqual(['B1']);
+  });
+
+  it('findet sowohl über den Firmensitz als auch über den Arbeitsort', () => {
+    expect(searchAntraegeSubstring('wedel', ORT_KORPUS)).toEqual(['W1']);
+    expect(searchAntraegeSubstring('hamburg', ORT_KORPUS)).toEqual(['W1']);
+  });
+
+  it('findet über das ausgeschriebene Bundesland — im Export steht nur das Kürzel', () => {
+    expect(searchAntraegeSubstring('sachsen', ORT_KORPUS)).toEqual(['S1']);
+    expect(searchAntraegeSubstring('schleswig-holstein', ORT_KORPUS)).toEqual(['W1']);
+  });
+
+  it('lässt sich mit einem Sachwort verknüpfen — der eigentliche Zweck', () => {
+    expect(searchAntraegeSubstring('sachsen textil', ORT_KORPUS)).toEqual(['S1']);
+  });
+
+  it('grenzt ab — eine fremde Stadt trifft nicht', () => {
+    expect(searchAntraegeSubstring('chemnitz', ORT_KORPUS)).toEqual(['S1']);
+  });
+
+  /**
+   * Der Befund, der die Wortanfang-Regel nötig machte: als freier Substring
+   * holte „essen" am echten Bestand 439 zusätzliche Anträge herein — fast alle
+   * aus H·essen, nicht aus Essen (23 Anträge).
+   */
+  describe('Wortanfang statt freier Substring', () => {
+    const FALLEN = new Map<string, AntragTextEntry>([
+      ['H1', eintrag('Lebensmittelanalytik', '', '', '', '', '16KN020001', 'Nutri GmbH',
+        'Kassel Hessen')],
+      ['E1', eintrag('Werkstoffprüfung', '', '', '', '', '16KN020002', 'Ruhr AG',
+        'Essen Nordrhein-Westfalen')],
+      ['N1', eintrag('Agrartechnik', '', '', '', '', '16KN020003', 'Hof AG',
+        'Osnabrück Niedersachsen')],
+      ['S1', eintrag('Textilveredelung', '', '', '', '', '16KN020004', 'Webe GmbH',
+        'Chemnitz Sachsen')],
+      ['A1', eintrag('Chemieanlagen', '', '', '', '', '16KN020005', 'Anha GmbH',
+        'Magdeburg Sachsen-Anhalt')],
+    ]);
+
+    it('„essen" trifft Essen, aber NICHT Hessen', () => {
+      expect(searchAntraegeSubstring('essen', FALLEN)).toEqual(['E1']);
+    });
+
+    it('„sachsen" trifft Sachsen und Sachsen-Anhalt, aber NICHT Niedersachsen', () => {
+      expect(searchAntraegeSubstring('sachsen', FALLEN).sort()).toEqual(['A1', 'S1']);
+    });
+
+    it('der Bindestrich trennt Wörter — „anhalt" findet Sachsen-Anhalt', () => {
+      expect(searchAntraegeSubstring('anhalt', FALLEN)).toEqual(['A1']);
+      expect(searchAntraegeSubstring('westfalen', FALLEN)).toEqual(['E1']);
+    });
+
+    it('ausgeschrieben mit Bindestrich trifft weiterhin', () => {
+      expect(searchAntraegeSubstring('sachsen-anhalt', FALLEN)).toEqual(['A1']);
+      expect(searchAntraegeSubstring('nordrhein-westfalen', FALLEN)).toEqual(['E1']);
+    });
+
+    it('Präfix am Wortanfang bleibt — die Suche läuft bei jedem Tastendruck', () => {
+      expect(searchAntraegeSubstring('chemn', FALLEN)).toEqual(['S1']);
+      expect(searchAntraegeSubstring('osnabr', FALLEN)).toEqual(['N1']);
+    });
+
+    it('ein Satzzeichen als Anfrage trifft nicht ALLES', () => {
+      // `''.includes('')` wäre `true` — die leere Nadel muss verworfen werden.
+      expect(searchAntraegeSubstring('-', FALLEN)).toEqual([]);
+    });
   });
 });

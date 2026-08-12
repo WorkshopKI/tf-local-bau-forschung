@@ -1,0 +1,131 @@
+/**
+ * Tests für die Bausteine der Such-Korpus-Felder (v4.4.3 / v4.4.4).
+ *
+ * `verbindeEindeutig` zieht Angaben derselben Art zu einem Feld zusammen:
+ * Antragsteller und ausführende Stelle sind am Bestand gemessen in 97,5 % der
+ * Sätze identisch, Ort und Bundesland in über 90 %. Doppelt gespeichert wären
+ * das ~14 000 überflüssige Kopien.
+ *
+ * `bundeslandName` löst das Kürzel auf, weil es als Suchwort nichts taugt: die
+ * Suche fragt `feld.includes(wort)` — ein zwei Zeichen langes Feld kann nur von
+ * einer ein- bis zweibuchstabigen Anfrage getroffen werden.
+ */
+import { describe, it, expect } from 'vitest';
+import {
+  verbindeEindeutig,
+  bundeslandName,
+  standortSuchform,
+  standortNadel,
+} from '../services/search-corpus';
+
+describe('verbindeEindeutig', () => {
+  it('speichert einen identischen Wert nur einmal', () => {
+    expect(verbindeEindeutig('Mogic GmbH', 'Mogic GmbH')).toBe('Mogic GmbH');
+  });
+
+  it('führt zwei verschiedene Werte zusammen', () => {
+    expect(verbindeEindeutig('Universitätsklinikum Leipzig AöR', 'Universität Leipzig'))
+      .toBe('Universitätsklinikum Leipzig AöR Universität Leipzig');
+  });
+
+  it('lässt Leeres weg — ohne führendes oder doppeltes Leerzeichen', () => {
+    expect(verbindeEindeutig('', 'Universität Leipzig')).toBe('Universität Leipzig');
+    expect(verbindeEindeutig('Wedel', '', 'Schleswig-Holstein')).toBe('Wedel Schleswig-Holstein');
+    expect(verbindeEindeutig('  ', 'Berlin')).toBe('Berlin');
+  });
+
+  it('liefert für lauter leere Werte einen leeren String', () => {
+    // Wichtig für den `includeEmpty`-Guard: `.length > 0` muss falsch bleiben,
+    // sonst käme jeder textlose Antrag in den Korpus.
+    expect(verbindeEindeutig('', '', '')).toBe('');
+  });
+
+  it('entdoppelt über die ganze Liste, nicht nur benachbarte Werte', () => {
+    // Der reale Stadtstaat-Fall: Firmensitz Hamburg, Bundesland Hamburg.
+    expect(verbindeEindeutig('Wedel', 'Hamburg', 'Schleswig-Holstein', 'Hamburg'))
+      .toBe('Wedel Hamburg Schleswig-Holstein');
+  });
+
+  it('Berlin bleibt einmal stehen, obwohl es Stadt UND Land ist', () => {
+    expect(verbindeEindeutig('Berlin', 'Berlin', 'Berlin', 'Berlin')).toBe('Berlin');
+  });
+});
+
+describe('bundeslandName', () => {
+  /** Im Bestand belegte Kürzel (Stand 2026-08, 14 224 Sätze mit Angabe).
+   *  Alle 16 kommen vor — eine Lücke hier wäre ein stiller Suchausfall. */
+  const IM_BESTAND = ['BW', 'BY', 'BE', 'BB', 'HB', 'HH', 'HE', 'MV',
+    'NI', 'NW', 'RP', 'SL', 'SN', 'ST', 'SH', 'TH'];
+
+  it('löst jedes im Bestand belegte Kürzel auf', () => {
+    for (const k of IM_BESTAND) {
+      const name = bundeslandName(k);
+      expect(name, `Kürzel ${k}`).not.toBe(k);
+      expect(name.length).toBeGreaterThan(2);
+    }
+  });
+
+  it('trifft die Schreibweisen, nach denen jemand tatsächlich sucht', () => {
+    expect(bundeslandName('SN')).toBe('Sachsen');
+    expect(bundeslandName('NW')).toBe('Nordrhein-Westfalen');
+    expect(bundeslandName('BW')).toBe('Baden-Württemberg');
+    expect(bundeslandName('TH')).toBe('Thüringen');
+  });
+
+  it('nimmt Kleinschreibung und Leerraum an', () => {
+    expect(bundeslandName(' sn ')).toBe('Sachsen');
+  });
+
+  it('gibt Unbekanntes unverändert zurück, statt es zu verwerfen', () => {
+    // Ein neues Kürzel darf nie stillschweigend verschwinden. Als Suchwort ist
+    // es wirkungslos (zu kurz), aber die Angabe bleibt im Feld.
+    expect(bundeslandName('XX')).toBe('XX');
+  });
+
+  it('bleibt bei fehlender Angabe leer', () => {
+    expect(bundeslandName('')).toBe('');
+    expect(bundeslandName('   ')).toBe('');
+  });
+});
+
+/**
+ * Die Ortsangabe ist das einzige Korpus-Feld, das am WORTANFANG verglichen wird.
+ * Der Rahmen aus Leerzeichen macht das aus einem `includes` — Speicherform
+ * beidseitig gerahmt, Nadel nur vorn, damit Präfix-Tippen weiter funktioniert.
+ */
+describe('standortSuchform / standortNadel', () => {
+  it('rahmt die Speicherform beidseitig ein', () => {
+    expect(standortSuchform('Berlin')).toBe(' berlin ');
+  });
+
+  it('rahmt die Nadel nur vorn ein — sonst stirbt das Präfix-Tippen', () => {
+    expect(standortNadel('Dresd')).toBe(' dresd');
+    expect(standortSuchform('Dresden').includes(standortNadel('Dresd'))).toBe(true);
+  });
+
+  it('zerlegt an Bindestrich und Klammer in eigene Wörter', () => {
+    expect(standortSuchform('Sachsen-Anhalt')).toBe(' sachsen anhalt ');
+    expect(standortSuchform('Ellwangen (Jagst)')).toBe(' ellwangen jagst ');
+    expect(standortNadel('Sachsen-Anhalt')).toBe(' sachsen anhalt');
+  });
+
+  it('trennt „essen" von „Hessen" — der Fall, der die Regel nötig machte', () => {
+    expect(standortSuchform('Hessen').includes(standortNadel('essen'))).toBe(false);
+    expect(standortSuchform('Essen').includes(standortNadel('essen'))).toBe(true);
+  });
+
+  it('trennt „sachsen" von „Niedersachsen", nicht aber von „Sachsen-Anhalt"', () => {
+    const nadel = standortNadel('sachsen');
+    expect(standortSuchform('Niedersachsen').includes(nadel)).toBe(false);
+    expect(standortSuchform('Sachsen-Anhalt').includes(nadel)).toBe(true);
+    expect(standortSuchform('Sachsen').includes(nadel)).toBe(true);
+  });
+
+  it('liefert für Leeres einen leeren String — nicht ein einzelnes Leerzeichen', () => {
+    // `' '.includes(' ')` wäre `true`: eine leere Angabe träfe jede Nadel.
+    expect(standortSuchform('')).toBe('');
+    expect(standortSuchform('  -  ')).toBe('');
+    expect(standortNadel('')).toBe('');
+    expect(standortNadel('-')).toBe('');
+  });
+});

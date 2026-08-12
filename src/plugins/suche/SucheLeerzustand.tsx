@@ -13,8 +13,9 @@ import { Search, Clock, MessageSquare, Info } from 'lucide-react';
  * Eingaben (inkl. Verlaufs-Eintrag) — der Aufrufer reicht `onExample` durch.
  */
 
-/** Statische, realistische Beispiele (thematisch · FKZ · Mehrwort-Thema). */
-const BEISPIELE = ['Bilderkennung', '16KN055710', 'additive Fertigung'] as const;
+/** Statische, realistische Beispiele — je Chip eine Sucheingabe-Art
+ *  (thematisch · FKZ · Mehrwort-Thema · Ort). */
+const BEISPIELE = ['Bilderkennung', '16KN055710', 'additive Fertigung', 'Dresden'] as const;
 
 export function SucheLeerzustand({
   antraegeGeladen,
@@ -37,8 +38,8 @@ export function SucheLeerzustand({
         {antraegeGeladen.toLocaleString('de-DE')} Anträge durchsuchbar
       </p>
       <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-lg leading-relaxed">
-        Nach Titel, Akronym, FKZ oder Stammdaten — mit Ähnlichkeitssuche findest du
-        auch thematisch verwandte Vorhaben.
+        Nach Titel, Akronym, FKZ, Antragsteller oder Ort — mit Ähnlichkeitssuche
+        findest du auch thematisch verwandte Vorhaben.
       </p>
 
       {/* Klickbare Beispiel-Chips — führen die Suche über den regulären Pfad aus. */}
