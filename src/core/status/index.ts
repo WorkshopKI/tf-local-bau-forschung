@@ -274,7 +274,7 @@ export {
   type TimelineEvent, type TimelineLanes, type Cluster,
 } from './timeline';
 export {
-  baueChronik, gruppiereNachMonat, traegerLabel,
+  baueChronik, gruppiereNachMonat, monateDazwischen, teileChronik, traegerLabel,
   type ChronikEintrag, type ChronikMonat,
 } from './chronik';
 // Die Verlaufsableitung hat ein eigenes Barrel (`./verlauf`), wie das Journal.

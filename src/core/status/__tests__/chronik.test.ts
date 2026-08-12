@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { baueChronik, gruppiereNachMonat } from '@/core/status/chronik';
+import {
+  baueChronik, gruppiereNachMonat, monateDazwischen, teileChronik,
+} from '@/core/status/chronik';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type { Prominenz, StatusFeldEintrag } from '@/core/status/typen';
 
@@ -91,5 +93,53 @@ describe('chronik — Monatsblöcke', () => {
 
   it('liefert für eine leere Chronik keine Blöcke', () => {
     expect(gruppiereNachMonat([])).toEqual([]);
+  });
+});
+
+describe('chronik — Nebensächliches abtrennen statt zweimal bauen', () => {
+  const roh = [
+    vk(EINGANG, '24.02.2026'),
+    vk(NEBENSACHE, '25.02.2026'),
+    vk(STUMM, '26.02.2026'),
+    vk(PRECHECK, '27.02.2026'),
+  ];
+
+  it('teilt genau dort, wo baueChronik filtert (Gleichwertigkeits-Gatter)', () => {
+    const { haupt } = teileChronik(baueChronik(roh, { zeigeNebensaechlich: true }));
+    expect(haupt).toEqual(baueChronik(roh, { zeigeNebensaechlich: false }));
+  });
+
+  it('legt die nebensächlichen Einträge in den zweiten Topf', () => {
+    const { neben } = teileChronik(baueChronik(roh, { zeigeNebensaechlich: true }));
+    expect(neben.map(e => e.feld.feldId)).toEqual(['D_XYB']);
+  });
+
+  it('lässt Ignoriertes in keinem der beiden Töpfe auftauchen', () => {
+    const { haupt, neben } = teileChronik(baueChronik(roh, { zeigeNebensaechlich: true }));
+    expect([...haupt, ...neben].map(e => e.feld.feldId)).not.toContain('D_STUMM');
+  });
+
+  it('gibt für eine leere Chronik zwei leere Töpfe zurück', () => {
+    expect(teileChronik([])).toEqual({ haupt: [], neben: [] });
+  });
+});
+
+describe('chronik — Lücken zwischen Monatsblöcken', () => {
+  it('zählt die übersprungenen Monate, nicht den Abstand', () => {
+    expect(monateDazwischen('2025-08', '2026-01')).toBe(4);
+  });
+
+  it('meldet bei aufeinanderfolgenden Blöcken und über den Jahreswechsel keine Lücke', () => {
+    expect(monateDazwischen('2025-12', '2026-01')).toBe(0);
+    expect(monateDazwischen('2026-01', '2026-02')).toBe(0);
+  });
+
+  it('wird bei gleichem oder rückläufigem Monat nicht negativ', () => {
+    expect(monateDazwischen('2026-03', '2026-03')).toBe(0);
+    expect(monateDazwischen('2026-05', '2026-02')).toBe(0);
+  });
+
+  it('bleibt bei unlesbaren Monaten stumm, statt eine Zahl zu erfinden', () => {
+    expect(monateDazwischen('kaputt', '2026-01')).toBe(0);
   });
 });

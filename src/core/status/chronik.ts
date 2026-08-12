@@ -78,6 +78,55 @@ export function baueChronik(
 }
 
 /**
+ * Teilt eine **vollständig** gebaute Chronik in „steht immer da" und „nur auf
+ * Wunsch" — dieselbe Grenze, die {@link baueChronik} beim Bauen zieht.
+ *
+ * Warum getrennt und nicht zweimal gebaut: die Anzeige muss wissen, ob der
+ * Schalter überhaupt etwas bewirkt, bevor sie ihn anbietet. Ein Schalter, der
+ * bei jedem Vorgang nichts tut, ist eine Zusage, die nie eingelöst wird — und
+ * genau das war er, solange der Export keine Kommunikationsspalten liefert.
+ *
+ * Die Teilung ist gleichwertig zum Filtern beim Bauen: die Prominenz hängt am
+ * **Feld**, und die Entdopplung läuft je (Feld, Tag) — ein nebensächlicher
+ * Eintrag kann also keinen normalen verdrängen. Ein Gatter im Test hält das
+ * fest, damit die Gleichwertigkeit nicht bei der nächsten Änderung stillschweigend
+ * verlorengeht.
+ */
+export function teileChronik(alle: readonly ChronikEintrag[]): {
+  haupt: ChronikEintrag[]; neben: ChronikEintrag[];
+} {
+  const haupt: ChronikEintrag[] = [];
+  const neben: ChronikEintrag[] = [];
+  for (const e of alle) {
+    if (e.feld.prominenzDefault === 'nebensaechlich') neben.push(e);
+    else haupt.push(e);
+  }
+  return { haupt, neben };
+}
+
+/**
+ * Wie viele Monate zwischen zwei Monatsblöcken **übersprungen** wurden.
+ *
+ * `2025-08` → `2026-01` sind vier leere Monate (Sep–Dez), nicht fünf: gezählt
+ * wird die Lücke, nicht der Abstand. Aufeinanderfolgende Blöcke und derselbe
+ * Monat ergeben 0.
+ *
+ * Rein und ohne `Date`: Monatszahlen genügen, und `new Date('2026-01')` wäre je
+ * nach Zeitzone der Dezember.
+ */
+export function monateDazwischen(vorher: string, nachher: string): number {
+  const zahl = (m: string): number => {
+    const j = Number(m.slice(0, 4));
+    const mo = Number(m.slice(5, 7));
+    return Number.isFinite(j) && Number.isFinite(mo) ? j * 12 + mo : NaN;
+  };
+  const a = zahl(vorher);
+  const b = zahl(nachher);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.max(0, b - a - 1);
+}
+
+/**
  * Wer einen Eintrag trägt: der Verbund, ein benanntes Teilvorhaben oder mehrere.
  *
  * Steht hier und nicht in der Anzeige, weil zwei Oberflächen dieselbe Auskunft

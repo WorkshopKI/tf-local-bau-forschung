@@ -2183,3 +2183,46 @@ persistiert: alle drei hängen an einem lokalen `useState`, **nicht** an
 `useTimelinePrefs`. Der aufgeklappte Bereich merkt sich nichts, und das
 Aufklappen einer Tabellenzeile darf die Voreinstellung der Detailseite nicht
 umschreiben.
+
+### 16.10 Die Chronik in zwei Spalten (v3.45)
+
+Der Verlauf soll **auf einen Blick** dastehen, nicht auf zwei Bildschirmen. Die
+Verteilung über 13 090 Vorgänge: Median **22 Termine in 6 Monaten**, p90 32 in 9,
+max 50 in 15 — rund 3,7 Termine je Monat. Daraus folgen drei Entscheidungen in
+[StatusChronik.tsx](../../src/plugins/antraege/status/StatusChronik.tsx), die für
+**beide** Verwendungen gelten (Detailseite und Ausklapp — eine Ansicht, eine
+Dichte):
+
+1. **Der Monat steht links in einer eigenen Spalte**, nicht in einer eigenen
+   Zeile. Sechs Überschriften kosteten ~190 px für sechs Wörter. Die senkrechte
+   Achse läuft **durch** alle Monate, weil der Blockabstand innerhalb der `<ol>`
+   entsteht und nicht zwischen den Blöcken.
+2. **Ein Termin ist eine Zeile.** Der Begleittext (`T_`-Notiz) steht hinter der
+   Bezeichnung statt darunter, gekürzt; der volle Wortlaut samt Ordnerpfad hängt
+   im `title`. Ohne senkrechtes Padding — bei 28 Terminen sind 3 px je Zeile ein
+   ganzer Eintrag.
+3. **Die Zeilenhöhe steht in px, nicht als Faktor.** `leading-[1.5]` rechnet
+   gegen die geerbte Schriftgröße, und die ist im Ausklapp eine andere als auf
+   der Detailseite — gemessen 20 px hier, 24 px dort. Dieselbe Ansicht darf nicht
+   je nach Umgebung eine andere Dichte haben.
+
+Gemessen: `16EP250140` (28 Termine, 8 Monate) 1 003 → **659 px**, ein Median-Fall
+(`16EP250019`, 21 Termine, 6 Monate) **460 px**.
+
+Zwei Zugaben, die aus derselben Frage folgen. Der Zähler nennt die **Spanne**
+(„28 Termine aus den Datumsfeldern · Aug. 2025 – Juli 2026"), und ab **zwei**
+übersprungenen Monaten steht unter dem Monatsnamen leise „N Monate ohne Termin"
+(`monateDazwischen` in [chronik.ts](../../src/core/status/chronik.ts)) — Stillstand
+sieht man sonst nur, wenn man die Überschriften voneinander abzieht.
+
+**Der Schalter „Nebensächliches" erscheint nur, wenn er etwas bewirkt.** Er war
+in der Chronik wirkungslos, und zwar überall: als `nebensaechlich` kuratiert sind
+15 Codes, alle aus den Ordnern *Kommunikation* (`KANAL` in
+[seed-codes.ts](../../src/core/status/seed-codes.ts)) — und **keine** dieser
+Spalten existiert in einem der Import-CSVs, nicht leer, sondern nicht vorhanden.
+`teileChronik` trennt deshalb die fertige Chronik in „steht immer da" und „nur
+auf Wunsch", der Chip hängt an der zweiten Menge und trägt ihre Anzahl. Ein
+Gatter im Test hält fest, dass die Teilung dasselbe liefert wie das Filtern beim
+Bauen. Liefert der Export die Kanalspalten eines Tages, kommt der Schalter von
+selbst zurück. Im **Zeitstrahl**-Reiter bleibt er unangetastet — dort filtert er
+die `vb_phase`-Ereignisse und wirkt.
