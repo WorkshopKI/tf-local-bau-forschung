@@ -6,7 +6,11 @@
  * gemeinsamen Feld-Klassen (aus dem ChecklistenEditor-Muster übernommen).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
-import { KATEGORIE_TEXTE, getStatusCategoryLabel } from '@/core/utils/status-category-labels';
+import {
+  KATEGORIE_REIHENFOLGE,
+  KATEGORIE_TEXTE,
+  getStatusCategoryLabel,
+} from '@/core/utils/status-category-labels';
 import {
   type StatusCategory, type Prominenz, type Werkzeug,
   type StatusFeldEintrag,
@@ -45,11 +49,10 @@ export const TYP_LABEL: Record<StatusFeldEintrag['typ'], string> = {
   text: 'Text',
 };
 
-/** Kategorie-Werte in Taxonomie-Reihenfolge (für Selects + Filter-Pills). */
-export const KATEGORIE_WERTE: readonly StatusCategory[] = [
-  'offen', 'in_pruefung', 'nachforderung', 'entscheidung',
-  'bewilligt', 'begleitung', 'abgelehnt', 'abgeschlossen', 'sonstige',
-];
+/** Kategorie-Werte in Taxonomie-Reihenfolge (für Selects + Filter-Pills).
+ *  Die Reihenfolge selbst wohnt seit v3.47 bei den Beschriftungen — dieselbe
+ *  Achse, eine Quelle. */
+export const KATEGORIE_WERTE: readonly StatusCategory[] = KATEGORIE_REIHENFOLGE;
 
 /** Prominenz-Werte (für Selects + Filter-Pills). */
 export const PROMINENZ_WERTE: readonly Prominenz[] = [

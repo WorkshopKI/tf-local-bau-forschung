@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.49.0 — Kanban-Bahnen einklappbar, Kanban im eigenen Fenster (August 2026)
+
+MINOR — Gewünscht: Bahnen einklappen wie im Feedback-Board, und ein Vollbild-Zeichen, das alle eigenen Anträge in einem eigenen Fenster zeigt. Das Einklappen war ein Flag am Primitiv, das die Widgets nie gesetzt hatten — leere Bahnen waren dort 44 px, die aussahen wie ein Knopf und keiner waren. Detail: [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md) + [board-komponente.md](docs/architecture/board-komponente.md).
+
+- **Bahnen einklappbar** in beiden Home-Kanbans (`features.einklappbar`), Zustand bleibt flüchtig — [AntragKanbanWidget.tsx](src/plugins/home/widgets/AntragKanbanWidget.tsx)
+- **Kanban im eigenen Fenster**: `about:blank` erbt die Herkunft des Openers, eine zweite React-Wurzel darin teilt Realm und Stores mit der App statt sie neu zu starten; Stile und Theme werden gespiegelt und nachgeführt — [appFenster.ts](src/components/fenster/appFenster.ts), neuer Guard `no-parallel-fenster-features`
+- Dort **alle** Kategorien mit Karten (nicht nur die konfigurierten), ohne Kappung, Spaltenzahl aus dem Bestand — [kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts); Karten-Klick öffnet den Antrag in der App, das Verlassen der Startseite friert den Stand **sichtbar** ein
+- **Zweispalten-Boden korrigiert** (445 px `gedeckelt` / 329 px `geteilt`, vorher 300 für beide): sieben Bahnen in 1600 px landeten alle auf dem Boden, die Karte maß 132 statt 210 px — zwei Spalten machten die Karte schmaler statt die Bahn kürzer — [tf-board.css](src/components/kanban/tf-board.css)
+- Fenster-Geometrie aus der Seiten-Hilfe **gehoben** statt kopiert ([fensterGeometrie.ts](src/components/fenster/fensterGeometrie.ts)); Kategorien-Reihenfolge lag zweimal wortgleich, jetzt bei den Beschriftungen ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+
 ### v3.48.0 — Chronik: wer hat gesetzt, was fehlt (August 2026)
 
 MINOR — Gewünscht: als FB auf einen Blick sehen, welche Kürzel meine sind, was der AB gesetzt hat und wo eine Seite offen steht. Beides lag längst vor — die Rolle am Feld, die Lücke im Wächter —, nur nicht in der Chronik. Dazu drei Flächen weg, die keiner benutzt. Detail: [vorgangssystem.md §16.11/§16.12](docs/architecture/vorgangssystem.md).

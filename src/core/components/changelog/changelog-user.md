@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.49 — 2026-08
+
+### Neu
+- **Kanban im eigenen Fenster.** Das Vollbild-Zeichen rechts neben dem Stift öffnet die Anträge in einem großen eigenen Fenster — dort stehen **alle** Status-Kategorien, in denen Sie Anträge haben, auch die, die Sie im Widget nicht eingestellt haben, und ohne Begrenzung auf die ersten vier Karten. Volle Bahnen werden automatisch zweispaltig, lange bekommen einen Scrollbalken. Ein Klick auf eine Karte öffnet den Antrag in der App.
+- **Kanban-Bahnen einklappen.** Ein Klick auf die Kopfzeile einer Bahn schiebt sie zu einer schmalen Schiene zusammen, ein Klick auf die Schiene holt sie zurück — auch leere Bahnen lassen sich jetzt aufklappen.
+
+### Verbesserungen
+- Zweispaltige Bahnen sind breiter geworden: die Karten darin waren bisher schmaler als in einspaltigen Bahnen, obwohl mehr Platz das Ziel war.
+
 ## v3.48 — 2026-08
 
 ### Neu

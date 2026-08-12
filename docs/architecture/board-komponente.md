@@ -99,8 +99,9 @@ Offen bleiben die bekannten Löcher: kein Touch, **keine Tastaturbedienung**, ke
 | Wer | Layout | Besonderheit |
 |---|---|---|
 | [TicketBoard](../../src/plugins/feedback-board/ticket/TicketBoard.tsx) | `gedeckelt` | einklappbar, bahnScrollt, nachladen, dnd, Summenzeile, Sicht-Zuschnitt |
-| [AntragKanbanWidget](../../src/plugins/home/widgets/AntragKanbanWidget.tsx) | `geteilt` | read-only, Icon je Kategorie, `fuss` navigiert in die Liste |
-| [FeedbackKanbanWidget](../../src/plugins/home/widgets/FeedbackKanbanWidget.tsx) | `geteilt` | read-only, `fuss` navigiert ins Board |
+| [AntragKanbanWidget](../../src/plugins/home/widgets/AntragKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, Icon je Kategorie, `fuss` navigiert in die Liste |
+| [FeedbackKanbanWidget](../../src/plugins/home/widgets/FeedbackKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, `fuss` navigiert ins Board |
+| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen, alle Kategorien mit Karten, Spaltenzahl aus dem Bestand abgeleitet — [fenster-in-fenster.md](fenster-in-fenster.md) |
 
 Der eingeklappte Widget-Zähler ist [LanePills](../../src/components/kanban/LanePills.tsx) — bis v3.44 zweimal wortgleich, bis auf `max-w-[110px]` gegen `max-w-[120px]`, was kein Entwurf war, sondern der Zwilling.
 
@@ -111,3 +112,4 @@ Zwei Zahlen im Primitiv tragen eine Messung und keine Meinung:
 - **Kopf-Lücke 4 px, nicht 8.** Bei „Wartet auf Antragsteller" in einer 170-px-Bahn (Home, sieben Bahnen, 1280 px) standen der zweizeiligen Bezeichnung mit 8 px genau 88 px zur Verfügung, sie brauchte 92 — mit 4 px sind es 96 und sie passt ohne Ellipse. Dieselbe Messung entschied schon in der Widget-Fassung; die 8 px der Board-Fassung waren nie gegen eine lange Bezeichnung geprüft, weil das Board nur kurze Status führt.
 - **Zähler rechtsbündig.** In der Board-Fassung stand die Pille bei „NEU" (23 px) an x=58 in einem 226 px breiten Kopf und ließ 148 px Leerraum hinter sich — das war die Abwesenheit einer Entscheidung, nicht eine.
 - **`minmax(0, 1fr)` statt `1fr`** für die zwei Kartenspalten: das Auto-Minimum von `1fr` ließ eine Karte mit unschrumpfbarem Inhalt ihre Spalte aufdrücken (gemessen 166 px gegen 181 px). Zwei Kartenspalten sind gleich breit oder sie sind keine.
+- **Zweispalten-Boden 445 px (`gedeckelt`) bzw. 329 px (`geteilt`), nicht 300 px für beide.** Sieben Bahnen in einem 1600-px-Fenster landeten alle auf dem alten gemeinsamen Boden, und die Karte maß dort **132 px** statt der 210 px einer einspaltigen Bahn — zwei Spalten machten die Karte schmaler, statt die Bahn kürzer zu machen. Die neuen Böden sind gerechnet, nicht gewählt: `2 × Kartenbreite + 7 Rasterlücke + 18 Polster`, je Form gegen deren eigenes `--tfb-min`. Nachgemessen liegt die Karte danach bei 204–209 px (zweispaltig) gegen 208 px (einspaltig).

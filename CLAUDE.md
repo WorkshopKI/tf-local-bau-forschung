@@ -17,6 +17,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
 | Baumartige Ansicht (Aufklappen, Tastatur, Checkboxen, Umbenennen, Ziehen) | [tree-komponenten.md](docs/architecture/tree-komponenten.md) — `TfTree` aus `@/components/tree` |
 | Kanban-/Board-Ansicht (Bahnen, Schmalschiene, Einklappen, Karten ziehen) | [board-komponente.md](docs/architecture/board-komponente.md) — `TfBoard` aus `@/components/kanban` |
+| App-Inhalt in einem eigenen Browser-Fenster zeigen | [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md) — `oeffneAppFenster` aus `@/components/fenster` |
 | Tabellenartige Seite mit Detail/Editor (Master-Detail-Split) | [docs/agents/add-table-detail-page.md](docs/agents/add-table-detail-page.md) — `MasterDetailLayout` |
 | UI-Muster wählen (Seitenkopf, Listen-Sicht-Tabs-mit-Zähler, Status-Badge/Dot, Filter-Chip) | [docs/architecture/ui-muster.md](docs/architecture/ui-muster.md) + [docs/layout-audit.md](docs/layout-audit.md) |
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |

@@ -20,6 +20,13 @@ export interface WidgetShellProps {
   meta?: string;
   /** Aktions-Slot (z.B. „Alle →") — nur ausgeklappt sichtbar. */
   aktion?: React.ReactNode;
+  /**
+   * Aktions-Slot GANZ rechts, nach dem Stift — und wie der Stift auch
+   * EINGEKLAPPT sichtbar. Der Unterschied zu `aktion` ist kein Versehen: was
+   * links steht, führt in den Body (der eingeklappt gar nicht da ist), was hier
+   * steht, öffnet etwas außerhalb (Kanban-Vollbild) und gilt darum immer.
+   */
+  aktionRechts?: React.ReactNode;
   /** Zähler-Slot rechts — wird IMMER gerendert (gerade eingeklappt wichtig). */
   zaehler?: React.ReactNode;
   /** haupt = großer Karten-Kopf (Hauptspalte), seite = kompakte Caption-Karte. */
@@ -37,6 +44,7 @@ export function WidgetShell({
   titel,
   meta,
   aktion,
+  aktionRechts,
   zaehler,
   variante,
   eingeklappt,
@@ -94,6 +102,7 @@ export function WidgetShell({
         {instanz && hatWidgetDetailConfig(instanz.config) ? (
           <WidgetQuickEdit instanz={instanz} />
         ) : null}
+        {aktionRechts ? <div className="shrink-0">{aktionRechts}</div> : null}
       </div>
       {/* Lazy: Body existiert im DOM NUR ausgeklappt. */}
       {!eingeklappt ? (

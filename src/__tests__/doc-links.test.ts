@@ -240,6 +240,16 @@ describe('doc-links', () => {
     // kann und die andere nicht. Das Detail — die Grenze Layout/Fachlichkeit, die
     // Drop-Naht und warum CSS statt Tailwind-JSX — steht in
     // docs/architecture/board-komponente.md.
-    expect(bytes).toBeLessThan(67_100);
+    // 67_100 → 67_300 (v3.47): eine Zeile im Entscheidungs-Baum für das zweite
+    // Browser-Fenster. Der Weg dorthin ist nicht ratbar: `window.open('', NAME)`
+    // mit LEERER URL bleibt `about:blank` und erbt die Herkunft des Openers —
+    // nur deshalb teilt sich das Fenster Realm und Stores mit der App, statt sie
+    // ein zweites Mal zu starten. Und der Features-String trägt eine Zusage, die
+    // beim Nachbauen verlorengeht: kein `noopener`, sonst ist das Handle null.
+    // Wer das nicht findet, baut entweder einen Dialog (den der Nutzer nicht
+    // wollte) oder lädt die App im Fenster neu — mit Anmelde-Gates, zweitem
+    // IndexedDB-Zugriff und zweitem Satz Ordner-Handles. Das Detail steht in
+    // docs/architecture/fenster-in-fenster.md.
+    expect(bytes).toBeLessThan(67_300);
   });
 });

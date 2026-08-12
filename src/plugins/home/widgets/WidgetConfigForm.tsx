@@ -22,7 +22,7 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
 import type { UserPreset } from '@/core/services/csv/filter/types';
 import type { StatusCategory } from '@/core/utils/status-canonical';
-import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
+import { KATEGORIE_REIHENFOLGE, getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 // Direktimport statt Barrel (siehe `FeedbackKanbanWidget`): das Barrel zieht
 // `FeedbackPanel` mit, das `@/plugins.config` laedt — und die Plugin-Config fuehrt
 // ueber die Einstellungen zurueck hierher. `constants.ts` ist reines Datenmodul.
@@ -38,11 +38,9 @@ import type {
   WidgetSpezifischeConfig,
 } from './types';
 
-/** Alle Lane-Kandidaten in kanonischer Reihenfolge (StatusCategory-Union). */
-const LANE_KATEGORIEN: StatusCategory[] = [
-  'offen', 'in_pruefung', 'nachforderung', 'entscheidung',
-  'bewilligt', 'begleitung', 'abgelehnt', 'abgeschlossen', 'sonstige',
-];
+/** Alle Lane-Kandidaten in kanonischer Reihenfolge (StatusCategory-Union).
+ *  Die Reihenfolge kommt seit v3.47 aus der Einzelquelle der Achse. */
+const LANE_KATEGORIEN: readonly StatusCategory[] = KATEGORIE_REIHENFOLGE;
 
 export interface WidgetConfigFormProps {
   instanz: WidgetInstanz;

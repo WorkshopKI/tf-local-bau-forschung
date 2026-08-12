@@ -9,6 +9,8 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 import {
   KANBAN_LANE_ACCENT,
+  ZWEISPALTIG_AB,
+  buildAlleAntragKanbanLanes,
   buildAntragKanbanLanes,
   filtereKanbanGrundmenge,
   laneAccent,
@@ -129,6 +131,73 @@ describe('laneAccent — Token-only Farbauflösung', () => {
     for (const wert of Object.values(KANBAN_LANE_ACCENT)) {
       expect(wert).toMatch(/^var\(--tf-kanban-[a-z-]+\)$/);
     }
+  });
+});
+
+describe('buildAlleAntragKanbanLanes — die Vollbild-Sicht', () => {
+  it('zeigt AUCH die nicht konfigurierten Kategorien, konfigurierte zuerst', () => {
+    const { lanes, gesamt } = buildAlleAntragKanbanLanes([
+      antrag({ aktenzeichen: 'A1', status: 'beantragt' }), // offen (konfiguriert)
+      antrag({ aktenzeichen: 'A2', status: 'irgendwas unbekanntes' }), // sonstige
+      antrag({ aktenzeichen: 'A3', status: 'bewilligt' }), // bewilligt
+    ], LANES, NOW);
+    // 'offen' steht vorn (konfiguriert), der Rest in Taxonomie-Reihenfolge:
+    // bewilligt kommt vor sonstige.
+    expect(lanes.map(l => l.kategorie)).toEqual(['offen', 'bewilligt', 'sonstige']);
+    // Genau die Karten, die das Widget mit derselben Config NICHT zeigt.
+    expect(buildAntragKanbanLanes([
+      antrag({ aktenzeichen: 'A2', status: 'irgendwas unbekanntes' }),
+      antrag({ aktenzeichen: 'A3', status: 'bewilligt' }),
+    ], LANES, 4, NOW).gesamt).toBe(0);
+    expect(gesamt).toBe(3);
+  });
+
+  it('laesst LEERE Bahnen weg (anders als das Widget)', () => {
+    const { lanes } = buildAlleAntragKanbanLanes(
+      [antrag({ aktenzeichen: 'A1', status: 'beantragt' })], LANES, NOW,
+    );
+    expect(lanes.map(l => l.kategorie)).toEqual(['offen']);
+  });
+
+  it('kappt NICHT — maxKartenProLane ist eine Widget-Frage', () => {
+    const viele = Array.from({ length: 40 }, (_, i) =>
+      antrag({ aktenzeichen: `A${i}`, status: 'beantragt', antragsdatum: '2026-01-01' }));
+    const { lanes } = buildAlleAntragKanbanLanes(viele, LANES, NOW);
+    expect(lanes[0]!.karten).toHaveLength(40);
+    expect(lanes[0]!.gesamt).toBe(40);
+  });
+
+  it('leitet die Spaltenzahl aus dem Bestand ab statt aus der Config', () => {
+    const mach = (n: number): AntragListItem[] => Array.from({ length: n }, (_, i) =>
+      antrag({ aktenzeichen: `A${i}`, status: 'beantragt', antragsdatum: '2026-01-01' }));
+    // LANES sagt fuer 'offen' spalten:1 — die Ableitung ueberstimmt das.
+    expect(buildAlleAntragKanbanLanes(mach(ZWEISPALTIG_AB), LANES, NOW).lanes[0]!.spalten).toBe(1);
+    expect(buildAlleAntragKanbanLanes(mach(ZWEISPALTIG_AB + 1), LANES, NOW).lanes[0]!.spalten).toBe(2);
+    // Umgekehrt: LANES sagt fuer 'in_pruefung' spalten:2 — eine kurze Bahn
+    // bleibt trotzdem einspaltig.
+    const kurz = [antrag({ aktenzeichen: 'B1', status: 'techn geprüft' })];
+    expect(buildAlleAntragKanbanLanes(kurz, LANES, NOW).lanes[0]!.spalten).toBe(1);
+  });
+
+  it('erzeugt keine doppelte Bahn, wenn eine Kategorie doppelt konfiguriert ist', () => {
+    const doppelt: KanbanLane[] = [
+      { kategorie: 'offen', spalten: 1 },
+      { kategorie: 'offen', spalten: 2 },
+    ];
+    const { lanes } = buildAlleAntragKanbanLanes(
+      [antrag({ aktenzeichen: 'A1', status: 'beantragt' })], doppelt, NOW,
+    );
+    expect(lanes.map(l => l.kategorie)).toEqual(['offen']);
+  });
+
+  it('clustert Verbuende wie das Widget (eine Karte je verbund_id)', () => {
+    const { lanes } = buildAlleAntragKanbanLanes([
+      antrag({ aktenzeichen: 'V1', verbund_id: 'VB', status: 'beantragt', antragsdatum: '2026-01-01' }),
+      antrag({ aktenzeichen: 'V2', verbund_id: 'VB', status: 'beantragt', antragsdatum: '2026-03-01' }),
+    ], LANES, NOW);
+    expect(lanes[0]!.karten).toHaveLength(1);
+    expect(lanes[0]!.karten[0]!.aktenzeichen).toBe('V1'); // aeltester Eingang
+    expect(lanes[0]!.karten[0]!.tvCount).toBe(2);
   });
 });
 

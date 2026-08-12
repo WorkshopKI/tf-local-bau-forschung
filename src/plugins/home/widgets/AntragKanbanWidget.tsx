@@ -14,23 +14,11 @@
  * Status-KATEGORIEN (Pitfall #12). Die Meta-Zeile macht den Bearbeiter-Modus
  * sichtbar (bearbeiterScopeLabel: „Kürzel THU" vs. „Alle Bearbeiter").
  */
-import { useEffect, useMemo, useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import {
-  Archive,
-  CheckCircle2,
-  FileQuestion,
-  Handshake,
-  HelpCircle,
-  Inbox,
-  Scale,
-  Search,
-  XCircle,
-} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Maximize2 } from 'lucide-react';
 import { TfBoard } from '@/components/kanban/TfBoard';
 import type { TfBoardBahn } from '@/components/kanban/tf-board-types';
 import { LanePills, type LanePill } from '@/components/kanban/LanePills';
-import { alterInTagen } from '@/core/utils/relativeZeit';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -40,7 +28,6 @@ import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
 import { listFiltersByProgramm } from '@/core/services/csv/filter/idb-filter';
 import { applyFilters } from '@/core/services/csv/filter/engine';
 import type { FilterDefinition, UserPreset } from '@/core/services/csv/filter/types';
-import type { StatusCategory } from '@/core/utils/status-canonical';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
@@ -48,27 +35,21 @@ import { bearbeiterScopeLabel, parseBearbeiterFilter } from '@/plugins/antraege/
 import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import { WIDGET_KATALOG } from './widgetCatalog';
 import {
+  buildAlleAntragKanbanLanes,
   buildAntragKanbanLanes,
   filtereKanbanGrundmenge,
   laneAccent,
   type KanbanKarte,
 } from './kanbanLanes';
+import { KATEGORIE_ICON } from './kanbanIcons';
+import { KanbanKarteView } from './KanbanKarteView';
+import { KanbanVollbild } from './KanbanVollbild';
+import { useKanbanVollbild } from './useKanbanVollbild';
 import type { AntragKanbanWidgetConfig } from './types';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
 
-/** Lane-Kopf-Glyphen je Status-Kategorie (analog STATUS_COLUMN_ICONS im Feedback-Board). */
-const KATEGORIE_ICON: Record<StatusCategory, LucideIcon> = {
-  offen: Inbox,
-  in_pruefung: Search,
-  nachforderung: FileQuestion,
-  entscheidung: Scale,
-  bewilligt: CheckCircle2,
-  begleitung: Handshake,
-  abgelehnt: XCircle,
-  abgeschlossen: Archive,
-  sonstige: HelpCircle,
-};
+const TITEL = 'Anträge — Kanban';
 
 interface PresetZustand {
   preset: UserPreset | null;
@@ -169,14 +150,55 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
 
   const meta = `${bearbeiterScopeLabel(bearbeiterMode)} · Quelle: Förderanträge${presetZustand.preset ? ` · Filter „${presetZustand.preset.name}"` : ''}`;
 
+  // ── Vollbild-Fenster ────────────────────────────────────────────────────────
+  // Die Bahnen des Fensters sind eine ANDERE Ableitung als die des Widgets: alle
+  // Kategorien mit Karten, ungekappt, Spaltenzahl aus dem Bestand. Sie stehen
+  // absichtlich IM Rumpf von `zeichneVollbild` und nicht in einem `useMemo` —
+  // der Hook ruft die Funktion nur bei offenem Fenster, und `useCallback`
+  // bindet sie an dieselben Daten-Abhängigkeiten. Ohne offenes Fenster wird die
+  // zweite Projektion damit nie gerechnet.
+  const zeichneVollbild = useCallback((verwaist: boolean): React.ReactNode => {
+    const voll = buildAlleAntragKanbanLanes(basis, cfg.lanes);
+    return (
+      <KanbanVollbild
+        titel={TITEL}
+        meta={meta}
+        lanes={voll.lanes}
+        gesamt={voll.gesamt}
+        farbmodus={cfg.farbmodus}
+        verwaist={verwaist}
+        onOpenAntrag={az => {
+          navigate('antraege', { selectedId: az });
+          // Die App steht hinter dem Fenster — ohne das sähe der Klick aus, als
+          // wäre nichts passiert.
+          window.focus();
+        }}
+      />
+    );
+  }, [basis, cfg.lanes, cfg.farbmodus, meta, navigate]);
+  const vollbild = useKanbanVollbild(instanz.id, TITEL, zeichneVollbild);
+
   return (
     <WidgetShell
-      titel="Anträge — Kanban"
+      titel={TITEL}
       meta={meta}
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
       instanz={instanz}
+      aktionRechts={
+        <button
+          type="button"
+          // SYNCHRON, kein useAsyncAction: window.open überlebt nur innerhalb
+          // der User-Geste (vgl. SeitenHilfeButton).
+          onClick={vollbild.oeffne}
+          aria-label="Kanban im eigenen Fenster öffnen"
+          title="Alle Bahnen im eigenen Fenster öffnen"
+          className="w-7 h-7 grid place-items-center rounded-[var(--tf-radius-sm)] text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer"
+        >
+          <Maximize2 size={12} />
+        </button>
+      }
       zaehler={
         instanz.eingeklappt
           ? <LanePills pills={pills} />
@@ -193,9 +215,22 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
           Grundmenge angezeigt.
         </p>
       ) : null}
+      {/* Die App hat kein Toast-System; ein blockiertes Fenster muss trotzdem
+          gesagt werden — sonst sieht der Knopf aus, als täte er nichts. */}
+      {vollbild.blockiert ? (
+        <p className="text-[12px] text-[var(--tf-warning-text)] mb-2">
+          Das eigene Fenster wurde vom Browser blockiert. Pop-ups für diese Seite
+          erlauben, dann erneut auf das Vollbild-Zeichen klicken.
+        </p>
+      ) : null}
       <TfBoard
         label="Anträge nach Status-Kategorie"
         layout="geteilt"
+        // Wie im Feedback-Board: der Bahnkopf ist der Einklapp-Schalter, und die
+        // leere Schiene wird bedienbar. Ohne das Flag ist sie im Widget stumm —
+        // 44 px, die aussehen wie ein Knopf und keiner sind. Der Zustand bleibt
+        // flüchtig (Widget-Collapse hängt den Body ohnehin aus dem DOM).
+        features={{ einklappbar: true }}
         bahnen={lanes.map((lane, i): TfBoardBahn<KanbanKarte> => ({
           key: lane.kategorie,
           label: getStatusCategoryLabel(lane.kategorie),
@@ -217,31 +252,5 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
         )}
       />
     </WidgetShell>
-  );
-}
-
-/** Kompakt-Karte: Akronym, nächster Schritt, Meta (TV-Zahl bzw. FKZ · Alter). */
-function KanbanKarteView({ karte, onOpen }: { karte: KanbanKarte; onOpen: () => void }): React.ReactElement {
-  const alter = alterInTagen(karte.alterTage);
-  const herkunft = karte.tvCount > 1 ? `${karte.tvCount} TV` : karte.aktenzeichen;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="block w-full text-left rounded-[10px] bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer px-3 py-2.5"
-      style={{ border: '0.5px solid var(--tf-border)', borderLeft: '2.5px solid var(--tf-border-hover)' }}
-    >
-      <p className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={karte.label}>
-        {karte.label}
-      </p>
-      {karte.schrittText ? (
-        <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2">
-          {karte.schrittText}
-        </p>
-      ) : null}
-      <p className="mt-1.5 text-[11px] tabular-nums text-[var(--tf-text-tertiary)] truncate">
-        {herkunft}{alter ? ` · ${alter}` : ''}
-      </p>
-    </button>
   );
 }

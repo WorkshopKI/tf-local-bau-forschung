@@ -105,6 +105,11 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
       <TfBoard
         label="Feedback nach Status"
         layout="geteilt"
+        // Wie im Feedback-Board: der Bahnkopf ist der Einklapp-Schalter, und die
+        // leere Schiene wird bedienbar. Ohne das Flag ist sie im Widget stumm —
+        // 44 px, die aussehen wie ein Knopf und keiner sind. Der Zustand bleibt
+        // fluechtig (Widget-Collapse haengt den Body ohnehin aus dem DOM).
+        features={{ einklappbar: true }}
         bahnen={lanes.map((lane, i): TfBoardBahn<FeedbackKanbanKarte> => ({
           key: lane.status,
           label: STATUS_LABELS[lane.status],

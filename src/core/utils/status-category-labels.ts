@@ -62,6 +62,24 @@ export const KATEGORIE_TEXTE: Readonly<Record<StatusCategory, Beschriftung>> = {
 };
 
 /**
+ * Die neun Werte in Taxonomie-Reihenfolge — von „am Zug" bis „erledigt".
+ *
+ * Stand bis v3.47 zweimal wortgleich da (Status-Cockpit-Selects und die
+ * Lane-Auswahl der Home-Widgets). Der dritte Leser (das Kanban-Vollbild, das
+ * ALLE Kategorien mit Karten zeigt) wäre die dritte Kopie gewesen — also zieht
+ * sie hierher, neben die Beschriftungen, die dieselbe Achse beschreiben.
+ *
+ * `Object.keys(KATEGORIE_TEXTE)` täte es nicht: die Schlüsselreihenfolge eines
+ * Records ist eine Zusage der Sprache über Einfügereihenfolge, keine über
+ * fachliche Ordnung — wer die Tabelle alphabetisch sortierte, verschöbe damit
+ * stillschweigend jede Auswahlliste der App.
+ */
+export const KATEGORIE_REIHENFOLGE: readonly StatusCategory[] = [
+  'offen', 'in_pruefung', 'nachforderung', 'entscheidung',
+  'bewilligt', 'begleitung', 'abgelehnt', 'abgeschlossen', 'sonstige',
+];
+
+/**
  * Zusammenfassungen mehrerer Kategorien. Ihre Namen kommen mit keiner
  * Kategoriebezeichnung überein — das ist die Zusage, nicht ein Zufall.
  *

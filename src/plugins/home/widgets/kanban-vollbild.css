@@ -1,0 +1,78 @@
+/**
+ * Wo das Board im eigenen Fenster SITZT — nicht, wie eine Bahn aussieht.
+ *
+ * Die Bahn-Geometrie hat genau eine Heimat (`components/kanban/tf-board.css`,
+ * Guard `no-parallel-board-geometry`); hier steht nur der Rahmen darum: eine
+ * Seite, die genau die Fensterhöhe füllt, damit `features.bahnScrollt` etwas
+ * hat, wogegen es scrollen kann.
+ *
+ * Warum diese Datei überhaupt Flächenfarbe setzt: im Fenster gibt es keinen
+ * `ShellLayout`, der `--tf-bg` auf eine Wurzel legt — ohne das stünde ein
+ * dunkles Board auf weißem Grund.
+ */
+
+.kv-seite {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tf-bg);
+  color: var(--tf-text);
+  overflow: hidden;
+}
+
+.kv-kopf {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 18px 10px;
+  border-bottom: var(--tf-border-thin) solid var(--tf-border);
+}
+.kv-kopf h1 {
+  font-size: 14px;
+  font-weight: var(--tf-weight-medium);
+  margin: 0;
+}
+.kv-kopf .kv-meta {
+  font-size: 12.5px;
+  color: var(--tf-text-tertiary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kv-kopf .kv-zahl {
+  margin-left: auto;
+  flex: none;
+  font-size: 12px;
+  color: var(--tf-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Der Stand friert ein, sobald die Startseite verlassen wird — das Fenster sagt
+   es, statt eine alte Lage als aktuelle auszugeben. Warn-Ton, nicht Fehler-Ton:
+   nichts ist kaputt, es ist nur nicht mehr live. */
+.kv-verwaist {
+  flex: none;
+  padding: 6px 18px;
+  font-size: 12px;
+  color: var(--tf-warning-text);
+  background: color-mix(in srgb, var(--tf-warning-text) 10%, var(--tf-bg));
+  border-bottom: var(--tf-border-thin) solid var(--tf-border);
+}
+
+/* min-height: 0 ist die Bedingung dafuer, dass die Bahnen scrollen statt die
+   Seite zu strecken — ein Flex-Kind hat als Mindesthoehe sonst seinen Inhalt. */
+.kv-board {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 18px;
+}
+
+.kv-leer {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--tf-text-tertiary);
+}

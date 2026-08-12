@@ -10,6 +10,11 @@
 
 import { marked } from 'marked';
 import { sanitizeHtml } from '@/components/ui/MarkdownRenderer';
+import {
+  berechneAngedocktGeometrie,
+  type Bildschirm,
+  type FensterGeometrie,
+} from '@/components/fenster/fensterGeometrie';
 
 /** Ein Fenster pro App — der Name greift auch nach einem Reload des Openers. */
 export const HILFE_FENSTER_NAME = 'teamflow-seitenhilfe';
@@ -271,37 +276,14 @@ export function baueKopfHtml(css: string): string {
 }
 
 // ── Geometrie ─────────────────────────────────────────────────────────────────
+// Wohnt seit v3.47 in `components/fenster/fensterGeometrie.ts` — dort, wo auch
+// das Kanban-Vollbild sie liest. Hier bleiben die Namen, unter denen die Hilfe
+// sie kennt, damit dieser Umzug an ihr spurlos vorbeigeht.
 
-export interface Bildschirm {
-  availWidth: number;
-  availHeight: number;
-  availLeft?: number;
-  availTop?: number;
-}
-
-export interface FensterGeometrie {
-  breite: number;
-  hoehe: number;
-  links: number;
-  oben: number;
-}
+export type { Bildschirm, FensterGeometrie } from '@/components/fenster/fensterGeometrie';
+export { fensterFeatures } from '@/components/fenster/fensterGeometrie';
 
 /** Rechts angedockt, volle nutzbare Höhe — die App bleibt links daneben sichtbar. */
 export function berechneGeometrie(schirm: Bildschirm, breite = HILFE_BREITE): FensterGeometrie {
-  const links0 = schirm.availLeft ?? 0;
-  const oben0 = schirm.availTop ?? 0;
-  return {
-    breite,
-    hoehe: Math.max(400, schirm.availHeight - 80),
-    links: Math.max(links0, links0 + schirm.availWidth - breite - 24),
-    oben: oben0 + 24,
-  };
-}
-
-/**
- * Features-String für `window.open`. Bewusst OHNE `noopener` — damit wäre das
- * Handle `null` und die gesamte Mechanik tot.
- */
-export function fensterFeatures(g: FensterGeometrie): string {
-  return `popup=yes,width=${g.breite},height=${g.hoehe},left=${g.links},top=${g.oben},resizable=yes,scrollbars=yes`;
+  return berechneAngedocktGeometrie(schirm, breite);
 }

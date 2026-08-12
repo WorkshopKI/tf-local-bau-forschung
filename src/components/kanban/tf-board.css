@@ -31,7 +31,12 @@
   --tfb-wunsch: 262px;
   --tfb-min: 228px;
   --tfb-max: 340px;
-  --tfb-min2: 300px;
+  /* Boden der zweispaltigen Bahn: so breit, dass eine Karte darin GENAUSO breit
+     wird wie in einer einspaltigen Bahn — 2 × 210 + 7 Rasterlücke + 18 Polster.
+     Vorher standen hier 300 px; bei sieben Bahnen in 1600 px (Kanban-Vollbild)
+     landeten alle auf diesem Boden und die Karte maß 132 px statt 210. Zwei
+     Spalten sollen die Bahn KÜRZER machen, nicht die Karte schmaler. */
+  --tfb-min2: 445px;
   --tfb-max2: 692px; /* 2 × 340 + 12 Lücke */
   --tfb-luecke: 12px;
   display: flex;
@@ -43,6 +48,10 @@
   --tfb-wunsch: 0;
   --tfb-min: 170px;
   --tfb-max: none;
+  /* Eigener Zweispalten-Boden statt des geerbten: dieselbe Rechnung, aber gegen
+     die 170 px dieser Form (2 × 152 + 7 + 18). Ein Widget in einer Karten-
+     Spalte hat den Platz der gedeckelten Form schlicht nicht. */
+  --tfb-min2: 329px;
   --tfb-max2: none;
 }
 /* `bahnScrollt`: die Bahn füllt die Höhe und scrollt ihren Inhalt selbst (Board
