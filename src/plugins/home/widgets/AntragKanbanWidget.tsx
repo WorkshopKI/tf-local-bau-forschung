@@ -4,8 +4,11 @@
  * `config.quelle`, hier landet also stets ein Anträge-Kanban.
  *
  * Read-only + Navigation: Karten öffnen die Detailansicht, „+ N weitere →"
- * die gefilterte Liste — KEIN Karten-Drag, kein Detail-Editing (bewusste
- * v1-Scope-Entscheidung). Datenbasis: Bearbeiter-gefilterte Grundmenge
+ * die gefilterte Liste — KEIN Karten-Drag (das Primitiv bekommt schlicht keine
+ * `dnd`-Naht), kein Detail-Editing. Das ist hier keine Sparmaßnahme: der
+ * Antrags-Status kommt aus dem Fachsystem C16, die App leitet keinen ab
+ * (Pitfall #44) — eine Karte in eine andere Bahn zu ziehen hätte nichts, wohin
+ * es geschrieben werden könnte. Datenbasis: Bearbeiter-gefilterte Grundmenge
  * (identische Semantik wie useEingangAmpelCounts) oder ein gespeicherter
  * Filter (UserPreset über die bestehende Filter-Engine). Lanes = konfigurierte
  * Status-KATEGORIEN (Pitfall #12). Die Meta-Zeile macht den Bearbeiter-Modus
@@ -24,7 +27,9 @@ import {
   Search,
   XCircle,
 } from 'lucide-react';
-import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
+import { TfBoard } from '@/components/kanban/TfBoard';
+import type { TfBoardBahn } from '@/components/kanban/tf-board-types';
+import { LanePills, type LanePill } from '@/components/kanban/LanePills';
 import { alterInTagen } from '@/core/utils/relativeZeit';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -47,7 +52,6 @@ import {
   filtereKanbanGrundmenge,
   laneAccent,
   type KanbanKarte,
-  type KanbanLaneDaten,
 } from './kanbanLanes';
 import type { AntragKanbanWidgetConfig } from './types';
 import { WidgetShell } from './WidgetShell';
@@ -143,6 +147,16 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     [basis, cfg.lanes, cfg.maxKartenProLane],
   );
 
+  const pills = useMemo(
+    (): LanePill[] => lanes.map((lane, i) => ({
+      key: lane.kategorie,
+      label: getStatusCategoryLabel(lane.kategorie),
+      accent: laneAccent(cfg.farbmodus, lane.kategorie, i),
+      gesamt: lane.gesamt,
+    })),
+    [lanes, cfg.farbmodus],
+  );
+
   // „+ N weitere →" / „Alle" — bestehendes store-getriebenes Muster (kein
   // eigener Routen-Mechanismus). Ziel ist immer die Voll-Liste: die Lanes
   // binden an Status-Kategorien und dürfen eine `begleitung`-Lane führen,
@@ -165,7 +179,7 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
       instanz={instanz}
       zaehler={
         instanz.eingeklappt
-          ? <LanePills lanes={lanes} farbmodus={cfg.farbmodus} />
+          ? <LanePills pills={pills} />
           : (
             <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
               {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Vorgang' : 'Vorgänge'}
@@ -179,23 +193,21 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
           Grundmenge angezeigt.
         </p>
       ) : null}
-      <KanbanBoard
-        layout="fluid"
-        columns={lanes.map((lane, i): KanbanBoardColumn<KanbanKarte> => ({
+      <TfBoard
+        label="Anträge nach Status-Kategorie"
+        layout="geteilt"
+        bahnen={lanes.map((lane, i): TfBoardBahn<KanbanKarte> => ({
           key: lane.kategorie,
           label: getStatusCategoryLabel(lane.kategorie),
           icon: KATEGORIE_ICON[lane.kategorie],
           accent: laneAccent(cfg.farbmodus, lane.kategorie, i),
           items: lane.karten,
-          count: lane.gesamt,
+          gesamt: lane.gesamt,
           spalten: lane.spalten,
-          footer: lane.gesamt > lane.karten.length ? (
-            <button
-              type="button"
-              onClick={openListe}
-              className="rounded-[10px] py-2.5 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-              style={{ border: '1px dashed var(--tf-border)' }}
-            >
+          // Kein `nachladen`: hier wird nicht mehr DOM nachgeladen, sondern die
+          // Ansicht gewechselt — die Kappung ist Datenlage (maxKartenProLane).
+          fuss: lane.gesamt > lane.karten.length ? (
+            <button type="button" onClick={openListe} className="tfb-fuss">
               + {lane.gesamt - lane.karten.length} weitere →
             </button>
           ) : undefined,
@@ -205,31 +217,6 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
         )}
       />
     </WidgetShell>
-  );
-}
-
-/** Eingeklappter Zähler: je Lane eine getönte Pill (Label + Zahl im Lane-Akzent). */
-function LanePills({ lanes, farbmodus }: { lanes: KanbanLaneDaten[]; farbmodus: AntragKanbanWidgetConfig['farbmodus'] }): React.ReactElement {
-  return (
-    <>
-      {lanes.map((lane, i) => {
-        const accent = laneAccent(farbmodus, lane.kategorie, i);
-        return (
-          <span
-            key={lane.kategorie}
-            title={getStatusCategoryLabel(lane.kategorie)}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[6px] text-[11px] tabular-nums max-w-[110px]"
-            style={{
-              color: `color-mix(in srgb, ${accent} 70%, var(--tf-text))`,
-              background: `color-mix(in srgb, ${accent} 12%, var(--tf-bg))`,
-            }}
-          >
-            <span className="truncate">{getStatusCategoryLabel(lane.kategorie)}</span>
-            {lane.gesamt}
-          </span>
-        );
-      })}
-    </>
   );
 }
 

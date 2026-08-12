@@ -1,0 +1,333 @@
+/**
+ * Geometrie des Board-Primitivs (`TfBoard`) — die EINZIGE Stelle, an der eine
+ * Kanban-Bahn vermessen wird.
+ *
+ * Herkunft: der Board-Block aus `plugins/feedback-board/ticketsystem.css`
+ * (Handoff feedback-redesign, v3.12 ff.). Dieselbe Geometrie stand bis v3.44 ein
+ * zweites Mal als Tailwind-JSX in `components/kanban/KanbanBoard.tsx` — mit
+ * eigenen Zahlen (46 statt 44 px Schiene) und ohne die 1|2-Kartenspalten, die
+ * das Board seinen Nutzern seit v3.12 im Popover verspricht, persistiert und nie
+ * einlöst. Beide Fassungen sind hier zusammengeführt; wo sie sich widersprachen,
+ * gilt die Board-Fassung, weil ihre Zahlen Kontrastmessungen im Kommentar tragen.
+ *
+ * Warum CSS und nicht Tailwind-JSX: zwei Regeln sind Vorfahren-Zustands-
+ * Selektoren (`.tf-board.zieht .tfb-bahn.schmal`, und beim Aufrufer
+ * `.fb-board.dicht .fb-karte`). In JSX werden daraus Props, die bis in den
+ * Karten-Renderer des Aufrufers durchgereicht werden müssten — genau die Grenze,
+ * die dieses Primitiv zieht.
+ *
+ * Was hier NICHT steht: wo das Board auf der Seite sitzt (Rand, Höhe, Seiten-
+ * Scroll) und wie eine Karte aussieht. Beides gehört dem Aufrufer und hängt an
+ * dessen eigener Klasse auf demselben Wurzelknoten (`className`).
+ */
+
+/* ---------------- Die Bahnspur ---------------- */
+/* Vier Maße als Variablen statt zweier Layout-Zweige:
+   - Grundform „gedeckelt" (Board): 262px ist der WUNSCH, nicht das Maß. Die Bahn
+     wächst in freie Breite, `min-width` ist der Boden (darunter scrollt die Spur
+     waagerecht), `max-width` der Deckel — sonst wird eine einzelne Bahn armlang.
+   - „geteilt" (Widget): die Bahnen teilen die verfügbare Breite, kein Deckel. */
+.tf-board {
+  --tfb-wunsch: 262px;
+  --tfb-min: 228px;
+  --tfb-max: 340px;
+  --tfb-min2: 300px;
+  --tfb-max2: 692px; /* 2 × 340 + 12 Lücke */
+  --tfb-luecke: 12px;
+  display: flex;
+  gap: var(--tfb-luecke);
+  overflow-x: auto;
+  align-items: flex-start;
+}
+.tf-board.geteilt {
+  --tfb-wunsch: 0;
+  --tfb-min: 170px;
+  --tfb-max: none;
+  --tfb-max2: none;
+}
+/* `bahnScrollt`: die Bahn füllt die Höhe und scrollt ihren Inhalt selbst (Board
+   in fester Höhe). Ohne das wächst sie mit dem Inhalt und die Seite scrollt
+   (Widget in einer Karte). Das ist der einzige strukturelle Unterschied der
+   beiden Formen — und deshalb ein Flag und keine zweite Komponente. */
+.tf-board.scrollt {
+  align-items: stretch;
+}
+
+/* ---------------- Die Bahn ---------------- */
+.tfb-bahn {
+  flex: 1 1 var(--tfb-wunsch);
+  min-width: var(--tfb-min);
+  max-width: var(--tfb-max);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--tf-radius-lg);
+  background: var(--tf-card-surface);
+  border: var(--tf-border-thin) solid var(--tf-border);
+  border-top: 3px solid var(--tfb-c);
+  overflow: hidden;
+}
+/* Zwei Kartenspalten: die Bahn bekommt den doppelten Wachstumsanteil und einen
+   eigenen Boden/Deckel — sonst quetschen sich zwei Karten in eine Ein-Spalten-
+   Spur. Im Board war das seit v3.12 im Popover wählbar und wirkungslos. */
+.tfb-bahn.zwei {
+  flex-grow: 2;
+  min-width: var(--tfb-min2);
+  max-width: var(--tfb-max2);
+}
+/* `minmax(0, 1fr)` statt `1fr`: das Auto-Minimum von `1fr` lässt eine Karte mit
+   unschrumpfbarem Inhalt ihre Spalte aufdrücken — gemessen 166 px gegen 181 px
+   bei zwei Karten in einer 300-px-Bahn. Zwei Kartenspalten sind gleich breit
+   oder sie sind keine. */
+.tfb-bahn.zwei .tfb-karten {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-content: start;
+}
+
+/* ---------------- Schmalschiene ---------------- */
+/* Eine leere Bahn klappt zur 44px-Schiene mit gedrehter Beschriftung ein. Drei
+   leere Bahnen à 262px verdrängten sonst die drei, in denen etwas steht. */
+.tfb-bahn.schmal {
+  flex: 0 0 44px;
+  min-width: 44px;
+  max-width: 44px;
+  background: none;
+  border-style: dashed;
+  border-top-width: var(--tf-border-thin);
+  border-color: color-mix(in srgb, var(--tfb-c) 30%, var(--tf-border));
+  align-items: center;
+  padding: 10px 0;
+}
+/* Bedienbarkeit wird ABGELEITET, nicht geflaggt: nur die Schiene, die auf einen
+   Klick reagiert (`role="button"` setzt das Primitiv, wenn es einen Callback
+   hat), zeigt das auch an. Eine Fläche, die nichts tut, darf nichts behaupten. */
+.tfb-bahn.schmal[role='button'] {
+  cursor: pointer;
+}
+.tfb-bahn.schmal[role='button']:hover {
+  background: var(--tf-hover);
+}
+.tfb-schiene {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: var(--tf-text-tertiary);
+  white-space: nowrap;
+}
+/* Akzentpunkt statt Icon — die Form, in der das Board seine sechs Status führt.
+   Er zieht seine Farbe aus `--tfb-c` und braucht deshalb kein Inline-Style. */
+.tfb-punkt {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tfb-c);
+  flex: none;
+}
+.tfb-schiene .tfb-punkt {
+  width: 7px;
+  height: 7px;
+}
+.tfb-schiene .tfb-icon {
+  flex: none;
+  color: var(--tfb-c);
+}
+.tfb-schiene .tfb-n {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bahn, die die aktive Sicht gar nicht füllen kann (z.B. UMGESETZT in „Alles
+   offen"). Sie trägt statt der Null einen Satz — kleingeschrieben und ohne
+   Versalspreizung, damit man ihn als Erklärung liest und nicht als Rubrik.
+   Diese Schiene ist NICHT blasser als eine bloß leere, sondern klarer: sie trägt
+   eine Auskunft, keine Null. Tertiär (der Ton der leeren Schiene) maß am Hinweis
+   1,99:1 gegen die Fläche, sekundär misst 5,3:1 hell / 4,1:1 dunkel — derselbe
+   Ton, den die Seite überall für Zweitzeilen verwendet. */
+.tfb-bahn.ausserhalb {
+  border-style: dotted;
+}
+.tfb-bahn.ausserhalb .tfb-schiene {
+  color: var(--tf-text-secondary);
+}
+.tfb-schiene .tfb-aus {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: var(--tf-weight-regular);
+  font-size: 10.5px;
+}
+
+/* Von HAND eingeklappte volle Bahn: dieselbe 44px-Geometrie wie die leere
+   Schiene, aber nicht deren Sprache. Gestrichelt + tertiär heißt „hier ist
+   nichts" — hier sind Karten, sie sind nur schmal gestellt. Also durchgezogener
+   Rand, die volle Akzentkante der offenen Bahn und der sekundäre Ton.
+   KEINE Kartenfläche: darauf fiel derselbe sekundäre Ton im Dunkelmodus auf
+   3,7:1. Auf dem Board-Grund (wie jede andere Schiene) misst er 4,1:1. Die
+   Unterscheidung trägt ohnehin die Kante, nicht die Füllung. */
+.tfb-bahn.zu {
+  border-style: solid;
+  border-color: var(--tf-border);
+  border-top: 3px solid var(--tfb-c);
+}
+.tfb-bahn.zu .tfb-schiene {
+  color: var(--tf-text-secondary);
+}
+.tfb-bahn.zu .tfb-schiene .tfb-n {
+  opacity: 1;
+}
+
+/* ---------------- Bahn-Kopf ---------------- */
+/* Der Kopf kann ein Knopf sein (einklappbar) oder eine Zeile. Die Browser-
+   Voreinstellungen des Knopfes (Rahmen, Fläche, zentrierter Text, eigene
+   Schrift) müssen weg, sonst zerfällt die Zeile. */
+/* 4px Lücke, nicht die 8px der Board-Fassung: das ist die GEMESSENE Zahl. Bei
+   „Wartet auf Antragsteller" in einer 170-px-Bahn (Home, sieben Bahnen, 1280 px)
+   standen der zweizeiligen Bezeichnung mit 8px genau 88 px zur Verfügung, sie
+   brauchte 92 — mit 4px sind es 96 und sie passt ohne Ellipse. Dieselbe Messung
+   entschied schon in der Widget-Fassung (bis v3.44) über `gap-1` statt `gap-2`;
+   die 8px der Board-Fassung waren nie gegen eine lange Bezeichnung geprüft,
+   weil das Board nur kurze Status führt. */
+.tfb-kopf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 11px 8px;
+  flex: none;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+/* Die Hover-Fläche ist der ganze Hinweis: ein Einklapp-Zeichen stand hier bis
+   v3.43 rechts in der Zeile — überflüssig, weil die Kopfzeile die Fläche IST,
+   auf der man landet, und der Titel sagt, was ein Klick tut. */
+.tfb-kopf.schalter {
+  cursor: pointer;
+}
+.tfb-kopf.schalter:hover {
+  background: var(--tf-hover);
+}
+/* Leitplanken aus zwei gemessenen Fällen der Widget-Fassung (bis v3.44 in
+   KanbanBoard.tsx): die Bahn ist `overflow: hidden` — was hier nicht passt, ist
+   nicht bloß versetzt, sondern WEG. Darum weicht die Bezeichnung als letzte
+   (`min-width: 0` + Ellipse, voller Name im `title`) und die Zahl nie
+   (`flex: none`). Gemessen an „Wartet auf Antragsteller" (90 px, zweizeilig) und
+   „Entscheidungsreif" (117 px unschrumpfbares Einzelwort in 83-px-Spur, das die
+   Zähler-Pille ganz aus der Bahn schob).
+   Die 8px-Lücke ist die Board-Zahl; die Widget-Fassung brauchte 4px, weil ihr
+   diese Leitplanken fehlten. Falls in einer 170-px-Bahn doch eine Bezeichnung
+   die Zahl drückt: hier auf 4px, nicht am Aufrufer. */
+.tfb-kopf .tfb-nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  letter-spacing: var(--tf-tracking-caps);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--tfb-c) 58%, var(--tf-text));
+}
+/* Rechtsbündig: die Zahl gehört an die Kante der Bahn, nicht an das Ende der
+   Bezeichnung. Gemessen in der Board-Fassung: bei „NEU" (23 px) stand die Pille
+   bei x=58 in einem 226 px breiten Kopf und ließ 148 px Leerraum hinter sich —
+   das war die Abwesenheit einer Entscheidung, nicht eine. */
+.tfb-kopf .tfb-n {
+  margin-left: auto;
+  flex: none;
+  min-width: 20px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: var(--tf-radius-pill);
+  display: inline-grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  background: color-mix(in srgb, var(--tfb-c) 15%, var(--tf-bg));
+  color: color-mix(in srgb, var(--tfb-c) 80%, var(--tf-text));
+  font-variant-numeric: tabular-nums;
+}
+.tfb-kopf .tfb-icon {
+  flex: none;
+  color: var(--tfb-c);
+}
+
+/* Zusatzzeile unter dem Kopf (Board: „384 h geschätzt · 44 ungeschätzt"). Was
+   dort steht, entscheidet der Aufrufer — hier steht nur, wie es sitzt. */
+.tfb-zusatz {
+  padding: 0 11px 8px;
+  font-size: 10.5px;
+  color: var(--tf-text-tertiary);
+  display: flex;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Karten + Fuß ---------------- */
+.tfb-karten {
+  padding: 0 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.tf-board.scrollt .tfb-karten {
+  flex: 1;
+  overflow-y: auto;
+}
+/* Der leise Bahn-Knopf: „+ N weitere" und der Leer-Hinweis teilen ihn sich.
+   Sekundär, nicht tertiär — tertiär maß 2,5:1 und läse sich in einer sonst
+   leeren Bahn nicht als bedienbar (sekundär: 5,2:1 hell / 3,7:1 dunkel). */
+.tfb-fuss,
+.tfb-leer {
+  border: var(--tf-border-thin) dashed var(--tf-border-hover);
+  border-radius: var(--tf-radius);
+  background: none;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+}
+.tfb-fuss:hover,
+.tfb-leer:hover {
+  background: var(--tf-hover);
+  color: var(--tf-text);
+}
+.tfb-fuss {
+  margin: 2px 9px 10px;
+  height: 28px;
+  font-size: 11.5px;
+  flex: none;
+}
+/* Der Leer-Hinweis der aufgeklappten Bahn IST der Weg zurück — bis v3.41.1 stand
+   hier ein stummer, kursiver Gedankenstrich, und eine einmal aufgeklappte leere
+   Bahn ließ sich nur noch per Neuladen einklappen. */
+.tfb-leer {
+  width: 100%;
+  padding: 11px 6px;
+  text-align: center;
+  font-size: 11px;
+}
+
+/* ---------------- Ziehen ---------------- */
+.tfb-bahn.ueber {
+  background: color-mix(in srgb, var(--tfb-c) 10%, var(--tf-bg));
+  border-color: var(--tfb-c);
+}
+/* Während eines Ziehens klappen die Schienen auf, damit sie als Ziel sichtbar
+   sind — aber NICHT die von Hand eingeklappte (`.zu`): die ist als Schiene schon
+   ein gültiges Ziel, und wer sein Board gerade zurechtgelegt hat, will es nicht
+   bei jeder Karte auseinanderspringen sehen. */
+.tf-board.zieht .tfb-bahn.schmal:not(.zu) {
+  flex: 1 1 var(--tfb-wunsch);
+  min-width: var(--tfb-min);
+  max-width: var(--tfb-max);
+  align-items: stretch;
+  padding: 0;
+  background: var(--tf-card-surface);
+}
+.tf-board.zieht .tfb-bahn.schmal:not(.zu) .tfb-schiene {
+  display: none;
+}

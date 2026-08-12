@@ -1654,7 +1654,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // ist eine Drift-Warnung, kein Verbot.
   const MAX_FEATURE_FLAGS = 27;    // Ist 27 — v3.0 (Varianten-Zusammenlegung 5→3) hat ELF Flags entfernt: 'feedback'/'suche'/'antraege'/'streamlitBridge' (standen in JEDER Variante auf true), 'volltextsuche'/'auslastungSelbstEintragung'/'embeddingCorpusBuild' (durch die Zusammenlegung ueberall true), 'auslastungNurKorpus'/'kuerzelDropdown' (bedienten nur die abgeschafften Varianten kurator/as) sowie 'deAnonymisierung'/'maVerwaltungPasswort' (gaten nur Oberflaeche INNERHALB des Auslastungs-Moduls, das selbst hinter dem Zusatzpasswort liegt — ein Schloss im Tresor; beide jetzt aus 'auslastung' abgeleitet). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat. Davor 38; +1 'vorgangssystem' (Status-Erklaerung, Kuerzel-Glossar/Navigator, To-do-Board, Waechter, Fristen-Cockpit — dev/pl; setzt 'statusCockpit' voraus und gated die gesamte neue Schicht); davor 37 (+1 'meilensteinMonitoring' (Bearbeitungs-Meilensteine + Fristen-Monitoring: Plan/Bewertung/Cockpit/Widget, dev/pl/as/kurator); davor 36 (+1 'statusCockpit'); davor 35 (+1 'artefaktWerkbank'); davor 34 (+1 'mapFoerderfaehig'); davor 33 (+1 'assistentGedaechtnis'); davor 32 (+1 'assistentPanel'); davor 31 (+1 'assistentProtokoll'); davor 30 (+1 'antragAufbereitung')
   const MAX_SERVICE_DIRS = 21;     // Ist 21; Konsolidierungs-Pass: 'review' + 'versioning' geloescht (MVP-Reste vom Maerz 2026, null Konsumenten). Davor 23 (+1 'assistent'), davor 22 (+ msg)
-  const MAX_FILE_LOC = 2930;       // Ist ~2921 (DIESE Datei; davor 2900 / +kein-nullpunkt-als-letzte-aenderung v3.43 — das Journal fuehrt zwei Daten, die beide `string | null` heissen: den Nullpunkt (eine Zahl fuer den ganzen Bestand) und die belegte letzte Aenderung EINES Antrags; vertauscht meldeten 1 056 von 1 057 haengenden Vorgaengen „laeuft", waehrend das Board mit der richtigen Quelle „haengt fest" sagte — der Typ konnte das nie fangen, ein Guard schon; davor 2850 / +band-fuellung-kontrast v3.38 — das VerlaufsBand schrieb WEISS auf den satten --tf-kanban-Akzent: gemessen 3,02-5,06:1 hell (sechs von neun unter AA) und 2,14-2,92:1 dunkel (alle neun), weil die Tokens als kleine Farbchips fuer Lane-Koepfe gedacht waren, nie als Textuntergrund; beim Anheben ist das Parsen von theme.css in die Lib gewandert und hat den zweiten Parser von `theme-token-contract` gleich mit abgeloest (-27); davor 2810 / +frist-eine-rechnung v3.31 — die 90 stand nie zweimal da, die RECHNUNG schon: `useZeilenVerlauf` rief `fristFuerVorkommen`, der Frist-Reiter gleich darauf noch einmal, und das fiel erst auf, als die eine Seite die Verlaufsquelle fuers Haltedatum bekam und die andere nicht; davor 2756 / +verlauf-leitet-keinen-status-ab + trigger-regeln-nur-im-verlauf (Phase 1b) — die Verlaufsableitung rekonstruiert die Vergangenheit aus den `D_`-Spalten und darf dem Pfad, der den GELTENDEN Status bestimmt, nie bekannt werden; und die Regeln der Kuerzel-Zuarbeit sind alle `aktiv: false` und haben genau einen Konsumenten; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
+  const MAX_FILE_LOC = 3020;       // Ist ~3012 (DIESE Datei; davor 2930 / +no-parallel-board-geometry + no-parallel-board-dnd v3.45 — das Kanban-Bahn-Layout existierte zweimal: v2.228 aus dem Feedback-Kanban nach `KanbanBoard` extrahiert, v3.17 im Feedback-Board wieder nachgebaut, danach dieselben Zahlen in zwei Sprachen (46 gegen 44 px Schiene, die 30%-Mischung doppelt, die „+ N weitere"-Fuszzeile dreifach) — und `spalten: 1|2` wurde im Popover angeboten, persistiert, durchgereicht und im Nachbau NIE gelesen, ein Versprechen an den Nutzer, das ueber zwei Minor-Versionen niemandem auffiel; der zweite Guard haelt die Drop-Naht im Primitiv, damit ein spaeterer Bibliotheks-Einzug (Touch, Tastatur, Auto-Scroll) keinen Aufrufer anfasst; davor 2900 / +kein-nullpunkt-als-letzte-aenderung v3.43 — das Journal fuehrt zwei Daten, die beide `string | null` heissen: den Nullpunkt (eine Zahl fuer den ganzen Bestand) und die belegte letzte Aenderung EINES Antrags; vertauscht meldeten 1 056 von 1 057 haengenden Vorgaengen „laeuft", waehrend das Board mit der richtigen Quelle „haengt fest" sagte — der Typ konnte das nie fangen, ein Guard schon; davor 2850 / +band-fuellung-kontrast v3.38 — das VerlaufsBand schrieb WEISS auf den satten --tf-kanban-Akzent: gemessen 3,02-5,06:1 hell (sechs von neun unter AA) und 2,14-2,92:1 dunkel (alle neun), weil die Tokens als kleine Farbchips fuer Lane-Koepfe gedacht waren, nie als Textuntergrund; beim Anheben ist das Parsen von theme.css in die Lib gewandert und hat den zweiten Parser von `theme-token-contract` gleich mit abgeloest (-27); davor 2810 / +frist-eine-rechnung v3.31 — die 90 stand nie zweimal da, die RECHNUNG schon: `useZeilenVerlauf` rief `fristFuerVorkommen`, der Frist-Reiter gleich darauf noch einmal, und das fiel erst auf, als die eine Seite die Verlaufsquelle fuers Haltedatum bekam und die andere nicht; davor 2756 / +verlauf-leitet-keinen-status-ab + trigger-regeln-nur-im-verlauf (Phase 1b) — die Verlaufsableitung rekonstruiert die Vergangenheit aus den `D_`-Spalten und darf dem Pfad, der den GELTENDEN Status bestimmt, nie bekannt werden; und die Regeln der Kuerzel-Zuarbeit sind alle `aktiv: false` und haben genau einen Konsumenten; davor 2560 / +status-kurzlabel-single-source v3.15 — die Kurzform eines Rohstatus lag dreifach hartkodiert, eine Kopie mit Tippfehler und eine auf eine Schreibweise geschluesselt, die im Bestand gar nicht vorkommt (Code 72, 29 Faelle): der Guard prueft die Herkunft und sperrt die echten Abkuerzungen als Literal; davor 2510 / +kuerzel-nie-flach v3.13 — dasselbe Kuerzel bedeutet je Projektform etwas anderes, flach nachgeschlagen zeigt die App 78,9 % der Antraege den falschen Klartext; davor 2460 / +no-inline-frist-arithmetik v3.6 — die 90-Tage-Uhr rechnete fuer JEDEN Antrag weiter, auch fuer einen 2018 abgelehnten: der Fix gehoert in die Berechnung, sonst bleibt die falsche Zahl in Export, Board und Widgets stehen; davor 2410 / Ist ~2363; +no-direct-feedback-user-id-compare v3.7 — wem ein Ticket gehoert, entscheidet die tolerante Identitaet (Kuerzel UND Profilname): erfasst wurde unter profile.name, verglichen gegen das Kuerzel, damit war jedes eigene Ticket fremd; davor 2360 / Ist ~2318; +no-index-punkt-id v2.412 — Klaerungs-Punkt-Ids duerfen nicht aus der Schleifenposition entstehen: die Antworten liegen append-only auf dem Share und ein eingefuegter Punkt verschoebe sie alle; +status-achsen v2.409 — drei Zusagen zu den beiden Status-Achsen: die Arbeitsliste bleibt Code, ihre Bezeichnungen haben genau eine Heimat, und Aggregatnamen decken sich mit keiner Kategoriebezeichnung; davor 2200 / Ist ~2155; +zah-phasen-snapshot-single-writer v2.409 — der Phasenschnitt ist jetzt kuratierbar und steht in zwei Modul-Registern: bei zwei Schreibwegen entschiede die Import-Reihenfolge, welcher Schnitt gilt; davor 2150 / Ist ~2118; +zaehler-eine-grundmenge v2.400.1 — Sicht-Zahlen kommen aus EINER Grundmenge; +no-headless-tree-outside-wrapper v2.393 — `@headless-tree/*` gehoert hinter TfTree: vier Module hatten je einen eigenen Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten, und genau das soll nicht wieder entstehen; davor 2100 / Ist ~2088; +journal-ohne-personen-achse v2.392 — das Import-Diff-Journal darf keine Personen-Achse bekommen, weder in der Projektion noch in einer Ansicht: mit Bearbeiterspalte plus Datumsverlauf waere es ein Aktivitaetsprotokoll und mitbestimmungspflichtig; davor 2010 / Ist ~1968; +kuerzel-genau-ein-speicherort v2.386 — vier Kuerzel haengen an einem kanonischen Feld, ein zweites `D_<code>`-Feld dafuer bleibt fuer immer leer und laesst jede Trigger-Bedingung „nie gesetzt" antworten; davor 1960 / Ist ~1931; +prompt-nur-im-ram v2.372 — der gesendete Prompt traegt die Vorhabensbeschreibung im Volltext und darf in keinen persistierten Record; davor 1900 / Ist ~1849; +local-fs-gate-eingegrenzt v2.371 — die Variante „local" haengt den Ordner-Picker aus, das Define darf nicht durch die Codebase wandern; davor 1800 / Ist ~1781; +no-w-full-neben-fixer-breite v2.351.2 — `w-full` schlaegt `w-[64px]`, das hat den Ordner-Namen zweimal auf null gequetscht; +status-kategorie-nur-aus-katalog v2.345 — der Ordnerbaum ist Team-Kuration, ein zweites Mapping im Code liefe bei der ersten Umbenennung auseinander; +status-katalog-share-only / status-event-log-local-only v2.332 — die Katalog-Umstellung auf den Daten-Share spaltet den frueheren Ein-Guard in zwei, weil Katalog und Event-Log jetzt verschiedene Zusagen tragen; +status-system-local-only v2.322; +no-plugins-config-in-components (Zyklen-Wurzel), davor 1600 nach Auslagerung der Scan-Infrastruktur; Konsolidierungs-Pass: Scan-Infrastruktur nach conventions-lib.ts ausgelagert (-105), davor 1700 wegen +no-raw-clipboard; +keine-kompakt-anweisung-neben-json-beispiel + Prompt-Datei-Scope Audit 2026-07, +keine-elidierte-wortlaut-vorgabe v2.284.1, +no-blanket-idb-wipe v2.277.1 — kohaerenter Guard-Aggregator, waechst mit jeder Convention; +preset-contrast-contract v2.144 +no-parallel-scope-tabs v2.148 +no-raw-cta-fill v2.150 +cta-fill-Hex-Route v2.164 +screen-context-coverage v2.165 +arbeitskontext-log-idb-only v2.170 +aufbereitung-eval-fictional-only v2.223 +home-widgets-local-only v2.226 +notizen-strikt v2.229 +djb2-single-source v2.231); groesste Nicht-Test-Datei: 846 (smb-handle.ts)
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>
@@ -2223,6 +2223,88 @@ describe('no-parallel-scope-tabs (Listen-Sicht-Tabs gehören in ScopeTabs)', () 
         `Listen-Sichten mit Zähler → ScopeTabs; generische Navigation → @/components/ui/tabs.\n` +
         `Echte Ausnahme: '// allow-scope-tabs: <grund>' auf der Zeile (oder Pfad in\n` +
         `ALLOWED_SUFFIXES mit Begründung).\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('no-parallel-board-geometry (Bahn-Layout gehört in TfBoard)', () => {
+  // Die gedrehte Schmalschiene ist die Signatur eines nachgebauten Kanban-Bahn-
+  // Layouts: eine schmale Spur, in der die Bezeichnung senkrecht steht, weil die
+  // Bahn leer bzw. eingeklappt ist. Genau daran hingen die Zahlen, die zwischen
+  // v2.228 (Extraktion nach `KanbanBoard`) und v3.17 (Nachbau im Feedback-Board)
+  // auseinanderliefen: 46 gegen 44 px, dieselbe 30%-Mischung in zwei Sprachen,
+  // die „+ N weitere"-Fußzeile dreimal. Und der Beweis, dass so etwas nicht
+  // auffällt: `spalten: 1|2` wurde im Popover angeboten, persistiert,
+  // durchgereicht — und im Nachbau nie gelesen.
+  //
+  // Signatur-basiert wie no-parallel-scope-tabs, nicht Import-basiert wie
+  // no-headless-tree-outside-wrapper: das Board hat keine Bibliothek, die man
+  // importieren müsste, also gibt es nichts zu verbieten außer der Form selbst.
+  const SIGNATUREN = ['writing-mode: vertical-rl', '[writing-mode:vertical-rl]'];
+  // Kanonische Heimat + die eingeklappte PANE, die dieselbe Drehung nutzt und
+  // etwas anderes ist: eine je Bildschirm, ohne Zähler, ohne Lane-Akzent, ohne
+  // Wiederholung. Ihr Primitiv ist MasterDetailLayout, nicht TfBoard.
+  const ALLOWED_SUFFIXES = [
+    'components/kanban/tf-board.css',                   // Primitiv-Definition
+    'components/master-detail/MasterDetailLayout.tsx',  // Pane-Schiene (kanonisch)
+    'plugins/antraege/AntraegePage.tsx',                // Pane-Schiene, dokumentierter
+                                                        // MasterDetailLayout-Nachbau
+                                                        // (docs/layout-audit.md → Adoptions-Status)
+    'plugins/chat/assistent/AssistentPanelHost.tsx',    // Pane-Schiene
+    'plugins/antraege/gutachten/gutachten.css',         // Pane-Schiene (g-ctx-reopen-lbl)
+  ];
+  const isAllowed = (file: string): boolean => {
+    const rel = relPath(file);
+    return rel.includes('/__tests__/') || ALLOWED_SUFFIXES.some(s => rel.endsWith(s));
+  };
+
+  it('keine gedrehte Bahn-Schmalschiene außerhalb des Board-Primitivs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_SOURCE_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => SIGNATUREN.some(s => l.includes(s)), 'allow-board-geometry'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Kanban-Bahn-Layout gehört in das Board-Primitiv (@/components/kanban/TfBoard\n` +
+        `+ tf-board.css) — nicht hand-bauen. Schmalschiene, getönter Bahn-Kopf,\n` +
+        `Zähler-Pille, „+ N weitere"-Fußzeile und die 1|2-Kartenspalten gehören\n` +
+        `zusammen; getrennt driften sie.\n` +
+        `Fehlende Fähigkeit? Im Primitiv als Feature-Flag ergänzen, nicht daneben.\n` +
+        `Senkrechte Beschriftung an einer eingeklappten PANE (nicht an einer Bahn)?\n` +
+        `→ MasterDetailLayout. Echte Ausnahme: '// allow-board-geometry: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  // Zweiter Teil, ohne Whitelist: Karten-Ziehen und Datei-Ablage sind über das
+  // benutzte dataTransfer-Feld trennscharf. Datei-Ablagen (FileDropZone,
+  // FeedbackFileInput, chat/Composer, KompetenzImportDialog) lesen ausschliesslich
+  // `.files`; ein Karten-Drag braucht setData/getData/dropEffect/effectAllowed.
+  // Damit bleibt die Drop-Naht im Primitiv — und ein spaeterer Wechsel auf eine
+  // Bibliothek (Touch, Tastatur, Auto-Scroll) fasst keinen Aufrufer an.
+  const DND = /dataTransfer\.(setData|getData|dropEffect|effectAllowed)\b/;
+  const DND_HEIMAT = `${sep}src${sep}components${sep}kanban${sep}`;
+
+  it('kein hand-gebautes Karten-Ziehen außerhalb des Board-Primitivs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(DND_HEIMAT)) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, l => DND.test(l), 'allow-board-dnd'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Karten-Ziehen läuft über die Drop-Naht des Board-Primitivs:\n` +
+        `  <TfBoard dnd={{ idOf, onDrop }} renderCard={(k, bahn, zieh) => …} />\n` +
+        `Der Aufrufer spreizt \`zieh\` auf seinen Kartenknoten und schreibt NIE selbst\n` +
+        `in dataTransfer — sonst hängt die Mechanik an zwei Stellen und ein\n` +
+        `Bibliotheks-Einzug müsste jeden Aufrufer anfassen.\n` +
+        `Datei-Ablage aus dem Betriebssystem (dataTransfer.files) trifft diese\n` +
+        `Signatur nicht. Echte Ausnahme: '// allow-board-dnd: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
       );
     }
   });

@@ -16,6 +16,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md) |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
 | Baumartige Ansicht (Aufklappen, Tastatur, Checkboxen, Umbenennen, Ziehen) | [tree-komponenten.md](docs/architecture/tree-komponenten.md) — `TfTree` aus `@/components/tree` |
+| Kanban-/Board-Ansicht (Bahnen, Schmalschiene, Einklappen, Karten ziehen) | [board-komponente.md](docs/architecture/board-komponente.md) — `TfBoard` aus `@/components/kanban` |
 | Tabellenartige Seite mit Detail/Editor (Master-Detail-Split) | [docs/agents/add-table-detail-page.md](docs/agents/add-table-detail-page.md) — `MasterDetailLayout` |
 | UI-Muster wählen (Seitenkopf, Listen-Sicht-Tabs-mit-Zähler, Status-Badge/Dot, Filter-Chip) | [docs/architecture/ui-muster.md](docs/architecture/ui-muster.md) + [docs/layout-audit.md](docs/layout-audit.md) |
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |
@@ -112,7 +113,7 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 
 ### UI-Muster / Layout-Schicht
 
-Geteilte, domänenfreie Layout-Schicht in `src/components/` — neue Module bauen Layout **nicht** selbst nach: kein paralleles Master/Detail (→ `MasterDetailLayout`), **keine eigene Listen-Sicht-Tab-Leiste** (→ `ScopeTabs`, Guard `no-parallel-scope-tabs`), kein eigener Page-Header/Badge, **kein eigener Baum** (→ `TfTree`, Guard `no-headless-tree-outside-wrapper`, [tree-komponenten.md](docs/architecture/tree-komponenten.md)). Entscheidungstabelle (welches Bauteil wofür), die `AntraegePage`-Ausnahme (eigenes Master/Detail + Kompakt-Spalte) und Inventar/Drift: [docs/architecture/ui-muster.md](docs/architecture/ui-muster.md) + [docs/layout-audit.md](docs/layout-audit.md).
+Geteilte, domänenfreie Layout-Schicht in `src/components/` — neue Module bauen Layout **nicht** selbst nach: kein paralleles Master/Detail (→ `MasterDetailLayout`), **keine eigene Listen-Sicht-Tab-Leiste** (→ `ScopeTabs`, Guard `no-parallel-scope-tabs`), kein eigener Page-Header/Badge, **kein eigener Baum** (→ `TfTree`, Guard `no-headless-tree-outside-wrapper`, [tree-komponenten.md](docs/architecture/tree-komponenten.md)), **keine eigenen Kanban-Bahnen** (→ `TfBoard`, Guards `no-parallel-board-geometry` + `no-parallel-board-dnd`, [board-komponente.md](docs/architecture/board-komponente.md)). Entscheidungstabelle (welches Bauteil wofür), die `AntraegePage`-Ausnahme (eigenes Master/Detail + Kompakt-Spalte) und Inventar/Drift: [docs/architecture/ui-muster.md](docs/architecture/ui-muster.md) + [docs/layout-audit.md](docs/layout-audit.md).
 
 ### Plugin System
 

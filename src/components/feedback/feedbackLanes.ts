@@ -4,8 +4,14 @@
  * (src/plugins/home/widgets/feedbackKanbanLanes.ts).
  *
  * Lanes binden an Feedback-STATUS (FEEDBACK_STATUS, Pitfall #21 — nie
- * Roh-Literale). Archiviert erscheint nie als Spalte; Lob (`category ===
- * 'praise'`) hat keinen Workflow und wird von den Aufrufern herausgefiltert.
+ * Roh-Literale). Archiviert erscheint nie als Spalte.
+ *
+ * Lob (`category === 'praise'`) behandeln die beiden Aufrufer UNTERSCHIEDLICH,
+ * und das ist Absicht: das Home-Widget filtert es heraus (kein Workflow), das
+ * BOARD zeigt es seit v3.12 in der Spalte seines Status — sonst verspräche die
+ * Typ-Facette „6 Lob" und ein Klick darauf zeigte ein leeres Board (Begründung
+ * in `boardSpalten.ts`). Eine Facettenzahl ist eine Zusage; ein Widget-Ausschnitt
+ * ist keine.
  *
  * Liegt bewusst unter src/components/: src/components/feedback darf nicht in
  * src/plugins/ importieren (Schichtung + Laufzeit-Zyklen).

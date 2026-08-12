@@ -228,6 +228,18 @@ describe('doc-links', () => {
     // Auflösungsreihenfolge für DS, warum der Schreibfehler des Quellsystems
     // nicht als `varianten` taugt — steht in
     // docs/architecture/vorgangssystem.md §15 und docs/status-system/KATALOG-CODES.md.
-    expect(bytes).toBeLessThan(66_700);
+    // 66_700 → 67_100 (v3.45): eine Zeile im Entscheidungs-Baum und ein Halbsatz
+    // in der harten Layout-Regel für `TfBoard` — dieselbe Bauform wie `TfTree`,
+    // das dort schon beides hat. Ohne den Zeiger baut man Kanban-Bahnen neu, und
+    // genau das ist hier schon zweimal passiert: die Shell war v2.228 aus dem
+    // Feedback-Kanban extrahiert, v3.17 baute das Board sie im Handoff nach, und
+    // bis v3.45 hatte die Schmalschiene zwei Breiten (46/44 px) und der
+    // 1|2-Spalten-Schalter des Boards keine Wirkung — angeboten, persistiert,
+    // durchgereicht, nie gelesen. Ein zweites Layout fällt niemandem auf, weil
+    // beide Seiten für sich plausibel aussehen; auffallen tut erst, was die eine
+    // kann und die andere nicht. Das Detail — die Grenze Layout/Fachlichkeit, die
+    // Drop-Naht und warum CSS statt Tailwind-JSX — steht in
+    // docs/architecture/board-komponente.md.
+    expect(bytes).toBeLessThan(67_100);
   });
 });

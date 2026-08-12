@@ -5,6 +5,10 @@
  * Rein: kein React, kein Storage. Löst `buildBoardColumns` aus der bisherigen
  * `FeedbackKanban.tsx` ab.
  *
+ * Wie eine Bahn DASTEHT (voll, Schiene, von Hand eingeklappt) wird hier nicht
+ * mehr entschieden — das ist Layout und lebt seit v3.45 als `bahnAnsicht` im
+ * Board-Primitiv (`@/components/kanban/tfBoardBahn`).
+ *
  * Eine bewusste Änderung gegenüber v3.11: **Lob erscheint jetzt auch auf dem
  * Board.** Bis dahin wurde `category === 'praise'` herausgefiltert („Lob hat
  * keinen Workflow"). Mit der Facetten-Leiste wird das zur Falle: die Typ-Facette
@@ -41,39 +45,6 @@ export interface BoardSpalte {
  * ehrlich leere — der Grund, warum ein auf „umgesetzt" gesetztes Ticket spurlos
  * verschwand (v3.39).
  */
-/**
- * Was der Nutzer zuletzt über DIESE Spalte gesagt hat. `auto` heißt „nichts
- * gesagt" — dann entscheidet der Inhalt (voll = Spalte, leer = Schiene).
- *
- * Ein Wunsch statt zweier Booleans: „aufgeklappt" und „eingeklappt" sind keine
- * unabhängigen Schalter, sondern die beiden Richtungen derselben Aussage. Als
- * `entfaltet: boolean` (v3.41.1) ließ sich die zweite gar nicht ausdrücken.
- */
-export type SpaltenWunsch = 'auto' | 'offen' | 'zu';
-
-/**
- * Wie eine Spalte dasteht. `leer-offen` und `voll-schiene` entstehen NUR durch
- * eine Geste — und sind damit die Zustände, die einen Weg zurück tragen müssen:
- * bis v3.41 klappte eine leere Bahn auf und blieb es bis zum Neuladen.
- */
-export type SpaltenAnsicht = 'voll' | 'schiene' | 'leer-offen' | 'voll-schiene';
-
-export function spaltenAnsicht(spalte: BoardSpalte, wunsch: SpaltenWunsch): SpaltenAnsicht {
-  // Eine gefüllte Spalte folgt dem Wunsch — eingeklappt behält sie ihre Zahl
-  // und bleibt Drop-Ziel, verliert also nichts außer Breite (v3.43).
-  if (spalte.tickets.length > 0) return wunsch === 'zu' ? 'voll-schiene' : 'voll';
-  // Eine unerreichbare Bahn bleibt Schiene, auch nach einem Klick: aufgeklappt
-  // behauptete sie ein zweites Mal „hier ist nichts" (v3.39).
-  if (spalte.ausserhalbDerSicht) return 'schiene';
-  return wunsch === 'offen' ? 'leer-offen' : 'schiene';
-}
-
-/** Ist diese Ansicht die Schmalschiene? Die beiden Wege dorthin (leer von
- *  selbst, voll von Hand) teilen sich Geometrie, Beschriftung und Drop-Ziel. */
-export function istSchiene(ansicht: SpaltenAnsicht): boolean {
-  return ansicht === 'schiene' || ansicht === 'voll-schiene';
-}
-
 export function baueSpalten(
   tickets: readonly FeedbackItem[],
   lanes: readonly FeedbackLane[],

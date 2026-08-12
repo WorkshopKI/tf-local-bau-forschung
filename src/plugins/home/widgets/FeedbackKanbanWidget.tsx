@@ -8,7 +8,9 @@
  * (kein Workflow — buildFeedbackKanbanLanes filtert es raus).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { KanbanBoard, type KanbanBoardColumn } from '@/components/kanban/KanbanBoard';
+import { TfBoard } from '@/components/kanban/TfBoard';
+import type { TfBoardBahn } from '@/components/kanban/tf-board-types';
+import { LanePills, type LanePill } from '@/components/kanban/LanePills';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getFeedbackList } from '@/core/services/feedback';
@@ -29,7 +31,6 @@ import {
   defaultFeedbackKanbanLanes,
   feedbackLaneAccent,
   type FeedbackKanbanKarte,
-  type FeedbackKanbanLaneDaten,
 } from './feedbackKanbanLanes';
 import type { FeedbackKanbanWidgetConfig } from './types';
 import { WidgetShell } from './WidgetShell';
@@ -68,6 +69,16 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
     [items, cfg.lanes, cfg.maxKartenProLane],
   );
 
+  const pills = useMemo(
+    (): LanePill[] => lanes.map((lane, i) => ({
+      key: lane.status,
+      label: STATUS_LABELS[lane.status],
+      accent: feedbackLaneAccent(cfg.farbmodus, lane.status, i),
+      gesamt: lane.gesamt,
+    })),
+    [lanes, cfg.farbmodus],
+  );
+
   const openBoard = (ticketId?: string): void => {
     if (ticketId) useFeedbackNavStore.getState().requestOpenTicket(ticketId);
     navigate('feedback-board');
@@ -83,7 +94,7 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
       instanz={instanz}
       zaehler={
         instanz.eingeklappt
-          ? <LanePills lanes={lanes} farbmodus={cfg.farbmodus} />
+          ? <LanePills pills={pills} />
           : (
             <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
               {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Feedback' : 'Feedbacks'}
@@ -91,23 +102,19 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
           )
       }
     >
-      <KanbanBoard
-        layout="fluid"
-        columns={lanes.map((lane, i): KanbanBoardColumn<FeedbackKanbanKarte> => ({
+      <TfBoard
+        label="Feedback nach Status"
+        layout="geteilt"
+        bahnen={lanes.map((lane, i): TfBoardBahn<FeedbackKanbanKarte> => ({
           key: lane.status,
           label: STATUS_LABELS[lane.status],
           icon: getLucideIcon(STATUS_COLUMN_ICONS[lane.status]),
           accent: feedbackLaneAccent(cfg.farbmodus, lane.status, i),
           items: lane.karten,
-          count: lane.gesamt,
+          gesamt: lane.gesamt,
           spalten: lane.spalten,
-          footer: lane.gesamt > lane.karten.length ? (
-            <button
-              type="button"
-              onClick={() => openBoard()}
-              className="rounded-[10px] py-2.5 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-              style={{ border: '1px dashed var(--tf-border)' }}
-            >
+          fuss: lane.gesamt > lane.karten.length ? (
+            <button type="button" onClick={() => openBoard()} className="tfb-fuss">
               + {lane.gesamt - lane.karten.length} weitere →
             </button>
           ) : undefined,
@@ -117,31 +124,6 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
         )}
       />
     </WidgetShell>
-  );
-}
-
-/** Eingeklappter Zähler: je Lane eine getönte Pill (Status-Label + Zahl). */
-function LanePills({ lanes, farbmodus }: { lanes: FeedbackKanbanLaneDaten[]; farbmodus: FeedbackKanbanWidgetConfig['farbmodus'] }): React.ReactElement {
-  return (
-    <>
-      {lanes.map((lane, i) => {
-        const accent = feedbackLaneAccent(farbmodus, lane.status, i);
-        return (
-          <span
-            key={lane.status}
-            title={STATUS_LABELS[lane.status]}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[6px] text-[11px] tabular-nums max-w-[120px]"
-            style={{
-              color: `color-mix(in srgb, ${accent} 70%, var(--tf-text))`,
-              background: `color-mix(in srgb, ${accent} 12%, var(--tf-bg))`,
-            }}
-          >
-            <span className="truncate">{STATUS_LABELS[lane.status]}</span>
-            {lane.gesamt}
-          </span>
-        );
-      })}
-    </>
   );
 }
 
@@ -155,7 +137,7 @@ function FeedbackKarteView({ karte, onOpen }: { karte: FeedbackKanbanKarte; onOp
       type="button"
       onClick={onOpen}
       className="block w-full text-left rounded-[10px] bg-[var(--tf-bg)] shadow-sm hover:shadow-md hover:-translate-y-px transition cursor-pointer px-3 py-2.5"
-      style={{ border: '0.5px solid var(--tf-border)', borderLeft: '3px solid var(--lane-c)' }}
+      style={{ border: '0.5px solid var(--tf-border)', borderLeft: '3px solid var(--tfb-c)' }}
     >
       <span className="block text-[10px] font-semibold uppercase tracking-[0.07em] truncate" style={{ color: accent }}>
         {typLabel}

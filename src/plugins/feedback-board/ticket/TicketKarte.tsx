@@ -19,6 +19,7 @@ import { useState } from 'react';
 // Richtungs-/Sortierpfeil.
 import { MessageSquare, ThumbsUp } from 'lucide-react';
 import type { FeedbackItem } from '@/core/types/feedback';
+import type { TfBoardZiehProps } from '@/components/kanban/tf-board-types';
 import { CATEGORY_DOT, CATEGORY_LABELS } from '@/components/feedback/constants';
 import { FeedbackAvatar } from '@/components/feedback/FeedbackAvatar';
 import { FeedbackScreenshots } from '@/components/feedback/FeedbackScreenshots';
@@ -32,7 +33,17 @@ import {
 } from './chipMenues';
 import type { TicketKontext } from './typen';
 
-export function TicketKarte({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext }): React.ReactElement {
+/**
+ * `zieh` kommt vom Board-Primitiv und wird nur gespreizt: heute steckt darin
+ * `draggable` + `onDragStart`, später möglicherweise `ref`/`listeners` einer
+ * Bibliothek. Die Karte schreibt selbst NIE in `dataTransfer` — sonst hinge die
+ * Ziehmechanik an zwei Stellen (Guard `no-parallel-board-dnd`).
+ */
+export function TicketKarte({ t, ctx, zieh }: {
+  t: FeedbackItem;
+  ctx: TicketKontext;
+  zieh?: TfBoardZiehProps;
+}): React.ReactElement {
   const [menueOffen, setMenueOffen] = useState(false);
   const meins = ctx.istMeins(t);
   const gewaehlt = ctx.auswahl.has(t.id);
@@ -55,11 +66,7 @@ export function TicketKarte({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
       ].filter(Boolean).join(' ')}
       role="button"
       tabIndex={0}
-      draggable={ctx.darfZiehen}
-      onDragStart={e => {
-        e.dataTransfer.setData('text/plain', t.id);
-        e.dataTransfer.effectAllowed = 'move';
-      }}
+      {...zieh}
       onClick={() => ctx.oeffne(t)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ctx.oeffne(t); } }}
       onContextMenu={e => { e.preventDefault(); setMenueOffen(true); }}

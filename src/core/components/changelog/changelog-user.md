@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.45 — 2026-08
+
+### Verbesserungen
+- Auf dem Feedback-Board lassen sich Spalten wieder **zweispaltig** stellen: unter „Board anpassen" den 1/2-Schalter einer Spalte umlegen, und sie wird doppelt so breit und stellt ihre Karten nebeneinander. Der Schalter war schon länger da, hat aber bisher nichts bewirkt.
+- Board und Home-Kanban sehen jetzt gleich aus — bis dahin unterschieden sie sich in Kleinigkeiten (Breite der eingeklappten Streifen, Aussehen des „+ N weitere"-Knopfs), ohne dass das je jemand so entschieden hätte.
+- Die Zahl im Spaltenkopf steht jetzt rechtsbündig am Rand statt direkt hinter der Bezeichnung, und lange Bezeichnungen wie „Wartet auf Antragsteller" passen wieder vollständig in eine schmale Spalte.
+
+### Bugfixes
+- In einer zweispaltigen Spalte waren die beiden Kartenspalten unterschiedlich breit; sie sind jetzt gleich.
+
 ## v3.44 — 2026-08
 
 ### Neu

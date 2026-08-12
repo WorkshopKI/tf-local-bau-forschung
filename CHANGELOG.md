@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.45.0 — Ein Board-Primitiv statt dreier Nachbauten (August 2026)
+
+MINOR — Das Kanban-Lane-Layout stand dreimal da: als geteilte Shell (v2.228 aus dem Feedback-Kanban extrahiert) und, seit dem Handoff v3.17, ein zweites Mal als CSS im Feedback-Board. Belegte Folge: der **1|2-Spalten-Schalter des Boards war wirkungslos** — im Popover wählbar, persistiert, durchgereicht, im Nachbau nie gelesen. Detail: [board-komponente.md](docs/architecture/board-komponente.md).
+
+- Neues Primitiv `TfBoard` trägt alle drei Kanbans (Feedback-Board + beide Home-Widgets); `KanbanBoard.tsx` entfällt ([src/components/kanban/](src/components/kanban/TfBoard.tsx))
+- **Der 1|2-Spalten-Schalter wirkt jetzt**: eine zweispaltige Bahn wird doppelt so breit und stellt ihre Karten nebeneinander ([tf-board.css](src/components/kanban/tf-board.css))
+- Karten-Ziehen läuft über eine opake Naht (`zieh`), damit ein späterer Bibliotheks-Einzug keinen Aufrufer anfasst — heute weiter natives HTML5 ([TfBoard.tsx](src/components/kanban/TfBoard.tsx))
+- Zwei Guards halten die Wiederholung fern: `no-parallel-board-geometry` + `no-parallel-board-dnd` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
+- Gemessen und angeglichen: Kopf-Lücke 4 px (bei „Wartet auf Antragsteller" in 170 px fehlten der Bezeichnung genau 4), Zähler rechtsbündig (vorher 148 px Leerraum dahinter), Schiene einheitlich 44 px
+
 ### v3.44.1 — Vorgangsverlauf: Chronik ungekuerzt, Nachschlage-Bloecke zu (August 2026)
 
 PATCH — Der Höhendeckel aus v3.44.0 saß an der falschen Stelle: der Reiter wird **wegen** des Verlaufs geöffnet, und ein Kasten, der zehn von 28 Terminen zeigt, liest sich als der ganze Verlauf. Die Länge fangen jetzt die Blöcke darunter ab. Detail: [vorgangssystem.md §16.9](docs/architecture/vorgangssystem.md).
