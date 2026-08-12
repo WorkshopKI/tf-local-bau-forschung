@@ -6,8 +6,9 @@
  * werden:
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
- *    drei suchrelevanten Text-Felder (`verbund_titel`, `titel`,
- *    `projektbeschreibung_text`) und cached zusaetzlich die lowercase-Variante
+ *    suchrelevanten Text-Felder (`verbund_titel`, `titel`,
+ *    `projektbeschreibung_text`, Deskriptoren, `akronym`) und cached
+ *    zusaetzlich die lowercase-Variante
  *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
  *
  *  - `loadDmsFilenameToAkz` — Umkehr-Lookup fuer Phase-2-Treffer: Orama
@@ -31,6 +32,12 @@ export interface AntragTextEntry {
   /** Konkatenierte Deskriptor-Werte: TECHN/BRANCHE/ANWEND-Strings +
    *  Klartexte der gesetzten ZT-Flags. Siehe `descriptor-text.ts`. */
   descriptors: string;
+  /** Akronym / Kurzname (CSV-Spalte `VB_KURZNAM`). Eigenes Feld, weil es NICHT
+   *  verlaesslich im Titel steht: der Netzwerkantrag `16KN083001` heisst
+   *  `mobiInspec`, sein VB-Titel lautet aber nur „Mobile Messtechnik fuer die
+   *  Energieversorgung" — ohne dieses Feld war er per Stichwort unauffindbar,
+   *  obwohl der Leerzustand der Suche „Nach Titel, Akronym, FKZ …" verspricht. */
+  akronym: string;
   /** Pre-computed lowercase. Einmal beim Load berechnen, dann per Keystroke
    *  nur `.includes(q)` ohne neue String-Allokation. Wichtig fuer 13k-Korpora,
    *  sonst ~100 MB GC-Druck pro Keystroke. */
@@ -38,6 +45,7 @@ export interface AntragTextEntry {
   tvLower: string;
   absLower: string;
   descriptorsLower: string;
+  akronymLower: string;
 }
 
 /**
@@ -67,6 +75,9 @@ const ABSTRACT_NORMALIZED: ReadonlySet<string> = new Set(
     'kurzbeschreibung', 'beschreibung', 'inhalt',
   ].map(normalizeKey),
 );
+const AKRONYM_NORMALIZED: ReadonlySet<string> = new Set(
+  ['akronym', 'vb_kurznam', 'vb kurznam'].map(normalizeKey),
+);
 
 function pickByNormalized(
   record: Record<string, unknown>,
@@ -93,7 +104,7 @@ export interface LoadCorpusOptions {
 
 /**
  * Laedt den vollen Antrag-Store fuer das aktive Programm und projiziert auf
- * die drei suchrelevanten Strings. Default: nur Antraege mit mindestens einem
+ * die suchrelevanten Strings. Default: nur Antraege mit mindestens einem
  * nicht-leeren Feld kommen in die Map. Mit `includeEmpty: true` werden auch
  * leere Eintraege geliefert (fuer den Export, wo jede gelistete Akz eine
  * Zeile braucht).
@@ -126,16 +137,23 @@ export async function loadAntraegeTextCorpus(
       const tv = typeof a.titel === 'string' ? a.titel : '';
       const ab = pickByNormalized(rec, ABSTRACT_NORMALIZED);
       const descriptors = buildDescriptorsText(a);
-      if (includeEmpty || vb.length > 0 || tv.length > 0 || ab.length > 0 || descriptors.length > 0) {
+      const ak = pickByNormalized(rec, AKRONYM_NORMALIZED);
+      if (
+        includeEmpty
+        || vb.length > 0 || tv.length > 0 || ab.length > 0
+        || descriptors.length > 0 || ak.length > 0
+      ) {
         result.set(a.aktenzeichen, {
           vb,
           tv,
           abstract: ab,
           descriptors,
+          akronym: ak,
           vbLower: vb.toLowerCase(),
           tvLower: tv.toLowerCase(),
           absLower: ab.toLowerCase(),
           descriptorsLower: descriptors.toLowerCase(),
+          akronymLower: ak.toLowerCase(),
         });
       }
       cursor.continue();

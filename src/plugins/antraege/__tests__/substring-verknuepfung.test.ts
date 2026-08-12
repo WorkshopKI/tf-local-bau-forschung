@@ -11,12 +11,13 @@ import { describe, it, expect } from 'vitest';
 import { searchAntraegeSubstring, zerlegeAnfrage } from '../services/antraege-search-service';
 import type { AntragTextEntry } from '../services/search-corpus';
 
-function eintrag(vb: string, tv = '', abs = '', descr = ''): AntragTextEntry {
+function eintrag(vb: string, tv = '', abs = '', descr = '', akronym = ''): AntragTextEntry {
   return {
     vbLower: vb.toLowerCase(),
     tvLower: tv.toLowerCase(),
     absLower: abs.toLowerCase(),
     descriptorsLower: descr.toLowerCase(),
+    akronymLower: akronym.toLowerCase(),
   } as AntragTextEntry;
 }
 
@@ -81,5 +82,32 @@ describe('searchAntraegeSubstring — Verknüpfung', () => {
   it('Teilwort-Treffer bleiben erhalten (Substring, kein Token-Match)', () => {
     expect(searchAntraegeSubstring('laserquelle', KORPUS)).toEqual(['A1']);
     expect(searchAntraegeSubstring('quelle', KORPUS)).toEqual(['A1']);
+  });
+});
+
+/**
+ * Der reale Fall, der das Feld nötig machte: der Netzwerkantrag `16KN083001`
+ * heisst `mobiInspec`, sein VB-Titel lautet aber nur „Mobile Messtechnik für
+ * die Energieversorgung". Jeder andere Satz desselben Netzwerks trägt das
+ * Akronym im Titel — ausgerechnet die gesuchte Phase 1 nicht.
+ */
+describe('searchAntraegeSubstring — Akronym', () => {
+  const AKRONYM_KORPUS = new Map<string, AntragTextEntry>([
+    ['NW1', eintrag('Mobile Messtechnik für die Energieversorgung', '', '', '', 'mobiInspec')],
+    ['NW2', eintrag('Mobile Messtechnik für die Energieversorgung (mobiInspec)', '', '', '', 'mobiInspec')],
+    ['X1', eintrag('Bilderkennung in der Qualitätssicherung', '', '', '', 'QualiCam')],
+  ]);
+
+  it('findet den Antrag über sein Akronym, auch wenn kein Titel es trägt', () => {
+    expect(searchAntraegeSubstring('mobiinspec', AKRONYM_KORPUS).sort()).toEqual(['NW1', 'NW2']);
+  });
+
+  it('das Akronym zählt als eigenes Feld bei der UND-Verknüpfung', () => {
+    expect(searchAntraegeSubstring('mobiinspec messtechnik', AKRONYM_KORPUS).sort())
+      .toEqual(['NW1', 'NW2']);
+  });
+
+  it('grenzt weiterhin ab — ein fremdes Akronym trifft nicht', () => {
+    expect(searchAntraegeSubstring('qualicam', AKRONYM_KORPUS)).toEqual(['X1']);
   });
 });

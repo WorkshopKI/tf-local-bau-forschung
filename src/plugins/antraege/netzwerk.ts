@@ -3,12 +3,24 @@
  *
  * Domain-Regel: FKZ-Präfix `16KN` markiert einen Antrag als Teil eines
  * Netzwerks. Die ersten 4 Ziffern nach dem Präfix identifizieren das
- * Netzwerk; die letzten 2 Ziffern sind die Position innerhalb des Netzwerks
- * (`01`/`02` = Lead in Phase 1/2, höhere Suffixe = Teilvorhaben).
+ * Netzwerk; die letzten 2 Ziffern sind die Antragsnummer innerhalb des
+ * Netzwerks. Der Nummernkreis ist zweigeteilt:
+ *
+ *   **01–09 = Netzwerkantrag (Lead)** — ungerade Nummern gehören zu Phase 1,
+ *   gerade zu Phase 2. Wird ein Netzwerkantrag abgelehnt und wieder
+ *   eingereicht, zählt die Nummer hoch: Phase 1 läuft `01 → 03 → 05`,
+ *   die zugehörige Phase 2 `02 → 04`.
+ *   **ab 10 = Teilvorhaben.**
+ *
+ * Am echten Bestand gemessen (11 150 16KN-Sätze): die Nummern 01–05 tragen
+ * ausnahmslos `vb_phase` 1 oder 2, 06–09 kommen (noch) nicht vor, und ab 10
+ * steht nie eine Netzwerk-Phase. Das Tupel `Antragsnummer < 10 + vb_phase 1/2`
+ * trennt die beiden Hälften deshalb sauber.
  *
  * Beispiele:
  *   16KN106201 → Netzwerk 1062, Lead Phase 1 (vb_phase=1)
  *   16KN106202 → Netzwerk 1062, Lead Phase 2 (vb_phase=2)
+ *   16KN106203 → Netzwerk 1062, Lead Phase 1 nach Wiedereinreichung
  *   16KN106227 → Netzwerk 1062, TV
  *   16EP123456 → kein Netzwerk (Einzelantrag)
  *
@@ -58,24 +70,53 @@ export function extractNetzwerkSuffix(aktenzeichen: string): string | null {
   return m ? m[2]! : null;
 }
 
+/** Höchste Antragsnummer, die noch ein Netzwerkantrag ist — ab `10` beginnen
+ *  die Teilvorhaben (siehe Kopf-Kommentar). */
+const MAX_NETZWERKANTRAG_NUMMER = 9;
+
+/** Antragsnummer als Zahl (`"03"` → `3`); `-1` für nicht-16KN-FKZs. */
+function antragsNummer(item: Pick<AntragListItem, 'aktenzeichen'>): number {
+  const suffix = extractNetzwerkSuffix(item.aktenzeichen);
+  return suffix === null ? -1 : Number(suffix);
+}
+
 /**
- * `true` wenn der Antrag der Netzwerk-Lead ist — FKZ endet auf `01`/`02`
- * und vb_phase ist `1` oder `2`. Die Programm-Bedingung (136/76/46) wird
- * nicht hart geprüft, weil der Programm-ID-Namespace produktiv frei
- * vergeben wird; das Tupel `vb_phase + Suffix` ist programmübergreifend
- * robust.
+ * `true` wenn der Antrag ein Netzwerkantrag ist — Antragsnummer unter `10`
+ * und vb_phase ist `1` oder `2`. Bis v4.4 waren nur `01`/`02` zugelassen; das
+ * ließ jede **Wiedereinreichung nach Ablehnung** (`03`/`04`/`05`) durchfallen,
+ * womit ihr Netzwerk namenlos blieb.
+ *
+ * Die Programm-Bedingung (136/76/46) wird nicht hart geprüft, weil der
+ * Programm-ID-Namespace produktiv frei vergeben wird; das Tupel
+ * `vb_phase + Antragsnummer` ist programmübergreifend robust.
  */
 export function isNetzwerkLead(item: Pick<AntragListItem, 'aktenzeichen' | 'vb_phase'>): boolean {
-  const suffix = extractNetzwerkSuffix(item.aktenzeichen);
-  if (suffix !== '01' && suffix !== '02') return false;
+  const nummer = antragsNummer(item);
+  if (nummer < 0 || nummer > MAX_NETZWERKANTRAG_NUMMER) return false;
   const phase = toVbPhaseNumber(item.vb_phase);
   return phase === 1 || phase === 2;
 }
 
 /**
+ * Wählt aus mehreren Netzwerkanträgen den **jüngsten Versuch**: die höchste
+ * Antragsnummer. Ein Netzwerk kann seit der erweiterten Lead-Erkennung zwei
+ * Phase-1-Leads führen — den abgelehnten `01` und die gültige `03` (im Bestand
+ * 27 Fälle). Ohne diese Regel entschiede die Eingabe-Reihenfolge, welcher Name
+ * das Netzwerk beschriftet; im Bestand trägt der abgelehnte Versuch sein
+ * Akronym zudem eingeklammert (`(Telemedizin)` vs. `Telemedizin`).
+ */
+function juengsterAntrag(kandidaten: AntragListItem[]): AntragListItem | null {
+  let best: AntragListItem | null = null;
+  for (const k of kandidaten) {
+    if (best === null || antragsNummer(k) > antragsNummer(best)) best = k;
+  }
+  return best;
+}
+
+/**
  * Sortier-Schlüssel für die TV-Reihenfolge innerhalb einer Netzwerk-Gruppe:
- * Leads zuerst (Suffix `01` vor `02`), dann alle anderen nach Aktenzeichen
- * aufsteigend.
+ * Leads zuerst (aufsteigend, also `01` vor `02` vor `03`), dann alle anderen
+ * nach Aktenzeichen aufsteigend.
  */
 export function compareNetzwerkOrder(a: AntragListItem, b: AntragListItem): number {
   const aLead = isNetzwerkLead(a);
@@ -104,21 +145,23 @@ function trimmedString(v: unknown): string | null {
 
 /**
  * Liefert den fachlichen Netzwerk-Namen aus dem `akronym`-Feld (CSV-Spalte
- * `VB_KURZNAM`) des Netzwerk-Lead-Antrags. Bei einem Netzwerk-Antrag (Suffix
- * `01`/`02` + vb_phase 1/2) ist der Akronym-Wert gleichzeitig der Name des
+ * `VB_KURZNAM`) des Netzwerkantrags. Bei einem Netzwerkantrag (Antragsnummer
+ * < 10 + vb_phase 1/2) ist der Akronym-Wert gleichzeitig der Name des
  * Netzwerks, zu dem alle Anträge mit derselben 4-Ziffer-ID gehören.
  *
- * Wenn beide Phasen-Leads im Snapshot sind und unterschiedliche Akronyme
- * tragen, gewinnt der Phase-1-Lead (er repräsentiert den ursprünglichen
- * Netzwerk-Namen). Wenn kein Lead im Snapshot ist, return `null` —
- * Caller fällt auf `"Netzwerk <id>"` zurück.
+ * Zwei Vorrang-Stufen, wenn mehrere Netzwerkanträge im Snapshot stehen:
+ * Phase 1 schlägt Phase 2 (sie trägt den ursprünglichen Netzwerk-Namen),
+ * und innerhalb einer Phase gewinnt der jüngste Versuch (höchste
+ * Antragsnummer, siehe `juengsterAntrag`). Anträge ohne Akronym zählen gar
+ * nicht mit — sonst verdrängte eine namenlose Wiedereinreichung den Namen
+ * ihres Vorgängers. Ist kein benannter Netzwerkantrag im Snapshot, return
+ * `null` — Caller fällt auf `"Netzwerk <id>"` zurück.
  */
 export function getNetzwerkName(members: AntragListItem[]): string | null {
-  const leads = members.filter(isNetzwerkLead);
-  if (leads.length === 0) return null;
-  // Phase-1-Lead bevorzugt; falls nicht vorhanden, Phase-2-Lead.
-  const phase1Lead = leads.find(l => toVbPhaseNumber(l.vb_phase) === 1);
-  const chosen = phase1Lead ?? leads[0]!;
+  const benannt = members.filter(m => isNetzwerkLead(m) && trimmedString(m.akronym) !== null);
+  if (benannt.length === 0) return null;
+  const phase1 = benannt.filter(l => toVbPhaseNumber(l.vb_phase) === 1);
+  const chosen = juengsterAntrag(phase1.length > 0 ? phase1 : benannt)!;
   return trimmedString(chosen.akronym);
 }
 
@@ -131,11 +174,15 @@ export function getNetzwerkName(members: AntragListItem[]): string | null {
  * daher meist, und der lokale `getNetzwerkName(members)` würde `null`
  * liefern — der Index schließt diese Lücke.
  *
- * Phase-1-Lead schlägt Phase-2-Lead bei abweichenden Akronymen.
+ * Vorrang wie in `getNetzwerkName`: Phase-1-Lead schlägt Phase-2-Lead bei
+ * abweichenden Akronymen, und innerhalb einer Phase gewinnt der jüngste
+ * Versuch. Letzteres ist hier nicht kosmetisch: die Eingabe ist der
+ * Cross-Programm-Scan, seine Reihenfolge ist Store-Reihenfolge — ein
+ * Last-write-wins würde das Label eines Netzwerks vom Zufall abhängig machen.
  */
 export function buildNetzwerkNameIndex(items: AntragListItem[]): Map<string, string> {
-  const phase1 = new Map<string, string>();
-  const phase2 = new Map<string, string>();
+  const phase1 = new Map<string, { name: string; nummer: number }>();
+  const phase2 = new Map<string, { name: string; nummer: number }>();
   for (const item of items) {
     if (!isNetzwerkLead(item)) continue;
     const nid = extractNetzwerkId(item.aktenzeichen);
@@ -143,13 +190,16 @@ export function buildNetzwerkNameIndex(items: AntragListItem[]): Map<string, str
     const name = trimmedString(item.akronym);
     if (name === null) continue;
     const phase = toVbPhaseNumber(item.vb_phase);
-    if (phase === 1) phase1.set(nid, name);
-    else if (phase === 2) phase2.set(nid, name);
+    const ziel = phase === 1 ? phase1 : phase === 2 ? phase2 : null;
+    if (ziel === null) continue;
+    const nummer = antragsNummer(item);
+    const bisher = ziel.get(nid);
+    if (bisher === undefined || nummer > bisher.nummer) ziel.set(nid, { name, nummer });
   }
   const out = new Map<string, string>();
   // Phase-2 zuerst eintragen, dann mit Phase-1 überschreiben.
-  for (const [k, v] of phase2) out.set(k, v);
-  for (const [k, v] of phase1) out.set(k, v);
+  for (const [k, v] of phase2) out.set(k, v.name);
+  for (const [k, v] of phase1) out.set(k, v.name);
   return out;
 }
 

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.4.1 — Wiedereinreichungen zählen als Netzwerkantrag, Akronym wird durchsucht (August 2026)
+
+PATCH — Gemeldet war ein Suchfehler („MobiInspec Phase 1 nicht gefunden") mit vermuteter Ursache im FKZ-Suffix. Am Bestand gemessen sind es zwei Befunde: die Suffix-Regel greift tatsächlich zu eng (47 Netzwerkanträge), der gemeldete Treffer fehlte aber aus einem anderen Grund — sein Titel trägt als einziger des Netzwerks das Akronym nicht, und das Akronym stand nicht im Suchkorpus.
+
+- **Antragsnummern 03/04/05 sind Netzwerkanträge** ([netzwerk.ts](src/plugins/antraege/netzwerk.ts)): Wiedereinreichung nach Ablehnung zählt hoch (Phase 1 `01→03→05`, Phase 2 `02→04`); die Grenze zum Teilvorhaben liegt bei 10 — am Bestand belegt (1728 → 1775 Leads)
+- **Bei mehreren Versuchen gewinnt der jüngste** (`juengsterAntrag`): 18 Netzwerke tragen jetzt den Namen der gültigen statt der zurückgezogenen Einreichung („Telemedizin" statt „(Telemedizin)"); vorher entschied die Store-Reihenfolge
+- **Akronym im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): der Leerzustand versprach „Nach Titel, Akronym, FKZ …", durchsucht wurde das Feld nie — „mobiinspec" findet jetzt 30 statt 29 Treffer
+- **Nicht angefasst**: der Embedding-Korpus (ein geänderter Text entwertete alle maschinen-lokalen Caches) und das Aktenzeichen (FKZ-Suche bleibt offen)
+
 ### v4.4.0 — Meilenstein-Editor: sichtbar anlegen, ausrücken, vergleichen (August 2026)
 
 MINOR — Fünf Rückmeldungen aus der Konfiguration, alle mit derselben Wurzel: der Baum-Editor verhielt sich wie eine Anzeige, nicht wie ein Arbeitsgerät. Der schwerste Punkt war unsichtbares Anlegen — der neue Meilenstein entstand unter einer zugeklappten Zeile und tauchte erst nach dem nächsten Laden auf. Detail: [meilensteine.md](docs/architecture/meilensteine.md), [tree-komponenten.md](docs/architecture/tree-komponenten.md).

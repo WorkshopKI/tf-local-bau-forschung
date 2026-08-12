@@ -68,8 +68,14 @@ describe('isNetzwerkLead', () => {
     expect(isNetzwerkLead(mk('16KN106202', 2))).toBe(true);
   });
 
-  it('false für Suffix 03+ auch bei vb_phase 1/2', () => {
-    expect(isNetzwerkLead(mk('16KN106203', 1))).toBe(false);
+  it('true für die Wiedereinreichungs-Nummern 03/04/05', () => {
+    expect(isNetzwerkLead(mk('16KN106203', 1))).toBe(true);
+    expect(isNetzwerkLead(mk('16KN106204', 2))).toBe(true);
+    expect(isNetzwerkLead(mk('16KN106205', 1))).toBe(true);
+  });
+
+  it('false ab Antragsnummer 10 — dort beginnen die Teilvorhaben', () => {
+    expect(isNetzwerkLead(mk('16KN106210', 1))).toBe(false);
     expect(isNetzwerkLead(mk('16KN106227', 2))).toBe(false);
   });
 
@@ -97,8 +103,8 @@ describe('compareNetzwerkOrder', () => {
     const leadP2 = mk('16KN106202', 2);
     expect(compareNetzwerkOrder(leadP1, leadP2)).toBeLessThan(0);
 
-    const tv1 = mk('16KN106203', 2);
-    const tv2 = mk('16KN106227', 2);
+    const tv1 = mk('16KN106210', 3);
+    const tv2 = mk('16KN106227', 3);
     expect(compareNetzwerkOrder(tv1, tv2)).toBeLessThan(0);
   });
 });
@@ -152,8 +158,35 @@ describe('getNetzwerkName', () => {
 
   it('liefert akronym des Phase-1-Leads', () => {
     const members = [
-      mk('16KN106203', 2, 'PartnerA'),
+      mk('16KN106227', 3, 'PartnerA'),
       mk('16KN106201', 1, 'INNOWERK'),  // Lead Phase 1
+    ];
+    expect(getNetzwerkName(members)).toBe('INNOWERK');
+  });
+
+  it('jüngster Versuch schlägt den abgelehnten Vorgänger derselben Phase', () => {
+    const members = [
+      mk('16KN108601', 1, '(Telemedizin)'),  // abgelehnt/zurückgezogen
+      mk('16KN108603', 1, 'Telemedizin'),    // Wiedereinreichung
+    ];
+    expect(getNetzwerkName(members)).toBe('Telemedizin');
+    // Reihenfolge-unabhängig — die Eingabe ist Store-Reihenfolge.
+    expect(getNetzwerkName([...members].reverse())).toBe('Telemedizin');
+  });
+
+  it('zweite Wiedereinreichung (05) schlägt 03 und 01', () => {
+    const members = [
+      mk('16KN118501', 1, '(CO2negativ)'),
+      mk('16KN118505', 1, 'CO2negativ'),
+      mk('16KN118503', 1, '(CO2negativ) alt'),
+    ];
+    expect(getNetzwerkName(members)).toBe('CO2negativ');
+  });
+
+  it('namenlose Wiedereinreichung verdrängt den Namen des Vorgängers nicht', () => {
+    const members = [
+      mk('16KN106201', 1, 'INNOWERK'),
+      mk('16KN106203', 1, '   '),
     ];
     expect(getNetzwerkName(members)).toBe('INNOWERK');
   });
@@ -203,6 +236,22 @@ describe('buildNetzwerkNameIndex', () => {
     ];
     const idx = buildNetzwerkNameIndex(all);
     expect(idx.get('1062')).toBe('INNOWERK');
+  });
+
+  it('jüngster Versuch je Phase gewinnt, unabhängig von der Eingabe-Reihenfolge', () => {
+    const alt = mk('16KN111501', 1, '(netSENSORS)');
+    const neu = mk('16KN111503', 1, 'netSENSORS');
+    expect(buildNetzwerkNameIndex([alt, neu]).get('1115')).toBe('netSENSORS');
+    expect(buildNetzwerkNameIndex([neu, alt]).get('1115')).toBe('netSENSORS');
+  });
+
+  it('Phase-1-Wiedereinreichung schlägt auch den Phase-2-Lead', () => {
+    const all = [
+      mk('16KN123003', 1, 'DiNaT'),
+      mk('16KN123002', 2, 'DiNaT-II'),
+      mk('16KN123001', 1, '(DiNaT)'),
+    ];
+    expect(buildNetzwerkNameIndex(all).get('1230')).toBe('DiNaT');
   });
 
   it('leere oder fehlende Akronyme werden ignoriert', () => {
