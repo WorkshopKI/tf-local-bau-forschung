@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, AlertTriangle, Settings } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, AlertTriangle, LayoutGrid, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
@@ -27,6 +27,14 @@ import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { vornameVon } from '@/core/utils/profil-anzeige';
+import { RechtsklickHinweis, merkeHinweisGesehen } from './anpassen/RechtsklickHinweis';
+import { RueckgaengigLeiste } from './anpassen/RueckgaengigLeiste';
+import { StartseiteMenue } from './anpassen/StartseiteMenue';
+import {
+  darfMenueOeffnen,
+  punktUnter,
+  useStartseiteMenueStore,
+} from './anpassen/useStartseiteMenue';
 
 export function HomePage(): React.ReactElement {
   const storage = useStorage();
@@ -103,6 +111,30 @@ export function HomePage(): React.ReactElement {
   // Direkt in den Vorgang statt in die ungefilterte Liste — dieselbe Zielwahl
   // wie die „Prüfen →"-Zeile im QS-Widget (eine QS-Listenseite gibt es nicht).
   const openQs = (scopeId: string): void => navigate('antraege', { selectedId: scopeId });
+
+  // „Startseite anpassen" (v4.6): Rechtsklick auf die Seite. Was darunter liegt,
+  // entscheidet über das Menü — eine Widget-Karte trägt `data-widget-id`, alles
+  // andere ist freie Fläche. In Eingabefeldern und bei markiertem Text bleibt das
+  // Browser-Menü stehen (darfMenueOeffnen), sonst nähme es dem Notizen-Widget das
+  // Einfügen und jeder Zeile das Kopieren.
+  const oeffneMenue = useStartseiteMenueStore(s => s.oeffne);
+  const anpassenKnopf = useRef<HTMLButtonElement>(null);
+  const beiRechtsklick = useCallback((e: React.MouseEvent<HTMLDivElement>): void => {
+    const ziel = e.target as HTMLElement;
+    if (!darfMenueOeffnen({
+      tagName: ziel.tagName,
+      istEingabefeld: !!ziel.closest('input, textarea, [contenteditable="true"]'),
+      hatTextauswahl: !!window.getSelection()?.toString(),
+    })) return;
+    e.preventDefault();
+    merkeHinweisGesehen();
+    const karte = ziel.closest<HTMLElement>('[data-widget-id]');
+    const instanzId = karte?.dataset.widgetId;
+    oeffneMenue(
+      instanzId ? { art: 'widget', instanzId } : { art: 'flaeche' },
+      { x: e.clientX, y: e.clientY },
+    );
+  }, [oeffneMenue]);
 
   // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation
   // (useDashboardData) läuft EINMAL hier, nicht je Widget.
@@ -204,7 +236,7 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div className="px-8 pt-4 pb-6 max-w-[1600px]">
+    <div className="px-8 pt-4 pb-6 max-w-[1600px]" onContextMenu={beiRechtsklick}>
       {/* Header */}
       <div data-tour="home-dashboard" className="mb-6 flex items-start gap-3">
         <div className="min-w-0">
@@ -213,8 +245,23 @@ export function HomePage(): React.ReactElement {
               Hero-Band direkt darunter (und im Antragseingang-Widget rechts). */}
           <p className="text-[13px] text-[var(--tf-text-secondary)]">{subtitle}</p>
         </div>
-        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="home" /></div>
+        {/* Derselbe Weg wie der Rechtsklick, für alle, die keinen erwarten. */}
+        <button
+          ref={anpassenKnopf}
+          type="button"
+          onClick={() => {
+            merkeHinweisGesehen();
+            oeffneMenue({ art: 'flaeche' }, punktUnter(anpassenKnopf.current));
+          }}
+          className="ml-auto shrink-0 inline-flex h-[30px] items-center gap-[7px] rounded-[var(--tf-radius)] px-2.5 text-[12.5px] text-[var(--tf-text-secondary)] cursor-pointer hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]"
+        >
+          <LayoutGrid size={14} strokeWidth={1.3} aria-hidden />
+          Startseite anpassen
+        </button>
+        <div className="shrink-0"><SeitenHilfeButton pluginId="home" /></div>
       </div>
+
+      <RechtsklickHinweis />
 
       {data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing ? (
         <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
@@ -243,6 +290,11 @@ export function HomePage(): React.ReactElement {
         }
         seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-3" />}
       />
+
+      {/* Menü und Rückgängig-Leiste portalen bzw. sitzen `fixed` — Position im
+          Baum ist egal, sie stehen hier nur beieinander. */}
+      <StartseiteMenue />
+      <RueckgaengigLeiste />
     </div>
   );
 }

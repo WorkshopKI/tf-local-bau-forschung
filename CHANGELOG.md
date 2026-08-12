@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.7.0 — Startseite per Rechtsklick anpassen (August 2026)
+
+MINOR — Umsetzung des Handoffs `_design/handoff/homepage-anpassen`. Ein Widget ein- oder auszublenden kostete vier Kontextwechsel: Startseite verlassen, Einstellungen öffnen, Liste suchen, zurück, Ergebnis prüfen — für eine Entscheidung, die beim Ansehen der Startseite fällt. Die Einstellungsseite bleibt und ist aus jedem Menü erreichbar; sie ist nur nicht mehr der einzige Weg.
+
+- **Startseiten-Menü mit vier Auslösern** ([anpassen/](src/plugins/home/anpassen/), [home-widgets.md](docs/architecture/home-widgets.md)): Rechtsklick auf Fläche und Widget, Knopf im Seitenkopf, `⋯` im Widget-Kopf, „Widget hinzufügen" am Spaltenende — ein Popover an einem Punkt-Anker, kein zweites Menü über Radix' `ContextMenu`
+- **Untermenüs Widgets und Darstellung** ([WidgetsUntermenue.tsx](src/plugins/home/anpassen/WidgetsUntermenue.tsx), [DarstellungUntermenue.tsx](src/plugins/home/anpassen/DarstellungUntermenue.tsx)): Checkliste beider Spalten mit Reihenfolge-Pfeilen und „alle"-Schalter, Primärfarbe und Hell/Dunkel — als Geschwister-Panel im selben Popover, nicht als zweite Layer
+- **Rückgängig hält den vorherigen Config-Stand** ([rueckgaengigStore.ts](src/plugins/home/anpassen/rueckgaengigStore.ts)): ein Weg für Ausblenden, „alle aus" und „Startseite zurücksetzen" — Letzteres braucht deshalb keine Nachfrage
+- **`⋯` löst den Stift ab** ([WidgetShell.tsx](src/plugins/home/widgets/WidgetShell.tsx)): der erschien nur bei Kanban und Ampel; die Widget-Einstellungen stehen jetzt als Eintrag im Menü und teilen weiter EINE `WidgetConfigForm` mit den Einstellungen. Leere Spalten bleiben bedienbar
+- **Dunkelmodus auf gestufte Flächen** ([theme.css](src/theme.css), landete in v4.6.0): `#161718` → `#1e1f21` → `#232427` → `#26272a` statt einer Fläche, helle Rahmenkante statt abgedunkelter, stärkerer Menüschatten
+- **Nicht übernommen:** „Dichte Normal/Kompakt" aus dem Prototyp — der löst sie über `body { font-size }`, was jede Seite der App träfe
+
 ### v4.6.0 — Suche: Trefferliste, Relevanz, Facetten, Auswege (August 2026)
 
 MINOR — Umsetzung des Handoffs `_design/handoff/suche`. Der Handoff nennt den gleich aussehenden Score als Designproblem; er war ein Defekt: die Wortlaut-Stufe setzte ihn fest auf 1.0, und da die Ähnlichkeitssuche opt-in ist und der Dokumentenindex oft leer, hatten im Normalfall ALLE Treffer denselben Wert — die Standard-Sortierung „nach Score" gab damit die Reihenfolge des IDB-Cursors aus.

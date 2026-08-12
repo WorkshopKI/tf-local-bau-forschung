@@ -13,8 +13,11 @@ import {
   loadHomeWidgets,
   moveInstanz,
   saveHomeWidgets,
+  setzeAlleEingeklappt,
+  setzeSichtbarkeitBereich,
   sichtbareWidgets,
   sortiereInstanzen,
+  zurueckgesetzteConfig,
 } from './homeWidgetsStore';
 import type { HomeWidgetConfig, WidgetInstanz, WidgetSpezifischeConfig } from './types';
 
@@ -51,6 +54,8 @@ export const useHomeWidgetsStore = create<HomeWidgetsState>((set, get) => ({
 export interface HomeWidgetsApi {
   /** false, solange die Config noch aus IDB lädt. */
   geladen: boolean;
+  /** Der aktuelle Stand — Vorlage für „Rückgängig" (s. `ersetze`). */
+  config: HomeWidgetConfig | null;
   /** Sichtbare Widgets je Bereich (sortiert, Katalog-/Flag-gefiltert) — Homepage. */
   haupt: WidgetInstanz[];
   seite: WidgetInstanz[];
@@ -60,6 +65,14 @@ export interface HomeWidgetsApi {
   setEingeklappt: (id: string, eingeklappt: boolean) => Promise<void>;
   move: (id: string, richtung: 'hoch' | 'runter') => Promise<void>;
   updateConfig: (id: string, config: WidgetSpezifischeConfig) => Promise<void>;
+  /** „Alles einklappen"/-aufklappen über beide Spalten (nur sichtbare Widgets). */
+  alleEinklappen: (eingeklappt: boolean) => Promise<void>;
+  /** Der „alle"-Schalter einer Spalte im Widgets-Untermenü. */
+  setSichtbarBereich: (bereich: WidgetInstanz['bereich'], sichtbar: boolean) => Promise<void>;
+  /** „Startseite zurücksetzen" — Stand eines frischen Geräts. */
+  zuruecksetzen: () => Promise<void>;
+  /** Schreibt einen kompletten Vorstand zurück — der EINE Rückgängig-Weg. */
+  ersetze: (cfg: HomeWidgetConfig) => Promise<void>;
 }
 
 export function useHomeWidgets(): HomeWidgetsApi {
@@ -83,6 +96,7 @@ export function useHomeWidgets(): HomeWidgetsApi {
       }));
     return {
       geladen: config !== null,
+      config,
       haupt: config ? sichtbareWidgets(config, 'haupt') : [],
       seite: config ? sichtbareWidgets(config, 'seite') : [],
       alleInstanzen: config ? sortiereInstanzen(config.widgets) : [],
@@ -90,6 +104,11 @@ export function useHomeWidgets(): HomeWidgetsApi {
       setEingeklappt: (id, eingeklappt) => patchInstanz(id, { eingeklappt }),
       move: (id, richtung) => mutiere(idb, cfg => moveInstanz(cfg, id, richtung)),
       updateConfig: (id, config_) => patchInstanz(id, { config: config_ }),
+      alleEinklappen: eingeklappt => mutiere(idb, cfg => setzeAlleEingeklappt(cfg, eingeklappt)),
+      setSichtbarBereich: (bereich, sichtbar) =>
+        mutiere(idb, cfg => setzeSichtbarkeitBereich(cfg, bereich, sichtbar)),
+      zuruecksetzen: () => mutiere(idb, () => zurueckgesetzteConfig()),
+      ersetze: vorstand => mutiere(idb, () => vorstand),
     };
   }, [config, mutiere, storage.idb]);
 }

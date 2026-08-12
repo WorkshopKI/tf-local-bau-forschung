@@ -39,12 +39,15 @@ describe('Notizen-Store — Roundtrip + toleranter Read', () => {
 describe('WidgetConfigForm — eine Wahrheit (Popover ↔ Settings)', () => {
   const SRC = join(__dirname, '..', '..', '..', '..');
 
-  it('WidgetQuickEdit und WidgetsSettingsSection rendern dieselbe Formular-Komponente', () => {
-    const quickEdit = readFileSync(join(SRC, 'plugins', 'home', 'widgets', 'WidgetQuickEdit.tsx'), 'utf-8');
+  // Seit v4.6 hängt die Schnellanpassung nicht mehr am Stift, sondern als zweite
+  // Ansicht im `⋯`-Menü (StartseiteMenue) — die geteilte Formular-Komponente ist
+  // dieselbe geblieben, und genau das hält dieser Guard fest.
+  it('Startseiten-Menü und WidgetsSettingsSection rendern dieselbe Formular-Komponente', () => {
+    const menue = readFileSync(join(SRC, 'plugins', 'home', 'anpassen', 'StartseiteMenue.tsx'), 'utf-8');
     const settings = readFileSync(join(SRC, 'plugins', 'einstellungen', 'WidgetsSettingsSection.tsx'), 'utf-8');
-    expect(quickEdit).toContain('<WidgetConfigForm');
+    expect(menue).toContain('<WidgetConfigForm');
     expect(settings).toContain('<WidgetConfigForm');
-    expect(quickEdit).toContain(`kontext="popover"`);
+    expect(menue).toContain(`kontext="popover"`);
     expect(settings).toContain(`kontext="settings"`);
   });
 });

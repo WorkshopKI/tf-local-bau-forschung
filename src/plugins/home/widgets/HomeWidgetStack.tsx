@@ -3,7 +3,12 @@
  * persönlichen Config. Mappt typ → Wrapper-Komponente; die Wrapper
  * entscheiden Selbst-Verstecken (null wie die heutigen Sektionen) und
  * rendern ihre WidgetShell selbst (eigene Titel/Meta/Zähler-Slots).
+ *
+ * Seit v4.6 endet jede Spalte mit „Widget hinzufügen" — auch die leere. Vorher
+ * verschwand eine leergeräumte Spalte samt jedem Anfasser; wer alles ausgeblendet
+ * hatte, kam nur über die Einstellungen zurück.
  */
+import { WidgetHinzufuegen } from '../anpassen/WidgetHinzufuegen';
 import { AiAssistentWidget } from '../AiAssistantCard';
 import { AntragseingangWidget } from '../EingangAmpelCard';
 import { MeineAntraegeWidget } from '../MeineAntraegeSection';
@@ -53,7 +58,7 @@ export function HomeWidgetStack({ bereich, ctx, className }: Props): React.React
   const api = useHomeWidgets();
   const widgets = bereich === 'haupt' ? api.haupt : api.seite;
   const renderbar = widgets.filter(w => RENDERERS[w.typ] !== null);
-  if (!api.geladen || renderbar.length === 0) return null;
+  if (!api.geladen) return null;
   return (
     <div className={className}>
       {renderbar.map(w => {
@@ -67,6 +72,18 @@ export function HomeWidgetStack({ bereich, ctx, className }: Props): React.React
           />
         );
       })}
+      {renderbar.length === 0 ? (
+        <p
+          className="rounded-[var(--tf-radius-lg)] px-5 py-[22px] text-center text-[12.5px] leading-[1.6] text-[var(--tf-text-tertiary)]"
+          style={{ border: '0.5px dashed var(--tf-border-hover)' }}
+        >
+          <span className="block font-medium text-[var(--tf-text-secondary)]">
+            Keine Widgets in dieser Spalte
+          </span>
+          Rechtsklick auf die freie Fläche → Widgets
+        </p>
+      ) : null}
+      <WidgetHinzufuegen />
     </div>
   );
 }

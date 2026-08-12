@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.7 — 2026-08
+
+### Neu
+- **Startseite per Rechtsklick anpassen.** Ein Rechtsklick auf die Startseite blendet Widgets ein und aus, sortiert sie und wechselt Primärfarbe oder Hell/Dunkel — ohne den Umweg über die Einstellungen. Ein Rechtsklick auf ein Widget zeigt dessen eigene Aktionen. Denselben Weg öffnen der Knopf „Startseite anpassen" oben rechts und das `⋯` im Widget-Kopf.
+- **„Widget hinzufügen"** am Ende jeder Spalte — auch eine leergeräumte Spalte bleibt damit bedienbar.
+
+### Verbesserungen
+- **Rückgängig** für Ausblenden und „Startseite zurücksetzen": eine Leiste unten mit einem Klick zurück, statt einer Sicherheitsabfrage vorher.
+- Der Stift im Widget-Kopf ist einem `⋯`-Menü gewichen. Er erschien nur bei zwei Widgets; das Menü gibt es an jedem, und die Einstellungen stehen darin.
+- Der Dunkelmodus arbeitet mit gestuften Flächen statt einer: Hintergrund, Blatt und Karten heben sich jetzt durch Helligkeit voneinander ab, Karten haben wieder eine sichtbare Kante.
+
 ## v4.6 — 2026-08
 
 ### Neu

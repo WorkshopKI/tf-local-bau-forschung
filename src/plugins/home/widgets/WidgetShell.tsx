@@ -2,7 +2,7 @@
  * Präsentations-Rahmen eines Home-Widgets (Phase 1).
  *
  * Kopfzeile: Chevron (Collapse-Toggle) + Titel + optionaler Meta-Text +
- * Aktions-Slot + Zähler-Slot + (nur bei konfigurierbaren Widgets) Stift-Popover.
+ * Aktions-Slot + Zähler-Slot + `⋯`-Menüknopf.
  *
  * LAZY-ZUSAGE (hart): Eingeklappt wird NUR die Kopfzeile inkl. Zähler-Slot
  * gerendert — der Body wird nicht gemountet (kein verstecktes Grid-Rows-
@@ -11,8 +11,8 @@
  */
 import { ChevronRight } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { WidgetQuickEdit } from './WidgetQuickEdit';
-import { hatWidgetDetailConfig, type WidgetInstanz } from './types';
+import { WidgetMenueKnopf } from '../anpassen/WidgetMenueKnopf';
+import type { WidgetInstanz } from './types';
 
 export interface WidgetShellProps {
   titel: string;
@@ -33,9 +33,9 @@ export interface WidgetShellProps {
   variante: 'haupt' | 'seite';
   eingeklappt: boolean;
   onToggleEingeklappt: () => Promise<void>;
-  /** Widget-Instanz für das Stift-Popover (WidgetQuickEdit). Der Stift wird nur
-   *  gerendert, wenn das Widget ein Detail-Formular hat (hatWidgetDetailConfig,
-   *  d.h. Kanban/Ampel) — Widgets ohne Einstellungen zeigen keinen Stift. */
+  /** Widget-Instanz für Rechtsklick-Erkennung (`data-widget-id`) und das
+   *  `⋯`-Menü. Ohne Instanz bleibt der Kopf knopflos — die Karte ist dann kein
+   *  konfigurierbares Widget. */
   instanz?: WidgetInstanz;
   children: React.ReactNode;
 }
@@ -63,7 +63,10 @@ export function WidgetShell({
 
   return (
     <section
-      className="rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)]"
+      // `data-widget-id`: daran erkennt der Rechtsklick der Startseite, ob er
+      // auf einem Widget oder auf freier Fläche gelandet ist (StartseiteMenue).
+      data-widget-id={instanz?.id}
+      className="group/widget rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
       <div className={`flex items-center gap-2 min-w-0 ${haupt ? 'px-4 py-2.5' : 'px-4 pt-3 pb-0'}`}>
@@ -97,11 +100,9 @@ export function WidgetShell({
         <div className="flex-1 min-w-0" />
         {!eingeklappt && aktion ? <div className="shrink-0">{aktion}</div> : null}
         {zaehler ? <div className="shrink-0 flex items-center gap-1.5">{zaehler}</div> : null}
-        {/* Stift nur bei Widgets mit echtem Detail-Formular (Kanban/Ampel) —
-            sonst kein Knopf, der ein „keine Einstellungen"-Popover öffnet. */}
-        {instanz && hatWidgetDetailConfig(instanz.config) ? (
-          <WidgetQuickEdit instanz={instanz} />
-        ) : null}
+        {/* `⋯` an jedem Widget (v4.6, löst den Stift ab): Ausblenden, Sortieren
+            und — wo es welche gibt — die Widget-Einstellungen stehen darin. */}
+        {instanz ? <WidgetMenueKnopf instanzId={instanz.id} titel={titel} /> : null}
         {aktionRechts ? <div className="shrink-0">{aktionRechts}</div> : null}
       </div>
       {/* Lazy: Body existiert im DOM NUR ausgeklappt. */}

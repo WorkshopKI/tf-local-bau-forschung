@@ -1,11 +1,13 @@
 /**
  * `hatWidgetDetailConfig` ist die EINZIGE Wahrheit dafür, ob ein Widget ein
- * Detail-Formular (Stift-Popover + aufklappbare Einstellungs-Zeile) hat. Nur
- * Kanban + Ampel; alle anderen Typen → kein Stift, keine Aufklapp-Zeile.
+ * Detail-Formular (Menü-Eintrag „Widget-Einstellungen" + aufklappbare
+ * Einstellungs-Zeile) hat. Nur Kanban + Ampel; alle anderen Typen bekommen
+ * beides nicht.
  *
- * Zusätzlich Source-Scan-Guards: WidgetShell zeigt den Stift NUR über dieses
- * Prädikat (kein „keine Einstellungen"-Platzhalter-Stift mehr), und die
- * Einstellungs-Sektion nutzt DIESELBE Funktion (eine Wahrheit).
+ * Zusätzlich Source-Scan-Guards: das Widget-Menü zeigt den Eintrag NUR über
+ * dieses Prädikat, und die Einstellungs-Sektion nutzt DIESELBE Funktion. Bis
+ * v4.5 hing die Schnellanpassung an einem Stift in der `WidgetShell` — der ist
+ * mit v4.6 dem `⋯`-Menü gewichen, das Prädikat blieb dasselbe.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -44,14 +46,14 @@ describe('hatWidgetDetailConfig', () => {
   });
 });
 
-describe('Stift-Sichtbarkeit — eine Wahrheit', () => {
+describe('Einstellungs-Eintrag — eine Wahrheit', () => {
   const SRC = join(__dirname, '..', '..', '..', '..');
 
-  it('WidgetShell gated den Stift über hatWidgetDetailConfig (kein Platzhalter-Stift)', () => {
-    const shell = readFileSync(join(SRC, 'plugins', 'home', 'widgets', 'WidgetShell.tsx'), 'utf-8');
-    expect(shell).toContain('hatWidgetDetailConfig(instanz.config)');
-    // Kein disabled-Pencil-Platzhalter mehr (früher: immer ein Stift im Kopf).
-    expect(shell).not.toContain('folgt in einer späteren Version');
+  it('Das Widget-Menü gated „Widget-Einstellungen" über hatWidgetDetailConfig', () => {
+    const menue = readFileSync(join(SRC, 'plugins', 'home', 'anpassen', 'WidgetMenue.tsx'), 'utf-8');
+    expect(menue).toContain('hatWidgetDetailConfig(instanz.config)');
+    // Kein Platzhalter-Eintrag, der ein „keine Einstellungen"-Panel öffnet.
+    expect(menue).not.toContain('folgt in einer späteren Version');
   });
 
   it('WidgetsSettingsSection nutzt dieselbe Funktion aus ../types', () => {

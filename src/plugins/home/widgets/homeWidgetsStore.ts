@@ -252,6 +252,62 @@ export function ampelSchwellenAusConfig(cfg: HomeWidgetConfig | null): AmpelSchw
 }
 
 /**
+ * Klappt alle SICHTBAREN Widgets zu bzw. auf („Alles einklappen" im
+ * Startseiten-Menü). Bewusst nur die sichtbaren: ein ausgeblendetes Widget
+ * mitzuklappen wäre eine unsichtbare Nebenwirkung, die erst beim späteren
+ * Einblenden aufflöge. Rein + idempotent; ohne Treffer referenzgleich.
+ */
+export function setzeAlleEingeklappt(
+  cfg: HomeWidgetConfig,
+  eingeklappt: boolean,
+  katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+): HomeWidgetConfig {
+  const ids = new Set([
+    ...sichtbareWidgets(cfg, 'haupt', katalog).map(w => w.id),
+    ...sichtbareWidgets(cfg, 'seite', katalog).map(w => w.id),
+  ]);
+  if (!cfg.widgets.some(w => ids.has(w.id) && w.eingeklappt !== eingeklappt)) return cfg;
+  return {
+    ...cfg,
+    widgets: cfg.widgets.map(w => (ids.has(w.id) ? { ...w, eingeklappt } : w)),
+  };
+}
+
+/**
+ * Der „alle"-Schalter einer Spalte im Widgets-Untermenü. Fasst nur Instanzen an,
+ * die im Katalog überhaupt anzeigbar sind (`verfuegbar` + `sichtbarWenn`) — sonst
+ * schaltete „alle" Widgets scharf, die diese Variante gar nicht kennt, und der
+ * Nutzer sähe von seiner eigenen Aktion nichts. Die andere Spalte bleibt unberührt.
+ */
+export function setzeSichtbarkeitBereich(
+  cfg: HomeWidgetConfig,
+  bereich: WidgetInstanz['bereich'],
+  sichtbar: boolean,
+  katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+): HomeWidgetConfig {
+  const trifft = (w: WidgetInstanz): boolean => {
+    if (w.bereich !== bereich) return false;
+    const eintrag = katalog[w.typ];
+    return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
+  };
+  if (!cfg.widgets.some(w => trifft(w) && w.sichtbar !== sichtbar)) return cfg;
+  return {
+    ...cfg,
+    widgets: cfg.widgets.map(w => (trifft(w) ? { ...w, sichtbar } : w)),
+  };
+}
+
+/**
+ * „Startseite zurücksetzen": exakt der Stand, den ein frisches Gerät bekäme —
+ * Default plus die per Reconcile nachgezogenen Opt-in-Instanzen. Kein eigener
+ * Pfad, damit „zurückgesetzt" und „nie angefasst" dasselbe bedeuten. Der
+ * Notiz-TEXT liegt unter eigenem kv-Key und bleibt davon unberührt.
+ */
+export function zurueckgesetzteConfig(): HomeWidgetConfig {
+  return reconcileVerfuegbareWidgets(defaultHomeWidgetConfig());
+}
+
+/**
  * Verschiebt eine Instanz um eine Position INNERHALB IHRER SPALTE (`bereich`) —
  * die beiden Spalten der Startseite haben je eine unabhängige Reihenfolge
  * (die Homepage filtert je Bereich und sortiert nach `position`; ein Tausch

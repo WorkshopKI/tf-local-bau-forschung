@@ -8,11 +8,15 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 
 - **Begrüßung:** „X offene Vorgänge …".
 - **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (klickbare Chips: älter als 90 Tage / zwischen 31 und 90 Tagen → gefilterte Liste, QS-Freigaben offen → erster offener Entwurf). Die Tage-Grenzen kommen aus der Widget-Config; Chips mit Zähler 0 werden nicht gezeigt, ohne Chip entfällt die Karte.
-- **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; Stift „Widget anpassen" nur bei einstellbaren — Kanban und Antragseingang; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Reihenfolge und Sichtbarkeit stehen in Einstellungen › Widgets.
+- **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; `⋯`-Menü beim Überfahren; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Jede Spalte endet mit „Widget hinzufügen"; eine leergeräumte Spalte sagt das und bleibt bedienbar.
+- **Startseite anpassen** (seit v4.7): Konfiguration direkt auf der Seite statt über die Einstellungen.
+  - **Menü der freien Fläche** (Rechtsklick, oder Knopf „Startseite anpassen" oben rechts): „Widgets ▸" (Checkliste beider Spalten mit Reihenfolge-Pfeilen und „alle"-Schalter), „Darstellung ▸" (Primärfarbe, Hell/Dunkel), „Alles ein-/aufklappen", „Startseite zurücksetzen", „Alle Einstellungen öffnen".
+  - **Menü eines Widgets** (Rechtsklick auf die Karte, oder `⋯` im Kopf): Ausblenden, Ein-/Aufklappen, Nach oben/unten mit Positionsanzeige „2 / 5", Widget-Einstellungen.
+  - **Rückmeldung:** Das Menü bleibt beim Häkchensetzen offen. Ausblenden und Zurücksetzen bestätigen sich unten mit **Rückgängig**. In Textfeldern und bei markiertem Text bleibt das Browser-Menü.
 - **Widgets** (read-only + Navigation):
   - **Meine Anträge:** Liste + Rückstands-Balken.
   - **Kanban:** Förderanträge ODER Feedback, farbige Lanes, 1–2 Spalten. Jede Bahn lässt sich über ihre Kopfzeile zu einer schmalen Schiene einklappen und dort wieder aufklappen; der Zustand gilt nur für die laufende Ansicht.
-  - **Kanban im eigenen Fenster:** Das Zeichen rechts neben dem Stift öffnet die Anträge in einem großen eigenen Fenster — dort **alle** Status-Kategorien mit Karten (auch die im Widget nicht eingestellten), ohne Kappung, volle Bahnen zweispaltig, lange Bahnen mit Scrollbalken. Ein Klick auf eine Karte öffnet den Antrag in der App. Verlässt man die Startseite, sagt das Fenster, dass sein Stand einfriert.
+  - **Kanban im eigenen Fenster:** Das Zeichen rechts neben dem `⋯` öffnet die Anträge in einem großen eigenen Fenster — dort **alle** Status-Kategorien mit Karten (auch die im Widget nicht eingestellten), ohne Kappung, volle Bahnen zweispaltig, lange Bahnen mit Scrollbalken. Ein Klick auf eine Karte öffnet den Antrag in der App. Verlässt man die Startseite, sagt das Fenster, dass sein Stand einfriert.
   - **Antragseingang-Ampel:** Schwellen einstellbar, Zeile → gefilterte Liste.
   - **KI-Assistent** und **Notizen** („nur lokal").
   - **Feedback-Neuigkeiten:** seit dem letzten „Alles gelesen" — Antworten aufs eigene Feedback, **Statuswechsel** an Tickets, an denen man beteiligt ist (eigenes, kommentiertes, mitgestimmtes oder gesponsertes), neue Team-Tickets, Stimmen-Zuwachs; Klick öffnet das Ticket im Feedback-Board.
@@ -28,7 +32,7 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 ## Typische Aktionen
 
 - Über das Hero-Band weitermachen oder zu kritischen/QS-Punkten springen
-- Widgets ein-/ausklappen, per Stift anpassen (Kanban-Lanes/Farben, Ampel-Schwellen)
+- Widgets ein-/ausblenden, sortieren, ein-/ausklappen und anpassen (Kanban-Lanes/Farben, Ampel-Schwellen) — per Rechtsklick, `⋯` oder Kopfzeilen-Knopf
 - Auf Antrag-/Ampel-Zeile springen (→ gefilterte Liste), Kanban-Karte öffnen
 - Kanban-Bahn ein-/ausklappen; Kanban im eigenen Fenster öffnen
 - Notiz festhalten, KI verbinden, Selbsteintragung annehmen
@@ -37,4 +41,4 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 
 **Datenmodell dahinter:** Widget-Config gerätelokal (IDB-Key `home-widgets-config` v2, gespiegelt in PersonalEinstellungen, nie im Snapshot; v1→v2 blendet ein sichtbares „Weitermachen"-Widget aus); Inhalte aggregiert aus `useAntraegeStore` über `dashboardAggregate.ts`/`kanbanLanes.ts`; Profil (Bearbeiter-Kürzel), aktives Programm. Notizen nur in der IDB.
 
-**Code:** `src/plugins/home/` — `HomePage.tsx`, `HomeHero.tsx` (Hero-Band), `widgets/` (Katalog, Config-Store, `WidgetShell`, `HomeWidgetStack`, Kanban/Notizen, `useQsFreigaben`, `WidgetQuickEdit`), `dashboardAggregate.ts`, `MeineAntraegeSection.tsx`/`EingangAmpelCard.tsx`/`AiAssistantCard.tsx`/`WeitermachenSection.tsx`.
+**Code:** `src/plugins/home/` — `HomePage.tsx`, `HomeHero.tsx` (Hero-Band), `widgets/` (Katalog, Config-Store, `WidgetShell`, `HomeWidgetStack`, Kanban/Notizen, `useQsFreigaben`), `anpassen/` (Startseiten-Menü, Untermenüs, Rückgängig-Leiste), `dashboardAggregate.ts`, `MeineAntraegeSection.tsx`/`EingangAmpelCard.tsx`/`AiAssistantCard.tsx`/`WeitermachenSection.tsx`.
