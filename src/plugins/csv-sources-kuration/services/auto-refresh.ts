@@ -609,7 +609,17 @@ async function laufeKandidatenAb(
       // Programm zum Publizieren vormerken, wenn dieser Import echte Deltas hatte
       // (sonst ist der vorhandene Snapshot bereits aktuell). Geänderte/entfernte
       // Aktenzeichen je Programm sammeln (für den gebündelten Delta-Write).
+      // Auch eine reine SCHEMA-Änderung muss publiziert werden. Bis v3.47.0 wuchs
+      // `programmeToPublish` nur bei Zeilen-Deltas — eine korrigierte Kodierung
+      // oder eine adoptierte Zusatzspalte blieb damit lokal, während der Snapshot
+      // die alte Schema-Kopie weiterträgt. Folge: jeder andere Rechner bekommt sie
+      // beim Sync zurück und heilt erneut. Selbstkorrigierend, aber endlos —
+      // gemessen am 12.08.2026 (Share-Schemas UTF-8, Snapshot-Kopie windows-1252).
+      const schemaGeaendert = korrigiertesEncoding != null || autoAdopted.length > 0;
       const hadDeltas = result.buckets.new + result.buckets.changed + result.buckets.removed > 0;
+      if (schemaGeaendert && !hadDeltas) {
+        programmeToPublish.add(schema.programm_id);
+      }
       if (hadDeltas) {
         programmeToPublish.add(schema.programm_id);
         const acc = changeByProgramm.get(schema.programm_id) ?? { touched: new Set<string>(), removed: new Set<string>() };

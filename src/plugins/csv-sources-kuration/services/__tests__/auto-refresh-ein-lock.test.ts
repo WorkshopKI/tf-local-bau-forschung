@@ -93,6 +93,8 @@ const csv = vi.hoisted(() => ({
   autoEncoding: null as string | null,
   /** Jedes `saveSchema` mit dem geschriebenen Encoding — fuer die Heilungs-Pruefung. */
   saveSchemaEncodings: [] as (string | undefined)[],
+  /** true = Import meldet KEINE Zeilen-Deltas (unveraenderter Export). */
+  ohneDeltas: false,
 }));
 
 vi.mock('@/core/services/csv', () => ({
@@ -101,7 +103,9 @@ vi.mock('@/core/services/csv', () => ({
     if (csv.importFehlerFuer === schemaId) throw new Error('Quelle kaputt');
     return {
       skipped: false,
-      buckets: { new: 1, changed: 0, unchanged: 0, removed: 0 },
+      buckets: csv.ohneDeltas
+        ? { new: 0, changed: 0, unchanged: 5, removed: 0 }
+        : { new: 1, changed: 0, unchanged: 0, removed: 0 },
       durationMs: 1,
       rowCount: 1,
       skippedJoinValues: [],
@@ -242,6 +246,7 @@ beforeEach(() => {
   csv.autoHeaders = null;
   csv.autoEncoding = null;
   csv.saveSchemaEncodings.length = 0;
+  csv.ohneDeltas = false;
 });
 
 describe('runAutoRefresh — ein Lock je Lauf', () => {
@@ -327,6 +332,31 @@ describe('runAutoRefresh — ein Lock je Lauf', () => {
     // Das korrigierte Encoding steht VOR dem Import im Schema, damit
     // `importCsvSource` es ueber `loadSchema` selbst aufgreift.
     expect(csv.saveSchemaEncodings).toContain('windows-1252');
+  });
+
+  it('reine Schema-Aenderung wird publiziert — auch ohne Zeilen-Deltas', async () => {
+    // Der belegte Fall: der Export hat nur seine Kodierung gewechselt, inhaltlich
+    // ist er identisch (alles `unchanged`). Ohne Publish traegt der Snapshot die
+    // ALTE Schema-Kopie weiter, jeder andere Rechner holt sie sich beim Sync
+    // zurueck und heilt erneut — endlos.
+    csv.headers = ['AZ', 'STATUÖ'];
+    csv.autoHeaders = ['AZ', 'STATUS'];
+    csv.autoEncoding = 'windows-1252';
+    csv.ohneDeltas = true;
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, { kuratorName: h.eigenerName });
+
+    expect(report.processed).toHaveLength(2);
+    expect(csv.snapshotCalls).toEqual(['default-programm']);
+  });
+
+  it('ohne Schema-Aenderung UND ohne Deltas wird NICHT publiziert', async () => {
+    csv.ohneDeltas = true;
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, { kuratorName: h.eigenerName });
+
+    expect(report.processed).toHaveLength(2);
+    expect(csv.snapshotCalls).toEqual([]);
   });
 
   it('Heilung nur, wenn danach KEINE Spalte mehr fehlt', async () => {

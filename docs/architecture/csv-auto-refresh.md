@@ -80,6 +80,12 @@ Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gege
 - **Gebündelter Snapshot-Write**: bei N Quellen wird der (sekundenlange) Snapshot **einmal pro betroffenem
   Programm** nach dem Batch geschrieben (`deferSnapshotWrite`, v2.96.2) — unter dem Lauf-Lock, ohne eigenen
   Acquire (der frühere `forceLock`-Notbehelf dort ist mit v3.46.1 entfallen);
+  **Auslöser ist nicht nur ein Zeilen-Delta**: auch eine reine SCHEMA-Änderung (korrigiertes Encoding,
+  adoptierte Zusatzspalte) publiziert (v3.47.0). Vorher wuchs `programmeToPublish` allein bei Deltas — ein
+  Export, der nur seine Kodierung wechselt, ist inhaltlich identisch (`unchanged`), also blieb die Korrektur
+  lokal, während der Snapshot die alte Schema-Kopie weitertrug. Jeder andere Rechner holte sie sich beim
+  Sync zurück und heilte erneut: selbstkorrigierend, aber endlos. Gemessen am 12.08.2026 auf der lokalen
+  Kopie — Schema-Dateien auf `UTF-8`, `csv_schemas.jsonl` im Snapshot noch auf `windows-1252`;
   Delta-Snapshots wenn `isDeltaSnapshotWriteEnabled()`. `onAfterMerge` aktualisiert den lokalen Store **vor**
   dem Publish (der lokale User sieht neue Anträge sofort, v2.96.3).
 - **Lock-Konflikt**: hält ein anderer Schreiber den Build-Lock → `BuildLockBusyError` bricht den Lauf ab,

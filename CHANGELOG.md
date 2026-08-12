@@ -43,6 +43,7 @@ MINOR — Gewünscht war ein Schalter, um blockierende Spalten-Drift zu übergeh
 
 - **Encoding-Drift heilt sich**: bei Drift wird einmal ohne erzwungenes Encoding gelesen; übernommen wird nur, wenn danach **keine** Schema-Spalte mehr fehlt (`encodingHeilungTraegt`) — [csv-drift-check.ts](src/plugins/csv-sources-kuration/services/csv-drift-check.ts)
 - Das erkannte Encoding geht **vor** dem Import ins Schema (`csv_schema_encoding_korrigiert`), damit `importCsvSource` es selbst aufgreift — der Re-Import-Dialog konnte das seit je, der automatische Weg nicht
+- Eine reine **Schema-Änderung publiziert jetzt** (Encoding/adoptierte Spalte): vorher wuchs `programmeToPublish` nur bei Zeilen-Deltas, ein Kodierungs-Wechsel ist aber inhaltlich identisch — die Korrektur blieb lokal, der Snapshot trug die alte Kopie weiter, jeder andere Rechner heilte erneut
 - **„Trotzdem importieren"** pro Quelle im Drift-Bericht (`driftAkzeptiertFuer`): einmalig, nie gespeichert, protokolliert als `csv_auto_refresh_drift_akzeptiert` — [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)
 - Der Bericht zeigt dafür die **Spaltennamen** statt nur Zähler und benennt die Folge (Felder werden geleert, soweit keine andere Quelle sie trägt) — [CsvAutoRefreshDriftDialog.tsx](src/plugins/csv-sources-kuration/components/CsvAutoRefreshDriftDialog.tsx)
 - „Erzwungen geprüft — keine Änderungen gefunden" verschweigt keine übersprungenen Quellen mehr — [CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)
