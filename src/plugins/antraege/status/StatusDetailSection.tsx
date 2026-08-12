@@ -1,11 +1,15 @@
 /**
- * Status-Detailsektion (`#status`) der Verbund-Detailseite. Komponiert Chronik
- * bzw. Zeitstrahl, die Status-Erklärung und den Navigator aus dem gerätelokalen,
+ * Status-Detailsektion (`#status`) der Verbund-Detailseite. Komponiert die zwei
+ * Verlaufs-Sichten, die Status-Erklärung und den Navigator aus dem gerätelokalen,
  * read-only `useStatusVerlauf`. Rendert nichts, solange der Katalog fehlt (Flag
  * aus oder noch nicht initialisiert).
  *
  * Einklappbar mit Default ZU — im Kopf steht die **ZAH-Phase** des amtlichen
- * Status, aufgeklappt der Verlauf.
+ * Status, aufgeklappt der Verlauf. **Vollständig** einklappbar: bis v3.48 stand
+ * die Bearbeitungsfrist vor dem Rumpf und damit als einzige Fläche immer offen.
+ * Ihre Zahlen stehen in der Frist-Spalte der Tabelle, in der Kopfkarte des
+ * Ausklapps und im Block „Wie die Bearbeitungsfrist zustande kommt" — die
+ * Herleitung ein viertes Mal zu zeigen, kostete nur Platz.
  *
  * Bis v2.383 stand hier die abgeleitete Spine-Phase, daneben ein „Warum dieser
  * Status?"-Panel aus Rängen und ein zweiter Block „Nächste Schritte" aus fünf
@@ -19,17 +23,15 @@ import { ChevronRight } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { zahPhaseLabel, zahPhaseFuerStatusText } from '@/core/status';
+import { zahPhaseLabel, zahPhaseFuerStatusText, offenePaareJeTeilvorhaben } from '@/core/status';
 import { HerleitungPopover } from './HerleitungPopover';
 import { NaechsteSchritte } from './NaechsteSchritte';
 import { OffeneAufgaben } from './OffeneAufgaben';
 import { useStatusVerlauf } from './useStatusVerlauf';
-import { StatusTimeline } from './StatusTimeline';
 import { StatusChronik } from './StatusChronik';
 import { StatusCodeListe } from './StatusCodeListe';
 import { useTimelinePrefs } from './timelinePrefs';
 import { VerbundBand } from '../verlauf-band/VerbundBand';
-import { VerbundFristenBand } from '../fristen-band/VerbundFristenBand';
 
 export function StatusDetailSection({ verbundId, statusRoh }: {
   verbundId: string;
@@ -57,6 +59,15 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
   // Die Phase des AMTLICHEN Status — nicht abgeleitet. Ohne Katalog-Treffer
   // bleibt die Vorschau leer statt eine Phase zu erfinden.
   const phase = zahPhaseFuerStatusText(statusRoh);
+  // Ohne Vorgangssystem gibt es nur die Chronik. Dann entfällt die Reiter-Leiste
+  // ganz — ein einzelner Reiter ist Zierde —, und eine gespeicherte Wahl `band`
+  // fällt auf die Chronik zurück, statt einen leeren Bereich zu hinterlassen.
+  const bandAn = isVorgangssystemEnabled();
+  const ansicht = bandAn ? prefsApi.prefs.ansicht : 'chronik';
+  // Die halb offenen Kürzel-Paare — **je Teilvorhaben**, nie über `v.vorkommen`:
+  // das wirft alle TVs zusammen, und dann gilt ein Kürzel als gesetzt, sobald es
+  // irgendeines trägt (`offenePaareJeTeilvorhaben`).
+  const offenePaare = offenePaareJeTeilvorhaben(version, v.jeTeilvorhaben, stichtag);
 
   return (
     <div>
@@ -85,52 +96,38 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         )}
       </div>
 
-      {/* Die Bearbeitungsfrist steht VOR dem Aufklapp-Rumpf und AUSSERHALB der
-          drei Verlaufs-Sichten: sie ist ein anderer Gegenstand als „wann war
-          was", und wer die Seite öffnet, will sie sehen, ohne erst aufzuklappen. */}
-      <div className="mb-4 max-w-[640px]">
-        <VerbundFristenBand verbundId={verbundId} statusRoh={statusRoh} stichtag={stichtag} />
-      </div>
-
       <div className={open ? undefined : 'hidden'}>
-      {/* Zwei Sichten auf denselben Verlauf: die Chronik liest die Termine aus
-          den Datumsfeldern (immer da), der Zeitstrahl das gerätelokale
-          Ereignis-Protokoll (erst nach der ersten aufgezeichneten Änderung). */}
-      <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        <ToggleChip
-          label="Chronik"
-          selected={prefsApi.prefs.ansicht === 'chronik'}
-          onToggle={() => prefsApi.setAnsicht('chronik')}
-        />
-        <ToggleChip
-          label="Zeitstrahl"
-          selected={prefsApi.prefs.ansicht === 'zeitstrahl'}
-          onToggle={() => prefsApi.setAnsicht('zeitstrahl')}
-        />
-        {/* Die dritte Sicht: die ABGELEITETE Bahn aus den Datumsspalten. Der
-            Zeitstrahl daneben zeigt das gerätelokale Ereignis-Protokoll und ist
-            damit erst ab dessen Nullpunkt vollständig — das Band reicht so weit
-            zurück wie die Termine. Zwei Antworten auf „wann", zwei Quellen. */}
-        {isVorgangssystemEnabled() && (
+      {/* Zwei Sichten auf DIESELBEN Termine aus den Datumsfeldern: die Chronik
+          listet sie, der Zeitstrahl zeichnet sie als Bahn.
+          Der Reiter heißt „Zeitstrahl", der gespeicherte Wert dahinter `band` —
+          bis v3.48 hieß so eine dritte Sicht auf das gerätelokale
+          Ereignis-Protokoll. Die ist entfallen (sie blieb leer, solange diese
+          Installation nichts mitgeschrieben hatte), ihr Name auf die Bahn
+          übergegangen. Den Wert mitzubenennen hieße, jede gespeicherte Wahl zu
+          migrieren, ohne dass ein Nutzer davon etwas sähe. */}
+      {bandAn && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
           <ToggleChip
-            label="Band"
-            selected={prefsApi.prefs.ansicht === 'band'}
+            label="Chronik"
+            selected={ansicht === 'chronik'}
+            onToggle={() => prefsApi.setAnsicht('chronik')}
+          />
+          <ToggleChip
+            label="Zeitstrahl"
+            selected={ansicht === 'band'}
             onToggle={() => prefsApi.setAnsicht('band')}
           />
-        )}
-      </div>
-      {prefsApi.prefs.ansicht === 'chronik' && (
+        </div>
+      )}
+      {ansicht === 'chronik' ? (
         <StatusChronik
           vorkommen={v.vorkommen}
           version={version}
           zeigeNebensaechlich={prefsApi.prefs.zeigeNebensaechlich}
           onToggleNebensaechlich={() => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich)}
+          offenePaare={offenePaare}
         />
-      )}
-      {prefsApi.prefs.ansicht === 'zeitstrahl' && (
-        <StatusTimeline events={v.events} version={version} grenze={v.grenze} prefsApi={prefsApi} />
-      )}
-      {prefsApi.prefs.ansicht === 'band' && (
+      ) : (
         <VerbundBand verbundId={verbundId} statusRoh={statusRoh} stichtag={stichtag.slice(0, 10)} />
       )}
 

@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   pruefeStillstand, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
+  findeOffenePaare, offenePaareJeTeilvorhaben,
 } from '@/core/status/waechter';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type {
@@ -220,6 +221,41 @@ describe('Stufe 2 — halb offene Kürzel-Paare', () => {
     const alt = KUERZEL_PAARE.find(p => p.adm === 'ALT');
     expect(alt?.fachl).toBe('ALU');
     expect(new Set(KUERZEL_PAARE.map(p => p.adm)).size).toBe(KUERZEL_PAARE.length);
+  });
+});
+
+describe('Je Teilvorhaben — die Verbund-Falle', () => {
+  const A = { aktenzeichen: 'AZ-A', vorkommen: [vk('AK4', 40)] };
+  const B = { aktenzeichen: 'AZ-B', vorkommen: [vk('AT4', 12)] };
+
+  it('meldet BEIDE Lücken, die über den zusammengeworfenen Vorkommen verschwinden', () => {
+    // Der eigentliche Befund: dieselben Daten, einmal je TV und einmal in einem
+    // Topf gelesen, ergeben zwei offene Seiten gegen keine. Trägt TV-A `AK4` und
+    // TV-B `AT4`, sieht der Verbund-Blick beide Kürzel gesetzt.
+    expect(findeOffenePaare(fassung(), [...A.vorkommen, ...B.vorkommen], STICHTAG)).toEqual([]);
+
+    const paare = offenePaareJeTeilvorhaben(fassung(), [A, B], STICHTAG);
+    expect(paare.map(p => [p.tvId, p.gesetzt, p.fehlt]))
+      .toEqual([['AZ-A', 'AK4', 'AT4'], ['AZ-B', 'AT4', 'AK4']]);
+  });
+
+  it('sortiert über alle Teilvorhaben hinweg, das längst offene zuerst', () => {
+    // B steht in der Eingabe hinten, ist aber älter — also vorn.
+    const paare = offenePaareJeTeilvorhaben(
+      fassung(), [{ ...B, vorkommen: [vk('AT4', 12)] }, { ...A, vorkommen: [vk('AK4', 99)] }],
+      STICHTAG,
+    );
+    expect(paare.map(p => p.tage)).toEqual([99, 12]);
+  });
+
+  it('trägt das Aktenzeichen mit — sonst wüsste die Anzeige nicht, wessen Lücke es ist', () => {
+    const [p] = offenePaareJeTeilvorhaben(fassung(), [A], STICHTAG);
+    expect(p?.tvId).toBe('AZ-A');
+    expect(p?.seit).toBe(isoVorTagen(40));
+  });
+
+  it('ohne Teilvorhaben gibt es nichts zu melden', () => {
+    expect(offenePaareJeTeilvorhaben(fassung(), [], STICHTAG)).toEqual([]);
   });
 });
 

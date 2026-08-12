@@ -1,24 +1,26 @@
 /**
- * Lädt Status-Historie und Feld-Vorkommen eines Verbunds für die Status-
- * Detailansicht (Chronik, Zeitstrahl, Navigator, Ordner-Liste). Gerätelokal,
- * read-only — und ohne jede Ableitung: der Status kommt aus dem Export.
+ * Lädt die Feld-Vorkommen eines Verbunds für die Status-Detailansicht (Chronik,
+ * Band, Navigator, Ordner-Liste). Gerätelokal, read-only — und ohne jede
+ * Ableitung: der Status kommt aus dem Export.
+ *
+ * **Ohne das Ereignis-Protokoll.** Bis v3.48 lud der Hook zusätzlich die
+ * `StatusEvent`s samt Aufzeichnungsgrenze; beide gingen ausschließlich an die
+ * waagerechte Zeitstrahl-Ansicht. Mit ihr sind sie entfallen — der Store und
+ * `getStatusEvents` bleiben, sie speisen Reconcile und das Home-Widget.
  */
 import { useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getVerbund, listAntraegeByVerbund, listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import {
-  getAktiveVersion, ladeAktiveVersion, getStatusEvents, baueFeldAufloesung,
-  sammleVorkommen, aufzeichnungsGrenze, ladeTrigger,
-  type MappingVersion, type StatusEvent, type FeldVorkommen, type TriggerZeile,
+  getAktiveVersion, ladeAktiveVersion, baueFeldAufloesung,
+  sammleVorkommen, ladeTrigger,
+  type MappingVersion, type FeldVorkommen, type TriggerZeile,
 } from '@/core/status';
 import { programmNummer } from './programmNummer';
 
 export interface StatusVerlauf {
   laden: boolean;
   version: MappingVersion | null;
-  events: StatusEvent[];
-  /** „ab hier lückenlose Aufzeichnung" (ISO) oder null. */
-  grenze: string | null;
   /** Alle gesetzten Statuseinträge des Verbunds — Grundlage der Ordner-Ansicht. */
   vorkommen: FeldVorkommen[];
   /**
@@ -60,7 +62,7 @@ export interface StatusVerlauf {
 }
 
 const LEER: StatusVerlauf = {
-  laden: true, version: null, events: [], grenze: null, vorkommen: [],
+  laden: true, version: null, vorkommen: [],
   jeTeilvorhaben: [], statusVbRoh: undefined, vbPhaseRoh: undefined, programm: null,
   trigger: [], triggerVersion: null,
 };
@@ -77,10 +79,9 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
     void (async () => {
       try {
         const version = getAktiveVersion() ?? await ladeAktiveVersion(idb);
-        const [verbund, antraege, events, triggerStand] = await Promise.all([
+        const [verbund, antraege, triggerStand] = await Promise.all([
           getVerbund(idb, verbundId),
           listAntraegeByVerbund(idb, verbundId),
-          getStatusEvents(idb, verbundId),
           ladeTrigger(idb),
         ]);
         if (abgebrochen) return;
@@ -95,8 +96,7 @@ export function useStatusVerlauf(verbundId: string | null): StatusVerlauf {
           aktenzeichen: a.aktenzeichen, record: a as unknown as Record<string, unknown>,
         }));
         setState({
-          laden: false, version, events,
-          grenze: aufzeichnungsGrenze(events),
+          laden: false, version,
           vorkommen: sammleVorkommen(version.felder, vbRecord, tvs, aufloesung),
           jeTeilvorhaben: antraege.map((a, i) => ({
             aktenzeichen: a.aktenzeichen,

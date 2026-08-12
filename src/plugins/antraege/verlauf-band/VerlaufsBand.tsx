@@ -4,7 +4,7 @@
  *
  * **React/CSS, kein SVG.** Die Segmente tragen Text, der kürzen und hovern
  * können muss; in einem `viewBox` skaliert Schrift mit der Grafik und wird
- * unlesbar (dieselbe Entscheidung wie in `StatusTimeline`).
+ * unlesbar.
  *
  * **Konfidenz sitzt an den KANTEN, nie am Statusfeld.** Der Status ist eine
  * beobachtete Tatsache — er steht so im Export. Unsicher ist die Zuschreibung:

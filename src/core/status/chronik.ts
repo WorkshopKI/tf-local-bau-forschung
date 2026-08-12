@@ -35,8 +35,7 @@ const PROMINENZ_RANG: Record<string, number> = { meilenstein: 0, normal: 1, nebe
  *
  * - Nur `typ: 'datum'` mit einem lesbaren Datum — alles andere hat keinen Platz
  *   auf einem Zeitstrahl und steht weiter in der Ordner-Ansicht.
- * - `ignoriert` fliegt immer raus, `nebensaechlich` nur auf Wunsch (dieselbe
- *   Regel wie `baueLanes`, damit beide Ansichten dasselbe zeigen).
+ * - `ignoriert` fliegt immer raus, `nebensaechlich` nur auf Wunsch.
  * - **Ein Eintrag je Feld und Tag**: dieselbe Verbund-Spalte steht auf jeder
  *   TV-Zeile, und vier Teilvorhaben mit demselben Termin sind ein Ereignis mit
  *   vier Trägern, nicht vier Ereignisse.

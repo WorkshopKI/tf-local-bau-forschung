@@ -2,8 +2,8 @@
  * Der **Stillstands-Wächter einer Tabellenzeile** — einmal gerechnet, von beiden
  * Reitern gelesen.
  *
- * Bis v3.37 rechnete ihn nur der Fristen-Reiter, mitten in
- * `useFristenBandModell`. Seit die Verlaufs-Bahn ihren aktuellen Abschnitt
+ * Bis v3.37 rechnete ihn nur der Fristen-Reiter, mitten in dessen
+ * Anzeigemodell. Seit die Verlaufs-Bahn ihren aktuellen Abschnitt
  * markiert, brauchen ihn beide — und zweimal gerechnet liefen sie beim ersten
  * Sonderfall auseinander (dieselbe Regel, an der `fristAnzeige.ts` seit v3.6
  * hängt). Der Aufruf sitzt deshalb dort, wo beide Reiter hängen

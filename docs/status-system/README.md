@@ -56,13 +56,13 @@ unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar
   [ordnerDrag.ts](../../src/plugins/status-cockpit/ordnerDrag.ts) — Ebenen bleiben
   getrennt, kein Nachfahre als Elternknoten).
 - **Detailseite** — `#status`-Abschnitt (ZAH-Phase + Verlauf + Navigator).
-  Zwei Sichten auf den Verlauf: **Chronik** (Standard,
-  [chronik.ts](../../src/core/status/chronik.ts)) liest die Termine aus den
-  Datumsfeldern und steht damit nach jedem Import bereit; der **Zeitstrahl**
-  ([StatusTimeline.tsx](../../src/plugins/antraege/status/StatusTimeline.tsx))
-  zeigt das gerätelokale Ereignis-Protokoll und bleibt leer, bis diese
-  Installation die erste Änderung mitgeschrieben hat. Beide filtern
-  `ignoriert`/`nebensaechlich` nach derselben Regel.
+  Zwei Sichten auf **dieselben** Termine aus den Datumsfeldern: die **Chronik**
+  (Standard, [chronik.ts](../../src/core/status/chronik.ts)) listet sie — mit
+  Rollenspalte und fehlenden Gegenstücken —, der **Zeitstrahl**
+  ([VerlaufsBand.tsx](../../src/plugins/antraege/verlauf-band/VerlaufsBand.tsx))
+  zeichnet sie als Bahn. Bis v3.48 hieß die Bahn „Band" und daneben stand eine
+  dritte Sicht auf das gerätelokale Ereignis-Protokoll; die blieb leer, solange
+  eine Installation nichts mitgeschrieben hatte, und ist entfallen.
 - **Fördertabelle** — Info-Icon je Zeile mit der Status-Erklärung.
 - **Home-Widget** „Status & Verlauf".
 

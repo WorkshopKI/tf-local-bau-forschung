@@ -56,6 +56,16 @@ export interface ZeilenVerlauf {
    */
   vorkommen: readonly FeldVorkommen[];
   /**
+   * Dieselben Teilvorhaben, aber **einzeln** — die Vorkommen je TV statt in
+   * einem Topf.
+   *
+   * Steht neben {@link ZeilenVerlauf.vorkommen}, weil manche Auswertung genau
+   * die Trennung braucht: die halb offenen Kürzel-Paare etwa lesen TV-Spalten,
+   * und über die zusammengeworfene Menge gilt ein Kürzel als gesetzt, sobald
+   * irgendein Teilvorhaben es trägt (`offenePaareJeTeilvorhaben`).
+   */
+  jeTeilvorhaben: readonly { aktenzeichen: string; titel: string; vorkommen: FeldVorkommen[] }[];
+  /**
    * Bis wann die Achse läuft — Haltedatum bei angehaltener Uhr, sonst der
    * Stichtag. Steht in der Ausgabe, weil die Bahn ihn beschriftet.
    */
@@ -249,6 +259,7 @@ export function useZeilenVerlauf(
     spuren,
     frist,
     vorkommen,
+    jeTeilvorhaben: relevante,
     bezugsZeitpunkt,
     journalAb: chronik?.journalAb ?? null,
     journalAenderung: journalDeckt ? (chronik?.letzteAenderung ?? null) : null,

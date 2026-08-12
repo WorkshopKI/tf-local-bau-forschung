@@ -23,9 +23,8 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
   stichtag: string;
 }): React.ReactElement {
   const daten = useZeilenVerlauf(verbundId, null, stichtag, true, statusRoh);
-  // Dieselbe Rechnung, die das Fristen-Band der Seite anstellt (`VerbundFristenBand`):
-  // hier gibt es keine gemeinsame Hülle, an der sie einmal hinge — beide Bauteile
-  // ziehen ihren Zeilen-Zustand selbst. Sie bleibt deterministisch und rein, es
+  // Der Zeilen-Zustand wird hier selbst gezogen: es gibt keine gemeinsame Hülle,
+  // an der er einmal hinge. Die Rechnung bleibt deterministisch und rein, es
   // entsteht also keine zweite Wahrheit, nur eine zweite Auswertung.
   const waechter = useZeilenWaechter({
     version: daten.quelle.version,

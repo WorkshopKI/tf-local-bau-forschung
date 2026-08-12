@@ -36,7 +36,7 @@ export {
 } from './feld-aufloesung';
 export type { StatusEvent } from './event-typen';
 export { appendEvents, getStatusEvents, getAlleEvents } from './event-store';
-export { sortiereEvents, aufzeichnungsGrenze, eventZeitMs } from './event-sort';
+export { sortiereEvents, eventZeitMs } from './event-sort';
 export { ermittleReconcileEvents, reconcileStatusEvents, baueLetzteWerte, type ReconcileEingabe } from './reconcile';
 export {
   ROLLEN, ROLLE_LABEL, ROLLE_LANG, NEUTRAL_LABEL, MAIL_ROLLE,
@@ -239,8 +239,9 @@ export {
 } from './todo-regeln.seed';
 export {
   pruefeStillstand, letzteAktivitaetVon, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
-  findeOffenePaare,
-  type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil, type OffenesPaar,
+  findeOffenePaare, offenePaareJeTeilvorhaben,
+  type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil,
+  type OffenesPaar, type OffenesPaarJeTv,
   type AnstehenderTermin, type Zeitachse,
 } from './waechter';
 export {
@@ -269,10 +270,7 @@ export {
   erzeugtZyklus, findeZyklus,
 } from './kategorien';
 export { exportiereVersion, validiereImport, type ImportErgebnis } from './export-import';
-export {
-  eventProminenz, baueLanes, clustere,
-  type TimelineEvent, type TimelineLanes, type Cluster,
-} from './timeline';
+export { eventProminenz } from './timeline';
 export {
   baueChronik, gruppiereNachMonat, monateDazwischen, teileChronik, traegerLabel,
   type ChronikEintrag, type ChronikMonat,

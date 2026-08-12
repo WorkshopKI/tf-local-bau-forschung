@@ -44,8 +44,8 @@ export function fristTextFromDays(d: number): string {
 }
 
 /**
- * Die Ampel-Stufen als **Tabelle**, damit die Erklärung im FristenBand nicht
- * eine zweite daneben aufschreibt.
+ * Die Ampel-Stufen als **Tabelle**, damit die Erklärung im aufgeklappten Bereich
+ * nicht eine zweite daneben aufschreibt.
  *
  * Schwellen bewusst frist-relativ (nicht eingangs-relativ), damit sie für
  * Antrags- wie VN-Frist gleich lesen. `bis` ist die Obergrenze der Stufe.
@@ -161,8 +161,8 @@ export type FristQuelle = Pick<
  * Projektion — der Record-Key wird hier NICHT geraten (recurring-bug-classes
  * Klasse 5). Die Liste rechnet deshalb ab `D_AAE`, also genau wie bisher. Wer
  * den Wert hat, weil er ihn über das Schema aufgelöst hat (Vorgangs-Board,
- * FristenBand), ruft `berechneFrist` direkt und reicht ihn herein — dieselbe
- * Engine, tiefere Eingabe.
+ * aufgeklappter Bereich), ruft `berechneFrist` direkt und reicht ihn herein —
+ * dieselbe Engine, tiefere Eingabe.
  */
 export function fristErgebnisVon(
   antrag: FristQuelle,
@@ -185,7 +185,7 @@ export function fristErgebnisVon(
  * Haltedatum wird hier NICHT ermittelt — dafür bräuchte es Fassung und
  * Vorkommen aus der IndexedDB, und die hat eine Tabellenzeile nicht. Angehaltene
  * Vorgänge stehen deshalb in der Liste als „angehalten" ohne Dauer; die Dauer
- * steht im aufgeklappten Bereich und im FristenBand.
+ * steht im aufgeklappten Bereich.
  */
 export function fristAnzeige(
   antrag: FristQuelle, nowMs: number = Date.now(), phasen?: readonly ZahPhase[],

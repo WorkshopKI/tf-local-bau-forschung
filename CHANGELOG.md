@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.48.0 — Chronik: wer hat gesetzt, was fehlt (August 2026)
+
+MINOR — Gewünscht: als FB auf einen Blick sehen, welche Kürzel meine sind, was der AB gesetzt hat und wo eine Seite offen steht. Beides lag längst vor — die Rolle am Feld, die Lücke im Wächter —, nur nicht in der Chronik. Dazu drei Flächen weg, die keiner benutzt. Detail: [vorgangssystem.md §16.11/§16.12](docs/architecture/vorgangssystem.md).
+
+- **Rollenspalte** (AB/FB/QS/PA/Jur) hinter dem Tag, neutrale Einträge bleiben leer; gemessen tragen 26 von 29 Zeilen ein Kürzel, Zeilenhöhe unverändert 20 px — [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx)
+- **Eigene Rolle** aus dem Profil (`status_rolle`): Kante auf der Achse + Kürzel in `--tf-primary`, Kopf sagt „hervorgehoben: FB". **Hervorheben statt filtern** — der Partner bleibt sichtbar
+- **Fehlende Gegenstücke** als Zeile unter dem gesetzten Termin („Gutachten kaufmännisch fertig · fehlt seit 159 T"), **je Teilvorhaben** gerechnet und nicht als Termin gezählt — [waechter.ts](src/core/status/waechter.ts)
+- Reiter **„Zeitstrahl"** (Ereignis-Protokoll, blieb leer) entfallen, das **Band** erbt den Namen; der gespeicherte Wert bleibt `band`, ein alter `zeitstrahl` fällt auf die Chronik zurück — [timelinePrefs.ts](src/plugins/antraege/status/timelinePrefs.ts)
+- **Fristen-Band der Detailseite** entfernt — es stand vor dem Aufklapp-Rumpf und war die einzige nicht schließbare Fläche; mit ihm `StatusTimeline`, `baueLanes`/`clustere`, `aufzeichnungsGrenze` und `fristen-band/`
+
 ### v3.47.0 — Encoding-Drift heilt sich, fehlende Spalten sind uebergehbar (August 2026)
 
 MINOR — Gewünscht war ein Schalter, um blockierende Spalten-Drift zu übergehen. Beim Nachsehen war die Drift auf allen drei Quellen der lokalen Kopie **dieselbe Spalte zweimal**: der Export wechselte auf UTF-8, `Nachrücker` las sich als `NachrÃ¼cker`. „Trotzdem importieren" hätte dort jeden Umlaut im Bestand verstümmelt. Also beides — Heilung zuerst, Ausweg danach. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).

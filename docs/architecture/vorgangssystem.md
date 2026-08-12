@@ -325,8 +325,8 @@ Kategorie-Ableitung, keine Ränge.
 
 ### 7.2 Was bleibt und warum
 
-- **`Prominenz` bleibt.** Sie steuert die Punktgröße in Chronik und Zeitstrahl
-  und den `ignoriert`-Filter — Anzeige, keine Ableitung. Sie mitzureißen hätte
+- **`Prominenz` bleibt.** Sie steuert die Punktgröße in der Chronik und den
+  `ignoriert`-Filter — Anzeige, keine Ableitung. Sie mitzureißen hätte
   die Chronik plattgemacht, ohne etwas ableitungsfreier zu machen.
 - **Die ZAH-Phase am Datumsfeld bleibt** — sie beantwortet „welches Datum gehört
   zum aktuellen Status?" (die „seit"-Angabe, die Chronik-Marke). Sie ordnet ein,
@@ -2224,5 +2224,73 @@ Spalten existiert in einem der Import-CSVs, nicht leer, sondern nicht vorhanden.
 auf Wunsch", der Chip hängt an der zweiten Menge und trägt ihre Anzahl. Ein
 Gatter im Test hält fest, dass die Teilung dasselbe liefert wie das Filtern beim
 Bauen. Liefert der Export die Kanalspalten eines Tages, kommt der Schalter von
-selbst zurück. Im **Zeitstrahl**-Reiter bleibt er unangetastet — dort filtert er
-die `vb_phase`-Ereignisse und wirkt.
+selbst zurück.
+
+### 16.11 Wer gesetzt hat — und was fehlt (v3.48)
+
+Die Chronik sagte, **was wann** passiert ist, aber nicht **wer** es war. Für ein
+Team, das sich AB und FB teilt, ist das die halbe Auskunft: ein FB sieht 28
+Termine und weiß nicht, welche seine sind, welche der AB gesetzt hat und wo eine
+Seite offen steht.
+
+Beides war schon da, nur nicht sichtbar:
+
+- **Die Rolle hängt am Feld** (`StatusFeldEintrag.rollen`), und `ChronikEintrag`
+  trägt den vollen Eintrag — `rollenVonFeld(e.feld)` kostet keinen Lookup und
+  keine `MappingVersion`. Von 505 Codes tragen 362 mindestens eine Rolle; die
+  143 neutralen bleiben unbeschriftet, weil „alle" an jeder dritten Zeile
+  Rauschen ohne Information wäre (Pitfall #43).
+- **Die Lücke rechnet der Wächter** (`findeOffenePaare`, neun adm/fachl-Paare).
+  Sie speiste bisher nur die Stillstands-Erklärung und die FB-Erhebung.
+
+Drei Entscheidungen, die den Umbau tragen:
+
+**Hervorheben statt filtern.** Die eigene Rolle kommt still aus dem Profil
+(`status_rolle`); die eigenen Zeilen tragen eine 2-px-Kante auf der Achse und
+ihr Kürzel in `--tf-primary` — dasselbe Idiom, mit dem das Feedback-Board „meins"
+markiert (`.fb-karte.meins`). Ein *Filter* wäre falsch: der Nutzer will
+ausdrücklich auch sehen, was der Partner gesetzt hat. Steht das Profil auf
+„alle", entfällt die Hervorhebung; die Zuordnung bleibt. Neutrale Zeilen gelten
+NICHT als eigene — markiert trüge fast jede dritte Zeile die Kante.
+
+**Die Lücke steht, wo das Auge ist.** Eine Fehlzeile hängt unter dem Termin, der
+die andere Seite gesetzt hat: hohler Ring, kein Datum, „fehlt seit N T", Rolle
+und Aktenzeichen. Sie zählt **nicht** als Termin — die Kopfzeile verspricht
+„Termine aus den Datumsfeldern" —, sondern wird daneben gezählt, damit eine
+Lücke tief in der Liste nicht übersehen wird. Findet sich ihr Anker nicht (sein
+Feld kann `ignoriert` sein), landet sie am Ende ihres Monats statt zu
+verschwinden.
+
+**Gerechnet wird je Teilvorhaben** (`offenePaareJeTeilvorhaben`). Über die
+zusammengeworfenen Vorkommen eines Verbunds gilt ein Kürzel als gesetzt, sobald
+irgendein TV es trägt: hat TV-A `AK4` und TV-B `AT4`, meldet die Suche
+**nichts**, obwohl jedes für sich eine offene Seite hat. Dieselbe Grenze, an der
+schon `OffeneAufgaben` und die FB-Erhebung haltmachen.
+
+Abgegrenzt bleibt die Aussage: Chronik = was war und welches Gegenstück fehlt;
+Kopfkarte und „Offene Aufgaben" = was zu tun ist. Die To-do-Engine ein drittes
+Mal zu rendern wäre eine zweite Wahrheit gewesen.
+
+Gemessen am Bestand (dev:local, 29 Termine): Zeilenhöhe unverändert 20 px, kein
+Scrollbereich, die Rollenspalte kostet 38 px Breite. Sie füllt sich gut — in
+einem typischen Vorgang tragen 26 von 29 Zeilen ein Kürzel. Drei Rollen
+(`AB/FB/QS`, 32 von 505 Codes) kürzen mit Auslassungspunkt; der Tooltip nennt
+alle im Klartext.
+
+### 16.12 Was mit v3.48 wegfiel
+
+- **Der Reiter „Zeitstrahl"** auf der Verbund-Detailseite zeigte das
+  gerätelokale Ereignis-Protokoll und blieb leer, solange eine Installation
+  nichts mitgeschrieben hatte. Er wurde nicht benutzt. Sein **Name** ging auf das
+  Verlaufs-Band über (bis dahin „Band"), das dieselben Termine als Bahn zeichnet;
+  der gespeicherte **Wert** bleibt `band`, damit keine vorhandene Wahl migriert
+  werden muss. `normalisiere` lässt ein gespeichertes `zeitstrahl` auf die
+  Chronik zurückfallen — sonst bliebe ein Zustand ohne Render-Zweig.
+- **Das Fristen-Band der Detailseite** stand vor dem Aufklapp-Rumpf und war damit
+  die einzige Fläche, die man nicht zuklappen konnte. Dieselben Zahlen stehen in
+  der Frist-Spalte, in der Kopfkarte des Ausklapps und im Block „Wie die
+  Bearbeitungsfrist zustande kommt".
+- Mit beiden fielen `StatusTimeline`, `baueLanes`/`clustere`,
+  `aufzeichnungsGrenze` und das ganze `fristen-band/`-Verzeichnis; die
+  Ereignis-Events lädt `useStatusVerlauf` nicht mehr. `eventProminenz` bleibt —
+  das Home-Widget liest es.

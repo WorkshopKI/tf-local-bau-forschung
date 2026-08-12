@@ -183,7 +183,7 @@ function baueAchse(grenzen: readonly number[], vorgabeBreite: number): Achse {
   // Bahn). Ein Ringschluss, den `vorgabeBreite` als feste Bezugsgröße bricht.
   const boden = bodenFuer(dauern.length, vorgabeBreite);
   // Die Bahn darf breiter werden als ihr Container: lieber scrollen als
-  // Abschnitte unter die Klickgrenze drücken (Muster von `StatusTimeline`).
+  // Abschnitte unter die Klickgrenze drücken.
   const breite = Math.max(vorgabeBreite, dauern.length * boden);
   const px = verteile(dauern, breite, boden);
 

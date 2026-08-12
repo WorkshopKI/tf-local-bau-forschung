@@ -30,7 +30,7 @@
  */
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import type { FeldVorkommen, MappingVersion } from '@/core/status';
+import type { FeldVorkommen, MappingVersion, OffenesPaarJeTv } from '@/core/status';
 import { StatusChronik } from '../../status/StatusChronik';
 import { VorgangsRaster } from './VorgangsRaster';
 import { OhneDatumBlock } from './OhneDatumBlock';
@@ -45,6 +45,8 @@ export interface VorgangsverlaufReiterProps {
   vorkommen: readonly FeldVorkommen[];
   /** `null` = keine Fassung geladen; dann bleiben Chronik und Wertblock weg. */
   version: MappingVersion | null;
+  /** Halb offene Kürzel-Paare der Teilvorhaben DIESER Zeile — fertig gerechnet. */
+  offenePaare?: readonly OffenesPaarJeTv[];
 }
 
 const EYEBROW = 'uppercase tracking-wider text-[11px] text-[var(--tf-text-tertiary)]';
@@ -97,7 +99,7 @@ function KlappAbschnitt({ titel, hinweis, children }: {
 }
 
 export function VorgangsverlaufReiter({
-  modell, onZeitverlauf, vorkommen, version,
+  modell, onZeitverlauf, vorkommen, version, offenePaare = [],
 }: VorgangsverlaufReiterProps): React.ReactElement {
   const [zeigeNebensaechlich, setZeigeNebensaechlich] = useState(false);
   const ohneDatum = useMemo(() => baueOhneDatum(vorkommen), [vorkommen]);
@@ -111,6 +113,7 @@ export function VorgangsverlaufReiter({
             version={version}
             zeigeNebensaechlich={zeigeNebensaechlich}
             onToggleNebensaechlich={() => setZeigeNebensaechlich(v => !v)}
+            offenePaare={offenePaare}
           />
         </Abschnitt>
       )}

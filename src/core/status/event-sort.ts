@@ -1,5 +1,9 @@
 /**
- * Reine Sortier-/Grenz-Logik der Status-Historie (Timeline-Grundlage, Phase 5).
+ * Reine Sortier-Logik der Status-Historie.
+ *
+ * Bis v3.48 stand hier auch `aufzeichnungsGrenze` („ab hier lückenlose
+ * Aufzeichnung"). Sie beschriftete allein die waagerechte Zeitstrahl-Ansicht;
+ * mit deren Wegfall blieb kein Leser übrig.
  */
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import type { StatusEvent } from './event-typen';
@@ -27,16 +31,4 @@ export function sortiereEvents(events: readonly StatusEvent[]): StatusEvent[] {
     if (e !== 0) return e;
     return a.id.localeCompare(b.id);
   });
-}
-
-/**
- * „Ab hier lückenlose Aufzeichnung" — frühestes `erfasstAm` mit `quelle: 'import'`
- * (das echte Änderungs-Tracking begann dort). Fallback: frühestes `erfasstAm`
- * überhaupt (nur Initial-Seed vorhanden). `null` bei leerer Liste.
- */
-export function aufzeichnungsGrenze(events: readonly StatusEvent[]): string | null {
-  if (events.length === 0) return null;
-  const importEvents = events.filter(e => e.quelle === 'import');
-  const pool = importEvents.length > 0 ? importEvents : events;
-  return pool.reduce((min, e) => (e.erfasstAm < min ? e.erfasstAm : min), pool[0]!.erfasstAm);
 }

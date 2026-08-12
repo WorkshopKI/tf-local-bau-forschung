@@ -217,6 +217,40 @@ export function findeOffenePaare(
   return offen.sort((a, b) => b.tage - a.tage);
 }
 
+/** Ein halb offenes Paar samt dem Teilvorhaben, dem die Lücke gehört. */
+export interface OffenesPaarJeTv extends OffenesPaar {
+  /** Aktenzeichen des Teilvorhabens. */
+  tvId: string;
+}
+
+/**
+ * Die halb offenen Paare **je Teilvorhaben** statt über den ganzen Verbund.
+ *
+ * **Warum das nicht dasselbe ist.** Wer die Vorkommen aller Teilvorhaben
+ * zusammenwirft — was für Chronik und Ordner-Ansicht richtig ist, weil es dort
+ * um den Verbund geht —, sieht ein Kürzel als gesetzt, sobald **irgendein**
+ * Teilvorhaben es trägt. Hat TV-A `AK4` und TV-B `AT4`, gilt beides als da und
+ * die Suche meldet **nichts**, obwohl jedes der beiden für sich eine offene
+ * Seite hat. Dieselbe Grenze, an der schon `OffeneAufgaben` und die FB-Erhebung
+ * haltmachen: die Kürzel stehen in TV-Spalten, also wird je TV geurteilt.
+ *
+ * Sortiert wie {@link findeOffenePaare}, nur über alle Teilvorhaben hinweg: das
+ * längst offene zuerst. `Array.sort` ist stabil, bei gleicher Standzeit bleibt
+ * es deshalb bei der Eingabereihenfolge (Teilvorhaben, dann `KUERZEL_PAARE`).
+ *
+ * Rein — `stichtag` kommt vom Aufrufer, hier tickt keine Uhr.
+ */
+export function offenePaareJeTeilvorhaben(
+  version: MappingVersion,
+  jeTeilvorhaben: readonly { aktenzeichen: string; vorkommen: readonly FeldVorkommen[] }[],
+  stichtag: string,
+): OffenesPaarJeTv[] {
+  return jeTeilvorhaben
+    .flatMap(tv => findeOffenePaare(version, tv.vorkommen, stichtag)
+      .map(p => ({ ...p, tvId: tv.aktenzeichen })))
+    .sort((a, b) => b.tage - a.tage);
+}
+
 /** Das älteste halb offene Paar — es liegt am längsten quer. */
 function findePaar(e: WaechterEingabe): OffenesPaar | null {
   return findeOffenePaare(e.version, e.vorkommen, e.stichtag)[0] ?? null;

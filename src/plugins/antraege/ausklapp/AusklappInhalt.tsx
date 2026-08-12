@@ -13,7 +13,7 @@
  */
 import { useMemo } from 'react';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
-import type { WaechterErgebnis } from '@/core/status/waechter';
+import { offenePaareJeTeilvorhaben, type WaechterErgebnis } from '@/core/status';
 import { KopfAktionen } from './kopfkarte/KopfAktionen';
 import { KopfKarte } from './kopfkarte/KopfKarte';
 import { baueKopfModell } from './kopfkarte/kopfkarteModell';
@@ -85,6 +85,15 @@ export function AusklappInhalt({
       : baueVorgangsverlauf({ bezug: daten.frist, zieltage, waechter })),
     [daten.frist, zieltage, waechter],
   );
+  // Die halb offenen Kürzel-Paare der Chronik — über `daten.jeTeilvorhaben`,
+  // also genau die Teilvorhaben, die DIESE Zeile trägt. Über `daten.vorkommen`
+  // gerechnet zeigte eine Verbundzeile zu wenig und eine TV-Zeile Fremdes.
+  const offenePaare = useMemo(
+    () => (daten.quelle.version === null
+      ? []
+      : offenePaareJeTeilvorhaben(daten.quelle.version, daten.jeTeilvorhaben, stichtag)),
+    [daten.quelle.version, daten.jeTeilvorhaben, stichtag],
+  );
 
   const aktiv: ReiterId = zeitverlaufAn ? reiter : 'vorgangsverlauf';
   const fassung = daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`;
@@ -142,6 +151,7 @@ export function AusklappInhalt({
             onZeitverlauf={zeitverlaufAn ? () => onReiter('zeitverlauf') : null}
             vorkommen={daten.vorkommen}
             version={daten.quelle.version}
+            offenePaare={offenePaare}
           />
         </div>
       ) : (

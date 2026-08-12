@@ -1,26 +1,28 @@
 /**
- * Anzeige-Präferenzen der Status-Timeline — pro Gerät in IndexedDB (kv-Key),
- * NIE localStorage, NIE Share. Toggles, Zeitraum-Preset, eingeklappte TV-Lanes.
+ * Anzeige-Präferenzen der Verlaufs-Sichten — pro Gerät in IndexedDB (kv-Key),
+ * NIE localStorage, NIE Share.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 
-export type ZeitraumPreset = 'gesamt' | '12m' | '90t';
-
 /**
- * Welche Verlaufs-Ansicht offen ist — Chronik (senkrecht), Lanes (waagerecht,
- * aus dem Ereignis-Protokoll) oder das abgeleitete Band (waagerecht, aus den
- * Datumsspalten). Der Standard bleibt `chronik`: sie steht in jedem Import zur
- * Verfügung, und ein geänderter Default verwirft keine gespeicherte Wahl —
- * er überschreibt sie nur für die, die noch keine haben.
+ * Welche Verlaufs-Ansicht offen ist — die Chronik (senkrecht, Liste) oder das
+ * Band (waagerecht, Bahn). Beide lesen dieselben Termine aus den Datumsspalten.
+ *
+ * Der Standard bleibt `chronik`: ein geänderter Default verwirft keine
+ * gespeicherte Wahl, er überschreibt sie nur für die, die noch keine haben.
+ *
+ * **`zeitstrahl` ist mit v3.48 entfallen** — es war die Sicht auf das
+ * gerätelokale Ereignis-Protokoll und blieb leer, solange diese Installation
+ * noch keine Änderung mitgeschrieben hatte. Der NAME ist auf das Band übergegangen
+ * (der Reiter heißt jetzt „Zeitstrahl"), der WERT nicht: `normalisiere` lässt
+ * jede gespeicherte `zeitstrahl`-Wahl auf die Chronik zurückfallen, statt einen
+ * Zustand ohne Render-Zweig zu hinterlassen.
  */
-export type VerlaufAnsicht = 'chronik' | 'zeitstrahl' | 'band';
+export type VerlaufAnsicht = 'chronik' | 'band';
 
 export interface TimelinePrefs {
   zeigeNebensaechlich: boolean;
-  preset: ZeitraumPreset;
-  /** TV-IDs, deren Lane eingeklappt ist. */
-  eingeklappt: string[];
   ansicht: VerlaufAnsicht;
 }
 
@@ -28,10 +30,6 @@ const KEY = 'status-timeline-prefs';
 
 export const DEFAULT_PREFS: TimelinePrefs = {
   zeigeNebensaechlich: false,
-  preset: 'gesamt',
-  eingeklappt: [],
-  // Chronik als Standard: sie steht in jedem Import zur Verfügung, während der
-  // Zeitstrahl das gerätelokale Ereignis-Protokoll braucht.
   ansicht: 'chronik',
 };
 
@@ -39,17 +37,13 @@ function normalisiere(roh: unknown): TimelinePrefs {
   const p = (roh ?? {}) as Partial<TimelinePrefs>;
   return {
     zeigeNebensaechlich: p.zeigeNebensaechlich === true,
-    preset: p.preset === '12m' || p.preset === '90t' ? p.preset : 'gesamt',
-    eingeklappt: Array.isArray(p.eingeklappt) ? p.eingeklappt.filter(x => typeof x === 'string') : [],
-    ansicht: p.ansicht === 'zeitstrahl' || p.ansicht === 'band' ? p.ansicht : 'chronik',
+    ansicht: p.ansicht === 'band' ? 'band' : 'chronik',
   };
 }
 
 export interface UseTimelinePrefs {
   prefs: TimelinePrefs;
   setNebensaechlich: (v: boolean) => void;
-  setPreset: (p: ZeitraumPreset) => void;
-  toggleLane: (tvId: string) => void;
   setAnsicht: (a: VerlaufAnsicht) => void;
 }
 
@@ -75,13 +69,6 @@ export function useTimelinePrefs(): UseTimelinePrefs {
   return {
     prefs,
     setNebensaechlich: v => mutiere({ ...prefs, zeigeNebensaechlich: v }),
-    setPreset: p => mutiere({ ...prefs, preset: p }),
-    toggleLane: tvId => mutiere({
-      ...prefs,
-      eingeklappt: prefs.eingeklappt.includes(tvId)
-        ? prefs.eingeklappt.filter(x => x !== tvId)
-        : [...prefs.eingeklappt, tvId],
-    }),
     setAnsicht: a => mutiere({ ...prefs, ansicht: a }),
   };
 }

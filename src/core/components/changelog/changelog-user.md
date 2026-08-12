@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.48 — 2026-08
+
+### Neu
+- Die **Chronik** eines Vorgangs sagt jetzt, **wer** einen Eintrag gesetzt hat: hinter dem Datum steht AB, FB, QS, PA oder Jur. Einträge, die jeder setzen darf, bleiben leer.
+- Wer unter **Einstellungen → Profil** seine Rolle hinterlegt, erkennt die **eigenen** Einträge an einer farbigen Kante — hervorgehoben, nicht gefiltert: was der Partner gesetzt hat, bleibt sichtbar.
+- **Fehlende Gegenstücke** stehen jetzt in der Chronik: Ist das Gutachten technisch fertig, das kaufmännische aber nicht, steht direkt darunter „Gutachten kaufmännisch fertig · fehlt seit 159 T" mit Rolle und Aktenzeichen. Betrifft die neun Paare, die es im Fachsystem doppelt gibt (Gutachten, Nachforderungs-Brief, Ablehnung …).
+
+### Verbesserungen
+- Auf der Antragsseite gibt es unter „Status & Verlauf" statt drei nur noch **zwei Sichten**: **Chronik** (die Liste) und **Zeitstrahl** (die Bahn, bisher „Band"). Die alte Zeitstrahl-Ansicht zeigte ein Protokoll, das auf den meisten Rechnern leer blieb.
+- Der Block mit der **Fristherleitung** steht nicht mehr dauerhaft aufgeklappt über der Seite. Dieselben Angaben stehen weiterhin in der Frist-Spalte, in der Karte des aufgeklappten Bereichs und unter „Wie die Bearbeitungsfrist zustande kommt".
+
 ## v3.47 — 2026-08
 
 ### Verbesserungen
