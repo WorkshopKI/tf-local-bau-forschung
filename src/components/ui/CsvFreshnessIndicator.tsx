@@ -195,10 +195,15 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
     if (!handle) throw new Error('Datenordner nicht verbunden.');
     const r = await runDataUpdate(storage.idb, handle, { forceRecheck: true });
     const imported = r.csvReport?.processed.filter(p => !p.skipped).length ?? 0;
+    const blockiert = r.csvReport?.drift.length ?? 0;
     if (mountedRef.current) {
-      setImportMsg(imported > 0
-        ? `Erzwungen: ${imported} CSV-Quelle(n) re-importiert`
-        : 'Erzwungen geprüft — keine inhaltlichen Änderungen gefunden.');
+      // „Keine Änderungen gefunden" wäre gelogen, wenn Quellen an der
+      // Spalten-Drift hängen geblieben sind — das sind gerade die Fälle, in
+      // denen jemand hier nachsieht.
+      const teile: string[] = [];
+      if (imported > 0) teile.push(`Erzwungen: ${imported} CSV-Quelle(n) re-importiert`);
+      if (blockiert > 0) teile.push(`${blockiert} Quelle(n) mit Spalten-Drift übersprungen — Details im Banner`);
+      setImportMsg(teile.length > 0 ? teile.join(' · ') : 'Erzwungen geprüft — keine inhaltlichen Änderungen gefunden.');
     }
     bumpCsvSourcesSignal();
   });

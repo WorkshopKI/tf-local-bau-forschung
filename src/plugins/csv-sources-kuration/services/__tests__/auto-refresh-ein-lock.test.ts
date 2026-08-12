@@ -13,6 +13,10 @@
  * Acquire für N Quellen, und ein hinterlassener EIGENER Lock hält den Lauf nicht
  * mehr auf. Die Besitz-Entscheider laufen dabei ECHT (`importOriginal`), nur die
  * SMB-/IDB-Seite ist gefälscht.
+ *
+ * Dazu (v3.47.0) die zweite Ausstiegsluke desselben Laufs: `driftAkzeptiertFuer`
+ * — „Trotzdem importieren" gilt pro Quelle, hebt die Blockade durch fehlende
+ * Spalten auf und benennt im Bericht, was übergangen wurde.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { BuildLock } from '@/core/services/infrastructure/types';
@@ -82,6 +86,13 @@ const csv = vi.hoisted(() => ({
   importFehlerFuer: null as string | null,
   saveSchemaCalls: [] as string[],
   snapshotCalls: [] as string[],
+  /** Header, den `parseCsvPreview` MIT erzwungenem Encoding meldet (= Schema-Sicht). */
+  headers: ['AZ', 'STATUS'] as string[],
+  /** Header/Encoding der AUTO-Erkennung (ohne erzwungenes Encoding). */
+  autoHeaders: null as string[] | null,
+  autoEncoding: null as string | null,
+  /** Jedes `saveSchema` mit dem geschriebenen Encoding — fuer die Heilungs-Pruefung. */
+  saveSchemaEncodings: [] as (string | undefined)[],
 }));
 
 vi.mock('@/core/services/csv', () => ({
@@ -100,8 +111,21 @@ vi.mock('@/core/services/csv', () => ({
     };
   },
   loadSchema: async (_idb: unknown, schemaId: string) => machSchema(schemaId),
-  saveSchema: async (_idb: unknown, schema: CsvSchema) => { csv.saveSchemaCalls.push(schema.id); },
-  parseCsvPreview: async () => ({ headers: ['AZ'], rows: [] }),
+  saveSchema: async (_idb: unknown, schema: CsvSchema) => {
+    csv.saveSchemaCalls.push(schema.id);
+    csv.saveSchemaEncodings.push(schema.encoding);
+  },
+  // Mit erzwungenem Encoding = die (moeglicherweise falsche) Schema-Sicht,
+  // ohne = die Auto-Erkennung. Genau diese Zweiteilung nutzt die Heilung.
+  parseCsvPreview: async (_file: unknown, _n: number, opts?: { encoding?: string }) => (
+    opts?.encoding
+      ? { headers: csv.headers, encoding: opts.encoding, rows: [] }
+      : {
+          headers: csv.autoHeaders ?? csv.headers,
+          encoding: csv.autoEncoding ?? opts?.encoding ?? 'UTF-8',
+          rows: [],
+        }
+  ),
   listSchemas: async () => [],
   listProgramme: async () => [],
 }));
@@ -163,7 +187,7 @@ function machSchema(id: string): CsvSchema {
     is_master: false,
     join_key: 'aktenzeichen',
     priority: 50,
-    column_mapping: { AZ: { canonical: 'aktenzeichen' } },
+    column_mapping: { AZ: { canonical: 'aktenzeichen' }, STATUS: { canonical: 'status' } },
     encoding: 'UTF-8',
     separator: ';',
     created_at: '2026-06-03T00:00:00.000Z',
@@ -214,6 +238,10 @@ beforeEach(() => {
   csv.importFehlerFuer = null;
   csv.saveSchemaCalls.length = 0;
   csv.snapshotCalls.length = 0;
+  csv.headers = ['AZ', 'STATUS'];
+  csv.autoHeaders = null;
+  csv.autoEncoding = null;
+  csv.saveSchemaEncodings.length = 0;
 });
 
 describe('runAutoRefresh — ein Lock je Lauf', () => {
@@ -277,6 +305,99 @@ describe('runAutoRefresh — ein Lock je Lauf', () => {
     expect(h.forceCalls).toBe(1);
     expect(h.acquireCalls).toBe(0);
     expect(report.processed).toHaveLength(2);
+  });
+
+  it('Encoding-Wechsel des Exports wird geheilt statt gemeldet', async () => {
+    // Schema sagt UTF-8, der Export liegt jetzt in windows-1252: unter der
+    // Schema-Sicht fehlt STATUS und STATUÖ ist „neu" — dieselbe Spalte zweimal.
+    csv.headers = ['AZ', 'STATUÖ'];
+    csv.autoHeaders = ['AZ', 'STATUS'];
+    csv.autoEncoding = 'windows-1252';
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, { kuratorName: h.eigenerName });
+
+    expect(report.drift).toHaveLength(0);
+    expect(report.processed).toHaveLength(2);
+    for (const p of report.processed) {
+      expect(p.korrigiertesEncoding).toBe('windows-1252');
+      // Nichts adoptiert, nichts uebergangen — nach der Heilung gibt es keine Drift.
+      expect(p.autoAdoptedColumns).toBeUndefined();
+      expect(p.uebergangeneSpalten).toBeUndefined();
+    }
+    // Das korrigierte Encoding steht VOR dem Import im Schema, damit
+    // `importCsvSource` es ueber `loadSchema` selbst aufgreift.
+    expect(csv.saveSchemaEncodings).toContain('windows-1252');
+  });
+
+  it('Heilung nur, wenn danach KEINE Spalte mehr fehlt', async () => {
+    csv.headers = ['AZ'];              // STATUS fehlt
+    csv.autoHeaders = ['AZ'];          // … auch nach der Auto-Erkennung
+    csv.autoEncoding = 'windows-1252';
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, { kuratorName: h.eigenerName });
+
+    expect(report.processed).toHaveLength(0);
+    expect(report.drift).toHaveLength(2);
+    expect(csv.saveSchemaEncodings).not.toContain('windows-1252');
+  });
+
+  it('fehlende Spalte ohne Zustimmung: blockiert wie bisher, nichts wird importiert', async () => {
+    csv.headers = ['AZ']; // STATUS ist aus dem Export verschwunden
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, { kuratorName: h.eigenerName });
+
+    expect(report.drift.map(d => d.schemaId)).toEqual(['7737-bgl', '9097-anb']);
+    expect(report.processed).toHaveLength(0);
+    expect(csv.importCalls).toHaveLength(0);
+    // Der Lock haengt am LAUF, nicht am Import: er wird auch dann sauber
+    // genommen und freigegeben, wenn keine Quelle durchkommt.
+    expect(h.acquireCalls).toBe(1);
+    expect(h.releaseCalls).toBe(1);
+  });
+
+  it('„Trotzdem importieren" gilt genau der genannten Quelle', async () => {
+    csv.headers = ['AZ'];
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, {
+      kuratorName: h.eigenerName,
+      driftAkzeptiertFuer: ['7737-bgl'],
+    });
+
+    // Die abgenickte Quelle laeuft durch und traegt die uebergangenen Spalten mit …
+    expect(csv.importCalls.map(c => c.schemaId)).toEqual(['7737-bgl']);
+    expect(report.processed).toHaveLength(1);
+    expect(report.processed[0]?.uebergangeneSpalten).toEqual(['STATUS']);
+    // … die andere bleibt blockiert. Die Zustimmung ist pro Quelle, nicht global.
+    expect(report.drift.map(d => d.schemaId)).toEqual(['9097-anb']);
+  });
+
+  it('Zustimmung deckt fehlende und neue Spalten in EINEM Lauf ab', async () => {
+    csv.headers = ['AZ', 'NEU']; // STATUS weg, NEU dazu
+
+    const report = await runAutoRefresh(idb, KANDIDATEN, {
+      kuratorName: h.eigenerName,
+      driftAkzeptiertFuer: ['7737-bgl', '9097-anb'],
+    });
+
+    expect(report.drift).toHaveLength(0);
+    expect(report.processed).toHaveLength(2);
+    for (const p of report.processed) {
+      expect(p.uebergangeneSpalten).toEqual(['STATUS']);
+      expect(p.autoAdoptedColumns).toEqual(['NEU']);
+    }
+  });
+
+  it('ohne Drift bleibt der Bericht schweigsam — keine Phantom-Meldung', async () => {
+    const report = await runAutoRefresh(idb, KANDIDATEN, {
+      kuratorName: h.eigenerName,
+      driftAkzeptiertFuer: ['7737-bgl', '9097-anb'],
+    });
+
+    expect(report.processed).toHaveLength(2);
+    for (const p of report.processed) {
+      expect(p.uebergangeneSpalten).toBeUndefined();
+      expect(p.autoAdoptedColumns).toBeUndefined();
+    }
   });
 
   it('eine kaputte Quelle stoppt den Lauf nicht mehr', async () => {

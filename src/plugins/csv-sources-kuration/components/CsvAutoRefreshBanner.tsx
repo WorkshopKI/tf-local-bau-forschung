@@ -78,6 +78,16 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
 
   const hasReport = state.report !== null;
   const reportHasDrift = (state.report?.drift.length ?? 0) > 0;
+  // Nach einem „Trotzdem importieren"-Lauf gibt es keine Drift mehr, aber sehr
+  // wohl etwas zu berichten: welche Spalten übergangen wurden. Sonst verschwände
+  // genau diese Information mit dem Erfolgs-Banner.
+  const reportHatUebergangene = (state.report?.processed ?? []).some(
+    p => (p.uebergangeneSpalten?.length ?? 0) > 0,
+  );
+  // Dasselbe für eine automatisch korrigierte Encoding-Drift: der Import lief
+  // durch, aber das Schema wurde dabei geändert — das gehört gesagt.
+  const reportHatEncodingKorrektur = (state.report?.processed ?? []).some(p => p.korrigiertesEncoding);
+  const reportZeigenswert = reportHasDrift || reportHatUebergangene || reportHatEncodingKorrektur;
   // Wortlaut kommt aus der reinen `beschreibeLockKonflikt` — der Banner nennt
   // nie den eigenen Namen als Fremd-Blockierer (v3.46.1).
   const lockAnzeige = state.lockConflict ? beschreibeLockKonflikt(state.lockConflict) : null;
@@ -85,10 +95,10 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
     state.candidates.length +
     (showLinkPicker ? state.unlinked.length + state.permissionNeeded.length : state.permissionNeeded.length);
 
-  // Drift-Dialog automatisch oeffnen, sobald Report mit Drift da ist.
+  // Drift-Dialog automatisch oeffnen, sobald ein berichtenswerter Report da ist.
   useEffect(() => {
-    if (hasReport && reportHasDrift) setDriftDialogOpen(true);
-  }, [hasReport, reportHasDrift]);
+    if (hasReport && reportZeigenswert) setDriftDialogOpen(true);
+  }, [hasReport, reportZeigenswert]);
 
   // Banner ausblenden, wenn nichts zu tun und kein Report/Dialog aktiv.
   if (state.dismissed && !state.refreshing && !state.lockConflict && !linkDialogOpen) return null;
@@ -147,6 +157,9 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
             <CheckCircle2 size={13} className="shrink-0" style={{ color: '#15803d' }} />
             {state.report!.processed.length} Quelle{state.report!.processed.length === 1 ? '' : 'n'} aktualisiert
             {reportHasDrift ? ` — ${state.report!.drift.length} brauchen deine Aufmerksamkeit` : ''}
+            {!reportHasDrift && reportHatUebergangene ? ' — mit übergangenen Spalten' : ''}
+            {!reportHasDrift && !reportHatUebergangene && reportHatEncodingKorrektur
+              ? ' — Encoding korrigiert' : ''}
             {state.report!.errors.length > 0 ? ` — ${state.report!.errors.length} Fehler` : ''}.
           </span>
         ) : (
@@ -204,7 +217,7 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
           </button>
         ) : null}
 
-        {hasReport && reportHasDrift ? (
+        {hasReport && reportZeigenswert ? (
           <button
             type="button"
             onClick={() => setDriftDialogOpen(true)}
@@ -259,6 +272,10 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
             state.clearReport();
           }}
           onOpenWizard={canNavigateToKuration ? openCsvSources : undefined}
+          onTrotzdemImportieren={ids => {
+            setDriftDialogOpen(false);
+            void state.runRefreshTrotzDrift(ids);
+          }}
         />
       ) : null}
 

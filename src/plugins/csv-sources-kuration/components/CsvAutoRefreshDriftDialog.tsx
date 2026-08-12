@@ -2,11 +2,16 @@
  * Drift-Sammelbericht nach Auto-Refresh-Lauf.
  *
  * Zeigt pro Quelle mit Spalten-Drift: welche Schema-Spalten fehlen in der
- * neuen CSV, welche neuen Spalten gibt es. Der Kurator wird auf die
- * CSV-Sources-Seite verwiesen, um dort den Re-Import-Dialog zu nutzen
- * (dort kann er die volle Drift-Analyse einsehen und entscheiden, ob
- * er die Datei trotzdem mit den alten Mappings importiert oder ein
- * neues Schema registriert).
+ * neuen CSV, welche neuen Spalten gibt es. Zwei Auswege stehen nebeneinander:
+ *
+ *  - **„Trotzdem importieren"** faehrt die Quelle mit den bisherigen Mappings —
+ *    dieselbe Entscheidung, die der Kurator im Re-Import-Dialog schon hat, hier
+ *    aber ohne Umweg. Die fehlenden Spalten werden dabei NICHT geheilt: der
+ *    Merge baut jeden Antrag komplett neu auf, die betroffenen Felder werden
+ *    also geleert, soweit keine andere Quelle sie traegt. Darum steht die
+ *    Spaltenliste daneben und die Zustimmung gilt nur fuer diesen Lauf.
+ *  - **„In CSV-Sources pruefen"** (nur Kurator) fuer die eigentliche Loesung:
+ *    Mapping anpassen oder Schema neu registrieren.
  */
 
 import { AlertTriangle, FileText, ChevronRight } from 'lucide-react';
@@ -19,15 +24,34 @@ interface Props {
   onClose: () => void;
   /** Navigation in die CSV-Sources-Seite (dort kann der Kurator den Re-Import ausloesen). */
   onOpenWizard?: () => void;
+  /**
+   * Zweiter Anlauf fuer die genannten Quellen — der Nutzer nimmt die fehlenden
+   * Spalten bewusst in Kauf. Fehlt der Handler, bleibt nur der Kurations-Weg.
+   */
+  onTrotzdemImportieren?: (schemaIds: string[]) => void;
 }
 
-export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Props): React.ReactElement {
+export function CsvAutoRefreshDriftDialog({
+  report,
+  onClose,
+  onOpenWizard,
+  onTrotzdemImportieren,
+}: Props): React.ReactElement {
   const totalProcessed = report.processed.length;
   const totalDrift = report.drift.length;
   const totalErrors = report.errors.length;
   // Quellen, bei denen der Auto-Refresh reine Zusatzspalten headless als
   // „ignoriert" übernommen hat (nicht-blockierend — sie stehen in `processed`).
   const autoAdopted = report.processed.filter(p => (p.autoAdoptedColumns?.length ?? 0) > 0);
+  // Quellen, die in einem vorherigen Anlauf abgenickt wurden und jetzt drin sind.
+  const uebergangen = report.processed.filter(p => (p.uebergangeneSpalten?.length ?? 0) > 0);
+  // Quellen, deren Drift nur ein Encoding-Wechsel war — automatisch korrigiert.
+  const encodingKorrigiert = report.processed.filter(p => p.korrigiertesEncoding);
+
+  // Bewusst NICHT `onClose()`: das verwirft den Report und blendet den Banner aus
+  // („dismissed"), sodass das Ergebnis des Nachlaufs niemand mehr saehe. Der
+  // Aufrufer schliesst nur den Dialog und startet den Lauf.
+  const trotzdem = (schemaIds: string[]): void => onTrotzdemImportieren?.(schemaIds);
 
   return (
     <Dialog
@@ -67,6 +91,38 @@ export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Pro
           </div>
         ) : null}
 
+        {encodingKorrigiert.length > 0 ? (
+          <div className="rounded-md border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] p-3 text-[11.5px] text-[var(--tf-text-secondary)]">
+            <div className="space-y-0.5">
+              {encodingKorrigiert.map(p => (
+                <div key={p.schemaId}>
+                  <span className="font-medium text-[var(--tf-text)]">{p.schemaName}</span>: Der
+                  Export hat sein Encoding gewechselt — Schema auf{' '}
+                  <span className="font-medium text-[var(--tf-text)]">{p.korrigiertesEncoding}</span>{' '}
+                  korrigiert und normal importiert. Ohne die Korrektur wären alle Umlaute
+                  verstümmelt worden.
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {uebergangen.length > 0 ? (
+          <div className="rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-3 text-[11.5px] text-amber-900">
+            <div className="space-y-0.5">
+              {uebergangen.map(p => (
+                <div key={p.schemaId}>
+                  <span className="font-medium">{p.schemaName}</span>: trotz{' '}
+                  {p.uebergangeneSpalten!.length} fehlender Spalte
+                  {p.uebergangeneSpalten!.length === 1 ? '' : 'n'} importiert — diese Felder sind
+                  jetzt leer, soweit keine andere Quelle sie liefert. Dauerhafte Lösung: das
+                  Mapping in „Kuration → CSV-Sources" anpassen.
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {totalDrift > 0 ? (
           <div className="rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-3">
             <div className="flex items-start gap-2 mb-2">
@@ -88,26 +144,65 @@ export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Pro
                     </div>
                     <div className="text-[11px] text-[var(--tf-text-tertiary)] mt-0.5">
                       {d.validation.missingFromCsv.length > 0
-                        ? `${d.validation.missingFromCsv.length} Schema-Spalte${d.validation.missingFromCsv.length === 1 ? '' : 'n'} fehlt`
+                        ? `${d.validation.missingFromCsv.length} Schema-Spalte${d.validation.missingFromCsv.length === 1 ? ' fehlt' : 'n fehlen'}`
                         : null}
                       {d.validation.missingFromCsv.length > 0 && d.validation.newColumns.length > 0 ? ' · ' : ''}
                       {d.validation.newColumns.length > 0
                         ? `${d.validation.newColumns.length} neue Spalte${d.validation.newColumns.length === 1 ? '' : 'n'} in CSV`
                         : null}
                     </div>
+                    {/* Namen statt nur Zahlen: ohne sie ist „Trotzdem importieren"
+                        eine Blind-Zustimmung. */}
+                    {d.validation.missingFromCsv.length > 0 ? (
+                      <div className="mt-1 max-h-[64px] overflow-y-auto text-[10.5px] font-mono leading-snug text-amber-900">
+                        {d.validation.missingFromCsv.join(', ')}
+                      </div>
+                    ) : null}
                   </div>
-                  {onOpenWizard ? (
-                    <button
-                      type="button"
-                      onClick={onOpenWizard}
-                      className="shrink-0 inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-primary)] hover:underline cursor-pointer"
-                    >
-                      In CSV-Sources prüfen <ChevronRight size={12} />
-                    </button>
-                  ) : null}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {onTrotzdemImportieren ? (
+                      <button
+                        type="button"
+                        onClick={() => trotzdem([d.schemaId])}
+                        className="inline-flex items-center rounded border-[0.5px] border-amber-300 bg-white px-2 py-1 text-[11.5px] text-amber-900 hover:bg-amber-100 cursor-pointer"
+                      >
+                        Trotzdem importieren
+                      </button>
+                    ) : null}
+                    {onOpenWizard ? (
+                      <button
+                        type="button"
+                        onClick={onOpenWizard}
+                        className="inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-primary)] hover:underline cursor-pointer"
+                      >
+                        In CSV-Sources prüfen <ChevronRight size={12} />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               ))}
             </div>
+
+            {onTrotzdemImportieren ? (
+              <div className="ml-6 mt-2 rounded border-[0.5px] border-amber-200 bg-white px-2.5 py-2">
+                <div className="text-[11px] text-amber-900">
+                  <strong>Trotzdem importieren</strong> übernimmt die Datei mit den bisherigen
+                  Zuordnungen. Die fehlenden Spalten liefert der Export nicht mehr — die davon
+                  abhängigen Felder werden bei den betroffenen Anträgen <strong>geleert</strong>,
+                  soweit keine andere Quelle sie mitliefert. Die Zustimmung gilt nur für diesen
+                  Lauf und wird protokolliert.
+                </div>
+                {totalDrift > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => trotzdem(report.drift.map(d => d.schemaId))}
+                    className="mt-1.5 inline-flex items-center rounded border-[0.5px] border-amber-300 bg-white px-2 py-1 text-[11.5px] text-amber-900 hover:bg-amber-100 cursor-pointer"
+                  >
+                    Alle {totalDrift} trotzdem importieren
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {onOpenWizard ? (
               <div className="ml-6 mt-2 text-[11px] text-amber-900">
                 Öffne „Kuration → CSV-Sources" und nutze pro Quelle den Button „CSV Daten aktualisieren"
@@ -142,7 +237,8 @@ export function CsvAutoRefreshDriftDialog({ report, onClose, onOpenWizard }: Pro
           </div>
         ) : null}
 
-        {totalDrift === 0 && totalErrors === 0 && totalProcessed > 0 ? (
+        {totalDrift === 0 && totalErrors === 0 && uebergangen.length === 0
+          && encodingKorrigiert.length === 0 && totalProcessed > 0 ? (
           <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             Alle Quellen wurden ohne Probleme aktualisiert. Bestehende Mappings sind unverändert.
           </div>

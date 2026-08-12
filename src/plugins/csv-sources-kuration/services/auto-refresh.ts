@@ -7,7 +7,12 @@
  *
  * Ablauf pro Quelle (sequenziell):
  *   1. Datei via gespeichertem File-Handle laden (kein User-Picker).
- *   2. Header gegen Schema validieren — bei Drift: skip, sammeln, weiter.
+ *   2. Header gegen Schema validieren. Bei Drift zuerst pruefen, ob sie nur ein
+ *      ENCODING-Wechsel des Exports ist (`encodingHeilungTraegt`) — dann Schema
+ *      korrigieren und normal weiter. Sonst entscheidet `entscheideDrift`:
+ *      Zusatzspalten headless adoptieren, fehlende Spalten sammeln und die
+ *      Quelle überspringen (oder importieren, wenn sie in
+ *      `driftAkzeptiertFuer` steht).
  *   3. `importCsvSource()` aufrufen (Merge, Phase-2-Rematch; der Snapshot-Write
  *      ist gebuendelt und laeuft einmal nach der Schleife).
  *   4. `source_last_modified` + `source_file_name` im Schema nachziehen,
@@ -38,7 +43,7 @@ import {
   listSchemas,
   listProgramme,
 } from '@/core/services/csv';
-import type { CsvSchema } from '@/core/services/csv/types';
+import type { CsvEncoding, CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import {
   acquireBuildLock,
@@ -62,7 +67,13 @@ import {
   type UpdateCheckResult,
 } from '../csv-source-handle';
 import { loadSharedCsvFilenames } from '../csv-source-filenames';
-import { validateHeaders, hasDrift, isNewColumnsOnlyDrift, type HeaderValidation } from './csv-drift-check';
+import {
+  validateHeaders,
+  hasDrift,
+  entscheideDrift,
+  encodingHeilungTraegt,
+  type HeaderValidation,
+} from './csv-drift-check';
 import { adoptNewColumnsAsIgnoredMapping } from './new-column-mapping';
 
 export interface RefreshCandidate {
@@ -211,6 +222,19 @@ export interface ProcessedEntry {
    * `report.drift`, das Modal öffnet nicht). Undefiniert, wenn nichts adoptiert.
    */
   autoAdoptedColumns?: string[];
+  /**
+   * Fehlende Schema-Spalten, die der Nutzer für diesen Lauf bewusst übergangen
+   * hat („Trotzdem importieren"). Undefiniert im Normalfall. Diese Felder liefert
+   * die Quelle nicht mehr — der Merge baut jeden Antrag komplett neu auf, sie
+   * werden also geleert, soweit keine andere Quelle dasselbe Feld trägt.
+   */
+  uebergangeneSpalten?: string[];
+  /**
+   * Das Schema-Encoding wurde vor dem Import auf den erkannten Wert korrigiert,
+   * weil die Drift ein Lesefehler war (alle Umlaut-Spalten fehlten und standen
+   * gleichzeitig als „neu" da). Undefiniert im Normalfall.
+   */
+  korrigiertesEncoding?: CsvEncoding;
 }
 
 export interface RefreshReport {
@@ -266,6 +290,19 @@ export interface RunAutoRefreshOptions {
    * Normalfall (`false`) bricht ein Fremd-Lock den Lauf mit `BuildLockBusyError` ab.
    */
   force?: boolean;
+  /**
+   * Schema-Ids, deren FEHLENDE Spalten der Nutzer für diesen Lauf bewusst in
+   * Kauf nimmt (Knopf „Trotzdem importieren" im Drift-Bericht). Ohne diese
+   * Zustimmung bleibt `missingFromCsv > 0` blockierend.
+   *
+   * Bewusst pro Lauf und pro Quelle, NICHT persistiert: der Merge baut jeden
+   * Antrag komplett neu aus allen CSVs auf — eine verschwundene Spalte leert
+   * ihr Feld, soweit keine andere Quelle es trägt. Eine gespeicherte
+   * „immer ignorieren"-Einstellung würde genau diesen Verlust ab dann
+   * unbemerkt wiederholen. Nach dem Import ist die Quelle gestempelt und fällt
+   * aus den Kandidaten; ein NEUER Export mit derselben Lücke fragt wieder.
+   */
+  driftAkzeptiertFuer?: string[];
 }
 
 /**
@@ -351,6 +388,27 @@ async function adoptNewColumnsAsIgnored(
 }
 
 /**
+ * Zieht das erkannte Encoding ins Schema nach. Laedt frisch (nicht
+ * `candidate.schema`) und schreibt VOR dem Import, damit `importCsvSource` es
+ * ueber `loadSchema` selbst aufgreift — kein zweiter Uebergabeweg.
+ */
+async function uebernehmeErkanntesEncoding(
+  idb: IDBStore,
+  schemaId: string,
+  encoding: CsvEncoding,
+  kuratorName: string | undefined,
+): Promise<void> {
+  const fresh = await loadSchema(idb, schemaId);
+  if (!fresh) throw new Error(`Schema ${schemaId} nicht gefunden`);
+  await saveSchema(idb, { ...fresh, encoding });
+  await logAudit(idb, {
+    action: 'csv_schema_encoding_korrigiert',
+    user: kuratorName,
+    details: { schemaId, vorher: fresh.encoding ?? null, nachher: encoding },
+  });
+}
+
+/**
  * Faehrt eine Liste von Refresh-Kandidaten sequenziell ab — unter EINEM
  * Build-Lock fuer den ganzen Lauf (Schleife + gebuendelter Snapshot-Write).
  *
@@ -413,6 +471,8 @@ async function laufeKandidatenAb(
   // Pro Programm: Vereinigung der geänderten/entfernten Aktenzeichen über alle
   // importierten Quellen — Basis für EINEN Delta-Snapshot-Write (v2.97).
   const changeByProgramm = new Map<string, { touched: Set<string>; removed: Set<string> }>();
+  // Quellen, deren fehlende Spalten der Nutzer für DIESEN Lauf abgenickt hat.
+  const akzeptiert = new Set(opts.driftAkzeptiertFuer ?? []);
 
   await logAudit(idb, {
     action: 'csv_auto_refresh_started',
@@ -440,40 +500,73 @@ async function laufeKandidatenAb(
 
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'validating' });
     let validation: HeaderValidation;
+    let korrigiertesEncoding: CsvEncoding | undefined;
     try {
       const preview = await parseCsvPreview(file, 1, {
         encoding: schema.encoding,
         separator: schema.separator,
       });
       validation = validateHeaders(schema, preview.headers);
+
+      // Bevor Drift ein Urteil wird: kann sie ein ENCODING-Wechsel sein?
+      // Wechselt der Export von windows-1252 auf UTF-8, lesen sich alle
+      // Umlaut-Spalten falsch — `Nachrücker` fehlt und `NachrÃ¼cker` ist neu,
+      // dieselbe Spalte zweimal. Ein Import mit dem falschen Encoding
+      // verstümmelte auch jeden WERT, nicht nur die Kopfzeile; hier zu
+      // blockieren ist also richtig, aber es ist eine Sackgasse. Der
+      // Re-Import-Dialog erkennt das seit je und stellt um — der automatische
+      // Weg tat es nicht.
+      if (hasDrift(validation)) {
+        const auto = await parseCsvPreview(file, 1, { separator: schema.separator });
+        if (auto.encoding !== (schema.encoding ?? 'UTF-8')) {
+          const nachHeilung = validateHeaders(schema, auto.headers);
+          if (encodingHeilungTraegt(validation, nachHeilung)) {
+            await uebernehmeErkanntesEncoding(idb, schemaId, auto.encoding, opts.kuratorName);
+            validation = nachHeilung;
+            korrigiertesEncoding = auto.encoding;
+          }
+        }
+      }
     } catch (err) {
       report.errors.push({ schemaId, schemaName: name, message: `Preview fehlgeschlagen: ${(err as Error).message}` });
       continue;
     }
 
-    // Drift-Behandlung:
+    // Drift-Behandlung — die Regel selbst steht rein in `entscheideDrift`:
     //  - Reine `newColumns`-Drift (nichts fehlt, nur Zusatzspalten): headless als
     //    `{ ignore: true }` adoptieren, dann normal importieren. Unbeaufsichtigt,
     //    damit der tägliche Auto-Import nicht blockiert (Zusatzspalten werden beim
     //    Import ohnehin ignoriert).
-    //  - `missingFromCsv > 0`: bleibt blockierend (report.drift → Modal), weil eine
-    //    verschwundene gemappte Spalte echte Felder leeren kann.
+    //  - `missingFromCsv > 0`: blockierend (report.drift → Modal), weil eine
+    //    verschwundene gemappte Spalte echte Felder leert — ES SEI DENN, der
+    //    Nutzer hat genau diese Quelle im Bericht auf „Trotzdem importieren"
+    //    gesetzt. Dann läuft sie durch und der Bericht führt die übergangenen
+    //    Spalten mit.
+    const entscheidung = entscheideDrift(validation, akzeptiert.has(schemaId));
     let autoAdopted: string[] = [];
-    if (hasDrift(validation)) {
-      if (isNewColumnsOnlyDrift(validation)) {
-        try {
-          autoAdopted = await adoptNewColumnsAsIgnored(idb, schemaId, validation.newColumns, opts.kuratorName);
-        } catch (err) {
-          // Adopt fehlgeschlagen → wie bisher blockierend behandeln, statt still
-          // mit unvollständigem Schema zu importieren.
-          console.warn('[auto-refresh] Auto-Adopt neuer Spalten fehlgeschlagen', err);
-          report.drift.push({ schemaId, schemaName: name, validation });
-          continue;
-        }
-      } else {
+    if (!entscheidung.importieren) {
+      report.drift.push({ schemaId, schemaName: name, validation });
+      continue;
+    }
+    if (entscheidung.neueSpaltenAdoptieren) {
+      try {
+        autoAdopted = await adoptNewColumnsAsIgnored(idb, schemaId, validation.newColumns, opts.kuratorName);
+      } catch (err) {
+        // Adopt fehlgeschlagen → wie bisher blockierend behandeln, statt still
+        // mit unvollständigem Schema zu importieren.
+        console.warn('[auto-refresh] Auto-Adopt neuer Spalten fehlgeschlagen', err);
         report.drift.push({ schemaId, schemaName: name, validation });
         continue;
       }
+    }
+    if (entscheidung.uebergangeneSpalten.length > 0) {
+      // Nachvollziehbar halten: wer später fragt, warum diese Felder leer sind,
+      // findet hier die Zustimmung samt Spaltenliste.
+      await logAudit(idb, {
+        action: 'csv_auto_refresh_drift_akzeptiert',
+        user: opts.kuratorName,
+        details: { schemaId, fehlendeSpalten: entscheidung.uebergangeneSpalten },
+      });
     }
 
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'importing' });
@@ -531,6 +624,10 @@ async function laufeKandidatenAb(
         rowCount: result.rowCount,
         skipped: result.skipped,
         ...(autoAdopted.length > 0 ? { autoAdoptedColumns: autoAdopted } : {}),
+        ...(entscheidung.uebergangeneSpalten.length > 0
+          ? { uebergangeneSpalten: entscheidung.uebergangeneSpalten }
+          : {}),
+        ...(korrigiertesEncoding ? { korrigiertesEncoding } : {}),
       });
     } catch (err) {
       // Der frühere Sonderfall „Anderer Import läuft" ist entfallen: der

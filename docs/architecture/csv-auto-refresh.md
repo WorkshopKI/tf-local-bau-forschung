@@ -39,10 +39,38 @@ wenn eine Inhaltsänderung ohne mtime-Bump vorlag (dev/kurator, v2.155/v2.156.1)
 Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gegen Schema validieren →
 `importCsvSource()` → `source_last_modified`/`source_file_name`/`last_file_size` im Schema nachziehen. Dazu:
 
-- **Drift-Behandlung**: **reine `newColumns`-Drift** (nichts fehlt, nur Zusatzspalten) wird **headless** als
-  `{ ignore: true }` adoptiert (`isNewColumnsOnlyDrift` → `adoptNewColumnsAsIgnored`) und importiert weiter —
-  der tägliche Import blockiert nicht (v2.153.1). **`missingFromCsv > 0`** bleibt **blockierend**
-  (`report.drift` → Modal), weil eine verschwundene gemappte Spalte echte Felder leeren kann.
+> **Warum die Drift-Stufen so scharf getrennt sind.** Am 12.08.2026 hingen alle drei Quellen der lokalen
+> Share-Kopie an „Spalten-Drift" — gemeldet wurden je 2–15 fehlende **und** ebenso viele neue Spalten.
+> Tatsächlich war es dieselbe Spalte zweimal: der Export hatte auf UTF-8 gewechselt, `Nachrücker` las sich
+> als `NachrÃ¼cker`. Ein „einfach trotzdem importieren" hätte hier nicht Felder geleert, sondern **jeden
+> Umlaut im ganzen Bestand verstümmelt**. Darum heilt Stufe 1 zuerst, und Stufe 3 nennt beim Übergehen die
+> Spalten und die Folge beim Namen.
+
+- **Drift-Behandlung** — die Regel steht rein in [`entscheideDrift`](../../src/plugins/csv-sources-kuration/services/csv-drift-check.ts),
+  der Orchestrator führt sie nur aus. Drei Stufen:
+  1. **Encoding-Heilung zuerst** (v3.47.0): Wechselt ein Export von `windows-1252` auf UTF-8 (oder zurück),
+     lesen sich alle Umlaut-Spalten falsch — `Nachrücker` steht als **fehlend** UND `NachrÃ¼cker` als
+     **neu** in derselben Validierung. Das sieht aus wie „Spalten verschwunden", ist aber ein Lesefehler;
+     ein Import mit dem falschen Encoding verstümmelte auch jeden **Wert**. Bei Drift wird die Datei
+     deshalb einmal ohne erzwungenes Encoding gelesen (`parseCsvPreview` ohne `encoding` → Auto-Erkennung,
+     UTF-8 mit `fatal:true` + Mojibake-Heuristik) und neu validiert. Übernommen wird nur, wenn danach
+     **keine** Schema-Spalte mehr fehlt (`encodingHeilungTraegt`) — „etwas besser" reicht nicht. Dann geht
+     das erkannte Encoding **vor** dem Import ins Schema (`csv_schema_encoding_korrigiert`), damit
+     `importCsvSource` es über `loadSchema` selbst aufgreift. Der Re-Import-Dialog konnte das seit je,
+     der automatische Weg nicht — dort war es eine Sackgasse.
+  2. **Reine `newColumns`-Drift** (nichts fehlt, nur Zusatzspalten) wird **headless** als `{ ignore: true }`
+     adoptiert (`adoptNewColumnsAsIgnored`) und importiert weiter — der tägliche Import blockiert nicht (v2.153.1).
+  3. **`missingFromCsv > 0`** bleibt **blockierend** (`report.drift` → Modal), weil eine verschwundene
+     gemappte Spalte echte Felder leert: der Merge baut jeden Antrag komplett neu aus allen CSVs auf
+     ([batched.ts](../../src/core/services/csv/merger/batched.ts)), ein fehlender Wert wird also `''`.
+     **Ausweg** (v3.47.0): `RunAutoRefreshOptions.driftAkzeptiertFuer` — der Knopf **„Trotzdem
+     importieren"** im Drift-Bericht, pro Quelle. Der Bericht zeigt dafür die Spaltennamen, nicht nur
+     Zähler, und benennt die Folge; die Zustimmung wird als `csv_auto_refresh_drift_akzeptiert`
+     protokolliert und **nicht gespeichert** (ein persistiertes „immer ignorieren" wiederholte den
+     Verlust ab dann unbemerkt). Nach dem Import ist die Quelle gestempelt und fällt aus den Kandidaten;
+     ein neuer Export mit derselben Lücke fragt wieder. Der Nachlauf baut seine Kandidaten frisch aus den
+     Schema-Ids und ist damit unabhängig davon, welcher Lauf den Bericht erzeugt hat (Banner-Lauf oder
+     kombinierter Start-Lauf in [DataUpdateBanners](../../src/plugins/csv-sources-kuration/components/DataUpdateBanners.tsx)).
 - **EIN Lock je Lauf** (v3.46.1): `runAutoRefresh` nimmt den Build-Lock **einmal** vor der Schleife und hält
   ihn über alle Quellen **plus** den Snapshot-Write; `importCsvSource` bekommt `lockHeldByCaller: true` und
   fasst weder Lock noch Heartbeat an. Vorher lockte jede Quelle selbst — und in jedem Freigabe-Fenster

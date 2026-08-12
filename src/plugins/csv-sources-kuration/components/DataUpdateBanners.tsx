@@ -148,7 +148,17 @@ export function DataUpdateBanners(): React.ReactElement | null {
       )}
 
       {combinedDrift ? (
-        <CsvAutoRefreshDriftDialog report={combinedDrift} onClose={() => setCombinedDrift(null)} />
+        <CsvAutoRefreshDriftDialog
+          report={combinedDrift}
+          onClose={() => setCombinedDrift(null)}
+          // Auch der kombinierte Lauf endet sonst in einer Sackgasse: der
+          // Nachlauf baut seine Kandidaten frisch aus den Schema-Ids, ist also
+          // nicht an den Hook-Lauf gebunden, der den Bericht erzeugt hat.
+          onTrotzdemImportieren={ids => {
+            setCombinedDrift(null);
+            void csv.runRefreshTrotzDrift(ids);
+          }}
+        />
       ) : null}
     </>
   );

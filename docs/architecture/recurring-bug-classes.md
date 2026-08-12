@@ -356,3 +356,22 @@ Es ist ein Wettlauf: auf der Entwickler-Maschine (lokale Platte, kurze Importe) 
 **Prüffrage beim Review:** Kann ein Durchlauf, der **vor** dem Stopp begann, **nach** dem Aufräumen noch schreiben? Und: beweist der Erfolgs-Log-Eintrag, was er behauptet?
 
 **Kanonische Dateien:** [build-lock.ts](../../src/core/services/infrastructure/build-lock.ts), [build-lock-freigabe.test.ts](../../src/core/services/infrastructure/__tests__/build-lock-freigabe.test.ts) (Regressionsgatter inkl. Gegenprobe im alten Ablauf), [auto-refresh.ts](../../src/plugins/csv-sources-kuration/services/auto-refresh.ts), [auto-refresh-ein-lock.test.ts](../../src/plugins/csv-sources-kuration/services/__tests__/auto-refresh-ein-lock.test.ts). Verwandt: Klasse 3 (`atomicWrite`-Rennen), Klasse 16 (mehrere Schreiber auf einer Sidecar), Klasse 18 (Reload verwirft die offene Transaktion — dieselbe Familie „sporadisch = Wettlauf").
+
+
+## 20. Fehlt UND ist neu — dieselbe Sache zweimal geschrieben sieht aus wie Verlust
+
+**Symptom:** Ein Abgleich meldet gleichzeitig, dass etwas **fehlt**, und dass etwas **neu** dazugekommen ist — und zwar ungefähr gleich viel von beidem. Gemessen am CSV-Auto-Refresh (v3.47.0): alle drei Quellen der lokalen Share-Kopie blockierten mit „Spalten haben sich geändert", je 2–15 fehlende und ebenso viele neue Spalten. Die Liste liest sich als Datenverlust („`Nachrücker` ist weg"), und die naheliegende Bitte lautet dann: „gibt es einen Schalter, um das zu übergehen?"
+
+**Root-Cause:** Es war kein Verlust. Der Export hatte sein Encoding von `windows-1252` auf UTF-8 gewechselt; unter der gespeicherten Kodierung gelesen wurde aus `Nachrücker` eben `NachrÃ¼cker`. **Fehlend und neu waren dieselbe Spalte in zwei Schreibweisen.** Das Verräterische steht in der Meldung selbst: die beiden Listen sind gleich lang und paarweise ähnlich.
+
+Der Schalter wäre hier die falsche Antwort gewesen — und zwar gefährlich: die Kopfzeile ist nur der sichtbare Teil, mit der falschen Kodierung verstümmelt der Import **jeden Wert** im ganzen Bestand. Die Blockade tat, was sie soll; sie war nur eine Sackgasse, weil der automatische Weg die Kodierung nie neu erkannte, während der manuelle Re-Import-Dialog genau das seit je tut.
+
+**Fix-Pattern:**
+- **Vor dem Urteil die Darstellung ausschließen.** Meldet ein Abgleich Fehlen und Auftauchen zugleich, denselben Gegenstand einmal anders dekodiert/normalisiert gegenprüfen, bevor die Differenz als inhaltlich gilt.
+- **Übernahme nur bei vollständiger Auflösung.** Der zweite Anlauf wird nur akzeptiert, wenn danach **nichts** mehr fehlt (`encodingHeilungTraegt`). „Etwas besser" heißt: die Ursache ist eine andere, und dann gehört der Fall vor Augen statt automatisch korrigiert.
+- **Wo ein Weg schon existiert, ihn nicht nachbauen — erreichbar machen.** Die Kodierungs-Erkennung stand im Dialog, nur eben nicht im automatischen Pfad. Ein zweiter Erkenner hätte die Divergenz eingebaut.
+- **Der echte Ausweg bleibt trotzdem nötig, aber benannt.** Für tatsächlich verschwundene Spalten gibt es „Trotzdem importieren" — pro Quelle, mit Spaltennamen statt Zählern, mit ausgesprochener Folge, einmalig und protokolliert. Ein persistiertes „immer ignorieren" wiederholte den Verlust ab dann unbemerkt.
+
+**Prüffrage beim Review:** Enthält ein Diff gleichzeitig „fehlt" und „neu" in ähnlicher Menge? Dann zuerst: **ist das dasselbe Ding, anders geschrieben?**
+
+**Kanonische Dateien:** [csv-drift-check.ts](../../src/plugins/csv-sources-kuration/services/csv-drift-check.ts) (`encodingHeilungTraegt`, `entscheideDrift`), [csv-drift-check.test.ts](../../src/plugins/csv-sources-kuration/services/__tests__/csv-drift-check.test.ts), [auto-refresh.ts](../../src/plugins/csv-sources-kuration/services/auto-refresh.ts), [parser.ts](../../src/core/services/csv/parser.ts) (`readWithEncodingFallback`). Verwandt: Klasse 15 (zwei Vokabulare für dieselbe Sache), Klasse 14 (Schlüssel ohne alle Dimensionen).

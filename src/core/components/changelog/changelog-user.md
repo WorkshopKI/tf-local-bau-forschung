@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.47 — 2026-08
+
+### Verbesserungen
+- Wenn eine Export-CSV mit der Meldung **„Spalten haben sich geändert"** hängen blieb, war das oft gar keine geänderte Spalte, sondern eine geänderte **Zeichensatz-Kodierung** der Datei: `Nachrücker` las sich dann als `NachrÃ¼cker` und galt als verschwunden. Die App erkennt das jetzt selbst, stellt die Quelle um und importiert normal weiter — ohne Nachfrage. Ein Import mit der falschen Kodierung hätte alle Umlaute im Datenbestand verstümmelt; genau davor schützt die Prüfung weiterhin.
+- Fehlen wirklich Spalten, gibt es jetzt einen Ausweg: **„Trotzdem importieren"** direkt im Bericht, einzeln je Quelle. Der Bericht nennt dafür die betroffenen Spalten mit Namen und sagt, was passiert — die Felder, die nur aus dieser Quelle kommen, werden dabei geleert. Die Zustimmung gilt nur für diesen einen Import.
+- Der Knopf **„Erzwungen prüfen"** meldete „keine Änderungen gefunden", auch wenn Quellen wegen Spalten-Drift übersprungen wurden. Jetzt sagt er, wie viele es waren.
+
 ## v3.46 — 2026-08
 
 ### Verbesserungen

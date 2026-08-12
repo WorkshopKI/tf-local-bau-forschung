@@ -82,6 +82,13 @@ export interface AutoRefreshCheckState {
   /** Refresh erzwingen — übernimmt einen bestehenden (ggf. abgestürzten) Lock
    *  per forceLock. Für den „Trotzdem aktualisieren"-Button im Lock-Konflikt. */
   forceRefresh: () => Promise<void>;
+  /**
+   * Zweiter Anlauf für Quellen, die am fehlenden Spalten gescheitert sind: der
+   * Nutzer nimmt die Lücke bewusst in Kauf („Trotzdem importieren" im
+   * Drift-Bericht). Läuft NUR über die genannten Schema-Ids und gilt einmalig —
+   * gespeichert wird die Zustimmung nicht (siehe `driftAkzeptiertFuer`).
+   */
+  runRefreshTrotzDrift: (schemaIds: string[]) => Promise<void>;
   /** Eine Quelle ohne Handle (oder mit abgelaufener Permission) mit einer
    *  lokalen Datei verknüpfen — öffnet den Datei-Picker (User-Gesture nötig).
    *  Wirft bei Datei-Mismatch; bei Abbruch passiert nichts. */
@@ -206,9 +213,28 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     setDismissed(true);
   }, []);
 
-  const doRefresh = useCallback(async (force: boolean) => {
+  const doRefresh = useCallback(async (
+    force: boolean,
+    /** Nur diese Quellen fahren (Drift-Nachlauf). Undefiniert = alle Kandidaten. */
+    nurSchemaIds?: string[],
+  ) => {
     if (refreshing) return;
-    if (candidates.length === 0) return;
+    // Beim Drift-Nachlauf bauen wir die Kandidaten frisch aus den Schemas, statt
+    // die Liste des vorigen Laufs mitzuschleppen: der Datei-Check ist gelaufen,
+    // diese Quellen haben nachweislich neue Daten (sie sind eben an der Drift
+    // gescheitert). Das macht den Nachlauf unabhaengig davon, WELCHER Lauf den
+    // Bericht erzeugt hat — Banner-Lauf oder kombinierter Start-Lauf.
+    let zuFahren: RefreshCandidate[];
+    if (nurSchemaIds) {
+      zuFahren = [];
+      for (const id of nurSchemaIds) {
+        const schema = await loadSchema(storage.idb, id);
+        if (schema) zuFahren.push({ schemaId: id, schema });
+      }
+    } else {
+      zuFahren = candidates;
+    }
+    if (zuFahren.length === 0) return;
     // Geteiltes In-Tab-Gate: nie parallel zu einem anderen Daten-Mutations-Flow
     // (Snapshot-Watcher „Jetzt laden", Start-Sync, Sidebar/Einstellungen) — sonst
     // kollidieren clear()/put() + atomicWrite-Renames („2 Quellen … 1 Fehler").
@@ -224,9 +250,12 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
       // Schritt 1 von resolveSnapshotAuthor (readKuratorName) abgedeckt; in pl/as
       // (Kürzel „alle", kein Kurator-Name) greift der Nachname statt „ZAH PL".
       const identity = await resolveSnapshotAuthor(storage.idb);
-      const r = await runAutoRefresh(storage.idb, candidates, {
+      const r = await runAutoRefresh(storage.idb, zuFahren, {
         kuratorName: identity,
         force,
+        // Der Nachlauf gilt genau den Quellen, die der Nutzer im Bericht
+        // abgenickt hat — die Zustimmung ist die Auswahl selbst.
+        ...(nurSchemaIds ? { driftAkzeptiertFuer: nurSchemaIds } : {}),
         // Nach den Merges, VOR dem Publish: In-Memory-Antraege-Store je
         // betroffenem Programm neu laden — die Home zeigt die neuen Daten sofort
         // (importCsvSource schreibt nur IDB; der Store hat einen 5-Min-TTL-Skip).
@@ -271,6 +300,10 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
 
   const runRefresh = useCallback(() => doRefresh(false), [doRefresh]);
   const forceRefresh = useCallback(() => doRefresh(true), [doRefresh]);
+  const runRefreshTrotzDrift = useCallback(
+    (schemaIds: string[]) => doRefresh(false, schemaIds),
+    [doRefresh],
+  );
 
   const linkSource = useCallback(async (schemaId: string) => {
     const schema = await loadSchema(storage.idb, schemaId);
@@ -315,6 +348,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     clearReport,
     runRefresh,
     forceRefresh,
+    runRefreshTrotzDrift,
     linkSource,
     linkFolder,
   };

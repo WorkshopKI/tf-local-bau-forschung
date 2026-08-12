@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.47.0 — Encoding-Drift heilt sich, fehlende Spalten sind uebergehbar (August 2026)
+
+MINOR — Gewünscht war ein Schalter, um blockierende Spalten-Drift zu übergehen. Beim Nachsehen war die Drift auf allen drei Quellen der lokalen Kopie **dieselbe Spalte zweimal**: der Export wechselte auf UTF-8, `Nachrücker` las sich als `NachrÃ¼cker`. „Trotzdem importieren" hätte dort jeden Umlaut im Bestand verstümmelt. Also beides — Heilung zuerst, Ausweg danach. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).
+
+- **Encoding-Drift heilt sich**: bei Drift wird einmal ohne erzwungenes Encoding gelesen; übernommen wird nur, wenn danach **keine** Schema-Spalte mehr fehlt (`encodingHeilungTraegt`) — [csv-drift-check.ts](src/plugins/csv-sources-kuration/services/csv-drift-check.ts)
+- Das erkannte Encoding geht **vor** dem Import ins Schema (`csv_schema_encoding_korrigiert`), damit `importCsvSource` es selbst aufgreift — der Re-Import-Dialog konnte das seit je, der automatische Weg nicht
+- **„Trotzdem importieren"** pro Quelle im Drift-Bericht (`driftAkzeptiertFuer`): einmalig, nie gespeichert, protokolliert als `csv_auto_refresh_drift_akzeptiert` — [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)
+- Der Bericht zeigt dafür die **Spaltennamen** statt nur Zähler und benennt die Folge (Felder werden geleert, soweit keine andere Quelle sie trägt) — [CsvAutoRefreshDriftDialog.tsx](src/plugins/csv-sources-kuration/components/CsvAutoRefreshDriftDialog.tsx)
+- „Erzwungen geprüft — keine Änderungen gefunden" verschweigt keine übersprungenen Quellen mehr — [CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)
+
 ### v3.46.1 — Ein Lock je Aktualisierungslauf — kein Abbruch am eigenen Nachhall (August 2026)
 
 PATCH — Gemeldet (nur Citrix, tagelang unauffällig): zwei neue CSV-Quellen, erste importiert, dann brach der Lauf ab und das Banner meldete **„THü (PL) aktualisiert gerade"** — der Nutzer war allein in der App. Der Lock wurde pro Quelle genommen; im Freigabe-Fenster dazwischen legte ein noch laufender Heartbeat-Schlag die gelöschte Lock-Datei neu an. Beweis im Audit-Log: zweimal ein `build_lock_force` gegen den **eigenen** Namen, eine Sekunde nach dem eigenen Release. Detail: [recurring-bug-classes §19](docs/architecture/recurring-bug-classes.md) + Pitfall #52.

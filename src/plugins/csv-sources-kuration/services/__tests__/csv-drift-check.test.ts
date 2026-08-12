@@ -5,6 +5,10 @@
  * neu; `hasDrift` schlägt bei jeder Abweichung an; `isNewColumnsOnlyDrift`
  * unterscheidet den harmlosen „nur Zusatzspalten"-Fall (Auto-Adopt) vom
  * gefährlichen „gemappte Spalte fehlt"-Fall (bleibt blockierend).
+ *
+ * `entscheideDrift` fasst die Regel zusammen und ergänzt die einmalige
+ * Nutzer-Zustimmung („Trotzdem importieren"): NUR sie hebt die Blockade auf,
+ * und sie benennt dabei, welche Spalten übergangen werden.
  */
 import { describe, it, expect } from 'vitest';
 import type { CsvSchema, ColumnMapping } from '@/core/services/csv/types';
@@ -12,6 +16,8 @@ import {
   validateHeaders,
   hasDrift,
   isNewColumnsOnlyDrift,
+  entscheideDrift,
+  encodingHeilungTraegt,
   type HeaderValidation,
 } from '../csv-drift-check';
 
@@ -83,5 +89,77 @@ describe('isNewColumnsOnlyDrift', () => {
 
   it('false ohne jede Drift', () => {
     expect(isNewColumnsOnlyDrift(mk([], []))).toBe(false);
+  });
+});
+
+describe('encodingHeilungTraegt', () => {
+  const mk = (missing: string[], neu: string[]): HeaderValidation => ({
+    matched: ['AKZ'],
+    missingFromCsv: missing,
+    newColumns: neu,
+  });
+
+  it('der belegte Fall: Umlaut-Spalten fehlen UND stehen als neu da', () => {
+    // 12.08.2026, alle drei Quellen der lokalen Kopie: Export von windows-1252
+    // auf UTF-8 gewechselt, `Nachrücker` fehlt und `NachrÃ¼cker` ist „neu".
+    const vorher = mk(['Nachrücker', 'D_ÄA'], ['NachrÃ¼cker', 'D_Ã„A']);
+    const nachher = mk([], []);
+    expect(encodingHeilungTraegt(vorher, nachher)).toBe(true);
+  });
+
+  it('„etwas besser" reicht NICHT — Restlücke heisst andere Ursache', () => {
+    expect(encodingHeilungTraegt(mk(['A', 'B'], []), mk(['A'], []))).toBe(false);
+  });
+
+  it('ohne vorherige Luecke gibt es nichts zu heilen', () => {
+    // Reine Zusatzspalten laufen ueber den Adopt-Pfad, nicht ueber die Heilung.
+    expect(encodingHeilungTraegt(mk([], ['NEU']), mk([], []))).toBe(false);
+  });
+});
+
+describe('entscheideDrift', () => {
+  const mk = (missing: string[], neu: string[]): HeaderValidation => ({
+    matched: ['AKZ'],
+    missingFromCsv: missing,
+    newColumns: neu,
+  });
+
+  it('ohne Drift: importieren, nichts adoptieren, nichts uebergangen', () => {
+    expect(entscheideDrift(mk([], []), false)).toEqual({
+      importieren: true, neueSpaltenAdoptieren: false, uebergangeneSpalten: [],
+    });
+  });
+
+  it('nur Zusatzspalten: headless adoptieren und importieren — ohne Zustimmung', () => {
+    expect(entscheideDrift(mk([], ['NEU']), false)).toEqual({
+      importieren: true, neueSpaltenAdoptieren: true, uebergangeneSpalten: [],
+    });
+  });
+
+  it('fehlende Spalte ohne Zustimmung: blockiert (der Vorher-Zustand)', () => {
+    expect(entscheideDrift(mk(['WEG'], []), false)).toEqual({
+      importieren: false, neueSpaltenAdoptieren: false, uebergangeneSpalten: [],
+    });
+    expect(entscheideDrift(mk(['WEG'], ['NEU']), false).importieren).toBe(false);
+  });
+
+  it('fehlende Spalte MIT Zustimmung: importiert und benennt die uebergangenen Spalten', () => {
+    expect(entscheideDrift(mk(['WEG', 'AUCH_WEG'], []), true)).toEqual({
+      importieren: true,
+      neueSpaltenAdoptieren: false,
+      uebergangeneSpalten: ['WEG', 'AUCH_WEG'],
+    });
+  });
+
+  it('Zustimmung deckt fehlende UND neue Spalten in einem Zug ab', () => {
+    expect(entscheideDrift(mk(['WEG'], ['NEU']), true)).toEqual({
+      importieren: true,
+      neueSpaltenAdoptieren: true,
+      uebergangeneSpalten: ['WEG'],
+    });
+  });
+
+  it('Zustimmung ohne Drift aendert nichts — sie erfindet keine Meldung', () => {
+    expect(entscheideDrift(mk([], []), true).uebergangeneSpalten).toEqual([]);
   });
 });
