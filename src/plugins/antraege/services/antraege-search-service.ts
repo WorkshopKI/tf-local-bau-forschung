@@ -278,7 +278,8 @@ function substringMatches(
       || entry.absLower.includes(w)
       || entry.descriptorsLower.includes(w)
       || entry.akronymLower.includes(w)
-      || entry.akzLower.includes(w);
+      || entry.akzLower.includes(w)
+      || entry.organisationLower.includes(w);
     if (verknuepfung === 'oder' ? woerter.some(trifft) : woerter.every(trifft)) {
       out.add(akz);
     }

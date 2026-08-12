@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.4.3 — Organisation wird durchsucht (August 2026)
+
+PATCH — „Stammdaten" war der letzte offene Teil der Zusage aus dem Leerzustand der Suche. Am Bestand gemessen war eine Einrichtung über ihren Namen praktisch unauffindbar: 3 von 14 224 Anträgen ließen sich so finden, denn der Organisationsname steht so gut wie nie im Titel oder in der Kurzbeschreibung.
+
+- **Organisation im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): 5 461 Einrichtungen sind jetzt über ihren Namen erreichbar — 3 → 14 224 auffindbare Anträge
+- **Zwei Spalten, ein Feld** (`verbindeOrganisation`): Rechtsperson (`ORG_AST`) und ausführende Stelle (`ORG_AFS`) weichen in 363 Sätzen voneinander ab — „Universität Münster" und „Universitätsklinikum Münster" sind derselbe Antrag; bei Gleichheit steht der Name nur einmal im Korpus
+- **Platzhalter der Antragsliste nachgezogen** ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx)): nennt jetzt Akronym, FKZ und Antragsteller — der Tooltip daneben versprach sie schon seit v4.4.1
+- Nicht aufgenommen: `ANTRAGSTELLER_AST` (weicht in 0 von 12 358 Sätzen von `ORG_AST` ab) und der Ort — er brächte vor allem Rauschen
+
 ### v4.4.2 — Aktenzeichen wird durchsucht (August 2026)
 
 PATCH — Der Leerzustand der Suche verspricht „Nach Titel, Akronym, FKZ oder Stammdaten". Das Akronym kam mit v4.4.1 dazu, das Aktenzeichen war der letzte Teil dieser Zusage, den die Wortlaut-Stufe nie eingelöst hat — ein FKZ fand bis hierher nur, wer ein Dokument mit dieser Nummer im Index hatte.

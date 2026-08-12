@@ -222,7 +222,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
                 />
                 <Input
-                  placeholder="Anträge durchsuchen (Titel, Beschreibung, Dokumente)"
+                  placeholder="Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Dokumente)"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-7 pr-7 h-8 w-full text-[12.5px]"

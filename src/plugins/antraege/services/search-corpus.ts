@@ -7,7 +7,8 @@
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
  *    suchrelevanten Text-Felder (`verbund_titel`, `titel`,
- *    `projektbeschreibung_text`, Deskriptoren, `akronym`, Aktenzeichen) und
+ *    `projektbeschreibung_text`, Deskriptoren, `akronym`, Aktenzeichen,
+ *    Organisation) und
  *    cached zusaetzlich die lowercase-Variante
  *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
  *
@@ -52,6 +53,22 @@ export interface AntragTextEntry {
    *  `akz.toLowerCase()` allozieren muesste — genau der GC-Druck, den die
    *  vorberechneten Felder vermeiden. */
   akzLower: string;
+  /** Antragsteller + ausfuehrende Stelle, zu EINEM Suchfeld zusammengezogen.
+   *
+   *  Zwei Spalten, weil sie zwei verschiedene Organisationen benennen koennen:
+   *  `ORG_AST` ist die Rechtsperson („Fraunhofer-Gesellschaft zur Foerderung
+   *  der angewandten Forschung e.V."), `ORG_AFS` die ausfuehrende Stelle
+   *  („Fraunhofer-Institut fuer Nachrichtentechnik, Heinrich-Hertz-Institut").
+   *  Am Bestand gemessen weichen sie in 293 von 11 882 Saetzen (2,5 %)
+   *  voneinander ab — wer nach „Universitaet Leipzig" sucht, faende den Satz
+   *  ueber `ORG_AFS` („Universitaetsklinikum Leipzig AoeR") nicht.
+   *
+   *  Zusammengezogen statt zwei Felder, weil sie in 97,5 % der Saetze identisch
+   *  sind; bei Gleichheit wird nur einmal gespeichert. Die Wort-fuer-Wort-Suche
+   *  kann an der Fuge keinen falschen Treffer erzeugen: ein Substring ueber die
+   *  Trennstelle enthaelt immer das Leerzeichen, ein Suchwort nie. */
+  organisation: string;
+  organisationLower: string;
 }
 
 /**
@@ -84,6 +101,18 @@ const ABSTRACT_NORMALIZED: ReadonlySet<string> = new Set(
 const AKRONYM_NORMALIZED: ReadonlySet<string> = new Set(
   ['akronym', 'vb_kurznam', 'vb kurznam'].map(normalizeKey),
 );
+/** Ausfuehrende Stelle. `org_afs` traegt im Repo den Canonical-Namen
+ *  `antragsteller` ([constants.ts](src/core/services/csv/constants.ts)) — beide
+ *  Schreibweisen stehen hier, weil die Spalte je nach Wizard-Mapping unter dem
+ *  einen ODER dem anderen Schluessel im Store liegt. */
+const ORG_AFS_NORMALIZED: ReadonlySet<string> = new Set(
+  ['antragsteller', 'org_afs', 'org afs'].map(normalizeKey),
+);
+/** Rechtsperson. Hat KEIN Canonical-Feld — landet als Custom-Spalte unter dem
+ *  kleingeschriebenen Spaltennamen im Antrags-Record. */
+const ORG_AST_NORMALIZED: ReadonlySet<string> = new Set(
+  ['org_ast', 'org ast'].map(normalizeKey),
+);
 
 function pickByNormalized(
   record: Record<string, unknown>,
@@ -96,6 +125,16 @@ function pickByNormalized(
     if (targets.has(normalizeKey(key))) return v;
   }
   return '';
+}
+
+/**
+ * Zieht ausfuehrende Stelle und Rechtsperson zu EINEM Suchfeld zusammen.
+ * Sind beide gleich (97,5 % der Saetze), steht der Name nur einmal darin.
+ * Pure — testbar ohne IDB.
+ */
+export function verbindeOrganisation(orgAfs: string, orgAst: string): string {
+  if (orgAst.length === 0 || orgAst === orgAfs) return orgAfs;
+  return `${orgAfs} ${orgAst}`.trim();
 }
 
 export interface LoadCorpusOptions {
@@ -144,10 +183,13 @@ export async function loadAntraegeTextCorpus(
       const ab = pickByNormalized(rec, ABSTRACT_NORMALIZED);
       const descriptors = buildDescriptorsText(a);
       const ak = pickByNormalized(rec, AKRONYM_NORMALIZED);
+      const orgAfs = pickByNormalized(rec, ORG_AFS_NORMALIZED);
+      const orgAst = pickByNormalized(rec, ORG_AST_NORMALIZED);
+      const organisation = verbindeOrganisation(orgAfs, orgAst);
       if (
         includeEmpty
         || vb.length > 0 || tv.length > 0 || ab.length > 0
-        || descriptors.length > 0 || ak.length > 0
+        || descriptors.length > 0 || ak.length > 0 || organisation.length > 0
       ) {
         result.set(a.aktenzeichen, {
           vb,
@@ -161,6 +203,8 @@ export async function loadAntraegeTextCorpus(
           descriptorsLower: descriptors.toLowerCase(),
           akronymLower: ak.toLowerCase(),
           akzLower: a.aktenzeichen.toLowerCase(),
+          organisation,
+          organisationLower: organisation.toLowerCase(),
         });
       }
       cursor.continue();

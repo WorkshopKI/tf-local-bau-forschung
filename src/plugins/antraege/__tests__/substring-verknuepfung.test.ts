@@ -11,7 +11,15 @@ import { describe, it, expect } from 'vitest';
 import { searchAntraegeSubstring, zerlegeAnfrage } from '../services/antraege-search-service';
 import type { AntragTextEntry } from '../services/search-corpus';
 
-function eintrag(vb: string, tv = '', abs = '', descr = '', akronym = '', akz = ''): AntragTextEntry {
+function eintrag(
+  vb: string,
+  tv = '',
+  abs = '',
+  descr = '',
+  akronym = '',
+  akz = '',
+  organisation = '',
+): AntragTextEntry {
   return {
     vbLower: vb.toLowerCase(),
     tvLower: tv.toLowerCase(),
@@ -19,6 +27,7 @@ function eintrag(vb: string, tv = '', abs = '', descr = '', akronym = '', akz = 
     descriptorsLower: descr.toLowerCase(),
     akronymLower: akronym.toLowerCase(),
     akzLower: akz.toLowerCase(),
+    organisationLower: organisation.toLowerCase(),
   } as AntragTextEntry;
 }
 
@@ -141,5 +150,44 @@ describe('searchAntraegeSubstring — Aktenzeichen', () => {
 
   it('grenzt ab — ein fremdes Präfix trifft nicht', () => {
     expect(searchAntraegeSubstring('16EP', FKZ_KORPUS)).toEqual(['16EP123456']);
+  });
+});
+
+/**
+ * „Stammdaten" ist der letzte Teil derselben Zusage. Am Bestand gemessen steht
+ * der Organisationsname so gut wie nie in einem der bisher durchsuchten Felder
+ * (0,0 % der Bgl-Sätze, 1,7 % der AnB-Sätze) — eine Einrichtung war über ihren
+ * Namen praktisch unauffindbar.
+ *
+ * Der Fall, der ZWEI Spalten nötig macht: Rechtsperson (`ORG_AST`) und
+ * ausführende Stelle (`ORG_AFS`) weichen in 2,5 % der Sätze voneinander ab.
+ */
+describe('searchAntraegeSubstring — Organisation', () => {
+  const ORG_KORPUS = new Map<string, AntragTextEntry>([
+    // Beide Namen verschieden — der gemessene Fraunhofer-/Uni-Fall.
+    ['F1', eintrag('Terahertz-Sensorik', '', '', '', '', '16KN111101',
+      'Fraunhofer-Institut für Nachrichtentechnik, Heinrich-Hertz-Institut Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V.')],
+    ['U1', eintrag('Bildgebende Diagnostik', '', '', '', '', '16KN222201',
+      'Universitätsklinikum Leipzig AöR Universität Leipzig')],
+    // Beide Namen gleich — steht nur einmal im Feld (siehe verbindeOrganisation).
+    ['G1', eintrag('Kunststoffverarbeitung', '', '', '', '', '16KN333301', 'Mogic GmbH')],
+  ]);
+
+  it('findet über die ausführende Stelle', () => {
+    expect(searchAntraegeSubstring('heinrich-hertz', ORG_KORPUS)).toEqual(['F1']);
+  });
+
+  it('findet über die Rechtsperson — sie steht in KEINEM anderen Feld', () => {
+    // „Universität Leipzig" ist kein Substring von „Universitätsklinikum
+    // Leipzig AöR": ohne die zweite Spalte bliebe dieser Satz unauffindbar.
+    expect(searchAntraegeSubstring('universität leipzig', ORG_KORPUS)).toEqual(['U1']);
+  });
+
+  it('beide Namen zusammen bleiben UND-fähig', () => {
+    expect(searchAntraegeSubstring('fraunhofer terahertz', ORG_KORPUS)).toEqual(['F1']);
+  });
+
+  it('grenzt ab — eine fremde Einrichtung trifft nicht', () => {
+    expect(searchAntraegeSubstring('mogic', ORG_KORPUS)).toEqual(['G1']);
   });
 });
