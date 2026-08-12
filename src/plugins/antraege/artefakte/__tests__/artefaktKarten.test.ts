@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  buildGutachtenKarte, buildNachforderungKarte, formatFristKurz,
+  buildGutachtenKarte, buildNachforderungKarte, formatFristKurz, istGutachtenPhase,
 } from '../artefaktKarten';
 import type { StepRun, WorkflowRun } from '../../gutachten/types';
 
@@ -129,5 +129,31 @@ describe('formatFristKurz', () => {
   it('null / ungültig → null', () => {
     expect(formatFristKurz(null)).toBeNull();
     expect(formatFristKurz('kein-datum')).toBeNull();
+  });
+});
+
+/*
+ * Das Gate der GA-Karte hing bis v4.3 an zwei festen ZAH-Phasen-Ids. Es fragt
+ * aber „wer ist am Zug", also die Arbeitsliste — die Achse, die im Code bleibt.
+ */
+describe('istGutachtenPhase', () => {
+  it('gilt in Prüfung und Entscheidung', () => {
+    expect(istGutachtenPhase('techn geprüft')).toBe(true);      // 38 → in_pruefung
+    expect(istGutachtenPhase('Gutachten fertig')).toBe(true);   // 40 → in_pruefung
+    expect(istGutachtenPhase('bewilligungsreif')).toBe(true);   // 51 → entscheidung
+    expect(istGutachtenPhase('Ablehnung versandt')).toBe(true); // 70 → entscheidung
+  });
+
+  it('gilt nicht davor, nicht danach und nicht bei fehlendem Status', () => {
+    expect(istGutachtenPhase('beantragt')).toBe(false);         // 31 → offen
+    expect(istGutachtenPhase('NF gestellt')).toBe(false);       // 35 → nachforderung (Anker)
+    expect(istGutachtenPhase('bewilligt')).toBe(false);         // 59 → bewilligt
+    expect(istGutachtenPhase('Schlussvermerk')).toBe(false);    // 99 → abgeschlossen
+    expect(istGutachtenPhase(null)).toBe(false);
+    expect(istGutachtenPhase('')).toBe(false);
+  });
+
+  it('schließt „abgelehnt/zurückgezogen" am Rohwert aus, nicht erst über die Kategorie', () => {
+    expect(istGutachtenPhase('abgelehnt/zurückgezogen')).toBe(false);
   });
 });

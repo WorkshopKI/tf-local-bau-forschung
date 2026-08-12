@@ -70,12 +70,28 @@ nie gefüllten Key: die Bedingung evaluiert zu `false`, statt zu werfen.
 | Projektion | `kv`: `meilenstein-stand:<programmId>` | nur nicht-terminale Verbünde, Signatur-Guard |
 | Risiko-Meldungen | persönlicher Ordner `ZAH/meilenstein-risiken.json` + `kv`-Spiegel | Muster Übernahme-Wünsche (Pitfall #24/#26) |
 
-**Der Plan ist Team-Daten**, anders als der gerätelokale Status-Katalog: eine
-Frist-Definition, die auf jedem Rechner anders lautet, wäre wertlos. Geschrieben
-wird nur mit `canWriteDatenShare` (Pitfall #25).
+**Der Plan ist Team-Daten**: eine Frist-Definition, die auf jedem Rechner anders
+lautet, wäre wertlos. Geschrieben wird nur mit `canWriteDatenShare` (Pitfall #25).
+Der Status-Katalog nebenan ist seit v2.332 ebenfalls Team-Sidecar — der
+Unterschied liegt nicht im Speicherort, sondern in der Freigabe (siehe unten).
+Gerätelokal bleibt dort nur das Event-Log.
 
 **Ausgewertet wird nur eine freigegebene Fassung** (`freigegebeneFassung`) —
-sonst sähen alle Zahlen, die auf einem halbfertigen Entwurf beruhen.
+sonst sähen alle Zahlen, die auf einem halbfertigen Entwurf beruhen. Das ist der
+Unterschied zum Katalog, der mit dem Speichern gilt, und die häufigste Ursache
+für „meine neuen Meilensteine kommen nicht an": gespeichert ist nicht
+freigegeben. Bis dahin gilt die jüngste freigegebene Fassung aus der Historie;
+gibt es keine, meldet die Seite „Noch kein Plan freigegeben."
+
+**Tolerante Normalisierung — mit einer Zusage** (seit v4.3): **alle neun**
+`Bedingung`-Operatoren überleben den Neustart. Bis dahin kannte
+`normalisiereBedingung` nur sechs, während der Editor neun anbot; `tageSeit`,
+`datumNachFeld` und `foerdervarianteIn` verschwanden beim nächsten **Lesen**.
+Und eine UND-Gruppe, die dabei einen Zweig verlor, wurde zu `{alle: []}` —
+`[].every(…)` ist `true`, der Meilenstein galt also für jeden Verbund als
+erreicht. Deshalb gilt jetzt: verliert eine UND-Gruppe einen Zweig, wird sie
+`{einige: []}` = nie erfüllt. Ein Roundtrip-Test über `Bedingung['op']` hält die
+Operator-Liste vollständig — ein zehnter bricht den Typecheck.
 
 **Signatur-Guard** ([projektion.ts](../../src/core/meilensteine/projektion.ts)):
 `planVersion@stand | schemaId:checksum:spaltenzahl | Kalendertag`. Der Tages-Anteil

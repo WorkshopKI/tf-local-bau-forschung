@@ -14,7 +14,34 @@
  * (`useArtefaktLeiste`) lädt Runs + Schritte und ruft diese Builder.
  */
 import type { WorkflowStep } from '@/core/services/skills';
+import { getStatusCategory, isAbgelehntZurueckgezogenStatus } from '@/core/utils/status-canonical';
 import type { StepStatus, WorkflowRun } from '../gutachten/types';
+
+/**
+ * Wird dieser Verbund gerade fachlich geprüft — also: erscheint die GA-Karte
+ * auch ohne Run?
+ *
+ * **Über die Arbeitsliste, nicht über den Verfahrensschritt.** Die Frage der
+ * Karte ist „wer ist am Zug", und das ist genau die Achse, die im Code steht
+ * (Pitfall #50). Bis v4.3 verglich der Aufrufer zwei feste ZAH-Phasen-Ids
+ * (`'pruefung'`, `'entscheidung'`) — die brechen lautlos, sobald die PL den
+ * Schnitt umhängt oder eine Phase umbenennt.
+ *
+ * Auf dem Auslieferungsschnitt ist das deckungsgleich (38/39/40 → `in_pruefung`,
+ * 32/50/51/70–75 → `entscheidung`); unter einem kuratierten Schnitt folgt die
+ * Karte der `kategorieVorgabe`, die die PL selbst setzt — und `KATEGORIE_ANKER`
+ * hält die Codes fest, deren Arbeitsliste fachlich feststeht.
+ *
+ * Der Terminal-Ausschluss bleibt am ROHWERT hängen und nicht an der Kategorie:
+ * `abgelehnt/zurückgezogen` führt der Förder-Katalog als `abgeschlossen`, eine
+ * kuratierte Fassung kann es nach `abgelehnt` hängen — beides ist dieselbe
+ * Aussage, und keine davon ist eine laufende Fachprüfung.
+ */
+export function istGutachtenPhase(status: string | null | undefined): boolean {
+  if (isAbgelehntZurueckgezogenStatus(status)) return false;
+  const kategorie = getStatusCategory(status);
+  return kategorie === 'in_pruefung' || kategorie === 'entscheidung';
+}
 
 /** GA-Karte mit Fortschritt (Run vorhanden). */
 export interface GutachtenKarteFortschritt {

@@ -17,7 +17,6 @@ import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { toVbPhaseNumber, VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { computeFristDatum, wirksamerEingang } from '@/core/services/csv/frist';
-import { isBegleitungStatus, isTerminalStatus } from '@/core/utils/status-canonical';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -34,7 +33,7 @@ import {
 } from '@/plugins/antraege/bearbeiterFilter';
 import {
   letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
-  zaehleNach,
+  zaehleNach, fristLaeuftFuer,
 } from './boardFilter';
 
 /** Eine Zeile des Boards — ein Teilvorhaben mit seinem ermittelten To-do. */
@@ -212,21 +211,6 @@ export interface VorgangsBoardApi {
  * welche gemeint sind, und kann einzeln dazu- oder abwählen.
  */
 
-/** ZAH-Phasen, in denen die Antragsfrist (90 Tage) überhaupt gilt. */
-const ANTRAGSPHASE: ReadonlySet<ZahPhaseId> = new Set<ZahPhaseId>([
-  'eingang', 'vollstaendigkeit', 'pruefung', 'entscheidung',
-]);
-
-/** Siehe {@link BoardZeile.fristLaeuft}. Rein. */
-function fristLaeuftFuer(zahPhase: ZahPhaseId | null, statusRoh: unknown): boolean {
-  if (isTerminalStatus(statusRoh)) return false;
-  // Begleitphase mit Verwendungsnachweis: `computeFristDatum` liefert dort die
-  // VN-Frist, die ist echt.
-  if (isBegleitungStatus(statusRoh)) return true;
-  if (zahPhase === null) return true;      // Phase unbekannt → altes Kriterium
-  return ANTRAGSPHASE.has(zahPhase);
-}
-
 /** Fördervariante als Klartext; unbekannt → leer (nie geraten). */
 function varianteVon(rec: Record<string, unknown>): string {
   const n = toVbPhaseNumber(rec.vb_phase);
@@ -336,7 +320,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
           waechter,
           wirksamerEingang: eingang,
           restTage,
-          fristLaeuft: fristLaeuftFuer(zahPhase, a.status),
+          fristLaeuft: fristLaeuftFuer(zahPhase, a.status, v.zahPhasen),
           filterRecord: a,
         });
       });

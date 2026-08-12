@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.3.0 — Verfahrensschritte wirken überall, Meilenstein-Regeln überleben den Neustart (August 2026)
+
+MINOR — Der Phasenschnitt ist seit v2.409 kuratierbar, aber drei Stellen führten weiter ihre eigene Kopie — darunter zwei Wörter („Fachprüfung", „Nachforderung"), die in KEINER Fassung ein Phasenlabel waren. Daneben ein stiller Datenverlust: der Meilenstein-Editor bot neun Bedingungs-Operatoren an, das Lesen kannte sechs. Detail: [status-achsen.md](docs/architecture/status-achsen.md), [meilensteine.md](docs/architecture/meilensteine.md).
+
+- **Alle neun Operatoren überleben den Neustart** ([plan-storage.ts](src/core/meilensteine/plan-storage.ts)); eine UND-Gruppe, die einen Zweig verliert, gilt jetzt als **nie** erfüllt statt als immer — `[].every(…)` ist `true`, der Meilenstein galt sonst für jeden Verbund als erreicht
+- **Fristlauf im Vorgangs-Board aus der Fassung** statt aus vier eingetippten Phasen-Ids ([boardFilter.ts](src/plugins/vorgangs-board/boardFilter.ts)) — die Auslieferung hält die Uhr damit in der Entscheidung an, steuerbar je Phase im Baum-Editor
+- **Handlungs-Formel zeigt nur noch die Aktion** ([naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts)); ohne hinterlegte Handlung steht dort die Status-Kurzform — betrifft Home, Kanban-Widget und den Assistenten-Kontext, dessen Zeile „Phase" jetzt korrekt **Fördervariante** heißt
+- **Gutachten-Karte fragt die Arbeitsliste** statt zwei Phasen-Ids ([artefaktKarten.ts](src/plugins/antraege/artefakte/artefaktKarten.ts)) — „wer ist am Zug" ist deren Frage, und die steht im Code
+- **Guard `zah-phase-single-source`** ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)): keine feste Phasen-Id, keine Phasen-Beschriftung als Literal — auf dem Vorher-Stand hätte er alle drei Fundstellen gemeldet
+
 ### v4.2.0 — Suche: Assistent am Rand, UND/ODER, größeres Feld, Rückweg (August 2026)
 
 MINOR — Die Suchseite war eine Insel: eigener Assistent-Knopf im Kopf statt des Streifens am Rand, ein Feld für „analytische Fragen" von einer Zeile Höhe, und ein Treffer-Klick ohne Rückweg. Der schwerste Punkt lag darunter — mehrere Stichwörter wurden als EINE Zeichenkette gesucht. Gemessen am Bestand (14 221 Anträge): „laser schweißen" fand **0**, jetzt 21. Detail: [assistent-panel.md](docs/architecture/assistent-panel.md), [suche.md](docs/feedback-kontext/suche.md).

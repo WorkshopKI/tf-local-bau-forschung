@@ -320,11 +320,16 @@ export const GLOSSAR_BEGRIFFE: readonly GlossarBegriff[] = [
   {
     id: 'verfahrensschritt',
     begriff: 'Verfahrensschritt',
+    // Die Schritte werden hier bewusst NICHT aufgezählt: welche es gibt und wie
+    // sie heißen, entscheidet die Katalog-Fassung. Eine Liste an dieser Stelle
+    // wäre beim nächsten Zuschnitt still falsch — und stünde ausgerechnet im
+    // Glossar, das erklären soll.
     erklaerung:
-      'Die Gliederung des Verfahrens, die die App über die Status legt: Eingang, In '
-      + 'Prüfung, Erstentscheidung, Begleitung, Abgeschlossen. Keine amtliche '
-      + 'Einteilung, sondern eine mit der Fachseite abgestimmte und im Katalog '
-      + 'änderbare Lesebrille. Im Datenmodell heißt sie ZAH-Phase.',
+      'Die Gliederung des Verfahrens, die die App über die Status legt — vom Eingang '
+      + 'bis zum Abschluss. Keine amtliche Einteilung, sondern eine mit der Fachseite '
+      + 'abgestimmte und im Katalog änderbare Lesebrille: welche Schritte gelten und '
+      + 'wie sie heißen, steht in den Vorgangs-Regeln und ist an der Verfahrensleiste '
+      + 'eines Antrags abzulesen. Im Datenmodell heißt sie ZAH-Phase.',
     verwandt: ['arbeitsliste', 'status', 'marker', 'zieltage'],
   },
   {

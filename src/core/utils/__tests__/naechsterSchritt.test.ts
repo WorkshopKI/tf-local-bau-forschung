@@ -1,5 +1,13 @@
+/*
+ * Seit v4.3 gibt die Formel nur noch die HANDLUNG aus. Das Phasenwort links war
+ * ein drittes Vokabular neben Katalog und Arbeitsliste — zwei seiner Wörter
+ * („Fachprüfung", „Nachforderung") standen in keiner Fassung, und
+ * `bearbeitungsreif` lief hier unter „Eingang", laut Auslieferung aber unter
+ * „Vollständigkeit". Was hier geprüft wird, ist deshalb die Aktion; die
+ * Beschriftung des Verfahrensschritts prüft `zah-phasen-daten.test.ts`.
+ */
 import { describe, it, expect, afterEach } from 'vitest';
-import { naechsterSchritt, normalisierePrecheck } from '../naechsterSchritt';
+import { naechsterSchritt, normalisierePrecheck, schrittText } from '../naechsterSchritt';
 import {
   setCodePhasenSnapshot, resetZahPhasenSnapshotFuerTests, SEED_PHASEN_SCHNITT,
 } from '@/core/status/zah-phasen';
@@ -7,34 +15,39 @@ import {
 afterEach(() => resetZahPhasenSnapshotFuerTests());
 
 describe('naechsterSchritt — gemappte Roh-Stati (Kern-Tabelle)', () => {
-  const cases: Array<[string, string, string]> = [
-    // status, phase, aktion
-    ['beantragt', 'Eingang', 'Vollständigkeit prüfen'],
-    ['bearbeitungsreif', 'Eingang', 'Vollständigkeit prüfen'],
-    ['NL eingegangen', 'Vollständigkeit', 'Nachlieferung prüfen'],
-    ['techn geprüft', 'Fachprüfung', 'Gutachten beginnen'],
-    ['kaufm geprüft', 'Fachprüfung', 'Gutachten beginnen'],
-    ['Gutachten fertig', 'Fachprüfung', 'Gutachten freigeben'],
-    ['bewilligungsreif', 'Fachprüfung', 'Bewilligung vorbereiten'],
-    ['ablehnungsreif', 'Fachprüfung', 'Ablehnungsbescheid erstellen'],
-    ['NF gestellt', 'Nachforderung', 'Nachforderung nachhalten'],
+  const cases: Array<[string, string]> = [
+    // status, aktion
+    ['beantragt', 'Vollständigkeit prüfen'],
+    ['bearbeitungsreif', 'Vollständigkeit prüfen'],
+    ['NL eingegangen', 'Nachlieferung prüfen'],
+    ['techn geprüft', 'Gutachten beginnen'],
+    ['kaufm geprüft', 'Gutachten beginnen'],
+    ['Gutachten fertig', 'Gutachten freigeben'],
+    ['bewilligungsreif', 'Bewilligung vorbereiten'],
+    ['ablehnungsreif', 'Ablehnungsbescheid erstellen'],
+    ['NF gestellt', 'Nachforderung nachhalten'],
     // Zyklus abgeschlossen, Antrag vollständig — nachzuhalten ist nichts mehr
     // (v2.411). Bis dahin stand hier dieselbe Formel wie bei „NF gestellt".
-    ['keine weiteren NF', 'Vollständigkeit', 'Fachprüfung beginnen'],
-    ['NL eingegangen', 'Vollständigkeit', 'Nachlieferung prüfen'],
+    ['keine weiteren NF', 'Fachprüfung beginnen'],
   ];
 
-  it.each(cases)('%s → %s → %s', (status, phase, aktion) => {
-    expect(naechsterSchritt(status)).toEqual({ phase, aktion });
+  it.each(cases)('%s → %s', (status, aktion) => {
+    expect(naechsterSchritt(status)).toEqual({ aktion });
+  });
+
+  it('gibt die interne Notiz `eingangsFormel` NICHT nach außen', () => {
+    // Sie steuert nur die PreCheck-Regel unten; im Ergebnis hätte sie nichts
+    // verloren (und stünde sonst im `toEqual` jedes Aufrufers).
+    expect(Object.keys(naechsterSchritt('beantragt')!)).toEqual(['aktion']);
   });
 
   it('trimmt Whitespace vor dem Lookup', () => {
-    expect(naechsterSchritt('  beantragt  ')).toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+    expect(naechsterSchritt('  beantragt  ')).toEqual({ aktion: 'Vollständigkeit prüfen' });
   });
 
   it('Begleitphase bekommt KEINE Antragsphasen-Aktion', () => {
     // Ein geprüfter Verwendungsnachweis löst kein Gutachten aus. Der Ablauf
-    // nach der Bewilligung ist nicht abgebildet — also nur die Phase.
+    // nach der Bewilligung ist nicht abgebildet — also gar keine Anweisung.
     for (const status of ['VN geprüft', 'VN techn. geprüft']) {
       expect(naechsterSchritt(status)?.aktion).toBe('');
     }
@@ -42,13 +55,10 @@ describe('naechsterSchritt — gemappte Roh-Stati (Kern-Tabelle)', () => {
 });
 
 describe('naechsterSchritt — Fallback (nicht gemappt, aber gesetzt)', () => {
-  it('nutzt getStatusLabel als Phase, aktion bleibt leer (keine erratene Aktion)', () => {
-    // 'bewilligt' ist kein Bearbeitungs-Schritt, hat aber ein Status-Label.
-    expect(naechsterSchritt('bewilligt')).toEqual({ phase: 'Bewilligt', aktion: '' });
-  });
-
-  it('völlig unbekannter Status → Roh-Wert als Phase, aktion leer', () => {
-    expect(naechsterSchritt('irgendwas-neues')).toEqual({ phase: 'irgendwas-neues', aktion: '' });
+  it('liefert eine leere Aktion statt einer erratenen', () => {
+    // 'bewilligt' ist kein Bearbeitungs-Schritt.
+    expect(naechsterSchritt('bewilligt')).toEqual({ aktion: '' });
+    expect(naechsterSchritt('irgendwas-neues')).toEqual({ aktion: '' });
   });
 });
 
@@ -67,10 +77,40 @@ describe('naechsterSchritt — leerer/fehlender Status → null', () => {
   });
 });
 
+/*
+ * Was auf der engen Fläche tatsächlich steht — die eine Stelle, an der die Regel
+ * „ohne Handlung zeigen wir den Status" lebt (Home-Zeile, Kanban-Karte,
+ * Assistenten-Kontext).
+ */
+describe('schrittText', () => {
+  it('zeigt die Handlung, wenn eine hinterlegt ist', () => {
+    expect(schrittText('techn geprüft')).toBe('Gutachten beginnen');
+  });
+
+  it('fällt auf die Status-KURZform zurück, nicht auf den Rohwert', () => {
+    expect(schrittText('bewilligt')).toBe('Bewilligt');
+  });
+
+  it('nimmt bei unbekanntem Status den Rohwert — sichtbar unfertig statt leer', () => {
+    expect(schrittText('irgendwas-neues')).toBe('irgendwas-neues');
+  });
+
+  it('leerer Status → leerer Text, kein Rest der Formel', () => {
+    expect(schrittText('')).toBe('');
+    expect(schrittText(null)).toBe('');
+    expect(schrittText(undefined)).toBe('');
+    expect(schrittText('   ')).toBe('');
+  });
+
+  it('reicht den PreCheck-Kontext durch', () => {
+    expect(schrittText('beantragt', 'PreCheck negativ')).toBe('PreCheck-Ergebnis klären');
+  });
+});
+
 describe('naechsterSchritt — Abwärtskompatibilität des 2. Arguments', () => {
   it('OHNE 2. Argument bleibt das Legacy-Verhalten erhalten (kein „PreCheck durchführen")', () => {
     // Kein PreCheck-Kontext ⇒ Status-Regel greift unverändert.
-    expect(naechsterSchritt('beantragt')).toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+    expect(naechsterSchritt('beantragt')).toEqual({ aktion: 'Vollständigkeit prüfen' });
   });
 });
 
@@ -83,7 +123,7 @@ describe('naechsterSchritt — PreCheck-Regeln (2. Argument gesetzt)', () => {
     ['beantragt', 'PreCheck ausstehend'], // offen/pending
   ];
   it.each(durchfuehren)('%s + precheck=%o → PreCheck durchführen', (status, pc) => {
-    expect(naechsterSchritt(status, pc)).toEqual({ phase: 'Eingang', aktion: 'PreCheck durchführen' });
+    expect(naechsterSchritt(status, pc)).toEqual({ aktion: 'PreCheck durchführen' });
   });
 
   it('`bearbeitungsreif` liegt in der Vollständigkeit — kein PreCheck-Aufruf mehr', () => {
@@ -91,9 +131,11 @@ describe('naechsterSchritt — PreCheck-Regeln (2. Argument gesetzt)', () => {
     // auch Codes der Vollständigkeit. 33/34 bekommen jetzt ihre kuratierte
     // Formel statt einer Anweisung aus einem Schritt, in dem sie nicht stehen.
     expect(naechsterSchritt('bearbeitungsreif', ''))
-      .toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
-    // Ohne kuratierte Formel bleibt nur die Phase — keine erratene Aktion.
-    expect(naechsterSchritt('unvollständig', '')).toEqual({ phase: 'Unvollständig', aktion: '' });
+      .toEqual({ aktion: 'Vollständigkeit prüfen' });
+    // Ohne kuratierte Formel bleibt gar keine Anweisung — die Fläche zeigt dann
+    // den Status.
+    expect(naechsterSchritt('unvollständig', '')).toEqual({ aktion: '' });
+    expect(schrittText('unvollständig', '')).toBe('Unvollständig');
   });
 
   it('folgt dem VERFAHRENSSCHRITT, nicht der Arbeitsliste — Umhängen wirkt', () => {
@@ -101,7 +143,7 @@ describe('naechsterSchritt — PreCheck-Regeln (2. Argument gesetzt)', () => {
     // Code um, wandert die Anweisung mit. Hinge die Regel weiter an der
     // Kategorie, bliebe sie beim nächsten Phasenschnitt still falsch stehen.
     expect(naechsterSchritt('beantragt', ''))
-      .toEqual({ phase: 'Eingang', aktion: 'PreCheck durchführen' });
+      .toEqual({ aktion: 'PreCheck durchführen' });
 
     // Code 31 („beantragt") aus dem Eingang in die Vollständigkeit gehängt:
     setCodePhasenSnapshot({
@@ -109,49 +151,50 @@ describe('naechsterSchritt — PreCheck-Regeln (2. Argument gesetzt)', () => {
       markerCodes: SEED_PHASEN_SCHNITT.markerCodes,
     });
     expect(naechsterSchritt('beantragt', ''))
-      .toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+      .toEqual({ aktion: 'Vollständigkeit prüfen' });
   });
 
   it('kuratierte Formel schlägt die PreCheck-Regel, wenn sie woanders hinzeigt', () => {
     // Umgekehrter Fall: ein Code der Vollständigkeit wandert in den Eingang.
     // Seine eigene Formel ist spezifischer als die allgemeine Regel — sonst
-    // stünde bei „NL eingegangen" plötzlich „PreCheck durchführen".
+    // stünde bei „NL eingegangen" plötzlich „PreCheck durchführen". Getragen
+    // wird die Unterscheidung seit v4.3 von `eingangsFormel`, nicht mehr von
+    // einem Vergleich gegen das Wort „Eingang".
     setCodePhasenSnapshot({
       codeZuPhase: new Map([...SEED_PHASEN_SCHNITT.codeZuPhase, [36, 'eingang']]),
       markerCodes: SEED_PHASEN_SCHNITT.markerCodes,
     });
     expect(naechsterSchritt('NL eingegangen', ''))
-      .toEqual({ phase: 'Vollständigkeit', aktion: 'Nachlieferung prüfen' });
+      .toEqual({ aktion: 'Nachlieferung prüfen' });
   });
 
-  it('positiver PreCheck fällt auf die Status-Regel zurück (Eingang → Vollständigkeit prüfen)', () => {
+  it('positiver PreCheck fällt auf die Status-Regel zurück', () => {
     // Mockup: AIRES (Eingang, PreCheck positiv) → „Vollständigkeit prüfen".
     expect(naechsterSchritt('beantragt', 'PreCheck positiv - Verbund'))
-      .toEqual({ phase: 'Eingang', aktion: 'Vollständigkeit prüfen' });
+      .toEqual({ aktion: 'Vollständigkeit prüfen' });
   });
 
   it('negativer PreCheck (nicht-terminal) → PreCheck-Ergebnis klären', () => {
     expect(naechsterSchritt('beantragt', 'PreCheck negativ'))
-      .toEqual({ phase: 'Eingang', aktion: 'PreCheck-Ergebnis klären' });
+      .toEqual({ aktion: 'PreCheck-Ergebnis klären' });
   });
 
   it('negativer PreCheck greift auch bei fortgeschrittenem, nicht-terminalem Status', () => {
     expect(naechsterSchritt('Gutachten fertig', 'PreCheck negativ'))
-      .toEqual({ phase: 'Eingang', aktion: 'PreCheck-Ergebnis klären' });
+      .toEqual({ aktion: 'PreCheck-Ergebnis klären' });
   });
 
   it('„durchführen" NUR in der Eingangs-Phase — fortgeschrittener Status ohne PreCheck fällt auf die Status-Regel zurück', () => {
     // 'Gutachten fertig' ist Kategorie in_pruefung, nicht 'offen' ⇒ keine durchführen-Regel.
     expect(naechsterSchritt('Gutachten fertig', ''))
-      .toEqual({ phase: 'Fachprüfung', aktion: 'Gutachten freigeben' });
+      .toEqual({ aktion: 'Gutachten freigeben' });
   });
 
   it('Terminal-Status unterdrückt die PreCheck-Regeln (Fallback auf Status-Regel)', () => {
-    const negTerminal = naechsterSchritt('Schlussvermerk', 'PreCheck negativ');
-    expect(negTerminal?.aktion).toBe('');
-    expect(negTerminal?.phase).toBeTruthy();
-    const ohneTerminal = naechsterSchritt('abgelehnt/zurückgezogen', '');
-    expect(ohneTerminal?.aktion).toBe('');
+    expect(naechsterSchritt('Schlussvermerk', 'PreCheck negativ')?.aktion).toBe('');
+    expect(naechsterSchritt('abgelehnt/zurückgezogen', '')?.aktion).toBe('');
+    // Sichtbar bleibt trotzdem etwas — der Status selbst.
+    expect(schrittText('Schlussvermerk', 'PreCheck negativ')).toBeTruthy();
   });
 });
 

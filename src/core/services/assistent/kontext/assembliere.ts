@@ -10,7 +10,7 @@
  */
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
-import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { schrittText } from '@/core/utils/naechsterSchritt';
 import { QUELLENTREUE_REGELN } from '@/core/services/skills/registry/grundsatz';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
 import type { ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet, VorhabenDokument } from './types';
@@ -99,12 +99,14 @@ function entitaetZeilen(e: KontextEntitaet): string[] {
     // und „VN techn. gepr." ist genau die Art Kürzel, die ein Modell rät.
     zeilen.push(`Status: ${statusLabel(status)} (${getStatusCategory(status)})`);
   }
-  if (e.phaseLabel) zeilen.push(`Phase: ${e.phaseLabel}`);
+  // „Fördervariante", nicht „Phase": `phaseLabel` kommt aus `VB_PHASE` und meint
+  // die Variante, nicht den Verfahrensschritt. Unter dem Wort „Phase" stünden
+  // hier zwei verschiedene Dinge direkt untereinander — genau die Verwechslung,
+  // gegen die die Umbenennung von v2.409 geschrieben ist.
+  if (e.phaseLabel) zeilen.push(`Fördervariante: ${e.phaseLabel}`);
 
-  const schritt = naechsterSchritt(e.status, e.precheckLabel);
-  if (schritt) {
-    zeilen.push(`Nächster Schritt: ${schritt.aktion ? `${schritt.phase} — ${schritt.aktion}` : schritt.phase}`);
-  }
+  const schritt = schrittText(e.status, e.precheckLabel);
+  if (schritt) zeilen.push(`Nächster Schritt: ${schritt}`);
   if (e.fristHinweis) zeilen.push(`Frist: ${e.fristHinweis}`);
 
   if (e.stammdaten && e.stammdaten.length > 0) {

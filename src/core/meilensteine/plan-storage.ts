@@ -3,9 +3,13 @@
  * [textbausteine/storage.ts](../services/skills/textbausteine/storage.ts).
  *
  * Ablage: eigene Sidecar `_intern/meilensteine.json` auf dem Daten-Share. Der Plan
- * ist **kuratierte Team-Daten**: die PL pflegt ihn einmal, alle lesen ihn. Damit
- * unterscheidet er sich bewusst vom Status-Katalog, der per Guard gerätelokal
- * bleibt — eine Frist-Definition, die auf jedem Rechner anders lautet, wäre wertlos.
+ * ist **kuratierte Team-Daten**: die PL pflegt ihn einmal, alle lesen ihn — eine
+ * Frist-Definition, die auf jedem Rechner anders lautet, wäre wertlos.
+ *
+ * Der Status-Katalog nebenan (`_intern/status-katalog.json`) ist seit v2.332
+ * ebenfalls Team-Sidecar; der Unterschied liegt nicht im Speicherort, sondern im
+ * **Freigabemodell**: der Katalog wirkt mit dem Speichern, dieser Plan erst mit
+ * der Freigabe (`freigegebeneFassung`).
  *
  * Sidecar-Profil (Pitfall #23): idempotent-overwrite mit Backup-Rotation. Schreiben
  * self-gated über `queryPermission` — nur Rollen mit readwrite (PL/Kurator/dev)
@@ -61,6 +65,14 @@ function asTypen(v: unknown): AntragstypBucket[] {
  * unlesbarer Baum wird zum leeren ODER — also „nie erfüllt", nie „immer erfüllt".
  * Die sichere Richtung ist hier eindeutig: ein falsch-positiver Meilenstein
  * täuscht Fortschritt vor, ein falsch-negativer fällt sofort auf.
+ *
+ * **Alle neun Operatoren müssen hier stehen.** Bis v4.3 kannte die Funktion nur
+ * sechs — `tageSeit`, `datumNachFeld` und `foerdervarianteIn` bot der
+ * `BedingungEditor` an, aber sie überlebten den Neustart nicht: der Verlust trat
+ * nicht beim Schreiben ein (das schreibt roh), sondern beim nächsten Lesen. Die
+ * Regel war in der Sitzung sichtbar und am Folgetag weg. Der Round-Trip-Test
+ * über `Bedingung['op']` hält die Liste vollständig — ein zehnter Operator
+ * bricht den Typecheck, statt still zu verschwinden.
  */
 export function normalisiereBedingung(raw: unknown): Bedingung | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -68,9 +80,18 @@ export function normalisiereBedingung(raw: unknown): Bedingung | null {
 
   if (Array.isArray(b.alle)) {
     const kinder = b.alle.map(normalisiereBedingung).filter((x): x is Bedingung => x !== null);
+    // Ein Verlust in einer UND-Gruppe LOCKERT die Bedingung: ein Zweig weniger
+    // heißt „leichter erfüllt", und die leer gewordene Gruppe heißt sogar
+    // `[].every(…) === true` — der Meilenstein gälte für JEDEN Verbund als
+    // erreicht. Deshalb dieselbe sichere Richtung wie oben: nie erfüllt.
+    // (`{alle: []}` als ECHTE Eingabe bleibt erlaubt und heißt weiter „immer
+    // erfüllt"; der Editor sagt das an seiner leeren Gruppe auch so.)
+    if (kinder.length < b.alle.length) return { einige: [] };
     return { alle: kinder };
   }
   if (Array.isArray(b.einige)) {
+    // Umgekehrte Richtung: ein verlorener ODER-Zweig macht die Aussage STRENGER.
+    // Durchfallen ist hier die sichere Wahl.
     const kinder = b.einige.map(normalisiereBedingung).filter((x): x is Bedingung => x !== null);
     return { einige: kinder };
   }
@@ -86,6 +107,20 @@ export function normalisiereBedingung(raw: unknown): Bedingung | null {
   }
   if (op === 'datumVor' || op === 'datumNach') {
     return { feldId, op, tageRelativHeute: asZahl(b.tageRelativHeute, 0, -100_000) };
+  }
+  if (op === 'tageSeit') {
+    return { feldId, op, tage: asZahl(b.tage, 0) };
+  }
+  if (op === 'datumNachFeld') {
+    const vergleichFeldId = asString(b.vergleichFeldId).trim();
+    // Ohne zweites Feld ist der Vergleich nicht formulierbar — `null` statt
+    // eines Blattes, das nie zutrifft und trotzdem im Editor steht.
+    return vergleichFeldId ? { feldId, op, vergleichFeldId } : null;
+  }
+  if (op === 'foerdervarianteIn') {
+    const varianten = (Array.isArray(b.varianten) ? b.varianten : [])
+      .filter((x): x is number => typeof x === 'number' && Number.isFinite(x));
+    return varianten.length > 0 ? { feldId, op, varianten } : null;
   }
   return null;
 }

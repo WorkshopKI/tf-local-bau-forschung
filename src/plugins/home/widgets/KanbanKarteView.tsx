@@ -32,7 +32,9 @@ export function KanbanKarteView({ karte, onOpen }: KanbanKarteViewProps): React.
         {karte.label}
       </p>
       {karte.schrittText ? (
-        <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2">
+        // `line-clamp-2` schneidet ohne Rueckweg ab — der Titel daneben hat aus
+        // demselben Grund einen. Greift bei langen Status-Kurzformen.
+        <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2" title={karte.schrittText}>
           {karte.schrittText}
         </p>
       ) : null}

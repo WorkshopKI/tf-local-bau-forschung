@@ -12,6 +12,11 @@ import {
 } from '@/core/meilensteine/plan-storage';
 import { baueSeedPlan } from '@/core/meilensteine/seed';
 import type { MeilensteinPlan } from '@/core/meilensteine/typen';
+import type { Bedingung } from '@/core/status';
+
+/** Ein Blatt der Bedingung (die beiden Gruppen-Formen ausgeklammert). */
+type Blatt = Extract<Bedingung, { op: string }>;
+type BlattOp = Blatt['op'];
 
 beforeEach(async () => {
   const { IDBFactory } = await import('fake-indexeddb');
@@ -44,6 +49,49 @@ describe('normalisiereBedingung', () => {
     expect(normalisiereBedingung({
       einige: [{ feldId: 'a', op: 'gefuellt' }, { op: 'kaputt' }],
     })).toEqual({ einige: [{ feldId: 'a', op: 'gefuellt' }] });
+  });
+
+  /*
+   * Der eigentliche Regressionsbeleg: JEDER Operator, den der Editor anbietet,
+   * muss den Persistenz-Roundtrip überleben. Der `Record`-Typ ist der Wächter —
+   * kommt ein zehnter Operator hinzu, bricht hier der Typecheck, statt dass die
+   * Regel still beim nächsten Laden verschwindet (bis v4.3 fielen `tageSeit`,
+   * `datumNachFeld` und `foerdervarianteIn` genau so heraus).
+   */
+  const BLATT_JE_OPERATOR: Record<BlattOp, Blatt> = {
+    ist: { feldId: 'status', op: 'ist', wert: 'bewilligt' },
+    istNicht: { feldId: 'status', op: 'istNicht', wert: 'bewilligt' },
+    gefuellt: { feldId: 'antragsdatum', op: 'gefuellt' },
+    leer: { feldId: 'antragsdatum', op: 'leer' },
+    datumVor: { feldId: 'antragsdatum', op: 'datumVor', tageRelativHeute: -10 },
+    datumNach: { feldId: 'antragsdatum', op: 'datumNach', tageRelativHeute: 10 },
+    tageSeit: { feldId: 'antragsdatum', op: 'tageSeit', tage: 31 },
+    datumNachFeld: { feldId: 'D_QS', op: 'datumNachFeld', vergleichFeldId: 'antragsdatum' },
+    foerdervarianteIn: { feldId: 'vb_phase', op: 'foerdervarianteIn', varianten: [1, 2] },
+  };
+
+  it.each(Object.entries(BLATT_JE_OPERATOR))('überlebt den Roundtrip: %s', (_op, blatt) => {
+    expect(normalisiereBedingung(JSON.parse(JSON.stringify(blatt)))).toEqual(blatt);
+  });
+
+  it('verwirft die beiden Operatoren mit unvollständigem zweiten Argument', () => {
+    expect(normalisiereBedingung({ feldId: 'a', op: 'datumNachFeld' })).toBeNull();
+    expect(normalisiereBedingung({ feldId: 'a', op: 'datumNachFeld', vergleichFeldId: '  ' })).toBeNull();
+    expect(normalisiereBedingung({ feldId: 'a', op: 'foerdervarianteIn', varianten: [] })).toBeNull();
+    expect(normalisiereBedingung({ feldId: 'a', op: 'foerdervarianteIn', varianten: ['x'] })).toBeNull();
+  });
+
+  it('macht eine UND-Gruppe, die einen Zweig verliert, NIE erfüllt', () => {
+    // `[].every(…)` ist `true` — ohne diese Regel gälte der Meilenstein nach dem
+    // Verlust für jeden Verbund als erreicht.
+    expect(normalisiereBedingung({
+      alle: [{ feldId: 'a', op: 'gefuellt' }, { op: 'kaputt' }],
+    })).toEqual({ einige: [] });
+    expect(normalisiereBedingung({ alle: [{ op: 'kaputt' }] })).toEqual({ einige: [] });
+  });
+
+  it('lässt eine ECHT leere UND-Gruppe unangetastet', () => {
+    expect(normalisiereBedingung({ alle: [] })).toEqual({ alle: [] });
   });
 });
 

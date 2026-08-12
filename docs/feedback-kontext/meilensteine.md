@@ -49,7 +49,9 @@ Teilvorhaben.
 - Der Plan ist eine Team-Datei auf dem Daten-Share: **schreiben darf nur die
   Projektleitung** (bzw. Kurator/dev), alle anderen sehen dieselbe Seite read-only.
 - **Speichern und Freigeben sind zwei Schritte** — ausgewertet wird nur die
-  zuletzt freigegebene Fassung.
+  zuletzt freigegebene Fassung. Ein neu geschnittener Plan, der nur gespeichert
+  ist, ändert also nirgends eine Zahl; alle sehen weiter die vorige Freigabe.
+  Das ist der häufigste Grund für „meine Änderung kommt nicht an".
 - Meilensteine mit unbestätigter CSV-Zuordnung tragen „unbestätigt"; ohne bekannte
   Quelle sind sie inaktiv und gelten nie als gerissen.
 - Derselbe Zeitstrahl steht auf der Verbund-Detailseite; dort lässt sich auch ein

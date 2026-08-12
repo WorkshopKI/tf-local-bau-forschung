@@ -16,7 +16,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   SEED_ZAH_PHASEN, zahPhasenVon, zahPhaseLabel, zahPhaseRang, kategorieVorgabeVon,
-  phaseFuerCode, istMarkerCode, geltenderSchnitt, zahPhasenGeneration,
+  fristLaeuftVon, phaseFuerCode, istMarkerCode, geltenderSchnitt, zahPhasenGeneration,
   setZahPhasenSnapshot, setCodePhasenSnapshot, resetZahPhasenSnapshotFuerTests,
 } from '@/core/status/zah-phasen';
 import { kategorieFuerPhase, kategorieFuerCode } from '@/core/status/kategorie-ableitung';
@@ -71,6 +71,42 @@ describe('Ohne Snapshot liefert jeder Leser die Auslieferung', () => {
     expect(zahPhasenVon()).toEqual(SEED_ZAH_PHASEN);
     setCodePhasenSnapshot(null);
     expect(geltenderSchnitt().codeZuPhase.get(11)).toBe('eingang');
+  });
+});
+
+/*
+ * `fristLaeuftVon` hatte bis v4.3 keinen einzigen Aufrufer — das Vorgangs-Board
+ * führte stattdessen eine eigene Menge von Phasen-Ids. Seit es der einzige Weg
+ * ist, gehört sein Verhalten festgehalten.
+ */
+describe('`fristLaeuftVon` — die Uhr hängt an der Phase', () => {
+  it('nimmt die Auslieferung, wenn nichts kuratiert ist', () => {
+    expect(fristLaeuftVon('eingang')).toBe(true);
+    expect(fristLaeuftVon('pruefung')).toBe(true);
+    expect(fristLaeuftVon('entscheidung')).toBe(false);
+    expect(fristLaeuftVon('begleitung')).toBe(false);
+  });
+
+  it('lässt sie bei Marker (`null`) und verwaister Id laufen — nicht wissen heißt nicht anhalten', () => {
+    expect(fristLaeuftVon(null)).toBe(true);
+    expect(fristLaeuftVon(undefined)).toBe(true);
+    expect(fristLaeuftVon('gibt-es-nicht')).toBe(true);
+  });
+
+  it('folgt einer übergebenen Fassung, auch bei frisch angelegten Phasen', () => {
+    const fassung = [
+      phase({ id: 'erstsichtung', reihenfolge: 10, fristLaeuft: true }),
+      phase({ id: 'erstsichtung-qs', reihenfolge: 20, fristLaeuft: false }),
+    ];
+    expect(fristLaeuftVon('erstsichtung', fassung)).toBe(true);
+    expect(fristLaeuftVon('erstsichtung-qs', fassung)).toBe(false);
+  });
+
+  it('erbt bei einer Bestandsfassung ohne das Feld den Seed-Wert', () => {
+    const ohneFeld = SEED_ZAH_PHASEN.map(({ id, label, reihenfolge }) => ({ id, label, reihenfolge }));
+    expect(fristLaeuftVon('entscheidung', ohneFeld)).toBe(false);
+    // Eine unbekannte Id ohne Angabe fällt auf `true` — die sichtbare Richtung.
+    expect(fristLaeuftVon('fremd', [{ id: 'fremd', label: 'Fremd', reihenfolge: 10 }])).toBe(true);
   });
 });
 

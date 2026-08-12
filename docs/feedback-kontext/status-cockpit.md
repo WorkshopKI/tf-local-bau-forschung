@@ -16,9 +16,16 @@ Projektleitung einen Code auf eine andere Phase um, zieht sie automatisch nach.
 **Der Verfahrensschnitt selbst ist seit v2.409 kuratierbar**: zwischen 3 und 9
 Schritte, Beschriftung frei. Ausgeliefert werden sechs (Eingang → Vollständigkeit
 → Prüfung → Entscheidung → Begleitung → Abgeschlossen). Jeder Schritt trägt
-zusätzlich, in welche **Arbeitsliste** seine Status fallen und ob **Zieltage**
-für ihn eine sinnvolle Frage sind. Vorher stand beides in fest verdrahteten
-Tabellen, und jede Änderung brauchte ein Release.
+zusätzlich, in welche **Arbeitsliste** seine Status fallen, ob **Zieltage** für
+ihn eine sinnvolle Frage sind und ob in ihm die **Bearbeitungsfrist läuft**.
+Vorher stand das in fest verdrahteten Tabellen, und jede Änderung brauchte ein
+Release.
+
+Was hier beschriftet oder umgehängt wird, gilt sofort in der ganzen App:
+Verfahrensleiste am Antrag, Gruppierung und Filter der Förderanträge, Zieltage,
+Stillstands-Wächter und der Fristlauf im Vorgangs-Board. Eine gespeicherte
+Fassung wirkt unmittelbar — anders als der Meilenstein-Plan, der erst freigegeben
+werden muss.
 
 **Die App leitet keinen Status ab.** Bis v2.384 rechnete sie aus allen gesetzten
 Datumsfeldern eine eigene Verfahrensposition aus (Rang, terminal-Flag,

@@ -130,9 +130,14 @@ im Cockpit gegen die Simulation freigibt.
 
 Der Rang ist beides in einer Zahl: **Schalter** (0 = trägt nicht bei) und
 **Reihenfolge** (bei mehreren gesetzten Feldern gewinnt der höchste). Die Skala
-folgt dem Verfahren: Eingang 10 → Vollständigkeit 20–25 → Fachprüfung 30–39 →
-Bewilligung 40–46 → Schluss 50. Der Filter „nur mit Rang" im Felder-Tab ist die
-Abnahme-Liste dazu.
+orientiert sich am Verfahrensablauf: Eingang 10 → Vollständigkeit 20–25 →
+fachliche Prüfung 30–39 → Bewilligung 40–46 → Schluss 50. Der Filter „nur mit
+Rang" im Felder-Tab ist die Abnahme-Liste dazu.
+
+> Diese Bezeichnungen sind **Merkhilfen für die Rang-Skala**, keine
+> Verfahrensschritte. Welche ZAH-Phasen es gibt und wie sie heißen, entscheidet
+> die Katalog-Fassung ([status-achsen.md](../architecture/status-achsen.md));
+> „fachliche Prüfung" und „Bewilligung" sind dort keine Phasenlabels.
 
 **Konflikte bleiben eine Frage der Wert-Felder.** Ein Wert behauptet „hier steht
 der Vorgang gerade", ein Datum hält fest „dieser Punkt wurde passiert". Zählte
@@ -141,8 +146,8 @@ ein Eingangsdatum neben einem späteren Bearbeitungsstand.
 
 Die Kategorie eines Feld-Beitrags leitet
 [spine-kategorie.ts](../../src/core/status/spine-kategorie.ts) aus der Phase ab;
-ein terminales Feld in der Fachprüfung gilt als Ablehnung. Am Feld lässt sich die
-Kategorie überschreiben, wo eine Phase mehrere trägt.
+ein terminales Feld im Prüfungs-Rangbereich gilt dort als Ablehnung. Am Feld
+lässt sich die Kategorie überschreiben, wo eine Phase mehrere trägt.
 
 ## Zwei Wege, wie ein Feld in den Katalog kommt
 

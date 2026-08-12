@@ -17,10 +17,8 @@ import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 import { resolveWorkflowSteps } from '../gutachten/active-workflow';
 import { getWorkflowRun } from '../gutachten/workflow-store';
 import type { WorkflowRun } from '../gutachten/types';
-import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
-import { statusZuStepperPosition } from '../statusZuStepperPosition';
 import {
-  buildGutachtenKarte, buildNachforderungKarte,
+  buildGutachtenKarte, buildNachforderungKarte, istGutachtenPhase,
   type GutachtenKarte, type NachforderungKarte,
 } from './artefaktKarten';
 
@@ -51,14 +49,10 @@ export function useArtefaktLeiste(input: {
   const azKey = azList.join(',');
 
   // Prüfungs-Gate + phasen-bewusste Frist — aus den amtlichen Daten, wie in
-  // Liste/Kopf (kein zweiter Frist-Begriff). Seit v2.384 über die ZAH-Phase
-  // statt über die Stations-Nummer: die alte Station 3 („Fachprüfung") deckte
-  // Prüfung UND Entscheidung ab, auf der neuen Achse sind das zwei Stationen.
-  // Eine Zahl im Vergleich hätte die Karte für alle Entscheidungs-Vorgänge
-  // stillschweigend abgeschaltet.
-  const pos = statusZuStepperPosition(status);
-  const phase = zahPhaseFuerStatusText(status);
-  const istFachpruefung = !pos.terminal && (phase === 'pruefung' || phase === 'entscheidung');
+  // Liste/Kopf (kein zweiter Frist-Begriff). Das Gate selbst lebt seit v4.3 als
+  // reines Prädikat in `artefaktKarten.ts` und fragt die Arbeitsliste, nicht den
+  // Verfahrensschritt (siehe dort).
+  const istFachpruefung = istGutachtenPhase(status);
   const fristDatum = useMemo(() => {
     const vn = tvs[0]?.vn_eingang_datum;
     const fristInput: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'> = {

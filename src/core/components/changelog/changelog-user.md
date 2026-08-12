@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.3 — 2026-08
+
+### Verbesserungen
+- Ein neu zugeschnittener Verfahrensschritt wirkt jetzt überall: umbenannte, neue oder umgehängte Schritte schlagen auch dort durch, wo bisher noch alte Bezeichnungen standen.
+- „Nächster Schritt" nennt nur noch die Handlung („Gutachten beginnen"). Wo keine hinterlegt ist, steht der Status — der Verfahrensschritt selbst steht ohnehin in der Leiste am Antrag.
+- Ob in einem Schritt die Bearbeitungsfrist läuft, entscheidet jetzt der Katalog. In der Auslieferung hält sie ab der Entscheidung an; die Projektleitung kann das je Schritt einstellen.
+
+### Bugfixes
+- Meilenstein-Bedingungen mit „liegt länger zurück als", „liegt nach dem Datum von" oder „Fördervariante ist eine von" gingen beim nächsten Öffnen verloren. Sie bleiben jetzt erhalten.
+- Verlor eine „alle müssen zutreffen"-Bedingung einen Teil, galt der Meilenstein plötzlich für **jeden** Verbund als erreicht. Jetzt gilt er als nicht erreicht.
+
 ## v4.2 — 2026-08
 
 ### Neu

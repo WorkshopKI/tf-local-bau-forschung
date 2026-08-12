@@ -8,7 +8,7 @@ beweglich.
 | | Verfahrensschritt (ZAH-Phase) | Arbeitsliste (`StatusCategory`) |
 |---|---|---|
 | **Frage** | Wo im Verfahren steht der Vorgang? | Wer ist am Zug — oder ist es erledigt? |
-| **Wirkt auf** | Verfahrensleiste, Filter-Gruppierung, Zieltage, Stillstands-Wächter | Reiter, Abschnitte, Farben und Kanban-Lanes in *Förderanträge* |
+| **Wirkt auf** | Verfahrensleiste, Filter-Gruppierung, Zieltage, Stillstands-Wächter, Fristlauf im Vorgangs-Board | Reiter, Abschnitte, Farben und Kanban-Lanes in *Förderanträge*, Gutachten-Karte am Verbund |
 | **Wohnt in** | der Katalog-Fassung (`MappingVersion.zahPhasen`) | dem Code (`core/utils/status-canonical.ts`) |
 | **Ändert wer** | die PL im Baum-Editor der Vorgangs-Regeln | niemand zur Laufzeit |
 | **Anzahl** | 3 bis 9, ausgeliefert 6 | fest 9 |
@@ -183,6 +183,33 @@ kuratierte `label` am Statuswert.
 Festgehalten von `status-kurzlabel-single-source` (Herkunft + Literal-Sperre) und
 `label-identitaet.test.ts` (Snapshot-Pfad = eingebauter Pfad).
 
+## Wer den Verfahrensschritt beschriftet (v4.3)
+
+Dieselbe Einzelquelle-Regel gilt für die **obere** Achse, und sie fehlte bis v4.3.
+Der Schnitt ist seit v2.409 kuratierbar — aber drei Stellen führten weiter ihre
+eigene Kopie, und keine fiel auf:
+
+- Die Handlungs-Formel „nächster Schritt" gab ein **drittes** Vokabular aus:
+  „Fachprüfung" und „Nachforderung" waren in keiner Fassung ein Phasenlabel, und
+  `bearbeitungsreif` stand dort unter „Eingang", laut Auslieferung aber unter
+  „Vollständigkeit". Die Formel zeigt jetzt nur noch die **Handlung**; wer den
+  Schritt sehen will, liest ihn an der Verfahrensleiste. Ohne hinterlegte
+  Handlung steht dort die Status-Kurzform (`schrittText`).
+- Das **Vorgangs-Board** maß den Fristlauf an vier eingetippten Phasen-Ids statt
+  an `fristLaeuft` der Phase. Es liest jetzt `fristLaeuftVon` — mit der
+  Nebenwirkung, dass die Auslieferung die Uhr in der Entscheidung anhält (so war
+  `fristLaeuft` von Anfang an gemeint, es kam nur nie an). Die PL steuert das je
+  Phase im Baum-Editor.
+- Die **Gutachten-Karte** am Verbund fragte zwei Phasen-Ids ab. Sie fragt jetzt
+  die Arbeitsliste — „wer ist am Zug" ist genau deren Frage, und die steht im
+  Code (`istGutachtenPhase`).
+
+Festgehalten von **`zah-phase-single-source`**: in einer Datei, die überhaupt von
+`zahPhase` spricht, ist weder eine feste Phasen-Id noch eine Phasen-Beschriftung
+als Literal erlaubt. Ausgenommen sind die drei Auslieferungs-Seeds
+(`zah-phasen.ts`, `seed-codes.ts`, `seed-kanonisch.ts`); alles andere braucht
+`// allow-zah-phase-literal: <grund>` in derselben Zeile.
+
 ## Wo was steht
 
 | Was | Wo |
@@ -192,6 +219,7 @@ Festgehalten von `status-kurzlabel-single-source` (Herkunft + Literal-Sperre) un
 | Die ausgelieferten Kurzformen | [status-codes.ts](../../src/core/status/status-codes.ts) |
 | Die Kategorie-Achse selbst | [status-canonical.ts](../../src/core/utils/status-canonical.ts) |
 | Die Phasen-Tabelle + das Register | [zah-phasen.ts](../../src/core/status/zah-phasen.ts) |
+| Die Handlung „nächster Schritt" (nur die Aktion) | [naechsterSchritt.ts](../../src/core/utils/naechsterSchritt.ts) |
 | Grenzen, Umhängen, Verwaiste | [zah-phasen-edit.ts](../../src/core/status/zah-phasen-edit.ts) |
 | Phase + Code → Kategorie | [kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts) |
 | Die sieben Abschnitte | [antragGroups.ts](../../src/plugins/antraege/antragGroups.ts) |

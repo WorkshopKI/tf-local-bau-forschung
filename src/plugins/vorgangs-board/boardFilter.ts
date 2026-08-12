@@ -12,7 +12,9 @@
  * statt behauptet.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
-import type { WaechterUrteil, ZahPhaseId } from '@/core/status';
+import type { WaechterUrteil, ZahPhase, ZahPhaseId } from '@/core/status';
+import { fristLaeuftVon } from '@/core/status/zah-phasen';
+import { isBegleitungStatus, isTerminalStatus } from '@/core/utils/status-canonical';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from '@/plugins/antraege/bearbeiterFilter';
 
 /**
@@ -29,6 +31,31 @@ export interface FilterbareZeile {
   zahPhase: ZahPhaseId | null;
   waechter: { urteil: WaechterUrteil };
   filterRecord: AntragListItem;
+}
+
+/**
+ * Läuft für diese Zeile die Antragsfrist?
+ *
+ * **Die Antwort steht im Katalog, nicht hier.** Bis v4.3 führte das Board eine
+ * eigene Menge von vier Phasen-Ids — eine zweite Wahrheit neben
+ * `fristLaeuft` an der Phase. Sobald die PL den Schnitt umhängt (Phase
+ * umbenannt, geteilt, neu angelegt), traf die feste Menge daneben, ohne dass
+ * irgendwo etwas fehlschlug.
+ *
+ * Die beiden Sonderfälle davor bleiben, weil sie am **Status** hängen und nicht
+ * am Verfahrensschritt: terminal heißt fertig, und die Begleitphase hat ihre
+ * eigene, echte VN-Frist (`computeFristDatum` liefert sie dort).
+ *
+ * Unbekannte oder verwaiste Phase → `true`, dieselbe Richtung wie
+ * `fristLaeuftVon`: eine laufende Uhr ist sichtbar und korrigierbar, eine
+ * stillschweigend angehaltene nimmt Arbeit aus jeder Liste.
+ */
+export function fristLaeuftFuer(
+  zahPhase: ZahPhaseId | null, statusRoh: unknown, phasen?: readonly ZahPhase[],
+): boolean {
+  if (isTerminalStatus(statusRoh)) return false;
+  if (isBegleitungStatus(statusRoh)) return true;
+  return fristLaeuftVon(zahPhase, phasen);
 }
 
 /** Wie viele Jahrgänge die Vorbelegung umfasst (laufendes Jahr + die zwei davor). */

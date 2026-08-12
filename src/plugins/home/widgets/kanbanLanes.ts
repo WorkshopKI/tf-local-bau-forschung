@@ -10,7 +10,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { monoLaneAccent } from '@/components/kanban/laneAccent';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { KATEGORIE_REIHENFOLGE } from '@/core/utils/status-category-labels';
-import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { schrittText } from '@/core/utils/naechsterSchritt';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import {
   antragMatchesBearbeiter,
@@ -61,7 +61,7 @@ export interface KanbanKarte {
   verbundId: string | null;
   /** Primär-Label: Akronym bevorzugt, sonst Titel, sonst Aktenzeichen. */
   label: string;
-  /** Handlungs-Formel „Phase → Aktion" (naechsterSchritt) — leer wenn unbekannt. */
+  /** Nächste Handlung (`schrittText`), sonst die Status-Kurzform; leer ohne Status. */
   schrittText: string;
   /** Eingangsalter in Tagen (antragsdatum) — null wenn unbekannt. */
   alterTage: number | null;
@@ -102,12 +102,11 @@ function alterVon(a: AntragListItem, nowMs: number): number | null {
 }
 
 function zuKarte(rep: AntragListItem, tvCount: number, nowMs: number): KanbanKarte {
-  const sr = naechsterSchritt(rep.status, rep.precheck_status_label ?? '');
   return {
     aktenzeichen: rep.aktenzeichen,
     verbundId: rep.verbund_id?.trim() || null,
     label: rep.akronym?.trim() || rep.titel?.trim() || rep.aktenzeichen,
-    schrittText: sr ? (sr.aktion ? `${sr.phase} → ${sr.aktion}` : sr.phase) : '',
+    schrittText: schrittText(rep.status, rep.precheck_status_label ?? ''),
     alterTage: alterVon(rep, nowMs),
     tvCount,
   };

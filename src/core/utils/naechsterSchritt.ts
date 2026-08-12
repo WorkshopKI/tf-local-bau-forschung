@@ -5,22 +5,28 @@ import { isTerminalStatus } from '@/core/utils/status-canonical';
 import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
 
 /**
- * Handlungs-Formel „Phase → nächster Schritt" — gemeinsame Core-Infrastruktur
- * für Home („Meine Anträge") UND die Förderanträge-Liste (kombinierte
- * „Status und nächster Schritt"-Spalte).
+ * Handlungs-Formel „was ist als Nächstes zu tun" — gemeinsame Core-Infrastruktur
+ * für Home („Meine Anträge"), das Kanban-Widget, die Förderanträge-Liste
+ * (kombinierte „Status und nächster Schritt"-Spalte) und den Assistenten-Kontext.
  *
  * Ersetzt die reine Status-Badge durch eine Aussage, WAS als Nächstes zu tun
  * ist — abgeleitet aus dem CSV-Roh-Status und (optional) dem PreCheck-Stand.
+ *
+ * **Kein Phasenwort mehr (v4.3).** Bis dahin gab die Formel links ein
+ * Verfahrensschritt-Wort aus einer eigenen Tabelle aus — ein DRITTES Vokabular
+ * neben dem Katalog und der Arbeitsliste. Zwei seiner fünf Wörter („Fachprüfung",
+ * „Nachforderung") waren in keiner Fassung ein Phasenlabel, und `bearbeitungsreif`
+ * stand hier unter „Eingang", laut Auslieferung aber in „Vollständigkeit". Wer
+ * den Verfahrensschritt sehen will, liest ihn dort, wo er EINE Heimat hat: an der
+ * Verfahrensleiste (`zahPhaseLabel`). Hier steht nur noch die Handlung.
  *
  * Verschoben aus `src/plugins/home/naechsterSchritt.ts` (Journey-Paket 2,
  * Phase 1); der dortige `@deprecated`-Re-Export ist im Konsolidierungs-Pass
  * entfernt (Brücke ohne Konsumenten) — dies ist die einzige Heimat.
  */
 export interface NaechsterSchritt {
-  /** Phasen-Label, z.B. „Fachprüfung". */
-  phase: string;
   /** Handlungs-Text, z.B. „Gutachten beginnen". Leer, wenn kein spezifischer
-   *  Schritt gemappt ist (Fallback = nur Phase / Status-Label). */
+   *  Schritt gemappt ist — der Aufrufer zeigt dann die Status-Kurzform. */
   aktion: string;
 }
 
@@ -57,36 +63,48 @@ export function normalisierePrecheck(label: string | null | undefined): Precheck
   return 'offen';
 }
 
+/** Ein Tabelleneintrag: die Handlung, plus die Notiz für die PreCheck-Regel. */
+interface SchrittEintrag extends NaechsterSchritt {
+  /**
+   * Zeigt diese Formel auf den **Eingang**? Nur dann darf die allgemeine
+   * PreCheck-Regel sie überschreiben — siehe {@link istPreCheckFaellig}.
+   *
+   * Bis v4.3 stand diese Information im Phasen-Label: die Regel verglich das
+   * angezeigte Wort. Sie hing damit an einem Text, der sich ändern darf; jetzt
+   * steht sie als eigene Angabe da, wo sie gemeint ist.
+   */
+  eingangsFormel?: true;
+}
+
 /**
- * Roh-Status → Handlungs-Formel. Bewusst ein reiner **Record-Lookup** (keine
+ * Roh-Status → Handlung. Bewusst ein reiner **Record-Lookup** (keine
  * `=== 'literal'`-Vergleiche → Pitfall #12 bleibt unberührt; die Zuordnung lebt
  * hier als Daten-Tabelle analog `STATUS_LABELS`).
  *
  * Die Tabelle deckt die relevanten offenen Bearbeitungs-Stati ab. Unbekannte /
- * nicht gemappte Stati fallen NIE durch: sie bekommen
- * `{ phase: getStatusLabel(status), aktion: '' }` (nur die Phase, keine
- * erratene Aktion — siehe `naechsterSchritt`).
+ * nicht gemappte Stati fallen NIE durch: sie bekommen `{ aktion: '' }`, und der
+ * Aufrufer zeigt dann die Status-Kurzform statt einer erratenen Anweisung.
  */
-const SCHRITT_BY_STATUS: Record<string, NaechsterSchritt> = {
-  beantragt: { phase: 'Eingang', aktion: 'Vollständigkeit prüfen' },
-  bearbeitungsreif: { phase: 'Eingang', aktion: 'Vollständigkeit prüfen' },
-  'NL eingegangen': { phase: 'Vollständigkeit', aktion: 'Nachlieferung prüfen' },
+const SCHRITT_BY_STATUS: Record<string, SchrittEintrag> = {
+  beantragt: { aktion: 'Vollständigkeit prüfen', eingangsFormel: true },
+  bearbeitungsreif: { aktion: 'Vollständigkeit prüfen' },
+  'NL eingegangen': { aktion: 'Nachlieferung prüfen' },
   // Die Begleitphase (VN-/ZB-Stati) steht bewusst NICHT in dieser Tabelle: ein
   // geprüfter Verwendungsnachweis löst kein Gutachten aus, und der Ablauf nach
   // der Bewilligung ist hier nicht abgebildet. Sie fällt damit auf den unten
-  // beschriebenen Weg — nur die Phase, keine erratene Aktion. Eine falsche
+  // beschriebenen Weg — die Status-Kurzform, keine erratene Aktion. Eine falsche
   // Anweisung wäre schlechter als keine.
-  'techn geprüft': { phase: 'Fachprüfung', aktion: 'Gutachten beginnen' },
-  'kaufm geprüft': { phase: 'Fachprüfung', aktion: 'Gutachten beginnen' },
-  'Gutachten fertig': { phase: 'Fachprüfung', aktion: 'Gutachten freigeben' },
-  bewilligungsreif: { phase: 'Fachprüfung', aktion: 'Bewilligung vorbereiten' },
-  ablehnungsreif: { phase: 'Fachprüfung', aktion: 'Ablehnungsbescheid erstellen' },
-  'NF gestellt': { phase: 'Nachforderung', aktion: 'Nachforderung nachhalten' },
+  'techn geprüft': { aktion: 'Gutachten beginnen' },
+  'kaufm geprüft': { aktion: 'Gutachten beginnen' },
+  'Gutachten fertig': { aktion: 'Gutachten freigeben' },
+  bewilligungsreif: { aktion: 'Bewilligung vorbereiten' },
+  ablehnungsreif: { aktion: 'Ablehnungsbescheid erstellen' },
+  'NF gestellt': { aktion: 'Nachforderung nachhalten' },
   // „keine weiteren NF" heißt: der Zyklus ist ABGESCHLOSSEN und der Antrag
   // vollständig — nachzuhalten ist da nichts mehr. Was aussteht, ist die
   // fachliche Prüfung. (Bis v2.410 stand hier dieselbe Formel wie bei 35, was
   // den Bearbeiter auf eine erledigte Nachforderung zurückschickte.)
-  'keine weiteren NF': { phase: 'Vollständigkeit', aktion: 'Fachprüfung beginnen' },
+  'keine weiteren NF': { aktion: 'Fachprüfung beginnen' },
 };
 
 /**
@@ -108,28 +126,29 @@ const SCHRITT_BY_STATUS: Record<string, NaechsterSchritt> = {
  * für den Fall, dass die PL einen späteren Code in den Eingang hängt.
  */
 function istPreCheckFaellig(s: string): boolean {
-  if (zahPhaseFuerStatusText(s) !== 'eingang') return false;
+  // Die stabile, opake Phasen-Id — kein Anzeigetext. `zahPhaseFuerStatusText`
+  // liest den geltenden Schnitt, die Regel wandert also beim Umhängen mit.
+  if (zahPhaseFuerStatusText(s) !== 'eingang') return false; // allow-zah-phase-literal: stabile Id
   const mapped = SCHRITT_BY_STATUS[s];
-  return mapped === undefined || mapped.phase === 'Eingang';
+  return mapped === undefined || mapped.eingangsFormel === true;
 }
 
 /**
- * Leitet die „Phase → Aktion"-Formel aus dem Roh-Status (+ optional PreCheck)
- * ab.
+ * Leitet die nächste Handlung aus dem Roh-Status (+ optional PreCheck) ab.
  *
  * **PreCheck-Regeln (vor den Status-Regeln, nur für NICHT-terminale Anträge):**
- * - PreCheck negativ                       → `{ Eingang, 'PreCheck-Ergebnis klären' }`
+ * - PreCheck negativ                       → `'PreCheck-Ergebnis klären'`
  *   (bewusst OHNE Schritt-Bedingung: ein negatives Ergebnis ist an jeder Stelle
  *   des Verfahrens zu klären, nicht nur im Eingang)
  * - PreCheck fehlt/ausstehend UND Status im
  *   Verfahrensschritt „Eingang" (`istPreCheckFaellig`)
- *                                           → `{ Eingang, 'PreCheck durchführen' }`
+ *                                           → `'PreCheck durchführen'`
  *
  * **Status-Regeln (Fallback):**
- * - Gemappter Status → kuratierte `{ phase, aktion }`.
- * - Nicht gemappter, aber gesetzter Status → `{ phase: statusKurzLabel(s), aktion: '' }`.
- *   Die KURZform: `phase` landet in den 170-px-Kanban-Lanes und in der
- *   Home-Zeile, nie auf einer breiten Fläche.
+ * - Gemappter Status → die kuratierte Handlung.
+ * - Nicht gemappter, aber gesetzter Status → `{ aktion: '' }`. Der Aufrufer
+ *   zeigt dann die Status-**Kurz**form (`statusKurzLabel`) — die Formel landet in
+ *   den 170-px-Kanban-Lanes und in der Home-Zeile, nie auf einer breiten Fläche.
  * - Leerer / fehlender Status → `null` (der Renderer zeigt gar keine Formel).
  *
  * Abwärtskompatibel: Wird das 2. Argument **weggelassen** (`undefined`),
@@ -150,15 +169,34 @@ export function naechsterSchritt(
   if (precheckStatus !== undefined && !isTerminalStatus(s)) {
     const pc = normalisierePrecheck(precheckStatus);
     if (pc === 'negativ') {
-      return { phase: 'Eingang', aktion: 'PreCheck-Ergebnis klären' };
+      return { aktion: 'PreCheck-Ergebnis klären' };
     }
     if ((pc === 'ohne' || pc === 'offen') && istPreCheckFaellig(s)) {
-      return { phase: 'Eingang', aktion: 'PreCheck durchführen' };
+      return { aktion: 'PreCheck durchführen' };
     }
   }
 
   // --- Status-Regeln (bisheriges Verhalten) ---
   const mapped = SCHRITT_BY_STATUS[s];
-  if (mapped) return mapped;
-  return { phase: statusKurzLabel(s), aktion: '' };
+  // Nur die Handlung herausgeben: `eingangsFormel` ist eine Notiz für die Regel
+  // oben, keine Angabe für den Aufrufer.
+  if (mapped) return { aktion: mapped.aktion };
+  return { aktion: '' };
+}
+
+/**
+ * Die Formel, wie sie auf einer engen Fläche steht: die Handlung, sonst die
+ * Status-Kurzform. Eine Stelle für alle drei Aufrufer (Home-Zeile,
+ * Kanban-Karte, Assistenten-Kontext) — die Regel „ohne Handlung zeigen wir den
+ * Status" ist dieselbe und gehört nicht dreimal abgeschrieben.
+ *
+ * Leerer Status → `''`: dann steht dort gar nichts, nicht ein leerer Pfeil.
+ */
+export function schrittText(
+  status: string | undefined | null,
+  precheckStatus?: string | null,
+): string {
+  const s = typeof status === 'string' ? status.trim() : '';
+  if (s.length === 0) return '';
+  return naechsterSchritt(s, precheckStatus)?.aktion || statusKurzLabel(s);
 }

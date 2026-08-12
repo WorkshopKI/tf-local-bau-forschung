@@ -7,7 +7,7 @@ import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
-import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { schrittText } from '@/core/utils/naechsterSchritt';
 import { alterInTagen } from '@/core/utils/relativeZeit';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import type { AntragVorgang } from './useDashboardData';
@@ -225,10 +225,10 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
         const ampel = getEingangAmpel(v);
         const ageLabel = alterInTagen(daysSinceEingang(v));
 
-        // Handlungs-Formel „Phase → Aktion" statt Status-Badge (inkl. PreCheck-Stand).
+        // Die nächste Handlung statt einer Status-Badge (inkl. PreCheck-Stand);
+        // ohne hinterlegte Handlung die Status-Kurzform.
         // `?? ''` = PreCheck-Kontext bewusst opt-in (leer ⇒ „PreCheck nicht vorhanden").
-        const sr = naechsterSchritt(v.status, v.precheck_status_label ?? '');
-        const schrittText = sr ? (sr.aktion ? `${sr.phase} → ${sr.aktion}` : sr.phase) : '';
+        const schritt = schrittText(v.status, v.precheck_status_label ?? '');
 
         const dot = ampel ? (
           <span
@@ -249,8 +249,8 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
             title={
               <span className="flex items-baseline gap-2 w-full min-w-0">
                 <span className="font-medium text-[var(--tf-text)] shrink-0 max-w-[55%] truncate">{displayLabel}</span>
-                {schrittText ? (
-                  <span className="text-[var(--tf-text-secondary)] truncate min-w-0 flex-1">{schrittText}</span>
+                {schritt ? (
+                  <span className="text-[var(--tf-text-secondary)] truncate min-w-0 flex-1" title={schritt}>{schritt}</span>
                 ) : null}
               </span>
             }
