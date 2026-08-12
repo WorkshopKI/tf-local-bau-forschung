@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "4.4.4",
+  "version": "4.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -48,8 +48,9 @@
     "gen:kuerzel-trigger": "node scripts/gen-kuerzel-trigger.mjs",
     "cycles": "node scripts/check-cycles.mjs",
     "precheck": "npm run map",
-    "check:quick": "npm run typecheck && npm run lint && npm run test:changed",
-    "check": "npm run typecheck && npm run lint && npm run cycles && npm run test && npm run build:dev"
+    "check:docs": "vitest run src/__tests__",
+    "check:quick": "npm run typecheck && npm run lint && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run cycles && npm run test"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",

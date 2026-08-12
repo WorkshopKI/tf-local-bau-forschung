@@ -1,6 +1,6 @@
 # Tree-Komponenten (`TfTree`)
 
-Die gemeinsame Basis für alles Baumartige: [src/components/tree/](../../src/components/tree/). Sie ist der **einzige** Ort, der `@headless-tree/*` importieren darf — der Guard `no-headless-tree-outside-wrapper` in [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts) hält das fest (Inline-Ausnahme `// allow-no-headless-tree-outside-wrapper: <grund>`).
+Die gemeinsame Basis für alles Baumartige: [src/components/tree/](../../src/components/tree/). Sie ist der **einzige** Ort, der `@headless-tree/*` importieren darf — der Guard `no-headless-tree-outside-wrapper` in [conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts) hält das fest (Inline-Ausnahme `// allow-no-headless-tree-outside-wrapper: <grund>`).
 
 ## Warum überhaupt
 

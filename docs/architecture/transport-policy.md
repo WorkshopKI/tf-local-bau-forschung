@@ -66,7 +66,7 @@ beide Pfade zusammen decken die volle Transport-Matrix ab. Detail:
 
 ## Erzwingung gegen Regression
 
-- **Convention-Test `no-raw-active-transport`** (`src/__tests__/codebase-conventions.test.ts`,
+- **Convention-Test `no-raw-active-transport`** (`src/__tests__/conventions-daten.test.ts`,
   CLAUDE.md Pitfall #30): in der Gutachten-/Batch-Domäne
   (`plugins/antraege/gutachten/`, `plugins/antraege/gutachten-batch/`,
   `core/services/gutachten-batch/`) ist rohes `getActiveTransport()` verboten — außer

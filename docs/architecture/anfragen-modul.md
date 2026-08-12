@@ -68,7 +68,7 @@ und die ist per Guard abgesichert.
 
 `PiiTyp`: `person | firma | ort | fkz | email | telefon | iban | x500 | hostname | sonstiges`.
 
-**Guard `anfrage-no-mapping-in-transport`** ([codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts)):
+**Guard `anfrage-no-mapping-in-transport`** ([conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts)):
 `mapping`, `originalMd` und `verallgemeinerungen[].original` dürfen nie an Transporte/Serialisierung gelangen.
 
 ## Persistenz (`persistence.ts`, `store.ts`)

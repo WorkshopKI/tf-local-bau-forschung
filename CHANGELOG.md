@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.5.0 — Der Durchlauf wird kuerzer: Guards frueh, Schwellen am Ist, ein Build statt zwei (August 2026)
+
+MINOR — Ein Feature-Durchlauf verlor die Zeit nicht in der Umsetzung, sondern davor und danach. Gemessen statt geschätzt: die Testsuite braucht 26 s und war nie der Engpass — dafür rissen zwei Limits ungefähr jedes zweite Feature, und ein Build lief doppelt. Beides ließ sich abstellen, ohne eine einzige Zusage aufzugeben.
+
+- **Convention-Guards thematisch geteilt** ([conventions-status](src/__tests__/conventions-status.test.ts) / [-ui](src/__tests__/conventions-ui.test.ts) / [-daten](src/__tests__/conventions-daten.test.ts) + [health-baseline](src/__tests__/health-baseline.test.ts)): 58 `describe`-Blöcke wandern wortgleich, Testanzahl unverändert — die 3 211-Zeilen-Datei stand 38 Zeilen unter ihrem eigenen Limit und riss es mit jedem neuen Guard
+- **`MAX_FILE_LOC` misst wieder Produktionscode** (1 200, Ist 1 011) und Tests getrennt (1 600, Ist 1 317): unter der alten Decke von 3 250 war `useStatusCockpit.ts` unbemerkt von 846 auf 1 011 LOC gewachsen
+- **Reißleine der Kontext-Docs auf die Unfallgrenze 30 000**, die der Kommentar seit v2.409 selbst nennt — `antraege.md` stand bei 25 786 von 26 000, und viermal knapp nachziehen hatte jedes Mal eine eigene Runde gekostet
+- **`npm run check:docs` (~6 s)** als Früh-Gate, `check:quick` fährt die volle Suite: eine reine Doc-Änderung lief mit `--changed` durch **kein** Testfile ([package.json](package.json))
+- **`build:dev` aus `check` entfernt** — der abschließende `build:devpl` baut dev ohnehin; **25 maschinell erzwungene Pitfalls** nach [pitfalls.md](docs/architecture/pitfalls.md) ausgelagert (CLAUDE.md 66 382 → 54 408 Zeichen, geht in jede Session und jeden Subagenten)
+
 ### v4.4.4 — Ort und Bundesland werden durchsucht (August 2026)
 
 PATCH — „Welche Vorhaben wurden 2026 in Berlin gefördert?" war bisher nicht zu beantworten. Der Standort kam als freier Substring aber nicht durch die Messung: „essen" holte 439 zusätzliche Anträge herein — fast alle aus H·essen, nicht aus Essen. Ortsangaben werden deshalb als einziges Feld am Wortanfang verglichen.

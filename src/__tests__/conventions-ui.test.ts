@@ -1,0 +1,723 @@
+/**
+ * Codebase-Conventions — Oberflaeche, Tokens, Kontrast, geteilte Bauteile.
+ *
+ * Statt einer separaten ESLint-Konfiguration (Projekt nutzt nur tsc + vitest)
+ * laufen die Pattern-Checks als Vitest-Tests. Schlaegt ein Check fehl, listet
+ * die Fehlermeldung die Treffer mit Datei:Zeile + die zu nutzende Alternative.
+ *
+ * Inline-Whitelist: Zeilen mit Marker-Kommentar `// allow-<rule>: <reason>`
+ * werden ignoriert. Bitte den Grund knapp dokumentieren — das macht die
+ * Ausnahme review-bar.
+ *
+ * Geschwister-Dateien: conventions-status.test.ts, conventions-daten.test.ts, health-baseline.test.ts. Der Schnitt ist thematisch;
+ * Datei-Walk + Such-Primitive liegen gemeinsam in conventions-lib.ts.
+ *
+ * Geprueft:
+ *   - no-raw-async-onclick              → Pitfall #15, useAsyncAction-Hook.
+ *   - no-raw-clipboard                  → v2.301.3, Zwischenablage nur ueber
+ *     kopiereText() aus src/core/utils/kopieren.ts (execCommand-Rueckfall +
+ *     wirft statt still zu scheitern); "kopieren und oeffnen" erst kopieren.
+ *   - no-headless-tree-outside-wrapper  → Tree-Basis (v2.393): @headless-tree/*
+ *     nur in src/components/tree/; Verbraucher nutzen TfTree statt einen zweiten
+ *     Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten zu bauen.
+ *   - no-raw-modal                      → recurring-bug-classes Klasse 7, Modals
+ *     ueber den Dialog aus @/components/ui/dialog rendern (Hoehen-Cap + Scroll
+ *     eingebaut) statt per Hand `fixed inset-0`.
+ *   - no-new-tf-ui-files                → P1b, src/ui/ ist nur noch Re-Export-Shim;
+ *     neue UI-Komponenten gehoeren nach src/components/ui/.
+ *   - gutachten-entwurf-kein-plain-textarea → Gutachten-Entwurf nutzt den
+ *     Live-Preview-Editor (MarkdownEditor + markdownLivePreview), kein rohes
+ *     <textarea> (Buffer bleibt rohes Markdown = Ground-Truth, kein Roundtrip).
+ *   - theme-token-contract              → Design-Handoff-Token-Vertrag (v2.119):
+ *     jedes via var(--tf-…) OHNE Fallback in CSS/TSX/TS referenzierte Token MUSS
+ *     global in src/theme.css definiert sein, sonst die "nackt"-Falle v2.67.1 (ein
+ *     undefiniertes var() macht die GANZE CSS-Deklaration ungueltig). Mit-Fallback-
+ *     Nutzung undefinierter Tokens nur Warnung. Ausnahme '// allow-tf-token: <grund>'.
+ *   - band-fuellung-kontrast           → VerlaufsBand (v3.38): jedes --tf-kanban-*
+ *     Token, zu TOENUNG auf --tf-bg gemischt, muss >= 4,5:1 gegen --tf-text erreichen —
+ *     in BEIDEN Modi, an den echten Werten aus theme.css. Der Stand bis v3.37 (satte
+ *     Fuellung, weisse Schrift) lag bei 3,02-5,06:1 hell und 2,14-2,92:1 dunkel; ein
+ *     zweiter Testfall haelt fest, dass der Guard genau den verworfen haette.
+ *   - no-raw-cta-fill                   → CTA-Buttons tragen die Profil-Primaerfarbe
+ *     ueber die kanonische <Button>-Komponente (@/components/ui/button, variant=
+ *     'primary' = --tf-primary); kein hand-gebauter Fill — weder als Klasse
+ *     (`bg-[var(--tf-text)]`/`bg-[var(--tf-primary)]` + hover:opacity) noch inline
+ *     (`background:'var(--tf-text)',color:'var(--tf-bg)'`). Inline '// allow-cta-fill'.
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, sep } from 'node:path';
+import { PRESET_COLORS } from '../components/ui/theme';
+import {
+  ROOT, ALL_TS_FILES, ALL_SOURCE_FILES, relPath, findInFile, fmt, hslToRgb, relLuminance, kontrast, mische, parseCssFarbe, themeFarbTokens, type Finding, type ThemeFarbSatz,
+} from './conventions-lib';
+
+describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
+  // `onClick={() => void asyncFn()}` schluckt Promise-Rejections silent —
+  // try/finally ohne catch laesst Errors verschwinden. Pflicht fuer neuen
+  // Code: useAsyncAction-Hook nutzen.
+  //
+  // **File-Whitelist** statt Inline-Whitelist: ~30 bestehende Files nutzen
+  // das Pattern noch, opportunistische Migration laeuft. Hier whitelisten,
+  // bis sie migriert sind. Neue Files NICHT auf die Whitelist setzen.
+  const FILE_WHITELIST_LEGACY: ReadonlySet<string> = new Set([
+    // src/plugins/auslastung/ — Mai 2026 Plugin, Migration laeuft
+    // (SelbsteintragungView.tsx in v1.17 entfernt — Logik wandert auf Homepage)
+    'src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx',
+    'src/plugins/auslastung/views/admin/AktivVorschlagBanner.tsx',
+    'src/plugins/auslastung/components/OnboardingImportDialog.tsx',
+    'src/plugins/auslastung/views/admin/KategorienSection.tsx',
+    'src/plugins/auslastung/views/admin/SetupWizard.tsx',
+    'src/plugins/auslastung/views/KlassifizierungsReview.tsx',
+    // src/plugins/csv-sources-kuration/ — Wizard, teilweise migriert
+    'src/plugins/csv-sources-kuration/wizard/Step1Metadata.tsx',
+    'src/plugins/csv-sources-kuration/wizard/CsvSourceWizard.tsx',
+    'src/plugins/csv-sources-kuration/CsvSourceReimportDialog.tsx',
+    // src/plugins/dev-infrastructure-test/ — Dev-only, Migration niedrige Prio
+    'src/plugins/dev-infrastructure-test/panels/AdminPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/TriagePanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/SmbPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/FixturesPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/LockPanel.tsx',
+    'src/plugins/dev-infrastructure-test/panels/AtomicPanel.tsx',
+    // src/plugins/dev-state-inspector/ — Dev-only
+    'src/plugins/dev-state-inspector/StateInspectorPanel.tsx',
+    // src/plugins/dokumentenquellen-kuration/ — v1.15, Migration laeuft
+    'src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx',
+    'src/plugins/dokumentenquellen-kuration/sections/AktivierenIndexierenSection.tsx',
+    'src/plugins/dokumentenquellen-kuration/sections/VerwaltenSection.tsx',
+    'src/plugins/dokumentenquellen-kuration/components/SubRootsTreePicker.tsx',
+    // src/plugins/filter-kuration/, antraege/, einstellungen/ etc.
+    'src/plugins/filter-kuration/dialogs/FilterEditDialog.tsx',
+    'src/plugins/filter-kuration/sections/AdminCustomFilterList.tsx',
+    'src/plugins/antraege/filter/FilterSidebar.tsx',
+    'src/plugins/antraege/filter/SavePresetDialog.tsx',
+    'src/plugins/einstellungen/MeineTechnologienTab.tsx',
+    'src/plugins/einstellungen/KuratorSessionPanel.tsx',
+    'src/plugins/programme-kuration/unterprogramme/UnterprogrammXlsxImportDialog.tsx',
+  ]);
+
+  const pattern = /onClick=\{\(\)\s*=>\s*void\s+/;
+
+  it('keine neuen `onClick={() => void asyncFn()}`-Pattern ausserhalb der Legacy-Whitelist', () => {
+    const newFindings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      const rel = relPath(file);
+      if (FILE_WHITELIST_LEGACY.has(rel)) continue;
+      newFindings.push(...findInFile(file, l => pattern.test(l), 'allow-raw-async-onclick'));
+    }
+
+    if (newFindings.length > 0) {
+      const msg =
+        `Neuer 'onClick={() => void asyncFn()}'-Pattern in nicht-whitelisteter\n` +
+        `Datei (CLAUDE.md Pitfall #15). Pflicht: useAsyncAction-Hook aus\n` +
+        `src/core/hooks/useAsyncAction.ts nutzen — fängt Rejections + Doppelklick.\n` +
+        `Referenz: src/plugins/csv-sources-kuration/CsvSourcesPage.tsx,\n` +
+        `Cheatsheet: docs/agents/async-error-pattern.md.\n` +
+        `Wenn wirklich noetig: '// allow-raw-async-onclick: <grund>' inline.\n\n` +
+        `Treffer:\n${fmt(newFindings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-raw-clipboard (v2.301.3 — „Document is not focused")', () => {
+  // Chrome lehnt `navigator.clipboard.writeText` ab, wenn das Dokument im selben
+  // Tick den Fokus verliert (Kopier-Knopf neben einem Link, Dialog-Schluss,
+  // window.open). Ohne Rueckfall + geworfenen Fehler behaelt die Zwischenablage
+  // still ihren ALTEN Inhalt, und der Nutzer fuegt etwas Fremdes ein.
+  // Einziger Schreibweg: kopiereText() aus src/core/utils/kopieren.ts.
+  const pattern = /\bnavigator\s*\.\s*clipboard\b/;
+  const HEIMAT = `${sep}core${sep}utils${sep}kopieren.ts`;
+
+  it('kein direkter `navigator.clipboard`-Zugriff ausserhalb von core/utils/kopieren.ts', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.endsWith(HEIMAT)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-raw-clipboard'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Direkter Zwischenablage-Zugriff verboten (v2.301.3).\n` +
+        `Stattdessen:\n` +
+        `  import { kopiereText } from '@/core/utils/kopieren';\n` +
+        `  await kopiereText(text);   // faehrt den execCommand-Rueckfall und WIRFT,\n` +
+        `                             // wenn beide Wege scheitern\n` +
+        `Bei "kopieren und oeffnen": erst await kopiereText(...), DANN window.open().\n` +
+        `Braucht die Stelle wirklich die rohe API (z.B. ClipboardItem fuer text/html),\n` +
+        `Zeile mit '// allow-raw-clipboard: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-w-full-neben-fixer-breite (v2.351.2)', () => {
+  // Tailwind sortiert `w-full` HINTER die Arbitrary-Values: im gebauten
+  // Stylesheet steht `.w-[64px]` bei 20 202 035, `.w-full` bei 20 202 869. Bei
+  // gleicher Spezifitaet gewinnt die spaetere Regel — `w-full w-[64px]` ist
+  // also 100 % breit, nicht 64 px. Zusammen mit `shrink-0` fordert so ein Feld
+  // die ganze Flex-Zeile und quetscht seine Nachbarn auf null (der Ordner-Name
+  // im Status-Cockpit verschwand daran zweimal).
+  // `max-w-[…]`/`min-w-[…]` sind harmlos (andere Eigenschaft) und ausgenommen.
+  const arbitraerW = /(?<![-\w])w-\[/;
+  const wFull = /\bw-full\b/;
+  const feldKlasseInterpolation = /\$\{feldKlasse\}/;
+
+  it('keine feste Breite in derselben Klasse wie `w-full`', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      findings.push(...findInFile(
+        file,
+        l => arbitraerW.test(l) && (wFull.test(l) || feldKlasseInterpolation.test(l)),
+        'allow-w-full-neben-fixer-breite',
+      ));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `\`w-full\` und \`w-[…]\` in derselben Klasse — \`w-full\` gewinnt (v2.351.2).\n`
+        + `Stattdessen die Basis-Klasse OHNE w-full nehmen:\n`
+        + `  <input className={\`\${feldKlasseSchmal} w-[64px]\`} />   // labels.ts\n`
+        + `oder das w-full weglassen. Bewusst so gewollt (z.B. Breite nur im\n`
+        + `Container-Query-Fall): Zeile mit\n`
+        + `'// allow-w-full-neben-fixer-breite: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-headless-tree-outside-wrapper (Tree-Basis, v2.393)', () => {
+  // `@headless-tree/*` ist die Mechanik hinter `TfTree`, nicht die Schnittstelle
+  // der App. Wer sie direkt importiert, baut einen zweiten Baum mit eigenem
+  // Aufklapp-/Auswahl-/DnD-Verhalten -- genau die Duplikation, die die
+  // gemeinsame Basis beendet hat (Status-Filter, Textbausteine, Status-Ordner,
+  // Meilenstein-Konfiguration hatten je einen eigenen). Fehlt eine Faehigkeit,
+  // wird sie im Wrapper ergaenzt, nicht daneben.
+  const pattern = /from\s+['"]@headless-tree\//;
+  const wrapper = `${sep}src${sep}components${sep}tree${sep}`;
+
+  it('kein Import von @headless-tree ausserhalb src/components/tree/', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(wrapper)) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-no-headless-tree-outside-wrapper'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Direkter @headless-tree-Import ausserhalb der Tree-Basis verboten.\n` +
+        `Baeume laufen ueber src/components/tree/ (TfTree + TfTreeNode):\n` +
+        `  import { TfTree } from '@/components/tree';\n` +
+        `Fehlende Faehigkeit? Im Wrapper als Feature-Flag ergaenzen.\n` +
+        `Nur mit sehr gutem Grund: Zeile mit\n` +
+        `'// allow-no-headless-tree-outside-wrapper: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-raw-modal (recurring-bug-classes Klasse 7)', () => {
+  // Hand-gerollte Modal-Huellen (`fixed inset-0`-Overlay + zentrierte Karte)
+  // ohne Hoehen-Cap an der Karte sind bei langem Inhalt nicht scrollbar
+  // (Kopf/Fuss + Buttons abgeschnitten) — die Bug-Klasse ist mehrfach neu
+  // entstanden. Kanonischer Modal-Pfad ist der Dialog aus
+  // @/components/ui/dialog (Hoehen-Cap + interner Scroll + fixer Kopf/Fuss
+  // bereits eingebaut). String-Match `fixed inset-0` genuegt (wie no-raw-worker).
+  //
+  // Datei-Ausnahmen per Pfad: die beiden Dialog-Komponenten SIND der
+  // Mechanismus und duerfen `fixed inset-0` nutzen.
+  const ALLOWED_PATH_FRAGMENTS = [
+    `${sep}__tests__${sep}`,
+    `.test.ts`,
+    `${sep}components${sep}ui${sep}dialog.tsx`, // kanonischer Dialog (shadcn)
+    `${sep}ui${sep}Dialog.tsx`,                 // Alt-Dialog (wird in P1b zum Adapter)
+  ];
+  const isAllowed = (file: string): boolean =>
+    ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));
+
+  it('kein hand-gerolltes `fixed inset-0`-Modal (Dialog aus @/components/ui/dialog nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => l.includes('fixed inset-0'), 'allow-raw-modal'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `Hand-gerolltes Modal verboten (recurring-bug-classes Klasse 7).\n` +
+        `Nutze den Dialog aus @/components/ui/dialog — Hoehen-Cap (max-h) +\n` +
+        `interner Scroll + fixer Kopf/Fuss sind dort eingebaut.\n` +
+        `Vollbild-Zustaende (StartupScreen, Login-Gates, Onboarding) und\n` +
+        `Spezial-Overlays/Drawer (Tour, Command-Palette, Filter-Drawer) per\n` +
+        `'// allow-raw-modal: <grund>' inline whitelisten.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('no-new-tf-ui-files (P1b: src/ui/ ist nur noch Re-Export-Shim)', () => {
+  // Es gibt genau EINE UI-Bibliothek: src/components/ui/. src/ui/ ist seit P1b
+  // ein reiner Re-Export-Shim (Kompatibilitaet fuer die ~70 Barrel-Importe) und
+  // darf KEINE neuen Implementierungen mehr aufnehmen. Erlaubt sind nur der
+  // Barrel (index.ts), der Dialog-Adapter (Dialog.tsx) und der vorerst behaltene
+  // TF-Select (Select.tsx — STOPP #2: Radix-Compound-API in ProgrammSwitcher
+  // nicht durch die native TF-Select-API abbildbar).
+  const ALLOWED = new Set(['index.ts', 'Dialog.tsx', 'Select.tsx']);
+
+  it('keine neuen Dateien in src/ui/ ausser Shim/Adapter (nach src/components/ui/ verschieben)', () => {
+    const dir = join(ROOT, 'ui');
+    const offenders = readdirSync(dir).filter(
+      entry => statSync(join(dir, entry)).isFile() && !ALLOWED.has(entry),
+    );
+
+    if (offenders.length > 0) {
+      const msg =
+        `Neue Datei(en) in src/ui/ gefunden (P1b: src/ui/ ist nur Re-Export-Shim).\n` +
+        `UI-Komponenten gehoeren nach src/components/ui/; der Barrel src/ui/index.ts\n` +
+        `re-exportiert sie (Direkt-Importe: @/components/ui/<Datei>).\n` +
+        `Erlaubt in src/ui/: ${[...ALLOWED].join(', ')}.\n\n` +
+        `Treffer:\n${offenders.map(o => `  src/ui/${o}`).join('\n')}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('gutachten-entwurf-kein-plain-textarea (Live-Preview statt <textarea>)', () => {
+  // Der Gutachten-Entwurfs-Editor muss der Live-Preview-Editor bleiben (MarkdownEditor +
+  // markdownLivePreview) und nicht auf ein nacktes <textarea> zurueckfallen.
+  //
+  // Seit dem Vier-Ebenen-Umbau (v2.337) ist die Karte auf mehrere Dateien verteilt:
+  // der Editor blieb in SectionReviewCard, das Feedback-Notizfeld wanderte in die
+  // Fusszeile. Beide Dateien werden geprueft — sonst waere der Guard nach dem Split
+  // still wirkungslos fuer die Stelle, an der das Notizfeld heute lebt.
+  const DIR = join(ROOT, 'plugins', 'antraege', 'gutachten');
+  const EDITOR_FILE = join(DIR, 'SectionReviewCard.tsx');
+  const KARTEN_DATEIEN = [EDITOR_FILE, join(DIR, 'AbschnittFuss.tsx')];
+
+  it('SectionReviewCard nutzt markdownLivePreview', () => {
+    expect(
+      readFileSync(EDITOR_FILE, 'utf-8').includes('markdownLivePreview'),
+      'SectionReviewCard.tsx muss markdownLivePreview importieren/verwenden.',
+    ).toBe(true);
+  });
+
+  it('keine Karten-Datei faellt auf ein rohes <textarea> zurueck', () => {
+    for (const datei of KARTEN_DATEIEN) {
+      expect(
+        readFileSync(datei, 'utf-8').includes('<textarea'),
+        `${datei}: Gutachten-Entwurf + Feedback-Notiz duerfen keinen rohen <textarea> nutzen — ` +
+        'MarkdownEditor + markdownLivePreview bzw. <input>. Buffer bleibt rohes Markdown.',
+      ).toBe(false);
+    }
+  });
+});
+
+describe('theme-token-contract (CLAUDE.md Doku-Konvention #4; v2.67.1-"nackt"-Falle)', () => {
+  // Bewusst lokale (nicht-globale) Tokens — leer starten. Eintrag NUR mit Grund,
+  // wenn ein Token absichtlich plugin-lokal via inline-style gesetzt + gelesen wird.
+  const LOCAL_TOKEN_ALLOWLIST = new Set<string>();
+
+  // Global in src/theme.css definierte --tf-*-Tokens (Light + Dark) einsammeln.
+  // Gelesen wird die Datei EINMAL, in der Lib — `band-fuellung-kontrast` braucht
+  // dieselben Deklarationen samt Werten.
+  function readGlobalTfTokens(): Set<string> {
+    const [hell, dunkel] = themeFarbTokens();
+    const defined = new Set([...hell.werte.keys(), ...dunkel.werte.keys()]);
+    expect(defined.size, 'src/theme.css: keine --tf-*-Tokens gefunden').toBeGreaterThan(0);
+    return defined;
+  }
+
+  it('kein var(--tf-…) OHNE Fallback referenziert ein global undefiniertes Token', () => {
+    const defined = readGlobalTfTokens();
+    expect(defined.size, 'theme.css definiert verdaechtig wenige --tf-Tokens').toBeGreaterThan(30);
+
+    const errors: Finding[] = [];    // ohne Fallback + undefiniert → die "nackt"-Falle
+    const warnings: Finding[] = [];  // mit Fallback + undefiniert → tolerierter Drift
+    // var(--tf-x)   → Gruppe 2 ')'  = kein Fallback
+    // var(--tf-x,…) → Gruppe 2 ','  = Fallback vorhanden
+    const VAR_RE = /var\(\s*(--tf-[a-z0-9-]+)\s*([,)])/g;
+
+    for (const file of ALL_SOURCE_FILES) {
+      const rel = relPath(file);
+      if (rel === 'src/theme.css') continue;       // Definitions-Quelle, nicht Nutzer
+      if (rel.includes('/__tests__/')) continue;    // Test-Strings sind keine echte Nutzung
+      const lines = readFileSync(file, 'utf-8').split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        if (line.includes('allow-tf-token')) continue;
+        VAR_RE.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = VAR_RE.exec(line)) !== null) {
+          const token = m[1]!;
+          const hasFallback = m[2] === ',';
+          if (defined.has(token) || LOCAL_TOKEN_ALLOWLIST.has(token)) continue;
+          const finding: Finding = { file: rel, line: i + 1, text: `${token}  →  ${line.trim()}` };
+          (hasFallback ? warnings : errors).push(finding);
+        }
+      }
+    }
+
+    if (warnings.length > 0) {
+      console.warn(
+        `[theme-token-contract] ${warnings.length} var(--tf-…)-Nutzung(en) mit Fallback ` +
+        `referenzieren ein global undefiniertes Token (toleriert — Fallback verhindert die\n` +
+        `"nackt"-Falle —, aber Drift-Risiko: besser in src/theme.css aufnehmen):\n${fmt(warnings)}`,
+      );
+    }
+
+    if (errors.length > 0) {
+      expect.fail(
+        `Undefiniertes --tf-*-Token OHNE Fallback referenziert (v2.67.1-"nackt"-Falle:\n` +
+        `ein undefiniertes var() macht die GANZE CSS-Deklaration ungueltig → Komponente\n` +
+        `rendert ohne border/font/radius/transition).\n` +
+        `Fix: Token global in src/theme.css definieren (Light + [data-theme="dark"]) oder\n` +
+        `einen Fallback angeben. Bewusste lokale Ausnahme: Zeile mit\n` +
+        `'// allow-tf-token: <grund>' markieren (oder LOCAL_TOKEN_ALLOWLIST ergaenzen).\n` +
+        `\nTreffer (${errors.length}):\n${fmt(errors)}`,
+      );
+    }
+  });
+});
+
+describe('preset-contrast-contract (CTA-Primaerfarbe lesbar gegen weissen Vordergrund)', () => {
+  // Die Default-CTA (bg-primary text-primary-foreground) traegt seit dem Token-Fix
+  // die gewaehlte Primaerfarbe als Flaeche mit WEISSEM Vordergrund (--tf-on-primary).
+  // Jedes PRESET_COLORS-Preset muss daher >= 4,5:1 (WCAG AA Normaltext) gegen #fff
+  // liegen — sonst wird der CTA-Text unleserlich. Verhindert, dass ein kuenftig
+  // hinzugefuegtes (zu helles) Preset die Lesbarkeit bricht. (HSL->sRGB->relative
+  // Luminanz->Kontrast; Schwelle 4,5. Dark veraendert nur Bg/Text, nicht --tf-primary.)
+  const THRESHOLD = 4.5;
+
+  // Kontrast gegen Weiss (relative Luminanz 1,0).
+  function contrastVsWhite(h: number, s: number, l: number): number {
+    const lum = relLuminance(hslToRgb(h, s, l));
+    return (1.0 + 0.05) / (lum + 0.05);
+  }
+
+  it(`jedes PRESET_COLORS-Preset hat >= ${THRESHOLD}:1 gegen #fff`, () => {
+    const failing = PRESET_COLORS
+      .map(p => {
+        const s = parseFloat(p.s) / 100;
+        const l = parseFloat(p.l) / 100;
+        return { name: p.name, ratio: contrastVsWhite(p.h, s, l) };
+      })
+      .filter(r => r.ratio < THRESHOLD);
+
+    if (failing.length > 0) {
+      expect.fail(
+        `Preset(s) mit zu geringem Kontrast fuer weissen CTA-Text (Schwelle ${THRESHOLD}:1):\n` +
+        failing.map(r => `  - ${r.name}: ${r.ratio.toFixed(2)}:1`).join('\n') +
+        `\nFix: Lightness (l) des Presets in src/components/ui/theme.ts (PRESET_COLORS) senken, ` +
+        `bis der Kontrast >= ${THRESHOLD}:1 ist (vgl. Bernstein 42% -> 40%).`,
+      );
+    }
+  });
+});
+
+describe('band-fuellung-kontrast (Balkenschrift des VerlaufsBands lesbar)', () => {
+  // Der Befund, der diesen Guard begruendet (v3.38): das VerlaufsBand fuellte
+  // seine Balken mit dem SATTEN --tf-kanban-*-Akzent und schrieb weiss darauf.
+  // Gemessen ergab das 3,02-5,06:1 im hellen Modus (sechs von neun unter den
+  // 4,5:1, die AA fuer kleine Schrift verlangt) und 2,14-2,92:1 im dunklen —
+  // dort sind die Tokens Pastelltoene, und JEDE Beschriftung fiel durch. Sie
+  // waren als kleine Farbchips fuer Kanban-Lane-Koepfe gedacht, nie als
+  // Textuntergrund.
+  //
+  // Seit v3.38 toent `segmentFuellung()` den Akzent auf --tf-bg und schreibt in
+  // --tf-text. Dieser Guard rechnet genau das nach — an den ECHTEN Werten aus
+  // theme.css, in BEIDEN Modi. Wer ein Kanban-Token aendert (es gehoert auch
+  // dem Home-Widget) oder die Toenung "satter" dreht, merkt es hier.
+  const THRESHOLD = 4.5;
+  // Muss zu TOENUNG in src/plugins/antraege/verlauf-band/bandFarbe.ts passen.
+  const TOENUNG = 0.30;
+
+  const farbe = (satz: ThemeFarbSatz, name: string): [number, number, number] => {
+    const rgb = parseCssFarbe(satz.werte.get(name) ?? '');
+    expect(rgb, `${name} (${satz.modus}) fehlt oder ist nicht lesbar`).toBeTruthy();
+    return rgb!;
+  };
+
+  /** Die neun Lane-Akzente; die Mono-Rampe haengt an --tf-primary-h und faerbt
+   *  keinen Balken. */
+  const akzente = (satz: ThemeFarbSatz): string[] => [...satz.werte.keys()]
+    .filter(n => n.startsWith('--tf-kanban-') && !n.includes('mono'));
+
+  it(`jede getoente --tf-kanban-Fuellung hat >= ${THRESHOLD}:1 gegen --tf-text`, () => {
+    const schlecht: string[] = [];
+    for (const satz of themeFarbTokens()) {
+      const namen = akzente(satz);
+      expect(namen.length, `keine --tf-kanban-Tokens fuer "${satz.modus}"`).toBeGreaterThan(0);
+      const grund = farbe(satz, '--tf-bg');
+      const tinte = farbe(satz, '--tf-text');
+      for (const name of namen) {
+        const v = kontrast(mische(farbe(satz, name), grund, TOENUNG), tinte);
+        if (v < THRESHOLD) schlecht.push(`  - ${satz.modus} ${name}: ${v.toFixed(2)}:1`);
+      }
+    }
+    if (schlecht.length > 0) {
+      expect.fail(
+        `Balkenfuellung(en) mit zu geringem Kontrast (Schwelle ${THRESHOLD}:1):\n` +
+        schlecht.join('\n') +
+        `\nFix: TOENUNG in src/plugins/antraege/verlauf-band/bandFarbe.ts senken ` +
+        `(weniger Akzent = mehr Kontrast) ODER das Token in src/theme.css anpassen. ` +
+        `NICHT die Schwelle senken — 4,5:1 ist AA fuer Text unter 18,66 px, und die ` +
+        `Balkenschrift misst 11 px.`,
+      );
+    }
+  });
+
+  it('haette den Stand bis v3.37 (satte Fuellung, weisse Schrift) verworfen', () => {
+    // Ein Guard, der nicht fehlschlagen KANN, ist keiner. Dieselbe Rechnung auf
+    // den alten Entwurf angewandt muss durchfallen — und zwar breit: sechs von
+    // neun im hellen Modus, alle neun im dunklen. Das haelt zugleich den Befund
+    // fest, der die Umstellung ausgeloest hat.
+    const WEISS: [number, number, number] = [1, 1, 1];
+    const durchgefallen = themeFarbTokens().map(satz => ({
+      modus: satz.modus,
+      anzahl: akzente(satz).filter(n => kontrast(farbe(satz, n), WEISS) < THRESHOLD).length,
+      gesamt: akzente(satz).length,
+    }));
+    expect(durchgefallen).toEqual([
+      { modus: 'hell', anzahl: 6, gesamt: 9 },
+      { modus: 'dunkel', anzahl: 9, gesamt: 9 },
+    ]);
+  });
+});
+
+describe('no-parallel-scope-tabs (Listen-Sicht-Tabs gehören in ScopeTabs)', () => {
+  // Die unterstrichene Aktiv-Tab-Signatur 'border-b-2 border-[var(--tf-primary)]' ist
+  // die kanonische Darstellung der Listen-Sicht-Tabs (ScopeTabs variant='tabs';
+  // Förderanträge + Chat sind konsolidiert). Seit v2.151.2 trägt der aktive Tab den
+  // Profil-Akzent (--tf-primary) statt Schwarz (--tf-text). Sie darf außerhalb des
+  // Primitivs nicht neu hand-gebaut werden, sonst driften die Tabs wieder auseinander.
+  // Generische Section-/Settings-Navigation nutzt @/components/ui/tabs (Inline-Style-
+  // Border, trifft diese Tailwind-Signatur NICHT).
+  const SIGNATURE = 'border-b-2 border-[var(--tf-primary)]';
+  // Kanonische Heimat + bewusst grandfatherte Bestands-Tabs (außerhalb des
+  // schlanken Umfangs dieser Schicht-Einführung; Migration als spätere Phase offen,
+  // siehe docs/layout-audit.md → „Adoptions-Status"):
+  const ALLOWED_SUFFIXES = [
+    'components/ui/ScopeTabs.tsx',                                // Primitiv-Definition
+    'plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx', // gezählte Tabs, ScopeTabs-Kandidat (später)
+    'plugins/skill-verwaltung-kuration/SkillEditor.tsx',         // 2-Tab-Nav mit Border-Container (anderes Muster)
+  ];
+  const isAllowed = (file: string): boolean => {
+    const rel = relPath(file);
+    return rel.includes('/__tests__/') || ALLOWED_SUFFIXES.some(s => rel.endsWith(s));
+  };
+
+  it('keine hand-gebaute ScopeTabs-Unterstrich-Signatur außerhalb des Primitivs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => l.includes(SIGNATURE), 'allow-scope-tabs'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Unterstrichene Listen-Sicht-Tabs gehören in das ScopeTabs-Primitiv\n` +
+        `(@/components/ui/ScopeTabs, variant='tabs') — nicht hand-bauen. Vordefinierte\n` +
+        `Listen-Sichten mit Zähler → ScopeTabs; generische Navigation → @/components/ui/tabs.\n` +
+        `Echte Ausnahme: '// allow-scope-tabs: <grund>' auf der Zeile (oder Pfad in\n` +
+        `ALLOWED_SUFFIXES mit Begründung).\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('no-parallel-board-geometry (Bahn-Layout gehört in TfBoard)', () => {
+  // Die gedrehte Schmalschiene ist die Signatur eines nachgebauten Kanban-Bahn-
+  // Layouts: eine schmale Spur, in der die Bezeichnung senkrecht steht, weil die
+  // Bahn leer bzw. eingeklappt ist. Genau daran hingen die Zahlen, die zwischen
+  // v2.228 (Extraktion nach `KanbanBoard`) und v3.17 (Nachbau im Feedback-Board)
+  // auseinanderliefen: 46 gegen 44 px, dieselbe 30%-Mischung in zwei Sprachen,
+  // die „+ N weitere"-Fußzeile dreimal. Und der Beweis, dass so etwas nicht
+  // auffällt: `spalten: 1|2` wurde im Popover angeboten, persistiert,
+  // durchgereicht — und im Nachbau nie gelesen.
+  //
+  // Signatur-basiert wie no-parallel-scope-tabs, nicht Import-basiert wie
+  // no-headless-tree-outside-wrapper: das Board hat keine Bibliothek, die man
+  // importieren müsste, also gibt es nichts zu verbieten außer der Form selbst.
+  const SIGNATUREN = ['writing-mode: vertical-rl', '[writing-mode:vertical-rl]'];
+  // Kanonische Heimat + die eingeklappte PANE, die dieselbe Drehung nutzt und
+  // etwas anderes ist: eine je Bildschirm, ohne Zähler, ohne Lane-Akzent, ohne
+  // Wiederholung. Ihr Primitiv ist MasterDetailLayout, nicht TfBoard.
+  const ALLOWED_SUFFIXES = [
+    'components/kanban/tf-board.css',                   // Primitiv-Definition
+    'components/master-detail/MasterDetailLayout.tsx',  // Pane-Schiene (kanonisch)
+    'plugins/antraege/AntraegePage.tsx',                // Pane-Schiene, dokumentierter
+                                                        // MasterDetailLayout-Nachbau
+                                                        // (docs/layout-audit.md → Adoptions-Status)
+    'plugins/chat/assistent/AssistentSpine.tsx',        // Pane-Schiene (seit v3.50
+                                                        // eigenes Bauteil: Dock UND
+                                                        // Suche tragen denselben
+                                                        // Streifen — ein Nachbau
+                                                        // wäre genau die Drift,
+                                                        // die dieser Guard meint)
+    'plugins/antraege/gutachten/gutachten.css',         // Pane-Schiene (g-ctx-reopen-lbl)
+  ];
+  const isAllowed = (file: string): boolean => {
+    const rel = relPath(file);
+    return rel.includes('/__tests__/') || ALLOWED_SUFFIXES.some(s => rel.endsWith(s));
+  };
+
+  it('keine gedrehte Bahn-Schmalschiene außerhalb des Board-Primitivs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_SOURCE_FILES) {
+      if (isAllowed(file)) continue;
+      findings.push(...findInFile(file, l => SIGNATUREN.some(s => l.includes(s)), 'allow-board-geometry'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Kanban-Bahn-Layout gehört in das Board-Primitiv (@/components/kanban/TfBoard\n` +
+        `+ tf-board.css) — nicht hand-bauen. Schmalschiene, getönter Bahn-Kopf,\n` +
+        `Zähler-Pille, „+ N weitere"-Fußzeile und die 1|2-Kartenspalten gehören\n` +
+        `zusammen; getrennt driften sie.\n` +
+        `Fehlende Fähigkeit? Im Primitiv als Feature-Flag ergänzen, nicht daneben.\n` +
+        `Senkrechte Beschriftung an einer eingeklappten PANE (nicht an einer Bahn)?\n` +
+        `→ MasterDetailLayout. Echte Ausnahme: '// allow-board-geometry: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  // Zweiter Teil, ohne Whitelist: Karten-Ziehen und Datei-Ablage sind über das
+  // benutzte dataTransfer-Feld trennscharf. Datei-Ablagen (FileDropZone,
+  // FeedbackFileInput, chat/Composer, KompetenzImportDialog) lesen ausschliesslich
+  // `.files`; ein Karten-Drag braucht setData/getData/dropEffect/effectAllowed.
+  // Damit bleibt die Drop-Naht im Primitiv — und ein spaeterer Wechsel auf eine
+  // Bibliothek (Touch, Tastatur, Auto-Scroll) fasst keinen Aufrufer an.
+  const DND = /dataTransfer\.(setData|getData|dropEffect|effectAllowed)\b/;
+  const DND_HEIMAT = `${sep}src${sep}components${sep}kanban${sep}`;
+
+  it('kein hand-gebautes Karten-Ziehen außerhalb des Board-Primitivs', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(DND_HEIMAT)) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, l => DND.test(l), 'allow-board-dnd'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Karten-Ziehen läuft über die Drop-Naht des Board-Primitivs:\n` +
+        `  <TfBoard dnd={{ idOf, onDrop }} renderCard={(k, bahn, zieh) => …} />\n` +
+        `Der Aufrufer spreizt \`zieh\` auf seinen Kartenknoten und schreibt NIE selbst\n` +
+        `in dataTransfer — sonst hängt die Mechanik an zwei Stellen und ein\n` +
+        `Bibliotheks-Einzug müsste jeden Aufrufer anfassen.\n` +
+        `Datei-Ablage aus dem Betriebssystem (dataTransfer.files) trifft diese\n` +
+        `Signatur nicht. Echte Ausnahme: '// allow-board-dnd: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('no-parallel-fenster-features (eigene Fenster kommen aus components/fenster)', () => {
+  // Zwei Stellen öffnen ein eigenes Browser-Fenster: die Seiten-Hilfe (v2.402,
+  // rohes DOM) und das Kanban-Vollbild (v3.47, zweite React-Wurzel). Beide
+  // brauchen denselben `window.open`-Features-String — und der trägt eine Zusage,
+  // die man beim Abschreiben verliert: KEIN `noopener`, sonst ist das Handle
+  // `null` und die ganze Mechanik tot.
+  //
+  // Signatur ist `popup=yes`, nicht `window.open`: sechs Aufrufe im Bestand
+  // (KI-Tab, Streamlit-Bridge, DMS-Dokument, Recherche-Link, Dashboard) öffnen
+  // legitim einen normalen Tab und hätten alle eine Ausnahme gebraucht. Wer ein
+  // Fenster mit eigener Geometrie aufmacht, meint dagegen genau dieses Bauteil.
+  const SIGNATUR = 'popup=yes';
+  const HEIMAT = `${sep}src${sep}components${sep}fenster${sep}`;
+
+  it('kein hand-gebauter window.open-Features-String', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_SOURCE_FILES) {
+      if (file.includes(HEIMAT)) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, l => l.includes(SIGNATUR), 'allow-fenster-features'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Fenster-Geometrie und Features-String wohnen in\n` +
+        `  @/components/fenster/fensterGeometrie (fensterFeatures + berechne*Geometrie)\n` +
+        `Eine zweite Fassung verliert beim ersten Abschreiben die Zusage „kein\n` +
+        `noopener" — damit wäre das Fenster-Handle null und weder Inhalt noch\n` +
+        `Theme-Nachführung noch Schließen funktionierten.\n` +
+        `Echte Ausnahme: '// allow-fenster-features: <grund>'.\n\n` +
+        `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('no-raw-cta-fill (CTA-Buttons tragen die Profil-Primaerfarbe via <Button>)', () => {
+  // Gefuellte primaere CTAs gehoeren an die kanonische Komponente <Button> aus
+  // @/components/ui/button (variant='primary'/'default' = bg-primary = --tf-primary,
+  // der vom User waehlbare Profil-Akzent; seit v2.144). Ein hand-gebauter <button>/<a>
+  // mit eigenem `bg-[var(--tf-text)]`- oder `bg-[var(--tf-primary)]`-Fill haengt sich
+  // davon ab und wirkt schwarz statt im Akzent (DESIGN_GUIDE „Button").
+  //
+  // Zwei Mechaniken, beide praezise:
+  //  (a) Tailwind-Klassen-Fill + `hover:opacity` — trifft NUR gefuellte Klick-CTAs.
+  //      Toggle-Pills (Aktiv-Fill im Ternary), Badge-Style-Maps, Switch-Thumbs, Chat-
+  //      Bubbles, Vorschau-Chip, Progress-Bars haben KEIN `hover:opacity` → kein
+  //      False-Positive.
+  //  (b) Inline-Style-Fill `background: 'var(--tf-text)', color: 'var(--tf-bg)'` — die
+  //      Auslastungs-Mechanik (v2.151). Das exakte bg+color-PAAR trifft nur gefuellte
+  //      CTAs; Progress-Bars/Marker (nur `background`, keine paired `color: var(--tf-bg)`)
+  //      und Pills (Akzent-Light) bleiben aussen vor.
+  //  (c) Literal OPAKES Schwarz als Inline-Background (Hex-Analog zu (b), v2.164): #000/
+  //      #000000/black/rgb(0,0,0). rgba(0,0,0,α)-Modal-Backdrops (Alpha) + Pastell-Boxen
+  //      (#fee2e2 …) bleiben aussen vor. Forward-looking: aktuell 0 Treffer.
+  // Inline-Ausnahme: '// allow-cta-fill: <grund>'.
+  const CLASS_FILLS = [
+    'bg-[var(--tf-text)] text-[var(--tf-bg)]',
+    'bg-[var(--tf-primary)] text-white',
+    'bg-[var(--tf-primary)] text-[var(--tf-primary-foreground)]',
+  ];
+  const INLINE_FILLS = [
+    "background: 'var(--tf-text)', color: 'var(--tf-bg)'",
+    'background: "var(--tf-text)", color: "var(--tf-bg)"',
+  ];
+  const INLINE_BLACK_FILL = /(?:background|backgroundColor)\s*:\s*['"](?:#000(?:000)?|black|rgb\(\s*0\s*,\s*0\s*,\s*0\s*\))['"]/i;
+  const isCtaFill = (l: string): boolean =>
+    (l.includes('hover:opacity') && CLASS_FILLS.some(f => l.includes(f)))
+    || INLINE_FILLS.some(f => l.includes(f))
+    || INLINE_BLACK_FILL.test(l);
+
+  // Sanity: schwarze/CTA-Fills treffen, neutrale Flaechen (rgba-Overlays, Pastell-Boxen) nicht.
+  it('isCtaFill: Treffer nur bei gefuellten CTAs', () => {
+    const hits = [
+      "background: '#000', color: 'white'", 'backgroundColor: "#000000"', "background: 'black'",
+      "background: 'rgb(0, 0, 0)'", 'bg-[var(--tf-primary)] text-white hover:opacity-90',
+      "background: 'var(--tf-text)', color: 'var(--tf-bg)'",
+    ];
+    const misses = [ // Backdrop, Pastell-Box, Teal-Badge, Fill ohne hover:opacity
+      "background: 'rgba(0,0,0,0.4)'", "background: '#fee2e2', color: '#991b1b'",
+      "background: '#075985', color: 'white'", 'bg-[var(--tf-primary)] text-white',
+    ];
+    for (const l of hits) expect(isCtaFill(l), l).toBe(true);
+    for (const l of misses) expect(isCtaFill(l), l).toBe(false);
+  });
+
+  it('kein hand-gebauter gefuellter CTA-Fill (Button-Komponente nutzen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, isCtaFill, 'allow-cta-fill'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Hand-gebauter gefuellter CTA-Button verboten (DESIGN_GUIDE „Button").\n` +
+        `Nutze die kanonische Komponente <Button> aus @/components/ui/button:\n` +
+        `  <Button variant="primary" icon={Icon} loading={x.busy} onClick={…}>Speichern</Button>\n` +
+        `variant='primary' traegt die vom User waehlbare Profil-Primaerfarbe (--tf-primary);\n` +
+        `Zweitaktion = variant='secondary' (Outline), Anker = <Button asChild><a>…</a></Button>.\n` +
+        `Bewusste Nicht-Button-Flaeche (Toggle-Pill/Badge/Chip): Fill OHNE hover:opacity halten\n` +
+        `oder Zeile mit '// allow-cta-fill: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});

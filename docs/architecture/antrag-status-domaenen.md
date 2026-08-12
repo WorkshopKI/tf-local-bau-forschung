@@ -21,7 +21,7 @@ Views, Dashboard, Eingangs-Ampel und Workflow-Logik **NIE direkt** gegen einen R
 - `isClosedStatus()`
 - `getStatusCategory()`
 
-**Hinweis**: TypeScript erlaubt `===` zwischen branded und literal noch wegen string-overlap (Sprach-Quirk). Die Pflicht ist über den Vitest-Convention-Test in [src/__tests__/codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts) abgesichert (Test `no-direct-status-compare`, Pattern fängt eindeutige Antrag-Status-Strings).
+**Hinweis**: TypeScript erlaubt `===` zwischen branded und literal noch wegen string-overlap (Sprach-Quirk). Die Pflicht ist über den Vitest-Convention-Test in [src/__tests__/conventions-status.test.ts](../../src/__tests__/conventions-status.test.ts) abgesichert (Test `no-direct-status-compare`, Pattern fängt eindeutige Antrag-Status-Strings).
 
 Die Filter-Sidebar ([statusGroups.ts](../../src/plugins/antraege/filter/statusGroups.ts)) zeigt weiter Förderantrag-Rohwerte als Phasen-Gruppen — sie ist hiervon unberührt.
 

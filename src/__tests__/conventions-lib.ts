@@ -1,11 +1,11 @@
 /**
  * Scan-Infrastruktur der Convention-Guards.
  *
- * Die Guards selbst bleiben vollständig in `codebase-conventions.test.ts` — der
- * Entschluss „alle Konventionen in EINER Datei" (CLAUDE.md Doku-Konvention 4) gilt
- * weiter. Ausgelagert ist nur das Werkzeug: Datei-Walk, Pfad-Formatierung und die
- * beiden Such-Primitive. Das hielt die Guard-Datei davon ab, mit jeder neuen
- * Konvention zugleich in der Infrastruktur zu wachsen.
+ * Die Guards selbst liegen in den `conventions-*.test.ts` daneben, thematisch
+ * geschnitten (Status / Oberfläche / Daten) plus `health-baseline.test.ts`.
+ * Ausgelagert ist hier nur das Werkzeug: Datei-Walk, Pfad-Formatierung und die
+ * Such-Primitive — es wird von allen vier geteilt, damit ein Guard nie seinen
+ * eigenen Scanner mitbringt.
  *
  * Keine Testfälle hier — diese Datei wird importiert, nicht ausgeführt.
  */

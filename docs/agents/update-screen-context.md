@@ -47,7 +47,7 @@ fachliche Änderung: nicht anfassen.
    Touch-Point-Katalog — ein neues Kontext-Doc ist dort ein zusätzlicher Schritt,
    sonst schlägt der Guard fehl.
 6. **Verifikation**: `npm run test` — Guard `screen-context-coverage` in
-   [codebase-conventions.test.ts](../../src/__tests__/codebase-conventions.test.ts)
+   [conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts)
    fängt fehlende Docs (neues Plugin ohne Doc) und die Reißleine;
    [seitenHilfe.test.ts](../../src/core/services/feedback/__tests__/seitenHilfe.test.ts)
    prüft je Doc den sichtbaren Teil: keine Datei-/Pfadangaben, keine Routen/Flags/

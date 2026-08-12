@@ -160,7 +160,7 @@ Das zentrale typografische Element der App. Kleine Uppercase-Labels mit horizont
 
 Die **vollständige** Skala- und Farbfamilie der Design-Handoffs lebt seit v2.119 **einmal** global in [src/theme.css](src/theme.css) (Light + `[data-theme="dark"]`) — Typo (`--tf-text-*`, `--tf-font-*`, `--tf-weight-*`, `--tf-tracking-caps`), Spacing (`--tf-space-xs…-3xl`, Tabelle oben), Radius/Motion (`--tf-radius-sm/-pill/-dialog`, `--tf-border-thin`, `--tf-duration-*`, `--tf-ease`, `--tf-shadow-dialog`) sowie die Farbglieder `--tf-{info,success,warning}-border` und `--tf-{primary,info,success,warning,danger}-soft`.
 
-**Kein lokaler `--tf-*`-Lückenfüller mehr** in Plugin-CSS. Ein `var(--tf-…)` **ohne Fallback** auf ein global nicht definiertes Token ist die „nackt"-Falle (v2.67.1) — das undefinierte `var()` macht die **ganze** Deklaration ungültig (border/font/radius/transition fallen aus). Der Convention-Guard `theme-token-contract` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) erzwingt das als **Build-Fehler** (`npm run check` rot; CSS **und** TSX/TS werden gescannt, da z.B. Auslastung Tokens inline im `.tsx` nutzt). Neue Tokens daher immer zuerst in `theme.css` anlegen (Light + Dark) — nicht lokal scopen. Bewusste Ausnahme: Zeile mit `// allow-tf-token: <grund>`.
+**Kein lokaler `--tf-*`-Lückenfüller mehr** in Plugin-CSS. Ein `var(--tf-…)` **ohne Fallback** auf ein global nicht definiertes Token ist die „nackt"-Falle (v2.67.1) — das undefinierte `var()` macht die **ganze** Deklaration ungültig (border/font/radius/transition fallen aus). Der Convention-Guard `theme-token-contract` ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)) erzwingt das als **Build-Fehler** (`npm run check` rot; CSS **und** TSX/TS werden gescannt, da z.B. Auslastung Tokens inline im `.tsx` nutzt). Neue Tokens daher immer zuerst in `theme.css` anlegen (Light + Dark) — nicht lokal scopen. Bewusste Ausnahme: Zeile mit `// allow-tf-token: <grund>`.
 
 ### Grundregel
 Lieber zu viel Whitespace als zu wenig. Die App soll "atmen".
@@ -228,7 +228,7 @@ Props: `icon={LucideIcon}` (führendes Icon, ohne `size=`), `loading={bool}` (Sp
 `<Button asChild><a …>…</a></Button>`), `size="sm|xs|lg|icon|icon-sm"`. Ein `<button>`/`<a>` mit eigenem
 gefüllten Fill ist verboten — egal ob als Klasse (`bg-[var(--tf-text)]`/`bg-[var(--tf-primary)]`) oder
 inline (`style={{ background: 'var(--tf-text)', … }}`); der Convention-Test `no-raw-cta-fill`
-([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)) fängt beides.
+([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)) fängt beides.
 
 **Niemals**: Blaue Buttons, rote gefüllte Buttons, Gradient-Buttons, Buttons mit fetten Font-Weights,
 hand-gebaute gefüllte CTAs an der `<Button>`-Komponente vorbei.

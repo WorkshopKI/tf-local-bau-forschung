@@ -47,8 +47,9 @@ Die Search-Eval ist bewusst **nicht** im npm-Test-Lauf, weil sie WebGPU/WASM + g
 
 Zwei Stufen — je nach Situation:
 
-- **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + nur betroffene Tests (`vitest run --changed`). Sekunden statt Minuten.
-- **Phasen-Gate** (Ende jeder Phase, vor jedem Commit): `npm run check` — voll: Typecheck + Lint + komplette Testsuite + `build:dev`.
+- **Nach Doc-/Guard-Schreiben** (Sekunden): `npm run check:docs` — nur die Guards unter `src/__tests__/` (~6 s). Eine reine Doc-Änderung erreicht sonst kein Testfile.
+- **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + komplette Testsuite (~26 s).
+- **Phasen-Gate** (Ende jeder Phase, vor jedem Commit): `npm run check` — Typecheck + Lint + `cycles` + komplette Testsuite (~33 s). **Ohne Build**: der Bundle-Nachweis ist der abschließende `npm run build:devpl`.
 
 Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm run typecheck:full` (`tsc --build --force`).
 

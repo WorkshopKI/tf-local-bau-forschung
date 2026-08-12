@@ -7,8 +7,8 @@
  * so war es bis v2.371: Einstellungen → Darstellung persistierte, das
  * Tastenkürzel Strg+Umschalt+D und der Command-Palette-Eintrag nicht.
  *
- * Bewusst NICHT in codebase-conventions.test.ts (die steht an ihrem
- * MAX_FILE_LOC-Limit) — gleiche Begründung wie bei doc-links.test.ts.
+ * Eigene Datei statt Teil der thematischen conventions-*.test.ts: der Guard
+ * prüft eine Bedien-Zusage (Kürzel + Palette), keine Code-Konvention.
  */
 import { describe, it, expect } from 'vitest';
 import { sep } from 'node:path';

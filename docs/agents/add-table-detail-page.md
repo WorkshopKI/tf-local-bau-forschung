@@ -66,7 +66,7 @@ bauen** — die Bausteine existieren.
 
 ## Verifikation
 
-- `npm run check` (typecheck + test + build:dev).
+- `npm run check` (typecheck + lint + cycles + test); der Bundle-Nachweis ist der abschließende `npm run build:devpl`.
 - HTML aus `dist-single/` öffnen: Zeilen-Klick öffnet Detail **rechts**, Liste
   schrumpft auf Sidebar; Escape/Close bringt sie voll zurück; Resize-Handle
   funktioniert, Breite überlebt Reload.

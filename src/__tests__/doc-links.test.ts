@@ -7,8 +7,8 @@
  * generierte, gitignorete `code-map.md` ist whitelisted (der precheck-Hook
  * erzeugt sie; auf einem frischen Checkout darf sie fehlen).
  *
- * Bewusst NICHT in codebase-conventions.test.ts (die steht an ihrem
- * MAX_FILE_LOC-Limit).
+ * Eigene Datei statt Teil der thematischen conventions-*.test.ts: geprüft wird
+ * die Doku, nicht der Code.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync, statSync } from 'node:fs';
