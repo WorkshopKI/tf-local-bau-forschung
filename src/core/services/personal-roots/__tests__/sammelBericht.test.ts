@@ -71,6 +71,15 @@ describe('jeWurzel', () => {
   it('wirft selbst nie', async () => {
     await expect(jeWurzel([PL], async () => { throw new Error('x'); })).resolves.toHaveLength(1);
   });
+
+  it('haelt „nicht gelesen" von „nichts gefunden" getrennt', async () => {
+    // Die Timer-Pfade lesen eine Wurzel mit verfallener Berechtigung gar nicht
+    // erst an. Als 0 gemeldet saehe sie aus wie ein leerer Ordner.
+    const bericht = await jeWurzel([PL], async () => 'kein-zugriff');
+    expect(bericht[0]?.ausgang).toEqual({ art: 'kein-zugriff' });
+    expect(hatGelesen(bericht)).toBe(false);
+    expect(formatiereSammelBericht(bericht)).toBe('PL-Ordner: kein Zugriff');
+  });
 });
 
 describe('formatiereSammelBericht', () => {

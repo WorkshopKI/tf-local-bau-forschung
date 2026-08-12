@@ -57,7 +57,8 @@ export function usePendingUebernahmeWuensche(anonymMap: AnonymMap): {
         ]);
         const alle: PersoenlicheUebernahmeWuensche[] = [];
         await jeWurzel(wurzeln, async root => {
-          if (zustaende[root.id] !== 'granted') return 0;
+          // Nicht freigegeben ist etwas anderes als „nichts gefunden".
+          if (zustaende[root.id] !== 'granted') return 'kein-zugriff';
           const teil = await collectUebernahmeWuensche(root.handle);
           alle.push(...teil);
           return teil.length;

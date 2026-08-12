@@ -51,10 +51,15 @@ export type VerbundeneWurzel = UserFoldersRoot & { handle: FileSystemDirectoryHa
  * `lies` liefert die Anzahl der gelesenen Einheiten. Die Nutzlast sammelt der
  * Aufrufer selbst ein (typisch: in ein Array pushen), damit er sie danach in
  * EINEM Schritt weiterverarbeiten kann — Pitfall #16/#20.
+ *
+ * Wer gar nicht erst liest, weil die Berechtigung verfallen ist, gibt
+ * `'kein-zugriff'` zurück statt `0`: „gelesen, nichts gefunden" ist eine
+ * andere Aussage als „nicht gelesen", und ein stilles `0` liest sich wie ein
+ * leerer Ordner.
  */
 export async function jeWurzel(
   roots: readonly UserFoldersRoot[],
-  lies: (root: VerbundeneWurzel) => Promise<number>,
+  lies: (root: VerbundeneWurzel) => Promise<number | 'kein-zugriff'>,
 ): Promise<SammelBericht> {
   const bericht: SammelBericht = [];
   for (const root of roots) {
@@ -64,7 +69,11 @@ export async function jeWurzel(
     }
     try {
       const anzahl = await lies(root as VerbundeneWurzel);
-      bericht.push({ id: root.id, label: root.label, ausgang: { art: 'ok', anzahl } });
+      bericht.push({
+        id: root.id,
+        label: root.label,
+        ausgang: anzahl === 'kein-zugriff' ? { art: 'kein-zugriff' } : { art: 'ok', anzahl },
+      });
     } catch (err) {
       bericht.push({
         id: root.id,

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.1.1 — Alt-Ordner benennt, was zu tun ist (August 2026)
+
+PATCH — Der Alt-Ordner bat um „neu zuordnen", nachdem längst zugeordnet war: die Aufforderung steckte in der Beschriftung und kannte die Lage nicht. Detail: [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).
+
+- **Die Zeile sagt, was gilt** ([wurzelLage.ts](src/core/services/personal-roots/wurzelLage.ts)): sind alle Gruppen verbunden, ist der Alt-Ordner abgelöst — „wird nicht mehr gebraucht", **Entfernen** als beschrifteter Knopf, „Erneut freigeben" bleibt als Rückweg erreichbar
+- `PERSONAL_ROOT_LEGACY_LABEL` wieder **neutral** ([personal-roots.ts](src/config/personal-roots.ts)) — es erscheint auch im Sammelbericht, wo eine Aufforderung nichts zu suchen hat
+- Seine Zeile bleibt sichtbar, **auch wenn er gerade lesbar ist**: sonst nähme ein erfolgreiches „Erneut freigeben" den einzigen Weg mit, ihn loszuwerden
+- Der erklärende Satz erscheint nur noch, wenn wirklich eine Gruppe zu verbinden ist ([WurzelnVerbinden.tsx](src/core/components/WurzelnVerbinden.tsx))
+- `'kein-zugriff'` statt `0` im Bericht, wo wegen verfallener Berechtigung gar nicht gelesen wurde ([sammelBericht.ts](src/core/services/personal-roots/sammelBericht.ts)) — der Ausgang existierte, nur erzeugte ihn niemand
+
 ### v4.1.0 — Multi-Root für persönliche Ordner (August 2026)
 
 MINOR — Die persönlichen Ordner liegen ab sofort unter zwei Wurzeln statt einer (PL, Bearbeiter). Der bisherige Einzel-Slot wird zum Präfix-Slot nach dem Muster der DMS-Quellen. Das eigentliche Risiko liegt daneben: „kein Handle → `return`" war bei EINER Wurzel ehrlich, bei zweien sieht Teil-Einsammeln aus wie Erfolg. Detail: [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).

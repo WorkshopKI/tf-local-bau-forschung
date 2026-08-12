@@ -26,8 +26,9 @@
 ### Verbesserungen
 - Nach dem Einsammeln steht in der Meldung, aus welcher Gruppe wie viel gelesen wurde. Eine nicht verbundene Gruppe wird benannt, statt stillschweigend zu fehlen.
 - Taucht dieselbe Person unter zwei Wurzeln auf, gewinnt ihr neuester Stand — eine liegengebliebene Ordner-Kopie überschreibt nichts mehr und zieht auch keine Stimme zurück.
+- Der bisherige Sammelordner aus der Zeit vor den Gruppen wird nicht mehr zum Neuzuordnen aufgefordert, sobald alle Gruppen verbunden sind: dann steht dort „wird nicht mehr gebraucht" und ein Knopf „Entfernen".
 ### Bugfixes
-<!-- - … -->
+- Ein Ordner ohne Freigabe wurde in der Sammel-Meldung als „0 gelesen" geführt — also wie ein leerer Ordner. Jetzt steht dort „kein Zugriff".
 
 ## v4.0 — 2026-08
 

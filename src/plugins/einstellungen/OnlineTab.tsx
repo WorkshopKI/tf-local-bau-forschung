@@ -60,7 +60,9 @@ export function OnlineTab(): React.ReactElement {
     const stand = await neuLaden();
     const alle: OnlineUser[] = [];
     const b = await jeWurzel(stand.wurzeln, async root => {
-      if (stand.zustaende[root.id] !== 'granted') return 0;
+      // Nicht freigegeben heisst NICHT „leer": als 0 gemeldet saehe die Wurzel
+      // aus wie ein Ordner ohne Kolleg:innen.
+      if (stand.zustaende[root.id] !== 'granted') return 'kein-zugriff';
       const teil = await collectHeartbeats(root.handle);
       alle.push(...teil);
       return teil.length;

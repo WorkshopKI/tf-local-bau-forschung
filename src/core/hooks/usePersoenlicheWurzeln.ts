@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from './useStorage';
+import { istNutzbar } from '@/core/services/personal-roots';
 import {
   getUserFoldersRoots,
   queryUserFoldersRootPermissions,
@@ -94,10 +95,15 @@ export function usePersoenlicheWurzeln(): PersoenlicheWurzelnState {
   return { wurzeln, zustaende, laden, neuLaden, verbinde, entferne };
 }
 
-/** Nur die Wurzeln, aus denen gerade wirklich gelesen werden kann. */
+/**
+ * Nur die Wurzeln, aus denen gerade wirklich gelesen werden kann.
+ *
+ * Das Urteil selbst liegt in `wurzelLage.ts` — dieselbe Frage beantwortet auch
+ * die Zeilen-Auswahl der UI, und zwei Kopien davon würden auseinanderlaufen.
+ */
 export function nurNutzbare(
   wurzeln: readonly UserFoldersRoot[],
   zustaende: Record<string, PermStateOrMissing>,
 ): UserFoldersRoot[] {
-  return wurzeln.filter(r => r.handle && zustaende[r.id] === 'granted');
+  return wurzeln.filter(r => istNutzbar(r, zustaende));
 }
