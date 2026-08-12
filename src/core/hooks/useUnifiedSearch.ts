@@ -24,6 +24,7 @@ import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import { useActiveProgramm } from './useActiveProgramm';
 import { useSearch } from './useSearch';
 import { useSemanticSearchMode } from './useSemanticSearchMode';
+import { useSuchVerknuepfung, verknuepfungAlsThreshold } from './useSuchVerknuepfung';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -204,6 +205,10 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
   // Umschalten im Dropdown die LAUFENDE Suche neu ausführt — sonst bleiben
   // die angezeigten Treffer Substring-only bis zur nächsten Query-Änderung.
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
+  // Verknüpfung mehrerer Stichwörter (UND/ODER). Wie `semanticEnabled` im
+  // Dep-Array des Such-Effekts, damit das Umschalten die LAUFENDE Suche neu
+  // ausführt statt bis zum nächsten Tastendruck zu warten.
+  const verknuepfung = useSuchVerknuepfung(s => s.verknuepfung);
   // Code→Name-Map der Unterprogramme des aktiven Programms (Modul-gecacht).
   // Die Suche ist immer auf EIN Programm gescoped, daher genuegt eine Map.
   const unterprogrammLabels = useUnterprogrammLabels(activeProgrammId);
@@ -299,7 +304,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           // Stage 1: Substring (sync) — sofort sichtbare Treffer.
           if (programmCaches) {
             const tStage1 = performance.now();
-            const subAkz = searchAntraegeSubstring(q, programmCaches.textCorpus);
+            const subAkz = searchAntraegeSubstring(q, programmCaches.textCorpus, verknuepfung);
             for (const akz of subAkz) {
               upsertAntrag({ aktenzeichen: akz, score: 1.0, method: 'fulltext' }, byAkz);
             }
@@ -366,7 +371,10 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           setSearchPhase('orama');
           const tStage3 = performance.now();
           const dokumenteHits: OramaSearchResult[] = getOramaDB() !== null
-            ? hybridSearch(q, queryVec, { limit: DOC_HIT_LIMIT })
+            ? hybridSearch(q, queryVec, {
+                limit: DOC_HIT_LIMIT,
+                threshold: verknuepfungAlsThreshold(verknuepfung),
+              })
             : [];
           for (const h of dokumenteHits) {
             const r = mapDokumentHit(h, filenameToAkz, byAkz, programmNameById);
@@ -377,7 +385,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
 
           // DMS-Antraege-Match (via filenameToAkz aus Orama-Hits).
           if (programmCaches) {
-            const dmsAntragHits = searchAntraegeDms(q, queryVec, programmCaches.filenameToAkz);
+            const dmsAntragHits = searchAntraegeDms(q, queryVec, programmCaches.filenameToAkz, verknuepfung);
             for (const h of dmsAntragHits) {
               upsertAntrag({ aktenzeichen: h.akz, score: h.score, method: 'hybrid' }, byAkz);
             }
@@ -413,7 +421,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
       abort.abort();
       clearTimeout(timer);
     };
-  }, [query, activeProgrammId, storage, programmNameById, semanticEnabled]);
+  }, [query, activeProgrammId, storage, programmNameById, semanticEnabled, verknuepfung]);
 
   const counts = useMemo<UnifiedSearchCounts>(() => {
     let antraege = 0;

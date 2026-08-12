@@ -21,6 +21,7 @@ import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistent
 import { baueKontextSnapshot } from './kontextSnapshot';
 import { quickActionsFuer } from './quickActions';
 import { assistentPanelUiStore, clampPanelWidth, SPINE_WIDTH } from './panelUiStore';
+import { AssistentSpine } from './AssistentSpine';
 import '../chat.css';
 
 export function AssistentPanelHost(): React.ReactElement | null {
@@ -118,28 +119,14 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const empty = c.messages.length === 0 && !c.busy;
 
-  // Dauerhafte 28px-Spine am rechten Blattrand (Handoff „Docking", schmal):
-  // Mini-Primär-Badge oben + dauerhaft sichtbares, vertikales Label „ASSISTENT"
-  // (kein Tooltip, das Label ist ohnehin sichtbar → kein Doppel-Tooltip, vgl.
-  // v2.255.2). Die Spine bleibt auch bei offenem Panel stehen; das Panel legt
-  // sich als Overlay LINKS daneben (right: SPINE_WIDTH). Das Blatt reserviert die
-  // SPINE_WIDTH (ShellLayout `dockAktiv`) → keine Überlappung. Klick togglet.
+  // Die Spine (28px, rechter Blattrand) ist ein eigenes Bauteil — die Suche
+  // trägt denselben Streifen für ihren Voll-Chat. Sie bleibt auch bei offenem
+  // Panel stehen; das Panel legt sich als Overlay LINKS daneben
+  // (right: SPINE_WIDTH). Das Blatt reserviert die SPINE_WIDTH (ShellLayout
+  // `spineAktiv`) → keine Überlappung.
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-label={open ? 'Assistent schließen' : 'Assistent öffnen'}
-        aria-expanded={open}
-        className={`group fixed right-0 top-0 z-[44] h-screen w-[28px] flex flex-col items-center pt-[14px] px-[2px] gap-[10px] transition-colors cursor-pointer ${open ? 'bg-[var(--tf-sheet)]' : 'bg-transparent hover:bg-[var(--tf-hover)]'}`}
-      >
-        <span className="grid place-items-center w-[18px] h-[18px] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)] transition-colors">
-          <Sparkles size={12} />
-        </span>
-        <span className="[writing-mode:vertical-rl] uppercase text-[10.5px] tracking-[0.14em] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)] transition-colors select-none">
-          Assistent
-        </span>
-      </button>
+      <AssistentSpine open={open} onToggle={() => setOpen(!open)} />
       {open && (
       <div className="fixed top-0 z-[45] h-screen flex" style={{ width, right: SPINE_WIDTH }}>
       <div

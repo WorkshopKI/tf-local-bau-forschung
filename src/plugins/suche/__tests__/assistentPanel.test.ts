@@ -8,6 +8,7 @@ import {
   parseAssistentOpen,
   parseAssistentWidth,
   serializeAssistentOpen,
+  sucheAssistentUiStore,
 } from '../assistentPanel';
 
 describe('parseAssistentOpen / serializeAssistentOpen', () => {
@@ -53,5 +54,30 @@ describe('parseAssistentWidth', () => {
     expect(parseAssistentWidth(null)).toBe(ASSISTENT_DEFAULT_WIDTH);
     expect(parseAssistentWidth('abc')).toBe(ASSISTENT_DEFAULT_WIDTH);
     expect(parseAssistentWidth('100')).toBe(ASSISTENT_DEFAULT_WIDTH); // < min
+  });
+});
+
+/**
+ * Seit v3.50 hängt am selben Zustand ZWEI Bedienung: der Streifen am rechten
+ * Rand (im ShellLayout) und das Panel (auf der Suchseite). Liefe der Zustand
+ * auseinander, zeigte der Streifen „offen" und die Seite nichts.
+ */
+describe('sucheAssistentUiStore', () => {
+  it('setOpen und toggle bewegen denselben Zustand', () => {
+    const s = sucheAssistentUiStore.getState();
+    s.setOpen(false);
+    expect(sucheAssistentUiStore.getState().open).toBe(false);
+    sucheAssistentUiStore.getState().toggle();
+    expect(sucheAssistentUiStore.getState().open).toBe(true);
+    sucheAssistentUiStore.getState().toggle();
+    expect(sucheAssistentUiStore.getState().open).toBe(false);
+  });
+
+  it('merkt sich die Breite ROH — geklemmt wird erst beim Rendern', () => {
+    sucheAssistentUiStore.getState().setWidth(1500);
+    expect(sucheAssistentUiStore.getState().width).toBe(1500);
+    // Auf einem schmalen Fenster bleibt der Tabelle trotzdem ihr Mindestmaß.
+    expect(effectiveAssistentWidth(sucheAssistentUiStore.getState().width, 1440))
+      .toBe(1440 - ASSISTENT_TABELLE_MIN);
   });
 });

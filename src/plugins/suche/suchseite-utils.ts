@@ -104,3 +104,37 @@ export function filterRecentSearches(list: string[], query: string, max: number 
     return el !== q && el.includes(q);
   }).slice(0, max);
 }
+
+// ----- Größe des Suchfelds ---------------------------------------------------
+
+/** Gemerkte Größe des (ziehbaren) Suchfelds. */
+export interface FeldGroesse { w: number; h: number }
+
+/** Kleinstmaß des Suchfelds — darunter passt der Platzhalter nicht mehr. */
+export const FELD_MIN_BREITE = 220;
+/** Ein-Zeilen-Höhe (entspricht dem bisherigen `h-10`). */
+export const FELD_MIN_HOEHE = 40;
+
+/**
+ * Rohwert aus localStorage → Größe, oder `null` wenn nichts Brauchbares
+ * drinsteht. Rein (kein localStorage) und damit unter `environment:'node'`
+ * testbar — dieselbe Trennung wie in [[assistentPanel]].
+ */
+export function parseFeldGroesse(raw: string | null): FeldGroesse | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return null;
+    const { w, h } = parsed as Record<string, unknown>;
+    if (typeof w !== 'number' || typeof h !== 'number') return null;
+    if (!Number.isFinite(w) || !Number.isFinite(h)) return null;
+    if (w < FELD_MIN_BREITE || h < FELD_MIN_HOEHE) return null;
+    return { w: Math.round(w), h: Math.round(h) };
+  } catch {
+    return null;
+  }
+}
+
+export function serializeFeldGroesse(g: FeldGroesse): string {
+  return JSON.stringify({ w: Math.round(g.w), h: Math.round(g.h) });
+}

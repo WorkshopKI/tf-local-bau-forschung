@@ -2,9 +2,17 @@
  * Reine Persistenz-Helfer für das andockende Assistenten-Panel der Suche
  * (Phase 4). Analog zu [listCollapse.ts](../antraege/listCollapse.ts): Parser/
  * Serializer ohne React/localStorage, damit sie unter `environment:'node'`
- * unit-testbar sind. Die Seite hält den State und persistiert selbst.
+ * unit-testbar sind.
+ *
+ * Seit v3.50 liegt der Offen-/Breiten-Zustand zusätzlich in einem Vanilla-
+ * zustand-Store (`sucheAssistentUiStore`, Vorbild
+ * [panelUiStore.ts](../chat/assistent/panelUiStore.ts)): die Spine am rechten
+ * Blattrand wird vom ShellLayout gerendert, das Panel von der Suchseite — beide
+ * brauchen denselben Schalter. Die reinen Helfer bleiben die Quelle der Logik,
+ * der Store ruft sie nur auf.
  */
 
+import { createStore } from 'zustand/vanilla';
 import { clampDragWidth, effectiveListWidth } from '@/components/master-detail';
 
 export const ASSISTENT_OPEN_KEY = 'teamflow_suche_assistent_open';
@@ -52,3 +60,44 @@ export function parseAssistentWidth(raw: string | null): number {
   }
   return v;
 }
+
+function readLs(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function writeLs(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* ignore */ }
+}
+
+export interface SucheAssistentUiState {
+  open: boolean;
+  /** ROH gespeicherte Breite — gegen das aktuelle Fenster klemmt erst
+   *  `effectiveAssistentWidth` beim Rendern (ein kleineres Fenster darf die
+   *  gemerkte Breite nicht dauerhaft schrumpfen). */
+  width: number;
+  setOpen: (open: boolean) => void;
+  toggle: () => void;
+  setWidth: (w: number) => void;
+}
+
+/**
+ * UI-Zustand des Suche-Panels. Vanilla-Store (kein React-Hook), damit ihn das
+ * ShellLayout für die Spine lesen kann, ohne von der Suchseite abzuhängen.
+ */
+export const sucheAssistentUiStore = createStore<SucheAssistentUiState>((set, get) => ({
+  open: parseAssistentOpen(readLs(ASSISTENT_OPEN_KEY)),
+  width: parseAssistentWidth(readLs(ASSISTENT_WIDTH_KEY)),
+  setOpen: (open) => {
+    writeLs(ASSISTENT_OPEN_KEY, serializeAssistentOpen(open));
+    set({ open });
+  },
+  toggle: () => {
+    const next = !get().open;
+    writeLs(ASSISTENT_OPEN_KEY, serializeAssistentOpen(next));
+    set({ open: next });
+  },
+  setWidth: (w) => {
+    writeLs(ASSISTENT_WIDTH_KEY, String(w));
+    set({ width: w });
+  },
+}));

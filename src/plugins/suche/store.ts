@@ -4,8 +4,17 @@
  * Pattern analog zum Antraege-Store: Zustand + localStorage-Validate-on-Load.
  * localStorage ist hier ausreichend (Daten klein, OK unter `file://`, siehe
  * CLAUDE.md "localStorage OK for simple flags").
+ *
+ * AUSNAHME seit v3.50: die drei Felder `query` / `typeFilter` /
+ * `antragstypFilter` sind SITZUNGS-lokal und bewusst NICHT in localStorage. Sie
+ * liegen hier statt in `useState`, weil der Klick auf einen Treffer die
+ * Suchseite ausbaut — mit lokalem State war der Weg zurück eine Sackgasse
+ * (leeres Feld, keine Treffer). Nicht persistiert, damit ein Kaltstart weiter
+ * auf dem Leerzustand landet und nicht in einer Suche von vorgestern.
  */
 import { create } from 'zustand';
+import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import type { SuchePillFilterId } from './suchseite-utils';
 import {
   SEARCH_COLUMNS,
   DEFAULT_VISIBLE_COLUMN_KEYS,
@@ -81,9 +90,18 @@ interface SucheState {
   addRecentSearch: (q: string) => void;
   removeRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
-  /** Editierbarer Anweisungstext für „Mit KI analysieren" (Begründung). */
+  /** Editierbarer Anweisungstext für „Treffer begründen" (Begründung). */
   analysePrompt: string;
   setAnalysePrompt: (s: string) => void;
+  /** Aktuelle Suchanfrage — sitzungs-lokal, siehe Modul-Kopf. */
+  query: string;
+  setQuery: (q: string) => void;
+  /** Treffer-Typ-Pille — sitzungs-lokal, überlebt den Sprung ins Detail. */
+  typeFilter: SuchePillFilterId;
+  setTypeFilter: (id: SuchePillFilterId) => void;
+  /** Antragstyp-Segment — sitzungs-lokal, überlebt den Sprung ins Detail. */
+  antragstypFilter: KategorieLabel;
+  setAntragstypFilter: (label: KategorieLabel) => void;
 }
 
 export const useSucheStore = create<SucheState>((set, get) => ({
@@ -136,4 +154,14 @@ export const useSucheStore = create<SucheState>((set, get) => ({
     saveAnalysePrompt(s);
     set({ analysePrompt: s });
   },
+
+  // Sitzungs-lokal (kein localStorage) — Begründung siehe Modul-Kopf.
+  query: '',
+  setQuery: (query: string) => set({ query }),
+
+  typeFilter: '',
+  setTypeFilter: (typeFilter: SuchePillFilterId) => set({ typeFilter }),
+
+  antragstypFilter: 'Alle',
+  setAntragstypFilter: (antragstypFilter: KategorieLabel) => set({ antragstypFilter }),
 }));

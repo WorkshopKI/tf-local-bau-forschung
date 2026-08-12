@@ -277,7 +277,7 @@ function deduplicateBySource(
 export function hybridSearch(
   query: string,
   queryVector: number[] | null,
-  options?: { type?: string; limit?: number; maxPerDoc?: number },
+  options?: { type?: string; limit?: number; maxPerDoc?: number; threshold?: number },
 ): OramaSearchResult[] {
   if (!db) return [];
 
@@ -286,6 +286,13 @@ export function hybridSearch(
   // Mehr Kandidaten holen um nach Deduplizierung genug zu haben
   const fetchLimit = limit * 3;
   const where = options?.type ? { type: options.type } : undefined;
+  // Verknüpfung mehrerer Suchwörter. Orama kennt keine Booleschen Operatoren im
+  // `term`; `threshold` ist die Stellschraube: 0 = nur Dokumente mit ALLEN
+  // Tokens (UND), 1 = irgendeines genügt (ODER). Ohne Angabe bleibt Oramas
+  // Laufzeit-Default 1 — was jahrelang stillschweigend ODER bedeutete, obwohl
+  // die JSDoc der Bibliothek „0" behauptet. Der Wert wandert deshalb bewusst
+  // explizit durch, statt sich auf den Default zu verlassen.
+  const threshold = options?.threshold;
 
   let results: Results<any> | Promise<Results<any>>;
 
@@ -297,6 +304,7 @@ export function hybridSearch(
       similarity: 0.2,
       limit: fetchLimit,
       where,
+      threshold,
     } as any);
   } else {
     results = search(db, {
@@ -304,6 +312,7 @@ export function hybridSearch(
       term: query,
       limit: fetchLimit,
       where,
+      threshold,
     } as any);
   }
 

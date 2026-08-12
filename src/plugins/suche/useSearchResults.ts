@@ -12,6 +12,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { facettenBasis, zaehleFacette, type SortableColumn } from '@/components/data-table';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
+import { useSucheStore } from './store';
 import {
   SEARCH_COLUMNS, BEGRUENDUNG_COLUMN, getColumnByKey, getColumnFilterValue, type SearchColumn,
 } from './columns';
@@ -25,8 +26,9 @@ type FilterId = SuchePillFilterId;
 const DEFAULT_SORT_KEY = 'score';
 const COLUMN_WIDTHS_KEY = 'teamflow_suche_column_widths';
 const MIN_COLUMN_WIDTH = 60;
-/** Obergrenze der Treffer, die „Mit KI analysieren" begründet (Kosten/Tempo). */
-const ANALYSE_MAX_RESULTS = 50;
+/** Obergrenze der Treffer, die „Treffer begründen" begründet (Kosten/Tempo).
+ *  Exportiert, damit der Knopf-Tooltip dieselbe Zahl nennt, die hier gilt. */
+export const ANALYSE_MAX_RESULTS = 50;
 
 function loadColumnWidths(): Record<string, number> {
   try {
@@ -79,8 +81,13 @@ export interface UseSearchResultsReturn {
 export function useSearchResults(params: UseSearchResultsParams): UseSearchResultsReturn {
   const { searchResults, begruendungById, analyseActive, visibleColumns } = params;
 
-  const [typeFilter, setTypeFilter] = useState<FilterId>('');
-  const [antragstypFilter, setAntragstypFilter] = useState<KategorieLabel>('Alle');
+  // Die beiden Trefferfilter liegen im Store statt in `useState`: sie sollen den
+  // Sprung auf die Antrags-Detailseite überleben (siehe store.ts). Sortierung
+  // und Spaltenfilter bleiben lokal — sie sind Feinarbeit an EINER Trefferliste.
+  const typeFilter = useSucheStore(s => s.typeFilter);
+  const setTypeFilter = useSucheStore(s => s.setTypeFilter);
+  const antragstypFilter = useSucheStore(s => s.antragstypFilter);
+  const setAntragstypFilter = useSucheStore(s => s.setAntragstypFilter);
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});

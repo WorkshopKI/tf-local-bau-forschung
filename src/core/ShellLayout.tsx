@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useStore } from 'zustand';
 import * as Icons from 'lucide-react';
 import type { TeamFlowPlugin } from '@/core/types/plugin';
 import { keyboardService } from '@/core/services/keyboard';
@@ -61,7 +62,9 @@ import {
   menuLabel,
 } from '@/config/feature-flags';
 import { AssistentPanelHost } from '@/plugins/chat/assistent/AssistentPanelHost';
+import { AssistentSpine } from '@/plugins/chat/assistent/AssistentSpine';
 import { assistentPanelUiStore, SPINE_WIDTH } from '@/plugins/chat/assistent/panelUiStore';
+import { sucheAssistentUiStore } from '@/plugins/suche/assistentPanel';
 import { backupGutachtenStateToPersonal } from '@/core/services/personal-storage/gutachten-backup';
 import { BuildInfo } from '@/core/components/BuildInfo';
 import { useAutoSmbRefresh } from '@/dev-fixtures/useAutoSmbRefresh';
@@ -139,6 +142,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, [plugins, isKurator, auslastungFrei, kuratorFrei]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
+  // Offen-Zustand des Suche-Panels: die Spine steht hier im Shell, das Panel
+  // rendert die Suchseite — beide lesen denselben Store.
+  const sucheAssistentOffen = useStore(sucheAssistentUiStore, s => s.open);
   const ueberAppOffen = useUeberAppDialog(s => s.open);
   const ueberAppSchliessen = useUeberAppDialog(s => s.close);
   // Ein Mount für die ganze App: das Hilfe-Fenster (falls offen) folgt der Seite.
@@ -310,19 +316,21 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const sortedPlugins = useMemo(() => navVisiblePlugins(visiblePlugins), [visiblePlugins]);
 
   // Assistent öffnen: shell-weites Dock überall — AUSSER auf der Suche, die
-  // ihren eigenen Voll-Chat (`ChatPanelHost`) besitzt. Dort (und ohne Flag)
-  // öffnet der `?assistent=1`-Deep-Link das angedockte Suche-Panel. So bleibt es
-  // bei genau einem Panel pro Seite (das schlanke Dock ist auf `/suche` nicht
-  // gemountet, siehe Render unten).
+  // ihren eigenen Voll-Chat (`ChatPanelHost`) besitzt. Auf `/suche` schaltet der
+  // Eintrag dieses Panel direkt; von anderen Seiten aus (kein Flag) führt der
+  // `?assistent=1`-Deep-Link hin. So bleibt es bei genau einem Panel pro Seite
+  // (das schlanke Dock ist auf `/suche` nicht gemountet, siehe Render unten) —
+  // die SPINE dagegen steht auf JEDER Seite, sie schaltet nur je Route ein
+  // anderes Panel.
   const hasSuchePlugin = plugins.some(p => p.id === 'suche');
   const assistentEntryAvailable = isAssistentPanelEnabled() || hasSuchePlugin;
   const openAssistent = useCallback((): void => {
-    if (isAssistentPanelEnabled() && activeId !== 'suche') {
+    if (activeId === 'suche') {
+      sucheAssistentUiStore.getState().setOpen(true);
+    } else if (isAssistentPanelEnabled()) {
       assistentPanelUiStore.getState().setOpen(true);
     } else if (hasSuchePlugin) {
       navigate('/suche?assistent=1');
-    } else if (isAssistentPanelEnabled()) {
-      assistentPanelUiStore.getState().setOpen(true);
     }
   }, [activeId, navigate, hasSuchePlugin]);
 
@@ -490,11 +498,16 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
     );
   };
 
-  // Assistent-Dock (dev-Flag): shell-weit außer auf der Suche. Ist es aktiv,
-  // reserviert das Blatt rechts SPINE_WIDTH (28px) für die dauerhafte Dock-Spine
-  // (sonst würde die fixe Spine Inhalt/Scrollbar überlappen). Sonst nur der
-  // 12px-Desk-Rand.
+  // Assistent-Dock (dev-Flag): shell-weit außer auf der Suche, die ihren eigenen
+  // Voll-Chat besitzt.
   const dockAktiv = isAssistentPanelEnabled() && activeId !== 'suche';
+  // Die SPINE dagegen steht auf JEDER Seite, auf der es einen Assistenten gibt —
+  // auf `/suche` schaltet sie den Voll-Chat der Seite (dort flag-unabhängig, der
+  // Such-Chat ist in allen Varianten da). Steht sie, reserviert das Blatt rechts
+  // SPINE_WIDTH (28px), sonst überlappt die fixe Spine Inhalt/Scrollbar. Sonst
+  // nur der 12px-Desk-Rand.
+  const sucheSpine = activeId === 'suche' && hasSuchePlugin;
+  const spineAktiv = dockAktiv || sucheSpine;
 
   return (
     <>
@@ -610,7 +623,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
         <main
           className="flex-1 flex flex-col min-w-0 overflow-hidden"
           style={{
-            margin: dockAktiv ? `10px ${SPINE_WIDTH}px 10px 0` : '10px 12px 10px 0',
+            margin: spineAktiv ? `10px ${SPINE_WIDTH}px 10px 0` : '10px 12px 10px 0',
             borderRadius: '14px',
             border: '0.5px solid var(--tf-sheet-border)',
             background: 'var(--tf-sheet)',
@@ -649,8 +662,18 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       <UeberDieAppDialog open={ueberAppOffen} onClose={ueberAppSchliessen} />
       {!tour.isActive && <FeedbackButton />}
       {/* Schlankes Dock shell-weit — außer auf der Suche, die ihren eigenen
-          Voll-Chat (ChatPanelHost) besitzt (kein Doppel-Panel). */}
+          Voll-Chat (ChatPanelHost) besitzt (kein Doppel-Panel). Es bringt seine
+          Spine selbst mit. */}
       {dockAktiv && <AssistentPanelHost />}
+      {/* Auf der Suche steht dieselbe Spine, schaltet aber den Voll-Chat der
+          Seite. Das Panel rendert die Suchseite (in-flow neben der Tabelle),
+          hier hängt nur der Streifen. */}
+      {sucheSpine && (
+        <AssistentSpine
+          open={sucheAssistentOffen}
+          onToggle={() => sucheAssistentUiStore.getState().toggle()}
+        />
+      )}
     </>
   );
 }

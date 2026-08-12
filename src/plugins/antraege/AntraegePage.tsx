@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AntraegeMain } from './AntraegeMain';
 import { AntraegeHeader } from './AntraegeHeader';
 import { VerbundDetail } from './VerbundDetail';
@@ -16,6 +16,7 @@ import {
   serializeCollapsedFlag,
   shouldShowList,
 } from './listCollapse';
+import { detailSchliessenZiel, kamAusDerSuche, SUCHE_ROUTE } from '@/plugins/suche/herkunft';
 import { PanelLeftOpen } from 'lucide-react';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
@@ -50,6 +51,7 @@ function loadListCollapsed(): boolean {
 
 export function AntraegePage(): React.ReactElement {
   const navigate = useNavigate();
+  const location = useLocation();
   const selectedAz = useAntraegeStore(s => s.selectedAktenzeichen);
   const selectedVb = useAntraegeStore(s => s.selectedVerbundId);
   const antraege = useAntraegeStore(s => s.antraege);
@@ -105,7 +107,13 @@ export function AntraegePage(): React.ReactElement {
   // sie tote Knöpfe. Kein zweiter Ableitungsweg (vgl. listCollapse.ts).
   const listeSichtbar = shouldShowList(hasDetail, listCollapsed);
 
-  const closeDetail = (): void => navigate('/antraege');
+  // Herkunft des Aufrufs (siehe `plugins/suche/herkunft.ts`): wer aus der Suche
+  // kam, soll auch dorthin zurückkommen — sonst landet er in einer Liste, die er
+  // nie geöffnet hat. Ein Weiterspringen IM Detail (`openAntrag`) gibt die
+  // Herkunft bewusst nicht weiter: ab dort ist man nicht mehr „bei seinem
+  // Treffer", sondern woanders.
+  const vonSuche = kamAusDerSuche(location.state);
+  const closeDetail = (): void => navigate(detailSchliessenZiel(location.state));
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
 
   // Aufloesung Antrag → Verbund: Wenn aus der Liste eine TV-Row geklickt wird,
@@ -174,6 +182,9 @@ export function AntraegePage(): React.ReactElement {
             initialExpandedTvAz={detailProps.expanded}
             onClose={closeDetail}
             onOpenAntrag={openAntrag}
+            zurueck={vonSuche
+              ? { label: 'Zurück zur Suche', onClick: () => navigate(SUCHE_ROUTE) }
+              : undefined}
           />
         ) : null}
 

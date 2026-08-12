@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.2 — 2026-08
+
+### Neu
+- Neben dem Suchfeld steht jetzt ein Schalter „Alle Wörter / Irgendein Wort". Bei mehreren Stichwörtern finden Sie damit entweder nur Vorhaben, in denen jedes Wort vorkommt, oder schon solche mit einem davon.
+- Das Suchfeld lässt sich an der unteren rechten Ecke größer ziehen — für längere Fragen. Enter startet wie gewohnt, Shift+Enter macht einen Zeilenumbruch, und die eingestellte Größe bleibt erhalten.
+### Verbesserungen
+- Mehrere Stichwörter werden endlich einzeln gesucht. Bisher musste die ganze Eingabe wortwörtlich so im Text stehen — „laser schweißen" fand deshalb nichts, obwohl es 21 passende Vorhaben gibt.
+- Der Assistent sitzt auf der Suchseite jetzt am rechten Rand, genau wie auf allen anderen Seiten; der eigene Knopf im Seitenkopf entfällt. „Mit KI analysieren" öffnet ihn mit den aktuellen Treffern als Kontext.
+- Die Begründungen je Trefferzeile gibt es weiterhin — der Knopf heißt jetzt „Treffer begründen" und steht bei den Filtern, direkt neben „Begründungen entfernen".
+### Bugfixes
+- Nach dem Klick auf einen Suchtreffer führte kein Weg zurück zur Trefferliste. Jetzt steht in der Detailansicht „Zurück zur Suche", und auch der Zurück-Knopf des Browsers zeigt Ihre Suche mit allen Treffern wieder an.
+
 ## v4.1 — 2026-08
 
 ### Neu

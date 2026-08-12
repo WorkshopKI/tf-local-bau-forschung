@@ -38,6 +38,7 @@ import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';
 import type { StorageService } from '@/core/services/storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
+import { verknuepfungAlsThreshold, type SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import {
   loadAntraegeTextCorpus,
   loadDmsFilenameToAkz,
@@ -237,19 +238,46 @@ export async function autoBootstrapEmbeddingMirror(
 
 // ----- Helpers ---------------------------------------------------------------
 
+/**
+ * Anfrage in Wörter zerlegen (klein geschrieben, Leerraum-getrennt). Rein und
+ * exportiert, damit die Verknüpfungs-Logik ohne Korpus testbar bleibt.
+ *
+ * Bewusst KEINE Faltung (`falte()`): die Korpus-Felder sind nur `toLowerCase()`
+ * (siehe `search-corpus.ts`), eine gefaltete Anfrage würde dort auf ungefalteten
+ * Text treffen und Umlaut-Wörter schlechter finden als heute.
+ */
+export function zerlegeAnfrage(query: string): string[] {
+  return query.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+}
+
+/**
+ * Wortlaut-Treffer über den Antrags-Textkorpus.
+ *
+ * Bis v3.49 wurde die GANZE Anfrage als eine Zeichenkette gesucht — „laser
+ * schweißen" fand nur die wörtliche Phrase, nie ein Vorhaben, in dem beide
+ * Wörter getrennt stehen. Jetzt zählt jedes Wort für sich: `und` verlangt alle,
+ * `oder` genügt eines. Ein Ein-Wort-Anfrage verhält sich in beiden Modi wie
+ * bisher.
+ *
+ * `verknuepfung` ist ein EXPLIZITER Parameter, kein Griff in den Store: der
+ * Aufrufer entscheidet, ob die Wahl des Nutzers auf seiner Seite gilt (die
+ * Suchseite reicht sie durch, die Förderanträge-Liste bleibt beim Standard).
+ */
 function substringMatches(
   query: string,
   textCorpus: Map<string, AntragTextEntry>,
+  verknuepfung: SuchVerknuepfung = 'und',
 ): Set<string> {
   const out = new Set<string>();
-  const q = query.toLowerCase();
+  const woerter = zerlegeAnfrage(query);
+  if (woerter.length === 0) return out;
   for (const [akz, entry] of textCorpus.entries()) {
-    if (
-      entry.vbLower.includes(q)
-      || entry.tvLower.includes(q)
-      || entry.absLower.includes(q)
-      || entry.descriptorsLower.includes(q)
-    ) {
+    const trifft = (w: string): boolean =>
+      entry.vbLower.includes(w)
+      || entry.tvLower.includes(w)
+      || entry.absLower.includes(w)
+      || entry.descriptorsLower.includes(w);
+    if (verknuepfung === 'oder' ? woerter.some(trifft) : woerter.every(trifft)) {
       out.add(akz);
     }
   }
@@ -439,13 +467,15 @@ export function _getCachedEmbeddingsDim(): number | null {
 // Substring + Vector + DMS in einem Aufruf) und wird weiter von
 // `useAntraegeHybridSearch` genutzt.
 
-/** Stage 1: Substring-Match (sync). Akz-Liste von Antraegen deren Volltext den
- *  Query enthaelt. Score = 1.0, method = 'fulltext'. */
+/** Stage 1: Substring-Match (sync). Akz-Liste von Antraegen deren Volltext die
+ *  Anfrage-Wörter enthaelt (Verknüpfung siehe `substringMatches`).
+ *  Score = 1.0, method = 'fulltext'. */
 export function searchAntraegeSubstring(
   query: string,
   textCorpus: Map<string, AntragTextEntry>,
+  verknuepfung: SuchVerknuepfung = 'und',
 ): string[] {
-  return Array.from(substringMatches(query, textCorpus));
+  return Array.from(substringMatches(query, textCorpus, verknuepfung));
 }
 
 /** Stage 2: Embedding-Cosine-Match (async, mit Yield-Loop). Braucht einen
@@ -471,10 +501,15 @@ export function searchAntraegeDms(
   query: string,
   queryVec: number[] | null,
   filenameToAkz: Map<string, string>,
+  verknuepfung: SuchVerknuepfung = 'und',
 ): Array<{ akz: string; score: number }> {
   if (getOramaDB() === null) return [];
   try {
-    const dmsHits = hybridSearch(query, queryVec, { type: 'dokument', limit: DMS_HIT_LIMIT });
+    const dmsHits = hybridSearch(query, queryVec, {
+      type: 'dokument',
+      limit: DMS_HIT_LIMIT,
+      threshold: verknuepfungAlsThreshold(verknuepfung),
+    });
     const out: Array<{ akz: string; score: number }> = [];
     for (const hit of dmsHits) {
       const akz = filenameToAkz.get(hit.source);

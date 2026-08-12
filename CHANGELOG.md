@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.2.0 — Suche: Assistent am Rand, UND/ODER, größeres Feld, Rückweg (August 2026)
+
+MINOR — Die Suchseite war eine Insel: eigener Assistent-Knopf im Kopf statt des Streifens am Rand, ein Feld für „analytische Fragen" von einer Zeile Höhe, und ein Treffer-Klick ohne Rückweg. Der schwerste Punkt lag darunter — mehrere Stichwörter wurden als EINE Zeichenkette gesucht. Gemessen am Bestand (14 221 Anträge): „laser schweißen" fand **0**, jetzt 21. Detail: [assistent-panel.md](docs/architecture/assistent-panel.md), [suche.md](docs/feedback-kontext/suche.md).
+
+- **Ein Streifen auf jeder Seite** ([AssistentSpine.tsx](src/plugins/chat/assistent/AssistentSpine.tsx)): auf `/suche` schaltet er den vollen Such-Chat, sonst das schlanke Dock — der „Assistent"-Knopf im Seitenkopf entfällt, `<main>` reserviert die 28 px jetzt für jede Spine ([ShellLayout.tsx](src/core/ShellLayout.tsx))
+- **UND/ODER als Schalter** neben dem Feld ([useSuchVerknuepfung.ts](src/core/hooks/useSuchVerknuepfung.ts)): wortweise statt ganz-Zeichenkette ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)) + Orama-`threshold` 0/1 ([orama-store.ts](src/core/services/search/orama-store.ts)) — die Ähnlichkeitssuche bleibt unberührt, sie kennt keine einzelnen Wörter
+- **„Mit KI analysieren" öffnet den Assistenten**; die zeilenweise Begründung zieht als **„Treffer begründen"** zu ihrem Gegenstück „Begründungen entfernen" in die Filterzeile ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Suchfeld ist ein ziehbares `<textarea>`** ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx)): Enter startet wie bisher, Shift+Enter bricht um, die Größe wird gemerkt; die Kopfzeile bricht um, statt die Bedienelemente zu quetschen
+- **Rückweg aus dem Antrags-Detail** ([herkunft.ts](src/plugins/suche/herkunft.ts)): Anfrage + Trefferfilter liegen sitzungs-lokal im [Store](src/plugins/suche/store.ts), „Zurück zur Suche" steht in der Detail-Kopfzeile — auch der Browser-Zurück-Knopf zeigt wieder Treffer
+
 ### v4.1.1 — Alt-Ordner benennt, was zu tun ist (August 2026)
 
 PATCH — Der Alt-Ordner bat um „neu zuordnen", nachdem längst zugeordnet war: die Aufforderung steckte in der Beschriftung und kannte die Lage nicht. Detail: [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).

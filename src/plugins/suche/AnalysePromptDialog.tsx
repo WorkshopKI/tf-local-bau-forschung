@@ -1,6 +1,10 @@
 /**
- * Dialog vor „Mit KI analysieren": zeigt den editierbaren Anweisungstext und
+ * Dialog vor „Treffer begründen": zeigt den editierbaren Anweisungstext und
  * eine read-only Voll-Vorschau des Prompts, der tatsächlich ans LLM geht.
+ *
+ * Der Name ist seit v3.50 ein anderer: „Mit KI analysieren" heißt jetzt der
+ * Knopf, der den Assistenten öffnet. Zwei Wege zur KI dürfen nicht denselben
+ * Namen tragen — sonst führt der eine Titel in die falsche Erwartung.
  *
  * Der User bearbeitet NUR die Anweisung — Frage-Einbettung, JSON-Vertrag und
  * Treffer-Block werden fest umrahmt (`assembleBegruendungPrompt`), damit der
@@ -54,7 +58,7 @@ export function AnalysePromptDialog({
       size="xl"
       align="top"
       dismissOnOverlayClick={false}
-      title="Mit KI analysieren"
+      title="Treffer begründen"
       description={`Die KI ergänzt die Tabelle um eine Spalte „Begründung" — warum jeder Treffer für deine Anfrage relevant ist. Die übrigen Spalten und Treffer bleiben unverändert.`}
       footer={
         <>
@@ -74,7 +78,7 @@ export function AnalysePromptDialog({
             onClick={onConfirm}
             disabled={results.length === 0}
           >
-            Analyse starten
+            Begründungen erzeugen
           </Button>
         </>
       }

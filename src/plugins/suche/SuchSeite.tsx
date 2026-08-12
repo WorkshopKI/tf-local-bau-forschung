@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import { useStore } from 'zustand';
+import { Loader2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { isDokumentenscanEnabled } from '@/config/feature-flags';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
@@ -20,7 +21,7 @@ import type { KategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfil
 import { SearchInput } from './SearchInput';
 import { SucheLeerzustand } from './SucheLeerzustand';
 import { IndexInfoZeile } from './IndexInfoZeile';
-import { useSearchResults } from './useSearchResults';
+import { ANALYSE_MAX_RESULTS, useSearchResults } from './useSearchResults';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
   getProgrammCaches,
@@ -31,21 +32,15 @@ import {
 } from '@/plugins/antraege/services/antraege-search-service';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
+import { useSuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import { ChatPanelHost } from '@/plugins/chat/ChatPanelHost';
 import {
-  ASSISTENT_OPEN_KEY,
-  ASSISTENT_WIDTH_KEY,
   clampAssistentWidth,
   effectiveAssistentWidth,
-  parseAssistentOpen,
-  parseAssistentWidth,
-  serializeAssistentOpen,
+  sucheAssistentUiStore,
 } from './assistentPanel';
+import { VON_SUCHE_STATE_KEY } from './herkunft';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
-
-function readLs(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
 
 /** UI-Text fuer die Search-Phase-Badge. */
 const PHASE_LABELS: Record<SearchPhase, string | null> = {
@@ -70,12 +65,22 @@ export function SuchSeite(): React.ReactElement {
   // Förderanträge-Suchfeld). Default „Ohne" — Modell lädt erst nach Umschalten.
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
   const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
+  // Verknüpfung mehrerer Stichwörter (UND/ODER) — wirkt auf die Wortlaut-Stages.
+  const verknuepfung = useSuchVerknuepfung(s => s.verknuepfung);
+  const setVerknuepfung = useSuchVerknuepfung(s => s.setVerknuepfung);
   // Die Suchseite besitzt ihren eigenen vollen Assistenten (ChatPanelHost, mit
   // „+"-Menü/Verlauf/Anhängen). Das schlanke shell-weite Assistent-Panel (Phase 1)
   // ist auf `/suche` bewusst NICHT gemountet (ShellLayout `activeId !== 'suche'`),
   // damit hier kein Doppel-Panel entsteht — der lokale Chat unten ist die Quelle.
+  // Die SPINE am rechten Blattrand rendert seit v3.50 das ShellLayout (ein
+  // Streifen auf jeder Seite); sie schaltet über `sucheAssistentUiStore` genau
+  // dieses Panel. Deshalb steht hier kein eigener „Assistent"-Knopf mehr.
 
-  const [query, setQuery] = useState('');
+  // Die Query liegt im Store (sitzungs-lokal, siehe store.ts): mit `useState`
+  // war sie beim Zurückkommen aus der Antrags-Detailseite weg — der Klick auf
+  // einen Treffer war eine Einbahnstraße.
+  const query = useSucheStore(s => s.query);
+  const setQuery = useSucheStore(s => s.setQuery);
   // Such-Pipeline laeuft auf der ge-deferreden Query, damit das Input-Feld
   // frame-perfect bleibt waehrend Orama+Embedding+Filter+Sort durchlaufen.
   const deferredQuery = useDeferredValue(query);
@@ -83,10 +88,11 @@ export function SuchSeite(): React.ReactElement {
   const [promptDialogOpen, setPromptDialogOpen] = useState(false);
 
   // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4). Offen-Flag +
-  // Breite persistiert in localStorage; `/chat` leitet auf `?assistent=1` um.
+  // Breite liegen im `sucheAssistentUiStore` (localStorage-gespiegelt), damit
+  // die Spine im ShellLayout denselben Schalter bedient.
   const [searchParams, setSearchParams] = useSearchParams();
-  const [assistentOpen, setAssistentOpen] = useState(() => parseAssistentOpen(readLs(ASSISTENT_OPEN_KEY)));
-  const [assistentWidth, setAssistentWidth] = useState(() => parseAssistentWidth(readLs(ASSISTENT_WIDTH_KEY)));
+  const assistentOpen = useStore(sucheAssistentUiStore, s => s.open);
+  const assistentWidth = useStore(sucheAssistentUiStore, s => s.width);
   const assistentDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   // Fensterbreite tracken → dynamischer Panel-Max + Render-Klemme (analog
   // MasterDetailLayout): eine breit gespeicherte Breite passt sich einem
@@ -104,28 +110,14 @@ export function SuchSeite(): React.ReactElement {
   // Schließen nicht rückgängig gemacht wird.
   useEffect(() => {
     if (searchParams.get('assistent') !== '1') return;
-    setAssistentOpen(true);
-    try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(true)); } catch { /* ignore */ }
+    sucheAssistentUiStore.getState().setOpen(true);
     const next = new URLSearchParams(searchParams);
     next.delete('assistent');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  useEffect(() => {
-    try { localStorage.setItem(ASSISTENT_WIDTH_KEY, String(assistentWidth)); } catch { /* ignore */ }
-  }, [assistentWidth]);
-
-  const toggleAssistent = useCallback((): void => {
-    setAssistentOpen(prev => {
-      const next = !prev;
-      try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(next)); } catch { /* ignore */ }
-      return next;
-    });
-  }, []);
-
   const closeAssistent = useCallback((): void => {
-    setAssistentOpen(false);
-    try { localStorage.setItem(ASSISTENT_OPEN_KEY, serializeAssistentOpen(false)); } catch { /* ignore */ }
+    sucheAssistentUiStore.getState().setOpen(false);
   }, []);
 
   const onAssistentResize = useCallback((e: React.MouseEvent): void => {
@@ -137,7 +129,9 @@ export function SuchSeite(): React.ReactElement {
       const drag = assistentDragRef.current;
       if (!drag) return;
       // Panel rechts: nach links draggen → breiter (Delta invertiert).
-      setAssistentWidth(clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX), window.innerWidth));
+      sucheAssistentUiStore.getState().setWidth(
+        clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX), window.innerWidth),
+      );
     };
     const onUp = (): void => {
       assistentDragRef.current = null;
@@ -222,8 +216,21 @@ export function SuchSeite(): React.ReactElement {
   }, [toast]);
 
   function handleRowClick(r: UnifiedSearchResult): void {
-    if (r.type === 'antrag' && r.fkz) navigate(`/antraege/${encodeURIComponent(r.fkz)}`);
+    // Herkunft mitgeben: die Detailseite blendet dann „Zurück zur Suche" ein.
+    // Der Suchzustand selbst liegt im Store und wartet dort (siehe store.ts).
+    if (r.type === 'antrag' && r.fkz) {
+      navigate(`/antraege/${encodeURIComponent(r.fkz)}`, { state: { [VON_SUCHE_STATE_KEY]: true } });
+    }
   }
+
+  /** „Mit KI analysieren": öffnet den Assistenten mit den aktuellen Treffern als
+   *  Kontext (`contextResults` hängt schon am Panel). Die zeilenweise
+   *  Begründungs-Analyse ist ein eigener Einstieg — sie sitzt bei ihrem
+   *  Gegenstück „Begründungen entfernen" in der Chip-Zeile. */
+  const openAssistentMitTreffern = (): void => {
+    if (sorted.length === 0) return;
+    sucheAssistentUiStore.getState().setOpen(true);
+  };
 
   const openAnalysePrompt = (): void => {
     const q = query.trim();
@@ -239,11 +246,15 @@ export function SuchSeite(): React.ReactElement {
     analyse.start(q, analyseResults, analysePrompt);
   };
 
-  // Button ist optimistisch enabled (sobald Query nicht leer ist). Die echte
-  // Provider-Pruefung passiert lazy in `analyse.start()` — beim Mount KEIN
-  // `ping()`, damit die Streamlit-Bridge nicht ihr Fenster automatisch oeffnet.
-  const aiButtonDisabled = !query.trim() || analyse.running || sorted.length === 0;
-  const aiButtonTooltip = `Mit KI analysieren (Provider: ${analyse.providerName})`;
+  // „Mit KI analysieren" öffnet nur das Panel — kein Provider-Kontakt, also auch
+  // kein `ping()` beim Mount (das würde die Streamlit-Bridge ihr Fenster öffnen
+  // lassen). Ohne Treffer wäre „diese Treffer analysieren" sinnlos; erreichbar
+  // bleibt der Assistent dann über die Spine am rechten Rand.
+  const aiButtonDisabled = sorted.length === 0;
+  const aiButtonTooltip = 'Assistent öffnen — er kennt die aktuellen Treffer als Kontext';
+  // Die zeilenweise Begründungs-Analyse: optimistisch enabled, die echte
+  // Provider-Prüfung passiert lazy in `analyse.start()`.
+  const begruendenTooltip = `Erzeugt je Trefferzeile eine KI-Begründung (max. ${ANALYSE_MAX_RESULTS}, Provider: ${analyse.providerName})`;
 
   const noQuery = !query.trim();
   const showResults = !noQuery && sorted.length > 0;
@@ -262,7 +273,11 @@ export function SuchSeite(): React.ReactElement {
           <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
           <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="suche" /></div>
         </div>
-        <div className="flex items-center gap-2 w-full max-w-4xl">
+        {/* `flex-wrap` + weitere Deckelung als die Zeilen darunter: das Suchfeld
+            ist ziehbar — wächst es über die Zeile hinaus, rutschen die
+            Bedienelemente sauber in die nächste Zeile, statt gequetscht zu
+            werden. `items-start`, damit sie beim hohen Feld oben bleiben. */}
+        <div className="flex flex-wrap items-start gap-2 w-full max-w-6xl">
           <SearchInput
             value={query}
             onValueChange={handleQueryChange}
@@ -281,9 +296,22 @@ export function SuchSeite(): React.ReactElement {
             <option value="ohne">Ohne Ähnlichkeitssuche</option>
             <option value="mit">Mit Ähnlichkeitssuche</option>
           </select>
+          <select
+            value={verknuepfung}
+            onChange={e => setVerknuepfung(e.target.value === 'oder' ? 'oder' : 'und')}
+            aria-label="Verknüpfung mehrerer Wörter"
+            title={'Bei mehreren Stichwörtern: „Alle Wörter" findet nur Vorhaben, in denen jedes Wort vorkommt (auch an verschiedenen Stellen), „Irgendein Wort" schon bei einem.'
+              + (semanticEnabled
+                ? ' Gilt für Wortlaut-Treffer — die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt.'
+                : '')}
+            className="h-10 shrink-0 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[12.5px] text-[var(--tf-text)] cursor-pointer"
+          >
+            <option value="und">Alle Wörter</option>
+            <option value="oder">Irgendein Wort</option>
+          </select>
           <button
             type="button"
-            onClick={openAnalysePrompt}
+            onClick={openAssistentMitTreffern}
             disabled={aiButtonDisabled}
             title={aiButtonTooltip}
             className="flex items-center gap-1.5 h-10 px-3 text-[13px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
@@ -309,21 +337,6 @@ export function SuchSeite(): React.ReactElement {
               })();
             }}
           />
-          <button
-            type="button"
-            onClick={() => toggleAssistent()}
-            aria-pressed={assistentOpen}
-            title="Assistent öffnen"
-            className={`flex items-center gap-1.5 h-10 px-3 text-[13px] rounded shrink-0 ${
-              assistentOpen
-                ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)]'
-                : 'text-[var(--tf-text)] hover:bg-[var(--tf-hover)]'
-            }`}
-            style={{ border: '0.5px solid var(--tf-border)' }}
-          >
-            <MessageSquare size={14} />
-            <span>Assistent</span>
-          </button>
         </div>
         {semanticEnabled && (semanticStatus === 'corpus-empty' || semanticStatus === 'model-failed') ? (
           <div className="flex items-center gap-1.5 w-full max-w-4xl mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -389,6 +402,21 @@ export function SuchSeite(): React.ReactElement {
                 Abbrechen
               </button>
             </span>
+          )}
+          {/* Zeilenweise KI-Begründung: sitzt bei ihrem Gegenstück
+              „Begründungen entfernen", damit Starten und Abräumen an derselben
+              Stelle wohnen. */}
+          {showResults && !analyseActive && !analyse.running && (
+            <button
+              type="button"
+              onClick={openAnalysePrompt}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)]"
+              style={{ border: '0.5px solid var(--tf-border)' }}
+              title={begruendenTooltip}
+            >
+              <Sparkles size={11} />
+              Treffer begründen
+            </button>
           )}
           {analyseDone && (
             <button

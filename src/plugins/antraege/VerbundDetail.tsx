@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { X, LayoutTemplate } from 'lucide-react';
+import { ArrowLeft, X, LayoutTemplate } from 'lucide-react';
 import { dominantStatus } from './groupAggregates';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
@@ -47,6 +47,10 @@ interface Props {
    *  Updatet die URL — der Container resolved den Verbund neu. Im selben
    *  Verbund fuehrt das zum prop-getriggerten Re-Sync von `expandedTvAz`. */
   onOpenAntrag: (aktenzeichen: string) => void;
+  /** Optionaler Rückweg links in der Kopfzeile — gesetzt, wenn der Antrag aus
+   *  einer anderen Ansicht heraus geöffnet wurde (heute: aus der Suche). Ohne
+   *  ihn bleibt der Platz leer und die Kopfzeile sieht aus wie bisher. */
+  zurueck?: { label: string; onClick: () => void };
 }
 
 /** Lesebreite-Cap für die Lese-/Daten-Sektionen (Kopf, Glance, Partner,
@@ -73,6 +77,7 @@ export function VerbundDetail({
   initialExpandedTvAz,
   onClose,
   onOpenAntrag,
+  zurueck,
 }: Props): React.ReactElement {
   // Deep-Link aus der Home-„Weitermachen"-Karte: `ziel` (gutachten|nf) scrollt
   // zur Sektion, `abschnitt` (nur GA) springt den Schritt (an GutachtenSection
@@ -182,7 +187,7 @@ export function VerbundDetail({
     // Ladens (und während eines Re-Runs bei nachrückendem Datenbestand) ist das
     // schlicht falsch.
     return (
-      <PanelShell onClose={onClose}>
+      <PanelShell onClose={onClose} zurueck={zurueck}>
         <div className="py-10 text-[13px] text-[var(--tf-text-tertiary)]">
           {laedt
             ? 'Wird geladen …'
@@ -281,7 +286,7 @@ export function VerbundDetail({
   ) : null;
 
   return (
-    <PanelShell onClose={onClose}>
+    <PanelShell onClose={onClose} zurueck={zurueck}>
       {/* VERBUND-KOPF (Phase 6): Identität + Eckdaten-Meta + Untertitel + amtlicher
           Stepper. Rechts in der Titelzeile die ANTRAG-AUFBEREITUNG als Aktion am Kopf
           (Vollbild-Aufbereitung der VB, flag-gated, nur dev) — erster Schritt im
@@ -456,10 +461,25 @@ export function VerbundDetail({
   );
 }
 
-function PanelShell({ onClose, children }: { onClose: () => void; children: React.ReactNode }): React.ReactElement {
+function PanelShell({ onClose, zurueck, children }: {
+  onClose: () => void;
+  zurueck?: { label: string; onClick: () => void };
+  children: React.ReactNode;
+}): React.ReactElement {
   return (
     <div className="flex-1 min-w-0 h-full overflow-y-auto" style={{ borderLeft: '0.5px solid var(--tf-border)' }}>
-      <div className="sticky top-0 z-10 flex justify-end px-4 pt-3 pb-1 bg-[var(--tf-bg)]">
+      {/* Links der Rückweg (nur wenn es einen gibt), rechts das Schließen. Zwei
+          verschiedene Aussagen: „zurück, wo ich herkam" vs. „Detail zu". */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 pt-3 pb-1 bg-[var(--tf-bg)]">
+        {zurueck ? (
+          <button
+            type="button"
+            onClick={zurueck.onClick}
+            className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+          >
+            <ArrowLeft size={14} /> {zurueck.label}
+          </button>
+        ) : <span />}
         <button
           type="button"
           onClick={onClose}

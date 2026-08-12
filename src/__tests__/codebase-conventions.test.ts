@@ -2294,7 +2294,12 @@ describe('no-parallel-board-geometry (Bahn-Layout gehört in TfBoard)', () => {
     'plugins/antraege/AntraegePage.tsx',                // Pane-Schiene, dokumentierter
                                                         // MasterDetailLayout-Nachbau
                                                         // (docs/layout-audit.md → Adoptions-Status)
-    'plugins/chat/assistent/AssistentPanelHost.tsx',    // Pane-Schiene
+    'plugins/chat/assistent/AssistentSpine.tsx',        // Pane-Schiene (seit v3.50
+                                                        // eigenes Bauteil: Dock UND
+                                                        // Suche tragen denselben
+                                                        // Streifen — ein Nachbau
+                                                        // wäre genau die Drift,
+                                                        // die dieser Guard meint)
     'plugins/antraege/gutachten/gutachten.css',         // Pane-Schiene (g-ctx-reopen-lbl)
   ];
   const isAllowed = (file: string): boolean => {
